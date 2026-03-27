@@ -4,7 +4,11 @@ import { Button, Badge, Tabs, Dialog, FileDropZone } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useBauantraegeStore } from './store';
 import { BauantragForm } from './BauantragForm';
+import { useDokumenteStore } from '@/plugins/dokumente/store';
+import { DocConverter } from '@/core/services/converter';
 import type { VorgangStatus } from '@/core/types/vorgang';
+
+const converter = new DocConverter();
 
 const STATUS_LABELS: Record<VorgangStatus, string> = {
   neu: 'Neu', in_bearbeitung: 'In Bearbeitung', nachforderung: 'Nachforderung',
@@ -103,12 +107,7 @@ export function BauantragDetail(): React.ReactElement | null {
           </div>
         )}
         {activeTab === 'dokumente' && (
-          <div className="space-y-4">
-            <p className="text-sm text-[var(--tf-text-secondary)]">Kommt in Phase 2</p>
-            <FileDropZone onFiles={() => {}} accept=".pdf,.docx" multiple>
-              <p className="text-sm text-[var(--tf-text-secondary)] opacity-50">Dokument-Upload (noch nicht aktiv)</p>
-            </FileDropZone>
-          </div>
+          <DokumenteTab vorgangId={vorgang.id} />
         )}
         {activeTab === 'notizen' && (
           <div className="space-y-2">
@@ -136,6 +135,44 @@ export function BauantragDetail(): React.ReactElement | null {
           Soll &quot;{vorgang.title}&quot; ({vorgang.id}) wirklich gelöscht werden? Dies kann nicht rückgängig gemacht werden.
         </p>
       </Dialog>
+    </div>
+  );
+}
+
+function DokumenteTab({ vorgangId }: { vorgangId: string }): React.ReactElement {
+  const storage = useStorage();
+  const { documents, add } = useDokumenteStore();
+  const vorgangDocs = documents.filter(d => d.vorgangId === vorgangId);
+
+  const handleFiles = async (files: File[]): Promise<void> => {
+    for (const file of files) {
+      try {
+        const result = await converter.convert(file);
+        await add({ filename: result.filename, format: result.format, markdown: result.markdown, tags: [], vorgangId }, storage);
+      } catch (err) {
+        console.error('Conversion failed:', err);
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <FileDropZone onFiles={handleFiles} accept=".docx,.md,.txt" multiple />
+      {vorgangDocs.length > 0 ? (
+        <div className="space-y-2">
+          {vorgangDocs.map(doc => (
+            <div key={doc.id} className="flex items-center gap-3 p-3 border border-[var(--tf-border)] rounded-[var(--tf-radius-sm)]">
+              <Badge variant="info">{doc.format.toUpperCase()}</Badge>
+              <span className="text-sm text-[var(--tf-text)]">{doc.filename}</span>
+              <span className="text-xs text-[var(--tf-text-secondary)] ml-auto">
+                {new Date(doc.created).toLocaleDateString('de-DE')}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-[var(--tf-text-secondary)]">Noch keine Dokumente zugeordnet</p>
+      )}
     </div>
   );
 }

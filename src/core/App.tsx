@@ -4,11 +4,14 @@ import { Onboarding } from '@/core/Onboarding';
 import { enabledPlugins } from '@/plugins.config';
 import { StorageService } from '@/core/services/storage';
 import { StorageContext } from '@/core/hooks/useStorage';
+import { AIBridge } from '@/core/services/ai/bridge';
+import { AIBridgeContext } from '@/core/hooks/useAIBridge';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import type { UserProfile } from '@/core/types/config';
 
 export function App(): React.ReactElement {
   const storage = useMemo(() => new StorageService(), []);
+  const aiBridge = useMemo(() => new AIBridge(), []);
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -33,11 +36,13 @@ export function App(): React.ReactElement {
 
   return (
     <StorageContext.Provider value={storage}>
-      {showOnboarding ? (
-        <Onboarding onComplete={() => setShowOnboarding(false)} />
-      ) : (
-        <Shell plugins={enabledPlugins} />
-      )}
+      <AIBridgeContext.Provider value={aiBridge}>
+        {showOnboarding ? (
+          <Onboarding onComplete={() => setShowOnboarding(false)} />
+        ) : (
+          <Shell plugins={enabledPlugins} />
+        )}
+      </AIBridgeContext.Provider>
     </StorageContext.Provider>
   );
 }

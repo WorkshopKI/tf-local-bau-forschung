@@ -2,10 +2,14 @@ import type { TeamFlowPlugin } from '@/core/types/plugin';
 import { homePlugin } from '@/plugins/home';
 import { einstellungenPlugin } from '@/plugins/einstellungen';
 import { bauantraegePlugin } from '@/plugins/bauantraege';
+import { dokumentePlugin } from '@/plugins/dokumente/index';
+import { chatPlugin } from '@/plugins/chat';
 
 const allPlugins: TeamFlowPlugin[] = [
   homePlugin,
   bauantraegePlugin,
+  dokumentePlugin,
+  chatPlugin,
   einstellungenPlugin,
 ];
 
