@@ -20,6 +20,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
   const [selectedHue, setSelectedHue] = useState(221);
   const [selectedSaturation, setSelectedSaturation] = useState<string | undefined>();
   const [fsConnected, setFsConnected] = useState(false);
+  const [fsName, setFsName] = useState('');
 
   const handleColorSelect = (h: number, s?: string): void => {
     setSelectedHue(h);
@@ -29,7 +30,10 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
 
   const handleConnectFs = async (): Promise<void> => {
     const ok = await storage.connectFileServer();
-    if (ok) setFsConnected(true);
+    if (ok) {
+      setFsConnected(true);
+      setFsName(storage.getFileServerName() ?? '');
+    }
   };
 
   const handleFinish = async (): Promise<void> => {
@@ -88,7 +92,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
             </p>
             <div className="flex flex-col items-center gap-3 py-4">
               <Button icon={FolderOpen} variant="secondary" onClick={handleConnectFs}>Verzeichnis wählen</Button>
-              <p className="text-[12px] text-[var(--tf-text-tertiary)]">{fsConnected ? 'Verbunden' : 'Kein Verzeichnis gewählt'}</p>
+              <p className="text-[12px] text-[var(--tf-text-tertiary)]">{fsConnected ? `Verbunden: ${fsName}` : 'Kein Verzeichnis gewählt'}</p>
             </div>
             <button onClick={() => setStep(2)} className="text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer block mx-auto">
               Ohne File Server starten →
@@ -110,7 +114,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
                 <span className="text-[var(--tf-text-tertiary)]">Farbe:</span>
                 <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: `hsl(${selectedHue}, ${selectedSaturation ?? '83%'}, 53%)` }} />
               </div>
-              <p><span className="text-[var(--tf-text-tertiary)]">File Server:</span> {fsConnected ? 'Verbunden' : 'Nicht verbunden'}</p>
+              <p><span className="text-[var(--tf-text-tertiary)]">File Server:</span> {fsConnected ? fsName : 'Nicht verbunden'}</p>
             </div>
             <Button icon={ArrowRight} onClick={handleFinish} className="w-full">Los geht's</Button>
           </div>

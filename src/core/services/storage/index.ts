@@ -18,6 +18,7 @@ export class StorageService {
         const permission = await handle.requestPermission({ mode: 'readwrite' });
         if (permission === 'granted') {
           this._fs = new FileServerStore(handle);
+          this._fsName = handle.name;
         }
       } catch {
         // Permission denied or handle invalid — continue without FS
@@ -25,15 +26,22 @@ export class StorageService {
     }
   }
 
+  private _fsName: string | null = null;
+
   async connectFileServer(): Promise<boolean> {
     try {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
       await this.idb.set('fs-handle', handle);
       this._fs = new FileServerStore(handle);
+      this._fsName = handle.name;
       return true;
     } catch {
       return false;
     }
+  }
+
+  getFileServerName(): string | null {
+    return this._fsName;
   }
 
   async disconnectFileServer(): Promise<void> {

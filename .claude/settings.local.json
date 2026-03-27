@@ -8,7 +8,9 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(npx tsc:*)",
       "Bash(npm run:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git checkout:*)",
+      "Bash(git rm:*)"
     ]
   }
 }
