@@ -4,11 +4,13 @@ import { einstellungenPlugin } from '@/plugins/einstellungen';
 import { bauantraegePlugin } from '@/plugins/bauantraege';
 import { dokumentePlugin } from '@/plugins/dokumente/index';
 import { chatPlugin } from '@/plugins/chat';
+import { suchePlugin } from '@/plugins/suche';
 
 const allPlugins: TeamFlowPlugin[] = [
   homePlugin,
   bauantraegePlugin,
   dokumentePlugin,
+  suchePlugin,
   chatPlugin,
   einstellungenPlugin,
 ];

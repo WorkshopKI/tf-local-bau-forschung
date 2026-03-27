@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, Building2 } from 'lucide-react';
 import { Button, Badge, Card } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useSearch } from '@/core/hooks/useSearch';
 import { useBauantraegeStore } from './store';
 import { BauantragForm } from './BauantragForm';
 import type { VorgangStatus } from '@/core/types/vorgang';
@@ -18,10 +19,25 @@ const STATUS_VARIANTS: Record<VorgangStatus, 'info' | 'warning' | 'success' | 'e
 
 export function BauantraegeListe(): React.ReactElement {
   const storage = useStorage();
+  const { indexDocument } = useSearch();
   const { bauantraege, filters, loadAll, setSelectedId, setFilters } = useBauantraegeStore();
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => { loadAll(storage); }, [storage, loadAll]);
+
+  // Auto-index all loaded Bauanträge
+  useEffect(() => {
+    for (const v of bauantraege) {
+      indexDocument({
+        id: v.id,
+        text: `${v.title} ${v.notes} ${v.tags.join(' ')}`,
+        title: v.title,
+        source: v.id,
+        tags: v.tags,
+        type: 'bauantrag',
+      });
+    }
+  }, [bauantraege, indexDocument]);
 
   const filtered = useMemo(() => {
     return bauantraege.filter(v => {

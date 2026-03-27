@@ -6,12 +6,13 @@ import { StorageService } from '@/core/services/storage';
 import { StorageContext } from '@/core/hooks/useStorage';
 import { AIBridge } from '@/core/services/ai/bridge';
 import { AIBridgeContext } from '@/core/hooks/useAIBridge';
+import { SearchContext, useSearchProvider } from '@/core/hooks/useSearch';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import type { UserProfile } from '@/core/types/config';
 
-export function App(): React.ReactElement {
-  const storage = useMemo(() => new StorageService(), []);
+function AppInner({ storage }: { storage: StorageService }): React.ReactElement {
   const aiBridge = useMemo(() => new AIBridge(), []);
+  const searchValue = useSearchProvider(storage);
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -35,14 +36,23 @@ export function App(): React.ReactElement {
   if (!ready) return <div />;
 
   return (
-    <StorageContext.Provider value={storage}>
-      <AIBridgeContext.Provider value={aiBridge}>
+    <AIBridgeContext.Provider value={aiBridge}>
+      <SearchContext.Provider value={searchValue}>
         {showOnboarding ? (
           <Onboarding onComplete={() => setShowOnboarding(false)} />
         ) : (
           <Shell plugins={enabledPlugins} />
         )}
-      </AIBridgeContext.Provider>
+      </SearchContext.Provider>
+    </AIBridgeContext.Provider>
+  );
+}
+
+export function App(): React.ReactElement {
+  const storage = useMemo(() => new StorageService(), []);
+  return (
+    <StorageContext.Provider value={storage}>
+      <AppInner storage={storage} />
     </StorageContext.Provider>
   );
 }

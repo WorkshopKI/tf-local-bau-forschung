@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { FileText } from 'lucide-react';
 import { FileDropZone, Badge, Card } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useSearch } from '@/core/hooks/useSearch';
 import { DocConverter } from '@/core/services/converter';
 import { useDokumenteStore } from './store';
 
@@ -9,6 +10,7 @@ const converter = new DocConverter();
 
 export function DokumenteListe(): React.ReactElement {
   const storage = useStorage();
+  const { indexDocument } = useSearch();
   const { documents, loadAll, add, setSelectedId } = useDokumenteStore();
   const [converting, setConverting] = useState(false);
 
@@ -25,6 +27,14 @@ export function DokumenteListe(): React.ReactElement {
           markdown: result.markdown,
           tags: [],
         }, storage);
+        indexDocument({
+          id: `doc-${Date.now()}`,
+          text: result.markdown,
+          title: result.filename,
+          source: result.filename,
+          tags: [],
+          type: 'dokument',
+        });
       } catch (err) {
         console.error('Conversion failed:', err);
       }
