@@ -1493,13 +1493,14 @@ export async function docxToMarkdown(
 }
 
 [data-theme="dark"] {
-  --tf-bg: #212121;
-  --tf-bg-secondary: #2f2f2f;
-  --tf-bg-sidebar: #171717;
-  --tf-text: #ececec;
-  --tf-text-secondary: #999;
-  --tf-border: #424242;
-  --tf-hover: #2f2f2f;
+  --tf-bg: #2a2a28;
+  --tf-bg-secondary: #333330;
+  --tf-bg-sidebar: #222220;
+  --tf-text: #cccac4;
+  --tf-text-secondary: #8a8884;
+  --tf-text-tertiary: #605e5a;
+  --tf-border: rgba(200, 195, 180, 0.08);
+  --tf-hover: rgba(200, 195, 180, 0.05);
 }
 ```
 
