@@ -7,3 +7,5 @@ export { Tabs } from './Tabs';
 export { Select } from './Select';
 export { FileDropZone } from './FileDropZone';
 export { MarkdownRenderer } from './MarkdownRenderer';
+export { SectionHeader } from './SectionHeader';
+export { ListItem } from './ListItem';

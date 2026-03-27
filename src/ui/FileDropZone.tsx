@@ -37,26 +37,16 @@ export function FileDropZone({ onFiles, accept, multiple = false, children }: Fi
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
-      className={`flex flex-col items-center justify-center gap-2 p-8 border-2 border-dashed rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-        dragOver
-          ? 'border-[var(--tf-primary)] bg-[var(--tf-primary-light)]'
-          : 'border-[var(--tf-border)] hover:border-[var(--tf-primary)] hover:bg-[var(--tf-hover)]'
+      className={`flex flex-col items-center justify-center gap-2 p-8 border-dashed rounded-[var(--tf-radius-lg)] cursor-pointer transition-colors ${
+        dragOver ? 'bg-[var(--tf-hover)]' : 'hover:bg-[var(--tf-hover)]'
       }`}
+      style={{ border: `1.5px dashed ${dragOver ? 'var(--tf-border-hover)' : 'var(--tf-border)'}` }}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        multiple={multiple}
-        onChange={handleChange}
-        className="hidden"
-      />
+      <input ref={inputRef} type="file" accept={accept} multiple={multiple} onChange={handleChange} className="hidden" />
       {children ?? (
         <>
-          <Upload size={24} className="text-[var(--tf-text-secondary)]" />
-          <p className="text-sm text-[var(--tf-text-secondary)]">
-            Datei hierher ziehen oder klicken
-          </p>
+          <Upload size={20} className="text-[var(--tf-text-tertiary)]" />
+          <p className="text-[13px] text-[var(--tf-text-secondary)]">Datei hierher ziehen oder klicken</p>
         </>
       )}
     </div>

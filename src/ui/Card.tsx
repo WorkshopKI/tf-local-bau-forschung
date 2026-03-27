@@ -6,13 +6,14 @@ interface CardProps {
 
 export function Card({ title, children, className = '' }: CardProps): React.ReactElement {
   return (
-    <div className={`bg-[var(--tf-bg)] border border-[var(--tf-border)] rounded-[var(--tf-radius)] ${className}`}>
+    <div className={`bg-[var(--tf-bg)] rounded-[var(--tf-radius-lg)] p-[18px] ${className}`}
+      style={{ border: '0.5px solid var(--tf-border)' }}>
       {title && (
-        <div className="px-6 py-4 border-b border-[var(--tf-border)]">
-          <h3 className="text-base font-semibold text-[var(--tf-text)]">{title}</h3>
+        <div className="mb-4">
+          <h3 className="text-[14px] font-medium text-[var(--tf-text)]">{title}</h3>
         </div>
       )}
-      <div className="p-6">{children}</div>
+      {children}
     </div>
   );
 }

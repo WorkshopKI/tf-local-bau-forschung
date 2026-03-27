@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Check, FolderOpen, Wifi, WifiOff, Sun, Moon } from 'lucide-react';
-import { Tabs, Button, Badge, Card } from '@/ui';
+import { Tabs, Button, Badge, SectionHeader } from '@/ui';
 import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/ui/theme';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
@@ -12,14 +12,15 @@ const TABS = [
   { id: 'speicher', label: 'Speicher' },
 ];
 
+const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
+const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
+
 export function EinstellungenPage(): React.ReactElement {
   const storage = useStorage();
   const [activeTab, setActiveTab] = useState('profil');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [dark, setDark] = useState(isDarkMode());
-  const [aiConfig, setAiConfig] = useState<AIProviderConfig>({
-    type: 'streamlit', endpoint: 'http://localhost:8501', model: '', apiKey: '',
-  });
+  const [aiConfig, setAiConfig] = useState<AIProviderConfig>({ type: 'streamlit', endpoint: 'http://localhost:8501', model: '', apiKey: '' });
 
   useEffect(() => {
     storage.idb.get<UserProfile>('profile').then(p => { if (p) setProfile(p); });
@@ -30,14 +31,6 @@ export function EinstellungenPage(): React.ReactElement {
     setProfile(updated);
     await storage.idb.set('profile', updated);
   }, [storage]);
-
-  const handleNameChange = (name: string): void => {
-    if (profile) saveProfile({ ...profile, name });
-  };
-
-  const handleDeptChange = (dept: string): void => {
-    if (profile) saveProfile({ ...profile, department: dept as UserProfile['department'] });
-  };
 
   const handleColorChange = (h: number, s?: string): void => {
     applyThemeColor(h, s);
@@ -51,133 +44,101 @@ export function EinstellungenPage(): React.ReactElement {
     if (profile) saveProfile({ ...profile, theme: { ...profile.theme, dark: next } });
   };
 
-  const initials = profile?.name
-    ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : '??';
+  const initials = profile?.name ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '??';
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-semibold text-[var(--tf-text)] mb-6">Einstellungen</h1>
+    <div className="p-6 max-w-2xl mx-auto">
+      <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Einstellungen</h1>
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
       <div className="mt-6">
         {activeTab === 'profil' && profile && (
-          <ProfilTab profile={profile} initials={initials} onNameChange={handleNameChange} onDeptChange={handleDeptChange} />
+          <div>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 rounded-full bg-[var(--tf-text)] flex items-center justify-center text-[var(--tf-bg)] text-lg font-medium">{initials}</div>
+              <div>
+                <p className="text-[14px] font-medium text-[var(--tf-text)]">{profile.name}</p>
+                <p className="text-[12px] text-[var(--tf-text-secondary)]">{profile.department}</p>
+              </div>
+            </div>
+            <SectionHeader label="Profil bearbeiten" />
+            <div className="grid gap-4 sm:grid-cols-2 mt-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-medium text-[var(--tf-text)]">Name</label>
+                <input value={profile.name} onChange={e => saveProfile({ ...profile, name: e.target.value })} className={inputClass} style={inputStyle} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-medium text-[var(--tf-text)]">Abteilung</label>
+                <select value={profile.department} onChange={e => saveProfile({ ...profile, department: e.target.value as UserProfile['department'] })} className={inputClass} style={inputStyle}>
+                  <option value="bauantraege">Bauanträge</option>
+                  <option value="forschung">Forschung</option>
+                  <option value="beide">Beide</option>
+                </select>
+              </div>
+            </div>
+          </div>
         )}
+
         {activeTab === 'darstellung' && (
-          <DarstellungTab selectedHue={profile?.theme.hue ?? 221} dark={dark} onColorChange={handleColorChange} onDarkToggle={handleDarkToggle} />
+          <div className="space-y-6">
+            <div>
+              <SectionHeader label="Primärfarbe" />
+              <div className="flex gap-2.5 mt-3">
+                {PRESET_COLORS.map(c => (
+                  <button key={c.name} onClick={() => handleColorChange(c.h, c.s)}
+                    className="w-[44px] h-[44px] rounded-full cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
+                    style={{ backgroundColor: `hsl(${c.h}, ${c.s ?? '83%'}, 53%)`, border: (profile?.theme.hue ?? 221) === c.h ? '2px solid var(--tf-text)' : '2px solid transparent' }}
+                    title={c.name}>
+                    {(profile?.theme.hue ?? 221) === c.h && <Check size={18} className="text-white" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <SectionHeader label="Erscheinungsbild" />
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-[13px] text-[var(--tf-text)]">Dark Mode</span>
+                <button onClick={handleDarkToggle}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--tf-radius)] text-[13px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+                  style={{ border: '0.5px solid var(--tf-border)' }}>
+                  {dark ? <Moon size={14} /> : <Sun size={14} />}
+                  {dark ? 'Dark' : 'Light'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
+
         {activeTab === 'ai' && (
-          <AITab config={aiConfig} onChange={c => { setAiConfig(c); storage.idb.set('ai-provider', c); }} />
+          <div className="space-y-4">
+            <SectionHeader label="Provider auswählen" />
+            {([['streamlit', 'Streamlit Bridge'], ['llama-local', 'llama.cpp (lokal)'], ['cloud', 'Cloud API']] as const).map(([type, label]) => (
+              <label key={type} className="flex items-center gap-3 py-2 cursor-pointer" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
+                <input type="radio" name="ai-provider" checked={aiConfig.type === type}
+                  onChange={() => { const c = { ...aiConfig, type }; setAiConfig(c); storage.idb.set('ai-provider', c); }}
+                  className="accent-[var(--tf-text)]" />
+                <span className="text-[13px] text-[var(--tf-text)]">{label}</span>
+                {aiConfig.type === type && <Badge variant="info">Aktiv</Badge>}
+              </label>
+            ))}
+            <SectionHeader label="Konfiguration" />
+            <div className="space-y-3 mt-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-medium text-[var(--tf-text)]">Endpoint</label>
+                <input value={aiConfig.endpoint} onChange={e => { const c = { ...aiConfig, endpoint: e.target.value }; setAiConfig(c); storage.idb.set('ai-provider', c); }} className={inputClass} style={inputStyle} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-medium text-[var(--tf-text)]">Model</label>
+                <input value={aiConfig.model} onChange={e => { const c = { ...aiConfig, model: e.target.value }; setAiConfig(c); storage.idb.set('ai-provider', c); }} className={inputClass} style={inputStyle} />
+              </div>
+              <Button variant="secondary" onClick={() => alert('Nicht implementiert')}>Testen</Button>
+            </div>
+          </div>
         )}
+
         {activeTab === 'speicher' && <SpeicherTab />}
       </div>
     </div>
-  );
-}
-
-function ProfilTab({ profile, initials, onNameChange, onDeptChange }: {
-  profile: UserProfile; initials: string;
-  onNameChange: (n: string) => void; onDeptChange: (d: string) => void;
-}): React.ReactElement {
-  return (
-    <Card>
-      <div className="flex items-center gap-4 mb-6">
-        <div className="w-16 h-16 rounded-full bg-[var(--tf-primary)] flex items-center justify-center text-white text-xl font-bold">
-          {initials}
-        </div>
-        <div>
-          <p className="font-medium text-[var(--tf-text)]">{profile.name}</p>
-          <p className="text-sm text-[var(--tf-text-secondary)]">{profile.department}</p>
-        </div>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--tf-text)]">Name</label>
-          <input value={profile.name} onChange={e => onNameChange(e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-[var(--tf-bg)] text-[var(--tf-text)] border border-[var(--tf-border)] rounded-[var(--tf-radius-sm)] outline-none focus:ring-2 focus:ring-[var(--tf-primary)]" />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--tf-text)]">Abteilung</label>
-          <select value={profile.department} onChange={e => onDeptChange(e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-[var(--tf-bg)] text-[var(--tf-text)] border border-[var(--tf-border)] rounded-[var(--tf-radius-sm)] outline-none focus:ring-2 focus:ring-[var(--tf-primary)]">
-            <option value="bauantraege">Bauanträge</option>
-            <option value="forschung">Forschung</option>
-            <option value="beide">Beide</option>
-          </select>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function DarstellungTab({ selectedHue, dark, onColorChange, onDarkToggle }: {
-  selectedHue: number; dark: boolean; onColorChange: (h: number, s?: string) => void; onDarkToggle: () => void;
-}): React.ReactElement {
-  return (
-    <Card>
-      <div className="space-y-6">
-        <div>
-          <label className="text-sm font-medium text-[var(--tf-text)] block mb-3">Primärfarbe</label>
-          <div className="flex gap-3">
-            {PRESET_COLORS.map(c => (
-              <button key={c.name} onClick={() => onColorChange(c.h, c.s)}
-                className="w-[50px] h-[50px] rounded-full border-2 cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
-                style={{ backgroundColor: `hsl(${c.h}, ${c.s ?? '83%'}, 53%)`, borderColor: selectedHue === c.h ? 'var(--tf-text)' : 'transparent' }}
-                title={c.name}>
-                {selectedHue === c.h && <Check size={20} className="text-white" />}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-[var(--tf-text)]">Dark Mode</span>
-          <button onClick={onDarkToggle}
-            className="flex items-center gap-2 px-4 py-2 rounded-[var(--tf-radius-sm)] border border-[var(--tf-border)] hover:bg-[var(--tf-hover)] cursor-pointer text-sm text-[var(--tf-text)]">
-            {dark ? <Moon size={16} /> : <Sun size={16} />}
-            {dark ? 'Dark' : 'Light'}
-          </button>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function AITab({ config, onChange }: {
-  config: AIProviderConfig; onChange: (c: AIProviderConfig) => void;
-}): React.ReactElement {
-  const providers: Array<{ type: AIProviderConfig['type']; label: string }> = [
-    { type: 'streamlit', label: 'Streamlit Bridge' },
-    { type: 'llama-local', label: 'llama.cpp (lokal)' },
-    { type: 'cloud', label: 'Cloud API' },
-  ];
-  return (
-    <Card>
-      <div className="space-y-4">
-        {providers.map(p => (
-          <label key={p.type} className="flex items-center gap-3 cursor-pointer">
-            <input type="radio" name="ai-provider" checked={config.type === p.type}
-              onChange={() => onChange({ ...config, type: p.type })}
-              className="accent-[var(--tf-primary)]" />
-            <span className="text-sm text-[var(--tf-text)]">{p.label}</span>
-            {config.type === p.type && <Badge variant="info">Aktiv</Badge>}
-          </label>
-        ))}
-        <div className="border-t border-[var(--tf-border)] pt-4 space-y-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-[var(--tf-text)]">Endpoint</label>
-            <input value={config.endpoint} onChange={e => onChange({ ...config, endpoint: e.target.value })}
-              className="w-full px-3 py-2 text-sm bg-[var(--tf-bg)] text-[var(--tf-text)] border border-[var(--tf-border)] rounded-[var(--tf-radius-sm)] outline-none focus:ring-2 focus:ring-[var(--tf-primary)]" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-[var(--tf-text)]">Model</label>
-            <input value={config.model} onChange={e => onChange({ ...config, model: e.target.value })}
-              className="w-full px-3 py-2 text-sm bg-[var(--tf-bg)] text-[var(--tf-text)] border border-[var(--tf-border)] rounded-[var(--tf-radius-sm)] outline-none focus:ring-2 focus:ring-[var(--tf-primary)]" />
-          </div>
-          <Button variant="secondary" onClick={() => alert('Nicht implementiert')}>Testen</Button>
-        </div>
-      </div>
-    </Card>
   );
 }
 
@@ -185,39 +146,22 @@ function SpeicherTab(): React.ReactElement {
   const storage = useStorage();
   const [connected, setConnected] = useState(storage.isFileServerConnected());
 
-  const handleConnect = async (): Promise<void> => {
-    const ok = await storage.connectFileServer();
-    setConnected(ok);
-  };
-
-  const handleDisconnect = async (): Promise<void> => {
-    await storage.disconnectFileServer();
-    setConnected(false);
-  };
-
   return (
-    <Card>
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          {connected ? <Wifi size={20} className="text-green-600" /> : <WifiOff size={20} className="text-[var(--tf-text-secondary)]" />}
-          <div>
-            <p className="text-sm font-medium text-[var(--tf-text)]">
-              File Server: {connected ? 'Verbunden' : 'Nicht verbunden'}
-            </p>
-            <p className="text-xs text-[var(--tf-text-secondary)]">
-              {connected ? 'Vorgänge werden auf dem File Server gespeichert' : 'Nur lokaler Speicher (IndexedDB)'}
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" icon={FolderOpen} onClick={handleConnect}>
-            {connected ? 'Verzeichnis wechseln' : 'Verzeichnis wählen'}
-          </Button>
-          {connected && (
-            <Button variant="ghost" onClick={handleDisconnect}>Trennen</Button>
-          )}
+    <div className="space-y-4">
+      <SectionHeader label="File Server" />
+      <div className="flex items-center gap-3 mt-3">
+        {connected ? <Wifi size={18} className="text-[var(--tf-success-text)]" /> : <WifiOff size={18} className="text-[var(--tf-text-tertiary)]" />}
+        <div>
+          <p className="text-[13px] font-medium text-[var(--tf-text)]">{connected ? 'Verbunden' : 'Nicht verbunden'}</p>
+          <p className="text-[12px] text-[var(--tf-text-secondary)]">{connected ? 'Vorgänge werden auf dem File Server gespeichert' : 'Nur lokaler Speicher (IndexedDB)'}</p>
         </div>
       </div>
-    </Card>
+      <div className="flex gap-2 mt-3">
+        <Button variant="secondary" icon={FolderOpen} onClick={async () => { const ok = await storage.connectFileServer(); setConnected(ok); }}>
+          {connected ? 'Verzeichnis wechseln' : 'Verzeichnis wählen'}
+        </Button>
+        {connected && <Button variant="ghost" onClick={async () => { await storage.disconnectFileServer(); setConnected(false); }}>Trennen</Button>}
+      </div>
+    </div>
   );
 }

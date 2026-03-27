@@ -9,6 +9,9 @@ interface OnboardingProps {
   onComplete: () => void;
 }
 
+const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
+const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
+
 export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement {
   const storage = useStorage();
   const [step, setStep] = useState(0);
@@ -17,7 +20,6 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
   const [selectedHue, setSelectedHue] = useState(221);
   const [selectedSaturation, setSelectedSaturation] = useState<string | undefined>();
   const [fsConnected, setFsConnected] = useState(false);
-  const [fsName, setFsName] = useState('');
 
   const handleColorSelect = (h: number, s?: string): void => {
     setSelectedHue(h);
@@ -27,18 +29,11 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
 
   const handleConnectFs = async (): Promise<void> => {
     const ok = await storage.connectFileServer();
-    if (ok) {
-      setFsConnected(true);
-      setFsName('Verbunden');
-    }
+    if (ok) setFsConnected(true);
   };
 
   const handleFinish = async (): Promise<void> => {
-    const profile: UserProfile = {
-      name,
-      department,
-      theme: { hue: selectedHue, dark: false },
-    };
+    const profile: UserProfile = { name, department, theme: { hue: selectedHue, dark: false } };
     await storage.idb.set('profile', profile);
     await storage.idb.set('onboarding-complete', true);
     applyThemeColor(selectedHue, selectedSaturation);
@@ -47,117 +42,83 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50">
-      <div className="w-full max-w-lg mx-4 bg-[var(--tf-bg)] border border-[var(--tf-border)] rounded-[var(--tf-radius)] shadow-xl p-8">
+      <div className="w-full max-w-[400px] mx-4 bg-[var(--tf-bg)] rounded-[16px] p-8" style={{ border: '0.5px solid var(--tf-border)' }}>
         {step === 0 && (
           <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-[var(--tf-text)]">Willkommen bei TeamFlow!</h1>
+            <h1 className="text-[20px] font-medium text-[var(--tf-text)] text-center">Willkommen bei TeamFlow</h1>
             <div className="space-y-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-[var(--tf-text)]">Dein Name</label>
-                <input
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="Max Mustermann"
-                  className="w-full px-3 py-2 text-sm bg-[var(--tf-bg)] text-[var(--tf-text)] border border-[var(--tf-border)] rounded-[var(--tf-radius-sm)] outline-none focus:ring-2 focus:ring-[var(--tf-primary)]"
-                />
+                <label className="text-[13px] font-medium text-[var(--tf-text)]">Dein Name</label>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="Max Mustermann" className={inputClass} style={inputStyle} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-[var(--tf-text)]">Abteilung</label>
-                <select
-                  value={department}
-                  onChange={e => setDepartment(e.target.value as UserProfile['department'])}
-                  className="w-full px-3 py-2 text-sm bg-[var(--tf-bg)] text-[var(--tf-text)] border border-[var(--tf-border)] rounded-[var(--tf-radius-sm)] outline-none focus:ring-2 focus:ring-[var(--tf-primary)]"
-                >
+                <label className="text-[13px] font-medium text-[var(--tf-text)]">Abteilung</label>
+                <select value={department} onChange={e => setDepartment(e.target.value as UserProfile['department'])} className={inputClass} style={inputStyle}>
                   <option value="bauantraege">Bauanträge</option>
                   <option value="forschung">Forschung</option>
                   <option value="beide">Beide</option>
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-[var(--tf-text)]">Farbe</label>
-                <div className="flex gap-3">
+                <label className="text-[13px] font-medium text-[var(--tf-text)]">Farbe</label>
+                <div className="flex gap-2.5 justify-center">
                   {PRESET_COLORS.map(c => (
-                    <button
-                      key={c.name}
-                      onClick={() => handleColorSelect(c.h, c.s)}
-                      className="w-[50px] h-[50px] rounded-full border-2 cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
+                    <button key={c.name} onClick={() => handleColorSelect(c.h, c.s)}
+                      className="w-[44px] h-[44px] rounded-full cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
                       style={{
                         backgroundColor: `hsl(${c.h}, ${c.s ?? '83%'}, 53%)`,
-                        borderColor: selectedHue === c.h ? 'var(--tf-text)' : 'transparent',
+                        border: selectedHue === c.h ? '2px solid var(--tf-text)' : '2px solid transparent',
                       }}
-                      title={c.name}
-                    >
-                      {selectedHue === c.h && <Check size={20} className="text-white" />}
+                      title={c.name}>
+                      {selectedHue === c.h && <Check size={18} className="text-white" />}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
-            <Button icon={ArrowRight} disabled={!name.trim()} onClick={() => setStep(1)} className="w-full">
-              Weiter
-            </Button>
+            <Button icon={ArrowRight} disabled={!name.trim()} onClick={() => setStep(1)} className="w-full">Weiter</Button>
           </div>
         )}
 
         {step === 1 && (
           <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-[var(--tf-text)]">Datenverzeichnis</h1>
-            <p className="text-sm text-[var(--tf-text-secondary)]">
+            <h1 className="text-[20px] font-medium text-[var(--tf-text)] text-center">Datenverzeichnis</h1>
+            <p className="text-[13px] text-[var(--tf-text-secondary)] text-center">
               TeamFlow speichert Vorgänge und Dokumente auf eurem File Server.
             </p>
-            <div className="flex flex-col items-center gap-4 py-4">
-              <Button icon={FolderOpen} variant="secondary" onClick={handleConnectFs}>
-                Verzeichnis wählen
-              </Button>
-              <p className="text-sm text-[var(--tf-text-secondary)]">
-                {fsConnected ? fsName : 'Kein Verzeichnis gewählt'}
-              </p>
+            <div className="flex flex-col items-center gap-3 py-4">
+              <Button icon={FolderOpen} variant="secondary" onClick={handleConnectFs}>Verzeichnis wählen</Button>
+              <p className="text-[12px] text-[var(--tf-text-tertiary)]">{fsConnected ? 'Verbunden' : 'Kein Verzeichnis gewählt'}</p>
             </div>
-            <button
-              onClick={() => setStep(2)}
-              className="text-sm text-[var(--tf-primary)] hover:underline cursor-pointer"
-            >
+            <button onClick={() => setStep(2)} className="text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer block mx-auto">
               Ohne File Server starten →
             </button>
-            <Button icon={ArrowRight} onClick={() => setStep(2)} className="w-full mt-2">
-              Weiter
-            </Button>
+            <Button icon={ArrowRight} onClick={() => setStep(2)} className="w-full mt-2">Weiter</Button>
           </div>
         )}
 
         {step === 2 && (
           <div className="space-y-6 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-              <Check size={32} className="text-green-600" />
+            <div className="w-14 h-14 rounded-full bg-[var(--tf-success-bg)] flex items-center justify-center mx-auto">
+              <Check size={28} className="text-[var(--tf-success-text)]" />
             </div>
-            <h1 className="text-2xl font-bold text-[var(--tf-text)]">Alles eingerichtet!</h1>
-            <div className="text-sm text-[var(--tf-text-secondary)] space-y-2">
-              <p><strong>Name:</strong> {name}</p>
-              <p><strong>Abteilung:</strong> {department === 'bauantraege' ? 'Bauanträge' : department === 'forschung' ? 'Forschung' : 'Beide'}</p>
+            <h1 className="text-[20px] font-medium text-[var(--tf-text)]">Alles eingerichtet</h1>
+            <div className="text-[13px] text-[var(--tf-text-secondary)] space-y-1.5">
+              <p><span className="text-[var(--tf-text-tertiary)]">Name:</span> {name}</p>
+              <p><span className="text-[var(--tf-text-tertiary)]">Abteilung:</span> {department === 'bauantraege' ? 'Bauanträge' : department === 'forschung' ? 'Forschung' : 'Beide'}</p>
               <div className="flex items-center justify-center gap-2">
-                <strong>Farbe:</strong>
-                <span
-                  className="w-5 h-5 rounded-full inline-block"
-                  style={{ backgroundColor: `hsl(${selectedHue}, ${selectedSaturation ?? '83%'}, 53%)` }}
-                />
+                <span className="text-[var(--tf-text-tertiary)]">Farbe:</span>
+                <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: `hsl(${selectedHue}, ${selectedSaturation ?? '83%'}, 53%)` }} />
               </div>
-              <p><strong>File Server:</strong> {fsConnected ? 'Verbunden' : 'Nicht verbunden'}</p>
+              <p><span className="text-[var(--tf-text-tertiary)]">File Server:</span> {fsConnected ? 'Verbunden' : 'Nicht verbunden'}</p>
             </div>
-            <Button icon={ArrowRight} onClick={handleFinish} className="w-full">
-              Los geht's
-            </Button>
+            <Button icon={ArrowRight} onClick={handleFinish} className="w-full">Los geht's</Button>
           </div>
         )}
 
-        {/* Step indicator */}
         <div className="flex justify-center gap-2 mt-6">
           {[0, 1, 2].map(i => (
-            <div
-              key={i}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                i === step ? 'bg-[var(--tf-primary)]' : 'bg-[var(--tf-border)]'
-              }`}
-            />
+            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === step ? 'bg-[var(--tf-text)]' : 'bg-[var(--tf-border)]'}`} />
           ))}
         </div>
       </div>

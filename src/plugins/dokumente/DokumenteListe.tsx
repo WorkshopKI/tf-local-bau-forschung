@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FileText } from 'lucide-react';
-import { FileDropZone, Badge, Card } from '@/ui';
+import { FileDropZone, Badge, SectionHeader, ListItem } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { DocConverter } from '@/core/services/converter';
@@ -21,64 +21,44 @@ export function DokumenteListe(): React.ReactElement {
     for (const file of files) {
       try {
         const result = await converter.convert(file);
-        await add({
-          filename: result.filename,
-          format: result.format,
-          markdown: result.markdown,
-          tags: [],
-        }, storage);
-        indexDocument({
-          id: `doc-${Date.now()}`,
-          text: result.markdown,
-          title: result.filename,
-          source: result.filename,
-          tags: [],
-          type: 'dokument',
-        });
-      } catch (err) {
-        console.error('Conversion failed:', err);
-      }
+        await add({ filename: result.filename, format: result.format, markdown: result.markdown, tags: [] }, storage);
+        indexDocument({ id: `doc-${Date.now()}`, text: result.markdown, title: result.filename, source: result.filename, tags: [], type: 'dokument' });
+      } catch (err) { console.error('Conversion failed:', err); }
     }
     setConverting(false);
   };
 
-  const formatBadge = (format: string): 'info' | 'success' | 'default' => {
-    if (format === 'docx') return 'info';
-    if (format === 'md') return 'success';
-    return 'default';
-  };
-
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-semibold text-[var(--tf-text)] mb-6">Dokumente</h1>
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Dokumente</h1>
 
       <FileDropZone onFiles={handleFiles} accept=".docx,.md,.txt" multiple>
-        {converting ? (
-          <p className="text-sm text-[var(--tf-primary)]">Konvertiere...</p>
-        ) : undefined}
+        {converting ? <p className="text-[13px] text-[var(--tf-text-secondary)]">Konvertiere...</p> : undefined}
       </FileDropZone>
 
       {documents.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <FileText size={48} className="text-[var(--tf-text-secondary)] mb-4" />
-          <p className="text-lg text-[var(--tf-text-secondary)]">Noch keine Dokumente</p>
-          <p className="text-sm text-[var(--tf-text-secondary)]">Dateien oben ablegen zum Importieren</p>
+          <FileText size={40} className="text-[var(--tf-text-tertiary)] mb-4" />
+          <p className="text-[var(--tf-text-secondary)]">Noch keine Dokumente</p>
+          <p className="text-[12px] text-[var(--tf-text-tertiary)]">Dateien oben ablegen zum Importieren</p>
         </div>
       ) : (
-        <div className="space-y-3 mt-6">
-          {documents.map(doc => (
-            <Card key={doc.id} className="cursor-pointer hover:border-[var(--tf-primary)] transition-colors">
-              <div onClick={() => setSelectedId(doc.id)} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <FileText size={18} className="text-[var(--tf-text-secondary)]" />
-                  <span className="text-sm font-medium text-[var(--tf-text)]">{doc.filename}</span>
-                  <Badge variant={formatBadge(doc.format)}>{doc.format.toUpperCase()}</Badge>
-                </div>
-                <span className="text-xs text-[var(--tf-text-secondary)]">
-                  {new Date(doc.created).toLocaleDateString('de-DE')}
-                </span>
-              </div>
-            </Card>
+        <div className="mt-6">
+          <SectionHeader label="Importierte Dokumente" />
+          {documents.map((doc, i) => (
+            <ListItem
+              key={doc.id}
+              icon={<FileText size={14} className="text-[var(--tf-text-tertiary)]" />}
+              title={doc.filename}
+              meta={
+                <>
+                  <Badge variant={doc.format === 'docx' ? 'info' : doc.format === 'md' ? 'success' : 'default'}>{doc.format.toUpperCase()}</Badge>
+                  <span className="text-[11px] text-[var(--tf-text-tertiary)]">{new Date(doc.created).toLocaleDateString('de-DE')}</span>
+                </>
+              }
+              onClick={() => setSelectedId(doc.id)}
+              last={i === documents.length - 1}
+            />
           ))}
         </div>
       )}

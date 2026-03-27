@@ -49,7 +49,8 @@ export function BauantragForm({ open, onClose, initialValues }: BauantragFormPro
     onClose();
   };
 
-  const inputClass = 'w-full px-3 py-2 text-sm bg-[var(--tf-bg)] text-[var(--tf-text)] border border-[var(--tf-border)] rounded-[var(--tf-radius-sm)] outline-none focus:ring-2 focus:ring-[var(--tf-primary)]';
+  const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
+  const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 
   return (
     <Dialog
@@ -65,13 +66,13 @@ export function BauantragForm({ open, onClose, initialValues }: BauantragFormPro
     >
       <div className="space-y-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--tf-text)]">Titel *</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="z.B. Neubau EFH Musterstr. 12" className={inputClass} />
+          <label className="text-[13px] font-medium text-[var(--tf-text)]">Titel *</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="z.B. Neubau EFH Musterstr. 12" className={inputClass} style={inputStyle} />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-[var(--tf-text)]">Priorität</label>
-            <select value={priority} onChange={e => setPriority(e.target.value as Vorgang['priority'])} className={inputClass}>
+            <label className="text-[13px] font-medium text-[var(--tf-text)]">Priorität</label>
+            <select value={priority} onChange={e => setPriority(e.target.value as Vorgang['priority'])} className={inputClass} style={inputStyle}>
               <option value="niedrig">Niedrig</option>
               <option value="normal">Normal</option>
               <option value="hoch">Hoch</option>
@@ -79,21 +80,21 @@ export function BauantragForm({ open, onClose, initialValues }: BauantragFormPro
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-[var(--tf-text)]">Frist</label>
-            <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className={inputClass} />
+            <label className="text-[13px] font-medium text-[var(--tf-text)]">Frist</label>
+            <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className={inputClass} style={inputStyle} />
           </div>
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--tf-text)]">Zuständiger</label>
-          <input value={assignee} onChange={e => setAssignee(e.target.value)} placeholder="Name" className={inputClass} />
+          <label className="text-[13px] font-medium text-[var(--tf-text)]">Zuständiger</label>
+          <input value={assignee} onChange={e => setAssignee(e.target.value)} placeholder="Name" className={inputClass} style={inputStyle} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--tf-text)]">Tags</label>
-          <input value={tags} onChange={e => setTags(e.target.value)} placeholder="Komma-separiert" className={inputClass} />
+          <label className="text-[13px] font-medium text-[var(--tf-text)]">Tags</label>
+          <input value={tags} onChange={e => setTags(e.target.value)} placeholder="Komma-separiert" className={inputClass} style={inputStyle} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--tf-text)]">Notizen</label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className={inputClass} />
+          <label className="text-[13px] font-medium text-[var(--tf-text)]">Notizen</label>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className={inputClass} style={inputStyle} />
         </div>
       </div>
     </Dialog>

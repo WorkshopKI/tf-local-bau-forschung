@@ -28,20 +28,23 @@ export function Dialog({ open, onClose, title, children, footer }: DialogProps):
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-[var(--tf-bg)] rounded-[var(--tf-radius)] shadow-xl w-full max-w-md mx-4 animate-[dialog-in_150ms_ease-out]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--tf-border)]">
-          <h2 className="text-lg font-semibold text-[var(--tf-text)]">{title}</h2>
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div
+        className="relative bg-[var(--tf-bg)] rounded-[16px] w-full max-w-md mx-4 p-6 animate-[dialog-in_150ms_ease-out]"
+        style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.12)' }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[16px] font-medium text-[var(--tf-text)]">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-[var(--tf-radius-sm)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-secondary)] cursor-pointer"
+            className="p-1 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
-        <div className="px-6 py-4">{children}</div>
+        <div>{children}</div>
         {footer && (
-          <div className="flex justify-end gap-2 px-6 py-4 border-t border-[var(--tf-border)]">
+          <div className="flex justify-end gap-2 mt-6 pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             {footer}
           </div>
         )}

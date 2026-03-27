@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Database, Cpu, RefreshCw, AlertCircle } from 'lucide-react';
-import { Button, Badge, Card } from '@/ui';
+import { Database, RefreshCw, AlertCircle } from 'lucide-react';
+import { Button, Badge, SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { BatchIndexer } from '@/core/services/search/batch-indexer';
 import type { IndexStatus } from '@/core/services/search/batch-indexer';
@@ -21,9 +21,7 @@ export function IndexManager(): React.ReactElement {
     storage.idb.get<unknown[]>('vector-chunks').then(c => setChunkCount(c?.length ?? 0));
     if ('gpu' in navigator) {
       (navigator as { gpu: { requestAdapter: () => Promise<unknown> } }).gpu
-        .requestAdapter()
-        .then(a => setHasGPU(!!a))
-        .catch(() => setHasGPU(false));
+        .requestAdapter().then(a => setHasGPU(!!a)).catch(() => setHasGPU(false));
     }
   }, [storage]);
 
@@ -31,94 +29,82 @@ export function IndexManager(): React.ReactElement {
     setRunning(true);
     setStatus(null);
     try {
-      if (full) {
-        await storage.idb.delete('index-manifest');
-      }
+      if (full) await storage.idb.delete('index-manifest');
       const indexer = new BatchIndexer();
       await indexer.init(hasGPU);
       const chunks = await indexer.indexAll(storage, setStatus);
       setChunkCount(chunks.length);
       setLastUpdate(new Date().toISOString());
       indexer.destroy();
-    } catch (err) {
-      console.error('Indexing failed:', err);
-    } finally {
-      setRunning(false);
-    }
+    } catch (err) { console.error('Indexing failed:', err); }
+    finally { setRunning(false); }
   };
 
-  const progress = status && status.total > 0
-    ? Math.round((status.processed / status.total) * 100)
-    : 0;
+  const progress = status && status.total > 0 ? Math.round((status.processed / status.total) * 100) : 0;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-semibold text-[var(--tf-text)] mb-6">Index-Verwaltung</h1>
+    <div className="p-6 max-w-2xl mx-auto">
+      <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Index-Verwaltung</h1>
 
-      <Card className="mb-6">
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-2xl font-bold text-[var(--tf-text)]">{docCount}</p>
-            <p className="text-sm text-[var(--tf-text-secondary)]">Dokumente</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-[var(--tf-text)]">{chunkCount}</p>
-            <p className="text-sm text-[var(--tf-text-secondary)]">Chunks</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-[var(--tf-text)]">
-              {lastUpdate ? new Date(lastUpdate).toLocaleString('de-DE') : 'Noch nie'}
-            </p>
-            <p className="text-sm text-[var(--tf-text-secondary)]">Letztes Update</p>
-          </div>
-        </div>
-      </Card>
+      <SectionHeader label="Status" />
+      <div className="grid grid-cols-3 gap-4 mt-3 mb-6">
+        <MetricCard label="Dokumente" value={String(docCount)} />
+        <MetricCard label="Chunks" value={String(chunkCount)} />
+        <MetricCard label="Letztes Update" value={lastUpdate ? new Date(lastUpdate).toLocaleDateString('de-DE') : 'Noch nie'} />
+      </div>
 
-      <Card className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Cpu size={18} className="text-[var(--tf-text-secondary)]" />
-          <span className="text-sm text-[var(--tf-text)]">GPU:</span>
-          <Badge variant={hasGPU ? 'success' : 'default'}>{hasGPU ? 'WebGPU verfügbar' : 'Nur WASM'}</Badge>
+      <SectionHeader label="Konfiguration" />
+      <div className="mt-3 mb-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] text-[var(--tf-text)]">GPU</span>
+          <Badge variant={hasGPU ? 'success' : 'default'}>
+            {hasGPU ? '● WebGPU' : '● WASM'}
+          </Badge>
         </div>
 
         {!fsConnected && (
-          <div className="flex items-center gap-2 p-3 mb-4 bg-yellow-50 border border-yellow-200 rounded-[var(--tf-radius-sm)]">
-            <AlertCircle size={16} className="text-yellow-600" />
-            <p className="text-sm text-yellow-700">
-              File Server nicht verbunden. Index wird nur lokal in IndexedDB gespeichert.
-            </p>
+          <div className="flex items-center gap-2 p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
+            <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
+            <p className="text-[12px] text-[var(--tf-warning-text)]">File Server nicht verbunden. Index nur lokal.</p>
           </div>
         )}
 
         <div className="flex gap-3">
-          <Button icon={Database} disabled={running || docCount === 0} onClick={() => runIndex(false)}>
+          <Button variant="secondary" icon={Database} disabled={running || docCount === 0} onClick={() => runIndex(false)}>
             Nur neue indexieren
           </Button>
           <Button variant="secondary" icon={RefreshCw} disabled={running || docCount === 0} onClick={() => runIndex(true)}>
             Komplett neu
           </Button>
         </div>
-      </Card>
+      </div>
 
       {running && status && (
-        <Card>
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm text-[var(--tf-text)]">
+        <div>
+          <SectionHeader label="Fortschritt" />
+          <div className="mt-3 space-y-2">
+            <div className="flex justify-between text-[12px] text-[var(--tf-text-secondary)]">
               <span>{status.phase}: {status.currentDoc}</span>
               <span>{progress}%</span>
             </div>
-            <div className="w-full h-2 bg-[var(--tf-border)] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[var(--tf-primary)] rounded-full transition-all"
-                style={{ width: `${progress}%` }}
-              />
+            <div className="w-full h-1 bg-[var(--tf-bg-secondary)] rounded-full overflow-hidden">
+              <div className="h-full bg-[var(--tf-text)] rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
-            <p className="text-xs text-[var(--tf-text-secondary)]">
+            <p className="text-[11px] text-[var(--tf-text-tertiary)]">
               {status.processed}/{status.total} verarbeitet, {status.skipped} übersprungen
             </p>
           </div>
-        </Card>
+        </div>
       )}
+    </div>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }): React.ReactElement {
+  return (
+    <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
+      <p className="text-[22px] font-medium text-[var(--tf-text)]">{value}</p>
+      <p className="text-[12px] text-[var(--tf-text-tertiary)]">{label}</p>
     </div>
   );
 }

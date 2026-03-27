@@ -4,32 +4,55 @@
   --tf-primary-h: 221;
   --tf-primary-s: 83%;
   --tf-primary-l: 53%;
-
   --tf-primary: hsl(var(--tf-primary-h), var(--tf-primary-s), var(--tf-primary-l));
-  --tf-primary-light: hsl(var(--tf-primary-h), var(--tf-primary-s), 93%);
-  --tf-primary-dark: hsl(var(--tf-primary-h), var(--tf-primary-s), 40%);
+  --tf-primary-light: hsl(var(--tf-primary-h), var(--tf-primary-s), 95%);
 
   --tf-bg: #ffffff;
-  --tf-bg-secondary: #f7f7f8;
-  --tf-bg-sidebar: #f9f9f9;
+  --tf-bg-secondary: #f8f8f8;
+  --tf-bg-sidebar: #fafafa;
   --tf-text: #0d0d0d;
-  --tf-text-secondary: #666;
-  --tf-border: #e5e5e5;
-  --tf-hover: #ececec;
+  --tf-text-secondary: #6b6b6b;
+  --tf-text-tertiary: #a0a0a0;
+  --tf-border: rgba(0, 0, 0, 0.08);
+  --tf-border-hover: rgba(0, 0, 0, 0.15);
+  --tf-hover: rgba(0, 0, 0, 0.04);
 
-  --tf-sidebar-w: 260px;
-  --tf-radius: 12px;
-  --tf-radius-sm: 8px;
+  --tf-sidebar-w: 220px;
+  --tf-radius: 8px;
+  --tf-radius-lg: 12px;
+
+  --tf-info-bg: hsl(210, 80%, 95%);
+  --tf-info-text: hsl(210, 70%, 35%);
+  --tf-success-bg: hsl(145, 60%, 94%);
+  --tf-success-text: hsl(145, 60%, 30%);
+  --tf-warning-bg: hsl(38, 90%, 93%);
+  --tf-warning-text: hsl(38, 70%, 30%);
+  --tf-danger-bg: hsl(0, 70%, 95%);
+  --tf-danger-text: hsl(0, 60%, 38%);
+  --tf-danger-border: hsl(0, 60%, 80%);
 }
 
 [data-theme="dark"] {
-  --tf-bg: #212121;
-  --tf-bg-secondary: #2f2f2f;
-  --tf-bg-sidebar: #171717;
-  --tf-text: #ececec;
-  --tf-text-secondary: #999;
-  --tf-border: #424242;
-  --tf-hover: #2f2f2f;
+  --tf-bg: #2a2a28;
+  --tf-bg-secondary: #333330;
+  --tf-bg-sidebar: #222220;
+  --tf-text: #cccac4;
+  --tf-text-secondary: #8a8884;
+  --tf-text-tertiary: #605e5a;
+  --tf-border: rgba(200, 195, 180, 0.08);
+  --tf-border-hover: rgba(200, 195, 180, 0.14);
+  --tf-hover: rgba(200, 195, 180, 0.05);
+  --tf-primary-light: hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.3), 22%);
+
+  --tf-info-bg: hsl(210, 18%, 22%);
+  --tf-info-text: hsl(210, 30%, 66%);
+  --tf-success-bg: hsl(145, 15%, 20%);
+  --tf-success-text: hsl(145, 28%, 62%);
+  --tf-warning-bg: hsl(40, 20%, 21%);
+  --tf-warning-text: hsl(40, 35%, 68%);
+  --tf-danger-bg: hsl(0, 16%, 23%);
+  --tf-danger-text: hsl(0, 28%, 68%);
+  --tf-danger-border: hsl(0, 20%, 36%);
 }
 
 body {
@@ -38,6 +61,7 @@ body {
   background: var(--tf-bg);
   color: var(--tf-text);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 *, *::before, *::after {
@@ -45,12 +69,6 @@ body {
 }
 
 @keyframes dialog-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.97) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
