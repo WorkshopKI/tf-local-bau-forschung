@@ -7,7 +7,8 @@
       "Bash(claude init:*)",
       "mcp__Claude_Preview__preview_start",
       "Bash(npx tsc:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

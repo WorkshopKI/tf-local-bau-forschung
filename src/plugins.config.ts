@@ -5,6 +5,7 @@ import { bauantraegePlugin } from '@/plugins/bauantraege';
 import { dokumentePlugin } from '@/plugins/dokumente/index';
 import { chatPlugin } from '@/plugins/chat';
 import { suchePlugin } from '@/plugins/suche';
+import { adminPlugin } from '@/plugins/admin';
 
 const allPlugins: TeamFlowPlugin[] = [
   homePlugin,
@@ -13,6 +14,7 @@ const allPlugins: TeamFlowPlugin[] = [
   suchePlugin,
   chatPlugin,
   einstellungenPlugin,
+  adminPlugin,
 ];
 
 const pluginFilter = import.meta.env.VITE_PLUGINS as string | undefined;
