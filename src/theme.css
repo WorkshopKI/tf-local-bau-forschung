@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+:root {
+  --tf-primary-h: 221;
+  --tf-primary-s: 83%;
+  --tf-primary-l: 53%;
+
+  --tf-primary: hsl(var(--tf-primary-h), var(--tf-primary-s), var(--tf-primary-l));
+  --tf-primary-light: hsl(var(--tf-primary-h), var(--tf-primary-s), 93%);
+  --tf-primary-dark: hsl(var(--tf-primary-h), var(--tf-primary-s), 40%);
+
+  --tf-bg: #ffffff;
+  --tf-bg-secondary: #f7f7f8;
+  --tf-bg-sidebar: #f9f9f9;
+  --tf-text: #0d0d0d;
+  --tf-text-secondary: #666;
+  --tf-border: #e5e5e5;
+  --tf-hover: #ececec;
+
+  --tf-sidebar-w: 260px;
+  --tf-radius: 12px;
+  --tf-radius-sm: 8px;
+}
+
+[data-theme="dark"] {
+  --tf-bg: #212121;
+  --tf-bg-secondary: #2f2f2f;
+  --tf-bg-sidebar: #171717;
+  --tf-text: #ececec;
+  --tf-text-secondary: #999;
+  --tf-border: #424242;
+  --tf-hover: #2f2f2f;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--tf-bg);
+  color: var(--tf-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
