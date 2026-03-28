@@ -3,6 +3,8 @@ import type { AITransport } from './streamlit';
 export class DirectLLMTransport implements AITransport {
   name: string;
 
+  private baseUrl: string;
+
   constructor(
     private endpoint: string,
     private model: string,
@@ -11,6 +13,9 @@ export class DirectLLMTransport implements AITransport {
     if (endpoint.includes('localhost')) this.name = 'llama.cpp';
     else if (endpoint.includes('openrouter')) this.name = 'OpenRouter';
     else this.name = 'Cloud API';
+
+    // Normalize: strip trailing /v1 if present — we add it ourselves
+    this.baseUrl = endpoint.replace(/\/v1\/?$/, '');
   }
 
   private getHeaders(): Record<string, string> {
@@ -25,7 +30,7 @@ export class DirectLLMTransport implements AITransport {
 
   async ping(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.endpoint}/v1/models`, { headers: this.getHeaders() });
+      const res = await fetch(`${this.baseUrl}/v1/models`, { headers: this.getHeaders() });
       return res.ok;
     } catch {
       return false;
@@ -37,7 +42,7 @@ export class DirectLLMTransport implements AITransport {
     if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
     messages.push({ role: 'user', content: message });
 
-    const res = await fetch(`${this.endpoint}/v1/chat/completions`, {
+    const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ model: this.model, messages }),
