@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Check, FolderOpen, Wifi, WifiOff, Sun, Moon, Pencil, Trash2 } from 'lucide-react';
-import { Tabs, Button, Badge, SectionHeader, ListItem } from '@/ui';
+import { Check, Sun, Moon } from 'lucide-react';
+import { Tabs, Button, Badge, SectionHeader } from '@/ui';
 import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/ui/theme';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useTags } from '@/core/hooks/useTags';
+import { TagsTab } from './TagsTab';
+import { SpeicherTab } from './SpeicherTab';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
 const TABS = [
@@ -114,14 +115,10 @@ export function EinstellungenPage(): React.ReactElement {
                 <div className="flex flex-wrap gap-2">
                   <span className="px-3 py-1.5 rounded-[var(--tf-radius)] text-[13px] bg-[var(--tf-primary)] text-white">Akzent-Farbe</span>
                   <span className="px-3 py-1.5 rounded-[var(--tf-radius)] text-[13px] bg-[var(--tf-primary-light)] text-[var(--tf-primary)]">Akzent Light</span>
-                  <Badge variant="info">Info Badge</Badge>
+                  <Badge variant="info">Info</Badge>
                   <Badge variant="success">Success</Badge>
                   <Badge variant="warning">Warning</Badge>
                   <Badge variant="error">Error</Badge>
-                </div>
-                <div className="flex gap-3">
-                  <input placeholder="Focus-Ring Vorschau" className={inputClass} style={inputStyle} />
-                  <Button variant="secondary">Sekundär</Button>
                 </div>
                 <p className="text-[13px]"><a href="#" className="text-[var(--tf-primary)] hover:underline" onClick={e => e.preventDefault()}>Link in Primärfarbe</a> — so sehen Links aus</p>
               </div>
@@ -158,84 +155,6 @@ export function EinstellungenPage(): React.ReactElement {
 
         {activeTab === 'tags' && <TagsTab />}
         {activeTab === 'speicher' && <SpeicherTab />}
-      </div>
-    </div>
-  );
-}
-
-function TagsTab(): React.ReactElement {
-  const { allTags, removeTag, renameTag, recountTags } = useTags();
-  const storage = useStorage();
-  const [editingTag, setEditingTag] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
-
-  const handleRecount = async (): Promise<void> => {
-    const vKeys = await storage.idb.keys('vorgang:');
-    const dKeys = await storage.idb.keys('doc:');
-    const allTagNames: string[] = [];
-    for (const k of vKeys) {
-      const v = await storage.idb.get<{ tags: string[] }>(k);
-      if (v?.tags) allTagNames.push(...v.tags);
-    }
-    for (const k of dKeys) {
-      const d = await storage.idb.get<{ tags: string[] }>(k);
-      if (d?.tags) allTagNames.push(...d.tags);
-    }
-    recountTags(allTagNames);
-  };
-
-  return (
-    <div className="space-y-4">
-      <SectionHeader label="Tag-Verwaltung" action={<Button variant="ghost" size="sm" onClick={handleRecount}>Neu zählen</Button>} />
-      {allTags.length === 0 ? (
-        <p className="text-[13px] text-[var(--tf-text-secondary)]">Noch keine Tags vorhanden</p>
-      ) : (
-        allTags.map((tag, i) => (
-          <ListItem key={tag.name}
-            title={editingTag === tag.name ? '' : tag.name}
-            subtitle={editingTag === tag.name ? undefined : `${tag.count} Verwendungen`}
-            meta={editingTag === tag.name ? (
-              <div className="flex items-center gap-2">
-                <input value={editValue} onChange={e => setEditValue(e.target.value)} autoFocus
-                  className="px-2 py-1 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none w-32"
-                  style={{ border: '0.5px solid var(--tf-border)' }}
-                  onKeyDown={e => { if (e.key === 'Enter') { renameTag(tag.name, editValue); setEditingTag(null); } }} />
-                <Button variant="ghost" size="sm" onClick={() => { renameTag(tag.name, editValue); setEditingTag(null); }}>OK</Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <Badge variant="default">{tag.count}</Badge>
-                <button onClick={() => { setEditingTag(tag.name); setEditValue(tag.name); }} className="p-1 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"><Pencil size={12} /></button>
-                {tag.count === 0 && <button onClick={() => removeTag(tag.name)} className="p-1 text-[var(--tf-danger-text)] cursor-pointer"><Trash2 size={12} /></button>}
-              </div>
-            )}
-            last={i === allTags.length - 1}
-          />
-        ))
-      )}
-    </div>
-  );
-}
-
-function SpeicherTab(): React.ReactElement {
-  const storage = useStorage();
-  const [connected, setConnected] = useState(storage.isFileServerConnected());
-
-  return (
-    <div className="space-y-4">
-      <SectionHeader label="File Server" />
-      <div className="flex items-center gap-3 mt-3">
-        {connected ? <Wifi size={18} className="text-[var(--tf-success-text)]" /> : <WifiOff size={18} className="text-[var(--tf-text-tertiary)]" />}
-        <div>
-          <p className="text-[13px] font-medium text-[var(--tf-text)]">{connected ? 'Verbunden' : 'Nicht verbunden'}</p>
-          <p className="text-[12px] text-[var(--tf-text-secondary)]">{connected ? 'Vorgänge werden auf dem File Server gespeichert' : 'Nur lokaler Speicher (IndexedDB)'}</p>
-        </div>
-      </div>
-      <div className="flex gap-2 mt-3">
-        <Button variant="secondary" icon={FolderOpen} onClick={async () => { const ok = await storage.connectFileServer(); setConnected(ok); }}>
-          {connected ? 'Verzeichnis wechseln' : 'Verzeichnis wählen'}
-        </Button>
-        {connected && <Button variant="ghost" onClick={async () => { await storage.disconnectFileServer(); setConnected(false); }}>Trennen</Button>}
       </div>
     </div>
   );

@@ -1,21 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Pencil, Trash2, Check } from 'lucide-react';
-import { Button, Badge, Tabs, Dialog, FileDropZone, SectionHeader } from '@/ui';
+import { Button, Badge, Tabs, Dialog, Field } from '@/ui';
 import { StatusSelect } from '@/ui/StatusSelect';
 import { useStorage } from '@/core/hooks/useStorage';
+import { VorgangDokumenteTab } from '@/core/components/VorgangDokumenteTab';
+import { VerlaufTab } from '@/core/components/VerlaufTab';
 import { useForschungStore } from './store';
 import { ForschungForm } from './ForschungForm';
 import { ArtefakteTab } from '@/plugins/bauantraege/ArtefakteTab';
-import { useDokumenteStore } from '@/plugins/dokumente/store';
-import { DocConverter } from '@/core/services/converter';
 import { applyTransition } from '@/core/services/workflow/engine';
 import { loadHistory, addHistoryEntry } from '@/core/services/workflow/history';
 import { getDaysUntilDeadline, isOverdue } from '@/core/services/workflow/deadlines';
 import type { HistoryEntry } from '@/core/services/workflow/history';
 import { FORSCHUNG_STATUS_LABELS } from './types';
 import type { ForschungsVorgang } from './types';
-
-const converter = new DocConverter();
 
 export function ForschungDetail(): React.ReactElement | null {
   const storage = useStorage();
@@ -29,7 +27,9 @@ export function ForschungDetail(): React.ReactElement | null {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  useEffect(() => { if (vorgang) { setNotes(vorgang.notes); loadHistory(vorgang.id, storage).then(setHistory); } }, [vorgang, storage]);
+  useEffect(() => {
+    if (vorgang) { setNotes(vorgang.notes); loadHistory(vorgang.id, storage).then(setHistory); }
+  }, [vorgang, storage]);
 
   const handleNotesChange = useCallback((value: string) => {
     setNotes(value); setSaved(false);
@@ -96,14 +96,8 @@ export function ForschungDetail(): React.ReactElement | null {
             <Field label="Fördersumme" value={formatEuro(vorgang.foerdersumme)} />
             <Field label="Laufzeit" value={vorgang.laufzeit || '—'} />
             <Field label="Forschungsgebiet" value={vorgang.forschungsgebiet || '—'} />
-            <div>
-              <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">Frist</p>
-              <div className="flex items-center gap-2">
-                {daysLeft !== null && <span className={`w-1.5 h-1.5 rounded-full ${daysLeft < 3 ? 'bg-[var(--tf-danger-text)]' : daysLeft < 7 ? 'bg-[var(--tf-warning-text)]' : 'bg-[var(--tf-text-tertiary)]'}`} />}
-                <p className="text-[14px] font-medium text-[var(--tf-text)]">{vorgang.deadline ? new Date(vorgang.deadline).toLocaleDateString('de-DE') : '—'}</p>
-              </div>
-            </div>
             <Field label="Erstellt" value={new Date(vorgang.created).toLocaleDateString('de-DE')} />
+            <Field label="Geändert" value={new Date(vorgang.modified).toLocaleDateString('de-DE')} />
             <div>
               <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">Tags</p>
               <div className="flex gap-1 flex-wrap">
@@ -112,28 +106,9 @@ export function ForschungDetail(): React.ReactElement | null {
             </div>
           </div>
         )}
-        {activeTab === 'dokumente' && <DokumenteTab vorgangId={vorgang.id} />}
+        {activeTab === 'dokumente' && <VorgangDokumenteTab vorgangId={vorgang.id} />}
         {activeTab === 'artefakte' && <ArtefakteTab vorgang={vorgang} userName="" />}
-        {activeTab === 'verlauf' && (
-          <div>
-            <SectionHeader label="Änderungshistorie" />
-            {history.length === 0 ? <p className="text-[13px] text-[var(--tf-text-secondary)] mt-3">Noch keine Statusänderungen</p> : (
-              <div className="mt-3 space-y-4">
-                {history.map((e, i) => (
-                  <div key={i}>
-                    <p className="text-[12px] text-[var(--tf-text-tertiary)]">{new Date(e.timestamp).toLocaleString('de-DE')}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="default">{FORSCHUNG_STATUS_LABELS[e.fromStatus] ?? e.fromStatus}</Badge>
-                      <span className="text-[var(--tf-text-tertiary)]">→</span>
-                      <Badge variant="info">{FORSCHUNG_STATUS_LABELS[e.toStatus] ?? e.toStatus}</Badge>
-                    </div>
-                    {e.comment && <p className="text-[13px] text-[var(--tf-text-secondary)] italic mt-1">{e.comment}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {activeTab === 'verlauf' && <VerlaufTab history={history} />}
         {activeTab === 'notizen' && (
           <div className="space-y-2">
             <textarea value={notes} onChange={e => handleNotesChange(e.target.value)} rows={8} placeholder="Notizen..."
@@ -151,35 +126,4 @@ export function ForschungDetail(): React.ReactElement | null {
       </Dialog>
     </div>
   );
-}
-
-function DokumenteTab({ vorgangId }: { vorgangId: string }): React.ReactElement {
-  const storage = useStorage();
-  const { documents, add } = useDokumenteStore();
-  const vorgangDocs = documents.filter(d => d.vorgangId === vorgangId);
-  const handleFiles = async (files: File[]): Promise<void> => {
-    for (const file of files) {
-      try { const r = await converter.convert(file); await add({ filename: r.filename, format: r.format, markdown: r.markdown, tags: [], vorgangId }, storage); }
-      catch (err) { console.error('Conversion failed:', err); }
-    }
-  };
-  return (
-    <div className="space-y-4">
-      <FileDropZone onFiles={handleFiles} accept=".docx,.pdf,.md,.txt" multiple />
-      {vorgangDocs.length > 0 ? (
-        <div><SectionHeader label="Zugeordnete Dokumente" />
-          {vorgangDocs.map(doc => (
-            <div key={doc.id} className="flex items-center gap-3 py-2.5" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-              <Badge variant="info">{doc.format.toUpperCase()}</Badge>
-              <span className="text-[13px] text-[var(--tf-text)]">{doc.filename}</span>
-            </div>
-          ))}
-        </div>
-      ) : <p className="text-[13px] text-[var(--tf-text-secondary)]">Noch keine Dokumente zugeordnet</p>}
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }): React.ReactElement {
-  return (<div><p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">{label}</p><p className="text-[14px] font-medium text-[var(--tf-text)]">{value}</p></div>);
 }

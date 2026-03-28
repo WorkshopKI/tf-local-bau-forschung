@@ -8,6 +8,7 @@ import { AIBridge } from '@/core/services/ai/bridge';
 import { AIBridgeContext } from '@/core/hooks/useAIBridge';
 import { SearchContext, useSearchProvider } from '@/core/hooks/useSearch';
 import { TagContext, useTagProvider } from '@/core/hooks/useTags';
+import { ErrorBoundary } from '@/core/ErrorBoundary';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import type { UserProfile } from '@/core/types/config';
 
@@ -55,8 +56,10 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
 export function App(): React.ReactElement {
   const storage = useMemo(() => new StorageService(), []);
   return (
-    <StorageContext.Provider value={storage}>
-      <AppInner storage={storage} />
-    </StorageContext.Provider>
+    <ErrorBoundary>
+      <StorageContext.Provider value={storage}>
+        <AppInner storage={storage} />
+      </StorageContext.Provider>
+    </ErrorBoundary>
   );
 }

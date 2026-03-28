@@ -5,17 +5,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { useBauantraegeStore } from './store';
 import { BauantragForm } from './BauantragForm';
-import type { VorgangStatus } from '@/core/types/vorgang';
-
-const STATUS_LABELS: Record<VorgangStatus, string> = {
-  neu: 'Neu', in_bearbeitung: 'In Bearbeitung', nachforderung: 'Nachforderung',
-  in_pruefung: 'In Prüfung', genehmigt: 'Genehmigt', abgelehnt: 'Abgelehnt', archiviert: 'Archiviert',
-};
-
-const STATUS_VARIANTS: Record<VorgangStatus, 'info' | 'warning' | 'success' | 'error' | 'default'> = {
-  neu: 'info', in_bearbeitung: 'warning', nachforderung: 'warning',
-  in_pruefung: 'info', genehmigt: 'success', abgelehnt: 'error', archiviert: 'default',
-};
+import { BAUANTRAG_STATUS_LABELS, BAUANTRAG_STATUS_VARIANTS } from './types';
 
 export function BauantraegeListe(): React.ReactElement {
   const storage = useStorage();
@@ -54,7 +44,7 @@ export function BauantraegeListe(): React.ReactElement {
           style={{ border: '0.5px solid var(--tf-border)' }}
         >
           <option value="">Alle Status</option>
-          {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {Object.entries(BAUANTRAG_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
         <input
           value={filters.search}
@@ -81,7 +71,7 @@ export function BauantraegeListe(): React.ReactElement {
               subtitle={`${v.deadline ? new Date(v.deadline).toLocaleDateString('de-DE') : 'Keine Frist'} · ${v.assignee || 'Nicht zugewiesen'}`}
               meta={
                 <>
-                  <Badge variant={STATUS_VARIANTS[v.status]}>{STATUS_LABELS[v.status]}</Badge>
+                  <Badge variant={BAUANTRAG_STATUS_VARIANTS[v.status]}>{BAUANTRAG_STATUS_LABELS[v.status]}</Badge>
                   <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)]">{v.id}</span>
                 </>
               }
