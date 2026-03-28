@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Dialog, Button } from '@/ui';
+import { Dialog, Button, TagInput } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useTags } from '@/core/hooks/useTags';
 import { useBauantraegeStore } from './store';
 import type { Vorgang } from '@/core/types/vorgang';
 
@@ -12,12 +13,13 @@ interface BauantragFormProps {
 
 export function BauantragForm({ open, onClose, initialValues }: BauantragFormProps): React.ReactElement {
   const storage = useStorage();
+  const { suggest, addTag } = useTags();
   const { add, update } = useBauantraegeStore();
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<Vorgang['priority']>('normal');
   const [assignee, setAssignee] = useState('');
   const [deadline, setDeadline] = useState('');
-  const [tags, setTags] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -26,25 +28,21 @@ export function BauantragForm({ open, onClose, initialValues }: BauantragFormPro
       setPriority(initialValues.priority);
       setAssignee(initialValues.assignee);
       setDeadline(initialValues.deadline ?? '');
-      setTags(initialValues.tags.join(', '));
+      setTags(initialValues.tags);
       setNotes(initialValues.notes);
     } else if (open) {
       setTitle(''); setPriority('normal'); setAssignee('');
-      setDeadline(''); setTags(''); setNotes('');
+      setDeadline(''); setTags([]); setNotes('');
     }
   }, [open, initialValues]);
 
   const handleSave = async (): Promise<void> => {
     if (!title.trim()) return;
-    const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
+    tags.forEach(t => addTag(t));
     if (initialValues) {
-      await update({
-        ...initialValues,
-        title, priority, assignee, notes, tags: tagList,
-        deadline: deadline || undefined,
-      }, storage);
+      await update({ ...initialValues, title, priority, assignee, notes, tags, deadline: deadline || undefined }, storage);
     } else {
-      await add({ title, priority, assignee, notes, tags: tagList, deadline: deadline || undefined }, storage);
+      await add({ title, priority, assignee, notes, tags, deadline: deadline || undefined }, storage);
     }
     onClose();
   };
@@ -53,17 +51,8 @@ export function BauantragForm({ open, onClose, initialValues }: BauantragFormPro
   const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      title={initialValues ? 'Antrag bearbeiten' : 'Neuer Bauantrag'}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>Abbrechen</Button>
-          <Button disabled={!title.trim()} onClick={handleSave}>Speichern</Button>
-        </>
-      }
-    >
+    <Dialog open={open} onClose={onClose} title={initialValues ? 'Antrag bearbeiten' : 'Neuer Bauantrag'}
+      footer={<><Button variant="secondary" onClick={onClose}>Abbrechen</Button><Button disabled={!title.trim()} onClick={handleSave}>Speichern</Button></>}>
       <div className="space-y-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-[13px] font-medium text-[var(--tf-text)]">Titel *</label>
@@ -90,7 +79,7 @@ export function BauantragForm({ open, onClose, initialValues }: BauantragFormPro
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-[13px] font-medium text-[var(--tf-text)]">Tags</label>
-          <input value={tags} onChange={e => setTags(e.target.value)} placeholder="Komma-separiert" className={inputClass} style={inputStyle} />
+          <TagInput value={tags} onChange={setTags} suggestions={suggest} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-[13px] font-medium text-[var(--tf-text)]">Notizen</label>

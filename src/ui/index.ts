@@ -9,3 +9,4 @@ export { FileDropZone } from './FileDropZone';
 export { MarkdownRenderer } from './MarkdownRenderer';
 export { SectionHeader } from './SectionHeader';
 export { ListItem } from './ListItem';
+export { TagInput } from './TagInput';

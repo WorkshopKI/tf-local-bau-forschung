@@ -7,12 +7,14 @@ import { StorageContext } from '@/core/hooks/useStorage';
 import { AIBridge } from '@/core/services/ai/bridge';
 import { AIBridgeContext } from '@/core/hooks/useAIBridge';
 import { SearchContext, useSearchProvider } from '@/core/hooks/useSearch';
+import { TagContext, useTagProvider } from '@/core/hooks/useTags';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import type { UserProfile } from '@/core/types/config';
 
 function AppInner({ storage }: { storage: StorageService }): React.ReactElement {
   const aiBridge = useMemo(() => new AIBridge(), []);
   const searchValue = useSearchProvider(storage);
+  const tagValue = useTagProvider(storage);
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -38,11 +40,13 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   return (
     <AIBridgeContext.Provider value={aiBridge}>
       <SearchContext.Provider value={searchValue}>
-        {showOnboarding ? (
-          <Onboarding onComplete={() => setShowOnboarding(false)} />
-        ) : (
-          <Shell plugins={enabledPlugins} />
-        )}
+        <TagContext.Provider value={tagValue}>
+          {showOnboarding ? (
+            <Onboarding onComplete={() => setShowOnboarding(false)} />
+          ) : (
+            <Shell plugins={enabledPlugins} />
+          )}
+        </TagContext.Provider>
       </SearchContext.Provider>
     </AIBridgeContext.Provider>
   );

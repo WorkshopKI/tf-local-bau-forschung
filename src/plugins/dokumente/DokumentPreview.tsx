@@ -1,19 +1,19 @@
-import { useState } from 'react';
 import { ArrowLeft, Trash2 } from 'lucide-react';
-import { Button, Badge, MarkdownRenderer } from '@/ui';
+import { Button, Badge, MarkdownRenderer, TagInput } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useTags } from '@/core/hooks/useTags';
 import { useDokumenteStore } from './store';
 
 export function DokumentPreview(): React.ReactElement | null {
   const storage = useStorage();
+  const { suggest, addTag } = useTags();
   const { documents, selectedId, setSelectedId, remove, updateTags } = useDokumenteStore();
   const doc = documents.find(d => d.id === selectedId);
-  const [tagsInput, setTagsInput] = useState(doc?.tags.join(', ') ?? '');
 
   if (!doc) return null;
 
-  const handleTagsSave = (): void => {
-    const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+  const handleTagsChange = (tags: string[]): void => {
+    tags.forEach(t => addTag(t));
     updateTags(doc.id, tags, storage);
   };
 
@@ -37,10 +37,7 @@ export function DokumentPreview(): React.ReactElement | null {
 
       <div className="mb-6">
         <label className="text-[13px] font-medium text-[var(--tf-text)] block mb-1.5">Tags</label>
-        <input value={tagsInput} onChange={e => setTagsInput(e.target.value)} onBlur={handleTagsSave}
-          placeholder="Komma-separiert"
-          className="w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
-          style={{ border: '0.5px solid var(--tf-border)' }} />
+        <TagInput value={doc.tags} onChange={handleTagsChange} suggestions={suggest} />
       </div>
 
       <div className="rounded-[var(--tf-radius-lg)] p-6 bg-[var(--tf-bg)]" style={{ border: '0.5px solid var(--tf-border)' }}>
