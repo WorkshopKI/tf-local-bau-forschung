@@ -14,6 +14,13 @@ export interface AIProviderConfig {
   apiKey: string;
 }
 
+export interface DirectoryEntry {
+  id: string;
+  label: string;
+  type: 'documents' | 'data';
+  folderName?: string;
+}
+
 export interface AppConfig {
   profile: UserProfile;
   aiProvider: AIProviderConfig;

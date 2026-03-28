@@ -1,41 +1,80 @@
 import { useState } from 'react';
-import { FolderOpen, Wifi, WifiOff } from 'lucide-react';
-import { Button, SectionHeader } from '@/ui';
+import { FolderOpen, Trash2, FileText, Database } from 'lucide-react';
+import { Button, Badge, SectionHeader, ListItem } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
+import type { DirectoryEntry } from '@/core/types/config';
 
 export function SpeicherTab(): React.ReactElement {
   const storage = useStorage();
-  const [connected, setConnected] = useState(storage.isFileServerConnected());
-  const [fsName, setFsName] = useState(storage.getFileServerName() ?? '');
+  const [directories, setDirectories] = useState<DirectoryEntry[]>(storage.getDirectories());
+  const [addLabel, setAddLabel] = useState('');
+  const [addType, setAddType] = useState<'documents' | 'data' | null>(null);
 
-  const handleConnect = async (): Promise<void> => {
-    const ok = await storage.connectFileServer();
-    setConnected(ok);
-    if (ok) setFsName(storage.getFileServerName() ?? '');
+  const refresh = (): void => setDirectories(storage.getDirectories());
+
+  const handleAdd = async (): Promise<void> => {
+    if (!addType || !addLabel.trim()) return;
+    await storage.addDirectory(addLabel.trim(), addType);
+    setAddLabel('');
+    setAddType(null);
+    refresh();
   };
 
-  const handleDisconnect = async (): Promise<void> => {
-    await storage.disconnectFileServer();
-    setConnected(false);
-    setFsName('');
+  const handleRemove = async (id: string): Promise<void> => {
+    await storage.removeDirectory(id);
+    refresh();
   };
 
   return (
-    <div className="space-y-4">
-      <SectionHeader label="File Server" />
-      <div className="flex items-center gap-3 mt-3">
-        {connected ? <Wifi size={18} className="text-[var(--tf-success-text)]" /> : <WifiOff size={18} className="text-[var(--tf-text-tertiary)]" />}
-        <div>
-          <p className="text-[13px] font-medium text-[var(--tf-text)]">{connected ? `Verbunden: ${fsName}` : 'Nicht verbunden'}</p>
-          <p className="text-[12px] text-[var(--tf-text-secondary)]">{connected ? 'Vorgänge werden auf dem File Server gespeichert' : 'Nur lokaler Speicher (IndexedDB)'}</p>
+    <div className="space-y-6">
+      <SectionHeader label="Verbundene Verzeichnisse" />
+
+      {directories.length === 0 ? (
+        <p className="text-[13px] text-[var(--tf-text-secondary)]">Keine Verzeichnisse verbunden</p>
+      ) : (
+        directories.map((dir, i) => (
+          <ListItem key={dir.id}
+            icon={dir.type === 'documents' ? <FileText size={14} className="text-[var(--tf-text-tertiary)]" /> : <Database size={14} className="text-[var(--tf-text-tertiary)]" />}
+            title={dir.label}
+            subtitle={dir.folderName ?? ''}
+            meta={
+              <div className="flex items-center gap-2">
+                <Badge variant={dir.type === 'documents' ? 'info' : 'success'}>{dir.type === 'documents' ? 'Dokumente' : 'Daten'}</Badge>
+                <button onClick={() => handleRemove(dir.id)} className="p-1 text-[var(--tf-danger-text)] cursor-pointer" title="Trennen"><Trash2 size={12} /></button>
+              </div>
+            }
+            last={i === directories.length - 1}
+          />
+        ))
+      )}
+
+      <SectionHeader label="Verzeichnis hinzufügen" />
+
+      {addType === null ? (
+        <div className="flex gap-3">
+          <Button variant="secondary" icon={FileText} onClick={() => setAddType('documents')}>
+            Dokumentverzeichnis (Lesen)
+          </Button>
+          <Button variant="secondary" icon={Database} onClick={() => setAddType('data')}>
+            Datenverzeichnis (Lesen+Schreiben)
+          </Button>
         </div>
-      </div>
-      <div className="flex gap-2 mt-3">
-        <Button variant="secondary" icon={FolderOpen} onClick={handleConnect}>
-          {connected ? 'Verzeichnis wechseln' : 'Verzeichnis wählen'}
-        </Button>
-        {connected && <Button variant="ghost" onClick={handleDisconnect}>Trennen</Button>}
-      </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-[12px] text-[var(--tf-text-secondary)]">
+            {addType === 'documents' ? 'Dokumentverzeichnis (nur Lesen) — z.B. Vorlagen, Referenzen' : 'Datenverzeichnis (Lesen+Schreiben) — z.B. Vorgänge, Config'}
+          </p>
+          <div className="flex gap-2">
+            <input value={addLabel} onChange={e => setAddLabel(e.target.value)} placeholder="Label für das Verzeichnis..."
+              className="flex-1 px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:text-[var(--tf-text-tertiary)]"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+              onKeyDown={e => { if (e.key === 'Enter' && addLabel.trim()) handleAdd(); }}
+              autoFocus />
+            <Button icon={FolderOpen} onClick={handleAdd} disabled={!addLabel.trim()}>Ordner wählen</Button>
+            <Button variant="ghost" onClick={() => { setAddType(null); setAddLabel(''); }}>Abbrechen</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,84 +2,151 @@ import { IDBStore } from './idb-store';
 import { FileServerStore } from './fs-store';
 import { SyncService } from '@/core/services/sync/sync-service';
 import type { Vorgang } from '@/core/types/vorgang';
+import type { DirectoryEntry } from '@/core/types/config';
+
+interface ConnectedDirectory {
+  entry: DirectoryEntry;
+  store: FileServerStore;
+}
 
 export class StorageService {
   readonly idb = new IDBStore();
-  private _fs: FileServerStore | null = null;
-  private _fsName: string | null = null;
+  private _directories = new Map<string, ConnectedDirectory>();
   readonly syncService: SyncService;
 
   constructor() {
     this.syncService = new SyncService(
-      () => this._fs,
+      () => this.fs,
       () => this.isFileServerConnected(),
     );
   }
 
+  /** Backwards-compatible: first data directory */
   get fs(): FileServerStore | null {
-    return this._fs;
+    for (const d of this._directories.values()) {
+      if (d.entry.type === 'data') return d.store;
+    }
+    return null;
   }
 
   async init(): Promise<void> {
     await this.idb.open();
     await this.syncService.init();
-    const handle = await this.idb.get<FileSystemDirectoryHandle>('fs-handle');
-    if (handle) {
+
+    // Load all saved directories
+    const entries = await this.idb.get<DirectoryEntry[]>('directories') ?? [];
+    for (const entry of entries) {
+      const handle = await this.idb.get<FileSystemDirectoryHandle>(`dir-handle:${entry.id}`);
+      if (!handle) continue;
       try {
-        const permission = await handle.requestPermission({ mode: 'readwrite' });
+        const mode = entry.type === 'documents' ? 'read' as const : 'readwrite' as const;
+        const permission = await handle.requestPermission({ mode });
         if (permission === 'granted') {
-          this._fs = new FileServerStore(handle);
-          this._fsName = handle.name;
-          // Process any pending queue items
-          await this.syncService.processQueue();
+          const fsMode = entry.type === 'documents' ? 'readonly' as const : 'readwrite' as const;
+          this._directories.set(entry.id, { entry: { ...entry, folderName: handle.name }, store: new FileServerStore(handle, fsMode) });
         }
-      } catch {
-        // Permission denied or handle invalid — continue without FS
+      } catch { /* Permission denied — skip */ }
+    }
+
+    // Legacy migration: old single fs-handle
+    if (this._directories.size === 0) {
+      const legacyHandle = await this.idb.get<FileSystemDirectoryHandle>('fs-handle');
+      if (legacyHandle) {
+        try {
+          const permission = await legacyHandle.requestPermission({ mode: 'readwrite' });
+          if (permission === 'granted') {
+            const id = `dir-legacy`;
+            const entry: DirectoryEntry = { id, label: 'Daten', type: 'data', folderName: legacyHandle.name };
+            this._directories.set(id, { entry, store: new FileServerStore(legacyHandle, 'readwrite') });
+            await this.saveDirectoryEntries();
+            await this.idb.set(`dir-handle:${id}`, legacyHandle);
+            await this.idb.delete('fs-handle');
+          }
+        } catch { /* ignore */ }
       }
     }
+
+    if (this.isFileServerConnected()) await this.syncService.processQueue();
   }
 
-  async connectFileServer(): Promise<boolean> {
+  async addDirectory(label: string, type: 'documents' | 'data'): Promise<DirectoryEntry | null> {
     try {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      await this.idb.set('fs-handle', handle);
-      this._fs = new FileServerStore(handle);
-      this._fsName = handle.name;
-      // Sync pending items now that FS is connected
-      await this.syncService.processQueue();
-      return true;
+      const mode = type === 'documents' ? 'read' as const : 'readwrite' as const;
+      const handle = await window.showDirectoryPicker({ mode });
+      const id = `dir-${Date.now()}`;
+      const entry: DirectoryEntry = { id, label, type, folderName: handle.name };
+      const fsMode = type === 'documents' ? 'readonly' as const : 'readwrite' as const;
+      this._directories.set(id, { entry, store: new FileServerStore(handle, fsMode) });
+      await this.idb.set(`dir-handle:${id}`, handle);
+      await this.saveDirectoryEntries();
+      if (type === 'data') await this.syncService.processQueue();
+      return entry;
     } catch {
-      return false;
+      return null;
     }
   }
 
-  getFileServerName(): string | null {
-    return this._fsName;
+  async removeDirectory(id: string): Promise<void> {
+    this._directories.delete(id);
+    await this.idb.delete(`dir-handle:${id}`);
+    await this.saveDirectoryEntries();
   }
 
-  async disconnectFileServer(): Promise<void> {
-    await this.idb.delete('fs-handle');
-    this._fs = null;
+  async updateDirectoryLabel(id: string, label: string): Promise<void> {
+    const dir = this._directories.get(id);
+    if (dir) {
+      dir.entry.label = label;
+      await this.saveDirectoryEntries();
+    }
+  }
+
+  getDirectories(): DirectoryEntry[] {
+    return Array.from(this._directories.values()).map(d => d.entry);
+  }
+
+  getDirectoryStore(id: string): FileServerStore | null {
+    return this._directories.get(id)?.store ?? null;
+  }
+
+  getDocDirectories(): DirectoryEntry[] {
+    return this.getDirectories().filter(d => d.type === 'documents');
+  }
+
+  getDataDirectories(): DirectoryEntry[] {
+    return this.getDirectories().filter(d => d.type === 'data');
   }
 
   isFileServerConnected(): boolean {
-    return this._fs !== null;
+    return this._directories.size > 0 && this.fs !== null;
+  }
+
+  getFileServerName(): string | null {
+    const first = this.getDataDirectories()[0];
+    return first?.folderName ?? null;
+  }
+
+  // Legacy compat
+  async connectFileServer(): Promise<boolean> {
+    const entry = await this.addDirectory('Daten', 'data');
+    return entry !== null;
+  }
+
+  async disconnectFileServer(): Promise<void> {
+    const dataDir = this.getDataDirectories()[0];
+    if (dataDir) await this.removeDirectory(dataDir.id);
+  }
+
+  private async saveDirectoryEntries(): Promise<void> {
+    const entries = Array.from(this._directories.values()).map(d => d.entry);
+    await this.idb.set('directories', entries);
   }
 
   async saveVorgang(vorgang: Vorgang): Promise<void> {
     vorgang.modified = new Date().toISOString();
     await this.idb.set(`vorgang:${vorgang.id}`, vorgang);
-
-    if (this._fs) {
+    if (this.fs) {
       const dir = vorgang.type === 'bauantrag' ? 'vorgaenge/bauantraege' : 'vorgaenge/forschung';
-      await this.syncService.enqueue({
-        id: crypto.randomUUID(),
-        type: 'write',
-        path: `${dir}/${vorgang.id}/meta.json`,
-        data: vorgang,
-        timestamp: vorgang.modified,
-        retries: 0,
-      });
+      await this.syncService.enqueue({ id: crypto.randomUUID(), type: 'write', path: `${dir}/${vorgang.id}/meta.json`, data: vorgang, timestamp: vorgang.modified, retries: 0 });
     }
   }
 

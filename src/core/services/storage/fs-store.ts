@@ -1,5 +1,8 @@
 export class FileServerStore {
-  constructor(private rootHandle: FileSystemDirectoryHandle) {}
+  constructor(
+    private rootHandle: FileSystemDirectoryHandle,
+    private mode: 'readonly' | 'readwrite' = 'readwrite',
+  ) {}
 
   async readFile(path: string): Promise<string> {
     const fileHandle = await this.getFileHandle(path);
@@ -7,7 +10,12 @@ export class FileServerStore {
     return file.text();
   }
 
+  isReadOnly(): boolean {
+    return this.mode === 'readonly';
+  }
+
   async writeFile(path: string, content: string): Promise<void> {
+    if (this.mode === 'readonly') throw new Error('Write operation on read-only directory');
     const fileHandle = await this.getFileHandle(path, true);
     const writable = await fileHandle.createWritable();
     await writable.write(content);
