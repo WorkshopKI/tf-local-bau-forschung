@@ -1,10 +1,20 @@
 import { IDBStore } from './idb-store';
 import { FileServerStore } from './fs-store';
+import { SyncService } from '@/core/services/sync/sync-service';
 import type { Vorgang } from '@/core/types/vorgang';
 
 export class StorageService {
   readonly idb = new IDBStore();
   private _fs: FileServerStore | null = null;
+  private _fsName: string | null = null;
+  readonly syncService: SyncService;
+
+  constructor() {
+    this.syncService = new SyncService(
+      () => this._fs,
+      () => this.isFileServerConnected(),
+    );
+  }
 
   get fs(): FileServerStore | null {
     return this._fs;
@@ -12,6 +22,7 @@ export class StorageService {
 
   async init(): Promise<void> {
     await this.idb.open();
+    await this.syncService.init();
     const handle = await this.idb.get<FileSystemDirectoryHandle>('fs-handle');
     if (handle) {
       try {
@@ -19,6 +30,8 @@ export class StorageService {
         if (permission === 'granted') {
           this._fs = new FileServerStore(handle);
           this._fsName = handle.name;
+          // Process any pending queue items
+          await this.syncService.processQueue();
         }
       } catch {
         // Permission denied or handle invalid — continue without FS
@@ -26,14 +39,14 @@ export class StorageService {
     }
   }
 
-  private _fsName: string | null = null;
-
   async connectFileServer(): Promise<boolean> {
     try {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
       await this.idb.set('fs-handle', handle);
       this._fs = new FileServerStore(handle);
       this._fsName = handle.name;
+      // Sync pending items now that FS is connected
+      await this.syncService.processQueue();
       return true;
     } catch {
       return false;
@@ -54,16 +67,19 @@ export class StorageService {
   }
 
   async saveVorgang(vorgang: Vorgang): Promise<void> {
-    const existing = await this.idb.get<Vorgang>(`vorgang:${vorgang.id}`);
-    if (existing && existing.modified > vorgang.modified) {
-      throw new Error('Conflict: Vorgang was modified by another user');
-    }
     vorgang.modified = new Date().toISOString();
     await this.idb.set(`vorgang:${vorgang.id}`, vorgang);
 
     if (this._fs) {
       const dir = vorgang.type === 'bauantrag' ? 'vorgaenge/bauantraege' : 'vorgaenge/forschung';
-      await this._fs.writeJSON(`${dir}/${vorgang.id}/meta.json`, vorgang);
+      await this.syncService.enqueue({
+        id: crypto.randomUUID(),
+        type: 'write',
+        path: `${dir}/${vorgang.id}/meta.json`,
+        data: vorgang,
+        timestamp: vorgang.modified,
+        retries: 0,
+      });
     }
   }
 
@@ -76,9 +92,7 @@ export class StorageService {
     const results: Vorgang[] = [];
     for (const key of keys) {
       const v = await this.idb.get<Vorgang>(key);
-      if (v && (!type || v.type === type)) {
-        results.push(v);
-      }
+      if (v && (!type || v.type === type)) results.push(v);
     }
     return results;
   }

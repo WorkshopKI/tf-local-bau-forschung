@@ -9,6 +9,7 @@ import { keyboardService } from '@/core/services/keyboard';
 import { CommandPalette } from '@/ui/CommandPalette';
 import type { CommandItem } from '@/ui/CommandPalette';
 import { setDarkMode, isDarkMode } from '@/ui/theme';
+import { SyncStatusIndicator } from '@/ui/SyncStatusIndicator';
 
 interface ShellProps {
   plugins: TeamFlowPlugin[];
@@ -141,6 +142,10 @@ export function Shell({ plugins }: ShellProps): React.ReactElement {
               </div>
             )}
           </nav>
+
+          <div className="px-2 py-2 shrink-0" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+            <SyncStatusIndicator />
+          </div>
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
