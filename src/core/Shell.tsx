@@ -69,9 +69,10 @@ export function Shell({ plugins }: ShellProps): React.ReactElement {
                       onClick={() => { setActiveId(plugin.id); if (isMobile) setSidebarOpen(false); }}
                       className={`flex items-center gap-2.5 w-full px-3 py-[8px] rounded-[var(--tf-radius)] text-[13.5px] transition-colors cursor-pointer ${
                         isActive
-                          ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)] font-medium'
+                          ? 'bg-[var(--tf-primary-light)] text-[var(--tf-text)] font-medium'
                           : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
                       }`}
+                      style={isActive ? { borderLeft: '2px solid var(--tf-primary)' } : undefined}
                     >
                       <Icon size={16} className={isActive ? 'opacity-80' : 'opacity-50'} />
                       <span>{plugin.name}</span>

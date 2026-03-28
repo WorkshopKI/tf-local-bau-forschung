@@ -34,8 +34,8 @@ export function EinstellungenPage(): React.ReactElement {
     await storage.idb.set('profile', updated);
   }, [storage]);
 
-  const handleColorChange = (h: number, s?: string): void => {
-    applyThemeColor(h, s);
+  const handleColorChange = (h: number, s: string, l: string): void => {
+    applyThemeColor(h, s, l);
     if (profile) saveProfile({ ...profile, theme: { ...profile.theme, hue: h } });
   };
 
@@ -57,7 +57,7 @@ export function EinstellungenPage(): React.ReactElement {
         {activeTab === 'profil' && profile && (
           <div>
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-full bg-[var(--tf-text)] flex items-center justify-center text-[var(--tf-bg)] text-lg font-medium">{initials}</div>
+              <div className="w-14 h-14 rounded-full bg-[var(--tf-primary)] flex items-center justify-center text-white text-lg font-medium">{initials}</div>
               <div>
                 <p className="text-[14px] font-medium text-[var(--tf-text)]">{profile.name}</p>
                 <p className="text-[12px] text-[var(--tf-text-secondary)]">{profile.department}</p>
@@ -87,11 +87,11 @@ export function EinstellungenPage(): React.ReactElement {
               <SectionHeader label="Primärfarbe" />
               <div className="flex gap-2.5 mt-3">
                 {PRESET_COLORS.map(c => (
-                  <button key={c.name} onClick={() => handleColorChange(c.h, c.s)}
+                  <button key={c.name} onClick={() => handleColorChange(c.h, c.s, c.l)}
                     className="w-[44px] h-[44px] rounded-full cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
-                    style={{ backgroundColor: `hsl(${c.h}, ${c.s ?? '83%'}, 53%)`, border: (profile?.theme.hue ?? 221) === c.h ? '2px solid var(--tf-text)' : '2px solid transparent' }}
+                    style={{ backgroundColor: `hsl(${c.h}, ${c.s}, ${c.l})`, border: (profile?.theme.hue ?? 215) === c.h ? '2px solid var(--tf-text)' : '2px solid transparent' }}
                     title={c.name}>
-                    {(profile?.theme.hue ?? 221) === c.h && <Check size={18} className="text-white" />}
+                    {(profile?.theme.hue ?? 215) === c.h && <Check size={18} className="text-white" />}
                   </button>
                 ))}
               </div>
@@ -106,6 +106,24 @@ export function EinstellungenPage(): React.ReactElement {
                   {dark ? <Moon size={14} /> : <Sun size={14} />}
                   {dark ? 'Dark' : 'Light'}
                 </button>
+              </div>
+            </div>
+            <div>
+              <SectionHeader label="Vorschau" />
+              <div className="mt-3 space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-3 py-1.5 rounded-[var(--tf-radius)] text-[13px] bg-[var(--tf-primary)] text-white">Akzent-Farbe</span>
+                  <span className="px-3 py-1.5 rounded-[var(--tf-radius)] text-[13px] bg-[var(--tf-primary-light)] text-[var(--tf-primary)]">Akzent Light</span>
+                  <Badge variant="info">Info Badge</Badge>
+                  <Badge variant="success">Success</Badge>
+                  <Badge variant="warning">Warning</Badge>
+                  <Badge variant="error">Error</Badge>
+                </div>
+                <div className="flex gap-3">
+                  <input placeholder="Focus-Ring Vorschau" className={inputClass} style={inputStyle} />
+                  <Button variant="secondary">Sekundär</Button>
+                </div>
+                <p className="text-[13px]"><a href="#" className="text-[var(--tf-primary)] hover:underline" onClick={e => e.preventDefault()}>Link in Primärfarbe</a> — so sehen Links aus</p>
               </div>
             </div>
           </div>

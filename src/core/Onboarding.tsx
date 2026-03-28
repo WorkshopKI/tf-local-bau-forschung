@@ -18,14 +18,16 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
   const [name, setName] = useState('');
   const [department, setDepartment] = useState<UserProfile['department']>('bauantraege');
   const [selectedHue, setSelectedHue] = useState(221);
-  const [selectedSaturation, setSelectedSaturation] = useState<string | undefined>();
+  const [selectedSat, setSelectedSat] = useState('25%');
+  const [selectedLit, setSelectedLit] = useState('42%');
   const [fsConnected, setFsConnected] = useState(false);
   const [fsName, setFsName] = useState('');
 
-  const handleColorSelect = (h: number, s?: string): void => {
+  const handleColorSelect = (h: number, s: string, l: string): void => {
     setSelectedHue(h);
-    setSelectedSaturation(s);
-    applyThemeColor(h, s);
+    setSelectedSat(s);
+    setSelectedLit(l);
+    applyThemeColor(h, s, l);
   };
 
   const handleConnectFs = async (): Promise<void> => {
@@ -40,7 +42,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
     const profile: UserProfile = { name, department, theme: { hue: selectedHue, dark: false } };
     await storage.idb.set('profile', profile);
     await storage.idb.set('onboarding-complete', true);
-    applyThemeColor(selectedHue, selectedSaturation);
+    applyThemeColor(selectedHue, selectedSat, selectedLit);
     onComplete();
   };
 
@@ -67,10 +69,10 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
                 <label className="text-[13px] font-medium text-[var(--tf-text)]">Farbe</label>
                 <div className="flex gap-2.5 justify-center">
                   {PRESET_COLORS.map(c => (
-                    <button key={c.name} onClick={() => handleColorSelect(c.h, c.s)}
+                    <button key={c.name} onClick={() => handleColorSelect(c.h, c.s, c.l)}
                       className="w-[44px] h-[44px] rounded-full cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
                       style={{
-                        backgroundColor: `hsl(${c.h}, ${c.s ?? '83%'}, 53%)`,
+                        backgroundColor: `hsl(${c.h}, ${c.s}, ${c.l})`,
                         border: selectedHue === c.h ? '2px solid var(--tf-text)' : '2px solid transparent',
                       }}
                       title={c.name}>
@@ -112,7 +114,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
               <p><span className="text-[var(--tf-text-tertiary)]">Abteilung:</span> {department === 'bauantraege' ? 'Bauanträge' : department === 'forschung' ? 'Forschung' : 'Beide'}</p>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-[var(--tf-text-tertiary)]">Farbe:</span>
-                <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: `hsl(${selectedHue}, ${selectedSaturation ?? '83%'}, 53%)` }} />
+                <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: `hsl(${selectedHue}, ${selectedSat}, ${selectedLit})` }} />
               </div>
               <p><span className="text-[var(--tf-text-tertiary)]">File Server:</span> {fsConnected ? fsName : 'Nicht verbunden'}</p>
             </div>

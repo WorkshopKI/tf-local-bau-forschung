@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --tf-primary-h: 221;
-  --tf-primary-s: 83%;
-  --tf-primary-l: 53%;
+  --tf-primary-h: 215;
+  --tf-primary-s: 25%;
+  --tf-primary-l: 42%;
   --tf-primary: hsl(var(--tf-primary-h), var(--tf-primary-s), var(--tf-primary-l));
-  --tf-primary-light: hsl(var(--tf-primary-h), var(--tf-primary-s), 95%);
+  --tf-primary-light: hsl(var(--tf-primary-h), var(--tf-primary-s), 94%);
 
   --tf-bg: #ffffff;
   --tf-bg-secondary: #f8f8f8;
