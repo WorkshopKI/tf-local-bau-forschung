@@ -141,7 +141,7 @@ function DokumenteTab({ vorgangId }: { vorgangId: string }): React.ReactElement 
 
   return (
     <div className="space-y-4">
-      <FileDropZone onFiles={handleFiles} accept=".docx,.md,.txt" multiple />
+      <FileDropZone onFiles={handleFiles} accept=".docx,.pdf,.md,.txt" multiple />
       {vorgangDocs.length > 0 ? (
         <div>
           <SectionHeader label="Zugeordnete Dokumente" />

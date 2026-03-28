@@ -6,6 +6,7 @@ export interface ConvertedDoc {
   warnings: string[];
   filename: string;
   format: string;
+  pages?: number;
 }
 
 export class DocConverter {
@@ -21,7 +22,7 @@ export class DocConverter {
   async convert(file: File): Promise<ConvertedDoc> {
     const arrayBuffer = await file.arrayBuffer();
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'txt';
-    const format = ext === 'docx' ? 'docx' : ext === 'md' ? 'md' : 'txt';
+    const format = ext === 'pdf' ? 'pdf' : ext === 'docx' ? 'docx' : ext === 'md' ? 'md' : 'txt';
 
     return new Promise((resolve, reject) => {
       const worker = this.getWorker();
@@ -34,6 +35,7 @@ export class DocConverter {
             warnings: e.data.warnings as string[],
             filename: file.name,
             format,
+            pages: e.data.pages as number | undefined,
           });
         } else {
           reject(new Error(e.data.error as string));

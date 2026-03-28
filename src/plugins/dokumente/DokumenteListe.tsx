@@ -21,7 +21,7 @@ export function DokumenteListe(): React.ReactElement {
     for (const file of files) {
       try {
         const result = await converter.convert(file);
-        await add({ filename: result.filename, format: result.format, markdown: result.markdown, tags: [] }, storage);
+        await add({ filename: result.filename, format: result.format, markdown: result.markdown, tags: [], pages: result.pages }, storage);
         indexDocument({ id: `doc-${Date.now()}`, text: result.markdown, title: result.filename, source: result.filename, tags: [], type: 'dokument' });
       } catch (err) { console.error('Conversion failed:', err); }
     }
@@ -32,7 +32,7 @@ export function DokumenteListe(): React.ReactElement {
     <div className="p-6 max-w-3xl mx-auto">
       <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Dokumente</h1>
 
-      <FileDropZone onFiles={handleFiles} accept=".docx,.md,.txt" multiple>
+      <FileDropZone onFiles={handleFiles} accept=".docx,.pdf,.md,.txt" multiple>
         {converting ? <p className="text-[13px] text-[var(--tf-text-secondary)]">Konvertiere...</p> : undefined}
       </FileDropZone>
 
@@ -52,7 +52,9 @@ export function DokumenteListe(): React.ReactElement {
               title={doc.filename}
               meta={
                 <>
-                  <Badge variant={doc.format === 'docx' ? 'info' : doc.format === 'md' ? 'success' : 'default'}>{doc.format.toUpperCase()}</Badge>
+                  <Badge variant={doc.format === 'pdf' ? 'error' : doc.format === 'docx' ? 'info' : doc.format === 'md' ? 'success' : 'default'}>
+                    {doc.format === 'pdf' && doc.pages ? `PDF · ${doc.pages} Seiten` : doc.format.toUpperCase()}
+                  </Badge>
                   <span className="text-[11px] text-[var(--tf-text-tertiary)]">{new Date(doc.created).toLocaleDateString('de-DE')}</span>
                 </>
               }

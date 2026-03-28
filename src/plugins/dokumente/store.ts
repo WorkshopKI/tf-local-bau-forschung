@@ -8,6 +8,7 @@ export interface Document {
   markdown: string;
   tags: string[];
   created: string;
+  pages?: number;
   vorgangId?: string;
 }
 
