@@ -28,12 +28,15 @@ export interface DashboardData {
   stats: { total: number; offen: number; inPruefung: number; nachforderung: number; genehmigt: number };
 }
 
-export function useDashboardData(): DashboardData {
+export function useDashboardData(department: 'bauantraege' | 'forschung' | 'beide' = 'beide'): DashboardData {
   const bauantraege = useBauantraegeStore(s => s.bauantraege);
   const forschung = useForschungStore(s => s.antraege);
 
   return useMemo(() => {
-    const alle: Vorgang[] = [...bauantraege, ...forschung];
+    const alle: Vorgang[] = [
+      ...(department !== 'forschung' ? bauantraege : []),
+      ...(department !== 'bauantraege' ? forschung : []),
+    ];
     const offen = alle.filter(v => !CLOSED.has(v.status));
 
     const mitFrist = offen
@@ -63,5 +66,5 @@ export function useDashboardData(): DashboardData {
         genehmigt: alle.filter(v => (v.status as string) === 'genehmigt' || (v.status as string) === 'bewilligt').length,
       },
     };
-  }, [bauantraege, forschung]);
+  }, [bauantraege, forschung, department]);
 }

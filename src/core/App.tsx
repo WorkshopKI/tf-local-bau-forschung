@@ -18,6 +18,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const tagValue = useTagProvider(storage);
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [department, setDepartment] = useState<UserProfile['department']>('beide');
 
   useEffect(() => {
     storage.init().then(async () => {
@@ -27,6 +28,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         if (profile) {
           applyThemeColor(profile.theme.hue);
           setDarkMode(profile.theme.dark);
+          setDepartment(profile.department);
         }
         setShowOnboarding(false);
       } else {
@@ -52,7 +54,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
           {showOnboarding ? (
             <Onboarding onComplete={() => setShowOnboarding(false)} />
           ) : (
-            <Shell plugins={enabledPlugins} />
+            <Shell plugins={enabledPlugins} department={department} />
           )}
         </TagContext.Provider>
       </SearchContext.Provider>

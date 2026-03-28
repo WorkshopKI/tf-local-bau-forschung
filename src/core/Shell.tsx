@@ -13,6 +13,7 @@ import { SyncStatusIndicator } from '@/ui/SyncStatusIndicator';
 
 interface ShellProps {
   plugins: TeamFlowPlugin[];
+  department?: 'bauantraege' | 'forschung' | 'beide';
 }
 
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
@@ -23,8 +24,16 @@ function getIcon(name: string): IconComponent {
   return Icons.HelpCircle;
 }
 
-export function Shell({ plugins }: ShellProps): React.ReactElement {
-  const [activeId, setActiveId] = useState(plugins[0]?.id ?? '');
+export function Shell({ plugins, department = 'beide' }: ShellProps): React.ReactElement {
+  const visiblePlugins = useMemo(() => {
+    return plugins.filter(p => {
+      if (department === 'bauantraege' && p.id === 'forschung') return false;
+      if (department === 'forschung' && p.id === 'bauantraege') return false;
+      return true;
+    });
+  }, [plugins, department]);
+
+  const [activeId, setActiveId] = useState(visiblePlugins[0]?.id ?? '');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
@@ -37,7 +46,7 @@ export function Shell({ plugins }: ShellProps): React.ReactElement {
     }
   }, []);
 
-  const sortedPlugins = useMemo(() => [...plugins].sort((a, b) => a.order - b.order), [plugins]);
+  const sortedPlugins = useMemo(() => [...visiblePlugins].sort((a, b) => a.order - b.order), [visiblePlugins]);
 
   const commandItems = useMemo((): CommandItem[] => {
     const isMac = navigator.platform.includes('Mac');
@@ -73,13 +82,13 @@ export function Shell({ plugins }: ShellProps): React.ReactElement {
   }, []);
 
   const grouped = useMemo(() => {
-    const sorted = [...plugins].sort((a, b) => a.order - b.order);
+    const sorted = [...visiblePlugins].sort((a, b) => a.order - b.order);
     const groups: Record<string, TeamFlowPlugin[]> = { workflow: [], tools: [], admin: [] };
     for (const p of sorted) groups[p.category]?.push(p);
     return groups;
-  }, [plugins]);
+  }, [visiblePlugins]);
 
-  const activePlugin = plugins.find(p => p.id === activeId);
+  const activePlugin = visiblePlugins.find(p => p.id === activeId);
   const ActiveComponent = activePlugin?.component;
 
   return (

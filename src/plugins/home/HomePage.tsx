@@ -29,7 +29,7 @@ export function HomePage(): React.ReactElement {
     storage.idb.get<UserProfile>('profile').then(p => { if (p) setProfile(p); });
   }, [storage, loadBau, loadForsch]);
 
-  const data = useDashboardData();
+  const data = useDashboardData(profile?.department);
   const name = profile?.name ?? '';
   const dept = profile?.department === 'bauantraege' ? 'Bauanträge' : profile?.department === 'forschung' ? 'Forschung' : 'Beide Abteilungen';
 
