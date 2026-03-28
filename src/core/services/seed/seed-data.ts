@@ -1,4 +1,5 @@
 import type { StorageService } from '@/core/services/storage';
+import { FulltextSearch } from '@/core/services/search/fulltext';
 import { bauantraegeData } from './bauantraege-data';
 import { forschungData } from './forschung-data';
 import { artefakteData } from './artefakte-data';
@@ -16,27 +17,30 @@ export async function seedTestData(
   const isSeeded = await storage.idb.get<boolean>('seed-complete');
   if (isSeeded) return { vorgaenge: 0, dokumente: 0, artefakte: 0 };
 
-  // Dynamic import to keep main bundle smaller
   const { allDokumente } = await import('./dokumente-data');
+  const search = new FulltextSearch();
 
   const total = bauantraegeData.length + forschungData.length + allDokumente.length + artefakteData.length;
   let current = 0;
 
-  // Bauanträge
+  // Bauanträge — save + index
   for (const v of bauantraegeData) {
     await storage.saveVorgang(v);
+    search.addDocument({ id: v.id, text: `${v.title} ${v.notes} ${v.tags.join(' ')}`, title: v.title, source: v.id, tags: v.tags, type: 'bauantrag' });
     onProgress?.(++current, total);
   }
 
-  // Forschungsanträge
+  // Forschungsanträge — save + index
   for (const v of forschungData) {
     await storage.saveVorgang(v);
+    search.addDocument({ id: v.id, text: `${v.title} ${v.notes} ${v.tags.join(' ')}`, title: v.title, source: v.id, tags: v.tags, type: 'forschung' });
     onProgress?.(++current, total);
   }
 
-  // Dokumente
+  // Dokumente — save + index
   for (const doc of allDokumente) {
     await storage.idb.set(`doc:${doc.id}`, doc);
+    search.addDocument({ id: doc.id, text: doc.markdown, title: doc.filename, source: doc.filename, tags: doc.tags, type: 'dokument' });
     onProgress?.(++current, total);
   }
 
@@ -46,6 +50,8 @@ export async function seedTestData(
     onProgress?.(++current, total);
   }
 
+  // Persist search index to IDB
+  await storage.idb.set('search-index', search.exportIndex());
   await storage.idb.set('seed-complete', true);
 
   return {
