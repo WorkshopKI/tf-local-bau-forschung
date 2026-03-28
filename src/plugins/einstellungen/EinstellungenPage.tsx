@@ -15,7 +15,7 @@ const TABS = [
   { id: 'ai', label: 'AI-Provider' },
   { id: 'tags', label: 'Tags' },
   { id: 'tastatur', label: 'Tastatur' },
-  { id: 'speicher', label: 'Speicher' },
+  { id: 'speicher', label: 'Verzeichnisse' },
 ];
 
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
