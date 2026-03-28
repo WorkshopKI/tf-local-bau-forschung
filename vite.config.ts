@@ -14,6 +14,9 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       (isSingle || isDeploy) && viteSingleFile(),
     ].filter(Boolean),
+    define: {
+      'import.meta.env.VITE_EMBED_MODE': JSON.stringify(isSingle ? 'inline' : 'external'),
+    },
     build: {
       target: 'esnext',
       outDir: isSingle ? 'dist-single' : isDeploy ? 'dist-deploy' : 'dist',
