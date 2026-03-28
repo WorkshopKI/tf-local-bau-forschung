@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Pencil, Trash2, Check } from 'lucide-react';
 import { Button, Badge, Tabs, Dialog, Field } from '@/ui';
 import { StatusSelect } from '@/ui/StatusSelect';
+import { MarkdownEditor } from '@/ui/MarkdownEditor';
 import { useStorage } from '@/core/hooks/useStorage';
 import { VorgangDokumenteTab } from '@/core/components/VorgangDokumenteTab';
 import { VerlaufTab } from '@/core/components/VerlaufTab';
@@ -115,9 +116,7 @@ export function BauantragDetail(): React.ReactElement | null {
         {activeTab === 'verlauf' && <VerlaufTab history={history} />}
         {activeTab === 'notizen' && (
           <div className="space-y-2">
-            <textarea value={notes} onChange={e => handleNotesChange(e.target.value)} rows={8} placeholder="Notizen..."
-              className="w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none resize-y placeholder:text-[var(--tf-text-tertiary)]"
-              style={{ border: '0.5px solid var(--tf-border)' }} />
+            <MarkdownEditor value={notes} onChange={handleNotesChange} placeholder="Notizen zum Vorgang..." minHeight="250px" />
             {saved && <p className="flex items-center gap-1 text-[12px] text-[var(--tf-success-text)]"><Check size={12} /> Gespeichert</p>}
           </div>
         )}

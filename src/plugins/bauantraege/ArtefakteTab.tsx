@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Copy, Trash2, Sparkles, RefreshCw, Download } from 'lucide-react';
 import { Button, Badge, SectionHeader, ListItem, MarkdownRenderer } from '@/ui';
+import { MarkdownEditorWithPreview } from '@/ui/MarkdownEditorWithPreview';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { ArtifactService } from '@/core/services/artifacts';
@@ -94,9 +95,7 @@ export function ArtefakteTab({ vorgang, userName }: ArtefakteTabProps): React.Re
       {generated && (
         <div className="space-y-3">
           <SectionHeader label="Vorschau" />
-          <textarea value={generated} onChange={e => setGenerated(e.target.value)} rows={12}
-            className="w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none font-mono resize-y"
-            style={{ border: '0.5px solid var(--tf-border)' }} />
+          <MarkdownEditorWithPreview value={generated} onChange={v => setGenerated(v)} placeholder="Artefakt bearbeiten..." />
           <div className="flex gap-2">
             <Button onClick={handleSave}>Übernehmen & Speichern</Button>
             <Button variant="secondary" icon={RefreshCw} onClick={handleGenerate}>Neu generieren</Button>
