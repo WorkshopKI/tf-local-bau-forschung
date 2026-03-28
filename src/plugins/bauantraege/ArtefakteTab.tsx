@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Copy, Trash2, Sparkles, RefreshCw } from 'lucide-react';
+import { Copy, Trash2, Sparkles, RefreshCw, Download } from 'lucide-react';
 import { Button, Badge, SectionHeader, ListItem, MarkdownRenderer } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { ArtifactService } from '@/core/services/artifacts';
+import { exportArtifact } from '@/core/services/export/docx-export';
 import { getTemplateTypes, fillTemplate } from '@/core/services/templates';
 import type { Artifact, Vorgang } from '@/core/types/vorgang';
 
@@ -108,7 +109,10 @@ export function ArtefakteTab({ vorgang, userName }: ArtefakteTabProps): React.Re
       {viewingArtifact && (
         <div className="space-y-3">
           <SectionHeader label={TYPE_LABELS[viewingArtifact.type] ?? viewingArtifact.type}
-            action={<button onClick={() => setViewingId(null)} className="text-[11px] text-[var(--tf-text-secondary)] cursor-pointer hover:text-[var(--tf-text)]">Schließen</button>} />
+            action={<div className="flex items-center gap-2">
+              <Button variant="secondary" icon={Download} size="sm" onClick={() => exportArtifact(viewingArtifact, vorgang)}>Als Word</Button>
+              <button onClick={() => setViewingId(null)} className="text-[11px] text-[var(--tf-text-secondary)] cursor-pointer hover:text-[var(--tf-text)]">Schließen</button>
+            </div>} />
           <div className="rounded-[var(--tf-radius-lg)] p-4 bg-[var(--tf-bg)]" style={{ border: '0.5px solid var(--tf-border)' }}>
             <MarkdownRenderer content={viewingArtifact.content} />
           </div>
@@ -128,8 +132,9 @@ export function ArtefakteTab({ vorgang, userName }: ArtefakteTabProps): React.Re
               meta={
                 <div className="flex items-center gap-1">
                   <Badge variant="default">{a.type}</Badge>
-                  <button onClick={() => navigator.clipboard.writeText(a.content)} className="p-1 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer" title="Kopieren"><Copy size={12} /></button>
-                  <button onClick={() => handleDelete(a.id)} className="p-1 text-[var(--tf-danger-text)] cursor-pointer" title="Löschen"><Trash2 size={12} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); exportArtifact(a, vorgang); }} className="p-1 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer" title="DOCX"><Download size={12} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(a.content); }} className="p-1 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer" title="Kopieren"><Copy size={12} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(a.id); }} className="p-1 text-[var(--tf-danger-text)] cursor-pointer" title="Löschen"><Trash2 size={12} /></button>
                 </div>
               }
               onClick={() => setViewingId(a.id)}
