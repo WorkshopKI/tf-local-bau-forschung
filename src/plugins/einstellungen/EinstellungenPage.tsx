@@ -5,6 +5,7 @@ import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/ui/th
 import { useStorage } from '@/core/hooks/useStorage';
 import { TagsTab } from './TagsTab';
 import { SpeicherTab } from './SpeicherTab';
+import { TastaturTab } from './TastaturTab';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
 const TABS = [
@@ -12,6 +13,7 @@ const TABS = [
   { id: 'darstellung', label: 'Darstellung' },
   { id: 'ai', label: 'AI-Provider' },
   { id: 'tags', label: 'Tags' },
+  { id: 'tastatur', label: 'Tastatur' },
   { id: 'speicher', label: 'Speicher' },
 ];
 
@@ -154,6 +156,7 @@ export function EinstellungenPage(): React.ReactElement {
         )}
 
         {activeTab === 'tags' && <TagsTab />}
+        {activeTab === 'tastatur' && <TastaturTab />}
         {activeTab === 'speicher' && <SpeicherTab />}
       </div>
     </div>

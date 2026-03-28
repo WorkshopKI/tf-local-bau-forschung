@@ -5,6 +5,10 @@ import { NavigationContext } from '@/core/hooks/useNavigation';
 import type { NavigationParams } from '@/core/hooks/useNavigation';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useForschungStore } from '@/plugins/forschung/store';
+import { keyboardService } from '@/core/services/keyboard';
+import { CommandPalette } from '@/ui/CommandPalette';
+import type { CommandItem } from '@/ui/CommandPalette';
+import { setDarkMode, isDarkMode } from '@/ui/theme';
 
 interface ShellProps {
   plugins: TeamFlowPlugin[];
@@ -22,6 +26,7 @@ export function Shell({ plugins }: ShellProps): React.ReactElement {
   const [activeId, setActiveId] = useState(plugins[0]?.id ?? '');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
 
   const navigate = useCallback((pluginId: string, params?: NavigationParams) => {
     setActiveId(pluginId);
@@ -29,6 +34,30 @@ export function Shell({ plugins }: ShellProps): React.ReactElement {
       if (pluginId === 'bauantraege') useBauantraegeStore.getState().setSelectedId(params.selectedId);
       if (pluginId === 'forschung') useForschungStore.getState().setSelectedId(params.selectedId);
     }
+  }, []);
+
+  const sortedPlugins = useMemo(() => [...plugins].sort((a, b) => a.order - b.order), [plugins]);
+
+  const commandItems = useMemo((): CommandItem[] => {
+    const isMac = navigator.platform.includes('Mac');
+    const mod = isMac ? '⌘' : 'Ctrl+';
+    const items: CommandItem[] = [];
+    sortedPlugins.forEach((p, i) => {
+      items.push({ id: `nav-${p.id}`, label: p.name, category: 'Navigation', shortcut: i < 7 ? `${mod}${i + 1}` : undefined, action: () => setActiveId(p.id) });
+    });
+    items.push({ id: 'act-dark', label: 'Dark Mode umschalten', category: 'Einstellungen', shortcut: `${mod}⇧D`, action: () => setDarkMode(!isDarkMode()) });
+    items.push({ id: 'act-sidebar', label: 'Sidebar ein/ausblenden', category: 'Einstellungen', shortcut: `${mod}/`, action: () => setSidebarOpen(prev => !prev) });
+    return items;
+  }, [sortedPlugins]);
+
+  // Register global shortcuts
+  useEffect(() => {
+    keyboardService.init();
+    keyboardService.register('mod+k', () => setCmdPaletteOpen(prev => !prev), { description: 'Command Palette', category: 'Global' });
+    keyboardService.register('mod+/', () => setSidebarOpen(prev => !prev), { description: 'Sidebar toggle', category: 'Global' });
+    keyboardService.register('mod+shift+d', () => setDarkMode(!isDarkMode()), { description: 'Dark Mode toggle', category: 'Global' });
+    keyboardService.register('escape', () => setCmdPaletteOpen(false), { description: 'Schließen', category: 'Global' });
+    return () => { keyboardService.unregister('mod+k'); keyboardService.unregister('mod+/'); keyboardService.unregister('mod+shift+d'); keyboardService.unregister('escape'); };
   }, []);
 
   useEffect(() => {
@@ -54,6 +83,7 @@ export function Shell({ plugins }: ShellProps): React.ReactElement {
 
   return (
     <NavigationContext.Provider value={{ navigate }}>
+      <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} items={commandItems} />
       <div className="flex h-screen overflow-hidden bg-[var(--tf-bg)]">
         <aside
           className="flex flex-col bg-[var(--tf-bg-sidebar)] transition-all duration-200 overflow-hidden shrink-0"
