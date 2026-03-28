@@ -6,6 +6,7 @@ import { useBauantraegeStore } from './store';
 import { BauantragForm } from './BauantragForm';
 import { useDokumenteStore } from '@/plugins/dokumente/store';
 import { DocConverter } from '@/core/services/converter';
+import { ArtefakteTab } from './ArtefakteTab';
 import type { VorgangStatus } from '@/core/types/vorgang';
 
 const converter = new DocConverter();
@@ -83,6 +84,7 @@ export function BauantragDetail(): React.ReactElement | null {
       <Tabs tabs={[
         { id: 'uebersicht', label: 'Übersicht' },
         { id: 'dokumente', label: 'Dokumente' },
+        { id: 'artefakte', label: 'Artefakte' },
         { id: 'notizen', label: 'Notizen' },
       ]} activeTab={activeTab} onChange={setActiveTab} />
 
@@ -103,6 +105,7 @@ export function BauantragDetail(): React.ReactElement | null {
           </div>
         )}
         {activeTab === 'dokumente' && <DokumenteTab vorgangId={vorgang.id} />}
+        {activeTab === 'artefakte' && <ArtefakteTab vorgang={vorgang} userName="" />}
         {activeTab === 'notizen' && (
           <div className="space-y-2">
             <textarea value={notes} onChange={e => handleNotesChange(e.target.value)} rows={8}
