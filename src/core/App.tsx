@@ -10,7 +10,7 @@ import { SearchContext, useSearchProvider } from '@/core/hooks/useSearch';
 import { TagContext, useTagProvider } from '@/core/hooks/useTags';
 import { ErrorBoundary } from '@/core/ErrorBoundary';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
-import type { UserProfile } from '@/core/types/config';
+import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
 function AppInner({ storage }: { storage: StorageService }): React.ReactElement {
   const aiBridge = useMemo(() => new AIBridge(), []);
@@ -32,9 +32,16 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       } else {
         setShowOnboarding(true);
       }
+
+      // Load AI provider config
+      const aiConfig = await storage.idb.get<AIProviderConfig>('ai-provider');
+      if (aiConfig && aiConfig.type !== 'streamlit' && aiConfig.endpoint) {
+        aiBridge.switchProvider(aiConfig);
+      }
+
       setReady(true);
     });
-  }, [storage]);
+  }, [storage, aiBridge]);
 
   if (!ready) return <div />;
 

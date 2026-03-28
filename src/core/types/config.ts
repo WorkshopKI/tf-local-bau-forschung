@@ -8,7 +8,7 @@ export interface UserProfile {
 }
 
 export interface AIProviderConfig {
-  type: 'streamlit' | 'llama-local' | 'cloud';
+  type: 'streamlit' | 'llama-local' | 'openrouter' | 'cloud';
   endpoint: string;
   model: string;
   apiKey: string;

@@ -1,7 +1,7 @@
 export interface AITransport {
   name: string;
   ping(): Promise<boolean>;
-  submitMessage(message: string): Promise<string>;
+  submitMessage(message: string, systemPrompt?: string): Promise<string>;
 }
 
 export class StreamlitBridgeTransport implements AITransport {

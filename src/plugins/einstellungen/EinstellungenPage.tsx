@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Check, Sun, Moon } from 'lucide-react';
-import { Tabs, Button, Badge, SectionHeader } from '@/ui';
+import { Tabs, Badge, SectionHeader } from '@/ui';
 import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/ui/theme';
 import { useStorage } from '@/core/hooks/useStorage';
 import { TagsTab } from './TagsTab';
 import { SpeicherTab } from './SpeicherTab';
 import { TastaturTab } from './TastaturTab';
+import { AIProviderTab } from './AIProviderTab';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
 const TABS = [
@@ -128,32 +129,7 @@ export function EinstellungenPage(): React.ReactElement {
           </div>
         )}
 
-        {activeTab === 'ai' && (
-          <div className="space-y-4">
-            <SectionHeader label="Provider auswählen" />
-            {([['streamlit', 'Streamlit Bridge'], ['llama-local', 'llama.cpp (lokal)'], ['cloud', 'Cloud API']] as const).map(([type, label]) => (
-              <label key={type} className="flex items-center gap-3 py-2 cursor-pointer" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-                <input type="radio" name="ai-provider" checked={aiConfig.type === type}
-                  onChange={() => { const c = { ...aiConfig, type }; setAiConfig(c); storage.idb.set('ai-provider', c); }}
-                  className="accent-[var(--tf-text)]" />
-                <span className="text-[13px] text-[var(--tf-text)]">{label}</span>
-                {aiConfig.type === type && <Badge variant="info">Aktiv</Badge>}
-              </label>
-            ))}
-            <SectionHeader label="Konfiguration" />
-            <div className="space-y-3 mt-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-medium text-[var(--tf-text)]">Endpoint</label>
-                <input value={aiConfig.endpoint} onChange={e => { const c = { ...aiConfig, endpoint: e.target.value }; setAiConfig(c); storage.idb.set('ai-provider', c); }} className={inputClass} style={inputStyle} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-medium text-[var(--tf-text)]">Model</label>
-                <input value={aiConfig.model} onChange={e => { const c = { ...aiConfig, model: e.target.value }; setAiConfig(c); storage.idb.set('ai-provider', c); }} className={inputClass} style={inputStyle} />
-              </div>
-              <Button variant="secondary" onClick={() => alert('Nicht implementiert')}>Testen</Button>
-            </div>
-          </div>
-        )}
+        {activeTab === 'ai' && <AIProviderTab aiConfig={aiConfig} setAiConfig={setAiConfig} />}
 
         {activeTab === 'tags' && <TagsTab />}
         {activeTab === 'tastatur' && <TastaturTab />}
