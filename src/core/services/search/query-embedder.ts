@@ -1,4 +1,4 @@
-import EmbeddingWorker from '../../../workers/embedding.worker?worker&inline';
+import { loadEmbeddingWorker } from '@/core/utils/worker-loader';
 
 export class QueryEmbedder {
   private worker: Worker | null = null;
@@ -9,7 +9,7 @@ export class QueryEmbedder {
     if (this.ready || this.loading) return;
     this.loading = true;
 
-    this.worker = new EmbeddingWorker();
+    this.worker = await loadEmbeddingWorker();
 
     return new Promise((resolve, reject) => {
       if (!this.worker) { reject(new Error('Worker not created')); return; }

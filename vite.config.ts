@@ -4,22 +4,27 @@ import tailwindcss from '@tailwindcss/vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import path from 'path';
 
-export default defineConfig(({ mode }) => ({
-  plugins: [
-    react(),
-    tailwindcss(),
-    mode === 'single' && viteSingleFile(),
-  ].filter(Boolean),
-  build: {
-    target: 'esnext',
-    outDir: mode === 'single' ? 'dist-single' : 'dist',
-    assetsInlineLimit: mode === 'single' ? Infinity : 4096,
-  },
-  base: mode === 'single' ? '' : './',
-  worker: { format: 'es' },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+export default defineConfig(({ mode }) => {
+  const isSingle = mode === 'single';
+  const isDeploy = mode === 'deploy';
+
+  return {
+    plugins: [
+      react(),
+      tailwindcss(),
+      (isSingle || isDeploy) && viteSingleFile(),
+    ].filter(Boolean),
+    build: {
+      target: 'esnext',
+      outDir: isSingle ? 'dist-single' : isDeploy ? 'dist-deploy' : 'dist',
+      assetsInlineLimit: (isSingle || isDeploy) ? Infinity : 4096,
     },
-  },
-}));
+    base: (isSingle || isDeploy) ? '' : './',
+    worker: { format: 'es' },
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
+    },
+  };
+});

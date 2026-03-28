@@ -1,4 +1,4 @@
-import EmbeddingWorker from '../../../workers/embedding.worker?worker&inline';
+import { loadEmbeddingWorker } from '@/core/utils/worker-loader';
 import type { StorageService } from '@/core/services/storage';
 import type { VectorChunk } from './vector-store';
 
@@ -31,7 +31,7 @@ export class BatchIndexer {
   private ready = false;
 
   async init(preferGPU = false): Promise<void> {
-    this.worker = new EmbeddingWorker();
+    this.worker = await loadEmbeddingWorker();
     const device = preferGPU ? 'webgpu' : 'wasm';
 
     return new Promise((resolve, reject) => {
