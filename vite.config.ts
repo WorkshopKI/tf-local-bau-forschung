@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
       (isSingle || isDeploy) && viteSingleFile(),
     ].filter(Boolean),
     define: {
-      'import.meta.env.VITE_EMBED_MODE': JSON.stringify(isSingle ? 'inline' : 'external'),
+      'import.meta.env.VITE_EMBED_MODE': JSON.stringify(isDeploy ? 'external' : 'inline'),
     },
     build: {
       target: 'esnext',

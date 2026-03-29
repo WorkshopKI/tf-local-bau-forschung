@@ -12,10 +12,33 @@ import { ErrorBoundary } from '@/core/ErrorBoundary';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
-function AppInner({ storage }: { storage: StorageService }): React.ReactElement {
-  const aiBridge = useMemo(() => new AIBridge(), []);
+function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, department }: {
+  storage: StorageService;
+  aiBridge: AIBridge;
+  showOnboarding: boolean;
+  setShowOnboarding: (v: boolean) => void;
+  department: UserProfile['department'];
+}): React.ReactElement {
   const searchValue = useSearchProvider(storage);
   const tagValue = useTagProvider(storage);
+
+  return (
+    <AIBridgeContext.Provider value={aiBridge}>
+      <SearchContext.Provider value={searchValue}>
+        <TagContext.Provider value={tagValue}>
+          {showOnboarding ? (
+            <Onboarding onComplete={() => setShowOnboarding(false)} />
+          ) : (
+            <Shell plugins={enabledPlugins} department={department} />
+          )}
+        </TagContext.Provider>
+      </SearchContext.Provider>
+    </AIBridgeContext.Provider>
+  );
+}
+
+function AppInner({ storage }: { storage: StorageService }): React.ReactElement {
+  const aiBridge = useMemo(() => new AIBridge(), []);
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [department, setDepartment] = useState<UserProfile['department']>('beide');
@@ -48,17 +71,13 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   if (!ready) return <div />;
 
   return (
-    <AIBridgeContext.Provider value={aiBridge}>
-      <SearchContext.Provider value={searchValue}>
-        <TagContext.Provider value={tagValue}>
-          {showOnboarding ? (
-            <Onboarding onComplete={() => setShowOnboarding(false)} />
-          ) : (
-            <Shell plugins={enabledPlugins} department={department} />
-          )}
-        </TagContext.Provider>
-      </SearchContext.Provider>
-    </AIBridgeContext.Provider>
+    <AppProviders
+      storage={storage}
+      aiBridge={aiBridge}
+      showOnboarding={showOnboarding}
+      setShowOnboarding={setShowOnboarding}
+      department={department}
+    />
   );
 }
 
