@@ -12,12 +12,19 @@ export function SpeicherTab(): React.ReactElement {
 
   const refresh = (): void => setDirectories(storage.getDirectories());
 
+  const [error, setError] = useState('');
+
   const handleAdd = async (): Promise<void> => {
     if (!addType || !addLabel.trim()) return;
-    await storage.addDirectory(addLabel.trim(), addType);
-    setAddLabel('');
-    setAddType(null);
-    refresh();
+    setError('');
+    const result = await storage.addDirectory(addLabel.trim(), addType);
+    if (result) {
+      setAddLabel('');
+      setAddType(null);
+      refresh();
+    } else {
+      setError('Verzeichnis konnte nicht verbunden werden. Bitte erneut versuchen.');
+    }
   };
 
   const handleRemove = async (id: string): Promise<void> => {
@@ -71,7 +78,8 @@ export function SpeicherTab(): React.ReactElement {
               onKeyDown={e => { if (e.key === 'Enter' && addLabel.trim()) handleAdd(); }}
               autoFocus />
             <Button icon={FolderOpen} onClick={handleAdd} disabled={!addLabel.trim()}>Ordner wählen</Button>
-            <Button variant="ghost" onClick={() => { setAddType(null); setAddLabel(''); }}>Abbrechen</Button>
+            <Button variant="ghost" onClick={() => { setAddType(null); setAddLabel(''); setError(''); }}>Abbrechen</Button>
+          {error && <p className="text-[12px] text-[var(--tf-danger-text)]">{error}</p>}
           </div>
         </div>
       )}

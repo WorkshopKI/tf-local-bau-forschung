@@ -71,8 +71,8 @@ export class StorageService {
 
   async addDirectory(label: string, type: 'documents' | 'data'): Promise<DirectoryEntry | null> {
     try {
-      const mode = type === 'documents' ? 'read' as const : 'readwrite' as const;
-      const handle = await window.showDirectoryPicker({ mode });
+      const pickerMode = type === 'data' ? 'readwrite' as const : 'read' as const;
+      const handle = await window.showDirectoryPicker({ mode: pickerMode });
       const id = `dir-${Date.now()}`;
       const entry: DirectoryEntry = { id, label, type, folderName: handle.name };
       const fsMode = type === 'documents' ? 'readonly' as const : 'readwrite' as const;
@@ -81,7 +81,8 @@ export class StorageService {
       await this.saveDirectoryEntries();
       if (type === 'data') await this.syncService.processQueue();
       return entry;
-    } catch {
+    } catch (err) {
+      console.error('addDirectory failed:', err);
       return null;
     }
   }
