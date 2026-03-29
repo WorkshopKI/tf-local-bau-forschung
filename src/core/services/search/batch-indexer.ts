@@ -1,4 +1,5 @@
-import { loadEmbeddingWorker } from '@/core/utils/worker-loader';
+import { embeddingService } from './embedding-service';
+import type { EmbeddingProgress } from './embedding-service';
 import type { StorageService } from '@/core/services/storage';
 import type { VectorChunk } from './vector-store';
 
@@ -8,6 +9,8 @@ export interface IndexStatus {
   processed: number;
   currentDoc: string;
   skipped: number;
+  modelProgress?: { status: string; loaded?: number; total?: number };
+  chunkProgress?: { current: number; total: number };
 }
 
 function chunkText(text: string, size = 200, overlap = 50): string[] {
@@ -27,29 +30,31 @@ async function hashText(text: string): Promise<string> {
 }
 
 export class BatchIndexer {
-  private worker: Worker | null = null;
   private ready = false;
 
-  async init(preferGPU = false): Promise<void> {
-    this.worker = await loadEmbeddingWorker();
-    const device = preferGPU ? 'webgpu' : 'wasm';
-
-    return new Promise((resolve, reject) => {
-      if (!this.worker) { reject(new Error('No worker')); return; }
-      this.worker.onmessage = (e: MessageEvent) => {
-        const data = e.data as Record<string, unknown>;
-        if (data.type === 'ready') { this.ready = true; resolve(); }
-        else if (data.type === 'error') reject(new Error(data.error as string));
-      };
-      this.worker.postMessage({ type: 'init', device });
+  async init(
+    preferGPU = false,
+    onStatus?: (status: IndexStatus) => void,
+  ): Promise<void> {
+    await embeddingService.init(preferGPU, (p: EmbeddingProgress) => {
+      onStatus?.({
+        phase: p.phase === 'loading' ? 'Modell laden' : 'Bereit',
+        total: 0,
+        processed: 0,
+        currentDoc: '',
+        skipped: 0,
+        modelProgress: p.modelProgress,
+      });
     });
+    this.ready = true;
   }
 
   async indexAll(
     storage: StorageService,
     onStatus: (status: IndexStatus) => void,
+    signal?: AbortSignal,
   ): Promise<VectorChunk[]> {
-    if (!this.worker || !this.ready) throw new Error('Not initialized');
+    if (!this.ready) throw new Error('Not initialized');
 
     const docs = await storage.idb.keys('doc:');
     const manifest = await storage.idb.get<Record<string, string>>('index-manifest') ?? {};
@@ -60,6 +65,8 @@ export class BatchIndexer {
     onStatus({ phase: 'Scanning', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
 
     for (const key of docs) {
+      if (signal?.aborted) break;
+
       const doc = await storage.idb.get<{ id: string; filename: string; markdown: string }>(key);
       if (!doc) continue;
 
@@ -75,7 +82,20 @@ export class BatchIndexer {
       const chunks = chunkText(doc.markdown);
 
       onStatus({ phase: 'Embedding', total: docs.length, processed, currentDoc: doc.filename, skipped });
-      const vectors = await this.embedBatch(chunks);
+      const vectors = await embeddingService.embedBatch(
+        chunks,
+        (current, total) => {
+          onStatus({
+            phase: 'Embedding',
+            total: docs.length,
+            processed,
+            currentDoc: doc.filename,
+            skipped,
+            chunkProgress: { current, total },
+          });
+        },
+        signal,
+      );
 
       for (let i = 0; i < chunks.length; i++) {
         allChunks.push({
@@ -92,6 +112,7 @@ export class BatchIndexer {
       onStatus({ phase: 'Done', total: docs.length, processed, currentDoc: doc.filename, skipped });
     }
 
+    // Partielle Ergebnisse speichern (auch nach Abbruch)
     await storage.idb.set('vector-chunks', allChunks);
     await storage.idb.set('index-manifest', manifest);
     await storage.idb.set('index-last-update', new Date().toISOString());
@@ -99,21 +120,7 @@ export class BatchIndexer {
     return allChunks;
   }
 
-  private embedBatch(texts: string[]): Promise<number[][]> {
-    return new Promise((resolve, reject) => {
-      if (!this.worker) { reject(new Error('No worker')); return; }
-      this.worker.onmessage = (e: MessageEvent) => {
-        const data = e.data as Record<string, unknown>;
-        if (data.type === 'embeddings') resolve(data.vectors as number[][]);
-        else if (data.type === 'error') reject(new Error(data.error as string));
-      };
-      this.worker.postMessage({ type: 'embed-batch', texts });
-    });
-  }
-
   destroy(): void {
-    this.worker?.terminate();
-    this.worker = null;
     this.ready = false;
   }
 }

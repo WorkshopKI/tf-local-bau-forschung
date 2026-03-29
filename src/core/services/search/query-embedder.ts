@@ -1,52 +1,23 @@
-import { loadEmbeddingWorker } from '@/core/utils/worker-loader';
+import { embeddingService } from './embedding-service';
 
 export class QueryEmbedder {
-  private worker: Worker | null = null;
-  private ready = false;
-  private loading = false;
-
-  async init(): Promise<void> {
-    if (this.ready || this.loading) return;
-    this.loading = true;
-
-    this.worker = await loadEmbeddingWorker();
-
-    return new Promise((resolve, reject) => {
-      if (!this.worker) { reject(new Error('Worker not created')); return; }
-      this.worker.onmessage = (e: MessageEvent) => {
-        const data = e.data as Record<string, unknown>;
-        if (data.type === 'ready') {
-          this.ready = true;
-          this.loading = false;
-          resolve();
-        } else if (data.type === 'error') {
-          this.loading = false;
-          reject(new Error(data.error as string));
-        }
-      };
-      this.worker.postMessage({ type: 'init', device: 'wasm' });
-    });
+  async init(preferGPU = false): Promise<void> {
+    await embeddingService.init(preferGPU);
   }
 
-  async embed(text: string): Promise<number[]> {
-    if (!this.worker || !this.ready) throw new Error('QueryEmbedder not ready');
-    return new Promise((resolve, reject) => {
-      if (!this.worker) { reject(new Error('No worker')); return; }
-      this.worker.onmessage = (e: MessageEvent) => {
-        const data = e.data as Record<string, unknown>;
-        if (data.type === 'embedding') resolve(data.vector as number[]);
-        else if (data.type === 'error') reject(new Error(data.error as string));
-      };
-      this.worker.postMessage({ type: 'embed-single', text });
-    });
+  isReady(): boolean {
+    return embeddingService.isReady();
   }
 
-  isReady(): boolean { return this.ready; }
-  isLoading(): boolean { return this.loading; }
+  isLoading(): boolean {
+    return embeddingService.isLoading();
+  }
+
+  async embed(query: string): Promise<number[]> {
+    return embeddingService.embedSingle(query);
+  }
 
   destroy(): void {
-    this.worker?.terminate();
-    this.worker = null;
-    this.ready = false;
+    // Singleton wird nicht zerstoert — andere Consumer koennten ihn noch nutzen
   }
 }
