@@ -106,7 +106,7 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
             </div>
             <button onClick={() => setSidebarOpen(false)}
               className="p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer">
-              <Icons.PanelLeftClose size={16} />
+              <Icons.PanelLeftClose size={18} />
             </button>
           </div>
 
