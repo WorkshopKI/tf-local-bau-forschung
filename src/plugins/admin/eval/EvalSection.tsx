@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FlaskConical } from 'lucide-react';
-import { Button, Badge, SectionHeader } from '@/ui';
+import { Button, CollapsibleSection, ProgressBar } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { FulltextSearch } from '@/core/services/search/fulltext';
 import { VectorStore } from '@/core/services/search/vector-store';
@@ -13,30 +13,28 @@ import { EvalResultView } from './EvalResultView';
 
 const MAX_HISTORY = 20;
 
-export function EvalDashboard(): React.ReactElement {
+interface EvalSectionProps {
+  chunkCount: number;
+}
+
+export function EvalSection({ chunkCount }: EvalSectionProps): React.ReactElement {
   const storage = useStorage();
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<EvalProgress | null>(null);
   const [report, setReport] = useState<EvalReport | null>(null);
   const [previousReport, setPreviousReport] = useState<EvalReport | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [chunkCount, setChunkCount] = useState(0);
 
   useEffect(() => {
     storage.idb.get<EvalReport>('eval-latest').then(r => { if (r) setReport(r); });
     storage.idb.get<EvalReport[]>('eval-history').then(h => {
       if (h && h.length > 0) setPreviousReport(h[0] ?? null);
     });
-    storage.idb.get<unknown[]>('vector-chunks').then(c => setChunkCount(c?.length ?? 0));
   }, [storage]);
 
   const startEval = async (): Promise<void> => {
-    setRunning(true);
-    setProgress(null);
-    setError(null);
-
+    setRunning(true); setProgress(null); setError(null);
     try {
-      // Suchinfrastruktur aufbauen
       const fulltext = new FulltextSearch();
       const indexJson = await storage.idb.get<string>('search-index');
       if (indexJson) fulltext.importIndex(indexJson);
@@ -49,72 +47,56 @@ export function EvalDashboard(): React.ReactElement {
 
       const hybridSearch = new HybridSearch(fulltext, vectorStore, queryEmbedder);
       const runner = new EvalRunner(hybridSearch);
-
       const result = await runner.run(setProgress);
 
-      // Metadaten ergaenzen
       result.totalChunks = vectorStore.getChunkCount();
       result.totalDocs = fulltext.getDocumentCount();
 
-      // Persistenz
       const oldLatest = await storage.idb.get<EvalReport>('eval-latest');
       if (oldLatest) setPreviousReport(oldLatest);
 
       await storage.idb.set('eval-latest', result);
-
       const history = await storage.idb.get<EvalReport[]>('eval-history') ?? [];
       history.unshift(result);
       if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
       await storage.idb.set('eval-history', history);
 
-      // FS-Export wenn verbunden
       if (storage.fs) {
-        try {
-          await storage.fs.writeFile('EVAL_REPORT.md', evalToMarkdown(result));
-        } catch { /* FS-Schreibfehler ignorieren */ }
+        try { await storage.fs.writeFile('EVAL_REPORT.md', evalToMarkdown(result)); }
+        catch { /* ignore */ }
       }
-
       setReport(result);
     } catch (err) {
-      setError(String(err));
-      console.error('Eval failed:', err);
-    } finally {
-      setRunning(false);
-    }
+      setError(String(err)); console.error('Eval failed:', err);
+    } finally { setRunning(false); }
   };
 
-  const pct = progress && progress.total > 0
-    ? Math.round((progress.current / progress.total) * 100) : 0;
+  const subtitle = report
+    ? `${report.summary.passed}/${report.summary.total} bestanden`
+    : 'Noch nicht geprueft';
+
+  const pct = progress && progress.total > 0 ? progress.current / progress.total : 0;
 
   return (
-    <div className="mt-6">
-      <SectionHeader label="Suche Evaluierung" />
-      <div className="mt-3 space-y-4">
-        <p className="text-[12px] text-[var(--tf-text-secondary)]">
-          Testet 20 Queries gegen den aktuellen Index (5 Keyword + 15 Semantisch)
-        </p>
-
-        <Button variant="secondary" icon={FlaskConical}
-          disabled={running || chunkCount === 0} onClick={startEval}>
-          {running ? 'Eval laeuft...' : 'Eval starten'}
-        </Button>
-
-        {chunkCount === 0 && !running && (
-          <p className="text-[11px] text-[var(--tf-warning-text)]">
-            Kein Index vorhanden. Bitte zuerst indexieren.
-          </p>
-        )}
+    <CollapsibleSection label="Suchqualitaet pruefen" defaultOpen={true} subtitle={subtitle}>
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="secondary" icon={FlaskConical}
+            disabled={running || chunkCount === 0} onClick={startEval}>
+            {running ? 'Pruefe...' : 'Qualitaet pruefen'}
+          </Button>
+          {chunkCount === 0 && !running && (
+            <span className="text-[11px] text-[var(--tf-warning-text)]">Erst indexieren</span>
+          )}
+        </div>
 
         {running && progress && (
           <div className="space-y-2">
             <div className="flex justify-between text-[12px] text-[var(--tf-text-secondary)]">
               <span>Query {progress.current}/{progress.total} — {progress.currentQuery}</span>
-              <span>{pct}%</span>
+              <span>{Math.round(pct * 100)}%</span>
             </div>
-            <div className="w-full h-1 bg-[var(--tf-bg-secondary)] rounded-sm overflow-hidden">
-              <div className="h-full bg-[var(--tf-text)] rounded-sm transition-all"
-                style={{ width: `${pct}%` }} />
-            </div>
+            <ProgressBar value={pct} />
           </div>
         )}
 
@@ -125,17 +107,9 @@ export function EvalDashboard(): React.ReactElement {
         )}
 
         {report && !running && (
-          <div className="mt-4 space-y-4">
-            <div className="flex items-center gap-2 text-[11px] text-[var(--tf-text-tertiary)]">
-              <Badge variant="default">{new Date(report.timestamp).toLocaleString('de-DE')}</Badge>
-              <span>{report.duration} ms</span>
-              <span>{report.totalChunks} Chunks</span>
-              <span>{report.totalDocs} Docs</span>
-            </div>
-            <EvalResultView report={report} previousReport={previousReport ?? undefined} />
-          </div>
+          <EvalResultView report={report} previousReport={previousReport ?? undefined} />
         )}
       </div>
-    </div>
+    </CollapsibleSection>
   );
 }

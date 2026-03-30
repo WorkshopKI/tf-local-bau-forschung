@@ -3,8 +3,8 @@ import { IndexManager } from './IndexManager';
 
 export const adminPlugin: TeamFlowPlugin = {
   id: 'admin',
-  name: 'Admin',
-  icon: 'Shield',
+  name: 'Suchindex',
+  icon: 'Search',
   category: 'admin',
   order: 95,
   component: IndexManager,

@@ -11,3 +11,5 @@ export { SectionHeader } from './SectionHeader';
 export { ListItem } from './ListItem';
 export { TagInput } from './TagInput';
 export { Field } from './Field';
+export { CollapsibleSection } from './CollapsibleSection';
+export { ProgressBar } from './ProgressBar';
