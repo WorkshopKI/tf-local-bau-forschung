@@ -193,7 +193,15 @@ function DeltaLine({ label, current, previous, prevDate }: {
 /* ─── Result Table ─── */
 
 function ResultTable({ results }: { results: TestCaseResult[] }): React.ReactElement {
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggle = (id: string): void => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="border border-[var(--tf-border)] rounded-[var(--tf-radius)] overflow-hidden">
@@ -209,8 +217,8 @@ function ResultTable({ results }: { results: TestCaseResult[] }): React.ReactEle
         <tbody>
           {results.map(r => (
             <ResultRow key={r.testCase.id} result={r}
-              isExpanded={expanded === r.testCase.id}
-              onToggle={() => setExpanded(expanded === r.testCase.id ? null : r.testCase.id)} />
+              isExpanded={expanded.has(r.testCase.id)}
+              onToggle={() => toggle(r.testCase.id)} />
           ))}
         </tbody>
       </table>
