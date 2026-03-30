@@ -1,23 +1,31 @@
-import type { HybridSearch } from '../hybrid-search';
-import type { EvalTestCase, TestCaseResult, EvalReport, EvalProgress, EvalSummary } from './eval-types';
-import { EVAL_TEST_CASES } from './test-cases';
+import { hybridSearch } from '../orama-store';
+import type { OramaSearchResult } from '../orama-store';
+import { embeddingService } from '../embedding-service';
 import { getModelById } from '../model-registry';
+import type { EvalTestCase, TestCaseResult, EvalReport, EvalProgress, EvalSummary } from './eval-types';
 
 export class EvalRunner {
-  constructor(private search: HybridSearch, private modelId: string) {}
+  constructor(private modelId: string) {}
 
   async run(
+    testCases: EvalTestCase[],
     onProgress?: (p: EvalProgress) => void,
   ): Promise<EvalReport> {
+    const model = getModelById(this.modelId);
     const startTime = Date.now();
     const results: TestCaseResult[] = [];
-    const model = getModelById(this.modelId);
 
-    for (let i = 0; i < EVAL_TEST_CASES.length; i++) {
-      const tc = EVAL_TEST_CASES[i]!;
-      onProgress?.({ current: i + 1, total: EVAL_TEST_CASES.length, currentQuery: tc.query });
+    for (let i = 0; i < testCases.length; i++) {
+      const tc = testCases[i]!;
+      onProgress?.({ current: i + 1, total: testCases.length, currentQuery: tc.query });
 
-      const result = await this.evaluateCase(tc);
+      let queryVector: number[] | null = null;
+      if (embeddingService.isReady()) {
+        queryVector = await embeddingService.embedSingle(tc.query, model, 'query');
+      }
+
+      const searchResults = hybridSearch(tc.query, queryVector, { limit: 10 });
+      const result = this.evaluateCase(tc, searchResults);
       results.push(result);
 
       await new Promise(r => setTimeout(r, 0));
@@ -36,8 +44,7 @@ export class EvalRunner {
     };
   }
 
-  private async evaluateCase(tc: EvalTestCase): Promise<TestCaseResult> {
-    const searchResults = await this.search.search(tc.query);
+  private evaluateCase(tc: EvalTestCase, searchResults: OramaSearchResult[]): TestCaseResult {
     const top10 = searchResults.slice(0, 10);
 
     const matchesInTopN = (n: number): string[] => {
@@ -95,16 +102,12 @@ export class EvalRunner {
     }
 
     return {
-      total: results.length,
-      passed,
-      failed: results.length - passed,
+      total: results.length, passed, failed: results.length - passed,
       avgPrecision3: results.reduce((s, r) => s + r.precision3, 0) / results.length,
       avgPrecision5: results.reduce((s, r) => s + r.precision5, 0) / results.length,
       top1Accuracy: top1Cases.length > 0
-        ? top1Cases.filter(r => r.top1Match).length / top1Cases.length
-        : 0,
-      byCategory,
-      byDifficulty,
+        ? top1Cases.filter(r => r.top1Match).length / top1Cases.length : 0,
+      byCategory, byDifficulty,
     };
   }
 }

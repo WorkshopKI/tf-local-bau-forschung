@@ -33,7 +33,7 @@ export function IndexManager(): React.ReactElement {
     storage.idb.get<boolean>('seed-complete').then(v => setSeeded(!!v));
     storage.idb.get<string>('index-last-update').then(v => setLastUpdate(v));
     storage.idb.keys('doc:').then(k => setDocCount(k.length));
-    storage.idb.get<unknown[]>('vector-chunks').then(c => setChunkCount(c?.length ?? 0));
+    storage.idb.get<number>('index-chunk-count').then(c => setChunkCount(c ?? 0));
     storage.idb.get<string>('index-model-id').then(v => setIndexModelId(v ?? null));
     getActiveModelId(storage.idb).then(setActiveModelIdState);
     if ('gpu' in navigator) {
@@ -54,13 +54,13 @@ export function IndexManager(): React.ReactElement {
       const indexer = new BatchIndexer();
       const model = getModelById(activeModelId);
       await indexer.init(model, hasGPU, setStatus);
-      const chunks = await indexer.indexAll(storage, setStatus, abortRef.current.signal);
+      const count = await indexer.indexAll(storage, setStatus, abortRef.current.signal);
       const elapsed = Date.now() - startTime;
-      setChunkCount(chunks.length); setLastUpdate(new Date().toISOString());
+      setChunkCount(count); setLastUpdate(new Date().toISOString());
       setIndexModelId(activeModelId);
       indexer.destroy();
       if (abortRef.current.signal.aborted) { setAborted(true); }
-      else { setIndexResult({ chunks: chunks.length, docs: status?.total ?? 0, duration: formatDuration(elapsed) }); }
+      else { setIndexResult({ chunks: count, docs: status?.total ?? 0, duration: formatDuration(elapsed) }); }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         setAborted(true);

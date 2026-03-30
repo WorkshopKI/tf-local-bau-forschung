@@ -1,13 +1,22 @@
-import { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { FulltextSearch } from '@/core/services/search/fulltext';
-import type { SearchResult, SearchDoc } from '@/core/services/search/fulltext';
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import {
+  loadOramaFromDB, hybridSearch, insertDoc, removeDoc, getDocCount,
+  type OramaSearchResult,
+} from '@/core/services/search/orama-store';
+import { embeddingService } from '@/core/services/search/embedding-service';
+import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
+import type { EmbeddingModelConfig } from '@/core/services/search/model-registry';
 import type { StorageService } from '@/core/services/storage';
 
 interface SearchContextValue {
-  search: (query: string, filters?: { type?: string }) => void;
-  results: SearchResult[];
+  search: (query: string, filters?: { type?: string }) => Promise<void>;
+  results: OramaSearchResult[];
   loading: boolean;
-  indexDocument: (doc: SearchDoc) => void;
+  vectorReady: boolean;
+  vectorLoading: boolean;
+  indexDocument: (doc: {
+    id: string; text: string; title: string; source: string; tags: string[]; type: string;
+  }) => void;
   removeDocument: (id: string) => void;
   documentCount: number;
 }
@@ -21,54 +30,74 @@ export function useSearch(): SearchContextValue {
 }
 
 export function useSearchProvider(storage: StorageService): SearchContextValue {
-  const fulltextRef = useRef(new FulltextSearch());
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<OramaSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [docCount, setDocCount] = useState(0);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [vectorReady, setVectorReady] = useState(false);
+  const [vectorLoading, setVectorLoading] = useState(false);
+  const modelConfigRef = useRef<EmbeddingModelConfig | null>(null);
   const initRef = useRef(false);
 
-  // Load index from IDB on first use
-  if (!initRef.current) {
+  useEffect(() => {
+    if (initRef.current) return;
     initRef.current = true;
-    storage.idb.get<string>('search-index').then(json => {
-      if (json) {
-        try {
-          fulltextRef.current.importIndex(json);
-          setDocCount(fulltextRef.current.getDocumentCount());
-        } catch {
-          // Corrupted index, start fresh
-        }
-      }
-    });
-  }
 
-  const persistIndex = useCallback(() => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      const json = fulltextRef.current.exportIndex();
-      storage.idb.set('search-index', json);
-    }, 5000);
+    (async () => {
+      const modelId = await getActiveModelId(storage.idb);
+      const modelConfig = getModelById(modelId);
+      modelConfigRef.current = modelConfig;
+
+      // Orama-Index aus IDB laden
+      await loadOramaFromDB(storage.idb);
+      setDocCount(getDocCount());
+
+      // Embedding-Modell im Hintergrund laden
+      setVectorLoading(true);
+      let gpuAvailable = false;
+      if ('gpu' in navigator) {
+        try {
+          const adapter = await (navigator as { gpu: { requestAdapter: () => Promise<unknown> } }).gpu.requestAdapter();
+          gpuAvailable = !!adapter;
+        } catch { /* no GPU */ }
+      }
+
+      try {
+        await embeddingService.init(modelConfig, gpuAvailable);
+        setVectorReady(true);
+      } catch { /* Kein Embedding — Fulltext-Only */ }
+      finally { setVectorLoading(false); }
+    })();
   }, [storage]);
 
-  const search = useCallback((query: string, filters?: { type?: string }) => {
+  const search = useCallback(async (query: string, filters?: { type?: string }) => {
+    if (!query.trim()) { setResults([]); return; }
     setLoading(true);
-    const r = fulltextRef.current.search(query, filters);
-    setResults(r);
-    setLoading(false);
+    try {
+      let queryVector: number[] | null = null;
+      if (embeddingService.isReady() && modelConfigRef.current) {
+        queryVector = await embeddingService.embedSingle(
+          query, modelConfigRef.current, 'query',
+        );
+      }
+      const r = hybridSearch(query, queryVector, { type: filters?.type });
+      setResults(r);
+    } catch { setResults([]); }
+    finally { setLoading(false); }
   }, []);
 
-  const indexDocument = useCallback((doc: SearchDoc) => {
-    fulltextRef.current.addDocument(doc);
-    setDocCount(fulltextRef.current.getDocumentCount());
-    persistIndex();
-  }, [persistIndex]);
+  const indexDocument = useCallback((doc: {
+    id: string; text: string; title: string; source: string; tags: string[]; type: string;
+  }) => {
+    const dims = modelConfigRef.current?.dimensions ?? 384;
+    const emptyVec = new Array(dims).fill(0) as number[];
+    insertDoc({ ...doc, tags: doc.tags.join(','), embedding: emptyVec });
+    setDocCount(getDocCount());
+  }, []);
 
   const removeDocument = useCallback((id: string) => {
-    fulltextRef.current.removeDocument(id);
-    setDocCount(fulltextRef.current.getDocumentCount());
-    persistIndex();
-  }, [persistIndex]);
+    removeDoc(id);
+    setDocCount(getDocCount());
+  }, []);
 
-  return { search, results, loading, indexDocument, removeDocument, documentCount: docCount };
+  return { search, results, loading, vectorReady, vectorLoading, indexDocument, removeDocument, documentCount: docCount };
 }

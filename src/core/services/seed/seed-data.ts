@@ -1,5 +1,6 @@
 import type { StorageService } from '@/core/services/storage';
-import { FulltextSearch } from '@/core/services/search/fulltext';
+import { createOramaDB, insertDoc, saveOramaToDB } from '@/core/services/search/orama-store';
+import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { bauantraegeData } from './bauantraege-data';
 import { forschungData } from './forschung-data';
 import { artefakteData } from './artefakte-data';
@@ -18,29 +19,46 @@ export async function seedTestData(
   if (isSeeded) return { vorgaenge: 0, dokumente: 0, artefakte: 0 };
 
   const { allDokumente } = await import('./dokumente-data');
-  const search = new FulltextSearch();
 
+  // Orama-DB mit aktuellem Modell erstellen (nur fuer Fulltext-Index der Vorgaenge)
+  const modelId = await getActiveModelId(storage.idb);
+  const model = getModelById(modelId);
+  createOramaDB(model.dimensions);
+
+  const emptyVec = new Array(model.dimensions).fill(0) as number[];
   const total = bauantraegeData.length + forschungData.length + allDokumente.length + artefakteData.length;
   let current = 0;
 
-  // Bauanträge — save + index
+  // Bauantraege — save + index
   for (const v of bauantraegeData) {
     await storage.saveVorgang(v);
-    search.addDocument({ id: v.id, text: `${v.title} ${v.notes} ${v.tags.join(' ')}`, title: v.title, source: v.id, tags: v.tags, type: 'bauantrag' });
+    insertDoc({
+      id: v.id, text: `${v.title} ${v.notes} ${v.tags.join(' ')}`,
+      title: v.title, source: v.id, tags: v.tags.join(','),
+      type: 'bauantrag', embedding: emptyVec,
+    });
     onProgress?.(++current, total);
   }
 
-  // Forschungsanträge — save + index
+  // Forschungsantraege — save + index
   for (const v of forschungData) {
     await storage.saveVorgang(v);
-    search.addDocument({ id: v.id, text: `${v.title} ${v.notes} ${v.tags.join(' ')}`, title: v.title, source: v.id, tags: v.tags, type: 'forschung' });
+    insertDoc({
+      id: v.id, text: `${v.title} ${v.notes} ${v.tags.join(' ')}`,
+      title: v.title, source: v.id, tags: v.tags.join(','),
+      type: 'forschung', embedding: emptyVec,
+    });
     onProgress?.(++current, total);
   }
 
   // Dokumente — save + index
   for (const doc of allDokumente) {
     await storage.idb.set(`doc:${doc.id}`, doc);
-    search.addDocument({ id: doc.id, text: doc.markdown, title: doc.filename, source: doc.filename, tags: doc.tags, type: 'dokument' });
+    insertDoc({
+      id: doc.id, text: doc.markdown, title: doc.filename,
+      source: doc.filename, tags: doc.tags.join(','),
+      type: 'dokument', embedding: emptyVec,
+    });
     onProgress?.(++current, total);
   }
 
@@ -50,8 +68,8 @@ export async function seedTestData(
     onProgress?.(++current, total);
   }
 
-  // Persist search index to IDB
-  await storage.idb.set('search-index', search.exportIndex());
+  // Persist Orama-Index to IDB
+  await saveOramaToDB(storage.idb);
   await storage.idb.set('seed-complete', true);
 
   return {
@@ -72,5 +90,8 @@ export async function clearSeedData(storage: StorageService): Promise<void> {
   for (const k of aKeys) await storage.idb.delete(k);
 
   await storage.idb.delete('seed-complete');
+  await storage.idb.delete('orama-db');
   await storage.idb.delete('search-index');
+  await storage.idb.delete('vector-chunks');
+  await storage.idb.delete('index-chunk-count');
 }

@@ -1,8 +1,8 @@
 import { embeddingService } from './embedding-service';
 import type { EmbeddingProgress } from './embedding-service';
 import type { EmbeddingModelConfig } from './model-registry';
+import { createOramaDB, insertDoc, saveOramaToDB } from './orama-store';
 import type { StorageService } from '@/core/services/storage';
-import type { VectorChunk } from './vector-store';
 
 export interface IndexStatus {
   phase: string;
@@ -54,7 +54,7 @@ export class BatchIndexer {
     storage: StorageService,
     onStatus: (status: IndexStatus) => void,
     signal?: AbortSignal,
-  ): Promise<VectorChunk[]> {
+  ): Promise<number> {
     if (!this.ready || !this.modelConfig) throw new Error('Not initialized');
 
     // Auto-force full reindex bei Modellwechsel
@@ -63,9 +63,12 @@ export class BatchIndexer {
       await storage.idb.delete('index-manifest');
     }
 
+    // Frische Orama-DB mit passenden Vektor-Dimensionen
+    createOramaDB(this.modelConfig.dimensions);
+
     const docs = await storage.idb.keys('doc:');
     const manifest = await storage.idb.get<Record<string, string>>('index-manifest') ?? {};
-    const allChunks: VectorChunk[] = [];
+    let totalChunks = 0;
     let processed = 0;
     let skipped = 0;
 
@@ -101,10 +104,16 @@ export class BatchIndexer {
       );
 
       for (let i = 0; i < chunks.length; i++) {
-        allChunks.push({
-          id: `${doc.id}-${i}`, text: chunks[i] ?? '',
-          source: doc.filename, type: 'dokument', vector: vectors[i] ?? [],
+        insertDoc({
+          id: `${doc.id}-${i}`,
+          text: chunks[i] ?? '',
+          title: doc.filename,
+          source: doc.filename,
+          tags: '',
+          type: 'dokument',
+          embedding: vectors[i] ?? [],
         });
+        totalChunks++;
       }
 
       manifest[doc.id] = hash;
@@ -112,12 +121,13 @@ export class BatchIndexer {
       onStatus({ phase: 'Done', total: docs.length, processed, currentDoc: doc.filename, skipped });
     }
 
-    await storage.idb.set('vector-chunks', allChunks);
+    await saveOramaToDB(storage.idb);
+    await storage.idb.set('index-chunk-count', totalChunks);
     await storage.idb.set('index-manifest', manifest);
     await storage.idb.set('index-last-update', new Date().toISOString());
     await storage.idb.set('index-model-id', this.modelConfig.id);
 
-    return allChunks;
+    return totalChunks;
   }
 
   destroy(): void {

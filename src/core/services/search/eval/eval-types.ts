@@ -1,4 +1,4 @@
-import type { HybridResult } from '../hybrid-search';
+import type { OramaSearchResult } from '../orama-store';
 
 export interface EvalTestCase {
   id: string;
@@ -12,7 +12,7 @@ export interface EvalTestCase {
 
 export interface TestCaseResult {
   testCase: EvalTestCase;
-  results: HybridResult[];
+  results: OramaSearchResult[];
   top1Match: boolean;
   expectedInTop3: string[];
   expectedInTop5: string[];

@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { FlaskConical } from 'lucide-react';
 import { Button, CollapsibleSection, ProgressBar } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
-import { FulltextSearch } from '@/core/services/search/fulltext';
-import { VectorStore } from '@/core/services/search/vector-store';
-import { QueryEmbedder } from '@/core/services/search/query-embedder';
-import { HybridSearch } from '@/core/services/search/hybrid-search';
-import { EvalRunner } from '@/core/services/search/eval/eval-runner';
+import { loadOramaFromDB, getDocCount } from '@/core/services/search/orama-store';
+import { embeddingService } from '@/core/services/search/embedding-service';
 import { getModelById } from '@/core/services/search/model-registry';
+import { EvalRunner } from '@/core/services/search/eval/eval-runner';
+import { EVAL_TEST_CASES } from '@/core/services/search/eval/test-cases';
 import type { EvalReport, EvalProgress } from '@/core/services/search/eval/eval-types';
 import { evalToMarkdown } from '@/core/services/search/eval/eval-export';
 import { EvalResultView } from './EvalResultView';
@@ -37,23 +36,27 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
   const startEval = async (): Promise<void> => {
     setRunning(true); setProgress(null); setError(null);
     try {
-      const fulltext = new FulltextSearch();
-      const indexJson = await storage.idb.get<string>('search-index');
-      if (indexJson) fulltext.importIndex(indexJson);
-
-      const vectorStore = new VectorStore();
-      await vectorStore.loadFromStorage(storage.idb);
-
+      // Orama-Index laden (falls noch nicht geladen)
       const model = getModelById(modelId);
-      const queryEmbedder = new QueryEmbedder();
-      await queryEmbedder.init(model);
+      await loadOramaFromDB(storage.idb);
 
-      const hybridSearch = new HybridSearch(fulltext, vectorStore, queryEmbedder);
-      const runner = new EvalRunner(hybridSearch, modelId);
-      const result = await runner.run(setProgress);
+      // Embedding-Modell initialisieren (falls noch nicht geladen)
+      if (!embeddingService.isReady()) {
+        let gpuAvailable = false;
+        if ('gpu' in navigator) {
+          try {
+            gpuAvailable = !!(await (navigator as { gpu: { requestAdapter: () => Promise<unknown> } }).gpu.requestAdapter());
+          } catch { /* no GPU */ }
+        }
+        await embeddingService.init(model, gpuAvailable);
+      }
 
-      result.totalChunks = vectorStore.getChunkCount();
-      result.totalDocs = fulltext.getDocumentCount();
+      const runner = new EvalRunner(modelId);
+      const result = await runner.run(EVAL_TEST_CASES, setProgress);
+
+      // Metadaten ergaenzen
+      result.totalChunks = chunkCount;
+      result.totalDocs = getDocCount();
 
       const oldLatest = await storage.idb.get<EvalReport>('eval-latest');
       if (oldLatest) setPreviousReport(oldLatest);
