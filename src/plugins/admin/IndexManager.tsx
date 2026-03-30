@@ -24,7 +24,7 @@ export function IndexManager(): React.ReactElement {
   const [seeding, setSeeding] = useState(false);
   const [seedProgress, setSeedProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [indexResult, setIndexResult] = useState<{ chunks: number; docs: number; duration: string } | null>(null);
+  const [indexResult, setIndexResult] = useState<{ chunks: number; docs: number; skipped: number; duration: string } | null>(null);
   const [aborted, setAborted] = useState(false);
   const [activeModelId, setActiveModelIdState] = useState('minilm-l6-v2');
   const [indexModelId, setIndexModelId] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export function IndexManager(): React.ReactElement {
       setIndexModelId(activeModelId); setNewDocsCount(0);
       indexer.destroy();
       if (abortRef.current.signal.aborted) { setAborted(true); }
-      else { setIndexResult({ chunks: count, docs: status?.total ?? 0, duration: formatDuration(elapsed) }); }
+      else { setIndexResult({ chunks: count, docs: status?.total ?? 0, skipped: status?.skipped ?? 0, duration: formatDuration(elapsed) }); }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         setAborted(true); setLastUpdate(new Date().toISOString());
@@ -186,7 +186,13 @@ export function IndexManager(): React.ReactElement {
           {indexResult && !running && (
             <div className="flex items-center gap-2 p-3 bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)]">
               <CheckCircle2 size={14} className="text-[var(--tf-text)]" />
-              <p className="text-[12px] text-[var(--tf-text)]">{indexResult.chunks} Chunks aus {indexResult.docs} Dokumenten — {indexResult.duration}</p>
+              <p className="text-[12px] text-[var(--tf-text)]">
+                {indexResult.skipped === indexResult.docs
+                  ? 'Keine neuen Dokumente. Index ist aktuell.'
+                  : indexResult.skipped > 0
+                    ? `${indexResult.chunks} Chunks (${indexResult.docs - indexResult.skipped} neue Dokumente, ${indexResult.skipped} uebersprungen) — ${indexResult.duration}`
+                    : `${indexResult.chunks} Chunks aus ${indexResult.docs} Dokumenten — ${indexResult.duration}`}
+              </p>
             </div>
           )}
           {aborted && !running && (
