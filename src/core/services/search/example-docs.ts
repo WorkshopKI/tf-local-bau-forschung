@@ -69,14 +69,17 @@ Bei der Baustellenbesichtigung des Kita-Anbaus wurde festgestellt, dass der Rohb
   },
 ];
 
-export function downloadExampleDocs(): void {
+export async function downloadExampleDocs(): Promise<void> {
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
   for (const doc of EXAMPLES) {
-    const blob = new Blob([doc.content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = doc.name;
-    a.click();
-    URL.revokeObjectURL(url);
+    zip.file(doc.name, doc.content);
   }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'TeamFlow-Beispieldokumente.zip';
+  a.click();
+  URL.revokeObjectURL(url);
 }
