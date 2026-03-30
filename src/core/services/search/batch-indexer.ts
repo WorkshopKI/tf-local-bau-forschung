@@ -1,7 +1,7 @@
 import { embeddingService } from './embedding-service';
 import type { EmbeddingProgress } from './embedding-service';
 import type { EmbeddingModelConfig } from './model-registry';
-import { createOramaDB, insertDoc, saveOramaToDB } from './orama-store';
+import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB } from './orama-store';
 import type { StorageService } from '@/core/services/storage';
 
 export interface IndexStatus {
@@ -63,12 +63,21 @@ export class BatchIndexer {
       await storage.idb.delete('index-manifest');
     }
 
-    // Frische Orama-DB mit passenden Vektor-Dimensionen
-    createOramaDB(this.modelConfig.dimensions);
+    // Bei inkrementeller Indexierung: bestehende DB laden, bei Full: frische DB
+    const manifest0 = await storage.idb.get<Record<string, string>>('index-manifest') ?? {};
+    const isFull = Object.keys(manifest0).length === 0;
+    if (isFull) {
+      createOramaDB(this.modelConfig.dimensions);
+    } else {
+      const loaded = await loadOramaFromDB(storage.idb);
+      if (!loaded || !getOramaDB()) {
+        createOramaDB(this.modelConfig.dimensions);
+      }
+    }
 
     const docs = await storage.idb.keys('doc:');
     const manifest = await storage.idb.get<Record<string, string>>('index-manifest') ?? {};
-    let totalChunks = 0;
+    let totalChunks = isFull ? 0 : (await storage.idb.get<number>('index-chunk-count') ?? 0);
     let processed = 0;
     let skipped = 0;
 
