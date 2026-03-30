@@ -1,4 +1,4 @@
-import { create, insert, remove, search, save, load, count,
+import { create, upsert, remove, search, save, load, count,
   type Orama, type Results } from '@orama/orama';
 
 export interface OramaDoc {
@@ -70,7 +70,7 @@ export function loadOramaFromDB(
 
 export function insertDoc(doc: OramaDoc): void {
   if (!db) throw new Error('Orama not initialized');
-  insert(db, doc as any);
+  upsert(db, doc as any);
 }
 
 export function removeDoc(id: string): void {
