@@ -1,5 +1,6 @@
 import { embeddingService } from './embedding-service';
 import type { EmbeddingProgress } from './embedding-service';
+import type { EmbeddingModelConfig } from './model-registry';
 import type { StorageService } from '@/core/services/storage';
 import type { VectorChunk } from './vector-store';
 
@@ -31,18 +32,18 @@ async function hashText(text: string): Promise<string> {
 
 export class BatchIndexer {
   private ready = false;
+  private modelConfig: EmbeddingModelConfig | null = null;
 
   async init(
+    modelConfig: EmbeddingModelConfig,
     preferGPU = false,
     onStatus?: (status: IndexStatus) => void,
   ): Promise<void> {
-    await embeddingService.init(preferGPU, (p: EmbeddingProgress) => {
+    this.modelConfig = modelConfig;
+    await embeddingService.init(modelConfig, preferGPU, (p: EmbeddingProgress) => {
       onStatus?.({
         phase: p.phase === 'loading' ? 'Modell laden' : 'Bereit',
-        total: 0,
-        processed: 0,
-        currentDoc: '',
-        skipped: 0,
+        total: 0, processed: 0, currentDoc: '', skipped: 0,
         modelProgress: p.modelProgress,
       });
     });
@@ -54,7 +55,13 @@ export class BatchIndexer {
     onStatus: (status: IndexStatus) => void,
     signal?: AbortSignal,
   ): Promise<VectorChunk[]> {
-    if (!this.ready) throw new Error('Not initialized');
+    if (!this.ready || !this.modelConfig) throw new Error('Not initialized');
+
+    // Auto-force full reindex bei Modellwechsel
+    const currentIndexModel = await storage.idb.get<string>('index-model-id');
+    if (currentIndexModel && currentIndexModel !== this.modelConfig.id) {
+      await storage.idb.delete('index-manifest');
+    }
 
     const docs = await storage.idb.keys('doc:');
     const manifest = await storage.idb.get<Record<string, string>>('index-manifest') ?? {};
@@ -72,8 +79,7 @@ export class BatchIndexer {
 
       const hash = await hashText(doc.markdown);
       if (manifest[doc.id] === hash) {
-        skipped++;
-        processed++;
+        skipped++; processed++;
         onStatus({ phase: 'Skipping', total: docs.length, processed, currentDoc: doc.filename, skipped });
         continue;
       }
@@ -83,14 +89,11 @@ export class BatchIndexer {
 
       onStatus({ phase: 'Embedding', total: docs.length, processed, currentDoc: doc.filename, skipped });
       const vectors = await embeddingService.embedBatch(
-        chunks,
+        chunks, this.modelConfig, 'document',
         (current, total) => {
           onStatus({
-            phase: 'Embedding',
-            total: docs.length,
-            processed,
-            currentDoc: doc.filename,
-            skipped,
+            phase: 'Embedding', total: docs.length, processed,
+            currentDoc: doc.filename, skipped,
             chunkProgress: { current, total },
           });
         },
@@ -99,11 +102,8 @@ export class BatchIndexer {
 
       for (let i = 0; i < chunks.length; i++) {
         allChunks.push({
-          id: `${doc.id}-${i}`,
-          text: chunks[i] ?? '',
-          source: doc.filename,
-          type: 'dokument',
-          vector: vectors[i] ?? [],
+          id: `${doc.id}-${i}`, text: chunks[i] ?? '',
+          source: doc.filename, type: 'dokument', vector: vectors[i] ?? [],
         });
       }
 
@@ -112,15 +112,16 @@ export class BatchIndexer {
       onStatus({ phase: 'Done', total: docs.length, processed, currentDoc: doc.filename, skipped });
     }
 
-    // Partielle Ergebnisse speichern (auch nach Abbruch)
     await storage.idb.set('vector-chunks', allChunks);
     await storage.idb.set('index-manifest', manifest);
     await storage.idb.set('index-last-update', new Date().toISOString());
+    await storage.idb.set('index-model-id', this.modelConfig.id);
 
     return allChunks;
   }
 
   destroy(): void {
     this.ready = false;
+    this.modelConfig = null;
   }
 }

@@ -35,6 +35,16 @@ export function EvalResultView({ report, previousReport }: EvalResultViewProps):
           delta={prev ? Math.round((s.top1Accuracy - prev.top1Accuracy) * 100) : undefined} />
       </div>
 
+      {/* Modellinfo */}
+      {report.modelLabel && (
+        <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+          Modell: {report.modelLabel}
+          {previousReport && previousReport.modelId !== report.modelId && (
+            <span> (vorher: {previousReport.modelLabel ?? previousReport.model})</span>
+          )}
+        </p>
+      )}
+
       {/* Kategorie-Balken */}
       <div className="space-y-2">
         {s.byCategory['keyword'] && (
@@ -106,6 +116,11 @@ export function EvalResultView({ report, previousReport }: EvalResultViewProps):
           {previousReport && (
             <div className="text-[12px] text-[var(--tf-text-secondary)] space-y-1">
               <p className="font-medium">Vergleich mit letzter Evaluierung</p>
+              {previousReport.modelId !== report.modelId && (
+                <p className="text-[var(--tf-text)] font-medium">
+                  Modellwechsel: {previousReport.modelLabel ?? previousReport.model} &rarr; {report.modelLabel ?? report.model}
+                </p>
+              )}
               <DeltaLine label="Trefferquote" current={passRate} previous={Math.round((prev!.passed / prev!.total) * 100)}
                 prevDate={new Date(previousReport.timestamp).toLocaleDateString('de-DE')} />
               <DeltaLine label="Genauigkeit" current={top1Pct} previous={Math.round(prev!.top1Accuracy * 100)}

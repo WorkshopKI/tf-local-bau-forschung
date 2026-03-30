@@ -1,16 +1,17 @@
 import type { HybridSearch } from '../hybrid-search';
 import type { EvalTestCase, TestCaseResult, EvalReport, EvalProgress, EvalSummary } from './eval-types';
 import { EVAL_TEST_CASES } from './test-cases';
-import { EMBEDDING_MODEL } from '../embedding-service';
+import { getModelById } from '../model-registry';
 
 export class EvalRunner {
-  constructor(private search: HybridSearch) {}
+  constructor(private search: HybridSearch, private modelId: string) {}
 
   async run(
     onProgress?: (p: EvalProgress) => void,
   ): Promise<EvalReport> {
     const startTime = Date.now();
     const results: TestCaseResult[] = [];
+    const model = getModelById(this.modelId);
 
     for (let i = 0; i < EVAL_TEST_CASES.length; i++) {
       const tc = EVAL_TEST_CASES[i]!;
@@ -19,13 +20,14 @@ export class EvalRunner {
       const result = await this.evaluateCase(tc);
       results.push(result);
 
-      // Micro-yield fuer UI
       await new Promise(r => setTimeout(r, 0));
     }
 
     return {
       timestamp: new Date().toISOString(),
-      model: EMBEDDING_MODEL,
+      model: model.name,
+      modelId: this.modelId,
+      modelLabel: model.label,
       totalChunks: 0,
       totalDocs: 0,
       duration: Date.now() - startTime,

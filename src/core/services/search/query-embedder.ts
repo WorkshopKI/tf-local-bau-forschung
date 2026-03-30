@@ -1,8 +1,12 @@
 import { embeddingService } from './embedding-service';
+import type { EmbeddingModelConfig } from './model-registry';
 
 export class QueryEmbedder {
-  async init(preferGPU = false): Promise<void> {
-    await embeddingService.init(preferGPU);
+  private modelConfig: EmbeddingModelConfig | null = null;
+
+  async init(modelConfig: EmbeddingModelConfig, preferGPU = false): Promise<void> {
+    this.modelConfig = modelConfig;
+    await embeddingService.init(modelConfig, preferGPU);
   }
 
   isReady(): boolean {
@@ -14,7 +18,8 @@ export class QueryEmbedder {
   }
 
   async embed(query: string): Promise<number[]> {
-    return embeddingService.embedSingle(query);
+    if (!this.modelConfig) throw new Error('Not initialized');
+    return embeddingService.embedSingle(query, this.modelConfig, 'query');
   }
 
   destroy(): void {

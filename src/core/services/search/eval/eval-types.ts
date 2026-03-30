@@ -36,6 +36,8 @@ export interface EvalSummary {
 export interface EvalReport {
   timestamp: string;
   model: string;
+  modelId?: string;
+  modelLabel?: string;
   totalChunks: number;
   totalDocs: number;
   duration: number;

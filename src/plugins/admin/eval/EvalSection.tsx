@@ -7,6 +7,7 @@ import { VectorStore } from '@/core/services/search/vector-store';
 import { QueryEmbedder } from '@/core/services/search/query-embedder';
 import { HybridSearch } from '@/core/services/search/hybrid-search';
 import { EvalRunner } from '@/core/services/search/eval/eval-runner';
+import { getModelById } from '@/core/services/search/model-registry';
 import type { EvalReport, EvalProgress } from '@/core/services/search/eval/eval-types';
 import { evalToMarkdown } from '@/core/services/search/eval/eval-export';
 import { EvalResultView } from './EvalResultView';
@@ -15,9 +16,10 @@ const MAX_HISTORY = 20;
 
 interface EvalSectionProps {
   chunkCount: number;
+  modelId: string;
 }
 
-export function EvalSection({ chunkCount }: EvalSectionProps): React.ReactElement {
+export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.ReactElement {
   const storage = useStorage();
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<EvalProgress | null>(null);
@@ -42,11 +44,12 @@ export function EvalSection({ chunkCount }: EvalSectionProps): React.ReactElemen
       const vectorStore = new VectorStore();
       await vectorStore.loadFromStorage(storage.idb);
 
+      const model = getModelById(modelId);
       const queryEmbedder = new QueryEmbedder();
-      await queryEmbedder.init();
+      await queryEmbedder.init(model);
 
       const hybridSearch = new HybridSearch(fulltext, vectorStore, queryEmbedder);
-      const runner = new EvalRunner(hybridSearch);
+      const runner = new EvalRunner(hybridSearch, modelId);
       const result = await runner.run(setProgress);
 
       result.totalChunks = vectorStore.getChunkCount();
