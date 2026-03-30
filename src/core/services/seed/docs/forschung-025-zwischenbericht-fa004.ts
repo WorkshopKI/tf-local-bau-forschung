@@ -90,6 +90,10 @@ AP 3 Fortsetzung: Untersuchung der Heilungskinetik (Zeitreihe: 1, 7, 14, 28, 90 
 
 Verbrauchte Mittel (12 Monate): 285.000 Euro von 580.000 Euro (49 Prozent bei 50 Prozent Laufzeit — exakt im Plan). Publikationen: 1 Journalartikel eingereicht bei Cement and Concrete Research (Thema: Mikrokapsel-Synthese und Betonmischung), 1 Konferenzbeitrag auf der fib Symposium 2026 (Thema: Rissüberbrückungsversuche, Poster). 1 Patentanmeldung vorbereitet (DE-Anmeldung über PVA, Thema: MMA-MUF-Mikrokapseln für selbstheilenden Beton, Einreichung Monat 14).
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Projekt entwickelt Beton, der sich selbst reparieren kann. Dazu werden winzige Kapseln in den Beton gemischt, die bei einem Riss aufbrechen und ein Klebemittel freisetzen, das den Riss verschliesst. Nach einem Jahr Forschung funktioniert die Herstellung der Kapseln zuverlaessig, und Risse bis zu 0,3 Millimeter Breite koennen so wirksam abgedichtet werden. Besonders vielversprechend ist, dass der geheilte Beton deutlich weniger Salz eindringen laesst, was Bruecken und Tunnel besser vor Korrosion schuetzt. Der optimale Kapselanteil liegt bei 3 Prozent, weil bei mehr Kapseln der Beton zu viel an Druckfestigkeit verliert.
+
 Musterstadt, den 22.03.2026
 
 _Prof. Dr.-Ing. Werner Zement, TU Musterstadt_`,

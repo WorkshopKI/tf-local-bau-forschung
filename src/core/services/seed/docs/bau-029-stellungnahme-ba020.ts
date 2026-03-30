@@ -68,6 +68,10 @@ Die untere Wasserbehörde befürwortet das Hochwasserschutzbauwerk unter folgend
 
 Die wasserrechtliche Genehmigung kann erteilt werden, wenn alle genannten Auflagen in die Genehmigungsunterlagen aufgenommen werden. Die Hochwasserschutzmauer erhöht den Schutz der Altstadt-Bebauung von einem HQ10 (bestehender Zustand, Schutz nur bis 127,80 m ü. NHN) auf ein HQ100 und ist daher im öffentlichen Interesse.
 
+## Zusammenfassung in einfacher Sprache
+
+Die Wasserbehoerde hat geprueft, wie sich die geplante Hochwasserschutzmauer an der Uferpromenade auf den Fluss auswirkt. Die Mauer soll die Altstadt vor einem Jahrhunderthochwasser schuetzen. Das Problem: Wenn das Wasser nicht mehr ueber die Promenade in die Altstadt fliessen kann, steigt der Wasserstand im Fluss um etwa 22 Zentimeter an, und das gegenueberliegende Ufer wird etwas staerker ueberschwemmt. Als Ausgleich wird flussabwaerts eine Flutmulde angelegt, die das fehlende Rueckhaltevolumen ersetzt. Die Behoerde befuerwortet das Bauwerk, wenn diese und weitere Schutzmassnahmen umgesetzt werden.
+
 Musterstadt, den 08.03.2026
 
 _Dipl.-Ing. Michael Strömung, Untere Wasserbehörde Kreis Musterland_`,

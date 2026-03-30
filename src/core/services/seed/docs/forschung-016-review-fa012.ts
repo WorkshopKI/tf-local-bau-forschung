@@ -62,5 +62,9 @@ Der Antrag wird zur **Förderung unter Auflagen** empfohlen. Auflagen: (1) Vervo
 
 Gesamtnote: **1,7 (sehr gut bis gut)**. Empfehlung: **Förderung mit Auflagen.**
 
+## Zusammenfassung in einfacher Sprache
+
+Ein Gutachter hat den Antrag zur Stammzelltherapie fuer Gelenkarthrose bewertet. Im Projekt sollen koerpereigene Stammzellen im Labor vermehrt und dann in das erkrankte Kniegelenk gespritzt werden, um den abgenutzten Knorpel zu reparieren. Der Gutachter findet den Ansatz vielversprechend, sieht aber Maengel im Herstellungsprotokoll: Es fehlen wichtige Qualitaetstests und Daten zur Haltbarkeit der Zellen. Ausserdem muss geprueft werden, ob die Zellen nach laengerer Zucht im Labor sicher bleiben und keine Tumore bilden koennen. Der Antrag erhaelt die Note 1,7 und wird zur Foerderung mit Auflagen empfohlen.
+
 _Prof. Dr. med. Andreas Zelltherapie (anonymisiert), Gutachter_`,
 };

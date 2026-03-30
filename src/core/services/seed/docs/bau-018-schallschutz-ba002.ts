@@ -74,6 +74,10 @@ Die zentrale Lüftungsanlage erzeugt Geräusche durch den Ventilator und durch S
 
 Alle Nachweise der DIN 4109 und der VDI 4100 Schallschutzstufe II sind erfüllt. Empfehlung: Eine bauakustische Messung nach DIN EN ISO 16283 nach Fertigstellung wird zur Qualitätssicherung empfohlen, um die rechnerischen Prognosen messtechnisch zu bestätigen und eventuelle Ausführungsmängel (z.B. steife Verbindungen beim schwimmenden Estrich, nicht fachgerecht eingebaute Fenster) frühzeitig zu erkennen.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten prueft, ob das neue Mehrfamilienhaus in der Lindenstrasse 42 seine Bewohner gut genug vor Laerm schuetzt. Es wurde untersucht, wie viel Laerm von einer Wohnung zur naechsten dringt — sowohl Geraeusche durch die Waende und Decken als auch Schritte und Tritte von oben. Ausserdem wurde geprueft, ob der Strassenlaerm ausreichend durch die Fenster und Waende abgehalten wird. Das Ergebnis zeigt, dass alle Anforderungen an den Laermschutz erfuellt und sogar uebertroffen werden — die Bewohner koennen also mit einer ruhigen Wohnung rechnen. Auch der Aufzug und die Lueftungsanlage sind so geplant, dass sie in den Wohnungen kaum hoerbar sein werden.
+
 Musterstadt, den 04.02.2026
 
 _Dr.-Ing. Helmut Schröder, Akustik-Ingenieurbüro_`,

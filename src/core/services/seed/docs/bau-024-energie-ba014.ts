@@ -72,6 +72,10 @@ Der sommerliche Wärmeschutz wird nach DIN 4108-2 für den kritischsten Raum (Wo
 
 Das Lüftungskonzept nach DIN 1946-6 sieht für die Hauptwohnung eine zentrale Lüftungsanlage mit WRG (Wärmerückgewinnung 80 Prozent) vor. Die Einliegerwohnung erhält ein dezentrales Lüftungsgerät (Paar-weise angeordnete Einzelraumlüfter mit Pendellüftung, WRG 73 Prozent). Der Blower-Door-Test (Zielwert n50 ≤ 1,0 h⁻¹) wird nach Fertigstellung durchgeführt und ist Voraussetzung für die KfW-Förderung. Die Ergebnisse des Energienachweises werden im Energieausweis dokumentiert: Energieeffizienzklasse A+ für beide Wohneinheiten.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten zeigt, wie energieeffizient das geplante Einfamilienhaus mit Einliegerwohnung am Feldweg 4 sein wird. Das Haus bekommt eine sehr gute Waermedaemmung, eine Luft-Wasser-Waermepumpe zum Heizen und eine grosse Solaranlage auf dem Dach mit Batteriespeicher. Dadurch verbraucht das Haus so wenig Energie, dass es den sogenannten KfW-55-Standard deutlich unterschreitet und eine Foerderung beantragt werden kann. Ausserdem gibt es eine Wallbox fuer ein Elektroauto, die bevorzugt mit Solarstrom laedt. Das Haus erreicht die beste Energieeffizienzklasse A+.
+
 Musterstadt, den 12.02.2026
 
 _Dipl.-Ing. (FH) Karl Grünwald, Energieberater (dena)_`,

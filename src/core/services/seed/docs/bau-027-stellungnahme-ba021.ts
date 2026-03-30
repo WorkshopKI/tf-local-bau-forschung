@@ -64,6 +64,10 @@ Die geschätzten Kosten für die Schwammsanierung und den Schwellenaustausch bet
 
 An folgenden 12 Stellen werden Befundöffnungen empfohlen, um den Umfang der Schädigung vollständig zu erfassen: (1–4) Schwellenbalken Westwand: 4 Öffnungen im Abstand von 1,50 m, (5–6) Schwellenbalken Süd- und Nordwand (angrenzend): je 1 Öffnung zur Kontrolle, ob der Schwamm über die Ecke gewandert ist, (7–8) Deckenbalken EG über dem Befallsbereich: 2 Öffnungen von der Unterseite (Kellerdecke), (9–10) Ständerfüße der Westwand: 2 Öffnungen an den Auflagerpunkten auf der Schwelle, (11–12) Kellermauerwerk Westwand: 2 Öffnungen zur Tiefenerkundung der Myzelausbreitung. Die Befundöffnungen sind minimal-invasiv auszuführen und nach der Inspektion fachgerecht zu verschließen.
 
+## Zusammenfassung in einfacher Sprache
+
+Bei der Untersuchung des alten Fachwerkhauses in der Altstadt 9 (gebaut um 1780) wurde ein gefaehrlicher Holzpilz gefunden — der sogenannte Echte Hausschwamm. Dieser Pilz hat die tragenden Holzbalken an der Westwand auf ueber drei Metern Laenge befallen und weich gemacht. Ursache war ein kaputtes Regenrohr, das jahrelang Wasser an die Wand geleitet hat. Wenn nicht schnell gehandelt wird, kann der Pilz auf weitere Balken uebergreifen und die Standsicherheit des Gebaeudes gefaehrden. Es wird empfohlen, die befallenen Balken auszutauschen und das Mauerwerk mit Hitze zu behandeln, um den Pilz abzutoeten. Die geschaetzten Kosten liegen bei 42.000 bis 58.000 Euro.
+
 Musterstadt, den 22.02.2026
 
 _Dipl.-Rest. Anna Bergmann, Restaurierungsbüro Holzwerk_`,

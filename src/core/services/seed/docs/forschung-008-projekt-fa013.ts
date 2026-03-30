@@ -70,6 +70,10 @@ Eine schriftliche Befragung von 200 Landwirten im Kreis Musterland (Fragebogen: 
 
 AP 1 (Monat 1–6): Anlagenbau (Fundamente, Aufständerung, Modulinstallation, Messtechnik). AP 2 (Monat 4–36): Pflanzenbau und Ertragserhebung (3 Anbaujahre, jeweils Aussaat–Ernte). AP 3 (Monat 4–36): Mikroklimatologie (kontinuierliche Messung über 3 Jahre). AP 4 (Monat 12–30): Verschattungssimulation und Modellkalibrierung. AP 5 (Monat 18–30): Ökonomische Gesamtbilanz und LCA. AP 6 (Monat 12–24): Landwirte-Befragung und Akzeptanzforschung. AP 7 (Monat 30–36): Synthese, Handlungsempfehlungen, Publikation. Personal: 1 Postdoc Pflanzenbau, 1 Doktorand/in Agrarökonomie, 1 Techniker/in Versuchsfeld, studentische Hilfskräfte. Gesamtkosten: 1.050.000 Euro (inkl. APV-Anlage).
 
+## Zusammenfassung in einfacher Sprache
+
+Fuer die Energiewende braucht Deutschland viel mehr Solaranlagen, aber die Flaechen dafuer sind begrenzt. Agrivoltaik loest dieses Problem, indem Solarmodule hoch ueber Ackerflaechen aufgestaendert werden, sodass darunter weiter Landwirtschaft betrieben werden kann. In diesem Feldversuch wird ueber drei Jahre untersucht, wie gut Weizen, Kartoffeln und Gruenland unter verschiedenen Solarmodul-Anordnungen wachsen. Gleichzeitig wird berechnet, ob sich die doppelte Nutzung der Flaeche wirtschaftlich lohnt und wie die Landwirte zu dieser neuen Technik stehen.
+
 Musterstadt, den 28.01.2026
 
 _Prof. Dr. agr. Martin Feldmann, Universität Musterstadt_`,

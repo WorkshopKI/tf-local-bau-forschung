@@ -64,6 +64,10 @@ Die Fahrbahnflächen erhalten eine Oberflächenschutzbeschichtung OS 8 nach ZTV-
 
 Die Fertigteilmontage erfolgt mit einem Mobilkran (LTM 1100, Tragfähigkeit 100 t). Die Montagreihenfolge ist: (1) Köcherfundamente gießen und aushärten lassen (7 Tage), (2) Stützen einsetzen und ausrichten, Vergussmörtel einbringen, (3) Unterzüge auflegen und ausrichten (Neoprene-Lager zwischen Stütze und Unterzug), (4) Hohlplatten verlegen (Verlegegewicht 3,2 t je Platte), (5) Längsfugen vergießen (HPC C70/85), (6) Ortbetonergänzungen (Wandscheiben, Brüstungen, Rampe). Die gesamte Rohbaumontage dauert voraussichtlich 12 Wochen.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten beschreibt die Statik fuer ein vierstoeckiges Parkhaus mit 120 Stellplaetzen an der Neuen Mitte 8. Das Parkhaus wird aus vorgefertigten Betonteilen zusammengebaut, was die Bauzeit auf etwa 12 Wochen verkuerzt. Die Decken bestehen aus speziellen Hohlplatten, die 16 Meter weit spannen koennen, sodass keine stoerenden Stuetzen in den Fahrgassen stehen. Das offene Parkhaus braucht keine kuenstliche Belueftung, weil genuegend Oeffnungen in den Aussenwaenden fuer frische Luft sorgen. Auch der Aufprallschutz an den Bruestungen und Stuetzen wurde berechnet, falls ein Auto dagegen faehrt.
+
 Musterstadt, den 12.02.2026
 
 _Dipl.-Ing. Petra Stahl, Stahl + Beton GmbH_`,

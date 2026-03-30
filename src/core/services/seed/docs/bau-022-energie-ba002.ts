@@ -70,6 +70,10 @@ Spezifischer Transmissionswärmeverlust: H'T = 0,289 W/(m²K). GEG-Referenzwert:
 
 Der Energiebedarfsausweis nach GEG §79 weist folgende Kennwerte aus: Endenergiebedarf (Fernwärme): 20,4 kWh/(m²a). Endenergiebedarf (Strom): 2,6 kWh/(m²a). Primärenergiebedarf: 15,0 kWh/(m²a). CO₂-Emissionen: 4,8 kg/(m²a) (Fernwärme fp,CO2 = 0,12 kg/kWh, Strom fp,CO2 = 0,56 kg/kWh). Energieeffizienzklasse: **A+** (Primärenergiebedarf ≤ 25 kWh/(m²a)). Das Gebäude unterschreitet die GEG-Anforderungen deutlich und bietet den Mietern sehr niedrige Heizkosten — ein wichtiger Vermarktungsvorteil auf dem Wohnungsmarkt.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieser Energienachweis zeigt, dass das geplante Mehrfamilienhaus mit 12 Wohnungen sehr wenig Energie verbraucht. Die Aussenwaende sind mit 20 cm Mineralwolle gedaemmt, das Gruendach mit 24 cm. Durch die starke Waermedaemmung der Aussenwand und des Dachs, Dreifach-Verglasung und eine Lueftungsanlage mit Waermerueckgewinnung liegt der Energieverbrauch bei nur 15 kWh pro Quadratmeter und Jahr. Die Heizung erfolgt ueber Fernwaerme aus einem Blockheizkraftwerk. Die Heizkosten fuer die Mieter sind dadurch sehr niedrig.
+
 Musterstadt, den 03.02.2026
 
 _Dipl.-Ing. (FH) Karl Grünwald, Energieberater (dena)_`,

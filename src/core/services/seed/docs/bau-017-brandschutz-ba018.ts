@@ -62,6 +62,10 @@ Die tragenden und aussteifenden Bauteile (Stahlbetonwände, Decken, Stützen) er
 
 Die Rauchableitung in den Treppenräumen erfolgt über Rauchableitungsöffnungen im Dach (1,0 m² je Treppenraum, automatische und manuelle Auslösung). Die Flure erhalten eine Rauchfreihaltung über natürliche Lüftungsöffnungen an den Flurenden (je 1,5 m², automatisch öffnend bei Raucherkennung). Der Schallschutznachweis und der energetische Nachweis liegen als separate Anlagen bei.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Brandschutzkonzept ist auf eine Seniorenwohnanlage zugeschnitten, in der viele Bewohner auf Rollstuhl oder Rollator angewiesen sind und sich nicht selbst retten koennen. Im Brandfall werden die Bewohner zuerst auf derselben Etage in den sicheren Nachbarbereich gebracht, anstatt ueber Treppen nach unten zu fluechten. Das Pflegepersonal wird zuerst leise ueber Funkpieper alarmiert und hat 3 Minuten Zeit, sich vorzubereiten, bevor der allgemeine Alarm ausgeloest wird — so werden die aelteren Bewohner nicht unnoetig verängstigt. Die Aufzuege koennen im Notfall von der Feuerwehr gesteuert werden, und auf jeder Etage stehen spezielle Evakuierungsstuehle und Rettungstuecher bereit.
+
 Musterstadt, den 19.02.2026
 
 _Dipl.-Ing. Sabine Müller, Brandschutz-Ingenieurin (VBI)_`,

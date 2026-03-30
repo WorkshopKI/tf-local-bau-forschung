@@ -75,6 +75,10 @@ Die Außenanlagen umfassen begrünte Innenhofflächen mit Spielbereich für Kind
 
 Das Brandschutzkonzept, der Standsicherheitsnachweis und der energetische Nachweis nach GEG 2024 liegen als gesonderte Anlagen bei.
 
+## Zusammenfassung in einfacher Sprache
+
+Hier wird ein grosses Mehrfamilienhaus mit 12 Wohnungen und einer Tiefgarage mit 18 Parkplaetzen an der Lindenstrasse 42 beantragt. Das Gebaeude hat vier Stockwerke plus ein zurueckgesetztes Dachgeschoss und ist barrierefrei gebaut, sodass auch Menschen mit Rollstuhl dort gut wohnen koennen. Die Waerme kommt aus Fernwaerme, und jede Wohnung hat eine eigene Lueftungsanlage mit Waermerueckgewinnung. Das Dach wird begruent, und es gibt Fahrradabstellplaetze, einen Spielbereich im Innenhof und Vorbereitung fuer Elektroauto-Ladestationen.
+
 Musterstadt, den 22.01.2026
 
 _Unterschrift Bauherr_ — _Unterschrift Entwurfsverfasser_`,

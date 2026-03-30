@@ -61,6 +61,10 @@ Der Stellplatznachweis gemäß Stellplatzsatzung sieht für Gewerbebetriebe 1 St
 
 Das Brandschutzkonzept liegt als gesonderte Anlage bei und berücksichtigt die Trennung von Produktionshalle und Bürotrakt durch eine Brandwand F90. Die Halle erhält eine Rauch- und Wärmeabzugsanlage (RWA) über die Lichtbänder im Dach. Das Gesamtgebäude wird mit einer automatischen Brandmeldeanlage Kategorie 2 (Flure, Technikräume, Lagerbereich) ausgestattet. Der Standsicherheitsnachweis nach Eurocode 3 für den Stahlbau und Eurocode 2 für den Bürotrakt liegt bei. Der energetische Nachweis nach GEG 2024 wird gesondert geführt. Die Abstandsflächen nach §6 BauO NRW werden auf allen Seiten eingehalten. Die GRZ von 0,80 wird mit 0,52 unterschritten, die GFZ von 2,0 mit 0,29.
 
+## Zusammenfassung in einfacher Sprache
+
+Die Firma Metallbau Kraemer moechte im Gewerbepark Sued eine Produktionshalle mit angebautem Buerogebaeude errichten. Die Halle ist 720 Quadratmeter gross und hat einen Kran, der bis zu 10 Tonnen heben kann. Daneben gibt es ein zweigeschossiges Buerogebaeude fuer Verwaltung und Mitarbeiter. Die Halle wird mit Gas-Warmlufterzeugern beheizt, das Buero ueber Fernwaerme. Es sind 28 Parkplaetze, eine Laderampe fuer LKW und 8 Fahrradstellplaetze vorgesehen.
+
 Musterstadt, den 05.02.2026
 
 _Unterschrift Bauherr_ — _Unterschrift Entwurfsverfasser_`,

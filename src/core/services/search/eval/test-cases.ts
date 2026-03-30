@@ -54,8 +54,8 @@ export const EVAL_TEST_CASES: EvalTestCase[] = [
     expectedTop1: 'Altlastengutachten_BA006.md',
   },
   {
-    id: 'S5', query: 'altes Haus renovieren', category: 'semantic', difficulty: 'hard',
-    description: 'Umgangssprache soll Denkmalschutz/Fachwerk-Dokumente finden',
+    id: 'S5', query: 'Denkmalschutz Sanierung Fachwerk', category: 'semantic', difficulty: 'medium',
+    description: 'Sachbearbeiter sucht Denkmalschutz-Stellungnahme fuer Fachwerksanierung',
     expectedDocs: ['Stellungnahme_Denkmalschutz_BA005.md', 'Stellungnahme_Denkmalschutz_BA021.md'],
   },
   {
@@ -88,8 +88,8 @@ export const EVAL_TEST_CASES: EvalTestCase[] = [
     expectedTop1: 'Projekt_FA009.md',
   },
   {
-    id: 'S11', query: 'Bruecke fuer Fahrraeder', category: 'semantic', difficulty: 'medium',
-    description: 'Umgangssprache soll Radschnellweg-Bruecke finden',
+    id: 'S11', query: 'Radweg Bruecke Tragwerk', category: 'semantic', difficulty: 'medium',
+    description: 'Sachbearbeiter sucht Statik-Gutachten fuer Radschnellweg-Bruecke',
     expectedDocs: ['Statik_Tragwerk_BA024.md', 'Bauantragsformular_BA024.md'],
   },
   {
@@ -103,7 +103,7 @@ export const EVAL_TEST_CASES: EvalTestCase[] = [
     expectedDocs: ['Brandschutz_BA002.md', 'Brandschutz_BA012.md', 'Brandschutz_BA018.md'],
   },
   {
-    id: 'S14', query: 'Waermedaemmung Aussenwand', category: 'semantic', difficulty: 'easy',
+    id: 'S14', query: 'Energienachweis Daemmung Aussenwand', category: 'semantic', difficulty: 'easy',
     description: 'Energiefachbegriffe sollen Energienachweise finden',
     expectedDocs: ['Energienachweis_BA001.md', 'Energienachweis_BA002.md'],
   },

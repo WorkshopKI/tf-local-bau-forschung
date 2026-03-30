@@ -70,6 +70,10 @@ Erdberührte Außenwände mit einseitiger Wasserdruckbelastung. Dicke 30 cm. Die
 
 Die Expositionsklassen XD3/XF4 für die Fahrbahnflächen erfordern besondere Dauerhaftigkeitsmaßnahmen. Die Betondeckung cnom = 55 mm (Vorhaltemaß Δcdev = 10 mm) gewährleistet eine Karbonatisierungsschutzzeit von über 100 Jahren. Zusätzlich erhält die Dachdecke eine Oberflächenschutzbeschichtung OS 8 (rissüberbrückend, chloridbremsend) nach ZTV-ING. Die Fahrbahnplatten in den Parkebenen erhalten eine OS 11b Beschichtung (Parkdeckbeschichtung mit Verschleißschicht). Dehnfugen sind alle 40 m angeordnet und mit wasserdichten Fugenband-Konstruktionen ausgestattet.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten beschreibt die statische Berechnung fuer eine zweigeschossige Tiefgarage mit 86 Parkplaetzen an der Parkstrasse 30. Die Garage wird komplett aus wasserdichtem Beton gebaut, damit kein Grundwasser eindringen kann. Eine besondere Herausforderung ist der Auftrieb durch das Grundwasser — das Wasser drueckt die Garage nach oben. Deshalb werden 12 Zugpfaehle in den Boden gebohrt, die das Bauwerk am Boden festhalten. Die Decken und Stuetzen sind so bemessen, dass sie das Gewicht der Autos und der Erdueberdeckung sicher tragen koennen.
+
 Musterstadt, den 05.02.2026
 
 _Dr.-Ing. Thomas Krause, Prüfingenieur für Baustatik_`,

@@ -56,5 +56,9 @@ Das Sicherheitskonzept wird in der vorliegenden Form **nicht** als ausreichend b
 
 Die Frist für die Nachbesserung beträgt 3 Monate. Nach Einreichung der nachgebesserten Unterlagen wird eine erneute Begutachtung durchgeführt.
 
+## Zusammenfassung in einfacher Sprache
+
+Ein Sicherheitsgutachten hat den geplanten Feldversuch mit autonomen Lieferrobotern auf Gehwegen geprueft. Das Ergebnis: Das Sicherheitskonzept ist noch nicht gut genug. Es fehlen klare Regeln fuer Notfaelle, zum Beispiel wenn die Sensoren oder die Funkverbindung ausfallen. Ausserdem ist nicht geklaert, wie die Roboter mit Fussgaengern, Kindern, Rollstuhlfahrern und blinden Menschen sicher zusammenarbeiten koennen. Auch die Haftungsfrage bei Unfaellen und der Datenschutz wegen der Kameras muessen noch geloest werden. Das Gutachten verlangt fuenf konkrete Nachbesserungen innerhalb von drei Monaten.
+
 _Prof. Dr.-Ing. Kerstin Sicherheit, TÜV Akademie Rheinland_`,
 };

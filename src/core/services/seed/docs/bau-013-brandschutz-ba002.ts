@@ -68,6 +68,10 @@ Die Tiefgarage wird als eigenständiger Brandabschnitt behandelt, getrennt vom W
 
 Die Rauchableitung der Wohngeschosse erfolgt über die Rauchableitungsöffnungen in den Treppenraumköpfen und über die anleiterbaren Fenster in den Fluren. Die Aufzugsanlage ist mit einer Brandfallsteuerung ausgestattet: Bei Auslösung der BMA fährt der Aufzug automatisch ins Erdgeschoss und öffnet die Türen (Feuerwehraufzug nach DIN EN 81-72 ist bei GK4 nicht erforderlich, wird aber empfohlen). Der Aufzugsschacht ist als eigener Brandabschnitt mit Schachtwänden EI 90 und Schachttüren EI 60-C ausgeführt.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Brandschutzkonzept beschreibt, wie das Mehrfamilienhaus an der Lindenstrasse 42 im Brandfall sicher ist. Jede Wohnung ist durch feuerfeste Waende und Decken so abgetrennt, dass sich ein Brand mindestens 90 Minuten lang nicht ausbreiten kann. Es gibt zwei Treppenhaeuser als Fluchtwege, und alle Wohnungen koennen ueber Fenster von der Feuerwehr mit der Drehleiter erreicht werden. In jedem Treppenhaus sind Wasseranschluesse zum Loeschen vorhanden, und eine Brandmeldeanlage ueberwacht Flure, Technikraeume und die Tiefgarage. Die Tiefgarage hat ein eigenes Belueftungssystem, das im Brandfall Rauch absaugt.
+
 Musterstadt, den 02.02.2026
 
 _Dipl.-Ing. Sabine Müller, Brandschutz-Ingenieurin (VBI)_`,

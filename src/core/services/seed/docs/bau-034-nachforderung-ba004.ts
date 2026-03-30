@@ -78,6 +78,10 @@ Falls Sie vorab Fragen zu den Anforderungen haben, stehe ich Ihnen gerne für ei
 
 Die Nachforderung stützt sich auf folgende Rechtsgrundlagen: §69 Abs. 2 BauO NRW (Pflicht zur Vollständigkeit der Bauvorlagen, Nachforderungsbefugnis der Bauaufsichtsbehörde). §65 Abs. 2 BauO NRW (Standsicherheitsnachweis als Bauvorlage). §48 GEG (Anforderungen an bestehende Gebäude bei Änderung). §13 BauPrüfVO NRW (Entwässerungsplan als Bauvorlage). Die Zustellung dieses Schreibens erfolgt per Postzustellungsurkunde gemäß §3 VwZG NRW.
 
+## Zusammenfassung in einfacher Sprache
+
+Die Bauaufsicht teilt Herrn Meier mit, dass fuer seinen Bauantrag zum Dachgeschossausbau in der Kastanienallee 23 noch Unterlagen fehlen. Es werden drei Dinge benoetigt: Erstens ein Standsicherheitsnachweis, der zeigt, dass das bestehende Dach und die Decke die zusaetzliche Last tragen koennen. Zweitens ein Waermeschutznachweis, der belegt, dass das ausgebaute Dachgeschoss gut genug gedaemmt ist. Drittens ein aktualisierter Plan fuer die Abwasserleitungen wegen des neuen Badezimmers. Die Unterlagen muessen bis zum 10. April 2026 eingereicht werden — sonst gilt der Bauantrag als zurueckgenommen.
+
 Mit freundlichen Grüßen
 
 _Dipl.-Ing. Eva Lindner_

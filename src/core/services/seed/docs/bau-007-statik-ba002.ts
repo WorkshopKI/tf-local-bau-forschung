@@ -64,6 +64,10 @@ Die Erdbebennachweis-Befreiung nach DIN EN 1998-1/NA, Abschnitt 4.1 wird geprüf
 
 Alle Nachweise der Standsicherheit, Gebrauchstauglichkeit und Dauerhaftigkeit sind erfüllt. Die kritischen Nachweise sind: Durchstanzen Innenstütze Regelgeschoss (Auslastung 92 Prozent mit Dübelleisten), Rissbreitenbegrenzung WU-Bodenplatte (wk,calc = 0,13 mm ≤ 0,15 mm), Horizontalverschiebung Gebäudekopf unter Wind (H/1830 bei Grenzwert H/500). Die Bewehrungspläne sind als Anlage beigefügt.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten prueft, ob das geplante Mehrfamilienhaus an der Lindenstrasse 42 sicher und stabil genug gebaut ist. Es wird berechnet, wie viel Gewicht die Decken, Waende und die Tiefgarage tragen muessen — durch das Gebaeude selbst, die Bewohner, Schnee und Wind. Die Tiefgarage wird als wasserdichte Betonwanne gebaut, damit kein Grundwasser eindringt. Alle Berechnungen zeigen, dass das Gebaeude den Belastungen sicher standhaelt, auch bei einem leichten Erdbeben.
+
 Musterstadt, den 01.02.2026
 
 _Dipl.-Ing. Markus Hartmann, Prüfingenieur für Baustatik_`,

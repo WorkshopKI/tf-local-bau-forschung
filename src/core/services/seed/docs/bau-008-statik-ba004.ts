@@ -66,6 +66,10 @@ Die Zusatzlast aus dem Dachgeschossausbau (Nutzlast + Fußbodenaufbau + Dachausb
 
 Der vollständige Lastpfad vom Dach bis zum Fundament wurde nachgewiesen: Dachlasten (Sparren → Pfetten → Stuhlständer → Innenwand/Decke → Fundament) und Deckenlasten (Balken → Auflager Wand → Fundament). Alle Nachweise sind mit den genannten Auslastungen erfüllt. Die kritischste Stelle ist die Biegetragfähigkeit der Bestandsdeckenbalken mit 73 Prozent Auslastung. Empfehlung: Im Zuge der Bauarbeiten sollten die Balkenauflagen in den Außenwänden visuell kontrolliert und bei Auffälligkeiten eine ergänzende Untersuchung veranlasst werden.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten prueft, ob der Ausbau des Dachgeschosses in der Kastanienallee 23 sicher moeglich ist. Das Haus stammt aus dem Jahr 1965, und es soll eine neue Wohnung unterm Dach entstehen, mit drei neuen Dachfenstern und einem erhoehten Kniestock. Die vorhandenen Holzbalken der Decke wurden untersucht und koennen die zusaetzliche Last tragen — sie sind nur zu 73 Prozent belastet. An einigen Stellen, wo Balken fuer die Dachfenster durchgeschnitten werden, kommen Verstaerkungen aus neuem Holz dazu. Auch die alten Fundamente sind stark genug und muessen nicht erneuert werden.
+
 Musterstadt, den 03.02.2026
 
 _Dipl.-Ing. Andrea Schneider, Statik Plus GmbH_`,

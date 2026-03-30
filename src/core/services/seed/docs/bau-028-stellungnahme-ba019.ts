@@ -76,6 +76,10 @@ Die Eingriffs-Ausgleichs-Bilanzierung nach dem Bewertungsverfahren des LANUV NRW
 
 Die untere Naturschutzbehörde befürwortet das Vorhaben unter folgenden Auflagen: Bauzeitenregelung Oktober bis Februar, Umsetzung der CEF-Maßnahmen vor Baubeginn, Erhalt des Feldgehölzes und des Grabens mit 10-m-Puffer, Monitoring der Feldlerchen-Population über 5 Jahre nach Inbetriebnahme (jährliche Revierkartierung, Bericht an die UNB).
 
+## Zusammenfassung in einfacher Sprache
+
+Die Naturschutzbehoerde hat die geplante Solaranlage auf freiem Feld (3,5 Hektar Ackerland) geprueft und festgestellt, dass dort drei Feldlerchen-Brutpaare, ein Rebhuhn und Zauneidechsen leben. Die Solaranlage wuerde den Voegeln ihren Brutplatz nehmen, weil Feldlerchen hohe Strukturen meiden. Als Ausgleich muessen auf benachbarten Aeckern sechs sogenannte Lerchenfenster angelegt werden — kleine Freiflaechen im Getreide, in denen die Voegel brueten koennen. Fuer die Eidechsen wird ein Schutzstreifen am Graben eingehalten und Steinhaufen als Unterschlupf angelegt. Die Behoerde befuerwortet das Vorhaben, wenn der Bau ausserhalb der Brutzeit stattfindet und die Schutzmassnahmen vorher umgesetzt werden.
+
 Musterstadt, den 05.03.2026
 
 _Dr. Katrin Vogt, Untere Naturschutzbehörde Kreis Musterland_`,

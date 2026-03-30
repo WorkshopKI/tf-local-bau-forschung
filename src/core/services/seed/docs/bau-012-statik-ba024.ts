@@ -84,6 +84,10 @@ Die Brücke ruht auf Elastomer-Lagern (Typ B nach DIN EN 1337-3). Festlager am W
 
 Die Montage erfolgt durch seitlichen Einschieben des vormontierten Stahltragwerks über Hilfsstützen im Fluss (temporäre Gründung auf Stahlprofilen, nach Montage zurückgebaut). Die BSH-Fahrbahnplatte wird in 6 m langen Segmenten auf das Stahltragwerk aufgelegt und vor Ort verschraubt. Gesamte Montagezeit: 4 Wochen.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten beschreibt die Statik einer neuen Bruecke fuer Fahrraeder und Fussgaenger ueber einen Fluss. Die Bruecke ist Teil eines Radschnellwegs und hat einen 3 Meter breiten Radweg sowie einen 1,5 Meter breiten Gehweg. Die Konstruktion aus Stahl und Holz wurde so berechnet, dass sie auch bei vielen Radfahrern und Fussgaengern gleichzeitig nicht schwingt oder wackelt. Die Bruecke ist 42 Meter lang und wird an beiden Ufern auf Betonfundamenten gegruendet.
+
 Musterstadt, den 15.02.2026
 
 _Dr.-Ing. Hans-Peter Brückner, Brückenbau-Ingenieure Westfalen GmbH_`,

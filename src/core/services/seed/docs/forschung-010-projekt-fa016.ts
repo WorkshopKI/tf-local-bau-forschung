@@ -58,6 +58,10 @@ Die vergleichende LCA (ISO 14040/14044, Cradle-to-Gate) wird für folgende Szena
 
 AP 1 (Monat 1–8): Aufschluss-Optimierung (Steam Explosion vs. Organosolv, DoE-Versuchsplanung). AP 2 (Monat 6–14): Enzymatische Hydrolyse (Enzym-Screening, Fed-Batch-Optimierung). AP 3 (Monat 10–18): Fermentation (LA und PHB, Batch und Fed-Batch). AP 4 (Monat 14–22): Pilotanlage (Aufbau, Inbetriebnahme, 5 Kampagnen). AP 5 (Monat 18–26): Compoundierung und Materialprüfung. AP 6 (Monat 20–28): LCA und Wirtschaftlichkeitsanalyse. AP 7 (Monat 26–30): Publikation und Verwertung. Personal: 1 Postdoc Bioverfahrenstechnik, 1 Doktorand/in Polymerchemie, 1 Techniker/in Pilotanlage, studentische Hilfskräfte. Industriepartner: BASF SE (assoziiert, Bereitstellung von Vergleichsmaterialien und Compounding-Expertise). Gesamtkosten: 890.000 Euro.
 
+## Zusammenfassung in einfacher Sprache
+
+Die meisten Kunststoffe werden aus Erdoel hergestellt. In diesem Projekt wird erforscht, wie man Kunststoffe stattdessen aus Pflanzenresten wie Stroh oder Holzabfaellen herstellen kann, die nicht als Nahrungsmittel gebraucht werden. Die Pflanzenreste werden zunaechst aufgespalten, dann wandeln Bakterien die gewonnenen Zucker in Bausteine fuer Biokunststoffe um. Das Verfahren soll vom Labor auf eine groessere Versuchsanlage uebertragen werden, die 500 Kilogramm Rohmaterial pro Tag verarbeiten kann. Am Ende werden die neuen Biokunststoffe getestet, ob sie genauso stabil sind wie herkoemmliche Kunststoffe.
+
 Musterstadt, den 05.02.2026
 
 _Prof. Dr.-Ing. Christina Polymer, TU Musterstadt_`,

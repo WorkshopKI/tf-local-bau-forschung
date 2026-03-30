@@ -71,6 +71,10 @@ Das Brandschutzkonzept berücksichtigt die eingeschränkte Mobilität der Bewohn
 
 Der Standsicherheitsnachweis, der energetische Nachweis nach GEG 2024, der Schallschutznachweis und die Stellplatzberechnung (0,5 je WE + 5 für Tagespflege = 17 Stellplätze, nachgewiesen: 18) liegen als separate Anlagen bei.
 
+## Zusammenfassung in einfacher Sprache
+
+Die AWO plant eine Seniorenwohnanlage mit 24 barrierefreien Wohnungen und einer Tagespflege fuer 12 Personen am Kirchplatz. Das dreistoeckige Gebaeude hat einen geschuetzten Innenhof-Garten, Gemeinschaftsraeume zum Kochen und fuer Gymnastik sowie eine Friseur- und Fusspflegepraxis. Die gesamte Anlage ist rollstuhlgerecht und besonders auf die Beduerfnisse von Menschen mit Demenz ausgelegt, mit einem sicheren Rundweg im Garten und gut sichtbaren Orientierungshilfen. Die Waerme kommt aus Erdwaermesonden, und auf dem Dach gibt es eine Solaranlage fuer Strom.
+
 Musterstadt, den 18.02.2026
 
 _Unterschrift Bauherr_ — _Unterschrift Entwurfsverfasser_`,

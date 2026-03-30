@@ -60,6 +60,10 @@ Die Aufstockung liegt in einem Gebiet mit mäßiger Lärmbelastung (Lärmpegelbe
 
 Die schalltechnische Qualität der Aufstockung steht und fällt mit der Sorgfalt der Bauausführung, insbesondere bei den folgenden Details: (1) Die Elastomerstreifen unter den Schwellen dürfen nicht durch Mörtelbrücken oder vergessene Schrauben kurzgeschlossen werden — jeder starre Kontakt zwischen Holzrahmen und Bestandsdecke reduziert die Entkopplung drastisch. (2) Die Federschienen der abgehängten Decke müssen frei schwingen können — keine Schrauben durch die Federschiene in die Bestandsdecke neben den vorgesehenen Abhängepunkten. (3) Der schwimmende Estrich darf keinen Kontakt zu den aufgehenden Wänden haben — Randdämmstreifen bis Oberkante Fertigfußboden. (4) Die Installationen (Heizung, Wasser) der Aufstockung müssen von den Bestandsinstallationen schalltechnisch getrennt geführt werden — keine gemeinsamen Schächte ohne Entkopplung. Eine baubegleitende akustische Qualitätssicherung durch einen Akustiker wird dringend empfohlen.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten untersucht den Laermschutz bei einer Aufstockung in der Schulstrasse 14, wo auf ein bestehendes Massivhaus ein neues Stockwerk in Holzbauweise aufgesetzt wird. Die groesste Herausforderung ist, dass die Bewohner im alten Teil und im neuen Holzbau-Stockwerk sich gegenseitig nicht hoeren sollen. Dafuer werden spezielle Gummipuffer zwischen Alt- und Neubau eingebaut, die Schwingungen und Geraeusche abfangen. Zusaetzlich wird unter der alten Decke eine abgehaengte Decke mit Federschienen montiert, die den Laermschutz deutlich verbessert. Alle Laermschutz-Anforderungen werden damit sicher eingehalten.
+
 Musterstadt, den 09.02.2026
 
 _Dr.-Ing. Helmut Schröder, Akustik-Ingenieurbüro_`,

@@ -97,6 +97,10 @@ Chemische Oxidation (ISCO — In-Situ Chemical Oxidation) mit Kaliumpermanganat-
 
 Bei der geplanten gewerblichen Nutzung mit Büroanteil empfiehlt das Gutachterbüro **Variante A (Auskofferung)**, da: (1) Die Kontamination vollständig beseitigt wird und keine Nutzungseinschränkungen verbleiben. (2) Die Baugrube für die Gewerbehalle ohnehin bis 1,5 m Tiefe ausgehoben wird — die zusätzliche Auskofferung bis 3 m ist wirtschaftlich vertretbar. (3) Der Grundwasserschutz langfristig gesichert wird ohne kostenintensives Monitoring. (4) Der Grundstückswert nach Sanierung deutlich steigt (Altlastenfreiheit als Vermarktungsvorteil). Die Entsorgung des kontaminierten Bodens erfolgt auf der Sondermülldeponie Emscherbruch (Entsorgungsnachweis nach NachwV liegt vor, Annahmebestätigung vom 05.01.2026). Ein Grundwasser-Monitoring über 2 Jahre (vierteljährliche Beprobung an 3 Messstellen) ist nach Abschluss der Auskofferung zur Erfolgskontrolle erforderlich.
 
+## Zusammenfassung in einfacher Sprache
+
+Auf dem Grundstueck am Industrieweg 3 wurde frueher Teer verarbeitet. Bodenuntersuchungen haben gezeigt, dass der Boden an mehreren Stellen stark mit giftigen Stoffen (sogenannten PAK) belastet ist — besonders dort, wo die alten Teerkessel und ein unterirdischer Tank standen. Die Schadstoffe sind auch ins Grundwasser gelangt und koennten langfristig das Trinkwasser gefaehrden. Das Gutachten empfiehlt, den verschmutzten Boden vollstaendig auszugraben und fachgerecht zu entsorgen. Das kostet zwar etwa 1,3 Millionen Euro, beseitigt das Problem aber dauerhaft und ermoeglicht eine uneingeschraenkte Nutzung des Grundstuecks.
+
 Musterstadt, den 15.01.2026
 
 _Dr. rer. nat. Stefan Bodenbach, EnviroConsult GmbH, Sachverständiger für Altlasten_`,

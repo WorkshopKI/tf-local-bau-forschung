@@ -65,6 +65,10 @@ Die Abstandsflächen gemäß §6 BauO NRW betragen 0,4 × H = 0,4 × 9,20 m = 3,
 
 Der Entwurfsverfasser erklärt, dass die Bauvorlagen vollständig und richtig sind und den öffentlich-rechtlichen Vorschriften entsprechen. Der Bauherr bestätigt, dass er Eigentümer des Grundstücks ist und die Zustimmung aller grundbuchlich Berechtigten vorliegt.
 
+## Zusammenfassung in einfacher Sprache
+
+Hier wird der Bau eines Einfamilienhauses am Ahornweg 15 beantragt. Das Haus hat zwei Stockwerke mit Satteldach und bietet rund 165 Quadratmeter Wohnflaeche fuer eine Familie. Geheizt wird mit einer Waermepumpe und einer Solaranlage auf dem Dach, sodass kein Gas noetig ist. Das Regenwasser versickert ueber eine unterirdische Anlage im Vorgarten, und es gibt einen Carport sowie einen weiteren Stellplatz fuer Autos. Alle Abstaende zu den Nachbargrundstuecken und die erlaubte Baugroesse werden eingehalten.
+
 Musterstadt, den 20.01.2026
 
 _Unterschrift Bauherr_ — _Unterschrift Entwurfsverfasser_`,

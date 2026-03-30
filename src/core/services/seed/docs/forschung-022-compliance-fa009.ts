@@ -72,6 +72,10 @@ Die Pilotanlage mit einem Bioreaktor-Volumen von 2 × 500 Liter benötigt keine 
 
 Das Prozessabwasser aus der Fällungsstufe (nach Entfernung der Schwermetalle durch selektive Fällung) enthält noch Restkonzentrationen an Schwermetallen. Die Grenzwerte der Abwasserverordnung (AbwV), Anhang 40 (Metallbe- und -verarbeitung) betragen: Co < 1 mg/l, Ni < 0,5 mg/l, Mn < 2 mg/l, Zn < 2 mg/l, Fe < 3 mg/l, pH 6,0–9,0. Die Einhaltung der Grenzwerte wird durch eine Nachfällung (pH 10, NaOH) und eine Filtration (Kammerfilterpresse, Filtrat < 0,5 mg/l Gesamtmetalle) sichergestellt. Die Einleiterlaubnis wird beim kommunalen Abwasserbetrieb beantragt (Indirekteinleiter-Genehmigung nach §58 WHG). Eine Eigenüberwachung (monatliche Abwasseranalyse auf Schwermetalle per ICP-OES) ist vorgesehen.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Dokument prueft, welche Umwelt- und Sicherheitsvorschriften beim Batterie-Recycling mit Bakterien eingehalten werden muessen. Alte Batterien gelten als Sondermuell und muessen besonders gelagert werden. Die verwendeten Bakterien sind ungefaehrlich fuer Menschen. Allerdings entstehen im Verfahren saure Loesungen mit giftigen Schwermetallen, weshalb die Mitarbeiter Schutzbrillen, saeurebestaendige Handschuhe und Laborkittel tragen muessen. Die Versuchsanlage braucht keine aufwaendige Genehmigung, weil sie unter den gesetzlichen Mengenschwellen bleibt. Das Abwasser wird gereinigt und auf Schwermetalle ueberprueft, bevor es eingeleitet wird.
+
 Musterstadt, den 06.03.2026
 
 _Dr.-Ing. Markus Sicher, Stabsstelle Arbeitssicherheit und Umweltschutz, TU Musterstadt_`,

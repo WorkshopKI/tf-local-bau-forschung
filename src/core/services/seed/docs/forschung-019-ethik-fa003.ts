@@ -72,6 +72,10 @@ Das gesamte Kolon wird entnommen und die Länge gemessen (verkürzte Colonlänge
 
 Der Tierversuchsantrag wird bei der zuständigen Behörde (LANUV NRW, Recklinghausen) gemäß §8 TierSchG eingereicht. Der Antrag enthält: Versuchsvorhaben-Beschreibung (dieses Protokoll), 3R-Dokumentation (Replace-Analyse, Reduce-Fallzahlberechnung, Refine-Maßnahmen), Qualifikationsnachweis der Versuchsleiterin (§9 TierSchG — Sachkundenachweis FELASA B, Versuchsleiterin Prof. Dr. med. Immunstein, FELASA-D-Kurs 2022), positive Stellungnahme der Tierschutzkommission (siehe separates Ethikvotum FA-2026-003). Die Genehmigung wird vor Beginn der Tierversuche eingeholt (geschätzte Bearbeitungszeit: 6–8 Wochen).
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Dokument beschreibt ausfuehrlich, wie die Tierversuche im mRNA-Therapie-Projekt durchgefuehrt werden. Es werden insgesamt 144 Maeuse benoetigt, die in verschiedene Behandlungsgruppen eingeteilt werden. Vorab werden viele Versuche an Zellkulturen gemacht, um so wenige Tiere wie moeglich einsetzen zu muessen. Die Tiere werden taeglich untersucht und erhalten bei Schmerzen sofort Medikamente. Es gibt klare Abbruchregeln, damit kein Tier unnoetig leidet. Durch eine Zwischenauswertung nach den ersten 24 Tieren kann der Versuch bei eindeutigem Ergebnis vorzeitig beendet werden, was bis zur Haelfte der Tiere einsparen koennte.
+
 Musterstadt, den 28.02.2026
 
 _Dr. med. vet. Maria Tierwohl, Tierschutzbeauftragte_`,

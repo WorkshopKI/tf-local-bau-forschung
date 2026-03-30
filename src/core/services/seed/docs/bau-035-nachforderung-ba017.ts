@@ -98,6 +98,10 @@ Bitte reichen Sie die vorstehend genannten Unterlagen und den Befreiungsantrag *
 
 Ich empfehle Ihnen dringend, vor Einreichung der ergänzenden Unterlagen einen Beratungstermin mit der Bauaufsicht zu vereinbaren. Tiny House Siedlungen sind ein relativ neuer Gebäudetyp, für den die bestehenden planungsrechtlichen und bauordnungsrechtlichen Regelungen nur bedingt passen. Eine frühzeitige Abstimmung kann das Genehmigungsverfahren erheblich beschleunigen und unnötige Nachforderungsschleifen vermeiden.
 
+## Zusammenfassung in einfacher Sprache
+
+Die Bauaufsicht informiert Frau Kleinert, dass ihr Bauantrag fuer eine Tiny-House-Siedlung mit acht Wohneinheiten am Obstgartenweg 3 erhebliche Maengel aufweist. Das groesste Problem: Der Bebauungsplan sieht dort Einfamilienhaeuser vor, keine Siedlung aus kleinen Haeusern. Deshalb muss ein Befreiungsantrag gestellt werden. Ausserdem fehlen Nachweise fuer Wasser- und Stromversorgung, ein Abwasserkonzept und Parkplaetze. Die Unterlagen muessen bis zum 30. April 2026 eingereicht werden. Die Behoerde ist grundsaetzlich offen fuer diese neue Wohnform, empfiehlt aber dringend ein Beratungsgespraech vor der erneuten Einreichung.
+
 Mit freundlichen Grüßen
 
 _Dipl.-Ing. Eva Lindner_

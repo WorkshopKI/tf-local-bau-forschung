@@ -64,6 +64,10 @@ AP 1 (Monat 1–8): Sensorinstallation und Inbetriebnahme (200 Druck, 50 Durchfl
 
 Die erwarteten Ergebnisse sind: Reduktion der Wasserverluste in der Pilotkommune von 7 Prozent auf unter 4 Prozent innerhalb von 2 Jahren (Einsparung: 380.000 m³/a × 2 Euro/m³ = 760.000 Euro/a). Leckage-Erkennungszeit: Reduktion von durchschnittlich 45 Tagen (Bemerken durch Oberflächenaustritt) auf 24 Stunden (LSTM-Alarm). Lokalisierungsgenauigkeit: 50 m (ausreichend für gezielte akustische Nachsuche auf einem 100-m-Abschnitt). Prädiktive Instandhaltung: Reduktion der ungeplanten Rohrbrüche um 30 Prozent innerhalb von 5 Jahren (durch priorisierte Erneuerung der kritischsten 5 Prozent des Netzes). Übertragbarkeit: Das entwickelte System ist modular und kann auf andere Kommunen übertragen werden (die Software wird Open Source veröffentlicht, die Sensorhardware ist kommerziell verfügbar).
 
+## Zusammenfassung in einfacher Sprache
+
+In vielen Staedten geht ein grosser Teil des Trinkwassers durch undichte Leitungen verloren, oft unbemerkt ueber Monate. Dieses Projekt baut ein digitales Abbild des Wassernetzes von Musterstadt auf. Hunderte Sensoren messen laufend den Druck und den Wasserfluss im Leitungsnetz. Eine kuenstliche Intelligenz vergleicht die Messwerte mit einem Computermodell und kann so Lecks innerhalb von 24 Stunden erkennen und auf 50 Meter genau orten. Zusaetzlich sagt ein Vorhersagemodell voraus, welche Leitungsabschnitte in den naechsten Jahren am wahrscheinlichsten kaputtgehen, damit sie rechtzeitig erneuert werden koennen.
+
 Musterstadt, den 25.01.2026
 
 _Prof. Dr.-Ing. Robert Rohrnetz, TU Musterstadt_`,

@@ -58,6 +58,10 @@ Die Tierschutzkommission empfiehlt die **Genehmigung des Tierversuchsantrags** m
 
 Die Genehmigung nach §8 TierSchG ist durch die zuständige Behörde (LANUV NRW, Recklinghausen) zu erteilen. Die Tierschutzkommission unterstützt den Antrag mit einer positiven Stellungnahme.
 
+## Zusammenfassung in einfacher Sprache
+
+Die Tierschutzkommission hat den geplanten Tierversuch zur mRNA-Therapie bei Darmentzuendung geprueft. Insgesamt werden 144 Maeuse benoetigt, an denen zwei verschiedene Krankheitsmodelle untersucht werden. Die Belastung fuer die Tiere wird als mittel eingestuft. Die Kommission lobt, dass vorab Zellkulturen eingesetzt werden, um die Zahl der Tiere moeglichst klein zu halten. Die Schmerzen der Tiere werden taeglich ueberprueft und bei Bedarf behandelt. Die Kommission genehmigt den Versuch mit einigen Auflagen, zum Beispiel einer frueheren Schmerzkontrolle und regelmaessigen Zwischenberichten.
+
 Musterstadt, den 25.02.2026
 
 _Prof. Dr. med. vet. Hans Tierschutz, Vorsitzender der Tierschutzkommission_`,

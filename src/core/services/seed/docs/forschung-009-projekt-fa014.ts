@@ -70,6 +70,10 @@ AP 1 (Monat 1–6): Wissensbasis aufbauen (Digitalisierung und Chunking der Rech
 
 Das Projekt wird ein praxiserprobtes RAG-System für kommunale Genehmigungsverfahren liefern, das die Bearbeitungszeit von Bauanträgen um 40–60 Prozent reduziert und den Sachbearbeitern die repetitiven Textarbeit abnimmt, sodass sie sich auf die fachliche Prüfung konzentrieren können. Die juristische Korrektheit der generierten Bescheide wird ≥ 90 Prozent betragen, die Halluzinationsrate < 5 Prozent. Das System ist Open Source (MIT-Lizenz für das RAG-Framework) und kann von anderen Kommunen übernommen werden — die Anpassung auf andere Rechtsgebiete (Gaststättenrecht, Gewerberecht) erfordert lediglich den Austausch der Wissensbasis und ein neues Fine-Tuning. Der gesellschaftliche Impact ist erheblich: Schnellere Baugenehmigungen entlasten Bauherren und die Bauwirtschaft, reduzieren die Wartezeiten und senken die bürokratischen Kosten.
 
+## Zusammenfassung in einfacher Sprache
+
+Bauantraege dauern in Deutschland oft viel zu lange, weil die Verwaltung ueberlastet ist und jeder Antrag viele Seiten umfasst. Dieses Projekt entwickelt ein KI-System, das Sachbearbeitern bei der Pruefung von Bauantraegen hilft und automatisch Entwuerfe fuer Genehmigungsbescheide erstellt. Das System kennt alle wichtigen Gesetze und Vorschriften und kann die passenden Paragraphen heraussuchen. Der Sachbearbeiter bleibt aber immer verantwortlich und prueft alles, bevor ein Bescheid verschickt wird. Alle Daten bleiben auf den Computern der Stadtverwaltung und werden nicht ins Internet uebertragen.
+
 Musterstadt, den 01.02.2026
 
 _Prof. Dr.-Ing. Tobias Algorithmus, TU Musterstadt_`,

@@ -70,6 +70,10 @@ Die Holzrahmen-Schwellhölzer (KVH C24, 60 × 120 mm) der Aufstockung werden auf
 
 Die Aufstockung wird durch die OSB-beplankten Holzrahmen-Wandscheiben in beiden Richtungen ausgesteift. Die Schubsteifigkeit der OSB-Scheiben (15 mm OSB/3, Klammern 1,53 × 50 mm, Abstand 75 mm am Rand) beträgt Gd × t / s = 490 kN/m (Längsrichtung, Wandlänge 4,80 m). Die Gesamtschubsteifigkeit in Querrichtung (3 Wandscheiben) beträgt 1.470 kN/m, ausreichend für die Erdbebenersatzkraft von 12 kN (Zone 1, Aufstockung allein). Die Verankerung der Wandscheiben gegen Abheben (Zuganker an den Wandenden) wird mit 2 × M16 Gewindestangen je Wandende in die Bestandsdecke verankert (Tragfähigkeit Zug 2 × 45 = 90 kN > Zugkraft aus Kippmoment 28 kN).
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten prueft, ob auf das bestehende dreistoeckige Wohnhaus in der Schulstrasse 14 ein zusaetzliches Stockwerk aufgebaut werden kann. Das neue Geschoss wird in leichter Holzbauweise gebaut, wodurch es nur etwa 40 Prozent des Gewichts eines normalen Stockwerks aus Stein wiegt. Die alten Ziegelwaende sind stark genug und nur zu 15 Prozent belastet. Die vorhandenen Fundamente muessen allerdings verbreitert werden, da sie fuer heutige Anforderungen zu schmal sind. Der Anschluss zwischen Alt- und Neubau wird mit einer Gummischicht schallisoliert, damit man die Nachbarn nicht hoert.
+
 Musterstadt, den 08.02.2026
 
 _Dipl.-Ing. (FH) Johannes Riedel, Ingenieurbüro Holzbau Riedel_`,

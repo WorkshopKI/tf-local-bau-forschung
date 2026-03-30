@@ -72,6 +72,10 @@ Der Einspruch der Nachbareigentümer ist nachvollziehbar, da eine spürbare Redu
 
 Der Einspruch wird zur Kenntnis genommen, führt jedoch nicht zur Versagung oder Einschränkung der Baugenehmigung. Die Bauaufsicht empfiehlt dem Bauherrn als freiwillige Maßnahme: (1) Information der Nachbarn über die Ergebnisse der Besonungsstudie (Transparenz), (2) Bepflanzung der südlichen Grundstücksgrenze mit niedrig wachsenden Sträuchern statt hohen Bäumen (keine zusätzliche Verschattung), (3) Prüfung einer hellen Fassadengestaltung der Nordseite des Neubaus (erhöhte Lichtreflexion in Richtung Nachbar). Diese Empfehlungen sind rechtlich nicht bindend.
 
+## Zusammenfassung in einfacher Sprache
+
+Die Nachbarn des geplanten Mehrfamilienhauses in der Lindenstrasse 42 haben Einspruch eingelegt, weil sie befuerchten, dass der Neubau ihren Garten und Wintergarten zu stark verschattet. Eine ausfuehrliche Schattenstudie wurde durchgefuehrt: Sie zeigt, dass der Wintergarten zwar etwas weniger Sonne bekommt als bisher (etwa 1,3 Stunden weniger am 21. Maerz), aber immer noch deutlich mehr als die empfohlenen Mindestwerte. Rechtlich haelt der Neubau alle Abstandsregeln und Vorgaben des Bebauungsplans ein. Der Einspruch fuehrt daher nicht zu einer Einschraenkung der Baugenehmigung, aber es werden freiwillige Massnahmen wie eine helle Fassade empfohlen.
+
 Musterstadt, den 01.03.2026
 
 _Bauaufsicht Musterstadt, Sachbearbeiterin Dipl.-Ing. Eva Lindner_`,

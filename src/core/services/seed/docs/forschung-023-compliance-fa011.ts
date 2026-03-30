@@ -74,6 +74,10 @@ Die Ergebnisse des Pentests werden in einem Bericht mit Risikobewertung (CVSS v3
 
 Die Backup-Strategie folgt der 3-2-1-Regel: 3 Kopien aller Daten, auf 2 verschiedenen Medientypen, davon 1 Kopie offline (air-gapped). Tägliches inkrementelles Backup der IT-Server auf NAS (Netzwerkspeicher, RAID-6, im separaten Brandabschnitt des Rechenzentrums). Wöchentliches Vollbackup auf LTO-8-Band (offline, im feuersicheren Tresor, Rotation: 4 Wochen). Monatliches Backup der OT-Konfigurationen (SCADA-Projektdateien, SPS-Programme, Sensor-Konfigurationen) auf verschlüsseltem USB-Stick (im Tresor). Recovery Time Objective (RTO): IT-Systeme (Dashboard, ML-Modell) — 4 Stunden. OT-Systeme (SCADA) — 1 Stunde (Umschaltung auf Redundanz-Server). Sensornetzwerk — 24 Stunden (Einzelsensoren können ausfallen, ohne die Gesamtfunktion zu beeinträchtigen). Recovery Point Objective (RPO): IT — 24 Stunden (tägliches Backup). OT — 1 Stunde (Echtzeit-Replikation auf Redundanz-Server). Disaster-Recovery-Test: jährlich (Wiederherstellung des gesamten IT-Systems aus dem Band-Backup auf einem Test-Server, Messung der tatsächlichen Recovery-Zeit).
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses IT-Sicherheitskonzept beschreibt, wie der digitale Zwilling des Wassernetzes vor Cyberangriffen geschuetzt wird. Die Trinkwasserversorgung gehoert zur kritischen Infrastruktur und muss besonders gesichert werden. Das Netzwerk ist streng aufgeteilt: Die Steuerung der Wasserwerke und Pumpen ist physisch vom Buero-Netzwerk und dem Internet getrennt. Sensordaten fliessen nur in eine Richtung, sodass ein Angreifer die Wasserversorgung nicht ueber das Internet stoeren kann. Alle Mitarbeiter brauchen zwei Sicherheitsfaktoren zum Einloggen, und regelmaessige Sicherheitstests pruefen, ob das System angreifbar ist. Fuer Notfaelle gibt es einen klaren Plan mit Meldefristen und Wiederherstellungszeiten.
+
 Musterstadt, den 08.03.2026
 
 _Dipl.-Inform. Klaus Firewall, IT-Sicherheitsbeauftragter, Stadtwerke Musterstadt_`,

@@ -74,6 +74,10 @@ Nach 3 Jahren wird eine umfassende Evaluation durchgeführt, bei der auch die Zu
 
 Die eingesparten 80 PKW-Stellplätze vermeiden den Bau einer größeren Tiefgarage und sparen: Baukosten: 80 × 30.000 Euro = 2.400.000 Euro (brutto). Betriebskosten: 80 × 1.200 Euro/a = 96.000 Euro/a (Beleuchtung, Reinigung, Instandhaltung). Die Investitionen in das Mobilitätskonzept betragen: Carsharing-Infrastruktur (Stellplätze, Ladeinfrastruktur): 40.000 Euro. Fahrradgarage (Doppelstockparker, Ladestationen): 120.000 Euro. Lastenrad-Verleih: 15.000 Euro. Quartiers-App (Anteil): 30.000 Euro. Informationsdisplay: 8.000 Euro. Jährliche Betriebskosten Mobilitätsangebote: 25.000 Euro. Netto-Einsparung im ersten Jahr: 2.400.000 - 213.000 = 2.187.000 Euro. Jährliche Einsparung: 96.000 - 25.000 = 71.000 Euro. Die CO₂-Einsparung durch weniger PKW-Besitz (Annahme: 40 PKW weniger im Quartier × 12.000 km/a × 150 g CO₂/km) beträgt 72 Tonnen CO₂ pro Jahr.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Konzept beschreibt, wie das neue Wohnviertel Neue Mitte 8 mit 200 Wohnungen statt der ueblichen 200 Parkplaetze nur 120 braucht. Der Grund: Das Viertel liegt sehr zentral, hat eine sehr gute Bus- und Bahnanbindung, und es werden Carsharing-Autos, Leihfahrraeder und Lastenraeder angeboten. Eine sichere Fahrradgarage mit 240 Plaetzen und Ladestationen fuer E-Bikes ist ebenfalls geplant. Durch den Verzicht auf 80 Parkplaetze spart der Bauherr ueber 2 Millionen Euro Baukosten, die zum Teil an die Mieter weitergegeben werden. Die Nutzung wird jaehrlich ueberprueft, und falls doch mehr Autos kommen als erwartet, koennen zusaetzliche Plaetze geschaffen werden.
+
 Musterstadt, den 14.02.2026
 
 _Dipl.-Ing. Claudia Radweg, Verkehrsplanung Mobilitätswende GmbH_`,

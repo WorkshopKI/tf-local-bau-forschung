@@ -64,6 +64,10 @@ Personal: 1 Postdoc Molekulare Ökologie (TV-L E14, 100 Prozent), 1 Doktorand/in
 
 Das Projekt wird die erste flächendeckende, standardisierte eDNA-basierte Biodiversitätserfassung urbaner Gewässer in Deutschland liefern. Erwartete wissenschaftliche Ergebnisse: Artenliste von geschätzt 500–800 Arten (Fische, Amphibien, Invertebraten, Pilze) aus 50 Stadtgewässern, saisonale Dynamiken der Artengemeinschaften und deren Korrelation mit Wassertemperatur, Nährstoffgehalt und Versiegelungsgrad im Einzugsgebiet, Nachweis invasiver Arten in Echtzeit und Validierungsdaten für die behördliche Anerkennung der eDNA-Methode im Gewässermonitoring nach EU-Wasserrahmenrichtlinie. Der gesellschaftliche Nutzen liegt in der Bereitstellung eines kosteneffizienten Monitoring-Tools (geschätzte Kosten: 150 Euro je Probe inklusive Laboranalyse, verglichen mit 2.000–5.000 Euro für eine konventionelle Komplettkartierung), das die Kommunen in die Lage versetzt, ihre Gewässer-Biodiversität regelmäßig zu überwachen und Maßnahmen des Naturschutzes evidenzbasiert zu priorisieren.
 
+## Zusammenfassung in einfacher Sprache
+
+In diesem Projekt wird eine neue Methode getestet, um die Tier- und Pflanzenarten in staedtischen Gewaessern zu erfassen. Statt muehsam einzelne Tiere zu fangen und zu bestimmen, wird einfach eine Wasserprobe genommen. Alle Lebewesen hinterlassen naemlich winzige DNA-Spuren im Wasser, die im Labor ausgelesen werden koennen. Mit einer einzigen Probe lassen sich so Hunderte Arten gleichzeitig nachweisen. Die Methode wird an 50 Gewaessern in fuenf deutschen Staedten ueber ein Jahr hinweg erprobt, und die Ergebnisse werden in einer frei zugaenglichen Web-Anwendung fuer Umweltaemter dargestellt.
+
 Musterstadt, den 18.01.2026
 
 _Prof. Dr. rer. nat. Felix Genpool, Universität Musterstadt_`,

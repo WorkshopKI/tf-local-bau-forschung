@@ -86,6 +86,10 @@ Auf den Flurstücken 214/2 und 215/1 (angrenzende Ackerflächen, Eigentümer Lan
 
 Das Monitoring der CEF-Maßnahmen umfasst: Feldlerche: Jährliche Revierkartierung (3 Begehungen März–Juni) auf den Kompensationsflächen und im 500-m-Umkreis der PV-Anlage über 5 Jahre. Zielwert: Mindestens 3 besetzte Reviere auf den Kompensationsflächen. Zauneidechse: Jährliche Begehung (4 Termine April–August) am Graben und den Steinhaufen über 5 Jahre. Zielwert: Mindestens 2 Individuen nachgewiesen. Fledermäuse: Batcorder-Aufnahmen an 2 Standorten (Feldgehölz, Grabennähe) über 3 Nächte im Juni, jährlich über 3 Jahre. Zielwert: Keine Abnahme der Aktivität um mehr als 30 Prozent gegenüber dem Ausgangswert. Die Monitoring-Berichte werden der unteren Naturschutzbehörde jährlich vorgelegt.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten hat untersucht, welche geschuetzten Tiere auf dem Acker leben, auf dem eine grosse Solaranlage gebaut werden soll. Gefunden wurden drei Brutpaare der Feldlerche (ein gefaehrdeter Bodenbrueter), ein Rebhuhn-Verdacht, Zauneidechsen am Graben und mehrere Fledermausarten. Da die Feldlerche hohe Strukturen meidet, gehen ihre Brutplaetze durch die Solarmodule verloren. Damit die Voegel trotzdem brueten koennen, werden auf Nachbarfeldern sechs sogenannte Lerchenfenster angelegt — kleine Freiflaechen im Getreide. Fuer die Eidechsen werden Steinhaufen als Unterschlupf gebaut, und fuer die Fledermaeuse werden Kaesten an Baeumen aufgehaengt. Der Bau darf nur ausserhalb der Brutzeit stattfinden.
+
 Musterstadt, den 10.03.2026
 
 _Dipl.-Biol. Marcus Grünspecht, ÖkoConsult Umweltplanung GbR_`,

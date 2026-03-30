@@ -72,6 +72,10 @@ Spezifischer Transmissionswärmeverlust: H'T = HT / AHüll = 84,5 / 380 = 0,222 
 
 Der Nachweis des sommerlichen Wärmeschutzes nach DIN 4108-2:2013, Abschnitt 8 wird für den kritischsten Raum (Wohn-/Essbereich Süd-West, Fensterfläche 8,5 m² bei 42 m² Grundfläche) geführt. Sonneneintragskennwert: S = Σ(Aw,j × gtot,j × FC,j) / AG = (5,2 × 0,52 × 0,25 + 3,3 × 0,52 × 0,25) / 42 = 0,026. Zulässiger Sonneneintragskennwert (Klimaregion B, leichte Bauart wegen Holzbalkendecke im OG): Szul = 0,036. S = 0,026 < Szul = 0,036: Nachweis erfüllt. Die außenliegenden Raffstores (Abminderungsfaktor FC = 0,25) an den Süd- und Westfenstern sind die entscheidende Maßnahme. Ohne Raffstores wäre S = 0,105 > 0,036 — der Nachweis wäre nicht erfüllt. Die Raffstores werden als verbindlicher Bestandteil des Energienachweises festgeschrieben.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieser Energienachweis zeigt, dass das geplante Einfamilienhaus die gesetzlichen Anforderungen an Waermedaemmung und Energieverbrauch erfuellt. Die Aussenwaende erhalten eine 18 cm dicke Daemmung aus Mineralwolle, das Dach wird mit 26 cm gedaemmt. Durch die gute Waermedaemmung der Aussenwand, des Dachs und der Bodenplatte sowie Dreifach-Verglasung bei den Fenstern liegt der Energieverbrauch deutlich unter den Vorgaben des Gebaeudeenergiegesetzes. Fuer die Heizung und Warmwasserversorgung ist eine Waermepumpe vorgesehen, die mit Strom aus einer Photovoltaikanlage betrieben wird.
+
 Musterstadt, den 25.01.2026
 
 _Dipl.-Ing. (FH) Karl Grünwald, Energieberater (dena)_`,

@@ -58,9 +58,9 @@ Die bestehende Biberschwanz-Dachziegeldeckung (Kronendeckung) ist zu ca. 40 Proz
 
 Die Denkmalschutzbehörde empfiehlt als Heizkonzept eine Wandtemperierung anstelle konventioneller Heizkörper. Bei der Wandtemperierung werden Kupferrohre (12 × 1 mm) direkt auf die Innenwandfläche verlegt und mit Lehmputz überputzt. Das temperierte Wasser (28–35°C Vorlauftemperatur) erwärmt die Wandoberfläche gleichmäßig auf ca. 22°C, was ein behagliches Raumklima erzeugt und gleichzeitig die Wandkonstruktion trocken hält (Verdunstung der Bauteilfeuchte durch die leichte Erwärmung). Die Wandtemperierung wurde speziell für denkmalgeschützte Gebäude mit feuchteempfindlichen Wandkonstruktionen entwickelt und hat sich in zahlreichen Fachwerkgebäuden bewährt. Die Wärmequelle sollte eine Wärmepumpe (Luft-Wasser oder Sole-Wasser) sein, die die niedrige Vorlauftemperatur mit hoher Effizienz bereitstellen kann.
 
-## 4. Zusammenfassung
+## 4. Zusammenfassung in einfacher Sprache
 
-Die Nutzungsänderung der denkmalgeschützten Scheune Dorfstraße 8 zu Wohnzwecken wird unter den genannten Auflagen befürwortet. Die Auflagen dienen dem Erhalt der historischen Substanz und des Erscheinungsbilds des Baudenkmals. Die Denkmalschutzbehörde steht für Rückfragen und eine baubegleitende Beratung zur Verfügung. Die Ausführung der Arbeiten an der Fachwerkkonstruktion, den Gefachen und der Dacheindeckung ist vor Beginn durch die Denkmalschutzbehörde zu genehmigen (Gestattung nach §9 DSchG NRW).
+Bei diesem Vorgang geht es um die Renovierung und den Umbau einer alten Fachwerkscheune zu einer Wohnung. Das Gebaeude steht unter Denkmalschutz, deshalb gelten besondere Regeln bei der Sanierung. Die Behoerde erlaubt den Umbau, aber das historische Fachwerk, die alten Dachziegel und das Scheunentor muessen erhalten bleiben. Wer ein altes Haus oder eine alte Scheune renovieren oder umbauen moechte, braucht die Zustimmung der Denkmalschutzbehoerde. Die Auflagen dienen dem Erhalt der historischen Substanz und des Erscheinungsbilds des Baudenkmals.
 
 Musterstadt, den 20.02.2026
 

@@ -81,6 +81,10 @@ AP 1 Erweiterung: Datensatz-Erweiterung um 10 Holzbrücken und 10 weitere Stahlb
 
 Personalkosten (12 Monate): 258.000 Euro (Postdoc: 84.000, Doktorandin: 62.000, HiWi: 12.000, Annotation: 100.000). Sachmittel: 72.000 Euro (Drohne + Ersatzbatterien: 28.000, GPU-Rechenzeit: 18.000, Reisekosten Befliegungen: 22.000, Hubsteiger-Miete Feldtest: 4.000). Gesamt verbraucht: 330.000 Euro von 700.000 Euro Budget (47 Prozent bei 50 Prozent Laufzeit — geringfügig unter Plan, da die Annotation schneller abgeschlossen wurde als geplant).
 
+## Zusammenfassung in einfacher Sprache
+
+Nach der Haelfte der Projektlaufzeit ist die KI-Brueckeninspektion gut vorangekommen. Drohnen haben 85 Bruecken abfotografiert und dabei ueber 50.000 Bilder gesammelt, die von Fachleuten markiert wurden. Die KI erkennt Schaeden auf den Bildern bereits mit ueber 91 Prozent Treffsicherheit, besonders gut bei Rissen und Abplatzungen. Ein erster Feldtest an drei echten Bruecken zeigte, dass die KI-Inspektion rund 68 Prozent schneller ist als die herkoemmliche Pruefung und dabei fast alle wichtigen Schaeden findet. In der zweiten Projekthaelfte sollen auch Holzbruecken und Stahlbruecken untersucht und der Feldtest auf 30 Bruecken ausgeweitet werden.
+
 Musterstadt, den 20.03.2026
 
 _Prof. Dr.-Ing. Sandra Brückenbach, TU Musterstadt_`,

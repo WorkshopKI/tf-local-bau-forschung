@@ -62,5 +62,9 @@ Der Antrag wird zur **Förderung unter Auflagen** empfohlen. Die Auflagen betrag
 
 Gesamtnote: **1,7 (sehr gut bis gut)**. Förderempfehlung: **Ja, mit Auflagen.**
 
+## Zusammenfassung in einfacher Sprache
+
+Ein unabhaengiger Gutachter hat den Foerderantrag zur KI-gestuetzten Brueckeninspektion bewertet. Er findet das Projekt insgesamt sehr gut, besonders den grossen Bilddatensatz und die Zusammenarbeit mit Strassenbehoerden. Es gibt aber auch Verbesserungsvorschlaege: Der Datensatz sollte auch Holzbruecken enthalten, die Pruefung an echten Bruecken sollte an mindestens 30 statt nur 10 Bauwerken stattfinden, und die Beschriftung der Bilder sollte besser vorbereitet werden. Der Gutachter empfiehlt die Foerderung mit der Note 1,7, wenn diese Punkte beruecksichtigt werden.
+
 _Prof. Dr.-Ing. Friedrich Prüfstein, Gutachter_`,
 };

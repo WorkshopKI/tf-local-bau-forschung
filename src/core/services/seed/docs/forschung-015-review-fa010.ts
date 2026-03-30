@@ -60,5 +60,9 @@ Empfehlung: **Minor Revision** mit Überarbeitung der Power-Analyse (Oversamplin
 
 Gesamtnote: **2,0 (gut)**. Empfehlung: **Minor Revision**, danach Förderempfehlung.
 
+## Zusammenfassung in einfacher Sprache
+
+Eine Gutachterin hat den Antrag zur Langzeitstudie ueber Langzeitarbeitslose geprueft. Die Studie soll herausfinden, welche persoenlichen und sozialen Faktoren Menschen helfen, trotz langer Arbeitslosigkeit psychisch gesund zu bleiben. Die Gutachterin findet das Thema sehr wichtig, sieht aber ein Hauptproblem: Die geplante Teilnehmerzahl von 300 ist zu klein, weil ueber fuenf Jahre vermutlich die Haelfte der Befragten aus der Studie ausscheidet. Sie empfiehlt, mit 500 Teilnehmern zu starten. Ausserdem sollen die oertliche Arbeitsmarktlage und die wirtschaftliche Entwicklung als Einflussfaktoren beruecksichtigt werden.
+
 _Prof. Dr. phil. Elisabeth Methode, Universität Köln_`,
 };

@@ -60,6 +60,10 @@ Der Betrieb einer Gaststätte erzeugt erhöhten Trittschall (Stuhlrücken, Laufe
 
 Das Schallschutzgutachten ergibt, dass der Gastronomiebetrieb unter folgenden Auflagen genehmigungsfähig ist: (1) Außengastronomie maximal 15 Plätze, Betrieb bis 22:00 Uhr. (2) Schallabsorbierende Stellwand zwischen Außengastronomie und Nachbargebäude. (3) Zusätzlicher Schalldämpfer in der Küchenabluftleitung vor Dachaustritt. (4) Abgehängte Akustikdecke in der Gaststätte zur Verbesserung der Deckenschalldämmung. (5) Musiklautstärke im Innenraum begrenzt auf LA = 80 dB(A) durch Schallpegelbegrenzer. (6) Elastischer Bodenbelag in der gesamten Gaststätte. Eine messtechnische Überprüfung der Auflagen nach Inbetriebnahme (innerhalb von 3 Monaten) wird empfohlen.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten prueft, ob ein neues Restaurant in der Hauptstrasse 67 die Nachbarn nicht zu sehr mit Laerm belastet. Es wurde untersucht, wie laut die Aussenplaetze, die Kuechenlueftung und die Musik im Innenraum fuer die Anwohner sind. Das Ergebnis zeigt, dass einige Massnahmen noetig sind: Die Aussenplaetze muessen auf 15 Stueck begrenzt werden und duerfen nur bis 22 Uhr betrieben werden, eine Schallschutzwand muss aufgestellt werden, und im Inneren braucht es eine bessere Decke und einen weichen Fussboden. Wenn all diese Auflagen eingehalten werden, kann das Restaurant genehmigt werden.
+
 Musterstadt, den 15.02.2026
 
 _Dr.-Ing. Helmut Schröder, Akustik-Ingenieurbüro_`,

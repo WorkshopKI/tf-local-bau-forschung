@@ -64,6 +64,10 @@ Der regulatorische Pfad für eine Phase-I-Studie ist: Ethikvotum (positive Stell
 
 AP 1 (Monat 1–8): LNP-Formulierung — Optimierung der Mannose-Funktionalisierung, enterische Beschichtung, In-vitro-Charakterisierung (Partikelgröße, Zetapotential, Encapsulation Efficiency, Mannose-Bindungsassay an THP-1-Makrophagen). AP 2 (Monat 6–18): DSS-Kolitis-Studie — Tierversuch nach Ethikvotum, histologische Auswertung, Zytokinprofil. AP 3 (Monat 12–24): IL-10-KO-Studie — Präventive und therapeutische Behandlung, T-Zell-Phänotypisierung. AP 4 (Monat 18–30): Toxikologie — GLP-Studien (akut, subchronisch, Immunogenität). AP 5 (Monat 24–36): IND-Vorbereitung — Regulatory Package, CMC-Dokumentation, Investigator's Brochure, Phase-I-Protokoll. Personalkosten (2 Postdocs, 1 Doktorand/in, 1 MTA): 680.000 Euro. Sachmittel (mRNA-Synthese, LNP-Herstellung, Tierversuche, GLP-Studien, Analytik): 420.000 Euro. Gesamtkosten: 1.100.000 Euro.
 
+## Zusammenfassung in einfacher Sprache
+
+Chronische Darmentzuendungen wie Morbus Crohn und Colitis ulcerosa betreffen ueber 400.000 Menschen in Deutschland. Viele Patienten sprechen auf die bisherigen Medikamente nicht gut genug an. In diesem Projekt wird ein neuer Behandlungsansatz erprobt: Winzige Fettpartikel bringen eine Art Bauanleitung (mRNA) direkt in die entzuendeten Stellen im Darm, damit dort entzuendungshemmende Stoffe gebildet werden. Das Besondere ist, dass die Wirkung nur oertlich im Darm stattfindet und nicht den ganzen Koerper belastet. Das Medikament wird als Kapsel geschluckt und erst im Dickdarm freigesetzt.
+
 Musterstadt, den 15.01.2026
 
 _Prof. Dr. med. Katharina Immunstein, Universitätsklinikum Musterstadt_`,

@@ -87,6 +87,10 @@ Die maximale Setzung am Nachbargebäude Parkstraße 28 beträgt **0,75 mm** — 
 
 Das Monitoring-Konzept umfasst: (1) Kontinuierliche Grundwasserstandsmessung in den 4 GWM und in 4 zusätzlichen Beweissicherungsmessstellen an den Nachbargebäuden (Datenlogger, 6-Stunden-Intervall, Fernübertragung per Mobilfunk). (2) Nivellement an 12 Höhenmesspunkten (Setzungsbolzen) an den Fassaden der 4 nächsten Nachbargebäude (zweiwöchentlich während der Wasserhaltung). (3) Dokumentation der Fördermenge (MID-Durchflussmesser, stündliche Aufzeichnung). (4) Wasserqualitätsmonitoring am Einleitpunkt (monatlich: pH, Eisen, Mangan, AFS). Die Grenzwerte für das Monitoring sind: Grundwasserstand in der Baugrube ≤ 126,50 m ü. NHN, Setzung Nachbargebäude < 3 mm (Eingriffswert, bei dem die Fördermenge reduziert wird), Eisen im Einleitwasser < 0,5 mg/l. Bei Überschreitung der Eingriffswerte wird die Wasserhaltung angepasst (Reduzierung der Fördermenge, ggf. Rückversickerung zur Stützung des Grundwasserspiegels im Abstrom).
 
+## Zusammenfassung in einfacher Sprache
+
+Fuer den Bau einer Tiefgarage in der Parkstrasse 30 wurde untersucht, wie hoch das Grundwasser steht und wie man es waehrend der Bauzeit absenken kann. Das Grundwasser liegt nur etwa 1,80 Meter unter der Oberflaeche, die Tiefgarage muss aber 5,60 Meter tief ausgehoben werden. Deshalb muessen acht Brunnen rund um die Baugrube das Wasser abpumpen. Berechnungen zeigen, dass die Nachbargebaeude dadurch nicht gefaehrdet werden — die erwartete Absenkung an den naechsten Haeusern betraegt weniger als einen Millimeter. Waehrend der gesamten Bauzeit werden Grundwasserstaende und moegliche Setzungen ueberwacht.
+
 Musterstadt, den 20.01.2026
 
 _Dr. rer. nat. Julia Wasserstein, AquaGeo Ingenieurgesellschaft mbH_`,

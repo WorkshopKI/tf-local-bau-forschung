@@ -56,5 +56,9 @@ Der Antrag wird als **förderwürdig** bewertet. Die genannten Verbesserungsvors
 
 Gesamtnote: **1,7 (sehr gut bis gut)**. Empfehlung: **Förderung.**
 
+## Zusammenfassung in einfacher Sprache
+
+Eine Gutachterin hat den Antrag zur klimaangepassten Stadtplanung bewertet. Das Projekt will in zwei Stadtvierteln von Musterstadt Hitze-Brennpunkte mit Computermodellen finden und dann konkrete Gegenmassnahmen umsetzen, wie zum Beispiel Baeume pflanzen, Flaechen entsiegeln und Daecher begruenen. Die Gutachterin haelt den Ansatz fuer sehr gut, weil er Forschung und praktische Umsetzung verbindet. Sie empfiehlt aber, die Computerberechnungen mit echten Temperaturmessungen zu ueberpruefen und auch zu beruecksichtigen, in welchen Vierteln besonders viele gefaehrdete Menschen leben. Der Antrag wird mit der Note 1,7 zur Foerderung empfohlen.
+
 _Prof. Dr.-Ing. Carla Klimaschutz, TU Dresden_`,
 };

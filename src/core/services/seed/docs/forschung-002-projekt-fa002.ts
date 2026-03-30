@@ -54,6 +54,10 @@ Das Projekt wird folgende Ergebnisse liefern: Ein quantitatives Degradationsmode
 
 Die Verwertung erfolgt über die Partnerfirma Solarwerk GmbH, die als CIGSe-Hersteller die Tandemtechnologie in ihr Produktportfolio integrieren wird. Eine Patentanmeldung für die ALD-Encapsulation und den R2R-Prozess ist geplant (TU Musterstadt als Anmelder, exklusive Lizenz an Solarwerk GmbH). Die Ergebnisse werden in mindestens 4 Journalartikeln (Nature Energy, Joule, Advanced Energy Materials, Solar RRL) publiziert und auf der EU PVSEC und der MRS Fall Meeting präsentiert.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Projekt entwickelt eine neue Art von Solarzellen, die aus zwei Schichten bestehen und dadurch mehr Sonnenlicht in Strom umwandeln koennen als herkoemmliche Zellen. Die obere Schicht besteht aus einem besonderen Material namens Perowskit, das guenstig herzustellen ist. Das groesste Problem ist, dass diese Zellen bisher nicht lange genug halten. Deshalb werden in diesem Projekt spezielle Schutzbeschichtungen entwickelt und ein Verfahren erprobt, mit dem man die Zellen in grossen Mengen herstellen kann. Am Ende soll ein halbdurchsichtiges Solarmodul entstehen, das an Hausfassaden angebracht werden kann.
+
 Musterstadt, den 12.01.2026
 
 _Prof. Dr. rer. nat. Lisa Photon, Universität Musterstadt_`,

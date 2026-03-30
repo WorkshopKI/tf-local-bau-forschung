@@ -74,6 +74,10 @@ Die Halle hat 3 Ausgänge ins Freie (Tor Ost 4,00 × 4,50 m, Tür Süd 1,20 m, T
 
 Die Feuerwehrzufahrt erfolgt über die Zufahrt Gewerbepark Süd (Breite 5,50 m, Kurvenradius 10,50 m). Die Aufstellfläche für die Drehleiter befindet sich auf dem befestigten Parkplatz vor dem Bürotrakt (Tragfähigkeit > 16 t/Achse). Hydranten: 1 Überflurhydrant DN 100 an der Zufahrt (Entfernung 40 m), 1 Unterflurhydrant DN 150 an der Erschließungsstraße (Entfernung 120 m). Löschwassermenge: 1.600 l/min über 2 Stunden (Gewerbebetrieb, nach DVGW W 405).
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Brandschutzkonzept behandelt den Abriss eines alten Fabrikgelaendes am Industrieweg 3 und den anschliessenden Neubau einer Gewerbehalle mit Buero. Der Boden ist mit Schadstoffen aus einer frueheren Teerverarbeitung belastet, was waehrend der Sanierung eine erhoehte Brand- und Explosionsgefahr bedeutet. Deshalb werden Gasmessgeraete aufgestellt, die die Luft staendig ueberwachen und bei Gefahr sofort Alarm schlagen. Im neuen Gebaeude sind Halle und Buero durch eine feuerfeste Wand getrennt, und die Halle bekommt Rauchabzuege im Dach sowie eine Brandmeldeanlage. Ein Lagerbereich wird zusaetzlich durch eine automatische Sprinkleranlage geschuetzt.
+
 Musterstadt, den 06.02.2026
 
 _Dipl.-Ing. Sabine Müller, Brandschutz-Ingenieurin (VBI)_`,

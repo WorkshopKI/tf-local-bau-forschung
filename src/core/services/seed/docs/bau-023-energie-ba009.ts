@@ -80,6 +80,10 @@ Das Zählerkonzept sieht eine Überschusseinspeisung nach EEG vor. Am Netzanschl
 
 Die untere Denkmalschutzbehörde hat folgende Auflagen für die PV-Installation erteilt (Bescheid vom 20.12.2025, Az. DS-2025-0892): (1) Ausschließlich Indach-Montage, keine aufgeständerten Module. (2) Modulfarbe durchgängig dunkelgrau oder schwarz, keine sichtbaren Zellzwischenräume (Vollflächenmodule). (3) Modulrahmen schwarz eloxiert, keine silbernen Rahmen. (4) Keine Module auf der straßenseitigen Dachfläche (nur Süd-Südwest-Seite zum Innenhof). (5) Kabelführung und Wechselrichter im Gebäudeinneren, keine sichtbaren Installationen an der Fassade. Alle Auflagen werden durch die gewählte Anlagenkonfiguration erfüllt.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Gutachten beschreibt eine geplante Solaranlage auf dem Dach des Gebaeudes am Marktplatz 5, das unter Denkmalschutz steht. Die Anlage besteht aus 20 Solarmodulen mit einer Leistung von 8,6 kWp und soll im Jahr etwa 8.340 kWh Strom erzeugen. Zusammen mit einem Batteriespeicher kann mehr als die Haelfte des erzeugten Stroms direkt im Haus verbraucht werden. Weil das Gebaeude denkmalgeschuetzt ist, werden die Module in die Dachflaeche eingebaut statt aufgestaendert, und sie sind nur von der Hofseite aus sichtbar. Die Anlage rechnet sich nach etwa 14 Jahren.
+
 Musterstadt, den 08.02.2026
 
 _Dipl.-Ing. (FH) Karl Grünwald, Energieberater (dena)_`,

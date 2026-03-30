@@ -55,6 +55,10 @@ Die Außenspielanlage umfasst 1.400 m² und ist gemäß Kibiz NRW (mindestens 12
 
 Das Brandschutzkonzept berücksichtigt die besonderen Anforderungen an Einrichtungen für Kinder. Alle Gruppenräume haben direkten Zugang ins Freie über bodentiefe Fenstertüren als Notausgänge. Die maximale Lauflänge zum nächsten Ausgang beträgt 20 m (reduziert gegenüber dem Standard von 35 m). Die Brandmeldeanlage Kategorie 1 überwacht alle Räume mit automatischen Rauchmeldern und ist auf die Feuerwehr-Leitstelle aufgeschaltet. Der Hausalarm erfolgt optisch und akustisch mit einem altersgerechten Signalton (75 dB, kein schriller Warnton). Evakuierungshilfen für Krippenkinder (4 Krippenwagen à 6 Plätze) stehen in den Fluren bereit. Vierteljährliche Evakuierungsübungen sind im Betriebskonzept vorgesehen. Löschdecken und Feuerlöscher (6 kg ABC-Pulver) befinden sich in jeder Gruppe, können jedoch nur durch geschultes Personal bedient werden. Der energetische Nachweis nach GEG 2024 und der Schallschutznachweis nach DIN 4109 liegen als separate Anlagen bei.
 
+## Zusammenfassung in einfacher Sprache
+
+Die Gemeinde Musterstadt plant den Bau einer Kindertagesstaette am Stadtpark fuer 90 Kinder in 6 Gruppen, darunter auch Krippenplaetze fuer die Kleinsten. Das einstoeckige Gebaeude wird aus Holz gebaut und hat ein bepflanztes Dach sowie eine grosse Aussenspielflaeche mit Klettergeraeten, Sandkaesten und Wasserspielen. Alles ist barrierefrei gestaltet, und es gibt einen Turnraum, eine Kueche und Raeume fuer das Personal. Der Brandschutz ist besonders auf Kinder ausgerichtet, mit kurzen Fluchtwegen und direkten Ausgaengen aus jedem Gruppenraum ins Freie.
+
 Musterstadt, den 10.02.2026
 
 _Unterschrift Bauherr_ — _Unterschrift Entwurfsverfasser_`,

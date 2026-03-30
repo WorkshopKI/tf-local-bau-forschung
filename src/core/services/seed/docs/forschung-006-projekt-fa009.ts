@@ -62,6 +62,10 @@ Die Wirtschaftlichkeitsberechnung basiert auf einer hypothetischen industriellen
 
 AP 1 (Monat 1–6): Bakterien-Adaptierung (Schwermetalltoleranz). AP 2 (Monat 4–12): Laborversuche (250 ml, Optimierung Prozessparameter). AP 3 (Monat 10–18): Technikum (50 Liter). AP 4 (Monat 16–26): Pilotanlage (500 Liter, 5 Batches). AP 5 (Monat 20–28): LCA und Wirtschaftlichkeit. AP 6 (Monat 24–30): Publikation und Verwertung. Personal: 1 Postdoc Mikrobiologie, 1 Doktorand/in Verfahrenstechnik, 1 MTA. Gesamtkosten: 780.000 Euro.
 
+## Zusammenfassung in einfacher Sprache
+
+Alte Batterien aus Elektroautos enthalten wertvolle Rohstoffe wie Lithium, Kobalt und Nickel. Bisher werden sie entweder eingeschmolzen (was viel Energie verbraucht) oder mit starken Saeuren behandelt (was Schadstoffe erzeugt). In diesem Projekt wird ein umweltfreundlicheres Verfahren erprobt: Bestimmte Bakterien erzeugen auf natuerliche Weise Saeure, die die Metalle aus dem Batteriematerial herausloest. Das Verfahren soll vom kleinen Laborglas auf eine 500-Liter-Versuchsanlage vergroessert werden. Wenn es gelingt, koennten kuenftig Tausende Tonnen wertvoller Rohstoffe guenstig und umweltschonend zurueckgewonnen werden.
+
 Musterstadt, den 22.01.2026
 
 _Prof. Dr.-Ing. Helena Kreislauf, TU Musterstadt_`,

@@ -54,5 +54,9 @@ Der Antrag wird zur **Major Revision** empfohlen mit folgenden Auflagen: (1) Sen
 
 Gesamtnote: **2,3 (gut)**. Empfehlung: **Major Revision**, danach voraussichtlich Förderempfehlung.
 
+## Zusammenfassung in einfacher Sprache
+
+Ein Gutachter hat den Antrag zu Quantenalgorithmen fuer Optimierungsprobleme bewertet. Er haelt die Forschungsfrage fuer sehr wichtig und das Team fuer gut qualifiziert. Allerdings sieht er einige Schwaechen: Die Schaetzung, wie viele physische Bausteine ein Quantencomputer braucht, ist zu optimistisch. Ausserdem fehlt der Vergleich mit neueren Rechenverfahren auf normalen Computern, und der Zugang zu bestimmter Quantenhardware ist nicht vertraglich gesichert. Der Gutachter empfiehlt eine gruendliche Ueberarbeitung des Antrags (Note 2,3), danach sollte eine Foerderung moeglich sein.
+
 _Reviewer 2 (anonymisiert)_`,
 };

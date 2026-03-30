@@ -62,5 +62,9 @@ Der Antrag wird zur **Förderung** empfohlen. Die Scale-up-Risiken sind dem Proj
 
 Gesamtnote: **2,0 (gut)**. Empfehlung: **Förderung.**
 
+## Zusammenfassung in einfacher Sprache
+
+Ein Gutachter hat den Antrag zur Herstellung von Biokunststoffen aus Pflanzenresten bewertet. Er findet das Projekt grundsaetzlich gut und den Industriepartner BASF als wichtige Stuetze. Es gibt aber Risiken bei der Vergroesserung vom Labor auf die Versuchsanlage: Bei groesseren Mengen wird die Mischung sehr zaehfluessig, und es koennen unerwuenschte Keime in die Gaerbehaelter gelangen. Ausserdem sollte die Umweltbilanz auch beruecksichtigen, was am Ende mit dem Kunststoff passiert (Kompostierung, Recycling oder Verbrennung). Trotz dieser Punkte wird der Antrag mit der Note 2,0 zur Foerderung empfohlen.
+
 _Prof. Dr.-Ing. Werner Werkstoff, Fraunhofer ICT_`,
 };

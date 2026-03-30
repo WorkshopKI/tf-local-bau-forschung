@@ -58,6 +58,10 @@ AP 1 (Monat 1–8): Implementierung der Quantenalgorithmen (QAOA, VQE) auf Qiski
 
 1 Postdoc Quanteninformatik (TV-L E14), 2 Doktorand/innen (TV-L E13, je 100 Prozent), GPU-Rechenzeit auf dem NHR-Cluster der TU Musterstadt (geschätzt 500.000 GPU-Stunden NVIDIA A100), IBM Quantum Network Zugang (100 Stunden Eagle-Prozessor je Quartal). Gesamtkosten: 920.000 Euro (36 Monate). Die Ergebnisse werden als Open-Source-Softwarepaket (GitHub, MIT-Lizenz) und als Benchmarking-Datensatz veröffentlicht, um die Reproduzierbarkeit durch andere Gruppen zu gewährleisten. Ziel-Publikationen: Nature Physics, Physical Review X, Quantum Science and Technology.
 
+## Zusammenfassung in einfacher Sprache
+
+Quantencomputer gelten als besonders leistungsfaehig fuer bestimmte Rechenaufgaben, aber ob sie tatsaechlich schneller sind als normale Computer, ist bei vielen Problemen noch nicht bewiesen. Dieses Projekt untersucht, ab welcher Problemgroesse Quantencomputer einen echten Vorteil bringen, zum Beispiel bei der Planung von Lieferwegen oder der Fabriksteuerung. Da heutige Quantencomputer noch zu klein und fehleranfaellig sind, werden die Berechnungen zunaechst am normalen Computer nachgebildet. Die Ergebnisse sollen als frei verfuegbare Software veroeffentlicht werden, damit andere Forschungsgruppen sie nachpruefen koennen.
+
 Musterstadt, den 20.01.2026
 
 _Prof. Dr. rer. nat. Michael Qubit, TU Musterstadt_`,

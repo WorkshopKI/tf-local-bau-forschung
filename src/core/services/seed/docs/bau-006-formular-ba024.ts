@@ -63,6 +63,10 @@ Folgende Nachweise liegen als gesonderte Anlagen bei: Standsicherheitsnachweis n
 
 Die wasserrechtliche Genehmigung nach §36 WHG wird parallel zur Baugenehmigung beantragt. Die Zustimmung der Wasser- und Schifffahrtsverwaltung für die Gewässerquerung liegt vor. Die Eingriffs-Ausgleichs-Bilanzierung nach §15 BNatSchG ergibt einen Kompensationsbedarf von 3.200 Ökopunkten, der durch die Uferrenaturierung vollständig erbracht wird.
 
+## Zusammenfassung in einfacher Sprache
+
+Der Kreis Musterland moechte eine 42 Meter lange Bruecke fuer Radfahrer und Fussgaenger ueber den Fluss Muster bauen. Die Bruecke ist Teil eines Radschnellwegs und soll Pendlern eine sichere und schnelle Verbindung zwischen den Stadtteilen Ost und West bieten. Sie wird aus Stahl und Holz gebaut und hat getrennte Bereiche fuer Radfahrer und Fussgaenger mit eingebauter LED-Beleuchtung am Gelaender. Beim Bau wird auf die Natur geachtet: Es werden keine Pfeiler im Flussbett errichtet, und als Ausgleich werden am Ufer neue Baeume gepflanzt.
+
 Musterstadt, den 25.02.2026
 
 _Unterschrift Bauherr_ — _Unterschrift Entwurfsverfasser_`,

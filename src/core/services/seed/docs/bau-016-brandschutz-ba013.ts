@@ -56,6 +56,10 @@ Die Gaststätte erhält eine Brandmeldeanlage Kategorie 2 (Teilschutz — Flucht
 
 Der Brandalarm wird im Gastraum über die Beschallungsanlage ausgegeben (gesprochen, nicht Sirenenton, um Panik zu vermeiden): Standardtext in Deutsch und Englisch mit der Aufforderung, das Gebäude ruhig zu verlassen. Das Servicepersonal wird halbjährlich geschult und übernimmt im Brandfall die Rolle der Evakuierungshelfer. Der Brandschutzbeauftragte des Betriebs ist namentlich benannt und wird jährlich fortgebildet.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Brandschutzkonzept regelt die Umnutzung eines Ladengeschaefts zu einem Restaurant mit 80 Sitzplaetzen an der Hauptstrasse 67. Besonders in der Kueche bestehen Brandgefahren durch den Gasherd, Fritteuse und Grill — deshalb gibt es dort eine automatische Loeschanlage fuer Fettbraende und spezielle Fettbrand-Feuerloescher. Der Gastraum hat zwei Ausgaenge, und das Personal wird regelmaessig geschult, um die Gaeste im Notfall ruhig nach draussen zu fuehren. Der Brandalarm wird ueber die Lautsprecher als gesprochene Durchsage ausgegeben, nicht als Sirene, um Panik zu vermeiden. Die Kuechen-Abluftleitung ist feuerfest verkleidet, damit ein Kuechenbrand sich nicht in die Wohnungen darueber ausbreiten kann.
+
 Musterstadt, den 14.02.2026
 
 _Dipl.-Ing. Sabine Müller, Brandschutz-Ingenieurin (VBI)_`,

@@ -66,6 +66,10 @@ Die Teilnehmer haben folgende Rechte nach DSGVO, die in der Einwilligungserklär
 
 Die identifizierten Risiken können durch die beschriebenen technischen und organisatorischen Maßnahmen auf ein akzeptables Restrisiko reduziert werden. Eine Konsultation der Aufsichtsbehörde nach Art. 36 DSGVO ist nicht erforderlich, da keine hohen Restrisiken verbleiben. Die DSFA wird vor Beginn der Datenerhebung abgeschlossen und dem Datenschutzbeauftragten der Universität zur Freigabe vorgelegt.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Dokument prueft, ob die Langzeitstudie zu Langzeitarbeitslosen die Datenschutzregeln einhaelt. Die Studie erhebt empfindliche Daten wie Gesundheitszustand und persoenliche Lebensumstaende. Es wird sichergestellt, dass niemand aus den Forschungsdaten einzelne Personen erkennen kann. Die Namen werden getrennt von den Antworten aufbewahrt, und das Jobcenter erhaelt keinen Zugang zu den Daten. Die Teilnahme ist freiwillig und kann jederzeit widerrufen werden. Papierboegen werden nach der Eingabe in den Computer vernichtet, und alle Daten auf dem Forschungsserver sind verschluesselt.
+
 Musterstadt, den 02.03.2026
 
 _Dr. jur. Petra Datenschutz, Datenschutzbeauftragte der Universität Musterstadt_`,

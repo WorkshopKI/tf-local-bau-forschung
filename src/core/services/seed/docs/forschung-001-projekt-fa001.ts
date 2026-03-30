@@ -76,6 +76,10 @@ Das Projektteam umfasst: 1 Postdoc (Deep Learning, 100 Prozent, TV-L E14), 1 Dok
 
 Die erwarteten Ergebnisse sind: Ein offener, annotierter Bilddatensatz mit 50.000 Brückenschadensbildern (der weltweit größte seiner Art). Ein KI-Modell mit einer Klassifikationsgenauigkeit von mindestens 92 Prozent (F1-Score) und einer Segmentierungs-IoU von mindestens 0,75. Eine nachgewiesene Reduktion der Inspektionszeit um mindestens 70 Prozent (von 8 Stunden auf 2 Stunden je Brücke inklusive Drohnenbefliegung und KI-Analyse). Eine Fehldetektionsrate (False Negative) unter 5 Prozent für sicherheitsrelevante Schäden (Bewehrungskorrosion, tiefe Risse). Der gesellschaftliche Impact ist erheblich: Die KI-gestützte Inspektion kann den Inspektionsstau abbauen, die Kosten pro Inspektion um 50 Prozent senken und die Objektivität der Schadensbewertung erhöhen (Eliminierung der subjektiven Bewertungsunterschiede zwischen Inspekteuren).
 
+## Zusammenfassung in einfacher Sprache
+
+In Deutschland gibt es ueber 200.000 Bruecken, die regelmaessig auf Schaeden untersucht werden muessen. Das kostet viel Zeit und Geld, und es gibt nicht genug Fachleute dafuer. In diesem Projekt sollen Drohnen die Bruecken abfotografieren, und eine kuenstliche Intelligenz soll auf den Bildern automatisch Schaeden wie Risse oder Rost erkennen. Dadurch koennten Bruecken-Pruefungen bis zu 70 Prozent schneller und deutlich guenstiger werden, und gefaehrliche Schaeden wuerden frueher entdeckt.
+
 Musterstadt, den 10.01.2026
 
 _Prof. Dr.-Ing. Sandra Brückenbach, TU Musterstadt_`,

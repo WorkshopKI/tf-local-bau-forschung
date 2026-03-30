@@ -64,6 +64,10 @@ Die Löschwasserversorgung wird über einen Überflurhydranten DN 100 am Straße
 
 Die Feuerwehrzufahrt erfolgt über die Straße Am Stadtpark (Breite 5,50 m). Die Aufstellfläche für ein Löschfahrzeug (Tragfähigkeit 16 t/Achse) befindet sich auf dem befestigten Vorplatz. Die Feuerwehr hat Zugang zu allen Gebäudeseiten über die umlaufende Pflasterfläche (Breite 3,00 m, Tragfähigkeit 10 t/Achse). Die Zufahrt ist als Feuerwehrzufahrt gekennzeichnet und wird durch Halteverbot freigehalten. Schließanlage: Die Feuerwehr hat über einen FSD Klasse 3 am Haupteingang Zugang zu allen Gebäudeteilen.
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Brandschutzkonzept ist speziell auf eine Kindertagesstaette ausgelegt, in der sich kleine Kinder nicht selbst retten koennen. Alle Gruppenraeume haben direkten Zugang nach draussen, und der laengste Fluchtweg betraegt nur 20 Meter. Fuer die Krippenkinder stehen spezielle Rettungswagen bereit, mit denen die Erzieherinnen die Kleinen schnell nach draussen bringen koennen. Der Alarmton wurde kindgerecht gestaltet — nicht zu laut und nicht schrill, damit die Kinder nicht in Panik geraten. Die Brandmeldeanlage ueberwacht jeden Raum, und es werden vierteljaehrlich Raeumungsuebungen mit allen Kindern und dem Personal durchgefuehrt.
+
 Musterstadt, den 11.02.2026
 
 _Dipl.-Ing. Sabine Müller, Brandschutz-Ingenieurin (VBI)_`,

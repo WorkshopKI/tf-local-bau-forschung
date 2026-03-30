@@ -68,6 +68,10 @@ Nach aktueller Rechtslage (Stand März 2026) besteht keine Pflicht, im Bescheid 
 
 Die Löschfristen für personenbezogene Daten im RAG-System sind: Aktuelle Antragsdaten (Embeddings, Rohtexte im Workflow): Löschung 30 Tage nach Unanfechtbarkeit des Bescheids (1 Monat + Widerspruchsfrist 1 Monat = 2 Monate nach Bescheidzustellung). Audit-Trail (Zugriffsprotokoll, Prüfungsbestätigungen): Aufbewahrung 3 Jahre (Nachweispflicht der Verwaltung). Fine-Tuning-Daten (anonymisiert): Keine Löschpflicht (keine personenbezogenen Daten). Wissensbasis (Rechtstexte, anonymisierte Musterbescheide): Keine Löschpflicht, Aktualisierung bei Rechtsänderungen. Die Löschung wird automatisiert über einen Cronjob auf dem Applikationsserver durchgeführt (wöchentlicher Lauf, Löschprotokoll im Audit-Trail).
 
+## Zusammenfassung in einfacher Sprache
+
+Dieses Datenschutzkonzept beschreibt, wie das KI-System fuer Bauantraege mit persoenlichen Daten umgeht. Bauantraege enthalten Namen, Adressen und Grundstuecksdaten, die geschuetzt werden muessen. Fuer das Training der KI werden alle persoenlichen Angaben aus den Uebungstexten entfernt. Das gesamte System laeuft nur auf den Computern der Stadtverwaltung und hat keinen Internetzugang. Die KI erstellt nur Entwuerfe, die endgueltige Entscheidung trifft immer ein Sachbearbeiter. Alle Zugriffe werden aufgezeichnet, und Antragsdaten werden nach Abschluss des Verfahrens geloescht.
+
 Musterstadt, den 04.03.2026
 
 _Kommunaler Datenschutzbeauftragter, Stadt Musterstadt_`,
