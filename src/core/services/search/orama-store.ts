@@ -95,6 +95,8 @@ export function hybridSearch(
       mode: 'hybrid',
       term: query,
       vector: { value: queryVector, property: 'embedding' },
+      similarity: 0.3,
+      hybridWeights: { text: 0.3, vector: 0.7 },
       limit,
       where,
     } as any);
