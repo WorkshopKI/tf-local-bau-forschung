@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Download, ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
-import { Button, CollapsibleSection, ProgressBar } from '@/ui';
+import { Button, CollapsibleSection, ProgressBar, Tooltip } from '@/ui';
 import type { EvalReport, TestCaseResult } from '@/core/services/search/eval/eval-types';
 import { evalToMarkdown, evalToJSON, downloadAsFile } from '@/core/services/search/eval/eval-export';
 
@@ -27,25 +27,46 @@ export function EvalResultView({ report, previousReport }: EvalResultViewProps):
       <div className="grid grid-cols-1 min-[500px]:grid-cols-2 gap-3">
         <MetricCard label="Trefferquote" value={`${passRate}%`}
           hint="Richtiges Dokument in Top 5 gefunden"
+          hintTooltip="Anteil der Testfaelle bei denen mindestens eines der erwarteten Dokumente unter den ersten 5 Suchergebnissen erscheint. Basiert auf 20 Testabfragen mit vordefinierten erwarteten Ergebnissen."
           delta={prev ? Math.round((s.passed / s.total - prev.passed / prev.total) * 100) : undefined} />
         <MetricCard label="Genauigkeit" value={`${top1Pct}%`}
           hint="Richtiges Dokument an erster Stelle"
+          hintTooltip="Anteil der Testfaelle bei denen das erwartete Dokument das allererste Suchergebnis ist. Dies ist die strengste Metrik — nicht 'irgendwo in der Liste', sondern 'ganz oben'."
           delta={prev ? Math.round((s.top1Accuracy - prev.top1Accuracy) * 100) : undefined} />
       </div>
 
       {/* Kategorie-Balken */}
       <div className="space-y-2">
         {s.byCategory['keyword'] && (
-          <LabeledBar label="Exakte Suche" passed={s.byCategory['keyword'].passed} total={s.byCategory['keyword'].total} />
+          <LabeledBar passed={s.byCategory['keyword'].passed} total={s.byCategory['keyword'].total}
+            label={<Tooltip text="Testfaelle bei denen der Nutzer den genauen Fachbegriff eingibt, z.B. 'Brandschutz' oder 'Tiefgarage'. Hier zaehlt die Keyword-Suche."><span className="cursor-help" style={{ borderBottom: '1px dotted var(--tf-text-tertiary)' }}>Exakte Suche</span></Tooltip>} />
         )}
         {s.byCategory['semantic'] && (
-          <LabeledBar label="Bedeutungssuche" passed={s.byCategory['semantic'].passed} total={s.byCategory['semantic'].total} />
+          <LabeledBar passed={s.byCategory['semantic'].passed} total={s.byCategory['semantic'].total}
+            label={<Tooltip text="Testfaelle bei denen der Nutzer mit eigenen Worten sucht, z.B. 'Gift im Boden' statt 'Altlastengutachten'. Hier zaehlt die KI-gestuetzte Vektorsuche."><span className="cursor-help" style={{ borderBottom: '1px dotted var(--tf-text-tertiary)' }}>Bedeutungssuche</span></Tooltip>} />
         )}
       </div>
 
-      {/* Fachdetail */}
+      {/* Fachdetail mit Tooltips */}
       <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-        Fachdetail: P@3 {Math.round(s.avgPrecision3 * 100)}% &middot; P@5 {Math.round(s.avgPrecision5 * 100)}% &middot; Top-1 Accuracy {top1Pct}%
+        Fachdetail:{' '}
+        <Tooltip text="Precision bei 3 Ergebnissen — Wie viele der erwarteten Dokumente erscheinen unter den ersten 3 Suchergebnissen? Hoeher = der Nutzer findet das Richtige schneller.">
+          <span className="cursor-help" style={{ borderBottom: '1px dotted var(--tf-text-tertiary)' }}>
+            P@3 {Math.round(s.avgPrecision3 * 100)}%
+          </span>
+        </Tooltip>
+        {' \u00b7 '}
+        <Tooltip text="Precision bei 5 Ergebnissen — Wie viele der erwarteten Dokumente erscheinen unter den ersten 5? Sollte hoeher sein als P@3.">
+          <span className="cursor-help" style={{ borderBottom: '1px dotted var(--tf-text-tertiary)' }}>
+            P@5 {Math.round(s.avgPrecision5 * 100)}%
+          </span>
+        </Tooltip>
+        {' \u00b7 '}
+        <Tooltip text="Treffergenauigkeit — Bei wie vielen Suchanfragen steht das beste Ergebnis ganz oben? 100% = perfekte Sortierung.">
+          <span className="cursor-help" style={{ borderBottom: '1px dotted var(--tf-text-tertiary)' }}>
+            Top-1 Accuracy {top1Pct}%
+          </span>
+        </Tooltip>
       </p>
 
       {/* Einzelergebnisse */}
@@ -99,8 +120,8 @@ export function EvalResultView({ report, previousReport }: EvalResultViewProps):
 
 /* ─── Sub-Components ─── */
 
-function MetricCard({ label, value, hint, delta }: {
-  label: string; value: string; hint: string; delta?: number;
+function MetricCard({ label, value, hint, hintTooltip, delta }: {
+  label: string; value: string; hint: string; hintTooltip?: string; delta?: number;
 }): React.ReactElement {
   return (
     <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
@@ -114,13 +135,22 @@ function MetricCard({ label, value, hint, delta }: {
         )}
       </div>
       <p className="text-[12px] text-[var(--tf-text-tertiary)]">{label}</p>
-      <p className="text-[11px] text-[var(--tf-text-tertiary)] mt-0.5">{hint}</p>
+      {hintTooltip ? (
+        <Tooltip text={hintTooltip}>
+          <p className="text-[11px] text-[var(--tf-text-tertiary)] mt-0.5 cursor-help"
+            style={{ borderBottom: '1px dotted var(--tf-text-tertiary)', display: 'inline' }}>
+            {hint}
+          </p>
+        </Tooltip>
+      ) : (
+        <p className="text-[11px] text-[var(--tf-text-tertiary)] mt-0.5">{hint}</p>
+      )}
     </div>
   );
 }
 
 function LabeledBar({ label, passed, total }: {
-  label: string; passed: number; total: number;
+  label: React.ReactNode; passed: number; total: number;
 }): React.ReactElement {
   const pct = total > 0 ? passed / total : 0;
   return (
