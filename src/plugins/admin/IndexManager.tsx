@@ -103,7 +103,7 @@ export function IndexManager(): React.ReactElement {
         </div>
         {chunkCount > 0 && (
           <p className="text-[12px] text-[var(--tf-text-tertiary)] mt-0.5">
-            {docCount} Dokumente · {chunkCount} Chunks{lastUpdate ? ` · ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}
+            {docCount} Dokumente · {chunkCount} Textabschnitte{lastUpdate ? ` · ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}
           </p>
         )}
       </div>
@@ -148,7 +148,7 @@ export function IndexManager(): React.ReactElement {
 
       {/* 2. Indexierung */}
       <CollapsibleSection label="Indexierung" defaultOpen={true}
-        subtitle={chunkCount > 0 ? `${chunkCount} Chunks${lastUpdate ? ` · ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}` : 'Nicht indexiert'}>
+        subtitle={chunkCount > 0 ? `${chunkCount} Textabschnitte${lastUpdate ? ` · ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}` : 'Nicht indexiert'}>
         <div className="space-y-3">
           {newDocsCount > 0 && !running && (
             <div className="flex items-center justify-between p-3 bg-[var(--tf-info-bg)] rounded-[var(--tf-radius)]">
@@ -190,8 +190,8 @@ export function IndexManager(): React.ReactElement {
                 {indexResult.skipped === indexResult.docs
                   ? 'Keine neuen Dokumente. Index ist aktuell.'
                   : indexResult.skipped > 0
-                    ? `${indexResult.chunks} Chunks (${indexResult.docs - indexResult.skipped} neue Dokumente, ${indexResult.skipped} uebersprungen) — ${indexResult.duration}`
-                    : `${indexResult.chunks} Chunks aus ${indexResult.docs} Dokumenten — ${indexResult.duration}`}
+                    ? `${indexResult.chunks} Textabschnitte (${indexResult.docs - indexResult.skipped} neue Dokumente, ${indexResult.skipped} uebersprungen) — ${indexResult.duration}`
+                    : `${indexResult.chunks} Textabschnitte aus ${indexResult.docs} Dokumenten — ${indexResult.duration}`}
               </p>
             </div>
           )}
