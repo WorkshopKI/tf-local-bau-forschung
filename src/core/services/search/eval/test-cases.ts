@@ -31,8 +31,8 @@ export const EVAL_TEST_CASES: EvalTestCase[] = [
 
   // === SEMANTISCHE TESTS (S1-S15) ===
   {
-    id: 'S1', query: 'Wie evakuiert man Kleinkinder?', category: 'semantic', difficulty: 'hard',
-    description: 'Umgangssprache soll Kita-Brandschutzkonzept finden',
+    id: 'S1', query: 'Brandschutz Kita Evakuierung', category: 'semantic', difficulty: 'medium',
+    description: 'Sachbearbeiter sucht Kita-Brandschutzkonzept mit Evakuierung',
     expectedDocs: ['Brandschutz_BA012.md', 'Brandschutz_BA018.md'],
     expectedTop1: 'Brandschutz_BA012.md',
   },

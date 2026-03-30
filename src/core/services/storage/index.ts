@@ -16,6 +16,7 @@ export class StorageService {
 
   constructor() {
     this.syncService = new SyncService(
+      this.idb,
       () => this.fs,
       () => this.isFileServerConnected(),
     );

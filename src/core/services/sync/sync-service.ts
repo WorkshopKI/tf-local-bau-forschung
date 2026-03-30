@@ -1,5 +1,6 @@
 import { SyncQueueStore } from './sync-queue-store';
 import type { SyncQueueItem } from './sync-queue-store';
+import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { FileServerStore } from '@/core/services/storage/fs-store';
 
 export interface SyncStatus {
@@ -14,7 +15,7 @@ export interface SyncStatus {
 type StatusCallback = (status: SyncStatus) => void;
 
 export class SyncService {
-  private queue = new SyncQueueStore();
+  private queue: SyncQueueStore;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private syncing = false;
   private lastSync: string | null = null;
@@ -22,13 +23,13 @@ export class SyncService {
   private getFs: () => FileServerStore | null;
   private isConnected: () => boolean;
 
-  constructor(getFs: () => FileServerStore | null, isConnected: () => boolean) {
+  constructor(idb: IDBStore, getFs: () => FileServerStore | null, isConnected: () => boolean) {
+    this.queue = new SyncQueueStore(idb);
     this.getFs = getFs;
     this.isConnected = isConnected;
   }
 
   async init(): Promise<void> {
-    await this.queue.init();
     this.start();
     // Process any pending items immediately
     await this.processQueue();
