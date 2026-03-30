@@ -31,21 +31,6 @@ export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
     description: 'Schnell, englisch-optimiert. Gute Baseline.',
   },
   {
-    id: 'multilingual-e5-small',
-    name: 'Xenova/multilingual-e5-small',
-    label: 'Multilingual E5 Small',
-    dimensions: 384,
-    sizeLabel: '118M',
-    downloadSize: '~118 MB (int8)',
-    strategy: 'pipeline',
-    dtype: 'q8',
-    pooling: 'mean',
-    normalize: true,
-    queryPrefix: 'query: ',
-    documentPrefix: 'passage: ',
-    description: 'Microsoft, 100 Sprachen inkl. Deutsch. Gleiche Dimensionen wie MiniLM.',
-  },
-  {
     id: 'embeddinggemma-300m',
     name: 'onnx-community/embeddinggemma-300m-ONNX',
     label: 'EmbeddingGemma 300M',
@@ -63,7 +48,7 @@ export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
   },
 ];
 
-export const DEFAULT_MODEL_ID = 'minilm-l6-v2';
+export const DEFAULT_MODEL_ID = 'embeddinggemma-300m';
 
 const IDB_MODEL_KEY = 'embedding-model-id';
 
