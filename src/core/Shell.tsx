@@ -99,7 +99,7 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
           className="flex flex-col bg-[var(--tf-bg-sidebar)] transition-all duration-200 overflow-hidden shrink-0"
           style={{ width: sidebarOpen ? 'var(--tf-sidebar-w)' : '0px', borderRight: '0.5px solid var(--tf-border)' }}
         >
-          <div className="flex items-center justify-between pl-4 pr-2 pt-4 pb-2 shrink-0">
+          <div className="flex items-center justify-between pl-4 pr-1 pt-4 pb-2 shrink-0">
             <div>
               <span className="text-[15px] font-medium text-[var(--tf-text)]">TeamFlow</span>
               <span className="block text-[12px] text-[var(--tf-text-secondary)]">Verwaltung</span>
