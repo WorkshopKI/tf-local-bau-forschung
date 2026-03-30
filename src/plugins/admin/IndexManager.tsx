@@ -5,6 +5,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { BatchIndexer } from '@/core/services/search/batch-indexer';
 import type { IndexStatus } from '@/core/services/search/batch-indexer';
 import { seedTestData, clearSeedData } from '@/core/services/seed/seed-data';
+import { EvalDashboard } from './eval/EvalDashboard';
 
 export function IndexManager(): React.ReactElement {
   const storage = useStorage();
@@ -108,6 +109,8 @@ export function IndexManager(): React.ReactElement {
       {error && !running && (
         <ErrorBanner error={error} onRetry={() => runIndex(true)} />
       )}
+
+      <EvalDashboard />
     </div>
   );
 }

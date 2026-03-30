@@ -1,5 +1,7 @@
 import { pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
 
+export const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
+
 export interface EmbeddingProgress {
   phase: 'loading' | 'ready' | 'embedding';
   modelProgress?: { status: string; loaded?: number; total?: number };
@@ -26,7 +28,7 @@ export class EmbeddingService {
       const device = preferGPU ? 'webgpu' : 'wasm';
       this.extractor = await (pipeline as Function)(
         'feature-extraction',
-        'Xenova/all-MiniLM-L6-v2',
+        EMBEDDING_MODEL,
         {
           device: device as 'wasm' | 'webgpu',
           progress_callback: (p: Record<string, unknown>) => {
