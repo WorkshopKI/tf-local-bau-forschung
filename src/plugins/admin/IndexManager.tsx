@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Database, RefreshCw, AlertCircle, Trash2, Square, CheckCircle2, XCircle } from 'lucide-react';
 import { Button, Badge, CollapsibleSection, ProgressBar, Select } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useNavigation } from '@/core/hooks/useNavigation';
 import { BatchIndexer } from '@/core/services/search/batch-indexer';
 import type { IndexStatus } from '@/core/services/search/batch-indexer';
 import {
@@ -12,6 +13,7 @@ import { EvalSection } from './eval/EvalSection';
 
 export function IndexManager(): React.ReactElement {
   const storage = useStorage();
+  const { navigate } = useNavigation();
   const [status, setStatus] = useState<IndexStatus | null>(null);
   const [running, setRunning] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
@@ -26,6 +28,7 @@ export function IndexManager(): React.ReactElement {
   const [aborted, setAborted] = useState(false);
   const [activeModelId, setActiveModelIdState] = useState('minilm-l6-v2');
   const [indexModelId, setIndexModelId] = useState<string | null>(null);
+  const [newDocsCount, setNewDocsCount] = useState(0);
   const abortRef = useRef(new AbortController());
   const fsConnected = storage.isFileServerConnected();
 
@@ -36,6 +39,15 @@ export function IndexManager(): React.ReactElement {
     storage.idb.get<number>('index-chunk-count').then(c => setChunkCount(c ?? 0));
     storage.idb.get<string>('index-model-id').then(v => setIndexModelId(v ?? null));
     getActiveModelId(storage.idb).then(setActiveModelIdState);
+    // Neue Docs erkennen
+    Promise.all([
+      storage.idb.keys('doc:'),
+      storage.idb.get<Record<string, string>>('index-manifest'),
+    ]).then(([keys, manifest]) => {
+      const m = manifest ?? {};
+      const unindexed = keys.filter(k => !m[k.replace('doc:', '')]);
+      setNewDocsCount(unindexed.length);
+    });
     if ('gpu' in navigator) {
       (navigator as { gpu: { requestAdapter: () => Promise<unknown> } }).gpu
         .requestAdapter().then(a => setHasGPU(!!a)).catch(() => setHasGPU(false));
@@ -44,6 +56,18 @@ export function IndexManager(): React.ReactElement {
 
   const activeModel = getModelById(activeModelId);
   const indexOutdated = indexModelId !== null && indexModelId !== activeModelId;
+
+  // Ampel-Logik
+  const ampel = (): { color: string; label: string } => {
+    if (chunkCount === 0 || docCount === 0)
+      return { color: 'bg-[var(--tf-danger-text)]', label: 'Kein Index vorhanden — bitte indexieren' };
+    if (indexOutdated)
+      return { color: 'bg-[var(--tf-warning-text)]', label: 'Modell gewechselt — Neu-Indexierung noetig' };
+    if (newDocsCount > 0)
+      return { color: 'bg-[var(--tf-warning-text)]', label: `${newDocsCount} neue Dokumente — Aktualisierung noetig` };
+    return { color: 'bg-[var(--tf-success-text)]', label: 'Index aktuell' };
+  };
+  const amp = ampel();
 
   const runIndex = async (full: boolean): Promise<void> => {
     setRunning(true); setStatus(null); setError(null); setIndexResult(null); setAborted(false);
@@ -57,65 +81,107 @@ export function IndexManager(): React.ReactElement {
       const count = await indexer.indexAll(storage, setStatus, abortRef.current.signal);
       const elapsed = Date.now() - startTime;
       setChunkCount(count); setLastUpdate(new Date().toISOString());
-      setIndexModelId(activeModelId);
+      setIndexModelId(activeModelId); setNewDocsCount(0);
       indexer.destroy();
       if (abortRef.current.signal.aborted) { setAborted(true); }
       else { setIndexResult({ chunks: count, docs: status?.total ?? 0, duration: formatDuration(elapsed) }); }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
-        setAborted(true);
-        const c = await storage.idb.get<unknown[]>('vector-chunks');
-        setChunkCount(c?.length ?? 0); setLastUpdate(new Date().toISOString());
+        setAborted(true); setLastUpdate(new Date().toISOString());
       } else { setError(String(err)); console.error('Indexing failed:', err); }
     } finally { setRunning(false); }
   };
 
-  const statusText = (): string => {
-    if (docCount === 0) return 'Noch nicht indexiert';
-    const parts = [`${docCount} Dokumente`, `${chunkCount} Chunks`];
-    if (lastUpdate) parts.push(new Date(lastUpdate).toLocaleDateString('de-DE'));
-    return parts.join(' \u00b7 ');
-  };
-
   return (
     <div className="p-6 max-w-4xl mx-auto">
+      {/* Header mit Ampel */}
       <div className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suchindex</h1>
-        <p className={`text-[13px] ${docCount === 0 ? 'text-[var(--tf-warning-text)]' : 'text-[var(--tf-text-secondary)]'}`}>
-          {statusText()}
-        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className={`w-2 h-2 rounded-full ${amp.color}`} />
+          <p className="text-[13px] text-[var(--tf-text-secondary)]">{amp.label}</p>
+        </div>
+        {chunkCount > 0 && (
+          <p className="text-[12px] text-[var(--tf-text-tertiary)] mt-0.5">
+            {docCount} Dokumente · {chunkCount} Chunks{lastUpdate ? ` · ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}
+          </p>
+        )}
       </div>
 
-      {/* Section 1: Testdaten */}
-      <CollapsibleSection label="Testdaten" defaultOpen={false}
-        subtitle={seeded ? '40 Vorgaenge, 60 Dokumente' : 'Keine Testdaten'}>
-        <SeedContent storage={storage} seeded={seeded} seeding={seeding} seedProgress={seedProgress}
-          setSeeded={setSeeded} setSeeding={setSeeding} setSeedProgress={setSeedProgress} setDocCount={setDocCount} />
-      </CollapsibleSection>
-
-      {/* Section 2: Indexierung */}
-      <CollapsibleSection label="Indexierung" defaultOpen={true}
-        subtitle={hasGPU ? 'WebGPU' : 'CPU (WASM)'}>
+      {/* 1. Embedding-Modell */}
+      <CollapsibleSection label="Embedding-Modell" defaultOpen={indexOutdated || chunkCount === 0}
+        subtitle={activeModel.label}>
         <div className="space-y-3">
-          <p className="text-[12px] text-[var(--tf-text-secondary)]">
-            {hasGPU ? 'WebGPU verfuegbar — Indexierung laeuft auf GPU.' : 'Kein GPU — Indexierung laeuft auf CPU.'}
+          <Select label="Modell"
+            options={EMBEDDING_MODELS.map(m => ({ value: m.id, label: `${m.label} — ${m.description}` }))}
+            value={activeModelId}
+            onChange={async (e) => {
+              const newId = e.target.value;
+              setActiveModelIdState(newId);
+              await setActiveModelId(storage.idb, newId);
+            }} />
+          <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+            {activeModel.sizeLabel} Parameter · {activeModel.dimensions} Dimensionen · {activeModel.downloadSize} Download · {hasGPU ? 'WebGPU' : 'CPU'}
           </p>
-          {!fsConnected && (
-            <div className="flex items-center gap-2 p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
-              <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
-              <p className="text-[12px] text-[var(--tf-warning-text)]">File Server nicht verbunden. Index nur lokal.</p>
+          {indexOutdated && (
+            <div className="flex items-center justify-between p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
+                <p className="text-[12px] text-[var(--tf-warning-text)]">Modell gewechselt — Index muss neu erstellt werden.</p>
+              </div>
+              <Button variant="secondary" size="sm" disabled={running} onClick={() => runIndex(true)}>Jetzt neu indexieren</Button>
             </div>
           )}
-          <div className="flex gap-3">
-            {running ? (
-              <Button variant="danger" icon={Square} onClick={() => abortRef.current.abort()}>Abbrechen</Button>
-            ) : (
-              <>
-                <Button variant="secondary" icon={Database} disabled={docCount === 0} onClick={() => runIndex(false)}>Aktualisieren</Button>
-                <Button variant="secondary" icon={RefreshCw} disabled={docCount === 0} onClick={() => runIndex(true)}>Komplett neu</Button>
-              </>
-            )}
-          </div>
+          <details className="text-[11px] text-[var(--tf-text-tertiary)]">
+            <summary className="cursor-pointer hover:text-[var(--tf-text-secondary)]">Technische Details</summary>
+            <div className="mt-2 space-y-1 pl-3">
+              <Row label="HuggingFace ID" value={activeModel.name} />
+              <Row label="Dimensionen" value={String(activeModel.dimensions)} />
+              <Row label="Chunk-Groesse" value="200 Woerter, 50 Overlap" />
+              {activeModel.queryPrefix && <Row label="Query-Prefix" value={activeModel.queryPrefix} />}
+              {activeModel.documentPrefix && <Row label="Document-Prefix" value={activeModel.documentPrefix} />}
+              <Row label="Backend" value={hasGPU ? 'WebGPU' : 'WASM (CPU)'} />
+            </div>
+          </details>
+        </div>
+      </CollapsibleSection>
+
+      {/* 2. Indexierung */}
+      <CollapsibleSection label="Indexierung" defaultOpen={true}
+        subtitle={chunkCount > 0 ? `${chunkCount} Chunks${lastUpdate ? ` · ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}` : 'Nicht indexiert'}>
+        <div className="space-y-3">
+          {newDocsCount > 0 && !running && (
+            <div className="flex items-center justify-between p-3 bg-[var(--tf-info-bg)] rounded-[var(--tf-radius)]">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={14} className="text-[var(--tf-info-text)]" />
+                <p className="text-[12px] text-[var(--tf-info-text)]">{newDocsCount} neue Dokumente seit der letzten Indexierung.</p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => runIndex(false)}>Jetzt aktualisieren</Button>
+            </div>
+          )}
+          {!fsConnected && (
+            <div className="flex items-center justify-between p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
+                <p className="text-[12px] text-[var(--tf-warning-text)]">Kein Datenverzeichnis verbunden. Index wird nur lokal gespeichert.</p>
+              </div>
+              <button onClick={() => navigate('einstellungen')}
+                className="text-[12px] text-[var(--tf-warning-text)] underline cursor-pointer shrink-0">Verzeichnis verbinden</button>
+            </div>
+          )}
+          {!running ? (
+            <div className="flex gap-3">
+              <Button variant="secondary" icon={Database} disabled={docCount === 0} onClick={() => runIndex(false)}>Neue Dokumente indexieren</Button>
+              <Button variant="secondary" icon={RefreshCw} disabled={docCount === 0} onClick={() => runIndex(true)}>Alles neu aufbauen</Button>
+            </div>
+          ) : (
+            <Button variant="danger" icon={Square} onClick={() => abortRef.current.abort()}>Abbrechen</Button>
+          )}
+          {!running && docCount > 0 && newDocsCount === 0 && chunkCount > 0 && (
+            <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+              &quot;Neue Dokumente indexieren&quot; fuegt nur neue oder geaenderte Dokumente hinzu. &quot;Alles neu aufbauen&quot; erstellt den gesamten Index von Grund auf.
+            </p>
+          )}
           <IndexProgress status={status} running={running} />
           {indexResult && !running && (
             <div className="flex items-center gap-2 p-3 bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)]">
@@ -141,40 +207,14 @@ export function IndexManager(): React.ReactElement {
         </div>
       </CollapsibleSection>
 
-      {/* Section 3: Suchqualitaet */}
+      {/* 3. Suchqualitaet */}
       <EvalSection chunkCount={chunkCount} modelId={activeModelId} />
 
-      {/* Section 4: Modell & Konfiguration */}
-      <CollapsibleSection label="Modell & Konfiguration" defaultOpen={false}
-        subtitle={`${activeModel.label} \u00b7 ${activeModel.dimensions} Dim.`}>
-        <div className="space-y-4">
-          <Select label="Embedding-Modell"
-            options={EMBEDDING_MODELS.map(m => ({ value: m.id, label: `${m.label} (${m.sizeLabel}, ${m.dimensions}d)` }))}
-            value={activeModelId}
-            onChange={async (e) => {
-              const newId = e.target.value;
-              setActiveModelIdState(newId);
-              await setActiveModelId(storage.idb, newId);
-            }} />
-          <div className="space-y-2 text-[12px] text-[var(--tf-text-secondary)]">
-            <Row label="Modell" value={activeModel.name} />
-            <Row label="Dimensionen" value={String(activeModel.dimensions)} />
-            <Row label="Download" value={activeModel.downloadSize} />
-            <Row label="Backend" value={hasGPU ? 'WebGPU' : 'WASM'} />
-            <Row label="Chunk-Groesse" value="200 Woerter, 50 Overlap" />
-            {activeModel.queryPrefix && <Row label="Query-Prefix" value={activeModel.queryPrefix} />}
-          </div>
-          <p className="text-[11px] text-[var(--tf-text-tertiary)]">{activeModel.description}</p>
-          {indexOutdated && (
-            <div className="flex items-center gap-2 p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
-              <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
-              <div>
-                <p className="text-[12px] text-[var(--tf-warning-text)]">Index wurde mit einem anderen Modell erstellt.</p>
-                <p className="text-[11px] text-[var(--tf-warning-text)] opacity-80">Bitte unter "Indexierung" komplett neu erstellen.</p>
-              </div>
-            </div>
-          )}
-        </div>
+      {/* 4. Testdaten (unten, kompakt) */}
+      <CollapsibleSection label="Testdaten" defaultOpen={!seeded && docCount === 0}
+        subtitle={seeded ? '40 Vorgaenge · 60 Dokumente' : 'Nicht vorhanden'}>
+        <SeedContent storage={storage} seeded={seeded} seeding={seeding} seedProgress={seedProgress}
+          setSeeded={setSeeded} setSeeding={setSeeding} setSeedProgress={setSeedProgress} setDocCount={setDocCount} />
       </CollapsibleSection>
     </div>
   );

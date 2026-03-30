@@ -118,7 +118,22 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
         )}
 
         {report && !running && (
-          <EvalResultView report={report} previousReport={previousReport ?? undefined} />
+          <>
+            <EvalResultView report={report} previousReport={previousReport ?? undefined} />
+            {report.summary.passed === report.summary.total ? (
+              <p className="text-[12px] text-[var(--tf-success-text)] mt-2">
+                Alle Tests bestanden — die Suche funktioniert wie erwartet.
+              </p>
+            ) : report.summary.passed >= report.summary.total - 2 ? (
+              <p className="text-[12px] text-[var(--tf-text-secondary)] mt-2">
+                Fast alle Tests bestanden. Klappen Sie die fehlgeschlagenen Tests auf um Details zu sehen.
+              </p>
+            ) : (
+              <p className="text-[12px] text-[var(--tf-warning-text)] mt-2">
+                Mehrere Tests fehlgeschlagen. Pruefen Sie ob das richtige Modell gewaehlt ist und der Index aktuell ist.
+              </p>
+            )}
+          </>
         )}
       </div>
     </CollapsibleSection>
