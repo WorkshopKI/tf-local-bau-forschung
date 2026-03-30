@@ -85,16 +85,17 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
   const pct = progress && progress.total > 0 ? progress.current / progress.total : 0;
 
   return (
-    <CollapsibleSection label="Suchqualitaet pruefen" defaultOpen={true} subtitle={subtitle}>
+    <CollapsibleSection label="Qualitaetscheck" defaultOpen={true} subtitle={subtitle}>
       <div className="space-y-4">
-        <Select label="Test-Suite"
-          options={EVAL_SUITES.map(s => ({ value: s.id, label: `${s.label} (${s.cases.length})` }))}
-          value={suiteId} onChange={e => setSuiteId(e.target.value)} />
-
-        <div className="flex items-center gap-3">
+        <div className="flex items-end gap-3">
+          <div className="w-56">
+            <Select
+              options={EVAL_SUITES.map(s => ({ value: s.id, label: `${s.label} (${s.cases.length})` }))}
+              value={suiteId} onChange={e => setSuiteId(e.target.value)} />
+          </div>
           <Button variant="secondary" icon={FlaskConical}
             disabled={running || chunkCount === 0} onClick={startEval}>
-            {running ? 'Pruefe...' : 'Qualitaet pruefen'}
+            {running ? 'Pruefe...' : 'Pruefen'}
           </Button>
           {chunkCount === 0 && !running && (
             <span className="text-[11px] text-[var(--tf-warning-text)]">Erst indexieren</span>

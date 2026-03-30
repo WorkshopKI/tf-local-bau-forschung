@@ -35,23 +35,8 @@ export function EvalResultView({ report, previousReport }: EvalResultViewProps):
           delta={prev ? Math.round((s.top1Accuracy - prev.top1Accuracy) * 100) : undefined} />
       </div>
 
-      {/* Modell + Suite Info */}
-      <div className="text-[11px] text-[var(--tf-text-tertiary)]">
-        {report.modelLabel && (
-          <p>
-            Modell: {report.modelLabel}
-            {previousReport && previousReport.modelId !== report.modelId && (
-              <span> (vorher: {previousReport.modelLabel ?? previousReport.model})</span>
-            )}
-          </p>
-        )}
-        {report.suiteLabel && (
-          <p>Suite: {report.suiteLabel} ({report.summary.total} Tests)</p>
-        )}
-      </div>
-
-      {/* Kategorie-Balken */}
-      <div className="space-y-2">
+      {/* Kategorie-Balken nebeneinander */}
+      <div className="grid grid-cols-2 gap-4">
         {s.byCategory['keyword'] && (
           <LabeledBar passed={s.byCategory['keyword'].passed} total={s.byCategory['keyword'].total}
             label={<Tooltip text="Testfaelle bei denen der Nutzer den genauen Fachbegriff eingibt, z.B. 'Brandschutz' oder 'Tiefgarage'. Hier zaehlt die Keyword-Suche."><span className="cursor-help" style={{ borderBottom: '1px dotted var(--tf-text-tertiary)' }}>Exakte Suche</span></Tooltip>} />
@@ -173,10 +158,14 @@ function LabeledBar({ label, passed, total }: {
   label: React.ReactNode; passed: number; total: number;
 }): React.ReactElement {
   const pct = total > 0 ? passed / total : 0;
+  const pctStr = `${Math.round(pct * 100)}%`;
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-[12px] text-[var(--tf-text)] w-48 shrink-0">{label}</span>
-      <ProgressBar value={pct} label={`${passed}/${total}`} />
+    <div className="space-y-1">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[12px] text-[var(--tf-text)]">{label}</span>
+        <span className="text-[12px] text-[var(--tf-text)]">{pctStr} <span className="text-[var(--tf-text-tertiary)]">({passed}/{total})</span></span>
+      </div>
+      <ProgressBar value={pct} />
     </div>
   );
 }
