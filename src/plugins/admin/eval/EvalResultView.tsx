@@ -57,10 +57,14 @@ export function EvalResultView({ report, previousReport }: EvalResultViewProps):
       {/* Nach Schwierigkeit */}
       <CollapsibleSection label="Nach Schwierigkeit" defaultOpen={false}>
         <div className="space-y-2">
-          {Object.entries(s.byDifficulty).map(([diff, data]) => (
-            <LabeledBar key={diff} label={DIFFICULTY_LABELS[diff] ?? diff}
-              passed={data.passed} total={data.total} />
-          ))}
+          {(['easy', 'medium', 'hard'] as const).map(diff => {
+            const data = s.byDifficulty[diff];
+            if (!data) return null;
+            return (
+              <LabeledBar key={diff} label={DIFFICULTY_LABELS[diff] ?? diff}
+                passed={data.passed} total={data.total} />
+            );
+          })}
         </div>
       </CollapsibleSection>
 
