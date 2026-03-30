@@ -68,15 +68,15 @@ export function IndexManager(): React.ReactElement {
 
   // Ampel-Logik
   const ampel = (): { color: string; label: string } => {
-    if (chunkCount === 0 || docCount === 0)
-      return { color: 'bg-[var(--tf-danger-text)]', label: 'Kein Index vorhanden — bitte indexieren' };
+    if (chunkCount === 0)
+      return { color: 'bg-red-500', label: 'Kein Index vorhanden — bitte indexieren' };
     if (indexOutdated)
-      return { color: 'bg-[var(--tf-warning-text)]', label: 'Modell gewechselt — Neu-Indexierung noetig' };
+      return { color: 'bg-amber-500', label: 'Modell gewechselt — Neu-Indexierung noetig' };
     if (fsDocCount && fsDocCount.newFiles > 0)
-      return { color: 'bg-[var(--tf-warning-text)]', label: `${fsDocCount.newFiles} neue Dateien — Import noetig` };
+      return { color: 'bg-amber-500', label: `${fsDocCount.newFiles} neue Dateien — Import noetig` };
     if (newDocsCount > 0)
-      return { color: 'bg-[var(--tf-warning-text)]', label: `${newDocsCount} Dokumente nicht indexiert` };
-    return { color: 'bg-[var(--tf-success-text)]', label: 'Index aktuell' };
+      return { color: 'bg-amber-500', label: `${newDocsCount} Dokumente nicht indexiert` };
+    return { color: 'bg-emerald-500', label: 'Index aktuell' };
   };
   const amp = ampel();
 
@@ -132,7 +132,7 @@ export function IndexManager(): React.ReactElement {
         </div>
         {chunkCount > 0 && (
           <p className="text-[12px] text-[var(--tf-text-tertiary)] mt-0.5">
-            {docCount} Dokumente · {chunkCount} Textabschnitte{lastUpdate ? ` · ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}
+            {docCount > 0 ? `${docCount} Dokumente · ` : ''}{chunkCount} Textabschnitte{lastUpdate ? ` · ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}
           </p>
         )}
       </div>
