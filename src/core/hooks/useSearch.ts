@@ -47,7 +47,13 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
       const modelConfig = getModelById(modelId);
       modelConfigRef.current = modelConfig;
 
-      // Orama-Index aus IDB laden
+      // Pruefe ob File Server einen neueren Index hat
+      try {
+        const { loadIndexFromFileServer } = await import('@/core/services/search/index-persistence');
+        await loadIndexFromFileServer(storage);
+      } catch { /* kein File Server */ }
+
+      // Orama-Index aus IDB laden (entweder lokal oder gerade vom Server ueberschrieben)
       await loadOramaFromDB(storage.idb);
       setDocCount(getDocCount());
 

@@ -29,6 +29,9 @@ export function IndexManager(): React.ReactElement {
   const [activeModelId, setActiveModelIdState] = useState('minilm-l6-v2');
   const [indexModelId, setIndexModelId] = useState<string | null>(null);
   const [newDocsCount, setNewDocsCount] = useState(0);
+  const [fsDocCount, setFsDocCount] = useState<{ newFiles: number; totalFiles: number } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<string | null>(null);
   const abortRef = useRef(new AbortController());
   const fsConnected = storage.isFileServerConnected();
 
@@ -52,6 +55,12 @@ export function IndexManager(): React.ReactElement {
       (navigator as { gpu: { requestAdapter: () => Promise<unknown> } }).gpu
         .requestAdapter().then(a => setHasGPU(!!a)).catch(() => setHasGPU(false));
     }
+    // Dokumentverzeichnisse scannen
+    if (storage.getDocDirectories().length > 0) {
+      import('@/core/services/search/document-scanner').then(({ countChangedDocuments }) =>
+        countChangedDocuments(storage).then(setFsDocCount),
+      ).catch(() => {});
+    }
   }, [storage]);
 
   const activeModel = getModelById(activeModelId);
@@ -63,8 +72,10 @@ export function IndexManager(): React.ReactElement {
       return { color: 'bg-[var(--tf-danger-text)]', label: 'Kein Index vorhanden — bitte indexieren' };
     if (indexOutdated)
       return { color: 'bg-[var(--tf-warning-text)]', label: 'Modell gewechselt — Neu-Indexierung noetig' };
+    if (fsDocCount && fsDocCount.newFiles > 0)
+      return { color: 'bg-[var(--tf-warning-text)]', label: `${fsDocCount.newFiles} neue Dateien — Import noetig` };
     if (newDocsCount > 0)
-      return { color: 'bg-[var(--tf-warning-text)]', label: `${newDocsCount} neue Dokumente — Aktualisierung noetig` };
+      return { color: 'bg-[var(--tf-warning-text)]', label: `${newDocsCount} Dokumente nicht indexiert` };
     return { color: 'bg-[var(--tf-success-text)]', label: 'Index aktuell' };
   };
   const amp = ampel();
@@ -90,6 +101,24 @@ export function IndexManager(): React.ReactElement {
         setAborted(true); setLastUpdate(new Date().toISOString());
       } else { setError(String(err)); console.error('Indexing failed:', err); }
     } finally { setRunning(false); }
+  };
+
+  const handleImportDocs = async (): Promise<void> => {
+    setImporting(true); setImportResult(null);
+    try {
+      const { scanDocDirectories, importDocuments } = await import('@/core/services/search/document-scanner');
+      const files = await scanDocDirectories(storage);
+      const result = await importDocuments(storage, files);
+      setImportResult(`${result.imported} importiert, ${result.updated} aktualisiert, ${result.unchanged} unveraendert`);
+      storage.idb.keys('doc:').then(k => setDocCount(k.length));
+      setFsDocCount({ newFiles: 0, totalFiles: files.length });
+    } catch (err) { setImportResult(`Fehler: ${err}`); }
+    finally { setImporting(false); }
+  };
+
+  const handleDownloadExamples = async (): Promise<void> => {
+    const { downloadExampleDocs } = await import('@/core/services/search/example-docs');
+    downloadExampleDocs();
   };
 
   return (
@@ -150,11 +179,24 @@ export function IndexManager(): React.ReactElement {
       <CollapsibleSection label="Indexierung" defaultOpen={true}
         subtitle={chunkCount > 0 ? `${chunkCount} Textabschnitte${lastUpdate ? ` · ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}` : 'Nicht indexiert'}>
         <div className="space-y-3">
+          {/* Dateien aus Verzeichnis importieren */}
+          {fsDocCount && fsDocCount.newFiles > 0 && !running && !importing && (
+            <div className="flex items-center justify-between p-3 bg-[var(--tf-info-bg)] rounded-[var(--tf-radius)]">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={14} className="text-[var(--tf-info-text)]" />
+                <p className="text-[12px] text-[var(--tf-info-text)]">{fsDocCount.newFiles} neue Dateien in Dokumentverzeichnissen.</p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={handleImportDocs}>Importieren</Button>
+            </div>
+          )}
+          {importResult && (
+            <p className="text-[11px] text-[var(--tf-text-tertiary)]">{importResult}</p>
+          )}
           {newDocsCount > 0 && !running && (
             <div className="flex items-center justify-between p-3 bg-[var(--tf-info-bg)] rounded-[var(--tf-radius)]">
               <div className="flex items-center gap-2">
                 <AlertCircle size={14} className="text-[var(--tf-info-text)]" />
-                <p className="text-[12px] text-[var(--tf-info-text)]">{newDocsCount} neue Dokumente seit der letzten Indexierung.</p>
+                <p className="text-[12px] text-[var(--tf-info-text)]">{newDocsCount} Dokumente nicht indexiert.</p>
               </div>
               <Button variant="secondary" size="sm" onClick={() => runIndex(false)}>Jetzt aktualisieren</Button>
             </div>
@@ -181,6 +223,12 @@ export function IndexManager(): React.ReactElement {
             <p className="text-[11px] text-[var(--tf-text-tertiary)]">
               &quot;Neue Dokumente indexieren&quot; fuegt nur neue oder geaenderte Dokumente hinzu. &quot;Alles neu aufbauen&quot; erstellt den gesamten Index von Grund auf.
             </p>
+          )}
+          {!running && storage.getDocDirectories().length === 0 && docCount === 0 && (
+            <button onClick={handleDownloadExamples}
+              className="text-[11px] text-[var(--tf-text-tertiary)] underline cursor-pointer hover:text-[var(--tf-text-secondary)]">
+              Beispieldokumente herunterladen
+            </button>
           )}
           <IndexProgress status={status} running={running} />
           {indexResult && !running && (

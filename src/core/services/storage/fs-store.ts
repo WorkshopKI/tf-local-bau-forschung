@@ -73,6 +73,17 @@ export class FileServerStore {
     return dir.getFileHandle(fileName, { create });
   }
 
+  async listDirectories(dir: string = '.'): Promise<string[]> {
+    try {
+      const dirHandle = dir === '.' ? this.rootHandle : await this.getDirHandle(dir);
+      const dirs: string[] = [];
+      for await (const entry of dirHandle.values()) {
+        if (entry.kind === 'directory') dirs.push(entry.name);
+      }
+      return dirs;
+    } catch { return []; }
+  }
+
   private async getDirHandle(path: string, create = false): Promise<FileSystemDirectoryHandle> {
     const parts = path.split('/').filter(Boolean);
     let dir = this.rootHandle;

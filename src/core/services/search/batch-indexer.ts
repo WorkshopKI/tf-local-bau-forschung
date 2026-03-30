@@ -136,6 +136,12 @@ export class BatchIndexer {
     await storage.idb.set('index-last-update', new Date().toISOString());
     await storage.idb.set('index-model-id', this.modelConfig.id);
 
+    // Index auf File Server speichern (wenn verbunden)
+    try {
+      const { saveIndexToFileServer } = await import('./index-persistence');
+      await saveIndexToFileServer(storage);
+    } catch { /* File Server nicht verfuegbar */ }
+
     return totalChunks;
   }
 
