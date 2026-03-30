@@ -298,8 +298,8 @@ function IndexProgress({ status, running }: { status: IndexStatus | null; runnin
         <span>{Math.round(docProgress * 100)}%</span>
       </div>
       <ProgressBar value={docProgress} />
-      {status.chunkProgress && (
-        <p className="text-[11px] text-[var(--tf-text-tertiary)]">Chunk {status.chunkProgress.current}/{status.chunkProgress.total}</p>
+      {status.phase === 'Embedding' && status.chunkProgress && (
+        <p className="text-[11px] text-[var(--tf-text-tertiary)]">Textabschnitt {status.chunkProgress.current} von {status.chunkProgress.total}</p>
       )}
     </div>
   );
