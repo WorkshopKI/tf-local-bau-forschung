@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TooltipProps {
   text: string;
@@ -7,19 +8,21 @@ interface TooltipProps {
 
 export function Tooltip({ text, children }: TooltipProps): React.ReactElement {
   const [visible, setVisible] = useState(false);
-  const [above, setAbove] = useState(true);
-  const [offsetX, setOffsetX] = useState(0);
+  const [pos, setPos] = useState({ x: 0, y: 0, above: true });
   const wrapperRef = useRef<HTMLSpanElement>(null);
-  const popupRef = useRef<HTMLSpanElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const show = (): void => {
     timerRef.current = setTimeout(() => {
-      if (wrapperRef.current) {
-        const rect = wrapperRef.current.getBoundingClientRect();
-        setAbove(rect.top > 80);
-      }
-      setOffsetX(0);
+      if (!wrapperRef.current) return;
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const above = rect.top > 100;
+      setPos({
+        x: rect.left + rect.width / 2,
+        y: above ? rect.top - 8 : rect.bottom + 8,
+        above,
+      });
       setVisible(true);
     }, 150);
   };
@@ -31,55 +34,46 @@ export function Tooltip({ text, children }: TooltipProps): React.ReactElement {
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
-  // Clamp popup so it doesn't clip viewport edges
+  // Clamp to viewport edges
   useLayoutEffect(() => {
     if (!visible || !popupRef.current) return;
-    const rect = popupRef.current.getBoundingClientRect();
+    const el = popupRef.current;
+    const rect = el.getBoundingClientRect();
     const pad = 8;
     if (rect.left < pad) {
-      setOffsetX(pad - rect.left);
+      el.style.left = `${pad}px`;
+      el.style.transform = pos.above ? 'translateY(-100%)' : '';
     } else if (rect.right > window.innerWidth - pad) {
-      setOffsetX(window.innerWidth - pad - rect.right);
+      el.style.left = `${window.innerWidth - pad - rect.width}px`;
+      el.style.transform = pos.above ? 'translateY(-100%)' : '';
     }
-  }, [visible]);
+  }, [visible, pos]);
 
   return (
     <span
       ref={wrapperRef}
-      className="relative inline-block"
+      className="inline-block"
       onMouseEnter={show}
       onMouseLeave={hide}
     >
       {children}
-      {visible && (
-        <span
+      {visible && createPortal(
+        <div
           ref={popupRef}
-          className={`absolute left-1/2 z-50 px-2.5 py-1.5 rounded text-[12px] leading-[1.4] max-w-[260px] w-max pointer-events-none transition-opacity duration-150 ${
-            above ? 'bottom-full mb-2' : 'top-full mt-2'
-          }`}
+          className="fixed z-[9999] px-3 py-2 rounded text-[12px] leading-[1.4] max-w-[300px] pointer-events-none"
           style={{
-            transform: `translateX(calc(-50% + ${offsetX}px))`,
+            left: `${pos.x}px`,
+            top: `${pos.y}px`,
+            transform: pos.above ? 'translate(-50%, -100%)' : 'translateX(-50%)',
             backgroundColor: 'var(--tf-bg-secondary)',
             color: 'var(--tf-text)',
             border: '0.5px solid var(--tf-border-hover)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           }}
         >
           {text}
-          {/* Arrow: stays centered on trigger, not on popup */}
-          <span
-            className={`absolute w-0 h-0 ${
-              above
-                ? 'top-full border-t-[5px] border-x-[5px] border-x-transparent'
-                : 'bottom-full border-b-[5px] border-x-[5px] border-x-transparent'
-            }`}
-            style={{
-              left: `calc(50% - ${offsetX}px)`,
-              transform: 'translateX(-50%)',
-              borderTopColor: above ? 'var(--tf-border-hover)' : 'transparent',
-              borderBottomColor: above ? 'transparent' : 'var(--tf-border-hover)',
-            }}
-          />
-        </span>
+        </div>,
+        document.body,
       )}
     </span>
   );
