@@ -273,9 +273,13 @@ function Row({ label, value }: { label: string; value: string }): React.ReactEle
 }
 
 function IndexProgress({ status, running }: { status: IndexStatus | null; running: boolean }): React.ReactElement | null {
+  const lastChunkRef = useRef('');
   if (!running || !status) return null;
   const isModelLoading = status.phase === 'Modell laden';
   const docProgress = status.total > 0 ? status.processed / status.total : 0;
+  if (status.phase === 'Embedding' && status.chunkProgress) {
+    lastChunkRef.current = `Textabschnitt ${status.chunkProgress.current} von ${status.chunkProgress.total}`;
+  }
 
   if (isModelLoading) {
     const modelPct = status.modelProgress?.loaded && status.modelProgress?.total
@@ -299,9 +303,7 @@ function IndexProgress({ status, running }: { status: IndexStatus | null; runnin
       </div>
       <ProgressBar value={docProgress} />
       <p className="text-[11px] text-[var(--tf-text-tertiary)] h-4">
-        {status.phase === 'Embedding' && status.chunkProgress
-          ? `Textabschnitt ${status.chunkProgress.current} von ${status.chunkProgress.total}`
-          : '\u00a0'}
+        {lastChunkRef.current || '\u00a0'}
       </p>
     </div>
   );
