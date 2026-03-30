@@ -224,7 +224,7 @@ export function IndexManager(): React.ReactElement {
               &quot;Neue Dokumente indexieren&quot; fuegt nur neue oder geaenderte Dokumente hinzu. &quot;Alles neu aufbauen&quot; erstellt den gesamten Index von Grund auf.
             </p>
           )}
-          {!running && storage.getDocDirectories().length === 0 && docCount === 0 && (
+          {!running && (
             <button onClick={handleDownloadExamples}
               className="text-[11px] text-[var(--tf-text-tertiary)] underline cursor-pointer hover:text-[var(--tf-text-secondary)]">
               Beispieldokumente herunterladen
