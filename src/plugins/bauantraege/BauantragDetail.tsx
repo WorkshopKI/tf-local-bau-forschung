@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Pencil, Trash2, Check } from 'lucide-react';
-import { Button, Badge, Tabs, Dialog, Field } from '@/ui';
+import { Button, Badge, Tabs, Dialog } from '@/ui';
 import { StatusSelect } from '@/ui/StatusSelect';
 import { MarkdownEditor } from '@/ui/MarkdownEditor';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -57,7 +57,7 @@ export function BauantragDetail(): React.ReactElement | null {
     : '—';
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       <button onClick={() => setSelectedId(null)} className="flex items-center gap-1 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4 cursor-pointer">
         <ArrowLeft size={14} /> Alle Bauanträge
       </button>
@@ -82,48 +82,53 @@ export function BauantragDetail(): React.ReactElement | null {
         </div>
       </div>
 
-      <Tabs tabs={[
-        { id: 'uebersicht', label: 'Übersicht' },
-        { id: 'dokumente', label: 'Dokumente' },
-        { id: 'artefakte', label: 'Artefakte' },
-        { id: 'verlauf', label: 'Verlauf' },
-        { id: 'notizen', label: 'Notizen' },
-      ]} activeTab={activeTab} onChange={setActiveTab} />
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 mt-2">
+        {/* Main: Tabs + Inhalt */}
+        <div>
+          <Tabs tabs={[
+            { id: 'uebersicht', label: 'Übersicht' },
+            { id: 'dokumente', label: 'Dokumente' },
+            { id: 'artefakte', label: 'Artefakte' },
+            { id: 'verlauf', label: 'Verlauf' },
+          ]} activeTab={activeTab} onChange={setActiveTab} />
+          <div className="mt-6">
+            {activeTab === 'uebersicht' && (
+              <div className="space-y-2">
+                <MarkdownEditor value={notes} onChange={handleNotesChange} placeholder="Notizen zum Vorgang..." minHeight="200px" />
+                {saved && <p className="flex items-center gap-1 text-[12px] text-[var(--tf-success-text)]"><Check size={12} /> Gespeichert</p>}
+              </div>
+            )}
+            {activeTab === 'dokumente' && <VorgangDokumenteTab vorgangId={vorgang.id} />}
+            {activeTab === 'artefakte' && <ArtefakteTab vorgang={vorgang} userName="" />}
+            {activeTab === 'verlauf' && <VerlaufTab history={history} />}
+          </div>
+        </div>
 
-      <div className="mt-6">
-        {activeTab === 'uebersicht' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-5">
-              <Field label="Priorität" value={PRIORITY_LABELS[vorgang.priority] ?? vorgang.priority} />
-              <Field label="Zuständiger" value={vorgang.assignee || '—'} />
-              <div>
-                <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">Frist</p>
-                <div className="flex items-center gap-2">
+        {/* Aside: Metadaten + Aehnliche Faelle */}
+        <div className="space-y-4">
+          <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4 space-y-3">
+            <p className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">Details</p>
+            <div className="space-y-2 text-[12px]">
+              <AsideRow label="Prioritaet" value={PRIORITY_LABELS[vorgang.priority] ?? vorgang.priority} />
+              <AsideRow label="Zustaendig" value={vorgang.assignee || '\u2014'} />
+              <div className="flex justify-between">
+                <span className="text-[var(--tf-text-tertiary)]">Frist</span>
+                <div className="flex items-center gap-1.5">
                   {daysLeft !== null && <span className={`w-1.5 h-1.5 rounded-full ${daysLeft < 3 ? 'bg-[var(--tf-danger-text)]' : daysLeft < 7 ? 'bg-[var(--tf-warning-text)]' : 'bg-[var(--tf-text-tertiary)]'}`} />}
-                  <p className="text-[14px] font-medium text-[var(--tf-text)]">{fristText}</p>
+                  <span className="text-[var(--tf-text)]">{fristText}</span>
                 </div>
               </div>
-              <Field label="Erstellt" value={new Date(vorgang.created).toLocaleDateString('de-DE')} />
-              <Field label="Geändert" value={new Date(vorgang.modified).toLocaleDateString('de-DE')} />
-              <div>
-                <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">Tags</p>
-                <div className="flex gap-1 flex-wrap">
-                  {vorgang.tags.length > 0 ? vorgang.tags.map(t => <Badge key={t}>{t}</Badge>) : <span className="text-[var(--tf-text-tertiary)]">—</span>}
-                </div>
-              </div>
+              <AsideRow label="Erstellt" value={new Date(vorgang.created).toLocaleDateString('de-DE')} />
+              <AsideRow label="Geaendert" value={new Date(vorgang.modified).toLocaleDateString('de-DE')} />
             </div>
-            <SimilarCases vorgang={vorgang} />
+            {vorgang.tags.length > 0 && (
+              <div className="flex gap-1 flex-wrap pt-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+                {vorgang.tags.map(t => <Badge key={t}>{t}</Badge>)}
+              </div>
+            )}
           </div>
-        )}
-        {activeTab === 'dokumente' && <VorgangDokumenteTab vorgangId={vorgang.id} />}
-        {activeTab === 'artefakte' && <ArtefakteTab vorgang={vorgang} userName="" />}
-        {activeTab === 'verlauf' && <VerlaufTab history={history} />}
-        {activeTab === 'notizen' && (
-          <div className="space-y-2">
-            <MarkdownEditor value={notes} onChange={handleNotesChange} placeholder="Notizen zum Vorgang..." minHeight="250px" />
-            {saved && <p className="flex items-center gap-1 text-[12px] text-[var(--tf-success-text)]"><Check size={12} /> Gespeichert</p>}
-          </div>
-        )}
+          <SimilarCases vorgang={vorgang} />
+        </div>
       </div>
 
       <BauantragForm open={showForm} onClose={() => setShowForm(false)} initialValues={vorgang} />
@@ -131,6 +136,15 @@ export function BauantragDetail(): React.ReactElement | null {
         footer={<><Button variant="secondary" onClick={() => setShowDelete(false)}>Abbrechen</Button><Button variant="danger" onClick={async () => { await remove(vorgang.id, storage); setShowDelete(false); }}>Endgültig löschen</Button></>}>
         <p className="text-[13px] text-[var(--tf-text-secondary)]">Soll &quot;{vorgang.title}&quot; wirklich gelöscht werden?</p>
       </Dialog>
+    </div>
+  );
+}
+
+function AsideRow({ label, value }: { label: string; value: string }): React.ReactElement {
+  return (
+    <div className="flex justify-between">
+      <span className="text-[var(--tf-text-tertiary)]">{label}</span>
+      <span className="text-[var(--tf-text)]">{value}</span>
     </div>
   );
 }

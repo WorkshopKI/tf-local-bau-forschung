@@ -32,7 +32,7 @@ export function ForschungListe(): React.ReactElement {
   const formatEuro = (n: number): string => n > 0 ? `${n.toLocaleString('de-DE')} €` : '';
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Forschungsanträge</h1>
         <Button variant="secondary" icon={Plus} onClick={() => setShowForm(true)}>Neuer Antrag</Button>

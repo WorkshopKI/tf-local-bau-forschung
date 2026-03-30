@@ -29,7 +29,7 @@ export function DokumenteListe(): React.ReactElement {
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Dokumente</h1>
 
       <FileDropZone onFiles={handleFiles} accept=".docx,.pdf,.md,.txt" multiple>

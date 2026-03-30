@@ -78,7 +78,7 @@ export function IndexManager(): React.ReactElement {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suchindex</h1>
         <p className={`text-[13px] ${docCount === 0 ? 'text-[var(--tf-warning-text)]' : 'text-[var(--tf-text-secondary)]'}`}>

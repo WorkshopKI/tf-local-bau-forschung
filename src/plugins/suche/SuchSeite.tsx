@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Search } from 'lucide-react';
-import { Badge, SectionHeader, ListItem } from '@/ui';
+import { Badge, SectionHeader } from '@/ui';
 import { useSearch } from '@/core/hooks/useSearch';
 
 const FILTER_CHIPS = [
@@ -16,7 +16,7 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 export function SuchSeite(): React.ReactElement {
-  const { search, results, loading, vectorReady, vectorLoading, documentCount } = useSearch();
+  const { search, results, loading, vectorLoading, documentCount } = useSearch();
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout>>();
@@ -31,7 +31,7 @@ export function SuchSeite(): React.ReactElement {
   const handleFilterChange = (type: string): void => { setTypeFilter(type); handleSearch(query, type); };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto">
       <div className="flex flex-col items-center mb-8">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">Suche</h1>
         <div className="relative w-full max-w-xl">
@@ -56,8 +56,6 @@ export function SuchSeite(): React.ReactElement {
         </div>
         <div className="mt-2">
           {vectorLoading && <Badge variant="default">Embedding-Modell laedt...</Badge>}
-          {vectorReady && <Badge variant="success">BM25 + Vektor aktiv</Badge>}
-          {!vectorReady && !vectorLoading && <Badge variant="default">Nur BM25-Suche</Badge>}
         </div>
       </div>
 
@@ -80,18 +78,25 @@ export function SuchSeite(): React.ReactElement {
         <div>
           <SectionHeader label={`${results.length} Ergebnisse`} />
           {results.map((r, i) => (
-            <ListItem key={r.id}
-              title={r.title || r.source}
-              subtitle={r.text.slice(0, 150) + (r.text.length > 150 ? '...' : '')}
-              meta={
-                <>
+            <div key={r.id} className="py-3" style={{ borderBottom: i < results.length - 1 ? '0.5px solid var(--tf-border)' : 'none' }}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-medium text-[var(--tf-text)]">{r.title || r.source}</p>
+                  <p className="text-[12px] text-[var(--tf-text-secondary)] mt-1 line-clamp-3">
+                    {r.text.slice(0, 300)}{r.text.length > 300 ? '...' : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="default">{r.type}</Badge>
                   <Badge variant="default">{METHOD_LABELS[r.method] ?? r.method}</Badge>
-                  <span className="text-[10px] text-[var(--tf-text-tertiary)]">{r.score.toFixed(2)}</span>
-                </>
-              }
-              last={i === results.length - 1}
-            />
+                </div>
+              </div>
+              {r.tags && r.tags.length > 0 && (
+                <div className="flex gap-1 mt-1.5">
+                  {r.tags.map(t => <span key={t} className="text-[10px] px-1.5 py-0.5 bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)] rounded">{t}</span>)}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}

@@ -5,7 +5,7 @@ export const homePlugin: TeamFlowPlugin = {
   id: 'home',
   name: 'Home',
   icon: 'House',
-  category: 'tools',
+  category: 'workflow',
   order: 0,
   component: HomePage,
 };

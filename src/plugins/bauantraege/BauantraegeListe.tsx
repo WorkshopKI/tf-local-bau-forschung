@@ -30,7 +30,7 @@ export function BauantraegeListe(): React.ReactElement {
   }, [bauantraege, filters]);
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Bauanträge</h1>
         <Button variant="secondary" icon={Plus} onClick={() => setShowForm(true)}>Neuer Antrag</Button>
