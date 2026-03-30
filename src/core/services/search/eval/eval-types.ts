@@ -38,6 +38,8 @@ export interface EvalReport {
   model: string;
   modelId?: string;
   modelLabel?: string;
+  suiteId?: string;
+  suiteLabel?: string;
   totalChunks: number;
   totalDocs: number;
   duration: number;

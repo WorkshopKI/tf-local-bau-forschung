@@ -9,8 +9,14 @@ const FILTER_CHIPS = [
   { id: 'dokument', label: 'Dokumente' },
 ];
 
+const METHOD_LABELS: Record<string, string> = {
+  fulltext: 'BM25',
+  vector: 'Vektor',
+  hybrid: 'Hybrid',
+};
+
 export function SuchSeite(): React.ReactElement {
-  const { search, results, loading, documentCount } = useSearch();
+  const { search, results, loading, vectorReady, vectorLoading, documentCount } = useSearch();
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout>>();
@@ -35,7 +41,7 @@ export function SuchSeite(): React.ReactElement {
             className="w-full pl-10 pr-4 py-3 text-[14px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
             style={{ border: '0.5px solid var(--tf-border)' }} />
         </div>
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-3">
           {FILTER_CHIPS.map(chip => (
             <button key={chip.id} onClick={() => handleFilterChange(chip.id)}
               className={`px-3 py-1 text-[12px] rounded-full cursor-pointer transition-colors ${
@@ -47,6 +53,11 @@ export function SuchSeite(): React.ReactElement {
               {chip.label}
             </button>
           ))}
+        </div>
+        <div className="mt-2">
+          {vectorLoading && <Badge variant="default">Embedding-Modell laedt...</Badge>}
+          {vectorReady && <Badge variant="success">BM25 + Vektor aktiv</Badge>}
+          {!vectorReady && !vectorLoading && <Badge variant="default">Nur BM25-Suche</Badge>}
         </div>
       </div>
 
@@ -61,7 +72,7 @@ export function SuchSeite(): React.ReactElement {
 
       {query && !loading && results.length === 0 && (
         <div className="text-center py-16">
-          <p className="text-[var(--tf-text-secondary)]">Keine Ergebnisse für &quot;{query}&quot;</p>
+          <p className="text-[var(--tf-text-secondary)]">Keine Ergebnisse fuer &quot;{query}&quot;</p>
         </div>
       )}
 
@@ -75,7 +86,8 @@ export function SuchSeite(): React.ReactElement {
               meta={
                 <>
                   <Badge variant="default">{r.type}</Badge>
-                  <span className="text-[10px] text-[var(--tf-text-tertiary)]">{r.score.toFixed(1)}</span>
+                  <Badge variant="default">{METHOD_LABELS[r.method] ?? r.method}</Badge>
+                  <span className="text-[10px] text-[var(--tf-text-tertiary)]">{r.score.toFixed(2)}</span>
                 </>
               }
               last={i === results.length - 1}

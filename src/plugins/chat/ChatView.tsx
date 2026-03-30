@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, RefreshCw, MessageSquare, FolderOpen, X } from 'lucide-react';
+import { Send, RefreshCw, MessageSquare, FolderOpen, Sparkles, X } from 'lucide-react';
 import { Button, Badge, MarkdownRenderer } from '@/ui';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useSearch } from '@/core/hooks/useSearch';
+import { buildRAGContextString, searchResultsToRAGChunks } from '@/core/services/ai/rag-context';
 import type { DirectoryEntry } from '@/core/types/config';
 
 interface Message {
@@ -14,12 +16,15 @@ interface Message {
 export function ChatView(): React.ReactElement {
   const bridge = useAIBridge();
   const storage = useStorage();
+  const { search: ragSearch, results: ragResults, vectorReady } = useSearch();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDirs, setSelectedDirs] = useState<DirectoryEntry[]>([]);
   const [showDirPicker, setShowDirPicker] = useState(false);
+  const [useRAG, setUseRAG] = useState(true);
+  const [ragSources, setRagSources] = useState<Map<string, string[]>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const docDirs = storage.getDocDirectories();
@@ -40,7 +45,7 @@ export function ChatView(): React.ReactElement {
           try {
             const content = await store.readFile(file);
             parts.push(`--- ${dir.label}/${file} ---\n${content.slice(0, 2000)}`);
-          } catch { /* skip unreadable files */ }
+          } catch { /* skip */ }
         }
       } catch { /* skip */ }
     }
@@ -52,21 +57,35 @@ export function ChatView(): React.ReactElement {
     if (!msg || loading) return;
     const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', content: msg };
     setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setLoading(true);
-    setError(null);
+    setInput(''); setLoading(true); setError(null);
+
     try {
       const context = await loadContextFromDirs();
-      const fullMessage = context ? `${msg}${context}` : msg;
+      const assistantMsgId = `a-${Date.now()}`;
+
+      // RAG: Relevante Dokumente aus Archiv suchen
+      let ragContext = '';
+      const ragChunks: string[] = [];
+      if (useRAG && vectorReady) {
+        await ragSearch(msg);
+        if (ragResults.length > 0) {
+          const chunks = searchResultsToRAGChunks(ragResults);
+          ragContext = buildRAGContextString(chunks);
+          ragChunks.push(...chunks.map(c => c.source));
+        }
+      }
+
+      const fullMessage = [msg, context, ragContext].filter(Boolean).join('');
       const response = await bridge.getActiveTransport().submitMessage(fullMessage);
-      setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'assistant', content: response }]);
+      setMessages(prev => [...prev, { id: assistantMsgId, role: 'assistant', content: response }]);
+      if (ragChunks.length > 0) {
+        setRagSources(prev => new Map(prev).set(assistantMsgId, ragChunks));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, loading, bridge, selectedDirs]);
+  }, [input, loading, bridge, selectedDirs, useRAG, vectorReady, ragSearch, ragResults]);
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -95,6 +114,15 @@ export function ChatView(): React.ReactElement {
                 msg.role === 'user' ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]' : 'text-[var(--tf-text)]'
               }`}>
                 {msg.role === 'assistant' ? <MarkdownRenderer content={msg.content} /> : <p className="whitespace-pre-wrap">{msg.content}</p>}
+                {msg.role === 'assistant' && ragSources.get(msg.id) && ragSources.get(msg.id)!.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {ragSources.get(msg.id)!.map((src, i) => (
+                      <span key={i} className="text-[10px] px-2 py-0.5 bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)] rounded-full">
+                        {src}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -126,7 +154,6 @@ export function ChatView(): React.ReactElement {
       {/* Input area */}
       <div className="p-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
         <div className="max-w-2xl mx-auto">
-          {/* Context chips */}
           {selectedDirs.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
               {selectedDirs.map(dir => (
@@ -143,7 +170,7 @@ export function ChatView(): React.ReactElement {
               <div className="relative">
                 <button onClick={() => setShowDirPicker(prev => !prev)}
                   className="p-3 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] rounded-[var(--tf-radius)] cursor-pointer"
-                  title="Context hinzufügen">
+                  title="Context hinzufuegen">
                   <FolderOpen size={16} />
                 </button>
                 {showDirPicker && (
@@ -155,13 +182,20 @@ export function ChatView(): React.ReactElement {
                         className={`w-full text-left px-3 py-1.5 text-[13px] cursor-pointer ${
                           selectedDirs.find(d => d.id === dir.id) ? 'text-[var(--tf-primary)]' : 'text-[var(--tf-text)] hover:bg-[var(--tf-hover)]'
                         }`}>
-                        {selectedDirs.find(d => d.id === dir.id) ? '✓ ' : ''}{dir.label}
+                        {selectedDirs.find(d => d.id === dir.id) ? '\u2713 ' : ''}{dir.label}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
             )}
+            <button onClick={() => setUseRAG(prev => !prev)}
+              className={`p-3 rounded-[var(--tf-radius)] cursor-pointer ${
+                useRAG && vectorReady ? 'text-[var(--tf-primary)]' : 'text-[var(--tf-text-tertiary)]'
+              } hover:bg-[var(--tf-hover)]`}
+              title={useRAG ? 'Archiv-Suche aktiv' : 'Archiv-Suche aus'}>
+              <Sparkles size={16} />
+            </button>
             <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
               placeholder="Nachricht eingeben..." rows={1}
               className="flex-1 px-4 py-3 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none resize-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"

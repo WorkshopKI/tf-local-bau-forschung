@@ -6,6 +6,7 @@ import { MarkdownEditor } from '@/ui/MarkdownEditor';
 import { useStorage } from '@/core/hooks/useStorage';
 import { VorgangDokumenteTab } from '@/core/components/VorgangDokumenteTab';
 import { VerlaufTab } from '@/core/components/VerlaufTab';
+import { SimilarCases } from '@/core/components/SimilarCases';
 import { useBauantraegeStore } from './store';
 import { BauantragForm } from './BauantragForm';
 import { ArtefakteTab } from './ArtefakteTab';
@@ -91,24 +92,27 @@ export function BauantragDetail(): React.ReactElement | null {
 
       <div className="mt-6">
         {activeTab === 'uebersicht' && (
-          <div className="grid grid-cols-2 gap-5">
-            <Field label="Priorität" value={PRIORITY_LABELS[vorgang.priority] ?? vorgang.priority} />
-            <Field label="Zuständiger" value={vorgang.assignee || '—'} />
-            <div>
-              <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">Frist</p>
-              <div className="flex items-center gap-2">
-                {daysLeft !== null && <span className={`w-1.5 h-1.5 rounded-full ${daysLeft < 3 ? 'bg-[var(--tf-danger-text)]' : daysLeft < 7 ? 'bg-[var(--tf-warning-text)]' : 'bg-[var(--tf-text-tertiary)]'}`} />}
-                <p className="text-[14px] font-medium text-[var(--tf-text)]">{fristText}</p>
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-5">
+              <Field label="Priorität" value={PRIORITY_LABELS[vorgang.priority] ?? vorgang.priority} />
+              <Field label="Zuständiger" value={vorgang.assignee || '—'} />
+              <div>
+                <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">Frist</p>
+                <div className="flex items-center gap-2">
+                  {daysLeft !== null && <span className={`w-1.5 h-1.5 rounded-full ${daysLeft < 3 ? 'bg-[var(--tf-danger-text)]' : daysLeft < 7 ? 'bg-[var(--tf-warning-text)]' : 'bg-[var(--tf-text-tertiary)]'}`} />}
+                  <p className="text-[14px] font-medium text-[var(--tf-text)]">{fristText}</p>
+                </div>
+              </div>
+              <Field label="Erstellt" value={new Date(vorgang.created).toLocaleDateString('de-DE')} />
+              <Field label="Geändert" value={new Date(vorgang.modified).toLocaleDateString('de-DE')} />
+              <div>
+                <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">Tags</p>
+                <div className="flex gap-1 flex-wrap">
+                  {vorgang.tags.length > 0 ? vorgang.tags.map(t => <Badge key={t}>{t}</Badge>) : <span className="text-[var(--tf-text-tertiary)]">—</span>}
+                </div>
               </div>
             </div>
-            <Field label="Erstellt" value={new Date(vorgang.created).toLocaleDateString('de-DE')} />
-            <Field label="Geändert" value={new Date(vorgang.modified).toLocaleDateString('de-DE')} />
-            <div>
-              <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">Tags</p>
-              <div className="flex gap-1 flex-wrap">
-                {vorgang.tags.length > 0 ? vorgang.tags.map(t => <Badge key={t}>{t}</Badge>) : <span className="text-[var(--tf-text-tertiary)]">—</span>}
-              </div>
-            </div>
+            <SimilarCases vorgang={vorgang} />
           </div>
         )}
         {activeTab === 'dokumente' && <VorgangDokumenteTab vorgangId={vorgang.id} />}

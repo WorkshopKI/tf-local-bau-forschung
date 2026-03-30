@@ -35,15 +35,20 @@ export function EvalResultView({ report, previousReport }: EvalResultViewProps):
           delta={prev ? Math.round((s.top1Accuracy - prev.top1Accuracy) * 100) : undefined} />
       </div>
 
-      {/* Modellinfo */}
-      {report.modelLabel && (
-        <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-          Modell: {report.modelLabel}
-          {previousReport && previousReport.modelId !== report.modelId && (
-            <span> (vorher: {previousReport.modelLabel ?? previousReport.model})</span>
-          )}
-        </p>
-      )}
+      {/* Modell + Suite Info */}
+      <div className="text-[11px] text-[var(--tf-text-tertiary)]">
+        {report.modelLabel && (
+          <p>
+            Modell: {report.modelLabel}
+            {previousReport && previousReport.modelId !== report.modelId && (
+              <span> (vorher: {previousReport.modelLabel ?? previousReport.model})</span>
+            )}
+          </p>
+        )}
+        {report.suiteLabel && (
+          <p>Suite: {report.suiteLabel} ({report.summary.total} Tests)</p>
+        )}
+      </div>
 
       {/* Kategorie-Balken */}
       <div className="space-y-2">

@@ -6,6 +6,7 @@ import { MarkdownEditor } from '@/ui/MarkdownEditor';
 import { useStorage } from '@/core/hooks/useStorage';
 import { VorgangDokumenteTab } from '@/core/components/VorgangDokumenteTab';
 import { VerlaufTab } from '@/core/components/VerlaufTab';
+import { SimilarCases } from '@/core/components/SimilarCases';
 import { useForschungStore } from './store';
 import { ForschungForm } from './ForschungForm';
 import { ArtefakteTab } from '@/plugins/bauantraege/ArtefakteTab';
@@ -90,21 +91,24 @@ export function ForschungDetail(): React.ReactElement | null {
 
       <div className="mt-6">
         {activeTab === 'uebersicht' && (
-          <div className="grid grid-cols-2 gap-5">
-            <Field label="Projektleiter" value={vorgang.projektleiter || '—'} />
-            <Field label="Institution" value={vorgang.institution || '—'} />
-            <Field label="Förderprogramm" value={vorgang.foerderprogramm || '—'} />
-            <Field label="Fördersumme" value={formatEuro(vorgang.foerdersumme)} />
-            <Field label="Laufzeit" value={vorgang.laufzeit || '—'} />
-            <Field label="Forschungsgebiet" value={vorgang.forschungsgebiet || '—'} />
-            <Field label="Erstellt" value={new Date(vorgang.created).toLocaleDateString('de-DE')} />
-            <Field label="Geändert" value={new Date(vorgang.modified).toLocaleDateString('de-DE')} />
-            <div>
-              <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">Tags</p>
-              <div className="flex gap-1 flex-wrap">
-                {vorgang.tags.length > 0 ? vorgang.tags.map(t => <Badge key={t}>{t}</Badge>) : <span className="text-[var(--tf-text-tertiary)]">—</span>}
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-5">
+              <Field label="Projektleiter" value={vorgang.projektleiter || '—'} />
+              <Field label="Institution" value={vorgang.institution || '—'} />
+              <Field label="Förderprogramm" value={vorgang.foerderprogramm || '—'} />
+              <Field label="Fördersumme" value={formatEuro(vorgang.foerdersumme)} />
+              <Field label="Laufzeit" value={vorgang.laufzeit || '—'} />
+              <Field label="Forschungsgebiet" value={vorgang.forschungsgebiet || '—'} />
+              <Field label="Erstellt" value={new Date(vorgang.created).toLocaleDateString('de-DE')} />
+              <Field label="Geändert" value={new Date(vorgang.modified).toLocaleDateString('de-DE')} />
+              <div>
+                <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">Tags</p>
+                <div className="flex gap-1 flex-wrap">
+                  {vorgang.tags.length > 0 ? vorgang.tags.map(t => <Badge key={t}>{t}</Badge>) : <span className="text-[var(--tf-text-tertiary)]">—</span>}
+                </div>
               </div>
             </div>
+            <SimilarCases vorgang={vorgang} />
           </div>
         )}
         {activeTab === 'dokumente' && <VorgangDokumenteTab vorgangId={vorgang.id} />}

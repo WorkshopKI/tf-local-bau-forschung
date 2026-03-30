@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { FlaskConical } from 'lucide-react';
-import { Button, CollapsibleSection, ProgressBar } from '@/ui';
+import { Button, CollapsibleSection, ProgressBar, Select } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { loadOramaFromDB, getDocCount } from '@/core/services/search/orama-store';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { getModelById } from '@/core/services/search/model-registry';
 import { EvalRunner } from '@/core/services/search/eval/eval-runner';
-import { EVAL_TEST_CASES } from '@/core/services/search/eval/test-cases';
+import { EVAL_SUITES, getSuiteById } from '@/core/services/search/eval/eval-suites';
 import type { EvalReport, EvalProgress } from '@/core/services/search/eval/eval-types';
 import { evalToMarkdown } from '@/core/services/search/eval/eval-export';
 import { EvalResultView } from './EvalResultView';
@@ -25,6 +25,7 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
   const [report, setReport] = useState<EvalReport | null>(null);
   const [previousReport, setPreviousReport] = useState<EvalReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [suiteId, setSuiteId] = useState('alle');
 
   useEffect(() => {
     storage.idb.get<EvalReport>('eval-latest').then(r => { if (r) setReport(r); });
@@ -36,11 +37,9 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
   const startEval = async (): Promise<void> => {
     setRunning(true); setProgress(null); setError(null);
     try {
-      // Orama-Index laden (falls noch nicht geladen)
       const model = getModelById(modelId);
       await loadOramaFromDB(storage.idb);
 
-      // Embedding-Modell initialisieren (falls noch nicht geladen)
       if (!embeddingService.isReady()) {
         let gpuAvailable = false;
         if ('gpu' in navigator) {
@@ -51,10 +50,12 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
         await embeddingService.init(model, gpuAvailable);
       }
 
+      const suite = getSuiteById(suiteId);
       const runner = new EvalRunner(modelId);
-      const result = await runner.run(EVAL_TEST_CASES, setProgress);
+      const result = await runner.run(suite.cases, setProgress);
 
-      // Metadaten ergaenzen
+      result.suiteId = suite.id;
+      result.suiteLabel = suite.label;
       result.totalChunks = chunkCount;
       result.totalDocs = getDocCount();
 
@@ -86,6 +87,10 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
   return (
     <CollapsibleSection label="Suchqualitaet pruefen" defaultOpen={true} subtitle={subtitle}>
       <div className="space-y-4">
+        <Select label="Test-Suite"
+          options={EVAL_SUITES.map(s => ({ value: s.id, label: `${s.label} (${s.cases.length})` }))}
+          value={suiteId} onChange={e => setSuiteId(e.target.value)} />
+
         <div className="flex items-center gap-3">
           <Button variant="secondary" icon={FlaskConical}
             disabled={running || chunkCount === 0} onClick={startEval}>
