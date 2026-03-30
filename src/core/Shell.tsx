@@ -99,9 +99,15 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
           className="flex flex-col bg-[var(--tf-bg-sidebar)] transition-all duration-200 overflow-hidden shrink-0"
           style={{ width: sidebarOpen ? 'var(--tf-sidebar-w)' : '0px', borderRight: '0.5px solid var(--tf-border)' }}
         >
-          <div className="flex flex-col px-4 pt-5 pb-2 shrink-0">
-            <span className="text-[15px] font-medium text-[var(--tf-text)]">TeamFlow</span>
-            <span className="text-[12px] text-[var(--tf-text-secondary)]">Verwaltung</span>
+          <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
+            <div>
+              <span className="text-[15px] font-medium text-[var(--tf-text)]">TeamFlow</span>
+              <span className="block text-[12px] text-[var(--tf-text-secondary)]">Verwaltung</span>
+            </div>
+            <button onClick={() => setSidebarOpen(false)}
+              className="p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer">
+              <Icons.PanelLeftClose size={16} />
+            </button>
           </div>
 
           <nav className="flex-1 overflow-y-auto px-2 py-2">
@@ -159,14 +165,14 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <header className="flex items-center h-12 px-4 shrink-0" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-            <button onClick={() => setSidebarOpen(prev => !prev)}
-              className="p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-secondary)] cursor-pointer">
-              <Icons.Menu size={18} />
-            </button>
-            <span className="ml-3 text-[13px] text-[var(--tf-text-secondary)]">{activePlugin?.name ?? ''}</span>
-          </header>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto relative">
+            {!sidebarOpen && (
+              <button onClick={() => setSidebarOpen(true)}
+                className="fixed top-3 left-3 z-10 p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer bg-[var(--tf-bg)]"
+                style={{ border: '0.5px solid var(--tf-border)' }}>
+                <Icons.PanelLeftOpen size={16} />
+              </button>
+            )}
             {ActiveComponent ? <ActiveComponent /> : null}
           </div>
         </main>
