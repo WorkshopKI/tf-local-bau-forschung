@@ -33,7 +33,7 @@ export function VorgangDokumenteTab({ vorgangId }: VorgangDokumenteTabProps): Re
           <SectionHeader label="Zugeordnete Dokumente" />
           {vorgangDocs.map(doc => (
             <div key={doc.id} className="flex items-center gap-3 py-2.5" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-              <Badge variant="info">{doc.format.toUpperCase()}</Badge>
+              <Badge variant="info">{(doc.format ?? '').toUpperCase()}</Badge>
               <span className="text-[13px] text-[var(--tf-text)]">{doc.filename}</span>
             </div>
           ))}
