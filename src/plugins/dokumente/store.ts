@@ -30,8 +30,19 @@ export const useDokumenteStore = create<DokumenteState>((set, get) => ({
     const keys = await storage.idb.keys('doc:');
     const docs: Document[] = [];
     for (const key of keys) {
-      const doc = await storage.idb.get<Document>(key);
-      if (doc) docs.push(doc);
+      const raw = await storage.idb.get<Record<string, unknown>>(key);
+      if (!raw) continue;
+      // Fehlende Felder normalisieren — Dokumente aus FS-Scanner / Sync fehlen format/created
+      docs.push({
+        id: String(raw.id ?? key.replace('doc:', '')),
+        filename: String(raw.filename ?? ''),
+        format: String(raw.format ?? 'md'),
+        markdown: String(raw.markdown ?? ''),
+        tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
+        created: String(raw.created ?? new Date().toISOString()),
+        pages: typeof raw.pages === 'number' ? raw.pages : undefined,
+        vorgangId: raw.vorgangId ? String(raw.vorgangId) : undefined,
+      });
     }
     set({ documents: docs });
   },
