@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Database, RefreshCw, AlertCircle, Trash2, Square, CheckCircle2, XCircle } from 'lucide-react';
-import { Button, Badge, CollapsibleSection, ProgressBar, Select } from '@/ui';
+import { Database, RefreshCw, AlertCircle, Square, CheckCircle2, XCircle } from 'lucide-react';
+import { Button, CollapsibleSection, Select } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { BatchIndexer } from '@/core/services/search/batch-indexer';
@@ -8,8 +8,8 @@ import type { IndexStatus } from '@/core/services/search/batch-indexer';
 import {
   EMBEDDING_MODELS, getModelById, getActiveModelId, setActiveModelId,
 } from '@/core/services/search/model-registry';
-import { seedTestData, clearSeedData } from '@/core/services/seed/seed-data';
 import { EvalSection } from './eval/EvalSection';
+import { SeedContent, Row, IndexProgress, formatDuration } from './IndexHelpers';
 
 export function IndexManager(): React.ReactElement {
   const storage = useStorage();
@@ -32,6 +32,9 @@ export function IndexManager(): React.ReactElement {
   const [fsDocCount, setFsDocCount] = useState<{ newFiles: number; totalFiles: number } | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
+  const [sharedDocStatus, setSharedDocStatus] = useState<{ missing: number; totalShared: number } | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
   const abortRef = useRef(new AbortController());
   const fsConnected = storage.isFileServerConnected();
 
@@ -61,6 +64,12 @@ export function IndexManager(): React.ReactElement {
         countChangedDocuments(storage).then(setFsDocCount),
       ).catch(() => {});
     }
+    // Prüfe ob auf dem File Server Dokumente liegen die lokal fehlen
+    if (storage.fs) {
+      import('@/core/services/search/document-scanner').then(({ countMissingSharedDocuments }) =>
+        countMissingSharedDocuments(storage).then(setSharedDocStatus),
+      ).catch(() => {});
+    }
   }, [storage]);
 
   const activeModel = getModelById(activeModelId);
@@ -72,6 +81,8 @@ export function IndexManager(): React.ReactElement {
       return { color: 'bg-red-500', label: 'Kein Index vorhanden — bitte indexieren' };
     if (indexOutdated)
       return { color: 'bg-amber-500', label: 'Modell gewechselt — Neu-Indexierung noetig' };
+    if (sharedDocStatus && sharedDocStatus.missing > 0)
+      return { color: 'bg-amber-500', label: `${sharedDocStatus.missing} Dokumente vom Server verfuegbar` };
     if (fsDocCount && fsDocCount.newFiles > 0)
       return { color: 'bg-amber-500', label: `${fsDocCount.newFiles} neue Dateien — Import noetig` };
     if (newDocsCount > 0)
@@ -119,6 +130,21 @@ export function IndexManager(): React.ReactElement {
   const handleDownloadExamples = async (): Promise<void> => {
     const { downloadExampleDocs } = await import('@/core/services/search/example-docs');
     downloadExampleDocs();
+  };
+
+  const handleSyncDocs = async (): Promise<void> => {
+    setSyncing(true); setSyncResult(null);
+    try {
+      const { syncDocumentsFromFileServer } = await import('@/core/services/search/document-scanner');
+      const count = await syncDocumentsFromFileServer(storage);
+      setSyncResult(`${count} Dokumente synchronisiert`);
+      storage.idb.keys('doc:').then(k => setDocCount(k.length));
+      setSharedDocStatus(prev => prev ? { ...prev, missing: 0 } : null);
+    } catch (err) {
+      setSyncResult(`Fehler: ${err}`);
+    } finally {
+      setSyncing(false);
+    }
   };
 
   return (
@@ -179,6 +205,21 @@ export function IndexManager(): React.ReactElement {
       <CollapsibleSection label="Indexierung" defaultOpen={true}
         subtitle={chunkCount > 0 ? `${chunkCount} Textabschnitte${lastUpdate ? ` · ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}` : 'Nicht indexiert'}>
         <div className="space-y-3">
+          {/* Dokumente vom File Server laden */}
+          {sharedDocStatus && sharedDocStatus.missing > 0 && !syncing && (
+            <div className="flex items-center justify-between p-3 bg-[var(--tf-info-bg)] rounded-[var(--tf-radius)]">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={14} className="text-[var(--tf-info-text)]" />
+                <p className="text-[12px] text-[var(--tf-info-text)]">
+                  {sharedDocStatus.missing} Dokumente vom Server verfuegbar — lokal noch nicht vorhanden.
+                </p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={handleSyncDocs}>Synchronisieren</Button>
+            </div>
+          )}
+          {syncResult && (
+            <p className="text-[11px] text-[var(--tf-text-tertiary)]">{syncResult}</p>
+          )}
           {/* Dateien aus Verzeichnis importieren */}
           {fsDocCount && fsDocCount.newFiles > 0 && !running && !importing && (
             <div className="flex items-center justify-between p-3 bg-[var(--tf-info-bg)] rounded-[var(--tf-radius)]">
@@ -274,93 +315,3 @@ export function IndexManager(): React.ReactElement {
   );
 }
 
-/* ─── Helpers ─── */
-
-function SeedContent({ storage, seeded, seeding, seedProgress, setSeeded, setSeeding, setSeedProgress, setDocCount }: {
-  storage: ReturnType<typeof useStorage>; seeded: boolean; seeding: boolean; seedProgress: string;
-  setSeeded: (v: boolean) => void; setSeeding: (v: boolean) => void;
-  setSeedProgress: (v: string) => void; setDocCount: (v: number) => void;
-}): React.ReactElement {
-  return (
-    <div className="space-y-3">
-      <p className="text-[12px] text-[var(--tf-text-secondary)]">
-        Erzeugt 40 Vorgaenge, 60 Dokumente und 10 Artefakte mit realistischem Inhalt.
-      </p>
-      {seedProgress && <p className="text-[12px] text-[var(--tf-text-secondary)]">{seedProgress}</p>}
-      <div className="flex gap-3">
-        <Button variant="secondary" icon={Database} disabled={seeding || seeded}
-          onClick={async () => {
-            setSeeding(true); setSeedProgress('Erzeuge...');
-            try {
-              const r = await seedTestData(storage, (c, t) => setSeedProgress(`Erzeuge... (${c}/${t})`));
-              setSeedProgress(`${r.vorgaenge} Vorgaenge, ${r.dokumente} Dokumente, ${r.artefakte} Artefakte`);
-              setSeeded(true); storage.idb.keys('doc:').then(k => setDocCount(k.length));
-            } catch (err) { setSeedProgress(`Fehler: ${err}`); }
-            finally { setSeeding(false); }
-          }}>
-          {seeded ? 'Testdaten vorhanden' : seeding ? 'Erzeuge...' : 'Testdaten generieren'}
-        </Button>
-        {seeded && (
-          <Button variant="danger" icon={Trash2} disabled={seeding}
-            onClick={async () => {
-              await clearSeedData(storage); setSeeded(false); setDocCount(0); setSeedProgress('Geloescht');
-            }}>Testdaten loeschen</Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }): React.ReactElement {
-  return (
-    <div className="flex justify-between">
-      <span className="text-[var(--tf-text-tertiary)]">{label}</span>
-      <span className="text-[var(--tf-text)]">{value}</span>
-    </div>
-  );
-}
-
-function IndexProgress({ status, running }: { status: IndexStatus | null; running: boolean }): React.ReactElement | null {
-  const lastChunkRef = useRef('');
-  if (!running || !status) return null;
-  const isModelLoading = status.phase === 'Modell laden';
-  const docProgress = status.total > 0 ? status.processed / status.total : 0;
-  if (status.phase === 'Embedding' && status.chunkProgress) {
-    lastChunkRef.current = `Textabschnitt ${status.chunkProgress.current} von ${status.chunkProgress.total}`;
-  }
-
-  if (isModelLoading) {
-    const modelPct = status.modelProgress?.loaded && status.modelProgress?.total
-      ? status.modelProgress.loaded / status.modelProgress.total : 0;
-    return (
-      <div className="space-y-2">
-        <div className="flex justify-between text-[12px] text-[var(--tf-text-secondary)]">
-          <span>Modell laden...</span>
-          {status.modelProgress?.status && <Badge variant="default">{status.modelProgress.status}</Badge>}
-        </div>
-        <ProgressBar value={modelPct} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex justify-between text-[12px] text-[var(--tf-text-secondary)]">
-        <span>Dokument {status.processed + 1}/{status.total} — {status.currentDoc}</span>
-        <span>{Math.round(docProgress * 100)}%</span>
-      </div>
-      <ProgressBar value={docProgress} />
-      <p className="text-[11px] text-[var(--tf-text-tertiary)] h-4">
-        {lastChunkRef.current || '\u00a0'}
-      </p>
-    </div>
-  );
-}
-
-function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  if (minutes === 0) return `${secs}s`;
-  return `${minutes}:${String(secs).padStart(2, '0')} min`;
-}
