@@ -6,21 +6,20 @@ import path from 'path';
 
 export default defineConfig(({ mode }) => {
   const isSingle = mode === 'single';
-  const isDeploy = mode === 'deploy';
 
   return {
     plugins: [
       react(),
       tailwindcss(),
-      (isSingle || isDeploy) && viteSingleFile(),
+      isSingle && viteSingleFile(),
     ].filter(Boolean),
     build: {
       target: 'esnext',
-      outDir: isSingle ? 'dist-single' : isDeploy ? 'dist-deploy' : 'dist',
-      assetsInlineLimit: (isSingle || isDeploy) ? Infinity : 4096,
+      outDir: isSingle ? 'dist-single' : 'dist',
+      assetsInlineLimit: isSingle ? Infinity : 4096,
     },
-    base: (isSingle || isDeploy) ? '' : './',
-    worker: { format: 'es' },
+    base: isSingle ? '' : './',
+    worker: { format: 'iife' },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

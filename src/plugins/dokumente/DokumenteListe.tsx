@@ -53,9 +53,9 @@ export function DokumenteListe(): React.ReactElement {
               meta={
                 <>
                   <Badge variant={doc.format === 'pdf' ? 'error' : doc.format === 'docx' ? 'info' : doc.format === 'md' ? 'success' : 'default'}>
-                    {doc.format === 'pdf' && doc.pages ? `PDF · ${doc.pages} Seiten` : doc.format.toUpperCase()}
+                    {doc.format === 'pdf' && doc.pages ? `PDF · ${doc.pages} Seiten` : (doc.format ?? '').toUpperCase()}
                   </Badge>
-                  <span className="text-[11px] text-[var(--tf-text-tertiary)]">{new Date(doc.created).toLocaleDateString('de-DE')}</span>
+                  <span className="text-[11px] text-[var(--tf-text-tertiary)]">{doc.created ? new Date(doc.created).toLocaleDateString('de-DE') : '—'}</span>
                 </>
               }
               onClick={() => setSelectedId(doc.id)}

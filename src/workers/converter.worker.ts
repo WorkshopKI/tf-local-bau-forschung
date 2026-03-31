@@ -1,9 +1,10 @@
 import mammoth from 'mammoth';
 import TurndownService from 'turndown';
 import * as pdfjsLib from 'pdfjs-dist';
+import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline';
 
-// Disable the separate PDF worker — run single-threaded in our inline worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+// Pdfjs worker als Blob-URL — funktioniert unter file:// ohne Cross-Origin-Fehler
+pdfjsLib.GlobalWorkerOptions.workerPort = new PdfjsWorker() as unknown as MessagePort;
 
 const turndown = new TurndownService({
   headingStyle: 'atx',
