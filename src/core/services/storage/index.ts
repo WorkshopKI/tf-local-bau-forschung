@@ -70,12 +70,12 @@ export class StorageService {
     if (this.isFileServerConnected()) await this.syncService.processQueue();
   }
 
-  async addDirectory(label: string, type: 'documents' | 'data'): Promise<DirectoryEntry | null> {
+  async addDirectory(type: 'documents' | 'data', label?: string): Promise<DirectoryEntry | null> {
     try {
       const pickerMode = type === 'data' ? 'readwrite' as const : 'read' as const;
       const handle = await window.showDirectoryPicker({ mode: pickerMode });
       const id = `dir-${Date.now()}`;
-      const entry: DirectoryEntry = { id, label, type, folderName: handle.name };
+      const entry: DirectoryEntry = { id, label: label ?? handle.name, type, folderName: handle.name };
       const fsMode = type === 'documents' ? 'readonly' as const : 'readwrite' as const;
       this._directories.set(id, { entry, store: new FileServerStore(handle, fsMode) });
       await this.idb.set(`dir-handle:${id}`, handle);
@@ -129,7 +129,7 @@ export class StorageService {
 
   // Legacy compat
   async connectFileServer(): Promise<boolean> {
-    const entry = await this.addDirectory('Daten', 'data');
+    const entry = await this.addDirectory('data', 'Daten');
     return entry !== null;
   }
 

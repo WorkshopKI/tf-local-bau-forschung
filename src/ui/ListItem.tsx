@@ -1,5 +1,5 @@
 interface ListItemProps {
-  title: string;
+  title: string | React.ReactNode;
   subtitle?: string;
   meta?: React.ReactNode;
   icon?: React.ReactNode;
