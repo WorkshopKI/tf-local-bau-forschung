@@ -4,7 +4,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline';
 
 // pdfjs-Worker als Blob-URL — einmalig beim Modul-Load, funktioniert unter file://
-pdfjsLib.GlobalWorkerOptions.workerPort = new PdfjsWorker() as unknown as MessagePort;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+pdfjsLib.GlobalWorkerOptions.workerPort = new PdfjsWorker() as any;
 
 const turndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' });
 
