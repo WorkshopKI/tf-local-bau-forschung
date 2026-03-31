@@ -15,6 +15,23 @@ export interface ScanProgress {
   currentFile: string;
 }
 
+const DOCS_DIR = 'documents';
+const DOCS_MANIFEST = 'documents/manifest.json';
+
+interface DocManifestEntry {
+  id: string;
+  filename: string;
+  hash: string;
+  tags: string[];
+  importedAt: string;
+}
+
+export interface DocManifest {
+  version: number;
+  updatedAt: string;
+  entries: Record<string, DocManifestEntry>;
+}
+
 interface DocFileInfo {
   path: string;
   name: string;
@@ -61,6 +78,7 @@ export async function importDocuments(
 ): Promise<ScanResult> {
   const result: ScanResult = { total: files.length, imported: 0, updated: 0, unchanged: 0, errors: 0 };
   const fileHashes = await storage.idb.get<Record<string, string>>('doc-file-hashes') ?? {};
+  const importedDocs: Array<{ id: string; filename: string; markdown: string; tags: string[]; hash: string }> = [];
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]!;
@@ -83,12 +101,21 @@ export async function importDocuments(
         path: file.path, directoryId: file.directoryId,
       });
       fileHashes[docId] = hash;
+      importedDocs.push({ id: docId, filename: file.name, markdown: content, tags: [file.directoryLabel], hash });
 
       if (existing) { result.updated++; } else { result.imported++; }
     } catch { result.errors++; }
   }
 
   await storage.idb.set('doc-file-hashes', fileHashes);
+
+  // Dokumente auf File Server schreiben (wenn Datenverzeichnis verbunden)
+  if (importedDocs.length > 0) {
+    try {
+      await saveDocumentsToFileServer(storage, importedDocs);
+    } catch { /* File Server nicht verfügbar — kein Problem */ }
+  }
+
   onProgress?.({ phase: 'done', current: files.length, total: files.length, currentFile: '' });
   return result;
 }
@@ -106,6 +133,119 @@ export async function countChangedDocuments(
   }
 
   return { newFiles, totalFiles: files.length };
+}
+
+async function saveDocumentsToFileServer(
+  storage: StorageService,
+  docs: Array<{ id: string; filename: string; markdown: string; tags: string[]; hash: string }>,
+): Promise<void> {
+  const fs = storage.fs;
+  if (!fs || fs.isReadOnly()) return;
+
+  await fs.ensureDir(DOCS_DIR);
+
+  let manifest: DocManifest;
+  try {
+    manifest = await fs.readJSON<DocManifest>(DOCS_MANIFEST);
+  } catch {
+    manifest = { version: 0, updatedAt: '', entries: {} };
+  }
+
+  const now = new Date().toISOString();
+  for (const doc of docs) {
+    await fs.writeJSON(`${DOCS_DIR}/${doc.id}.json`, {
+      id: doc.id, filename: doc.filename, markdown: doc.markdown,
+      tags: doc.tags, hash: doc.hash, source: 'filesystem', importedAt: now,
+    });
+    manifest.entries[doc.id] = {
+      id: doc.id, filename: doc.filename, hash: doc.hash,
+      tags: doc.tags, importedAt: now,
+    };
+  }
+
+  manifest.version++;
+  manifest.updatedAt = now;
+  await fs.writeJSON(DOCS_MANIFEST, manifest);
+  await storage.idb.set('docs-fs-version', manifest.version);
+}
+
+export async function syncDocumentsFromFileServer(
+  storage: StorageService,
+  onProgress?: (p: ScanProgress) => void,
+): Promise<number> {
+  const fs = storage.fs;
+  if (!fs) return 0;
+
+  let manifest: DocManifest;
+  try {
+    manifest = await fs.readJSON<DocManifest>(DOCS_MANIFEST);
+  } catch {
+    return 0;
+  }
+
+  const localVersion = await storage.idb.get<number>('docs-fs-version') ?? 0;
+  if (manifest.version <= localVersion) return 0;
+
+  const fileHashes = await storage.idb.get<Record<string, string>>('doc-file-hashes') ?? {};
+  const missingIds: string[] = [];
+  for (const [id, entry] of Object.entries(manifest.entries)) {
+    if (!fileHashes[id] || fileHashes[id] !== entry.hash) missingIds.push(id);
+  }
+
+  if (missingIds.length === 0) {
+    await storage.idb.set('docs-fs-version', manifest.version);
+    return 0;
+  }
+
+  let loaded = 0;
+  for (let i = 0; i < missingIds.length; i++) {
+    const id = missingIds[i]!;
+    onProgress?.({ phase: 'importing', current: i + 1, total: missingIds.length, currentFile: id });
+    try {
+      const doc = await fs.readJSON<{
+        id: string; filename: string; markdown: string;
+        tags: string[]; hash: string; source: string;
+      }>(`${DOCS_DIR}/${id}.json`);
+      if (!doc) continue;
+      await storage.idb.set(`doc:${id}`, {
+        id: doc.id, filename: doc.filename, markdown: doc.markdown,
+        tags: doc.tags, source: doc.source,
+      });
+      fileHashes[id] = doc.hash;
+      loaded++;
+    } catch { /* Einzelne Datei nicht lesbar — weiter */ }
+  }
+
+  await storage.idb.set('doc-file-hashes', fileHashes);
+  await storage.idb.set('docs-fs-version', manifest.version);
+  onProgress?.({ phase: 'done', current: missingIds.length, total: missingIds.length, currentFile: '' });
+  return loaded;
+}
+
+export async function countMissingSharedDocuments(
+  storage: StorageService,
+): Promise<{ missing: number; totalShared: number }> {
+  const fs = storage.fs;
+  if (!fs) return { missing: 0, totalShared: 0 };
+
+  try {
+    const manifest = await fs.readJSON<DocManifest>(DOCS_MANIFEST);
+    if (!manifest) return { missing: 0, totalShared: 0 };
+
+    const localVersion = await storage.idb.get<number>('docs-fs-version') ?? 0;
+    if (manifest.version <= localVersion) {
+      return { missing: 0, totalShared: Object.keys(manifest.entries).length };
+    }
+
+    const fileHashes = await storage.idb.get<Record<string, string>>('doc-file-hashes') ?? {};
+    let missing = 0;
+    for (const [id, entry] of Object.entries(manifest.entries)) {
+      if (!fileHashes[id] || fileHashes[id] !== entry.hash) missing++;
+    }
+    return { missing, totalShared: Object.keys(manifest.entries).length };
+  } catch {
+    return { missing: 0, totalShared: 0 };
+  }
 }
 
 async function hashText(text: string): Promise<string> {

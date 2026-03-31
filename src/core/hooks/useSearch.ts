@@ -53,6 +53,13 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
         await loadIndexFromFileServer(storage);
       } catch { /* kein File Server */ }
 
+      // Dokumente vom File Server synchronisieren (fehlende lokal laden)
+      try {
+        const { syncDocumentsFromFileServer } = await import('@/core/services/search/document-scanner');
+        const synced = await syncDocumentsFromFileServer(storage);
+        if (synced > 0) console.log(`${synced} Dokumente vom File Server synchronisiert`);
+      } catch { /* kein File Server */ }
+
       // Orama-Index aus IDB laden (entweder lokal oder gerade vom Server ueberschrieben)
       await loadOramaFromDB(storage.idb);
       setDocCount(getDocCount());
