@@ -3,11 +3,10 @@ import { ArrowRight } from 'lucide-react';
 import { Badge, SectionHeader, ListItem, Button } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useNavigation } from '@/core/hooks/useNavigation';
+import { useProfile } from '@/core/hooks/useProfile';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useForschungStore } from '@/plugins/forschung/store';
 import { useDashboardData } from './useDashboardData';
-import type { UserProfile } from '@/core/types/config';
-import { useState } from 'react';
 
 const STATUS_VARIANTS: Record<string, 'info' | 'warning' | 'success' | 'error' | 'default'> = {
   neu: 'info', in_bearbeitung: 'warning', nachforderung: 'warning', in_pruefung: 'info',
@@ -21,12 +20,11 @@ export function HomePage(): React.ReactElement {
   const { navigate } = useNavigation();
   const loadBau = useBauantraegeStore(s => s.loadAll);
   const loadForsch = useForschungStore(s => s.loadAll);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { profile } = useProfile();
 
   useEffect(() => {
     loadBau(storage);
     loadForsch(storage);
-    storage.idb.get<UserProfile>('profile').then(p => { if (p) setProfile(p); });
   }, [storage, loadBau, loadForsch]);
 
   const data = useDashboardData(profile?.department);

@@ -8,6 +8,7 @@ import { AIBridge } from '@/core/services/ai/bridge';
 import { AIBridgeContext } from '@/core/hooks/useAIBridge';
 import { SearchContext, useSearchProvider } from '@/core/hooks/useSearch';
 import { TagContext, useTagProvider } from '@/core/hooks/useTags';
+import { ProfileContext, useProfileProvider } from '@/core/hooks/useProfile';
 import { ErrorBoundary } from '@/core/ErrorBoundary';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
@@ -21,18 +22,23 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, de
 }): React.ReactElement {
   const searchValue = useSearchProvider(storage);
   const tagValue = useTagProvider(storage);
+  const profileValue = useProfileProvider(storage);
+
+  const activeDepartment = profileValue.profile?.department ?? department;
 
   return (
     <AIBridgeContext.Provider value={aiBridge}>
-      <SearchContext.Provider value={searchValue}>
-        <TagContext.Provider value={tagValue}>
-          {showOnboarding ? (
-            <Onboarding onComplete={() => setShowOnboarding(false)} />
-          ) : (
-            <Shell plugins={enabledPlugins} department={department} />
-          )}
-        </TagContext.Provider>
-      </SearchContext.Provider>
+      <ProfileContext.Provider value={profileValue}>
+        <SearchContext.Provider value={searchValue}>
+          <TagContext.Provider value={tagValue}>
+            {showOnboarding ? (
+              <Onboarding onComplete={() => setShowOnboarding(false)} />
+            ) : (
+              <Shell plugins={enabledPlugins} department={activeDepartment} />
+            )}
+          </TagContext.Provider>
+        </SearchContext.Provider>
+      </ProfileContext.Provider>
     </AIBridgeContext.Provider>
   );
 }

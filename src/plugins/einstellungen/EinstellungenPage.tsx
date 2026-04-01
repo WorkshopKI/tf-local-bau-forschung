@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Check, Sun, Moon } from 'lucide-react';
 import { Tabs, Badge, SectionHeader } from '@/ui';
 import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/ui/theme';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useProfile } from '@/core/hooks/useProfile';
 import { TagsTab } from './TagsTab';
 import { SpeicherTab } from './SpeicherTab';
 import { TastaturTab } from './TastaturTab';
@@ -23,31 +24,25 @@ const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
 
 export function EinstellungenPage(): React.ReactElement {
   const storage = useStorage();
+  const { profile, updateProfile } = useProfile();
   const [activeTab, setActiveTab] = useState('profil');
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [dark, setDark] = useState(isDarkMode());
   const [aiConfig, setAiConfig] = useState<AIProviderConfig>({ type: 'streamlit', endpoint: 'http://localhost:8501', model: '', apiKey: '' });
 
   useEffect(() => {
-    storage.idb.get<UserProfile>('profile').then(p => { if (p) setProfile(p); });
     storage.idb.get<AIProviderConfig>('ai-provider').then(c => { if (c) setAiConfig(c); });
-  }, [storage]);
-
-  const saveProfile = useCallback(async (updated: UserProfile) => {
-    setProfile(updated);
-    await storage.idb.set('profile', updated);
   }, [storage]);
 
   const handleColorChange = (h: number, s: string, l: string): void => {
     applyThemeColor(h, s, l);
-    if (profile) saveProfile({ ...profile, theme: { ...profile.theme, hue: h } });
+    updateProfile({ theme: { ...profile!.theme, hue: h } });
   };
 
   const handleDarkToggle = (): void => {
     const next = !dark;
     setDark(next);
     setDarkMode(next);
-    if (profile) saveProfile({ ...profile, theme: { ...profile.theme, dark: next } });
+    updateProfile({ theme: { ...profile!.theme, dark: next } });
   };
 
   const initials = profile?.name ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '??';
@@ -71,11 +66,11 @@ export function EinstellungenPage(): React.ReactElement {
             <div className="grid gap-4 sm:grid-cols-2 mt-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[13px] font-medium text-[var(--tf-text)]">Name</label>
-                <input value={profile.name} onChange={e => saveProfile({ ...profile, name: e.target.value })} className={inputClass} style={inputStyle} />
+                <input value={profile.name} onChange={e => updateProfile({ name: e.target.value })} className={inputClass} style={inputStyle} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[13px] font-medium text-[var(--tf-text)]">Abteilung</label>
-                <select value={profile.department} onChange={e => saveProfile({ ...profile, department: e.target.value as UserProfile['department'] })} className={inputClass} style={inputStyle}>
+                <select value={profile.department} onChange={e => updateProfile({ department: e.target.value as UserProfile['department'] })} className={inputClass} style={inputStyle}>
                   <option value="bauantraege">Bauanträge</option>
                   <option value="forschung">Forschung</option>
                   <option value="beide">Beide</option>
