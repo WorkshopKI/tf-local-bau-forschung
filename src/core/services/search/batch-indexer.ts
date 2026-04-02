@@ -80,6 +80,10 @@ export class BatchIndexer {
     let totalChunks = isFull ? 0 : (await storage.idb.get<number>('index-chunk-count') ?? 0);
     let processed = 0;
     let skipped = 0;
+    // Chunk-Counts pro Quelldokument (für Score-Normalisierung)
+    const docChunkCounts: Record<string, number> = isFull
+      ? {}
+      : (await storage.idb.get<Record<string, number>>('doc-chunk-counts') ?? {});
 
     onStatus({ phase: 'Scanning', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
 
@@ -123,6 +127,7 @@ export class BatchIndexer {
           embedding: vectors[i] ?? [],
         });
         totalChunks++;
+        docChunkCounts[doc.filename] = (docChunkCounts[doc.filename] ?? 0) + 1;
       }
 
       manifest[doc.id] = hash;
@@ -135,6 +140,7 @@ export class BatchIndexer {
     await storage.idb.set('index-manifest', manifest);
     await storage.idb.set('index-last-update', new Date().toISOString());
     await storage.idb.set('index-model-id', this.modelConfig.id);
+    await storage.idb.set('doc-chunk-counts', docChunkCounts);
 
     // Index auf File Server speichern (wenn verbunden)
     try {

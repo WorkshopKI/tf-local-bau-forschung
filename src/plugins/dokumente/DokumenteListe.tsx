@@ -1,67 +1,202 @@
-import { useEffect, useState } from 'react';
-import { FileText } from 'lucide-react';
-import { FileDropZone, Badge, SectionHeader, ListItem } from '@/ui';
+import { useEffect, useMemo, useState } from 'react';
+import { FileText, Search, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button, FileDropZone, SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { DocConverter } from '@/core/services/converter';
 import { useDokumenteStore } from './store';
 
 const converter = new DocConverter();
+const PAGE_SIZE = 50;
 
 export function DokumenteListe(): React.ReactElement {
   const storage = useStorage();
   const { indexDocument } = useSearch();
-  const { documents, loadAll, add, setSelectedId } = useDokumenteStore();
+  const {
+    documents, loading, searchQuery, activeTag,
+    loadAll, add, setSelectedId, setSearchQuery, setActiveTag,
+  } = useDokumenteStore();
   const [converting, setConverting] = useState(false);
+  const [showDropZone, setShowDropZone] = useState(false);
+  const [page, setPage] = useState(0);
 
   useEffect(() => { loadAll(storage); }, [storage, loadAll]);
+
+  // Alle einzigartigen Tags sammeln
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    for (const doc of documents) {
+      for (const t of doc.tags) tagSet.add(t);
+    }
+    return Array.from(tagSet).sort();
+  }, [documents]);
+
+  // Filtern nach Suche + Tag
+  const filtered = useMemo(() => {
+    let result = documents;
+    if (activeTag) {
+      result = result.filter(d => d.tags.includes(activeTag));
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(d =>
+        d.filename.toLowerCase().includes(q) ||
+        d.tags.some(t => t.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [documents, searchQuery, activeTag]);
+
+  // Pagination
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pageDocs = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // Gruppierung nach erstem Tag
+  const grouped = useMemo(() => {
+    const groups: Record<string, typeof pageDocs> = {};
+    for (const doc of pageDocs) {
+      const group = doc.tags[0] ?? 'Ohne Kategorie';
+      if (!groups[group]) groups[group] = [];
+      groups[group]!.push(doc);
+    }
+    return groups;
+  }, [pageDocs]);
 
   const handleFiles = async (files: File[]): Promise<void> => {
     setConverting(true);
     for (const file of files) {
+      // Duplikat-Check: gleicher Dateiname = überspringen
+      const exists = documents.some(d => d.filename === file.name);
+      if (exists) continue;
+
       try {
         const result = await converter.convert(file);
-        await add({ filename: result.filename, format: result.format, markdown: result.markdown, tags: [], pages: result.pages }, storage);
-        indexDocument({ id: `doc-${Date.now()}`, text: result.markdown, title: result.filename, source: result.filename, tags: [], type: 'dokument' });
+        await add({
+          filename: result.filename, format: result.format,
+          markdown: result.markdown, tags: [], pages: result.pages,
+          source: 'upload',
+        }, storage);
+        indexDocument({
+          id: `doc-${Date.now()}`, text: result.markdown,
+          title: result.filename, source: result.filename,
+          tags: [], type: 'dokument',
+        });
       } catch (err) { console.error('Conversion failed:', err); }
     }
     setConverting(false);
+    setShowDropZone(false);
   };
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Dokumente</h1>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Dokumente</h1>
+          <p className="text-[13px] text-[var(--tf-text-tertiary)]">{documents.length} Dateien</p>
+        </div>
+        <Button variant="secondary" icon={Upload} onClick={() => setShowDropZone(prev => !prev)}>
+          Importieren
+        </Button>
+      </div>
 
-      <FileDropZone onFiles={handleFiles} accept=".docx,.pdf,.md,.txt" multiple>
-        {converting ? <p className="text-[13px] text-[var(--tf-text-secondary)]">Konvertiere...</p> : undefined}
-      </FileDropZone>
+      {/* Drop-Zone — nur wenn aufgeklappt */}
+      {showDropZone && (
+        <div className="mb-5">
+          <FileDropZone onFiles={handleFiles} accept=".docx,.pdf,.md,.txt" multiple>
+            {converting
+              ? <p className="text-[13px] text-[var(--tf-text-secondary)]">Konvertiere...</p>
+              : undefined}
+          </FileDropZone>
+        </div>
+      )}
 
-      {documents.length === 0 ? (
+      {/* Such- und Filter-Leiste */}
+      <div className="flex items-center gap-3 mb-5">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)]" />
+          <input
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setPage(0); }}
+            placeholder="Dokument suchen..."
+            className="w-full pl-9 pr-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
+            style={{ border: '0.5px solid var(--tf-border)' }}
+          />
+        </div>
+        {allTags.length > 0 && (
+          <select
+            value={activeTag ?? ''}
+            onChange={e => { setActiveTag(e.target.value || null); setPage(0); }}
+            className="px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
+            style={{ border: '0.5px solid var(--tf-border)' }}
+          >
+            <option value="">Alle Kategorien</option>
+            {allTags.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        )}
+      </div>
+
+      {/* Leerer Zustand */}
+      {documents.length === 0 && !loading && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <FileText size={40} className="text-[var(--tf-text-tertiary)] mb-4" />
           <p className="text-[var(--tf-text-secondary)]">Noch keine Dokumente</p>
-          <p className="text-[12px] text-[var(--tf-text-tertiary)]">Dateien oben ablegen zum Importieren</p>
+          <p className="text-[12px] text-[var(--tf-text-tertiary)] mt-1">
+            Dateien importieren oder über Suchindex Dokumentverzeichnisse verbinden
+          </p>
         </div>
-      ) : (
-        <div className="mt-6">
-          <SectionHeader label="Importierte Dokumente" />
-          {documents.map((doc, i) => (
-            <ListItem
-              key={doc.id}
-              icon={<FileText size={14} className="text-[var(--tf-text-tertiary)]" />}
-              title={doc.filename}
-              meta={
-                <>
-                  <Badge variant={doc.format === 'pdf' ? 'error' : doc.format === 'docx' ? 'info' : doc.format === 'md' ? 'success' : 'default'}>
-                    {doc.format === 'pdf' && doc.pages ? `PDF · ${doc.pages} Seiten` : (doc.format ?? '').toUpperCase()}
-                  </Badge>
-                  <span className="text-[11px] text-[var(--tf-text-tertiary)]">{doc.created ? new Date(doc.created).toLocaleDateString('de-DE') : '—'}</span>
-                </>
-              }
+      )}
+
+      {/* Keine Treffer */}
+      {documents.length > 0 && filtered.length === 0 && (
+        <p className="text-[13px] text-[var(--tf-text-secondary)] py-8 text-center">
+          Keine Dokumente gefunden für &ldquo;{searchQuery}&rdquo;
+        </p>
+      )}
+
+      {/* Gruppierte Ergebnisse */}
+      {Object.entries(grouped).map(([group, docs]) => (
+        <div key={group} className="mb-4">
+          <SectionHeader label={`${group} (${docs!.length})`} />
+          {docs!.map((doc, i) => (
+            <button key={doc.id}
               onClick={() => setSelectedId(doc.id)}
-              last={i === documents.length - 1}
-            />
+              className="flex items-center w-full px-2 py-2.5 text-left cursor-pointer hover:bg-[var(--tf-hover)] rounded-[var(--tf-radius)] transition-colors"
+              style={i < docs!.length - 1 ? { borderBottom: '0.5px solid var(--tf-border)' } : undefined}
+            >
+              <FileText size={14} className="text-[var(--tf-text-tertiary)] shrink-0 mr-3" />
+              <span className="text-[13px] text-[var(--tf-text)] flex-1 truncate">{doc.filename}</span>
+              {doc.vorgangId && (
+                <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)] shrink-0 mx-3">{doc.vorgangId}</span>
+              )}
+              <span className="text-[11px] text-[var(--tf-text-tertiary)] shrink-0">
+                {new Date(doc.created).toLocaleDateString('de-DE')}
+              </span>
+            </button>
           ))}
+        </div>
+      ))}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 mt-6 pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <button
+            disabled={page === 0}
+            onClick={() => setPage(p => p - 1)}
+            className="p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-secondary)] cursor-pointer disabled:opacity-30 disabled:cursor-default"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="text-[12px] text-[var(--tf-text-tertiary)]">
+            Seite {page + 1} von {totalPages}
+          </span>
+          <button
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage(p => p + 1)}
+            className="p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-secondary)] cursor-pointer disabled:opacity-30 disabled:cursor-default"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
       )}
     </div>

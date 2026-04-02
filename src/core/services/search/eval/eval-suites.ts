@@ -11,6 +11,7 @@ export interface EvalSuite {
 
 const BAU_IDS = ['K1','K2','K4','K5','S1','S2','S3','S4','S5','S6','S11','S12','S13','S14'];
 const FORSCHUNG_IDS = ['K3','S2','S7','S8','S9','S10','S15'];
+const HARD_IDS = ['H1','H2','H3','H4','H5','H6','H7','H8','H9','H10'];
 
 export const EVAL_SUITES: EvalSuite[] = [
   {
@@ -29,6 +30,12 @@ export const EVAL_SUITES: EvalSuite[] = [
     description: 'KI, Ethik, Datenschutz, Compliance',
     department: 'forschung',
     cases: EVAL_TEST_CASES.filter(tc => FORSCHUNG_IDS.includes(tc.id)),
+  },
+  {
+    id: 'hard', label: 'Schwierige Faelle',
+    description: 'Cross-Domain, Distraktoren, Umgangssprache, Konzept-Transfer',
+    department: 'alle',
+    cases: EVAL_TEST_CASES.filter(tc => HARD_IDS.includes(tc.id)),
   },
 ];
 

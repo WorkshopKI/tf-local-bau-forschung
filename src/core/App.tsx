@@ -43,6 +43,17 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, de
   );
 }
 
+function hideLoader(): void {
+  const loader = document.getElementById('tf-loader');
+  if (loader) {
+    loader.classList.add('tf-loader-hide');
+    setTimeout(() => loader.remove(), 300);
+  }
+  if (typeof (window as any).__tfLoaderCleanup === 'function') {
+    (window as any).__tfLoaderCleanup();
+  }
+}
+
 function AppInner({ storage }: { storage: StorageService }): React.ReactElement {
   const aiBridge = useMemo(() => new AIBridge(), []);
   const [ready, setReady] = useState(false);
@@ -71,10 +82,11 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       }
 
       setReady(true);
+      hideLoader();
     });
   }, [storage, aiBridge]);
 
-  if (!ready) return <div />;
+  if (!ready) return <></>;
 
   return (
     <AppProviders

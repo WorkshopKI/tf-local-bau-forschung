@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import {
-  loadOramaFromDB, hybridSearch, insertDoc, removeDoc, getDocCount,
+  loadOramaFromDB, loadDocChunkCounts, hybridSearch, insertDoc, removeDoc, getDocCount,
   type OramaSearchResult,
 } from '@/core/services/search/orama-store';
 import { embeddingService } from '@/core/services/search/embedding-service';
@@ -62,6 +62,8 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
 
       // Orama-Index aus IDB laden (entweder lokal oder gerade vom Server ueberschrieben)
       await loadOramaFromDB(storage.idb);
+      // Chunk-Counts laden (für Score-Normalisierung langer Dokumente)
+      try { await loadDocChunkCounts(storage.idb); } catch { /* erste Nutzung */ }
       setDocCount(getDocCount());
 
       // Embedding-Modell im Hintergrund laden
