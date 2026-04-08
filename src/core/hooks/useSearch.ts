@@ -5,7 +5,7 @@ import {
 } from '@/core/services/search/orama-store';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
-import { isReRankerReady, rerank } from '@/core/services/search/re-ranker';
+import { initReRanker, isReRankerReady, rerank } from '@/core/services/search/re-ranker';
 import type { EmbeddingModelConfig } from '@/core/services/search/model-registry';
 import type { StorageService } from '@/core/services/storage';
 import { pipelineLog } from '@/core/services/search/pipeline-logger';
@@ -84,11 +84,15 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
       } catch { /* Kein Embedding — Fulltext-Only */ }
       finally { setVectorLoading(false); }
 
-      // Non-blocking Re-Ranker init
+      // Re-Ranker laden
       try {
-        const { initReRanker } = await import('@/core/services/search/re-ranker');
-        initReRanker().catch(() => {});
-      } catch {}
+        pipelineLog.info('Re-Ranker', 'Versuche zu laden...');
+        const loaded = await initReRanker();
+        if (loaded) pipelineLog.info('Re-Ranker', 'Bereit');
+        else pipelineLog.warn('Re-Ranker', 'Konnte nicht geladen werden');
+      } catch (err) {
+        pipelineLog.warn('Re-Ranker', `Fehler: ${err}`);
+      }
     })();
   }, [storage]);
 

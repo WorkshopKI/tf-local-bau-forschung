@@ -21,22 +21,77 @@ export interface IndexStatus {
   chunkProgress?: { current: number; total: number };
 }
 
+export type ChunkStrategy = 'fixed-200' | 'fixed-400' | 'heading';
+
+const CHUNK_CONFIGS: Record<ChunkStrategy, { size: number; overlap: number }> = {
+  'fixed-200': { size: 200, overlap: 50 },
+  'fixed-400': { size: 400, overlap: 75 },
+  'heading': { size: 400, overlap: 75 },
+};
+
 export interface PipelineConfig {
   embeddingModelId: string;
   metadataLLMId: string | null;
   useContextualPrefixes: boolean;
   useReRanker: boolean;
   resumeFromCheckpoint: boolean;
+  chunkStrategy: ChunkStrategy;
 }
 
-function chunkText(text: string, size = 200, overlap = 50): string[] {
+function chunkText(text: string, strategy: ChunkStrategy = 'fixed-200'): string[] {
+  if (strategy === 'heading') return chunkByHeadings(text);
+  const cfg = CHUNK_CONFIGS[strategy];
+  return chunkFixed(text, cfg.size, cfg.overlap);
+}
+
+function chunkFixed(text: string, size: number, overlap: number): string[] {
   const words = text.split(/\s+/);
   const chunks: string[] = [];
   for (let i = 0; i < words.length; i += size - overlap) {
-    chunks.push(words.slice(i, i + size).join(' '));
+    const chunk = words.slice(i, i + size).join(' ');
+    if (chunk.trim().length > 20) chunks.push(chunk);
     if (i + size >= words.length) break;
   }
   return chunks.length > 0 ? chunks : [text];
+}
+
+function chunkByHeadings(text: string): string[] {
+  const sections = text.split(/(?=^#{2,3}\s)/m);
+  const chunks: string[] = [];
+  let buffer = '';
+
+  for (const section of sections) {
+    const trimmed = section.trim();
+    if (!trimmed) continue;
+    const wordCount = trimmed.split(/\s+/).length;
+
+    if (wordCount < 50 && buffer) {
+      buffer += '\n\n' + trimmed;
+      continue;
+    }
+    if (buffer) {
+      if (buffer.split(/\s+/).length > 500) {
+        chunks.push(...chunkFixed(buffer, 400, 75));
+      } else { chunks.push(buffer); }
+      buffer = '';
+    }
+    if (wordCount > 500) {
+      const headingMatch = trimmed.match(/^(#{2,3}\s+.+)\n/);
+      const heading = headingMatch ? headingMatch[1]! : '';
+      const body = heading ? trimmed.slice(heading.length).trim() : trimmed;
+      for (const sub of chunkFixed(body, 400, 75)) {
+        chunks.push(heading ? `${heading}\n${sub}` : sub);
+      }
+    } else { buffer = trimmed; }
+  }
+
+  if (buffer) {
+    const bw = buffer.split(/\s+/).length;
+    if (bw > 500) chunks.push(...chunkFixed(buffer, 400, 75));
+    else if (bw > 20) chunks.push(buffer);
+  }
+
+  return chunks.length > 0 ? chunks : chunkFixed(text, 400, 75);
 }
 
 async function hashText(text: string): Promise<string> {
@@ -125,6 +180,23 @@ export class BatchIndexer {
       });
     }
 
+    // Fast-Path: bei inkrementeller Indexierung prüfen ob alle Hashes stimmen
+    if (!isFull && Object.keys(manifest).length > 0) {
+      onStatus({ phase: 'Prüfe Index...', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
+      let allCurrent = true;
+      for (const key of docs) {
+        const doc = await storage.idb.get<{ id: string; markdown: string }>(key);
+        if (!doc) continue;
+        const hash = await hashText(doc.markdown);
+        if (manifest[doc.id] !== hash) { allCurrent = false; break; }
+      }
+      if (allCurrent) {
+        pipelineLog.info('Indexer', 'Index ist aktuell — nichts zu tun');
+        if (useLLM) disposeMetadataLLM();
+        return totalChunks;
+      }
+    }
+
     onStatus({ phase: 'Scanning', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
 
     for (const key of docs) {
@@ -146,7 +218,6 @@ export class BatchIndexer {
         onStatus({ phase: 'Skipping', total: docs.length, processed, currentDoc: doc.filename, skipped });
         continue;
       }
-
       // Extract metadata if LLM is active
       onStatus({ phase: 'Metadata', total: docs.length, processed, currentDoc: doc.filename, skipped });
       const metadata: DocumentMetadata | null = useLLM
@@ -159,16 +230,19 @@ export class BatchIndexer {
       let chunkTexts: string[];
       let tags: string;
 
+      const strategy = config.chunkStrategy ?? 'fixed-200';
+      const chunkCfg = CHUNK_CONFIGS[strategy];
+
       if (config.useContextualPrefixes) {
         onStatus({ phase: 'Chunking (contextual)', total: docs.length, processed, currentDoc: doc.filename, skipped });
-        const ctxChunks: ContextualChunk[] = contextualChunk(doc.id, doc.filename, doc.markdown, metadata);
+        const ctxChunks: ContextualChunk[] = contextualChunk(doc.id, doc.filename, doc.markdown, metadata, chunkCfg.size, chunkCfg.overlap);
         textsToEmbed = ctxChunks.map(c => c.prefixedText);
         chunkIds = ctxChunks.map(c => c.id);
         chunkTexts = ctxChunks.map(c => c.text);
         tags = metadata?.topic_tags?.join(', ') ?? '';
       } else {
         onStatus({ phase: 'Chunking', total: docs.length, processed, currentDoc: doc.filename, skipped });
-        const plainChunks = chunkText(doc.markdown);
+        const plainChunks = chunkText(doc.markdown, strategy);
         textsToEmbed = plainChunks;
         chunkIds = plainChunks.map((_, i) => `${doc.id}-${i}`);
         chunkTexts = plainChunks;

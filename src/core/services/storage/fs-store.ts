@@ -10,6 +10,11 @@ export class FileServerStore {
     return file.text();
   }
 
+  async getFile(path: string): Promise<File> {
+    const fileHandle = await this.getFileHandle(path);
+    return fileHandle.getFile();
+  }
+
   isReadOnly(): boolean {
     return this.mode === 'readonly';
   }

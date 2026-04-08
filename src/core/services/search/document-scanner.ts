@@ -1,4 +1,8 @@
 import type { StorageService } from '@/core/services/storage';
+import { DocConverter } from '@/core/services/converter';
+
+const SUPPORTED_EXTENSIONS = ['.md', '.docx', '.pdf', '.txt'];
+const converter = new DocConverter();
 
 export interface ScanResult {
   total: number;
@@ -49,23 +53,23 @@ export async function scanDocDirectories(
     const store = storage.getDirectoryStore(dir.id);
     if (!store) continue;
 
-    try {
-      const mdFiles = await store.listFiles('.', '.md');
-      for (const filename of mdFiles) {
-        files.push({ path: filename, name: filename, directoryId: dir.id, directoryLabel: dir.label });
-      }
-
-      // Unterverzeichnisse scannen (1 Ebene)
-      const subDirs = await store.listDirectories('.');
-      for (const subDir of subDirs) {
-        try {
-          const subFiles = await store.listFiles(subDir, '.md');
-          for (const filename of subFiles) {
-            files.push({ path: `${subDir}/${filename}`, name: filename, directoryId: dir.id, directoryLabel: dir.label });
+    const scanRecursive = async (path: string): Promise<void> => {
+      try {
+        for (const ext of SUPPORTED_EXTENSIONS) {
+          const matched = await store.listFiles(path, ext);
+          for (const filename of matched) {
+            const fullPath = path === '.' ? filename : `${path}/${filename}`;
+            files.push({ path: fullPath, name: filename, directoryId: dir.id, directoryLabel: dir.label });
           }
-        } catch { /* skip */ }
-      }
-    } catch { /* skip */ }
+        }
+        const subDirs = await store.listDirectories(path);
+        for (const subDir of subDirs) {
+          await scanRecursive(path === '.' ? subDir : `${path}/${subDir}`);
+        }
+      } catch { /* skip */ }
+    };
+
+    await scanRecursive('.');
   }
 
   return files;
@@ -111,10 +115,6 @@ export async function importDocuments(
   files: DocFileInfo[],
   onProgress?: (p: ScanProgress) => void,
 ): Promise<ScanResult> {
-  // Nuklear-Bereinigung: alle alten filesystem-Einträge entfernen
-  const purged = await purgeFilesystemDocs(storage);
-  if (purged > 0) console.log(`Cleanup: ${purged} alte Einträge entfernt`);
-
   const result: ScanResult = { total: files.length, imported: 0, updated: 0, unchanged: 0, errors: 0 };
   const fileHashes = await storage.idb.get<Record<string, string>>('doc-file-hashes') ?? {};
   const importedDocs: Array<{ id: string; filename: string; markdown: string; tags: string[]; hash: string }> = [];
@@ -127,11 +127,23 @@ export async function importDocuments(
       const store = storage.getDirectoryStore(file.directoryId);
       if (!store) { result.errors++; continue; }
 
-      const content = await store.readFile(file.path);
-      const hash = await hashText(content);
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
       const docId = `fs-${file.path}`.replace(/[^a-zA-Z0-9-_]/g, '-');
 
-      if (fileHashes[docId] === hash) { result.unchanged++; continue; }
+      // Hash basiert auf Quelldatei (nicht konvertiertem Output), damit
+      // der Timestamp im Frontmatter keinen falschen Re-Import auslöst
+      const rawFile = await store.getFile(file.path);
+      const stableHash = `${rawFile.size}-${rawFile.lastModified}`;
+
+      if (fileHashes[docId] === stableHash) { result.unchanged++; continue; }
+
+      let content: string;
+      if (ext === 'md' || ext === 'txt') {
+        content = await rawFile.text();
+      } else {
+        const converted = await converter.convert(rawFile);
+        content = converted.markdown;
+      }
 
       const existing = await storage.idb.get(`doc:${docId}`);
       await storage.idb.set(`doc:${docId}`, {
@@ -139,8 +151,8 @@ export async function importDocuments(
         tags: [file.directoryLabel], source: 'filesystem',
         path: file.path, directoryId: file.directoryId,
       });
-      fileHashes[docId] = hash;
-      importedDocs.push({ id: docId, filename: file.name, markdown: content, tags: [file.directoryLabel], hash });
+      fileHashes[docId] = stableHash;
+      importedDocs.push({ id: docId, filename: file.name, markdown: content, tags: [file.directoryLabel], hash: stableHash });
 
       if (existing) { result.updated++; } else { result.imported++; }
     } catch { result.errors++; }
@@ -285,10 +297,4 @@ export async function countMissingSharedDocuments(
   } catch {
     return { missing: 0, totalShared: 0 };
   }
-}
-
-async function hashText(text: string): Promise<string> {
-  const encoded = new TextEncoder().encode(text);
-  const hash = await crypto.subtle.digest('SHA-256', encoded);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }

@@ -179,4 +179,67 @@ export const EVAL_TEST_CASES: EvalTestCase[] = [
     description: 'Cross-Dokument: "Nachbarn hören" (Umgangssprache) soll Schallschutz-Gutachten finden, nicht Nachbar-Stellungnahme (BA002 Schatten).',
     expectedDocs: ['Schallschutz_BA002.md', 'Schallschutz_BA013.md'],
   },
+
+  // === EXTREME TESTS (X1-X10) — Near-Miss-Distraktoren aus DOCX-Anträgen ===
+  {
+    id: 'X1', query: 'Drohne Bruecke Schaden fotografieren KI',
+    category: 'semantic', difficulty: 'hard',
+    description: 'Brücken-Cluster: FA001 (Drohnen) vs API_090 (Rissdiagnose) vs API_053 (Sensorik). Nur FA001 nutzt Drohnen.',
+    expectedDocs: ['Projekt_FA001.md'],
+    expectedTop1: 'Projekt_FA001.md',
+  },
+  {
+    id: 'X2', query: 'Risse in Beton erkennen Bruecke',
+    category: 'semantic', difficulty: 'hard',
+    description: 'Brücken-Cluster: API_090 (KI-Rissdiagnose Beton) vs FA001 (Drohnen). Nur API_090 ist spezifisch Beton.',
+    expectedDocs: ['ZIM_Antrag_API_090_KI-gestützte_Rissdiagnose_an_Betonbrücken.docx'],
+  },
+  {
+    id: 'X3', query: 'Sensoren Bruecke Strom autark',
+    category: 'semantic', difficulty: 'hard',
+    description: 'Brücken-Cluster: API_053 (energieautarke Sensorik) vs API_090 vs FA001. Nur API_053 hat energieautarke Sensoren.',
+    expectedDocs: ['ZIM_Antrag_API_053_Energieautarke_Umweltsensorik_für_Brückenüberwachung.docx'],
+  },
+  {
+    id: 'X4', query: 'Trinkwasser Rohrnetz undichte Leitung KI',
+    category: 'semantic', difficulty: 'hard',
+    description: 'Wasser-Cluster: API_055 (KI Rohrnetz) vs FA011 (Digitaler Zwilling Lecks). Query zielt auf Rohrnetz-Optimierung.',
+    expectedDocs: ['ZIM_Antrag_API_055_KI-Optimierung_von_Rohrnetzen_in_der_Trinkwasserversorgung.docx'],
+  },
+  {
+    id: 'X5', query: 'neue Batterie Materialien Bipolarplatte',
+    category: 'semantic', difficulty: 'hard',
+    description: 'Batterie-Cluster: API_041 (Bipolarplatten) vs FA009 (Bioleaching). API_041 ist Neuentwicklung, FA009 Recycling.',
+    expectedDocs: ['ZIM_Antrag_API_041_Bipolarplatten_für_die_nächste_Generationsbatterie.docx'],
+  },
+  {
+    id: 'X6', query: 'Schweissnaht Qualitaet pruefen automatisch',
+    category: 'semantic', difficulty: 'hard',
+    description: 'KI-Inspektion: API_070 (Schweißnaht) vs API_090 (Risse) vs API_028 (Lebensmittel). Nur API_070 prüft Schweißnähte.',
+    expectedDocs: ['ZIM_Antrag_API_070_KI-gestützte_Inspektion_von_Schweißnähten.docx'],
+  },
+  {
+    id: 'X7', query: 'Windrad Ausfall vorhersagen Wartung',
+    category: 'semantic', difficulty: 'hard',
+    description: 'Energie-Cluster: API_046 (Predictive Maintenance Windkraft) vs diverse Solar/Energie. Nur API_046 ist Windkraft.',
+    expectedDocs: ['ZIM_Antrag_API_046_KI-basierte_Predictive_Maintenance_für_Windkraftanlagen.docx'],
+  },
+  {
+    id: 'X8', query: 'Schwimmbad Ertrinkende Person erkennen Kamera',
+    category: 'semantic', difficulty: 'hard',
+    description: 'Sicherheit: API_001 (KI Schwimmbad-Rettung) vs FA001 (KI Brücke). Beide KI+Kamera, anderer Kontext.',
+    expectedDocs: ['ZIM_Antrag_API_001_KI-basierte_Lebensrettung_im_Schwimmbad.docx'],
+  },
+  {
+    id: 'X9', query: 'Textil Sensor Koerper Gesundheit messen',
+    category: 'semantic', difficulty: 'hard',
+    description: 'Gesundheit-Cluster: API_054 (Textil-Biosensoren) vs API_043 (Senioren-Tisch) vs FA003 (mRNA). Nur API_054 ist textilbasiert.',
+    expectedDocs: ['ZIM_Antrag_API_054_Textilbasierte_Biosensoren_zur_Vitalzeichenmessung.docx'],
+  },
+  {
+    id: 'X10', query: 'Obst Ernte Ertrag vorhersagen Plantage',
+    category: 'semantic', difficulty: 'hard',
+    description: 'Landwirtschaft: API_100 (Ernteertragsvorhersage Obst) vs FA013 (Agrivoltaik). Nur API_100 ist Ernte-Prognose.',
+    expectedDocs: ['ZIM_Antrag_API_100_KI-basierte_Ernteertragsvorhersage_für_Obstplantagen.docx'],
+  },
 ];

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Database, Trash2 } from 'lucide-react';
 import { Button, Badge, ProgressBar } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -51,12 +51,25 @@ export function Row({ label, value }: { label: string; value: string }): React.R
 
 export function IndexProgress({ status, running }: { status: IndexStatus | null; running: boolean }): React.ReactElement | null {
   const lastChunkRef = useRef('');
+  const startRef = useRef(Date.now());
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!running) return;
+    startRef.current = Date.now();
+    setElapsed(0);
+    const id = setInterval(() => setElapsed(Date.now() - startRef.current), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
   if (!running || !status) return null;
   const isModelLoading = status.phase === 'Modell laden';
   const docProgress = status.total > 0 ? status.processed / status.total : 0;
   if (status.phase === 'Embedding' && status.chunkProgress) {
     lastChunkRef.current = `Textabschnitt ${status.chunkProgress.current} von ${status.chunkProgress.total}`;
   }
+
+  const elapsedLabel = formatDuration(elapsed);
 
   if (isModelLoading) {
     const modelPct = status.modelProgress?.loaded && status.modelProgress?.total
@@ -65,7 +78,10 @@ export function IndexProgress({ status, running }: { status: IndexStatus | null;
       <div className="space-y-2">
         <div className="flex justify-between text-[12px] text-[var(--tf-text-secondary)]">
           <span>Modell laden...</span>
-          {status.modelProgress?.status && <Badge variant="default">{status.modelProgress.status}</Badge>}
+          <span className="flex items-center gap-2">
+            <span className="font-mono">{elapsedLabel}</span>
+            {status.modelProgress?.status && <Badge variant="default">{status.modelProgress.status}</Badge>}
+          </span>
         </div>
         <ProgressBar value={modelPct} />
       </div>
@@ -75,8 +91,11 @@ export function IndexProgress({ status, running }: { status: IndexStatus | null;
   return (
     <div className="space-y-2">
       <div className="flex justify-between text-[12px] text-[var(--tf-text-secondary)]">
-        <span>Dokument {status.processed + 1}/{status.total} — {status.currentDoc}</span>
-        <span>{Math.round(docProgress * 100)}%</span>
+        <span>Dokument {Math.min(status.processed + 1, status.total)}/{status.total} — {status.currentDoc}</span>
+        <span className="flex items-center gap-2">
+          <span className="font-mono">{elapsedLabel}</span>
+          <span>{Math.round(docProgress * 100)}%</span>
+        </span>
       </div>
       <ProgressBar value={docProgress} />
       <p className="text-[11px] text-[var(--tf-text-tertiary)] h-4">

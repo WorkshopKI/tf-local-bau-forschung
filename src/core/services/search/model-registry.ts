@@ -8,7 +8,7 @@ export interface EmbeddingModelConfig {
   downloadSize: string;
   strategy: 'pipeline' | 'automodel';
   dtype?: 'fp32' | 'q8' | 'q4';
-  pooling: 'mean' | 'cls';
+  pooling: 'mean' | 'cls' | 'last-token';
   normalize: boolean;
   queryPrefix: string;
   documentPrefix: string;
@@ -65,6 +65,37 @@ export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
     normalize: true,
     useMRL: true,
   },
+  {
+    id: 'harrier-270m',
+    name: 'onnx-community/harrier-oss-v1-270m-ONNX',
+    label: 'Harrier 270M',
+    dimensions: 640,
+    sizeLabel: '270M',
+    downloadSize: '~270 MB (fp32)',
+    strategy: 'automodel',
+    dtype: 'fp32',
+    pooling: 'last-token',
+    normalize: true,
+    queryPrefix: 'Instruct: Given a search query, retrieve relevant passages that answer the query\nQuery: ',
+    documentPrefix: '',
+    description: 'Microsoft, MTEB-SOTA, multilingual, decoder-only. Schnell wie EmbeddingGemma.',
+  },
+  // Deaktiviert: Crash mit v3.8.1, braucht Transformers.js v4. Nach Upgrade reaktivieren.
+  // {
+  //   id: 'harrier-0.6b',
+  //   name: 'onnx-community/harrier-oss-v1-0.6b-ONNX',
+  //   label: 'Harrier 0.6B',
+  //   dimensions: 1024,
+  //   sizeLabel: '600M',
+  //   downloadSize: '~500 MB (q4)',
+  //   strategy: 'automodel',
+  //   dtype: 'q4',
+  //   pooling: 'last-token',
+  //   normalize: true,
+  //   queryPrefix: 'Instruct: Given a search query, retrieve relevant passages that answer the query\nQuery: ',
+  //   documentPrefix: '',
+  //   description: 'Microsoft, MTEB-SOTA, multilingual, 1024d. Langsamer, beste Qualitaet.',
+  // },
 ];
 
 export const DEFAULT_MODEL_ID = 'embeddinggemma-300m';

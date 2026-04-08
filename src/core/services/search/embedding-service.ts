@@ -161,7 +161,9 @@ export class EmbeddingService {
 
   private async embedWithAutoModel(text: string, config: EmbeddingModelConfig): Promise<number[]> {
     const tokenizer = this.autoTokenizer as {
-      (texts: string[], opts?: Record<string, boolean>): Record<string, unknown>;
+      (texts: string[], opts?: Record<string, boolean>): Record<string, unknown> & {
+        attention_mask?: { dims: number[]; data: BigInt64Array | Int32Array };
+      };
     };
     const model = this.autoModel as {
       (inputs: Record<string, unknown>): Promise<Record<string, {
@@ -169,34 +171,55 @@ export class EmbeddingService {
       }>>;
     };
 
-    const inputs = tokenizer([text], { padding: true });
+    const inputs = tokenizer([text], { padding: true, truncation: true });
     const outputs = await model(inputs);
 
-    const lastHidden = outputs.last_hidden_state;
-    if (!lastHidden) throw new Error('Model output missing last_hidden_state');
+    let embedding: Float32Array;
 
-    const dims = lastHidden.dims;
-    const data = lastHidden.data;
-    const seqLen = dims[1]!;
-    const hiddenDim = dims[2]!;
+    // Manche Modelle (Harrier) liefern sentence_embedding direkt
+    if (outputs.sentence_embedding) {
+      const se = outputs.sentence_embedding;
+      embedding = new Float32Array(se.data.slice(0, se.dims[se.dims.length - 1]!));
+    } else if (outputs.last_hidden_state) {
+      const lastHidden = outputs.last_hidden_state;
+      const dims = lastHidden.dims;
+      const data = lastHidden.data;
+      const seqLen = dims[1]!;
+      const hiddenDim = dims[2]!;
 
-    // Mean pooling
-    const embedding = new Float32Array(hiddenDim);
-    for (let t = 0; t < seqLen; t++) {
-      for (let d = 0; d < hiddenDim; d++) {
-        embedding[d]! += data[t * hiddenDim + d]!;
+      if (config.pooling === 'last-token') {
+        let lastTokenIdx = seqLen - 1;
+        const attentionMask = inputs.attention_mask;
+        if (attentionMask?.data) {
+          const maskData = attentionMask.data;
+          for (let t = seqLen - 1; t >= 0; t--) {
+            if (Number(maskData[t]) === 1) { lastTokenIdx = t; break; }
+          }
+        }
+        embedding = new Float32Array(hiddenDim);
+        const offset = lastTokenIdx * hiddenDim;
+        for (let d = 0; d < hiddenDim; d++) embedding[d] = data[offset + d]!;
+      } else if (config.pooling === 'cls') {
+        embedding = new Float32Array(hiddenDim);
+        for (let d = 0; d < hiddenDim; d++) embedding[d] = data[d]!;
+      } else {
+        // Mean pooling (default)
+        embedding = new Float32Array(hiddenDim);
+        for (let t = 0; t < seqLen; t++) {
+          for (let d = 0; d < hiddenDim; d++) embedding[d]! += data[t * hiddenDim + d]!;
+        }
+        for (let d = 0; d < hiddenDim; d++) embedding[d]! /= seqLen;
       }
-    }
-    for (let d = 0; d < hiddenDim; d++) {
-      embedding[d]! /= seqLen;
+    } else {
+      throw new Error('Model output has neither sentence_embedding nor last_hidden_state');
     }
 
     // L2 Normalize
     if (config.normalize) {
       let norm = 0;
-      for (let d = 0; d < hiddenDim; d++) norm += embedding[d]! * embedding[d]!;
+      for (let d = 0; d < embedding.length; d++) norm += embedding[d]! * embedding[d]!;
       norm = Math.sqrt(norm);
-      if (norm > 0) for (let d = 0; d < hiddenDim; d++) embedding[d]! /= norm;
+      if (norm > 0) for (let d = 0; d < embedding.length; d++) embedding[d]! /= norm;
     }
 
     return Array.from(embedding.slice(0, config.dimensions));

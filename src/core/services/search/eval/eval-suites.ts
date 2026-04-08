@@ -12,11 +12,12 @@ export interface EvalSuite {
 const BAU_IDS = ['K1','K2','K4','K5','S1','S2','S3','S4','S5','S6','S11','S12','S13','S14'];
 const FORSCHUNG_IDS = ['K3','S2','S7','S8','S9','S10','S15'];
 const HARD_IDS = ['H1','H2','H3','H4','H5','H6','H7','H8','H9','H10'];
+const EXTREME_IDS = ['X1','X2','X3','X4','X5','X6','X7','X8','X9','X10'];
 
 export const EVAL_SUITES: EvalSuite[] = [
   {
     id: 'alle', label: 'Alle Testfaelle',
-    description: 'Vollstaendige Suite mit allen Testfaellen',
+    description: 'Vollstaendige Suite mit allen 40 Testfaellen',
     department: 'alle', cases: EVAL_TEST_CASES,
   },
   {
@@ -36,6 +37,12 @@ export const EVAL_SUITES: EvalSuite[] = [
     description: 'Cross-Domain, Distraktoren, Umgangssprache, Konzept-Transfer',
     department: 'alle',
     cases: EVAL_TEST_CASES.filter(tc => HARD_IDS.includes(tc.id)),
+  },
+  {
+    id: 'extreme', label: 'Near-Miss Distraktoren',
+    description: 'Queries mit starken thematischen Distraktoren aus DOCX-Antraegen',
+    department: 'alle',
+    cases: EVAL_TEST_CASES.filter(tc => EXTREME_IDS.includes(tc.id)),
   },
 ];
 

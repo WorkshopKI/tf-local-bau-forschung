@@ -2,6 +2,8 @@ import { hybridSearch } from '../orama-store';
 import type { OramaSearchResult } from '../orama-store';
 import { embeddingService } from '../embedding-service';
 import { getModelById } from '../model-registry';
+import { isReRankerReady, rerank } from '../re-ranker';
+import { pipelineLog } from '../pipeline-logger';
 import type { EvalTestCase, TestCaseResult, EvalReport, EvalProgress, EvalSummary } from './eval-types';
 
 export class EvalRunner {
@@ -24,7 +26,13 @@ export class EvalRunner {
         queryVector = await embeddingService.embedSingle(tc.query, model, 'query');
       }
 
-      const searchResults = hybridSearch(tc.query, queryVector, { limit: 10 });
+      const reRankerActive = isReRankerReady();
+      const limit = reRankerActive ? 30 : 10;
+      let searchResults = hybridSearch(tc.query, queryVector, { limit });
+      if (reRankerActive && searchResults.length > 0) {
+        searchResults = await rerank(tc.query, searchResults, 15, 10);
+        pipelineLog.info('Eval', `[${tc.id}] Re-Ranker: ${searchResults.length} Ergebnisse`);
+      }
       const result = this.evaluateCase(tc, searchResults);
       results.push(result);
 
