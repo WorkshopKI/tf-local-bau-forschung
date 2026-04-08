@@ -1,6 +1,7 @@
 import { pipeline, AutoModel, AutoTokenizer,
   type FeatureExtractionPipeline } from '@huggingface/transformers';
 import type { EmbeddingModelConfig } from './model-registry';
+import { pipelineLog } from './pipeline-logger';
 
 export type { EmbeddingModelConfig } from './model-registry';
 export { EMBEDDING_MODELS, getModelById, getActiveModelId, setActiveModelId } from './model-registry';
@@ -48,6 +49,7 @@ export class EmbeddingService {
     try {
       onProgress?.({ phase: 'loading' });
       const device = preferGPU ? 'webgpu' : 'wasm';
+      pipelineLog.info('Embedding', `Lade ${modelConfig.label} (${modelConfig.downloadSize}) — ${device}`);
       const progressCb = (p: Record<string, unknown>): void => {
         onProgress?.({
           phase: 'loading',
@@ -81,8 +83,10 @@ export class EmbeddingService {
       }
 
       this.currentModelId = modelConfig.id;
+      pipelineLog.info('Embedding', `${modelConfig.label} bereit — ${device}`);
       onProgress?.({ phase: 'ready' });
     } catch (err) {
+      pipelineLog.warn('Embedding', `Laden fehlgeschlagen: ${err}`);
       this.loading = false;
       throw err;
     }

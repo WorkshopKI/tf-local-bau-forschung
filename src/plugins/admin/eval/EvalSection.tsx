@@ -10,6 +10,7 @@ import { EVAL_SUITES, getSuiteById } from '@/core/services/search/eval/eval-suit
 import type { EvalReport, EvalProgress } from '@/core/services/search/eval/eval-types';
 import { evalToMarkdown } from '@/core/services/search/eval/eval-export';
 import { EvalResultView } from './EvalResultView';
+import { pipelineLog } from '@/core/services/search/pipeline-logger';
 
 const MAX_HISTORY = 20;
 
@@ -51,6 +52,7 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
       }
 
       const suite = getSuiteById(suiteId);
+      pipelineLog.info('Eval', `Starte Suite "${suite.label}" mit ${suite.cases.length} Tests`);
       const runner = new EvalRunner(modelId);
       const result = await runner.run(suite.cases, setProgress);
 
@@ -72,6 +74,7 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
         try { await storage.fs.writeFile('EVAL_REPORT.md', evalToMarkdown(result)); }
         catch { /* ignore */ }
       }
+      pipelineLog.info('Eval', `Ergebnis: ${Math.round(result.summary.passed / result.summary.total * 100)}% (${result.summary.passed}/${result.summary.total})`);
       setReport(result);
     } catch (err) {
       setError(String(err)); console.error('Eval failed:', err);

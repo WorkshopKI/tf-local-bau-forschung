@@ -8,6 +8,7 @@ import { getActiveModelId, getModelById } from '@/core/services/search/model-reg
 import { isReRankerReady, rerank } from '@/core/services/search/re-ranker';
 import type { EmbeddingModelConfig } from '@/core/services/search/model-registry';
 import type { StorageService } from '@/core/services/storage';
+import { pipelineLog } from '@/core/services/search/pipeline-logger';
 
 interface SearchContextValue {
   search: (query: string, filters?: { type?: string }) => Promise<void>;
@@ -94,19 +95,34 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
   const search = useCallback(async (query: string, filters?: { type?: string }) => {
     if (!query.trim()) { setResults([]); return; }
     setLoading(true);
+    const t0 = performance.now();
     try {
       let queryVector: number[] | null = null;
       if (embeddingService.isReady() && modelConfigRef.current) {
         queryVector = await embeddingService.embedSingle(
           query, modelConfigRef.current, 'query',
         );
+        pipelineLog.info('Embedding', `Query embedden mit ${modelConfigRef.current.label} — ${queryVector.length}d`);
+      } else {
+        pipelineLog.warn('Embedding', 'Nicht bereit — nur BM25 Fulltext-Suche');
       }
-      const useReRanker = isReRankerReady();
-      const stage1Limit = useReRanker ? 30 : undefined;
+      const reRankerActive = isReRankerReady();
+      const stage1Limit = reRankerActive ? 30 : undefined;
       const stage1 = hybridSearch(query, queryVector, { type: filters?.type, limit: stage1Limit });
-      const r = useReRanker ? await rerank(query, stage1, 15, 10) : stage1;
+      pipelineLog.info('Orama', `${queryVector ? 'Hybrid' : 'Fulltext'}-Suche: ${stage1.length} Ergebnisse`);
+      const r = reRankerActive ? await rerank(query, stage1, 15, 10) : stage1;
+      if (reRankerActive) pipelineLog.info('Re-Ranker', `${stage1.length} → ${r.length} Ergebnisse`);
       setResults(r);
-    } catch { setResults([]); }
+      pipelineLog.searchSummary({
+        query,
+        embeddingModel: modelConfigRef.current?.label ?? 'keins',
+        vectorReady: !!queryVector,
+        reRankerActive,
+        stage1Results: stage1.length,
+        stage2Results: reRankerActive ? r.length : undefined,
+        totalTimeMs: Math.round(performance.now() - t0),
+      });
+    } catch (err) { pipelineLog.warn('Suche', `Fehler: ${err}`); setResults([]); }
     finally { setLoading(false); }
   }, []);
 

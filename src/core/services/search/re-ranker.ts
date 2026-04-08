@@ -5,7 +5,7 @@
 
 import type { OramaSearchResult } from './orama-store';
 
-const RERANKER_MODEL = 'cross-encoder/ms-marco-MiniLM-L-6-v2';
+const RERANKER_MODEL = 'Xenova/ms-marco-MiniLM-L-6-v2';
 
 interface ReRankerState {
   tokenizer: any | null;

@@ -9,6 +9,7 @@ import { contextualChunk } from './contextual-chunker';
 import type { ContextualChunk } from './contextual-chunker';
 import { saveCheckpoint, loadCheckpoint, clearCheckpoint, isDocProcessed } from './checkpoint';
 import type { IndexCheckpoint } from './checkpoint';
+import { pipelineLog } from './pipeline-logger';
 
 export interface IndexStatus {
   phase: string;
@@ -91,6 +92,13 @@ export class BatchIndexer {
     }
 
     const docs = await storage.idb.keys('doc:');
+    pipelineLog.indexSummary({
+      embeddingModel: this.modelConfig.label,
+      metadataLLM: config.metadataLLMId ?? null,
+      contextualPrefixes: config.useContextualPrefixes,
+      totalDocs: docs.length,
+      backend: embeddingService.isReady() ? 'bereit' : 'nicht geladen',
+    });
     const manifest = await storage.idb.get<Record<string, string>>('index-manifest') ?? {};
     let totalChunks = isFull ? 0 : (await storage.idb.get<number>('index-chunk-count') ?? 0);
     let processed = 0;
@@ -232,6 +240,7 @@ export class BatchIndexer {
       await saveIndexToFileServer(storage);
     } catch { /* File Server nicht verfuegbar */ }
 
+    pipelineLog.info('Indexer', `Fertig: ${totalChunks} Chunks aus ${processed} Dokumenten (${skipped} uebersprungen)`);
     return totalChunks;
   }
 

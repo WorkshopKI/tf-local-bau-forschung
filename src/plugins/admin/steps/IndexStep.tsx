@@ -42,6 +42,7 @@ export function IndexStep({
   const [checkpointTotal, setCheckpointTotal] = useState(0);
   const [hasModelDir, setHasModelDir] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [indexedPrefixes, setIndexedPrefixes] = useState<boolean | null>(null);
   const abortRef = useRef(new AbortController());
 
   interface PipelineCfg { metadataLLMId: string; useContextualPrefixes: boolean; useReRanker: boolean }
@@ -57,6 +58,9 @@ export function IndexStep({
         setUseContextualPrefixes(cfg.useContextualPrefixes);
         setUseReRanker(cfg.useReRanker);
       }
+    });
+    storage.idb.get<{ contextualPrefixes?: boolean }>('index-pipeline-config').then(c => {
+      if (c) setIndexedPrefixes(c.contextualPrefixes ?? false);
     });
     loadCheckpoint(storage).then(cp => {
       if (cp) {
@@ -94,6 +98,8 @@ export function IndexStep({
       const elapsed = Date.now() - startTime;
       setChunkCount(count); setLastUpdate(new Date().toISOString());
       setIndexModelId(activeModelId); setNewDocsCount(0);
+      await storage.idb.set('index-pipeline-config', { contextualPrefixes: useContextualPrefixes });
+      setIndexedPrefixes(useContextualPrefixes);
       indexer.destroy();
       if (abortRef.current.signal.aborted) { setAborted(true); }
       else { setIndexResult({ chunks: count, docs: status?.total ?? 0, skipped: status?.skipped ?? 0, duration: formatDuration(elapsed) }); }
@@ -118,6 +124,16 @@ export function IndexStep({
             <p className="text-[12px] text-[var(--tf-warning-text)]">Modell gewechselt — Index muss neu erstellt werden.</p>
           </div>
           <Button variant="secondary" size="sm" disabled={running} onClick={() => runIndex(true)}>Jetzt neu indexieren</Button>
+        </div>
+      )}
+
+      {indexedPrefixes !== null && indexedPrefixes !== useContextualPrefixes && !running && (
+        <div className="flex items-center justify-between p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
+            <p className="text-[12px] text-[var(--tf-warning-text)]">Einstellungen geändert — &quot;Alle Dokumente indizieren&quot; nötig damit die Änderungen wirken.</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => runIndex(true)}>Jetzt indizieren</Button>
         </div>
       )}
 
@@ -152,11 +168,13 @@ export function IndexStep({
             <input type="checkbox" checked={useContextualPrefixes}
               onChange={e => { setUseContextualPrefixes(e.target.checked); savePipeline({ useContextualPrefixes: e.target.checked }); }} />
             Kontextuelle Chunk-Prefixes
+            <span className="text-[11px] text-[var(--tf-text-tertiary)]">— erfordert Neu-Indexierung</span>
           </label>
           <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)] cursor-pointer">
             <input type="checkbox" checked={useReRanker}
               onChange={e => { setUseReRanker(e.target.checked); savePipeline({ useReRanker: e.target.checked }); }} />
             Cross-Encoder Re-Ranker (~500ms extra)
+            <span className="text-[11px] text-[var(--tf-text-tertiary)]">— wirkt sofort, kein Reindexing</span>
           </label>
 
           {hasCheckpoint && (
@@ -200,7 +218,7 @@ export function IndexStep({
       {!running ? (
         <div className="flex gap-3">
           <Button variant="secondary" icon={Database} disabled={docCount === 0} onClick={() => runIndex(false)}>Neue Dokumente indexieren</Button>
-          <Button variant="secondary" icon={RefreshCw} disabled={docCount === 0} onClick={() => runIndex(true)}>Alles neu aufbauen</Button>
+          <Button variant="secondary" icon={RefreshCw} disabled={docCount === 0} onClick={() => runIndex(true)}>Alle Dokumente indizieren</Button>
         </div>
       ) : (
         <Button variant="danger" icon={Square} onClick={() => abortRef.current.abort()}>Abbrechen</Button>

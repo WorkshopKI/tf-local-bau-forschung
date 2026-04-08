@@ -1,5 +1,6 @@
 import { create, upsert, remove, search, save, load, count,
   type Orama, type Results } from '@orama/orama';
+import { pipelineLog } from './pipeline-logger';
 
 export interface OramaDoc {
   id: string;
@@ -176,7 +177,9 @@ export function hybridSearch(
 
   // Nach Normalisierung neu sortieren (Scores haben sich verändert)
   mapped.sort((a, b) => b.score - a.score);
-  return deduplicateBySource(mapped, maxPerDoc).slice(0, limit);
+  const final = deduplicateBySource(mapped, maxPerDoc).slice(0, limit);
+  pipelineLog.info('Orama', `${queryVector ? 'hybrid' : 'fulltext'}: ${syncResults.hits.length} Treffer → ${final.length} nach Dedup`);
+  return final;
 }
 
 export function getDocCount(): number {
