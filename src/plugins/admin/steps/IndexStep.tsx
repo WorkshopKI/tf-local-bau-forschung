@@ -44,7 +44,20 @@ export function IndexStep({
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const abortRef = useRef(new AbortController());
 
+  interface PipelineCfg { metadataLLMId: string; useContextualPrefixes: boolean; useReRanker: boolean }
+  const savePipeline = (patch: Partial<PipelineCfg>): void => {
+    const cfg: PipelineCfg = { metadataLLMId, useContextualPrefixes, useReRanker, ...patch };
+    storage.idb.set('pipeline-config', cfg);
+  };
+
   useEffect(() => {
+    storage.idb.get<PipelineCfg>('pipeline-config').then(cfg => {
+      if (cfg) {
+        setMetadataLLMId(cfg.metadataLLMId);
+        setUseContextualPrefixes(cfg.useContextualPrefixes);
+        setUseReRanker(cfg.useReRanker);
+      }
+    });
     loadCheckpoint(storage).then(cp => {
       if (cp) {
         setHasCheckpoint(true);
@@ -93,142 +106,135 @@ export function IndexStep({
 
   return (
     <div className="space-y-3">
-        {/* Modell-Auswahl */}
-        <Select label="Embedding-Modell"
-          options={EMBEDDING_MODELS.map(m => ({ value: m.id, label: `${m.label} — ${m.description}` }))}
-          value={activeModelId}
-          onChange={async (e) => {
-            const newId = e.target.value;
-            setActiveModelIdState(newId);
-            await setActiveModelId(storage.idb, newId);
-          }} />
-        <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-          {activeModel.sizeLabel} · {activeModel.useMRL && activeModel.mrlDimensions ? activeModel.mrlDimensions : activeModel.dimensions} Dim.{activeModel.useMRL ? ' (MRL)' : ''} · {activeModel.downloadSize} · {hasGPU ? 'WebGPU' : 'CPU'}
-        </p>
+      {/* Modell-Info (nur Text, kein Dropdown) */}
+      <p className="text-[13px] text-[var(--tf-text)]">
+        {activeModel.label} · {activeModel.sizeLabel} · {activeModel.useMRL && activeModel.mrlDimensions ? activeModel.mrlDimensions : activeModel.dimensions} Dim. · {hasGPU ? 'WebGPU' : 'CPU'}
+      </p>
 
-        {indexOutdated && (
-          <div className="flex items-center justify-between p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
-              <p className="text-[12px] text-[var(--tf-warning-text)]">Modell gewechselt — Index muss neu erstellt werden.</p>
-            </div>
-            <Button variant="secondary" size="sm" disabled={running} onClick={() => runIndex(true)}>Jetzt neu indexieren</Button>
+      {indexOutdated && (
+        <div className="flex items-center justify-between p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
+            <p className="text-[12px] text-[var(--tf-warning-text)]">Modell gewechselt — Index muss neu erstellt werden.</p>
           </div>
-        )}
+          <Button variant="secondary" size="sm" disabled={running} onClick={() => runIndex(true)}>Jetzt neu indexieren</Button>
+        </div>
+      )}
 
-        <details className="text-[11px] text-[var(--tf-text-tertiary)]">
-          <summary className="cursor-pointer hover:text-[var(--tf-text-secondary)]">Technische Details</summary>
-          <div className="mt-2 space-y-1 pl-3">
-            <Row label="HuggingFace ID" value={activeModel.name} />
-            <Row label="Dimensionen" value={String(activeModel.useMRL && activeModel.mrlDimensions ? `${activeModel.mrlDimensions} (MRL von ${activeModel.dimensions})` : activeModel.dimensions)} />
-            <Row label="Chunk-Groesse" value="200 Woerter, 50 Overlap" />
-            {activeModel.queryPrefix && <Row label="Query-Prefix" value={activeModel.queryPrefix} />}
-            {activeModel.documentPrefix && <Row label="Document-Prefix" value={activeModel.documentPrefix} />}
-            <Row label="Backend" value={hasGPU ? 'WebGPU' : 'WASM (CPU)'} />
-          </div>
-        </details>
-
-        <details className="text-[12px] text-[var(--tf-text-secondary)]">
-          <summary className="cursor-pointer hover:text-[var(--tf-text)] font-medium">Pipeline konfigurieren</summary>
-          <div className="mt-3 space-y-3 pl-3" style={{ borderLeft: '2px solid var(--tf-border)' }}>
-            <Select label="Embedding-Modell"
-              options={EMBEDDING_MODELS.map(m => ({
-                value: m.id,
-                label: `${m.label} (${m.sizeLabel}${m.useMRL ? ', MRL' : ''})`,
-              }))}
+      {/* Erweiterte Einstellungen (merged: Pipeline + Technische Details) */}
+      <details className="text-[11px] text-[var(--tf-text-tertiary)]">
+        <summary className="cursor-pointer hover:text-[var(--tf-text-secondary)]">Erweiterte Einstellungen</summary>
+        <div className="mt-3 space-y-4 p-3 bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)]">
+          <div>
+            <p className="text-[12px] font-medium text-[var(--tf-text)] mb-1">Embedding-Modell</p>
+            <Select
+              options={EMBEDDING_MODELS.map(m => ({ value: m.id, label: `${m.label} — ${m.description}` }))}
               value={activeModelId}
               onChange={async (e) => {
                 const newId = e.target.value;
                 setActiveModelIdState(newId);
                 await setActiveModelId(storage.idb, newId);
               }} />
-            <Select label="Metadata-Extraktion (LLM)"
-              options={METADATA_LLM_MODELS.map(m => ({
-                value: m.id,
-                label: `${m.label} — ${m.size}`,
-              }))}
-              value={metadataLLMId}
-              onChange={e => setMetadataLLMId(e.target.value)} />
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={useContextualPrefixes}
-                onChange={e => setUseContextualPrefixes(e.target.checked)} />
-              <span>Kontextuelle Chunk-Prefixes (verbessert Embedding-Qualitaet)</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={useReRanker}
-                onChange={e => setUseReRanker(e.target.checked)} />
-              <span>Cross-Encoder Re-Ranker (ms-marco-MiniLM, ~500ms extra pro Suche)</span>
-            </label>
-            {hasCheckpoint && (
-              <div className="flex items-center justify-between p-2 bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)]">
-                <span className="text-[var(--tf-text-secondary)]">
-                  Unterbrochene Indexierung: {checkpointProgress}/{checkpointTotal} Dokumente
-                </span>
-                <Button variant="secondary" size="sm" onClick={() => runIndex(false, true)}>Fortsetzen</Button>
-              </div>
-            )}
-            {!hasModelDir && (
-              <div className="p-3 bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)]">
-                <p className="font-medium mb-1">Modelle werden direkt von HuggingFace geladen.</p>
-                <p>Fuer Offline-Betrieb: Verbinden Sie ein Modellverzeichnis (Schritt 1) und fuehren Sie das Download-Script aus:</p>
-                <code className="block mt-1 p-2 bg-[var(--tf-bg)] rounded text-[11px] font-mono">
-                  ./scripts/download-models.sh /pfad/zum/modell-verzeichnis
-                </code>
-              </div>
-            )}
-            {hasModelDir && availableModels.length > 0 && (
-              <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-                {availableModels.length} Modelle im Verzeichnis: {availableModels.join(', ')}
-              </p>
-            )}
-            {hasModelDir && availableModels.length === 0 && (
-              <div className="p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-warning-text)]">
-                Modellverzeichnis verbunden, aber keine Modelle gefunden.
-                Fuehren Sie das Download-Script aus oder laden Sie Modelle manuell herunter.
-              </div>
-            )}
-          </div>
-        </details>
-
-        {/* Indexierungs-Buttons */}
-        {!running ? (
-          <div className="flex gap-3">
-            <Button variant="secondary" icon={Database} disabled={docCount === 0} onClick={() => runIndex(false)}>Neue Dokumente indexieren</Button>
-            <Button variant="secondary" icon={RefreshCw} disabled={docCount === 0} onClick={() => runIndex(true)}>Alles neu aufbauen</Button>
-          </div>
-        ) : (
-          <Button variant="danger" icon={Square} onClick={() => abortRef.current.abort()}>Abbrechen</Button>
-        )}
-
-        <IndexProgress status={status} running={running} />
-
-        {indexResult && !running && (
-          <div className="flex items-center gap-2 p-3 bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)]">
-            <CheckCircle2 size={14} className="text-[var(--tf-text)]" />
-            <p className="text-[12px] text-[var(--tf-text)]">
-              {indexResult.skipped === indexResult.docs
-                ? 'Keine neuen Dokumente. Index ist aktuell.'
-                : indexResult.skipped > 0
-                  ? `${indexResult.chunks} Textabschnitte (${indexResult.docs - indexResult.skipped} neue, ${indexResult.skipped} uebersprungen) — ${indexResult.duration}`
-                  : `${indexResult.chunks} Textabschnitte aus ${indexResult.docs} Dokumenten — ${indexResult.duration}`}
+            <p className="text-[11px] text-[var(--tf-text-tertiary)] mt-1">
+              {activeModel.dimensions} Dimensionen · {activeModel.downloadSize}
             </p>
           </div>
-        )}
-        {aborted && !running && (
-          <div className="flex items-center gap-2 p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
-            <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
-            <p className="text-[12px] text-[var(--tf-warning-text)]">Abgebrochen. {status?.processed ?? 0}/{status?.total ?? 0} Dokumente.</p>
+
+          <div>
+            <p className="text-[12px] font-medium text-[var(--tf-text)] mb-1">Metadata-Extraktion (LLM)</p>
+            <Select
+              options={METADATA_LLM_MODELS.map(m => ({ value: m.id, label: `${m.label} — ${m.size}` }))}
+              value={metadataLLMId}
+              onChange={e => { setMetadataLLMId(e.target.value); savePipeline({ metadataLLMId: e.target.value }); }} />
           </div>
-        )}
-        {error && !running && (
-          <div className="p-3 bg-[var(--tf-error-bg)] rounded-[var(--tf-radius)] space-y-2">
-            <div className="flex items-center gap-2">
-              <XCircle size={14} className="text-[var(--tf-error-text)]" />
-              <p className="text-[12px] text-[var(--tf-error-text)]">{error}</p>
+
+          <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)] cursor-pointer">
+            <input type="checkbox" checked={useContextualPrefixes}
+              onChange={e => { setUseContextualPrefixes(e.target.checked); savePipeline({ useContextualPrefixes: e.target.checked }); }} />
+            Kontextuelle Chunk-Prefixes
+          </label>
+          <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)] cursor-pointer">
+            <input type="checkbox" checked={useReRanker}
+              onChange={e => { setUseReRanker(e.target.checked); savePipeline({ useReRanker: e.target.checked }); }} />
+            Cross-Encoder Re-Ranker (~500ms extra)
+          </label>
+
+          {hasCheckpoint && (
+            <div className="flex items-center justify-between p-2 bg-[var(--tf-bg)] rounded-[var(--tf-radius)]">
+              <span className="text-[12px] text-[var(--tf-text-secondary)]">
+                Unterbrochene Indexierung: {checkpointProgress}/{checkpointTotal} Dokumente
+              </span>
+              <Button variant="secondary" size="sm" onClick={() => runIndex(false, true)}>Fortsetzen</Button>
             </div>
-            <Button variant="secondary" onClick={() => runIndex(true)}>Erneut versuchen</Button>
+          )}
+
+          {!hasModelDir && metadataLLMId !== 'none' && (
+            <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+              Modelle werden von HuggingFace geladen. Offline: <code className="text-[10px]">./scripts/download-models.sh</code>
+            </p>
+          )}
+          {hasModelDir && availableModels.length > 0 && (
+            <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+              {availableModels.length} Modelle im Verzeichnis: {availableModels.join(', ')}
+            </p>
+          )}
+          {hasModelDir && availableModels.length === 0 && (
+            <p className="text-[11px] text-[var(--tf-warning-text)]">
+              Modellverzeichnis verbunden, aber keine Modelle gefunden.
+            </p>
+          )}
+
+          {/* Technische Details (flach, nicht nochmal aufklappbar) */}
+          <div className="pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+            <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">Technische Details</p>
+            <Row label="HuggingFace ID" value={activeModel.name} />
+            <Row label="Chunk-Groesse" value="200 Woerter, 50 Overlap" />
+            {activeModel.queryPrefix && <Row label="Query-Prefix" value={activeModel.queryPrefix} />}
+            {activeModel.documentPrefix && <Row label="Document-Prefix" value={activeModel.documentPrefix} />}
+            <Row label="Backend" value={hasGPU ? 'WebGPU' : 'WASM (CPU)'} />
           </div>
-        )}
+        </div>
+      </details>
+
+      {/* Indexierungs-Buttons */}
+      {!running ? (
+        <div className="flex gap-3">
+          <Button variant="secondary" icon={Database} disabled={docCount === 0} onClick={() => runIndex(false)}>Neue Dokumente indexieren</Button>
+          <Button variant="secondary" icon={RefreshCw} disabled={docCount === 0} onClick={() => runIndex(true)}>Alles neu aufbauen</Button>
+        </div>
+      ) : (
+        <Button variant="danger" icon={Square} onClick={() => abortRef.current.abort()}>Abbrechen</Button>
+      )}
+
+      <IndexProgress status={status} running={running} />
+
+      {indexResult && !running && (
+        <div className="flex items-center gap-2 p-3 bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)]">
+          <CheckCircle2 size={14} className="text-[var(--tf-text)]" />
+          <p className="text-[12px] text-[var(--tf-text)]">
+            {indexResult.skipped === indexResult.docs
+              ? 'Keine neuen Dokumente. Index ist aktuell.'
+              : indexResult.skipped > 0
+                ? `${indexResult.chunks} Textabschnitte (${indexResult.docs - indexResult.skipped} neue, ${indexResult.skipped} uebersprungen) — ${indexResult.duration}`
+                : `${indexResult.chunks} Textabschnitte aus ${indexResult.docs} Dokumenten — ${indexResult.duration}`}
+          </p>
+        </div>
+      )}
+      {aborted && !running && (
+        <div className="flex items-center gap-2 p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
+          <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
+          <p className="text-[12px] text-[var(--tf-warning-text)]">Abgebrochen. {status?.processed ?? 0}/{status?.total ?? 0} Dokumente.</p>
+        </div>
+      )}
+      {error && !running && (
+        <div className="p-3 bg-[var(--tf-error-bg)] rounded-[var(--tf-radius)] space-y-2">
+          <div className="flex items-center gap-2">
+            <XCircle size={14} className="text-[var(--tf-error-text)]" />
+            <p className="text-[12px] text-[var(--tf-error-text)]">{error}</p>
+          </div>
+          <Button variant="secondary" onClick={() => runIndex(true)}>Erneut versuchen</Button>
+        </div>
+      )}
     </div>
   );
 }
