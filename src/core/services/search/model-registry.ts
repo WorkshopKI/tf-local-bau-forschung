@@ -3,6 +3,7 @@ export interface EmbeddingModelConfig {
   name: string;
   label: string;
   dimensions: number;
+  mrlDimensions?: number;
   sizeLabel: string;
   downloadSize: string;
   strategy: 'pipeline' | 'automodel';
@@ -13,6 +14,7 @@ export interface EmbeddingModelConfig {
   documentPrefix: string;
   description: string;
   matryoshka?: number[];
+  useMRL?: boolean;
 }
 
 export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
@@ -45,6 +47,23 @@ export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
     documentPrefix: 'title: none | text: ',
     description: 'Google, multilingual, 100+ Sprachen. Beste Qualitaet.',
     matryoshka: [768, 512, 384, 256, 128],
+  },
+  {
+    id: 'qwen3-embed-0.6b',
+    name: 'onnx-community/Qwen3-Embedding-0.6B-ONNX',
+    label: 'Qwen3 Embedding 0.6B',
+    sizeLabel: '600M',
+    dimensions: 1024,
+    mrlDimensions: 512,
+    downloadSize: '~560 MB (q8)',
+    description: 'Qwen3 Embedding, multilingual, 100+ Sprachen, MTEB Top-Scorer. Unterstuetzt MRL (Matryoshka) fuer variable Dimensionen.',
+    queryPrefix: 'Instruct: Given a search query, retrieve relevant document passages\nQuery: ',
+    documentPrefix: 'Instruct: Retrieve relevant passages from German administrative documents\nQuery: ',
+    dtype: 'q8',
+    strategy: 'automodel',
+    pooling: 'mean',
+    normalize: true,
+    useMRL: true,
   },
 ];
 

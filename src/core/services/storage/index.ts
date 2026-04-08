@@ -40,10 +40,10 @@ export class StorageService {
       const handle = await this.idb.get<FileSystemDirectoryHandle>(`dir-handle:${entry.id}`);
       if (!handle) continue;
       try {
-        const mode = entry.type === 'documents' ? 'read' as const : 'readwrite' as const;
+        const mode = entry.type === 'data' ? 'readwrite' as const : 'read' as const;
         const permission = await handle.requestPermission({ mode });
         if (permission === 'granted') {
-          const fsMode = entry.type === 'documents' ? 'readonly' as const : 'readwrite' as const;
+          const fsMode = entry.type === 'data' ? 'readwrite' as const : 'readonly' as const;
           this._directories.set(entry.id, { entry: { ...entry, folderName: handle.name }, store: new FileServerStore(handle, fsMode) });
         }
       } catch { /* Permission denied — skip */ }
@@ -70,13 +70,13 @@ export class StorageService {
     if (this.isFileServerConnected()) await this.syncService.processQueue();
   }
 
-  async addDirectory(type: 'documents' | 'data', label?: string): Promise<DirectoryEntry | null> {
+  async addDirectory(type: 'documents' | 'data' | 'models', label?: string): Promise<DirectoryEntry | null> {
     try {
       const pickerMode = type === 'data' ? 'readwrite' as const : 'read' as const;
       const handle = await window.showDirectoryPicker({ mode: pickerMode });
       const id = `dir-${Date.now()}`;
       const entry: DirectoryEntry = { id, label: label ?? handle.name, type, folderName: handle.name };
-      const fsMode = type === 'documents' ? 'readonly' as const : 'readwrite' as const;
+      const fsMode = type === 'data' ? 'readwrite' as const : 'readonly' as const;
       this._directories.set(id, { entry, store: new FileServerStore(handle, fsMode) });
       await this.idb.set(`dir-handle:${id}`, handle);
       await this.saveDirectoryEntries();
@@ -116,6 +116,17 @@ export class StorageService {
 
   getDataDirectories(): DirectoryEntry[] {
     return this.getDirectories().filter(d => d.type === 'data');
+  }
+
+  getModelDirectories(): DirectoryEntry[] {
+    return this.getDirectories().filter(d => d.type === 'models');
+  }
+
+  getModelDirectoryStore(): FileServerStore | null {
+    for (const d of this._directories.values()) {
+      if (d.entry.type === 'models') return d.store;
+    }
+    return null;
   }
 
   isFileServerConnected(): boolean {

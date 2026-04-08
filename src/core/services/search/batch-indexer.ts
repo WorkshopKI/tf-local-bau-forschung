@@ -3,6 +3,12 @@ import type { EmbeddingProgress } from './embedding-service';
 import type { EmbeddingModelConfig } from './model-registry';
 import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB } from './orama-store';
 import type { StorageService } from '@/core/services/storage';
+import { extractMetadata, initMetadataLLM, disposeMetadataLLM } from './metadata-extractor';
+import type { DocumentMetadata } from './metadata-extractor';
+import { contextualChunk } from './contextual-chunker';
+import type { ContextualChunk } from './contextual-chunker';
+import { saveCheckpoint, loadCheckpoint, clearCheckpoint, isDocProcessed } from './checkpoint';
+import type { IndexCheckpoint } from './checkpoint';
 
 export interface IndexStatus {
   phase: string;
@@ -12,6 +18,14 @@ export interface IndexStatus {
   skipped: number;
   modelProgress?: { status: string; loaded?: number; total?: number };
   chunkProgress?: { current: number; total: number };
+}
+
+export interface PipelineConfig {
+  embeddingModelId: string;
+  metadataLLMId: string | null;
+  useContextualPrefixes: boolean;
+  useReRanker: boolean;
+  resumeFromCheckpoint: boolean;
 }
 
 function chunkText(text: string, size = 200, overlap = 50): string[] {
@@ -52,6 +66,7 @@ export class BatchIndexer {
 
   async indexAll(
     storage: StorageService,
+    config: PipelineConfig,
     onStatus: (status: IndexStatus) => void,
     signal?: AbortSignal,
   ): Promise<number> {
@@ -80,10 +95,27 @@ export class BatchIndexer {
     let totalChunks = isFull ? 0 : (await storage.idb.get<number>('index-chunk-count') ?? 0);
     let processed = 0;
     let skipped = 0;
-    // Chunk-Counts pro Quelldokument (für Score-Normalisierung)
     const docChunkCounts: Record<string, number> = isFull
       ? {}
       : (await storage.idb.get<Record<string, number>>('doc-chunk-counts') ?? {});
+
+    // Checkpoint: resume support
+    let checkpoint: IndexCheckpoint | null = null;
+    if (config.resumeFromCheckpoint) {
+      checkpoint = await loadCheckpoint(storage);
+      if (checkpoint && checkpoint.modelId !== this.modelConfig.id) {
+        checkpoint = null; // Model changed, discard checkpoint
+      }
+    }
+
+    // Init metadata LLM if configured
+    const useLLM = config.metadataLLMId != null && config.metadataLLMId !== 'none';
+    if (useLLM) {
+      onStatus({ phase: 'LLM laden', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
+      await initMetadataLLM(config.metadataLLMId!, (msg) => {
+        onStatus({ phase: msg, total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
+      });
+    }
 
     onStatus({ phase: 'Scanning', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
 
@@ -93,6 +125,13 @@ export class BatchIndexer {
       const doc = await storage.idb.get<{ id: string; filename: string; markdown: string }>(key);
       if (!doc) continue;
 
+      // Skip docs already in checkpoint
+      if (isDocProcessed(checkpoint, doc.id)) {
+        skipped++; processed++;
+        onStatus({ phase: 'Skipping (checkpoint)', total: docs.length, processed, currentDoc: doc.filename, skipped });
+        continue;
+      }
+
       const hash = await hashText(doc.markdown);
       if (manifest[doc.id] === hash) {
         skipped++; processed++;
@@ -100,12 +139,37 @@ export class BatchIndexer {
         continue;
       }
 
-      onStatus({ phase: 'Chunking', total: docs.length, processed, currentDoc: doc.filename, skipped });
-      const chunks = chunkText(doc.markdown);
+      // Extract metadata if LLM is active
+      onStatus({ phase: 'Metadata', total: docs.length, processed, currentDoc: doc.filename, skipped });
+      const metadata: DocumentMetadata | null = useLLM
+        ? await extractMetadata(doc.filename, doc.markdown)
+        : null;
+
+      // Chunk: contextual or plain
+      let textsToEmbed: string[];
+      let chunkIds: string[];
+      let chunkTexts: string[];
+      let tags: string;
+
+      if (config.useContextualPrefixes) {
+        onStatus({ phase: 'Chunking (contextual)', total: docs.length, processed, currentDoc: doc.filename, skipped });
+        const ctxChunks: ContextualChunk[] = contextualChunk(doc.id, doc.filename, doc.markdown, metadata);
+        textsToEmbed = ctxChunks.map(c => c.prefixedText);
+        chunkIds = ctxChunks.map(c => c.id);
+        chunkTexts = ctxChunks.map(c => c.text);
+        tags = metadata?.topic_tags?.join(', ') ?? '';
+      } else {
+        onStatus({ phase: 'Chunking', total: docs.length, processed, currentDoc: doc.filename, skipped });
+        const plainChunks = chunkText(doc.markdown);
+        textsToEmbed = plainChunks;
+        chunkIds = plainChunks.map((_, i) => `${doc.id}-${i}`);
+        chunkTexts = plainChunks;
+        tags = metadata?.topic_tags?.join(', ') ?? '';
+      }
 
       onStatus({ phase: 'Embedding', total: docs.length, processed, currentDoc: doc.filename, skipped });
       const vectors = await embeddingService.embedBatch(
-        chunks, this.modelConfig, 'document',
+        textsToEmbed, this.modelConfig, 'document',
         (current, total) => {
           onStatus({
             phase: 'Embedding', total: docs.length, processed,
@@ -116,13 +180,13 @@ export class BatchIndexer {
         signal,
       );
 
-      for (let i = 0; i < chunks.length; i++) {
+      for (let i = 0; i < chunkTexts.length; i++) {
         insertDoc({
-          id: `${doc.id}-${i}`,
-          text: chunks[i] ?? '',
+          id: chunkIds[i] ?? `${doc.id}-${i}`,
+          text: chunkTexts[i] ?? '',
           title: doc.filename,
           source: doc.filename,
-          tags: '',
+          tags,
           type: 'dokument',
           embedding: vectors[i] ?? [],
         });
@@ -133,7 +197,24 @@ export class BatchIndexer {
       manifest[doc.id] = hash;
       processed++;
       onStatus({ phase: 'Done', total: docs.length, processed, currentDoc: doc.filename, skipped });
+
+      // Save checkpoint every 10 docs
+      if (processed % 10 === 0) {
+        const cp: IndexCheckpoint = {
+          processedDocIds: Object.keys(manifest),
+          totalDocs: docs.length,
+          chunkCount: totalChunks,
+          startTime: checkpoint?.startTime ?? new Date().toISOString(),
+          lastUpdate: new Date().toISOString(),
+          modelId: this.modelConfig.id,
+          metadataLLMId: config.metadataLLMId ?? null,
+        };
+        await saveCheckpoint(storage, cp);
+      }
     }
+
+    // Dispose LLM if loaded
+    if (useLLM) disposeMetadataLLM();
 
     await saveOramaToDB(storage.idb);
     await storage.idb.set('index-chunk-count', totalChunks);
@@ -141,6 +222,9 @@ export class BatchIndexer {
     await storage.idb.set('index-last-update', new Date().toISOString());
     await storage.idb.set('index-model-id', this.modelConfig.id);
     await storage.idb.set('doc-chunk-counts', docChunkCounts);
+
+    // Clear checkpoint on success
+    await clearCheckpoint(storage);
 
     // Index auf File Server speichern (wenn verbunden)
     try {

@@ -14,6 +14,13 @@ export interface EmbeddingProgress {
 
 type ProgressCallback = (progress: EmbeddingProgress) => void;
 
+function truncateAndNormalize(vec: number[], targetDim: number): number[] {
+  const truncated = vec.slice(0, targetDim);
+  const norm = Math.sqrt(truncated.reduce((sum, v) => sum + v * v, 0));
+  if (norm === 0) return truncated;
+  return truncated.map(v => v / norm);
+}
+
 export class EmbeddingService {
   private pipelineExtractor: FeatureExtractionPipeline | null = null;
   private autoModel: unknown = null;
@@ -97,14 +104,20 @@ export class EmbeddingService {
   ): Promise<number[]> {
     const input = (mode === 'query' ? config.queryPrefix : config.documentPrefix) + text;
 
+    let result: number[];
     if (this.pipelineExtractor) {
       const output = await this.pipelineExtractor(input, { pooling: 'mean', normalize: true });
-      return Array.from(output.data as Float32Array);
+      result = Array.from(output.data as Float32Array);
+    } else if (this.autoModel && this.autoTokenizer) {
+      result = await this.embedWithAutoModel(input, config);
+    } else {
+      throw new Error('Model not initialized');
     }
-    if (this.autoModel && this.autoTokenizer) {
-      return this.embedWithAutoModel(input, config);
+
+    if (config.useMRL && config.mrlDimensions) {
+      result = truncateAndNormalize(result, config.mrlDimensions);
     }
-    throw new Error('Model not initialized');
+    return result;
   }
 
   async embedBatch(
@@ -121,14 +134,20 @@ export class EmbeddingService {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       const input = prefix + texts[i]!;
 
+      let vec: number[];
       if (this.pipelineExtractor) {
         const output = await this.pipelineExtractor(input, { pooling: 'mean', normalize: true });
-        vectors.push(Array.from(output.data as Float32Array));
+        vec = Array.from(output.data as Float32Array);
       } else if (this.autoModel && this.autoTokenizer) {
-        vectors.push(await this.embedWithAutoModel(input, config));
+        vec = await this.embedWithAutoModel(input, config);
       } else {
         throw new Error('Model not initialized');
       }
+
+      if (config.useMRL && config.mrlDimensions) {
+        vec = truncateAndNormalize(vec, config.mrlDimensions);
+      }
+      vectors.push(vec);
 
       await new Promise(r => setTimeout(r, 0));
       onProgress?.(i + 1, texts.length);

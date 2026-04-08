@@ -5,6 +5,7 @@ import {
 } from '@/core/services/search/orama-store';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
+import { isReRankerReady, rerank } from '@/core/services/search/re-ranker';
 import type { EmbeddingModelConfig } from '@/core/services/search/model-registry';
 import type { StorageService } from '@/core/services/storage';
 
@@ -81,6 +82,12 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
         setVectorReady(true);
       } catch { /* Kein Embedding — Fulltext-Only */ }
       finally { setVectorLoading(false); }
+
+      // Non-blocking Re-Ranker init
+      try {
+        const { initReRanker } = await import('@/core/services/search/re-ranker');
+        initReRanker().catch(() => {});
+      } catch {}
     })();
   }, [storage]);
 
@@ -94,7 +101,10 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
           query, modelConfigRef.current, 'query',
         );
       }
-      const r = hybridSearch(query, queryVector, { type: filters?.type });
+      const useReRanker = isReRankerReady();
+      const stage1Limit = useReRanker ? 30 : undefined;
+      const stage1 = hybridSearch(query, queryVector, { type: filters?.type, limit: stage1Limit });
+      const r = useReRanker ? await rerank(query, stage1, 15, 10) : stage1;
       setResults(r);
     } catch { setResults([]); }
     finally { setLoading(false); }

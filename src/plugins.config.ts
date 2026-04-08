@@ -4,7 +4,6 @@ import { einstellungenPlugin } from '@/plugins/einstellungen';
 import { bauantraegePlugin } from '@/plugins/bauantraege';
 import { dokumentePlugin } from '@/plugins/dokumente/index';
 import { chatPlugin } from '@/plugins/chat';
-import { suchePlugin } from '@/plugins/suche';
 import { forschungPlugin } from '@/plugins/forschung/index';
 import { adminPlugin } from '@/plugins/admin';
 
@@ -13,7 +12,6 @@ const allPlugins: TeamFlowPlugin[] = [
   bauantraegePlugin,
   forschungPlugin,
   dokumentePlugin,
-  suchePlugin,
   chatPlugin,
   einstellungenPlugin,
   adminPlugin,

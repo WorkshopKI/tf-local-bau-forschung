@@ -1,5 +1,6 @@
 import mammoth from 'mammoth';
 import TurndownService from 'turndown';
+import { tables } from 'turndown-plugin-gfm';
 import * as pdfjsLib from 'pdfjs-dist';
 import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline';
 
@@ -8,6 +9,32 @@ import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline';
 pdfjsLib.GlobalWorkerOptions.workerPort = new PdfjsWorker() as any;
 
 const turndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' });
+turndown.use(tables);
+
+// Fallback: Tabellen ohne <thead>/<th>-Header (häufig in DOCX)
+turndown.addRule('headerlessTable', {
+  filter(node) {
+    if (node.nodeName !== 'TABLE') return false;
+    const rows = (node as HTMLTableElement).rows;
+    if (!rows || rows.length === 0) return false;
+    const first = rows.item(0);
+    if (!first) return false;
+    if (first.parentNode?.nodeName === 'THEAD') return false;
+    return !Array.from(first.cells).every(c => c.nodeName === 'TH');
+  },
+  replacement(_content, node) {
+    const rows = Array.from((node as HTMLTableElement).rows);
+    const first = rows[0];
+    if (!first) return '';
+    const cellCount = first.cells.length;
+    const toLine = (row: HTMLTableRowElement): string =>
+      '| ' + Array.from(row.cells).map(c => c.textContent?.trim() || '').join(' | ') + ' |';
+    const header = toLine(first);
+    const sep = '| ' + Array(cellCount).fill('---').join(' | ') + ' |';
+    const body = rows.slice(1).map(toLine);
+    return '\n\n' + [header, sep, ...body].join('\n') + '\n\n';
+  },
+});
 
 export interface ConvertedDoc {
   markdown: string;

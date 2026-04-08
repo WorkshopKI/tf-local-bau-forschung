@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FlaskConical } from 'lucide-react';
-import { Button, CollapsibleSection, ProgressBar, Select } from '@/ui';
+import { Button, ProgressBar, Select } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { loadOramaFromDB, getDocCount } from '@/core/services/search/orama-store';
 import { embeddingService } from '@/core/services/search/embedding-service';
@@ -78,14 +78,9 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
     } finally { setRunning(false); }
   };
 
-  const subtitle = report
-    ? `${report.summary.passed}/${report.summary.total} bestanden`
-    : 'Noch nicht geprueft';
-
   const pct = progress && progress.total > 0 ? progress.current / progress.total : 0;
 
   return (
-    <CollapsibleSection label="Qualitaetscheck" defaultOpen={true} subtitle={subtitle}>
       <div className="space-y-4">
         <div className="flex items-end gap-3">
           <div className="w-56">
@@ -137,6 +132,5 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
           </>
         )}
       </div>
-    </CollapsibleSection>
   );
 }

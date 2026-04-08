@@ -45,6 +45,12 @@ export interface EvalReport {
   duration: number;
   results: TestCaseResult[];
   summary: EvalSummary;
+  pipelineConfig?: {
+    embeddingModel: string;
+    metadataLLM: string | null;
+    contextualPrefixes: boolean;
+    reRanker: boolean;
+  };
 }
 
 export interface EvalProgress {

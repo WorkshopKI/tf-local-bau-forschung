@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { FileText, Search, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { FileText, Search, Upload, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
 import { Button, FileDropZone, SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
@@ -14,10 +14,13 @@ export function DokumenteListe(): React.ReactElement {
   const { indexDocument } = useSearch();
   const {
     documents, loading, searchQuery, activeTag,
-    loadAll, add, setSelectedId, setSearchQuery, setActiveTag,
+    loadAll, add, remove, setSelectedId, setSearchQuery, setActiveTag,
   } = useDokumenteStore();
+  const dismissRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [converting, setConverting] = useState(false);
   const [showDropZone, setShowDropZone] = useState(false);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importSuccess, setImportSuccess] = useState(0);
   const [page, setPage] = useState(0);
 
   useEffect(() => { loadAll(storage); }, [storage, loadAll]);
@@ -64,10 +67,13 @@ export function DokumenteListe(): React.ReactElement {
 
   const handleFiles = async (files: File[]): Promise<void> => {
     setConverting(true);
+    setImportErrors([]);
+    setImportSuccess(0);
+    const errors: string[] = [];
+    let success = 0;
     for (const file of files) {
-      // Duplikat-Check: gleicher Dateiname = überspringen
       const exists = documents.some(d => d.filename === file.name);
-      if (exists) continue;
+      if (exists) { errors.push(`${file.name}: bereits vorhanden`); continue; }
 
       try {
         const result = await converter.convert(file);
@@ -81,10 +87,21 @@ export function DokumenteListe(): React.ReactElement {
           title: result.filename, source: result.filename,
           tags: [], type: 'dokument',
         });
-      } catch (err) { console.error('Conversion failed:', err); }
+        success++;
+      } catch (err) {
+        console.error('Conversion failed:', file.name, err);
+        errors.push(`${file.name}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
+    setImportSuccess(success);
+    setImportErrors(errors);
     setConverting(false);
-    setShowDropZone(false);
+    setShowDropZone(errors.length > 0);
+    // Auto-dismiss success after 4s
+    if (success > 0 && errors.length === 0) {
+      if (dismissRef.current) clearTimeout(dismissRef.current);
+      dismissRef.current = setTimeout(() => setImportSuccess(0), 4000);
+    }
   };
 
   return (
@@ -108,6 +125,24 @@ export function DokumenteListe(): React.ReactElement {
               ? <p className="text-[13px] text-[var(--tf-text-secondary)]">Konvertiere...</p>
               : undefined}
           </FileDropZone>
+        </div>
+      )}
+
+      {/* Import-Feedback — sichtbar auch nach DropZone-Schließung */}
+      {importSuccess > 0 && (
+        <div className="flex items-center gap-2 mb-4 p-2 rounded-[var(--tf-radius)] bg-[var(--tf-success-bg)]">
+          <CheckCircle size={14} className="text-[var(--tf-success-text)]" />
+          <p className="text-[12px] text-[var(--tf-success-text)]">{importSuccess} Datei(en) importiert</p>
+        </div>
+      )}
+      {importErrors.length > 0 && (
+        <div className="mb-4 p-2 rounded-[var(--tf-radius)] bg-[var(--tf-danger-bg)]">
+          {importErrors.map((e, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <AlertCircle size={14} className="text-[var(--tf-danger-text)] shrink-0 mt-0.5" />
+              <p className="text-[12px] text-[var(--tf-danger-text)]">{e}</p>
+            </div>
+          ))}
         </div>
       )}
 
@@ -159,20 +194,27 @@ export function DokumenteListe(): React.ReactElement {
         <div key={group} className="mb-4">
           <SectionHeader label={`${group} (${docs!.length})`} />
           {docs!.map((doc, i) => (
-            <button key={doc.id}
-              onClick={() => setSelectedId(doc.id)}
-              className="flex items-center w-full px-2 py-2.5 text-left cursor-pointer hover:bg-[var(--tf-hover)] rounded-[var(--tf-radius)] transition-colors"
+            <div key={doc.id}
+              className="group flex items-center w-full px-2 py-2.5 hover:bg-[var(--tf-hover)] rounded-[var(--tf-radius)] transition-colors"
               style={i < docs!.length - 1 ? { borderBottom: '0.5px solid var(--tf-border)' } : undefined}
             >
-              <FileText size={14} className="text-[var(--tf-text-tertiary)] shrink-0 mr-3" />
-              <span className="text-[13px] text-[var(--tf-text)] flex-1 truncate">{doc.filename}</span>
-              {doc.vorgangId && (
-                <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)] shrink-0 mx-3">{doc.vorgangId}</span>
-              )}
-              <span className="text-[11px] text-[var(--tf-text-tertiary)] shrink-0">
-                {new Date(doc.created).toLocaleDateString('de-DE')}
-              </span>
-            </button>
+              <button onClick={() => setSelectedId(doc.id)}
+                className="flex items-center flex-1 min-w-0 text-left cursor-pointer">
+                <FileText size={14} className="text-[var(--tf-text-tertiary)] shrink-0 mr-3" />
+                <span className="text-[13px] text-[var(--tf-text)] flex-1 truncate">{doc.filename}</span>
+                {doc.vorgangId && (
+                  <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)] shrink-0 mx-3">{doc.vorgangId}</span>
+                )}
+                <span className="text-[11px] text-[var(--tf-text-tertiary)] shrink-0">
+                  {new Date(doc.created).toLocaleDateString('de-DE')}
+                </span>
+              </button>
+              <button onClick={() => remove(doc.id, storage)}
+                className="p-1 ml-2 opacity-0 group-hover:opacity-100 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] cursor-pointer transition-opacity shrink-0"
+                title="Löschen">
+                <Trash2 size={13} />
+              </button>
+            </div>
           ))}
         </div>
       ))}

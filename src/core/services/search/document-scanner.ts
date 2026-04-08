@@ -71,11 +71,50 @@ export async function scanDocDirectories(
   return files;
 }
 
+/**
+ * Löscht ALLE filesystem-importierten Dokumente aus IDB.
+ * Entfernt: doc:fs-* und doc:DOC-* mit source='filesystem' oder source='upload'.
+ * Seed-Dokumente (kein source-Feld oder source='seed') bleiben erhalten.
+ */
+export async function purgeFilesystemDocs(
+  storage: StorageService,
+): Promise<number> {
+  const keys = await storage.idb.keys('doc:');
+  let removed = 0;
+
+  for (const key of keys) {
+    // Alle fs-Prefix-Einträge sofort löschen (alte und neue IDs)
+    if (key.startsWith('doc:fs-')) {
+      await storage.idb.delete(key);
+      removed++;
+      continue;
+    }
+
+    // DOC-Timestamp-Einträge prüfen
+    if (key.startsWith('doc:DOC-')) {
+      const doc = await storage.idb.get<{ source?: string }>(key);
+      if (doc?.source === 'filesystem' || doc?.source === 'upload') {
+        await storage.idb.delete(key);
+        removed++;
+      }
+    }
+  }
+
+  // Hashes zurücksetzen damit nächster Import sauber startet
+  await storage.idb.delete('doc-file-hashes');
+
+  return removed;
+}
+
 export async function importDocuments(
   storage: StorageService,
   files: DocFileInfo[],
   onProgress?: (p: ScanProgress) => void,
 ): Promise<ScanResult> {
+  // Nuklear-Bereinigung: alle alten filesystem-Einträge entfernen
+  const purged = await purgeFilesystemDocs(storage);
+  if (purged > 0) console.log(`Cleanup: ${purged} alte Einträge entfernt`);
+
   const result: ScanResult = { total: files.length, imported: 0, updated: 0, unchanged: 0, errors: 0 };
   const fileHashes = await storage.idb.get<Record<string, string>>('doc-file-hashes') ?? {};
   const importedDocs: Array<{ id: string; filename: string; markdown: string; tags: string[]; hash: string }> = [];
@@ -90,7 +129,7 @@ export async function importDocuments(
 
       const content = await store.readFile(file.path);
       const hash = await hashText(content);
-      const docId = `fs-${file.directoryId}-${file.path}`.replace(/[^a-zA-Z0-9-_]/g, '-');
+      const docId = `fs-${file.path}`.replace(/[^a-zA-Z0-9-_]/g, '-');
 
       if (fileHashes[docId] === hash) { result.unchanged++; continue; }
 
@@ -128,7 +167,7 @@ export async function countChangedDocuments(
 
   let newFiles = 0;
   for (const file of files) {
-    const docId = `fs-${file.directoryId}-${file.path}`.replace(/[^a-zA-Z0-9-_]/g, '-');
+    const docId = `fs-${file.path}`.replace(/[^a-zA-Z0-9-_]/g, '-');
     if (!fileHashes[docId]) newFiles++;
   }
 

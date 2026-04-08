@@ -17,7 +17,7 @@ export interface AIProviderConfig {
 export interface DirectoryEntry {
   id: string;
   label: string;
-  type: 'documents' | 'data';
+  type: 'documents' | 'data' | 'models';
   folderName?: string;
 }
 
