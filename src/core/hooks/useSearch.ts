@@ -5,7 +5,7 @@ import {
 } from '@/core/services/search/orama-store';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
-import { initReRanker, isReRankerReady, rerank } from '@/core/services/search/re-ranker';
+import { initReRanker, isReRankerReady, rerank, disposeReRanker } from '@/core/services/search/re-ranker';
 import type { EmbeddingModelConfig } from '@/core/services/search/model-registry';
 import type { StorageService } from '@/core/services/storage';
 import { pipelineLog } from '@/core/services/search/pipeline-logger';
@@ -21,6 +21,7 @@ interface SearchContextValue {
   }) => void;
   removeDocument: (id: string) => void;
   documentCount: number;
+  toggleReRanker: (enable: boolean, modelId?: string) => Promise<void>;
 }
 
 export const SearchContext = createContext<SearchContextValue | null>(null);
@@ -91,19 +92,15 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
 
       // Re-Ranker nur laden wenn in pipeline-config aktiviert
       const pipelineCfg = await storage.idb.get<{ useReRanker?: boolean; reRankerModelId?: string }>('pipeline-config');
-      console.log('[TeamFlow][ReRanker] pipeline-config:', { useReRanker: pipelineCfg?.useReRanker, reRankerModelId: pipelineCfg?.reRankerModelId });
       if (pipelineCfg?.useReRanker) {
         try {
-          const reRankerModel = pipelineCfg.reRankerModelId ?? 'bge-reranker-v2-m3';
-          console.log('[TeamFlow][ReRanker] Lade Modell:', reRankerModel);
+          const reRankerModel = pipelineCfg.reRankerModelId ?? 'bge-reranker-base';
           const loaded = await initReRanker(reRankerModel);
           if (loaded) pipelineLog.info('Re-Ranker', 'Bereit');
           else pipelineLog.warn('Re-Ranker', 'Konnte nicht geladen werden');
         } catch (err) {
           pipelineLog.warn('Re-Ranker', `Fehler: ${err}`);
         }
-      } else {
-        console.log('[TeamFlow][ReRanker] UEBERSPRUNGEN — Grund: deaktiviert in Einstellungen');
       }
     })();
   }, [storage]);
@@ -123,13 +120,11 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
         pipelineLog.warn('Embedding', 'Nicht bereit — nur BM25 Fulltext-Suche');
       }
       const reRankerActive = isReRankerReady();
-      console.log('[TeamFlow][ReRanker] Suche: isReRankerReady()=', reRankerActive);
       const stage1Limit = reRankerActive ? 30 : undefined;
       const stage1 = hybridSearch(query, queryVector, { type: filters?.type, limit: stage1Limit });
       pipelineLog.info('Orama', `${queryVector ? 'Hybrid' : 'Fulltext'}-Suche: ${stage1.length} Ergebnisse`);
       const r = reRankerActive ? await rerank(query, stage1, 15, 10) : stage1;
       if (reRankerActive) pipelineLog.info('Re-Ranker', `${stage1.length} → ${r.length} Ergebnisse`);
-      if (!reRankerActive) console.log('[TeamFlow][ReRanker] Suche: Re-Ranker nicht aktiv, uebersprungen');
       setResults(r);
       pipelineLog.searchSummary({
         query,
@@ -158,5 +153,18 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
     setDocCount(getDocCount());
   }, []);
 
-  return { search, results, loading, vectorReady, vectorLoading, indexDocument, removeDocument, documentCount: docCount };
+  const toggleReRanker = useCallback(async (enable: boolean, modelId?: string) => {
+    if (enable) {
+      const id = modelId ?? 'bge-reranker-base';
+      console.log('[TeamFlow][ReRanker] Aktiviere Re-Ranker:', id);
+      const loaded = await initReRanker(id);
+      if (loaded) pipelineLog.info('Re-Ranker', 'Bereit');
+      else pipelineLog.warn('Re-Ranker', 'Konnte nicht geladen werden');
+    } else {
+      console.log('[TeamFlow][ReRanker] Deaktiviere Re-Ranker');
+      disposeReRanker();
+    }
+  }, []);
+
+  return { search, results, loading, vectorReady, vectorLoading, indexDocument, removeDocument, documentCount: docCount, toggleReRanker };
 }

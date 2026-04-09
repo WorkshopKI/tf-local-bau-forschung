@@ -3,12 +3,13 @@ import { Database, RefreshCw, AlertCircle, Square, CheckCircle2, XCircle } from 
 import { Button, Select } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { BatchIndexer } from '@/core/services/search/batch-indexer';
-import type { IndexStatus, PipelineConfig, ChunkStrategy } from '@/core/services/search/batch-indexer';
+import type { IndexStatus, PipelineConfig } from '@/core/services/search/batch-indexer';
 import {
   EMBEDDING_MODELS, getModelById, setActiveModelId,
 } from '@/core/services/search/model-registry';
 import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
 import { RERANKER_MODELS, DEFAULT_RERANKER_ID } from '@/core/services/search/re-ranker';
+import { useSearch } from '@/core/hooks/useSearch';
 import { loadCheckpoint } from '@/core/services/search/checkpoint';
 import { listAvailableModels } from '@/core/services/search/model-loader';
 import { IndexProgress, Row, formatDuration } from '../IndexHelpers';
@@ -30,6 +31,7 @@ export function IndexStep({
   setChunkCount, docCount, setLastUpdate, indexOutdated, setNewDocsCount, hasGPU,
 }: IndexStepProps): React.ReactElement {
   const storage = useStorage();
+  const { toggleReRanker } = useSearch();
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState<IndexStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,19 +41,17 @@ export function IndexStep({
   const [useContextualPrefixes, setUseContextualPrefixes] = useState(false);
   const [useReRanker, setUseReRanker] = useState(false);
   const [reRankerModelId, setReRankerModelId] = useState(DEFAULT_RERANKER_ID);
-  const [chunkStrategy, setChunkStrategy] = useState<ChunkStrategy>('fixed-200');
   const [hasCheckpoint, setHasCheckpoint] = useState(false);
   const [checkpointProgress, setCheckpointProgress] = useState(0);
   const [checkpointTotal, setCheckpointTotal] = useState(0);
   const [hasModelDir, setHasModelDir] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [indexedPrefixes, setIndexedPrefixes] = useState<boolean | null>(null);
-  const [indexedStrategy, setIndexedStrategy] = useState<ChunkStrategy | null>(null);
   const abortRef = useRef(new AbortController());
 
-  interface PipelineCfg { metadataLLMId: string; useContextualPrefixes: boolean; useReRanker: boolean; reRankerModelId: string; chunkStrategy: ChunkStrategy }
+  interface PipelineCfg { metadataLLMId: string; useContextualPrefixes: boolean; useReRanker: boolean; reRankerModelId: string }
   const savePipeline = (patch: Partial<PipelineCfg>): void => {
-    const cfg: PipelineCfg = { metadataLLMId, useContextualPrefixes, useReRanker, reRankerModelId, chunkStrategy, ...patch };
+    const cfg: PipelineCfg = { metadataLLMId, useContextualPrefixes, useReRanker, reRankerModelId, ...patch };
     storage.idb.set('pipeline-config', cfg);
   };
 
@@ -62,13 +62,11 @@ export function IndexStep({
         setUseContextualPrefixes(cfg.useContextualPrefixes);
         setUseReRanker(cfg.useReRanker);
         if (cfg.reRankerModelId) setReRankerModelId(cfg.reRankerModelId);
-        if (cfg.chunkStrategy) setChunkStrategy(cfg.chunkStrategy);
       }
     });
-    storage.idb.get<{ contextualPrefixes?: boolean; chunkStrategy?: ChunkStrategy }>('index-pipeline-config').then(c => {
+    storage.idb.get<{ contextualPrefixes?: boolean }>('index-pipeline-config').then(c => {
       if (c) {
         setIndexedPrefixes(c.contextualPrefixes ?? false);
-        if (c.chunkStrategy) setIndexedStrategy(c.chunkStrategy);
       }
     });
     loadCheckpoint(storage).then(cp => {
@@ -102,15 +100,13 @@ export function IndexStep({
         useContextualPrefixes,
         useReRanker,
         resumeFromCheckpoint: resume || !full,
-        chunkStrategy,
       };
       const count = await indexer.indexAll(storage, pipelineConfig, setStatus, abortRef.current.signal);
       const elapsed = Date.now() - startTime;
       setChunkCount(count); setLastUpdate(new Date().toISOString());
       setIndexModelId(activeModelId); setNewDocsCount(0);
-      await storage.idb.set('index-pipeline-config', { contextualPrefixes: useContextualPrefixes, chunkStrategy });
+      await storage.idb.set('index-pipeline-config', { contextualPrefixes: useContextualPrefixes });
       setIndexedPrefixes(useContextualPrefixes);
-      setIndexedStrategy(chunkStrategy);
       indexer.destroy();
       if (abortRef.current.signal.aborted) { setAborted(true); }
       else { setIndexResult({ chunks: count, docs: status?.total ?? 0, skipped: status?.skipped ?? 0, duration: formatDuration(elapsed) }); }
@@ -138,7 +134,7 @@ export function IndexStep({
         </div>
       )}
 
-      {((indexedPrefixes !== null && indexedPrefixes !== useContextualPrefixes) || (indexedStrategy !== null && indexedStrategy !== chunkStrategy)) && !running && (
+      {(indexedPrefixes !== null && indexedPrefixes !== useContextualPrefixes) && !running && (
         <div className="flex items-center justify-between p-3 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)]">
           <div className="flex items-center gap-2">
             <AlertCircle size={14} className="text-[var(--tf-warning-text)]" />
@@ -168,19 +164,6 @@ export function IndexStep({
           </div>
 
           <div>
-            <p className="text-[12px] font-medium text-[var(--tf-text)] mb-1">Chunking-Strategie</p>
-            <Select
-              options={[
-                { value: 'fixed-200', label: 'Fixed 200 Wörter — Baseline' },
-                { value: 'fixed-400', label: 'Fixed 400 Wörter — mehr Kontext' },
-                { value: 'heading', label: 'Heading-basiert — nutzt Dokumentstruktur (empfohlen)' },
-              ]}
-              value={chunkStrategy}
-              onChange={e => { setChunkStrategy(e.target.value as ChunkStrategy); savePipeline({ chunkStrategy: e.target.value as ChunkStrategy }); }} />
-            <span className="text-[11px] text-[var(--tf-text-tertiary)]">erfordert Neu-Indexierung</span>
-          </div>
-
-          <div>
             <p className="text-[12px] font-medium text-[var(--tf-text)] mb-1">Metadata-Extraktion (LLM)</p>
             <Select
               options={METADATA_LLM_MODELS.map(m => ({ value: m.id, label: `${m.label} — ${m.size}` }))}
@@ -196,19 +179,29 @@ export function IndexStep({
           </label>
           <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)] cursor-pointer">
             <input type="checkbox" checked={useReRanker}
-              onChange={e => { setUseReRanker(e.target.checked); savePipeline({ useReRanker: e.target.checked }); }} />
-            Cross-Encoder Re-Ranker
-            <span className="text-[11px] text-[var(--tf-text-tertiary)]">— wirkt sofort, kein Reindexing</span>
+              onChange={async e => {
+                const enabled = e.target.checked;
+                setUseReRanker(enabled);
+                savePipeline({ useReRanker: enabled });
+                await toggleReRanker(enabled, reRankerModelId);
+              }} />
+            Cross-Encoder Re-Ranker (Experimentell)
+            <span className="text-[11px] text-[var(--tf-text-tertiary)]">— Experimentell — sehr langsam (3+ Min/Suche). Kein geeignetes Modell fuer schnelle Browser-Inferenz verfuegbar.</span>
           </label>
           {useReRanker && (
             <div className="ml-6 space-y-1">
+              <div className="p-2 bg-[var(--tf-warning-bg)] rounded-[var(--tf-radius)] text-[11px] text-[var(--tf-warning-text)]">
+                Re-Ranking dauert mehrere Minuten pro Suche. Nur fuer Testzwecke empfohlen.
+              </div>
               <Select
                 options={RERANKER_MODELS.map(m => ({ value: m.id, label: `${m.label} — ${m.sizeHint}` }))}
                 value={reRankerModelId}
-                onChange={e => { setReRankerModelId(e.target.value); savePipeline({ reRankerModelId: e.target.value }); }} />
-              <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-                Fuegt ~500ms–2000ms Latenz pro Suche hinzu. Empfohlen nur wenn Suchergebnisse ohne Re-Ranker nicht ausreichen.
-              </p>
+                onChange={async e => {
+                  const newModelId = e.target.value;
+                  setReRankerModelId(newModelId);
+                  savePipeline({ reRankerModelId: newModelId });
+                  if (useReRanker) await toggleReRanker(true, newModelId);
+                }} />
             </div>
           )}
 
@@ -241,7 +234,7 @@ export function IndexStep({
           <div className="pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">Technische Details</p>
             <Row label="HuggingFace ID" value={activeModel.name} />
-            <Row label="Chunking" value={chunkStrategy === 'heading' ? 'Heading-basiert (Fallback: 400W, 75 Overlap)' : chunkStrategy === 'fixed-400' ? '400 Woerter, 75 Overlap' : '200 Woerter, 50 Overlap'} />
+            <Row label="Chunking" value="Heading-basiert (Fallback: 400W, 75 Overlap)" />
             {activeModel.queryPrefix && <Row label="Query-Prefix" value={activeModel.queryPrefix} />}
             {activeModel.documentPrefix && <Row label="Document-Prefix" value={activeModel.documentPrefix} />}
             <Row label="Backend" value={hasGPU ? 'WebGPU' : 'WASM (CPU)'} />

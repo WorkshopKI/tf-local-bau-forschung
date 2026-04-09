@@ -21,13 +21,7 @@ export interface IndexStatus {
   chunkProgress?: { current: number; total: number };
 }
 
-export type ChunkStrategy = 'fixed-200' | 'fixed-400' | 'heading';
-
-const CHUNK_CONFIGS: Record<ChunkStrategy, { size: number; overlap: number }> = {
-  'fixed-200': { size: 200, overlap: 50 },
-  'fixed-400': { size: 400, overlap: 75 },
-  'heading': { size: 400, overlap: 75 },
-};
+const CHUNK_CONFIG = { size: 400, overlap: 75 };
 
 export interface PipelineConfig {
   embeddingModelId: string;
@@ -35,13 +29,11 @@ export interface PipelineConfig {
   useContextualPrefixes: boolean;
   useReRanker: boolean;
   resumeFromCheckpoint: boolean;
-  chunkStrategy: ChunkStrategy;
 }
 
-function chunkText(text: string, strategy: ChunkStrategy = 'fixed-200'): string[] {
-  if (strategy === 'heading') return chunkByHeadings(text);
-  const cfg = CHUNK_CONFIGS[strategy];
-  return chunkFixed(text, cfg.size, cfg.overlap);
+/** Heading-basiert mit Fallback auf Fixed 400W, 75 Overlap */
+function chunkText(text: string): string[] {
+  return chunkByHeadings(text);
 }
 
 function chunkFixed(text: string, size: number, overlap: number): string[] {
@@ -248,19 +240,16 @@ export class BatchIndexer {
       let chunkTexts: string[];
       let tags: string;
 
-      const strategy = config.chunkStrategy ?? 'fixed-200';
-      const chunkCfg = CHUNK_CONFIGS[strategy];
-
       if (config.useContextualPrefixes) {
         onStatus({ phase: 'Chunking (contextual)', total: docs.length, processed, currentDoc: doc.filename, skipped });
-        const ctxChunks: ContextualChunk[] = contextualChunk(doc.id, doc.filename, doc.markdown, metadata, chunkCfg.size, chunkCfg.overlap);
+        const ctxChunks: ContextualChunk[] = contextualChunk(doc.id, doc.filename, doc.markdown, metadata, CHUNK_CONFIG.size, CHUNK_CONFIG.overlap);
         textsToEmbed = ctxChunks.map(c => c.prefixedText);
         chunkIds = ctxChunks.map(c => c.id);
         chunkTexts = ctxChunks.map(c => c.text);
         tags = metadata?.topic_tags?.join(', ') ?? '';
       } else {
         onStatus({ phase: 'Chunking', total: docs.length, processed, currentDoc: doc.filename, skipped });
-        const plainChunks = chunkText(doc.markdown, strategy);
+        const plainChunks = chunkText(doc.markdown);
         textsToEmbed = plainChunks;
         chunkIds = plainChunks.map((_, i) => `${doc.id}-${i}`);
         chunkTexts = plainChunks;
