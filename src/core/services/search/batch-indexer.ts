@@ -187,7 +187,7 @@ export class BatchIndexer {
       onStatus({ phase: 'LLM laden', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
       await initMetadataLLM(config.metadataLLMId!, (msg) => {
         onStatus({ phase: msg, total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
-      });
+      }, storage);
     }
 
     // Fast-Path: bei inkrementeller Indexierung prüfen ob alle Hashes stimmen

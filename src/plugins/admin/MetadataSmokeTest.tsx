@@ -59,7 +59,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
     setPhase('loading-model'); setResults([]); setErrorMsg(''); abortRef.current = false;
     const t0 = Date.now();
     try {
-      const ok = await initMetadataLLM(metadataLLMId, msg => { if (mountedRef.current) setModelProgress(msg); });
+      const ok = await initMetadataLLM(metadataLLMId, msg => { if (mountedRef.current) setModelProgress(msg); }, { idb: storage.idb });
       if (!mountedRef.current) return;
       setModelLoadMs(Date.now() - t0);
       if (!ok) { setPhase('error'); setErrorMsg('LLM konnte nicht geladen werden.'); return; }

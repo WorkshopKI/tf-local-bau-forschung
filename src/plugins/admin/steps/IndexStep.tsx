@@ -8,6 +8,7 @@ import {
   EMBEDDING_MODELS, getModelById, setActiveModelId,
 } from '@/core/services/search/model-registry';
 import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
+import type { AIProviderConfig } from '@/core/types/config';
 import { RERANKER_MODELS, DEFAULT_RERANKER_ID } from '@/core/services/search/re-ranker';
 import { useSearch } from '@/core/hooks/useSearch';
 import { loadCheckpoint } from '@/core/services/search/checkpoint';
@@ -47,6 +48,7 @@ export function IndexStep({
   const [hasModelDir, setHasModelDir] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [indexedPrefixes, setIndexedPrefixes] = useState<boolean | null>(null);
+  const [hasApiKey, setHasApiKey] = useState(false);
   const abortRef = useRef(new AbortController());
 
   interface PipelineCfg { metadataLLMId: string; useContextualPrefixes: boolean; useReRanker: boolean; reRankerModelId: string }
@@ -68,6 +70,9 @@ export function IndexStep({
       if (c) {
         setIndexedPrefixes(c.contextualPrefixes ?? false);
       }
+    });
+    storage.idb.get<AIProviderConfig>('ai-provider').then(c => {
+      setHasApiKey(!!c?.apiKey);
     });
     loadCheckpoint(storage).then(cp => {
       if (cp) {
@@ -169,6 +174,11 @@ export function IndexStep({
               options={METADATA_LLM_MODELS.map(m => ({ value: m.id, label: `${m.label} — ${m.size}` }))}
               value={metadataLLMId}
               onChange={e => { setMetadataLLMId(e.target.value); savePipeline({ metadataLLMId: e.target.value }); }} />
+            {metadataLLMId !== 'none' && !hasApiKey && (
+              <p className="text-[11px] text-[var(--tf-warning-text)] mt-1">
+                API Key erforderlich — bitte unter Einstellungen → KI-Assistent konfigurieren.
+              </p>
+            )}
           </div>
 
           <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)] cursor-pointer">

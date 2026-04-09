@@ -37,15 +37,25 @@ export class DirectLLMTransport implements AITransport {
     }
   }
 
-  async submitMessage(message: string, systemPrompt?: string): Promise<string> {
+  async submitMessage(
+    message: string,
+    systemPrompt?: string,
+    options?: { thinkingBudget?: 'none' | 'low' | 'medium' | 'high' },
+  ): Promise<string> {
     const messages: Array<{ role: string; content: string }> = [];
     if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
     messages.push({ role: 'user', content: message });
 
+    const body: Record<string, unknown> = { model: this.model, messages };
+
+    if (options?.thinkingBudget && options.thinkingBudget !== 'none') {
+      body.reasoning = { effort: options.thinkingBudget };
+    }
+
     const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: this.getHeaders(),
-      body: JSON.stringify({ model: this.model, messages }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) throw new Error(`API error: ${res.status}`);
