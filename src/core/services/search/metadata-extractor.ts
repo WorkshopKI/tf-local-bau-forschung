@@ -1,5 +1,6 @@
 /**
- * Extrahiert Metadaten aus Dokumenten via Browser-LLM (Gemma 4 E2B oder Qwen3.5-2B).
+ * Extrahiert Metadaten aus Dokumenten via Browser-LLM (Qwen 3).
+ * Nutzt pipeline("text-generation") fuer automatisches Chat-Template-Handling.
  * Nur auf Admin-Laptop mit GPU genutzt. Komplett optional.
  */
 
@@ -12,6 +13,7 @@ export interface DocumentMetadata {
   micro_summary: string;
   macro_summary: string;
   language: string;
+  _isFallback?: boolean;
 }
 
 const FALLBACK_METADATA = (filename: string, text: string): DocumentMetadata => ({
@@ -23,54 +25,43 @@ const FALLBACK_METADATA = (filename: string, text: string): DocumentMetadata => 
   micro_summary: text.slice(0, 200),
   macro_summary: text.slice(0, 500),
   language: 'de',
+  _isFallback: true,
 });
 
 interface LLMState {
-  model: any | null;
-  tokenizer: any | null;
+  generator: any | null;
   ready: boolean;
   loading: boolean;
   modelId: string | null;
 }
 
 const llmState: LLMState = {
-  model: null, tokenizer: null, ready: false, loading: false, modelId: null,
+  generator: null, ready: false, loading: false, modelId: null,
 };
 
 export const METADATA_LLM_MODELS = [
   {
-    id: 'gemma4-e2b',
-    name: 'onnx-community/gemma-4-E2B-it-ONNX',
-    label: 'Gemma 4 E2B',
-    size: '~1.5 GB (q8)',
-    description: 'Google Gemma 4, multimodal, effizient. Empfohlen fuer schnelle Extraktion.',
-  },
-  {
-    id: 'gemma4-e4b',
-    name: 'onnx-community/gemma-4-E4B-it-ONNX',
-    label: 'Gemma 4 E4B',
-    size: '~3 GB (q8)',
-    description: 'Google Gemma 4, groesseres Modell, bessere Qualitaet. Braucht ~4 GB VRAM.',
+    id: 'qwen3-0.6b',
+    name: 'onnx-community/Qwen3-0.6B-ONNX',
+    label: 'Qwen 3 0.6B',
+    size: '~400 MB (q4f16)',
+    dtype: 'q4f16' as const,
+    description: 'Schnell, kompakt, getestet im Browser. Empfohlen.',
   },
   {
     id: 'qwen3-4b',
     name: 'onnx-community/Qwen3-4B-ONNX',
     label: 'Qwen 3 4B',
-    size: '~3.5 GB (q8)',
-    description: 'Qwen 3, stark bei Deutsch + JSON-Extraktion. NICHT Qwen3.5-4B (3x langsamer auf WebGPU wegen unoptimierter Hybrid-Attention).',
-  },
-  {
-    id: 'qwen35-2b',
-    name: 'onnx-community/Qwen3.5-2B-ONNX',
-    label: 'Qwen 3.5 2B',
-    size: '~2.2 GB (q8)',
-    description: 'Qwen 3.5, kompakt, gute JSON-Extraktion. 2B-Variante hat keine Performance-Probleme.',
+    size: '~2.5 GB (q4f16)',
+    dtype: 'q4f16' as const,
+    description: 'Bessere Qualitaet, braucht ~4 GB VRAM. Fuer Qualitaetstests.',
   },
   {
     id: 'none',
     name: '',
     label: 'Kein LLM (regelbasiert)',
     size: '0 MB',
+    dtype: 'q4f16' as const,
     description: 'Metadata wird aus Dateiname und Text extrahiert, ohne LLM.',
   },
 ];
@@ -81,21 +72,33 @@ export async function initMetadataLLM(
 ): Promise<boolean> {
   if (modelId === 'none') return true;
   if (llmState.ready && llmState.modelId === modelId) return true;
+  if (llmState.loading) return false;
 
   llmState.loading = true;
   onProgress?.('LLM laden...');
 
   try {
-    const model = METADATA_LLM_MODELS.find(m => m.id === modelId);
-    if (!model || !model.name) return false;
+    const modelCfg = METADATA_LLM_MODELS.find(m => m.id === modelId);
+    if (!modelCfg || !modelCfg.name) { llmState.loading = false; return false; }
 
-    const { AutoTokenizer, AutoModelForCausalLM } = await import('@huggingface/transformers');
+    const { pipeline } = await import('@huggingface/transformers');
 
-    llmState.tokenizer = await AutoTokenizer.from_pretrained(model.name);
-    llmState.model = await AutoModelForCausalLM.from_pretrained(model.name, {
-      dtype: 'q8',
-      device: 'webgpu',
-    });
+    onProgress?.(`${modelCfg.label} wird geladen...`);
+    llmState.generator = await pipeline(
+      'text-generation',
+      modelCfg.name,
+      {
+        dtype: modelCfg.dtype,
+        device: 'webgpu',
+        progress_callback: (info: any) => {
+          if (info.status === 'progress' && info.total) {
+            const pct = Math.round((info.loaded / info.total) * 100);
+            onProgress?.(`Download: ${pct}%`);
+          }
+        },
+      },
+    );
+
     llmState.modelId = modelId;
     llmState.ready = true;
     llmState.loading = false;
@@ -103,7 +106,9 @@ export async function initMetadataLLM(
     return true;
   } catch (err) {
     llmState.loading = false;
-    console.error('LLM init failed:', err);
+    llmState.generator = null;
+    console.error('[MetadataLLM] Init failed:', err);
+    onProgress?.(`Fehler: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }
@@ -112,57 +117,72 @@ export async function extractMetadata(
   filename: string,
   text: string,
 ): Promise<DocumentMetadata> {
-  if (!llmState.ready || llmState.modelId === 'none') {
+  if (!llmState.ready || !llmState.generator || llmState.modelId === 'none') {
     return FALLBACK_METADATA(filename, text);
   }
 
-  const prompt = buildExtractionPrompt(text.slice(0, 3000));
+  const userPrompt = buildExtractionPrompt(text.slice(0, 3000));
 
   try {
-    const inputs = await llmState.tokenizer(prompt, {
-      return_tensors: 'pt',
-      padding: true,
-      truncation: true,
-      max_length: 4096,
+    const messages = [
+      {
+        role: 'system',
+        content: 'Du bist ein Metadaten-Extraktor fuer deutsche Verwaltungsdokumente. Antworte AUSSCHLIESSLICH mit einem JSON-Objekt. Kein Markdown, keine Erklaerung, keine Backticks, kein Denkprozess.',
+      },
+      { role: 'user', content: userPrompt },
+    ];
+
+    const output = await llmState.generator(messages, {
+      max_new_tokens: 512,
+      do_sample: false,
+      return_full_text: false,
     });
 
-    const output = await llmState.model.generate({
-      ...inputs,
-      max_new_tokens: 400,
-      temperature: 0.1,
-      do_sample: true,
-      top_p: 0.9,
-    });
+    const assistantMsg = output[0]?.generated_text?.at(-1)?.content
+      ?? output[0]?.generated_text ?? '';
 
-    const decoded = llmState.tokenizer.decode(output[0], { skip_special_tokens: true });
+    const decoded = typeof assistantMsg === 'string'
+      ? assistantMsg
+      : JSON.stringify(assistantMsg);
+
     return parseMetadataJSON(decoded, filename, text);
-  } catch {
+  } catch (err) {
+    console.error('[MetadataLLM] Extract failed:', err);
     return FALLBACK_METADATA(filename, text);
   }
 }
 
 export function disposeMetadataLLM(): void {
-  if (llmState.model?.dispose) llmState.model.dispose();
-  llmState.model = null;
-  llmState.tokenizer = null;
+  if (llmState.generator?.dispose) {
+    try { llmState.generator.dispose(); } catch { /* ignore */ }
+  }
+  llmState.generator = null;
   llmState.ready = false;
+  llmState.loading = false;
   llmState.modelId = null;
 }
 
 function buildExtractionPrompt(text: string): string {
-  return `Du extrahierst Metadaten aus Dokumenten. Antworte AUSSCHLIESSLICH mit validem JSON.
-Kein Markdown, keine Erklaerung, keine Backticks. Nur das JSON-Objekt.
+  return `Extrahiere Metadaten aus diesem deutschen Verwaltungsdokument.
 
-Analysiere den folgenden Dokumentanfang und extrahiere:
+REGELN:
+- Antworte NUR mit einem JSON-Objekt, nichts anderes
+- micro_summary: EIN eigener Satz der den Inhalt beschreibt. NICHT den Text kopieren!
+- macro_summary: 3-5 eigene Saetze. NICHT den Text kopieren!
+- topic_tags: IMMER 3-5 deutsche Schlagwoerter
+- doc_type: Waehle den passendsten Typ
+- organizations: Alle genannten Behoerden, Firmen, Institute
+
+JSON-Format:
 {
-  "doc_type": "Foerderantrag|Gutachten|Stellungnahme|Protokoll|Nachforderung|Sonstiges",
-  "title": "Kurztitel",
+  "doc_type": "Bauantrag|Foerderantrag|Gutachten|Stellungnahme|Protokoll|Nachforderung|Formular|Statik|Brandschutzkonzept|Schallschutznachweis|Energienachweis|Zwischenbericht|Review|Ethikantrag|Datenschutz|Compliance|Sonstiges",
+  "title": "Kurzer beschreibender Titel",
   "date": "YYYY-MM-DD oder null",
-  "organizations": ["Liste beteiligter Organisationen"],
-  "topic_tags": ["maximal 5 Schlagwoerter"],
-  "micro_summary": "Ein Satz",
-  "macro_summary": "3-5 Saetze Zusammenfassung",
-  "language": "de|en"
+  "organizations": ["Org1", "Org2"],
+  "topic_tags": ["Tag1", "Tag2", "Tag3"],
+  "micro_summary": "Ein Satz der den Dokumentinhalt beschreibt.",
+  "macro_summary": "Drei bis fuenf Saetze die den Inhalt zusammenfassen.",
+  "language": "de"
 }
 
 DOKUMENT:

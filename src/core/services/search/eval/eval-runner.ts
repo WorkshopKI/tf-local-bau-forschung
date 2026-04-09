@@ -55,35 +55,29 @@ export class EvalRunner {
   private evaluateCase(tc: EvalTestCase, searchResults: OramaSearchResult[]): TestCaseResult {
     const top10 = searchResults.slice(0, 10);
 
-    /**
-     * Extrahiert die Vorgangs-ID aus einem Dateinamen.
-     * z.B. "Projekt_FA001.md" → "FA001", "Statik_Tragwerk_BA010.md" → "BA010"
-     */
-    const extractVorgangId = (filename: string): string | null => {
-      const match = filename.match(/([A-Z]{2,3}\d{3,4})/);
-      return match ? match[1]! : null;
-    };
+    const normalize = (s: string): string =>
+      s.replace(/[_\-\s]+/g, ' ').replace(/\.[^.]+$/, '').trim().toLowerCase();
 
     const matchesInTopN = (n: number): string[] => {
       const topN = top10.slice(0, n);
-      return tc.expectedDocs.filter(expected =>
-        topN.some(r =>
-          r.source.includes(expected) ||
-          r.title.includes(expected) ||
-          r.id.includes(expected) ||
-          // Vorgangs-ID Match: z.B. "Projekt_FA001.md" matcht "Zwischenbericht_FA001.md"
-          (extractVorgangId(expected) !== null &&
-           extractVorgangId(expected) === extractVorgangId(r.source)),
-        ),
-      );
+      return tc.expectedDocs.filter(expected => {
+        const ne = normalize(expected);
+        return topN.some(r =>
+          normalize(r.source).includes(ne) ||
+          normalize(r.title).includes(ne) ||
+          ne.includes(normalize(r.source)) ||
+          ne.includes(normalize(r.title)),
+        );
+      });
     };
 
-    const top1Source = top10[0]?.source ?? '';
-    const top1Title = top10[0]?.title ?? '';
     const top1Match = tc.expectedTop1
-      ? top1Source.includes(tc.expectedTop1) || top1Title.includes(tc.expectedTop1) ||
-        (extractVorgangId(tc.expectedTop1) !== null &&
-         extractVorgangId(tc.expectedTop1) === extractVorgangId(top1Source))
+      ? (() => {
+          const ne = normalize(tc.expectedTop1);
+          const ns = normalize(top10[0]?.source ?? '');
+          const nt = normalize(top10[0]?.title ?? '');
+          return ns.includes(ne) || nt.includes(ne) || ne.includes(ns) || ne.includes(nt);
+        })()
       : false;
 
     const expectedInTop3 = matchesInTopN(3);

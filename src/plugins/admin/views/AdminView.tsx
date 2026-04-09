@@ -5,6 +5,7 @@ import { DirectoriesStep } from '../steps/DirectoriesStep';
 import { DocumentsStep } from '../steps/DocumentsStep';
 import { IndexStep } from '../steps/IndexStep';
 import { EvalSection } from '../eval/EvalSection';
+import { MetadataSmokeTest } from '../MetadataSmokeTest';
 import { seedTestData, clearSeedData } from '@/core/services/seed/seed-data';
 
 interface AdminViewProps {
@@ -147,6 +148,9 @@ export function AdminView({
         <SectionTitle title="Qualitätscheck" />
         <EvalSection chunkCount={chunkCount} modelId={activeModelId} />
       </div>
+
+      {/* ── Metadata Smoke-Test ── */}
+      <MetadataSmokeTest />
 
       {/* ── Testdaten (normal header) ── */}
       <div className="py-4" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
