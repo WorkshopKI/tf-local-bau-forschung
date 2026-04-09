@@ -116,7 +116,7 @@ export async function extractMetadata(
   const userPrompt = buildExtractionPrompt(text.slice(0, 3000));
 
   try {
-    const response = await llmState.transport.submitMessage(userPrompt, systemPrompt);
+    const response = await llmState.transport.submitMessage(userPrompt, systemPrompt, { thinkingBudget: 'none' });
     return parseMetadataJSON(response, filename, text);
   } catch (err) {
     console.error('[MetadataLLM] Extract failed:', err);

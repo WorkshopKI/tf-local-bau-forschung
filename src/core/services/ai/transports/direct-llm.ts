@@ -48,7 +48,7 @@ export class DirectLLMTransport implements AITransport {
 
     const body: Record<string, unknown> = { model: this.model, messages };
 
-    if (options?.thinkingBudget && options.thinkingBudget !== 'none') {
+    if (options?.thinkingBudget) {
       body.reasoning = { effort: options.thinkingBudget };
     }
 
