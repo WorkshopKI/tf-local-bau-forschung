@@ -7,7 +7,7 @@ import type { IndexStatus, PipelineConfig } from '@/core/services/search/batch-i
 import {
   EMBEDDING_MODELS, getModelById, setActiveModelId,
 } from '@/core/services/search/model-registry';
-import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
+import { METADATA_LLM_MODELS, clearMetadataCache } from '@/core/services/search/metadata-extractor';
 import type { AIProviderConfig } from '@/core/types/config';
 import { RERANKER_MODELS, DEFAULT_RERANKER_ID } from '@/core/services/search/re-ranker';
 import { useSearch } from '@/core/hooks/useSearch';
@@ -49,11 +49,13 @@ export function IndexStep({
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [indexedPrefixes, setIndexedPrefixes] = useState<boolean | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [metadataParallelism, setMetadataParallelism] = useState(3);
+  const [cacheMsg, setCacheMsg] = useState<string | null>(null);
   const abortRef = useRef(new AbortController());
 
-  interface PipelineCfg { metadataLLMId: string; useContextualPrefixes: boolean; useReRanker: boolean; reRankerModelId: string }
+  interface PipelineCfg { metadataLLMId: string; metadataParallelism: number; useContextualPrefixes: boolean; useReRanker: boolean; reRankerModelId: string }
   const savePipeline = (patch: Partial<PipelineCfg>): void => {
-    const cfg: PipelineCfg = { metadataLLMId, useContextualPrefixes, useReRanker, reRankerModelId, ...patch };
+    const cfg: PipelineCfg = { metadataLLMId, metadataParallelism, useContextualPrefixes, useReRanker, reRankerModelId, ...patch };
     storage.idb.set('pipeline-config', cfg);
   };
 
@@ -61,6 +63,7 @@ export function IndexStep({
     storage.idb.get<PipelineCfg>('pipeline-config').then(cfg => {
       if (cfg) {
         setMetadataLLMId(cfg.metadataLLMId);
+        if (cfg.metadataParallelism) setMetadataParallelism(cfg.metadataParallelism);
         setUseContextualPrefixes(cfg.useContextualPrefixes);
         setUseReRanker(cfg.useReRanker);
         if (cfg.reRankerModelId) setReRankerModelId(cfg.reRankerModelId);
@@ -102,6 +105,7 @@ export function IndexStep({
       const pipelineConfig: PipelineConfig = {
         embeddingModelId: activeModelId,
         metadataLLMId: metadataLLMId !== 'none' ? metadataLLMId : null,
+        metadataParallelism,
         useContextualPrefixes,
         useReRanker,
         resumeFromCheckpoint: resume || !full,
@@ -168,16 +172,39 @@ export function IndexStep({
             </p>
           </div>
 
-          <div>
+          <div className="space-y-2">
             <p className="text-[12px] font-medium text-[var(--tf-text)] mb-1">Metadata-Extraktion (LLM)</p>
             <Select
-              options={METADATA_LLM_MODELS.map(m => ({ value: m.id, label: `${m.label} — ${m.size}` }))}
+              options={METADATA_LLM_MODELS.map(m => ({ value: m.id, label: `${m.label}${m.localVram ? ` — ${m.localVram}` : ''}` }))}
               value={metadataLLMId}
               onChange={e => { setMetadataLLMId(e.target.value); savePipeline({ metadataLLMId: e.target.value }); }} />
             {metadataLLMId !== 'none' && !hasApiKey && (
-              <p className="text-[11px] text-[var(--tf-warning-text)] mt-1">
+              <p className="text-[11px] text-[var(--tf-warning-text)]">
                 API Key erforderlich — bitte unter Einstellungen → KI-Assistent konfigurieren.
               </p>
+            )}
+            {metadataLLMId !== 'none' && (
+              <>
+                <div className="flex items-center gap-2">
+                  <label className="text-[12px] text-[var(--tf-text)]">Parallele API-Calls:</label>
+                  <input type="number" min={1} max={10} value={metadataParallelism}
+                    onChange={e => {
+                      const v = Math.max(1, Math.min(10, parseInt(e.target.value) || 3));
+                      setMetadataParallelism(v); savePipeline({ metadataParallelism: v });
+                    }}
+                    className="w-16 px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
+                    style={{ border: '0.5px solid var(--tf-border)' }} />
+                  <span className="text-[11px] text-[var(--tf-text-tertiary)]">(3-5 empfohlen)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" size="sm" onClick={async () => {
+                    const count = await clearMetadataCache(storage);
+                    setCacheMsg(`${count} Einträge gelöscht`);
+                    setTimeout(() => setCacheMsg(null), 3000);
+                  }}>Metadata-Cache leeren</Button>
+                  {cacheMsg && <span className="text-[11px] text-[var(--tf-text-secondary)]">{cacheMsg}</span>}
+                </div>
+              </>
             )}
           </div>
 

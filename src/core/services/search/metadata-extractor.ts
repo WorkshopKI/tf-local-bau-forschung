@@ -1,6 +1,7 @@
 /**
- * Extrahiert Metadaten aus Dokumenten via OpenRouter API (gpt-oss120B).
+ * Extrahiert Metadaten aus Dokumenten via OpenRouter API.
  * Nutzt die bestehende DirectLLMTransport-Infrastruktur.
+ * Cache in IDB vermeidet wiederholte API-Calls.
  */
 
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
@@ -30,36 +31,118 @@ const FALLBACK_METADATA = (filename: string, text: string): DocumentMetadata => 
   _isFallback: true,
 });
 
+/* ── Model Registry ── */
+
+export interface MetadataModelConfig {
+  id: string;
+  openRouterId: string;
+  label: string;
+  size: string;
+  description: string;
+  requiresReasoning: boolean;
+  localVram: string | null;
+}
+
+export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
+  {
+    id: 'gpt-oss-120b', openRouterId: 'openai/gpt-oss-120b',
+    label: 'gpt-oss-120b (Referenz)', size: '$0.04/$0.19 per M',
+    description: '117B MoE. Beste Qualitaet, nicht lokal laufbar.',
+    requiresReasoning: true, localVram: null,
+  },
+  {
+    id: 'smollm3-3b', openRouterId: 'huggingfacetb/smollm3-3b',
+    label: 'SmolLM3 3B', size: '~$0.01/$0.03 per M',
+    description: 'HuggingFace, 3B. Deutsch nativ, Structured Output.',
+    requiresReasoning: false, localVram: '~2 GB (q4)',
+  },
+  {
+    id: 'qwen3-4b', openRouterId: 'qwen/qwen3-4b',
+    label: 'Qwen 3 4B', size: '~$0.01/$0.04 per M',
+    description: 'Alibaba, 4B dense. Sehr gut fuer Deutsch + JSON.',
+    requiresReasoning: false, localVram: '~3 GB (q4)',
+  },
+  {
+    id: 'phi-4-mini', openRouterId: 'microsoft/phi-4-mini-instruct',
+    label: 'Phi-4 Mini (3.8B)', size: '~$0.02/$0.04 per M',
+    description: 'Microsoft, 3.8B. Kompakt, gute JSON-Faehigkeit.',
+    requiresReasoning: false, localVram: '~3 GB (q4)',
+  },
+  {
+    id: 'gemma-3-4b', openRouterId: 'google/gemma-3-4b-it',
+    label: 'Gemma 3 4B', size: 'Kostenlos oder guenstig',
+    description: 'Google, 4B. Multilingual, gut fuer Deutsch.',
+    requiresReasoning: false, localVram: '~3 GB (q4)',
+  },
+  {
+    id: 'llama-33-8b', openRouterId: 'meta-llama/llama-3.3-8b-instruct',
+    label: 'Llama 3.3 8B', size: 'Kostenlos (:free)',
+    description: 'Meta, 8B. Deutsch supported. Gratis auf OpenRouter.',
+    requiresReasoning: false, localVram: '~6 GB (q4)',
+  },
+  {
+    id: 'none', openRouterId: '',
+    label: 'Kein LLM (regelbasiert)', size: '0',
+    description: 'Metadata aus Dateiname + Text, ohne LLM.',
+    requiresReasoning: false, localVram: null,
+  },
+];
+
+/* ── LLM State ── */
+
 interface LLMState {
   transport: DirectLLMTransport | null;
   ready: boolean;
   modelId: string | null;
 }
 
-const llmState: LLMState = {
-  transport: null, ready: false, modelId: null,
-};
+const llmState: LLMState = { transport: null, ready: false, modelId: null };
 
-export const METADATA_LLM_MODELS = [
-  {
-    id: 'openrouter',
-    name: 'openai/gpt-oss-120b',
-    label: 'OpenRouter (gpt-oss-120b)',
-    size: 'API',
-    description: 'Schnell, zuverlaessig, ~0.10$ fuer 90 Dokumente. Erfordert API Key in Einstellungen.',
-  },
-  {
-    id: 'none',
-    name: '',
-    label: 'Kein LLM (regelbasiert)',
-    size: '0 MB',
-    description: 'Metadata wird aus Dateiname und Text extrahiert, ohne LLM.',
-  },
-];
+/* ── Storage Interface ── */
 
 export interface MetadataStorage {
-  idb: { get: <T>(key: string) => Promise<T | null> };
+  idb: {
+    get: <T>(key: string) => Promise<T | null>;
+    set: (key: string, value: unknown) => Promise<void>;
+    keys: (prefix: string) => Promise<string[]>;
+    delete: (key: string) => Promise<void>;
+  };
 }
+
+/* ── Metadata Cache ── */
+
+interface CachedMetadata {
+  metadata: DocumentMetadata;
+  docHash: string;
+  modelId: string;
+  timestamp: string;
+}
+
+export async function getCachedMetadata(
+  storage: MetadataStorage, docId: string, docHash: string, modelId: string,
+): Promise<DocumentMetadata | null> {
+  const cached = await storage.idb.get<CachedMetadata>(`metadata-cache:${docId}`);
+  if (cached && cached.docHash === docHash && cached.modelId === modelId) {
+    return cached.metadata;
+  }
+  return null;
+}
+
+export async function setCachedMetadata(
+  storage: MetadataStorage, docId: string, docHash: string, modelId: string, metadata: DocumentMetadata,
+): Promise<void> {
+  await storage.idb.set(`metadata-cache:${docId}`, {
+    metadata, docHash, modelId, timestamp: new Date().toISOString(),
+  } satisfies CachedMetadata);
+}
+
+export async function clearMetadataCache(storage: MetadataStorage): Promise<number> {
+  const keys = await storage.idb.keys('metadata-cache:');
+  for (const key of keys) await storage.idb.delete(key);
+  return keys.length;
+}
+
+/* ── Init / Extract / Dispose ── */
 
 export async function initMetadataLLM(
   modelId: string,
@@ -69,30 +152,20 @@ export async function initMetadataLLM(
   if (modelId === 'none') return true;
   if (llmState.ready && llmState.modelId === modelId) return true;
 
-  onProgress?.('API-Verbindung pruefen...');
+  const modelCfg = METADATA_LLM_MODELS.find(m => m.id === modelId);
+  if (!modelCfg || !modelCfg.openRouterId) return false;
 
+  onProgress?.('API-Verbindung pruefen...');
   try {
-    if (!storage) {
-      console.error('[MetadataLLM] Storage nicht verfuegbar');
-      return false;
-    }
+    if (!storage) { console.error('[MetadataLLM] Storage nicht verfuegbar'); return false; }
     const aiConfig = await storage.idb.get<AIProviderConfig>('ai-provider');
     if (!aiConfig?.apiKey) {
-      onProgress?.('Kein API Key — bitte unter Einstellungen > KI-Assistent konfigurieren');
-      return false;
+      onProgress?.('Kein API Key — Einstellungen > KI-Assistent'); return false;
     }
-
     const endpoint = aiConfig.endpoint || 'https://openrouter.ai/api/v1';
-    const model = aiConfig.model || 'openai/gpt-oss-120b';
-
-    llmState.transport = new DirectLLMTransport(endpoint, model, aiConfig.apiKey);
-
+    llmState.transport = new DirectLLMTransport(endpoint, modelCfg.openRouterId, aiConfig.apiKey);
     const ok = await llmState.transport.ping();
-    if (!ok) {
-      onProgress?.('API nicht erreichbar — Endpoint oder Key pruefen');
-      return false;
-    }
-
+    if (!ok) { onProgress?.('API nicht erreichbar'); return false; }
     llmState.ready = true;
     llmState.modelId = modelId;
     onProgress?.('API verbunden');
@@ -104,19 +177,16 @@ export async function initMetadataLLM(
   }
 }
 
-export async function extractMetadata(
-  filename: string,
-  text: string,
-): Promise<DocumentMetadata> {
+export async function extractMetadata(filename: string, text: string): Promise<DocumentMetadata> {
   if (!llmState.ready || !llmState.transport || llmState.modelId === 'none') {
     return FALLBACK_METADATA(filename, text);
   }
-
   const systemPrompt = 'Du bist ein Metadaten-Extraktor fuer deutsche Verwaltungsdokumente. Antworte AUSSCHLIESSLICH mit einem JSON-Objekt. Kein Markdown, keine Erklaerung, keine Backticks, kein Denkprozess.';
   const userPrompt = buildExtractionPrompt(text.slice(0, 3000));
-
   try {
-    const response = await llmState.transport.submitMessage(userPrompt, systemPrompt, { thinkingBudget: 'low' });
+    const modelCfg = METADATA_LLM_MODELS.find(m => m.id === llmState.modelId);
+    const options = modelCfg?.requiresReasoning ? { thinkingBudget: 'low' as const } : undefined;
+    const response = await llmState.transport.submitMessage(userPrompt, systemPrompt, options);
     return parseMetadataJSON(response, filename, text);
   } catch (err) {
     console.error('[MetadataLLM] Extract failed:', err);
@@ -129,6 +199,8 @@ export function disposeMetadataLLM(): void {
   llmState.ready = false;
   llmState.modelId = null;
 }
+
+/* ── Prompt + Parser (unchanged) ── */
 
 function buildExtractionPrompt(text: string): string {
   return `Extrahiere Metadaten aus diesem deutschen Verwaltungsdokument.

@@ -3,8 +3,8 @@ import type { EmbeddingProgress } from './embedding-service';
 import type { EmbeddingModelConfig } from './model-registry';
 import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB, getStoredDimensions, saveOramaDimensions } from './orama-store';
 import type { StorageService } from '@/core/services/storage';
-import { extractMetadata, initMetadataLLM, disposeMetadataLLM } from './metadata-extractor';
-import type { DocumentMetadata } from './metadata-extractor';
+import { extractMetadata, initMetadataLLM, disposeMetadataLLM, getCachedMetadata, setCachedMetadata } from './metadata-extractor';
+import type { DocumentMetadata, MetadataStorage } from './metadata-extractor';
 import { contextualChunk } from './contextual-chunker';
 import type { ContextualChunk } from './contextual-chunker';
 import { saveCheckpoint, loadCheckpoint, clearCheckpoint, isDocProcessed } from './checkpoint';
@@ -26,9 +26,41 @@ const CHUNK_CONFIG = { size: 400, overlap: 75 };
 export interface PipelineConfig {
   embeddingModelId: string;
   metadataLLMId: string | null;
+  metadataParallelism?: number;
   useContextualPrefixes: boolean;
   useReRanker: boolean;
   resumeFromCheckpoint: boolean;
+}
+
+interface DocToProcess {
+  id: string; filename: string; markdown: string; hash: string;
+}
+
+async function extractMetadataBatch(
+  docs: DocToProcess[], parallelism: number, storage: MetadataStorage, modelId: string,
+  onProgress: (done: number, total: number, currentDoc: string) => void,
+): Promise<Map<string, DocumentMetadata>> {
+  const results = new Map<string, DocumentMetadata>();
+  let done = 0;
+  for (let i = 0; i < docs.length; i += parallelism) {
+    const batch = docs.slice(i, i + parallelism);
+    const batchResults = await Promise.all(
+      batch.map(async (doc) => {
+        const cached = await getCachedMetadata(storage, doc.id, doc.hash, modelId);
+        if (cached) return { id: doc.id, metadata: cached, fromCache: true };
+        const metadata = await extractMetadata(doc.filename, doc.markdown);
+        if (!metadata._isFallback) {
+          await setCachedMetadata(storage, doc.id, doc.hash, modelId, metadata);
+        }
+        return { id: doc.id, metadata, fromCache: false };
+      }),
+    );
+    for (const r of batchResults) results.set(r.id, r.metadata);
+    done += batchResults.length;
+    const lastName = batch[batch.length - 1]?.filename ?? '';
+    onProgress(done, docs.length, lastName);
+  }
+  return results;
 }
 
 /** Heading-basiert mit Fallback auf Fixed 400W, 75 Overlap */
@@ -209,30 +241,34 @@ export class BatchIndexer {
 
     onStatus({ phase: 'Scanning', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
 
+    // Phase A: Collect docs that need processing, extract metadata in parallel
+    const docsToProcess: DocToProcess[] = [];
     for (const key of docs) {
       if (signal?.aborted) break;
-
       const doc = await storage.idb.get<{ id: string; filename: string; markdown: string }>(key);
       if (!doc) continue;
-
-      // Skip docs already in checkpoint
-      if (isDocProcessed(checkpoint, doc.id)) {
-        skipped++; processed++;
-        onStatus({ phase: 'Skipping (checkpoint)', total: docs.length, processed, currentDoc: doc.filename, skipped });
-        continue;
-      }
-
+      if (isDocProcessed(checkpoint, doc.id)) { skipped++; processed++; continue; }
       const hash = await hashText(doc.markdown);
-      if (manifest[doc.id] === hash) {
-        skipped++; processed++;
-        onStatus({ phase: 'Skipping', total: docs.length, processed, currentDoc: doc.filename, skipped });
-        continue;
-      }
-      // Extract metadata if LLM is active
-      onStatus({ phase: 'Metadata', total: docs.length, processed, currentDoc: doc.filename, skipped });
-      const metadata: DocumentMetadata | null = useLLM
-        ? await extractMetadata(doc.filename, doc.markdown)
-        : null;
+      if (manifest[doc.id] === hash) { skipped++; processed++; continue; }
+      docsToProcess.push({ id: doc.id, filename: doc.filename, markdown: doc.markdown, hash });
+    }
+
+    let metadataMap = new Map<string, DocumentMetadata>();
+    if (useLLM && docsToProcess.length > 0) {
+      const parallelism = config.metadataParallelism ?? 3;
+      onStatus({ phase: 'Metadata (parallel)', total: docsToProcess.length, processed: 0, currentDoc: '', skipped });
+      metadataMap = await extractMetadataBatch(docsToProcess, parallelism, storage, config.metadataLLMId!,
+        (done, total, currentDoc) => {
+          onStatus({ phase: `Metadata ${done}/${total}`, total: docs.length, processed: skipped + done, currentDoc, skipped });
+        },
+      );
+    }
+
+    // Phase B: Chunk + Embed sequentially (wie bisher)
+    for (const doc of docsToProcess) {
+      if (signal?.aborted) break;
+
+      const metadata: DocumentMetadata | null = metadataMap.get(doc.id) ?? null;
 
       // Chunk: contextual or plain
       let textsToEmbed: string[];
@@ -283,7 +319,7 @@ export class BatchIndexer {
         docChunkCounts[doc.filename] = (docChunkCounts[doc.filename] ?? 0) + 1;
       }
 
-      manifest[doc.id] = hash;
+      manifest[doc.id] = doc.hash;
       processed++;
       onStatus({ phase: 'Done', total: docs.length, processed, currentDoc: doc.filename, skipped });
 
