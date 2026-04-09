@@ -1,7 +1,13 @@
-import { pipeline, AutoModel, AutoTokenizer,
+import { pipeline, AutoModel, AutoTokenizer, env,
   type FeatureExtractionPipeline } from '@huggingface/transformers';
 import type { EmbeddingModelConfig } from './model-registry';
 import { pipelineLog } from './pipeline-logger';
+
+// Transformers.js v4 env
+env.useWasmCache = true;          // WASM-Binaries cachen fuer Offline
+
+/** Major-Version von @huggingface/transformers fuer Index-Invalidierung */
+export const TRANSFORMERS_LIB_VERSION = 4;
 
 export type { EmbeddingModelConfig } from './model-registry';
 export { EMBEDDING_MODELS, getModelById, getActiveModelId, setActiveModelId } from './model-registry';

@@ -8,6 +8,7 @@ import {
   EMBEDDING_MODELS, getModelById, setActiveModelId,
 } from '@/core/services/search/model-registry';
 import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
+import { RERANKER_MODELS, DEFAULT_RERANKER_ID } from '@/core/services/search/re-ranker';
 import { loadCheckpoint } from '@/core/services/search/checkpoint';
 import { listAvailableModels } from '@/core/services/search/model-loader';
 import { IndexProgress, Row, formatDuration } from '../IndexHelpers';
@@ -37,6 +38,7 @@ export function IndexStep({
   const [metadataLLMId, setMetadataLLMId] = useState('none');
   const [useContextualPrefixes, setUseContextualPrefixes] = useState(false);
   const [useReRanker, setUseReRanker] = useState(false);
+  const [reRankerModelId, setReRankerModelId] = useState(DEFAULT_RERANKER_ID);
   const [chunkStrategy, setChunkStrategy] = useState<ChunkStrategy>('fixed-200');
   const [hasCheckpoint, setHasCheckpoint] = useState(false);
   const [checkpointProgress, setCheckpointProgress] = useState(0);
@@ -47,9 +49,9 @@ export function IndexStep({
   const [indexedStrategy, setIndexedStrategy] = useState<ChunkStrategy | null>(null);
   const abortRef = useRef(new AbortController());
 
-  interface PipelineCfg { metadataLLMId: string; useContextualPrefixes: boolean; useReRanker: boolean; chunkStrategy: ChunkStrategy }
+  interface PipelineCfg { metadataLLMId: string; useContextualPrefixes: boolean; useReRanker: boolean; reRankerModelId: string; chunkStrategy: ChunkStrategy }
   const savePipeline = (patch: Partial<PipelineCfg>): void => {
-    const cfg: PipelineCfg = { metadataLLMId, useContextualPrefixes, useReRanker, chunkStrategy, ...patch };
+    const cfg: PipelineCfg = { metadataLLMId, useContextualPrefixes, useReRanker, reRankerModelId, chunkStrategy, ...patch };
     storage.idb.set('pipeline-config', cfg);
   };
 
@@ -59,6 +61,7 @@ export function IndexStep({
         setMetadataLLMId(cfg.metadataLLMId);
         setUseContextualPrefixes(cfg.useContextualPrefixes);
         setUseReRanker(cfg.useReRanker);
+        if (cfg.reRankerModelId) setReRankerModelId(cfg.reRankerModelId);
         if (cfg.chunkStrategy) setChunkStrategy(cfg.chunkStrategy);
       }
     });
@@ -194,9 +197,20 @@ export function IndexStep({
           <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)] cursor-pointer">
             <input type="checkbox" checked={useReRanker}
               onChange={e => { setUseReRanker(e.target.checked); savePipeline({ useReRanker: e.target.checked }); }} />
-            Cross-Encoder Re-Ranker (~500ms extra)
+            Cross-Encoder Re-Ranker
             <span className="text-[11px] text-[var(--tf-text-tertiary)]">— wirkt sofort, kein Reindexing</span>
           </label>
+          {useReRanker && (
+            <div className="ml-6 space-y-1">
+              <Select
+                options={RERANKER_MODELS.map(m => ({ value: m.id, label: `${m.label} — ${m.sizeHint}` }))}
+                value={reRankerModelId}
+                onChange={e => { setReRankerModelId(e.target.value); savePipeline({ reRankerModelId: e.target.value }); }} />
+              <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+                Fuegt ~500ms–2000ms Latenz pro Suche hinzu. Empfohlen nur wenn Suchergebnisse ohne Re-Ranker nicht ausreichen.
+              </p>
+            </div>
+          )}
 
           {hasCheckpoint && (
             <div className="flex items-center justify-between p-2 bg-[var(--tf-bg)] rounded-[var(--tf-radius)]">

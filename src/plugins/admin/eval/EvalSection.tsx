@@ -39,7 +39,7 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
     setRunning(true); setProgress(null); setError(null);
     try {
       const model = getModelById(modelId);
-      await loadOramaFromDB(storage.idb);
+      await loadOramaFromDB(storage.idb, model.dimensions);
 
       if (!embeddingService.isReady()) {
         let gpuAvailable = false;

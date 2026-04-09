@@ -7,7 +7,7 @@ export interface EmbeddingModelConfig {
   sizeLabel: string;
   downloadSize: string;
   strategy: 'pipeline' | 'automodel';
-  dtype?: 'fp32' | 'q8' | 'q4';
+  dtype?: 'fp32' | 'fp16' | 'q8' | 'q4';
   pooling: 'mean' | 'cls' | 'last-token';
   normalize: boolean;
   queryPrefix: string;
@@ -21,7 +21,7 @@ export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
   {
     id: 'minilm-l6-v2',
     name: 'Xenova/all-MiniLM-L6-v2',
-    label: 'MiniLM L6 v2',
+    label: 'MiniLM L6 v2 (fp32)',
     dimensions: 384,
     sizeLabel: '22M',
     downloadSize: '~80 MB',
@@ -35,7 +35,7 @@ export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
   {
     id: 'embeddinggemma-300m',
     name: 'onnx-community/embeddinggemma-300m-ONNX',
-    label: 'EmbeddingGemma 300M',
+    label: 'EmbeddingGemma 300M (q8)',
     dimensions: 768,
     sizeLabel: '308M',
     downloadSize: '~200 MB (q8)',
@@ -51,7 +51,7 @@ export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
   {
     id: 'qwen3-embed-0.6b',
     name: 'onnx-community/Qwen3-Embedding-0.6B-ONNX',
-    label: 'Qwen3 Embedding 0.6B',
+    label: 'Qwen3 Embedding 0.6B (q8)',
     sizeLabel: '600M',
     dimensions: 1024,
     mrlDimensions: 512,
@@ -68,34 +68,33 @@ export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
   {
     id: 'harrier-270m',
     name: 'onnx-community/harrier-oss-v1-270m-ONNX',
-    label: 'Harrier 270M',
+    label: 'Harrier 270M (fp16)',
     dimensions: 640,
     sizeLabel: '270M',
-    downloadSize: '~270 MB (fp32)',
+    downloadSize: '~135 MB (fp16)',
     strategy: 'automodel',
-    dtype: 'fp32',
+    dtype: 'fp16',
     pooling: 'last-token',
     normalize: true,
     queryPrefix: 'Instruct: Given a search query, retrieve relevant passages that answer the query\nQuery: ',
     documentPrefix: '',
     description: 'Microsoft, MTEB-SOTA, multilingual, decoder-only. Schnell wie EmbeddingGemma.',
   },
-  // Deaktiviert: Crash mit v3.8.1, braucht Transformers.js v4. Nach Upgrade reaktivieren.
-  // {
-  //   id: 'harrier-0.6b',
-  //   name: 'onnx-community/harrier-oss-v1-0.6b-ONNX',
-  //   label: 'Harrier 0.6B',
-  //   dimensions: 1024,
-  //   sizeLabel: '600M',
-  //   downloadSize: '~500 MB (q4)',
-  //   strategy: 'automodel',
-  //   dtype: 'q4',
-  //   pooling: 'last-token',
-  //   normalize: true,
-  //   queryPrefix: 'Instruct: Given a search query, retrieve relevant passages that answer the query\nQuery: ',
-  //   documentPrefix: '',
-  //   description: 'Microsoft, MTEB-SOTA, multilingual, 1024d. Langsamer, beste Qualitaet.',
-  // },
+  {
+    id: 'harrier-0.6b',
+    name: 'onnx-community/harrier-oss-v1-0.6b-ONNX',
+    label: 'Harrier 0.6B (q8)',
+    dimensions: 1024,
+    sizeLabel: '600M',
+    downloadSize: '~1 GB (q8)',
+    strategy: 'automodel',
+    dtype: 'q8',
+    pooling: 'last-token',
+    normalize: true,
+    queryPrefix: 'Instruct: Given a search query, retrieve relevant passages that answer the query\nQuery: ',
+    documentPrefix: '',
+    description: 'Microsoft, MTEB-SOTA, multilingual, 1024d. Langsamer, beste Qualitaet. GPU empfohlen.',
+  },
 ];
 
 export const DEFAULT_MODEL_ID = 'embeddinggemma-300m';

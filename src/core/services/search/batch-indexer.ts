@@ -1,7 +1,7 @@
-import { embeddingService } from './embedding-service';
+import { embeddingService, TRANSFORMERS_LIB_VERSION } from './embedding-service';
 import type { EmbeddingProgress } from './embedding-service';
 import type { EmbeddingModelConfig } from './model-registry';
-import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB } from './orama-store';
+import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB, getStoredDimensions, saveOramaDimensions } from './orama-store';
 import type { StorageService } from '@/core/services/storage';
 import { extractMetadata, initMetadataLLM, disposeMetadataLLM } from './metadata-extractor';
 import type { DocumentMetadata } from './metadata-extractor';
@@ -131,6 +131,24 @@ export class BatchIndexer {
     // Auto-force full reindex bei Modellwechsel
     const currentIndexModel = await storage.idb.get<string>('index-model-id');
     if (currentIndexModel && currentIndexModel !== this.modelConfig.id) {
+      await storage.idb.delete('index-manifest');
+      pipelineLog.warn('Indexer', `Modellwechsel erkannt: ${currentIndexModel} → ${this.modelConfig.id}`);
+    }
+
+    // Dimensionswechsel: Alte Orama-DB MUSS geloescht werden
+    const storedDimensions = await getStoredDimensions(storage.idb);
+    const newDimensions = this.modelConfig.dimensions;
+    if (storedDimensions && storedDimensions !== newDimensions) {
+      pipelineLog.warn('Indexer', `Dimensionswechsel: ${storedDimensions}d → ${newDimensions}d — DB wird neu erstellt`);
+      await storage.idb.delete('orama-db');
+      await storage.idb.delete('index-manifest');
+    }
+
+    // Library-Versionswechsel: Index invalidieren (ONNX-Format-Aenderungen)
+    const storedLibVersion = await storage.idb.get<number>('index-transformers-version');
+    if (storedLibVersion && storedLibVersion !== TRANSFORMERS_LIB_VERSION) {
+      pipelineLog.warn('Indexer', `Transformers.js v${storedLibVersion} → v${TRANSFORMERS_LIB_VERSION} — Index wird neu gebaut`);
+      await storage.idb.delete('orama-db');
       await storage.idb.delete('index-manifest');
     }
 
@@ -304,6 +322,8 @@ export class BatchIndexer {
     await storage.idb.set('index-last-update', new Date().toISOString());
     await storage.idb.set('index-model-id', this.modelConfig.id);
     await storage.idb.set('doc-chunk-counts', docChunkCounts);
+    await saveOramaDimensions(storage.idb, this.modelConfig.dimensions);
+    await storage.idb.set('index-transformers-version', TRANSFORMERS_LIB_VERSION);
 
     // Clear checkpoint on success
     await clearCheckpoint(storage);

@@ -63,7 +63,12 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
       } catch { /* kein File Server */ }
 
       // Orama-Index aus IDB laden (entweder lokal oder gerade vom Server ueberschrieben)
-      await loadOramaFromDB(storage.idb);
+      const loaded = await loadOramaFromDB(storage.idb, modelConfig.dimensions);
+      if (loaded) {
+        pipelineLog.info('Suche', `Index geladen: ${getDocCount()} Dokumente`);
+      } else {
+        pipelineLog.warn('Suche', 'Kein Index vorhanden');
+      }
       // Chunk-Counts laden (für Score-Normalisierung langer Dokumente)
       try { await loadDocChunkCounts(storage.idb); } catch { /* erste Nutzung */ }
       setDocCount(getDocCount());
@@ -84,14 +89,21 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
       } catch { /* Kein Embedding — Fulltext-Only */ }
       finally { setVectorLoading(false); }
 
-      // Re-Ranker laden
-      try {
-        pipelineLog.info('Re-Ranker', 'Versuche zu laden...');
-        const loaded = await initReRanker();
-        if (loaded) pipelineLog.info('Re-Ranker', 'Bereit');
-        else pipelineLog.warn('Re-Ranker', 'Konnte nicht geladen werden');
-      } catch (err) {
-        pipelineLog.warn('Re-Ranker', `Fehler: ${err}`);
+      // Re-Ranker nur laden wenn in pipeline-config aktiviert
+      const pipelineCfg = await storage.idb.get<{ useReRanker?: boolean; reRankerModelId?: string }>('pipeline-config');
+      console.log('[TeamFlow][ReRanker] pipeline-config:', { useReRanker: pipelineCfg?.useReRanker, reRankerModelId: pipelineCfg?.reRankerModelId });
+      if (pipelineCfg?.useReRanker) {
+        try {
+          const reRankerModel = pipelineCfg.reRankerModelId ?? 'bge-reranker-v2-m3';
+          console.log('[TeamFlow][ReRanker] Lade Modell:', reRankerModel);
+          const loaded = await initReRanker(reRankerModel);
+          if (loaded) pipelineLog.info('Re-Ranker', 'Bereit');
+          else pipelineLog.warn('Re-Ranker', 'Konnte nicht geladen werden');
+        } catch (err) {
+          pipelineLog.warn('Re-Ranker', `Fehler: ${err}`);
+        }
+      } else {
+        console.log('[TeamFlow][ReRanker] UEBERSPRUNGEN — Grund: deaktiviert in Einstellungen');
       }
     })();
   }, [storage]);
@@ -111,11 +123,13 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
         pipelineLog.warn('Embedding', 'Nicht bereit — nur BM25 Fulltext-Suche');
       }
       const reRankerActive = isReRankerReady();
+      console.log('[TeamFlow][ReRanker] Suche: isReRankerReady()=', reRankerActive);
       const stage1Limit = reRankerActive ? 30 : undefined;
       const stage1 = hybridSearch(query, queryVector, { type: filters?.type, limit: stage1Limit });
       pipelineLog.info('Orama', `${queryVector ? 'Hybrid' : 'Fulltext'}-Suche: ${stage1.length} Ergebnisse`);
       const r = reRankerActive ? await rerank(query, stage1, 15, 10) : stage1;
       if (reRankerActive) pipelineLog.info('Re-Ranker', `${stage1.length} → ${r.length} Ergebnisse`);
+      if (!reRankerActive) console.log('[TeamFlow][ReRanker] Suche: Re-Ranker nicht aktiv, uebersprungen');
       setResults(r);
       pipelineLog.searchSummary({
         query,

@@ -4,8 +4,15 @@ const MOD = 'color: #534AB7; font-weight: 500;';
 const RESET = 'color: inherit;';
 const WARN_STYLE = 'color: #BA7517; font-weight: bold;';
 
+let enabled = import.meta.env.DEV;
+
 export const pipelineLog = {
+  enable: (): void => { enabled = true; },
+  disable: (): void => { enabled = false; },
+  isEnabled: (): boolean => enabled,
+
   info: (module: string, message: string, data?: unknown): void => {
+    if (!enabled) return;
     if (data !== undefined) {
       console.log(`${PREFIX} %c${module}%c ${message}`, STYLE, MOD, RESET, data);
     } else {
@@ -14,6 +21,7 @@ export const pipelineLog = {
   },
 
   warn: (module: string, message: string, data?: unknown): void => {
+    if (!enabled) return;
     if (data !== undefined) {
       console.warn(`${PREFIX} %c${module}%c ${message}`, WARN_STYLE, MOD, RESET, data);
     } else {
@@ -30,6 +38,7 @@ export const pipelineLog = {
     stage2Results?: number;
     totalTimeMs: number;
   }): void => {
+    if (!enabled) return;
     console.groupCollapsed(
       `${PREFIX} %cSuche%c "${config.query}" — ${config.totalTimeMs}ms`,
       STYLE, MOD, RESET,
@@ -51,6 +60,7 @@ export const pipelineLog = {
     totalDocs: number;
     backend: string;
   }): void => {
+    if (!enabled) return;
     console.groupCollapsed(
       `${PREFIX} %cIndexierung%c ${config.totalDocs} Dokumente`,
       STYLE, MOD, RESET,
