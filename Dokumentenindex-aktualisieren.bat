@@ -58,7 +58,7 @@ $ZipFile = Join-Path $FilesDir 'llama-cpp.zip'
 # --- Defaults ---
 $ModelUrl = 'https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF/resolve/main/NVIDIA-Nemotron3-Nano-4B-Q4_K_M.gguf'
 $ModelDatei = 'nemotron.gguf'
-$KontextGroesse = 16384
+$KontextGroesse = 8192
 $GpuLayers = 99
 $Threads = 4
 $Port = 8081
@@ -74,7 +74,7 @@ if (-not (Test-Path $ConfigFile)) {
 {
   "modell_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF/resolve/main/NVIDIA-Nemotron3-Nano-4B-Q4_K_M.gguf",
   "modell_datei": "nemotron.gguf",
-  "kontext_groesse": 16384,
+  "kontext_groesse": 8192,
   "gpu_layers": 99,
   "threads": 4,
   "port": 8081

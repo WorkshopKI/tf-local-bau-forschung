@@ -173,7 +173,10 @@ export async function extractMetadata(filename: string, text: string, contextTok
     return FALLBACK_METADATA(filename, text);
   }
   const systemPrompt = METADATA_SYSTEM_PROMPT;
-  const trimmedText = smartTrim(text, contextTokens);
+  const SYSTEM_OVERHEAD = 300;  // System-Prompt + Prompt-Template
+  const RESPONSE_RESERVE = 1000; // max_new_tokens fuer JSON-Antwort
+  const effectiveTokens = Math.max(512, contextTokens - SYSTEM_OVERHEAD - RESPONSE_RESERVE);
+  const trimmedText = smartTrim(text, effectiveTokens);
   const userPrompt = buildExtractionPrompt(trimmedText);
   try {
     if (!llmState.transport) return FALLBACK_METADATA(filename, text);
