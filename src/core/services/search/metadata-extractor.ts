@@ -6,7 +6,6 @@
 
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
 import type { AIProviderConfig } from '@/core/types/config';
-import { initLocalBackend, extractLocal, disposeLocalBackend, isLocalReady, smartTrim } from './local-llm-backend';
 
 export interface DocumentMetadata {
   doc_type: string;
@@ -36,81 +35,31 @@ const FALLBACK_METADATA = (filename: string, text: string): DocumentMetadata => 
 
 export interface MetadataModelConfig {
   id: string;
-  type: 'local' | 'api';
   openRouterId: string;
   label: string;
   size: string;
   description: string;
   requiresReasoning: boolean;
-  localVram: string | null;
-  hfRepo?: string;
-  dtype?: Record<string, string>;
 }
 
 export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
   {
-    id: 'gemma4-e4b-local', type: 'local', openRouterId: '',
-    label: 'Lokal · Gemma 4 E4B (~4 GB)', size: '~2 GB Download',
-    description: 'Google Gemma 4, 4B aktiv. Laeuft im Browser via WebGPU/CPU.',
-    requiresReasoning: false, localVram: '~4 GB VRAM',
-    hfRepo: 'onnx-community/gemma-4-E4B-it-ONNX',
-    dtype: { embed_tokens: 'q4f16', decoder_model_merged: 'q4f16' },
-  },
-  {
-    id: 'gemma4-e2b-local', type: 'local', openRouterId: '',
-    label: 'Lokal · Gemma 4 E2B (~2 GB)', size: '~1 GB Download',
-    description: 'Google Gemma 4, 2B aktiv. Kleiner, weniger Speicher.',
-    requiresReasoning: false, localVram: '~2 GB VRAM',
-    hfRepo: 'onnx-community/gemma-4-E2B-it-ONNX',
-    dtype: { embed_tokens: 'q4f16', decoder_model_merged: 'q4f16' },
-  },
-  {
-    id: 'gpt-oss-120b', type: 'api', openRouterId: 'openai/gpt-oss-120b',
+    id: 'gpt-oss-120b', openRouterId: 'openai/gpt-oss-120b',
     label: 'OpenRouter · gpt-oss-120b (Referenz)', size: '$0.04/$0.19 per M',
     description: '117B MoE. Beste Qualitaet, nicht lokal laufbar.',
-    requiresReasoning: true, localVram: null,
+    requiresReasoning: true,
   },
   {
-    id: 'qwen35-9b', type: 'api', openRouterId: 'qwen/qwen3.5-9b',
-    label: 'OpenRouter · Qwen 3.5 9B', size: '$0.05/$0.15 per M',
-    description: 'Alibaba, 9B. Sehr gut fuer Deutsch + JSON.',
-    requiresReasoning: false, localVram: '~6 GB (q4)',
-  },
-  {
-    id: 'gemma4-26b', type: 'api', openRouterId: 'google/gemma-4-26b-a4b-it:free',
-    label: 'OpenRouter · Gemma 4 26B (Gratis)', size: 'Kostenlos',
-    description: 'Google, 26B MoE (4B aktiv). Multilingual, gratis.',
-    requiresReasoning: false, localVram: null,
-  },
-  {
-    id: 'gemma4-31b', type: 'api', openRouterId: 'google/gemma-4-31b-it:free',
-    label: 'OpenRouter · Gemma 4 31B (Gratis)', size: 'Kostenlos',
-    description: 'Google, 31B. Groesseres Modell, ebenfalls gratis.',
-    requiresReasoning: false, localVram: null,
-  },
-  {
-    id: 'liquid-24b', type: 'api', openRouterId: 'liquid/lfm-2-24b-a2b',
-    label: 'OpenRouter · Liquid LFM 24B', size: '$0.03/$0.12 per M',
-    description: 'Liquid AI, 24B MoE (2B aktiv). Schnell und guenstig.',
-    requiresReasoning: false, localVram: null,
-  },
-  {
-    id: 'nemotron-120b', type: 'api', openRouterId: 'nvidia/nemotron-3-super-120b-a12b:free',
-    label: 'OpenRouter · Nemotron 120B (Gratis)', size: 'Kostenlos',
-    description: 'NVIDIA, 120B MoE (12B aktiv). Leistungsstark, gratis.',
-    requiresReasoning: false, localVram: null,
-  },
-  {
-    id: 'gemma4-e4b-llamacpp', type: 'api', openRouterId: 'gemma-4-E4B-it',
-    label: 'llama.cpp · Gemma 4 E4B (lokal)', size: 'Lokal',
+    id: 'llamacpp-local', openRouterId: 'local-model',
+    label: 'llama.cpp · Lokal (localhost:8081)', size: 'Lokal',
     description: 'Lokaler Server. scripts/start-metadata-server.bat ausfuehren!',
-    requiresReasoning: false, localVram: '~6 GB VRAM (GGUF Q4_K_M)',
+    requiresReasoning: false,
   },
   {
-    id: 'none', type: 'api', openRouterId: '',
+    id: 'none', openRouterId: '',
     label: 'Kein LLM (regelbasiert)', size: '0',
     description: 'Metadata aus Dateiname + Text, ohne LLM.',
-    requiresReasoning: false, localVram: null,
+    requiresReasoning: false,
   },
 ];
 
@@ -120,7 +69,7 @@ interface LLMState {
   transport: DirectLLMTransport | null;
   ready: boolean;
   modelId: string | null;
-  backend: 'api' | 'local' | null;
+  backend: 'api' | null;
 }
 
 const llmState: LLMState = { transport: null, ready: false, modelId: null, backend: null };
@@ -175,24 +124,12 @@ export async function initMetadataLLM(
   modelId: string,
   onProgress?: (msg: string) => void,
   storage?: MetadataStorage,
-  options?: { preferGPU?: boolean },
 ): Promise<boolean> {
   if (modelId === 'none') return true;
   if (llmState.ready && llmState.modelId === modelId) return true;
 
   const modelCfg = METADATA_LLM_MODELS.find(m => m.id === modelId);
-  if (!modelCfg) return false;
-
-  // Lokales Backend
-  if (modelCfg.type === 'local') {
-    if (!modelCfg.hfRepo || !modelCfg.dtype) return false;
-    const ok = await initLocalBackend(modelCfg.hfRepo, modelCfg.dtype, options?.preferGPU ?? true, onProgress);
-    if (ok) { llmState.ready = true; llmState.modelId = modelId; llmState.backend = 'local'; }
-    return ok;
-  }
-
-  // API Backend
-  if (!modelCfg.openRouterId) return false;
+  if (!modelCfg || !modelCfg.openRouterId) return false;
   onProgress?.('API-Verbindung pruefen...');
   try {
     if (!storage) { console.error('[MetadataLLM] Storage nicht verfuegbar'); return false; }
@@ -226,10 +163,6 @@ export async function extractMetadata(filename: string, text: string, contextTok
   const trimmedText = smartTrim(text, contextTokens);
   const userPrompt = buildExtractionPrompt(trimmedText);
   try {
-    if (llmState.backend === 'local' && isLocalReady()) {
-      const response = await extractLocal(systemPrompt, userPrompt);
-      return parseMetadataJSON(response, filename, text);
-    }
     if (!llmState.transport) return FALLBACK_METADATA(filename, text);
     const modelCfg = METADATA_LLM_MODELS.find(m => m.id === llmState.modelId);
     const options: { thinkingBudget?: 'low'; responseFormat?: Record<string, unknown> } = {};
@@ -246,7 +179,6 @@ export async function extractMetadata(filename: string, text: string, contextTok
 export function disposeMetadataLLM(): void {
   const modelName = llmState.modelId ?? 'keins';
   const backend = llmState.backend ?? 'keins';
-  if (llmState.backend === 'local') disposeLocalBackend();
   llmState.transport = null;
   llmState.ready = false;
   llmState.modelId = null;
@@ -342,6 +274,19 @@ function parseMetadataJSON(output: string, filename: string, text: string): Docu
     }
   } catch { /* Parsing fehlgeschlagen */ }
   return FALLBACK_METADATA(filename, text);
+}
+
+function smartTrim(text: string, maxTokens: number): string {
+  const maxChars = maxTokens * 4; // Deutsch ≈ 4 Zeichen/Token
+  if (text.length <= maxChars) return text;
+  const headingBudget = Math.floor(maxChars * 0.15);
+  const startBudget = Math.floor(maxChars * 0.55);
+  const endBudget = Math.floor(maxChars * 0.30);
+  const start = text.slice(0, startBudget);
+  const headings = text.match(/^#{1,3}\s+.+$/gm) ?? [];
+  const headingsText = headings.join('\n').slice(0, headingBudget);
+  const end = text.slice(-endBudget);
+  return `${start}\n\n[...Abschnitts-Uebersicht...]\n${headingsText}\n\n[...Dokumentende...]\n${end}`;
 }
 
 function extractDateFromText(text: string): string | null {

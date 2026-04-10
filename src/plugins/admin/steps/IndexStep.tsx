@@ -181,16 +181,15 @@ export function IndexStep({
           <div className="space-y-2">
             <p className="text-[12px] font-medium text-[var(--tf-text)] mb-1">Metadata-Extraktion (LLM)</p>
             <Select
-              options={METADATA_LLM_MODELS.map(m => ({ value: m.id, label: `${m.label}${m.localVram ? ` — ${m.localVram}` : ''}` }))}
+              options={METADATA_LLM_MODELS.map(m => ({ value: m.id, label: m.label }))}
               value={metadataLLMId}
               onChange={e => { setMetadataLLMId(e.target.value); savePipeline({ metadataLLMId: e.target.value }); }} />
             {(() => {
               const selectedModel = METADATA_LLM_MODELS.find(m => m.id === metadataLLMId);
-              const isLocal = selectedModel?.type === 'local';
-              const isApi = selectedModel?.type === 'api' && metadataLLMId !== 'none';
+              const isApi = selectedModel && metadataLLMId !== 'none';
               return metadataLLMId !== 'none' ? (
                 <>
-                  {isApi && !hasApiKey && (
+                  {isApi && !hasApiKey && !selectedModel.openRouterId.startsWith('local') && (
                     <p className="text-[11px] text-[var(--tf-warning-text)]">
                       API Key erforderlich — bitte unter Einstellungen → KI-Assistent konfigurieren.
                     </p>
@@ -209,14 +208,6 @@ export function IndexStep({
                       <option value={32768}>32K (voller Kontext)</option>
                     </select>
                   </div>
-                  {isLocal && (
-                    <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)] cursor-pointer">
-                      <input type="checkbox" checked={metadataPreferGPU}
-                        onChange={e => { setMetadataPreferGPU(e.target.checked); savePipeline({ metadataPreferGPU: e.target.checked }); }} />
-                      WebGPU verwenden (schneller, braucht VRAM)
-                      <span className="text-[11px] text-[var(--tf-text-tertiary)]">— Deaktivieren fuer CPU-Modus</span>
-                    </label>
-                  )}
                   {isApi && (
                     <div className="flex items-center gap-2">
                       <label className="text-[12px] text-[var(--tf-text)]">Parallele API-Calls:</label>

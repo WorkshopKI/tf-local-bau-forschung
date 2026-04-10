@@ -3,7 +3,7 @@ import type { EmbeddingProgress } from './embedding-service';
 import type { EmbeddingModelConfig } from './model-registry';
 import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB, getStoredDimensions, saveOramaDimensions } from './orama-store';
 import type { StorageService } from '@/core/services/storage';
-import { extractMetadata, initMetadataLLM, disposeMetadataLLM, getCachedMetadata, setCachedMetadata, METADATA_LLM_MODELS } from './metadata-extractor';
+import { extractMetadata, initMetadataLLM, disposeMetadataLLM, getCachedMetadata, setCachedMetadata } from './metadata-extractor';
 import type { DocumentMetadata, MetadataStorage } from './metadata-extractor';
 import { contextualChunk } from './contextual-chunker';
 import type { ContextualChunk } from './contextual-chunker';
@@ -218,17 +218,11 @@ export class BatchIndexer {
 
     // Init metadata LLM if configured
     const useLLM = config.metadataLLMId != null && config.metadataLLMId !== 'none';
-    const metadataModelCfg = useLLM ? METADATA_LLM_MODELS.find(m => m.id === config.metadataLLMId) : null;
-    const isLocalModel = metadataModelCfg?.type === 'local';
     if (useLLM) {
-      // Lokales Modell: Embedding entladen fuer VRAM-Platz
-      if (isLocalModel && embeddingService.isReady()) {
-        embeddingService.destroy();
-      }
       onStatus({ phase: 'LLM laden', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
       await initMetadataLLM(config.metadataLLMId!, (msg) => {
         onStatus({ phase: msg, total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
-      }, storage, { preferGPU: config.metadataPreferGPU ?? true });
+      }, storage);
     }
 
     // Fast-Path: bei inkrementeller Indexierung prüfen ob alle Hashes stimmen
@@ -264,9 +258,9 @@ export class BatchIndexer {
 
     let metadataMap = new Map<string, DocumentMetadata>();
     if (useLLM && docsToProcess.length > 0) {
-      const parallelism = isLocalModel ? 1 : (config.metadataParallelism ?? 3);
+      const parallelism = config.metadataParallelism ?? 3;
       const contextTokens = config.metadataContext ?? 8192;
-      const phaseLabel = isLocalModel ? 'Metadata (lokal)' : 'Metadata (parallel)';
+      const phaseLabel = 'Metadata (parallel)';
       onStatus({ phase: phaseLabel, total: docsToProcess.length, processed: 0, currentDoc: '', skipped });
       metadataMap = await extractMetadataBatch(docsToProcess, parallelism, storage, config.metadataLLMId!,
         contextTokens,
@@ -353,12 +347,6 @@ export class BatchIndexer {
     // Dispose LLM if loaded
     if (useLLM) {
       disposeMetadataLLM();
-      // Lokales Modell: Embedding wieder laden (VRAM freigeben lassen)
-      if (isLocalModel && this.modelConfig) {
-        await new Promise(r => setTimeout(r, 500));
-        onStatus({ phase: 'Embedding-Modell laden', total: docs.length, processed, currentDoc: '', skipped });
-        await embeddingService.init(this.modelConfig, config.metadataPreferGPU ?? false);
-      }
     }
 
     await saveOramaToDB(storage.idb);

@@ -7,7 +7,6 @@ import {
   METADATA_SYSTEM_PROMPT, buildExtractionPrompt,
 } from '@/core/services/search/metadata-extractor';
 import type { DocumentMetadata, MetadataModelConfig } from '@/core/services/search/metadata-extractor';
-import { getLocalDevice, isLocalReady } from '@/core/services/search/local-llm-backend';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { disposeReRanker } from '@/core/services/search/re-ranker';
 import { Row } from './IndexHelpers';
@@ -60,20 +59,16 @@ export function MetadataSmokeTest(): React.ReactElement | null {
   if (metadataLLMId === null || metadataLLMId === 'none') return null;
 
   const modelCfg = METADATA_LLM_MODELS.find(m => m.id === metadataLLMId);
-  const isLocal = modelCfg?.type === 'local';
-  const localDevice = getLocalDevice();
-  const deviceSuffix = isLocal && localDevice ? `, ${localDevice === 'webgpu' ? 'WebGPU' : 'CPU'}` : '';
-  const modelLabel = (modelCfg?.label ?? metadataLLMId) + (deviceSuffix ? ` (${localDevice === 'webgpu' ? 'WebGPU' : 'CPU'})` : '');
+  const modelLabel = modelCfg?.label ?? metadataLLMId;
 
   const runTest = async (): Promise<void> => {
     setPhase('loading-model'); setResults([]); setErrorMsg(''); abortRef.current = false;
     const t0 = Date.now();
     try {
       const pipelineCfg = await storage.idb.get<PipelineCfg>('pipeline-config');
-      const preferGPU = pipelineCfg?.metadataPreferGPU ?? true;
       const contextTokens = pipelineCfg?.metadataContext ?? 8192;
       const ok = await initMetadataLLM(metadataLLMId, msg => { if (mountedRef.current) setModelProgress(msg); },
-        { idb: storage.idb }, { preferGPU });
+        { idb: storage.idb });
       if (!mountedRef.current) return;
       setModelLoadMs(Date.now() - t0);
       if (!ok) { setPhase('error'); setErrorMsg('LLM konnte nicht geladen werden.'); return; }
@@ -112,7 +107,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
 
   const unloadAllGPU = (): void => {
     const unloaded: string[] = [];
-    if (isLocalReady()) { disposeMetadataLLM(); unloaded.push('Metadata-LLM'); }
+    disposeMetadataLLM(); unloaded.push('Metadata-LLM');
     if (embeddingService.isReady()) { embeddingService.destroy(); unloaded.push('Embedding'); }
     try { disposeReRanker(); unloaded.push('Re-Ranker'); } catch { /* nicht geladen */ }
     const msg = unloaded.length > 0
@@ -346,11 +341,9 @@ function MetadataDetails({ modelCfg }: { modelCfg: MetadataModelConfig | null })
       <div className="mt-3 space-y-3 p-3 bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)]">
         <div>
           <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">Modell</p>
-          <Row label="Modell-ID" value={modelCfg?.type === 'local' ? (modelCfg.hfRepo ?? '—') : (modelCfg?.openRouterId ?? '—')} />
+          <Row label="Modell-ID" value={modelCfg?.openRouterId ?? '—'} />
           <Row label="Label" value={modelCfg?.label ?? '—'} />
-          <Row label="Typ" value={modelCfg?.type === 'local' ? 'Lokal (Transformers.js)' : 'API (OpenRouter)'} />
-          {modelCfg?.type !== 'local' && <Row label="Reasoning" value={modelCfg?.requiresReasoning ? 'Ja (effort: low)' : 'Nein'} />}
-          <Row label="Lokales VRAM" value={modelCfg?.localVram ?? 'Nicht lokal laufbar'} />
+          <Row label="Reasoning" value={modelCfg?.requiresReasoning ? 'Ja (effort: low)' : 'Nein'} />
         </div>
         <div className="pt-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">System-Prompt</p>
