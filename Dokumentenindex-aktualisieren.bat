@@ -151,9 +151,9 @@ if (-not (Test-Path $ServerExe)) {
     Write-Host '  Analyseprogramm ist vorhanden.' -ForegroundColor Green
 }
 
-# --- Schritt 2: KI-Modell ---
+# --- Schritt 2: Metadaten-Modell ---
 if (-not (Test-Path $ModelFile)) {
-    Write-Host '  [2/2] Lade KI-Modell herunter...              (einmalig, ca. 3 GB)' -ForegroundColor Yellow
+    Write-Host '  [2/2] Lade Metadaten-Modell herunter...              (einmalig, ca. 3 GB)' -ForegroundColor Yellow
     try {
         Download-WithProgress $ModelUrl $ModelFile
     } catch {
@@ -162,10 +162,10 @@ if (-not (Test-Path $ModelFile)) {
         return
     }
     $actualMB = [math]::Round((Get-Item $ModelFile).Length / 1MB, 0)
-    Write-Host "        KI-Modell bereit (${actualMB} MB)." -ForegroundColor Green
+    Write-Host "        Metadaten-Modell bereit (${actualMB} MB)." -ForegroundColor Green
 } else {
     $actualMB = [math]::Round((Get-Item $ModelFile).Length / 1MB, 0)
-    Write-Host "  KI-Modell ist vorhanden (${actualMB} MB)." -ForegroundColor Green
+    Write-Host "  Metadaten-Modell ist vorhanden (${actualMB} MB)." -ForegroundColor Green
 }
 
 # --- Bereit ---
