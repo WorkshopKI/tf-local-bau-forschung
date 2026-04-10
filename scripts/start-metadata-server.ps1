@@ -28,7 +28,12 @@ $GPU_LAYERS = 99         # 99 = alle Layers auf GPU. Reduzieren wenn OOM
 $THREADS = 4             # CPU-Threads fuer Nicht-GPU-Operationen
 
 # --- Config-Datei laden (ueberschreibt Defaults) ---
-$configFile = if ($Config -ne "") { $Config } else { Join-Path $PSScriptRoot "metadata-server-config.json" }
+if ($Config -and $Config -ne "") {
+    $configFile = Resolve-Path $Config -ErrorAction SilentlyContinue
+    if (-not $configFile) { $configFile = $Config }
+} else {
+    $configFile = Join-Path $PSScriptRoot "metadata-server-config.json"
+}
 if (Test-Path $configFile) {
     $config = Get-Content $configFile -Raw | ConvertFrom-Json
     if ($config.port) { $PORT = $config.port }
@@ -40,6 +45,7 @@ if (Test-Path $configFile) {
         $MODEL_FILE = Join-Path $MODEL_DIR $config.model
     }
     Write-Host "  [i] Konfiguration geladen: $configFile" -ForegroundColor DarkGray
+    Write-Host "  [i] Modell: $($config.model)" -ForegroundColor DarkGray
 }
 
 # --- Funktionen ---
