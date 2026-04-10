@@ -191,4 +191,5 @@ $serverArgs = @(
     '-fa', 'on',
     '--jinja'
 )
-& $ServerExe @serverArgs
+$proc = Start-Process -FilePath $ServerExe -ArgumentList $serverArgs -NoNewWindow -PassThru
+$proc.WaitForExit()
