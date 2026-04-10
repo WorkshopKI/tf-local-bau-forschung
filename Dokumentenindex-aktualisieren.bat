@@ -127,10 +127,9 @@ if (-not (Test-Path $ServerExe)) {
     try {
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $zip = [System.IO.Compression.ZipFile]::OpenRead($ZipFile)
-        $targets = @('llama-server.exe', 'llama.dll', 'ggml.dll', 'ggml-base.dll', 'ggml-cuda.dll')
         foreach ($entry in $zip.Entries) {
             $name = $entry.Name
-            if (($targets -contains $name) -or ($name -match '^ggml-cpu-.*\.dll$')) {
+            if ($name -eq 'llama-server.exe' -or $name -match '\.dll$') {
                 $destPath = Join-Path $FilesDir $name
                 [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destPath, $true)
             }
