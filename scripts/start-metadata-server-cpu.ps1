@@ -13,7 +13,6 @@ $SERVER_EXE = Join-Path $LLAMA_DIR "llama-server.exe"
 $MODEL_URL = "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf"
 $MODEL_FILE = Join-Path $MODEL_DIR "gemma-4-E4B-it-Q4_K_M.gguf"
 
-$LLAMA_RELEASE_URL = "https://github.com/ggml-org/llama.cpp/releases/latest/download/llama-bin-win-cuda-cu12.4-x64.zip"
 $LLAMA_ZIP = Join-Path $SERVER_DIR "llama-cpp.zip"
 
 # CPU-optimierte Parameter
@@ -88,6 +87,20 @@ Ensure-Directory $MODEL_DIR
 
 # Schritt 1: llama.cpp herunterladen + entpacken
 if (-not (Test-Path $SERVER_EXE)) {
+    Write-Host "  [..] Suche aktuelles llama.cpp Release..." -ForegroundColor Yellow
+    try {
+        $releaseJson = Invoke-RestMethod -Uri "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest" -UseBasicParsing
+        $asset = $releaseJson.assets | Where-Object { $_.name -match "bin-win-cuda-12.*x64\.zip$" -and $_.name -notmatch "cudart" } | Select-Object -First 1
+        if (-not $asset) {
+            Write-Host "  [!] Kein passendes Windows-Asset gefunden." -ForegroundColor Red
+            exit 1
+        }
+        $LLAMA_RELEASE_URL = $asset.browser_download_url
+        Write-Host "  [OK] Gefunden: $($asset.name)" -ForegroundColor Green
+    } catch {
+        Write-Host "  [!] GitHub API nicht erreichbar: $_" -ForegroundColor Red
+        exit 1
+    }
     Download-File $LLAMA_RELEASE_URL $LLAMA_ZIP "llama.cpp CUDA"
 
     Write-Host "  [..] Entpacke llama.cpp..." -ForegroundColor Yellow
