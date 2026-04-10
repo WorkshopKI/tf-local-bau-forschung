@@ -13,6 +13,37 @@ exit /b
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
+# --- Download-Funktion mit Fortschrittsanzeige ---
+function Download-WithProgress {
+    param([string]$Url, [string]$OutFile)
+    $wc = New-Object System.Net.WebClient
+    $done = $false
+    $timer = $null
+    $lastPct = -1
+    Register-ObjectEvent $wc DownloadProgressChanged -Action {
+        $script:dlPct = $EventArgs.ProgressPercentage
+        $script:dlMB = [math]::Round($EventArgs.BytesReceived / 1MB, 0)
+        $script:dlTotalMB = [math]::Round($EventArgs.TotalBytesToReceive / 1MB, 0)
+    } | Out-Null
+    Register-ObjectEvent $wc DownloadFileCompleted -Action {
+        $script:done = $true
+    } | Out-Null
+    $wc.DownloadFileAsync((New-Object System.Uri($Url)), $OutFile)
+    while (-not $done) {
+        Start-Sleep -Milliseconds 500
+        if ($null -ne $dlPct -and $dlPct -ne $lastPct) {
+            $lastPct = $dlPct
+            $filled = [math]::Floor($dlPct / 2.5)
+            $empty = 40 - $filled
+            $bar = ('=' * $filled) + (' ' * $empty)
+            Write-Host ("`r        [{0}] {1}% — {2}/{3} MB" -f $bar, $dlPct, $dlMB, $dlTotalMB) -NoNewline
+        }
+    }
+    Write-Host ''
+    Get-EventSubscriber | Where-Object { $_.SourceObject -eq $wc } | Unregister-Event
+    $wc.Dispose()
+}
+
 # --- Pfade ---
 $BaseDir = ($env:BATDIR).TrimEnd('\')
 $FilesDir = Join-Path $BaseDir 'dokumentenindex-dateien'
@@ -82,7 +113,7 @@ if (-not (Test-Path $ServerExe)) {
             Write-Host '  Bitte Internetverbindung pruefen und erneut starten.' -ForegroundColor Red
             return
         }
-        (New-Object System.Net.WebClient).DownloadFile($asset.browser_download_url, $ZipFile)
+        Download-WithProgress $asset.browser_download_url $ZipFile
     } catch {
         Write-Host '  Download fehlgeschlagen. Bitte Internetverbindung pruefen.' -ForegroundColor Red
         return
@@ -119,9 +150,8 @@ if (-not (Test-Path $ServerExe)) {
 # --- Schritt 2: KI-Modell ---
 if (-not (Test-Path $ModelFile)) {
     Write-Host '  [2/2] Lade KI-Modell herunter...              (einmalig, ca. 3 GB)' -ForegroundColor Yellow
-    Write-Host '        Das kann einige Minuten dauern.' -ForegroundColor DarkGray
     try {
-        (New-Object System.Net.WebClient).DownloadFile($ModelUrl, $ModelFile)
+        Download-WithProgress $ModelUrl $ModelFile
     } catch {
         Write-Host '  Download fehlgeschlagen. Bitte Internetverbindung pruefen.' -ForegroundColor Red
         Remove-Item $ModelFile -Force -ErrorAction SilentlyContinue
