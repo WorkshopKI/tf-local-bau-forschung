@@ -5,7 +5,7 @@ title TeamFlow - Dokumentenindex aktualisieren
 set "BATDIR=%~dp0"
 powershell -ExecutionPolicy Bypass -NoProfile -Command "& ([ScriptBlock]::Create((Get-Content -LiteralPath '%~f0' -Raw -Encoding UTF8)))"
 echo.
-echo   KI-Analyse wurde beendet. Fenster kann geschlossen werden.
+echo   Dokumentenindex aktualisieren wurde beendet. Fenster kann geschlossen werden.
 echo.
 pause >nul
 exit /b
