@@ -101,6 +101,12 @@ export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
     requiresReasoning: false, localVram: null,
   },
   {
+    id: 'gemma4-e4b-llamacpp', type: 'api', openRouterId: 'gemma-4-E4B-it',
+    label: 'llama.cpp · Gemma 4 E4B (lokal)', size: 'Lokal',
+    description: 'Lokaler Server. scripts/start-metadata-server.bat ausfuehren!',
+    requiresReasoning: false, localVram: '~6 GB VRAM (GGUF Q4_K_M)',
+  },
+  {
     id: 'none', type: 'api', openRouterId: '',
     label: 'Kein LLM (regelbasiert)', size: '0',
     description: 'Metadata aus Dateiname + Text, ohne LLM.',
@@ -191,13 +197,14 @@ export async function initMetadataLLM(
   try {
     if (!storage) { console.error('[MetadataLLM] Storage nicht verfuegbar'); return false; }
     const aiConfig = await storage.idb.get<AIProviderConfig>('ai-provider');
-    if (!aiConfig?.apiKey) {
+    const endpoint = aiConfig?.endpoint || 'https://openrouter.ai/api/v1';
+    const isLocalhost = endpoint.includes('localhost') || endpoint.includes('127.0.0.1');
+    if (!isLocalhost && !aiConfig?.apiKey) {
       onProgress?.('Kein API Key — Einstellungen > KI-Assistent'); return false;
     }
-    const endpoint = aiConfig.endpoint || 'https://openrouter.ai/api/v1';
-    llmState.transport = new DirectLLMTransport(endpoint, modelCfg.openRouterId, aiConfig.apiKey);
+    llmState.transport = new DirectLLMTransport(endpoint, modelCfg.openRouterId, aiConfig?.apiKey ?? '');
     const ok = await llmState.transport.ping();
-    if (!ok) { onProgress?.('API nicht erreichbar'); return false; }
+    if (!ok) { onProgress?.(`${isLocalhost ? 'Lokaler Server' : 'API'} nicht erreichbar`); return false; }
     llmState.ready = true;
     llmState.modelId = modelId;
     llmState.backend = 'api';
