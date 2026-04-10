@@ -16,32 +16,33 @@ $ProgressPreference = 'SilentlyContinue'
 # --- Download-Funktion mit Fortschrittsanzeige ---
 function Download-WithProgress {
     param([string]$Url, [string]$OutFile)
-    $wc = New-Object System.Net.WebClient
-    $done = $false
-    $timer = $null
+    $req = [System.Net.HttpWebRequest]::Create($Url)
+    $req.UserAgent = 'TeamFlow/1.0'
+    $resp = $req.GetResponse()
+    $totalBytes = $resp.ContentLength
+    $totalMB = [math]::Round($totalBytes / 1MB, 0)
+    $stream = $resp.GetResponseStream()
+    $fs = [System.IO.File]::Create($OutFile)
+    $buffer = New-Object byte[] 65536
+    $downloaded = 0
     $lastPct = -1
-    Register-ObjectEvent $wc DownloadProgressChanged -Action {
-        $script:dlPct = $EventArgs.ProgressPercentage
-        $script:dlMB = [math]::Round($EventArgs.BytesReceived / 1MB, 0)
-        $script:dlTotalMB = [math]::Round($EventArgs.TotalBytesToReceive / 1MB, 0)
-    } | Out-Null
-    Register-ObjectEvent $wc DownloadFileCompleted -Action {
-        $script:done = $true
-    } | Out-Null
-    $wc.DownloadFileAsync((New-Object System.Uri($Url)), $OutFile)
-    while (-not $done) {
-        Start-Sleep -Milliseconds 500
-        if ($null -ne $dlPct -and $dlPct -ne $lastPct) {
-            $lastPct = $dlPct
-            $filled = [math]::Floor($dlPct / 2.5)
-            $empty = 40 - $filled
-            $bar = ('=' * $filled) + (' ' * $empty)
-            Write-Host ("`r        [{0}] {1}% - {2}/{3} MB" -f $bar, $dlPct, $dlMB, $dlTotalMB) -NoNewline
+    while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+        $fs.Write($buffer, 0, $read)
+        $downloaded += $read
+        if ($totalBytes -gt 0) {
+            $pct = [math]::Floor($downloaded * 100 / $totalBytes)
+            if ($pct -ne $lastPct) {
+                $lastPct = $pct
+                $dlMB = [math]::Round($downloaded / 1MB, 0)
+                $filled = [math]::Floor($pct / 2.5)
+                $empty = 40 - $filled
+                $bar = ('=' * $filled) + (' ' * $empty)
+                Write-Host ("`r        [{0}] {1}% - {2}/{3} MB" -f $bar, $pct, $dlMB, $totalMB) -NoNewline
+            }
         }
     }
+    $fs.Close(); $stream.Close(); $resp.Close()
     Write-Host ''
-    Get-EventSubscriber | Where-Object { $_.SourceObject -eq $wc } | Unregister-Event
-    $wc.Dispose()
 }
 
 # --- Pfade ---
