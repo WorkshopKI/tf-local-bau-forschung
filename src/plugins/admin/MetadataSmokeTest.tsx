@@ -7,6 +7,7 @@ import {
   METADATA_SYSTEM_PROMPT, buildExtractionPrompt,
 } from '@/core/services/search/metadata-extractor';
 import type { DocumentMetadata, MetadataModelConfig } from '@/core/services/search/metadata-extractor';
+import { getLocalDevice } from '@/core/services/search/local-llm-backend';
 import { Row } from './IndexHelpers';
 import { validateMetadata } from './smoke-test-validation';
 import type { ValidationResult } from './smoke-test-validation';
@@ -25,7 +26,7 @@ interface DocResult {
   inferenceMs: number;
 }
 
-interface PipelineCfg { metadataLLMId: string }
+interface PipelineCfg { metadataLLMId: string; metadataPreferGPU?: boolean; metadataContext?: number }
 
 export function MetadataSmokeTest(): React.ReactElement | null {
   const storage = useStorage();
@@ -56,13 +57,20 @@ export function MetadataSmokeTest(): React.ReactElement | null {
   if (metadataLLMId === null || metadataLLMId === 'none') return null;
 
   const modelCfg = METADATA_LLM_MODELS.find(m => m.id === metadataLLMId);
-  const modelLabel = modelCfg?.label ?? metadataLLMId;
+  const isLocal = modelCfg?.type === 'local';
+  const localDevice = getLocalDevice();
+  const deviceSuffix = isLocal && localDevice ? `, ${localDevice === 'webgpu' ? 'WebGPU' : 'CPU'}` : '';
+  const modelLabel = (modelCfg?.label ?? metadataLLMId) + (deviceSuffix ? ` (${localDevice === 'webgpu' ? 'WebGPU' : 'CPU'})` : '');
 
   const runTest = async (): Promise<void> => {
     setPhase('loading-model'); setResults([]); setErrorMsg(''); abortRef.current = false;
     const t0 = Date.now();
     try {
-      const ok = await initMetadataLLM(metadataLLMId, msg => { if (mountedRef.current) setModelProgress(msg); }, { idb: storage.idb });
+      const pipelineCfg = await storage.idb.get<PipelineCfg>('pipeline-config');
+      const preferGPU = pipelineCfg?.metadataPreferGPU ?? true;
+      const contextTokens = pipelineCfg?.metadataContext ?? 8192;
+      const ok = await initMetadataLLM(metadataLLMId, msg => { if (mountedRef.current) setModelProgress(msg); },
+        { idb: storage.idb }, { preferGPU });
       if (!mountedRef.current) return;
       setModelLoadMs(Date.now() - t0);
       if (!ok) { setPhase('error'); setErrorMsg('LLM konnte nicht geladen werden.'); return; }
@@ -80,7 +88,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
         const doc = await storage.idb.get<{ id: string; filename: string; markdown: string }>(key);
         if (!doc) continue;
         const start = performance.now();
-        const metadata = await extractMetadata(doc.filename, doc.markdown);
+        const metadata = await extractMetadata(doc.filename, doc.markdown, contextTokens);
         const inferenceMs = Math.round(performance.now() - start);
         const validation = validateMetadata(metadata, doc.filename, doc.markdown);
         if (mountedRef.current) {
@@ -301,9 +309,10 @@ function MetadataDetails({ modelCfg }: { modelCfg: MetadataModelConfig | null })
       <div className="mt-3 space-y-3 p-3 bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)]">
         <div>
           <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">Modell</p>
-          <Row label="Modell-ID" value={modelCfg?.openRouterId ?? '—'} />
+          <Row label="Modell-ID" value={modelCfg?.type === 'local' ? (modelCfg.hfRepo ?? '—') : (modelCfg?.openRouterId ?? '—')} />
           <Row label="Label" value={modelCfg?.label ?? '—'} />
-          <Row label="Reasoning" value={modelCfg?.requiresReasoning ? 'Ja (effort: low)' : 'Nein'} />
+          <Row label="Typ" value={modelCfg?.type === 'local' ? 'Lokal (Transformers.js)' : 'API (OpenRouter)'} />
+          {modelCfg?.type !== 'local' && <Row label="Reasoning" value={modelCfg?.requiresReasoning ? 'Ja (effort: low)' : 'Nein'} />}
           <Row label="Lokales VRAM" value={modelCfg?.localVram ?? 'Nicht lokal laufbar'} />
         </div>
         <div className="pt-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
@@ -316,7 +325,7 @@ function MetadataDetails({ modelCfg }: { modelCfg: MetadataModelConfig | null })
         </div>
         <div className="pt-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">Pipeline</p>
-          <Row label="Text-Limit" value="3000 Zeichen (Dokumentanfang)" />
+          <Row label="Text-Limit" value="Smart Trim (Anfang + Headings + Ende)" />
           <Row label="Testumfang" value="Erste 10 Dokumente aus IDB" />
           <Row label="Caching" value="IDB (metadata-cache:{docId})" />
         </div>

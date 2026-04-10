@@ -50,12 +50,14 @@ export function IndexStep({
   const [indexedPrefixes, setIndexedPrefixes] = useState<boolean | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [metadataParallelism, setMetadataParallelism] = useState(3);
+  const [metadataContext, setMetadataContext] = useState(8192);
+  const [metadataPreferGPU, setMetadataPreferGPU] = useState(true);
   const [cacheMsg, setCacheMsg] = useState<string | null>(null);
   const abortRef = useRef(new AbortController());
 
-  interface PipelineCfg { metadataLLMId: string; metadataParallelism: number; useContextualPrefixes: boolean; useReRanker: boolean; reRankerModelId: string }
+  interface PipelineCfg { metadataLLMId: string; metadataParallelism: number; metadataContext: number; metadataPreferGPU: boolean; useContextualPrefixes: boolean; useReRanker: boolean; reRankerModelId: string }
   const savePipeline = (patch: Partial<PipelineCfg>): void => {
-    const cfg: PipelineCfg = { metadataLLMId, metadataParallelism, useContextualPrefixes, useReRanker, reRankerModelId, ...patch };
+    const cfg: PipelineCfg = { metadataLLMId, metadataParallelism, metadataContext, metadataPreferGPU, useContextualPrefixes, useReRanker, reRankerModelId, ...patch };
     storage.idb.set('pipeline-config', cfg);
   };
 
@@ -64,6 +66,8 @@ export function IndexStep({
       if (cfg) {
         setMetadataLLMId(cfg.metadataLLMId);
         if (cfg.metadataParallelism) setMetadataParallelism(cfg.metadataParallelism);
+        if (cfg.metadataContext) setMetadataContext(cfg.metadataContext);
+        if (cfg.metadataPreferGPU !== undefined) setMetadataPreferGPU(cfg.metadataPreferGPU);
         setUseContextualPrefixes(cfg.useContextualPrefixes);
         setUseReRanker(cfg.useReRanker);
         if (cfg.reRankerModelId) setReRankerModelId(cfg.reRankerModelId);
@@ -106,6 +110,8 @@ export function IndexStep({
         embeddingModelId: activeModelId,
         metadataLLMId: metadataLLMId !== 'none' ? metadataLLMId : null,
         metadataParallelism,
+        metadataContext,
+        metadataPreferGPU,
         useContextualPrefixes,
         useReRanker,
         resumeFromCheckpoint: resume || !full,
@@ -178,34 +184,63 @@ export function IndexStep({
               options={METADATA_LLM_MODELS.map(m => ({ value: m.id, label: `${m.label}${m.localVram ? ` — ${m.localVram}` : ''}` }))}
               value={metadataLLMId}
               onChange={e => { setMetadataLLMId(e.target.value); savePipeline({ metadataLLMId: e.target.value }); }} />
-            {metadataLLMId !== 'none' && !hasApiKey && (
-              <p className="text-[11px] text-[var(--tf-warning-text)]">
-                API Key erforderlich — bitte unter Einstellungen → KI-Assistent konfigurieren.
-              </p>
-            )}
-            {metadataLLMId !== 'none' && (
-              <>
-                <div className="flex items-center gap-2">
-                  <label className="text-[12px] text-[var(--tf-text)]">Parallele API-Calls:</label>
-                  <input type="number" min={1} max={10} value={metadataParallelism}
-                    onChange={e => {
-                      const v = Math.max(1, Math.min(10, parseInt(e.target.value) || 3));
-                      setMetadataParallelism(v); savePipeline({ metadataParallelism: v });
+            {(() => {
+              const selectedModel = METADATA_LLM_MODELS.find(m => m.id === metadataLLMId);
+              const isLocal = selectedModel?.type === 'local';
+              const isApi = selectedModel?.type === 'api' && metadataLLMId !== 'none';
+              return metadataLLMId !== 'none' ? (
+                <>
+                  {isApi && !hasApiKey && (
+                    <p className="text-[11px] text-[var(--tf-warning-text)]">
+                      API Key erforderlich — bitte unter Einstellungen → KI-Assistent konfigurieren.
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <label className="text-[12px] text-[var(--tf-text)]">Kontext-Tokens:</label>
+                    <select value={metadataContext} onChange={e => {
+                      const v = parseInt(e.target.value);
+                      setMetadataContext(v); savePipeline({ metadataContext: v });
                     }}
-                    className="w-16 px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
-                    style={{ border: '0.5px solid var(--tf-border)' }} />
-                  <span className="text-[11px] text-[var(--tf-text-tertiary)]">(3-5 empfohlen)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="secondary" size="sm" onClick={async () => {
-                    const count = await clearMetadataCache(storage);
-                    setCacheMsg(`${count} Einträge gelöscht`);
-                    setTimeout(() => setCacheMsg(null), 3000);
-                  }}>Metadata-Cache leeren</Button>
-                  {cacheMsg && <span className="text-[11px] text-[var(--tf-text-secondary)]">{cacheMsg}</span>}
-                </div>
-              </>
-            )}
+                      className="px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
+                      style={{ border: '0.5px solid var(--tf-border)' }}>
+                      <option value={4096}>4K (schnell, wenig VRAM)</option>
+                      <option value={8192}>8K (Standard)</option>
+                      <option value={16384}>16K (grosse Dokumente)</option>
+                      <option value={32768}>32K (voller Kontext)</option>
+                    </select>
+                  </div>
+                  {isLocal && (
+                    <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)] cursor-pointer">
+                      <input type="checkbox" checked={metadataPreferGPU}
+                        onChange={e => { setMetadataPreferGPU(e.target.checked); savePipeline({ metadataPreferGPU: e.target.checked }); }} />
+                      WebGPU verwenden (schneller, braucht VRAM)
+                      <span className="text-[11px] text-[var(--tf-text-tertiary)]">— Deaktivieren fuer CPU-Modus</span>
+                    </label>
+                  )}
+                  {isApi && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-[12px] text-[var(--tf-text)]">Parallele API-Calls:</label>
+                      <input type="number" min={1} max={10} value={metadataParallelism}
+                        onChange={e => {
+                          const v = Math.max(1, Math.min(10, parseInt(e.target.value) || 3));
+                          setMetadataParallelism(v); savePipeline({ metadataParallelism: v });
+                        }}
+                        className="w-16 px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
+                        style={{ border: '0.5px solid var(--tf-border)' }} />
+                      <span className="text-[11px] text-[var(--tf-text-tertiary)]">(3-5 empfohlen)</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Button variant="secondary" size="sm" onClick={async () => {
+                      const count = await clearMetadataCache(storage);
+                      setCacheMsg(`${count} Einträge gelöscht`);
+                      setTimeout(() => setCacheMsg(null), 3000);
+                    }}>Metadata-Cache leeren</Button>
+                    {cacheMsg && <span className="text-[11px] text-[var(--tf-text-secondary)]">{cacheMsg}</span>}
+                  </div>
+                </>
+              ) : null;
+            })()}
           </div>
 
           <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)] cursor-pointer">

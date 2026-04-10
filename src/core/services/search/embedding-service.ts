@@ -232,6 +232,12 @@ export class EmbeddingService {
   }
 
   destroy(): void {
+    if (this.pipelineExtractor && (this.pipelineExtractor as any).dispose) {
+      try { (this.pipelineExtractor as any).dispose(); } catch { /* ignore */ }
+    }
+    if (this.autoModel && (this.autoModel as any).dispose) {
+      try { (this.autoModel as any).dispose(); } catch { /* ignore */ }
+    }
     this.pipelineExtractor = null;
     this.autoModel = null;
     this.autoTokenizer = null;
