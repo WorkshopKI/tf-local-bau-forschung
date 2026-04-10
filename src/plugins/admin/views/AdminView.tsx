@@ -55,7 +55,7 @@ function SectionTitle({ title, subtitle }: {
   return (
     <div className="flex items-center justify-between mb-2 pb-1.5"
       style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-      <span className="text-[13px] font-medium text-[var(--tf-text)]">{title}</span>
+      <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text)]">{title}</span>
       {subtitle && <span className="text-[11px] text-[var(--tf-text-secondary)]">{subtitle}</span>}
     </div>
   );
