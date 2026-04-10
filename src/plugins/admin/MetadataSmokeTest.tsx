@@ -39,7 +39,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
   const [results, setResults] = useState<DocResult[]>([]);
   const [currentDoc, setCurrentDoc] = useState(0);
   const [totalDocs, setTotalDocs] = useState(0);
-  const [expandedRow, setExpandedRow] = useState<number | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [errorMsg, setErrorMsg] = useState('');
   const [gpuMsg, setGpuMsg] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -191,7 +191,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
           results={results} avgScore={avgScore} avgTime={avgTime}
           totalTime={totalTime} modelLoadMs={modelLoadMs} modelLabel={modelLabel}
           llmCount={llmCount} fallbackCount={fallbackCount}
-          expandedRow={expandedRow} setExpandedRow={setExpandedRow}
+          expandedRows={expandedRows} setExpandedRows={setExpandedRows}
           isDone={phase === 'done'}
         />
       )}
@@ -220,11 +220,11 @@ export function MetadataSmokeTest(): React.ReactElement | null {
 
 /* ── Results sub-component (keeps main component under 300 lines) ── */
 function SmokeTestResults({ results, avgScore, avgTime, totalTime, modelLoadMs, modelLabel,
-  llmCount, fallbackCount, expandedRow, setExpandedRow, isDone,
+  llmCount, fallbackCount, expandedRows, setExpandedRows, isDone,
 }: {
   results: DocResult[]; avgScore: number; avgTime: number; totalTime: number;
   modelLoadMs: number; modelLabel: string; llmCount: number; fallbackCount: number;
-  expandedRow: number | null; setExpandedRow: (n: number | null) => void; isDone: boolean;
+  expandedRows: Set<number>; setExpandedRows: (s: Set<number>) => void; isDone: boolean;
 }): React.ReactElement {
   return (
     <div className="space-y-3 mt-3">
@@ -271,8 +271,12 @@ function SmokeTestResults({ results, avgScore, avgTime, totalTime, modelLoadMs, 
         <tbody>
           {results.map((r, i) => (
             <ResultRow key={i} result={r} index={i}
-              expanded={expandedRow === i}
-              onToggle={() => setExpandedRow(expandedRow === i ? null : i)} />
+              expanded={expandedRows.has(i)}
+              onToggle={() => {
+                const next = new Set(expandedRows);
+                if (next.has(i)) next.delete(i); else next.add(i);
+                setExpandedRows(next);
+              }} />
           ))}
         </tbody>
       </table>
