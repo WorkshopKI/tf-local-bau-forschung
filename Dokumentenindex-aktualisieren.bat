@@ -82,7 +82,7 @@ if (-not (Test-Path $ServerExe)) {
             Write-Host '  Bitte Internetverbindung pruefen und erneut starten.' -ForegroundColor Red
             return
         }
-        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $ZipFile -UseBasicParsing
+        (New-Object System.Net.WebClient).DownloadFile($asset.browser_download_url, $ZipFile)
     } catch {
         Write-Host '  Download fehlgeschlagen. Bitte Internetverbindung pruefen.' -ForegroundColor Red
         return
@@ -121,9 +121,7 @@ if (-not (Test-Path $ModelFile)) {
     Write-Host '  [2/2] Lade KI-Modell herunter...              (einmalig, ca. 3 GB)' -ForegroundColor Yellow
     Write-Host '        Das kann einige Minuten dauern.' -ForegroundColor DarkGray
     try {
-        $ProgressPreference = 'Continue'
-        Invoke-WebRequest -Uri $ModelUrl -OutFile $ModelFile -UseBasicParsing
-        $ProgressPreference = 'SilentlyContinue'
+        (New-Object System.Net.WebClient).DownloadFile($ModelUrl, $ModelFile)
     } catch {
         Write-Host '  Download fehlgeschlagen. Bitte Internetverbindung pruefen.' -ForegroundColor Red
         Remove-Item $ModelFile -Force -ErrorAction SilentlyContinue
