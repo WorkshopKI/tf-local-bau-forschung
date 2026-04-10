@@ -173,9 +173,10 @@ export async function extractMetadata(filename: string, text: string, contextTok
     return FALLBACK_METADATA(filename, text);
   }
   const systemPrompt = METADATA_SYSTEM_PROMPT;
-  const SYSTEM_OVERHEAD = 300;  // System-Prompt + Prompt-Template
+  const SYSTEM_OVERHEAD = 500;  // System-Prompt + Prompt-Template + JSON-Schema
   const RESPONSE_RESERVE = 1000; // max_new_tokens fuer JSON-Antwort
-  const effectiveTokens = Math.max(512, contextTokens - SYSTEM_OVERHEAD - RESPONSE_RESERVE);
+  const SAFETY_MARGIN = 200;
+  const effectiveTokens = Math.max(512, contextTokens - SYSTEM_OVERHEAD - RESPONSE_RESERVE - SAFETY_MARGIN);
   const trimmedText = smartTrim(text, effectiveTokens);
   const userPrompt = buildExtractionPrompt(trimmedText);
   try {
@@ -293,16 +294,23 @@ function parseMetadataJSON(output: string, filename: string, text: string): Docu
 }
 
 function smartTrim(text: string, maxTokens: number): string {
-  const maxChars = maxTokens * 4; // Deutsch ≈ 4 Zeichen/Token
+  const maxChars = Math.floor(maxTokens * 3.5); // Deutsch ≈ 3.5 Zeichen/Token
   if (text.length <= maxChars) return text;
-  const headingBudget = Math.floor(maxChars * 0.15);
   const startBudget = Math.floor(maxChars * 0.55);
-  const endBudget = Math.floor(maxChars * 0.30);
+  const endBudget = Math.floor(maxChars * 0.25);
+  const separator = '\n\n[...gekuerzt...]\n';
   const start = text.slice(0, startBudget);
-  const headings = text.match(/^#{1,3}\s+.+$/gm) ?? [];
-  const headingsText = headings.join('\n').slice(0, headingBudget);
   const end = text.slice(-endBudget);
-  return `${start}\n\n[...Abschnitts-Uebersicht...]\n${headingsText}\n\n[...Dokumentende...]\n${end}`;
+  const headings = text.match(/^#{1,3}\s+.+$/gm) ?? [];
+  const headingBudget = maxChars - startBudget - endBudget - separator.length;
+  const headingsText = headingBudget > 0 ? headings.join('\n').slice(0, headingBudget) : '';
+  let result = headingsText
+    ? `${start}\n\n[...Abschnitts-Uebersicht...]\n${headingsText}${separator}${end}`
+    : `${start}${separator}${end}`;
+  // Harte Obergrenze: niemals mehr als maxChars
+  if (result.length > maxChars) result = result.slice(0, maxChars);
+  console.log(`[Metadata] Dokument gekuerzt: ${text.length} → ${result.length} Zeichen (max: ${maxChars})`);
+  return result;
 }
 
 function extractDateFromText(text: string): string | null {
