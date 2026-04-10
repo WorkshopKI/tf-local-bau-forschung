@@ -201,6 +201,7 @@ export async function initMetadataLLM(
     llmState.ready = true;
     llmState.modelId = modelId;
     llmState.backend = 'api';
+    console.log(`[MetadataLLM] ✅ API verbunden: ${modelCfg.openRouterId}`);
     onProgress?.('API verbunden');
     return true;
   } catch (err) {
@@ -234,11 +235,14 @@ export async function extractMetadata(filename: string, text: string, contextTok
 }
 
 export function disposeMetadataLLM(): void {
+  const modelName = llmState.modelId ?? 'keins';
+  const backend = llmState.backend ?? 'keins';
   if (llmState.backend === 'local') disposeLocalBackend();
   llmState.transport = null;
   llmState.ready = false;
   llmState.modelId = null;
   llmState.backend = null;
+  console.log(`[MetadataLLM] ❌ Entladen: ${modelName} (${backend})`);
 }
 
 /* ── Prompt + Parser ── */

@@ -22,6 +22,29 @@ const state: LocalLLMState = {
   device: null, modelId: null,
 };
 
+/* ── VRAM Logging ── */
+
+async function logVRAM(label: string): Promise<void> {
+  try {
+    const adapter = await (navigator as any).gpu?.requestAdapter();
+    if (!adapter) { console.log(`[GPU] ${label} — kein WebGPU`); return; }
+    const info = await adapter.requestAdapterInfo?.() ?? {};
+    const device = await adapter.requestDevice();
+    // WebGPU memoryBudget (experimentell, Chrome 120+)
+    const usage = (device as any).adapterInfo?.memoryHeaps?.[0];
+    const budgetMB = usage ? Math.round(usage.budget / 1024 / 1024) : null;
+    const usedMB = usage ? Math.round(usage.usage / 1024 / 1024) : null;
+    if (budgetMB !== null && usedMB !== null) {
+      console.log(`[GPU] ${label} — ${usedMB} MB / ${budgetMB} MB VRAM (${info.description ?? 'GPU'})`);
+    } else {
+      console.log(`[GPU] ${label} — VRAM-Details nicht verfuegbar (${info.description ?? 'GPU'})`);
+    }
+    device.destroy();
+  } catch {
+    console.log(`[GPU] ${label} — VRAM-Abfrage fehlgeschlagen`);
+  }
+}
+
 /* ── Public API ── */
 
 export function isLocalReady(): boolean { return state.ready; }
@@ -87,8 +110,11 @@ export async function initLocalBackend(
     });
 
     state.device = device;
+    state.modelId = hfRepo;
     state.ready = true;
     state.loading = false;
+    console.log(`[LocalLLM] ✅ Geladen: ${hfRepo} (${device}, dtype: ${JSON.stringify(dtype)})`);
+    await logVRAM('Nach Modell-Laden');
     onProgress?.(`Bereit (${device})`);
     return true;
 
@@ -142,6 +168,8 @@ export async function extractLocal(systemPrompt: string, userPrompt: string): Pr
 
   // GPU-Tensoren freigeben (verhindert OOM bei sequentiellen Calls)
   disposeTensors(output, newTokens, inputs);
+  const newTokenCount = output.dims?.[1] ? output.dims[1] - promptLength : '?';
+  console.log(`[LocalLLM] Inferenz: ${promptLength} prompt + ${newTokenCount} neue Tokens`);
 
   return result;
 }
@@ -166,6 +194,7 @@ function disposeTensors(...tensorsOrObjects: any[]): void {
 }
 
 export function disposeLocalBackend(): void {
+  const modelName = state.modelId ?? 'unbekannt';
   if (state.model?.dispose) {
     try { state.model.dispose(); } catch { /* ignore */ }
   }
@@ -178,6 +207,8 @@ export function disposeLocalBackend(): void {
   state.loading = false;
   state.device = null;
   state.modelId = null;
+  console.log(`[LocalLLM] ❌ Entladen: ${modelName}`);
+  logVRAM('Nach Modell-Entladen');
 }
 
 /* ── Smart Context Trimming ── */

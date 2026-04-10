@@ -89,6 +89,7 @@ export class EmbeddingService {
       }
 
       this.currentModelId = modelConfig.id;
+      console.log(`[Embedding] ✅ Geladen: ${modelConfig.label} (${device})`);
       pipelineLog.info('Embedding', `${modelConfig.label} bereit — ${device}`);
       onProgress?.({ phase: 'ready' });
     } catch (err) {
@@ -232,6 +233,7 @@ export class EmbeddingService {
   }
 
   destroy(): void {
+    const modelName = this.currentModelId ?? 'unbekannt';
     if (this.pipelineExtractor && (this.pipelineExtractor as any).dispose) {
       try { (this.pipelineExtractor as any).dispose(); } catch { /* ignore */ }
     }
@@ -243,6 +245,7 @@ export class EmbeddingService {
     this.autoTokenizer = null;
     this.currentModelId = null;
     this.loading = false;
+    console.log(`[Embedding] ❌ Entladen: ${modelName}`);
   }
 }
 
