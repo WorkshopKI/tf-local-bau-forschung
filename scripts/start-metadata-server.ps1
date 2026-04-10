@@ -29,23 +29,29 @@ $THREADS = 4             # CPU-Threads fuer Nicht-GPU-Operationen
 
 # --- Config-Datei laden (ueberschreibt Defaults) ---
 if ($Config -and $Config -ne "") {
-    $configFile = Resolve-Path $Config -ErrorAction SilentlyContinue
-    if (-not $configFile) { $configFile = $Config }
+    $configFile = $Config
+    # Relativen Pfad aufloesen
+    if (-not [System.IO.Path]::IsPathRooted($configFile)) {
+        $configFile = Join-Path (Get-Location).Path $configFile
+    }
 } else {
     $configFile = Join-Path $PSScriptRoot "metadata-server-config.json"
 }
 if (Test-Path $configFile) {
-    $config = Get-Content $configFile -Raw | ConvertFrom-Json
-    if ($config.port) { $PORT = $config.port }
-    if ($config.context_size) { $CONTEXT_SIZE = $config.context_size }
-    if ($config.gpu_layers -ne $null) { $GPU_LAYERS = $config.gpu_layers }
-    if ($config.threads) { $THREADS = $config.threads }
-    if ($config.model_url) { $MODEL_URL = $config.model_url }
-    if ($config.model) {
-        $MODEL_FILE = Join-Path $MODEL_DIR $config.model
+    $configRaw = Get-Content $configFile -Raw
+    # Hashtable statt PSObject — robuster in allen PS-Aufrufmodi
+    $cfg = @{}
+    (ConvertFrom-Json $configRaw).PSObject.Properties | ForEach-Object { $cfg[$_.Name] = $_.Value }
+    if ($cfg['port']) { $PORT = $cfg['port'] }
+    if ($cfg['context_size']) { $CONTEXT_SIZE = $cfg['context_size'] }
+    if ($cfg.ContainsKey('gpu_layers')) { $GPU_LAYERS = $cfg['gpu_layers'] }
+    if ($cfg['threads']) { $THREADS = $cfg['threads'] }
+    if ($cfg['model_url']) { $MODEL_URL = $cfg['model_url'] }
+    if ($cfg['model']) {
+        $MODEL_FILE = Join-Path $MODEL_DIR $cfg['model']
     }
     Write-Host "  [i] Konfiguration geladen: $configFile" -ForegroundColor DarkGray
-    Write-Host "  [i] Modell: $($config.model)" -ForegroundColor DarkGray
+    Write-Host "  [i] Modell: $($cfg['model'])" -ForegroundColor DarkGray
 }
 
 # --- Funktionen ---
