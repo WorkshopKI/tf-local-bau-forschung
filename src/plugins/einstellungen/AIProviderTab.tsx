@@ -25,11 +25,11 @@ const PROVIDERS: Array<{
 
 const COMMON_MODELS = [
   { value: 'openai/gpt-oss-120b', label: 'gpt-oss-120b (Empfohlen)' },
-  { value: 'google/gemma-3-4b-it', label: 'Gemma 3 4B' },
-  { value: 'qwen/qwen3-4b', label: 'Qwen 3 4B' },
-  { value: 'meta-llama/llama-3.3-8b-instruct', label: 'Llama 3.3 8B (Gratis)' },
-  { value: 'microsoft/phi-4-mini-instruct', label: 'Phi-4 Mini 3.8B' },
-  { value: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4' },
+  { value: 'qwen/qwen3.5-9b', label: 'Qwen 3.5 9B' },
+  { value: 'google/gemma-4-26b-a4b-it:free', label: 'Gemma 4 26B (Gratis)' },
+  { value: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B (Gratis)' },
+  { value: 'liquid/lfm-2-24b-a2b', label: 'Liquid LFM 24B' },
+  { value: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 120B (Gratis)' },
   { value: 'custom', label: 'Eigenes Modell...' },
 ];
 
