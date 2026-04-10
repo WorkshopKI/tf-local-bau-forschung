@@ -58,7 +58,12 @@ export class DirectLLMTransport implements AITransport {
       body: JSON.stringify(body),
     });
 
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    if (!res.ok) {
+      let detail = '';
+      try { const body = await res.json(); detail = JSON.stringify(body).slice(0, 300); } catch { /* ignore */ }
+      console.error(`[DirectLLM] ${res.status} ${this.model}:`, detail);
+      throw new Error(`API error: ${res.status} — ${detail || res.statusText}`);
+    }
     const data = await res.json() as { choices: Array<{ message: { content: string } }> };
     return data.choices[0]?.message.content ?? '';
   }
