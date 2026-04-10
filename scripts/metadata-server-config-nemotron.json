@@ -3,6 +3,6 @@
     "context_size": 8192,
     "gpu_layers": 99,
     "threads": 4,
-    "model_url": "https://huggingface.co/bartowski/nvidia_Nemotron-3-Nano-4B-v1-GGUF/resolve/main/nvidia_Nemotron-3-Nano-4B-v1-Q4_K_M.gguf",
-    "model": "nvidia_Nemotron-3-Nano-4B-v1-Q4_K_M.gguf"
+    "model_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF/resolve/main/NVIDIA-Nemotron3-Nano-4B-Q4_K_M.gguf",
+    "model": "NVIDIA-Nemotron3-Nano-4B-Q4_K_M.gguf"
 }
