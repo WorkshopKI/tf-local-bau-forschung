@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FlaskConical, Square } from 'lucide-react';
+import { FlaskConical, Square, Trash2, RefreshCw } from 'lucide-react';
 import { Button, Badge, ProgressBar } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
@@ -7,7 +7,9 @@ import {
   METADATA_SYSTEM_PROMPT, buildExtractionPrompt,
 } from '@/core/services/search/metadata-extractor';
 import type { DocumentMetadata, MetadataModelConfig } from '@/core/services/search/metadata-extractor';
-import { getLocalDevice } from '@/core/services/search/local-llm-backend';
+import { getLocalDevice, isLocalReady } from '@/core/services/search/local-llm-backend';
+import { embeddingService } from '@/core/services/search/embedding-service';
+import { disposeReRanker } from '@/core/services/search/re-ranker';
 import { Row } from './IndexHelpers';
 import { validateMetadata } from './smoke-test-validation';
 import type { ValidationResult } from './smoke-test-validation';
@@ -39,6 +41,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
   const [totalDocs, setTotalDocs] = useState(0);
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [gpuMsg, setGpuMsg] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const abortRef = useRef(false);
 
@@ -107,6 +110,18 @@ export function MetadataSmokeTest(): React.ReactElement | null {
     }
   };
 
+  const unloadAllGPU = (): void => {
+    const unloaded: string[] = [];
+    if (isLocalReady()) { disposeMetadataLLM(); unloaded.push('Metadata-LLM'); }
+    if (embeddingService.isReady()) { embeddingService.destroy(); unloaded.push('Embedding'); }
+    try { disposeReRanker(); unloaded.push('Re-Ranker'); } catch { /* nicht geladen */ }
+    const msg = unloaded.length > 0
+      ? `Entladen: ${unloaded.join(', ')}`
+      : 'Keine GPU-Modelle geladen';
+    setGpuMsg(msg);
+    setTimeout(() => { if (mountedRef.current) setGpuMsg(null); }, 4000);
+  };
+
   const avgScore = results.length > 0 ? Math.round(results.reduce((s, r) => s + r.validation.score, 0) / results.length) : 0;
   const avgTime = results.length > 0 ? Math.round(results.reduce((s, r) => s + r.inferenceMs, 0) / results.length) : 0;
   const totalTime = results.reduce((s, r) => s + r.inferenceMs, 0);
@@ -127,9 +142,15 @@ export function MetadataSmokeTest(): React.ReactElement | null {
           <p className="text-[11px] text-[var(--tf-text-tertiary)]">
             Testet die LLM-Metadata-Extraktion an den ersten 10 Dokumenten, ohne den Index zu verändern.
           </p>
-          <Button variant="secondary" size="sm" icon={FlaskConical} onClick={runTest}>
-            Metadata-Test starten
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" icon={FlaskConical} onClick={runTest}>
+              Metadata-Test starten
+            </Button>
+            <Button variant="secondary" size="sm" icon={Trash2} onClick={unloadAllGPU}>
+              GPU-Modelle entladen
+            </Button>
+          </div>
+          {gpuMsg && <p className="text-[11px] text-[var(--tf-text-secondary)]">{gpuMsg}</p>}
         </div>
       )}
 
@@ -173,6 +194,18 @@ export function MetadataSmokeTest(): React.ReactElement | null {
           expandedRow={expandedRow} setExpandedRow={setExpandedRow}
           isDone={phase === 'done'}
         />
+      )}
+
+      {phase === 'done' && (
+        <div className="flex gap-2 mt-3">
+          <Button variant="secondary" size="sm" icon={RefreshCw} onClick={runTest}>
+            Test neu starten
+          </Button>
+          <Button variant="secondary" size="sm" icon={Trash2} onClick={unloadAllGPU}>
+            GPU-Modelle entladen
+          </Button>
+          {gpuMsg && <span className="text-[11px] text-[var(--tf-text-secondary)] self-center">{gpuMsg}</span>}
+        </div>
       )}
 
       {phase === 'done' && firstGoodDoc && (
