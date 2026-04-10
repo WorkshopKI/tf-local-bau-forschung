@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
     build: {
       target: 'esnext',
       outDir: isSingle ? 'dist-single' : 'dist',
+      emptyOutDir: !isSingle,
       assetsInlineLimit: isSingle ? Infinity : 4096,
     },
     base: isSingle ? '' : './',
