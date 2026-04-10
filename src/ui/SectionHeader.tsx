@@ -5,11 +5,11 @@ interface SectionHeaderProps {
 
 export function SectionHeader({ label, action }: SectionHeaderProps): React.ReactElement {
   return (
-    <div className="flex items-center gap-3 mb-3">
-      <span className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] whitespace-nowrap">
+    <div className="flex items-center justify-between pb-1.5 mb-3"
+      style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
+      <span className="text-[13px] font-medium text-[var(--tf-text)]">
         {label}
       </span>
-      <div className="flex-1 h-px bg-[var(--tf-border)]" />
       {action && <div className="shrink-0">{action}</div>}
     </div>
   );
