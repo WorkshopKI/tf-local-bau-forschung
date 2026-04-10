@@ -50,7 +50,7 @@ export function IndexStep({
   const [indexedPrefixes, setIndexedPrefixes] = useState<boolean | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [metadataParallelism, setMetadataParallelism] = useState(3);
-  const [metadataContext, setMetadataContext] = useState(8192);
+  const [metadataContext, setMetadataContext] = useState(4096);
   const [metadataPreferGPU, setMetadataPreferGPU] = useState(true);
   const [cacheMsg, setCacheMsg] = useState<string | null>(null);
   const abortRef = useRef(new AbortController());

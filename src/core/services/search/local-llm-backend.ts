@@ -40,13 +40,13 @@ export async function initLocalBackend(
     const transformers = await import('@huggingface/transformers');
 
     // Verfuegbarkeits-Check
-    if (!('Gemma4ForConditionalGeneration' in transformers)) {
+    if (!('Gemma4ForCausalLM' in transformers)) {
       onProgress?.('Gemma 4 wird von dieser Transformers.js-Version nicht unterstuetzt. Bitte API-Modell waehlen.');
       state.loading = false;
       return false;
     }
 
-    const { Gemma4ForConditionalGeneration, AutoProcessor } = transformers as any;
+    const { Gemma4ForCausalLM, AutoProcessor } = transformers as any;
 
     // WebGPU pruefen
     let device: 'webgpu' | 'wasm' = 'wasm';
@@ -73,7 +73,7 @@ export async function initLocalBackend(
 
     // Modell laden
     onProgress?.(`Modell laden (${device})...`);
-    state.model = await Gemma4ForConditionalGeneration.from_pretrained(hfRepo, {
+    state.model = await Gemma4ForCausalLM.from_pretrained(hfRepo, {
       dtype,
       device,
       progress_callback: (info: any) => {
@@ -138,8 +138,31 @@ export async function extractLocal(systemPrompt: string, userPrompt: string): Pr
   const decoded: string[] = state.processor.batch_decode(newTokens, {
     skip_special_tokens: true,
   });
+  const result = decoded[0] ?? '';
 
-  return decoded[0] ?? '';
+  // GPU-Tensoren freigeben (verhindert OOM bei sequentiellen Calls)
+  disposeTensors(output, newTokens, inputs);
+
+  return result;
+}
+
+/** Gibt GPU-Tensoren frei um VRAM-Leaks zwischen generate()-Calls zu verhindern. */
+function disposeTensors(...tensorsOrObjects: any[]): void {
+  for (const item of tensorsOrObjects) {
+    try {
+      if (!item || typeof item !== 'object') continue;
+      if ('dispose' in item && typeof item.dispose === 'function') {
+        item.dispose();
+      } else {
+        // Input-Objekte enthalten verschachtelte Tensoren (input_ids, attention_mask, ...)
+        for (const val of Object.values(item)) {
+          if (val && typeof val === 'object' && 'dispose' in (val as any)) {
+            (val as any).dispose();
+          }
+        }
+      }
+    } catch { /* Disposal-Fehler ignorieren */ }
+  }
 }
 
 export function disposeLocalBackend(): void {

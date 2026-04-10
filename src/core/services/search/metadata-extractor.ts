@@ -50,19 +50,19 @@ export interface MetadataModelConfig {
 export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
   {
     id: 'gemma4-e4b-local', type: 'local', openRouterId: '',
-    label: 'Lokal · Gemma 4 E4B (~5.5 GB)', size: '~3 GB Download',
+    label: 'Lokal · Gemma 4 E4B (~4 GB)', size: '~2 GB Download',
     description: 'Google Gemma 4, 4B aktiv. Laeuft im Browser via WebGPU/CPU.',
-    requiresReasoning: false, localVram: '~5.5 GB VRAM',
+    requiresReasoning: false, localVram: '~4 GB VRAM',
     hfRepo: 'onnx-community/gemma-4-E4B-it-ONNX',
-    dtype: { embed_tokens: 'q4f16', decoder_model_merged: 'q4f16', vision_encoder: 'q4', audio_encoder: 'q4' },
+    dtype: { embed_tokens: 'q4f16', decoder_model_merged: 'q4f16' },
   },
   {
     id: 'gemma4-e2b-local', type: 'local', openRouterId: '',
-    label: 'Lokal · Gemma 4 E2B (~3.5 GB)', size: '~1.5 GB Download',
+    label: 'Lokal · Gemma 4 E2B (~2 GB)', size: '~1 GB Download',
     description: 'Google Gemma 4, 2B aktiv. Kleiner, weniger Speicher.',
-    requiresReasoning: false, localVram: '~3.5 GB VRAM',
+    requiresReasoning: false, localVram: '~2 GB VRAM',
     hfRepo: 'onnx-community/gemma-4-E2B-it-ONNX',
-    dtype: { embed_tokens: 'q4f16', decoder_model_merged: 'q4f16', vision_encoder: 'q4', audio_encoder: 'q4' },
+    dtype: { embed_tokens: 'q4f16', decoder_model_merged: 'q4f16' },
   },
   {
     id: 'gpt-oss-120b', type: 'api', openRouterId: 'openai/gpt-oss-120b',
@@ -210,7 +210,7 @@ export async function initMetadataLLM(
   }
 }
 
-export async function extractMetadata(filename: string, text: string, contextTokens = 8192): Promise<DocumentMetadata> {
+export async function extractMetadata(filename: string, text: string, contextTokens = 4096): Promise<DocumentMetadata> {
   if (!llmState.ready || llmState.modelId === 'none') {
     return FALLBACK_METADATA(filename, text);
   }
