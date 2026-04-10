@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:single": "tsc -b && vite build --mode single",
+    "build:single": "tsc -b && vite build --mode single && node -e \"require('fs').copyFileSync('Dokumentenindex-aktualisieren.bat','dist-single/Dokumentenindex-aktualisieren.bat')\"",
     "preview": "vite preview"
   },
   "dependencies": {
