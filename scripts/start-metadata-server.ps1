@@ -163,7 +163,7 @@ $serverArgs = @(
     "--host", "127.0.0.1",
     "--cache-type-k", "q4_0",
     "--cache-type-v", "q4_0",
-    "-fa",
+    "-fa", "on",
     "--cors", "*"
 )
 
