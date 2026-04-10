@@ -261,7 +261,8 @@ export class BatchIndexer {
       const modelCfg = METADATA_LLM_MODELS.find(m => m.id === config.metadataLLMId);
       const maxP = modelCfg?.maxParallelism ?? 3;
       const parallelism = Math.min(config.metadataParallelism ?? maxP, maxP);
-      const contextTokens = config.metadataContext ?? 8192;
+      const isLocal = modelCfg && modelCfg.maxParallelism <= 1;
+      const contextTokens = isLocal ? 8192 : (config.metadataContext ?? 8192);
       const phaseLabel = 'Metadata (parallel)';
       onStatus({ phase: phaseLabel, total: docsToProcess.length, processed: 0, currentDoc: '', skipped });
       metadataMap = await extractMetadataBatch(docsToProcess, parallelism, storage, config.metadataLLMId!,

@@ -66,7 +66,8 @@ export function MetadataSmokeTest(): React.ReactElement | null {
     const t0 = Date.now();
     try {
       const pipelineCfg = await storage.idb.get<PipelineCfg>('pipeline-config');
-      const contextTokens = pipelineCfg?.metadataContext ?? 8192;
+      const isLocal = modelCfg && modelCfg.maxParallelism <= 1;
+      const contextTokens = isLocal ? 8192 : (pipelineCfg?.metadataContext ?? 8192);
       const ok = await initMetadataLLM(metadataLLMId, msg => { if (mountedRef.current) setModelProgress(msg); },
         { idb: storage.idb });
       if (!mountedRef.current) return;
