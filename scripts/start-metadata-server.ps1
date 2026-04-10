@@ -12,8 +12,8 @@ $MODEL_DIR = Join-Path $SERVER_DIR "models"
 $SERVER_EXE = Join-Path $LLAMA_DIR "llama-server.exe"
 
 # Modell: Gemma 4 E4B Q4_K_M (5.34 GB, beste Qualitaet fuer 6 GB VRAM)
-$MODEL_URL = "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf"
-$MODEL_FILE = Join-Path $MODEL_DIR "gemma-4-E4B-it-Q4_K_M.gguf"
+$MODEL_URL = "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-e4b-it-Q4_K_M.gguf"
+$MODEL_FILE = Join-Path $MODEL_DIR "gemma-4-e4b-it-Q4_K_M.gguf"
 
 # llama.cpp — wird automatisch von GitHub Releases geladen
 $LLAMA_ZIP = Join-Path $SERVER_DIR "llama-cpp.zip"
