@@ -46,37 +46,37 @@ export interface MetadataModelConfig {
 export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
   {
     id: 'gpt-oss-120b', openRouterId: 'openai/gpt-oss-120b',
-    label: 'gpt-oss-120b (Referenz)', size: '$0.04/$0.19 per M',
+    label: 'OpenRouter · gpt-oss-120b (Referenz)', size: '$0.04/$0.19 per M',
     description: '117B MoE. Beste Qualitaet, nicht lokal laufbar.',
     requiresReasoning: true, localVram: null,
   },
   {
     id: 'smollm3-3b', openRouterId: 'huggingfacetb/smollm3-3b',
-    label: 'SmolLM3 3B', size: '~$0.01/$0.03 per M',
+    label: 'OpenRouter · SmolLM3 3B', size: '~$0.01/$0.03 per M',
     description: 'HuggingFace, 3B. Deutsch nativ, Structured Output.',
     requiresReasoning: false, localVram: '~2 GB (q4)',
   },
   {
     id: 'qwen3-4b', openRouterId: 'qwen/qwen3-4b',
-    label: 'Qwen 3 4B', size: '~$0.01/$0.04 per M',
+    label: 'OpenRouter · Qwen 3 4B', size: '~$0.01/$0.04 per M',
     description: 'Alibaba, 4B dense. Sehr gut fuer Deutsch + JSON.',
     requiresReasoning: false, localVram: '~3 GB (q4)',
   },
   {
     id: 'phi-4-mini', openRouterId: 'microsoft/phi-4-mini-instruct',
-    label: 'Phi-4 Mini (3.8B)', size: '~$0.02/$0.04 per M',
+    label: 'OpenRouter · Phi-4 Mini (3.8B)', size: '~$0.02/$0.04 per M',
     description: 'Microsoft, 3.8B. Kompakt, gute JSON-Faehigkeit.',
     requiresReasoning: false, localVram: '~3 GB (q4)',
   },
   {
     id: 'gemma-3-4b', openRouterId: 'google/gemma-3-4b-it',
-    label: 'Gemma 3 4B', size: 'Kostenlos oder guenstig',
+    label: 'OpenRouter · Gemma 3 4B', size: 'Kostenlos oder guenstig',
     description: 'Google, 4B. Multilingual, gut fuer Deutsch.',
     requiresReasoning: false, localVram: '~3 GB (q4)',
   },
   {
     id: 'llama-33-8b', openRouterId: 'meta-llama/llama-3.3-8b-instruct',
-    label: 'Llama 3.3 8B', size: 'Kostenlos (:free)',
+    label: 'OpenRouter · Llama 3.3 8B', size: 'Kostenlos (:free)',
     description: 'Meta, 8B. Deutsch supported. Gratis auf OpenRouter.',
     requiresReasoning: false, localVram: '~6 GB (q4)',
   },
