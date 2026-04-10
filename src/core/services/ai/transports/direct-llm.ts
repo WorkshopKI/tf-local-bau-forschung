@@ -49,7 +49,7 @@ export class DirectLLMTransport implements AITransport {
     if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
     messages.push({ role: 'user', content: message });
 
-    const body: Record<string, unknown> = { model: this.model, messages };
+    const body: Record<string, unknown> = { model: this.model, messages, max_tokens: 1500 };
 
     if (options?.thinkingBudget) {
       body.reasoning = { effort: options.thinkingBudget };
