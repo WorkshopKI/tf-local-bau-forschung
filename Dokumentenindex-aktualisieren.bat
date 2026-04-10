@@ -192,21 +192,4 @@ $serverArgs = @(
     '--jinja'
 )
 $argString = ($serverArgs | ForEach-Object { if ($_ -match ' ') { "`"$_`"" } else { $_ } }) -join ' '
-$psi = New-Object System.Diagnostics.ProcessStartInfo
-$psi.FileName = $ServerExe
-$psi.Arguments = $argString
-$psi.UseShellExecute = $false
-$psi.RedirectStandardError = $true
-$psi.RedirectStandardOutput = $true
-$proc = [System.Diagnostics.Process]::Start($psi)
-# Ausgabe live anzeigen (stderr + stdout)
-while (-not $proc.HasExited) {
-    $line = $proc.StandardError.ReadLine()
-    if ($null -ne $line) { Write-Host "  $line" }
-}
-# Rest ausgeben
-$remaining = $proc.StandardError.ReadToEnd()
-if ($remaining) { Write-Host "  $remaining" }
-$outRemaining = $proc.StandardOutput.ReadToEnd()
-if ($outRemaining) { Write-Host "  $outRemaining" }
-$proc.WaitForExit()
+cmd /c "`"$ServerExe`" $argString"
