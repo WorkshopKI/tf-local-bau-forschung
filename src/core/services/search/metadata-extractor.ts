@@ -232,7 +232,9 @@ export async function extractMetadata(filename: string, text: string, contextTok
     }
     if (!llmState.transport) return FALLBACK_METADATA(filename, text);
     const modelCfg = METADATA_LLM_MODELS.find(m => m.id === llmState.modelId);
-    const options = modelCfg?.requiresReasoning ? { thinkingBudget: 'low' as const } : undefined;
+    const options: { thinkingBudget?: 'low'; responseFormat?: Record<string, unknown> } = {};
+    if (modelCfg?.requiresReasoning) options.thinkingBudget = 'low';
+    options.responseFormat = METADATA_RESPONSE_FORMAT;
     const response = await llmState.transport.submitMessage(userPrompt, systemPrompt, options);
     return parseMetadataJSON(response, filename, text);
   } catch (err) {
@@ -255,6 +257,42 @@ export function disposeMetadataLLM(): void {
 /* ── Prompt + Parser ── */
 
 export const METADATA_SYSTEM_PROMPT = 'Du bist ein Metadaten-Extraktor fuer deutsche Verwaltungsdokumente. Antworte AUSSCHLIESSLICH mit einem JSON-Objekt. Kein Markdown, keine Erklaerung, keine Backticks, kein Denkprozess.';
+
+export const METADATA_RESPONSE_FORMAT = {
+  type: 'json_schema' as const,
+  json_schema: {
+    name: 'document_metadata',
+    strict: true,
+    schema: {
+      type: 'object',
+      properties: {
+        doc_type: {
+          type: 'string',
+          enum: [
+            'Bauantrag', 'Foerderantrag', 'Gutachten', 'Stellungnahme',
+            'Protokoll', 'Nachforderung', 'Formular', 'Statik',
+            'Brandschutzkonzept', 'Schallschutznachweis', 'Energienachweis',
+            'Energieberatungsbericht', 'Genehmigung', 'Bescheid', 'Bericht',
+            'Zwischenbericht', 'Review', 'Ethikantrag', 'Datenschutz',
+            'Compliance', 'Sonstiges',
+          ],
+        },
+        title: { type: 'string' },
+        date: { type: 'string' },
+        organizations: { type: 'array', items: { type: 'string' } },
+        topic_tags: { type: 'array', items: { type: 'string' } },
+        micro_summary: { type: 'string' },
+        macro_summary: { type: 'string' },
+        language: { type: 'string' },
+      },
+      required: [
+        'doc_type', 'title', 'date', 'organizations',
+        'topic_tags', 'micro_summary', 'macro_summary', 'language',
+      ],
+      additionalProperties: false,
+    },
+  },
+};
 
 export function buildExtractionPrompt(text: string): string {
   return `Extrahiere Metadaten aus diesem deutschen Verwaltungsdokument.

@@ -40,7 +40,10 @@ export class DirectLLMTransport implements AITransport {
   async submitMessage(
     message: string,
     systemPrompt?: string,
-    options?: { thinkingBudget?: 'none' | 'low' | 'medium' | 'high' },
+    options?: {
+      thinkingBudget?: 'none' | 'low' | 'medium' | 'high';
+      responseFormat?: Record<string, unknown>;
+    },
   ): Promise<string> {
     const messages: Array<{ role: string; content: string }> = [];
     if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
@@ -50,6 +53,9 @@ export class DirectLLMTransport implements AITransport {
 
     if (options?.thinkingBudget) {
       body.reasoning = { effort: options.thinkingBudget };
+    }
+    if (options?.responseFormat) {
+      body.response_format = options.responseFormat;
     }
 
     const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {

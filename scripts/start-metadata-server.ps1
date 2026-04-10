@@ -1,4 +1,7 @@
 #Requires -Version 5.1
+param(
+    [string]$Config = ""
+)
 # TeamFlow Local - Metadata-Extraktion Server
 # Startet einen lokalen LLM-Server fuer Dokumenten-Metadaten.
 # Keine Installation noetig. Einmalig ~6 GB Download.
@@ -25,7 +28,7 @@ $GPU_LAYERS = 99         # 99 = alle Layers auf GPU. Reduzieren wenn OOM
 $THREADS = 4             # CPU-Threads fuer Nicht-GPU-Operationen
 
 # --- Config-Datei laden (ueberschreibt Defaults) ---
-$configFile = Join-Path $PSScriptRoot "metadata-server-config.json"
+$configFile = if ($Config -ne "") { $Config } else { Join-Path $PSScriptRoot "metadata-server-config.json" }
 if (Test-Path $configFile) {
     $config = Get-Content $configFile -Raw | ConvertFrom-Json
     if ($config.port) { $PORT = $config.port }
@@ -42,10 +45,11 @@ if (Test-Path $configFile) {
 # --- Funktionen ---
 
 function Write-Header {
+    $modelName = [System.IO.Path]::GetFileNameWithoutExtension($MODEL_FILE)
     Write-Host ""
     Write-Host "  =====================================================" -ForegroundColor Cyan
     Write-Host "    TeamFlow Local - Metadata-Server" -ForegroundColor Cyan
-    Write-Host "    Gemma 4 E4B (Q4_K_M) auf localhost:$PORT" -ForegroundColor Cyan
+    Write-Host "    $modelName auf localhost:$PORT" -ForegroundColor Cyan
     Write-Host "  =====================================================" -ForegroundColor Cyan
     Write-Host ""
 }
@@ -129,14 +133,15 @@ if (-not (Test-Path $SERVER_EXE)) {
     Write-Host "  [OK] llama-server.exe vorhanden" -ForegroundColor Green
 }
 
-# Schritt 2: Modell herunterladen (~5.3 GB)
-Download-File $MODEL_URL $MODEL_FILE "Gemma 4 E4B Q4_K_M, ca. 5.3 GB"
+# Schritt 2: Modell herunterladen
+$modelName = [System.IO.Path]::GetFileNameWithoutExtension($MODEL_FILE)
+Download-File $MODEL_URL $MODEL_FILE "$modelName"
 
 # Schritt 3: Server starten
 Write-Host ""
 Write-Host "  Server wird gestartet..." -ForegroundColor Cyan
 Write-Host "  ---------------------------------------------" -ForegroundColor DarkGray
-Write-Host "  Modell:     Gemma 4 E4B (Q4_K_M)" -ForegroundColor White
+Write-Host "  Modell:     $modelName" -ForegroundColor White
 Write-Host "  Kontext:    $CONTEXT_SIZE Tokens" -ForegroundColor White
 Write-Host "  GPU-Layers: $GPU_LAYERS (99 = alle)" -ForegroundColor White
 Write-Host "  Port:       http://localhost:$PORT" -ForegroundColor White
@@ -159,7 +164,6 @@ $serverArgs = @(
     "--cache-type-k", "q4_0",
     "--cache-type-v", "q4_0",
     "-fa",
-    "--chat-template-kwargs", "{`"enable_thinking`":false}",
     "--cors", "*"
 )
 
