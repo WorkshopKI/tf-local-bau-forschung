@@ -1,13 +1,20 @@
+<# : batch header
 @echo off
 chcp 65001 >nul 2>&1
 title TeamFlow - Dokumentenindex aktualisieren
-powershell -ExecutionPolicy Bypass -Command "& {
+set "BATDIR=%~dp0"
+powershell -ExecutionPolicy Bypass -NoProfile -Command "& ([ScriptBlock]::Create((Get-Content -LiteralPath '%~f0' -Raw)))"
+pause
+exit /b
+: end batch #>
+
+# ====== PowerShell-Code ======
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 # --- Pfade ---
-$BaseDir = '%~dp0'.TrimEnd('\')
+$BaseDir = ($env:BATDIR).TrimEnd('\')
 $FilesDir = Join-Path $BaseDir 'dokumentenindex-dateien'
 $ConfigFile = Join-Path $FilesDir 'config.json'
 $ServerExe = Join-Path $FilesDir 'llama-server.exe'
@@ -73,12 +80,12 @@ if (-not (Test-Path $ServerExe)) {
         if (-not $asset) {
             Write-Host '  Download fehlgeschlagen: Kein passendes Paket gefunden.' -ForegroundColor Red
             Write-Host '  Bitte Internetverbindung pruefen und erneut starten.' -ForegroundColor Red
-            exit 1
+            return
         }
         Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $ZipFile -UseBasicParsing
     } catch {
         Write-Host '  Download fehlgeschlagen. Bitte Internetverbindung pruefen.' -ForegroundColor Red
-        exit 1
+        return
     }
 
     Write-Host '        Wird eingerichtet...' -ForegroundColor DarkGray
@@ -96,13 +103,13 @@ if (-not (Test-Path $ServerExe)) {
         $zip.Dispose()
     } catch {
         Write-Host '  Einrichtung fehlgeschlagen. Bitte erneut starten.' -ForegroundColor Red
-        exit 1
+        return
     }
     Remove-Item $ZipFile -Force -ErrorAction SilentlyContinue
 
     if (-not (Test-Path $ServerExe)) {
         Write-Host '  Einrichtung fehlgeschlagen. Bitte erneut starten.' -ForegroundColor Red
-        exit 1
+        return
     }
     Write-Host '        Analyseprogramm bereit.' -ForegroundColor Green
 } else {
@@ -111,8 +118,7 @@ if (-not (Test-Path $ServerExe)) {
 
 # --- Schritt 2: KI-Modell ---
 if (-not (Test-Path $ModelFile)) {
-    $sizeMB = '~2800'
-    Write-Host "  [2/2] Lade KI-Modell herunter...              (einmalig, ca. 3 GB)" -ForegroundColor Yellow
+    Write-Host '  [2/2] Lade KI-Modell herunter...              (einmalig, ca. 3 GB)' -ForegroundColor Yellow
     Write-Host '        Das kann einige Minuten dauern.' -ForegroundColor DarkGray
     try {
         $ProgressPreference = 'Continue'
@@ -121,7 +127,7 @@ if (-not (Test-Path $ModelFile)) {
     } catch {
         Write-Host '  Download fehlgeschlagen. Bitte Internetverbindung pruefen.' -ForegroundColor Red
         Remove-Item $ModelFile -Force -ErrorAction SilentlyContinue
-        exit 1
+        return
     }
     $actualMB = [math]::Round((Get-Item $ModelFile).Length / 1MB, 0)
     Write-Host "        KI-Modell bereit (${actualMB} MB)." -ForegroundColor Green
@@ -155,6 +161,3 @@ $serverArgs = @(
     '--jinja'
 )
 & $ServerExe @serverArgs
-
-}"
-pause
