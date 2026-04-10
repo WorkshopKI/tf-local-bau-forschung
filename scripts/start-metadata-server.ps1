@@ -1,5 +1,5 @@
 #Requires -Version 5.1
-# TeamFlow Local — Metadata-Extraktion Server
+# TeamFlow Local - Metadata-Extraktion Server
 # Startet einen lokalen LLM-Server fuer Dokumenten-Metadaten.
 # Keine Installation noetig. Einmalig ~6 GB Download.
 
@@ -47,7 +47,7 @@ if (Test-Path $configFile) {
 function Write-Header {
     Write-Host ""
     Write-Host "  =====================================================" -ForegroundColor Cyan
-    Write-Host "    TeamFlow Local — Metadata-Server" -ForegroundColor Cyan
+    Write-Host "    TeamFlow Local - Metadata-Server" -ForegroundColor Cyan
     Write-Host "    Gemma 4 E4B (Q4_K_M) auf localhost:$PORT" -ForegroundColor Cyan
     Write-Host "  =====================================================" -ForegroundColor Cyan
     Write-Host ""
@@ -62,8 +62,8 @@ function Ensure-Directory($path) {
 
 function Download-File($url, $output, $description) {
     if (Test-Path $output) {
-        $size = (Get-Item $output).Length / 1MB
-        Write-Host "  [OK] $description vorhanden ($([math]::Round($size, 0)) MB)" -ForegroundColor Green
+        $sizeMB = [math]::Round((Get-Item $output).Length / 1MB, 0)
+        Write-Host "  [OK] $description vorhanden (${sizeMB} MB)" -ForegroundColor Green
         return
     }
     Write-Host "  [DL] $description wird heruntergeladen..." -ForegroundColor Yellow
@@ -80,8 +80,8 @@ function Download-File($url, $output, $description) {
         Write-Host "      $output" -ForegroundColor Red
         exit 1
     }
-    $size = (Get-Item $output).Length / 1MB
-    Write-Host "  [OK] $description heruntergeladen ($([math]::Round($size, 0)) MB)" -ForegroundColor Green
+    $sizeMB = [math]::Round((Get-Item $output).Length / 1MB, 0)
+    Write-Host "  [OK] $description heruntergeladen (${sizeMB} MB)" -ForegroundColor Green
 }
 
 # --- Hauptprogramm ---
@@ -93,7 +93,7 @@ Ensure-Directory $MODEL_DIR
 
 # Schritt 1: llama.cpp herunterladen + entpacken
 if (-not (Test-Path $SERVER_EXE)) {
-    Download-File $LLAMA_RELEASE_URL $LLAMA_ZIP "llama.cpp (CUDA)"
+    Download-File $LLAMA_RELEASE_URL $LLAMA_ZIP "llama.cpp CUDA"
 
     Write-Host "  [..] Entpacke llama.cpp..." -ForegroundColor Yellow
     Expand-Archive -Path $LLAMA_ZIP -DestinationPath $LLAMA_DIR -Force
@@ -117,7 +117,7 @@ if (-not (Test-Path $SERVER_EXE)) {
 }
 
 # Schritt 2: Modell herunterladen (~5.3 GB)
-Download-File $MODEL_URL $MODEL_FILE "Gemma 4 E4B Q4_K_M (~5.3 GB)"
+Download-File $MODEL_URL $MODEL_FILE "Gemma 4 E4B Q4_K_M, ca. 5.3 GB"
 
 # Schritt 3: Server starten
 Write-Host ""
@@ -130,7 +130,7 @@ Write-Host "  Port:       http://localhost:$PORT" -ForegroundColor White
 Write-Host "  ---------------------------------------------" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  In TeamFlow: Einstellungen > KI-Assistent" -ForegroundColor Yellow
-Write-Host "  Provider: 'llama.cpp (lokal)'" -ForegroundColor Yellow
+Write-Host "  Provider: Intern API" -ForegroundColor Yellow
 Write-Host "  Endpoint: http://localhost:$PORT" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  Druecke Ctrl+C zum Beenden." -ForegroundColor DarkGray

@@ -1,5 +1,5 @@
 #Requires -Version 5.1
-# TeamFlow Local — Metadata-Extraktion Server (CPU-Modus)
+# TeamFlow Local - Metadata-Extraktion Server (CPU-Modus)
 # Wie die GPU-Variante, aber alles auf CPU. Langsamer, braucht kein VRAM.
 
 $ErrorActionPreference = "Stop"
@@ -33,7 +33,6 @@ if (Test-Path $configFile) {
     if ($config.model) {
         $MODEL_FILE = Join-Path $MODEL_DIR $config.model
     }
-    # GPU-Layers immer 0 in CPU-Modus
     $GPU_LAYERS = 0
     Write-Host "  [i] Konfiguration geladen (CPU-Modus): $configFile" -ForegroundColor DarkGray
 }
@@ -43,7 +42,7 @@ if (Test-Path $configFile) {
 function Write-Header {
     Write-Host ""
     Write-Host "  =====================================================" -ForegroundColor Cyan
-    Write-Host "    TeamFlow Local — Metadata-Server (CPU)" -ForegroundColor Cyan
+    Write-Host "    TeamFlow Local - Metadata-Server (CPU)" -ForegroundColor Cyan
     Write-Host "    Gemma 4 E4B (Q4_K_M) auf localhost:$PORT" -ForegroundColor Cyan
     Write-Host "  =====================================================" -ForegroundColor Cyan
     Write-Host ""
@@ -58,8 +57,8 @@ function Ensure-Directory($path) {
 
 function Download-File($url, $output, $description) {
     if (Test-Path $output) {
-        $size = (Get-Item $output).Length / 1MB
-        Write-Host "  [OK] $description vorhanden ($([math]::Round($size, 0)) MB)" -ForegroundColor Green
+        $sizeMB = [math]::Round((Get-Item $output).Length / 1MB, 0)
+        Write-Host "  [OK] $description vorhanden (${sizeMB} MB)" -ForegroundColor Green
         return
     }
     Write-Host "  [DL] $description wird heruntergeladen..." -ForegroundColor Yellow
@@ -76,8 +75,8 @@ function Download-File($url, $output, $description) {
         Write-Host "      $output" -ForegroundColor Red
         exit 1
     }
-    $size = (Get-Item $output).Length / 1MB
-    Write-Host "  [OK] $description heruntergeladen ($([math]::Round($size, 0)) MB)" -ForegroundColor Green
+    $sizeMB = [math]::Round((Get-Item $output).Length / 1MB, 0)
+    Write-Host "  [OK] $description heruntergeladen (${sizeMB} MB)" -ForegroundColor Green
 }
 
 # --- Hauptprogramm ---
@@ -89,7 +88,7 @@ Ensure-Directory $MODEL_DIR
 
 # Schritt 1: llama.cpp herunterladen + entpacken
 if (-not (Test-Path $SERVER_EXE)) {
-    Download-File $LLAMA_RELEASE_URL $LLAMA_ZIP "llama.cpp (CUDA)"
+    Download-File $LLAMA_RELEASE_URL $LLAMA_ZIP "llama.cpp CUDA"
 
     Write-Host "  [..] Entpacke llama.cpp..." -ForegroundColor Yellow
     Expand-Archive -Path $LLAMA_ZIP -DestinationPath $LLAMA_DIR -Force
@@ -112,7 +111,7 @@ if (-not (Test-Path $SERVER_EXE)) {
 }
 
 # Schritt 2: Modell herunterladen
-Download-File $MODEL_URL $MODEL_FILE "Gemma 4 E4B Q4_K_M (~5.3 GB)"
+Download-File $MODEL_URL $MODEL_FILE "Gemma 4 E4B Q4_K_M, ca. 5.3 GB"
 
 # Schritt 3: Server starten (CPU-Modus)
 Write-Host ""
