@@ -40,26 +40,34 @@ export interface MetadataModelConfig {
   size: string;
   description: string;
   requiresReasoning: boolean;
+  maxParallelism: number;
+  needsApiKey: boolean;
 }
 
 export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
   {
-    id: 'gpt-oss-120b', openRouterId: 'openai/gpt-oss-120b',
-    label: 'OpenRouter · gpt-oss-120b (Referenz)', size: '$0.04/$0.19 per M',
-    description: '117B MoE. Beste Qualitaet, nicht lokal laufbar.',
-    requiresReasoning: true,
+    id: 'llamacpp-local', openRouterId: 'local-model',
+    label: 'Lokale KI (Nemotron)', size: 'Lokal',
+    description: 'Dokumentenindex-aktualisieren.bat per Doppelklick starten.',
+    requiresReasoning: false, maxParallelism: 1, needsApiKey: false,
   },
   {
-    id: 'llamacpp-local', openRouterId: 'local-model',
-    label: 'Lokale KI-Analyse', size: 'Lokal',
-    description: 'Dokumentenindex-aktualisieren.bat per Doppelklick starten.',
-    requiresReasoning: false,
+    id: 'intern-gpt-oss', openRouterId: 'openai/gpt-oss-120b',
+    label: 'Interne KI-API (gpt-oss-120B)', size: 'Intern',
+    description: 'Interner API-Server. Kein API-Key noetig.',
+    requiresReasoning: true, maxParallelism: 3, needsApiKey: false,
+  },
+  {
+    id: 'openrouter-gpt-oss', openRouterId: 'openai/gpt-oss-120b',
+    label: 'OpenRouter API (gpt-oss-120B)', size: '$0.04/$0.19 per M',
+    description: 'OpenRouter Cloud. API-Key erforderlich.',
+    requiresReasoning: true, maxParallelism: 5, needsApiKey: true,
   },
   {
     id: 'none', openRouterId: '',
     label: 'Kein LLM (regelbasiert)', size: '0',
     description: 'Metadata aus Dateiname + Text, ohne LLM.',
-    requiresReasoning: false,
+    requiresReasoning: false, maxParallelism: 1, needsApiKey: false,
   },
 ];
 

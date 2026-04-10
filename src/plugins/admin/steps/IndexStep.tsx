@@ -186,10 +186,10 @@ export function IndexStep({
               onChange={e => { setMetadataLLMId(e.target.value); savePipeline({ metadataLLMId: e.target.value }); }} />
             {(() => {
               const selectedModel = METADATA_LLM_MODELS.find(m => m.id === metadataLLMId);
-              const isApi = selectedModel && metadataLLMId !== 'none';
+              const isActive = selectedModel && metadataLLMId !== 'none';
               return metadataLLMId !== 'none' ? (
                 <>
-                  {isApi && !hasApiKey && !selectedModel.openRouterId.startsWith('local') && (
+                  {isActive && selectedModel.needsApiKey && !hasApiKey && (
                     <p className="text-[11px] text-[var(--tf-warning-text)]">
                       API Key erforderlich — bitte unter Einstellungen → KI-Assistent konfigurieren.
                     </p>
@@ -208,17 +208,17 @@ export function IndexStep({
                       <option value={32768}>32K (voller Kontext)</option>
                     </select>
                   </div>
-                  {isApi && (
+                  {isActive && selectedModel.maxParallelism > 1 && (
                     <div className="flex items-center gap-2">
                       <label className="text-[12px] text-[var(--tf-text)]">Parallele API-Calls:</label>
-                      <input type="number" min={1} max={10} value={metadataParallelism}
+                      <input type="number" min={1} max={selectedModel.maxParallelism} value={metadataParallelism}
                         onChange={e => {
-                          const v = Math.max(1, Math.min(10, parseInt(e.target.value) || 3));
+                          const v = Math.max(1, Math.min(selectedModel.maxParallelism, parseInt(e.target.value) || 3));
                           setMetadataParallelism(v); savePipeline({ metadataParallelism: v });
                         }}
                         className="w-16 px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
                         style={{ border: '0.5px solid var(--tf-border)' }} />
-                      <span className="text-[11px] text-[var(--tf-text-tertiary)]">(3-5 empfohlen)</span>
+                      <span className="text-[11px] text-[var(--tf-text-tertiary)]">(max {selectedModel.maxParallelism})</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2">

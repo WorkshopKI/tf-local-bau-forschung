@@ -3,7 +3,7 @@ import type { EmbeddingProgress } from './embedding-service';
 import type { EmbeddingModelConfig } from './model-registry';
 import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB, getStoredDimensions, saveOramaDimensions } from './orama-store';
 import type { StorageService } from '@/core/services/storage';
-import { extractMetadata, initMetadataLLM, disposeMetadataLLM, getCachedMetadata, setCachedMetadata } from './metadata-extractor';
+import { extractMetadata, initMetadataLLM, disposeMetadataLLM, getCachedMetadata, setCachedMetadata, METADATA_LLM_MODELS } from './metadata-extractor';
 import type { DocumentMetadata, MetadataStorage } from './metadata-extractor';
 import { contextualChunk } from './contextual-chunker';
 import type { ContextualChunk } from './contextual-chunker';
@@ -258,7 +258,9 @@ export class BatchIndexer {
 
     let metadataMap = new Map<string, DocumentMetadata>();
     if (useLLM && docsToProcess.length > 0) {
-      const parallelism = config.metadataParallelism ?? 3;
+      const modelCfg = METADATA_LLM_MODELS.find(m => m.id === config.metadataLLMId);
+      const maxP = modelCfg?.maxParallelism ?? 3;
+      const parallelism = Math.min(config.metadataParallelism ?? maxP, maxP);
       const contextTokens = config.metadataContext ?? 8192;
       const phaseLabel = 'Metadata (parallel)';
       onStatus({ phase: phaseLabel, total: docsToProcess.length, processed: 0, currentDoc: '', skipped });
