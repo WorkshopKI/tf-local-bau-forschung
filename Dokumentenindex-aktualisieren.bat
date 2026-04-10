@@ -3,7 +3,7 @@
 chcp 65001 >nul 2>&1
 title TeamFlow - Dokumentenindex aktualisieren
 set "BATDIR=%~dp0"
-powershell -ExecutionPolicy Bypass -NoProfile -Command "& ([ScriptBlock]::Create((Get-Content -LiteralPath '%~f0' -Raw)))"
+powershell -ExecutionPolicy Bypass -NoProfile -Command "& ([ScriptBlock]::Create((Get-Content -LiteralPath '%~f0' -Raw -Encoding UTF8)))"
 pause
 exit /b
 : end batch #>
@@ -36,7 +36,7 @@ function Download-WithProgress {
             $filled = [math]::Floor($dlPct / 2.5)
             $empty = 40 - $filled
             $bar = ('=' * $filled) + (' ' * $empty)
-            Write-Host ("`r        [{0}] {1}% — {2}/{3} MB" -f $bar, $dlPct, $dlMB, $dlTotalMB) -NoNewline
+            Write-Host ("`r        [{0}] {1}% - {2}/{3} MB" -f $bar, $dlPct, $dlMB, $dlTotalMB) -NoNewline
         }
     }
     Write-Host ''
