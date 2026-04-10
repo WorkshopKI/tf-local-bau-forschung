@@ -150,16 +150,26 @@ export async function extractLocal(systemPrompt: string, userPrompt: string): Pr
     add_generation_prompt: true,
   });
 
+  const t0 = performance.now();
   const inputs = await state.processor(prompt);
+  const tokenizeMs = Math.round(performance.now() - t0);
 
+  // Early-Stop wenn JSON komplett (schliessende })
+  const closeBraceId = findTokenId('}');
+  const stopIds = closeBraceId !== null ? [closeBraceId] : [];
+
+  const t1 = performance.now();
   const output = await state.model.generate({
     ...inputs,
-    max_new_tokens: 512,
+    max_new_tokens: 256,
     do_sample: false,
+    ...(stopIds.length > 0 ? { eos_token_id: stopIds } : {}),
   });
+  const generateMs = Math.round(performance.now() - t1);
 
   // Nur neue Tokens dekodieren (nach dem Prompt)
   const promptLength = inputs.input_ids.dims[1];
+  const newTokenCount = output.dims?.[1] ? output.dims[1] - promptLength : 0;
   const newTokens = output.slice(null, [promptLength, null]);
   const decoded: string[] = state.processor.batch_decode(newTokens, {
     skip_special_tokens: true,
@@ -168,10 +178,23 @@ export async function extractLocal(systemPrompt: string, userPrompt: string): Pr
 
   // GPU-Tensoren freigeben (verhindert OOM bei sequentiellen Calls)
   disposeTensors(output, newTokens, inputs);
-  const newTokenCount = output.dims?.[1] ? output.dims[1] - promptLength : '?';
-  console.log(`[LocalLLM] Inferenz: ${promptLength} prompt + ${newTokenCount} neue Tokens`);
+
+  const tokPerSec = newTokenCount && generateMs > 0 ? (Number(newTokenCount) / (generateMs / 1000)).toFixed(1) : '?';
+  console.log(`[LocalLLM] Inferenz: ${promptLength} prompt + ${newTokenCount} gen Tokens | ${tokenizeMs}ms tokenize, ${generateMs}ms generate (${tokPerSec} tok/s)`);
 
   return result;
+}
+
+/** Findet die Token-ID fuer ein einzelnes Zeichen via Tokenizer. */
+function findTokenId(char: string): number | null {
+  try {
+    const tokenizer = state.processor?.tokenizer ?? state.processor;
+    if (!tokenizer?.encode) return null;
+    const ids = tokenizer.encode(char, { add_special_tokens: false });
+    // encode gibt Array oder Tensor zurueck
+    const arr = Array.isArray(ids) ? ids : (ids?.tolist?.() ?? []);
+    return arr.length > 0 ? arr[arr.length - 1] : null;
+  } catch { return null; }
 }
 
 /** Gibt GPU-Tensoren frei um VRAM-Leaks zwischen generate()-Calls zu verhindern. */
