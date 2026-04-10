@@ -99,7 +99,7 @@ $ModelFile = Join-Path $FilesDir $ModelDatei
 # --- Header ---
 Write-Host ''
 Write-Host '  =====================================================' -ForegroundColor Cyan
-Write-Host '    TeamFlow Local - KI-Dokumentenanalyse' -ForegroundColor Cyan
+Write-Host '    Dokumentenindex aktualisieren' -ForegroundColor Cyan
 Write-Host '  =====================================================' -ForegroundColor Cyan
 Write-Host ''
 
@@ -167,8 +167,7 @@ if (-not (Test-Path $ModelFile)) {
 
 # --- Bereit ---
 Write-Host ''
-Write-Host '  Bereit! Wechsle jetzt zu TeamFlow' -ForegroundColor Green
-Write-Host '  und starte die Indexierung.' -ForegroundColor Green
+Write-Host '  Bereit! Wechsle jetzt zur App und starte die Indexierung.' -ForegroundColor Green
 Write-Host ''
 Write-Host '  ----------------------------------------------------' -ForegroundColor DarkGray
 Write-Host '  Dieses Fenster offen lassen!' -ForegroundColor Yellow
