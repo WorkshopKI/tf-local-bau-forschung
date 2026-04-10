@@ -4,8 +4,10 @@ import { Button, Badge, ProgressBar } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   METADATA_LLM_MODELS, initMetadataLLM, extractMetadata, disposeMetadataLLM,
+  METADATA_SYSTEM_PROMPT, buildExtractionPrompt,
 } from '@/core/services/search/metadata-extractor';
-import type { DocumentMetadata } from '@/core/services/search/metadata-extractor';
+import type { DocumentMetadata, MetadataModelConfig } from '@/core/services/search/metadata-extractor';
+import { Row } from './IndexHelpers';
 import { validateMetadata } from './smoke-test-validation';
 import type { ValidationResult } from './smoke-test-validation';
 import { formatDuration } from './IndexHelpers';
@@ -53,7 +55,8 @@ export function MetadataSmokeTest(): React.ReactElement | null {
 
   if (metadataLLMId === null || metadataLLMId === 'none') return null;
 
-  const modelLabel = METADATA_LLM_MODELS.find(m => m.id === metadataLLMId)?.label ?? metadataLLMId;
+  const modelCfg = METADATA_LLM_MODELS.find(m => m.id === metadataLLMId);
+  const modelLabel = modelCfg?.label ?? metadataLLMId;
 
   const runTest = async (): Promise<void> => {
     setPhase('loading-model'); setResults([]); setErrorMsg(''); abortRef.current = false;
@@ -121,6 +124,9 @@ export function MetadataSmokeTest(): React.ReactElement | null {
           </Button>
         </div>
       )}
+
+      {/* Erweiterte Einstellungen */}
+      <MetadataDetails modelCfg={modelCfg ?? null} />
 
       {phase === 'loading-model' && (
         <div className="space-y-2">
@@ -283,5 +289,38 @@ function ResultRow({ result, index, expanded, onToggle }: {
         </td></tr>
       )}
     </>
+  );
+}
+
+/* ── Technical details collapsible ── */
+function MetadataDetails({ modelCfg }: { modelCfg: MetadataModelConfig | null }): React.ReactElement {
+  const samplePrompt = buildExtractionPrompt('[...Dokumenttext...]');
+  return (
+    <details className="text-[11px] text-[var(--tf-text-tertiary)]">
+      <summary className="cursor-pointer hover:text-[var(--tf-text-secondary)]">Erweiterte Einstellungen</summary>
+      <div className="mt-3 space-y-3 p-3 bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)]">
+        <div>
+          <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">Modell</p>
+          <Row label="Modell-ID" value={modelCfg?.openRouterId ?? '—'} />
+          <Row label="Label" value={modelCfg?.label ?? '—'} />
+          <Row label="Reasoning" value={modelCfg?.requiresReasoning ? 'Ja (effort: low)' : 'Nein'} />
+          <Row label="Lokales VRAM" value={modelCfg?.localVram ?? 'Nicht lokal laufbar'} />
+        </div>
+        <div className="pt-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">System-Prompt</p>
+          <pre className="text-[10px] font-mono whitespace-pre-wrap text-[var(--tf-text)]">{METADATA_SYSTEM_PROMPT}</pre>
+        </div>
+        <div className="pt-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">User-Prompt (Template)</p>
+          <pre className="text-[10px] font-mono whitespace-pre-wrap text-[var(--tf-text)] max-h-[200px] overflow-y-auto">{samplePrompt}</pre>
+        </div>
+        <div className="pt-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">Pipeline</p>
+          <Row label="Text-Limit" value="3000 Zeichen (Dokumentanfang)" />
+          <Row label="Testumfang" value="Erste 10 Dokumente aus IDB" />
+          <Row label="Caching" value="IDB (metadata-cache:{docId})" />
+        </div>
+      </div>
+    </details>
   );
 }

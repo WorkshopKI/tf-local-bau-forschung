@@ -181,7 +181,7 @@ export async function extractMetadata(filename: string, text: string): Promise<D
   if (!llmState.ready || !llmState.transport || llmState.modelId === 'none') {
     return FALLBACK_METADATA(filename, text);
   }
-  const systemPrompt = 'Du bist ein Metadaten-Extraktor fuer deutsche Verwaltungsdokumente. Antworte AUSSCHLIESSLICH mit einem JSON-Objekt. Kein Markdown, keine Erklaerung, keine Backticks, kein Denkprozess.';
+  const systemPrompt = METADATA_SYSTEM_PROMPT;
   const userPrompt = buildExtractionPrompt(text.slice(0, 3000));
   try {
     const modelCfg = METADATA_LLM_MODELS.find(m => m.id === llmState.modelId);
@@ -200,9 +200,11 @@ export function disposeMetadataLLM(): void {
   llmState.modelId = null;
 }
 
-/* ── Prompt + Parser (unchanged) ── */
+/* ── Prompt + Parser ── */
 
-function buildExtractionPrompt(text: string): string {
+export const METADATA_SYSTEM_PROMPT = 'Du bist ein Metadaten-Extraktor fuer deutsche Verwaltungsdokumente. Antworte AUSSCHLIESSLICH mit einem JSON-Objekt. Kein Markdown, keine Erklaerung, keine Backticks, kein Denkprozess.';
+
+export function buildExtractionPrompt(text: string): string {
   return `Extrahiere Metadaten aus diesem deutschen Verwaltungsdokument.
 
 REGELN:
