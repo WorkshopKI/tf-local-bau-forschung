@@ -4,5 +4,5 @@ dist-single/
 dist-deploy/
 *.tsbuildinfo
 
-# Lokaler llama.cpp Server (Binaries + Modelle, ~6 GB)
-scripts/metadata-server/
+# KI-Analyseprogramm (Binaries + Modell)
+dokumentenindex-dateien/

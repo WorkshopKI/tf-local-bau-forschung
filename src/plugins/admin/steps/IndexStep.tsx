@@ -279,7 +279,7 @@ export function IndexStep({
 
           {!hasModelDir && metadataLLMId !== 'none' && (
             <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-              Modelle werden von HuggingFace geladen. Offline: <code className="text-[10px]">./scripts/download-models.sh</code>
+              Embedding-Modelle werden automatisch von HuggingFace geladen.
             </p>
           )}
           {hasModelDir && availableModels.length > 0 && (

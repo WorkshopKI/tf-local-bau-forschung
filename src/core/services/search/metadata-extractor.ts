@@ -51,8 +51,8 @@ export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
   },
   {
     id: 'llamacpp-local', openRouterId: 'local-model',
-    label: 'llama.cpp · Lokal (localhost:8081)', size: 'Lokal',
-    description: 'Lokaler Server. scripts/start-metadata-server.bat ausfuehren!',
+    label: 'Lokale KI-Analyse', size: 'Lokal',
+    description: 'Dokumentenindex-aktualisieren.bat per Doppelklick starten.',
     requiresReasoning: false,
   },
   {
@@ -141,7 +141,12 @@ export async function initMetadataLLM(
     }
     llmState.transport = new DirectLLMTransport(endpoint, modelCfg.openRouterId, aiConfig?.apiKey ?? '');
     const ok = await llmState.transport.ping();
-    if (!ok) { onProgress?.(`${isLocalhost ? 'Lokaler Server' : 'API'} nicht erreichbar`); return false; }
+    if (!ok) {
+      onProgress?.(isLocalhost
+        ? 'KI-Analyse nicht verfuegbar — Dokumentenindex-aktualisieren.bat starten'
+        : 'API nicht erreichbar');
+      return false;
+    }
     llmState.ready = true;
     llmState.modelId = modelId;
     llmState.backend = 'api';

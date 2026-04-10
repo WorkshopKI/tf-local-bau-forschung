@@ -1,8 +1,0 @@
-{
-  "port": 8081,
-  "context_size": 8192,
-  "gpu_layers": 99,
-  "threads": 4,
-  "model": "gemma-4-e4b-it-Q4_K_M.gguf",
-  "model_url": "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-e4b-it-Q4_K_M.gguf"
-}
