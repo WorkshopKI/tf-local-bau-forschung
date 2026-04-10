@@ -194,20 +194,22 @@ export function IndexStep({
                       API Key erforderlich — bitte unter Einstellungen → KI-Assistent konfigurieren.
                     </p>
                   )}
-                  <div className="flex items-center gap-2">
-                    <label className="text-[12px] text-[var(--tf-text)]">Kontext-Tokens:</label>
-                    <select value={metadataContext} onChange={e => {
-                      const v = parseInt(e.target.value);
-                      setMetadataContext(v); savePipeline({ metadataContext: v });
-                    }}
-                      className="px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
-                      style={{ border: '0.5px solid var(--tf-border)' }}>
-                      <option value={4096}>4K (schnell, wenig VRAM)</option>
-                      <option value={8192}>8K (Standard)</option>
-                      <option value={16384}>16K (grosse Dokumente)</option>
-                      <option value={32768}>32K (voller Kontext)</option>
-                    </select>
-                  </div>
+                  {isActive && selectedModel.maxParallelism > 1 && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-[12px] text-[var(--tf-text)]">Kontext-Tokens:</label>
+                      <select value={metadataContext} onChange={e => {
+                        const v = parseInt(e.target.value);
+                        setMetadataContext(v); savePipeline({ metadataContext: v });
+                      }}
+                        className="px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
+                        style={{ border: '0.5px solid var(--tf-border)' }}>
+                        <option value={4096}>4K (schnell)</option>
+                        <option value={8192}>8K (Standard)</option>
+                        <option value={16384}>16K (grosse Dokumente)</option>
+                        <option value={32768}>32K (voller Kontext)</option>
+                      </select>
+                    </div>
+                  )}
                   {isActive && selectedModel.maxParallelism > 1 && (
                     <div className="flex items-center gap-2">
                       <label className="text-[12px] text-[var(--tf-text)]">Parallele API-Calls:</label>
