@@ -1,54 +1,16 @@
 import { useState } from 'react';
 import { Button } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
-import { DirectoriesStep } from '../steps/DirectoriesStep';
-import { DocumentsStep } from '../steps/DocumentsStep';
-import { IndexStep } from '../steps/IndexStep';
+import { usePipelineConfig } from '../hooks/usePipelineConfig';
+import { ActionCardIndex } from '../actions/ActionCardIndex';
+import { ActionCardQuality } from '../actions/ActionCardQuality';
+import { ActionCardDocuments } from '../actions/ActionCardDocuments';
+import { ActionCardGPU } from '../actions/ActionCardGPU';
+import { ConfigSection } from '../sections/ConfigSection';
 import { EvalSection } from '../eval/EvalSection';
 import { MetadataSmokeTest } from '../MetadataSmokeTest';
 import { seedTestData, clearSeedData } from '@/core/services/seed/seed-data';
 
-interface AdminViewProps {
-  chunkCount: number;
-  docCount: number;
-  activeModelId: string;
-  seeded: boolean;
-  seeding: boolean;
-  seedProgress: string;
-  indexOutdated: boolean;
-  hasGPU: boolean;
-  setDocCount: (n: number) => void;
-  setChunkCount: (n: number) => void;
-  setLastUpdate: (s: string | null) => void;
-  setActiveModelIdState: (id: string) => void;
-  setIndexModelId: (s: string | null) => void;
-  setSeeded: (v: boolean) => void;
-  setSeeding: (v: boolean) => void;
-  setSeedProgress: (v: string) => void;
-  setNewDocsCount: (n: number) => void;
-}
-
-/* ── Pipeline step header with numbered circle + connector line ── */
-function StepHeader({ step, title, subtitle }: {
-  step: number; title: string; subtitle?: string;
-}): React.ReactElement {
-  return (
-    <>
-      {step > 1 && (
-        <div className="ml-[10px] h-4" style={{ borderLeft: '0.5px solid var(--tf-border)' }} />
-      )}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="w-[22px] h-[22px] rounded-full bg-[var(--tf-bg-secondary)] flex items-center justify-center text-[11px] font-medium text-[var(--tf-text-secondary)] shrink-0">
-          {step}
-        </span>
-        <span className="text-[13px] font-medium text-[var(--tf-text)] flex-1">{title}</span>
-        {subtitle && <span className="text-[11px] text-[var(--tf-text-secondary)]">{subtitle}</span>}
-      </div>
-    </>
-  );
-}
-
-/* ── Normal section header for non-pipeline areas ── */
 function SectionTitle({ title, subtitle }: {
   title: string; subtitle?: string;
 }): React.ReactElement {
@@ -61,22 +23,41 @@ function SectionTitle({ title, subtitle }: {
   );
 }
 
+interface AdminViewProps {
+  chunkCount: number;
+  docCount: number;
+  activeModelId: string;
+  seeded: boolean;
+  seeding: boolean;
+  seedProgress: string;
+  indexOutdated: boolean;
+  hasGPU: boolean;
+  qualityPct: number | null;
+  newDocsCount: number;
+  setDocCount: (n: number) => void;
+  setChunkCount: (n: number) => void;
+  setLastUpdate: (s: string | null) => void;
+  setActiveModelIdState: (id: string) => void;
+  setIndexModelId: (s: string | null) => void;
+  setSeeded: (v: boolean) => void;
+  setSeeding: (v: boolean) => void;
+  setSeedProgress: (v: string) => void;
+  setNewDocsCount: (n: number) => void;
+}
+
 export function AdminView({
   chunkCount, docCount, activeModelId,
-  seeded, seeding, seedProgress, indexOutdated, hasGPU,
+  seeded, seeding, seedProgress, indexOutdated, hasGPU, qualityPct, newDocsCount,
   setDocCount, setChunkCount, setLastUpdate, setActiveModelIdState,
   setIndexModelId, setSeeded, setSeeding, setSeedProgress, setNewDocsCount,
 }: AdminViewProps): React.ReactElement {
   const storage = useStorage();
+  const { config, updateConfig } = usePipelineConfig(storage.idb);
+  const [resultPanel, setResultPanel] = useState<'eval' | 'smoke-test' | null>(null);
   const [clearing, setClearing] = useState(false);
   const [clearResult, setClearResult] = useState<string | null>(null);
 
-  const directories = storage.getDirectories();
-  const dirSubtitle = directories.length > 0
-    ? `${directories.length} verbunden` : 'Nicht verbunden';
-  const docSubtitle = docCount > 0 ? `${docCount} Dokumente` : 'Keine Dokumente';
-  const indexSubtitle = chunkCount > 0 ? `${chunkCount} Chunks` : 'Nicht indexiert';
-  const seedSubtitle = seeded ? '40 Vorgänge · 60 Dokumente' : 'Nicht vorhanden';
+  const seedSubtitle = seeded ? '40 Vorgaenge · 60 Dokumente' : 'Nicht vorhanden';
 
   const handleClearDocStore = async (): Promise<void> => {
     setClearing(true); setClearResult(null);
@@ -89,21 +70,21 @@ export function AdminView({
       }
       setDocCount(0); setChunkCount(0); setLastUpdate(null);
       setIndexModelId(null); setNewDocsCount(0); setSeeded(false);
-      setClearResult(`${keys.length} Dokumente und Index gelöscht.`);
+      setClearResult(`${keys.length} Dokumente und Index geloescht.`);
     } catch (err) { setClearResult(`Fehler: ${err}`); }
     finally { setClearing(false); }
   };
 
   const handleClearSeedData = async (): Promise<void> => {
     await clearSeedData(storage);
-    setSeeded(false); setDocCount(0); setSeedProgress('Gelöscht');
+    setSeeded(false); setDocCount(0); setSeedProgress('Geloescht');
   };
 
   const handleSeed = async (): Promise<void> => {
     setSeeding(true); setSeedProgress('Erzeuge...');
     try {
       const r = await seedTestData(storage, (c, t) => setSeedProgress(`Erzeuge... (${c}/${t})`));
-      setSeedProgress(`${r.vorgaenge} Vorgänge, ${r.dokumente} Dokumente, ${r.artefakte} Artefakte`);
+      setSeedProgress(`${r.vorgaenge} Vorgaenge, ${r.dokumente} Dokumente, ${r.artefakte} Artefakte`);
       setSeeded(true);
       storage.idb.keys('doc:').then(k => setDocCount(k.length));
     } catch (err) { setSeedProgress(`Fehler: ${err}`); }
@@ -111,49 +92,53 @@ export function AdminView({
   };
 
   return (
-    <div>
-      {/* ── Pipeline Step 1: Verzeichnisse ── */}
-      <div className="py-4" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-        <StepHeader step={1} title="Verzeichnisse" subtitle={dirSubtitle} />
-        <div className="ml-[30px]">
-          <DirectoriesStep />
-        </div>
-      </div>
-
-      {/* ── Pipeline Step 2: Dokumente ── */}
-      <div className="py-4" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-        <StepHeader step={2} title="Dokumente" subtitle={docSubtitle} />
-        <div className="ml-[30px]">
-          <DocumentsStep docCount={docCount} setDocCount={setDocCount} />
-        </div>
-      </div>
-
-      {/* ── Pipeline Step 3: Suchindex ── */}
-      <div className="py-4" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-        <StepHeader step={3} title="Suchindex" subtitle={indexSubtitle} />
-        <div className="ml-[30px]">
-          <IndexStep
-            activeModelId={activeModelId} setActiveModelIdState={setActiveModelIdState}
-            setIndexModelId={setIndexModelId}
-            setChunkCount={setChunkCount}
-            docCount={docCount} setLastUpdate={setLastUpdate}
-            indexOutdated={indexOutdated} setNewDocsCount={setNewDocsCount}
-            hasGPU={hasGPU}
+    <div className="space-y-6">
+      {/* ── AKTIONEN ── */}
+      <div>
+        <SectionTitle title="Aktionen" />
+        <div className="grid grid-cols-2 gap-3">
+          <ActionCardIndex
+            chunkCount={chunkCount} docCount={docCount} activeModelId={activeModelId}
+            indexOutdated={indexOutdated} hasGPU={hasGPU} newDocsCount={newDocsCount}
+            pipelineConfig={config}
+            setChunkCount={setChunkCount} setLastUpdate={setLastUpdate}
+            setIndexModelId={setIndexModelId} setNewDocsCount={setNewDocsCount}
           />
+          <ActionCardQuality
+            qualityPct={qualityPct}
+            hasMetadataLLM={config.metadataLLMId !== 'none'}
+            onStartEval={() => setResultPanel(resultPanel === 'eval' ? null : 'eval')}
+            onStartSmokeTest={() => setResultPanel(resultPanel === 'smoke-test' ? null : 'smoke-test')}
+          />
+          <ActionCardDocuments docCount={docCount} setDocCount={setDocCount} />
+          <ActionCardGPU />
         </div>
       </div>
 
-      {/* ── Qualitätscheck (normal header) ── */}
-      <div className="py-4" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-        <SectionTitle title="Qualitätscheck" />
-        <EvalSection chunkCount={chunkCount} modelId={activeModelId} />
+      {/* ── ERGEBNISSE (conditional) ── */}
+      {resultPanel === 'eval' && (
+        <div className="py-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <EvalSection chunkCount={chunkCount} modelId={activeModelId} />
+        </div>
+      )}
+      {resultPanel === 'smoke-test' && (
+        <div className="py-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <MetadataSmokeTest />
+        </div>
+      )}
+
+      {/* ── KONFIGURATION ── */}
+      <div>
+        <SectionTitle title="Konfiguration" />
+        <ConfigSection
+          config={config} updateConfig={updateConfig}
+          activeModelId={activeModelId} setActiveModelIdState={setActiveModelIdState}
+          hasGPU={hasGPU}
+        />
       </div>
 
-      {/* ── Metadata Smoke-Test ── */}
-      <MetadataSmokeTest />
-
-      {/* ── Testdaten (normal header) ── */}
-      <div className="py-4" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
+      {/* ── TESTDATEN ── */}
+      <div>
         <SectionTitle title="Testdaten" subtitle={seedSubtitle} />
         {seedProgress && <p className="text-[12px] text-[var(--tf-text-secondary)] mb-2">{seedProgress}</p>}
         {!seeded ? (
@@ -162,24 +147,24 @@ export function AdminView({
           </Button>
         ) : (
           <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-            Testdaten vorhanden. Löschen über &quot;Daten zurücksetzen&quot; am Seitenende.
+            Testdaten vorhanden. Loeschen ueber &quot;Daten zuruecksetzen&quot; am Seitenende.
           </p>
         )}
       </div>
 
-      {/* ── Daten zurücksetzen (normal header, bottom) ── */}
-      <div className="py-4">
-        <SectionTitle title="Daten zurücksetzen" />
+      {/* ── DATEN ZURÜCKSETZEN ── */}
+      <div>
+        <SectionTitle title="Daten zuruecksetzen" />
         <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
-          Löscht lokale Daten aus dem Browser-Speicher. Dateien auf dem Server bleiben erhalten.
+          Loescht lokale Daten aus dem Browser-Speicher. Dateien auf dem Server bleiben erhalten.
         </p>
         <div className="flex gap-2">
           <Button variant="danger" size="sm" loading={clearing} onClick={handleClearDocStore}>
-            Dokument-Store löschen
+            Dokument-Store loeschen
           </Button>
           {seeded && (
             <Button variant="danger" size="sm" onClick={handleClearSeedData}>
-              Testdaten löschen
+              Testdaten loeschen
             </Button>
           )}
         </div>

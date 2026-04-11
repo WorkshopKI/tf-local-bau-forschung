@@ -7,6 +7,8 @@ interface UserViewProps {
   fsConnected: boolean;
   ampelColor: string;
   qualityPct: number | null;
+  metadataLLMLabel: string;
+  smokeTestScore: number | null;
 }
 
 function StatBox({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -38,11 +40,20 @@ function DetailRow({ label, value, dot }: { label: string; value: string; dot?: 
 export function UserView({
   chunkCount, docCount, lastUpdate, activeModelLabel,
   hasGPU, fsConnected, ampelColor, qualityPct,
+  metadataLLMLabel, smokeTestScore,
 }: UserViewProps): React.ReactElement {
   const hasIndex = chunkCount > 0;
   const updateStr = lastUpdate
     ? new Date(lastUpdate).toLocaleDateString('de-DE')
     : '\u2014';
+
+  const searchValue = hasIndex ? 'BM25 + Vektor + Hybrid' : 'Inaktiv';
+
+  const metadataValue = metadataLLMLabel === 'Kein LLM (regelbasiert)' || metadataLLMLabel === 'Kein LLM'
+    ? 'Kein LLM'
+    : smokeTestScore !== null
+      ? `${metadataLLMLabel.split('(')[0]?.trim()} \u00b7 \u00d8 ${smokeTestScore}`
+      : metadataLLMLabel.split('(')[0]?.trim() ?? metadataLLMLabel;
 
   return (
     <div className="space-y-5">
@@ -69,7 +80,7 @@ export function UserView({
           <p className="text-[18px] font-medium text-[var(--tf-text)] mb-0.5">
             {qualityPct !== null ? `${qualityPct}%` : '\u2014'}
           </p>
-          <span className="text-[11px] text-[var(--tf-text-tertiary)]">Suchqualität</span>
+          <span className="text-[11px] text-[var(--tf-text-tertiary)]">Suchqualitaet</span>
         </StatBox>
       </div>
 
@@ -78,8 +89,8 @@ export function UserView({
         style={{ borderTop: '0.5px solid var(--tf-border)', borderBottom: '0.5px solid var(--tf-border)' }}>
         <div>
           <DetailRow label="Datenserver" value={fsConnected ? 'Verbunden' : 'Nicht verbunden'} dot={fsConnected} />
-          <DetailRow label="Volltextsuche" value={hasIndex ? 'Aktiv' : 'Inaktiv'} dot={hasIndex} />
-          <DetailRow label="Semantische Suche" value={hasIndex ? 'Aktiv' : 'Inaktiv'} dot={hasIndex} />
+          <DetailRow label="Suche" value={searchValue} dot={hasIndex} />
+          <DetailRow label="Metadata-KI" value={metadataValue} />
         </div>
         <div style={{ borderLeft: '0.5px solid var(--tf-border)', paddingLeft: '1.5rem' }}>
           <DetailRow label="Modell" value={activeModelLabel} />
@@ -90,7 +101,7 @@ export function UserView({
 
       {/* Hint */}
       <p className="text-[11px] text-[var(--tf-text-tertiary)] text-center">
-        {'Für Verwaltung \u2192 Tab \u201eVerwaltung\u201c'}
+        {'Fuer Verwaltung \u2192 Tab \u201eVerwaltung\u201c'}
       </p>
     </div>
   );

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Tabs } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
+import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
 import { UserView } from './views/UserView';
 import { AdminView } from './views/AdminView';
 
@@ -24,6 +25,8 @@ export function IndexManager(): React.ReactElement {
   const [newDocsCount, setNewDocsCount] = useState(0);
   const [hasGPU, setHasGPU] = useState(false);
   const [qualityPct, setQualityPct] = useState<number | null>(null);
+  const [metadataLLMLabel, setMetadataLLMLabel] = useState('Kein LLM');
+  const [smokeTestScore, setSmokeTestScore] = useState<number | null>(null);
 
   const fsConnected = storage.isFileServerConnected();
 
@@ -55,6 +58,18 @@ export function IndexManager(): React.ReactElement {
       if (r?.summary && r.summary.total > 0) {
         setQualityPct(Math.round((r.summary.passed / r.summary.total) * 100));
       }
+    });
+
+    // Metadata-LLM Label laden
+    storage.idb.get<{ metadataLLMId?: string }>('pipeline-config').then(cfg => {
+      const id = cfg?.metadataLLMId ?? 'none';
+      const label = METADATA_LLM_MODELS.find(m => m.id === id)?.label ?? 'Kein LLM';
+      setMetadataLLMLabel(label);
+    });
+
+    // Smoke-Test Score laden
+    storage.idb.get<{ score?: number }>('smoke-test-latest').then(r => {
+      setSmokeTestScore(r?.score ?? null);
     });
   }, [storage]);
 
@@ -101,6 +116,7 @@ export function IndexManager(): React.ReactElement {
             activeModelLabel={activeModel.label} hasGPU={hasGPU}
             fsConnected={fsConnected} ampelColor={amp.color}
             qualityPct={qualityPct}
+            metadataLLMLabel={metadataLLMLabel} smokeTestScore={smokeTestScore}
           />
         ) : (
           <AdminView
@@ -108,6 +124,7 @@ export function IndexManager(): React.ReactElement {
             activeModelId={activeModelId}
             seeded={seeded} seeding={seeding} seedProgress={seedProgress}
             indexOutdated={indexOutdated} hasGPU={hasGPU}
+            qualityPct={qualityPct} newDocsCount={newDocsCount}
             setDocCount={setDocCount} setChunkCount={setChunkCount}
             setLastUpdate={setLastUpdate} setActiveModelIdState={setActiveModelIdState}
             setIndexModelId={setIndexModelId} setSeeded={setSeeded}

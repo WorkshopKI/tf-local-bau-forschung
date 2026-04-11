@@ -8,7 +8,7 @@ import {
 } from '@/core/services/search/metadata-extractor';
 import type { DocumentMetadata, MetadataModelConfig } from '@/core/services/search/metadata-extractor';
 import { embeddingService } from '@/core/services/search/embedding-service';
-import { disposeReRanker } from '@/core/services/search/re-ranker'; // PHASE 2: Re-Ranker
+import { unloadAllGPU as unloadAllGPUFn } from './utils/gpu-utils';
 import { Row } from './IndexHelpers';
 import { validateMetadata } from './smoke-test-validation';
 import type { ValidationResult } from './smoke-test-validation';
@@ -102,18 +102,21 @@ export function MetadataSmokeTest(): React.ReactElement | null {
         await new Promise(r => setTimeout(r, 100));
       }
       disposeMetadataLLM();
-      if (mountedRef.current) setPhase(abortRef.current ? 'idle' : 'done');
+      if (mountedRef.current) {
+        setPhase(abortRef.current ? 'idle' : 'done');
+        if (!abortRef.current) {
+          const score = results.length > 0 ? Math.round(results.reduce((s, r) => s + r.validation.score, 0) / results.length) : 0;
+          storage.idb.set('smoke-test-latest', { score, modelId: metadataLLMId, modelLabel, timestamp: new Date().toISOString() });
+        }
+      }
     } catch (err) {
       disposeMetadataLLM();
       if (mountedRef.current) { setPhase('error'); setErrorMsg(String(err)); }
     }
   };
 
-  const unloadAllGPU = (): void => {
-    const unloaded: string[] = [];
-    disposeMetadataLLM(); unloaded.push('Metadata-LLM');
-    if (embeddingService.isReady()) { embeddingService.destroy(); unloaded.push('Embedding'); }
-    try { disposeReRanker(); unloaded.push('Re-Ranker'); } catch { /* nicht geladen */ }
+  const handleUnloadGPU = (): void => {
+    const unloaded = unloadAllGPUFn();
     const msg = unloaded.length > 0
       ? `Entladen: ${unloaded.join(', ')}`
       : 'Keine GPU-Modelle geladen';
@@ -145,7 +148,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
             <Button variant="secondary" size="sm" icon={FlaskConical} onClick={runTest}>
               Metadata-Test starten
             </Button>
-            <Button variant="secondary" size="sm" icon={Trash2} onClick={unloadAllGPU}>
+            <Button variant="secondary" size="sm" icon={Trash2} onClick={handleUnloadGPU}>
               GPU-Modelle entladen
             </Button>
           </div>
@@ -200,7 +203,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
           <Button variant="secondary" size="sm" icon={RefreshCw} onClick={runTest}>
             Test neu starten
           </Button>
-          <Button variant="secondary" size="sm" icon={Trash2} onClick={unloadAllGPU}>
+          <Button variant="secondary" size="sm" icon={Trash2} onClick={handleUnloadGPU}>
             GPU-Modelle entladen
           </Button>
           {gpuMsg && <span className="text-[11px] text-[var(--tf-text-secondary)] self-center">{gpuMsg}</span>}

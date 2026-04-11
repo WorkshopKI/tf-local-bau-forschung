@@ -177,9 +177,12 @@ function DeltaLine({ label, current, previous, prevDate }: {
   return (
     <p>
       {label}: {current}%{' '}
-      <span className={delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : ''}>
-        ({delta > 0 ? '+' : ''}{delta}% seit {prevDate})
-      </span>
+      {delta === 0
+        ? <span className="text-[var(--tf-text-tertiary)]">(unveraendert seit {prevDate})</span>
+        : <span className={delta > 0 ? 'text-green-600' : 'text-red-500'}>
+            ({delta > 0 ? '+' : ''}{delta}% seit {prevDate})
+          </span>
+      }
     </p>
   );
 }
