@@ -22,8 +22,6 @@ export interface IndexStatus {
   chunkProgress?: { current: number; total: number };
 }
 
-const CHUNK_CONFIG = { size: 400, overlap: 75 };
-
 export interface PipelineConfig {
   embeddingModelId: string;
   metadataLLMId: string | null;
@@ -250,7 +248,7 @@ export class BatchIndexer {
 
       if (config.useContextualPrefixes) {
         onStatus({ phase: 'Chunking (contextual)', total: docs.length, processed, currentDoc: doc.filename, skipped });
-        const ctxChunks: ContextualChunk[] = contextualChunk(doc.id, doc.filename, doc.markdown, metadata, CHUNK_CONFIG.size, CHUNK_CONFIG.overlap);
+        const ctxChunks: ContextualChunk[] = contextualChunk(doc.id, doc.filename, doc.markdown, metadata);
         textsToEmbed = ctxChunks.map(c => c.prefixedText);
         chunkIds = ctxChunks.map(c => c.id);
         chunkTexts = ctxChunks.map(c => c.text);
@@ -288,7 +286,9 @@ export class BatchIndexer {
           embedding: vectors[i] ?? [],
         });
         totalChunks++;
-        docChunkCounts[doc.filename] = (docChunkCounts[doc.filename] ?? 0) + 1;
+        if (!chunkIds[i]?.endsWith('-summary')) {
+          docChunkCounts[doc.filename] = (docChunkCounts[doc.filename] ?? 0) + 1;
+        }
       }
 
       manifest[doc.id] = doc.hash;
