@@ -240,6 +240,38 @@ export function disposeMetadataLLM(): void {
 /* ── Re-exports fuer Abwaertskompatibilitaet ── */
 export { METADATA_SYSTEM_PROMPT, METADATA_RESPONSE_FORMAT, buildExtractionPrompt } from './metadata-prompts';
 
+function sanitizeDate(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'string') return null;
+  const s = raw.trim();
+  if (!s || s === 'N/A' || s === 'null') return null;
+
+  // Bereits korrekt: YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-').map(Number);
+    if (y! >= 1900 && y! <= 2100 && m! >= 1 && m! <= 12 && d! >= 1 && d! <= 31) return s;
+    return null;
+  }
+  // Deutsches Format: DD.MM.YYYY
+  const deDe = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (deDe) {
+    const [, dd, mm, yyyy] = deDe.map(Number);
+    if (yyyy! >= 1900 && yyyy! <= 2100 && mm! >= 1 && mm! <= 12 && dd! >= 1 && dd! <= 31)
+      return `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+  }
+  // YYYY-MM (ohne Tag)
+  const ym = s.match(/^(\d{4})-(\d{2})$/);
+  if (ym) {
+    const [, yy, mm] = ym.map(Number);
+    if (yy! >= 1900 && yy! <= 2100 && mm! >= 1 && mm! <= 12) return `${yy}-${String(mm).padStart(2, '0')}-01`;
+  }
+  // Nur Jahr
+  const yearOnly = s.match(/^(\d{4})$/);
+  if (yearOnly && Number(yearOnly[1]) >= 1900 && Number(yearOnly[1]) <= 2100) {
+    return `${yearOnly[1]}-01-01`;
+  }
+  return null;
+}
+
 function parseMetadataJSON(output: string, filename: string, text: string): DocumentMetadata {
   try {
     const trimmed = output.trim();
@@ -251,7 +283,7 @@ function parseMetadataJSON(output: string, filename: string, text: string): Docu
       return {
         doc_type: parsed.doc_type ?? 'Sonstiges',
         title: parsed.title ?? filename,
-        date: parsed.date ?? null,
+        date: sanitizeDate(parsed.date),
         organizations: Array.isArray(parsed.organizations) ? parsed.organizations : [],
         topic_tags: Array.isArray(parsed.topic_tags) ? parsed.topic_tags.slice(0, 5) : [],
         micro_summary: parsed.micro_summary ?? text.slice(0, 200),
