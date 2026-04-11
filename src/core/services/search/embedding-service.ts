@@ -89,7 +89,6 @@ export class EmbeddingService {
       }
 
       this.currentModelId = modelConfig.id;
-      console.log(`[Embedding] ✅ Geladen: ${modelConfig.label} (${device})`);
       pipelineLog.info('Embedding', `${modelConfig.label} bereit — ${device}`);
       onProgress?.({ phase: 'ready' });
     } catch (err) {
@@ -245,7 +244,7 @@ export class EmbeddingService {
     this.autoTokenizer = null;
     this.currentModelId = null;
     this.loading = false;
-    console.log(`[Embedding] ❌ Entladen: ${modelName}`);
+    pipelineLog.info('Embedding', `Entladen: ${modelName}`);
   }
 }
 

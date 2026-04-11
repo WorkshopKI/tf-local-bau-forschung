@@ -33,7 +33,7 @@ export const pipelineLog = {
     query: string;
     embeddingModel: string;
     vectorReady: boolean;
-    reRankerActive: boolean;
+    reRankerActive: boolean; // PHASE 2: Re-Ranker
     stage1Results: number;
     stage2Results?: number;
     totalTimeMs: number;

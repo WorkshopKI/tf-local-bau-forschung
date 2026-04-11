@@ -9,7 +9,7 @@ import {
 } from '@/core/services/search/model-registry';
 import { METADATA_LLM_MODELS, clearMetadataCache } from '@/core/services/search/metadata-extractor';
 import type { AIProviderConfig } from '@/core/types/config';
-import { RERANKER_MODELS, DEFAULT_RERANKER_ID } from '@/core/services/search/re-ranker';
+import { RERANKER_MODELS, DEFAULT_RERANKER_ID } from '@/core/services/search/re-ranker'; // PHASE 2: Re-Ranker
 import { useSearch } from '@/core/hooks/useSearch';
 import { loadCheckpoint } from '@/core/services/search/checkpoint';
 import { listAvailableModels } from '@/core/services/search/model-loader';

@@ -8,7 +8,7 @@ import {
 } from '@/core/services/search/metadata-extractor';
 import type { DocumentMetadata, MetadataModelConfig } from '@/core/services/search/metadata-extractor';
 import { embeddingService } from '@/core/services/search/embedding-service';
-import { disposeReRanker } from '@/core/services/search/re-ranker';
+import { disposeReRanker } from '@/core/services/search/re-ranker'; // PHASE 2: Re-Ranker
 import { Row } from './IndexHelpers';
 import { validateMetadata } from './smoke-test-validation';
 import type { ValidationResult } from './smoke-test-validation';

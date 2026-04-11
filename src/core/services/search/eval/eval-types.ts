@@ -49,7 +49,7 @@ export interface EvalReport {
     embeddingModel: string;
     metadataLLM: string | null;
     contextualPrefixes: boolean;
-    reRanker: boolean;
+    reRanker: boolean; // PHASE 2: Re-Ranker
   };
 }
 

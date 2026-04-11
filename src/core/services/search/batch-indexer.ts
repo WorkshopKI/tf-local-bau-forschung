@@ -30,7 +30,7 @@ export interface PipelineConfig {
   metadataContext?: number;
   metadataPreferGPU?: boolean;
   useContextualPrefixes: boolean;
-  useReRanker: boolean;
+  useReRanker: boolean; // PHASE 2: Re-Ranker
   resumeFromCheckpoint: boolean;
 }
 

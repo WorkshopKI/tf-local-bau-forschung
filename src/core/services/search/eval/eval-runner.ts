@@ -2,7 +2,7 @@ import { hybridSearch } from '../orama-store';
 import type { OramaSearchResult } from '../orama-store';
 import { embeddingService } from '../embedding-service';
 import { getModelById } from '../model-registry';
-import { isReRankerReady, rerank } from '../re-ranker';
+import { isReRankerReady, rerank } from '../re-ranker'; // PHASE 2: Re-Ranker
 import { pipelineLog } from '../pipeline-logger';
 import type { EvalTestCase, TestCaseResult, EvalReport, EvalProgress, EvalSummary } from './eval-types';
 

@@ -5,7 +5,7 @@ import {
 } from '@/core/services/search/orama-store';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
-import { initReRanker, isReRankerReady, rerank, disposeReRanker } from '@/core/services/search/re-ranker';
+import { initReRanker, isReRankerReady, rerank, disposeReRanker } from '@/core/services/search/re-ranker'; // PHASE 2: Re-Ranker
 import type { EmbeddingModelConfig } from '@/core/services/search/model-registry';
 import type { StorageService } from '@/core/services/storage';
 import { pipelineLog } from '@/core/services/search/pipeline-logger';
@@ -59,8 +59,7 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
       // Dokumente vom File Server synchronisieren (fehlende lokal laden)
       try {
         const { syncDocumentsFromFileServer } = await import('@/core/services/search/document-scanner');
-        const synced = await syncDocumentsFromFileServer(storage);
-        if (synced > 0) console.log(`${synced} Dokumente vom File Server synchronisiert`);
+        await syncDocumentsFromFileServer(storage);
       } catch { /* kein File Server */ }
 
       // Orama-Index aus IDB laden (entweder lokal oder gerade vom Server ueberschrieben)
@@ -156,12 +155,10 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
   const toggleReRanker = useCallback(async (enable: boolean, modelId?: string) => {
     if (enable) {
       const id = modelId ?? 'bge-reranker-base';
-      console.log('[TeamFlow][ReRanker] Aktiviere Re-Ranker:', id);
       const loaded = await initReRanker(id);
       if (loaded) pipelineLog.info('Re-Ranker', 'Bereit');
       else pipelineLog.warn('Re-Ranker', 'Konnte nicht geladen werden');
     } else {
-      console.log('[TeamFlow][ReRanker] Deaktiviere Re-Ranker');
       disposeReRanker();
     }
   }, []);

@@ -75,15 +75,12 @@ export async function initReRanker(
   const targetId = modelId ?? DEFAULT_RERANKER_ID;
   const config = getReRankerModelById(targetId);
 
-  console.debug('[TeamFlow][ReRanker] initReRanker:', targetId);
-
   // Bereits geladen mit gleichem Modell
   if (state.ready && state.currentModelId === targetId) return true;
   if (state.loading) return false;
 
   // Anderes Modell geladen → entladen
   if (state.ready && state.currentModelId !== targetId) {
-    console.log('[TeamFlow][ReRanker] Modellwechsel:', state.currentModelId, '→', targetId);
     disposeReRanker();
   }
 
@@ -104,7 +101,6 @@ export async function initReRanker(
     state.ready = true;
     state.loading = false;
     state.currentModelId = targetId;
-    console.log('[TeamFlow][ReRanker] Modell geladen:', config.label);
     pipelineLog.info('Re-Ranker', `${config.label} bereit`);
     onProgress?.({ phase: 'done' });
     return true;
@@ -125,25 +121,14 @@ export async function rerank(
   onProgress?: (p: ReRankerProgress) => void,
 ): Promise<OramaSearchResult[]> {
   if (!state.ready || !state.tokenizer || !state.model) {
-    console.log('[TeamFlow][ReRanker] UEBERSPRUNGEN — Grund:', !state.ready ? 'nicht bereit' : !state.tokenizer ? 'kein Tokenizer' : 'kein Modell');
     return results.slice(0, topK);
   }
 
   if (!results.length) {
-    console.log('[TeamFlow][ReRanker] UEBERSPRUNGEN — keine Ergebnisse zum Re-Ranken');
     return [];
   }
 
-  console.log('[TeamFlow][ReRanker] Re-Ranking:', state.currentModelId, '|', results.length, 'Passages');
-
-  const originalOrder = results.slice(0, 5).map(r => r.source);
-  console.debug('[TeamFlow][ReRanker] Top-3 VOR Re-Ranking:');
-  results.slice(0, 3).forEach((p, i) => {
-    console.debug(`  ${i + 1}. Score: ${p.score?.toFixed(4)} | ${p.source} | ${p.text?.substring(0, 80)}...`);
-  });
-
   const candidates = results.slice(0, maxCandidates);
-  const t0 = performance.now();
 
   // Batch-Tokenisierung mit text_pair — das korrekte Format fuer Cross-Encoder
   const queries = candidates.map(() => query);
@@ -166,10 +151,6 @@ export async function rerank(
       for (let i = 0; i < candidates.length; i++) {
         const score = Number(logits[i] ?? 0);
         scored.push({ result: candidates[i]!, rerankerScore: score });
-
-        if (i < 3) {
-          console.debug(`[TeamFlow][ReRanker] Passage ${i + 1}: score: ${score.toFixed(4)} | ${candidates[i]!.source}`);
-        }
       }
     } else {
       console.error('[TeamFlow][ReRanker] Keine logits im Output:', Object.keys(output));
@@ -191,10 +172,6 @@ export async function rerank(
         const output = await state.model(inputs);
         const score = Number(output.logits?.data?.[0] ?? 0);
         scored.push({ result: candidate, rerankerScore: score });
-
-        if (i < 3) {
-          console.debug(`[TeamFlow][ReRanker] Passage ${i + 1} (einzeln): score: ${score.toFixed(4)}`);
-        }
       } catch (innerErr) {
         console.error(`[TeamFlow][ReRanker] Fehler bei Passage ${i + 1}:`, innerErr);
         scored.push({ result: candidate, rerankerScore: candidate.score });
@@ -205,16 +182,6 @@ export async function rerank(
 
   scored.sort((a, b) => b.rerankerScore - a.rerankerScore);
   onProgress?.({ phase: 'done' });
-
-  const elapsed = Math.round(performance.now() - t0);
-  const newOrder = scored.slice(0, 5).map(s => s.result.source);
-  const orderChanged = JSON.stringify(originalOrder) !== JSON.stringify(newOrder);
-
-  console.log(`[TeamFlow][ReRanker] Re-Ranking dauerte: ${elapsed}ms | Reihenfolge geaendert: ${orderChanged}`);
-  console.debug('[TeamFlow][ReRanker] Top-5 NACH Re-Ranking:');
-  scored.slice(0, 5).forEach((s, i) => {
-    console.debug(`  ${i + 1}. ReRank-Score: ${Number(s.rerankerScore).toFixed(4)} | ${s.result.source}`);
-  });
 
   return scored.slice(0, topK).map(s => ({
     ...s.result,
