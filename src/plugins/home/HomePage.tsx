@@ -7,13 +7,7 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useForschungStore } from '@/plugins/forschung/store';
 import { useDashboardData } from './useDashboardData';
-
-const STATUS_VARIANTS: Record<string, 'info' | 'warning' | 'success' | 'error' | 'default'> = {
-  neu: 'info', in_bearbeitung: 'warning', nachforderung: 'warning', in_pruefung: 'info',
-  genehmigt: 'success', abgelehnt: 'error', archiviert: 'default',
-  eingereicht: 'info', in_begutachtung: 'warning', nachbesserung: 'warning',
-  bewilligt: 'success', abgeschlossen: 'default',
-};
+import { getStatusVariant } from '@/core/utils/status-mappings';
 
 export function HomePage(): React.ReactElement {
   const storage = useStorage();
@@ -81,7 +75,7 @@ export function HomePage(): React.ReactElement {
               icon={<span className="text-[11px] font-medium text-[var(--tf-text-secondary)]">{v.type === 'bauantrag' ? 'B' : 'F'}</span>}
               title={v.title}
               subtitle={v.id}
-              meta={<Badge variant={STATUS_VARIANTS[v.status] ?? 'default'}>{v.status.replace(/_/g, ' ')}</Badge>}
+              meta={<Badge variant={getStatusVariant(v.status)}>{v.status.replace(/_/g, ' ')}</Badge>}
               onClick={() => navigate(v.type === 'bauantrag' ? 'bauantraege' : 'forschung', { selectedId: v.id })}
               last={i === data.letzteAenderungen.length - 1}
             />

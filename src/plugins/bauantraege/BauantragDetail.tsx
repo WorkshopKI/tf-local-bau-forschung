@@ -1,57 +1,29 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Pencil, Trash2, Check } from 'lucide-react';
 import { Button, Badge, Tabs, Dialog } from '@/ui';
 import { StatusSelect } from '@/ui/StatusSelect';
 import { MarkdownEditor } from '@/ui/MarkdownEditor';
-import { useStorage } from '@/core/hooks/useStorage';
 import { VorgangDokumenteTab } from '@/core/components/VorgangDokumenteTab';
 import { VerlaufTab } from '@/core/components/VerlaufTab';
 import { SimilarCases } from '@/core/components/SimilarCases';
+import { useVorgangDetail } from '@/core/hooks/useVorgangDetail';
+import { useStorage } from '@/core/hooks/useStorage';
 import { useBauantraegeStore } from './store';
 import { BauantragForm } from './BauantragForm';
-import { ArtefakteTab } from './ArtefakteTab';
+import { ArtefakteTab } from '@/core/components/ArtefakteTab';
 import { BAUANTRAG_STATUS_LABELS, PRIORITY_LABELS } from './types';
-import { applyTransition } from '@/core/services/workflow/engine';
-import { loadHistory, addHistoryEntry } from '@/core/services/workflow/history';
-import { getDaysUntilDeadline, isOverdue } from '@/core/services/workflow/deadlines';
-import type { HistoryEntry } from '@/core/services/workflow/history';
 
 export function BauantragDetail(): React.ReactElement | null {
   const storage = useStorage();
   const { bauantraege, selectedId, setSelectedId, update, remove } = useBauantraegeStore();
   const vorgang = bauantraege.find(v => v.id === selectedId);
-  const [activeTab, setActiveTab] = useState('uebersicht');
-  const [showForm, setShowForm] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [saved, setSaved] = useState(false);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  useEffect(() => {
-    if (vorgang) { setNotes(vorgang.notes); loadHistory(vorgang.id, storage).then(setHistory); }
-  }, [vorgang, storage]);
-
-  const handleNotesChange = useCallback((value: string) => {
-    setNotes(value); setSaved(false);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(async () => {
-      if (vorgang) { await update({ ...vorgang, notes: value }, storage); setSaved(true); setTimeout(() => setSaved(false), 2000); }
-    }, 1000);
-  }, [vorgang, update, storage]);
-
-  const handleStatusChange = async (targetStatus: string, comment?: string): Promise<void> => {
-    if (!vorgang) return;
-    const { vorgang: updated, entry } = applyTransition(vorgang, targetStatus, '', comment);
-    await update(updated, storage);
-    await addHistoryEntry(vorgang.id, entry, storage);
-    setHistory(prev => [entry, ...prev]);
-  };
+  const {
+    activeTab, setActiveTab, showForm, setShowForm, showDelete, setShowDelete,
+    notes, saved, history, handleNotesChange, handleStatusChange, daysLeft, overdue,
+  } = useVorgangDetail({ vorgang, update });
 
   if (!vorgang) return null;
 
-  const daysLeft = getDaysUntilDeadline(vorgang);
-  const overdue = isOverdue(vorgang);
   const fristText = vorgang.deadline
     ? `${new Date(vorgang.deadline).toLocaleDateString('de-DE')}${daysLeft !== null ? ` (${daysLeft < 0 ? `${Math.abs(daysLeft)}d überfällig` : `in ${daysLeft}d`})` : ''}`
     : '—';
@@ -83,7 +55,6 @@ export function BauantragDetail(): React.ReactElement | null {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 mt-2">
-        {/* Main: Tabs + Inhalt */}
         <div>
           <Tabs tabs={[
             { id: 'uebersicht', label: 'Übersicht' },
@@ -104,7 +75,6 @@ export function BauantragDetail(): React.ReactElement | null {
           </div>
         </div>
 
-        {/* Aside: Metadaten + Aehnliche Faelle */}
         <div className="space-y-4">
           <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4 space-y-3">
             <p className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">Details</p>

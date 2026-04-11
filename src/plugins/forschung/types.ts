@@ -1,3 +1,5 @@
+import { STATUS_LABELS, STATUS_VARIANTS } from '@/core/utils/status-mappings';
+import type { BadgeVariant } from '@/core/utils/status-mappings';
 import type { Vorgang } from '@/core/types/vorgang';
 
 export interface ForschungsantragMeta {
@@ -13,20 +15,10 @@ export type ForschungsVorgang = Vorgang & ForschungsantragMeta;
 
 export type ForschungStatus = 'eingereicht' | 'in_begutachtung' | 'nachbesserung' | 'bewilligt' | 'abgelehnt' | 'abgeschlossen';
 
-export const FORSCHUNG_STATUS_LABELS: Record<string, string> = {
-  eingereicht: 'Eingereicht',
-  in_begutachtung: 'In Begutachtung',
-  nachbesserung: 'Nachbesserung',
-  bewilligt: 'Bewilligt',
-  abgelehnt: 'Abgelehnt',
-  abgeschlossen: 'Abgeschlossen',
-};
+const FORSCHUNG_STATUSES: ForschungStatus[] = ['eingereicht', 'in_begutachtung', 'nachbesserung', 'bewilligt', 'abgelehnt', 'abgeschlossen'];
 
-export const FORSCHUNG_STATUS_VARIANTS: Record<string, 'info' | 'warning' | 'success' | 'error' | 'default'> = {
-  eingereicht: 'info',
-  in_begutachtung: 'warning',
-  nachbesserung: 'warning',
-  bewilligt: 'success',
-  abgelehnt: 'error',
-  abgeschlossen: 'default',
-};
+export const FORSCHUNG_STATUS_LABELS: Record<string, string> =
+  Object.fromEntries(FORSCHUNG_STATUSES.map(s => [s, STATUS_LABELS[s] ?? s]));
+
+export const FORSCHUNG_STATUS_VARIANTS: Record<string, BadgeVariant> =
+  Object.fromEntries(FORSCHUNG_STATUSES.map(s => [s, STATUS_VARIANTS[s] ?? 'default']));
