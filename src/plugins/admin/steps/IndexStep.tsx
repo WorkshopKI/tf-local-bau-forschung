@@ -194,6 +194,16 @@ export function IndexStep({
                       API Key erforderlich — bitte unter Einstellungen → KI-Assistent konfigurieren.
                     </p>
                   )}
+                  {isActive && selectedModel.backend === 'browser' && !hasGPU && (
+                    <p className="text-[11px] text-[var(--tf-warning-text)]">
+                      WebGPU nicht verfuegbar. Browser-KI benoetigt WebGPU-faehigen Browser und GPU.
+                    </p>
+                  )}
+                  {isActive && selectedModel.backend === 'browser' && hasGPU && (
+                    <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+                      VRAM-Verwaltung: Embedding wird waehrend Metadata-Extraktion entladen und danach neu geladen.
+                    </p>
+                  )}
                   {isActive && selectedModel.maxParallelism > 1 && (
                     <div className="flex items-center gap-2">
                       <label className="text-[12px] text-[var(--tf-text)]">Kontext-Tokens:</label>

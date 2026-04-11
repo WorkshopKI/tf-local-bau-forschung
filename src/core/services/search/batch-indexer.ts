@@ -159,6 +159,14 @@ export class BatchIndexer {
 
     // Init metadata LLM if configured
     const useLLM = config.metadataLLMId != null && config.metadataLLMId !== 'none';
+    const isBrowserLLM = useLLM && METADATA_LLM_MODELS.find(m => m.id === config.metadataLLMId)?.backend === 'browser';
+
+    // VRAM-Sequencing: Browser-LLM braucht gesamten VRAM — Embedding zuerst entladen
+    if (isBrowserLLM) {
+      onStatus({ phase: 'Embedding entladen (VRAM)', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
+      embeddingService.destroy();
+    }
+
     if (useLLM) {
       onStatus({ phase: 'LLM laden', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
       await initMetadataLLM(config.metadataLLMId!, (msg) => {
@@ -178,7 +186,11 @@ export class BatchIndexer {
       }
       if (allCurrent) {
         pipelineLog.info('Indexer', 'Index ist aktuell — nichts zu tun');
-        if (useLLM) disposeMetadataLLM();
+        if (useLLM && !isBrowserLLM) disposeMetadataLLM();
+        if (isBrowserLLM) {
+          disposeMetadataLLM();
+          await embeddingService.init(this.modelConfig!, true);
+        }
         return totalChunks;
       }
     }
@@ -212,6 +224,16 @@ export class BatchIndexer {
           onStatus({ phase: `Metadata ${done}/${total}`, total: docs.length, processed: skipped + done, currentDoc, skipped });
         },
       );
+    }
+
+    // VRAM-Sequencing: Browser-LLM entladen, Embedding neu laden
+    if (isBrowserLLM) {
+      disposeMetadataLLM();
+      onStatus({ phase: 'Embedding neu laden', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
+      await embeddingService.init(this.modelConfig!, true, (p: EmbeddingProgress) => {
+        onStatus({ phase: p.phase === 'loading' ? 'Embedding laden' : 'Bereit',
+          total: docs.length, processed: 0, currentDoc: '', skipped: 0, modelProgress: p.modelProgress });
+      });
     }
 
     // Phase B: Chunk + Embed sequentially (wie bisher)
@@ -288,8 +310,8 @@ export class BatchIndexer {
       }
     }
 
-    // Dispose LLM if loaded
-    if (useLLM) {
+    // Dispose LLM if loaded (Browser-LLM wurde bereits oben entladen)
+    if (useLLM && !isBrowserLLM) {
       disposeMetadataLLM();
     }
 

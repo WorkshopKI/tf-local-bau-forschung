@@ -7,6 +7,7 @@
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
 import type { AIProviderConfig } from '@/core/types/config';
 import { METADATA_SYSTEM_PROMPT, METADATA_RESPONSE_FORMAT, buildExtractionPrompt } from './metadata-prompts';
+import { browserLLM, checkWebGPU } from './browser-llm';
 
 export interface DocumentMetadata {
   doc_type: string;
@@ -43,6 +44,7 @@ export interface MetadataModelConfig {
   requiresReasoning: boolean;
   maxParallelism: number;
   needsApiKey: boolean;
+  backend?: 'api' | 'browser';
 }
 
 export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
@@ -65,6 +67,13 @@ export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
     requiresReasoning: true, maxParallelism: 5, needsApiKey: true,
   },
   {
+    id: 'browser-nemotron', openRouterId: '',
+    label: 'Browser-KI (Nemotron 4B, WebGPU)', size: '~2.5 GB',
+    description: 'Laeuft direkt im Browser via WebGPU. Kein Server noetig.',
+    requiresReasoning: false, maxParallelism: 1, needsApiKey: false,
+    backend: 'browser',
+  },
+  {
     id: 'none', openRouterId: '',
     label: 'Kein LLM (regelbasiert)', size: '0',
     description: 'Metadata aus Dateiname + Text, ohne LLM.',
@@ -78,7 +87,7 @@ interface LLMState {
   transport: DirectLLMTransport | null;
   ready: boolean;
   modelId: string | null;
-  backend: 'api' | null;
+  backend: 'api' | 'browser' | null;
 }
 
 const llmState: LLMState = { transport: null, ready: false, modelId: null, backend: null };
@@ -138,6 +147,21 @@ export async function initMetadataLLM(
   if (llmState.ready && llmState.modelId === modelId) return true;
 
   const modelCfg = METADATA_LLM_MODELS.find(m => m.id === modelId);
+
+  // Browser backend (Nemotron via WebGPU)
+  if (modelCfg?.backend === 'browser') {
+    onProgress?.('WebGPU pruefen...');
+    const gpuOk = await checkWebGPU();
+    if (!gpuOk) { onProgress?.('WebGPU nicht verfuegbar'); return false; }
+    onProgress?.('Nemotron 4B laden (WebGPU)...');
+    const ok = await browserLLM.init(
+      'onnx-community/NVIDIA-Nemotron-3-Nano-4B-BF16-ONNX', onProgress,
+    );
+    if (!ok) { onProgress?.('Browser-LLM konnte nicht geladen werden'); return false; }
+    llmState.ready = true; llmState.modelId = modelId; llmState.backend = 'browser';
+    onProgress?.('Browser-LLM bereit'); return true;
+  }
+
   if (!modelCfg || !modelCfg.openRouterId) return false;
   onProgress?.('API-Verbindung pruefen...');
   try {
@@ -179,6 +203,18 @@ export async function extractMetadata(filename: string, text: string, contextTok
   const effectiveTokens = Math.max(512, contextTokens - SYSTEM_OVERHEAD - RESPONSE_RESERVE - SAFETY_MARGIN);
   const trimmedText = smartTrim(text, effectiveTokens);
   const userPrompt = buildExtractionPrompt(trimmedText);
+
+  // Browser backend (Nemotron via WebGPU)
+  if (llmState.backend === 'browser') {
+    try {
+      const response = await browserLLM.generate(systemPrompt, userPrompt, { maxNewTokens: 1500 });
+      return parseMetadataJSON(response, filename, text);
+    } catch (err) {
+      console.error('[MetadataLLM] Browser extract failed:', err);
+      return FALLBACK_METADATA(filename, text);
+    }
+  }
+
   try {
     if (!llmState.transport) return FALLBACK_METADATA(filename, text);
     const modelCfg = METADATA_LLM_MODELS.find(m => m.id === llmState.modelId);
@@ -194,6 +230,7 @@ export async function extractMetadata(filename: string, text: string, contextTok
 }
 
 export function disposeMetadataLLM(): void {
+  if (llmState.backend === 'browser') browserLLM.dispose();
   llmState.transport = null;
   llmState.ready = false;
   llmState.modelId = null;

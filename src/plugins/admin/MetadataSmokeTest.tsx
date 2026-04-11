@@ -67,7 +67,10 @@ export function MetadataSmokeTest(): React.ReactElement | null {
     try {
       const pipelineCfg = await storage.idb.get<PipelineCfg>('pipeline-config');
       const isLocal = modelCfg && modelCfg.maxParallelism <= 1;
-      const contextTokens = isLocal ? 8192 : (pipelineCfg?.metadataContext ?? 8192);
+      const isBrowserLLM = modelCfg?.backend === 'browser';
+      const contextTokens = isBrowserLLM ? 4096 : isLocal ? 8192 : (pipelineCfg?.metadataContext ?? 8192);
+      // VRAM-Sequencing: Browser-LLM braucht gesamten VRAM
+      if (isBrowserLLM && embeddingService.isReady()) embeddingService.destroy();
       const ok = await initMetadataLLM(metadataLLMId, msg => { if (mountedRef.current) setModelProgress(msg); },
         { idb: storage.idb });
       if (!mountedRef.current) return;
