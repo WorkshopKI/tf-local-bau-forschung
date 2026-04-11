@@ -188,8 +188,8 @@ $serverArgs = @(
     '--cache-type-k', 'q4_0',
     '--cache-type-v', 'q4_0',
     '-fa', 'on',
-    '--jinja'
+    '--jinja',
+    '--reasoning', 'off'
 )
 $argString = ($serverArgs | ForEach-Object { if ($_ -match ' ') { "`"$_`"" } else { $_ } }) -join ' '
-$env:LLAMA_CHAT_TEMPLATE_KWARGS = '{"enable_thinking":false}'
 cmd /c "`"$ServerExe`" $argString"
