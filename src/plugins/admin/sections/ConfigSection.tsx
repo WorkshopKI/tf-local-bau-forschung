@@ -79,8 +79,10 @@ export function ConfigSection({
   const handleClearDocStore = async (): Promise<void> => {
     setClearing(true); setClearResult(null);
     try {
-      const keys = await storage.idb.keys('doc:');
-      for (const key of keys) await storage.idb.delete(key);
+      const docKeys = await storage.idb.keys('doc:');
+      for (const key of docKeys) await storage.idb.delete(key);
+      const cacheKeys = await storage.idb.keys('metadata-cache:');
+      for (const key of cacheKeys) await storage.idb.delete(key);
       for (const key of ['doc-file-hashes', 'doc-chunk-counts', 'index-manifest', 'orama-db',
         'index-chunk-count', 'index-last-update', 'index-model-id', 'seed-complete']) {
         await storage.idb.delete(key);
