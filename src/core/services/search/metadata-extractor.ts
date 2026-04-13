@@ -55,6 +55,12 @@ export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
     requiresReasoning: false, maxParallelism: 1, needsApiKey: false,
   },
   {
+    id: 'llamacpp-lan', openRouterId: 'local-model',
+    label: 'LAN KI (Nemotron)', size: 'LAN',
+    description: 'llama.cpp Server im lokalen Netzwerk (IP:Port konfigurierbar).',
+    requiresReasoning: false, maxParallelism: 1, needsApiKey: false,
+  },
+  {
     id: 'intern-gpt-oss', openRouterId: 'openai/gpt-oss-120b',
     label: 'Interne KI-API (gpt-oss-120B)', size: 'Intern',
     description: 'Interner API-Server. Kein API-Key noetig.',
@@ -166,18 +172,34 @@ export async function initMetadataLLM(
   onProgress?.('API-Verbindung pruefen...');
   try {
     if (!storage) { console.error('[MetadataLLM] Storage nicht verfuegbar'); return false; }
-    const aiConfig = await storage.idb.get<AIProviderConfig>('ai-provider');
-    const endpoint = aiConfig?.endpoint || 'https://openrouter.ai/api/v1';
-    const isLocalhost = endpoint.includes('localhost') || endpoint.includes('127.0.0.1');
-    if (!isLocalhost && !aiConfig?.apiKey) {
+
+    let endpoint: string;
+    let apiKey = '';
+
+    if (modelId === 'llamacpp-lan') {
+      const pipelineCfg = await storage.idb.get<{ lanEndpoint?: string }>('pipeline-config');
+      endpoint = pipelineCfg?.lanEndpoint ?? '';
+      if (!endpoint) { onProgress?.('LAN-Adresse nicht konfiguriert — Verwaltung > Metadata-KI'); return false; }
+    } else {
+      const aiConfig = await storage.idb.get<AIProviderConfig>('ai-provider');
+      endpoint = aiConfig?.endpoint || 'https://openrouter.ai/api/v1';
+      apiKey = aiConfig?.apiKey ?? '';
+    }
+
+    const isLocal = endpoint.includes('localhost') || endpoint.includes('127.0.0.1');
+    if (modelCfg.needsApiKey && !apiKey) {
       onProgress?.('Kein API Key — Einstellungen > KI-Assistent'); return false;
     }
-    llmState.transport = new DirectLLMTransport(endpoint, modelCfg.openRouterId, aiConfig?.apiKey ?? '');
+    llmState.transport = new DirectLLMTransport(endpoint, modelCfg.openRouterId, apiKey);
     const ok = await llmState.transport.ping();
     if (!ok) {
-      onProgress?.(isLocalhost
-        ? 'KI-Analyse nicht verfuegbar — Dokumentenindex-aktualisieren.bat starten'
-        : 'API nicht erreichbar');
+      if (modelId === 'llamacpp-lan') {
+        onProgress?.(`LAN-Server nicht erreichbar: ${endpoint}`);
+      } else {
+        onProgress?.(isLocal
+          ? 'KI-Analyse nicht verfuegbar — Dokumentenindex-aktualisieren.bat starten'
+          : 'API nicht erreichbar');
+      }
       return false;
     }
     llmState.ready = true;

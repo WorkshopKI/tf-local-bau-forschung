@@ -8,6 +8,7 @@ export interface PipelineConfigState {
   metadataParallelism: number;
   metadataContext: number;
   metadataPreferGPU: boolean;
+  lanEndpoint: string;
   useContextualPrefixes: boolean;
   useReRanker: boolean; // PHASE 2: Re-Ranker
   reRankerModelId: string; // PHASE 2: Re-Ranker
@@ -18,6 +19,7 @@ const DEFAULT_CONFIG: PipelineConfigState = {
   metadataParallelism: 3,
   metadataContext: 4096,
   metadataPreferGPU: true,
+  lanEndpoint: '',
   useContextualPrefixes: false,
   useReRanker: false,
   reRankerModelId: DEFAULT_RERANKER_ID,
@@ -42,6 +44,7 @@ export function usePipelineConfig(idb: IDBStore): UsePipelineConfigReturn {
           metadataParallelism: cfg.metadataParallelism ?? 3,
           metadataContext: cfg.metadataContext ?? 4096,
           metadataPreferGPU: cfg.metadataPreferGPU ?? true,
+          lanEndpoint: cfg.lanEndpoint ?? '',
           useContextualPrefixes: cfg.useContextualPrefixes ?? false,
           useReRanker: cfg.useReRanker ?? false,
           reRankerModelId: cfg.reRankerModelId ?? DEFAULT_RERANKER_ID,
