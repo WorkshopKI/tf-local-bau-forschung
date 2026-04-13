@@ -1,12 +1,11 @@
-import { useState, useRef } from 'react';
-import { Database, RefreshCw, AlertCircle, Square, CheckCircle2, XCircle } from 'lucide-react';
-import { Button } from '@/ui';
+import { useState, useRef, useCallback } from 'react';
+import { Database, RefreshCw, AlertCircle, Square, CheckCircle2, XCircle, FolderOpen, Trash2, FolderPlus } from 'lucide-react';
+import { Button, Badge } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { BatchIndexer } from '@/core/services/search/batch-indexer';
 import type { IndexStatus, PipelineConfig } from '@/core/services/search/batch-indexer';
 import { getModelById } from '@/core/services/search/model-registry';
 import { IndexProgress, formatDuration } from '../IndexHelpers';
-import { DirectorySlot } from './DirectorySlot';
 import type { PipelineConfigState } from '../hooks/usePipelineConfig';
 
 interface ActionCardIndexProps {
@@ -33,7 +32,24 @@ export function ActionCardIndex({
   const [error, setError] = useState<string | null>(null);
   const [indexResult, setIndexResult] = useState<{ chunks: number; docs: number; skipped: number; duration: string } | null>(null);
   const [aborted, setAborted] = useState(false);
+  const [dirError, setDirError] = useState('');
+  const [, forceUpdate] = useState(0);
   const abortRef = useRef(new AbortController());
+
+  const refreshDirs = useCallback((): void => { forceUpdate(n => n + 1); }, []);
+  const dataDir = storage.getDataDirectories()[0] ?? null;
+
+  const handleAddDir = async (): Promise<void> => {
+    setDirError('');
+    const entry = await storage.addDirectory('data');
+    if (entry) { refreshDirs(); }
+    else { setDirError('Ordner konnte nicht verbunden werden.'); }
+  };
+
+  const handleRemoveDir = async (id: string): Promise<void> => {
+    await storage.removeDirectory(id);
+    refreshDirs();
+  };
 
   const runIndex = async (full: boolean): Promise<void> => {
     setRunning(true); setStatus(null); setError(null); setIndexResult(null); setAborted(false);
@@ -75,14 +91,27 @@ export function ActionCardIndex({
       ? `${newDocsCount} neue Dokumente`
       : chunkCount > 0 ? `${chunkCount} Chunks — aktuell` : 'Nicht indexiert';
 
+  const storageInfo = dataDir
+    ? `${dataDir.folderName ?? dataDir.label} · ${chunkCount} Chunks`
+    : '';
+
   return (
     <div className="space-y-2">
       <div className="p-[14px] rounded-[var(--tf-radius)] space-y-2"
         style={{ border: '0.5px solid var(--tf-border)' }}>
-        <div>
-          <p className="text-[13px] font-medium text-[var(--tf-text)]">Index aktualisieren</p>
-          <p className="text-[12px] text-[var(--tf-text-secondary)]">{statusText}</p>
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[13px] font-medium text-[var(--tf-text)]">Index aktualisieren</p>
+            <p className="text-[12px] text-[var(--tf-text-secondary)]">{statusText}</p>
+          </div>
+          {storageInfo && (
+            <p className="text-[12px] text-[var(--tf-text-tertiary)] whitespace-nowrap shrink-0">{storageInfo}</p>
+          )}
         </div>
+
+        {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
           {!running ? (
             <>
@@ -96,8 +125,28 @@ export function ActionCardIndex({
               onClick={() => abortRef.current.abort()}>Abbrechen</Button>
           )}
         </div>
-        {!running && <DirectorySlot type="data" label="Datenordner"
-          badgeText="Geteilter Speicher" badgeVariant="success" />}
+
+        {/* Data directory */}
+        {!running && (
+          <div className="pt-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+            {dataDir ? (
+              <div className="flex items-center justify-between group">
+                <div className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)] min-w-0">
+                  <FolderOpen size={13} className="text-[var(--tf-text-tertiary)] shrink-0" />
+                  <span className="truncate">{dataDir.folderName ?? dataDir.label}</span>
+                  <Badge variant="success">Geteilter Speicher</Badge>
+                </div>
+                <button onClick={() => handleRemoveDir(dataDir.id)}
+                  className="p-1 text-[var(--tf-text-tertiary)] cursor-pointer opacity-0 group-hover:opacity-100 hover:text-[var(--tf-danger-text)] transition-opacity">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ) : (
+              <Button variant="ghost" size="sm" icon={FolderPlus} onClick={handleAddDir}>Datenordner verbinden</Button>
+            )}
+            {dirError && <p className="text-[11px] text-[var(--tf-danger-text)] mt-1">{dirError}</p>}
+          </div>
+        )}
       </div>
 
       <IndexProgress status={status} running={running} />
