@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
-import { Database, RefreshCw, AlertCircle, Square, CheckCircle2, XCircle, FolderOpen, Trash2, FolderPlus } from 'lucide-react';
-import { Button, Badge } from '@/ui';
+import { Database, RefreshCw, AlertCircle, Square, CheckCircle2, XCircle, FolderOpen, Trash2, Pencil, FolderPlus } from 'lucide-react';
+import { Button } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { BatchIndexer } from '@/core/services/search/batch-indexer';
 import type { IndexStatus, PipelineConfig } from '@/core/services/search/batch-indexer';
@@ -46,9 +46,16 @@ export function ActionCardIndex({
     else { setDirError('Ordner konnte nicht verbunden werden.'); }
   };
 
-  const handleRemoveDir = async (id: string): Promise<void> => {
-    await storage.removeDirectory(id);
-    refreshDirs();
+  const handleChangeDir = async (): Promise<void> => {
+    setDirError('');
+    if (dataDir) await storage.removeDirectory(dataDir.id);
+    const entry = await storage.addDirectory('data');
+    if (entry) { refreshDirs(); }
+    else { setDirError('Ordner konnte nicht verbunden werden.'); refreshDirs(); }
+  };
+
+  const handleRemoveDir = async (): Promise<void> => {
+    if (dataDir) { await storage.removeDirectory(dataDir.id); refreshDirs(); }
   };
 
   const runIndex = async (full: boolean): Promise<void> => {
@@ -85,31 +92,55 @@ export function ActionCardIndex({
     } finally { setRunning(false); }
   };
 
+  const indexInfo = chunkCount > 0
+    ? `${docCount} Dokumente · ${chunkCount} Textabschnitte`
+    : 'Nicht indexiert';
+
   const statusText = indexOutdated
     ? 'Modell gewechselt — Neu-Indexierung noetig'
     : newDocsCount > 0
       ? `${newDocsCount} neue Dokumente`
-      : chunkCount > 0 ? `${chunkCount} Chunks — aktuell` : 'Nicht indexiert';
-
-  const storageInfo = dataDir
-    ? `${dataDir.folderName ?? dataDir.label} · ${chunkCount} Chunks`
-    : '';
+      : chunkCount > 0 ? 'Index aktuell' : '';
 
   return (
     <div className="space-y-2">
-      <div className="p-[14px] rounded-[var(--tf-radius)] space-y-2"
+      <div className="p-[16px] rounded-[var(--tf-radius)] space-y-3"
         style={{ border: '0.5px solid var(--tf-border)' }}>
 
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div>
+        {/* Header: title + folder location */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-0.5">
             <p className="text-[13px] font-medium text-[var(--tf-text)]">Index aktualisieren</p>
-            <p className="text-[12px] text-[var(--tf-text-secondary)]">{statusText}</p>
+            <p className="text-[12px] text-[var(--tf-text-secondary)]">{indexInfo}</p>
+            {statusText && (
+              <p className="text-[11px] text-[var(--tf-text-tertiary)]">{statusText}</p>
+            )}
           </div>
-          {storageInfo && (
-            <p className="text-[12px] text-[var(--tf-text-tertiary)] whitespace-nowrap shrink-0">{storageInfo}</p>
-          )}
+          <div className="shrink-0">
+            {dataDir ? (
+              <div className="flex items-center gap-1.5 group">
+                <FolderOpen size={13} className="text-[var(--tf-text-tertiary)]" />
+                <span className="text-[12px] text-[var(--tf-text-tertiary)]">{dataDir.folderName ?? dataDir.label}</span>
+                <button onClick={handleChangeDir} title="Ordner wechseln"
+                  className="p-0.5 text-[var(--tf-text-tertiary)] cursor-pointer opacity-0 group-hover:opacity-100 hover:text-[var(--tf-text)] transition-opacity">
+                  <Pencil size={11} />
+                </button>
+                <button onClick={handleRemoveDir} title="Ordner trennen"
+                  className="p-0.5 text-[var(--tf-text-tertiary)] cursor-pointer opacity-0 group-hover:opacity-100 hover:text-[var(--tf-danger-text)] transition-opacity">
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            ) : (
+              <button onClick={handleAddDir}
+                className="flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)] cursor-pointer hover:text-[var(--tf-text)] transition-colors">
+                <FolderPlus size={13} />
+                <span>Datenordner verbinden</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {dirError && <p className="text-[11px] text-[var(--tf-danger-text)]">{dirError}</p>}
 
         {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -125,28 +156,6 @@ export function ActionCardIndex({
               onClick={() => abortRef.current.abort()}>Abbrechen</Button>
           )}
         </div>
-
-        {/* Data directory */}
-        {!running && (
-          <div className="pt-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-            {dataDir ? (
-              <div className="flex items-center justify-between group">
-                <div className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)] min-w-0">
-                  <FolderOpen size={13} className="text-[var(--tf-text-tertiary)] shrink-0" />
-                  <span className="truncate">{dataDir.folderName ?? dataDir.label}</span>
-                  <Badge variant="success">Geteilter Speicher</Badge>
-                </div>
-                <button onClick={() => handleRemoveDir(dataDir.id)}
-                  className="p-1 text-[var(--tf-text-tertiary)] cursor-pointer opacity-0 group-hover:opacity-100 hover:text-[var(--tf-danger-text)] transition-opacity">
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ) : (
-              <Button variant="ghost" size="sm" icon={FolderPlus} onClick={handleAddDir}>Datenordner verbinden</Button>
-            )}
-            {dirError && <p className="text-[11px] text-[var(--tf-danger-text)] mt-1">{dirError}</p>}
-          </div>
-        )}
       </div>
 
       <IndexProgress status={status} running={running} />
