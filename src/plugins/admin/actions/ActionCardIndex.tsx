@@ -92,15 +92,20 @@ export function ActionCardIndex({
     } finally { setRunning(false); }
   };
 
-  const indexInfo = chunkCount > 0
+  const allNew = newDocsCount > 0 && newDocsCount >= docCount;
+  const indexInfo = chunkCount > 0 && !allNew
     ? `${docCount} Dokumente · ${chunkCount} Textabschnitte`
-    : 'Nicht indexiert';
+    : chunkCount > 0
+      ? `${chunkCount} Textabschnitte (veraltet)`
+      : 'Nicht indexiert';
 
   const statusText = indexOutdated
     ? 'Modell gewechselt — Neu-Indexierung noetig'
-    : newDocsCount > 0
-      ? `${newDocsCount} neue Dokumente`
-      : chunkCount > 0 ? 'Index aktuell' : '';
+    : allNew
+      ? 'Indexierung starten um Dokumente durchsuchbar zu machen'
+      : newDocsCount > 0
+        ? `${newDocsCount} neue Dokumente`
+        : chunkCount > 0 ? 'Index aktuell' : '';
 
   return (
     <div className="space-y-2">
