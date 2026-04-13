@@ -107,12 +107,14 @@ Write-Host '  =====================================================' -Foreground
 Write-Host ''
 
 # --- Schritt 1: Analyseprogramm (llama.cpp) ---
+$RequiredVersion = '2'
+$VersionFile = Join-Path $FilesDir 'llama-version.txt'
 $needsDownload = -not (Test-Path $ServerExe)
 try {
     if (-not $needsDownload) {
-        $age = (Get-Date) - (Get-Item $ServerExe).LastWriteTime
-        if ($age.TotalDays -gt 30) {
-            Write-Host '  Analyseprogramm ist aelter als 30 Tage — Update...' -ForegroundColor Yellow
+        $installed = if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() } else { '0' }
+        if ($installed -ne $RequiredVersion) {
+            Write-Host '  Neue Version verfuegbar — Update...' -ForegroundColor Yellow
             Get-ChildItem $FilesDir -Filter '*.exe' | Remove-Item -Force
             Get-ChildItem $FilesDir -Filter '*.dll' | Remove-Item -Force
             $needsDownload = $true
@@ -157,6 +159,7 @@ if ($needsDownload) {
         Write-Host '  Einrichtung fehlgeschlagen. Bitte erneut starten.' -ForegroundColor Red
         return
     }
+    Set-Content -Path $VersionFile -Value $RequiredVersion -Encoding UTF8
     Write-Host '        Analyseprogramm bereit.' -ForegroundColor Green
 } else {
     Write-Host '  Analyseprogramm ist vorhanden.' -ForegroundColor Green
