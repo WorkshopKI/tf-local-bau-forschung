@@ -176,10 +176,12 @@ export async function initMetadataLLM(
     let endpoint: string;
     let apiKey = '';
 
-    if (modelId === 'llamacpp-lan') {
+    if (modelId === 'llamacpp-local') {
+      endpoint = 'http://localhost:9090/v1';
+    } else if (modelId === 'llamacpp-lan') {
       const pipelineCfg = await storage.idb.get<{ lanEndpoint?: string }>('pipeline-config');
       endpoint = pipelineCfg?.lanEndpoint ?? '';
-      if (!endpoint) { onProgress?.('LAN-Adresse nicht konfiguriert — Verwaltung > Metadata-KI'); return false; }
+      if (!endpoint) { onProgress?.('LAN-Adresse nicht konfiguriert — Verwaltung > Metadaten-Extraktion'); return false; }
     } else {
       const aiConfig = await storage.idb.get<AIProviderConfig>('ai-provider');
       endpoint = aiConfig?.endpoint || 'https://openrouter.ai/api/v1';
