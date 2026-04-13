@@ -189,7 +189,8 @@ $serverArgs = @(
     '--cache-type-v', 'q4_0',
     '-fa', 'on',
     '--jinja',
-    '--reasoning', 'off'
+    '--reasoning', 'off',
+    '--cors', '*'
 )
 $argString = ($serverArgs | ForEach-Object { if ($_ -match ' ') { "`"$_`"" } else { $_ } }) -join ' '
 cmd /c "`"$ServerExe`" $argString"
