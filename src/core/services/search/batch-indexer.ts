@@ -41,23 +41,26 @@ async function extractMetadataBatch(
   docs: DocToProcess[], parallelism: number, storage: MetadataStorage, modelId: string,
   contextTokens: number,
   onProgress: (done: number, total: number, currentDoc: string) => void,
+  signal?: AbortSignal,
 ): Promise<Map<string, DocumentMetadata>> {
   const results = new Map<string, DocumentMetadata>();
   let done = 0;
   for (let i = 0; i < docs.length; i += parallelism) {
+    if (signal?.aborted) break;
     const batch = docs.slice(i, i + parallelism);
     const batchResults = await Promise.all(
       batch.map(async (doc) => {
+        if (signal?.aborted) return null;
         const cached = await getCachedMetadata(storage, doc.id, doc.hash, modelId);
         if (cached) return { id: doc.id, metadata: cached, fromCache: true };
-        const metadata = await extractMetadata(doc.filename, doc.markdown, contextTokens);
+        const metadata = await extractMetadata(doc.filename, doc.markdown, contextTokens, signal);
         if (!metadata._isFallback) {
           await setCachedMetadata(storage, doc.id, doc.hash, modelId, metadata);
         }
         return { id: doc.id, metadata, fromCache: false };
       }),
     );
-    for (const r of batchResults) results.set(r.id, r.metadata);
+    for (const r of batchResults) { if (r) results.set(r.id, r.metadata); }
     done += batchResults.length;
     const lastName = batch[batch.length - 1]?.filename ?? '';
     onProgress(done, docs.length, lastName);
@@ -171,12 +174,14 @@ export class BatchIndexer {
         onStatus({ phase: msg, total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
       }, storage);
     }
+    if (signal?.aborted) { if (useLLM) disposeMetadataLLM(); return totalChunks; }
 
     // Fast-Path: bei inkrementeller Indexierung prüfen ob alle Hashes stimmen
     if (!isFull && Object.keys(manifest).length > 0) {
       onStatus({ phase: 'Prüfe Index...', total: docs.length, processed: 0, currentDoc: '', skipped: 0 });
       let allCurrent = true;
       for (const key of docs) {
+        if (signal?.aborted) { allCurrent = false; break; }
         const doc = await storage.idb.get<{ id: string; markdown: string }>(key);
         if (!doc) continue;
         const hash = await hashText(doc.markdown);
@@ -221,6 +226,7 @@ export class BatchIndexer {
         (done, total, currentDoc) => {
           onStatus({ phase: `Metadata ${done}/${total}`, total: docs.length, processed: skipped + done, currentDoc, skipped });
         },
+        signal,
       );
     }
 
@@ -233,6 +239,7 @@ export class BatchIndexer {
           total: docs.length, processed: 0, currentDoc: '', skipped: 0, modelProgress: p.modelProgress });
       });
     }
+    if (signal?.aborted) { if (useLLM && !isBrowserLLM) disposeMetadataLLM(); return totalChunks; }
 
     // Phase B: Chunk + Embed sequentially (wie bisher)
     for (const doc of docsToProcess) {
@@ -314,6 +321,8 @@ export class BatchIndexer {
     if (useLLM && !isBrowserLLM) {
       disposeMetadataLLM();
     }
+
+    if (signal?.aborted) { pipelineLog.info('Indexer', 'Abgebrochen'); return totalChunks; }
 
     await saveOramaToDB(storage.idb);
     await storage.idb.set('index-chunk-count', totalChunks);

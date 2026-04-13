@@ -214,8 +214,8 @@ export async function initMetadataLLM(
   }
 }
 
-export async function extractMetadata(filename: string, text: string, contextTokens = 4096): Promise<DocumentMetadata> {
-  if (!llmState.ready || llmState.modelId === 'none') {
+export async function extractMetadata(filename: string, text: string, contextTokens = 4096, signal?: AbortSignal): Promise<DocumentMetadata> {
+  if (!llmState.ready || llmState.modelId === 'none' || signal?.aborted) {
     return FALLBACK_METADATA(filename, text);
   }
   const systemPrompt = METADATA_SYSTEM_PROMPT;
