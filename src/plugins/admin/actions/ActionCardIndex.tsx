@@ -150,12 +150,17 @@ export function ActionCardIndex({
         {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
           {!running ? (
-            <>
+            allNew || chunkCount === 0 ? (
               <Button variant="secondary" size="sm" icon={Database} disabled={docCount === 0}
-                onClick={() => runIndex(false)}>Neue indexieren</Button>
-              <Button variant="secondary" size="sm" icon={RefreshCw} disabled={docCount === 0}
-                onClick={() => runIndex(true)}>Alle neu</Button>
-            </>
+                onClick={() => runIndex(true)}>Indexierung starten</Button>
+            ) : (
+              <>
+                <Button variant="secondary" size="sm" icon={Database} disabled={docCount === 0}
+                  onClick={() => runIndex(false)}>Neue indexieren</Button>
+                <Button variant="secondary" size="sm" icon={RefreshCw} disabled={docCount === 0}
+                  onClick={() => runIndex(true)}>Alle neu</Button>
+              </>
+            )
           ) : (
             <Button variant="danger" size="sm" icon={Square}
               onClick={() => abortRef.current.abort()}>Abbrechen</Button>
