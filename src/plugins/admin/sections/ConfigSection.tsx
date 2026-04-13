@@ -148,7 +148,7 @@ export function ConfigSection({
           <ConfigRow label="Server-Adresse" subtitle="IP-Adresse des llama.cpp Servers im Netzwerk">
             <div className="space-y-1">
               <input type="text" value={config.lanEndpoint}
-                placeholder="http://192.168.1.X:8090/v1"
+                placeholder="http://192.168.1.X:9090/v1"
                 onChange={e => updateConfig({ lanEndpoint: e.target.value })}
                 className="w-56 px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
                 style={{ border: '0.5px solid var(--tf-border)' }} />
