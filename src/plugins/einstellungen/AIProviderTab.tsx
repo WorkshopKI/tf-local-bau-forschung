@@ -16,7 +16,7 @@ const PROVIDERS: Array<{
   { type: 'openrouter', label: 'OpenRouter', description: 'Zugang zu 200+ Modellen via API',
     defaultEndpoint: 'https://openrouter.ai/api/v1', defaultModel: 'openai/gpt-oss-120b' },
   { type: 'internal', label: 'Intern API', description: 'Lokales LLM auf diesem Rechner',
-    defaultEndpoint: 'http://localhost:8081/v1', defaultModel: '' },
+    defaultEndpoint: 'http://localhost:8090/v1', defaultModel: '' },
   { type: 'cloud', label: 'Cloud API', description: 'OpenAI, Azure, kompatible APIs',
     defaultEndpoint: '', defaultModel: '' },
   { type: 'streamlit', label: 'Streamlit Bridge', description: 'Verbindung ueber Streamlit-App',

@@ -61,7 +61,7 @@ $ModelDatei = 'nemotron.gguf'
 $KontextGroesse = 8192
 $GpuLayers = 99
 $Threads = 4
-$Port = 8081
+$Port = 8090
 
 # --- Ordner erstellen ---
 if (-not (Test-Path $FilesDir)) {
@@ -77,7 +77,7 @@ if (-not (Test-Path $ConfigFile)) {
   "kontext_groesse": 8192,
   "gpu_layers": 99,
   "threads": 4,
-  "port": 8081
+  "port": 8090
 }
 '@
     Set-Content -Path $ConfigFile -Value $defaultCfg -Encoding UTF8
