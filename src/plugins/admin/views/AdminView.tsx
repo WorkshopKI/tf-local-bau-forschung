@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Button } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { usePipelineConfig } from '../hooks/usePipelineConfig';
 import { ActionCardIndex } from '../actions/ActionCardIndex';
@@ -9,7 +8,6 @@ import { ActionCardGPU } from '../actions/ActionCardGPU';
 import { ConfigSection } from '../sections/ConfigSection';
 import { EvalSection } from '../eval/EvalSection';
 import { MetadataSmokeTest } from '../MetadataSmokeTest';
-import { seedTestData, clearSeedData } from '@/core/services/seed/seed-data';
 
 function SectionTitle({ title, subtitle }: {
   title: string; subtitle?: string;
@@ -54,42 +52,6 @@ export function AdminView({
   const storage = useStorage();
   const { config, updateConfig } = usePipelineConfig(storage.idb);
   const [resultPanel, setResultPanel] = useState<'eval' | 'smoke-test' | null>(null);
-  const [clearing, setClearing] = useState(false);
-  const [clearResult, setClearResult] = useState<string | null>(null);
-
-  const seedSubtitle = seeded ? '40 Vorgaenge · 60 Dokumente' : 'Nicht vorhanden';
-
-  const handleClearDocStore = async (): Promise<void> => {
-    setClearing(true); setClearResult(null);
-    try {
-      const keys = await storage.idb.keys('doc:');
-      for (const key of keys) await storage.idb.delete(key);
-      for (const key of ['doc-file-hashes', 'doc-chunk-counts', 'index-manifest', 'orama-db',
-        'index-chunk-count', 'index-last-update', 'index-model-id', 'seed-complete']) {
-        await storage.idb.delete(key);
-      }
-      setDocCount(0); setChunkCount(0); setLastUpdate(null);
-      setIndexModelId(null); setNewDocsCount(0); setSeeded(false);
-      setClearResult(`${keys.length} Dokumente und Index geloescht.`);
-    } catch (err) { setClearResult(`Fehler: ${err}`); }
-    finally { setClearing(false); }
-  };
-
-  const handleClearSeedData = async (): Promise<void> => {
-    await clearSeedData(storage);
-    setSeeded(false); setDocCount(0); setSeedProgress('Geloescht');
-  };
-
-  const handleSeed = async (): Promise<void> => {
-    setSeeding(true); setSeedProgress('Erzeuge...');
-    try {
-      const r = await seedTestData(storage, (c, t) => setSeedProgress(`Erzeuge... (${c}/${t})`));
-      setSeedProgress(`${r.vorgaenge} Vorgaenge, ${r.dokumente} Dokumente, ${r.artefakte} Artefakte`);
-      setSeeded(true);
-      storage.idb.keys('doc:').then(k => setDocCount(k.length));
-    } catch (err) { setSeedProgress(`Fehler: ${err}`); }
-    finally { setSeeding(false); }
-  };
 
   return (
     <div className="space-y-6">
@@ -127,49 +89,16 @@ export function AdminView({
         </div>
       )}
 
-      {/* ── KONFIGURATION ── */}
-      <div>
-        <SectionTitle title="Konfiguration" />
-        <ConfigSection
-          config={config} updateConfig={updateConfig}
-          activeModelId={activeModelId} setActiveModelIdState={setActiveModelIdState}
-          hasGPU={hasGPU}
-        />
-      </div>
-
-      {/* ── TESTDATEN ── */}
-      <div>
-        <SectionTitle title="Testdaten" subtitle={seedSubtitle} />
-        {seedProgress && <p className="text-[12px] text-[var(--tf-text-secondary)] mb-2">{seedProgress}</p>}
-        {!seeded ? (
-          <Button variant="secondary" size="sm" disabled={seeding} onClick={handleSeed}>
-            {seeding ? 'Erzeuge...' : 'Testdaten generieren'}
-          </Button>
-        ) : (
-          <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-            Testdaten vorhanden. Loeschen ueber &quot;Daten zuruecksetzen&quot; am Seitenende.
-          </p>
-        )}
-      </div>
-
-      {/* ── DATEN ZURÜCKSETZEN ── */}
-      <div>
-        <SectionTitle title="Daten zuruecksetzen" />
-        <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
-          Loescht lokale Daten aus dem Browser-Speicher. Dateien auf dem Server bleiben erhalten.
-        </p>
-        <div className="flex gap-2">
-          <Button variant="danger" size="sm" loading={clearing} onClick={handleClearDocStore}>
-            Dokument-Store loeschen
-          </Button>
-          {seeded && (
-            <Button variant="danger" size="sm" onClick={handleClearSeedData}>
-              Testdaten loeschen
-            </Button>
-          )}
-        </div>
-        {clearResult && <p className="text-[11px] text-[var(--tf-text-tertiary)] mt-2">{clearResult}</p>}
-      </div>
+      {/* ── KONFIGURATION (3 Gruppen: KI-Modelle, Suchqualitaet, Zuruecksetzen) ── */}
+      <ConfigSection
+        config={config} updateConfig={updateConfig}
+        activeModelId={activeModelId} setActiveModelIdState={setActiveModelIdState}
+        hasGPU={hasGPU}
+        seeded={seeded} seeding={seeding} seedProgress={seedProgress}
+        setSeeded={setSeeded} setSeeding={setSeeding} setSeedProgress={setSeedProgress}
+        setDocCount={setDocCount} setChunkCount={setChunkCount} setLastUpdate={setLastUpdate}
+        setIndexModelId={setIndexModelId} setNewDocsCount={setNewDocsCount}
+      />
     </div>
   );
 }
