@@ -156,9 +156,9 @@ export function ActionCardIndex({
             ) : (
               <>
                 <Button variant="secondary" size="sm" icon={Database} disabled={docCount === 0}
-                  onClick={() => runIndex(false)}>Neue indexieren</Button>
+                  onClick={() => runIndex(false)}>Aktualisieren</Button>
                 <Button variant="secondary" size="sm" icon={RefreshCw} disabled={docCount === 0}
-                  onClick={() => runIndex(true)}>Alle neu</Button>
+                  onClick={() => runIndex(true)}>Komplett neu aufbauen</Button>
               </>
             )
           ) : (
