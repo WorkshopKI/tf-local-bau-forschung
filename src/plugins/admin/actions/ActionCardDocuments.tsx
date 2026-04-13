@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
-import { ActionCard } from './ActionCard';
+import { DirectorySlot } from './DirectorySlot';
 
 interface ActionCardDocumentsProps {
   docCount: number;
@@ -14,10 +14,14 @@ export function ActionCardDocuments({ docCount, setDocCount }: ActionCardDocumen
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [dirCount, setDirCount] = useState(0);
+  const [, forceUpdate] = useState(0);
 
-  useEffect(() => {
-    setDirCount(storage.getDirectories().length);
+  const refreshDirs = useCallback((): void => {
+    setDirCount(storage.getDocDirectories().length);
+    forceUpdate(n => n + 1);
   }, [storage]);
+
+  useEffect(() => { refreshDirs(); }, [refreshDirs]);
 
   const handleScan = async (): Promise<void> => {
     setScanning(true); setResult(null);
@@ -31,12 +35,24 @@ export function ActionCardDocuments({ docCount, setDocCount }: ActionCardDocumen
     finally { setScanning(false); }
   };
 
-  const statusText = `${docCount} Dokumente · ${dirCount} Verzeichnisse`;
+  const docDir = storage.getDocDirectories()[0];
+  const statusText = dirCount > 0
+    ? `${docCount} Dokumente · ${docDir?.folderName ?? docDir?.label ?? ''}`
+    : 'Kein Dokumentenordner verbunden';
 
   return (
-    <ActionCard title="Dokumente scannen" status={result ?? statusText}>
-      <Button variant="secondary" size="sm" icon={RefreshCw} disabled={scanning || dirCount === 0}
-        onClick={handleScan}>{scanning ? 'Scanne...' : 'Erneut scannen'}</Button>
-    </ActionCard>
+    <div className="p-[14px] rounded-[var(--tf-radius)] space-y-2"
+      style={{ border: '0.5px solid var(--tf-border)' }}>
+      <div>
+        <p className="text-[13px] font-medium text-[var(--tf-text)]">Dokumente scannen</p>
+        <p className="text-[12px] text-[var(--tf-text-secondary)]">{result ?? statusText}</p>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button variant="secondary" size="sm" icon={RefreshCw} disabled={scanning || dirCount === 0}
+          onClick={handleScan}>{scanning ? 'Scanne...' : 'Erneut scannen'}</Button>
+      </div>
+      <DirectorySlot type="documents" label="Dokumentenordner"
+        badgeText="Quelldateien" badgeVariant="info" onChanged={refreshDirs} />
+    </div>
   );
 }

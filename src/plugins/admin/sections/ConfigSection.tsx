@@ -7,7 +7,6 @@ import {
 import { METADATA_LLM_MODELS, clearMetadataCache } from '@/core/services/search/metadata-extractor';
 import { RERANKER_MODELS } from '@/core/services/search/re-ranker'; // PHASE 2: Re-Ranker
 import { useSearch } from '@/core/hooks/useSearch';
-import { DirectoriesStep } from '../steps/DirectoriesStep';
 import type { PipelineConfigState } from '../hooks/usePipelineConfig';
 import type { AIProviderConfig } from '@/core/types/config';
 
@@ -136,15 +135,6 @@ export function ConfigSection({
             }} />
         </ConfigRow>
       )}
-
-      <ConfigRow label="Verzeichnisse">
-        <details className="w-full">
-          <summary className="text-[12px] text-[var(--tf-text-secondary)] cursor-pointer hover:text-[var(--tf-text)]">
-            {storage.getDirectories().length} verbunden
-          </summary>
-          <div className="mt-2"><DirectoriesStep /></div>
-        </details>
-      </ConfigRow>
 
       <ConfigRow label="Metadata-Cache">
         <div className="flex items-center gap-2">

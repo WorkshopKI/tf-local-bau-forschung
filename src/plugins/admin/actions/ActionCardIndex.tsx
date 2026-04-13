@@ -6,7 +6,7 @@ import { BatchIndexer } from '@/core/services/search/batch-indexer';
 import type { IndexStatus, PipelineConfig } from '@/core/services/search/batch-indexer';
 import { getModelById } from '@/core/services/search/model-registry';
 import { IndexProgress, formatDuration } from '../IndexHelpers';
-import { ActionCard } from './ActionCard';
+import { DirectorySlot } from './DirectorySlot';
 import type { PipelineConfigState } from '../hooks/usePipelineConfig';
 
 interface ActionCardIndexProps {
@@ -77,19 +77,28 @@ export function ActionCardIndex({
 
   return (
     <div className="space-y-2">
-      <ActionCard title="Index aktualisieren" status={statusText}>
-        {!running ? (
-          <>
-            <Button variant="secondary" size="sm" icon={Database} disabled={docCount === 0}
-              onClick={() => runIndex(false)}>Neue indexieren</Button>
-            <Button variant="secondary" size="sm" icon={RefreshCw} disabled={docCount === 0}
-              onClick={() => runIndex(true)}>Alle neu</Button>
-          </>
-        ) : (
-          <Button variant="danger" size="sm" icon={Square}
-            onClick={() => abortRef.current.abort()}>Abbrechen</Button>
-        )}
-      </ActionCard>
+      <div className="p-[14px] rounded-[var(--tf-radius)] space-y-2"
+        style={{ border: '0.5px solid var(--tf-border)' }}>
+        <div>
+          <p className="text-[13px] font-medium text-[var(--tf-text)]">Index aktualisieren</p>
+          <p className="text-[12px] text-[var(--tf-text-secondary)]">{statusText}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {!running ? (
+            <>
+              <Button variant="secondary" size="sm" icon={Database} disabled={docCount === 0}
+                onClick={() => runIndex(false)}>Neue indexieren</Button>
+              <Button variant="secondary" size="sm" icon={RefreshCw} disabled={docCount === 0}
+                onClick={() => runIndex(true)}>Alle neu</Button>
+            </>
+          ) : (
+            <Button variant="danger" size="sm" icon={Square}
+              onClick={() => abortRef.current.abort()}>Abbrechen</Button>
+          )}
+        </div>
+        {!running && <DirectorySlot type="data" label="Datenordner"
+          badgeText="Geteilter Speicher" badgeVariant="success" />}
+      </div>
 
       <IndexProgress status={status} running={running} />
 
