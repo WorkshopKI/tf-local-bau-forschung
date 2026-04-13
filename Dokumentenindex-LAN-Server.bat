@@ -182,20 +182,24 @@ if (-not (Test-Path $ModelFile)) {
     Write-Host "  Metadaten-Modell ist vorhanden (${actualMB} MB)." -ForegroundColor Green
 }
 
-# --- LAN-IP anzeigen ---
+# --- LAN-IP + Ports ---
+$ProxyPort = $Port + 1
 $lanIPs = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' -and $_.PrefixOrigin -ne 'WellKnown' } | Select-Object -ExpandProperty IPAddress
 Write-Host ''
-Write-Host '  Bereit! Server lauscht auf allen Netzwerk-Interfaces.' -ForegroundColor Green
+Write-Host '  Bereit! CORS-Proxy lauscht auf allen Netzwerk-Interfaces.' -ForegroundColor Green
 Write-Host ''
 if ($lanIPs) {
     Write-Host '  Erreichbar unter:' -ForegroundColor Cyan
     foreach ($ip in $lanIPs) {
-        Write-Host "    http://${ip}:${Port}/v1" -ForegroundColor White
+        Write-Host "    http://${ip}:${ProxyPort}/v1" -ForegroundColor White
     }
 }
 Write-Host ''
-Write-Host '  Diese Adresse in der App unter Verwaltung > Metadata-KI' -ForegroundColor DarkGray
-Write-Host '  > LAN KI (Nemotron) > LAN-Server eintragen.' -ForegroundColor DarkGray
+Write-Host "  LLM-Server: 127.0.0.1:${Port} (lokal)" -ForegroundColor DarkGray
+Write-Host "  CORS-Proxy: 0.0.0.0:${ProxyPort} (LAN)" -ForegroundColor DarkGray
+Write-Host ''
+Write-Host '  Diese Adresse in der App unter Verwaltung > Metadaten-Extraktion' -ForegroundColor DarkGray
+Write-Host '  > LAN KI (Nemotron) > Server-Adresse eintragen.' -ForegroundColor DarkGray
 Write-Host ''
 Write-Host '  ----------------------------------------------------' -ForegroundColor DarkGray
 Write-Host '  Dieses Fenster offen lassen!' -ForegroundColor Yellow
@@ -203,14 +207,14 @@ Write-Host '  Zum Beenden: Fenster schliessen oder Strg+C' -ForegroundColor Dark
 Write-Host '  ----------------------------------------------------' -ForegroundColor DarkGray
 Write-Host ''
 
-# --- Server starten (0.0.0.0 = erreichbar aus dem LAN) ---
+# --- llama.cpp auf localhost starten (Hintergrund) ---
 $serverArgs = @(
     '-m', $ModelFile,
     '-c', $KontextGroesse,
     '-ngl', $GpuLayers,
     '-t', $Threads,
     '--port', $Port,
-    '--host', '0.0.0.0',
+    '--host', '127.0.0.1',
     '--cache-type-k', 'q4_0',
     '--cache-type-v', 'q4_0',
     '-fa', 'on',
@@ -218,4 +222,97 @@ $serverArgs = @(
     '--reasoning', 'off'
 )
 $argString = ($serverArgs | ForEach-Object { if ($_ -match ' ') { "`"$_`"" } else { $_ } }) -join ' '
-cmd /c "`"$ServerExe`" $argString"
+$llamaProc = Start-Process -FilePath $ServerExe -ArgumentList $argString -PassThru -NoNewWindow
+Write-Host "  llama.cpp gestartet (PID $($llamaProc.Id))" -ForegroundColor DarkGray
+Start-Sleep -Seconds 2
+
+# --- CORS-Proxy (TcpListener, kein Admin noetig) ---
+Write-Host "  CORS-Proxy gestartet auf Port ${ProxyPort}" -ForegroundColor DarkGray
+$backendUrl = "http://127.0.0.1:${Port}"
+$listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $ProxyPort)
+$listener.Start()
+
+try {
+    while ($true) {
+        if ($llamaProc.HasExited) { Write-Host '  llama.cpp beendet.' -ForegroundColor Yellow; break }
+        if (-not $listener.Pending()) { Start-Sleep -Milliseconds 50; continue }
+        $client = $listener.AcceptTcpClient()
+        try {
+            $stream = $client.GetStream()
+            $reader = [System.IO.StreamReader]::new($stream)
+            $requestLine = $reader.ReadLine()
+            if (-not $requestLine) { $client.Close(); continue }
+            $parts = $requestLine -split ' '
+            $method = $parts[0]
+            $path = $parts[1]
+            $headers = @{}
+            $contentLength = 0
+            while ($true) {
+                $line = $reader.ReadLine()
+                if ([string]::IsNullOrEmpty($line)) { break }
+                $idx = $line.IndexOf(':')
+                if ($idx -gt 0) {
+                    $hName = $line.Substring(0, $idx).Trim()
+                    $hVal = $line.Substring($idx + 1).Trim()
+                    $headers[$hName] = $hVal
+                    if ($hName -eq 'Content-Length') { $contentLength = [int]$hVal }
+                }
+            }
+            $body = ''
+            if ($contentLength -gt 0) {
+                $buf = New-Object char[] $contentLength
+                [void]$reader.Read($buf, 0, $contentLength)
+                $body = [string]::new($buf)
+            }
+
+            # CORS Preflight
+            if ($method -eq 'OPTIONS') {
+                $resp = "HTTP/1.1 204 No Content`r`nAccess-Control-Allow-Origin: *`r`nAccess-Control-Allow-Methods: GET, POST, OPTIONS`r`nAccess-Control-Allow-Headers: Content-Type, Authorization`r`nAccess-Control-Max-Age: 86400`r`nContent-Length: 0`r`n`r`n"
+                $respBytes = [System.Text.Encoding]::UTF8.GetBytes($resp)
+                $stream.Write($respBytes, 0, $respBytes.Length)
+                $client.Close()
+                continue
+            }
+
+            # Forward to llama.cpp
+            $targetUrl = "${backendUrl}${path}"
+            try {
+                $webReq = [System.Net.HttpWebRequest]::Create($targetUrl)
+                $webReq.Method = $method
+                $webReq.Timeout = 120000
+                if ($headers['Content-Type']) { $webReq.ContentType = $headers['Content-Type'] }
+                if ($headers['Authorization']) { $webReq.Headers.Add('Authorization', $headers['Authorization']) }
+                if ($body.Length -gt 0) {
+                    $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+                    $webReq.ContentLength = $bodyBytes.Length
+                    $reqStream = $webReq.GetRequestStream()
+                    $reqStream.Write($bodyBytes, 0, $bodyBytes.Length)
+                    $reqStream.Close()
+                }
+                $webResp = $webReq.GetResponse()
+                $respStream = $webResp.GetResponseStream()
+                $respReader = [System.IO.StreamReader]::new($respStream)
+                $respBody = $respReader.ReadToEnd()
+                $respReader.Close()
+                $respBytes = [System.Text.Encoding]::UTF8.GetBytes($respBody)
+                $statusCode = [int]$webResp.StatusCode
+                $respContentType = $webResp.ContentType
+                $webResp.Close()
+                $httpResp = "HTTP/1.1 ${statusCode} OK`r`nAccess-Control-Allow-Origin: *`r`nAccess-Control-Allow-Headers: Content-Type, Authorization`r`nContent-Type: ${respContentType}`r`nContent-Length: $($respBytes.Length)`r`n`r`n"
+                $headerBytes = [System.Text.Encoding]::UTF8.GetBytes($httpResp)
+                $stream.Write($headerBytes, 0, $headerBytes.Length)
+                $stream.Write($respBytes, 0, $respBytes.Length)
+            } catch {
+                $errBody = "{`"error`": `"$($_.Exception.Message)`"}"
+                $errBytes = [System.Text.Encoding]::UTF8.GetBytes($errBody)
+                $errResp = "HTTP/1.1 502 Bad Gateway`r`nAccess-Control-Allow-Origin: *`r`nContent-Type: application/json`r`nContent-Length: $($errBytes.Length)`r`n`r`n"
+                $errHeaderBytes = [System.Text.Encoding]::UTF8.GetBytes($errResp)
+                $stream.Write($errHeaderBytes, 0, $errHeaderBytes.Length)
+                $stream.Write($errBytes, 0, $errBytes.Length)
+            }
+        } catch {} finally { $client.Close() }
+    }
+} finally {
+    $listener.Stop()
+    if (-not $llamaProc.HasExited) { $llamaProc.Kill(); Write-Host '  llama.cpp beendet.' -ForegroundColor DarkGray }
+}
