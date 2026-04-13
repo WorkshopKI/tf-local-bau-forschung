@@ -108,15 +108,17 @@ Write-Host ''
 
 # --- Schritt 1: Analyseprogramm (llama.cpp) ---
 $needsDownload = -not (Test-Path $ServerExe)
-if (!$needsDownload -and (Test-Path $ServerExe)) {
-    $age = (Get-Date) - (Get-Item $ServerExe).LastWriteTime
-    if ($age.TotalDays -gt 30) {
-        Write-Host '  Analyseprogramm ist aelter als 30 Tage — Update...' -ForegroundColor Yellow
-        Remove-Item (Join-Path $FilesDir '*.exe') -Force -ErrorAction SilentlyContinue
-        Remove-Item (Join-Path $FilesDir '*.dll') -Force -ErrorAction SilentlyContinue
-        $needsDownload = $true
+try {
+    if (-not $needsDownload) {
+        $age = (Get-Date) - (Get-Item $ServerExe).LastWriteTime
+        if ($age.TotalDays -gt 30) {
+            Write-Host '  Analyseprogramm ist aelter als 30 Tage — Update...' -ForegroundColor Yellow
+            Get-ChildItem $FilesDir -Filter '*.exe' | Remove-Item -Force
+            Get-ChildItem $FilesDir -Filter '*.dll' | Remove-Item -Force
+            $needsDownload = $true
+        }
     }
-}
+} catch { Write-Host '  Update-Pruefung uebersprungen.' -ForegroundColor DarkGray }
 if ($needsDownload) {
     Write-Host '  [1/2] Lade Analyseprogramm herunter...' -ForegroundColor Yellow
     try {
