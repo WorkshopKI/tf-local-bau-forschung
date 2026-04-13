@@ -49,6 +49,21 @@ export function Row({ label, value }: { label: string; value: string }): React.R
   );
 }
 
+function computeETA(elapsed: number, processed: number, total: number): string | null {
+  if (processed < 3 || total <= 0) return null;
+  const remaining = (elapsed / processed) * (total - processed);
+  return `~${formatDuration(remaining)} verbleibend`;
+}
+
+function phaseLabel(phase: string): string {
+  if (phase.startsWith('Metadata')) return phase;
+  if (phase === 'Chunking (contextual)' || phase === 'Chunking') return 'Chunking';
+  if (phase === 'Embedding') return 'Embedding';
+  if (phase === 'Scanning' || phase === 'Prüfe Index...') return phase;
+  if (phase === 'Done') return 'Speichern';
+  return phase;
+}
+
 export function IndexProgress({ status, running }: { status: IndexStatus | null; running: boolean }): React.ReactElement | null {
   const lastChunkRef = useRef('');
   const startRef = useRef(Date.now());
@@ -70,6 +85,7 @@ export function IndexProgress({ status, running }: { status: IndexStatus | null;
   }
 
   const elapsedLabel = formatDuration(elapsed);
+  const eta = computeETA(elapsed, status.processed, status.total);
 
   if (isModelLoading) {
     const modelPct = status.modelProgress?.loaded && status.modelProgress?.total
@@ -88,6 +104,10 @@ export function IndexProgress({ status, running }: { status: IndexStatus | null;
     );
   }
 
+  const subStatus = status.phase === 'Embedding' && lastChunkRef.current
+    ? `${phaseLabel(status.phase)} — ${lastChunkRef.current}`
+    : phaseLabel(status.phase);
+
   return (
     <div className="space-y-2">
       <div className="flex justify-between text-[12px] text-[var(--tf-text-secondary)]">
@@ -98,9 +118,10 @@ export function IndexProgress({ status, running }: { status: IndexStatus | null;
         </span>
       </div>
       <ProgressBar value={docProgress} />
-      <p className="text-[11px] text-[var(--tf-text-tertiary)] h-4">
-        {lastChunkRef.current || '\u00a0'}
-      </p>
+      <div className="flex justify-between text-[11px] h-4">
+        <span className="text-[var(--tf-text-tertiary)]">{subStatus || '\u00a0'}</span>
+        {eta && <span className="text-[var(--tf-text-tertiary)] font-mono">{eta}</span>}
+      </div>
     </div>
   );
 }
