@@ -107,8 +107,18 @@ Write-Host '  =====================================================' -Foreground
 Write-Host ''
 
 # --- Schritt 1: Analyseprogramm (llama.cpp) ---
-if (-not (Test-Path $ServerExe)) {
-    Write-Host '  [1/2] Lade Analyseprogramm herunter...        (einmalig)' -ForegroundColor Yellow
+$needsDownload = -not (Test-Path $ServerExe)
+if (!$needsDownload -and (Test-Path $ServerExe)) {
+    $age = (Get-Date) - (Get-Item $ServerExe).LastWriteTime
+    if ($age.TotalDays -gt 30) {
+        Write-Host '  Analyseprogramm ist aelter als 30 Tage — Update...' -ForegroundColor Yellow
+        Remove-Item (Join-Path $FilesDir '*.exe') -Force -ErrorAction SilentlyContinue
+        Remove-Item (Join-Path $FilesDir '*.dll') -Force -ErrorAction SilentlyContinue
+        $needsDownload = $true
+    }
+}
+if ($needsDownload) {
+    Write-Host '  [1/2] Lade Analyseprogramm herunter...' -ForegroundColor Yellow
     try {
         $releaseJson = Invoke-RestMethod -Uri 'https://api.github.com/repos/ggml-org/llama.cpp/releases/latest' -UseBasicParsing
         $asset = $releaseJson.assets | Where-Object { $_.name -match 'bin-win-cuda-12.*x64\.zip$' -and $_.name -notmatch 'cudart' } | Select-Object -First 1
@@ -200,8 +210,7 @@ $serverArgs = @(
     '--cache-type-v', 'q4_0',
     '-fa', 'on',
     '--jinja',
-    '--reasoning', 'off',
-    '--cors', '*'
+    '--reasoning', 'off'
 )
 $argString = ($serverArgs | ForEach-Object { if ($_ -match ' ') { "`"$_`"" } else { $_ } }) -join ' '
 cmd /c "`"$ServerExe`" $argString"
