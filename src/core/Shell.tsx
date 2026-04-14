@@ -165,19 +165,21 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
             )}
           </nav>
 
-          <div className="px-2 py-2 shrink-0" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <div className="px-2 py-1 shrink-0 flex items-center gap-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             <button
               onClick={() => tour.start()}
-              className="relative flex items-center gap-2 w-full px-3 py-[7px] rounded-[var(--tf-radius)] text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors cursor-pointer mb-1"
+              className="relative flex items-center gap-1.5 px-2 py-1.5 rounded-[var(--tf-radius)] text-[11px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors cursor-pointer shrink-0"
               title="Onboarding-Tour starten"
             >
-              <Icons.PlayCircle size={14} className="opacity-60" />
-              <span>Neu hier? So geht&apos;s</span>
+              <Icons.PlayCircle size={12} className="opacity-60" />
+              <span>Neu hier?</span>
               {!tour.hasCompleted && (
-                <span className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full bg-[var(--tf-primary)] animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--tf-primary)] animate-pulse" />
               )}
             </button>
-            <SyncStatusIndicator />
+            <div className="flex-1 min-w-0">
+              <SyncStatusIndicator />
+            </div>
           </div>
         </aside>
 
