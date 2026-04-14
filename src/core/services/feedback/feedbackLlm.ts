@@ -36,6 +36,12 @@ AKTUELLER KONTEXT DES NUTZERS:
 - Fehler: {{ERRORS}}
 
 DEINE AUFGABE:
+
+WICHTIGE UNTERSCHEIDUNG bei der Klassifizierung:
+- "Funktion X funktioniert nicht" → Bug (existiert, ist kaputt)
+- "Ich wünsche mir Funktion X" / "Es fehlt X" → Feature-Wunsch (existiert nicht)
+- "Funktion X ist umständlich" → UX-Feedback (existiert, aber schlecht bedienbar)
+
 1. Verstehe was der Nutzer mitteilen möchte.
 2. Klassifiziere: Bug | Feature-Wunsch | UX-Feedback | Lob | Frage.
 3. Stelle max. 2-3 gezielte Rückfragen falls unklar.
@@ -176,8 +182,29 @@ export function renderSimpleMarkdown(text: string): React.ReactNode[] {
 
 // ── Auto-Klassifikation (Single-Turn, fire-and-forget) ───────────────────────
 
-export const CLASSIFICATION_PROMPT = `Du klassifizierst Nutzer-Feedback für die App "TeamFlow" (Dokumentenverwaltung für kommunale Behörden).
+/**
+ * Baut den System-Prompt für die stille Feedback-Klassifikation.
+ * Wenn ein Quick-Tag-Hint übergeben wird (z.B. "bug", "feature", "praise"),
+ * bekommt das LLM dieses Signal explizit als starken Indikator mit.
+ */
+export function buildClassificationPrompt(hint?: string): string {
+  const hintLine = hint
+    ? `\nHINWEIS VOM USER: Der User hat den Schnelleinstieg "${hint}" gewählt. Das deutet stark auf die entsprechende Kategorie hin.\n`
+    : '';
+  return `Klassifiziere dieses Nutzer-Feedback für die App "TeamFlow" (Dokumentenverwaltung für Behörden).
 
+KATEGORIEN:
+- "bug": Etwas BESTEHENDES funktioniert nicht, ist kaputt, zeigt Fehler, stürzt ab, verhält sich falsch.
+- "feature": User WÜNSCHT sich etwas Neues, das es noch nicht gibt. Schlüsselwörter: "wünsche mir", "wäre toll", "könnte man", "fehlt mir", "bräuchte", "Vorschlag".
+- "ux": Etwas funktioniert zwar, ist aber umständlich, unübersichtlich, verwirrend oder hässlich.
+- "praise": Lob, positive Rückmeldung. Schlüsselwörter: "gut", "toll", "super", "gefällt mir", "danke".
+- "question": Eine Frage zur Bedienung oder Funktion der App.
+
+WICHTIGE UNTERSCHEIDUNG:
+- "Funktion X funktioniert nicht" → bug (existiert, ist kaputt)
+- "Ich wünsche mir Funktion X" / "Es fehlt Funktion X" / "Könnte man X einbauen?" → feature (existiert nicht, wird gewünscht)
+- "Funktion X ist umständlich zu bedienen" → ux (existiert, funktioniert, ist aber schlecht)
+${hintLine}
 Antworte NUR mit einem \`\`\`json-Block, keine weiteren Sätze, keine Erklärungen:
 
 \`\`\`json
@@ -189,27 +216,31 @@ Antworte NUR mit einem \`\`\`json-Block, keine weiteren Sätze, keine Erklärung
   "priority_suggestion": 3
 }
 \`\`\``;
+}
 
 /**
  * Stille Hintergrund-Klassifikation eines User-Feedbacks via LLM.
  * Single-Turn, non-streaming, fire-and-forget.
  * Returns null bei Streamlit-Transport, API-Fehler, oder unparsbarer Antwort.
+ * @param hint optionales Signal vom Quick-Tag (z.B. "bug", "feature", "praise").
  */
 export async function autoClassifyFeedback(
   transport: AITransport,
   text: string,
   context: FeedbackContext,
   area?: string,
+  hint?: string,
 ): Promise<LLMClassification | null> {
   if (typeof transport.submitMessage !== 'function') return null;
   // Streamlit-Transport unterstützt zwar submitMessage, aber keine deterministische JSON-Klassifikation
   if (transport.name === 'Streamlit') return null;
 
   const areaHint = area || context.page;
+  const systemPrompt = buildClassificationPrompt(hint);
   const userPrompt = `Feedback-Text: "${text}"\nApp-Bereich: ${areaHint}`;
 
   try {
-    const raw = await transport.submitMessage(userPrompt, CLASSIFICATION_PROMPT, {
+    const raw = await transport.submitMessage(userPrompt, systemPrompt, {
       thinkingBudget: 'low',
     });
     return parseFeedbackSummary(raw);

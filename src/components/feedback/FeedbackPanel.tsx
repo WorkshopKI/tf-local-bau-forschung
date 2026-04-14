@@ -16,7 +16,7 @@ import {
   updateFeedback,
 } from '@/core/services/feedback';
 import type { FeedbackContext, FeedbackItem } from '@/core/types/feedback';
-import { LLM_CATEGORY_MAP, QUICK_TAGS, TEAMFLOW_AREAS } from './constants';
+import { LLM_CATEGORY_MAP, QUICK_TAGS, TEAMFLOW_AREAS, type QuickTag } from './constants';
 import { FaqSuggestions } from './FaqSuggestions';
 import { MyFeedbackList } from './MyFeedbackList';
 import { FeedbackChatbot } from './FeedbackChatbot';
@@ -42,6 +42,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
   const [submittedItem, setSubmittedItem] = useState<FeedbackItem | null>(null);
   const [context, setContext] = useState<FeedbackContext | null>(null);
   const [quickTagsVisible, setQuickTagsVisible] = useState(true);
+  const [selectedHint, setSelectedHint] = useState<string | null>(null);
 
   const activePluginName = enabledPlugins.find(p => p.id === activeId)?.name ?? activeId ?? 'Unbekannt';
 
@@ -64,6 +65,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
       setShowContext(false);
       setSubmittedItem(null);
       setQuickTagsVisible(true);
+      setSelectedHint(null);
       setContext(captureFeedbackContext(activeId, activePluginName));
     }
   }, [open, activeId, activePluginName]);
@@ -91,7 +93,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
 
       // Fire-and-forget Hintergrund-Klassifikation (blockiert UI nicht)
       const transport = bridge.getActiveTransport();
-      void autoClassifyFeedback(transport, text.trim(), fullContext, areaRef || undefined)
+      void autoClassifyFeedback(transport, text.trim(), fullContext, areaRef || undefined, selectedHint ?? undefined)
         .then((classification) => {
           if (!classification) return;
           const mappedCategory = LLM_CATEGORY_MAP[classification.category];
@@ -106,7 +108,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
     } finally {
       setSubmitting(false);
     }
-  }, [text, areaRef, context, profile, storage, bridge]);
+  }, [text, areaRef, context, profile, storage, bridge, selectedHint]);
 
   if (!open) return null;
 
@@ -158,6 +160,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
             submitting={submitting}
             quickTagsVisible={quickTagsVisible}
             setQuickTagsVisible={setQuickTagsVisible}
+            onSelectHint={setSelectedHint}
             onSubmit={handleSubmit}
             onShowMyFeedback={() => setView('my-feedback')}
           />
@@ -209,6 +212,7 @@ interface InputStepProps {
   submitting: boolean;
   quickTagsVisible: boolean;
   setQuickTagsVisible: (v: boolean) => void;
+  onSelectHint: (hint: string) => void;
   onSubmit: () => void;
   onShowMyFeedback: () => void;
 }
@@ -218,19 +222,20 @@ function InputStep(props: InputStepProps): React.ReactElement {
     text, setText, areaRef, setAreaRef, context,
     showContext, setShowContext, submitting,
     quickTagsVisible, setQuickTagsVisible,
-    onSubmit, onShowMyFeedback,
+    onSelectHint, onSubmit, onShowMyFeedback,
   } = props;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleQuickTag = (prefix: string): void => {
-    setText(prefix);
+  const handleQuickTag = (tag: QuickTag): void => {
+    setText(tag.prefix);
+    onSelectHint(tag.hint);
     setQuickTagsVisible(false);
     // Focus + Cursor ans Ende
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (el) {
         el.focus();
-        el.setSelectionRange(prefix.length, prefix.length);
+        el.setSelectionRange(tag.prefix.length, tag.prefix.length);
       }
     });
   };
@@ -268,7 +273,7 @@ function InputStep(props: InputStepProps): React.ReactElement {
             <button
               key={tag.label}
               type="button"
-              onClick={() => handleQuickTag(tag.prefix)}
+              onClick={() => handleQuickTag(tag)}
               className="px-2 py-1 rounded-full text-[11.5px] text-[var(--tf-text-secondary)] bg-transparent hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer transition-colors"
               style={{ border: '0.5px solid var(--tf-border)' }}
             >

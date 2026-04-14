@@ -69,14 +69,16 @@ export const LLM_CATEGORY_MAP: Record<string, FeedbackCategory> = {
   question: 'question',
 };
 
-/** Quick-Tags unter dem Feedback-Textfeld: Klick füllt Textarea vor. */
+/** Quick-Tags unter dem Feedback-Textfeld: Klick füllt Textarea vor + gibt Hint an Auto-Klassifikation. */
 export interface QuickTag {
   label: string;
   prefix: string;
+  /** Hint für autoClassifyFeedback — entspricht LLM-Kategorien (bug/feature/ux/praise/question). */
+  hint: 'bug' | 'feature' | 'praise';
 }
 
 export const QUICK_TAGS: readonly QuickTag[] = [
-  { label: 'Etwas funktioniert nicht', prefix: 'Etwas funktioniert nicht: ' },
-  { label: 'Ich wünsche mir…', prefix: 'Ich wünsche mir ' },
-  { label: 'Finde ich gut!', prefix: 'Ich finde gut, dass ' },
+  { label: 'Etwas funktioniert nicht', prefix: 'Etwas funktioniert nicht: ', hint: 'bug' },
+  { label: 'Ich wünsche mir…', prefix: 'Ich wünsche mir ', hint: 'feature' },
+  { label: 'Finde ich gut!', prefix: 'Ich finde gut, dass ', hint: 'praise' },
 ] as const;
