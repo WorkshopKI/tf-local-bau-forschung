@@ -4,7 +4,7 @@ import { usePipelineConfig } from '../hooks/usePipelineConfig';
 import { ActionCardIndex } from '../actions/ActionCardIndex';
 import { ActionCardQuality } from '../actions/ActionCardQuality';
 import { ActionCardDocuments } from '../actions/ActionCardDocuments';
-import { ActionCardGPU } from '../actions/ActionCardGPU';
+import { ActionCardModels } from '../actions/ActionCardModels';
 import { ConfigSection } from '../sections/ConfigSection';
 import { EvalSection } from '../eval/EvalSection';
 import { MetadataSmokeTest } from '../MetadataSmokeTest';
@@ -59,6 +59,7 @@ export function AdminView({
       <div>
         <SectionTitle title="Aktionen" />
         <div className="grid grid-cols-2 gap-3">
+          <ActionCardDocuments docCount={docCount} setDocCount={setDocCount} />
           <ActionCardIndex
             chunkCount={chunkCount} docCount={docCount} activeModelId={activeModelId}
             indexOutdated={indexOutdated} hasGPU={hasGPU} newDocsCount={newDocsCount}
@@ -66,14 +67,16 @@ export function AdminView({
             setChunkCount={setChunkCount} setLastUpdate={setLastUpdate}
             setIndexModelId={setIndexModelId} setNewDocsCount={setNewDocsCount}
           />
+          <ActionCardModels
+            activeModelId={activeModelId} setActiveModelIdState={setActiveModelIdState}
+            config={config} updateConfig={updateConfig} hasGPU={hasGPU}
+          />
           <ActionCardQuality
             qualityPct={qualityPct}
             hasMetadataLLM={config.metadataLLMId !== 'none'}
             onStartEval={() => setResultPanel(resultPanel === 'eval' ? null : 'eval')}
             onStartSmokeTest={() => setResultPanel(resultPanel === 'smoke-test' ? null : 'smoke-test')}
           />
-          <ActionCardDocuments docCount={docCount} setDocCount={setDocCount} />
-          <ActionCardGPU />
         </div>
       </div>
 
@@ -92,8 +95,6 @@ export function AdminView({
       {/* ── KONFIGURATION (3 Gruppen: KI-Modelle, Suchqualitaet, Zuruecksetzen) ── */}
       <ConfigSection
         config={config} updateConfig={updateConfig}
-        activeModelId={activeModelId} setActiveModelIdState={setActiveModelIdState}
-        hasGPU={hasGPU}
         seeded={seeded} seeding={seeding} seedProgress={seedProgress}
         setSeeded={setSeeded} setSeeding={setSeeding} setSeedProgress={setSeedProgress}
         setDocCount={setDocCount} setChunkCount={setChunkCount} setLastUpdate={setLastUpdate}

@@ -1,21 +1,15 @@
-import { useState, useEffect } from 'react';
-import { Button, Select } from '@/ui';
+import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
+import { Button } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
-import {
-  EMBEDDING_MODELS, getModelById, setActiveModelId,
-} from '@/core/services/search/model-registry';
-import { METADATA_LLM_MODELS, clearMetadataCache } from '@/core/services/search/metadata-extractor';
-import { useSearch } from '@/core/hooks/useSearch';
+import { clearMetadataCache } from '@/core/services/search/metadata-extractor';
 import { seedTestData, clearSeedData } from '@/core/services/seed/seed-data';
+import { unloadAllGPU } from '../utils/gpu-utils';
 import type { PipelineConfigState } from '../hooks/usePipelineConfig';
-import type { AIProviderConfig } from '@/core/types/config';
 
 export interface ConfigSectionProps {
   config: PipelineConfigState;
   updateConfig: (patch: Partial<PipelineConfigState>) => void;
-  activeModelId: string;
-  setActiveModelIdState: (id: string) => void;
-  hasGPU: boolean;
   seeded: boolean;
   seeding: boolean;
   seedProgress: string;
@@ -58,23 +52,15 @@ function ConfigRow({ label, subtitle, children }: {
 /* ── Main Component ── */
 
 export function ConfigSection({
-  config, updateConfig, activeModelId, setActiveModelIdState, hasGPU,
+  config, updateConfig,
   seeded, seeding, seedProgress, setSeeded, setSeeding, setSeedProgress,
   setDocCount, setChunkCount, setLastUpdate, setIndexModelId, setNewDocsCount,
 }: ConfigSectionProps): React.ReactElement {
   const storage = useStorage();
-  const { toggleReRanker } = useSearch();
-  const [hasApiKey, setHasApiKey] = useState(false);
   const [cacheMsg, setCacheMsg] = useState<string | null>(null);
+  const [gpuMsg, setGpuMsg] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
   const [clearResult, setClearResult] = useState<string | null>(null);
-
-  const activeModel = getModelById(activeModelId);
-  const selectedMetadata = METADATA_LLM_MODELS.find(m => m.id === config.metadataLLMId);
-
-  useEffect(() => {
-    storage.idb.get<AIProviderConfig>('ai-provider').then(c => setHasApiKey(!!c?.apiKey));
-  }, [storage]);
 
   const handleClearDocStore = async (): Promise<void> => {
     setClearing(true); setClearResult(null);
@@ -114,61 +100,6 @@ export function ConfigSection({
   return (
     <div className="space-y-6">
 
-      {/* ── KI-MODELLE ── */}
-      <div>
-        <SectionTitle title="KI-Modelle" />
-
-        <ConfigRow label="Textanalyse">
-          <Select
-            options={EMBEDDING_MODELS.map(m => ({ value: m.id, label: m.label }))}
-            value={activeModelId}
-            onChange={async (e) => {
-              const newId = e.target.value;
-              setActiveModelIdState(newId);
-              await setActiveModelId(storage.idb, newId);
-            }} />
-        </ConfigRow>
-
-        <ConfigRow label="Metadaten-Extraktion">
-          <div className="space-y-1">
-            <Select
-              options={METADATA_LLM_MODELS.map(m => ({ value: m.id, label: m.label }))}
-              value={config.metadataLLMId}
-              onChange={e => updateConfig({ metadataLLMId: e.target.value })} />
-            {selectedMetadata?.needsApiKey && !hasApiKey && (
-              <p className="text-[11px] text-[var(--tf-warning-text)]">API Key erforderlich</p>
-            )}
-            {selectedMetadata?.backend === 'browser' && !hasGPU && (
-              <p className="text-[11px] text-[var(--tf-warning-text)]">WebGPU nicht verfuegbar</p>
-            )}
-          </div>
-        </ConfigRow>
-
-        {config.metadataLLMId === 'llamacpp-lan' && (
-          <ConfigRow label="Server-Adresse" subtitle="IP-Adresse des llama.cpp Servers im Netzwerk">
-            <div className="space-y-1">
-              <input type="text" value={config.lanEndpoint}
-                placeholder="http://192.168.1.X:9091/v1"
-                onChange={e => updateConfig({ lanEndpoint: e.target.value })}
-                className="w-56 px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
-                style={{ border: '0.5px solid var(--tf-border)' }} />
-              {!config.lanEndpoint && (
-                <p className="text-[11px] text-[var(--tf-warning-text)]">Server-Adresse erforderlich</p>
-              )}
-            </div>
-          </ConfigRow>
-        )}
-
-        <details className="mt-3 text-[11px] text-[var(--tf-text-tertiary)]">
-          <summary className="cursor-pointer hover:text-[var(--tf-text-secondary)]">Technische Details</summary>
-          <div className="mt-2 space-y-1 p-2">
-            <div className="flex justify-between"><span>HuggingFace ID</span><span className="text-[var(--tf-text)]">{activeModel.name}</span></div>
-            <div className="flex justify-between"><span>Dimensionen</span><span className="text-[var(--tf-text)]">{activeModel.dimensions}</span></div>
-            <div className="flex justify-between"><span>Backend</span><span className="text-[var(--tf-text)]">{hasGPU ? 'WebGPU' : 'WASM (CPU)'}</span></div>
-          </div>
-        </details>
-      </div>
-
       {/* ── SUCHQUALITAET ── */}
       <div>
         <SectionTitle title="Suchqualitaet" />
@@ -182,22 +113,35 @@ export function ConfigSection({
           </label>
         </ConfigRow>
 
-        <ConfigRow label="Ergebnis-Nachsortierung"
-          subtitle="KI sortiert Suchergebnisse nach Relevanz nach — sehr langsam">
-          <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)] cursor-pointer">
-            <input type="checkbox" checked={config.useReRanker}
-              onChange={async e => {
-                updateConfig({ useReRanker: e.target.checked });
-                await toggleReRanker(e.target.checked, config.reRankerModelId);
-              }} />
-            {config.useReRanker ? 'Aktiviert (Experimentell)' : 'Deaktiviert'}
-          </label>
-        </ConfigRow>
+        <div className="opacity-50 pointer-events-none">
+          <ConfigRow label="Ergebnis-Nachsortierung"
+            subtitle="KI sortiert Suchergebnisse nach Relevanz nach — sehr langsam">
+            <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)]">
+              <input type="checkbox" checked={false} disabled />
+              Deaktiviert
+            </label>
+          </ConfigRow>
+        </div>
       </div>
 
       {/* ── ZURUECKSETZEN ── */}
       <div>
         <SectionTitle title="Zuruecksetzen" />
+
+        <ConfigRow label="GPU-Modelle entladen"
+          subtitle="Gibt GPU-Speicher frei (Embedding, Metadata-LLM)">
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" icon={Trash2} onClick={() => {
+              const unloaded = unloadAllGPU();
+              const text = unloaded.length > 0
+                ? `Entladen: ${unloaded.join(', ')}`
+                : 'Keine GPU-Modelle geladen';
+              setGpuMsg(text);
+              setTimeout(() => setGpuMsg(null), 4000);
+            }}>Modelle entladen</Button>
+            {gpuMsg && <span className="text-[11px] text-[var(--tf-text-secondary)]">{gpuMsg}</span>}
+          </div>
+        </ConfigRow>
 
         <ConfigRow label="KI-Analysen zuruecksetzen"
           subtitle="Dokumente werden beim naechsten Indexieren neu analysiert">
