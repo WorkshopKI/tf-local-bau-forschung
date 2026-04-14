@@ -15,13 +15,14 @@ TeamFlow Local is a serverless browser app for collaborative task management wit
 - **NO ES MODULE IMPORTS AT RUNTIME**: Everything must be bundled — `file://` blocks ES module imports
 - **NO RELATIVE FETCH**: `fetch('./data.json')` fails under `file://` — all data via IndexedDB or File System Access API
 - **NO SERVICE WORKERS**: Not available under `file://`
-- **NO localStorage**: Use IndexedDB instead (works under `file://`)
+- **NO localStorage FOR LARGE DATA**: IndexedDB preferred for structured/large data (works under `file://`). localStorage OK for simple flags (e.g., `teamflow_tour_completed`, feedback items, user preferences)
 
 ## Tech Stack
 
 - **Framework**: React 19 + ReactDOM + TypeScript
 - **Build**: Vite + `vite-plugin-singlefile` + `@vitejs/plugin-react`
 - **Styling**: Tailwind CSS v4 via `@tailwindcss/vite` — utility classes + CSS custom properties for theming
+- **UI Components**: shadcn/ui (Radix, Nova-Preset) — `src/components/ui/` (Button, Textarea, Select, Tabs, Slider, Badge, Switch, Card). Fehlende Komponenten per `npx shadcn@latest add <name>` nachinstallieren
 - **State**: Zustand (persisted to IndexedDB)
 - **Search**: Orama (BM25 + Vector Hybrid), Transformers.js v4 (EmbeddingGemma 300M), WebGPU/WASM
 - **AI Chat**: DirectLLM transport (OpenRouter / local llama.cpp) + Streamlit bridge
@@ -74,6 +75,64 @@ Geführte 5-Schritt-Tour für Erstnutzer (`src/core/components/tour/`, `src/core
 - Cross-Page: TourStep unterstützt `navigateTo: 'plugin-id'` für Auto-Navigation zur Zielseite
 - Persistenz: `localStorage["teamflow_tour_completed"]` — funktioniert unter `file://`
 - TourOverlay nutzt CSS `clip-path` für Spotlight + z-index 102 für Target-Elevation
+
+### Feedback-System
+Integriertes User-Feedback + Admin-Dashboard für Phase 1+2 (Phase 3 Sponsoring forward-compatible).
+
+**User-Komponenten** (`src/components/feedback/`):
+- `FeedbackButton.tsx` — globaler FAB (z-index 40, bottom-right). Wird in `Shell.tsx` gerendert (innerhalb NavigationContext) und ist während aktiver Tour ausgeblendet.
+- `FeedbackPanel.tsx` — 3-Step-Wizard (Kategorie → Details → Bestätigung) + optional Chatbot. Bereich-Dropdown statt visuellem Picker.
+- `FeedbackChatbot.tsx` — Multi-Turn-LLM-Dialog via `transport.submitConversation()`. Bei Streamlit-Transport: freundliche Meldung + Navigation zu Einstellungen.
+- `FeedbackConfirmCard.tsx` — Yes/No auf LLM-generierte JSON-Summary.
+- `FaqSuggestions.tsx` — Inline FAQ-Vorschläge bei Kategorie "Frage" (debounced 500ms, Wort-Overlap ≥2, Stoppwörter ignoriert).
+- `MyFeedbackList.tsx` — eigener Verlauf (gefiltert nach `user_id == profile.name`).
+- `constants.ts` — `TEAMFLOW_AREAS`, Category/Status-Labels + Tailwind-Color-Maps.
+
+**Service-Layer** (`src/core/services/feedback/`):
+- `feedbackService.ts` — CRUD: localStorage primär (`teamflow_feedback_items`) + Shared-File-Sync (`feedback/feedback.json` im Datenverzeichnis). Merge-by-id (User-Felder lokal, Admin-Felder shared-wins). FAQ-Helpers (`matchFaqEntries`, `createStandaloneFaq`, `bumpFaqAskCount`).
+- `feedbackLlm.ts` — `loadSystemPrompt(storage)` liest `feedback/system-prompt.md` (Fallback `DEFAULT_SYSTEM_PROMPT`). `buildFeedbackSystemPrompt(template, context)` ersetzt `{{PAGE}}`/`{{ROUTE}}`/`{{DEVICE}}`/`{{VIEWPORT}}`/`{{LAST_ACTION}}`/`{{SESSION_MINUTES}}`/`{{ERRORS}}`. 3 Parser portiert verbatim aus Referenz: `parseFeedbackSummary`, `parseBotResponse`, `renderSimpleMarkdown`. `initSystemPromptFile(storage)` schreibt Default-Template ins Datenverzeichnis (Button im Admin-Config-Panel).
+- `feedbackContext.ts` — `captureFeedbackContext(activeId, activeName)` + Ring-Buffer für `window.onerror`/`unhandledrejection` (max 5).
+- `promptGenerator.ts` — `generateClaudeCodePrompt(ticket)` mit TeamFlow-Constraints-Block (file://, Single-File-Build, Tailwind v4, React 19, Zustand, lucide-react, Deutsche UI, CLAUDE.md primär).
+
+**Admin-Plugin** (`src/plugins/feedback/`, `id: 'feedback-admin'`, `adminOnly: true`):
+- `FeedbackAdminPage.tsx` — 3 Tabs (Tickets / FAQ / Einstellungen) via `@/ui/Tabs`.
+- `sections/FeedbackTicketList.tsx` — Filter (Kategorie/Status), Karten-Liste links.
+- `sections/FeedbackTicketDetail.tsx` — Status-Dropdown, Priority-Slider, Notizen, FAQ-Markierung + Antwort + Stichwörter, "Claude Code Prompt generieren" mit Copy + Download .md.
+- `sections/FeedbackFaqTab.tsx` — Übersicht aller `is_faq===true` Items + manuell anlegen + bearbeiten + Markierung entfernen + löschen.
+- `sections/FeedbackConfigPanel.tsx` — Modell-Dropdown (Default `openai/gpt-oss-120b`), Max-Turns-Slider (2–12), System-Prompt-Pfad + Vorschau + "System-Prompt initialisieren"-Button (nur wenn Datei fehlt), Shared-File Status.
+
+**Admin-Gating**:
+- `UserProfile.is_admin?: boolean` (`src/core/types/config.ts`)
+- `Shell.tsx` filtert `enabledPlugins` → Plugins mit `adminOnly: true` nur sichtbar wenn `profile?.is_admin === true`
+- Aktivierung: Onboarding Step 0 (Checkbox) ODER Einstellungen → Profil-Tab → "Admin-Funktionen aktivieren"
+- Default: `false` (jeder Nutzer kann sich selbst zum Admin machen — single-user trust model)
+
+**LLM-Transport-Erweiterung** (`src/core/services/ai/transports/`):
+- Neue Methode `DirectLLMTransport.submitConversation(messages[], options?)` für Multi-Turn (vorher nur Single-Turn `submitMessage`).
+- `AITransport`-Interface erweitert um optionale `submitConversation?(...)` für Feature-Detection.
+
+**NavigationContext-Erweiterung** (`src/core/hooks/useNavigation.ts`):
+- `activeId: string` exposed → erlaubt FeedbackPanel, das aktive Plugin für Kontext-Erfassung zu ermitteln.
+
+**Datenverzeichnis-Layout**:
+- `feedback/feedback.json` — Shared-Tickets (`SharedFeedbackFile { version: 1, updated_at, items[] }`)
+- `feedback/system-prompt.md` — Admin-editierbarer Chatbot-Prompt (Fallback in `feedbackLlm.ts`)
+
+**Bekannte Einschränkungen**:
+- Streaming nicht implementiert (Buffer-Mode für Chatbot-Antworten)
+- Sync-Konflikt: Last-writer-wins bei concurrent Schreibzugriff auf `feedback.json` (akzeptabel bei niedriger Frequenz)
+- Phase 3 Sponsoring (`effort_estimate`, `sponsors[]`, etc.) NICHT implementiert — Datenmodell aber forward-compatible
+
+### Referenz-App
+In `_reference/lernapp/` liegt eine geklonte Referenz-Implementierung (KI-Prompting-Tutor). Wird NICHT gebaut oder deployed — dient ausschließlich als Code-Referenz für die Portierung von Features (Feedback-System, Onboarding-Tour). Vite ignoriert diesen Ordner (`server.watch.ignored`).
+
+### Datenverzeichnis
+Alle geteilten Daten und Config-Dateien liegen im Datenverzeichnis auf dem SMB-Share (NICHT neben der App-HTML). Dort befinden sich:
+- Suchindex-Daten (`search-index/`)
+- `metadata-server-config.json`
+- `feedback/feedback.json` (Multi-User-Tickets)
+- `feedback/system-prompt.md` (Admin-editierbarer Chatbot-Prompt)
+- Zukünftig: abteilungsspezifische Konfigurationen
 
 ## Project Structure
 
@@ -152,10 +211,17 @@ src/
 │   │   ├── keyboard.ts          <- Shortcut registry
 │   │   ├── tags.ts              <- Tag operations
 │   │   └── templates.ts         <- Document templates
+│   │   ├── feedback/            <- Feedback-System Service-Layer
+│   │   │   ├── feedbackService.ts   <- CRUD + Shared-File-Sync + FAQ
+│   │   │   ├── feedbackLlm.ts       <- System-Prompt-Loader + Parser + DEFAULT_SYSTEM_PROMPT
+│   │   │   ├── feedbackContext.ts   <- Auto-Kontext + window.onerror Ring-Buffer
+│   │   │   ├── promptGenerator.ts   <- Claude-Code-Prompt-Generator
+│   │   │   └── index.ts
 │   ├── types/
 │   │   ├── vorgang.ts           <- Vorgang + Artifact types
-│   │   ├── config.ts            <- AIProviderConfig
+│   │   ├── config.ts            <- UserProfile (mit is_admin), AIProviderConfig
 │   │   ├── plugin.ts            <- TeamFlowPlugin interface
+│   │   ├── feedback.ts          <- FeedbackItem, FeedbackCategory, FeedbackStatus, ChatMsg, etc.
 │   │   ├── review.ts
 │   │   └── version.ts
 │   └── utils/
@@ -167,9 +233,28 @@ src/
 │   ├── dokumente/               <- Document browser
 │   ├── suche/                   <- Full-text + vector search UI
 │   ├── chat/                    <- AI chat interface
-│   ├── einstellungen/           <- Settings (profile, theme, AI provider)
-│   └── admin/                   <- Admin panel (indexing, eval, smoke test)
-├── ui/                          <- Shared components: Button, Card, Dialog, etc.
+│   ├── einstellungen/           <- Settings (profile, theme, AI provider, is_admin toggle)
+│   ├── admin/                   <- Admin panel (indexing, eval, smoke test) — adminOnly
+│   └── feedback/                <- Feedback-Verwaltung — adminOnly
+│       ├── FeedbackAdminPage.tsx    <- 3 Tabs (Tickets / FAQ / Einstellungen)
+│       ├── sections/
+│       │   ├── FeedbackTicketList.tsx
+│       │   ├── FeedbackTicketDetail.tsx
+│       │   ├── FeedbackFaqTab.tsx
+│       │   └── FeedbackConfigPanel.tsx
+│       └── index.ts
+├── components/
+│   ├── ui/                      <- shadcn/ui Komponenten (Button, Card, Select, Tabs, Label, Collapsible, etc.)
+│   └── feedback/                <- Globales Feedback-System (FAB + Panel + Chatbot + ConfirmCard + FAQ + MyFeedbackList)
+│       ├── FeedbackButton.tsx
+│       ├── FeedbackPanel.tsx
+│       ├── FeedbackChatbot.tsx
+│       ├── FeedbackConfirmCard.tsx
+│       ├── FaqSuggestions.tsx
+│       ├── MyFeedbackList.tsx
+│       ├── constants.ts
+│       └── index.ts
+├── ui/                          <- App-spezifische shared components (legacy, ggf. nach components/ui/ migrieren)
 ├── plugins.config.ts            <- Build-time plugin selection
 └── main.tsx
 ```
@@ -190,6 +275,7 @@ src/
 
 ### Styling
 - Tailwind utility classes as primary styling method
+- shadcn/ui Komponenten für Standard-UI-Elemente (Button, Select, Tabs, etc.) — Import via `@/components/ui/...`
 - CSS custom properties for theme values: `bg-[var(--tf-bg)]`, `text-[var(--tf-primary)]`
 - No CSS-in-JS libraries
 - No inline `style={{}}` except for dynamic values (e.g., progress bars, borders)

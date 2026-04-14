@@ -11,8 +11,10 @@ import type { CommandItem } from '@/ui/CommandPalette';
 import { setDarkMode, isDarkMode } from '@/ui/theme';
 import { SyncStatusIndicator } from '@/ui/SyncStatusIndicator';
 import { useTourContext } from '@/core/hooks/useTour';
+import { useProfile } from '@/core/hooks/useProfile';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { TourOverlay } from '@/core/components/tour/TourOverlay';
+import { FeedbackButton } from '@/components/feedback';
 
 interface ShellProps {
   plugins: TeamFlowPlugin[];
@@ -28,13 +30,17 @@ function getIcon(name: string): IconComponent {
 }
 
 export function Shell({ plugins, department = 'beide' }: ShellProps): React.ReactElement {
+  const { profile } = useProfile();
+  const isAdmin = !!profile?.is_admin;
+
   const visiblePlugins = useMemo(() => {
     return plugins.filter(p => {
+      if (p.adminOnly && !isAdmin) return false;
       if (department === 'bauantraege' && p.id === 'forschung') return false;
       if (department === 'forschung' && p.id === 'bauantraege') return false;
       return true;
     });
-  }, [plugins, department]);
+  }, [plugins, department, isAdmin]);
 
   const [activeId, setActiveId] = useState(visiblePlugins[0]?.id ?? '');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -97,7 +103,7 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
   const ActiveComponent = activePlugin?.component;
 
   return (
-    <NavigationContext.Provider value={{ navigate }}>
+    <NavigationContext.Provider value={{ navigate, activeId }}>
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} items={commandItems} />
       <div className="flex h-screen overflow-hidden bg-[var(--tf-bg)]">
         <aside
@@ -211,6 +217,7 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
           />
         );
       })()}
+      {!tour.isActive && <FeedbackButton />}
     </NavigationContext.Provider>
   );
 }

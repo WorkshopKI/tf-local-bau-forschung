@@ -1,7 +1,21 @@
+export interface ConversationMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface ConversationOptions {
+  thinkingBudget?: 'none' | 'low' | 'medium' | 'high';
+  responseFormat?: Record<string, unknown>;
+  maxTokens?: number;
+}
+
 export interface AITransport {
   name: string;
   ping(): Promise<boolean>;
   submitMessage(message: string, systemPrompt?: string): Promise<string>;
+  /** Optional: Multi-Turn-Chat. Nur DirectLLMTransport implementiert das aktuell.
+   *  Components nutzen Feature-Detection (`if (transport.submitConversation) ...`). */
+  submitConversation?(messages: ConversationMessage[], options?: ConversationOptions): Promise<string>;
 }
 
 export class StreamlitBridgeTransport implements AITransport {

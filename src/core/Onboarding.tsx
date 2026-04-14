@@ -17,6 +17,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [department, setDepartment] = useState<UserProfile['department']>('bauantraege');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [selectedHue, setSelectedHue] = useState(221);
   const [selectedSat, setSelectedSat] = useState('25%');
   const [selectedLit, setSelectedLit] = useState('42%');
@@ -39,7 +40,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
   };
 
   const handleFinish = async (): Promise<void> => {
-    const profile: UserProfile = { name, department, theme: { hue: selectedHue, dark: false } };
+    const profile: UserProfile = { name, department, theme: { hue: selectedHue, dark: false }, is_admin: isAdmin };
     await storage.idb.set('profile', profile);
     await storage.idb.set('onboarding-complete', true);
     applyThemeColor(selectedHue, selectedSat, selectedLit);
@@ -81,6 +82,17 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
                   ))}
                 </div>
               </div>
+              <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={isAdmin}
+                  onChange={e => setIsAdmin(e.target.checked)}
+                  className="mt-0.5 cursor-pointer accent-[var(--tf-primary)]"
+                />
+                <span className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug">
+                  Ich bin Admin dieses TeamFlow-Projekts (zeigt zusätzliche Verwaltungs-Bereiche an)
+                </span>
+              </label>
             </div>
             <Button icon={ArrowRight} disabled={!name.trim()} onClick={() => setStep(1)} className="w-full">Weiter</Button>
           </div>

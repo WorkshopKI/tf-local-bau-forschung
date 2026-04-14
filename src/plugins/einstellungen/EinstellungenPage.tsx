@@ -75,6 +75,20 @@ export function EinstellungenPage(): React.ReactElement {
                 </select>
               </div>
             </div>
+            <div className="mt-6">
+              <SectionHeader label="Admin-Funktionen" />
+              <label className="flex items-start gap-2.5 cursor-pointer mt-3">
+                <input
+                  type="checkbox"
+                  checked={!!profile.is_admin}
+                  onChange={e => updateProfile({ is_admin: e.target.checked })}
+                  className="mt-0.5 cursor-pointer accent-[var(--tf-primary)]"
+                />
+                <span className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug">
+                  Admin-Bereiche aktivieren (Suchindex, Feedback-Verwaltung)
+                </span>
+              </label>
+            </div>
           </div>
         )}
 

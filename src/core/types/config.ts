@@ -5,6 +5,8 @@ export interface UserProfile {
     hue: number;
     dark: boolean;
   };
+  /** Wenn true, sind Plugins mit adminOnly: true sichtbar (z.B. Suchindex, Feedback-Verwaltung). */
+  is_admin?: boolean;
 }
 
 export interface AIProviderConfig {

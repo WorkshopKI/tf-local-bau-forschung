@@ -7,6 +7,7 @@ import { chatPlugin } from '@/plugins/chat';
 import { forschungPlugin } from '@/plugins/forschung/index';
 import { suchePlugin } from '@/plugins/suche';
 import { adminPlugin } from '@/plugins/admin';
+import { feedbackAdminPlugin } from '@/plugins/feedback';
 
 const allPlugins: TeamFlowPlugin[] = [
   homePlugin,
@@ -17,6 +18,7 @@ const allPlugins: TeamFlowPlugin[] = [
   chatPlugin,
   einstellungenPlugin,
   adminPlugin,
+  feedbackAdminPlugin,
 ];
 
 const pluginFilter = import.meta.env.VITE_PLUGINS as string | undefined;
