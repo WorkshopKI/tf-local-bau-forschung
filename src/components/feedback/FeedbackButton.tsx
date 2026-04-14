@@ -15,7 +15,7 @@ export function FeedbackButton(): React.ReactElement {
         onClick={() => setOpen(true)}
         title="Feedback geben"
         className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-10 h-10 rounded-full text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] transition-colors duration-200 cursor-pointer"
-        style={{ border: '0.5px solid var(--tf-border)' }}
+        style={{ border: '1px solid var(--tf-border)' }}
         aria-label="Feedback geben"
       >
         <MessageSquarePlus size={16} />
