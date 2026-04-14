@@ -66,6 +66,15 @@ Plugins are registered in `src/plugins.config.ts`. Build-time filtering via `VIT
 All colors via CSS custom properties. Primary color is HSL-based — only `--tf-primary-h` (hue) changes.
 Dark mode via `[data-theme="dark"]` attribute on `<html>`. See `DESIGN_GUIDE.md` for full specification.
 
+### Onboarding-Tour
+Geführte 5-Schritt-Tour für Erstnutzer (`src/core/components/tour/`, `src/core/hooks/useTour.ts`).
+- Auto-Start 800ms nach Home-Seitenladen (nur wenn Daten vorhanden und Tour noch nicht abgeschlossen)
+- Manueller Trigger über Sidebar-Button "Neu hier? So geht's" (unten vor SyncStatusIndicator)
+- Ziele werden via `data-tour="..."` Attribut auf bestehende Elemente markiert
+- Cross-Page: TourStep unterstützt `navigateTo: 'plugin-id'` für Auto-Navigation zur Zielseite
+- Persistenz: `localStorage["teamflow_tour_completed"]` — funktioniert unter `file://`
+- TourOverlay nutzt CSS `clip-path` für Spotlight + z-index 102 für Target-Elevation
+
 ## Project Structure
 
 ```
@@ -79,7 +88,10 @@ src/
 │   │   ├── ArtefakteTab.tsx     <- Shared artifact management (both departments)
 │   │   ├── SimilarCases.tsx     <- AI-powered similar case suggestions
 │   │   ├── VerlaufTab.tsx       <- Workflow history timeline
-│   │   └── VorgangDokumenteTab.tsx <- Document viewer per Vorgang
+│   │   ├── VorgangDokumenteTab.tsx <- Document viewer per Vorgang
+│   │   └── tour/
+│   │       ├── TourOverlay.tsx  <- Spotlight-Overlay für Onboarding-Tour (clip-path, Retry, Auto-Nav)
+│   │       └── tourSteps.ts     <- 5 Tour-Schritte mit data-tour Targets + navigateTo
 │   ├── hooks/
 │   │   ├── useAIBridge.ts       <- AI provider context
 │   │   ├── useKeyboard.ts       <- Keyboard shortcut registration
@@ -88,6 +100,7 @@ src/
 │   │   ├── useSearch.ts         <- Search context (Orama + Embedding + Re-Ranker)
 │   │   ├── useStorage.ts        <- Storage service context
 │   │   ├── useTags.ts           <- Tag management (Zustand)
+│   │   ├── useTour.ts           <- Onboarding-Tour State + Context (localStorage-persistiert)
 │   │   └── useVorgangDetail.ts  <- Shared Detail-View logic (states, handlers)
 │   ├── services/
 │   │   ├── ai/

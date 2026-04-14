@@ -4,6 +4,7 @@ import { Badge, SectionHeader, ListItem, Button } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useTourContext } from '@/core/hooks/useTour';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useForschungStore } from '@/plugins/forschung/store';
 import { useDashboardData } from './useDashboardData';
@@ -15,6 +16,7 @@ export function HomePage(): React.ReactElement {
   const loadBau = useBauantraegeStore(s => s.loadAll);
   const loadForsch = useForschungStore(s => s.loadAll);
   const { profile } = useProfile();
+  const tour = useTourContext();
 
   useEffect(() => {
     loadBau(storage);
@@ -24,6 +26,17 @@ export function HomePage(): React.ReactElement {
   const data = useDashboardData(profile?.department);
   const name = profile?.name ?? '';
   const dept = profile?.department === 'bauantraege' ? 'Bauanträge' : profile?.department === 'forschung' ? 'Forschung' : 'Beide Abteilungen';
+
+  // Auto-Start der Tour beim ersten Besuch (nur wenn Daten vorhanden)
+  const tourHasCompleted = tour.hasCompleted;
+  const tourIsActive = tour.isActive;
+  const tourStart = tour.start;
+  useEffect(() => {
+    if (tourHasCompleted || tourIsActive) return;
+    if (data.stats.total === 0) return;
+    const timer = setTimeout(() => tourStart(), 800);
+    return () => clearTimeout(timer);
+  }, [tourHasCompleted, tourIsActive, tourStart, data.stats.total]);
 
   if (data.stats.total === 0) {
     return (
@@ -36,7 +49,7 @@ export function HomePage(): React.ReactElement {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div data-tour="home-dashboard" className="p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
@@ -67,7 +80,7 @@ export function HomePage(): React.ReactElement {
       {/* Two-column grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-8">
         {/* Main */}
-        <div>
+        <div data-tour="document-list">
           <SectionHeader label="Aktuelle Vorgänge"
             action={<button onClick={() => navigate('bauantraege')} className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer">Alle →</button>} />
           {data.letzteAenderungen.map((v, i) => (
@@ -113,7 +126,7 @@ export function HomePage(): React.ReactElement {
           </div>
 
           {/* Search Index */}
-          <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
+          <div data-tour="suchindex-status" className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
             <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3 uppercase tracking-[0.08em]">Suchindex</p>
             <p className="text-[13px] text-[var(--tf-text-secondary)]">{data.stats.total} Vorgänge indexiert</p>
           </div>

@@ -36,7 +36,7 @@ export function SuchSeite(): React.ReactElement {
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">Suche</h1>
         <div className="relative w-full max-w-xl">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)]" />
-          <input value={query} onChange={e => handleQueryChange(e.target.value)}
+          <input data-tour="search-input" value={query} onChange={e => handleQueryChange(e.target.value)}
             placeholder="Suche nach Vorgängen, Dokumenten..." autoFocus
             className="w-full pl-10 pr-4 py-3 text-[14px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
             style={{ border: '0.5px solid var(--tf-border)' }} />

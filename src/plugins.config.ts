@@ -5,6 +5,7 @@ import { bauantraegePlugin } from '@/plugins/bauantraege';
 import { dokumentePlugin } from '@/plugins/dokumente/index';
 import { chatPlugin } from '@/plugins/chat';
 import { forschungPlugin } from '@/plugins/forschung/index';
+import { suchePlugin } from '@/plugins/suche';
 import { adminPlugin } from '@/plugins/admin';
 
 const allPlugins: TeamFlowPlugin[] = [
@@ -12,6 +13,7 @@ const allPlugins: TeamFlowPlugin[] = [
   bauantraegePlugin,
   forschungPlugin,
   dokumentePlugin,
+  suchePlugin,
   chatPlugin,
   einstellungenPlugin,
   adminPlugin,

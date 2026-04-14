@@ -10,6 +10,9 @@ import { CommandPalette } from '@/ui/CommandPalette';
 import type { CommandItem } from '@/ui/CommandPalette';
 import { setDarkMode, isDarkMode } from '@/ui/theme';
 import { SyncStatusIndicator } from '@/ui/SyncStatusIndicator';
+import { useTourContext } from '@/core/hooks/useTour';
+import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
+import { TourOverlay } from '@/core/components/tour/TourOverlay';
 
 interface ShellProps {
   plugins: TeamFlowPlugin[];
@@ -37,6 +40,8 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+
+  const tour = useTourContext();
 
   const navigate = useCallback((pluginId: string, params?: NavigationParams) => {
     setActiveId(pluginId);
@@ -96,6 +101,7 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} items={commandItems} />
       <div className="flex h-screen overflow-hidden bg-[var(--tf-bg)]">
         <aside
+          data-tour="nav-sidebar"
           className="flex flex-col bg-[var(--tf-bg-sidebar)] transition-all duration-200 overflow-hidden shrink-0"
           style={{ width: sidebarOpen ? 'var(--tf-sidebar-w)' : '0px', borderRight: '0.5px solid var(--tf-border)' }}
         >
@@ -160,6 +166,17 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
           </nav>
 
           <div className="px-2 py-2 shrink-0" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+            <button
+              onClick={() => tour.start()}
+              className="relative flex items-center gap-2 w-full px-3 py-[7px] rounded-[var(--tf-radius)] text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors cursor-pointer mb-1"
+              title="Onboarding-Tour starten"
+            >
+              <Icons.PlayCircle size={14} className="opacity-60" />
+              <span>Neu hier? So geht&apos;s</span>
+              {!tour.hasCompleted && (
+                <span className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full bg-[var(--tf-primary)] animate-pulse" />
+              )}
+            </button>
             <SyncStatusIndicator />
           </div>
         </aside>
@@ -177,6 +194,21 @@ export function Shell({ plugins, department = 'beide' }: ShellProps): React.Reac
           </div>
         </main>
       </div>
+      {(() => {
+        if (!tour.isActive || tour.activeStep === null) return null;
+        const step = TOUR_STEPS[tour.activeStep];
+        if (!step) return null;
+        return (
+          <TourOverlay
+            step={step}
+            stepIndex={tour.activeStep}
+            totalSteps={tour.totalSteps}
+            onNext={tour.next}
+            onPrev={tour.prev}
+            onFinish={tour.finish}
+          />
+        );
+      })()}
     </NavigationContext.Provider>
   );
 }

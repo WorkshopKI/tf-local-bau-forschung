@@ -9,6 +9,8 @@ import { AIBridgeContext } from '@/core/hooks/useAIBridge';
 import { SearchContext, useSearchProvider } from '@/core/hooks/useSearch';
 import { TagContext, useTagProvider } from '@/core/hooks/useTags';
 import { ProfileContext, useProfileProvider } from '@/core/hooks/useProfile';
+import { TourContext, useTour } from '@/core/hooks/useTour';
+import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { ErrorBoundary } from '@/core/ErrorBoundary';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
@@ -23,6 +25,7 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, de
   const searchValue = useSearchProvider(storage);
   const tagValue = useTagProvider(storage);
   const profileValue = useProfileProvider(storage);
+  const tourValue = useTour(TOUR_STEPS.length);
 
   const activeDepartment = profileValue.profile?.department ?? department;
 
@@ -31,11 +34,13 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, de
       <ProfileContext.Provider value={profileValue}>
         <SearchContext.Provider value={searchValue}>
           <TagContext.Provider value={tagValue}>
-            {showOnboarding ? (
-              <Onboarding onComplete={() => setShowOnboarding(false)} />
-            ) : (
-              <Shell plugins={enabledPlugins} department={activeDepartment} />
-            )}
+            <TourContext.Provider value={tourValue}>
+              {showOnboarding ? (
+                <Onboarding onComplete={() => setShowOnboarding(false)} />
+              ) : (
+                <Shell plugins={enabledPlugins} department={activeDepartment} />
+              )}
+            </TourContext.Provider>
           </TagContext.Provider>
         </SearchContext.Provider>
       </ProfileContext.Provider>
