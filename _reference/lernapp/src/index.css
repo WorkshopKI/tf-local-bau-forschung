@@ -1,0 +1,575 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=Sora:wght@200;300;400;500;600&family=Libre+Baskerville:wght@700&family=Manrope:wght@300;400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 48 33.3333% 97.0588%;
+    --foreground: 48 19.6078% 20%;
+
+    --card: 48 33.3333% 97.0588%;
+    --card-foreground: 60 2.5641% 7.6471%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 50.7692 19.4030% 13.1373%;
+
+    --primary: 15.1111 55.5556% 52.3529%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 46.1538 22.8070% 88.8235%;
+    --secondary-foreground: 50.7692 8.4967% 30.0000%;
+
+    --muted: 44.0000 29.4118% 90%;
+    --muted-foreground: 50 3% 40%;
+
+    --accent: 46.1538 22.8070% 88.8235%;
+    --accent-foreground: 50.7692 19.4030% 13.1373%;
+
+    --destructive: 60 2.5641% 7.6471%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 50 7.5000% 84.3137%;
+    --input: 50.7692 7.9755% 68.0392%;
+    --ring: 15.1111 55.5556% 52.3529%;
+
+    --radius: 0.5rem;
+
+    --primary-deep: 15 45% 38%;
+
+    --surface-1: 0 0% 100%;
+    --surface-2: 44 29% 94%;
+    --text-primary: 48 20% 18%;
+    --text-muted: 50 4% 36%;
+    --border-subtle: 48 12% 86%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(18, 65%, 48%), hsl(28, 55%, 52%));
+    --gradient-subtle: linear-gradient(180deg, hsl(25, 20%, 96%), hsl(30, 25%, 92%));
+    --gradient-card: linear-gradient(135deg, hsl(0, 0%, 100%), hsl(30, 30%, 94%));
+
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+    --shadow-glow: 0 0 40px hsla(18, 65%, 48%, 0.30);
+
+    /* ── Lernpfad Stufen-Farben ── */
+    --stufe-1: #6b8cae;
+    --stufe-1-light: #eef3f8;
+    --stufe-1-ring: rgba(107, 140, 174, 0.2);
+    --stufe-2: #7a6ca8;
+    --stufe-2-light: #f0edf5;
+    --stufe-2-ring: rgba(122, 108, 168, 0.2);
+    --stufe-3: #8a6420;
+    --stufe-3-light: #f7f1e3;
+    --stufe-3-ring: rgba(138, 100, 32, 0.2);
+    --stufe-4: #5a8a5a;
+    --stufe-4-light: #edf5ed;
+    --stufe-4-ring: rgba(90, 138, 90, 0.2);
+    --stufe-5: #3a3a3a;
+    --stufe-5-light: #f0f0f0;
+    --stufe-5-ring: rgba(58, 58, 58, 0.15);
+
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --section-gap: 5rem;
+    --content-max-width: 72rem;
+
+    --chart-1: 18.2813 57.1429% 43.9216%;
+
+    --chart-2: 251.4545 84.6154% 74.5098%;
+
+    --chart-3: 46.1538 28.2609% 81.9608%;
+
+    --chart-4: 256.5517 49.1525% 88.4314%;
+
+    --chart-5: 17.7778 60% 44.1176%;
+
+    --sidebar: 30 15% 18%;
+
+    --sidebar-foreground: 40 20% 85%;
+
+    --sidebar-primary: 15 55% 52%;
+
+    --sidebar-primary-foreground: 0 0% 100%;
+
+    --sidebar-accent: 15 35% 35%;
+
+    --sidebar-accent-foreground: 0 0% 98%;
+
+    --sidebar-border: 30 10% 25%;
+
+    --sidebar-ring: 15 55% 52%;
+
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-heading: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+
+    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+
+    --tracking-normal: 0em;
+
+    --spacing: 0.25rem;
+
+    --shadow-x: 0;
+
+    --shadow-y: 1px;
+
+    --shadow-blur: 3px;
+
+    --shadow-spread: 0px;
+
+    --shadow-opacity: 0.1;
+
+    --shadow-color: oklch(0 0 0);
+  }
+
+  .dark {
+    --background: 60 2.7027% 14.5098%;
+    --foreground: 46.1538 9.7744% 73.9216%;
+
+    --card: 60 2.7027% 14.5098%;
+    --card-foreground: 48 33.3333% 97.0588%;
+
+    --popover: 60 2.1277% 18.4314%;
+    --popover-foreground: 60 5.4545% 89.2157%;
+
+    --primary: 14.7692 63.1068% 59.6078%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 48 33.3333% 97.0588%;
+    --secondary-foreground: 60 2.1277% 18.4314%;
+
+    --muted: 60 3.8462% 10.1961%;
+    --muted-foreground: 51 9% 72%;
+
+    --accent: 48 10.6383% 9.2157%;
+    --accent-foreground: 51.4286 25.9259% 94.7059%;
+
+    --destructive: 0 84.2365% 60.1961%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 60 5.0847% 23.1373%;
+    --input: 52.5000 5.1282% 30.5882%;
+    --ring: 14.7692 63.1068% 59.6078%;
+
+    --primary-deep: 15 50% 55%;
+
+    --surface-1: 60 2% 16%;
+    --surface-2: 60 3% 11%;
+    --text-primary: 46 10% 84%;
+    --text-muted: 51 8% 72%;
+    --border-subtle: 60 5% 24%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(18, 60%, 55%), hsl(28, 50%, 55%));
+    --gradient-subtle: linear-gradient(180deg, hsl(20, 25%, 10%), hsl(20, 20%, 14%));
+    --gradient-card: linear-gradient(135deg, hsl(20, 20%, 14%), hsl(20, 18%, 16%));
+
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+    --shadow-glow: 0 0 40px hsla(18, 60%, 55%, 0.35);
+
+    /* ── Lernpfad Stufen-Farben (Dark) ── */
+    --stufe-1: #8da8c4;
+    --stufe-1-light: rgba(107, 140, 174, 0.12);
+    --stufe-1-ring: rgba(141, 168, 196, 0.2);
+    --stufe-2: #9b8ec0;
+    --stufe-2-light: rgba(122, 108, 168, 0.12);
+    --stufe-2-ring: rgba(155, 142, 192, 0.2);
+    --stufe-3: #c4952e;
+    --stufe-3-light: rgba(138, 100, 32, 0.12);
+    --stufe-3-ring: rgba(196, 149, 46, 0.2);
+    --stufe-4: #7aaa7a;
+    --stufe-4-light: rgba(90, 138, 90, 0.12);
+    --stufe-4-ring: rgba(122, 170, 122, 0.2);
+    --stufe-5: #a0a0a0;
+    --stufe-5-light: rgba(160, 160, 160, 0.1);
+    --stufe-5-ring: rgba(160, 160, 160, 0.15);
+
+    --chart-1: 18.2813 57.1429% 43.9216%;
+    --chart-2: 251.4545 84.6154% 74.5098%;
+    --chart-3: 48 10.6383% 9.2157%;
+    --chart-4: 248.2759 25.2174% 22.5490%;
+    --chart-5: 17.7778 60% 44.1176%;
+    --sidebar: 30 12% 14%;
+    --sidebar-foreground: 40 18% 80%;
+    --sidebar-primary: 15 55% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 15 30% 30%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 30 8% 20%;
+    --sidebar-ring: 15 55% 52%;
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-heading: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --radius: 0.5rem;
+    --shadow-x: 0;
+    --shadow-y: 1px;
+    --shadow-blur: 3px;
+    --shadow-spread: 0px;
+    --shadow-opacity: 0.1;
+    --shadow-color: oklch(0 0 0);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ── Playground Layout Utilities ──
+   Semantische Klassen für die verschachtelte Flex-Layout-Kette im Prompt-Labor.
+   Diese Klassen bündeln fehleranfällige CSS-Kombinationen unter sprechenden Namen,
+   damit KI-Agenten sie nicht versehentlich aufbrechen.
+*/
+@layer utilities {
+  /* Scroll-Container: nimmt flex-1 Platz, erlaubt Schrumpfen via min-h-0, scrollt vertikal */
+  .scroll-container {
+    @apply flex-1 min-h-0 overflow-y-auto;
+  }
+  /* Flex-Column-Layout das korrekt schrumpft (h-full + min-h-0 verhindert Overflow) */
+  .flex-col-layout {
+    @apply flex flex-col h-full min-h-0;
+  }
+  /* Flex-Column-Layout ohne feste Höhe — für Kinder die flex-1 nutzen */
+  .flex-col-fill {
+    @apply flex flex-col flex-1 min-h-0;
+  }
+  /* Verhindert horizontale Überläufe bei truncated Text in Flex-Containern */
+  .truncate-safe {
+    @apply min-w-0 truncate;
+  }
+  /* Standard-Card: einheitlicher Card-Stil für alle Seiten.
+     ⚠️ Immer verwenden statt p-5 rounded-xl ... manuell zu schreiben! */
+  .card-section {
+    @apply p-5 rounded-xl border border-border shadow-sm;
+  }
+  /* Playground-Root: Vollbild-Container ohne Body-Scroll.
+     ⚠️ Nur für Playground.tsx verwenden!
+     h-full statt h-screen, da Playground innerhalb von SidebarInset liegt. */
+  .playground-root {
+    @apply h-full flex flex-col overflow-hidden bg-background;
+  }
+  /* Seiten-Titel: einheitlicher Titel für alle Seiten */
+  .page-title {
+    @apply text-2xl font-bold tracking-tight;
+  }
+  /* TODO: Wird für Phase 4 Screen-Ref benötigt — aktuell nicht aktiv */
+  .feedback-ref-mode {
+    cursor: crosshair !important;
+    outline: 2px dashed hsl(var(--primary)) !important;
+    outline-offset: 2px;
+    transition: all 0.15s ease;
+  }
+  .feedback-ref-highlight {
+    outline-style: solid !important;
+    background: hsl(var(--primary) / 0.08) !important;
+  }
+  .feedback-ref-overlay {
+    pointer-events: none;
+  }
+  .feedback-ref-overlay > * {
+    pointer-events: auto;
+  }
+}
+
+/* Schmale Overlay-Scrollbar — nimmt keinen Layout-Platz ein, verhindert Breitensprünge */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 3px;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out forwards;
+}
+
+@keyframes scale-in {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@layer base {
+  .muted-stone-contrast {
+    --background: 42 7% 94%; --foreground: 32 10% 18%; --card: 42 10% 98%; --card-foreground: 32 10% 18%;
+    --primary: 18 28% 42%; --primary-foreground: 0 0% 100%; --muted: 40 8% 90%; --muted-foreground: 31 7% 35%;
+    --border: 32 8% 78%; --input: 32 8% 74%; --ring: 18 28% 42%;
+    --font-heading: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .muted-moss-light {
+    --background: 84 10% 96%;
+    --foreground: 108 10% 18%;
+    --card: 80 8% 99%;
+    --card-foreground: 108 10% 18%;
+    --popover: 80 8% 99%;
+    --popover-foreground: 108 10% 18%;
+    --primary: 142 28% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 90 8% 90%;
+    --secondary-foreground: 108 8% 28%;
+    --muted: 86 8% 92%;
+    --muted-foreground: 108 6% 42%;
+    --accent: 90 8% 90%;
+    --accent-foreground: 108 10% 18%;
+    --destructive: 0 65% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 90 6% 84%;
+    --input: 90 6% 78%;
+    --ring: 142 28% 38%;
+    --primary-deep: 142 30% 32%;
+    --gradient-subtle: linear-gradient(180deg, hsl(84 10% 96%), hsl(86 8% 93%));
+    --gradient-card: linear-gradient(135deg, hsl(80 8% 99%), hsl(84 6% 95%));
+    --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.06), 0 1px 2px hsl(0 0% 0% / 0.04);
+    --font-heading: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    --sidebar: 148 12% 16%;
+    --sidebar-foreground: 120 10% 82%;
+    --sidebar-primary: 142 28% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 142 20% 28%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 140 8% 22%;
+    --sidebar-ring: 142 28% 42%;
+  }
+
+  .silber {
+    --background: 220 6% 93%;
+    --foreground: 220 8% 18%;
+    --card: 220 4% 97%;
+    --card-foreground: 220 8% 18%;
+    --popover: 220 4% 97%;
+    --popover-foreground: 220 8% 18%;
+    --primary: 215 20% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 4% 88%;
+    --secondary-foreground: 220 6% 30%;
+    --muted: 220 4% 89%;
+    --muted-foreground: 220 4% 52%;
+    --accent: 220 4% 88%;
+    --accent-foreground: 220 8% 18%;
+    --destructive: 0 65% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 4% 83%;
+    --input: 220 4% 78%;
+    --ring: 215 20% 42%;
+    --primary-deep: 215 22% 36%;
+    --radius: 0.75rem;
+    --gradient-subtle: linear-gradient(180deg, hsl(220 6% 93%), hsl(220 4% 90%));
+    --gradient-card: linear-gradient(135deg, hsl(220 4% 97%), hsl(220 4% 93%));
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.05), 0 4px 16px hsl(0 0% 0% / 0.02);
+    --shadow-md: 0 1px 3px hsl(0 0% 0% / 0.06), 0 2px 4px hsl(0 0% 0% / 0.04);
+    --font-heading: 'Sora', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Sora', ui-sans-serif, system-ui, sans-serif;
+    --sidebar: 218 12% 16%;
+    --sidebar-foreground: 215 8% 80%;
+    --sidebar-primary: 215 20% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 16% 28%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 218 8% 22%;
+    --sidebar-ring: 215 20% 48%;
+  }
+
+  /* ── Dark variants ── */
+
+  .muted-stone-contrast-dark {
+    --background: 32 8% 12%;
+    --foreground: 32 8% 85%;
+    --card: 32 6% 15%;
+    --card-foreground: 32 8% 90%;
+    --popover: 32 6% 14%;
+    --popover-foreground: 32 8% 88%;
+    --primary: 18 30% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 32 6% 20%;
+    --secondary-foreground: 32 8% 85%;
+    --muted: 32 5% 17%;
+    --muted-foreground: 31 6% 60%;
+    --accent: 32 6% 20%;
+    --accent-foreground: 32 8% 90%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 32 6% 22%;
+    --input: 32 6% 28%;
+    --ring: 18 30% 55%;
+    --primary-deep: 18 32% 58%;
+    --surface-1: 32 6% 14%;
+    --surface-2: 32 5% 10%;
+    --text-primary: 32 8% 88%;
+    --text-muted: 31 6% 60%;
+    --border-subtle: 32 6% 24%;
+    --gradient-primary: linear-gradient(135deg, hsl(18, 35%, 50%), hsl(28, 30%, 52%));
+    --gradient-subtle: linear-gradient(180deg, hsl(32, 8%, 12%), hsl(32, 6%, 10%));
+    --gradient-card: linear-gradient(135deg, hsl(32, 6%, 15%), hsl(32, 5%, 13%));
+    --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.20), 0 1px 2px hsl(0 0% 0% / 0.15);
+    --shadow-md: 0 1px 3px hsl(0 0% 0% / 0.20), 0 2px 4px hsl(0 0% 0% / 0.15);
+    --shadow-lg: 0 1px 3px hsl(0 0% 0% / 0.20), 0 4px 6px hsl(0 0% 0% / 0.15);
+    --shadow-glow: 0 0 40px hsla(18, 30%, 55%, 0.25);
+    --chart-1: 18 30% 50%;
+    --chart-2: 251 60% 65%;
+    --chart-3: 32 8% 20%;
+    --chart-4: 248 25% 30%;
+    --chart-5: 18 40% 48%;
+    --sidebar: 32 6% 10%;
+    --sidebar-foreground: 32 8% 80%;
+    --sidebar-primary: 18 30% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 15 30% 30%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 32 6% 20%;
+    --sidebar-ring: 15 55% 52%;
+    --font-heading: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .muted-moss-light-dark {
+    --background: 100 8% 11%;
+    --foreground: 90 8% 85%;
+    --card: 100 6% 14%;
+    --card-foreground: 90 8% 90%;
+    --popover: 100 6% 13%;
+    --popover-foreground: 90 8% 88%;
+    --primary: 132 20% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 100 6% 18%;
+    --secondary-foreground: 90 8% 85%;
+    --muted: 100 5% 16%;
+    --muted-foreground: 100 5% 58%;
+    --accent: 100 6% 18%;
+    --accent-foreground: 90 8% 90%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 95 6% 20%;
+    --input: 95 6% 26%;
+    --ring: 132 20% 52%;
+    --primary-deep: 132 22% 55%;
+    --surface-1: 100 6% 13%;
+    --surface-2: 100 5% 9%;
+    --text-primary: 90 8% 88%;
+    --text-muted: 100 5% 58%;
+    --border-subtle: 95 6% 22%;
+    --gradient-primary: linear-gradient(135deg, hsl(132, 22%, 48%), hsl(120, 18%, 50%));
+    --gradient-subtle: linear-gradient(180deg, hsl(100, 8%, 11%), hsl(100, 6%, 9%));
+    --gradient-card: linear-gradient(135deg, hsl(100, 6%, 14%), hsl(100, 5%, 12%));
+    --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.20), 0 1px 2px hsl(0 0% 0% / 0.15);
+    --shadow-md: 0 1px 3px hsl(0 0% 0% / 0.20), 0 2px 4px hsl(0 0% 0% / 0.15);
+    --shadow-lg: 0 1px 3px hsl(0 0% 0% / 0.20), 0 4px 6px hsl(0 0% 0% / 0.15);
+    --shadow-glow: 0 0 40px hsla(132, 20%, 52%, 0.25);
+    --chart-1: 132 20% 48%;
+    --chart-2: 251 60% 65%;
+    --chart-3: 100 8% 18%;
+    --chart-4: 248 25% 30%;
+    --chart-5: 132 30% 45%;
+    --sidebar: 148 10% 9%;
+    --sidebar-foreground: 120 8% 78%;
+    --sidebar-primary: 142 24% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 142 18% 22%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 140 6% 16%;
+    --sidebar-ring: 142 24% 48%;
+    --font-heading: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .silber-dark {
+    --background: 220 4% 10%;
+    --foreground: 220 4% 85%;
+    --card: 220 3% 13%;
+    --card-foreground: 220 4% 88%;
+    --popover: 220 3% 12%;
+    --popover-foreground: 220 4% 86%;
+    --primary: 215 18% 58%;
+    --primary-foreground: 220 8% 10%;
+    --secondary: 220 3% 18%;
+    --secondary-foreground: 220 4% 85%;
+    --muted: 220 3% 16%;
+    --muted-foreground: 220 3% 55%;
+    --accent: 220 3% 18%;
+    --accent-foreground: 220 4% 88%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 3% 20%;
+    --input: 220 3% 25%;
+    --ring: 215 18% 58%;
+    --primary-deep: 215 20% 60%;
+    --surface-1: 220 3% 12%;
+    --surface-2: 220 3% 8%;
+    --text-primary: 220 4% 88%;
+    --text-muted: 220 3% 55%;
+    --border-subtle: 220 3% 22%;
+    --gradient-subtle: linear-gradient(180deg, hsl(220 4% 10%), hsl(220 3% 8%));
+    --gradient-card: linear-gradient(135deg, hsl(220 3% 13%), hsl(220 3% 11%));
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.25), 0 4px 16px hsl(0 0% 0% / 0.10);
+    --shadow-md: 0 1px 3px hsl(0 0% 0% / 0.25), 0 2px 4px hsl(0 0% 0% / 0.15);
+    --shadow-lg: 0 1px 3px hsl(0 0% 0% / 0.25), 0 4px 6px hsl(0 0% 0% / 0.15);
+    --shadow-glow: 0 0 40px hsla(215, 18%, 58%, 0.15);
+    --chart-1: 215 15% 50%;
+    --chart-2: 215 10% 65%;
+    --chart-3: 220 3% 18%;
+    --chart-4: 220 5% 30%;
+    --chart-5: 215 12% 45%;
+    --sidebar: 218 10% 8%;
+    --sidebar-foreground: 215 6% 76%;
+    --sidebar-primary: 215 18% 58%;
+    --sidebar-primary-foreground: 220 8% 10%;
+    --sidebar-accent: 215 14% 20%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 218 6% 16%;
+    --sidebar-ring: 215 18% 58%;
+    --radius: 0.75rem;
+    --font-heading: 'Sora', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  }
+
+}

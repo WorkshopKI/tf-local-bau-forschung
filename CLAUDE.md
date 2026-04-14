@@ -81,16 +81,19 @@ Integriertes User-Feedback + Admin-Dashboard + öffentliches Board mit Sponsorin
 
 **User-Komponenten** (`src/components/feedback/`):
 - `FeedbackButton.tsx` — globaler FAB (z-index 40, bottom-right). Wird in `Shell.tsx` gerendert (innerhalb NavigationContext) und ist während aktiver Tour ausgeblendet.
-- `FeedbackPanel.tsx` — 3-Step-Wizard (Kategorie → Details → Bestätigung) + optional Chatbot. Bereich-Dropdown statt visuellem Picker.
-- `FeedbackChatbot.tsx` — Multi-Turn-LLM-Dialog via `transport.submitConversation()`. Bei Streamlit-Transport: freundliche Meldung + Navigation zu Einstellungen.
+- `FeedbackPanel.tsx` — 2-Step-Flow (Input → Bestätigung) + optional Chatbot. Panel öffnet direkt im Textfeld ("Was möchtest du uns mitteilen?"), keine Kategorie-Auswahl mehr. Unter dem Textarea drei Quick-Tag-Chips (aus `QUICK_TAGS` in `constants.ts`) die beim Klick einen Starter-Text vorfüllen und Cursor ans Ende setzen. Tags verschwinden nach Klick oder beim ersten Tippen. Bereich-Dropdown bleibt optional. Sterne-Rating entfernt. Bestätigungs-Step-Button heißt jetzt "Details ergänzen" (öffnet Chatbot mit Originaltext).
+- `FeedbackChatbot.tsx` — Multi-Turn-LLM-Dialog via `transport.submitConversation()`. Bei Streamlit-Transport: freundliche Meldung + Navigation zu Einstellungen. Überschreibt Auto-Klassifikation mit dialogbasierter Klassifikation + `user_confirmed: true`.
 - `FeedbackConfirmCard.tsx` — Yes/No auf LLM-generierte JSON-Summary.
-- `FaqSuggestions.tsx` — Inline FAQ-Vorschläge bei Kategorie "Frage" (debounced 500ms, Wort-Overlap ≥2, Stoppwörter ignoriert).
-- `MyFeedbackList.tsx` — eigener Verlauf (gefiltert nach `user_id == profile.name`).
-- `constants.ts` — `TEAMFLOW_AREAS`, Category/Status-Labels + Tailwind-Color-Maps.
+- `FaqSuggestions.tsx` — Inline FAQ-Vorschläge **immer** (debounced 500ms, Wort-Overlap ≥2, Stoppwörter ignoriert). Erscheint direkt nach dem Textarea (zwischen Textfeld und Quick-Tags).
+- `MyFeedbackList.tsx` — eigener Verlauf (gefiltert nach `user_id == profile.name`). Zeigt "Unklassifiziert" für Tickets ohne `category` (LLM-Call fehlgeschlagen oder noch nicht fertig).
+- `constants.ts` — `TEAMFLOW_AREAS`, Category/Status-Labels + Tailwind-Color-Maps, **`QUICK_TAGS`** (3 Chip-Vorlagen), **`LLM_CATEGORY_MAP`** (bug→problem, feature→idea, ux→idea, praise→praise, question→question).
+
+**Auto-Klassifikation (fire-and-forget)**:
+Nach Absenden im FeedbackPanel startet `autoClassifyFeedback(transport, text, context, area?)` einen Single-Turn-LLM-Call (`transport.submitMessage` mit kurzem `CLASSIFICATION_PROMPT`, `thinkingBudget: 'low'`). Bei Erfolg: `updateFeedback` setzt `llm_classification`, `llm_summary`, `category` (via `LLM_CATEGORY_MAP`). Bei Fehler/Streamlit: Ticket bleibt ohne Kategorie (Badge "Unklassifiziert"), kein Error-Toast. UI wartet nicht auf den Call — Bestätigungs-Step erscheint sofort.
 
 **Service-Layer** (`src/core/services/feedback/`):
-- `feedbackService.ts` — CRUD: localStorage primär (`teamflow_feedback_items`) + Shared-File-Sync (`feedback/feedback.json` im Datenverzeichnis). Merge-by-id (User-Felder lokal, Admin-Felder shared-wins). FAQ-Helpers (`matchFaqEntries`, `createStandaloneFaq`, `bumpFaqAskCount`).
-- `feedbackLlm.ts` — `loadSystemPrompt(storage)` liest `feedback/system-prompt.md` (Fallback `DEFAULT_SYSTEM_PROMPT`). `buildFeedbackSystemPrompt(template, context)` ersetzt `{{PAGE}}`/`{{ROUTE}}`/`{{DEVICE}}`/`{{VIEWPORT}}`/`{{LAST_ACTION}}`/`{{SESSION_MINUTES}}`/`{{ERRORS}}`. 3 Parser portiert verbatim aus Referenz: `parseFeedbackSummary`, `parseBotResponse`, `renderSimpleMarkdown`. `initSystemPromptFile(storage)` schreibt Default-Template ins Datenverzeichnis (Button im Admin-Config-Panel).
+- `feedbackService.ts` — CRUD: localStorage primär (`teamflow_feedback_items`) + Shared-File-Sync (`feedback/feedback.json` im Datenverzeichnis). Merge-by-id (User-Felder lokal, Admin-Felder shared-wins). FAQ-Helpers (`matchFaqEntries`, `createStandaloneFaq`, `bumpFaqAskCount`). `updateFeedback` Pick-Whitelist enthält `category` (damit Auto-Klassifikation das Feld nachträglich setzen kann).
+- `feedbackLlm.ts` — `loadSystemPrompt(storage)` liest `feedback/system-prompt.md` (Fallback `DEFAULT_SYSTEM_PROMPT`). `buildFeedbackSystemPrompt(template, context)` ersetzt `{{PAGE}}`/`{{ROUTE}}`/`{{DEVICE}}`/`{{VIEWPORT}}`/`{{LAST_ACTION}}`/`{{SESSION_MINUTES}}`/`{{ERRORS}}`. 3 Parser portiert verbatim aus Referenz: `parseFeedbackSummary`, `parseBotResponse`, `renderSimpleMarkdown`. `initSystemPromptFile(storage)` schreibt Default-Template ins Datenverzeichnis (Button im Admin-Config-Panel). **`autoClassifyFeedback(transport, text, context, area?)`** + **`CLASSIFICATION_PROMPT`** (kurzer JSON-only-Prompt für stille Hintergrund-Klassifikation).
 - `feedbackContext.ts` — `captureFeedbackContext(activeId, activeName)` + Ring-Buffer für `window.onerror`/`unhandledrejection` (max 5).
 - `promptGenerator.ts` — `generateClaudeCodePrompt(ticket)` mit TeamFlow-Constraints-Block (file://, Single-File-Build, Tailwind v4, React 19, Zustand, lucide-react, Deutsche UI, CLAUDE.md primär).
 
@@ -150,6 +153,7 @@ Integriertes User-Feedback + Admin-Dashboard + öffentliches Board mit Sponsorin
 - Sync-Konflikt: Last-writer-wins bei concurrent Schreibzugriff auf `feedback.json` (akzeptabel bei niedriger Frequenz)
 - Budget (`teamflow_user_budget_v1_{userId}`) liegt in localStorage pro Gerät — User bekommt bei Browserwechsel neues 10-Punkte-Budget (Doppel-Sponsoring-Vektor theoretisch möglich, bei 5-15 User aber kein reales Problem)
 - Budget-Statistik im Admin-Tab nur dieser Browser (für team-weite Stats müsste Shared-Storage ergänzt werden — out of scope)
+- `FeedbackItem.category` ist **optional** (`category?: FeedbackCategory`) — Tickets ohne LLM-Klassifikation (Streamlit-Transport, LLM-Fehler, ungültige Modell-Config) erscheinen als "Unklassifiziert". Admin-Dashboard + MyFeedbackList + Board-Cards zeigen Fallback-Badge "Unklassifiziert" bei undefined.
 
 ### Referenz-App
 In `_reference/lernapp/` liegt eine geklonte Referenz-Implementierung (KI-Prompting-Tutor). Wird NICHT gebaut oder deployed — dient ausschließlich als Code-Referenz für die Portierung von Features (Feedback-System, Onboarding-Tour). Vite ignoriert diesen Ordner (`server.watch.ignored`).

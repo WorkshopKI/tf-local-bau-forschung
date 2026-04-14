@@ -79,7 +79,8 @@ export interface FeedbackItem {
   created_at: string;
   user_id: string;
   user_display_name?: string;
-  category: FeedbackCategory;
+  /** Optional: wird vom LLM per autoClassifyFeedback() gesetzt (kein User-Input mehr). */
+  category?: FeedbackCategory;
   stars?: number;
   text: string;
   context: FeedbackContext;

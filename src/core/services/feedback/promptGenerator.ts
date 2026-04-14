@@ -38,7 +38,7 @@ export function generateClaudeCodePrompt(ticket: FeedbackItem): string {
 
 Aktueller Stand siehe \`CLAUDE.md\`.
 Betrifft: **${affectedArea}**
-Kategorie: **${CATEGORY_LABELS_DE[category] ?? category}**
+Kategorie: **${category ? (CATEGORY_LABELS_DE[category] ?? category) : 'Unklassifiziert'}**
 
 ## Anforderung (aus Nutzerfeedback #${ticket.id})
 

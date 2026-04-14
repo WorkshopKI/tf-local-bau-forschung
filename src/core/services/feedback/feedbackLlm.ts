@@ -5,6 +5,7 @@
 
 import { createElement } from 'react';
 import type { StorageService } from '@/core/services/storage';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import type {
   BotParseResult,
   FeedbackContext,
@@ -171,4 +172,49 @@ export function renderSimpleMarkdown(text: string): React.ReactNode[] {
     }
     return createElement('span', { key: i }, part);
   });
+}
+
+// ── Auto-Klassifikation (Single-Turn, fire-and-forget) ───────────────────────
+
+export const CLASSIFICATION_PROMPT = `Du klassifizierst Nutzer-Feedback für die App "TeamFlow" (Dokumentenverwaltung für kommunale Behörden).
+
+Antworte NUR mit einem \`\`\`json-Block, keine weiteren Sätze, keine Erklärungen:
+
+\`\`\`json
+{
+  "category": "bug | feature | ux | praise | question",
+  "summary": "1-2 Sätze Zusammenfassung, ggf. präziser als der Originaltext",
+  "details": "kurze Ausführung oder leer",
+  "affectedArea": "App-Bereich (z.B. suche, bauantraege, dashboard)",
+  "priority_suggestion": 3
+}
+\`\`\``;
+
+/**
+ * Stille Hintergrund-Klassifikation eines User-Feedbacks via LLM.
+ * Single-Turn, non-streaming, fire-and-forget.
+ * Returns null bei Streamlit-Transport, API-Fehler, oder unparsbarer Antwort.
+ */
+export async function autoClassifyFeedback(
+  transport: AITransport,
+  text: string,
+  context: FeedbackContext,
+  area?: string,
+): Promise<LLMClassification | null> {
+  if (typeof transport.submitMessage !== 'function') return null;
+  // Streamlit-Transport unterstützt zwar submitMessage, aber keine deterministische JSON-Klassifikation
+  if (transport.name === 'Streamlit') return null;
+
+  const areaHint = area || context.page;
+  const userPrompt = `Feedback-Text: "${text}"\nApp-Bereich: ${areaHint}`;
+
+  try {
+    const raw = await transport.submitMessage(userPrompt, CLASSIFICATION_PROMPT, {
+      thinkingBudget: 'low',
+    });
+    return parseFeedbackSummary(raw);
+  } catch (err) {
+    console.warn('[autoClassifyFeedback] LLM call failed:', err);
+    return null;
+  }
 }

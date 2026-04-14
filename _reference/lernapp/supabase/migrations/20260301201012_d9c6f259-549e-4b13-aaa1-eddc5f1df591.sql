@@ -1,0 +1,1 @@
+ALTER TABLE user_profiles ADD COLUMN preferred_model text DEFAULT 'google/gemini-3-flash-preview';

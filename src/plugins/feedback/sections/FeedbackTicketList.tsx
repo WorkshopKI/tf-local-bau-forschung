@@ -57,7 +57,7 @@ export function FeedbackTicketList(props: Props): React.ReactElement {
         {loading && <p className="text-[12px] text-[var(--tf-text-tertiary)] text-center py-4">Lade Tickets…</p>}
         {!loading && tickets.length === 0 && <p className="text-[12px] text-[var(--tf-text-tertiary)] text-center py-4">Keine Tickets gefunden.</p>}
         {tickets.map(ticket => {
-          const Icon = getIcon(CATEGORY_ICONS[ticket.category]);
+          const Icon = getIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
           const summary = ticket.llm_summary || ticket.text || '–';
           const isSelected = selectedId === ticket.id;
           const date = new Date(ticket.created_at).toLocaleDateString('de-DE');
@@ -81,9 +81,9 @@ export function FeedbackTicketList(props: Props): React.ReactElement {
               }}
             >
               <div className="flex items-center justify-between gap-2 mb-1">
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10.5px] font-medium ${CATEGORY_COLORS[ticket.category]}`}>
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10.5px] font-medium ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
                   <Icon size={11} />
-                  {CATEGORY_LABELS[ticket.category]}
+                  {ticket.category ? CATEGORY_LABELS[ticket.category] : 'Unklassifiziert'}
                 </span>
                 {ticket.is_faq && (
                   <span className="text-[9.5px] px-1 rounded bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)] font-medium">FAQ</span>

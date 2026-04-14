@@ -31,7 +31,7 @@ interface Props {
 
 export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.ReactElement {
   const [sponsorsExpanded, setSponsorsExpanded] = useState(false);
-  const Icon = getIcon(CATEGORY_ICONS[ticket.category]);
+  const Icon = getIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const summary = ticket.llm_summary || ticket.text || '–';
   const isFeature = ticket.category === 'idea';
   const hasEffort = !!ticket.effort_estimate;
@@ -50,8 +50,8 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
         <div className="flex-1 min-w-0">
           <p className="text-[13.5px] text-[var(--tf-text)] font-medium leading-snug">{summary}</p>
           <div className="flex flex-wrap items-center gap-1.5 mt-1">
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${CATEGORY_COLORS[ticket.category]}`}>
-              {CATEGORY_LABELS[ticket.category]}
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
+              {ticket.category ? CATEGORY_LABELS[ticket.category] : 'Unklassifiziert'}
             </span>
             <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${STATUS_COLORS[ticket.admin_status]}`}>
               {STATUS_LABELS[ticket.admin_status]}

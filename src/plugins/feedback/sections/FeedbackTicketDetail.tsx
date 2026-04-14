@@ -147,8 +147,8 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${CATEGORY_COLORS[ticket.category]}`}>
-            {CATEGORY_LABELS[ticket.category]}
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
+            {ticket.category ? CATEGORY_LABELS[ticket.category] : 'Unklassifiziert'}
           </span>
           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${STATUS_COLORS[ticket.admin_status]}`}>
             {STATUS_LABELS[ticket.admin_status]}

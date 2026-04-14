@@ -55,7 +55,7 @@ export function MyFeedbackList(): React.ReactElement {
   return (
     <div className="space-y-2">
       {items.map(item => {
-        const Icon = getIcon(CATEGORY_ICONS[item.category] ?? 'MessageCircle');
+        const Icon = getIcon(item.category ? CATEGORY_ICONS[item.category] : 'MessageCircle');
         const summary = item.llm_summary || item.text || '–';
         return (
           <div
@@ -69,7 +69,7 @@ export function MyFeedbackList(): React.ReactElement {
                 <p className="text-[12.5px] text-[var(--tf-text)] leading-snug line-clamp-2">{summary}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
-                    {CATEGORY_LABELS[item.category]} · {formatRelative(item.created_at)}
+                    {item.category ? CATEGORY_LABELS[item.category] : 'Unklassifiziert'} · {formatRelative(item.created_at)}
                   </span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${STATUS_COLORS[item.admin_status]}`}>
                     {STATUS_LABELS[item.admin_status]}

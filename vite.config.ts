@@ -3,10 +3,8 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import path from 'path';
-
 export default defineConfig(({ mode }) => {
   const isSingle = mode === 'single';
-
   return {
     plugins: [
       react(),
@@ -24,6 +22,11 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+      },
+    },
+    server: {
+      watch: {
+        ignored: ['**/_reference/**'],
       },
     },
   };

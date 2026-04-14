@@ -1,54 +1,49 @@
-// Feedback-Panel: 3 Steps (Kategorie → Details → Bestätigung) + optional Chatbot + "Mein Feedback"-Tab.
+// Feedback-Panel: 2-Step-Flow (Input → Bestätigung) + optional Chatbot + "Mein Feedback"-Tab.
 // Slide-in von rechts unten, Schließen via Escape oder X.
+// Kategorie-Klassifikation erfolgt stumm im Hintergrund via autoClassifyFeedback() nach Absenden.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import * as Icons from 'lucide-react';
-import { ArrowLeft, Check, ChevronDown, ChevronRight, MessageSquare, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Check, ChevronDown, ChevronRight, MessageSquare, X } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useNavigation } from '@/core/hooks/useNavigation';
+import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { enabledPlugins } from '@/plugins.config';
-import { captureFeedbackContext, submitFeedback } from '@/core/services/feedback';
-import type { FeedbackCategory, FeedbackContext, FeedbackItem } from '@/core/types/feedback';
-import { CATEGORY_ICONS, CATEGORY_LABELS, TEAMFLOW_AREAS } from './constants';
+import {
+  autoClassifyFeedback,
+  captureFeedbackContext,
+  submitFeedback,
+  updateFeedback,
+} from '@/core/services/feedback';
+import type { FeedbackContext, FeedbackItem } from '@/core/types/feedback';
+import { LLM_CATEGORY_MAP, QUICK_TAGS, TEAMFLOW_AREAS } from './constants';
 import { FaqSuggestions } from './FaqSuggestions';
 import { MyFeedbackList } from './MyFeedbackList';
 import { FeedbackChatbot } from './FeedbackChatbot';
-
-type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
-function getIcon(name: string): IconComponent {
-  const icon = (Icons as Record<string, unknown>)[name];
-  if (typeof icon === 'object' && icon !== null) return icon as IconComponent;
-  return Icons.MessageCircle;
-}
 
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
-type View = 'category' | 'details' | 'confirm' | 'chatbot' | 'my-feedback';
-
-const CATEGORIES: FeedbackCategory[] = ['praise', 'problem', 'idea', 'question'];
+type View = 'input' | 'confirm' | 'chatbot' | 'my-feedback';
 
 export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | null {
   const storage = useStorage();
   const { profile } = useProfile();
   const { activeId } = useNavigation();
+  const bridge = useAIBridge();
 
-  const [view, setView] = useState<View>('category');
-  const [category, setCategory] = useState<FeedbackCategory | null>(null);
+  const [view, setView] = useState<View>('input');
   const [text, setText] = useState('');
-  const [stars, setStars] = useState(0);
   const [areaRef, setAreaRef] = useState('');
   const [showContext, setShowContext] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submittedItem, setSubmittedItem] = useState<FeedbackItem | null>(null);
   const [context, setContext] = useState<FeedbackContext | null>(null);
+  const [quickTagsVisible, setQuickTagsVisible] = useState(true);
 
-  const activePluginName = useMemo(() => {
-    return enabledPlugins.find(p => p.id === activeId)?.name ?? activeId ?? 'Unbekannt';
-  }, [activeId]);
+  const activePluginName = enabledPlugins.find(p => p.id === activeId)?.name ?? activeId ?? 'Unbekannt';
 
   // ESC-Handler
   useEffect(() => {
@@ -60,28 +55,21 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  // Reset beim Öffnen
+  // Reset + Context-Capture beim Öffnen
   useEffect(() => {
     if (open) {
-      setView('category');
-      setCategory(null);
+      setView('input');
       setText('');
-      setStars(0);
       setAreaRef('');
       setShowContext(false);
       setSubmittedItem(null);
-      setContext(null);
+      setQuickTagsVisible(true);
+      setContext(captureFeedbackContext(activeId, activePluginName));
     }
-  }, [open]);
-
-  const handleCategorySelect = useCallback((cat: FeedbackCategory) => {
-    setCategory(cat);
-    setContext(captureFeedbackContext(activeId, activePluginName));
-    setView('details');
-  }, [activeId, activePluginName]);
+  }, [open, activeId, activePluginName]);
 
   const handleSubmit = useCallback(async () => {
-    if (!category || !text.trim() || !context) return;
+    if (!text.trim() || !context) return;
     setSubmitting(true);
     try {
       const userId = profile?.name ?? 'anonymous';
@@ -94,19 +82,31 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
       const item = await submitFeedback(storage, {
         user_id: userId,
         user_display_name: profile?.name,
-        category,
-        stars: category === 'praise' && stars > 0 ? stars : undefined,
+        // category bewusst weggelassen — wird vom LLM per autoClassifyFeedback gesetzt
         text: text.trim(),
         context: fullContext,
       });
       setSubmittedItem(item);
       setView('confirm');
+
+      // Fire-and-forget Hintergrund-Klassifikation (blockiert UI nicht)
+      const transport = bridge.getActiveTransport();
+      void autoClassifyFeedback(transport, text.trim(), fullContext, areaRef || undefined)
+        .then((classification) => {
+          if (!classification) return;
+          const mappedCategory = LLM_CATEGORY_MAP[classification.category];
+          return updateFeedback(storage, item.id, {
+            llm_classification: classification,
+            llm_summary: classification.summary,
+            ...(mappedCategory ? { category: mappedCategory } : {}),
+          });
+        });
     } catch (err) {
       console.error('[FeedbackPanel] submit failed', err);
     } finally {
       setSubmitting(false);
     }
-  }, [category, text, stars, areaRef, context, profile, storage]);
+  }, [text, areaRef, context, profile, storage, bridge]);
 
   if (!open) return null;
 
@@ -120,10 +120,10 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
         <div className="flex items-center gap-2">
-          {view !== 'category' && view !== 'my-feedback' && (
+          {view !== 'input' && view !== 'my-feedback' && (
             <button
               type="button"
-              onClick={() => setView('category')}
+              onClick={() => setView('input')}
               className="p-1 rounded hover:bg-[var(--tf-hover)] cursor-pointer text-[var(--tf-text-tertiary)]"
               aria-label="Zurück"
             >
@@ -146,27 +146,20 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
-        {view === 'category' && (
-          <CategoryStep
-            onSelect={handleCategorySelect}
-            onShowMyFeedback={() => setView('my-feedback')}
-          />
-        )}
-
-        {view === 'details' && category && context && (
-          <DetailsStep
-            category={category}
+        {view === 'input' && context && (
+          <InputStep
             text={text}
             setText={setText}
-            stars={stars}
-            setStars={setStars}
             areaRef={areaRef}
             setAreaRef={setAreaRef}
             context={context}
             showContext={showContext}
             setShowContext={setShowContext}
             submitting={submitting}
+            quickTagsVisible={quickTagsVisible}
+            setQuickTagsVisible={setQuickTagsVisible}
             onSubmit={handleSubmit}
+            onShowMyFeedback={() => setView('my-feedback')}
           />
         )}
 
@@ -190,7 +183,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
           <div className="p-3">
             <button
               type="button"
-              onClick={() => setView('category')}
+              onClick={() => setView('input')}
               className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-3 inline-flex items-center gap-1 cursor-pointer"
             >
               <ArrowLeft size={12} /> Neues Feedback
@@ -205,90 +198,85 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
 
 // ── Sub-Komponenten ──────────────────────────────────────────────────────────
 
-function CategoryStep({ onSelect, onShowMyFeedback }: { onSelect: (c: FeedbackCategory) => void; onShowMyFeedback: () => void }): React.ReactElement {
-  return (
-    <div className="p-3.5 space-y-3">
-      <p className="text-[12.5px] text-[var(--tf-text-secondary)]">Was möchtest du teilen?</p>
-      <div className="grid grid-cols-2 gap-2">
-        {CATEGORIES.map(cat => {
-          const Icon = getIcon(CATEGORY_ICONS[cat]);
-          return (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => onSelect(cat)}
-              className="flex flex-col items-center gap-1.5 py-3 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] hover:border-[var(--tf-primary)] transition-colors cursor-pointer"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              <Icon size={18} className="text-[var(--tf-primary)]" />
-              <span className="text-[12.5px] text-[var(--tf-text)]">{CATEGORY_LABELS[cat]}</span>
-            </button>
-          );
-        })}
-      </div>
-      <button
-        type="button"
-        onClick={onShowMyFeedback}
-        className="w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-[var(--tf-radius)] text-[11.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-      >
-        <MessageSquare size={12} /> Mein Feedback ansehen
-      </button>
-    </div>
-  );
-}
-
-interface DetailsProps {
-  category: FeedbackCategory;
+interface InputStepProps {
   text: string;
   setText: (v: string) => void;
-  stars: number;
-  setStars: (v: number) => void;
   areaRef: string;
   setAreaRef: (v: string) => void;
   context: FeedbackContext;
   showContext: boolean;
   setShowContext: (v: boolean) => void;
   submitting: boolean;
+  quickTagsVisible: boolean;
+  setQuickTagsVisible: (v: boolean) => void;
   onSubmit: () => void;
+  onShowMyFeedback: () => void;
 }
 
-function DetailsStep(props: DetailsProps): React.ReactElement {
-  const { category, text, setText, stars, setStars, areaRef, setAreaRef, context, showContext, setShowContext, submitting, onSubmit } = props;
+function InputStep(props: InputStepProps): React.ReactElement {
+  const {
+    text, setText, areaRef, setAreaRef, context,
+    showContext, setShowContext, submitting,
+    quickTagsVisible, setQuickTagsVisible,
+    onSubmit, onShowMyFeedback,
+  } = props;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleQuickTag = (prefix: string): void => {
+    setText(prefix);
+    setQuickTagsVisible(false);
+    // Focus + Cursor ans Ende
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(prefix.length, prefix.length);
+      }
+    });
+  };
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
+    setText(e.target.value);
+    if (quickTagsVisible && e.target.value.length > 0) {
+      setQuickTagsVisible(false);
+    }
+  };
+
+  const showQuickTags = quickTagsVisible && !text.trim();
+
   return (
     <div className="p-3.5 space-y-3">
-      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
-        {CATEGORY_LABELS[category]}
-      </div>
-
-      {category === 'praise' && (
-        <div className="flex items-center gap-1">
-          {[1, 2, 3, 4, 5].map(n => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setStars(n)}
-              className="cursor-pointer"
-              aria-label={`${n} Sterne`}
-            >
-              <Star
-                size={20}
-                className={n <= stars ? 'fill-amber-400 text-amber-400' : 'text-[var(--tf-text-tertiary)]'}
-              />
-            </button>
-          ))}
-        </div>
-      )}
+      <label className="text-[12.5px] text-[var(--tf-text-secondary)] block">
+        Was möchtest du uns mitteilen?
+      </label>
 
       <textarea
+        ref={textareaRef}
         value={text}
-        onChange={e => setText(e.target.value)}
-        placeholder="Beschreibe kurz…"
-        rows={4}
+        onChange={handleTextChange}
+        placeholder="Schreib einfach los…"
+        rows={5}
         className="w-full px-2.5 py-2 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none resize-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
         style={{ border: '0.5px solid var(--tf-border)' }}
       />
 
-      {category === 'question' && <FaqSuggestions input={text} />}
+      <FaqSuggestions input={text} />
+
+      {showQuickTags && (
+        <div className="flex flex-wrap gap-1.5">
+          {QUICK_TAGS.map(tag => (
+            <button
+              key={tag.label}
+              type="button"
+              onClick={() => handleQuickTag(tag.prefix)}
+              className="px-2 py-1 rounded-full text-[11.5px] text-[var(--tf-text-secondary)] bg-transparent hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer transition-colors"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+            >
+              {tag.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <label className="text-[11px] text-[var(--tf-text-tertiary)]">Bereich (optional)</label>
@@ -330,6 +318,14 @@ function DetailsStep(props: DetailsProps): React.ReactElement {
       >
         {submitting ? 'Wird gesendet…' : 'Absenden'}
       </button>
+
+      <button
+        type="button"
+        onClick={onShowMyFeedback}
+        className="w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-[var(--tf-radius)] text-[11.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+      >
+        <MessageSquare size={12} /> Mein Feedback ansehen
+      </button>
     </div>
   );
 }
@@ -341,14 +337,14 @@ function ConfirmStep({ onChatbot, onDone }: { onChatbot: () => void; onDone: () 
         <Check size={22} className="text-[var(--tf-success-text)]" />
       </div>
       <p className="text-[14px] font-medium text-[var(--tf-text)]">Danke für dein Feedback!</p>
-      <p className="text-[12.5px] text-[var(--tf-text-secondary)]">Möchtest du es im Chat noch präzisieren?</p>
+      <p className="text-[12.5px] text-[var(--tf-text-secondary)]">Möchtest du Details ergänzen?</p>
       <div className="flex gap-2 justify-center pt-1">
         <button
           type="button"
           onClick={onChatbot}
           className="px-3 py-1.5 rounded-[var(--tf-radius)] text-[12.5px] bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer"
         >
-          Zum Chatbot
+          Details ergänzen
         </button>
         <button
           type="button"

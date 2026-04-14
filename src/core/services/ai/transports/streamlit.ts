@@ -9,10 +9,15 @@ export interface ConversationOptions {
   maxTokens?: number;
 }
 
+export interface SubmitMessageOptions {
+  thinkingBudget?: 'none' | 'low' | 'medium' | 'high';
+  responseFormat?: Record<string, unknown>;
+}
+
 export interface AITransport {
   name: string;
   ping(): Promise<boolean>;
-  submitMessage(message: string, systemPrompt?: string): Promise<string>;
+  submitMessage(message: string, systemPrompt?: string, options?: SubmitMessageOptions): Promise<string>;
   /** Optional: Multi-Turn-Chat. Nur DirectLLMTransport implementiert das aktuell.
    *  Components nutzen Feature-Detection (`if (transport.submitConversation) ...`). */
   submitConversation?(messages: ConversationMessage[], options?: ConversationOptions): Promise<string>;

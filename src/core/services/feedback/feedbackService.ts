@@ -159,6 +159,7 @@ export async function updateFeedback(
   updates: Partial<Pick<
     FeedbackItem,
     'admin_status' | 'admin_notes' | 'admin_priority' | 'generated_prompt'
+    | 'category'
     | 'llm_summary' | 'llm_classification' | 'user_confirmed'
     | 'is_faq' | 'faq_answer' | 'faq_keywords' | 'faq_ask_count'
     | 'effort_estimate' | 'effort_hours'

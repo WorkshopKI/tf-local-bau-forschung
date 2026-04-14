@@ -68,3 +68,15 @@ export const LLM_CATEGORY_MAP: Record<string, FeedbackCategory> = {
   praise: 'praise',
   question: 'question',
 };
+
+/** Quick-Tags unter dem Feedback-Textfeld: Klick füllt Textarea vor. */
+export interface QuickTag {
+  label: string;
+  prefix: string;
+}
+
+export const QUICK_TAGS: readonly QuickTag[] = [
+  { label: 'Etwas funktioniert nicht', prefix: 'Etwas funktioniert nicht: ' },
+  { label: 'Ich wünsche mir…', prefix: 'Ich wünsche mir ' },
+  { label: 'Finde ich gut!', prefix: 'Ich finde gut, dass ' },
+] as const;
