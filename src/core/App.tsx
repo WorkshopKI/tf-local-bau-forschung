@@ -13,6 +13,7 @@ import { TourContext, useTour } from '@/core/hooks/useTour';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { ErrorBoundary } from '@/core/ErrorBoundary';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
+import { checkQuarterReset, loadFeedbackConfig } from '@/core/services/feedback';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
 function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, department }: {
@@ -26,8 +27,25 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, de
   const tagValue = useTagProvider(storage);
   const profileValue = useProfileProvider(storage);
   const tourValue = useTour(TOUR_STEPS.length);
+  const [quarterToast, setQuarterToast] = useState<string | null>(null);
 
   const activeDepartment = profileValue.profile?.department ?? department;
+  const profileName = profileValue.profile?.name;
+
+  // Phase 3: Quartals-Reset-Check + Toast
+  useEffect(() => {
+    if (!profileName || showOnboarding) return;
+    let cancelled = false;
+    (async () => {
+      const cfg = await loadFeedbackConfig(storage);
+      const result = checkQuarterReset(profileName, cfg.budget_points_per_quarter);
+      if (!cancelled && result.resetHappened) {
+        setQuarterToast(`Neues Quartal (${result.currentQuarter}) — deine Sponsoring-Punkte wurden aufgefrischt.`);
+        setTimeout(() => setQuarterToast(null), 6000);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [profileName, showOnboarding, storage]);
 
   return (
     <AIBridgeContext.Provider value={aiBridge}>
@@ -39,6 +57,26 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, de
                 <Onboarding onComplete={() => setShowOnboarding(false)} />
               ) : (
                 <Shell plugins={enabledPlugins} department={activeDepartment} />
+              )}
+              {quarterToast && (
+                <div
+                  className="fixed top-4 right-4 z-[60] max-w-[360px] px-3.5 py-2.5 rounded-[var(--tf-radius-lg)] bg-[var(--tf-bg)] text-[12.5px] text-[var(--tf-text)] shadow-lg animate-in fade-in slide-in-from-top-2"
+                  style={{ border: '0.5px solid var(--tf-border)' }}
+                  role="status"
+                >
+                  <div className="flex items-start gap-2">
+                    <span>🎉</span>
+                    <div className="flex-1">{quarterToast}</div>
+                    <button
+                      type="button"
+                      onClick={() => setQuarterToast(null)}
+                      className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+                      aria-label="Schließen"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
               )}
             </TourContext.Provider>
           </TagContext.Provider>

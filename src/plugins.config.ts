@@ -8,6 +8,7 @@ import { forschungPlugin } from '@/plugins/forschung/index';
 import { suchePlugin } from '@/plugins/suche';
 import { adminPlugin } from '@/plugins/admin';
 import { feedbackAdminPlugin } from '@/plugins/feedback';
+import { feedbackBoardPlugin } from '@/plugins/feedback-board';
 
 const allPlugins: TeamFlowPlugin[] = [
   homePlugin,
@@ -16,6 +17,7 @@ const allPlugins: TeamFlowPlugin[] = [
   dokumentePlugin,
   suchePlugin,
   chatPlugin,
+  feedbackBoardPlugin,
   einstellungenPlugin,
   adminPlugin,
   feedbackAdminPlugin,

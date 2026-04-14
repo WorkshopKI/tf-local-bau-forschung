@@ -2,10 +2,17 @@
 // Claude-Code-Prompt-Generator (Copy + .md-Export).
 
 import { useEffect, useState } from 'react';
-import { Check, Copy, Download, FileText, Wand2, X } from 'lucide-react';
-import { generateClaudeCodePrompt, updateFeedback } from '@/core/services/feedback';
+import { Check, Copy, Download, FileText, TrendingUp, Wand2, X } from 'lucide-react';
+import {
+  generateClaudeCodePrompt,
+  getSponsoringProgress,
+  loadFeedbackConfig,
+  setEffortEstimate,
+  updateFeedback,
+} from '@/core/services/feedback';
 import { useStorage } from '@/core/hooks/useStorage';
-import type { FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
+import { DEFAULT_FEEDBACK_CONFIG, EFFORT_LABELS } from '@/core/types/feedback';
+import type { EffortEstimate, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import {
   CATEGORY_COLORS,
   CATEGORY_LABELS,
@@ -30,11 +37,17 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
   const [isFaq, setIsFaq] = useState(false);
   const [faqAnswer, setFaqAnswer] = useState('');
   const [faqKeywords, setFaqKeywords] = useState('');
+  const [effort, setEffort] = useState<EffortEstimate | ''>('');
   const [prompt, setPrompt] = useState('');
   const [showPrompt, setShowPrompt] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
+
+  useEffect(() => {
+    void loadFeedbackConfig(storage).then(setConfig);
+  }, [storage]);
 
   useEffect(() => {
     if (!ticket) return;
@@ -44,6 +57,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
     setIsFaq(!!ticket.is_faq);
     setFaqAnswer(ticket.faq_answer ?? '');
     setFaqKeywords((ticket.faq_keywords ?? []).join(', '));
+    setEffort(ticket.effort_estimate ?? '');
     setPrompt(ticket.generated_prompt ?? '');
     setShowPrompt(false);
     setSavedNotice(false);
@@ -70,6 +84,11 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
         faq_answer: isFaq ? faqAnswer : undefined,
         faq_keywords: isFaq ? keywords : undefined,
       });
+      // Effort separat (mit auto-sync hours)
+      const currentEffort = (ticket.effort_estimate ?? '') as EffortEstimate | '';
+      if (effort !== currentEffort) {
+        await setEffortEstimate(storage, ticket.id, effort || undefined);
+      }
       setSavedNotice(true);
       setTimeout(() => setSavedNotice(false), 1800);
       onUpdated();
@@ -179,6 +198,56 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
           <input type="range" min={1} max={5} step={1} value={priority} onChange={e => setPriority(Number(e.target.value))} className="w-full mt-1.5 cursor-pointer accent-[var(--tf-primary)]" />
         </div>
       </div>
+
+      {/* Aufwand-Schätzung (nur sinnvoll für Feature-Ideen) */}
+      {ticket.category === 'idea' && (
+        <div>
+          <label className="text-[11px] text-[var(--tf-text-tertiary)]">Aufwand-Schätzung</label>
+          <select value={effort} onChange={e => setEffort(e.target.value as EffortEstimate | '')} className={inputClass} style={inputStyle}>
+            <option value="">— Nicht geschätzt —</option>
+            {(['S', 'M', 'L', 'XL'] as EffortEstimate[]).map(e => (
+              <option key={e} value={e}>{e} — {EFFORT_LABELS[e]}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Sponsoring-Info (read-only Block) */}
+      {ticket.category === 'idea' && (ticket.sponsors?.length ?? 0) > 0 && (() => {
+        const progress = getSponsoringProgress(ticket, config);
+        return (
+          <div className="p-2.5 rounded-[var(--tf-radius)] space-y-2" style={inputStyle}>
+            <div className="flex items-center justify-between">
+              <p className="text-[11.5px] font-medium text-[var(--tf-text)] inline-flex items-center gap-1.5">
+                <TrendingUp size={12} /> Sponsoring-Fortschritt
+              </p>
+              {progress.thresholdReached && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                  ✓ Schwelle erreicht
+                </span>
+              )}
+            </div>
+            <div className="h-2 rounded-full bg-[var(--tf-bg-secondary)] overflow-hidden">
+              <div className={`h-full ${progress.thresholdReached ? 'bg-emerald-500' : 'bg-[var(--tf-primary)]'}`} style={{ width: `${progress.percentage}%` }} />
+            </div>
+            <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+              {progress.combinedPoints} / {progress.threshold} Punkte ({progress.percentage}%) · {progress.sponsorCount} Sponsoren
+            </p>
+            <ul className="text-[11px] text-[var(--tf-text-secondary)] space-y-0.5 pt-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+              {(ticket.sponsors ?? []).map((s, i) => (
+                <li key={`${s.user_id}-${s.type}-${i}`}>
+                  <span className="text-[var(--tf-text)]">{s.user_display_name}</span> · {s.type === 'points' ? `${s.amount} Pkt` : `${s.amount}h (${s.project_ref})`}
+                </li>
+              ))}
+            </ul>
+            {progress.thresholdReached && ticket.admin_status === 'neu' && (
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-400 pt-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+                Hinweis: Schwelle erreicht — Status manuell auf "Geplant" setzen?
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       <div>
         <label className="text-[11px] text-[var(--tf-text-tertiary)]">Notizen</label>

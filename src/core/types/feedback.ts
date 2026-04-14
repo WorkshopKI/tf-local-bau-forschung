@@ -13,6 +13,40 @@ export type FeedbackStatus =
 
 export type LLMCategoryCode = 'bug' | 'feature' | 'ux' | 'praise' | 'question';
 
+// ── Phase 3: Aufwand + Sponsoring ───────────────────────────────────────────
+
+export type EffortEstimate = 'S' | 'M' | 'L' | 'XL';
+
+export const EFFORT_HOURS: Record<EffortEstimate, number> = {
+  S: 2, M: 8, L: 16, XL: 40,
+};
+
+export const EFFORT_LABELS: Record<EffortEstimate, string> = {
+  S: 'Klein (~2h)',
+  M: 'Mittel (~8h)',
+  L: 'Groß (~16h)',
+  XL: 'Sehr groß (~40h)',
+};
+
+export interface FeedbackSponsor {
+  user_id: string;
+  user_display_name: string;
+  type: 'points' | 'hours';
+  /** Anzahl Punkte oder Stunden. */
+  amount: number;
+  /** Projekt-Referenz (z.B. "BA-2026-015") — nur bei type='hours'. */
+  project_ref?: string;
+  created_at: string;
+}
+
+export interface UserBudget {
+  user_id: string;
+  /** Quartals-Key, z.B. "2026-Q2". */
+  quarter: string;
+  points_total: number;
+  points_spent: number;
+}
+
 export interface FeedbackContext {
   /** Active plugin id at capture time (e.g. 'bauantraege', 'suche'). */
   route: string;
@@ -62,9 +96,13 @@ export interface FeedbackItem {
   faq_answer?: string;
   faq_keywords?: string[];
   faq_ask_count?: number;
-  // Forward-compat Phase 3 Sponsoring (NICHT befüllt jetzt)
-  effort_estimate?: 'S' | 'M' | 'L' | 'XL';
+  // Phase 3: Aufwand (Admin setzt)
+  effort_estimate?: EffortEstimate;
   effort_hours?: number;
+  // Phase 3: Sponsoring
+  sponsors?: FeedbackSponsor[];
+  sponsor_points_total?: number;
+  sponsor_hours_total?: number;
 }
 
 export interface FeedbackConfig {
@@ -72,6 +110,10 @@ export interface FeedbackConfig {
   max_chatbot_turns: number;
   system_prompt_path: string;
   shared_feedback_path: string;
+  // Phase 3: Sponsoring-Schwellen (konfigurierbar im Admin-Panel)
+  sponsoring_thresholds?: Record<EffortEstimate, number>;
+  hours_to_points_factor?: number;
+  budget_points_per_quarter?: number;
 }
 
 export interface ChatMsg {
@@ -105,9 +147,19 @@ export const FEEDBACK_DATA_DIR = 'feedback';
 export const FEEDBACK_SHARED_FILE = 'feedback/feedback.json';
 export const FEEDBACK_PROMPT_FILE = 'feedback/system-prompt.md';
 
+export const DEFAULT_SPONSORING_THRESHOLDS: Record<EffortEstimate, number> = {
+  S: 5, M: 15, L: 30, XL: 50,
+};
+export const DEFAULT_HOURS_TO_POINTS_FACTOR = 3;
+export const DEFAULT_BUDGET_POINTS_PER_QUARTER = 10;
+export const BUDGET_LS_KEY_PREFIX = 'teamflow_user_budget_v1';
+
 export const DEFAULT_FEEDBACK_CONFIG: FeedbackConfig = {
   llm_model: 'openai/gpt-oss-120b',
   max_chatbot_turns: 6,
   system_prompt_path: FEEDBACK_PROMPT_FILE,
   shared_feedback_path: FEEDBACK_SHARED_FILE,
+  sponsoring_thresholds: DEFAULT_SPONSORING_THRESHOLDS,
+  hours_to_points_factor: DEFAULT_HOURS_TO_POINTS_FACTOR,
+  budget_points_per_quarter: DEFAULT_BUDGET_POINTS_PER_QUARTER,
 };

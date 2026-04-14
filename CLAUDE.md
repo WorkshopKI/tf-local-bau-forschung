@@ -77,7 +77,7 @@ Geführte 5-Schritt-Tour für Erstnutzer (`src/core/components/tour/`, `src/core
 - TourOverlay nutzt CSS `clip-path` für Spotlight + z-index 102 für Target-Elevation
 
 ### Feedback-System
-Integriertes User-Feedback + Admin-Dashboard für Phase 1+2 (Phase 3 Sponsoring forward-compatible).
+Integriertes User-Feedback + Admin-Dashboard + öffentliches Board mit Sponsoring (Phase 1+2+3 komplett).
 
 **User-Komponenten** (`src/components/feedback/`):
 - `FeedbackButton.tsx` — globaler FAB (z-index 40, bottom-right). Wird in `Shell.tsx` gerendert (innerhalb NavigationContext) und ist während aktiver Tour ausgeblendet.
@@ -95,11 +95,38 @@ Integriertes User-Feedback + Admin-Dashboard für Phase 1+2 (Phase 3 Sponsoring 
 - `promptGenerator.ts` — `generateClaudeCodePrompt(ticket)` mit TeamFlow-Constraints-Block (file://, Single-File-Build, Tailwind v4, React 19, Zustand, lucide-react, Deutsche UI, CLAUDE.md primär).
 
 **Admin-Plugin** (`src/plugins/feedback/`, `id: 'feedback-admin'`, `adminOnly: true`):
-- `FeedbackAdminPage.tsx` — 3 Tabs (Tickets / FAQ / Einstellungen) via `@/ui/Tabs`.
+- `FeedbackAdminPage.tsx` — 4 Tabs (Tickets / FAQ / Sponsoring / Einstellungen) via `@/ui/Tabs`.
 - `sections/FeedbackTicketList.tsx` — Filter (Kategorie/Status), Karten-Liste links.
-- `sections/FeedbackTicketDetail.tsx` — Status-Dropdown, Priority-Slider, Notizen, FAQ-Markierung + Antwort + Stichwörter, "Claude Code Prompt generieren" mit Copy + Download .md.
+- `sections/FeedbackTicketDetail.tsx` — Status-Dropdown, Priority-Slider, **Aufwand-Dropdown (S/M/L/XL, nur für Ideen)**, **Sponsoring-Fortschritt-Block mit "Schwelle erreicht"-Hinweis**, Notizen, FAQ-Markierung + Antwort + Stichwörter, "Claude Code Prompt generieren" mit Copy + Download .md.
 - `sections/FeedbackFaqTab.tsx` — Übersicht aller `is_faq===true` Items + manuell anlegen + bearbeiten + Markierung entfernen + löschen.
+- `sections/FeedbackSponsoringOverview.tsx` — Phase 3: Features-Ranking nach Progress, konfigurierbare Schwellen (S/M/L/XL + Hours-Faktor + Budget/Quartal), Budget-Statistik.
 - `sections/FeedbackConfigPanel.tsx` — Modell-Dropdown (Default `openai/gpt-oss-120b`), Max-Turns-Slider (2–12), System-Prompt-Pfad + Vorschau + "System-Prompt initialisieren"-Button (nur wenn Datei fehlt), Shared-File Status.
+
+**Öffentliches Board** (Phase 3, `src/plugins/feedback-board/`, `id: 'feedback-board'`, KEIN adminOnly):
+- Sichtbar für alle User in Sidebar Tools-Gruppe (order: 75).
+- `FeedbackBoardPage.tsx` — Header mit BudgetBadge + Filter-Pills (Alle/Bugs/Features/Offen/Umgesetzt) + sortierte Card-Liste.
+- Zeigt nur Bugs (problem) + Features (idea); Fragen/Lob/archivierte ausgefiltert.
+- Sortierung: `in_bearbeitung` oben, dann Sponsoring-Progress desc (bei Features), dann `created_at` desc.
+- Bugs ohne Sponsoring-Balken (werden immer gefixt).
+- Features mit `effort_estimate` zeigen Balken + Sponsor-Buttons.
+
+**Board-Komponenten** (`src/components/feedback/`):
+- `FeedbackBoardCard.tsx` — Einzelne Karte mit Status/Kategorie/Aufwand/Progress/Sponsor-Buttons/Sponsor-Liste.
+- `SponsorButton.tsx` — Punkte-Dropdown (1/2/3/5) + Stunden-Dialog (hours + project_ref) + "Du sponsorst"-Badge mit Zurückziehen.
+- `BudgetBadge.tsx` — `X/Y Punkte (Q2 2026)` mit Ampelfarbe (grün >5, gelb 2-5, rot 0-1).
+
+**Sponsoring-Service** (`src/core/services/feedback/`):
+- `budgetService.ts` — `getCurrentQuarter()`, `loadUserBudget(userId)` (auto-Reset bei Quartalswechsel), `spendPoints`, `refundPoints`, `checkQuarterReset` (beim App-Start).
+- `feedbackService.ts` erweitert: `sponsorTicket()` (Budget-Check + Doppel-Check + Merge-Write), `unsponsorTicket()` (Refund), `getSponsoringProgress(ticket, config)` (combined = points + hours × factor), `isSponsoringOpen(ticket)` (nur Ideen mit Aufwand + Status `neu`/`geplant`), `setEffortEstimate(storage, id, effort)`.
+
+**Sponsoring-Logik**:
+- Zwei Währungen pro Ticket: Punkte + Stunden (mit Projekt-Referenz).
+- User kann je Ticket 1x Punkte + 1x Stunden sponsern (nicht mehrfach pro Typ).
+- Combined = points + hours × `hours_to_points_factor` (Default 3).
+- Schwellen (konfigurierbar via `FeedbackConfig.sponsoring_thresholds`): S=5, M=15, L=30, XL=50.
+- Quartals-Reset: App-Start prüft via `checkQuarterReset`, bei Wechsel Toast "Neues Quartal — Punkte aufgefrischt" (App.tsx).
+- **Keine Auto-Transition**: Schwelle erreicht → Admin bekommt Hinweis "Status manuell auf Geplant setzen?", entscheidet selbst.
+- Sponsoring geschlossen sobald Status `in_bearbeitung`/`umgesetzt`/`abgelehnt`.
 
 **Admin-Gating**:
 - `UserProfile.is_admin?: boolean` (`src/core/types/config.ts`)
@@ -121,7 +148,8 @@ Integriertes User-Feedback + Admin-Dashboard für Phase 1+2 (Phase 3 Sponsoring 
 **Bekannte Einschränkungen**:
 - Streaming nicht implementiert (Buffer-Mode für Chatbot-Antworten)
 - Sync-Konflikt: Last-writer-wins bei concurrent Schreibzugriff auf `feedback.json` (akzeptabel bei niedriger Frequenz)
-- Phase 3 Sponsoring (`effort_estimate`, `sponsors[]`, etc.) NICHT implementiert — Datenmodell aber forward-compatible
+- Budget (`teamflow_user_budget_v1_{userId}`) liegt in localStorage pro Gerät — User bekommt bei Browserwechsel neues 10-Punkte-Budget (Doppel-Sponsoring-Vektor theoretisch möglich, bei 5-15 User aber kein reales Problem)
+- Budget-Statistik im Admin-Tab nur dieser Browser (für team-weite Stats müsste Shared-Storage ergänzt werden — out of scope)
 
 ### Referenz-App
 In `_reference/lernapp/` liegt eine geklonte Referenz-Implementierung (KI-Prompting-Tutor). Wird NICHT gebaut oder deployed — dient ausschließlich als Code-Referenz für die Portierung von Features (Feedback-System, Onboarding-Tour). Vite ignoriert diesen Ordner (`server.watch.ignored`).
@@ -212,10 +240,11 @@ src/
 │   │   ├── tags.ts              <- Tag operations
 │   │   └── templates.ts         <- Document templates
 │   │   ├── feedback/            <- Feedback-System Service-Layer
-│   │   │   ├── feedbackService.ts   <- CRUD + Shared-File-Sync + FAQ
+│   │   │   ├── feedbackService.ts   <- CRUD + Shared-File-Sync + FAQ + Sponsoring (sponsorTicket/unsponsorTicket/getSponsoringProgress)
 │   │   │   ├── feedbackLlm.ts       <- System-Prompt-Loader + Parser + DEFAULT_SYSTEM_PROMPT
 │   │   │   ├── feedbackContext.ts   <- Auto-Kontext + window.onerror Ring-Buffer
 │   │   │   ├── promptGenerator.ts   <- Claude-Code-Prompt-Generator
+│   │   │   ├── budgetService.ts     <- Phase 3: Quartals-Budget (localStorage pro User)
 │   │   │   └── index.ts
 │   ├── types/
 │   │   ├── vorgang.ts           <- Vorgang + Artifact types
@@ -235,23 +264,30 @@ src/
 │   ├── chat/                    <- AI chat interface
 │   ├── einstellungen/           <- Settings (profile, theme, AI provider, is_admin toggle)
 │   ├── admin/                   <- Admin panel (indexing, eval, smoke test) — adminOnly
-│   └── feedback/                <- Feedback-Verwaltung — adminOnly
-│       ├── FeedbackAdminPage.tsx    <- 3 Tabs (Tickets / FAQ / Einstellungen)
-│       ├── sections/
-│       │   ├── FeedbackTicketList.tsx
-│       │   ├── FeedbackTicketDetail.tsx
-│       │   ├── FeedbackFaqTab.tsx
-│       │   └── FeedbackConfigPanel.tsx
+│   ├── feedback/                <- Feedback-Verwaltung — adminOnly
+│   │   ├── FeedbackAdminPage.tsx    <- 4 Tabs (Tickets / FAQ / Sponsoring / Einstellungen)
+│   │   ├── sections/
+│   │   │   ├── FeedbackTicketList.tsx
+│   │   │   ├── FeedbackTicketDetail.tsx      <- + Aufwand-Dropdown + Sponsoring-Info (Phase 3)
+│   │   │   ├── FeedbackFaqTab.tsx
+│   │   │   ├── FeedbackSponsoringOverview.tsx <- Phase 3: Features-Ranking + Schwellen-Form + Budget-Stats
+│   │   │   └── FeedbackConfigPanel.tsx
+│   │   └── index.ts
+│   └── feedback-board/          <- Phase 3: Öffentliches Board (KEIN adminOnly)
+│       ├── FeedbackBoardPage.tsx
 │       └── index.ts
 ├── components/
 │   ├── ui/                      <- shadcn/ui Komponenten (Button, Card, Select, Tabs, Label, Collapsible, etc.)
-│   └── feedback/                <- Globales Feedback-System (FAB + Panel + Chatbot + ConfirmCard + FAQ + MyFeedbackList)
+│   └── feedback/                <- Globales Feedback-System (FAB + Panel + Chatbot + ConfirmCard + FAQ + MyFeedbackList + Board-Cards)
 │       ├── FeedbackButton.tsx
 │       ├── FeedbackPanel.tsx
 │       ├── FeedbackChatbot.tsx
 │       ├── FeedbackConfirmCard.tsx
 │       ├── FaqSuggestions.tsx
 │       ├── MyFeedbackList.tsx
+│       ├── FeedbackBoardCard.tsx <- Phase 3: Board-Karte mit Sponsoring-Progress
+│       ├── SponsorButton.tsx     <- Phase 3: Punkte/Stunden-Sponsor-UI
+│       ├── BudgetBadge.tsx       <- Phase 3: X/Y Punkte (Q.) mit Ampelfarbe
 │       ├── constants.ts
 │       └── index.ts
 ├── ui/                          <- App-spezifische shared components (legacy, ggf. nach components/ui/ migrieren)

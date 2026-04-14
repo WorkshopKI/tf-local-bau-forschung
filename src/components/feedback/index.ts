@@ -4,4 +4,7 @@ export { FeedbackChatbot } from './FeedbackChatbot';
 export { FeedbackConfirmCard } from './FeedbackConfirmCard';
 export { FaqSuggestions } from './FaqSuggestions';
 export { MyFeedbackList } from './MyFeedbackList';
+export { BudgetBadge } from './BudgetBadge';
+export { SponsorButton } from './SponsorButton';
+export { FeedbackBoardCard } from './FeedbackBoardCard';
 export * from './constants';

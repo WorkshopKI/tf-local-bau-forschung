@@ -3,16 +3,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getFeedbackList } from '@/core/services/feedback';
-import type { FeedbackCategory, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
+import { getFeedbackList, loadFeedbackConfig } from '@/core/services/feedback';
+import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
+import type { FeedbackCategory, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { FeedbackTicketList } from './sections/FeedbackTicketList';
 import { FeedbackTicketDetail } from './sections/FeedbackTicketDetail';
 import { FeedbackFaqTab } from './sections/FeedbackFaqTab';
 import { FeedbackConfigPanel } from './sections/FeedbackConfigPanel';
+import { FeedbackSponsoringOverview } from './sections/FeedbackSponsoringOverview';
 
 const TABS = [
   { id: 'tickets', label: 'Tickets' },
   { id: 'faq', label: 'FAQ' },
+  { id: 'sponsoring', label: 'Sponsoring' },
   { id: 'config', label: 'Einstellungen' },
 ];
 
@@ -20,6 +23,7 @@ export function FeedbackAdminPage(): React.ReactElement {
   const storage = useStorage();
   const [tab, setTab] = useState('tickets');
   const [tickets, setTickets] = useState<FeedbackItem[]>([]);
+  const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
   const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState<FeedbackCategory | ''>('');
   const [filterStatus, setFilterStatus] = useState<FeedbackStatus | ''>('');
@@ -28,8 +32,12 @@ export function FeedbackAdminPage(): React.ReactElement {
   const reload = useCallback(async (): Promise<void> => {
     setLoading(true);
     try {
-      const items = await getFeedbackList(storage);
+      const [items, cfg] = await Promise.all([
+        getFeedbackList(storage),
+        loadFeedbackConfig(storage),
+      ]);
       setTickets(items);
+      setConfig(cfg);
     } finally {
       setLoading(false);
     }
@@ -82,6 +90,7 @@ export function FeedbackAdminPage(): React.ReactElement {
           </div>
         )}
         {tab === 'faq' && <FeedbackFaqTab faqs={faqs} onChanged={reload} />}
+        {tab === 'sponsoring' && <FeedbackSponsoringOverview tickets={tickets} config={config} onConfigChanged={reload} />}
         {tab === 'config' && <FeedbackConfigPanel />}
       </div>
     </div>
