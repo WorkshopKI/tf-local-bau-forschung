@@ -7,11 +7,13 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { TagsTab } from './TagsTab';
 import { TastaturTab } from './TastaturTab';
 import { AIProviderTab } from './AIProviderTab';
+import { SpeicherTab } from './SpeicherTab';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
 const TABS = [
   { id: 'profil', label: 'Profil' },
   { id: 'darstellung', label: 'Darstellung' },
+  { id: 'speicher', label: 'Speicher' },
   { id: 'tags', label: 'Tags' },
   { id: 'tastatur', label: 'Tastatur' },
   { id: 'ai', label: 'KI-Assistent' },
@@ -138,6 +140,7 @@ export function EinstellungenPage(): React.ReactElement {
 
         {activeTab === 'ai' && <AIProviderTab aiConfig={aiConfig} setAiConfig={setAiConfig} />}
 
+        {activeTab === 'speicher' && <SpeicherTab />}
         {activeTab === 'tags' && <TagsTab />}
         {activeTab === 'tastatur' && <TastaturTab />}
       </div>

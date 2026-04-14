@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Check, FolderOpen, ArrowRight } from 'lucide-react';
+import { Check, FolderOpen, ArrowRight, FlaskConical } from 'lucide-react';
 import { Button } from '@/ui';
 import { PRESET_COLORS, applyThemeColor } from '@/ui/theme';
 import type { UserProfile } from '@/core/types/config';
 import { useStorage } from '@/core/hooks/useStorage';
+import { shouldShowOpfsOption } from '@/core/utils/environment';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -38,6 +39,16 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
       setFsName(storage.getFileServerName() ?? '');
     }
   };
+
+  const handleConnectOpfs = async (): Promise<void> => {
+    const entry = await storage.addOPFSDirectory('data', 'Daten (Sandbox)');
+    if (entry) {
+      setFsConnected(true);
+      setFsName('OPFS-Sandbox');
+    }
+  };
+
+  const showOpfs = shouldShowOpfsOption();
 
   const handleFinish = async (): Promise<void> => {
     const profile: UserProfile = { name, department, theme: { hue: selectedHue, dark: false }, is_admin: isAdmin };
@@ -106,6 +117,14 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
             </p>
             <div className="flex flex-col items-center gap-3 py-4">
               <Button icon={FolderOpen} variant="secondary" onClick={handleConnectFs}>Verzeichnis wählen</Button>
+              {showOpfs && (
+                <>
+                  <Button icon={FlaskConical} variant="ghost" onClick={handleConnectOpfs}>OPFS-Sandbox verwenden (Tests/Preview)</Button>
+                  <p className="text-[11px] text-[var(--tf-text-tertiary)] text-center max-w-[280px]">
+                    Lokaler Browser-Storage — kein Sharing zwischen Browsern oder Geräten. Nur für Dev/Preview-Tests.
+                  </p>
+                </>
+              )}
               <p className="text-[12px] text-[var(--tf-text-tertiary)]">{fsConnected ? `Verbunden: ${fsName}` : 'Kein Verzeichnis gewählt'}</p>
             </div>
             <button onClick={() => setStep(2)} className="text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer block mx-auto">

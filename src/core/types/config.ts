@@ -21,6 +21,8 @@ export interface DirectoryEntry {
   label: string;
   type: 'documents' | 'data' | 'models';
   folderName?: string;
+  /** 'opfs' = Origin Private File System (Browser-Sandbox, kein echtes Sharing). 'real' (default) = vom User gewählter Ordner. */
+  kind?: 'opfs' | 'real';
 }
 
 export interface AppConfig {

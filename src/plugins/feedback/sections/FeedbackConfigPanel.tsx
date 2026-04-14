@@ -11,7 +11,7 @@ import {
   loadSystemPrompt,
   saveFeedbackConfig,
 } from '@/core/services/feedback';
-import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
+import { DEFAULT_FEEDBACK_CONFIG, FEEDBACK_PROMPT_FILE } from '@/core/types/feedback';
 import type { FeedbackConfig } from '@/core/types/feedback';
 
 const MODELS = [
@@ -28,13 +28,24 @@ export function FeedbackConfigPanel(): React.ReactElement {
   const storage = useStorage();
   const [cfg, setCfg] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
   const [shared, setShared] = useState<{ path: string; exists: boolean; itemCount: number; updatedAt?: string } | null>(null);
+  const [promptExists, setPromptExists] = useState<boolean | null>(null);
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
   const [initStatus, setInitStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
+  const refreshStatus = async (): Promise<void> => {
+    setShared(await getSharedFileStatus(storage));
+    if (storage.fs) {
+      setPromptExists(await storage.fs.exists(FEEDBACK_PROMPT_FILE));
+    } else {
+      setPromptExists(null);
+    }
+  };
+
   useEffect(() => {
     void loadFeedbackConfig(storage).then(setCfg);
-    void getSharedFileStatus(storage).then(setShared);
+    void refreshStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storage]);
 
   const handleSave = async (): Promise<void> => {
@@ -50,7 +61,7 @@ export function FeedbackConfigPanel(): React.ReactElement {
   const handleInit = async (): Promise<void> => {
     const ok = await initSystemPromptFile(storage);
     setInitStatus(ok ? 'success' : 'error');
-    if (ok) setShared(await getSharedFileStatus(storage));
+    if (ok) await refreshStatus();
     setTimeout(() => setInitStatus('idle'), 2000);
   };
 
@@ -80,10 +91,15 @@ export function FeedbackConfigPanel(): React.ReactElement {
           <button type="button" onClick={handlePreview} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[var(--tf-radius)] text-[11.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>
             <Eye size={11} /> Prompt-Vorschau
           </button>
-          {fsConnected && shared && !shared.exists && (
+          {fsConnected && promptExists === false && (
             <button type="button" onClick={handleInit} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[var(--tf-radius)] text-[11.5px] text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>
               <FileCog size={11} /> System-Prompt initialisieren
             </button>
+          )}
+          {fsConnected && promptExists === true && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+              <Check size={11} /> Datei vorhanden
+            </span>
           )}
         </div>
         {initStatus === 'success' && <p className="text-[11px] text-emerald-600 dark:text-emerald-400">✓ Prompt-Datei wurde im Datenverzeichnis erstellt.</p>}

@@ -40,10 +40,15 @@ export class StorageService {
       const handle = await this.idb.get<FileSystemDirectoryHandle>(`dir-handle:${entry.id}`);
       if (!handle) continue;
       try {
+        const fsMode = entry.type === 'data' ? 'readwrite' as const : 'readonly' as const;
+        // OPFS-Handles brauchen keine User-Permission — direkt einhängen.
+        if (entry.kind === 'opfs') {
+          this._directories.set(entry.id, { entry: { ...entry, folderName: handle.name }, store: new FileServerStore(handle, fsMode) });
+          continue;
+        }
         const mode = entry.type === 'data' ? 'readwrite' as const : 'read' as const;
         const permission = await handle.requestPermission({ mode });
         if (permission === 'granted') {
-          const fsMode = entry.type === 'data' ? 'readwrite' as const : 'readonly' as const;
           this._directories.set(entry.id, { entry: { ...entry, folderName: handle.name }, store: new FileServerStore(handle, fsMode) });
         }
       } catch { /* Permission denied — skip */ }
@@ -75,7 +80,7 @@ export class StorageService {
       const pickerMode = type === 'data' ? 'readwrite' as const : 'read' as const;
       const handle = await window.showDirectoryPicker({ mode: pickerMode });
       const id = `dir-${Date.now()}`;
-      const entry: DirectoryEntry = { id, label: label ?? handle.name, type, folderName: handle.name };
+      const entry: DirectoryEntry = { id, label: label ?? handle.name, type, folderName: handle.name, kind: 'real' };
       const fsMode = type === 'data' ? 'readwrite' as const : 'readonly' as const;
       this._directories.set(id, { entry, store: new FileServerStore(handle, fsMode) });
       await this.idb.set(`dir-handle:${id}`, handle);
@@ -84,6 +89,38 @@ export class StorageService {
       return entry;
     } catch (err) {
       console.error('addDirectory failed:', err);
+      return null;
+    }
+  }
+
+  /** Erstellt ein OPFS-Sandbox-Verzeichnis (Origin Private File System).
+   *  Funktioniert in iframes und ohne User-Gesture, ist aber pro Origin/Browser isoliert
+   *  (kein echtes Sharing zwischen Usern oder Geräten). Nutzung: Dev/Preview-Tests. */
+  async addOPFSDirectory(type: 'documents' | 'data' | 'models', label?: string): Promise<DirectoryEntry | null> {
+    try {
+      if (!navigator.storage || typeof navigator.storage.getDirectory !== 'function') {
+        console.error('addOPFSDirectory: OPFS nicht verfügbar in diesem Browser');
+        return null;
+      }
+      const opfsRoot = await navigator.storage.getDirectory();
+      const subfolderName = `opfs-${type}`;
+      const handle = await opfsRoot.getDirectoryHandle(subfolderName, { create: true });
+      const id = `dir-opfs-${type}-${Date.now()}`;
+      const entry: DirectoryEntry = {
+        id,
+        label: label ?? `${type === 'data' ? 'Daten' : type === 'documents' ? 'Dokumente' : 'Modelle'} (Sandbox)`,
+        type,
+        folderName: subfolderName,
+        kind: 'opfs',
+      };
+      const fsMode = type === 'data' ? 'readwrite' as const : 'readonly' as const;
+      this._directories.set(id, { entry, store: new FileServerStore(handle, fsMode) });
+      await this.idb.set(`dir-handle:${id}`, handle);
+      await this.saveDirectoryEntries();
+      if (type === 'data') await this.syncService.processQueue();
+      return entry;
+    } catch (err) {
+      console.error('addOPFSDirectory failed:', err);
       return null;
     }
   }
