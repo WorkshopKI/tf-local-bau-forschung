@@ -139,7 +139,7 @@ export function SponsorButton({ ticket, config, open, onChanged }: Props): React
 
       {/* Stunden */}
       {mineH ? (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11.5px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11.5px] font-medium bg-[var(--tf-info-bg)] text-[var(--tf-info-text)]">
           <Clock size={11} /> Du: {mineH.amount}h ({mineH.project_ref})
           <button type="button" onClick={() => doUnsponsor('hours')} className="ml-1 cursor-pointer hover:opacity-70" aria-label="Zurückziehen">
             <X size={11} />
@@ -196,7 +196,7 @@ export function SponsorButton({ ticket, config, open, onChanged }: Props): React
         </div>
       )}
 
-      {errorMsg && <p className="w-full text-[11px] text-red-600 dark:text-red-400">{errorMsg}</p>}
+      {errorMsg && <p className="w-full text-[11px] text-[var(--tf-danger-text)]">{errorMsg}</p>}
     </div>
   );
 }

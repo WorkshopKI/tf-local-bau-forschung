@@ -132,7 +132,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
         </button>
         <pre className="p-3 rounded-[var(--tf-radius)] bg-[#1a1a2e] text-[#d4d4f0] text-[11px] font-mono whitespace-pre-wrap max-h-[60vh] overflow-y-auto">{prompt}</pre>
         <div className="flex gap-2">
-          <button type="button" onClick={handleCopy} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer">
+          <button type="button" onClick={handleCopy} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer">
             {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Kopiert' : 'Kopieren'}
           </button>
           <button type="button" onClick={handleExport} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>
@@ -169,7 +169,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
       </div>
 
       {ticket.user_confirmed && (
-        <div className="p-2 rounded-[var(--tf-radius)] bg-emerald-50 dark:bg-emerald-950/30 text-[12px] text-emerald-800 dark:text-emerald-300 inline-flex items-center gap-1.5">
+        <div className="p-2 rounded-[var(--tf-radius)] bg-[var(--tf-success-bg)] text-[12px] text-[var(--tf-success-text)] inline-flex items-center gap-1.5">
           <Check size={13} /> Nutzer hat Zusammenfassung bestätigt
         </div>
       )}
@@ -222,13 +222,13 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
                 <TrendingUp size={12} /> Sponsoring-Fortschritt
               </p>
               {progress.thresholdReached && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]">
                   ✓ Schwelle erreicht
                 </span>
               )}
             </div>
             <div className="h-2 rounded-full bg-[var(--tf-bg-secondary)] overflow-hidden">
-              <div className={`h-full ${progress.thresholdReached ? 'bg-emerald-500' : 'bg-[var(--tf-primary)]'}`} style={{ width: `${progress.percentage}%` }} />
+              <div className="h-full" style={{ width: `${progress.percentage}%`, background: progress.thresholdReached ? 'var(--tf-success-text)' : 'var(--tf-primary)' }} />
             </div>
             <p className="text-[11px] text-[var(--tf-text-tertiary)]">
               {progress.combinedPoints} / {progress.threshold} Punkte ({progress.percentage}%) · {progress.sponsorCount} Sponsoren
@@ -241,7 +241,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
               ))}
             </ul>
             {progress.thresholdReached && ticket.admin_status === 'neu' && (
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-400 pt-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+              <p className="text-[11px] text-[var(--tf-success-text)] pt-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
                 Hinweis: Schwelle erreicht — Status manuell auf "Geplant" setzen?
               </p>
             )}

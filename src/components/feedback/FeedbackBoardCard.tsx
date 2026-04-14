@@ -62,7 +62,7 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
               </span>
             )}
             {progress.thresholdReached && open && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]">
                 ✓ Schwelle erreicht
               </span>
             )}
@@ -77,8 +77,11 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
           <div className="space-y-1">
             <div className="h-2 rounded-full bg-[var(--tf-bg-secondary)] overflow-hidden">
               <div
-                className={`h-full transition-all ${progress.thresholdReached ? 'bg-emerald-500' : 'bg-[var(--tf-primary)]'}`}
-                style={{ width: `${progress.percentage}%` }}
+                className="h-full transition-all"
+                style={{
+                  width: `${progress.percentage}%`,
+                  background: progress.thresholdReached ? 'var(--tf-success-text)' : 'var(--tf-primary)',
+                }}
               />
             </div>
             <p className="text-[11px] text-[var(--tf-text-tertiary)]">

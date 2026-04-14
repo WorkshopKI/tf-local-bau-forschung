@@ -43,21 +43,21 @@ export const STATUS_LABELS: Record<FeedbackStatus, string> = {
   archiviert: 'Archiviert',
 };
 
-/** Tailwind-Klassen für Status-Badges. */
+/** Status-Badges — Theme-Vars (pastell, Dark-Mode-kompatibel via --tf-*). */
 export const STATUS_COLORS: Record<FeedbackStatus, string> = {
   neu: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]',
-  geplant: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
-  in_bearbeitung: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-  umgesetzt: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-  abgelehnt: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
+  geplant: 'bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]',
+  in_bearbeitung: 'bg-[var(--tf-info-bg)] text-[var(--tf-info-text)]',
+  umgesetzt: 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]',
+  abgelehnt: 'bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]',
   archiviert: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]',
 };
 
 export const CATEGORY_COLORS: Record<FeedbackCategory, string> = {
   praise: 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]',
-  problem: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
-  idea: 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  question: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+  problem: 'bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]',
+  idea: 'bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]',
+  question: 'bg-[var(--tf-info-bg)] text-[var(--tf-info-text)]',
 };
 
 /** Mapping LLM-Klassifikation → Feedback-Kategorie (für ConfirmCard). */

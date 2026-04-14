@@ -91,7 +91,7 @@ export function FeedbackFaqTab({ faqs, onChanged }: Props): React.ReactElement {
                     <p className="text-[10.5px] text-[var(--tf-text-tertiary)] mt-0.5">{faq.faq_ask_count}× gefragt</p>
                   )}
                 </div>
-                <button type="button" onClick={() => handleDelete(faq.id)} className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-red-600 hover:bg-[var(--tf-hover)] cursor-pointer" aria-label="Löschen">
+                <button type="button" onClick={() => handleDelete(faq.id)} className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] hover:bg-[var(--tf-hover)] cursor-pointer" aria-label="Löschen">
                   <Trash2 size={12} />
                 </button>
               </div>

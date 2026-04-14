@@ -337,8 +337,8 @@ function DetailsStep(props: DetailsProps): React.ReactElement {
 function ConfirmStep({ onChatbot, onDone }: { onChatbot: () => void; onDone: () => void }): React.ReactElement {
   return (
     <div className="p-4 text-center space-y-3">
-      <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center">
-        <Check size={22} className="text-emerald-600 dark:text-emerald-400" />
+      <div className="w-12 h-12 mx-auto rounded-full bg-[var(--tf-success-bg)] flex items-center justify-center">
+        <Check size={22} className="text-[var(--tf-success-text)]" />
       </div>
       <p className="text-[14px] font-medium text-[var(--tf-text)]">Danke für dein Feedback!</p>
       <p className="text-[12.5px] text-[var(--tf-text-secondary)]">Möchtest du es im Chat noch präzisieren?</p>

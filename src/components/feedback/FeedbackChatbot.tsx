@@ -155,10 +155,10 @@ export function FeedbackChatbot({ feedbackId, initialText, context, onClose }: P
                         type="button"
                         disabled={!isLast || thinking}
                         onClick={() => isLast && handleUserSend(opt)}
-                        className={`rounded-full px-2.5 py-1 text-[11px] cursor-pointer transition-colors ${
+                        className={`rounded-full px-2.5 py-1 text-[11px] cursor-pointer transition-colors bg-[var(--tf-bg)] text-[var(--tf-text)] ${
                           isLast && !thinking
-                            ? 'bg-white dark:bg-[var(--tf-bg)] text-[var(--tf-text)] hover:bg-[var(--tf-primary-light)]'
-                            : 'opacity-50 cursor-default bg-white dark:bg-[var(--tf-bg)] text-[var(--tf-text)]'
+                            ? 'hover:bg-[var(--tf-primary-light)]'
+                            : 'opacity-50 cursor-default'
                         }`}
                         style={{ border: '0.5px solid var(--tf-border)' }}
                       >

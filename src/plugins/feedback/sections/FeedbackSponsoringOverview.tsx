@@ -88,12 +88,12 @@ export function FeedbackSponsoringOverview({ tickets, config, onConfigChanged }:
                         Aufwand: {ticket.effort_estimate} · Status: {ticket.admin_status}
                       </p>
                     </div>
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${progress.thresholdReached ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]'}`}>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${progress.thresholdReached ? 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]' : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]'}`}>
                       {progress.percentage}%
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full bg-[var(--tf-bg-secondary)] overflow-hidden mt-1.5">
-                    <div className={`h-full ${progress.thresholdReached ? 'bg-emerald-500' : 'bg-[var(--tf-primary)]'}`} style={{ width: `${progress.percentage}%` }} />
+                    <div className="h-full" style={{ width: `${progress.percentage}%`, background: progress.thresholdReached ? 'var(--tf-success-text)' : 'var(--tf-primary)' }} />
                   </div>
                   <p className="text-[10.5px] text-[var(--tf-text-tertiary)] mt-1">
                     {progress.combinedPoints}/{progress.threshold} Pkt · {progress.sponsorCount} Sponsoren

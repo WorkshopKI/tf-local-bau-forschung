@@ -16,7 +16,7 @@ export function FeedbackConfirmCard({ classification, onConfirm, onReject }: Pro
   const badgeClass = CATEGORY_COLORS[mappedCategory];
 
   return (
-    <div className="rounded-xl p-3.5 space-y-2 border border-[var(--tf-primary-light)] bg-[var(--tf-primary-light)]/20">
+    <div className="rounded-xl p-3.5 space-y-2 bg-[var(--tf-bg-secondary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--tf-primary)]">
           Zusammenfassung
@@ -38,7 +38,7 @@ export function FeedbackConfirmCard({ classification, onConfirm, onReject }: Pro
         <button
           type="button"
           onClick={onConfirm}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--tf-radius)] text-[12px] font-medium bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--tf-radius)] text-[12px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer"
         >
           <Check size={14} /> Ja, genau das meine ich
         </button>

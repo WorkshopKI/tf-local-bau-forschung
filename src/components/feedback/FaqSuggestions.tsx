@@ -42,10 +42,10 @@ export function FaqSuggestions({ input, onFaqViewed }: Props): React.ReactElemen
   if (matches.length === 0) return null;
 
   return (
-    <div className="rounded-[var(--tf-radius)] p-3 border border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+    <div className="rounded-[var(--tf-radius)] p-3 bg-[var(--tf-warning-bg)]" style={{ border: '0.5px solid var(--tf-border)' }}>
       <div className="flex items-center gap-1.5 mb-2">
-        <Lightbulb size={14} className="text-amber-600 dark:text-amber-400" />
-        <span className="text-[12px] font-semibold text-amber-800 dark:text-amber-200">Ähnliche Fragen (bereits beantwortet)</span>
+        <Lightbulb size={14} className="text-[var(--tf-warning-text)]" />
+        <span className="text-[12px] font-semibold text-[var(--tf-warning-text)]">Ähnliche Fragen (bereits beantwortet)</span>
       </div>
       <div className="space-y-1.5">
         {matches.map(({ item }) => {
@@ -77,7 +77,7 @@ export function FaqSuggestions({ input, onFaqViewed }: Props): React.ReactElemen
                 </span>
               </button>
               {isOpen && item.faq_answer && (
-                <div className="mt-1 ml-5 p-2 rounded-[var(--tf-radius)] bg-white dark:bg-[var(--tf-bg)] text-[12px] text-[var(--tf-text-secondary)] whitespace-pre-wrap" style={{ border: '0.5px solid var(--tf-border)' }}>
+                <div className="mt-1 ml-5 p-2 rounded-[var(--tf-radius)] bg-[var(--tf-bg)] text-[12px] text-[var(--tf-text-secondary)] whitespace-pre-wrap" style={{ border: '0.5px solid var(--tf-border)' }}>
                   {item.faq_answer}
                 </div>
               )}

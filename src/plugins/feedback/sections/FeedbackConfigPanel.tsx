@@ -97,13 +97,13 @@ export function FeedbackConfigPanel(): React.ReactElement {
             </button>
           )}
           {fsConnected && promptExists === true && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 text-[11px] text-[var(--tf-success-text)]">
               <Check size={11} /> Datei vorhanden
             </span>
           )}
         </div>
-        {initStatus === 'success' && <p className="text-[11px] text-emerald-600 dark:text-emerald-400">✓ Prompt-Datei wurde im Datenverzeichnis erstellt.</p>}
-        {initStatus === 'error' && <p className="text-[11px] text-red-600 dark:text-red-400">⚠ Konnte Datei nicht schreiben (Datenverzeichnis nicht verbunden oder schreibgeschützt).</p>}
+        {initStatus === 'success' && <p className="text-[11px] text-[var(--tf-success-text)]">✓ Prompt-Datei wurde im Datenverzeichnis erstellt.</p>}
+        {initStatus === 'error' && <p className="text-[11px] text-[var(--tf-danger-text)]">⚠ Konnte Datei nicht schreiben (Datenverzeichnis nicht verbunden oder schreibgeschützt).</p>}
         {promptPreview !== null && (
           <pre className="mt-2 p-2 rounded text-[10.5px] font-mono whitespace-pre-wrap bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] max-h-60 overflow-y-auto">{promptPreview}</pre>
         )}
@@ -113,9 +113,9 @@ export function FeedbackConfigPanel(): React.ReactElement {
         <p className="text-[12px] font-medium text-[var(--tf-text)]">Geteilte Feedback-Datei</p>
         <p className="text-[11.5px] text-[var(--tf-text-secondary)] font-mono">Datenverzeichnis/{cfg.shared_feedback_path}</p>
         {!fsConnected ? (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">⚠ Datenverzeichnis nicht verbunden — Feedback wird nur lokal gespeichert.</p>
+          <p className="text-[11px] text-[var(--tf-warning-text)]">⚠ Datenverzeichnis nicht verbunden — Feedback wird nur lokal gespeichert.</p>
         ) : shared?.exists ? (
-          <p className="text-[11px] text-emerald-600 dark:text-emerald-400">✓ Gefunden · {shared.itemCount} {shared.itemCount === 1 ? 'Eintrag' : 'Einträge'} · zuletzt {shared.updatedAt ? new Date(shared.updatedAt).toLocaleString('de-DE') : '–'}</p>
+          <p className="text-[11px] text-[var(--tf-success-text)]">✓ Gefunden · {shared.itemCount} {shared.itemCount === 1 ? 'Eintrag' : 'Einträge'} · zuletzt {shared.updatedAt ? new Date(shared.updatedAt).toLocaleString('de-DE') : '–'}</p>
         ) : (
           <p className="text-[11px] text-[var(--tf-text-tertiary)]">Noch nicht erstellt (wird beim ersten Feedback-Submit angelegt).</p>
         )}

@@ -86,7 +86,7 @@ export function FeedbackTicketList(props: Props): React.ReactElement {
                   {CATEGORY_LABELS[ticket.category]}
                 </span>
                 {ticket.is_faq && (
-                  <span className="text-[9.5px] px-1 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-medium">FAQ</span>
+                  <span className="text-[9.5px] px-1 rounded bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)] font-medium">FAQ</span>
                 )}
                 <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_COLORS[ticket.admin_status]}`}>
                   {STATUS_LABELS[ticket.admin_status]}
