@@ -45,6 +45,13 @@ export function FeedbackAdminPage(): React.ReactElement {
 
   useEffect(() => { void reload(); }, [reload]);
 
+  // Live-Refresh: lausche auf globales feedback-updated Event (Submits/Updates/Sponsoring)
+  useEffect(() => {
+    const handler = (): void => { void reload(); };
+    window.addEventListener('feedback-updated', handler);
+    return () => window.removeEventListener('feedback-updated', handler);
+  }, [reload]);
+
   const filteredTickets = useMemo(() => {
     return tickets.filter(t => {
       if (filterCategory && t.category !== filterCategory) return false;

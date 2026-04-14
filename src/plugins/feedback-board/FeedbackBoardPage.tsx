@@ -42,6 +42,13 @@ export function FeedbackBoardPage(): React.ReactElement {
 
   useEffect(() => { void reload(); }, [reload]);
 
+  // Live-Refresh bei globalem feedback-updated Event
+  useEffect(() => {
+    const handler = (): void => { void reload(); };
+    window.addEventListener('feedback-updated', handler);
+    return () => window.removeEventListener('feedback-updated', handler);
+  }, [reload]);
+
   const handleChanged = useCallback(() => {
     setRefreshKey(k => k + 1);
     void reload();

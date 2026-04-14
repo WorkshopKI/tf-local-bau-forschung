@@ -12,7 +12,7 @@ import {
 } from '@/core/services/feedback';
 import { useStorage } from '@/core/hooks/useStorage';
 import { DEFAULT_FEEDBACK_CONFIG, EFFORT_LABELS } from '@/core/types/feedback';
-import type { EffortEstimate, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
+import type { EffortEstimate, FeedbackCategory, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import {
   CATEGORY_COLORS,
   CATEGORY_LABELS,
@@ -38,6 +38,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
   const [faqAnswer, setFaqAnswer] = useState('');
   const [faqKeywords, setFaqKeywords] = useState('');
   const [effort, setEffort] = useState<EffortEstimate | ''>('');
+  const [category, setCategory] = useState<FeedbackCategory | ''>('');
   const [prompt, setPrompt] = useState('');
   const [showPrompt, setShowPrompt] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,6 +59,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
     setFaqAnswer(ticket.faq_answer ?? '');
     setFaqKeywords((ticket.faq_keywords ?? []).join(', '));
     setEffort(ticket.effort_estimate ?? '');
+    setCategory(ticket.category ?? '');
     setPrompt(ticket.generated_prompt ?? '');
     setShowPrompt(false);
     setSavedNotice(false);
@@ -83,6 +85,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
         is_faq: isFaq,
         faq_answer: isFaq ? faqAnswer : undefined,
         faq_keywords: isFaq ? keywords : undefined,
+        category: category || undefined,
       });
       // Effort separat (mit auto-sync hours)
       const currentEffort = (ticket.effort_estimate ?? '') as EffortEstimate | '';
@@ -147,8 +150,8 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
-            {ticket.category ? CATEGORY_LABELS[ticket.category] : 'Unklassifiziert'}
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${category ? CATEGORY_COLORS[category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
+            {category ? CATEGORY_LABELS[category] : 'Unklassifiziert'}
           </span>
           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${STATUS_COLORS[ticket.admin_status]}`}>
             {STATUS_LABELS[ticket.admin_status]}
@@ -199,8 +202,29 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
         </div>
       </div>
 
-      {/* Aufwand-Schätzung (nur sinnvoll für Feature-Ideen) */}
-      {ticket.category === 'idea' && (
+      {/* Kategorie (Admin kann manuell setzen/überschreiben) */}
+      <div>
+        <label className="text-[11px] text-[var(--tf-text-tertiary)]">Kategorie</label>
+        <select
+          value={category}
+          onChange={e => setCategory(e.target.value as FeedbackCategory | '')}
+          className={inputClass}
+          style={inputStyle}
+        >
+          <option value="">— Unklassifiziert —</option>
+          {(Object.keys(CATEGORY_LABELS) as FeedbackCategory[]).map(c => (
+            <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+          ))}
+        </select>
+        {!ticket.category && ticket.llm_classification && (
+          <p className="text-[10.5px] text-[var(--tf-text-tertiary)] mt-0.5">
+            LLM-Hint: {ticket.llm_classification.category}
+          </p>
+        )}
+      </div>
+
+      {/* Aufwand-Schätzung (nur sinnvoll für Feature-Ideen — lokalen State prüfen, damit Dropdown sofort erscheint) */}
+      {(category === 'idea' || ticket.category === 'idea') && (
         <div>
           <label className="text-[11px] text-[var(--tf-text-tertiary)]">Aufwand-Schätzung</label>
           <select value={effort} onChange={e => setEffort(e.target.value as EffortEstimate | '')} className={inputClass} style={inputStyle}>

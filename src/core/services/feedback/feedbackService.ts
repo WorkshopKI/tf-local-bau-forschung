@@ -47,6 +47,13 @@ function generateId(): string {
   return `fb-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+/** Benachrichtigt UI-Listen über Änderungen an Feedback-Daten (CustomEvent für live-refresh). */
+function emitFeedbackUpdated(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('feedback-updated'));
+  }
+}
+
 // ── Shared-File Helpers (No-op wenn fs nicht verbunden) ──────────────────────
 
 async function readSharedFile(storage: StorageService): Promise<SharedFeedbackFile | null> {
@@ -129,6 +136,7 @@ export async function submitFeedback(
   } else if (storage.fs && !storage.fs.isReadOnly()) {
     await writeSharedFile(storage, [item]);
   }
+  emitFeedbackUpdated();
   return item;
 }
 
@@ -173,32 +181,36 @@ export async function updateFeedback(
     items[idx] = { ...localItem, ...updates };
     saveLocalItems(items);
   }
-  // Update shared
-  if (!storage.fs || storage.fs.isReadOnly()) return;
-  const shared = await readSharedFile(storage);
-  if (shared) {
-    const sharedIdx = shared.items.findIndex(i => i.id === id);
-    const sharedItem = sharedIdx >= 0 ? shared.items[sharedIdx] : undefined;
-    if (sharedIdx >= 0 && sharedItem) {
-      shared.items[sharedIdx] = { ...sharedItem, ...updates };
+  // Update shared (best-effort, nur wenn fs verbunden und schreibbar)
+  if (storage.fs && !storage.fs.isReadOnly()) {
+    const shared = await readSharedFile(storage);
+    if (shared) {
+      const sharedIdx = shared.items.findIndex(i => i.id === id);
+      const sharedItem = sharedIdx >= 0 ? shared.items[sharedIdx] : undefined;
+      if (sharedIdx >= 0 && sharedItem) {
+        shared.items[sharedIdx] = { ...sharedItem, ...updates };
+      } else if (localItem) {
+        shared.items.unshift({ ...localItem, ...updates });
+      }
+      await writeSharedFile(storage, shared.items);
     } else if (localItem) {
-      shared.items.unshift({ ...localItem, ...updates });
+      await writeSharedFile(storage, [{ ...localItem, ...updates }]);
     }
-    await writeSharedFile(storage, shared.items);
-  } else if (localItem) {
-    await writeSharedFile(storage, [{ ...localItem, ...updates }]);
   }
+  emitFeedbackUpdated();
 }
 
 export async function deleteFeedback(storage: StorageService, id: string): Promise<void> {
   const items = loadLocalItems().filter(i => i.id !== id);
   saveLocalItems(items);
-  if (!storage.fs || storage.fs.isReadOnly()) return;
-  const shared = await readSharedFile(storage);
-  if (shared) {
-    const remaining = shared.items.filter(i => i.id !== id);
-    await writeSharedFile(storage, remaining);
+  if (storage.fs && !storage.fs.isReadOnly()) {
+    const shared = await readSharedFile(storage);
+    if (shared) {
+      const remaining = shared.items.filter(i => i.id !== id);
+      await writeSharedFile(storage, remaining);
+    }
   }
+  emitFeedbackUpdated();
 }
 
 // ── FAQ-Logik ────────────────────────────────────────────────────────────────
@@ -281,6 +293,7 @@ export async function createStandaloneFaq(
     const merged = shared ? mergeItems([item], shared.items) : [item];
     await writeSharedFile(storage, merged);
   }
+  emitFeedbackUpdated();
   return item;
 }
 
@@ -442,6 +455,7 @@ export async function sponsorTicket(
       return { ok: false, error: 'write_failed' };
     }
   }
+  emitFeedbackUpdated();
   return { ok: true };
 }
 
@@ -488,6 +502,7 @@ export async function unsponsorTicket(
   if (type === 'points') {
     refundPoints(userId, existing.amount, config.budget_points_per_quarter);
   }
+  emitFeedbackUpdated();
 }
 
 /** Admin-Hilfsfunktion: setze Aufwand-Schätzung (effort_estimate + effort_hours synchron). */

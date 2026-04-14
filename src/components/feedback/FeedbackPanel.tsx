@@ -114,7 +114,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
 
   return (
     <div
-      className="fixed bottom-20 right-4 z-40 w-[360px] max-w-[calc(100vw-2rem)] rounded-[12px] bg-[var(--tf-bg)] shadow-2xl flex flex-col overflow-hidden"
+      className="fixed bottom-20 right-4 z-40 w-[420px] max-w-[calc(100vw-2rem)] rounded-[12px] bg-[var(--tf-bg)] shadow-2xl flex flex-col overflow-hidden"
       style={{ border: '0.5px solid var(--tf-border)', maxHeight: 'calc(100vh - 6rem)' }}
       role="dialog"
       aria-label="Feedback"
@@ -255,6 +255,22 @@ function InputStep(props: InputStepProps): React.ReactElement {
         Was möchtest du uns mitteilen?
       </label>
 
+      {showQuickTags && (
+        <div className="flex flex-row gap-1.5">
+          {QUICK_TAGS.map(tag => (
+            <button
+              key={tag.label}
+              type="button"
+              onClick={() => handleQuickTag(tag)}
+              className="px-2 py-1 rounded-full text-[11px] text-[var(--tf-text-secondary)] bg-transparent hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer transition-colors whitespace-nowrap"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+            >
+              {tag.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <textarea
         ref={textareaRef}
         value={text}
@@ -266,22 +282,6 @@ function InputStep(props: InputStepProps): React.ReactElement {
       />
 
       <FaqSuggestions input={text} />
-
-      {showQuickTags && (
-        <div className="flex flex-wrap gap-1.5">
-          {QUICK_TAGS.map(tag => (
-            <button
-              key={tag.label}
-              type="button"
-              onClick={() => handleQuickTag(tag)}
-              className="px-2 py-1 rounded-full text-[11.5px] text-[var(--tf-text-secondary)] bg-transparent hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer transition-colors"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              {tag.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       <div className="flex flex-col gap-1">
         <label className="text-[11px] text-[var(--tf-text-tertiary)]">Bereich (optional)</label>

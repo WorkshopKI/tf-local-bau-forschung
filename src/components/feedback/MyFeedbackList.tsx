@@ -1,6 +1,6 @@
 // Eigener Feedback-Verlauf — gefiltert nach user_id == profile.name.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { getMyFeedback } from '@/core/services/feedback';
@@ -36,10 +36,19 @@ export function MyFeedbackList(): React.ReactElement {
   const { profile } = useProfile();
   const [items, setItems] = useState<FeedbackItem[] | null>(null);
 
-  useEffect(() => {
+  const load = useCallback((): void => {
     const userId = profile?.name ?? 'anonymous';
-    getMyFeedback(storage, userId).then(setItems);
+    void getMyFeedback(storage, userId).then(setItems);
   }, [storage, profile?.name]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Live-Refresh bei feedback-updated Event (Submit im Panel, Admin-Updates)
+  useEffect(() => {
+    const handler = (): void => load();
+    window.addEventListener('feedback-updated', handler);
+    return () => window.removeEventListener('feedback-updated', handler);
+  }, [load]);
 
   if (items === null) {
     return <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Lade…</p>;
