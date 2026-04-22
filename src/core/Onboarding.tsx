@@ -5,6 +5,7 @@ import { PRESET_COLORS, applyThemeColor } from '@/ui/theme';
 import type { UserProfile } from '@/core/types/config';
 import { useStorage } from '@/core/hooks/useStorage';
 import { shouldShowOpfsOption } from '@/core/utils/environment';
+import { isAntraegeEnabled, isBauantraegeEnabled, menuLabel } from '@/config/feature-flags';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -17,8 +18,12 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
   const storage = useStorage();
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
-  const [department, setDepartment] = useState<UserProfile['department']>('bauantraege');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const defaultDept: UserProfile['department'] =
+    isAntraegeEnabled() && isBauantraegeEnabled() ? 'beide'
+    : isAntraegeEnabled() ? 'antraege'
+    : 'bauantraege';
+  const [department, setDepartment] = useState<UserProfile['department']>(defaultDept);
+  const [isKurator, setIsKurator] = useState(false);
   const [selectedHue, setSelectedHue] = useState(221);
   const [selectedSat, setSelectedSat] = useState('25%');
   const [selectedLit, setSelectedLit] = useState('42%');
@@ -51,7 +56,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
   const showOpfs = shouldShowOpfsOption();
 
   const handleFinish = async (): Promise<void> => {
-    const profile: UserProfile = { name, department, theme: { hue: selectedHue, dark: false }, is_admin: isAdmin };
+    const profile: UserProfile = { name, department, theme: { hue: selectedHue, dark: false }, is_kurator: isKurator };
     await storage.idb.set('profile', profile);
     await storage.idb.set('onboarding-complete', true);
     applyThemeColor(selectedHue, selectedSat, selectedLit);
@@ -69,14 +74,16 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
                 <label className="text-[13px] font-medium text-[var(--tf-text)]">Dein Name</label>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="Max Mustermann" className={inputClass} style={inputStyle} />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-medium text-[var(--tf-text)]">Abteilung</label>
-                <select value={department} onChange={e => setDepartment(e.target.value as UserProfile['department'])} className={inputClass} style={inputStyle}>
-                  <option value="bauantraege">Bauanträge</option>
-                  <option value="forschung">Forschung</option>
-                  <option value="beide">Beide</option>
-                </select>
-              </div>
+              {isAntraegeEnabled() && isBauantraegeEnabled() && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[13px] font-medium text-[var(--tf-text)]">Abteilung</label>
+                  <select value={department} onChange={e => setDepartment(e.target.value as UserProfile['department'])} className={inputClass} style={inputStyle}>
+                    <option value="antraege">{menuLabel('antraege', 'Förderanträge')}</option>
+                    <option value="bauantraege">{menuLabel('bauantraege', 'Bauanträge')}</option>
+                    <option value="beide">Beide</option>
+                  </select>
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[13px] font-medium text-[var(--tf-text)]">Farbe</label>
                 <div className="flex gap-2.5 justify-center">
@@ -96,12 +103,12 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
               <label className="flex items-start gap-2.5 cursor-pointer pt-1">
                 <input
                   type="checkbox"
-                  checked={isAdmin}
-                  onChange={e => setIsAdmin(e.target.checked)}
+                  checked={isKurator}
+                  onChange={e => setIsKurator(e.target.checked)}
                   className="mt-0.5 cursor-pointer accent-[var(--tf-primary)]"
                 />
                 <span className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug">
-                  Ich bin Admin dieses TeamFlow-Projekts (zeigt zusätzliche Verwaltungs-Bereiche an)
+                  Ich bin Kurator dieses TeamFlow-Projekts (zeigt zusätzliche Kuration-Bereiche an)
                 </span>
               </label>
             </div>
@@ -142,7 +149,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
             <h1 className="text-[20px] font-medium text-[var(--tf-text)]">Alles eingerichtet</h1>
             <div className="text-[13px] text-[var(--tf-text-secondary)] space-y-1.5">
               <p><span className="text-[var(--tf-text-tertiary)]">Name:</span> {name}</p>
-              <p><span className="text-[var(--tf-text-tertiary)]">Abteilung:</span> {department === 'bauantraege' ? 'Bauanträge' : department === 'forschung' ? 'Forschung' : 'Beide'}</p>
+              <p><span className="text-[var(--tf-text-tertiary)]">Abteilung:</span> {department === 'bauantraege' ? menuLabel('bauantraege', 'Bauanträge') : department === 'antraege' ? menuLabel('antraege', 'Förderanträge') : 'Beide'}</p>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-[var(--tf-text-tertiary)]">Farbe:</span>
                 <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: `hsl(${selectedHue}, ${selectedSat}, ${selectedLit})` }} />

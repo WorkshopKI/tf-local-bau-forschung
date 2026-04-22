@@ -11,25 +11,16 @@ const BAU_TRANSITIONS: Record<string, string[]> = {
   archiviert: [],
 };
 
-const FORSCHUNG_TRANSITIONS: Record<string, string[]> = {
-  eingereicht: ['in_begutachtung', 'abgelehnt'],
-  in_begutachtung: ['bewilligt', 'nachbesserung', 'abgelehnt'],
-  nachbesserung: ['in_begutachtung'],
-  bewilligt: ['abgeschlossen'],
-  abgelehnt: ['eingereicht'],
-  abgeschlossen: [],
-};
-
-export function getTransitions(type: 'bauantrag' | 'forschung'): Record<string, string[]> {
-  return type === 'bauantrag' ? BAU_TRANSITIONS : FORSCHUNG_TRANSITIONS;
+export function getTransitions(_type: 'bauantrag'): Record<string, string[]> {
+  return BAU_TRANSITIONS;
 }
 
-export function canTransition(current: string, target: string, type: 'bauantrag' | 'forschung'): boolean {
+export function canTransition(current: string, target: string, type: 'bauantrag'): boolean {
   const map = getTransitions(type);
   return map[current]?.includes(target) ?? false;
 }
 
-export function getAvailableTransitions(current: string, type: 'bauantrag' | 'forschung'): string[] {
+export function getAvailableTransitions(current: string, type: 'bauantrag'): string[] {
   const map = getTransitions(type);
   return map[current] ?? [];
 }

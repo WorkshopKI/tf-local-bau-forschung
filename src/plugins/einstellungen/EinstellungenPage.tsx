@@ -8,6 +8,7 @@ import { TagsTab } from './TagsTab';
 import { TastaturTab } from './TastaturTab';
 import { AIProviderTab } from './AIProviderTab';
 import { SpeicherTab } from './SpeicherTab';
+import { isKuratorMenusEnabled, isAntraegeEnabled, isBauantraegeEnabled, menuLabel } from '@/config/feature-flags';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
 const TABS = [
@@ -53,13 +54,22 @@ export function EinstellungenPage(): React.ReactElement {
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
       <div className="mt-6">
+        {activeTab === 'profil' && !profile && (
+          <div className="py-8 text-center text-[13px] text-[var(--tf-text-tertiary)]">
+            Kein Profil geladen. Bitte App-Storage leeren und Onboarding neu durchlaufen.
+          </div>
+        )}
         {activeTab === 'profil' && profile && (
           <div>
             <div className="flex items-center gap-4 mb-6">
               <div className="w-14 h-14 rounded-full bg-[var(--tf-primary)] flex items-center justify-center text-white text-lg font-medium">{initials}</div>
               <div>
                 <p className="text-[14px] font-medium text-[var(--tf-text)]">{profile.name}</p>
-                <p className="text-[12px] text-[var(--tf-text-secondary)]">{profile.department}</p>
+                <p className="text-[12px] text-[var(--tf-text-secondary)]">
+                  {profile.department === 'antraege' ? menuLabel('antraege', 'Förderanträge')
+                    : profile.department === 'bauantraege' ? menuLabel('bauantraege', 'Bauanträge')
+                    : 'Beide'}
+                </p>
               </div>
             </div>
             <SectionHeader label="Profil bearbeiten" />
@@ -68,29 +78,38 @@ export function EinstellungenPage(): React.ReactElement {
                 <label className="text-[13px] font-medium text-[var(--tf-text)]">Name</label>
                 <input value={profile.name} onChange={e => updateProfile({ name: e.target.value })} className={inputClass} style={inputStyle} />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-medium text-[var(--tf-text)]">Abteilung</label>
-                <select value={profile.department} onChange={e => updateProfile({ department: e.target.value as UserProfile['department'] })} className={inputClass} style={inputStyle}>
-                  <option value="bauantraege">Bauanträge</option>
-                  <option value="forschung">Forschung</option>
-                  <option value="beide">Beide</option>
-                </select>
+              {(() => {
+                const opts: Array<{ value: UserProfile['department']; label: string }> = [];
+                if (isAntraegeEnabled()) opts.push({ value: 'antraege', label: menuLabel('antraege', 'Förderanträge') });
+                if (isBauantraegeEnabled()) opts.push({ value: 'bauantraege', label: menuLabel('bauantraege', 'Bauanträge') });
+                if (opts.length >= 2) opts.push({ value: 'beide', label: 'Beide' });
+                if (opts.length < 2) return null;
+                return (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[13px] font-medium text-[var(--tf-text)]">Abteilung</label>
+                    <select value={profile.department} onChange={e => updateProfile({ department: e.target.value as UserProfile['department'] })} className={inputClass} style={inputStyle}>
+                      {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                );
+              })()}
+            </div>
+            {isKuratorMenusEnabled() && (
+              <div className="mt-6">
+                <SectionHeader label="Kurator-Funktionen" />
+                <label className="flex items-start gap-2.5 cursor-pointer mt-3">
+                  <input
+                    type="checkbox"
+                    checked={!!(profile.is_kurator ?? profile.is_admin)}
+                    onChange={e => updateProfile({ is_kurator: e.target.checked })}
+                    className="mt-0.5 cursor-pointer accent-[var(--tf-primary)]"
+                  />
+                  <span className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug">
+                    Kurator-Bereiche aktivieren (Suchindex, Feedback-Verwaltung)
+                  </span>
+                </label>
               </div>
-            </div>
-            <div className="mt-6">
-              <SectionHeader label="Admin-Funktionen" />
-              <label className="flex items-start gap-2.5 cursor-pointer mt-3">
-                <input
-                  type="checkbox"
-                  checked={!!profile.is_admin}
-                  onChange={e => updateProfile({ is_admin: e.target.checked })}
-                  className="mt-0.5 cursor-pointer accent-[var(--tf-primary)]"
-                />
-                <span className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug">
-                  Admin-Bereiche aktivieren (Suchindex, Feedback-Verwaltung)
-                </span>
-              </label>
-            </div>
+            )}
           </div>
         )}
 

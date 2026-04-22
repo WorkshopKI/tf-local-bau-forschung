@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-single/
 dist-deploy/
+assets/
 *.tsbuildinfo
 
 # KI-Analyseprogramm (Binaries + Modell)
@@ -12,11 +13,33 @@ scripts/metadata-server/models/
 scripts/metadata-server/llama-cpp/
 scripts/metadata-server/llama-cpp.zip
 
-# Grosse Binaries generell
+# Grosse Binaries generell (Modelle, Archive)
 *.gguf
 *.onnx
 *.safetensors
 *.bin
+*.pt
+*.pth
+*.ckpt
+*.zip
+*.7z
+*.tar.gz
+*.tgz
 
-# Versehentliche Source-ZIPs
+# Versehentliche Source-Dumps
 teamflow-src.zip
+
+# Lokale Dev-Artefakte
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Claude worktrees (werden transient angelegt)
+.claude/worktrees/

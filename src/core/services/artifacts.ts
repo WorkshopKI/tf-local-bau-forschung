@@ -35,7 +35,7 @@ export class ArtifactService {
     await storage.idb.set(`artifact:${full.id}`, full);
 
     if (storage.fs) {
-      const dir = vorgang.type === 'bauantrag' ? 'vorgaenge/bauantraege' : 'vorgaenge/forschung';
+      const dir = 'antraege/bauantraege';
       const frontmatter = `---\ntype: ${full.type}\nauthor: ${full.author}\ncreated: ${full.created}\nvorgangId: ${full.vorgangId}\n---\n\n`;
       try {
         await storage.fs.writeFile(`${dir}/${vorgang.id}/${full.filename}`, frontmatter + full.content);

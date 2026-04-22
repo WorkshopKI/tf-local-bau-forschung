@@ -4,7 +4,7 @@ import { getAvailableTransitions } from '@/core/services/workflow/engine';
 
 interface StatusSelectProps {
   currentStatus: string;
-  type: 'bauantrag' | 'forschung';
+  type: 'bauantrag';
   labels: Record<string, string>;
   onChange: (status: string, comment?: string) => void;
   disabled?: boolean;

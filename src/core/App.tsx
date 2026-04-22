@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Shell } from '@/core/Shell';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { AppRouter } from '@/core/Router';
 import { Onboarding } from '@/core/Onboarding';
+import { WelcomeScreen } from '@/core/WelcomeScreen';
 import { enabledPlugins } from '@/plugins.config';
 import { StorageService } from '@/core/services/storage';
 import { StorageContext } from '@/core/hooks/useStorage';
@@ -14,14 +15,22 @@ import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { ErrorBoundary } from '@/core/ErrorBoundary';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import { checkQuarterReset, loadFeedbackConfig } from '@/core/services/feedback';
+import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
+import { runtimeConfig } from '@/config/runtime-config';
+import { isDemoDataBundled } from '@/config/feature-flags';
+import { seedTestData } from '@/core/services/seed/seed-data';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
-function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, department }: {
+function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, showWelcome, setShowWelcome, department, seedToast, setSeedToast }: {
   storage: StorageService;
   aiBridge: AIBridge;
   showOnboarding: boolean;
   setShowOnboarding: (v: boolean) => void;
+  showWelcome: boolean;
+  setShowWelcome: (v: boolean) => void;
   department: UserProfile['department'];
+  seedToast: string | null;
+  setSeedToast: (v: string | null) => void;
 }): React.ReactElement {
   const searchValue = useSearchProvider(storage);
   const tagValue = useTagProvider(storage);
@@ -54,9 +63,14 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, de
           <TagContext.Provider value={tagValue}>
             <TourContext.Provider value={tourValue}>
               {showOnboarding ? (
-                <Onboarding onComplete={() => setShowOnboarding(false)} />
+                <Onboarding onComplete={async () => {
+                  await profileValue.reloadProfile();
+                  setShowOnboarding(false);
+                }} />
+              ) : showWelcome ? (
+                <WelcomeScreen onComplete={() => setShowWelcome(false)} />
               ) : (
-                <Shell plugins={enabledPlugins} department={activeDepartment} />
+                <AppRouter plugins={enabledPlugins} department={activeDepartment} />
               )}
               {quarterToast && (
                 <div
@@ -70,6 +84,26 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, de
                     <button
                       type="button"
                       onClick={() => setQuarterToast(null)}
+                      className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+                      aria-label="Schließen"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )}
+              {seedToast && (
+                <div
+                  className="fixed top-4 right-4 z-[60] max-w-[360px] px-3.5 py-2.5 rounded-[var(--tf-radius-lg)] bg-[var(--tf-bg)] text-[12.5px] text-[var(--tf-text)] shadow-lg animate-in fade-in slide-in-from-top-2"
+                  style={{ border: '0.5px solid var(--tf-border)' }}
+                  role="status"
+                >
+                  <div className="flex items-start gap-2">
+                    <span>📦</span>
+                    <div className="flex-1">{seedToast}</div>
+                    <button
+                      type="button"
+                      onClick={() => setSeedToast(null)}
                       className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
                       aria-label="Schließen"
                     >
@@ -101,7 +135,18 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const aiBridge = useMemo(() => new AIBridge(), []);
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [department, setDepartment] = useState<UserProfile['department']>('beide');
+  const [seedToast, setSeedToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    document.title = runtimeConfig.build.browserTabTitle;
+  }, []);
+
+  const refreshHandleGate = useCallback(async (): Promise<void> => {
+    const handle = await getDatenShareHandle(storage.idb);
+    setShowWelcome(!handle);
+  }, [storage]);
 
   useEffect(() => {
     storage.init().then(async () => {
@@ -114,6 +159,8 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
           setDepartment(profile.department);
         }
         setShowOnboarding(false);
+        // Nach Onboarding-Complete: Welcome zeigen, wenn kein Daten-Share-Handle.
+        await refreshHandleGate();
       } else {
         setShowOnboarding(true);
       }
@@ -127,7 +174,30 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       setReady(true);
       hideLoader();
     });
-  }, [storage, aiBridge]);
+  }, [storage, aiBridge, refreshHandleGate]);
+
+  const handleOnboardingComplete = useCallback(async () => {
+    setShowOnboarding(false);
+    await refreshHandleGate();
+  }, [refreshHandleGate]);
+
+  // Demo-Daten-Auto-Seed: Wenn data.demoDataBundled aktiv ist und die IDB
+  // noch keinen `seed-complete`-Marker trägt, lädt seedTestData() synthetische
+  // Vorgänge/Dokumente/Artefakte. seedTestData() ist idempotent — zweiter Aufruf
+  // liefert Nullen und es erscheint kein Toast.
+  useEffect(() => {
+    if (!ready || showOnboarding || !isDemoDataBundled()) return;
+    let cancelled = false;
+    (async () => {
+      const result = await seedTestData(storage);
+      if (cancelled) return;
+      if (result.vorgaenge > 0 || result.dokumente > 0 || result.artefakte > 0) {
+        setSeedToast(`Demo-Daten geladen (${result.vorgaenge} Vorgänge, ${result.dokumente} Dokumente, ${result.artefakte} Artefakte)`);
+        setTimeout(() => setSeedToast(null), 5000);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ready, showOnboarding, storage]);
 
   if (!ready) return <></>;
 
@@ -136,8 +206,12 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       storage={storage}
       aiBridge={aiBridge}
       showOnboarding={showOnboarding}
-      setShowOnboarding={setShowOnboarding}
+      setShowOnboarding={handleOnboardingComplete as unknown as (v: boolean) => void}
+      showWelcome={showWelcome}
+      setShowWelcome={setShowWelcome}
       department={department}
+      seedToast={seedToast}
+      setSeedToast={setSeedToast}
     />
   );
 }

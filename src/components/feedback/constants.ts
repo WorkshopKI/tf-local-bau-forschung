@@ -1,6 +1,6 @@
 // Feedback-System UI-Konstanten
 
-import type { FeedbackCategory, FeedbackStatus } from '@/core/types/feedback';
+import type { EffortEstimate, FeedbackCategory, FeedbackStatus } from '@/core/types/feedback';
 
 export interface TeamflowArea {
   ref: string;
@@ -10,7 +10,7 @@ export interface TeamflowArea {
 export const TEAMFLOW_AREAS: readonly TeamflowArea[] = [
   { ref: 'dashboard', label: 'Dashboard / Home' },
   { ref: 'bauantraege', label: 'Bauanträge' },
-  { ref: 'forschung', label: 'Forschungsanträge' },
+  { ref: 'antraege', label: 'Förderanträge' },
   { ref: 'dokumente', label: 'Dokumente' },
   { ref: 'dokumentendetail', label: 'Dokumentendetail / Metadaten' },
   { ref: 'suche', label: 'Suche' },
@@ -30,7 +30,7 @@ export const CATEGORY_LABELS: Record<FeedbackCategory, string> = {
 export const CATEGORY_ICONS: Record<FeedbackCategory, string> = {
   praise: 'Sparkles',
   problem: 'Zap',
-  idea: 'Lightbulb',
+  idea: 'Diamond',
   question: 'HelpCircle',
 };
 
@@ -43,21 +43,29 @@ export const STATUS_LABELS: Record<FeedbackStatus, string> = {
   archiviert: 'Archiviert',
 };
 
-/** Status-Badges — Theme-Vars (pastell, Dark-Mode-kompatibel via --tf-*). */
+/**
+ * Status-Badges — Theme-Vars (dark-on-light, Dark-Mode-kompatibel via --tf-*).
+ * Light: z.B. text-red-800 auf bg-red-50 Äquivalent.
+ * Dark: --tf-*-bg/text passen sich automatisch an.
+ */
 export const STATUS_COLORS: Record<FeedbackStatus, string> = {
   neu: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]',
   geplant: 'bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]',
   in_bearbeitung: 'bg-[var(--tf-info-bg)] text-[var(--tf-info-text)]',
   umgesetzt: 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]',
   abgelehnt: 'bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]',
-  archiviert: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]',
+  archiviert: 'bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)]',
 };
 
+/**
+ * Kategorie-Badges — eindeutige Farben pro Typ:
+ * Problem=rot, Idee=blau, Lob=grün, Frage=amber.
+ */
 export const CATEGORY_COLORS: Record<FeedbackCategory, string> = {
-  praise: 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]',
   problem: 'bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]',
-  idea: 'bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]',
-  question: 'bg-[var(--tf-info-bg)] text-[var(--tf-info-text)]',
+  idea: 'bg-[var(--tf-info-bg)] text-[var(--tf-info-text)]',
+  praise: 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]',
+  question: 'bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]',
 };
 
 /** Mapping LLM-Klassifikation → Feedback-Kategorie (für ConfirmCard). */
@@ -82,3 +90,11 @@ export const QUICK_TAGS: readonly QuickTag[] = [
   { label: 'Ich wünsche mir…', prefix: 'Ich wünsche mir ', hint: 'feature' },
   { label: 'Finde ich gut!', prefix: 'Ich finde gut, dass ', hint: 'praise' },
 ] as const;
+
+/** Kurze Aufwand-Labels für kompakte Badge-Darstellung (Board-Cards + Listen). */
+export const EFFORT_SHORT_LABELS: Record<EffortEstimate, string> = {
+  S: 'S ~2h',
+  M: 'M ~8h',
+  L: 'L ~16h',
+  XL: 'XL ~40h',
+};

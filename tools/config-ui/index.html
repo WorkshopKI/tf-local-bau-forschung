@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TeamFlow Build-Konfigurator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>TeamFlow Build-Konfigurator</h1>
+    <p class="subtitle">Erzeugt Config-Dateien für Build-Varianten.</p>
+  </header>
+
+  <main>
+    <section class="preset-row">
+      <label for="preset-select">Preset laden:</label>
+      <select id="preset-select">
+        <option value="">— Leer starten —</option>
+        <option value="dev">Development</option>
+        <option value="demo">Demo</option>
+        <option value="foerderprogramm">Forschungsförderung (Prod)</option>
+      </select>
+      <button id="load-existing" type="button">Bestehende Config laden…</button>
+    </section>
+
+    <section id="config-form">
+      <fieldset>
+        <legend>Build / Branding</legend>
+        <label>variant
+          <select data-path="variant">
+            <option value="custom">custom</option>
+            <option value="development">development</option>
+            <option value="demo">demo</option>
+            <option value="production">production</option>
+          </select>
+        </label>
+        <label>Label
+          <input data-path="build.label" type="text" placeholder="z.B. TeamFlow Forschungsförderung">
+        </label>
+        <label>Output-Dateiname (ohne .html)
+          <input data-path="build.outputFilename" type="text" placeholder="z.B. teamflow-forschungsfoerderung">
+        </label>
+        <label>Browser-Tab-Titel
+          <input data-path="build.browserTabTitle" type="text" placeholder="z.B. TeamFlow Forschungsförderung">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Datenspeicher</legend>
+        <label>Fester Pfad (optional)
+          <input data-path="data.fixedDataSharePath" type="text" placeholder="\\server\teamflow-x\">
+        </label>
+        <label class="chk"><input data-path="data.allowUserToChangePath" type="checkbox"> User darf Pfad ändern</label>
+        <label class="chk"><input data-path="data.allowLocalFallback" type="checkbox"> Lokaler Fallback erlaubt</label>
+        <label class="chk"><input data-path="data.demoDataBundled" type="checkbox"> Synthetische Test-Daten ins Bundle</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Features</legend>
+        <label class="chk"><input data-path="features.kuratorMenus" type="checkbox"> Kurator-Menüs</label>
+        <label class="chk"><input data-path="features.feedback" type="checkbox"> Feedback-System</label>
+        <label class="chk"><input data-path="features.dokumentenscan" type="checkbox"> Dokumentenscan (Phase 2)</label>
+        <label class="chk"><input data-path="features.volltextsuche" type="checkbox"> Volltextsuche</label>
+        <label class="chk"><input data-path="features.devInfraPanel" type="checkbox"> Dev-Infra-Panel</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>KI-Integration</legend>
+        <label class="chk"><input data-path="ki.localLlama.enabled" type="checkbox"> Lokales Llama.cpp</label>
+        <label>Llama-Endpoint
+          <input data-path="ki.localLlama.endpoint" type="text" placeholder="http://localhost:8081">
+        </label>
+        <label class="chk"><input data-path="ki.openrouter.enabled" type="checkbox"> OpenRouter</label>
+        <label>Erlaubte OpenRouter-Modelle (Komma-getrennt)
+          <input data-path="ki.openrouter.allowedModels" type="text" placeholder="openai/gpt-oss-120b,anthropic/claude-3-haiku">
+        </label>
+      </fieldset>
+    </section>
+
+    <section class="validation" id="validation-panel" aria-live="polite"></section>
+
+    <section class="json-preview">
+      <details>
+        <summary>JSON-Vorschau</summary>
+        <pre id="json-output"></pre>
+      </details>
+    </section>
+
+    <section class="actions">
+      <button id="save-config" class="primary" type="button">Config speichern</button>
+    </section>
+
+    <section id="save-result" hidden></section>
+  </main>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

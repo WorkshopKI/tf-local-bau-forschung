@@ -5,11 +5,12 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
 import type { AIProviderConfig } from '@/core/types/config';
+import { isOpenRouterEnabled } from '@/config/feature-flags';
 
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
 
-const PROVIDERS: Array<{
+const ALL_PROVIDERS: Array<{
   type: AIProviderConfig['type']; label: string; description: string;
   defaultEndpoint: string; defaultModel: string;
 }> = [
@@ -22,6 +23,10 @@ const PROVIDERS: Array<{
   { type: 'streamlit', label: 'Streamlit Bridge', description: 'Verbindung ueber Streamlit-App',
     defaultEndpoint: 'http://localhost:8501', defaultModel: '' },
 ];
+
+// In Builds ohne OpenRouter-Freigabe wird die Option komplett ausgeblendet,
+// damit echte Daten nicht versehentlich an Cloud-APIs gehen.
+const PROVIDERS = ALL_PROVIDERS.filter(p => p.type !== 'openrouter' || isOpenRouterEnabled());
 
 const COMMON_MODELS = [
   { value: 'openai/gpt-oss-120b', label: 'gpt-oss-120b (Empfohlen)' },

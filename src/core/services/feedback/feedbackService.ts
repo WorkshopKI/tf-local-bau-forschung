@@ -1,5 +1,5 @@
 // Feedback CRUD: localStorage primär + Shared JSON im Datenverzeichnis (Multi-User-Sync).
-// Konflikt-Strategie (Sektion R4): Merge-by-id mit Field-Precedence (User-Felder lokal, Admin-Felder shared-wins).
+// Konflikt-Strategie (Sektion R4): Merge-by-id mit Field-Precedence (User-Felder lokal, Kurator-Felder shared-wins).
 
 import type { StorageService } from '@/core/services/storage';
 import {
@@ -24,12 +24,27 @@ import { refundPoints, spendPoints } from './budgetService';
 
 // ── localStorage Helpers ─────────────────────────────────────────────────────
 
+/** Legacy-Migration: alte Items mit admin_* → kurator_* normalisieren. Read-only transformation. */
+function normalizeLegacyFields(item: FeedbackItem): FeedbackItem {
+  // Wenn kurator_status bereits gesetzt: keine Migration nötig.
+  if (item.kurator_status) {
+    return item;
+  }
+  return {
+    ...item,
+    kurator_status: item.admin_status ?? 'neu',
+    kurator_priority: item.kurator_priority ?? item.admin_priority,
+    kurator_notes: item.kurator_notes ?? item.admin_notes,
+  };
+}
+
 function loadLocalItems(): FeedbackItem[] {
   try {
     const raw = localStorage.getItem(FEEDBACK_LS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as FeedbackItem[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as FeedbackItem[]).map(normalizeLegacyFields);
   } catch {
     return [];
   }
@@ -63,7 +78,7 @@ async function readSharedFile(storage: StorageService): Promise<SharedFeedbackFi
     if (!exists) return null;
     const data = await storage.fs.readJSON<SharedFeedbackFile>(FEEDBACK_SHARED_FILE);
     if (!data || data.version !== 1 || !Array.isArray(data.items)) return null;
-    return data;
+    return { ...data, items: data.items.map(normalizeLegacyFields) };
   } catch (err) {
     console.warn('[feedbackService] readSharedFile failed:', err);
     return null;
@@ -87,7 +102,7 @@ async function writeSharedFile(storage: StorageService, items: FeedbackItem[]): 
   }
 }
 
-/** Merge-Strategie: bei Duplikat-IDs wins shared für Admin-Felder, lokal für User-Felder. */
+/** Merge-Strategie: bei Duplikat-IDs wins shared für Kurator-Felder, lokal für User-Felder. */
 function mergeItems(local: FeedbackItem[], shared: FeedbackItem[]): FeedbackItem[] {
   const byId = new Map<string, FeedbackItem>();
   for (const item of shared) byId.set(item.id, item);
@@ -97,7 +112,7 @@ function mergeItems(local: FeedbackItem[], shared: FeedbackItem[]): FeedbackItem
       byId.set(local_item.id, local_item);
       continue;
     }
-    // Merge: User-Felder aus local, Admin/FAQ-Felder aus shared
+    // Merge: User-Felder aus local, Kurator/FAQ-Felder aus shared
     byId.set(local_item.id, {
       ...sharedItem,
       // User-fields override (User edits these locally first)
@@ -116,12 +131,12 @@ function mergeItems(local: FeedbackItem[], shared: FeedbackItem[]): FeedbackItem
 
 export async function submitFeedback(
   storage: StorageService,
-  data: Omit<FeedbackItem, 'id' | 'admin_status' | 'created_at'>,
+  data: Omit<FeedbackItem, 'id' | 'kurator_status' | 'created_at'>,
 ): Promise<FeedbackItem> {
   const item: FeedbackItem = {
     ...data,
     id: generateId(),
-    admin_status: 'neu',
+    kurator_status: 'neu',
     created_at: new Date().toISOString(),
   };
   // Local
@@ -150,8 +165,8 @@ export async function getFeedbackList(
   if (!filters) return merged;
   return merged.filter(item => {
     if (filters.category && item.category !== filters.category) return false;
-    if (filters.status && item.admin_status !== filters.status) return false;
-    if (filters.priority !== undefined && item.admin_priority !== filters.priority) return false;
+    if (filters.status && item.kurator_status !== filters.status) return false;
+    if (filters.priority !== undefined && item.kurator_priority !== filters.priority) return false;
     return true;
   });
 }
@@ -166,7 +181,7 @@ export async function updateFeedback(
   id: string,
   updates: Partial<Pick<
     FeedbackItem,
-    'admin_status' | 'admin_notes' | 'admin_priority' | 'generated_prompt'
+    'kurator_status' | 'kurator_notes' | 'kurator_priority' | 'generated_prompt'
     | 'category'
     | 'llm_summary' | 'llm_classification' | 'user_confirmed'
     | 'is_faq' | 'faq_answer' | 'faq_keywords' | 'faq_ask_count'
@@ -265,13 +280,13 @@ export async function createStandaloneFaq(
   const item: FeedbackItem = {
     id: generateId(),
     created_at: new Date().toISOString(),
-    user_id: 'admin',
-    user_display_name: 'Admin',
+    user_id: 'kurator',
+    user_display_name: 'Kurator',
     category: 'question',
     text: data.summary,
     context: {
-      route: 'admin',
-      page: 'Admin (manuell)',
+      route: 'kuration',
+      page: 'Kurator (manuell)',
       device: 'Desktop',
       viewport: '0x0',
       sessionDuration: 0,
@@ -279,7 +294,7 @@ export async function createStandaloneFaq(
       timestamp: new Date().toISOString(),
     },
     llm_summary: data.summary,
-    admin_status: 'umgesetzt',
+    kurator_status: 'umgesetzt',
     is_faq: true,
     faq_answer: data.answer,
     faq_keywords: data.keywords,
@@ -384,7 +399,7 @@ export function getSponsoringProgress(
 export function isSponsoringOpen(ticket: FeedbackItem): boolean {
   if (ticket.category !== 'idea') return false;
   if (!ticket.effort_estimate) return false;
-  return ticket.admin_status === 'neu' || ticket.admin_status === 'geplant';
+  return ticket.kurator_status === 'neu' || ticket.kurator_status === 'geplant';
 }
 
 export interface SponsorResult {

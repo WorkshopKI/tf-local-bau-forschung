@@ -1,0 +1,16 @@
+PROJ_KURZ,ZUSAMMENFASSUNG,THEMA_URBAN,THEMA_ENERGIE,DESKRIPTOR_NEU
+SMART-CITY,Das Vorhaben untersucht urbane Sensornetzwerke für Luftqualität und Verkehrsfluss.,ja,nein,nein
+GREEN-MOBILITY,Ladeinfrastruktur-Studie für ländliche Regionen mit Fokus auf Lastmanagement.,nein,ja,ja
+ENERGY-PLUS,Quartierskonzept für Plusenergie-Siedlung mit integriertem Wärmepumpennetz.,ja,ja,nein
+KLIMA-BAU,Forschung zu CO2-armen Baustoffen und Recycling-Beton.,nein,nein,ja
+ZUKUNFT-WOHNEN,Modulare Wohnbauweise zur schnellen Nachverdichtung in Ballungsräumen.,ja,nein,nein
+DIGITAL-PLAN,BIM-Workflows für kommunale Planungsämter.,ja,nein,ja
+RESILIENCE-NET,Analyse kritischer Infrastrukturen hinsichtlich Klimarisiken.,nein,ja,nein
+URBAN-GREEN,Studie zur Kühlwirkung von Dachbegrünung in dichter Bebauung.,ja,nein,nein
+WATER-SMART,Dezentrale Regenwasser-Nutzungskonzepte für Quartiere.,ja,nein,ja
+MOB-FUTURE,Mobilitätshubs als Knotenpunkt für ÖPNV und Sharing-Angebote.,ja,nein,nein
+HEAT-PUMP-PRO,Retrofit-Methodik für Wärmepumpen in Altbauten.,nein,ja,nein
+GRID-FLEX,Netzplanungs-Tools für volatile Einspeisung.,nein,ja,ja
+AGRI-VOLT,Agri-PV-Pilotanlage mit Koexistenz von Ackerbau und Solarstrom.,nein,ja,ja
+CIRCLE-BUILD,Ressourcenkreisläufe für Abbruch-Materialien.,nein,nein,ja
+LOW-CARBON,Zementalternativen mit reduzierter CO2-Bilanz.,nein,nein,ja

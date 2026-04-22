@@ -1,5 +1,4 @@
-// Admin-Einstellungen: LLM-Modell, Max-Turns, System-Prompt-Pfad + Vorschau,
-// Shared-File Status + "System-Prompt initialisieren"-Button.
+// Admin-Einstellungen: 2-Spalten-Layout (Chatbot links, Dateien & Speicher rechts).
 
 import { useEffect, useState } from 'react';
 import { Check, Eye, FileCog } from 'lucide-react';
@@ -35,11 +34,8 @@ export function FeedbackConfigPanel(): React.ReactElement {
 
   const refreshStatus = async (): Promise<void> => {
     setShared(await getSharedFileStatus(storage));
-    if (storage.fs) {
-      setPromptExists(await storage.fs.exists(FEEDBACK_PROMPT_FILE));
-    } else {
-      setPromptExists(null);
-    }
+    if (storage.fs) { setPromptExists(await storage.fs.exists(FEEDBACK_PROMPT_FILE)); }
+    else { setPromptExists(null); }
   };
 
   useEffect(() => {
@@ -50,12 +46,7 @@ export function FeedbackConfigPanel(): React.ReactElement {
 
   const handleSave = async (): Promise<void> => {
     await saveFeedbackConfig(storage, cfg);
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 1500);
-  };
-
-  const handlePreview = async (): Promise<void> => {
-    setPromptPreview(await loadSystemPrompt(storage));
+    setSavedNotice(true); setTimeout(() => setSavedNotice(false), 1500);
   };
 
   const handleInit = async (): Promise<void> => {
@@ -68,62 +59,74 @@ export function FeedbackConfigPanel(): React.ReactElement {
   const fsConnected = storage.isFileServerConnected();
 
   return (
-    <div className="space-y-4 max-w-xl">
-      <div>
-        <label className="text-[11px] text-[var(--tf-text-tertiary)]">LLM-Modell für Chatbot</label>
-        <select value={cfg.llm_model} onChange={e => setCfg({ ...cfg, llm_model: e.target.value })} className={inputClass} style={inputStyle}>
-          {MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-        </select>
-        <p className="text-[10.5px] text-[var(--tf-text-tertiary)] mt-1">
-          Hinweis: Aktuell nutzt der Chatbot den global konfigurierten Provider (siehe Einstellungen → KI-Assistent).
-        </p>
-      </div>
-
-      <div>
-        <label className="text-[11px] text-[var(--tf-text-tertiary)]">Max. Chatbot-Nachrichten: {cfg.max_chatbot_turns}</label>
-        <input type="range" min={2} max={12} step={1} value={cfg.max_chatbot_turns} onChange={e => setCfg({ ...cfg, max_chatbot_turns: Number(e.target.value) })} className="w-full mt-1.5 cursor-pointer accent-[var(--tf-primary)]" />
-      </div>
-
-      <div className="p-3 rounded-[var(--tf-radius)] space-y-2" style={inputStyle}>
-        <p className="text-[12px] font-medium text-[var(--tf-text)]">System-Prompt</p>
-        <p className="text-[11.5px] text-[var(--tf-text-secondary)] font-mono">Datenverzeichnis/{cfg.system_prompt_path}</p>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={handlePreview} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[var(--tf-radius)] text-[11.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>
-            <Eye size={11} /> Prompt-Vorschau
-          </button>
-          {fsConnected && promptExists === false && (
-            <button type="button" onClick={handleInit} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[var(--tf-radius)] text-[11.5px] text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>
-              <FileCog size={11} /> System-Prompt initialisieren
-            </button>
-          )}
-          {fsConnected && promptExists === true && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-[var(--tf-success-text)]">
-              <Check size={11} /> Datei vorhanden
-            </span>
-          )}
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Links: Chatbot-Einstellungen */}
+        <div className="space-y-4">
+          <h2 className="text-[13px] font-medium text-[var(--tf-text)]">Feedback-Chatbot</h2>
+          <div>
+            <label className="text-[11px] text-[var(--tf-text-tertiary)]">LLM-Modell</label>
+            <select value={cfg.llm_model} onChange={e => setCfg({ ...cfg, llm_model: e.target.value })} className={inputClass} style={inputStyle}>
+              {MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+            <p className="text-[10.5px] text-[var(--tf-text-tertiary)] mt-1">Nutzt den global konfigurierten Provider</p>
+          </div>
+          <div>
+            <label className="text-[11px] text-[var(--tf-text-tertiary)]">Max. Chatbot-Nachrichten</label>
+            <div className="flex items-center gap-3">
+              <input type="range" min={2} max={12} step={1} value={cfg.max_chatbot_turns} onChange={e => setCfg({ ...cfg, max_chatbot_turns: Number(e.target.value) })} className="flex-1 cursor-pointer accent-[var(--tf-primary)]" />
+              <span className="text-[13px] font-medium text-[var(--tf-text)] tabular-nums w-6 text-right">{cfg.max_chatbot_turns}</span>
+            </div>
+          </div>
         </div>
-        {initStatus === 'success' && <p className="text-[11px] text-[var(--tf-success-text)]">✓ Prompt-Datei wurde im Datenverzeichnis erstellt.</p>}
-        {initStatus === 'error' && <p className="text-[11px] text-[var(--tf-danger-text)]">⚠ Konnte Datei nicht schreiben (Datenverzeichnis nicht verbunden oder schreibgeschützt).</p>}
-        {promptPreview !== null && (
-          <pre className="mt-2 p-2 rounded text-[10.5px] font-mono whitespace-pre-wrap bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] max-h-60 overflow-y-auto">{promptPreview}</pre>
-        )}
-      </div>
 
-      <div className="p-3 rounded-[var(--tf-radius)] space-y-1" style={inputStyle}>
-        <p className="text-[12px] font-medium text-[var(--tf-text)]">Geteilte Feedback-Datei</p>
-        <p className="text-[11.5px] text-[var(--tf-text-secondary)] font-mono">Datenverzeichnis/{cfg.shared_feedback_path}</p>
-        {!fsConnected ? (
-          <p className="text-[11px] text-[var(--tf-warning-text)]">⚠ Datenverzeichnis nicht verbunden — Feedback wird nur lokal gespeichert.</p>
-        ) : shared?.exists ? (
-          <p className="text-[11px] text-[var(--tf-success-text)]">✓ Gefunden · {shared.itemCount} {shared.itemCount === 1 ? 'Eintrag' : 'Einträge'} · zuletzt {shared.updatedAt ? new Date(shared.updatedAt).toLocaleString('de-DE') : '–'}</p>
-        ) : (
-          <p className="text-[11px] text-[var(--tf-text-tertiary)]">Noch nicht erstellt (wird beim ersten Feedback-Submit angelegt).</p>
-        )}
+        {/* Rechts: Dateien & Speicher */}
+        <div className="space-y-4">
+          <h2 className="text-[13px] font-medium text-[var(--tf-text)]">Dateien & Speicher</h2>
+
+          {/* System-Prompt */}
+          <div className="p-3 rounded-[var(--tf-radius)] space-y-1.5" style={inputStyle}>
+            <p className="text-[12px] font-medium text-[var(--tf-text)]">System-Prompt</p>
+            <p className="text-[11px] text-[var(--tf-text-secondary)] font-mono">{cfg.system_prompt_path}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {fsConnected && promptExists === true && (
+                <span className="inline-flex items-center gap-1 text-[10.5px] text-[var(--tf-success-text)]"><Check size={11} /> Datei vorhanden</span>
+              )}
+              <button type="button" onClick={async () => setPromptPreview(await loadSystemPrompt(storage))} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[var(--tf-radius)] text-[11px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>
+                <Eye size={10} /> Vorschau
+              </button>
+              {fsConnected && promptExists === false && (
+                <button type="button" onClick={handleInit} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[var(--tf-radius)] text-[11px] text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>
+                  <FileCog size={10} /> Initialisieren
+                </button>
+              )}
+            </div>
+            {initStatus === 'success' && <p className="text-[10.5px] text-[var(--tf-success-text)]">Prompt-Datei erstellt.</p>}
+            {initStatus === 'error' && <p className="text-[10.5px] text-[var(--tf-danger-text)]">Konnte Datei nicht schreiben.</p>}
+            {promptPreview !== null && (
+              <pre className="mt-1.5 p-2 rounded text-[10px] font-mono whitespace-pre-wrap bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] max-h-48 overflow-y-auto">{promptPreview}</pre>
+            )}
+          </div>
+
+          {/* Geteilte Feedback-Datei */}
+          <div className="p-3 rounded-[var(--tf-radius)] space-y-1" style={inputStyle}>
+            <p className="text-[12px] font-medium text-[var(--tf-text)]">Geteilte Feedback-Datei</p>
+            <p className="text-[11px] text-[var(--tf-text-secondary)] font-mono">{cfg.shared_feedback_path}</p>
+            {!fsConnected ? (
+              <p className="text-[10.5px] text-[var(--tf-warning-text)]">Datenverzeichnis nicht verbunden</p>
+            ) : shared?.exists ? (
+              <p className="text-[10.5px] text-[var(--tf-success-text)]">
+                <Check size={10} className="inline mr-0.5" />{shared.itemCount} {shared.itemCount === 1 ? 'Eintrag' : 'Einträge'} · zuletzt {shared.updatedAt ? new Date(shared.updatedAt).toLocaleDateString('de-DE') : '–'}
+              </p>
+            ) : (
+              <p className="text-[10.5px] text-[var(--tf-text-tertiary)]">Noch nicht erstellt</p>
+            )}
+          </div>
+        </div>
       </div>
 
       <button type="button" onClick={handleSave} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--tf-radius)] text-[12.5px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer">
-        {savedNotice ? <Check size={13} /> : null}
-        {savedNotice ? 'Gespeichert' : 'Einstellungen speichern'}
+        {savedNotice ? <Check size={13} /> : null} {savedNotice ? 'Gespeichert' : 'Einstellungen speichern'}
       </button>
     </div>
   );

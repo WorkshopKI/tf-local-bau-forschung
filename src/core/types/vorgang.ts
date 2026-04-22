@@ -9,7 +9,7 @@ export type VorgangStatus =
 
 export interface Vorgang {
   id: string;
-  type: 'bauantrag' | 'forschung';
+  type: 'bauantrag';
   title: string;
   status: VorgangStatus;
   priority: 'niedrig' | 'normal' | 'hoch' | 'dringend';

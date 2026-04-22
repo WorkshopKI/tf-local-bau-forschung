@@ -1,21 +1,10 @@
-// Filterbare Ticket-Liste links im Admin-Layout.
+// Filterbare Ticket-Liste links im Admin-Layout — kompakte Zeilen statt Cards.
 
-import * as Icons from 'lucide-react';
 import type { FeedbackCategory, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import {
   CATEGORY_COLORS,
-  CATEGORY_ICONS,
   CATEGORY_LABELS,
-  STATUS_COLORS,
-  STATUS_LABELS,
 } from '@/components/feedback/constants';
-
-type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
-function getIcon(name: string): IconComponent {
-  const icon = (Icons as Record<string, unknown>)[name];
-  if (typeof icon === 'object' && icon !== null) return icon as IconComponent;
-  return Icons.HelpCircle;
-}
 
 interface Props {
   tickets: FeedbackItem[];
@@ -28,42 +17,70 @@ interface Props {
   onSelect: (ticket: FeedbackItem) => void;
 }
 
-const inputClass = 'px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]';
-const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
+const STATUS_PILLS: { id: FeedbackStatus | ''; label: string }[] = [
+  { id: '', label: 'Alle' },
+  { id: 'neu', label: 'Neu' },
+  { id: 'geplant', label: 'Geplant' },
+  { id: 'in_bearbeitung', label: 'In Bearb.' },
+  { id: 'umgesetzt', label: 'Umgesetzt' },
+  { id: 'abgelehnt', label: 'Abgelehnt' },
+];
+
+const CATEGORY_PILLS: { id: FeedbackCategory | ''; label: string }[] = [
+  { id: '', label: 'Alle' },
+  { id: 'problem', label: 'Bug' },
+  { id: 'idea', label: 'Idee' },
+  { id: 'praise', label: 'Lob' },
+  { id: 'question', label: 'Frage' },
+];
+
+const pillBase = 'px-2 py-0.5 rounded-full text-[11px] cursor-pointer transition-colors';
+const pillActive = `${pillBase} bg-[var(--tf-primary)] text-white`;
+const pillInactive = `${pillBase} text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]`;
 
 export function FeedbackTicketList(props: Props): React.ReactElement {
   const { tickets, loading, selectedId, filterCategory, filterStatus, onFilterCategory, onFilterStatus, onSelect } = props;
 
   return (
-    <div className="space-y-3">
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        <select value={filterCategory} onChange={e => onFilterCategory(e.target.value as FeedbackCategory | '')} className={inputClass} style={inputStyle}>
-          <option value="">Alle Kategorien</option>
-          {(Object.keys(CATEGORY_LABELS) as FeedbackCategory[]).map(c => (
-            <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
-          ))}
-        </select>
-        <select value={filterStatus} onChange={e => onFilterStatus(e.target.value as FeedbackStatus | '')} className={inputClass} style={inputStyle}>
-          <option value="">Alle Status</option>
-          {(Object.keys(STATUS_LABELS) as FeedbackStatus[]).map(s => (
-            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-          ))}
-        </select>
+    <div>
+      {/* Filter-Pills */}
+      <div className="space-y-1.5 mb-3">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[60px] shrink-0">Status</span>
+          <div className="flex flex-wrap gap-1">
+            {STATUS_PILLS.map(p => (
+              <button key={p.id} type="button" onClick={() => onFilterStatus(p.id)}
+                className={filterStatus === p.id ? pillActive : pillInactive}
+                style={filterStatus !== p.id ? { border: '0.5px solid var(--tf-border)' } : undefined}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[60px] shrink-0">Kategorie</span>
+          <div className="flex flex-wrap gap-1">
+            {CATEGORY_PILLS.map(p => (
+              <button key={p.id} type="button" onClick={() => onFilterCategory(p.id)}
+                className={filterCategory === p.id ? pillActive : pillInactive}
+                style={filterCategory !== p.id ? { border: '0.5px solid var(--tf-border)' } : undefined}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* List */}
-      <div className="space-y-1.5 max-h-[calc(100vh-260px)] overflow-y-auto">
+      <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
         {loading && <p className="text-[12px] text-[var(--tf-text-tertiary)] text-center py-4">Lade Tickets…</p>}
         {!loading && tickets.length === 0 && <p className="text-[12px] text-[var(--tf-text-tertiary)] text-center py-4">Keine Tickets gefunden.</p>}
         {tickets.map(ticket => {
-          const Icon = getIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
           const summary = ticket.llm_summary || ticket.text || '–';
           const isSelected = selectedId === ticket.id;
-          const date = new Date(ticket.created_at).toLocaleDateString('de-DE');
+          const date = new Date(ticket.created_at).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' });
           const contextLine = [
             ticket.context.page,
-            ticket.context.screenRefLabel ? `→ ${ticket.context.screenRefLabel}` : null,
             ticket.user_display_name || ticket.user_id,
           ].filter(Boolean).join(' · ');
 
@@ -72,29 +89,24 @@ export function FeedbackTicketList(props: Props): React.ReactElement {
               key={ticket.id}
               type="button"
               onClick={() => onSelect(ticket)}
-              className={`w-full text-left p-2.5 rounded-[var(--tf-radius)] transition-colors cursor-pointer ${
-                isSelected ? 'bg-[var(--tf-primary-light)]/30' : 'hover:bg-[var(--tf-hover)]'
+              className={`w-full text-left px-2.5 py-2 transition-colors cursor-pointer ${
+                isSelected ? 'bg-[var(--tf-primary-light)]/20' : 'hover:bg-[var(--tf-hover)]'
               }`}
               style={{
-                border: '0.5px solid var(--tf-border)',
-                borderLeft: isSelected ? '3px solid var(--tf-primary)' : '0.5px solid var(--tf-border)',
+                borderBottom: '0.5px solid var(--tf-border)',
+                borderLeft: isSelected ? '3px solid var(--tf-primary)' : '3px solid transparent',
               }}
             >
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10.5px] font-medium ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
-                  <Icon size={11} />
-                  {ticket.category ? CATEGORY_LABELS[ticket.category] : 'Unklassifiziert'}
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
+                  {ticket.category ? CATEGORY_LABELS[ticket.category] : '–'}
                 </span>
-                {ticket.is_faq && (
-                  <span className="text-[9.5px] px-1 rounded bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)] font-medium">FAQ</span>
-                )}
-                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_COLORS[ticket.admin_status]}`}>
-                  {STATUS_LABELS[ticket.admin_status]}
-                </span>
-                <span className="text-[10px] text-[var(--tf-text-tertiary)] ml-auto">{date}</span>
+                <p className="flex-1 min-w-0 text-[12px] font-medium text-[var(--tf-text)] truncate">{summary}</p>
+                <span className="text-[10px] text-[var(--tf-text-tertiary)] shrink-0">{date}</span>
               </div>
-              <p className="text-[12.5px] text-[var(--tf-text)] leading-snug line-clamp-2">{summary}</p>
-              <p className="text-[10.5px] text-[var(--tf-text-tertiary)] mt-1 truncate">{contextLine}</p>
+              <p className="text-[10px] text-[var(--tf-text-tertiary)] truncate mt-0.5 ml-[calc(theme(spacing.1.5)*2+theme(spacing.2)+2ch)]" style={{ marginLeft: '4.5rem' }}>
+                {contextLine}
+              </p>
             </button>
           );
         })}

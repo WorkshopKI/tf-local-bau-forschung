@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Vorgang } from '@/core/types/vorgang';
 import type { StorageService } from '@/core/services/storage';
+import { generatePrefixedId } from '@/core/services/id-generator';
 
 interface BauantraegeState {
   bauantraege: Vorgang[];
@@ -13,17 +14,6 @@ interface BauantraegeState {
   remove: (id: string, storage: StorageService) => Promise<void>;
   setSelectedId: (id: string | null) => void;
   setFilters: (filters: Partial<{ status: string; search: string }>) => void;
-}
-
-function generateId(existing: Vorgang[]): string {
-  const year = new Date().getFullYear();
-  const prefix = `BA-${year}-`;
-  const nums = existing
-    .filter(v => v.id.startsWith(prefix))
-    .map(v => parseInt(v.id.slice(prefix.length), 10))
-    .filter(n => !isNaN(n));
-  const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
-  return `${prefix}${String(next).padStart(3, '0')}`;
 }
 
 export const useBauantraegeStore = create<BauantraegeState>((set, get) => ({
@@ -42,7 +32,7 @@ export const useBauantraegeStore = create<BauantraegeState>((set, get) => ({
     const { bauantraege } = get();
     const now = new Date().toISOString();
     const vorgang: Vorgang = {
-      id: generateId(bauantraege),
+      id: generatePrefixedId('BA', bauantraege),
       type: 'bauantrag',
       title: partial.title ?? '',
       status: partial.status ?? 'neu',

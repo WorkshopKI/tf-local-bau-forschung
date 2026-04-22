@@ -1,8 +1,11 @@
 import type { StorageService } from '@/core/services/storage';
+import type { Antrag } from '@/core/services/csv/types';
 import { createOramaDB, insertDoc, saveOramaToDB } from '@/core/services/search/orama-store';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
+import { ensureDefaultProgramm } from '@/core/services/csv';
+import { putAntraege, deleteAntrag } from '@/core/services/csv/idb-csv';
 import { bauantraegeData } from './bauantraege-data';
-import { forschungData } from './forschung-data';
+import { foerderantraegeData } from './foerderantraege-data';
 import { artefakteData } from './artefakte-data';
 
 export interface SeedResult {
@@ -26,7 +29,7 @@ export async function seedTestData(
   createOramaDB(model.dimensions);
 
   const emptyVec = new Array(model.dimensions).fill(0) as number[];
-  const total = bauantraegeData.length + forschungData.length + allDokumente.length + artefakteData.length;
+  const total = bauantraegeData.length + foerderantraegeData.length + allDokumente.length + artefakteData.length;
   let current = 0;
 
   // Bauantraege — save + index
@@ -40,13 +43,21 @@ export async function seedTestData(
     onProgress?.(++current, total);
   }
 
-  // Forschungsantraege — save + index
-  for (const v of forschungData) {
-    await storage.saveVorgang(v);
+  // Foerderantraege — CSV-basiertes Schema (Antrag), ueber programmRegistry + putAntraege
+  const programm = await ensureDefaultProgramm(storage.idb);
+  const withProgramm: Antrag[] = foerderantraegeData.map(a => ({ ...a, programm_id: programm.id }));
+  await putAntraege(storage.idb, withProgramm);
+  for (const a of withProgramm) {
+    const tags = Array.isArray(a.tags) ? (a.tags as string[]) : [];
+    const notes = typeof a.notes === 'string' ? a.notes : '';
     insertDoc({
-      id: v.id, text: `${v.title} ${v.notes} ${v.tags.join(' ')}`,
-      title: v.title, source: v.id, tags: v.tags.join(','),
-      type: 'forschung', embedding: emptyVec,
+      id: a.aktenzeichen,
+      text: `${a.titel ?? ''} ${a.akronym ?? ''} ${notes} ${tags.join(' ')}`.trim(),
+      title: a.titel ?? a.aktenzeichen,
+      source: a.aktenzeichen,
+      tags: tags.join(','),
+      type: 'antrag',
+      embedding: emptyVec,
     });
     onProgress?.(++current, total);
   }
@@ -73,7 +84,7 @@ export async function seedTestData(
   await storage.idb.set('seed-complete', true);
 
   return {
-    vorgaenge: bauantraegeData.length + forschungData.length,
+    vorgaenge: bauantraegeData.length + foerderantraegeData.length,
     dokumente: allDokumente.length,
     artefakte: artefakteData.length,
   };
@@ -88,6 +99,11 @@ export async function clearSeedData(storage: StorageService): Promise<void> {
 
   const aKeys = await storage.idb.keys('artifact:');
   for (const k of aKeys) await storage.idb.delete(k);
+
+  // Seedgeschriebene Antraege entfernen (Aktenzeichen aus den Fixtures).
+  for (const a of foerderantraegeData) {
+    await deleteAntrag(storage.idb, a.aktenzeichen).catch(() => undefined);
+  }
 
   await storage.idb.delete('seed-complete');
   await storage.idb.delete('orama-db');

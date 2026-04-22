@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { StorageService } from '@/core/services/storage';
+import { uuid } from '@/core/services/id-generator';
 
 export interface DocumentMeta {
   id: string;
@@ -71,7 +72,7 @@ export const useDokumenteStore = create<DokumenteState>((set, get) => ({
   add: async (partial, storage) => {
     const doc: DocumentFull = {
       ...partial,
-      id: `DOC-${Date.now()}`,
+      id: uuid(),
       created: new Date().toISOString(),
     };
     await storage.idb.set(`doc:${doc.id}`, doc);

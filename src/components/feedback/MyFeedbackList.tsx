@@ -80,13 +80,13 @@ export function MyFeedbackList(): React.ReactElement {
                   <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
                     {item.category ? CATEGORY_LABELS[item.category] : 'Unklassifiziert'} · {formatRelative(item.created_at)}
                   </span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${STATUS_COLORS[item.admin_status]}`}>
-                    {STATUS_LABELS[item.admin_status]}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${STATUS_COLORS[item.kurator_status]}`}>
+                    {STATUS_LABELS[item.kurator_status]}
                   </span>
                 </div>
-                {item.admin_status === 'abgelehnt' && item.admin_notes && (
+                {item.kurator_status === 'abgelehnt' && item.kurator_notes && (
                   <p className="mt-1 text-[10.5px] text-[var(--tf-text-tertiary)] italic">
-                    Hinweis: {item.admin_notes}
+                    Hinweis: {item.kurator_notes}
                   </p>
                 )}
               </div>

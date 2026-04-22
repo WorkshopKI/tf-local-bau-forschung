@@ -1,16 +1,14 @@
-// Einzelne Ticket-Karte im öffentlichen Board.
-// Zeigt: Titel, Kategorie, Status, Aufwand, Sponsoring-Progress (nur bei Features mit Aufwand).
+// Einzelne Ticket-Karte im öffentlichen Board (kompakte Variante).
+// Badges inline in Titelzeile, vereinfachte Sponsor-Buttons, kein Sponsoren-Aufklapper.
 
-import { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { getSponsoringProgress, isSponsoringOpen } from '@/core/services/feedback';
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
-import { EFFORT_LABELS } from '@/core/types/feedback';
 import {
   CATEGORY_COLORS,
   CATEGORY_ICONS,
   CATEGORY_LABELS,
+  EFFORT_SHORT_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
 } from './constants';
@@ -30,52 +28,45 @@ interface Props {
 }
 
 export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.ReactElement {
-  const [sponsorsExpanded, setSponsorsExpanded] = useState(false);
   const Icon = getIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const summary = ticket.llm_summary || ticket.text || '–';
   const isFeature = ticket.category === 'idea';
   const hasEffort = !!ticket.effort_estimate;
   const progress = getSponsoringProgress(ticket, config);
   const open = isSponsoringOpen(ticket);
-  const sponsors = ticket.sponsors ?? [];
 
   return (
     <div
-      className="rounded-[var(--tf-radius-lg)] p-4 space-y-2.5 bg-[var(--tf-bg)]"
+      className="rounded-[var(--tf-radius-lg)] p-4 space-y-2 bg-[var(--tf-bg)]"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      {/* Header */}
+      {/* Header: Icon + Titel links, Badges rechts */}
       <div className="flex items-start gap-2">
-        <Icon size={16} className="mt-0.5 text-[var(--tf-text-secondary)] shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-[13.5px] text-[var(--tf-text)] font-medium leading-snug">{summary}</p>
-          <div className="flex flex-wrap items-center gap-1.5 mt-1">
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
-              {ticket.category ? CATEGORY_LABELS[ticket.category] : 'Unklassifiziert'}
+        <Icon size={14} className="mt-0.5 text-[var(--tf-text-secondary)] shrink-0" />
+        <p className="flex-1 min-w-0 text-[13.5px] text-[var(--tf-text)] font-medium leading-snug">
+          {summary}
+        </p>
+        <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
+            {ticket.category ? CATEGORY_LABELS[ticket.category] : 'Unklassifiziert'}
+          </span>
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${STATUS_COLORS[ticket.kurator_status]}`}>
+            {STATUS_LABELS[ticket.kurator_status]}
+          </span>
+          {hasEffort && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] text-[var(--tf-text-secondary)] bg-[var(--tf-bg-secondary)]">
+              {EFFORT_SHORT_LABELS[ticket.effort_estimate!]}
             </span>
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${STATUS_COLORS[ticket.admin_status]}`}>
-              {STATUS_LABELS[ticket.admin_status]}
-            </span>
-            {hasEffort && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] text-[var(--tf-text-secondary)] bg-[var(--tf-bg-secondary)]">
-                Aufwand: {EFFORT_LABELS[ticket.effort_estimate!]}
-              </span>
-            )}
-            {progress.thresholdReached && open && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]">
-                ✓ Schwelle erreicht
-              </span>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
       {/* Sponsoring-Block (nur bei Features mit Aufwand) */}
       {isFeature && hasEffort && (
-        <div className="space-y-2 pt-1">
+        <div className="space-y-2 pt-0.5">
           {/* Progress-Balken */}
           <div className="space-y-1">
-            <div className="h-2 rounded-full bg-[var(--tf-bg-secondary)] overflow-hidden">
+            <div className="h-1.5 rounded-full bg-[var(--tf-bg-secondary)] overflow-hidden">
               <div
                 className="h-full transition-all"
                 style={{
@@ -85,53 +76,24 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
               />
             </div>
             <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-              {progress.combinedPoints} / {progress.threshold} Punkte ({progress.percentage}%)
-              {' · '}
-              {progress.pointsTotal > 0 && `${progress.pointsTotal} Pkt`}
-              {progress.pointsTotal > 0 && progress.hoursTotal > 0 && ' + '}
-              {progress.hoursTotal > 0 && `${progress.hoursTotal}h`}
-              {progress.sponsorCount > 0 && ` von ${progress.sponsorCount} Sponsoren`}
+              {progress.combinedPoints}/{progress.threshold} Pkt · {progress.percentage}%
+              {progress.sponsorCount > 0 && ` · ${progress.sponsorCount} Sponsoren`}
             </p>
           </div>
 
-          {/* Sponsoring-Buttons */}
-          <SponsorButton ticket={ticket} config={config} open={open} onChanged={onChanged} />
-
-          {/* Sponsoren-Liste (collapsible) */}
-          {sponsors.length > 0 && (
-            <div>
-              <button
-                type="button"
-                onClick={() => setSponsorsExpanded(v => !v)}
-                className="inline-flex items-center gap-1 text-[11px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] cursor-pointer"
-              >
-                {sponsorsExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-                Sponsoren ({sponsors.length})
-              </button>
-              {sponsorsExpanded && (
-                <ul className="mt-1 space-y-0.5 text-[11.5px] text-[var(--tf-text-secondary)]">
-                  {sponsors.map((s, i) => (
-                    <li key={`${s.user_id}-${s.type}-${i}`}>
-                      <span className="text-[var(--tf-text)]">{s.user_display_name}</span>
-                      {' · '}
-                      {s.type === 'points' ? `${s.amount} Pkt` : `${s.amount}h (${s.project_ref})`}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          {/* Kompakte Sponsoring-Buttons */}
+          <SponsorButton ticket={ticket} config={config} open={open} onChanged={onChanged} compact />
         </div>
       )}
 
-      {/* Bug ohne Sponsoring: knapper Hinweis */}
+      {/* Bug: knapper Hinweis */}
       {!isFeature && (
         <p className="text-[11px] text-[var(--tf-text-tertiary)] italic">
-          Bugs werden ohne Sponsoring-Schwelle bearbeitet.
+          Bugs werden ohne Sponsoring bearbeitet.
         </p>
       )}
 
-      {/* Feature ohne Aufwand: Admin muss noch schätzen */}
+      {/* Feature ohne Aufwand: Kurator muss noch schätzen */}
       {isFeature && !hasEffort && (
         <p className="text-[11px] text-[var(--tf-text-tertiary)] italic">
           Aufwand-Schätzung ausstehend — Sponsoring noch nicht möglich.

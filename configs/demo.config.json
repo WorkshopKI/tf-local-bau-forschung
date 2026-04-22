@@ -1,0 +1,35 @@
+{
+  "configVersion": 1,
+  "variant": "demo",
+  "build": {
+    "label": "TeamFlow Demo",
+    "outputFilename": "teamflow-demo",
+    "browserTabTitle": "TeamFlow Demo"
+  },
+  "data": {
+    "fixedDataSharePath": null,
+    "allowUserToChangePath": false,
+    "allowLocalFallback": true,
+    "demoDataBundled": true
+  },
+  "features": {
+    "kuratorMenus": false,
+    "feedback": false,
+    "dokumentenscan": false,
+    "volltextsuche": true,
+    "devInfraPanel": false,
+    "devFixtures": false,
+    "antraege": true,
+    "bauantraege": true,
+    "dokumente": false
+  },
+  "menuLabels": {
+    "antraege": "Förderanträge",
+    "bauantraege": "Bauanträge"
+  },
+  "ki": {
+    "localLlama": { "enabled": false, "endpoint": "http://localhost:8081" },
+    "openrouter": { "enabled": true, "allowedModels": ["anthropic/claude-3-haiku"] }
+  },
+  "branding": { "logoUrl": null, "primaryColor": null }
+}

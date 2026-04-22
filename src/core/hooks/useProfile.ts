@@ -5,11 +5,14 @@ import type { StorageService } from '@/core/services/storage';
 interface ProfileContextValue {
   profile: UserProfile | null;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  /** Lädt das Profil aus IDB neu. Nach Onboarding-Complete aufrufen. */
+  reloadProfile: () => Promise<void>;
 }
 
 export const ProfileContext = createContext<ProfileContextValue>({
   profile: null,
   updateProfile: async () => {},
+  reloadProfile: async () => {},
 });
 
 export function useProfile(): ProfileContextValue {
@@ -19,11 +22,25 @@ export function useProfile(): ProfileContextValue {
 export function useProfileProvider(storage: StorageService): ProfileContextValue {
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  useEffect(() => {
-    storage.idb.get<UserProfile>('profile').then(p => {
-      if (p) setProfile(p);
-    });
+  const reloadProfile = useCallback(async () => {
+    const raw = await storage.idb.get<Record<string, unknown>>('profile');
+    if (!raw) {
+      setProfile(null);
+      return;
+    }
+    // Legacy-Migration (v1.14): 'forschung' wurde in 'antraege' konsolidiert.
+    if (raw.department === 'forschung') {
+      const migrated = { ...raw, department: 'antraege' } as UserProfile;
+      await storage.idb.set('profile', migrated);
+      setProfile(migrated);
+      return;
+    }
+    setProfile(raw as unknown as UserProfile);
   }, [storage]);
+
+  useEffect(() => {
+    void reloadProfile();
+  }, [reloadProfile]);
 
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     setProfile(prev => {
@@ -37,5 +54,5 @@ export function useProfileProvider(storage: StorageService): ProfileContextValue
     });
   }, [storage]);
 
-  return { profile, updateProfile };
+  return { profile, updateProfile, reloadProfile };
 }

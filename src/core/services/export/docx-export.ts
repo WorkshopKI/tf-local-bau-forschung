@@ -162,7 +162,7 @@ export async function exportArtifactToFs(
     vorgangId: vorgang.id,
   });
 
-  const dir = vorgang.type === 'bauantrag' ? 'vorgaenge/bauantraege' : 'vorgaenge/forschung';
+  const dir = 'antraege/bauantraege';
   const filename = `${artifact.type}_${new Date().toISOString().slice(0, 10)}.docx`;
   const path = `${dir}/${vorgang.id}/export/${filename}`;
 

@@ -10,7 +10,7 @@ export interface EvalSuite {
 }
 
 const BAU_IDS = ['K1','K2','K4','K5','S1','S2','S3','S4','S5','S6','S11','S12','S13','S14'];
-const FORSCHUNG_IDS = ['K3','S2','S7','S8','S9','S10','S15'];
+const ANTRAEGE_IDS = ['K3','S2','S7','S8','S9','S10','S15'];
 const HARD_IDS = ['H1','H2','H3','H4','H5','H6','H7','H8','H9','H10'];
 const EXTREME_IDS = ['X1','X2','X3','X4','X5','X6','X7','X8','X9','X10'];
 
@@ -27,10 +27,10 @@ export const EVAL_SUITES: EvalSuite[] = [
     cases: EVAL_TEST_CASES.filter(tc => BAU_IDS.includes(tc.id)),
   },
   {
-    id: 'forschung', label: 'Forschungsantraege',
+    id: 'antraege', label: 'Foerderantraege',
     description: 'KI, Ethik, Datenschutz, Compliance',
-    department: 'forschung',
-    cases: EVAL_TEST_CASES.filter(tc => FORSCHUNG_IDS.includes(tc.id)),
+    department: 'antraege',
+    cases: EVAL_TEST_CASES.filter(tc => ANTRAEGE_IDS.includes(tc.id)),
   },
   {
     id: 'hard', label: 'Schwierige Faelle',

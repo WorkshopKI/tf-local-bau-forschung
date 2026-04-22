@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
-import { useForschungStore } from '@/plugins/forschung/store';
+import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
+import type { Antrag } from '@/core/services/csv/types';
 
 const CLOSED = new Set(['genehmigt', 'abgelehnt', 'archiviert', 'bewilligt', 'abgeschlossen']);
 
@@ -18,6 +19,29 @@ function getGreeting(): string {
   return 'Guten Abend';
 }
 
+/** Minimal-Projektion eines Antrags auf eine Vorgang-aehnliche Shape. */
+function antragToVorgangLike(a: Antrag): Vorgang & { _isAntrag: true } {
+  const tags = Array.isArray(a.tags) ? (a.tags as string[]) : [];
+  const notes = typeof a.notes === 'string' ? a.notes : '';
+  const priority = (a.priority as Vorgang['priority']) ?? 'normal';
+  const deadline = typeof a.frist_datum === 'string' ? a.frist_datum : undefined;
+  const created = typeof a.antragsdatum === 'string' ? a.antragsdatum : a._updated_at;
+  return {
+    id: a.aktenzeichen,
+    type: 'bauantrag', // Projektion: Antraege werden im Dashboard wie Vorgaenge behandelt.
+    title: a.titel ?? a.aktenzeichen,
+    status: (a.status as Vorgang['status']) ?? 'neu',
+    priority,
+    assignee: a.antragsteller ?? '',
+    created,
+    modified: a._updated_at,
+    deadline,
+    tags,
+    notes,
+    _isAntrag: true,
+  };
+}
+
 export interface DashboardData {
   greeting: string;
   offeneVorgaenge: Vorgang[];
@@ -28,14 +52,14 @@ export interface DashboardData {
   stats: { total: number; offen: number; inPruefung: number; nachforderung: number; genehmigt: number };
 }
 
-export function useDashboardData(department: 'bauantraege' | 'forschung' | 'beide' = 'beide'): DashboardData {
+export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide' = 'beide'): DashboardData {
   const bauantraege = useBauantraegeStore(s => s.bauantraege);
-  const forschung = useForschungStore(s => s.antraege);
+  const antraege = useAntraegeStore(s => s.antraege);
 
   return useMemo(() => {
     const alle: Vorgang[] = [
-      ...(department !== 'forschung' ? bauantraege : []),
-      ...(department !== 'bauantraege' ? forschung : []),
+      ...(department !== 'antraege' ? bauantraege : []),
+      ...(department !== 'bauantraege' ? antraege.map(antragToVorgangLike) : []),
     ];
     const offen = alle.filter(v => !CLOSED.has(v.status));
 
@@ -66,5 +90,5 @@ export function useDashboardData(department: 'bauantraege' | 'forschung' | 'beid
         genehmigt: alle.filter(v => (v.status as string) === 'genehmigt' || (v.status as string) === 'bewilligt').length,
       },
     };
-  }, [bauantraege, forschung, department]);
+  }, [bauantraege, antraege, department]);
 }

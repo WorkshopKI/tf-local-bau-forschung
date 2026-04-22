@@ -1,4 +1,4 @@
-// Admin-Hub für Feedback: 3 Tabs (Tickets / FAQ / Einstellungen).
+// Kurator-Hub für Feedback: 4 Tabs (Tickets / FAQ / Sponsoring / Einstellungen).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/ui';
@@ -11,13 +11,6 @@ import { FeedbackTicketDetail } from './sections/FeedbackTicketDetail';
 import { FeedbackFaqTab } from './sections/FeedbackFaqTab';
 import { FeedbackConfigPanel } from './sections/FeedbackConfigPanel';
 import { FeedbackSponsoringOverview } from './sections/FeedbackSponsoringOverview';
-
-const TABS = [
-  { id: 'tickets', label: 'Tickets' },
-  { id: 'faq', label: 'FAQ' },
-  { id: 'sponsoring', label: 'Sponsoring' },
-  { id: 'config', label: 'Einstellungen' },
-];
 
 export function FeedbackAdminPage(): React.ReactElement {
   const storage = useStorage();
@@ -45,7 +38,6 @@ export function FeedbackAdminPage(): React.ReactElement {
 
   useEffect(() => { void reload(); }, [reload]);
 
-  // Live-Refresh: lausche auf globales feedback-updated Event (Submits/Updates/Sponsoring)
   useEffect(() => {
     const handler = (): void => { void reload(); };
     window.addEventListener('feedback-updated', handler);
@@ -55,7 +47,7 @@ export function FeedbackAdminPage(): React.ReactElement {
   const filteredTickets = useMemo(() => {
     return tickets.filter(t => {
       if (filterCategory && t.category !== filterCategory) return false;
-      if (filterStatus && t.admin_status !== filterStatus) return false;
+      if (filterStatus && t.kurator_status !== filterStatus) return false;
       return true;
     });
   }, [tickets, filterCategory, filterStatus]);
@@ -63,30 +55,40 @@ export function FeedbackAdminPage(): React.ReactElement {
   const faqs = useMemo(() => tickets.filter(t => t.is_faq), [tickets]);
   const selectedTicket = useMemo(() => tickets.find(t => t.id === selectedId) ?? null, [tickets, selectedId]);
 
+  const tabs = useMemo(() => [
+    { id: 'tickets', label: 'Tickets', badge: tickets.length },
+    { id: 'faq', label: 'FAQ', badge: faqs.length },
+    { id: 'sponsoring', label: 'Sponsoring' },
+    { id: 'config', label: 'Einstellungen' },
+  ], [tickets.length, faqs.length]);
+
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-5">
+    <div className="p-6">
+      {/* Header: einzeilig */}
+      <div className="flex items-baseline gap-3 mb-4">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Feedback</h1>
-        <p className="text-[12.5px] text-[var(--tf-text-secondary)] mt-1">
-          {tickets.length} {tickets.length === 1 ? 'Ticket' : 'Tickets'} · {faqs.length} FAQ-{faqs.length === 1 ? 'Eintrag' : 'Einträge'}
+        <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
+          {tickets.length} {tickets.length === 1 ? 'Ticket' : 'Tickets'} · {faqs.length} FAQ
         </p>
       </div>
 
-      <Tabs tabs={TABS} activeTab={tab} onChange={setTab} />
+      <Tabs tabs={tabs} activeTab={tab} onChange={setTab} />
 
       <div className="mt-5">
         {tab === 'tickets' && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-            <FeedbackTicketList
-              tickets={filteredTickets}
-              loading={loading}
-              selectedId={selectedId}
-              filterCategory={filterCategory}
-              filterStatus={filterStatus}
-              onFilterCategory={setFilterCategory}
-              onFilterStatus={setFilterStatus}
-              onSelect={t => setSelectedId(t.id)}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <FeedbackTicketList
+                tickets={filteredTickets}
+                loading={loading}
+                selectedId={selectedId}
+                filterCategory={filterCategory}
+                filterStatus={filterStatus}
+                onFilterCategory={setFilterCategory}
+                onFilterStatus={setFilterStatus}
+                onSelect={t => setSelectedId(t.id)}
+              />
+            </div>
             <div className="rounded-[var(--tf-radius)] p-3 lg:p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
               <FeedbackTicketDetail
                 ticket={selectedTicket}

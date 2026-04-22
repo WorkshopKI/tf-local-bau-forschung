@@ -1,4 +1,5 @@
 import { ArrowLeft, Pencil, Trash2, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Badge, Tabs, Dialog } from '@/ui';
 import { StatusSelect } from '@/ui/StatusSelect';
 import { MarkdownEditor } from '@/ui/MarkdownEditor';
@@ -14,7 +15,8 @@ import { BAUANTRAG_STATUS_LABELS, PRIORITY_LABELS } from './types';
 
 export function BauantragDetail(): React.ReactElement | null {
   const storage = useStorage();
-  const { bauantraege, selectedId, setSelectedId, update, remove } = useBauantraegeStore();
+  const navigate = useNavigate();
+  const { bauantraege, selectedId, update, remove } = useBauantraegeStore();
   const vorgang = bauantraege.find(v => v.id === selectedId);
 
   const {
@@ -30,7 +32,7 @@ export function BauantragDetail(): React.ReactElement | null {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <button onClick={() => setSelectedId(null)} className="flex items-center gap-1 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4 cursor-pointer">
+      <button onClick={() => navigate('/bauantraege')} className="flex items-center gap-1 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4 cursor-pointer">
         <ArrowLeft size={14} /> Alle Bauanträge
       </button>
 
@@ -103,7 +105,7 @@ export function BauantragDetail(): React.ReactElement | null {
 
       <BauantragForm open={showForm} onClose={() => setShowForm(false)} initialValues={vorgang} />
       <Dialog open={showDelete} onClose={() => setShowDelete(false)} title="Antrag löschen?"
-        footer={<><Button variant="secondary" onClick={() => setShowDelete(false)}>Abbrechen</Button><Button variant="danger" onClick={async () => { await remove(vorgang.id, storage); setShowDelete(false); }}>Endgültig löschen</Button></>}>
+        footer={<><Button variant="secondary" onClick={() => setShowDelete(false)}>Abbrechen</Button><Button variant="danger" onClick={async () => { await remove(vorgang.id, storage); setShowDelete(false); navigate('/bauantraege'); }}>Endgültig löschen</Button></>}>
         <p className="text-[13px] text-[var(--tf-text-secondary)]">Soll &quot;{vorgang.title}&quot; wirklich gelöscht werden?</p>
       </Dialog>
     </div>

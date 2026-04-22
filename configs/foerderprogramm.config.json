@@ -1,0 +1,34 @@
+{
+  "configVersion": 1,
+  "variant": "production",
+  "build": {
+    "label": "TeamFlow Forschungsförderung",
+    "outputFilename": "teamflow-forschungsfoerderung",
+    "browserTabTitle": "TeamFlow Forschungsförderung"
+  },
+  "data": {
+    "fixedDataSharePath": "\\\\server\\teamflow-forschungsfoerderung\\",
+    "allowUserToChangePath": false,
+    "allowLocalFallback": false,
+    "demoDataBundled": false
+  },
+  "features": {
+    "kuratorMenus": true,
+    "feedback": true,
+    "dokumentenscan": true,
+    "volltextsuche": true,
+    "devInfraPanel": false,
+    "devFixtures": false,
+    "antraege": true,
+    "bauantraege": false,
+    "dokumente": false
+  },
+  "menuLabels": {
+    "antraege": "Förderanträge"
+  },
+  "ki": {
+    "localLlama": { "enabled": true, "endpoint": "http://localhost:8081" },
+    "openrouter": { "enabled": false, "allowedModels": [] }
+  },
+  "branding": { "logoUrl": null, "primaryColor": null }
+}

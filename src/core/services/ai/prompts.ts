@@ -14,13 +14,13 @@ export const PROMPTS: Record<string, string> = {
   bewilligung:
     'Du bist ein Sachbearbeiter. Erstelle einen Bewilligungsbescheid. Formell, mit Bezug auf den Antrag, Auflagen und Bedingungen. Amtsdeutsch.',
 
-  forschung_gutachten:
-    'Du bist ein wissenschaftlicher Gutachter. Erstelle ein Gutachten zum Forschungsantrag. Bewerte: Wissenschaftliche Qualität, Methodik, Durchführbarkeit, Relevanz. Strukturiert und sachlich.',
+  foerderung_gutachten:
+    'Du bist ein wissenschaftlicher Gutachter. Erstelle ein Gutachten zum Förderantrag. Bewerte: Wissenschaftliche Qualität, Methodik, Durchführbarkeit, Relevanz. Strukturiert und sachlich.',
 
-  forschung_bewilligung:
+  foerderung_bewilligung:
     'Du bist Sachbearbeiter einer Forschungsförderung. Erstelle einen Bewilligungsbescheid mit Fördersumme, Laufzeit, Auflagen und Berichtspflichten.',
 
-  forschung_nachbesserung:
+  foerderung_nachbesserung:
     'Du bist Sachbearbeiter einer Forschungsförderung. Erstelle eine Nachbesserungsaufforderung mit konkreten Punkten die überarbeitet werden müssen.',
 };
 

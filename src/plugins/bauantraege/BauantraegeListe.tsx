@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Building2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Badge, SectionHeader, ListItem } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
@@ -9,9 +10,11 @@ import { BAUANTRAG_STATUS_LABELS, BAUANTRAG_STATUS_VARIANTS } from './types';
 
 export function BauantraegeListe(): React.ReactElement {
   const storage = useStorage();
+  const navigate = useNavigate();
   const { indexDocument } = useSearch();
-  const { bauantraege, filters, loadAll, setSelectedId, setFilters } = useBauantraegeStore();
+  const { bauantraege, filters, loadAll, setFilters } = useBauantraegeStore();
   const [showForm, setShowForm] = useState(false);
+  const openDetail = (id: string): void => navigate(`/bauantraege/${encodeURIComponent(id)}`);
 
   useEffect(() => { loadAll(storage); }, [storage, loadAll]);
 
@@ -75,7 +78,7 @@ export function BauantraegeListe(): React.ReactElement {
                   <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)]">{v.id}</span>
                 </>
               }
-              onClick={() => setSelectedId(v.id)}
+              onClick={() => openDetail(v.id)}
               last={i === filtered.length - 1}
             />
           ))}

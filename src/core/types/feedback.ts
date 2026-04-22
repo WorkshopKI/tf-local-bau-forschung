@@ -87,10 +87,14 @@ export interface FeedbackItem {
   llm_summary?: string;
   llm_classification?: LLMClassification;
   user_confirmed?: boolean;
-  // Admin-Felder
-  admin_status: FeedbackStatus;
-  admin_priority?: number;
-  admin_notes?: string;
+  // Kurator-Felder (ehemals admin_*; Legacy-Aliase beim Lesen als Fallback).
+  kurator_status: FeedbackStatus;
+  kurator_priority?: number;
+  kurator_notes?: string;
+  /** @deprecated Legacy-Alias vor v1.9 — wird beim Laden auf kurator_status gemappt. */
+  admin_status?: FeedbackStatus;
+  /** @deprecated */ admin_priority?: number;
+  /** @deprecated */ admin_notes?: string;
   generated_prompt?: string;
   // FAQ-Felder
   is_faq?: boolean;
@@ -144,9 +148,12 @@ export interface SharedFeedbackFile {
 export const FEEDBACK_LS_KEY = 'teamflow_feedback_items';
 export const FEEDBACK_CONFIG_LS_KEY = 'teamflow_feedback_config';
 export const FEEDBACK_HINT_DISMISSED_KEY = 'teamflow_feedback_shared_hint_dismissed';
-export const FEEDBACK_DATA_DIR = 'feedback';
-export const FEEDBACK_SHARED_FILE = 'feedback/feedback.json';
-export const FEEDBACK_PROMPT_FILE = 'feedback/system-prompt.md';
+export const FEEDBACK_DATA_DIR = '_intern/feedback';
+export const FEEDBACK_SHARED_FILE = '_intern/feedback/feedback.json';
+export const FEEDBACK_PROMPT_FILE = '_intern/feedback/system-prompt.md';
+/** @deprecated Legacy-Pfade vor v1.9. Migration-Helper prüft auf diese. */
+export const LEGACY_FEEDBACK_SHARED_FILE = 'feedback/feedback.json';
+export const LEGACY_FEEDBACK_PROMPT_FILE = 'feedback/system-prompt.md';
 
 export const DEFAULT_SPONSORING_THRESHOLDS: Record<EffortEstimate, number> = {
   S: 5, M: 15, L: 30, XL: 50,

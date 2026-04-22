@@ -1,0 +1,115 @@
+// TeamFlow Build-Konfiguration — TEMPLATE
+//
+// Dies ist die Referenz-Config mit allen verfügbaren Optionen
+// und Erläuterungen. Nicht direkt zum Bauen verwenden — stattdessen
+// eine der *.config.json als Kopie anpassen.
+//
+// Build-Aufruf: npm run build:variant -- --config configs/meine.config.json
+// Config-UI:    npm run config-ui
+
+{
+  "configVersion": 1,
+  "variant": "custom", // "development" | "demo" | "production" | "custom"
+
+  "build": {
+    // Anzeige-Label in Sidebar und Header
+    "label": "TeamFlow",
+    // Dateiname des Builds, ohne .html — wird zu teamflow.html
+    "outputFilename": "teamflow",
+    // Browser-Tab-Titel
+    "browserTabTitle": "TeamFlow"
+  },
+
+  "data": {
+    // Fester Pfad zum Daten-Share. Wenn gesetzt, sieht der User ihn im Welcome-Screen.
+    // Beispiel Windows-SMB: "\\\\server\\teamflow-forschungsfoerderung\\"
+    "fixedDataSharePath": null,
+    // User darf den Pfad im Welcome-Screen selbst auswählen
+    "allowUserToChangePath": true,
+    // Lokaler tmp-Ordner erlaubt, falls kein SMB verfügbar (nur DEV/Demo sinnvoll)
+    "allowLocalFallback": false,
+    // Synthetische Test-CSVs ins Bundle einlegen (nur für Demo/Dev-Build)
+    "demoDataBundled": false
+  },
+
+  "features": {
+    "kuratorMenus": true,      // Kurator-Sidebar-Kategorie + Kuration-Plugins
+    "feedback": true,          // Feedback-FAB + Board + Kurator-Verwaltung
+    "dokumentenscan": false,   // ab Phase 2, noch nicht implementiert
+    "volltextsuche": true,     // Such-Route + Index-Kuration
+    "devInfraPanel": true,     // Dev-Infra-Test-Plugin sichtbar
+    // ACHTUNG: Nur in variant=development erlaubt. Schema-Validierung bricht
+    // den Build ab, wenn devFixtures=true + variant=demo|production.
+    // Fixtures enthalten destruktive Operationen (resetAll) + sensible Defaults.
+    "devFixtures": false,
+
+    // Bereichs-Menüs:
+    //
+    // - antraege: Das zentrale Menü. In der Real-Variante (Forschungsförderung)
+    //   typischerweise aktiv. Dort Label auf "Förderanträge" setzen. Enthält
+    //   seit v1.14 auch die konsolidierten Forschungsvorgänge (das separate
+    //   `forschung`-Plugin wurde entfernt, Fixtures sind in den Antrags-Seed
+    //   migriert).
+    //
+    // - bauantraege: Showcase-Bereich mit synthetischen Bauantragsdaten.
+    //   Für Demo-Zwecke oder wenn eine Behörde mit Bauanträgen arbeitet.
+    //   In Real-Variante (Forschungsförderung) deaktiviert.
+    //
+    // - dokumente: Platzhalter für Phase 2 (Dokumentenscan). Default deaktiviert.
+    //
+    // Validation: mindestens eines aus (antraege | bauantraege)
+    // muss true sein, sonst bricht der Build ab.
+    "antraege": true,
+    "bauantraege": false,
+    "dokumente": false
+  },
+
+  // Pro Variant überschreibbare Sidebar-Labels für Bereichs-Menüs.
+  // Fehlende Keys fallen auf die Default-Labels ("Förderanträge", "Bauanträge",
+  // "Dokumente") zurück. Für Demo-Varianten kann `antraege` z.B. auf "Anträge"
+  // gesetzt werden, wenn der Begriff "Förderanträge" zu fachspezifisch ist.
+  "menuLabels": {
+    "antraege": "Förderanträge",
+    "bauantraege": "Bauanträge",
+    "dokumente": "Dokumente"
+  },
+
+  // Optional. Nur relevant wenn features.devFixtures=true.
+  // Wird in demo/production ignoriert.
+  "dev": {
+    "defaultKuratorName": "Dev",
+    "defaultKuratorPassword": "dev",
+    "dataSharePath": null,
+    // Kurator-Session bleibt 30 Tage aktiv statt der Default-12h — kein
+    // Passwort-Reentry zwischen App-Restarts nötig.
+    "sessionTtlDays": 30,
+    // Beim ersten Klick nach App-Start: Permission auf SMB-Handle refreshen,
+    // falls Handle existiert aber Permission auf 'prompt' steht.
+    "autoRefreshSmbPermission": true,
+    // Nach destruktiven Fixture-Aktionen (Szenario anwenden, CSV leeren,
+    // Kurator-Flag togglen): kurzer Toast + Full-Page-Reload, damit Zustand
+    // sauber aus der neuen IndexedDB-Situation aufgebaut wird. Für manuelle
+    // Debug-Sessions auf false setzen.
+    "autoReloadAfterScenario": true
+  },
+
+  "ki": {
+    "localLlama": {
+      "enabled": true,
+      "endpoint": "http://localhost:8081"
+    },
+    "openrouter": {
+      // ACHTUNG: Bei variant=production + fester Daten-Pfad verboten
+      // (würde echte Daten an Cloud-API senden) — Build bricht ab.
+      "enabled": false,
+      "allowedModels": [
+        // "openai/gpt-oss-120b"
+      ]
+    }
+  },
+
+  "branding": {
+    "logoUrl": null,
+    "primaryColor": null
+  }
+}

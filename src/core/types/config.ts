@@ -1,11 +1,13 @@
 export interface UserProfile {
   name: string;
-  department: 'bauantraege' | 'forschung' | 'beide';
+  department: 'antraege' | 'bauantraege' | 'beide';
   theme: {
     hue: number;
     dark: boolean;
   };
-  /** Wenn true, sind Plugins mit adminOnly: true sichtbar (z.B. Suchindex, Feedback-Verwaltung). */
+  /** Wenn true, sind Plugins mit kuratorOnly: true sichtbar (z.B. Suchindex, Feedback-Verwaltung). */
+  is_kurator?: boolean;
+  /** @deprecated Legacy-Feld vor v1.9; beim Laden als Fallback für is_kurator berücksichtigt. */
   is_admin?: boolean;
 }
 

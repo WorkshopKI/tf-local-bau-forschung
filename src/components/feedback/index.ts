@@ -7,4 +7,6 @@ export { MyFeedbackList } from './MyFeedbackList';
 export { BudgetBadge } from './BudgetBadge';
 export { SponsorButton } from './SponsorButton';
 export { FeedbackBoardCard } from './FeedbackBoardCard';
+export { FeedbackBoardListView } from './FeedbackBoardListView';
+export { SponsoringInfoBanner } from './SponsoringInfoBanner';
 export * from './constants';

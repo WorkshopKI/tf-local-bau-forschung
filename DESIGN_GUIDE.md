@@ -32,6 +32,9 @@ Im Zweifel weglassen. Kein Element verdient es auf dem Screen zu sein, wenn es n
 - ❌ Icon-Spam — Icons nur wenn sie schneller als Text sind
 - ❌ ALL CAPS außer in Section-Headern
 - ❌ Bold/600/700 in Fließtext — nur 400 (regular) und 500 (medium)
+- ❌ Badge-Farben mit gleichem Farbton für Text und Hintergrund (rot auf rot, gelb auf gelb) — IMMER dunkler Text auf hellem Hintergrund
+- ❌ Dropdown-Selects wenn 2-6 Filter-Optionen verfügbar sind — Pills sind direkter
+- ❌ max-w auf Listenseiten/Boards — diese sollen die volle Breite nutzen
 
 ### Vorbilder
 - Linear (App) — Minimale Sidebar, viel Whitespace, subtile Borders
@@ -161,9 +164,20 @@ Lieber zu viel Whitespace als zu wenig. Die App soll "atmen".
 - Kein Divider zwischen Items — Spacing reicht
 
 ### Content Area
-- Max-Width: 860px (nicht endlos breit)
+Zwei Layout-Modi je nach Seitentyp:
+
+**Lese-Layout** (Dashboard, Einstellungen mit wenig Content):
+- Max-Width: 860px, linksbündig (kein `mx-auto` für Zentrierung bei großen Screens)
 - Padding: 32px 40px
-- Kein zentriertes Layout auf großen Screens — linksbündig mit max-width
+- Für textlastige Seiten, Formulare, Konfigurations-Panels
+
+**Daten-Layout** (Boards, Listen, Admin-Übersichten):
+- Volle Breite nutzen (kein max-w)
+- Padding: 24px 32px (oder 24px 40px für mehr Luft)
+- Für Seiten mit vielen Einträgen, Tabellen, Split-Views (Liste + Detail)
+- Ermöglicht längere Titel ohne Truncation und mehr Informationsdichte
+
+**Entscheidungsregel:** Wenn die Seite von mehr horizontalem Platz profitiert (längere Zeilen, Tabellen-Spalten, breitere Titel) → Daten-Layout. Wenn sie hauptsächlich Formulare oder Fließtext enthält → Lese-Layout.
 
 ### Grid-Pattern (Dashboard, Details)
 ```
@@ -174,6 +188,15 @@ Rechte Sidebar-Cards nur auf Übersichtsseiten. Detail-Seiten nutzen volle Breit
 ---
 
 ## 5. Komponenten-Spezifikation
+
+### UI-Library: shadcn/ui + lucide-react
+TeamFlow nutzt **shadcn/ui** (Radix-basiert, Nova-Preset) für Standard-Komponenten. Alle UI-Primitives wie `Button`, `Select`, `Tabs`, `Slider`, `Badge`, `Switch`, `Card`, `Textarea` liegen in `src/components/ui/`. Icons kommen aus **lucide-react**.
+
+**Grundregeln:**
+- Fehlende shadcn-Komponenten per `npx shadcn@latest add <n>` nachinstallieren
+- shadcn-Komponenten sind bereits auf das Theme-System abgestimmt (CSS Custom Properties)
+- Eigene Komponenten nur wenn shadcn nichts passendes hat (z.B. Filter-Pills sind custom)
+- Die Spezifikationen unten gelten zusätzlich zu den shadcn-Defaults — z.B. "kein Bold" überschreibt den shadcn-Button der default auf font-medium steht
 
 ### Button
 | Variante | Hintergrund | Border | Text | Wann |
@@ -210,6 +233,54 @@ Rechte Sidebar-Cards nur auf Übersichtsseiten. Detail-Seiten nutzen volle Breit
 }
 ```
 Badges sind die EINZIGEN Elemente die semantische Hintergrundfarben nutzen dürfen.
+
+**Badge-Farbregel:** IMMER dunkler Text auf hellem Hintergrund. Niemals gleicher Farbton für Text und Hintergrund (rot auf rot wirkt wie ein Alarm, ist schlecht lesbar).
+
+| Semantik | Hintergrund | Text |
+|---|---|---|
+| Bug / Problem / Danger | `bg-red-50` | `text-red-800` |
+| Idee / Feature / Info | `bg-blue-50` | `text-blue-800` |
+| Lob / Success / Umgesetzt | `bg-emerald-50` | `text-emerald-800` |
+| Frage / Warning / Geplant | `bg-amber-50` | `text-amber-800` |
+| Neu / Unklassifiziert / Default | `bg-gray-100` | `text-gray-600` |
+| Abgelehnt | `bg-red-50` | `text-red-700` |
+| Archiviert | `bg-gray-50` | `text-gray-500` |
+
+Im Dark Mode: Dunkle gedämpfte Hintergründe + hellere gedämpfte Text-Farben (siehe Kapitel 9).
+
+### Filter-Pills
+Für Filterung nach 2-6 sichtbaren Optionen. BEVORZUGT gegenüber Dropdown-Selects — User sehen sofort welche Optionen verfügbar sind.
+
+```css
+.filter-pill {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 11.5px;
+  border: 0.5px solid var(--tf-border);
+  color: var(--tf-text-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+.filter-pill.active {
+  background: var(--tf-text);          /* schwarz/dunkel */
+  color: var(--tf-bg);                 /* weiß/hell */
+  border-color: transparent;
+}
+```
+
+**Bei mehreren Filter-Dimensionen (Status + Kategorie):** Jede Dimension in einer eigenen Zeile, mit einem kleinen Label links:
+
+```tsx
+<div className="flex items-center gap-1.5">
+  <span className="w-[60px] text-[10px] uppercase tracking-wider 
+                   text-tertiary font-medium flex-shrink-0">Status</span>
+  <div className="flex gap-1.5 flex-wrap">{/* pills */}</div>
+</div>
+```
+
+Das macht visuell klar welche Pills zu welcher Dimension gehören. Labels sind konsistent mit Section-Header-Pattern (10px, uppercase, tracking-wider, tertiary).
+
+**Wann Dropdown statt Pills:** Wenn >6 Optionen oder Optionen dynamisch aus den Daten kommen (z.B. User-Filter bei 30+ Nutzern).
 
 ### Card
 ```css
@@ -252,6 +323,16 @@ Underline-Style, NICHT gefüllte Tabs:
   font-weight: 500;
 }
 ```
+
+**Count-Badges in Tab-Labels:** Wenn Tabs unterschiedliche Datenmengen repräsentieren, zeige die Anzahl als kleines Badge direkt nach dem Label:
+
+```tsx
+<span>Tickets</span>
+<span className="ml-1.5 bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] 
+                 text-[10px] px-1.5 py-0.5 rounded-full">8</span>
+```
+
+Das gibt dem User sofortige Orientierung ohne Tab-Wechsel. Sparsam einsetzen — nur wo die Zahl wirklich hilft.
 
 ### Dialog / Modal
 ```css
@@ -302,6 +383,68 @@ Einziges Element mit sichtbarer linker Borderlinie. Sparsam einsetzen (max 1 pro
 .metric-label { font-size: 12px; color: var(--tf-text-tertiary); }
 .metric-value { font-size: 22px; font-weight: 500; margin-top: 4px; }
 ```
+
+### View-Toggle (Cards ↔ Liste)
+Für Seiten mit wechselbaren Darstellungen. Zwei Icon-Buttons oben rechts, User-Präferenz in localStorage persistiert:
+
+```tsx
+const [viewMode, setViewMode] = useState<'cards' | 'list'>(() => {
+  return (localStorage.getItem('teamflow_[page]_view') as 'cards' | 'list') || 'cards';
+});
+
+<div className="flex gap-0.5">
+  <button onClick={() => setViewMode('cards')} 
+          className={viewMode === 'cards' ? 'active' : ''}>
+    <LayoutGrid size={14} />
+  </button>
+  <button onClick={() => setViewMode('list')} 
+          className={viewMode === 'list' ? 'active' : ''}>
+    <List size={14} />
+  </button>
+</div>
+```
+
+- Icons von lucide-react: `LayoutGrid` und `List`
+- Aktiv: `bg-secondary + border-secondary` (dezent, nicht primary)
+- Persistenz pro Seite (eigener localStorage-Key)
+
+### Intro-Banner (erklärend, dismissable)
+Für Features die Erklärung brauchen. Erscheint beim ersten Besuch, verschwindet per "Verstanden":
+
+```tsx
+const [shown, setShown] = useState(() => 
+  localStorage.getItem('teamflow_[feature]_intro_seen') !== '1'
+);
+if (!shown) return null;
+
+<div className="bg-[var(--tf-warning-bg)] border border-[var(--tf-warning-border)] 
+                rounded-lg px-4 py-3 flex items-center gap-3 mb-4">
+  <Icon className="shrink-0" />
+  <p className="flex-1 text-[12.5px]">
+    <b>Heading:</b> Kurze Erklärung in 1-2 Sätzen.
+  </p>
+  <button onClick={() => {
+    localStorage.setItem('teamflow_[feature]_intro_seen', '1');
+    setShown(false);
+  }}>Verstanden ×</button>
+</div>
+```
+
+Dezente Warning-Farbe (nicht Primary — das wäre zu laut), max. 2 Sätze, ein Dismiss-Button. Einmal dismissed → nie wieder zeigen.
+
+### Split-View (Liste + Detail)
+Zwei-Spalten-Layout für Admin-Bereiche wo der User Items auswählt und bearbeitet:
+
+```tsx
+<div className="grid grid-cols-2 gap-4">
+  <div>{/* Liste links */}</div>
+  <div>{/* Detail rechts, oder Empty-State */}</div>
+</div>
+```
+
+- Standard: 50/50 Grid (`grid-cols-2`)
+- Bei langen Titeln in der Liste: 50/50 statt 40/60, damit Titel nicht truncaten
+- Empty-State rechts wenn nichts ausgewählt: zentrierter Text "← Item auswählen" in tertiary color
 
 ---
 
@@ -463,15 +606,21 @@ Warm-grau mit leichtem Gelbstich — wie Papier bei Lampenlicht. Nicht kalt, nic
 
 Bevor eine neue UI-Komponente committed wird, prüfe:
 
+- [ ] Nutzt shadcn/ui wo möglich (Button, Select, Tabs, etc.)
 - [ ] Nutzt ausschließlich CSS Custom Properties für Farben
 - [ ] Keine hartcodierten Hex-Werte
 - [ ] Border ist 0.5px, nicht 1px
 - [ ] Border-Radius ist 8px (Elemente) oder 12px (Cards)
 - [ ] Font-Weight ist 400 oder 500, niemals 600/700
 - [ ] Kein Box-Shadow (außer Dialog und Focus-Ring)
+- [ ] Badge-Farben: dunkler Text auf hellem Hintergrund (nicht rot auf rot)
+- [ ] Filter mit 2-6 Optionen als Pills, nicht als Dropdown
+- [ ] Bei mehreren Filter-Dimensionen: Label-Spalte links (STATUS / KATEGORIE)
+- [ ] Volle Breite für Daten-Layouts, max-w nur für Lese-Layouts
 - [ ] Farbe transportiert Information, nicht Dekoration
 - [ ] Dark Mode funktioniert (data-theme="dark" testen)
 - [ ] Text-Hierarchie stimmt (primary/secondary/tertiary)
 - [ ] Genug Whitespace (im Zweifel mehr)
-- [ ] Unter 100 Zeilen pro Datei
+- [ ] Unter 300 Zeilen pro Datei (Obergrenze für LLM-Kontext)
 - [ ] Kein redundantes Wrapping (div um div um div)
+- [ ] Tab-Count-Badges wo sinnvoll (Anzahl direkt im Tab-Label)

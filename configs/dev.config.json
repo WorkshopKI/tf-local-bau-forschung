@@ -1,0 +1,44 @@
+{
+  "configVersion": 1,
+  "variant": "development",
+  "build": {
+    "label": "TeamFlow DEV",
+    "outputFilename": "teamflow-dev",
+    "browserTabTitle": "TeamFlow DEV"
+  },
+  "data": {
+    "fixedDataSharePath": null,
+    "allowUserToChangePath": true,
+    "allowLocalFallback": true,
+    "demoDataBundled": true
+  },
+  "features": {
+    "kuratorMenus": true,
+    "feedback": true,
+    "dokumentenscan": true,
+    "volltextsuche": true,
+    "devInfraPanel": true,
+    "devFixtures": true,
+    "antraege": true,
+    "bauantraege": true,
+    "dokumente": true
+  },
+  "menuLabels": {
+    "antraege": "Förderanträge",
+    "bauantraege": "Bauanträge",
+    "dokumente": "Dokumente"
+  },
+  "dev": {
+    "defaultKuratorName": "Dev",
+    "defaultKuratorPassword": "dev",
+    "dataSharePath": null,
+    "sessionTtlDays": 30,
+    "autoRefreshSmbPermission": true,
+    "autoReloadAfterScenario": true
+  },
+  "ki": {
+    "localLlama": { "enabled": true, "endpoint": "http://localhost:8081" },
+    "openrouter": { "enabled": true, "allowedModels": ["openai/gpt-oss-120b"] }
+  },
+  "branding": { "logoUrl": null, "primaryColor": null }
+}

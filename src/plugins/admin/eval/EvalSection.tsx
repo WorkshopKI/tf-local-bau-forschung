@@ -8,7 +8,6 @@ import { getModelById } from '@/core/services/search/model-registry';
 import { EvalRunner } from '@/core/services/search/eval/eval-runner';
 import { EVAL_SUITES, getSuiteById } from '@/core/services/search/eval/eval-suites';
 import type { EvalReport, EvalProgress } from '@/core/services/search/eval/eval-types';
-import { evalToMarkdown } from '@/core/services/search/eval/eval-export';
 import { EvalResultView } from './EvalResultView';
 import { pipelineLog } from '@/core/services/search/pipeline-logger';
 
@@ -70,10 +69,8 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
       if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
       await storage.idb.set('eval-history', history);
 
-      if (storage.fs) {
-        try { await storage.fs.writeFile('EVAL_REPORT.md', evalToMarkdown(result)); }
-        catch { /* ignore */ }
-      }
+      // v1.9: EVAL_REPORT.md wird nicht mehr in den Daten-Share geschrieben.
+      // Nur in-Memory + als Download-Button verfügbar (siehe EvalResultView).
       pipelineLog.info('Eval', `Ergebnis: ${Math.round(result.summary.passed / result.summary.total * 100)}% (${result.summary.passed}/${result.summary.total})`);
       setReport(result);
     } catch (err) {

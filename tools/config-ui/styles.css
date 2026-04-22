@@ -1,0 +1,196 @@
+/* TeamFlow Build-Konfigurator: bewusst nüchtern, sieht wie ein Admin-Tool aus,
+   nicht wie das Produkt. Serif-Headings, reduzierte Palette, sichtbare Fieldsets. */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 2rem 1rem 4rem;
+  font-family: ui-monospace, "Cascadia Mono", "JetBrains Mono", monospace;
+  color: #222;
+  background: #f7f7f4;
+  line-height: 1.5;
+}
+
+header {
+  max-width: 820px;
+  margin: 0 auto 2rem;
+}
+
+h1 {
+  font-family: "Iowan Old Style", "Cambria", Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 500;
+  margin: 0 0 0.25rem;
+}
+
+.subtitle {
+  color: #777;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+main {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+section {
+  margin-bottom: 1.5rem;
+}
+
+.preset-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: #ebe8dd;
+  border: 1px solid #d0ccbd;
+}
+
+.preset-row label {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+fieldset {
+  border: 1px solid #c5c1b2;
+  background: #fefdf9;
+  padding: 1rem 1.25rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+legend {
+  font-family: "Iowan Old Style", "Cambria", Georgia, serif;
+  font-size: 1rem;
+  padding: 0 0.5rem;
+  color: #4a4a3c;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #555;
+  margin-bottom: 0.75rem;
+}
+
+label.chk {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #222;
+}
+
+input[type="text"], select {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.55rem;
+  background: #fff;
+  border: 1px solid #c5c1b2;
+  color: #222;
+  width: 100%;
+  max-width: 560px;
+}
+
+input[type="checkbox"] {
+  width: auto;
+  accent-color: #6a6a58;
+}
+
+button {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.85rem;
+  background: #fff;
+  border: 1px solid #9a967f;
+  cursor: pointer;
+  color: #222;
+}
+
+button:hover { background: #ebe8dd; }
+
+button.primary {
+  background: #4a4a3c;
+  color: #fefdf9;
+  border-color: #4a4a3c;
+}
+
+button.primary:hover { background: #3a3a2c; }
+
+.validation {
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  font-size: 0.85rem;
+  min-height: 1rem;
+}
+
+.validation .error {
+  color: #9b2424;
+  background: #fbe9e9;
+  border-left: 3px solid #9b2424;
+  padding: 0.4rem 0.75rem;
+  margin: 0.25rem 0;
+}
+
+.validation .warn {
+  color: #8b6a00;
+  background: #fbf4dd;
+  border-left: 3px solid #cda637;
+  padding: 0.4rem 0.75rem;
+  margin: 0.25rem 0;
+}
+
+.validation .ok {
+  color: #2a5f2a;
+  background: #e6f0dc;
+  border-left: 3px solid #4a8a4a;
+  padding: 0.4rem 0.75rem;
+  margin: 0.25rem 0;
+}
+
+.json-preview pre {
+  background: #272725;
+  color: #e9e5d5;
+  padding: 1rem;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  margin: 0.5rem 0 0;
+}
+
+.json-preview summary {
+  cursor: pointer;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+#save-result {
+  padding: 1rem 1.25rem;
+  background: #e6f0dc;
+  border: 1px solid #4a8a4a;
+  color: #2a5f2a;
+}
+
+#save-result code {
+  display: block;
+  background: #272725;
+  color: #e9e5d5;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+  user-select: all;
+}
+
+#save-result button {
+  margin-top: 0.25rem;
+}
