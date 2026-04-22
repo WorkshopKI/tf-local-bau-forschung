@@ -3,6 +3,7 @@ import { FileServerStore } from './fs-store';
 import { SyncService } from '@/core/services/sync/sync-service';
 import type { Vorgang } from '@/core/types/vorgang';
 import type { DirectoryEntry } from '@/core/types/config';
+import type { FsDirHandle } from '@/core/services/infrastructure/smb-handle';
 
 interface ConnectedDirectory {
   entry: DirectoryEntry;
@@ -47,7 +48,9 @@ export class StorageService {
           continue;
         }
         const mode = entry.type === 'data' ? 'readwrite' as const : 'read' as const;
-        const permission = await handle.requestPermission({ mode });
+        // queryPermission statt requestPermission: requestPermission haengt unter file:// ohne User-Gesture
+        // stumm und blockiert den Boot. Re-Connect laeuft ueber Welcome/SmbBanner per User-Gesture.
+        const permission = await (handle as FsDirHandle).queryPermission({ mode });
         if (permission === 'granted') {
           this._directories.set(entry.id, { entry: { ...entry, folderName: handle.name }, store: new FileServerStore(handle, fsMode) });
         }
@@ -59,7 +62,7 @@ export class StorageService {
       const legacyHandle = await this.idb.get<FileSystemDirectoryHandle>('fs-handle');
       if (legacyHandle) {
         try {
-          const permission = await legacyHandle.requestPermission({ mode: 'readwrite' });
+          const permission = await (legacyHandle as FsDirHandle).queryPermission({ mode: 'readwrite' });
           if (permission === 'granted') {
             const id = `dir-legacy`;
             const entry: DirectoryEntry = { id, label: 'Daten', type: 'data', folderName: legacyHandle.name };
@@ -195,7 +198,7 @@ export class StorageService {
     vorgang.modified = new Date().toISOString();
     await this.idb.set(`vorgang:${vorgang.id}`, vorgang);
     if (this.fs) {
-      const dir = vorgang.type === 'bauantrag' ? 'vorgaenge/bauantraege' : 'vorgaenge/forschung';
+      const dir = 'antraege/bauantraege';
       await this.syncService.enqueue({ id: crypto.randomUUID(), type: 'write', path: `${dir}/${vorgang.id}/meta.json`, data: vorgang, timestamp: vorgang.modified, retries: 0 });
     }
   }
@@ -204,7 +207,7 @@ export class StorageService {
     return this.idb.get<Vorgang>(`vorgang:${id}`);
   }
 
-  async listVorgaenge(type?: 'bauantrag' | 'forschung'): Promise<Vorgang[]> {
+  async listVorgaenge(type?: 'bauantrag'): Promise<Vorgang[]> {
     const keys = await this.idb.keys('vorgang:');
     const results: Vorgang[] = [];
     for (const key of keys) {
