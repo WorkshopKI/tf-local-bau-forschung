@@ -6,3 +6,17 @@ dist-deploy/
 
 # KI-Analyseprogramm (Binaries + Modell)
 dokumentenindex-dateien/
+
+# Metadata-Server Runtime-Artefakte (werden beim ersten Start automatisch heruntergeladen)
+scripts/metadata-server/models/
+scripts/metadata-server/llama-cpp/
+scripts/metadata-server/llama-cpp.zip
+
+# Grosse Binaries generell
+*.gguf
+*.onnx
+*.safetensors
+*.bin
+
+# Versehentliche Source-ZIPs
+teamflow-src.zip
