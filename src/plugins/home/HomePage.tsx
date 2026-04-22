@@ -8,7 +8,7 @@ import { useTourContext } from '@/core/hooks/useTour';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useDashboardData } from './useDashboardData';
-import { menuLabel } from '@/config/feature-flags';
+import { menuLabel, dataConfig } from '@/config/feature-flags';
 import { getStatusVariant } from '@/core/utils/status-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
@@ -59,7 +59,9 @@ export function HomePage(): React.ReactElement {
     return <div className="min-h-[60vh]" />;
   }
 
-  if (hasHandle === false) {
+  // CTA nur wenn die Variante dem User erlaubt, einen Daten-Share selbst zu waehlen.
+  // Demo (demoDataBundled=true) und Prod-Fixed-Path-Varianten ueberspringen die Aktion.
+  if (hasHandle === false && dataConfig.allowUserToChangePath) {
     return <HomeCallToAction idb={storage.idb} onConnected={() => setHasHandle(true)} />;
   }
 

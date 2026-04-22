@@ -17,7 +17,7 @@ import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import { checkQuarterReset, loadFeedbackConfig } from '@/core/services/feedback';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { runtimeConfig } from '@/config/runtime-config';
-import { isDemoDataBundled } from '@/config/feature-flags';
+import { isDemoDataBundled, dataConfig } from '@/config/feature-flags';
 import { seedTestData } from '@/core/services/seed/seed-data';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
@@ -144,6 +144,13 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   }, []);
 
   const refreshHandleGate = useCallback(async (): Promise<void> => {
+    // WelcomeScreen nur anzeigen, wenn die Variante dem User erlaubt, den Pfad selbst zu wählen.
+    // Demo-Variante (demoDataBundled=true, allowUserToChangePath=false) und Prod-Variante mit
+    // fixedDataSharePath skippen den Picker — die Daten kommen aus dem Bundle bzw. fixen Share.
+    if (!dataConfig.allowUserToChangePath) {
+      setShowWelcome(false);
+      return;
+    }
     const handle = await getDatenShareHandle(storage.idb);
     setShowWelcome(!handle);
   }, [storage]);
