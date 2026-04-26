@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Upload, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { parseCsvPreview } from '@/core/services/csv';
 import type { CsvEncoding, CsvSeparator } from '@/core/services/csv/types';
 import type { WizardApi } from './useCsvWizardState';
 import { TEST_CORPUS, testCorpusBlob } from './testCorpus';
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 const SEPARATOR_LABEL: Record<CsvSeparator, string> = {
   ';': 'Semikolon',
@@ -24,6 +31,7 @@ interface Step1Props {
 
 export function Step1Metadata({ api, existingMasterId }: Step1Props): React.ReactElement {
   const { state, setField, setDisplayName, setFileAndPreview, setEncoding, setSeparator } = api;
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -94,21 +102,44 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
       <div>
         <label className="block text-[13px] font-medium text-[var(--tf-text)] mb-1">CSV-Datei</label>
         <input
+          ref={fileInputRef}
           type="file"
           accept=".csv,text/csv"
           onChange={e => {
             const f = e.target.files?.[0];
             if (f) void handleFile(f);
           }}
-          className="block text-[12.5px] text-[var(--tf-text-secondary)]"
+          className="hidden"
         />
+        {!state.file ? (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-[var(--tf-border)] bg-[var(--tf-bg-subtle)] px-4 py-5 text-[13px] font-medium text-[var(--tf-text)] transition hover:border-[var(--tf-text-tertiary)] hover:bg-[var(--tf-bg-secondary)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Upload size={16} />
+            <span>CSV-Datei vom Rechner auswählen…</span>
+          </button>
+        ) : (
+          <div className="flex items-center justify-between gap-3 rounded-lg border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-subtle)] px-3 py-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <FileText size={15} className="flex-shrink-0 text-[var(--tf-text-secondary)]" />
+              <div className="min-w-0">
+                <div className="truncate text-[12.5px] font-medium text-[var(--tf-text)]">{state.file.name}</div>
+                <div className="text-[11px] text-[var(--tf-text-tertiary)]">
+                  {formatBytes(state.file.size)}
+                  {state.preview ? ` · ${state.preview.totalLines} Zeilen · ${state.preview.headers.length} Spalten` : ''}
+                </div>
+              </div>
+            </div>
+            <Button size="xs" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={loading}>
+              Andere Datei…
+            </Button>
+          </div>
+        )}
         {loading ? <div className="mt-1 text-[12px] text-[var(--tf-text-tertiary)]">Parse läuft …</div> : null}
         {err ? <div className="mt-1 text-[12px] text-red-700">{err}</div> : null}
-        {state.preview ? (
-          <div className="mt-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
-            {state.preview.totalLines} Zeilen · {state.preview.headers.length} Spalten
-          </div>
-        ) : null}
 
         {state.preview ? (
           <div className="mt-3 rounded border border-[var(--tf-border)] p-2.5 bg-[var(--tf-bg-subtle)]">
@@ -175,7 +206,12 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
           </div>
         ) : null}
 
-        <div className="mt-3">
+        <div className="mt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-px flex-1 bg-[var(--tf-border)]" />
+            <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">oder zum Testen</div>
+            <div className="h-px flex-1 bg-[var(--tf-border)]" />
+          </div>
           <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1.5">Beispieldaten laden</div>
           <div className="flex flex-wrap gap-1.5 mb-1.5">
             {TEST_CORPUS.filter(e => e.size === 'small' || !e.size).map(e => (
