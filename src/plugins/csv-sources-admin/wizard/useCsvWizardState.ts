@@ -129,6 +129,32 @@ export function slugifyFieldName(input: string): string {
     .slice(0, 40);
 }
 
+function isDateLike(s: string): boolean {
+  // DD.MM.YYYY / DD-MM-YYYY / DD/MM/YYYY (auch zweistelliges Jahr)
+  if (/^\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}$/.test(s)) return true;
+  // YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD (ISO + Varianten)
+  if (/^\d{4}[.\/-]\d{1,2}[.\/-]\d{1,2}$/.test(s)) return true;
+  return false;
+}
+
+function isNumberLike(s: string): boolean {
+  // Erlaube DE- und EN-Zahlenformat: optionales Vorzeichen, Tausender-Trenner, Dezimalkomma/-punkt.
+  // Bewusst eng — keine Zahlen-mit-Einheit ("47 €"), keine wissenschaftliche Notation.
+  return (
+    /^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s) || // 1.234,56  oder 1.234.567
+    /^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s) || // 1,234.56  oder 1,234,567
+    /^-?\d+([.,]\d+)?$/.test(s)               // 47 / 47,5 / 47.5
+  );
+}
+
+function detectFieldType(samples: string[]): 'string' | 'date' | 'number' {
+  const cleaned = samples.map(s => (s ?? '').trim()).filter(Boolean);
+  if (cleaned.length === 0) return 'string';
+  if (cleaned.every(isDateLike)) return 'date';
+  if (cleaned.every(isNumberLike)) return 'number';
+  return 'string';
+}
+
 export interface WizardApi {
   state: WizardState;
   setField: <K extends keyof WizardState>(k: K, v: WizardState[K]) => void;
@@ -191,7 +217,8 @@ export function useCsvWizardState(): WizardApi {
         if (existing) {
           decisions[h] = existing;
         } else {
-          decisions[h] = guessDecision(h);
+          const samples = preview.rows.slice(0, 5).map(r => (r[h] ?? '').trim());
+          decisions[h] = guessDecision(h, samples);
         }
       }
       return {
@@ -465,7 +492,7 @@ export function useCsvWizardState(): WizardApi {
   };
 }
 
-function guessDecision(col: string): PerColumnDecision {
+function guessDecision(col: string, samples: string[] = []): PerColumnDecision {
   const c = col.toLowerCase();
   if (/akz|aktenzeichen|fkz/.test(c)) return { mode: 'canonical', canonical: 'aktenzeichen', type: 'string' };
   if (/kurz|akronym/.test(c)) return { mode: 'canonical', canonical: 'akronym', type: 'string' };
@@ -479,5 +506,5 @@ function guessDecision(col: string): PerColumnDecision {
   if (/frist/.test(c)) return { mode: 'canonical', canonical: 'frist_datum', type: 'date' };
   if (/foerder|summe|betrag/.test(c)) return { mode: 'canonical', canonical: 'foerdersumme', type: 'number' };
   if (/export_ts|timestamp/.test(c)) return { mode: 'ignore' };
-  return { mode: 'custom', custom: col.toLowerCase(), type: 'string' };
+  return { mode: 'custom', custom: col.toLowerCase(), type: detectFieldType(samples) };
 }
