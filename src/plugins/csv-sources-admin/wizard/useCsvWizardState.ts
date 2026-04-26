@@ -165,7 +165,7 @@ export function useCsvWizardState(): WizardApi {
     setState(s => ({
       ...s,
       displayName: name,
-      schemaId: s.schemaId || slugify(name),
+      schemaId: slugify(name),
     }));
   }, []);
 

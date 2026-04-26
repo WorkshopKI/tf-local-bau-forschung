@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
-import { Upload, FileText } from 'lucide-react';
+import { Upload, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { parseCsvPreview } from '@/core/services/csv';
 import type { CsvEncoding, CsvSeparator } from '@/core/services/csv/types';
 import type { WizardApi } from './useCsvWizardState';
@@ -34,6 +35,7 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [showTestCorpus, setShowTestCorpus] = useState(false);
 
   async function handleEncodingChange(enc: CsvEncoding): Promise<void> {
     setErr(null);
@@ -85,18 +87,14 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
           onChange={e => setDisplayName(e.target.value)}
           placeholder="z.B. Stammdaten"
         />
-      </div>
-
-      <div>
-        <label className="block text-[13px] font-medium text-[var(--tf-text)] mb-1">
-          Schema-ID
-          <span className="ml-2 text-[11px] text-[var(--tf-text-tertiary)]">unveränderlich nach Speichern</span>
-        </label>
-        <Input
-          value={state.schemaId}
-          onChange={e => setField('schemaId', e.target.value.replace(/[^a-z0-9-_]/gi, '').toLowerCase())}
-          placeholder="stammdaten-v1"
-        />
+        {state.schemaId ? (
+          <div
+            className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]"
+            title="Interne Kennung der Source — wird automatisch aus dem Anzeigenamen erzeugt und ist nach dem Speichern unveränderlich. Wird nur intern verwendet (z.B. Dateiname des Schema-JSON)."
+          >
+            Schema-ID: <span className="font-mono">{state.schemaId}</span>
+          </div>
+        ) : null}
       </div>
 
       <div>
@@ -206,35 +204,40 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
           </div>
         ) : null}
 
-        <div className="mt-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="h-px flex-1 bg-[var(--tf-border)]" />
-            <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">oder zum Testen</div>
-            <div className="h-px flex-1 bg-[var(--tf-border)]" />
-          </div>
-          <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1.5">Beispieldaten laden</div>
-          <div className="flex flex-wrap gap-1.5 mb-1.5">
-            {TEST_CORPUS.filter(e => e.size === 'small' || !e.size).map(e => (
-              <Button key={e.id} size="xs" variant="outline" onClick={() => void loadTestCorpus(e.id)} title={e.hint}>
-                {e.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-1.5 mb-1.5">
-            {TEST_CORPUS.filter(e => e.size === 'de').map(e => (
-              <Button key={e.id} size="xs" variant="outline" onClick={() => void loadTestCorpus(e.id)} title={e.hint}>
-                {e.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {TEST_CORPUS.filter(e => e.size === 'big').map(e => (
-              <Button key={e.id} size="xs" variant="outline" onClick={() => void loadTestCorpus(e.id)} title={e.hint}>
-                {e.label}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <Collapsible open={showTestCorpus} onOpenChange={setShowTestCorpus} className="mt-3">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] transition"
+            >
+              {showTestCorpus ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              <span>Beispieldaten zum Testen anzeigen</span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {TEST_CORPUS.filter(e => e.size === 'small' || !e.size).map(e => (
+                <Button key={e.id} size="xs" variant="outline" onClick={() => void loadTestCorpus(e.id)} title={e.hint}>
+                  {e.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {TEST_CORPUS.filter(e => e.size === 'de').map(e => (
+                <Button key={e.id} size="xs" variant="outline" onClick={() => void loadTestCorpus(e.id)} title={e.hint}>
+                  {e.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {TEST_CORPUS.filter(e => e.size === 'big').map(e => (
+                <Button key={e.id} size="xs" variant="outline" onClick={() => void loadTestCorpus(e.id)} title={e.hint}>
+                  {e.label}
+                </Button>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
 
       <div>
