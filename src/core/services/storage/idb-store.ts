@@ -6,6 +6,7 @@ export const CSV_STORES = {
   ANTRAEGE: 'antraege',
   ANTRAG_HISTORIE: 'antrag_historie',
   VERBUENDE: 'verbuende',
+  VERBUND_HISTORIE: 'verbund_historie',
   AKRONYM_INDEX: 'akronym_index',
 } as const;
 
@@ -17,7 +18,7 @@ export class IDBStore {
   private db: IDBDatabase | null = null;
   private readonly dbName = 'teamflow';
   private readonly storeName = 'kv';
-  private readonly version = 3;
+  private readonly version = 4;
 
   async open(): Promise<void> {
     if (this.db) return;
@@ -73,6 +74,12 @@ export class IDBStore {
             const s = db.createObjectStore(FILTER_STORE_NAME, { keyPath: 'id' });
             s.createIndex('programm_id', 'programm_id', { unique: false });
             s.createIndex('scope', 'scope', { unique: false });
+          }
+        }
+        if (oldVersion < 4) {
+          if (!db.objectStoreNames.contains(CSV_STORES.VERBUND_HISTORIE)) {
+            const s = db.createObjectStore(CSV_STORES.VERBUND_HISTORIE, { keyPath: 'id' });
+            s.createIndex('verbund_id', 'verbund_id', { unique: false });
           }
         }
       };

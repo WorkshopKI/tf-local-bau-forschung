@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getVerbund, listAntraegeByVerbund } from '@/core/services/csv';
-import type { Antrag, Verbund } from '@/core/services/csv/types';
+import { getVerbund, listAntraegeByVerbund, getVerbundHistoryByVerbund } from '@/core/services/csv';
+import { getCanonicalLabel } from '@/core/services/csv/constants';
+import type { Antrag, Verbund, VerbundHistorieEntry } from '@/core/services/csv/types';
 
 interface Props {
   verbundId: string;
@@ -16,15 +17,18 @@ export function VerbundDetail({ verbundId }: Props): React.ReactElement {
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
   const [verbund, setVerbund] = useState<Verbund | null>(null);
   const [antraege, setAntraege] = useState<Antrag[]>([]);
+  const [history, setHistory] = useState<VerbundHistorieEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const v = await getVerbund(storage.idb, verbundId);
       const a = await listAntraegeByVerbund(storage.idb, verbundId);
+      const h = await getVerbundHistoryByVerbund(storage.idb, verbundId);
       if (cancelled) return;
       setVerbund(v);
       setAntraege(a.sort((x, y) => x.aktenzeichen.localeCompare(y.aktenzeichen)));
+      setHistory(h.sort((x, y) => y.geaendert_am.localeCompare(x.geaendert_am)));
     })();
     return () => { cancelled = true; };
   }, [verbundId, storage.idb]);
@@ -97,8 +101,55 @@ export function VerbundDetail({ verbundId }: Props): React.ReactElement {
           </tbody>
         </table>
       </div>
+
+      <div className="mt-6">
+        <h2 className="text-[13px] font-medium uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
+          Verbund-Historie
+        </h2>
+        {history.length === 0 ? (
+          <div className="text-[12.5px] text-[var(--tf-text-tertiary)] italic">
+            Noch keine Verbund-Änderungen erfasst.
+          </div>
+        ) : (
+          <div style={{ border: '0.5px solid var(--tf-border)', borderRadius: 8 }}>
+            {history.map((h, i) => (
+              <div
+                key={h.id}
+                className="px-3 py-2 text-[12.5px]"
+                style={{ borderTop: i === 0 ? undefined : '0.5px solid var(--tf-border)' }}
+              >
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-[11.5px] text-[var(--tf-text-tertiary)] tabular-nums">
+                    {formatDate(h.geaendert_am)}
+                  </span>
+                  <span className="font-medium text-[var(--tf-text)]">{getCanonicalLabel(h.feld)}</span>
+                  <span className="text-[var(--tf-text-tertiary)]">→</span>
+                </div>
+                <div className="mt-0.5 text-[12px]">
+                  <span className="font-mono line-through text-[var(--tf-text-tertiary)]">{str(h.alt_wert)}</span>
+                  <span className="mx-2 text-[var(--tf-text-tertiary)]">→</span>
+                  <span className="font-mono text-[var(--tf-text)]">{str(h.neu_wert)}</span>
+                </div>
+                {h.csv_schema_id ? (
+                  <div className="mt-0.5 text-[10.5px] text-[var(--tf-text-tertiary)] font-mono">
+                    Quelle: {h.csv_schema_id}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
+}
+
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('de-DE');
+  } catch {
+    return iso;
+  }
 }
 
 function str(v: unknown): string {

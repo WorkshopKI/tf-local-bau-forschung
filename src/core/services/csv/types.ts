@@ -140,6 +140,18 @@ export interface AntragHistorieEntry {
   csv_schema_id: string;
 }
 
+export interface VerbundHistorieEntry {
+  id: string;
+  verbund_id: string;
+  /** Canonical-Key: 'verbund_titel' | 'verbund_status' (kommt aus CANONICAL_FIELDS). */
+  feld: string;
+  alt_wert: unknown;
+  neu_wert: unknown;
+  /** ISO-Timestamp. */
+  geaendert_am: string;
+  csv_schema_id: string;
+}
+
 export interface Verbund {
   verbund_id: string;
   programm_id: string;

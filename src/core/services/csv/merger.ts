@@ -14,8 +14,9 @@ import {
   putVerbund,
   deleteVerbund,
   appendHistory,
+  appendVerbundHistory,
 } from './idb-csv';
-import type { Antrag, AntragHistorieEntry, CsvSchema, ColumnMappingEntry } from './types';
+import type { Antrag, AntragHistorieEntry, CsvSchema, ColumnMappingEntry, Verbund, VerbundHistorieEntry } from './types';
 import { getCanonicalLevel } from './constants';
 import { uuid } from '@/core/services/id-generator';
 
@@ -136,6 +137,7 @@ export async function recomputeAntrag(
   // auf das Verbund-Objekt angewandt — sie landen NICHT auf dem Antrag.
   const verbundUpdates: Record<string, unknown> = {};
   const verbundFieldSources: Record<string, string> = {};
+  const verbundWinnerEntry = new Map<string, ColumnMappingEntry>();
 
   const sorted = [...schemas].sort((a, b) => {
     const d = a.schema.priority - b.schema.priority;
@@ -169,6 +171,7 @@ export async function recomputeAntrag(
             if (val === '' && verbundUpdates[field] != null && verbundUpdates[field] !== '') continue;
             verbundUpdates[field] = val;
             verbundFieldSources[field] = schema.id;
+            verbundWinnerEntry.set(field, entry);
             continue;
           }
           if (val === '' && merged[field] != null && merged[field] !== '') continue;
@@ -249,6 +252,35 @@ export async function recomputeAntrag(
     const effectiveTitel = vbTitel ?? tvTitel;
     const sources = { ...(vb?._field_sources ?? {}), ...verbundFieldSources };
 
+    // Diff fuer Verbund-Historie: nur wenn Verbund existierte UND VB-Felder mit
+    // trackHistory tatsaechlich neue Werte erhalten (alte vs. neue Werte vergleichen).
+    const VB_FIELD_MAP: Record<string, keyof Verbund> = {
+      verbund_titel: 'titel',
+      verbund_status: 'status',
+    };
+    const vbHistory: VerbundHistorieEntry[] = [];
+    if (vb) {
+      for (const [canonicalKey, entry] of verbundWinnerEntry) {
+        if (!entry.trackHistory) continue;
+        const vbProp = VB_FIELD_MAP[canonicalKey];
+        if (!vbProp) continue;
+        const oldVal = vb[vbProp];
+        const newVal = verbundUpdates[canonicalKey];
+        if (oldVal === undefined || oldVal === '' || oldVal === null) continue;
+        if (oldVal === newVal) continue;
+        if (newVal === '' || newVal === undefined) continue;
+        vbHistory.push({
+          id: uuid(),
+          verbund_id: newVerbund,
+          feld: canonicalKey,
+          alt_wert: oldVal,
+          neu_wert: newVal,
+          geaendert_am: nowIso,
+          csv_schema_id: verbundFieldSources[canonicalKey] ?? '',
+        });
+      }
+    }
+
     if (!vb) {
       await putVerbund(idb, {
         verbund_id: newVerbund,
@@ -272,6 +304,8 @@ export async function recomputeAntrag(
       vb._updated_at = nowIso;
       await putVerbund(idb, vb);
     }
+
+    if (vbHistory.length > 0) await appendVerbundHistory(idb, vbHistory);
   }
 }
 

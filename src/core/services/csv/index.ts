@@ -25,6 +25,8 @@ export {
   listVerbuendeByProgramm,
   getAkronymEntry,
   getHistoryByAz,
+  appendVerbundHistory,
+  getVerbundHistoryByVerbund,
   getUnterprogramm,
   deleteUnterprogramm,
   listUnterprogrammeByProgramm,
