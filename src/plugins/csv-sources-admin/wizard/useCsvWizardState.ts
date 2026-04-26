@@ -188,6 +188,8 @@ export interface WizardApi {
   clearLabelResult: () => void;
   /** Collapsible-State umschalten. */
   toggleGroupCollapse: (groupKey: string) => void;
+  /** Bulk-Aktion: alle Gruppen auf- (collapsed=false) oder zuklappen (collapsed=true). */
+  setAllGroupsCollapsed: (keys: string[], collapsed: boolean) => void;
   /** Liefert die Label-Entries nach Anwendung aller Admin-Resolutions. */
   getResolvedEntries: () => ColumnLabelEntry[];
 }
@@ -401,6 +403,15 @@ export function useCsvWizardState(): WizardApi {
     }));
   }, []);
 
+  const setAllGroupsCollapsed: WizardApi['setAllGroupsCollapsed'] = useCallback((keys, collapsed) => {
+    setState(s => {
+      if (!collapsed) return { ...s, collapsedGroups: {} };
+      const next: Record<string, boolean> = {};
+      for (const k of keys) next[k] = true;
+      return { ...s, collapsedGroups: next };
+    });
+  }, []);
+
   const getResolvedEntries: WizardApi['getResolvedEntries'] = useCallback(() => {
     let entries = state.labelEntries;
     for (const m of state.ambiguousMerges) {
@@ -488,6 +499,7 @@ export function useCsvWizardState(): WizardApi {
     setAllAmbiguousResolutions,
     clearLabelResult,
     toggleGroupCollapse,
+    setAllGroupsCollapsed,
     getResolvedEntries,
   };
 }

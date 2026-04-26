@@ -20,7 +20,7 @@ interface GroupBucket {
 }
 
 export function Step2Columns({ api }: Step2Props): React.ReactElement {
-  const { state, updateDecision, applyDecisions, toggleGroupCollapse, getResolvedEntries } = api;
+  const { state, updateDecision, applyDecisions, toggleGroupCollapse, setAllGroupsCollapsed, getResolvedEntries } = api;
   const [filterTerm, setFilterTerm] = useState('');
   const mappingRef = useRef<HTMLDivElement | null>(null);
 
@@ -112,6 +112,9 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
   const isGroupedView = resolved.length > 0;
   const totalColumns = state.preview.headers.length;
   const visibleColumns = groups.reduce((n, g) => n + g.columns.length, 0);
+  const allGroupKeys = allGroups.map(g => g.key);
+  const allCollapsed = isGroupedView && allGroupKeys.length > 0 && allGroupKeys.every(k => state.collapsedGroups[k]);
+  const allExpanded = isGroupedView && allGroupKeys.every(k => !state.collapsedGroups[k]);
 
   return (
     <div>
@@ -125,7 +128,7 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
         <span className="ml-1">„Historie tracken" nur für Felder aktivieren, die sich tatsächlich ändern können (z.B. Status).</span>
       </div>
 
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-3 flex items-center gap-2 flex-wrap">
         <input
           type="text"
           value={filterTerm}
@@ -137,6 +140,28 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
           <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
             zeigt {visibleColumns} von {totalColumns} Spalten
           </span>
+        ) : null}
+        {isGroupedView ? (
+          <div className="ml-auto flex gap-1">
+            <button
+              type="button"
+              onClick={() => setAllGroupsCollapsed(allGroupKeys, false)}
+              disabled={allExpanded}
+              className="px-2 py-1 rounded text-[11.5px] text-[var(--tf-text-secondary)] border-[0.5px] border-[var(--tf-border)] hover:bg-[var(--tf-bg-secondary)] disabled:opacity-50 disabled:cursor-not-allowed"
+              title={allExpanded ? 'Alle Gruppen sind bereits aufgeklappt' : undefined}
+            >
+              Alle aufklappen
+            </button>
+            <button
+              type="button"
+              onClick={() => setAllGroupsCollapsed(allGroupKeys, true)}
+              disabled={allCollapsed}
+              className="px-2 py-1 rounded text-[11.5px] text-[var(--tf-text-secondary)] border-[0.5px] border-[var(--tf-border)] hover:bg-[var(--tf-bg-secondary)] disabled:opacity-50 disabled:cursor-not-allowed"
+              title={allCollapsed ? 'Alle Gruppen sind bereits eingeklappt' : undefined}
+            >
+              Alle einklappen
+            </button>
+          </div>
         ) : null}
       </div>
 
