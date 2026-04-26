@@ -258,6 +258,16 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
             </button>
           ))}
         </div>
+        {state.isMaster && state.joinKey === 'verbund_id' ? (
+          <div className="mt-2 rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-2.5 text-[11.5px] text-amber-900">
+            <strong>Achtung:</strong> Bei Master-Source mit Join-Key <code>verbund_id</code> werden alle
+            Teilvorhaben eines Verbundes (gleiche Verbundnummer) zu <em>einem</em> Antrag zusammengeführt.
+            Wenn jede CSV-Zeile einem eigenen Teilvorhaben mit eigenem Aktenzeichen entspricht, sollte
+            <code className="mx-1">aktenzeichen</code> der Join-Key sein —
+            <code className="ml-1">verbund_id</code> bleibt dann als normales Feld erhalten und ist über
+            Filter und die Verbund-Ansicht gruppierbar.
+          </div>
+        ) : null}
       </div>
 
       <div className="flex items-start gap-3">
