@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { CANONICAL_FIELDS, getCanonicalLabel } from '@/core/services/csv/constants';
+import type { ColumnLabelEntry } from '@/core/services/csv';
 import type { WizardApi, PerColumnDecision } from './useCsvWizardState';
 import { slugifyFieldName } from './useCsvWizardState';
 import { XlsLabelUpload } from './XlsLabelUpload';
@@ -29,11 +30,31 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
 
   const resolved = useMemo(() => getResolvedEntries(), [getResolvedEntries]);
 
+  /**
+   * Mappt CSV-Preview-Header auf XLS-Label-Entries.
+   * 1. Direkter Namens-Match (csv_column == header).
+   * 2. Fallback positional: resolved[i] (XLS-Eintrag an gleicher Spalten-Position).
+   *    Greift bei Duplikat-Spalten in der CSV: PapaParse dedupliziert mit `_1`-Suffix
+   *    (z.B. `Digitale W` → `Digitale W_1`), das XLS hat aber meist eine andere
+   *    Konvention (`Digitale W2`). Per Position alignieren funktioniert robust,
+   *    sofern XLS und CSV die gleiche Spalten-Reihenfolge und -Anzahl haben.
+   */
+  const entriesByHeader = useMemo(() => {
+    const m = new Map<string, ColumnLabelEntry>();
+    if (!state.preview || resolved.length === 0) return m;
+    const byName = new Map(resolved.map(e => [e.csv_column, e]));
+    state.preview.headers.forEach((col, i) => {
+      const entry = byName.get(col) ?? resolved[i];
+      if (entry) m.set(col, entry);
+    });
+    return m;
+  }, [state.preview, resolved]);
+
   const labelByColumn = useMemo(() => {
     const m = new Map<string, string>();
-    for (const e of state.labelEntries) m.set(e.csv_column, e.label);
+    for (const [col, e] of entriesByHeader) m.set(col, e.label);
     return m;
-  }, [state.labelEntries]);
+  }, [entriesByHeader]);
 
   const allGroups: GroupBucket[] = useMemo(() => {
     if (!state.preview) return [];
@@ -42,12 +63,11 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
       // Kein Label-XLS geladen → eine einzige "Gruppe" ohne Header (flache Tabelle)
       return [{ key: NO_GROUP_KEY, label: '', columns: headers }];
     }
-    const byColumn = new Map(resolved.map(e => [e.csv_column, e]));
     const order: string[] = []; // key-Reihenfolge
     const buckets = new Map<string, GroupBucket>();
 
     for (const col of headers) {
-      const entry = byColumn.get(col);
+      const entry = entriesByHeader.get(col);
       const path = entry?.group_path ?? [];
       const key = path.length === 0 ? NO_GROUP_KEY : path.join(' › ');
       const label = path.length === 0 ? NO_GROUP_LABEL : key;
@@ -63,7 +83,7 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
     const none = buckets.get(NO_GROUP_KEY);
     if (none) ordered.push(none);
     return ordered;
-  }, [resolved, state.preview]);
+  }, [resolved, state.preview, entriesByHeader]);
 
   const trimmedFilter = filterTerm.trim().toLowerCase();
   const filterActive = trimmedFilter.length > 0;
@@ -135,6 +155,7 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
             state={state}
             isGroupedView={isGroupedView}
             forceExpanded={filterActive}
+            labelByColumn={labelByColumn}
             updateDecision={updateDecision}
             onToggle={() => toggleGroupCollapse(g.key)}
           />
@@ -154,17 +175,14 @@ interface GroupSectionProps {
   state: WizardApi['state'];
   isGroupedView: boolean;
   forceExpanded: boolean;
+  labelByColumn: Map<string, string>;
   updateDecision: (col: string, patch: Partial<PerColumnDecision>) => void;
   onToggle: () => void;
 }
 
-function GroupSection({ bucket, state, isGroupedView, forceExpanded, updateDecision, onToggle }: GroupSectionProps): React.ReactElement {
+function GroupSection({ bucket, state, isGroupedView, forceExpanded, labelByColumn, updateDecision, onToggle }: GroupSectionProps): React.ReactElement {
   const collapsed = !forceExpanded && !!state.collapsedGroups[bucket.key];
-  const labelMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const e of state.labelEntries) m.set(e.csv_column, e.label);
-    return m;
-  }, [state.labelEntries]);
+  const labelMap = labelByColumn;
 
   return (
     <div style={{ border: '0.5px solid var(--tf-border)', borderRadius: 8 }}>
