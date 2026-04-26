@@ -5,17 +5,13 @@ import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import {
   ensureDefaultProgramm,
   listSchemas,
-  importCsvSource,
-  loadCsvSourceFile,
   removeSchema,
-  type ImportProgress,
 } from '@/core/services/csv';
 import type { CsvSchema } from '@/core/services/csv/types';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { SectionHeader } from '@/ui/SectionHeader';
 import { CsvSourceWizard } from './wizard/CsvSourceWizard';
-import { Step4Progress } from './wizard/Step4Progress';
-import { Dialog } from '@/components/ui/dialog';
+import { CsvSourceReimportDialog } from './CsvSourceReimportDialog';
 
 export function CsvSourcesPage(): React.ReactElement {
   const storage = useStorage();
@@ -23,7 +19,7 @@ export function CsvSourcesPage(): React.ReactElement {
   const [programmId, setProgrammId] = useState<string | null>(null);
   const [schemas, setSchemas] = useState<CsvSchema[]>([]);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [reimport, setReimport] = useState<{ schema: CsvSchema; progress: ImportProgress | null; error: string | null; result: import('@/core/services/csv/types').ImportResult | null } | null>(null);
+  const [reimportSchema, setReimportSchema] = useState<CsvSchema | null>(null);
 
   const refresh = useCallback(async () => {
     const p = await ensureDefaultProgramm(storage.idb);
@@ -40,24 +36,6 @@ export function CsvSourcesPage(): React.ReactElement {
     await refresh();
   };
 
-  const onReimport = async (schema: CsvSchema): Promise<void> => {
-    const text = await loadCsvSourceFile(storage.idb, schema.id);
-    if (!text) {
-      alert('Keine gespeicherte CSV-Datei gefunden. Bitte Wizard nutzen und neu uploaden.');
-      return;
-    }
-    const blob = new Blob([text], { type: 'text/csv' });
-    setReimport({ schema, progress: null, error: null, result: null });
-    try {
-      const result = await importCsvSource(storage.idb, schema.id, blob, {
-        onProgress: p => setReimport(r => r ? { ...r, progress: p } : r),
-      });
-      setReimport(r => r ? { ...r, result } : r);
-      await refresh();
-    } catch (e) {
-      setReimport(r => r ? { ...r, error: (e as Error).message } : r);
-    }
-  };
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -105,7 +83,7 @@ export function CsvSourcesPage(): React.ReactElement {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => void onReimport(s)} disabled={!session.isActive}>
+                <Button size="sm" variant="outline" onClick={() => setReimportSchema(s)} disabled={!session.isActive}>
                   Re-Import
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => void onDelete(s)} disabled={!session.isActive}>
@@ -126,18 +104,13 @@ export function CsvSourcesPage(): React.ReactElement {
         />
       ) : null}
 
-      <Dialog
-        open={!!reimport}
-        onClose={() => setReimport(null)}
-        title={`Re-Import: ${reimport?.schema.csv_source_name ?? ''}`}
-        footer={
-          <Button size="sm" variant="default" onClick={() => setReimport(null)}>Schließen</Button>
-        }
-      >
-        {reimport ? (
-          <Step4Progress progress={reimport.progress} result={reimport.result} error={reimport.error} />
-        ) : null}
-      </Dialog>
+      {reimportSchema ? (
+        <CsvSourceReimportDialog
+          schema={reimportSchema}
+          onClose={() => setReimportSchema(null)}
+          onCompleted={() => { void refresh(); }}
+        />
+      ) : null}
     </div>
   );
 }
