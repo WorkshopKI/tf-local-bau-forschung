@@ -10,9 +10,26 @@ interface DialogProps {
   children?: React.ReactNode
   footer?: React.ReactNode
   className?: string
+  /**
+   * Klick auf das Overlay (graue Flaeche) schliesst den Dialog. Default `true`.
+   * Fuer lange Bearbeitungs-Dialoge (Wizards) auf `false` setzen, damit
+   * versehentliche Klicks beim Wechsel zu anderen Anwendungen nicht den
+   * Wizard-State zerstoeren. Escape und expliziter Schliessen-Button
+   * bleiben unabhaengig wirksam.
+   */
+  dismissOnOverlayClick?: boolean
 }
 
-function Dialog({ open, onClose, title, description, children, footer, className }: DialogProps) {
+function Dialog({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  className,
+  dismissOnOverlayClick = true,
+}: DialogProps) {
   React.useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent): void => {
@@ -27,8 +44,11 @@ function Dialog({ open, onClose, title, description, children, footer, className
   return (
     <div
       data-slot="dialog-overlay"
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
+      className={cn(
+        "fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4",
+        dismissOnOverlayClick ? null : "cursor-default",
+      )}
+      onClick={dismissOnOverlayClick ? onClose : undefined}
       role="dialog"
       aria-modal="true"
     >

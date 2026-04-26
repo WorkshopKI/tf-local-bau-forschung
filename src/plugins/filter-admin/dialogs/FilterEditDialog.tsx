@@ -194,6 +194,7 @@ export function FilterEditDialog({ open, onClose, onSaved, programmId, existing 
       onClose={onClose}
       title={existing ? `Filter bearbeiten — Schritt ${draft.step}/4` : `Neuer Filter — Schritt ${draft.step}/4`}
       className="max-w-[640px]"
+      dismissOnOverlayClick={false}
       footer={
         <div className="flex w-full items-center justify-between">
           <div className="flex gap-1">

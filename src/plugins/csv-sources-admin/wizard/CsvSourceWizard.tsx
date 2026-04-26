@@ -284,6 +284,7 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted }: Prop
         onClose={closeWizard}
         title={`Neue CSV-Source — Schritt ${displayStep}/${totalSteps}`}
         className="max-w-[760px]"
+        dismissOnOverlayClick={false}
         footer={
           <div className="flex w-full items-center justify-between">
             <div className="flex gap-1">

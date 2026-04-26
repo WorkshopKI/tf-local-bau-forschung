@@ -118,6 +118,7 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
       onClose={isImporting ? () => {} : onClose}
       title={`Re-Import: ${schema.csv_source_name}`}
       className="max-w-[640px]"
+      dismissOnOverlayClick={false}
       footer={
         phase === 'reviewing' ? (
           <div className="flex w-full items-center justify-between">
