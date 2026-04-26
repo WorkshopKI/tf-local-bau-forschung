@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { CANONICAL_FIELDS, getCanonicalLabel } from '@/core/services/csv/constants';
 import type { WizardApi, PerColumnDecision } from './useCsvWizardState';
+import { slugifyFieldName } from './useCsvWizardState';
 import { XlsLabelUpload } from './XlsLabelUpload';
 
 interface Step2Props {
@@ -210,7 +211,17 @@ function GroupSection({ bucket, state, isGroupedView, forceExpanded, updateDecis
                     <td className="p-2">
                       <select
                         value={d.mode}
-                        onChange={e => updateDecision(col, { mode: e.target.value as 'canonical' | 'custom' | 'ignore' })}
+                        onChange={e => {
+                          const newMode = e.target.value as 'canonical' | 'custom' | 'ignore';
+                          if (newMode === 'custom' && !d.custom) {
+                            const lab = labelMap.get(col);
+                            const derived = lab && lab !== col ? slugifyFieldName(lab) : '';
+                            const fallback = col.toLowerCase();
+                            updateDecision(col, { mode: 'custom', custom: derived || fallback });
+                          } else {
+                            updateDecision(col, { mode: newMode });
+                          }
+                        }}
                         className="h-7 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-1.5 text-[12px]"
                       >
                         <option value="canonical">Standardfeld</option>

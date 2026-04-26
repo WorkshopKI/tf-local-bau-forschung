@@ -115,6 +115,20 @@ function slugify(input: string): string {
     .slice(0, 40);
 }
 
+/**
+ * Variante fuer Custom-Feldnamen: Underscores statt Bindestriche
+ * (entspricht der bestehenden Konvention bei guessDecision -> col.toLowerCase()).
+ */
+export function slugifyFieldName(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+}
+
 export interface WizardApi {
   state: WizardState;
   setField: <K extends keyof WizardState>(k: K, v: WizardState[K]) => void;
@@ -302,12 +316,28 @@ export function useCsvWizardState(): WizardApi {
       for (const m of result.ambiguousMerges) {
         resolutions[m.signature] = s.ambiguousResolutions[m.signature] ?? m.default_resolution;
       }
+      // Custom-Feldnamen aus Label ableiten, wenn der User sie noch nicht editiert hat.
+      // "Noch nicht editiert" = custom === col.toLowerCase() (Auto-Default aus guessDecision).
+      const labelByCol = new Map<string, string>();
+      for (const e of result.columnEntries) labelByCol.set(e.csv_column, e.label);
+      const refreshed: Record<string, PerColumnDecision> = { ...s.decisions };
+      for (const [col, d] of Object.entries(refreshed)) {
+        if (d.mode !== 'custom') continue;
+        const autoName = col.toLowerCase();
+        if (d.custom !== undefined && d.custom !== autoName) continue; // user-editiert
+        const label = labelByCol.get(col);
+        if (!label || label === col) continue;
+        const slug = slugifyFieldName(label);
+        if (!slug || slug === autoName) continue;
+        refreshed[col] = { ...d, custom: slug };
+      }
       return {
         ...s,
         labelEntries: result.columnEntries,
         ambiguousMerges: result.ambiguousMerges,
         ambiguousResolutions: resolutions,
         labelFileName: fileName,
+        decisions: refreshed,
       };
     });
   }, []);
