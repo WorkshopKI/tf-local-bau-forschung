@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { CANONICAL_FIELDS, getCanonicalLabel } from '@/core/services/csv/constants';
 import type { WizardApi, PerColumnDecision } from './useCsvWizardState';
@@ -20,6 +20,11 @@ interface GroupBucket {
 export function Step2Columns({ api }: Step2Props): React.ReactElement {
   const { state, updateDecision, applyDecisions, toggleGroupCollapse, getResolvedEntries } = api;
   const [filterTerm, setFilterTerm] = useState('');
+  const mappingRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToMapping = (): void => {
+    mappingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const resolved = useMemo(() => getResolvedEntries(), [getResolvedEntries]);
 
@@ -118,9 +123,10 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
         previewHeaders={state.preview.headers}
         api={api}
         onApply={applyDecisions}
+        onApplied={scrollToMapping}
       />
 
-      <div className="space-y-3">
+      <div ref={mappingRef} className="space-y-3">
         {groups.map(g => (
           <GroupSection
             key={g.key}
