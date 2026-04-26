@@ -102,6 +102,13 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
   const allConfidentApplied = confident.length > 0 && pendingConfidentCount === 0;
   const hasAmbig = state.ambiguousMerges.length > 0;
 
+  // Effektive Auflösungen je Merge (explizit gesetzt ODER default_resolution)
+  const effectiveResolutions = state.ambiguousMerges.map(
+    m => state.ambiguousResolutions[m.signature] ?? m.default_resolution,
+  );
+  const allMergesAtGroup = hasAmbig && effectiveResolutions.every(r => r === 'group');
+  const allMergesAtIgnore = hasAmbig && effectiveResolutions.every(r => r === 'ignore');
+
   const resolutionLabel = (r: AmbiguousMergeResolution): string =>
     r === 'group' ? 'Als Gruppe' : r === 'label_repeated' ? 'Als Label wiederholt' : 'Ignorieren';
 
@@ -172,11 +179,23 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
             {state.ambiguousMerges.length} mehrdeutige Gruppen erkannt (Merge über Gruppen- und Label-Zeile).
           </div>
           <div className="flex gap-1">
-            <Button size="xs" variant="outline" onClick={() => setAllAmbiguousResolutions('group')}>
-              Alle als Gruppe
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => setAllAmbiguousResolutions('group')}
+              disabled={allMergesAtGroup}
+              title={allMergesAtGroup ? 'Alle Auflösungen sind bereits „Als Gruppe"' : undefined}
+            >
+              {allMergesAtGroup ? 'Alle als Gruppe ✓' : 'Alle als Gruppe'}
             </Button>
-            <Button size="xs" variant="ghost" onClick={() => setAllAmbiguousResolutions('ignore')}>
-              Alle ignorieren
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => setAllAmbiguousResolutions('ignore')}
+              disabled={allMergesAtIgnore}
+              title={allMergesAtIgnore ? 'Alle Auflösungen sind bereits „Ignorieren"' : undefined}
+            >
+              {allMergesAtIgnore ? 'Alle ignoriert ✓' : 'Alle ignorieren'}
             </Button>
           </div>
         </div>
