@@ -220,14 +220,17 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
       ) : null}
 
       {suggestions.length > 0 ? (
-        <div className="mt-3">
+        <div
+          className="mt-4 pt-3"
+          style={{ borderTop: hasAmbig ? '0.5px solid var(--tf-border)' : undefined }}
+        >
+          <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
+            Standardfeld-Vorschläge
+          </div>
           <div className="text-[11px] text-[var(--tf-text-tertiary)] leading-relaxed mb-2">
-            <strong>Standardfeld-Vorschläge:</strong> Spalten, deren Label fast genauso heißt wie ein
-            System-Standardfeld (Aktenzeichen, Status, Titel …) — werden hier zum Mappen vorgeschlagen.
-            <span className="block mt-0.5 italic">
-              Die Gruppen-/Deskriptor-Struktur aus dem XLS wirkt unten in der Mapping-Tabelle und ist
-              davon unabhängig.
-            </span>
+            Spalten, deren Label fast genauso heißt wie ein System-Standardfeld (Aktenzeichen, Status,
+            Titel …). Optional — die Gruppen-/Deskriptor-Struktur aus dem XLS wirkt unten in der
+            Mapping-Tabelle und ist davon unabhängig.
           </div>
           <div className="flex items-center justify-between mb-2">
             <div className="text-[11.5px] text-[var(--tf-text-secondary)]">
@@ -239,7 +242,7 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
             </div>
             <Button
               size="xs"
-              variant="default"
+              variant="outline"
               onClick={applyAll}
               disabled={confident.length === 0 || allConfidentApplied}
             >
