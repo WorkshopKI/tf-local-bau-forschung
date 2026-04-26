@@ -221,9 +221,18 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
 
       {suggestions.length > 0 ? (
         <div className="mt-3">
+          <div className="text-[11px] text-[var(--tf-text-tertiary)] leading-relaxed mb-2">
+            <strong>Standardfeld-Vorschläge:</strong> Spalten, deren Label fast genauso heißt wie ein
+            System-Standardfeld (Aktenzeichen, Status, Titel …) — werden hier zum Mappen vorgeschlagen.
+            <span className="block mt-0.5 italic">
+              Die Gruppen-/Deskriptor-Struktur aus dem XLS wirkt unten in der Mapping-Tabelle und ist
+              davon unabhängig.
+            </span>
+          </div>
           <div className="flex items-center justify-between mb-2">
             <div className="text-[11.5px] text-[var(--tf-text-secondary)]">
-              {suggestions.length} Vorschläge · {confident.length} mit hoher Konfidenz
+              {suggestions.length} mögliche Standardfeld-Zuordnung{suggestions.length === 1 ? '' : 'en'}
+              · {confident.length} mit hoher Konfidenz (≥60%)
               {appliedCount > 0 ? (
                 <span className="ml-1 text-emerald-700">· {appliedCount} übernommen</span>
               ) : null}
@@ -236,7 +245,7 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
             >
               {allConfidentApplied
                 ? 'Alle übernommen ✓'
-                : `Alle Vorschläge akzeptieren (${pendingConfidentCount})`}
+                : `Alle hochkonfidenten übernehmen (${pendingConfidentCount})`}
             </Button>
           </div>
           <div className="overflow-x-auto" style={{ border: '0.5px solid var(--tf-border)', borderRadius: 6, background: 'var(--tf-bg)' }}>

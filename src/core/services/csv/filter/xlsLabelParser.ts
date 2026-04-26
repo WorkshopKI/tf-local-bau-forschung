@@ -203,9 +203,14 @@ export function applyAmbiguousResolution(
   });
 }
 
+/** Mindest-Konfidenz, ab der ein Fuzzy-Match überhaupt als Standardfeld-Vorschlag gilt. */
+const MIN_SUGGESTION_CONFIDENCE = 0.5;
+
 /**
  * Matcht Label-Einträge gegen vorhandene Preview-Header und kanonische Feld-Labels.
- * Primär via Label, optional zusätzlich via group_path + Label (Folge-Optimierung).
+ * Liefert nur Suggestions mit ausreichender Ähnlichkeit zurück (Konfidenz ≥ 50%);
+ * Spalten ohne plausibles Standardfeld-Match werden weggelassen, damit die Liste
+ * im Wizard nicht mit Rauschen (0%/17%/29%-Treffern) zugemüllt wird.
  */
 export function buildSuggestions(
   previewHeaders: string[],
@@ -222,23 +227,16 @@ export function buildSuggestions(
   for (const col of previewHeaders) {
     const entry = byColumn.get(col.toLowerCase().trim());
     if (!entry) continue;
-    const match = bestMatch(entry.label, canonicalLabels, 5);
-    if (match) {
-      const canonField = CANONICAL_FIELDS.find(f => f.label === match.candidate);
-      suggestions.push({
-        csvColumn: col,
-        label: entry.label,
-        canonical: canonField ? canonField.key : null,
-        confidence: match.confidence,
-      });
-    } else {
-      suggestions.push({
-        csvColumn: col,
-        label: entry.label,
-        canonical: null,
-        confidence: 0,
-      });
-    }
+    const match = bestMatch(entry.label, canonicalLabels, 3);
+    if (!match || match.confidence < MIN_SUGGESTION_CONFIDENCE) continue;
+    const canonField = CANONICAL_FIELDS.find(f => f.label === match.candidate);
+    if (!canonField) continue;
+    suggestions.push({
+      csvColumn: col,
+      label: entry.label,
+      canonical: canonField.key,
+      confidence: match.confidence,
+    });
   }
   return suggestions;
 }
