@@ -261,7 +261,12 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
         <input
           type="checkbox"
           checked={state.isMaster}
-          onChange={e => setField('isMaster', e.target.checked)}
+          onChange={e => {
+            const checked = e.target.checked;
+            setField('isMaster', checked);
+            if (checked && state.priority === 50) setField('priority', 100);
+            else if (!checked && state.priority === 100) setField('priority', 50);
+          }}
           className="mt-1"
         />
         <div>
