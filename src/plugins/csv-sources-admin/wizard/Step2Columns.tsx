@@ -89,9 +89,14 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
 
   return (
     <div>
-      <div className="text-[12px] text-[var(--tf-text-secondary)] mb-3">
-        Pro Spalte entscheiden: kanonisch zuordnen, als Custom behalten oder ignorieren. „Historie tracken"
-        nur für Felder aktiv, die sich tatsächlich ändern können (z.B. Status).
+      <div className="text-[12px] text-[var(--tf-text-secondary)] mb-3 leading-relaxed">
+        Pro Spalte entscheiden, wie sie übernommen wird:
+        <span className="ml-1"><strong>Standardfeld</strong> = auf ein vom System bekanntes Feld mappen
+        (z.B. Aktenzeichen, Status) — wird in Listen, Filtern und der Detailansicht besonders behandelt;</span>
+        <span className="ml-1"><strong>Eigenes Feld</strong> = die Spalte unter einem frei wählbaren Namen
+        durchreichen (erscheint als zusätzliches Feld in der Detailansicht);</span>
+        <span className="ml-1"><strong>Ignorieren</strong> = beim Import weglassen.</span>
+        <span className="ml-1">„Historie tracken" nur für Felder aktivieren, die sich tatsächlich ändern können (z.B. Status).</span>
       </div>
 
       <div className="mb-3 flex items-center gap-2">
@@ -176,8 +181,8 @@ function GroupSection({ bucket, state, isGroupedView, forceExpanded, updateDecis
               <tr className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
                 <th className="text-left p-2">CSV-Spalte</th>
                 {isGroupedView ? <th className="text-left p-2">Label</th> : null}
-                <th className="text-left p-2">Modus</th>
-                <th className="text-left p-2">Ziel / Custom-Name</th>
+                <th className="text-left p-2">Übernehmen als</th>
+                <th className="text-left p-2">Feldname</th>
                 <th className="text-left p-2">Typ</th>
                 <th className="text-left p-2">Historie</th>
                 <th className="text-left p-2">Beispielwerte</th>
@@ -202,8 +207,8 @@ function GroupSection({ bucket, state, isGroupedView, forceExpanded, updateDecis
                         onChange={e => updateDecision(col, { mode: e.target.value as 'canonical' | 'custom' | 'ignore' })}
                         className="h-7 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-1.5 text-[12px]"
                       >
-                        <option value="canonical">Kanonisch</option>
-                        <option value="custom">Custom</option>
+                        <option value="canonical">Standardfeld</option>
+                        <option value="custom">Eigenes Feld</option>
                         <option value="ignore">Ignorieren</option>
                       </select>
                     </td>

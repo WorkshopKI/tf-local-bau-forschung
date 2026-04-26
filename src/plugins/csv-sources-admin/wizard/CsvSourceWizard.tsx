@@ -74,7 +74,7 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted }: Prop
       d => d.mode === 'canonical' && d.canonical === state.joinKey,
     );
     if (!joinMapped) {
-      errs.push(`Die Join-Key-Spalte (${state.joinKey}) muss kanonisch gemappt sein.`);
+      errs.push(`Die Join-Key-Spalte (${state.joinKey}) muss als Standardfeld gemappt sein.`);
     }
     if (state.isMaster) {
       const azMapped = Object.values(decisions).some(

@@ -238,7 +238,7 @@ export function FilterEditDialog({ open, onClose, onSaved, programmId, existing 
       {err ? <div className="mt-3 text-[12px] text-red-700">{err}</div> : null}
       {selectedField ? (
         <div className="mt-3 text-[11px] text-[var(--tf-text-tertiary)]">
-          Aktives Feld: <span className="font-mono">{selectedField.key}</span> · Typ: {selectedField.type} · Herkunft: {selectedField.origin === 'canonical' ? 'kanonisch' : 'custom'}
+          Aktives Feld: <span className="font-mono">{selectedField.key}</span> · Typ: {selectedField.type} · Herkunft: {selectedField.origin === 'canonical' ? 'Standardfeld' : 'Eigenes Feld'}
         </div>
       ) : null}
     </Dialog>
@@ -260,8 +260,8 @@ function StepField({ fields, selected, onSelect }: { fields: AvailableField[]; s
   return (
     <div>
       <div className="text-[12px] text-[var(--tf-text-secondary)] mb-3">
-        Wähle das Feld aus, auf das der Filter angewandt werden soll. Zeigt alle kanonischen Felder
-        und alle Custom-Felder aus registrierten CSV-Schemas.
+        Wähle das Feld aus, auf das der Filter angewandt werden soll. Zeigt alle Standardfelder
+        und alle eigenen Felder aus registrierten CSV-Schemas.
       </div>
       <Input
         placeholder="Feld suchen…"
