@@ -57,22 +57,36 @@ export function AntraegeListe(): React.ReactElement {
     return m;
   }, [verbuende]);
 
+  const verbundById = useMemo(() => {
+    const m = new Map<string, typeof verbuende[number]>();
+    for (const v of verbuende) m.set(v.verbund_id, v);
+    return m;
+  }, [verbuende]);
+
+  const resolveVerbund = useMemo(
+    () => (a: typeof antraege[number]) =>
+      typeof a.verbund_id === 'string' ? verbundById.get(a.verbund_id) : undefined,
+    [verbundById],
+  );
+
   const filtered = useMemo(() => {
-    const base = applyFilters(antraege, active, definitions);
+    const base = applyFilters(antraege, active, definitions, resolveVerbund);
     const q = search.trim().toLowerCase();
     const sorted = [...base].sort((a, b) => a.aktenzeichen.localeCompare(b.aktenzeichen));
     if (!q) return sorted;
     return sorted.filter(a => {
-      const verbundAkronym = typeof a.verbund_id === 'string' ? verbundMap.get(a.verbund_id) : undefined;
+      const verbund = resolveVerbund(a);
       return (
         a.aktenzeichen.toLowerCase().includes(q) ||
         (typeof a.akronym === 'string' && a.akronym.toLowerCase().includes(q)) ||
         (typeof a.titel === 'string' && a.titel.toLowerCase().includes(q)) ||
         (typeof a.verbund_id === 'string' && a.verbund_id.toLowerCase().includes(q)) ||
-        (typeof verbundAkronym === 'string' && verbundAkronym.toLowerCase().includes(q))
+        (verbund?.akronym?.toLowerCase().includes(q) ?? false) ||
+        (verbund?.titel?.toLowerCase().includes(q) ?? false) ||
+        (verbund?.status?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [antraege, active, definitions, search, verbundMap]);
+  }, [antraege, active, definitions, search, resolveVerbund]);
 
   const groups = useMemo<VerbundGroup[] | null>(() => {
     if (!groupByVerbund) return null;

@@ -11,7 +11,17 @@ export type CanonicalField =
   | 'frist_datum'
   | 'foerdersumme'
   | 'foerdergeber'
-  | 'branche';
+  | 'branche'
+  // Verbund-Ebene (gemeinsam für alle TVs eines Verbundes)
+  | 'verbund_titel'
+  | 'verbund_status';
+
+/**
+ * Ebene eines Standardfelds:
+ * - 'antrag': Wert pro Teilvorhaben/Antrag (Default — Status, Titel, Aktenzeichen…).
+ * - 'verbund': Wert pro Verbund (gleich für alle TVs eines Verbundes — verbund_titel, verbund_status).
+ */
+export type CanonicalLevel = 'antrag' | 'verbund';
 
 export type AntragDokumentTyp =
   | 'projektbeschreibung'
@@ -135,7 +145,13 @@ export interface Verbund {
   programm_id: string;
   akronym?: string;
   titel?: string;
+  /** Verbund-Status (gleich für alle TVs eines Verbundes). */
+  status?: string;
   teilantrags_ids: string[];
+  /** Quellen pro VB-Feld (csv_schema_id) — analog zu Antrag._field_sources. */
+  _field_sources?: Record<string, string>;
+  /** ISO-Timestamp letzte Schreibung. */
+  _updated_at?: string;
 }
 
 export interface AkronymIndexEntry {

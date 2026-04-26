@@ -320,9 +320,16 @@ function GroupSection({ bucket, state, isGroupedView, forceExpanded, labelByColu
                             className="h-7 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-1.5 text-[12px]"
                           >
                             <option value="">– auswählen –</option>
-                            {CANONICAL_FIELDS.map(f => (
-                              <option key={f.key} value={f.key}>{getCanonicalLabel(f.key)}</option>
-                            ))}
+                            <optgroup label="Antrag-Ebene (TV)">
+                              {CANONICAL_FIELDS.filter(f => f.level === 'antrag').map(f => (
+                                <option key={f.key} value={f.key}>{getCanonicalLabel(f.key)}</option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Verbund-Ebene">
+                              {CANONICAL_FIELDS.filter(f => f.level === 'verbund').map(f => (
+                                <option key={f.key} value={f.key}>{getCanonicalLabel(f.key)}</option>
+                              ))}
+                            </optgroup>
                           </select>
                           {d.canonical === state.joinKey ? (
                             <div className="mt-1 text-[10.5px] text-[var(--tf-text-tertiary)] italic">

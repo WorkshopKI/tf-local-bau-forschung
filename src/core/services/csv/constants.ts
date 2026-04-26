@@ -1,23 +1,39 @@
-import type { CanonicalField, FieldType } from './types';
+import type { CanonicalField, CanonicalLevel, FieldType } from './types';
 
-export const CANONICAL_FIELDS: { key: CanonicalField; type: FieldType; label: string }[] = [
-  { key: 'aktenzeichen', type: 'string', label: 'Aktenzeichen' },
-  { key: 'akronym', type: 'string', label: 'Akronym' },
-  { key: 'verbund_id', type: 'string', label: 'Verbund-ID' },
-  { key: 'titel', type: 'string', label: 'Titel' },
-  { key: 'antragsteller', type: 'string', label: 'Antragsteller' },
-  { key: 'status', type: 'string', label: 'Status' },
-  { key: 'unterprogramm_id', type: 'string', label: 'Unterprogramm-ID' },
-  { key: 'bewilligung_datum', type: 'date', label: 'Bewilligungsdatum' },
-  { key: 'antragsdatum', type: 'date', label: 'Antragsdatum' },
-  { key: 'frist_datum', type: 'date', label: 'Fristdatum' },
-  { key: 'foerdersumme', type: 'number', label: 'Fördersumme' },
+interface CanonicalFieldDef {
+  key: CanonicalField;
+  type: FieldType;
+  label: string;
+  /** 'antrag' (Default) = pro Teilvorhaben; 'verbund' = pro Verbund (gleich für alle TVs). */
+  level: CanonicalLevel;
+}
+
+export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
+  // Antrag-Ebene (TV)
+  { key: 'aktenzeichen', type: 'string', label: 'Aktenzeichen', level: 'antrag' },
+  { key: 'akronym', type: 'string', label: 'Akronym', level: 'antrag' },
+  { key: 'verbund_id', type: 'string', label: 'Verbund-ID', level: 'antrag' },
+  { key: 'titel', type: 'string', label: 'Titel (TV)', level: 'antrag' },
+  { key: 'antragsteller', type: 'string', label: 'Antragsteller', level: 'antrag' },
+  { key: 'status', type: 'string', label: 'Status (TV)', level: 'antrag' },
+  { key: 'unterprogramm_id', type: 'string', label: 'Unterprogramm-ID', level: 'antrag' },
+  { key: 'bewilligung_datum', type: 'date', label: 'Bewilligungsdatum', level: 'antrag' },
+  { key: 'antragsdatum', type: 'date', label: 'Antragsdatum', level: 'antrag' },
+  { key: 'frist_datum', type: 'date', label: 'Fristdatum', level: 'antrag' },
+  { key: 'foerdersumme', type: 'number', label: 'Fördersumme', level: 'antrag' },
+  // Verbund-Ebene (gleich für alle TVs eines Verbundes)
+  { key: 'verbund_titel', type: 'string', label: 'Verbund-Titel', level: 'verbund' },
+  { key: 'verbund_status', type: 'string', label: 'Verbund-Status', level: 'verbund' },
 ];
 
 export const CANONICAL_FIELD_KEYS = CANONICAL_FIELDS.map(f => f.key);
 
 export function getCanonicalLabel(key: string): string {
   return CANONICAL_FIELDS.find(f => f.key === key)?.label ?? key;
+}
+
+export function getCanonicalLevel(key: string): CanonicalLevel {
+  return CANONICAL_FIELDS.find(f => f.key === key)?.level ?? 'antrag';
 }
 
 export const HASH_SEPARATOR = '\u001f';

@@ -508,7 +508,10 @@ function guessDecision(col: string, samples: string[] = []): PerColumnDecision {
   const c = col.toLowerCase();
   if (/akz|aktenzeichen|fkz/.test(c)) return { mode: 'canonical', canonical: 'aktenzeichen', type: 'string' };
   if (/kurz|akronym/.test(c)) return { mode: 'canonical', canonical: 'akronym', type: 'string' };
-  if (/verbund|vb_nr/.test(c)) return { mode: 'canonical', canonical: 'verbund_id', type: 'string' };
+  if (/verbund.?id|vb_nr/.test(c)) return { mode: 'canonical', canonical: 'verbund_id', type: 'string' };
+  // Verbund-Ebene vor TV-Ebene matchen: VB-spezifische Felder zuerst, sonst gewinnt 'titel'/'status' fuer beides
+  if (/(verbund|vb).*titel|titel.*(verbund|vb)/.test(c)) return { mode: 'canonical', canonical: 'verbund_titel', type: 'string' };
+  if (/(verbund|vb).*status|status.*(verbund|vb)/.test(c)) return { mode: 'canonical', canonical: 'verbund_status', type: 'string' };
   if (/titel|title/.test(c)) return { mode: 'canonical', canonical: 'titel', type: 'string' };
   if (/antragsteller|bearbeiter/.test(c)) return { mode: 'canonical', canonical: 'antragsteller', type: 'string' };
   if (/status/.test(c)) return { mode: 'canonical', canonical: 'status', type: 'string' };

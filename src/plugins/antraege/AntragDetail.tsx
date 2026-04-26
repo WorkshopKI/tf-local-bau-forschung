@@ -111,15 +111,33 @@ export function AntragDetail({ aktenzeichen }: Props): React.ReactElement {
 
       {verbund ? (
         <div
-          className="mb-5 p-3 rounded-lg flex items-center justify-between"
+          className="mb-5 p-3 rounded-lg"
           style={{ border: '0.5px solid var(--tf-border)' }}
         >
-          <div className="text-[13px]">
-            Teil des Verbundes <strong>{verbund.akronym ?? verbund.verbund_id}</strong> ({verbund.teilantrags_ids.length} Teilanträge)
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-[13px]">
+              Teil des Verbundes <strong>{verbund.akronym ?? verbund.verbund_id}</strong> ({verbund.teilantrags_ids.length} Teilanträge)
+            </div>
+            <Button size="sm" variant="outline" onClick={() => openVerbund(verbund.verbund_id)}>
+              Verbund öffnen
+            </Button>
           </div>
-          <Button size="sm" variant="outline" onClick={() => openVerbund(verbund.verbund_id)}>
-            Verbund öffnen
-          </Button>
+          {verbund.titel || verbund.status ? (
+            <div className="mt-2 pt-2 text-[12px] text-[var(--tf-text-secondary)] flex flex-wrap gap-x-4 gap-y-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+              {verbund.titel ? (
+                <div>
+                  <span className="text-[var(--tf-text-tertiary)]">Verbund-Titel:</span>{' '}
+                  <span className="text-[var(--tf-text)]">{verbund.titel}</span>
+                </div>
+              ) : null}
+              {verbund.status ? (
+                <div>
+                  <span className="text-[var(--tf-text-tertiary)]">Verbund-Status:</span>{' '}
+                  <span className="text-[var(--tf-text)]">{verbund.status}</span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

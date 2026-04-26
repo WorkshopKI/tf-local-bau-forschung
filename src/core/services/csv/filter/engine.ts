@@ -1,7 +1,18 @@
-import type { Antrag } from '../types';
+import type { Antrag, Verbund } from '../types';
 import type { ActiveFilter, FilterDefinition } from './types';
+import { getCanonicalLevel } from '../constants';
 
 type Predicate = (a: Antrag) => boolean;
+export type VerbundResolver = (antrag: Antrag) => Verbund | undefined;
+
+function getValue(a: Antrag, feld: string, resolve?: VerbundResolver): unknown {
+  if (resolve && getCanonicalLevel(feld) === 'verbund') {
+    const v = resolve(a);
+    if (v) return (v as unknown as Record<string, unknown>)[feld];
+    return undefined;
+  }
+  return a[feld];
+}
 
 function asString(v: unknown): string {
   if (v === undefined || v === null) return '';
@@ -31,14 +42,14 @@ function matchesAny(val: string, patterns: string[]): boolean {
   return false;
 }
 
-function buildPredicate(af: ActiveFilter, def: FilterDefinition): Predicate {
+function buildPredicate(af: ActiveFilter, def: FilterDefinition, resolveVerbund?: VerbundResolver): Predicate {
   const feld = def.feld;
   switch (def.typ) {
     case 'single_select': {
       const target = typeof af.value === 'string' ? af.value : '';
       if (!target) return () => true;
       return (a) => {
-        const v = a[feld];
+        const v = getValue(a, feld, resolveVerbund);
         if (target === '(leer)') return isEmpty(v);
         return asString(v) === target;
       };
@@ -48,7 +59,7 @@ function buildPredicate(af: ActiveFilter, def: FilterDefinition): Predicate {
       if (targets.length === 0) return () => true;
       const set = new Set(targets);
       return (a) => {
-        const v = a[feld];
+        const v = getValue(a, feld, resolveVerbund);
         if (isEmpty(v)) return set.has('(leer)');
         return set.has(asString(v));
       };
@@ -59,13 +70,11 @@ function buildPredicate(af: ActiveFilter, def: FilterDefinition): Predicate {
       const jaPatterns = def.config.ja_werte ?? [];
       const neinPatterns = def.config.nein_werte ?? [];
       return (a) => {
-        const s = asString(a[feld]);
+        const s = asString(getValue(a, feld, resolveVerbund));
         const isJa = jaPatterns.some(p =>
           p === '*nonempty*' ? s.trim() !== '' : s.toLowerCase().trim() === p.toLowerCase().trim()
         );
         if (mode === 'ja') return isJa;
-        // nein: alles was nicht ja ist. Wenn explizite nein_werte definiert,
-        // können wir die nutzen — sonst "nicht ja".
         if (neinPatterns.length > 0) {
           return matchesAny(s, neinPatterns);
         }
@@ -76,7 +85,7 @@ function buildPredicate(af: ActiveFilter, def: FilterDefinition): Predicate {
       const range = af.value as { from?: string; to?: string };
       if (!range || (!range.from && !range.to)) return () => true;
       return (a) => {
-        const v = asString(a[feld]);
+        const v = asString(getValue(a, feld, resolveVerbund));
         if (!v) return false;
         if (range.from && v < range.from) return false;
         if (range.to && v > range.to) return false;
@@ -87,7 +96,7 @@ function buildPredicate(af: ActiveFilter, def: FilterDefinition): Predicate {
       const range = af.value as { min?: number; max?: number };
       if (!range || (range.min === undefined && range.max === undefined)) return () => true;
       return (a) => {
-        const n = asNumber(a[feld]);
+        const n = asNumber(getValue(a, feld, resolveVerbund));
         if (n === null) return false;
         if (range.min !== undefined && n < range.min) return false;
         if (range.max !== undefined && n > range.max) return false;
@@ -97,7 +106,7 @@ function buildPredicate(af: ActiveFilter, def: FilterDefinition): Predicate {
     case 'text_contains': {
       const q = typeof af.value === 'string' ? af.value.trim().toLowerCase() : '';
       if (!q) return () => true;
-      return (a) => asString(a[feld]).toLowerCase().includes(q);
+      return (a) => asString(getValue(a, feld, resolveVerbund)).toLowerCase().includes(q);
     }
     default:
       return () => true;
@@ -114,6 +123,7 @@ export function applyFilters(
   antraege: Antrag[],
   active: ActiveFilter[],
   defs: FilterDefinition[],
+  resolveVerbund?: VerbundResolver,
 ): Antrag[] {
   if (active.length === 0) return antraege;
   const map = defsById(defs);
@@ -122,7 +132,7 @@ export function applyFilters(
     const def = map.get(af.filterId);
     if (!def) continue;
     if (def.config.disabled) continue;
-    predicates.push(buildPredicate(af, def));
+    predicates.push(buildPredicate(af, def, resolveVerbund));
   }
   if (predicates.length === 0) return antraege;
   return antraege.filter(a => predicates.every(p => p(a)));
@@ -133,8 +143,9 @@ export function applyFiltersExcept(
   active: ActiveFilter[],
   defs: FilterDefinition[],
   exceptFilterId: string,
+  resolveVerbund?: VerbundResolver,
 ): Antrag[] {
-  return applyFilters(antraege, active.filter(a => a.filterId !== exceptFilterId), defs);
+  return applyFilters(antraege, active.filter(a => a.filterId !== exceptFilterId), defs, resolveVerbund);
 }
 
 /**

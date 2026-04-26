@@ -58,6 +58,11 @@ export function VerbundDetail({ verbundId }: Props): React.ReactElement {
             Verbund {verbund.akronym ?? verbund.verbund_id}
           </h1>
           <span className="font-mono text-[12px] text-[var(--tf-text-tertiary)]">{verbund.verbund_id}</span>
+          {verbund.status ? (
+            <span className="px-2 py-0.5 rounded-full text-[11.5px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]">
+              VB-Status: {verbund.status}
+            </span>
+          ) : null}
         </div>
         {verbund.titel ? <div className="mt-1 text-[13px] text-[var(--tf-text-secondary)]">{verbund.titel}</div> : null}
         <div className="mt-1 text-[12px] text-[var(--tf-text-tertiary)]">

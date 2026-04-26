@@ -16,6 +16,7 @@ import {
   appendHistory,
 } from './idb-csv';
 import type { Antrag, AntragHistorieEntry, CsvSchema, ColumnMappingEntry } from './types';
+import { getCanonicalLevel } from './constants';
 import { uuid } from '@/core/services/id-generator';
 
 export interface SchemaWithRows {
@@ -131,6 +132,10 @@ export async function recomputeAntrag(
   };
 
   const winnerEntry = new Map<string, ColumnMappingEntry>();
+  // Verbund-Level-Updates werden separat akkumuliert und nach dem Antrag-Merge
+  // auf das Verbund-Objekt angewandt — sie landen NICHT auf dem Antrag.
+  const verbundUpdates: Record<string, unknown> = {};
+  const verbundFieldSources: Record<string, string> = {};
 
   const sorted = [...schemas].sort((a, b) => {
     const d = a.schema.priority - b.schema.priority;
@@ -159,6 +164,13 @@ export async function recomputeAntrag(
           // dieser CSV-Source nicht geschrieben — sie nutzt es nur als Lookup-Key.
           if (entry.canonical === schema.join_key) continue;
           const val = coerceValue(row[col] ?? '', entry);
+          // Verbund-Level-Felder: gehen auf das Verbund-Objekt, nicht den Antrag.
+          if (entry.canonical && getCanonicalLevel(entry.canonical) === 'verbund') {
+            if (val === '' && verbundUpdates[field] != null && verbundUpdates[field] !== '') continue;
+            verbundUpdates[field] = val;
+            verbundFieldSources[field] = schema.id;
+            continue;
+          }
           if (val === '' && merged[field] != null && merged[field] !== '') continue;
           merged[field] = val;
           merged._field_sources[field] = schema.id;
@@ -228,19 +240,36 @@ export async function recomputeAntrag(
   }
   if (newVerbund) {
     const vb = await getVerbund(idb, newVerbund);
-    const titel = typeof merged.titel === 'string' ? merged.titel : undefined;
+    const tvTitel = typeof merged.titel === 'string' ? merged.titel : undefined;
+    const vbTitel = typeof verbundUpdates.verbund_titel === 'string' ? verbundUpdates.verbund_titel : undefined;
+    const vbStatus = typeof verbundUpdates.verbund_status === 'string' ? verbundUpdates.verbund_status : undefined;
+
+    // Verbund-Level-Felder priorisieren: Wenn aus CSV ein verbund_titel gemappt ist,
+    // gewinnt dieser; sonst Fallback auf TV-Titel (Backward-Compat).
+    const effectiveTitel = vbTitel ?? tvTitel;
+    const sources = { ...(vb?._field_sources ?? {}), ...verbundFieldSources };
+
     if (!vb) {
       await putVerbund(idb, {
         verbund_id: newVerbund,
         programm_id: programmId,
         akronym: newAkronym,
-        titel,
+        titel: effectiveTitel,
+        status: vbStatus,
         teilantrags_ids: [aktenzeichen],
+        _field_sources: sources,
+        _updated_at: nowIso,
       });
     } else {
       if (!vb.teilantrags_ids.includes(aktenzeichen)) vb.teilantrags_ids.push(aktenzeichen);
       if (!vb.akronym && newAkronym) vb.akronym = newAkronym;
-      if (!vb.titel && titel) vb.titel = titel;
+      // VB-Titel: explizites Mapping wins, sonst Erstbelegung mit TV-Titel
+      if (vbTitel !== undefined && vbTitel !== '') vb.titel = vbTitel;
+      else if (!vb.titel && tvTitel) vb.titel = tvTitel;
+      // VB-Status: aus VB-Mapping uebernehmen, leerer Wert ueberschreibt nicht
+      if (vbStatus !== undefined && vbStatus !== '') vb.status = vbStatus;
+      vb._field_sources = sources;
+      vb._updated_at = nowIso;
       await putVerbund(idb, vb);
     }
   }
