@@ -116,6 +116,22 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
   const allCollapsed = isGroupedView && allGroupKeys.length > 0 && allGroupKeys.every(k => state.collapsedGroups[k]);
   const allExpanded = isGroupedView && allGroupKeys.every(k => !state.collapsedGroups[k]);
 
+  // Konflikt: mehrere Spalten mappen auf dasselbe Standardfeld → letzte gewinnt im merger,
+  // andere Werte gehen verloren. Hier visuell warnen, damit der User es bemerkt.
+  const canonicalConflicts: { canonical: string; columns: string[] }[] = [];
+  {
+    const byCanonical = new Map<string, string[]>();
+    for (const [col, d] of Object.entries(state.decisions)) {
+      if (d.mode !== 'canonical' || !d.canonical) continue;
+      const arr = byCanonical.get(d.canonical) ?? [];
+      arr.push(col);
+      byCanonical.set(d.canonical, arr);
+    }
+    for (const [canonical, columns] of byCanonical) {
+      if (columns.length > 1) canonicalConflicts.push({ canonical, columns });
+    }
+  }
+
   return (
     <div>
       <div className="text-[12px] text-[var(--tf-text-secondary)] mb-3 leading-relaxed">
@@ -127,6 +143,25 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
         <span className="ml-1"><strong>Ignorieren</strong> = beim Import weglassen.</span>
         <span className="ml-1">„Historie tracken" nur für Felder aktivieren, die sich tatsächlich ändern können (z.B. Status).</span>
       </div>
+
+      {canonicalConflicts.length > 0 ? (
+        <div className="mb-3 rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-2.5 text-[12px] text-amber-900">
+          <div className="font-medium mb-1">⚠ Mehrere Spalten mappen auf dasselbe Standardfeld</div>
+          <ul className="ml-4 list-disc space-y-0.5">
+            {canonicalConflicts.map(c => (
+              <li key={c.canonical}>
+                <span className="font-medium">{getCanonicalLabel(c.canonical)}</span>{': '}
+                <span className="font-mono text-[11px]">{c.columns.join(', ')}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-1.5 text-[11.5px]">
+            Beim Import gewinnt die Spalte, die in der CSV-Reihenfolge zuletzt steht — die Werte der anderen gehen verloren.
+            Empfehlung: nur eine Spalte als Standardfeld mappen, die andere(n) auf <em>Eigenes Feld</em> umstellen
+            (z.B. <code>verbund_titel</code> vs. <code>tv_titel</code>).
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-3 flex items-center gap-2 flex-wrap">
         <input
