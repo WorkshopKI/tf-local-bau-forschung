@@ -1,4 +1,5 @@
 import * as React from "react"
+import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -62,7 +63,17 @@ function Dialog({
         onClick={e => e.stopPropagation()}
       >
         {title ? (
-          <div className="flex-shrink-0 px-6 pt-6 mb-2 text-[15px] font-medium text-[var(--tf-text)]">{title}</div>
+          <div className="flex-shrink-0 flex items-start gap-3 px-6 pt-6 mb-2">
+            <div className="flex-1 text-[15px] font-medium text-[var(--tf-text)]">{title}</div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Schließen"
+              className="-mr-1.5 -mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[var(--tf-text-tertiary)] transition hover:bg-[var(--tf-bg-secondary)] hover:text-[var(--tf-text)]"
+            >
+              <X size={16} />
+            </button>
+          </div>
         ) : null}
         {description ? (
           <div className="flex-shrink-0 px-6 mb-4 text-[13px] text-[var(--tf-text-secondary)]">{description}</div>
