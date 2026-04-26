@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { CANONICAL_FIELDS, getCanonicalLabel } from '@/core/services/csv/constants';
 import type { WizardApi, PerColumnDecision } from './useCsvWizardState';
@@ -19,10 +19,17 @@ interface GroupBucket {
 
 export function Step2Columns({ api }: Step2Props): React.ReactElement {
   const { state, updateDecision, applyDecisions, toggleGroupCollapse, getResolvedEntries } = api;
+  const [filterTerm, setFilterTerm] = useState('');
 
   const resolved = useMemo(() => getResolvedEntries(), [getResolvedEntries]);
 
-  const groups: GroupBucket[] = useMemo(() => {
+  const labelByColumn = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of state.labelEntries) m.set(e.csv_column, e.label);
+    return m;
+  }, [state.labelEntries]);
+
+  const allGroups: GroupBucket[] = useMemo(() => {
     if (!state.preview) return [];
     const headers = state.preview.headers;
     if (resolved.length === 0) {
@@ -52,17 +59,54 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
     return ordered;
   }, [resolved, state.preview]);
 
+  const trimmedFilter = filterTerm.trim().toLowerCase();
+  const filterActive = trimmedFilter.length > 0;
+
+  const groups: GroupBucket[] = useMemo(() => {
+    if (!filterActive) return allGroups;
+    const filtered: GroupBucket[] = [];
+    for (const g of allGroups) {
+      const cols = g.columns.filter(col => {
+        if (col.toLowerCase().includes(trimmedFilter)) return true;
+        const label = labelByColumn.get(col);
+        if (label && label.toLowerCase().includes(trimmedFilter)) return true;
+        const custom = state.decisions[col]?.custom;
+        if (custom && custom.toLowerCase().includes(trimmedFilter)) return true;
+        return false;
+      });
+      if (cols.length > 0) filtered.push({ ...g, columns: cols });
+    }
+    return filtered;
+  }, [allGroups, filterActive, trimmedFilter, labelByColumn, state.decisions]);
+
   if (!state.preview) {
     return <div className="text-[13px] text-[var(--tf-text-tertiary)]">Keine Preview vorhanden.</div>;
   }
 
   const isGroupedView = resolved.length > 0;
+  const totalColumns = state.preview.headers.length;
+  const visibleColumns = groups.reduce((n, g) => n + g.columns.length, 0);
 
   return (
     <div>
       <div className="text-[12px] text-[var(--tf-text-secondary)] mb-3">
         Pro Spalte entscheiden: kanonisch zuordnen, als Custom behalten oder ignorieren. „Historie tracken"
         nur für Felder aktiv, die sich tatsächlich ändern können (z.B. Status).
+      </div>
+
+      <div className="mb-3 flex items-center gap-2">
+        <input
+          type="text"
+          value={filterTerm}
+          onChange={e => setFilterTerm(e.target.value)}
+          placeholder="Spalte suchen…"
+          className="h-8 w-[260px] rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-2 text-[12.5px]"
+        />
+        {filterActive ? (
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            zeigt {visibleColumns} von {totalColumns} Spalten
+          </span>
+        ) : null}
       </div>
 
       <XlsLabelUpload
@@ -78,10 +122,16 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
             bucket={g}
             state={state}
             isGroupedView={isGroupedView}
+            forceExpanded={filterActive}
             updateDecision={updateDecision}
             onToggle={() => toggleGroupCollapse(g.key)}
           />
         ))}
+        {filterActive && groups.length === 0 ? (
+          <div className="text-[12.5px] text-[var(--tf-text-tertiary)] italic px-1">
+            Keine Spalte passt zum Suchbegriff.
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -91,12 +141,13 @@ interface GroupSectionProps {
   bucket: GroupBucket;
   state: WizardApi['state'];
   isGroupedView: boolean;
+  forceExpanded: boolean;
   updateDecision: (col: string, patch: Partial<PerColumnDecision>) => void;
   onToggle: () => void;
 }
 
-function GroupSection({ bucket, state, isGroupedView, updateDecision, onToggle }: GroupSectionProps): React.ReactElement {
-  const collapsed = !!state.collapsedGroups[bucket.key];
+function GroupSection({ bucket, state, isGroupedView, forceExpanded, updateDecision, onToggle }: GroupSectionProps): React.ReactElement {
+  const collapsed = !forceExpanded && !!state.collapsedGroups[bucket.key];
   const labelMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const e of state.labelEntries) m.set(e.csv_column, e.label);

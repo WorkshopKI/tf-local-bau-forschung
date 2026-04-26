@@ -35,20 +35,30 @@ function Dialog({ open, onClose, title, description, children, footer, className
       <div
         data-slot="dialog"
         className={cn(
-          "w-full max-w-[480px] rounded-2xl bg-[var(--tf-bg)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
+          "flex w-full max-w-[480px] max-h-[calc(100vh-2rem)] flex-col rounded-2xl bg-[var(--tf-bg)] shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
           className,
         )}
         style={{ border: "0.5px solid var(--tf-border)" }}
         onClick={e => e.stopPropagation()}
       >
         {title ? (
-          <div className="mb-2 text-[15px] font-medium text-[var(--tf-text)]">{title}</div>
+          <div className="flex-shrink-0 px-6 pt-6 mb-2 text-[15px] font-medium text-[var(--tf-text)]">{title}</div>
         ) : null}
         {description ? (
-          <div className="mb-4 text-[13px] text-[var(--tf-text-secondary)]">{description}</div>
+          <div className="flex-shrink-0 px-6 mb-4 text-[13px] text-[var(--tf-text-secondary)]">{description}</div>
         ) : null}
-        <div>{children}</div>
-        {footer ? <div className="mt-5 flex items-center justify-end gap-2">{footer}</div> : null}
+        <div
+          className={cn(
+            "flex-1 min-h-0 overflow-y-auto px-6",
+            !title && !description ? "pt-6" : null,
+            !footer ? "pb-6" : null,
+          )}
+        >
+          {children}
+        </div>
+        {footer ? (
+          <div className="flex-shrink-0 px-6 pb-6 pt-4 flex items-center justify-end gap-2">{footer}</div>
+        ) : null}
       </div>
     </div>
   )
