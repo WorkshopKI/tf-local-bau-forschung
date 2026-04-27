@@ -28,6 +28,26 @@ export function FilterSidebarItem({ def, antraege, activeFilters, definitions, v
     [antraege, activeFilters, definitions, def],
   );
 
+  // Min/Max-Datum für date_range — aus den Antraegen extrahieren, damit der User
+  // auf "Ältestes/Neuestes" klicken kann statt manuell ein Datum zu tippen.
+  const dateRange = useMemo(() => {
+    if (def.typ !== 'date_range') return { min: undefined, max: undefined };
+    let min: string | undefined;
+    let max: string | undefined;
+    const isoRe = /^(\d{4}-\d{2}-\d{2})/;
+    for (const a of antraege) {
+      const v = (a as Record<string, unknown>)[def.feld];
+      if (typeof v !== 'string') continue;
+      const m = v.match(isoRe);
+      if (!m) continue;
+      const d = m[1];
+      if (!d) continue;
+      if (min === undefined || d < min) min = d;
+      if (max === undefined || d > max) max = d;
+    }
+    return { min, max };
+  }, [def, antraege]);
+
   const totalAvailable = useMemo(() => {
     let total = 0;
     for (const n of counts.values()) total += n;
@@ -117,7 +137,7 @@ export function FilterSidebarItem({ def, antraege, activeFilters, definitions, v
         </div>
       ) : collapsed ? null : (
         <div className="mt-2 px-0.5">
-          {renderFacet(def, counts, active, valueLabels, onChange)}
+          {renderFacet(def, counts, active, valueLabels, dateRange, onChange)}
         </div>
       )}
     </div>
@@ -129,6 +149,7 @@ function renderFacet(
   counts: Map<string, number>,
   active: ActiveFilter | undefined,
   valueLabels: Record<string, string> | undefined,
+  dateRange: { min: string | undefined; max: string | undefined },
   onChange: (value: ActiveFilterValue | null) => void,
 ): React.ReactElement {
   switch (def.typ) {
@@ -165,6 +186,8 @@ function renderFacet(
       return (
         <DateRangeFacet
           value={(active?.value as { from?: string; to?: string }) ?? {}}
+          minDate={dateRange.min}
+          maxDate={dateRange.max}
           onChange={r => {
             if (!r.from && !r.to) { onChange(null); return; }
             onChange(r);
