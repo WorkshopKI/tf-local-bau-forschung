@@ -16,6 +16,31 @@ import { parseCsvPreview, applyAmbiguousResolution } from '@/core/services/csv';
 
 export type WizardStep = 1 | 2 | 3 | 4 | 5;
 
+/**
+ * Persistierter Filter-Zustand bleibt zwischen Wizard-Sessions erhalten,
+ * damit der User nicht jedes Mal "Nur Standard" neu wählen muss.
+ * Defensive try-catch falls localStorage gesperrt ist (Privacy-Mode).
+ */
+const KIND_FILTER_STORAGE_KEY = 'teamflow_csv_wizard_kind_filter';
+
+function loadPersistedKindFilter(): MappingKindFilter {
+  try {
+    const v = localStorage.getItem(KIND_FILTER_STORAGE_KEY);
+    if (v === 'standard' || v === 'custom' || v === 'all') return v;
+  } catch {
+    // localStorage nicht verfügbar (Privacy-Mode, Quota etc.) → Default 'all'
+  }
+  return 'all';
+}
+
+function persistKindFilter(filter: MappingKindFilter): void {
+  try {
+    localStorage.setItem(KIND_FILTER_STORAGE_KEY, filter);
+  } catch {
+    // Schweigen — Persistenz ist Komfort, kein Korrektheitsmerkmal.
+  }
+}
+
 export interface PerColumnDecision {
   mode: 'canonical' | 'custom' | 'ignore';
   canonical?: string;
@@ -107,7 +132,7 @@ const INITIAL: WizardState = {
   ambiguousResolutions: {},
   labelFileName: null,
   collapsedGroups: {},
-  kindFilter: 'all',
+  kindFilter: loadPersistedKindFilter(),
 };
 
 function slugify(input: string): string {
@@ -420,6 +445,7 @@ export function useCsvWizardState(): WizardApi {
   }, []);
 
   const setKindFilter: WizardApi['setKindFilter'] = useCallback((filter) => {
+    persistKindFilter(filter);
     setState(s => ({ ...s, kindFilter: filter }));
   }, []);
 
