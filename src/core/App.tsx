@@ -180,6 +180,19 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
 
       setReady(true);
       hideLoader();
+    }).catch(err => {
+      console.error('[App] Initialisierung fehlgeschlagen:', err);
+      const statusEl = document.getElementById('tf-loader-status');
+      if (statusEl) {
+        statusEl.textContent = err instanceof Error ? err.message : 'Initialisierung fehlgeschlagen';
+        statusEl.style.color = '#b04040';
+        statusEl.style.maxWidth = '480px';
+        statusEl.style.textAlign = 'center';
+        statusEl.style.padding = '0 16px';
+      }
+      if (typeof (window as any).__tfLoaderCleanup === 'function') {
+        (window as any).__tfLoaderCleanup();
+      }
     });
   }, [storage, aiBridge, refreshHandleGate]);
 

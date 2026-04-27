@@ -85,9 +85,22 @@ export class IDBStore {
       };
       req.onsuccess = () => {
         this.db = req.result;
+        // Wenn ein anderer Tab spaeter ein DB-Upgrade ausloest, schliessen wir
+        // hier unsere Verbindung, damit der andere Tab nicht blockiert.
+        this.db.onversionchange = () => {
+          this.db?.close();
+          this.db = null;
+        };
         resolve();
       };
       req.onerror = () => reject(req.error);
+      req.onblocked = () => {
+        // Ein anderer Tab haelt eine aeltere DB-Version offen und verhindert das Upgrade.
+        // Ohne diesen Handler wuerde die Promise nie aufgeloest — App-Loader blieb haengen.
+        reject(new Error(
+          'IndexedDB-Upgrade blockiert. Bitte alle anderen TeamFlow-Tabs schliessen und Seite neu laden.'
+        ));
+      };
     });
   }
 
