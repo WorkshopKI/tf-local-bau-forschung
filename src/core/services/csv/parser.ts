@@ -30,7 +30,7 @@ async function readAsText(blob: Blob, encoding: string): Promise<string> {
   return stripBom(decoder.decode(buf));
 }
 
-async function readWithEncodingFallback(
+export async function readWithEncodingFallback(
   blob: Blob,
   forced?: CsvEncoding,
 ): Promise<{ text: string; encoding: CsvEncoding }> {

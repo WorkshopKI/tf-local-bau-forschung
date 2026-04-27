@@ -4,7 +4,7 @@ import { acquireBuildLock, forceLock, releaseLock } from '../infrastructure/buil
 import { BUILD_LOCK_STUFE, MAX_SKIP_WARNINGS } from './constants';
 import { canonicalRowHash } from './hash';
 import { sha1Hex } from './sha1';
-import { parseCsvAll } from './parser';
+import { parseCsvAll, readWithEncodingFallback } from './parser';
 import { saveCsvSourceFile, saveSchema, loadSchema } from './schemaRegistry';
 import {
   deleteRowHashes,
@@ -92,8 +92,14 @@ export async function importCsvSource(
     });
     result.rowCount = rows.length;
 
-    // Persist CSV to SMB (für Merge beim nächsten Recompute + für Backup)
-    await saveCsvSourceFile(idb, schemaId, csvBlob);
+    // Persist CSV to SMB (für Merge beim nächsten Recompute + für Backup).
+    // CSV in UTF-8 normalisieren bevor sie auf den Share geht — der Merge-Pfad
+    // (loadCsvSourceFile -> readText -> Blob.text()) dekodiert per Spec immer
+    // als UTF-8. Ohne Normalisierung gehen Umlaute aus windows-1252-CSVs beim
+    // Roundtrip kaputt.
+    const { text: csvText } = await readWithEncodingFallback(csvBlob, schema.encoding);
+    const utf8Blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
+    await saveCsvSourceFile(idb, schemaId, utf8Blob);
 
     // Row-Diff
     opts.onProgress?.({ phase: 'diffing', done: 0, total: rows.length });

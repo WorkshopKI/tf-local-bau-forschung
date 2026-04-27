@@ -28,8 +28,9 @@ export interface SchemaWithRows {
 async function loadSchemaRows(idb: IDBStore, schema: CsvSchema): Promise<Record<string, string>[]> {
   const text = await loadCsvSourceFile(idb, schema.id);
   if (!text) return [];
-  // readText liefert bereits UTF-8-dekodierten String → Blob re-serialisiert als UTF-8.
-  // Wir reichen nur den Separator durch, das Encoding ist per Roundtrip bereits UTF-8.
+  // Importer normalisiert die CSV beim Speichern auf UTF-8 (siehe importer.ts
+  // vor saveCsvSourceFile). Der hier zurückgelesene Text ist daher immer UTF-8,
+  // unabhängig vom Original-Encoding der hochgeladenen Datei.
   const blob = new Blob([text], { type: 'text/csv' });
   const { rows } = await parseCsvAll(blob, {
     encoding: 'UTF-8',
