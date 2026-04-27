@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, Check } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { parseLabelXlsx, buildSuggestions } from '@/core/services/csv';
 import type { LabelSuggestion, LabelParseResult } from '@/core/services/csv';
@@ -22,6 +22,7 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [showMergeDetails, setShowMergeDetails] = useState(false);
 
   const handleFile = async (file: File, headerRows: number): Promise<void> => {
     setLoading(true);
@@ -169,72 +170,76 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
       {loading ? <div className="mt-2 text-[11.5px] text-[var(--tf-text-tertiary)]">Parse läuft…</div> : null}
       {err ? <div className="mt-2 text-[11.5px] text-amber-700">{err}</div> : null}
 
-      {hasAmbig && state.ambiguousMerges.length > 1 ? (
-        <div
-          className="mt-3 p-2 rounded flex items-center justify-between gap-3 text-[11.5px]"
-          style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
-        >
-          <div className="flex items-center gap-2 text-[var(--tf-text-secondary)]">
-            <AlertTriangle size={14} className="text-amber-600" />
-            {state.ambiguousMerges.length} mehrdeutige Gruppen erkannt (Merge über Gruppen- und Label-Zeile).
-          </div>
-          <div className="flex gap-1">
-            <Button
-              size="xs"
-              variant="outline"
-              onClick={() => setAllAmbiguousResolutions('group')}
-              disabled={allMergesAtGroup}
-              title={allMergesAtGroup ? 'Alle Auflösungen sind bereits „Als Gruppe"' : undefined}
-            >
-              {allMergesAtGroup ? 'Alle als Gruppe ✓' : 'Alle als Gruppe'}
-            </Button>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => setAllAmbiguousResolutions('ignore')}
-              disabled={allMergesAtIgnore}
-              title={allMergesAtIgnore ? 'Alle Auflösungen sind bereits „Ignorieren"' : undefined}
-            >
-              {allMergesAtIgnore ? 'Alle ignoriert ✓' : 'Alle ignorieren'}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
       {hasAmbig ? (
         <div className="mt-3">
-          <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
-            Mehrdeutige Gruppen — Behandlung
-          </div>
-          <div className="space-y-1">
-            {state.ambiguousMerges.map(m => {
-              const current = state.ambiguousResolutions[m.signature] ?? m.default_resolution;
-              return (
-                <div
-                  key={m.signature}
-                  className="flex items-center justify-between gap-2 px-2 py-1 rounded text-[11.5px]"
-                  style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
-                >
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle size={12} className="text-amber-600" />
-                    <span className="font-medium">{m.value}</span>
-                    <span className="text-[var(--tf-text-tertiary)]">
-                      ({m.affected_columns.length} Spalten, Merge über {m.span_header_rows} Header-Zeilen)
-                    </span>
-                  </div>
-                  <select
-                    value={current}
-                    onChange={e => api.setAmbiguousResolution(m.signature, e.target.value as AmbiguousMergeResolution)}
-                    className="h-6 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-1 text-[11.5px]"
+          <button
+            type="button"
+            onClick={() => setShowMergeDetails(v => !v)}
+            className="flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] transition"
+          >
+            {showMergeDetails ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            <Info size={12} className="text-[var(--tf-text-tertiary)]" />
+            <span>
+              {state.ambiguousMerges.length} Mehrfach-Merge{state.ambiguousMerges.length === 1 ? '' : 's'} erkannt
+              {' — Standard '}
+              <span className="italic">Als Gruppe</span>
+              {' angewendet. '}
+              <span className="text-[var(--tf-text-secondary)] underline-offset-2 group-hover:underline">Anpassen</span>
+            </span>
+          </button>
+
+          {showMergeDetails ? (
+            <div className="mt-2 ml-5 space-y-1">
+              {state.ambiguousMerges.map(m => {
+                const current = state.ambiguousResolutions[m.signature] ?? m.default_resolution;
+                return (
+                  <div
+                    key={m.signature}
+                    className="flex items-center justify-between gap-2 px-2 py-1 rounded text-[11.5px]"
+                    style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
                   >
-                    <option value="group">{resolutionLabel('group')}</option>
-                    <option value="label_repeated">{resolutionLabel('label_repeated')}</option>
-                    <option value="ignore">{resolutionLabel('ignore')}</option>
-                  </select>
+                    <div className="flex items-center gap-2 text-[var(--tf-text)]">
+                      <span className="font-medium">{m.value}</span>
+                      <span className="text-[var(--tf-text-tertiary)]">
+                        ({m.affected_columns.length} Spalten, Merge über {m.span_header_rows} Header-Zeilen)
+                      </span>
+                    </div>
+                    <select
+                      value={current}
+                      onChange={e => api.setAmbiguousResolution(m.signature, e.target.value as AmbiguousMergeResolution)}
+                      className="h-6 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-1 text-[11.5px]"
+                    >
+                      <option value="group">{resolutionLabel('group')}</option>
+                      <option value="label_repeated">{resolutionLabel('label_repeated')}</option>
+                      <option value="ignore">{resolutionLabel('ignore')}</option>
+                    </select>
+                  </div>
+                );
+              })}
+              {state.ambiguousMerges.length > 1 ? (
+                <div className="flex gap-2 pt-1 text-[11px] text-[var(--tf-text-tertiary)]">
+                  <span>Bulk:</span>
+                  <button
+                    type="button"
+                    onClick={() => setAllAmbiguousResolutions('group')}
+                    disabled={allMergesAtGroup}
+                    className="hover:text-[var(--tf-text-secondary)] disabled:opacity-50 disabled:cursor-not-allowed underline-offset-2 hover:underline"
+                  >
+                    {allMergesAtGroup ? 'alle als Gruppe (aktuell)' : 'alle als Gruppe'}
+                  </button>
+                  <span>·</span>
+                  <button
+                    type="button"
+                    onClick={() => setAllAmbiguousResolutions('ignore')}
+                    disabled={allMergesAtIgnore}
+                    className="hover:text-[var(--tf-text-secondary)] disabled:opacity-50 disabled:cursor-not-allowed underline-offset-2 hover:underline"
+                  >
+                    {allMergesAtIgnore ? 'alle ignoriert (aktuell)' : 'alle ignorieren'}
+                  </button>
                 </div>
-              );
-            })}
-          </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
