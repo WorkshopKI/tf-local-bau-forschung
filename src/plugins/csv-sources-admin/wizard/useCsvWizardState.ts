@@ -75,7 +75,11 @@ export interface WizardState {
   labelFileName: string | null;
   /** UI-Collapsible-State: key = group_path.join(' › ') oder '__none__'. true = eingeklappt. */
   collapsedGroups: Record<string, boolean>;
+  /** Mapping-Filter in Step 2: 'all' (Default) | 'standard' (nur Canonical + Suggestions) | 'custom' (nur Eigene). */
+  kindFilter: MappingKindFilter;
 }
+
+export type MappingKindFilter = 'all' | 'standard' | 'custom';
 
 const INITIAL: WizardState = {
   step: 1,
@@ -103,6 +107,7 @@ const INITIAL: WizardState = {
   ambiguousResolutions: {},
   labelFileName: null,
   collapsedGroups: {},
+  kindFilter: 'all',
 };
 
 function slugify(input: string): string {
@@ -192,6 +197,8 @@ export interface WizardApi {
   setAllGroupsCollapsed: (keys: string[], collapsed: boolean) => void;
   /** Liefert die Label-Entries nach Anwendung aller Admin-Resolutions. */
   getResolvedEntries: () => ColumnLabelEntry[];
+  /** Mapping-Filter in Step 2 setzen. */
+  setKindFilter: (filter: MappingKindFilter) => void;
 }
 
 export function useCsvWizardState(): WizardApi {
@@ -412,6 +419,10 @@ export function useCsvWizardState(): WizardApi {
     });
   }, []);
 
+  const setKindFilter: WizardApi['setKindFilter'] = useCallback((filter) => {
+    setState(s => ({ ...s, kindFilter: filter }));
+  }, []);
+
   const getResolvedEntries: WizardApi['getResolvedEntries'] = useCallback(() => {
     let entries = state.labelEntries;
     for (const m of state.ambiguousMerges) {
@@ -501,6 +512,7 @@ export function useCsvWizardState(): WizardApi {
     toggleGroupCollapse,
     setAllGroupsCollapsed,
     getResolvedEntries,
+    setKindFilter,
   };
 }
 

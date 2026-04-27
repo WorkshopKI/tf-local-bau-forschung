@@ -1,10 +1,12 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { CANONICAL_FIELDS, getCanonicalLabel } from '@/core/services/csv/constants';
-import type { ColumnLabelEntry } from '@/core/services/csv';
-import type { WizardApi, PerColumnDecision } from './useCsvWizardState';
+import type { ColumnLabelEntry, LabelParseResult, LabelSuggestion } from '@/core/services/csv';
+import { buildSuggestions } from '@/core/services/csv';
+import type { WizardApi, PerColumnDecision, MappingKindFilter } from './useCsvWizardState';
 import { slugifyFieldName } from './useCsvWizardState';
 import { XlsLabelUpload } from './XlsLabelUpload';
+import { StandardFieldSlots } from './StandardFieldSlots';
 
 interface Step2Props {
   api: WizardApi;
@@ -20,15 +22,41 @@ interface GroupBucket {
 }
 
 export function Step2Columns({ api }: Step2Props): React.ReactElement {
-  const { state, updateDecision, applyDecisions, toggleGroupCollapse, setAllGroupsCollapsed, getResolvedEntries } = api;
+  const { state, updateDecision, applyDecisions, toggleGroupCollapse, setAllGroupsCollapsed, getResolvedEntries, setKindFilter } = api;
   const [filterTerm, setFilterTerm] = useState('');
-  const mappingRef = useRef<HTMLDivElement | null>(null);
+  const [highlightedColumn, setHighlightedColumn] = useState<string | null>(null);
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+  const highlightTimer = useRef<number | null>(null);
 
-  const scrollToMapping = (): void => {
-    mappingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+  const registerRow = useCallback((col: string, el: HTMLTableRowElement | null): void => {
+    if (el) rowRefs.current.set(col, el);
+    else rowRefs.current.delete(col);
+  }, []);
+
+  const jumpToColumn = useCallback((col: string): void => {
+    // Falls die Zeile aktuell weggefiltert ist (kindFilter='custom' und Spalte ist Standard etc.),
+    // erst auf 'all' zurückschalten, sonst findet sie sich nicht.
+    if (state.kindFilter !== 'all') setKindFilter('all');
+    // Falls die Gruppe eingeklappt ist, kurzer Frame Verzögerung damit React rendert.
+    requestAnimationFrame(() => {
+      const el = rowRefs.current.get(col);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedColumn(col);
+      if (highlightTimer.current) window.clearTimeout(highlightTimer.current);
+      highlightTimer.current = window.setTimeout(() => setHighlightedColumn(null), 1600);
+    });
+  }, [state.kindFilter, setKindFilter]);
 
   const resolved = useMemo(() => getResolvedEntries(), [getResolvedEntries]);
+
+  const suggestions: LabelSuggestion[] = useMemo(() => {
+    if (!state.preview || state.labelEntries.length === 0) return [];
+    const result: LabelParseResult = {
+      columnEntries: state.labelEntries,
+      ambiguousMerges: state.ambiguousMerges,
+    };
+    return buildSuggestions(state.preview.headers, result);
+  }, [state.preview, state.labelEntries, state.ambiguousMerges]);
 
   /**
    * Mappt CSV-Preview-Header auf XLS-Label-Entries.
@@ -86,24 +114,55 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
   }, [resolved, state.preview, entriesByHeader]);
 
   const trimmedFilter = filterTerm.trim().toLowerCase();
-  const filterActive = trimmedFilter.length > 0;
+  const searchActive = trimmedFilter.length > 0;
+  const kindFilterActive = state.kindFilter !== 'all';
+  const filterActive = searchActive || kindFilterActive;
+
+  const suggestedColumns: Set<string> = useMemo(() => {
+    const s = new Set<string>();
+    for (const sg of suggestions) {
+      if (sg.canonical && sg.confidence >= 0.6) s.add(sg.csvColumn);
+    }
+    return s;
+  }, [suggestions]);
 
   const groups: GroupBucket[] = useMemo(() => {
     if (!filterActive) return allGroups;
     const filtered: GroupBucket[] = [];
     for (const g of allGroups) {
       const cols = g.columns.filter(col => {
-        if (col.toLowerCase().includes(trimmedFilter)) return true;
-        const label = labelByColumn.get(col);
-        if (label && label.toLowerCase().includes(trimmedFilter)) return true;
-        const custom = state.decisions[col]?.custom;
-        if (custom && custom.toLowerCase().includes(trimmedFilter)) return true;
-        return false;
+        // Search-Filter
+        if (searchActive) {
+          let hit = false;
+          if (col.toLowerCase().includes(trimmedFilter)) hit = true;
+          else {
+            const label = labelByColumn.get(col);
+            if (label && label.toLowerCase().includes(trimmedFilter)) hit = true;
+            else {
+              const custom = state.decisions[col]?.custom;
+              if (custom && custom.toLowerCase().includes(trimmedFilter)) hit = true;
+            }
+          }
+          if (!hit) return false;
+        }
+        // Kind-Filter
+        if (kindFilterActive) {
+          const d = state.decisions[col];
+          const mode = d?.mode ?? 'custom';
+          if (state.kindFilter === 'standard') {
+            const isCanonical = mode === 'canonical';
+            const hasSugg = suggestedColumns.has(col);
+            if (!isCanonical && !hasSugg) return false;
+          } else if (state.kindFilter === 'custom') {
+            if (mode !== 'custom') return false;
+          }
+        }
+        return true;
       });
       if (cols.length > 0) filtered.push({ ...g, columns: cols });
     }
     return filtered;
-  }, [allGroups, filterActive, trimmedFilter, labelByColumn, state.decisions]);
+  }, [allGroups, filterActive, searchActive, kindFilterActive, trimmedFilter, labelByColumn, state.decisions, state.kindFilter, suggestedColumns]);
 
   if (!state.preview) {
     return <div className="text-[13px] text-[var(--tf-text-tertiary)]">Keine Preview vorhanden.</div>;
@@ -171,6 +230,7 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
           placeholder="Spalte suchen…"
           className="h-8 w-[260px] rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-2 text-[12.5px]"
         />
+        <KindFilterToggle value={state.kindFilter} onChange={setKindFilter} />
         {filterActive ? (
           <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
             zeigt {visibleColumns} von {totalColumns} Spalten
@@ -200,14 +260,63 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
         ) : null}
       </div>
 
-      <XlsLabelUpload
-        previewHeaders={state.preview.headers}
-        api={api}
-        onApply={applyDecisions}
-        onApplied={scrollToMapping}
+      <XlsLabelUpload api={api} />
+
+      <StandardFieldSlots
+        allColumns={state.preview.headers}
+        decisions={state.decisions}
+        suggestions={suggestions}
+        labelByColumn={labelByColumn}
+        onAssign={(col, canonical, type) => {
+          updateDecision(col, { mode: 'canonical', canonical, type });
+        }}
+        onUnassign={col => {
+          updateDecision(col, { mode: 'custom', canonical: undefined });
+        }}
+        onApplyAllConfident={() => {
+          const merged: Record<string, PerColumnDecision> = {};
+          // Pro Standardfeld nur die höchste Konfidenz nehmen, damit sich Vorschläge nicht gegenseitig
+          // überschreiben (z.B. wenn FKZ und AKZ_NR beide auf 'aktenzeichen' gemappt würden).
+          const bestPerCanonical = new Map<string, LabelSuggestion>();
+          for (const s of suggestions) {
+            if (!s.canonical || s.confidence < 0.6) continue;
+            // Schon belegt? → überspringen.
+            const alreadyAssigned = Object.values(state.decisions).some(
+              d => d.mode === 'canonical' && d.canonical === s.canonical,
+            );
+            if (alreadyAssigned) continue;
+            const prev = bestPerCanonical.get(s.canonical);
+            if (!prev || s.confidence > prev.confidence) bestPerCanonical.set(s.canonical, s);
+          }
+          for (const s of bestPerCanonical.values()) {
+            if (!s.canonical) continue;
+            const field = CANONICAL_FIELDS.find(f => f.key === s.canonical);
+            merged[s.csvColumn] = {
+              mode: 'canonical',
+              canonical: s.canonical,
+              type: field?.type ?? 'string',
+            };
+          }
+          if (Object.keys(merged).length > 0) applyDecisions(merged);
+        }}
+        pendingConfidentCount={(() => {
+          let n = 0;
+          const seen = new Set<string>();
+          for (const s of suggestions) {
+            if (!s.canonical || s.confidence < 0.6) continue;
+            if (seen.has(s.canonical)) continue;
+            seen.add(s.canonical);
+            const alreadyAssigned = Object.values(state.decisions).some(
+              d => d.mode === 'canonical' && d.canonical === s.canonical,
+            );
+            if (!alreadyAssigned) n++;
+          }
+          return n;
+        })()}
+        onJumpToColumn={jumpToColumn}
       />
 
-      <div ref={mappingRef} className="space-y-3">
+      <div className="space-y-3">
         {groups.map(g => (
           <GroupSection
             key={g.key}
@@ -218,14 +327,52 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
             labelByColumn={labelByColumn}
             updateDecision={updateDecision}
             onToggle={() => toggleGroupCollapse(g.key)}
+            registerRow={registerRow}
+            highlightedColumn={highlightedColumn}
           />
         ))}
         {filterActive && groups.length === 0 ? (
           <div className="text-[12.5px] text-[var(--tf-text-tertiary)] italic px-1">
-            Keine Spalte passt zum Suchbegriff.
+            Keine Spalte passt zu Such-/Filter-Kriterien.
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+interface KindFilterToggleProps {
+  value: MappingKindFilter;
+  onChange: (v: MappingKindFilter) => void;
+}
+
+function KindFilterToggle({ value, onChange }: KindFilterToggleProps): React.ReactElement {
+  const options: { key: MappingKindFilter; label: string; title: string }[] = [
+    { key: 'all', label: 'Alle', title: 'Alle Spalten anzeigen' },
+    { key: 'standard', label: 'Nur Standard', title: 'Nur Spalten, die auf ein Standardfeld mappen oder als Vorschlag (≥60%) gelten' },
+    { key: 'custom', label: 'Nur Eigene', title: 'Nur Spalten, die als Eigenes Feld durchgereicht werden' },
+  ];
+  return (
+    <div className="inline-flex rounded border-[0.5px] border-[var(--tf-border)] overflow-hidden">
+      {options.map((opt, i) => {
+        const active = opt.key === value;
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => onChange(opt.key)}
+            title={opt.title}
+            className="px-2 py-1 text-[11.5px] transition"
+            style={{
+              background: active ? 'var(--tf-primary)' : 'transparent',
+              color: active ? 'var(--tf-primary-foreground, white)' : 'var(--tf-text-secondary)',
+              borderLeft: i === 0 ? undefined : '0.5px solid var(--tf-border)',
+            }}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -238,11 +385,26 @@ interface GroupSectionProps {
   labelByColumn: Map<string, string>;
   updateDecision: (col: string, patch: Partial<PerColumnDecision>) => void;
   onToggle: () => void;
+  registerRow: (col: string, el: HTMLTableRowElement | null) => void;
+  highlightedColumn: string | null;
 }
 
-function GroupSection({ bucket, state, isGroupedView, forceExpanded, labelByColumn, updateDecision, onToggle }: GroupSectionProps): React.ReactElement {
+function GroupSection({ bucket, state, isGroupedView, forceExpanded, labelByColumn, updateDecision, onToggle, registerRow, highlightedColumn }: GroupSectionProps): React.ReactElement {
   const collapsed = !forceExpanded && !!state.collapsedGroups[bucket.key];
   const labelMap = labelByColumn;
+
+  // Counter pro Sektion
+  const counts = { standard: 0, custom: 0, ignore: 0 };
+  for (const col of bucket.columns) {
+    const m = state.decisions[col]?.mode ?? 'custom';
+    if (m === 'canonical') counts.standard++;
+    else if (m === 'ignore') counts.ignore++;
+    else counts.custom++;
+  }
+  const counterParts: string[] = [];
+  if (counts.standard > 0) counterParts.push(`${counts.standard} Standard`);
+  if (counts.custom > 0) counterParts.push(`${counts.custom} Eigen`);
+  if (counts.ignore > 0) counterParts.push(`${counts.ignore} Ignore`);
 
   return (
     <div style={{ border: '0.5px solid var(--tf-border)', borderRadius: 8 }}>
@@ -255,7 +417,10 @@ function GroupSection({ bucket, state, isGroupedView, forceExpanded, labelByColu
         >
           {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
           <span className="text-[12.5px] font-medium text-[var(--tf-text)]">{bucket.label}</span>
-          <span className="text-[11px] text-[var(--tf-text-tertiary)]">({bucket.columns.length})</span>
+          <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+            ({bucket.columns.length}
+            {counterParts.length > 0 ? ` — ${counterParts.join(' · ')}` : ''})
+          </span>
         </button>
       ) : null}
 
@@ -278,8 +443,21 @@ function GroupSection({ bucket, state, isGroupedView, forceExpanded, labelByColu
                 const d = state.decisions[col] ?? { mode: 'custom' as const };
                 const samples = state.preview!.rows.slice(0, 3).map(r => (r[col] ?? '').slice(0, 30)).filter(Boolean);
                 const label = labelMap.get(col);
+                const isHighlighted = highlightedColumn === col;
+                const rowStyle: React.CSSProperties = {
+                  borderTop: '0.5px solid var(--tf-border)',
+                  borderLeft: d.mode === 'canonical' ? '3px solid var(--tf-primary)' : '3px solid transparent',
+                  background: isHighlighted ? 'color-mix(in srgb, var(--tf-primary) 14%, transparent)' : undefined,
+                  opacity: d.mode === 'ignore' ? 0.6 : 1,
+                  transition: 'background 0.4s ease',
+                };
                 return (
-                  <tr key={col} style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+                  <tr
+                    key={col}
+                    ref={el => registerRow(col, el)}
+                    data-column={col}
+                    style={rowStyle}
+                  >
                     <td className="p-2 font-mono text-[11.5px] text-[var(--tf-text)]">{col}</td>
                     {isGroupedView ? (
                       <td className="p-2 text-[11.5px] text-[var(--tf-text-tertiary)]">

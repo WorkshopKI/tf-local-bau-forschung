@@ -1,24 +1,18 @@
 import { useState } from 'react';
-import { Check, ChevronDown, ChevronRight, Info } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { parseLabelXlsx, buildSuggestions } from '@/core/services/csv';
-import type { LabelSuggestion, LabelParseResult } from '@/core/services/csv';
-import { CANONICAL_FIELDS } from '@/core/services/csv/constants';
+import { ChevronDown, ChevronRight, Info } from 'lucide-react';
+import { parseLabelXlsx } from '@/core/services/csv';
+import type { LabelParseResult } from '@/core/services/csv';
 import type { AmbiguousMergeResolution } from '@/core/services/csv/types';
-import type { PerColumnDecision, WizardApi } from './useCsvWizardState';
+import type { WizardApi } from './useCsvWizardState';
 
 interface Props {
-  previewHeaders: string[];
   api: WizardApi;
-  onApply: (updates: Record<string, PerColumnDecision>) => void;
-  onApplied?: () => void;
 }
 
 const HEADER_ROW_OPTIONS = [2, 3, 4, 5, 6, 7, 8];
 
-export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Props): React.ReactElement {
+export function XlsLabelUpload({ api }: Props): React.ReactElement {
   const { state, setHeaderRowCount, setLabelParseResult, setAllAmbiguousResolutions, clearLabelResult } = api;
-  const [suggestions, setSuggestions] = useState<LabelSuggestion[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -35,19 +29,12 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
           'Keine Spalten erkannt. Struktur passt nicht — die letzte Zeile sollte die CSV-Spaltennamen enthalten. Versuche eine andere Zeilen-Anzahl.',
         );
         clearLabelResult();
-        setSuggestions([]);
         return;
       }
       setLabelParseResult(result, file.name);
-      const suggs = buildSuggestions(previewHeaders, result);
-      setSuggestions(suggs);
-      if (suggs.length === 0) {
-        setErr('Labels geladen, aber keine Vorschläge für bekannte Spalten gefunden.');
-      }
     } catch (e) {
       setErr(`Parse-Fehler: ${(e as Error).message}`);
       clearLabelResult();
-      setSuggestions([]);
     } finally {
       setLoading(false);
     }
@@ -55,55 +42,13 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
 
   const handleHeaderRowChange = async (n: number): Promise<void> => {
     setHeaderRowCount(n);
-    setSuggestions([]);
-    // Falls bereits eine Datei geladen wurde, sofort neu parsen
     if (pendingFile) {
       await handleFile(pendingFile, n);
     }
   };
 
-  const applySuggestion = (s: LabelSuggestion): Record<string, PerColumnDecision> => {
-    if (!s.canonical) return {};
-    const type = CANONICAL_FIELDS.find(f => f.key === s.canonical)?.type ?? 'string';
-    return {
-      [s.csvColumn]: {
-        mode: 'canonical' as const,
-        canonical: s.canonical,
-        type,
-      },
-    };
-  };
-
-  const isAppliedAs = (s: LabelSuggestion): boolean => {
-    if (!s.canonical) return false;
-    const d = state.decisions[s.csvColumn];
-    return d?.mode === 'canonical' && d?.canonical === s.canonical;
-  };
-
-  const applyOne = (s: LabelSuggestion): void => {
-    onApply(applySuggestion(s));
-    onApplied?.();
-  };
-
-  const applyAll = (): void => {
-    const merged: Record<string, PerColumnDecision> = {};
-    for (const s of suggestions) {
-      if (s.confidence < 0.6 || !s.canonical) continue;
-      if (isAppliedAs(s)) continue;
-      Object.assign(merged, applySuggestion(s));
-    }
-    if (Object.keys(merged).length === 0) return;
-    onApply(merged);
-    onApplied?.();
-  };
-
-  const confident = suggestions.filter(s => s.canonical && s.confidence >= 0.6);
-  const appliedCount = suggestions.filter(isAppliedAs).length;
-  const pendingConfidentCount = confident.filter(s => !isAppliedAs(s)).length;
-  const allConfidentApplied = confident.length > 0 && pendingConfidentCount === 0;
   const hasAmbig = state.ambiguousMerges.length > 0;
 
-  // Effektive Auflösungen je Merge (explizit gesetzt ODER default_resolution)
   const effectiveResolutions = state.ambiguousMerges.map(
     m => state.ambiguousResolutions[m.signature] ?? m.default_resolution,
   );
@@ -240,91 +185,6 @@ export function XlsLabelUpload({ previewHeaders, api, onApply, onApplied }: Prop
               ) : null}
             </div>
           ) : null}
-        </div>
-      ) : null}
-
-      {suggestions.length > 0 ? (
-        <div
-          className="mt-4 pt-3"
-          style={{ borderTop: hasAmbig ? '0.5px solid var(--tf-border)' : undefined }}
-        >
-          <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
-            Standardfeld-Vorschläge
-          </div>
-          <div className="text-[11px] text-[var(--tf-text-tertiary)] leading-relaxed mb-2">
-            Spalten, deren Label fast genauso heißt wie ein System-Standardfeld (Aktenzeichen, Status,
-            Titel …). Optional — die Gruppen-/Deskriptor-Struktur aus dem XLS wirkt unten in der
-            Mapping-Tabelle und ist davon unabhängig.
-          </div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-[11.5px] text-[var(--tf-text-secondary)]">
-              {suggestions.length} mögliche Standardfeld-Zuordnung{suggestions.length === 1 ? '' : 'en'}
-              · {confident.length} mit hoher Konfidenz (≥60%)
-              {appliedCount > 0 ? (
-                <span className="ml-1 text-emerald-700">· {appliedCount} übernommen</span>
-              ) : null}
-            </div>
-            <Button
-              size="xs"
-              variant="outline"
-              onClick={applyAll}
-              disabled={confident.length === 0 || allConfidentApplied}
-            >
-              {allConfidentApplied
-                ? 'Alle übernommen ✓'
-                : `Alle hochkonfidenten übernehmen (${pendingConfidentCount})`}
-            </Button>
-          </div>
-          <div className="overflow-x-auto" style={{ border: '0.5px solid var(--tf-border)', borderRadius: 6, background: 'var(--tf-bg)' }}>
-            <table className="w-full text-[11.5px]">
-              <thead>
-                <tr className="text-left text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
-                  <th className="p-1.5">CSV-Spalte</th>
-                  <th className="p-1.5">Label</th>
-                  <th className="p-1.5">Vorgeschlagen</th>
-                  <th className="p-1.5">Konfidenz</th>
-                  <th className="p-1.5"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {suggestions.map((s, i) => {
-                  const applied = isAppliedAs(s);
-                  return (
-                    <tr
-                      key={s.csvColumn}
-                      style={{ borderTop: i === 0 ? undefined : '0.5px solid var(--tf-border)' }}
-                      className={applied ? 'bg-emerald-50/60' : undefined}
-                    >
-                      <td className="p-1.5 font-mono">{s.csvColumn}</td>
-                      <td className="p-1.5">{s.label}</td>
-                      <td className="p-1.5">{s.canonical ?? <span className="text-[var(--tf-text-tertiary)]">–</span>}</td>
-                      <td className="p-1.5 tabular-nums">
-                        {s.canonical ? (
-                          <span className={s.confidence >= 0.7 ? 'text-emerald-700' : s.confidence >= 0.5 ? 'text-amber-700' : 'text-[var(--tf-text-tertiary)]'}>
-                            {Math.round(s.confidence * 100)}%
-                          </span>
-                        ) : (
-                          <span className="text-[var(--tf-text-tertiary)]">–</span>
-                        )}
-                      </td>
-                      <td className="p-1.5 text-right">
-                        {applied ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700">
-                            <Check size={12} />
-                            Übernommen
-                          </span>
-                        ) : s.canonical ? (
-                          <Button size="xs" variant="ghost" onClick={() => applyOne(s)}>
-                            Übernehmen
-                          </Button>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
         </div>
       ) : null}
     </div>
