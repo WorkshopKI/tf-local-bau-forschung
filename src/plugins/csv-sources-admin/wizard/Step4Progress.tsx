@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ImportResult } from '@/core/services/csv/types';
 import type { ImportProgress } from '@/core/services/csv';
 import { computeEtaFromSamples, type ThroughputSample } from '@/core/utils/eta';
 
 const WINDOW_MS = 5000;
+const SAMPLE_INTERVAL_MS = 500;
 
 interface Step4Props {
   progress: ImportProgress | null;
@@ -15,34 +16,38 @@ export function Step4Progress({ progress, result, error }: Step4Props): React.Re
   const phaseRef = useRef<string | null>(null);
   const phaseStartDoneRef = useRef<number>(0);
   const samplesRef = useRef<ThroughputSample[]>([]);
-  const [, setTick] = useState(0);
+  const lastSampleAtRef = useRef<number>(0);
 
   // Phase-change detection: reset refs and samples buffer.
   useEffect(() => {
     if (!progress) {
       phaseRef.current = null;
+      samplesRef.current = [];
+      lastSampleAtRef.current = 0;
       return;
     }
     if (progress.phase !== phaseRef.current) {
       phaseRef.current = progress.phase;
       phaseStartDoneRef.current = progress.done;
       samplesRef.current = [];
+      lastSampleAtRef.current = 0;
     }
   }, [progress]);
 
-  // Tick: push sample, drop old ones, force re-render.
+  // Push throttled sample on every progress update — no setInterval needed.
+  // The previous setInterval-based approach was broken: progress updates from
+  // the importer arrive faster than 500 ms during merge, so React kept
+  // clear/re-creating the interval before its first tick could fire.
   useEffect(() => {
     if (!progress || result || error) return;
-    const id = setInterval(() => {
-      const now = Date.now();
-      const doneSincePhase = progress.done - phaseStartDoneRef.current;
-      samplesRef.current = [
-        ...samplesRef.current.filter(s => now - s.t < WINDOW_MS),
-        { t: now, processed: doneSincePhase },
-      ];
-      setTick(n => n + 1);
-    }, 500);
-    return () => clearInterval(id);
+    const now = Date.now();
+    if (now - lastSampleAtRef.current < SAMPLE_INTERVAL_MS) return;
+    lastSampleAtRef.current = now;
+    const doneSincePhase = progress.done - phaseStartDoneRef.current;
+    samplesRef.current = [
+      ...samplesRef.current.filter(s => now - s.t < WINDOW_MS),
+      { t: now, processed: doneSincePhase },
+    ];
   }, [progress, result, error]);
 
   const totalInPhase = (progress?.total ?? 0) - phaseStartDoneRef.current;
