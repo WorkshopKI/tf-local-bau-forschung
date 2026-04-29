@@ -55,7 +55,7 @@ Neues `<Collapsible>` (vorhanden in `@/components/ui/collapsible`, wird in derse
 - Trigger: `Alle {n} Spaltennamen anzeigen ▾` mit `ChevronRight`/`ChevronDown` analog zum bestehenden Test-Korpus-Collapsible.
 - Default eingeklappt — Tabelle ist der primäre Sanity-Check.
 - Content: `flex flex-wrap gap-1` mit Chips (`bg-[var(--tf-hover)]`, `text-[10.5px]`, `px-1.5 py-0.5`, `rounded`, `text-[var(--tf-text-secondary)]`).
-- Wrap-Container mit `max-h-[160px] overflow-y-auto`, damit bei sehr vielen Headern die Tabelle darunter sichtbar bleibt.
+- Kein eigener `max-h`/`overflow-y-auto` — der Wizard-Container darf bei vielen Headern vertikal mitwachsen, ein zusätzlicher Innen-Scroll wäre redundant.
 - Read-only in v1: kein Click-Verhalten, keine Suche/Filter.
 
 ### 4. Datenzeilen von 3 auf 5

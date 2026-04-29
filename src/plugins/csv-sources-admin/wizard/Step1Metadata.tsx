@@ -214,7 +214,7 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
                     <span>Alle {state.preview.headers.length} Spaltennamen anzeigen</span>
                   </button>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="mt-1.5 max-h-[160px] overflow-y-auto">
+                <CollapsibleContent className="mt-1.5">
                   <div className="flex flex-wrap gap-1">
                     {state.preview.headers.map(h => (
                       <span
