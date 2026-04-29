@@ -88,15 +88,27 @@ function main() {
     rmSync(defaultOutput);
   }
 
+  // Dokumentenindex-Helper liegt einmalig im dist-single-Root (variantenunabhaengig
+  // — operiert auf dem Daten-Share, nicht relativ zur HTML). Demo braucht ihn nicht;
+  // nur Share-Varianten (fester Pfad ODER User-Auswahl) kopieren ihn ins Root.
+  // Subdir-Outputs (z.B. dist-single/dev/) bekommen ihn nie — Altstand wird entfernt.
+  const needsDataShare = !!config.data?.fixedDataSharePath || config.data?.allowUserToChangePath === true;
   const batSrc = resolve('Dokumentenindex-aktualisieren.bat');
-  const batDst = join(outDir, 'Dokumentenindex-aktualisieren.bat');
-  if (existsSync(batSrc)) {
-    copyFileSync(batSrc, batDst);
+  const rootBatDst = resolve('dist-single/Dokumentenindex-aktualisieren.bat');
+  const distRoot = resolve('dist-single');
+
+  if (needsDataShare && existsSync(batSrc)) {
+    copyFileSync(batSrc, rootBatDst);
+  }
+
+  if (outDir !== distRoot) {
+    const subdirBatDst = join(outDir, 'Dokumentenindex-aktualisieren.bat');
+    if (existsSync(subdirBatDst)) rmSync(subdirBatDst);
   }
 
   console.log(`✓ Build fertig: ${targetOutput}`);
-  if (existsSync(batDst)) {
-    console.log(`✓ Dokumentenindex-Helper kopiert: ${batDst}`);
+  if (needsDataShare && existsSync(rootBatDst)) {
+    console.log(`✓ Dokumentenindex-Helper liegt unter: ${rootBatDst}`);
   }
 }
 
