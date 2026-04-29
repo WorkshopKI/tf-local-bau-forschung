@@ -55,6 +55,7 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showTestCorpus, setShowTestCorpus] = useState(false);
+  const [showAllHeaders, setShowAllHeaders] = useState(false);
 
   const columnWidths = useMemo<Record<string, number>>(() => {
     if (!state.preview) return {};
@@ -202,6 +203,31 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
                 </select>
               </label>
             </div>
+            {state.preview.headers.length > 8 ? (
+              <Collapsible open={showAllHeaders} onOpenChange={setShowAllHeaders} className="mb-2">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] transition"
+                  >
+                    {showAllHeaders ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                    <span>Alle {state.preview.headers.length} Spaltennamen anzeigen</span>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-1.5 max-h-[160px] overflow-y-auto">
+                  <div className="flex flex-wrap gap-1">
+                    {state.preview.headers.map(h => (
+                      <span
+                        key={h}
+                        className="px-1.5 py-0.5 rounded bg-[var(--tf-hover)] text-[10.5px] text-[var(--tf-text-secondary)]"
+                      >
+                        {h}
+                      </span>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            ) : null}
             {state.preview.headers.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="text-[11px]" style={{ tableLayout: 'fixed' }}>
