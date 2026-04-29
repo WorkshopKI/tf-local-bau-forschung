@@ -25,6 +25,26 @@ const ENCODING_LABEL: Record<CsvEncoding, string> = {
   'windows-1252': 'Windows-1252',
 };
 
+/**
+ * Liefert eine Pixel-Breite fuer eine CSV-Vorschau-Spalte.
+ * Untergrenze 56 px, Obergrenze 200 px, kalibriert auf 11px-Schrift.
+ *
+ * @example computeColumnWidth('FKZ', ['37'])             // ≈ 56
+ * @example computeColumnWidth('FREMDKENNZ', ['16KN021']) // ≈ 84
+ * @example computeColumnWidth('x', ['Lorem ipsum dolor sit amet consectetur']) // 200
+ */
+// @ts-ignore -- wird in Task 2 (Vorschau-Auto-Fit) verwendet
+function computeColumnWidth(header: string, values: readonly string[]): number {
+  const headerLen = Math.min(header.length, 24);
+  const maxValLen = values.reduce(
+    (m, v) => Math.max(m, Math.min((v ?? '').length, 24)),
+    0,
+  );
+  const ch = Math.max(4, headerLen, maxValLen);
+  const px = ch * 7.2 + 12;
+  return Math.min(Math.max(px, 56), 200);
+}
+
 interface Step1Props {
   api: WizardApi;
   existingMasterId: string | null;
