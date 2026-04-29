@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Upload, FileText, RefreshCw, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -80,6 +80,10 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
       abortRef.current = null;
     }
   }
+
+  // Beim Unmount laufenden Import sauber abbrechen — verhindert, dass IDB-Writes
+  // ohne UI-Feedback weiterlaufen, wenn der Dialog z.B. durch Wegnavigation entfernt wird.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   async function useStoredFile(): Promise<void> {
     const text = await loadCsvSourceFile(storage.idb, schema.id);
