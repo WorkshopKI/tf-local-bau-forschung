@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ImportResult } from '@/core/services/csv/types';
 import type { ImportProgress } from '@/core/services/csv';
-import { computeEta } from '@/core/utils/eta';
+import { computeEtaFromSamples, type ThroughputSample } from '@/core/utils/eta';
+
+const WINDOW_MS = 5000;
 
 interface Step4Props {
   progress: ImportProgress | null;
@@ -11,11 +13,11 @@ interface Step4Props {
 
 export function Step4Progress({ progress, result, error }: Step4Props): React.ReactElement {
   const phaseRef = useRef<string | null>(null);
-  const phaseStartRef = useRef<number>(Date.now());
   const phaseStartDoneRef = useRef<number>(0);
-  const [elapsed, setElapsed] = useState(0);
+  const samplesRef = useRef<ThroughputSample[]>([]);
+  const [, setTick] = useState(0);
 
-  // Phase-change detection: reset refs and elapsed.
+  // Phase-change detection: reset refs and samples buffer.
   useEffect(() => {
     if (!progress) {
       phaseRef.current = null;
@@ -23,25 +25,29 @@ export function Step4Progress({ progress, result, error }: Step4Props): React.Re
     }
     if (progress.phase !== phaseRef.current) {
       phaseRef.current = progress.phase;
-      phaseStartRef.current = Date.now();
       phaseStartDoneRef.current = progress.done;
-      setElapsed(0);
+      samplesRef.current = [];
     }
   }, [progress]);
 
-  // Tick elapsed while a phase is running.
+  // Tick: push sample, drop old ones, force re-render.
   useEffect(() => {
     if (!progress || result || error) return;
     const id = setInterval(() => {
-      setElapsed(Date.now() - phaseStartRef.current);
+      const now = Date.now();
+      const doneSincePhase = progress.done - phaseStartDoneRef.current;
+      samplesRef.current = [
+        ...samplesRef.current.filter(s => now - s.t < WINDOW_MS),
+        { t: now, processed: doneSincePhase },
+      ];
+      setTick(n => n + 1);
     }, 500);
     return () => clearInterval(id);
   }, [progress, result, error]);
 
-  const doneSincePhase = (progress?.done ?? 0) - phaseStartDoneRef.current;
   const totalInPhase = (progress?.total ?? 0) - phaseStartDoneRef.current;
   const eta = progress
-    ? computeEta(elapsed, doneSincePhase, totalInPhase, { minSamples: 50, minElapsedMs: 1500 })
+    ? computeEtaFromSamples(samplesRef.current, totalInPhase, { minSamples: 3, minWindowMs: 1500 })
     : null;
 
   return (
@@ -91,7 +97,7 @@ export function Step4Progress({ progress, result, error }: Step4Props): React.Re
             />
           </div>
           <div className="flex justify-between text-[11px] h-4 mt-1">
-            <span className="text-[var(--tf-text-tertiary)]">{eta ?? ' '}</span>
+            <span className="text-[var(--tf-text-tertiary)]">{eta ?? ' '}</span>
           </div>
         </div>
       ) : (
