@@ -53,20 +53,31 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const [cancelled, setCancelled] = useState(false);
 
   async function runImport(blob: Blob): Promise<void> {
     setPhase('importing');
     setError(null);
     setResult(null);
     setProgress(null);
+    setCancelled(false);
+    abortRef.current = new AbortController();
     try {
       const r = await importCsvSource(storage.idb, schema.id, blob, {
+        signal: abortRef.current.signal,
         onProgress: p => setProgress(p),
       });
       setResult(r);
       onCompleted();
     } catch (e) {
-      setError((e as Error).message);
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setCancelled(true);
+      } else {
+        setError((e as Error).message);
+      }
+    } finally {
+      abortRef.current = null;
     }
   }
 
@@ -110,12 +121,19 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
     ? `${new Date(schema.last_imported_at).toLocaleString('de-DE')}${typeof schema.last_row_count === 'number' ? ` · ${schema.last_row_count} Zeilen` : ''}`
     : 'noch nie importiert';
 
-  const isImporting = phase === 'importing' && !result && !error;
+  const isImporting = phase === 'importing' && !result && !error && !cancelled;
+  const cancelAvailable = isImporting && (
+    progress === null ||
+    progress.phase === 'parsing' ||
+    progress.phase === 'diffing'
+  );
 
   return (
     <Dialog
       open
-      onClose={isImporting ? () => {} : onClose}
+      onClose={isImporting
+        ? (cancelAvailable ? () => abortRef.current?.abort() : () => {})
+        : onClose}
       title={`Re-Import: ${schema.csv_source_name}`}
       className="max-w-[640px]"
       dismissOnOverlayClick={false}
@@ -133,9 +151,22 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
             </Button>
           </div>
         ) : phase === 'importing' ? (
-          <Button size="sm" variant="default" onClick={onClose} disabled={isImporting}>
-            Schließen
-          </Button>
+          <div className="flex w-full items-center justify-between gap-3">
+            {isImporting && !cancelAvailable ? (
+              <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+                Schreibvorgang läuft — kann nicht mehr abgebrochen werden.
+              </span>
+            ) : <span />}
+            {cancelAvailable ? (
+              <Button size="sm" variant="ghost" onClick={() => abortRef.current?.abort()}>
+                Abbrechen
+              </Button>
+            ) : (
+              <Button size="sm" variant="default" onClick={onClose} disabled={isImporting}>
+                Schließen
+              </Button>
+            )}
+          </div>
         ) : (
           <Button size="sm" variant="ghost" onClick={onClose}>Abbrechen</Button>
         )
