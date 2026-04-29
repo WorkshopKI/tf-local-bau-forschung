@@ -106,6 +106,11 @@ export function validateConfig(config) {
   if (typeof build.browserTabTitle !== 'string' || !build.browserTabTitle.trim()) {
     errors.push('build.browserTabTitle ist Pflicht');
   }
+  if (build.outputSubdir != null) {
+    if (typeof build.outputSubdir !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(build.outputSubdir)) {
+      errors.push('build.outputSubdir muss leer oder a-z/A-Z/0-9/-/_ sein');
+    }
+  }
 
   const data = config.data ?? {};
   if (data.fixedDataSharePath != null && typeof data.fixedDataSharePath !== 'string') {

@@ -11,9 +11,9 @@
  *   node scripts/build-with-config.mjs --config configs/dev.config.json
  */
 
-import { readFileSync, copyFileSync, existsSync, rmSync } from 'node:fs';
+import { readFileSync, copyFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
 import { validateConfig } from './config-schema.mjs';
 
 function parseArgs(argv) {
@@ -71,8 +71,12 @@ function main() {
 
   execSync('tsc -b && vite build --mode single', { stdio: 'inherit', env: process.env });
 
+  const subdir = (config.build.outputSubdir ?? '').trim();
+  const outDir = resolve(join('dist-single', subdir));
+  if (subdir) mkdirSync(outDir, { recursive: true });
+
   const defaultOutput = resolve('dist-single/index.html');
-  const targetOutput = resolve(`dist-single/${config.build.outputFilename}.html`);
+  const targetOutput = join(outDir, `${config.build.outputFilename}.html`);
 
   if (!existsSync(defaultOutput)) {
     console.error(`❌ Erwartetes Build-Output fehlt: ${defaultOutput}`);
@@ -85,14 +89,14 @@ function main() {
   }
 
   const batSrc = resolve('Dokumentenindex-aktualisieren.bat');
-  const batDst = resolve('dist-single/Dokumentenindex-aktualisieren.bat');
+  const batDst = join(outDir, 'Dokumentenindex-aktualisieren.bat');
   if (existsSync(batSrc)) {
     copyFileSync(batSrc, batDst);
   }
 
-  console.log(`✓ Build fertig: dist-single/${config.build.outputFilename}.html`);
+  console.log(`✓ Build fertig: ${targetOutput}`);
   if (existsSync(batDst)) {
-    console.log(`✓ Dokumentenindex-Helper kopiert: dist-single/Dokumentenindex-aktualisieren.bat`);
+    console.log(`✓ Dokumentenindex-Helper kopiert: ${batDst}`);
   }
 }
 

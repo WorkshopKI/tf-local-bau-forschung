@@ -4,6 +4,7 @@
   "build": {
     "label": "TeamFlow Demo",
     "outputFilename": "teamflow-demo",
+    "outputSubdir": "demo",
     "browserTabTitle": "TeamFlow Demo"
   },
   "data": {

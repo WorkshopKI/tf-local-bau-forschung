@@ -22,7 +22,7 @@ import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { SmbBanner } from '@/core/components/SmbBanner';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { runtimeConfig } from '@/config/runtime-config';
-import { isFeedbackEnabled, isKuratorMenusEnabled, menuLabel } from '@/config/feature-flags';
+import { isFeedbackEnabled, isKuratorMenusEnabled, isDataShareEnabled, menuLabel } from '@/config/feature-flags';
 import { BuildInfo } from '@/core/components/BuildInfo';
 import { DevQuickBar } from '@/dev-fixtures/DevQuickBar';
 import { useAutoSmbRefresh } from '@/dev-fixtures/useAutoSmbRefresh';
@@ -97,8 +97,12 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
   }, [location.pathname]);
 
   // Rehydrate Kurator-Session + start SMB-polling once.
+  // Demo-Variante (kein fester Pfad, keine User-Auswahl) nutzt das SMB-Layer
+  // nicht und soll auf evtl. verwaiste Handles aus parallelen Builds nicht
+  // reagieren — kuratorSession bleibt aktiv, weil sie nur IDB-Meta liest.
   useEffect(() => {
     void kuratorSession.rehydrate(storage.idb);
+    if (!isDataShareEnabled()) return;
     smbStatus.startPolling(storage.idb);
     void (async () => {
       const h = await getSmbHandle(storage.idb);
@@ -250,7 +254,9 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <SmbBanner status={smbStatus.status} lastCheck={smbStatus.lastCheck} idb={storage.idb} />
+          {isDataShareEnabled() && (
+            <SmbBanner status={smbStatus.status} lastCheck={smbStatus.lastCheck} idb={storage.idb} />
+          )}
           <div className="flex-1 overflow-y-auto relative">
             {!sidebarOpen && (
               <button onClick={() => setSidebarOpen(true)}

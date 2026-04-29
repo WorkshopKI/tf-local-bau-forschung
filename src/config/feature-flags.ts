@@ -61,3 +61,7 @@ export function hasFixedDataSharePath(): boolean {
 export function isDemoDataBundled(): boolean {
   return dataConfig.demoDataBundled === true;
 }
+
+export function isDataShareEnabled(): boolean {
+  return hasFixedDataSharePath() || dataConfig.allowUserToChangePath === true;
+}
