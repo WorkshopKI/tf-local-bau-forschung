@@ -16,6 +16,7 @@ export {
   loadCsvSourceFile,
 } from './schemaRegistry';
 export {
+  listProgramme,
   getAntrag,
   deleteAntrag,
   listAntraegeByProgramm,

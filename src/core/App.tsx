@@ -16,12 +16,14 @@ import { ErrorBoundary } from '@/core/ErrorBoundary';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import { checkQuarterReset, loadFeedbackConfig } from '@/core/services/feedback';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
+import { listProgramme } from '@/core/services/csv';
+import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { runtimeConfig } from '@/config/runtime-config';
 import { isDemoDataBundled, dataConfig } from '@/config/feature-flags';
 import { seedTestData } from '@/core/services/seed/seed-data';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
-function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, showWelcome, setShowWelcome, department, seedToast, setSeedToast }: {
+function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, showWelcome, setShowWelcome, department, seedToast, setSeedToast, syncToast, setSyncToast }: {
   storage: StorageService;
   aiBridge: AIBridge;
   showOnboarding: boolean;
@@ -31,6 +33,8 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, sh
   department: UserProfile['department'];
   seedToast: string | null;
   setSeedToast: (v: string | null) => void;
+  syncToast: string | null;
+  setSyncToast: (v: string | null) => void;
 }): React.ReactElement {
   const searchValue = useSearchProvider(storage);
   const tagValue = useTagProvider(storage);
@@ -112,6 +116,26 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, sh
                   </div>
                 </div>
               )}
+              {syncToast && (
+                <div
+                  className="fixed top-16 right-4 z-[60] max-w-[360px] px-3.5 py-2.5 rounded-[var(--tf-radius-lg)] bg-[var(--tf-bg)] text-[12.5px] text-[var(--tf-text)] shadow-lg animate-in fade-in slide-in-from-top-2"
+                  style={{ border: '0.5px solid var(--tf-border)' }}
+                  role="status"
+                >
+                  <div className="flex items-start gap-2">
+                    <span>📥</span>
+                    <div className="flex-1">{syncToast}</div>
+                    <button
+                      type="button"
+                      onClick={() => setSyncToast(null)}
+                      className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+                      aria-label="Schließen"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )}
             </TourContext.Provider>
           </TagContext.Provider>
         </SearchContext.Provider>
@@ -138,6 +162,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const [showWelcome, setShowWelcome] = useState(false);
   const [department, setDepartment] = useState<UserProfile['department']>('beide');
   const [seedToast, setSeedToast] = useState<string | null>(null);
+  const [syncToast, setSyncToast] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = runtimeConfig.build.browserTabTitle;
@@ -219,6 +244,34 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
     return () => { cancelled = true; };
   }, [ready, showOnboarding, storage]);
 
+  // Snapshot-Sync — non-blocking, nach App-Start.
+  useEffect(() => {
+    if (!ready || showOnboarding) return;
+    let cancelled = false;
+    (async () => {
+      const handle = await getDatenShareHandle(storage.idb);
+      if (!handle) return;
+      const programme = await listProgramme(storage.idb);
+      for (const p of programme) {
+        if (cancelled) return;
+        const r = await syncProgrammSnapshot(storage.idb, handle, p.id).catch(err => {
+          console.warn(`[snapshot-sync] ${p.id} fehlgeschlagen`, err);
+          return { synced: false } as const;
+        });
+        if (!cancelled && r.synced && 'createdAt' in r && r.createdAt) {
+          const stamp = new Date(r.createdAt).toLocaleString('de-DE', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+          });
+          setSyncToast(`${p.name}: Antragsdaten aktualisiert (Stand: ${stamp})`);
+          setTimeout(() => { if (!cancelled) setSyncToast(null); }, 6000);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, showOnboarding]);
+
   if (!ready) return <></>;
 
   return (
@@ -232,6 +285,8 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       department={department}
       seedToast={seedToast}
       setSeedToast={setSeedToast}
+      syncToast={syncToast}
+      setSyncToast={setSyncToast}
     />
   );
 }
