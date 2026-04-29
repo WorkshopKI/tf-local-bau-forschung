@@ -119,36 +119,39 @@ export async function importCsvSource(
     const newJoinValues: string[] = [];
     let skippedInactive = 0;
 
+    const DIFF_PROGRESS_STEP = 500;
+    let diffDone = 0;
+
     for (const row of rows) {
       const jv = (row[joinCol] ?? '').trim();
       if (!jv) {
         if (skippedWarnings.length < MAX_SKIP_WARNINGS) {
           skippedWarnings.push(`Leerer Join-Value in Zeile, Spalte "${joinCol}"`);
         }
-        continue;
-      }
-      // Unterprogramm-Filter
-      if (activeUpCodes !== null && upCol) {
-        const upVal = (row[upCol] ?? '').trim();
-        if (!activeUpCodes.has(upVal)) {
-          skippedInactive++;
-          continue;
+      } else if (activeUpCodes !== null && upCol && !activeUpCodes.has((row[upCol] ?? '').trim())) {
+        skippedInactive++;
+      } else {
+        seen.add(jv);
+        const hash = canonicalRowHash(row, schema.column_mapping);
+        newHashes.push({ csv_schema_id: schemaId, join_value: jv, row_hash: hash });
+        const prev = prevMap.get(jv);
+        if (prev === undefined) {
+          result.buckets.new++;
+          newJoinValues.push(jv);
+        } else if (prev !== hash) {
+          result.buckets.changed++;
+          changedJoinValues.push(jv);
+        } else {
+          result.buckets.unchanged++;
         }
       }
-      seen.add(jv);
-      const hash = canonicalRowHash(row, schema.column_mapping);
-      newHashes.push({ csv_schema_id: schemaId, join_value: jv, row_hash: hash });
-      const prev = prevMap.get(jv);
-      if (prev === undefined) {
-        result.buckets.new++;
-        newJoinValues.push(jv);
-      } else if (prev !== hash) {
-        result.buckets.changed++;
-        changedJoinValues.push(jv);
-      } else {
-        result.buckets.unchanged++;
+      diffDone++;
+      if (diffDone % DIFF_PROGRESS_STEP === 0) {
+        opts.onProgress?.({ phase: 'diffing', done: diffDone, total: rows.length });
+        await new Promise(r => setTimeout(r, 0));
       }
     }
+    opts.onProgress?.({ phase: 'diffing', done: diffDone, total: rows.length });
 
     result.skippedInactiveUnterprogramm = skippedInactive;
 
