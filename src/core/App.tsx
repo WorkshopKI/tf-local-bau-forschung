@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AppRouter } from '@/core/Router';
 import { Onboarding } from '@/core/Onboarding';
 import { WelcomeScreen } from '@/core/WelcomeScreen';
@@ -245,6 +245,11 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   }, [ready, showOnboarding, storage]);
 
   // Snapshot-Sync — non-blocking, nach App-Start.
+  // syncToastTimerRef haelt die ID des aktuell laufenden Auto-Dismiss-Timers.
+  // Bei einem zweiten Sync innerhalb von 6s wird der alte Timer geclearet,
+  // sodass der neue Toast volle 6s sichtbar bleibt (ohne wuerde der erste
+  // Timer den zweiten Toast vorzeitig clearen).
+  const syncToastTimerRef = useRef<number | null>(null);
   useEffect(() => {
     if (!ready || showOnboarding) return;
     let cancelled = false;
@@ -264,11 +269,23 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
             hour: '2-digit', minute: '2-digit',
           });
           setSyncToast(`${p.name}: Antragsdaten aktualisiert (Stand: ${stamp})`);
-          setTimeout(() => { if (!cancelled) setSyncToast(null); }, 6000);
+          if (syncToastTimerRef.current !== null) {
+            window.clearTimeout(syncToastTimerRef.current);
+          }
+          syncToastTimerRef.current = window.setTimeout(() => {
+            syncToastTimerRef.current = null;
+            if (!cancelled) setSyncToast(null);
+          }, 6000);
         }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (syncToastTimerRef.current !== null) {
+        window.clearTimeout(syncToastTimerRef.current);
+        syncToastTimerRef.current = null;
+      }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, showOnboarding]);
 
