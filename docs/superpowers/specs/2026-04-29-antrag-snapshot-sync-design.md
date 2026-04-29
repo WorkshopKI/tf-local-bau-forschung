@@ -29,11 +29,11 @@ Ziel: nach jedem erfolgreichen Re-Import schreibt der Importer einen Snapshot de
 1. Nach erfolgreichem Re-Import schreibt der Importer einen vollständigen Snapshot des Programms ins Daten-Share.
 2. Snapshot ist atomar geschrieben (keine halbgeschriebenen Manifeste).
 3. Beim App-Start prüfen alle User-Geräte (nicht nur Kurator) das Manifest pro Programm und syncen bei Differenz.
-4. Sync ist blockierend mit Loader-Status-Update (`Antragsdaten werden synchronisiert (X/Y)…`); App wird erst freigegeben, sobald Sync fertig ist oder definitiv übersprungen wurde.
+4. Sync läuft **non-blocking im Hintergrund**, nachdem die App schon benutzbar ist (`setReady(true)`). Während des Syncs zeigt der Antraege-Plugin die jeweils zuletzt sichtbaren Daten — kurze visuelle Verschiebung beim Bulk-Replace ist akzeptiert.
 5. User ohne Daten-Share-Handle (Demo-Variante) überspringen den Sync (kein Hard-Fehler).
 6. Sync ist read-only vom Share, schreibt nur lokal in IDB. Keine Race-Condition mit dem Build-Lock-geschützten Re-Import.
 7. Pro Store wird ein Hash gespeichert; Clients laden nur die Stores neu, die sich seit dem letzten Sync geändert haben.
-8. Toast nach Sync: *„Antragsdaten aktualisiert (Stand: 29.04.2026 14:32)"*.
+8. Toast nach erfolgreichem Sync: *„Antragsdaten aktualisiert (Stand: 29.04.2026 14:32)"* (gleiches Pattern wie der bestehende `seedToast`/`quarterToast`). Bei Sync-Fehler: stiller Console-Warn, kein User-Toast (App nutzt lokale Kopie weiter).
 
 ## Lösung
 
@@ -142,36 +142,40 @@ Algorithmus:
 
 **`clear()`-Strategie:** sicherer als individuelle Diff-Berechnungen, weil der Snapshot per Definition die ground truth ist. User-spezifischer State (Filter etc.) liegt in anderen Stores, ist nicht betroffen.
 
-### 4. Bootstrap-Hook in App.tsx
+### 4. Background-Sync-Hook in App.tsx
 
-[App.tsx:158–197](src/core/App.tsx) im `useEffect`-Init nach `storage.init()` und vor `setReady(true)`:
+Der Sync läuft **nach** `setReady(true)` in einem separaten `useEffect`, sodass die App sofort benutzbar ist. Pattern entspricht der bestehenden `seedTestData`-Logik in [App.tsx:208–220](src/core/App.tsx:208) (auch fire-and-forget mit Toast).
+
+Skizze:
 
 ```ts
-// Snapshot-Sync für alle Programme, blockierend mit Loader-Status.
-const handle = await getSmbHandle(storage.idb);
-if (handle) {
-  const programme = await listProgramme(storage.idb);
-  for (const p of programme) {
-    setLoaderStatus(`Antragsdaten werden synchronisiert: ${p.name}…`);
-    const r = await syncProgrammSnapshot(storage.idb, handle, p.id, prog => {
-      if (prog.phase === 'store' && prog.currentStore) {
-        setLoaderStatus(`Sync ${p.name}: ${prog.currentStore} (${prog.storesDone + 1}/${prog.storesTotal})`);
+// Snapshot-Sync im Hintergrund — App ist schon ready.
+useEffect(() => {
+  if (!ready || showOnboarding) return;
+  let cancelled = false;
+  (async () => {
+    const handle = await getSmbHandle(storage.idb);
+    if (!handle) return; // Demo-Variante oder kein Daten-Share gewählt
+    const programme = await listProgramme(storage.idb);
+    for (const p of programme) {
+      if (cancelled) return;
+      const r = await syncProgrammSnapshot(storage.idb, handle, p.id).catch(err => {
+        console.warn(`[snapshot-sync] ${p.id} fehlgeschlagen`, err);
+        return { synced: false } as const;
+      });
+      if (!cancelled && r.synced && r.createdAt) {
+        setSyncToast(`${p.name}: Antragsdaten aktualisiert (Stand: ${formatDate(r.createdAt)})`);
+        setTimeout(() => setSyncToast(null), 6000);
       }
-    }).catch(err => {
-      console.warn(`[snapshot-sync] ${p.id} fehlgeschlagen`, err);
-      return { synced: false };
-    });
-    if (r.synced && r.createdAt) {
-      // Toast-Hinweis für später vormerken — nach setReady anzeigen
-      pendingSyncToast.push(`${p.name}: Stand ${formatDate(r.createdAt)}`);
     }
-  }
-}
+  })();
+  return () => { cancelled = true; };
+}, [ready, showOnboarding, storage]);
 ```
 
-Loader-Status: das `tf-loader-status`-Element existiert bereits ([App.tsx:185–187](src/core/App.tsx:185)) und wird bisher nur für Init-Fehler verwendet. Helper `setLoaderStatus(text)` schreibt in dasselbe Element.
+Toast-Komponente: ein zusätzliches `syncToast`-State analog zum bestehenden `seedToast` ([App.tsx:95–114](src/core/App.tsx:95)) und `quarterToast`. Render-Block kopiert dasselbe Markup mit anderem Icon (z.B. `📥` oder `🔄`).
 
-Toast nach `setReady(true)`: einfacher temporärer Toast oben rechts, gleiches Pattern wie der bestehende `seedToast` ([App.tsx:95–114](src/core/App.tsx:95)).
+**Wichtige UX-Notiz:** Während ein Store mid-sync ist (per `clear()` gefolgt von `put`-Bulks innerhalb einer einzigen IDB-Transaction wo möglich), kann das Antraege-Plugin kurzzeitig (~hundert Millisekunden) eine Liste mit veralteten oder unvollständigen Daten zeigen. Das ist durch IDB's Read-Snapshot-Verhalten innerhalb einer Transaction und die `useEffect`-Refresh-Trigger der React-Components weitgehend gedeckt. Für v1 keine spezielle Mid-Sync-UI — siehe „Out of Scope".
 
 ### 5. Force-Resync (Out of Scope für v1)
 
@@ -190,12 +194,13 @@ Optional als Folge-Feature: Button im Antraege-Plugin oder in den Einstellungen,
 - Force-Resync-UI.
 - Sync von `filter_definitionen` (User-lokal).
 - Migrations-Pfad für bestehende User-Geräte mit veraltetem Stand: erste Sync-Operation überschreibt einfach lokale Stores mit Snapshot-Inhalt.
+- Mid-Sync-UI-Glitch-Suppression im Antraege-Plugin (Spinner während eines aktiven Sync-Laufs). Per IDB-Transaction-Read-Semantik und der kurzen Bulk-Insert-Dauer akzeptabel.
 
 ## Akzeptanz-Kriterien
 
 1. Re-Import schreibt nach erfolgreichem Lauf eine vollständige Verzeichnisstruktur unter `programm/antraege/snapshot/<programmId>/` ins Share. Manifest und alle JSONL-Files atomar geschrieben.
-2. Beim App-Start auf einem zweiten User-Gerät (das den Re-Import nicht durchgeführt hat) erscheint kurz `Antragsdaten werden synchronisiert: <Programm>…` im Loader, dann ist die App benutzbar mit den synchronisierten Daten.
-3. Toast nach Boot: `Antragsdaten aktualisiert (Stand: 29.04.2026 14:32)`.
+2. Beim App-Start auf einem zweiten User-Gerät (das den Re-Import nicht durchgeführt hat) ist die App sofort benutzbar; der Sync läuft im Hintergrund. Innerhalb weniger Sekunden zeigt das Antraege-Plugin die neuen Daten.
+3. Toast nach erfolgreichem Hintergrund-Sync: `<Programm>: Antragsdaten aktualisiert (Stand: 29.04.2026 14:32)`. Auto-dismiss nach 6 s, schließbar via X.
 4. Wiederholter App-Start ohne neuen Re-Import: kein sichtbarer Sync-Schritt (idempotenter skip via `snapshot-version`).
 5. App-Start ohne SMB-Handle (Demo): kein Sync-Versuch, keine Fehlermeldung.
 6. App-Start mit Handle aber ohne Snapshot (frisches Programm): kein Fehler, App startet normal.
