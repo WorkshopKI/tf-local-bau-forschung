@@ -230,6 +230,9 @@ export async function listVerbundsByProgramm(idb: IDBStore, programmId: string):
   return listVerbuendeByProgramm(idb, programmId);
 }
 
+// TODO: Wenn antrag_historie ueber 50k+ Eintraege waechst, einen
+// programm_id-Index in der IDB-Schema-Migration ergaenzen. Aktuell laeuft
+// listAntragHistorieByProgramm via getAll() + in-memory-filter (O(N)).
 /**
  * Alle AntragHistorie-Eintraege fuer ein Programm.
  * ANTRAG_HISTORIE hat keinen programm_id-Index — getAll + In-Memory-Filter

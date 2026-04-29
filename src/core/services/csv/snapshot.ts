@@ -44,7 +44,10 @@ async function sha256Hex(text: string): Promise<string> {
 }
 
 function toJsonl<T>(items: readonly T[], sortKey: (item: T) => string): string {
-  const sorted = [...items].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  const sorted = [...items].sort((a, b) => {
+    const ka = sortKey(a), kb = sortKey(b);
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
   return sorted.map(it => JSON.stringify(it)).join('\n') + (sorted.length > 0 ? '\n' : '');
 }
 
@@ -94,8 +97,21 @@ export async function writeProgrammSnapshot(
     stores[key] = { count: data[key].count, hash: await sha256Hex(data[key].jsonl) };
   }
 
-  for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
-    await atomicWrite(programmDir, SNAPSHOT_FILES[key], data[key].jsonl);
+  const written: SnapshotStoreName[] = [];
+  try {
+    for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
+      await atomicWrite(programmDir, SNAPSHOT_FILES[key], data[key].jsonl);
+      written.push(key);
+    }
+  } catch (writeErr) {
+    // Best-effort cleanup: bereits geschriebene JSONL-Files entfernen, damit kein
+    // halb-konsistenter Snapshot stehen bleibt. Fehler beim Cleanup werden
+    // verschluckt — der eigentliche Write-Error wird re-thrown.
+    for (const key of written) {
+      await programmDir.removeEntry(SNAPSHOT_FILES[key]).catch(() => undefined);
+    }
+    console.warn(`[snapshot] partial-write cleanup: ${written.length} files removed, original error:`, writeErr);
+    throw writeErr;
   }
 
   const snapshotVersion = new Date().toISOString();
