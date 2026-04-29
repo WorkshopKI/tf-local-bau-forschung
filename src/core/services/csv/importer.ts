@@ -31,6 +31,7 @@ export interface ImportProgress {
 }
 
 export interface ImportOptions {
+  signal?: AbortSignal;
   onProgress?: (p: ImportProgress) => void;
   onLockConflict?: (ageMinutes: number) => Promise<'force' | 'abort'>;
 }
@@ -85,6 +86,7 @@ export async function importCsvSource(
     }
 
     // Parse (mit Schema-persistierten Encoding/Separator, falls vorhanden)
+    opts.signal?.throwIfAborted();
     opts.onProgress?.({ phase: 'parsing', done: 0, total: 0 });
     const { rows } = await parseCsvAll(csvBlob, {
       encoding: schema.encoding,
@@ -149,6 +151,7 @@ export async function importCsvSource(
       if (diffDone % DIFF_PROGRESS_STEP === 0) {
         opts.onProgress?.({ phase: 'diffing', done: diffDone, total: rows.length });
         await new Promise(r => setTimeout(r, 0));
+        opts.signal?.throwIfAborted();
       }
     }
     opts.onProgress?.({ phase: 'diffing', done: diffDone, total: rows.length });
@@ -162,22 +165,18 @@ export async function importCsvSource(
     result.buckets.removed = removedJoinValues.length;
     result.skippedJoinValues = skippedWarnings;
 
-    // Hashes persistieren (komplett ersetzen)
-    await putRowHashes(idb, newHashes);
-    if (removedJoinValues.length > 0) {
-      await deleteRowHashes(idb, schemaId, removedJoinValues);
-    }
-
-    // Schema aktualisieren
+    // updatedSchema in-memory bauen (Cancel-Barriere bereits passiert)
     const updatedSchema: CsvSchema = {
       ...schema,
       file_checksum: fileSha,
       last_imported_at: new Date().toISOString(),
       last_row_count: rows.length,
     };
-    await saveSchema(idb, updatedSchema);
 
-    // Merge für alle betroffenen Antraege
+    // Letzte Cancel-Barriere vor IDB-Writes
+    opts.signal?.throwIfAborted();
+
+    // Merge für alle betroffenen Antraege (IDB-Writes pro Antrag)
     opts.onProgress?.({ phase: 'merging', done: 0, total: 0 });
     await runMergeForDeltas({
       idb,
@@ -188,6 +187,14 @@ export async function importCsvSource(
       onProgress: (done, total) =>
         opts.onProgress?.({ phase: 'merging', done, total }),
     });
+
+    // Hashes + Schema NACH erfolgreichem Merge persistieren — Cancel zwischen
+    // Diff und Merge hat dann nichts in IDB hinterlassen.
+    await putRowHashes(idb, newHashes);
+    if (removedJoinValues.length > 0) {
+      await deleteRowHashes(idb, schemaId, removedJoinValues);
+    }
+    await saveSchema(idb, updatedSchema);
 
     // Nach Merge: Antrag-Counts pro Unterprogramm neu berechnen (für Admin-Panel)
     if (schema.is_master) {
