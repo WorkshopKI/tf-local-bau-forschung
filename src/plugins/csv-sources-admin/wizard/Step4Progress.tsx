@@ -10,9 +10,10 @@ interface Step4Props {
   progress: ImportProgress | null;
   result: ImportResult | null;
   error: string | null;
+  cancelled?: boolean;
 }
 
-export function Step4Progress({ progress, result, error }: Step4Props): React.ReactElement {
+export function Step4Progress({ progress, result, error, cancelled }: Step4Props): React.ReactElement {
   const phaseRef = useRef<string | null>(null);
   const phaseStartDoneRef = useRef<number>(0);
   const samplesRef = useRef<ThroughputSample[]>([]);
@@ -57,7 +58,12 @@ export function Step4Progress({ progress, result, error }: Step4Props): React.Re
 
   return (
     <div className="flex flex-col gap-4 text-[13px]">
-      {error ? (
+      {cancelled ? (
+        <div className="text-[13px]">
+          <strong>Import abgebrochen.</strong>{' '}
+          <span className="text-[var(--tf-text-secondary)]">Keine Änderungen am Datenbestand.</span>
+        </div>
+      ) : error ? (
         <div className="text-red-700 text-[13px]">Fehler: {error}</div>
       ) : result ? (
         <div>

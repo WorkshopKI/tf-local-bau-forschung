@@ -289,7 +289,7 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
       ) : null}
 
       {phase === 'importing' ? (
-        <Step4Progress progress={progress} result={result} error={error} />
+        <Step4Progress progress={progress} result={result} error={error} cancelled={cancelled} />
       ) : null}
     </Dialog>
   );
