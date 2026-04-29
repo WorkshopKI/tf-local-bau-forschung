@@ -28,8 +28,10 @@ Ziel: nach jedem erfolgreichen Re-Import schreibt der Importer einen Snapshot de
 
 1. Nach erfolgreichem Re-Import schreibt der Importer einen vollständigen Snapshot des Programms ins Daten-Share.
 2. Snapshot ist atomar geschrieben (keine halbgeschriebenen Manifeste).
-3. Beim App-Start prüfen alle User-Geräte (nicht nur Kurator) das Manifest pro Programm und syncen bei Differenz.
+3. Beim App-Start prüfen alle User-Geräte (nicht nur Kurator) das Manifest pro Programm und syncen bei Differenz — **gedrosselt auf maximal einmal pro Kalendertag** (Tag-Key in IDB: `snapshot-last-check-day-<programmId>`).
 4. Sync läuft **non-blocking im Hintergrund**, nachdem die App schon benutzbar ist (`setReady(true)`). Während des Syncs zeigt der Antraege-Plugin die jeweils zuletzt sichtbaren Daten — kurze visuelle Verschiebung beim Bulk-Replace ist akzeptiert.
+
+**Day-Throttle-Konsequenz:** Da das Tages-CSV-Update typischerweise einmal morgens passiert und der Kurator den Re-Import kurz danach ausführt, reicht ein Sync-Check pro User pro Tag. Wenn ein User die App **vor** dem Kurator-Re-Import startet (z.B. um 07:00, Kurator importiert um 10:00) und danach Tabs nur weiter geöffnet/wiederbesucht: dieser User sieht die neuen Daten **erst am nächsten Tag**. Ein manueller „Jetzt aktualisieren"-Trigger wäre die saubere Folge-Lösung, ist aber out of scope für v1.
 5. User ohne Daten-Share-Handle (Demo-Variante) überspringen den Sync (kein Hard-Fehler).
 6. Sync ist read-only vom Share, schreibt nur lokal in IDB. Keine Race-Condition mit dem Build-Lock-geschützten Re-Import.
 7. Pro Store wird ein Hash gespeichert; Clients laden nur die Stores neu, die sich seit dem letzten Sync geändert haben.
@@ -191,7 +193,7 @@ Optional als Folge-Feature: Button im Antraege-Plugin oder in den Einstellungen,
 
 - Inkrementelle Delta-Snapshots (Volumen-Optimierung; bei <100 MB/Tag unnötig).
 - Periodischer Background-Sync (App-Start reicht).
-- Force-Resync-UI.
+- Force-Resync-UI / „Jetzt aktualisieren"-Button (siehe Day-Throttle-Konsequenz oben — sinnvolles Folge-Feature wenn die Day-Heuristik in der Praxis stört).
 - Sync von `filter_definitionen` (User-lokal).
 - Migrations-Pfad für bestehende User-Geräte mit veraltetem Stand: erste Sync-Operation überschreibt einfach lokale Stores mit Snapshot-Inhalt.
 - Mid-Sync-UI-Glitch-Suppression im Antraege-Plugin (Spinner während eines aktiven Sync-Laufs). Per IDB-Transaction-Read-Semantik und der kurzen Bulk-Insert-Dauer akzeptabel.

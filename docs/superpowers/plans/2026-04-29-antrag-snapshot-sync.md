@@ -275,6 +275,13 @@ export interface SyncResult {
 const SYNC_VERSION_KEY = (programmId: string) => `snapshot-version-${programmId}`;
 const SYNC_STORE_HASH_KEY = (programmId: string, store: SnapshotStoreName) =>
   `snapshot-store-hash-${programmId}-${store}`;
+const SYNC_LAST_CHECK_DAY_KEY = (programmId: string) => `snapshot-last-check-day-${programmId}`;
+
+/** YYYY-MM-DD im lokalen Zeit-Sinne (User-orientiert). */
+function todayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 const STORE_FILES: Record<SnapshotStoreName, string> = {
   antraege: 'antraege.jsonl',
@@ -316,6 +323,16 @@ export async function syncProgrammSnapshot(
   } catch {
     return { synced: false };
   }
+
+  // 0. Day-Throttle: maximal 1x pro Kalendertag pruefen
+  const today = todayKey();
+  const lastCheckDay = await idb.get<string>(SYNC_LAST_CHECK_DAY_KEY(programmId));
+  if (lastCheckDay === today) {
+    return { synced: false };
+  }
+  // Marker SOFORT setzen — auch wenn der Sync danach faillt oder skips, soll
+  // der Client an diesem Tag nicht weiter pruefen.
+  await idb.set(SYNC_LAST_CHECK_DAY_KEY(programmId), today);
 
   // 1. Manifest lesen
   onProgress?.({ phase: 'manifest', storesDone: 0, storesTotal: 0 });
@@ -370,6 +387,7 @@ export async function syncProgrammSnapshot(
   }
 
   await idb.set(SYNC_VERSION_KEY(programmId), manifest.snapshotVersion);
+  // SYNC_LAST_CHECK_DAY_KEY wurde bereits oben gesetzt
   onProgress?.({ phase: 'done', storesDone, storesTotal: storeKeys.length });
 
   return {
