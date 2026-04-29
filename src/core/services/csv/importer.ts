@@ -1,6 +1,9 @@
 import type { IDBStore } from '../storage/idb-store';
 import { logAudit } from '../infrastructure/audit-log';
 import { acquireBuildLock, forceLock, releaseLock } from '../infrastructure/build-lock';
+import { getSmbHandle } from '../infrastructure/smb-handle';
+import { readKuratorName } from '../infrastructure/kurator-config';
+import { writeProgrammSnapshot } from './snapshot';
 import { BUILD_LOCK_STUFE, MAX_SKIP_WARNINGS } from './constants';
 import { canonicalRowHash } from './hash';
 import { sha1Hex } from './sha1';
@@ -199,6 +202,25 @@ export async function importCsvSource(
     // Nach Merge: Antrag-Counts pro Unterprogramm neu berechnen (für Admin-Panel)
     if (schema.is_master) {
       await recomputeAntragCounts(idb, schema.programm_id);
+    }
+
+    // Snapshot ins Daten-Share — best-effort, blockiert den Import-Result nicht
+    try {
+      const handle = await getSmbHandle(idb);
+      if (handle) {
+        const kuratorName = (await readKuratorName(idb).catch(() => null)) ?? 'unbekannt';
+        await writeProgrammSnapshot(idb, handle, schema.programm_id, kuratorName);
+        await logAudit(idb, {
+          action: 'snapshot_written',
+          details: { programmId: schema.programm_id, schemaId },
+        });
+      }
+    } catch (e) {
+      await logAudit(idb, {
+        action: 'snapshot_failed',
+        details: { programmId: schema.programm_id, schemaId, error: (e as Error).message },
+      }).catch(() => undefined);
+      console.warn('[csv-import] Snapshot-Write fehlgeschlagen:', e);
     }
 
     result.durationMs = Date.now() - started;
