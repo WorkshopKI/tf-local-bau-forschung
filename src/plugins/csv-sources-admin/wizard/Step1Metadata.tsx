@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { Upload, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +33,6 @@ const ENCODING_LABEL: Record<CsvEncoding, string> = {
  * @example computeColumnWidth('FREMDKENNZ', ['16KN021']) // ≈ 84
  * @example computeColumnWidth('x', ['Lorem ipsum dolor sit amet consectetur']) // 200
  */
-// @ts-expect-error -- wird in Task 2 (Vorschau-Auto-Fit) verwendet
 function computeColumnWidth(header: string, values: readonly string[]): number {
   const headerLen = Math.min(header.length, 24);
   const maxValLen = values.reduce(
@@ -56,6 +55,16 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showTestCorpus, setShowTestCorpus] = useState(false);
+
+  const columnWidths = useMemo<Record<string, number>>(() => {
+    if (!state.preview) return {};
+    const m: Record<string, number> = {};
+    for (const h of state.preview.headers) {
+      const samples = state.preview.rows.map(r => String(r[h] ?? ''));
+      m[h] = computeColumnWidth(h, samples);
+    }
+    return m;
+  }, [state.preview]);
 
   async function handleEncodingChange(enc: CsvEncoding): Promise<void> {
     setErr(null);
@@ -195,26 +204,41 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
             </div>
             {state.preview.headers.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="text-[11px] w-full">
+                <table className="text-[11px]" style={{ tableLayout: 'fixed' }}>
                   <thead>
                     <tr className="text-left text-[var(--tf-text-tertiary)]">
-                      {state.preview.headers.slice(0, 8).map(h => (
-                        <th key={h} className="px-1.5 py-0.5 font-medium border-b border-[var(--tf-border)] whitespace-nowrap">{h}</th>
-                      ))}
-                      {state.preview.headers.length > 8 ? (
-                        <th className="px-1.5 py-0.5 text-[var(--tf-text-tertiary)]">…+{state.preview.headers.length - 8}</th>
-                      ) : null}
+                      {state.preview.headers.map(h => {
+                        const w = columnWidths[h];
+                        return (
+                          <th
+                            key={h}
+                            title={h}
+                            style={{ width: w, minWidth: w, maxWidth: w }}
+                            className="px-1.5 py-0.5 font-medium border-b border-[var(--tf-border)] whitespace-nowrap overflow-hidden text-ellipsis"
+                          >
+                            {h}
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
-                    {state.preview.rows.slice(0, 3).map((row, i) => (
+                    {state.preview.rows.slice(0, 5).map((row, i) => (
                       <tr key={i} className="text-[var(--tf-text)]">
-                        {state.preview!.headers.slice(0, 8).map(h => (
-                          <td key={h} className="px-1.5 py-0.5 border-b border-[var(--tf-border)] whitespace-nowrap max-w-[180px] overflow-hidden text-ellipsis">
-                            {row[h] ?? ''}
-                          </td>
-                        ))}
-                        {state.preview!.headers.length > 8 ? <td /> : null}
+                        {state.preview!.headers.map(h => {
+                          const w = columnWidths[h];
+                          const v = row[h] ?? '';
+                          return (
+                            <td
+                              key={h}
+                              title={v}
+                              style={{ width: w, minWidth: w, maxWidth: w }}
+                              className="px-1.5 py-0.5 border-b border-[var(--tf-border)] whitespace-nowrap overflow-hidden text-ellipsis"
+                            >
+                              {v}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>
