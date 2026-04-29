@@ -210,10 +210,12 @@ export async function importCsvSource(
       if (handle) {
         const kuratorName = (await readKuratorName(idb).catch(() => null)) ?? 'unbekannt';
         await writeProgrammSnapshot(idb, handle, schema.programm_id, kuratorName);
+        // Audit-Write selbst defensiv — sonst landet ein erfolgreicher Snapshot
+        // mit einem fehlgeschlagenen Audit faelschlich im snapshot_failed-catch.
         await logAudit(idb, {
           action: 'snapshot_written',
           details: { programmId: schema.programm_id, schemaId },
-        });
+        }).catch(() => undefined);
       }
     } catch (e) {
       await logAudit(idb, {
