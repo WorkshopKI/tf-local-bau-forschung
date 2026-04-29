@@ -12,6 +12,13 @@ export const kiConfig = runtimeConfig.ki;
 export const dataConfig = runtimeConfig.data;
 export const brandingConfig = runtimeConfig.branding;
 export const menuLabels = runtimeConfig.menuLabels ?? {};
+/** Phase-2 Scan-Config mit sicheren Defaults. */
+export const scanConfig = runtimeConfig.scan ?? {
+  sub_roots: [],
+  file_extensions: [],
+  max_depth: 20,
+  fkz_allowed_prefixes: [],
+};
 
 export function menuLabel(key: 'antraege' | 'bauantraege' | 'dokumente', fallback: string): string {
   const v = menuLabels[key];

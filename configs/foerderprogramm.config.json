@@ -30,5 +30,11 @@
     "localLlama": { "enabled": true, "endpoint": "http://localhost:8081" },
     "openrouter": { "enabled": false, "allowedModels": [] }
   },
-  "branding": { "logoUrl": null, "primaryColor": null }
+  "branding": { "logoUrl": null, "primaryColor": null },
+  "scan": {
+    "sub_roots": [],
+    "file_extensions": [".pdf", ".docx"],
+    "max_depth": 20,
+    "fkz_allowed_prefixes": ["16EP", "16KN", "16DS", "16DL"]
+  }
 }

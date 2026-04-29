@@ -111,5 +111,21 @@
   "branding": {
     "logoUrl": null,
     "primaryColor": null
+  },
+
+  // Phase-2 Dokumentenscan-Konfiguration. Wirkt nur, wenn features.dokumentenscan = true.
+  // Ist features.dokumentenscan = true, ist scan.file_extensions Pflicht (sonst Build-Abbruch).
+  "scan": {
+    // Relative Unterprogramm-Roots im dokumentenquelle-Handle.
+    // Leer = der gesamte Handle ist ein einziger Root.
+    "sub_roots": [],
+    // Erlaubte Datei-Endungen, lowercase mit Punkt.
+    "file_extensions": [".pdf", ".docx"],
+    // Maximale Rekursionstiefe für den Walker (Schutz vor Symlink-Loops).
+    "max_depth": 20,
+    // Erlaubte FKZ-Präfixe — Format: 2 Ziffern + 2 Großbuchstaben.
+    // Wird zur Build-Time strukturell geprüft. Die Inhalts-Prüfung (alle FKZs
+    // in der Antrags-CSV müssen erlaubtes Präfix haben) findet beim CSV-Import statt.
+    "fkz_allowed_prefixes": ["16EP", "16KN", "16DS", "16DL"]
   }
 }

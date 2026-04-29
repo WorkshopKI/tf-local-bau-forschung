@@ -12,13 +12,23 @@ export const CSV_STORES = {
 
 export const FILTER_STORE_NAME = 'filter_definitionen';
 
-export type CsvStoreName = (typeof CSV_STORES)[keyof typeof CSV_STORES] | typeof FILTER_STORE_NAME;
+/** Phase-2-Stores für Triage / Matcher / Skip-List. */
+export const PHASE2_STORES = {
+  SKIP_LIST: 'phase2_skip_list',
+  PENDING_ANTRAEGE: 'phase2_pending_antraege',
+  SCAN_MANIFEST: 'phase2_scan_manifest',
+} as const;
+
+export type CsvStoreName =
+  | (typeof CSV_STORES)[keyof typeof CSV_STORES]
+  | typeof FILTER_STORE_NAME
+  | (typeof PHASE2_STORES)[keyof typeof PHASE2_STORES];
 
 export class IDBStore {
   private db: IDBDatabase | null = null;
   private readonly dbName = 'teamflow';
   private readonly storeName = 'kv';
-  private readonly version = 4;
+  private readonly version = 5;
 
   async open(): Promise<void> {
     if (this.db) return;
@@ -80,6 +90,26 @@ export class IDBStore {
           if (!db.objectStoreNames.contains(CSV_STORES.VERBUND_HISTORIE)) {
             const s = db.createObjectStore(CSV_STORES.VERBUND_HISTORIE, { keyPath: 'id' });
             s.createIndex('verbund_id', 'verbund_id', { unique: false });
+          }
+        }
+        if (oldVersion < 5) {
+          if (!db.objectStoreNames.contains(PHASE2_STORES.SKIP_LIST)) {
+            // KeyPath = filename (DocID ist global eindeutig in der DMS-Welt).
+            // antrag_id liegt als Sekundär-Feld in der Row + Index, weil es bei
+            // orphan-irrelevant null sein darf — IDB-Composite-Keys vertragen
+            // kein null.
+            const s = db.createObjectStore(PHASE2_STORES.SKIP_LIST, { keyPath: 'filename' });
+            s.createIndex('antrag_id', 'antrag_id', { unique: false });
+            s.createIndex('classifier_version', 'classifier_version', { unique: false });
+          }
+          if (!db.objectStoreNames.contains(PHASE2_STORES.PENDING_ANTRAEGE)) {
+            const s = db.createObjectStore(PHASE2_STORES.PENDING_ANTRAEGE, { keyPath: 'id' });
+            s.createIndex('akronym', 'akronym', { unique: false });
+          }
+          if (!db.objectStoreNames.contains(PHASE2_STORES.SCAN_MANIFEST)) {
+            const s = db.createObjectStore(PHASE2_STORES.SCAN_MANIFEST, { keyPath: 'filename' });
+            s.createIndex('matched_antrag_id', 'matched_antrag_id', { unique: false });
+            s.createIndex('triage_state', 'triage_state', { unique: false });
           }
         }
       };

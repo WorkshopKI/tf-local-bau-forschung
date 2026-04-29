@@ -201,6 +201,45 @@ Kurator-Wizard unter `src/plugins/csv-sources-admin/wizard/` für CSV-Source-Reg
 - `FilterDefinition.display_group` wird beim Erstellen eines Filters aus dem Schema vorgetragen (UI-Gruppierung im Filter-Panel in Folge-Patch).
 - Test-Assets: `scripts/generate-test-label-xlsx.mjs` erzeugt 4 XLSX-Varianten (2/3/4 Zeilen + vertikal-merged "Branche") unter `public/test-korpus/bauforschung-v2/`. Läuft als prebuild-Hook.
 
+### Phase-2 Triage- & Matcher-Baustein (`src/phase2/`)
+
+Eingangsfilter für die DMS-Dokumenten-Pipeline. Pro Datei wird kaskadiert entschieden: relevant?, doc_type?, zugehöriger Antrag?
+
+**Kaskade (`src/phase2/triage/triage.ts` als Orchestrator):**
+- **Stage 0 — DMS-CSV-Lookup** (`stage0-dms-lookup.ts`): DocID-Lookup in der gefilterten DMS-CSV (`_intern/dms-index-filtered.csv`), erwartet ~60 % Treffer ohne Datei-Zugriff. Aktenplanzuordnung → doc_type via Mapping in `dms-csv/aktenplan-mapping.ts` (Defaults + Override-JSON unter `_intern/aktenplan-mapping.json`).
+- **Stage 1 — Strukturell** (`stage1-structural.ts`): Format-Check, PDF-Searchability-Probe, Sonderregel `Gutachten + DOCX → irrelevant` (Arbeitsversion). pdfjs ist lazy importiert — Tests in Node nutzen den `legacy`-Build via vitest-Alias.
+- **Stage 2 — Keywords** (`stage2-keywords.ts` + `keywords.ts`): erste ~500 Tokens via mammoth/pdfjs, Keyword-Marker pro doc_type, FKZ-Extraktion (strict + tolerant), Akronym-Hint. Sonderregel: `korrespondenz`-Top-Match wird auf `nachforderung` verfeinert wenn beide Keywords matchen.
+- **Stage 3 — Nemotron** (`stage3-nemotron.ts`): nur für ambige Fälle, ruft `DirectLLMTransport.submitMessage()` mit JSON-only-Schema. `enable_thinking: false`.
+
+**Matcher** (`matcher/`): nutzt **bestehende** IDB-Stores `antraege` + `akronym_index` — kein eigener FKZ/Akronym-Lookup. FKZ-Treffer im Antrags-Store → `confidence=high`. Akronym-Treffer eindeutig → `medium`, mehrdeutig → `review` mit `candidate_antrag_ids`. Konflikt FKZ vs. Akronym → `flag_conflict`.
+
+**Skip-Liste** (`skip-list/`): IDB-Store `phase2_skip_list`, gekeyt auf `filename` (DocID ist global eindeutig im DMS). `classifier_version` als Reset-Mechanik — bei Klassifikator-Update: zentrale Konstante `CLASSIFIER_VERSION` in `triage.ts` erhöhen, dann `resetSkipListByVersion()`.
+
+**Pending-Antrag-Bucket** (`pending-antrag/holding-bucket.ts`): IDB-Store `phase2_pending_antraege`, Index auf `akronym`. Projektbeschreibungen ohne Match landen hier statt in `orphan`. Re-Match wird automatisch getriggert:
+- Nach erfolgreichem CSV-Import (`importer.ts` → `rematchOnSnapshotReload()` Best-Effort)
+- Nach erfolgreichem Snapshot-Sync wenn `reloadedStores` `akronym_index`/`antraege` enthält (App.tsx-Sync-Bootstrap)
+
+**Scanner** (`scanner/scan-roots.ts`): rekursiver Walker über den `dokumentenquelle`-Handle (`smb-handle.ts`). Iteriert `runtimeConfig.scan.sub_roots` als Top-Level-Roots (1–10 Förderunterprogramm-Verzeichnisse), steigt dann in beliebig tiefe Datums-Unterordner ab (Limit `scan.max_depth`, Default 20). Filter `scan.file_extensions`. Yield zwischen Verzeichnissen für UI-Responsiveness.
+
+**Manifest-Store** (`scanner/manifest-store.ts`): IDB-Store `phase2_scan_manifest`, gekeyt auf `filename`, Indexe `matched_antrag_id` + `triage_state`. JSONL-Spiegelung auf den Daten-Share unter `SCAN_MANIFEST_PATH` (`_intern/scan-manifest.json`) ist vorbereitet, der Caller entscheidet wann gespiegelt wird.
+
+**OCR-Side-Car** (`ocr/side-car.ts`): nur Stub-Interface `ocrFirstPage(pdfBlob)`, wirft `OcrNotImplementedError` — echte Tesseract-Side-Car-Anbindung kommt in einem Folge-Patch.
+
+**Build-Time-Config** (`runtimeConfig.scan`): neue Felder in `scripts/config-schema.mjs` und `src/config/runtime-config.ts`:
+- `scan.sub_roots: string[]` — relative Roots im dokumentenquelle-Handle
+- `scan.file_extensions: string[]` — Pflicht wenn `features.dokumentenscan = true`
+- `scan.max_depth: number`
+- `scan.fkz_allowed_prefixes: string[]` — Format `^\d{2}[A-Z]{2}$` (strukturell geprüft)
+`validateConfig()` prüft strukturell + erzwingt non-empty `file_extensions` wenn dokumentenscan an.
+
+**Vorfilter-Script** (`scripts/filter-dms-csv.mjs`): Streaming-Filter der 5M-Zeilen-DMS-CSV → ~250k Zeilen via FKZ-Präfix-Regex. Ausgabe mit Zusatzspalte `extracted_fkz`. Encoding-Detection (UTF-8 vs. cp1252) anhand der ersten 4 KB. Summary mit `rows_total`/`rows_kept`/`per_prefix`/`top_aktenplan`/`top_von`. Aufruf: `node scripts/filter-dms-csv.mjs input.csv output.csv [--prefixes 16EP,16KN,16DS,16DL]`.
+
+**FKZ-Regex-Detail**: `\b` matcht NICHT zwischen `\w` und `_`, aber FKZs sind im DMS-Export typischerweise von `_` umrahmt. Stattdessen: `(16EP|16KN|...)\d{6}(?!\d)` (nicht von einer Ziffer gefolgt). Gleiches Muster im `filter-dms-csv.mjs` und `fkz-extractor.ts`.
+
+**Eval-Suite** (`src/phase2/__tests__/`): Vitest-basiert (Test-Runner als Devdependency neu, `npm run test:phase2`). Schwelle: ≥ 9/11 korrekt klassifiziert auf den Beispiel-Dokumenten in `docs/phase-2/triage-beispiele/`. Vitest-Setup polyfillt DOMMatrix/Path2D/ImageData für pdfjs-Module-Init und aliased `pdfjs-dist` auf den Legacy-Build (Node-kompatibel).
+
+**Dev-Plugin** (`src/plugins/dev-infrastructure-test/panels/TriagePanel.tsx`): neues Panel "5 · Phase-2 Triage" — Buttons "Index laden", "Datei wählen + Triage", "Skip-Liste", "Pending". Output als JSON-Block für End-to-End-Validierung.
+
 ### Referenz-App
 In `_reference/lernapp/` liegt eine geklonte Referenz-Implementierung (KI-Prompting-Tutor). Wird NICHT gebaut oder deployed — dient ausschließlich als Code-Referenz für die Portierung von Features (Feedback-System, Onboarding-Tour). Vite ignoriert diesen Ordner (`server.watch.ignored`).
 
@@ -216,9 +255,12 @@ Alle geteilten Daten und Config-Dateien liegen im Daten-Share (separater SMB-Sha
 - `_intern/build-lock.json` — Phase 1a: Aktiver Build-Lock (Heartbeat)
 - `_intern/kurator-config.enc` — verschlüsselte Kurator-Credentials
 - `_intern/kurator-name-*.txt` — rechnerspezifische Kurator-Kennung (Fingerprint-suffixed)
+- `_intern/scan-manifest.json` — Phase 2: JSONL-Spiegel des `phase2_scan_manifest`-IDB-Stores (optional, Caller-getriggert)
+- `_intern/dms-index-filtered.csv` — Phase 2: gefilterte DMS-CSV (Output von `scripts/filter-dms-csv.mjs`)
+- `_intern/aktenplan-mapping.json` — Phase 2: optionales Override des Aktenplanzuordnung→doc_type Mappings
 - `backups/YYYY-MM-DD/` — Phase 1a: Wöchentliche Snapshots (Rolling 4 Gen., Daten-Share-Root)
 - `README.txt` — Orientierungs-Text (von der App beim Setup angelegt)
-- Zukünftig: abteilungsspezifische Konfigurationen, separater Dokumentenquelle-Handle (`smb-handles.dokumentenquelle`) für Scan-Source in Phase 2
+- Phase 2: separater Dokumentenquelle-Handle (`smb-handles.dokumentenquelle`) für die Scan-Source — wird via `pickAndStoreDokumentenquelleHandle()` gesetzt; Scanner traversiert von dort über `runtimeConfig.scan.sub_roots`
 
 ## Project Structure
 
@@ -328,6 +370,18 @@ src/
 │   │   └── version.ts
 │   └── utils/
 │       └── status-mappings.ts   <- Zentrale Status-Labels + Badge-Variants
+├── phase2/                       <- Phase-2 Triage- & Matcher-Baustein (Eingangsfilter vor Volltext-Pipeline)
+│   ├── types.ts                     <- DmsEntry, ManifestEntry, SkipListEntry, TriageResult, MatchResult, PendingAntragEntry
+│   ├── index.ts                     <- Barrel-Export
+│   ├── ui-tokens.ts                 <- CONFIDENCE_BADGE_CLASSES + TRIAGE_SOURCE_BADGE_CLASSES (für UI-Folge-Patch)
+│   ├── dms-csv/                     <- DMS-CSV-Loader + Aktenplan-Mapping
+│   ├── scanner/                     <- Rekursiver dokumentenquelle-Walker + Manifest-Store
+│   ├── triage/                      <- Stage 0 (DMS-Lookup) → 1 (strukturell) → 2 (Keywords) → 3 (Nemotron) + Orchestrator
+│   ├── matcher/                     <- FKZ-Extraktor (strict + tolerant) + Akronym-Matcher + Match-Orchestrator
+│   ├── skip-list/                   <- IDB-Store + Versions-Reset
+│   ├── pending-antrag/              <- Holding-Bucket für Projektbeschreibungen vor CSV-Import
+│   ├── ocr/                         <- Side-Car-Stub (echte Implementation in Folge-Patch)
+│   └── __tests__/                   <- Vitest: dms-csv-parser / aktenplan / fkz / keywords / stage0 / filter-script / triage.eval
 ├── plugins/
 │   # Nutzer-Plugins (category 'workflow' / 'tools')
 │   ├── home/                    <- Dashboard (id='home')
@@ -354,7 +408,7 @@ src/
 │   │   │   └── FeedbackConfigPanel.tsx
 │   │   └── index.ts
 │   # Dev-Plugins (nur bei aktiven Dev-Flags sichtbar)
-│   ├── dev-infrastructure-test/ <- DEV-Test-Harness (id='dev-infrastructure-test', 4 Panels)
+│   ├── dev-infrastructure-test/ <- DEV-Test-Harness (id='dev-infrastructure-test', 5 Panels inkl. Phase-2-Triage)
 │   │   ├── DevPanel.tsx
 │   │   ├── panels/
 │   │   └── index.ts

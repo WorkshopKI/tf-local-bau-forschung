@@ -32,5 +32,11 @@
     "localLlama": { "enabled": false, "endpoint": "http://localhost:8081" },
     "openrouter": { "enabled": true, "allowedModels": ["anthropic/claude-3-haiku"] }
   },
-  "branding": { "logoUrl": null, "primaryColor": null }
+  "branding": { "logoUrl": null, "primaryColor": null },
+  "scan": {
+    "sub_roots": [],
+    "file_extensions": [],
+    "max_depth": 20,
+    "fkz_allowed_prefixes": []
+  }
 }

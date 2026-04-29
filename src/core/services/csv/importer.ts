@@ -239,6 +239,16 @@ export async function importCsvSource(
         activeUnterprogramme: activeUpCodes ? Array.from(activeUpCodes).sort() : null,
       },
     });
+
+    // Phase 2: Pending-Antrag-Bucket nach Import re-matchen, damit
+    // Projektbeschreibungen, die vor dem Antrag eingegangen sind, jetzt
+    // automatisch zugeordnet werden. Best-effort, blockiert das Result nicht.
+    try {
+      const { rematchOnSnapshotReload } = await import('../../../phase2');
+      await rematchOnSnapshotReload(idb, schema.programm_id);
+    } catch (e) {
+      console.warn('[csv-import] phase2 pending re-match fehlgeschlagen:', e);
+    }
     return result;
   } finally {
     await releaseLock(idb).catch(() => undefined);

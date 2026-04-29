@@ -32,6 +32,10 @@ export const KURATOR_CONFIG_PATH = '_intern/kurator-config.enc';
 export const BUILD_LOCK_PATH = '_intern/build-lock.json';
 export const HEARTBEAT_PROBE_PATH = '_intern/heartbeat-probe';
 export const SCAN_MANIFEST_PATH = '_intern/scan-manifest.json';
+/** Phase 2: gefilterte DMS-CSV (Output von scripts/filter-dms-csv.mjs). */
+export const DMS_INDEX_FILTERED_PATH = '_intern/dms-index-filtered.csv';
+/** Phase 2: editierbares Override-Mapping Aktenplanzuordnung → doc_type. */
+export const AKTENPLAN_MAPPING_PATH = '_intern/aktenplan-mapping.json';
 export const README_PATH = 'README.txt';
 
 /** @deprecated Legacy-Pfade vor v1.9 — nur für Read-Fallback + Migration-Detection. */

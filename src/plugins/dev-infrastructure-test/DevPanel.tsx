@@ -6,6 +6,7 @@ import { SmbPanel } from './panels/SmbPanel';
 import { AdminPanel } from './panels/AdminPanel';
 import { AtomicPanel } from './panels/AtomicPanel';
 import { LockPanel } from './panels/LockPanel';
+import { TriagePanel } from './panels/TriagePanel';
 import { FixturesPanel } from './panels/FixturesPanel';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 
@@ -101,12 +102,19 @@ export function DevPanel(): React.ReactElement {
             <div className="mb-3 text-[13px] font-medium text-[var(--tf-text)]">4 · Build-Lock</div>
             <LockPanel />
           </section>
+          <section
+            className="rounded-xl p-4 bg-[var(--tf-bg)] xl:col-span-4 lg:col-span-2"
+            style={{ border: '0.5px solid var(--tf-border)' }}
+          >
+            <div className="mb-3 text-[13px] font-medium text-[var(--tf-text)]">5 · Phase-2 Triage</div>
+            <TriagePanel />
+          </section>
           {__TEAMFLOW_DEV_FIXTURES__ && (
             <section
               className="rounded-xl p-4 bg-[var(--tf-bg)] xl:col-span-4 lg:col-span-2"
               style={{ border: '0.5px solid var(--tf-border)' }}
             >
-              <div className="mb-3 text-[13px] font-medium text-[var(--tf-text)]">5 · Fixtures &amp; Aktionen</div>
+              <div className="mb-3 text-[13px] font-medium text-[var(--tf-text)]">6 · Fixtures &amp; Aktionen</div>
               <FixturesPanel />
             </section>
           )}

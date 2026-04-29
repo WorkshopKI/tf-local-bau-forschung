@@ -19,7 +19,10 @@
     "build:demo": "node scripts/build-with-config.mjs --config configs/demo.config.json",
     "build:foerderprogramm": "node scripts/build-with-config.mjs --config configs/foerderprogramm.config.json",
     "config-ui": "node scripts/serve-config-ui.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --build --force",
+    "test": "vitest run",
+    "test:phase2": "vitest run src/phase2"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.0",
@@ -63,6 +66,7 @@
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
-    "vite-plugin-singlefile": "^2.3.2"
+    "vite-plugin-singlefile": "^2.3.2",
+    "vitest": "^4.1.5"
   }
 }

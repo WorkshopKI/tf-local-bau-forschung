@@ -61,6 +61,17 @@ export interface TeamflowBranding {
   primaryColor: string | null;
 }
 
+export interface TeamflowScanConfig {
+  /** Relative Unterprogramm-Roots im dokumentenquelle-Handle. Leer = ganzer Handle. */
+  sub_roots: string[];
+  /** Erlaubte Datei-Endungen, lowercase mit Punkt (z.B. '.pdf'). */
+  file_extensions: string[];
+  /** Maximale Rekursionstiefe für den Walker. */
+  max_depth: number;
+  /** Erlaubte FKZ-Präfixe (Format: 2 Ziffern + 2 Großbuchstaben). */
+  fkz_allowed_prefixes: string[];
+}
+
 export interface TeamflowConfig {
   configVersion: number;
   variant: 'development' | 'demo' | 'production' | 'custom';
@@ -70,6 +81,8 @@ export interface TeamflowConfig {
   menuLabels: TeamflowMenuLabels;
   ki: TeamflowKiConfig;
   branding: TeamflowBranding;
+  /** Phase 2 — optional, default-leere Werte werden vom Build-Layer gesetzt. */
+  scan?: TeamflowScanConfig;
   dev?: TeamflowDevConfig;
 }
 

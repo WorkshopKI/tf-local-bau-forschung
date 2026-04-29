@@ -18,6 +18,7 @@ import { checkQuarterReset, loadFeedbackConfig } from '@/core/services/feedback'
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { listProgramme } from '@/core/services/csv';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
+import { rematchOnSnapshotReload } from '@/phase2';
 import { runtimeConfig } from '@/config/runtime-config';
 import { isDemoDataBundled, dataConfig } from '@/config/feature-flags';
 import { seedTestData } from '@/core/services/seed/seed-data';
@@ -276,6 +277,15 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
             syncToastTimerRef.current = null;
             if (!cancelled) setSyncToast(null);
           }, 6000);
+          // Phase-2 Pending-Antrag Re-Match: wenn akronym_index oder antraege
+          // neu geladen wurden, ist der Holding-Bucket evtl. abräumbar.
+          const reloaded = 'reloadedStores' in r ? (r.reloadedStores ?? []) : [];
+          if (reloaded.includes('akronym_index') || reloaded.includes('antraege')) {
+            await rematchOnSnapshotReload(storage.idb, p.id).catch(err => {
+              console.warn(`[phase2/pending-rematch] ${p.id} fehlgeschlagen`, err);
+              return { resolved: 0, remaining: 0 };
+            });
+          }
         }
       }
     })();

@@ -69,6 +69,14 @@ export const DEFAULT_CONFIG = {
     logoUrl: null,
     primaryColor: null,
   },
+
+  // Phase 2 — Scan-Konfiguration. Wirkt nur, wenn features.dokumentenscan = true.
+  scan: {
+    sub_roots: [],            // relative Unterprogramm-Roots im dokumentenquelle-Handle
+    file_extensions: [],      // z.B. ['.pdf', '.docx'] — Pflicht wenn dokumentenscan aktiv
+    max_depth: 20,
+    fkz_allowed_prefixes: [], // z.B. ['16EP', '16KN', '16DS', '16DL']
+  },
 };
 
 /**
@@ -254,6 +262,45 @@ export function validateConfig(config) {
     warnings.push(
       'Feedback-System aus, Kurator-Menüs aber an: Feedback-Verwaltung/-Board im Kurator-UI wird nicht sichtbar sein',
     );
+  }
+
+  // Phase-2-Scan-Config strukturell prüfen
+  const scan = config.scan ?? null;
+  if (scan !== null) {
+    if (typeof scan !== 'object' || Array.isArray(scan)) {
+      errors.push('scan muss Objekt oder weggelassen sein');
+    } else {
+      if (scan.sub_roots != null && (!Array.isArray(scan.sub_roots) || scan.sub_roots.some(s => typeof s !== 'string'))) {
+        errors.push('scan.sub_roots muss string[] oder weggelassen sein');
+      }
+      if (scan.file_extensions != null && (!Array.isArray(scan.file_extensions) || scan.file_extensions.some(s => typeof s !== 'string'))) {
+        errors.push('scan.file_extensions muss string[] oder weggelassen sein');
+      }
+      if (scan.max_depth != null && (typeof scan.max_depth !== 'number' || scan.max_depth <= 0 || scan.max_depth > 50)) {
+        errors.push('scan.max_depth muss positive Zahl <= 50 oder weggelassen sein');
+      }
+      if (scan.fkz_allowed_prefixes != null) {
+        if (!Array.isArray(scan.fkz_allowed_prefixes)) {
+          errors.push('scan.fkz_allowed_prefixes muss string[] oder weggelassen sein');
+        } else {
+          for (const p of scan.fkz_allowed_prefixes) {
+            if (typeof p !== 'string' || !/^\d{2}[A-Z]{2}$/.test(p)) {
+              errors.push(`scan.fkz_allowed_prefixes: "${p}" ist kein gültiges Präfix (Format: 2 Ziffern + 2 Großbuchstaben, z.B. "16KN")`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Wenn dokumentenscan aktiv ist, müssen file_extensions gesetzt sein.
+  if (features.dokumentenscan === true) {
+    const ext = scan?.file_extensions;
+    if (!Array.isArray(ext) || ext.length === 0) {
+      errors.push(
+        'features.dokumentenscan = true erfordert scan.file_extensions als nicht-leeres Array (z.B. [".pdf", ".docx"]).',
+      );
+    }
   }
 
   return { errors, warnings, valid: errors.length === 0 };
