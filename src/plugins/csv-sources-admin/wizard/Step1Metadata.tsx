@@ -33,7 +33,7 @@ const ENCODING_LABEL: Record<CsvEncoding, string> = {
  * @example computeColumnWidth('FREMDKENNZ', ['16KN021']) // ≈ 84
  * @example computeColumnWidth('x', ['Lorem ipsum dolor sit amet consectetur']) // 200
  */
-// @ts-ignore -- wird in Task 2 (Vorschau-Auto-Fit) verwendet
+// @ts-expect-error -- wird in Task 2 (Vorschau-Auto-Fit) verwendet
 function computeColumnWidth(header: string, values: readonly string[]): number {
   const headerLen = Math.min(header.length, 24);
   const maxValLen = values.reduce(
