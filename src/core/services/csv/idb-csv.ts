@@ -225,6 +225,74 @@ export async function listVerbuendeByProgramm(idb: IDBStore, programmId: string)
   return (await req(idx.getAll(programmId))) as Verbund[];
 }
 
+/** Alias for listVerbuendeByProgramm — matches snapshot import naming. */
+export async function listVerbundsByProgramm(idb: IDBStore, programmId: string): Promise<Verbund[]> {
+  return listVerbuendeByProgramm(idb, programmId);
+}
+
+/**
+ * Alle AntragHistorie-Eintraege fuer ein Programm.
+ * ANTRAG_HISTORIE hat keinen programm_id-Index — getAll + In-Memory-Filter
+ * nach bekannten Aktenzeichen. Akzeptabler Overhead fuer Snapshot-Write
+ * (einmalig pro Re-Import).
+ */
+export async function listAntragHistorieByProgramm(
+  idb: IDBStore,
+  programmId: string,
+): Promise<AntragHistorieEntry[]> {
+  const antraege = await listAntraegeByProgramm(idb, programmId);
+  const azSet = new Set(antraege.map(a => a.aktenzeichen));
+  const t = tx(idb, CSV_STORES.ANTRAG_HISTORIE, 'readonly');
+  const all = (await req(t.objectStore(CSV_STORES.ANTRAG_HISTORIE).getAll())) as AntragHistorieEntry[];
+  return all.filter(e => azSet.has(e.aktenzeichen));
+}
+
+/**
+ * Alle VerbundHistorie-Eintraege fuer ein Programm.
+ * VERBUND_HISTORIE hat keinen programm_id-Index — getAll + In-Memory-Filter
+ * nach Verbund-IDs des Programms.
+ */
+export async function listVerbundHistorieByProgramm(
+  idb: IDBStore,
+  programmId: string,
+): Promise<VerbundHistorieEntry[]> {
+  const verbuende = await listVerbuendeByProgramm(idb, programmId);
+  const verbundIdSet = new Set(verbuende.map(v => v.verbund_id));
+  const t = tx(idb, CSV_STORES.VERBUND_HISTORIE, 'readonly');
+  const all = (await req(t.objectStore(CSV_STORES.VERBUND_HISTORIE).getAll())) as VerbundHistorieEntry[];
+  return all.filter(e => verbundIdSet.has(e.verbund_id));
+}
+
+/**
+ * Alle AkronymIndex-Eintraege fuer ein Programm.
+ * AKRONYM_INDEX hat keinen separaten programm_id-Index (Composite-Key
+ * [programm_id, akronym]) — getAll + In-Memory-Filter.
+ */
+export async function listAkronymIndexByProgramm(
+  idb: IDBStore,
+  programmId: string,
+): Promise<AkronymIndexEntry[]> {
+  const t = tx(idb, CSV_STORES.AKRONYM_INDEX, 'readonly');
+  const all = (await req(t.objectStore(CSV_STORES.AKRONYM_INDEX).getAll())) as AkronymIndexEntry[];
+  return all.filter(e => e.programm_id === programmId);
+}
+
+/**
+ * Alle CsvRowHash-Eintraege fuer eine Liste von Schema-IDs.
+ * Ruft getRowHashesForSchema pro Schema auf und konkateniert die Ergebnisse.
+ */
+export async function listRowHashesBySchemas(
+  idb: IDBStore,
+  schemaIds: string[],
+): Promise<CsvRowHash[]> {
+  const results: CsvRowHash[] = [];
+  for (const schemaId of schemaIds) {
+    const hashes = await getRowHashesForSchema(idb, schemaId);
+    results.push(...hashes);
+  }
+  return results;
+}
+
 // ---------- Akronym-Index ----------
 
 export async function putAkronymEntry(idb: IDBStore, e: AkronymIndexEntry): Promise<void> {
