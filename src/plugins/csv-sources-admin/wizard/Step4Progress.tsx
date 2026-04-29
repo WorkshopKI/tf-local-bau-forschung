@@ -1,5 +1,7 @@
+import { useEffect, useRef, useState } from 'react';
 import type { ImportResult } from '@/core/services/csv/types';
 import type { ImportProgress } from '@/core/services/csv';
+import { computeEta } from '@/core/utils/eta';
 
 interface Step4Props {
   progress: ImportProgress | null;
@@ -8,6 +10,40 @@ interface Step4Props {
 }
 
 export function Step4Progress({ progress, result, error }: Step4Props): React.ReactElement {
+  const phaseRef = useRef<string | null>(null);
+  const phaseStartRef = useRef<number>(Date.now());
+  const phaseStartDoneRef = useRef<number>(0);
+  const [elapsed, setElapsed] = useState(0);
+
+  // Phase-change detection: reset refs and elapsed.
+  useEffect(() => {
+    if (!progress) {
+      phaseRef.current = null;
+      return;
+    }
+    if (progress.phase !== phaseRef.current) {
+      phaseRef.current = progress.phase;
+      phaseStartRef.current = Date.now();
+      phaseStartDoneRef.current = progress.done;
+      setElapsed(0);
+    }
+  }, [progress]);
+
+  // Tick elapsed while a phase is running.
+  useEffect(() => {
+    if (!progress || result || error) return;
+    const id = setInterval(() => {
+      setElapsed(Date.now() - phaseStartRef.current);
+    }, 500);
+    return () => clearInterval(id);
+  }, [progress, result, error]);
+
+  const doneSincePhase = (progress?.done ?? 0) - phaseStartDoneRef.current;
+  const totalInPhase = (progress?.total ?? 0) - phaseStartDoneRef.current;
+  const eta = progress
+    ? computeEta(elapsed, doneSincePhase, totalInPhase, { minSamples: 50, minElapsedMs: 1500 })
+    : null;
+
   return (
     <div className="flex flex-col gap-4 text-[13px]">
       {error ? (
@@ -53,6 +89,9 @@ export function Step4Progress({ progress, result, error }: Step4Props): React.Re
               className="h-full bg-[var(--tf-text)] transition-all"
               style={{ width: progress.total > 0 ? `${(progress.done / progress.total) * 100}%` : '10%' }}
             />
+          </div>
+          <div className="flex justify-between text-[11px] h-4 mt-1">
+            <span className="text-[var(--tf-text-tertiary)]">{eta ?? ' '}</span>
           </div>
         </div>
       ) : (
