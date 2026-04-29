@@ -74,7 +74,6 @@ export async function syncProgrammSnapshot(
   if (lastCheckDay === today) {
     return { synced: false };
   }
-  await idb.set(SYNC_LAST_CHECK_DAY_KEY(programmId), today);
 
   // Verzeichnisstruktur navigieren — bei jedem Step kann das Programm-Snapshot fehlen
   let programmDir: FileSystemDirectoryHandle;
@@ -84,6 +83,8 @@ export async function syncProgrammSnapshot(
     const snapshotDir = await antraegeDir.getDirectoryHandle('snapshot');
     programmDir = await snapshotDir.getDirectoryHandle(programmId);
   } catch {
+    // Verzeichnis nicht reachable — keinen Marker setzen, naechster App-Start
+    // versucht es erneut (transient outage darf nicht den ganzen Tag blockieren).
     return { synced: false };
   }
 
@@ -97,6 +98,10 @@ export async function syncProgrammSnapshot(
   } catch {
     return { synced: false };
   }
+
+  // Manifest erfolgreich gelesen — JETZT den Day-Marker setzen. Damit blockiert
+  // ein transient SMB-Outage den User nicht fuer den ganzen Tag.
+  await idb.set(SYNC_LAST_CHECK_DAY_KEY(programmId), today);
 
   // Idempotenz-Check
   const lastSyncedVersion = await idb.get<string>(SYNC_VERSION_KEY(programmId));
@@ -128,10 +133,17 @@ export async function syncProgrammSnapshot(
       storesDone++;
       continue;
     }
-    const items = jsonl
-      .split('\n')
-      .filter(line => line.trim().length > 0)
-      .map(line => JSON.parse(line) as unknown);
+    let items: unknown[];
+    try {
+      items = jsonl
+        .split('\n')
+        .filter(line => line.trim().length > 0)
+        .map(line => JSON.parse(line) as unknown);
+    } catch (parseErr) {
+      console.warn(`[snapshot-sync] ${storeKey}: malformed JSONL, skip store`, parseErr);
+      storesDone++;
+      continue;
+    }
 
     await replaceStore(idb, STORE_TARGETS[storeKey], items);
     await idb.set(SYNC_STORE_HASH_KEY(programmId, storeKey), remoteHash);
