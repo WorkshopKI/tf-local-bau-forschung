@@ -4,6 +4,7 @@ import { Button, Badge, ProgressBar } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { IndexStatus } from '@/core/services/search/batch-indexer';
 import { seedTestData, clearSeedData } from '@/core/services/seed/seed-data';
+import { computeEta, formatDuration } from '@/core/utils/eta';
 
 export function SeedContent({ storage, seeded, seeding, seedProgress, setSeeded, setSeeding, setSeedProgress, setDocCount }: {
   storage: ReturnType<typeof useStorage>; seeded: boolean; seeding: boolean; seedProgress: string;
@@ -49,12 +50,6 @@ export function Row({ label, value }: { label: string; value: string }): React.R
   );
 }
 
-function computeETA(elapsed: number, processed: number, total: number): string | null {
-  if (processed < 3 || total <= 0) return null;
-  const remaining = (elapsed / processed) * (total - processed);
-  return `~${formatDuration(remaining)} verbleibend`;
-}
-
 function phaseLabel(phase: string): string {
   if (phase.startsWith('Metadata')) return phase;
   if (phase === 'Chunking (contextual)' || phase === 'Chunking') return 'Chunking';
@@ -85,7 +80,7 @@ export function IndexProgress({ status, running }: { status: IndexStatus | null;
   }
 
   const elapsedLabel = formatDuration(elapsed);
-  const eta = computeETA(elapsed, status.processed, status.total);
+  const eta = computeEta(elapsed, status.processed, status.total);
 
   if (isModelLoading) {
     const modelPct = status.modelProgress?.loaded && status.modelProgress?.total
@@ -126,10 +121,3 @@ export function IndexProgress({ status, running }: { status: IndexStatus | null;
   );
 }
 
-export function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  if (minutes === 0) return `${secs}s`;
-  return `${minutes}:${String(secs).padStart(2, '0')} min`;
-}

@@ -12,7 +12,7 @@ import { unloadAllGPU as unloadAllGPUFn } from './utils/gpu-utils';
 import { Row } from './IndexHelpers';
 import { validateMetadata } from './smoke-test-validation';
 import type { ValidationResult } from './smoke-test-validation';
-import { formatDuration } from './IndexHelpers';
+import { formatDuration } from '@/core/utils/eta';
 import { SmokeTestChunkPreview } from './SmokeTestChunkPreview';
 
 type TestPhase = 'idle' | 'loading-model' | 'testing' | 'done' | 'error';

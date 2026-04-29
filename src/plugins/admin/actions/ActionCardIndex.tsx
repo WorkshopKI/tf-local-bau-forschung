@@ -5,7 +5,8 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { BatchIndexer } from '@/core/services/search/batch-indexer';
 import type { IndexStatus, PipelineConfig } from '@/core/services/search/batch-indexer';
 import { getModelById } from '@/core/services/search/model-registry';
-import { IndexProgress, formatDuration } from '../IndexHelpers';
+import { IndexProgress } from '../IndexHelpers';
+import { formatDuration } from '@/core/utils/eta';
 import type { PipelineConfigState } from '../hooks/usePipelineConfig';
 
 interface ActionCardIndexProps {
