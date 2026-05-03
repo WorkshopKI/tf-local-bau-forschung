@@ -22,10 +22,10 @@ import { runStage0 } from './stage0-dms-lookup';
 import { runStage1 } from './stage1-structural';
 import { runStage2 } from './stage2-keywords';
 import { runStage3 } from './stage3-nemotron';
-import { runMatcher } from '../matcher/matcher';
+import { matchByFkz, runMatcher } from '../matcher/matcher';
 import { addPending, listPendingByAkronym } from '../pending-antrag/holding-bucket';
 import { getSkipEntry, putSkipEntry } from '../skip-list/store';
-import { putManifestEntry } from '../scanner/manifest-store';
+import { getManifestEntry, putManifestEntry } from '../scanner/manifest-store';
 
 /**
  * Version-Counter für Skip-List-Reset-Mechanik. Bei Klassifikator-Updates erhöhen.
@@ -64,11 +64,35 @@ export async function triageFile(
   file: ScanFile,
   loadBlob: (file: ScanFile) => Promise<Blob | null>,
 ): Promise<TriageRunResult> {
-  // Schnellpfad: Skip-Liste
+  // Schnellpfad 1: Skip-Liste (irrelevante Files — günstigster Pfad, ein IDB-Lookup)
   const skipped = await getSkipEntry(ctx.idb, file.filename);
   if (skipped && skipped.classifier_version >= CLASSIFIER_VERSION) {
     const manifest = manifestFromSkip(file, skipped);
     return { manifest, skipped: true };
+  }
+
+  // Schnellpfad 2: Manifest-Cache (relevante Files mit unveränderten Datei-Metadaten).
+  // Verhindert dass bei einem inkrementellen Scan alle relevanten Files Stage 0/1/2/3
+  // erneut durchlaufen, wenn sich an der Datei nichts geändert hat. mtime + size_bytes
+  // sind die robusten Heuristiken — Hash-basiert wäre teurer (File-Open).
+  const cached = await getManifestEntry(ctx.idb, file.filename);
+  if (
+    cached &&
+    cached.classifier_version >= CLASSIFIER_VERSION &&
+    cached.mtime === file.mtime &&
+    cached.size_bytes === file.size_bytes
+  ) {
+    // Marker im reason, damit User/Logs sehen dass Cache fired. Persistierter
+    // Wert im IDB bleibt unverändert (wir mutieren nur das Return-Objekt).
+    return {
+      manifest: {
+        ...cached,
+        triage_reason: cached.triage_reason.startsWith('cached: ')
+          ? cached.triage_reason
+          : `cached: ${cached.triage_reason}`,
+      },
+      skipped: true,
+    };
   }
 
   // Stage 0 — DMS-Lookup ohne Datei-Zugriff
@@ -163,7 +187,15 @@ export async function triageFile(
       akronymHint: triage.extracted_akronym,
       transport: ctx.llmTransport,
     });
-    triage = stage3.result;
+    // Stage 3 setzt DMS-Felder hardcoded null (LLM kennt sie nicht). Wenn
+    // wir vorher einen Stage-0-Match hatten, wäre dieser Wert wertvoll —
+    // also DMS-Felder aus dem vorherigen triage-Stand erben.
+    triage = {
+      ...stage3.result,
+      creator_kuerzel: stage3.result.creator_kuerzel ?? triage.creator_kuerzel,
+      dms_bezeichnung: stage3.result.dms_bezeichnung ?? triage.dms_bezeichnung,
+      dms_aktenplan: stage3.result.dms_aktenplan ?? triage.dms_aktenplan,
+    };
   }
 
   if (triage.triage_state === 'irrelevant') {
@@ -258,8 +290,8 @@ function manifestFromSkip(file: ScanFile, skip: import('../types').SkipListEntry
     extracted_fkz: skip.extracted_fkz ?? null,
     extracted_akronym: skip.extracted_akronym ?? null,
     matched_antrag_id: skip.antrag_id,
-    match_method: null,
-    match_confidence: null,
+    match_method: skip.antrag_id ? 'fkz' : null,
+    match_confidence: skip.antrag_id ? 'high' : null,
     candidate_antrag_ids: [],
     requires_review: false,
     creator_kuerzel: skip.creator_kuerzel ?? null,
@@ -317,15 +349,30 @@ async function persistIrrelevant(
   triage: TriageResult,
   source: import('../types').ClassifierSource,
 ): Promise<TriageRunResult> {
+  // Audit-Vollständigkeit: auch für irrelevante Files den FKZ→Antrag-Bezug
+  // dokumentieren wenn ein FKZ erkannt wurde (z.B. Gutachten-DOCX-Sonderregel).
+  // requires_review bleibt false — die Datei wird sowieso nicht in den Index
+  // aufgenommen, der Match ist nur informativ.
+  let antragId: string | null = null;
+  if (triage.extracted_fkz) {
+    try {
+      const r = await matchByFkz(ctx.idb, triage.extracted_fkz);
+      antragId = r.matched_antrag_id;
+    } catch {
+      // Best-effort, Match-Fehler dürfen nicht den Skip-Persist blockieren
+      antragId = null;
+    }
+  }
+
   const manifest = manifestFromTriage(file, triage, emptyMatch());
-  manifest.matched_antrag_id = null;
-  manifest.match_method = null;
-  manifest.match_confidence = null;
+  manifest.matched_antrag_id = antragId;
+  manifest.match_method = antragId ? 'fkz' : null;
+  manifest.match_confidence = antragId ? 'high' : null;
   manifest.requires_review = false;
   await persistManifest(ctx.idb, manifest);
   await putSkipEntry(ctx.idb, {
     filename: file.filename,
-    antrag_id: null,
+    antrag_id: antragId,
     doc_type: triage.doc_type,
     classifier_version: CLASSIFIER_VERSION,
     classified_at: new Date().toISOString(),

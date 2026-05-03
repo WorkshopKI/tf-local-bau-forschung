@@ -98,7 +98,7 @@ export function ProgrammeAdminPage(): React.ReactElement {
     await logAudit(storage.idb, {
       action: 'programm_deleted',
       user: session.kuratorName ?? undefined,
-      details: { id: target.id, name: target.name },
+      details: { id: target.id, name: target.name, cleaned: r.cleaned },
     });
     setDeleteConfirm(null);
     // Falls das gelöschte Programm das aktive war: refresh setzt activeProgrammId
@@ -231,9 +231,9 @@ export function ProgrammeAdminPage(): React.ReactElement {
             Programm <strong>{deleteConfirm?.name}</strong> wirklich löschen?
           </p>
           <p className="text-[12px] text-[var(--tf-text-secondary)]">
-            Es hat 0 Anträge — der Programm-Eintrag wird aus IDB entfernt. CSV-Schemas, Filter
-            und Unterprogramme dieses Programms verbleiben als verwaiste Records (inert, da an
-            die ID gebunden).
+            Es hat 0 Anträge — der Programm-Eintrag wird aus IDB entfernt. Zugehörige
+            CSV-Schemas, Row-Hashes, Unterprogramme, Verbünde und Filter werden ebenfalls
+            gelöscht (Cascade-Cleanup).
           </p>
           {errorMsg && (
             <p className="text-[12px] text-red-600">{errorMsg}</p>

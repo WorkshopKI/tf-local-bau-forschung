@@ -12,7 +12,7 @@ export {
   createProgramm,
   deleteProgramm,
 } from './programmRegistry';
-export type { DeleteProgrammResult } from './programmRegistry';
+export type { DeleteProgrammResult, DeleteProgrammCleaned } from './programmRegistry';
 export {
   saveSchema,
   loadSchema,

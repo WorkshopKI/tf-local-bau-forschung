@@ -2,11 +2,20 @@ import type { IDBStore } from '../storage/idb-store';
 import { DEFAULT_PROGRAMM_ID, DEFAULT_PROGRAMM_NAME, DEFAULT_SMB_HANDLE_KEY } from './constants';
 import {
   deleteProgrammRecord,
+  deleteRowHashes,
+  deleteSchema,
+  deleteUnterprogramm,
+  deleteVerbund,
   getProgramm,
+  getRowHashesForSchema,
   listAntraegeByProgramm,
   listProgramme,
+  listSchemasByProgramm,
+  listUnterprogrammeByProgramm,
+  listVerbuendeByProgramm,
   putProgramm,
 } from './idb-csv';
+import { listFilters, removeFilter } from './filter/filterRegistry';
 import type { Programm } from './types';
 
 export async function ensureDefaultProgramm(idb: IDBStore): Promise<Programm> {
@@ -57,8 +66,16 @@ export async function createProgramm(idb: IDBStore, name: string): Promise<Progr
   return programm;
 }
 
+export interface DeleteProgrammCleaned {
+  schemas: number;
+  rowHashes: number;
+  unterprogramme: number;
+  verbuende: number;
+  filters: number;
+}
+
 export type DeleteProgrammResult =
-  | { ok: true }
+  | { ok: true; cleaned: DeleteProgrammCleaned }
   | { ok: false; reason: 'not_found' | 'has_antraege'; antragCount?: number }
   | { ok: false; reason: 'last_programm' };
 
@@ -70,11 +87,17 @@ export type DeleteProgrammResult =
  *    keinen Active-Programm-Anker mehr; Bootstrap würde zwar `default-
  *    programm` neu anlegen, aber UX-mäßig unschön).
  *
- * Macht KEIN Cascade-Delete von csv_schemas, filter_definitionen, csv_row_hashes
- * o.ä. Da im 0-Anträge-Fall diese Records bedeutungslos verbleiben (sie sind
- * an die Programm-ID gekeyt; ohne Programm sind sie inert), ist das im
- * Worst-Case ein paar KB IDB-Müll. Cascade-Cleanup ist eigener Patch falls
- * gewünscht.
+ * Cascade-Cleanup nach erfolgreichem Delete: alle Records, die an die
+ * Programm-ID gekeyt sind, werden mit-gelöscht — sonst bleiben sie als
+ * verwaiste IDB-Einträge zurück:
+ *  - csv_schemas (+ csv_row_hashes pro Schema)
+ *  - unterprogramme
+ *  - verbuende (verbund_historie folgt indirekt — kein Index auf programm_id)
+ *  - filter_definitionen
+ *
+ * Akronym_index-Einträge sind über `[programm_id, akronym]` gekeyt, aber
+ * im 0-Anträge-Fall sollten sie nicht existieren — Akronyme entstehen nur
+ * beim Antrags-Import.
  */
 export async function deleteProgramm(idb: IDBStore, id: string): Promise<DeleteProgrammResult> {
   const all = await listProgramme(idb);
@@ -86,6 +109,50 @@ export async function deleteProgramm(idb: IDBStore, id: string): Promise<DeleteP
   if (antraege.length > 0) {
     return { ok: false, reason: 'has_antraege', antragCount: antraege.length };
   }
+
+  // Cascade-Cleanup vor dem Programm-Delete (sonst verlieren wir die
+  // programm_id-Beziehung beim Lookup von Schemas etc.).
+  const cleaned: DeleteProgrammCleaned = {
+    schemas: 0,
+    rowHashes: 0,
+    unterprogramme: 0,
+    verbuende: 0,
+    filters: 0,
+  };
+
+  // CSV-Schemas + ihre Row-Hashes
+  const schemas = await listSchemasByProgramm(idb, id);
+  for (const s of schemas) {
+    const hashes = await getRowHashesForSchema(idb, s.id);
+    if (hashes.length > 0) {
+      await deleteRowHashes(idb, s.id, hashes.map(h => h.join_value));
+      cleaned.rowHashes += hashes.length;
+    }
+    await deleteSchema(idb, s.id);
+    cleaned.schemas++;
+  }
+
+  // Unterprogramme
+  const ups = await listUnterprogrammeByProgramm(idb, id);
+  for (const up of ups) {
+    await deleteUnterprogramm(idb, up.id);
+    cleaned.unterprogramme++;
+  }
+
+  // Verbuende (sollten 0 sein wenn Anträge 0, aber defensiv)
+  const verbuende = await listVerbuendeByProgramm(idb, id);
+  for (const v of verbuende) {
+    await deleteVerbund(idb, v.verbund_id);
+    cleaned.verbuende++;
+  }
+
+  // Filter-Definitionen
+  const filters = await listFilters(idb, id);
+  for (const f of filters) {
+    await removeFilter(idb, f.id);
+    cleaned.filters++;
+  }
+
   await deleteProgrammRecord(idb, id);
-  return { ok: true };
+  return { ok: true, cleaned };
 }

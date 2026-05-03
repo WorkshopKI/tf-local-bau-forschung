@@ -247,9 +247,18 @@ export function TriagePanel(): React.ReactElement {
       </DevRow>
 
       <DevRow label="Datei testen">
-        <Button size="xs" variant="default" onClick={() => void onPickAndTriage()} disabled={busy}>
+        <Button
+          size="xs"
+          variant="default"
+          onClick={() => void onPickAndTriage()}
+          disabled={busy || !dmsMap}
+          title={!dmsMap ? 'Erst „Index laden" anklicken' : undefined}
+        >
           Datei wählen + Triage
         </Button>
+        {!dmsMap && (
+          <StatusPill label="Index nicht geladen" tone="warn" />
+        )}
       </DevRow>
 
       <DevRow label="Stores">
