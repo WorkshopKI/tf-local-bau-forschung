@@ -49,6 +49,17 @@ export async function listProgramme(idb: IDBStore): Promise<Programm[]> {
   return (await req(t.objectStore(CSV_STORES.PROGRAMME).getAll())) as Programm[];
 }
 
+/**
+ * Roh-Delete eines Programm-Records. Macht KEINE Cascade — Aufrufer
+ * (`programmRegistry.deleteProgramm`) ist verantwortlich für die Sicherheits-
+ * Checks (0 Anträge, nicht das einzige Programm).
+ */
+export async function deleteProgrammRecord(idb: IDBStore, id: string): Promise<void> {
+  const t = tx(idb, CSV_STORES.PROGRAMME, 'readwrite');
+  t.objectStore(CSV_STORES.PROGRAMME).delete(id);
+  return waitTx(t);
+}
+
 // ---------- Unterprogramme ----------
 
 export async function putUnterprogramm(idb: IDBStore, u: Unterprogramm): Promise<void> {

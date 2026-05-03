@@ -6,8 +6,8 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { createProgramm, ensureDefaultProgramm, renameProgramm } from '@/core/services/csv';
-import { listProgramme } from '@/core/services/csv/idb-csv';
+import { createProgramm, deleteProgramm, ensureDefaultProgramm, renameProgramm } from '@/core/services/csv';
+import { listAntraegeByProgramm, listProgramme } from '@/core/services/csv/idb-csv';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import type { Programm } from '@/core/services/csv/types';
 import { SectionHeader } from '@/ui/SectionHeader';
@@ -20,13 +20,24 @@ export function ProgrammeAdminPage(): React.ReactElement {
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const refreshActive = useActiveProgramm(s => s.refresh);
   const [programme, setProgramme] = useState<Programm[]>([]);
+  const [antragCounts, setAntragCounts] = useState<Map<string, number>>(new Map());
   const [renameOpen, setRenameOpen] = useState<Programm | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<Programm | null>(null);
   const [newName, setNewName] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     await ensureDefaultProgramm(storage.idb).catch(() => undefined);
-    setProgramme(await listProgramme(storage.idb));
+    const list = await listProgramme(storage.idb);
+    setProgramme(list);
+    // Antragszahlen pro Programm — entscheidet ob "Löschen" möglich ist.
+    const counts = new Map<string, number>();
+    for (const p of list) {
+      const a = await listAntraegeByProgramm(storage.idb, p.id);
+      counts.set(p.id, a.length);
+    }
+    setAntragCounts(counts);
     await refreshActive(storage.idb);
   }, [storage.idb, refreshActive]);
 
@@ -67,6 +78,42 @@ export function ProgrammeAdminPage(): React.ReactElement {
     await setActive(storage.idb, id, updateProfile);
   };
 
+  const onDelete = async (): Promise<void> => {
+    if (!deleteConfirm) return;
+    const target = deleteConfirm;
+    setErrorMsg(null);
+    const r = await deleteProgramm(storage.idb, target.id);
+    if (!r.ok) {
+      // Sollte nicht passieren — UI zeigt den Knopf nur bei 0 Anträgen + > 1 Programm.
+      // Defensiv trotzdem behandeln (Race Condition: jemand importiert während Dialog offen).
+      if (r.reason === 'has_antraege') {
+        setErrorMsg(`Programm hat ${r.antragCount} Anträge — nicht löschbar.`);
+      } else if (r.reason === 'last_programm') {
+        setErrorMsg('Letztes Programm — kann nicht gelöscht werden.');
+      } else {
+        setErrorMsg('Programm nicht gefunden.');
+      }
+      return;
+    }
+    await logAudit(storage.idb, {
+      action: 'programm_deleted',
+      user: session.kuratorName ?? undefined,
+      details: { id: target.id, name: target.name },
+    });
+    setDeleteConfirm(null);
+    // Falls das gelöschte Programm das aktive war: refresh setzt activeProgrammId
+    // im Store automatisch auf das erste verbleibende Programm. Profile-Persistenz
+    // dazu hier explizit, damit die alte ID nicht im Profile zurückbleibt.
+    const wasActive = activeProgrammId === target.id;
+    await refresh();
+    if (wasActive && profile) {
+      const newActive = useActiveProgramm.getState().activeProgrammId;
+      if (newActive) {
+        await updateProfile({ activeProgrammId: newActive });
+      }
+    }
+  };
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -96,6 +143,8 @@ export function ProgrammeAdminPage(): React.ReactElement {
         <div>
           {programme.map((p, i) => {
             const isActive = p.id === activeProgrammId;
+            const count = antragCounts.get(p.id) ?? 0;
+            const canDelete = count === 0 && programme.length > 1;
             return (
               <div
                 key={p.id}
@@ -115,7 +164,7 @@ export function ProgrammeAdminPage(): React.ReactElement {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-                    angelegt {new Date(p.created_at).toLocaleDateString('de-DE')}
+                    {count} Anträge · angelegt {new Date(p.created_at).toLocaleDateString('de-DE')}
                   </span>
                   {!isActive && (
                     <Button
@@ -134,6 +183,17 @@ export function ProgrammeAdminPage(): React.ReactElement {
                   >
                     Umbenennen
                   </Button>
+                  {canDelete && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => { setDeleteConfirm(p); setErrorMsg(null); }}
+                      disabled={!session.isActive}
+                      title="Programm löschen (nur möglich bei 0 Anträgen)"
+                    >
+                      Löschen
+                    </Button>
+                  )}
                 </div>
               </div>
             );
@@ -153,6 +213,32 @@ export function ProgrammeAdminPage(): React.ReactElement {
         }
       >
         <Input value={newName} onChange={e => setNewName(e.target.value)} autoFocus />
+      </Dialog>
+
+      <Dialog
+        open={!!deleteConfirm}
+        onClose={() => { setDeleteConfirm(null); setErrorMsg(null); }}
+        title="Programm löschen"
+        footer={
+          <>
+            <Button size="sm" variant="ghost" onClick={() => { setDeleteConfirm(null); setErrorMsg(null); }}>Abbrechen</Button>
+            <Button size="sm" variant="destructive" onClick={onDelete}>Endgültig löschen</Button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <p className="text-[13px] text-[var(--tf-text)]">
+            Programm <strong>{deleteConfirm?.name}</strong> wirklich löschen?
+          </p>
+          <p className="text-[12px] text-[var(--tf-text-secondary)]">
+            Es hat 0 Anträge — der Programm-Eintrag wird aus IDB entfernt. CSV-Schemas, Filter
+            und Unterprogramme dieses Programms verbleiben als verwaiste Records (inert, da an
+            die ID gebunden).
+          </p>
+          {errorMsg && (
+            <p className="text-[12px] text-red-600">{errorMsg}</p>
+          )}
+        </div>
       </Dialog>
 
       <Dialog

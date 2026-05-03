@@ -5,7 +5,14 @@ export { sha1Hex } from './sha1';
 export { parseGermanDate, formatGermanDate } from './dateParse';
 export { parseCsvPreview, parseCsvStream, parseCsvAll } from './parser';
 export type { CsvPreview, StreamOptions } from './parser';
-export { ensureDefaultProgramm, getActiveProgramm, renameProgramm, createProgramm } from './programmRegistry';
+export {
+  ensureDefaultProgramm,
+  getActiveProgramm,
+  renameProgramm,
+  createProgramm,
+  deleteProgramm,
+} from './programmRegistry';
+export type { DeleteProgrammResult } from './programmRegistry';
 export {
   saveSchema,
   loadSchema,
