@@ -27,6 +27,21 @@ export { mirrorManifestToShare } from './scanner/manifest-mirror';
 export type { ManifestMirrorResult } from './scanner/manifest-mirror';
 export { bulkScanFiles } from './triage/bulk-scan';
 export type { BulkScanStats, BulkScanOptions } from './triage/bulk-scan';
+export {
+  getScanConfig,
+  saveScanConfig,
+  clearScanConfig,
+  listSubdirs,
+  exportScanConfigToShare,
+  importScanConfigFromShare,
+  SCAN_CONFIG_SHARE_PATH,
+} from './scan-config';
+export type {
+  ScanConfigEntry,
+  SubdirEntry,
+  ScanConfigExportResult,
+  ScanConfigImportResult,
+} from './scan-config';
 export { loadDmsCsvFromShare, parseDmsCsv, cleanDocId, getLastParseDmsCsvStats } from './dms-csv/loader';
 export { parseCsvLine, parseCsvText } from './dms-csv/parser';
 export {

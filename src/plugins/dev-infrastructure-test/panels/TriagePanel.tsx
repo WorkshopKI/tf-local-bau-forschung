@@ -7,7 +7,7 @@
  * Inhalte einsehen und DMS-CSV-Index aus dem Daten-Share laden.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,7 @@ import {
 } from '@/phase2';
 import type { AktenplanLookup, DmsEntry } from '@/phase2/types';
 import { DevLog, DevRow, StatusPill } from './shared';
+import { ScanRootsPicker } from './ScanRootsPicker';
 
 export function TriagePanel(): React.ReactElement {
   const storage = useStorage();
@@ -60,14 +61,9 @@ export function TriagePanel(): React.ReactElement {
   const [bulkRunning, setBulkRunning] = useState(false);
   const [mirrorBusy, setMirrorBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-
-  // Wenn scanConfig.sub_roots leer ist, behandeln wir das als "ganzer Handle"
-  // — der Walker interpretiert einen leeren Sub-Root als Top-Level-Scan.
-  const availableRoots = useMemo<string[]>(() => {
-    const cfg = scanConfig.sub_roots;
-    return Array.isArray(cfg) && cfg.length > 0 ? cfg : [''];
-  }, []);
-  const [selectedRoots, setSelectedRoots] = useState<string[]>(() => [...availableRoots]);
+  // Auswahl kommt jetzt aus dem ScanRootsPicker (persistiert in IDB).
+  // Default leer — User muss explizit Pfade waehlen, sonst kein Scan moeglich.
+  const [selectedRoots, setSelectedRoots] = useState<string[]>([]);
 
   const log = useCallback((s: string) => {
     setLogLines(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${s}`]);
@@ -160,12 +156,6 @@ export function TriagePanel(): React.ReactElement {
     } finally {
       setBusy(false);
     }
-  };
-
-  const toggleRoot = (root: string): void => {
-    setSelectedRoots(prev =>
-      prev.includes(root) ? prev.filter(r => r !== root) : [...prev, root]
-    );
   };
 
   const onScanRoots = async (): Promise<void> => {
@@ -457,28 +447,11 @@ export function TriagePanel(): React.ReactElement {
         )}
       </DevRow>
 
-      <DevRow label="Bulk-Scan: Sub-Roots">
-        {availableRoots.map(root => (
-          <label
-            key={root || '__root__'}
-            className="flex items-center gap-1 text-[11px] cursor-pointer select-none rounded px-1.5 py-0.5 hover:bg-[var(--tf-bg-secondary)]"
-          >
-            <input
-              type="checkbox"
-              checked={selectedRoots.includes(root)}
-              onChange={() => toggleRoot(root)}
-              disabled={scanRunning || bulkRunning}
-            />
-            <span className="font-mono">{root || '(ganzer Handle)'}</span>
-          </label>
-        ))}
-        <span className="text-[10px] text-[var(--tf-text-tertiary)] basis-full">
-          Konfiguriert in <code>configs/dev.config.json</code> → <code>scan.sub_roots</code>
-          {availableRoots.length === 1 && availableRoots[0] === '' && (
-            <> · aktuell leer → kompletter Dokumentenquelle-Handle wird gescannt</>
-          )}
-        </span>
-      </DevRow>
+      <ScanRootsPicker
+        idb={storage.idb}
+        log={log}
+        onSelectionChange={setSelectedRoots}
+      />
 
       <DevRow label="Bulk-Scan: Roots scannen + Triagieren">
         <Button

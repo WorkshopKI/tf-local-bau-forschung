@@ -17,6 +17,7 @@ export const PHASE2_STORES = {
   SKIP_LIST: 'phase2_skip_list',
   PENDING_ANTRAEGE: 'phase2_pending_antraege',
   SCAN_MANIFEST: 'phase2_scan_manifest',
+  SCAN_CONFIG: 'phase2_scan_config',
 } as const;
 
 export type CsvStoreName =
@@ -28,7 +29,7 @@ export class IDBStore {
   private db: IDBDatabase | null = null;
   private readonly dbName = 'teamflow';
   private readonly storeName = 'kv';
-  private readonly version = 5;
+  private readonly version = 6;
 
   async open(): Promise<void> {
     if (this.db) return;
@@ -110,6 +111,15 @@ export class IDBStore {
             const s = db.createObjectStore(PHASE2_STORES.SCAN_MANIFEST, { keyPath: 'filename' });
             s.createIndex('matched_antrag_id', 'matched_antrag_id', { unique: false });
             s.createIndex('triage_state', 'triage_state', { unique: false });
+          }
+        }
+        if (oldVersion < 6) {
+          // Singleton-Store für Dev-konfigurierte Scan-Pfade. Genau ein Eintrag
+          // mit id='default'. Erlaubt zur Laufzeit Sub-Roots zu setzen ohne
+          // Rebuild — Bulk-Triage liest die persistierte Liste statt
+          // scanConfig.sub_roots aus der Build-Config.
+          if (!db.objectStoreNames.contains(PHASE2_STORES.SCAN_CONFIG)) {
+            db.createObjectStore(PHASE2_STORES.SCAN_CONFIG, { keyPath: 'id' });
           }
         }
       };
