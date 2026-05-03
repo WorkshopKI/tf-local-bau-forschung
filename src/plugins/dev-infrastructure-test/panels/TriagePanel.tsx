@@ -7,7 +7,8 @@
  * Inhalte einsehen und DMS-CSV-Index aus dem Daten-Share laden.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -59,9 +60,14 @@ export function TriagePanel(): React.ReactElement {
   const [bulkRunning, setBulkRunning] = useState(false);
   const [mirrorBusy, setMirrorBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const [selectedRoots, setSelectedRoots] = useState<string[]>(() =>
-    Array.isArray(scanConfig.sub_roots) ? [...scanConfig.sub_roots] : []
-  );
+
+  // Wenn scanConfig.sub_roots leer ist, behandeln wir das als "ganzer Handle"
+  // — der Walker interpretiert einen leeren Sub-Root als Top-Level-Scan.
+  const availableRoots = useMemo<string[]>(() => {
+    const cfg = scanConfig.sub_roots;
+    return Array.isArray(cfg) && cfg.length > 0 ? cfg : [''];
+  }, []);
+  const [selectedRoots, setSelectedRoots] = useState<string[]>(() => [...availableRoots]);
 
   const log = useCallback((s: string) => {
     setLogLines(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${s}`]);
@@ -80,6 +86,7 @@ export function TriagePanel(): React.ReactElement {
 
   const onLoadDmsIndex = async (): Promise<void> => {
     setBusy(true);
+    log('Lade DMS-Index — kann bei großen CSVs (~1M Zeilen) 10–30 s dauern…');
     try {
       const handle = await getSmbHandle(storage.idb);
       if (!handle) {
@@ -400,8 +407,18 @@ export function TriagePanel(): React.ReactElement {
   return (
     <>
       <DevRow label="DMS-CSV-Index">
-        <Button size="xs" variant="outline" onClick={() => void onLoadDmsIndex()} disabled={busy}>Index laden</Button>
-        {dmsMap && <StatusPill label={`${dmsMap.size} Einträge`} tone="ok" />}
+        <Button size="xs" variant="outline" onClick={() => void onLoadDmsIndex()} disabled={busy}>
+          {busy ? (
+            <span className="inline-flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Lädt…
+            </span>
+          ) : (
+            'Index laden'
+          )}
+        </Button>
+        {busy && !dmsMap && <StatusPill label="liest CSV…" tone="neutral" />}
+        {dmsMap && <StatusPill label={`${dmsMap.size.toLocaleString('de-DE')} Einträge`} tone="ok" />}
         {dmsSource === 'absent' && <StatusPill label="dms-index-filtered.csv fehlt" tone="warn" />}
       </DevRow>
 
@@ -441,24 +458,26 @@ export function TriagePanel(): React.ReactElement {
       </DevRow>
 
       <DevRow label="Bulk-Scan: Sub-Roots">
-        {scanConfig.sub_roots && scanConfig.sub_roots.length > 0 ? (
-          scanConfig.sub_roots.map(root => (
-            <label
-              key={root}
-              className="flex items-center gap-1 text-[11px] cursor-pointer select-none rounded px-1.5 py-0.5 hover:bg-[var(--tf-bg-secondary)]"
-            >
-              <input
-                type="checkbox"
-                checked={selectedRoots.includes(root)}
-                onChange={() => toggleRoot(root)}
-                disabled={scanRunning || bulkRunning}
-              />
-              <span className="font-mono">{root}</span>
-            </label>
-          ))
-        ) : (
-          <StatusPill label="scanConfig.sub_roots leer" tone="warn" />
-        )}
+        {availableRoots.map(root => (
+          <label
+            key={root || '__root__'}
+            className="flex items-center gap-1 text-[11px] cursor-pointer select-none rounded px-1.5 py-0.5 hover:bg-[var(--tf-bg-secondary)]"
+          >
+            <input
+              type="checkbox"
+              checked={selectedRoots.includes(root)}
+              onChange={() => toggleRoot(root)}
+              disabled={scanRunning || bulkRunning}
+            />
+            <span className="font-mono">{root || '(ganzer Handle)'}</span>
+          </label>
+        ))}
+        <span className="text-[10px] text-[var(--tf-text-tertiary)] basis-full">
+          Konfiguriert in <code>configs/dev.config.json</code> → <code>scan.sub_roots</code>
+          {availableRoots.length === 1 && availableRoots[0] === '' && (
+            <> · aktuell leer → kompletter Dokumentenquelle-Handle wird gescannt</>
+          )}
+        </span>
       </DevRow>
 
       <DevRow label="Bulk-Scan: Roots scannen + Triagieren">
@@ -468,7 +487,14 @@ export function TriagePanel(): React.ReactElement {
           onClick={() => void onScanRoots()}
           disabled={scanRunning || bulkRunning || selectedRoots.length === 0}
         >
-          {scanRunning ? 'Scanne…' : 'Roots scannen'}
+          {scanRunning ? (
+            <span className="inline-flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Scanne…
+            </span>
+          ) : (
+            'Roots scannen'
+          )}
         </Button>
         {scanFiles && (
           <StatusPill label={`${scanFiles.length} Dateien gefunden`} tone="ok" />
