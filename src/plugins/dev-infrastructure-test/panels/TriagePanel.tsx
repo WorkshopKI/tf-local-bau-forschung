@@ -7,12 +7,17 @@
  * Inhalte einsehen und DMS-CSV-Index aus dem Daten-Share laden.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
+import {
+  getSmbHandle,
+  getDatenShareHandle,
+  getDokumentenquelleHandle,
+} from '@/core/services/infrastructure/smb-handle';
+import { scanConfig } from '@/config/feature-flags';
 import {
   loadDmsCsvFromShare,
   triageFile,
@@ -22,8 +27,12 @@ import {
   resetSkipListByVersion,
   cleanDocId,
   getLastParseDmsCsvStats,
+  scanDocSource,
+  bulkScanFiles,
+  mirrorManifestToShare,
   type ScanFile,
   type ManifestEntry,
+  type BulkScanStats,
 } from '@/phase2';
 import type { AktenplanLookup, DmsEntry } from '@/phase2/types';
 import { DevLog, DevRow, StatusPill } from './shared';
@@ -42,6 +51,17 @@ export function TriagePanel(): React.ReactElement {
   const [logLines, setLogLines] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [lookupQuery, setLookupQuery] = useState<string>('');
+
+  // Bulk-Scan State
+  const [scanFiles, setScanFiles] = useState<ScanFile[] | null>(null);
+  const [scanRunning, setScanRunning] = useState(false);
+  const [bulkStats, setBulkStats] = useState<BulkScanStats | null>(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [mirrorBusy, setMirrorBusy] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const [selectedRoots, setSelectedRoots] = useState<string[]>(() =>
+    Array.isArray(scanConfig.sub_roots) ? [...scanConfig.sub_roots] : []
+  );
 
   const log = useCallback((s: string) => {
     setLogLines(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${s}`]);
@@ -132,6 +152,165 @@ export function TriagePanel(): React.ReactElement {
       log(`Fehler: ${(e as Error).message}`);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const toggleRoot = (root: string): void => {
+    setSelectedRoots(prev =>
+      prev.includes(root) ? prev.filter(r => r !== root) : [...prev, root]
+    );
+  };
+
+  const onScanRoots = async (): Promise<void> => {
+    setScanRunning(true);
+    setScanFiles(null);
+    try {
+      const handle = await getDokumentenquelleHandle(storage.idb);
+      if (!handle) {
+        log('Kein Dokumentenquelle-Handle. Erst SMB-Panel: Dokumentenquelle waehlen.');
+        return;
+      }
+      if (!scanConfig.file_extensions || scanConfig.file_extensions.length === 0) {
+        log('scanConfig.file_extensions ist leer — Build-Config pruefen.');
+        return;
+      }
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      const files = await scanDocSource(handle, {
+        sub_roots: selectedRoots,
+        file_extensions: scanConfig.file_extensions,
+        max_depth: scanConfig.max_depth ?? 20,
+        signal: ctrl.signal,
+        onProgress: info => {
+          if (info.filesSoFar % 500 === 0 && info.filesSoFar > 0) {
+            log(`[scan] ${info.dir}: ${info.filesSoFar} Dateien bisher`);
+          }
+        },
+      });
+      abortRef.current = null;
+      setScanFiles(files);
+      log(`Scan abgeschlossen: ${files.length} Dateien in ${selectedRoots.length || 1} Roots.`);
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (msg.includes('aborted')) {
+        log('Scan abgebrochen.');
+      } else {
+        log(`Scan-Fehler: ${msg}`);
+      }
+    } finally {
+      setScanRunning(false);
+      abortRef.current = null;
+    }
+  };
+
+  const onBulkTriage = async (): Promise<void> => {
+    if (!activeProgrammId) {
+      log('Kein aktives Programm — bitte erst eines im Sidebar-Switcher auswaehlen.');
+      return;
+    }
+    if (!scanFiles || scanFiles.length === 0) {
+      log('Keine Dateiliste — erst „Roots scannen".');
+      return;
+    }
+    if (!dmsMap) {
+      log('DMS-Index nicht geladen — erst „Index laden".');
+      return;
+    }
+    const handle = await getDokumentenquelleHandle(storage.idb);
+    if (!handle) {
+      log('Kein Dokumentenquelle-Handle.');
+      return;
+    }
+
+    const map = dmsMap;
+    const ak = aktenplan ?? new Map<string, AktenplanLookup>();
+    const ctx = {
+      idb: storage.idb,
+      programmId: activeProgrammId,
+      dmsMap: map,
+      aktenplan: ak,
+      llmTransport: null,
+    };
+
+    const loadBlob = async (file: ScanFile): Promise<Blob | null> => {
+      try {
+        const parts = file.filepath.split('/').filter(Boolean);
+        if (parts.length === 0) return null;
+        const fileName = parts[parts.length - 1];
+        if (!fileName) return null;
+        let dir: FileSystemDirectoryHandle = handle;
+        for (let i = 0; i < parts.length - 1; i++) {
+          const segment = parts[i];
+          if (!segment) return null;
+          dir = await dir.getDirectoryHandle(segment);
+        }
+        const fh = await dir.getFileHandle(fileName);
+        return await fh.getFile();
+      } catch {
+        return null;
+      }
+    };
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setBulkRunning(true);
+    setBulkStats(null);
+    log(`Bulk-Triage gestartet: ${scanFiles.length} Dateien.`);
+
+    try {
+      let lastLogged = 0;
+      const final = await bulkScanFiles({
+        ctx,
+        files: scanFiles,
+        loadBlob,
+        signal: ctrl.signal,
+        progressEvery: 25,
+        onProgress: (s, lastError) => {
+          setBulkStats({ ...s });
+          if (lastError) {
+            log(`[error] ${lastError}`);
+          } else if (s.done - lastLogged >= 200) {
+            lastLogged = s.done;
+            log(`[bulk] ${s.done}/${s.total} (cache=${s.cache_hit_skip + s.cache_hit_manifest}, errors=${s.errors})`);
+          }
+        },
+      });
+      log(
+        `Bulk-Triage ${final.aborted ? 'abgebrochen' : 'fertig'}: ` +
+        `done=${final.done}/${final.total}, ` +
+        `cache(skip)=${final.cache_hit_skip}, cache(manifest)=${final.cache_hit_manifest}, ` +
+        `relevant=${final.classified_relevant}, irrelevant=${final.classified_irrelevant}, ` +
+        `pending=${final.classified_pending}, review=${final.classified_review}, ` +
+        `errors=${final.errors}`
+      );
+      await refreshCounts();
+    } catch (e) {
+      log(`Bulk-Fehler: ${(e as Error).message}`);
+    } finally {
+      setBulkRunning(false);
+      abortRef.current = null;
+    }
+  };
+
+  const onAbortBulk = (): void => {
+    abortRef.current?.abort();
+  };
+
+  const onMirrorManifest = async (): Promise<void> => {
+    setMirrorBusy(true);
+    try {
+      const datenShare = await getDatenShareHandle(storage.idb);
+      if (!datenShare) {
+        log('Kein Daten-Share-Handle — erst SMB-Panel verbinden.');
+        return;
+      }
+      const r = await mirrorManifestToShare(storage.idb, datenShare);
+      const kb = (r.bytes / 1024).toFixed(1);
+      log(`Manifest gespiegelt: ${r.entries} Eintraege (${kb} KB) → ${r.path}`);
+    } catch (e) {
+      log(`Mirror-Fehler: ${(e as Error).message}`);
+    } finally {
+      setMirrorBusy(false);
     }
   };
 
@@ -259,6 +438,101 @@ export function TriagePanel(): React.ReactElement {
         {!dmsMap && (
           <StatusPill label="Index nicht geladen" tone="warn" />
         )}
+      </DevRow>
+
+      <DevRow label="Bulk-Scan: Sub-Roots">
+        {scanConfig.sub_roots && scanConfig.sub_roots.length > 0 ? (
+          scanConfig.sub_roots.map(root => (
+            <label
+              key={root}
+              className="flex items-center gap-1 text-[11px] cursor-pointer select-none rounded px-1.5 py-0.5 hover:bg-[var(--tf-bg-secondary)]"
+            >
+              <input
+                type="checkbox"
+                checked={selectedRoots.includes(root)}
+                onChange={() => toggleRoot(root)}
+                disabled={scanRunning || bulkRunning}
+              />
+              <span className="font-mono">{root}</span>
+            </label>
+          ))
+        ) : (
+          <StatusPill label="scanConfig.sub_roots leer" tone="warn" />
+        )}
+      </DevRow>
+
+      <DevRow label="Bulk-Scan: Roots scannen + Triagieren">
+        <Button
+          size="xs"
+          variant="outline"
+          onClick={() => void onScanRoots()}
+          disabled={scanRunning || bulkRunning || selectedRoots.length === 0}
+        >
+          {scanRunning ? 'Scanne…' : 'Roots scannen'}
+        </Button>
+        {scanFiles && (
+          <StatusPill label={`${scanFiles.length} Dateien gefunden`} tone="ok" />
+        )}
+        <Button
+          size="xs"
+          variant="default"
+          onClick={() => void onBulkTriage()}
+          disabled={!scanFiles || !dmsMap || bulkRunning || scanRunning}
+          title={!scanFiles ? 'Erst „Roots scannen" klicken' : !dmsMap ? 'Erst DMS-Index laden' : undefined}
+        >
+          Bulk-Triage starten
+        </Button>
+        {bulkRunning && (
+          <Button size="xs" variant="destructive" onClick={onAbortBulk}>
+            Abbrechen
+          </Button>
+        )}
+      </DevRow>
+
+      {bulkStats && (
+        <DevRow label="Bulk-Progress">
+          <div className="w-full">
+            <div className="h-2 w-full overflow-hidden rounded bg-[var(--tf-bg-secondary)]">
+              <div
+                className="h-full bg-[var(--tf-primary)] transition-[width] duration-200"
+                style={{
+                  width: `${bulkStats.total > 0 ? (bulkStats.done / bulkStats.total) * 100 : 0}%`,
+                }}
+              />
+            </div>
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-[var(--tf-text-secondary)]">
+              <span>{bulkStats.done}/{bulkStats.total}</span>
+              <span>cache(skip): {bulkStats.cache_hit_skip}</span>
+              <span>cache(manifest): {bulkStats.cache_hit_manifest}</span>
+              <span>relevant: {bulkStats.classified_relevant}</span>
+              <span>irrelevant: {bulkStats.classified_irrelevant}</span>
+              <span>pending: {bulkStats.classified_pending}</span>
+              <span>review: {bulkStats.classified_review}</span>
+              <span className={bulkStats.errors > 0 ? 'text-amber-700' : ''}>
+                errors: {bulkStats.errors}
+              </span>
+              {bulkStats.aborted && <span className="text-amber-700">(abgebrochen)</span>}
+              {bulkStats.finished_at && !bulkStats.aborted && <span>(fertig)</span>}
+            </div>
+            {bulkStats.current_file && (
+              <div className="mt-0.5 truncate text-[10.5px] text-[var(--tf-text-tertiary)]">
+                aktuell: {bulkStats.current_file}
+              </div>
+            )}
+          </div>
+        </DevRow>
+      )}
+
+      <DevRow label="Manifest spiegeln">
+        <Button
+          size="xs"
+          variant="outline"
+          onClick={() => void onMirrorManifest()}
+          disabled={mirrorBusy || bulkRunning}
+        >
+          Manifest auf Share spiegeln
+        </Button>
+        {mirrorBusy && <StatusPill label="schreibe…" tone="neutral" />}
       </DevRow>
 
       <DevRow label="Stores">

@@ -23,6 +23,10 @@ export {
   listManifestEntries,
   deleteManifestEntry,
 } from './scanner/manifest-store';
+export { mirrorManifestToShare } from './scanner/manifest-mirror';
+export type { ManifestMirrorResult } from './scanner/manifest-mirror';
+export { bulkScanFiles } from './triage/bulk-scan';
+export type { BulkScanStats, BulkScanOptions } from './triage/bulk-scan';
 export { loadDmsCsvFromShare, parseDmsCsv, cleanDocId, getLastParseDmsCsvStats } from './dms-csv/loader';
 export { parseCsvLine, parseCsvText } from './dms-csv/parser';
 export {
