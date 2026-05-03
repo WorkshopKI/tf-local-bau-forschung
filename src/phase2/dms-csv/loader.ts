@@ -98,14 +98,10 @@ export function parseDmsCsv(text: string): Map<string, DmsEntry> {
       datum: datumIdx >= 0 ? ((row[datumIdx] ?? '').trim() || null) : null,
       extractedFkz,
     };
-    // Map-Lookup ist case-sensitive: der Scanner liefert die Datei mit ihrer
-    // tatsächlichen Schreibweise. DMS-CSV mischt Cases (.PDF / .pdf / .DOCX),
-    // also legen wir auch eine lowercase-Variante als Alias an.
-    map.set(docId, entry);
-    const lower = docId.toLowerCase();
-    if (lower !== docId && !map.has(lower)) {
-      map.set(lower, entry);
-    }
+    // Map-Keys grundsätzlich lowercase — Stage 0 lookup normalisiert den
+    // Scanner-Filename ebenfalls. Eine Quelle der Wahrheit, ein Eintrag pro
+    // Zeile. `entry.docId` behält die Original-Schreibweise für UI/Debug.
+    map.set(docId.toLowerCase(), entry);
   }
   return map;
 }

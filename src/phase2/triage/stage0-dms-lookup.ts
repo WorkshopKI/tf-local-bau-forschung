@@ -24,9 +24,9 @@ export type Stage0Output =
   | { matched: false; reason: 'no_dms_entry' };
 
 export function runStage0({ filename, dmsMap, aktenplan }: Stage0Input): Stage0Output {
-  // Case-Lookup: Scanner-Output behält Original-Case der Datei. Loader
-  // legt Aliase auf lowercase. Fallback: lowercase-Probe.
-  const entry = dmsMap.get(filename) ?? dmsMap.get(filename.toLowerCase()) ?? null;
+  // Map-Keys sind case-normalisiert (lowercase) — siehe loader.ts.
+  // Scanner liefert Filenames mit Original-Case, also hier normalisieren.
+  const entry = dmsMap.get(filename.toLowerCase()) ?? null;
   if (!entry) {
     return { matched: false, reason: 'no_dms_entry' };
   }

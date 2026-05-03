@@ -46,22 +46,26 @@ describe('parseDmsCsv', () => {
     const samplePath = path.resolve(__dirname, '../../../docs/phase-2/dms-sample.csv');
     const csv = readFileSync(samplePath, 'utf-8');
     const map = parseDmsCsv(csv);
-    // 10 Datenzeilen → 10 Original-Keys + Lowercase-Aliase für mixed-case
-    expect(map.size).toBeGreaterThanOrEqual(10);
-    const entry = map.get('GLE0P601.docx');
+    // Map-Keys sind durchgängig lowercase — exakt eine Map-Zeile pro CSV-Zeile.
+    expect(map.size).toBe(10);
+    // Lookup nur via lowercase-Schlüssel; entry.docId behält Original-Case.
+    const entry = map.get('gle0p601.docx');
     expect(entry).toBeDefined();
+    expect(entry!.docId).toBe('GLE0P601.docx');
     expect(entry!.aktenplan).toBe('7 Irrelevante Unterlagen');
     expect(entry!.von).toBe('FFNF');
     // Lazy FKZ-Extraktion (extracted_fkz-Spalte fehlt im Original)
     expect(entry!.extractedFkz).toBe('16KN084935');
   });
 
-  it('case-insensitive Lookup über Lowercase-Aliase', () => {
+  it('case-insensitive Lookup über lowercase-Schlüssel', () => {
     const samplePath = path.resolve(__dirname, '../../../docs/phase-2/dms-sample.csv');
     const csv = readFileSync(samplePath, 'utf-8');
     const map = parseDmsCsv(csv);
-    // GLEYL401.XLSM ist UPPER — Lowercase-Alias muss da sein
+    // GLEYL401.XLSM ist UPPER — Lookup über lowercase-Variante.
     expect(map.get('gleyl401.xlsm')).toBeDefined();
     expect(map.get('gleyl401.xlsm')!.aktenplan).toBe('0.2 Checklisten');
+    // Original-Case-Lookup gibt es nicht mehr — Stage 0 normalisiert.
+    expect(map.get('GLEYL401.XLSM')).toBeUndefined();
   });
 });
