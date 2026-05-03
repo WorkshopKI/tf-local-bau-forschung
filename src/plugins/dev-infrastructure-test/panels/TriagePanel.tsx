@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import {
   loadDmsCsvFromShare,
@@ -22,14 +23,14 @@ import {
 import type { AktenplanLookup, DmsEntry } from '@/phase2/types';
 import { DevLog, DevRow, StatusPill } from './shared';
 
-const STORE_KEY_PROGRAMM = 'phase2-triage-test-programm-id';
-
 export function TriagePanel(): React.ReactElement {
   const storage = useStorage();
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
+  const programme = useActiveProgramm(s => s.programme);
+  const activeProgrammName = programme.find(p => p.id === activeProgrammId)?.name ?? null;
   const [dmsMap, setDmsMap] = useState<Map<string, DmsEntry> | null>(null);
   const [aktenplan, setAktenplan] = useState<Map<string, AktenplanLookup> | null>(null);
   const [dmsSource, setDmsSource] = useState<'shared' | 'absent' | null>(null);
-  const [programmId, setProgrammId] = useState<string>('demo');
   const [lastManifest, setLastManifest] = useState<ManifestEntry | null>(null);
   const [skipCount, setSkipCount] = useState<number>(0);
   const [pendingCount, setPendingCount] = useState<number>(0);
@@ -48,8 +49,6 @@ export function TriagePanel(): React.ReactElement {
   }, [storage.idb]);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORE_KEY_PROGRAMM);
-    if (stored) setProgrammId(stored);
     void refreshCounts();
   }, [refreshCounts]);
 
@@ -74,6 +73,10 @@ export function TriagePanel(): React.ReactElement {
   };
 
   const onPickAndTriage = async (): Promise<void> => {
+    if (!activeProgrammId) {
+      log('Kein aktives Programm — bitte erst eines im Sidebar-Switcher auswählen.');
+      return;
+    }
     setBusy(true);
     try {
       const win = window as unknown as {
@@ -101,7 +104,7 @@ export function TriagePanel(): React.ReactElement {
       const r = await triageFile(
         {
           idb: storage.idb,
-          programmId,
+          programmId: activeProgrammId,
           dmsMap: map,
           aktenplan: ak,
           llmTransport: null,    // Stage 3 hier nicht aktiv — Dev-Test kann LLM-Endpoint später optional einhängen
@@ -133,14 +136,6 @@ export function TriagePanel(): React.ReactElement {
     setPendingCount(items.length);
   };
 
-  const onSetProgrammId = (): void => {
-    const v = window.prompt('programmId für Akronym-Lookup:', programmId);
-    if (v != null && v.trim().length > 0) {
-      setProgrammId(v.trim());
-      window.localStorage.setItem(STORE_KEY_PROGRAMM, v.trim());
-    }
-  };
-
   return (
     <>
       <DevRow label="DMS-CSV-Index">
@@ -149,8 +144,11 @@ export function TriagePanel(): React.ReactElement {
         {dmsSource === 'absent' && <StatusPill label="dms-index-filtered.csv fehlt" tone="warn" />}
       </DevRow>
 
-      <DevRow label={`programmId für Match (akt: "${programmId}")`}>
-        <Button size="xs" variant="outline" onClick={onSetProgrammId}>Setzen</Button>
+      <DevRow label="Aktives Programm (für Akronym-Lookup)">
+        {activeProgrammId
+          ? <StatusPill label={activeProgrammName ?? activeProgrammId} tone="ok" />
+          : <StatusPill label="kein Programm aktiv — Switcher in der Sidebar" tone="warn" />
+        }
       </DevRow>
 
       <DevRow label="Datei testen">

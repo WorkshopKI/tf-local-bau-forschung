@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import {
   ensureDefaultProgramm,
   listSchemas,
@@ -16,16 +17,17 @@ import { CsvSourceReimportDialog } from './CsvSourceReimportDialog';
 export function CsvSourcesPage(): React.ReactElement {
   const storage = useStorage();
   const session = useKuratorSession();
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const [programmId, setProgrammId] = useState<string | null>(null);
   const [schemas, setSchemas] = useState<CsvSchema[]>([]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [reimportSchema, setReimportSchema] = useState<CsvSchema | null>(null);
 
   const refresh = useCallback(async () => {
-    const p = await ensureDefaultProgramm(storage.idb);
-    setProgrammId(p.id);
-    setSchemas(await listSchemas(storage.idb, p.id));
-  }, [storage.idb]);
+    const id = activeProgrammId ?? (await ensureDefaultProgramm(storage.idb)).id;
+    setProgrammId(id);
+    setSchemas(await listSchemas(storage.idb, id));
+  }, [storage.idb, activeProgrammId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 

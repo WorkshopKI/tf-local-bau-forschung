@@ -9,6 +9,13 @@ export interface UserProfile {
   is_kurator?: boolean;
   /** @deprecated Legacy-Feld vor v1.9; beim Laden als Fallback für is_kurator berücksichtigt. */
   is_admin?: boolean;
+  /**
+   * ID des aktuell aktiven Förderprogramms. Steuert welches Programm in
+   * Antraege-Liste, Home-Dashboard und Kurations-Tools sichtbar ist. Ein
+   * User kann zwischen seinen 1–5 Programmen umschalten.
+   * Wenn nicht gesetzt: Auto-Pick (erstes existierendes Programm).
+   */
+  activeProgrammId?: string;
 }
 
 export interface AIProviderConfig {

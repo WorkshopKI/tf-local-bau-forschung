@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { applyFilters } from '@/core/services/csv';
 import { menuLabel } from '@/config/feature-flags';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAntraegeStore } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { FilterSidebar } from './filter/FilterSidebar';
@@ -41,7 +42,12 @@ export function AntraegeListe(): React.ReactElement {
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  useEffect(() => { void loadAll(storage.idb); }, [loadAll, storage.idb]);
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
+  useEffect(() => {
+    // Reload bei Programm-Switch. Bevor activeProgrammId gesetzt ist (Init-Phase):
+    // loadAll ohne Argument → Bootstrap-Default-Programm.
+    void loadAll(storage.idb, activeProgrammId ?? undefined);
+  }, [loadAll, storage.idb, activeProgrammId]);
 
   useEffect(() => {
     if (programmId) void init(storage.idb, programmId);

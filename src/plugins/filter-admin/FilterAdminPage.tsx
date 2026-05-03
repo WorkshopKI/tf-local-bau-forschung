@@ -3,6 +3,7 @@ import { Tabs } from '@/ui';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import {
   ensureDefaultProgramm,
   listFilters,
@@ -22,6 +23,7 @@ export function FilterAdminPage(): React.ReactElement {
   const storage = useStorage();
   const session = useKuratorSession();
   const [tab, setTab] = useState<TabId>('system');
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const [programmId, setProgrammId] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterDefinition[]>([]);
   const [presets, setPresets] = useState<UserPreset[]>([]);
@@ -29,17 +31,17 @@ export function FilterAdminPage(): React.ReactElement {
   const [editing, setEditing] = useState<FilterDefinition | null>(null);
 
   const refresh = useCallback(async () => {
-    const p = await ensureDefaultProgramm(storage.idb);
-    setProgrammId(p.id);
-    await seedSystemFilters(storage.idb, p.id);
-    await hydrateAdminFiltersFromSmb(storage.idb, p.id);
+    const id = activeProgrammId ?? (await ensureDefaultProgramm(storage.idb)).id;
+    setProgrammId(id);
+    await seedSystemFilters(storage.idb, id);
+    await hydrateAdminFiltersFromSmb(storage.idb, id);
     const [defs, userPresets] = await Promise.all([
-      listFilters(storage.idb, p.id),
-      listUserPresets(storage.idb, p.id),
+      listFilters(storage.idb, id),
+      listUserPresets(storage.idb, id),
     ]);
     setFilters(defs);
     setPresets(userPresets);
-  }, [storage.idb]);
+  }, [storage.idb, activeProgrammId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 

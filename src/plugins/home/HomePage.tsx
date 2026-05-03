@@ -7,7 +7,9 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { useTourContext } from '@/core/hooks/useTour';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
+import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { menuLabel, dataConfig } from '@/config/feature-flags';
 import { getStatusVariant } from '@/core/utils/status-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
@@ -31,11 +33,15 @@ export function HomePage(): React.ReactElement {
     return () => { cancelled = true; };
   }, [storage.idb]);
 
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   useEffect(() => {
     loadBau(storage);
-    loadAntraege(storage.idb);
-  }, [storage, loadBau, loadAntraege]);
+    void loadAntraege(storage.idb, activeProgrammId ?? undefined);
+  }, [storage, loadBau, loadAntraege, activeProgrammId]);
 
+  // useDashboardData filtert NICHT explizit auf activeProgrammId — der
+  // useAntraegeStore.antraege-State enthält nach loadAll(idb, programmId)
+  // bereits nur die Anträge des aktiven Programms.
   const data = useDashboardData(profile?.department);
   const name = profile?.name ?? '';
   const antraegeLabel = menuLabel('antraege', 'Anträge');
@@ -85,6 +91,9 @@ export function HomePage(): React.ReactElement {
           {data.stats.offen} offene Vorgänge · {data.fristenDieseWoche} Fristen diese Woche
         </p>
       </div>
+
+      {/* Multi-Programm-Übersicht — versteckt bei <= 1 Programm */}
+      <ProgrammeOverviewCards />
 
       {/* Callout */}
       {data.naechsterSchritt && data.naechsterSchritt.daysLeft <= 7 && (

@@ -15,7 +15,13 @@ interface AntraegeState {
   selectedVerbundId: string | null;
   search: string;
   loading: boolean;
-  loadAll: (idb: IDBStore) => Promise<void>;
+  /**
+   * Lädt Antraege + Verbuende für das angegebene Programm. Wird bei
+   * Programm-Switch erneut aufgerufen.
+   * Wenn `programmId` weggelassen wird: fällt auf `ensureDefaultProgramm()`
+   * zurück (Bootstrap-Pfad).
+   */
+  loadAll: (idb: IDBStore, programmId?: string) => Promise<void>;
   setSearch: (s: string) => void;
   setSelectedAktenzeichen: (az: string | null) => void;
   setSelectedVerbundId: (id: string | null) => void;
@@ -31,15 +37,25 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   search: '',
   loading: false,
 
-  loadAll: async (idb: IDBStore) => {
+  loadAll: async (idb: IDBStore, programmId?: string) => {
     set({ loading: true });
     try {
-      const p = await ensureDefaultProgramm(idb);
+      const targetId = programmId ?? (await ensureDefaultProgramm(idb)).id;
       const [antraege, verbuende] = await Promise.all([
-        listAntraegeByProgramm(idb, p.id),
-        listVerbuendeByProgramm(idb, p.id),
+        listAntraegeByProgramm(idb, targetId),
+        listVerbuendeByProgramm(idb, targetId),
       ]);
-      set({ programmId: p.id, antraege, verbuende, loading: false });
+      set({
+        programmId: targetId,
+        antraege,
+        verbuende,
+        // Beim Programm-Wechsel Detail-Selection clearen — der vorherige
+        // selectedAktenzeichen würde sonst auf einen Antrag zeigen, der im
+        // neuen Programm nicht existiert.
+        selectedAktenzeichen: null,
+        selectedVerbundId: null,
+        loading: false,
+      });
     } catch {
       set({ loading: false });
     }

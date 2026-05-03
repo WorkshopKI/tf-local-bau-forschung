@@ -16,6 +16,11 @@ export async function ensureDefaultProgramm(idb: IDBStore): Promise<Programm> {
   return programm;
 }
 
+/**
+ * @deprecated Vor Multi-Programm-Switch — liefert das erste Programm aus der
+ * Liste. Lieber `useActiveProgramm()` verwenden, das auch Profile-Persistenz
+ * berücksichtigt. Wird noch von Bootstrap-Pfaden genutzt.
+ */
 export async function getActiveProgramm(idb: IDBStore): Promise<Programm | null> {
   const all = await listProgramme(idb);
   return all[0] ?? null;
@@ -26,4 +31,22 @@ export async function renameProgramm(idb: IDBStore, id: string, name: string): P
   if (!p) return;
   p.name = name.trim();
   await putProgramm(idb, p);
+}
+
+/**
+ * Legt ein neues Programm an. ID = `crypto.randomUUID()` (im Browser unter
+ * `file://` verfügbar — secure context). Name wird getrimmt; doppelte Namen
+ * sind erlaubt (User kann später umbenennen). Wirft, wenn Name leer.
+ */
+export async function createProgramm(idb: IDBStore, name: string): Promise<Programm> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('Programm-Name darf nicht leer sein.');
+  const programm: Programm = {
+    id: crypto.randomUUID(),
+    name: trimmed,
+    created_at: new Date().toISOString(),
+    smb_handle_key: DEFAULT_SMB_HANDLE_KEY,
+  };
+  await putProgramm(idb, programm);
+  return programm;
 }

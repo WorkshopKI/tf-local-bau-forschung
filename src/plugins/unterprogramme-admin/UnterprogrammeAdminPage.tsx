@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import {
   ensureDefaultProgramm,
   listUnterprogrammeByProgramm,
@@ -14,14 +15,16 @@ import { AktivConfirmDialog } from './AktivConfirmDialog';
 export function UnterprogrammeAdminPage(): React.ReactElement {
   const storage = useStorage();
   const session = useKuratorSession();
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const [ups, setUps] = useState<Unterprogramm[]>([]);
   const [pending, setPending] = useState<{ up: Unterprogramm; nextAktiv: boolean } | null>(null);
 
   const refresh = useCallback(async () => {
-    const p = await ensureDefaultProgramm(storage.idb);
-    const list = await listUnterprogrammeByProgramm(storage.idb, p.id);
+    // Active-Programm bevorzugen; Bootstrap-Fallback wenn Store noch nicht init.
+    const programmId = activeProgrammId ?? (await ensureDefaultProgramm(storage.idb)).id;
+    const list = await listUnterprogrammeByProgramm(storage.idb, programmId);
     setUps(list.sort((a, b) => a.code.localeCompare(b.code)));
-  }, [storage.idb]);
+  }, [storage.idb, activeProgrammId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 

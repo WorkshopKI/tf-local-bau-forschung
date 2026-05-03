@@ -20,6 +20,8 @@ import { useKuratorActivityTracker } from '@/core/hooks/useKuratorActivityTracke
 import { ensureDefaultProgramm } from '@/core/services/csv';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { SmbBanner } from '@/core/components/SmbBanner';
+import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { runtimeConfig } from '@/config/runtime-config';
 import { isFeedbackEnabled, isKuratorMenusEnabled, isDataShareEnabled, menuLabel } from '@/config/feature-flags';
@@ -81,6 +83,7 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
   const storage = useStorage();
   const kuratorSession = useKuratorSession();
   const smbStatus = useSmbStatus();
+  const initActiveProgramm = useActiveProgramm(s => s.init);
 
   useKuratorActivityTracker();
   useAutoSmbRefresh(storage.idb);
@@ -109,6 +112,9 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
       if (h) {
         await ensureDefaultProgramm(storage.idb).catch(() => undefined);
       }
+      // Active-Programm-Store init: liest profile.activeProgrammId, fällt auf
+      // erstes Programm zurück. Idempotent — kann ohne Profile aufgerufen werden.
+      await initActiveProgramm(storage.idb, profile);
     })();
     return () => { smbStatus.stopPolling(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,6 +125,14 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
     return () => window.clearInterval(h);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Wenn das Profil später hydriert (asynchron in useProfileProvider), den
+  // Active-Programm-State nochmal anstoßen, damit die persistierte ID greift.
+  // init() ist idempotent.
+  useEffect(() => {
+    if (!profile) return;
+    void initActiveProgramm(storage.idb, profile);
+  }, [profile, initActiveProgramm, storage.idb]);
 
   const sortedPlugins = useMemo(() => [...visiblePlugins].sort((a, b) => a.order - b.order), [visiblePlugins]);
 
@@ -182,6 +196,8 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
               <Icons.PanelLeftClose size={18} />
             </button>
           </div>
+
+          <ProgrammSwitcher />
 
           <nav className="flex-1 overflow-y-auto px-2 py-2">
             {(['workflow', 'tools'] as const).map(cat => {
