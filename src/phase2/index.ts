@@ -27,6 +27,7 @@ export { mirrorManifestToShare } from './scanner/manifest-mirror';
 export type { ManifestMirrorResult } from './scanner/manifest-mirror';
 export { bulkScanFiles } from './triage/bulk-scan';
 export type { BulkScanStats, BulkScanOptions } from './triage/bulk-scan';
+export { makeLoadBlobFromHandle } from './triage/load-blob-from-handle';
 export {
   getScanConfig,
   saveScanConfig,
@@ -34,6 +35,9 @@ export {
   listSubdirs,
   exportScanConfigToShare,
   importScanConfigFromShare,
+  findCoveringParent,
+  isPathCovered,
+  dedupeWithInheritance,
   SCAN_CONFIG_SHARE_PATH,
 } from './scan-config';
 export type {

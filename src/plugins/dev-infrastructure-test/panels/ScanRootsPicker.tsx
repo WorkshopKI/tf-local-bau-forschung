@@ -8,11 +8,13 @@
  * Lazy-Loading pro Aufklapp-Klick: gross gewachsene Foerderprogramm-Roots
  * werden nicht beim Oeffnen einmal komplett gelesen.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Loader2, FolderTree } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
+  dedupeWithInheritance,
   exportScanConfigToShare,
+  findCoveringParent,
   getScanConfig,
   importScanConfigFromShare,
   listSubdirs,
@@ -172,14 +174,22 @@ export function ScanRootsPicker({
 
   const toggleSelection = useCallback((path: string): void => {
     setSelectedPaths(prev => {
-      const next = prev.includes(path)
+      const isCurrentlySelected = prev.includes(path);
+      const raw = isCurrentlySelected
         ? prev.filter(p => p !== path)
         : [...prev, path];
+      // Beim Aktivieren: Auto-Dedupe — wird ein Parent gewaehlt, fliegen
+      // bereits drin liegende Children automatisch raus. Beim Deaktivieren
+      // ist nur einer raus -> Dedupe ist ein No-Op aber kostet nichts.
+      const next = dedupeWithInheritance(raw);
       void persist(next);
       onSelectionChange?.(next);
       return next;
     });
   }, [persist, onSelectionChange]);
+
+  // O(1)-Lookup fuer Inheritance-Display.
+  const selectedSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
 
   const onExport = useCallback(async (): Promise<void> => {
     setBusy(true);
@@ -253,7 +263,14 @@ export function ScanRootsPicker({
           >
             {nodes.map(node => {
               const isLoading = loadingPaths.has(node.path);
-              const isSelected = selectedPaths.includes(node.path);
+              const isExplicit = selectedSet.has(node.path);
+              const coveringParent = isExplicit
+                ? null
+                : findCoveringParent(node.path, selectedSet);
+              const isInherited = coveringParent !== null;
+              const isCovered = isExplicit || isInherited;
+              const inheritedFromLabel = coveringParent === '' ? '(ganzer Handle)' : coveringParent;
+
               return (
                 <div
                   key={node.path}
@@ -276,22 +293,35 @@ export function ScanRootsPicker({
                   </button>
                   <input
                     type="checkbox"
-                    checked={isSelected}
+                    checked={isCovered}
+                    disabled={isInherited}
                     onChange={() => toggleSelection(node.path)}
-                    className="cursor-pointer"
+                    className={isInherited ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
+                    title={
+                      isInherited
+                        ? `geerbt von ${inheritedFromLabel} — wird automatisch mitgescannt`
+                        : undefined
+                    }
                   />
                   <span
                     className={
-                      isSelected
+                      isExplicit
                         ? 'text-[var(--tf-text)] font-semibold'
-                        : 'text-[var(--tf-text-secondary)]'
+                        : isInherited
+                          ? 'text-[var(--tf-text-tertiary)] italic'
+                          : 'text-[var(--tf-text-secondary)]'
                     }
                   >
                     {node.name}
                   </span>
-                  {isSelected && (
+                  {isExplicit && (
                     <span className="text-[10px] text-[var(--tf-text-tertiary)]">
                       ({node.path})
+                    </span>
+                  )}
+                  {isInherited && (
+                    <span className="text-[10px] text-[var(--tf-text-tertiary)]">
+                      ⤷ via {inheritedFromLabel}
                     </span>
                   )}
                 </div>

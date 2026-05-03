@@ -3,6 +3,7 @@
  */
 import type { IDBStore } from '../../core/services/storage/idb-store';
 import { PHASE2_STORES } from '../../core/services/storage/idb-store';
+import { dedupeWithInheritance } from './inheritance';
 import type { ScanConfigEntry } from './types';
 
 const SINGLETON_ID = 'default' as const;
@@ -21,7 +22,7 @@ export async function saveScanConfig(idb: IDBStore, paths: string[]): Promise<Sc
   const db = idb.getDb();
   const entry: ScanConfigEntry = {
     id: SINGLETON_ID,
-    selected_paths: dedupePaths(paths),
+    selected_paths: dedupeWithInheritance(paths),
     updated_at: new Date().toISOString(),
   };
   return new Promise((resolve, reject) => {
@@ -44,14 +45,3 @@ export async function clearScanConfig(idb: IDBStore): Promise<void> {
   });
 }
 
-function dedupePaths(paths: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const p of paths) {
-    const key = p.trim();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(key);
-  }
-  return out;
-}

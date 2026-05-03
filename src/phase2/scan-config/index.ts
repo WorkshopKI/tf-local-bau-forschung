@@ -8,3 +8,8 @@ export {
   type ScanConfigExportResult,
   type ScanConfigImportResult,
 } from './share-mirror';
+export {
+  findCoveringParent,
+  isPathCovered,
+  dedupeWithInheritance,
+} from './inheritance';
