@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
@@ -17,6 +18,7 @@ import {
   triageFile,
   listAllSkipEntries,
   listAllPending,
+  cleanDocId,
   type ScanFile,
   type ManifestEntry,
 } from '@/phase2';
@@ -36,6 +38,7 @@ export function TriagePanel(): React.ReactElement {
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [logLines, setLogLines] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [lookupQuery, setLookupQuery] = useState<string>('');
 
   const log = useCallback((s: string) => {
     setLogLines(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${s}`]);
@@ -136,6 +139,61 @@ export function TriagePanel(): React.ReactElement {
     setPendingCount(items.length);
   };
 
+  const onLookupDocId = (): void => {
+    const raw = lookupQuery;
+    if (!raw.trim()) {
+      log('Bitte DocID eingeben.');
+      return;
+    }
+    if (!dmsMap || dmsMap.size === 0) {
+      log('Index nicht geladen. Erst „Index laden" klicken.');
+      return;
+    }
+    const cleaned = cleanDocId(raw);
+    const lookupKey = cleaned.toLowerCase();
+    const codes = Array.from(raw).map(ch => ch.charCodeAt(0));
+    log(`Lookup für "${raw}" (clean → "${cleaned}", lookup-key "${lookupKey}", char-codes [${codes.join(',')}])`);
+    log(`  map.size: ${dmsMap.size}`);
+
+    const hit = dmsMap.get(lookupKey);
+    if (hit) {
+      log(`  HIT:`);
+      log(`    docId        = ${hit.docId}`);
+      log(`    bezeichnung  = ${hit.bezeichnung}`);
+      log(`    aktenplan    = ${hit.aktenplan || '(leer)'}`);
+      log(`    typ          = ${hit.typ || '(leer)'}`);
+      log(`    von          = ${hit.von ?? '(null)'}`);
+      log(`    extractedFkz = ${hit.extractedFkz ?? '(null)'}`);
+      return;
+    }
+
+    log(`  MISS — kein exakter Lookup-Hit.`);
+    // Substring-Suche: alle Map-Keys, die `cleaned.toLowerCase()` als
+    // Substring enthalten. Bei MISS auf der ganzen DocID auch nach den
+    // ersten 8 Zeichen suchen (typisch der DocID-Stamm ohne Endung).
+    const stem = lookupKey.replace(/\.[^.]+$/, '').slice(0, 12);
+    const needle = stem.length >= 4 ? stem : lookupKey;
+    let found = 0;
+    for (const k of dmsMap.keys()) {
+      if (k.includes(needle)) {
+        log(`  ähnlicher key: "${k}"`);
+        found++;
+        if (found >= 5) break;
+      }
+    }
+    if (found === 0) {
+      log(`  Auch keine Substring-Treffer für "${needle}" — DocID ist nicht in der Map.`);
+      // Als Sanity: erste 3 Map-Keys ausgeben, damit der User sieht was generell
+      // im Index liegt
+      const samples: string[] = [];
+      for (const k of dmsMap.keys()) {
+        samples.push(k);
+        if (samples.length >= 3) break;
+      }
+      log(`  Beispiel-Keys aus dem Index: ${samples.join(', ')}`);
+    }
+  };
+
   return (
     <>
       <DevRow label="DMS-CSV-Index">
@@ -149,6 +207,19 @@ export function TriagePanel(): React.ReactElement {
           ? <StatusPill label={activeProgrammName ?? activeProgrammId} tone="ok" />
           : <StatusPill label="kein Programm aktiv — Switcher in der Sidebar" tone="warn" />
         }
+      </DevRow>
+
+      <DevRow label="DocID nachschlagen (Diagnose)">
+        <Input
+          value={lookupQuery}
+          onChange={e => setLookupQuery(e.target.value)}
+          placeholder="z.B. GMKZSZ01.docx"
+          className="h-7 text-[12px] flex-1 min-w-[160px]"
+          onKeyDown={e => { if (e.key === 'Enter') onLookupDocId(); }}
+        />
+        <Button size="xs" variant="outline" onClick={onLookupDocId} disabled={!dmsMap}>
+          Suchen
+        </Button>
       </DevRow>
 
       <DevRow label="Datei testen">

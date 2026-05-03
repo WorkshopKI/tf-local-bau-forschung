@@ -12,6 +12,7 @@
 
 import type { AktenplanLookup, DmsEntry, TriageResult } from '../types';
 import { lookupAktenplan } from '../dms-csv/aktenplan-mapping';
+import { cleanDocId } from '../dms-csv/loader';
 
 export interface Stage0Input {
   filename: string;
@@ -24,9 +25,10 @@ export type Stage0Output =
   | { matched: false; reason: 'no_dms_entry' };
 
 export function runStage0({ filename, dmsMap, aktenplan }: Stage0Input): Stage0Output {
-  // Map-Keys sind case-normalisiert (lowercase) — siehe loader.ts.
-  // Scanner liefert Filenames mit Original-Case, also hier normalisieren.
-  const entry = dmsMap.get(filename.toLowerCase()) ?? null;
+  // Map-Keys sind case-normalisiert + Whitespace/Zero-Width-frei (siehe
+  // loader.cleanDocId). Lookup-Pfad muss dieselbe Normalisierung anwenden.
+  const lookupKey = cleanDocId(filename).toLowerCase();
+  const entry = dmsMap.get(lookupKey) ?? null;
   if (!entry) {
     return { matched: false, reason: 'no_dms_entry' };
   }

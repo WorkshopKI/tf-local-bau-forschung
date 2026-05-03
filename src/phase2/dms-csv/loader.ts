@@ -22,6 +22,23 @@ export interface DmsLoadResult {
   source: 'shared' | 'absent';
 }
 
+/**
+ * Trimmt Whitespace UND unsichtbare Zeichen (BOM, Zero-Width-Space, NBSP, ...)
+ * aus einer DocID. Wird sowohl beim Loader-Schreib-Pfad als auch beim
+ * Stage-0-Lookup-Pfad eingesetzt — eine Quelle der Wahrheit für Normalisierung.
+ *
+ * Der Standard `String.prototype.trim()` entfernt nur ASCII/Unicode-Whitespace,
+ * NICHT aber `﻿` (BOM) oder `​` (ZWSP). Letztere können entstehen
+ * wenn DMS-Exports oder Kopier-Aktionen unsichtbare Zeichen einschleppen.
+ */
+export function cleanDocId(raw: string | null | undefined): string {
+  if (!raw) return '';
+  // Entferne BOM, Zero-Width-Space, Zero-Width-Non-Joiner, Zero-Width-Joiner,
+  // Word-Joiner aus der gesamten String + dann normales trim() (deckt
+  // Spaces, Tabs, NBSP  , etc. ab).
+  return raw.replace(/[﻿​‌‍⁠]/g, '').trim();
+}
+
 /** Liest die gefilterte DMS-CSV vom Daten-Share und baut die Lookup-Map. */
 export async function loadDmsCsvFromShare(
   datenShare: FileSystemDirectoryHandle,
@@ -74,14 +91,28 @@ export function parseDmsCsv(text: string): Map<string, DmsEntry> {
   const fkzIdx = idx('extracted_fkz');
 
   if (docIdIdx < 0 || bezIdx < 0) {
-    console.warn('[phase2/dms-csv] CSV ohne DocID/Bezeichnung-Spalte — nichts geladen.');
+    // Diagnose-Hilfe: Header-Werte mit Char-Codes ausgeben — so fallen
+    // unsichtbare Zeichen (BOM in der ersten Zelle, NBSP, Tabs, ZWSP) sofort auf.
+    const headerSample = header.slice(0, 6).map(h => ({
+      raw: h,
+      length: h.length,
+      codes: Array.from(h).map(ch => ch.charCodeAt(0)),
+    }));
+    console.warn(
+      '[phase2/dms-csv] CSV ohne DocID/Bezeichnung-Spalte — nichts geladen.',
+      { docIdIdx, bezIdx, headerSample },
+    );
     return new Map();
   }
 
   const map = new Map<string, DmsEntry>();
+  let skippedEmpty = 0;
   for (const row of rows) {
-    const docId = (row[docIdIdx] ?? '').trim();
-    if (!docId) continue;
+    const docId = cleanDocId(row[docIdIdx]);
+    if (!docId) {
+      skippedEmpty++;
+      continue;
+    }
     const bezeichnung = (row[bezIdx] ?? '').trim();
     let extractedFkz: string | null = fkzIdx >= 0 ? (row[fkzIdx] ?? '').trim() || null : null;
     if (!extractedFkz) {
@@ -103,5 +134,17 @@ export function parseDmsCsv(text: string): Map<string, DmsEntry> {
     // Zeile. `entry.docId` behält die Original-Schreibweise für UI/Debug.
     map.set(docId.toLowerCase(), entry);
   }
+  // Diagnose-Log direkt nach dem Build — User sieht in der Console nach
+  // „Index laden", ob die Keys den erwarteten Schreibweisen entsprechen.
+  const firstKeys: string[] = [];
+  for (const k of map.keys()) {
+    firstKeys.push(k);
+    if (firstKeys.length >= 3) break;
+  }
+  // eslint-disable-next-line no-console
+  console.debug(
+    `[phase2/dms-csv] geladen: ${map.size} Einträge (${skippedEmpty} skipped wegen leerer DocID), erste 3 keys:`,
+    firstKeys,
+  );
   return map;
 }
