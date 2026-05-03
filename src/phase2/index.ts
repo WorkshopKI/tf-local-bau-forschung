@@ -23,7 +23,7 @@ export {
   listManifestEntries,
   deleteManifestEntry,
 } from './scanner/manifest-store';
-export { loadDmsCsvFromShare, parseDmsCsv, cleanDocId } from './dms-csv/loader';
+export { loadDmsCsvFromShare, parseDmsCsv, cleanDocId, getLastParseDmsCsvStats } from './dms-csv/loader';
 export { parseCsvLine, parseCsvText } from './dms-csv/parser';
 export {
   DEFAULT_AKTENPLAN_MAPPING,

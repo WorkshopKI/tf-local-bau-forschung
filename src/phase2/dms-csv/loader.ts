@@ -136,15 +136,27 @@ export function parseDmsCsv(text: string): Map<string, DmsEntry> {
   }
   // Diagnose-Log direkt nach dem Build — User sieht in der Console nach
   // „Index laden", ob die Keys den erwarteten Schreibweisen entsprechen.
+  // console.log statt console.debug, weil debug im Default-Chrome-Filter
+  // nicht sichtbar ist.
   const firstKeys: string[] = [];
   for (const k of map.keys()) {
     firstKeys.push(k);
     if (firstKeys.length >= 3) break;
   }
   // eslint-disable-next-line no-console
-  console.debug(
+  console.log(
     `[phase2/dms-csv] geladen: ${map.size} Einträge (${skippedEmpty} skipped wegen leerer DocID), erste 3 keys:`,
     firstKeys,
   );
+  // Ebenfalls als Result-Statistik exposed — TriagePanel zeigt das im
+  // sichtbaren DevLog an, damit der User nicht erst die Browser-Console
+  // öffnen muss.
+  loadStats = { size: map.size, skippedEmpty, firstKeys };
   return map;
+}
+
+/** Stats des letzten parseDmsCsv-Aufrufs. Wird vom TriagePanel ausgelesen. */
+let loadStats: { size: number; skippedEmpty: number; firstKeys: string[] } | null = null;
+export function getLastParseDmsCsvStats(): { size: number; skippedEmpty: number; firstKeys: string[] } | null {
+  return loadStats;
 }

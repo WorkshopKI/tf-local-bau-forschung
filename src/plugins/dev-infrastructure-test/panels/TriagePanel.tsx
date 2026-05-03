@@ -19,6 +19,7 @@ import {
   listAllSkipEntries,
   listAllPending,
   cleanDocId,
+  getLastParseDmsCsvStats,
   type ScanFile,
   type ManifestEntry,
 } from '@/phase2';
@@ -68,6 +69,13 @@ export function TriagePanel(): React.ReactElement {
       setAktenplan(r.aktenplan);
       setDmsSource(r.source);
       log(`DMS-Index geladen: ${r.entries.size} Einträge (source=${r.source}).`);
+      // Diagnose: Stats aus dem Parser ins Panel-Log spiegeln, damit der User
+      // nicht in die Browser-Console muss.
+      const stats = getLastParseDmsCsvStats();
+      if (stats) {
+        log(`  ${stats.skippedEmpty} Zeilen mit leerer DocID übersprungen.`);
+        log(`  Erste 3 Map-Keys: ${stats.firstKeys.join(', ') || '(leer)'}`);
+      }
     } catch (e) {
       log(`Fehler: ${(e as Error).message}`);
     } finally {
