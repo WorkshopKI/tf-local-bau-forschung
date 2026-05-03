@@ -27,8 +27,14 @@ import { addPending, listPendingByAkronym } from '../pending-antrag/holding-buck
 import { getSkipEntry, putSkipEntry } from '../skip-list/store';
 import { putManifestEntry } from '../scanner/manifest-store';
 
-/** Version-Counter für Skip-List-Reset-Mechanik. Bei Klassifikator-Updates erhöhen. */
-export const CLASSIFIER_VERSION = 1;
+/**
+ * Version-Counter für Skip-List-Reset-Mechanik. Bei Klassifikator-Updates erhöhen.
+ *
+ * v1 → v2: SkipListEntry erweitert um dms_*-Felder (Bug-Fix: vorher gingen die
+ *   Stage-0-Erkenntnisse beim Schnellpfad-Restore verloren). Alle v1-Einträge
+ *   werden beim nächsten Triage-Lauf re-klassifiziert.
+ */
+export const CLASSIFIER_VERSION = 2;
 
 export interface TriageContext {
   idb: IDBStore;
@@ -247,16 +253,18 @@ function manifestFromSkip(file: ScanFile, skip: import('../types').SkipListEntry
     triage_stage: 0,
     triage_source: skip.source,
     triage_reason: `skipped: ${skip.reason}`,
-    extracted_fkz: null,
-    extracted_akronym: null,
+    // Restore aus dem Skip-Eintrag (alte v1-Einträge ohne diese Felder kommen
+    // mit `undefined` und fallen auf null) — siehe SkipListEntry-Erweiterung.
+    extracted_fkz: skip.extracted_fkz ?? null,
+    extracted_akronym: skip.extracted_akronym ?? null,
     matched_antrag_id: skip.antrag_id,
     match_method: null,
     match_confidence: null,
     candidate_antrag_ids: [],
     requires_review: false,
-    creator_kuerzel: null,
-    dms_bezeichnung: null,
-    dms_aktenplan: null,
+    creator_kuerzel: skip.creator_kuerzel ?? null,
+    dms_bezeichnung: skip.dms_bezeichnung ?? null,
+    dms_aktenplan: skip.dms_aktenplan ?? null,
   };
 }
 
@@ -324,6 +332,13 @@ async function persistIrrelevant(
     reason: triage.reason,
     first_seen_hash: '',
     source,
+    // DMS-Felder mit-persistieren, damit der Schnellpfad-Restore beim
+    // nächsten Scan das Manifest vollständig rekonstruieren kann.
+    dms_bezeichnung: triage.dms_bezeichnung,
+    dms_aktenplan: triage.dms_aktenplan,
+    creator_kuerzel: triage.creator_kuerzel,
+    extracted_fkz: triage.extracted_fkz,
+    extracted_akronym: triage.extracted_akronym,
   });
   return { manifest, skipped: false };
 }

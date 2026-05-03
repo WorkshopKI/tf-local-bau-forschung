@@ -57,6 +57,18 @@ export async function listPendingByAkronym(idb: IDBStore, akronym: string): Prom
   });
 }
 
+/** Löscht alle Pending-Einträge — nur für Dev-Sessions. */
+export async function clearAllPending(idb: IDBStore): Promise<void> {
+  const db = idb.getDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PHASE2_STORES.PENDING_ANTRAEGE, 'readwrite');
+    tx.objectStore(PHASE2_STORES.PENDING_ANTRAEGE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
 export async function deletePending(idb: IDBStore, id: string): Promise<void> {
   const db = idb.getDb();
   return new Promise((resolve, reject) => {

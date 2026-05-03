@@ -119,6 +119,15 @@ export interface SkipListEntry {
   reason: string;                         // "irrelevant_typ" | "gutachten_docx" | "dms_csv_irrelevant" | …
   first_seen_hash: string;                // für Forensik bei Re-Klassifikation (kann '' sein)
   source: ClassifierSource;
+  /** DMS-Felder zum Restoren des Manifests beim Schnellpfad. Optional, weil
+      Skip-Einträge auch ohne DMS-Match entstehen können (z.B. orphan-irrelevant
+      aus Stage 2/3). Alte Einträge ohne diese Felder kommen mit `undefined`
+      und werden im Restore auf `null` gemappt. */
+  dms_bezeichnung?: string | null;
+  dms_aktenplan?: string | null;
+  creator_kuerzel?: string | null;
+  extracted_fkz?: string | null;
+  extracted_akronym?: string | null;
 }
 
 /**

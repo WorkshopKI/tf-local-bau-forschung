@@ -18,6 +18,8 @@ import {
   triageFile,
   listAllSkipEntries,
   listAllPending,
+  clearAllPending,
+  resetSkipListByVersion,
   cleanDocId,
   getLastParseDmsCsvStats,
   type ScanFile,
@@ -147,6 +149,20 @@ export function TriagePanel(): React.ReactElement {
     setPendingCount(items.length);
   };
 
+  const onClearSkipList = async (): Promise<void> => {
+    // resetSkipListByVersion löscht alle Einträge mit version < threshold;
+    // mit MAX_SAFE_INTEGER trifft das alle.
+    const removed = await resetSkipListByVersion(storage.idb, Number.MAX_SAFE_INTEGER);
+    log(`Skip-Liste geleert: ${removed} Einträge entfernt.`);
+    await refreshCounts();
+  };
+
+  const onClearPending = async (): Promise<void> => {
+    await clearAllPending(storage.idb);
+    log('Pending-Antraege geleert.');
+    await refreshCounts();
+  };
+
   const onLookupDocId = (): void => {
     const raw = lookupQuery;
     if (!raw.trim()) {
@@ -241,6 +257,12 @@ export function TriagePanel(): React.ReactElement {
         <StatusPill label={`${skipCount}`} tone="neutral" />
         <Button size="xs" variant="outline" onClick={() => void onShowPending()}>Pending</Button>
         <StatusPill label={`${pendingCount}`} tone="neutral" />
+        <Button size="xs" variant="destructive" onClick={() => void onClearSkipList()} disabled={skipCount === 0}>
+          Skip-Liste leeren
+        </Button>
+        <Button size="xs" variant="destructive" onClick={() => void onClearPending()} disabled={pendingCount === 0}>
+          Pending leeren
+        </Button>
       </DevRow>
 
       {lastManifest && (

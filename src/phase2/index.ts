@@ -44,6 +44,7 @@ export {
   listAllPending,
   listPendingByAkronym,
   deletePending,
+  clearAllPending,
   rematchOnSnapshotReload,
 } from './pending-antrag/holding-bucket';
 export { ocrFirstPage, OcrNotImplementedError } from './ocr/side-car';
