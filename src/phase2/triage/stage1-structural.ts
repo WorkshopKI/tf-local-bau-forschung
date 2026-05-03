@@ -18,6 +18,10 @@ export interface Stage1Input {
   docTypeHint?: DocType;
   /** Optionales pre-extrahiertes FKZ (typischerweise aus Stage 0 / DMS-CSV). */
   fkzHint?: string | null;
+  /** Stage-0-Erbe: DMS-Felder, die in Stage-1-`decided` durchgereicht werden. */
+  dmsBezeichnungHint?: string | null;
+  dmsAktenplanHint?: string | null;
+  creatorKuerzelHint?: string | null;
 }
 
 export interface Stage1Output {
@@ -79,9 +83,10 @@ export async function runStage1(input: Stage1Input): Promise<Stage1Output> {
       reason: 'gutachten_docx_arbeitsversion',
       extracted_fkz: input.fkzHint ?? null,
       extracted_akronym: null,
-      creator_kuerzel: null,
-      dms_bezeichnung: null,
-      dms_aktenplan: null,
+      // Stage-0-Erbe — sonst gehen die DMS-Felder beim Sonderregel-Pfad verloren.
+      creator_kuerzel: input.creatorKuerzelHint ?? null,
+      dms_bezeichnung: input.dmsBezeichnungHint ?? null,
+      dms_aktenplan: input.dmsAktenplanHint ?? null,
     };
     out.decided = decided;
     return out;

@@ -89,6 +89,10 @@ export async function triageFile(
       blob,
       docTypeHint: triage.doc_type,
       fkzHint: triage.extracted_fkz,
+      // DMS-Felder durchreichen, damit sie im Stage-1-`decided` nicht verloren gehen
+      dmsBezeichnungHint: triage.dms_bezeichnung,
+      dmsAktenplanHint: triage.dms_aktenplan,
+      creatorKuerzelHint: triage.creator_kuerzel,
     });
     if (stage1.decided) {
       triage = stage1.decided;
