@@ -1,7 +1,11 @@
 /**
  * Bulk-Scan-Loop ueber eine Liste von ScanFiles.
  *
- * - Sequentiell (pdfjs/mammoth ist Main-Thread, parallel bringt nichts).
+ * - Concurrency-Pool: bis zu N Files gleichzeitig triagiert (Default 4).
+ *   pdfjs laeuft im Web-Worker (siehe pdf-extract.ts) und mammoth haelt den
+ *   Main-Thread; bei Concurrency >1 koennen mehrere Files parallel durch die
+ *   Pipeline. SMB-File-Reads werden ebenfalls parallelisiert (loadBlob laeuft
+ *   pro Worker-Coroutine).
  * - try/catch um triageFile() pro Datei: bei Parse-Errors (kaputtes PDF/DOCX)
  *   wird ein Manifest mit triage_state='review', triage_reason='parse_error: ...'
  *   geschrieben, damit ein Re-Run die Datei nicht erneut versucht und der Loop
@@ -54,6 +58,13 @@ export interface BulkScanOptions {
    */
   memoryYieldEveryFiles?: number;
   memoryYieldMs?: number;
+  /**
+   * Anzahl paralleler Worker-Coroutinen. Default 4. Bei 1 ist der Loop
+   * sequentiell (alter Pfad). Bei hoeheren Werten: mehr SMB-Latenz-Hiding,
+   * aber Peak-RAM steigt linear (jeder Worker haelt einen ArrayBuffer +
+   * pdfjs-Doc waehrend Triage).
+   */
+  concurrency?: number;
 }
 
 function emptyStats(total: number): BulkScanStats {
@@ -140,17 +151,21 @@ export async function bulkScanFiles(opts: BulkScanOptions): Promise<BulkScanStat
   const progressEvery = opts.progressEvery ?? 25;
   const memYieldEvery = opts.memoryYieldEveryFiles ?? 500;
   const memYieldMs = opts.memoryYieldMs ?? 100;
+  const concurrency = Math.max(1, Math.min(16, opts.concurrency ?? 4));
   const stats = emptyStats(files.length);
   // Initialer Progress-Tick, damit das UI sofort die Total-Zahl sieht.
   onProgress?.(stats);
 
-  for (let i = 0; i < files.length; i++) {
-    if (signal?.aborted) {
-      stats.aborted = true;
-      break;
-    }
-    const file = files[i];
-    if (!file) continue;
+  // Geteilter Index — Worker holen sich den naechsten freien Slot. JavaScript
+  // ist single-threaded, daher ist `nextIndex++` atomic ohne Lock.
+  let nextIndex = 0;
+
+  // Verhindern dass mehrere Worker gleichzeitig fuer denselben Schwellenwert
+  // (z.B. done=500) den Memory-Yield ausloesen — wir markieren erledigte
+  // Schwellen.
+  const yieldedAt = new Set<number>();
+
+  async function processFile(file: ScanFile): Promise<void> {
     stats.current_file = file.filepath;
 
     let lastError: string | undefined;
@@ -164,12 +179,9 @@ export async function bulkScanFiles(opts: BulkScanOptions): Promise<BulkScanStat
       try {
         await persistParseErrorManifest(ctx, file, msg);
       } catch (persistErr) {
-        // Persist-Fehler ist sehr selten (IDB voll o.ae.) -- nicht den Loop
-        // abbrechen, nur ins lastError aufnehmen.
         const persistMsg = persistErr instanceof Error ? persistErr.message : String(persistErr);
         lastError = `${file.filepath}: ${msg} | persist: ${persistMsg}`;
       }
-      // Sofort persistent loggen (best-effort, Loggen darf nie den Loop killen).
       if (runLog) {
         try {
           await runLog.logError(file.filepath, file.filename, msg, stats.done);
@@ -181,8 +193,8 @@ export async function bulkScanFiles(opts: BulkScanOptions): Promise<BulkScanStat
 
     stats.done++;
 
-    const isFirst = i === 0;
-    const isLast = i === files.length - 1;
+    const isFirst = stats.done === 1;
+    const isLast = stats.done === files.length;
     const tickDue = stats.done % progressEvery === 0;
     if (isFirst || isLast || tickDue || lastError) {
       onProgress?.(stats, lastError);
@@ -190,13 +202,38 @@ export async function bulkScanFiles(opts: BulkScanOptions): Promise<BulkScanStat
       await new Promise(r => setTimeout(r, 0));
     }
 
-    // Memory-Schutz: alle memYieldEvery Files eine laengere Pause +
-    // bewusster setTimeout, damit der Browser-GC durchlaufen kann. Schuetzt
-    // vor OOM bei langen Bulk-Runs mit pdfjs/mammoth.
+    // Memory-Schutz: alle memYieldEvery Files eine laengere Pause + bewusster
+    // setTimeout, damit der Browser-GC durchlaufen kann. Bei Concurrency >1
+    // sorgt `yieldedAt` dafuer, dass nur ein Worker pro Schwellenwert yieldet.
     if (memYieldEvery > 0 && memYieldMs > 0 && stats.done > 0 && stats.done % memYieldEvery === 0) {
-      await new Promise(r => setTimeout(r, memYieldMs));
+      const threshold = stats.done;
+      if (!yieldedAt.has(threshold)) {
+        yieldedAt.add(threshold);
+        await new Promise(r => setTimeout(r, memYieldMs));
+      }
     }
   }
+
+  async function worker(): Promise<void> {
+    while (true) {
+      if (signal?.aborted) {
+        stats.aborted = true;
+        return;
+      }
+      const i = nextIndex;
+      nextIndex += 1;
+      if (i >= files.length) return;
+      const file = files[i];
+      if (!file) continue;
+      await processFile(file);
+    }
+  }
+
+  const workers: Promise<void>[] = [];
+  for (let w = 0; w < concurrency; w++) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
 
   stats.current_file = null;
   stats.finished_at = new Date().toISOString();

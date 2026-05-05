@@ -22,6 +22,7 @@ import { runStage0 } from './stage0-dms-lookup';
 import { runStage1 } from './stage1-structural';
 import { runStage2 } from './stage2-keywords';
 import { runStage3 } from './stage3-nemotron';
+import { extractPdfOnce, type PdfExtractResult } from './pdf-extract';
 import { matchByFkz, runMatcher } from '../matcher/matcher';
 import { addPending, listPendingByAkronym } from '../pending-antrag/holding-bucket';
 import { getSkipEntry, putSkipEntry } from '../skip-list/store';
@@ -104,6 +105,23 @@ export async function triageFile(
 
   let triage: TriageResult;
   let blob: Blob | null = null;
+  // Pre-extrahierte PDF-Daten — wenn der Blob ein PDF ist, oeffnen wir es
+  // einmal hier und reichen das Ergebnis an Stage 1 + Stage 2 durch. Spart
+  // die zweite pdfjs.getDocument-Instanzierung pro Datei (~25 % der Triage-
+  // Zeit fuer PDFs).
+  let preloadedPdf: PdfExtractResult | undefined;
+
+  // Helper: PDF einmal laden, Best-effort. Bei Fehler bleibt preloadedPdf
+  // undefined, die Stages fallen dann auf eigene pdfjs-Calls zurueck (die
+  // werfen ggf. denselben Fehler — aber mindestens haben wir's versucht).
+  const tryPreloadPdf = async (b: Blob): Promise<void> => {
+    if (!file.filename.toLowerCase().endsWith('.pdf')) return;
+    try {
+      preloadedPdf = await extractPdfOnce(b);
+    } catch (e) {
+      console.warn(`[phase2/triage] PDF-Preload fehlgeschlagen: ${file.filename}`, e);
+    }
+  };
 
   if (stage0.matched) {
     triage = stage0.result;
@@ -149,6 +167,7 @@ export async function triageFile(
     } else {
       // Blob laden für Stage 1/2
       blob = await loadBlob(file);
+      if (blob) await tryPreloadPdf(blob);
       // Stage 1 strukturell (vor allem Gutachten-DOCX-Sonderregel)
       const stage1 = await runStage1({
         filename: file.filename,
@@ -159,6 +178,7 @@ export async function triageFile(
         dmsBezeichnungHint: triage.dms_bezeichnung,
         dmsAktenplanHint: triage.dms_aktenplan,
         creatorKuerzelHint: triage.creator_kuerzel,
+        preloadedPdf,
       });
       if (stage1.decided) {
         triage = stage1.decided;
@@ -180,7 +200,8 @@ export async function triageFile(
       await persistManifest(ctx.idb, manifest);
       return { manifest, skipped: false };
     }
-    const stage1 = await runStage1({ filename: file.filename, blob });
+    await tryPreloadPdf(blob);
+    const stage1 = await runStage1({ filename: file.filename, blob, preloadedPdf });
     if (stage1.decided) {
       triage = stage1.decided;
       if (triage.triage_state === 'irrelevant') {
@@ -188,7 +209,7 @@ export async function triageFile(
       }
     } else {
       // Stage 2 startet hier — Stage 0 hat nichts geliefert
-      const stage2 = await runStage2({ filename: file.filename, blob });
+      const stage2 = await runStage2({ filename: file.filename, blob, preloadedPdf });
       triage = stage2.result;
     }
   }
@@ -201,6 +222,7 @@ export async function triageFile(
       blob,
       docTypeHint: triage.doc_type,
       fkzHint: triage.extracted_fkz,
+      preloadedPdf,
     });
     // Stage-2-Ergebnisse mergen — DMS-Klassifikation gewinnt für doc_type,
     // aber Akronym + Page-1-Text werden übernommen.

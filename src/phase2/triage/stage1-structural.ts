@@ -9,6 +9,7 @@
  */
 
 import type { DocType, TriageResult } from '../types';
+import { extractPdfOnce, type PdfExtractResult } from './pdf-extract';
 
 export interface Stage1Input {
   filename: string;
@@ -22,6 +23,13 @@ export interface Stage1Input {
   dmsBezeichnungHint?: string | null;
   dmsAktenplanHint?: string | null;
   creatorKuerzelHint?: string | null;
+  /**
+   * Optionale pre-extrahierte PDF-Daten (vom Orchestrator), damit Stage 1
+   * nicht selbst pdfjs.getDocument aufrufen muss. Wenn nicht uebergeben,
+   * faellt Stage 1 auf einen eigenen Aufruf zurueck (Backward-Compat fuer
+   * Tests).
+   */
+  preloadedPdf?: PdfExtractResult;
 }
 
 export interface Stage1Output {
@@ -41,36 +49,17 @@ function detectFormat(filename: string): 'pdf' | 'docx' | 'unknown' {
 
 /**
  * Prüft ob ein PDF eine Text-Schicht hat (durchsuchbar). Gibt searchable + pages zurück.
- * Bei Fehler: searchable=false, pages=undefined.
+ * Bei Fehler: searchable=false, pages=0.
+ *
+ * Wenn der Caller `preloaded` mitgibt (Triage-Orchestrator), nutzt Stage 1
+ * die bereits extrahierten Daten — kein zweiter pdfjs.getDocument-Call.
  */
-async function probePdf(blob: Blob): Promise<{ searchable: boolean; pages: number }> {
-  // Lazy import: in Node-Tests crasht der pdfjs-Init weil DOMMatrix fehlt.
-  // Sobald hier wirklich PDFs verarbeitet werden, ist der Code im Browser.
-  const pdfjsLib = await import('pdfjs-dist');
-  const buf = await blob.arrayBuffer();
-  const doc = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-  try {
-    const pages = doc.numPages;
-    let searchable = false;
-    // Nur erste Seite probe — wenn die Text hat, ist es i.d.R. ein durchsuchbares PDF
-    try {
-      const page = await doc.getPage(1);
-      const content = await page.getTextContent();
-      const items = content.items as Array<{ str?: string }>;
-      const totalChars = items.reduce((s, it) => s + ((it.str ?? '').length), 0);
-      searchable = totalChars >= 20;
-    } catch {
-      searchable = false;
-    }
-    return { searchable, pages };
-  } finally {
-    // CRITICAL: ohne destroy() haelt pdfjs interne Worker-Caches und
-    // decoded Streams im Heap — bei vielen Dokumenten in Folge laeuft der
-    // Browser-Tab in OOM. destroy() laeuft als Promise; wir warten auf
-    // den Cleanup, damit der naechste getDocument() saubere Verhaeltnisse
-    // hat.
-    await doc.destroy().catch(() => { /* best-effort */ });
-  }
+async function probePdf(
+  blob: Blob,
+  preloaded?: PdfExtractResult,
+): Promise<{ searchable: boolean; pages: number }> {
+  const pdf = preloaded ?? await extractPdfOnce(blob);
+  return { searchable: pdf.totalCharsPage1 >= 20, pages: pdf.pages };
 }
 
 export async function runStage1(input: Stage1Input): Promise<Stage1Output> {
@@ -103,7 +92,7 @@ export async function runStage1(input: Stage1Input): Promise<Stage1Output> {
 
   if (format === 'pdf' && input.blob) {
     try {
-      const probe = await probePdf(input.blob);
+      const probe = await probePdf(input.blob, input.preloadedPdf);
       out.pages = probe.pages;
       out.searchable = probe.searchable;
     } catch (e) {

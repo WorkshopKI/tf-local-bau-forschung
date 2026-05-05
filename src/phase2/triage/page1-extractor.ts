@@ -11,6 +11,7 @@
 
 import mammoth from 'mammoth';
 import { ocrFirstPage, OcrNotImplementedError } from '../ocr/side-car';
+import { extractPdfOnce, type PdfExtractResult } from './pdf-extract';
 
 /** Geschätzt: 1 Token ≈ 7 Zeichen Deutsch (whitespace-separated) — wir nehmen 3500 Zeichen Deckel. */
 const MAX_CHARS = 3500;
@@ -43,38 +44,31 @@ async function extractDocxText(blob: Blob): Promise<string> {
   return clip(result.value ?? '');
 }
 
-async function extractPdfPage1Text(blob: Blob): Promise<{ text: string; hasTextLayer: boolean }> {
-  // Lazy import (siehe stage1-structural.ts) — pdfjs-Init crasht in Node ohne DOMMatrix.
-  const pdfjsLib = await import('pdfjs-dist');
-  const buf = await blob.arrayBuffer();
-  const doc = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-  try {
-    if (doc.numPages === 0) return { text: '', hasTextLayer: false };
-    const page = await doc.getPage(1);
-    const content = await page.getTextContent();
-    const items = content.items as Array<{ str?: string }>;
-    const texts: string[] = [];
-    for (const it of items) {
-      if (it.str) texts.push(it.str);
-    }
-    const text = texts.join(' ').trim();
-    return { text: clip(text), hasTextLayer: text.length >= 20 };
-  } finally {
-    // CRITICAL: ohne destroy() haelt pdfjs interne Worker-Caches und decoded
-    // Streams im Heap — bei 10k Dokumenten ist das ~7 GB RAM-Anstieg, bei
-    // 100k crasht der Tab garantiert. Siehe Kommentar in stage1-structural.ts.
-    await doc.destroy().catch(() => { /* best-effort */ });
-  }
+/**
+ * Extrahiert Page-1-Text aus einem PDF. Wenn `preloaded` mitgegeben ist,
+ * werden die bereits geladenen Daten genutzt — kein zweiter pdfjs.getDocument-
+ * Call. Sonst: Fallback auf eigenen Aufruf via extractPdfOnce.
+ */
+async function extractPdfPage1Text(
+  blob: Blob,
+  preloaded?: PdfExtractResult,
+): Promise<{ text: string; hasTextLayer: boolean }> {
+  const pdf = preloaded ?? await extractPdfOnce(blob);
+  return { text: pdf.page1Text, hasTextLayer: pdf.totalCharsPage1 >= 20 };
 }
 
-export async function extractPage1Text(filename: string, blob: Blob): Promise<Page1ExtractResult> {
+export async function extractPage1Text(
+  filename: string,
+  blob: Blob,
+  preloadedPdf?: PdfExtractResult,
+): Promise<Page1ExtractResult> {
   const lower = filename.toLowerCase();
   if (lower.endsWith('.docx')) {
     const text = await extractDocxText(blob);
     return { text, source: 'docx', needed_ocr: false };
   }
   if (lower.endsWith('.pdf')) {
-    const { text, hasTextLayer } = await extractPdfPage1Text(blob);
+    const { text, hasTextLayer } = await extractPdfPage1Text(blob, preloadedPdf);
     if (hasTextLayer) {
       return { text, source: 'pdf_text_layer', needed_ocr: false };
     }
