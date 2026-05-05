@@ -48,14 +48,16 @@ export type PickResult =
   | { ok: true; handle: FileSystemDirectoryHandle }
   | { ok: false; reason: 'unsupported' | 'aborted' | 'error'; message?: string };
 
-async function pickDirectory(): Promise<FileSystemDirectoryHandle | { aborted: true } | { error: string }> {
+async function pickDirectory(
+  mode: 'read' | 'readwrite' = 'readwrite',
+): Promise<FileSystemDirectoryHandle | { aborted: true } | { error: string }> {
   if (!('showDirectoryPicker' in window)) {
     return { error: 'File System Access API nicht verfügbar (falscher Browser?)' };
   }
   try {
     return await (window as typeof window & {
       showDirectoryPicker(opts?: { mode?: 'read' | 'readwrite'; startIn?: string }): Promise<FileSystemDirectoryHandle>;
-    }).showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });
+    }).showDirectoryPicker({ mode, startIn: 'documents' });
   } catch (err) {
     const name = (err as DOMException).name;
     if (name === 'AbortError') return { aborted: true };
@@ -63,9 +65,9 @@ async function pickDirectory(): Promise<FileSystemDirectoryHandle | { aborted: t
   }
 }
 
-/** Öffnet den Picker und persistiert das Daten-Share-Handle. */
+/** Öffnet den Picker und persistiert das Daten-Share-Handle (readwrite — App schreibt Manifest, Audit-Log, Backups). */
 export async function pickAndStoreDatenShareHandle(idb: IDBStore): Promise<PickResult> {
-  const res = await pickDirectory();
+  const res = await pickDirectory('readwrite');
   if ('aborted' in res) return { ok: false, reason: 'aborted' };
   if ('error' in res) {
     return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };
@@ -78,9 +80,16 @@ export async function pickAndStoreDatenShareHandle(idb: IDBStore): Promise<PickR
   return { ok: true, handle: res };
 }
 
-/** Öffnet den Picker und persistiert das Dokumentenquelle-Handle (separater Slot). */
+/**
+ * Öffnet den Picker und persistiert das Dokumentenquelle-Handle (separater Slot).
+ *
+ * **Read-Only**: Die App liest die DMS-Dokumente nur (Triage liest erste Seite,
+ * Bulk-Scan listet die Dateibaum-Struktur). Es wird NIE in dieses Verzeichnis
+ * geschrieben. `mode: 'read'` sorgt dafuer, dass der Browser-Dialog
+ * "Dateien lesen" anzeigt statt "Dateien bearbeiten".
+ */
 export async function pickAndStoreDokumentenquelleHandle(idb: IDBStore): Promise<PickResult> {
-  const res = await pickDirectory();
+  const res = await pickDirectory('read');
   if ('aborted' in res) return { ok: false, reason: 'aborted' };
   if ('error' in res) {
     return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };
@@ -143,6 +152,19 @@ export async function queryPermission(handle: FileSystemDirectoryHandle): Promis
 /** MUSS aus einem User-Gesture-Handler aufgerufen werden. */
 export async function refreshPermission(handle: FileSystemDirectoryHandle): Promise<PermState> {
   return (handle as FsDirHandle).requestPermission({ mode: 'readwrite' });
+}
+
+/**
+ * Read-only Permission-Variante fuer den Dokumentenquelle-Handle.
+ * Verhindert dass beim Re-Permit der Browser den 'bearbeiten'-Dialog zeigt.
+ */
+export async function queryReadPermission(handle: FileSystemDirectoryHandle): Promise<PermState> {
+  return (handle as FsDirHandle).queryPermission({ mode: 'read' });
+}
+
+/** MUSS aus einem User-Gesture-Handler aufgerufen werden. */
+export async function refreshReadPermission(handle: FileSystemDirectoryHandle): Promise<PermState> {
+  return (handle as FsDirHandle).requestPermission({ mode: 'read' });
 }
 
 /**
