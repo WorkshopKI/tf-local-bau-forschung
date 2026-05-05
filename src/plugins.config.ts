@@ -15,6 +15,7 @@ import { programmeAdminPlugin } from '@/plugins/programme-admin';
 import { csvSourcesAdminPlugin } from '@/plugins/csv-sources-admin';
 import { filterAdminPlugin } from '@/plugins/filter-admin';
 import { unterprogrammeAdminPlugin } from '@/plugins/unterprogramme-admin';
+import { dokumentReviewPlugin } from '@/plugins/dokument-review';
 import { features } from '@/config/feature-flags';
 
 const allPlugins: TeamFlowPlugin[] = [
@@ -32,6 +33,7 @@ const allPlugins: TeamFlowPlugin[] = [
   unterprogrammeAdminPlugin,
   filterAdminPlugin,
   feedbackAdminPlugin,
+  dokumentReviewPlugin,
   devInfrastructureTestPlugin,
   devStateInspectorPlugin,
 ];
@@ -58,6 +60,9 @@ function passesFeatureFlags(p: TeamFlowPlugin): boolean {
   if (!features.volltextsuche && (p.id === 'suche' || p.id === 'kurator')) {
     return false;
   }
+
+  // features.dokumentenscan: entfernt Phase-2-Review-Queue
+  if (!features.dokumentenscan && p.id === 'dokument-review') return false;
 
   // features.devInfraPanel: entfernt Dev-Test-Harness
   if (!features.devInfraPanel && p.id === 'dev-infrastructure-test') return false;
