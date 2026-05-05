@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -13,6 +13,12 @@ import type { Antrag } from '@/core/services/csv/types';
 
 const GROUP_TOGGLE_KEY = 'teamflow_antraege_group_by_verbund';
 const NO_VERBUND_KEY = '__no_verbund__';
+
+/** Initial-Window + Inkrement bei Scroll. 13k Antraege auf einmal zu rendern
+ *  blockiert den Browser fuer 1-3 s. Stattdessen: erst N Zeilen / N Gruppen,
+ *  dann via IntersectionObserver am Sentinel weiter nachladen. */
+const ROW_PAGE = 200;
+const GROUP_PAGE = 30;
 
 interface VerbundGroup {
   key: string;
@@ -41,6 +47,9 @@ export function AntraegeListe(): React.ReactElement {
     try { return localStorage.getItem(GROUP_TOGGLE_KEY) === '1'; } catch { return false; }
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [visibleRows, setVisibleRows] = useState(ROW_PAGE);
+  const [visibleGroups, setVisibleGroups] = useState(GROUP_PAGE);
+  const sentinelRef = useRef<HTMLTableRowElement | null>(null);
 
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   useEffect(() => {
@@ -56,6 +65,14 @@ export function AntraegeListe(): React.ReactElement {
   useEffect(() => {
     try { localStorage.setItem(GROUP_TOGGLE_KEY, groupByVerbund ? '1' : '0'); } catch { /* ignore */ }
   }, [groupByVerbund]);
+
+  // Bei Filter-/Such-/Gruppierungs-Wechsel zurueck zur ersten Page springen,
+  // sonst sieht der User beim Suchen die untere Haelfte der vorherigen Liste
+  // bevor das neue Ergebnis sichtbar wird.
+  useEffect(() => {
+    setVisibleRows(ROW_PAGE);
+    setVisibleGroups(GROUP_PAGE);
+  }, [search, active, groupByVerbund, programmId]);
 
   const verbundMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -122,6 +139,28 @@ export function AntraegeListe(): React.ReactElement {
     return arr;
   }, [filtered, groupByVerbund, verbundMap]);
 
+  // Wenn der Sentinel sichtbar wird (User hat fast bis zum Ende gescrollt),
+  // naechsten Block nachschieben. Re-bind wenn sich die Ziel-Mode oder die
+  // Render-Liste aendert.
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const total = groupByVerbund ? (groups?.length ?? 0) : filtered.length;
+    const current = groupByVerbund ? visibleGroups : visibleRows;
+    if (current >= total) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          if (groupByVerbund) setVisibleGroups((v) => v + GROUP_PAGE);
+          else setVisibleRows((v) => v + ROW_PAGE);
+        }
+      },
+      { rootMargin: '400px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [filtered, groups, groupByVerbund, visibleRows, visibleGroups]);
+
   const toggleGroup = (key: string): void => {
     setCollapsedGroups(s => {
       const next = new Set(s);
@@ -162,7 +201,11 @@ export function AntraegeListe(): React.ReactElement {
                 Nach Verbund gruppieren
               </button>
               <div className="text-[12.5px] text-[var(--tf-text-tertiary)]">
-                {loading ? 'Lade …' : `${filtered.length} von ${antraege.length} Einträgen`}
+                {loading
+                  ? 'Lade …'
+                  : groupByVerbund && groups
+                    ? `${Math.min(visibleGroups, groups.length).toLocaleString('de-DE')} / ${groups.length.toLocaleString('de-DE')} Verbuende · ${filtered.length.toLocaleString('de-DE')} von ${antraege.length.toLocaleString('de-DE')} Einträgen`
+                    : `${Math.min(visibleRows, filtered.length).toLocaleString('de-DE')} / ${filtered.length.toLocaleString('de-DE')} angezeigt · ${antraege.length.toLocaleString('de-DE')} gesamt`}
               </div>
             </div>
           </div>
@@ -196,7 +239,7 @@ export function AntraegeListe(): React.ReactElement {
                 </thead>
                 <tbody>
                   {groups
-                    ? groups.flatMap(g => {
+                    ? groups.slice(0, visibleGroups).flatMap(g => {
                         const collapsed = collapsedGroups.has(g.key);
                         const headerLabel = g.verbund_id
                           ? `${g.akronym ?? g.verbund_id}`
@@ -254,7 +297,7 @@ export function AntraegeListe(): React.ReactElement {
                         }
                         return rows;
                       })
-                    : filtered.map(a => (
+                    : filtered.slice(0, visibleRows).map(a => (
                         <tr
                           key={a.aktenzeichen}
                           className="cursor-pointer hover:bg-[var(--tf-bg-secondary)]"
@@ -283,6 +326,18 @@ export function AntraegeListe(): React.ReactElement {
                           </td>
                         </tr>
                       ))}
+                  {(groupByVerbund
+                    ? (groups && visibleGroups < groups.length)
+                    : visibleRows < filtered.length) && (
+                    <tr ref={sentinelRef} aria-hidden="true">
+                      <td
+                        colSpan={groupByVerbund ? 5 : 6}
+                        className="p-3 text-center text-[11.5px] text-[var(--tf-text-tertiary)]"
+                      >
+                        Lade weitere Einträge …
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
