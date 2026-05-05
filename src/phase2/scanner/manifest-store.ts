@@ -42,6 +42,26 @@ export async function listManifestEntries(idb: IDBStore): Promise<ManifestEntry[
   });
 }
 
+/**
+ * Liefert alle Manifest-Eintraege, deren matched_antrag_id auf das gegebene
+ * Aktenzeichen zeigt. Nutzt den `matched_antrag_id`-Index — kein Full-Table-
+ * Scan, auch bei 100k+ Eintraegen sub-millisecond. Konsumenten:
+ * AntragDetail/SonstigeDokumenteSection.
+ */
+export async function listByMatchedAntrag(
+  idb: IDBStore,
+  aktenzeichen: string,
+): Promise<ManifestEntry[]> {
+  const db = idb.getDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PHASE2_STORES.SCAN_MANIFEST, 'readonly');
+    const idx = tx.objectStore(PHASE2_STORES.SCAN_MANIFEST).index('matched_antrag_id');
+    const req = idx.getAll(aktenzeichen);
+    req.onsuccess = () => resolve((req.result as ManifestEntry[]) ?? []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 export async function deleteManifestEntry(idb: IDBStore, filename: string): Promise<void> {
   const db = idb.getDb();
   return new Promise((resolve, reject) => {

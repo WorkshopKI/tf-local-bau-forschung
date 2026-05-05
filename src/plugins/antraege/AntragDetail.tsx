@@ -7,6 +7,7 @@ import { getAntrag, getHistoryByAz, loadSchema, listSchemas } from '@/core/servi
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
 import { buildDisplayRows, groupDisplayRows, type DisplayGroup } from './buildDisplayRows';
 import { FieldHistoryModal } from './FieldHistoryModal';
+import { SonstigeDokumenteSection } from './SonstigeDokumenteSection';
 import { useAntraegeStore } from './store';
 
 interface Props {
@@ -182,6 +183,8 @@ export function AntragDetail({ aktenzeichen }: Props): React.ReactElement {
           </div>
         ))}
       </div>
+
+      <SonstigeDokumenteSection aktenzeichen={aktenzeichen} />
 
       <FieldHistoryModal aktenzeichen={aktenzeichen} feld={historyField} onClose={() => setHistoryField(null)} />
     </div>

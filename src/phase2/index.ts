@@ -21,6 +21,7 @@ export {
   putManifestEntry,
   getManifestEntry,
   listManifestEntries,
+  listByMatchedAntrag,
   deleteManifestEntry,
   clearAllManifest,
 } from './scanner/manifest-store';

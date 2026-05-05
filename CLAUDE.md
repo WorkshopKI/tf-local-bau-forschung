@@ -284,12 +284,23 @@ Kurator-Plugin (`id: 'dokument-review'`, `category: 'kuration'`, `kuratorOnly: t
 
 **Persistenz** (localStorage): nur `viewMode` unter Key `teamflow_dokument_review_view`. Confidence/Typ/Source/Sort/Page/Selection werden bewusst nicht persistiert.
 
+**Auto-Cleanup** (`AutoCleanupCard` zwischen DashboardCard und FilterBar): sechs Heuristiken zum Reduzieren der Review-Queue. „Vorschau anzeigen" zeigt pro Regel die Trefferanzahl auf den aktuell offenen Review-Einträgen, jede Regel via Checkbox einzeln aktivierbar. „Anwenden" schreibt jede betroffene `ManifestEntry` auf `triage_state='irrelevant'` + `requires_review=false` (bzw. nur `requires_review=false` bei `matched_with_fkz`) und legt für irrelevant-Regeln einen `SkipListEntry` an. Reihenfolge — erster Match gewinnt; spezifische Regeln vor generischer Whitelist:
+1. `zero_byte` — `size_bytes === 0` → irrelevant
+2. `parse_error` — `triage_reason` startet mit `parse_error` → irrelevant
+3. `bescheid` — `doc_type === 'bescheid'` → irrelevant
+4. `bewilligung` — `dms_bezeichnung` enthält `Bewilligung` → irrelevant
+5. `zuwendungsbescheid` — `dms_bezeichnung` enthält `ZuwB`/`Zuwendungsbescheid` → irrelevant
+6. `format_outside_whitelist` — Whitelist-Tupel `(gutachten,pdf)`, `(nachforderung,doc/docx)`, `(projektbeschreibung,pdf)`, `(verwendungsnachweis,pdf/doc/docx)` — alles andere → irrelevant. **`matched_antrag_id` bleibt erhalten** für Folge-Anzeige in der Antrag-Detail-Sonstige-Section.
+7. `matched_with_fkz` — Whitelist-Treffer + `matched_antrag_id` + `extracted_fkz` → `requires_review=false`, Status bleibt.
+
+**Sonstige-Dokumente am Antrag**: `SonstigeDokumenteSection` (`src/plugins/antraege/SonstigeDokumenteSection.tsx`) listet am Ende der Antrag-Detail-Seite alle Manifest-Einträge mit `matched_antrag_id === aktenzeichen && triage_state === 'irrelevant'` als collapsible Section. Index-Lookup via `listByMatchedAntrag(idb, aktenzeichen)` (neu in `src/phase2/scanner/manifest-store.ts`, nutzt den bestehenden `matched_antrag_id`-Index — kein Full-Table-Scan). Sortierung priorisiert `gutachten_qs` (Backup für nicht gefundene Hauptgutachten), dann `korrespondenz`, `nachforderung`, `bescheid`, `aenderungsbescheid`, `checkliste`. „Öffnen"-Button lädt die Datei via `getDokumentenquelleHandle` + `makeLoadBlobFromHandle` als Blob und öffnet sie in einem neuen Tab; Object-URL wird nach 60 s revoked.
+
 **Anti-Patterns** (in diesem Plugin nicht vornehmen):
 - Keine externe Virtualisierungs-Library (Pagination 50/Seite reicht für die erwartete Skala).
 - Keine direkten IDB-Transaktionen — alle Mutationen über die Phase-2-API in `@/phase2`.
 - Keine modalen Dialoge — Aktionen inline im `DetailPanel`.
 - Kein Renderer für PDF/DOCX-Inhalte (kommt erst wenn die Volltext-Pipeline steht).
-- Keine Veränderungen an `src/phase2/**/*`, `Phase2RescanCard.tsx` oder `TriagePanel.tsx`.
+- Keine Veränderungen an `Phase2RescanCard.tsx` oder `TriagePanel.tsx`. Read-only-Accessors in `src/phase2/scanner/manifest-store.ts` (z.B. `listByMatchedAntrag`) sind erlaubt; Triage-Pipeline-Logik bleibt unverändert.
 
 ### Referenz-App
 In `_reference/lernapp/` liegt eine geklonte Referenz-Implementierung (KI-Prompting-Tutor). Wird NICHT gebaut oder deployed — dient ausschließlich als Code-Referenz für die Portierung von Features (Feedback-System, Onboarding-Tour). Vite ignoriert diesen Ordner (`server.watch.ignored`).
