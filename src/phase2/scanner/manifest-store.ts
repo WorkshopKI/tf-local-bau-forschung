@@ -52,3 +52,18 @@ export async function deleteManifestEntry(idb: IDBStore, filename: string): Prom
     tx.onabort = () => reject(tx.error);
   });
 }
+
+/** Loescht alle Manifest-Eintraege. Liefert Anzahl der geloeschten Eintraege. */
+export async function clearAllManifest(idb: IDBStore): Promise<number> {
+  const all = await listManifestEntries(idb);
+  const count = all.length;
+  const db = idb.getDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(PHASE2_STORES.SCAN_MANIFEST, 'readwrite');
+    tx.objectStore(PHASE2_STORES.SCAN_MANIFEST).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+  return count;
+}

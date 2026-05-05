@@ -38,6 +38,8 @@ import {
   CLASSIFIER_VERSION,
   listParseErrorManifests,
   prepareErrorRetry,
+  listManifestEntries,
+  clearAllManifest,
   type ScanFile,
   type ManifestEntry,
   type BulkScanStats,
@@ -76,6 +78,7 @@ export function TriagePanel(): React.ReactElement {
   const [bulkRunning, setBulkRunning] = useState(false);
   const [mirrorBusy, setMirrorBusy] = useState(false);
   const [errorCount, setErrorCount] = useState<number>(0);
+  const [manifestCount, setManifestCount] = useState<number>(0);
   const abortRef = useRef<AbortController | null>(null);
 
   // 1-Hz-Tick fuer Live-Update der "vergangen"-Zeit zwischen onProgress-Ticks.
@@ -103,6 +106,8 @@ export function TriagePanel(): React.ReactElement {
     setPendingCount(pending.length);
     const errs = await listParseErrorManifests(storage.idb);
     setErrorCount(errs.length);
+    const manifests = await listManifestEntries(storage.idb);
+    setManifestCount(manifests.length);
   }, [storage.idb]);
 
   useEffect(() => {
@@ -496,6 +501,26 @@ export function TriagePanel(): React.ReactElement {
     await refreshCounts();
   };
 
+  const onClearManifest = async (): Promise<void> => {
+    if (!window.confirm(`Wirklich ${manifestCount.toLocaleString('de-DE')} Manifest-Eintraege loeschen? Beim naechsten Bulk-Run werden alle Files neu klassifiziert.`)) return;
+    const removed = await clearAllManifest(storage.idb);
+    log(`Manifest geleert: ${removed.toLocaleString('de-DE')} Eintraege entfernt.`);
+    setLastManifest(null);
+    await refreshCounts();
+  };
+
+  const onFullReset = async (): Promise<void> => {
+    if (!window.confirm('Wirklich alle Phase-2-Caches leeren? Manifest + Skip-Liste + Pending werden geloescht. Run-Logs auf dem Share bleiben.')) return;
+    const m = await clearAllManifest(storage.idb);
+    const s = await resetSkipListByVersion(storage.idb, Number.MAX_SAFE_INTEGER);
+    await clearAllPending(storage.idb);
+    setBulkStats(null);
+    setScanFiles(null);
+    setLastManifest(null);
+    await refreshCounts();
+    log(`Reset komplett: Manifest=${m.toLocaleString('de-DE')}, Skip=${s.toLocaleString('de-DE')}, Pending geleert.`);
+  };
+
   const onLookupDocId = (): void => {
     const raw = lookupQuery;
     if (!raw.trim()) {
@@ -751,15 +776,33 @@ export function TriagePanel(): React.ReactElement {
 
       <DevRow label="Stores">
         <Button size="xs" variant="outline" onClick={() => void onShowSkipList()}>Skip-Liste</Button>
-        <StatusPill label={`${skipCount}`} tone="neutral" />
+        <StatusPill label={`${skipCount.toLocaleString('de-DE')}`} tone="neutral" />
         <Button size="xs" variant="outline" onClick={() => void onShowPending()}>Pending</Button>
-        <StatusPill label={`${pendingCount}`} tone="neutral" />
+        <StatusPill label={`${pendingCount.toLocaleString('de-DE')}`} tone="neutral" />
+        <StatusPill label={`Manifest: ${manifestCount.toLocaleString('de-DE')}`} tone="neutral" />
         <Button size="xs" variant="destructive" onClick={() => void onClearSkipList()} disabled={skipCount === 0}>
           Skip-Liste leeren
         </Button>
         <Button size="xs" variant="destructive" onClick={() => void onClearPending()} disabled={pendingCount === 0}>
           Pending leeren
         </Button>
+        <Button size="xs" variant="destructive" onClick={() => void onClearManifest()} disabled={manifestCount === 0}>
+          Manifest leeren
+        </Button>
+      </DevRow>
+
+      <DevRow label="Komplett-Reset fuer Re-Test">
+        <Button
+          size="xs"
+          variant="destructive"
+          onClick={() => void onFullReset()}
+          disabled={manifestCount === 0 && skipCount === 0 && pendingCount === 0}
+        >
+          Alle Phase-2-Caches leeren
+        </Button>
+        <span className="text-[10px] text-[var(--tf-text-tertiary)]">
+          Loescht Manifest + Skip-Liste + Pending. Run-Logs auf dem Share bleiben.
+        </span>
       </DevRow>
 
       {lastManifest && (

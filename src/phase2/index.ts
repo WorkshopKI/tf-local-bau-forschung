@@ -22,6 +22,7 @@ export {
   getManifestEntry,
   listManifestEntries,
   deleteManifestEntry,
+  clearAllManifest,
 } from './scanner/manifest-store';
 export { mirrorManifestToShare } from './scanner/manifest-mirror';
 export type { ManifestMirrorResult } from './scanner/manifest-mirror';
