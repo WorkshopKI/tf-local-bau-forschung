@@ -1,13 +1,12 @@
 /**
- * Listet alle Manifest-Eintraege mit `matched_antrag_id === aktenzeichen` UND
- * `triage_state === 'irrelevant'` als collapsible Section am Ende der Antrag-
- * Detail-Seite. Use-Case: Sachbearbeiter findet das Hauptdokument nicht und
- * schaut nach, ob die QS-Version (gutachten_qs) oder eine Korrespondenz weiter-
- * hilft.
+ * Generische Listen-Section fuer Manifest-Eintraege am Antrag-Detail.
+ * Wird zweimal verwendet:
+ *   1. variant='wichtig'   — Whitelist-Treffer (gutachten/pdf, projektbeschreibung/pdf,
+ *                            nachforderung/doc-docx, verwendungsnachweis/pdf-doc-docx)
+ *                            mit triage_state='relevant'.
+ *   2. variant='sonstige'  — alle uebrigen mit triage_state='irrelevant'.
  *
- * "Oeffnen" ladet die Datei via Dokumentenquelle-Handle als Blob und oeffnet
- * sie in einem neuen Tab. Wenn der Handle nicht verbunden ist (z.B. anderer
- * Rechner), zeigt eine Inline-Meldung statt eines Crashes.
+ * Beide Sections sind defaultmaessig zugeklappt (User-Vorgabe).
  */
 import { useEffect, useState } from 'react';
 import { ExternalLink, FileText, FileType2, Loader2 } from 'lucide-react';
@@ -18,14 +17,36 @@ import { getDokumentenquelleHandle } from '@/core/services/infrastructure/smb-ha
 import {
   listByMatchedAntrag,
   makeLoadBlobFromHandle,
+  type DocType,
   type ManifestEntry,
 } from '@/phase2';
 
+type Variant = 'wichtig' | 'sonstige';
+
 interface Props {
   aktenzeichen: string;
+  variant: Variant;
 }
 
-const DOC_TYPE_ORDER: Record<string, number> = {
+const WHITELIST: Array<{ docType: DocType; formats: string[] }> = [
+  { docType: 'gutachten', formats: ['pdf'] },
+  { docType: 'nachforderung', formats: ['doc', 'docx'] },
+  { docType: 'projektbeschreibung', formats: ['pdf'] },
+  { docType: 'verwendungsnachweis', formats: ['pdf', 'doc', 'docx'] },
+];
+
+/** Lebenszyklus-Reihenfolge fuer "wichtige" Dokumente. */
+const WICHTIG_ORDER: Record<string, number> = {
+  projektbeschreibung: 0,
+  gutachten: 1,
+  nachforderung: 2,
+  verwendungsnachweis: 3,
+  verwendungsnachweispruefung: 4,
+};
+
+/** Reihenfolge unter den irrelevanten Eintraegen. gutachten_qs zuerst — ist der
+ *  haeufigste "Backup, falls Hauptgutachten nicht da". */
+const SONSTIGE_ORDER: Record<string, number> = {
   gutachten_qs: 0,
   korrespondenz: 1,
   nachforderung: 2,
@@ -37,22 +58,31 @@ const DOC_TYPE_ORDER: Record<string, number> = {
   sonstiges: 8,
 };
 
-function sortKey(e: ManifestEntry): [number, string, string] {
-  return [DOC_TYPE_ORDER[e.doc_type] ?? 99, e.doc_type, e.filename];
+function fileExtension(filename: string): string {
+  const dot = filename.lastIndexOf('.');
+  if (dot === -1) return '';
+  return filename.slice(dot + 1).toLowerCase();
 }
 
-function isPdfLike(filename: string): boolean {
-  return filename.toLowerCase().endsWith('.pdf');
+function isWhitelisted(entry: ManifestEntry): boolean {
+  const ext = fileExtension(entry.filename);
+  if (!ext) return false;
+  return WHITELIST.some(r => r.docType === entry.doc_type && r.formats.includes(ext));
 }
 
-function formatSize(bytes: number): string {
-  if (bytes === 0) return '0 KB';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function passesFilter(entry: ManifestEntry, variant: Variant): boolean {
+  if (variant === 'wichtig') {
+    return entry.triage_state === 'relevant' && isWhitelisted(entry);
+  }
+  return entry.triage_state === 'irrelevant';
 }
 
-export function SonstigeDokumenteSection({ aktenzeichen }: Props): React.ReactElement | null {
+function sortKey(entry: ManifestEntry, variant: Variant): [number, string, string] {
+  const order = variant === 'wichtig' ? WICHTIG_ORDER : SONSTIGE_ORDER;
+  return [order[entry.doc_type] ?? 99, entry.doc_type, entry.filename];
+}
+
+export function AntragDokumenteSection({ aktenzeichen, variant }: Props): React.ReactElement | null {
   const storage = useStorage();
   const [entries, setEntries] = useState<ManifestEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,16 +93,16 @@ export function SonstigeDokumenteSection({ aktenzeichen }: Props): React.ReactEl
     listByMatchedAntrag(storage.idb, aktenzeichen)
       .then(all => {
         if (cancelled) return;
-        const sonstige = all
-          .filter(e => e.triage_state === 'irrelevant')
+        const filtered = all
+          .filter(e => passesFilter(e, variant))
           .sort((a, b) => {
-            const ka = sortKey(a);
-            const kb = sortKey(b);
+            const ka = sortKey(a, variant);
+            const kb = sortKey(b, variant);
             return ka[0] - kb[0]
               || ka[1].localeCompare(kb[1])
               || ka[2].localeCompare(kb[2]);
           });
-        setEntries(sonstige);
+        setEntries(filtered);
       })
       .catch(() => {
         if (!cancelled) setEntries([]);
@@ -81,21 +111,18 @@ export function SonstigeDokumenteSection({ aktenzeichen }: Props): React.ReactEl
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [storage.idb, aktenzeichen]);
+  }, [storage.idb, aktenzeichen, variant]);
 
   if (loading) return null;
   if (entries.length === 0) return null;
 
+  const label = variant === 'wichtig' ? 'Dokumente' : 'Sonstige Dokumente';
+  const subtitle = `${entries.length} ${entries.length === 1 ? 'Datei' : 'Dateien'}`;
+
   return (
-    <CollapsibleSection
-      label="Sonstige Dokumente"
-      subtitle={`${entries.length} ${entries.length === 1 ? 'Datei' : 'Dateien'}`}
-      defaultOpen={false}
-    >
+    <CollapsibleSection label={label} subtitle={subtitle} defaultOpen={false}>
       <div className="flex flex-col gap-1">
-        {entries.map(e => (
-          <SonstigeRow key={e.filename} entry={e} />
-        ))}
+        {entries.map(e => <DokumentRow key={e.filename} entry={e} />)}
       </div>
     </CollapsibleSection>
   );
@@ -105,12 +132,12 @@ interface RowProps {
   entry: ManifestEntry;
 }
 
-function SonstigeRow({ entry }: RowProps): React.ReactElement {
+function DokumentRow({ entry }: RowProps): React.ReactElement {
   const storage = useStorage();
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const Icon = isPdfLike(entry.filename) ? FileText : FileType2;
+  const Icon = fileExtension(entry.filename) === 'pdf' ? FileText : FileType2;
   const subline = entry.dms_bezeichnung ?? entry.filepath;
 
   const handleOpen = async (): Promise<void> => {
@@ -144,9 +171,7 @@ function SonstigeRow({ entry }: RowProps): React.ReactElement {
   };
 
   return (
-    <div
-      className="flex items-center gap-3 px-2 py-2 rounded-[6px] hover:bg-[var(--tf-hover)] transition-colors"
-    >
+    <div className="flex items-center gap-3 px-2 py-2 rounded-[6px] hover:bg-[var(--tf-hover)] transition-colors">
       <Icon size={14} className="text-[var(--tf-text-tertiary)] shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="font-mono text-[12px] text-[var(--tf-text)] truncate" title={entry.filename}>
@@ -176,4 +201,11 @@ function SonstigeRow({ entry }: RowProps): React.ReactElement {
       )}
     </div>
   );
+}
+
+function formatSize(bytes: number): string {
+  if (bytes === 0) return '0 KB';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
