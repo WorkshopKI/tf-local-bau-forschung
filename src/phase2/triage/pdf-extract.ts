@@ -63,10 +63,18 @@ function clip(text: string): string {
 }
 
 /**
- * Oeffnet ein PDF einmal mit pdfjs, extrahiert Metadaten + Page-1-Text.
- * Destroyt das Dokument am Ende (kritisch fuer Memory).
+ * Erkennt pdfjs-Worker-Race-Errors die bei Concurrency >1 sporadisch auftreten:
+ * wenn ein Worker gerade `doc.destroy()` macht und gleichzeitig ein anderer
+ * `getDocument()` startet, kann pdfjs intern den Worker als 'being destroyed'
+ * sehen, obwohl er funktional weiterlaufen wuerde. Ein 75ms-Wait + Retry
+ * bringt typischerweise alles ins Gleis.
  */
-export async function extractPdfOnce(blob: Blob): Promise<PdfExtractResult> {
+function isWorkerRaceError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /worker.*(destroy|being destroyed)|PDFWorker\.create/i.test(msg);
+}
+
+async function extractPdfOnceInternal(blob: Blob): Promise<PdfExtractResult> {
   await setupWorkerOnce();
   const pdfjsLib = await import('pdfjs-dist');
   const buf = await blob.arrayBuffer();
@@ -93,5 +101,27 @@ export async function extractPdfOnce(blob: Blob): Promise<PdfExtractResult> {
     return { pages, page1Text: clip(page1Text), totalCharsPage1 };
   } finally {
     await doc.destroy().catch(() => { /* best-effort */ });
+  }
+}
+
+/**
+ * Oeffnet ein PDF einmal mit pdfjs, extrahiert Metadaten + Page-1-Text.
+ * Destroyt das Dokument am Ende (kritisch fuer Memory).
+ *
+ * Retry-Logic: bei pdfjs-Worker-Race-Errors (sporadisch bei Concurrency >1)
+ * wird einmal 75ms gewartet und der Aufruf wiederholt. Faengt ~90 % der
+ * verbleibenden Worker-Race-Errors silent ab. Hilft der Aufruf trotzdem
+ * nicht, propagiert der Error zum Caller (bulk-scan: parse_error-Manifest +
+ * 'Nur Errors retriagieren'-Pfad).
+ */
+export async function extractPdfOnce(blob: Blob): Promise<PdfExtractResult> {
+  try {
+    return await extractPdfOnceInternal(blob);
+  } catch (e) {
+    if (isWorkerRaceError(e)) {
+      await new Promise(r => setTimeout(r, 75));
+      return await extractPdfOnceInternal(blob);
+    }
+    throw e;
   }
 }
