@@ -48,16 +48,23 @@ async function extractPdfPage1Text(blob: Blob): Promise<{ text: string; hasTextL
   const pdfjsLib = await import('pdfjs-dist');
   const buf = await blob.arrayBuffer();
   const doc = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-  if (doc.numPages === 0) return { text: '', hasTextLayer: false };
-  const page = await doc.getPage(1);
-  const content = await page.getTextContent();
-  const items = content.items as Array<{ str?: string }>;
-  const texts: string[] = [];
-  for (const it of items) {
-    if (it.str) texts.push(it.str);
+  try {
+    if (doc.numPages === 0) return { text: '', hasTextLayer: false };
+    const page = await doc.getPage(1);
+    const content = await page.getTextContent();
+    const items = content.items as Array<{ str?: string }>;
+    const texts: string[] = [];
+    for (const it of items) {
+      if (it.str) texts.push(it.str);
+    }
+    const text = texts.join(' ').trim();
+    return { text: clip(text), hasTextLayer: text.length >= 20 };
+  } finally {
+    // CRITICAL: ohne destroy() haelt pdfjs interne Worker-Caches und decoded
+    // Streams im Heap — bei 10k Dokumenten ist das ~7 GB RAM-Anstieg, bei
+    // 100k crasht der Tab garantiert. Siehe Kommentar in stage1-structural.ts.
+    await doc.destroy().catch(() => { /* best-effort */ });
   }
-  const text = texts.join(' ').trim();
-  return { text: clip(text), hasTextLayer: text.length >= 20 };
 }
 
 export async function extractPage1Text(filename: string, blob: Blob): Promise<Page1ExtractResult> {

@@ -49,19 +49,28 @@ async function probePdf(blob: Blob): Promise<{ searchable: boolean; pages: numbe
   const pdfjsLib = await import('pdfjs-dist');
   const buf = await blob.arrayBuffer();
   const doc = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-  const pages = doc.numPages;
-  let searchable = false;
-  // Nur erste Seite probe — wenn die Text hat, ist es i.d.R. ein durchsuchbares PDF
   try {
-    const page = await doc.getPage(1);
-    const content = await page.getTextContent();
-    const items = content.items as Array<{ str?: string }>;
-    const totalChars = items.reduce((s, it) => s + ((it.str ?? '').length), 0);
-    searchable = totalChars >= 20;
-  } catch {
-    searchable = false;
+    const pages = doc.numPages;
+    let searchable = false;
+    // Nur erste Seite probe — wenn die Text hat, ist es i.d.R. ein durchsuchbares PDF
+    try {
+      const page = await doc.getPage(1);
+      const content = await page.getTextContent();
+      const items = content.items as Array<{ str?: string }>;
+      const totalChars = items.reduce((s, it) => s + ((it.str ?? '').length), 0);
+      searchable = totalChars >= 20;
+    } catch {
+      searchable = false;
+    }
+    return { searchable, pages };
+  } finally {
+    // CRITICAL: ohne destroy() haelt pdfjs interne Worker-Caches und
+    // decoded Streams im Heap — bei vielen Dokumenten in Folge laeuft der
+    // Browser-Tab in OOM. destroy() laeuft als Promise; wir warten auf
+    // den Cleanup, damit der naechste getDocument() saubere Verhaeltnisse
+    // hat.
+    await doc.destroy().catch(() => { /* best-effort */ });
   }
-  return { searchable, pages };
 }
 
 export async function runStage1(input: Stage1Input): Promise<Stage1Output> {
