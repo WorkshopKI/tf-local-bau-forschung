@@ -32,10 +32,13 @@ import {
   bulkScanFiles,
   mirrorManifestToShare,
   makeLoadBlobFromHandle,
+  getLastScanRun,
+  recordScanRun,
   type ScanFile,
   type ManifestEntry,
   type BulkScanStats,
 } from '@/phase2';
+import { formatDuration } from '@/core/utils/eta';
 import type { AktenplanLookup, DmsEntry } from '@/phase2/types';
 import { DevLog, DevRow, StatusPill } from './shared';
 import { ScanRootsPicker } from './ScanRootsPicker';
@@ -58,10 +61,28 @@ export function TriagePanel(): React.ReactElement {
   // Bulk-Scan State
   const [scanFiles, setScanFiles] = useState<ScanFile[] | null>(null);
   const [scanRunning, setScanRunning] = useState(false);
+  const [scanProgress, setScanProgress] = useState<{
+    filesSoFar: number;
+    dir: string;
+    startedAt: number;
+    estimatedTotal: number | null;
+    lastTick: number;
+  } | null>(null);
   const [bulkStats, setBulkStats] = useState<BulkScanStats | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
   const [mirrorBusy, setMirrorBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // 1-Hz-Tick fuer Live-Update der "vergangen"-Zeit zwischen onProgress-Ticks.
+  // onProgress feuert nur pro Verzeichnis — bei tiefen Hierarchien koennen
+  // Sekunden zwischen Updates liegen; ohne Tick bleibt die Anzeige stehen.
+  useEffect(() => {
+    if (!scanProgress) return;
+    const id = setInterval(() => {
+      setScanProgress(p => (p ? { ...p, lastTick: Date.now() } : p));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [scanProgress !== null]);
   // Auswahl kommt jetzt aus dem ScanRootsPicker (persistiert in IDB).
   // Default leer — User muss explizit Pfade waehlen, sonst kein Scan moeglich.
   const [selectedRoots, setSelectedRoots] = useState<string[]>([]);
@@ -162,6 +183,7 @@ export function TriagePanel(): React.ReactElement {
   const onScanRoots = async (): Promise<void> => {
     setScanRunning(true);
     setScanFiles(null);
+    setScanProgress(null);
     try {
       const handle = await getDokumentenquelleHandle(storage.idb);
       if (!handle) {
@@ -172,6 +194,24 @@ export function TriagePanel(): React.ReactElement {
         log('scanConfig.file_extensions ist leer — Build-Config pruefen.');
         return;
       }
+
+      // ETA-Schaetzwert aus dem letzten Run derselben Pfad-Liste (sofern vorhanden).
+      const lastRun = await getLastScanRun(storage.idb, selectedRoots);
+      const estimatedTotal = lastRun?.total ?? null;
+      const startedAt = Date.now();
+      setScanProgress({
+        filesSoFar: 0,
+        dir: '',
+        startedAt,
+        estimatedTotal,
+        lastTick: startedAt,
+      });
+      if (estimatedTotal !== null) {
+        log(`Scan startet — letzter Run: ${estimatedTotal.toLocaleString('de-DE')} Dateien in ${formatDuration(lastRun!.duration_ms)}`);
+      } else {
+        log('Scan startet — kein vorheriger Run, ETA wird erst beim naechsten Mal verfuegbar.');
+      }
+
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       const files = await scanDocSource(handle, {
@@ -180,14 +220,27 @@ export function TriagePanel(): React.ReactElement {
         max_depth: scanConfig.max_depth ?? 20,
         signal: ctrl.signal,
         onProgress: info => {
-          if (info.filesSoFar % 500 === 0 && info.filesSoFar > 0) {
-            log(`[scan] ${info.dir}: ${info.filesSoFar} Dateien bisher`);
+          setScanProgress(p => p && {
+            ...p,
+            filesSoFar: info.filesSoFar,
+            dir: info.dir,
+            lastTick: Date.now(),
+          });
+          if (info.filesSoFar > 0 && info.filesSoFar % 1000 === 0) {
+            log(`[scan] ${info.dir}: ${info.filesSoFar.toLocaleString('de-DE')} Dateien bisher`);
           }
         },
       });
       abortRef.current = null;
+      const durationMs = Date.now() - startedAt;
       setScanFiles(files);
-      log(`Scan abgeschlossen: ${files.length} Dateien in ${selectedRoots.length || 1} Roots.`);
+      log(`Scan abgeschlossen: ${files.length.toLocaleString('de-DE')} Dateien in ${formatDuration(durationMs)}.`);
+      // History fuer naechste ETA aufzeichnen (best-effort, Fehler nicht propagieren)
+      try {
+        await recordScanRun(storage.idb, selectedRoots, files.length, durationMs);
+      } catch (e) {
+        console.warn('[phase2] recordScanRun fehlgeschlagen', e);
+      }
     } catch (e) {
       const msg = (e as Error).message;
       if (msg.includes('aborted')) {
@@ -197,8 +250,13 @@ export function TriagePanel(): React.ReactElement {
       }
     } finally {
       setScanRunning(false);
+      setScanProgress(null);
       abortRef.current = null;
     }
+  };
+
+  const onAbortScan = (): void => {
+    abortRef.current?.abort();
   };
 
   const onBulkTriage = async (): Promise<void> => {
@@ -453,8 +511,13 @@ export function TriagePanel(): React.ReactElement {
             'Roots scannen'
           )}
         </Button>
-        {scanFiles && (
-          <StatusPill label={`${scanFiles.length} Dateien gefunden`} tone="ok" />
+        {scanRunning && (
+          <Button size="xs" variant="destructive" onClick={onAbortScan}>
+            Abbrechen
+          </Button>
+        )}
+        {scanFiles && !scanRunning && (
+          <StatusPill label={`${scanFiles.length.toLocaleString('de-DE')} Dateien gefunden`} tone="ok" />
         )}
         <Button
           size="xs"
@@ -471,6 +534,50 @@ export function TriagePanel(): React.ReactElement {
           </Button>
         )}
       </DevRow>
+
+      {scanProgress && (
+        <DevRow label="Scan-Progress">
+          <div className="w-full">
+            {scanProgress.estimatedTotal !== null && (
+              <div className="h-2 w-full overflow-hidden rounded bg-[var(--tf-bg-secondary)]">
+                <div
+                  className="h-full bg-[var(--tf-primary)] transition-[width] duration-200"
+                  style={{
+                    width: `${Math.min(100, (scanProgress.filesSoFar / scanProgress.estimatedTotal) * 100)}%`,
+                  }}
+                />
+              </div>
+            )}
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-[var(--tf-text-secondary)]">
+              <span>Files: {scanProgress.filesSoFar.toLocaleString('de-DE')}</span>
+              {scanProgress.estimatedTotal !== null && (
+                <span>~ {scanProgress.estimatedTotal.toLocaleString('de-DE')} erwartet</span>
+              )}
+              {(() => {
+                const elapsedMs = scanProgress.lastTick - scanProgress.startedAt;
+                const ratePerSec = elapsedMs > 0 ? (scanProgress.filesSoFar * 1000) / elapsedMs : 0;
+                const etaMs = scanProgress.estimatedTotal !== null
+                  && ratePerSec > 0
+                  && scanProgress.estimatedTotal > scanProgress.filesSoFar
+                  ? ((scanProgress.estimatedTotal - scanProgress.filesSoFar) / ratePerSec) * 1000
+                  : null;
+                return (
+                  <>
+                    <span>{Math.round(ratePerSec).toLocaleString('de-DE')} Files/s</span>
+                    <span>vergangen: {formatDuration(elapsedMs)}</span>
+                    {etaMs !== null && <span>ETA: {formatDuration(etaMs)}</span>}
+                  </>
+                );
+              })()}
+            </div>
+            {scanProgress.dir && (
+              <div className="mt-0.5 truncate text-[10.5px] text-[var(--tf-text-tertiary)]">
+                aktuell: {scanProgress.dir || '<root>'}
+              </div>
+            )}
+          </div>
+        </DevRow>
+      )}
 
       {bulkStats && (
         <DevRow label="Bulk-Progress">

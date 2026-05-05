@@ -38,10 +38,14 @@ export {
   findCoveringParent,
   isPathCovered,
   dedupeWithInheritance,
+  getLastScanRun,
+  recordScanRun,
+  pathsHash,
   SCAN_CONFIG_SHARE_PATH,
 } from './scan-config';
 export type {
   ScanConfigEntry,
+  ScanRunHistoryEntry,
   SubdirEntry,
   ScanConfigExportResult,
   ScanConfigImportResult,
