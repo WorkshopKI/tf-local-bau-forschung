@@ -11,6 +11,7 @@ import { useDokumentReviewStore } from './store';
 import { useManifestData } from './hooks/useManifestData';
 import { useAntraegeIndex } from './hooks/useAntraegeIndex';
 import { DashboardCard } from './components/DashboardCard';
+import { AutoCleanupCard } from './components/AutoCleanupCard';
 import { FilterBar } from './components/FilterBar';
 import { ManifestList } from './components/ManifestList';
 import { DetailPanel } from './components/DetailPanel';
@@ -47,6 +48,7 @@ export function DokumentReviewPage(): React.ReactElement {
           return result;
         }}
       />
+      <AutoCleanupCard entries={manifest.entries} onAfter={manifest.load} />
       <FilterBar entries={manifest.entries} />
       <div className="grid grid-cols-2 gap-4 min-h-[600px]">
         {viewMode === 'pending' ? (
