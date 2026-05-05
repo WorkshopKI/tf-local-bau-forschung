@@ -35,6 +35,7 @@ export function AutoCleanupCard({ entries, onAfter }: Props): React.ReactElement
     bescheid: true,
     bewilligung: true,
     zuwendungsbescheid: true,
+    format_outside_whitelist: true,
     matched_with_fkz: true,
   });
   const [running, setRunning] = useState(false);

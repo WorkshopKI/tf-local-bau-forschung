@@ -13,6 +13,7 @@ import {
   CLASSIFIER_VERSION,
   putManifestEntry,
   putSkipEntry,
+  type DocType,
   type ManifestEntry,
   type SkipListEntry,
 } from '@/phase2';
@@ -25,7 +26,33 @@ export type CleanupRuleId =
   | 'bescheid'
   | 'bewilligung'
   | 'zuwendungsbescheid'
+  | 'format_outside_whitelist'
   | 'matched_with_fkz';
+
+/**
+ * Wichtige (doc_type, format)-Kombinationen — alles andere geht via
+ * `format_outside_whitelist` auf irrelevant. matched_antrag_id bleibt
+ * jedoch erhalten, damit die Antrag-Detail-Seite die Datei spaeter unter
+ * "Sonstige" auffuehren kann.
+ */
+const WHITELIST: Array<{ docType: DocType; formats: string[] }> = [
+  { docType: 'gutachten', formats: ['pdf'] },
+  { docType: 'nachforderung', formats: ['doc', 'docx'] },
+  { docType: 'projektbeschreibung', formats: ['pdf'] },
+  { docType: 'verwendungsnachweis', formats: ['pdf', 'doc', 'docx'] },
+];
+
+function fileExtension(filename: string): string {
+  const dot = filename.lastIndexOf('.');
+  if (dot === -1) return '';
+  return filename.slice(dot + 1).toLowerCase();
+}
+
+function isWhitelisted(entry: ManifestEntry): boolean {
+  const ext = fileExtension(entry.filename);
+  if (!ext) return false;
+  return WHITELIST.some(r => r.docType === entry.doc_type && r.formats.includes(ext));
+}
 
 export interface CleanupRuleResult {
   ruleId: CleanupRuleId;
@@ -61,9 +88,13 @@ const RULE_DEFS: Record<CleanupRuleId, { label: string; description: string }> =
     label: 'Bezeichnung enthaelt "ZuwB" / "Zuwendungsbescheid"',
     description: 'DMS-Bezeichnung kennzeichnet Zuwendungsbescheid → irrelevant',
   },
+  format_outside_whitelist: {
+    label: 'Nicht in Whitelist (Typ + Format)',
+    description: 'Nur (gutachten,pdf) · (nachforderung,doc/docx) · (projektbeschreibung,pdf) · (verwendungsnachweis,pdf/doc/docx) bleiben — Rest → irrelevant. matched_antrag_id bleibt erhalten.',
+  },
   matched_with_fkz: {
-    label: 'FKZ + Typ zugeordnet',
-    description: 'matched_antrag_id + extracted_fkz + doc_type ≠ sonstiges → requires_review = false (Status bleibt)',
+    label: 'FKZ + Typ zugeordnet (Whitelist-Treffer)',
+    description: 'matched_antrag_id + extracted_fkz + Whitelist-Treffer → requires_review = false (Status bleibt)',
   },
 };
 
@@ -75,14 +106,8 @@ function classifyEntry(e: ManifestEntry): CleanupRuleId | null {
   const bz = (e.dms_bezeichnung ?? '').toLowerCase();
   if (bz.includes('bewilligung')) return 'bewilligung';
   if (bz.includes('zuwb') || bz.includes('zuwendungsbescheid')) return 'zuwendungsbescheid';
-  if (
-    e.matched_antrag_id &&
-    e.extracted_fkz &&
-    e.doc_type !== 'sonstiges' &&
-    e.doc_type !== 'irrelevant'
-  ) {
-    return 'matched_with_fkz';
-  }
+  if (!isWhitelisted(e)) return 'format_outside_whitelist';
+  if (e.matched_antrag_id && e.extracted_fkz) return 'matched_with_fkz';
   return null;
 }
 
@@ -93,6 +118,7 @@ export function previewCleanup(entries: ManifestEntry[]): CleanupRuleResult[] {
     bescheid: [],
     bewilligung: [],
     zuwendungsbescheid: [],
+    format_outside_whitelist: [],
     matched_with_fkz: [],
   };
   for (const e of entries) {
@@ -178,7 +204,8 @@ export async function executeCleanup(
   }
   const perRule: Record<CleanupRuleId, number> = {
     zero_byte: 0, parse_error: 0, bescheid: 0,
-    bewilligung: 0, zuwendungsbescheid: 0, matched_with_fkz: 0,
+    bewilligung: 0, zuwendungsbescheid: 0,
+    format_outside_whitelist: 0, matched_with_fkz: 0,
   };
   for (const r of rules) perRule[r.ruleId] = r.matches.length;
   return { perRule, totalChanged: total };
