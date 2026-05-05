@@ -49,6 +49,7 @@ export function AntraegeListe(): React.ReactElement {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [visibleRows, setVisibleRows] = useState(ROW_PAGE);
   const [visibleGroups, setVisibleGroups] = useState(GROUP_PAGE);
+  const [sidebarReady, setSidebarReady] = useState(false);
   const sentinelRef = useRef<HTMLTableRowElement | null>(null);
 
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
@@ -73,6 +74,17 @@ export function AntraegeListe(): React.ReactElement {
     setVisibleRows(ROW_PAGE);
     setVisibleGroups(GROUP_PAGE);
   }, [search, active, groupByVerbund, programmId]);
+
+  // FilterSidebar berechnet pro Filter Counts ueber alle 13k Antraege und
+  // rendert ~20 Sub-Komponenten — das blockiert beim Mount 1-2 s. Deshalb
+  // erst NACH dem Tabellen-Paint mounten: User sieht sofort die Tabelle,
+  // Sidebar swappt von Skeleton auf Real ein paar Hundert ms spaeter.
+  useEffect(() => {
+    setSidebarReady(false);
+    if (loading || antraege.length === 0) return;
+    const id = setTimeout(() => setSidebarReady(true), 0);
+    return () => clearTimeout(id);
+  }, [loading, antraege.length, programmId]);
 
   const verbundMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -176,11 +188,15 @@ export function AntraegeListe(): React.ReactElement {
         className="w-[320px] shrink-0 flex flex-col max-h-[calc(100vh-60px)]"
         style={{ borderRight: '0.5px solid var(--tf-border)' }}
       >
-        <FilterSidebar
-          antraege={antraege}
-          search={search}
-          onSearchChange={setSearch}
-        />
+        {sidebarReady ? (
+          <FilterSidebar
+            antraege={antraege}
+            search={search}
+            onSearchChange={setSearch}
+          />
+        ) : (
+          <FilterSidebarSkeleton />
+        )}
       </aside>
 
       <main className="flex-1 overflow-auto">
@@ -344,6 +360,25 @@ export function AntraegeListe(): React.ReactElement {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function FilterSidebarSkeleton(): React.ReactElement {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-3 shrink-0" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
+        <div className="h-8 rounded bg-[var(--tf-bg-secondary)] animate-pulse" />
+      </div>
+      <div className="flex-1 px-3 py-3 space-y-3">
+        {[0, 1, 2, 3, 4].map(i => (
+          <div key={i} className="space-y-1.5">
+            <div className="h-3 rounded bg-[var(--tf-bg-secondary)] animate-pulse w-1/2" />
+            <div className="h-2.5 rounded bg-[var(--tf-bg-secondary)] animate-pulse w-3/4" />
+            <div className="h-2.5 rounded bg-[var(--tf-bg-secondary)] animate-pulse w-2/3" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
