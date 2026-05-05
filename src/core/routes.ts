@@ -26,6 +26,7 @@ export const PLUGIN_ROUTES: Record<string, string> = {
   'unterprogramme-kuration': '/kuration/unterprogramme',
   'filter-kuration': '/kuration/filter',
   'feedback-kuration': '/kuration/feedback',
+  'dokument-review': '/kuration/dokument-review',
   'dev-infrastructure-test': '/dev-infrastructure-test',
   'dev-state-inspector': '/dev-state-inspector',
 };

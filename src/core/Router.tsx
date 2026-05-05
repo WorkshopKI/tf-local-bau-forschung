@@ -114,6 +114,7 @@ export function buildRouter(
     'unterprogramme-kuration',
     'filter-kuration',
     'feedback-kuration',
+    'dokument-review',
     'dev-infrastructure-test',
     'dev-state-inspector',
   ];
