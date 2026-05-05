@@ -111,23 +111,46 @@ export async function triageFile(
       // Direkt in Skip-Liste, ohne Datei zu öffnen
       return await persistIrrelevant(ctx, file, triage, 'dms_csv');
     }
-    // Blob laden für Stage 1/2
-    blob = await loadBlob(file);
-    // Stage 1 strukturell (vor allem Gutachten-DOCX-Sonderregel)
-    const stage1 = await runStage1({
-      filename: file.filename,
-      blob,
-      docTypeHint: triage.doc_type,
-      fkzHint: triage.extracted_fkz,
-      // DMS-Felder durchreichen, damit sie im Stage-1-`decided` nicht verloren gehen
-      dmsBezeichnungHint: triage.dms_bezeichnung,
-      dmsAktenplanHint: triage.dms_aktenplan,
-      creatorKuerzelHint: triage.creator_kuerzel,
-    });
-    if (stage1.decided) {
-      triage = stage1.decided;
-      if (triage.triage_state === 'irrelevant') {
-        return await persistIrrelevant(ctx, file, triage, 'stage1');
+
+    // Schnellpfad: PDF + doc_type=gutachten/gutachten_qs + Bezeichnung enthaelt
+    // 'final' (case-insensitive) — die Klassifikation ist damit aus Stage 0
+    // bereits eindeutig (DMS-Aktenplan-Mapping liefert doc_type, FKZ steht in
+    // DmsEntry.extractedFkz). Wir koennen Stage 1+2 (zwei pdfjs.getDocument-
+    // Calls plus arrayBuffer-Reads pro Datei) komplett ueberspringen.
+    // Akronym fehlt damit (Stage 2 extrahiert es aus Page-1-Text), das ist
+    // fuer Gutachten aber unkritisch — der Antrag-Match laeuft ueber FKZ.
+    const isPdfGutachtenFinal =
+      file.filename.toLowerCase().endsWith('.pdf') &&
+      (triage.doc_type === 'gutachten' || triage.doc_type === 'gutachten_qs') &&
+      !!triage.dms_bezeichnung &&
+      /final/i.test(triage.dms_bezeichnung);
+
+    if (isPdfGutachtenFinal) {
+      triage = {
+        ...triage,
+        reason: `${triage.reason} | bezeichnung_final_pdf_skip_stages_1_2`,
+      };
+      // blob bleibt null — nachfolgende `if (blob && ...)`-Bloecke ueberspringen
+      // Stage 1/2 automatisch. Wir fallen direkt durch zum Matcher.
+    } else {
+      // Blob laden für Stage 1/2
+      blob = await loadBlob(file);
+      // Stage 1 strukturell (vor allem Gutachten-DOCX-Sonderregel)
+      const stage1 = await runStage1({
+        filename: file.filename,
+        blob,
+        docTypeHint: triage.doc_type,
+        fkzHint: triage.extracted_fkz,
+        // DMS-Felder durchreichen, damit sie im Stage-1-`decided` nicht verloren gehen
+        dmsBezeichnungHint: triage.dms_bezeichnung,
+        dmsAktenplanHint: triage.dms_aktenplan,
+        creatorKuerzelHint: triage.creator_kuerzel,
+      });
+      if (stage1.decided) {
+        triage = stage1.decided;
+        if (triage.triage_state === 'irrelevant') {
+          return await persistIrrelevant(ctx, file, triage, 'stage1');
+        }
       }
     }
   } else {
