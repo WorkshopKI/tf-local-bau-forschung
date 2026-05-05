@@ -44,7 +44,7 @@ import {
   type ManifestEntry,
   type BulkScanStats,
 } from '@/phase2';
-import { formatDuration } from '@/core/utils/eta';
+import { formatDuration, computeEta } from '@/core/utils/eta';
 import type { AktenplanLookup, DmsEntry } from '@/phase2/types';
 import { DevLog, DevRow, StatusPill } from './shared';
 import { ScanRootsPicker } from './ScanRootsPicker';
@@ -76,6 +76,9 @@ export function TriagePanel(): React.ReactElement {
   } | null>(null);
   const [bulkStats, setBulkStats] = useState<BulkScanStats | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
+  // 1Hz-Tick fuer Live-ETA-Updates zwischen onProgress-Calls (die nur alle
+  // 25 Files feuern). Sonst friert die "vergangen"-Anzeige zwischen Ticks ein.
+  const [bulkTick, setBulkTick] = useState<number>(Date.now());
   const [mirrorBusy, setMirrorBusy] = useState(false);
   const [errorCount, setErrorCount] = useState<number>(0);
   const [manifestCount, setManifestCount] = useState<number>(0);
@@ -91,6 +94,13 @@ export function TriagePanel(): React.ReactElement {
     }, 1000);
     return () => clearInterval(id);
   }, [scanProgress !== null]);
+
+  // Analog fuer Bulk-Triage: 1Hz-Tick fuer Live-ETA waehrend des Runs.
+  useEffect(() => {
+    if (!bulkRunning) return;
+    const id = setInterval(() => setBulkTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [bulkRunning]);
   // Auswahl kommt jetzt aus dem ScanRootsPicker (persistiert in IDB).
   // Default leer — User muss explizit Pfade waehlen, sonst kein Scan moeglich.
   const [selectedRoots, setSelectedRoots] = useState<string[]>([]);
@@ -740,7 +750,7 @@ export function TriagePanel(): React.ReactElement {
               />
             </div>
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-[var(--tf-text-secondary)]">
-              <span>{bulkStats.done}/{bulkStats.total}</span>
+              <span>{bulkStats.done.toLocaleString('de-DE')}/{bulkStats.total.toLocaleString('de-DE')}</span>
               <span>cache(skip): {bulkStats.cache_hit_skip}</span>
               <span>cache(manifest): {bulkStats.cache_hit_manifest}</span>
               <span>relevant: {bulkStats.classified_relevant}</span>
@@ -753,6 +763,26 @@ export function TriagePanel(): React.ReactElement {
               {bulkStats.aborted && <span className="text-amber-700">(abgebrochen)</span>}
               {bulkStats.finished_at && !bulkStats.aborted && <span>(fertig)</span>}
             </div>
+            {(() => {
+              const startedAtMs = new Date(bulkStats.started_at).getTime();
+              const finishedAtMs = bulkStats.finished_at
+                ? new Date(bulkStats.finished_at).getTime()
+                : bulkTick;
+              const elapsedMs = Math.max(0, finishedAtMs - startedAtMs);
+              const ratePerSec = elapsedMs > 0
+                ? (bulkStats.done * 1000) / elapsedMs
+                : 0;
+              const eta = !bulkStats.finished_at && !bulkStats.aborted
+                ? computeEta(elapsedMs, bulkStats.done, bulkStats.total)
+                : null;
+              return (
+                <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-[var(--tf-text-secondary)]">
+                  <span>{ratePerSec.toFixed(1)} Files/s</span>
+                  <span>vergangen: {formatDuration(elapsedMs)}</span>
+                  {eta && <span className="text-[var(--tf-text)] font-medium">{eta}</span>}
+                </div>
+              );
+            })()}
             {bulkStats.current_file && (
               <div className="mt-0.5 truncate text-[10.5px] text-[var(--tf-text-tertiary)]">
                 aktuell: {bulkStats.current_file}

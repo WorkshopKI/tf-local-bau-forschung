@@ -17,26 +17,35 @@
 
 const MAX_CHARS = 3500;
 
-let workerSetupAttempted = false;
+// Promise-basiertes Singleton — verhindert dass parallele Worker-Coroutinen
+// (Concurrency-Pool in bulk-scan.ts) den Worker-Setup mehrfach starten.
+// Race: ein boolean-Flag waere zwischen den `await import(...)`-Yields nicht
+// atomic, alle parallelen Caller sehen flag=false und erzeugen je einen
+// Worker — die letzte Zuweisung an GlobalWorkerOptions.workerPort gewinnt,
+// die anderen Worker sind verwaist und werden GCt. pdfjs interpretiert das
+// als 'PDFWorker.create - the worker is being destroyed'.
+let workerSetupPromise: Promise<void> | null = null;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-async function setupWorkerOnce(): Promise<void> {
-  if (workerSetupAttempted) return;
-  workerSetupAttempted = true;
-  try {
-    const pdfjsLib = await import('pdfjs-dist');
-    const workerModule = await import(
-      // Vite-spezifischer Suffix: laedt den Worker als Inline-Blob-URL
-      // (wichtig fuer file://-Builds — keine separate Worker-Datei).
-      'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline'
-    );
-    const PdfjsWorker = workerModule.default;
-    pdfjsLib.GlobalWorkerOptions.workerPort = new PdfjsWorker() as any;
-  } catch (e) {
-    // In Vitest schlaegt das ?worker-Suffix fehl — wir fallen auf Main-Thread
-    // zurueck. Nicht ideal performance-maessig, aber funktional.
-    console.warn('[phase2/pdf-extract] Worker-Setup fehlgeschlagen — fallback Main-Thread', e);
-  }
+function setupWorkerOnce(): Promise<void> {
+  if (workerSetupPromise) return workerSetupPromise;
+  workerSetupPromise = (async () => {
+    try {
+      const pdfjsLib = await import('pdfjs-dist');
+      const workerModule = await import(
+        // Vite-spezifischer Suffix: laedt den Worker als Inline-Blob-URL
+        // (wichtig fuer file://-Builds — keine separate Worker-Datei).
+        'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline'
+      );
+      const PdfjsWorker = workerModule.default;
+      pdfjsLib.GlobalWorkerOptions.workerPort = new PdfjsWorker() as any;
+    } catch (e) {
+      // In Vitest schlaegt das ?worker-Suffix fehl — wir fallen auf Main-Thread
+      // zurueck. Nicht ideal performance-maessig, aber funktional.
+      console.warn('[phase2/pdf-extract] Worker-Setup fehlgeschlagen — fallback Main-Thread', e);
+    }
+  })();
+  return workerSetupPromise;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 

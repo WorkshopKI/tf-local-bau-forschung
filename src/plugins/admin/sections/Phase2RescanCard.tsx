@@ -11,6 +11,7 @@ import { FileSearch, Loader2, Square } from 'lucide-react';
 import { Button } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { computeEta, formatDuration } from '@/core/utils/eta';
 import {
   getDatenShareHandle,
   getDokumentenquelleHandle,
@@ -45,7 +46,15 @@ export function Phase2RescanCard(): React.ReactElement {
   const [info, setInfo] = useState<string | null>(null);
   const [logPath, setLogPath] = useState<string | null>(null);
   const [mirrorBusy, setMirrorBusy] = useState(false);
+  const [tick, setTick] = useState<number>(Date.now());
   const abortRef = useRef<AbortController | null>(null);
+
+  // 1Hz-Tick fuer Live-ETA waehrend des Runs.
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [running]);
 
   const refreshCounts = useCallback(async (): Promise<void> => {
     try {
@@ -350,7 +359,7 @@ export function Phase2RescanCard(): React.ReactElement {
                 />
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[var(--tf-text-secondary)]">
-                <span>{stats.done}/{stats.total}</span>
+                <span>{stats.done.toLocaleString('de-DE')}/{stats.total.toLocaleString('de-DE')}</span>
                 <span>cache(skip): {stats.cache_hit_skip}</span>
                 <span>cache(manifest): {stats.cache_hit_manifest}</span>
                 <span>relevant: {stats.classified_relevant}</span>
@@ -361,6 +370,19 @@ export function Phase2RescanCard(): React.ReactElement {
                   errors: {stats.errors}
                 </span>
               </div>
+              {(() => {
+                const startedAtMs = new Date(stats.started_at).getTime();
+                const elapsedMs = Math.max(0, tick - startedAtMs);
+                const ratePerSec = elapsedMs > 0 ? (stats.done * 1000) / elapsedMs : 0;
+                const eta = computeEta(elapsedMs, stats.done, stats.total);
+                return (
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[var(--tf-text-secondary)]">
+                    <span>{ratePerSec.toFixed(1)} Files/s</span>
+                    <span>vergangen: {formatDuration(elapsedMs)}</span>
+                    {eta && <span className="text-[var(--tf-text)] font-medium">{eta}</span>}
+                  </div>
+                );
+              })()}
               {stats.current_file && (
                 <div className="truncate text-[11px] text-[var(--tf-text-tertiary)]">
                   aktuell: {stats.current_file}
