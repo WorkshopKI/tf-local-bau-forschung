@@ -17,12 +17,16 @@ import {
 } from '@/core/services/infrastructure/smb-handle';
 import { scanConfig } from '@/config/feature-flags';
 import {
+  BulkRunLogger,
+  CLASSIFIER_VERSION,
   bulkScanFiles,
   getScanConfig,
   listManifestEntries,
+  listParseErrorManifests,
   loadDmsCsvFromShare,
   makeLoadBlobFromHandle,
   mirrorManifestToShare,
+  prepareErrorRetry,
   scanDocSource,
   type BulkScanStats,
 } from '@/phase2';
@@ -34,21 +38,25 @@ export function Phase2RescanCard(): React.ReactElement {
 
   const [pathCount, setPathCount] = useState<number | null>(null);
   const [manifestCount, setManifestCount] = useState<number | null>(null);
+  const [errorCount, setErrorCount] = useState<number>(0);
   const [running, setRunning] = useState(false);
   const [stats, setStats] = useState<BulkScanStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [logPath, setLogPath] = useState<string | null>(null);
   const [mirrorBusy, setMirrorBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const refreshCounts = useCallback(async (): Promise<void> => {
     try {
-      const [cfg, entries] = await Promise.all([
+      const [cfg, entries, errs] = await Promise.all([
         getScanConfig(storage.idb),
         listManifestEntries(storage.idb),
+        listParseErrorManifests(storage.idb),
       ]);
       setPathCount(cfg?.selected_paths.length ?? 0);
       setManifestCount(entries.length);
+      setErrorCount(errs.length);
     } catch (e) {
       setError(`Status konnte nicht gelesen werden: ${(e as Error).message}`);
     }
@@ -92,6 +100,7 @@ export function Phase2RescanCard(): React.ReactElement {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setRunning(true);
+    setLogPath(null);
 
     try {
       // 1. DMS-Index laden (kann ~30 s dauern bei 1M Zeilen)
@@ -115,7 +124,21 @@ export function Phase2RescanCard(): React.ReactElement {
         return;
       }
 
-      // 3. Bulk-Triage (idempotent dank IDB-Schnellpfaden)
+      // 3. Run-Logger fuer persistentes Crash-sicheres Logging
+      let runLog: BulkRunLogger | undefined;
+      try {
+        runLog = await BulkRunLogger.create(
+          datenShare,
+          paths,
+          files.length,
+          CLASSIFIER_VERSION,
+        );
+        setLogPath(runLog.relPath);
+      } catch (logErr) {
+        console.warn('[phase2] Run-Logger konnte nicht erstellt werden', logErr);
+      }
+
+      // 4. Bulk-Triage (idempotent dank IDB-Schnellpfaden)
       const ak: Map<string, AktenplanLookup> = dms.aktenplan ?? new Map();
       const dmsMap: Map<string, DmsEntry> = dms.entries ?? new Map();
       const ctx = {
@@ -132,6 +155,7 @@ export function Phase2RescanCard(): React.ReactElement {
         loadBlob,
         signal: ctrl.signal,
         progressEvery: 25,
+        runLog,
         onProgress: s => setStats({ ...s }),
       });
       setStats({ ...final });
@@ -152,6 +176,90 @@ export function Phase2RescanCard(): React.ReactElement {
   const onAbort = (): void => {
     abortRef.current?.abort();
   };
+
+  const onRetryErrors = useCallback(async (): Promise<void> => {
+    setError(null);
+    setInfo(null);
+    setStats(null);
+    setLogPath(null);
+
+    if (!activeProgrammId) {
+      setError('Kein aktives Programm.');
+      return;
+    }
+    const datenShare = await getDatenShareHandle(storage.idb);
+    if (!datenShare) {
+      setError('Kein Daten-Share-Handle.');
+      return;
+    }
+    const dokQuelle = await getDokumentenquelleHandle(storage.idb);
+    if (!dokQuelle) {
+      setError('Kein Dokumentenquelle-Handle.');
+      return;
+    }
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setRunning(true);
+
+    try {
+      setInfo('Sammle parse_error-Manifests…');
+      const prep = await prepareErrorRetry(storage.idb);
+      if (prep.files.length === 0) {
+        setInfo('Keine parse_error-Manifests gefunden.');
+        await refreshCounts();
+        return;
+      }
+
+      setInfo('DMS-Index wird geladen…');
+      const dms = await loadDmsCsvFromShare(datenShare);
+      if (ctrl.signal.aborted) return;
+      setInfo(null);
+
+      let runLog: BulkRunLogger | undefined;
+      try {
+        runLog = await BulkRunLogger.create(
+          datenShare,
+          ['__retry_errors__'],
+          prep.files.length,
+          CLASSIFIER_VERSION,
+        );
+        setLogPath(runLog.relPath);
+      } catch (logErr) {
+        console.warn('[phase2] Run-Logger konnte nicht erstellt werden', logErr);
+      }
+
+      const ctx = {
+        idb: storage.idb,
+        programmId: activeProgrammId,
+        dmsMap: dms.entries ?? new Map<string, DmsEntry>(),
+        aktenplan: dms.aktenplan ?? new Map<string, AktenplanLookup>(),
+        llmTransport: null,
+      };
+      const loadBlob = makeLoadBlobFromHandle(dokQuelle);
+      const final = await bulkScanFiles({
+        ctx,
+        files: prep.files,
+        loadBlob,
+        signal: ctrl.signal,
+        progressEvery: 25,
+        runLog,
+        onProgress: s => setStats({ ...s }),
+      });
+      setStats({ ...final });
+      await refreshCounts();
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (msg.includes('aborted')) {
+        setInfo(null);
+      } else {
+        setError(`Retry-Fehler: ${msg}`);
+      }
+    } finally {
+      setRunning(false);
+      abortRef.current = null;
+    }
+  }, [activeProgrammId, storage.idb, refreshCounts]);
 
   const onMirror = useCallback(async (): Promise<void> => {
     setMirrorBusy(true);
@@ -190,7 +298,7 @@ export function Phase2RescanCard(): React.ReactElement {
               ? 'lade Status…'
               : noPathsConfigured
                 ? 'Keine Pfade konfiguriert — Dev muss im Infra-Panel die Sub-Roots waehlen.'
-                : `${pathCount} Pfad${pathCount === 1 ? '' : 'e'} konfiguriert · ${manifestCount ?? 0} Dateien klassifiziert`}
+                : `${pathCount} Pfad${pathCount === 1 ? '' : 'e'} konfiguriert · ${(manifestCount ?? 0).toLocaleString('de-DE')} Dateien klassifiziert${errorCount > 0 ? ` · ${errorCount.toLocaleString('de-DE')} mit parse_error` : ''}`}
           </p>
         </div>
       </div>
@@ -203,6 +311,14 @@ export function Phase2RescanCard(): React.ReactElement {
             icon={FileSearch}
           >
             Triage neu starten
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => void onRetryErrors()}
+            disabled={running || errorCount === 0}
+            title={errorCount === 0 ? 'Keine parse_error-Manifests' : undefined}
+          >
+            Nur Errors retriagieren ({errorCount.toLocaleString('de-DE')})
           </Button>
           <Button
             variant="secondary"
@@ -291,6 +407,11 @@ export function Phase2RescanCard(): React.ReactElement {
         </div>
       )}
 
+      {logPath && (
+        <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+          Run-Log: <code>{logPath}</code> (auf dem Daten-Share, ueberlebt Tab-Crash)
+        </p>
+      )}
       {error && (
         <p className="text-[12px] text-[var(--tf-danger-text)]">{error}</p>
       )}

@@ -28,6 +28,10 @@ export type { ManifestMirrorResult } from './scanner/manifest-mirror';
 export { bulkScanFiles } from './triage/bulk-scan';
 export type { BulkScanStats, BulkScanOptions } from './triage/bulk-scan';
 export { makeLoadBlobFromHandle } from './triage/load-blob-from-handle';
+export { BulkRunLogger } from './triage/run-log';
+export type { RunLogEvent } from './triage/run-log';
+export { listParseErrorManifests, prepareErrorRetry } from './triage/retry-errors';
+export type { ErrorManifestSummary } from './triage/retry-errors';
 export {
   getScanConfig,
   saveScanConfig,

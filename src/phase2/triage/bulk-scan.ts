@@ -15,6 +15,7 @@ import type { ManifestEntry } from '../types';
 import type { ScanFile } from '../scanner/scan-roots';
 import { putManifestEntry } from '../scanner/manifest-store';
 import { CLASSIFIER_VERSION, triageFile, type TriageContext } from './triage';
+import type { BulkRunLogger } from './run-log';
 
 export interface BulkScanStats {
   total: number;
@@ -40,6 +41,19 @@ export interface BulkScanOptions {
   onProgress?: (stats: BulkScanStats, lastError?: string) => void;
   /** Wie oft (Files) onProgress getriggert wird. Default 25. */
   progressEvery?: number;
+  /**
+   * Optionaler Run-Logger — schreibt Errors + Start/End-Events nach
+   * _intern/phase2/bulk-scan-runs/{ISO}.jsonl auf den Daten-Share, damit nach
+   * Tab-Crashes nichts verloren geht.
+   */
+  runLog?: BulkRunLogger;
+  /**
+   * Yield-Pause alle N Files (in ms). Gibt dem Browser GC-Zeit, schuetzt vor
+   * OOM bei langen Laeufen mit pdfjs/mammoth-Heap. Default 100ms alle 500
+   * Files; bei 0 deaktiviert.
+   */
+  memoryYieldEveryFiles?: number;
+  memoryYieldMs?: number;
 }
 
 function emptyStats(total: number): BulkScanStats {
@@ -122,8 +136,10 @@ async function persistParseErrorManifest(
 }
 
 export async function bulkScanFiles(opts: BulkScanOptions): Promise<BulkScanStats> {
-  const { ctx, files, loadBlob, signal, onProgress } = opts;
+  const { ctx, files, loadBlob, signal, onProgress, runLog } = opts;
   const progressEvery = opts.progressEvery ?? 25;
+  const memYieldEvery = opts.memoryYieldEveryFiles ?? 500;
+  const memYieldMs = opts.memoryYieldMs ?? 100;
   const stats = emptyStats(files.length);
   // Initialer Progress-Tick, damit das UI sofort die Total-Zahl sieht.
   onProgress?.(stats);
@@ -153,6 +169,14 @@ export async function bulkScanFiles(opts: BulkScanOptions): Promise<BulkScanStat
         const persistMsg = persistErr instanceof Error ? persistErr.message : String(persistErr);
         lastError = `${file.filepath}: ${msg} | persist: ${persistMsg}`;
       }
+      // Sofort persistent loggen (best-effort, Loggen darf nie den Loop killen).
+      if (runLog) {
+        try {
+          await runLog.logError(file.filepath, file.filename, msg, stats.done);
+        } catch (logErr) {
+          console.warn('[phase2/bulk-scan] runLog.logError fehlgeschlagen', logErr);
+        }
+      }
     }
 
     stats.done++;
@@ -165,10 +189,24 @@ export async function bulkScanFiles(opts: BulkScanOptions): Promise<BulkScanStat
       // Yield damit das UI rendern kann.
       await new Promise(r => setTimeout(r, 0));
     }
+
+    // Memory-Schutz: alle memYieldEvery Files eine laengere Pause +
+    // bewusster setTimeout, damit der Browser-GC durchlaufen kann. Schuetzt
+    // vor OOM bei langen Bulk-Runs mit pdfjs/mammoth.
+    if (memYieldEvery > 0 && memYieldMs > 0 && stats.done > 0 && stats.done % memYieldEvery === 0) {
+      await new Promise(r => setTimeout(r, memYieldMs));
+    }
   }
 
   stats.current_file = null;
   stats.finished_at = new Date().toISOString();
   onProgress?.(stats);
+  if (runLog) {
+    try {
+      await runLog.logEnd(stats);
+    } catch (logErr) {
+      console.warn('[phase2/bulk-scan] runLog.logEnd fehlgeschlagen', logErr);
+    }
+  }
   return stats;
 }

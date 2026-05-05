@@ -34,6 +34,10 @@ import {
   makeLoadBlobFromHandle,
   getLastScanRun,
   recordScanRun,
+  BulkRunLogger,
+  CLASSIFIER_VERSION,
+  listParseErrorManifests,
+  prepareErrorRetry,
   type ScanFile,
   type ManifestEntry,
   type BulkScanStats,
@@ -71,6 +75,7 @@ export function TriagePanel(): React.ReactElement {
   const [bulkStats, setBulkStats] = useState<BulkScanStats | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
   const [mirrorBusy, setMirrorBusy] = useState(false);
+  const [errorCount, setErrorCount] = useState<number>(0);
   const abortRef = useRef<AbortController | null>(null);
 
   // 1-Hz-Tick fuer Live-Update der "vergangen"-Zeit zwischen onProgress-Ticks.
@@ -96,6 +101,8 @@ export function TriagePanel(): React.ReactElement {
     setSkipCount(skip.length);
     const pending = await listAllPending(storage.idb);
     setPendingCount(pending.length);
+    const errs = await listParseErrorManifests(storage.idb);
+    setErrorCount(errs.length);
   }, [storage.idb]);
 
   useEffect(() => {
@@ -290,11 +297,31 @@ export function TriagePanel(): React.ReactElement {
 
     const loadBlob = makeLoadBlobFromHandle(handle);
 
+    // Run-Logger initialisieren (best-effort — wenn der Share fehlt, laeuft
+    // der Triage-Run trotzdem, nur ohne persistentes Log).
+    let runLog: BulkRunLogger | undefined;
+    try {
+      const datenShare = await getDatenShareHandle(storage.idb);
+      if (datenShare) {
+        runLog = await BulkRunLogger.create(
+          datenShare,
+          selectedRoots,
+          scanFiles.length,
+          CLASSIFIER_VERSION,
+        );
+        log(`Run-Log: ${runLog.relPath}`);
+      } else {
+        log('Run-Log deaktiviert (kein Daten-Share).');
+      }
+    } catch (e) {
+      log(`Run-Log konnte nicht erstellt werden: ${(e as Error).message}`);
+    }
+
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setBulkRunning(true);
     setBulkStats(null);
-    log(`Bulk-Triage gestartet: ${scanFiles.length} Dateien.`);
+    log(`Bulk-Triage gestartet: ${scanFiles.length.toLocaleString('de-DE')} Dateien.`);
 
     try {
       let lastLogged = 0;
@@ -304,6 +331,7 @@ export function TriagePanel(): React.ReactElement {
         loadBlob,
         signal: ctrl.signal,
         progressEvery: 25,
+        runLog,
         onProgress: (s, lastError) => {
           setBulkStats({ ...s });
           if (lastError) {
@@ -333,6 +361,93 @@ export function TriagePanel(): React.ReactElement {
 
   const onAbortBulk = (): void => {
     abortRef.current?.abort();
+  };
+
+  const onRetryErrors = async (): Promise<void> => {
+    if (!activeProgrammId) {
+      log('Kein aktives Programm.');
+      return;
+    }
+    if (!dmsMap) {
+      log('DMS-Index nicht geladen — erst „Index laden".');
+      return;
+    }
+    const handle = await getDokumentenquelleHandle(storage.idb);
+    if (!handle) {
+      log('Kein Dokumentenquelle-Handle.');
+      return;
+    }
+
+    log('Sammle parse_error-Manifests…');
+    const prep = await prepareErrorRetry(storage.idb);
+    if (prep.files.length === 0) {
+      log('Keine parse_error-Manifests gefunden.');
+      await refreshCounts();
+      return;
+    }
+    log(`${prep.cleared.toLocaleString('de-DE')} Manifest-Eintraege geloescht — werden jetzt neu triagiert.`);
+
+    const ctx = {
+      idb: storage.idb,
+      programmId: activeProgrammId,
+      dmsMap,
+      aktenplan: aktenplan ?? new Map<string, AktenplanLookup>(),
+      llmTransport: null,
+    };
+    const loadBlob = makeLoadBlobFromHandle(handle);
+
+    let runLog: BulkRunLogger | undefined;
+    try {
+      const datenShare = await getDatenShareHandle(storage.idb);
+      if (datenShare) {
+        runLog = await BulkRunLogger.create(
+          datenShare,
+          ['__retry_errors__'],
+          prep.files.length,
+          CLASSIFIER_VERSION,
+        );
+        log(`Retry-Run-Log: ${runLog.relPath}`);
+      }
+    } catch (e) {
+      log(`Run-Log konnte nicht erstellt werden: ${(e as Error).message}`);
+    }
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setBulkRunning(true);
+    setBulkStats(null);
+
+    try {
+      let lastLogged = 0;
+      const final = await bulkScanFiles({
+        ctx,
+        files: prep.files,
+        loadBlob,
+        signal: ctrl.signal,
+        progressEvery: 25,
+        runLog,
+        onProgress: (s, lastError) => {
+          setBulkStats({ ...s });
+          if (lastError) {
+            log(`[retry-error] ${lastError}`);
+          } else if (s.done - lastLogged >= 50) {
+            lastLogged = s.done;
+            log(`[retry] ${s.done}/${s.total} errors=${s.errors}`);
+          }
+        },
+      });
+      log(
+        `Retry ${final.aborted ? 'abgebrochen' : 'fertig'}: ` +
+        `${final.done}/${final.total}, errors=${final.errors}, ` +
+        `relevant=${final.classified_relevant}, irrelevant=${final.classified_irrelevant}`
+      );
+      await refreshCounts();
+    } catch (e) {
+      log(`Retry-Fehler: ${(e as Error).message}`);
+    } finally {
+      setBulkRunning(false);
+      abortRef.current = null;
+    }
   };
 
   const onMirrorManifest = async (): Promise<void> => {
@@ -527,6 +642,15 @@ export function TriagePanel(): React.ReactElement {
           title={!scanFiles ? 'Erst „Roots scannen" klicken' : !dmsMap ? 'Erst DMS-Index laden' : undefined}
         >
           Bulk-Triage starten
+        </Button>
+        <Button
+          size="xs"
+          variant="outline"
+          onClick={() => void onRetryErrors()}
+          disabled={errorCount === 0 || !dmsMap || bulkRunning || scanRunning}
+          title={errorCount === 0 ? 'Keine parse_error-Manifests' : !dmsMap ? 'Erst DMS-Index laden' : undefined}
+        >
+          Nur Errors retriagieren ({errorCount.toLocaleString('de-DE')})
         </Button>
         {bulkRunning && (
           <Button size="xs" variant="destructive" onClick={onAbortBulk}>

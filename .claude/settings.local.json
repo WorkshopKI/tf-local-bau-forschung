@@ -10,7 +10,13 @@
       "Bash(npm run:*)",
       "Bash(npm install:*)",
       "Bash(git checkout:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(python -c ' *)",
+      "Bash(git fetch *)",
+      "Bash(node C:/01b_genAI_Code/01d-lokal-fzd/fzd-antrag/scripts/test-csv-preview-width.mjs)",
+      "Bash(git -C \"C:/01b_genAI_Code/01d-lokal-fzd/fzd-antrag\" show e9d70d9:src/plugins/admin/IndexHelpers.tsx)",
+      "Bash(git push *)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }
