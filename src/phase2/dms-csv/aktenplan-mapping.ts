@@ -23,12 +23,14 @@ import type { AktenplanLookup, DocType } from '../types';
 export const DEFAULT_AKTENPLAN_MAPPING: Record<string, AktenplanLookup> = {
   // Anträge & Bescheide
   '0.2 Checklisten': { doc_type: 'checkliste', irrelevant: true },
+  '1.6 Bewilligung/Ablehnung': { doc_type: 'gutachten', irrelevant: false },
   '2.1 Bescheide': { doc_type: 'bescheid', irrelevant: false },
   '2.7 De-minimis': { doc_type: 'de_minimis', irrelevant: false },
 
   // Verwendungsnachweis
   'Verwendungsnachweis': { doc_type: 'verwendungsnachweis', irrelevant: false },
   '5. Verwendungsnachweis': { doc_type: 'verwendungsnachweis', irrelevant: false },
+  '3.3 VN-Sach': { doc_type: 'verwendungsnachweis', irrelevant: false },
 
   // Gutachten / QS
   '6.1 QS zum Antrag': { doc_type: 'gutachten_qs', irrelevant: false },

@@ -47,4 +47,20 @@ describe('aktenplan-mapping', () => {
     expect(isDocTypeIrrelevant('verwendungsnachweis')).toBe(false);
     expect(isDocTypeIrrelevant('gutachten')).toBe(false);
   });
+
+  it('1.6 Bewilligung/Ablehnung mapped auf gutachten (relevant)', () => {
+    const m = buildEffectiveMapping();
+    expect(lookupAktenplan(m, '1.6 Bewilligung/Ablehnung')).toEqual({
+      doc_type: 'gutachten',
+      irrelevant: false,
+    });
+  });
+
+  it('3.3 VN-Sach mapped auf verwendungsnachweis (relevant)', () => {
+    const m = buildEffectiveMapping();
+    expect(lookupAktenplan(m, '3.3 VN-Sach')).toEqual({
+      doc_type: 'verwendungsnachweis',
+      irrelevant: false,
+    });
+  });
 });

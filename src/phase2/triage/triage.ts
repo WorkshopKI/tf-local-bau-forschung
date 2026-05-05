@@ -112,24 +112,38 @@ export async function triageFile(
       return await persistIrrelevant(ctx, file, triage, 'dms_csv');
     }
 
-    // Schnellpfad: PDF + doc_type=gutachten/gutachten_qs + Bezeichnung enthaelt
-    // 'final' (case-insensitive) — die Klassifikation ist damit aus Stage 0
-    // bereits eindeutig (DMS-Aktenplan-Mapping liefert doc_type, FKZ steht in
-    // DmsEntry.extractedFkz). Wir koennen Stage 1+2 (zwei pdfjs.getDocument-
-    // Calls plus arrayBuffer-Reads pro Datei) komplett ueberspringen.
-    // Akronym fehlt damit (Stage 2 extrahiert es aus Page-1-Text), das ist
-    // fuer Gutachten aber unkritisch — der Antrag-Match laeuft ueber FKZ.
-    const isPdfGutachtenFinal =
-      file.filename.toLowerCase().endsWith('.pdf') &&
-      (triage.doc_type === 'gutachten' || triage.doc_type === 'gutachten_qs') &&
+    // Schnellpfad: PDF + Bezeichnung enthaelt 'gutachten' UND 'final' (beides
+    // case-insensitive). Bezeichnung ist primaer — selbst wenn der Aktenplan
+    // 'sonstiges' ergibt (z.B. weil ein Aktenplan-Wert nicht im Mapping steht),
+    // ist die Klassifikation aus der Bezeichnung eindeutig. FKZ haben wir
+    // bereits aus Stage 0 (DmsEntry.extractedFkz). Wir koennen Stage 1+2 (zwei
+    // pdfjs.getDocument-Calls plus arrayBuffer-Reads pro Datei) komplett
+    // ueberspringen. Akronym fehlt damit — fuer Gutachten unkritisch, der
+    // Antrag-Match laeuft ueber FKZ.
+    const isPdf = file.filename.toLowerCase().endsWith('.pdf');
+    const bezeichnungSagtGutachtenFinal =
       !!triage.dms_bezeichnung &&
+      /gutachten/i.test(triage.dms_bezeichnung) &&
       /final/i.test(triage.dms_bezeichnung);
+    const aktenplanSagtGutachten =
+      triage.doc_type === 'gutachten' || triage.doc_type === 'gutachten_qs';
 
-    if (isPdfGutachtenFinal) {
-      triage = {
-        ...triage,
-        reason: `${triage.reason} | bezeichnung_final_pdf_skip_stages_1_2`,
-      };
+    if (isPdf && bezeichnungSagtGutachtenFinal) {
+      if (!aktenplanSagtGutachten) {
+        // Aktenplan war 'sonstiges' (oder unbekannt) — Bezeichnung
+        // ueberschreibt: doc_type=gutachten + relevant.
+        triage = {
+          ...triage,
+          doc_type: 'gutachten',
+          triage_state: 'relevant',
+          reason: `${triage.reason} | bezeichnung_gutachten_final_override`,
+        };
+      } else {
+        triage = {
+          ...triage,
+          reason: `${triage.reason} | bezeichnung_final_pdf_skip_stages_1_2`,
+        };
+      }
       // blob bleibt null — nachfolgende `if (blob && ...)`-Bloecke ueberspringen
       // Stage 1/2 automatisch. Wir fallen direkt durch zum Matcher.
     } else {
