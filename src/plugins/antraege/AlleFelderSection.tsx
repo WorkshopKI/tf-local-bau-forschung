@@ -25,14 +25,12 @@ const PILL_CLASS_IDLE = 'px-2.5 py-1 rounded-full text-[11.5px] text-[var(--tf-t
 
 export function AlleFelderSection({
   groups,
-  sourceNames,
   historyCounts,
   onOpenHistory,
 }: Props): React.ReactElement {
   const [mode, setMode] = useState<Mode>('with_values');
   const [search, setSearch] = useState('');
 
-  // Plain-Liste (alle Rows ueber alle Gruppen) fuer die Counts.
   const allRows = useMemo(() => groups.flatMap(g => g.rows), [groups]);
   const totalCount = allRows.length;
   const withValuesCount = useMemo(() => allRows.filter(r => !isEmptyRow(r)).length, [allRows]);
@@ -54,14 +52,13 @@ export function AlleFelderSection({
   }, [groups, mode, search]);
 
   const isGroupedView = filteredGroups.length > 1 || filteredGroups.some(g => g.path.length > 0);
-  const displayedCount = filteredGroups.reduce((n, g) => n + g.rows.length, 0);
 
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
         <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Alle Felder</h3>
         <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-          {displayedCount.toLocaleString('de-DE')} von {totalCount.toLocaleString('de-DE')} Feldern
+          {totalCount.toLocaleString('de-DE')} Felder gesamt · {withValuesCount.toLocaleString('de-DE')} mit Werten
         </span>
       </div>
 
@@ -103,44 +100,40 @@ export function AlleFelderSection({
           Keine Felder matchen die aktuellen Filter.
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {filteredGroups.map(group => (
-            <div
-              key={group.label}
-              className="overflow-hidden"
-              style={{ border: '0.5px solid var(--tf-border)', borderRadius: 12 }}
-            >
+            <div key={group.label}>
               {isGroupedView ? (
-                <div
-                  className="px-3 py-2 text-[12.5px] font-medium text-[var(--tf-text)]"
-                  style={{ borderBottom: '0.5px solid var(--tf-border)', background: 'var(--tf-bg-secondary)' }}
-                >
+                <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
                   {group.label}
                 </div>
               ) : null}
-              <table className="w-full text-[13px]">
-                <tbody>
-                  {group.rows.map((r, i) => (
-                    <tr key={r.field} style={i > 0 ? { borderTop: '0.5px solid var(--tf-border)' } : undefined}>
-                      <td className="p-3 align-top text-[var(--tf-text-secondary)] w-[220px]">{r.label}</td>
-                      <td className="p-3 align-top">
-                        <div className={isEmptyRow(r) ? 'text-[var(--tf-text-tertiary)] italic' : ''}>{r.value}</div>
-                        <div className="mt-1 flex items-center gap-3 text-[11px] text-[var(--tf-text-tertiary)]">
-                          <span>Quelle: {r.sourceSchemaId ? (sourceNames[r.sourceSchemaId] ?? r.sourceSchemaId) : '—'}</span>
-                          {historyCounts[r.field] ? (
-                            <button
-                              onClick={() => onOpenHistory(r.field)}
-                              className="text-[var(--tf-primary)] hover:underline"
-                            >
-                              ↻ {historyCounts[r.field]} {historyCounts[r.field] === 1 ? 'Änderung' : 'Änderungen'}
-                            </button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div>
+                {group.rows.map((r, i) => (
+                  <div
+                    key={r.field}
+                    className="grid grid-cols-[200px_1fr] gap-3 py-2"
+                    style={{ borderTop: i === 0 ? undefined : '0.5px solid var(--tf-border)' }}
+                  >
+                    <div className="text-[12.5px] text-[var(--tf-text-secondary)] pt-px">{r.label}</div>
+                    <div className="flex items-baseline gap-3 min-w-0">
+                      <span className={`flex-1 min-w-0 text-[12.5px] ${isEmptyRow(r) ? 'text-[var(--tf-text-tertiary)] italic' : 'text-[var(--tf-text)]'}`}>
+                        {r.value}
+                      </span>
+                      {historyCounts[r.field] ? (
+                        <button
+                          onClick={() => onOpenHistory(r.field)}
+                          className="text-[11px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] cursor-pointer shrink-0"
+                          aria-label={`${historyCounts[r.field]} Änderungen anzeigen`}
+                          title={`${historyCounts[r.field]} ${historyCounts[r.field] === 1 ? 'Änderung' : 'Änderungen'}`}
+                        >
+                          ↻ {historyCounts[r.field]}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>

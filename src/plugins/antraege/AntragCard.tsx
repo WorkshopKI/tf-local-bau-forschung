@@ -35,7 +35,7 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false }
     ? { background: 'var(--tf-bg-secondary)', borderColor: 'var(--tf-border-hover)' }
     : { borderColor: 'transparent' };
 
-  const padding = narrow ? 'px-3 py-2' : 'px-4 py-2.5';
+  const padding = narrow ? 'px-3 py-1.5' : 'px-4 py-2.5';
 
   return (
     <button
@@ -58,12 +58,12 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false }
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-3 flex-wrap">
-            <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)]">{antrag.aktenzeichen}</span>
+            <span className={`font-mono text-[var(--tf-text-tertiary)] ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>{antrag.aktenzeichen}</span>
             {akronym ? (
-              <span className="text-[13px] font-medium text-[var(--tf-text)]">{akronym}</span>
+              <span className={`font-medium text-[var(--tf-text)] ${narrow ? 'text-[12.5px]' : 'text-[13px]'}`}>{akronym}</span>
             ) : null}
           </div>
-          <div className="text-[12.5px] text-[var(--tf-text-secondary)] truncate mt-0.5">
+          <div className={`text-[var(--tf-text-secondary)] truncate mt-0.5 ${narrow ? 'text-[12px]' : 'text-[12.5px]'}`}>
             {titel}
           </div>
           {!narrow && antragsteller ? (

@@ -101,7 +101,6 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): R
   }
 
   const titel = strOrNull(antrag.titel) ?? antrag.aktenzeichen;
-  const akronym = strOrNull(antrag.akronym);
   const status = strOrNull(antrag.status);
   const eingang = strOrNull(antrag.antragsdatum);
   const foerdersumme = typeof antrag.foerdersumme === 'number' ? antrag.foerdersumme : null;
@@ -111,9 +110,6 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): R
     <PanelShell onClose={onClose}>
       {/* Header (full-width) */}
       <div className="mb-6">
-        <div className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">
-          Vorhaben{akronym ? `: ${akronym}` : ''} · <span className="font-mono">{antrag.aktenzeichen}</span>
-        </div>
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-snug">{titel}</h1>
         <div className="mt-3 flex items-center gap-4 flex-wrap text-[12.5px]">
           {status ? (

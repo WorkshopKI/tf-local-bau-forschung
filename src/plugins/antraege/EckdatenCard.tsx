@@ -1,5 +1,13 @@
+import { useState } from 'react';
+import { Pencil } from 'lucide-react';
 import type { Antrag } from '@/core/services/csv/types';
-import { findFieldValue } from './fieldLookup';
+import { EckdatenEditor } from './EckdatenEditor';
+import {
+  loadEckdatenFields,
+  saveEckdatenFields,
+  getFieldDisplayInfo,
+  type FieldDisplay,
+} from './eckdatenConfig';
 
 interface Props {
   antrag: Antrag;
@@ -14,24 +22,10 @@ function strOrNull(v: unknown): string | null {
   return null;
 }
 
-function formatGermanDate(iso: string): string {
-  if (/^\d{4}-\d{2}-\d{2}/.test(iso)) {
-    const d = new Date(iso);
-    if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-  }
-  return iso;
-}
-
-interface Cell {
-  label: string;
-  value: string;
-  /** Wenn true: Wert in Mono-Schrift (IDs, Aktenzeichen). */
-  mono?: boolean;
-}
-
 export function EckdatenCard({ antrag }: Props): React.ReactElement {
+  const [fields, setFields] = useState<string[]>(loadEckdatenFields);
+  const [editorOpen, setEditorOpen] = useState(false);
+
   const name = strOrNull(antrag.antragsteller);
   const branche = strOrNull(antrag.branche);
   const foerdergeber = strOrNull(antrag.foerdergeber);
@@ -39,51 +33,34 @@ export function EckdatenCard({ antrag }: Props): React.ReactElement {
     ? `${branche} · ${foerdergeber}`
     : branche ?? foerdergeber;
 
-  const cells: Cell[] = [];
+  const cells: FieldDisplay[] = fields
+    .map(f => getFieldDisplayInfo(f, antrag))
+    .filter((c): c is FieldDisplay => c !== null);
 
-  const akronym = strOrNull(antrag.akronym);
-  if (akronym) cells.push({ label: 'Akronym', value: akronym });
-
-  cells.push({ label: 'Aktenzeichen', value: antrag.aktenzeichen, mono: true });
-
-  const verbundId = strOrNull(antrag.verbund_id);
-  if (verbundId) cells.push({ label: 'Verbund-ID', value: verbundId, mono: true });
-
-  const unterprogramm = strOrNull(antrag.unterprogramm_id);
-  if (unterprogramm) cells.push({ label: 'Unterprogramm', value: unterprogramm });
-
-  // "Phase" ist ein typisches Custom-Feld in Forschungs-CSVs.
-  const phase = strOrNull(findFieldValue(antrag, ['phase', 'vorhaben_phase', 'projektphase']));
-  if (phase) cells.push({ label: 'Phase', value: phase });
-
-  const antragsdatum = strOrNull(antrag.antragsdatum);
-  if (antragsdatum) cells.push({ label: 'Eingang', value: formatGermanDate(antragsdatum) });
-
-  const bewilligung = strOrNull(antrag.bewilligung_datum);
-  if (bewilligung) cells.push({ label: 'Bewilligung', value: formatGermanDate(bewilligung) });
-
-  const frist = strOrNull(antrag.frist_datum);
-  if (frist) cells.push({ label: 'Frist', value: formatGermanDate(frist) });
-
-  const foerdersumme = antrag.foerdersumme;
-  if (typeof foerdersumme === 'number' && foerdersumme > 0) {
-    cells.push({
-      label: 'Fördersumme',
-      value: foerdersumme.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }),
-    });
-  }
-
-  const status = strOrNull(antrag.status);
-  if (status) cells.push({ label: 'Status', value: status });
+  const handleSave = (next: string[]): void => {
+    setFields(next);
+    saveEckdatenFields(next);
+  };
 
   return (
     <aside
       className="rounded-[var(--tf-radius)] p-4"
       style={{ background: 'var(--tf-bg-secondary)' }}
     >
-      <h3 className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-3">
-        Eckdaten
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
+          Eckdaten
+        </h3>
+        <button
+          type="button"
+          onClick={() => setEditorOpen(true)}
+          className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer p-0.5 -mr-0.5"
+          aria-label="Eckdaten anpassen"
+          title="Eckdaten anpassen"
+        >
+          <Pencil size={12} />
+        </button>
+      </div>
 
       {name ? (
         <div className="text-[14px] font-medium text-[var(--tf-text)] leading-snug">{name}</div>
@@ -112,6 +89,13 @@ export function EckdatenCard({ antrag }: Props): React.ReactElement {
           ))}
         </div>
       ) : null}
+
+      <EckdatenEditor
+        open={editorOpen}
+        initial={fields}
+        onSave={handleSave}
+        onClose={() => setEditorOpen(false)}
+      />
     </aside>
   );
 }
