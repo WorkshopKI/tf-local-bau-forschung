@@ -3,7 +3,12 @@
 import { useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getSponsoringProgress, loadAllLocalBudgets, saveFeedbackConfig } from '@/core/services/feedback';
+import {
+  getSponsoringProgress,
+  isClassifiedAs,
+  loadAllLocalBudgets,
+  saveFeedbackConfig,
+} from '@/core/services/feedback';
 import type { EffortEstimate, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_BUDGET_POINTS_PER_QUARTER, DEFAULT_HOURS_TO_POINTS_FACTOR, DEFAULT_SPONSORING_THRESHOLDS } from '@/core/types/feedback';
 import { EFFORT_SHORT_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/components/feedback/constants';
@@ -21,8 +26,9 @@ export function FeedbackSponsoringOverview({ tickets, config, onConfigChanged }:
   const [saved, setSaved] = useState(false);
 
   const featuresRanked = useMemo(() => {
+    const isFeature = isClassifiedAs('idea');
     return tickets
-      .filter(t => t.category === 'idea' && t.effort_estimate && t.kurator_status !== 'archiviert')
+      .filter(t => isFeature(t) && t.effort_estimate && t.kurator_status !== 'archiviert')
       .map(t => ({ ticket: t, progress: getSponsoringProgress(t, config) }))
       .sort((a, b) => b.progress.percentage - a.progress.percentage);
   }, [tickets, config]);

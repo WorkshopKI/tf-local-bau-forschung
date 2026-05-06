@@ -10,7 +10,12 @@ import {
   FeedbackBoardListView,
   SponsoringInfoBanner,
 } from '@/components/feedback';
-import { getFeedbackList, getSponsoringProgress, loadFeedbackConfig } from '@/core/services/feedback';
+import {
+  getFeedbackList,
+  getSponsoringProgress,
+  isClassifiedAs,
+  loadFeedbackConfig,
+} from '@/core/services/feedback';
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 
@@ -62,15 +67,18 @@ export function FeedbackBoardPage(): React.ReactElement {
     void reload();
   }, [reload]);
 
+  // Helfer schließen Pending-Tickets (LLM noch nicht durch / fehlgeschlagen) aus.
+  const isBug = isClassifiedAs('problem');
+  const isFeature = isClassifiedAs('idea');
+
   const filteredSorted = useMemo(() => {
-    const base = tickets.filter(t =>
-      (t.category === 'problem' || t.category === 'idea')
-      && t.kurator_status !== 'archiviert'
+    const base = tickets.filter(
+      t => (isBug(t) || isFeature(t)) && t.kurator_status !== 'archiviert',
     );
     const byFilter = base.filter(t => {
       switch (filter) {
-        case 'bugs': return t.category === 'problem';
-        case 'features': return t.category === 'idea';
+        case 'bugs': return isBug(t);
+        case 'features': return isFeature(t);
         case 'open': return t.kurator_status === 'neu' || t.kurator_status === 'geplant' || t.kurator_status === 'in_bearbeitung';
         case 'done': return t.kurator_status === 'umgesetzt';
         case 'all':
@@ -81,19 +89,19 @@ export function FeedbackBoardPage(): React.ReactElement {
       const aBearb = a.kurator_status === 'in_bearbeitung' ? 0 : 1;
       const bBearb = b.kurator_status === 'in_bearbeitung' ? 0 : 1;
       if (aBearb !== bBearb) return aBearb - bBearb;
-      if (a.category === 'idea' && b.category === 'idea') {
+      if (isFeature(a) && isFeature(b)) {
         const pa = getSponsoringProgress(a, config).percentage;
         const pb = getSponsoringProgress(b, config).percentage;
         if (pa !== pb) return pb - pa;
       }
       return b.created_at.localeCompare(a.created_at);
     });
-  }, [tickets, filter, config]);
+  }, [tickets, filter, config, isBug, isFeature]);
 
   const counts = useMemo(() => ({
-    bugs: tickets.filter(t => t.category === 'problem' && t.kurator_status !== 'archiviert').length,
-    features: tickets.filter(t => t.category === 'idea' && t.kurator_status !== 'archiviert').length,
-  }), [tickets]);
+    bugs: tickets.filter(t => isBug(t) && t.kurator_status !== 'archiviert').length,
+    features: tickets.filter(t => isFeature(t) && t.kurator_status !== 'archiviert').length,
+  }), [tickets, isBug, isFeature]);
 
   return (
     <div className="px-8 py-6">

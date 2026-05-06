@@ -74,6 +74,21 @@ export interface LLMClassification {
   relevant_files?: string[];
 }
 
+/**
+ * Discriminated Union für den Klassifikations-Status eines Tickets.
+ *
+ * `category` ist optional, weil die Auto-Klassifikation fire-and-forget läuft
+ * (LLM kann scheitern, Streamlit-Transport kann sie ganz überspringen). UI- und
+ * Filter-Code sollte über `getFeedbackClassification(item)` narrow’en — dann
+ * zwingt der Compiler die Pending-Branch-Handhabung.
+ *
+ * Antipattern: `if (item.category === 'idea') { ... }` — übersieht Pending.
+ * Pattern: `const c = getFeedbackClassification(item); if (c.state === 'classified' && c.category === 'idea') { ... }`.
+ */
+export type FeedbackClassification =
+  | { state: 'pending' }
+  | { state: 'classified'; category: FeedbackCategory };
+
 export interface FeedbackItem {
   id: string;
   created_at: string;
