@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge, CollapsibleSection } from '@/ui';
+import { Badge } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getAntrag, getHistoryByAz, loadSchema, listSchemas } from '@/core/services/csv';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
@@ -9,8 +9,11 @@ import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { buildDisplayRows, groupDisplayRows, type DisplayGroup } from './buildDisplayRows';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { AntragDokumenteSection } from './AntragDokumenteSection';
-import { AntragstellerCard } from './AntragstellerCard';
+import { EckdatenCard } from './EckdatenCard';
+import { KlassifikationPills } from './KlassifikationPills';
+import { AlleFelderSection } from './AlleFelderSection';
 import { WorkflowStepper } from './WorkflowStepper';
+import { findFieldValue } from './fieldLookup';
 import { useAntraegeStore } from './store';
 
 interface Props {
@@ -25,12 +28,14 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch {
-    return iso;
+function formatGermanDate(iso: string): string {
+  if (/^\d{4}-\d{2}-\d{2}/.test(iso)) {
+    const d = new Date(iso);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
   }
+  return iso;
 }
 
 export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): React.ReactElement {
@@ -82,8 +87,6 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): R
     return groupDisplayRows(rows, schemas);
   }, [antrag, schemas]);
 
-  const isGroupedView = groups.length > 1 || groups.some(g => g.path.length > 0);
-
   const verbund = useMemo(() => {
     if (!antrag || typeof antrag.verbund_id !== 'string') return null;
     return verbuende.find(v => v.verbund_id === antrag.verbund_id) ?? null;
@@ -100,110 +103,95 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): R
   const titel = strOrNull(antrag.titel) ?? antrag.aktenzeichen;
   const akronym = strOrNull(antrag.akronym);
   const status = strOrNull(antrag.status);
-  const frist = strOrNull(antrag.frist_datum);
+  const eingang = strOrNull(antrag.antragsdatum);
+  const foerdersumme = typeof antrag.foerdersumme === 'number' ? antrag.foerdersumme : null;
+  const vorhabenInhalt = strOrNull(findFieldValue(antrag, ['vb_inhalt', 'vb inhalt', 'vorhaben_inhalt', 'vorhabeninhalt', 'beschreibung', 'kurzbeschreibung']));
 
   return (
     <PanelShell onClose={onClose}>
-      {/* Header */}
-      <div className="mb-5">
-        <div className="text-[12px] text-[var(--tf-text-tertiary)] mb-0.5">
+      {/* Header (full-width) */}
+      <div className="mb-6">
+        <div className="text-[12px] text-[var(--tf-text-tertiary)] mb-1">
           Vorhaben{akronym ? `: ${akronym}` : ''} · <span className="font-mono">{antrag.aktenzeichen}</span>
         </div>
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">{titel}</h1>
-        <div className="mt-2 flex items-center gap-3 flex-wrap text-[12.5px]">
+        <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-snug">{titel}</h1>
+        <div className="mt-3 flex items-center gap-4 flex-wrap text-[12.5px]">
           {status ? (
             <Badge variant={getStatusVariant(status)}>{getStatusLabel(status)}</Badge>
           ) : null}
-          {frist ? (
-            <span className="text-[var(--tf-text-secondary)]">Frist {formatDate(frist)}</span>
+          {foerdersumme !== null && foerdersumme > 0 ? (
+            <span className="text-[var(--tf-text-secondary)]">
+              <span className="text-[var(--tf-text-tertiary)]">Fördersumme</span>{' '}
+              {foerdersumme.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+            </span>
           ) : null}
-          {strOrNull(antrag.unterprogramm_id) ? (
-            <span className="font-mono text-[11.5px] text-[var(--tf-text-tertiary)]">{antrag.unterprogramm_id}</span>
+          {eingang ? (
+            <span className="text-[var(--tf-text-secondary)]">
+              <span className="text-[var(--tf-text-tertiary)]">Eingang</span> {formatGermanDate(eingang)}
+            </span>
           ) : null}
         </div>
       </div>
 
-      {verbund && verbund.teilantrags_ids.length > 1 ? (
-        <div
-          className="mb-5 p-3 rounded-lg"
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        >
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-[13px]">
-              Teil des Verbundes <strong>{verbund.akronym ?? verbund.verbund_id}</strong> ({verbund.teilantrags_ids.length} Teilanträge)
-            </div>
-            <Button size="sm" variant="outline" onClick={() => onOpenVerbund(verbund.verbund_id)}>
-              Verbund öffnen
-            </Button>
+      {/* 2-column layout via Container Query: ab Panel-Breite >= 768 px 2-spaltig, sonst gestackt. */}
+      <div className="@container">
+        <div className="grid grid-cols-1 @3xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
+          <div className="min-w-0 space-y-6">
+            {verbund && verbund.teilantrags_ids.length > 1 ? (
+              <div
+                className="p-3 rounded-lg"
+                style={{ border: '0.5px solid var(--tf-border)' }}
+              >
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="text-[13px]">
+                    Teil des Verbundes <strong>{verbund.akronym ?? verbund.verbund_id}</strong> ({verbund.teilantrags_ids.length} Teilanträge)
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => onOpenVerbund(verbund.verbund_id)}>
+                    Verbund öffnen
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {vorhabenInhalt ? (
+              <div>
+                <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">Vorhaben-Inhalt</h3>
+                <div
+                  className="rounded-[var(--tf-radius)] p-4 text-[13px] leading-relaxed text-[var(--tf-text)] whitespace-pre-wrap"
+                  style={{ background: 'var(--tf-bg-secondary)' }}
+                >
+                  {vorhabenInhalt}
+                </div>
+              </div>
+            ) : null}
+
+            {status ? (
+              <div>
+                <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">Status &amp; Workflow</h3>
+                <WorkflowStepper status={status} />
+              </div>
+            ) : null}
+
+            <KlassifikationPills antrag={antrag} />
+
+            <AlleFelderSection
+              groups={groups}
+              schemas={schemas}
+              sourceNames={sourceNames}
+              historyCounts={historyCounts}
+              onOpenHistory={setHistoryField}
+            />
+
+            <AntragDokumenteSection aktenzeichen={aktenzeichen} variant="wichtig" preview />
+
+            <AntragDokumenteSection aktenzeichen={aktenzeichen} variant="sonstige" />
+          </div>
+
+          <div className="min-w-0">
+            <EckdatenCard antrag={antrag} />
           </div>
         </div>
-      ) : null}
-
-      <div className="mb-5">
-        <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">Antragsteller</h3>
-        <AntragstellerCard antrag={antrag} />
       </div>
-
-      {status ? (
-        <div className="mb-5">
-          <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">Status &amp; Workflow</h3>
-          <WorkflowStepper status={status} />
-        </div>
-      ) : null}
-
-      <div className="mb-5">
-        <AntragDokumenteSection aktenzeichen={aktenzeichen} variant="wichtig" preview />
-      </div>
-
-      <CollapsibleSection
-        label="Alle Felder"
-        subtitle={`${groups.reduce((n, g) => n + g.rows.length, 0)} Werte`}
-        defaultOpen={false}
-      >
-        <div className="space-y-4">
-          {groups.map(group => (
-            <div
-              key={group.label}
-              className="overflow-hidden"
-              style={{ border: '0.5px solid var(--tf-border)', borderRadius: 12 }}
-            >
-              {isGroupedView ? (
-                <div
-                  className="px-3 py-2 text-[12.5px] font-medium text-[var(--tf-text)]"
-                  style={{ borderBottom: '0.5px solid var(--tf-border)', background: 'var(--tf-bg-secondary)' }}
-                >
-                  {group.label}
-                </div>
-              ) : null}
-              <table className="w-full text-[13px]">
-                <tbody>
-                  {group.rows.map((r, i) => (
-                    <tr key={r.field} style={i > 0 ? { borderTop: '0.5px solid var(--tf-border)' } : undefined}>
-                      <td className="p-3 align-top text-[var(--tf-text-secondary)] w-[220px]">{r.label}</td>
-                      <td className="p-3 align-top">
-                        <div>{r.value}</div>
-                        <div className="mt-1 flex items-center gap-3 text-[11px] text-[var(--tf-text-tertiary)]">
-                          <span>Quelle: {r.sourceSchemaId ? (sourceNames[r.sourceSchemaId] ?? r.sourceSchemaId) : '—'}</span>
-                          {historyCounts[r.field] ? (
-                            <button
-                              onClick={() => setHistoryField(r.field)}
-                              className="text-[var(--tf-primary)] hover:underline"
-                            >
-                              ↻ {historyCounts[r.field]} {historyCounts[r.field] === 1 ? 'Änderung' : 'Änderungen'}
-                            </button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>
-      </CollapsibleSection>
-
-      <AntragDokumenteSection aktenzeichen={aktenzeichen} variant="sonstige" />
 
       <FieldHistoryModal aktenzeichen={aktenzeichen} feld={historyField} onClose={() => setHistoryField(null)} />
     </PanelShell>
