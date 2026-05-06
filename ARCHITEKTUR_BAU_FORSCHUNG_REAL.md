@@ -1299,7 +1299,6 @@ src/
 │   ├── import.ts               <- importTestCsv (bypasst Wizard)
 │   ├── scenarios.ts            <- SCENARIOS + applyScenario
 │   ├── actions.ts              <- clearAllCsvSources, setKuratorOn/Off, exportCurrentState
-│   ├── DevQuickBar.tsx         <- Top-Bar im ShellLayout
 │   └── useAutoSmbRefresh.ts    <- First-click-permission-refresh-Hook
 ├── plugins/
 │   ├── dev-infrastructure-test/

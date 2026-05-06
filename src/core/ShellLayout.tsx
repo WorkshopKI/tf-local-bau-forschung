@@ -26,7 +26,6 @@ import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { runtimeConfig } from '@/config/runtime-config';
 import { isFeedbackEnabled, isKuratorMenusEnabled, isDataShareEnabled, menuLabel } from '@/config/feature-flags';
 import { BuildInfo } from '@/core/components/BuildInfo';
-import { DevQuickBar } from '@/dev-fixtures/DevQuickBar';
 import { useAutoSmbRefresh } from '@/dev-fixtures/useAutoSmbRefresh';
 
 interface ShellLayoutProps {
@@ -179,7 +178,6 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
     <>
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} items={commandItems} />
       <div className="flex h-screen flex-col overflow-hidden bg-[var(--tf-bg)]">
-      {__TEAMFLOW_DEV_FIXTURES__ && <DevQuickBar />}
       <div className="flex flex-1 overflow-hidden">
         <aside
           data-tour="nav-sidebar"
