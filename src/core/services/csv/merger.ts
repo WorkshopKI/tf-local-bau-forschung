@@ -396,6 +396,11 @@ interface RecomputeBatch {
 
 interface RecomputeCaches {
   schemas: SchemaWithRows[];
+  /** Pro Schema-ID: pre-indexed Map joinValue → matching rows. Macht aus dem
+   *  ehemaligen findMatchingRows() (Linear-Scan ueber alle Rows) ein
+   *  O(1)-Lookup. Bei 13k Antraegen × 5 Schemas spart das ~850M Vergleiche
+   *  pro Pass. */
+  rowIndices: Map<string, Map<string, Record<string, string>[]>>;
   antraegeByAz: Map<string, Antrag>;
   verbuendeById: Map<string, Verbund>;
   akronymByKey: Map<string, AkronymIndexEntry>;
@@ -425,6 +430,23 @@ function batchSize(b: RecomputeBatch): number {
   );
 }
 
+function buildRowIndex(schema: CsvSchema, rows: Record<string, string>[]): Map<string, Record<string, string>[]> {
+  const idx = new Map<string, Record<string, string>[]>();
+  const joinCol = findJoinColumn(schema);
+  if (!joinCol) return idx;
+  for (const row of rows) {
+    const k = (row[joinCol] ?? '').trim();
+    if (!k) continue;
+    let list = idx.get(k);
+    if (!list) {
+      list = [];
+      idx.set(k, list);
+    }
+    list.push(row);
+  }
+  return idx;
+}
+
 async function loadRecomputeCaches(
   idb: IDBStore,
   programmId: string,
@@ -435,12 +457,36 @@ async function loadRecomputeCaches(
     listVerbuendeByProgramm(idb, programmId),
     listAkronymIndexByProgramm(idb, programmId),
   ]);
+  const rowIndices = new Map<string, Map<string, Record<string, string>[]>>();
+  for (const { schema, rows } of schemas) {
+    rowIndices.set(schema.id, buildRowIndex(schema, rows));
+  }
   return {
     schemas,
+    rowIndices,
     antraegeByAz: new Map(antraege.map(a => [a.aktenzeichen, a])),
     verbuendeById: new Map(verbuende.map(v => [v.verbund_id, v])),
     akronymByKey: new Map(akronymEntries.map(e => [akrKey(e.programm_id, e.akronym), e])),
   };
+}
+
+function findMatchingRowsIndexed(
+  caches: RecomputeCaches,
+  schema: CsvSchema,
+  antrag: Partial<Antrag>,
+): Record<string, string>[] {
+  const idx = caches.rowIndices.get(schema.id);
+  if (!idx) return [];
+  if (schema.join_key === 'aktenzeichen') {
+    return antrag.aktenzeichen ? (idx.get(antrag.aktenzeichen) ?? []) : [];
+  }
+  if (schema.join_key === 'verbund_id') {
+    return typeof antrag.verbund_id === 'string' ? (idx.get(antrag.verbund_id) ?? []) : [];
+  }
+  if (schema.join_key === 'akronym') {
+    return typeof antrag.akronym === 'string' ? (idx.get(antrag.akronym) ?? []) : [];
+  }
+  return [];
 }
 
 function flushRecomputeBatch(idb: IDBStore, batch: RecomputeBatch): Promise<void> {
@@ -509,9 +555,9 @@ function recomputeAntragIntoBatch(
   });
 
   for (let pass = 0; pass < 2; pass++) {
-    for (const { schema, rows } of sorted) {
+    for (const { schema } of sorted) {
       if (pass === 0 && schema.join_key !== 'aktenzeichen') continue;
-      const matches = findMatchingRows(schema, rows, merged);
+      const matches = findMatchingRowsIndexed(caches, schema, merged);
       if (matches.length === 0) continue;
 
       const joinKeyField = schema.join_key;
