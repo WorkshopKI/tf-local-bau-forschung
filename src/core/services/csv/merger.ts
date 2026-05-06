@@ -759,14 +759,28 @@ export async function recomputeMultipleBatched(
   if (total === 0) return;
 
   const FLUSH_THRESHOLD = 500;
+  const YIELD_EVERY_MS = 100;
   let batch = emptyBatch();
   let done = 0;
+  let lastYieldAt = Date.now();
+
   // Progress nach jedem Antrag melden — der ETA-Sampler in Step4Progress
   // braucht eine ausreichend hohe Update-Frequenz (3 Samples in 1.5 s
-  // Mindest-Window), sonst wird keine ETA berechnet. Der Callback ist cheap
-  // (React-State-Set + Throttle im Sampler), also kein Performance-Risiko.
+  // Mindest-Window), sonst wird keine ETA berechnet.
   const reportProgress = (): void => {
     if (onProgress) onProgress(done, total);
+  };
+
+  // Periodisch an die Event-Loop zurueckkehren, damit React rendern und der
+  // Sampler-useEffect feuern kann. Ohne maybeYield laeuft die Schleife
+  // synchron bis zum naechsten Flush — dann gibt's nur einen einzigen Render
+  // pro 500er-Chunk und das 1.5 s ETA-Window wird nie gefuellt.
+  const maybeYield = async (): Promise<void> => {
+    const now = Date.now();
+    if (now - lastYieldAt >= YIELD_EVERY_MS) {
+      lastYieldAt = now;
+      await new Promise<void>(r => setTimeout(r, 0));
+    }
   };
 
   // Removals zuerst — bereinigt alte Verbund/Akronym-Refs, bevor neue Antraege
@@ -775,6 +789,7 @@ export async function recomputeMultipleBatched(
     removeAntragIntoBatch(caches, programmId, az, batch);
     done++;
     reportProgress();
+    await maybeYield();
     if (batchSize(batch) >= FLUSH_THRESHOLD) {
       await flushRecomputeBatch(idb, batch);
       batch = emptyBatch();
@@ -784,6 +799,7 @@ export async function recomputeMultipleBatched(
     recomputeAntragIntoBatch(caches, programmId, az, batch);
     done++;
     reportProgress();
+    await maybeYield();
     if (batchSize(batch) >= FLUSH_THRESHOLD) {
       await flushRecomputeBatch(idb, batch);
       batch = emptyBatch();
