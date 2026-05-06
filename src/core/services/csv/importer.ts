@@ -24,7 +24,7 @@ import {
   getActiveUnterprogrammCodes,
   recomputeUnterprogrammStats,
 } from './unterprogrammRegistry';
-import type { CsvSchema, ImportResult } from './types';
+import type { CsvEncoding, CsvSchema, ImportResult } from './types';
 
 export interface ImportProgress {
   phase: 'hashing' | 'parsing' | 'diffing' | 'merging' | 'finalizing' | 'done';
@@ -38,6 +38,15 @@ export interface ImportOptions {
   signal?: AbortSignal;
   onProgress?: (p: ImportProgress) => void;
   onLockConflict?: (ageMinutes: number) => Promise<'force' | 'abort'>;
+  /**
+   * Ueberschreibt schema.encoding fuer DIESEN Import. Wichtig beim Re-Import
+   * der gespeicherten SMB-Datei: die wird in saveCsvSourceFile immer als
+   * UTF-8 normalisiert geschrieben — egal was schema.encoding sagt. Beim
+   * Wieder-Lesen muessen wir dann auch UTF-8 erzwingen, sonst landet ein
+   * windows-1252-Decode auf UTF-8-Bytes → Mojibake → Hash-Drift bei jedem
+   * Re-Import.
+   */
+  encodingOverride?: CsvEncoding;
 }
 
 /**
@@ -89,11 +98,14 @@ export async function importCsvSource(
       return result;
     }
 
-    // Parse (mit Schema-persistierten Encoding/Separator, falls vorhanden)
+    // Parse (mit Schema-persistierten Encoding/Separator, falls vorhanden).
+    // encodingOverride hat Vorrang — wird vom Re-Import-Dialog auf 'UTF-8'
+    // gesetzt, weil die SMB-gespeicherte Datei immer UTF-8 ist.
+    const effectiveEncoding = opts.encodingOverride ?? schema.encoding;
     opts.signal?.throwIfAborted();
     opts.onProgress?.({ phase: 'parsing', done: 0, total: csvBlob.size });
     const { rows } = await parseCsvAllStreamed(csvBlob, {
-      encoding: schema.encoding,
+      encoding: effectiveEncoding,
       separator: schema.separator,
       onProgress: (bytes, totalBytes) => {
         opts.onProgress?.({ phase: 'parsing', done: bytes, total: totalBytes });
@@ -106,7 +118,7 @@ export async function importCsvSource(
     // (loadCsvSourceFile -> readText -> Blob.text()) dekodiert per Spec immer
     // als UTF-8. Ohne Normalisierung gehen Umlaute aus windows-1252-CSVs beim
     // Roundtrip kaputt.
-    const { text: csvText } = await readWithEncodingFallback(csvBlob, schema.encoding);
+    const { text: csvText } = await readWithEncodingFallback(csvBlob, effectiveEncoding);
     const utf8Blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
     await saveCsvSourceFile(idb, schemaId, utf8Blob);
 

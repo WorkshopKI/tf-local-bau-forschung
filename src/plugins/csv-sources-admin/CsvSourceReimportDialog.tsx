@@ -7,6 +7,7 @@ import {
   importCsvSource,
   loadCsvSourceFile,
   parseCsvPreview,
+  type ImportOptions,
   type ImportProgress,
 } from '@/core/services/csv';
 import type { CsvSchema, ImportResult } from '@/core/services/csv/types';
@@ -56,7 +57,7 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
   const abortRef = useRef<AbortController | null>(null);
   const [cancelled, setCancelled] = useState(false);
 
-  async function runImport(blob: Blob): Promise<void> {
+  async function runImport(blob: Blob, extraOpts: Partial<ImportOptions> = {}): Promise<void> {
     setPhase('importing');
     setError(null);
     setResult(null);
@@ -67,6 +68,7 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
       const r = await importCsvSource(storage.idb, schema.id, blob, {
         signal: abortRef.current.signal,
         onProgress: p => setProgress(p),
+        ...extraOpts,
       });
       setResult(r);
       onCompleted();
@@ -92,7 +94,12 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
       setPhase('importing');
       return;
     }
-    await runImport(new Blob([text], { type: 'text/csv' }));
+    // Die SMB-Datei ist immer UTF-8 (saveCsvSourceFile normalisiert beim
+    // ersten Import). encodingOverride verhindert, dass schema.encoding
+    // (z.B. 'windows-1252' aus dem Original-Wizard-Setup) die UTF-8-Bytes
+    // erneut als cp1252 dekodiert → Mojibake → Hash-Drift bei jedem
+    // Re-Import.
+    await runImport(new Blob([text], { type: 'text/csv' }), { encodingOverride: 'UTF-8' });
   }
 
   async function handleNewFile(file: File): Promise<void> {
