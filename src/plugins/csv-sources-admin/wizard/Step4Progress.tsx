@@ -100,6 +100,7 @@ export function Step4Progress({ progress, result, error, cancelled }: Step4Props
               ? `Parse CSV… ${formatMb(progress.done)} / ${formatMb(progress.total)}`
               : progress.phase === 'diffing' ? `Diff berechnen… ${progress.done}/${progress.total}`
               : progress.phase === 'merging' ? `Merge Antraege… ${progress.done}/${progress.total}`
+              : progress.phase === 'finalizing' ? `Finalisiere… ${progress.stage ?? ''}`
               : 'Läuft…'}
           </div>
           <div className="h-2 bg-[var(--tf-bg-secondary)] rounded overflow-hidden">

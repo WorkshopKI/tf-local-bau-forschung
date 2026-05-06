@@ -22,14 +22,16 @@ import {
 import {
   findUnterprogrammColumn,
   getActiveUnterprogrammCodes,
-  recomputeAntragCounts,
+  recomputeUnterprogrammStats,
 } from './unterprogrammRegistry';
 import type { CsvSchema, ImportResult } from './types';
 
 export interface ImportProgress {
-  phase: 'hashing' | 'parsing' | 'diffing' | 'merging' | 'done';
+  phase: 'hashing' | 'parsing' | 'diffing' | 'merging' | 'finalizing' | 'done';
   done: number;
   total: number;
+  /** Sub-Step-Beschreibung waehrend 'finalizing' (z.B. 'Snapshot speichern…'). */
+  stage?: string;
 }
 
 export interface ImportOptions {
@@ -195,23 +197,30 @@ export async function importCsvSource(
 
     // Hashes + Schema NACH erfolgreichem Merge persistieren — Cancel zwischen
     // Diff und Merge hat dann nichts in IDB hinterlassen.
+    opts.onProgress?.({ phase: 'finalizing', done: 0, total: 4, stage: 'Row-Hashes speichern' });
     await putRowHashes(idb, newHashes);
     if (removedJoinValues.length > 0) {
       await deleteRowHashes(idb, schemaId, removedJoinValues);
     }
     await saveSchema(idb, updatedSchema);
 
-    // Nach Merge: Antrag-Counts pro Unterprogramm neu berechnen (für Admin-Panel)
+    // Nach Merge: Antrag-Counts + Auto-Zeitraum pro Unterprogramm neu berechnen (für Admin-Panel)
     if (schema.is_master) {
-      await recomputeAntragCounts(idb, schema.programm_id);
+      opts.onProgress?.({ phase: 'finalizing', done: 1, total: 4, stage: 'Unterprogramm-Statistiken' });
+      await recomputeUnterprogrammStats(idb, schema.programm_id);
     }
 
-    // Snapshot ins Daten-Share — best-effort, blockiert den Import-Result nicht
+    // Snapshot ins Daten-Share — best-effort, blockiert den Import-Result nicht.
+    // Bei 13k+ Antraegen sind die JSONL-Files ~50-100 MB — der Write kann
+    // 10-20 s dauern, daher hier eine eigene 'finalizing'-Sub-Stage damit der
+    // User nicht im "100%-Stillstand" haengt.
     try {
       const handle = await getSmbHandle(idb);
       if (handle) {
+        opts.onProgress?.({ phase: 'finalizing', done: 2, total: 4, stage: 'Snapshot in Daten-Share schreiben (kann einige Sekunden dauern)' });
         const kuratorName = (await readKuratorName(idb).catch(() => null)) ?? 'unbekannt';
         await writeProgrammSnapshot(idb, handle, schema.programm_id, kuratorName);
+        opts.onProgress?.({ phase: 'finalizing', done: 3, total: 4, stage: 'Audit-Log' });
         // Audit-Write selbst defensiv — sonst landet ein erfolgreicher Snapshot
         // mit einem fehlgeschlagenen Audit faelschlich im snapshot_failed-catch.
         await logAudit(idb, {
