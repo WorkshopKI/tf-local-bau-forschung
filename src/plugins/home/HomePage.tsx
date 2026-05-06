@@ -82,7 +82,7 @@ export function HomePage(): React.ReactElement {
   }
 
   return (
-    <div data-tour="home-dashboard" className="p-6 max-w-5xl mx-auto">
+    <div data-tour="home-dashboard" className="p-6 max-w-5xl">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
@@ -152,19 +152,11 @@ export function HomePage(): React.ReactElement {
               <p className="text-[13px] text-[var(--tf-text-secondary)]">Keine dringenden Fristen</p>
             ) : (
               data.dringend.slice(0, 5).map(v => (
-                <div key={v.id} className="flex items-start gap-2 py-1.5">
-                  <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${v.daysLeft < 0 ? 'bg-[var(--tf-danger-text)]' : v.daysLeft < 3 ? 'bg-[var(--tf-danger-text)]' : 'bg-[var(--tf-warning-text)]'}`} />
+                <div key={v.id} className="flex items-center gap-2 py-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${v.daysLeft < 0 ? 'bg-[var(--tf-danger-text)]' : v.daysLeft < 3 ? 'bg-[var(--tf-danger-text)]' : 'bg-[var(--tf-warning-text)]'}`} />
                   <span className="text-[12px] font-mono text-[var(--tf-text-tertiary)] flex-1 truncate">{v.id}</span>
-                  <span className={`text-[11px] text-right leading-tight ${v.daysLeft < 0 ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-text-tertiary)]'}`}>
-                    {v.daysLeft < 0 ? (
-                      <>
-                        {Math.abs(v.daysLeft)}d
-                        <br />
-                        überfällig
-                      </>
-                    ) : (
-                      `in ${v.daysLeft}d`
-                    )}
+                  <span className={`text-[11px] whitespace-nowrap ${v.daysLeft < 0 ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-text-tertiary)]'}`}>
+                    {v.daysLeft < 0 ? `${Math.abs(v.daysLeft)}d überfällig` : `in ${v.daysLeft}d`}
                   </span>
                 </div>
               ))
