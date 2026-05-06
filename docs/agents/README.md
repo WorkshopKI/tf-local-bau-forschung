@@ -15,6 +15,17 @@ Kompakte Checklisten für häufige Erweiterungen, die jeweils mehrere synchronis
 
 Die Cheatsheets sind **bewusst kurz** — keine Code-Beispiele, keine Erklärungen, nur Touch-Point-Listen. Wenn ein Pfad sich ändert oder ein neuer Touch-Point dazukommt, hier eintragen. Wenn nur Logik in einer bereits gelisteten Datei sich ändert, **nicht** anfassen.
 
+## Eval-Suiten (Test-Coverage über Vitest hinaus)
+
+Zwei separate Eval-Mechanismen — bei Änderungen an Triage/Search beide kennen:
+
+| Suite | Wo | Wie ausführen |
+|-------|-----|---------------|
+| **Phase-2 Triage** | [`src/phase2/__tests__/triage.eval.ts`](../../src/phase2/__tests__/triage.eval.ts) | `npm run test:phase2` (CI-tauglich, Vitest) — Schwelle ≥ 9/11 |
+| **Hybrid-Search** | [`src/core/services/search/eval/`](../../src/core/services/search/eval/) | Browser-Runtime via Kurator-Plugin „Suchindex" → Tab „Eval" — siehe [eval/README.md](../../src/core/services/search/eval/README.md) |
+
+Die Search-Eval ist bewusst **nicht** im npm-Test-Lauf, weil sie WebGPU/WASM + geladenes ONNX-Modell + initialisierten Orama-Index braucht.
+
 ## Voraussetzungen für jeden Patch
 
 Vor jedem nicht-trivialen Patch:
