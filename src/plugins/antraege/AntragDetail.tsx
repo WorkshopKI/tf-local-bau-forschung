@@ -92,35 +92,37 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): R
   const status = strOrNull(antrag.status);
   const vorhabenInhalt = strOrNull(findFieldValue(antrag, ['vb_inhalt', 'vb inhalt', 'vorhaben_inhalt', 'vorhabeninhalt', 'beschreibung', 'kurzbeschreibung']));
 
+  const showVerbund = !!(verbund && verbund.teilantrags_ids.length > 1);
+
   return (
     <PanelShell onClose={onClose}>
-      {/* Header (full-width) — nur Titel, Status/Fristen/Foerdersumme stehen im Workflow-Stepper bzw. Eckdaten. */}
+      {/* Header (full-width) — nur Titel. Status sitzt im Workflow-Stepper, Eckdaten in der Card. */}
       <div className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-snug">{titel}</h1>
       </div>
 
-      {/* 2-column layout via Container Query: ab Panel-Breite >= 768 px 2-spaltig, sonst gestackt. */}
+      {showVerbund ? (
+        <div
+          className="mb-6 p-3 rounded-lg"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-[13px]">
+              Teil des Verbundes <strong>{verbund!.akronym ?? verbund!.verbund_id}</strong> ({verbund!.teilantrags_ids.length} Teilanträge)
+            </div>
+            <Button size="sm" variant="outline" onClick={() => onOpenVerbund(verbund!.verbund_id)}>
+              Verbund öffnen
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Top 2-col area: Vorhaben-Inhalt links, Eckdaten rechts. Beide top-aligned. */}
       <div className="@container">
         <div className="grid grid-cols-1 @3xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
-          <div className="min-w-0 space-y-6">
-            {verbund && verbund.teilantrags_ids.length > 1 ? (
-              <div
-                className="p-3 rounded-lg"
-                style={{ border: '0.5px solid var(--tf-border)' }}
-              >
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <div className="text-[13px]">
-                    Teil des Verbundes <strong>{verbund.akronym ?? verbund.verbund_id}</strong> ({verbund.teilantrags_ids.length} Teilanträge)
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => onOpenVerbund(verbund.verbund_id)}>
-                    Verbund öffnen
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-
+          <div className="min-w-0">
             {vorhabenInhalt ? (
-              <div>
+              <>
                 <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">Vorhaben-Inhalt</h3>
                 <div
                   className="rounded-[var(--tf-radius)] p-4 text-[13px] leading-relaxed text-[var(--tf-text)] whitespace-pre-wrap"
@@ -128,39 +130,59 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): R
                 >
                   {vorhabenInhalt}
                 </div>
-              </div>
+              </>
             ) : null}
-
-            {status ? (
-              <div>
-                <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">Status &amp; Workflow</h3>
-                <WorkflowStepper status={status} />
-              </div>
-            ) : null}
-
-            <KlassifikationPills antrag={antrag} />
-
-            <AlleFelderSection
-              groups={groups}
-              schemas={schemas}
-              sourceNames={sourceNames}
-              historyCounts={historyCounts}
-              onOpenHistory={setHistoryField}
-            />
-
-            <AntragDokumenteSection aktenzeichen={aktenzeichen} variant="wichtig" preview />
-
-            <AntragDokumenteSection aktenzeichen={aktenzeichen} variant="sonstige" />
           </div>
-
           <div className="min-w-0">
             <EckdatenCard antrag={antrag} />
           </div>
         </div>
       </div>
 
+      {/* Full-width Sektionen darunter, mit duennen Trennlinien dazwischen. */}
+      {status ? (
+        <SectionDivider>
+          <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">Status &amp; Workflow</h3>
+          <WorkflowStepper status={status} />
+        </SectionDivider>
+      ) : null}
+
+      <SectionDivider>
+        <KlassifikationPills antrag={antrag} />
+      </SectionDivider>
+
+      <SectionDivider>
+        <AlleFelderSection
+          groups={groups}
+          schemas={schemas}
+          sourceNames={sourceNames}
+          historyCounts={historyCounts}
+          onOpenHistory={setHistoryField}
+        />
+      </SectionDivider>
+
+      <SectionDivider>
+        <AntragDokumenteSection aktenzeichen={aktenzeichen} variant="wichtig" preview />
+      </SectionDivider>
+
+      <SectionDivider>
+        <AntragDokumenteSection aktenzeichen={aktenzeichen} variant="sonstige" />
+      </SectionDivider>
+
       <FieldHistoryModal aktenzeichen={aktenzeichen} feld={historyField} onClose={() => setHistoryField(null)} />
     </PanelShell>
+  );
+}
+
+/** Vollwertige Section mit duenner Trennlinie + vertikalem Padding. Renderlos wenn keine Children-Output. */
+function SectionDivider({ children }: { children: React.ReactNode }): React.ReactElement {
+  return (
+    <div
+      className="mt-6 pt-6 empty:hidden empty:mt-0 empty:pt-0"
+      style={{ borderTop: '0.5px solid var(--tf-border)' }}
+    >
+      {children}
+    </div>
   );
 }
 
