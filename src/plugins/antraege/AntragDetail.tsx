@@ -90,23 +90,13 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): R
 
   const titel = strOrNull(antrag.titel) ?? antrag.aktenzeichen;
   const status = strOrNull(antrag.status);
-  const foerdersumme = typeof antrag.foerdersumme === 'number' ? antrag.foerdersumme : null;
   const vorhabenInhalt = strOrNull(findFieldValue(antrag, ['vb_inhalt', 'vb inhalt', 'vorhaben_inhalt', 'vorhabeninhalt', 'beschreibung', 'kurzbeschreibung']));
-  const showFoerdersumme = foerdersumme !== null && foerdersumme > 0;
 
   return (
     <PanelShell onClose={onClose}>
-      {/* Header (full-width) */}
+      {/* Header (full-width) — nur Titel, Status/Fristen/Foerdersumme stehen im Workflow-Stepper bzw. Eckdaten. */}
       <div className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-snug">{titel}</h1>
-        {showFoerdersumme ? (
-          <div className="mt-2 text-[12.5px]">
-            <span className="text-[var(--tf-text-tertiary)]">Fördersumme</span>{' '}
-            <span className="text-[var(--tf-text-secondary)]">
-              {foerdersumme.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
-            </span>
-          </div>
-        ) : null}
       </div>
 
       {/* 2-column layout via Container Query: ab Panel-Breite >= 768 px 2-spaltig, sonst gestackt. */}
