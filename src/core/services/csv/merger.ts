@@ -761,6 +761,10 @@ export async function recomputeMultipleBatched(
   const FLUSH_THRESHOLD = 500;
   let batch = emptyBatch();
   let done = 0;
+  // Progress nach jedem Antrag melden — der ETA-Sampler in Step4Progress
+  // braucht eine ausreichend hohe Update-Frequenz (3 Samples in 1.5 s
+  // Mindest-Window), sonst wird keine ETA berechnet. Der Callback ist cheap
+  // (React-State-Set + Throttle im Sampler), also kein Performance-Risiko.
   const reportProgress = (): void => {
     if (onProgress) onProgress(done, total);
   };
@@ -770,19 +774,19 @@ export async function recomputeMultipleBatched(
   for (const az of args.removedAz) {
     removeAntragIntoBatch(caches, programmId, az, batch);
     done++;
+    reportProgress();
     if (batchSize(batch) >= FLUSH_THRESHOLD) {
       await flushRecomputeBatch(idb, batch);
       batch = emptyBatch();
-      reportProgress();
     }
   }
   for (const az of args.touchedAz) {
     recomputeAntragIntoBatch(caches, programmId, az, batch);
     done++;
+    reportProgress();
     if (batchSize(batch) >= FLUSH_THRESHOLD) {
       await flushRecomputeBatch(idb, batch);
       batch = emptyBatch();
-      reportProgress();
     }
   }
   if (batchSize(batch) > 0) {
