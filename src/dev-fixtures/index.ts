@@ -17,6 +17,5 @@ export type { StateDump } from './actions';
 export { FIXTURE_SCHEMAS, DEV_PROGRAMM_ID, fixtureSchemaId } from './fixture-schemas';
 export type { FixtureKey } from './fixture-schemas';
 export { getDevConfig } from './dev.config';
-export { DevQuickBar } from './DevQuickBar';
 export { useAutoSmbRefresh } from './useAutoSmbRefresh';
 export { showReloadToast, maybeReloadAfterDestructive } from './reloadToast';
