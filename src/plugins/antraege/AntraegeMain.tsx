@@ -276,7 +276,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
               Keine Anträge matchen die aktuellen Filter.
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               {filtered.slice(0, visibleRows).map(a => (
                 <AntragCard
                   key={a.aktenzeichen}

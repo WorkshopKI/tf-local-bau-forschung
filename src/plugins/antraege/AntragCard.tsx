@@ -35,11 +35,13 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false }
     ? { background: 'var(--tf-bg-secondary)', borderColor: 'var(--tf-border-hover)' }
     : { borderColor: 'transparent' };
 
+  const padding = narrow ? 'px-3 py-2' : 'px-4 py-2.5';
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 rounded-[var(--tf-radius)] transition-colors ${
+      className={`w-full text-left ${padding} rounded-[var(--tf-radius)] transition-colors ${
         selected ? '' : 'hover:bg-[var(--tf-bg-secondary)]'
       }`}
       style={{ borderWidth: '0.5px', borderStyle: 'solid', ...baseStyle }}
@@ -47,7 +49,7 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false }
       <div className="flex items-start gap-3">
         {!narrow && (
           <span
-            className={`shrink-0 w-[44px] tabular-nums text-[12px] font-mono pt-[2px] ${
+            className={`shrink-0 w-[44px] tabular-nums text-[12px] font-mono pt-[1px] ${
               daysFmt.tone === 'danger' ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-text-tertiary)]'
             }`}
           >
@@ -61,11 +63,11 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false }
               <span className="text-[13px] font-medium text-[var(--tf-text)]">{akronym}</span>
             ) : null}
           </div>
-          <div className={`text-[13px] text-[var(--tf-text)] ${narrow ? 'truncate' : 'truncate'} mt-0.5`}>
+          <div className="text-[12.5px] text-[var(--tf-text-secondary)] truncate mt-0.5">
             {titel}
           </div>
           {!narrow && antragsteller ? (
-            <div className="text-[12px] text-[var(--tf-text-tertiary)] mt-0.5 truncate">{antragsteller}</div>
+            <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5 truncate">{antragsteller}</div>
           ) : null}
         </div>
         {status ? (

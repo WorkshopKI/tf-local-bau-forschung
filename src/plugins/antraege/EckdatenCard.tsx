@@ -24,70 +24,94 @@ function formatGermanDate(iso: string): string {
   return iso;
 }
 
-interface Row {
+interface Cell {
   label: string;
   value: string;
+  /** Wenn true: Wert in Mono-Schrift (IDs, Aktenzeichen). */
+  mono?: boolean;
 }
 
 export function EckdatenCard({ antrag }: Props): React.ReactElement {
   const name = strOrNull(antrag.antragsteller);
   const branche = strOrNull(antrag.branche);
   const foerdergeber = strOrNull(antrag.foerdergeber);
-  const subline = branche ?? foerdergeber;
+  const subline = branche && foerdergeber
+    ? `${branche} · ${foerdergeber}`
+    : branche ?? foerdergeber;
 
-  const rows: Row[] = [];
+  const cells: Cell[] = [];
+
+  const akronym = strOrNull(antrag.akronym);
+  if (akronym) cells.push({ label: 'Akronym', value: akronym });
+
+  cells.push({ label: 'Aktenzeichen', value: antrag.aktenzeichen, mono: true });
+
+  const verbundId = strOrNull(antrag.verbund_id);
+  if (verbundId) cells.push({ label: 'Verbund-ID', value: verbundId, mono: true });
+
   const unterprogramm = strOrNull(antrag.unterprogramm_id);
-  if (unterprogramm) rows.push({ label: 'Unterprogramm', value: unterprogramm });
+  if (unterprogramm) cells.push({ label: 'Unterprogramm', value: unterprogramm });
 
-  // "Phase" ist ein typisches Custom-Feld in Forschungs-CSVs; rendern wenn vorhanden.
+  // "Phase" ist ein typisches Custom-Feld in Forschungs-CSVs.
   const phase = strOrNull(findFieldValue(antrag, ['phase', 'vorhaben_phase', 'projektphase']));
-  if (phase) rows.push({ label: 'Phase', value: phase });
+  if (phase) cells.push({ label: 'Phase', value: phase });
 
   const antragsdatum = strOrNull(antrag.antragsdatum);
-  if (antragsdatum) rows.push({ label: 'Eingang', value: formatGermanDate(antragsdatum) });
+  if (antragsdatum) cells.push({ label: 'Eingang', value: formatGermanDate(antragsdatum) });
 
   const bewilligung = strOrNull(antrag.bewilligung_datum);
-  if (bewilligung) rows.push({ label: 'Bewilligung', value: formatGermanDate(bewilligung) });
+  if (bewilligung) cells.push({ label: 'Bewilligung', value: formatGermanDate(bewilligung) });
 
   const frist = strOrNull(antrag.frist_datum);
-  if (frist) rows.push({ label: 'Frist', value: formatGermanDate(frist) });
+  if (frist) cells.push({ label: 'Frist', value: formatGermanDate(frist) });
 
   const foerdersumme = antrag.foerdersumme;
   if (typeof foerdersumme === 'number' && foerdersumme > 0) {
-    rows.push({
+    cells.push({
       label: 'Fördersumme',
       value: foerdersumme.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }),
     });
   }
+
+  const status = strOrNull(antrag.status);
+  if (status) cells.push({ label: 'Status', value: status });
 
   return (
     <aside
       className="rounded-[var(--tf-radius)] p-4"
       style={{ background: 'var(--tf-bg-secondary)' }}
     >
-      <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-3">
+      <h3 className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-3">
         Eckdaten
       </h3>
+
       {name ? (
         <div className="text-[14px] font-medium text-[var(--tf-text)] leading-snug">{name}</div>
       ) : null}
       {subline ? (
         <div className="mt-0.5 text-[12px] text-[var(--tf-text-secondary)]">{subline}</div>
       ) : null}
-      {rows.length > 0 && (name || subline) ? (
+
+      {cells.length > 0 ? (
         <div
-          className="mt-3 pt-3 space-y-2"
-          style={{ borderTop: '0.5px solid var(--tf-border)' }}
-        />
+          className={`${name || subline ? 'mt-3 pt-3' : ''} grid grid-cols-2 gap-x-4 gap-y-3`}
+          style={name || subline ? { borderTop: '0.5px solid var(--tf-border)' } : undefined}
+        >
+          {cells.map(c => (
+            <div key={c.label} className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-0.5">
+                {c.label}
+              </div>
+              <div
+                className={`text-[12.5px] text-[var(--tf-text)] truncate ${c.mono ? 'font-mono' : ''}`}
+                title={c.value}
+              >
+                {c.value}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : null}
-      <div className={rows.length > 0 ? 'space-y-2' : ''}>
-        {rows.map(r => (
-          <div key={r.label} className="flex items-baseline justify-between gap-3">
-            <span className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">{r.label}</span>
-            <span className="text-[12.5px] text-[var(--tf-text)] tabular-nums text-right">{r.value}</span>
-          </div>
-        ))}
-      </div>
     </aside>
   );
 }
