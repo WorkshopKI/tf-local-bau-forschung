@@ -7,7 +7,7 @@ import { writeProgrammSnapshot } from './snapshot';
 import { BUILD_LOCK_STUFE, MAX_SKIP_WARNINGS } from './constants';
 import { canonicalRowHash } from './hash';
 import { sha1Hex } from './sha1';
-import { parseCsvAll, readWithEncodingFallback } from './parser';
+import { parseCsvAllStreamed, readWithEncodingFallback } from './parser';
 import { saveCsvSourceFile, saveSchema, loadSchema } from './schemaRegistry';
 import {
   deleteRowHashes,
@@ -89,10 +89,13 @@ export async function importCsvSource(
 
     // Parse (mit Schema-persistierten Encoding/Separator, falls vorhanden)
     opts.signal?.throwIfAborted();
-    opts.onProgress?.({ phase: 'parsing', done: 0, total: 0 });
-    const { rows } = await parseCsvAll(csvBlob, {
+    opts.onProgress?.({ phase: 'parsing', done: 0, total: csvBlob.size });
+    const { rows } = await parseCsvAllStreamed(csvBlob, {
       encoding: schema.encoding,
       separator: schema.separator,
+      onProgress: (bytes, totalBytes) => {
+        opts.onProgress?.({ phase: 'parsing', done: bytes, total: totalBytes });
+      },
     });
     result.rowCount = rows.length;
 

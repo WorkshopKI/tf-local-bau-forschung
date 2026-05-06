@@ -96,10 +96,11 @@ export function Step4Progress({ progress, result, error, cancelled }: Step4Props
       ) : progress ? (
         <div>
           <div className="text-[12.5px] mb-1 text-[var(--tf-text-secondary)]">
-            {progress.phase === 'parsing' ? 'Parse CSV…' :
-             progress.phase === 'diffing' ? `Diff berechnen… ${progress.done}/${progress.total}` :
-             progress.phase === 'merging' ? `Merge Antraege… ${progress.done}/${progress.total}` :
-             'Läuft…'}
+            {progress.phase === 'parsing'
+              ? `Parse CSV… ${formatMb(progress.done)} / ${formatMb(progress.total)}`
+              : progress.phase === 'diffing' ? `Diff berechnen… ${progress.done}/${progress.total}`
+              : progress.phase === 'merging' ? `Merge Antraege… ${progress.done}/${progress.total}`
+              : 'Läuft…'}
           </div>
           <div className="h-2 bg-[var(--tf-bg-secondary)] rounded overflow-hidden">
             <div
@@ -125,4 +126,12 @@ function BucketCard({ label, value }: { label: string; value: number }): React.R
       <div className="text-[20px] font-medium text-[var(--tf-text)]">{value}</div>
     </div>
   );
+}
+
+function formatMb(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return '?';
+  const mb = bytes / (1024 * 1024);
+  if (mb < 1) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (mb < 10) return `${mb.toFixed(1)} MB`;
+  return `${mb.toFixed(0)} MB`;
 }

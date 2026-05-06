@@ -189,3 +189,61 @@ export async function parseCsvAll(
   const rows = (result.data ?? []).map(r => normalizeRow(r, headers));
   return { headers, rows, encoding, separator };
 }
+
+export interface StreamedParseOptions extends ParseOptions {
+  /** Pro Yield (alle ~500 Rows) aufgerufen; bytes = parser.getCharIndex(), totalBytes = text.length. */
+  onProgress?: (bytes: number, totalBytes: number) => void;
+  /** Yield-Frequenz in geparsten Rows. Default 500 — niedriger = mehr UI-Updates, hoehere CPU-Last. */
+  yieldEveryRows?: number;
+}
+
+/**
+ * Wie parseCsvAll, aber mit Byte-Progress wahrend des Parsens. Nutzt
+ * Papa.parse step:-Callback + parser.pause()/resume() um nach je N Rows
+ * an die Event-Loop zurueckzukehren — dadurch bleibt die UI responsive
+ * und der Step4Progress-Sampler kann eine ETA berechnen.
+ *
+ * Trade-off: ~10-20% langsamer als die sync-Variante (mehr Function-Calls,
+ * pause/resume-Overhead). Bei einer 50-MB-CSV kommen wir damit von ~5 s
+ * blockiert auf ~6 s asynchron mit Live-Progress.
+ */
+export async function parseCsvAllStreamed(
+  blob: Blob,
+  opts: StreamedParseOptions = {},
+): Promise<{ headers: string[]; rows: Record<string, string>[]; encoding: CsvEncoding; separator: CsvSeparator; totalBytes: number }> {
+  const { text, encoding } = await readWithEncodingFallback(blob, opts.encoding);
+  const separator: CsvSeparator = opts.separator ?? detectSeparator(text.slice(0, 20_000));
+  const totalBytes = text.length;
+  const yieldEveryRows = opts.yieldEveryRows ?? 500;
+
+  return new Promise((resolve, reject) => {
+    let headers: string[] = [];
+    const rows: Record<string, string>[] = [];
+    let lastYieldRow = 0;
+    Papa.parse<Record<string, string>>(text, {
+      header: true,
+      delimiter: separator,
+      dynamicTyping: false,
+      skipEmptyLines: true,
+      step: (results, parser) => {
+        if (headers.length === 0 && Array.isArray(results.meta.fields)) {
+          headers = results.meta.fields.map(h => h.trim());
+        }
+        rows.push(normalizeRow(results.data as Record<string, string>, headers));
+        if (rows.length - lastYieldRow >= yieldEveryRows) {
+          lastYieldRow = rows.length;
+          if (opts.onProgress) {
+            opts.onProgress(parser.getCharIndex(), totalBytes);
+          }
+          parser.pause();
+          setTimeout(() => parser.resume(), 0);
+        }
+      },
+      complete: () => {
+        if (opts.onProgress) opts.onProgress(totalBytes, totalBytes);
+        resolve({ headers, rows, encoding, separator, totalBytes });
+      },
+      error: (err: Error) => reject(err),
+    });
+  });
+}
