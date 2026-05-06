@@ -10,6 +10,7 @@ Kompakte Checklisten für häufige Erweiterungen, die jeweils mehrere synchronis
 | Neuer Feature-Flag | [add-feature-flag.md](add-feature-flag.md) |
 | Neuer IndexedDB-Store | [add-idb-store.md](add-idb-store.md) |
 | `file://`-Pitfalls (kompakte Quick-Reference) | [file-protocol-pitfalls.md](file-protocol-pitfalls.md) |
+| Design-Export aus Claude Design Tool portieren | [port-design-export.md](port-design-export.md) |
 
 ## Wann nicht aktualisieren
 

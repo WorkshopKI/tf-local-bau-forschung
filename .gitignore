@@ -43,3 +43,6 @@ Thumbs.db
 
 # Claude worktrees (werden transient angelegt)
 .claude/worktrees/
+
+# Claude Design Tool Exporte (PNG + HTML pro Screen, oft >1 MB) — Referenz, nicht versioniert
+_design/

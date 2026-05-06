@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       watch: {
-        ignored: ['**/_reference/**'],
+        ignored: ['**/_reference/**', '**/_design/**'],
       },
     },
   };

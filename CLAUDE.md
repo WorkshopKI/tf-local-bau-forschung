@@ -16,6 +16,7 @@ Wiederkehrende Erweiterungen haben jeweils mehrere Touch-Points, die synchron ge
 - [docs/agents/add-feature-flag.md](docs/agents/add-feature-flag.md) — Neuer Build-Time-Flag
 - [docs/agents/add-idb-store.md](docs/agents/add-idb-store.md) — Neuer IndexedDB-Store
 - [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) — `file://`-Quick-Reference
+- [docs/agents/port-design-export.md](docs/agents/port-design-export.md) — Claude-Design-Tool-Exporte portieren
 
 Index: [docs/agents/README.md](docs/agents/README.md).
 
