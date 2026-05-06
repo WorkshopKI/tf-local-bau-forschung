@@ -1,4 +1,16 @@
-/** Zentrale Status-Labels und Badge-Variants fuer alle Vorgangstypen. */
+/**
+ * Zentrale Status-Labels und Badge-Variants fuer Vorgang-Status (Bauantrag, Förderantrag).
+ *
+ * NICHT fuer Feedback-Status verwenden — die haben eine andere Semantik
+ * (`neu`, `geplant`, `in_bearbeitung`, `umgesetzt`, `abgelehnt`, `archiviert`)
+ * und ihre eigenen Maps in `src/components/feedback/constants.ts`. Diese Trennung
+ * ist Absicht: Vorgang-Status beschreibt Workflow-Zustand, Feedback-Status den
+ * Bearbeitungs-Lebenszyklus eines Tickets — gleicher Schluessel-Name (`neu`,
+ * `in_bearbeitung`) bedeutet in beiden Welten Verschiedenes.
+ *
+ * Wenn ein neuer Vorgangstyp dazukommt: hier die Status-Werte ergaenzen.
+ * Wenn ein neuer Feedback-Status: in `src/components/feedback/constants.ts`.
+ */
 
 export type BadgeVariant = 'info' | 'warning' | 'success' | 'error' | 'default';
 

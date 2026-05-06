@@ -5,16 +5,15 @@ import { bauantraegePlugin } from '@/plugins/bauantraege';
 import { dokumentePlugin } from '@/plugins/dokumente/index';
 import { chatPlugin } from '@/plugins/chat';
 import { suchePlugin } from '@/plugins/suche';
-import { adminPlugin } from '@/plugins/admin';
+import { adminPlugin } from '@/plugins/kurator';
 import { feedbackAdminPlugin } from '@/plugins/feedback';
 import { feedbackBoardPlugin } from '@/plugins/feedback-board';
 import { devInfrastructureTestPlugin } from '@/plugins/dev-infrastructure-test';
 import { devStateInspectorPlugin } from '@/plugins/dev-state-inspector';
 import { antraegePlugin } from '@/plugins/antraege';
-import { programmeAdminPlugin } from '@/plugins/programme-admin';
-import { csvSourcesAdminPlugin } from '@/plugins/csv-sources-admin';
-import { filterAdminPlugin } from '@/plugins/filter-admin';
-import { unterprogrammeAdminPlugin } from '@/plugins/unterprogramme-admin';
+import { programmeAdminPlugin } from '@/plugins/programme-kuration';
+import { csvSourcesAdminPlugin } from '@/plugins/csv-sources-kuration';
+import { filterAdminPlugin } from '@/plugins/filter-kuration';
 import { dokumentReviewPlugin } from '@/plugins/dokument-review';
 import { features } from '@/config/feature-flags';
 
@@ -30,7 +29,6 @@ const allPlugins: TeamFlowPlugin[] = [
   adminPlugin,
   programmeAdminPlugin,
   csvSourcesAdminPlugin,
-  unterprogrammeAdminPlugin,
   filterAdminPlugin,
   feedbackAdminPlugin,
   dokumentReviewPlugin,

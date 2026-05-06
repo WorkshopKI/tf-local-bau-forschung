@@ -1,5 +1,5 @@
 // Generiert die Test-CSV-Dateien aus den TypeScript-Konstanten in
-// src/plugins/csv-sources-admin/wizard/testCorpus.ts.
+// src/plugins/csv-sources-kuration/wizard/testCorpus.ts.
 // Die Konstanten sind die primäre Quelle; die Dateien sind synchronisierte Build-Artefakte.
 // Läuft als `prebuild`-Hook vor `build` und `build:single`.
 //
@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
 
-const SOURCE = path.join(ROOT, 'src/plugins/csv-sources-admin/wizard/testCorpus.ts');
+const SOURCE = path.join(ROOT, 'src/plugins/csv-sources-kuration/wizard/testCorpus.ts');
 const OUT_DIR = path.join(ROOT, 'public/test-korpus/bauforschung-v2');
 
 const MAPPINGS = [

@@ -22,7 +22,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --build --force",
     "test": "vitest run",
-    "test:phase2": "vitest run src/phase2"
+    "test:phase2": "vitest run src/phase2",
+    "check": "npm run typecheck && npm run test && npm run build:dev"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.0",

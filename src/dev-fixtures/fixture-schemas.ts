@@ -1,5 +1,5 @@
 /**
- * Hart kodierte Column-Mappings für Test-CSVs aus src/plugins/csv-sources-admin/wizard/testCorpus.ts.
+ * Hart kodierte Column-Mappings für Test-CSVs aus src/plugins/csv-sources-kuration/wizard/testCorpus.ts.
  *
  * Diese Schemas umgehen bewusst den 5-Schritt-Wizard (Encoding-Detection,
  * Mapping-UI, Unterprogramm-Bestätigung) und sind AUSSCHLIESSLICH für Dev-

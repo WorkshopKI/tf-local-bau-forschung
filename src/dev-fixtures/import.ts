@@ -2,7 +2,7 @@
  * Programmatischer CSV-Import ohne Wizard — für Dev-Szenarien.
  *
  * Umgeht bewusst die Encoding-/Mapping-UI. Darf NUR für Test-CSVs aus
- * src/plugins/csv-sources-admin/wizard/testCorpus.ts verwendet werden.
+ * src/plugins/csv-sources-kuration/wizard/testCorpus.ts verwendet werden.
  * Die Fixture-Schemas in ./fixture-schemas.ts haben eine harte `dev-`-id-
  * Konvention; ein Import mit anderer id wird abgelehnt.
  */
@@ -14,7 +14,7 @@ import { importCsvSource } from '@/core/services/csv/importer';
 import type { ImportResult } from '@/core/services/csv/types';
 import { putProgramm } from '@/core/services/csv/idb-csv';
 import { saveUnterprogramm } from '@/core/services/csv/unterprogrammRegistry';
-import { TEST_CORPUS, testCorpusBlob } from '@/plugins/csv-sources-admin/wizard/testCorpus';
+import { TEST_CORPUS, testCorpusBlob } from '@/plugins/csv-sources-kuration/wizard/testCorpus';
 import { features } from '@/config/feature-flags';
 import {
   FIXTURE_SCHEMAS,

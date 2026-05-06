@@ -6,6 +6,19 @@ TeamFlow Local is a serverless browser app for collaborative task management wit
 
 **Read `DESIGN_GUIDE.md` for visual design rules before making any UI changes.**
 
+## Agent-Cheatsheets
+
+Wiederkehrende Erweiterungen haben jeweils mehrere Touch-Points, die synchron gepflegt werden müssen. Vor dem Patchen das passende Cheatsheet öffnen statt die Codebase neu zu scannen:
+
+- [docs/agents/add-plugin.md](docs/agents/add-plugin.md) — Neues Plugin registrieren
+- [docs/agents/add-csv-field.md](docs/agents/add-csv-field.md) — Neues `CanonicalField`
+- [docs/agents/add-doc-type.md](docs/agents/add-doc-type.md) — Neuer Phase-2 doc_type
+- [docs/agents/add-feature-flag.md](docs/agents/add-feature-flag.md) — Neuer Build-Time-Flag
+- [docs/agents/add-idb-store.md](docs/agents/add-idb-store.md) — Neuer IndexedDB-Store
+- [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) — `file://`-Quick-Reference
+
+Index: [docs/agents/README.md](docs/agents/README.md).
+
 ## Critical Constraints
 
 - **DEPLOYMENT**: App runs from `file://` protocol — NO HTTP server, NO backend, NO Node.js at runtime
@@ -37,7 +50,7 @@ Source-Files sollten **300 Zeilen nicht überschreiten**. Begründung: kleinere 
 **Ausnahmen (explizit erlaubt):**
 
 - **Statische Daten-Files** (z.B. `src/core/services/search/example-docs.ts`, `src/dev-fixtures/fixture-schemas.ts`): Größe ergibt sich aus den Daten, nicht aus Logik-Struktur. Keine Aufteilung nötig.
-- **Kohärente State-Machines** (z.B. `src/plugins/csv-sources-admin/wizard/useCsvWizardState.ts`): Eine in sich geschlossene State-Machine ist oft lesbarer als in drei Module aufgeteilt. Aufteilen nur wenn klare logische Grenzen auftauchen.
+- **Kohärente State-Machines** (z.B. `src/plugins/csv-sources-kuration/wizard/useCsvWizardState.ts`): Eine in sich geschlossene State-Machine ist oft lesbarer als in drei Module aufgeteilt. Aufteilen nur wenn klare logische Grenzen auftauchen.
 - **Orchestrator-Services** (z.B. `src/core/services/search/batch-indexer.ts`): Ein Service, der eine Pipeline von 8–10 Schritten orchestriert, darf länger sein — solange die einzelnen Schritte klar trennbar bleiben.
 
 **Keine Ausnahme für:**
@@ -191,7 +204,7 @@ Nach Absenden im FeedbackPanel startet `autoClassifyFeedback(transport, text, co
 
 ### CSV-Import-Wizard (Phase 1b + Label-XLS-Hierarchie)
 
-Kurator-Wizard unter `src/plugins/csv-sources-admin/wizard/` für CSV-Source-Registrierung. 5 Schritte: Metadata → Column-Mapping → (Unterprogramme, nur Master) → Review → Progress. Column-Mapping unterstützt optionalen **hierarchischen Label-XLS-Upload** ([xlsLabelParser](src/core/services/csv/filter/xlsLabelParser.ts)):
+Kurator-Wizard unter `src/plugins/csv-sources-kuration/wizard/` für CSV-Source-Registrierung. 5 Schritte: Metadata → Column-Mapping → (Unterprogramme, nur Master) → Review → Progress. Column-Mapping unterstützt optionalen **hierarchischen Label-XLS-Upload** ([xlsLabelParser](src/core/services/csv/filter/xlsLabelParser.ts)):
 
 - Kurator wählt Anzahl Header-Zeilen (2–8, Default 4). Konvention: letzte Zeile = CSV-Namen, vorletzte = Labels (leer → Fallback CSV-Name), Zeilen darüber = Gruppen-Ebenen (merged cells).
 - Vertikal-merged Gruppen-/Label-Zellen → als ambige Merges erkannt. Kurator entscheidet per Dropdown pro Merge (`Als Gruppe` / `Als Label wiederholt` / `Ignorieren`), Bulk-Leiste bei ≥2.
@@ -431,7 +444,7 @@ src/
 │   │   ├── review.ts
 │   │   └── version.ts
 │   └── utils/
-│       └── status-mappings.ts   <- Zentrale Status-Labels + Badge-Variants
+│       └── status-mappings.ts   <- Status-Labels + Badge-Variants für Vorgang-Status (NICHT Feedback)
 ├── phase2/                       <- Phase-2 Triage- & Matcher-Baustein (Eingangsfilter vor Volltext-Pipeline)
 │   ├── types.ts                     <- DmsEntry, ManifestEntry, SkipListEntry, TriageResult, MatchResult, PendingAntragEntry
 │   ├── index.ts                     <- Barrel-Export
@@ -454,12 +467,11 @@ src/
 │   ├── chat/                    <- AI-Chat (id='chat')
 │   ├── feedback-board/          <- Öffentliches Feedback-Board (id='feedback-board', KEIN kuratorOnly)
 │   ├── einstellungen/           <- Profil, Theme, AI-Provider, is_kurator-Toggle (id='einstellungen')
-│   # Kurator-Plugins (category 'kuration', kuratorOnly: true) — Directory-Namen `*-admin/` sind Legacy
-│   ├── admin/                   <- Suchindex-Kurations-Panel (id='kurator', route /kuration/suchindex)
-│   ├── programme-admin/         <- Programm-Verwaltung (id='programme-kuration')
-│   ├── csv-sources-admin/       <- CSV-Import-Wizard (id='csv-sources-kuration', 5-Step-Wizard + Label-XLS-Hierarchie)
-│   ├── unterprogramme-admin/    <- Unterprogramm-Verwaltung (id='unterprogramme-kuration')
-│   ├── filter-admin/            <- Filter-Verwaltung (id='filter-kuration', 4-Step-Wizard)
+│   # Kurator-Plugins (category 'kuration', kuratorOnly: true) — Directory-Name == Plugin-ID
+│   ├── kurator/                 <- Suchindex-Kurations-Panel (id='kurator', route /kuration/suchindex)
+│   ├── programme-kuration/      <- Programm-Verwaltung inkl. Unterprogramme-Sub-Feature (id='programme-kuration')
+│   ├── csv-sources-kuration/    <- CSV-Import-Wizard (id='csv-sources-kuration', 5-Step-Wizard + Label-XLS-Hierarchie)
+│   ├── filter-kuration/         <- Filter-Verwaltung (id='filter-kuration', 4-Step-Wizard)
 │   ├── feedback/                <- Feedback-Verwaltung (id='feedback-kuration', 4 Tabs)
 │   │   ├── FeedbackAdminPage.tsx    <- 4 Tabs (Tickets / FAQ / Sponsoring / Einstellungen)
 │   │   ├── sections/
@@ -586,6 +598,6 @@ Plugin-Gating: `src/plugins.config.ts` filtert die Plugin-Liste nach `features.*
 6. **`crypto.subtle` works under `file://`** — it's a secure context
 7. **File System Access API works under `file://`** — it's a secure context
 8. **Embedding models run in Main Thread** — Web Workers cannot load ONNX models under `file://` (Blob URL CSP restrictions). This means large models may block the UI briefly during init.
-9. **Status-Mappings are zentral** — use `src/core/utils/status-mappings.ts` for all status label/variant lookups, not per-plugin definitions
+9. **Status-Mappings sind domain-getrennt** — `src/core/utils/status-mappings.ts` ist NUR für Vorgang-Status (Bauantrag/Förderantrag: `neu`, `in_pruefung`, `genehmigt`, …). Feedback-Status (`neu`, `geplant`, `in_bearbeitung`, `umgesetzt`, `abgelehnt`, `archiviert`) hat seine eigenen Maps in `src/components/feedback/constants.ts` — bewusst getrennt, weil andere Semantik. Beim Hinzufügen neuer Status-Werte: Vorgang-Status zentral, Feedback-Status in der Feedback-Domain.
 10. **Infrastructure-Writes müssen `atomicWrite()` / `appendToFile()` verwenden** (Phase 1a) — direkter `FileSystemWritableFileStream` umgeht die `.tmp`+Rename+`.backup`-Rotation und kann bei Crash korrumpieren
 11. **Neue Features hinter Flag setzen** (v1.10) — wenn ein Feature optional sein soll, in `scripts/config-schema.mjs` eine Flag ergänzen, in `src/config/feature-flags.ts` einen Helfer, und die betroffenen Stellen (Plugin-Filter, Komponenten-Rendering) damit gaten. OpenRouter in Prod-Builds wird zusätzlich in `validateConfig()` verboten
