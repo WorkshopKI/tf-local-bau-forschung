@@ -198,14 +198,15 @@ export interface StreamedParseOptions extends ParseOptions {
 }
 
 /**
- * Wie parseCsvAll, aber mit Byte-Progress wahrend des Parsens. Nutzt
- * Papa.parse step:-Callback + parser.pause()/resume() um nach je N Rows
- * an die Event-Loop zurueckzukehren — dadurch bleibt die UI responsive
- * und der Step4Progress-Sampler kann eine ETA berechnen.
+ * Wie parseCsvAll, plus Byte-Progress in zwei Phasen: 0%/100%-Bracket um
+ * den (synchronen) Papa.parse-Aufruf, dann eine inkrementelle Normalize-
+ * Phase mit setTimeout-Yields. Damit hat der ETA-Sampler in Step4Progress
+ * zumindest waehrend der Normalize-Phase Daten.
  *
- * Trade-off: ~10-20% langsamer als die sync-Variante (mehr Function-Calls,
- * pause/resume-Overhead). Bei einer 50-MB-CSV kommen wir damit von ~5 s
- * blockiert auf ~6 s asynchron mit Live-Progress.
+ * Frueherer Versuch mit Papa.parse step:-Callback + parser.pause()/resume()
+ * funktionierte nicht zuverlaessig: setTimeout(resume, 0) traf bei reinem
+ * Text-Input nicht den Parser-Zustand korrekt — `complete` feuerte mit
+ * leerem rows-Array. Daher hier explizit pre-parse + post-normalize.
  */
 export async function parseCsvAllStreamed(
   blob: Blob,
@@ -214,36 +215,41 @@ export async function parseCsvAllStreamed(
   const { text, encoding } = await readWithEncodingFallback(blob, opts.encoding);
   const separator: CsvSeparator = opts.separator ?? detectSeparator(text.slice(0, 20_000));
   const totalBytes = text.length;
-  const yieldEveryRows = opts.yieldEveryRows ?? 500;
 
-  return new Promise((resolve, reject) => {
-    let headers: string[] = [];
-    const rows: Record<string, string>[] = [];
-    let lastYieldRow = 0;
-    Papa.parse<Record<string, string>>(text, {
-      header: true,
-      delimiter: separator,
-      dynamicTyping: false,
-      skipEmptyLines: true,
-      step: (results, parser) => {
-        if (headers.length === 0 && Array.isArray(results.meta.fields)) {
-          headers = results.meta.fields.map(h => h.trim());
-        }
-        rows.push(normalizeRow(results.data as Record<string, string>, headers));
-        if (rows.length - lastYieldRow >= yieldEveryRows) {
-          lastYieldRow = rows.length;
-          if (opts.onProgress) {
-            opts.onProgress(parser.getCharIndex(), totalBytes);
-          }
-          parser.pause();
-          setTimeout(() => parser.resume(), 0);
-        }
-      },
-      complete: () => {
-        if (opts.onProgress) opts.onProgress(totalBytes, totalBytes);
-        resolve({ headers, rows, encoding, separator, totalBytes });
-      },
-      error: (err: Error) => reject(err),
-    });
+  // 0% — User sieht den Bar bevor der sync-Parse startet
+  if (opts.onProgress) opts.onProgress(0, totalBytes);
+
+  const result = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    delimiter: separator,
+    dynamicTyping: false,
+    skipEmptyLines: true,
   });
+  const headers = (result.meta.fields ?? []).map(h => h.trim());
+  const raw = (result.data ?? []) as Record<string, string>[];
+
+  // Normalize in Chunks mit periodischen Yields. Auf einer 50-MB-CSV mit
+  // 13k Rows kommen wir auf ~13 Chunks → 13 Progress-Updates → der
+  // ETA-Sampler kriegt Daten waehrend dieser Phase.
+  const CHUNK = 1000;
+  const rows: Record<string, string>[] = [];
+  for (let i = 0; i < raw.length; i += CHUNK) {
+    const end = Math.min(i + CHUNK, raw.length);
+    for (let j = i; j < end; j++) {
+      const r = raw[j];
+      if (r) rows.push(normalizeRow(r, headers));
+    }
+    if (opts.onProgress) {
+      const approxBytes = raw.length > 0
+        ? Math.floor((end / raw.length) * totalBytes)
+        : totalBytes;
+      opts.onProgress(approxBytes, totalBytes);
+    }
+    if (end < raw.length) {
+      await new Promise<void>(r => setTimeout(r, 0));
+    }
+  }
+
+  if (opts.onProgress) opts.onProgress(totalBytes, totalBytes);
+  return { headers, rows, encoding, separator, totalBytes };
 }
