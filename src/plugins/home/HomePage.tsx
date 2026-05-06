@@ -11,7 +11,7 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { menuLabel, dataConfig } from '@/config/feature-flags';
-import { getStatusVariant } from '@/core/utils/status-mappings';
+import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 
@@ -86,9 +86,8 @@ export function HomePage(): React.ReactElement {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
-        <p className="text-[13px] text-[var(--tf-text-secondary)]">{dept}</p>
-        <p className="text-[13px] text-[var(--tf-text-tertiary)] mt-1">
-          {data.stats.offen} offene Vorgänge · {data.fristenDieseWoche} Fristen diese Woche
+        <p className="text-[13px] text-[var(--tf-text-secondary)]">
+          {dept} · {data.stats.offen} offene Vorgänge · {data.fristenDieseWoche} Fristen diese Woche
         </p>
       </div>
 
@@ -100,7 +99,13 @@ export function HomePage(): React.ReactElement {
         <div className="flex items-center justify-between p-4 mb-6 rounded-[var(--tf-radius)]" style={{ borderLeft: '3px solid var(--tf-border-hover)' }}>
           <div>
             <p className="text-[12px] text-[var(--tf-text-tertiary)]">
-              Nächster Schritt · Frist in {data.naechsterSchritt.daysLeft} Tagen
+              Nächster Schritt · {data.naechsterSchritt.daysLeft < 0 ? (
+                <span className="text-[var(--tf-danger-text)]">
+                  Frist seit {Math.abs(data.naechsterSchritt.daysLeft)} Tagen überschritten
+                </span>
+              ) : (
+                <>Frist in {data.naechsterSchritt.daysLeft} Tagen</>
+              )}
             </p>
             <p className="text-[14px] font-medium text-[var(--tf-text)]">
               <span className="text-[var(--tf-text-tertiary)] font-mono">{data.naechsterSchritt.id}</span> — {data.naechsterSchritt.title}
@@ -130,7 +135,7 @@ export function HomePage(): React.ReactElement {
                 icon={<span className="text-[11px] font-medium text-[var(--tf-text-secondary)]">{isAntrag ? 'F' : 'B'}</span>}
                 title={v.title}
                 subtitle={v.id}
-                meta={<Badge variant={getStatusVariant(v.status)}>{v.status.replace(/_/g, ' ')}</Badge>}
+                meta={<Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>}
                 onClick={() => navigate(isAntrag ? 'antraege' : 'bauantraege', { selectedId: v.id })}
                 last={i === data.letzteAenderungen.length - 1}
               />
@@ -147,11 +152,19 @@ export function HomePage(): React.ReactElement {
               <p className="text-[13px] text-[var(--tf-text-secondary)]">Keine dringenden Fristen</p>
             ) : (
               data.dringend.slice(0, 5).map(v => (
-                <div key={v.id} className="flex items-center gap-2 py-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${v.daysLeft < 0 ? 'bg-[var(--tf-danger-text)]' : v.daysLeft < 3 ? 'bg-[var(--tf-danger-text)]' : 'bg-[var(--tf-warning-text)]'}`} />
-                  <span className="text-[12px] text-[var(--tf-text)] flex-1 truncate">{v.id}</span>
-                  <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-                    {v.daysLeft < 0 ? `${Math.abs(v.daysLeft)}d überfällig` : `in ${v.daysLeft}d`}
+                <div key={v.id} className="flex items-start gap-2 py-1.5">
+                  <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${v.daysLeft < 0 ? 'bg-[var(--tf-danger-text)]' : v.daysLeft < 3 ? 'bg-[var(--tf-danger-text)]' : 'bg-[var(--tf-warning-text)]'}`} />
+                  <span className="text-[12px] font-mono text-[var(--tf-text-tertiary)] flex-1 truncate">{v.id}</span>
+                  <span className={`text-[11px] text-right leading-tight ${v.daysLeft < 0 ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-text-tertiary)]'}`}>
+                    {v.daysLeft < 0 ? (
+                      <>
+                        {Math.abs(v.daysLeft)}d
+                        <br />
+                        überfällig
+                      </>
+                    ) : (
+                      `in ${v.daysLeft}d`
+                    )}
                   </span>
                 </div>
               ))
