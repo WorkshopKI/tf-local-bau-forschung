@@ -1,4 +1,5 @@
 import type { IDBStore } from '../storage/idb-store';
+import { CSV_STORES } from '../storage/idb-store';
 import { parseCsvAll } from './parser';
 import { parseGermanDate } from './dateParse';
 import { loadCsvSourceFile } from './schemaRegistry';
@@ -7,6 +8,9 @@ import {
   putAntraege,
   deleteAntrag,
   listSchemasByProgramm,
+  listAntraegeByProgramm,
+  listVerbuendeByProgramm,
+  listAkronymIndexByProgramm,
   getAkronymEntry,
   putAkronymEntry,
   deleteAkronymEntry,
@@ -16,7 +20,7 @@ import {
   appendHistory,
   appendVerbundHistory,
 } from './idb-csv';
-import type { Antrag, AntragHistorieEntry, CsvSchema, ColumnMappingEntry, Verbund, VerbundHistorieEntry } from './types';
+import type { Antrag, AntragHistorieEntry, CsvSchema, ColumnMappingEntry, Verbund, VerbundHistorieEntry, AkronymIndexEntry } from './types';
 import { getCanonicalLevel } from './constants';
 import { uuid } from '@/core/services/id-generator';
 
@@ -366,4 +370,423 @@ export async function removeAntragAndCleanup(
       else await putAkronymEntry(idb, { ...idx, aktenzeichen: remaining });
     }
   }
+}
+
+// ---------- Batched Recompute ----------
+//
+// Bisheriges recomputeAntrag oeffnet pro Antrag 4-7 IDB-Transaktionen
+// (putAntraege, putVerbund, putAkronymEntry, appendHistory, ...). Bei einem
+// Re-Import von 13k+ Antraegen sind das 50k+ Transaktionen — der dominante
+// Anteil der Import-Dauer.
+//
+// recomputeMultipleBatched preloadet die Caches einmal, baut alle Mutationen
+// in einem Buffer pro Chunk auf und flusht jeden Chunk in EINER Multi-Store-
+// Transaction. Das reduziert die Transaktionsanzahl ~50-100x.
+
+interface RecomputeBatch {
+  antraegeUpsert: Map<string, Antrag>;
+  antraegeDelete: Set<string>;
+  verbuendeUpsert: Map<string, Verbund>;
+  verbuendeDelete: Set<string>;
+  akronymUpsert: Map<string, AkronymIndexEntry>;
+  akronymDelete: Set<string>;
+  history: AntragHistorieEntry[];
+  vbHistory: VerbundHistorieEntry[];
+}
+
+interface RecomputeCaches {
+  schemas: SchemaWithRows[];
+  antraegeByAz: Map<string, Antrag>;
+  verbuendeById: Map<string, Verbund>;
+  akronymByKey: Map<string, AkronymIndexEntry>;
+}
+
+const akrKey = (programmId: string, akronym: string): string => `${programmId}|${akronym}`;
+
+function emptyBatch(): RecomputeBatch {
+  return {
+    antraegeUpsert: new Map(),
+    antraegeDelete: new Set(),
+    verbuendeUpsert: new Map(),
+    verbuendeDelete: new Set(),
+    akronymUpsert: new Map(),
+    akronymDelete: new Set(),
+    history: [],
+    vbHistory: [],
+  };
+}
+
+function batchSize(b: RecomputeBatch): number {
+  return (
+    b.antraegeUpsert.size + b.antraegeDelete.size +
+    b.verbuendeUpsert.size + b.verbuendeDelete.size +
+    b.akronymUpsert.size + b.akronymDelete.size +
+    b.history.length + b.vbHistory.length
+  );
+}
+
+async function loadRecomputeCaches(
+  idb: IDBStore,
+  programmId: string,
+  schemas: SchemaWithRows[],
+): Promise<RecomputeCaches> {
+  const [antraege, verbuende, akronymEntries] = await Promise.all([
+    listAntraegeByProgramm(idb, programmId),
+    listVerbuendeByProgramm(idb, programmId),
+    listAkronymIndexByProgramm(idb, programmId),
+  ]);
+  return {
+    schemas,
+    antraegeByAz: new Map(antraege.map(a => [a.aktenzeichen, a])),
+    verbuendeById: new Map(verbuende.map(v => [v.verbund_id, v])),
+    akronymByKey: new Map(akronymEntries.map(e => [akrKey(e.programm_id, e.akronym), e])),
+  };
+}
+
+function flushRecomputeBatch(idb: IDBStore, batch: RecomputeBatch): Promise<void> {
+  if (batchSize(batch) === 0) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const stores = [
+      CSV_STORES.ANTRAEGE,
+      CSV_STORES.VERBUENDE,
+      CSV_STORES.AKRONYM_INDEX,
+      CSV_STORES.ANTRAG_HISTORIE,
+      CSV_STORES.VERBUND_HISTORIE,
+    ];
+    const t = idb.getDb().transaction(stores, 'readwrite');
+    t.oncomplete = () => resolve();
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error);
+    // Reihenfolge: erst Deletes (bereinigt alten Zustand), dann Upserts.
+    const sAntraege = t.objectStore(CSV_STORES.ANTRAEGE);
+    for (const az of batch.antraegeDelete) sAntraege.delete(az);
+    for (const a of batch.antraegeUpsert.values()) sAntraege.put(a);
+    const sVerbuende = t.objectStore(CSV_STORES.VERBUENDE);
+    for (const id of batch.verbuendeDelete) sVerbuende.delete(id);
+    for (const v of batch.verbuendeUpsert.values()) sVerbuende.put(v);
+    const sAkronym = t.objectStore(CSV_STORES.AKRONYM_INDEX);
+    for (const key of batch.akronymDelete) {
+      const sep = key.indexOf('|');
+      if (sep <= 0) continue;
+      const pid = key.slice(0, sep);
+      const akr = key.slice(sep + 1);
+      sAkronym.delete([pid, akr]);
+    }
+    for (const e of batch.akronymUpsert.values()) sAkronym.put(e);
+    const sHist = t.objectStore(CSV_STORES.ANTRAG_HISTORIE);
+    for (const h of batch.history) sHist.put(h);
+    const sVbHist = t.objectStore(CSV_STORES.VERBUND_HISTORIE);
+    for (const h of batch.vbHistory) sVbHist.put(h);
+  });
+}
+
+/** In-memory Variante von recomputeAntrag — pusht alle Writes in den Batch
+ *  und aktualisiert die Caches, sodass nachfolgende Aufrufe innerhalb
+ *  desselben Chunks den frischen Zustand sehen. */
+function recomputeAntragIntoBatch(
+  caches: RecomputeCaches,
+  programmId: string,
+  aktenzeichen: string,
+  batch: RecomputeBatch,
+): void {
+  const existing = caches.antraegeByAz.get(aktenzeichen) ?? null;
+
+  const merged: Antrag = {
+    aktenzeichen,
+    programm_id: programmId,
+    _field_sources: {},
+    _updated_at: new Date().toISOString(),
+  };
+
+  const winnerEntry = new Map<string, ColumnMappingEntry>();
+  const verbundUpdates: Record<string, unknown> = {};
+  const verbundFieldSources: Record<string, string> = {};
+  const verbundWinnerEntry = new Map<string, ColumnMappingEntry>();
+
+  const sorted = [...caches.schemas].sort((a, b) => {
+    const d = a.schema.priority - b.schema.priority;
+    return d !== 0 ? d : a.schema.id.localeCompare(b.schema.id);
+  });
+
+  for (let pass = 0; pass < 2; pass++) {
+    for (const { schema, rows } of sorted) {
+      if (pass === 0 && schema.join_key !== 'aktenzeichen') continue;
+      const matches = findMatchingRows(schema, rows, merged);
+      if (matches.length === 0) continue;
+
+      const joinKeyField = schema.join_key;
+      if (schema.is_master || merged._field_sources[joinKeyField] === undefined) {
+        merged._field_sources[joinKeyField] = schema.id;
+      }
+
+      for (const row of matches) {
+        for (const [col, entry] of Object.entries(schema.column_mapping)) {
+          const field = resolveFieldKey(col, entry);
+          if (!field) continue;
+          if (entry.canonical === schema.join_key) continue;
+          const val = coerceValue(row[col] ?? '', entry);
+          if (entry.canonical && getCanonicalLevel(entry.canonical) === 'verbund') {
+            if (val === '' && verbundUpdates[field] != null && verbundUpdates[field] !== '') continue;
+            verbundUpdates[field] = val;
+            verbundFieldSources[field] = schema.id;
+            verbundWinnerEntry.set(field, entry);
+            continue;
+          }
+          if (val === '' && merged[field] != null && merged[field] !== '') continue;
+          merged[field] = val;
+          merged._field_sources[field] = schema.id;
+          winnerEntry.set(field, entry);
+        }
+      }
+    }
+  }
+
+  const nowIso = merged._updated_at;
+  if (existing) {
+    for (const [field, entry] of winnerEntry.entries()) {
+      if (!entry.trackHistory) continue;
+      const oldVal = existing[field];
+      const newVal = merged[field];
+      if (oldVal === undefined || oldVal === '' || oldVal === null) continue;
+      if (oldVal === newVal) continue;
+      batch.history.push({
+        id: uuid(),
+        aktenzeichen,
+        feld: field,
+        alt_wert: oldVal,
+        neu_wert: newVal,
+        geaendert_am: nowIso,
+        csv_schema_id: merged._field_sources[field] ?? '',
+      });
+    }
+  }
+
+  // Antrag persistieren (Buffer + Cache)
+  batch.antraegeUpsert.set(aktenzeichen, merged);
+  batch.antraegeDelete.delete(aktenzeichen);
+  caches.antraegeByAz.set(aktenzeichen, merged);
+
+  // Akronym-Index aktualisieren
+  const oldAkronym = typeof existing?.akronym === 'string' ? existing.akronym : undefined;
+  const newAkronym = typeof merged.akronym === 'string' ? merged.akronym : undefined;
+  if (oldAkronym && oldAkronym !== newAkronym) {
+    const oldKey = akrKey(programmId, oldAkronym);
+    const oldIdx = caches.akronymByKey.get(oldKey);
+    if (oldIdx) {
+      const remaining = oldIdx.aktenzeichen.filter(x => x !== aktenzeichen);
+      if (remaining.length === 0) {
+        batch.akronymDelete.add(oldKey);
+        batch.akronymUpsert.delete(oldKey);
+        caches.akronymByKey.delete(oldKey);
+      } else {
+        const updated = { ...oldIdx, aktenzeichen: remaining };
+        batch.akronymUpsert.set(oldKey, updated);
+        batch.akronymDelete.delete(oldKey);
+        caches.akronymByKey.set(oldKey, updated);
+      }
+    }
+  }
+  if (newAkronym) {
+    const key = akrKey(programmId, newAkronym);
+    const idx = caches.akronymByKey.get(key);
+    const list = new Set(idx?.aktenzeichen ?? []);
+    list.add(aktenzeichen);
+    const updated: AkronymIndexEntry = {
+      programm_id: programmId,
+      akronym: newAkronym,
+      aktenzeichen: [...list],
+    };
+    batch.akronymUpsert.set(key, updated);
+    batch.akronymDelete.delete(key);
+    caches.akronymByKey.set(key, updated);
+  }
+
+  // Verbund aktualisieren
+  const oldVerbund = typeof existing?.verbund_id === 'string' ? existing.verbund_id : undefined;
+  const newVerbund = typeof merged.verbund_id === 'string' ? merged.verbund_id : undefined;
+  if (oldVerbund && oldVerbund !== newVerbund) {
+    const vb = caches.verbuendeById.get(oldVerbund);
+    if (vb) {
+      const remainingTas = vb.teilantrags_ids.filter(x => x !== aktenzeichen);
+      if (remainingTas.length === 0) {
+        batch.verbuendeDelete.add(oldVerbund);
+        batch.verbuendeUpsert.delete(oldVerbund);
+        caches.verbuendeById.delete(oldVerbund);
+      } else {
+        const updated: Verbund = { ...vb, teilantrags_ids: remainingTas };
+        batch.verbuendeUpsert.set(oldVerbund, updated);
+        batch.verbuendeDelete.delete(oldVerbund);
+        caches.verbuendeById.set(oldVerbund, updated);
+      }
+    }
+  }
+  if (newVerbund) {
+    const vb = caches.verbuendeById.get(newVerbund);
+    const tvTitel = typeof merged.titel === 'string' ? merged.titel : undefined;
+    const vbTitel = typeof verbundUpdates.verbund_titel === 'string' ? verbundUpdates.verbund_titel : undefined;
+    const vbStatus = typeof verbundUpdates.verbund_status === 'string' ? verbundUpdates.verbund_status : undefined;
+    const effectiveTitel = vbTitel ?? tvTitel;
+    const sources = { ...(vb?._field_sources ?? {}), ...verbundFieldSources };
+
+    const VB_FIELD_MAP: Record<string, keyof Verbund> = {
+      verbund_titel: 'titel',
+      verbund_status: 'status',
+    };
+    if (vb) {
+      for (const [canonicalKey, entry] of verbundWinnerEntry) {
+        if (!entry.trackHistory) continue;
+        const vbProp = VB_FIELD_MAP[canonicalKey];
+        if (!vbProp) continue;
+        const oldVal = vb[vbProp];
+        const newVal = verbundUpdates[canonicalKey];
+        if (oldVal === undefined || oldVal === '' || oldVal === null) continue;
+        if (oldVal === newVal) continue;
+        if (newVal === '' || newVal === undefined) continue;
+        batch.vbHistory.push({
+          id: uuid(),
+          verbund_id: newVerbund,
+          feld: canonicalKey,
+          alt_wert: oldVal,
+          neu_wert: newVal,
+          geaendert_am: nowIso,
+          csv_schema_id: verbundFieldSources[canonicalKey] ?? '',
+        });
+      }
+    }
+
+    let next: Verbund;
+    if (!vb) {
+      next = {
+        verbund_id: newVerbund,
+        programm_id: programmId,
+        akronym: newAkronym,
+        titel: effectiveTitel,
+        status: vbStatus,
+        teilantrags_ids: [aktenzeichen],
+        _field_sources: sources,
+        _updated_at: nowIso,
+      };
+    } else {
+      next = { ...vb };
+      if (!next.teilantrags_ids.includes(aktenzeichen)) {
+        next.teilantrags_ids = [...next.teilantrags_ids, aktenzeichen];
+      }
+      if (!next.akronym && newAkronym) next.akronym = newAkronym;
+      if (vbTitel !== undefined && vbTitel !== '') next.titel = vbTitel;
+      else if (!next.titel && tvTitel) next.titel = tvTitel;
+      if (vbStatus !== undefined && vbStatus !== '') next.status = vbStatus;
+      next._field_sources = sources;
+      next._updated_at = nowIso;
+    }
+    batch.verbuendeUpsert.set(newVerbund, next);
+    batch.verbuendeDelete.delete(newVerbund);
+    caches.verbuendeById.set(newVerbund, next);
+  }
+}
+
+function removeAntragIntoBatch(
+  caches: RecomputeCaches,
+  programmId: string,
+  aktenzeichen: string,
+  batch: RecomputeBatch,
+): void {
+  const antrag = caches.antraegeByAz.get(aktenzeichen) ?? null;
+  batch.antraegeDelete.add(aktenzeichen);
+  batch.antraegeUpsert.delete(aktenzeichen);
+  caches.antraegeByAz.delete(aktenzeichen);
+
+  if (antrag?.verbund_id && typeof antrag.verbund_id === 'string') {
+    const vbId = antrag.verbund_id;
+    const vb = caches.verbuendeById.get(vbId);
+    if (vb) {
+      const remaining = vb.teilantrags_ids.filter(x => x !== aktenzeichen);
+      if (remaining.length === 0) {
+        batch.verbuendeDelete.add(vbId);
+        batch.verbuendeUpsert.delete(vbId);
+        caches.verbuendeById.delete(vbId);
+      } else {
+        const updated: Verbund = { ...vb, teilantrags_ids: remaining };
+        batch.verbuendeUpsert.set(vbId, updated);
+        batch.verbuendeDelete.delete(vbId);
+        caches.verbuendeById.set(vbId, updated);
+      }
+    }
+  }
+
+  if (antrag?.akronym && typeof antrag.akronym === 'string') {
+    const key = akrKey(programmId, antrag.akronym);
+    const idx = caches.akronymByKey.get(key);
+    if (idx) {
+      const remaining = idx.aktenzeichen.filter(x => x !== aktenzeichen);
+      if (remaining.length === 0) {
+        batch.akronymDelete.add(key);
+        batch.akronymUpsert.delete(key);
+        caches.akronymByKey.delete(key);
+      } else {
+        const updated = { ...idx, aktenzeichen: remaining };
+        batch.akronymUpsert.set(key, updated);
+        batch.akronymDelete.delete(key);
+        caches.akronymByKey.set(key, updated);
+      }
+    }
+  }
+}
+
+export interface BatchedRecomputeArgs {
+  touchedAz: string[];
+  removedAz: string[];
+  schemasCache?: SchemaWithRows[];
+}
+
+/**
+ * Batch-optimized Variante. Loadet die Caches einmal und flusht alle 500
+ * Operationen in einer Multi-Store-Transaction. Sequenz: erst removedAz
+ * (cleanup), dann touchedAz (recompute). Innerhalb eines Chunks sehen
+ * spaetere Antraege den aktuellen Cache-Zustand.
+ *
+ * Erwartete Performance: Re-Import von 13k Antraegen in ~30-60 s statt ~5 min.
+ */
+export async function recomputeMultipleBatched(
+  idb: IDBStore,
+  programmId: string,
+  args: BatchedRecomputeArgs,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
+  const schemas = args.schemasCache ?? (await loadAllSchemasWithRows(idb, programmId));
+  const caches = await loadRecomputeCaches(idb, programmId, schemas);
+
+  const total = args.touchedAz.length + args.removedAz.length;
+  if (total === 0) return;
+
+  const FLUSH_THRESHOLD = 500;
+  let batch = emptyBatch();
+  let done = 0;
+  const reportProgress = (): void => {
+    if (onProgress) onProgress(done, total);
+  };
+
+  // Removals zuerst — bereinigt alte Verbund/Akronym-Refs, bevor neue Antraege
+  // sie ggf. wieder belegen.
+  for (const az of args.removedAz) {
+    removeAntragIntoBatch(caches, programmId, az, batch);
+    done++;
+    if (batchSize(batch) >= FLUSH_THRESHOLD) {
+      await flushRecomputeBatch(idb, batch);
+      batch = emptyBatch();
+      reportProgress();
+    }
+  }
+  for (const az of args.touchedAz) {
+    recomputeAntragIntoBatch(caches, programmId, az, batch);
+    done++;
+    if (batchSize(batch) >= FLUSH_THRESHOLD) {
+      await flushRecomputeBatch(idb, batch);
+      batch = emptyBatch();
+      reportProgress();
+    }
+  }
+  if (batchSize(batch) > 0) {
+    await flushRecomputeBatch(idb, batch);
+  }
+  reportProgress();
 }

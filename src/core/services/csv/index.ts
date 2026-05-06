@@ -54,10 +54,12 @@ export {
 export {
   recomputeAntrag,
   recomputeMultiple,
+  recomputeMultipleBatched,
   loadAllSchemasWithRows,
   removeAntragAndCleanup,
   discoverAktenzeichen,
 } from './merger';
+export type { BatchedRecomputeArgs } from './merger';
 export { importCsvSource } from './importer';
 export type { ImportOptions, ImportProgress } from './importer';
 

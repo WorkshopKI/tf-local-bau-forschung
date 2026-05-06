@@ -17,8 +17,7 @@ import {
 } from './idb-csv';
 import {
   loadAllSchemasWithRows,
-  recomputeAntrag,
-  removeAntragAndCleanup,
+  recomputeMultipleBatched,
 } from './merger';
 import {
   findUnterprogrammColumn,
@@ -275,13 +274,11 @@ async function runMergeForDeltas(args: MergeArgs): Promise<void> {
   const { idb, schema, newJoinValues, changedJoinValues, removedJoinValues, onProgress } = args;
   const cache = await loadAllSchemasWithRows(idb, schema.programm_id);
   const touchedAz = new Set<string>();
+  let removedAz: string[] = [];
 
-  // Antraege deren identity über aktenzeichen geht → direkter Az
   if (schema.join_key === 'aktenzeichen') {
     for (const jv of [...newJoinValues, ...changedJoinValues]) touchedAz.add(jv);
-    for (const jv of removedJoinValues) {
-      await removeAntragAndCleanup(idb, jv, schema.programm_id);
-    }
+    removedAz = removedJoinValues;
   } else {
     // Join via verbund_id / akronym → finde alle Antraege im Programm die davon betroffen sind
     const all = await listAntraegeByProgramm(idb, schema.programm_id);
@@ -294,11 +291,10 @@ async function runMergeForDeltas(args: MergeArgs): Promise<void> {
     }
   }
 
-  const azList = [...touchedAz];
-  let done = 0;
-  for (const az of azList) {
-    await recomputeAntrag(idb, az, schema.programm_id, cache);
-    done++;
-    onProgress?.(done, azList.length);
-  }
+  await recomputeMultipleBatched(
+    idb,
+    schema.programm_id,
+    { touchedAz: [...touchedAz], removedAz, schemasCache: cache },
+    onProgress,
+  );
 }
