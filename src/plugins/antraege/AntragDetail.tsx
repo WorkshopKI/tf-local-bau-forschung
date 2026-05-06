@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getAntrag, getHistoryByAz, loadSchema, listSchemas } from '@/core/services/csv';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
-import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { buildDisplayRows, groupDisplayRows, type DisplayGroup } from './buildDisplayRows';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { AntragDokumenteSection } from './AntragDokumenteSection';
@@ -26,16 +24,6 @@ function strOrNull(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
   return t.length === 0 ? null : t;
-}
-
-function formatGermanDate(iso: string): string {
-  if (/^\d{4}-\d{2}-\d{2}/.test(iso)) {
-    const d = new Date(iso);
-    if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-  }
-  return iso;
 }
 
 export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): React.ReactElement {
@@ -102,31 +90,23 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): R
 
   const titel = strOrNull(antrag.titel) ?? antrag.aktenzeichen;
   const status = strOrNull(antrag.status);
-  const eingang = strOrNull(antrag.antragsdatum);
   const foerdersumme = typeof antrag.foerdersumme === 'number' ? antrag.foerdersumme : null;
   const vorhabenInhalt = strOrNull(findFieldValue(antrag, ['vb_inhalt', 'vb inhalt', 'vorhaben_inhalt', 'vorhabeninhalt', 'beschreibung', 'kurzbeschreibung']));
+  const showFoerdersumme = foerdersumme !== null && foerdersumme > 0;
 
   return (
     <PanelShell onClose={onClose}>
       {/* Header (full-width) */}
       <div className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-snug">{titel}</h1>
-        <div className="mt-3 flex items-center gap-4 flex-wrap text-[12.5px]">
-          {status ? (
-            <Badge variant={getStatusVariant(status)}>{getStatusLabel(status)}</Badge>
-          ) : null}
-          {foerdersumme !== null && foerdersumme > 0 ? (
+        {showFoerdersumme ? (
+          <div className="mt-2 text-[12.5px]">
+            <span className="text-[var(--tf-text-tertiary)]">Fördersumme</span>{' '}
             <span className="text-[var(--tf-text-secondary)]">
-              <span className="text-[var(--tf-text-tertiary)]">Fördersumme</span>{' '}
               {foerdersumme.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
             </span>
-          ) : null}
-          {eingang ? (
-            <span className="text-[var(--tf-text-secondary)]">
-              <span className="text-[var(--tf-text-tertiary)]">Eingang</span> {formatGermanDate(eingang)}
-            </span>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       {/* 2-column layout via Container Query: ab Panel-Breite >= 768 px 2-spaltig, sonst gestackt. */}

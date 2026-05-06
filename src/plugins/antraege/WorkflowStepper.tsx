@@ -1,12 +1,20 @@
 /**
  * 5-Step Workflow-Indicator fuer Foerderantraege.
+ *
+ * Der aktive Step wird in der Status-Variante (success/warning/info/error/default) eingefaerbt —
+ * dadurch ist die Status-Info im Stepper enthalten und braucht kein separates Status-Badge im Header.
+ *
  * Mapping aus den Vorgang-Status-Werten in src/core/utils/status-mappings.ts:
- *   eingereicht                       -> 0 Eingang
- *   in_pruefung / in_begutachtung     -> 2 Fachpruefung (Vollstaendigkeit ist Vorprozess; reale Statuswerte liefern hier nicht genug Granularitaet)
- *   nachbesserung / nachforderung     -> 2 Fachpruefung (warning-Akzent)
- *   bewilligt / genehmigt             -> 3 Bewilligung
- *   abgeschlossen / archiviert        -> 4 Schluss
+ *   eingereicht                      -> 0 Eingang        (info)
+ *   in_bearbeitung                   -> 1 Vollstaendigkeit (warning)
+ *   in_pruefung / in_begutachtung    -> 2 Fachpruefung   (info / warning)
+ *   nachbesserung / nachforderung    -> 2 Fachpruefung   (warning)
+ *   abgelehnt                        -> 2 Fachpruefung   (error)
+ *   bewilligt / genehmigt            -> 3 Bewilligung    (success)
+ *   abgeschlossen / archiviert       -> 4 Schluss        (default)
  */
+import { getStatusVariant, type BadgeVariant } from '@/core/utils/status-mappings';
+
 const STEPS = ['Eingang', 'Vollständigkeit', 'Fachprüfung', 'Bewilligung', 'Schluss'] as const;
 
 const STATUS_TO_STEP: Record<string, number> = {
@@ -16,14 +24,27 @@ const STATUS_TO_STEP: Record<string, number> = {
   in_begutachtung: 2,
   nachbesserung: 2,
   nachforderung: 2,
+  abgelehnt: 2,
   bewilligt: 3,
   genehmigt: 3,
   abgeschlossen: 4,
   archiviert: 4,
 };
 
-const WARNING_STATUSES = new Set(['nachbesserung', 'nachforderung']);
-const ERROR_STATUSES = new Set(['abgelehnt']);
+function activeClassFor(variant: BadgeVariant): string {
+  switch (variant) {
+    case 'success':
+      return 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]';
+    case 'warning':
+      return 'bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]';
+    case 'info':
+      return 'bg-[var(--tf-info-bg)] text-[var(--tf-info-text)]';
+    case 'error':
+      return 'bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]';
+    default:
+      return 'bg-[var(--tf-text)] text-[var(--tf-bg)]';
+  }
+}
 
 interface Props {
   status: string;
@@ -31,26 +52,21 @@ interface Props {
 
 export function WorkflowStepper({ status }: Props): React.ReactElement {
   const activeStep = STATUS_TO_STEP[status] ?? 0;
-  const isWarning = WARNING_STATUSES.has(status);
-  const isError = ERROR_STATUSES.has(status);
+  const variant = getStatusVariant(status);
+  const activeClass = activeClassFor(variant);
 
   return (
     <div className="flex items-center gap-1.5">
       {STEPS.map((label, i) => {
-        const isActive = i === activeStep && !isError;
+        const isActive = i === activeStep;
         const isPast = i < activeStep;
-        const isFuture = i > activeStep;
 
         let className = 'px-2.5 py-1 rounded-full text-[11.5px] whitespace-nowrap';
-        if (isError) {
-          className += ' bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]';
-        } else if (isActive && isWarning) {
-          className += ' bg-[var(--tf-warning-bg,#fef3c7)] text-[var(--tf-warning-text,#92400e)]';
-        } else if (isActive) {
-          className += ' bg-[var(--tf-text)] text-[var(--tf-bg)]';
+        if (isActive) {
+          className += ` ${activeClass}`;
         } else if (isPast) {
           className += ' bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]';
-        } else if (isFuture) {
+        } else {
           className += ' text-[var(--tf-text-tertiary)]';
         }
 
