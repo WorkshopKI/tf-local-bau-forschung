@@ -123,7 +123,7 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): R
         </div>
       </div>
 
-      {verbund ? (
+      {verbund && verbund.teilantrags_ids.length > 1 ? (
         <div
           className="mb-5 p-3 rounded-lg"
           style={{ border: '0.5px solid var(--tf-border)' }}
