@@ -38,7 +38,10 @@ export {
   getUnterprogramm,
   deleteUnterprogramm,
   listUnterprogrammeByProgramm,
+  clearAntragData,
+  countAntragData,
 } from './idb-csv';
+export type { ClearAntragDataResult } from './idb-csv';
 export {
   scanDistinctColumnValues,
   listUnterprogramme,

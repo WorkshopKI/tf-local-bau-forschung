@@ -325,3 +325,61 @@ export async function deleteAkronymEntry(idb: IDBStore, programmId: string, akro
   t.objectStore(CSV_STORES.AKRONYM_INDEX).delete([programmId, akronym]);
   return waitTx(t);
 }
+
+// ---------- Wartung ----------
+
+export interface ClearAntragDataResult {
+  antraege: number;
+  verbuende: number;
+  historie: number;
+  rowHashes: number;
+}
+
+async function countStore(idb: IDBStore, store: CsvStoreName): Promise<number> {
+  const t = tx(idb, store, 'readonly');
+  return req(t.objectStore(store).count());
+}
+
+async function clearStoreFully(idb: IDBStore, store: CsvStoreName): Promise<void> {
+  const t = tx(idb, store, 'readwrite');
+  t.objectStore(store).clear();
+  return waitTx(t);
+}
+
+/**
+ * Loescht alle importierten Antrags-Daten + Historie + Akronym-Index +
+ * Row-Hashes. Behaelt PROGRAMME, UNTERPROGRAMME, CSV_SCHEMAS — der Kurator
+ * kann unmittelbar danach via "Re-Import" der bestehenden Schemas neu
+ * laden, ohne den Wizard erneut zu durchlaufen.
+ *
+ * Use-Case: Encoding-Mojibake im IDB. User bereinigt die Quell-CSV extern
+ * und re-importiert.
+ */
+export async function clearAntragData(idb: IDBStore): Promise<ClearAntragDataResult> {
+  const result: ClearAntragDataResult = {
+    antraege: await countStore(idb, CSV_STORES.ANTRAEGE),
+    verbuende: await countStore(idb, CSV_STORES.VERBUENDE),
+    historie:
+      (await countStore(idb, CSV_STORES.ANTRAG_HISTORIE)) +
+      (await countStore(idb, CSV_STORES.VERBUND_HISTORIE)),
+    rowHashes: await countStore(idb, CSV_STORES.CSV_ROW_HASHES),
+  };
+  await clearStoreFully(idb, CSV_STORES.ANTRAEGE);
+  await clearStoreFully(idb, CSV_STORES.VERBUENDE);
+  await clearStoreFully(idb, CSV_STORES.ANTRAG_HISTORIE);
+  await clearStoreFully(idb, CSV_STORES.VERBUND_HISTORIE);
+  await clearStoreFully(idb, CSV_STORES.AKRONYM_INDEX);
+  await clearStoreFully(idb, CSV_STORES.CSV_ROW_HASHES);
+  return result;
+}
+
+export async function countAntragData(idb: IDBStore): Promise<ClearAntragDataResult> {
+  return {
+    antraege: await countStore(idb, CSV_STORES.ANTRAEGE),
+    verbuende: await countStore(idb, CSV_STORES.VERBUENDE),
+    historie:
+      (await countStore(idb, CSV_STORES.ANTRAG_HISTORIE)) +
+      (await countStore(idb, CSV_STORES.VERBUND_HISTORIE)),
+    rowHashes: await countStore(idb, CSV_STORES.CSV_ROW_HASHES),
+  };
+}
