@@ -6,6 +6,20 @@ import {
   listAntraegeByProgramm,
 } from '@/core/services/csv';
 import { listVerbuendeByProgramm } from '@/core/services/csv/idb-csv';
+import type { ViewKey } from './views';
+
+const ACTIVE_VIEW_KEY = 'teamflow_antraege_active_view';
+
+function loadActiveView(): ViewKey {
+  try {
+    const v = localStorage.getItem(ACTIVE_VIEW_KEY);
+    if (v === 'meine_offenen' || v === 'diese_woche_faellig' || v === 'ueberfaellig'
+      || v === 'nachforderungen' || v === 'bewilligt_jahr' || v === 'alle') {
+      return v;
+    }
+  } catch { /* ignore */ }
+  return 'meine_offenen';
+}
 
 interface AntraegeState {
   programmId: string | null;
@@ -14,6 +28,7 @@ interface AntraegeState {
   selectedAktenzeichen: string | null;
   selectedVerbundId: string | null;
   search: string;
+  activeView: ViewKey;
   loading: boolean;
   /**
    * Lädt Antraege + Verbuende für das angegebene Programm. Wird bei
@@ -23,6 +38,7 @@ interface AntraegeState {
    */
   loadAll: (idb: IDBStore, programmId?: string) => Promise<void>;
   setSearch: (s: string) => void;
+  setActiveView: (view: ViewKey) => void;
   setSelectedAktenzeichen: (az: string | null) => void;
   setSelectedVerbundId: (id: string | null) => void;
   backToList: () => void;
@@ -35,6 +51,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   selectedAktenzeichen: null,
   selectedVerbundId: null,
   search: '',
+  activeView: loadActiveView(),
   loading: false,
 
   loadAll: async (idb: IDBStore, programmId?: string) => {
@@ -62,6 +79,11 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   },
 
   setSearch: (s: string) => set({ search: s }),
+
+  setActiveView: (view: ViewKey) => {
+    try { localStorage.setItem(ACTIVE_VIEW_KEY, view); } catch { /* ignore */ }
+    set({ activeView: view });
+  },
 
   setSelectedAktenzeichen: (az: string | null) =>
     set({ selectedAktenzeichen: az, selectedVerbundId: null }),

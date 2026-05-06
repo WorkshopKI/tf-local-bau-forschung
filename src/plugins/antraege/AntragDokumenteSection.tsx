@@ -26,6 +26,10 @@ type Variant = 'wichtig' | 'sonstige';
 interface Props {
   aktenzeichen: string;
   variant: Variant;
+  /** Im Preview-Modus rendert die Section kein Collapsible, sondern den Section-Header
+   *  inline + die ersten 3 Eintraege direkt sichtbar + einen "Alle X" Toggle. Genutzt im
+   *  Detail-Panel (variant='wichtig'), damit die wichtigsten Artefakte sofort sichtbar sind. */
+  preview?: boolean;
 }
 
 const WHITELIST: Array<{ docType: DocType; formats: string[] }> = [
@@ -82,10 +86,11 @@ function sortKey(entry: ManifestEntry, variant: Variant): [number, string, strin
   return [order[entry.doc_type] ?? 99, entry.doc_type, entry.filename];
 }
 
-export function AntragDokumenteSection({ aktenzeichen, variant }: Props): React.ReactElement | null {
+export function AntragDokumenteSection({ aktenzeichen, variant, preview = false }: Props): React.ReactElement | null {
   const storage = useStorage();
   const [entries, setEntries] = useState<ManifestEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [previewExpanded, setPreviewExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,6 +123,32 @@ export function AntragDokumenteSection({ aktenzeichen, variant }: Props): React.
 
   const label = variant === 'wichtig' ? 'Dokumente' : 'Sonstige Dokumente';
   const subtitle = `${entries.length} ${entries.length === 1 ? 'Datei' : 'Dateien'}`;
+
+  if (preview) {
+    const visible = previewExpanded ? entries : entries.slice(0, 3);
+    const hasMore = entries.length > 3;
+    return (
+      <div>
+        <div className="flex items-baseline justify-between mb-2">
+          <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
+            {variant === 'wichtig' ? 'Letzte Artefakte' : label}
+          </h3>
+          {hasMore ? (
+            <button
+              type="button"
+              onClick={() => setPreviewExpanded(v => !v)}
+              className="text-[12px] text-[var(--tf-primary)] hover:underline cursor-pointer"
+            >
+              {previewExpanded ? 'Weniger anzeigen' : `Alle ${entries.length} →`}
+            </button>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-1">
+          {visible.map(e => <DokumentRow key={e.filename} entry={e} />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <CollapsibleSection label={label} subtitle={subtitle} defaultOpen={false}>

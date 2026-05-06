@@ -11,9 +11,11 @@ interface Props {
   antraege: Antrag[];
   search: string;
   onSearchChange: (s: string) => void;
+  /** Wenn true: Quicksearch-Input ausblenden (Drawer-Modus, wenn Search im Header schon vorhanden ist). */
+  hideSearch?: boolean;
 }
 
-export function FilterSidebar({ antraege, search, onSearchChange }: Props): React.ReactElement {
+export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = false }: Props): React.ReactElement {
   const storage = useStorage();
   const {
     definitions,
@@ -41,13 +43,15 @@ export function FilterSidebar({ antraege, search, onSearchChange }: Props): Reac
   return (
     <div className="flex flex-col h-full">
       {/* Header: Quicksearch */}
-      <div className="p-3 shrink-0" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-        <Input
-          placeholder="Schnellsuche …"
-          value={search}
-          onChange={e => onSearchChange(e.target.value)}
-        />
-      </div>
+      {!hideSearch && (
+        <div className="p-3 shrink-0" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
+          <Input
+            placeholder="Schnellsuche …"
+            value={search}
+            onChange={e => onSearchChange(e.target.value)}
+          />
+        </div>
+      )}
 
       {/* Preset-Indicator */}
       {activePreset ? (

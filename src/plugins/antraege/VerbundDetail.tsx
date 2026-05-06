@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { X } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getVerbund, listAntraegeByVerbund, getVerbundHistoryByVerbund } from '@/core/services/csv';
 import { getCanonicalLabel } from '@/core/services/csv/constants';
@@ -8,13 +7,12 @@ import type { Antrag, Verbund, VerbundHistorieEntry } from '@/core/services/csv/
 
 interface Props {
   verbundId: string;
+  onClose: () => void;
+  onOpenAntrag: (aktenzeichen: string) => void;
 }
 
-export function VerbundDetail({ verbundId }: Props): React.ReactElement {
+export function VerbundDetail({ verbundId, onClose, onOpenAntrag }: Props): React.ReactElement {
   const storage = useStorage();
-  const navigate = useNavigate();
-  const backToList = (): void => navigate('/antraege');
-  const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
   const [verbund, setVerbund] = useState<Verbund | null>(null);
   const [antraege, setAntraege] = useState<Antrag[]>([]);
   const [history, setHistory] = useState<VerbundHistorieEntry[]>([]);
@@ -35,46 +33,33 @@ export function VerbundDetail({ verbundId }: Props): React.ReactElement {
 
   if (!verbund) {
     return (
-      <div className="p-6">
-        <button
-          onClick={backToList}
-          className="flex items-center gap-1 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4"
-        >
-          <ArrowLeft size={14} /> Alle Anträge
-        </button>
+      <PanelShell onClose={onClose}>
         <div className="py-10 text-[13px] text-[var(--tf-text-tertiary)]">Verbund {verbundId} nicht gefunden.</div>
-      </div>
+      </PanelShell>
     );
   }
 
   return (
-    <div className="p-6">
-      <button
-        onClick={backToList}
-        className="flex items-center gap-1 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4"
-      >
-        <ArrowLeft size={14} /> Alle Anträge
-      </button>
-
+    <PanelShell onClose={onClose}>
       <div className="mb-5">
-        <div className="flex items-baseline gap-3 flex-wrap">
-          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">
-            Verbund {verbund.akronym ?? verbund.verbund_id}
-          </h1>
-          <span className="font-mono text-[12px] text-[var(--tf-text-tertiary)]">{verbund.verbund_id}</span>
+        <div className="text-[12px] text-[var(--tf-text-tertiary)] mb-0.5">
+          Verbund · <span className="font-mono">{verbund.verbund_id}</span>
+        </div>
+        <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">
+          {verbund.akronym ?? verbund.verbund_id}
+        </h1>
+        <div className="mt-2 flex items-center gap-3 flex-wrap text-[12.5px]">
           {verbund.status ? (
             <span className="px-2 py-0.5 rounded-full text-[11.5px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]">
-              VB-Status: {verbund.status}
+              {verbund.status}
             </span>
           ) : null}
+          <span className="text-[var(--tf-text-tertiary)]">{antraege.length} Teilanträge</span>
         </div>
-        {verbund.titel ? <div className="mt-1 text-[13px] text-[var(--tf-text-secondary)]">{verbund.titel}</div> : null}
-        <div className="mt-1 text-[12px] text-[var(--tf-text-tertiary)]">
-          {antraege.length} Teilanträge
-        </div>
+        {verbund.titel ? <div className="mt-2 text-[13px] text-[var(--tf-text-secondary)]">{verbund.titel}</div> : null}
       </div>
 
-      <div className="overflow-hidden" style={{ border: '0.5px solid var(--tf-border)', borderRadius: 12 }}>
+      <div className="overflow-hidden mb-6" style={{ border: '0.5px solid var(--tf-border)', borderRadius: 12 }}>
         <table className="w-full text-[13px]">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
@@ -90,7 +75,7 @@ export function VerbundDetail({ verbundId }: Props): React.ReactElement {
                 key={a.aktenzeichen}
                 className="cursor-pointer hover:bg-[var(--tf-bg-secondary)]"
                 style={{ borderTop: '0.5px solid var(--tf-border)' }}
-                onClick={() => openAntrag(a.aktenzeichen)}
+                onClick={() => onOpenAntrag(a.aktenzeichen)}
               >
                 <td className="p-3 font-mono text-[12px]">{a.aktenzeichen}</td>
                 <td className="p-3 max-w-[400px] truncate">{str(a.titel)}</td>
@@ -102,8 +87,8 @@ export function VerbundDetail({ verbundId }: Props): React.ReactElement {
         </table>
       </div>
 
-      <div className="mt-6">
-        <h2 className="text-[13px] font-medium uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
+      <div>
+        <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
           Verbund-Historie
         </h2>
         {history.length === 0 ? (
@@ -120,7 +105,7 @@ export function VerbundDetail({ verbundId }: Props): React.ReactElement {
               >
                 <div className="flex items-baseline gap-2 flex-wrap">
                   <span className="text-[11.5px] text-[var(--tf-text-tertiary)] tabular-nums">
-                    {formatDate(h.geaendert_am)}
+                    {formatDateTime(h.geaendert_am)}
                   </span>
                   <span className="font-medium text-[var(--tf-text)]">{getCanonicalLabel(h.feld)}</span>
                   <span className="text-[var(--tf-text-tertiary)]">→</span>
@@ -140,11 +125,29 @@ export function VerbundDetail({ verbundId }: Props): React.ReactElement {
           </div>
         )}
       </div>
+    </PanelShell>
+  );
+}
+
+function PanelShell({ onClose, children }: { onClose: () => void; children: React.ReactNode }): React.ReactElement {
+  return (
+    <div className="flex-1 min-w-0 h-full overflow-y-auto" style={{ borderLeft: '0.5px solid var(--tf-border)' }}>
+      <div className="sticky top-0 z-10 flex justify-end px-4 pt-3 pb-1 bg-[var(--tf-bg)]">
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+          aria-label="Detail schließen"
+        >
+          <X size={18} />
+        </button>
+      </div>
+      <div className="px-6 pb-8">{children}</div>
     </div>
   );
 }
 
-function formatDate(iso: string): string {
+function formatDateTime(iso: string): string {
   try {
     return new Date(iso).toLocaleString('de-DE');
   } catch {
