@@ -198,3 +198,51 @@ body {
     @apply font-sans;
   }
 }
+
+/* ============================================================
+   Lightweight scrollbars — invisible until container hover.
+   Quelle: _design/handoff/design_handoff_scrollbars/HANDOFF.md
+   Hi-fi: 6px Breite, 0/14/30 % Thumb-Opazität (idle/hover/grab).
+   ============================================================ */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(60, 50, 40, 0.10) transparent;
+}
+
+/* WebKit / Chromium */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(60, 50, 40, 0);
+  border-radius: 99px;
+  transition: background 150ms ease;
+}
+*:hover > ::-webkit-scrollbar-thumb,
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(60, 50, 40, 0.14);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(60, 50, 40, 0.30);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dark theme — invertierte Thumb-Farbe für dunkle Hintergründe. */
+[data-theme="dark"] {
+  scrollbar-color: rgba(200, 195, 180, 0.10) transparent;
+}
+[data-theme="dark"] *:hover > ::-webkit-scrollbar-thumb,
+[data-theme="dark"] *:hover::-webkit-scrollbar-thumb {
+  background: rgba(200, 195, 180, 0.14);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(200, 195, 180, 0.30);
+}
