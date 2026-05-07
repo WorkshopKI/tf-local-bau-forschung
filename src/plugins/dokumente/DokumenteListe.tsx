@@ -190,7 +190,8 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
         {/* Pillen-Filter — Default: nur Tags mit ≥2 Vorkommen, Rest hinter Toggle. */}
         {tagCounts.length > 0 && (() => {
           const visible = showAllTags ? tagCounts : tagCounts.filter(([, c]) => c >= 2);
-          const hiddenCount = tagCounts.length - visible.length;
+          // Anzahl Tags, die der Toggle ein-/ausblendet (unabhängig vom State).
+          const togglableCount = tagCounts.filter(([, c]) => c < 2).length;
           // Sicherstellen, dass eine aktive Pille immer sichtbar ist (auch wenn count=1).
           const visibleWithActive = activeTag && !visible.some(([t]) => t === activeTag)
             ? [...visible, ...tagCounts.filter(([t]) => t === activeTag)]
@@ -212,13 +213,13 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
                   onClick={() => { setActiveTag(activeTag === tag ? null : tag); setPage(0); }}
                 />
               ))}
-              {hiddenCount > 0 && (
+              {togglableCount > 0 && (
                 <button
                   type="button"
                   onClick={() => setShowAllTags(prev => !prev)}
                   className="px-2 py-0.5 text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
                 >
-                  {showAllTags ? '− weniger' : `+ ${hiddenCount} weitere`}
+                  {showAllTags ? '− weniger' : `+ ${togglableCount} weitere`}
                 </button>
               )}
             </div>
