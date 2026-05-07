@@ -7,6 +7,7 @@ import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { AntragCard } from './AntragCard';
 import { useFilteredAntraege } from './useFilteredAntraege';
+import { SortDropdown } from './SortDropdown';
 
 const ROW_PAGE = 60;
 const NARROW_WIDTH_KEY = 'teamflow_antraege_narrow_width';
@@ -112,11 +113,9 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     <div className={containerClass} style={containerStyle}>
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
         <div className={narrow ? 'px-4 pt-3 pb-4' : 'px-8 pt-3 pb-6 max-w-6xl'}>
-          {/* SortHint + ActiveFilterChips — schmale Zeile direkt über den Cards. */}
+          {/* Sort-Dropdown + ActiveFilterChips — schmale Zeile direkt über den Cards. */}
           <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
-            <span className="text-[11.5px] text-[var(--tf-text-tertiary)] pt-1">
-              {view.sortHint}
-            </span>
+            <SortDropdown />
             {active.length > 0 ? (
               <div className="flex-1 min-w-0 flex justify-end">
                 <ActiveFilterChips active={active} definitions={definitions} onRemove={clearFilter} />

@@ -38,36 +38,10 @@ export interface AntragView {
   key: ViewKey;
   label: string;
   predicate: (a: Antrag) => boolean;
-  /** Anzeige-Hinweis unter der Suche, z.B. "Sortiert nach Frist (aufsteigend)". */
-  sortHint: string;
-  /** Vergleichs-Funktion zur Sortierung der Liste in dieser View. */
-  compare: (a: Antrag, b: Antrag) => number;
   /** Wenn true, rendert die Liste die Tage-bis-Frist-Spalte vor jeder Card.
    *  Bei nicht-deadline-fokussierten Views (Bewilligt, Alle) ausschalten — sonst zeigt
    *  jede Reihe ein leeres "—", weil bewilligte Antraege keine offene Frist mehr haben. */
   showDaysColumn: boolean;
-}
-
-function sortByFristAsc(a: Antrag, b: Antrag): number {
-  const da = daysUntilFrist(a);
-  const db = daysUntilFrist(b);
-  if (da === null && db === null) return a.aktenzeichen.localeCompare(b.aktenzeichen);
-  if (da === null) return 1;
-  if (db === null) return -1;
-  return da - db;
-}
-
-function sortByBewilligungDesc(a: Antrag, b: Antrag): number {
-  const da = a.bewilligung_datum;
-  const db = b.bewilligung_datum;
-  if (typeof da !== 'string' && typeof db !== 'string') return a.aktenzeichen.localeCompare(b.aktenzeichen);
-  if (typeof da !== 'string') return 1;
-  if (typeof db !== 'string') return -1;
-  return db.localeCompare(da);
-}
-
-function sortByAz(a: Antrag, b: Antrag): number {
-  return a.aktenzeichen.localeCompare(b.aktenzeichen);
 }
 
 export const VIEWS: AntragView[] = [
@@ -75,8 +49,6 @@ export const VIEWS: AntragView[] = [
     key: 'meine_offenen',
     label: 'Meine offenen',
     predicate: a => OPEN_STATUSES.has(String(a.status)),
-    sortHint: 'Sortiert nach Frist (aufsteigend)',
-    compare: sortByFristAsc,
     showDaysColumn: true,
   },
   {
@@ -86,8 +58,6 @@ export const VIEWS: AntragView[] = [
       const d = daysUntilFrist(a);
       return d !== null && d >= 0 && d <= 7;
     },
-    sortHint: 'Sortiert nach Frist (aufsteigend)',
-    compare: sortByFristAsc,
     showDaysColumn: true,
   },
   {
@@ -97,32 +67,24 @@ export const VIEWS: AntragView[] = [
       const d = daysUntilFrist(a);
       return d !== null && d < 0 && OPEN_STATUSES.has(String(a.status));
     },
-    sortHint: 'Sortiert nach Überfälligkeit',
-    compare: sortByFristAsc,
     showDaysColumn: true,
   },
   {
     key: 'nachforderungen',
     label: 'Nachforderungen',
     predicate: a => a.status === 'nachforderung' || a.status === 'nachbesserung',
-    sortHint: 'Sortiert nach Frist',
-    compare: sortByFristAsc,
     showDaysColumn: true,
   },
   {
     key: 'bewilligt_jahr',
     label: `Bewilligt ${CURRENT_YEAR}`,
     predicate: a => (a.status === 'bewilligt' || a.status === 'genehmigt') && yearOfBewilligung(a) === CURRENT_YEAR,
-    sortHint: 'Sortiert nach Bewilligungsdatum (neuste zuerst)',
-    compare: sortByBewilligungDesc,
     showDaysColumn: false,
   },
   {
     key: 'alle',
     label: 'Alle',
     predicate: () => true,
-    sortHint: 'Sortiert nach Aktenzeichen',
-    compare: sortByAz,
     showDaysColumn: false,
   },
 ];

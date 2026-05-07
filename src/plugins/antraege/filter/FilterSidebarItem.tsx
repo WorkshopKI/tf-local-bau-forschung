@@ -9,6 +9,7 @@ import { BooleanJaNeinFacet } from './facets/BooleanJaNeinFacet';
 import { DateRangeFacet } from './facets/DateRangeFacet';
 import { NumberRangeFacet } from './facets/NumberRangeFacet';
 import { TextContainsFacet } from './facets/TextContainsFacet';
+import { StatusFilterFacet } from './facets/StatusFilterFacet';
 
 interface Props {
   def: FilterDefinition;
@@ -153,16 +154,29 @@ function renderFacet(
   onChange: (value: ActiveFilterValue | null) => void,
 ): React.ReactElement {
   switch (def.typ) {
-    case 'multi_select':
+    case 'multi_select': {
+      const selectedValues = Array.isArray(active?.value) ? (active!.value as string[]) : [];
+      // Phasen-gruppierter Status-Filter (gilt auch für Custom-Status-Filter im
+      // Admin-Scope — feld-basiert, nicht nur die system-status-Seed-ID).
+      if (def.feld === 'status') {
+        return (
+          <StatusFilterFacet
+            counts={counts}
+            selected={selectedValues}
+            onChange={v => onChange(v.length === 0 ? null : v)}
+          />
+        );
+      }
       return (
         <MultiSelectFacet
           def={def}
           counts={counts}
-          selected={Array.isArray(active?.value) ? (active!.value as string[]) : []}
+          selected={selectedValues}
           valueLabels={valueLabels}
           onChange={v => onChange(v.length === 0 ? null : v)}
         />
       );
+    }
     case 'single_select':
       return (
         <SingleSelectFacet
