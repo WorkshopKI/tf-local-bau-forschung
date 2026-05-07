@@ -191,7 +191,7 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
             </div>
             <button onClick={() => setSidebarOpen(false)}
               className="p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer">
-              <Icons.PanelLeftClose size={18} />
+              <Icons.PanelLeft size={18} />
             </button>
           </div>
 
@@ -276,7 +276,7 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
               <button onClick={() => setSidebarOpen(true)}
                 className="fixed top-3 left-3 z-10 p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer bg-[var(--tf-bg)]"
                 style={{ border: '0.5px solid var(--tf-border)' }}>
-                <Icons.PanelLeftOpen size={16} />
+                <Icons.PanelLeft size={16} />
               </button>
             )}
             {children}
