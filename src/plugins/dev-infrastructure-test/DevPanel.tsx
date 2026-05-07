@@ -163,16 +163,7 @@ export function DevPanel(): React.ReactElement {
         {activeTab === 3 && <PanelWrapper><AdminPanel /></PanelWrapper>}
         {activeTab === 4 && <PanelWrapper><AtomicPanel /></PanelWrapper>}
         {activeTab === 5 && <PanelWrapper><LockPanel /></PanelWrapper>}
-        {activeTab === 6 && (
-          <div className="px-8 py-6 max-w-[1100px]">
-            <div
-              className="rounded-[var(--tf-radius-lg)] p-4 bg-[var(--tf-bg)]"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              <TriagePanel />
-            </div>
-          </div>
-        )}
+        {activeTab === 6 && <TriagePanel />}
         {activeTab === 7 && (
           __TEAMFLOW_DEV_FIXTURES__
             ? <PanelWrapper><FixturesPanel /></PanelWrapper>
