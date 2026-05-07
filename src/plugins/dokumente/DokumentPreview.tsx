@@ -9,7 +9,7 @@ import type { DocumentFull } from './store';
 export function DokumentPreview(): React.ReactElement | null {
   const storage = useStorage();
   const { suggest, addTag } = useTags();
-  const { documents, selectedId, setSelectedId, remove, updateTags, loadDocument } = useDokumenteStore();
+  const { documents, selectedId, setViewingFullDoc, remove, updateTags, loadDocument } = useDokumenteStore();
   const meta = documents.find(d => d.id === selectedId);
   const [full, setFull] = useState<DocumentFull | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,9 +32,9 @@ export function DokumentPreview(): React.ReactElement | null {
 
   return (
     <div className="px-8 pt-4 pb-6 max-w-5xl">
-      <button onClick={() => setSelectedId(null)}
+      <button onClick={() => setViewingFullDoc(false)}
         className="flex items-center gap-1 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4 cursor-pointer">
-        <ArrowLeft size={14} /> Alle Dokumente
+        <ArrowLeft size={14} /> Zurück zur Vorschau
       </button>
 
       <div className="flex items-start justify-between mb-6">

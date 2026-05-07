@@ -21,12 +21,33 @@ export interface DocumentFull extends DocumentMeta {
 // Backward-Compat: Seed-Dateien importieren `Document`
 export type Document = DocumentFull;
 
+const PINNED_KEY = 'teamflow_dokumente_pinned';
+
+function loadPinned(): Set<string> {
+  try {
+    const raw = localStorage.getItem(PINNED_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw) as unknown;
+    if (Array.isArray(arr)) return new Set(arr.filter((v): v is string => typeof v === 'string'));
+  } catch { /* ignore */ }
+  return new Set();
+}
+
+function persistPinned(set: Set<string>): void {
+  try { localStorage.setItem(PINNED_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
+}
+
 interface DokumenteState {
   documents: DocumentMeta[];
   selectedId: string | null;
   searchQuery: string;
   activeTag: string | null;
   loading: boolean;
+  /** Angeheftete Doc-IDs. Persisted in localStorage. */
+  pinned: Set<string>;
+  /** True = Fullscreen-Markdown-View aktiv (über „Öffnen" im Side-Panel).
+   *  False = Liste + optional Side-Panel rechts. */
+  viewingFullDoc: boolean;
 
   loadAll: (storage: StorageService) => Promise<void>;
   add: (doc: Omit<DocumentFull, 'id' | 'created'>, storage: StorageService) => Promise<void>;
@@ -35,6 +56,8 @@ interface DokumenteState {
   setSelectedId: (id: string | null) => void;
   setSearchQuery: (q: string) => void;
   setActiveTag: (tag: string | null) => void;
+  togglePin: (id: string) => void;
+  setViewingFullDoc: (b: boolean) => void;
   loadDocument: (id: string, storage: StorageService) => Promise<DocumentFull | null>;
 }
 
@@ -44,6 +67,8 @@ export const useDokumenteStore = create<DokumenteState>((set, get) => ({
   searchQuery: '',
   activeTag: null,
   loading: false,
+  pinned: loadPinned(),
+  viewingFullDoc: false,
 
   loadAll: async (storage) => {
     set({ loading: true });
@@ -87,9 +112,12 @@ export const useDokumenteStore = create<DokumenteState>((set, get) => ({
 
   remove: async (id, storage) => {
     await storage.idb.delete(`doc:${id}`);
+    const nextPinned = new Set(get().pinned);
+    if (nextPinned.delete(id)) persistPinned(nextPinned);
     set({
       documents: get().documents.filter(d => d.id !== id),
       selectedId: get().selectedId === id ? null : get().selectedId,
+      pinned: nextPinned,
     });
   },
 
@@ -104,9 +132,18 @@ export const useDokumenteStore = create<DokumenteState>((set, get) => ({
     set({ documents: docs });
   },
 
-  setSelectedId: (id) => set({ selectedId: id }),
+  setSelectedId: (id) => set({ selectedId: id, viewingFullDoc: false }),
   setSearchQuery: (q) => set({ searchQuery: q }),
   setActiveTag: (tag) => set({ activeTag: tag }),
+
+  togglePin: (id) => {
+    const next = new Set(get().pinned);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    persistPinned(next);
+    set({ pinned: next });
+  },
+
+  setViewingFullDoc: (b) => set({ viewingFullDoc: b }),
 
   // Volles Dokument laden (mit Markdown) — nur on-demand
   loadDocument: async (id, storage) => {
