@@ -48,7 +48,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
       {/* Toolbar: Tabs links, direkt daneben Suche + Filter. Tabs scrollen
           horizontal wenn der Platz knapp wird; Suche+Filter shrinken nicht. */}
       <div className="flex items-end gap-4">
-        <div className="flex items-end gap-6 min-w-0 overflow-x-auto overflow-y-hidden">
+        <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">
           {VIEWS.map(v => {
             const isActive = v.key === activeView;
             const cnt = counts.get(v.key) ?? 0;
@@ -57,14 +57,14 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
                 key={v.key}
                 type="button"
                 onClick={() => setActiveView(v.key)}
-                className={`pb-2.5 text-[15px] whitespace-nowrap cursor-pointer transition-colors ${
+                className={`pb-2.5 text-[14px] whitespace-nowrap cursor-pointer transition-colors ${
                   isActive
                     ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
                     : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
                 }`}
               >
                 {v.label}{' '}
-                <span className="text-[12.5px] text-[var(--tf-text-tertiary)]">
+                <span className="text-[12px] text-[var(--tf-text-tertiary)]">
                   {cnt.toLocaleString('de-DE')}
                 </span>
               </button>
