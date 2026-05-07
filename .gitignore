@@ -46,3 +46,9 @@ Thumbs.db
 
 # Claude Design Tool Exporte (PNG + HTML pro Screen, oft >1 MB) — Referenz, nicht versioniert
 _design/
+
+# CSV-Files können vertrauliche Echtdaten enthalten — nur Demo-/Test-Korpus + die anonymisierte
+# Phase-2 Sample-CSV werden bewusst getrackt.
+*.csv
+!public/test-korpus/**/*.csv
+!docs/phase-2/dms-sample.csv

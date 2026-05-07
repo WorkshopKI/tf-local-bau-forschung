@@ -49,23 +49,23 @@ describe('parseDmsCsv', () => {
     // Map-Keys sind durchgängig lowercase — exakt eine Map-Zeile pro CSV-Zeile.
     expect(map.size).toBe(10);
     // Lookup nur via lowercase-Schlüssel; entry.docId behält Original-Case.
-    const entry = map.get('gle0p601.docx');
+    const entry = map.get('sample005.docx');
     expect(entry).toBeDefined();
-    expect(entry!.docId).toBe('GLE0P601.docx');
+    expect(entry!.docId).toBe('SAMPLE005.docx');
     expect(entry!.aktenplan).toBe('7 Irrelevante Unterlagen');
-    expect(entry!.von).toBe('FFNF');
+    expect(entry!.von).toBe('KU5');
     // Lazy FKZ-Extraktion (extracted_fkz-Spalte fehlt im Original)
-    expect(entry!.extractedFkz).toBe('16KN084935');
+    expect(entry!.extractedFkz).toBe('16KN000001');
   });
 
   it('case-insensitive Lookup über lowercase-Schlüssel', () => {
     const samplePath = path.resolve(__dirname, '../../../docs/phase-2/dms-sample.csv');
     const csv = readFileSync(samplePath, 'utf-8');
     const map = parseDmsCsv(csv);
-    // GLEYL401.XLSM ist UPPER — Lookup über lowercase-Variante.
-    expect(map.get('gleyl401.xlsm')).toBeDefined();
-    expect(map.get('gleyl401.xlsm')!.aktenplan).toBe('0.2 Checklisten');
+    // SAMPLE010.XLSM ist UPPER — Lookup über lowercase-Variante.
+    expect(map.get('sample010.xlsm')).toBeDefined();
+    expect(map.get('sample010.xlsm')!.aktenplan).toBe('0.2 Checklisten');
     // Original-Case-Lookup gibt es nicht mehr — Stage 0 normalisiert.
-    expect(map.get('GLEYL401.XLSM')).toBeUndefined();
+    expect(map.get('SAMPLE010.XLSM')).toBeUndefined();
   });
 });

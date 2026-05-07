@@ -12,20 +12,20 @@ const aktenplan = buildEffectiveMapping();
 
 describe('runStage0', () => {
   it('matcht Datei mit DMS-Eintrag → relevant', () => {
-    const r = runStage0({ filename: 'GLE0P701.PDF', dmsMap, aktenplan });
+    const r = runStage0({ filename: 'SAMPLE006.PDF', dmsMap, aktenplan });
     expect(r.matched).toBe(true);
     if (r.matched) {
       expect(r.result.triage_state).toBe('relevant');
       expect(r.result.doc_type).toBe('gutachten_qs');     // 6.2 QS zur Betreuung
-      expect(r.result.extracted_fkz).toBe('16KN093323');
-      expect(r.result.creator_kuerzel).toBe('FFDN');
+      expect(r.result.extracted_fkz).toBe('16KN000002');
+      expect(r.result.creator_kuerzel).toBe('KU6');
       expect(r.result.source).toBe('dms_csv');
       expect(r.result.triage_stage).toBe(0);
     }
   });
 
   it('matcht "7 Irrelevante Unterlagen" → irrelevant', () => {
-    const r = runStage0({ filename: 'GLE0P601.docx', dmsMap, aktenplan });
+    const r = runStage0({ filename: 'SAMPLE005.docx', dmsMap, aktenplan });
     expect(r.matched).toBe(true);
     if (r.matched) {
       expect(r.result.triage_state).toBe('irrelevant');
@@ -34,7 +34,7 @@ describe('runStage0', () => {
   });
 
   it('matcht De-minimis-Bescheid → relevant, doc_type=de_minimis', () => {
-    const r = runStage0({ filename: 'GLEYL101.msg', dmsMap, aktenplan });
+    const r = runStage0({ filename: 'SAMPLE007.msg', dmsMap, aktenplan });
     expect(r.matched).toBe(true);
     if (r.matched) {
       expect(r.result.doc_type).toBe('de_minimis');
@@ -43,7 +43,7 @@ describe('runStage0', () => {
   });
 
   it('case-insensitive Lookup für UPPER-DocIDs', () => {
-    const r = runStage0({ filename: 'gleyl401.xlsm', dmsMap, aktenplan });
+    const r = runStage0({ filename: 'sample010.xlsm', dmsMap, aktenplan });
     expect(r.matched).toBe(true);
     if (r.matched) {
       expect(r.result.doc_type).toBe('checkliste');
@@ -62,9 +62,9 @@ describe('runStage0', () => {
   it('Sample-Coverage: ≥ 9 von 10 Zeilen werden korrekt klassifiziert', () => {
     // Eval-Schwelle: alle 10 DMS-Sample-Zeilen ergeben einen DocType
     const docIds = [
-      'GLE0P201.MSG', 'GLE0P301.PDF', 'GLE0P401.pdf', 'GLE0P501.DOCX',
-      'GLE0P601.docx', 'GLE0P701.PDF', 'GLEYL101.msg', 'GLEYL201.pdf',
-      'GLEYL301.pdf', 'GLEYL401.XLSM',
+      'SAMPLE001.MSG', 'SAMPLE002.PDF', 'SAMPLE003.pdf', 'SAMPLE004.DOCX',
+      'SAMPLE005.docx', 'SAMPLE006.PDF', 'SAMPLE007.msg', 'SAMPLE008.pdf',
+      'SAMPLE009.pdf', 'SAMPLE010.XLSM',
     ];
     let ok = 0;
     for (const id of docIds) {
