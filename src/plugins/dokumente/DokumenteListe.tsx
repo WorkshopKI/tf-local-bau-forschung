@@ -28,6 +28,7 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importSuccess, setImportSuccess] = useState(0);
   const [page, setPage] = useState(0);
+  const [showAllTags, setShowAllTags] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const isSearchMode = searchQuery.trim().length > 1;
@@ -186,26 +187,43 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
           />
         </div>
 
-        {/* Pillen-Filter */}
-        {tagCounts.length > 0 && (
-          <div className="flex items-center gap-2 mb-5 flex-wrap">
-            <PillButton
-              label="Alle"
-              count={documents.length}
-              active={!activeTag}
-              onClick={() => { setActiveTag(null); setPage(0); }}
-            />
-            {tagCounts.map(([tag, cnt]) => (
+        {/* Pillen-Filter — Default: nur Tags mit ≥2 Vorkommen, Rest hinter Toggle. */}
+        {tagCounts.length > 0 && (() => {
+          const visible = showAllTags ? tagCounts : tagCounts.filter(([, c]) => c >= 2);
+          const hiddenCount = tagCounts.length - visible.length;
+          // Sicherstellen, dass eine aktive Pille immer sichtbar ist (auch wenn count=1).
+          const visibleWithActive = activeTag && !visible.some(([t]) => t === activeTag)
+            ? [...visible, ...tagCounts.filter(([t]) => t === activeTag)]
+            : visible;
+          return (
+            <div className="flex items-center gap-1.5 mb-5 flex-wrap">
               <PillButton
-                key={tag}
-                label={tag}
-                count={cnt}
-                active={activeTag === tag}
-                onClick={() => { setActiveTag(activeTag === tag ? null : tag); setPage(0); }}
+                label="Alle"
+                count={documents.length}
+                active={!activeTag}
+                onClick={() => { setActiveTag(null); setPage(0); }}
               />
-            ))}
-          </div>
-        )}
+              {visibleWithActive.map(([tag, cnt]) => (
+                <PillButton
+                  key={tag}
+                  label={tag}
+                  count={cnt}
+                  active={activeTag === tag}
+                  onClick={() => { setActiveTag(activeTag === tag ? null : tag); setPage(0); }}
+                />
+              ))}
+              {hiddenCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllTags(prev => !prev)}
+                  className="px-2 py-0.5 text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+                >
+                  {showAllTags ? '− weniger' : `+ ${hiddenCount} weitere`}
+                </button>
+              )}
+            </div>
+          );
+        })()}
 
         {documents.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -322,7 +340,7 @@ function PillButton({ label, count, active, onClick }: {
     <button
       type="button"
       onClick={onClick}
-      className={`px-3 py-1.5 text-[12.5px] rounded-full whitespace-nowrap transition-colors cursor-pointer ${
+      className={`px-2.5 py-1 text-[11.5px] rounded-full whitespace-nowrap transition-colors cursor-pointer ${
         active
           ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
           : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)]'
