@@ -214,35 +214,35 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
             ) : null}
           </div>
 
-          {/* Tabs (nur in nicht-narrow Modus) */}
-          {!narrow && (
-            <div
-              className="flex items-center gap-5 mb-4 overflow-x-auto overflow-y-hidden"
-              style={{ borderBottom: '0.5px solid var(--tf-border)' }}
-            >
-              {VIEWS.map(v => {
-                const isActive = v.key === activeView;
-                const cnt = counts.get(v.key) ?? 0;
-                return (
-                  <button
-                    key={v.key}
-                    type="button"
-                    onClick={() => setActiveView(v.key)}
-                    className={`pb-2.5 text-[13px] whitespace-nowrap cursor-pointer transition-colors ${
-                      isActive
-                        ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
-                        : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
-                    }`}
-                  >
-                    {v.label}{' '}
-                    <span className="text-[var(--tf-text-tertiary)]">
-                      {cnt.toLocaleString('de-DE')}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {/* Tabs — auch im narrow Detail-Split-View sichtbar, dort kompakter. */}
+          <div
+            className={`flex items-center mb-4 overflow-x-auto overflow-y-hidden ${narrow ? 'gap-3' : 'gap-5'}`}
+            style={{ borderBottom: '0.5px solid var(--tf-border)' }}
+          >
+            {VIEWS.map(v => {
+              const isActive = v.key === activeView;
+              const cnt = counts.get(v.key) ?? 0;
+              return (
+                <button
+                  key={v.key}
+                  type="button"
+                  onClick={() => setActiveView(v.key)}
+                  className={`whitespace-nowrap cursor-pointer transition-colors ${
+                    narrow ? 'pb-2 text-[12px]' : 'pb-2.5 text-[13px]'
+                  } ${
+                    isActive
+                      ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
+                      : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
+                  }`}
+                >
+                  {v.label}{' '}
+                  <span className="text-[var(--tf-text-tertiary)]">
+                    {cnt.toLocaleString('de-DE')}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
           {/* Search + Sort hint */}
           <div className="mb-3 flex items-center gap-3">
