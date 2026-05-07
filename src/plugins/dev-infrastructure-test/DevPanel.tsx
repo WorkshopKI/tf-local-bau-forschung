@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { Alert } from '@/components/ui/alert';
@@ -8,7 +8,35 @@ import { AtomicPanel } from './panels/AtomicPanel';
 import { LockPanel } from './panels/LockPanel';
 import { TriagePanel } from './panels/TriagePanel';
 import { FixturesPanel } from './panels/FixturesPanel';
+import { DashboardPanel } from './panels/DashboardPanel';
 import type { IDBStore } from '@/core/services/storage/idb-store';
+
+type TabId = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+interface TabDef {
+  id: TabId;
+  label: string;
+}
+
+const TABS: TabDef[] = [
+  { id: 1, label: 'Übersicht' },
+  { id: 2, label: 'SMB & Handle' },
+  { id: 3, label: 'Kurator' },
+  { id: 4, label: 'Atomic Writes' },
+  { id: 5, label: 'Build-Lock' },
+  { id: 6, label: 'Phase-2' },
+  { id: 7, label: 'Fixtures' },
+];
+
+const TAB_KEY = 'teamflow_dev_infra_tab';
+
+function loadTab(): TabId {
+  try {
+    const v = Number(localStorage.getItem(TAB_KEY));
+    if (Number.isInteger(v) && v >= 1 && v <= 7) return v as TabId;
+  } catch { /* ignore */ }
+  return 1;
+}
 
 function SmbBanner(): React.ReactElement | null {
   const { status, lastCheck } = useSmbStatus();
@@ -44,20 +72,42 @@ function IframeWarning(): React.ReactElement | null {
   );
 }
 
+function PanelWrapper({ children }: { children: React.ReactNode }): React.ReactElement {
+  // Bestehende Panels rendern in eigener Card-Optik. Wir wrappen sie in einen
+  // einheitlichen Section-Container mit konsistenter Padding-Logik.
+  return (
+    <div className="px-8 py-6 max-w-[980px]">
+      <div
+        className="rounded-[var(--tf-radius-lg)] p-4 bg-[var(--tf-bg)]"
+        style={{ border: '0.5px solid var(--tf-border)' }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function DevPanel(): React.ReactElement {
   const storage = useStorage();
+  const [activeTab, setActiveTab] = useState<TabId>(loadTab);
 
   useEffect(() => {
-    // Stabil: getState() statt Hook-Objekt (würde sonst bei jedem State-Update neu referenziert → Loop).
     void useSmbStatus.getState().check(storage.idb as IDBStore);
   }, [storage.idb]);
 
+  const switchTab = (id: number): void => {
+    if (id < 1 || id > 7) return;
+    const t = id as TabId;
+    setActiveTab(t);
+    try { localStorage.setItem(TAB_KEY, String(t)); } catch { /* ignore */ }
+  };
+
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Page chrome */}
       <div
-        className="sticky top-0 z-10 px-8 py-4 bg-[var(--tf-bg)]"
+        className="shrink-0 px-8 pt-4 pb-2 bg-[var(--tf-bg)]"
         style={{
-          borderBottom: '0.5px solid var(--tf-border)',
           backgroundImage: 'repeating-linear-gradient(45deg, transparent 0 10px, rgba(0,0,0,0.025) 10px 11px)',
         }}
       >
@@ -66,59 +116,74 @@ export function DevPanel(): React.ReactElement {
             DEV
           </span>
           <h1 className="text-[18px] font-medium text-[var(--tf-text)]">Infrastruktur-Tests</h1>
-          <span className="text-[12px] text-[var(--tf-text-tertiary)]">Development &amp; Test — nicht für Produktivnutzung</span>
+          <span className="text-[12px] text-[var(--tf-text-tertiary)]">development · nicht für Produktivnutzung</span>
         </div>
       </div>
 
-      <div className="px-8 py-6">
-        <IframeWarning />
-        <SmbBanner />
-        <div className="grid gap-4 xl:grid-cols-4 lg:grid-cols-2 grid-cols-1">
-          <section
-            className="rounded-xl p-4 bg-[var(--tf-bg)]"
-            style={{ border: '0.5px solid var(--tf-border)' }}
-          >
-            <div className="mb-3 text-[13px] font-medium text-[var(--tf-text)]">1 · SMB &amp; Handle</div>
-            <SmbPanel />
-          </section>
-          <section
-            className="rounded-xl p-4 bg-[var(--tf-bg)]"
-            style={{ border: '0.5px solid var(--tf-border)' }}
-          >
-            <div className="mb-3 text-[13px] font-medium text-[var(--tf-text)]">2 · Kurator-Modus</div>
-            <AdminPanel />
-          </section>
-          <section
-            className="rounded-xl p-4 bg-[var(--tf-bg)]"
-            style={{ border: '0.5px solid var(--tf-border)' }}
-          >
-            <div className="mb-3 text-[13px] font-medium text-[var(--tf-text)]">3 · Atomic Writes &amp; Backup</div>
-            <AtomicPanel />
-          </section>
-          <section
-            className="rounded-xl p-4 bg-[var(--tf-bg)]"
-            style={{ border: '0.5px solid var(--tf-border)' }}
-          >
-            <div className="mb-3 text-[13px] font-medium text-[var(--tf-text)]">4 · Build-Lock</div>
-            <LockPanel />
-          </section>
-          <section
-            className="rounded-xl p-4 bg-[var(--tf-bg)] xl:col-span-4 lg:col-span-2"
-            style={{ border: '0.5px solid var(--tf-border)' }}
-          >
-            <div className="mb-3 text-[13px] font-medium text-[var(--tf-text)]">5 · Phase-2 Triage</div>
-            <TriagePanel />
-          </section>
-          {__TEAMFLOW_DEV_FIXTURES__ && (
-            <section
-              className="rounded-xl p-4 bg-[var(--tf-bg)] xl:col-span-4 lg:col-span-2"
+      {/* Tab-Bar */}
+      <div
+        className="shrink-0 flex items-center gap-1 px-8 overflow-x-auto"
+        style={{ borderBottom: '0.5px solid var(--tf-border)' }}
+      >
+        {TABS.map(t => {
+          const on = t.id === activeTab;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => switchTab(t.id)}
+              className={`shrink-0 px-3.5 py-2.5 text-[13px] cursor-pointer whitespace-nowrap transition-colors ${
+                on
+                  ? 'text-[var(--tf-text)] font-medium'
+                  : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
+              }`}
+              style={{
+                borderBottom: on ? '1.5px solid var(--tf-text)' : '1.5px solid transparent',
+                marginBottom: '-0.5px',
+              }}
+            >
+              {t.id} · {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab-Inhalt */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Globale Banner einmalig oben (für alle Tabs außer Übersicht). */}
+        {activeTab !== 1 && (
+          <div className="px-8 pt-4">
+            <IframeWarning />
+            <SmbBanner />
+          </div>
+        )}
+
+        {activeTab === 1 && <DashboardPanel onSwitchTab={switchTab} />}
+        {activeTab === 2 && <PanelWrapper><SmbPanel /></PanelWrapper>}
+        {activeTab === 3 && <PanelWrapper><AdminPanel /></PanelWrapper>}
+        {activeTab === 4 && <PanelWrapper><AtomicPanel /></PanelWrapper>}
+        {activeTab === 5 && <PanelWrapper><LockPanel /></PanelWrapper>}
+        {activeTab === 6 && (
+          <div className="px-8 py-6 max-w-[1100px]">
+            <div
+              className="rounded-[var(--tf-radius-lg)] p-4 bg-[var(--tf-bg)]"
               style={{ border: '0.5px solid var(--tf-border)' }}
             >
-              <div className="mb-3 text-[13px] font-medium text-[var(--tf-text)]">6 · Fixtures &amp; Aktionen</div>
-              <FixturesPanel />
-            </section>
-          )}
-        </div>
+              <TriagePanel />
+            </div>
+          </div>
+        )}
+        {activeTab === 7 && (
+          __TEAMFLOW_DEV_FIXTURES__
+            ? <PanelWrapper><FixturesPanel /></PanelWrapper>
+            : (
+              <div className="px-8 py-6">
+                <Alert variant="info">
+                  Fixtures sind in dieser Build-Variante deaktiviert (Feature-Flag <code>devFixtures = false</code>).
+                </Alert>
+              </div>
+            )
+        )}
       </div>
     </div>
   );
