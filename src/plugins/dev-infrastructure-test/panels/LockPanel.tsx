@@ -13,7 +13,7 @@ import {
   isStale,
 } from '@/core/services/infrastructure/build-lock';
 import type { BuildLock } from '@/core/services/infrastructure/types';
-import { DevRow, StatusPill } from './shared';
+import { ActionRow, Archive, Danger, Field, SectionCaption, StatusPill } from './shared';
 
 export function LockPanel(): React.ReactElement {
   const storage = useStorage();
@@ -90,33 +90,83 @@ export function LockPanel(): React.ReactElement {
   const stale = current ? isStale(current) : false;
 
   return (
-    <div>
-      <DevRow label="Aktueller Lock">
-        {current ? (
-          <>
-            <StatusPill label={current.stufe} tone="neutral" />
-            <StatusPill label={current.kurator_name} tone="neutral" />
-            <StatusPill label={`Heartbeat ${ageLabel}`} tone={stale ? 'bad' : 'ok'} />
-          </>
-        ) : (
-          <StatusPill label="frei" tone="ok" />
-        )}
-      </DevRow>
-      <DevRow label="Stufe">
+    <div className="px-8 py-6 max-w-[760px]">
+      <h2 className="text-[18px] font-medium text-[var(--tf-text)]">Build-Lock</h2>
+      <p className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed mt-1.5 mb-5 max-w-[620px]">
+        Stage-Locking + Heartbeat, damit zwei Instanzen nicht parallel ein Embedding bauen.
+      </p>
+
+      <Field label="Aktueller Lock">
+        <div className="flex items-center flex-wrap gap-2">
+          {current ? (
+            <>
+              <StatusPill label={current.stufe} tone="neutral" />
+              <StatusPill label={current.kurator_name} tone="neutral" />
+              <StatusPill label={`Heartbeat ${ageLabel}`} tone={stale ? 'bad' : 'ok'} />
+            </>
+          ) : (
+            <StatusPill label="frei" tone="ok" />
+          )}
+        </div>
+      </Field>
+
+      <Field label="Stufe">
         <Input value={stufe} onChange={e => setStufe(e.target.value)} className="max-w-[220px]" />
-      </DevRow>
-      <DevRow label="Aktionen">
-        <Button size="sm" variant="default" onClick={onAcquire}>Acquire</Button>
-        <Button size="sm" variant="outline" onClick={onHeartbeat} disabled={!current}>Heartbeat</Button>
-        <Button size="sm" variant="outline" onClick={onRelease} disabled={!current}>Release</Button>
-      </DevRow>
-      <DevRow label="Tests">
-        <Button size="sm" variant="outline" onClick={onStale} disabled={!current}>Heartbeat künstlich vor 3h</Button>
-        <Button size="sm" variant="ghost" onClick={onForceDirect}>Force ohne Dialog</Button>
-      </DevRow>
+      </Field>
+
+      <SectionCaption>Häufig</SectionCaption>
+      <ActionRow
+        title="Acquire"
+        hint="Lock setzen. Schlägt fehl, wenn jemand anderes ihn hält — Dialog erscheint mit Übernahme-Option."
+        btn={<Button size="sm" onClick={() => void onAcquire()}>Acquire</Button>}
+      />
+      <ActionRow
+        title="Heartbeat"
+        hint="Verlängert den Lock. Im Normalbetrieb läuft das automatisch."
+        btn={
+          <Button size="sm" variant="outline" onClick={() => void onHeartbeat()} disabled={!current}>
+            Heartbeat
+          </Button>
+        }
+      />
+      <ActionRow
+        title="Release"
+        hint="Lock freigeben."
+        btn={
+          <Button size="sm" variant="outline" onClick={() => void onRelease()} disabled={!current}>
+            Release
+          </Button>
+        }
+      />
+
+      <Archive title="Tests">
+        <ActionRow
+          title="Heartbeat künstlich vor 3 h"
+          hint="Simuliert einen toten Prozess für Stale-Lock-Tests."
+          btn={
+            <Button size="sm" variant="outline" onClick={() => void onStale()} disabled={!current}>
+              Vorspulen
+            </Button>
+          }
+        />
+      </Archive>
+
+      <Danger>
+        <ActionRow
+          title="Force ohne Dialog"
+          hint="Bricht einen fremden Lock ohne Bestätigung. Nur in Tests."
+          btn={
+            <Button size="sm" variant="destructive" onClick={() => void onForceDirect()}>
+              Force
+            </Button>
+          }
+        />
+      </Danger>
 
       {lastMsg ? (
-        <div className="mt-2 rounded-md bg-[var(--tf-bg-secondary)] px-3 py-1.5 text-[11.5px] text-[var(--tf-text-secondary)]">{lastMsg}</div>
+        <div className="mt-5 rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] px-3 py-2 text-[12px] text-[var(--tf-text-secondary)] break-words">
+          {lastMsg}
+        </div>
       ) : null}
 
       <Dialog

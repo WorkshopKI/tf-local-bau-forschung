@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
-import { DevRow, DevLog } from './shared';
+import { ActionRow, Archive, DevLog, SectionCaption } from './shared';
 import {
   SCENARIOS,
   applyScenario,
@@ -62,70 +62,94 @@ export function FixturesPanel(): React.ReactElement {
   };
 
   return (
-    <div>
-      <DevRow label="Szenarien">
+    <div className="px-8 py-6 max-w-[760px]">
+      <h2 className="text-[18px] font-medium text-[var(--tf-text)]">Fixtures &amp; Test-Aktionen</h2>
+      <p className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed mt-1.5 mb-5 max-w-[620px]">
+        Vordefinierte Zustände in einem Klick. Achtung: jedes Szenario überschreibt die lokale IndexedDB.
+      </p>
+
+      <SectionCaption>Szenarien</SectionCaption>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
         {SCENARIOS.map(s => (
-          <Button
+          <div
             key={s.key}
-            variant="secondary"
-            size="sm"
-            disabled={busy !== null}
-            onClick={() => onScenario(s.key, s.label)}
-            title={s.description}
+            className="flex items-start gap-3 p-3 rounded-[var(--tf-radius)] bg-[var(--tf-bg)]"
+            style={{ border: '0.5px solid var(--tf-border)' }}
           >
-            {s.label}
-          </Button>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13.5px] font-medium text-[var(--tf-text)]">{s.label}</div>
+              <div className="text-[12px] text-[var(--tf-text-secondary)] mt-1 leading-relaxed">
+                {s.description}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={() => onScenario(s.key, s.label)}
+            >
+              Anwenden
+            </Button>
+          </div>
         ))}
-      </DevRow>
+      </div>
 
-      <DevRow label="Einzel-Aktionen">
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={busy !== null}
-          onClick={() => run('CSV-Daten leeren', () => clearAllCsvSources(storage.idb))}
-        >
-          CSV leeren
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={busy !== null}
-          onClick={() => run('Kurator-Flag AN', () => setKuratorOn(storage.idb))}
-        >
-          Kurator AN
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={busy !== null}
-          onClick={() => run('Kurator-Flag AUS', () => setKuratorOff(storage.idb))}
-        >
-          Kurator AUS
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={busy !== null}
-          onClick={() => run('Offline 60s', async () => { applyOfflineMode(60_000); })}
-        >
-          Offline 60s
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={busy !== null}
-          onClick={onExportState}
-        >
-          State → Clipboard
-        </Button>
-      </DevRow>
+      <Archive title="Einzel-Aktionen (selten)">
+        <ActionRow
+          title="CSV leeren"
+          hint="Nur die CSV-Quelle, Anträge bleiben."
+          btn={
+            <Button size="sm" variant="outline" disabled={busy !== null}
+              onClick={() => run('CSV-Daten leeren', () => clearAllCsvSources(storage.idb))}>
+              Leeren
+            </Button>
+          }
+        />
+        <ActionRow
+          title="Kurator AN"
+          hint="Schaltet Schreibrechte ein, ohne Session-Dialog."
+          btn={
+            <Button size="sm" variant="outline" disabled={busy !== null}
+              onClick={() => run('Kurator-Flag AN', () => setKuratorOn(storage.idb))}>
+              AN
+            </Button>
+          }
+        />
+        <ActionRow
+          title="Kurator AUS"
+          hint="Schaltet Schreibrechte aus."
+          btn={
+            <Button size="sm" variant="outline" disabled={busy !== null}
+              onClick={() => run('Kurator-Flag AUS', () => setKuratorOff(storage.idb))}>
+              AUS
+            </Button>
+          }
+        />
+        <ActionRow
+          title="Offline 60 s"
+          hint="Simuliert Netzwerk-Ausfall."
+          btn={
+            <Button size="sm" variant="outline" disabled={busy !== null}
+              onClick={() => run('Offline 60s', async () => { applyOfflineMode(60_000); })}>
+              Offline
+            </Button>
+          }
+        />
+        <ActionRow
+          title="State → Clipboard"
+          hint="Snapshot des Zustand-Stores in die Zwischenablage."
+          btn={
+            <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => void onExportState()}>
+              Kopieren
+            </Button>
+          }
+        />
+      </Archive>
 
-      <DevRow label="Protokoll">
-        <div className="w-full">
-          <DevLog lines={log.map(format)} />
-        </div>
-      </DevRow>
+      <div className="mt-6">
+        <SectionCaption>Protokoll</SectionCaption>
+        <DevLog lines={log.map(format)} />
+      </div>
     </div>
   );
 }

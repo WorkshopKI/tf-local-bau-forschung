@@ -14,7 +14,7 @@ import {
   clearSmbHandle,
 } from '@/core/services/infrastructure/smb-handle';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
-import { DevRow, StatusPill } from './shared';
+import { ActionRow, Archive, Danger, Field, SectionCaption, StatusPill } from './shared';
 
 type PermState = 'granted' | 'denied' | 'prompt' | 'unknown';
 
@@ -124,40 +124,102 @@ export function SmbPanel(): React.ReactElement {
     setLastMsg('Dokumentenquelle-Handle entfernt.');
   };
 
-  const handleTone = handleName ? (permission === 'granted' ? 'ok' : 'warn') : 'neutral';
+  const permTone = permission === 'granted' ? 'ok' : permission === 'denied' ? 'bad' : 'warn';
   const statusTone = smbStatus.status === 'online' ? 'ok'
     : smbStatus.status === 'offline' ? 'warn'
     : smbStatus.status === 'permission_denied' ? 'bad' : 'neutral';
 
   return (
-    <div>
-      <div className="mb-3 text-[12px] text-[var(--tf-text-secondary)]">
-        Wähle den <b>Daten-Share-Root</b>, in dem <code className="text-[11px]">programm/</code>, <code className="text-[11px]">backups/</code> und <code className="text-[11px]">_intern/</code> als Geschwister liegen.
-      </div>
-      <DevRow label="Daten-Share">
-        <StatusPill label={handleName ? `✓ ${handleName}` : 'nicht gesetzt'} tone={handleTone} />
-        <StatusPill label={`Permission: ${permission}`} tone={permission === 'granted' ? 'ok' : permission === 'denied' ? 'bad' : 'warn'} />
-      </DevRow>
-      <DevRow label="Dokumentenquelle">
-        <StatusPill label={dokuHandleName ? `✓ ${dokuHandleName}` : 'nicht gesetzt'} tone={dokuHandleName ? 'ok' : 'neutral'} />
-        <Button size="xs" variant="outline" onClick={onPickDoku}>Dokumentenquelle-Handle setzen</Button>
-        {dokuHandleName ? <Button size="xs" variant="ghost" onClick={onClearDoku}>Vergessen</Button> : null}
-      </DevRow>
-      <DevRow label="Status">
-        <StatusPill label={smbStatus.status} tone={statusTone} />
-      </DevRow>
-      <DevRow label="Aktionen">
-        <Button size="sm" variant="default" onClick={onPick}>Daten-Share-Root auswählen</Button>
-        <Button size="sm" variant="outline" onClick={onRefreshPermission} disabled={!handleName}>Permission anfordern</Button>
-        <Button size="sm" variant="outline" onClick={onInitStructure} disabled={!handleName}>Ordnerstruktur initialisieren</Button>
-      </DevRow>
-      <DevRow label="Tests">
-        <Button size="sm" variant="outline" onClick={onCheck}>Verbindung prüfen</Button>
-        <Button size="sm" variant="outline" onClick={onSimDisconnect}>Disconnect simulieren (30s)</Button>
-        <Button size="sm" variant="ghost" onClick={onClearHandle} disabled={!handleName}>Handle vergessen</Button>
-      </DevRow>
+    <div className="px-8 py-6 max-w-[760px]">
+      <h2 className="text-[18px] font-medium text-[var(--tf-text)]">Verbindung zum Daten-Share-Root</h2>
+      <p className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed mt-1.5 mb-5 max-w-[620px]">
+        Wähle den Daten-Share-Root, in dem <code className="text-[11.5px]">programm/</code>,{' '}
+        <code className="text-[11.5px]">backups/</code> und <code className="text-[11.5px]">_intern/</code> als
+        Geschwister liegen.
+      </p>
+
+      <Field label="Aktiver Share">
+        <div className="flex items-center flex-wrap gap-2">
+          <StatusPill label={handleName ? `✓ ${handleName}` : 'nicht gesetzt'} tone={handleName ? 'ok' : 'neutral'} />
+          <StatusPill label={`Permission: ${permission}`} tone={permTone} />
+          <StatusPill label={smbStatus.status} tone={statusTone} />
+        </div>
+      </Field>
+
+      <Field label="Dokumentenquelle">
+        <div className="flex items-center flex-wrap gap-2">
+          <StatusPill label={dokuHandleName ? `✓ ${dokuHandleName}` : 'nicht gesetzt'} tone={dokuHandleName ? 'ok' : 'neutral'} />
+          {dokuHandleName ? (
+            <button
+              type="button"
+              onClick={() => void onClearDoku()}
+              className="text-[11px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] cursor-pointer"
+            >
+              vergessen
+            </button>
+          ) : null}
+        </div>
+      </Field>
+
+      <SectionCaption>Häufig</SectionCaption>
+      <ActionRow
+        title="Verbindung prüfen"
+        hint="Pingt den Share, validiert das Handle. Tu das, wenn Schreibvorgänge plötzlich fehlschlagen."
+        btn={<Button size="sm" onClick={onCheck}>Prüfen</Button>}
+      />
+      <ActionRow
+        title="Disconnect simulieren (30 s)"
+        hint="Trennt für 30 s, um Reconnect-Logik im UI zu testen."
+        btn={<Button size="sm" variant="outline" onClick={onSimDisconnect}>Simulieren</Button>}
+      />
+
+      <Archive title="Setup (1× pro Maschine)">
+        <ActionRow
+          title="Daten-Share-Root auswählen"
+          hint="Beim ersten Aufsetzen einer Maschine."
+          btn={<Button size="sm" variant="outline" onClick={() => void onPick()}>Auswählen</Button>}
+        />
+        <ActionRow
+          title="Permission anfordern"
+          hint="Wenn das Share-Handle nach Browser-Restart verloren ging."
+          btn={
+            <Button size="sm" variant="outline" onClick={() => void onRefreshPermission()} disabled={!handleName}>
+              Anfordern
+            </Button>
+          }
+        />
+        <ActionRow
+          title="Ordnerstruktur initialisieren"
+          hint="Legt programm/, backups/, _intern/ an. Idempotent."
+          btn={
+            <Button size="sm" variant="outline" onClick={() => void onInitStructure()} disabled={!handleName}>
+              Initialisieren
+            </Button>
+          }
+        />
+        <ActionRow
+          title="Dokumentenquelle-Handle setzen"
+          hint="Wählt den Unter-Ordner mit den Phase-2-Dokumenten."
+          btn={<Button size="sm" variant="outline" onClick={() => void onPickDoku()}>Setzen</Button>}
+        />
+      </Archive>
+
+      <Danger>
+        <ActionRow
+          title="Handle vergessen"
+          hint="Löscht das gespeicherte File-System-Handle. Nur zum Re-Test der Permission-Flow."
+          btn={
+            <Button size="sm" variant="destructive" onClick={() => void onClearHandle()} disabled={!handleName}>
+              Vergessen
+            </Button>
+          }
+        />
+      </Danger>
+
       {lastMsg ? (
-        <div className="mt-2 rounded-md bg-[var(--tf-bg-secondary)] px-3 py-1.5 text-[11.5px] text-[var(--tf-text-secondary)] break-words">{lastMsg}</div>
+        <div className="mt-5 rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] px-3 py-2 text-[12px] text-[var(--tf-text-secondary)] break-words">
+          {lastMsg}
+        </div>
       ) : null}
     </div>
   );

@@ -9,7 +9,7 @@ import { isKuratorConfigured } from '@/core/services/infrastructure/kurator-conf
 import { getRecentAudits } from '@/core/services/infrastructure/audit-log';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import type { AuditEntry } from '@/core/services/infrastructure/types';
-import { DevRow, DevLog, StatusPill } from './shared';
+import { ActionRow, Field, SectionCaption, StatusPill } from './shared';
 
 const TTL_OPTIONS: Array<{ label: string; ms: number }> = [
   { label: '30 s', ms: 30_000 },
@@ -112,44 +112,121 @@ export function AdminPanel(): React.ReactElement {
   };
 
   return (
-    <div>
-      <DevRow label="Zustand">
-        <StatusPill label={configured ? 'konfiguriert' : 'nicht konfiguriert'} tone={configured ? 'ok' : 'neutral'} />
-        <StatusPill label={session.isActive ? 'Kurator aktiv' : 'nicht angemeldet'} tone={session.isActive ? 'ok' : 'neutral'} />
-        {session.kuratorName ? <StatusPill label={session.kuratorName} tone="neutral" /> : null}
-        {expiryLabel ? <StatusPill label={`↻ ${expiryLabel}`} tone="neutral" /> : null}
-      </DevRow>
-      <DevRow label="Session-TTL">
-        {TTL_OPTIONS.map(opt => (
-          <Button key={opt.ms} size="xs" variant={session.ttlMs === opt.ms ? 'secondary' : 'outline'} onClick={() => session.setTtl(opt.ms)}>
-            {opt.label}
-          </Button>
-        ))}
-      </DevRow>
-      <DevRow label="Aktionen">
-        {!configured ? (
-          <>
-            <Button size="sm" variant="default" onClick={() => setSetupOpen(true)} disabled={!hasHandle} title={!hasHandle ? 'Erst Programm-Ordner in Spalte 1 auswählen' : undefined}>Kurator-Modus initialisieren</Button>
-            {!hasHandle ? <span className="text-[11px] text-[var(--tf-text-tertiary)]">erst Programm-Ordner wählen</span> : null}
-          </>
-        ) : !session.isActive ? (
-          <Button size="sm" variant="default" onClick={() => setLoginOpen(true)}>Kurator-Modus aktivieren</Button>
-        ) : (
-          <>
-            <Button size="sm" variant="outline" onClick={() => session.extend()}>Session verlängern</Button>
-            <Button size="sm" variant="outline" onClick={() => setChangeOpen(true)}>Passwort ändern</Button>
-            <Button size="sm" variant="ghost" onClick={onLogout}>Logout</Button>
-          </>
-        )}
-      </DevRow>
-      <DevRow label="Letzte Audit-Einträge">
-        <div className="w-full">
-          <DevLog lines={audits.map(a => `${a.ts.slice(11, 19)}  ${a.user.padEnd(16)}  ${a.action}`)} />
-          <div className="mt-1 flex justify-end">
-            <Button size="xs" variant="ghost" onClick={() => void refresh()}>Neu laden</Button>
-          </div>
+    <div className="px-8 py-6 max-w-[760px]">
+      <h2 className="text-[18px] font-medium text-[var(--tf-text)]">Kurator-Modus</h2>
+      <p className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed mt-1.5 mb-5 max-w-[620px]">
+        Eine Session, in der schreibende Aktionen erlaubt sind und das Audit-Log konsistent geführt wird.
+      </p>
+
+      <Field label="Zustand">
+        <div className="flex items-center flex-wrap gap-2">
+          <StatusPill
+            label={session.isActive ? 'aktiv' : configured ? 'konfiguriert · inaktiv' : 'nicht konfiguriert'}
+            tone={session.isActive ? 'ok' : 'neutral'}
+          />
+          {session.kuratorName ? (
+            <span className="text-[12px] text-[var(--tf-text-secondary)]">{session.kuratorName}</span>
+          ) : null}
+          {expiryLabel ? (
+            <span className="text-[12px] text-[var(--tf-text-tertiary)]">· läuft noch {expiryLabel}</span>
+          ) : null}
         </div>
-      </DevRow>
+      </Field>
+
+      <Field label="Session-Dauer (TTL)">
+        <div className="flex flex-wrap gap-1.5">
+          {TTL_OPTIONS.map(opt => {
+            const on = session.ttlMs === opt.ms;
+            return (
+              <button
+                key={opt.ms}
+                type="button"
+                onClick={() => session.setTtl(opt.ms)}
+                className={`px-3 py-1 rounded-full text-[12px] cursor-pointer transition-colors ${
+                  on
+                    ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
+                    : 'bg-[var(--tf-bg)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+                }`}
+                style={on ? undefined : { border: '0.5px solid var(--tf-border)' }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+
+      <SectionCaption>Aktionen</SectionCaption>
+      {!configured ? (
+        <ActionRow
+          title="Kurator-Modus initialisieren"
+          hint={hasHandle
+            ? 'Legt Kurator-Name + Passwort an. kurator-config.enc landet im _intern-Ordner.'
+            : 'Erst Daten-Share-Root in Tab 2 auswählen.'}
+          btn={
+            <Button
+              size="sm"
+              onClick={() => setSetupOpen(true)}
+              disabled={!hasHandle}
+            >
+              Initialisieren
+            </Button>
+          }
+        />
+      ) : !session.isActive ? (
+        <ActionRow
+          title="Kurator-Modus aktivieren"
+          hint="Schaltet schreibende Aktionen frei. TTL läuft, sobald die Session aktiv ist."
+          btn={<Button size="sm" onClick={() => setLoginOpen(true)}>Anmelden</Button>}
+        />
+      ) : (
+        <>
+          <ActionRow
+            title="Session erneuern"
+            hint="Setzt die TTL zurück, ohne abzumelden."
+            btn={<Button size="sm" onClick={() => session.extend()}>Erneuern</Button>}
+          />
+          <ActionRow
+            title="Abmelden"
+            hint="Beendet die Schreib-Session. Sicher und sauber."
+            btn={<Button size="sm" variant="outline" onClick={() => void onLogout()}>Abmelden</Button>}
+          />
+          <ActionRow
+            title="Passwort ändern"
+            hint="Ersetzt den AES-GCM-Key. Bricht keine laufende Session."
+            btn={<Button size="sm" variant="outline" onClick={() => setChangeOpen(true)}>Ändern</Button>}
+          />
+        </>
+      )}
+
+      <div className="flex items-baseline justify-between mt-6 mb-2.5">
+        <h3 className="text-[11px] uppercase text-[var(--tf-text-tertiary)] font-medium" style={{ letterSpacing: '0.08em' }}>
+          Audit-Log
+        </h3>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="text-[11px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+        >
+          ↻ neu laden
+        </button>
+      </div>
+      <div
+        className="rounded-[var(--tf-radius)] p-3 bg-[var(--tf-bg-secondary)] font-mono text-[11.5px] leading-[1.7]"
+        style={{ border: '0.5px solid var(--tf-border)' }}
+      >
+        {audits.length === 0 ? (
+          <span className="text-[var(--tf-text-tertiary)]">Keine Einträge.</span>
+        ) : (
+          audits.slice().reverse().map((a, i) => (
+            <div key={i}>
+              <span className="text-[var(--tf-text-tertiary)]">{a.ts.slice(11, 19)}</span>
+              <span className="ml-3 text-[var(--tf-text-secondary)]">{a.user}</span>
+              <span className="ml-3 text-[var(--tf-text)]">{a.action}</span>
+            </div>
+          ))
+        )}
+      </div>
 
       <Dialog
         open={setupOpen}

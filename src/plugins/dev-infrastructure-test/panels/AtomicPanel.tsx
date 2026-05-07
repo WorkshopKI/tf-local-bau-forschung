@@ -12,7 +12,7 @@ import {
 } from '@/core/services/infrastructure/backup';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import type { BackupEntry } from '@/core/services/infrastructure/types';
-import { DevRow, DevLog, StatusPill } from './shared';
+import { ActionRow, Archive, Danger, DevLog, Field, SectionCaption, StatusPill } from './shared';
 
 const DEFAULT_FILENAME = 'admin/notes.txt';
 
@@ -65,37 +65,63 @@ export function AtomicPanel(): React.ReactElement {
     await refresh();
   };
 
+  const lastBackup = backups[backups.length - 1];
+
   return (
-    <div>
-      <DevRow label="Atomic Write">
-        <div className="w-full flex flex-col gap-1.5">
-          <Input value={filename} onChange={e => setFilename(e.target.value)} placeholder="admin/notes.txt" />
-          <Textarea value={content} onChange={e => setContent(e.target.value)} rows={3} />
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="default" onClick={onWrite}>Datei atomic schreiben</Button>
-            <Button size="xs" variant="ghost" onClick={() => void refresh()}>Neu laden</Button>
-          </div>
-        </div>
-      </DevRow>
-      <DevRow label="Dateien im Ordner">
-        <div className="w-full">
+    <div className="px-8 py-6 max-w-[760px]">
+      <h2 className="text-[18px] font-medium text-[var(--tf-text)]">Atomic Writes &amp; wöchentliche Backups</h2>
+      <p className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed mt-1.5 mb-5 max-w-[620px]">
+        Eine Schreibspur, mit der man prüft: Schreiben → temporär → fsync → rename. Plus manuelle Snapshot-Erstellung.
+      </p>
+
+      <SectionCaption>Snapshots</SectionCaption>
+      <ActionRow
+        title="Backup erstellen"
+        hint="Wöchentlicher Snapshot manuell. Rolling 4 Generationen unter backups/YYYY-MM-DD/."
+        lastRun={lastBackup ? `${lastBackup.datum} · ${lastBackup.fileCount} Datei(en)` : 'noch nie'}
+        btn={<Button size="sm" onClick={() => void onBackup()}>Backup erstellen</Button>}
+      />
+      <Field
+        label="Aktuelle Snapshots"
+        hint={<StatusPill label={`${backups.length} / 4`} tone={backups.length > 4 ? 'warn' : 'neutral'} />}
+      >
+        <DevLog lines={backups.length === 0 ? [] : backups.map(b => `${b.datum}  ${b.fileCount} Datei(en)`)} />
+      </Field>
+
+      <SectionCaption>Test-Schreiben</SectionCaption>
+      <Field label="Pfad">
+        <Input value={filename} onChange={e => setFilename(e.target.value)} placeholder="admin/notes.txt" />
+      </Field>
+      <Field label="Inhalt">
+        <Textarea value={content} onChange={e => setContent(e.target.value)} rows={3} style={{ resize: 'vertical' }} />
+      </Field>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={() => void onWrite()}>Datei atomic schreiben</Button>
+        <Button size="sm" variant="ghost" onClick={() => void refresh()}>Ordner neu laden</Button>
+      </div>
+
+      <Archive title="Diagnose (selten)">
+        <Field label="Dateien im Ordner" hint="Diagnose, falls atomic-rename fehlschlägt.">
           <DevLog lines={adminFiles.map(f => `${f.hasBackup ? '✓' : ' '} ${f.name}${f.hasBackup ? '  [+ .backup]' : ''}`)} />
-        </div>
-      </DevRow>
-      <DevRow label="Wöchentliche Backups">
-        <Button size="sm" variant="default" onClick={onBackup}>Backup erstellen</Button>
-        <Button size="sm" variant="outline" onClick={onDeleteOldest} disabled={backups.length === 0}>Ältesten löschen</Button>
-      </DevRow>
-      <DevRow label="Aktuelle Snapshots">
-        <div className="w-full">
-          <DevLog lines={backups.length === 0 ? [] : backups.map(b => `${b.datum}  ${b.fileCount} Datei(en)`)} />
-          <div className="mt-1">
-            <StatusPill label={`${backups.length} / 4`} tone={backups.length > 4 ? 'warn' : 'neutral'} />
-          </div>
-        </div>
-      </DevRow>
+        </Field>
+      </Archive>
+
+      <Danger>
+        <ActionRow
+          title="Ältesten Snapshot löschen"
+          hint="Macht Platz, wenn die 4-Slot-Rotation klemmt."
+          btn={
+            <Button size="sm" variant="destructive" onClick={() => void onDeleteOldest()} disabled={backups.length === 0}>
+              Löschen
+            </Button>
+          }
+        />
+      </Danger>
+
       {lastMsg ? (
-        <div className="mt-2 rounded-md bg-[var(--tf-bg-secondary)] px-3 py-1.5 text-[11.5px] text-[var(--tf-text-secondary)]">{lastMsg}</div>
+        <div className="mt-5 rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] px-3 py-2 text-[12px] text-[var(--tf-text-secondary)] break-words">
+          {lastMsg}
+        </div>
       ) : null}
     </div>
   );

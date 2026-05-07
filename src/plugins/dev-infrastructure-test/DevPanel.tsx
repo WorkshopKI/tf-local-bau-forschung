@@ -72,21 +72,6 @@ function IframeWarning(): React.ReactElement | null {
   );
 }
 
-function PanelWrapper({ children }: { children: React.ReactNode }): React.ReactElement {
-  // Bestehende Panels rendern in eigener Card-Optik. Wir wrappen sie in einen
-  // einheitlichen Section-Container mit konsistenter Padding-Logik.
-  return (
-    <div className="px-8 py-6 max-w-[980px]">
-      <div
-        className="rounded-[var(--tf-radius-lg)] p-4 bg-[var(--tf-bg)]"
-        style={{ border: '0.5px solid var(--tf-border)' }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
 export function DevPanel(): React.ReactElement {
   const storage = useStorage();
   const [activeTab, setActiveTab] = useState<TabId>(loadTab);
@@ -159,14 +144,14 @@ export function DevPanel(): React.ReactElement {
         )}
 
         {activeTab === 1 && <DashboardPanel onSwitchTab={switchTab} />}
-        {activeTab === 2 && <PanelWrapper><SmbPanel /></PanelWrapper>}
-        {activeTab === 3 && <PanelWrapper><AdminPanel /></PanelWrapper>}
-        {activeTab === 4 && <PanelWrapper><AtomicPanel /></PanelWrapper>}
-        {activeTab === 5 && <PanelWrapper><LockPanel /></PanelWrapper>}
+        {activeTab === 2 && <SmbPanel />}
+        {activeTab === 3 && <AdminPanel />}
+        {activeTab === 4 && <AtomicPanel />}
+        {activeTab === 5 && <LockPanel />}
         {activeTab === 6 && <TriagePanel />}
         {activeTab === 7 && (
           __TEAMFLOW_DEV_FIXTURES__
-            ? <PanelWrapper><FixturesPanel /></PanelWrapper>
+            ? <FixturesPanel />
             : (
               <div className="px-8 py-6">
                 <Alert variant="info">
