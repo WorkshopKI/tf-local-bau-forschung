@@ -49,7 +49,7 @@ export function EinstellungenPage(): React.ReactElement {
   const initials = profile?.name ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '??';
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="px-8 py-6 max-w-2xl">
       <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Einstellungen</h1>
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
