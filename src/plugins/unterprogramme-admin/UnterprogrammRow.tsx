@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import type { Unterprogramm } from '@/core/services/csv/types';
-import { formatGermanDate } from '@/core/services/csv/dateParse';
 
 interface Props {
   up: Unterprogramm;
@@ -9,18 +8,7 @@ interface Props {
   onRequestToggle: (nextAktiv: boolean) => void;
 }
 
-function formatAutoZeitraum(von?: string, bis?: string): string {
-  const v = formatGermanDate(von);
-  const b = formatGermanDate(bis);
-  if (!v && !b) return '—';
-  if (v && !b) return v;
-  if (!v && b) return b;
-  if (v === b) return v;
-  return `${v} – ${b}`;
-}
-
 export function UnterprogrammRow({ up, canEdit, onEdit, onRequestToggle }: Props): React.ReactElement {
-  const auto = formatAutoZeitraum(up.zeitraum_auto_von_cached, up.zeitraum_auto_bis_cached);
   return (
     <tr style={{ borderTop: '0.5px solid var(--tf-border)' }}>
       <td className="p-3 font-mono text-[12px]">{up.code}</td>
@@ -33,16 +21,23 @@ export function UnterprogrammRow({ up, canEdit, onEdit, onRequestToggle }: Props
         />
       </td>
       <td className="p-3">
-        <InlineTextEdit
-          value={up.geplanter_zeitraum ?? ''}
-          placeholder="z.B. 2020-2025"
-          disabled={!canEdit}
-          width={110}
-          onCommit={v => onEdit({ geplanter_zeitraum: v.trim() || undefined })}
-        />
-      </td>
-      <td className="p-3 tabular-nums text-[var(--tf-text-secondary)]">
-        {auto}
+        <div className="flex items-center gap-1 text-[12px]">
+          <InlineTextEdit
+            value={up.zeitraum_von ?? ''}
+            placeholder="von"
+            disabled={!canEdit}
+            width={60}
+            onCommit={v => onEdit({ zeitraum_von: v.trim() || undefined })}
+          />
+          <span className="text-[var(--tf-text-tertiary)]">–</span>
+          <InlineTextEdit
+            value={up.zeitraum_bis ?? ''}
+            placeholder="bis"
+            disabled={!canEdit}
+            width={60}
+            onCommit={v => onEdit({ zeitraum_bis: v.trim() || undefined })}
+          />
+        </div>
       </td>
       <td className="p-3">
         <input

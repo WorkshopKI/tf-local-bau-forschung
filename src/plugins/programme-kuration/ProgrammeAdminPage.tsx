@@ -11,7 +11,6 @@ import { listAntraegeByProgramm, listProgramme } from '@/core/services/csv/idb-c
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import type { Programm } from '@/core/services/csv/types';
 import { SectionHeader } from '@/ui/SectionHeader';
-import { UnterprogrammeSection } from './unterprogramme/UnterprogrammeSection';
 
 export function ProgrammeAdminPage(): React.ReactElement {
   const storage = useStorage();
@@ -201,14 +200,6 @@ export function ProgrammeAdminPage(): React.ReactElement {
           })}
         </div>
       )}
-
-      {activeProgrammId ? (
-        <UnterprogrammeSection
-          key={activeProgrammId}
-          programmId={activeProgrammId}
-          programmName={programme.find(p => p.id === activeProgrammId)?.name}
-        />
-      ) : null}
 
       <Dialog
         open={!!renameOpen}
