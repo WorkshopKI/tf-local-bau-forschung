@@ -10,7 +10,7 @@ import type { DocumentFull } from './store';
 import { parseMarkdown, type OutlineEntry } from './markdownMeta';
 
 const WIDTH_KEY = 'teamflow_dokumente_sidepanel_width';
-const DEFAULT_WIDTH = 540;
+const DEFAULT_WIDTH = 580;
 const MIN_WIDTH = 380;
 const MAX_WIDTH = 900;
 const OUTLINE_DEFAULT = 6;
