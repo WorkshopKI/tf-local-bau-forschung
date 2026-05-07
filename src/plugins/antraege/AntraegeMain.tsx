@@ -217,7 +217,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
           {/* Tabs (nur in nicht-narrow Modus) */}
           {!narrow && (
             <div
-              className="flex items-center gap-5 mb-4 overflow-x-auto"
+              className="flex items-center gap-5 mb-4 overflow-x-auto overflow-y-hidden"
               style={{ borderBottom: '0.5px solid var(--tf-border)' }}
             >
               {VIEWS.map(v => {
