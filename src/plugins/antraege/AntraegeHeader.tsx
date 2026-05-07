@@ -57,14 +57,14 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
                 key={v.key}
                 type="button"
                 onClick={() => setActiveView(v.key)}
-                className={`pb-2.5 text-[13px] whitespace-nowrap cursor-pointer transition-colors ${
+                className={`pb-2.5 text-[14px] whitespace-nowrap cursor-pointer transition-colors ${
                   isActive
                     ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
                     : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
                 }`}
               >
                 {v.label}{' '}
-                <span className="text-[var(--tf-text-tertiary)]">
+                <span className="text-[12px] text-[var(--tf-text-tertiary)]">
                   {cnt.toLocaleString('de-DE')}
                 </span>
               </button>
