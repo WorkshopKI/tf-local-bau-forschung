@@ -45,10 +45,10 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
         </p>
       </div>
 
-      {/* Toolbar: Tabs links, Suche + Filter rechts. Tabs scrollen horizontal
-          wenn der Platz knapp wird; Suche+Filter shrinken nicht. */}
+      {/* Toolbar: Tabs links, direkt daneben Suche + Filter. Tabs scrollen
+          horizontal wenn der Platz knapp wird; Suche+Filter shrinken nicht. */}
       <div className="flex items-end gap-4">
-        <div className="flex items-end gap-5 flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
+        <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">
           {VIEWS.map(v => {
             const isActive = v.key === activeView;
             const cnt = counts.get(v.key) ?? 0;
