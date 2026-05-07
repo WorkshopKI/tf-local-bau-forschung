@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as Icons from 'lucide-react';
 import type { TeamFlowPlugin } from '@/core/types/plugin';
@@ -32,6 +32,19 @@ interface ShellLayoutProps {
   plugins: TeamFlowPlugin[];
   department?: 'antraege' | 'bauantraege' | 'beide';
   children: React.ReactNode;
+}
+
+const SIDEBAR_WIDTH_KEY = 'teamflow_sidebar_width';
+const SIDEBAR_DEFAULT = 220;
+const SIDEBAR_MIN = 180;
+const SIDEBAR_MAX = 360;
+
+function loadSidebarWidth(): number {
+  try {
+    const v = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    if (Number.isFinite(v) && v >= SIDEBAR_MIN && v <= SIDEBAR_MAX) return v;
+  } catch { /* ignore */ }
+  return SIDEBAR_DEFAULT;
 }
 
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
@@ -77,6 +90,39 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
+  const [sidebarDragging, setSidebarDragging] = useState(false);
+
+  // Sidebar-Breite per Drag-Handle anpassen.
+  const sidebarDragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const onSidebarResizeMouseDown = useCallback((e: React.MouseEvent): void => {
+    e.preventDefault();
+    sidebarDragRef.current = { startX: e.clientX, startWidth: sidebarWidth };
+    setSidebarDragging(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMove = (ev: MouseEvent): void => {
+      const drag = sidebarDragRef.current;
+      if (!drag) return;
+      const next = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, drag.startWidth + (ev.clientX - drag.startX)));
+      setSidebarWidth(next);
+    };
+    const onUp = (): void => {
+      sidebarDragRef.current = null;
+      setSidebarDragging(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)); } catch { /* ignore */ }
+  }, [sidebarWidth]);
 
   const tour = useTourContext();
   const storage = useStorage();
@@ -181,8 +227,8 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
       <div className="flex flex-1 overflow-hidden">
         <aside
           data-tour="nav-sidebar"
-          className="flex flex-col bg-[var(--tf-bg-sidebar)] transition-all duration-200 overflow-hidden shrink-0"
-          style={{ width: sidebarOpen ? 'var(--tf-sidebar-w)' : '0px', borderRight: '0.5px solid var(--tf-border)' }}
+          className={`flex flex-col bg-[var(--tf-bg-sidebar)] overflow-hidden shrink-0 ${sidebarDragging ? '' : 'transition-[width] duration-200'}`}
+          style={{ width: sidebarOpen ? sidebarWidth : 0 }}
         >
           <div className="flex items-center justify-between pl-4 pr-1 pt-4 pb-2 shrink-0">
             <div>
@@ -266,6 +312,17 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
             </div>
           </div>
         </aside>
+
+        {sidebarOpen && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Sidebar-Breite ändern"
+            onMouseDown={onSidebarResizeMouseDown}
+            className="shrink-0 w-[4px] cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
+            style={{ borderRight: '0.5px solid var(--tf-border)' }}
+          />
+        )}
 
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {isDataShareEnabled() && (
