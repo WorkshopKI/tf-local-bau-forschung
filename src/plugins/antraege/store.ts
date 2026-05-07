@@ -55,6 +55,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   loading: false,
 
   loadAll: async (idb: IDBStore, programmId?: string) => {
+    const oldProgrammId = useAntraegeStore.getState().programmId;
     set({ loading: true });
     try {
       const targetId = programmId ?? (await ensureDefaultProgramm(idb)).id;
@@ -62,15 +63,21 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
         listAntraegeByProgramm(idb, targetId),
         listVerbuendeByProgramm(idb, targetId),
       ]);
+      // Selektion nur bei tatsächlichem Programm-Wechsel löschen. Beim
+      // Initial-Load (oldProgrammId === null) oder beim Reload desselben
+      // Programms bleibt die URL-getriebene Selektion erhalten — sonst
+      // überschreibt loadAll die vom Router-Effekt eben gesetzte Selektion
+      // und der Detail-View verschwindet beim Direkt-Aufruf von
+      // /antraege/:az.
+      const programmChanged = oldProgrammId !== null && oldProgrammId !== targetId;
       set({
         programmId: targetId,
         antraege,
         verbuende,
-        // Beim Programm-Wechsel Detail-Selection clearen — der vorherige
-        // selectedAktenzeichen würde sonst auf einen Antrag zeigen, der im
-        // neuen Programm nicht existiert.
-        selectedAktenzeichen: null,
-        selectedVerbundId: null,
+        ...(programmChanged ? {
+          selectedAktenzeichen: null,
+          selectedVerbundId: null,
+        } : {}),
         loading: false,
       });
     } catch {
