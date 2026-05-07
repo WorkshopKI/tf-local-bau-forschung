@@ -89,3 +89,4 @@ export interface TeamflowConfig {
 export const runtimeConfig: TeamflowConfig = __TEAMFLOW_CONFIG__;
 export const buildTime: string = __TEAMFLOW_BUILD_TIME__;
 export const gitHash: string = __TEAMFLOW_GIT_HASH__;
+export const appVersion: string = __TEAMFLOW_APP_VERSION__;

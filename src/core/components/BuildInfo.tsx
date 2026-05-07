@@ -1,10 +1,10 @@
 /**
- * Build-Info-Footer: Variant · Git-Hash · Build-Datum.
- * Klein, dezent, unten in der Sidebar. Nützlich für Support-Fälle
- * ("welche Variante hast du, wann gebaut?") ohne große Modal-Dialoge.
+ * Kompakter Build-Info-Tag (z.B. „v1.14") für die untere Sidebar-Zeile.
+ * Tooltip auf Hover liefert das volle Set für Support: Variant, Git-Hash,
+ * Build-Datum.
  */
 
-import { runtimeConfig, buildTime, gitHash } from '@/config/runtime-config';
+import { runtimeConfig, buildTime, gitHash, appVersion } from '@/config/runtime-config';
 
 export function BuildInfo(): React.ReactElement {
   const dateStr = (() => {
@@ -15,13 +15,13 @@ export function BuildInfo(): React.ReactElement {
     }
   })();
 
+  const shortVersion = appVersion.split('.').slice(0, 2).join('.');
   return (
-    <div
-      className="px-3 py-1.5 text-[10px] text-[var(--tf-text-tertiary)] leading-tight select-none"
-      title={`${runtimeConfig.build.label} · ${runtimeConfig.variant} · ${gitHash} · ${buildTime}`}
+    <span
+      className="text-[10.5px] text-[var(--tf-text-tertiary)] select-none shrink-0 px-1"
+      title={`v${appVersion} · ${runtimeConfig.variant} · ${gitHash} · ${dateStr}`}
     >
-      <div className="truncate">{runtimeConfig.variant} · {gitHash}</div>
-      <div className="truncate">{dateStr}</div>
-    </div>
+      v{shortVersion}
+    </span>
   );
 }

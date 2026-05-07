@@ -3,7 +3,20 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import path from 'path';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { DEFAULT_CONFIG } from './scripts/config-schema.mjs';
+
+// Single source of truth für die App-Version: package.json#version.
+const pkgPath = fileURLToPath(new URL('./package.json', import.meta.url));
+const appVersion: string = (() => {
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version?: string };
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+})();
 
 export default defineConfig(({ mode }) => {
   const isSingle = mode === 'single';
@@ -30,6 +43,7 @@ export default defineConfig(({ mode }) => {
       __TEAMFLOW_CONFIG__: rawConfig,
       __TEAMFLOW_BUILD_TIME__: JSON.stringify(buildTime),
       __TEAMFLOW_GIT_HASH__: JSON.stringify(gitHash),
+      __TEAMFLOW_APP_VERSION__: JSON.stringify(appVersion),
       __TEAMFLOW_DEV_FIXTURES__: JSON.stringify(devFixturesEnabled),
     },
     build: {

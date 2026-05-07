@@ -14,6 +14,7 @@ declare module '*?worker&inline' {
 declare const __TEAMFLOW_CONFIG__: import('./src/config/runtime-config').TeamflowConfig;
 declare const __TEAMFLOW_BUILD_TIME__: string;
 declare const __TEAMFLOW_GIT_HASH__: string;
+declare const __TEAMFLOW_APP_VERSION__: string;
 /**
  * Literal-Boolean-Define für Tree-Shaking von Dev-Fixtures in Prod-Builds.
  * Spiegelt `runtimeConfig.features.devFixtures`, aber als reine Konstante

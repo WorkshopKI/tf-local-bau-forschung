@@ -292,9 +292,6 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
             )}
           </nav>
 
-          <div className="shrink-0" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-            <BuildInfo />
-          </div>
           <div className="px-2 py-1 shrink-0 flex items-center gap-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             <button
               onClick={() => tour.start()}
@@ -310,6 +307,7 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
             <div className="flex-1 min-w-0">
               <SyncStatusIndicator />
             </div>
+            <BuildInfo />
           </div>
         </aside>
 
