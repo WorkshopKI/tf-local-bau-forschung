@@ -107,7 +107,7 @@ export function ChatView(): React.ReactElement {
             <Badge variant="default">via {providerName}</Badge>
           </div>
         )}
-        <div className="max-w-2xl mx-auto space-y-4">
+        <div className="max-w-2xl space-y-4">
           {messages.map(msg => (
             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[80%] px-4 py-3 rounded-[var(--tf-radius-lg)] text-[13.5px] ${
@@ -153,7 +153,7 @@ export function ChatView(): React.ReactElement {
 
       {/* Input area */}
       <div className="p-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl">
           {selectedDirs.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
               {selectedDirs.map(dir => (

@@ -31,8 +31,8 @@ export function SuchSeite(): React.ReactElement {
   const handleFilterChange = (type: string): void => { setTypeFilter(type); handleSearch(query, type); };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex flex-col items-center mb-8">
+    <div className="p-6 max-w-4xl">
+      <div className="flex flex-col items-start mb-8">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">Suche</h1>
         <div className="relative w-full max-w-xl">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)]" />

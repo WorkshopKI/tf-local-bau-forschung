@@ -31,7 +31,7 @@ export function BauantragDetail(): React.ReactElement | null {
     : '—';
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-5xl">
       <button onClick={() => navigate('/bauantraege')} className="flex items-center gap-1 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4 cursor-pointer">
         <ArrowLeft size={14} /> Alle Bauanträge
       </button>
