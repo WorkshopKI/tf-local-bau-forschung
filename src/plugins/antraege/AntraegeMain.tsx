@@ -175,7 +175,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     <div className={containerClass} style={containerStyle}>
       {/* Main column: list content (scroll) */}
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
-        <div className={narrow ? 'px-4 py-4' : 'px-8 py-6 max-w-6xl'}>
+        <div className={narrow ? 'px-4 pt-4 pb-4' : 'px-8 pt-4 pb-6 max-w-6xl'}>
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
             <div>
