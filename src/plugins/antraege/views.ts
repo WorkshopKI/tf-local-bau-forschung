@@ -42,6 +42,10 @@ export interface AntragView {
   sortHint: string;
   /** Vergleichs-Funktion zur Sortierung der Liste in dieser View. */
   compare: (a: Antrag, b: Antrag) => number;
+  /** Wenn true, rendert die Liste die Tage-bis-Frist-Spalte vor jeder Card.
+   *  Bei nicht-deadline-fokussierten Views (Bewilligt, Alle) ausschalten — sonst zeigt
+   *  jede Reihe ein leeres "—", weil bewilligte Antraege keine offene Frist mehr haben. */
+  showDaysColumn: boolean;
 }
 
 function sortByFristAsc(a: Antrag, b: Antrag): number {
@@ -73,6 +77,7 @@ export const VIEWS: AntragView[] = [
     predicate: a => OPEN_STATUSES.has(String(a.status)),
     sortHint: 'Sortiert nach Frist (aufsteigend)',
     compare: sortByFristAsc,
+    showDaysColumn: true,
   },
   {
     key: 'diese_woche_faellig',
@@ -83,6 +88,7 @@ export const VIEWS: AntragView[] = [
     },
     sortHint: 'Sortiert nach Frist (aufsteigend)',
     compare: sortByFristAsc,
+    showDaysColumn: true,
   },
   {
     key: 'ueberfaellig',
@@ -93,6 +99,7 @@ export const VIEWS: AntragView[] = [
     },
     sortHint: 'Sortiert nach Überfälligkeit',
     compare: sortByFristAsc,
+    showDaysColumn: true,
   },
   {
     key: 'nachforderungen',
@@ -100,6 +107,7 @@ export const VIEWS: AntragView[] = [
     predicate: a => a.status === 'nachforderung' || a.status === 'nachbesserung',
     sortHint: 'Sortiert nach Frist',
     compare: sortByFristAsc,
+    showDaysColumn: true,
   },
   {
     key: 'bewilligt_jahr',
@@ -107,6 +115,7 @@ export const VIEWS: AntragView[] = [
     predicate: a => (a.status === 'bewilligt' || a.status === 'genehmigt') && yearOfBewilligung(a) === CURRENT_YEAR,
     sortHint: 'Sortiert nach Bewilligungsdatum (neuste zuerst)',
     compare: sortByBewilligungDesc,
+    showDaysColumn: false,
   },
   {
     key: 'alle',
@@ -114,6 +123,7 @@ export const VIEWS: AntragView[] = [
     predicate: () => true,
     sortHint: 'Sortiert nach Aktenzeichen',
     compare: sortByAz,
+    showDaysColumn: false,
   },
 ];
 

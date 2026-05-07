@@ -9,6 +9,9 @@ interface Props {
   selected?: boolean;
   /** Kompakte Variante fuer den Split-View: kein Days-Indicator-Block, weniger Subtext. */
   narrow?: boolean;
+  /** Wenn true (Default), wird die Tage-bis-Frist-Spalte links der Card gerendert.
+   *  Bei nicht-deadline-fokussierten Views (Bewilligt, Alle) auf false setzen. */
+  showDays?: boolean;
 }
 
 function strOrNull(v: unknown): string | null {
@@ -23,9 +26,10 @@ function formatDays(d: number | null): { text: string; tone: 'danger' | 'tertiar
   return { text: `+${d}d`, tone: 'tertiary' };
 }
 
-export function AntragCard({ antrag, onClick, selected = false, narrow = false }: Props): React.ReactElement {
+export function AntragCard({ antrag, onClick, selected = false, narrow = false, showDays = true }: Props): React.ReactElement {
   const days = daysUntilFrist(antrag);
   const daysFmt = formatDays(days);
+  const showDaysColumn = showDays && !narrow;
   const titel = strOrNull(antrag.titel) ?? antrag.aktenzeichen;
   const akronym = strOrNull(antrag.akronym);
   const antragsteller = strOrNull(antrag.antragsteller);
@@ -47,7 +51,7 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false }
       style={{ borderWidth: '0.5px', borderStyle: 'solid', ...baseStyle }}
     >
       <div className="flex items-start gap-3">
-        {!narrow && (
+        {showDaysColumn && (
           <span
             className={`shrink-0 w-[44px] tabular-nums text-[12px] font-mono pt-[1px] ${
               daysFmt.tone === 'danger' ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-text-tertiary)]'

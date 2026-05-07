@@ -284,6 +284,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
                   onClick={() => openAntrag(a.aktenzeichen)}
                   selected={selectedAktenzeichen === a.aktenzeichen}
                   narrow={narrow}
+                  showDays={view.showDaysColumn}
                 />
               ))}
               {visibleRows < filtered.length ? (
