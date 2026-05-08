@@ -20,6 +20,15 @@
    - Import oben ergänzen
    - Plugin in `allPlugins[]` einfügen (Reihenfolge bestimmt Sidebar)
    - Falls Plugin Feature-Flag-gated: zusätzlichen Filter in `passesFeatureFlags()`
+3. **Route in `src/core/routes.ts`**: neuen Eintrag in `PLUGIN_ROUTES` mit
+   `<plugin-id>: '/<route>'` ergänzen. Ohne diesen Eintrag fällt
+   `pluginIdToRoute()` auf `'/'` zurück → Sidebar-Klick landet auf Home.
+   Konvention: Kurator-Plugins unter `/kuration/<slug>`, Nutzer-Plugins
+   unter `/<slug>`, Dev-Plugins unter `/<plugin-id>`.
+4. **Route-Render in `src/core/Router.tsx`**: Plugin-ID ins `flatIds`-Array
+   eintragen. Plugins mit Detail-Routen (Listen + Detail-View per `:id`)
+   stattdessen wie `bauantraege`/`antraege` als eigene `RouteObject`-Blöcke
+   anlegen.
 
 ## ID-Konvention
 
@@ -43,4 +52,6 @@
 
 - TypeScript: `npx tsc --noEmit`
 - Build: `npm run build:dev`
-- Smoke-Test: HTML öffnen → Sidebar zeigt das neue Plugin → Navigation funktioniert
+- Smoke-Test: HTML öffnen → Sidebar zeigt das neue Plugin → Klick navigiert
+  zur erwarteten Plugin-Page (nicht Home — das wäre ein fehlender
+  `PLUGIN_ROUTES`-Eintrag oder fehlender `flatIds`-Eintrag).
