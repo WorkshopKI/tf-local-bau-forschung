@@ -187,7 +187,7 @@ export function CsvSourcesPage(): React.ReactElement {
           Wenn importierte Antrags-Daten unleserlich erscheinen
           (z.B. <code className="font-mono">Ã+ã€™Ãƒâ€¡</code> statt Umlauten), liegt fast immer ein
           Encoding-Problem an der Quell-CSV vor. Bereinige die Quelldatei extern
-          (Excel: „CSV UTF-8 (durch Komma getrennt)" beim Speichern, oder
+          (Excel: „CSV UTF-8 (durch Semikolon getrennt)" beim Speichern, oder
           <code className="font-mono"> iconv -f WINDOWS-1252 -t UTF-8</code>) und nutze danach diesen Reset:
         </p>
 
