@@ -42,6 +42,10 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
   const [label, setLabel] = useState('');
   const [subRoots, setSubRoots] = useState<string[]>([]);
   const [handle, setHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  /** Im Create-Mode: ID der bereits angelegten Source, sobald "Verzeichnis
+   * auswaehlen" einmal erfolgreich war. Wird beim Speichern als Update-Target
+   * verwendet, damit kein Duplikat entsteht. */
+  const [createdSourceId, setCreatedSourceId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +53,7 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setCreatedSourceId(null);
     if (mode.kind === 'edit') {
       setLabel(mode.source.label);
       setSubRoots(mode.source.sub_roots);
@@ -64,13 +69,19 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
 
   const isCreate = mode.kind === 'create';
   const editId = mode.kind === 'edit' ? mode.source.id : null;
+  /** Effective ID: bei Edit die existierende, bei Create die seit dem ersten
+   * Connect angelegte Source. */
+  const effectiveId = editId ?? createdSourceId;
 
   const handleConnect = async (): Promise<void> => {
     setError(null);
     setBusy(true);
     try {
-      // Wenn wir noch keine Source-ID haben (Create-Mode), erst anlegen.
-      let id = editId;
+      // Wenn wir noch keine Source-ID haben (Create-Mode, erster Connect),
+      // legen wir die Source an. Default-Label = (kommt vom Picker, gleich
+      // unten); falls der User schon manuell ein Label getippt hat, wird
+      // dieses verwendet.
+      let id = effectiveId;
       if (!id) {
         const created = await createDmsSource(storage.idb, {
           label: label.trim() || 'Neue DMS-Quelle',
@@ -79,6 +90,7 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
           created_by: session.kuratorName ?? 'dev',
         });
         id = created.id;
+        setCreatedSourceId(id);
         await logAudit(storage.idb, {
           action: 'dms_source_added',
           user: session.kuratorName ?? undefined,
@@ -90,11 +102,24 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
         if (r.reason !== 'aborted') {
           setError(r.message ?? `Picker fehlgeschlagen: ${r.reason}`);
         }
-        // Bei Create-Mode + Abort: die soeben angelegte Source wieder loeschen?
-        // Nein — der Kurator kann sie auch ohne Handle behalten und spaeter verbinden.
+        // Bei Create-Mode + Abort: die soeben angelegte Source bleibt ohne
+        // Handle. Der Kurator kann den Picker erneut ausloesen.
         return;
       }
       setHandle(r.handle);
+      // Auto-prefill Label mit dem Ordnernamen, wenn der User noch keines
+      // getippt hat. So muss er im Standardfall nichts mehr eingeben — der
+      // Ordnername ist meist gut genug.
+      if (!label.trim()) {
+        setLabel(r.handle.name);
+        // Im Create-Mode auch den persistierten Eintrag updaten, damit der
+        // Listen-Refresh nach onSaved() den richtigen Label sieht.
+        if (isCreate) {
+          try {
+            await updateDmsSource(storage.idb, id, { label: r.handle.name });
+          } catch { /* best-effort */ }
+        }
+      }
       await logAudit(storage.idb, {
         action: 'dms_source_handle_picked',
         user: session.kuratorName ?? undefined,
@@ -119,9 +144,11 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
     }
     setBusy(true);
     try {
-      if (editId) {
+      if (effectiveId) {
+        // Update-Pfad: greift sowohl im echten Edit-Mode als auch im
+        // Create-Mode nach dem ersten Connect (createdSourceId gesetzt).
         const before = mode.kind === 'edit' ? mode.source : null;
-        await updateDmsSource(storage.idb, editId, {
+        await updateDmsSource(storage.idb, effectiveId, {
           label: label.trim(),
           sub_roots: subRoots,
         });
@@ -129,7 +156,7 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
           await logAudit(storage.idb, {
             action: 'dms_source_label_changed',
             user: session.kuratorName ?? undefined,
-            details: { id: editId, from: before.label, to: label.trim() },
+            details: { id: effectiveId, from: before.label, to: label.trim() },
           });
         }
         if (
@@ -139,11 +166,12 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
           await logAudit(storage.idb, {
             action: 'dms_source_subroots_changed',
             user: session.kuratorName ?? undefined,
-            details: { id: editId, sub_roots: subRoots },
+            details: { id: effectiveId, sub_roots: subRoots },
           });
         }
-        onSaved(editId);
+        onSaved(effectiveId);
       } else {
+        // Create-Mode ohne Connect: Source ohne Handle anlegen.
         const created = await createDmsSource(storage.idb, {
           label: label.trim(),
           sub_roots: subRoots,
@@ -172,8 +200,8 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
       title={isCreate ? 'Neue DMS-Quelle' : 'DMS-Quelle bearbeiten'}
       description={
         isCreate
-          ? 'Quelle anlegen, dann Verzeichnis verbinden und optional Sub-Roots wählen.'
-          : 'Label, Sub-Roots und Verbindung bearbeiten.'
+          ? 'Verzeichnis auswählen, Label vergeben und optional Sub-Roots einschränken.'
+          : 'Verbindung, Label und Sub-Roots bearbeiten.'
       }
       dismissOnOverlayClick={false}
       className="max-w-2xl"
@@ -192,19 +220,7 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
       <div className="space-y-4">
         <div className="space-y-1.5">
           <label className="text-[12.5px] font-medium text-[var(--tf-text)]">
-            Label
-          </label>
-          <Input
-            value={label}
-            onChange={e => setLabel(e.target.value)}
-            placeholder="z.B. DMS Hauptarchiv"
-            autoFocus
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-[12.5px] font-medium text-[var(--tf-text)]">
-            Verzeichnis (read-only)
+            1. Verzeichnis (read-only)
           </label>
           <div className="flex items-center gap-2">
             <Button
@@ -213,9 +229,9 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
               onClick={() => void handleConnect()}
               disabled={busy}
             >
-              {handle ? 'Erneut verbinden' : 'Verzeichnis auswählen'}
+              {handle ? 'Anderen Ordner wählen' : 'Verzeichnis auswählen'}
             </Button>
-            <span className="text-[12px] text-[var(--tf-text-secondary)]">
+            <span className="text-[12px] text-[var(--tf-text-secondary)] truncate">
               {handle
                 ? `verbunden: ${(handle as FileSystemDirectoryHandle).name}`
                 : 'nicht verbunden'}
@@ -230,10 +246,26 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
           </p>
         </div>
 
-        {!isCreate && (
+        <div className="space-y-1.5">
+          <label className="text-[12.5px] font-medium text-[var(--tf-text)]">
+            2. Label
+          </label>
+          <Input
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            placeholder={handle ? handle.name : 'z.B. DMS Hauptarchiv'}
+          />
+          <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+            {handle
+              ? 'Vor-belegt mit dem Ordnernamen. Du kannst es überschreiben, falls die Quelle in der Liste anders heißen soll.'
+              : 'Anzeige-Name in der DMS-Quellen-Liste.'}
+          </p>
+        </div>
+
+        {handle && (
           <div className="space-y-1.5">
             <label className="text-[12.5px] font-medium text-[var(--tf-text)]">
-              Sub-Roots (optional)
+              3. Sub-Roots (optional)
             </label>
             <p className="text-[11px] text-[var(--tf-text-tertiary)]">
               Auswahl einschränken auf bestimmte Unterverzeichnisse. Leer =

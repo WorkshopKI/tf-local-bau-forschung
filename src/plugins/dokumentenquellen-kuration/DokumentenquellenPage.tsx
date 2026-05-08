@@ -13,7 +13,7 @@ import { AktivierenIndexierenSection } from './sections/AktivierenIndexierenSect
 
 export function DokumentenquellenPage(): React.ReactElement {
   const storage = useStorage();
-  const { sources, handleStatus, loading, error, reload } = useDmsSources(storage.idb);
+  const { sources, handleStatus, handleNames, loading, error, reload } = useDmsSources(storage.idb);
 
   const showDev = isDevInfraPanelEnabled() || import.meta.env.DEV;
 
@@ -43,12 +43,14 @@ export function DokumentenquellenPage(): React.ReactElement {
             <VerwaltenSection
               sources={sources}
               handleStatus={handleStatus}
+              handleNames={handleNames}
               onChanged={reload}
             />
           )}
           <AktivierenIndexierenSection
             sources={sources}
             handleStatus={handleStatus}
+            handleNames={handleNames}
             onChanged={reload}
           />
         </div>

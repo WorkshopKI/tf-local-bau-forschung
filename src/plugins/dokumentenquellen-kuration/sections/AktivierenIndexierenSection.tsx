@@ -32,6 +32,7 @@ import { runBulkTriageForSources } from '../services/bulk-run';
 export interface AktivierenIndexierenSectionProps {
   sources: DmsSourceEntry[];
   handleStatus: Record<string, DmsSourceHandleStatus>;
+  handleNames: Record<string, string | null>;
   onChanged: () => Promise<void> | void;
 }
 
@@ -43,6 +44,7 @@ interface PerSourceProgress {
 export function AktivierenIndexierenSection({
   sources,
   handleStatus,
+  handleNames,
   onChanged,
 }: AktivierenIndexierenSectionProps): React.ReactElement {
   const storage = useStorage();
@@ -213,11 +215,16 @@ export function AktivierenIndexierenSection({
                     </div>
                     <div className="mt-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
                       {status === 'connected'
-                        ? `Verbunden · ${s.sub_roots.length === 0 ? 'ganzer Handle' : `${s.sub_roots.length} Sub-Root${s.sub_roots.length === 1 ? '' : 's'}`}`
+                        ? `Verbunden · ${s.sub_roots.length === 0 ? 'ganzer Ordner' : `${s.sub_roots.length} Sub-Root${s.sub_roots.length === 1 ? '' : 's'}`}`
                         : status === 'permission_lost'
                           ? 'Berechtigung verloren — Dev muss neu verbinden'
                           : 'Kein Handle — Dev muss verbinden'}
                     </div>
+                    {handleNames[s.id] && (
+                      <div className="mt-0.5 text-[11.5px] text-[var(--tf-text-secondary)] font-mono truncate" title={handleNames[s.id] ?? undefined}>
+                        Ordner: {handleNames[s.id]}
+                      </div>
+                    )}
                     {s.last_indexed_at && s.last_index_stats && (
                       <div className="mt-1 text-[11.5px] text-[var(--tf-text-secondary)]">
                         Zuletzt indexiert {new Date(s.last_indexed_at).toLocaleString('de-DE')} · {s.last_index_stats.docs_total.toLocaleString('de-DE')} Dateien (

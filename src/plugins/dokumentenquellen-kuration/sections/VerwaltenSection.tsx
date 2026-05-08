@@ -37,10 +37,11 @@ const TONE_BADGE: Record<'ok' | 'warn' | 'danger', string> = {
 export interface VerwaltenSectionProps {
   sources: DmsSourceEntry[];
   handleStatus: Record<string, DmsSourceHandleStatus>;
+  handleNames: Record<string, string | null>;
   onChanged: () => Promise<void> | void;
 }
 
-export function VerwaltenSection({ sources, handleStatus, onChanged }: VerwaltenSectionProps): React.ReactElement {
+export function VerwaltenSection({ sources, handleStatus, handleNames, onChanged }: VerwaltenSectionProps): React.ReactElement {
   const storage = useStorage();
   const session = useKuratorSession();
 
@@ -161,7 +162,12 @@ export function VerwaltenSection({ sources, handleStatus, onChanged }: Verwalten
                         {statusInfo.text}
                       </span>
                     </div>
-                    <div className="mt-1 text-[11.5px] text-[var(--tf-text-tertiary)] font-mono">
+                    {handleNames[s.id] && (
+                      <div className="mt-1 text-[11.5px] text-[var(--tf-text-secondary)] font-mono truncate" title={handleNames[s.id] ?? undefined}>
+                        Ordner: {handleNames[s.id]}
+                      </div>
+                    )}
+                    <div className="mt-0.5 text-[11.5px] text-[var(--tf-text-tertiary)] font-mono">
                       {s.sub_roots.length === 0
                         ? 'Sub-Roots: (ganzer Handle)'
                         : `Sub-Roots: ${s.sub_roots.length}× (${s.sub_roots.slice(0, 3).map(p => p || '/').join(', ')}${s.sub_roots.length > 3 ? '…' : ''})`}

@@ -21,35 +21,45 @@ export interface DmsSourcesState {
   sources: DmsSourceEntry[];
   /** Map sourceId -> handle status (live, nicht persistiert). */
   handleStatus: Record<string, DmsSourceHandleStatus>;
+  /**
+   * Map sourceId -> Ordnername des verbundenen Handles. Browser-Security
+   * erlaubt nur den letzten Pfad-Bestandteil — kein vollstaendiger Pfad.
+   * `null` wenn kein Handle verbunden.
+   */
+  handleNames: Record<string, string | null>;
   loading: boolean;
   error: string | null;
   reload: () => Promise<void>;
 }
 
-async function probeHandleStatus(
+async function probeHandles(
   idb: IDBStore,
   sources: DmsSourceEntry[],
-): Promise<Record<string, DmsSourceHandleStatus>> {
-  const out: Record<string, DmsSourceHandleStatus> = {};
+): Promise<{ status: Record<string, DmsSourceHandleStatus>; names: Record<string, string | null> }> {
+  const status: Record<string, DmsSourceHandleStatus> = {};
+  const names: Record<string, string | null> = {};
   for (const s of sources) {
     const h = await getDmsSourceHandle(idb, s.id);
     if (!h) {
-      out[s.id] = 'missing';
+      status[s.id] = 'missing';
+      names[s.id] = null;
       continue;
     }
+    names[s.id] = h.name;
     try {
       const perm = await queryReadPermission(h);
-      out[s.id] = perm === 'granted' ? 'connected' : 'permission_lost';
+      status[s.id] = perm === 'granted' ? 'connected' : 'permission_lost';
     } catch {
-      out[s.id] = 'permission_lost';
+      status[s.id] = 'permission_lost';
     }
   }
-  return out;
+  return { status, names };
 }
 
 export function useDmsSources(idb: IDBStore): DmsSourcesState {
   const [sources, setSources] = useState<DmsSourceEntry[]>([]);
   const [handleStatus, setHandleStatus] = useState<Record<string, DmsSourceHandleStatus>>({});
+  const [handleNames, setHandleNames] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,8 +69,9 @@ export function useDmsSources(idb: IDBStore): DmsSourcesState {
     try {
       const all = await listDmsSources(idb);
       setSources(all);
-      const status = await probeHandleStatus(idb, all);
-      setHandleStatus(status);
+      const probed = await probeHandles(idb, all);
+      setHandleStatus(probed.status);
+      setHandleNames(probed.names);
     } catch (e) {
       setError(`Liste konnte nicht geladen werden: ${(e as Error).message}`);
     } finally {
@@ -72,5 +83,5 @@ export function useDmsSources(idb: IDBStore): DmsSourcesState {
     void reload();
   }, [reload]);
 
-  return { sources, handleStatus, loading, error, reload };
+  return { sources, handleStatus, handleNames, loading, error, reload };
 }
