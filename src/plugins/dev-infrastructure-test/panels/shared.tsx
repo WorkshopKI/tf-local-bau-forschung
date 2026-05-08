@@ -115,11 +115,17 @@ export function Field({ label, hint, children }: {
   );
 }
 
-export function ActionRow({ title, hint, btn, lastRun }: {
+export function ActionRow({ title, hint, btn, lastRun, status }: {
   title: string;
   hint?: string;
   btn: ReactNode;
   lastRun?: string;
+  /**
+   * Inline-Status pro Aktion: zeigt z.B. den aktuellen Handle-Namen oder
+   * "noch nicht gesetzt", damit der User auf einen Blick sieht, ob die
+   * Aktion schon erfolgreich war und worauf sie sich bezieht.
+   */
+  status?: ReactNode;
 }): React.ReactElement {
   return (
     <div
@@ -131,6 +137,9 @@ export function ActionRow({ title, hint, btn, lastRun }: {
         {hint ? (
           <div className="text-[12px] text-[var(--tf-text-secondary)] mt-1 leading-relaxed">{hint}</div>
         ) : null}
+        {status ? (
+          <div className="text-[11.5px] mt-1.5 flex items-center gap-1.5 flex-wrap">{status}</div>
+        ) : null}
         {lastRun ? (
           <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-1 font-mono">zuletzt {lastRun}</div>
         ) : null}
@@ -140,14 +149,16 @@ export function ActionRow({ title, hint, btn, lastRun }: {
   );
 }
 
-export function Archive({ title = 'Selten gebraucht / Archiv', children }: {
+export function Archive({ title = 'Selten gebraucht / Archiv', children, defaultOpen = false }: {
   title?: string;
   children: ReactNode;
+  defaultOpen?: boolean;
 }): React.ReactElement {
   return (
     <details
       className="mt-4 pt-3"
       style={{ borderTop: '0.5px solid var(--tf-border)' }}
+      open={defaultOpen}
     >
       <summary className="cursor-pointer text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] select-none">
         {title}

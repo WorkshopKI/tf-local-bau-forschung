@@ -18,12 +18,38 @@ import { ActionRow, Archive, Danger, Field, SectionCaption, StatusPill } from '.
 
 type PermState = 'granted' | 'denied' | 'prompt' | 'unknown';
 
+interface FolderStructureProbe {
+  programm: boolean;
+  backups: boolean;
+  intern: boolean;
+}
+
+async function probeFolderStructure(
+  parent: FileSystemDirectoryHandle,
+): Promise<FolderStructureProbe> {
+  const out: FolderStructureProbe = { programm: false, backups: false, intern: false };
+  try {
+    await parent.getDirectoryHandle('programm');
+    out.programm = true;
+  } catch { /* missing */ }
+  try {
+    await parent.getDirectoryHandle('backups');
+    out.backups = true;
+  } catch { /* missing */ }
+  try {
+    await parent.getDirectoryHandle('_intern');
+    out.intern = true;
+  } catch { /* missing */ }
+  return out;
+}
+
 export function SmbPanel(): React.ReactElement {
   const storage = useStorage();
   const smbStatus = useSmbStatus();
   const [handleName, setHandleName] = useState<string | null>(null);
   const [permission, setPermission] = useState<PermState>('unknown');
   const [dokuHandleName, setDokuHandleName] = useState<string | null>(null);
+  const [structure, setStructure] = useState<FolderStructureProbe | null>(null);
   const [lastMsg, setLastMsg] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -35,8 +61,14 @@ export function SmbPanel(): React.ReactElement {
       } catch {
         setPermission('unknown');
       }
+      try {
+        setStructure(await probeFolderStructure(h));
+      } catch {
+        setStructure(null);
+      }
     } else {
       setPermission('unknown');
+      setStructure(null);
     }
     const doku = await getDokumentenquelleHandle(storage.idb);
     setDokuHandleName(doku?.name ?? null);
@@ -209,15 +241,32 @@ export function SmbPanel(): React.ReactElement {
         btn={<Button size="sm" variant="outline" onClick={onSimDisconnect}>Simulieren</Button>}
       />
 
-      <Archive title="Setup (1× pro Maschine)">
+      <Archive title="Setup (1× pro Maschine)" defaultOpen>
         <ActionRow
           title="Daten-Share-Root auswählen"
           hint="Beim ersten Aufsetzen einer Maschine."
+          status={
+            handleName ? (
+              <StatusPill label={`✓ ${handleName}`} tone="ok" />
+            ) : (
+              <StatusPill label="noch nicht gesetzt" tone="warn" />
+            )
+          }
           btn={<Button size="sm" variant="outline" onClick={() => void onPick()}>Auswählen</Button>}
         />
         <ActionRow
           title="Permission anfordern"
           hint="Wenn das Share-Handle nach Browser-Restart verloren ging."
+          status={
+            !handleName ? (
+              <StatusPill label="kein Handle" tone="neutral" />
+            ) : (
+              <StatusPill
+                label={`Permission: ${permission}`}
+                tone={permission === 'granted' ? 'ok' : permission === 'denied' ? 'bad' : 'warn'}
+              />
+            )
+          }
           btn={
             <Button size="sm" variant="outline" onClick={() => void onRefreshPermission()} disabled={!handleName}>
               Anfordern
@@ -227,6 +276,21 @@ export function SmbPanel(): React.ReactElement {
         <ActionRow
           title="Ordnerstruktur initialisieren"
           hint="Legt programm/, backups/, _intern/ an. Idempotent."
+          status={
+            !handleName ? (
+              <StatusPill label="kein Handle" tone="neutral" />
+            ) : structure === null ? (
+              <StatusPill label="prüfe…" tone="neutral" />
+            ) : structure.programm && structure.backups && structure.intern ? (
+              <StatusPill label="✓ programm/ + backups/ + _intern/" tone="ok" />
+            ) : (
+              <>
+                <StatusPill label={structure.programm ? '✓ programm/' : '✗ programm/'} tone={structure.programm ? 'ok' : 'warn'} />
+                <StatusPill label={structure.backups ? '✓ backups/' : '✗ backups/'} tone={structure.backups ? 'ok' : 'warn'} />
+                <StatusPill label={structure.intern ? '✓ _intern/' : '✗ _intern/'} tone={structure.intern ? 'ok' : 'warn'} />
+              </>
+            )
+          }
           btn={
             <Button size="sm" variant="outline" onClick={() => void onInitStructure()} disabled={!handleName}>
               Initialisieren
@@ -234,8 +298,15 @@ export function SmbPanel(): React.ReactElement {
           }
         />
         <ActionRow
-          title="Dokumentenquelle-Handle setzen"
-          hint="Wählt den Unter-Ordner mit den Phase-2-Dokumenten."
+          title="Dokumentenquelle-Handle setzen (Legacy)"
+          hint='Wählt den Unter-Ordner mit den Phase-2-Dokumenten. Seit v1.15 nur noch für Triage-Einzeltests in Tab „Phase-2“; produktive DMS-Quellen verwaltet das Plugin „Dokumentenquellen“.'
+          status={
+            dokuHandleName ? (
+              <StatusPill label={`✓ ${dokuHandleName}`} tone="ok" />
+            ) : (
+              <StatusPill label="nicht gesetzt" tone="neutral" />
+            )
+          }
           btn={<Button size="sm" variant="outline" onClick={() => void onPickDoku()}>Setzen</Button>}
         />
       </Archive>
