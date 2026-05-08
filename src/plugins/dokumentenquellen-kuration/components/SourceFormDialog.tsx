@@ -222,8 +222,11 @@ export function SourceFormDialog({ open, mode, onClose, onSaved }: SourceFormDia
             </span>
           </div>
           <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-            Der Browser-Picker fragt nur Lese-Rechte an („Dateien lesen").
-            Es wird nie in das Verzeichnis geschrieben.
+            Der Browser-Picker fragt nur Lese-Rechte an. Chrome formuliert das als
+            „eigene Kopien davon erstellen" — gemeint ist: die App liest Datei-Inhalte
+            bei Bedarf in den Arbeitsspeicher (z. B. erste Seite eines PDFs für die
+            Klassifikation). Es werden keine Dateien auf deine Festplatte kopiert,
+            das DMS-Verzeichnis bleibt unverändert.
           </p>
         </div>
 
