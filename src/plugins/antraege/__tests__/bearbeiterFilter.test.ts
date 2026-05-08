@@ -95,6 +95,29 @@ describe('antragMatchesBearbeiter', () => {
     expect(antragMatchesBearbeiter(makeAntrag({ TiB_KUERZ: 123 }), mode)).toBe(false);
     expect(antragMatchesBearbeiter(makeAntrag({ BIB_KUERZ: null }), mode)).toBe(false);
   });
+
+  // Regression: CSV-Mapping mit `col.toLowerCase()`-Fallback erzeugt Antrag-
+  // Properties wie `tib_kuerz` / `ztp_kuerz` (lowercase). Match muss
+  // case-insensitive über den Property-Key laufen.
+  it('matches lowercase property keys (CSV-Mapping-Fallback)', () => {
+    const m = parseBearbeiterFilter('AM', true);
+    expect(antragMatchesBearbeiter(makeAntrag({ ztp_kuerz: 'AM' }), m)).toBe(true);
+    expect(antragMatchesBearbeiter(makeAntrag({ tib_kuerz: 'AM' }), m)).toBe(true);
+    expect(antragMatchesBearbeiter(makeAntrag({ bib_kuerz: 'AM' }), m)).toBe(true);
+    expect(antragMatchesBearbeiter(makeAntrag({ pfm_kuerz: 'AM' }), m)).toBe(true);
+  });
+
+  it('matches mixed-case property keys', () => {
+    const m = parseBearbeiterFilter('AM', false);
+    expect(antragMatchesBearbeiter(makeAntrag({ Tib_Kuerz: 'AM' }), m)).toBe(true);
+    expect(antragMatchesBearbeiter(makeAntrag({ TIB_KUERZ: 'AM' }), m)).toBe(true);
+  });
+
+  it('does NOT match Begleitung lowercase when includeBegleitung=false', () => {
+    const m = parseBearbeiterFilter('AM', false);
+    expect(antragMatchesBearbeiter(makeAntrag({ ztp_kuerz: 'AM' }), m)).toBe(false);
+    expect(antragMatchesBearbeiter(makeAntrag({ pfm_kuerz: 'AM' }), m)).toBe(false);
+  });
 });
 
 describe('applyBearbeiterFilter', () => {
@@ -165,5 +188,22 @@ describe('hasAnyKuerzelData', () => {
   it('ignores non-string values', () => {
     expect(hasAnyKuerzelData([makeAntrag({ TiB_KUERZ: 42 })], false)).toBe(false);
     expect(hasAnyKuerzelData([makeAntrag({ BIB_KUERZ: null })], false)).toBe(false);
+  });
+
+  // Regression: Property-Keys können je nach Column-Mapping uppercase
+  // (`ZTP_KUERZ`), lowercase (`ztp_kuerz`) oder gemischt sein. Detection
+  // muss alle Varianten finden.
+  it('detects lowercase property keys', () => {
+    expect(hasAnyKuerzelData([makeAntrag({ ztp_kuerz: 'AM' })], true)).toBe(true);
+    expect(hasAnyKuerzelData([makeAntrag({ tib_kuerz: 'X' })], false)).toBe(true);
+  });
+
+  it('lowercase Begleitung ignored when includeBegleitung=false', () => {
+    expect(hasAnyKuerzelData([makeAntrag({ ztp_kuerz: 'AM' })], false)).toBe(false);
+    expect(hasAnyKuerzelData([makeAntrag({ pfm_kuerz: 'AM' })], false)).toBe(false);
+  });
+
+  it('detects mixed-case property keys', () => {
+    expect(hasAnyKuerzelData([makeAntrag({ Tib_Kuerz: 'X' })], false)).toBe(true);
   });
 });

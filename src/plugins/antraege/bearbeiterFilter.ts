@@ -7,6 +7,12 @@ import type { Antrag } from '@/core/services/csv/types';
  * - Bearbeiter:  `TiB_KUERZ`, `BIB_KUERZ`
  * - Begleitung:  `ZTP_KUERZ`, `PFM_KUERZ`
  *
+ * Casing-Hinweis: das CSV-Mapping fällt für Spalten ohne explizites
+ * canonical/custom auf `column.toLowerCase()` zurück (siehe
+ * `src/core/services/csv/merger/helpers.ts` → `resolveFieldKey`). Eine
+ * Spalte `ZTP_KUERZ` landet dann als Antrag-Property `ztp_kuerz`. Wir
+ * matchen daher case-insensitive über `Object.entries(antrag)`.
+ *
  * Profil-Konfiguration (`UserProfile.bearbeiter_kuerzel`):
  * - leer / nicht gesetzt → Filter inaktiv
  * - "alle" (case-insensitive) → Filter inaktiv (PL-Modus)
@@ -14,8 +20,8 @@ import type { Antrag } from '@/core/services/csv/types';
  * - "MUE, SCH" → mehrere Kürzel komma-separiert (für Vertretung)
  */
 
-const BEARBEITER_FIELDS = ['TiB_KUERZ', 'BIB_KUERZ'] as const;
-const BEGLEITUNG_FIELDS = ['ZTP_KUERZ', 'PFM_KUERZ'] as const;
+const BEARBEITER_FIELDS_LOWER: readonly string[] = ['tib_kuerz', 'bib_kuerz'];
+const BEGLEITUNG_FIELDS_LOWER: readonly string[] = ['ztp_kuerz', 'pfm_kuerz'];
 
 export interface BearbeiterFilterMode {
   /** Aktiv? Wenn false, lassen sich Anträge unfiltriert durchreichen. */
@@ -50,15 +56,28 @@ export function parseBearbeiterFilter(
   return { active: true, tokens, includeBegleitung: !!includeBegleitung };
 }
 
-function antragHasKuerzel(antrag: Antrag, fields: readonly string[], tokens: string[]): boolean {
-  for (const field of fields) {
-    const v = (antrag as Record<string, unknown>)[field];
-    if (typeof v !== 'string') continue;
-    const upper = v.trim().toUpperCase();
+/**
+ * Iteriert über alle Properties des Antrags, deren Key (case-insensitive)
+ * in `fieldsLower` enthalten ist, und ruft den Callback mit dem String-Wert
+ * (getrimmt, uppercased). Stoppt bei `cb()` === true.
+ */
+function forEachKuerzelValue(
+  antrag: Antrag,
+  fieldsLower: readonly string[],
+  cb: (uppered: string) => boolean,
+): boolean {
+  for (const [key, val] of Object.entries(antrag)) {
+    if (typeof val !== 'string') continue;
+    if (!fieldsLower.includes(key.toLowerCase())) continue;
+    const upper = val.trim().toUpperCase();
     if (!upper) continue;
-    if (tokens.includes(upper)) return true;
+    if (cb(upper)) return true;
   }
   return false;
+}
+
+function antragHasKuerzel(antrag: Antrag, fieldsLower: readonly string[], tokens: string[]): boolean {
+  return forEachKuerzelValue(antrag, fieldsLower, upper => tokens.includes(upper));
 }
 
 /**
@@ -74,8 +93,8 @@ function antragHasKuerzel(antrag: Antrag, fields: readonly string[], tokens: str
  */
 export function antragMatchesBearbeiter(antrag: Antrag, mode: BearbeiterFilterMode): boolean {
   if (!mode.active) return true;
-  if (antragHasKuerzel(antrag, BEARBEITER_FIELDS, mode.tokens)) return true;
-  if (mode.includeBegleitung && antragHasKuerzel(antrag, BEGLEITUNG_FIELDS, mode.tokens)) return true;
+  if (antragHasKuerzel(antrag, BEARBEITER_FIELDS_LOWER, mode.tokens)) return true;
+  if (mode.includeBegleitung && antragHasKuerzel(antrag, BEGLEITUNG_FIELDS_LOWER, mode.tokens)) return true;
   return false;
 }
 
@@ -94,16 +113,16 @@ export function applyBearbeiterFilter(antraege: Antrag[], mode: BearbeiterFilter
  * Liste. Mit dieser Detection können wir stattdessen eine Erklärung zeigen.
  *
  * `includeBegleitung=true` schließt zusätzlich ZTP_KUERZ + PFM_KUERZ ein.
+ *
+ * Match ist case-insensitive — die CSV-Spalte `ZTP_KUERZ` kann je nach
+ * Mapping als `ZTP_KUERZ`, `ztp_kuerz` oder beliebig gemixt landen.
  */
 export function hasAnyKuerzelData(antraege: Antrag[], includeBegleitung: boolean): boolean {
-  const fields = includeBegleitung
-    ? [...BEARBEITER_FIELDS, ...BEGLEITUNG_FIELDS]
-    : [...BEARBEITER_FIELDS];
+  const fieldsLower = includeBegleitung
+    ? [...BEARBEITER_FIELDS_LOWER, ...BEGLEITUNG_FIELDS_LOWER]
+    : [...BEARBEITER_FIELDS_LOWER];
   for (const a of antraege) {
-    for (const field of fields) {
-      const v = (a as Record<string, unknown>)[field];
-      if (typeof v === 'string' && v.trim().length > 0) return true;
-    }
+    if (forEachKuerzelValue(a, fieldsLower, () => true)) return true;
   }
   return false;
 }
