@@ -89,7 +89,7 @@ Plugins are registered in `src/plugins.config.ts`. Build-time filtering via `VIT
 Kurator-Session-Verwaltung, SMB-Connectivity-Monitoring und sichere Datei-Operationen. Alle Module in `src/core/services/infrastructure/`, Stores in `src/core/hooks/`.
 
 - **Kurator-Session** (`useKuratorSession`): 12h-TTL-Session mit verschlüsselter Kurator-Config (AES-GCM 256 + PBKDF2-SHA-256 @ 200k Iterations, Web Crypto API). Meta (`expiresAt`, `kuratorName`, `ttlMs`) in IndexedDB persistiert (`KURATOR_SESSION_META_IDB_KEY`, Value-String bleibt `'admin-session-meta'` für Kompat). Aktivität verlängert Session (`useKuratorActivityTracker`). ShellLayout hält Tick-Loop. Actions: `setup`, `activate`, `deactivate`, `extend`, `changePassword`, `rehydrate` (liest Legacy-Feld `adminName` als Fallback).
-- **SMB-Handles** (`smb-handle.ts`): Zwei Slots in IDB-Map `smb-handles`: `daten-share` (Hauptordner mit `programm/`, `backups/`, `_intern/`), optional `dokumentenquelle` (separater Handle nur für Kurator-Scan in Phase 2). Legacy-Slot `test-programm` wird beim Lesen als Fallback verwendet.
+- **SMB-Handles** (`smb-handle.ts`): IDB-Map `smb-handles` mit drei Slot-Kategorien: `daten-share` (Hauptordner mit `programm/`, `backups/`, `_intern/`, readwrite), Multi-Source-DMS-Slots `dms-source-${id}` (read-only, ab v1.15 — Verwaltung im Plugin „Dokumentenquellen"), und Legacy-Slot `dokumentenquelle` (read-only, vor v1.15; wird beim ersten v1.15-Start in eine Default-Source migriert). Legacy-Slot `test-programm` wird beim Lesen als Fallback verwendet.
 - **SMB-Connectivity** (`useSmbStatus`): 5-Min-Polling via `probeSmb()`. Status: `online`/`offline`/`unknown`/`denied`. Probe öffnet `_intern/` statt des ehemaligen `admin/`-Subordners. Dev-Panel kann Offline simulieren. Gate `requireOnline()` für Kurator-Aktionen. In-Memory only (keine Persistenz).
 - **Atomic Writes** (`atomic-write.ts`): Schreiben über `.tmp`-Datei + Rename zu Ziel; altes Ziel → `.backup` (1-Generations-Rotation). Native `move()` mit Read-Write-Delete-Fallback. Append-Writes (`appendToFile`) überspringen Backup. **Alle Infrastructure-Writes müssen diese Helper verwenden** — direkter `FileSystemWritableFileStream` kann bei Crash korrumpieren.
 - **Audit-Log** (`audit-log.ts`): JSONL-Append-Only in `_intern/audit-log.jsonl` (v1.9; vorher `programm-test/admin/audit-log.jsonl`, Legacy-Read-Fallback aktiv). `logAudit({ user, action, details })` / `getRecentAudits(n)`. Session-Events mit neuen Action-Keys `kurator_login`/`kurator_logout`/`kurator_setup`/`kurator_password_changed`. Strukturelle Migration schreibt `kurator_structure_migrated` mit Statistik.
@@ -238,6 +238,16 @@ Eingangsfilter für die DMS-Dokumenten-Pipeline. Pro Datei wird kaskadiert entsc
 **Manifest-Store** (`scanner/manifest-store.ts`): IDB-Store `phase2_scan_manifest`, gekeyt auf `filename`, Indexe `matched_antrag_id` + `triage_state`. JSONL-Spiegelung auf den Daten-Share unter `SCAN_MANIFEST_PATH` (`_intern/scan-manifest.json`) ist vorbereitet, der Caller entscheidet wann gespiegelt wird.
 
 **OCR-Side-Car** (`ocr/side-car.ts`): nur Stub-Interface `ocrFirstPage(pdfBlob)`, wirft `OcrNotImplementedError` — echte Tesseract-Side-Car-Anbindung kommt in einem Folge-Patch.
+
+**DMS-Quellen-Verwaltung** (v1.15, `src/plugins/dokumentenquellen-kuration/`): Neues Kurator-Plugin (`id: 'dokumentenquellen-kuration'`, `kuratorOnly: true`, `category: 'kuration'`, sichtbar wenn `features.dokumentenscan === true`) mit zwei Sections:
+- **VerwaltenSection** (Dev-Bereich, sichtbar wenn `features.devInfraPanel === true || import.meta.env.DEV`): Quellen anlegen, Read-Only-Picker (`pickAndStoreDmsSourceHandle`), Sub-Roots editieren, Label ändern, löschen.
+- **AktivierenIndexierenSection** (immer sichtbar für Kuratoren): `is_active`-Switch pro Quelle + "Alle aktiven indexieren" + "Manifest auf Share spiegeln". Iteriert via `runBulkTriageForSources` sequentiell über aktive Sources mit globaler DMS-CSV-Cache.
+- **Datenmodell** (`src/core/services/dms-sources/`): IDB-Store `dms_sources` (Index `by_active` auf `is_active`), Felder `id`, `label`, `sub_roots[]`, `is_active`, `created_at`, `created_by`, `updated_at`, `last_indexed_at?`, `last_index_stats?`. Source-Handles leben in der `smb-handles`-Map unter Schlüssel `dms-source-${id}`.
+- **Manifest-Erweiterung**: `ManifestEntry.source_id?` (optional) — neuer Index `by_source_id` auf dem `phase2_scan_manifest`-Store. Listing-Helper `listManifestEntriesBySource(sourceId)` mappt Legacy-Einträge ohne `source_id` transparent auf die `default`-Source. Filename-Key bleibt unverändert; bei Cross-Source-Filename-Kollisionen Last-Write-Wins (dokumentierte Limitation, DMS-DocIDs sind in der Praxis pro Instanz eindeutig).
+- **Migration**: `migrateLegacyDmsSource(idb)` läuft idempotent beim App-Start (in `App.tsx` nach `storage.init()`). Wenn `dms_sources` leer ist UND ein Legacy-`dokumentenquelle`-Handle existiert: legt eine Default-Source mit `id='default'` an, übernimmt `phase2_scan_config.selected_paths` als `sub_roots`, kopiert den Handle auf `dms-source-default`. Audit-Action: `dms_source_migrated_from_legacy`.
+- **Audit-Actions**: `dms_source_added`, `dms_source_removed`, `dms_source_label_changed`, `dms_source_subroots_changed`, `dms_source_handle_picked`, `dms_source_handle_lost`, `dms_source_activated`, `dms_source_deactivated`, `dms_source_indexed_started`, `dms_source_indexed_finished`.
+- **Phase2RescanCard im Suchindex-Plugin entfernt** (vor v1.15 in `src/plugins/kurator/sections/`); Multi-Source-Indexierung lebt jetzt komplett im neuen Plugin.
+- **Einstellungen-Tab "Dokumentenquellen"** (`src/plugins/einstellungen/DokumentenquellenTab.tsx`): User-sichtbar, ausgegraut. Vorbereitend für persönliche User-Pfade, sobald internes Embedding/LLM-API verfügbar ist.
 
 **Build-Time-Config** (`runtimeConfig.scan`): neue Felder in `scripts/config-schema.mjs` und `src/config/runtime-config.ts`:
 - `scan.sub_roots: string[]` — relative Roots im dokumentenquelle-Handle
@@ -472,6 +482,7 @@ src/
 │   ├── kurator/                 <- Suchindex-Kurations-Panel (id='kurator', route /kuration/suchindex)
 │   ├── programme-kuration/      <- Programm-Verwaltung inkl. Unterprogramme-Sub-Feature (id='programme-kuration')
 │   ├── csv-sources-kuration/    <- CSV-Import-Wizard (id='csv-sources-kuration', 5-Step-Wizard + Label-XLS-Hierarchie)
+│   ├── dokumentenquellen-kuration/ <- DMS-Quellen-Verwaltung (id='dokumentenquellen-kuration', v1.15, Multi-Source + Indexierung)
 │   ├── filter-kuration/         <- Filter-Verwaltung (id='filter-kuration', 4-Step-Wizard)
 │   ├── feedback/                <- Feedback-Verwaltung (id='feedback-kuration', 4 Tabs)
 │   │   ├── FeedbackAdminPage.tsx    <- 4 Tabs (Tickets / FAQ / Sponsoring / Einstellungen)

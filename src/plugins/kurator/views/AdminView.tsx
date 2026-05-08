@@ -6,10 +6,8 @@ import { ActionCardQuality } from '../actions/ActionCardQuality';
 import { ActionCardDocuments } from '../actions/ActionCardDocuments';
 import { ActionCardModels } from '../actions/ActionCardModels';
 import { ConfigSection } from '../sections/ConfigSection';
-import { Phase2RescanCard } from '../sections/Phase2RescanCard';
 import { EvalSection } from '../eval/EvalSection';
 import { MetadataSmokeTest } from '../MetadataSmokeTest';
-import { isDokumentenscanEnabled } from '@/config/feature-flags';
 
 function SectionTitle({ title, subtitle }: {
   title: string; subtitle?: string;
@@ -82,13 +80,8 @@ export function AdminView({
         </div>
       </div>
 
-      {/* ── PHASE-2 TRIAGE (nur wenn Dokumentenscan-Feature aktiv) ── */}
-      {isDokumentenscanEnabled() && (
-        <div>
-          <SectionTitle title="Dokumenten-Triage (Phase 2)" />
-          <Phase2RescanCard />
-        </div>
-      )}
+      {/* Dokumenten-Triage (Phase 2) ist seit v1.15 ins eigene Plugin
+          „Dokumentenquellen" gewandert (Multi-Source-Indexierung). */}
 
       {/* ── ERGEBNISSE (conditional) ── */}
       {resultPanel === 'eval' && (

@@ -14,6 +14,7 @@ import { antraegePlugin } from '@/plugins/antraege';
 import { programmeAdminPlugin } from '@/plugins/programme-kuration';
 import { csvSourcesAdminPlugin } from '@/plugins/csv-sources-kuration';
 import { filterAdminPlugin } from '@/plugins/filter-kuration';
+import { dokumentenquellenKurationPlugin } from '@/plugins/dokumentenquellen-kuration';
 import { dokumentReviewPlugin } from '@/plugins/dokument-review';
 import { features } from '@/config/feature-flags';
 
@@ -29,6 +30,7 @@ const allPlugins: TeamFlowPlugin[] = [
   adminPlugin,
   programmeAdminPlugin,
   csvSourcesAdminPlugin,
+  dokumentenquellenKurationPlugin,
   filterAdminPlugin,
   feedbackAdminPlugin,
   dokumentReviewPlugin,
@@ -59,8 +61,9 @@ function passesFeatureFlags(p: TeamFlowPlugin): boolean {
     return false;
   }
 
-  // features.dokumentenscan: entfernt Phase-2-Review-Queue
+  // features.dokumentenscan: entfernt Phase-2-Review-Queue + DMS-Quellen-Verwaltung
   if (!features.dokumentenscan && p.id === 'dokument-review') return false;
+  if (!features.dokumentenscan && p.id === 'dokumentenquellen-kuration') return false;
 
   // features.devInfraPanel: entfernt Dev-Test-Harness
   if (!features.devInfraPanel && p.id === 'dev-infrastructure-test') return false;

@@ -309,6 +309,7 @@ function manifestFromTriage(
   return {
     filename: file.filename,
     filepath: file.filepath,
+    source_id: file.source_id,
     size_bytes: file.size_bytes,
     mtime: file.mtime,
     classifier_version: CLASSIFIER_VERSION,
@@ -335,6 +336,7 @@ function manifestFromSkip(file: ScanFile, skip: import('../types').SkipListEntry
   return {
     filename: file.filename,
     filepath: file.filepath,
+    source_id: file.source_id,
     size_bytes: file.size_bytes,
     mtime: file.mtime,
     classifier_version: skip.classifier_version,

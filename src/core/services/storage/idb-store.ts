@@ -20,16 +20,20 @@ export const PHASE2_STORES = {
   SCAN_CONFIG: 'phase2_scan_config',
 } as const;
 
+/** v1.15: Multi-Source-DMS-Konfigurations-Store. */
+export const DMS_SOURCES_STORE = 'dms_sources';
+
 export type CsvStoreName =
   | (typeof CSV_STORES)[keyof typeof CSV_STORES]
   | typeof FILTER_STORE_NAME
-  | (typeof PHASE2_STORES)[keyof typeof PHASE2_STORES];
+  | (typeof PHASE2_STORES)[keyof typeof PHASE2_STORES]
+  | typeof DMS_SOURCES_STORE;
 
 export class IDBStore {
   private db: IDBDatabase | null = null;
   private readonly dbName = 'teamflow';
   private readonly storeName = 'kv';
-  private readonly version = 6;
+  private readonly version = 7;
 
   async open(): Promise<void> {
     if (this.db) return;
@@ -120,6 +124,27 @@ export class IDBStore {
           // scanConfig.sub_roots aus der Build-Config.
           if (!db.objectStoreNames.contains(PHASE2_STORES.SCAN_CONFIG)) {
             db.createObjectStore(PHASE2_STORES.SCAN_CONFIG, { keyPath: 'id' });
+          }
+        }
+        if (oldVersion < 7) {
+          // v1.15: Multi-Source-DMS-Konfiguration. Ersetzt den Singleton-
+          // SCAN_CONFIG-Store inhaltlich; SCAN_CONFIG bleibt als Read-Only-
+          // Legacy fuer die Migration.
+          if (!db.objectStoreNames.contains(DMS_SOURCES_STORE)) {
+            const s = db.createObjectStore(DMS_SOURCES_STORE, { keyPath: 'id' });
+            s.createIndex('by_active', 'is_active', { unique: false });
+          }
+          // Manifest bekommt einen neuen Sekundaer-Index auf source_id, damit
+          // Listing pro Source ohne Full-Scan moeglich ist. Bestehende
+          // Eintraege ohne source_id liefern fuer den Index undefined und
+          // werden vom Index ignoriert — Listing-Helper mappt sie transparent
+          // auf die Default-Source.
+          const tx = req.transaction;
+          if (tx) {
+            const manifest = tx.objectStore(PHASE2_STORES.SCAN_MANIFEST);
+            if (!manifest.indexNames.contains('by_source_id')) {
+              manifest.createIndex('by_source_id', 'source_id', { unique: false });
+            }
           }
         }
       };

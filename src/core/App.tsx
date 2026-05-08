@@ -19,6 +19,7 @@ import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { listProgramme } from '@/core/services/csv';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { rematchOnSnapshotReload } from '@/phase2';
+import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
 import { runtimeConfig } from '@/config/runtime-config';
 import { isDemoDataBundled, dataConfig } from '@/config/feature-flags';
 import { seedTestData } from '@/core/services/seed/seed-data';
@@ -183,6 +184,15 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
 
   useEffect(() => {
     storage.init().then(async () => {
+      // v1.15: Multi-Source-DMS-Migration. Idempotent — laeuft nur einmal,
+      // wenn der dms_sources-Store leer ist UND ein Legacy-dokumentenquelle-
+      // Handle existiert. Best-effort, blockiert nicht den App-Start.
+      try {
+        await migrateLegacyDmsSource(storage.idb);
+      } catch (e) {
+        console.warn('[App] migrateLegacyDmsSource fehlgeschlagen', e);
+      }
+
       const complete = await storage.idb.get<boolean>('onboarding-complete');
       if (complete) {
         const profile = await storage.idb.get<UserProfile>('profile');

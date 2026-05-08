@@ -43,6 +43,32 @@ export async function listManifestEntries(idb: IDBStore): Promise<ManifestEntry[
 }
 
 /**
+ * v1.15: Liefert alle Manifest-Eintraege einer DMS-Source. Nutzt den
+ * `by_source_id`-Index. Eintraege ohne `source_id` (vor v1.15) werden
+ * transparent der Default-Source zugeordnet — d.h. wenn `sourceId === 'default'`,
+ * werden zusaetzlich alle Eintraege mit `source_id === undefined` mitgeliefert.
+ */
+export async function listManifestEntriesBySource(
+  idb: IDBStore,
+  sourceId: string,
+): Promise<ManifestEntry[]> {
+  const db = idb.getDb();
+  const direct = await new Promise<ManifestEntry[]>((resolve, reject) => {
+    const tx = db.transaction(PHASE2_STORES.SCAN_MANIFEST, 'readonly');
+    const idx = tx.objectStore(PHASE2_STORES.SCAN_MANIFEST).index('by_source_id');
+    const req = idx.getAll(sourceId);
+    req.onsuccess = () => resolve((req.result as ManifestEntry[]) ?? []);
+    req.onerror = () => reject(req.error);
+  });
+  if (sourceId !== 'default') return direct;
+  // Default-Source schluckt zusaetzlich alle Eintraege ohne source_id
+  // (Legacy-Eintraege vor v1.15).
+  const all = await listManifestEntries(idb);
+  const legacy = all.filter(e => e.source_id == null);
+  return [...direct, ...legacy];
+}
+
+/**
  * Liefert alle Manifest-Eintraege, deren matched_antrag_id auf das gegebene
  * Aktenzeichen zeigt. Nutzt den `matched_antrag_id`-Index — kein Full-Table-
  * Scan, auch bei 100k+ Eintraegen sub-millisecond. Konsumenten:

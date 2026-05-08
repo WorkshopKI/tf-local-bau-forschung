@@ -4,9 +4,24 @@ export const SMB_HANDLES_IDB_KEY = 'smb-handles';
 // Neue Slot-Keys ab v1.9. Legacy-Slot `test-programm` wird beim Laden
 // transparent als Fallback gelesen (siehe smb-handle.ts).
 export const SMB_HANDLE_DATEN_SHARE = 'daten-share';
+/**
+ * @deprecated Seit v1.15 wird Multi-Source via `dms-source-${id}`-Slots verwaltet
+ * (siehe DMS_SOURCE_SLOT_PREFIX). Dieser Single-Slot bleibt nur bis die Migration
+ * (`migrateLegacyDmsSource`) einmal pro Installation gelaufen ist.
+ */
 export const SMB_HANDLE_DOKUMENTENQUELLE = 'dokumentenquelle';
 /** @deprecated Vor v1.9. Wird als Fallback beim Laden des Daten-Share-Handles verwendet. */
 export const SMB_HANDLE_LEGACY_TEST_PROGRAMM = 'test-programm';
+
+/**
+ * v1.15: Schluessel-Praefix fuer DMS-Source-Handles in der `smb-handles`-Map.
+ * Ein Eintrag pro Source: `dms-source-${sourceId}` -> FileSystemDirectoryHandle.
+ */
+export const DMS_SOURCE_SLOT_PREFIX = 'dms-source-';
+
+export function dmsSourceSlotKey(sourceId: string): string {
+  return `${DMS_SOURCE_SLOT_PREFIX}${sourceId}`;
+}
 
 // IDB-Key-Werte bleiben unverändert, damit bestehende Test-Sessions weiter valide sind.
 export const KURATOR_SESSION_META_IDB_KEY = 'admin-session-meta';

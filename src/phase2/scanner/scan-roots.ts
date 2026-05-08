@@ -18,6 +18,12 @@ export interface ScanFile {
   size_bytes: number;
   /** ISO-Timestamp. */
   mtime: string;
+  /**
+   * v1.15: ID der DMS-Source, aus der diese Datei stammt. Wird vom Scanner
+   * gesetzt und vom Bulk-Loop in den ManifestEntry uebernommen.
+   * Optional, weil Tests / Einzeldatei-Pfade ohne Source aufgerufen werden.
+   */
+  source_id?: string;
 }
 
 export interface ScanOptions {
@@ -27,6 +33,13 @@ export interface ScanOptions {
   signal?: AbortSignal;
   /** Per gescanntem Verzeichnis aufgerufen — für UI-Progress. */
   onProgress?: (info: { dir: string; filesSoFar: number }) => void;
+  /**
+   * v1.15: Source-ID die in jeden produzierten ScanFile geschrieben wird.
+   * Optional fuer Backward-Compat (Tests/Einzeldatei-Triage). Wenn nicht
+   * gesetzt: ScanFiles haben kein source_id und ManifestEntries werden
+   * legacy-mappig der Default-Source zugeordnet.
+   */
+  source_id?: string;
 }
 
 function matchesExtension(filename: string, exts: string[]): boolean {
@@ -64,6 +77,7 @@ async function walkDir(
           filepath: childRel,
           size_bytes: file.size,
           mtime: new Date(file.lastModified).toISOString(),
+          source_id: opts.source_id,
         });
       } catch (e) {
         console.warn(`[phase2/scanner] Datei nicht lesbar: ${childRel}`, e);

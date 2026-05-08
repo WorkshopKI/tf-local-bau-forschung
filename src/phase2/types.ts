@@ -82,6 +82,12 @@ export interface MatchResult {
 export interface ManifestEntry {
   filename: string;                       // = Schlüssel
   filepath: string;                       // Relativ zum dokumentenquelle-Root
+  /**
+   * v1.15: ID der DMS-Source, aus der diese Datei stammt. Optional fuer
+   * Backward-Compat: Eintraege ohne source_id (vor v1.15) werden in
+   * `listManifestEntriesBySource` transparent der Default-Source zugeordnet.
+   */
+  source_id?: string;
   size_bytes: number;
   mtime: string;
   classifier_version: number;

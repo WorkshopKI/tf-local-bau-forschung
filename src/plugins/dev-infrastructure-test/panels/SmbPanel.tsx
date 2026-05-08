@@ -146,7 +146,7 @@ export function SmbPanel(): React.ReactElement {
         </div>
       </Field>
 
-      <Field label="Dokumentenquelle">
+      <Field label="Dokumentenquelle (Legacy)">
         <div className="flex items-center flex-wrap gap-2">
           <StatusPill label={dokuHandleName ? `✓ ${dokuHandleName}` : 'nicht gesetzt'} tone={dokuHandleName ? 'ok' : 'neutral'} />
           {dokuHandleName ? (
@@ -159,6 +159,12 @@ export function SmbPanel(): React.ReactElement {
             </button>
           ) : null}
         </div>
+        <p className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
+          Single-Source-Slot vor v1.15. Multi-Source-Verwaltung läuft jetzt im
+          Plugin „Dokumentenquellen". Beim ersten Start wird der Legacy-Slot
+          automatisch in eine Default-Source migriert; dieser Picker bleibt nur
+          für Triage-Einzeltests im Tab „Phase-2 Triage" hier.
+        </p>
       </Field>
 
       <SectionCaption>Häufig</SectionCaption>

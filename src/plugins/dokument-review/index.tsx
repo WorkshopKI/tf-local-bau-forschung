@@ -3,8 +3,8 @@
  *
  * Liest Manifest-, Skip-List- und Pending-Bucket-Stores ueber die Phase-2-API
  * und erlaubt manuelle Overrides (Typ aendern, Antrag zuordnen, irrelevant
- * markieren, re-triagieren). Volltext-Extraktion und Bulk-Scan-Trigger leben
- * weiterhin im Suchindex-Plugin (Phase2RescanCard).
+ * markieren, re-triagieren). Multi-Source-Bulk-Triage lebt seit v1.15 im
+ * `dokumentenquellen-kuration`-Plugin (zuvor `kurator/Phase2RescanCard`).
  */
 import type { TeamFlowPlugin } from '@/core/types/plugin';
 import { DokumentReviewPage } from './DokumentReviewPage';

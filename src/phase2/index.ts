@@ -21,6 +21,7 @@ export {
   putManifestEntry,
   getManifestEntry,
   listManifestEntries,
+  listManifestEntriesBySource,
   listByMatchedAntrag,
   deleteManifestEntry,
   clearAllManifest,
