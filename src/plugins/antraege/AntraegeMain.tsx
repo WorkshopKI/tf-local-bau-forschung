@@ -8,6 +8,9 @@ import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { AntragCard } from './AntragCard';
 import { useFilteredAntraege } from './useFilteredAntraege';
 import { SortDropdown } from './SortDropdown';
+import { Alert } from '@/components/ui/alert';
+import { AlertTriangle, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const ROW_PAGE = 60;
 const NARROW_WIDTH_KEY = 'teamflow_antraege_narrow_width';
@@ -41,7 +44,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
   } = useAntraegeStore();
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
-  const { filtered, view } = useFilteredAntraege();
+  const { filtered, view, bearbeiterFilter, bearbeiterKuerzelMissing } = useFilteredAntraege();
   const [visibleRows, setVisibleRows] = useState(ROW_PAGE);
   const [narrowWidth, setNarrowWidth] = useState(loadNarrowWidth);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -122,6 +125,32 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
               </div>
             ) : null}
           </div>
+
+          {bearbeiterKuerzelMissing && antraege.length > 0 ? (
+            <Alert variant="warning" className="mb-3">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">
+                  Bearbeiter-Filter aktiv ({bearbeiterFilter.tokens.join(', ')}), aber die Bearbeiter-Spalten
+                  {' '}<span className="font-mono">TiB_KUERZ</span> / <span className="font-mono">BIB_KUERZ</span>
+                  {bearbeiterFilter.includeBegleitung ? <> / <span className="font-mono">ZTP_KUERZ</span> / <span className="font-mono">PFM_KUERZ</span></> : null}
+                  {' '}sind in keiner der aktiven CSV-Quellen vorhanden.
+                </p>
+                <p className="mt-1 text-[12px] opacity-90">
+                  Deshalb sehen Sie keine Treffer. Lösungen: Kürzel-Filter im Profil deaktivieren (Wert <span className="font-mono">alle</span> eintragen
+                  oder leeren) oder eine CSV-Quelle mit den KUERZ-Spalten registrieren bzw. das Mapping ergänzen.
+                </p>
+                <div className="mt-1.5 flex items-center gap-3 text-[11.5px]">
+                  <Link
+                    to="/einstellungen"
+                    className="inline-flex items-center gap-1 underline hover:no-underline"
+                  >
+                    <Settings size={12} /> Profil bearbeiten
+                  </Link>
+                </div>
+              </div>
+            </Alert>
+          ) : null}
 
           {antraege.length === 0 ? (
             <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">

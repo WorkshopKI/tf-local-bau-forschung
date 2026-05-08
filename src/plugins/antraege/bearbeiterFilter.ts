@@ -86,3 +86,24 @@ export function applyBearbeiterFilter(antraege: Antrag[], mode: BearbeiterFilter
   if (!mode.active) return antraege;
   return antraege.filter(a => antragMatchesBearbeiter(a, mode));
 }
+
+/**
+ * Prüft, ob in den Antraegen mindestens ein KUERZ-Wert vorhanden ist.
+ * Verwendet für UX-Hinweis: wenn der Bearbeiter-Filter aktiv ist, aber
+ * keine der CSV-Quellen die KUERZ-Spalten mappt, sieht der User eine leere
+ * Liste. Mit dieser Detection können wir stattdessen eine Erklärung zeigen.
+ *
+ * `includeBegleitung=true` schließt zusätzlich ZTP_KUERZ + PFM_KUERZ ein.
+ */
+export function hasAnyKuerzelData(antraege: Antrag[], includeBegleitung: boolean): boolean {
+  const fields = includeBegleitung
+    ? [...BEARBEITER_FIELDS, ...BEGLEITUNG_FIELDS]
+    : [...BEARBEITER_FIELDS];
+  for (const a of antraege) {
+    for (const field of fields) {
+      const v = (a as Record<string, unknown>)[field];
+      if (typeof v === 'string' && v.trim().length > 0) return true;
+    }
+  }
+  return false;
+}

@@ -6,12 +6,23 @@ import { useFilterState } from './filter/useFilterState';
 import { getView, type AntragView } from './views';
 import { getSortOption } from './sort';
 import { useProfile } from '@/core/hooks/useProfile';
-import { parseBearbeiterFilter, applyBearbeiterFilter, type BearbeiterFilterMode } from './bearbeiterFilter';
+import {
+  parseBearbeiterFilter,
+  applyBearbeiterFilter,
+  hasAnyKuerzelData,
+  type BearbeiterFilterMode,
+} from './bearbeiterFilter';
 
 export interface FilteredAntraegeResult {
   filtered: Antrag[];
   view: AntragView;
   bearbeiterFilter: BearbeiterFilterMode;
+  /**
+   * True wenn der Bearbeiter-Filter aktiv ist, aber keiner der Anträge eine
+   * der relevanten KUERZ-Spalten gesetzt hat. UI kann das nutzen, um statt
+   * einer kommentarlos leeren Liste einen Erklär-Hinweis zu zeigen.
+   */
+  bearbeiterKuerzelMissing: boolean;
 }
 
 /** Zentrales Memo der View+Filter+Search+Sort-Pipeline. Header und List-Panel
@@ -48,6 +59,14 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       : filteredBase;
     const sortKey = getEffectiveSortKey(activeView, sortByView);
     const compare = getSortOption(sortKey).compare;
-    return { filtered: [...matched].sort(compare), view, bearbeiterFilter };
+    const bearbeiterKuerzelMissing = bearbeiterFilter.active
+      ? !hasAnyKuerzelData(antraege, bearbeiterFilter.includeBegleitung)
+      : false;
+    return {
+      filtered: [...matched].sort(compare),
+      view,
+      bearbeiterFilter,
+      bearbeiterKuerzelMissing,
+    };
   }, [antraege, active, definitions, search, activeView, sortByView, bearbeiterFilter]);
 }

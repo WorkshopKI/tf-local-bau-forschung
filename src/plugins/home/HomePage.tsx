@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, AlertTriangle, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Badge, SectionHeader, ListItem, Button } from '@/ui';
+import { Alert } from '@/components/ui/alert';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -72,6 +74,19 @@ export function HomePage(): React.ReactElement {
   }
 
   if (data.stats.total === 0) {
+    // Wenn der Bearbeiter-Filter aktiv ist und die KUERZ-Spalten in den
+    // CSV-Quellen fehlen, ist die "Noch keine Vorgänge"-Meldung trügerisch —
+    // es gäbe ja Daten, sie können nur nicht gefiltert werden.
+    if (data.bearbeiterFilterActive && data.bearbeiterKuerzelMissing) {
+      return (
+        <div className="px-8 pt-4 pb-6 max-w-3xl">
+          <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">
+            {data.greeting}{name ? `, ${name}` : ''}
+          </h1>
+          <BearbeiterKuerzelMissingAlert tokens={data.bearbeiterTokens} />
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-2">{data.greeting}{name ? `, ${name}` : ''}</h1>
@@ -90,6 +105,10 @@ export function HomePage(): React.ReactElement {
           {dept} · {data.stats.offen} offene Vorgänge · {data.fristenDieseWoche} Fristen diese Woche
         </p>
       </div>
+
+      {data.bearbeiterFilterActive && data.bearbeiterKuerzelMissing ? (
+        <BearbeiterKuerzelMissingAlert tokens={data.bearbeiterTokens} />
+      ) : null}
 
       {/* Multi-Programm-Übersicht — versteckt bei <= 1 Programm */}
       <ProgrammeOverviewCards />
@@ -181,5 +200,37 @@ export function HomePage(): React.ReactElement {
         </div>
       </div>
     </div>
+  );
+}
+
+interface BearbeiterKuerzelMissingAlertProps {
+  tokens: string[];
+}
+
+function BearbeiterKuerzelMissingAlert({ tokens }: BearbeiterKuerzelMissingAlertProps): React.ReactElement {
+  return (
+    <Alert variant="warning" className="mb-6">
+      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="font-medium">
+          Bearbeiter-Filter aktiv ({tokens.join(', ')}), aber die Bearbeiter-Spalten
+          {' '}<span className="font-mono">TiB_KUERZ</span> / <span className="font-mono">BIB_KUERZ</span>
+          {' '}sind in den geladenen CSV-Quellen nicht vorhanden.
+        </p>
+        <p className="mt-1 text-[12px] opacity-90">
+          Deshalb ist die Anzeige leer. Lösungen: Kürzel-Filter im Profil deaktivieren
+          (Wert <span className="font-mono">alle</span> eintragen oder leeren) oder eine
+          CSV-Quelle mit den KUERZ-Spalten registrieren bzw. das Mapping ergänzen.
+        </p>
+        <div className="mt-1.5 flex items-center gap-3 text-[11.5px]">
+          <Link
+            to="/einstellungen"
+            className="inline-flex items-center gap-1 underline hover:no-underline"
+          >
+            <Settings size={12} /> Profil bearbeiten
+          </Link>
+        </div>
+      </div>
+    </Alert>
   );
 }

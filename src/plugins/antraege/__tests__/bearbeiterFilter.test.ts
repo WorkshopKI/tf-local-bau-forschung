@@ -4,6 +4,7 @@ import {
   parseBearbeiterFilter,
   antragMatchesBearbeiter,
   applyBearbeiterFilter,
+  hasAnyKuerzelData,
 } from '../bearbeiterFilter';
 
 function makeAntrag(extra: Record<string, unknown>): Antrag {
@@ -126,5 +127,43 @@ describe('applyBearbeiterFilter', () => {
     const m = parseBearbeiterFilter('MUE, SCH', false);
     const result = applyBearbeiterFilter(list, m);
     expect(result.map(a => a.aktenzeichen).sort()).toEqual(['1', '2']);
+  });
+});
+
+describe('hasAnyKuerzelData', () => {
+  it('returns false when list is empty', () => {
+    expect(hasAnyKuerzelData([], false)).toBe(false);
+    expect(hasAnyKuerzelData([], true)).toBe(false);
+  });
+
+  it('returns false when no antrag has any KUERZ field', () => {
+    const list = [makeAntrag({}), makeAntrag({ aktenzeichen: 'X', titel: 'Foo' })];
+    expect(hasAnyKuerzelData(list, false)).toBe(false);
+    expect(hasAnyKuerzelData(list, true)).toBe(false);
+  });
+
+  it('returns true when at least one antrag has TiB_KUERZ or BIB_KUERZ', () => {
+    expect(hasAnyKuerzelData([makeAntrag({ TiB_KUERZ: 'MUE' })], false)).toBe(true);
+    expect(hasAnyKuerzelData([makeAntrag({ BIB_KUERZ: 'SCH' })], false)).toBe(true);
+  });
+
+  it('ignores Begleitung when includeBegleitung=false', () => {
+    expect(hasAnyKuerzelData([makeAntrag({ ZTP_KUERZ: 'MUE' })], false)).toBe(false);
+    expect(hasAnyKuerzelData([makeAntrag({ PFM_KUERZ: 'MUE' })], false)).toBe(false);
+  });
+
+  it('includes Begleitung when includeBegleitung=true', () => {
+    expect(hasAnyKuerzelData([makeAntrag({ ZTP_KUERZ: 'MUE' })], true)).toBe(true);
+    expect(hasAnyKuerzelData([makeAntrag({ PFM_KUERZ: 'MUE' })], true)).toBe(true);
+  });
+
+  it('ignores empty / whitespace-only KUERZ values', () => {
+    expect(hasAnyKuerzelData([makeAntrag({ TiB_KUERZ: '' })], false)).toBe(false);
+    expect(hasAnyKuerzelData([makeAntrag({ TiB_KUERZ: '   ' })], false)).toBe(false);
+  });
+
+  it('ignores non-string values', () => {
+    expect(hasAnyKuerzelData([makeAntrag({ TiB_KUERZ: 42 })], false)).toBe(false);
+    expect(hasAnyKuerzelData([makeAntrag({ BIB_KUERZ: null })], false)).toBe(false);
   });
 });

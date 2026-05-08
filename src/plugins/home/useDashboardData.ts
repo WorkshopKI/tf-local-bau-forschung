@@ -4,7 +4,11 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
 import type { Antrag } from '@/core/services/csv/types';
 import { useProfile } from '@/core/hooks/useProfile';
-import { parseBearbeiterFilter, applyBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
+import {
+  parseBearbeiterFilter,
+  applyBearbeiterFilter,
+  hasAnyKuerzelData,
+} from '@/plugins/antraege/bearbeiterFilter';
 
 const CLOSED = new Set(['genehmigt', 'abgelehnt', 'archiviert', 'bewilligt', 'abgeschlossen']);
 
@@ -52,6 +56,12 @@ export interface DashboardData {
   fristenDieseWoche: number;
   letzteAenderungen: Vorgang[];
   stats: { total: number; offen: number; inPruefung: number; nachforderung: number; genehmigt: number };
+  /** Kürzel-Filter im Profil aktiv (≠ leer / "alle"). */
+  bearbeiterFilterActive: boolean;
+  /** Wenn true: Filter aktiv, aber keine KUERZ-Spalte in den Antraege-Daten gefunden. */
+  bearbeiterKuerzelMissing: boolean;
+  /** Tokens des aktiven Bearbeiter-Filters (uppercase, getrimmt). Leer wenn inaktiv. */
+  bearbeiterTokens: string[];
 }
 
 export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide' = 'beide'): DashboardData {
@@ -85,6 +95,9 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       .sort((a, b) => b.modified.localeCompare(a.modified))
       .slice(0, 8);
 
+    const bearbeiterKuerzelMissing = bearbeiterMode.active && department !== 'bauantraege'
+      ? !hasAnyKuerzelData(antraege, bearbeiterMode.includeBegleitung)
+      : false;
     return {
       greeting: getGreeting(),
       offeneVorgaenge: offen,
@@ -99,6 +112,9 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
         nachforderung: alle.filter(v => (v.status as string) === 'nachforderung' || (v.status as string) === 'nachbesserung').length,
         genehmigt: alle.filter(v => (v.status as string) === 'genehmigt' || (v.status as string) === 'bewilligt').length,
       },
+      bearbeiterFilterActive: bearbeiterMode.active,
+      bearbeiterKuerzelMissing,
+      bearbeiterTokens: bearbeiterMode.tokens,
     };
   }, [bauantraege, antraege, department, profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung]);
 }
