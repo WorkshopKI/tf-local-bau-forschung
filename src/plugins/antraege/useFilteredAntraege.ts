@@ -5,10 +5,13 @@ import { useAntraegeStore, getEffectiveSortKey } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { getView, type AntragView } from './views';
 import { getSortOption } from './sort';
+import { useProfile } from '@/core/hooks/useProfile';
+import { parseBearbeiterFilter, applyBearbeiterFilter, type BearbeiterFilterMode } from './bearbeiterFilter';
 
 export interface FilteredAntraegeResult {
   filtered: Antrag[];
   view: AntragView;
+  bearbeiterFilter: BearbeiterFilterMode;
 }
 
 /** Zentrales Memo der View+Filter+Search+Sort-Pipeline. Header und List-Panel
@@ -21,11 +24,19 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const sortByView = useAntraegeStore(s => s.sortByView);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
+  const { profile } = useProfile();
+
+  const bearbeiterFilter = useMemo(
+    () => parseBearbeiterFilter(profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung),
+    [profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung],
+  );
 
   return useMemo(() => {
     const view = getView(activeView);
     const byView = antraege.filter(a => view.predicate(a));
-    const filteredBase = applyFilters(byView, active, definitions);
+    // Bearbeiter-Filter (Profil-Kürzel) NACH der View, vor den Custom-Filtern.
+    const byBearbeiter = applyBearbeiterFilter(byView, bearbeiterFilter);
+    const filteredBase = applyFilters(byBearbeiter, active, definitions);
     const q = search.trim().toLowerCase();
     const matched = q
       ? filteredBase.filter(a =>
@@ -37,6 +48,6 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       : filteredBase;
     const sortKey = getEffectiveSortKey(activeView, sortByView);
     const compare = getSortOption(sortKey).compare;
-    return { filtered: [...matched].sort(compare), view };
-  }, [antraege, active, definitions, search, activeView, sortByView]);
+    return { filtered: [...matched].sort(compare), view, bearbeiterFilter };
+  }, [antraege, active, definitions, search, activeView, sortByView, bearbeiterFilter]);
 }

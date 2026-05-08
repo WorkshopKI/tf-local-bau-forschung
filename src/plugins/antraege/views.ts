@@ -1,4 +1,5 @@
 import type { Antrag } from '@/core/services/csv/types';
+import { antragMatchesBearbeiter, type BearbeiterFilterMode } from './bearbeiterFilter';
 
 export type ViewKey =
   | 'meine_offenen'
@@ -95,9 +96,17 @@ export function getView(key: ViewKey): AntragView {
   return VIEWS.find(v => v.key === key) ?? FALLBACK_VIEW;
 }
 
-export function viewCount(key: ViewKey, antraege: Antrag[]): number {
+export function viewCount(
+  key: ViewKey,
+  antraege: Antrag[],
+  bearbeiter?: BearbeiterFilterMode,
+): number {
   const v = getView(key);
   let n = 0;
-  for (const a of antraege) if (v.predicate(a)) n++;
+  for (const a of antraege) {
+    if (!v.predicate(a)) continue;
+    if (bearbeiter && !antragMatchesBearbeiter(a, bearbeiter)) continue;
+    n++;
+  }
   return n;
 }

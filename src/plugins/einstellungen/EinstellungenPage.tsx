@@ -94,6 +94,36 @@ export function EinstellungenPage(): React.ReactElement {
                 );
               })()}
             </div>
+            <div className="mt-6">
+              <SectionHeader label="Bearbeiter-Filter" />
+              <p className="mt-2 text-[12px] text-[var(--tf-text-secondary)] leading-snug">
+                Wenn Sie ein Namenskürzel eintragen, zeigen Förderanträge-Liste und
+                Home-Dashboard automatisch nur Ihre Anträge an. Mehrere Kürzel
+                komma-separiert (z.B. <span className="font-mono">MUE, SCH</span>) für Vertretungen.
+                Wert <span className="font-mono">alle</span> deaktiviert den Filter (PL-/Übersichtsmodus).
+              </p>
+              <div className="mt-3 flex flex-col gap-1.5 max-w-xs">
+                <label className="text-[13px] font-medium text-[var(--tf-text)]">Namenskürzel</label>
+                <input
+                  value={profile.bearbeiter_kuerzel ?? ''}
+                  onChange={e => updateProfile({ bearbeiter_kuerzel: e.target.value })}
+                  placeholder="z.B. MUE oder MUE, SCH oder alle"
+                  className={inputClass}
+                  style={inputStyle}
+                />
+              </div>
+              <label className="flex items-start gap-2.5 cursor-pointer mt-3">
+                <input
+                  type="checkbox"
+                  checked={!!profile.bearbeiter_inkl_begleitung}
+                  onChange={e => updateProfile({ bearbeiter_inkl_begleitung: e.target.checked })}
+                  className="mt-0.5 cursor-pointer accent-[var(--tf-primary)]"
+                />
+                <span className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug">
+                  Auch Begleitungen einschließen (Spalten <span className="font-mono">ZTP_KUERZ</span>, <span className="font-mono">PFM_KUERZ</span>)
+                </span>
+              </label>
+            </div>
             {isKuratorMenusEnabled() && (
               <div className="mt-6">
                 <SectionHeader label="Kurator-Funktionen" />

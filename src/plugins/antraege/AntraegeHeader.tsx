@@ -22,13 +22,13 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const search = useAntraegeStore(s => s.search);
   const setSearch = useAntraegeStore(s => s.setSearch);
   const filterCount = useFilterState(s => s.active.length);
-  const { filtered, view } = useFilteredAntraege();
+  const { filtered, view, bearbeiterFilter } = useFilteredAntraege();
 
   const counts = useMemo(() => {
     const m = new Map<string, number>();
-    for (const v of VIEWS) m.set(v.key, viewCount(v.key, antraege));
+    for (const v of VIEWS) m.set(v.key, viewCount(v.key, antraege, bearbeiterFilter));
     return m;
-  }, [antraege]);
+  }, [antraege, bearbeiterFilter]);
 
   return (
     <div
@@ -42,6 +42,15 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
         </h1>
         <p className="text-[13px] text-[var(--tf-text-secondary)] mt-0.5">
           Ansicht: {view.label} · {filtered.length.toLocaleString('de-DE')} Einträge
+          {bearbeiterFilter.active ? (
+            <>
+              {' · '}
+              <span className="text-[var(--tf-primary)]">
+                gefiltert auf {bearbeiterFilter.tokens.join(', ')}
+                {bearbeiterFilter.includeBegleitung ? ' (inkl. Begleitung)' : ''}
+              </span>
+            </>
+          ) : null}
         </p>
       </div>
 

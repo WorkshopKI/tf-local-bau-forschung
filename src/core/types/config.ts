@@ -16,6 +16,24 @@ export interface UserProfile {
    * Wenn nicht gesetzt: Auto-Pick (erstes existierendes Programm).
    */
   activeProgrammId?: string;
+  /**
+   * Bearbeiter-Namenskürzel (z.B. "MUE" oder mehrere "MUE, SCH" für Vertretung).
+   * Wird gegen die CSV-Spalten TiB_KUERZ / BIB_KUERZ (Bearbeiter) und
+   * — wenn `bearbeiter_inkl_begleitung` true ist — zusätzlich ZTP_KUERZ /
+   * PFM_KUERZ (Begleitung) gematcht.
+   *
+   * Spezialwert "alle" (case-insensitive) deaktiviert den Filter — nützlich
+   * für PL/Übersicht. Leer/unset → Filter inaktiv (zeigt alle).
+   *
+   * Filtert in: Förderanträge-Liste (`/antraege`) + Home-Dashboard.
+   */
+  bearbeiter_kuerzel?: string;
+  /**
+   * Wenn true, schließt der Bearbeiter-Filter zusätzlich die Begleitungs-
+   * Spalten (ZTP_KUERZ, PFM_KUERZ) ein. Default false — nur direkte
+   * Bearbeiter-Spalten (TiB_KUERZ, BIB_KUERZ).
+   */
+  bearbeiter_inkl_begleitung?: boolean;
 }
 
 export interface AIProviderConfig {

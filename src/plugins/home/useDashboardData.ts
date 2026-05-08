@@ -3,6 +3,8 @@ import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
 import type { Antrag } from '@/core/services/csv/types';
+import { useProfile } from '@/core/hooks/useProfile';
+import { parseBearbeiterFilter, applyBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
 
 const CLOSED = new Set(['genehmigt', 'abgelehnt', 'archiviert', 'bewilligt', 'abgeschlossen']);
 
@@ -55,11 +57,19 @@ export interface DashboardData {
 export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide' = 'beide'): DashboardData {
   const bauantraege = useBauantraegeStore(s => s.bauantraege);
   const antraege = useAntraegeStore(s => s.antraege);
+  const { profile } = useProfile();
 
   return useMemo(() => {
+    const bearbeiterMode = parseBearbeiterFilter(
+      profile?.bearbeiter_kuerzel,
+      profile?.bearbeiter_inkl_begleitung,
+    );
+    // Bauantraege bleiben unverändert (KUERZ-Spalten gibt es dort nicht).
+    // Förderanträge filtern wir per Profil-Kürzel.
+    const filteredAntraege = applyBearbeiterFilter(antraege, bearbeiterMode);
     const alle: Vorgang[] = [
       ...(department !== 'antraege' ? bauantraege : []),
-      ...(department !== 'bauantraege' ? antraege.map(antragToVorgangLike) : []),
+      ...(department !== 'bauantraege' ? filteredAntraege.map(antragToVorgangLike) : []),
     ];
     const offen = alle.filter(v => !CLOSED.has(v.status));
 
@@ -90,5 +100,5 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
         genehmigt: alle.filter(v => (v.status as string) === 'genehmigt' || (v.status as string) === 'bewilligt').length,
       },
     };
-  }, [bauantraege, antraege, department]);
+  }, [bauantraege, antraege, department, profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung]);
 }
