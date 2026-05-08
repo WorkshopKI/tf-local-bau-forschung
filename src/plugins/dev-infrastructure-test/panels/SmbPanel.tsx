@@ -93,8 +93,18 @@ export function SmbPanel(): React.ReactElement {
     smbStatus.simulateDisconnect(30_000);
   };
 
-  const onCheck = (): void => {
-    void smbStatus.check(storage.idb);
+  const onCheck = async (): Promise<void> => {
+    setLastMsg('Prüfe Verbindung…');
+    await smbStatus.check(storage.idb);
+    await refresh();
+    const next = useSmbStatus.getState().status;
+    const labelMap: Record<typeof next, string> = {
+      online: 'Verbindung OK — Share erreichbar.',
+      offline: 'Share aktuell nicht erreichbar.',
+      permission_denied: 'Berechtigung verweigert — Permission neu anfordern.',
+      unknown: 'Status unbekannt — Handle ggf. nicht gesetzt.',
+    } as const;
+    setLastMsg(labelMap[next] ?? `Status: ${next}`);
   };
 
   const onClearHandle = async (): Promise<void> => {
@@ -138,11 +148,31 @@ export function SmbPanel(): React.ReactElement {
         Geschwister liegen.
       </p>
 
-      <Field label="Aktiver Share">
+      <Field
+        label="Aktiver Share"
+        hint={
+          handleName
+            ? 'Auf neuem Rechner oder neuem Browser-Profil? "Anderen Ordner wählen" öffnet den Picker.'
+            : 'Noch kein Daten-Share verbunden — über "Auswählen" einen Ordner wählen.'
+        }
+      >
         <div className="flex items-center flex-wrap gap-2">
           <StatusPill label={handleName ? `✓ ${handleName}` : 'nicht gesetzt'} tone={handleName ? 'ok' : 'neutral'} />
           <StatusPill label={`Permission: ${permission}`} tone={permTone} />
           <StatusPill label={smbStatus.status} tone={statusTone} />
+          <Button size="xs" variant="outline" onClick={() => void onPick()}>
+            {handleName ? 'Anderen Ordner wählen' : 'Auswählen'}
+          </Button>
+          {permission === 'prompt' || permission === 'denied' ? (
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => void onRefreshPermission()}
+              disabled={!handleName}
+            >
+              Permission neu anfordern
+            </Button>
+          ) : null}
         </div>
       </Field>
 
