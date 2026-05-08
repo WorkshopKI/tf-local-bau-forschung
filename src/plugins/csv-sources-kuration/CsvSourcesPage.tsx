@@ -16,6 +16,7 @@ import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { SectionHeader } from '@/ui/SectionHeader';
 import { CsvSourceWizard } from './wizard/CsvSourceWizard';
 import { CsvSourceReimportDialog } from './CsvSourceReimportDialog';
+import { CsvSchemaDetailDialog } from './CsvSchemaDetailDialog';
 
 export function CsvSourcesPage(): React.ReactElement {
   const storage = useStorage();
@@ -25,6 +26,8 @@ export function CsvSourcesPage(): React.ReactElement {
   const [schemas, setSchemas] = useState<CsvSchema[]>([]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [reimportSchema, setReimportSchema] = useState<CsvSchema | null>(null);
+  const [detailSchema, setDetailSchema] = useState<CsvSchema | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetCounts, setResetCounts] = useState<ClearAntragDataResult | null>(null);
   const [resetRunning, setResetRunning] = useState(false);
@@ -38,10 +41,10 @@ export function CsvSourcesPage(): React.ReactElement {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const onDelete = async (s: CsvSchema): Promise<void> => {
-    if (!confirm(`Schema "${s.csv_source_name}" löschen? (Row-Hashes bleiben erhalten, können später aufgeräumt werden)`)) return;
+  const onConfirmDelete = async (s: CsvSchema): Promise<void> => {
     await removeSchema(storage.idb, s.id);
     await logAudit(storage.idb, { action: 'csv_schema_deleted', user: session.kuratorName ?? undefined, details: { schemaId: s.id } });
+    setDeleteConfirmId(null);
     await refresh();
   };
 
@@ -97,33 +100,81 @@ export function CsvSourcesPage(): React.ReactElement {
         </div>
       ) : (
         <div>
-          {schemas.sort((a, b) => b.priority - a.priority).map((s, i) => (
-            <div
-              key={s.id}
-              className="flex items-center justify-between py-3"
-              style={i === schemas.length - 1 ? undefined : { borderBottom: '0.5px solid var(--tf-border)' }}
-            >
-              <div className="min-w-0">
-                <div className="text-[14px] text-[var(--tf-text)] flex items-center gap-2">
-                  {s.csv_source_name}
-                  {s.is_master ? <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-50 text-blue-800">Master</span> : null}
+          {schemas.sort((a, b) => b.priority - a.priority).map((s, i) => {
+            const isConfirming = deleteConfirmId === s.id;
+            return (
+              <div
+                key={s.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setDetailSchema(s)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setDetailSchema(s);
+                  }
+                }}
+                className="flex items-center justify-between py-3 px-2 -mx-2 rounded-md cursor-pointer hover:bg-[var(--tf-bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]"
+                style={i === schemas.length - 1 ? undefined : { borderBottom: '0.5px solid var(--tf-border)' }}
+              >
+                <div className="min-w-0">
+                  <div className="text-[14px] text-[var(--tf-text)] flex items-center gap-2">
+                    {s.csv_source_name}
+                    {s.is_master ? <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-50 text-blue-800">Master</span> : null}
+                  </div>
+                  <div className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+                    <span className="font-mono">{s.id}</span> · join={s.join_key} · priority={s.priority}
+                    {s.last_imported_at ? ` · letzter Import ${new Date(s.last_imported_at).toLocaleString('de-DE')}` : ''}
+                    {typeof s.last_row_count === 'number' ? ` · ${s.last_row_count} Zeilen` : ''}
+                  </div>
                 </div>
-                <div className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-                  <span className="font-mono">{s.id}</span> · join={s.join_key} · priority={s.priority}
-                  {s.last_imported_at ? ` · letzter Import ${new Date(s.last_imported_at).toLocaleString('de-DE')}` : ''}
-                  {typeof s.last_row_count === 'number' ? ` · ${s.last_row_count} Zeilen` : ''}
-                </div>
+                {isConfirming ? (
+                  <div
+                    className="flex items-center gap-2 max-w-[60%]"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <span className="text-[11.5px] text-[var(--tf-text-secondary)] text-right">
+                      Schema dauerhaft löschen?<br />
+                      Re-Import-Konfiguration geht verloren. Importierte Anträge bleiben.
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={e => { e.stopPropagation(); setDeleteConfirmId(null); }}
+                    >
+                      Abbrechen
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={e => { e.stopPropagation(); void onConfirmDelete(s); }}
+                    >
+                      Endgültig löschen
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={e => { e.stopPropagation(); setReimportSchema(s); }}
+                      disabled={!session.isActive}
+                    >
+                      Re-Import
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={e => { e.stopPropagation(); setDeleteConfirmId(s.id); }}
+                      disabled={!session.isActive}
+                    >
+                      Löschen
+                    </Button>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => setReimportSchema(s)} disabled={!session.isActive}>
-                  Re-Import
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => void onDelete(s)} disabled={!session.isActive}>
-                  Löschen
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -206,6 +257,13 @@ export function CsvSourcesPage(): React.ReactElement {
           schema={reimportSchema}
           onClose={() => setReimportSchema(null)}
           onCompleted={() => { void refresh(); }}
+        />
+      ) : null}
+
+      {detailSchema ? (
+        <CsvSchemaDetailDialog
+          schema={detailSchema}
+          onClose={() => setDetailSchema(null)}
         />
       ) : null}
     </div>
