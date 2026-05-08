@@ -21,6 +21,11 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
   { key: 'antragsdatum', type: 'date', label: 'Antragsdatum', level: 'antrag' },
   { key: 'frist_datum', type: 'date', label: 'Fristdatum', level: 'antrag' },
   { key: 'foerdersumme', type: 'number', label: 'Fördersumme', level: 'antrag' },
+  // Bearbeiter / Begleitung — Namenskürzel pro Antrag, für den Profil-Filter „Nur meine".
+  { key: 'tib_kuerz', type: 'string', label: 'Bearbeiter TiB (Kürzel)', level: 'antrag' },
+  { key: 'bib_kuerz', type: 'string', label: 'Bearbeiter BIB (Kürzel)', level: 'antrag' },
+  { key: 'ztp_kuerz', type: 'string', label: 'Begleitung ZTP (Kürzel)', level: 'antrag' },
+  { key: 'pfm_kuerz', type: 'string', label: 'Begleitung PFM (Kürzel)', level: 'antrag' },
   // Verbund-Ebene (gleich für alle TVs eines Verbundes)
   { key: 'verbund_titel', type: 'string', label: 'Verbund-Titel', level: 'verbund' },
   { key: 'verbund_status', type: 'string', label: 'Verbund-Status', level: 'verbund' },

@@ -12,6 +12,13 @@ export type CanonicalField =
   | 'foerdersumme'
   | 'foerdergeber'
   | 'branche'
+  // Bearbeiter / Begleitung (Namenskürzel aus dem CSV-Import).
+  // Werden für den Profil-Filter „Nur meine Anträge" verwendet
+  // (siehe `src/plugins/antraege/bearbeiterFilter.ts`).
+  | 'tib_kuerz'
+  | 'bib_kuerz'
+  | 'ztp_kuerz'
+  | 'pfm_kuerz'
   // Verbund-Ebene (gemeinsam für alle TVs eines Verbundes)
   | 'verbund_titel'
   | 'verbund_status';
@@ -79,7 +86,15 @@ export interface Unterprogramm {
   programm_id: string;
   code: string;                     // technischer Code aus CSV (= id, redundant für Klarheit)
   name?: string;                    // optional, vom Admin nachgepflegtes Klartext-Label
+  /** Geplanter Zeitraum aus XLSX-Spalte 'jahr', z.B. "2020-2025" oder "2020". Free-text. */
+  geplanter_zeitraum?: string;
+  /** Auto-berechnetes ältestes antragsdatum aller zugehörigen Anträge (ISO YYYY-MM-DD). */
+  zeitraum_auto_von_cached?: string;
+  /** Auto-berechnetes neuestes antragsdatum aller zugehörigen Anträge (ISO YYYY-MM-DD). */
+  zeitraum_auto_bis_cached?: string;
+  /** @deprecated ab v1.14: manuell editierbarer Zeitraum. UI rendert das Feld nicht mehr. */
   zeitraum_von?: string;
+  /** @deprecated ab v1.14: siehe zeitraum_von. */
   zeitraum_bis?: string;
   aktiv: boolean;                   // Import-Aktiv-Flag
   antrag_count_cached?: number;

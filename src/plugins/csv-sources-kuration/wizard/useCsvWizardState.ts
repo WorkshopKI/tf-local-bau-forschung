@@ -544,6 +544,13 @@ export function useCsvWizardState(): WizardApi {
 
 function guessDecision(col: string, samples: string[] = []): PerColumnDecision {
   const c = col.toLowerCase();
+  // Bearbeiter / Begleitung KUERZ — vor `antragsteller|bearbeiter` matchen,
+  // damit ein Header `TiB_KUERZ` nicht versehentlich als 'antragsteller'
+  // gemappt wird. Pattern erlaubt Trennzeichen (-, _, .) zwischen Präfix und 'kuerz'.
+  if (/^tib[._-]?kuerz$/.test(c)) return { mode: 'canonical', canonical: 'tib_kuerz', type: 'string' };
+  if (/^bib[._-]?kuerz$/.test(c)) return { mode: 'canonical', canonical: 'bib_kuerz', type: 'string' };
+  if (/^ztp[._-]?kuerz$/.test(c)) return { mode: 'canonical', canonical: 'ztp_kuerz', type: 'string' };
+  if (/^pfm[._-]?kuerz$/.test(c)) return { mode: 'canonical', canonical: 'pfm_kuerz', type: 'string' };
   if (/akz|aktenzeichen|fkz/.test(c)) return { mode: 'canonical', canonical: 'aktenzeichen', type: 'string' };
   if (/kurz|akronym/.test(c)) return { mode: 'canonical', canonical: 'akronym', type: 'string' };
   if (/verbund.?id|vb_nr/.test(c)) return { mode: 'canonical', canonical: 'verbund_id', type: 'string' };
