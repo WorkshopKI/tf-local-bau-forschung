@@ -112,6 +112,7 @@ export function buildRouter(
     'programme-kuration',
     'csv-sources-kuration',
     'unterprogramme-kuration',
+    'dokumentenquellen-kuration',
     'filter-kuration',
     'feedback-kuration',
     'dokument-review',

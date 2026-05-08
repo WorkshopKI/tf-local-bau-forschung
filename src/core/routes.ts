@@ -24,6 +24,7 @@ export const PLUGIN_ROUTES: Record<string, string> = {
   'programme-kuration': '/kuration/programme',
   'csv-sources-kuration': '/kuration/csv-quellen',
   'unterprogramme-kuration': '/kuration/unterprogramme',
+  'dokumentenquellen-kuration': '/kuration/dokumentenquellen',
   'filter-kuration': '/kuration/filter',
   'feedback-kuration': '/kuration/feedback',
   'dokument-review': '/kuration/dokument-review',
