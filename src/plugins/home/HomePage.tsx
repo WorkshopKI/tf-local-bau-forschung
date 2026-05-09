@@ -89,10 +89,41 @@ export function HomePage(): React.ReactElement {
     return <HomeCallToAction idb={storage.idb} onConnected={() => setHasHandle(true)} />;
   }
 
-  // Erster Store-Load laeuft noch — leeres Skelett, damit nicht kurz
-  // "Noch keine Vorgaenge angelegt" aufblitzt.
+  // Erster Store-Load laeuft noch — Skeleton mit echter Begruessung statt
+  // leerem Div. Unter Multi-CSV-Joins (~480 MB IDB-getAll fuer 13k Antraege)
+  // dauert das mehrere Sekunden; ohne Skeleton sieht der User in der Zeit
+  // gar nichts und die App fuehlt sich eingefroren an.
   if (!firstLoadDone) {
-    return <div className="min-h-[60vh]" />;
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Guten Morgen' : hour < 18 ? 'Guten Tag' : 'Guten Abend';
+    return (
+      <div className="px-8 pt-4 pb-6 max-w-5xl">
+        <div className="mb-6">
+          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">
+            {greeting}{name ? `, ${name}` : ''}
+          </h1>
+          <p className="text-[13px] text-[var(--tf-text-tertiary)]">Lade Vorgänge …</p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-8">
+          <div className="min-w-0">
+            <div className="h-4 w-40 rounded bg-[var(--tf-bg-secondary)] animate-pulse mb-3" />
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-12 rounded bg-[var(--tf-bg-secondary)] animate-pulse" />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-24 rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] animate-pulse"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (data.stats.total === 0) {

@@ -209,9 +209,13 @@ export class StorageService {
 
   async listVorgaenge(type?: 'bauantrag'): Promise<Vorgang[]> {
     const keys = await this.idb.keys('vorgang:');
+    // Parallel statt sequenziell: bei N Vorgaengen war der bisherige
+    // for-await-Loop O(N × Roundtrip) — bei 24 Vorgaengen real ~3 s.
+    // Promise.all bricht das auf einen einzigen IDB-Round (alle Reads
+    // teilen sich die Transaktion) → ~150 ms.
+    const all = await Promise.all(keys.map(k => this.idb.get<Vorgang>(k)));
     const results: Vorgang[] = [];
-    for (const key of keys) {
-      const v = await this.idb.get<Vorgang>(key);
+    for (const v of all) {
       if (v && (!type || v.type === type)) results.push(v);
     }
     return results;

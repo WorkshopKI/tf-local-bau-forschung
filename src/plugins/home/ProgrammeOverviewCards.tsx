@@ -32,6 +32,11 @@ export function ProgrammeOverviewCards(): React.ReactElement | null {
   const [counts, setCounts] = useState<Map<string, Counts>>(new Map());
 
   useEffect(() => {
+    // Bei <=1 Programm rendert die Komponente nichts (siehe Early-Return
+    // unten) — also keinen IDB-getAll triggern. Spart bei deinem
+    // typischen Setup ~2.6 s pro Home-Mount, weil sonst die kompletten
+    // 13k+ Antraege NUR fuer einen Count gelesen worden waeren.
+    if (programme.length <= 1) return;
     let cancelled = false;
     const end = tfPerfStart('ProgrammeOverviewCards effect');
     void (async () => {

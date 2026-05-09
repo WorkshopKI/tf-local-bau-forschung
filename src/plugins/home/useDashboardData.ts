@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useDeferredValue, useMemo } from 'react';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
@@ -90,9 +90,17 @@ export interface DashboardData {
 }
 
 export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide' = 'beide'): DashboardData {
-  const bauantraege = useBauantraegeStore(s => s.bauantraege);
-  const antraege = useAntraegeStore(s => s.antraege);
+  const bauantraegeRaw = useBauantraegeStore(s => s.bauantraege);
+  const antraegeRaw = useAntraegeStore(s => s.antraege);
   const { profile } = useProfile();
+
+  // useDeferredValue puffert die kaskadierenden Store-Updates beim
+  // Home-Mount: zuerst landet `antraege` im Store, kurz darauf
+  // `bauantraege` (Promise.all in HomePage). Ohne Deferral lief das
+  // useMemo dazwischen 2-3x; mit Deferral berechnet React die Memo erst
+  // wenn beide Werte stabilisiert sind und mit niedriger Prioritaet.
+  const antraege = useDeferredValue(antraegeRaw);
+  const bauantraege = useDeferredValue(bauantraegeRaw);
 
   return useMemo(() => {
     const end = tfPerfStart('useDashboardData memo');
