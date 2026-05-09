@@ -3,7 +3,7 @@
   "variant": "development",
   "build": {
     "label": "ZAH",
-    "outputFilename": "zah",
+    "outputFilename": "zah-dev",
     "browserTabTitle": "ZAH",
     "sidebarSubtitle": "ZIM Arbeitshilfe"
   },
