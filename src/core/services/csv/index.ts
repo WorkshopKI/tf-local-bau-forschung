@@ -48,6 +48,7 @@ export {
   saveUnterprogramm,
   getActiveUnterprogrammCodes,
   recomputeAntragCounts,
+  recomputeUnterprogrammStats,
   findUnterprogrammColumn,
   logUnterprogrammChange,
 } from './unterprogrammRegistry';
@@ -95,6 +96,18 @@ export {
 } from './filter/engine';
 export { listAvailableFields, humanizeFieldKey } from './filter/availableFields';
 export type { AvailableField } from './filter/availableFields';
+export {
+  parseUnterprogrammLabelXlsx,
+  computeUnterprogrammLabelDiff,
+  applyUnterprogrammLabelDiff,
+  buildUnterprogrammLabelDiff,
+} from './unterprogrammLabelXlsx';
+export type {
+  UnterprogrammLabelEntry,
+  UnterprogrammLabelDiff,
+  UnterprogrammLabelDiffRow,
+  UnterprogrammLabelChangeKind,
+} from './unterprogrammLabelXlsx';
 export { parseLabelXlsx, buildSuggestions, applyAmbiguousResolution } from './filter/xlsLabelParser';
 export type {
   ColumnLabelEntry,
