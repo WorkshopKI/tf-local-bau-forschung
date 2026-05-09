@@ -144,7 +144,7 @@ export function HomePage(): React.ReactElement {
       {/* Two-column grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-8">
         {/* Main */}
-        <div data-tour="document-list">
+        <div data-tour="document-list" className="min-w-0">
           <SectionHeader label="Aktuelle Vorgänge"
             action={<button onClick={() => navigate('bauantraege')} className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer">Alle →</button>} />
           {data.letzteAenderungen.map((v, i) => {
