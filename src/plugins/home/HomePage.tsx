@@ -42,20 +42,27 @@ export function HomePage(): React.ReactElement {
   }, [storage.idb]);
 
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
+  const department = profile?.department ?? 'beide';
   useEffect(() => {
     let cancelled = false;
     const end = tfPerfStart('HomePage mount: loadBau+loadAntraege');
-    void Promise.all([
-      loadBau(storage),
-      loadAntraege(storage.idb, activeProgrammId ?? undefined),
-    ]).then(() => {
+    // Konditionaler Load: was im Dashboard eh nicht angezeigt wird, laden
+    // wir gar nicht erst. Bei Profil 'antraege' (reine Foerderantraege-User)
+    // sparen wir den FS-Scan komplett; bei 'bauantraege' den 480 MB
+    // IDB-getAll der Foerderantraege.
+    const tasks: Promise<void>[] = [];
+    if (department !== 'antraege') tasks.push(loadBau(storage));
+    if (department !== 'bauantraege') {
+      tasks.push(loadAntraege(storage.idb, activeProgrammId ?? undefined));
+    }
+    void Promise.all(tasks).then(() => {
       if (!cancelled) {
         setFirstLoadDone(true);
         end();
       }
     });
     return () => { cancelled = true; };
-  }, [storage, loadBau, loadAntraege, activeProgrammId]);
+  }, [storage, loadBau, loadAntraege, activeProgrammId, department]);
 
   // useDashboardData filtert NICHT explizit auf activeProgrammId — der
   // useAntraegeStore.antraege-State enthält nach loadAll(idb, programmId)
