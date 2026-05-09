@@ -6,7 +6,7 @@ export const csvSourcesAdminPlugin: TeamFlowPlugin = {
   name: 'CSV-Quellen',
   icon: 'Database',
   category: 'kuration',
-  order: 81,
+  order: 10,
   component: CsvSourcesPage,
   kuratorOnly: true,
 };

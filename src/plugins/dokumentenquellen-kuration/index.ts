@@ -19,7 +19,7 @@ export const dokumentenquellenKurationPlugin: TeamFlowPlugin = {
   name: 'Dokumentenquellen',
   icon: 'FolderTree',
   category: 'kuration',
-  order: 30,
+  order: 20,
   component: DokumentenquellenPage,
   kuratorOnly: true,
 };
