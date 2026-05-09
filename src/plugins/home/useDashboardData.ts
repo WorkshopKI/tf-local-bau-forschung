@@ -95,9 +95,17 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       .sort((a, b) => b.modified.localeCompare(a.modified))
       .slice(0, 8);
 
-    const bearbeiterKuerzelMissing = bearbeiterMode.active && department !== 'bauantraege'
-      ? !hasAnyKuerzelData(antraege, bearbeiterMode.includeBegleitung)
-      : false;
+    // KUERZ-Missing nur dann melden, wenn tatsaechlich Antraege im Store
+    // liegen. Beim ersten Render ist `antraege === []`, weil loadAntraege
+    // noch laeuft — `hasAnyKuerzelData([])` waere `false` und wuerde einen
+    // falschen Warnblock erzeugen, der nach 1–2 s wieder verschwindet.
+    // Erst wenn echte Daten da sind, kann KUERZ "fehlen".
+    const bearbeiterKuerzelMissing =
+      bearbeiterMode.active
+      && department !== 'bauantraege'
+      && antraege.length > 0
+        ? !hasAnyKuerzelData(antraege, bearbeiterMode.includeBegleitung)
+        : false;
     return {
       greeting: getGreeting(),
       offeneVorgaenge: offen,
