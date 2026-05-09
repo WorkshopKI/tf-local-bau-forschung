@@ -79,11 +79,13 @@ interface AntraegeState {
   backToList: () => void;
 }
 
-/** Schnell-Navigations-TTL: innerhalb dieses Fensters wird ein erneuter
- *  loadAll-Aufruf für dasselbe Programm übersprungen. Lang genug, um
- *  Home→Antraege-Navigation abzudecken (ms-Bereich), kurz genug, um
- *  CSV-Imports (Sekunden) nicht zu blockieren. */
-const LOAD_ALL_SKIP_TTL_MS = 2000;
+/** Session-TTL: innerhalb dieses Fensters wird ein erneuter loadAll-Aufruf
+ *  für dasselbe Programm übersprungen. 5 Minuten deckt typische Lese-
+ *  Sessions ab — User klickt mehrfach zwischen Home/Antraege/Detail.
+ *  Längere Pausen triggern wieder einen frischen IDB-Read (2.6 s bei
+ *  13k+ Records mit Multi-CSV-Joins). CSV-Imports umgehen den Skip via
+ *  `opts.force=true`. */
+const LOAD_ALL_SKIP_TTL_MS = 5 * 60 * 1000;
 
 export function getEffectiveSortKey(
   view: ViewKey,

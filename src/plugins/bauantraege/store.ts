@@ -21,10 +21,12 @@ interface BauantraegeState {
   setFilters: (filters: Partial<{ status: string; search: string }>) => void;
 }
 
-/** Schnell-Navigations-TTL: innerhalb dieses Fensters wird ein erneuter
- *  loadAll-Aufruf uebersprungen. Bauantraege liegen auf dem FS-Share und
- *  aendern sich seltener als CSV-importierte Antraege; 30 s sind sicher. */
-const LOAD_ALL_SKIP_TTL_MS = 30_000;
+/** Session-TTL: innerhalb dieses Fensters wird ein erneuter loadAll-Aufruf
+ *  uebersprungen. Bauantraege liegen auf dem FS-Share und aendern sich
+ *  seltener als CSV-importierte Antraege; 5 Minuten deckt eine typische
+ *  Lese-Session ab. Aenderungen via add/update/remove updaten den Store
+ *  in-memory direkt — der TTL maskiert keine eigenen Schreibvorgaenge. */
+const LOAD_ALL_SKIP_TTL_MS = 5 * 60 * 1000;
 
 export const useBauantraegeStore = create<BauantraegeState>((set, get) => ({
   bauantraege: [],

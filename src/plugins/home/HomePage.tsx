@@ -42,14 +42,17 @@ export function HomePage(): React.ReactElement {
   }, [storage.idb]);
 
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
-  const department = profile?.department ?? 'beide';
   useEffect(() => {
+    // Race-Gate: ProfileProvider startet mit profile=null und befuellt
+    // ihn erst nach einem useEffect-Tick aus IDB. Wenn HomePage in dem
+    // Fenster mountet, war department auf 'beide' (Fallback) und
+    // loadBau lief unnoetig — selbst bei einem 'antraege'-Profil. Wir
+    // warten daher, bis profile != null ist, und nehmen dann anhand des
+    // tatsaechlichen department-Werts die richtigen Loads auf.
+    if (profile === null) return;
+    const department = profile.department ?? 'beide';
     let cancelled = false;
     const end = tfPerfStart('HomePage mount: loadBau+loadAntraege');
-    // Konditionaler Load: was im Dashboard eh nicht angezeigt wird, laden
-    // wir gar nicht erst. Bei Profil 'antraege' (reine Foerderantraege-User)
-    // sparen wir den FS-Scan komplett; bei 'bauantraege' den 480 MB
-    // IDB-getAll der Foerderantraege.
     const tasks: Promise<void>[] = [];
     if (department !== 'antraege') tasks.push(loadBau(storage));
     if (department !== 'bauantraege') {
@@ -62,7 +65,7 @@ export function HomePage(): React.ReactElement {
       }
     });
     return () => { cancelled = true; };
-  }, [storage, loadBau, loadAntraege, activeProgrammId, department]);
+  }, [storage, loadBau, loadAntraege, activeProgrammId, profile]);
 
   // useDashboardData filtert NICHT explizit auf activeProgrammId — der
   // useAntraegeStore.antraege-State enthält nach loadAll(idb, programmId)
