@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useDeferredValue, useMemo } from 'react';
 import { applyFilters } from '@/core/services/csv';
 import type { Antrag } from '@/core/services/csv/types';
 import { useAntraegeStore, getEffectiveSortKey } from './store';
@@ -37,6 +37,12 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const definitions = useFilterState(s => s.definitions);
   const { profile } = useProfile();
 
+  // Such-Eingabe entkoppeln: das Input bleibt responsiv, der teure
+  // Filter+Sort-Pass läuft erst wenn React Idle-Zeit hat. Bei 13k+ Records
+  // mit fetten Multi-CSV-Joins macht das den Unterschied zwischen
+  // "stockt beim Tippen" und "flüssig".
+  const deferredSearch = useDeferredValue(search);
+
   const bearbeiterFilter = useMemo(
     () => parseBearbeiterFilter(profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung),
     [profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung],
@@ -48,7 +54,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // Bearbeiter-Filter (Profil-Kürzel) NACH der View, vor den Custom-Filtern.
     const byBearbeiter = applyBearbeiterFilter(byView, bearbeiterFilter);
     const filteredBase = applyFilters(byBearbeiter, active, definitions);
-    const q = search.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
     const matched = q
       ? filteredBase.filter(a =>
           a.aktenzeichen.toLowerCase().includes(q)
@@ -68,5 +74,5 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       bearbeiterFilter,
       bearbeiterKuerzelMissing,
     };
-  }, [antraege, active, definitions, search, activeView, sortByView, bearbeiterFilter]);
+  }, [antraege, active, definitions, deferredSearch, activeView, sortByView, bearbeiterFilter]);
 }

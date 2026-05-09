@@ -33,13 +33,19 @@ export function ProgrammeOverviewCards(): React.ReactElement | null {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const next = new Map<string, Counts>();
-      for (const p of programme) {
-        const list = await listAntraegeByProgramm(storage.idb, p.id);
-        const offen = list.filter(a => !CLOSED.has(String(a.status ?? '').toLowerCase())).length;
-        next.set(p.id, { total: list.length, offen });
-      }
-      if (!cancelled) setCounts(next);
+      // Parallel statt sequenziell: bei mehreren Programmen mit jeweils
+      // 13k+ Records spart das die Summe der IDB-Reads (sonst N × Roundtrip).
+      const results = await Promise.all(
+        programme.map(async p => {
+          const list = await listAntraegeByProgramm(storage.idb, p.id);
+          let offen = 0;
+          for (const a of list) {
+            if (!CLOSED.has(String(a.status ?? '').toLowerCase())) offen++;
+          }
+          return [p.id, { total: list.length, offen }] as const;
+        }),
+      );
+      if (!cancelled) setCounts(new Map(results));
     })();
     return () => { cancelled = true; };
   }, [programme, storage.idb]);

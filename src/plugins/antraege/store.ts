@@ -57,13 +57,19 @@ interface AntraegeState {
   /** User-Override pro View. Leer → Default aus DEFAULT_SORT_BY_VIEW. */
   sortByView: Partial<Record<ViewKey, SortKey>>;
   loading: boolean;
+  /** Wann der Store zuletzt erfolgreich geladen hat. Für TTL-Skip-Path
+   *  in `loadAll` — schnelle Navigations-Wechsel zwischen Home und
+   *  Antraege-Seite überspringen den IDB-Read, längere Pausen (z.B. nach
+   *  CSV-Import) lösen einen Reload aus. */
+  lastLoadedAt: number;
   /**
    * Lädt Antraege + Verbuende für das angegebene Programm. Wird bei
    * Programm-Switch erneut aufgerufen.
    * Wenn `programmId` weggelassen wird: fällt auf `ensureDefaultProgramm()`
    * zurück (Bootstrap-Pfad).
+   * `force=true` umgeht den TTL-Skip (z.B. nach CSV-Import).
    */
-  loadAll: (idb: IDBStore, programmId?: string) => Promise<void>;
+  loadAll: (idb: IDBStore, programmId?: string, opts?: { force?: boolean }) => Promise<void>;
   setSearch: (s: string) => void;
   setActiveView: (view: ViewKey) => void;
   setSortForView: (view: ViewKey, key: SortKey) => void;
@@ -71,6 +77,12 @@ interface AntraegeState {
   setSelectedVerbundId: (id: string | null) => void;
   backToList: () => void;
 }
+
+/** Schnell-Navigations-TTL: innerhalb dieses Fensters wird ein erneuter
+ *  loadAll-Aufruf für dasselbe Programm übersprungen. Lang genug, um
+ *  Home→Antraege-Navigation abzudecken (ms-Bereich), kurz genug, um
+ *  CSV-Imports (Sekunden) nicht zu blockieren. */
+const LOAD_ALL_SKIP_TTL_MS = 2000;
 
 export function getEffectiveSortKey(
   view: ViewKey,
@@ -89,12 +101,26 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
   loading: false,
+  lastLoadedAt: 0,
 
-  loadAll: async (idb: IDBStore, programmId?: string) => {
-    const oldProgrammId = useAntraegeStore.getState().programmId;
+  loadAll: async (idb: IDBStore, programmId?: string, opts?: { force?: boolean }) => {
+    const state = useAntraegeStore.getState();
+    const oldProgrammId = state.programmId;
+    const targetId = programmId ?? (await ensureDefaultProgramm(idb)).id;
+    // TTL-Skip: identisches Programm + frische Daten + kein expliziter
+    // Force → IDB-Read überspringen. Spart bei Home↔Antraege-Navigation
+    // den 13k-Record-Roundtrip und vermeidet die nachgelagerte Memo-
+    // Invalidation (neue antraege-Reference triggert sonst alle Hooks).
+    if (
+      !opts?.force
+      && state.programmId === targetId
+      && state.antraege.length > 0
+      && Date.now() - state.lastLoadedAt < LOAD_ALL_SKIP_TTL_MS
+    ) {
+      return;
+    }
     set({ loading: true });
     try {
-      const targetId = programmId ?? (await ensureDefaultProgramm(idb)).id;
       const [antraege, verbuende] = await Promise.all([
         listAntraegeByProgramm(idb, targetId),
         listVerbuendeByProgramm(idb, targetId),
@@ -110,6 +136,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
         programmId: targetId,
         antraege,
         verbuende,
+        lastLoadedAt: Date.now(),
         ...(programmChanged ? {
           selectedAktenzeichen: null,
           selectedVerbundId: null,

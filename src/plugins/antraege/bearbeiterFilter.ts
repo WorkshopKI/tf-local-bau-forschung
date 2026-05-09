@@ -22,6 +22,13 @@ import type { Antrag } from '@/core/services/csv/types';
 
 const BEARBEITER_FIELDS_LOWER: readonly string[] = ['tib_kuerz', 'bib_kuerz'];
 const BEGLEITUNG_FIELDS_LOWER: readonly string[] = ['ztp_kuerz', 'pfm_kuerz'];
+const BEARBEITER_FIELDS_LOWER_SET: ReadonlySet<string> = new Set(BEARBEITER_FIELDS_LOWER);
+const BEGLEITUNG_FIELDS_LOWER_SET: ReadonlySet<string> = new Set(BEGLEITUNG_FIELDS_LOWER);
+const COMBINED_FIELDS_LOWER: readonly string[] = [
+  ...BEARBEITER_FIELDS_LOWER,
+  ...BEGLEITUNG_FIELDS_LOWER,
+];
+const COMBINED_FIELDS_LOWER_SET: ReadonlySet<string> = new Set(COMBINED_FIELDS_LOWER);
 
 export interface BearbeiterFilterMode {
   /** Aktiv? Wenn false, lassen sich Anträge unfiltriert durchreichen. */
@@ -57,27 +64,56 @@ export function parseBearbeiterFilter(
 }
 
 /**
- * Iteriert über alle Properties des Antrags, deren Key (case-insensitive)
- * in `fieldsLower` enthalten ist, und ruft den Callback mit dem String-Wert
- * (getrimmt, uppercased). Stoppt bei `cb()` === true.
+ * Hot path: direkter Property-Zugriff auf die canonical lowercase-Keys.
+ * Der Merger schreibt KUERZ-Spalten im Default-Pfad (`resolveFieldKey` →
+ * `col.toLowerCase()`) immer als lowercase, der CSV-Wizard mappt sie
+ * explizit auf canonical lowercase. In ~100% der Real-World-Records reicht
+ * dieser Hot-Path — kein `Object.entries`/Iteration über alle Felder pro
+ * Record (mit Multi-CSV-Joins schnell 50+ Felder, dann reine Verschwendung).
+ *
+ * Fallback scannt zusätzlich Keys mit abweichender Casing (z.B. ein
+ * custom-Mapping, das das Original-Casing wie `TiB_KUERZ` direkt am Antrag
+ * erhält). Der Skip auf bereits geprüfte lowercase-Keys + ein Early-Out
+ * für Keys, die schon lowercase sind und nicht im Set, hält den Fallback
+ * billig: für die typischen lowercase-only-Records sind es nur Set-Lookups.
  */
 function forEachKuerzelValue(
   antrag: Antrag,
-  fieldsLower: readonly string[],
+  fieldsLowerKeys: readonly string[],
+  fieldsLowerSet: ReadonlySet<string>,
   cb: (uppered: string) => boolean,
 ): boolean {
-  for (const [key, val] of Object.entries(antrag)) {
-    if (typeof val !== 'string') continue;
-    if (!fieldsLower.includes(key.toLowerCase())) continue;
-    const upper = val.trim().toUpperCase();
+  const rec = antrag as Record<string, unknown>;
+  for (const k of fieldsLowerKeys) {
+    const v = rec[k];
+    if (typeof v !== 'string') continue;
+    const upper = v.trim().toUpperCase();
+    if (!upper) continue;
+    if (cb(upper)) return true;
+  }
+  for (const key in rec) {
+    if (fieldsLowerSet.has(key)) continue;
+    const lk = key.toLowerCase();
+    if (lk === key) continue;
+    if (!fieldsLowerSet.has(lk)) continue;
+    const v = rec[key];
+    if (typeof v !== 'string') continue;
+    const upper = v.trim().toUpperCase();
     if (!upper) continue;
     if (cb(upper)) return true;
   }
   return false;
 }
 
-function antragHasKuerzel(antrag: Antrag, fieldsLower: readonly string[], tokens: string[]): boolean {
-  return forEachKuerzelValue(antrag, fieldsLower, upper => tokens.includes(upper));
+function antragHasKuerzel(
+  antrag: Antrag,
+  fieldsLowerKeys: readonly string[],
+  fieldsLowerSet: ReadonlySet<string>,
+  tokens: readonly string[],
+): boolean {
+  return forEachKuerzelValue(antrag, fieldsLowerKeys, fieldsLowerSet, upper =>
+    tokens.includes(upper),
+  );
 }
 
 /**
@@ -93,8 +129,15 @@ function antragHasKuerzel(antrag: Antrag, fieldsLower: readonly string[], tokens
  */
 export function antragMatchesBearbeiter(antrag: Antrag, mode: BearbeiterFilterMode): boolean {
   if (!mode.active) return true;
-  if (antragHasKuerzel(antrag, BEARBEITER_FIELDS_LOWER, mode.tokens)) return true;
-  if (mode.includeBegleitung && antragHasKuerzel(antrag, BEGLEITUNG_FIELDS_LOWER, mode.tokens)) return true;
+  if (antragHasKuerzel(antrag, BEARBEITER_FIELDS_LOWER, BEARBEITER_FIELDS_LOWER_SET, mode.tokens)) {
+    return true;
+  }
+  if (
+    mode.includeBegleitung
+    && antragHasKuerzel(antrag, BEGLEITUNG_FIELDS_LOWER, BEGLEITUNG_FIELDS_LOWER_SET, mode.tokens)
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -103,7 +146,14 @@ export function antragMatchesBearbeiter(antrag: Antrag, mode: BearbeiterFilterMo
  */
 export function applyBearbeiterFilter(antraege: Antrag[], mode: BearbeiterFilterMode): Antrag[] {
   if (!mode.active) return antraege;
-  return antraege.filter(a => antragMatchesBearbeiter(a, mode));
+  // Pre-resolve Keys/Set einmal (statt pro Record): bei aktivem
+  // includeBegleitung kombinieren wir Bearbeiter+Begleitungs-Felder zu
+  // einem Lookup, damit pro Record genau ein Pass läuft (statt zwei
+  // sequenzieller Aufrufe wie in `antragMatchesBearbeiter`).
+  const keys = mode.includeBegleitung ? COMBINED_FIELDS_LOWER : BEARBEITER_FIELDS_LOWER;
+  const set = mode.includeBegleitung ? COMBINED_FIELDS_LOWER_SET : BEARBEITER_FIELDS_LOWER_SET;
+  const tokens = mode.tokens;
+  return antraege.filter(a => antragHasKuerzel(a, keys, set, tokens));
 }
 
 /**
@@ -118,11 +168,10 @@ export function applyBearbeiterFilter(antraege: Antrag[], mode: BearbeiterFilter
  * Mapping als `ZTP_KUERZ`, `ztp_kuerz` oder beliebig gemixt landen.
  */
 export function hasAnyKuerzelData(antraege: Antrag[], includeBegleitung: boolean): boolean {
-  const fieldsLower = includeBegleitung
-    ? [...BEARBEITER_FIELDS_LOWER, ...BEGLEITUNG_FIELDS_LOWER]
-    : [...BEARBEITER_FIELDS_LOWER];
+  const keys = includeBegleitung ? COMBINED_FIELDS_LOWER : BEARBEITER_FIELDS_LOWER;
+  const set = includeBegleitung ? COMBINED_FIELDS_LOWER_SET : BEARBEITER_FIELDS_LOWER_SET;
   for (const a of antraege) {
-    if (forEachKuerzelValue(a, fieldsLower, () => true)) return true;
+    if (forEachKuerzelValue(a, keys, set, () => true)) return true;
   }
   return false;
 }

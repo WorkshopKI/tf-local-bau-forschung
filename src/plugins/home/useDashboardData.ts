@@ -6,9 +6,33 @@ import type { Antrag } from '@/core/services/csv/types';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
   parseBearbeiterFilter,
-  applyBearbeiterFilter,
-  hasAnyKuerzelData,
+  antragMatchesBearbeiter,
 } from '@/plugins/antraege/bearbeiterFilter';
+
+const KUERZ_KEYS_CANONICAL: readonly string[] = [
+  'tib_kuerz', 'bib_kuerz', 'ztp_kuerz', 'pfm_kuerz',
+];
+const KUERZ_KEYS_CANONICAL_SET: ReadonlySet<string> = new Set(KUERZ_KEYS_CANONICAL);
+
+/** Inline-Variante von hasAnyKuerzelData(single-record). Spart eine separate
+ *  Full-Scan-Pass über die Antrag-Liste — wir checken im Aggregations-Loop
+ *  parallel, ob irgendein Antrag eine der KUERZ-Spalten gesetzt hat. */
+function antragHasAnyKuerzel(antrag: Antrag): boolean {
+  const rec = antrag as Record<string, unknown>;
+  for (const k of KUERZ_KEYS_CANONICAL) {
+    const v = rec[k];
+    if (typeof v === 'string' && v.trim().length > 0) return true;
+  }
+  for (const key in rec) {
+    if (KUERZ_KEYS_CANONICAL_SET.has(key)) continue;
+    const lk = key.toLowerCase();
+    if (lk === key) continue;
+    if (!KUERZ_KEYS_CANONICAL_SET.has(lk)) continue;
+    const v = rec[key];
+    if (typeof v === 'string' && v.trim().length > 0) return true;
+  }
+  return false;
+}
 
 const CLOSED = new Set(['genehmigt', 'abgelehnt', 'archiviert', 'bewilligt', 'abgeschlossen']);
 
@@ -74,52 +98,93 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       profile?.bearbeiter_kuerzel,
       profile?.bearbeiter_inkl_begleitung,
     );
-    // Bauantraege bleiben unverändert (KUERZ-Spalten gibt es dort nicht).
-    // Förderanträge filtern wir per Profil-Kürzel.
-    const filteredAntraege = applyBearbeiterFilter(antraege, bearbeiterMode);
-    const alle: Vorgang[] = [
-      ...(department !== 'antraege' ? bauantraege : []),
-      ...(department !== 'bauantraege' ? filteredAntraege.map(antragToVorgangLike) : []),
-    ];
-    const offen = alle.filter(v => !CLOSED.has(v.status));
+    const includeBauantraege = department !== 'antraege';
+    const includeAntraege = department !== 'bauantraege';
 
-    const mitFrist = offen
-      .map(v => ({ ...v, daysLeft: daysUntil(v.deadline) }))
-      .filter((v): v is Vorgang & { daysLeft: number } => v.daysLeft !== null)
-      .sort((a, b) => a.daysLeft - b.daysLeft);
+    // Single-Pass-Aggregation: ein Loop über bauantraege + ein Loop über
+    // antraege berechnet alle Counter und akkumuliert nur die Kandidaten,
+    // die anschließend sortiert werden — keine Zwischen-Arrays für jede
+    // Pipeline-Stufe (filter→map→filter→map→filter→sort). Das spart bei
+    // 13k+ Records dramatisch GC-Druck und ~6 Full-Array-Allokationen.
+    let total = 0;
+    let offen = 0;
+    let inPruefung = 0;
+    let nachforderung = 0;
+    let genehmigt = 0;
+    let anyKuerzelSeen = false;
+    const offeneVorgaenge: Vorgang[] = [];
+    const fristKandidaten: Array<Vorgang & { daysLeft: number }> = [];
 
-    const fristenDieseWoche = mitFrist.filter(v => v.daysLeft <= 7 && v.daysLeft >= 0).length;
-    const naechster = mitFrist[0] ?? null;
+    if (includeBauantraege) {
+      for (const v of bauantraege) {
+        total++;
+        const status = v.status as string;
+        if (status === 'in_pruefung' || status === 'in_begutachtung') inPruefung++;
+        else if (status === 'nachforderung' || status === 'nachbesserung') nachforderung++;
+        else if (status === 'genehmigt' || status === 'bewilligt') genehmigt++;
+        if (CLOSED.has(status)) continue;
+        offen++;
+        offeneVorgaenge.push(v);
+        const dl = daysUntil(v.deadline);
+        if (dl !== null) fristKandidaten.push({ ...v, daysLeft: dl });
+      }
+    }
 
-    const letzteAenderungen = [...offen]
+    if (includeAntraege) {
+      for (const a of antraege) {
+        // KUERZ-Detection läuft VOR dem Bearbeiter-Filter, damit der
+        // UX-Hint ("KUERZ-Spalten fehlen") auch dann korrekt ist, wenn
+        // der Filter alle Records ausblendet.
+        if (!anyKuerzelSeen && antragHasAnyKuerzel(a)) anyKuerzelSeen = true;
+        if (bearbeiterMode.active && !antragMatchesBearbeiter(a, bearbeiterMode)) continue;
+        const v = antragToVorgangLike(a);
+        total++;
+        const status = v.status as string;
+        if (status === 'in_pruefung' || status === 'in_begutachtung') inPruefung++;
+        else if (status === 'nachforderung' || status === 'nachbesserung') nachforderung++;
+        else if (status === 'genehmigt' || status === 'bewilligt') genehmigt++;
+        if (CLOSED.has(status)) continue;
+        offen++;
+        offeneVorgaenge.push(v);
+        const dl = daysUntil(v.deadline);
+        if (dl !== null) fristKandidaten.push({ ...v, daysLeft: dl });
+      }
+    }
+
+    // Sortierungen am Ende — auf den schon kleineren Akkumulator-Arrays.
+    fristKandidaten.sort((x, y) => x.daysLeft - y.daysLeft);
+    const dringend = fristKandidaten.filter(v => v.daysLeft <= 7);
+    const naechster = fristKandidaten[0] ?? null;
+    let fristenDieseWoche = 0;
+    for (const v of fristKandidaten) {
+      if (v.daysLeft >= 0 && v.daysLeft <= 7) fristenDieseWoche++;
+    }
+
+    // letzteAenderungen: top-8 aus den offenen — sort über offeneVorgaenge,
+    // nicht über die Vollmenge `alle` wie früher.
+    const letzteAenderungen = [...offeneVorgaenge]
       .sort((a, b) => b.modified.localeCompare(a.modified))
       .slice(0, 8);
 
-    // KUERZ-Missing nur dann melden, wenn tatsaechlich Antraege im Store
-    // liegen. Beim ersten Render ist `antraege === []`, weil loadAntraege
-    // noch laeuft — `hasAnyKuerzelData([])` waere `false` und wuerde einen
-    // falschen Warnblock erzeugen, der nach 1–2 s wieder verschwindet.
-    // Erst wenn echte Daten da sind, kann KUERZ "fehlen".
+    // KUERZ-Missing nur dann melden, wenn tatsächlich Antraege im Store
+    // liegen. Beim ersten Render ist `antraege === []` — `anyKuerzelSeen`
+    // wäre dann falsch-negativ und würde einen falschen Warnblock erzeugen,
+    // der nach 1–2 s wieder verschwindet. Erst wenn echte Daten da sind,
+    // kann KUERZ "fehlen".
     const bearbeiterKuerzelMissing =
       bearbeiterMode.active
-      && department !== 'bauantraege'
+      && includeAntraege
       && antraege.length > 0
-        ? !hasAnyKuerzelData(antraege, bearbeiterMode.includeBegleitung)
-        : false;
+      && !anyKuerzelSeen;
+
     return {
       greeting: getGreeting(),
-      offeneVorgaenge: offen,
-      dringend: mitFrist.filter(v => v.daysLeft <= 7),
+      offeneVorgaenge,
+      dringend,
       naechsterSchritt: naechster,
       fristenDieseWoche,
       letzteAenderungen,
-      stats: {
-        total: alle.length,
-        offen: offen.length,
-        inPruefung: alle.filter(v => (v.status as string) === 'in_pruefung' || (v.status as string) === 'in_begutachtung').length,
-        nachforderung: alle.filter(v => (v.status as string) === 'nachforderung' || (v.status as string) === 'nachbesserung').length,
-        genehmigt: alle.filter(v => (v.status as string) === 'genehmigt' || (v.status as string) === 'bewilligt').length,
-      },
+      stats: { total, offen, inPruefung, nachforderung, genehmigt },
       bearbeiterFilterActive: bearbeiterMode.active,
       bearbeiterKuerzelMissing,
       bearbeiterTokens: bearbeiterMode.tokens,
