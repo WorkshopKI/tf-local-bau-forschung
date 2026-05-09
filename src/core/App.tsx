@@ -17,6 +17,7 @@ import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import { checkQuarterReset, loadFeedbackConfig } from '@/core/services/feedback';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { listProgramme } from '@/core/services/csv';
+import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { rematchOnSnapshotReload } from '@/phase2';
 import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
@@ -191,6 +192,22 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         await migrateLegacyDmsSource(storage.idb);
       } catch (e) {
         console.warn('[App] migrateLegacyDmsSource fehlgeschlagen', e);
+      }
+
+      // Phase 2 (v8): Slim-List-View-Bulk-Migration. Idempotent — fuellt
+      // nur, wenn der Listen-Store fuer ein Programm noch leer/unvollstaendig
+      // ist. Blockiert den App-Start einmalig (~5 s bei 13k Records),
+      // danach faellt die Antraege-Liste auf <200 ms.
+      try {
+        const statusEl = document.getElementById('tf-loader-status');
+        await ensureListViewProjection(storage.idb, (p) => {
+          if (statusEl) {
+            statusEl.textContent =
+              `Optimiere Anträge-Liste… ${p.done.toLocaleString('de-DE')}/${p.total.toLocaleString('de-DE')}`;
+          }
+        });
+      } catch (e) {
+        console.warn('[App] ensureListViewProjection fehlgeschlagen', e);
       }
 
       const complete = await storage.idb.get<boolean>('onboarding-complete');

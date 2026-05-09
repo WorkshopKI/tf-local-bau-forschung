@@ -6,6 +6,7 @@ import type {
   CsvSchema,
   CsvRowHash,
   Antrag,
+  AntragListItem,
   AntragHistorieEntry,
   Verbund,
   VerbundHistorieEntry,
@@ -177,6 +178,48 @@ export async function listAntraegeByAkronym(idb: IDBStore, akronym: string): Pro
   const t = tx(idb, CSV_STORES.ANTRAEGE, 'readonly');
   const idx = t.objectStore(CSV_STORES.ANTRAEGE).index('akronym');
   return (await req(idx.getAll(akronym))) as Antrag[];
+}
+
+// ---------- Antraege List-View (Phase 2 / Slim-Projektion) ----------
+
+export async function putAntraegeListView(
+  idb: IDBStore,
+  items: AntragListItem[],
+): Promise<void> {
+  for (let i = 0; i < items.length; i += MAX_WRITES_PER_TX) {
+    const chunk = items.slice(i, i + MAX_WRITES_PER_TX);
+    const t = tx(idb, CSV_STORES.ANTRAEGE_LIST_VIEW, 'readwrite');
+    const s = t.objectStore(CSV_STORES.ANTRAEGE_LIST_VIEW);
+    for (const it of chunk) s.put(it);
+    await waitTx(t);
+  }
+}
+
+export async function listAntraegeListViewByProgramm(
+  idb: IDBStore,
+  programmId: string,
+): Promise<AntragListItem[]> {
+  const t = tx(idb, CSV_STORES.ANTRAEGE_LIST_VIEW, 'readonly');
+  const idx = t.objectStore(CSV_STORES.ANTRAEGE_LIST_VIEW).index('programm_id');
+  return (await req(idx.getAll(programmId))) as AntragListItem[];
+}
+
+export async function deleteAntraegeListViewByAktenzeichen(
+  idb: IDBStore,
+  az: string,
+): Promise<void> {
+  const t = tx(idb, CSV_STORES.ANTRAEGE_LIST_VIEW, 'readwrite');
+  t.objectStore(CSV_STORES.ANTRAEGE_LIST_VIEW).delete(az);
+  return waitTx(t);
+}
+
+export async function countAntraegeListViewByProgramm(
+  idb: IDBStore,
+  programmId: string,
+): Promise<number> {
+  const t = tx(idb, CSV_STORES.ANTRAEGE_LIST_VIEW, 'readonly');
+  const idx = t.objectStore(CSV_STORES.ANTRAEGE_LIST_VIEW).index('programm_id');
+  return req(idx.count(programmId));
 }
 
 // ---------- Historie ----------

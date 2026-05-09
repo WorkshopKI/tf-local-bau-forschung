@@ -1,4 +1,4 @@
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragListItem } from '@/core/services/csv/types';
 
 /**
  * Bearbeiter-Kürzel-Filter.
@@ -78,12 +78,12 @@ export function parseBearbeiterFilter(
  * billig: für die typischen lowercase-only-Records sind es nur Set-Lookups.
  */
 function forEachKuerzelValue(
-  antrag: Antrag,
+  antrag: AntragListItem,
   fieldsLowerKeys: readonly string[],
   fieldsLowerSet: ReadonlySet<string>,
   cb: (uppered: string) => boolean,
 ): boolean {
-  const rec = antrag as Record<string, unknown>;
+  const rec = antrag as unknown as Record<string, unknown>;
   for (const k of fieldsLowerKeys) {
     const v = rec[k];
     if (typeof v !== 'string') continue;
@@ -106,7 +106,7 @@ function forEachKuerzelValue(
 }
 
 function antragHasKuerzel(
-  antrag: Antrag,
+  antrag: AntragListItem,
   fieldsLowerKeys: readonly string[],
   fieldsLowerSet: ReadonlySet<string>,
   tokens: readonly string[],
@@ -127,7 +127,7 @@ function antragHasKuerzel(
  * verwendete Schema die KUERZ-Spalten nicht mappt), wird er bei aktivem
  * Filter ausgeblendet — kein implizites Show-All.
  */
-export function antragMatchesBearbeiter(antrag: Antrag, mode: BearbeiterFilterMode): boolean {
+export function antragMatchesBearbeiter(antrag: AntragListItem, mode: BearbeiterFilterMode): boolean {
   if (!mode.active) return true;
   if (antragHasKuerzel(antrag, BEARBEITER_FIELDS_LOWER, BEARBEITER_FIELDS_LOWER_SET, mode.tokens)) {
     return true;
@@ -144,7 +144,7 @@ export function antragMatchesBearbeiter(antrag: Antrag, mode: BearbeiterFilterMo
 /**
  * Convenience: filtert eine Liste mit dem Modus. Inaktiver Filter → unverändert.
  */
-export function applyBearbeiterFilter(antraege: Antrag[], mode: BearbeiterFilterMode): Antrag[] {
+export function applyBearbeiterFilter(antraege: AntragListItem[], mode: BearbeiterFilterMode): AntragListItem[] {
   if (!mode.active) return antraege;
   // Pre-resolve Keys/Set einmal (statt pro Record): bei aktivem
   // includeBegleitung kombinieren wir Bearbeiter+Begleitungs-Felder zu
@@ -167,7 +167,7 @@ export function applyBearbeiterFilter(antraege: Antrag[], mode: BearbeiterFilter
  * Match ist case-insensitive — die CSV-Spalte `ZTP_KUERZ` kann je nach
  * Mapping als `ZTP_KUERZ`, `ztp_kuerz` oder beliebig gemixt landen.
  */
-export function hasAnyKuerzelData(antraege: Antrag[], includeBegleitung: boolean): boolean {
+export function hasAnyKuerzelData(antraege: AntragListItem[], includeBegleitung: boolean): boolean {
   const keys = includeBegleitung ? COMBINED_FIELDS_LOWER : BEARBEITER_FIELDS_LOWER;
   const set = includeBegleitung ? COMBINED_FIELDS_LOWER_SET : BEARBEITER_FIELDS_LOWER_SET;
   for (const a of antraege) {

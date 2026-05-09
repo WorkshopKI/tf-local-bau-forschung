@@ -2,7 +2,7 @@ import { useDeferredValue, useMemo } from 'react';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragListItem } from '@/core/services/csv/types';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
   parseBearbeiterFilter,
@@ -18,8 +18,8 @@ const KUERZ_KEYS_CANONICAL_SET: ReadonlySet<string> = new Set(KUERZ_KEYS_CANONIC
 /** Inline-Variante von hasAnyKuerzelData(single-record). Spart eine separate
  *  Full-Scan-Pass über die Antrag-Liste — wir checken im Aggregations-Loop
  *  parallel, ob irgendein Antrag eine der KUERZ-Spalten gesetzt hat. */
-function antragHasAnyKuerzel(antrag: Antrag): boolean {
-  const rec = antrag as Record<string, unknown>;
+function antragHasAnyKuerzel(antrag: AntragListItem): boolean {
+  const rec = antrag as unknown as Record<string, unknown>;
   for (const k of KUERZ_KEYS_CANONICAL) {
     const v = rec[k];
     if (typeof v === 'string' && v.trim().length > 0) return true;
@@ -50,11 +50,10 @@ function getGreeting(): string {
   return 'Guten Abend';
 }
 
-/** Minimal-Projektion eines Antrags auf eine Vorgang-aehnliche Shape. */
-function antragToVorgangLike(a: Antrag): Vorgang & { _isAntrag: true } {
-  const tags = Array.isArray(a.tags) ? (a.tags as string[]) : [];
-  const notes = typeof a.notes === 'string' ? a.notes : '';
-  const priority = (a.priority as Vorgang['priority']) ?? 'normal';
+/** Minimal-Projektion eines Antrags auf eine Vorgang-aehnliche Shape.
+ *  AntragListItem hat keine `tags`/`notes`/`priority`-Felder mehr (waren
+ *  ohnehin nur fuer Bauantraege relevant) — Defaults werden hier gesetzt. */
+function antragToVorgangLike(a: AntragListItem): Vorgang & { _isAntrag: true } {
   const deadline = typeof a.frist_datum === 'string' ? a.frist_datum : undefined;
   const created = typeof a.antragsdatum === 'string' ? a.antragsdatum : a._updated_at;
   return {
@@ -62,13 +61,13 @@ function antragToVorgangLike(a: Antrag): Vorgang & { _isAntrag: true } {
     type: 'bauantrag', // Projektion: Antraege werden im Dashboard wie Vorgaenge behandelt.
     title: a.titel ?? a.aktenzeichen,
     status: (a.status as Vorgang['status']) ?? 'neu',
-    priority,
+    priority: 'normal',
     assignee: a.antragsteller ?? '',
     created,
     modified: a._updated_at,
     deadline,
-    tags,
-    notes,
+    tags: [],
+    notes: '',
     _isAntrag: true,
   };
 }

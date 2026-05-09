@@ -2,13 +2,13 @@ import { useMemo, useState } from 'react';
 import { RotateCcw, BookmarkPlus } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { Input } from '@/components/ui/input';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragListItem } from '@/core/services/csv/types';
 import { useFilterState } from './useFilterState';
 import { FilterSidebarItem } from './FilterSidebarItem';
 import { SavePresetDialog } from './SavePresetDialog';
 
 interface Props {
-  antraege: Antrag[];
+  antraege: AntragListItem[];
   search: string;
   onSearchChange: (s: string) => void;
   /** Wenn true: Quicksearch-Input ausblenden (Drawer-Modus, wenn Search im Header schon vorhanden ist). */

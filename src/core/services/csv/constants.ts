@@ -33,6 +33,45 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
 
 export const CANONICAL_FIELD_KEYS = CANONICAL_FIELDS.map(f => f.key);
 
+/**
+ * Whitelist der Felder, die in den schmalen `ANTRAEGE_LIST_VIEW`-Store
+ * projiziert werden. Listen, Dashboards, Sort und Filter operieren
+ * ausschließlich auf diesen Feldern. Custom-Felder aus den CSVs (z.B.
+ * `foerdersumme_geplant_2024`) sind NICHT enthalten — Filter darauf
+ * werden im Wizard mit Warn-Badge markiert.
+ *
+ * Wer hier ergänzt, muss `AntragListItem` in `csv/types.ts` und
+ * `toAntragListItem()` in `csv/list-view.ts` mitnachziehen.
+ */
+export const LIST_VIEW_FIELDS: readonly string[] = [
+  // Identifikation
+  'aktenzeichen',
+  'programm_id',
+  // Anzeige
+  'titel',
+  'akronym',
+  'status',
+  'antragsteller',
+  'branche',
+  // Sort + View-Predicates
+  'frist_datum',
+  'bewilligung_datum',
+  'antragsdatum',
+  // Filter-Standards
+  'foerdergeber',
+  'verbund_id',
+  'unterprogramm_id',
+  // Bearbeiter-Filter
+  'tib_kuerz',
+  'bib_kuerz',
+  'ztp_kuerz',
+  'pfm_kuerz',
+  // Meta
+  '_updated_at',
+];
+
+export const LIST_VIEW_FIELDS_SET: ReadonlySet<string> = new Set(LIST_VIEW_FIELDS);
+
 export function getCanonicalLabel(key: string): string {
   return CANONICAL_FIELDS.find(f => f.key === key)?.label ?? key;
 }

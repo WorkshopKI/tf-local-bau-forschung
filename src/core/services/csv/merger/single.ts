@@ -14,14 +14,17 @@ import {
   appendVerbundHistory,
   deleteAkronymEntry,
   deleteAntrag,
+  deleteAntraegeListViewByAktenzeichen,
   deleteVerbund,
   getAkronymEntry,
   getAntrag,
   getVerbund,
   putAkronymEntry,
   putAntraege,
+  putAntraegeListView,
   putVerbund,
 } from '../idb-csv';
+import { toAntragListItem } from '../list-view';
 import type {
   Antrag,
   AntragHistorieEntry,
@@ -129,6 +132,7 @@ export async function recomputeAntrag(
   }
 
   await putAntraege(idb, [merged]);
+  await putAntraegeListView(idb, [toAntragListItem(merged)]);
   if (history.length > 0) await appendHistory(idb, history);
 
   // Akronym-Index aktualisieren (bei geändertem Akronym: altes Entry säubern)
@@ -254,6 +258,7 @@ export async function removeAntragAndCleanup(
 ): Promise<void> {
   const antrag = await getAntrag(idb, aktenzeichen);
   await deleteAntrag(idb, aktenzeichen);
+  await deleteAntraegeListViewByAktenzeichen(idb, aktenzeichen);
 
   if (antrag?.verbund_id && typeof antrag.verbund_id === 'string') {
     const vb = await getVerbund(idb, antrag.verbund_id);

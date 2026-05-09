@@ -31,12 +31,18 @@ import type {
   Verbund,
   VerbundHistorieEntry,
 } from '../types';
+import { toAntragListItem } from '../list-view';
+import type { AntragListItem } from '../types';
 import { coerceValue, findJoinColumn, resolveFieldKey } from './helpers';
 import { loadAllSchemasWithRows, type SchemaWithRows } from './loader';
 
 interface RecomputeBatch {
   antraegeUpsert: Map<string, Antrag>;
   antraegeDelete: Set<string>;
+  /** Slim-Spiegel von antraegeUpsert/Delete — wird parallel zum vollen
+   *  Antrag-Store geschrieben (Phase-2-Optimierung). */
+  listViewUpsert: Map<string, AntragListItem>;
+  listViewDelete: Set<string>;
   verbuendeUpsert: Map<string, Verbund>;
   verbuendeDelete: Set<string>;
   akronymUpsert: Map<string, AkronymIndexEntry>;
@@ -63,6 +69,8 @@ function emptyBatch(): RecomputeBatch {
   return {
     antraegeUpsert: new Map(),
     antraegeDelete: new Set(),
+    listViewUpsert: new Map(),
+    listViewDelete: new Set(),
     verbuendeUpsert: new Map(),
     verbuendeDelete: new Set(),
     akronymUpsert: new Map(),
@@ -75,6 +83,7 @@ function emptyBatch(): RecomputeBatch {
 function batchSize(b: RecomputeBatch): number {
   return (
     b.antraegeUpsert.size + b.antraegeDelete.size +
+    b.listViewUpsert.size + b.listViewDelete.size +
     b.verbuendeUpsert.size + b.verbuendeDelete.size +
     b.akronymUpsert.size + b.akronymDelete.size +
     b.history.length + b.vbHistory.length
@@ -145,6 +154,7 @@ function flushRecomputeBatch(idb: IDBStore, batch: RecomputeBatch): Promise<void
   return new Promise<void>((resolve, reject) => {
     const stores = [
       CSV_STORES.ANTRAEGE,
+      CSV_STORES.ANTRAEGE_LIST_VIEW,
       CSV_STORES.VERBUENDE,
       CSV_STORES.AKRONYM_INDEX,
       CSV_STORES.ANTRAG_HISTORIE,
@@ -158,6 +168,9 @@ function flushRecomputeBatch(idb: IDBStore, batch: RecomputeBatch): Promise<void
     const sAntraege = t.objectStore(CSV_STORES.ANTRAEGE);
     for (const az of batch.antraegeDelete) sAntraege.delete(az);
     for (const a of batch.antraegeUpsert.values()) sAntraege.put(a);
+    const sListView = t.objectStore(CSV_STORES.ANTRAEGE_LIST_VIEW);
+    for (const az of batch.listViewDelete) sListView.delete(az);
+    for (const it of batch.listViewUpsert.values()) sListView.put(it);
     const sVerbuende = t.objectStore(CSV_STORES.VERBUENDE);
     for (const id of batch.verbuendeDelete) sVerbuende.delete(id);
     for (const v of batch.verbuendeUpsert.values()) sVerbuende.put(v);
@@ -258,9 +271,13 @@ function recomputeAntragIntoBatch(
     }
   }
 
-  // Antrag persistieren (Buffer + Cache)
+  // Antrag persistieren (Buffer + Cache) — voller Record und Slim-Spiegel
+  // werden in derselben Multi-Store-TX geflusht, damit beide Stores
+  // konsistent bleiben.
   batch.antraegeUpsert.set(aktenzeichen, merged);
   batch.antraegeDelete.delete(aktenzeichen);
+  batch.listViewUpsert.set(aktenzeichen, toAntragListItem(merged));
+  batch.listViewDelete.delete(aktenzeichen);
   caches.antraegeByAz.set(aktenzeichen, merged);
 
   // Akronym-Index aktualisieren
@@ -390,6 +407,8 @@ function removeAntragIntoBatch(
   const antrag = caches.antraegeByAz.get(aktenzeichen) ?? null;
   batch.antraegeDelete.add(aktenzeichen);
   batch.antraegeUpsert.delete(aktenzeichen);
+  batch.listViewDelete.add(aktenzeichen);
+  batch.listViewUpsert.delete(aktenzeichen);
   caches.antraegeByAz.delete(aktenzeichen);
 
   if (antrag?.verbund_id && typeof antrag.verbund_id === 'string') {

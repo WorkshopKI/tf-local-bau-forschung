@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragListItem } from '@/core/services/csv/types';
 import {
   parseBearbeiterFilter,
   antragMatchesBearbeiter,
@@ -7,14 +7,13 @@ import {
   hasAnyKuerzelData,
 } from '../bearbeiterFilter';
 
-function makeAntrag(extra: Record<string, unknown>): Antrag {
+function makeAntrag(extra: Record<string, unknown>): AntragListItem {
   return {
     aktenzeichen: '16KN0001',
     programm_id: 'p1',
-    _field_sources: {},
     _updated_at: '2026-01-01',
     ...extra,
-  } as Antrag;
+  } as AntragListItem;
 }
 
 describe('parseBearbeiterFilter', () => {
@@ -121,7 +120,7 @@ describe('antragMatchesBearbeiter', () => {
 });
 
 describe('applyBearbeiterFilter', () => {
-  const list: Antrag[] = [
+  const list: AntragListItem[] = [
     makeAntrag({ aktenzeichen: '1', TiB_KUERZ: 'MUE' }),
     makeAntrag({ aktenzeichen: '2', BIB_KUERZ: 'SCH' }),
     makeAntrag({ aktenzeichen: '3', ZTP_KUERZ: 'MUE' }),

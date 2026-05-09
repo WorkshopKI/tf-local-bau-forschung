@@ -4,6 +4,11 @@ export const CSV_STORES = {
   CSV_SCHEMAS: 'csv_schemas',
   CSV_ROW_HASHES: 'csv_row_hashes',
   ANTRAEGE: 'antraege',
+  /** v8 (Phase 2): Schmale Listen-Projektion der Antraege fuer Listen/Dashboards.
+   *  Volle Records bleiben in ANTRAEGE; LIST_VIEW spart bei 13k+ Records ~95 %
+   *  structured-clone-Volumen beim Mount-Read. Schreib-Pfad: csv/merger/* +
+   *  Bulk-Migration in App.tsx. */
+  ANTRAEGE_LIST_VIEW: 'antraege_list_view',
   ANTRAG_HISTORIE: 'antrag_historie',
   VERBUENDE: 'verbuende',
   VERBUND_HISTORIE: 'verbund_historie',
@@ -33,7 +38,7 @@ export class IDBStore {
   private db: IDBDatabase | null = null;
   private readonly dbName = 'teamflow';
   private readonly storeName = 'kv';
-  private readonly version = 7;
+  private readonly version = 8;
 
   async open(): Promise<void> {
     if (this.db) return;
@@ -145,6 +150,21 @@ export class IDBStore {
             if (!manifest.indexNames.contains('by_source_id')) {
               manifest.createIndex('by_source_id', 'source_id', { unique: false });
             }
+          }
+        }
+        if (oldVersion < 8) {
+          // Phase 2 / Slim-List-Projection: schmaler Antrag-Spiegel-Store.
+          // Der bestehende ANTRAEGE-Store bleibt unangetastet — er ist die
+          // Source-of-Truth fuer Detail-Views. ANTRAEGE_LIST_VIEW haelt nur
+          // die ~14 Felder, die Listen + Dashboards + Filter brauchen.
+          // Bulk-Migration der bereits importierten Antraege laeuft beim
+          // ersten App-Start nach dem Update (siehe ensureListViewProjection
+          // in src/core/App.tsx).
+          if (!db.objectStoreNames.contains(CSV_STORES.ANTRAEGE_LIST_VIEW)) {
+            const s = db.createObjectStore(CSV_STORES.ANTRAEGE_LIST_VIEW, {
+              keyPath: 'aktenzeichen',
+            });
+            s.createIndex('programm_id', 'programm_id', { unique: false });
           }
         }
       };

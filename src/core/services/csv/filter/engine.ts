@@ -1,17 +1,25 @@
-import type { Antrag, Verbund } from '../types';
+import type { Antrag, AntragListItem, Verbund } from '../types';
 import type { ActiveFilter, FilterDefinition } from './types';
-import { getCanonicalLevel } from '../constants';
+import { getCanonicalLevel, LIST_VIEW_FIELDS_SET } from '../constants';
 
-type Predicate = (a: Antrag) => boolean;
-export type VerbundResolver = (antrag: Antrag) => Verbund | undefined;
+/**
+ * Filter-Engine arbeitet auf Antrag-aehnlichen Records — sowohl auf den
+ * vollen `Antrag` (Detail-Pfad) als auch auf der schmalen `AntragListItem`-
+ * Projektion (Listen-Pfad). Generic `T extends FilterableAntrag` deckt
+ * beides ab; der Feld-Zugriff laeuft via Cast auf `Record<string, unknown>`,
+ * weil `AntragListItem` bewusst keine Index-Signatur hat.
+ */
+type FilterableAntrag = Antrag | AntragListItem;
+type Predicate<T extends FilterableAntrag> = (a: T) => boolean;
+export type VerbundResolver = (antrag: FilterableAntrag) => Verbund | undefined;
 
-function getValue(a: Antrag, feld: string, resolve?: VerbundResolver): unknown {
+function getValue(a: FilterableAntrag, feld: string, resolve?: VerbundResolver): unknown {
   if (resolve && getCanonicalLevel(feld) === 'verbund') {
     const v = resolve(a);
     if (v) return (v as unknown as Record<string, unknown>)[feld];
     return undefined;
   }
-  return a[feld];
+  return (a as Record<string, unknown>)[feld];
 }
 
 function asString(v: unknown): string {
@@ -42,8 +50,23 @@ function matchesAny(val: string, patterns: string[]): boolean {
   return false;
 }
 
-function buildPredicate(af: ActiveFilter, def: FilterDefinition, resolveVerbund?: VerbundResolver): Predicate {
+function buildPredicate<T extends FilterableAntrag>(
+  af: ActiveFilter,
+  def: FilterDefinition,
+  resolveVerbund?: VerbundResolver,
+): Predicate<T> {
   const feld = def.feld;
+  // Slim-Whitelist-Gate: Filter auf Felder, die nicht in der Listen-
+  // Projektion liegen, werden zu no-ops gemacht — sonst wuerden sie alle
+  // Records ausschliessen (def.feld ist undefined auf AntragListItem).
+  // Verbund-Felder werden ueber den resolveVerbund-Pfad bedient und
+  // brauchen die Whitelist nicht.
+  if (
+    !LIST_VIEW_FIELDS_SET.has(feld)
+    && getCanonicalLevel(feld) !== 'verbund'
+  ) {
+    return () => true;
+  }
   switch (def.typ) {
     case 'single_select': {
       const target = typeof af.value === 'string' ? af.value : '';
@@ -119,33 +142,33 @@ function defsById(defs: FilterDefinition[]): Map<string, FilterDefinition> {
   return m;
 }
 
-export function applyFilters(
-  antraege: Antrag[],
+export function applyFilters<T extends FilterableAntrag>(
+  antraege: T[],
   active: ActiveFilter[],
   defs: FilterDefinition[],
   resolveVerbund?: VerbundResolver,
-): Antrag[] {
+): T[] {
   if (active.length === 0) return antraege;
   const map = defsById(defs);
-  const predicates: Predicate[] = [];
+  const predicates: Predicate<T>[] = [];
   for (const af of active) {
     const def = map.get(af.filterId);
     if (!def) continue;
     if (def.config.disabled) continue;
-    predicates.push(buildPredicate(af, def, resolveVerbund));
+    predicates.push(buildPredicate<T>(af, def, resolveVerbund));
   }
   if (predicates.length === 0) return antraege;
   return antraege.filter(a => predicates.every(p => p(a)));
 }
 
-export function applyFiltersExcept(
-  antraege: Antrag[],
+export function applyFiltersExcept<T extends FilterableAntrag>(
+  antraege: T[],
   active: ActiveFilter[],
   defs: FilterDefinition[],
   exceptFilterId: string,
   resolveVerbund?: VerbundResolver,
-): Antrag[] {
-  return applyFilters(antraege, active.filter(a => a.filterId !== exceptFilterId), defs, resolveVerbund);
+): T[] {
+  return applyFilters<T>(antraege, active.filter(a => a.filterId !== exceptFilterId), defs, resolveVerbund);
 }
 
 /**
@@ -154,19 +177,19 @@ export function applyFiltersExcept(
  * der Vorfilterung ausgenommen (damit die Counts innerhalb seiner Werte-Liste
  * nicht auf 0 kollabieren wenn bereits ein anderer Wert aus demselben Filter aktiv ist).
  */
-export function computeFacetCounts(
-  antraege: Antrag[],
+export function computeFacetCounts<T extends FilterableAntrag>(
+  antraege: T[],
   active: ActiveFilter[],
   defs: FilterDefinition[],
   forFilter: FilterDefinition,
 ): Map<string, number> {
-  const pre = applyFiltersExcept(antraege, active, defs, forFilter.id);
+  const pre = applyFiltersExcept<T>(antraege, active, defs, forFilter.id);
   const counts = new Map<string, number>();
   const jaPatterns = forFilter.config.ja_werte ?? [];
   const neinPatterns = forFilter.config.nein_werte ?? [];
 
   for (const a of pre) {
-    const v = a[forFilter.feld];
+    const v = (a as Record<string, unknown>)[forFilter.feld];
 
     if (forFilter.typ === 'boolean_ja_nein') {
       const s = asString(v);
@@ -194,11 +217,11 @@ export function computeFacetCounts(
   return counts;
 }
 
-export function totalAfterExcept(
-  antraege: Antrag[],
+export function totalAfterExcept<T extends FilterableAntrag>(
+  antraege: T[],
   active: ActiveFilter[],
   defs: FilterDefinition[],
   exceptFilterId: string,
 ): number {
-  return applyFiltersExcept(antraege, active, defs, exceptFilterId).length;
+  return applyFiltersExcept<T>(antraege, active, defs, exceptFilterId).length;
 }

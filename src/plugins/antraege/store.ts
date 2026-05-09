@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import type { Antrag, Verbund } from '@/core/services/csv/types';
+import type { AntragListItem, Verbund } from '@/core/services/csv/types';
+import { ensureDefaultProgramm } from '@/core/services/csv';
 import {
-  ensureDefaultProgramm,
-  listAntraegeByProgramm,
-} from '@/core/services/csv';
-import { listVerbuendeByProgramm } from '@/core/services/csv/idb-csv';
+  listAntraegeListViewByProgramm,
+  listVerbuendeByProgramm,
+} from '@/core/services/csv/idb-csv';
 import { tfPerfLog, tfPerfStart } from '@/core/utils/tfPerf';
 import type { ViewKey } from './views';
 import { DEFAULT_SORT_BY_VIEW, SORT_OPTIONS, type SortKey } from './sort';
@@ -49,7 +49,10 @@ function saveSortByView(map: Partial<Record<ViewKey, SortKey>>): void {
 
 interface AntraegeState {
   programmId: string | null;
-  antraege: Antrag[];
+  /** Schmale Listen-Projektion aus dem `ANTRAEGE_LIST_VIEW`-Store —
+   *  ~14 Felder pro Record. Die volle 461-Feld-Variante laedt
+   *  `AntragDetail` lazy via `getAntrag(idb, az)`. */
+  antraege: AntragListItem[];
   verbuende: Verbund[];
   selectedAktenzeichen: string | null;
   selectedVerbundId: string | null;
@@ -126,9 +129,9 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     }
     set({ loading: true });
     try {
-      const tIdb = tfPerfStart('antraege.loadAll → IDB getAll');
+      const tIdb = tfPerfStart('antraege.loadAll → IDB getAll (slim)');
       const [antraege, verbuende] = await Promise.all([
-        listAntraegeByProgramm(idb, targetId),
+        listAntraegeListViewByProgramm(idb, targetId),
         listVerbuendeByProgramm(idb, targetId),
       ]);
       tIdb(`antraege=${antraege.length} verbuende=${verbuende.length}`);
@@ -136,7 +139,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
       if (sample) {
         const bytes = JSON.stringify(sample).length;
         const fields = Object.keys(sample).length;
-        tfPerfLog(`antrag sample: ${bytes} bytes, ${fields} fields (programm=${targetId})`);
+        tfPerfLog(`antrag-list-view sample: ${bytes} bytes, ${fields} fields (programm=${targetId})`);
       }
       // Selektion nur bei tatsächlichem Programm-Wechsel löschen. Beim
       // Initial-Load (oldProgrammId === null) oder beim Reload desselben

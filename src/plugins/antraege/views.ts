@@ -1,4 +1,4 @@
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragListItem } from '@/core/services/csv/types';
 import { antragMatchesBearbeiter, type BearbeiterFilterMode } from './bearbeiterFilter';
 
 export type ViewKey =
@@ -18,7 +18,7 @@ const OPEN_STATUSES = new Set([
   'nachforderung',
 ]);
 
-export function daysUntilFrist(a: Antrag): number | null {
+export function daysUntilFrist(a: AntragListItem): number | null {
   const frist = a.frist_datum;
   if (typeof frist !== 'string' || !frist) return null;
   const ms = new Date(frist).getTime();
@@ -26,7 +26,7 @@ export function daysUntilFrist(a: Antrag): number | null {
   return Math.ceil((ms - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-function yearOfBewilligung(a: Antrag): number | null {
+function yearOfBewilligung(a: AntragListItem): number | null {
   const d = a.bewilligung_datum;
   if (typeof d !== 'string' || !d) return null;
   const y = Number(d.slice(0, 4));
@@ -38,7 +38,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 export interface AntragView {
   key: ViewKey;
   label: string;
-  predicate: (a: Antrag) => boolean;
+  predicate: (a: AntragListItem) => boolean;
   /** Wenn true, rendert die Liste die Tage-bis-Frist-Spalte vor jeder Card.
    *  Bei nicht-deadline-fokussierten Views (Bewilligt, Alle) ausschalten — sonst zeigt
    *  jede Reihe ein leeres "—", weil bewilligte Antraege keine offene Frist mehr haben. */
@@ -98,7 +98,7 @@ export function getView(key: ViewKey): AntragView {
 
 export function viewCount(
   key: ViewKey,
-  antraege: Antrag[],
+  antraege: AntragListItem[],
   bearbeiter?: BearbeiterFilterMode,
 ): number {
   const v = getView(key);

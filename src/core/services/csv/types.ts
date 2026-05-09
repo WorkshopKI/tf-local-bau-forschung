@@ -145,6 +145,45 @@ export interface Antrag {
   _updated_at: string;
 }
 
+/**
+ * Schmale Listen-Projektion eines Antrags. Wird in einem separaten IDB-Store
+ * (`ANTRAEGE_LIST_VIEW`) gehalten, damit Listen/Dashboards/Filter ohne den
+ * vollen 461-Feld-Record (~36 KB) auskommen — IDB-getAll von ~14 Feldern
+ * spart bei 13k+ Records ~95 % structured-clone-Volumen.
+ *
+ * Detail-View arbeitet weiterhin auf `Antrag` (via `getAntrag(idb, az)`).
+ *
+ * **Whitelist** der Felder: siehe `LIST_VIEW_FIELDS` in `csv/constants.ts`.
+ * Wer hier ein Feld ergänzt, muss `LIST_VIEW_FIELDS` + `toAntragListItem()`
+ * mitnachziehen, sonst rendert die Liste das Feld nicht.
+ */
+export interface AntragListItem {
+  aktenzeichen: string;
+  programm_id: string;
+  // Anzeige
+  titel?: string;
+  akronym?: string;
+  status?: string;
+  antragsteller?: string;
+  branche?: string;
+  // Sort + View-Predicates
+  frist_datum?: string;
+  bewilligung_datum?: string;
+  antragsdatum?: string;
+  // Filter-Standards
+  foerdergeber?: string;
+  verbund_id?: string;
+  unterprogramm_id?: string;
+  // Bearbeiter-Filter (Canonical-Mapping macht lowercase, Slim-Store
+  // speichert ausschließlich kanonisierte lowercase-Keys).
+  tib_kuerz?: string;
+  bib_kuerz?: string;
+  ztp_kuerz?: string;
+  pfm_kuerz?: string;
+  // Meta
+  _updated_at: string;
+}
+
 export interface AntragHistorieEntry {
   id: string;
   aktenzeichen: string;

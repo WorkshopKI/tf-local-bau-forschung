@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragListItem } from '@/core/services/csv/types';
 import type { ActiveFilter, ActiveFilterValue, FilterDefinition } from '@/core/services/csv';
 import { computeFacetCounts } from '@/core/services/csv';
 import { MultiSelectFacet } from './facets/MultiSelectFacet';
@@ -13,7 +13,7 @@ import { StatusFilterFacet } from './facets/StatusFilterFacet';
 
 interface Props {
   def: FilterDefinition;
-  antraege: Antrag[];
+  antraege: AntragListItem[];
   activeFilters: ActiveFilter[];
   definitions: FilterDefinition[];
   valueLabels?: Record<string, string>;
@@ -37,7 +37,7 @@ export function FilterSidebarItem({ def, antraege, activeFilters, definitions, v
     let max: string | undefined;
     const isoRe = /^(\d{4}-\d{2}-\d{2})/;
     for (const a of antraege) {
-      const v = (a as Record<string, unknown>)[def.feld];
+      const v = (a as unknown as Record<string, unknown>)[def.feld];
       if (typeof v !== 'string') continue;
       const m = v.match(isoRe);
       if (!m) continue;

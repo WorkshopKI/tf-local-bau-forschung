@@ -1,10 +1,10 @@
 import { Badge } from '@/ui';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { daysUntilFrist } from './views';
 
 interface Props {
-  antrag: Antrag;
+  antrag: AntragListItem;
   onClick: () => void;
   selected?: boolean;
   /** Kompakte Variante fuer den Split-View: kein Days-Indicator-Block, weniger Subtext. */

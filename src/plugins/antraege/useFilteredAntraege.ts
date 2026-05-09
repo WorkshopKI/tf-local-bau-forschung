@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo } from 'react';
 import { applyFilters } from '@/core/services/csv';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragListItem } from '@/core/services/csv/types';
 import { useAntraegeStore, getEffectiveSortKey } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { getView, type AntragView } from './views';
@@ -15,7 +15,7 @@ import {
 import { tfPerfStart } from '@/core/utils/tfPerf';
 
 export interface FilteredAntraegeResult {
-  filtered: Antrag[];
+  filtered: AntragListItem[];
   view: AntragView;
   bearbeiterFilter: BearbeiterFilterMode;
   /**

@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragListItem } from '@/core/services/csv/types';
 import { FilterSidebar } from './filter/FilterSidebar';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  antraege: Antrag[];
+  antraege: AntragListItem[];
   search: string;
   onSearchChange: (s: string) => void;
 }

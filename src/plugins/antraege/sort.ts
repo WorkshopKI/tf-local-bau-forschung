@@ -1,4 +1,4 @@
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragListItem } from '@/core/services/csv/types';
 import type { ViewKey } from './views';
 import { daysUntilFrist } from './views';
 
@@ -15,7 +15,7 @@ export type SortKey =
 export interface SortOption {
   key: SortKey;
   label: string;
-  compare: (a: Antrag, b: Antrag) => number;
+  compare: (a: AntragListItem, b: AntragListItem) => number;
 }
 
 function asString(v: unknown): string {
@@ -24,7 +24,7 @@ function asString(v: unknown): string {
   return String(v);
 }
 
-function compareDateDesc(a: Antrag, b: Antrag, field: 'bewilligung_datum' | 'antragsdatum'): number {
+function compareDateDesc(a: AntragListItem, b: AntragListItem, field: 'bewilligung_datum' | 'antragsdatum'): number {
   const da = asString(a[field]);
   const db = asString(b[field]);
   if (!da && !db) return a.aktenzeichen.localeCompare(b.aktenzeichen);
@@ -33,7 +33,7 @@ function compareDateDesc(a: Antrag, b: Antrag, field: 'bewilligung_datum' | 'ant
   return db.localeCompare(da);
 }
 
-function compareDateAsc(a: Antrag, b: Antrag, field: 'bewilligung_datum' | 'antragsdatum'): number {
+function compareDateAsc(a: AntragListItem, b: AntragListItem, field: 'bewilligung_datum' | 'antragsdatum'): number {
   const da = asString(a[field]);
   const db = asString(b[field]);
   if (!da && !db) return a.aktenzeichen.localeCompare(b.aktenzeichen);
@@ -42,7 +42,7 @@ function compareDateAsc(a: Antrag, b: Antrag, field: 'bewilligung_datum' | 'antr
   return da.localeCompare(db);
 }
 
-function compareFristAsc(a: Antrag, b: Antrag): number {
+function compareFristAsc(a: AntragListItem, b: AntragListItem): number {
   const da = daysUntilFrist(a);
   const db = daysUntilFrist(b);
   if (da === null && db === null) return a.aktenzeichen.localeCompare(b.aktenzeichen);
@@ -51,7 +51,7 @@ function compareFristAsc(a: Antrag, b: Antrag): number {
   return da - db;
 }
 
-function compareTextAsc(a: Antrag, b: Antrag, field: 'akronym' | 'antragsteller'): number {
+function compareTextAsc(a: AntragListItem, b: AntragListItem, field: 'akronym' | 'antragsteller'): number {
   const va = asString(a[field]).toLowerCase();
   const vb = asString(b[field]).toLowerCase();
   if (!va && !vb) return a.aktenzeichen.localeCompare(b.aktenzeichen);

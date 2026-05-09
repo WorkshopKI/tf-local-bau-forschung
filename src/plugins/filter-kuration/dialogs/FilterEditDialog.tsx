@@ -9,6 +9,7 @@ import {
   saveFilter,
   humanizeFieldKey,
 } from '@/core/services/csv';
+import { LIST_VIEW_FIELDS_SET } from '@/core/services/csv/constants';
 import type {
   AvailableField,
   FilterDefinition,
@@ -242,6 +243,22 @@ export function FilterEditDialog({ open, onClose, onSaved, programmId, existing 
           Aktives Feld: <span className="font-mono">{selectedField.key}</span> · Typ: {selectedField.type} · Herkunft: {selectedField.origin === 'canonical' ? 'Standardfeld' : 'Eigenes Feld'}
         </div>
       ) : null}
+      {selectedField && !LIST_VIEW_FIELDS_SET.has(selectedField.key) ? (
+        <div
+          className="mt-3 px-3 py-2 text-[11.5px] rounded"
+          style={{
+            background: 'var(--tf-warning-bg)',
+            color: 'var(--tf-warning-text)',
+            border: '0.5px solid var(--tf-warning-border)',
+          }}
+        >
+          <strong>Hinweis:</strong> Das Feld <span className="font-mono">{selectedField.key}</span> ist
+          nicht in der Schnellsuche-Projektion enthalten. Der Filter wirkt
+          aktuell nicht in der Antraege-Liste, weil der Listen-Store nur die
+          ~14 Standard-Felder kennt (Aktenzeichen, Titel, Status, Frist, Bearbeiter-Kuerzel u.a.).
+          Standard-Filter (Status, Foerdergeber, Frist-Datum etc.) funktionieren wie gewohnt.
+        </div>
+      ) : null}
     </Dialog>
   );
 }
@@ -292,6 +309,18 @@ function StepField({ fields, selected, onSelect }: { fields: AvailableField[]; s
                     {f.origin === 'custom' ? ' · custom' : ''}
                   </div>
                 </div>
+                {!LIST_VIEW_FIELDS_SET.has(f.key) ? (
+                  <span
+                    className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                    style={{
+                      background: 'var(--tf-warning-bg)',
+                      color: 'var(--tf-warning-text)',
+                    }}
+                    title="Nicht in der Schnellsuche-Projektion enthalten — Filter wirkt nur eingeschraenkt (siehe Plugin-Info)."
+                  >
+                    nicht in Schnellsuche
+                  </span>
+                ) : null}
               </div>
             </button>
           );
