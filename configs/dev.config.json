@@ -2,10 +2,10 @@
   "configVersion": 1,
   "variant": "development",
   "build": {
-    "label": "TeamFlow DEV",
-    "outputFilename": "teamflow-dev",
-    "outputSubdir": "dev",
-    "browserTabTitle": "TeamFlow DEV"
+    "label": "ZAH",
+    "outputFilename": "zah",
+    "browserTabTitle": "ZAH",
+    "sidebarSubtitle": "ZIM Arbeitshilfe"
   },
   "data": {
     "fixedDataSharePath": null,

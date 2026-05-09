@@ -17,7 +17,9 @@
     // Dateiname des Builds, ohne .html — wird zu teamflow.html
     "outputFilename": "teamflow",
     // Browser-Tab-Titel
-    "browserTabTitle": "TeamFlow"
+    "browserTabTitle": "TeamFlow",
+    // Untertitel unter dem Label im Sidebar-Header. Optional — Fallback "Verwaltung".
+    "sidebarSubtitle": "Verwaltung"
   },
 
   "data": {

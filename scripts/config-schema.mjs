@@ -17,6 +17,7 @@ export const DEFAULT_CONFIG = {
     label: 'TeamFlow',
     outputFilename: 'teamflow',
     browserTabTitle: 'TeamFlow',
+    sidebarSubtitle: 'Verwaltung',
   },
 
   data: {
@@ -113,6 +114,11 @@ export function validateConfig(config) {
   }
   if (typeof build.browserTabTitle !== 'string' || !build.browserTabTitle.trim()) {
     errors.push('build.browserTabTitle ist Pflicht');
+  }
+  if (build.sidebarSubtitle != null) {
+    if (typeof build.sidebarSubtitle !== 'string' || !build.sidebarSubtitle.trim()) {
+      errors.push('build.sidebarSubtitle muss nicht-leerer String oder weggelassen sein');
+    }
   }
   if (build.outputSubdir != null) {
     if (typeof build.outputSubdir !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(build.outputSubdir)) {

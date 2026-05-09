@@ -15,6 +15,7 @@ Wiederkehrende Erweiterungen haben jeweils mehrere Touch-Points, die synchron ge
 - [docs/agents/add-doc-type.md](docs/agents/add-doc-type.md) — Neuer Phase-2 doc_type
 - [docs/agents/add-feature-flag.md](docs/agents/add-feature-flag.md) — Neuer Build-Time-Flag
 - [docs/agents/add-idb-store.md](docs/agents/add-idb-store.md) — Neuer IndexedDB-Store
+- [docs/agents/change-app-branding.md](docs/agents/change-app-branding.md) — App-Name, Untertitel und HTML-Filename ändern
 - [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) — `file://`-Quick-Reference
 - [docs/agents/port-design-export.md](docs/agents/port-design-export.md) — Claude-Design-Tool-Exporte portieren
 

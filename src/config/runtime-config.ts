@@ -9,6 +9,8 @@ export interface TeamflowBuildInfo {
   label: string;
   outputFilename: string;
   browserTabTitle: string;
+  /** Untertitel unter dem Label im Sidebar-Header. Fallback "Verwaltung", wenn weggelassen. */
+  sidebarSubtitle?: string;
 }
 
 export interface TeamflowDataConfig {

@@ -9,6 +9,7 @@ Kompakte Checklisten für häufige Erweiterungen, die jeweils mehrere synchronis
 | Neuer Phase-2 doc_type | [add-doc-type.md](add-doc-type.md) |
 | Neuer Feature-Flag | [add-feature-flag.md](add-feature-flag.md) |
 | Neuer IndexedDB-Store | [add-idb-store.md](add-idb-store.md) |
+| App-Name / Untertitel / HTML-Filename ändern | [change-app-branding.md](change-app-branding.md) |
 | `file://`-Pitfalls (kompakte Quick-Reference) | [file-protocol-pitfalls.md](file-protocol-pitfalls.md) |
 | Design-Export aus Claude Design Tool portieren | [port-design-export.md](port-design-export.md) |
 
@@ -43,6 +44,6 @@ npm run test           # alle Tests grün (= vitest run)
 npm run build:dev      # Single-File-Build erfolgreich
 ```
 
-Verifikation per Doppelklick auf `dist-single/teamflow-dev.html` in Chrome/Edge — keine Console-Errors.
+Verifikation per Doppelklick auf die gebaute HTML unter `dist-single/` (z.B. `zah.html`, abhängig von `build.outputFilename` in der dev-Config) in Chrome/Edge — keine Console-Errors.
 
 `build:demo` und `build:foerderprogramm` **nicht** routinemäßig mit-bauen — nur bei strukturellen Änderungen an Variant-Configs. Siehe `CLAUDE.md` → Build-Varianten.
