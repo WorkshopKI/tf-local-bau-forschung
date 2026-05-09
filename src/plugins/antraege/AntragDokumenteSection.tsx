@@ -13,7 +13,8 @@ import { ExternalLink, FileText, FileType2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getDokumentenquelleHandle } from '@/core/services/infrastructure/smb-handle';
+import { getDmsSourceHandle } from '@/core/services/infrastructure/smb-handle';
+import { DEFAULT_DMS_SOURCE_ID } from '@/core/services/dms-sources';
 import {
   listByMatchedAntrag,
   makeLoadBlobFromHandle,
@@ -175,9 +176,18 @@ function DokumentRow({ entry }: RowProps): React.ReactElement {
     setError(null);
     setOpening(true);
     try {
-      const handle = await getDokumentenquelleHandle(storage.idb);
+      // v1.15 Multi-Source: Manifest-Eintrag fuehrt seine Source-ID. Legacy-
+      // Eintraege (vor v1.15) haben kein source_id und gehoeren der Default-
+      // Source — getDmsSourceHandle('default') faellt transparent auf den
+      // alten Slot zurueck, falls die Migration noch nicht gelaufen ist.
+      const sourceId = entry.source_id ?? DEFAULT_DMS_SOURCE_ID;
+      const handle = await getDmsSourceHandle(storage.idb, sourceId);
       if (!handle) {
-        setError('Dokumentenquelle nicht verbunden');
+        setError(
+          entry.source_id
+            ? `DMS-Quelle "${entry.source_id}" nicht verbunden — im Plugin Dokumentenquellen verbinden.`
+            : 'Keine DMS-Quelle verbunden — im Plugin Dokumentenquellen einrichten.',
+        );
         return;
       }
       const loader = makeLoadBlobFromHandle(handle);
@@ -188,7 +198,7 @@ function DokumentRow({ entry }: RowProps): React.ReactElement {
         mtime: entry.mtime,
       });
       if (!blob) {
-        setError('Datei nicht im Dokumentenquelle-Handle gefunden');
+        setError('Datei nicht im DMS-Quellen-Handle gefunden');
         return;
       }
       const url = URL.createObjectURL(blob);

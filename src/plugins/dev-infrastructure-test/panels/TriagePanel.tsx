@@ -16,8 +16,12 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import {
   getSmbHandle,
   getDatenShareHandle,
-  getDokumentenquelleHandle,
+  getDmsSourceHandle,
 } from '@/core/services/infrastructure/smb-handle';
+import {
+  listDmsSources,
+  type DmsSourceEntry,
+} from '@/core/services/dms-sources';
 import { scanConfig } from '@/config/feature-flags';
 import {
   loadDmsCsvFromShare,
@@ -46,8 +50,7 @@ import {
 } from '@/phase2';
 import { formatDuration, computeEta } from '@/core/utils/eta';
 import type { AktenplanLookup, DmsEntry } from '@/phase2/types';
-import { DevLog, ActionRow, Archive, Danger, Field, SectionCaption } from './shared';
-import { ScanRootsPicker } from './ScanRootsPicker';
+import { DevLog, ActionRow, Archive, Danger, Field, SectionCaption, StatusPill } from './shared';
 
 export function TriagePanel(): React.ReactElement {
   const storage = useStorage();
@@ -101,9 +104,16 @@ export function TriagePanel(): React.ReactElement {
     const id = setInterval(() => setBulkTick(Date.now()), 1000);
     return () => clearInterval(id);
   }, [bulkRunning]);
-  // Auswahl kommt jetzt aus dem ScanRootsPicker (persistiert in IDB).
-  // Default leer — User muss explizit Pfade waehlen, sonst kein Scan moeglich.
-  const [selectedRoots, setSelectedRoots] = useState<string[]>([]);
+  // v1.15 Multi-Source: Tester waehlt eine DMS-Quelle aus dem Plugin
+  // „Dokumentenquellen". Sub-Roots kommen aus der Source-Konfiguration —
+  // nicht mehr aus einem separaten ScanRootsPicker.
+  const [sources, setSources] = useState<DmsSourceEntry[]>([]);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+
+  const selectedSource = selectedSourceId
+    ? sources.find(s => s.id === selectedSourceId) ?? null
+    : null;
+  const selectedRoots = selectedSource?.sub_roots ?? [];
 
   const log = useCallback((s: string) => {
     setLogLines(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${s}`]);
@@ -123,6 +133,22 @@ export function TriagePanel(): React.ReactElement {
   useEffect(() => {
     void refreshCounts();
   }, [refreshCounts]);
+
+  // DMS-Quellen aus dem neuen Plugin laden + Default-Auswahl: erste Quelle
+  // mit verbundenem Handle, sonst die erste in der Liste, sonst nichts.
+  useEffect(() => {
+    void (async () => {
+      const all = await listDmsSources(storage.idb);
+      setSources(all);
+      if (all.length === 0) {
+        setSelectedSourceId(null);
+        return;
+      }
+      // Bevorzugt eine aktive Quelle, sonst die erste in der Liste.
+      const preferred = all.find(s => s.is_active) ?? all[0];
+      setSelectedSourceId(preferred?.id ?? null);
+    })();
+  }, [storage.idb]);
 
   const onLoadDmsIndex = async (): Promise<void> => {
     setBusy(true);
@@ -207,9 +233,13 @@ export function TriagePanel(): React.ReactElement {
     setScanFiles(null);
     setScanProgress(null);
     try {
-      const handle = await getDokumentenquelleHandle(storage.idb);
+      if (!selectedSourceId) {
+        log('Keine DMS-Quelle gewaehlt. Im Plugin „Dokumentenquellen" verbinden.');
+        return;
+      }
+      const handle = await getDmsSourceHandle(storage.idb, selectedSourceId);
       if (!handle) {
-        log('Kein Dokumentenquelle-Handle. Erst SMB-Panel: Dokumentenquelle waehlen.');
+        log(`DMS-Quelle "${selectedSource?.label ?? selectedSourceId}" nicht verbunden.`);
         return;
       }
       if (!scanConfig.file_extensions || scanConfig.file_extensions.length === 0) {
@@ -294,9 +324,13 @@ export function TriagePanel(): React.ReactElement {
       log('DMS-Index nicht geladen — erst „Index laden".');
       return;
     }
-    const handle = await getDokumentenquelleHandle(storage.idb);
+    if (!selectedSourceId) {
+      log('Keine DMS-Quelle gewaehlt.');
+      return;
+    }
+    const handle = await getDmsSourceHandle(storage.idb, selectedSourceId);
     if (!handle) {
-      log('Kein Dokumentenquelle-Handle.');
+      log(`DMS-Quelle "${selectedSource?.label ?? selectedSourceId}" nicht verbunden.`);
       return;
     }
 
@@ -387,9 +421,13 @@ export function TriagePanel(): React.ReactElement {
       log('DMS-Index nicht geladen — erst „Index laden".');
       return;
     }
-    const handle = await getDokumentenquelleHandle(storage.idb);
+    if (!selectedSourceId) {
+      log('Keine DMS-Quelle gewaehlt.');
+      return;
+    }
+    const handle = await getDmsSourceHandle(storage.idb, selectedSourceId);
     if (!handle) {
-      log('Kein Dokumentenquelle-Handle.');
+      log(`DMS-Quelle "${selectedSource?.label ?? selectedSourceId}" nicht verbunden.`);
       return;
     }
 
@@ -643,13 +681,44 @@ export function TriagePanel(): React.ReactElement {
         )}
       </Field>
 
-      {/* 2. Verzeichnisse */}
-      <SectionCaption>2. Verzeichnisse</SectionCaption>
-      <ScanRootsPicker
-        idb={storage.idb}
-        log={log}
-        onSelectionChange={setSelectedRoots}
-      />
+      {/* 2. DMS-Quelle */}
+      <SectionCaption>2. DMS-Quelle</SectionCaption>
+      <Field
+        label="Quelle für diesen Triage-Test"
+        hint='Verwaltung neuer Quellen + Sub-Roots läuft im Plugin „Dokumentenquellen“.'
+      >
+        {sources.length === 0 ? (
+          <span className="text-[12px] text-[var(--tf-text-tertiary)]">
+            Keine DMS-Quellen konfiguriert. Im Plugin „Dokumentenquellen“ anlegen.
+          </span>
+        ) : (
+          <div className="flex items-center flex-wrap gap-2">
+            <select
+              value={selectedSourceId ?? ''}
+              onChange={e => setSelectedSourceId(e.target.value || null)}
+              className="rounded-md px-2 py-1 text-[12.5px] bg-[var(--tf-bg)]"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+            >
+              {sources.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                  {s.is_active ? '' : ' (inaktiv)'}
+                </option>
+              ))}
+            </select>
+            {selectedSource && (
+              <StatusPill
+                label={
+                  selectedSource.sub_roots.length === 0
+                    ? 'ganzer Ordner'
+                    : `${selectedSource.sub_roots.length} Sub-Root${selectedSource.sub_roots.length === 1 ? '' : 's'}`
+                }
+                tone="neutral"
+              />
+            )}
+          </div>
+        )}
+      </Field>
 
       {/* 3. Lauf */}
       <SectionCaption>3. Lauf</SectionCaption>

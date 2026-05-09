@@ -10,8 +10,10 @@
 import type { IDBStore } from '../storage/idb-store';
 import { logAudit } from '../infrastructure/audit-log';
 import {
+  clearDokumentenquelleHandle,
   copyDokumentenquelleToDmsSource,
   getDokumentenquelleHandle,
+  listDmsSourceSlotIds,
 } from '../infrastructure/smb-handle';
 import { getScanConfig } from '../../../phase2/scan-config/store';
 import { DEFAULT_DMS_SOURCE_ID } from './types';
@@ -31,8 +33,21 @@ export interface MigrationResult {
  */
 export async function migrateLegacyDmsSource(idb: IDBStore): Promise<MigrationResult> {
   // Schon migriert? — wenn auch nur eine Source existiert, abbrechen.
+  // Aber: Legacy-Slot raeumen, falls er noch hinterhergeschleppt wird (z.B. weil
+  // die Migration in einer aelteren v1.15-Version den Slot als Backup behalten hat).
   const existing = await listDmsSources(idb);
   if (existing.length > 0) {
+    // Cleanup: Legacy-Slot raeumen, sobald mindestens ein dms-source-* Handle
+    // existiert. Damit verhindern wir, dass alte Aufrufer (Dev-Tools, vor-Patch-
+    // Manifest-Eintraege ohne source_id) noch den toten Single-Slot lesen,
+    // waehrend die App tatsaechlich Multi-Source faehrt.
+    try {
+      const slotIds = await listDmsSourceSlotIds(idb);
+      const legacyStillThere = await getDokumentenquelleHandle(idb);
+      if (legacyStillThere && slotIds.length > 0) {
+        await clearDokumentenquelleHandle(idb);
+      }
+    } catch { /* best-effort */ }
     return { migrated: false, reason: 'already_migrated' };
   }
 
@@ -61,6 +76,16 @@ export async function migrateLegacyDmsSource(idb: IDBStore): Promise<MigrationRe
   });
 
   await copyDokumentenquelleToDmsSource(idb, entry.id);
+
+  // Legacy-Slot raeumen: ab jetzt liest die App nur noch ueber `dms-source-*`.
+  // `getDmsSourceHandle('default')` haelt einen letzten Fallback auf den Slot
+  // bereit, falls beim Kopieren etwas schiefgeht — daher erst danach loeschen.
+  try {
+    await clearDokumentenquelleHandle(idb);
+  } catch {
+    // Ein verbleibender Legacy-Slot ist nicht fatal — wird beim naechsten
+    // Start nochmal probiert.
+  }
 
   try {
     await logAudit(idb, {

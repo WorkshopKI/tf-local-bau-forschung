@@ -2,17 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
+import { useNavigation } from '@/core/hooks/useNavigation';
 import {
   pickAndStoreParentHandle,
-  pickAndStoreDokumentenquelleHandle,
   getSmbHandle,
-  getDokumentenquelleHandle,
-  clearDokumentenquelleHandle,
+  getDmsSourceHandle,
   ensureFolderStructure,
   refreshPermission,
+  queryReadPermission,
   queryPermission,
   clearSmbHandle,
 } from '@/core/services/infrastructure/smb-handle';
+import { listDmsSources } from '@/core/services/dms-sources';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { ActionRow, Archive, Danger, Field, SectionCaption, StatusPill } from './shared';
 
@@ -43,12 +44,19 @@ async function probeFolderStructure(
   return out;
 }
 
+interface DmsSourceCounts {
+  total: number;
+  active: number;
+  connected: number;
+}
+
 export function SmbPanel(): React.ReactElement {
   const storage = useStorage();
   const smbStatus = useSmbStatus();
+  const navigation = useNavigation();
   const [handleName, setHandleName] = useState<string | null>(null);
   const [permission, setPermission] = useState<PermState>('unknown');
-  const [dokuHandleName, setDokuHandleName] = useState<string | null>(null);
+  const [dmsCounts, setDmsCounts] = useState<DmsSourceCounts | null>(null);
   const [structure, setStructure] = useState<FolderStructureProbe | null>(null);
   const [lastMsg, setLastMsg] = useState<string | null>(null);
 
@@ -70,8 +78,26 @@ export function SmbPanel(): React.ReactElement {
       setPermission('unknown');
       setStructure(null);
     }
-    const doku = await getDokumentenquelleHandle(storage.idb);
-    setDokuHandleName(doku?.name ?? null);
+    // DMS-Quellen-Counts sammeln (ersetzt Legacy-`dokumentenquelle`-Slot).
+    try {
+      const sources = await listDmsSources(storage.idb);
+      let connected = 0;
+      for (const s of sources) {
+        const sh = await getDmsSourceHandle(storage.idb, s.id);
+        if (!sh) continue;
+        try {
+          const perm = await queryReadPermission(sh);
+          if (perm === 'granted') connected++;
+        } catch { /* ignore */ }
+      }
+      setDmsCounts({
+        total: sources.length,
+        active: sources.filter(s => s.is_active).length,
+        connected,
+      });
+    } catch {
+      setDmsCounts(null);
+    }
   }, [storage.idb]);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -146,24 +172,8 @@ export function SmbPanel(): React.ReactElement {
     void smbStatus.check(storage.idb);
   };
 
-  const onPickDoku = async (): Promise<void> => {
-    setLastMsg(null);
-    const r = await pickAndStoreDokumentenquelleHandle(storage.idb);
-    if (r.ok) {
-      await logAudit(storage.idb, { action: 'dokumentenquelle_handle_set', details: { folderName: r.handle.name } });
-      setLastMsg(`Dokumentenquelle verbunden: ${r.handle.name}`);
-    } else if (r.reason === 'aborted') {
-      setLastMsg('Dokumentenquelle-Auswahl abgebrochen.');
-    } else {
-      setLastMsg(`Picker-Fehler: ${r.message ?? 'unbekannt'}`);
-    }
-    await refresh();
-  };
-
-  const onClearDoku = async (): Promise<void> => {
-    await clearDokumentenquelleHandle(storage.idb);
-    await refresh();
-    setLastMsg('Dokumentenquelle-Handle entfernt.');
+  const onOpenDmsPlugin = (): void => {
+    navigation.navigate('dokumentenquellen-kuration');
   };
 
   const permTone = permission === 'granted' ? 'ok' : permission === 'denied' ? 'bad' : 'warn';
@@ -208,25 +218,31 @@ export function SmbPanel(): React.ReactElement {
         </div>
       </Field>
 
-      <Field label="Dokumentenquelle (Legacy)">
+      <Field
+        label="DMS-Quellen"
+        hint='Verwaltung läuft im Plugin „Dokumentenquellen“. Hier nur Status-Anzeige.'
+      >
         <div className="flex items-center flex-wrap gap-2">
-          <StatusPill label={dokuHandleName ? `✓ ${dokuHandleName}` : 'nicht gesetzt'} tone={dokuHandleName ? 'ok' : 'neutral'} />
-          {dokuHandleName ? (
-            <button
-              type="button"
-              onClick={() => void onClearDoku()}
-              className="text-[11px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] cursor-pointer"
-            >
-              vergessen
-            </button>
-          ) : null}
+          {dmsCounts === null ? (
+            <StatusPill label="lade…" tone="neutral" />
+          ) : dmsCounts.total === 0 ? (
+            <StatusPill label="keine Quellen" tone="neutral" />
+          ) : (
+            <>
+              <StatusPill
+                label={`${dmsCounts.connected}/${dmsCounts.total} verbunden`}
+                tone={dmsCounts.connected === dmsCounts.total ? 'ok' : 'warn'}
+              />
+              <StatusPill
+                label={`${dmsCounts.active} aktiv`}
+                tone={dmsCounts.active > 0 ? 'ok' : 'neutral'}
+              />
+            </>
+          )}
+          <Button size="xs" variant="outline" onClick={onOpenDmsPlugin}>
+            Plugin öffnen →
+          </Button>
         </div>
-        <p className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
-          Single-Source-Slot vor v1.15. Multi-Source-Verwaltung läuft jetzt im
-          Plugin „Dokumentenquellen". Beim ersten Start wird der Legacy-Slot
-          automatisch in eine Default-Source migriert; dieser Picker bleibt nur
-          für Triage-Einzeltests im Tab „Phase-2 Triage" hier.
-        </p>
       </Field>
 
       <SectionCaption>Häufig</SectionCaption>
@@ -296,18 +312,6 @@ export function SmbPanel(): React.ReactElement {
               Initialisieren
             </Button>
           }
-        />
-        <ActionRow
-          title="Dokumentenquelle-Handle setzen (Legacy)"
-          hint='Wählt den Unter-Ordner mit den Phase-2-Dokumenten. Seit v1.15 nur noch für Triage-Einzeltests in Tab „Phase-2“; produktive DMS-Quellen verwaltet das Plugin „Dokumentenquellen“.'
-          status={
-            dokuHandleName ? (
-              <StatusPill label={`✓ ${dokuHandleName}`} tone="ok" />
-            ) : (
-              <StatusPill label="nicht gesetzt" tone="neutral" />
-            )
-          }
-          btn={<Button size="sm" variant="outline" onClick={() => void onPickDoku()}>Setzen</Button>}
         />
       </Archive>
 

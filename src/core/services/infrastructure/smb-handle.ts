@@ -83,7 +83,10 @@ export async function pickAndStoreDatenShareHandle(idb: IDBStore): Promise<PickR
 }
 
 /**
- * Öffnet den Picker und persistiert das Dokumentenquelle-Handle (separater Slot).
+ * @deprecated Seit v1.15 nur noch fuer Tests / Migration. Multi-Source-Quellen
+ * werden via `pickAndStoreDmsSourceHandle(idb, sourceId)` verwaltet. Aufrufer
+ * sollten die DMS-Source-API benutzen; dieser Single-Slot-Picker wird in
+ * einem Folge-Patch entfernt.
  *
  * **Read-Only**: Die App liest die DMS-Dokumente nur (Triage liest erste Seite,
  * Bulk-Scan listet die Dateibaum-Struktur). Es wird NIE in dieses Verzeichnis
@@ -119,6 +122,12 @@ export async function getDatenShareHandle(idb: IDBStore): Promise<FileSystemDire
   return map[SMB_HANDLE_DATEN_SHARE] ?? map[SMB_HANDLE_LEGACY_TEST_PROGRAMM] ?? null;
 }
 
+/**
+ * @deprecated Seit v1.15. Nur noch von der Migration genutzt, um den Legacy-
+ * Slot in eine Default-`dms-source-default`-Slot zu kopieren. Produktive
+ * Aufrufer sollen `getDmsSourceHandle(idb, sourceId)` mit der konkreten Source
+ * verwenden — die Source-ID liegt am ManifestEntry (`entry.source_id`).
+ */
 export async function getDokumentenquelleHandle(idb: IDBStore): Promise<FileSystemDirectoryHandle | null> {
   const map = await readAll(idb);
   return map[SMB_HANDLE_DOKUMENTENQUELLE] ?? null;
@@ -136,6 +145,11 @@ export async function clearDatenShareHandle(idb: IDBStore): Promise<void> {
   await writeAll(idb, map);
 }
 
+/**
+ * @deprecated Seit v1.15. Nur noch von der Migration / Cleanup-Routinen
+ * benutzt. Aufrufer fuer normale Source-Pflege sollen `clearDmsSourceHandle`
+ * mit der konkreten Source-ID verwenden.
+ */
 export async function clearDokumentenquelleHandle(idb: IDBStore): Promise<void> {
   const map = await readAll(idb);
   delete map[SMB_HANDLE_DOKUMENTENQUELLE];
