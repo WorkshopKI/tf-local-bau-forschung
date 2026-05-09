@@ -33,10 +33,34 @@ export default defineConfig(({ mode }) => {
   const parsedConfig = JSON.parse(rawConfig);
   const devFixturesEnabled = Boolean(parsedConfig.features?.devFixtures);
 
+  // Tab-Title + Loader-Label aus der Config in index.html injizieren.
+  // Ohne diesen Hook flasht beim ersten Laden kurz "TeamFlow Local" (statisch
+  // im HTML), bis App.tsx via document.title den Wert ueberschreibt.
+  const tabTitle = (parsedConfig.build?.browserTabTitle as string | undefined) ?? 'TeamFlow';
+  const buildLabel = (parsedConfig.build?.label as string | undefined) ?? tabTitle;
+  const escapeHtml = (s: string): string => s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
   return {
     plugins: [
       react(),
       tailwindcss(),
+      {
+        name: 'teamflow-index-html-title',
+        transformIndexHtml: {
+          order: 'pre' as const,
+          handler(html: string) {
+            return html
+              .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(tabTitle)}</title>`)
+              .replace(
+                /(<div class="tf-loader-title">)[^<]*(<\/div>)/,
+                `$1${escapeHtml(buildLabel)}$2`,
+              );
+          },
+        },
+      },
       isSingle && viteSingleFile(),
     ].filter(Boolean),
     define: {
