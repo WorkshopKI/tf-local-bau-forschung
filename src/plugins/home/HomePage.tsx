@@ -25,6 +25,11 @@ export function HomePage(): React.ReactElement {
   const { profile } = useProfile();
   const tour = useTourContext();
   const [hasHandle, setHasHandle] = useState<boolean | null>(null);
+  // Verhindert den "Noch keine Vorgaenge"-Flash, bevor die beiden Stores
+  // (Bauantraege + Antraege) beim ersten Mount async befuellt sind.
+  // Wird nur einmal gesetzt — Programm-Switches loesen kein Reset aus, damit
+  // beim Wechsel kein Skeleton aufblitzt.
+  const [firstLoadDone, setFirstLoadDone] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,8 +42,14 @@ export function HomePage(): React.ReactElement {
 
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   useEffect(() => {
-    loadBau(storage);
-    void loadAntraege(storage.idb, activeProgrammId ?? undefined);
+    let cancelled = false;
+    void Promise.all([
+      loadBau(storage),
+      loadAntraege(storage.idb, activeProgrammId ?? undefined),
+    ]).then(() => {
+      if (!cancelled) setFirstLoadDone(true);
+    });
+    return () => { cancelled = true; };
   }, [storage, loadBau, loadAntraege, activeProgrammId]);
 
   // useDashboardData filtert NICHT explizit auf activeProgrammId — der
@@ -71,6 +82,12 @@ export function HomePage(): React.ReactElement {
   // Demo (demoDataBundled=true) und Prod-Fixed-Path-Varianten ueberspringen die Aktion.
   if (hasHandle === false && dataConfig.allowUserToChangePath) {
     return <HomeCallToAction idb={storage.idb} onConnected={() => setHasHandle(true)} />;
+  }
+
+  // Erster Store-Load laeuft noch — leeres Skelett, damit nicht kurz
+  // "Noch keine Vorgaenge angelegt" aufblitzt.
+  if (!firstLoadDone) {
+    return <div className="min-h-[60vh]" />;
   }
 
   if (data.stats.total === 0) {
