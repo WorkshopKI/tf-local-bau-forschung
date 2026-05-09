@@ -12,6 +12,7 @@ import {
   hasAnyKuerzelData,
   type BearbeiterFilterMode,
 } from './bearbeiterFilter';
+import { tfPerfStart } from '@/core/utils/tfPerf';
 
 export interface FilteredAntraegeResult {
   filtered: Antrag[];
@@ -49,6 +50,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   );
 
   return useMemo(() => {
+    const end = tfPerfStart('useFilteredAntraege memo');
     const view = getView(activeView);
     const byView = antraege.filter(a => view.predicate(a));
     // Bearbeiter-Filter (Profil-Kürzel) NACH der View, vor den Custom-Filtern.
@@ -68,8 +70,10 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     const bearbeiterKuerzelMissing = bearbeiterFilter.active
       ? !hasAnyKuerzelData(antraege, bearbeiterFilter.includeBegleitung)
       : false;
+    const sorted = [...matched].sort(compare);
+    end(`base=${antraege.length} → byView=${byView.length} → filtered=${matched.length}`);
     return {
-      filtered: [...matched].sort(compare),
+      filtered: sorted,
       view,
       bearbeiterFilter,
       bearbeiterKuerzelMissing,

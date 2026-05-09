@@ -8,6 +8,7 @@ import {
   parseBearbeiterFilter,
   antragMatchesBearbeiter,
 } from '@/plugins/antraege/bearbeiterFilter';
+import { tfPerfStart } from '@/core/utils/tfPerf';
 
 const KUERZ_KEYS_CANONICAL: readonly string[] = [
   'tib_kuerz', 'bib_kuerz', 'ztp_kuerz', 'pfm_kuerz',
@@ -94,6 +95,7 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
   const { profile } = useProfile();
 
   return useMemo(() => {
+    const end = tfPerfStart('useDashboardData memo');
     const bearbeiterMode = parseBearbeiterFilter(
       profile?.bearbeiter_kuerzel,
       profile?.bearbeiter_inkl_begleitung,
@@ -177,7 +179,7 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       && antraege.length > 0
       && !anyKuerzelSeen;
 
-    return {
+    const result = {
       greeting: getGreeting(),
       offeneVorgaenge,
       dringend,
@@ -189,5 +191,7 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       bearbeiterKuerzelMissing,
       bearbeiterTokens: bearbeiterMode.tokens,
     };
+    end(`antraege=${antraege.length} bauantraege=${bauantraege.length} → total=${total} offen=${offen}`);
+    return result;
   }, [bauantraege, antraege, department, profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung]);
 }

@@ -6,6 +6,7 @@ import {
   listAntraegeByProgramm,
 } from '@/core/services/csv';
 import { listVerbuendeByProgramm } from '@/core/services/csv/idb-csv';
+import { tfPerfLog, tfPerfStart } from '@/core/utils/tfPerf';
 import type { ViewKey } from './views';
 import { DEFAULT_SORT_BY_VIEW, SORT_OPTIONS, type SortKey } from './sort';
 
@@ -104,6 +105,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   lastLoadedAt: 0,
 
   loadAll: async (idb: IDBStore, programmId?: string, opts?: { force?: boolean }) => {
+    const end = tfPerfStart('antraege.loadAll');
     const state = useAntraegeStore.getState();
     const oldProgrammId = state.programmId;
     const targetId = programmId ?? (await ensureDefaultProgramm(idb)).id;
@@ -117,14 +119,23 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
       && state.antraege.length > 0
       && Date.now() - state.lastLoadedAt < LOAD_ALL_SKIP_TTL_MS
     ) {
+      end('skipped (TTL)');
       return;
     }
     set({ loading: true });
     try {
+      const tIdb = tfPerfStart('antraege.loadAll → IDB getAll');
       const [antraege, verbuende] = await Promise.all([
         listAntraegeByProgramm(idb, targetId),
         listVerbuendeByProgramm(idb, targetId),
       ]);
+      tIdb(`antraege=${antraege.length} verbuende=${verbuende.length}`);
+      const sample = antraege[0];
+      if (sample) {
+        const bytes = JSON.stringify(sample).length;
+        const fields = Object.keys(sample).length;
+        tfPerfLog(`antrag sample: ${bytes} bytes, ${fields} fields (programm=${targetId})`);
+      }
       // Selektion nur bei tatsächlichem Programm-Wechsel löschen. Beim
       // Initial-Load (oldProgrammId === null) oder beim Reload desselben
       // Programms bleibt die URL-getriebene Selektion erhalten — sonst
@@ -143,8 +154,10 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
         } : {}),
         loading: false,
       });
-    } catch {
+      end(`n=${antraege.length} programm=${targetId}`);
+    } catch (e) {
       set({ loading: false });
+      end(`error: ${(e as Error).message}`);
     }
   },
 

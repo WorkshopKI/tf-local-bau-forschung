@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Vorgang } from '@/core/types/vorgang';
 import type { StorageService } from '@/core/services/storage';
 import { generatePrefixedId } from '@/core/services/id-generator';
+import { tfPerfStart } from '@/core/utils/tfPerf';
 
 interface BauantraegeState {
   bauantraege: Vorgang[];
@@ -23,9 +24,11 @@ export const useBauantraegeStore = create<BauantraegeState>((set, get) => ({
   filters: { status: '', search: '' },
 
   loadAll: async (storage) => {
+    const end = tfPerfStart('bauantraege.loadAll');
     set({ loading: true });
     const list = await storage.listVorgaenge('bauantrag');
     set({ bauantraege: list, loading: false });
+    end(`n=${list.length}`);
   },
 
   add: async (partial, storage) => {

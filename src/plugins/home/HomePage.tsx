@@ -16,6 +16,7 @@ import { menuLabel, dataConfig } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
+import { tfPerfStart } from '@/core/utils/tfPerf';
 
 export function HomePage(): React.ReactElement {
   const storage = useStorage();
@@ -43,11 +44,15 @@ export function HomePage(): React.ReactElement {
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   useEffect(() => {
     let cancelled = false;
+    const end = tfPerfStart('HomePage mount: loadBau+loadAntraege');
     void Promise.all([
       loadBau(storage),
       loadAntraege(storage.idb, activeProgrammId ?? undefined),
     ]).then(() => {
-      if (!cancelled) setFirstLoadDone(true);
+      if (!cancelled) {
+        setFirstLoadDone(true);
+        end();
+      }
     });
     return () => { cancelled = true; };
   }, [storage, loadBau, loadAntraege, activeProgrammId]);

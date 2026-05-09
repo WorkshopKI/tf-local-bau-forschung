@@ -14,6 +14,7 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useProfile } from '@/core/hooks/useProfile';
 import { listAntraegeByProgramm } from '@/core/services/csv';
 import type { Programm } from '@/core/services/csv/types';
+import { tfPerfStart } from '@/core/utils/tfPerf';
 
 const CLOSED = new Set(['genehmigt', 'abgelehnt', 'archiviert', 'bewilligt', 'abgeschlossen']);
 
@@ -32,6 +33,7 @@ export function ProgrammeOverviewCards(): React.ReactElement | null {
 
   useEffect(() => {
     let cancelled = false;
+    const end = tfPerfStart('ProgrammeOverviewCards effect');
     void (async () => {
       // Parallel statt sequenziell: bei mehreren Programmen mit jeweils
       // 13k+ Records spart das die Summe der IDB-Reads (sonst N × Roundtrip).
@@ -45,7 +47,12 @@ export function ProgrammeOverviewCards(): React.ReactElement | null {
           return [p.id, { total: list.length, offen }] as const;
         }),
       );
-      if (!cancelled) setCounts(new Map(results));
+      if (!cancelled) {
+        setCounts(new Map(results));
+        end(`n_programme=${programme.length}`);
+      } else {
+        end(`cancelled (n_programme=${programme.length})`);
+      }
     })();
     return () => { cancelled = true; };
   }, [programme, storage.idb]);
