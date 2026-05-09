@@ -4,6 +4,7 @@
   "build": {
     "label": "ZAH",
     "outputFilename": "zah-dev",
+    "outputSubdir": "dev",
     "browserTabTitle": "ZAH",
     "sidebarSubtitle": "ZIM Arbeitshilfe"
   },
