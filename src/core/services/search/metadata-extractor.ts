@@ -245,10 +245,13 @@ export async function extractMetadata(filename: string, text: string, contextTok
 
   try {
     if (!llmState.transport) return FALLBACK_METADATA(filename, text);
-    const modelCfg = METADATA_LLM_MODELS.find(m => m.id === llmState.modelId);
-    const options: { thinkingBudget?: 'low'; responseFormat?: Record<string, unknown> } = {};
-    if (modelCfg?.requiresReasoning) options.thinkingBudget = 'low';
-    options.responseFormat = METADATA_RESPONSE_FORMAT;
+    // Thinking immer aus — Metadaten-Extraktion braucht kein Reasoning, das macht den
+    // Pipeline-Schritt nur unnoetig langsam. requiresReasoning aus der Model-Registry
+    // bleibt als reines Anzeige-Flag, hat hier aber keine Wirkung mehr.
+    const options: { thinkingBudget?: 'none' | 'low' | 'medium' | 'high'; responseFormat?: Record<string, unknown> } = {
+      thinkingBudget: 'none',
+      responseFormat: METADATA_RESPONSE_FORMAT,
+    };
     const response = await llmState.transport.submitMessage(userPrompt, systemPrompt, options);
     return parseMetadataJSON(response, filename, text);
   } catch (err) {
