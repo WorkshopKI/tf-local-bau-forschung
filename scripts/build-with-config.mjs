@@ -11,10 +11,18 @@
  *   node scripts/build-with-config.mjs --config configs/dev.config.json
  */
 
-import { readFileSync, copyFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, copyFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
 import { validateConfig } from './config-schema.mjs';
+
+// .bat-Dateien brauchen CRLF, damit der Polyglot-Header (<# : ... #>) von cmd.exe
+// als Batch-Wrapper erkannt wird. Source-File kann LF haben (z.B. nach Edit-Tool oder
+// Linux-Checkout ohne autocrlf) — wir normalisieren beim Kopieren immer auf CRLF.
+function copyBatWithCrlf(src, dst) {
+  const text = readFileSync(src, 'utf8').replace(/\r?\n/g, '\r\n');
+  writeFileSync(dst, text, 'utf8');
+}
 
 function parseArgs(argv) {
   const args = argv.slice(2);
@@ -105,7 +113,7 @@ function main() {
     const src = resolve(name);
     const rootDst = resolve(`dist-single/${name}`);
     if (needsDataShare && existsSync(src)) {
-      copyFileSync(src, rootDst);
+      copyBatWithCrlf(src, rootDst);
       copiedBats.push(rootDst);
     }
     if (outDir !== distRoot) {
