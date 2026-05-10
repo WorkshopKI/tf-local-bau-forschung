@@ -64,7 +64,7 @@ $KontextGroesse = 8192
 $GpuLayers = 99
 $Threads = 4
 $Port = 9091
-$NCpuMoe = 36
+$NCpuMoe = 26
 $CacheK = 'q4_0'
 $CacheV = 'q4_0'
 $FlashAttn = $true
@@ -89,7 +89,7 @@ if (-not (Test-Path $ConfigFile)) {
   "gpu_layers": 99,
   "threads": 4,
   "port": 9091,
-  "n_cpu_moe": 36,
+  "n_cpu_moe": 26,
   "cache_type_k": "q4_0",
   "cache_type_v": "q4_0",
   "flash_attention": true,
