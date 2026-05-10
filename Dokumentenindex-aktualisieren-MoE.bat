@@ -62,7 +62,7 @@ $ModelUrl = 'https://huggingface.co/bartowski/Qwen_Qwen3.6-35B-A3B-GGUF/resolve/
 $ModelDatei = 'qwen3-6-35b-a3b-Q4_K_M.gguf'
 $KontextGroesse = 16384
 $GpuLayers = 99
-$Threads = 8
+$Threads = 4
 $Port = 9091
 $NCpuMoe = 36
 $CacheK = 'q4_0'
@@ -87,7 +87,7 @@ if (-not (Test-Path $ConfigFile)) {
   "modell_datei": "qwen3-6-35b-a3b-Q4_K_M.gguf",
   "kontext_groesse": 16384,
   "gpu_layers": 99,
-  "threads": 8,
+  "threads": 4,
   "port": 9091,
   "n_cpu_moe": 36,
   "cache_type_k": "q4_0",
