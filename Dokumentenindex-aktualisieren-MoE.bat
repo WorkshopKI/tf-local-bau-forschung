@@ -60,7 +60,7 @@ $ZipFile = Join-Path $FilesDir 'llama-cpp.zip'
 # --- Defaults (Qwen 3.6 35B-MoE — bartowski Q4_K_M, ca. 18 GB GGUF) ---
 $ModelUrl = 'https://huggingface.co/bartowski/Qwen_Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf'
 $ModelDatei = 'qwen3-6-35b-a3b-Q4_K_M.gguf'
-$KontextGroesse = 128000
+$KontextGroesse = 16384
 $GpuLayers = 99
 $Threads = 8
 $Port = 9091
@@ -85,7 +85,7 @@ if (-not (Test-Path $ConfigFile)) {
 {
   "modell_url": "https://huggingface.co/bartowski/Qwen_Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
   "modell_datei": "qwen3-6-35b-a3b-Q4_K_M.gguf",
-  "kontext_groesse": 128000,
+  "kontext_groesse": 16384,
   "gpu_layers": 99,
   "threads": 8,
   "port": 9091,
