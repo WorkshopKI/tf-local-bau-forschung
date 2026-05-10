@@ -37,6 +37,18 @@ export class DirectLLMTransport implements AITransport {
     }
   }
 
+  async getActiveModel(): Promise<string | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/models`, { headers: this.getHeaders() });
+      if (!res.ok) return null;
+      const data = await res.json() as { data?: Array<{ id?: string }> };
+      const id = data?.data?.[0]?.id;
+      return typeof id === 'string' && id.length > 0 ? id : null;
+    } catch {
+      return null;
+    }
+  }
+
   async submitMessage(
     message: string,
     systemPrompt?: string,

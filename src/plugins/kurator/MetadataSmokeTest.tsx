@@ -4,7 +4,7 @@ import { Button, Badge, ProgressBar } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   METADATA_LLM_MODELS, initMetadataLLM, extractMetadata, disposeMetadataLLM,
-  METADATA_SYSTEM_PROMPT, buildExtractionPrompt,
+  METADATA_SYSTEM_PROMPT, buildExtractionPrompt, probeActiveLocalModel,
 } from '@/core/services/search/metadata-extractor';
 import type { DocumentMetadata, MetadataModelConfig } from '@/core/services/search/metadata-extractor';
 import { embeddingService } from '@/core/services/search/embedding-service';
@@ -41,6 +41,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [errorMsg, setErrorMsg] = useState('');
   const [gpuMsg, setGpuMsg] = useState<string | null>(null);
+  const [activeLocalModel, setActiveLocalModel] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const abortRef = useRef(false);
 
@@ -55,6 +56,18 @@ export function MetadataSmokeTest(): React.ReactElement | null {
     const id = setInterval(readCfg, 2000);
     return () => { mountedRef.current = false; clearInterval(id); };
   }, []);
+
+  useEffect(() => {
+    if (metadataLLMId !== 'llamacpp-local' && metadataLLMId !== 'llamacpp-lan') {
+      setActiveLocalModel(null);
+      return;
+    }
+    let cancelled = false;
+    probeActiveLocalModel(metadataLLMId, { idb: storage.idb }).then(name => {
+      if (!cancelled && mountedRef.current) setActiveLocalModel(name);
+    });
+    return () => { cancelled = true; };
+  }, [metadataLLMId, storage]);
 
   if (metadataLLMId === null || metadataLLMId === 'none') return null;
 
@@ -136,7 +149,12 @@ export function MetadataSmokeTest(): React.ReactElement | null {
       <div className="flex items-center justify-between mb-2 pb-1.5"
         style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
         <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text)]">Metadata Smoke-Test</span>
-        <span className="text-[11px] text-[var(--tf-text-secondary)]">{modelLabel}</span>
+        <span className="text-[11px] text-[var(--tf-text-secondary)]">
+          {modelLabel}
+          {activeLocalModel && (
+            <span className="ml-1 font-mono text-[var(--tf-text-tertiary)]">· {activeLocalModel}</span>
+          )}
+        </span>
       </div>
 
       {phase === 'idle' && (

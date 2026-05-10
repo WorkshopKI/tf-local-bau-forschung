@@ -9,6 +9,7 @@ export interface PipelineConfigState {
   metadataContext: number;
   metadataPreferGPU: boolean;
   lanEndpoint: string;
+  localPort: number;
   useContextualPrefixes: boolean;
   useReRanker: boolean; // PHASE 2: Re-Ranker
   reRankerModelId: string; // PHASE 2: Re-Ranker
@@ -20,6 +21,7 @@ const DEFAULT_CONFIG: PipelineConfigState = {
   metadataContext: 4096,
   metadataPreferGPU: true,
   lanEndpoint: '',
+  localPort: 9090,
   useContextualPrefixes: false,
   useReRanker: false,
   reRankerModelId: DEFAULT_RERANKER_ID,
@@ -45,6 +47,7 @@ export function usePipelineConfig(idb: IDBStore): UsePipelineConfigReturn {
           metadataContext: cfg.metadataContext ?? 4096,
           metadataPreferGPU: cfg.metadataPreferGPU ?? true,
           lanEndpoint: cfg.lanEndpoint ?? '',
+          localPort: Number.isInteger(cfg.localPort) && cfg.localPort > 0 ? cfg.localPort : 9090,
           useContextualPrefixes: cfg.useContextualPrefixes ?? false,
           useReRanker: cfg.useReRanker ?? false,
           reRankerModelId: cfg.reRankerModelId ?? DEFAULT_RERANKER_ID,

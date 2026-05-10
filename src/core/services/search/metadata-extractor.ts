@@ -50,13 +50,13 @@ export interface MetadataModelConfig {
 export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
   {
     id: 'llamacpp-local', openRouterId: 'local-model',
-    label: 'Lokale KI (Nemotron)', size: 'Lokal',
-    description: 'Dokumentenindex-aktualisieren.bat per Doppelklick starten.',
+    label: 'Lokale KI (lokaler Server)', size: 'Lokal',
+    description: 'Dokumentenindex-aktualisieren.bat starten. Modell wird in dokumentenindex-dateien/config.json definiert.',
     requiresReasoning: false, maxParallelism: 1, needsApiKey: false,
   },
   {
     id: 'llamacpp-lan', openRouterId: 'local-model',
-    label: 'LAN KI (Nemotron)', size: 'LAN',
+    label: 'LAN KI (lokaler Server)', size: 'LAN',
     description: 'llama.cpp Server im lokalen Netzwerk (IP:Port konfigurierbar).',
     requiresReasoning: false, maxParallelism: 1, needsApiKey: false,
   },
@@ -177,7 +177,11 @@ export async function initMetadataLLM(
     let apiKey = '';
 
     if (modelId === 'llamacpp-local') {
-      endpoint = 'http://localhost:9090/v1';
+      const pipelineCfg = await storage.idb.get<{ localPort?: number }>('pipeline-config');
+      const port = Number.isInteger(pipelineCfg?.localPort) && pipelineCfg!.localPort! > 0
+        ? pipelineCfg!.localPort
+        : 9090;
+      endpoint = `http://localhost:${port}/v1`;
     } else if (modelId === 'llamacpp-lan') {
       const pipelineCfg = await storage.idb.get<{ lanEndpoint?: string }>('pipeline-config');
       endpoint = pipelineCfg?.lanEndpoint ?? '';
@@ -259,6 +263,30 @@ export function disposeMetadataLLM(): void {
   llmState.ready = false;
   llmState.modelId = null;
   llmState.backend = null;
+}
+
+export async function probeActiveLocalModel(
+  modelId: 'llamacpp-local' | 'llamacpp-lan',
+  storage: MetadataStorage,
+): Promise<string | null> {
+  try {
+    let endpoint: string;
+    if (modelId === 'llamacpp-local') {
+      const pipelineCfg = await storage.idb.get<{ localPort?: number }>('pipeline-config');
+      const port = Number.isInteger(pipelineCfg?.localPort) && pipelineCfg!.localPort! > 0
+        ? pipelineCfg!.localPort
+        : 9090;
+      endpoint = `http://localhost:${port}/v1`;
+    } else {
+      const pipelineCfg = await storage.idb.get<{ lanEndpoint?: string }>('pipeline-config');
+      endpoint = pipelineCfg?.lanEndpoint ?? '';
+      if (!endpoint) return null;
+    }
+    const transport = new DirectLLMTransport(endpoint, 'local-model', '');
+    return await transport.getActiveModel();
+  } catch {
+    return null;
+  }
 }
 
 /* ── Re-exports fuer Abwaertskompatibilitaet ── */

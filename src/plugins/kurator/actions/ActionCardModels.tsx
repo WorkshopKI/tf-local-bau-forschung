@@ -4,7 +4,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import {
   EMBEDDING_MODELS, setActiveModelId,
 } from '@/core/services/search/model-registry';
-import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
+import { METADATA_LLM_MODELS, probeActiveLocalModel } from '@/core/services/search/metadata-extractor';
 import type { PipelineConfigState } from '../hooks/usePipelineConfig';
 import type { AIProviderConfig } from '@/core/types/config';
 
@@ -21,11 +21,24 @@ export function ActionCardModels({
 }: ActionCardModelsProps): React.ReactElement {
   const storage = useStorage();
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [activeLocalModel, setActiveLocalModel] = useState<string | null>(null);
   const selectedMetadata = METADATA_LLM_MODELS.find(m => m.id === config.metadataLLMId);
+  const isLocalServer = config.metadataLLMId === 'llamacpp-local'
+    || config.metadataLLMId === 'llamacpp-lan';
 
   useEffect(() => {
     storage.idb.get<AIProviderConfig>('ai-provider').then(c => setHasApiKey(!!c?.apiKey));
   }, [storage]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isLocalServer) { setActiveLocalModel(null); return; }
+    probeActiveLocalModel(
+      config.metadataLLMId as 'llamacpp-local' | 'llamacpp-lan',
+      { idb: storage.idb },
+    ).then(name => { if (!cancelled) setActiveLocalModel(name); });
+    return () => { cancelled = true; };
+  }, [storage, isLocalServer, config.metadataLLMId, config.localPort, config.lanEndpoint]);
 
   return (
     <div className="p-[16px] rounded-[var(--tf-radius)] space-y-3"
@@ -59,7 +72,27 @@ export function ActionCardModels({
         {selectedMetadata?.backend === 'browser' && !hasGPU && (
           <p className="text-[11px] text-[var(--tf-warning-text)]">WebGPU nicht verfuegbar</p>
         )}
+        {isLocalServer && activeLocalModel && (
+          <p className="text-[11px] text-[var(--tf-text-tertiary)] font-mono">
+            Aktiv: {activeLocalModel}
+          </p>
+        )}
       </div>
+
+      {/* Lokaler Port (conditional) */}
+      {config.metadataLLMId === 'llamacpp-local' && (
+        <div className="space-y-1">
+          <p className="text-[12px] text-[var(--tf-text-secondary)]">Lokaler Port</p>
+          <input type="number" min={1024} max={65535} value={config.localPort}
+            onChange={e => {
+              const v = Number(e.target.value);
+              updateConfig({ localPort: Number.isInteger(v) && v > 0 ? v : 9090 });
+            }}
+            className="w-full px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
+            style={{ border: '0.5px solid var(--tf-border)' }} />
+          <p className="text-[11px] text-[var(--tf-text-tertiary)]">Default 9090. Aendern z.B. fuer Docker-TurboQuant-Build (8182).</p>
+        </div>
+      )}
 
       {/* Server-Adresse (conditional) */}
       {config.metadataLLMId === 'llamacpp-lan' && (

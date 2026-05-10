@@ -62,6 +62,13 @@ $KontextGroesse = 8192
 $GpuLayers = 99
 $Threads = 4
 $Port = 9090
+$NCpuMoe = $null
+$CacheK = 'q4_0'
+$CacheV = 'q4_0'
+$FlashAttn = $true
+$Reasoning = 'off'
+$ExtraArgs = @()
+$AutoUpdate = $true
 
 # --- Ordner erstellen ---
 if (-not (Test-Path $FilesDir)) {
@@ -96,6 +103,13 @@ if ($cfg['kontext_groesse']) { $KontextGroesse = $cfg['kontext_groesse'] }
 if ($cfg.ContainsKey('gpu_layers')) { $GpuLayers = $cfg['gpu_layers'] }
 if ($cfg['threads']) { $Threads = $cfg['threads'] }
 if ($cfg['port']) { $Port = $cfg['port'] }
+if ($cfg.ContainsKey('n_cpu_moe') -and $null -ne $cfg['n_cpu_moe']) { $NCpuMoe = [int]$cfg['n_cpu_moe'] }
+if ($cfg['cache_type_k']) { $CacheK = [string]$cfg['cache_type_k'] }
+if ($cfg['cache_type_v']) { $CacheV = [string]$cfg['cache_type_v'] }
+if ($cfg.ContainsKey('flash_attention')) { $FlashAttn = [bool]$cfg['flash_attention'] }
+if ($cfg['reasoning']) { $Reasoning = [string]$cfg['reasoning'] }
+if ($cfg['extra_args']) { $ExtraArgs = @($cfg['extra_args']) }
+if ($cfg.ContainsKey('auto_update')) { $AutoUpdate = [bool]$cfg['auto_update'] }
 
 $ModelFile = Join-Path $FilesDir $ModelDatei
 
@@ -109,7 +123,7 @@ Write-Host ''
 # --- Schritt 1: Analyseprogramm (llama.cpp) ---
 $needsDownload = -not (Test-Path $ServerExe)
 try {
-    if (-not $needsDownload) {
+    if (-not $needsDownload -and $AutoUpdate) {
         $age = (Get-Date) - (Get-Item $ServerExe).LastWriteTime
         if ($age.TotalDays -gt 30) {
             Write-Host '  Analyseprogramm ist aelter als 30 Tage — Update...' -ForegroundColor Yellow
@@ -117,8 +131,14 @@ try {
             Get-ChildItem $FilesDir -Filter '*.dll' | Remove-Item -Force
             $needsDownload = $true
         }
+    } elseif (-not $needsDownload -and -not $AutoUpdate) {
+        Write-Host '  Auto-Update deaktiviert (auto_update=false in config.json) — vorhandenes Binary wird verwendet.' -ForegroundColor DarkGray
     }
 } catch { Write-Host '  Update-Pruefung uebersprungen.' -ForegroundColor DarkGray }
+if ($needsDownload -and -not $AutoUpdate) {
+    Write-Host '  Kein llama-server.exe vorhanden und auto_update=false — bitte Binary manuell ablegen.' -ForegroundColor Red
+    return
+}
 if ($needsDownload) {
     Write-Host '  [1/2] Lade Analyseprogramm herunter...' -ForegroundColor Yellow
     try {
@@ -197,11 +217,13 @@ $serverArgs = @(
     '-t', $Threads,
     '--port', $Port,
     '--host', '127.0.0.1',
-    '--cache-type-k', 'q4_0',
-    '--cache-type-v', 'q4_0',
-    '-fa', 'on',
+    '--cache-type-k', $CacheK,
+    '--cache-type-v', $CacheV,
     '--jinja',
-    '--reasoning', 'off'
+    '--reasoning', $Reasoning
 )
+if ($FlashAttn) { $serverArgs += @('-fa', 'on') }
+if ($null -ne $NCpuMoe) { $serverArgs += @('--n-cpu-moe', $NCpuMoe) }
+if ($ExtraArgs.Count -gt 0) { $serverArgs += $ExtraArgs }
 $argString = ($serverArgs | ForEach-Object { if ($_ -match ' ') { "`"$_`"" } else { $_ } }) -join ' '
 cmd /c "`"$ServerExe`" $argString"
