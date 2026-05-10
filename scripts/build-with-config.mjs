@@ -105,6 +105,7 @@ function main() {
   const batNames = [
     'Dokumentenindex-aktualisieren.bat',
     'Dokumentenindex-aktualisieren-MoE.bat',
+    'Dokumentenindex-aktualisieren-Gemma.bat',
     'Dokumentenindex-LAN-Server.bat',
   ];
   const copiedBats = [];
