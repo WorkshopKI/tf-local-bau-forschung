@@ -1,11 +1,11 @@
 <# : batch header
 @echo off
 chcp 65001 >nul 2>&1
-title TeamFlow - Dokumentenindex aktualisieren (MoE)
+title TeamFlow - Dokumentenindex aktualisieren (Qwen)
 set "BATDIR=%~dp0"
 powershell -ExecutionPolicy Bypass -NoProfile -Command "& ([ScriptBlock]::Create((Get-Content -LiteralPath '%~f0' -Raw -Encoding UTF8)))"
 echo.
-echo   MoE-Server wurde beendet. Fenster kann geschlossen werden.
+echo   Qwen-Server wurde beendet. Fenster kann geschlossen werden.
 echo.
 pause >nul
 exit /b
@@ -49,11 +49,11 @@ function Download-WithProgress {
 }
 
 # --- Pfade ---
-# llama-server.exe wird mit der Nemotron-Variante geteilt (gleicher Ordner).
-# Eigene Config-Datei (config-moe.json) damit Nemotron-Setup unangetastet bleibt.
+# llama-server.exe wird mit der Nemotron- und Gemma-Variante geteilt (gleicher Ordner).
+# Eigene Config-Datei (config-qwen.json) damit andere Setups unangetastet bleiben.
 $BaseDir = ($env:BATDIR).TrimEnd('\')
 $FilesDir = Join-Path $BaseDir 'dokumentenindex-dateien'
-$ConfigFile = Join-Path $FilesDir 'config-moe.json'
+$ConfigFile = Join-Path $FilesDir 'config-qwen.json'
 $ServerExe = Join-Path $FilesDir 'llama-server.exe'
 $ZipFile = Join-Path $FilesDir 'llama-cpp.zip'
 
@@ -103,6 +103,14 @@ if (-not (Test-Path $ConfigFile)) {
     Set-Content -Path $ConfigFile -Value $defaultCfg -Encoding UTF8
 }
 
+# Migration: alte config-moe.json automatisch uebernehmen falls vorhanden und
+# neue config-qwen.json noch nicht existiert (User-Edits bleiben erhalten).
+$LegacyConfig = Join-Path $FilesDir 'config-moe.json'
+if ((Test-Path $LegacyConfig) -and -not (Test-Path $ConfigFile)) {
+    Move-Item -Path $LegacyConfig -Destination $ConfigFile
+    Write-Host '  Hinweis: config-moe.json wurde nach config-qwen.json migriert.' -ForegroundColor DarkGray
+}
+
 # --- Config laden (Hashtable-Workaround fuer PS 5.1) ---
 $cfg = @{}
 try {
@@ -131,15 +139,15 @@ $ModelFile = Join-Path $FilesDir $ModelDatei
 # --- Header ---
 Write-Host ''
 Write-Host '  =====================================================' -ForegroundColor Cyan
-Write-Host '    Dokumentenindex aktualisieren (MoE-Modell)' -ForegroundColor Cyan
+Write-Host '    Dokumentenindex aktualisieren (Qwen 3.6 35B-A3B)' -ForegroundColor Cyan
 Write-Host '  =====================================================' -ForegroundColor Cyan
 Write-Host ''
 Write-Host "  Config-Datei: $ConfigFile" -ForegroundColor DarkGray
 Write-Host "  Default: Qwen 3.6 35B-A3B (MoE) Q4_K_M, Port $Port" -ForegroundColor DarkGray
-Write-Host '  Hinweis: Die parallele Nemotron-Variante (config.json) bleibt unberuehrt.' -ForegroundColor DarkGray
+Write-Host '  Hinweis: Andere Varianten (Nemotron / Gemma) bleiben unberuehrt.' -ForegroundColor DarkGray
 Write-Host ''
 
-# --- Schritt 1: Analyseprogramm (llama.cpp, geteilt mit Nemotron-Setup) ---
+# --- Schritt 1: Analyseprogramm (llama.cpp, geteilt mit Nemotron/Gemma-Setup) ---
 $needsDownload = -not (Test-Path $ServerExe)
 try {
     if (-not $needsDownload -and $AutoUpdate) {
@@ -151,7 +159,7 @@ try {
             $needsDownload = $true
         }
     } elseif (-not $needsDownload -and -not $AutoUpdate) {
-        Write-Host '  Auto-Update deaktiviert (auto_update=false in config-moe.json) — vorhandenes Binary wird verwendet.' -ForegroundColor DarkGray
+        Write-Host '  Auto-Update deaktiviert (auto_update=false in config-qwen.json) — vorhandenes Binary wird verwendet.' -ForegroundColor DarkGray
     }
 } catch { Write-Host '  Update-Pruefung uebersprungen.' -ForegroundColor DarkGray }
 if ($needsDownload -and -not $AutoUpdate) {
@@ -201,9 +209,9 @@ if ($needsDownload) {
     Write-Host '  Analyseprogramm ist vorhanden.' -ForegroundColor Green
 }
 
-# --- Schritt 2: MoE-Modell ---
+# --- Schritt 2: Qwen-Modell ---
 if (-not (Test-Path $ModelFile)) {
-    Write-Host '  [2/2] Lade MoE-Modell herunter...                    (einmalig, ca. 18 GB)' -ForegroundColor Yellow
+    Write-Host '  [2/2] Lade Qwen-Modell herunter...                   (einmalig, ca. 18 GB)' -ForegroundColor Yellow
     try {
         Download-WithProgress $ModelUrl $ModelFile
     } catch {
@@ -212,10 +220,10 @@ if (-not (Test-Path $ModelFile)) {
         return
     }
     $actualGB = [math]::Round((Get-Item $ModelFile).Length / 1GB, 1)
-    Write-Host "        MoE-Modell bereit (${actualGB} GB)." -ForegroundColor Green
+    Write-Host "        Qwen-Modell bereit (${actualGB} GB)." -ForegroundColor Green
 } else {
     $actualGB = [math]::Round((Get-Item $ModelFile).Length / 1GB, 1)
-    Write-Host "  MoE-Modell ist vorhanden (${actualGB} GB)." -ForegroundColor Green
+    Write-Host "  Qwen-Modell ist vorhanden (${actualGB} GB)." -ForegroundColor Green
 }
 
 # --- Bereit ---

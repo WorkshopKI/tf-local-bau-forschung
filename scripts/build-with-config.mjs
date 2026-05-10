@@ -104,7 +104,7 @@ function main() {
   const distRoot = resolve('dist-single');
   const batNames = [
     'Dokumentenindex-aktualisieren.bat',
-    'Dokumentenindex-aktualisieren-MoE.bat',
+    'Dokumentenindex-aktualisieren-Qwen.bat',
     'Dokumentenindex-aktualisieren-Gemma.bat',
     'Dokumentenindex-LAN-Server.bat',
   ];
