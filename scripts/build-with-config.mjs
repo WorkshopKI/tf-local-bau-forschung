@@ -88,27 +88,35 @@ function main() {
     rmSync(defaultOutput);
   }
 
-  // Dokumentenindex-Helper liegt einmalig im dist-single-Root (variantenunabhaengig
-  // — operiert auf dem Daten-Share, nicht relativ zur HTML). Demo braucht ihn nicht;
-  // nur Share-Varianten (fester Pfad ODER User-Auswahl) kopieren ihn ins Root.
-  // Subdir-Outputs (z.B. dist-single/dev/) bekommen ihn nie — Altstand wird entfernt.
+  // Dokumentenindex-Helper liegen einmalig im dist-single-Root (variantenunabhaengig
+  // — operieren auf dem Daten-Share, nicht relativ zur HTML). Demo braucht sie nicht;
+  // nur Share-Varianten (fester Pfad ODER User-Auswahl) kopieren sie ins Root.
+  // Subdir-Outputs (z.B. dist-single/dev/) bekommen sie nie — Altstand wird entfernt.
   const needsDataShare = !!config.data?.fixedDataSharePath || config.data?.allowUserToChangePath === true;
-  const batSrc = resolve('Dokumentenindex-aktualisieren.bat');
-  const rootBatDst = resolve('dist-single/Dokumentenindex-aktualisieren.bat');
   const distRoot = resolve('dist-single');
+  const batNames = [
+    'Dokumentenindex-aktualisieren.bat',
+    'Dokumentenindex-aktualisieren-MoE.bat',
+    'Dokumentenindex-LAN-Server.bat',
+  ];
+  const copiedBats = [];
 
-  if (needsDataShare && existsSync(batSrc)) {
-    copyFileSync(batSrc, rootBatDst);
-  }
-
-  if (outDir !== distRoot) {
-    const subdirBatDst = join(outDir, 'Dokumentenindex-aktualisieren.bat');
-    if (existsSync(subdirBatDst)) rmSync(subdirBatDst);
+  for (const name of batNames) {
+    const src = resolve(name);
+    const rootDst = resolve(`dist-single/${name}`);
+    if (needsDataShare && existsSync(src)) {
+      copyFileSync(src, rootDst);
+      copiedBats.push(rootDst);
+    }
+    if (outDir !== distRoot) {
+      const subdirDst = join(outDir, name);
+      if (existsSync(subdirDst)) rmSync(subdirDst);
+    }
   }
 
   console.log(`✓ Build fertig: ${targetOutput}`);
-  if (needsDataShare && existsSync(rootBatDst)) {
-    console.log(`✓ Dokumentenindex-Helper liegt unter: ${rootBatDst}`);
+  for (const bat of copiedBats) {
+    console.log(`✓ Dokumentenindex-Helper liegt unter: ${bat}`);
   }
 }
 
