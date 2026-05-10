@@ -57,9 +57,9 @@ $ConfigFile = Join-Path $FilesDir 'config-gemma.json'
 $ServerExe = Join-Path $FilesDir 'llama-server.exe'
 $ZipFile = Join-Path $FilesDir 'llama-cpp.zip'
 
-# --- Defaults (Gemma 4 26B-A4B Instruct — bartowski Q4_K_M, ca. 15 GB GGUF) ---
-$ModelUrl = 'https://huggingface.co/bartowski/google_gemma-4-26b-a4b-it-GGUF/resolve/main/google_gemma-4-26b-a4b-it-Q4_K_M.gguf'
-$ModelDatei = 'gemma-4-26b-a4b-it-Q4_K_M.gguf'
+# --- Defaults (Gemma 4 26B-A4B Instruct — bartowski Q4_K_M, ca. 17 GB GGUF) ---
+$ModelUrl = 'https://huggingface.co/bartowski/google_gemma-4-26B-A4B-it-GGUF/resolve/main/google_gemma-4-26B-A4B-it-Q4_K_M.gguf'
+$ModelDatei = 'google_gemma-4-26B-A4B-it-Q4_K_M.gguf'
 $KontextGroesse = 8192
 $GpuLayers = 99
 $Threads = 4
@@ -83,8 +83,8 @@ if (-not (Test-Path $FilesDir)) {
 if (-not (Test-Path $ConfigFile)) {
     $defaultCfg = @'
 {
-  "modell_url": "https://huggingface.co/bartowski/google_gemma-4-26b-a4b-it-GGUF/resolve/main/google_gemma-4-26b-a4b-it-Q4_K_M.gguf",
-  "modell_datei": "gemma-4-26b-a4b-it-Q4_K_M.gguf",
+  "modell_url": "https://huggingface.co/bartowski/google_gemma-4-26B-A4B-it-GGUF/resolve/main/google_gemma-4-26B-A4B-it-Q4_K_M.gguf",
+  "modell_datei": "google_gemma-4-26B-A4B-it-Q4_K_M.gguf",
   "kontext_groesse": 8192,
   "gpu_layers": 99,
   "threads": 4,
@@ -203,7 +203,7 @@ if ($needsDownload) {
 
 # --- Schritt 2: Gemma-Modell ---
 if (-not (Test-Path $ModelFile)) {
-    Write-Host '  [2/2] Lade Gemma-Modell herunter...                  (einmalig, ca. 15 GB)' -ForegroundColor Yellow
+    Write-Host '  [2/2] Lade Gemma-Modell herunter...                  (einmalig, ca. 17 GB)' -ForegroundColor Yellow
     try {
         Download-WithProgress $ModelUrl $ModelFile
     } catch {
