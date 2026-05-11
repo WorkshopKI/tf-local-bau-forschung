@@ -52,13 +52,13 @@ export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
     id: 'llamacpp-local', openRouterId: 'local-model',
     label: 'Lokale KI (lokaler Server)', size: 'Lokal',
     description: 'Dokumentenindex-aktualisieren.bat starten. Modell wird in dokumentenindex-dateien/config.json definiert.',
-    requiresReasoning: false, maxParallelism: 1, needsApiKey: false,
+    requiresReasoning: false, maxParallelism: 4, needsApiKey: false,
   },
   {
     id: 'llamacpp-lan', openRouterId: 'local-model',
     label: 'LAN KI (lokaler Server)', size: 'LAN',
     description: 'llama.cpp Server im lokalen Netzwerk (IP:Port konfigurierbar).',
-    requiresReasoning: false, maxParallelism: 1, needsApiKey: false,
+    requiresReasoning: false, maxParallelism: 4, needsApiKey: false,
   },
   {
     id: 'intern-gpt-oss', openRouterId: 'openai/gpt-oss-120b',

@@ -215,10 +215,12 @@ export class BatchIndexer {
     let metadataMap = new Map<string, DocumentMetadata>();
     if (useLLM && docsToProcess.length > 0) {
       const modelCfg = METADATA_LLM_MODELS.find(m => m.id === config.metadataLLMId);
-      const maxP = modelCfg?.maxParallelism ?? 3;
+      const maxP = modelCfg?.maxParallelism ?? 4;
       const parallelism = Math.min(config.metadataParallelism ?? maxP, maxP);
-      const isLocal = modelCfg && modelCfg.maxParallelism <= 1;
-      const contextTokens = isLocal ? 8192 : (config.metadataContext ?? 8192);
+      // Lokaler/LAN-Server hat festen kontext_groesse=32768 mit n_parallel=4 -> 8192 pro Slot.
+      // Erkennung via modelId, nicht via maxParallelism (das jetzt auch fuer lokal > 1 ist).
+      const isLocalServer = modelCfg?.id === 'llamacpp-local' || modelCfg?.id === 'llamacpp-lan';
+      const contextTokens = isLocalServer ? 8192 : (config.metadataContext ?? 8192);
       const phaseLabel = 'Metadata (parallel)';
       onStatus({ phase: phaseLabel, total: docsToProcess.length, processed: 0, currentDoc: '', skipped });
       metadataMap = await extractMetadataBatch(docsToProcess, parallelism, storage, config.metadataLLMId!,

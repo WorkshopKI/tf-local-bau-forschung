@@ -17,7 +17,7 @@ export interface PipelineConfigState {
 
 const DEFAULT_CONFIG: PipelineConfigState = {
   metadataLLMId: 'none',
-  metadataParallelism: 3,
+  metadataParallelism: 4,
   metadataContext: 4096,
   metadataPreferGPU: true,
   lanEndpoint: '',
@@ -43,7 +43,7 @@ export function usePipelineConfig(idb: IDBStore): UsePipelineConfigReturn {
       if (cfg) {
         setConfig({
           metadataLLMId: cfg.metadataLLMId ?? 'none',
-          metadataParallelism: cfg.metadataParallelism ?? 3,
+          metadataParallelism: cfg.metadataParallelism ?? 4,
           metadataContext: cfg.metadataContext ?? 4096,
           metadataPreferGPU: cfg.metadataPreferGPU ?? true,
           lanEndpoint: cfg.lanEndpoint ?? '',

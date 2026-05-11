@@ -25,6 +25,8 @@ export function ActionCardModels({
   const selectedMetadata = METADATA_LLM_MODELS.find(m => m.id === config.metadataLLMId);
   const isLocalServer = config.metadataLLMId === 'llamacpp-local'
     || config.metadataLLMId === 'llamacpp-lan';
+  const maxParallelism = selectedMetadata?.maxParallelism ?? 4;
+  const showParallelism = config.metadataLLMId !== 'none' && maxParallelism > 1;
 
   useEffect(() => {
     storage.idb.get<AIProviderConfig>('ai-provider').then(c => setHasApiKey(!!c?.apiKey));
@@ -106,6 +108,24 @@ export function ActionCardModels({
           {!config.lanEndpoint && (
             <p className="text-[11px] text-[var(--tf-warning-text)]">Server-Adresse erforderlich</p>
           )}
+        </div>
+      )}
+
+      {/* Parallele Anfragen (conditional, nur wenn LLM-Backend mehrere Slots unterstuetzt) */}
+      {showParallelism && (
+        <div className="space-y-1">
+          <p className="text-[12px] text-[var(--tf-text-secondary)]">Parallele Anfragen</p>
+          <input type="number" min={1} max={maxParallelism} value={config.metadataParallelism}
+            onChange={e => {
+              const v = Number(e.target.value);
+              const clamped = Math.max(1, Math.min(maxParallelism, Number.isInteger(v) && v > 0 ? v : 1));
+              updateConfig({ metadataParallelism: clamped });
+            }}
+            className="w-full px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
+            style={{ border: '0.5px solid var(--tf-border)' }} />
+          <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+            1 = sequenziell. Maximum {maxParallelism}. Lokal: passend zu llama-server <code>n_parallel</code> setzen.
+          </p>
         </div>
       )}
     </div>
