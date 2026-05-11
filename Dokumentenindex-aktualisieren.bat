@@ -101,11 +101,41 @@ if (-not (Test-Path $ConfigFile)) {
 }
 
 # --- Config laden (Hashtable-Workaround fuer PS 5.1) ---
+# Bei JSON-Fehlern wird abgebrochen statt stillschweigend auf Defaults zurueckzufallen
+# (sonst denkt der User die Config wirkt, in Wahrheit greifen PowerShell-Defaults).
 $cfg = @{}
+$cfgRaw = $null
 try {
-    (ConvertFrom-Json (Get-Content $ConfigFile -Raw)).PSObject.Properties | ForEach-Object { $cfg[$_.Name] = $_.Value }
+    $cfgRaw = Get-Content $ConfigFile -Raw -ErrorAction Stop
 } catch {
-    Write-Host '  Konfigurationsdatei konnte nicht gelesen werden.' -ForegroundColor Red
+    Write-Host ''
+    Write-Host '  =====================================================' -ForegroundColor Red
+    Write-Host '  FEHLER: config.json kann nicht gelesen werden' -ForegroundColor Red
+    Write-Host "  Pfad: $ConfigFile" -ForegroundColor Red
+    Write-Host "  Detail: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host '  =====================================================' -ForegroundColor Red
+    Write-Host ''
+    return
+}
+try {
+    (ConvertFrom-Json $cfgRaw).PSObject.Properties | ForEach-Object { $cfg[$_.Name] = $_.Value }
+} catch {
+    Write-Host ''
+    Write-Host '  =====================================================' -ForegroundColor Red
+    Write-Host '  FEHLER: config.json ist kein gueltiges JSON' -ForegroundColor Red
+    Write-Host "  Pfad: $ConfigFile" -ForegroundColor Red
+    Write-Host "  Detail: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host '' -ForegroundColor Red
+    Write-Host '  Haeufige Ursachen:' -ForegroundColor Yellow
+    Write-Host '   - doppelter Schluessel (z.B. zwei Zeilen "n_parallel": ...)' -ForegroundColor Yellow
+    Write-Host '   - zweite schliessende Klammer } am Dateiende' -ForegroundColor Yellow
+    Write-Host '   - fehlendes Komma zwischen zwei Feldern' -ForegroundColor Yellow
+    Write-Host '   - smart-quotes statt ASCII-Anfuehrungszeichen' -ForegroundColor Yellow
+    Write-Host ''
+    Write-Host '  Pruefe die Datei in einem Editor, korrigiere und starte erneut.' -ForegroundColor Yellow
+    Write-Host '  =====================================================' -ForegroundColor Red
+    Write-Host ''
+    return
 }
 if ($cfg['modell_url']) { $ModelUrl = $cfg['modell_url'] }
 if ($cfg['modell_datei']) { $ModelDatei = $cfg['modell_datei'] }
