@@ -35,73 +35,80 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
       className="shrink-0 px-8 pt-4 pb-0"
       style={{ borderBottom: '0.5px solid var(--tf-border)' }}
     >
-      {/* Title + Subtitle */}
-      <div className="mb-3">
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">
-          {menuLabel('antraege', 'Förderanträge')}
-        </h1>
-        <p className="text-[13px] text-[var(--tf-text-secondary)] mt-0.5">
-          Ansicht: {view.label} · {filtered.length.toLocaleString('de-DE')} Einträge
-          {bearbeiterFilter.active ? (
-            <>
-              {' · '}
-              <span className="text-[var(--tf-primary)]">
-                gefiltert auf {bearbeiterFilter.tokens.join(', ')}
-                {bearbeiterFilter.includeBegleitung ? ' (inkl. Begleitung)' : ''}
-              </span>
-            </>
-          ) : null}
-        </p>
-      </div>
-
-      {/* Toolbar: Tabs links, direkt daneben Suche + Filter. Tabs scrollen
-          horizontal wenn der Platz knapp wird; Suche+Filter shrinken nicht. */}
-      <div className="flex items-end gap-4">
-        <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">
-          {VIEWS.map(v => {
-            const isActive = v.key === activeView;
-            const cnt = counts.get(v.key) ?? 0;
-            return (
-              <button
-                key={v.key}
-                type="button"
-                onClick={() => setActiveView(v.key)}
-                className={`pb-2.5 text-[14px] whitespace-nowrap cursor-pointer transition-colors ${
-                  isActive
-                    ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
-                    : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
-                }`}
-              >
-                {v.label}{' '}
-                <span className="text-[12px] text-[var(--tf-text-tertiary)]">
-                  {cnt.toLocaleString('de-DE')}
+      {/* Inhalts-Wrapper mit gleicher max-Breite wie die Liste in AntraegeMain
+          (max-w-6xl), damit der Filter-Button rechts mit den Status-Badges
+          der AntragCards darunter fluchtet. Der äußere Container behält das
+          px-8 + Border, damit die Unterkanten-Border voll durchläuft. */}
+      <div className="max-w-6xl">
+        {/* Title + Subtitle */}
+        <div className="mb-3">
+          <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">
+            {menuLabel('antraege', 'Förderanträge')}
+          </h1>
+          <p className="text-[13px] text-[var(--tf-text-secondary)] mt-0.5">
+            Ansicht: {view.label} · {filtered.length.toLocaleString('de-DE')} Einträge
+            {bearbeiterFilter.active ? (
+              <>
+                {' · '}
+                <span className="text-[var(--tf-primary)]">
+                  gefiltert auf {bearbeiterFilter.tokens.join(', ')}
+                  {bearbeiterFilter.includeBegleitung ? ' (inkl. Begleitung)' : ''}
                 </span>
-              </button>
-            );
-          })}
+              </>
+            ) : null}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 pb-2">
-          <div className="relative">
-            <Search
-              size={13}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none"
-            />
-            <Input
-              placeholder="Suchen …"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-7 h-8 w-[260px] text-[12.5px]"
-            />
+        {/* Toolbar: Tabs links, Suche + Filter rechts (ml-auto). pr-4 kompensiert
+            das px-4-Innenpadding der AntragCard, damit Filter-Button-Kante mit
+            der Status-Badge-Kante in der Liste darunter fluchtet. */}
+        <div className="flex items-end gap-4">
+          <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">
+            {VIEWS.map(v => {
+              const isActive = v.key === activeView;
+              const cnt = counts.get(v.key) ?? 0;
+              return (
+                <button
+                  key={v.key}
+                  type="button"
+                  onClick={() => setActiveView(v.key)}
+                  className={`pb-2.5 text-[14px] whitespace-nowrap cursor-pointer transition-colors ${
+                    isActive
+                      ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
+                      : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
+                  }`}
+                >
+                  {v.label}{' '}
+                  <span className="text-[12px] text-[var(--tf-text-tertiary)]">
+                    {cnt.toLocaleString('de-DE')}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <Button
-            variant={filterOpen ? 'default' : 'outline'}
-            size="sm"
-            onClick={onToggleFilter}
-            className="h-8"
-          >
-            <Filter size={13} /> Filter{filterCount > 0 ? ` (${filterCount})` : ''}
-          </Button>
+
+          <div className="flex items-center gap-2 shrink-0 pb-2 ml-auto pr-4">
+            <div className="relative">
+              <Search
+                size={13}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none"
+              />
+              <Input
+                placeholder="Suchen …"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-7 h-8 w-[260px] text-[12.5px]"
+              />
+            </div>
+            <Button
+              variant={filterOpen ? 'default' : 'outline'}
+              size="sm"
+              onClick={onToggleFilter}
+              className="h-8"
+            >
+              <Filter size={13} /> Filter{filterCount > 0 ? ` (${filterCount})` : ''}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
