@@ -3,6 +3,7 @@
 chcp 65001 >nul 2>&1
 title TeamFlow - Nemotron Benchmark
 set "BATDIR=%~dp0"
+set "BENCH_BACKENDS=%~1"
 powershell -ExecutionPolicy Bypass -NoProfile -Command "& ([ScriptBlock]::Create((Get-Content -LiteralPath '%~f0' -Raw -Encoding UTF8)))"
 echo.
 echo   Benchmark beendet. Fenster kann geschlossen werden.
@@ -91,10 +92,47 @@ if (-not (Test-Path $ModelFile)) {
     return
 }
 
+# --- Backend-Auswahl: CLI-Override oder Auto-Detect ---
+# Aufruf "Nemotron-Bench.bat vulkan" -> nur Vulkan; "cuda,vulkan" -> beide; default: beide
+# Auto-Skip: ohne nvidia-smi oder Treiber < 525 wird CUDA uebersprungen
+# (CUDA-12-Binaries laufen sonst nicht und der Bench haengt).
+$requestedBackends = if ($env:BENCH_BACKENDS) {
+    @($env:BENCH_BACKENDS.ToLower() -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+} else {
+    @('cuda', 'vulkan')
+}
+if ($requestedBackends -contains 'cuda') {
+    $cudaSupported = $false
+    $nvSmi = Join-Path $env:SystemRoot 'System32\nvidia-smi.exe'
+    if (Test-Path $nvSmi) {
+        try {
+            $driverLine = & $nvSmi --query-gpu=driver_version --format=csv,noheader 2>$null | Select-Object -First 1
+            if ($driverLine) {
+                $majorVer = [int]($driverLine.Trim() -split '\.')[0]
+                if ($majorVer -ge 525) {
+                    $cudaSupported = $true
+                } else {
+                    Write-Host "  Hinweis: NVIDIA-Treiber $($driverLine.Trim()) < 525 — CUDA-Bench wird uebersprungen." -ForegroundColor Yellow
+                }
+            }
+        } catch {}
+    } else {
+        Write-Host '  Hinweis: nvidia-smi nicht gefunden — CUDA-Bench wird uebersprungen.' -ForegroundColor Yellow
+    }
+    if (-not $cudaSupported) {
+        $requestedBackends = @($requestedBackends | Where-Object { $_ -ne 'cuda' })
+    }
+}
+if ($requestedBackends.Count -eq 0) {
+    Write-Host '  Keine Backends zum Benchen ausgewaehlt — Abbruch.' -ForegroundColor Red
+    return
+}
+Write-Host "  Backends zum Benchen: $($requestedBackends -join ', ')" -ForegroundColor DarkGray
+
 # --- Beide Backends bereitstellen (separat von Produktiv-Installation) ---
 $availableBackends = @()
 $backendVersions = @{}
-foreach ($backend in @('cuda', 'vulkan')) {
+foreach ($backend in $requestedBackends) {
     $bDir = Join-Path $BenchBinDir $backend
     $bExe = Join-Path $bDir 'llama-bench.exe'
     $vFile = Join-Path $bDir '.version'
@@ -233,10 +271,19 @@ foreach ($backend in $availableBackends) {
         }) -join ' '
         $exitCode = -1
         $startError = $null
+        $timedOut = $false
+        $timeoutMs = 300000  # 5 min pro Lauf — schuetzt vor CUDA-Init-Hang bei zu altem Treiber
         try {
-            $proc = Start-Process -FilePath $bExe -ArgumentList $argString -NoNewWindow -Wait `
+            $proc = Start-Process -FilePath $bExe -ArgumentList $argString -NoNewWindow `
                 -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -PassThru
-            $exitCode = $proc.ExitCode
+            $completed = $proc.WaitForExit($timeoutMs)
+            if (-not $completed) {
+                $timedOut = $true
+                try { $proc.Kill() } catch {}
+                [void]$proc.WaitForExit(2000)
+            } else {
+                $exitCode = $proc.ExitCode
+            }
         } catch {
             $startError = $_.Exception.Message
         }
@@ -252,6 +299,16 @@ foreach ($backend in $availableBackends) {
                 status = 'FAILED'; error = $startError
             }
             Write-Host "        FAILED: $startError" -ForegroundColor Red
+            continue
+        }
+        if ($timedOut) {
+            $results += @{
+                backend = $backend; fa = $c.fa; ub = $c.ub
+                prefill_ts = $null; prefill_std = $null
+                decode_ts = $null; decode_std = $null
+                status = 'TIMEOUT'; error = "Lauf > $($timeoutMs/1000)s, abgebrochen"
+            }
+            Write-Host "        TIMEOUT nach $($timeoutMs/1000)s — Backend dieses Laufs wird uebersprungen." -ForegroundColor Red
             continue
         }
 
