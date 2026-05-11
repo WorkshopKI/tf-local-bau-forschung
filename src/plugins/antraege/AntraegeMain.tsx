@@ -117,19 +117,18 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     <div className={containerClass} style={containerStyle}>
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
         <div className={narrow ? 'px-4 pt-3 pb-4' : 'px-8 pt-3 pb-6 max-w-6xl'}>
-          {/* Sort-Dropdown + Bearbeiter-Filter-Pill + ActiveFilterChips —
-              schmale Zeile direkt über den Cards. Profil-Filter zuerst (nicht
-              entfernbar, Klick öffnet Einstellungen), dann normale Chips. */}
+          {/* Sort-Dropdown + Profil-Pill links, ActiveFilterChips rechts.
+              Profil-Pill direkt neben SortDropdown, weil sie wie Sort eine
+              persistente Voreinstellung repräsentiert (nicht inline änderbar). */}
           <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
-            <SortDropdown />
-            {bearbeiterFilter.active || active.length > 0 ? (
-              <div className="flex-1 min-w-0 flex justify-end items-start gap-1.5 flex-wrap">
-                {bearbeiterFilter.active ? (
-                  <BearbeiterFilterPill
-                    tokens={bearbeiterFilter.tokens}
-                    includeBegleitung={bearbeiterFilter.includeBegleitung}
-                  />
-                ) : null}
+            <div className="flex items-center gap-2 flex-wrap">
+              <SortDropdown />
+              {bearbeiterFilter.active ? (
+                <BearbeiterFilterPill tokens={bearbeiterFilter.tokens} />
+              ) : null}
+            </div>
+            {active.length > 0 ? (
+              <div className="flex-1 min-w-0 flex justify-end">
                 <ActiveFilterChips active={active} definitions={definitions} onRemove={clearFilter} />
               </div>
             ) : null}
