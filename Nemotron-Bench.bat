@@ -67,26 +67,27 @@ if (-not (Test-Path $FilesDir)) {
     Write-Host '  Ordner dokumentenindex-dateien fehlt — bitte zuerst Dokumentenindex-aktualisieren.bat ausfuehren.' -ForegroundColor Red
     return
 }
-if (-not (Test-Path $ConfigFile)) {
-    Write-Host '  config.json fehlt — bitte zuerst Dokumentenindex-aktualisieren.bat ausfuehren.' -ForegroundColor Red
-    return
-}
 if (-not (Test-Path $ResultsDir)) { New-Item -ItemType Directory -Path $ResultsDir -Force | Out-Null }
 if (-not (Test-Path $BenchBinDir)) { New-Item -ItemType Directory -Path $BenchBinDir -Force | Out-Null }
 
-# --- Config einlesen ---
-$cfg = @{}
-try {
-    (ConvertFrom-Json (Get-Content $ConfigFile -Raw)).PSObject.Properties | ForEach-Object { $cfg[$_.Name] = $_.Value }
-} catch {
-    Write-Host '  Konfigurationsdatei konnte nicht gelesen werden.' -ForegroundColor Red
-    return
+# --- Modell-Pfad ermitteln ---
+# config.json ist optional — wenn nicht da, Default-Modellname nemotron.gguf nutzen.
+$ModelDatei = 'nemotron.gguf'
+if (Test-Path $ConfigFile) {
+    try {
+        $cfg = @{}
+        (ConvertFrom-Json (Get-Content $ConfigFile -Raw)).PSObject.Properties | ForEach-Object { $cfg[$_.Name] = $_.Value }
+        if ($cfg['modell_datei']) { $ModelDatei = [string]$cfg['modell_datei'] }
+    } catch {
+        Write-Host '  Hinweis: config.json konnte nicht gelesen werden, nutze Default nemotron.gguf.' -ForegroundColor DarkGray
+    }
+} else {
+    Write-Host '  Hinweis: keine config.json — nutze Default-Modellname nemotron.gguf.' -ForegroundColor DarkGray
 }
-$ModelDatei = if ($cfg['modell_datei']) { [string]$cfg['modell_datei'] } else { 'nemotron.gguf' }
 $ModelFile = Join-Path $FilesDir $ModelDatei
 if (-not (Test-Path $ModelFile)) {
     Write-Host "  Modell nicht gefunden: $ModelFile" -ForegroundColor Red
-    Write-Host '  Bitte zuerst Dokumentenindex-aktualisieren.bat ausfuehren.' -ForegroundColor Red
+    Write-Host '  Bitte zuerst Dokumentenindex-aktualisieren.bat ausfuehren (laedt nemotron.gguf herunter).' -ForegroundColor Red
     return
 }
 
