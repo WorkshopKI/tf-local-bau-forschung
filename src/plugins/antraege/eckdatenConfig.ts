@@ -1,5 +1,6 @@
 import { CANONICAL_FIELD_KEYS, getCanonicalLabel } from '@/core/services/csv/constants';
 import type { Antrag } from '@/core/services/csv/types';
+import { getVbPhaseLabel } from '@/core/utils/vb-phase-mappings';
 import { findFieldValue } from './fieldLookup';
 
 const STORAGE_KEY = 'teamflow_antraege_eckdaten_fields';
@@ -29,8 +30,8 @@ const MONO_FIELDS = new Set([
 ]);
 
 export const DEFAULT_ECKDATEN_FIELDS: string[] = [
+  'vb_phase',
   'unterprogramm_id',
-  'phase',
   'antragsdatum',
   'bewilligung_datum',
 ];
@@ -99,7 +100,11 @@ export function getFieldDisplayInfo(field: string, antrag: Antrag): FieldDisplay
   const mono = MONO_FIELDS.has(field);
 
   let value: string;
-  if (field === 'foerdersumme' && typeof raw === 'number' && raw > 0) {
+  if (field === 'vb_phase') {
+    const label = getVbPhaseLabel(raw);
+    if (label === null) return null;
+    value = label;
+  } else if (field === 'foerdersumme' && typeof raw === 'number' && raw > 0) {
     value = raw.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   } else if (field.endsWith('_datum') && typeof raw === 'string') {
     value = formatGermanDate(raw);

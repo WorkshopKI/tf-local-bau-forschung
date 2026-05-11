@@ -49,6 +49,22 @@ export const SYSTEM_FILTERS_SEED: SystemFilterSeed[] = [
     versteckt: false,
   },
   {
+    // Wenn aktiv (egal welche Selektion), übernimmt dieser Filter die Kontrolle
+    // über die Irrläufer-Sichtbarkeit (Pre-Filter in useFilteredAntraege).
+    id: 'system-vb-phase',
+    scope: 'system',
+    name: 'VB-Phase',
+    feld: 'vb_phase',
+    typ: 'multi_select',
+    config: {
+      werte_quelle: 'manual',
+      manuelle_werte: ['1', '2', '3', '4', '5', '9'],
+      werte_reihenfolge: 'manuell',
+    },
+    anzeige_reihenfolge: 35,
+    versteckt: false,
+  },
+  {
     id: 'system-bewilligung-datum',
     scope: 'system',
     name: 'Bewilligungsdatum',

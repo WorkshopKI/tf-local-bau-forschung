@@ -10,8 +10,16 @@ import {
   hydrateAdminFiltersFromSmb,
   listUnterprogrammeByProgramm,
 } from '@/core/services/csv';
+import { VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
 
 export type FieldValueLabels = Record<string, Record<string, string>>; // feldKey → code → label
+
+/** Statische Labels für CanonicalFields mit fixem Wertebereich (z.B. vb_phase: 1-9 → NW1/FuE/…). */
+const STATIC_VALUE_LABELS: FieldValueLabels = {
+  vb_phase: Object.fromEntries(
+    Object.entries(VB_PHASE_LABELS).map(([k, v]) => [String(k), v]),
+  ),
+};
 
 interface FilterStateStore {
   programmId: string | null;
@@ -70,7 +78,7 @@ export const useFilterState = create<FilterStateStore>((set, get) => ({
       set({
         definitions: defs,
         presets,
-        valueLabels: { unterprogramm_id: upLabels },
+        valueLabels: { ...STATIC_VALUE_LABELS, unterprogramm_id: upLabels },
         loading: false,
       });
     } catch {
@@ -90,7 +98,11 @@ export const useFilterState = create<FilterStateStore>((set, get) => ({
     for (const up of ups) {
       if (up.name) upLabels[up.code] = up.name;
     }
-    set({ definitions: defs, presets, valueLabels: { unterprogramm_id: upLabels } });
+    set({
+      definitions: defs,
+      presets,
+      valueLabels: { ...STATIC_VALUE_LABELS, unterprogramm_id: upLabels },
+    });
   },
 
   setActiveValue: (filterId, value) => {

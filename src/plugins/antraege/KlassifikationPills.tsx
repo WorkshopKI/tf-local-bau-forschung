@@ -31,6 +31,7 @@ const TAG_FIELD_DENY = new Set([
   'unterprogramm_id',
   'status',
   'verbund_status',
+  'vb_phase',
 ]);
 
 interface Props {

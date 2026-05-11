@@ -1,6 +1,7 @@
 import { CANONICAL_FIELD_KEYS, getCanonicalLabel } from '@/core/services/csv/constants';
 import { formatGermanDate } from '@/core/services/csv';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
+import { getVbPhaseLabel } from '@/core/utils/vb-phase-mappings';
 
 export interface DisplayRow {
   field: string;
@@ -131,6 +132,10 @@ function prettyCustomLabel(key: string): string {
 
 function formatValue(raw: unknown, field: string): string {
   if (raw === null || raw === undefined || raw === '') return '—';
+  if (field === 'vb_phase') {
+    const label = getVbPhaseLabel(raw);
+    return label ?? String(raw);
+  }
   if (typeof raw === 'boolean') return raw ? 'ja' : 'nein';
   if (typeof raw === 'number') {
     if (field === 'foerdersumme') return raw.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });

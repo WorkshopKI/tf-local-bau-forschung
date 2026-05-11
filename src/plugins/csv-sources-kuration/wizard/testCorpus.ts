@@ -19,42 +19,42 @@ export interface TestCorpusEntry {
   separator?: ';' | ',';
 }
 
-const STAMMDATEN_MINI = `AKZ_LFD,PROJ_KURZ,TITEL,ANTRAGSTELLER,STATUS_FLG,VB_NR,BEW_DAT,EXPORT_TS
-FKZ-2023-0001,SMART-CITY,Urbane Infrastruktur-Studie,Müller GmbH,bewilligt,VB-2023-042,2023-03-15,2026-04-19T03:00:00
-FKZ-2023-0002,SMART-CITY,Sensoren für Smart City,Huber AG,bewilligt,VB-2023-042,2023-03-15,2026-04-19T03:00:00
-FKZ-2023-0003,GREEN-MOBILITY,Elektromobilität Ländlicher Raum,Schmidt KG,in_pruefung,,2023-05-20,2026-04-19T03:00:00
-FKZ-2023-0004,ENERGY-PLUS,Plusenergie-Siedlung Nord,Bau-Kollektiv eG,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00
-FKZ-2023-0005,ENERGY-PLUS,Wärmepumpen-Quartiersnetz,Stadtwerke Süd,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00
-FKZ-2023-0006,ENERGY-PLUS,Energiemanagement-Platform,TechNova AG,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00
-FKZ-2023-0007,KLIMA-BAU,Nachhaltige Baustoffe Forschung,ÖkoBau GmbH,abgelehnt,,2023-07-02,2026-04-19T03:00:00
-FKZ-2023-0008,ZUKUNFT-WOHNEN,Modulare Wohnbausysteme,Fertigbau Nord GmbH,bewilligt,,2023-08-14,2026-04-19T03:00:00
-FKZ-2023-0009,DIGITAL-PLAN,BIM-Integration Stadtplanung,Planwerk GmbH,in_pruefung,,2023-09-05,2026-04-19T03:00:00
-FKZ-2023-0010,RESILIENCE-NET,Resiliente Infrastrukturen,Netzwerk-Institut,bewilligt,,2023-10-01,2026-04-19T03:00:00
-FKZ-2024-0001,URBAN-GREEN,Dachbegrünungen Groß-Siedlung,Grünbau AG,bewilligt,,2024-01-12,2026-04-19T03:00:00
-FKZ-2024-0002,WATER-SMART,Regenwassermanagement Urban,Hydro Consulting,bewilligt,,2024-02-20,2026-04-19T03:00:00
-FKZ-2024-0003,MOB-FUTURE,Mobilitätshubs Mittelstadt,Mobility Labs,in_pruefung,,2024-03-15,2026-04-19T03:00:00
-FKZ-2024-0004,HEAT-PUMP-PRO,Wärmepumpen-Retrofit Bestand,Klima-Service GmbH,bewilligt,,2024-04-10,2026-04-19T03:00:00
-FKZ-2024-0005,GRID-FLEX,Flexibles Verteilnetz,Netzwerk-Institut,bewilligt,,2024-05-08,2026-04-19T03:00:00
-FKZ-2024-0006,AGRI-VOLT,Agri-Photovoltaik Pilotanlage,AgriTech eG,in_pruefung,,2024-06-18,2026-04-19T03:00:00
-FKZ-2024-0007,CIRCLE-BUILD,Kreislaufwirtschaft Bausektor,Öko-Institut,bewilligt,,2024-07-22,2026-04-19T03:00:00
-FKZ-2024-0008,LOW-CARBON,Low-Carbon Zement-Forschung,Materialwissenschaft Labor,bewilligt,,2024-08-30,2026-04-19T03:00:00
-FKZ-2024-0009,PEDESTRIAN-CITY,Fußgängerfreundliche Stadt,Stadtplanung Süd,in_pruefung,,2024-09-12,2026-04-19T03:00:00
-FKZ-2024-0010,SOLAR-FACADE,Solarfassaden Neubau,FassadenTech AG,bewilligt,,2024-10-05,2026-04-19T03:00:00
+const STAMMDATEN_MINI = `AKZ_LFD,PROJ_KURZ,TITEL,ANTRAGSTELLER,STATUS_FLG,VB_NR,BEW_DAT,EXPORT_TS,VB_PHASE
+FKZ-2023-0001,SMART-CITY,Urbane Infrastruktur-Studie,Müller GmbH,bewilligt,VB-2023-042,2023-03-15,2026-04-19T03:00:00,1
+FKZ-2023-0002,SMART-CITY,Sensoren für Smart City,Huber AG,bewilligt,VB-2023-042,2023-03-15,2026-04-19T03:00:00,1
+FKZ-2023-0003,GREEN-MOBILITY,Elektromobilität Ländlicher Raum,Schmidt KG,in_pruefung,,2023-05-20,2026-04-19T03:00:00,3
+FKZ-2023-0004,ENERGY-PLUS,Plusenergie-Siedlung Nord,Bau-Kollektiv eG,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00,2
+FKZ-2023-0005,ENERGY-PLUS,Wärmepumpen-Quartiersnetz,Stadtwerke Süd,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00,2
+FKZ-2023-0006,ENERGY-PLUS,Energiemanagement-Platform,TechNova AG,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00,2
+FKZ-2023-0007,KLIMA-BAU,Nachhaltige Baustoffe Forschung,ÖkoBau GmbH,abgelehnt,,2023-07-02,2026-04-19T03:00:00,3
+FKZ-2023-0008,ZUKUNFT-WOHNEN,Modulare Wohnbausysteme,Fertigbau Nord GmbH,bewilligt,,2023-08-14,2026-04-19T03:00:00,3
+FKZ-2023-0009,DIGITAL-PLAN,BIM-Integration Stadtplanung,Planwerk GmbH,in_pruefung,,2023-09-05,2026-04-19T03:00:00,4
+FKZ-2023-0010,RESILIENCE-NET,Resiliente Infrastrukturen,Netzwerk-Institut,bewilligt,,2023-10-01,2026-04-19T03:00:00,9
+FKZ-2024-0001,URBAN-GREEN,Dachbegrünungen Groß-Siedlung,Grünbau AG,bewilligt,,2024-01-12,2026-04-19T03:00:00,3
+FKZ-2024-0002,WATER-SMART,Regenwassermanagement Urban,Hydro Consulting,bewilligt,,2024-02-20,2026-04-19T03:00:00,3
+FKZ-2024-0003,MOB-FUTURE,Mobilitätshubs Mittelstadt,Mobility Labs,in_pruefung,,2024-03-15,2026-04-19T03:00:00,4
+FKZ-2024-0004,HEAT-PUMP-PRO,Wärmepumpen-Retrofit Bestand,Klima-Service GmbH,bewilligt,,2024-04-10,2026-04-19T03:00:00,3
+FKZ-2024-0005,GRID-FLEX,Flexibles Verteilnetz,Netzwerk-Institut,bewilligt,,2024-05-08,2026-04-19T03:00:00,5
+FKZ-2024-0006,AGRI-VOLT,Agri-Photovoltaik Pilotanlage,AgriTech eG,in_pruefung,,2024-06-18,2026-04-19T03:00:00,3
+FKZ-2024-0007,CIRCLE-BUILD,Kreislaufwirtschaft Bausektor,Öko-Institut,bewilligt,,2024-07-22,2026-04-19T03:00:00,3
+FKZ-2024-0008,LOW-CARBON,Low-Carbon Zement-Forschung,Materialwissenschaft Labor,bewilligt,,2024-08-30,2026-04-19T03:00:00,3
+FKZ-2024-0009,PEDESTRIAN-CITY,Fußgängerfreundliche Stadt,Stadtplanung Süd,in_pruefung,,2024-09-12,2026-04-19T03:00:00,5
+FKZ-2024-0010,SOLAR-FACADE,Solarfassaden Neubau,FassadenTech AG,bewilligt,,2024-10-05,2026-04-19T03:00:00,2
 `;
 
 // Stammdaten + 5 Branche-Spalten — für den vertikal-merged Label-XLS-Testfall (branche.xlsx).
 // Jede Zeile hat Einsen (1) in BRANCHE_X wenn der Antrag dieser Branche zugeordnet ist, sonst leer.
-const STAMMDATEN_BRANCHE_MINI = `AKZ_LFD,PROJ_KURZ,TITEL,ANTRAGSTELLER,STATUS_FLG,VB_NR,BEW_DAT,EXPORT_TS,BRANCHE_1,BRANCHE_2,BRANCHE_3,BRANCHE_4,BRANCHE_5
-FKZ-2023-0001,SMART-CITY,Urbane Infrastruktur-Studie,Müller GmbH,bewilligt,VB-2023-042,2023-03-15,2026-04-19T03:00:00,1,,,,1
-FKZ-2023-0002,SMART-CITY,Sensoren für Smart City,Huber AG,bewilligt,VB-2023-042,2023-03-15,2026-04-19T03:00:00,,,1,,
-FKZ-2023-0003,GREEN-MOBILITY,Elektromobilität Ländlicher Raum,Schmidt KG,in_pruefung,,2023-05-20,2026-04-19T03:00:00,,1,,,
-FKZ-2023-0004,ENERGY-PLUS,Plusenergie-Siedlung Nord,Bau-Kollektiv eG,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00,1,,,1,
-FKZ-2023-0005,ENERGY-PLUS,Wärmepumpen-Quartiersnetz,Stadtwerke Süd,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00,1,1,,,
-FKZ-2023-0006,ENERGY-PLUS,Energiemanagement-Platform,TechNova AG,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00,,,1,,
-FKZ-2023-0007,KLIMA-BAU,Nachhaltige Baustoffe Forschung,ÖkoBau GmbH,abgelehnt,,2023-07-02,2026-04-19T03:00:00,1,,,,1
-FKZ-2023-0008,ZUKUNFT-WOHNEN,Modulare Wohnbausysteme,Fertigbau Nord GmbH,bewilligt,,2023-08-14,2026-04-19T03:00:00,1,1,,,
-FKZ-2023-0009,DIGITAL-PLAN,BIM-Integration Stadtplanung,Planwerk GmbH,in_pruefung,,2023-09-05,2026-04-19T03:00:00,,,1,,
-FKZ-2023-0010,RESILIENCE-NET,Resiliente Infrastrukturen,Netzwerk-Institut,bewilligt,,2023-10-01,2026-04-19T03:00:00,,,,1,1
+const STAMMDATEN_BRANCHE_MINI = `AKZ_LFD,PROJ_KURZ,TITEL,ANTRAGSTELLER,STATUS_FLG,VB_NR,BEW_DAT,EXPORT_TS,BRANCHE_1,BRANCHE_2,BRANCHE_3,BRANCHE_4,BRANCHE_5,VB_PHASE
+FKZ-2023-0001,SMART-CITY,Urbane Infrastruktur-Studie,Müller GmbH,bewilligt,VB-2023-042,2023-03-15,2026-04-19T03:00:00,1,,,,1,1
+FKZ-2023-0002,SMART-CITY,Sensoren für Smart City,Huber AG,bewilligt,VB-2023-042,2023-03-15,2026-04-19T03:00:00,,,1,,,1
+FKZ-2023-0003,GREEN-MOBILITY,Elektromobilität Ländlicher Raum,Schmidt KG,in_pruefung,,2023-05-20,2026-04-19T03:00:00,,1,,,,3
+FKZ-2023-0004,ENERGY-PLUS,Plusenergie-Siedlung Nord,Bau-Kollektiv eG,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00,1,,,1,,2
+FKZ-2023-0005,ENERGY-PLUS,Wärmepumpen-Quartiersnetz,Stadtwerke Süd,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00,1,1,,,,2
+FKZ-2023-0006,ENERGY-PLUS,Energiemanagement-Platform,TechNova AG,bewilligt,VB-2023-077,2023-06-10,2026-04-19T03:00:00,,,1,,,2
+FKZ-2023-0007,KLIMA-BAU,Nachhaltige Baustoffe Forschung,ÖkoBau GmbH,abgelehnt,,2023-07-02,2026-04-19T03:00:00,1,,,,1,3
+FKZ-2023-0008,ZUKUNFT-WOHNEN,Modulare Wohnbausysteme,Fertigbau Nord GmbH,bewilligt,,2023-08-14,2026-04-19T03:00:00,1,1,,,,3
+FKZ-2023-0009,DIGITAL-PLAN,BIM-Integration Stadtplanung,Planwerk GmbH,in_pruefung,,2023-09-05,2026-04-19T03:00:00,,,1,,,4
+FKZ-2023-0010,RESILIENCE-NET,Resiliente Infrastrukturen,Netzwerk-Institut,bewilligt,,2023-10-01,2026-04-19T03:00:00,,,,1,1,9
 `;
 
 const PROJEKTZUSAMMENFASSUNG_MINI = `PROJ_KURZ,ZUSAMMENFASSUNG,THEMA_URBAN,THEMA_ENERGIE,DESKRIPTOR_NEU

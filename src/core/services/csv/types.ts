@@ -5,6 +5,7 @@ export type CanonicalField =
   | 'titel'
   | 'antragsteller'
   | 'status'
+  | 'vb_phase'
   | 'unterprogramm_id'
   | 'bewilligung_datum'
   | 'antragsdatum'
@@ -166,6 +167,8 @@ export interface AntragListItem {
   status?: string;
   antragsteller?: string;
   branche?: string;
+  /** Verbund-Phasen-Code aus CSV-Spalte `VB_PHASE` (1=NW1, 2=NW2, 3=FuE, 4=DL, 5=DS, 9=Irrläufer). */
+  vb_phase?: number;
   // Sort + View-Predicates
   frist_datum?: string;
   bewilligung_datum?: string;

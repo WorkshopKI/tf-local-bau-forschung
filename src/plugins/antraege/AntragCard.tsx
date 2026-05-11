@@ -1,6 +1,7 @@
 import { Badge } from '@/ui';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
+import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { daysUntilFrist } from './views';
 
 interface Props {
@@ -34,6 +35,7 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false, 
   const akronym = strOrNull(antrag.akronym);
   const antragsteller = strOrNull(antrag.antragsteller);
   const status = strOrNull(antrag.status) ?? '';
+  const phaseLabel = getVbPhaseLabel(antrag.vb_phase);
 
   const baseStyle = selected
     ? { background: 'var(--tf-bg-secondary)', borderColor: 'var(--tf-border-hover)' }
@@ -74,9 +76,14 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false, 
             <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5 truncate">{antragsteller}</div>
           ) : null}
         </div>
-        {status ? (
-          <Badge variant={getStatusVariant(status)}>{getStatusLabel(status)}</Badge>
-        ) : null}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {phaseLabel ? (
+            <Badge variant={getVbPhaseVariant(antrag.vb_phase)}>{phaseLabel}</Badge>
+          ) : null}
+          {status ? (
+            <Badge variant={getStatusVariant(status)}>{getStatusLabel(status)}</Badge>
+          ) : null}
+        </div>
       </div>
     </button>
   );

@@ -11,9 +11,11 @@ import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
+import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { menuLabel, dataConfig } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
+import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
@@ -208,16 +210,28 @@ export function HomePage(): React.ReactElement {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-8">
         {/* Main */}
         <div data-tour="document-list" className="min-w-0">
+          {profile?.department !== 'bauantraege' ? (
+            <MeineAntraegeSection antraege={data.meineAntraege} />
+          ) : null}
           <SectionHeader label="Aktuelle Vorgänge"
             action={<button onClick={() => navigate('bauantraege')} className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer">Alle →</button>} />
           {data.letzteAenderungen.map((v, i) => {
             const isAntrag = (v as { _isAntrag?: boolean })._isAntrag === true;
+            const vbPhase = isAntrag ? (v as { vb_phase?: number }).vb_phase : undefined;
+            const phaseLabel = getVbPhaseLabel(vbPhase);
             return (
               <ListItem key={v.id}
                 icon={<span className="text-[11px] font-medium text-[var(--tf-text-secondary)]">{isAntrag ? 'F' : 'B'}</span>}
                 title={v.title}
                 subtitle={v.id}
-                meta={<Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>}
+                meta={
+                  <>
+                    {phaseLabel ? (
+                      <Badge variant={getVbPhaseVariant(vbPhase)}>{phaseLabel}</Badge>
+                    ) : null}
+                    <Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>
+                  </>
+                }
                 onClick={() => navigate(isAntrag ? 'antraege' : 'bauantraege', { selectedId: v.id })}
                 last={i === data.letzteAenderungen.length - 1}
               />

@@ -16,6 +16,7 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
   { key: 'titel', type: 'string', label: 'Titel (TV)', level: 'antrag' },
   { key: 'antragsteller', type: 'string', label: 'Antragsteller', level: 'antrag' },
   { key: 'status', type: 'string', label: 'Status (TV)', level: 'antrag' },
+  { key: 'vb_phase', type: 'number', label: 'VB-Phase', level: 'antrag' },
   { key: 'unterprogramm_id', type: 'string', label: 'Unterprogramm-ID', level: 'antrag' },
   { key: 'bewilligung_datum', type: 'date', label: 'Bewilligungsdatum', level: 'antrag' },
   { key: 'antragsdatum', type: 'date', label: 'Antragsdatum', level: 'antrag' },
@@ -53,6 +54,7 @@ export const LIST_VIEW_FIELDS: readonly string[] = [
   'status',
   'antragsteller',
   'branche',
+  'vb_phase',
   // Sort + View-Predicates
   'frist_datum',
   'bewilligung_datum',

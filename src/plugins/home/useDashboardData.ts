@@ -8,7 +8,10 @@ import {
   parseBearbeiterFilter,
   antragMatchesBearbeiter,
 } from '@/plugins/antraege/bearbeiterFilter';
+import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
+
+export type AntragVorgang = Vorgang & { _isAntrag: true; vb_phase?: number };
 
 const KUERZ_KEYS_CANONICAL: readonly string[] = [
   'tib_kuerz', 'bib_kuerz', 'ztp_kuerz', 'pfm_kuerz',
@@ -53,7 +56,7 @@ function getGreeting(): string {
 /** Minimal-Projektion eines Antrags auf eine Vorgang-aehnliche Shape.
  *  AntragListItem hat keine `tags`/`notes`/`priority`-Felder mehr (waren
  *  ohnehin nur fuer Bauantraege relevant) — Defaults werden hier gesetzt. */
-function antragToVorgangLike(a: AntragListItem): Vorgang & { _isAntrag: true } {
+function antragToVorgangLike(a: AntragListItem): AntragVorgang {
   const deadline = typeof a.frist_datum === 'string' ? a.frist_datum : undefined;
   const created = typeof a.antragsdatum === 'string' ? a.antragsdatum : a._updated_at;
   return {
@@ -69,6 +72,7 @@ function antragToVorgangLike(a: AntragListItem): Vorgang & { _isAntrag: true } {
     tags: [],
     notes: '',
     _isAntrag: true,
+    vb_phase: typeof a.vb_phase === 'number' ? a.vb_phase : undefined,
   };
 }
 
@@ -79,6 +83,9 @@ export interface DashboardData {
   naechsterSchritt: (Vorgang & { daysLeft: number }) | null;
   fristenDieseWoche: number;
   letzteAenderungen: Vorgang[];
+  /** Top-5 offene Förderanträge des Profils, sortiert nach vb_phase asc, dann Frist asc.
+   *  Leer wenn `department === 'bauantraege'` oder kein Antrag gefunden. */
+  meineAntraege: AntragVorgang[];
   stats: { total: number; offen: number; inPruefung: number; nachforderung: number; genehmigt: number };
   /** Kürzel-Filter im Profil aktiv (≠ leer / "alle"). */
   bearbeiterFilterActive: boolean;
@@ -139,12 +146,16 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       }
     }
 
+    const offeneAntraege: AntragVorgang[] = [];
     if (includeAntraege) {
       for (const a of antraege) {
         // KUERZ-Detection läuft VOR dem Bearbeiter-Filter, damit der
         // UX-Hint ("KUERZ-Spalten fehlen") auch dann korrekt ist, wenn
         // der Filter alle Records ausblendet.
         if (!anyKuerzelSeen && antragHasAnyKuerzel(a)) anyKuerzelSeen = true;
+        // Irrläufer (vb_phase=9) global aus dem Dashboard ausblenden — konsistent
+        // zum impliziten Pre-Filter auf der Förderanträge-Liste.
+        if (isIrrlaeufer(a.vb_phase)) continue;
         if (bearbeiterMode.active && !antragMatchesBearbeiter(a, bearbeiterMode)) continue;
         const v = antragToVorgangLike(a);
         total++;
@@ -155,6 +166,7 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
         if (CLOSED.has(status)) continue;
         offen++;
         offeneVorgaenge.push(v);
+        offeneAntraege.push(v);
         const dl = daysUntil(v.deadline);
         if (dl !== null) fristKandidaten.push({ ...v, daysLeft: dl });
       }
@@ -175,6 +187,20 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       .sort((a, b) => b.modified.localeCompare(a.modified))
       .slice(0, 8);
 
+    // Top-5 eigene Förderanträge, sortiert nach VB-Phase aufsteigend (NW1 zuerst,
+    // FuE/DL/DS dann), bei gleicher Phase nach Frist (ASC). Nur sichtbar wenn das
+    // Profil mind. einen Förderantrag-Bezug hat (sonst leer).
+    const meineAntraege = [...offeneAntraege]
+      .sort((a, b) => {
+        const pa = a.vb_phase ?? Number.POSITIVE_INFINITY;
+        const pb = b.vb_phase ?? Number.POSITIVE_INFINITY;
+        if (pa !== pb) return pa - pb;
+        const da = a.deadline ?? '￿';
+        const db = b.deadline ?? '￿';
+        return da.localeCompare(db);
+      })
+      .slice(0, 5);
+
     // KUERZ-Missing nur dann melden, wenn tatsächlich Antraege im Store
     // liegen. Beim ersten Render ist `antraege === []` — `anyKuerzelSeen`
     // wäre dann falsch-negativ und würde einen falschen Warnblock erzeugen,
@@ -193,6 +219,7 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       naechsterSchritt: naechster,
       fristenDieseWoche,
       letzteAenderungen,
+      meineAntraege,
       stats: { total, offen, inPruefung, nachforderung, genehmigt },
       bearbeiterFilterActive: bearbeiterMode.active,
       bearbeiterKuerzelMissing,

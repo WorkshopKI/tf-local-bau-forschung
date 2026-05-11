@@ -36,6 +36,7 @@ const STAMMDATEN_MAPPING: FixtureSchema['column_mapping'] = {
   VB_NR: { canonical: 'verbund_id', type: 'string' },
   BEW_DAT: { canonical: 'bewilligung_datum', type: 'date' },
   EXPORT_TS: { ignore: true },
+  VB_PHASE: { canonical: 'vb_phase', type: 'number', trackHistory: true },
 };
 
 export const FIXTURE_SCHEMAS: Record<FixtureKey, FixtureSchema> = {

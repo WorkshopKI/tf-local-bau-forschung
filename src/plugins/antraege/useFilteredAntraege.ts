@@ -12,6 +12,7 @@ import {
   hasAnyKuerzelData,
   type BearbeiterFilterMode,
 } from './bearbeiterFilter';
+import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 
 export interface FilteredAntraegeResult {
@@ -53,8 +54,18 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     const end = tfPerfStart('useFilteredAntraege memo');
     const view = getView(activeView);
     const byView = antraege.filter(a => view.predicate(a));
+    // Impliziter Irrläufer-Pre-Filter: vb_phase === 9 wird global ausgeblendet,
+    // außer der User hat einen expliziten vb_phase-Filter in der Sidebar aktiviert
+    // (egal welche Selektion — sobald der Filter aktiv ist, übernimmt er die Kontrolle).
+    const hasExplicitVbPhaseFilter = active.some(af => {
+      const def = definitions.find(d => d.id === af.filterId);
+      return def?.feld === 'vb_phase';
+    });
+    const byPreFilter = hasExplicitVbPhaseFilter
+      ? byView
+      : byView.filter(a => !isIrrlaeufer(a.vb_phase));
     // Bearbeiter-Filter (Profil-Kürzel) NACH der View, vor den Custom-Filtern.
-    const byBearbeiter = applyBearbeiterFilter(byView, bearbeiterFilter);
+    const byBearbeiter = applyBearbeiterFilter(byPreFilter, bearbeiterFilter);
     const filteredBase = applyFilters(byBearbeiter, active, definitions);
     const q = deferredSearch.trim().toLowerCase();
     const matched = q
