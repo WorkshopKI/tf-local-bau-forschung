@@ -151,17 +151,36 @@ if ($availableBackends.Count -eq 0) {
 }
 
 # --- Output-Parser: Markdown-Tabelle aus llama-bench -o md ---
+# Robust gegen Encoding-Unterschiede (± kommt als UTF-8-Bytes 0xC2 0xB1, was
+# unter PS 5.1 mit Default-Encoding als 'Â±' gelesen wird). Wir splitten die
+# Zeile am '|' und parsen Zahlen aus der t/s-Zelle.
+function Parse-BenchRow {
+    param([string]$Line, [string]$TestName)
+    if (-not $Line.Contains('|')) { return $null }
+    $cells = $Line -split '\|'
+    $testIdx = -1
+    for ($i = 0; $i -lt $cells.Count; $i++) {
+        if ($cells[$i].Trim() -eq $TestName) { $testIdx = $i; break }
+    }
+    if ($testIdx -lt 0 -or ($testIdx + 1) -ge $cells.Count) { return $null }
+    $tsCell = $cells[$testIdx + 1]
+    $nums = @([regex]::Matches($tsCell, '\d+\.\d+') | ForEach-Object { [double]$_.Value })
+    if ($nums.Count -lt 1) { return $null }
+    return @{
+        ts  = $nums[0]
+        std = if ($nums.Count -ge 2) { $nums[1] } else { 0.0 }
+    }
+}
+
 function Parse-BenchOutput {
     param([string]$Output, [string]$Backend, [int]$FA, [int]$UB)
     $ppTs = $null; $ppStd = $null; $tgTs = $null; $tgStd = $null
     foreach ($line in ($Output -split "`n")) {
-        if ($line -match '\|\s*pp7000\s*\|.*?([\d\.]+)\s*±\s*([\d\.]+)\s*\|') {
-            $ppTs = [double]$Matches[1]
-            $ppStd = [double]$Matches[2]
-        } elseif ($line -match '\|\s*tg256\s*\|.*?([\d\.]+)\s*±\s*([\d\.]+)\s*\|') {
-            $tgTs = [double]$Matches[1]
-            $tgStd = [double]$Matches[2]
-        }
+        if (-not $line.Contains('|')) { continue }
+        $pp = Parse-BenchRow -Line $line -TestName 'pp7000'
+        if ($pp) { $ppTs = $pp.ts; $ppStd = $pp.std; continue }
+        $tg = Parse-BenchRow -Line $line -TestName 'tg256'
+        if ($tg) { $tgTs = $tg.ts; $tgStd = $tg.std }
     }
     $status = if ($null -ne $ppTs -and $null -ne $tgTs) { 'OK' } else { 'PARSE_FAILED' }
     return @{
@@ -221,8 +240,8 @@ foreach ($backend in $availableBackends) {
         } catch {
             $startError = $_.Exception.Message
         }
-        $out = if (Test-Path $stdoutFile) { Get-Content -LiteralPath $stdoutFile -Raw } else { '' }
-        $errOut = if (Test-Path $stderrFile) { Get-Content -LiteralPath $stderrFile -Raw } else { '' }
+        $out = if (Test-Path $stdoutFile) { Get-Content -LiteralPath $stdoutFile -Raw -Encoding UTF8 } else { '' }
+        $errOut = if (Test-Path $stderrFile) { Get-Content -LiteralPath $stderrFile -Raw -Encoding UTF8 } else { '' }
         Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
 
         if ($startError) {
