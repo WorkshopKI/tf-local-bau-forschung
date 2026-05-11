@@ -199,31 +199,57 @@ foreach ($backend in $availableBackends) {
             '-ngl', '99',
             '-t', '4',
             '-r', '3',
-            '-fa', $c.fa,
-            '-ub', $c.ub,
+            '-fa', "$($c.fa)",
+            '-ub', "$($c.ub)",
             '-b', '2048',
             '-o', 'md'
         )
+        # stderr/stdout in Temp-Files schreiben — llama-bench schreibt Init-Logs auf
+        # stderr, was sonst in der PS-Pipeline als Fehler interpretiert wird.
+        $stdoutFile = [System.IO.Path]::GetTempFileName()
+        $stderrFile = [System.IO.Path]::GetTempFileName()
+        $argString = ($benchArgs | ForEach-Object {
+            $s = [string]$_
+            if ($s -match '\s') { '"' + $s + '"' } else { $s }
+        }) -join ' '
+        $exitCode = -1
+        $startError = $null
         try {
-            $out = & $bExe @benchArgs 2>&1 | Out-String
-            $parsed = Parse-BenchOutput -Output $out -Backend $backend -FA $c.fa -UB $c.ub
-            $results += $parsed
-            if ($parsed.status -eq 'OK') {
-                Write-Host ("        OK | pp7000 {0:N2} t/s | tg256 {1:N2} t/s" -f $parsed.prefill_ts, $parsed.decode_ts) -ForegroundColor Green
-            } else {
-                Write-Host '        PARSE_FAILED: Konnte pp7000/tg256 nicht aus Output lesen.' -ForegroundColor Yellow
-            }
+            $proc = Start-Process -FilePath $bExe -ArgumentList $argString -NoNewWindow -Wait `
+                -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -PassThru
+            $exitCode = $proc.ExitCode
         } catch {
+            $startError = $_.Exception.Message
+        }
+        $out = if (Test-Path $stdoutFile) { Get-Content -LiteralPath $stdoutFile -Raw } else { '' }
+        $errOut = if (Test-Path $stderrFile) { Get-Content -LiteralPath $stderrFile -Raw } else { '' }
+        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+
+        if ($startError) {
             $results += @{
-                backend = $backend
-                fa = $c.fa
-                ub = $c.ub
+                backend = $backend; fa = $c.fa; ub = $c.ub
                 prefill_ts = $null; prefill_std = $null
                 decode_ts = $null; decode_std = $null
-                status = 'FAILED'
-                error = $_.Exception.Message
+                status = 'FAILED'; error = $startError
             }
-            Write-Host "        FAILED: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "        FAILED: $startError" -ForegroundColor Red
+            continue
+        }
+
+        $parsed = Parse-BenchOutput -Output $out -Backend $backend -FA $c.fa -UB $c.ub
+        if ($parsed.status -ne 'OK' -and $exitCode -ne 0) {
+            $errLine = ($errOut -split "`n" | Where-Object { $_.Trim() } | Select-Object -Last 1)
+            if (-not $errLine) { $errLine = "ExitCode $exitCode" }
+            $parsed.status = 'FAILED'
+            $parsed.error = $errLine.Trim()
+        }
+        $results += $parsed
+        if ($parsed.status -eq 'OK') {
+            Write-Host ("        OK | pp7000 {0:N2} t/s | tg256 {1:N2} t/s" -f $parsed.prefill_ts, $parsed.decode_ts) -ForegroundColor Green
+        } elseif ($parsed.status -eq 'FAILED') {
+            Write-Host "        FAILED: $($parsed.error)" -ForegroundColor Red
+        } else {
+            Write-Host '        PARSE_FAILED: Konnte pp7000/tg256 nicht aus Output lesen.' -ForegroundColor Yellow
         }
     }
 }
