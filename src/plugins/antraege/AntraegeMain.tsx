@@ -5,6 +5,7 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAntraegeStore } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
+import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { AntragCard } from './AntragCard';
 import { useFilteredAntraege } from './useFilteredAntraege';
 import { SortDropdown } from './SortDropdown';
@@ -116,11 +117,19 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     <div className={containerClass} style={containerStyle}>
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
         <div className={narrow ? 'px-4 pt-3 pb-4' : 'px-8 pt-3 pb-6 max-w-6xl'}>
-          {/* Sort-Dropdown + ActiveFilterChips — schmale Zeile direkt über den Cards. */}
+          {/* Sort-Dropdown + Bearbeiter-Filter-Pill + ActiveFilterChips —
+              schmale Zeile direkt über den Cards. Profil-Filter zuerst (nicht
+              entfernbar, Klick öffnet Einstellungen), dann normale Chips. */}
           <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
             <SortDropdown />
-            {active.length > 0 ? (
-              <div className="flex-1 min-w-0 flex justify-end">
+            {bearbeiterFilter.active || active.length > 0 ? (
+              <div className="flex-1 min-w-0 flex justify-end items-start gap-1.5 flex-wrap">
+                {bearbeiterFilter.active ? (
+                  <BearbeiterFilterPill
+                    tokens={bearbeiterFilter.tokens}
+                    includeBegleitung={bearbeiterFilter.includeBegleitung}
+                  />
+                ) : null}
                 <ActiveFilterChips active={active} definitions={definitions} onRemove={clearFilter} />
               </div>
             ) : null}

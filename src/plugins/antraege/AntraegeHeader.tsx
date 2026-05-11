@@ -22,7 +22,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const search = useAntraegeStore(s => s.search);
   const setSearch = useAntraegeStore(s => s.setSearch);
   const filterCount = useFilterState(s => s.active.length);
-  const { filtered, view, bearbeiterFilter } = useFilteredAntraege();
+  const { bearbeiterFilter } = useFilteredAntraege();
 
   const counts = useMemo(() => {
     const m = new Map<string, number>();
@@ -40,23 +40,12 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
           der AntragCards darunter fluchtet. Der äußere Container behält das
           px-8 + Border, damit die Unterkanten-Border voll durchläuft. */}
       <div className="max-w-6xl">
-        {/* Title + Subtitle */}
+        {/* Title — Tabs zeigen Ansicht + Counts, Bearbeiter-Filter als Pill in
+            der Chips-Zeile über den Cards (siehe AntraegeMain). */}
         <div className="mb-3">
           <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">
             {menuLabel('antraege', 'Förderanträge')}
           </h1>
-          <p className="text-[13px] text-[var(--tf-text-secondary)] mt-0.5">
-            Ansicht: {view.label} · {filtered.length.toLocaleString('de-DE')} Einträge
-            {bearbeiterFilter.active ? (
-              <>
-                {' · '}
-                <span className="text-[var(--tf-primary)]">
-                  gefiltert auf {bearbeiterFilter.tokens.join(', ')}
-                  {bearbeiterFilter.includeBegleitung ? ' (inkl. Begleitung)' : ''}
-                </span>
-              </>
-            ) : null}
-          </p>
         </div>
 
         {/* Toolbar: Tabs links, Suche + Filter rechts (ml-auto). pr-4 kompensiert
