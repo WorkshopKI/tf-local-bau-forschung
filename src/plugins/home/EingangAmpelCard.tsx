@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useAntraegeStore } from '@/plugins/antraege/store';
-import { getEingangAmpel } from '@/plugins/antraege/eingangAmpel';
-import type { ViewKey } from '@/plugins/antraege/views';
+import { useFilteredAntraege } from '@/plugins/antraege/useFilteredAntraege';
+import { viewCount, type ViewKey } from '@/plugins/antraege/views';
 
 const fmt = (n: number): string => n.toLocaleString('de-DE');
 
@@ -19,24 +19,22 @@ const fmt = (n: number): string => n.toLocaleString('de-DE');
  *
  * Klick auf eine Zeile setzt den passenden Quick-View-Tab in
  * `useAntraegeStore.activeView` und navigiert zur Antrags-Seite.
+ *
+ * Counts berücksichtigen den Profil-Bearbeiter-Filter (`bearbeiterFilter`
+ * aus useFilteredAntraege) — sonst zeigt die Home andere Zahlen als die
+ * Header-Tabs auf /antraege.
  */
 export function EingangAmpelCard(): React.ReactElement | null {
   const antraege = useAntraegeStore(s => s.antraege);
   const setActiveView = useAntraegeStore(s => s.setActiveView);
+  const { bearbeiterFilter } = useFilteredAntraege();
   const { navigate } = useNavigation();
 
-  const counts = useMemo(() => {
-    let frisch = 0;
-    let warnung = 0;
-    let kritisch = 0;
-    for (const a of antraege) {
-      const e = getEingangAmpel(a);
-      if (e === 'gruen') frisch++;
-      else if (e === 'gelb' || e === 'orange') warnung++;
-      else if (e === 'rot') kritisch++;
-    }
-    return { frisch, warnung, kritisch };
-  }, [antraege]);
+  const counts = useMemo(() => ({
+    frisch: viewCount('eingang_frisch', antraege, bearbeiterFilter),
+    warnung: viewCount('eingang_warnung', antraege, bearbeiterFilter),
+    kritisch: viewCount('eingang_kritisch', antraege, bearbeiterFilter),
+  }), [antraege, bearbeiterFilter]);
 
   const total = counts.frisch + counts.warnung + counts.kritisch;
   if (total === 0) return null;
