@@ -210,33 +210,63 @@ export function HomePage(): React.ReactElement {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-8">
         {/* Main */}
         <div data-tour="document-list" className="min-w-0">
-          {profile?.department !== 'bauantraege' ? (
-            <MeineAntraegeSection antraege={data.meineAntraege} />
-          ) : null}
-          <SectionHeader label="Aktuelle Vorgänge"
-            action={<button onClick={() => navigate('bauantraege')} className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer">Alle →</button>} />
-          {data.letzteAenderungen.map((v, i) => {
-            const isAntrag = (v as { _isAntrag?: boolean })._isAntrag === true;
-            const vbPhase = isAntrag ? (v as { vb_phase?: number }).vb_phase : undefined;
-            const phaseLabel = getVbPhaseLabel(vbPhase);
+          {(() => {
+            // Stufe 2: "Meine Anträge" wird nur gezeigt, wenn der Bearbeiter-Filter
+            // im Profil aktiv ist. Ohne Filter wäre die Liste irreführend ("meine"
+            // sind eigentlich nur die ersten 5 nach VB-Phase). Stattdessen rendern
+            // wir dann nur "Aktuelle Vorgänge" — eine Sektion, keine Verdopplung.
+            const showMeine = data.bearbeiterFilterActive
+              && profile?.department !== 'bauantraege'
+              && data.meineAntraege.length > 0;
+            const meineIds = new Set(data.meineAntraege.map(a => a.id));
+            const weitereOffene = showMeine
+              ? data.letzteAenderungen.filter(v => !meineIds.has(v.id))
+              : data.letzteAenderungen;
+            const sekundaerLabel = showMeine ? 'Weitere offene' : 'Aktuelle Vorgänge';
             return (
-              <ListItem key={v.id}
-                icon={<span className="text-[11px] font-medium text-[var(--tf-text-secondary)]">{isAntrag ? 'F' : 'B'}</span>}
-                title={v.title}
-                subtitle={v.id}
-                meta={
+              <>
+                {showMeine ? <MeineAntraegeSection antraege={data.meineAntraege} /> : null}
+                {weitereOffene.length > 0 ? (
                   <>
-                    {phaseLabel ? (
-                      <Badge variant={getVbPhaseVariant(vbPhase)}>{phaseLabel}</Badge>
-                    ) : null}
-                    <Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>
+                    <SectionHeader
+                      label={sekundaerLabel}
+                      action={
+                        <button
+                          onClick={() => navigate(profile?.department === 'bauantraege' ? 'bauantraege' : 'antraege')}
+                          className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+                        >
+                          Alle →
+                        </button>
+                      }
+                    />
+                    {weitereOffene.map((v, i) => {
+                      const isAntrag = (v as { _isAntrag?: boolean })._isAntrag === true;
+                      const vbPhase = isAntrag ? (v as { vb_phase?: number }).vb_phase : undefined;
+                      const phaseLabel = getVbPhaseLabel(vbPhase);
+                      return (
+                        <ListItem
+                          key={v.id}
+                          iconBare
+                          icon={
+                            phaseLabel ? (
+                              <Badge variant={getVbPhaseVariant(vbPhase)}>{phaseLabel}</Badge>
+                            ) : (
+                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--tf-text-tertiary)] opacity-40" />
+                            )
+                          }
+                          title={v.title}
+                          subtitle={v.id}
+                          meta={<Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>}
+                          onClick={() => navigate(isAntrag ? 'antraege' : 'bauantraege', { selectedId: v.id })}
+                          last={i === weitereOffene.length - 1}
+                        />
+                      );
+                    })}
                   </>
-                }
-                onClick={() => navigate(isAntrag ? 'antraege' : 'bauantraege', { selectedId: v.id })}
-                last={i === data.letzteAenderungen.length - 1}
-              />
+                ) : null}
+              </>
             );
-          })}
+          })()}
         </div>
 
         {/* Sidebar cards */}

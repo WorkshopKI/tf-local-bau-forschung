@@ -49,11 +49,12 @@ export function MeineAntraegeSection({ antraege }: Props): React.ReactElement | 
         return (
           <ListItem
             key={v.id}
+            iconBare
             icon={
               phaseLabel ? (
                 <Badge variant={getVbPhaseVariant(v.vb_phase)}>{phaseLabel}</Badge>
               ) : (
-                <span className="text-[11px] font-medium text-[var(--tf-text-secondary)]">F</span>
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--tf-text-tertiary)] opacity-40" />
               )
             }
             title={v.title}
