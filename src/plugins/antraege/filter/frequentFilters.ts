@@ -2,8 +2,12 @@ import type { ActiveFilter, ActiveFilterValue, FilterDefinition } from '@/core/s
 import { STATUS_GROUPS, getPhaseForStatus, type PhaseId } from './statusGroups';
 
 const STORAGE_KEY = 'teamflow_antraege_frequent_filters_v1';
+const HINT_DISMISSED_KEY = 'teamflow_antraege_preset_hint_dismissed_v1';
 const MAX_ENTRIES = 20;
 const DECAY_HALFLIFE_DAYS = 14;
+
+/** Schwelle, ab welcher Apply-Anzahl ein Auto-Preset-Vorschlag erscheint. */
+export const PRESET_HINT_THRESHOLD = 3;
 
 /** Feld-spezifische Code→Label-Map (z.B. vb_phase: '1' → 'NW1'). */
 export type FieldValueLabels = Record<string, Record<string, string>>;
@@ -25,7 +29,7 @@ export interface FrequentEntryView extends FrequentEntry {
   label: string;
 }
 
-function signatureOf(active: ActiveFilter[]): string {
+export function signatureOf(active: ActiveFilter[]): string {
   const sorted = [...active].sort((a, b) => a.filterId.localeCompare(b.filterId));
   return JSON.stringify(sorted);
 }
@@ -201,4 +205,43 @@ export function clearFrequent(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** Apply-Count der aktuellen Kombi (0 wenn noch nie angewendet). */
+export function getEntryCount(active: ActiveFilter[]): number {
+  if (active.length === 0) return 0;
+  const sig = signatureOf(active);
+  const entries = loadEntries();
+  return entries.find(e => e.signature === sig)?.count ?? 0;
+}
+
+function loadDismissed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(HINT_DISMISSED_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((v): v is string => typeof v === 'string'));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissed(set: Set<string>): void {
+  try {
+    localStorage.setItem(HINT_DISMISSED_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isHintDismissed(signature: string): boolean {
+  return loadDismissed().has(signature);
+}
+
+export function dismissHint(signature: string): void {
+  const set = loadDismissed();
+  if (set.has(signature)) return;
+  set.add(signature);
+  saveDismissed(set);
 }

@@ -8,7 +8,17 @@ import { FilterSidebarItem } from './FilterSidebarItem';
 import { SavePresetDialog } from './SavePresetDialog';
 import { QuickViewChips } from './QuickViewChips';
 import { FrequentFiltersSection } from './FrequentFiltersSection';
-import { getTopFrequent, recordFilterApply, type FrequentEntryView } from './frequentFilters';
+import {
+  getTopFrequent,
+  recordFilterApply,
+  getEntryCount,
+  isHintDismissed,
+  dismissHint,
+  signatureOf,
+  PRESET_HINT_THRESHOLD,
+  type FrequentEntryView,
+} from './frequentFilters';
+import { PresetSuggestionBanner } from './PresetSuggestionBanner';
 
 interface Props {
   antraege: AntragListItem[];
@@ -58,6 +68,8 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
   } = useFilterState();
   const [presetDialogOpen, setPresetDialogOpen] = useState(false);
   const [frequent, setFrequent] = useState<FrequentEntryView[]>(() => getTopFrequent(5, [], {}));
+  /** Tick zum Re-Render nach dismissHint (localStorage-Lookup happens in render). */
+  const [hintTick, setHintTick] = useState(0);
 
   const visibleDefs = useMemo(
     () => definitions.filter(d => !d.versteckt).sort((a, b) => a.anzeige_reihenfolge - b.anzeige_reihenfolge),
@@ -108,6 +120,20 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
   const hasActive = active.length > 0;
   const activePreset = presets.find(p => p.id === activePresetId) ?? null;
 
+  // Auto-Preset-Vorschlag: aktuelle Kombi wurde >= PRESET_HINT_THRESHOLD-mal
+  // angewendet, ist noch nicht als Preset aktiv, und wurde noch nicht
+  // weggeklickt. `hintTick` triggert nach Dismiss-Klick einen Re-Render.
+  const presetHint = useMemo(() => {
+    if (!hasActive || activePreset) return null;
+    const sig = signatureOf(active);
+    const count = getEntryCount(active);
+    if (count < PRESET_HINT_THRESHOLD) return null;
+    if (isHintDismissed(sig)) return null;
+    return { signature: sig, count };
+    // hintTick als Dep, damit Dismiss-Klick einen Re-Render auslöst.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, hasActive, activePreset, hintTick]);
+
   return (
     <div
       className="flex flex-col h-full bg-[var(--tf-bg)]"
@@ -142,6 +168,22 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
             Preset: {activePreset.name}
           </span>
         </div>
+      ) : null}
+
+      {/* Auto-Preset-Vorschlag */}
+      {presetHint ? (
+        <PresetSuggestionBanner
+          count={presetHint.count}
+          onSave={() => {
+            dismissHint(presetHint.signature);
+            setHintTick(t => t + 1);
+            setPresetDialogOpen(true);
+          }}
+          onDismiss={() => {
+            dismissHint(presetHint.signature);
+            setHintTick(t => t + 1);
+          }}
+        />
       ) : null}
 
       {/* Scrollbarer Body */}
