@@ -18,17 +18,23 @@ import { listSchemas } from '../schemaRegistry';
 
 export async function seedSystemFilters(idb: IDBStore, programmId: string): Promise<void> {
   const existing = await listFiltersByScope(idb, programmId, 'system');
-  const existingIds = new Set(existing.map(f => f.id));
+  const existingById = new Map(existing.map(f => [f.id, f]));
   const schemas = await listSchemas(idb, programmId);
   const now = new Date().toISOString();
   for (const seed of SYSTEM_FILTERS_SEED) {
-    if (existingIds.has(seed.id)) continue;
     const displayGroup = findDisplayGroup(schemas, seed.feld);
+    const old = existingById.get(seed.id);
+    // Upsert: schema-Felder (name, typ, feld, config, anzeige_reihenfolge) kommen
+    // immer aus dem Seed (= aktueller Code-Stand). Versteckt-Flag und erstellt_am
+    // werden aus dem Bestand übernommen, damit der User seine "ausgeblendet"-
+    // Einstellungen nicht verliert. Ohne diesen Upsert bleiben alte Schemata
+    // wie z.B. typ='single_select' für 'system-unterprogramm' hängen.
     const def: FilterDefinition = {
       ...seed,
       programm_id: programmId,
       ...(displayGroup ? { display_group: displayGroup } : {}),
-      erstellt_am: now,
+      versteckt: old?.versteckt ?? seed.versteckt,
+      erstellt_am: old?.erstellt_am ?? now,
       aktualisiert_am: now,
     };
     await putFilter(idb, def);

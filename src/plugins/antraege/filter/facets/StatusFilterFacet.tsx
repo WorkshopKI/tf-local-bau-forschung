@@ -67,8 +67,12 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
         />
       </div>
 
-      {/* Scroll-Container */}
-      <div className="max-h-[460px] overflow-y-auto -mx-1 px-1">
+      {/* Scroll-Container — wir geben dem Status-Filter viel Hoehe, weil er
+          der Haupt-Filter ist und im Default-Layout als einziger ausgeklappt
+          erscheint. Andere Sektionen sind standardmaessig kollabiert, deshalb
+          ist hier viel Platz verfuegbar. Cap bei 70vh haelt Header/Footer
+          der Sidebar sichtbar. */}
+      <div className="max-h-[70vh] overflow-y-auto -mx-1 px-1">
         {isEmpty ? (
           <div
             role="status"

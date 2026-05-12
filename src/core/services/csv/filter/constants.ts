@@ -41,9 +41,9 @@ export const SYSTEM_FILTERS_SEED: SystemFilterSeed[] = [
   {
     id: 'system-unterprogramm',
     scope: 'system',
-    name: 'Unterprogramm',
+    name: 'Richtlinie',
     feld: 'unterprogramm_id',
-    typ: 'single_select',
+    typ: 'multi_select',
     config: { werte_quelle: 'auto', werte_reihenfolge: 'alphabetisch', leer_bucket: true },
     anzeige_reihenfolge: 30,
     versteckt: false,

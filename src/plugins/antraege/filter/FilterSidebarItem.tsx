@@ -61,7 +61,16 @@ export function FilterSidebarItem({ def, antraege, activeFilters, definitions, v
     && jaCount < 3
     && (antraege.length === 0 || jaCount / antraege.length < 0.05);
 
-  const [collapsed, setCollapsed] = useState(isSparse && !hasValue);
+  // Status ist der zentrale Filter und bleibt standardmäßig offen, damit
+  // möglichst viele Status-Werte ohne Sidebar-Scrollen sichtbar sind.
+  // Alle anderen Filter werden standardmäßig eingeklappt, weil sie weniger
+  // oft genutzt werden und ihre internen Werte-Listen sonst die Sidebar
+  // dominieren. Aktive Filter (hasValue) bleiben offen, damit der User
+  // sieht, was er gesetzt hat. Sparse-Booleans bleiben kollabiert wie zuvor.
+  const isStatusFilter = def.feld === 'status';
+  const [collapsed, setCollapsed] = useState(
+    !hasValue && (isSparse || !isStatusFilter),
+  );
 
   const disabled = !!def.config.disabled;
   const hasAnyValues = totalAvailable > 0 || def.typ === 'date_range' || def.typ === 'number_range' || def.typ === 'text_contains';
