@@ -51,6 +51,7 @@ export const SYSTEM_FILTERS_SEED: SystemFilterSeed[] = [
   {
     // Wenn aktiv (egal welche Selektion), übernimmt dieser Filter die Kontrolle
     // über die Irrläufer-Sichtbarkeit (Pre-Filter in useFilteredAntraege).
+    // anzeige_reihenfolge 15 → direkt unter Status (10), vor Verbund (20).
     id: 'system-vb-phase',
     scope: 'system',
     name: 'VB-Phase',
@@ -61,7 +62,7 @@ export const SYSTEM_FILTERS_SEED: SystemFilterSeed[] = [
       manuelle_werte: ['1', '2', '3', '4', '5', '9'],
       werte_reihenfolge: 'manuell',
     },
-    anzeige_reihenfolge: 35,
+    anzeige_reihenfolge: 15,
     versteckt: false,
   },
   {

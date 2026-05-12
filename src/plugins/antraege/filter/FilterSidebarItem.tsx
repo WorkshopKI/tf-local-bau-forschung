@@ -61,15 +61,15 @@ export function FilterSidebarItem({ def, antraege, activeFilters, definitions, v
     && jaCount < 3
     && (antraege.length === 0 || jaCount / antraege.length < 0.05);
 
-  // Status ist der zentrale Filter und bleibt standardmäßig offen, damit
-  // möglichst viele Status-Werte ohne Sidebar-Scrollen sichtbar sind.
+  // Status und VB-Phase sind die zentralen Filter und bleiben standardmäßig
+  // offen, damit möglichst viele Werte ohne Sidebar-Scrollen sichtbar sind.
   // Alle anderen Filter werden standardmäßig eingeklappt, weil sie weniger
   // oft genutzt werden und ihre internen Werte-Listen sonst die Sidebar
   // dominieren. Aktive Filter (hasValue) bleiben offen, damit der User
   // sieht, was er gesetzt hat. Sparse-Booleans bleiben kollabiert wie zuvor.
-  const isStatusFilter = def.feld === 'status';
+  const isPrimaryFilter = def.feld === 'status' || def.feld === 'vb_phase';
   const [collapsed, setCollapsed] = useState(
-    !hasValue && (isSparse || !isStatusFilter),
+    !hasValue && (isSparse || !isPrimaryFilter),
   );
 
   const disabled = !!def.config.disabled;
