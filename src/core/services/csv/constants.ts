@@ -35,6 +35,26 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
 export const CANONICAL_FIELD_KEYS = CANONICAL_FIELDS.map(f => f.key);
 
 /**
+ * Bekannte abweichende CSV-Spaltennamen, die im Quell-System eingebürgert sind
+ * und auf ein Canonical-Field gemappt werden sollen. Wird im CSV-Wizard für die
+ * Name-basierte Auto-Suggestion genutzt (`buildSuggestionsFromColumnNames`),
+ * sodass der Kurator die Mappings nicht bei jedem Import manuell setzen muss.
+ *
+ * Vergleich ist case-insensitiv und ignoriert `_`/`-`/Leerzeichen
+ * (siehe `normalize()` im Helper) — `D_AAE` und `d_aae` matchen identisch.
+ *
+ * Direkte Key-Matches (z.B. `aktenzeichen` → `aktenzeichen`) müssen hier nicht
+ * gelistet werden — die werden automatisch erkannt.
+ */
+export const CANONICAL_FIELD_NAME_ALIASES: Record<string, CanonicalField> = {
+  d_aae: 'antragsdatum',
+  d_abb: 'bewilligung_datum',
+  org_afs: 'antragsteller',
+  thema_ad: 'titel',
+  vb_nummer: 'verbund_id',
+};
+
+/**
  * Whitelist der Felder, die in den schmalen `ANTRAEGE_LIST_VIEW`-Store
  * projiziert werden. Listen, Dashboards, Sort und Filter operieren
  * ausschließlich auf diesen Feldern. Custom-Felder aus den CSVs (z.B.

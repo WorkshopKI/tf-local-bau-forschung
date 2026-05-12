@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { bestMatch } from './fuzzy';
-import { CANONICAL_FIELDS } from '../constants';
+import { CANONICAL_FIELDS, CANONICAL_FIELD_NAME_ALIASES } from '../constants';
 import type { AmbiguousMergeResolution, CanonicalField } from '../types';
 
 /** Ein Eintrag pro CSV-Spalte aus dem hierarchischen Label-XLS. */
@@ -243,13 +243,17 @@ export function buildSuggestions(
 
 /**
  * Name-based Fallback-Suggestions: matcht CSV-Spaltennamen direkt auf
- * Canonical-Keys (case-insensitiv, ohne Berücksichtigung von `_`/`-`/Leerzeichen).
- * Greift, wenn der User KEINE Label-XLS hochlädt — eine Spalte `VB_PHASE` wird
- * dann automatisch als Vorschlag für das Standardfeld `vb_phase` angezeigt.
+ * Canonical-Keys (case-insensitiv, ohne Berücksichtigung von `_`/`-`/Leerzeichen)
+ * sowie auf bekannte Aliasse aus `CANONICAL_FIELD_NAME_ALIASES`.
  *
- * Konfidenz immer 0.95 bei exaktem Key-Match (eindeutig, vom Schema-Designer
- * benannt). Niedriger als ein 100%-XLS-Match, damit XLS-basierte Vorschläge
- * Vorrang behalten.
+ * Greift, wenn der User KEINE Label-XLS hochlädt — eine Spalte `VB_PHASE`
+ * matcht direkt auf `vb_phase`, eine Spalte `D_AAE` wird per Alias-Tabelle
+ * auf `antragsdatum` gemappt.
+ *
+ * Konfidenz: 0.95 bei exaktem Key-Match (eindeutiger Canonical-Name),
+ * 0.90 bei Alias-Match (eingebürgerte Konvention). Beide liegen unterhalb
+ * eines 100%-XLS-Matches, damit XLS-basierte Vorschläge Vorrang behalten,
+ * und oberhalb der 0.6-Schwelle für "Alle hochkonfidenten übernehmen".
  */
 export function buildSuggestionsFromColumnNames(previewHeaders: string[]): LabelSuggestion[] {
   function normalize(s: string): string {
@@ -259,15 +263,29 @@ export function buildSuggestionsFromColumnNames(previewHeaders: string[]): Label
   for (const f of CANONICAL_FIELDS) {
     canonicalByNormalizedKey.set(normalize(f.key), f);
   }
+  const aliasByNormalized = new Map<string, typeof CANONICAL_FIELDS[number]>();
+  for (const [alias, canonicalKey] of Object.entries(CANONICAL_FIELD_NAME_ALIASES)) {
+    const target = CANONICAL_FIELDS.find(f => f.key === canonicalKey);
+    if (target) aliasByNormalized.set(normalize(alias), target);
+  }
   const out: LabelSuggestion[] = [];
   for (const col of previewHeaders) {
-    const hit = canonicalByNormalizedKey.get(normalize(col));
+    const norm = normalize(col);
+    let hit = canonicalByNormalizedKey.get(norm);
+    let confidence = 0.95;
+    if (!hit) {
+      const aliasHit = aliasByNormalized.get(norm);
+      if (aliasHit) {
+        hit = aliasHit;
+        confidence = 0.9;
+      }
+    }
     if (!hit) continue;
     out.push({
       csvColumn: col,
       label: hit.label,
       canonical: hit.key,
-      confidence: 0.95,
+      confidence,
     });
   }
   return out;
