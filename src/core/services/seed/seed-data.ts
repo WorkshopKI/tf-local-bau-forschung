@@ -59,8 +59,22 @@ export async function seedTestData(
   // Foerderantraege — kommen jetzt aus echten anonymisierten CSVs in
   // docs/fixtures/. Wenn die CSVs lokal fehlen (frischer Klon), liefert der
   // Loader 0 Antraege und der Seed laeuft graceful weiter.
+  //
+  // Gate: nur seeden, wenn das Default-Programm leer ist. So vermischen sich
+  // die Fixture-„Muster TV Titel"-Antraege nicht mit User-importierten echten
+  // CSV-Daten (Issue beim v2-Upgrade auf bestehenden Dev-IDBs).
   const programm = await ensureDefaultProgramm(storage.idb);
-  const fixtureResult = await seedFromFixtureCsvs(storage, programm.id);
+  const existing = await listAntraegeByProgramm(storage.idb, programm.id);
+  let fixtureResult: { csvsImported: number; missingFilenames: string[] } = {
+    csvsImported: 0, missingFilenames: [],
+  };
+  if (existing.length > 0) {
+    console.info(
+      `[seed] Foerderantraege-Seed übersprungen: Default-Programm enthält bereits ${existing.length} Antraege (vermutlich manueller CSV-Import).`,
+    );
+  } else {
+    fixtureResult = await seedFromFixtureCsvs(storage, programm.id);
+  }
   const importedAntraege = await listAntraegeByProgramm(storage.idb, programm.id);
   const total = baseTotal + importedAntraege.length;
 
@@ -97,7 +111,7 @@ export async function seedTestData(
   await saveOramaToDB(storage.idb);
   await storage.idb.set(SEED_COMPLETE_FLAG, true);
 
-  if (fixtureResult.csvsImported === 0) {
+  if (fixtureResult.csvsImported === 0 && existing.length === 0) {
     console.warn(
       '[seed] Foerderantraege-Seed leer — keine Fixture-CSVs gefunden. ' +
       'Lege anonymisierte CSVs unter docs/fixtures/ ab (siehe README).',

@@ -1,9 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { clearMetadataCache } from '@/core/services/search/metadata-extractor';
 import { seedTestData, clearSeedData } from '@/core/services/seed/seed-data';
+import {
+  FIXTURE_SCHEMA_IDS,
+  removeFixtureSeeds,
+} from '@/core/services/seed/fixture-loader';
+import { ensureDefaultProgramm } from '@/core/services/csv';
+import { loadSchema } from '@/core/services/csv/schemaRegistry';
 import { unloadAllGPU } from '../utils/gpu-utils';
 import type { PipelineConfigState } from '../hooks/usePipelineConfig';
 
@@ -61,6 +67,41 @@ export function ConfigSection({
   const [gpuMsg, setGpuMsg] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
   const [clearResult, setClearResult] = useState<string | null>(null);
+  const [hasFixtureSchemas, setHasFixtureSchemas] = useState(false);
+  const [fixturesCleaning, setFixturesCleaning] = useState(false);
+  const [fixtureMsg, setFixtureMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      for (const id of FIXTURE_SCHEMA_IDS) {
+        const s = await loadSchema(storage.idb, id);
+        if (cancelled) return;
+        if (s) {
+          setHasFixtureSchemas(true);
+          return;
+        }
+      }
+      if (!cancelled) setHasFixtureSchemas(false);
+    })();
+    return () => { cancelled = true; };
+  }, [storage.idb, fixtureMsg]);
+
+  const handleRemoveFixtures = async (): Promise<void> => {
+    setFixturesCleaning(true);
+    try {
+      const programm = await ensureDefaultProgramm(storage.idb);
+      const r = await removeFixtureSeeds(storage, programm.id);
+      setFixtureMsg(
+        `${r.schemasRemoved} Demo-Schemas entfernt, ${r.antraegeAffected} Antraege bereinigt.`,
+      );
+      setTimeout(() => setFixtureMsg(null), 6000);
+    } catch (err) {
+      setFixtureMsg(`Fehler: ${(err as Error).message}`);
+    } finally {
+      setFixturesCleaning(false);
+    }
+  };
 
   const handleClearDocStore = async (): Promise<void> => {
     setClearing(true); setClearResult(null);
@@ -166,6 +207,27 @@ export function ConfigSection({
               <Button variant="danger" size="sm" onClick={handleClearSeed}>Loeschen</Button>
             )}
             {seedProgress && <span className="text-[11px] text-[var(--tf-text-secondary)]">{seedProgress}</span>}
+          </div>
+        </ConfigRow>
+
+        <ConfigRow label="Demo-Foerderantraege aus Default-Programm"
+          subtitle="Entfernt die anonymisierten Beispielantraege (Muster TV Titel), die beim ersten v2-Seed importiert wurden. Echte CSV-Importe bleiben erhalten.">
+          <div className="flex items-center gap-2">
+            {hasFixtureSchemas ? (
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={fixturesCleaning}
+                onClick={handleRemoveFixtures}
+              >
+                {fixturesCleaning ? 'Entferne...' : 'Entfernen'}
+              </Button>
+            ) : (
+              <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+                Keine Demo-Fixtures vorhanden
+              </span>
+            )}
+            {fixtureMsg && <span className="text-[11px] text-[var(--tf-text-secondary)]">{fixtureMsg}</span>}
           </div>
         </ConfigRow>
 

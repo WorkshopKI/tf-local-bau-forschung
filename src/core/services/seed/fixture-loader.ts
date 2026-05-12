@@ -22,8 +22,10 @@
  */
 import type { StorageService } from '@/core/services/storage';
 import type { CsvSchema } from '@/core/services/csv/types';
-import { saveSchema } from '@/core/services/csv/schemaRegistry';
+import { loadSchema, removeSchema, saveSchema } from '@/core/services/csv/schemaRegistry';
 import { importCsvSource } from '@/core/services/csv/importer';
+import { deleteRowHashes, getRowHashesForSchema } from '@/core/services/csv/idb-csv';
+import { recomputeMultipleBatched } from '@/core/services/csv/merger';
 import {
   SCHEMA_A_ID, SCHEMA_A_NAME, SCHEMA_A_FILENAME, SCHEMA_A_PRIORITY,
   SCHEMA_A_IS_MASTER, SCHEMA_A_COLUMN_MAPPING,
@@ -145,4 +147,56 @@ export async function seedFromFixtureCsvs(
   }
 
   return { csvsImported: imported, missingFilenames: missing };
+}
+
+export interface RemoveFixtureSeedsResult {
+  /** Anzahl der gefundenen + entfernten Fixture-Schemas (max. FIXTURE_DEFS.length). */
+  schemasRemoved: number;
+  /** Anzahl der Aktenzeichen die durch die Fixture-Schemas beruehrt waren —
+   *  der Merger entscheidet pro Antrag, ob er entfernt oder recomputed wird. */
+  antraegeAffected: number;
+}
+
+/**
+ * Entfernt die Fixture-Schemas + ihre eingespielten Antraege aus dem
+ * angegebenen Programm. Echte CSV-Importe bleiben unberuehrt: der Merger
+ * recomputed alle betroffenen Aktenzeichen aus den verbleibenden Schemas und
+ * loescht nur die Antraege, die ausschliesslich aus den Fixtures stammen.
+ *
+ * Nutzfall: User hat den v2-Seed beim Upgrade mit eingebauten Fixtures
+ * abbekommen, obwohl er bereits echte ZIM-Daten manuell importiert hatte.
+ * Dieser Helper macht den Fixture-Anteil rueckgaengig.
+ */
+export async function removeFixtureSeeds(
+  storage: StorageService,
+  programmId: string,
+): Promise<RemoveFixtureSeedsResult> {
+  const touchedAz = new Set<string>();
+  let schemasRemoved = 0;
+
+  for (const schemaId of FIXTURE_SCHEMA_IDS) {
+    const schema = await loadSchema(storage.idb, schemaId);
+    if (!schema) continue;
+    const hashes = await getRowHashesForSchema(storage.idb, schemaId);
+    for (const h of hashes) touchedAz.add(h.join_value);
+    if (hashes.length > 0) {
+      await deleteRowHashes(storage.idb, schemaId, hashes.map(h => h.join_value));
+    }
+    await removeSchema(storage.idb, schemaId);
+    schemasRemoved++;
+  }
+
+  if (touchedAz.size > 0) {
+    // removedAz triggert pro Antrag den Merger-Cleanup: er prueft welche
+    // verbliebenen Schemas die Aktenzeichen abdecken. Antraege die nur
+    // durch Fixture-Schemas existierten werden geloescht; Antraege die
+    // auch in echten CSV-Schemas vorkommen werden ohne Fixture-Anteil
+    // neu zusammengebaut.
+    await recomputeMultipleBatched(storage.idb, programmId, {
+      touchedAz: [],
+      removedAz: [...touchedAz],
+    });
+  }
+
+  return { schemasRemoved, antraegeAffected: touchedAz.size };
 }
