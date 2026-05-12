@@ -52,24 +52,30 @@ export function DateRangeFacet({ value, minDate, maxDate, onChange }: Props): Re
           ) : null}
         </div>
       ) : null}
-      <label className="text-[11px] text-[var(--tf-text-tertiary)]">Von</label>
-      <input
-        type="date"
-        value={value.from ?? ''}
-        min={minDate}
-        max={maxDate}
-        onChange={e => onChange({ ...value, from: e.target.value || undefined })}
-        className="px-2 py-1 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent text-[12.5px]"
-      />
-      <label className="text-[11px] text-[var(--tf-text-tertiary)]">Bis</label>
-      <input
-        type="date"
-        value={value.to ?? ''}
-        min={minDate}
-        max={maxDate}
-        onChange={e => onChange({ ...value, to: e.target.value || undefined })}
-        className="px-2 py-1 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent text-[12.5px]"
-      />
+      <div className="flex gap-2 items-center">
+        <label className="flex items-center gap-1 flex-1 min-w-0">
+          <span className="text-[11px] text-[var(--tf-text-tertiary)] shrink-0">Von</span>
+          <input
+            type="date"
+            value={value.from ?? ''}
+            min={minDate}
+            max={maxDate}
+            onChange={e => onChange({ ...value, from: e.target.value || undefined })}
+            className="flex-1 min-w-0 px-2 py-1 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent text-[12.5px]"
+          />
+        </label>
+        <label className="flex items-center gap-1 flex-1 min-w-0">
+          <span className="text-[11px] text-[var(--tf-text-tertiary)] shrink-0">Bis</span>
+          <input
+            type="date"
+            value={value.to ?? ''}
+            min={minDate}
+            max={maxDate}
+            onChange={e => onChange({ ...value, to: e.target.value || undefined })}
+            className="flex-1 min-w-0 px-2 py-1 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent text-[12.5px]"
+          />
+        </label>
+      </div>
     </div>
   );
 }
