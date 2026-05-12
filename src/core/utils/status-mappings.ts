@@ -29,6 +29,9 @@ export const STATUS_LABELS: Record<string, string> = {
   nachbesserung: 'Nachbesserung',
   bewilligt: 'Bewilligt',
   abgeschlossen: 'Abgeschlossen',
+  // Forschungs-CSV-Rohwerte (Original aus dem Quellsystem) — gekürzt,
+  // damit die Status-Pille mit einheitlicher Breite ohne Umbruch passt.
+  'abgelehnt/zurückgezogen': 'abgel./zurückgez.',
 };
 
 export const STATUS_VARIANTS: Record<string, BadgeVariant> = {

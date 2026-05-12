@@ -78,10 +78,14 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false, 
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {phaseLabel ? (
-            <Badge variant={getVbPhaseVariant(antrag.vb_phase)}>{phaseLabel}</Badge>
+            <Badge variant={getVbPhaseVariant(antrag.vb_phase)} className="min-w-[44px] justify-center">
+              {phaseLabel}
+            </Badge>
           ) : null}
           {status ? (
-            <Badge variant={getStatusVariant(status)}>{getStatusLabel(status)}</Badge>
+            <Badge variant={getStatusVariant(status)} className="min-w-[130px] justify-center whitespace-nowrap">
+              {getStatusLabel(status)}
+            </Badge>
           ) : null}
         </div>
       </div>
