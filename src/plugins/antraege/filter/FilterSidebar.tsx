@@ -67,7 +67,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
     deletePreset,
   } = useFilterState();
   const [presetDialogOpen, setPresetDialogOpen] = useState(false);
-  const [frequent, setFrequent] = useState<FrequentEntryView[]>(() => getTopFrequent(5, [], {}));
+  const [frequent, setFrequent] = useState<FrequentEntryView[]>(() => getTopFrequent(3, [], {}));
   /** Tick zum Re-Render nach dismissHint (localStorage-Lookup happens in render). */
   const [hintTick, setHintTick] = useState(0);
 
@@ -102,7 +102,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       if (active.length > 0) recordFilterApply(active, definitions);
-      setFrequent(getTopFrequent(5, definitions, valueLabels));
+      setFrequent(getTopFrequent(3, definitions, valueLabels));
     }, 250);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
