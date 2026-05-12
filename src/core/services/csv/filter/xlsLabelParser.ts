@@ -256,8 +256,16 @@ export function buildSuggestions(
  * und oberhalb der 0.6-Schwelle für "Alle hochkonfidenten übernehmen".
  */
 export function buildSuggestionsFromColumnNames(previewHeaders: string[]): LabelSuggestion[] {
+  // Strip alle nicht-alphanumerischen Zeichen (inkl. NBSP, BOM, Klammern,
+  // Punkte, Slashes, …) und Diakritika. So matchen `THEMA_AD`, `THEMA AD`,
+  // `Thema(AD)`, `Thema/AD`, `thema-ad` alle auf `themaad` → robust gegen
+  // Schreibvarianten aus verschiedenen CSV-Exporten.
   function normalize(s: string): string {
-    return s.toLowerCase().replace(/[\s_\-]+/g, '');
+    return s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '');
   }
   const canonicalByNormalizedKey = new Map<string, typeof CANONICAL_FIELDS[number]>();
   for (const f of CANONICAL_FIELDS) {
