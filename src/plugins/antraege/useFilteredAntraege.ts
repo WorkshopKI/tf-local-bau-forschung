@@ -1,6 +1,7 @@
 import { useDeferredValue, useMemo } from 'react';
 import { applyFilters } from '@/core/services/csv';
 import type { AntragListItem } from '@/core/services/csv/types';
+import type { ActiveFilter, FilterDefinition } from '@/core/services/csv/filter/types';
 import { useAntraegeStore, getEffectiveSortKey } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { getView, type AntragView } from './views';
@@ -14,6 +15,20 @@ import {
 } from './bearbeiterFilter';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
+
+/** True wenn die User mind. einen Filter auf das Feld `vb_phase` aktiv hat —
+ *  in dem Fall wird der implizite Irrlaeufer-Pre-Filter deaktiviert, damit die
+ *  Sidebar-Selektion die Kontrolle uebernimmt. Aus dem Hook extrahiert, damit
+ *  Header (viewCount) und `useFilteredAntraege` dieselbe Logik nutzen. */
+export function hasExplicitVbPhaseFilter(
+  active: readonly ActiveFilter[],
+  definitions: readonly FilterDefinition[],
+): boolean {
+  return active.some(af => {
+    const def = definitions.find(d => d.id === af.filterId);
+    return def?.feld === 'vb_phase';
+  });
+}
 
 export interface FilteredAntraegeResult {
   filtered: AntragListItem[];
@@ -57,11 +72,8 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // Impliziter Irrläufer-Pre-Filter: vb_phase === 9 wird global ausgeblendet,
     // außer der User hat einen expliziten vb_phase-Filter in der Sidebar aktiviert
     // (egal welche Selektion — sobald der Filter aktiv ist, übernimmt er die Kontrolle).
-    const hasExplicitVbPhaseFilter = active.some(af => {
-      const def = definitions.find(d => d.id === af.filterId);
-      return def?.feld === 'vb_phase';
-    });
-    const byPreFilter = hasExplicitVbPhaseFilter
+    const explicitVbPhase = hasExplicitVbPhaseFilter(active, definitions);
+    const byPreFilter = explicitVbPhase
       ? byView
       : byView.filter(a => !isIrrlaeufer(a.vb_phase));
     // Bearbeiter-Filter (Profil-Kürzel) NACH der View, vor den Custom-Filtern.

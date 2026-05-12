@@ -114,7 +114,7 @@ export const foerderantraegeData: Antrag[] = [
   fill({
     aktenzeichen: 'FA-2026-001',
     titel: 'KI-gestützte Schadenserkennung an Brückenbauwerken mittels Drohneninspektion',
-    status: 'genehmigt',
+    status: 'bewilligt',
     priority: 'hoch',
     foerdergeber: 'BMBF Zukunft Bau',
     foerdersumme: 480000,
@@ -179,7 +179,7 @@ export const foerderantraegeData: Antrag[] = [
   fill({
     aktenzeichen: 'FA-2026-005',
     titel: 'Langzeitmonitoring urbaner Biodiversität mittels eDNA-Metabarcoding',
-    status: 'in_pruefung',
+    status: 'VN geprüft',
     priority: 'normal',
     foerdergeber: 'BfN F+E-Vorhaben',
     foerdersumme: 185000,
@@ -215,7 +215,7 @@ export const foerderantraegeData: Antrag[] = [
   fill({
     aktenzeichen: 'FA-2026-007',
     titel: 'Adaptive Lernplattform mit lernpfadbasierter Personalisierung',
-    status: 'neu',
+    status: 'beantragt',
     priority: 'normal',
     foerdergeber: 'BMBF Digitale Bildung',
     foerdersumme: 210000,
@@ -300,7 +300,7 @@ export const foerderantraegeData: Antrag[] = [
   fill({
     aktenzeichen: 'FA-2026-012',
     titel: 'Stammzellbasierte Knorpelregeneration bei Arthrose des Kniegelenks',
-    status: 'nachforderung',
+    status: 'NF gestellt',
     priority: 'hoch',
     foerdergeber: 'BMBF Gesundheitsforschung',
     foerdersumme: 610000,
@@ -422,7 +422,7 @@ export const foerderantraegeData: Antrag[] = [
   fill({
     aktenzeichen: 'FA-2026-019',
     titel: 'KMU-innovativ: Federated-Learning-Framework für medizinische Bildgebung ohne Datenabgabe',
-    status: 'abgelehnt',
+    status: 'abgelehnt/zurückgezogen',
     priority: 'niedrig',
     foerdergeber: 'BMBF KMU-innovativ',
     foerdersumme: 420000,

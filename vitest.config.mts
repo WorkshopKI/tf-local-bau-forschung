@@ -28,6 +28,7 @@ export default defineConfig({
     }),
     __TEAMFLOW_BUILD_TIME__: JSON.stringify('1970-01-01T00:00:00Z'),
     __TEAMFLOW_GIT_HASH__: JSON.stringify('test'),
+    __TEAMFLOW_APP_VERSION__: JSON.stringify('0.0.0-test'),
     __TEAMFLOW_DEV_FIXTURES__: JSON.stringify(true),
   },
   resolve: {

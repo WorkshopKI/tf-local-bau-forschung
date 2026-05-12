@@ -1,0 +1,148 @@
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { getEingangAmpel, daysSinceEingang } from '../eingangAmpel';
+import { viewCount } from '../views';
+import { SEED_ANTRAEGE, TEST_TODAY } from './fixtures/seed-antraege';
+import { REAL_CSV_ANTRAEGE } from './fixtures/real-csv-antraege';
+import type { AntragListItem } from '@/core/services/csv/types';
+
+beforeAll(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(TEST_TODAY));
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
+
+function mk(p: Partial<AntragListItem> & { aktenzeichen: string }): AntragListItem {
+  return { programm_id: 'P', _updated_at: '2026-01-01T00:00:00Z', ...p };
+}
+
+describe('getEingangAmpel — Schwellen', () => {
+  it('≤30d & open → gruen', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-04-20',
+    }))).toBe('gruen');
+  });
+  it('31-60d & open → gelb', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-04-01',
+    }))).toBe('gelb');
+  });
+  it('61-90d & open → orange', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-03-01',
+    }))).toBe('orange');
+  });
+  it('>90d & open → rot', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-01-01',
+    }))).toBe('rot');
+  });
+});
+
+describe('getEingangAmpel — Ausschluesse → null', () => {
+  it('bewilligung_datum gesetzt → null', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'bewilligt', antragsdatum: '2026-01-01',
+      bewilligung_datum: '2026-03-01',
+    }))).toBeNull();
+  });
+  it('antragsdatum fehlt → null', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'eingereicht',
+    }))).toBeNull();
+  });
+  it('antragsdatum ungueltig → null', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: 'nicht-ein-datum',
+    }))).toBeNull();
+  });
+  it('antragsdatum in der Zukunft → null', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2099-01-01',
+    }))).toBeNull();
+  });
+  it('Status abgelehnt (closed) → null, auch ohne bewilligung_datum', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'abgelehnt', antragsdatum: '2026-04-20',
+    }))).toBeNull();
+  });
+  it('Welt-B "Schlussvermerk" (abgeschlossen) → null', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'Schlussvermerk', antragsdatum: '2026-04-20',
+    }))).toBeNull();
+  });
+  it('Welt-B "abgelehnt/zurückgezogen" → null', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'abgelehnt/zurückgezogen', antragsdatum: '2026-04-20',
+    }))).toBeNull();
+  });
+  it('Welt-B "Ablehnung" → null', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'Ablehnung', antragsdatum: '2026-04-20',
+    }))).toBeNull();
+  });
+});
+
+describe('getEingangAmpel — Welt-B Status-Werte (offene Stati)', () => {
+  it('"beantragt" mit antragsdatum → Ampel zaehlt', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-04-20',
+    }))).toBe('gruen');
+  });
+  it('"VN geprüft" mit antragsdatum → Ampel zaehlt', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'VN geprüft', antragsdatum: '2026-04-01',
+    }))).toBe('gelb');
+  });
+  it('"NF gestellt" mit antragsdatum → Ampel zaehlt', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'NF gestellt', antragsdatum: '2026-03-01',
+    }))).toBe('orange');
+  });
+  it('"bewilligungsreif" (entscheidung) mit antragsdatum → Ampel zaehlt', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'bewilligungsreif', antragsdatum: '2026-01-01',
+    }))).toBe('rot');
+  });
+});
+
+describe('daysSinceEingang', () => {
+  it('berechnet korrekt fuer ISO-Datum', () => {
+    expect(daysSinceEingang(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-05-02',
+    }))).toBe(10);
+  });
+  it('null fuer fehlendes antragsdatum', () => {
+    expect(daysSinceEingang(mk({ aktenzeichen: 'A', status: 'eingereicht' }))).toBeNull();
+  });
+  it('null fuer ungueltiges antragsdatum', () => {
+    expect(daysSinceEingang(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: 'foo',
+    }))).toBeNull();
+  });
+});
+
+describe('Konsistenz: Ampel-View-Counts === Anzahl Items mit selber Ampelfarbe', () => {
+  for (const [name, data] of [
+    ['Welt A', SEED_ANTRAEGE],
+    ['Welt B', REAL_CSV_ANTRAEGE],
+  ] as const) {
+    it(`${name}: eingang_frisch == #(getEingangAmpel === 'gruen')`, () => {
+      const ampelGruen = data.filter(a => getEingangAmpel(a) === 'gruen').length;
+      // Ohne Pre-Filter (Irrlaeufer auch zaehlen) — sonst sind die Counts unterschiedlich.
+      expect(viewCount('eingang_frisch', [...data], undefined, false)).toBe(ampelGruen);
+    });
+    it(`${name}: eingang_warnung == #(getEingangAmpel === 'gelb' || 'orange')`, () => {
+      const ampelGelbOrange = data.filter(a => {
+        const e = getEingangAmpel(a);
+        return e === 'gelb' || e === 'orange';
+      }).length;
+      expect(viewCount('eingang_warnung', [...data], undefined, false)).toBe(ampelGelbOrange);
+    });
+    it(`${name}: eingang_kritisch == #(getEingangAmpel === 'rot')`, () => {
+      const ampelRot = data.filter(a => getEingangAmpel(a) === 'rot').length;
+      expect(viewCount('eingang_kritisch', [...data], undefined, false)).toBe(ampelRot);
+    });
+  }
+});

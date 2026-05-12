@@ -1,6 +1,12 @@
 import type { AntragListItem } from '@/core/services/csv/types';
 import { antragMatchesBearbeiter, type BearbeiterFilterMode } from './bearbeiterFilter';
 import { getEingangAmpel } from './eingangAmpel';
+import {
+  isOpenStatus,
+  isNachforderungStatus,
+  isBewilligtStatus,
+} from '@/core/utils/status-canonical';
+import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 
 export type ViewKey =
   | 'meine_offenen'
@@ -12,15 +18,6 @@ export type ViewKey =
   | 'eingang_warnung'
   | 'eingang_kritisch'
   | 'alle';
-
-const OPEN_STATUSES = new Set([
-  'eingereicht',
-  'in_begutachtung',
-  'in_pruefung',
-  'in_bearbeitung',
-  'nachbesserung',
-  'nachforderung',
-]);
 
 export function daysUntilFrist(a: AntragListItem): number | null {
   const frist = a.frist_datum;
@@ -37,7 +34,11 @@ function yearOfBewilligung(a: AntragListItem): number | null {
   return Number.isFinite(y) ? y : null;
 }
 
-const CURRENT_YEAR = new Date().getFullYear();
+/** Pro-Aufruf ausgewertet, damit Tests via `vi.setSystemTime` ein
+ *  deterministisches Heute injecten koennen (sonst frozen-at-module-load). */
+function getCurrentYear(): number {
+  return new Date().getFullYear();
+}
 
 export interface AntragView {
   key: ViewKey;
@@ -53,7 +54,7 @@ export const VIEWS: AntragView[] = [
   {
     key: 'meine_offenen',
     label: 'Meine offenen',
-    predicate: a => OPEN_STATUSES.has(String(a.status)),
+    predicate: a => isOpenStatus(a.status),
     showDaysColumn: true,
   },
   {
@@ -70,20 +71,20 @@ export const VIEWS: AntragView[] = [
     label: 'Überfällig',
     predicate: a => {
       const d = daysUntilFrist(a);
-      return d !== null && d < 0 && OPEN_STATUSES.has(String(a.status));
+      return d !== null && d < 0 && isOpenStatus(a.status);
     },
     showDaysColumn: true,
   },
   {
     key: 'nachforderungen',
     label: 'Nachforderungen',
-    predicate: a => a.status === 'nachforderung' || a.status === 'nachbesserung',
+    predicate: a => isNachforderungStatus(a.status),
     showDaysColumn: true,
   },
   {
     key: 'bewilligt_jahr',
-    label: `Bewilligt ${CURRENT_YEAR}`,
-    predicate: a => (a.status === 'bewilligt' || a.status === 'genehmigt') && yearOfBewilligung(a) === CURRENT_YEAR,
+    label: `Bewilligt ${getCurrentYear()}`,
+    predicate: a => isBewilligtStatus(a.status) && yearOfBewilligung(a) === getCurrentYear(),
     showDaysColumn: false,
   },
   {
@@ -121,14 +122,24 @@ export function getView(key: ViewKey): AntragView {
   return VIEWS.find(v => v.key === key) ?? FALLBACK_VIEW;
 }
 
+/**
+ * Zaehlt Antraege fuer einen View-Key. Wendet die View-Predicate und optional
+ * den Bearbeiter-Filter an. Standardmaessig wird der `vb_phase=9` (Irrlaeufer)
+ * Pre-Filter mit angewendet — konsistent zum Listenrendering in
+ * `useFilteredAntraege`. Header-Aufrufer geben `applyVbPhasePreFilter=false`,
+ * wenn in der Sidebar ein expliziter `vb_phase`-Filter aktiv ist (dann sollen
+ * Irrlaeufer wieder sichtbar werden).
+ */
 export function viewCount(
   key: ViewKey,
   antraege: AntragListItem[],
   bearbeiter?: BearbeiterFilterMode,
+  applyVbPhasePreFilter: boolean = true,
 ): number {
   const v = getView(key);
   let n = 0;
   for (const a of antraege) {
+    if (applyVbPhasePreFilter && isIrrlaeufer(a.vb_phase)) continue;
     if (!v.predicate(a)) continue;
     if (bearbeiter && !antragMatchesBearbeiter(a, bearbeiter)) continue;
     n++;

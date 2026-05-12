@@ -6,7 +6,7 @@ import { VIEWS, viewCount } from './views';
 import { menuLabel } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useFilteredAntraege } from './useFilteredAntraege';
+import { useFilteredAntraege, hasExplicitVbPhaseFilter } from './useFilteredAntraege';
 
 interface Props {
   filterOpen: boolean;
@@ -22,13 +22,21 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const search = useAntraegeStore(s => s.search);
   const setSearch = useAntraegeStore(s => s.setSearch);
   const filterCount = useFilterState(s => s.active.length);
+  const active = useFilterState(s => s.active);
+  const definitions = useFilterState(s => s.definitions);
   const { bearbeiterFilter } = useFilteredAntraege();
 
   const counts = useMemo(() => {
+    // Pre-Filter konsistent zum Listenrendering: Irrlaeufer (vb_phase=9)
+    // werden in den Tab-Counts ausgeblendet, AUSSER ein expliziter
+    // vb_phase-Filter ist aktiv (dann uebernimmt die Sidebar die Kontrolle).
+    const applyVbPhasePreFilter = !hasExplicitVbPhaseFilter(active, definitions);
     const m = new Map<string, number>();
-    for (const v of VIEWS) m.set(v.key, viewCount(v.key, antraege, bearbeiterFilter));
+    for (const v of VIEWS) {
+      m.set(v.key, viewCount(v.key, antraege, bearbeiterFilter, applyVbPhasePreFilter));
+    }
     return m;
-  }, [antraege, bearbeiterFilter]);
+  }, [antraege, bearbeiterFilter, active, definitions]);
 
   return (
     <div

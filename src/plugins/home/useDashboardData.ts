@@ -2,78 +2,22 @@ import { useDeferredValue, useMemo } from 'react';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
-import type { AntragListItem } from '@/core/services/csv/types';
 import { useProfile } from '@/core/hooks/useProfile';
-import {
-  parseBearbeiterFilter,
-  antragMatchesBearbeiter,
-} from '@/plugins/antraege/bearbeiterFilter';
-import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
+import { parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
 import { tfPerfStart } from '@/core/utils/tfPerf';
+import {
+  computeDashboardAggregate,
+  type AntragVorgang,
+  type DashboardStats,
+} from './dashboardAggregate';
 
-export type AntragVorgang = Vorgang & { _isAntrag: true; vb_phase?: number };
-
-const KUERZ_KEYS_CANONICAL: readonly string[] = [
-  'tib_kuerz', 'bib_kuerz', 'ztp_kuerz', 'pfm_kuerz',
-];
-const KUERZ_KEYS_CANONICAL_SET: ReadonlySet<string> = new Set(KUERZ_KEYS_CANONICAL);
-
-/** Inline-Variante von hasAnyKuerzelData(single-record). Spart eine separate
- *  Full-Scan-Pass über die Antrag-Liste — wir checken im Aggregations-Loop
- *  parallel, ob irgendein Antrag eine der KUERZ-Spalten gesetzt hat. */
-function antragHasAnyKuerzel(antrag: AntragListItem): boolean {
-  const rec = antrag as unknown as Record<string, unknown>;
-  for (const k of KUERZ_KEYS_CANONICAL) {
-    const v = rec[k];
-    if (typeof v === 'string' && v.trim().length > 0) return true;
-  }
-  for (const key in rec) {
-    if (KUERZ_KEYS_CANONICAL_SET.has(key)) continue;
-    const lk = key.toLowerCase();
-    if (lk === key) continue;
-    if (!KUERZ_KEYS_CANONICAL_SET.has(lk)) continue;
-    const v = rec[key];
-    if (typeof v === 'string' && v.trim().length > 0) return true;
-  }
-  return false;
-}
-
-const CLOSED = new Set(['genehmigt', 'abgelehnt', 'archiviert', 'bewilligt', 'abgeschlossen']);
-
-function daysUntil(dateStr?: string): number | null {
-  if (!dateStr) return null;
-  const diff = new Date(dateStr).getTime() - Date.now();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
+export type { AntragVorgang };
 
 function getGreeting(): string {
   const h = new Date().getHours();
   if (h < 12) return 'Guten Morgen';
   if (h < 18) return 'Guten Tag';
   return 'Guten Abend';
-}
-
-/** Minimal-Projektion eines Antrags auf eine Vorgang-aehnliche Shape.
- *  AntragListItem hat keine `tags`/`notes`/`priority`-Felder mehr (waren
- *  ohnehin nur fuer Bauantraege relevant) — Defaults werden hier gesetzt. */
-function antragToVorgangLike(a: AntragListItem): AntragVorgang {
-  const deadline = typeof a.frist_datum === 'string' ? a.frist_datum : undefined;
-  const created = typeof a.antragsdatum === 'string' ? a.antragsdatum : a._updated_at;
-  return {
-    id: a.aktenzeichen,
-    type: 'bauantrag', // Projektion: Antraege werden im Dashboard wie Vorgaenge behandelt.
-    title: a.titel ?? a.aktenzeichen,
-    status: (a.status as Vorgang['status']) ?? 'neu',
-    priority: 'normal',
-    assignee: a.antragsteller ?? '',
-    created,
-    modified: a._updated_at,
-    deadline,
-    tags: [],
-    notes: '',
-    _isAntrag: true,
-    vb_phase: typeof a.vb_phase === 'number' ? a.vb_phase : undefined,
-  };
 }
 
 export interface DashboardData {
@@ -86,7 +30,7 @@ export interface DashboardData {
   /** Top-5 offene Förderanträge des Profils, sortiert nach vb_phase asc, dann Frist asc.
    *  Leer wenn `department === 'bauantraege'` oder kein Antrag gefunden. */
   meineAntraege: AntragVorgang[];
-  stats: { total: number; offen: number; inPruefung: number; nachforderung: number; genehmigt: number };
+  stats: DashboardStats;
   /** Kürzel-Filter im Profil aktiv (≠ leer / "alle"). */
   bearbeiterFilterActive: boolean;
   /** Wenn true: Filter aktiv, aber keine KUERZ-Spalte in den Antraege-Daten gefunden. */
@@ -117,89 +61,10 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
     const includeBauantraege = department !== 'antraege';
     const includeAntraege = department !== 'bauantraege';
 
-    // Single-Pass-Aggregation: ein Loop über bauantraege + ein Loop über
-    // antraege berechnet alle Counter und akkumuliert nur die Kandidaten,
-    // die anschließend sortiert werden — keine Zwischen-Arrays für jede
-    // Pipeline-Stufe (filter→map→filter→map→filter→sort). Das spart bei
-    // 13k+ Records dramatisch GC-Druck und ~6 Full-Array-Allokationen.
-    let total = 0;
-    let offen = 0;
-    let inPruefung = 0;
-    let nachforderung = 0;
-    let genehmigt = 0;
-    let anyKuerzelSeen = false;
-    const offeneVorgaenge: Vorgang[] = [];
-    const fristKandidaten: Array<Vorgang & { daysLeft: number }> = [];
-
-    if (includeBauantraege) {
-      for (const v of bauantraege) {
-        total++;
-        const status = v.status as string;
-        if (status === 'in_pruefung' || status === 'in_begutachtung') inPruefung++;
-        else if (status === 'nachforderung' || status === 'nachbesserung') nachforderung++;
-        else if (status === 'genehmigt' || status === 'bewilligt') genehmigt++;
-        if (CLOSED.has(status)) continue;
-        offen++;
-        offeneVorgaenge.push(v);
-        const dl = daysUntil(v.deadline);
-        if (dl !== null) fristKandidaten.push({ ...v, daysLeft: dl });
-      }
-    }
-
-    const offeneAntraege: AntragVorgang[] = [];
-    if (includeAntraege) {
-      for (const a of antraege) {
-        // KUERZ-Detection läuft VOR dem Bearbeiter-Filter, damit der
-        // UX-Hint ("KUERZ-Spalten fehlen") auch dann korrekt ist, wenn
-        // der Filter alle Records ausblendet.
-        if (!anyKuerzelSeen && antragHasAnyKuerzel(a)) anyKuerzelSeen = true;
-        // Irrläufer (vb_phase=9) global aus dem Dashboard ausblenden — konsistent
-        // zum impliziten Pre-Filter auf der Förderanträge-Liste.
-        if (isIrrlaeufer(a.vb_phase)) continue;
-        if (bearbeiterMode.active && !antragMatchesBearbeiter(a, bearbeiterMode)) continue;
-        const v = antragToVorgangLike(a);
-        total++;
-        const status = v.status as string;
-        if (status === 'in_pruefung' || status === 'in_begutachtung') inPruefung++;
-        else if (status === 'nachforderung' || status === 'nachbesserung') nachforderung++;
-        else if (status === 'genehmigt' || status === 'bewilligt') genehmigt++;
-        if (CLOSED.has(status)) continue;
-        offen++;
-        offeneVorgaenge.push(v);
-        offeneAntraege.push(v);
-        const dl = daysUntil(v.deadline);
-        if (dl !== null) fristKandidaten.push({ ...v, daysLeft: dl });
-      }
-    }
-
-    // Sortierungen am Ende — auf den schon kleineren Akkumulator-Arrays.
-    fristKandidaten.sort((x, y) => x.daysLeft - y.daysLeft);
-    const dringend = fristKandidaten.filter(v => v.daysLeft <= 7);
-    const naechster = fristKandidaten[0] ?? null;
-    let fristenDieseWoche = 0;
-    for (const v of fristKandidaten) {
-      if (v.daysLeft >= 0 && v.daysLeft <= 7) fristenDieseWoche++;
-    }
-
-    // letzteAenderungen: top-8 aus den offenen — sort über offeneVorgaenge,
-    // nicht über die Vollmenge `alle` wie früher.
-    const letzteAenderungen = [...offeneVorgaenge]
-      .sort((a, b) => b.modified.localeCompare(a.modified))
-      .slice(0, 8);
-
-    // Top-5 eigene Förderanträge, sortiert nach VB-Phase aufsteigend (NW1 zuerst,
-    // FuE/DL/DS dann), bei gleicher Phase nach Frist (ASC). Nur sichtbar wenn das
-    // Profil mind. einen Förderantrag-Bezug hat (sonst leer).
-    const meineAntraege = [...offeneAntraege]
-      .sort((a, b) => {
-        const pa = a.vb_phase ?? Number.POSITIVE_INFINITY;
-        const pb = b.vb_phase ?? Number.POSITIVE_INFINITY;
-        if (pa !== pb) return pa - pb;
-        const da = a.deadline ?? '￿';
-        const db = b.deadline ?? '￿';
-        return da.localeCompare(db);
-      })
-      .slice(0, 5);
+    const agg = computeDashboardAggregate(bauantraege, antraege, bearbeiterMode, {
+      includeBauantraege,
+      includeAntraege,
+    });
 
     // KUERZ-Missing nur dann melden, wenn tatsächlich Antraege im Store
     // liegen. Beim ersten Render ist `antraege === []` — `anyKuerzelSeen`
@@ -210,22 +75,22 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       bearbeiterMode.active
       && includeAntraege
       && antraege.length > 0
-      && !anyKuerzelSeen;
+      && !agg.anyKuerzelSeen;
 
-    const result = {
+    const result: DashboardData = {
       greeting: getGreeting(),
-      offeneVorgaenge,
-      dringend,
-      naechsterSchritt: naechster,
-      fristenDieseWoche,
-      letzteAenderungen,
-      meineAntraege,
-      stats: { total, offen, inPruefung, nachforderung, genehmigt },
+      offeneVorgaenge: agg.offeneVorgaenge,
+      dringend: agg.dringend,
+      naechsterSchritt: agg.naechsterSchritt,
+      fristenDieseWoche: agg.fristenDieseWoche,
+      letzteAenderungen: agg.letzteAenderungen,
+      meineAntraege: agg.meineAntraege,
+      stats: agg.stats,
       bearbeiterFilterActive: bearbeiterMode.active,
       bearbeiterKuerzelMissing,
       bearbeiterTokens: bearbeiterMode.tokens,
     };
-    end(`antraege=${antraege.length} bauantraege=${bauantraege.length} → total=${total} offen=${offen}`);
+    end(`antraege=${antraege.length} bauantraege=${bauantraege.length} → total=${agg.stats.total} offen=${agg.stats.offen}`);
     return result;
   }, [bauantraege, antraege, department, profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung]);
 }

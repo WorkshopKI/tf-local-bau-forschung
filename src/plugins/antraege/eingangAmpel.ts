@@ -1,4 +1,5 @@
 import type { AntragListItem } from '@/core/services/csv/types';
+import { isOpenStatus } from '@/core/utils/status-canonical';
 
 /**
  * Eingangs-Ampel basierend auf dem Datum Antragseingang (`antragsdatum`).
@@ -9,9 +10,10 @@ import type { AntragListItem } from '@/core/services/csv/types';
  * - 61–90 Tage → orange (kritisch)
  * - > 90 Tage  → rot    (überfällig)
  *
- * Nur für Anträge, die NICHT bewilligt wurden (`bewilligung_datum` leer).
- * Bei bewilligten Anträgen wäre die Eingangszeit irrelevant — sonst würden
- * alte abgeschlossene Anträge dauerhaft rot leuchten.
+ * Ampel zeigt NUR fuer fachlich offene Antraege:
+ * - bewilligt / abgelehnt / abgeschlossen → null
+ * - `bewilligung_datum` gesetzt → null (zusaetzliche Sicherheits-Bedingung,
+ *   greift auch bei Datensaetzen ohne sauberen Status)
  *
  * Bei fehlendem oder ungültigem `antragsdatum` → null (keine Ampel zeigen).
  */
@@ -34,6 +36,7 @@ export function daysSinceEingang(a: AntragListItem): number | null {
 
 export function getEingangAmpel(a: AntragListItem): EingangAmpel | null {
   if (trimmed(a.bewilligung_datum)) return null;
+  if (!isOpenStatus(a.status)) return null;
   const days = daysSinceEingang(a);
   if (days === null || days < 0) return null;
   if (days <= 30) return 'gruen';
