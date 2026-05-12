@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { getEingangAmpel, daysSinceEingang } from '../eingangAmpel';
-import { viewCount } from '../views';
+import {
+  getEingangAmpel,
+  daysSinceEingang,
+  getAmpelBucket,
+  countByAmpelBucket,
+} from '../eingangAmpel';
+import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
+import { parseBearbeiterFilter } from '../bearbeiterFilter';
 import { SEED_ANTRAEGE, TEST_TODAY } from './fixtures/seed-antraege';
 import { REAL_CSV_ANTRAEGE } from './fixtures/real-csv-antraege';
 import type { AntragListItem } from '@/core/services/csv/types';
@@ -130,26 +136,71 @@ describe('daysSinceEingang', () => {
   });
 });
 
-describe('Konsistenz: Ampel-View-Counts === Anzahl Items mit selber Ampelfarbe', () => {
+describe('getAmpelBucket — Mapping der 4 Stufen auf 3 Buckets', () => {
+  it('gruen → frisch', () => {
+    expect(getAmpelBucket(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-04-20',
+    }))).toBe('frisch');
+  });
+  it('gelb → warnung', () => {
+    expect(getAmpelBucket(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-04-01',
+    }))).toBe('warnung');
+  });
+  it('orange → warnung', () => {
+    expect(getAmpelBucket(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-03-01',
+    }))).toBe('warnung');
+  });
+  it('rot → kritisch', () => {
+    expect(getAmpelBucket(mk({
+      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-01-01',
+    }))).toBe('kritisch');
+  });
+  it('null → null (z.B. bewilligt)', () => {
+    expect(getAmpelBucket(mk({
+      aktenzeichen: 'A', status: 'bewilligt', antragsdatum: '2026-04-20',
+      bewilligung_datum: '2026-04-25',
+    }))).toBeNull();
+  });
+});
+
+describe('countByAmpelBucket — Konsistenz mit getEingangAmpel', () => {
   for (const [name, data] of [
     ['Bauantraege', SEED_ANTRAEGE],
     ['Foerderantraege', REAL_CSV_ANTRAEGE],
   ] as const) {
-    it(`${name}: eingang_frisch == #(getEingangAmpel === 'gruen')`, () => {
-      const ampelGruen = data.filter(a => getEingangAmpel(a) === 'gruen').length;
-      // Ohne Pre-Filter (Irrlaeufer auch zaehlen) — sonst sind die Counts unterschiedlich.
-      expect(viewCount('eingang_frisch', [...data], undefined, false)).toBe(ampelGruen);
+    it(`${name}: frisch == #(getEingangAmpel === 'gruen', ohne Irrlaeufer)`, () => {
+      const expected = data.filter(a =>
+        !isIrrlaeufer(a.vb_phase) && getEingangAmpel(a) === 'gruen'
+      ).length;
+      expect(countByAmpelBucket([...data], 'frisch')).toBe(expected);
     });
-    it(`${name}: eingang_warnung == #(getEingangAmpel === 'gelb' || 'orange')`, () => {
-      const ampelGelbOrange = data.filter(a => {
+    it(`${name}: warnung == #(getEingangAmpel === 'gelb' || 'orange', ohne Irrlaeufer)`, () => {
+      const expected = data.filter(a => {
+        if (isIrrlaeufer(a.vb_phase)) return false;
         const e = getEingangAmpel(a);
         return e === 'gelb' || e === 'orange';
       }).length;
-      expect(viewCount('eingang_warnung', [...data], undefined, false)).toBe(ampelGelbOrange);
+      expect(countByAmpelBucket([...data], 'warnung')).toBe(expected);
     });
-    it(`${name}: eingang_kritisch == #(getEingangAmpel === 'rot')`, () => {
-      const ampelRot = data.filter(a => getEingangAmpel(a) === 'rot').length;
-      expect(viewCount('eingang_kritisch', [...data], undefined, false)).toBe(ampelRot);
+    it(`${name}: kritisch == #(getEingangAmpel === 'rot', ohne Irrlaeufer)`, () => {
+      const expected = data.filter(a =>
+        !isIrrlaeufer(a.vb_phase) && getEingangAmpel(a) === 'rot'
+      ).length;
+      expect(countByAmpelBucket([...data], 'kritisch')).toBe(expected);
     });
   }
+});
+
+describe('countByAmpelBucket — Bearbeiter-Filter', () => {
+  it('bearbeiter=ABC reduziert Counts auf tib_kuerz="abc"-Items', () => {
+    const bearb = parseBearbeiterFilter('ABC', false);
+    // *-016 ist offen + bearbeiter-match. Welcher Bucket es ist, haengt
+    // vom antragsdatum der Fixture ab — wir testen nur die Reduktion.
+    const frisch = countByAmpelBucket([...SEED_ANTRAEGE], 'frisch', bearb);
+    const warnung = countByAmpelBucket([...SEED_ANTRAEGE], 'warnung', bearb);
+    const kritisch = countByAmpelBucket([...SEED_ANTRAEGE], 'kritisch', bearb);
+    expect(frisch + warnung + kritisch).toBeLessThanOrEqual(2);
+  });
 });

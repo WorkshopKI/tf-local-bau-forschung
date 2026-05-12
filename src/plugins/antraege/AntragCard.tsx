@@ -47,16 +47,10 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false, 
     ? { background: 'var(--tf-bg-secondary)', borderColor: 'var(--tf-border-hover)' }
     : { borderColor: 'transparent' };
 
-  // Eingangs-Ampel: linke 3px-Border in Ampelfarbe; nur für nicht-bewilligte
-  // Anträge mit gültigem antragsdatum.
+  // Eingangs-Ampel: Farbpunkt + Tagezahl inline vor dem Aktenzeichen; nur für
+  // fachlich offene Anträge ohne `bewilligung_datum`.
   const ampel = getEingangAmpel(antrag);
   const ampelDays = ampel !== null ? daysSinceEingang(antrag) : null;
-  const ampelStyle: React.CSSProperties = ampel
-    ? { borderLeftWidth: '3px', borderLeftColor: AMPEL_COLOR[ampel], borderLeftStyle: 'solid' }
-    : {};
-  const ampelTitle = ampel && ampelDays !== null
-    ? `${AMPEL_TOOLTIP[ampel]} (${ampelDays} Tage)`
-    : undefined;
 
   const padding = narrow ? 'px-3 py-1.5' : 'px-4 py-2.5';
 
@@ -64,11 +58,10 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false, 
     <button
       type="button"
       onClick={onClick}
-      title={ampelTitle}
       className={`w-full text-left ${padding} rounded-[var(--tf-radius)] transition-colors ${
         selected ? '' : 'hover:bg-[var(--tf-bg-secondary)]'
       }`}
-      style={{ borderWidth: '0.5px', borderStyle: 'solid', ...baseStyle, ...ampelStyle }}
+      style={{ borderWidth: '0.5px', borderStyle: 'solid', ...baseStyle }}
     >
       <div className="flex items-start gap-3">
         {showDaysColumn && (
@@ -82,6 +75,21 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false, 
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-3 flex-wrap">
+            {ampel !== null && ampelDays !== null ? (
+              <span
+                className="inline-flex items-center gap-1 shrink-0"
+                title={`${AMPEL_TOOLTIP[ampel]} (${ampelDays} Tage)`}
+              >
+                <span
+                  className="shrink-0 w-2 h-2 rounded-full"
+                  style={{ background: AMPEL_COLOR[ampel] }}
+                  aria-hidden="true"
+                />
+                <span className={`tabular-nums text-[var(--tf-text-tertiary)] ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>
+                  {ampelDays}d
+                </span>
+              </span>
+            ) : null}
             <span className={`font-mono text-[var(--tf-text-tertiary)] ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>{antrag.aktenzeichen}</span>
             {akronym ? (
               <span className={`font-medium text-[var(--tf-text)] ${narrow ? 'text-[12.5px]' : 'text-[13px]'}`}>{akronym}</span>

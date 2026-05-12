@@ -1,5 +1,7 @@
 import type { AntragListItem } from '@/core/services/csv/types';
 import { isOpenStatus } from '@/core/utils/status-canonical';
+import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
+import { antragMatchesBearbeiter, type BearbeiterFilterMode } from './bearbeiterFilter';
 
 /**
  * Eingangs-Ampel basierend auf dem Datum Antragseingang (`antragsdatum`).
@@ -58,3 +60,38 @@ export const AMPEL_TOOLTIP: Record<EingangAmpel, string> = {
   orange: 'Eingangsalter 61–90 Tage',
   rot: 'Eingangsalter > 90 Tage',
 };
+
+/**
+ * Drei-stufige Aggregation der vier Ampel-Stufen für die Home-Aggregat-Karte:
+ * gelb + orange → warnung (31–90 Tage).
+ */
+export type AmpelBucket = 'frisch' | 'warnung' | 'kritisch';
+
+export function getAmpelBucket(a: AntragListItem): AmpelBucket | null {
+  const ampel = getEingangAmpel(a);
+  if (ampel === null) return null;
+  if (ampel === 'gruen') return 'frisch';
+  if (ampel === 'rot') return 'kritisch';
+  return 'warnung';
+}
+
+/**
+ * Zählt offene Anträge pro Ampel-Bucket. Übernimmt die Standard-
+ * Vorfilter aus `viewCount`: Irrläufer (`vb_phase=9`) werden geskippt,
+ * der Bearbeiter-Filter wird optional angewendet. Wird primär von der
+ * Home-Sidebar-Karte `EingangAmpelCard` genutzt.
+ */
+export function countByAmpelBucket(
+  antraege: AntragListItem[],
+  bucket: AmpelBucket,
+  bearbeiter?: BearbeiterFilterMode,
+): number {
+  let n = 0;
+  for (const a of antraege) {
+    if (isIrrlaeufer(a.vb_phase)) continue;
+    if (getAmpelBucket(a) !== bucket) continue;
+    if (bearbeiter && !antragMatchesBearbeiter(a, bearbeiter)) continue;
+    n++;
+  }
+  return n;
+}

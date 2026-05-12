@@ -23,10 +23,6 @@ const EXPECTED: Record<ViewKey, { withPreFilter: number; withoutPreFilter: numbe
   ueberfaellig: { withPreFilter: 2, withoutPreFilter: 2 },
   nachforderungen: { withPreFilter: 2, withoutPreFilter: 2 },
   bewilligt_jahr: { withPreFilter: 3, withoutPreFilter: 3 },
-  // Ampel: jeweils 5 / 3 / 1 ohne, +1 mit Irrlaeufer in gruen/gelb-Bucket
-  eingang_frisch: { withPreFilter: 5, withoutPreFilter: 6 },
-  eingang_warnung: { withPreFilter: 3, withoutPreFilter: 4 },
-  eingang_kritisch: { withPreFilter: 1, withoutPreFilter: 1 },
   alle: { withPreFilter: 18, withoutPreFilter: 20 },
 };
 
@@ -49,7 +45,7 @@ describe.each(FIXTURES)('viewCount mit $name', ({ data }) => {
 
 describe('viewCount — Edge-Cases', () => {
   it('leerer Array → 0 fuer alle Views', () => {
-    for (const v of ['meine_offenen', 'alle', 'bewilligt_jahr', 'eingang_frisch'] as ViewKey[]) {
+    for (const v of ['meine_offenen', 'alle', 'bewilligt_jahr', 'nachforderungen'] as ViewKey[]) {
       expect(viewCount(v, [], undefined, true)).toBe(0);
     }
   });

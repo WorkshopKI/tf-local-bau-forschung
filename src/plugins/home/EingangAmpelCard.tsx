@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
-import { useNavigation } from '@/core/hooks/useNavigation';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useFilteredAntraege } from '@/plugins/antraege/useFilteredAntraege';
-import { viewCount, type ViewKey } from '@/plugins/antraege/views';
+import { countByAmpelBucket } from '@/plugins/antraege/eingangAmpel';
 
 const fmt = (n: number): string => n.toLocaleString('de-DE');
 
@@ -14,11 +13,11 @@ const fmt = (n: number): string => n.toLocaleString('de-DE');
  * - Kritisch (> 90 Tage)      → rot
  *
  * Die internen 4 Stufen (gelb 31–60 / orange 61–90) sind auf der
- * AntragCard-Border sichtbar; hier in der Home-Übersicht aggregiert auf
+ * AntragCard sichtbar; hier in der Home-Übersicht aggregiert auf
  * 3 visuelle Stufen, weil das für eine Schnellübersicht reicht.
  *
- * Klick auf eine Zeile setzt den passenden Quick-View-Tab in
- * `useAntraegeStore.activeView` und navigiert zur Antrags-Seite.
+ * Reine Info-Anzeige: nicht klickbar — die Ampel-Information ist über
+ * den farbigen Punkt + Tagezahl in jeder Listenzeile direkt verfügbar.
  *
  * Counts berücksichtigen den Profil-Bearbeiter-Filter (`bearbeiterFilter`
  * aus useFilteredAntraege) — sonst zeigt die Home andere Zahlen als die
@@ -26,23 +25,16 @@ const fmt = (n: number): string => n.toLocaleString('de-DE');
  */
 export function EingangAmpelCard(): React.ReactElement | null {
   const antraege = useAntraegeStore(s => s.antraege);
-  const setActiveView = useAntraegeStore(s => s.setActiveView);
   const { bearbeiterFilter } = useFilteredAntraege();
-  const { navigate } = useNavigation();
 
   const counts = useMemo(() => ({
-    frisch: viewCount('eingang_frisch', antraege, bearbeiterFilter),
-    warnung: viewCount('eingang_warnung', antraege, bearbeiterFilter),
-    kritisch: viewCount('eingang_kritisch', antraege, bearbeiterFilter),
+    frisch: countByAmpelBucket(antraege, 'frisch', bearbeiterFilter),
+    warnung: countByAmpelBucket(antraege, 'warnung', bearbeiterFilter),
+    kritisch: countByAmpelBucket(antraege, 'kritisch', bearbeiterFilter),
   }), [antraege, bearbeiterFilter]);
 
   const total = counts.frisch + counts.warnung + counts.kritisch;
   if (total === 0) return null;
-
-  const apply = (view: ViewKey): void => {
-    setActiveView(view);
-    navigate('antraege');
-  };
 
   return (
     <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
@@ -55,21 +47,18 @@ export function EingangAmpelCard(): React.ReactElement | null {
           label="Frisch"
           sub="≤ 30 Tage"
           count={counts.frisch}
-          onClick={() => apply('eingang_frisch')}
         />
         <AmpelRow
           color="var(--tf-warning-text)"
           label="Warnung"
           sub="31–90 Tage"
           count={counts.warnung}
-          onClick={() => apply('eingang_warnung')}
         />
         <AmpelRow
           color="var(--tf-danger-text)"
           label="Kritisch"
           sub="> 90 Tage"
           count={counts.kritisch}
-          onClick={() => apply('eingang_kritisch')}
         />
       </div>
     </div>
@@ -81,22 +70,13 @@ interface RowProps {
   label: string;
   sub: string;
   count: number;
-  onClick: () => void;
 }
 
-function AmpelRow({ color, label, sub, count, onClick }: RowProps): React.ReactElement {
-  const disabled = count === 0;
+function AmpelRow({ color, label, sub, count }: RowProps): React.ReactElement {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={disabled ? `${label} (${sub}) — keine Anträge` : `${label} (${sub})`}
-      className={`flex items-center gap-2 px-1 py-1 rounded text-left ${
-        disabled
-          ? 'opacity-40 cursor-not-allowed'
-          : 'cursor-pointer hover:bg-[var(--tf-hover)]'
-      }`}
+    <div
+      title={`${label} (${sub})`}
+      className="flex items-center gap-2 px-1 py-1"
     >
       <span
         className="shrink-0 w-2 h-2 rounded-full"
@@ -110,6 +90,6 @@ function AmpelRow({ color, label, sub, count, onClick }: RowProps): React.ReactE
       <span className="text-[13px] tabular-nums text-[var(--tf-text)] font-medium">
         {fmt(count)}
       </span>
-    </button>
+    </div>
   );
 }
