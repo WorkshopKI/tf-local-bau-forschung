@@ -93,9 +93,18 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
               variant={filterOpen ? 'default' : 'outline'}
               size="sm"
               onClick={onToggleFilter}
-              className="h-8"
+              aria-label={`Filter${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`}
+              title={`Filter${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`}
+              className="relative h-8 w-8 p-0"
             >
-              <Filter size={13} /> Filter{filterCount > 0 ? ` (${filterCount})` : ''}
+              <Filter size={13} />
+              {filterCount > 0 && !filterOpen ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full"
+                  style={{ background: 'var(--tf-primary)' }}
+                />
+              ) : null}
             </Button>
           </div>
         </div>
