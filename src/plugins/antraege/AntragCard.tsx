@@ -83,7 +83,7 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false, 
             </Badge>
           ) : null}
           {status ? (
-            <Badge variant={getStatusVariant(status)} className="min-w-[115px] justify-center whitespace-nowrap">
+            <Badge variant={getStatusVariant(status)} className="min-w-[110px] justify-center whitespace-nowrap">
               {getStatusLabel(status)}
             </Badge>
           ) : null}
