@@ -15,6 +15,11 @@ interface Props {
   selected?: boolean;
   /** Kompakte Variante fuer den Split-View: weniger Subtext. */
   narrow?: boolean;
+  /** Wenn true: Card ist ein Folge-Teilvorhaben eines Verbunds (TV 2..N).
+   *  Wird leicht eingerückt mit linker Verbund-Klammer gerendert; Eingangs-
+   *  Ampel und Akronym werden dezenter dargestellt — der Verbund-Kopf (TV 1)
+   *  trägt die volle visuelle Hervorhebung. */
+  verbundTail?: boolean;
 }
 
 function strOrNull(v: unknown): string | null {
@@ -23,7 +28,7 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-export function AntragCard({ antrag, onClick, selected = false, narrow = false }: Props): React.ReactElement {
+export function AntragCard({ antrag, onClick, selected = false, narrow = false, verbundTail = false }: Props): React.ReactElement {
   const titel = strOrNull(antrag.titel) ?? antrag.aktenzeichen;
   const akronym = strOrNull(antrag.akronym);
   const antragsteller = strOrNull(antrag.antragsteller);
@@ -35,21 +40,34 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false }
     : { borderColor: 'transparent' };
 
   // Eingangs-Ampel: Farbpunkt + Tagezahl inline vor dem Aktenzeichen; nur für
-  // fachlich offene Anträge ohne `bewilligung_datum`.
-  const ampel = getEingangAmpel(antrag);
+  // fachlich offene Anträge ohne `bewilligung_datum`. Bei Folge-TVs eines
+  // Verbunds wird die Ampel ausgeblendet — der Verbund-Kopf trägt die Info.
+  const ampel = verbundTail ? null : getEingangAmpel(antrag);
   const ampelDays = ampel !== null ? daysSinceEingang(antrag) : null;
 
   const padding = narrow ? 'px-3 py-1.5' : 'px-4 py-2.5';
+  const akronymColor = verbundTail ? 'text-[var(--tf-text-tertiary)]' : 'text-[var(--tf-text)]';
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full text-left ${padding} rounded-[var(--tf-radius)] transition-colors ${
-        selected ? '' : 'hover:bg-[var(--tf-bg-secondary)]'
-      }`}
-      style={{ borderWidth: '0.5px', borderStyle: 'solid', ...baseStyle }}
+    <div
+      className="relative"
+      style={verbundTail ? { paddingLeft: '24px' } : undefined}
     >
+      {verbundTail ? (
+        <span
+          aria-hidden="true"
+          className="absolute left-3 top-0 bottom-0 w-px"
+          style={{ background: 'var(--tf-border-hover)' }}
+        />
+      ) : null}
+      <button
+        type="button"
+        onClick={onClick}
+        className={`w-full text-left ${padding} rounded-[var(--tf-radius)] transition-colors ${
+          selected ? '' : 'hover:bg-[var(--tf-bg-secondary)]'
+        }`}
+        style={{ borderWidth: '0.5px', borderStyle: 'solid', ...baseStyle }}
+      >
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-3 flex-wrap">
@@ -70,7 +88,7 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false }
             ) : null}
             <span className={`font-mono text-[var(--tf-text-tertiary)] ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>{antrag.aktenzeichen}</span>
             {akronym ? (
-              <span className={`font-medium text-[var(--tf-text)] ${narrow ? 'text-[12.5px]' : 'text-[13px]'}`}>{akronym}</span>
+              <span className={`font-medium ${akronymColor} ${narrow ? 'text-[12.5px]' : 'text-[13px]'}`}>{akronym}</span>
             ) : null}
           </div>
           <div className={`text-[var(--tf-text-secondary)] truncate mt-0.5 ${narrow ? 'text-[12px]' : 'text-[12.5px]'}`}>
@@ -93,6 +111,7 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false }
           ) : null}
         </div>
       </div>
-    </button>
+      </button>
+    </div>
   );
 }

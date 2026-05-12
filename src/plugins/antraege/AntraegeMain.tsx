@@ -172,15 +172,25 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
             </div>
           ) : (
             <div className="flex flex-col gap-1">
-              {filtered.slice(0, visibleRows).map(a => (
-                <AntragCard
-                  key={a.aktenzeichen}
-                  antrag={a}
-                  onClick={() => openAntrag(a.aktenzeichen)}
-                  selected={selectedAktenzeichen === a.aktenzeichen}
-                  narrow={narrow}
-                />
-              ))}
+              {filtered.slice(0, visibleRows).map((a, idx) => {
+                // Folge-TV eines Verbund-Clusters: vorheriger Eintrag in der
+                // bereits geclusterten Liste hat dieselbe verbund_id.
+                const prev = idx > 0 ? filtered[idx - 1] : undefined;
+                const verbundTail =
+                  typeof a.verbund_id === 'string'
+                  && a.verbund_id.length > 0
+                  && prev?.verbund_id === a.verbund_id;
+                return (
+                  <AntragCard
+                    key={a.aktenzeichen}
+                    antrag={a}
+                    onClick={() => openAntrag(a.aktenzeichen)}
+                    selected={selectedAktenzeichen === a.aktenzeichen}
+                    narrow={narrow}
+                    verbundTail={verbundTail}
+                  />
+                );
+              })}
               {visibleRows < filtered.length ? (
                 <div ref={sentinelRef} className="py-4 text-center text-[11.5px] text-[var(--tf-text-tertiary)]">
                   Lade weitere Einträge …

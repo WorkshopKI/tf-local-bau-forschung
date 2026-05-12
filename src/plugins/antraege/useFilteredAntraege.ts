@@ -6,6 +6,7 @@ import { useAntraegeStore, getEffectiveSortKey } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { getView, type AntragView } from './views';
 import { getSortOption } from './sort';
+import { applyVerbundClustering } from './verbundClustering';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
   parseBearbeiterFilter,
@@ -94,9 +95,12 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       ? !hasAnyKuerzelData(antraege, bearbeiterFilter.includeBegleitung)
       : false;
     const sorted = [...matched].sort(compare);
+    // Verbund-Teilvorhaben werden nach der primären Sortierung als Cluster
+    // zusammengehalten (Position vom ersten TV, intern nach Aktenzeichen).
+    const clustered = applyVerbundClustering(sorted);
     end(`base=${antraege.length} → byView=${byView.length} → filtered=${matched.length}`);
     return {
-      filtered: sorted,
+      filtered: clustered,
       view,
       bearbeiterFilter,
       bearbeiterKuerzelMissing,
