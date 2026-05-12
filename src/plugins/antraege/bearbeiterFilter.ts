@@ -1,4 +1,5 @@
 import type { AntragListItem } from '@/core/services/csv/types';
+import { isBegleitungStatus } from '@/core/utils/status-canonical';
 
 /**
  * Bearbeiter-Kürzel-Filter.
@@ -18,6 +19,13 @@ import type { AntragListItem } from '@/core/services/csv/types';
  * - "alle" (case-insensitive) → Filter inaktiv (PL-Modus)
  * - "MUE"  → matched gegen ein einzelnes Kürzel
  * - "MUE, SCH" → mehrere Kürzel komma-separiert (für Vertretung)
+ *
+ * `bearbeiter_inkl_begleitung` (Profil-Toggle):
+ * - true:  zusaetzlich ZTP/PFM-Spalten matchen + Antraege in Begleit-Phase einschliessen
+ * - false: nur TIB/BIB-Spalten matchen + Antraege in Begleit-Phase AUSBLENDEN
+ *          (Logik: nach Bewilligung wechselt die Zustaendigkeit zur Begleitung;
+ *          der TIB sieht den Antrag nicht mehr in 'seinen Antraegen', auch wenn
+ *          sein Kuerzel im tib_kuerz steht.)
  */
 
 const BEARBEITER_FIELDS_LOWER: readonly string[] = ['tib_kuerz', 'bib_kuerz'];
@@ -120,6 +128,8 @@ function antragHasKuerzel(
  * True wenn der Antrag dem Bearbeiter-Filter genügt.
  * Logik:
  * - mode.active=false → IMMER true (Filter aus, alle durchreichen)
+ * - mode.includeBegleitung=false UND Antrag in Begleit-Phase → false
+ *   (Zustaendigkeit hat zu ZTP/PFM gewechselt, kein 'meine Antraege' fuer TIB)
  * - sonst: match wenn das Kürzel in einer der Bearbeiter-Spalten steht;
  *   bei `includeBegleitung=true` zusätzlich in den Begleitungs-Spalten.
  *
@@ -129,6 +139,7 @@ function antragHasKuerzel(
  */
 export function antragMatchesBearbeiter(antrag: AntragListItem, mode: BearbeiterFilterMode): boolean {
   if (!mode.active) return true;
+  if (!mode.includeBegleitung && isBegleitungStatus(antrag.status)) return false;
   if (antragHasKuerzel(antrag, BEARBEITER_FIELDS_LOWER, BEARBEITER_FIELDS_LOWER_SET, mode.tokens)) {
     return true;
   }
@@ -153,7 +164,10 @@ export function applyBearbeiterFilter(antraege: AntragListItem[], mode: Bearbeit
   const keys = mode.includeBegleitung ? COMBINED_FIELDS_LOWER : BEARBEITER_FIELDS_LOWER;
   const set = mode.includeBegleitung ? COMBINED_FIELDS_LOWER_SET : BEARBEITER_FIELDS_LOWER_SET;
   const tokens = mode.tokens;
-  return antraege.filter(a => antragHasKuerzel(a, keys, set, tokens));
+  return antraege.filter(a => {
+    if (!mode.includeBegleitung && isBegleitungStatus(a.status)) return false;
+    return antragHasKuerzel(a, keys, set, tokens);
+  });
 }
 
 /**

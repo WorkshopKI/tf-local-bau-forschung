@@ -15,6 +15,7 @@ export type PhaseId =
   | 'pruefung'
   | 'entscheidung'
   | 'nachforderung'
+  | 'begleitung'
   | 'abgeschlossen'
   | 'sonstige';
 
@@ -43,8 +44,6 @@ export const STATUS_GROUPS: readonly PhaseGroup[] = [
     id: 'pruefung',
     label: 'Prüfung',
     items: [
-      { value: 'VN geprüft' },
-      { value: 'VN techn. geprüft' },
       { value: 'techn geprüft' },
       { value: 'kaufm geprüft' },
       { value: 'Gutachten fertig' },
@@ -72,6 +71,14 @@ export const STATUS_GROUPS: readonly PhaseGroup[] = [
     items: [
       { value: 'NF gestellt' },
       { value: 'keine weiteren NF' },
+    ],
+  },
+  {
+    id: 'begleitung',
+    label: 'Begleitung',
+    items: [
+      { value: 'VN geprüft' },
+      { value: 'VN techn. geprüft' },
     ],
   },
   {

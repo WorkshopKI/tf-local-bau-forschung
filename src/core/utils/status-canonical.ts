@@ -27,10 +27,13 @@
 
 export type StatusCategory =
   | 'offen'         // Eingang, noch nicht in Pruefung
-  | 'in_pruefung'   // wird gerade geprueft (VN, techn, kaufm, Gutachten)
+  | 'in_pruefung'   // Antrags-Pruefung (techn, kaufm, Gutachten) — VOR der Bewilligung
   | 'nachforderung' // wartet auf Nachforderung
   | 'entscheidung'  // Entscheidungs-Vorbereitung (bewilligungsreif, ablehnungsreif, ...)
   | 'bewilligt'     // positiv entschieden
+  | 'begleitung'    // nach Bewilligung, vor Schlussvermerk: Verwendungsnachweis-/
+                    // Zwischenbericht-Pruefung (VN/ZB-Stati). Andere Zustaendigkeit
+                    // (ZTP/PFM) als die Antrags-Phase (TIB/BIB).
   | 'abgelehnt'     // negativ entschieden
   | 'abgeschlossen' // abgeschlossen (Schlussvermerk, abgebrochen, zurueckgezogen)
   | 'sonstige';     // Irrlaeufer, unvollstaendig, leer, unbekannt
@@ -40,12 +43,16 @@ const FOERDERANTRAG_STATUSES: ReadonlyArray<readonly [string, StatusCategory]> =
   ['beantragt', 'offen'],
   ['bearbeitungsreif', 'offen'],
   ['nl eingegangen', 'offen'],
-  // Pruefung
-  ['vn geprüft', 'in_pruefung'],
-  ['vn techn. geprüft', 'in_pruefung'],
+  // Antrags-Pruefung (vor Bewilligung)
   ['techn geprüft', 'in_pruefung'],
   ['kaufm geprüft', 'in_pruefung'],
   ['gutachten fertig', 'in_pruefung'],
+  // Begleitung (nach Bewilligung): Verwendungsnachweis-Pruefung.
+  // Pattern-Fallback unten matched zusaetzlich alle Stati die mit "VN " oder
+  // "ZB " beginnen — neue VN-/ZB-Varianten muessen nicht zwingend manuell
+  // gelistet werden.
+  ['vn geprüft', 'begleitung'],
+  ['vn techn. geprüft', 'begleitung'],
   // Entscheidungs-Vorbereitung + in-Process-Negativ-Entscheidungen.
   // Solange der Vorgang in Widerruf/Anhoerung/Ablehnungsreif laeuft, ist er
   // aktiv im Verfahren — NICHT final-abgelehnt. Erst der abschliessende
@@ -114,22 +121,43 @@ function normalize(raw: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-/** Mappt einen rohen Status-Wert (Welt A oder Welt B) auf eine Kategorie.
- *  Unbekannte oder leere Werte → `'sonstige'`. */
+/** Pattern fuer Begleit-Stati: Status-Werte die mit "VN " oder "ZB " (case-
+ *  insensitive, gefolgt von Whitespace oder Punkt) beginnen, werden als
+ *  Begleitung kategorisiert — auch wenn sie nicht explizit gelistet sind.
+ *  Beispiele: "VN geprueft" (explizit + Pattern), "ZB eingegangen" (nur
+ *  Pattern), "VN angefordert" (nur Pattern). */
+const BEGLEITUNG_PATTERN = /^(vn|zb)[\s.]/;
+
+/** Mappt einen rohen Status-Wert auf eine Kategorie. Lookup-Reihenfolge:
+ *  1. Explizite Map (Foerderantrag + Bauantrag Stati)
+ *  2. VN/ZB-Pattern → Begleitung
+ *  3. Sonstige (unbekannt, leer) */
 export function getStatusCategory(raw: unknown): StatusCategory {
   const key = normalize(raw);
   if (!key) return 'sonstige';
-  return CATEGORY_MAP.get(key) ?? 'sonstige';
+  const explicit = CATEGORY_MAP.get(key);
+  if (explicit) return explicit;
+  if (BEGLEITUNG_PATTERN.test(key)) return 'begleitung';
+  return 'sonstige';
 }
 
-/** True, wenn der Antrag fachlich noch offen ist (nicht final entschieden). */
+/** True, wenn der Antrag fachlich noch offen ist (nicht final entschieden).
+ *  Schliesst Begleitung mit ein — ein Antrag in der VN/ZB-Pruefung ist noch
+ *  nicht abgeschlossen, auch wenn er bereits bewilligt wurde. */
 export function isOpenStatus(raw: unknown): boolean {
   const c = getStatusCategory(raw);
-  return c === 'offen' || c === 'in_pruefung' || c === 'nachforderung' || c === 'entscheidung';
+  return c === 'offen' || c === 'in_pruefung' || c === 'nachforderung'
+    || c === 'entscheidung' || c === 'begleitung';
 }
 
 export function isInPruefungStatus(raw: unknown): boolean {
   return getStatusCategory(raw) === 'in_pruefung';
+}
+
+/** True wenn der Antrag in der Begleit-Phase ist (nach Bewilligung,
+ *  vor Schlussvermerk: VN-/ZB-Pruefung). Andere Zustaendigkeit (ZTP/PFM). */
+export function isBegleitungStatus(raw: unknown): boolean {
+  return getStatusCategory(raw) === 'begleitung';
 }
 
 export function isNachforderungStatus(raw: unknown): boolean {

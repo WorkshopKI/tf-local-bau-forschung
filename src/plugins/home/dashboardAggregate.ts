@@ -26,6 +26,8 @@ export interface DashboardStats {
   offen: number;
   inPruefung: number;
   nachforderung: number;
+  /** Antraege in Begleit-Phase (VN/ZB-Pruefung, nach Bewilligung). */
+  begleitung: number;
   bewilligt: number;
 }
 
@@ -108,6 +110,7 @@ interface MutableStats {
   offen: number;
   inPruefung: number;
   nachforderung: number;
+  begleitung: number;
   bewilligt: number;
 }
 
@@ -117,6 +120,7 @@ function tallyStatus(status: string | undefined, stats: MutableStats): boolean {
   const cat = getStatusCategory(status);
   if (cat === 'in_pruefung') stats.inPruefung++;
   else if (cat === 'nachforderung') stats.nachforderung++;
+  else if (cat === 'begleitung') stats.begleitung++;
   else if (cat === 'bewilligt') stats.bewilligt++;
   return cat === 'bewilligt' || cat === 'abgelehnt' || cat === 'abgeschlossen';
 }
@@ -129,7 +133,7 @@ export function computeDashboardAggregate(
 ): DashboardAggregateResult {
   const nowMs = options.nowMs ?? Date.now();
   const stats: MutableStats = {
-    total: 0, offen: 0, inPruefung: 0, nachforderung: 0, bewilligt: 0,
+    total: 0, offen: 0, inPruefung: 0, nachforderung: 0, begleitung: 0, bewilligt: 0,
   };
   let anyKuerzelSeen = false;
   const offeneVorgaenge: Vorgang[] = [];

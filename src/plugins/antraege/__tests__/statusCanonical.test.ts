@@ -6,6 +6,7 @@ import {
   isNachforderungStatus,
   isBewilligtStatus,
   isAbgelehntStatus,
+  isBegleitungStatus,
   isClosedStatus,
 } from '@/core/utils/status-canonical';
 
@@ -14,11 +15,13 @@ describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
     ['beantragt', 'offen'],
     ['bearbeitungsreif', 'offen'],
     ['NL eingegangen', 'offen'],
-    ['VN geprüft', 'in_pruefung'],
-    ['VN techn. geprüft', 'in_pruefung'],
+    // Antrags-Pruefung (vor Bewilligung) bleibt in_pruefung
     ['techn geprüft', 'in_pruefung'],
     ['kaufm geprüft', 'in_pruefung'],
     ['Gutachten fertig', 'in_pruefung'],
+    // VN-Stati (Verwendungsnachweis-Pruefung) sind Begleit-Phase nach Bewilligung
+    ['VN geprüft', 'begleitung'],
+    ['VN techn. geprüft', 'begleitung'],
     ['bewilligungsreif', 'entscheidung'],
     ['ablehnungsreif', 'entscheidung'],
     ['Bewilligungsentwurf VDI/VDE-IT', 'entscheidung'],
@@ -92,10 +95,12 @@ describe('getStatusCategory — Edge-Cases', () => {
   });
 });
 
-describe('isOpenStatus — deckt offen + in_pruefung + nachforderung + entscheidung ab', () => {
+describe('isOpenStatus — deckt offen + in_pruefung + nachforderung + entscheidung + begleitung ab', () => {
   it.each([
     'beantragt', 'bearbeitungsreif', 'NL eingegangen',
-    'VN geprüft', 'kaufm geprüft', 'Gutachten fertig',
+    'kaufm geprüft', 'Gutachten fertig', 'techn geprüft',
+    // VN-Stati zaehlen jetzt als Begleitung — bleiben aber offen (noch nicht abgeschlossen)
+    'VN geprüft', 'VN techn. geprüft', 'ZB eingegangen',
     'NF gestellt', 'keine weiteren NF',
     'bewilligungsreif', 'ablehnungsreif',
     // Ablehnung/Widerruf sind noch im Verfahren, nicht final-abgelehnt
@@ -137,12 +142,52 @@ describe('isNachforderungStatus', () => {
   it('"in_pruefung" → false', () => expect(isNachforderungStatus('in_pruefung')).toBe(false));
 });
 
-describe('isInPruefungStatus', () => {
-  it('Foerderantrag "VN geprüft" → true', () => expect(isInPruefungStatus('VN geprüft')).toBe(true));
+describe('isInPruefungStatus — Antrags-Pruefung (vor Bewilligung)', () => {
+  it('Foerderantrag "techn geprüft" → true', () => expect(isInPruefungStatus('techn geprüft')).toBe(true));
+  it('Foerderantrag "kaufm geprüft" → true', () => expect(isInPruefungStatus('kaufm geprüft')).toBe(true));
   it('Foerderantrag "Gutachten fertig" → true', () => expect(isInPruefungStatus('Gutachten fertig')).toBe(true));
   it('Bauantrag "in_pruefung" → true', () => expect(isInPruefungStatus('in_pruefung')).toBe(true));
   it('Bauantrag "in_begutachtung" → true', () => expect(isInPruefungStatus('in_begutachtung')).toBe(true));
   it('"bewilligt" → false', () => expect(isInPruefungStatus('bewilligt')).toBe(false));
+  // VN-Stati sind nicht mehr Antrags-Pruefung — die sind in Begleitung
+  it('"VN geprüft" → false (ist Begleitung, nicht Antrags-Pruefung)', () => {
+    expect(isInPruefungStatus('VN geprüft')).toBe(false);
+  });
+  it('"VN techn. geprüft" → false (Begleitung)', () => {
+    expect(isInPruefungStatus('VN techn. geprüft')).toBe(false);
+  });
+});
+
+describe('isBegleitungStatus — Verwendungsnachweis-/Zwischenbericht-Phase nach Bewilligung', () => {
+  it('"VN geprüft" → true', () => expect(isBegleitungStatus('VN geprüft')).toBe(true));
+  it('"VN techn. geprüft" → true', () => expect(isBegleitungStatus('VN techn. geprüft')).toBe(true));
+  it('"techn geprüft" → false (Antrags-Pruefung)', () => {
+    expect(isBegleitungStatus('techn geprüft')).toBe(false);
+  });
+  it('"bewilligt" → false', () => expect(isBegleitungStatus('bewilligt')).toBe(false));
+  it('"Schlussvermerk" → false (abgeschlossen)', () => {
+    expect(isBegleitungStatus('Schlussvermerk')).toBe(false);
+  });
+  // Pattern-Fallback: zukuenftige VN-/ZB-Varianten ohne explizites Mapping
+  it('"VN angefordert" (nicht explizit gelistet) → true via Pattern-Fallback', () => {
+    expect(isBegleitungStatus('VN angefordert')).toBe(true);
+  });
+  it('"ZB eingegangen" → true via Pattern-Fallback', () => {
+    expect(isBegleitungStatus('ZB eingegangen')).toBe(true);
+  });
+  it('"ZB geprüft" → true via Pattern-Fallback', () => {
+    expect(isBegleitungStatus('ZB geprüft')).toBe(true);
+  });
+  it('"ZB.techn" → true via Pattern-Fallback (Punkt-Delimiter)', () => {
+    expect(isBegleitungStatus('ZB.techn')).toBe(true);
+  });
+  // Pattern darf NICHT versehentlich auf Worte mit "VN"/"ZB" als Substring matchen
+  it('"AVN abgeschlossen" → false (kein VN-Praefix)', () => {
+    expect(isBegleitungStatus('AVN abgeschlossen')).toBe(false);
+  });
+  it('"vnova" → false (kein Whitespace/Punkt nach vn)', () => {
+    expect(isBegleitungStatus('vnova')).toBe(false);
+  });
 });
 
 describe('isAbgelehntStatus — nur Bauantrag-Domain hat einen final-abgelehnt-Status', () => {

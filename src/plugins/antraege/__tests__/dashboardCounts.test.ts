@@ -13,18 +13,12 @@ const FIXTURES = [
   { name: 'Foerderantraege (CSV-Rohwerte)', data: REAL_CSV_ANTRAEGE },
 ] as const;
 
-describe.each(FIXTURES)('computeDashboardAggregate — $name', ({ data }) => {
+describe.each(FIXTURES)('computeDashboardAggregate — $name (domain-unabhaengige Counts)', ({ data }) => {
   it('total = 18 (2 Irrlaeufer ausgeblendet)', () => {
     const agg = computeDashboardAggregate(BAUANTRAEGE, data, NEUTRAL, {
       includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
     expect(agg.stats.total).toBe(18);
-  });
-  it('inPruefung > 0 (deckt Bauantrag in_pruefung/in_begutachtung/in_bearbeitung UND Foerderantrag VN/techn/kaufm geprueft/Gutachten)', () => {
-    const agg = computeDashboardAggregate(BAUANTRAEGE, data, NEUTRAL, {
-      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
-    });
-    expect(agg.stats.inPruefung).toBe(4);
   });
   it('nachforderung > 0 (deckt Bauantrag nachforderung/nachbesserung UND Foerderantrag NF gestellt)', () => {
     const agg = computeDashboardAggregate(BAUANTRAEGE, data, NEUTRAL, {
@@ -38,11 +32,41 @@ describe.each(FIXTURES)('computeDashboardAggregate — $name', ({ data }) => {
     });
     expect(agg.stats.bewilligt).toBe(4);
   });
-  it('offen = 18 - closed (closed = 4 bewilligt + 1 abgelehnt + 2 abgeschlossen)', () => {
+  it('offen = 11 (begleitung zaehlt zu offen weil noch nicht abgeschlossen)', () => {
     const agg = computeDashboardAggregate(BAUANTRAEGE, data, NEUTRAL, {
       includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
     expect(agg.stats.offen).toBe(11);
+  });
+});
+
+describe('computeDashboardAggregate — Bauantrag-Domain (Snake-Case, keine Begleitphase)', () => {
+  it('inPruefung = 4 (in_pruefung/in_begutachtung/in_bearbeitung)', () => {
+    const agg = computeDashboardAggregate(BAUANTRAEGE, SEED_ANTRAEGE, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.stats.inPruefung).toBe(4);
+  });
+  it('begleitung = 0 (Bauantrag-Workflow hat keine VN/ZB-Phase)', () => {
+    const agg = computeDashboardAggregate(BAUANTRAEGE, SEED_ANTRAEGE, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.stats.begleitung).toBe(0);
+  });
+});
+
+describe('computeDashboardAggregate — Foerderantrag-Domain (CSV-Rohwerte mit Begleitphase)', () => {
+  it('inPruefung = 2 (nur techn geprueft + kaufm geprueft; VN-Stati nicht mehr hier)', () => {
+    const agg = computeDashboardAggregate(BAUANTRAEGE, REAL_CSV_ANTRAEGE, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.stats.inPruefung).toBe(2);
+  });
+  it('begleitung = 2 (REAL-002 + REAL-017 sind VN geprueft)', () => {
+    const agg = computeDashboardAggregate(BAUANTRAEGE, REAL_CSV_ANTRAEGE, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.stats.begleitung).toBe(2);
   });
 });
 
@@ -76,7 +100,7 @@ describe('computeDashboardAggregate — leere Eingaben', () => {
       includeBauantraege: true, includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
     expect(agg.stats).toEqual({
-      total: 0, offen: 0, inPruefung: 0, nachforderung: 0, bewilligt: 0,
+      total: 0, offen: 0, inPruefung: 0, nachforderung: 0, begleitung: 0, bewilligt: 0,
     });
   });
   it('includeAntraege=false → Antraege werden ignoriert', () => {

@@ -117,6 +117,42 @@ describe('antragMatchesBearbeiter', () => {
     expect(antragMatchesBearbeiter(makeAntrag({ ztp_kuerz: 'AM' }), m)).toBe(false);
     expect(antragMatchesBearbeiter(makeAntrag({ pfm_kuerz: 'AM' }), m)).toBe(false);
   });
+
+  // Neue Semantik: bearbeiter_inkl_begleitung steuert nicht nur die KUERZ-
+  // Spalten, sondern auch die Phase. Mit includeBegleitung=false werden
+  // Antraege in Begleit-Phase (VN/ZB-Pruefung) komplett ausgeblendet — auch
+  // wenn das TIB-/BIB-Kuerzel matched. Logik: Zustaendigkeit hat zu ZTP/PFM
+  // gewechselt, der TiB sieht den Antrag nicht mehr in 'seinen'.
+  it('TIB-Match ohne Begleitung-Toggle: Antrag in Begleit-Phase wird ausgeblendet', () => {
+    const m = parseBearbeiterFilter('AM', false);
+    expect(antragMatchesBearbeiter(makeAntrag({
+      tib_kuerz: 'AM', status: 'VN geprüft',
+    }), m)).toBe(false);
+  });
+  it('TIB-Match mit Begleitung-Toggle: Antrag in Begleit-Phase wird gezeigt', () => {
+    const m = parseBearbeiterFilter('AM', true);
+    expect(antragMatchesBearbeiter(makeAntrag({
+      tib_kuerz: 'AM', status: 'VN geprüft',
+    }), m)).toBe(true);
+  });
+  it('TIB-Match ohne Begleitung-Toggle: Antrag in Antrags-Pruefung (kaufm geprueft) bleibt sichtbar', () => {
+    const m = parseBearbeiterFilter('AM', false);
+    expect(antragMatchesBearbeiter(makeAntrag({
+      tib_kuerz: 'AM', status: 'kaufm geprüft',
+    }), m)).toBe(true);
+  });
+  it('TIB-Match ohne Begleitung-Toggle: Antrag mit unbekanntem VN-Pattern wird auch ausgeblendet', () => {
+    const m = parseBearbeiterFilter('AM', false);
+    expect(antragMatchesBearbeiter(makeAntrag({
+      tib_kuerz: 'AM', status: 'VN angefordert',
+    }), m)).toBe(false);
+  });
+  it('TIB-Match ohne Begleitung-Toggle: bewilligt (final) bleibt sichtbar', () => {
+    const m = parseBearbeiterFilter('AM', false);
+    expect(antragMatchesBearbeiter(makeAntrag({
+      tib_kuerz: 'AM', status: 'bewilligt',
+    }), m)).toBe(true);
+  });
 });
 
 describe('applyBearbeiterFilter', () => {
