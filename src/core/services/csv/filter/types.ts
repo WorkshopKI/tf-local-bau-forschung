@@ -10,7 +10,7 @@ export type FilterScope = 'system' | 'admin' | 'user';
 
 export type WerteQuelle = 'auto' | 'manual';
 
-export type WerteReihenfolge = 'alphabetisch' | 'haeufigkeit' | 'manuell';
+export type WerteReihenfolge = 'alphabetisch' | 'haeufigkeit' | 'manuell' | 'numerisch_absteigend';
 
 export interface FilterConfig {
   werte_quelle?: WerteQuelle;

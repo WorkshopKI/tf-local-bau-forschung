@@ -19,6 +19,17 @@ export function SingleSelectFacet({ def, counts, selected, valueLabels, onChange
       keys.sort((a, b) => a.localeCompare(b));
     } else if (order === 'haeufigkeit') {
       keys.sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0));
+    } else if (order === 'numerisch_absteigend') {
+      keys.sort((a, b) => {
+        const na = Number(a);
+        const nb = Number(b);
+        const aNum = Number.isFinite(na);
+        const bNum = Number.isFinite(nb);
+        if (aNum && bNum) return nb - na;
+        if (aNum) return -1;
+        if (bNum) return 1;
+        return a.localeCompare(b);
+      });
     }
     if (query.trim()) {
       const q = query.toLowerCase();

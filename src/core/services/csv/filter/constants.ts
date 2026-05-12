@@ -44,7 +44,7 @@ export const SYSTEM_FILTERS_SEED: SystemFilterSeed[] = [
     name: 'Richtlinie',
     feld: 'unterprogramm_id',
     typ: 'multi_select',
-    config: { werte_quelle: 'auto', werte_reihenfolge: 'alphabetisch', leer_bucket: true },
+    config: { werte_quelle: 'auto', werte_reihenfolge: 'numerisch_absteigend', leer_bucket: true },
     anzeige_reihenfolge: 30,
     versteckt: false,
   },
