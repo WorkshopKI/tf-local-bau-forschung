@@ -88,6 +88,12 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
     setLoading(true);
     setErr(null);
     try {
+      // Anzeigename mit Dateinamen ohne .csv-Endung vorbelegen, sofern der
+      // Kurator noch nichts getippt hat. Spart manuelles Tippen bei Re-Imports
+      // gleichbenannter Exporte. Respektiert eigene Eingaben.
+      if (!state.displayName) {
+        setDisplayName(file.name.replace(/\.csv$/i, ''));
+      }
       const preview = await parseCsvPreview(file, 5);
       setFileAndPreview(file, preview);
     } catch (e) {
