@@ -8,7 +8,7 @@ import { FilterSidebarItem } from './FilterSidebarItem';
 import { SavePresetDialog } from './SavePresetDialog';
 import { QuickViewChips } from './QuickViewChips';
 import { FrequentFiltersSection } from './FrequentFiltersSection';
-import { getTopFrequent, recordFilterApply, type FrequentEntry } from './frequentFilters';
+import { getTopFrequent, recordFilterApply, type FrequentEntryView } from './frequentFilters';
 
 interface Props {
   antraege: AntragListItem[];
@@ -57,7 +57,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
     deletePreset,
   } = useFilterState();
   const [presetDialogOpen, setPresetDialogOpen] = useState(false);
-  const [frequent, setFrequent] = useState<FrequentEntry[]>(() => getTopFrequent(3));
+  const [frequent, setFrequent] = useState<FrequentEntryView[]>(() => getTopFrequent(5, [], {}));
 
   const visibleDefs = useMemo(
     () => definitions.filter(d => !d.versteckt).sort((a, b) => a.anzeige_reihenfolge - b.anzeige_reihenfolge),
@@ -90,14 +90,14 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       if (active.length > 0) recordFilterApply(active, definitions);
-      setFrequent(getTopFrequent(3));
+      setFrequent(getTopFrequent(5, definitions, valueLabels));
     }, 250);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [active, definitions]);
+  }, [active, definitions, valueLabels]);
 
-  const applyFrequent = (entry: FrequentEntry): void => {
+  const applyFrequent = (entry: FrequentEntryView): void => {
     // Bei Anwenden zuerst alles leeren, dann die gespeicherten Werte setzen.
     clearAll();
     for (const af of entry.appliedFilters) {

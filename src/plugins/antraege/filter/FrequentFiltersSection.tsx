@@ -1,9 +1,9 @@
 import { Plus } from 'lucide-react';
-import type { FrequentEntry } from './frequentFilters';
+import type { FrequentEntryView } from './frequentFilters';
 
 interface Props {
-  entries: FrequentEntry[];
-  onApply: (entry: FrequentEntry) => void;
+  entries: FrequentEntryView[];
+  onApply: (entry: FrequentEntryView) => void;
 }
 
 /**
@@ -21,20 +21,15 @@ export function FrequentFiltersSection({ entries, onApply }: Props): React.React
           key={e.signature}
           type="button"
           onClick={() => onApply(e)}
+          title={`${e.label} · ${e.count}-mal angewendet`}
           className="flex items-center gap-2 px-1.5 py-1 rounded text-left cursor-pointer hover:bg-[var(--tf-hover)] group"
         >
-          <span
-            className="flex-1 truncate text-[12px] text-[var(--tf-text-secondary)] group-hover:text-[var(--tf-text)]"
-            title={e.label}
-          >
+          <span className="flex-1 truncate text-[12px] text-[var(--tf-text-secondary)] group-hover:text-[var(--tf-text)]">
             {e.label}
-          </span>
-          <span className="text-[11px] tabular-nums text-[var(--tf-text-tertiary)]">
-            {e.count}
           </span>
           <Plus
             size={11}
-            className="text-[var(--tf-text-tertiary)] group-hover:text-[var(--tf-text-secondary)]"
+            className="text-[var(--tf-text-tertiary)] group-hover:text-[var(--tf-text-secondary)] shrink-0"
           />
         </button>
       ))}

@@ -1,15 +1,28 @@
 import type { ActiveFilter, ActiveFilterValue, FilterDefinition } from '@/core/services/csv';
+import { STATUS_GROUPS, getPhaseForStatus, type PhaseId } from './statusGroups';
 
 const STORAGE_KEY = 'teamflow_antraege_frequent_filters_v1';
 const MAX_ENTRIES = 20;
 const DECAY_HALFLIFE_DAYS = 14;
 
+/** Feld-spezifische Code→Label-Map (z.B. vb_phase: '1' → 'NW1'). */
+export type FieldValueLabels = Record<string, Record<string, string>>;
+
+/**
+ * Persistierte Form. Bewusst OHNE `label` — das Label wird beim Lesen live aus
+ * `appliedFilters + definitions + valueLabels` gerendert, damit es nicht
+ * stale wird wenn sich Definitionen oder Labels ändern.
+ */
 export interface FrequentEntry {
   signature: string;
-  label: string;
   appliedFilters: ActiveFilter[];
   lastUsed: number;
   count: number;
+}
+
+/** Anzeige-Form mit frisch gerendertem Label. */
+export interface FrequentEntryView extends FrequentEntry {
+  label: string;
 }
 
 function signatureOf(active: ActiveFilter[]): string {
@@ -17,11 +30,40 @@ function signatureOf(active: ActiveFilter[]): string {
   return JSON.stringify(sorted);
 }
 
-function valueSummary(value: ActiveFilterValue): string {
-  if (typeof value === 'string') return value;
+/**
+ * Status-Werte → „Phase Eingang (3)" wenn alle ausgewählten Werte exakt einer
+ * Phase angehören und mindestens 2 Werte gewählt sind. Bei 1 Wert oder
+ * Querschnitt über mehrere Phasen: `null` (Caller fällt auf Werte-Listing zurück).
+ */
+function phaseAggregateLabel(values: string[]): string | null {
+  if (values.length < 2) return null;
+  const phases = new Set<PhaseId>(values.map(v => getPhaseForStatus(v)));
+  if (phases.size !== 1) return null;
+  const phaseId = phases.values().next().value;
+  if (!phaseId) return null;
+  const phase = STATUS_GROUPS.find(p => p.id === phaseId);
+  if (!phase) return null;
+  return `Phase ${phase.label} (${values.length})`;
+}
+
+function mapLabel(field: string, code: string, valueLabels: FieldValueLabels): string {
+  return valueLabels[field]?.[code] ?? code;
+}
+
+function valueSummary(
+  def: FilterDefinition,
+  value: ActiveFilterValue,
+  valueLabels: FieldValueLabels,
+): string {
+  if (typeof value === 'string') {
+    return mapLabel(def.feld, value, valueLabels);
+  }
   if (Array.isArray(value)) {
-    if (value.length === 1) return value[0] ?? '';
-    return `${value.length} Werte`;
+    if (value.length === 0) return '';
+    const labels = value.map(v => mapLabel(def.feld, v, valueLabels));
+    if (labels.length === 1) return labels[0] ?? '';
+    if (labels.length === 2) return `${labels[0]}, ${labels[1]}`;
+    return `${labels[0]}, ${labels[1]} +${labels.length - 2}`;
   }
   if (value && typeof value === 'object') {
     const obj = value as Record<string, unknown>;
@@ -43,14 +85,33 @@ function valueSummary(value: ActiveFilterValue): string {
   return '';
 }
 
-export function generateLabel(active: ActiveFilter[], definitions: FilterDefinition[]): string {
+function singleFilterLabel(
+  def: FilterDefinition,
+  value: ActiveFilterValue,
+  valueLabels: FieldValueLabels,
+): string {
+  // Status mit Phase-Aggregation: kompaktes Label „Phase Eingang (3)" OHNE
+  // „Status · "-Prefix, weil die Phase-Bezeichnung schon selbsterklärend ist.
+  if (def.feld === 'status' && Array.isArray(value)) {
+    const agg = phaseAggregateLabel(value);
+    if (agg) return agg;
+  }
+  const summary = valueSummary(def, value, valueLabels);
+  if (!summary) return def.name;
+  return `${def.name} · ${summary}`;
+}
+
+export function generateLabel(
+  active: ActiveFilter[],
+  definitions: FilterDefinition[],
+  valueLabels: FieldValueLabels = {},
+): string {
   const defById = new Map(definitions.map(d => [d.id, d]));
   const parts: string[] = [];
   for (const af of active) {
     const def = defById.get(af.filterId);
     if (!def) continue;
-    const summary = valueSummary(af.value);
-    parts.push(summary ? `${def.name} · ${summary}` : def.name);
+    parts.push(singleFilterLabel(def, af.value, valueLabels));
     if (parts.length >= 2) break;
   }
   if (parts.length === 0) return 'Filter-Kombination';
@@ -66,15 +127,20 @@ function loadEntries(): FrequentEntry[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
+    // `label`-Feld wird tolerant ignoriert (alte v1-Einträge tragen es noch).
     return parsed.filter(
       (e): e is FrequentEntry =>
         !!e
         && typeof (e as FrequentEntry).signature === 'string'
-        && typeof (e as FrequentEntry).label === 'string'
         && Array.isArray((e as FrequentEntry).appliedFilters)
         && typeof (e as FrequentEntry).lastUsed === 'number'
         && typeof (e as FrequentEntry).count === 'number',
-    );
+    ).map(e => ({
+      signature: e.signature,
+      appliedFilters: e.appliedFilters,
+      lastUsed: e.lastUsed,
+      count: e.count,
+    }));
   } catch {
     return [];
   }
@@ -88,7 +154,7 @@ function saveEntries(entries: FrequentEntry[]): void {
   }
 }
 
-export function recordFilterApply(active: ActiveFilter[], definitions: FilterDefinition[]): void {
+export function recordFilterApply(active: ActiveFilter[], _definitions: FilterDefinition[]): void {
   if (active.length === 0) return;
   const sig = signatureOf(active);
   const entries = loadEntries();
@@ -97,11 +163,9 @@ export function recordFilterApply(active: ActiveFilter[], definitions: FilterDef
   if (existing) {
     existing.lastUsed = now;
     existing.count += 1;
-    existing.label = generateLabel(active, definitions);
   } else {
     entries.push({
       signature: sig,
-      label: generateLabel(active, definitions),
       appliedFilters: active.map(af => ({ ...af })),
       lastUsed: now,
       count: 1,
@@ -111,7 +175,11 @@ export function recordFilterApply(active: ActiveFilter[], definitions: FilterDef
   saveEntries(entries.slice(0, MAX_ENTRIES));
 }
 
-export function getTopFrequent(n = 3): FrequentEntry[] {
+export function getTopFrequent(
+  n = 5,
+  definitions: FilterDefinition[] = [],
+  valueLabels: FieldValueLabels = {},
+): FrequentEntryView[] {
   const entries = loadEntries();
   if (entries.length === 0) return [];
   const now = Date.now();
@@ -121,7 +189,10 @@ export function getTopFrequent(n = 3): FrequentEntry[] {
     return { entry: e, score: e.count * decay };
   });
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, n).map(s => s.entry);
+  return scored.slice(0, n).map(s => ({
+    ...s.entry,
+    label: generateLabel(s.entry.appliedFilters, definitions, valueLabels),
+  }));
 }
 
 export function clearFrequent(): void {
