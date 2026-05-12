@@ -1,12 +1,15 @@
 /**
  * Kanonische Status-Kategorien fuer Antrag-Status.
  *
- * Die App haelt zwei Welten von Status-Werten parallel:
- * - Welt A (Snake-Case Seed-Werte): `eingereicht`, `in_pruefung`, `genehmigt`, `bewilligt`,
- *   `nachforderung`, `nachbesserung`, ... — kommen aus den Seed-Fixtures.
- * - Welt B (CSV-Rohwerte aus dem Forschungsfoerderungs-Quellsystem): `beantragt`,
- *   `bearbeitungsreif`, `VN geprueft`, `NF gestellt`, `Schlussvermerk`,
- *   `abgelehnt/zurueckgezogen`, ... — kommen aus echten CSV-Importen.
+ * Die App haelt zwei Domaenen von Status-Werten parallel:
+ * - **Bauantraege** (Snake-Case-Werte aus dem Bauantrag-Workflow): `neu`,
+ *   `in_bearbeitung`, `in_pruefung`, `nachforderung`, `genehmigt`, `abgelehnt`,
+ *   `archiviert`. Auch in den Snake-Case-Seeds verbreitet (`eingereicht`,
+ *   `in_begutachtung`, `bewilligt`, `nachbesserung`, `abgeschlossen`).
+ * - **Foerderantraege** (CSV-Rohwerte aus dem Foyer-Quellsystem):
+ *   `beantragt`, `bearbeitungsreif`, `VN geprueft`, `NF gestellt`,
+ *   `Schlussvermerk`, `abgelehnt/zurueckgezogen`, ... — kommen aus echten
+ *   CSV-Importen + den anonymisierten Real-Fixtures.
  *
  * Views, Dashboard und Workflow-Logik sollten NICHT direkt gegen einen der beiden
  * Werte-Saetze vergleichen. Stattdessen die Helper hier nutzen:
@@ -32,7 +35,7 @@ export type StatusCategory =
   | 'abgeschlossen' // abgeschlossen (Schlussvermerk, abgebrochen, zurueckgezogen)
   | 'sonstige';     // Irrlaeufer, unvollstaendig, leer, unbekannt
 
-const WELT_B: ReadonlyArray<readonly [string, StatusCategory]> = [
+const FOERDERANTRAG_STATUSES: ReadonlyArray<readonly [string, StatusCategory]> = [
   // Eingang
   ['beantragt', 'offen'],
   ['bearbeitungsreif', 'offen'],
@@ -43,23 +46,30 @@ const WELT_B: ReadonlyArray<readonly [string, StatusCategory]> = [
   ['techn geprüft', 'in_pruefung'],
   ['kaufm geprüft', 'in_pruefung'],
   ['gutachten fertig', 'in_pruefung'],
-  // Entscheidungs-Vorbereitung
+  // Entscheidungs-Vorbereitung + in-Process-Negativ-Entscheidungen.
+  // Solange der Vorgang in Widerruf/Anhoerung/Ablehnungsreif laeuft, ist er
+  // aktiv im Verfahren — NICHT final-abgelehnt. Erst der abschliessende
+  // Status `abgelehnt/zurueckgezogen` (Kategorie `abgeschlossen`) macht den
+  // negativen Ausgang final. Konsequenz: `isOpenStatus` matched diese,
+  // `isClosedStatus` nicht. `isAbgelehntStatus` (Bauantrag-Domain) matched
+  // sie ebenfalls nicht.
   ['bewilligungsreif', 'entscheidung'],
   ['bewilligungsentwurf vdi/vde-it', 'entscheidung'],
   ['ablehnungsreif', 'entscheidung'],
+  ['ablehnung', 'entscheidung'],
+  ['widerruf', 'entscheidung'],
   ['anhörung zum widerruf', 'entscheidung'],
   ['rücknahmeempfehlung', 'entscheidung'],
   ['stellungnahme zur rücknahmeempf.', 'entscheidung'],
   ['widerspruch zur ablehnung', 'entscheidung'],
-  // Positiv
+  // Positiv (final)
   ['bewilligt', 'bewilligt'],
-  // Negativ
-  ['ablehnung', 'abgelehnt'],
-  ['widerruf', 'abgelehnt'],
   // Nachforderung
   ['nf gestellt', 'nachforderung'],
   ['keine weiteren nf', 'nachforderung'],
-  // Abgeschlossen
+  // Abgeschlossen (final — schliesst auch den negativ-finalen Pfad
+  // `abgelehnt/zurueckgezogen` ein; Foerderantrag-Domain hat keinen
+  // separaten `abgelehnt`-Endzustand).
   ['schlussvermerk', 'abgeschlossen'],
   ['beendet', 'abgeschlossen'],
   ['abgelehnt/zurückgezogen', 'abgeschlossen'],
@@ -69,7 +79,7 @@ const WELT_B: ReadonlyArray<readonly [string, StatusCategory]> = [
   ['unvollständig', 'sonstige'],
 ];
 
-const WELT_A: ReadonlyArray<readonly [string, StatusCategory]> = [
+const BAUANTRAG_STATUSES: ReadonlyArray<readonly [string, StatusCategory]> = [
   // Eingang
   ['neu', 'offen'],
   ['eingereicht', 'offen'],
@@ -80,9 +90,11 @@ const WELT_A: ReadonlyArray<readonly [string, StatusCategory]> = [
   // Nachforderung
   ['nachforderung', 'nachforderung'],
   ['nachbesserung', 'nachforderung'],
-  // Positiv (Welt A nennt es `genehmigt`, Welt B `bewilligt` — beide sind "positiv entschieden")
+  // Positiv (Bauantrag-Domain nennt es `genehmigt`, Foerderantrag-Domain
+  // `bewilligt` — beide sind "positiv entschieden")
   ['genehmigt', 'bewilligt'],
-  // Negativ
+  // Negativ (final, nur Bauantrag-Domain — bei Foerderantraegen geht der
+  // negativ-finale Pfad ueber `abgelehnt/zurueckgezogen` in `abgeschlossen`)
   ['abgelehnt', 'abgelehnt'],
   // Abgeschlossen
   ['archiviert', 'abgeschlossen'],
@@ -91,8 +103,8 @@ const WELT_A: ReadonlyArray<readonly [string, StatusCategory]> = [
 
 const CATEGORY_MAP: ReadonlyMap<string, StatusCategory> = (() => {
   const m = new Map<string, StatusCategory>();
-  for (const [key, cat] of WELT_B) m.set(key, cat);
-  for (const [key, cat] of WELT_A) m.set(key, cat);
+  for (const [key, cat] of FOERDERANTRAG_STATUSES) m.set(key, cat);
+  for (const [key, cat] of BAUANTRAG_STATUSES) m.set(key, cat);
   return m;
 })();
 

@@ -1,9 +1,9 @@
 /**
  * Zentrale Status-Labels und Badge-Variants fuer Vorgang-Status (Bauantrag, Förderantrag).
  *
- * Deckt beide "Welten" ab:
- * - Welt A — Snake-Case Seed-Werte (`eingereicht`, `in_pruefung`, `genehmigt`, ...)
- * - Welt B — CSV-Rohwerte aus dem Forschungsfoerderungs-Quellsystem
+ * Deckt beide Domaenen ab:
+ * - **Bauantraege** — Snake-Case-Werte (`neu`, `in_pruefung`, `genehmigt`, ...)
+ * - **Foerderantraege** — CSV-Rohwerte aus dem Foyer-Quellsystem
  *   (`beantragt`, `VN geprüft`, `NF gestellt`, `bewilligt`, ...)
  *
  * Fuer fachliche Vergleiche (offen / bewilligt / nachforderung / etc.) NICHT diese
@@ -20,7 +20,7 @@
 export type BadgeVariant = 'info' | 'warning' | 'success' | 'error' | 'default';
 
 export const STATUS_LABELS: Record<string, string> = {
-  // ── Welt A — Snake-Case Seed-Werte ─────────────────────────────────────
+  // ── Bauantraege — Snake-Case-Werte ─────────────────────────────────────
   // Bauantrag
   neu: 'Neu',
   in_bearbeitung: 'In Bearbeitung',
@@ -36,7 +36,7 @@ export const STATUS_LABELS: Record<string, string> = {
   bewilligt: 'Bewilligt',
   abgeschlossen: 'Abgeschlossen',
 
-  // ── Welt B — CSV-Rohwerte aus dem Quellsystem ───────────────────────────
+  // ── Foerderantraege — CSV-Rohwerte aus dem Foyer-Quellsystem ───────────
   // Labels gekuerzt, damit die Status-Pille mit einheitlicher Breite ohne
   // Umbruch passt. Vergleich case-sensitive (CSV-Werte sind so).
   beantragt: 'Beantragt',
@@ -67,7 +67,7 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export const STATUS_VARIANTS: Record<string, BadgeVariant> = {
-  // ── Welt A ──────────────────────────────────────────────────────────────
+  // ── Bauantraege ─────────────────────────────────────────────────────────
   neu: 'info',
   in_bearbeitung: 'warning',
   nachforderung: 'warning',
@@ -81,7 +81,7 @@ export const STATUS_VARIANTS: Record<string, BadgeVariant> = {
   bewilligt: 'success',
   abgeschlossen: 'default',
 
-  // ── Welt B — Variants nach fachlicher Kategorie ─────────────────────────
+  // ── Foerderantraege — Variants nach fachlicher Kategorie ────────────────
   // offen → info
   beantragt: 'info',
   bearbeitungsreif: 'info',
@@ -103,9 +103,11 @@ export const STATUS_VARIANTS: Record<string, BadgeVariant> = {
   // nachforderung → warning
   'NF gestellt': 'warning',
   'keine weiteren NF': 'warning',
-  // abgelehnt → error
-  Ablehnung: 'error',
-  Widerruf: 'error',
+  // entscheidung (in-Process-Negativ, noch nicht final) → info
+  // Foerderantraege haben keinen final-abgelehnt-Status; Ablehnung/Widerruf
+  // sind aktive Verfahren, finalisiert ueber `abgelehnt/zurueckgezogen`.
+  Ablehnung: 'info',
+  Widerruf: 'info',
   // abgeschlossen → default
   Schlussvermerk: 'default',
   beendet: 'default',

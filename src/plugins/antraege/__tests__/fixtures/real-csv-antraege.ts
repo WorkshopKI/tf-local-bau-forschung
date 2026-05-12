@@ -1,12 +1,13 @@
 /**
- * Fixture B — "Echt-artig": Antraege mit Welt-B-Status-Werten (CSV-Rohwerte
- * aus dem echten Forschungsfoerderungs-Quellsystem).
+ * Fixture B — Foerderantrag-artig: Antraege mit CSV-Rohwerten aus dem
+ * echten Foyer-Quellsystem.
  *
- * Spiegelt den Produktiv-Pfad. Strukturell parallel zu `seed-antraege.ts`:
- * dieselbe Anzahl, dieselbe vb_phase/Datums-Verteilung, dieselben
- * View-Zuordnungen — nur die Status-Werte sind anders. So koennen Tests beide
- * Fixtures gegen dieselben Erwartungen laufen lassen; wenn ein Test mit
- * Fixture A passt aber mit Fixture B failt, ist genau das der Bug.
+ * Spiegelt den Produktiv-Pfad. Strukturell parallel zu `seed-antraege.ts`
+ * (Bauantrag-artige Snake-Case-Werte): dieselbe Anzahl, dieselbe
+ * vb_phase/Datums-Verteilung, dieselben View-Zuordnungen — nur die
+ * Status-Werte sind anders. So koennen Tests beide Fixtures gegen dieselben
+ * Erwartungen laufen lassen; wenn ein Test mit Fixture A (Bauantrag) passt
+ * aber mit Fixture B (Foerderantrag) failt, ist genau das der Bug.
  */
 import type { AntragListItem } from '@/core/services/csv/types';
 
@@ -72,9 +73,15 @@ export const REAL_CSV_ANTRAEGE: readonly AntragListItem[] = [
     aktenzeichen: 'REAL-009', status: 'bewilligt', vb_phase: 3,
     antragsdatum: '2024-08-01', bewilligung_datum: '2024-12-01',
   }),
-  // 10 — Ablehnung, kein bewilligung_datum (Ampel null wg. closed)
+  // 10 — Schlussvermerk (abgeschlossen, final-closed) ohne bewilligung_datum
+  // → Ampel null via Status-Check (nicht via Datum-Check). Parallel zu
+  // SEED-010 (Bauantrag: `abgelehnt`, ebenfalls final-closed ohne Datum).
+  // Hinweis: Foerderantraege haben keinen final-`abgelehnt`-Endzustand;
+  // negative Verfahren laufen via `Ablehnung`/`Widerruf` (Kategorie
+  // `entscheidung`, noch offen!) und finalisieren via
+  // `abgelehnt/zurueckgezogen` (Kategorie `abgeschlossen`).
   mk({
-    aktenzeichen: 'REAL-010', status: 'Ablehnung', vb_phase: 3,
+    aktenzeichen: 'REAL-010', status: 'Schlussvermerk', vb_phase: 3,
     antragsdatum: '2026-02-01',
   }),
   // 11 — Schlussvermerk (abgeschlossen)

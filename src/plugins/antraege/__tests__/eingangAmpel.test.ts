@@ -67,24 +67,21 @@ describe('getEingangAmpel — Ausschluesse → null', () => {
       aktenzeichen: 'A', status: 'abgelehnt', antragsdatum: '2026-04-20',
     }))).toBeNull();
   });
-  it('Welt-B "Schlussvermerk" (abgeschlossen) → null', () => {
+  it('Foerderantrag "Schlussvermerk" (abgeschlossen) → null', () => {
     expect(getEingangAmpel(mk({
       aktenzeichen: 'A', status: 'Schlussvermerk', antragsdatum: '2026-04-20',
     }))).toBeNull();
   });
-  it('Welt-B "abgelehnt/zurückgezogen" → null', () => {
+  it('Foerderantrag "abgelehnt/zurückgezogen" (abgeschlossen) → null', () => {
     expect(getEingangAmpel(mk({
       aktenzeichen: 'A', status: 'abgelehnt/zurückgezogen', antragsdatum: '2026-04-20',
     }))).toBeNull();
   });
-  it('Welt-B "Ablehnung" → null', () => {
-    expect(getEingangAmpel(mk({
-      aktenzeichen: 'A', status: 'Ablehnung', antragsdatum: '2026-04-20',
-    }))).toBeNull();
-  });
+  // Hinweis: Foerderantrag "Ablehnung" zaehlt jetzt als entscheidung (offen),
+  // nicht mehr als final-closed — die Ampel SOLL hier sichtbar bleiben.
 });
 
-describe('getEingangAmpel — Welt-B Status-Werte (offene Stati)', () => {
+describe('getEingangAmpel — Foerderantrag Status-Werte (offene Stati)', () => {
   it('"beantragt" mit antragsdatum → Ampel zaehlt', () => {
     expect(getEingangAmpel(mk({
       aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-04-20',
@@ -103,6 +100,16 @@ describe('getEingangAmpel — Welt-B Status-Werte (offene Stati)', () => {
   it('"bewilligungsreif" (entscheidung) mit antragsdatum → Ampel zaehlt', () => {
     expect(getEingangAmpel(mk({
       aktenzeichen: 'A', status: 'bewilligungsreif', antragsdatum: '2026-01-01',
+    }))).toBe('rot');
+  });
+  it('"Ablehnung" (entscheidung — noch im Verfahren, nicht final) → Ampel zaehlt', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'Ablehnung', antragsdatum: '2026-04-20',
+    }))).toBe('gruen');
+  });
+  it('"Widerruf" (entscheidung — noch im Verfahren) → Ampel zaehlt', () => {
+    expect(getEingangAmpel(mk({
+      aktenzeichen: 'A', status: 'Widerruf', antragsdatum: '2026-01-01',
     }))).toBe('rot');
   });
 });
@@ -125,8 +132,8 @@ describe('daysSinceEingang', () => {
 
 describe('Konsistenz: Ampel-View-Counts === Anzahl Items mit selber Ampelfarbe', () => {
   for (const [name, data] of [
-    ['Welt A', SEED_ANTRAEGE],
-    ['Welt B', REAL_CSV_ANTRAEGE],
+    ['Bauantraege', SEED_ANTRAEGE],
+    ['Foerderantraege', REAL_CSV_ANTRAEGE],
   ] as const) {
     it(`${name}: eingang_frisch == #(getEingangAmpel === 'gruen')`, () => {
       const ampelGruen = data.filter(a => getEingangAmpel(a) === 'gruen').length;

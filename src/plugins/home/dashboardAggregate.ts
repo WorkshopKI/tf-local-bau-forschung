@@ -177,14 +177,18 @@ export function computeDashboardAggregate(
     .sort((a, b) => b.modified.localeCompare(a.modified))
     .slice(0, 8);
 
+  // Sortierung: Frist primaer (frueheste Frist oben), VB-Phase als Tie-Breaker.
+  // Antraege ohne `deadline` (frist_datum nicht gepflegt) rutschen ans Ende
+  // durch den `￿`-Sentinel-Sort-Key.
   const meineAntraege = [...offeneAntraege]
     .sort((a, b) => {
-      const pa = a.vb_phase ?? Number.POSITIVE_INFINITY;
-      const pb = b.vb_phase ?? Number.POSITIVE_INFINITY;
-      if (pa !== pb) return pa - pb;
       const da = a.deadline ?? '￿';
       const db = b.deadline ?? '￿';
-      return da.localeCompare(db);
+      const dCmp = da.localeCompare(db);
+      if (dCmp !== 0) return dCmp;
+      const pa = a.vb_phase ?? Number.POSITIVE_INFINITY;
+      const pb = b.vb_phase ?? Number.POSITIVE_INFINITY;
+      return pa - pb;
     })
     .slice(0, 5);
 

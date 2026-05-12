@@ -9,8 +9,8 @@ const NEUTRAL = parseBearbeiterFilter(undefined, undefined);
 const BAUANTRAEGE: never[] = [];
 
 const FIXTURES = [
-  { name: 'Welt A (Snake-Case)', data: SEED_ANTRAEGE },
-  { name: 'Welt B (CSV-Rohwerte)', data: REAL_CSV_ANTRAEGE },
+  { name: 'Bauantraege (Snake-Case)', data: SEED_ANTRAEGE },
+  { name: 'Foerderantraege (CSV-Rohwerte)', data: REAL_CSV_ANTRAEGE },
 ] as const;
 
 describe.each(FIXTURES)('computeDashboardAggregate — $name', ({ data }) => {
@@ -20,19 +20,19 @@ describe.each(FIXTURES)('computeDashboardAggregate — $name', ({ data }) => {
     });
     expect(agg.stats.total).toBe(18);
   });
-  it('inPruefung > 0 (deckt Welt-A in_pruefung/in_begutachtung/in_bearbeitung UND Welt-B VN/techn/kaufm geprueft/Gutachten)', () => {
+  it('inPruefung > 0 (deckt Bauantrag in_pruefung/in_begutachtung/in_bearbeitung UND Foerderantrag VN/techn/kaufm geprueft/Gutachten)', () => {
     const agg = computeDashboardAggregate(BAUANTRAEGE, data, NEUTRAL, {
       includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
     expect(agg.stats.inPruefung).toBe(4);
   });
-  it('nachforderung > 0 (deckt Welt-A nachforderung/nachbesserung UND Welt-B NF gestellt)', () => {
+  it('nachforderung > 0 (deckt Bauantrag nachforderung/nachbesserung UND Foerderantrag NF gestellt)', () => {
     const agg = computeDashboardAggregate(BAUANTRAEGE, data, NEUTRAL, {
       includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
     expect(agg.stats.nachforderung).toBe(2);
   });
-  it('bewilligt > 0 (deckt Welt-A genehmigt/bewilligt UND Welt-B bewilligt)', () => {
+  it('bewilligt > 0 (deckt Bauantrag genehmigt/bewilligt UND Foerderantrag bewilligt)', () => {
     const agg = computeDashboardAggregate(BAUANTRAEGE, data, NEUTRAL, {
       includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
     });

@@ -6,12 +6,12 @@
  * Zweck: stellt sicher, dass
  * - der CSV-Parser die echten Foyer-Headerzeilen + Separatoren + Encodings
  *   verarbeiten kann
- * - die Status-Werte in den echten CSVs allesamt im Welt-B-Canonical-Mapping
- *   (`status-canonical.ts`) abgedeckt sind (keine "sonstige"-Fallthrough)
+ * - die Status-Werte in den echten CSVs allesamt im Foerderantrag-Canonical-
+ *   Mapping (`status-canonical.ts`) abgedeckt sind (keine "sonstige"-Fallthrough)
  * - die zentralen Spalten (FKZ, VB_PHASE, STATUS_TV, D_AAE, etc.) in der
  *   erwarteten Form vorhanden sind
  *
- * Komplementiert die handgeschriebenen Welt-B-Fixtures in
+ * Komplementiert die handgeschriebenen Foerderantrag-Fixtures in
  * `fixtures/real-csv-antraege.ts`: dort gezielte Edge-Cases, hier
  * Real-World-Repraesentativitaet.
  */
@@ -78,7 +78,7 @@ describeWithMaster('Real Fixture CSV — Master (sample_9097_AnB)', () => {
     }
   });
 
-  it('alle vorkommenden STATUS_TV-Werte sind im Welt-B-Canonical-Mapping abgedeckt', async () => {
+  it('alle vorkommenden STATUS_TV-Werte sind im Foerderantrag-Canonical-Mapping abgedeckt', async () => {
     const { rows } = await loadAndParse(MASTER_CSV);
     const statusValues = new Set<string>();
     for (const row of rows) {
@@ -86,7 +86,7 @@ describeWithMaster('Real Fixture CSV — Master (sample_9097_AnB)', () => {
       if (s) statusValues.add(s);
     }
     expect(statusValues.size).toBeGreaterThan(0);
-    // Es darf maximal *einen* Welt-B-Wert geben der als 'sonstige' kategorisiert
+    // Es darf maximal *einen* Foerderantrag-Wert geben der als 'sonstige' kategorisiert
     // wird (z.B. exotische Aussenseiter-Status). Sonst ist das Canonical-Mapping
     // luckenhaft.
     const sonstige: string[] = [];

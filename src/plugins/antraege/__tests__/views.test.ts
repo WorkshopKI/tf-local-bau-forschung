@@ -31,8 +31,8 @@ const EXPECTED: Record<ViewKey, { withPreFilter: number; withoutPreFilter: numbe
 };
 
 const FIXTURES = [
-  { name: 'Fixture A (Welt A, Snake-Case)', data: SEED_ANTRAEGE },
-  { name: 'Fixture B (Welt B, CSV-Rohwerte)', data: REAL_CSV_ANTRAEGE },
+  { name: 'Fixture A (Bauantraege, Snake-Case)', data: SEED_ANTRAEGE },
+  { name: 'Fixture B (Foerderantraege, CSV-Rohwerte)', data: REAL_CSV_ANTRAEGE },
 ] as const;
 
 describe.each(FIXTURES)('viewCount mit $name', ({ data }) => {

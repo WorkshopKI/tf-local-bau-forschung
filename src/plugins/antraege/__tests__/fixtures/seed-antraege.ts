@@ -1,7 +1,8 @@
 /**
- * Fixture A — "Seed-artig": Antraege mit Welt-A-Status-Werten (Snake-Case).
+ * Fixture A — Bauantrag-artig: Antraege mit Snake-Case-Status-Werten aus
+ * dem Bauantrag-Workflow (`neu`, `in_pruefung`, `genehmigt`, `abgelehnt`, ...).
  *
- * Spiegelt den Daten-Pfad, der beim DEV-Seed durchlaeuft. Jedes Item ist mit
+ * Spiegelt den Daten-Pfad der ehemaligen Pre-v2-Seeds. Jedes Item ist mit
  * Inline-Kommentar dokumentiert, in welche View(s) es fallen sollte. Alle
  * relativen Datums-Werte sind gegen `TEST_TODAY = 2026-05-12` ausgerichtet.
  */
@@ -60,7 +61,7 @@ export const SEED_ANTRAEGE: readonly AntragListItem[] = [
     aktenzeichen: 'SEED-007', status: 'bewilligt', vb_phase: 3,
     antragsdatum: '2025-12-01', bewilligung_datum: '2026-03-15',
   }),
-  // 8 — genehmigt (Welt-A-Equivalent), in current year (bewilligt_jahr)
+  // 8 — genehmigt (Bauantrag-Equivalent zu Foerderantrag-`bewilligt`), in current year
   mk({
     aktenzeichen: 'SEED-008', status: 'genehmigt', vb_phase: 4,
     antragsdatum: '2025-11-15', bewilligung_datum: '2026-02-01',
@@ -96,7 +97,7 @@ export const SEED_ANTRAEGE: readonly AntragListItem[] = [
     aktenzeichen: 'SEED-014', status: 'in_pruefung', vb_phase: 9,
     antragsdatum: '2026-04-01',
   }),
-  // 15 — "neu" (Welt-A offen), 10d (gruen)
+  // 15 — "neu" (Bauantrag offen), 10d (gruen)
   mk({
     aktenzeichen: 'SEED-015', status: 'neu', vb_phase: 1,
     antragsdatum: '2026-05-02',

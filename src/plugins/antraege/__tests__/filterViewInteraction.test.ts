@@ -69,13 +69,13 @@ const VB_PHASE_FILTER_DEF: FilterDefinition = {
 const DEFS = [STATUS_FILTER_DEF, VB_PHASE_FILTER_DEF];
 
 describe('View "alle" + Status-Filter — beide Welten', () => {
-  it('Welt A: Filter ["bewilligt"] matcht NUR Welt-A "bewilligt" (Substring-Vergleich, Rohwert)', () => {
+  it('Bauantraege: Filter ["bewilligt"] matcht NUR Bauantrag "bewilligt" (Substring-Vergleich, Rohwert)', () => {
     const active: ActiveFilter[] = [{ filterId: 'filter-status', value: ['bewilligt'] }];
     const result = runPipeline(SEED_ANTRAEGE, 'alle', active, DEFS, NEUTRAL);
     // SEED-007 (bewilligt), SEED-009 (bewilligt), SEED-018 (bewilligt) — NICHT SEED-008 (genehmigt)
     expect(result.map(r => r.aktenzeichen).sort()).toEqual(['SEED-007', 'SEED-009', 'SEED-018']);
   });
-  it('Welt B: Filter ["bewilligt"] matcht alle Welt-B "bewilligt"-Items', () => {
+  it('Foerderantraege: Filter ["bewilligt"] matcht alle Foerderantrag "bewilligt"-Items', () => {
     const active: ActiveFilter[] = [{ filterId: 'filter-status', value: ['bewilligt'] }];
     const result = runPipeline(REAL_CSV_ANTRAEGE, 'alle', active, DEFS, NEUTRAL);
     expect(result.map(r => r.aktenzeichen).sort()).toEqual(['REAL-007', 'REAL-008', 'REAL-009', 'REAL-018']);
@@ -83,22 +83,22 @@ describe('View "alle" + Status-Filter — beide Welten', () => {
 });
 
 describe('View "nachforderungen" — beide Welten', () => {
-  it('Welt A: nur Welt-A nachforderung/nachbesserung', () => {
+  it('Bauantraege: nur Bauantrag nachforderung/nachbesserung', () => {
     const result = runPipeline(SEED_ANTRAEGE, 'nachforderungen', [], [], NEUTRAL);
     expect(result.map(r => r.aktenzeichen).sort()).toEqual(['SEED-005', 'SEED-006']);
   });
-  it('Welt B: nur Welt-B "NF gestellt" (View-Predicate ueber Kategorie)', () => {
+  it('Foerderantraege: nur Foerderantrag "NF gestellt" (View-Predicate ueber Kategorie)', () => {
     const result = runPipeline(REAL_CSV_ANTRAEGE, 'nachforderungen', [], [], NEUTRAL);
     expect(result.map(r => r.aktenzeichen).sort()).toEqual(['REAL-005', 'REAL-006']);
   });
 });
 
 describe('View "meine_offenen" + Bearbeiter-Filter — Intersection', () => {
-  it('Welt A: bearbeiter=ABC → nur SEED-016', () => {
+  it('Bauantraege: bearbeiter=ABC → nur SEED-016', () => {
     const result = runPipeline(SEED_ANTRAEGE, 'meine_offenen', [], [], ABC);
     expect(result.map(r => r.aktenzeichen)).toEqual(['SEED-016']);
   });
-  it('Welt B: bearbeiter=ABC → nur REAL-016', () => {
+  it('Foerderantraege: bearbeiter=ABC → nur REAL-016', () => {
     const result = runPipeline(REAL_CSV_ANTRAEGE, 'meine_offenen', [], [], ABC);
     expect(result.map(r => r.aktenzeichen)).toEqual(['REAL-016']);
   });

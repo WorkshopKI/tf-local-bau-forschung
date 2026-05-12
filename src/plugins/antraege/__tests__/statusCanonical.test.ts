@@ -9,7 +9,7 @@ import {
   isClosedStatus,
 } from '@/core/utils/status-canonical';
 
-describe('getStatusCategory — Welt B (CSV-Rohwerte)', () => {
+describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
   it.each([
     ['beantragt', 'offen'],
     ['bearbeitungsreif', 'offen'],
@@ -22,11 +22,16 @@ describe('getStatusCategory — Welt B (CSV-Rohwerte)', () => {
     ['bewilligungsreif', 'entscheidung'],
     ['ablehnungsreif', 'entscheidung'],
     ['Bewilligungsentwurf VDI/VDE-IT', 'entscheidung'],
+    // Ablehnung + Widerruf zaehlen als entscheidung (noch im Verfahren), NICHT
+    // als final-abgelehnt — Foerderantraege haben keinen final-`abgelehnt`-
+    // Endzustand; negativ-final landet in `abgelehnt/zurueckgezogen` (abgeschlossen).
+    ['Ablehnung', 'entscheidung'],
+    ['Widerruf', 'entscheidung'],
+    ['Anhörung zum Widerruf', 'entscheidung'],
+    ['Rücknahmeempfehlung', 'entscheidung'],
     ['NF gestellt', 'nachforderung'],
     ['keine weiteren NF', 'nachforderung'],
     ['bewilligt', 'bewilligt'],
-    ['Ablehnung', 'abgelehnt'],
-    ['Widerruf', 'abgelehnt'],
     ['Schlussvermerk', 'abgeschlossen'],
     ['beendet', 'abgeschlossen'],
     ['abgelehnt/zurückgezogen', 'abgeschlossen'],
@@ -38,7 +43,7 @@ describe('getStatusCategory — Welt B (CSV-Rohwerte)', () => {
   });
 });
 
-describe('getStatusCategory — Welt A (Snake-Case)', () => {
+describe('getStatusCategory — Bauantraege (Snake-Case)', () => {
   it.each([
     ['neu', 'offen'],
     ['eingereicht', 'offen'],
@@ -93,6 +98,8 @@ describe('isOpenStatus — deckt offen + in_pruefung + nachforderung + entscheid
     'VN geprüft', 'kaufm geprüft', 'Gutachten fertig',
     'NF gestellt', 'keine weiteren NF',
     'bewilligungsreif', 'ablehnungsreif',
+    // Ablehnung/Widerruf sind noch im Verfahren, nicht final-abgelehnt
+    'Ablehnung', 'Widerruf', 'Anhörung zum Widerruf',
     'eingereicht', 'in_pruefung', 'in_begutachtung',
     'nachforderung', 'nachbesserung',
   ])('"%s" ist offen', s => {
@@ -100,18 +107,20 @@ describe('isOpenStatus — deckt offen + in_pruefung + nachforderung + entscheid
   });
   it.each([
     'bewilligt', 'genehmigt',
-    'Ablehnung', 'abgelehnt',
+    // Nur Bauantrag-`abgelehnt` ist final-abgelehnt (offen=false)
+    'abgelehnt',
     'Schlussvermerk', 'archiviert', 'abgeschlossen', 'abgebrochen',
+    'abgelehnt/zurückgezogen',
     'Irrläufer', 'unvollständig', '', undefined,
   ])('"%s" ist NICHT offen', s => {
     expect(isOpenStatus(s)).toBe(false);
   });
 });
 
-describe('isBewilligtStatus — deckt Welt-A `genehmigt` + Welt-B `bewilligt` ab', () => {
-  it('Welt B "bewilligt" → true', () => expect(isBewilligtStatus('bewilligt')).toBe(true));
-  it('Welt A "genehmigt" → true', () => expect(isBewilligtStatus('genehmigt')).toBe(true));
-  it('Welt A "bewilligt" → true', () => expect(isBewilligtStatus('bewilligt')).toBe(true));
+describe('isBewilligtStatus — deckt Bauantrag-`genehmigt` + Foerderantrag-`bewilligt` ab', () => {
+  it('Foerderantrag "bewilligt" → true', () => expect(isBewilligtStatus('bewilligt')).toBe(true));
+  it('Bauantrag "genehmigt" → true', () => expect(isBewilligtStatus('genehmigt')).toBe(true));
+  it('Bauantrag "bewilligt" → true', () => expect(isBewilligtStatus('bewilligt')).toBe(true));
   it('bewilligungsreif → false (Entscheidungs-Vorbereitung, nicht "bewilligt")', () => {
     expect(isBewilligtStatus('bewilligungsreif')).toBe(false);
   });
@@ -121,34 +130,41 @@ describe('isBewilligtStatus — deckt Welt-A `genehmigt` + Welt-B `bewilligt` ab
 });
 
 describe('isNachforderungStatus', () => {
-  it('Welt B "NF gestellt" → true', () => expect(isNachforderungStatus('NF gestellt')).toBe(true));
-  it('Welt B "keine weiteren NF" → true', () => expect(isNachforderungStatus('keine weiteren NF')).toBe(true));
-  it('Welt A "nachforderung" → true', () => expect(isNachforderungStatus('nachforderung')).toBe(true));
-  it('Welt A "nachbesserung" → true', () => expect(isNachforderungStatus('nachbesserung')).toBe(true));
+  it('Foerderantrag "NF gestellt" → true', () => expect(isNachforderungStatus('NF gestellt')).toBe(true));
+  it('Foerderantrag "keine weiteren NF" → true', () => expect(isNachforderungStatus('keine weiteren NF')).toBe(true));
+  it('Bauantrag "nachforderung" → true', () => expect(isNachforderungStatus('nachforderung')).toBe(true));
+  it('Bauantrag "nachbesserung" → true', () => expect(isNachforderungStatus('nachbesserung')).toBe(true));
   it('"in_pruefung" → false', () => expect(isNachforderungStatus('in_pruefung')).toBe(false));
 });
 
 describe('isInPruefungStatus', () => {
-  it('Welt B "VN geprüft" → true', () => expect(isInPruefungStatus('VN geprüft')).toBe(true));
-  it('Welt B "Gutachten fertig" → true', () => expect(isInPruefungStatus('Gutachten fertig')).toBe(true));
-  it('Welt A "in_pruefung" → true', () => expect(isInPruefungStatus('in_pruefung')).toBe(true));
-  it('Welt A "in_begutachtung" → true', () => expect(isInPruefungStatus('in_begutachtung')).toBe(true));
+  it('Foerderantrag "VN geprüft" → true', () => expect(isInPruefungStatus('VN geprüft')).toBe(true));
+  it('Foerderantrag "Gutachten fertig" → true', () => expect(isInPruefungStatus('Gutachten fertig')).toBe(true));
+  it('Bauantrag "in_pruefung" → true', () => expect(isInPruefungStatus('in_pruefung')).toBe(true));
+  it('Bauantrag "in_begutachtung" → true', () => expect(isInPruefungStatus('in_begutachtung')).toBe(true));
   it('"bewilligt" → false', () => expect(isInPruefungStatus('bewilligt')).toBe(false));
 });
 
-describe('isAbgelehntStatus', () => {
-  it('Welt B "Ablehnung" → true', () => expect(isAbgelehntStatus('Ablehnung')).toBe(true));
-  it('Welt B "Widerruf" → true', () => expect(isAbgelehntStatus('Widerruf')).toBe(true));
-  it('Welt A "abgelehnt" → true', () => expect(isAbgelehntStatus('abgelehnt')).toBe(true));
-  it('"abgelehnt/zurückgezogen" → false (Welt B: abgeschlossen, nicht direkt "abgelehnt")', () => {
+describe('isAbgelehntStatus — nur Bauantrag-Domain hat einen final-abgelehnt-Status', () => {
+  it('Bauantrag "abgelehnt" → true', () => expect(isAbgelehntStatus('abgelehnt')).toBe(true));
+  it('Foerderantrag "Ablehnung" → false (noch im Verfahren, nicht final)', () => {
+    expect(isAbgelehntStatus('Ablehnung')).toBe(false);
+  });
+  it('Foerderantrag "Widerruf" → false (noch im Verfahren, nicht final)', () => {
+    expect(isAbgelehntStatus('Widerruf')).toBe(false);
+  });
+  it('"abgelehnt/zurückgezogen" → false (Foerderantrag: Kategorie abgeschlossen)', () => {
     expect(isAbgelehntStatus('abgelehnt/zurückgezogen')).toBe(false);
   });
 });
 
-describe('isClosedStatus — final entschieden', () => {
+describe('isClosedStatus — final entschieden (bewilligt + abgelehnt + abgeschlossen)', () => {
   it.each([
+    // bewilligt (final)
     'bewilligt', 'genehmigt',
-    'Ablehnung', 'abgelehnt', 'Widerruf',
+    // Nur Bauantrag-`abgelehnt` ist final-abgelehnt
+    'abgelehnt',
+    // abgeschlossen (final)
     'Schlussvermerk', 'beendet', 'abgelehnt/zurückgezogen', 'abgebrochen',
     'archiviert', 'abgeschlossen',
   ])('"%s" ist closed', s => {
@@ -157,6 +173,8 @@ describe('isClosedStatus — final entschieden', () => {
   it.each([
     'beantragt', 'VN geprüft', 'NF gestellt', 'bewilligungsreif',
     'eingereicht', 'in_pruefung', 'nachforderung',
+    // Ablehnung/Widerruf sind NICHT closed — sie sind noch im Entscheidungs-Verfahren
+    'Ablehnung', 'Widerruf', 'Anhörung zum Widerruf', 'Rücknahmeempfehlung',
   ])('"%s" ist NICHT closed', s => {
     expect(isClosedStatus(s)).toBe(false);
   });
