@@ -109,6 +109,9 @@ export const DEFAULT_SORT_BY_VIEW: Record<ViewKey, SortKey> = {
   ueberfaellig: 'frist_asc',
   nachforderungen: 'frist_asc',
   bewilligt_jahr: 'bewilligung_desc',
+  eingang_frisch: 'aktenzeichen_asc',
+  eingang_warnung: 'aktenzeichen_asc',
+  eingang_kritisch: 'aktenzeichen_asc',
   alle: 'aktenzeichen_asc',
 };
 

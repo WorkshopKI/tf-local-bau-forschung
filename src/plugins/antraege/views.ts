@@ -1,5 +1,6 @@
 import type { AntragListItem } from '@/core/services/csv/types';
 import { antragMatchesBearbeiter, type BearbeiterFilterMode } from './bearbeiterFilter';
+import { getEingangAmpel } from './eingangAmpel';
 
 export type ViewKey =
   | 'meine_offenen'
@@ -7,6 +8,9 @@ export type ViewKey =
   | 'ueberfaellig'
   | 'nachforderungen'
   | 'bewilligt_jahr'
+  | 'eingang_frisch'
+  | 'eingang_warnung'
+  | 'eingang_kritisch'
   | 'alle';
 
 const OPEN_STATUSES = new Set([
@@ -80,6 +84,27 @@ export const VIEWS: AntragView[] = [
     key: 'bewilligt_jahr',
     label: `Bewilligt ${CURRENT_YEAR}`,
     predicate: a => (a.status === 'bewilligt' || a.status === 'genehmigt') && yearOfBewilligung(a) === CURRENT_YEAR,
+    showDaysColumn: false,
+  },
+  {
+    key: 'eingang_frisch',
+    label: 'Eingang ≤ 30d',
+    predicate: a => getEingangAmpel(a) === 'gruen',
+    showDaysColumn: false,
+  },
+  {
+    key: 'eingang_warnung',
+    label: 'Eingang 31–90d',
+    predicate: a => {
+      const e = getEingangAmpel(a);
+      return e === 'gelb' || e === 'orange';
+    },
+    showDaysColumn: false,
+  },
+  {
+    key: 'eingang_kritisch',
+    label: 'Eingang > 90d',
+    predicate: a => getEingangAmpel(a) === 'rot',
     showDaysColumn: false,
   },
   {

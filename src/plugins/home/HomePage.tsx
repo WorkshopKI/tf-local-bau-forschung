@@ -13,6 +13,7 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
 import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
+import { EingangAmpelCard } from './EingangAmpelCard';
 import { menuLabel, dataConfig } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
@@ -271,6 +272,9 @@ export function HomePage(): React.ReactElement {
 
         {/* Sidebar cards */}
         <div className="space-y-4">
+          {/* Antragseingang-Ampel — nur wenn Förderanträge im Profil sichtbar */}
+          {profile?.department !== 'bauantraege' ? <EingangAmpelCard /> : null}
+
           {/* Fristen */}
           <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
             <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3 uppercase tracking-[0.08em]">Offene Fristen</p>
