@@ -3,6 +3,12 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { daysUntilFrist } from './views';
+import {
+  getEingangAmpel,
+  daysSinceEingang,
+  AMPEL_COLOR,
+  AMPEL_TOOLTIP,
+} from './eingangAmpel';
 
 interface Props {
   antrag: AntragListItem;
@@ -41,16 +47,28 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false, 
     ? { background: 'var(--tf-bg-secondary)', borderColor: 'var(--tf-border-hover)' }
     : { borderColor: 'transparent' };
 
+  // Eingangs-Ampel: linke 3px-Border in Ampelfarbe; nur für nicht-bewilligte
+  // Anträge mit gültigem antragsdatum.
+  const ampel = getEingangAmpel(antrag);
+  const ampelDays = ampel !== null ? daysSinceEingang(antrag) : null;
+  const ampelStyle: React.CSSProperties = ampel
+    ? { borderLeftWidth: '3px', borderLeftColor: AMPEL_COLOR[ampel], borderLeftStyle: 'solid' }
+    : {};
+  const ampelTitle = ampel && ampelDays !== null
+    ? `${AMPEL_TOOLTIP[ampel]} (${ampelDays} Tage)`
+    : undefined;
+
   const padding = narrow ? 'px-3 py-1.5' : 'px-4 py-2.5';
 
   return (
     <button
       type="button"
       onClick={onClick}
+      title={ampelTitle}
       className={`w-full text-left ${padding} rounded-[var(--tf-radius)] transition-colors ${
         selected ? '' : 'hover:bg-[var(--tf-bg-secondary)]'
       }`}
-      style={{ borderWidth: '0.5px', borderStyle: 'solid', ...baseStyle }}
+      style={{ borderWidth: '0.5px', borderStyle: 'solid', ...baseStyle, ...ampelStyle }}
     >
       <div className="flex items-start gap-3">
         {showDaysColumn && (
