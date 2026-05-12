@@ -48,7 +48,9 @@ Thumbs.db
 _design/
 
 # CSV-Files können vertrauliche Echtdaten enthalten — nur Demo-/Test-Korpus + die anonymisierte
-# Phase-2 Sample-CSV werden bewusst getrackt.
+# Phase-2 Sample-CSV werden bewusst getrackt. Anonymisierte Real-Fixtures unter
+# docs/fixtures/*.csv bleiben lokal-only (Dev-Maschine), die Schema-Definitionen
+# (docs/fixtures/schema-*.ts) werden committet.
 *.csv
 !public/test-korpus/**/*.csv
 !docs/phase-2/dms-sample.csv

@@ -1,12 +1,13 @@
 import type { StorageService } from '@/core/services/storage';
-import type { Antrag } from '@/core/services/csv/types';
 import { createOramaDB, insertDoc, saveOramaToDB } from '@/core/services/search/orama-store';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { ensureDefaultProgramm } from '@/core/services/csv';
-import { putAntraege, deleteAntrag } from '@/core/services/csv/idb-csv';
+import { listAntraegeByProgramm, deleteAntrag } from '@/core/services/csv/idb-csv';
+import { removeSchema } from '@/core/services/csv/schemaRegistry';
 import { bauantraegeData } from './bauantraege-data';
-import { foerderantraegeData } from './foerderantraege-data';
 import { artefakteData } from './artefakte-data';
+import { LEGACY_PRE_V2_AKTENZEICHEN } from './foerderantraege-data';
+import { FIXTURE_SCHEMA_IDS, seedFromFixtureCsvs } from './fixture-loader';
 
 export interface SeedResult {
   vorgaenge: number;
@@ -14,25 +15,37 @@ export interface SeedResult {
   artefakte: number;
 }
 
+/**
+ * Seed-Flag-Name. Ab v2 (Mai 2026) kommen die Foerderantraege-Seeds aus
+ * echten anonymisierten CSVs unter `docs/fixtures/`, nicht mehr aus
+ * handgeschriebenen `Antrag`-Objekten. Eine alte IDB mit `seed-complete: true`
+ * (v1) seedet beim ersten Start mit der neuen Version trotzdem, weil der
+ * v2-Flag fehlt — die alten Pre-v2-Antraege bleiben als Geister liegen, bis
+ * der Dev manuell ueber das Kurator-Panel "Seeds zuruecksetzen" macht.
+ */
+const SEED_COMPLETE_FLAG = 'seed-complete-v2';
+
 export async function seedTestData(
   storage: StorageService,
   onProgress?: (current: number, total: number) => void,
 ): Promise<SeedResult> {
-  const isSeeded = await storage.idb.get<boolean>('seed-complete');
+  const isSeeded = await storage.idb.get<boolean>(SEED_COMPLETE_FLAG);
   if (isSeeded) return { vorgaenge: 0, dokumente: 0, artefakte: 0 };
 
   const { allDokumente } = await import('./dokumente-data');
 
-  // Orama-DB mit aktuellem Modell erstellen (nur fuer Fulltext-Index der Vorgaenge)
   const modelId = await getActiveModelId(storage.idb);
   const model = getModelById(modelId);
   createOramaDB(model.dimensions);
 
   const emptyVec = new Array(model.dimensions).fill(0) as number[];
-  const total = bauantraegeData.length + foerderantraegeData.length + allDokumente.length + artefakteData.length;
-  let current = 0;
 
   // Bauantraege — save + index
+  // Total wird zwei Stages spaeter um die importierten Foerderantraege ergaenzt;
+  // hier ein konservativer Initialwert fuer den Progress-Balken.
+  const baseTotal = bauantraegeData.length + allDokumente.length + artefakteData.length;
+  let current = 0;
+
   for (const v of bauantraegeData) {
     await storage.saveVorgang(v);
     insertDoc({
@@ -40,14 +53,18 @@ export async function seedTestData(
       title: v.title, source: v.id, tags: v.tags.join(','),
       type: 'bauantrag', embedding: emptyVec,
     });
-    onProgress?.(++current, total);
+    onProgress?.(++current, baseTotal);
   }
 
-  // Foerderantraege — CSV-basiertes Schema (Antrag), ueber programmRegistry + putAntraege
+  // Foerderantraege — kommen jetzt aus echten anonymisierten CSVs in
+  // docs/fixtures/. Wenn die CSVs lokal fehlen (frischer Klon), liefert der
+  // Loader 0 Antraege und der Seed laeuft graceful weiter.
   const programm = await ensureDefaultProgramm(storage.idb);
-  const withProgramm: Antrag[] = foerderantraegeData.map(a => ({ ...a, programm_id: programm.id }));
-  await putAntraege(storage.idb, withProgramm);
-  for (const a of withProgramm) {
+  const fixtureResult = await seedFromFixtureCsvs(storage, programm.id);
+  const importedAntraege = await listAntraegeByProgramm(storage.idb, programm.id);
+  const total = baseTotal + importedAntraege.length;
+
+  for (const a of importedAntraege) {
     const tags = Array.isArray(a.tags) ? (a.tags as string[]) : [];
     const notes = typeof a.notes === 'string' ? a.notes : '';
     insertDoc({
@@ -62,7 +79,6 @@ export async function seedTestData(
     onProgress?.(++current, total);
   }
 
-  // Dokumente — save + index
   for (const doc of allDokumente) {
     await storage.idb.set(`doc:${doc.id}`, doc);
     insertDoc({
@@ -73,18 +89,23 @@ export async function seedTestData(
     onProgress?.(++current, total);
   }
 
-  // Artefakte
   for (const art of artefakteData) {
     await storage.idb.set(`artifact:${art.id}`, art);
     onProgress?.(++current, total);
   }
 
-  // Persist Orama-Index to IDB
   await saveOramaToDB(storage.idb);
-  await storage.idb.set('seed-complete', true);
+  await storage.idb.set(SEED_COMPLETE_FLAG, true);
+
+  if (fixtureResult.csvsImported === 0) {
+    console.warn(
+      '[seed] Foerderantraege-Seed leer — keine Fixture-CSVs gefunden. ' +
+      'Lege anonymisierte CSVs unter docs/fixtures/ ab (siehe README).',
+    );
+  }
 
   return {
-    vorgaenge: bauantraegeData.length + foerderantraegeData.length,
+    vorgaenge: bauantraegeData.length + importedAntraege.length,
     dokumente: allDokumente.length,
     artefakte: artefakteData.length,
   };
@@ -100,11 +121,23 @@ export async function clearSeedData(storage: StorageService): Promise<void> {
   const aKeys = await storage.idb.keys('artifact:');
   for (const k of aKeys) await storage.idb.delete(k);
 
-  // Seedgeschriebene Antraege entfernen (Aktenzeichen aus den Fixtures).
-  for (const a of foerderantraegeData) {
-    await deleteAntrag(storage.idb, a.aktenzeichen).catch(() => undefined);
+  // Pre-v2 Seeds: handgeschriebene Foerderantraege mit Aktenzeichen FA-2026-XXX.
+  // Sind nur noch in alten IDBs vorhanden, der Cleanup ist auf neuen IDBs No-Op.
+  for (const az of LEGACY_PRE_V2_AKTENZEICHEN) {
+    await deleteAntrag(storage.idb, az).catch(() => undefined);
   }
 
+  // v2 Seeds: Fixture-Schemas entfernen. Die per Schema importierten Antraege
+  // werden vom Merger nicht automatisch geloescht — sie bleiben in IDB, bis
+  // der naechste Schema-Loesch-Merge auch sie raeumt. Fuer Dev-Reset reicht
+  // das, weil seedTestData() beim naechsten Lauf den Default-Programm-Stand
+  // ohnehin neu aufbaut.
+  for (const schemaId of FIXTURE_SCHEMA_IDS) {
+    await removeSchema(storage.idb, schemaId).catch(() => undefined);
+  }
+
+  await storage.idb.delete(SEED_COMPLETE_FLAG);
+  // Legacy v1-Flag mitlöschen, falls noch in einer Pre-v2-IDB vorhanden.
   await storage.idb.delete('seed-complete');
   await storage.idb.delete('orama-db');
   await storage.idb.delete('search-index');
