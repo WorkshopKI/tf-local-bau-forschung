@@ -240,3 +240,35 @@ export function buildSuggestions(
   }
   return suggestions;
 }
+
+/**
+ * Name-based Fallback-Suggestions: matcht CSV-Spaltennamen direkt auf
+ * Canonical-Keys (case-insensitiv, ohne Berücksichtigung von `_`/`-`/Leerzeichen).
+ * Greift, wenn der User KEINE Label-XLS hochlädt — eine Spalte `VB_PHASE` wird
+ * dann automatisch als Vorschlag für das Standardfeld `vb_phase` angezeigt.
+ *
+ * Konfidenz immer 0.95 bei exaktem Key-Match (eindeutig, vom Schema-Designer
+ * benannt). Niedriger als ein 100%-XLS-Match, damit XLS-basierte Vorschläge
+ * Vorrang behalten.
+ */
+export function buildSuggestionsFromColumnNames(previewHeaders: string[]): LabelSuggestion[] {
+  function normalize(s: string): string {
+    return s.toLowerCase().replace(/[\s_\-]+/g, '');
+  }
+  const canonicalByNormalizedKey = new Map<string, typeof CANONICAL_FIELDS[number]>();
+  for (const f of CANONICAL_FIELDS) {
+    canonicalByNormalizedKey.set(normalize(f.key), f);
+  }
+  const out: LabelSuggestion[] = [];
+  for (const col of previewHeaders) {
+    const hit = canonicalByNormalizedKey.get(normalize(col));
+    if (!hit) continue;
+    out.push({
+      csvColumn: col,
+      label: hit.label,
+      canonical: hit.key,
+      confidence: 0.95,
+    });
+  }
+  return out;
+}

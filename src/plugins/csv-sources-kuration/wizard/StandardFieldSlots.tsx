@@ -36,6 +36,7 @@ const SLOT_ORDER: string[] = [
   'verbund_titel',
   'status',
   'verbund_status',
+  'vb_phase',
   'antragsdatum',
   'bewilligung_datum',
   'frist_datum',

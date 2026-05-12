@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { CANONICAL_FIELDS, getCanonicalLabel } from '@/core/services/csv/constants';
 import type { ColumnLabelEntry, LabelParseResult, LabelSuggestion } from '@/core/services/csv';
-import { buildSuggestions } from '@/core/services/csv';
+import { buildSuggestions, buildSuggestionsFromColumnNames } from '@/core/services/csv';
 import type { WizardApi, PerColumnDecision } from './useCsvWizardState';
 import { XlsLabelUpload } from './XlsLabelUpload';
 import { StandardFieldSlots } from './StandardFieldSlots';
@@ -44,12 +44,20 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
   const resolved = useMemo(() => getResolvedEntries(), [getResolvedEntries]);
 
   const suggestions: LabelSuggestion[] = useMemo(() => {
-    if (!state.preview || state.labelEntries.length === 0) return [];
+    if (!state.preview) return [];
+    // Name-basierte Fallback-Vorschläge (immer aktiv, auch ohne XLS):
+    // CSV-Spalte `VB_PHASE` matcht direkt auf Canonical `vb_phase`, etc.
+    const nameBased = buildSuggestionsFromColumnNames(state.preview.headers);
+    if (state.labelEntries.length === 0) return nameBased;
     const result: LabelParseResult = {
       columnEntries: state.labelEntries,
       ambiguousMerges: state.ambiguousMerges,
     };
-    return buildSuggestions(state.preview.headers, result);
+    const xlsBased = buildSuggestions(state.preview.headers, result);
+    // XLS-basierte Vorschläge haben Vorrang pro CSV-Spalte; name-basierte
+    // füllen die Lücken.
+    const claimed = new Set(xlsBased.map(s => s.csvColumn));
+    return [...xlsBased, ...nameBased.filter(s => !claimed.has(s.csvColumn))];
   }, [state.preview, state.labelEntries, state.ambiguousMerges]);
 
   /**

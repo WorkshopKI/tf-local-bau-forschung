@@ -108,7 +108,7 @@ export type {
   UnterprogrammLabelDiffRow,
   UnterprogrammLabelChangeKind,
 } from './unterprogrammLabelXlsx';
-export { parseLabelXlsx, buildSuggestions, applyAmbiguousResolution } from './filter/xlsLabelParser';
+export { parseLabelXlsx, buildSuggestions, buildSuggestionsFromColumnNames, applyAmbiguousResolution } from './filter/xlsLabelParser';
 export type {
   ColumnLabelEntry,
   AmbiguousMerge,
