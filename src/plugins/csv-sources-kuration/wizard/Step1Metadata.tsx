@@ -1,12 +1,28 @@
 import { useRef, useState, useMemo } from 'react';
-import { Upload, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import { Upload, FileText, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { parseCsvPreview } from '@/core/services/csv';
-import type { CsvEncoding, CsvSeparator } from '@/core/services/csv/types';
+import type { CsvEncoding, CsvSchema, CsvSeparator } from '@/core/services/csv/types';
 import type { WizardApi } from './useCsvWizardState';
 import { TEST_CORPUS, testCorpusBlob } from './testCorpus';
+
+/**
+ * Findet ein existierendes Schema, dessen Spalten-Set zu 100 % mit den
+ * gegebenen Headern übereinstimmt (gleiche Spalten, gleiche Anzahl).
+ * Reihenfolge wird ignoriert. Liefert das erste Match.
+ */
+function findMatchingSchema(headers: string[], schemas: CsvSchema[]): CsvSchema | null {
+  if (headers.length === 0) return null;
+  const headerSet = new Set(headers);
+  for (const schema of schemas) {
+    const cols = Object.keys(schema.column_mapping);
+    if (cols.length !== headers.length) continue;
+    if (cols.every(c => headerSet.has(c))) return schema;
+  }
+  return null;
+}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -47,15 +63,26 @@ function computeColumnWidth(header: string, values: readonly string[]): number {
 interface Step1Props {
   api: WizardApi;
   existingMasterId: string | null;
+  existingSchemas?: CsvSchema[];
+  onUseExistingSchema?: (schema: CsvSchema) => void;
 }
 
-export function Step1Metadata({ api, existingMasterId }: Step1Props): React.ReactElement {
+export function Step1Metadata({ api, existingMasterId, existingSchemas = [], onUseExistingSchema }: Step1Props): React.ReactElement {
   const { state, setField, setDisplayName, setFileAndPreview, setEncoding, setSeparator } = api;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showTestCorpus, setShowTestCorpus] = useState(false);
   const [showAllHeaders, setShowAllHeaders] = useState(false);
+  const [matchDismissed, setMatchDismissed] = useState(false);
+
+  // Smart-Detection: wenn die geladene CSV exakt zu einer existierenden Source
+  // passt, schlagen wir Re-Import vor (siehe Banner-Logik unten).
+  const matchingSchema = useMemo(() => {
+    if (!state.preview || matchDismissed) return null;
+    if (!onUseExistingSchema || existingSchemas.length === 0) return null;
+    return findMatchingSchema(state.preview.headers, existingSchemas);
+  }, [state.preview, existingSchemas, matchDismissed, onUseExistingSchema]);
 
   const columnWidths = useMemo<Record<string, number>>(() => {
     if (!state.preview) return {};
@@ -174,6 +201,42 @@ export function Step1Metadata({ api, existingMasterId }: Step1Props): React.Reac
         )}
         {loading ? <div className="mt-1 text-[12px] text-[var(--tf-text-tertiary)]">Parse läuft …</div> : null}
         {err ? <div className="mt-1 text-[12px] text-red-700">{err}</div> : null}
+
+        {matchingSchema && onUseExistingSchema ? (
+          <div
+            className="mt-3 rounded-md p-3"
+            style={{
+              background: 'var(--tf-primary-light)',
+              border: '0.5px solid var(--tf-border-hover)',
+            }}
+          >
+            <div className="flex items-start gap-2">
+              <Lightbulb size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--tf-primary)' }} />
+              <div className="flex-1 text-[12px] text-[var(--tf-text)] leading-snug">
+                Die Spaltennamen passen exakt zur existierenden CSV-Quelle{' '}
+                <strong>„{matchingSchema.csv_source_name}"</strong>. Re-Import dort spart dir
+                das erneute Spalten-Mapping (inkl. Label-XLSX). Bestehende Anträge werden
+                gegen die neue Datei abgeglichen.
+              </div>
+            </div>
+            <div className="flex gap-2 mt-2 ml-[22px]">
+              <Button
+                size="xs"
+                variant="default"
+                onClick={() => onUseExistingSchema(matchingSchema)}
+              >
+                Re-Import „{matchingSchema.csv_source_name}" öffnen
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => setMatchDismissed(true)}
+              >
+                Trotzdem neue Source anlegen
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         {state.preview ? (
           <div className="mt-3 rounded border border-[var(--tf-border)] p-2.5 bg-[var(--tf-bg-subtle)]">

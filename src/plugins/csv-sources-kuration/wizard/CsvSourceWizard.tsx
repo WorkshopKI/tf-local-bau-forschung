@@ -10,6 +10,7 @@ import {
   scanDistinctColumnValues,
   listUnterprogrammeByProgramm,
   saveUnterprogramm,
+  listSchemas,
   type ImportProgress,
 } from '@/core/services/csv';
 import type { CsvSchema, ImportResult, Unterprogramm } from '@/core/services/csv/types';
@@ -27,6 +28,9 @@ interface Props {
   onClose: () => void;
   programmId: string;
   onCompleted: () => void;
+  /** Aufgerufen, wenn der User die Smart-Detection-Empfehlung annimmt und stattdessen
+   *  einen Re-Import einer existierenden Source machen will. Schließt den Wizard. */
+  onUseExistingSchema?: (schema: CsvSchema) => void;
 }
 
 /**
@@ -37,12 +41,13 @@ interface Props {
  *   4  Review
  *   5  Progress
  */
-export function CsvSourceWizard({ open, onClose, programmId, onCompleted }: Props): React.ReactElement | null {
+export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseExistingSchema }: Props): React.ReactElement | null {
   const storage = useStorage();
   const session = useKuratorSession();
   const api = useCsvWizardState();
   const { state, goto, back, setErrors, reset, buildColumnMapping, setUpScan, setUpScanLoading } = api;
   const [existingMasterId, setExistingMasterId] = useState<string | null>(null);
+  const [existingSchemas, setExistingSchemas] = useState<CsvSchema[]>([]);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -57,6 +62,7 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted }: Prop
     setImportResult(null);
     setImportError(null);
     void findMasterSchema(storage.idb, programmId).then(m => setExistingMasterId(m?.id ?? null));
+    void listSchemas(storage.idb, programmId).then(setExistingSchemas);
   }, [open, programmId, reset, storage.idb]);
 
   const validateStep1 = useCallback((): string[] => {
@@ -332,7 +338,15 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted }: Prop
         }
       >
         {state.step === 1 ? (
-          <Step1Metadata api={api} existingMasterId={existingMasterId} />
+          <Step1Metadata
+            api={api}
+            existingMasterId={existingMasterId}
+            existingSchemas={existingSchemas}
+            onUseExistingSchema={onUseExistingSchema ? (schema) => {
+              onUseExistingSchema(schema);
+              onClose();
+            } : undefined}
+          />
         ) : state.step === 2 ? (
           <Step2Columns api={api} />
         ) : state.step === 3 ? (

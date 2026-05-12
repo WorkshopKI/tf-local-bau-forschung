@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
@@ -153,22 +154,26 @@ export function CsvSourcesPage(): React.ReactElement {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="default"
                       onClick={e => { e.stopPropagation(); setReimportSchema(s); }}
                       disabled={!session.isActive}
+                      title="Datei neu hochladen — Spalten-Mapping aus diesem Schema wird wiederverwendet"
                     >
-                      Re-Import
+                      <RefreshCw size={13} /> Re-Import
                     </Button>
                     <Button
                       size="sm"
-                      variant="destructive"
+                      variant="ghost"
                       onClick={e => { e.stopPropagation(); setDeleteConfirmId(s.id); }}
                       disabled={!session.isActive}
+                      title="Schema löschen"
+                      aria-label="Schema löschen"
+                      className="h-8 w-8 p-0 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)]"
                     >
-                      Löschen
+                      <Trash2 size={13} />
                     </Button>
                   </div>
                 )}
@@ -249,6 +254,7 @@ export function CsvSourcesPage(): React.ReactElement {
           onClose={() => setWizardOpen(false)}
           programmId={programmId}
           onCompleted={() => { void refresh(); }}
+          onUseExistingSchema={s => setReimportSchema(s)}
         />
       ) : null}
 
