@@ -40,10 +40,6 @@ export interface AntragView {
   key: ViewKey;
   label: string;
   predicate: (a: AntragListItem) => boolean;
-  /** Wenn true, rendert die Liste die Tage-bis-Frist-Spalte vor jeder Card.
-   *  Bei nicht-deadline-fokussierten Views (Bewilligt, Alle) ausschalten — sonst zeigt
-   *  jede Reihe ein leeres "—", weil bewilligte Antraege keine offene Frist mehr haben. */
-  showDaysColumn: boolean;
 }
 
 export const VIEWS: AntragView[] = [
@@ -51,7 +47,6 @@ export const VIEWS: AntragView[] = [
     key: 'meine_offenen',
     label: 'Meine offenen',
     predicate: a => isOpenStatus(a.status),
-    showDaysColumn: true,
   },
   {
     key: 'diese_woche_faellig',
@@ -60,7 +55,6 @@ export const VIEWS: AntragView[] = [
       const d = daysUntilFrist(a);
       return d !== null && d >= 0 && d <= 7;
     },
-    showDaysColumn: true,
   },
   {
     key: 'ueberfaellig',
@@ -69,25 +63,21 @@ export const VIEWS: AntragView[] = [
       const d = daysUntilFrist(a);
       return d !== null && d < 0 && isOpenStatus(a.status);
     },
-    showDaysColumn: true,
   },
   {
     key: 'nachforderungen',
     label: 'Nachforderungen',
     predicate: a => isNachforderungStatus(a.status),
-    showDaysColumn: true,
   },
   {
     key: 'bewilligt_jahr',
     label: `Bewilligt ${getCurrentYear()}`,
     predicate: a => isBewilligtStatus(a.status) && yearOfBewilligung(a) === getCurrentYear(),
-    showDaysColumn: false,
   },
   {
     key: 'alle',
     label: 'Alle',
     predicate: () => true,
-    showDaysColumn: false,
   },
 ];
 

@@ -45,7 +45,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
   } = useAntraegeStore();
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
-  const { filtered, view, bearbeiterFilter, bearbeiterKuerzelMissing } = useFilteredAntraege();
+  const { filtered, bearbeiterFilter, bearbeiterKuerzelMissing } = useFilteredAntraege();
   const [visibleRows, setVisibleRows] = useState(ROW_PAGE);
   const [narrowWidth, setNarrowWidth] = useState(loadNarrowWidth);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -179,7 +179,6 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
                   onClick={() => openAntrag(a.aktenzeichen)}
                   selected={selectedAktenzeichen === a.aktenzeichen}
                   narrow={narrow}
-                  showDays={view.showDaysColumn}
                 />
               ))}
               {visibleRows < filtered.length ? (

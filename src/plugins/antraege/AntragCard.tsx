@@ -2,7 +2,6 @@ import { Badge } from '@/ui';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
-import { daysUntilFrist } from './views';
 import {
   getEingangAmpel,
   daysSinceEingang,
@@ -14,11 +13,8 @@ interface Props {
   antrag: AntragListItem;
   onClick: () => void;
   selected?: boolean;
-  /** Kompakte Variante fuer den Split-View: kein Days-Indicator-Block, weniger Subtext. */
+  /** Kompakte Variante fuer den Split-View: weniger Subtext. */
   narrow?: boolean;
-  /** Wenn true (Default), wird die Tage-bis-Frist-Spalte links der Card gerendert.
-   *  Bei nicht-deadline-fokussierten Views (Bewilligt, Alle) auf false setzen. */
-  showDays?: boolean;
 }
 
 function strOrNull(v: unknown): string | null {
@@ -27,16 +23,7 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-function formatDays(d: number | null): { text: string; tone: 'danger' | 'tertiary' } {
-  if (d === null) return { text: '—', tone: 'tertiary' };
-  if (d < 0) return { text: `${d}d`, tone: 'danger' };
-  return { text: `+${d}d`, tone: 'tertiary' };
-}
-
-export function AntragCard({ antrag, onClick, selected = false, narrow = false, showDays = true }: Props): React.ReactElement {
-  const days = daysUntilFrist(antrag);
-  const daysFmt = formatDays(days);
-  const showDaysColumn = showDays && !narrow;
+export function AntragCard({ antrag, onClick, selected = false, narrow = false }: Props): React.ReactElement {
   const titel = strOrNull(antrag.titel) ?? antrag.aktenzeichen;
   const akronym = strOrNull(antrag.akronym);
   const antragsteller = strOrNull(antrag.antragsteller);
@@ -64,15 +51,6 @@ export function AntragCard({ antrag, onClick, selected = false, narrow = false, 
       style={{ borderWidth: '0.5px', borderStyle: 'solid', ...baseStyle }}
     >
       <div className="flex items-start gap-3">
-        {showDaysColumn && (
-          <span
-            className={`shrink-0 w-[44px] tabular-nums text-[12px] font-mono pt-[1px] ${
-              daysFmt.tone === 'danger' ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-text-tertiary)]'
-            }`}
-          >
-            {daysFmt.text}
-          </span>
-        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-3 flex-wrap">
             {ampel !== null && ampelDays !== null ? (
