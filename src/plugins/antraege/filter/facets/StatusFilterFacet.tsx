@@ -97,6 +97,14 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
   const handlePhaseHeaderClick = (phase: GroupedPhase, e: React.MouseEvent): void => {
     if (e.shiftKey) {
       togglePhaseSelection(phase);
+      // Bei Shift-Klick die Phase immer aufklappen, damit der User
+      // unmittelbar sieht welche Stati nun gesetzt (bzw. abgewählt) sind.
+      setOpenPhases(s => {
+        if (s.has(phase.id)) return s;
+        const n = new Set(s);
+        n.add(phase.id);
+        return n;
+      });
       return;
     }
     toggleOpen(phase.id);

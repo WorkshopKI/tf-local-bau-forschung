@@ -192,6 +192,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
                   definitions={definitions}
                   valueLabels={valueLabels[statusDef.feld]}
                   onChange={v => setActiveValue(statusDef.id, v)}
+                  hideHeader
                 />
               </>
             ) : null}

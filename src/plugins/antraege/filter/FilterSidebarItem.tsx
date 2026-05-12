@@ -18,9 +18,15 @@ interface Props {
   definitions: FilterDefinition[];
   valueLabels?: Record<string, string>;
   onChange: (value: ActiveFilterValue | null) => void;
+  /**
+   * Wenn true: Eigenen Chevron+Label-Header weglassen und Facet immer offen
+   * rendern. Benutzt, wenn der Container (z.B. FilterSidebar) bereits eine
+   * Section-Überschrift zeichnet — sonst entsteht ein Doppel-Header.
+   */
+  hideHeader?: boolean;
 }
 
-export function FilterSidebarItem({ def, antraege, activeFilters, definitions, valueLabels, onChange }: Props): React.ReactElement {
+export function FilterSidebarItem({ def, antraege, activeFilters, definitions, valueLabels, onChange, hideHeader = false }: Props): React.ReactElement {
   const active = activeFilters.find(a => a.filterId === def.id);
   const hasValue = !!active;
 
@@ -110,31 +116,38 @@ export function FilterSidebarItem({ def, antraege, activeFilters, definitions, v
 
   const summary = renderSummary();
 
+  const showFacet = hideHeader ? true : !collapsed;
+
   return (
-    <div className="py-2" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-      <button
-        type="button"
-        onClick={() => setCollapsed(c => !c)}
-        className="w-full flex items-center justify-between gap-2 py-1.5 text-left"
-        disabled={disabled}
-      >
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          {collapsed ? (
-            <ChevronRight size={14} className="text-[var(--tf-text-tertiary)] shrink-0" />
-          ) : (
-            <ChevronDown size={14} className="text-[var(--tf-text-tertiary)] shrink-0" />
-          )}
-          <span className={`text-[12.5px] truncate ${disabled ? 'text-[var(--tf-text-tertiary)] italic' : 'text-[var(--tf-text)] font-medium'}`}>
-            {def.name}
-          </span>
-          {def.typ === 'boolean_ja_nein' && isSparse ? (
-            <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0">({jaCount})</span>
+    <div
+      className="py-2"
+      style={hideHeader ? undefined : { borderBottom: '0.5px solid var(--tf-border)' }}
+    >
+      {hideHeader ? null : (
+        <button
+          type="button"
+          onClick={() => setCollapsed(c => !c)}
+          className="w-full flex items-center justify-between gap-2 py-1.5 text-left"
+          disabled={disabled}
+        >
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            {collapsed ? (
+              <ChevronRight size={14} className="text-[var(--tf-text-tertiary)] shrink-0" />
+            ) : (
+              <ChevronDown size={14} className="text-[var(--tf-text-tertiary)] shrink-0" />
+            )}
+            <span className={`text-[12.5px] truncate ${disabled ? 'text-[var(--tf-text-tertiary)] italic' : 'text-[var(--tf-text)] font-medium'}`}>
+              {def.name}
+            </span>
+            {def.typ === 'boolean_ja_nein' && isSparse ? (
+              <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0">({jaCount})</span>
+            ) : null}
+          </div>
+          {summary ? (
+            <span className="text-[11px] text-[var(--tf-text-secondary)] truncate max-w-[120px]">{summary}</span>
           ) : null}
-        </div>
-        {summary ? (
-          <span className="text-[11px] text-[var(--tf-text-secondary)] truncate max-w-[120px]">{summary}</span>
-        ) : null}
-      </button>
+        </button>
+      )}
 
       {disabled ? (
         <div className="mt-1 px-1.5 text-[11px] text-[var(--tf-text-tertiary)] italic">
@@ -144,8 +157,8 @@ export function FilterSidebarItem({ def, antraege, activeFilters, definitions, v
         <div className="mt-1 px-1.5 text-[11px] text-[var(--tf-text-tertiary)]" title="Kein Antrag hat einen Wert für dieses Feld">
           Keine Werte
         </div>
-      ) : collapsed ? null : (
-        <div className="mt-2 px-0.5">
+      ) : !showFacet ? null : (
+        <div className={hideHeader ? 'px-0.5' : 'mt-2 px-0.5'}>
           {renderFacet(def, counts, active, valueLabels, dateRange, onChange)}
         </div>
       )}
