@@ -87,6 +87,7 @@ export function NetzwerkClusterCard({
             onOpenAntrag={onOpenAntrag}
             onOpenVerbund={onOpenVerbund}
             narrow={narrow}
+            hideClusterAccent
           />
         ))}
       </div>

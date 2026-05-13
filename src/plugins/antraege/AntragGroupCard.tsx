@@ -18,6 +18,10 @@ interface Props {
   onOpenVerbund: (verbundId: string) => void;
   /** Kompakte Variante für den Split-View: kleinere Schrift. */
   narrow?: boolean;
+  /** Unterdrückt die 3px-Primary-Bar links bei Verbund-Clustern. Wird von
+   *  `NetzwerkClusterCard` gesetzt, weil dort der äußere Netzwerk-Rahmen
+   *  bereits den primary-Akzent trägt — eine zweite Linie wäre redundant. */
+  hideClusterAccent?: boolean;
 }
 
 function strOrNull(v: unknown): string | null {
@@ -32,9 +36,11 @@ export function AntragGroupCard({
   onOpenAntrag,
   onOpenVerbund,
   narrow = false,
+  hideClusterAccent = false,
 }: Props): React.ReactElement {
   const headTv = group.tvs[0]!;
   const isMultiTv = group.tvs.length >= 2;
+  const showClusterAccent = isMultiTv && !hideClusterAccent;
 
   // Eingangs-Ampel: aus dem führenden TV der Gruppe. Wenn der bewilligt /
   // abgeschlossen ist → kein Punkt im Header (auch wenn andere TVs noch
@@ -57,8 +63,10 @@ export function AntragGroupCard({
 
   // Verbund-Cluster (>= 2 TVs) bekommen eine linke 3px-Akzent-Bar in Primary-
   // Color, damit das Auge sie auf einen Blick als zusammengehoerige Gruppe
-  // erkennt. Einzelantraege bleiben visuell flach.
-  const cardStyle: React.CSSProperties = isMultiTv
+  // erkennt. Einzelantraege bleiben visuell flach. Bei Render innerhalb einer
+  // Netzwerk-Supergruppe (`hideClusterAccent`) wird die Bar unterdrueckt,
+  // damit sie nicht parallel zur aeusseren Netzwerk-Bar laeuft.
+  const cardStyle: React.CSSProperties = showClusterAccent
     ? {
       borderWidth: '0.5px',
       borderStyle: 'solid',
