@@ -150,6 +150,7 @@ export interface GroupingOption {
 export const GROUPING_OPTIONS: readonly GroupingOption[] = [
   { key: 'verbund', label: 'Verbund (Akronym)' },
   { key: 'netzwerk', label: 'Netzwerk (16KN)' },
+  { key: 'netzwerk-by-size', label: 'Netzwerk (16KN, Größe absteigend)' },
   { key: 'none', label: 'Keine Gruppierung' },
 ];
 

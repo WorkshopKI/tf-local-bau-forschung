@@ -10,11 +10,16 @@ import {
 /**
  * Gruppierungs-Modus für die Antragsliste.
  * - `verbund`: Cluster nach `verbund_id` (Default; aktuelles Verhalten).
- * - `netzwerk`: Cluster nach 4-Ziffer-Netzwerk-ID aus dem 16KN-FKZ. Anträge
- *   ohne 16KN-Präfix landen als Solo-Gruppe.
+ * - `netzwerk`: Cluster nach 4-Ziffer-Netzwerk-ID aus dem 16KN-FKZ. Cluster-
+ *   Reihenfolge folgt dem ersten Auftreten in der primär-sortierten Eingabe
+ *   (= User-Sort steuert auch die Supergruppen-Position). Anträge ohne
+ *   16KN-Präfix landen als Solo-Gruppe.
+ * - `netzwerk-by-size`: Wie `netzwerk`, aber die Supergruppen werden nach
+ *   Mitglieder-Zahl absteigend sortiert (Tie-Break: Netzwerk-ID asc), Solos
+ *   wandern ans Ende. Praktisch um „große" Netzwerke schnell zu sehen.
  * - `none`: Flache Liste, jeder TV ist eine eigene Gruppe.
  */
-export type GroupingMode = 'verbund' | 'netzwerk' | 'none';
+export type GroupingMode = 'verbund' | 'netzwerk' | 'netzwerk-by-size' | 'none';
 
 /**
  * Gruppe von Anträgen für die kompakte Listendarstellung. Eine Gruppe ist
@@ -149,10 +154,14 @@ function buildVerbundSubGroups(members: AntragListItem[]): AntragGroup[] {
  *   nach Aktenzeichen aufsteigend sortiert.
  *
  * - `netzwerk`: 16KN-Anträge gleicher 4-Ziffer-Netzwerk-ID werden geclustert.
- *   Netzwerk-Supergruppen werden nach **Anzahl Mitglieder absteigend**
- *   sortiert (Tie-Break: Netzwerk-ID aufsteigend), Solo-Gruppen (kein
- *   16KN-Präfix) wandern ans Ende. Innerhalb der Gruppe: Leads (Suffix
- *   `01`/`02` + vb_phase 1/2) zuerst, dann andere nach Aktenzeichen.
+ *   Cluster-Position folgt dem **ersten** Vorkommen in der Eingabe (User-Sort
+ *   steuert mit). Innerhalb der Gruppe: Leads (Suffix `01`/`02` + vb_phase
+ *   1/2) zuerst, dann andere nach Aktenzeichen. Anträge ohne 16KN-Präfix
+ *   bleiben in ihrer ursprünglichen Reihenfolge.
+ *
+ * - `netzwerk-by-size`: Wie `netzwerk`, aber Netzwerk-Supergruppen werden
+ *   nach **Mitglieder-Zahl absteigend** sortiert (Tie-Break: Netzwerk-ID
+ *   aufsteigend), Solo-Gruppen wandern ans Ende, alphabetisch nach FKZ.
  *
  * - `none`: Jeder TV → eigene Solo-Gruppe. Wird vom Antragsteller-Sort genutzt,
  *   damit Anträge desselben Antragstellers direkt nebeneinander stehen, statt
@@ -186,7 +195,7 @@ export function buildAntragGroups(
     return antraege.map(a => soloGroup(a));
   }
 
-  if (mode === 'netzwerk') {
+  if (mode === 'netzwerk' || mode === 'netzwerk-by-size') {
     const placed = new Set<string>();
     const out: AntragGroup[] = [];
     for (const a of antraege) {
@@ -215,21 +224,23 @@ export function buildAntragGroups(
         subGroups,
       });
     }
-    // Netzwerk-Supergruppen nach Mitglieder-Zahl absteigend sortieren —
-    // große Netzwerke (mehr TVs sichtbar im aktuellen Programm) stehen oben.
-    // Tie-Break: Netzwerk-ID aufsteigend für deterministische Reihenfolge.
-    // Solo-Gruppen (Anträge ohne 16KN-Präfix) wandern ans Ende, intern
-    // alphabetisch nach Aktenzeichen.
-    out.sort((a, b) => {
-      const aIsNetzwerk = a.netzwerkId !== null;
-      const bIsNetzwerk = b.netzwerkId !== null;
-      if (aIsNetzwerk !== bIsNetzwerk) return aIsNetzwerk ? -1 : 1;
-      if (aIsNetzwerk && bIsNetzwerk) {
-        if (a.tvs.length !== b.tvs.length) return b.tvs.length - a.tvs.length;
-        return (a.netzwerkId ?? '').localeCompare(b.netzwerkId ?? '');
-      }
-      return a.tvs[0]!.aktenzeichen.localeCompare(b.tvs[0]!.aktenzeichen);
-    });
+    if (mode === 'netzwerk-by-size') {
+      // Netzwerk-Supergruppen nach Mitglieder-Zahl absteigend sortieren —
+      // große Netzwerke (mehr TVs sichtbar im aktuellen Programm) stehen oben.
+      // Tie-Break: Netzwerk-ID aufsteigend für deterministische Reihenfolge.
+      // Solo-Gruppen (Anträge ohne 16KN-Präfix) wandern ans Ende, intern
+      // alphabetisch nach Aktenzeichen.
+      out.sort((a, b) => {
+        const aIsNetzwerk = a.netzwerkId !== null;
+        const bIsNetzwerk = b.netzwerkId !== null;
+        if (aIsNetzwerk !== bIsNetzwerk) return aIsNetzwerk ? -1 : 1;
+        if (aIsNetzwerk && bIsNetzwerk) {
+          if (a.tvs.length !== b.tvs.length) return b.tvs.length - a.tvs.length;
+          return (a.netzwerkId ?? '').localeCompare(b.netzwerkId ?? '');
+        }
+        return a.tvs[0]!.aktenzeichen.localeCompare(b.tvs[0]!.aktenzeichen);
+      });
+    }
     return out;
   }
 

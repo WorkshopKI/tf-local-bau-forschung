@@ -175,7 +175,7 @@ describe('buildAntragGroups', () => {
 });
 
 describe('buildAntragGroups — mode=netzwerk', () => {
-  it('clustert 16KN-Anträge nach 4-Ziffer-Netzwerk-ID, Netzwerke nach Mitglieder-Zahl desc, Solos ans Ende', () => {
+  it('clustert 16KN-Anträge nach 4-Ziffer-Netzwerk-ID, Cluster-Position folgt erstem Vorkommen', () => {
     const input = [
       mkKn('16KN106201', 1),
       mkKn('16KN106227', 2),
@@ -184,24 +184,53 @@ describe('buildAntragGroups — mode=netzwerk', () => {
       mkKn('16KN999901', 1),
     ];
     const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    // Reihenfolge: NW1062 (an Position des ersten 16KN1062-Antrags) → 16EP solo → NW9999.
+    // Default-Mode 'netzwerk' sortiert NICHT nach Größe.
     expect(groups).toHaveLength(3);
-    // Netzwerk 1062 hat 3 Mitglieder → vor Netzwerk 9999 (1 Mitglied).
     expect(groups[0]!.netzwerkId).toBe('1062');
     expect(groups[0]!.tvs.map(t => t.aktenzeichen))
-      .toEqual(['16KN106201', '16KN106202', '16KN106227']); // Leads zuerst, dann TVs
+      .toEqual(['16KN106201', '16KN106202', '16KN106227']);
+    expect(groups[1]!.netzwerkId).toBeNull();
+    expect(groups[1]!.tvs.map(t => t.aktenzeichen)).toEqual(['16EP123456']);
+    expect(groups[2]!.netzwerkId).toBe('9999');
+    expect(groups[2]!.tvs.map(t => t.aktenzeichen)).toEqual(['16KN999901']);
+  });
+
+  it('mode=netzwerk lässt kleines Netzwerk an erster Position, wenn es zuerst auftrat (kein Größen-Sort)', () => {
+    const input = [
+      // Kleines Netzwerk 9999 zuerst (1 Mitglied)
+      mkKn('16KN999901', 1),
+      // Großes Netzwerk 1062 danach (3 Mitglieder)
+      mkKn('16KN106201', 1),
+      mkKn('16KN106202', 2),
+      mkKn('16KN106227', 2),
+    ];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    expect(groups.map(g => g.netzwerkId)).toEqual(['9999', '1062']);
+  });
+
+  it('mode=netzwerk-by-size sortiert Netzwerke nach Mitglieder-Zahl desc, Solos ans Ende', () => {
+    const input = [
+      mkKn('16KN106201', 1),
+      mkKn('16KN106227', 2),
+      mkKn('16EP123456'),
+      mkKn('16KN106202', 2),
+      mkKn('16KN999901', 1),
+    ];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk-by-size' });
+    expect(groups).toHaveLength(3);
+    expect(groups[0]!.netzwerkId).toBe('1062');
     expect(groups[1]!.netzwerkId).toBe('9999');
-    expect(groups[1]!.tvs.map(t => t.aktenzeichen)).toEqual(['16KN999901']);
-    // Solo (16EP) ans Ende.
     expect(groups[2]!.netzwerkId).toBeNull();
     expect(groups[2]!.tvs.map(t => t.aktenzeichen)).toEqual(['16EP123456']);
   });
 
-  it('Netzwerk-Supergruppen-Sort: meiste Mitglieder zuerst, Tie-Break nach Netzwerk-ID asc', () => {
+  it('mode=netzwerk-by-size: Tie-Break nach Netzwerk-ID asc bei gleich großen Netzwerken', () => {
     const input = [
       // Netzwerk 5555: 2 Mitglieder
       mkKn('16KN555527', 2),
       mkKn('16KN555528', 2),
-      // Netzwerk 1111: 4 Mitglieder → sollte ganz oben stehen
+      // Netzwerk 1111: 4 Mitglieder → ganz oben
       mkKn('16KN111127', 2),
       mkKn('16KN111128', 2),
       mkKn('16KN111129', 2),
@@ -210,7 +239,7 @@ describe('buildAntragGroups — mode=netzwerk', () => {
       mkKn('16KN222227', 2),
       mkKn('16KN222228', 2),
     ];
-    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    const groups = buildAntragGroups(input, { mode: 'netzwerk-by-size' });
     expect(groups.map(g => g.netzwerkId)).toEqual(['1111', '2222', '5555']);
     expect(groups.map(g => g.tvs.length)).toEqual([4, 2, 2]);
   });
