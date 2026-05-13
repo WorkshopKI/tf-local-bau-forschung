@@ -9,6 +9,7 @@ import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { AntragGroupCard } from './AntragGroupCard';
 import { buildAntragGroups } from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
+import { StyleDemoSection } from './StyleDemoSection';
 import { SortDropdown } from './SortDropdown';
 import { Alert } from '@/components/ui/alert';
 import { AlertTriangle, Settings } from 'lucide-react';
@@ -35,6 +36,10 @@ function loadNarrowWidth(): number {
 }
 
 export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
+  // Temporäre Style-Vergleichs-Section, sichtbar via URL-Hash #style-demo.
+  // Wird nach der User-Entscheidung wieder entfernt.
+  const showStyleDemo = typeof window !== 'undefined' && window.location.hash === '#style-demo';
+
   const storage = useStorage();
   const navigate = useNavigate();
   const {
@@ -119,6 +124,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     <div className={containerClass} style={containerStyle}>
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
         <div className={narrow ? 'px-4 pt-3 pb-4' : 'px-8 pt-3 pb-6 max-w-6xl'}>
+          {showStyleDemo ? <StyleDemoSection /> : null}
           {/* Sort-Dropdown + Profil-Pill links, ActiveFilterChips rechts.
               Profil-Pill direkt neben SortDropdown, weil sie wie Sort eine
               persistente Voreinstellung repräsentiert (nicht inline änderbar). */}
