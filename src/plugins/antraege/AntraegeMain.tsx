@@ -131,10 +131,19 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     ? 'h-full flex'
     : 'flex-1 min-w-0 h-full flex';
 
+  // Karten-View nutzt die volle Browserbreite, damit auf breiten Monitoren
+  // alle Anträge mit wenig Scrollen sichtbar sind. List/Kompakt behalten
+  // max-w-6xl als Lesbarkeits-Cap (Zeilen werden sonst unangenehm lang).
+  const innerClass = narrow
+    ? 'px-4 pt-3 pb-4'
+    : viewMode === 'cards'
+      ? 'px-8 pt-3 pb-6'
+      : 'px-8 pt-3 pb-6 max-w-6xl';
+
   return (
     <div className={containerClass} style={containerStyle}>
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
-        <div className={narrow ? 'px-4 pt-3 pb-4' : 'px-8 pt-3 pb-6 max-w-6xl'}>
+        <div className={innerClass}>
           {/* Sort-Dropdown + Profil-Pill links, ActiveFilterChips rechts.
               Profil-Pill direkt neben SortDropdown, weil sie wie Sort eine
               persistente Voreinstellung repräsentiert (nicht inline änderbar). */}
