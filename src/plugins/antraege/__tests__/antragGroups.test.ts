@@ -15,12 +15,13 @@ function mk(aktenzeichen: string, verbund_id?: string): AntragListItem {
   };
 }
 
-function mkKn(aktenzeichen: string, vb_phase?: number): AntragListItem {
+function mkKn(aktenzeichen: string, vb_phase?: number, verbund_id?: string): AntragListItem {
   return {
     aktenzeichen,
     programm_id: 'P',
     _updated_at: '2026-01-01T00:00:00Z',
     ...(vb_phase !== undefined ? { vb_phase } : {}),
+    ...(verbund_id ? { verbund_id } : {}),
   };
 }
 
@@ -224,5 +225,63 @@ describe('buildAntragGroups — mode=netzwerk', () => {
     ];
     const groups = buildAntragGroups(input, { mode: 'netzwerk' });
     expect(groups[0]!.fkzRange).toBe('16KN106201–16KN106227');
+  });
+
+  it('Netzwerk-Supergruppe enthält subGroups (Verbund + Einzelantrag)', () => {
+    const input = [
+      mkKn('16KN106201', 1, 'V-LEAD'),    // Lead-Phase-1, im Verbund V-LEAD
+      mkKn('16KN106203', 2, 'V-LEAD'),    // Schwester im Verbund V-LEAD
+      mkKn('16KN106205', 2, 'V-OTHER'),   // anderer Verbund
+      mkKn('16KN106207', 2, 'V-OTHER'),
+      mkKn('16KN106209', 2),              // Einzelantrag
+    ];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    expect(groups).toHaveLength(1);
+    const supergroup = groups[0]!;
+    expect(supergroup.netzwerkId).toBe('1062');
+    expect(supergroup.subGroups).toBeDefined();
+    expect(supergroup.subGroups).toHaveLength(3);
+    // Reihenfolge: Lead-Verbund zuerst, dann V-OTHER (alphabetisch),
+    // dann Einzelantrag (auch alphabetisch).
+    const sg = supergroup.subGroups!;
+    expect(sg[0]!.verbundId).toBe('V-LEAD');
+    expect(sg[0]!.tvs.map(t => t.aktenzeichen)).toEqual(['16KN106201', '16KN106203']);
+    expect(sg[1]!.verbundId).toBe('V-OTHER');
+    expect(sg[1]!.tvs.map(t => t.aktenzeichen)).toEqual(['16KN106205', '16KN106207']);
+    expect(sg[2]!.verbundId).toBeNull();
+    expect(sg[2]!.tvs.map(t => t.aktenzeichen)).toEqual(['16KN106209']);
+  });
+
+  it('Netzwerk-Supergruppe: flat tvs entspricht subGroups.flatMap(tvs)', () => {
+    const input = [
+      mkKn('16KN106201', 1, 'V-A'),
+      mkKn('16KN106203', 2, 'V-A'),
+      mkKn('16KN106205', 2),
+    ];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    const supergroup = groups[0]!;
+    expect(supergroup.tvs).toEqual(supergroup.subGroups!.flatMap(g => g.tvs));
+  });
+
+  it('Solo-Anträge ohne 16KN-Präfix haben subGroups undefined', () => {
+    const groups = buildAntragGroups([mkKn('16EP100000')], { mode: 'netzwerk' });
+    expect(groups[0]!.subGroups).toBeUndefined();
+    expect(groups[0]!.netzwerkId).toBeNull();
+  });
+
+  it('Sub-Gruppen-Sortierung: Sub-Gruppe mit Lead zuerst, sonst nach erstem-Aktenzeichen', () => {
+    const input = [
+      mkKn('16KN106207', 2, 'V-LATE'),    // späteres FKZ, kein Lead
+      mkKn('16KN106203', 2, 'V-EARLY'),   // früheres FKZ, kein Lead
+      mkKn('16KN106205', 2, 'V-EARLY'),
+      mkKn('16KN106201', 1, 'V-LEAD'),    // Lead-Verbund (Suffix 01 + vb_phase 1)
+      mkKn('16KN106209', 2, 'V-LEAD'),
+    ];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    const sg = groups[0]!.subGroups!;
+    expect(sg[0]!.verbundId).toBe('V-LEAD');
+    // V-EARLY vor V-LATE (16KN106203 < 16KN106207)
+    expect(sg[1]!.verbundId).toBe('V-EARLY');
+    expect(sg[2]!.verbundId).toBe('V-LATE');
   });
 });

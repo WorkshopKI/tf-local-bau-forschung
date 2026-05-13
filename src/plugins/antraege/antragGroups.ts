@@ -1,7 +1,7 @@
 import type { AntragListItem } from '@/core/services/csv/types';
 import {
   extractNetzwerkId,
-  compareNetzwerkOrder,
+  isNetzwerkLead,
   collectPhases,
   formatNetzwerkLabel,
 } from './netzwerk';
@@ -18,9 +18,14 @@ export type GroupingMode = 'verbund' | 'netzwerk' | 'none';
 /**
  * Gruppe von Anträgen für die kompakte Listendarstellung. Eine Gruppe ist
  * entweder ein Verbund (gemeinsame `verbund_id`), ein Netzwerk (gemeinsame
- * 4-Ziffer-Netzwerk-ID im 16KN-FKZ) oder ein Einzelantrag. In allen Fällen
- * rendert die Liste eine Header-Zeile + 1..N TV-Zeilen unter einer
- * gemeinsamen Card.
+ * 4-Ziffer-Netzwerk-ID im 16KN-FKZ) oder ein Einzelantrag.
+ *
+ * Bei Netzwerk-Gruppen ist das Modell zweistufig: die Top-Level-Gruppe
+ * (Netzwerk-Supergruppe) trägt `subGroups[]` mit den enthaltenen Verbund-
+ * Clustern und Einzelanträgen. Das Feld `tvs` enthält in dem Fall die
+ * **flache** Liste aller TVs über alle Sub-Gruppen hinweg — Renderer, die
+ * mit der hierarchischen Struktur nichts anfangen können (Compact-/Card-
+ * View), können weiterhin flach iterieren.
  */
 export interface AntragGroup {
   /** Bei Verbund-Cluster die `verbund_id`, sonst null. */
@@ -29,11 +34,15 @@ export interface AntragGroup {
   netzwerkId: string | null;
   /** Vorgefertigtes Label für Netzwerk-Gruppen (`"Netzwerk 1062 · Phase 1 + 2"`), sonst null. */
   netzwerkLabel: string | null;
-  /** Mind. 1 TV. Innerhalb der Gruppe bei Verbund nach Aktenzeichen sortiert,
-   *  bei Netzwerk Leads (Suffix 01/02 + vb_phase 1/2) zuerst, dann nach Aktenzeichen. */
+  /** Mind. 1 TV. Bei Verbund/Solo: direkt die TVs. Bei Netzwerk-Supergruppe:
+   *  die flache Liste aller TVs über `subGroups` hinweg (Lead-first sortiert). */
   tvs: AntragListItem[];
   /** "16KN110645–16KN110646" bei mehreren TVs, sonst einzelnes Aktenzeichen. */
   fkzRange: string;
+  /** Nur bei Netzwerk-Supergruppen gesetzt: enthält die Verbund-Cluster und
+   *  Einzelanträge innerhalb des Netzwerks. Reihenfolge: Sub-Gruppe mit Lead
+   *  zuerst, dann nach erstem-FKZ aufsteigend. */
+  subGroups?: AntragGroup[];
 }
 
 const EN_DASH = '–';
@@ -91,6 +100,45 @@ function soloGroup(a: AntragListItem): AntragGroup {
 }
 
 /**
+ * Baut innerhalb eines Netzwerks (oder einer beliebigen Antrags-Untermenge)
+ * die Verbund-Cluster + Solo-Einzelanträge auf. Reihenfolge der Sub-Gruppen:
+ * Sub-Gruppe mit Lead (Suffix 01/02 + vb_phase 1/2) zuerst, danach restliche
+ * Sub-Gruppen aufsteigend nach erstem-Aktenzeichen.
+ */
+function buildVerbundSubGroups(members: AntragListItem[]): AntragGroup[] {
+  const placed = new Set<string>();
+  const out: AntragGroup[] = [];
+  for (const a of members) {
+    const vid = a.verbund_id;
+    if (typeof vid !== 'string' || vid.length === 0) {
+      out.push(soloGroup(a));
+      continue;
+    }
+    if (placed.has(vid)) continue;
+    placed.add(vid);
+    const tvs = members
+      .filter(x => x.verbund_id === vid)
+      .sort((x, y) => x.aktenzeichen.localeCompare(y.aktenzeichen));
+    out.push({
+      verbundId: vid,
+      netzwerkId: null,
+      netzwerkLabel: null,
+      tvs,
+      fkzRange: formatFkzRange(tvs),
+    });
+  }
+  // Sortier-Reihenfolge der Sub-Gruppen innerhalb des Netzwerks:
+  // Sub-Gruppen mit Lead zuerst, dann alphabetisch nach erstem Aktenzeichen.
+  out.sort((a, b) => {
+    const aHasLead = a.tvs.some(t => isNetzwerkLead(t));
+    const bHasLead = b.tvs.some(t => isNetzwerkLead(t));
+    if (aHasLead !== bHasLead) return aHasLead ? -1 : 1;
+    return a.tvs[0]!.aktenzeichen.localeCompare(b.tvs[0]!.aktenzeichen);
+  });
+  return out;
+}
+
+/**
  * Bildet aus der bereits primär-sortierten Antragsliste Gruppen für die
  * kompakte Listenansicht. Verhalten je `mode`:
  *
@@ -139,16 +187,21 @@ export function buildAntragGroups(
       }
       if (placed.has(nid)) continue;
       placed.add(nid);
-      const tvs = antraege
-        .filter(x => extractNetzwerkId(x.aktenzeichen) === nid)
-        .sort(compareNetzwerkOrder);
-      const phases = collectPhases(tvs);
+      // Alle Anträge des Netzwerks einsammeln, dann **innerhalb** des Netzwerks
+      // erneut nach Verbund (bzw. Einzelantrag) gruppieren. Reihenfolge:
+      // Sub-Gruppe mit Lead (Suffix 01/02 + vb_phase 1/2) zuerst, danach
+      // restliche Sub-Gruppen aufsteigend nach erstem-Aktenzeichen.
+      const members = antraege.filter(x => extractNetzwerkId(x.aktenzeichen) === nid);
+      const subGroups = buildVerbundSubGroups(members);
+      const flatTvs = subGroups.flatMap(g => g.tvs);
+      const phases = collectPhases(flatTvs);
       out.push({
         verbundId: null,
         netzwerkId: nid,
         netzwerkLabel: formatNetzwerkLabel(nid, phases),
-        tvs,
-        fkzRange: formatFkzRange(tvs),
+        tvs: flatTvs,
+        fkzRange: formatFkzRange(flatTvs),
+        subGroups,
       });
     }
     return out;

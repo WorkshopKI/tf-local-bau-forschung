@@ -7,6 +7,7 @@ import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { AntragGroupCard } from './AntragGroupCard';
+import { NetzwerkClusterCard } from './NetzwerkClusterCard';
 import { buildAntragGroups, type GroupingMode } from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
 import { SortDropdown } from './SortDropdown';
@@ -265,16 +266,31 @@ function GroupedList({
   );
   return (
     <div className="flex flex-col gap-1">
-      {groups.map(g => (
-        <AntragGroupCard
-          key={g.tvs[0]!.aktenzeichen}
-          group={g}
-          selectedAktenzeichen={selectedAktenzeichen}
-          onOpenAntrag={onOpenAntrag}
-          onOpenVerbund={onOpenVerbund}
-          narrow={narrow}
-        />
-      ))}
+      {groups.map(g => {
+        const isNetzwerkSuper = g.netzwerkId !== null && (g.subGroups?.length ?? 0) > 0;
+        if (isNetzwerkSuper) {
+          return (
+            <NetzwerkClusterCard
+              key={g.tvs[0]!.aktenzeichen}
+              group={g}
+              selectedAktenzeichen={selectedAktenzeichen}
+              onOpenAntrag={onOpenAntrag}
+              onOpenVerbund={onOpenVerbund}
+              narrow={narrow}
+            />
+          );
+        }
+        return (
+          <AntragGroupCard
+            key={g.tvs[0]!.aktenzeichen}
+            group={g}
+            selectedAktenzeichen={selectedAktenzeichen}
+            onOpenAntrag={onOpenAntrag}
+            onOpenVerbund={onOpenVerbund}
+            narrow={narrow}
+          />
+        );
+      })}
       {visibleRows < filtered.length ? (
         <div ref={sentinelRef} className="py-4 text-center text-[11.5px] text-[var(--tf-text-tertiary)]">
           Lade weitere Einträge …
