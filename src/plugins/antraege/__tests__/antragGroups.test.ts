@@ -15,6 +15,15 @@ function mk(aktenzeichen: string, verbund_id?: string): AntragListItem {
   };
 }
 
+function mkKn(aktenzeichen: string, vb_phase?: number): AntragListItem {
+  return {
+    aktenzeichen,
+    programm_id: 'P',
+    _updated_at: '2026-01-01T00:00:00Z',
+    ...(vb_phase !== undefined ? { vb_phase } : {}),
+  };
+}
+
 const az = (items: AntragListItem[]): string[] => items.map(i => i.aktenzeichen);
 
 describe('applyVerbundClustering', () => {
@@ -144,5 +153,76 @@ describe('buildAntragGroups', () => {
 
   it('Leere Eingabe → leeres Gruppen-Array', () => {
     expect(buildAntragGroups([])).toEqual([]);
+  });
+
+  it('mode=none → jeder TV eigene Solo-Gruppe (backward-compat zu flat:true)', () => {
+    const input = [mk('K1', 'V1'), mk('K2', 'V1'), mk('A')];
+    const groups = buildAntragGroups(input, { mode: 'none' });
+    expect(groups).toHaveLength(3);
+    expect(groups.map(g => g.tvs.map(t => t.aktenzeichen))).toEqual([['K1'], ['K2'], ['A']]);
+    expect(groups.every(g => g.verbundId === null && g.netzwerkId === null)).toBe(true);
+  });
+
+  it('flat:true bleibt als Alias zu mode=none erhalten', () => {
+    const input = [mk('K1', 'V1'), mk('K2', 'V1')];
+    const a = buildAntragGroups(input, { flat: true });
+    const b = buildAntragGroups(input, { mode: 'none' });
+    expect(a.map(g => g.tvs.map(t => t.aktenzeichen)))
+      .toEqual(b.map(g => g.tvs.map(t => t.aktenzeichen)));
+  });
+});
+
+describe('buildAntragGroups — mode=netzwerk', () => {
+  it('clustert 16KN-Anträge nach 4-Ziffer-Netzwerk-ID', () => {
+    const input = [
+      mkKn('16KN106201', 1),
+      mkKn('16KN106227', 2),
+      mkKn('16EP123456'),
+      mkKn('16KN106202', 2),
+      mkKn('16KN999901', 1),
+    ];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    // Reihenfolge: NW1062-Cluster (an Position des ersten 16KN1062-Antrags) -> 16EP solo -> NW9999 solo
+    expect(groups).toHaveLength(3);
+    expect(groups[0]!.netzwerkId).toBe('1062');
+    expect(groups[0]!.tvs.map(t => t.aktenzeichen))
+      .toEqual(['16KN106201', '16KN106202', '16KN106227']); // Leads zuerst, dann TVs
+    expect(groups[1]!.netzwerkId).toBeNull();
+    expect(groups[1]!.tvs.map(t => t.aktenzeichen)).toEqual(['16EP123456']);
+    expect(groups[2]!.netzwerkId).toBe('9999');
+    expect(groups[2]!.tvs.map(t => t.aktenzeichen)).toEqual(['16KN999901']);
+  });
+
+  it('netzwerkLabel reflektiert beide Phasen wenn Lead-P1 + Lead-P2 vertreten', () => {
+    const input = [
+      mkKn('16KN106201', 1),
+      mkKn('16KN106202', 2),
+      mkKn('16KN106227', 2),
+    ];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    expect(groups[0]!.netzwerkLabel).toBe('Netzwerk 1062 · Phase 1 + 2');
+  });
+
+  it('netzwerkLabel zeigt nur eine Phase wenn nur eine vertreten', () => {
+    const input = [mkKn('16KN106201', 1), mkKn('16KN106203', 1)];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    expect(groups[0]!.netzwerkLabel).toBe('Netzwerk 1062 · Phase 1');
+  });
+
+  it('nicht-16KN-Anträge bleiben Solo (verbundId/netzwerkId null)', () => {
+    const input = [mkKn('16EP100000'), mkKn('16DS200000'), mkKn('16DL300000')];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    expect(groups).toHaveLength(3);
+    expect(groups.every(g => g.verbundId === null && g.netzwerkId === null)).toBe(true);
+  });
+
+  it('fkzRange auch im Netzwerk-Modus korrekt', () => {
+    const input = [
+      mkKn('16KN106227', 2),
+      mkKn('16KN106201', 1),
+      mkKn('16KN106203', 2),
+    ];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    expect(groups[0]!.fkzRange).toBe('16KN106201–16KN106227');
   });
 });

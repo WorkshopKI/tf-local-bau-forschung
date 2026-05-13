@@ -99,7 +99,12 @@ export function AntraegePage(): React.ReactElement {
         {selectedVb ? (
           <VerbundDetail verbundId={selectedVb} onClose={closeDetail} onOpenAntrag={openAntrag} />
         ) : selectedAz ? (
-          <AntragDetail aktenzeichen={selectedAz} onClose={closeDetail} onOpenVerbund={openVerbund} />
+          <AntragDetail
+            aktenzeichen={selectedAz}
+            onClose={closeDetail}
+            onOpenVerbund={openVerbund}
+            onOpenAntrag={openAntrag}
+          />
         ) : null}
 
         {/* Persistente Filter-Sidebar (rechts) — nur wenn KEIN Detail offen

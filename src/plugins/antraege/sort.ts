@@ -1,6 +1,7 @@
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { ViewKey } from './views';
 import { daysUntilFrist } from './views';
+import type { GroupingMode } from './antragGroups';
 
 export type SortKey =
   | 'bewilligung_desc'
@@ -133,4 +134,44 @@ export function getSortOptionsForView(view: ViewKey): SortOption[] {
 export function isSortAllowedForView(key: SortKey, view: ViewKey): boolean {
   if (BEWILLIGUNG_KEYS.has(key) && !BEWILLIGUNG_VIEWS.has(view)) return false;
   return true;
+}
+
+// --------------------------------------------------------------------------
+// Gruppierungs-Optionen
+// --------------------------------------------------------------------------
+
+export interface GroupingOption {
+  key: GroupingMode;
+  label: string;
+}
+
+/** Sichtbare Gruppierungs-Optionen für das UI-Dropdown. Reihenfolge =
+ *  Anzeige-Reihenfolge. */
+export const GROUPING_OPTIONS: readonly GroupingOption[] = [
+  { key: 'verbund', label: 'Verbund (Akronym)' },
+  { key: 'netzwerk', label: 'Netzwerk (16KN)' },
+  { key: 'none', label: 'Keine Gruppierung' },
+];
+
+/** Default-Gruppierung pro View. Verbund ist die produktive Hauptansicht;
+ *  Netzwerk und Keine sind explizite User-Wahl. */
+export const DEFAULT_GROUPING_BY_VIEW: Record<ViewKey, GroupingMode> = {
+  meine_offenen: 'verbund',
+  diese_woche_faellig: 'verbund',
+  ueberfaellig: 'verbund',
+  nachforderungen: 'verbund',
+  bewilligt_jahr: 'verbund',
+  alle: 'verbund',
+};
+
+export function getGroupingOption(key: GroupingMode): GroupingOption {
+  return GROUPING_OPTIONS.find(o => o.key === key) ?? GROUPING_OPTIONS[0]!;
+}
+
+/** True für Sort-Keys, die Gruppen-Clustering auseinanderreißen würden.
+ *  Antragsteller-Sort ist das einzige solche Verhalten: gleicher Antragsteller
+ *  soll direkt nebeneinander stehen, nicht unter Verbund/Netzwerk-Headern
+ *  verstreut. */
+export function sortDisablesGrouping(key: SortKey): boolean {
+  return key === 'antragsteller_asc';
 }

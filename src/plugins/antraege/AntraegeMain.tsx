@@ -2,14 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { useAntraegeStore, getEffectiveSortKey } from './store';
+import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { AntragGroupCard } from './AntragGroupCard';
-import { buildAntragGroups } from './antragGroups';
+import { buildAntragGroups, type GroupingMode } from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
 import { SortDropdown } from './SortDropdown';
+import { GroupingDropdown } from './GroupingDropdown';
+import { sortDisablesGrouping } from './sort';
 import { Alert } from '@/components/ui/alert';
 import { AlertTriangle, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -125,6 +127,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
           <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
               <SortDropdown />
+              <GroupingDropdown />
               {bearbeiterFilter.active ? (
                 <BearbeiterFilterPill tokens={bearbeiterFilter.tokens} />
               ) : null}
@@ -221,9 +224,13 @@ function GroupedList({
   sentinelRef,
 }: GroupedListProps): React.ReactElement {
   const sortKey = useAntraegeStore(s => getEffectiveSortKey(s.activeView, s.sortByView));
+  const userGroupingMode = useAntraegeStore(s => getEffectiveGroupingMode(s.activeView, s.groupingByView));
+  // Antragsteller-Sort überschreibt die User-Wahl: gleicher Antragsteller
+  // soll direkt nebeneinander stehen, nicht durch Cluster-Header zerrissen.
+  const effectiveMode: GroupingMode = sortDisablesGrouping(sortKey) ? 'none' : userGroupingMode;
   const groups = useMemo(
-    () => buildAntragGroups(filtered.slice(0, visibleRows), { flat: sortKey === 'antragsteller_asc' }),
-    [filtered, visibleRows, sortKey],
+    () => buildAntragGroups(filtered.slice(0, visibleRows), { mode: effectiveMode }),
+    [filtered, visibleRows, effectiveMode],
   );
   return (
     <div className="flex flex-col gap-1">

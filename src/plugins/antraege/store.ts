@@ -8,10 +8,19 @@ import {
 } from '@/core/services/csv/idb-csv';
 import { tfPerfLog, tfPerfStart } from '@/core/utils/tfPerf';
 import type { ViewKey } from './views';
-import { DEFAULT_SORT_BY_VIEW, SORT_OPTIONS, isSortAllowedForView, type SortKey } from './sort';
+import {
+  DEFAULT_SORT_BY_VIEW,
+  SORT_OPTIONS,
+  isSortAllowedForView,
+  type SortKey,
+  DEFAULT_GROUPING_BY_VIEW,
+  GROUPING_OPTIONS,
+} from './sort';
+import type { GroupingMode } from './antragGroups';
 
 const ACTIVE_VIEW_KEY = 'teamflow_antraege_active_view';
 const SORT_BY_VIEW_KEY = 'teamflow_antraege_sort_by_view';
+const GROUPING_BY_VIEW_KEY = 'teamflow_antraege_grouping_by_view';
 
 function loadActiveView(): ViewKey {
   try {
@@ -47,6 +56,29 @@ function saveSortByView(map: Partial<Record<ViewKey, SortKey>>): void {
   try { localStorage.setItem(SORT_BY_VIEW_KEY, JSON.stringify(map)); } catch { /* ignore */ }
 }
 
+const VALID_GROUPING_KEYS = new Set<GroupingMode>(GROUPING_OPTIONS.map(o => o.key));
+
+function loadGroupingByView(): Partial<Record<ViewKey, GroupingMode>> {
+  try {
+    const raw = localStorage.getItem(GROUPING_BY_VIEW_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: Partial<Record<ViewKey, GroupingMode>> = {};
+    for (const [view, key] of Object.entries(parsed)) {
+      if (typeof key === 'string' && VALID_GROUPING_KEYS.has(key as GroupingMode)) {
+        out[view as ViewKey] = key as GroupingMode;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function saveGroupingByView(map: Partial<Record<ViewKey, GroupingMode>>): void {
+  try { localStorage.setItem(GROUPING_BY_VIEW_KEY, JSON.stringify(map)); } catch { /* ignore */ }
+}
+
 interface AntraegeState {
   programmId: string | null;
   /** Schmale Listen-Projektion aus dem `ANTRAEGE_LIST_VIEW`-Store —
@@ -60,6 +92,8 @@ interface AntraegeState {
   activeView: ViewKey;
   /** User-Override pro View. Leer → Default aus DEFAULT_SORT_BY_VIEW. */
   sortByView: Partial<Record<ViewKey, SortKey>>;
+  /** User-Override pro View. Leer → Default aus DEFAULT_GROUPING_BY_VIEW. */
+  groupingByView: Partial<Record<ViewKey, GroupingMode>>;
   loading: boolean;
   /** Wann der Store zuletzt erfolgreich geladen hat. Für TTL-Skip-Path
    *  in `loadAll` — schnelle Navigations-Wechsel zwischen Home und
@@ -77,6 +111,7 @@ interface AntraegeState {
   setSearch: (s: string) => void;
   setActiveView: (view: ViewKey) => void;
   setSortForView: (view: ViewKey, key: SortKey) => void;
+  setGroupingForView: (view: ViewKey, mode: GroupingMode) => void;
   setSelectedAktenzeichen: (az: string | null) => void;
   setSelectedVerbundId: (id: string | null) => void;
   backToList: () => void;
@@ -99,6 +134,15 @@ export function getEffectiveSortKey(
   return DEFAULT_SORT_BY_VIEW[view];
 }
 
+export function getEffectiveGroupingMode(
+  view: ViewKey,
+  overrides: Partial<Record<ViewKey, GroupingMode>>,
+): GroupingMode {
+  const override = overrides[view];
+  if (override) return override;
+  return DEFAULT_GROUPING_BY_VIEW[view];
+}
+
 export const useAntraegeStore = create<AntraegeState>((set) => ({
   programmId: null,
   antraege: [],
@@ -108,6 +152,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   search: '',
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
+  groupingByView: loadGroupingByView(),
   loading: false,
   lastLoadedAt: 0,
 
@@ -185,6 +230,18 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     }
     saveSortByView(next);
     set({ sortByView: next });
+  },
+
+  setGroupingForView: (view: ViewKey, mode: GroupingMode) => {
+    const current = useAntraegeStore.getState().groupingByView;
+    const next: Partial<Record<ViewKey, GroupingMode>> = { ...current };
+    if (mode === DEFAULT_GROUPING_BY_VIEW[view]) {
+      delete next[view];
+    } else {
+      next[view] = mode;
+    }
+    saveGroupingByView(next);
+    set({ groupingByView: next });
   },
 
   setSelectedAktenzeichen: (az: string | null) =>

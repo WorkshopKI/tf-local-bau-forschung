@@ -9,6 +9,7 @@ import {
   AMPEL_TOOLTIP,
 } from './eingangAmpel';
 import type { AntragGroup } from './antragGroups';
+import { isNetzwerkLead } from './netzwerk';
 
 interface Props {
   group: AntragGroup;
@@ -113,6 +114,14 @@ export function AntragGroupCard({
                 </span>
               </span>
             ) : null}
+            {group.netzwerkLabel ? (
+              <span
+                className={`font-medium shrink-0 ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}
+                style={{ color: 'var(--tf-primary)' }}
+              >
+                {group.netzwerkLabel}
+              </span>
+            ) : null}
             <span className={`font-mono text-[var(--tf-text-tertiary)] shrink-0 ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>
               {group.fkzRange}
             </span>
@@ -160,6 +169,7 @@ function TvRow({ tv, showLine, selected, onClick, narrow }: TvRowProps): React.R
   const titel = strOrNull(tv.titel) ?? tv.aktenzeichen;
   const status = strOrNull(tv.status) ?? '';
   const lineText = antragsteller ? `${antragsteller} — ${titel}` : titel;
+  const isLead = isNetzwerkLead(tv);
 
   return (
     <div className="relative" style={{ paddingLeft: '20px' }}>
@@ -184,6 +194,19 @@ function TvRow({ tv, showLine, selected, onClick, narrow }: TvRowProps): React.R
           <span className={`truncate ${narrow ? 'text-[12px]' : 'text-[12.5px]'} text-[var(--tf-text-secondary)]`}>
             {lineText}
           </span>
+          {isLead ? (
+            <span
+              className="shrink-0 inline-flex items-center rounded-full text-[10px] font-medium uppercase tracking-wider"
+              style={{
+                padding: '1px 6px',
+                color: 'var(--tf-primary)',
+                border: '0.5px solid var(--tf-primary)',
+              }}
+              title="Netzwerk-Lead (FKZ-Suffix 01/02, NW1/NW2)"
+            >
+              Lead
+            </span>
+          ) : null}
           <span className="flex-1" />
           {status ? (
             <Badge variant={getStatusVariant(status)} className="min-w-[110px] justify-center whitespace-nowrap shrink-0">

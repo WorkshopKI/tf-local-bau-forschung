@@ -7,6 +7,7 @@ import type { Antrag, CsvSchema } from '@/core/services/csv/types';
 import { buildDisplayRows, groupDisplayRows, type DisplayGroup } from './buildDisplayRows';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { AntragDokumenteSection } from './AntragDokumenteSection';
+import { NetzwerkMitgliederSection } from './NetzwerkMitgliederSection';
 import { EckdatenCard } from './EckdatenCard';
 import { KlassifikationPills } from './KlassifikationPills';
 import { AlleFelderSection } from './AlleFelderSection';
@@ -18,6 +19,7 @@ interface Props {
   aktenzeichen: string;
   onClose: () => void;
   onOpenVerbund: (verbundId: string) => void;
+  onOpenAntrag: (aktenzeichen: string) => void;
 }
 
 function strOrNull(v: unknown): string | null {
@@ -26,7 +28,7 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): React.ReactElement {
+export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund, onOpenAntrag }: Props): React.ReactElement {
   const storage = useStorage();
   const { verbuende } = useAntraegeStore();
   const [antrag, setAntrag] = useState<Antrag | null>(null);
@@ -159,6 +161,10 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund }: Props): R
           historyCounts={historyCounts}
           onOpenHistory={setHistoryField}
         />
+      </SectionDivider>
+
+      <SectionDivider>
+        <NetzwerkMitgliederSection aktenzeichen={aktenzeichen} onOpenAntrag={onOpenAntrag} />
       </SectionDivider>
 
       <SectionDivider>
