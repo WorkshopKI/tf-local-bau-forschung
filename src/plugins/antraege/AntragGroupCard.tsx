@@ -1,7 +1,7 @@
 import { Badge } from '@/ui';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
-import { getVbPhaseLabel } from '@/core/utils/vb-phase-mappings';
+import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import {
   getEingangAmpel,
   daysSinceEingang,
@@ -90,19 +90,19 @@ export function AntragGroupCard({
             </span>
           ) : null}
           {phaseLabel ? (
-            <span
-              className={`shrink-0 text-[var(--tf-text-tertiary)] ${narrow ? 'text-[11px]' : 'text-[11.5px]'}`}
-              aria-label={`Förderart: ${phaseLabel}`}
+            <Badge
+              variant={getVbPhaseVariant(headTv.vb_phase)}
+              className="shrink-0 min-w-[44px] justify-center"
             >
-              · {phaseLabel}
-            </span>
+              {phaseLabel}
+            </Badge>
           ) : null}
         </div>
       </button>
 
       {/* TV-Zeilen: Antragsteller — Titel + Status-Badge. Alle TVs sind
-          einheitlich 24px eingerueckt; die Verbund-Klammer-Linie erscheint
-          nur bei Cluster mit >= 2 TVs (innerhalb der gemeinsamen Indent-Spur). */}
+          einheitlich 20px eingerueckt; die Verbund-Klammer-Linie erscheint
+          nur bei Cluster mit >= 2 TVs (mittig bei 10px in der Indent-Spur). */}
       <div className="flex flex-col">
         {group.tvs.map(tv => (
           <TvRow
@@ -122,7 +122,7 @@ export function AntragGroupCard({
 interface TvRowProps {
   tv: AntragListItem;
   /** True wenn die Verbund-Klammer-Linie gerendert werden soll (>= 2 TVs).
-   *  Die 24px-Einrueckung wird *immer* angewendet, damit Einzelantrag und
+   *  Die 20px-Einrueckung wird *immer* angewendet, damit Einzelantrag und
    *  Verbund-TV horizontal an derselben Position starten. */
   showLine: boolean;
   selected: boolean;
@@ -137,11 +137,11 @@ function TvRow({ tv, showLine, selected, onClick, narrow }: TvRowProps): React.R
   const lineText = antragsteller ? `${antragsteller} — ${titel}` : titel;
 
   return (
-    <div className="relative" style={{ paddingLeft: '24px' }}>
+    <div className="relative" style={{ paddingLeft: '20px' }}>
       {showLine ? (
         <span
           aria-hidden="true"
-          className="absolute left-3 top-0 bottom-0 w-px"
+          className="absolute left-[10px] top-0 bottom-0 w-px"
           style={{ background: 'var(--tf-border-hover)' }}
         />
       ) : null}
