@@ -6,6 +6,7 @@ import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEff
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
+import { StatusQuickChipsBar } from './filter/StatusQuickChipsBar';
 import { AntragGroupCard } from './AntragGroupCard';
 import { NetzwerkClusterCard } from './NetzwerkClusterCard';
 import { buildAntragGroups, takeGroupsUntil, type GroupingMode } from './antragGroups';
@@ -158,11 +159,12 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
                 />
               ) : null}
             </div>
-            {active.length > 0 ? (
-              <div className="flex-1 min-w-0 flex justify-end">
+            <div className="flex-1 min-w-0 flex items-center justify-end gap-3 flex-wrap">
+              <StatusQuickChipsBar />
+              {active.length > 0 ? (
                 <ActiveFilterChips active={active} definitions={definitions} onRemove={clearFilter} />
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
 
           {bearbeiterKuerzelMissing && antraege.length > 0 ? (

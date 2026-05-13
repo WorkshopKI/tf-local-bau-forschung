@@ -128,6 +128,18 @@ function normalize(raw: unknown): string | null {
  *  Pattern), "VN angefordert" (nur Pattern). */
 const BEGLEITUNG_PATTERN = /^(vn|zb)[\s.]/;
 
+/** Liefert alle bekannten Status-Werte einer Kategorie (lowercase, normalized).
+ *  Wird vom Status-Quickfilter genutzt, um Chips auf Filter-Werte zu mappen.
+ *  VN/ZB-Pattern-only-Stati (z.B. „VN angefordert") sind hier NICHT enthalten —
+ *  der Filter arbeitet auf den explizit gelisteten Status-Werten. */
+export function getStatusValuesByCategory(category: StatusCategory): string[] {
+  const out: string[] = [];
+  for (const [key, cat] of CATEGORY_MAP) {
+    if (cat === category) out.push(key);
+  }
+  return out;
+}
+
 /** Mappt einen rohen Status-Wert auf eine Kategorie. Lookup-Reihenfolge:
  *  1. Explizite Map (Foerderantrag + Bauantrag Stati)
  *  2. VN/ZB-Pattern → Begleitung
