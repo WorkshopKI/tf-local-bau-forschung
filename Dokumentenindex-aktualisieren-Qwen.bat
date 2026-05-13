@@ -71,7 +71,7 @@ $FlashAttn = $true
 $Reasoning = 'off'
 $NoMmap = $true
 $Mlock = $true
-$Parallel = 1
+$Parallel = $null
 $ExtraArgs = @()
 $AutoUpdate = $true
 
@@ -97,7 +97,6 @@ if (-not (Test-Path $ConfigFile)) {
   "reasoning": "off",
   "no_mmap": true,
   "mlock": true,
-  "parallel": 1,
   "extra_args": [],
   "auto_update": true
 }
@@ -134,7 +133,6 @@ if ($cfg['reasoning']) { $Reasoning = [string]$cfg['reasoning'] }
 if ($cfg.ContainsKey('no_mmap')) { $NoMmap = [bool]$cfg['no_mmap'] }
 if ($cfg.ContainsKey('mlock')) { $Mlock = [bool]$cfg['mlock'] }
 if ($cfg.ContainsKey('parallel') -and $null -ne $cfg['parallel']) { $Parallel = [int]$cfg['parallel'] }
-elseif ($cfg.ContainsKey('n_parallel') -and $null -ne $cfg['n_parallel']) { $Parallel = [int]$cfg['n_parallel'] }
 if ($cfg['extra_args']) { $ExtraArgs = @($cfg['extra_args']) }
 if ($cfg.ContainsKey('auto_update')) { $AutoUpdate = [bool]$cfg['auto_update'] }
 
@@ -258,7 +256,7 @@ $serverArgs = @(
 if ($FlashAttn) { $serverArgs += @('-fa', 'on') }
 if ($NoMmap) { $serverArgs += '--no-mmap' }
 if ($Mlock) { $serverArgs += '--mlock' }
-if ($Parallel -gt 0) { $serverArgs += @('--parallel', $Parallel) }
+if ($null -ne $Parallel -and $Parallel -gt 0) { $serverArgs += @('--parallel', $Parallel) }
 if ($ExtraArgs.Count -gt 0) { $serverArgs += $ExtraArgs }
 $argString = ($serverArgs | ForEach-Object { if ($_ -match ' ') { "`"$_`"" } else { $_ } }) -join ' '
 cmd /c "`"$ServerExe`" $argString"
