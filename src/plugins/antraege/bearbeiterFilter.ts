@@ -1,5 +1,4 @@
 import type { AntragListItem } from '@/core/services/csv/types';
-import { isBegleitungStatus } from '@/core/utils/status-canonical';
 
 /**
  * Bearbeiter-Kürzel-Filter.
@@ -21,11 +20,17 @@ import { isBegleitungStatus } from '@/core/utils/status-canonical';
  * - "MUE, SCH" → mehrere Kürzel komma-separiert (für Vertretung)
  *
  * `bearbeiter_inkl_begleitung` (Profil-Toggle):
- * - true:  zusaetzlich ZTP/PFM-Spalten matchen + Antraege in Begleit-Phase einschliessen
- * - false: nur TIB/BIB-Spalten matchen + Antraege in Begleit-Phase AUSBLENDEN
- *          (Logik: nach Bewilligung wechselt die Zustaendigkeit zur Begleitung;
- *          der TIB sieht den Antrag nicht mehr in 'seinen Antraegen', auch wenn
- *          sein Kuerzel im tib_kuerz steht.)
+ * - true:  zusaetzlich ZTP/PFM-Spalten matchen
+ * - false: nur TIB/BIB-Spalten matchen
+ *
+ * Wichtig: ein TIB-/BIB-Treffer ueberstimmt die Phase. Auch wenn der
+ * Antrag inzwischen in Begleit-Phase (VN-/ZB-geprueft etc.) ist, bleibt
+ * er sichtbar, solange das TIB-/BIB-Kuerzel den User identifiziert.
+ * Das ist absichtlich: Recherche-Workflows (alte aehnliche Antraege fuer
+ * Textvorlagen) brauchen die Sicht auch auf in-Begleitung-uebergegangene
+ * Faelle. Der `inkl_begleitung`-Toggle bestimmt nur noch, ob zusaetzlich
+ * uebernommene Begleitungs-Faelle (ZTP/PFM-Match ohne TIB-Match)
+ * mitkommen.
  */
 
 const BEARBEITER_FIELDS_LOWER: readonly string[] = ['tib_kuerz', 'bib_kuerz'];
@@ -128,10 +133,12 @@ function antragHasKuerzel(
  * True wenn der Antrag dem Bearbeiter-Filter genügt.
  * Logik:
  * - mode.active=false → IMMER true (Filter aus, alle durchreichen)
- * - mode.includeBegleitung=false UND Antrag in Begleit-Phase → false
- *   (Zustaendigkeit hat zu ZTP/PFM gewechselt, kein 'meine Antraege' fuer TIB)
- * - sonst: match wenn das Kürzel in einer der Bearbeiter-Spalten steht;
- *   bei `includeBegleitung=true` zusätzlich in den Begleitungs-Spalten.
+ * - Match wenn das Kürzel in einer der Bearbeiter-Spalten (TIB/BIB) steht.
+ *   Bei `includeBegleitung=true` zusätzlich in den Begleitungs-Spalten
+ *   (ZTP/PFM). Die Phase des Antrags spielt KEINE Rolle — wer einmal als
+ *   TIB auf einem Antrag stand, sieht ihn weiterhin, auch nach Übergang
+ *   in die Begleit-Phase. Praktisch für Recherche nach alten ähnlichen
+ *   Anträgen (Textvorlagen).
  *
  * Wichtig: wenn der Antrag KEINE der Spalten gesetzt hat (z.B. weil das
  * verwendete Schema die KUERZ-Spalten nicht mappt), wird er bei aktivem
@@ -139,7 +146,6 @@ function antragHasKuerzel(
  */
 export function antragMatchesBearbeiter(antrag: AntragListItem, mode: BearbeiterFilterMode): boolean {
   if (!mode.active) return true;
-  if (!mode.includeBegleitung && isBegleitungStatus(antrag.status)) return false;
   if (antragHasKuerzel(antrag, BEARBEITER_FIELDS_LOWER, BEARBEITER_FIELDS_LOWER_SET, mode.tokens)) {
     return true;
   }
@@ -154,6 +160,9 @@ export function antragMatchesBearbeiter(antrag: AntragListItem, mode: Bearbeiter
 
 /**
  * Convenience: filtert eine Liste mit dem Modus. Inaktiver Filter → unverändert.
+ *
+ * Phase-übergreifend: ein TIB-/BIB-Match überstimmt die Antrags-Phase
+ * (siehe Modul-Docstring oben).
  */
 export function applyBearbeiterFilter(antraege: AntragListItem[], mode: BearbeiterFilterMode): AntragListItem[] {
   if (!mode.active) return antraege;
@@ -164,10 +173,7 @@ export function applyBearbeiterFilter(antraege: AntragListItem[], mode: Bearbeit
   const keys = mode.includeBegleitung ? COMBINED_FIELDS_LOWER : BEARBEITER_FIELDS_LOWER;
   const set = mode.includeBegleitung ? COMBINED_FIELDS_LOWER_SET : BEARBEITER_FIELDS_LOWER_SET;
   const tokens = mode.tokens;
-  return antraege.filter(a => {
-    if (!mode.includeBegleitung && isBegleitungStatus(a.status)) return false;
-    return antragHasKuerzel(a, keys, set, tokens);
-  });
+  return antraege.filter(a => antragHasKuerzel(a, keys, set, tokens));
 }
 
 /**

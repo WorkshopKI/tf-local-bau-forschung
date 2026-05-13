@@ -118,16 +118,17 @@ describe('antragMatchesBearbeiter', () => {
     expect(antragMatchesBearbeiter(makeAntrag({ pfm_kuerz: 'AM' }), m)).toBe(false);
   });
 
-  // Neue Semantik: bearbeiter_inkl_begleitung steuert nicht nur die KUERZ-
-  // Spalten, sondern auch die Phase. Mit includeBegleitung=false werden
-  // Antraege in Begleit-Phase (VN/ZB-Pruefung) komplett ausgeblendet — auch
-  // wenn das TIB-/BIB-Kuerzel matched. Logik: Zustaendigkeit hat zu ZTP/PFM
-  // gewechselt, der TiB sieht den Antrag nicht mehr in 'seinen'.
-  it('TIB-Match ohne Begleitung-Toggle: Antrag in Begleit-Phase wird ausgeblendet', () => {
+  // Neue Semantik (Mai 2026): bearbeiter_inkl_begleitung steuert nur noch,
+  // welche KUERZ-Spalten gematcht werden — NICHT mehr die Phase. Ein TIB-/
+  // BIB-Match übersteuert die Phase: wer einmal als TIB auf dem Antrag
+  // stand, sieht ihn auch nach Übergang in VN/ZB-Phase. Begründung:
+  // Recherche nach alten ähnlichen Anträgen (Textvorlagen) braucht die
+  // Sicht auch auf in-Begleitung-übergegangene Fälle.
+  it('TIB-Match ohne Begleitung-Toggle: Antrag in Begleit-Phase bleibt sichtbar', () => {
     const m = parseBearbeiterFilter('AM', false);
     expect(antragMatchesBearbeiter(makeAntrag({
       tib_kuerz: 'AM', status: 'VN geprüft',
-    }), m)).toBe(false);
+    }), m)).toBe(true);
   });
   it('TIB-Match mit Begleitung-Toggle: Antrag in Begleit-Phase wird gezeigt', () => {
     const m = parseBearbeiterFilter('AM', true);
@@ -141,17 +142,26 @@ describe('antragMatchesBearbeiter', () => {
       tib_kuerz: 'AM', status: 'kaufm geprüft',
     }), m)).toBe(true);
   });
-  it('TIB-Match ohne Begleitung-Toggle: Antrag mit unbekanntem VN-Pattern wird auch ausgeblendet', () => {
+  it('TIB-Match ohne Begleitung-Toggle: Antrag mit VN-Pattern bleibt jetzt sichtbar', () => {
     const m = parseBearbeiterFilter('AM', false);
     expect(antragMatchesBearbeiter(makeAntrag({
       tib_kuerz: 'AM', status: 'VN angefordert',
-    }), m)).toBe(false);
+    }), m)).toBe(true);
   });
   it('TIB-Match ohne Begleitung-Toggle: bewilligt (final) bleibt sichtbar', () => {
     const m = parseBearbeiterFilter('AM', false);
     expect(antragMatchesBearbeiter(makeAntrag({
       tib_kuerz: 'AM', status: 'bewilligt',
     }), m)).toBe(true);
+  });
+  // ZTP/PFM-only Match ohne Begleitung-Toggle: Antrag bleibt unsichtbar,
+  // weil ZTP/PFM-Spalten in diesem Modus gar nicht gemacht werden — auch
+  // dann nicht, wenn der Antrag zufaellig in Begleit-Phase ist.
+  it('ZTP-only Match ohne Begleitung-Toggle: Antrag in Begleit-Phase bleibt unsichtbar', () => {
+    const m = parseBearbeiterFilter('AM', false);
+    expect(antragMatchesBearbeiter(makeAntrag({
+      ztp_kuerz: 'AM', status: 'VN geprüft',
+    }), m)).toBe(false);
   });
 });
 
