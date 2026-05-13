@@ -54,10 +54,23 @@ export function AntragGroupCard({
     }
   };
 
+  // Verbund-Cluster (>= 2 TVs) bekommen eine linke 3px-Akzent-Bar in Primary-
+  // Color, damit das Auge sie auf einen Blick als zusammengehoerige Gruppe
+  // erkennt. Einzelantraege bleiben visuell flach.
+  const cardStyle: React.CSSProperties = isMultiTv
+    ? {
+      borderWidth: '0.5px',
+      borderStyle: 'solid',
+      borderColor: 'transparent',
+      borderLeftWidth: '3px',
+      borderLeftColor: 'var(--tf-primary)',
+    }
+    : { borderWidth: '0.5px', borderStyle: 'solid', borderColor: 'transparent' };
+
   return (
     <div
       className="rounded-[var(--tf-radius)] py-1 flex items-start gap-2"
-      style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: 'transparent' }}
+      style={cardStyle}
     >
       {/* Foerderart-Badge ganz links — konsistent mit der Home-Page-Liste,
           wo das Badge ebenfalls die linke Bound der Card markiert. Kein
