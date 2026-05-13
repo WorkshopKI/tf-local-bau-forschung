@@ -46,7 +46,14 @@ export function AntragTile({
 }: Props): React.ReactElement {
   const isVerbund = group.tvs.length >= 2;
   const headTv = group.tvs[0]!;
-  const akronym = strOrNull(headTv.akronym) ?? headTv.aktenzeichen;
+  const isNetzwerkSuper = group.netzwerkId !== null && group.netzwerkLabel !== null;
+  // Bei Netzwerk-Supergruppen wird das Akronym-Slot durch den Netzwerk-Namen
+  // ersetzt. `formatNetzwerkLabel` produziert "<Name> · Phase 1 + 2" — bei
+  // 110px-Tile ist nur der vor-Phase-Teil sinnvoll lesbar; den schneiden wir
+  // am " · " ab. Ohne Phase-Teil bleibt der ganze Label übrig.
+  const akronym = isNetzwerkSuper
+    ? (group.netzwerkLabel!.split(' · ')[0] ?? group.netzwerkLabel!)
+    : (strOrNull(headTv.akronym) ?? headTv.aktenzeichen);
 
   // Auswahl-Highlight
   const isSelected = isVerbund
