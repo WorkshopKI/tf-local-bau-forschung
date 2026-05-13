@@ -1,7 +1,7 @@
 import { Badge } from '@/ui';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
-import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
+import { getVbPhaseLabel } from '@/core/utils/vb-phase-mappings';
 import {
   getEingangAmpel,
   daysSinceEingang,
@@ -85,26 +85,30 @@ export function AntragGroupCard({
             {group.fkzRange}
           </span>
           {akronym ? (
-            <span className={`font-medium text-[var(--tf-text)] truncate ${narrow ? 'text-[12.5px]' : 'text-[13px]'}`}>
+            <span className={`font-medium text-[var(--tf-text)] truncate min-w-0 ${narrow ? 'text-[12.5px]' : 'text-[13px]'}`}>
               {akronym}
             </span>
           ) : null}
-          <span className="flex-1" />
           {phaseLabel ? (
-            <Badge variant={getVbPhaseVariant(headTv.vb_phase)} className="min-w-[44px] justify-center shrink-0">
-              {phaseLabel}
-            </Badge>
+            <span
+              className={`shrink-0 text-[var(--tf-text-tertiary)] ${narrow ? 'text-[11px]' : 'text-[11.5px]'}`}
+              aria-label={`Förderart: ${phaseLabel}`}
+            >
+              · {phaseLabel}
+            </span>
           ) : null}
         </div>
       </button>
 
-      {/* TV-Zeilen: Antragsteller — Titel + Status-Badge. */}
+      {/* TV-Zeilen: Antragsteller — Titel + Status-Badge. Alle TVs sind
+          einheitlich 24px eingerueckt; die Verbund-Klammer-Linie erscheint
+          nur bei Cluster mit >= 2 TVs (innerhalb der gemeinsamen Indent-Spur). */}
       <div className="flex flex-col">
         {group.tvs.map(tv => (
           <TvRow
             key={tv.aktenzeichen}
             tv={tv}
-            indent={isMultiTv}
+            showLine={isMultiTv}
             selected={selectedAktenzeichen === tv.aktenzeichen}
             onClick={() => onOpenAntrag(tv.aktenzeichen)}
             narrow={narrow}
@@ -117,24 +121,24 @@ export function AntragGroupCard({
 
 interface TvRowProps {
   tv: AntragListItem;
-  indent: boolean;
+  /** True wenn die Verbund-Klammer-Linie gerendert werden soll (>= 2 TVs).
+   *  Die 24px-Einrueckung wird *immer* angewendet, damit Einzelantrag und
+   *  Verbund-TV horizontal an derselben Position starten. */
+  showLine: boolean;
   selected: boolean;
   onClick: () => void;
   narrow: boolean;
 }
 
-function TvRow({ tv, indent, selected, onClick, narrow }: TvRowProps): React.ReactElement {
+function TvRow({ tv, showLine, selected, onClick, narrow }: TvRowProps): React.ReactElement {
   const antragsteller = strOrNull(tv.antragsteller);
   const titel = strOrNull(tv.titel) ?? tv.aktenzeichen;
   const status = strOrNull(tv.status) ?? '';
   const lineText = antragsteller ? `${antragsteller} — ${titel}` : titel;
 
   return (
-    <div
-      className="relative"
-      style={indent ? { paddingLeft: '24px' } : undefined}
-    >
-      {indent ? (
+    <div className="relative" style={{ paddingLeft: '24px' }}>
+      {showLine ? (
         <span
           aria-hidden="true"
           className="absolute left-3 top-0 bottom-0 w-px"
