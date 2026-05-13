@@ -9,6 +9,7 @@
  * Click auf Chip: toggelt diese Bucket. Shift-Click oder Doppelklick: solo-mode
  * (nur dieser Chip aktiv).
  */
+import type { ActiveFilter } from '@/core/services/csv';
 import { useFilterState } from './useFilterState';
 import {
   STATUS_QUICK_CHIPS,
@@ -21,7 +22,7 @@ import {
 
 const STATUS_FILTER_ID = 'system-status';
 
-function readActiveStatusValues(active: ReturnType<typeof useFilterState>['active']): string[] | null {
+function readActiveStatusValues(active: ActiveFilter[]): string[] | null {
   const entry = active.find(a => a.filterId === STATUS_FILTER_ID);
   if (!entry) return null;
   if (Array.isArray(entry.value) && entry.value.every(v => typeof v === 'string')) {
