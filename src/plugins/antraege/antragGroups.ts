@@ -71,8 +71,23 @@ export function applyVerbundClustering(antraege: AntragListItem[]): AntragListIt
  *
  * Eingabe muss bereits primär sortiert sein — die Funktion ändert keine
  * Positionen zwischen verschiedenen Gruppen.
+ *
+ * `opts.flat=true` deaktiviert die Verbund-Gruppierung komplett — jeder TV
+ * wird zu einer eigenen Einzel-Gruppe. Wird vom Antragsteller-Sort genutzt,
+ * damit Anträge desselben Antragstellers direkt nebeneinander stehen, statt
+ * unter ihrem Verbund-Header zu verschwinden.
  */
-export function buildAntragGroups(antraege: AntragListItem[]): AntragGroup[] {
+export function buildAntragGroups(
+  antraege: AntragListItem[],
+  opts?: { flat?: boolean },
+): AntragGroup[] {
+  if (opts?.flat) {
+    return antraege.map(a => ({
+      verbundId: null,
+      tvs: [a],
+      fkzRange: a.aktenzeichen,
+    }));
+  }
   const placed = new Set<string>();
   const out: AntragGroup[] = [];
 

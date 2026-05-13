@@ -8,7 +8,7 @@ import {
 } from '@/core/services/csv/idb-csv';
 import { tfPerfLog, tfPerfStart } from '@/core/utils/tfPerf';
 import type { ViewKey } from './views';
-import { DEFAULT_SORT_BY_VIEW, SORT_OPTIONS, type SortKey } from './sort';
+import { DEFAULT_SORT_BY_VIEW, SORT_OPTIONS, isSortAllowedForView, type SortKey } from './sort';
 
 const ACTIVE_VIEW_KEY = 'teamflow_antraege_active_view';
 const SORT_BY_VIEW_KEY = 'teamflow_antraege_sort_by_view';
@@ -94,7 +94,9 @@ export function getEffectiveSortKey(
   view: ViewKey,
   overrides: Partial<Record<ViewKey, SortKey>>,
 ): SortKey {
-  return overrides[view] ?? DEFAULT_SORT_BY_VIEW[view];
+  const override = overrides[view];
+  if (override && isSortAllowedForView(override, view)) return override;
+  return DEFAULT_SORT_BY_VIEW[view];
 }
 
 export const useAntraegeStore = create<AntraegeState>((set) => ({

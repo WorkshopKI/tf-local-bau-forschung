@@ -88,7 +88,7 @@ export const SORT_OPTIONS: readonly SortOption[] = [
   },
   {
     key: 'aktenzeichen_asc',
-    label: 'Aktenzeichen (A→Z)',
+    label: 'FKZ (A→Z)',
     compare: (a, b) => a.aktenzeichen.localeCompare(b.aktenzeichen),
   },
   {
@@ -114,4 +114,23 @@ export const DEFAULT_SORT_BY_VIEW: Record<ViewKey, SortKey> = {
 
 export function getSortOption(key: SortKey): SortOption {
   return SORT_OPTIONS.find(o => o.key === key) ?? SORT_OPTIONS[5]!;
+}
+
+const BEWILLIGUNG_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>(['bewilligt_jahr', 'alle']);
+const BEWILLIGUNG_KEYS: ReadonlySet<SortKey> = new Set<SortKey>(['bewilligung_desc', 'bewilligung_asc']);
+
+/** Liefert die im Sort-Dropdown sichtbaren Optionen pro View.
+ *  Bewilligungsdatum-Sort ergibt nur in Tabs Sinn, in denen bewilligte
+ *  Anträge garantiert oder regelmäßig auftauchen — sonst UX-Lärm. */
+export function getSortOptionsForView(view: ViewKey): SortOption[] {
+  if (BEWILLIGUNG_VIEWS.has(view)) return [...SORT_OPTIONS];
+  return SORT_OPTIONS.filter(o => !BEWILLIGUNG_KEYS.has(o.key));
+}
+
+/** Validiert, ob ein (eventuell aus localStorage geladener) SortKey für die
+ *  aktuelle View weiterhin erlaubt ist. Wird vom Store-Helper genutzt, um
+ *  Altzustände sauber auf den View-Default zurückzufallen. */
+export function isSortAllowedForView(key: SortKey, view: ViewKey): boolean {
+  if (BEWILLIGUNG_KEYS.has(key) && !BEWILLIGUNG_VIEWS.has(view)) return false;
+  return true;
 }

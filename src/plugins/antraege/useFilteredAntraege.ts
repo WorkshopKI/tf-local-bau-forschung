@@ -97,7 +97,9 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     const sorted = [...matched].sort(compare);
     // Verbund-Teilvorhaben werden nach der primären Sortierung als Cluster
     // zusammengehalten (Position vom ersten TV, intern nach Aktenzeichen).
-    const clustered = applyVerbundClustering(sorted);
+    // Ausnahme: Antragsteller-Sort soll Anträge desselben Antragstellers
+    // nebeneinander zeigen — dort wäre die Verbund-Gruppierung kontraproduktiv.
+    const clustered = sortKey === 'antragsteller_asc' ? sorted : applyVerbundClustering(sorted);
     end(`base=${antraege.length} → byView=${byView.length} → filtered=${matched.length}`);
     return {
       filtered: clustered,

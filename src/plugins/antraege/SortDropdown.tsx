@@ -1,5 +1,5 @@
 import { useAntraegeStore, getEffectiveSortKey } from './store';
-import { SORT_OPTIONS, type SortKey, getSortOption } from './sort';
+import { getSortOptionsForView, type SortKey, getSortOption } from './sort';
 import {
   Select,
   SelectContent,
@@ -29,7 +29,7 @@ export function SortDropdown(): React.ReactElement {
         <SelectValue>{currentLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent align="end">
-        {SORT_OPTIONS.map(opt => (
+        {getSortOptionsForView(activeView).map(opt => (
           <SelectItem key={opt.key} value={opt.key} className="text-[12px]">
             {opt.label}
           </SelectItem>

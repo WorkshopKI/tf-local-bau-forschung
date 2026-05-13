@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { useAntraegeStore } from './store';
+import { useAntraegeStore, getEffectiveSortKey } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
@@ -220,9 +220,10 @@ function GroupedList({
   narrow,
   sentinelRef,
 }: GroupedListProps): React.ReactElement {
+  const sortKey = useAntraegeStore(s => getEffectiveSortKey(s.activeView, s.sortByView));
   const groups = useMemo(
-    () => buildAntragGroups(filtered.slice(0, visibleRows)),
-    [filtered, visibleRows],
+    () => buildAntragGroups(filtered.slice(0, visibleRows), { flat: sortKey === 'antragsteller_asc' }),
+    [filtered, visibleRows, sortKey],
   );
   return (
     <div className="flex flex-col gap-1">
