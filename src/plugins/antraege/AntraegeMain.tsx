@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from './store';
+import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
@@ -12,11 +12,21 @@ import { useFilteredAntraege } from './useFilteredAntraege';
 import { SortDropdown } from './SortDropdown';
 import { GroupingDropdown } from './GroupingDropdown';
 import { sortDisablesGrouping } from './sort';
+import { CompactList } from './CompactList';
+import { CardGrid } from './CardGrid';
+import type { ViewMode } from './viewModes';
 import { Alert } from '@/components/ui/alert';
 import { AlertTriangle, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ROW_PAGE = 60;
+/** Card-View nutzt eine höhere Page-Size — Tiles sind kompakter, mehr passt
+ *  in einen Scroll-Frame, und der Render-Cost pro Tile ist niedrig. */
+const CARD_PAGE = 200;
+
+function pageSizeForMode(mode: ViewMode): number {
+  return mode === 'cards' ? CARD_PAGE : ROW_PAGE;
+}
 const NARROW_WIDTH_KEY = 'teamflow_antraege_narrow_width';
 const NARROW_DEFAULT_WIDTH = 460;
 const NARROW_MIN = 320;
@@ -44,13 +54,15 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     loading,
     programmId,
     selectedAktenzeichen,
+    selectedVerbundId,
     loadAll,
   } = useAntraegeStore();
+  const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
   const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
   const { filtered, bearbeiterFilter, bearbeiterKuerzelMissing } = useFilteredAntraege();
-  const [visibleRows, setVisibleRows] = useState(ROW_PAGE);
+  const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
   const [narrowWidth, setNarrowWidth] = useState(loadNarrowWidth);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -64,22 +76,23 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
   }, [programmId, storage.idb, init]);
 
   useEffect(() => {
-    setVisibleRows(ROW_PAGE);
-  }, [filtered.length, programmId]);
+    setVisibleRows(pageSizeForMode(viewMode));
+  }, [filtered.length, programmId, viewMode]);
 
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node) return;
     if (visibleRows >= filtered.length) return;
+    const step = pageSizeForMode(viewMode);
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) setVisibleRows((v) => v + ROW_PAGE);
+        if (entries[0]?.isIntersecting) setVisibleRows((v) => v + step);
       },
       { rootMargin: '600px' },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [filtered.length, visibleRows]);
+  }, [filtered.length, visibleRows, viewMode]);
 
   // Resize-Drag in Narrow-Mode.
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -175,6 +188,24 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
             <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">
               Keine Anträge matchen die aktuellen Filter.
             </div>
+          ) : viewMode === 'compact' ? (
+            <CompactList
+              filtered={filtered}
+              visibleRows={visibleRows}
+              selectedAktenzeichen={selectedAktenzeichen}
+              onOpenAntrag={openAntrag}
+              sentinelRef={sentinelRef}
+            />
+          ) : viewMode === 'cards' ? (
+            <CardGrid
+              filtered={filtered}
+              visibleRows={visibleRows}
+              selectedAktenzeichen={selectedAktenzeichen}
+              selectedVerbundId={selectedVerbundId}
+              onOpenAntrag={openAntrag}
+              onOpenVerbund={openVerbund}
+              sentinelRef={sentinelRef}
+            />
           ) : (
             <GroupedList
               filtered={filtered}

@@ -7,6 +7,7 @@ import { menuLabel } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFilteredAntraege, hasExplicitVbPhaseFilter } from './useFilteredAntraege';
+import { ViewModeToggle } from './ViewModeToggle';
 
 interface Props {
   filterOpen: boolean;
@@ -97,6 +98,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
                 className="pl-7 h-8 w-[260px] text-[12.5px]"
               />
             </div>
+            <ViewModeToggle />
             <Button
               variant={filterOpen ? 'default' : 'outline'}
               size="sm"

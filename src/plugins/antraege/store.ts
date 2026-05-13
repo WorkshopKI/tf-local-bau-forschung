@@ -17,10 +17,17 @@ import {
   GROUPING_OPTIONS,
 } from './sort';
 import type { GroupingMode } from './antragGroups';
+import {
+  DEFAULT_VIEW_MODE,
+  loadViewModeByTab,
+  saveViewModeByTab,
+  type ViewMode,
+} from './viewModes';
 
 const ACTIVE_VIEW_KEY = 'teamflow_antraege_active_view';
 const SORT_BY_VIEW_KEY = 'teamflow_antraege_sort_by_view';
 const GROUPING_BY_VIEW_KEY = 'teamflow_antraege_grouping_by_view';
+const VIEW_MODE_BY_TAB_KEY = 'teamflow_antraege_view_mode_by_tab';
 
 function loadActiveView(): ViewKey {
   try {
@@ -94,6 +101,8 @@ interface AntraegeState {
   sortByView: Partial<Record<ViewKey, SortKey>>;
   /** User-Override pro View. Leer → Default aus DEFAULT_GROUPING_BY_VIEW. */
   groupingByView: Partial<Record<ViewKey, GroupingMode>>;
+  /** User-Override pro View. Leer → Default `DEFAULT_VIEW_MODE` ('list'). */
+  viewModeByTab: Partial<Record<ViewKey, ViewMode>>;
   loading: boolean;
   /** Wann der Store zuletzt erfolgreich geladen hat. Für TTL-Skip-Path
    *  in `loadAll` — schnelle Navigations-Wechsel zwischen Home und
@@ -112,6 +121,7 @@ interface AntraegeState {
   setActiveView: (view: ViewKey) => void;
   setSortForView: (view: ViewKey, key: SortKey) => void;
   setGroupingForView: (view: ViewKey, mode: GroupingMode) => void;
+  setViewModeForTab: (view: ViewKey, mode: ViewMode) => void;
   setSelectedAktenzeichen: (az: string | null) => void;
   setSelectedVerbundId: (id: string | null) => void;
   backToList: () => void;
@@ -143,6 +153,14 @@ export function getEffectiveGroupingMode(
   return DEFAULT_GROUPING_BY_VIEW[view];
 }
 
+export function getEffectiveViewMode(
+  view: ViewKey,
+  overrides: Partial<Record<ViewKey, ViewMode>>,
+): ViewMode {
+  const override = overrides[view];
+  return override ?? DEFAULT_VIEW_MODE;
+}
+
 export const useAntraegeStore = create<AntraegeState>((set) => ({
   programmId: null,
   antraege: [],
@@ -153,6 +171,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
   groupingByView: loadGroupingByView(),
+  viewModeByTab: loadViewModeByTab(VIEW_MODE_BY_TAB_KEY),
   loading: false,
   lastLoadedAt: 0,
 
@@ -242,6 +261,18 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     }
     saveGroupingByView(next);
     set({ groupingByView: next });
+  },
+
+  setViewModeForTab: (view: ViewKey, mode: ViewMode) => {
+    const current = useAntraegeStore.getState().viewModeByTab;
+    const next: Partial<Record<ViewKey, ViewMode>> = { ...current };
+    if (mode === DEFAULT_VIEW_MODE) {
+      delete next[view];
+    } else {
+      next[view] = mode;
+    }
+    saveViewModeByTab(VIEW_MODE_BY_TAB_KEY, next);
+    set({ viewModeByTab: next });
   },
 
   setSelectedAktenzeichen: (az: string | null) =>
