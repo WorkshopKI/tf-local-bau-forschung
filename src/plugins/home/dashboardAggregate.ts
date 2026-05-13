@@ -19,7 +19,14 @@ import {
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { getStatusCategory } from '@/core/utils/status-canonical';
 
-export type AntragVorgang = Vorgang & { _isAntrag: true; vb_phase?: number };
+export type AntragVorgang = Vorgang & {
+  _isAntrag: true;
+  vb_phase?: number;
+  /** Akronym aus dem CSV (z.B. "CALYPSO"). Wird auf der Home-Liste
+   *  als bold-prefix vom restlichen Titel separat gerendert, um den
+   *  Render-Stil der Antraege-Seite zu spiegeln. */
+  acronym?: string;
+};
 
 export interface DashboardStats {
   total: number;
@@ -102,6 +109,7 @@ function antragToVorgangLike(a: AntragListItem): AntragVorgang {
     notes: '',
     _isAntrag: true,
     vb_phase: typeof a.vb_phase === 'number' ? a.vb_phase : undefined,
+    acronym: typeof a.akronym === 'string' && a.akronym.trim().length > 0 ? a.akronym.trim() : undefined,
   };
 }
 

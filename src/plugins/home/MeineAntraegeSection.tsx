@@ -4,6 +4,25 @@ import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappin
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import type { AntragVorgang } from './useDashboardData';
 
+/**
+ * Spaltet den Title-String in Akronym-Prefix (falls vorhanden + im Title) und
+ * den Rest. Wenn der Title mit dem Akronym + " / " beginnt, wird das Akronym
+ * separat zurückgegeben. Sonst wird das Akronym nicht aus dem Title entfernt
+ * (Fallback: ganzer Title als rest, kein bolder Prefix).
+ */
+function splitTitle(title: string, acronym: string | undefined): { acronym: string | null; rest: string } {
+  if (!acronym) return { acronym: null, rest: title };
+  const trimmedAcr = acronym.trim();
+  if (trimmedAcr.length === 0) return { acronym: null, rest: title };
+  // Match "{acronym} / rest" — Akronym am Anfang gefolgt von optionalem
+  // Whitespace, einem Slash, weiterem Whitespace, dann der Rest.
+  const escaped = trimmedAcr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`^${escaped}\\s*/\\s*(.+)$`, 'i');
+  const m = title.match(re);
+  if (m && m[1]) return { acronym: trimmedAcr, rest: m[1] };
+  return { acronym: null, rest: title };
+}
+
 interface Props {
   /** Top-5 offene eigene Förderanträge, bereits sortiert (vb_phase asc → Frist asc). */
   antraege: AntragVorgang[];
@@ -46,6 +65,15 @@ export function MeineAntraegeSection({ antraege }: Props): React.ReactElement | 
       {antraege.map((v, i) => {
         const phaseLabel = getVbPhaseLabel(v.vb_phase);
         const daysFmt = formatDaysShort(v.deadline);
+        const { acronym: acrPrefix, rest } = splitTitle(v.title, v.acronym);
+        const titleNode = acrPrefix ? (
+          <span className="truncate">
+            <span className="font-medium text-[var(--tf-text)]">{acrPrefix}</span>
+            <span className="text-[var(--tf-text-secondary)]"> / {rest}</span>
+          </span>
+        ) : (
+          <span className="truncate text-[var(--tf-text-secondary)]">{rest}</span>
+        );
         return (
           <ListItem
             key={v.id}
@@ -57,8 +85,8 @@ export function MeineAntraegeSection({ antraege }: Props): React.ReactElement | 
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--tf-text-tertiary)] opacity-40" />
               )
             }
-            title={v.title}
-            titleClassName="text-[13px] font-medium text-[var(--tf-text)] truncate"
+            title={titleNode}
+            titleClassName="text-[13px] truncate"
             subtitle={v.id}
             subtitleClassName="text-[11px] font-mono text-[var(--tf-text-tertiary)] truncate"
             meta={
