@@ -98,6 +98,11 @@ export function takeGroupsUntil(
  * Hält Verbund-TVs in der sortierten Liste als Cluster zusammen — gibt eine
  * flache Liste in Cluster-Reihenfolge zurück. Wird vor dem Pagination-Slice
  * benötigt, damit `slice(0, visibleRows)` keine Cluster mitten zerteilt.
+ *
+ * TVs innerhalb eines Clusters behalten die Reihenfolge der Eingabe-Liste
+ * (= primärer Sort der `useFilteredAntraege`-Pipeline). Kein Re-Sort nach
+ * Aktenzeichen, damit „Antragsdatum desc" o.ä. innerhalb des Clusters nicht
+ * wieder zu FKZ-asc umsortiert wird.
  */
 export function applyVerbundClustering(antraege: AntragListItem[]): AntragListItem[] {
   const placed = new Set<string>();
@@ -110,9 +115,7 @@ export function applyVerbundClustering(antraege: AntragListItem[]): AntragListIt
     }
     if (placed.has(vid)) continue;
     placed.add(vid);
-    const tvs = antraege
-      .filter(x => x.verbund_id === vid)
-      .sort((x, y) => x.aktenzeichen.localeCompare(y.aktenzeichen));
+    const tvs = antraege.filter(x => x.verbund_id === vid);
     out.push(...tvs);
   }
   return out;
@@ -145,9 +148,9 @@ function buildVerbundSubGroups(members: AntragListItem[]): AntragGroup[] {
     }
     if (placed.has(vid)) continue;
     placed.add(vid);
-    const tvs = members
-      .filter(x => x.verbund_id === vid)
-      .sort((x, y) => x.aktenzeichen.localeCompare(y.aktenzeichen));
+    // TVs innerhalb der Sub-Gruppe behalten Input-Order (= primärer Sort),
+    // damit User-Sort wie „Antragsdatum desc" auch hier durchgreift.
+    const tvs = members.filter(x => x.verbund_id === vid);
     out.push({
       verbundId: vid,
       netzwerkId: null,
@@ -173,8 +176,8 @@ function buildVerbundSubGroups(members: AntragListItem[]): AntragGroup[] {
  *
  * - `verbund` (Default): Einzelanträge (kein/leerer `verbund_id`) → eigene
  *   Gruppe mit 1 TV. TVs gleicher `verbund_id` → eine Gruppe; Cluster-Position
- *   folgt dem **ersten** Vorkommen in der Eingabe. Innerhalb der Gruppe wird
- *   nach Aktenzeichen aufsteigend sortiert.
+ *   folgt dem **ersten** Vorkommen in der Eingabe. TVs innerhalb der Gruppe
+ *   behalten Input-Order (= primärer Sort der Caller-Pipeline).
  *
  * - `netzwerk`: 16KN-Anträge gleicher 4-Ziffer-Netzwerk-ID werden geclustert.
  *   Cluster-Position folgt dem **ersten** Vorkommen in der Eingabe (User-Sort
@@ -279,9 +282,10 @@ export function buildAntragGroups(
     if (placed.has(vid)) continue;
     placed.add(vid);
 
-    const tvs = antraege
-      .filter(x => x.verbund_id === vid)
-      .sort((x, y) => x.aktenzeichen.localeCompare(y.aktenzeichen));
+    // TVs innerhalb des Verbund-Clusters behalten Input-Order (= primärer
+    // Sort der useFilteredAntraege-Pipeline). Kein Re-Sort, damit
+    // „Antragsdatum desc" o.ä. durchgreift.
+    const tvs = antraege.filter(x => x.verbund_id === vid);
     out.push({
       verbundId: vid,
       netzwerkId: null,

@@ -44,13 +44,13 @@ describe('applyVerbundClustering', () => {
     expect(az(applyVerbundClustering(input))).toEqual(['K1', 'K2', 'L']);
   });
 
-  it('Innerhalb eines Clusters wird nach Aktenzeichen aufsteigend sortiert', () => {
+  it('Innerhalb eines Clusters behalten TVs die Input-Reihenfolge (= primärer Sort)', () => {
     const input = [
       mk('Z9', 'V'),
       mk('Z2', 'V'),
       mk('Z5', 'V'),
     ];
-    expect(az(applyVerbundClustering(input))).toEqual(['Z2', 'Z5', 'Z9']);
+    expect(az(applyVerbundClustering(input))).toEqual(['Z9', 'Z2', 'Z5']);
   });
 
   it('Leerer verbund_id-String zählt als Einzelantrag', () => {
@@ -103,7 +103,7 @@ describe('buildAntragGroups', () => {
     expect(groups[0]!.fkzRange).toBe('A');
   });
 
-  it('Verbund mit 3 TVs → 1 Gruppe, sortiert nach Aktenzeichen, FKZ-Range gesetzt', () => {
+  it('Verbund mit 3 TVs → 1 Gruppe, TVs in Input-Reihenfolge, FKZ-Range über min/max', () => {
     const input = [
       mk('K3', 'V'),
       mk('K1', 'V'),
@@ -112,7 +112,9 @@ describe('buildAntragGroups', () => {
     const groups = buildAntragGroups(input);
     expect(groups).toHaveLength(1);
     expect(groups[0]!.verbundId).toBe('V');
-    expect(groups[0]!.tvs.map(t => t.aktenzeichen)).toEqual(['K1', 'K2', 'K3']);
+    // TVs behalten Input-Reihenfolge (primärer Sort) — kein Re-Sort.
+    expect(groups[0]!.tvs.map(t => t.aktenzeichen)).toEqual(['K3', 'K1', 'K2']);
+    // FKZ-Range bleibt min..max, unabhängig von TV-Reihenfolge.
     expect(groups[0]!.fkzRange).toBe('K1–K3');
   });
 
