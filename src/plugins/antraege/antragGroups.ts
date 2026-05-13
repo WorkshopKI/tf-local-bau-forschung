@@ -4,6 +4,7 @@ import {
   isNetzwerkLead,
   collectPhases,
   formatNetzwerkLabel,
+  getNetzwerkName,
 } from './netzwerk';
 
 /**
@@ -195,10 +196,11 @@ export function buildAntragGroups(
       const subGroups = buildVerbundSubGroups(members);
       const flatTvs = subGroups.flatMap(g => g.tvs);
       const phases = collectPhases(flatTvs);
+      const name = getNetzwerkName(members);
       out.push({
         verbundId: null,
         netzwerkId: nid,
-        netzwerkLabel: formatNetzwerkLabel(nid, phases),
+        netzwerkLabel: formatNetzwerkLabel(nid, phases, name),
         tvs: flatTvs,
         fkzRange: formatFkzRange(flatTvs),
         subGroups,

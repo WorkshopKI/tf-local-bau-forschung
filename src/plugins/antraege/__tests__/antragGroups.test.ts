@@ -15,13 +15,14 @@ function mk(aktenzeichen: string, verbund_id?: string): AntragListItem {
   };
 }
 
-function mkKn(aktenzeichen: string, vb_phase?: number, verbund_id?: string): AntragListItem {
+function mkKn(aktenzeichen: string, vb_phase?: number, verbund_id?: string, akronym?: string): AntragListItem {
   return {
     aktenzeichen,
     programm_id: 'P',
     _updated_at: '2026-01-01T00:00:00Z',
     ...(vb_phase !== undefined ? { vb_phase } : {}),
     ...(verbund_id ? { verbund_id } : {}),
+    ...(akronym !== undefined ? { akronym } : {}),
   };
 }
 
@@ -267,6 +268,25 @@ describe('buildAntragGroups — mode=netzwerk', () => {
     const groups = buildAntragGroups([mkKn('16EP100000')], { mode: 'netzwerk' });
     expect(groups[0]!.subGroups).toBeUndefined();
     expect(groups[0]!.netzwerkId).toBeNull();
+  });
+
+  it('netzwerkLabel nutzt VB_KURZNAM-Akronym des Phase-1-Leads', () => {
+    const input = [
+      mkKn('16KN106203', 2, undefined, 'PartnerA'),
+      mkKn('16KN106201', 1, undefined, 'INNOWERK'),  // Lead Phase 1
+      mkKn('16KN106202', 2, undefined, 'INNOWERK-II'),  // Lead Phase 2 (sollte ignoriert werden)
+    ];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    expect(groups[0]!.netzwerkLabel).toBe('INNOWERK · Phase 1 + 2');
+  });
+
+  it('netzwerkLabel fällt auf "Netzwerk <id>" zurück wenn kein Lead im Snapshot', () => {
+    const input = [
+      mkKn('16KN106227', 2, undefined, 'PartnerA'),
+      mkKn('16KN106229', 2, undefined, 'PartnerB'),
+    ];
+    const groups = buildAntragGroups(input, { mode: 'netzwerk' });
+    expect(groups[0]!.netzwerkLabel).toBe('Netzwerk 1062 · Phase 2');
   });
 
   it('Sub-Gruppen-Sortierung: Sub-Gruppe mit Lead zuerst, sonst nach erstem-Aktenzeichen', () => {

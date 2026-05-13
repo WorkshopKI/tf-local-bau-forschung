@@ -19,6 +19,7 @@ import {
   compareNetzwerkOrder,
   collectPhases,
   formatNetzwerkLabel,
+  getNetzwerkName,
 } from './netzwerk';
 
 interface Props {
@@ -45,11 +46,12 @@ export function NetzwerkMitgliederSection({
       .sort(compareNetzwerkOrder);
     if (mitglieder.length <= 1) return null;
     const phases = collectPhases(mitglieder);
+    const name = getNetzwerkName(mitglieder);
     return {
       netzwerkId,
       mitglieder,
       phases,
-      label: formatNetzwerkLabel(netzwerkId, phases),
+      label: formatNetzwerkLabel(netzwerkId, phases, name),
     };
   }, [aktenzeichen, antraege]);
 

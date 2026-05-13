@@ -70,17 +70,6 @@ export function compareNetzwerkOrder(a: AntragListItem, b: AntragListItem): numb
 }
 
 /**
- * Formatiert das Gruppen-Label `"Netzwerk 1062"`. Wenn mehrere Phasen
- * vertreten sind, wird der Phase-Hinweis angehängt: `"Netzwerk 1062 · Phase 1 + 2"`.
- */
-export function formatNetzwerkLabel(netzwerkId: string, phases: Set<number>): string {
-  const known = [...phases].filter(p => p === 1 || p === 2).sort();
-  if (known.length === 0) return `Netzwerk ${netzwerkId}`;
-  if (known.length === 1) return `Netzwerk ${netzwerkId} · Phase ${known[0]}`;
-  return `Netzwerk ${netzwerkId} · Phase ${known.join(' + ')}`;
-}
-
-/**
  * Sammelt alle vb_phase-Werte (1/2) aus einer TV-Liste.
  */
 export function collectPhases(tvs: AntragListItem[]): Set<number> {
@@ -90,4 +79,47 @@ export function collectPhases(tvs: AntragListItem[]): Set<number> {
     if (p === 1 || p === 2) out.add(p);
   }
   return out;
+}
+
+function trimmedString(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t.length === 0 ? null : t;
+}
+
+/**
+ * Liefert den fachlichen Netzwerk-Namen aus dem `akronym`-Feld (CSV-Spalte
+ * `VB_KURZNAM`) des Netzwerk-Lead-Antrags. Bei einem Netzwerk-Antrag (Suffix
+ * `01`/`02` + vb_phase 1/2) ist der Akronym-Wert gleichzeitig der Name des
+ * Netzwerks, zu dem alle Anträge mit derselben 4-Ziffer-ID gehören.
+ *
+ * Wenn beide Phasen-Leads im Snapshot sind und unterschiedliche Akronyme
+ * tragen, gewinnt der Phase-1-Lead (er repräsentiert den ursprünglichen
+ * Netzwerk-Namen). Wenn kein Lead im Snapshot ist, return `null` —
+ * Caller fällt auf `"Netzwerk <id>"` zurück.
+ */
+export function getNetzwerkName(members: AntragListItem[]): string | null {
+  const leads = members.filter(isNetzwerkLead);
+  if (leads.length === 0) return null;
+  // Phase-1-Lead bevorzugt; falls nicht vorhanden, Phase-2-Lead.
+  const phase1Lead = leads.find(l => toVbPhaseNumber(l.vb_phase) === 1);
+  const chosen = phase1Lead ?? leads[0]!;
+  return trimmedString(chosen.akronym);
+}
+
+/**
+ * Formatiert das Gruppen-Label. Wenn ein Netzwerk-Name aus dem Lead bekannt
+ * ist, wird er als Präfix verwendet; ansonsten der technische Fallback
+ * `"Netzwerk <id>"`. Phasen werden angehängt: `"INNOWERK · Phase 1 + 2"`.
+ */
+export function formatNetzwerkLabel(
+  netzwerkId: string,
+  phases: Set<number>,
+  name: string | null,
+): string {
+  const head = name ?? `Netzwerk ${netzwerkId}`;
+  const known = [...phases].filter(p => p === 1 || p === 2).sort();
+  if (known.length === 0) return head;
+  if (known.length === 1) return `${head} · Phase ${known[0]}`;
+  return `${head} · Phase ${known.join(' + ')}`;
 }

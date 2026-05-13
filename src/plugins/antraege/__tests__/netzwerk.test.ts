@@ -6,15 +6,17 @@ import {
   compareNetzwerkOrder,
   collectPhases,
   formatNetzwerkLabel,
+  getNetzwerkName,
 } from '../netzwerk';
 import type { AntragListItem } from '@/core/services/csv/types';
 
-function mk(aktenzeichen: string, vb_phase?: number): AntragListItem {
+function mk(aktenzeichen: string, vb_phase?: number, akronym?: string): AntragListItem {
   return {
     aktenzeichen,
     programm_id: 'P',
     _updated_at: '2026-01-01T00:00:00Z',
     ...(vb_phase !== undefined ? { vb_phase } : {}),
+    ...(akronym !== undefined ? { akronym } : {}),
   };
 }
 
@@ -117,17 +119,61 @@ describe('collectPhases', () => {
 });
 
 describe('formatNetzwerkLabel', () => {
-  it('nur Netzwerk-ID wenn keine Phase bekannt', () => {
-    expect(formatNetzwerkLabel('1062', new Set())).toBe('Netzwerk 1062');
+  it('Fallback "Netzwerk <id>" wenn kein Name vorhanden', () => {
+    expect(formatNetzwerkLabel('1062', new Set(), null)).toBe('Netzwerk 1062');
   });
 
-  it('einzelne Phase angehängt', () => {
-    expect(formatNetzwerkLabel('1062', new Set([1]))).toBe('Netzwerk 1062 · Phase 1');
-    expect(formatNetzwerkLabel('1062', new Set([2]))).toBe('Netzwerk 1062 · Phase 2');
+  it('einzelne Phase angehängt (Fallback)', () => {
+    expect(formatNetzwerkLabel('1062', new Set([1]), null)).toBe('Netzwerk 1062 · Phase 1');
+    expect(formatNetzwerkLabel('1062', new Set([2]), null)).toBe('Netzwerk 1062 · Phase 2');
   });
 
-  it('beide Phasen verknüpft mit + ', () => {
-    expect(formatNetzwerkLabel('1062', new Set([1, 2]))).toBe('Netzwerk 1062 · Phase 1 + 2');
-    expect(formatNetzwerkLabel('1062', new Set([2, 1]))).toBe('Netzwerk 1062 · Phase 1 + 2');
+  it('beide Phasen verknüpft mit + (Fallback)', () => {
+    expect(formatNetzwerkLabel('1062', new Set([1, 2]), null)).toBe('Netzwerk 1062 · Phase 1 + 2');
+    expect(formatNetzwerkLabel('1062', new Set([2, 1]), null)).toBe('Netzwerk 1062 · Phase 1 + 2');
+  });
+
+  it('nutzt VB_KURZNAM-Namen statt 4-Ziffer-ID', () => {
+    expect(formatNetzwerkLabel('1062', new Set(), 'INNOWERK')).toBe('INNOWERK');
+    expect(formatNetzwerkLabel('1062', new Set([1, 2]), 'INNOWERK')).toBe('INNOWERK · Phase 1 + 2');
+  });
+});
+
+describe('getNetzwerkName', () => {
+  it('null wenn kein Lead im Member-Set ist', () => {
+    const members = [
+      mk('16KN106227', 2, 'PartnerA'),
+      mk('16KN106229', 2, 'PartnerB'),
+    ];
+    expect(getNetzwerkName(members)).toBeNull();
+  });
+
+  it('liefert akronym des Phase-1-Leads', () => {
+    const members = [
+      mk('16KN106203', 2, 'PartnerA'),
+      mk('16KN106201', 1, 'INNOWERK'),  // Lead Phase 1
+    ];
+    expect(getNetzwerkName(members)).toBe('INNOWERK');
+  });
+
+  it('Phase-1-Lead schlägt Phase-2-Lead bei abweichenden Akronymen', () => {
+    const members = [
+      mk('16KN106201', 1, 'INNOWERK'),
+      mk('16KN106202', 2, 'INNOWERK-II'),
+    ];
+    expect(getNetzwerkName(members)).toBe('INNOWERK');
+  });
+
+  it('fällt auf Phase-2-Lead zurück wenn kein Phase-1-Lead vorhanden', () => {
+    const members = [
+      mk('16KN106227', 2, 'Partner'),
+      mk('16KN106202', 2, 'INNOWERK-II'),
+    ];
+    expect(getNetzwerkName(members)).toBe('INNOWERK-II');
+  });
+
+  it('null wenn Lead kein akronym hat (leerer/whitespace-only string)', () => {
+    const members = [mk('16KN106201', 1, '   ')];
+    expect(getNetzwerkName(members)).toBeNull();
   });
 });
