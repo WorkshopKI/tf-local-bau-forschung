@@ -58,7 +58,9 @@ export function MeineAntraegeSection({ antraege }: Props): React.ReactElement | 
               )
             }
             title={v.title}
+            titleClassName="text-[13px] font-medium text-[var(--tf-text)] truncate"
             subtitle={v.id}
+            subtitleClassName="text-[11px] font-mono text-[var(--tf-text-tertiary)] truncate"
             meta={
               <>
                 {daysFmt ? (
