@@ -8,7 +8,7 @@ import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { AntragGroupCard } from './AntragGroupCard';
 import { NetzwerkClusterCard } from './NetzwerkClusterCard';
-import { buildAntragGroups, type GroupingMode } from './antragGroups';
+import { buildAntragGroups, takeGroupsUntil, type GroupingMode } from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
 import { SortDropdown } from './SortDropdown';
 import { GroupingDropdown } from './GroupingDropdown';
@@ -273,10 +273,17 @@ function GroupedList({
   // Antragsteller-Sort überschreibt die User-Wahl: gleicher Antragsteller
   // soll direkt nebeneinander stehen, nicht durch Cluster-Header zerrissen.
   const effectiveMode: GroupingMode = sortDisablesGrouping(sortKey) ? 'none' : userGroupingMode;
-  const groups = useMemo(
-    () => buildAntragGroups(filtered.slice(0, visibleRows), { mode: effectiveMode, netzwerkNames }),
-    [filtered, visibleRows, effectiveMode, netzwerkNames],
+  // Clustering läuft auf der vollen `filtered`-Liste — sonst zerschneidet
+  // die Pagination Netzwerke/Verbünde, deren TVs im Sort-Order über die
+  // `visibleRows`-Grenze gestreut sind. Pagination greift erst beim
+  // `takeGroupsUntil` an Cluster-Grenzen (Overshoot bei sehr großen
+  // Clustern akzeptiert — bevorzugt komplette Cluster über exakte TV-Zahl).
+  const allGroups = useMemo(
+    () => buildAntragGroups(filtered, { mode: effectiveMode, netzwerkNames }),
+    [filtered, effectiveMode, netzwerkNames],
   );
+  const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
+  const hasMoreGroups = groups.length < allGroups.length;
   return (
     <div className="flex flex-col gap-1">
       {groups.map(g => {
@@ -304,7 +311,7 @@ function GroupedList({
           />
         );
       })}
-      {visibleRows < filtered.length ? (
+      {hasMoreGroups ? (
         <div ref={sentinelRef} className="py-4 text-center text-[11.5px] text-[var(--tf-text-tertiary)]">
           Lade weitere Einträge …
         </div>

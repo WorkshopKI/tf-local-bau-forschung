@@ -72,6 +72,29 @@ export function formatFkzRange(tvs: AntragListItem[]): string {
 }
 
 /**
+ * Pagination auf Gruppen-Ebene: gibt komplette Gruppen aus `allGroups`
+ * zurück, bis die kumulierte TV-Zahl `targetVisibleTvs` erreicht. Boundary-
+ * Gruppen werden vollständig mitgenommen (Overshoot akzeptiert), damit
+ * Cluster nie zerschnitten werden. Mindestens eine Gruppe wird immer
+ * zurückgegeben, sofern verfügbar.
+ */
+export function takeGroupsUntil(
+  allGroups: AntragGroup[],
+  targetVisibleTvs: number,
+): AntragGroup[] {
+  if (allGroups.length === 0) return [];
+  if (targetVisibleTvs <= 0) return [];
+  const out: AntragGroup[] = [];
+  let tvCount = 0;
+  for (const g of allGroups) {
+    out.push(g);
+    tvCount += g.tvs.length;
+    if (tvCount >= targetVisibleTvs) break;
+  }
+  return out;
+}
+
+/**
  * Hält Verbund-TVs in der sortierten Liste als Cluster zusammen — gibt eine
  * flache Liste in Cluster-Reihenfolge zurück. Wird vor dem Pagination-Slice
  * benötigt, damit `slice(0, visibleRows)` keine Cluster mitten zerteilt.

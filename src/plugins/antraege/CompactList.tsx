@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from './store';
-import { buildAntragGroups, type GroupingMode } from './antragGroups';
+import { buildAntragGroups, takeGroupsUntil, type GroupingMode } from './antragGroups';
 import { sortDisablesGrouping } from './sort';
 import { CompactGroup } from './CompactGroup';
 
@@ -30,10 +30,14 @@ export function CompactList({
   const netzwerkNames = useAntraegeStore(s => s.netzwerkNameById);
   const effectiveMode: GroupingMode = sortDisablesGrouping(sortKey) ? 'none' : userGroupingMode;
 
-  const groups = useMemo(
-    () => buildAntragGroups(filtered.slice(0, visibleRows), { mode: effectiveMode, netzwerkNames }),
-    [filtered, visibleRows, effectiveMode, netzwerkNames],
+  // Clustering auf der vollen `filtered`-Liste — Pagination an Cluster-
+  // Grenzen via `takeGroupsUntil` (siehe Kommentar in `AntraegeMain.tsx`).
+  const allGroups = useMemo(
+    () => buildAntragGroups(filtered, { mode: effectiveMode, netzwerkNames }),
+    [filtered, effectiveMode, netzwerkNames],
   );
+  const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
+  const hasMoreGroups = groups.length < allGroups.length;
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -45,7 +49,7 @@ export function CompactList({
           onOpenAntrag={onOpenAntrag}
         />
       ))}
-      {visibleRows < filtered.length ? (
+      {hasMoreGroups ? (
         <div ref={sentinelRef} className="py-3 text-center text-[11px] text-[var(--tf-text-tertiary)]">
           Lade weitere Einträge …
         </div>

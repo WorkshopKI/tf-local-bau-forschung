@@ -3,6 +3,7 @@ import {
   applyVerbundClustering,
   buildAntragGroups,
   formatFkzRange,
+  takeGroupsUntil,
 } from '../antragGroups';
 import type { AntragListItem } from '@/core/services/csv/types';
 
@@ -371,5 +372,48 @@ describe('buildAntragGroups — mode=netzwerk', () => {
     // V-EARLY vor V-LATE (16KN106203 < 16KN106207)
     expect(sg[1]!.verbundId).toBe('V-EARLY');
     expect(sg[2]!.verbundId).toBe('V-LATE');
+  });
+});
+
+describe('takeGroupsUntil', () => {
+  function build(tvCounts: number[]): import('../antragGroups').AntragGroup[] {
+    let counter = 0;
+    return tvCounts.map(n => ({
+      verbundId: null,
+      netzwerkId: null,
+      netzwerkLabel: null,
+      tvs: Array.from({ length: n }, () => mk(`AZ${++counter}`)),
+      fkzRange: '',
+    }));
+  }
+
+  it('leere Eingabe → leeres Ergebnis', () => {
+    expect(takeGroupsUntil([], 60)).toEqual([]);
+  });
+
+  it('targetVisibleTvs ≤ 0 → leeres Ergebnis', () => {
+    expect(takeGroupsUntil(build([2, 3]), 0)).toEqual([]);
+    expect(takeGroupsUntil(build([2, 3]), -1)).toEqual([]);
+  });
+
+  it('Boundary-Gruppe wird vollständig mitgenommen (Overshoot akzeptiert)', () => {
+    const all = build([20, 50, 10]); // Total 80 TVs
+    const taken = takeGroupsUntil(all, 30);
+    expect(taken.map(g => g.tvs.length)).toEqual([20, 50]); // 70 TVs > 30, aber zweite Gruppe komplett
+  });
+
+  it('exakte Treffer-Grenze: stoppt bei genau erreichter TV-Zahl', () => {
+    const all = build([30, 20, 10]);
+    expect(takeGroupsUntil(all, 30).map(g => g.tvs.length)).toEqual([30]);
+  });
+
+  it('targetVisibleTvs grösser als Total → alle Gruppen', () => {
+    const all = build([5, 5, 5]);
+    expect(takeGroupsUntil(all, 1000)).toEqual(all);
+  });
+
+  it('erste Gruppe alleine groesser als target → wird trotzdem mitgenommen', () => {
+    const all = build([200, 10]);
+    expect(takeGroupsUntil(all, 60).map(g => g.tvs.length)).toEqual([200]);
   });
 });
