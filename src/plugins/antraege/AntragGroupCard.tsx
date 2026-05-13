@@ -56,64 +56,74 @@ export function AntragGroupCard({
 
   return (
     <div
-      className="rounded-[var(--tf-radius)] py-1"
+      className="rounded-[var(--tf-radius)] py-1 flex items-start gap-2"
       style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: 'transparent' }}
     >
-      {/* Header-Zeile: Ampel + FKZ(-Range) + Akronym + VB-Phase. */}
-      <button
-        type="button"
-        onClick={onHeaderClick}
-        className="w-full text-left px-3 py-1 rounded-[var(--tf-radius)] transition-colors hover:bg-[var(--tf-bg-secondary)]"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          {ampel !== null && ampelDays !== null ? (
-            <span
-              className="inline-flex items-center gap-1 shrink-0"
-              title={`${AMPEL_TOOLTIP[ampel]} (${ampelDays} Tage)`}
-            >
-              <span
-                className="shrink-0 w-2 h-2 rounded-full"
-                style={{ background: AMPEL_COLOR[ampel] }}
-                aria-hidden="true"
-              />
-              <span className={`tabular-nums text-[var(--tf-text-tertiary)] ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>
-                {ampelDays}d
-              </span>
-            </span>
-          ) : null}
-          <span className={`font-mono text-[var(--tf-text-tertiary)] shrink-0 ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>
-            {group.fkzRange}
-          </span>
-          {akronym ? (
-            <span className={`font-medium text-[var(--tf-text)] truncate min-w-0 ${narrow ? 'text-[12.5px]' : 'text-[13px]'}`}>
-              {akronym}
-            </span>
-          ) : null}
-          {phaseLabel ? (
-            <Badge
-              variant={getVbPhaseVariant(headTv.vb_phase)}
-              className="shrink-0 min-w-[44px] justify-center"
-            >
-              {phaseLabel}
-            </Badge>
-          ) : null}
-        </div>
-      </button>
+      {/* Foerderart-Badge ganz links — konsistent mit der Home-Page-Liste,
+          wo das Badge ebenfalls die linke Bound der Card markiert. */}
+      <div className="shrink-0 pl-3 pt-[6px]">
+        {phaseLabel ? (
+          <Badge
+            variant={getVbPhaseVariant(headTv.vb_phase)}
+            className="min-w-[44px] justify-center"
+          >
+            {phaseLabel}
+          </Badge>
+        ) : (
+          <span className="block min-w-[44px]" aria-hidden="true" />
+        )}
+      </div>
 
-      {/* TV-Zeilen: Antragsteller — Titel + Status-Badge. Alle TVs sind
-          einheitlich 20px eingerueckt; die Verbund-Klammer-Linie erscheint
-          nur bei Cluster mit >= 2 TVs (mittig bei 10px in der Indent-Spur). */}
-      <div className="flex flex-col">
-        {group.tvs.map(tv => (
-          <TvRow
-            key={tv.aktenzeichen}
-            tv={tv}
-            showLine={isMultiTv}
-            selected={selectedAktenzeichen === tv.aktenzeichen}
-            onClick={() => onOpenAntrag(tv.aktenzeichen)}
-            narrow={narrow}
-          />
-        ))}
+      {/* Inhalts-Spalte: Header (Ampel + FKZ + Akronym) + TV-Zeilen. */}
+      <div className="flex-1 min-w-0 pr-3">
+        {/* Header-Zeile. */}
+        <button
+          type="button"
+          onClick={onHeaderClick}
+          className="w-full text-left px-2 py-1 rounded-[var(--tf-radius)] transition-colors hover:bg-[var(--tf-bg-secondary)]"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            {ampel !== null && ampelDays !== null ? (
+              <span
+                className="inline-flex items-center gap-1 shrink-0"
+                title={`${AMPEL_TOOLTIP[ampel]} (${ampelDays} Tage)`}
+              >
+                <span
+                  className="shrink-0 w-2 h-2 rounded-full"
+                  style={{ background: AMPEL_COLOR[ampel] }}
+                  aria-hidden="true"
+                />
+                <span className={`tabular-nums text-[var(--tf-text-tertiary)] ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>
+                  {ampelDays}d
+                </span>
+              </span>
+            ) : null}
+            <span className={`font-mono text-[var(--tf-text-tertiary)] shrink-0 ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>
+              {group.fkzRange}
+            </span>
+            {akronym ? (
+              <span className={`font-medium text-[var(--tf-text)] truncate min-w-0 ${narrow ? 'text-[12.5px]' : 'text-[13px]'}`}>
+                {akronym}
+              </span>
+            ) : null}
+          </div>
+        </button>
+
+        {/* TV-Zeilen: Antragsteller — Titel + Status-Badge. Alle TVs sind
+            einheitlich 20px eingerueckt; die Verbund-Klammer-Linie erscheint
+            nur bei Cluster mit >= 2 TVs (mittig bei 10px in der Indent-Spur). */}
+        <div className="flex flex-col">
+          {group.tvs.map(tv => (
+            <TvRow
+              key={tv.aktenzeichen}
+              tv={tv}
+              showLine={isMultiTv}
+              selected={selectedAktenzeichen === tv.aktenzeichen}
+              onClick={() => onOpenAntrag(tv.aktenzeichen)}
+              narrow={narrow}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
