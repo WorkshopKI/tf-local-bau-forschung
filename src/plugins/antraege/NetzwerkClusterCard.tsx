@@ -32,7 +32,12 @@ export function NetzwerkClusterCard({
   const subCount = subGroups.length;
   const tvCount = group.tvs.length;
   const headTv = group.tvs[0]!;
-  const subCountLabel = `${subCount} ${subCount === 1 ? 'Cluster' : 'Cluster'}`;
+  // Im Netzwerk-Modus sind die Sub-Gruppen entweder echte Verbünde (≥2 TVs
+  // gleicher verbund_id) oder Einzelanträge. „Verbund" ist hier die User-
+  // bevorzugte Sammelbezeichnung, auch wenn vereinzelt Solo-Sub-Gruppen
+  // mitzählen — saubere Aufteilung wäre eigene Counts, aber dann wird der
+  // Header unruhig.
+  const subCountLabel = `${subCount} ${subCount === 1 ? 'Verbund' : 'Verbünde'}`;
   const tvCountLabel = `${tvCount} ${tvCount === 1 ? 'Antrag' : 'Anträge'}`;
 
   const onHeaderClick = (): void => {
@@ -69,9 +74,8 @@ export function NetzwerkClusterCard({
           <span className={`font-mono text-[var(--tf-text-tertiary)] ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>
             {group.fkzRange}
           </span>
-          <span className="flex-1" />
           <span className={`text-[var(--tf-text-tertiary)] ${narrow ? 'text-[10.5px]' : 'text-[11px]'}`}>
-            {tvCountLabel} · {subCountLabel}
+            {subCountLabel} · {tvCountLabel}
           </span>
         </div>
       </button>
