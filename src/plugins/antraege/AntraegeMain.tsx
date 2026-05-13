@@ -266,12 +266,13 @@ function GroupedList({
 }: GroupedListProps): React.ReactElement {
   const sortKey = useAntraegeStore(s => getEffectiveSortKey(s.activeView, s.sortByView));
   const userGroupingMode = useAntraegeStore(s => getEffectiveGroupingMode(s.activeView, s.groupingByView));
+  const netzwerkNames = useAntraegeStore(s => s.netzwerkNameById);
   // Antragsteller-Sort überschreibt die User-Wahl: gleicher Antragsteller
   // soll direkt nebeneinander stehen, nicht durch Cluster-Header zerrissen.
   const effectiveMode: GroupingMode = sortDisablesGrouping(sortKey) ? 'none' : userGroupingMode;
   const groups = useMemo(
-    () => buildAntragGroups(filtered.slice(0, visibleRows), { mode: effectiveMode }),
-    [filtered, visibleRows, effectiveMode],
+    () => buildAntragGroups(filtered.slice(0, visibleRows), { mode: effectiveMode, netzwerkNames }),
+    [filtered, visibleRows, effectiveMode, netzwerkNames],
   );
   return (
     <div className="flex flex-col gap-1">

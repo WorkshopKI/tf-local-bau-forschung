@@ -19,7 +19,7 @@ import {
   compareNetzwerkOrder,
   collectPhases,
   formatNetzwerkLabel,
-  getNetzwerkName,
+  resolveNetzwerkName,
 } from './netzwerk';
 
 interface Props {
@@ -37,6 +37,7 @@ export function NetzwerkMitgliederSection({
   onOpenAntrag,
 }: Props): React.ReactElement | null {
   const antraege = useAntraegeStore(s => s.antraege);
+  const netzwerkNames = useAntraegeStore(s => s.netzwerkNameById);
 
   const data = useMemo(() => {
     const netzwerkId = extractNetzwerkId(aktenzeichen);
@@ -46,14 +47,14 @@ export function NetzwerkMitgliederSection({
       .sort(compareNetzwerkOrder);
     if (mitglieder.length <= 1) return null;
     const phases = collectPhases(mitglieder);
-    const name = getNetzwerkName(mitglieder);
+    const name = resolveNetzwerkName(netzwerkId, mitglieder, netzwerkNames);
     return {
       netzwerkId,
       mitglieder,
       phases,
       label: formatNetzwerkLabel(netzwerkId, phases, name),
     };
-  }, [aktenzeichen, antraege]);
+  }, [aktenzeichen, antraege, netzwerkNames]);
 
   if (!data) return null;
 

@@ -204,6 +204,16 @@ export async function listAntraegeListViewByProgramm(
   return (await req(idx.getAll(programmId))) as AntragListItem[];
 }
 
+/** Programm-uebergreifender Voll-Scan des `ANTRAEGE_LIST_VIEW`-Stores.
+ *  Wird fuer Cross-Programm-Lookups gebraucht — z.B. Netzwerk-Lead-Namen,
+ *  deren Lead-Antrag in einem anderen Programm liegt als die TVs im
+ *  aktiven Programm. Pro Datensatz ~14 schmale Felder, IDB-getAll() liefert
+ *  auch bei 50k+ Records in < 1 s. */
+export async function listAllAntraegeListView(idb: IDBStore): Promise<AntragListItem[]> {
+  const t = tx(idb, CSV_STORES.ANTRAEGE_LIST_VIEW, 'readonly');
+  return (await req(t.objectStore(CSV_STORES.ANTRAEGE_LIST_VIEW).getAll())) as AntragListItem[];
+}
+
 export async function deleteAntraegeListViewByAktenzeichen(
   idb: IDBStore,
   az: string,

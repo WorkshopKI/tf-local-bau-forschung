@@ -108,6 +108,52 @@ export function getNetzwerkName(members: AntragListItem[]): string | null {
 }
 
 /**
+ * Baut einen Cross-Programm-Index: `netzwerkId (4 Ziffern) → Netzwerk-Name`,
+ * der aus *allen* Netzwerk-Lead-Anträgen über alle Programme hinweg gebildet
+ * wird. Wird gebraucht, weil die Netzwerk-Leads (Programme 136 / 76 / 46)
+ * typischerweise NICHT im selben Programm liegen wie die TVs (16KN-Anträge
+ * in anderen Programmen). Im aktiven RAM-Snapshot der Liste fehlt der Lead
+ * daher meist, und der lokale `getNetzwerkName(members)` würde `null`
+ * liefern — der Index schließt diese Lücke.
+ *
+ * Phase-1-Lead schlägt Phase-2-Lead bei abweichenden Akronymen.
+ */
+export function buildNetzwerkNameIndex(items: AntragListItem[]): Map<string, string> {
+  const phase1 = new Map<string, string>();
+  const phase2 = new Map<string, string>();
+  for (const item of items) {
+    if (!isNetzwerkLead(item)) continue;
+    const nid = extractNetzwerkId(item.aktenzeichen);
+    if (nid === null) continue;
+    const name = trimmedString(item.akronym);
+    if (name === null) continue;
+    const phase = toVbPhaseNumber(item.vb_phase);
+    if (phase === 1) phase1.set(nid, name);
+    else if (phase === 2) phase2.set(nid, name);
+  }
+  const out = new Map<string, string>();
+  // Phase-2 zuerst eintragen, dann mit Phase-1 überschreiben.
+  for (const [k, v] of phase2) out.set(k, v);
+  for (const [k, v] of phase1) out.set(k, v);
+  return out;
+}
+
+/**
+ * Wählt den finalen Netzwerk-Namen: Index-Wert hat Vorrang, danach
+ * der lokale Member-Scan, danach `null` (Caller-Fallback zu
+ * `"Netzwerk <id>"`).
+ */
+export function resolveNetzwerkName(
+  netzwerkId: string,
+  members: AntragListItem[],
+  index?: Map<string, string> | null,
+): string | null {
+  const fromIndex = index?.get(netzwerkId);
+  if (fromIndex) return fromIndex;
+  return getNetzwerkName(members);
+}
+
+/**
  * Formatiert das Gruppen-Label. Wenn ein Netzwerk-Name aus dem Lead bekannt
  * ist, wird er als Präfix verwendet; ansonsten der technische Fallback
  * `"Netzwerk <id>"`. Phasen werden angehängt: `"INNOWERK · Phase 1 + 2"`.

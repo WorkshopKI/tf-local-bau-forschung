@@ -7,6 +7,8 @@ import {
   collectPhases,
   formatNetzwerkLabel,
   getNetzwerkName,
+  buildNetzwerkNameIndex,
+  resolveNetzwerkName,
 } from '../netzwerk';
 import type { AntragListItem } from '@/core/services/csv/types';
 
@@ -175,5 +177,59 @@ describe('getNetzwerkName', () => {
   it('null wenn Lead kein akronym hat (leerer/whitespace-only string)', () => {
     const members = [mk('16KN106201', 1, '   ')];
     expect(getNetzwerkName(members)).toBeNull();
+  });
+});
+
+describe('buildNetzwerkNameIndex', () => {
+  it('mappt Lead-Akronyme aus allen Programmen auf Netzwerk-IDs', () => {
+    const all = [
+      mk('16KN106201', 1, 'INNOWERK'),    // Lead Phase 1 → 1062
+      mk('16KN117701', 1, 'LeQuant'),     // Lead Phase 1 → 1177
+      mk('16KN999902', 2, 'NetzwerkX'),   // Lead Phase 2 → 9999 (kein Phase-1)
+      mk('16KN106227', 2, 'Partner'),     // TV, kein Lead, ignoriert
+      mk('16EP123401', 1, 'IgnoreMe'),    // kein 16KN, ignoriert
+    ];
+    const idx = buildNetzwerkNameIndex(all);
+    expect(idx.size).toBe(3);
+    expect(idx.get('1062')).toBe('INNOWERK');
+    expect(idx.get('1177')).toBe('LeQuant');
+    expect(idx.get('9999')).toBe('NetzwerkX');
+  });
+
+  it('Phase-1-Lead überschreibt Phase-2-Lead beim Konflikt', () => {
+    const all = [
+      mk('16KN106202', 2, 'INNOWERK-II'),
+      mk('16KN106201', 1, 'INNOWERK'),
+    ];
+    const idx = buildNetzwerkNameIndex(all);
+    expect(idx.get('1062')).toBe('INNOWERK');
+  });
+
+  it('leere oder fehlende Akronyme werden ignoriert', () => {
+    const all = [
+      mk('16KN106201', 1, '   '),
+      mk('16KN106202', 2),  // ohne akronym
+    ];
+    const idx = buildNetzwerkNameIndex(all);
+    expect(idx.size).toBe(0);
+  });
+});
+
+describe('resolveNetzwerkName', () => {
+  it('Index-Wert hat Vorrang vor Member-Scan', () => {
+    const members = [mk('16KN106201', 1, 'LokalAusMember')];
+    const idx = new Map([['1062', 'AusIndex']]);
+    expect(resolveNetzwerkName('1062', members, idx)).toBe('AusIndex');
+  });
+
+  it('fällt auf Member-Scan zurück wenn Index leer/null', () => {
+    const members = [mk('16KN106201', 1, 'LokalAusMember')];
+    expect(resolveNetzwerkName('1062', members, null)).toBe('LokalAusMember');
+    expect(resolveNetzwerkName('1062', members, new Map())).toBe('LokalAusMember');
+  });
+
+  it('null wenn weder Index noch Member-Scan einen Namen liefern', () => {
+    const members = [mk('16KN106227', 2, 'TVAkronym')];  // TV, kein Lead
+    expect(resolveNetzwerkName('1062', members, new Map())).toBeNull();
   });
 });

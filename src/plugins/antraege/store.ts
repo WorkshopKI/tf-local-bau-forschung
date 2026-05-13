@@ -5,8 +5,10 @@ import { ensureDefaultProgramm } from '@/core/services/csv';
 import {
   listAntraegeListViewByProgramm,
   listVerbuendeByProgramm,
+  listAllAntraegeListView,
 } from '@/core/services/csv/idb-csv';
 import { tfPerfLog, tfPerfStart } from '@/core/utils/tfPerf';
+import { buildNetzwerkNameIndex } from './netzwerk';
 import type { ViewKey } from './views';
 import {
   DEFAULT_SORT_BY_VIEW,
@@ -103,6 +105,12 @@ interface AntraegeState {
   groupingByView: Partial<Record<ViewKey, GroupingMode>>;
   /** User-Override pro View. Leer → Default `DEFAULT_VIEW_MODE` ('list'). */
   viewModeByTab: Partial<Record<ViewKey, ViewMode>>;
+  /** Cross-Programm-Index: 4-Ziffer-Netzwerk-ID → Netzwerk-Name (akronym des
+   *  Lead-Antrags). Gefüllt einmal pro Session via `loadNetzwerkNameIndex`. */
+  netzwerkNameById: Map<string, string>;
+  /** True sobald der Index einmal aufgebaut wurde (auch wenn leer). Verhindert
+   *  Re-Fetches bei jedem Programm-Switch. */
+  netzwerkNameIndexLoaded: boolean;
   loading: boolean;
   /** Wann der Store zuletzt erfolgreich geladen hat. Für TTL-Skip-Path
    *  in `loadAll` — schnelle Navigations-Wechsel zwischen Home und
@@ -125,6 +133,9 @@ interface AntraegeState {
   setSelectedAktenzeichen: (az: string | null) => void;
   setSelectedVerbundId: (id: string | null) => void;
   backToList: () => void;
+  /** Lädt einmal pro Session den Cross-Programm-Netzwerk-Namen-Index aus
+   *  dem `ANTRAEGE_LIST_VIEW`-Store. Idempotent — Folge-Aufrufe sind No-Ops. */
+  loadNetzwerkNameIndex: (idb: IDBStore) => Promise<void>;
 }
 
 /** Session-TTL: innerhalb dieses Fensters wird ein erneuter loadAll-Aufruf
@@ -172,6 +183,8 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   sortByView: loadSortByView(),
   groupingByView: loadGroupingByView(),
   viewModeByTab: loadViewModeByTab(VIEW_MODE_BY_TAB_KEY),
+  netzwerkNameById: new Map<string, string>(),
+  netzwerkNameIndexLoaded: false,
   loading: false,
   lastLoadedAt: 0,
 
@@ -207,6 +220,11 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
         const fields = Object.keys(sample).length;
         tfPerfLog(`antrag-list-view sample: ${bytes} bytes, ${fields} fields (programm=${targetId})`);
       }
+      // Netzwerk-Namen-Index einmal pro Session asynchron mitladen — der
+      // Index ist programm-übergreifend (Netzwerk-Leads liegen meist in
+      // anderen Programmen als die TVs), darum nicht in der Hauptlade-
+      // Sequenz, sondern als Side-Channel ohne Block.
+      void useAntraegeStore.getState().loadNetzwerkNameIndex(idb);
       // Selektion nur bei tatsächlichem Programm-Wechsel löschen. Beim
       // Initial-Load (oldProgrammId === null) oder beim Reload desselben
       // Programms bleibt die URL-getriebene Selektion erhalten — sonst
@@ -282,4 +300,21 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     set({ selectedVerbundId: id, selectedAktenzeichen: null }),
 
   backToList: () => set({ selectedAktenzeichen: null, selectedVerbundId: null }),
+
+  loadNetzwerkNameIndex: async (idb: IDBStore) => {
+    const state = useAntraegeStore.getState();
+    if (state.netzwerkNameIndexLoaded) return;
+    const end = tfPerfStart('antraege.loadNetzwerkNameIndex');
+    try {
+      const all = await listAllAntraegeListView(idb);
+      const map = buildNetzwerkNameIndex(all);
+      set({ netzwerkNameById: map, netzwerkNameIndexLoaded: true });
+      end(`names=${map.size} scanned=${all.length}`);
+    } catch (e) {
+      // Best-effort: bei Fehler trotzdem als geladen markieren, damit nicht
+      // jeder Render erneut versucht. Caller fällt auf 4-Ziffer-ID zurück.
+      set({ netzwerkNameIndexLoaded: true });
+      end(`error: ${(e as Error).message}`);
+    }
+  },
 }));

@@ -289,6 +289,25 @@ describe('buildAntragGroups — mode=netzwerk', () => {
     expect(groups[0]!.netzwerkLabel).toBe('Netzwerk 1062 · Phase 2');
   });
 
+  it('netzwerkLabel kommt aus Cross-Programm-Index, auch wenn kein Lead im Snapshot ist', () => {
+    const input = [
+      mkKn('16KN106227', 2, undefined, 'PartnerA'),
+      mkKn('16KN106229', 2, undefined, 'PartnerB'),
+    ];
+    const netzwerkNames = new Map([['1062', 'INNOWERK']]);
+    const groups = buildAntragGroups(input, { mode: 'netzwerk', netzwerkNames });
+    expect(groups[0]!.netzwerkLabel).toBe('INNOWERK · Phase 2');
+  });
+
+  it('Index-Wert hat Vorrang vor Lead-Akronym im Snapshot', () => {
+    const input = [
+      mkKn('16KN106201', 1, undefined, 'LokalAusSnapshot'),
+    ];
+    const netzwerkNames = new Map([['1062', 'AusIndex']]);
+    const groups = buildAntragGroups(input, { mode: 'netzwerk', netzwerkNames });
+    expect(groups[0]!.netzwerkLabel).toBe('AusIndex · Phase 1');
+  });
+
   it('Sub-Gruppen-Sortierung: Sub-Gruppe mit Lead zuerst, sonst nach erstem-Aktenzeichen', () => {
     const input = [
       mkKn('16KN106207', 2, 'V-LATE'),    // späteres FKZ, kein Lead

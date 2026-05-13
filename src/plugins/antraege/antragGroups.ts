@@ -4,7 +4,7 @@ import {
   isNetzwerkLead,
   collectPhases,
   formatNetzwerkLabel,
-  getNetzwerkName,
+  resolveNetzwerkName,
 } from './netzwerk';
 
 /**
@@ -162,16 +162,24 @@ function buildVerbundSubGroups(members: AntragListItem[]): AntragGroup[] {
  */
 export function buildAntragGroups(
   antraege: AntragListItem[],
-  opts?: { mode?: GroupingMode } | { flat?: boolean },
+  opts?: {
+    mode?: GroupingMode;
+    /** Backward-kompatibler Alias zu `mode: 'none'`. */
+    flat?: boolean;
+    /** Cross-Programm-Index: 4-Ziffer-Netzwerk-ID → Netzwerk-Name. Wenn
+     *  gesetzt, schlägt der Index-Wert den lokalen Lead-Akronym-Scan. */
+    netzwerkNames?: Map<string, string> | null;
+  },
 ): AntragGroup[] {
   // Backward-kompatibler `flat`-Schalter — bestehende Aufrufer (Tests)
   // verwenden { flat: true } gleichbedeutend mit mode='none'.
   const mode: GroupingMode = (() => {
     if (!opts) return 'verbund';
-    if ('mode' in opts && opts.mode) return opts.mode;
-    if ('flat' in opts && opts.flat) return 'none';
+    if (opts.mode) return opts.mode;
+    if (opts.flat) return 'none';
     return 'verbund';
   })();
+  const netzwerkNames = opts?.netzwerkNames ?? null;
 
   if (mode === 'none') {
     return antraege.map(a => soloGroup(a));
@@ -196,7 +204,7 @@ export function buildAntragGroups(
       const subGroups = buildVerbundSubGroups(members);
       const flatTvs = subGroups.flatMap(g => g.tvs);
       const phases = collectPhases(flatTvs);
-      const name = getNetzwerkName(members);
+      const name = resolveNetzwerkName(nid, members, netzwerkNames);
       out.push({
         verbundId: null,
         netzwerkId: nid,
