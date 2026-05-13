@@ -6,6 +6,14 @@ TeamFlow Local is a serverless browser app for collaborative task management wit
 
 **Read `DESIGN_GUIDE.md` for visual design rules before making any UI changes.**
 
+## Ignorierte Verzeichnisse
+
+Folgende Pfade NICHT lesen oder referenzieren beim Arbeiten am Code:
+
+- `_archive/` — Historische Architektur-Docs, erledigte Audits, überholte Test-Daten. Enthält die alte MVP-Architektur (postMessage-AI-Bridge, Vorgang-zentriertes Datenmodell, "Admin"-Terminologie) und führt bei aktuellem Code zu falschen Annahmen. Ein Agent, der hier sucht, bekommt mit hoher Wahrscheinlichkeit überholte Guidance.
+- `node_modules/`, `dist*/`, `.vite/` — Build-Artefakte.
+- `_reference/` — externe Referenz-Apps und Mockup-Bilder, nicht Teil von TeamFlow. Wird von Vite (`server.watch.ignored`) ignoriert.
+
 ## Agent-Cheatsheets
 
 Wiederkehrende Erweiterungen haben jeweils mehrere Touch-Points, die synchron gepflegt werden müssen. Vor dem Patchen das passende Cheatsheet öffnen statt die Codebase neu zu scannen:
@@ -15,6 +23,9 @@ Wiederkehrende Erweiterungen haben jeweils mehrere Touch-Points, die synchron ge
 - [docs/agents/add-doc-type.md](docs/agents/add-doc-type.md) — Neuer Phase-2 doc_type
 - [docs/agents/add-feature-flag.md](docs/agents/add-feature-flag.md) — Neuer Build-Time-Flag
 - [docs/agents/add-idb-store.md](docs/agents/add-idb-store.md) — Neuer IndexedDB-Store
+- [docs/agents/add-view.md](docs/agents/add-view.md) — Neue View in `src/plugins/antraege/views.ts`
+- [docs/agents/add-filter-facet.md](docs/agents/add-filter-facet.md) — Neue Filter-Facet in der Filter-Sidebar
+- [docs/agents/add-phase2-stage.md](docs/agents/add-phase2-stage.md) — Neue Stage in der Triage-Pipeline
 - [docs/agents/change-app-branding.md](docs/agents/change-app-branding.md) — App-Name, Untertitel und HTML-Filename ändern
 - [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) — `file://`-Quick-Reference
 - [docs/agents/port-design-export.md](docs/agents/port-design-export.md) — Claude-Design-Tool-Exporte portieren
@@ -31,6 +42,7 @@ Index: [docs/agents/README.md](docs/agents/README.md).
 - **NO RELATIVE FETCH**: `fetch('./data.json')` fails under `file://` — all data via IndexedDB or File System Access API
 - **NO SERVICE WORKERS**: Not available under `file://`
 - **NO localStorage FOR LARGE DATA**: IndexedDB preferred for structured/large data (works under `file://`). localStorage OK for simple flags (e.g., `teamflow_tour_completed`, feedback items, user preferences)
+- **VERTRAUENS-MODELL**: Alle User haben AD-seitig SMB read+write auf den Daten-Share. Schutz erfolgt **clientseitig** — Schreib-Aktionen sind hinter dem Kurator-Passwort gated, normale User haben keine Write-Pfade im Code. Backups schützen gegen Versehens-Schäden; Böswilligkeit wird nicht präventiert (Single-Team-Trust-Modell).
 
 ## Tech Stack
 
@@ -82,6 +94,8 @@ interface TeamFlowPlugin {
 
 Plugins are registered in `src/plugins.config.ts`. Build-time filtering via `VITE_PLUGINS` env var.
 
+**Plugin-Initialisierung**: Plugins können optional einen `onInit?: (services: CoreServices) => Promise<void>` exportieren. Der Hook wird beim App-Start aufgerufen (asynchron, fehlertolerant) und ist der richtige Ort für IDB-Schema-Migrationen, Service-Bootstrap und Default-Seeds. Wer Daten erst beim ersten Render des Plugin-Bildschirms braucht, gehört NICHT in `onInit` (lädt sonst unnötig beim App-Start).
+
 ### Storage Dual-Layer
 - **IndexedDB**: Fast cache, embedding vectors, ONNX model cache, UI state, FS handle persistence
 - **File System Access API**: Permanent storage on shared file server — vorgaenge, artifacts, index, config
@@ -95,7 +109,7 @@ Kurator-Session-Verwaltung, SMB-Connectivity-Monitoring und sichere Datei-Operat
 - **Atomic Writes** (`atomic-write.ts`): Schreiben über `.tmp`-Datei + Rename zu Ziel; altes Ziel → `.backup` (1-Generations-Rotation). Native `move()` mit Read-Write-Delete-Fallback. Append-Writes (`appendToFile`) überspringen Backup. **Alle Infrastructure-Writes müssen diese Helper verwenden** — direkter `FileSystemWritableFileStream` kann bei Crash korrumpieren.
 - **Audit-Log** (`audit-log.ts`): JSONL-Append-Only in `_intern/audit-log.jsonl` (v1.9; vorher `programm-test/admin/audit-log.jsonl`, Legacy-Read-Fallback aktiv). `logAudit({ user, action, details })` / `getRecentAudits(n)`. Session-Events mit neuen Action-Keys `kurator_login`/`kurator_logout`/`kurator_setup`/`kurator_password_changed`. Strukturelle Migration schreibt `kurator_structure_migrated` mit Statistik.
 - **Build-Lock** (`build-lock.ts`): Heartbeat-basierter Lock in `_intern/build-lock.json` verhindert parallele Builds. Schema: `{ programm_id, stufe, hostname, kurator_name, gestartet, heartbeat }`. Stale-Detection: Heartbeat > 2h → auto-discard. Actions: `acquireBuildLock`, `forceLock`, `heartbeat`, `releaseLock`. Legacy-Feld `admin_name` wird beim Lesen auf `kurator_name` gemappt.
-- **Backup** (`backup.ts`): Wöchentliche Snapshots in `backups/YYYY-MM-DD/` (ab v1.9 direkt am Daten-Share-Root, keine `programm-test/`-Zwischenebene). Rolling 4 Generationen; `deleteOldestBackup()` beim Überlauf. `dokumente/` wird ausgeschlossen (GB-Scale-Files; kommt in Phase 2 in separaten Dokumentenquelle-Handle). `shouldSuggestWeeklyBackup()` als UX-Hint.
+- **Backup** (`backup.ts`): Wöchentliche Snapshots in `backups/YYYY-MM-DD/` (ab v1.9 direkt am Daten-Share-Root, keine `programm-test/`-Zwischenebene). Rolling 4 Generationen; `deleteOldestBackup()` beim Überlauf. `dokumente/` wird ausgeschlossen (GB-Scale-Files; kommt in Phase 2 in separaten Dokumentenquelle-Handle). `shouldSuggestWeeklyBackup()` als UX-Hint. Trigger: prüft beim ersten Kurator-Login einer Woche und schlägt manuelles Backup vor. Recovery läuft manuell über den Explorer (Kurator kopiert relevante Dateien aus `backups/YYYY-MM-DD/` zurück); Volumen typisch ~2 GB, Wiederherstellung ~2–5 min über LAN-SMB.
 - **Migration** (`migration.ts`): `validateSelectedFolder(handle)` klassifiziert Ordner in `current`/`empty`/`legacy`/`subfolder`. `migrateLegacyStructure(idb, parent)` verschiebt Legacy-Daten aus `programm-test/` und `feedback/` in die v1.9-Struktur, benennt `admin-*` → `kurator-*`, löscht `programm-test/dokumente/` (mit Count-Anzeige im Dialog vor Bestätigung), rotiert Backups aus der Zwischenebene. Idempotent.
 - **Kurator-Config** (`kurator-config.ts`, ehemals `admin-config.ts`): `isKuratorConfigured`, `setupKuratorConfig`, `verifyPassword`, `changeKuratorPassword`, `readKuratorName`, `writeKuratorName`. Physische Datei: `_intern/kurator-config.enc`; Legacy-Fallback liest `programm-test/admin/admin-config.enc`.
 - **Shared Types/Constants** (`types.ts`): `AuditEntry`, `BuildLock`, `BackupEntry`, `KuratorConfigPlain`, `SessionMeta`, `FolderValidationResult` + Pfad-Konstanten (`AUDIT_LOG_PATH='_intern/audit-log.jsonl'`, `BUILD_LOCK_PATH='_intern/build-lock.json'`, `KURATOR_CONFIG_PATH='_intern/kurator-config.enc'`, `PROGRAMM_DIR_NAME='programm'`, `PROGRAMM_SUBDIRS=['antraege','schemas','index']`, `INTERN_DIR='_intern'`) + Legacy-Varianten (`LEGACY_*`) für Migration-Detection.
@@ -216,6 +230,8 @@ Kurator-Wizard unter `src/plugins/csv-sources-kuration/wizard/` für CSV-Source-
 - `FilterDefinition.display_group` wird beim Erstellen eines Filters aus dem Schema vorgetragen (UI-Gruppierung im Filter-Panel in Folge-Patch).
 - Test-Assets: `scripts/generate-test-label-xlsx.mjs` erzeugt 4 XLSX-Varianten (2/3/4 Zeilen + vertikal-merged "Branche") unter `public/test-korpus/bauforschung-v2/`. Läuft als prebuild-Hook.
 
+**Verbund-Aggregation** (Forschungs-Domäne): Ein **Verbund** bündelt mehrere Teilanträge unter einer gemeinsamen Projektbeschreibung. Der CSV-Master-Import erkennt Verbünde über das Akronym + Teilantragsindex und dedupliziert geteilte Dokumente per Content-Hash. Anzeige in der Antrags-Liste: Teilvorhaben werden visuell unter dem Verbund-Header geclustert (siehe `src/plugins/antraege/` Cluster-Komponenten).
+
 ### Phase-2 Triage- & Matcher-Baustein (`src/phase2/`)
 
 Eingangsfilter für die DMS-Dokumenten-Pipeline. Pro Datei wird kaskadiert entschieden: relevant?, doc_type?, zugehöriger Antrag?
@@ -327,8 +343,15 @@ Kurator-Plugin (`id: 'dokument-review'`, `category: 'kuration'`, `kuratorOnly: t
 - Kein Renderer für PDF/DOCX-Inhalte (kommt erst wenn die Volltext-Pipeline steht).
 - Keine Veränderungen an `Phase2RescanCard.tsx` oder `TriagePanel.tsx`. Read-only-Accessors in `src/phase2/scanner/manifest-store.ts` (z.B. `listByMatchedAntrag`) sind erlaubt; Triage-Pipeline-Logik bleibt unverändert.
 
+### Legacy: Vorgang-Infrastruktur
+
+`src/core/types/vorgang.ts`, `src/core/components/SimilarCases.tsx`, `src/core/components/VorgangDokumenteTab.tsx`, `src/core/hooks/useVorgangDetail.ts` — Überbleibsel des alten Vorgang-zentrierten Datenmodells. Wird nur noch vom Bauanträge-Plugin (`src/plugins/bauantraege/`) genutzt. **Neue Features verwenden das `Antrag`-Interface aus dem CSV-Schema (`src/core/types/csv/types.ts`), nicht `Vorgang`.**
+
+Auch in dieser Kategorie: `src/core/services/seed/docs/forschung-*.ts` (25 Dateien, gehörten zum alten Forschungs-Demo-Modell). Werden vom Real-Fixtures-Loader (`src/core/services/seed/fixture-loader.ts`) abgelöst — beim nächsten Patch entfernen, NICHT als Referenz für neue Features nutzen.
+
 ### Referenz-App
-In `_reference/lernapp/` liegt eine geklonte Referenz-Implementierung (KI-Prompting-Tutor). Wird NICHT gebaut oder deployed — dient ausschließlich als Code-Referenz für die Portierung von Features (Feedback-System, Onboarding-Tour). Vite ignoriert diesen Ordner (`server.watch.ignored`).
+
+Historische Referenz-Implementierung lag unter `_reference/lernapp/` — seit dem Cleanup in `_archive/_reference/lernapp/`. Nicht für neue Features als Vorbild verwenden.
 
 ### Datenverzeichnis (v1.9)
 Alle geteilten Daten und Config-Dateien liegen im Daten-Share (separater SMB-Share vom App-Share mit `teamflow.html`). Struktur:
