@@ -36,9 +36,13 @@ function loadNarrowWidth(): number {
 }
 
 export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
-  // Temporäre Style-Vergleichs-Section, sichtbar via URL-Hash #style-demo.
-  // Wird nach der User-Entscheidung wieder entfernt.
-  const showStyleDemo = typeof window !== 'undefined' && window.location.hash === '#style-demo';
+  // Temporäre Style-Vergleichs-Section, sichtbar wenn `style-demo` irgendwo
+  // im Hash steht. Die App nutzt Hash-Routing (#/antraege), deshalb wird der
+  // Marker als Suffix angehaengt: #/antraege#style-demo oder #/antraege?style-demo
+  // oder ?style-demo im Query. Wird nach der User-Entscheidung wieder entfernt.
+  const showStyleDemo = typeof window !== 'undefined'
+    && (window.location.hash.includes('style-demo')
+      || window.location.search.includes('style-demo'));
 
   const storage = useStorage();
   const navigate = useNavigate();
