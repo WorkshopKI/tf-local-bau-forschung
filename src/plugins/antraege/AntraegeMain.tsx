@@ -152,7 +152,10 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
               <SortDropdown />
               <GroupingDropdown />
               {bearbeiterFilter.active ? (
-                <BearbeiterFilterPill tokens={bearbeiterFilter.tokens} />
+                <BearbeiterFilterPill
+                  tokens={bearbeiterFilter.tokens}
+                  includeBegleitung={bearbeiterFilter.includeBegleitung}
+                />
               ) : null}
             </div>
             {active.length > 0 ? (
