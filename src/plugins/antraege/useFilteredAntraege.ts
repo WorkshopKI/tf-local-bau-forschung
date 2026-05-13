@@ -6,7 +6,7 @@ import { useAntraegeStore, getEffectiveSortKey } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { getView, type AntragView } from './views';
 import { getSortOption } from './sort';
-import { applyVerbundClustering } from './verbundClustering';
+import { applyVerbundClustering } from './antragGroups';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
   parseBearbeiterFilter,

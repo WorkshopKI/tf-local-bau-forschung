@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -6,7 +6,8 @@ import { useAntraegeStore } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
-import { AntragCard } from './AntragCard';
+import { AntragGroupCard } from './AntragGroupCard';
+import { buildAntragGroups } from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
 import { SortDropdown } from './SortDropdown';
 import { Alert } from '@/components/ui/alert';
@@ -44,6 +45,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     loadAll,
   } = useAntraegeStore();
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
+  const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
   const { filtered, bearbeiterFilter, bearbeiterKuerzelMissing } = useFilteredAntraege();
   const [visibleRows, setVisibleRows] = useState(ROW_PAGE);
@@ -171,32 +173,15 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
               Keine Anträge matchen die aktuellen Filter.
             </div>
           ) : (
-            <div className="flex flex-col gap-1">
-              {filtered.slice(0, visibleRows).map((a, idx) => {
-                // Folge-TV eines Verbund-Clusters: vorheriger Eintrag in der
-                // bereits geclusterten Liste hat dieselbe verbund_id.
-                const prev = idx > 0 ? filtered[idx - 1] : undefined;
-                const verbundTail =
-                  typeof a.verbund_id === 'string'
-                  && a.verbund_id.length > 0
-                  && prev?.verbund_id === a.verbund_id;
-                return (
-                  <AntragCard
-                    key={a.aktenzeichen}
-                    antrag={a}
-                    onClick={() => openAntrag(a.aktenzeichen)}
-                    selected={selectedAktenzeichen === a.aktenzeichen}
-                    narrow={narrow}
-                    verbundTail={verbundTail}
-                  />
-                );
-              })}
-              {visibleRows < filtered.length ? (
-                <div ref={sentinelRef} className="py-4 text-center text-[11.5px] text-[var(--tf-text-tertiary)]">
-                  Lade weitere Einträge …
-                </div>
-              ) : null}
-            </div>
+            <GroupedList
+              filtered={filtered}
+              visibleRows={visibleRows}
+              selectedAktenzeichen={selectedAktenzeichen}
+              onOpenAntrag={openAntrag}
+              onOpenVerbund={openVerbund}
+              narrow={narrow}
+              sentinelRef={sentinelRef}
+            />
           )}
         </div>
       </div>
@@ -212,6 +197,50 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
           style={{ borderLeft: '0.5px solid var(--tf-border)' }}
         />
       )}
+    </div>
+  );
+}
+
+interface GroupedListProps {
+  filtered: import('@/core/services/csv/types').AntragListItem[];
+  visibleRows: number;
+  selectedAktenzeichen: string | null;
+  onOpenAntrag: (az: string) => void;
+  onOpenVerbund: (id: string) => void;
+  narrow: boolean;
+  sentinelRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function GroupedList({
+  filtered,
+  visibleRows,
+  selectedAktenzeichen,
+  onOpenAntrag,
+  onOpenVerbund,
+  narrow,
+  sentinelRef,
+}: GroupedListProps): React.ReactElement {
+  const groups = useMemo(
+    () => buildAntragGroups(filtered.slice(0, visibleRows)),
+    [filtered, visibleRows],
+  );
+  return (
+    <div className="flex flex-col gap-1">
+      {groups.map(g => (
+        <AntragGroupCard
+          key={g.tvs[0]!.aktenzeichen}
+          group={g}
+          selectedAktenzeichen={selectedAktenzeichen}
+          onOpenAntrag={onOpenAntrag}
+          onOpenVerbund={onOpenVerbund}
+          narrow={narrow}
+        />
+      ))}
+      {visibleRows < filtered.length ? (
+        <div ref={sentinelRef} className="py-4 text-center text-[11.5px] text-[var(--tf-text-tertiary)]">
+          Lade weitere Einträge …
+        </div>
+      ) : null}
     </div>
   );
 }
