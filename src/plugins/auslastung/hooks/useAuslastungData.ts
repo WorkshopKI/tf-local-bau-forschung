@@ -19,6 +19,8 @@ import {
   type AuslastungConfig,
   type AuslastungData,
   type AnonymerMitarbeiter,
+  type KalibrierungsErgebnis,
+  type KalibrierungsState,
   type Klassifizierung,
   type UeberKategorie,
   type Zuweisung,
@@ -50,6 +52,10 @@ interface AuslastungDataState {
   // ── Zuweisungen ──────────────────────────────────────────────────────
   upsertZuweisung: (storage: StorageService, z: Zuweisung) => Promise<void>;
   removeZuweisung: (storage: StorageService, antragId: string, anonId: string) => Promise<void>;
+  // ── Kalibrierung ─────────────────────────────────────────────────────
+  upsertKalibrierungsErgebnis: (storage: StorageService, e: KalibrierungsErgebnis) => Promise<void>;
+  setOptimalConfidence: (storage: StorageService, kannIch: number, teilweise: number) => Promise<void>;
+  clearKalibrierung: (storage: StorageService) => Promise<void>;
 }
 
 const initialData = emptyAuslastungData();
@@ -193,6 +199,57 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
         ),
       },
     }));
+    await get().persist(storage);
+  },
+
+  upsertKalibrierungsErgebnis: async (storage, e) => {
+    set(state => {
+      const current: KalibrierungsState = state.data.kalibrierung ?? {
+        ergebnisse: [],
+        optimaleConfidenceKannIch: 0.7,
+        optimaleConfidenceTeilweise: 0.3,
+      };
+      const idx = current.ergebnisse.findIndex(x => x.anonId === e.anonId);
+      const ergebnisse = idx >= 0
+        ? current.ergebnisse.map((x, i) => i === idx ? e : x)
+        : [...current.ergebnisse, e];
+      return {
+        data: {
+          ...state.data,
+          kalibrierung: {
+            ...current,
+            ergebnisse,
+            letzteKalibrierung: new Date().toISOString(),
+          },
+        },
+      };
+    });
+    await get().persist(storage);
+  },
+
+  setOptimalConfidence: async (storage, kannIch, teilweise) => {
+    set(state => {
+      const current: KalibrierungsState = state.data.kalibrierung ?? {
+        ergebnisse: [],
+        optimaleConfidenceKannIch: 0.7,
+        optimaleConfidenceTeilweise: 0.3,
+      };
+      return {
+        data: {
+          ...state.data,
+          kalibrierung: {
+            ...current,
+            optimaleConfidenceKannIch: kannIch,
+            optimaleConfidenceTeilweise: teilweise,
+          },
+        },
+      };
+    });
+    await get().persist(storage);
+  },
+
+  clearKalibrierung: async (storage) => {
+    set(state => ({ data: { ...state.data, kalibrierung: undefined } }));
     await get().persist(storage);
   },
 }));

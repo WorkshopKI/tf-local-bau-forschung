@@ -16,6 +16,7 @@ import { KonfigurationSection } from './admin/KonfigurationSection';
 import { KategorienSection } from './admin/KategorienSection';
 import { EmbeddingCorpusSection } from './admin/EmbeddingCorpusSection';
 import { MitarbeiterSection } from './admin/MitarbeiterSection';
+import { ImportExportSection } from './admin/ImportExportSection';
 
 export function AuslastungAdmin(): React.ReactElement {
   const storage = useStorage();
@@ -37,6 +38,7 @@ export function AuslastungAdmin(): React.ReactElement {
           <KonfigurationSection storage={storage} />
           <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
           <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} />
+          <ImportExportSection antraege={cache.antraege} />
           <MitarbeiterSection storage={storage} />
         </>
       )}

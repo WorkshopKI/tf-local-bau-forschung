@@ -10,22 +10,47 @@ import { useMemo, useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
 import type { AnonymerMitarbeiter } from '../../types';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
+import { useAntraegeCache } from '../../hooks/useAntraegeCache';
 import { AnonymIdBadge } from '../../components/AnonymIdBadge';
 import { KategoriePill } from '../../components/KategoriePill';
 import { TechnologieTags } from '../../components/TechnologieTags';
+import { PasswortDialog } from '../../components/PasswortDialog';
+import { OnboardingImportDialog } from '../../components/OnboardingImportDialog';
+import { KalibrierungsReport } from '../../components/KalibrierungsReport';
+import { exportAnonymousXlsx, exportProtectedZip } from '../../services/export-service';
+import { downloadOnboardingHtml } from '../../services/onboarding-html-generator';
+import type { OnboardingPreview } from '../../services/onboarding-import';
 
 interface Props {
   storage: StorageService;
 }
 
 export function MitarbeiterSection({ storage }: Props): React.ReactElement {
+  const data = useAuslastungData(s => s.data);
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
   const kategorien = useAuslastungData(s => s.data.config.ueberKategorien);
   const upsert = useAuslastungData(s => s.upsertMitarbeiter);
   const create = useAuslastungData(s => s.createMitarbeiter);
   const remove = useAuslastungData(s => s.removeMitarbeiter);
+  const cache = useAntraegeCache();
 
   const [editId, setEditId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [calibPreviews, setCalibPreviews] = useState<OnboardingPreview[] | null>(null);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+
+  async function exportGeschuetzt(password: string): Promise<void> {
+    setExportBusy(true);
+    try {
+      await exportProtectedZip({
+        data, antraege: cache.antraege, anonymMap: cache.anonymMap, password,
+      });
+      setPwOpen(false);
+    } finally {
+      setExportBusy(false);
+    }
+  }
 
   const list = useMemo(() => {
     return Object.values(mitarbeiter).sort((a, b) => a.anonId.localeCompare(b.anonId));
@@ -107,21 +132,60 @@ export function MitarbeiterSection({ storage }: Props): React.ReactElement {
         />
       )}
 
-      {/* Onboarding-Buttons (Prompt 2 — disabled) */}
+      {/* Onboarding/Export-Buttons (Prompt 2) */}
       <div className="flex flex-wrap gap-2 mt-4 pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-        {(['Onboarding-XLSX importieren', 'Onboarding-HTML generieren', 'Export (anonym)', 'Export (mit Kürzeln, geschützt)'] as const).map(label => (
-          <button
-            key={label}
-            type="button"
-            disabled
-            className="px-3 py-1.5 rounded-md text-[11.5px] cursor-not-allowed"
-            style={{ border: '0.5px dashed var(--tf-border)', color: 'var(--tf-text-tertiary)' }}
-            title="Kommt in Phase 2"
-          >
-            {label}
-          </button>
-        ))}
+        <button
+          type="button"
+          onClick={() => setImportOpen(true)}
+          className="px-3 py-1.5 rounded-md text-[11.5px] cursor-pointer"
+          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+        >
+          Onboarding-XLSX importieren
+        </button>
+        <button
+          type="button"
+          onClick={() => downloadOnboardingHtml({ antraege: cache.antraege, kategorien })}
+          disabled={kategorien.length === 0 || cache.antraege.length === 0}
+          className="px-3 py-1.5 rounded-md text-[11.5px] cursor-pointer disabled:opacity-50"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          Onboarding-HTML generieren
+        </button>
+        <button
+          type="button"
+          onClick={() => exportAnonymousXlsx({ data, antraege: cache.antraege })}
+          className="px-3 py-1.5 rounded-md text-[11.5px] cursor-pointer"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          Export (anonym)
+        </button>
+        <button
+          type="button"
+          onClick={() => setPwOpen(true)}
+          disabled={exportBusy}
+          className="px-3 py-1.5 rounded-md text-[11.5px] cursor-pointer disabled:opacity-50"
+          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+        >
+          Export (mit Kürzeln, geschützt)
+        </button>
       </div>
+
+      <OnboardingImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onCalibrate={(previews) => { setImportOpen(false); setCalibPreviews(previews); }}
+      />
+      <KalibrierungsReport
+        open={calibPreviews !== null}
+        previews={calibPreviews ?? []}
+        onClose={() => setCalibPreviews(null)}
+      />
+      <PasswortDialog
+        open={pwOpen}
+        busy={exportBusy}
+        onClose={() => setPwOpen(false)}
+        onConfirm={exportGeschuetzt}
+      />
     </div>
   );
 }

@@ -109,6 +109,50 @@ export interface AuslastungData {
   mitarbeiter: Record<string, AnonymerMitarbeiter>;
   klassifizierungen: Klassifizierung[];
   zuweisungen: Zuweisung[];
+  /** Kalibrierungs-Ergebnisse aus Feature 4b. Optional. */
+  kalibrierung?: KalibrierungsState;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Onboarding + Kalibrierung
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Default-Confidence pro Onboarding-Bewertung. */
+export const ONBOARDING_CONFIDENCE = {
+  kann_ich: 0.7,
+  teilweise: 0.3,
+  nicht_meins: 0,
+} as const;
+
+export type OnboardingBewertung = 'kann_ich' | 'teilweise' | 'nicht_meins';
+
+/** Eintrag aus dem Antrags-Swipe. */
+export interface OnboardingBewertungEintrag {
+  aktenzeichen: string;
+  /** Deskriptoren-Kategorie aus dem Antrag (z.B. "Werkstofftechnik"). */
+  kategorie: string;
+  /** Abgeleitete Ueberkategorie (z.B. "IND"). */
+  ueberKategorie?: string;
+  /** VB-Titel (gekuerzt) — fuer Preview. */
+  vbTitel?: string;
+  bewertung: OnboardingBewertung;
+}
+
+/** Ergebnis einer einzelnen Kalibrierungs-Iteration (1 MA, 1 Run). */
+export interface KalibrierungsErgebnis {
+  anonId: string;
+  spearmanKorrelation: number;          // -1..1
+  top3Overlap: number;                  // 0..1
+  klassifizierungsAccuracy: number;     // 0..1
+  anzahlAntraege: number;
+  datum: string;                        // ISO
+}
+
+export interface KalibrierungsState {
+  ergebnisse: KalibrierungsErgebnis[];
+  optimaleConfidenceKannIch: number;    // default 0.7
+  optimaleConfidenceTeilweise: number;  // default 0.3
+  letzteKalibrierung?: string;
 }
 
 // ───────────────────────────────────────────────────────────────────────────

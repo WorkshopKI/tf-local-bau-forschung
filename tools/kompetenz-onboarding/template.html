@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kompetenz-Onboarding</title>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --bg2: #f3f4f6;
+      --fg: #111827;
+      --fg2: #4b5563;
+      --fg3: #9ca3af;
+      --border: #e5e7eb;
+      --primary: #1e40af;
+      --primary-bg: #dbeafe;
+      --success: #16a34a;
+      --success-bg: #d1fae5;
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+    }
+    h1 { font-size: 22px; font-weight: 500; margin: 0 0 8px; }
+    h2 { font-size: 16px; font-weight: 500; margin: 0 0 10px; }
+    p { color: var(--fg2); margin: 0 0 14px; }
+    label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg3); display: block; margin-bottom: 4px; }
+    input[type="text"], select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: white;
+      outline: none;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background: var(--fg);
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-secondary {
+      background: white;
+      color: var(--fg);
+      border-color: var(--border);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--fg2);
+      border-color: var(--border);
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .field { margin-bottom: 14px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .swipe-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+    .swipe-category {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--bg2);
+      color: var(--fg2);
+      font-size: 11px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .swipe-title { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+    .swipe-subtitle { font-size: 13px; color: var(--fg2); margin-bottom: 8px; }
+    .swipe-summary { font-size: 13px; color: var(--fg2); margin-bottom: 14px; }
+    .swipe-actions { display: flex; gap: 8px; }
+    .swipe-actions .btn { flex: 1; padding: 10px 12px; }
+    .btn-kann { background: var(--success-bg); color: #14532d; border-color: var(--success); }
+    .btn-teilweise { background: var(--warning-bg); color: #78350f; border-color: var(--warning); }
+    .btn-nicht { background: var(--danger-bg); color: #7f1d1d; border-color: var(--danger); }
+    .progress {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--fg3);
+      margin-bottom: 12px;
+    }
+    .tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .tag {
+      padding: 4px 12px;
+      background: var(--bg2);
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--fg);
+      cursor: default;
+    }
+    .pill {
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid;
+    }
+    .pill-blue { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+    .pill-emerald { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+    .pill-amber { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .pill-rose { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+    .pill-violet { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+    .pill-sky { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
+    .pill-slate { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+    .hint { background: var(--primary-bg); color: var(--primary); padding: 12px; border-radius: var(--radius); font-size: 13px; margin-bottom: 14px; }
+    .footer-nav { display: flex; justify-content: space-between; margin-top: 24px; }
+    .err { color: var(--danger); font-size: 12px; margin-top: 4px; }
+    .ok { color: var(--success); font-size: 12px; margin-top: 4px; }
+    @media (max-width: 600px) {
+      .container { padding: 16px; }
+      h1 { font-size: 20px; }
+      .swipe-actions { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Screen 0: Welcome -->
+    <section class="screen active" data-screen="welcome">
+      <h1>Kompetenz-Onboarding</h1>
+      <p>
+        Dieses Tool erfasst deine fachlichen Kompetenzen, damit dir passende Anträge zugewiesen werden können.
+        Du bewertest ca. 30 Beispiel-Anträge mit „Kann ich" / „Teilweise" / „Nicht meins".
+        Am Ende lädst du eine XLSX-Datei herunter und schickst sie an deine Projektleitung.
+      </p>
+      <div class="card">
+        <div class="field">
+          <label for="kuerzel-input">Dein Kürzel (wie im Intranet)</label>
+          <input type="text" id="kuerzel-input" maxlength="5" placeholder="z.B. MUE" autocomplete="off">
+          <div id="kuerzel-err" class="err" hidden></div>
+        </div>
+        <button class="btn" id="start-btn">Onboarding starten</button>
+      </div>
+    </section>
+
+    <!-- Screen 1: Profil -->
+    <section class="screen" data-screen="profil">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px;">
+        <h1>Profil</h1>
+        <span class="tag" id="kuerzel-display"></span>
+      </div>
+      <div class="card">
+        <div class="field">
+          <label for="fachrichtung-input">Fachrichtung</label>
+          <select id="fachrichtung-input">
+            <option value="">— bitte wählen —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="fachrichtung-custom">Fachrichtung (Freitext, falls nicht in der Liste)</label>
+          <input type="text" id="fachrichtung-custom" placeholder="optional">
+        </div>
+        <div class="field">
+          <label for="abschluss-input">Abschluss</label>
+          <select id="abschluss-input">
+            <option value="">— bitte wählen —</option>
+            <option value="Bachelor">Bachelor</option>
+            <option value="Master">Master</option>
+            <option value="Promotion">Promotion</option>
+            <option value="Sonstige">Sonstige</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="freitext-input">Beschreibe in 2-3 Sätzen deine fachlichen Schwerpunkte</label>
+          <textarea id="freitext-input" placeholder="z.B. Erfahrung mit Leichtbau, FEM-Simulation und CFK-Tragstrukturen…"></textarea>
+        </div>
+      </div>
+      <div class="footer-nav">
+        <button class="btn btn-ghost" data-back="welcome">← Zurück</button>
+        <button class="btn" id="profil-next">Weiter zum Swipe →</button>
+      </div>
+    </section>
+
+    <!-- Screen 2: Swipe -->
+    <section class="screen" data-screen="swipe">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+        <h1>Antrags-Bewertung</h1>
+        <span class="tag" id="kuerzel-display2"></span>
+      </div>
+      <div class="progress">
+        <span id="progress-text">0 von 0 bewertet</span>
+        <button class="btn btn-ghost" id="finish-early" style="padding: 4px 10px; font-size: 12px;">Vorzeitig abschließen →</button>
+      </div>
+      <div id="swipe-container"></div>
+      <div id="all-done-message" style="display:none;text-align:center;padding:30px;">
+        <h2>Alle Anträge bewertet</h2>
+        <p>Klicke „Weiter" um zur Zusammenfassung zu kommen.</p>
+        <button class="btn" id="swipe-next">Weiter zur Zusammenfassung →</button>
+      </div>
+    </section>
+
+    <!-- Screen 3: Export -->
+    <section class="screen" data-screen="export">
+      <h1>Zusammenfassung</h1>
+      <p>Überprüfe deine Eingaben, ergänze ggf. weitere Kompetenzen, und lade die XLSX-Datei herunter.</p>
+
+      <div class="card">
+        <h2>Deine Stärken</h2>
+        <div class="tag-cloud" id="strengths-cloud"></div>
+      </div>
+
+      <div class="card">
+        <h2>Deine Überkategorien</h2>
+        <div class="row" id="ueberkat-pills"></div>
+        <p style="font-size:12px;color:var(--fg3);margin-top:10px;margin-bottom:0;">
+          Klicke auf eine Pill um sie hinzuzufügen/zu entfernen.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Manuelle Technologien (optional)</h2>
+        <p style="font-size:12px;color:var(--fg2);">Komma-separiert. Werden zusätzlich zu den gematchten Kategorien gespeichert.</p>
+        <textarea id="tech-input" placeholder="Faserverbundwerkstoffe, FEM-Simulation, Leichtbau"></textarea>
+      </div>
+
+      <div class="hint">
+        Bitte sende die XLSX-Datei nach dem Download per E-Mail an deine Projektleitung.
+      </div>
+
+      <div class="footer-nav">
+        <button class="btn btn-ghost" data-back="swipe">← Zurück</button>
+        <button class="btn" id="export-btn">XLSX herunterladen</button>
+      </div>
+      <div id="export-result" class="ok" style="margin-top:10px;display:none;"></div>
+    </section>
+
+  </div>
+
+  <!-- SheetJS minified (eingebettet beim Generator-Run) -->
+  <script><!--{{XLSX_SCRIPT}}--></script>
+
+  <!-- Onboarding-Daten (eingebettet beim Generator-Run) -->
+  <script>
+    /* eslint-disable */
+    window.__ONBOARDING__ = <!--{{ONBOARDING_DATA}}-->;
+  </script>
+
+  <!-- App-Code -->
+  <script>
+    (function () {
+      'use strict';
+
+      const config = (window.__ONBOARDING__ && window.__ONBOARDING__.config) || { ueberKategorien: [], ueberKategorieMapping: {} };
+      const antraege = (window.__ONBOARDING__ && window.__ONBOARDING__.antraege) || [];
+
+      // State
+      const state = {
+        kuerzel: '',
+        fachrichtung: '',
+        abschluss: '',
+        freitext: '',
+        bewertungen: {},          // aktenzeichen -> 'kann_ich' | 'teilweise' | 'nicht_meins'
+        kategorieResults: {},     // kategorie -> count_kann_ich
+        manualUeberkategorien: new Set(),  // user-manuell hinzugefuegt/entfernt
+        tech: '',
+      };
+
+      // Helpers
+      function $(sel) { return document.querySelector(sel); }
+      function $$(sel) { return Array.from(document.querySelectorAll(sel)); }
+      function showScreen(name) {
+        $$('.screen').forEach(s => s.classList.toggle('active', s.dataset.screen === name));
+        window.scrollTo(0, 0);
+      }
+      function uppercase(s) { return String(s || '').toUpperCase().trim(); }
+
+      // Welcome
+      $('#start-btn').addEventListener('click', () => {
+        const v = uppercase($('#kuerzel-input').value);
+        const err = $('#kuerzel-err');
+        if (v.length < 2 || v.length > 5) {
+          err.hidden = false;
+          err.textContent = 'Bitte 2-5 Zeichen eingeben.';
+          return;
+        }
+        err.hidden = true;
+        state.kuerzel = v;
+        $('#kuerzel-display').textContent = v;
+        $('#kuerzel-display2').textContent = v;
+        // Fachrichtungs-Dropdown befuellen
+        const sel = $('#fachrichtung-input');
+        const seen = new Set();
+        antraege.forEach(a => { if (a.kategorie && !seen.has(a.kategorie)) { seen.add(a.kategorie); const o = document.createElement('option'); o.value = a.kategorie; o.textContent = a.kategorie; sel.appendChild(o); }});
+        showScreen('profil');
+      });
+
+      // Profil-Navigation
+      $('#profil-next').addEventListener('click', () => {
+        state.fachrichtung = $('#fachrichtung-custom').value.trim() || $('#fachrichtung-input').value;
+        state.abschluss = $('#abschluss-input').value;
+        state.freitext = $('#freitext-input').value.trim();
+        renderSwipe();
+        showScreen('swipe');
+      });
+      $$('[data-back]').forEach(b => b.addEventListener('click', () => showScreen(b.dataset.back)));
+
+      // Swipe
+      function renderSwipe() {
+        const container = $('#swipe-container');
+        container.innerHTML = '';
+        const remaining = antraege.filter(a => !state.bewertungen[a.id] && !isCategoryDone(a.kategorie));
+        if (remaining.length === 0) {
+          updateProgress();
+          $('#all-done-message').style.display = 'block';
+          return;
+        }
+        $('#all-done-message').style.display = 'none';
+        // Naechsten Antrag anzeigen
+        const a = remaining[0];
+        const card = document.createElement('div');
+        card.className = 'swipe-card';
+        card.innerHTML =
+          '<span class="swipe-category">' + escapeHtml(a.kategorie) + '</span>' +
+          '<div class="swipe-title">' + escapeHtml(a.vbTitel || '—') + '</div>' +
+          (a.tvTitel && a.tvTitel !== a.vbTitel ? '<div class="swipe-subtitle">' + escapeHtml(a.tvTitel) + '</div>' : '') +
+          '<div class="swipe-summary">' + escapeHtml(a.zusammenfassung || '') + '</div>' +
+          '<div class="swipe-actions">' +
+            '<button class="btn btn-kann" data-bw="kann_ich">✓ Kann ich</button>' +
+            '<button class="btn btn-teilweise" data-bw="teilweise">~ Teilweise</button>' +
+            '<button class="btn btn-nicht" data-bw="nicht_meins">✗ Nicht meins</button>' +
+          '</div>';
+        container.appendChild(card);
+        card.querySelectorAll('button[data-bw]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            state.bewertungen[a.id] = btn.dataset.bw;
+            if (btn.dataset.bw === 'kann_ich') {
+              state.kategorieResults[a.kategorie] = (state.kategorieResults[a.kategorie] || 0) + 1;
+            }
+            renderSwipe();
+          });
+        });
+        updateProgress();
+      }
+
+      // Adaptive Verkuerzung: Kategorie als "verstanden" markieren wenn 2 Antraege gleich beantwortet
+      function isCategoryDone(kategorie) {
+        const inCat = antraege.filter(a => a.kategorie === kategorie);
+        const answered = inCat.filter(a => state.bewertungen[a.id]);
+        if (answered.length < 2) return false;
+        // Wenn alle gleich beantwortet -> done
+        const first = state.bewertungen[answered[0].id];
+        return answered.every(a => state.bewertungen[a.id] === first);
+      }
+
+      function updateProgress() {
+        const total = antraege.length;
+        const done = Object.keys(state.bewertungen).length;
+        const cats = new Set(antraege.map(a => a.kategorie));
+        const catsDone = Array.from(cats).filter(c => isCategoryDone(c)).length;
+        $('#progress-text').textContent = done + ' von ~' + total + ' bewertet · ' + catsDone + ' Kategorien abgeschlossen';
+      }
+
+      $('#finish-early').addEventListener('click', goToExport);
+      $('#swipe-next').addEventListener('click', goToExport);
+
+      function goToExport() {
+        renderExport();
+        showScreen('export');
+      }
+
+      // Export
+      function renderExport() {
+        // Stärken: alle Kategorien sortiert nach kann_ich-Anzahl
+        const cloud = $('#strengths-cloud');
+        cloud.innerHTML = '';
+        const entries = Object.entries(state.kategorieResults).sort((a, b) => b[1] - a[1]);
+        if (entries.length === 0) {
+          cloud.innerHTML = '<span class="tag">Keine „Kann ich"-Antworten</span>';
+        } else {
+          entries.forEach(([cat, count]) => {
+            const t = document.createElement('span');
+            t.className = 'tag';
+            t.textContent = cat + ' (' + count + ')';
+            cloud.appendChild(t);
+          });
+        }
+        // Ueberkategorien
+        renderUeberkategorien();
+      }
+
+      function renderUeberkategorien() {
+        // Auto-Ableitung
+        const counts = {};
+        Object.keys(state.bewertungen).forEach(az => {
+          if (state.bewertungen[az] !== 'kann_ich') return;
+          const a = antraege.find(x => x.id === az);
+          if (!a) return;
+          let uebers = [];
+          if (a.ueberKategorie) uebers = [a.ueberKategorie];
+          else if (config.ueberKategorieMapping[a.kategorie]) uebers = config.ueberKategorieMapping[a.kategorie];
+          uebers.forEach(u => { counts[u] = (counts[u] || 0) + 1; });
+        });
+        const auto = new Set(Object.entries(counts).filter(e => e[1] >= 3).map(e => e[0]));
+        const active = new Set(auto);
+        state.manualUeberkategorien.forEach(id => active.add(id));
+
+        const pills = $('#ueberkat-pills');
+        pills.innerHTML = '';
+        (config.ueberKategorien || []).forEach(k => {
+          const p = document.createElement('span');
+          p.className = 'pill pill-' + (k.farbe || 'slate');
+          p.textContent = k.id;
+          p.title = k.name;
+          p.style.cursor = 'pointer';
+          p.style.opacity = active.has(k.id) ? '1' : '0.4';
+          p.addEventListener('click', () => {
+            if (active.has(k.id)) {
+              active.delete(k.id);
+              state.manualUeberkategorien.delete(k.id);
+            } else {
+              active.add(k.id);
+              state.manualUeberkategorien.add(k.id);
+            }
+            renderUeberkategorien();
+          });
+          pills.appendChild(p);
+        });
+        state.activeUeberkategorien = Array.from(active);
+      }
+
+      $('#export-btn').addEventListener('click', () => {
+        if (!window.XLSX) {
+          alert('SheetJS konnte nicht geladen werden — bitte Datei neu öffnen.');
+          return;
+        }
+        state.tech = $('#tech-input').value;
+        const manualTags = state.tech.split(',').map(s => s.trim()).filter(Boolean);
+
+        const wb = window.XLSX.utils.book_new();
+
+        // Sheet 1: Profil
+        const profilAoA = [
+          ['Feld', 'Wert'],
+          ['Kürzel', state.kuerzel],
+          ['Fachrichtung', state.fachrichtung],
+          ['Abschluss', state.abschluss],
+          ['Freitext', state.freitext],
+          ['Überkategorien', (state.activeUeberkategorien || []).join(', ')],
+        ];
+        const ws1 = window.XLSX.utils.aoa_to_sheet(profilAoA);
+        ws1['!cols'] = [{ wch: 16 }, { wch: 60 }];
+        window.XLSX.utils.book_append_sheet(wb, ws1, 'Profil');
+
+        // Sheet 2: Antrags-Bewertungen
+        const bewertungLabel = { kann_ich: 'Kann ich', teilweise: 'Teilweise', nicht_meins: 'Nicht meins' };
+        const bewertAoA = [['Aktenzeichen', 'Kategorie', 'Überkategorie', 'VB-Titel', 'Bewertung']];
+        antraege.forEach(a => {
+          const bw = state.bewertungen[a.id];
+          if (!bw) return;
+          bewertAoA.push([
+            a.id, a.kategorie, a.ueberKategorie || '',
+            (a.vbTitel || '').slice(0, 60),
+            bewertungLabel[bw],
+          ]);
+        });
+        const ws2 = window.XLSX.utils.aoa_to_sheet(bewertAoA);
+        ws2['!cols'] = [{ wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 50 }, { wch: 14 }];
+        window.XLSX.utils.book_append_sheet(wb, ws2, 'Antrags-Bewertungen');
+
+        // Sheet 3: Manuelle Technologien
+        const techAoA = [['Technologie']].concat(manualTags.map(t => [t]));
+        const ws3 = window.XLSX.utils.aoa_to_sheet(techAoA);
+        ws3['!cols'] = [{ wch: 30 }];
+        window.XLSX.utils.book_append_sheet(wb, ws3, 'Manuelle Technologien');
+
+        const filename = 'onboarding-' + state.kuerzel + '.xlsx';
+        window.XLSX.writeFile(wb, filename);
+
+        $('#export-result').style.display = 'block';
+        $('#export-result').textContent = '✓ ' + filename + ' wurde heruntergeladen. Bitte per E-Mail an die Projektleitung schicken.';
+      });
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+      }
+    })();
+  </script>
+</body>
+</html>

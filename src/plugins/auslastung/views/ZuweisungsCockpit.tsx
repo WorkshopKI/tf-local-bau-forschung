@@ -32,7 +32,9 @@ import { ConfidenceDot } from '../components/ConfidenceDot';
 import { TechnologieTags } from '../components/TechnologieTags';
 import { VorschlagCard } from '../components/VorschlagCard';
 import { AnonymIdBadge } from '../components/AnonymIdBadge';
+import { PasswortDialog } from '../components/PasswortDialog';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
+import { exportAnonymousXlsx, exportProtectedZip } from '../services/export-service';
 import type { Antrag } from '@/core/services/csv/types';
 
 type StatusFilter = 'offen' | 'selbst' | 'zugewiesen' | 'alle';
@@ -53,6 +55,29 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const [selectedAz, setSelectedAz] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [matchingRunning, setMatchingRunning] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+
+  const data = useAuslastungData(s => s.data);
+
+  function exportAnonym(): void {
+    exportAnonymousXlsx({ data, antraege: cache.antraege });
+  }
+
+  async function exportGeschuetzt(password: string): Promise<void> {
+    setExportBusy(true);
+    try {
+      await exportProtectedZip({
+        data,
+        antraege: cache.antraege,
+        anonymMap: cache.anonymMap,
+        password,
+      });
+      setPwOpen(false);
+    } finally {
+      setExportBusy(false);
+    }
+  }
 
   // Nur freigegebene Klassifizierungen sind hier sichtbar (Phase 1 muss durch)
   const freigegebene = useMemo(() => {
@@ -160,6 +185,35 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Export-Toolbar */}
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={exportAnonym}
+          disabled={exportBusy}
+          className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          Export (anonym)
+        </button>
+        <button
+          type="button"
+          onClick={() => setPwOpen(true)}
+          disabled={exportBusy}
+          className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
+          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+        >
+          Export (mit Kürzeln, geschützt)
+        </button>
+      </div>
+
+      <PasswortDialog
+        open={pwOpen}
+        busy={exportBusy}
+        onClose={() => setPwOpen(false)}
+        onConfirm={exportGeschuetzt}
+      />
+
       {/* Filter-Pills (Kategorien) */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Kategorie</span>
