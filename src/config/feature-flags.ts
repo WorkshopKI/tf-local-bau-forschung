@@ -52,6 +52,7 @@ export function isDevFixturesEnabled(): boolean {
 export function isAntraegeEnabled(): boolean { return features.antraege; }
 export function isBauantraegeEnabled(): boolean { return features.bauantraege; }
 export function isDokumenteEnabled(): boolean { return features.dokumente; }
+export function isAuslastungEnabled(): boolean { return features.auslastung === true; }
 
 export function isOpenRouterEnabled(): boolean {
   return kiConfig.openrouter.enabled;

@@ -11,6 +11,7 @@ import { feedbackBoardPlugin } from '@/plugins/feedback-board';
 import { devInfrastructureTestPlugin } from '@/plugins/dev-infrastructure-test';
 import { devStateInspectorPlugin } from '@/plugins/dev-state-inspector';
 import { antraegePlugin } from '@/plugins/antraege';
+import { auslastungPlugin } from '@/plugins/auslastung';
 import { programmeAdminPlugin } from '@/plugins/programme-kuration';
 import { csvSourcesAdminPlugin } from '@/plugins/csv-sources-kuration';
 import { filterAdminPlugin } from '@/plugins/filter-kuration';
@@ -22,6 +23,7 @@ const allPlugins: TeamFlowPlugin[] = [
   homePlugin,
   antraegePlugin,
   bauantraegePlugin,
+  auslastungPlugin,
   dokumentePlugin,
   suchePlugin,
   chatPlugin,
@@ -75,6 +77,7 @@ function passesFeatureFlags(p: TeamFlowPlugin): boolean {
   if (!features.antraege && p.id === 'antraege') return false;
   if (!features.bauantraege && p.id === 'bauantraege') return false;
   if (!features.dokumente && p.id === 'dokumente') return false;
+  if (!features.auslastung && p.id === 'auslastung') return false;
 
   return true;
 }

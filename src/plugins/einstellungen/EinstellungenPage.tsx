@@ -9,10 +9,11 @@ import { TastaturTab } from './TastaturTab';
 import { AIProviderTab } from './AIProviderTab';
 import { SpeicherTab } from './SpeicherTab';
 import { DokumentenquellenTab } from './DokumentenquellenTab';
-import { isKuratorMenusEnabled, isAntraegeEnabled, isBauantraegeEnabled, menuLabel } from '@/config/feature-flags';
+import { MeineTechnologienTab } from './MeineTechnologienTab';
+import { isKuratorMenusEnabled, isAntraegeEnabled, isAuslastungEnabled, isBauantraegeEnabled, menuLabel } from '@/config/feature-flags';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
-const TABS = [
+const TABS: Array<{ id: string; label: string }> = [
   { id: 'profil', label: 'Profil' },
   { id: 'darstellung', label: 'Darstellung' },
   { id: 'speicher', label: 'Speicher' },
@@ -21,6 +22,9 @@ const TABS = [
   { id: 'tastatur', label: 'Tastatur' },
   { id: 'ai', label: 'KI-Assistent' },
 ];
+if (isAuslastungEnabled()) {
+  TABS.splice(1, 0, { id: 'meine-technologien', label: 'Meine Technologien' });
+}
 
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
@@ -195,6 +199,7 @@ export function EinstellungenPage(): React.ReactElement {
         {activeTab === 'dokumentenquellen' && <DokumentenquellenTab />}
         {activeTab === 'tags' && <TagsTab />}
         {activeTab === 'tastatur' && <TastaturTab />}
+        {activeTab === 'meine-technologien' && <MeineTechnologienTab />}
       </div>
     </div>
   );

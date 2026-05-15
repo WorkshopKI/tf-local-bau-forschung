@@ -30,6 +30,8 @@ export interface TeamflowFeatures {
   antraege: boolean;
   bauantraege: boolean;
   dokumente: boolean;
+  /** Plugin "Auslastung" — automatische Kategorisierung + MA-Zuweisung. */
+  auslastung: boolean;
 }
 
 export interface TeamflowMenuLabels {

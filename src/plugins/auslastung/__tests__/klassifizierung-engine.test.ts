@@ -1,0 +1,220 @@
+import { describe, it, expect } from 'vitest';
+import {
+  klassifiziereAntrag,
+  matchDeskriptoren,
+  matchEmbeddings,
+  computeKategorieCentroids,
+} from '../services/klassifizierung-engine';
+import type { Antrag } from '@/core/services/csv/types';
+import type { UeberKategorie, Klassifizierung } from '../types';
+
+function makeAntrag(az: string, fields: Partial<Antrag> = {}): Antrag {
+  return {
+    aktenzeichen: az,
+    programm_id: 'p1',
+    _field_sources: {},
+    _updated_at: new Date().toISOString(),
+    ...fields,
+  } as Antrag;
+}
+
+function makeKategorie(id: string, mapping: string[], farbe: 'blue' = 'blue'): UeberKategorie {
+  return { id, name: id, farbe, deskriptorenMapping: mapping };
+}
+
+describe('matchDeskriptoren', () => {
+  it('matched eine Kategorie -> high (1.0)', () => {
+    const kats = [makeKategorie('IKT', ['Künstliche Intelligenz', 'Big Data'])];
+    const out = matchDeskriptoren(['künstliche intelligenz'], kats);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ kategorieId: 'IKT', confidence: 1.0, methode: 'regel' });
+  });
+
+  it('matched zwei Kategorien -> medium (0.7) je', () => {
+    const kats = [
+      makeKategorie('IKT', ['ki']),
+      makeKategorie('IND', ['sensorik']),
+    ];
+    const out = matchDeskriptoren(['ki', 'sensorik'], kats);
+    expect(out).toHaveLength(2);
+    expect(out.every(v => v.confidence === 0.7)).toBe(true);
+  });
+
+  it('keine Deskriptoren -> leer', () => {
+    const kats = [makeKategorie('IKT', ['ki'])];
+    expect(matchDeskriptoren([], kats)).toEqual([]);
+  });
+
+  it('keine Kategorien -> leer', () => {
+    expect(matchDeskriptoren(['ki'], [])).toEqual([]);
+  });
+
+  it('Case-insensitive Match', () => {
+    const kats = [makeKategorie('IKT', ['Künstliche Intelligenz'])];
+    expect(matchDeskriptoren(['KÜNSTLICHE INTELLIGENZ'], kats)).toHaveLength(1);
+  });
+
+  it('keine ueberlappenden Werte -> leer', () => {
+    const kats = [makeKategorie('IKT', ['ki'])];
+    expect(matchDeskriptoren(['sensorik'], kats)).toEqual([]);
+  });
+});
+
+describe('matchEmbeddings', () => {
+  // Dummy 3-dim normalized vectors fuer die Tests
+  const vIkt = [1, 0, 0];
+  const vInd = [0, 1, 0];
+  const vMed = [0, 0, 1];
+
+  const kats: UeberKategorie[] = [
+    { id: 'IKT', name: 'IKT', farbe: 'blue', deskriptorenMapping: [], referenzEmbedding: vIkt },
+    { id: 'IND', name: 'IND', farbe: 'emerald', deskriptorenMapping: [], referenzEmbedding: vInd },
+    { id: 'MED', name: 'MED', farbe: 'rose', deskriptorenMapping: [], referenzEmbedding: vMed },
+  ];
+
+  it('Query identisch zu IKT-Centroid -> Top-1 IKT mit hoher Confidence', () => {
+    const out = matchEmbeddings(vIkt, kats, 0.15);
+    expect(out[0]?.kategorieId).toBe('IKT');
+    expect(out[0]?.confidence).toBeCloseTo(1.0, 5);
+    expect(out[0]?.methode).toBe('embedding');
+  });
+
+  it('Query nahe IKT aber auch nahe IND -> Multi-Label wenn unter Schwellwert', () => {
+    // Diagonal 0.7/0.7/0 -> normalisiert ergibt cosine 0.7 fuer beide
+    const q = [0.7, 0.7, 0];
+    const out = matchEmbeddings(q, kats, 0.15);
+    // IKT und IND haben gleichen Score -> beide rein
+    expect(out.length).toBe(2);
+    expect(new Set(out.map(o => o.kategorieId))).toEqual(new Set(['IKT', 'IND']));
+  });
+
+  it('Multi-Label nur wenn Differenz < schwellwert', () => {
+    // Query zeigt klar Richtung IKT
+    const q = [0.99, 0.1, 0];
+    const out = matchEmbeddings(q, kats, 0.15);
+    expect(out.length).toBe(1);
+    expect(out[0]?.kategorieId).toBe('IKT');
+  });
+
+  it('keine Centroids -> leer', () => {
+    const out = matchEmbeddings(vIkt, [makeKategorie('IKT', [])], 0.15);
+    expect(out).toEqual([]);
+  });
+});
+
+describe('klassifiziereAntrag', () => {
+  const kats = [
+    makeKategorie('IKT', ['ki', 'machine learning']),
+    makeKategorie('IND', ['sensorik', 'lasertechnik']),
+  ];
+
+  it('Stufe 1: Deskriptoren-Match -> Vorschlag mit methode=regel', () => {
+    const a = makeAntrag('A1', { techn_1: 'KI' } as Partial<Antrag>);
+    const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
+    expect(k.status).toBe('vorgeschlagen');
+    expect(k.vorgeschlageneKategorien[0]?.methode).toBe('regel');
+    expect(k.vorgeschlageneKategorien[0]?.kategorieId).toBe('IKT');
+    expect(k.freigegebeneKategorien).toEqual([]);
+  });
+
+  it('Stufe 1 leer, Stage-2 aus -> leerer Vorschlag (manuelle Klass.)', () => {
+    const a = makeAntrag('A2');
+    const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
+    expect(k.vorgeschlageneKategorien).toEqual([]);
+  });
+
+  it('Stufe 1 leer + Stage-2 an mit Embedding -> embedding-Vorschlag', () => {
+    const katsWithEmb: UeberKategorie[] = kats.map(k => ({
+      ...k,
+      referenzEmbedding: k.id === 'IKT' ? [1, 0, 0] : [0, 1, 0],
+    }));
+    const a = makeAntrag('A3');
+    const k = klassifiziereAntrag({
+      antrag: a,
+      kategorien: katsWithEmb,
+      stage2Aktiv: true,
+      queryEmbedding: [1, 0, 0],
+    });
+    expect(k.vorgeschlageneKategorien.length).toBeGreaterThan(0);
+    expect(k.vorgeschlageneKategorien[0]?.methode).toBe('embedding');
+    expect(k.vorgeschlageneKategorien[0]?.kategorieId).toBe('IKT');
+  });
+
+  it('Stufe 1 hit -> Stage 2 wird gar nicht aufgerufen (auch wenn aktiv)', () => {
+    const katsWithEmb: UeberKategorie[] = kats.map(k => ({
+      ...k,
+      referenzEmbedding: k.id === 'IKT' ? [1, 0, 0] : [0, 1, 0],
+    }));
+    const a = makeAntrag('A4', { techn_1: 'KI' } as Partial<Antrag>);
+    const k = klassifiziereAntrag({
+      antrag: a,
+      kategorien: katsWithEmb,
+      stage2Aktiv: true,
+      queryEmbedding: [0, 1, 0],   // wuerde IND vorschlagen — wird ignoriert
+    });
+    expect(k.vorgeschlageneKategorien[0]?.methode).toBe('regel');
+    expect(k.vorgeschlageneKategorien[0]?.kategorieId).toBe('IKT');
+  });
+
+  it('Multi-Label: zwei matchende Kategorien in Stufe 1', () => {
+    const a = makeAntrag('A5', {
+      techn_1: 'KI',
+      techn_2: 'Sensorik',
+    } as Partial<Antrag>);
+    const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
+    expect(k.vorgeschlageneKategorien.length).toBe(2);
+    expect(new Set(k.vorgeschlageneKategorien.map(v => v.kategorieId))).toEqual(new Set(['IKT', 'IND']));
+  });
+});
+
+describe('computeKategorieCentroids', () => {
+  it('berechnet Mean-Centroid fuer jede Kategorie aus den Embeddings ihrer Antraege', () => {
+    const kats = [
+      makeKategorie('IKT', ['ki']),
+      makeKategorie('IND', ['sensorik']),
+    ];
+    const klass: Klassifizierung[] = [
+      {
+        antragId: 'A1',
+        vorgeschlageneKategorien: [{ kategorieId: 'IKT', confidence: 1, methode: 'regel' }],
+        freigegebeneKategorien: ['IKT'],
+        status: 'freigegeben',
+      },
+      {
+        antragId: 'A2',
+        vorgeschlageneKategorien: [{ kategorieId: 'IKT', confidence: 1, methode: 'regel' }],
+        freigegebeneKategorien: ['IKT'],
+        status: 'freigegeben',
+      },
+      {
+        antragId: 'A3',
+        vorgeschlageneKategorien: [{ kategorieId: 'IND', confidence: 1, methode: 'regel' }],
+        freigegebeneKategorien: ['IND'],
+        status: 'freigegeben',
+      },
+    ];
+    const embeddings = new Map<string, number[]>([
+      ['A1', [1, 0, 0]],
+      ['A2', [0.6, 0.8, 0]],
+      ['A3', [0, 1, 0]],
+    ]);
+    const centroids = computeKategorieCentroids(klass, embeddings, kats);
+    const cIkt = centroids.get('IKT')!;
+    const cInd = centroids.get('IND')!;
+    expect(cIkt).toBeDefined();
+    expect(cInd).toBeDefined();
+    // IKT-Centroid soll zwischen [1,0,0] und [0.6,0.8,0] liegen und normalisiert sein
+    const normIkt = Math.sqrt(cIkt.reduce((s, v) => s + v * v, 0));
+    expect(normIkt).toBeCloseTo(1.0, 5);
+    // IND-Centroid nur ein Antrag -> identisch normalisiert zu [0,1,0]
+    expect(cInd[0]).toBeCloseTo(0, 5);
+    expect(cInd[1]).toBeCloseTo(1, 5);
+  });
+
+  it('Kategorie ohne Antraege -> kein Centroid', () => {
+    const kats = [makeKategorie('IKT', ['ki'])];
+    const klass: Klassifizierung[] = [];
+    const embeddings = new Map<string, number[]>();
+    expect(computeKategorieCentroids(klass, embeddings, kats).size).toBe(0);
+  });
+});

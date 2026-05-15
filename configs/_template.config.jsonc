@@ -63,7 +63,10 @@
     // muss true sein, sonst bricht der Build ab.
     "antraege": true,
     "bauantraege": false,
-    "dokumente": false
+    "dokumente": false,
+    // Auslastung-Modul: automatische Kategorisierung + MA-Zuweisung. Default
+    // false; in dev.config aktivieren um das Plugin auszuprobieren.
+    "auslastung": false
   },
 
   // Pro Variant überschreibbare Sidebar-Labels für Bereichs-Menüs.

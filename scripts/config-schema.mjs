@@ -38,6 +38,7 @@ export const DEFAULT_CONFIG = {
     antraege: true,
     bauantraege: true,
     dokumente: false,
+    auslastung: false,
   },
 
   menuLabels: {
@@ -144,7 +145,7 @@ export function validateConfig(config) {
   const features = config.features ?? {};
   const requiredFlags = [
     'kuratorMenus', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
-    'antraege', 'bauantraege', 'dokumente',
+    'antraege', 'bauantraege', 'dokumente', 'auslastung',
   ];
   for (const k of requiredFlags) {
     if (typeof features[k] !== 'boolean') {

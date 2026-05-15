@@ -1,0 +1,115 @@
+/**
+ * Embed-Wrapper fuer das Auslastungs-Modul.
+ *
+ * Nutzt die bestehende `embeddingService`-Singleton-Instanz aus dem Such-Stack.
+ * KEIN zweites Modell laden — wenn das Modell noch nicht initialisiert ist
+ * (z.B. weil Suche/Index noch nicht genutzt wurde), wird es lazy mit dem
+ * aktiven Modell aus der Model-Registry geladen.
+ *
+ * Public API:
+ *   - ensureEmbeddingReady(idb, onProgress?) — laedt Modell falls noetig
+ *   - embedText(text, mode) — single embedding, normalisiert L2
+ *   - cosineSimilarity(a, b) — beide normalisiert -> dot product
+ */
+import {
+  embeddingService,
+  type EmbeddingProgress,
+} from '@/core/services/search/embedding-service';
+import {
+  getActiveModelId,
+  getModelById,
+  type EmbeddingModelConfig,
+} from '@/core/services/search/model-registry';
+import type { IDBStore } from '@/core/services/storage/idb-store';
+
+let currentConfig: EmbeddingModelConfig | null = null;
+let initPromise: Promise<EmbeddingModelConfig> | null = null;
+
+/**
+ * Stellt sicher dass der embeddingService initialisiert ist. Wenn er
+ * bereits ready ist, gibt die aktive Config zurueck. Sonst laedt das
+ * Modell (idempotent via `embeddingService.init`).
+ *
+ * GPU/WASM-Auswahl: WebGPU wenn verfuegbar, sonst WASM. Gleiche Logik
+ * wie `useSearch`.
+ */
+export async function ensureEmbeddingReady(
+  idb: IDBStore,
+  onProgress?: (p: EmbeddingProgress) => void,
+): Promise<EmbeddingModelConfig> {
+  if (currentConfig && embeddingService.isReady()) return currentConfig;
+  if (initPromise) return initPromise;
+
+  initPromise = (async () => {
+    const modelId = await getActiveModelId(idb);
+    const config = getModelById(modelId);
+    let preferGPU = false;
+    if ('gpu' in navigator) {
+      try {
+        const gpu = (navigator as Navigator & { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu;
+        if (gpu) {
+          const adapter = await gpu.requestAdapter();
+          if (adapter) preferGPU = true;
+        }
+      } catch { /* ignore */ }
+    }
+    await embeddingService.init(config, preferGPU, onProgress);
+    currentConfig = config;
+    return config;
+  })();
+
+  try {
+    return await initPromise;
+  } finally {
+    initPromise = null;
+  }
+}
+
+/** Embed-Single mit dem aktiven Modell. `ensureEmbeddingReady` MUSS vorher gelaufen sein. */
+export async function embedText(
+  text: string,
+  mode: 'query' | 'document' = 'query',
+): Promise<number[]> {
+  if (!currentConfig) {
+    throw new Error('embed-wrapper: ensureEmbeddingReady() muss vor embedText() laufen');
+  }
+  return embeddingService.embedSingle(text, currentConfig, mode);
+}
+
+/**
+ * Cosine-Similarity zwischen zwei Embedding-Vektoren.
+ * Annahme: beide L2-normalisiert (was embeddingService standardmaessig macht).
+ * -> Dot-Product reicht.
+ */
+export function cosineSimilarity(a: number[] | Float32Array, b: number[] | Float32Array): number {
+  if (a.length !== b.length) return 0;
+  let dot = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += (a[i] as number) * (b[i] as number);
+  }
+  return dot;
+}
+
+/** Mittelwert-Centroid einer Liste von Embeddings + L2-Normalisierung. */
+export function meanCentroid(vectors: number[][]): number[] | null {
+  if (vectors.length === 0) return null;
+  const dim = vectors[0]!.length;
+  const sum = new Array<number>(dim).fill(0);
+  for (const v of vectors) {
+    for (let i = 0; i < dim; i++) sum[i]! += v[i]!;
+  }
+  for (let i = 0; i < dim; i++) sum[i]! /= vectors.length;
+  // L2 normalize
+  let norm = 0;
+  for (let i = 0; i < dim; i++) norm += sum[i]! * sum[i]!;
+  norm = Math.sqrt(norm);
+  if (norm > 0) {
+    for (let i = 0; i < dim; i++) sum[i]! /= norm;
+  }
+  return sum;
+}
+
+/** Liefert das aktuell geladene Modell — Dimensions-Check, Debugging. */
+export function getCurrentEmbeddingConfig(): EmbeddingModelConfig | null {
+  return currentConfig;
+}

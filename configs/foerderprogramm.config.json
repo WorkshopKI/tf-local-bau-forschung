@@ -21,7 +21,8 @@
     "devFixtures": false,
     "antraege": true,
     "bauantraege": false,
-    "dokumente": false
+    "dokumente": false,
+    "auslastung": false
   },
   "menuLabels": {
     "antraege": "Förderanträge"
