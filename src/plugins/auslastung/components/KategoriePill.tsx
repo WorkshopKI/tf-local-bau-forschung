@@ -33,7 +33,9 @@ export function KategoriePill({ kategorie, onRemove, size = 'sm', active = true 
       className={`inline-flex items-center gap-1 ${cls} ${fontSize} px-2 py-0.5 rounded-full ring-1 ring-inset transition-colors`}
       title={kategorie.name}
     >
-      {active && <span aria-hidden className="text-[9px] leading-none">✓</span>}
+      {/* Haken-Slot immer rendern, damit Pill-Breite konstant bleibt
+          (verhindert Layout-Shift in Toggle-Listen). */}
+      <span aria-hidden className={`text-[9px] leading-none ${active ? '' : 'invisible'}`}>✓</span>
       <span className="font-medium">{kategorie.id}</span>
       {onRemove && (
         <button
