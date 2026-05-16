@@ -29,12 +29,12 @@ interface Props {
 export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: Props): React.ReactElement {
   const data = useAuslastungData(s => s.data);
   const upsertKategorie = useAuslastungData(s => s.upsertKategorie);
-  const updateConfig = useAuslastungData(s => s.updateConfig);
   const removeKategorie = useAuslastungData(s => s.removeKategorie);
   const persist = useAuslastungData(s => s.persist);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Lokale Form-States fuer Schritt 1
   const [newId, setNewId] = useState('');
@@ -121,40 +121,53 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: P
 
   async function finish(): Promise<void> {
     setBusy(true);
+    setError(null);
     try {
-      // 1) Mapping in Kategorien schreiben
+      // 1) Mapping in alle Kategorien schreiben — in EINEM Schritt aufbauen,
+      //    nicht 5x einzelne upsertKategorie-Calls. Jeder upsert wuerde
+      //    persist() triggern; mehrere parallel laufende persists fallen
+      //    durch den `if (saving) return;`-Lock raus -> Setup wird nicht
+      //    konsistent gespeichert.
       const byKat = new Map<string, string[]>();
       for (const [wert, set] of mappingDraft.entries()) {
         for (const katId of set) {
-          if (!byKat.has(katId)) byKat.set(katId, []);
-          byKat.get(katId)!.push(wert);
+          const list = byKat.get(katId) ?? [];
+          list.push(wert);
+          byKat.set(katId, list);
         }
       }
-      // Sequenziell upserten — persist ist atomar
-      for (const k of kategorien) {
-        const mapping = byKat.get(k.id) ?? [];
-        await upsertKategorie(storage, { ...k, deskriptorenMapping: mapping });
-      }
+      const naechstenKategorien = kategorien.map(k => ({
+        ...k,
+        deskriptorenMapping: byKat.get(k.id) ?? [],
+      }));
 
-      // 2) Mitarbeiter-Stubs aus Antraegen ableiten
-      const current = data.mitarbeiter;
+      // 2) Mitarbeiter-Stubs aus Antraegen ableiten — single-pass
+      //    via aggregateMaProfilesByAnon (siehe profil-aggregator.ts).
       const sync = syncMitarbeiterFromAntraege(
-        current,
+        useAuslastungData.getState().data.mitarbeiter,
         antraege,
         anonymMap,
-        // Lese frisches kategorien-State aus dem Store nach den Upserts
-        useAuslastungData.getState().data.config.ueberKategorien,
+        naechstenKategorien,
         { overrideKategorien: true },
       );
 
-      const next = { ...useAuslastungData.getState().data };
-      next.mitarbeiter = sync.next as Record<string, AnonymerMitarbeiter>;
-      next.config = { ...next.config, setupAbgeschlossen: true };
-      useAuslastungData.setState({ data: next });
+      // 3) Single state-update + single persist. Damit kein Race im
+      //    persist-Lock und nur EIN SMB-Roundtrip statt 7+.
+      useAuslastungData.setState(state => ({
+        data: {
+          ...state.data,
+          config: {
+            ...state.data.config,
+            ueberKategorien: naechstenKategorien,
+            setupAbgeschlossen: true,
+          },
+          mitarbeiter: sync.next as Record<string, AnonymerMitarbeiter>,
+        },
+      }));
       await persist(storage);
-
-      // Re-fetch + Config-flag (persist hat das schon erledigt)
-      await updateConfig(storage, { setupAbgeschlossen: true });
+    } catch (err) {
+      console.error('[SetupWizard] finish failed:', err);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -369,6 +382,11 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: P
               Nach Abschluss kannst du Anträge klassifizieren und MAs zuweisen. Stufe-2-Embedding-Matching bleibt deaktiviert,
               bis du den Corpus separat aufbaust (Admin → Embedding-Corpus).
             </p>
+            {error && (
+              <div className="rounded p-2.5 text-[12px] mt-3" style={{ background: '#fee2e2', color: '#991b1b', border: '0.5px solid #fca5a5' }}>
+                ⚠ Setup konnte nicht gespeichert werden: <span className="font-mono">{error}</span>
+              </div>
+            )}
           </div>
           <div className="flex justify-between">
             <button

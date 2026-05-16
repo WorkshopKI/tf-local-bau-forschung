@@ -74,16 +74,38 @@ export function aggregateMaProfile(antraege: Antrag[], kuerzel: string): string[
   return [...set].sort((a, b) => a.localeCompare(b, 'de'));
 }
 
-/** Aggregiert pro anonId (alle bekannten MAs aus der AnonymMap). */
+/**
+ * Aggregiert pro anonId (alle bekannten MAs aus der AnonymMap).
+ *
+ * Single-pass-Implementation: O(Antraege × Spalten) statt naiv
+ * O(MAs × Antraege × Spalten). Bei 79 MAs × 5000 Antraegen × 12 Spalten
+ * waeren das ~4.7M Iterationen — single-pass bringt das auf ~60k runter.
+ */
 export function aggregateMaProfilesByAnon(
   antraege: Antrag[],
   map: AnonymMap,
 ): Map<string, string[]> {
-  const result = new Map<string, string[]>();
-  for (const [kuerzel, anonId] of map.toAnon.entries()) {
-    result.set(anonId, aggregateMaProfile(antraege, kuerzel));
+  const collector = new Map<string, Set<string>>();
+  // Stelle sicher dass alle bekannten anonIds einen Eintrag haben (auch wenn
+  // sie keine Deskriptoren-Werte ableiten — z.B. tib_kuerz gesetzt, aber alle
+  // techn_/branche_-Spalten leer).
+  for (const anonId of map.toAnon.values()) {
+    collector.set(anonId, new Set());
   }
-  return result;
+  for (const a of antraege) {
+    const raw = (a as Record<string, unknown>)[CANONICAL_TIB_KUERZ];
+    const k = normalizeKuerzel(raw);
+    if (!k) continue;
+    const anonId = map.toAnon.get(k);
+    if (!anonId) continue;
+    const set = collector.get(anonId)!;
+    for (const d of readAntragDeskriptoren(a)) set.add(d);
+  }
+  const out = new Map<string, string[]>();
+  for (const [anonId, set] of collector.entries()) {
+    out.set(anonId, [...set].sort((x, y) => x.localeCompare(y, 'de')));
+  }
+  return out;
 }
 
 /** Sammelt die Aktenzeichen aller Antraege EINES MAs (per anonId). */
