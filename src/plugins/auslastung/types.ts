@@ -17,12 +17,14 @@ export const KATEGORIE_FARBEN: KategorieFarbe[] = [
 export type DeskriptorenSpalte =
   | 'techn_1' | 'techn_2' | 'techn_3' | 'techn_4' | 'techn_5'
   | 'branche' | 'branche_2' | 'branche_3' | 'branche_4' | 'branche_5'
-  | 'anwendung_1' | 'anwendung_2';
+  // ANWEND_1 mappt zu 'anwend_1' (Legacy aus schema-c.ts vor Mai 2026),
+  // ANWEND_2..5 zu 'anwendung_2..5'.
+  | 'anwend_1' | 'anwendung_2' | 'anwendung_3' | 'anwendung_4' | 'anwendung_5';
 
 export const ALL_DESKRIPTOREN_SPALTEN: DeskriptorenSpalte[] = [
   'techn_1', 'techn_2', 'techn_3', 'techn_4', 'techn_5',
   'branche', 'branche_2', 'branche_3', 'branche_4', 'branche_5',
-  'anwendung_1', 'anwendung_2',
+  'anwend_1', 'anwendung_2', 'anwendung_3', 'anwendung_4', 'anwendung_5',
 ];
 
 /** Eine Ueberkategorie. PL konfiguriert die im Setup-Wizard. */
@@ -202,12 +204,42 @@ export const CANONICAL_AKRONYM = 'akronym';
 /** Custom-Field-Keys (nicht canonical, ueber antrag[key] erreichbar). */
 export const FIELD_PROJEKTBESCHREIBUNG = 'projektbeschreibung_text';
 
+/**
+ * 5 vordefinierte Ueberkategorien aus dem FZD-Kontext (Mai 2026).
+ * Wird beim ersten Setup als pre-filled angeboten. PL kann im Admin
+ * umbenennen, Farben aendern, oder zusaetzliche Kategorien anlegen.
+ *
+ * Default-Mapping (welche Deskriptoren-Werte gehoeren zu welcher Kategorie)
+ * wird zur Build-Zeit aus _labels/*.xlsx generiert + um eine Substring-
+ * Heuristik ergaenzt — siehe `services/default-labels.ts`.
+ */
+import {
+  KATEGORIE_KEYWORD_HEURISTIK,
+  ZUKUNFTSTECHNOLOGIE_FELDER,
+  type UeberkategorieId,
+} from './services/default-labels';
+
+function deriveDefaultMappingFor(id: UeberkategorieId): string[] {
+  const zt = ZUKUNFTSTECHNOLOGIE_FELDER
+    .filter(z => z.defaultUeberKategorie === id)
+    .map(z => z.klartext);
+  return [...new Set([...zt, ...KATEGORIE_KEYWORD_HEURISTIK[id]])];
+}
+
+export const DEFAULT_UEBERKATEGORIEN: UeberKategorie[] = [
+  { id: 'IT', name: 'Industrielle Technologien',                  farbe: 'slate',   deskriptorenMapping: deriveDefaultMappingFor('IT') },
+  { id: 'DT', name: 'Digitale Technologien',                       farbe: 'blue',    deskriptorenMapping: deriveDefaultMappingFor('DT') },
+  { id: 'EU', name: 'Energie- und Umwelttechnologien',             farbe: 'emerald', deskriptorenMapping: deriveDefaultMappingFor('EU') },
+  { id: 'LG', name: 'Lebens- und Gesundheitswissenschaften',       farbe: 'rose',    deskriptorenMapping: deriveDefaultMappingFor('LG') },
+  { id: 'NM', name: 'Naturwissenschaftliche Methoden',             farbe: 'violet',  deskriptorenMapping: deriveDefaultMappingFor('NM') },
+];
+
 export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   stundenProTV: 10,
   aktuellesQuartal: deriveCurrentQuartal(),
   gewichtungKompetenz: 0.7,
   gewichtungBalance: 0.3,
-  ueberKategorien: [],
+  ueberKategorien: DEFAULT_UEBERKATEGORIEN,
   klassifizierungsSchwellwert: 0.15,
   selbsteintragungFristTage: 14,
   stage2Aktiv: false,

@@ -3,10 +3,11 @@ import {
   klassifiziereAntrag,
   matchDeskriptoren,
   matchEmbeddings,
+  matchZukunftstechnologien,
   computeKategorieCentroids,
 } from '../services/klassifizierung-engine';
 import type { Antrag } from '@/core/services/csv/types';
-import type { UeberKategorie, Klassifizierung } from '../types';
+import { DEFAULT_UEBERKATEGORIEN, type UeberKategorie, type Klassifizierung } from '../types';
 
 function makeAntrag(az: string, fields: Partial<Antrag> = {}): Antrag {
   return {
@@ -164,6 +165,100 @@ describe('klassifiziereAntrag', () => {
     const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
     expect(k.vorgeschlageneKategorien.length).toBe(2);
     expect(new Set(k.vorgeschlageneKategorien.map(v => v.kategorieId))).toEqual(new Set(['IKT', 'IND']));
+  });
+});
+
+describe('matchZukunftstechnologien (Stage 0)', () => {
+  const kats = DEFAULT_UEBERKATEGORIEN;
+
+  it('ZT-Spalte "Kuenstliche Intelligenz" -> DT (high)', () => {
+    const a = makeAntrag('A1', { zt_kuenstliche_intelligenz_ki_tv: true } as Partial<Antrag>);
+    const out = matchZukunftstechnologien(a, kats);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.kategorieId).toBe('DT');
+    expect(out[0]?.confidence).toBe(1.0);
+  });
+
+  it('ZT-Spalte "Gesundes Leben" -> LG', () => {
+    const a = makeAntrag('A2', { zt_gesundes_leben_tv: 'X' } as Partial<Antrag>);
+    const out = matchZukunftstechnologien(a, kats);
+    expect(out[0]?.kategorieId).toBe('LG');
+  });
+
+  it('Multiple ZT-Spalten in unterschiedlichen Kategorien -> Multi-Label (0.8)', () => {
+    const a = makeAntrag('A3', {
+      zt_kuenstliche_intelligenz_ki_tv: 'X',
+      zt_leichtbautechnologien_tv: '1',
+    } as Partial<Antrag>);
+    const out = matchZukunftstechnologien(a, kats);
+    expect(out.length).toBe(2);
+    expect(new Set(out.map(x => x.kategorieId))).toEqual(new Set(['DT', 'IT']));
+    expect(out.every(x => x.confidence === 0.8)).toBe(true);
+  });
+
+  it('Truthy-Werte: true, "X", "x", "1", "ja"', () => {
+    for (const v of [true, 'X', 'x', '1', 'ja', 'Ja', 'JA', 'WAHR']) {
+      const a = makeAntrag('A', { zt_cloud_computing_tv: v } as Partial<Antrag>);
+      const out = matchZukunftstechnologien(a, kats);
+      expect(out.length).toBe(1);
+    }
+  });
+
+  it('Falsy-Werte: null, "", "0", "nein" -> kein Match', () => {
+    for (const v of [null, undefined, '', '0', 'nein', 'false']) {
+      const a = makeAntrag('A', { zt_cloud_computing_tv: v } as Partial<Antrag>);
+      expect(matchZukunftstechnologien(a, kats)).toEqual([]);
+    }
+  });
+
+  it('VB-Ebene-Spalten werden ignoriert (nur TV-Ebene)', () => {
+    // VB-Ebene-Field-Name endet auf _vb statt _tv
+    const a = makeAntrag('A', { zt_kuenstliche_intelligenz_ki_vb: 'X' } as Partial<Antrag>);
+    expect(matchZukunftstechnologien(a, kats)).toEqual([]);
+  });
+
+  it('Filtert auf aktive Kategorien — wenn PL eine Kategorie geloescht hat', () => {
+    const reduziert = kats.filter(k => k.id !== 'DT');
+    const a = makeAntrag('A', { zt_kuenstliche_intelligenz_ki_tv: true } as Partial<Antrag>);
+    expect(matchZukunftstechnologien(a, reduziert)).toEqual([]);
+  });
+
+  it('klassifiziereAntrag laeuft Stage 0 vor Stage 1 (ZT-Match dominiert)', () => {
+    const a = makeAntrag('A', {
+      zt_gesundes_leben_tv: true,
+      techn_1: 'KI',   // wuerde sonst DT vorschlagen
+    } as Partial<Antrag>);
+    const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
+    expect(k.vorgeschlageneKategorien[0]?.kategorieId).toBe('LG');
+  });
+
+  it('Kein ZT-Match -> Fallback auf Stage 1 Deskriptoren-Match', () => {
+    const a = makeAntrag('A', { techn_1: 'KI' } as Partial<Antrag>);
+    const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
+    expect(k.vorgeschlageneKategorien.length).toBeGreaterThan(0);
+    expect(k.vorgeschlageneKategorien[0]?.kategorieId).toBe('DT');
+  });
+});
+
+describe('DEFAULT_UEBERKATEGORIEN', () => {
+  it('liefert genau 5 Kategorien mit IDs IT/DT/EU/LG/NM', () => {
+    expect(DEFAULT_UEBERKATEGORIEN).toHaveLength(5);
+    expect(DEFAULT_UEBERKATEGORIEN.map(k => k.id)).toEqual(['IT', 'DT', 'EU', 'LG', 'NM']);
+  });
+
+  it('jede Kategorie hat ein nicht-leeres Mapping', () => {
+    for (const k of DEFAULT_UEBERKATEGORIEN) {
+      expect(k.deskriptorenMapping.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('Klartext-Namen stimmen mit FZD-Vorgabe ueberein', () => {
+    const byId = Object.fromEntries(DEFAULT_UEBERKATEGORIEN.map(k => [k.id, k.name]));
+    expect(byId.IT).toBe('Industrielle Technologien');
+    expect(byId.DT).toBe('Digitale Technologien');
+    expect(byId.EU).toBe('Energie- und Umwelttechnologien');
+    expect(byId.LG).toBe('Lebens- und Gesundheitswissenschaften');
+    expect(byId.NM).toBe('Naturwissenschaftliche Methoden');
   });
 });
 

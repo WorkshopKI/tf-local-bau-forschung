@@ -41,14 +41,53 @@ export const SCHEMA_C_COLUMN_MAPPING: ColumnMapping = {
   D_ABB: { canonical: 'bewilligung_datum', type: 'date' },
   // Bearbeiter
   ZTP_KUERZ: { canonical: 'ztp_kuerz', type: 'string' },
-  // Klassifikation
+  // Klassifikation — Branche / Technologie / Anwendung (alle 5 Slots fuer
+  // das Auslastungs-Modul, das die TECHN_/BRANCHE_-Werte aggregiert auswertet).
   BRANCHE_1: { canonical: 'branche', type: 'string' },
   BRANCHE_2: { custom: 'branche_2', type: 'string' },
   BRANCHE_3: { custom: 'branche_3', type: 'string' },
+  BRANCHE_4: { custom: 'branche_4', type: 'string' },
+  BRANCHE_5: { custom: 'branche_5', type: 'string' },
   NACE: { custom: 'nace', type: 'string' },
   NACE_LANG: { custom: 'nace_lang', type: 'string' },
   TECHN_1: { custom: 'techn_1', type: 'string' },
+  TECHN_2: { custom: 'techn_2', type: 'string' },
+  TECHN_3: { custom: 'techn_3', type: 'string' },
+  TECHN_4: { custom: 'techn_4', type: 'string' },
+  TECHN_5: { custom: 'techn_5', type: 'string' },
   ANWEND_1: { custom: 'anwend_1', type: 'string' },
+  ANWEND_2: { custom: 'anwendung_2', type: 'string' },
+  ANWEND_3: { custom: 'anwendung_3', type: 'string' },
+  ANWEND_4: { custom: 'anwendung_4', type: 'string' },
+  ANWEND_5: { custom: 'anwendung_5', type: 'string' },
+  // Zukunftstechnologie-Boolean-Spalten (col 46-89). CSV-Header
+  // sind dupliziert (TV + VB), PapaParse benennt die VB-Variante zu
+  // `<header>_1` um. Wir mappen hier die TV-Spalten als Custom-Felder.
+  // Die Slugs muessen mit `default-labels.ts` / `makeCustomFieldName()`
+  // uebereinstimmen — bei XLSX-Aenderungen `npm run build:default-labels`
+  // und das hier per Hand nachziehen.
+  'Digitale W': { custom: 'zt_digitale_wirtschaft_und_gesellschaft_ikt_tv', type: 'boolean' },
+  'Industrie': { custom: 'zt_industrie_4_0_tv', type: 'boolean' },
+  'Cloud Comp': { custom: 'zt_cloud_computing_tv', type: 'boolean' },
+  'Big Data A': { custom: 'zt_big_data_analyse_tv', type: 'boolean' },
+  'Künstliche': { custom: 'zt_kuenstliche_intelligenz_ki_tv', type: 'boolean' },
+  'sonstigeDW': { custom: 'zt_sonstige_digitale_wirtschaft_tv', type: 'boolean' },
+  'Intelligen': { custom: 'zt_intelligente_mobilitaet_tv', type: 'boolean' },
+  'Elektromob': { custom: 'zt_elektromobilitaet_tv', type: 'boolean' },
+  'sonstigeIM': { custom: 'zt_sonstige_intelligente_mobilitaet_tv', type: 'boolean' },
+  'Nachhaltig': { custom: 'zt_nachhaltiges_wirtschaften_green_economy_tv', type: 'boolean' },
+  'Energie/Re': { custom: 'zt_energie_ress_effizienz_tv', type: 'boolean' },
+  'sonstigeNW': { custom: 'zt_sonstige_nachhaltiges_wirtschaften_tv', type: 'boolean' },
+  'Zivile Sic': { custom: 'zt_zivile_sicherheit_inkl_it_tv', type: 'boolean' },
+  'IT-Sicherh': { custom: 'zt_it_sicherheit_tv', type: 'boolean' },
+  'sonstigeZS': { custom: 'zt_sonstige_zivile_sicherheit_tv', type: 'boolean' },
+  'Gesundes L': { custom: 'zt_gesundes_leben_tv', type: 'boolean' },
+  'Innovative': { custom: 'zt_innovative_arbeitswelt_tv', type: 'boolean' },
+  'Leichtbaut': { custom: 'zt_leichtbautechnologien_tv', type: 'boolean' },
+  'Mikroelekt': { custom: 'zt_mikroelektronik_tv', type: 'boolean' },
+  'Batteriete': { custom: 'zt_batterietechnik_tv', type: 'boolean' },
+  'KuK-Innova': { custom: 'zt_kuk_innovationen_technolog_fuer_bzw_von_kultur_medien_u_krea_tv', type: 'boolean' },
+  'Additive F': { custom: 'zt_additive_fertigung_3d_druck_tv', type: 'boolean' },
   // Adress-Metadaten
   ORT_AFS: { custom: 'ort_afs', type: 'string' },
   PLZ_AFS: { custom: 'plz_afs', type: 'string' },

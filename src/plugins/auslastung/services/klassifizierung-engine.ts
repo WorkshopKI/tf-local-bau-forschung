@@ -23,6 +23,7 @@ import {
 } from '../types';
 import { readAntragDeskriptoren } from './profil-aggregator';
 import { cosineSimilarity } from './embed-wrapper';
+import { ZUKUNFTSTECHNOLOGIE_FELDER } from './default-labels';
 
 export interface KlassifizierungInput {
   antrag: Antrag;
@@ -39,6 +40,22 @@ export function klassifiziereAntrag(input: KlassifizierungInput): Klassifizierun
   const { antrag, kategorien } = input;
   const schwellwert = input.schwellwert ?? 0.15;
   const stage2Aktiv = input.stage2Aktiv ?? false;
+
+  // ─── Stufe 0: Direkte Zukunftstechnologie-Boolean-Flags ──────────────
+  // Wenn der Antrag ZT-Spalten gesetzt hat (z.B. "Künstliche Intelligenz"-
+  // Spalte hat Wert "X" oder "1"), direkt der entsprechenden Ueberkategorie
+  // zuordnen. Wird vor dem Deskriptoren-Mapping aufgerufen, weil
+  // praeziser. Filtert auf die in `kategorien` vorhandenen IDs (damit
+  // wir nicht "DT" vorschlagen wenn PL die Kategorie umbenannt hat).
+  const ztVorschlaege = matchZukunftstechnologien(antrag, kategorien);
+  if (ztVorschlaege.length > 0) {
+    return {
+      antragId: antrag.aktenzeichen,
+      vorgeschlageneKategorien: ztVorschlaege,
+      freigegebeneKategorien: [],
+      status: 'vorgeschlagen',
+    };
+  }
 
   // ─── Stufe 1: Regel-Mapping ───────────────────────────────────────────
   const deskriptoren = readAntragDeskriptoren(antrag);
@@ -71,6 +88,54 @@ export function klassifiziereAntrag(input: KlassifizierungInput): Klassifizierun
     freigegebeneKategorien: [],
     status: 'vorgeschlagen',
   };
+}
+
+/**
+ * Stage-0-Algorithmus: pruefe ZT-Boolean-Spalten aus der CSV
+ * ("Künstliche", "Cloud Comp", "Gesundes L", ...). Diese sind direkt
+ * mit einer Default-Ueberkategorie verknuepft (aus `default-labels.ts`).
+ *
+ * Truthy-Werte: `true`, `"X"`, `"x"`, `"1"`, `"true"`, `"ja"`, `"y"`.
+ * Confidence: 1 Kategorie -> 1.0 (high), 2+ -> 0.8 (Multi-Label).
+ *
+ * Filtert auf die aktiven `kategorien` (PL kann eine Kategorie umbenannt
+ * oder geloescht haben — wir matchen anhand der ID).
+ */
+const ZT_TRUTHY_VALUES = new Set(['x', '1', 'true', 'ja', 'y', 'wahr']);
+
+function isZtTruthy(v: unknown): boolean {
+  if (v === true) return true;
+  if (v == null) return false;
+  if (typeof v === 'number') return v !== 0;
+  if (typeof v === 'string') return ZT_TRUTHY_VALUES.has(v.trim().toLowerCase());
+  return false;
+}
+
+export function matchZukunftstechnologien(
+  antrag: Antrag,
+  kategorien: UeberKategorie[],
+): KategorieVorschlag[] {
+  if (kategorien.length === 0) return [];
+  const aktiveKategorien = new Set(kategorien.map(k => k.id));
+  const treffer = new Map<string, number>();
+
+  for (const zt of ZUKUNFTSTECHNOLOGIE_FELDER) {
+    // Wir betrachten nur die TV-Ebene — der Antrag = Teilvorhaben.
+    if (zt.ebene !== 'tv') continue;
+    if (!aktiveKategorien.has(zt.defaultUeberKategorie)) continue;
+    const value = (antrag as Record<string, unknown>)[zt.customField];
+    if (isZtTruthy(value)) {
+      treffer.set(zt.defaultUeberKategorie, (treffer.get(zt.defaultUeberKategorie) ?? 0) + 1);
+    }
+  }
+
+  if (treffer.size === 0) return [];
+  const confidence = treffer.size === 1 ? 1.0 : 0.8;
+  return [...treffer.keys()].map(katId => ({
+    kategorieId: katId,
+    confidence,
+    methode: 'regel' as const,
+  }));
 }
 
 /**
