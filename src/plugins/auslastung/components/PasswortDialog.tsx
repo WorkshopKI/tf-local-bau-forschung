@@ -5,6 +5,7 @@
  * (rein heuristisch: Laenge + Zeichenklassen).
  */
 import { useMemo, useState } from 'react';
+import { useDialogEsc } from './useDialogEsc';
 
 interface Props {
   open: boolean;
@@ -51,6 +52,8 @@ export function PasswortDialog({
   const s = useMemo(() => strength(pw1), [pw1]);
   const valid = pw1.length >= 8 && pw1 === pw2;
 
+  useDialogEsc(open, !!busy, onClose);
+
   if (!open) return null;
 
   async function submit(): Promise<void> {
@@ -65,7 +68,6 @@ export function PasswortDialog({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.35)' }}
-      onClick={() => !busy && onClose()}
     >
       <div
         className="w-[420px] rounded-[12px] p-5 flex flex-col gap-3"

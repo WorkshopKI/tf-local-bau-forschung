@@ -13,6 +13,7 @@ import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { applyOnboardingImport, parseOnboardingXlsx, type OnboardingPreview } from '../services/onboarding-import';
 import { AnonymIdBadge } from './AnonymIdBadge';
 import { KategoriePill } from './KategoriePill';
+import { useDialogEsc } from './useDialogEsc';
 
 interface Props {
   open: boolean;
@@ -79,6 +80,8 @@ export function OnboardingImportDialog({ open, onClose, onCalibrate }: Props): R
     onCalibrate?.(bestehende);
   }
 
+  useDialogEsc(open, busy, onClose);
+
   if (!open) return null;
 
   const neuCount = items.filter(it => !it.preview.existierterAnonId && it.preview.effektivesKuerzel).length;
@@ -88,7 +91,6 @@ export function OnboardingImportDialog({ open, onClose, onCalibrate }: Props): R
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.35)' }}
-      onClick={() => !busy && onClose()}
     >
       <div
         className="w-[800px] max-h-[80vh] rounded-[12px] p-5 flex flex-col gap-3 overflow-hidden"

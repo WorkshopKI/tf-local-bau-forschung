@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
+import { useDialogEsc } from './useDialogEsc';
 import {
   bewertungenToVirtuell,
   calibrateSingle,
@@ -146,13 +147,14 @@ export function KalibrierungsReport({ open, previews, onClose }: Props): React.R
     }
   }
 
+  useDialogEsc(open, running, onClose);
+
   if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.4)' }}
-      onClick={() => !running && onClose()}
     >
       <div
         className="w-[960px] max-h-[88vh] rounded-[12px] p-5 flex flex-col gap-3 overflow-hidden"

@@ -16,6 +16,7 @@ import { KategoriePill } from '../../components/KategoriePill';
 import { TechnologieTags } from '../../components/TechnologieTags';
 import { PasswortDialog } from '../../components/PasswortDialog';
 import { OnboardingImportDialog } from '../../components/OnboardingImportDialog';
+import { useDialogEsc } from '../../components/useDialogEsc';
 import { KalibrierungsReport } from '../../components/KalibrierungsReport';
 import { exportAnonymousXlsx, exportProtectedZip } from '../../services/export-service';
 import { downloadOnboardingHtml } from '../../services/onboarding-html-generator';
@@ -204,6 +205,8 @@ function MitarbeiterDrawer({
   const [abgRaw, setAbgRaw] = useState(ma.abgemeldet.join(', '));
   const [busy, setBusy] = useState(false);
 
+  useDialogEsc(true, busy, onClose);
+
   function toggleKat(id: string): void {
     setKats(prev => {
       const next = new Set(prev);
@@ -229,7 +232,6 @@ function MitarbeiterDrawer({
     <div
       className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh]"
       style={{ background: 'rgba(0,0,0,0.3)' }}
-      onClick={onClose}
     >
       <div
         className="w-[450px] rounded-[12px] p-5 flex flex-col gap-3"

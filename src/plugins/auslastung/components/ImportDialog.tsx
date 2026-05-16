@@ -8,6 +8,7 @@
  */
 import { useCallback, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useDialogEsc } from './useDialogEsc';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import {
   applyKapazitaetsImport,
@@ -67,13 +68,14 @@ export function ImportDialog({ open, onClose }: Props): React.ReactElement | nul
     setResult(null);
   }
 
+  useDialogEsc(open, busy, onClose);
+
   if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.35)' }}
-      onClick={() => !busy && onClose()}
     >
       <div
         className="w-[600px] max-h-[80vh] rounded-[12px] p-5 flex flex-col gap-3 overflow-hidden"

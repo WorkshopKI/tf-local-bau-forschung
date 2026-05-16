@@ -11,6 +11,7 @@ import {
 } from '../../types';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { KategoriePill } from '../../components/KategoriePill';
+import { useDialogEsc } from '../../components/useDialogEsc';
 
 interface Props {
   storage: StorageService;
@@ -122,6 +123,8 @@ function KategorieDrawer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useDialogEsc(true, busy, onClose);
+
   function toggle(w: string): void {
     setMapping(prev => {
       const next = new Set(prev);
@@ -134,7 +137,6 @@ function KategorieDrawer({
     <div
       className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh]"
       style={{ background: 'rgba(0,0,0,0.3)' }}
-      onClick={onClose}
     >
       <div
         className="rounded-[12px] p-5 overflow-hidden flex flex-col gap-4"
