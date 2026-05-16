@@ -120,6 +120,7 @@ function KategorieDrawer({
     new Set(kategorie.deskriptorenMapping.map(d => d.toLowerCase())),
   );
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function toggle(w: string): void {
     setMapping(prev => {
@@ -136,8 +137,19 @@ function KategorieDrawer({
       onClick={onClose}
     >
       <div
-        className="w-[500px] max-h-full rounded-[12px] p-5 overflow-y-auto flex flex-col gap-4"
-        style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}
+        className="rounded-[12px] p-5 overflow-hidden flex flex-col gap-4"
+        style={{
+          background: 'var(--tf-bg)',
+          border: '0.5px solid var(--tf-border)',
+          // Resizable + groesserer Default (+100px breit, +300px hoch ggu. dem alten 500x~470).
+          width: 600,
+          height: 770,
+          minWidth: 400,
+          minHeight: 400,
+          maxWidth: '95vw',
+          maxHeight: '95vh',
+          resize: 'both',
+        }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -164,11 +176,11 @@ function KategorieDrawer({
           </select>
         </div>
 
-        <div>
+        <div className="flex flex-col flex-1 min-h-0">
           <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
             Deskriptoren-Mapping ({mapping.size} ausgewählt)
           </div>
-          <div className="max-h-[300px] overflow-y-auto rounded" style={{ border: '0.5px solid var(--tf-border)' }}>
+          <div className="flex-1 min-h-0 overflow-y-auto rounded" style={{ border: '0.5px solid var(--tf-border)' }}>
             {allDeskriptoren.map(d => (
               <label
                 key={d.wert}
@@ -186,6 +198,12 @@ function KategorieDrawer({
           </div>
         </div>
 
+        {error && (
+          <div className="rounded p-2 text-[11.5px]" style={{ background: '#fee2e2', color: '#991b1b', border: '0.5px solid #fca5a5' }}>
+            ⚠ Speichern fehlgeschlagen: <span className="font-mono">{error}</span>
+          </div>
+        )}
+
         <div className="flex justify-end gap-2">
           <button
             type="button"
@@ -200,6 +218,7 @@ function KategorieDrawer({
             disabled={busy}
             onClick={async () => {
               setBusy(true);
+              setError(null);
               try {
                 await onSave({
                   ...kategorie,
@@ -207,6 +226,9 @@ function KategorieDrawer({
                   farbe,
                   deskriptorenMapping: [...mapping],
                 });
+              } catch (err) {
+                console.error('[KategorieDrawer] save failed:', err);
+                setError(err instanceof Error ? err.message : String(err));
               } finally {
                 setBusy(false);
               }
