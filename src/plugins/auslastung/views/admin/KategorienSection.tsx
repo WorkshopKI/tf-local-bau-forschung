@@ -25,9 +25,22 @@ export function KategorienSection({ storage, allDeskriptoren }: Props): React.Re
   const [drawerKat, setDrawerKat] = useState<UeberKategorie | null>(null);
 
   const nichtZugeordnet = useMemo(() => {
-    const zugeordnet = new Set<string>();
-    for (const k of kategorien) for (const d of k.deskriptorenMapping) zugeordnet.add(d.toLowerCase());
-    return allDeskriptoren.filter(d => !zugeordnet.has(d.wert)).length;
+    // Substring-Match analog zum SetupWizard-Pre-Fill: ein echter Deskriptor
+    // gilt als zugeordnet, wenn er ein Default-Mapping-Keyword als Substring
+    // enthaelt (oder umgekehrt). Reines "exakter Match" wuerde alle 40
+    // realen Werte als "nicht zugeordnet" markieren, weil die Defaults aus
+    // ZT-Klartexten / Heuristik-Keywords bestehen.
+    const needles: string[] = [];
+    for (const k of kategorien) {
+      for (const d of k.deskriptorenMapping) {
+        const t = d.toLowerCase().trim();
+        if (t) needles.push(t);
+      }
+    }
+    return allDeskriptoren.filter(d => {
+      const wert = d.wert.toLowerCase();
+      return !needles.some(n => wert.includes(n) || n.includes(wert));
+    }).length;
   }, [kategorien, allDeskriptoren]);
 
   return (

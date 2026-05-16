@@ -41,20 +41,50 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: P
   const [newName, setNewName] = useState('');
   const [newFarbe, setNewFarbe] = useState<KategorieFarbe>('blue');
 
-  // Lokales Mapping fuer Schritt 2: Wert -> Set<kategorieId>
+  // Lokales Mapping fuer Schritt 2: echter-Wert (lowercase) -> Set<kategorieId>.
+  // Pre-Fill via Substring-Match: ein echter Deskriptor wie "energietechnologien"
+  // wird automatisch der Kategorie EU zugeordnet, weil deren Default-Mapping das
+  // Keyword "energie" enthaelt (Substring-Treffer).
   const [mappingDraft, setMappingDraft] = useState<Map<string, Set<string>>>(() => {
     const m = new Map<string, Set<string>>();
-    for (const k of data.config.ueberKategorien) {
-      for (const d of k.deskriptorenMapping) {
-        const lower = d.toLowerCase();
-        if (!m.has(lower)) m.set(lower, new Set());
-        m.get(lower)!.add(k.id);
+    for (const { wert } of allDeskriptoren) {
+      const lower = wert.toLowerCase();
+      const matched = new Set<string>();
+      for (const k of data.config.ueberKategorien) {
+        for (const d of k.deskriptorenMapping) {
+          const needle = d.toLowerCase().trim();
+          if (!needle) continue;
+          // Treffer wenn echter Wert das Default-Keyword als Substring enthaelt
+          // ODER umgekehrt (z.B. exakter Match einer ZT-Klartext-Zuordnung).
+          if (lower.includes(needle) || needle.includes(lower)) {
+            matched.add(k.id);
+            break;
+          }
+        }
       }
+      if (matched.size > 0) m.set(lower, matched);
     }
     return m;
   });
 
   const kategorien = data.config.ueberKategorien;
+
+  // Korrektes Zaehlen: nur Deskriptoren-Werte, die a) in den echten CSV-Werten
+  // vorkommen UND b) mindestens eine Kategorie-Zuordnung haben. Die Default-
+  // Heuristik-Keywords ("ki", "energie", ...) stehen zwar in mappingDraft,
+  // sind aber selten echte Deskriptoren-Werte und sollen nicht mitzaehlen.
+  const realDeskSet = useMemo(
+    () => new Set(allDeskriptoren.map(d => d.wert.toLowerCase())),
+    [allDeskriptoren],
+  );
+  const zugeordnetCount = useMemo(() => {
+    let n = 0;
+    for (const [wert, set] of mappingDraft.entries()) {
+      if (set.size > 0 && realDeskSet.has(wert)) n++;
+    }
+    return n;
+  }, [mappingDraft, realDeskSet]);
+  const ohneZuordnungCount = Math.max(0, allDeskriptoren.length - zugeordnetCount);
 
   const usedColors = useMemo(() => new Set(kategorien.map(k => k.farbe)), [kategorien]);
   const nextDefaultFarbe = useMemo<KategorieFarbe>(() => {
@@ -241,7 +271,7 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: P
         <div className="flex flex-col gap-4">
           <div>
             <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
-              Schritt 2 — Deskriptoren-Mapping ({mappingDraft.size}/{allDeskriptoren.length} zugeordnet)
+              Schritt 2 — Deskriptoren-Mapping ({zugeordnetCount}/{allDeskriptoren.length} zugeordnet)
             </div>
             <p className="text-[12px] text-[var(--tf-text-secondary)] mb-3">
               Ordne jedem Technologie-Wert eine oder zwei Überkategorien zu. Werte ohne Zuordnung werden als „nicht zugeordnet" markiert.
@@ -328,9 +358,9 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: P
             </div>
             <ul className="text-[12.5px] text-[var(--tf-text-secondary)] space-y-1">
               <li>· {kategorien.length} Überkategorien angelegt</li>
-              <li>· {mappingDraft.size} von {allDeskriptoren.length} Deskriptoren zugeordnet</li>
+              <li>· {zugeordnetCount} von {allDeskriptoren.length} Deskriptoren zugeordnet</li>
               <li>· {anonymMap.toAnon.size} anonyme MA-IDs aus den historischen Anträgen abgeleitet</li>
-              <li>· {allDeskriptoren.length - mappingDraft.size} Deskriptoren ohne Zuordnung (kein Problem — können später ergänzt werden)</li>
+              <li>· {ohneZuordnungCount} Deskriptoren ohne Zuordnung (kein Problem — können später ergänzt werden)</li>
             </ul>
             <p className="text-[12px] text-[var(--tf-text-tertiary)] mt-3">
               Nach Abschluss kannst du Anträge klassifizieren und MAs zuweisen. Stufe-2-Embedding-Matching bleibt deaktiviert,
