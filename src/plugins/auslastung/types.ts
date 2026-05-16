@@ -188,7 +188,11 @@ export interface MatchResult {
 // ───────────────────────────────────────────────────────────────────────────
 
 /** SMB-Share Pfad fuer Auslastungs-Daten. */
-export const AUSLASTUNG_JSON_PATH = '_intern/auslastung/data.json';
+export const AUSLASTUNG_JSON_PATH = '_intern/auslastung.json';
+
+/** Legacy-Pfad vor Mai 2026 — wird beim Laden als Fallback gelesen, danach
+ *  beim ersten Save auf den neuen `AUSLASTUNG_JSON_PATH` umgeschrieben. */
+export const AUSLASTUNG_JSON_PATH_LEGACY = '_intern/auslastung/data.json';
 
 /** IDB-kv-Prefix fuer Embedding-Cache. */
 export const AUSLASTUNG_EMB_PREFIX = 'auslastung-emb:';

@@ -12,18 +12,36 @@
 import type { StorageService } from '@/core/services/storage';
 import {
   AUSLASTUNG_JSON_PATH,
+  AUSLASTUNG_JSON_PATH_LEGACY,
   emptyAuslastungData,
   type AuslastungData,
 } from '../types';
 
-/** Liest die Datei oder gibt ein leeres Default zurueck. */
+/**
+ * Liest die Datei oder gibt ein leeres Default zurueck.
+ *
+ * Liest zuerst den aktuellen Pfad (`_intern/auslastung.json`). Wenn der
+ * nicht existiert, Fallback auf den Legacy-Pfad (`_intern/auslastung/data.json`)
+ * fuer pre-Mai-2026-Installationen. Beim naechsten Save wird der neue Pfad
+ * geschrieben; die Legacy-Datei bleibt liegen (FileServerStore hat keine
+ * Delete-API). PL kann sie manuell loeschen.
+ */
 export async function loadAuslastungData(storage: StorageService): Promise<AuslastungData> {
   if (!storage.fs) return emptyAuslastungData();
   try {
-    const exists = await storage.fs.exists(AUSLASTUNG_JSON_PATH);
-    if (!exists) return emptyAuslastungData();
-    const data = await storage.fs.readJSON<Partial<AuslastungData>>(AUSLASTUNG_JSON_PATH);
-    return normalizeAuslastungData(data);
+    if (await storage.fs.exists(AUSLASTUNG_JSON_PATH)) {
+      const data = await storage.fs.readJSON<Partial<AuslastungData>>(AUSLASTUNG_JSON_PATH);
+      return normalizeAuslastungData(data);
+    }
+    if (await storage.fs.exists(AUSLASTUNG_JSON_PATH_LEGACY)) {
+      const data = await storage.fs.readJSON<Partial<AuslastungData>>(AUSLASTUNG_JSON_PATH_LEGACY);
+      console.info(
+        '[auslastung-store] Legacy-Pfad gelesen (%s) — wird beim naechsten Save auf %s migriert.',
+        AUSLASTUNG_JSON_PATH_LEGACY, AUSLASTUNG_JSON_PATH,
+      );
+      return normalizeAuslastungData(data);
+    }
+    return emptyAuslastungData();
   } catch (err) {
     console.warn('[auslastung-store] readJSON failed, returning empty:', err);
     return emptyAuslastungData();

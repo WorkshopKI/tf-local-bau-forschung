@@ -368,7 +368,7 @@ Plugin (`id: 'auslastung'`, `category: 'workflow'`, `kuratorOnly: false`, sichtb
 
 **Pflegepunkt bei neuen ZT-Themen**: `ZT_TO_KATEGORIE`-Map in `build-default-labels.mjs` editieren → `npm run build:default-labels` → die VB-Spalten-Mappings in `docs/fixtures/schema-c.ts` ergänzen (PapaParse renamed Duplikate zu `<header>_1`). Stage-0-Match liest `customField`-Namen (`zt_*_tv` / `zt_*_vb`), nicht den CSV-Header.
 
-**Datenmodell** (`auslastung.json` auf SMB unter `_intern/auslastung/data.json`):
+**Datenmodell** (`auslastung.json` auf SMB unter `_intern/auslastung.json`; Legacy-Pfad `_intern/auslastung/data.json` wird beim Laden als Fallback berücksichtigt — siehe `loadAuslastungData()`):
 ```typescript
 interface AuslastungData {
   version: 1;
@@ -418,7 +418,7 @@ Alle geteilten Daten und Config-Dateien liegen im Daten-Share (separater SMB-Sha
 - `_intern/scan-manifest.json` — Phase 2: JSONL-Spiegel des `phase2_scan_manifest`-IDB-Stores (optional, Caller-getriggert)
 - `_intern/dms-index-filtered.csv` — Phase 2: gefilterte DMS-CSV (Output von `scripts/filter-dms-csv.mjs`)
 - `_intern/aktenplan-mapping.json` — Phase 2: optionales Override des Aktenplanzuordnung→doc_type Mappings
-- `_intern/auslastung/data.json` — Auslastungs-Modul: Konfig (Überkategorien, Gewichtungen, Setup-Flag), anonyme MA-Profile, Klassifizierungen, Zuweisungen, Kalibrierungs-Ergebnisse. Last-Write-Wins. KEINE echten Bearbeiter-Kürzel.
+- `_intern/auslastung.json` — Auslastungs-Modul: Konfig (Überkategorien, Gewichtungen, Setup-Flag), anonyme MA-Profile, Klassifizierungen, Zuweisungen, Kalibrierungs-Ergebnisse. Last-Write-Wins. KEINE echten Bearbeiter-Kürzel. Legacy-Pfad `_intern/auslastung/data.json` vor Mai 2026 — Load liest beide, Save schreibt nur den neuen.
 - `backups/YYYY-MM-DD/` — Phase 1a: Wöchentliche Snapshots (Rolling 4 Gen., Daten-Share-Root)
 - `README.txt` — Orientierungs-Text (von der App beim Setup angelegt)
 - Phase 2: separater Dokumentenquelle-Handle (`smb-handles.dokumentenquelle`) für die Scan-Source — wird via `pickAndStoreDokumentenquelleHandle()` gesetzt; Scanner traversiert von dort über `runtimeConfig.scan.sub_roots`
