@@ -153,8 +153,20 @@ function main() {
       const cat = ZT_TO_KATEGORIE[themenfeld];
       if (cat) {
         const customField = makeCustomFieldName(themenfeld, ebene);
+        // CSV-Header-Quirk: TV- und VB-Spalten haben denselben Header in der
+        // echten CSV (`"Digitale W"` zweimal). PapaParse renamed die zweite
+        // zu `"<name>_1"`. In der Labels-XLSX dagegen hat die VB-Spalte ein
+        // Excel-Suffix (`"Digitale W2"`). Wir mappen die TV-Spalte 1:1, die
+        // VB-Spalte auf den PapaParse-renamed Namen.
+        let realCsv = csv;
+        if (ebene === 'vb') {
+          // Strip Excel-Suffix-Nummern (z.B. "Digitale W2" -> "Digitale W"),
+          // dann PapaParse-Suffix anhaengen.
+          const tvCol = csv.replace(/\d+$/, '');
+          realCsv = tvCol + '_1';
+        }
         zts.push({
-          csvColumn: csv,
+          csvColumn: realCsv,
           customField,
           klartext: themenfeld,
           ebene,

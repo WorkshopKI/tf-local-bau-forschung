@@ -211,10 +211,33 @@ describe('matchZukunftstechnologien (Stage 0)', () => {
     }
   });
 
-  it('VB-Ebene-Spalten werden ignoriert (nur TV-Ebene)', () => {
-    // VB-Ebene-Field-Name endet auf _vb statt _tv
+  it('VB-Ebene-Spalten werden ebenfalls ausgewertet (Verbund-Inheritance)', () => {
+    // Viele Deskriptoren sind nur auf Verbund-Ebene gesetzt — die TVs erben das.
     const a = makeAntrag('A', { zt_kuenstliche_intelligenz_ki_vb: 'X' } as Partial<Antrag>);
-    expect(matchZukunftstechnologien(a, kats)).toEqual([]);
+    const out = matchZukunftstechnologien(a, kats);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.kategorieId).toBe('DT');
+  });
+
+  it('TV + VB derselben Kategorie -> Single-Treffer (kein Doppel-Boost)', () => {
+    const a = makeAntrag('A', {
+      zt_kuenstliche_intelligenz_ki_tv: true,
+      zt_kuenstliche_intelligenz_ki_vb: 'X',
+    } as Partial<Antrag>);
+    const out = matchZukunftstechnologien(a, kats);
+    expect(out.length).toBe(1);
+    expect(out[0]?.kategorieId).toBe('DT');
+    expect(out[0]?.confidence).toBe(1.0);
+  });
+
+  it('TV in Kategorie A + VB in Kategorie B -> Multi-Label', () => {
+    const a = makeAntrag('A', {
+      zt_kuenstliche_intelligenz_ki_tv: true,    // DT
+      zt_leichtbautechnologien_vb: 'X',          // IT (nur Verbund)
+    } as Partial<Antrag>);
+    const out = matchZukunftstechnologien(a, kats);
+    expect(out.length).toBe(2);
+    expect(new Set(out.map(x => x.kategorieId))).toEqual(new Set(['DT', 'IT']));
   });
 
   it('Filtert auf aktive Kategorien — wenn PL eine Kategorie geloescht hat', () => {

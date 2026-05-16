@@ -119,9 +119,10 @@ export function matchZukunftstechnologien(
   const aktiveKategorien = new Set(kategorien.map(k => k.id));
   const treffer = new Map<string, number>();
 
+  // Sowohl TV-Ebene (Antrag-spezifisch) als auch VB-Ebene (Verbund-weit)
+  // auswerten — viele Deskriptoren sind nur am Verbund gesetzt und vererben
+  // sich implizit auf alle Teilvorhaben.
   for (const zt of ZUKUNFTSTECHNOLOGIE_FELDER) {
-    // Wir betrachten nur die TV-Ebene — der Antrag = Teilvorhaben.
-    if (zt.ebene !== 'tv') continue;
     if (!aktiveKategorien.has(zt.defaultUeberKategorie)) continue;
     const value = (antrag as Record<string, unknown>)[zt.customField];
     if (isZtTruthy(value)) {
