@@ -1,15 +1,19 @@
 /**
  * auslastung.json — Load/Save auf den SMB-Share.
  *
- * Concurrent-Writes-Strategie: Last-Write-Wins. In der Praxis schreibt nur
- * die PL aktiv; MAs schreiben nur ihre eigene `manuelleTechnologien`-Liste
- * + ihre Selbsteintragungen.
+ * Schreibt ueber `atomicWrite` (Phase-1a-Infrastruktur) auf den Daten-Share-
+ * Handle aus dem `smb-handles`-IDB-Map. NICHT ueber `storage.fs` —
+ * StorageService.fs ist ein Legacy-FileServerStore aus dem alten Onboarding,
+ * der oft nicht gesetzt ist wenn der User den v1.9-Welcome-Flow benutzt hat.
  *
- * Schreib-Pfad ist via `FileServerStore.writeJSON` (interner createWritable)
- * — kein atomicWrite, da die Datei klein bleibt (max wenige 100 KB) und ein
- * Crash maximal die letzten paar Sekunden Schreibarbeit verliert.
+ * Concurrent-Writes-Strategie: Last-Write-Wins + atomicWrite (TMP + Rename
+ * + Backup-Rotation, 1 Generation). In der Praxis schreibt nur die PL aktiv;
+ * MAs schreiben nur ihre eigene `manuelleTechnologien`-Liste + ihre
+ * Selbsteintragungen.
  */
 import type { StorageService } from '@/core/services/storage';
+import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
+import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import {
   AUSLASTUNG_JSON_PATH,
   AUSLASTUNG_JSON_PATH_LEGACY,
@@ -17,46 +21,61 @@ import {
   type AuslastungData,
 } from '../types';
 
+async function readJsonAt(
+  handle: FileSystemDirectoryHandle,
+  path: string,
+): Promise<Partial<AuslastungData> | null> {
+  const text = await readText(handle, path);
+  if (text == null) return null;
+  try { return JSON.parse(text) as Partial<AuslastungData>; }
+  catch (err) {
+    console.warn(`[auslastung-store] JSON-Parse fehlgeschlagen fuer ${path}:`, err);
+    return null;
+  }
+}
+
 /**
  * Liest die Datei oder gibt ein leeres Default zurueck.
  *
  * Liest zuerst den aktuellen Pfad (`_intern/auslastung.json`). Wenn der
  * nicht existiert, Fallback auf den Legacy-Pfad (`_intern/auslastung/data.json`)
  * fuer pre-Mai-2026-Installationen. Beim naechsten Save wird der neue Pfad
- * geschrieben; die Legacy-Datei bleibt liegen (FileServerStore hat keine
- * Delete-API). PL kann sie manuell loeschen.
+ * geschrieben; die Legacy-Datei bleibt liegen (kein Delete-API).
  */
 export async function loadAuslastungData(storage: StorageService): Promise<AuslastungData> {
-  if (!storage.fs) return emptyAuslastungData();
+  const handle = await getDatenShareHandle(storage.idb);
+  if (!handle) {
+    console.warn('[auslastung-store] kein Daten-Share-Handle — leere Daten zurueckgegeben');
+    return emptyAuslastungData();
+  }
   try {
-    if (await storage.fs.exists(AUSLASTUNG_JSON_PATH)) {
-      const data = await storage.fs.readJSON<Partial<AuslastungData>>(AUSLASTUNG_JSON_PATH);
-      return normalizeAuslastungData(data);
-    }
-    if (await storage.fs.exists(AUSLASTUNG_JSON_PATH_LEGACY)) {
-      const data = await storage.fs.readJSON<Partial<AuslastungData>>(AUSLASTUNG_JSON_PATH_LEGACY);
+    const data = await readJsonAt(handle, AUSLASTUNG_JSON_PATH);
+    if (data) return normalizeAuslastungData(data);
+    const legacy = await readJsonAt(handle, AUSLASTUNG_JSON_PATH_LEGACY);
+    if (legacy) {
       console.info(
         '[auslastung-store] Legacy-Pfad gelesen (%s) — wird beim naechsten Save auf %s migriert.',
         AUSLASTUNG_JSON_PATH_LEGACY, AUSLASTUNG_JSON_PATH,
       );
-      return normalizeAuslastungData(data);
+      return normalizeAuslastungData(legacy);
     }
     return emptyAuslastungData();
   } catch (err) {
-    console.warn('[auslastung-store] readJSON failed, returning empty:', err);
+    console.warn('[auslastung-store] Load fehlgeschlagen, leere Daten zurueckgegeben:', err);
     return emptyAuslastungData();
   }
 }
 
-/** Schreibt die Datei. Setzt `updatedAt`. Wirft falls fs read-only oder nicht verbunden. */
+/** Schreibt die Datei via atomicWrite. Wirft falls Daten-Share nicht verbunden. */
 export async function saveAuslastungData(
   storage: StorageService,
   data: AuslastungData,
 ): Promise<AuslastungData> {
-  if (!storage.fs) throw new Error('Daten-Share nicht verbunden');
-  if (storage.fs.isReadOnly()) throw new Error('Daten-Share ist read-only');
+  const handle = await getDatenShareHandle(storage.idb);
+  if (!handle) throw new Error('Daten-Share nicht verbunden — bitte im Welcome-Screen einrichten.');
   const next: AuslastungData = { ...data, updatedAt: new Date().toISOString() };
-  await storage.fs.writeJSON(AUSLASTUNG_JSON_PATH, next);
+  const json = JSON.stringify(next, null, 2);
+  await atomicWrite(handle, AUSLASTUNG_JSON_PATH, json);
   return next;
 }
 
