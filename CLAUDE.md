@@ -54,6 +54,7 @@ Index: [docs/agents/README.md](docs/agents/README.md).
 - **Search**: Orama (BM25 + Vector Hybrid), Transformers.js v4 (EmbeddingGemma 300M), WebGPU/WASM
 - **AI Chat**: DirectLLM transport (OpenRouter / local llama.cpp) + Streamlit bridge
 - **Icons**: lucide-react (tree-shakeable)
+- **ZIP / AES-256**: `@zip.js/zip.js` (für passwortgeschützte Exports im Auslastungs-Modul). `jszip` bleibt für unverschlüsselte ZIPs in Verwendung — kann kein AES-256.
 
 ## Architecture Principles
 
@@ -343,6 +344,55 @@ Kurator-Plugin (`id: 'dokument-review'`, `category: 'kuration'`, `kuratorOnly: t
 - Kein Renderer für PDF/DOCX-Inhalte (kommt erst wenn die Volltext-Pipeline steht).
 - Keine Veränderungen an `Phase2RescanCard.tsx` oder `TriagePanel.tsx`. Read-only-Accessors in `src/phase2/scanner/manifest-store.ts` (z.B. `listByMatchedAntrag`) sind erlaubt; Triage-Pipeline-Logik bleibt unverändert.
 
+### Auslastungs-Modul (Plugin "auslastung", v1.16)
+
+Plugin (`id: 'auslastung'`, `category: 'workflow'`, `kuratorOnly: false`, sichtbar wenn `features.auslastung === true`) für automatische Antrags-Klassifizierung in Überkategorien + MA-Zuweisung mit dreistufigem Matching. Quartalsbasierte Kapazitäts-Planung. Datenschutz-Kernprinzip: **MAs sind im gesamten Modul nur als anonyme IDs (MA01-MAxx) sichtbar**; echte TIB-Kürzel kommen ausschließlich im RAM während eines passwortgeschützten XLSX-Exports vor — werden nie in IDB oder SMB gespeichert.
+
+**5 vordefinierte Überkategorien** (aus FZD-Kontext, im Admin editierbar): `IT` Industrielle Technologien, `DT` Digitale Technologien, `EU` Energie- und Umwelttechnologien, `LG` Lebens- und Gesundheitswissenschaften, `NM` Naturwissenschaftliche Methoden.
+
+**Tabs** (`AuslastungView`, role-gated): Selbsteintragung (alle User) · Klassifizierung · Zuweisung (50/50-Split-Cockpit) · Kapazität · Admin — letzte 4 nur für `is_kurator`. „Meine Technologien" als Tab im Einstellungs-Plugin.
+
+**Engine-Layer** (`src/plugins/auslastung/services/`):
+- `klassifizierung-engine.ts` — dreistufig: **Stage 0** (Boolean-Match auf ZT-Spalten der CSV `"Künstliche"`, `"Gesundes L"`, `"Energie/Re"`, ... → direkt der Default-Überkategorie zugeordnet, höchste Confidence), **Stage 1** (Regel-Mapping aus PL-konfigurierten Deskriptoren-Listen, Multi-Label wenn 2 Kategorien matchen), **Stage 2** (Embedding-Centroid-Match, optional via `config.stage2Aktiv`).
+- `bm25-matcher.ts` — Mini-BM25 für MA-Profile mit deutschen Stoppwörtern.
+- `embedding-corpus.ts` — IDB-Cache `auslastung-emb:<aktz>` für Antrags-Embeddings (~15 MB bei 5k Anträgen, nicht auf SMB), Corpus-Build mit Progress-Callback, AbortSignal-Support.
+- `embedding-matcher.ts` — Top-K Antrags-Similarity → TIB-Score-Aggregation mit virtueller-Projekt-Confidence.
+- `matching-engine.ts` — dynamische α-Fusion (BM25 vs Embedding je nach Konfidenz) + Kapazitäts-Filter + Balance-Score → Top-3 pro Antrag.
+- `anonym-map.ts` — deterministisches Mapping echtes TIB-Kürzel → MA01..MAxx, **nur im RAM**, nie persistiert. Liest ausschließlich `tib_kuerz` (nicht BIB/ZTP/PFM). Ehemalige Bearbeiter werden bewusst mitgezählt — deren Profile dienen als Embedding-Referenz für neue MAs mit ähnlichem Hintergrund.
+- `onboarding-kalibrierung.ts` — Spearman-Korrelation + Grid-Search über Confidence-Faktoren, für die Validierung des Standalone-Onboarding gegen historisches Matching.
+
+**Build-Pipeline** (`scripts/build-default-labels.mjs`, prebuild-Hook): liest `_labels/Labels PrjBsp_GPT.xlsx` → erzeugt `src/plugins/auslastung/services/default-labels.ts` (AUTO-GENERIERT, nicht manuell editieren) mit:
+- `LABEL_BY_CSV_COLUMN` — 148 Klarnamen pro CSV-Spaltencode
+- `ZUKUNFTSTECHNOLOGIE_FELDER` — 44 ZT-Felder (22 Themen × TV/VB-Ebene) mit Default-Mapping auf die 5 Kategorien
+- `KATEGORIE_KEYWORD_HEURISTIK` — Substring-Heuristik für TECHN_/BRANCHE_-Werte als Fallback
+
+**Pflegepunkt bei neuen ZT-Themen**: `ZT_TO_KATEGORIE`-Map in `build-default-labels.mjs` editieren → `npm run build:default-labels` → die VB-Spalten-Mappings in `docs/fixtures/schema-c.ts` ergänzen (PapaParse renamed Duplikate zu `<header>_1`). Stage-0-Match liest `customField`-Namen (`zt_*_tv` / `zt_*_vb`), nicht den CSV-Header.
+
+**Datenmodell** (`auslastung.json` auf SMB unter `_intern/auslastung/data.json`):
+```typescript
+interface AuslastungData {
+  version: 1;
+  updatedAt: string;
+  config: AuslastungConfig;              // ueberKategorien, gewichtungen, stage2Aktiv, setupAbgeschlossen
+  mitarbeiter: Record<string, AnonymerMitarbeiter>;  // Key = anonId (MA01)
+  klassifizierungen: Klassifizierung[];  // pro Antrag: vorgeschlagene + freigegebene Kategorien
+  zuweisungen: Zuweisung[];              // antragId, anonId, quartal, stunden, status
+  kalibrierung?: KalibrierungsState;     // Spearman-Ergebnisse + optimale Confidence-Faktoren
+}
+```
+
+**Standalone Kompetenz-Onboarding** (`tools/kompetenz-onboarding/`): Single-HTML-Datei (Vanilla-JS + Inline-SheetJS, file://-kompatibel) für neue MAs ohne SMB-Zugang. PL generiert die HTML im Admin (`generateOnboardingHtml`) — Generator liest `template.html` via Vite-`?raw`-Import + injiziert JSON-Blob mit 30-60 Beispiel-Anträgen. MA füllt aus, schickt XLSX zurück, PL importiert via `OnboardingImportDialog` → neuer MA mit `virtuelleProjekte` + Confidence-Faktoren.
+
+**Schema-Erweiterung** (`docs/fixtures/schema-c.ts`): mapped alle 22 ZT-TV-Spalten (`'Digitale W'`, `'Künstliche'`, ...) UND 22 ZT-VB-Spalten (`'Digitale W_1'`, `'Künstliche_1'`, ...) als Custom-Boolean-Felder. Beim Stage-0-Match werden TV und VB gleichwertig ausgewertet — Verbund-Deskriptoren vererben implizit auf alle TVs.
+
+**Sichtbarkeits-Gates**:
+- Plugin selbst: `features.auslastung` (default false; in `configs/dev.config.json` true). Andere Variants müssen das Flag aktiv setzen wenn das Modul gewünscht ist.
+- Routing: `routes.ts` (`PLUGIN_ROUTES['auslastung']`) + `Router.tsx` (`flatIds` enthält `'auslastung'`) — Pflicht-Einträge, sonst Sidebar-Klick landet auf Home.
+
+**Nicht anfassen**:
+- Bestehende Bearbeiter-Filter-Logik im `antraege`-Plugin (das nutzt `bearbeiter_kuerzel` aus dem Profil mit Mehrfach-Kürzel + Begleitungs-Spalten — andere Domain).
+- Embedding-Modell-Init: Plugin nutzt den Singleton `embeddingService` aus dem Such-Stack, lädt kein eigenes Modell.
+
 ### Legacy: Vorgang-Infrastruktur
 
 `src/core/types/vorgang.ts`, `src/core/components/SimilarCases.tsx`, `src/core/components/VorgangDokumenteTab.tsx`, `src/core/hooks/useVorgangDetail.ts` — Überbleibsel des alten Vorgang-zentrierten Datenmodells. Wird nur noch vom Bauanträge-Plugin (`src/plugins/bauantraege/`) genutzt. **Neue Features verwenden das `Antrag`-Interface aus dem CSV-Schema (`src/core/types/csv/types.ts`), nicht `Vorgang`.**
@@ -368,6 +418,7 @@ Alle geteilten Daten und Config-Dateien liegen im Daten-Share (separater SMB-Sha
 - `_intern/scan-manifest.json` — Phase 2: JSONL-Spiegel des `phase2_scan_manifest`-IDB-Stores (optional, Caller-getriggert)
 - `_intern/dms-index-filtered.csv` — Phase 2: gefilterte DMS-CSV (Output von `scripts/filter-dms-csv.mjs`)
 - `_intern/aktenplan-mapping.json` — Phase 2: optionales Override des Aktenplanzuordnung→doc_type Mappings
+- `_intern/auslastung/data.json` — Auslastungs-Modul: Konfig (Überkategorien, Gewichtungen, Setup-Flag), anonyme MA-Profile, Klassifizierungen, Zuweisungen, Kalibrierungs-Ergebnisse. Last-Write-Wins. KEINE echten Bearbeiter-Kürzel.
 - `backups/YYYY-MM-DD/` — Phase 1a: Wöchentliche Snapshots (Rolling 4 Gen., Daten-Share-Root)
 - `README.txt` — Orientierungs-Text (von der App beim Setup angelegt)
 - Phase 2: separater Dokumentenquelle-Handle (`smb-handles.dokumentenquelle`) für die Scan-Source — wird via `pickAndStoreDokumentenquelleHandle()` gesetzt; Scanner traversiert von dort über `runtimeConfig.scan.sub_roots`
@@ -496,6 +547,7 @@ src/
 │   # Nutzer-Plugins (category 'workflow' / 'tools')
 │   ├── home/                    <- Dashboard (id='home')
 │   ├── antraege/                <- Förderanträge-Liste + Detail (id='antraege', generische Ansicht über CSV-Schema; seit v1.14 konsolidiert inkl. ehem. Forschungs-Fixtures + optionaler AntragDokumentRef[])
+│   ├── auslastung/              <- Auslastungs-Modul (id='auslastung', features.auslastung-gegated, 5 Tabs, Anonymisierung MA01..MAxx, dreistufiges Matching, Standalone-Onboarding-HTML-Generator)
 │   ├── bauantraege/             <- Bauanträge-Workflow (id='bauantraege', Vorgang-Typ bauantrag)
 │   ├── dokumente/               <- Dokumenten-Browser (id='dokumente', Phase-2-Platzhalter)
 │   ├── suche/                   <- Hybrid-Suche-UI (id='suche', Orama + Vector)
@@ -561,6 +613,11 @@ src/
 └── main.tsx
 ```
 
+**Außerhalb von `src/`:**
+- `tools/config-ui/` — Vanilla-JS Build-Konfigurator (siehe `npm run config-ui`)
+- `tools/kompetenz-onboarding/` — Standalone-HTML-Template für das Auslastungs-Onboarding (Vanilla-JS + Inline-SheetJS, wird vom Generator-Service über Vite-`?raw`-Import verarbeitet, kein eigener Build-Schritt)
+- `_labels/` — Quell-XLSX für CSV-Spalten-Klarnamen + ZT-Themenfeld-Mapping. Wird von `scripts/build-default-labels.mjs` verarbeitet (prebuild-Hook) → `src/plugins/auslastung/services/default-labels.ts`.
+
 ## Coding Standards
 
 ### TypeScript
@@ -615,6 +672,10 @@ Testen: HTML per Doppelklick direkt in Chrome/Edge (`file://`) öffnen. Keine Co
 
 **Dev-Server**: `npm run dev` lädt `DEFAULT_CONFIG` aus `scripts/config-schema.mjs` (alle Features an). Das reicht für lokales Entwickeln; für Variant-Tests immer einen der oben genannten Builds fahren und per `file://` testen.
 
+**prebuild-Pipeline** (`npm run generate:test-assets`, läuft automatisch vor jedem Build): generiert Test-CSVs, Label-XLSX, normalisiert Fixture-Encoding und **erzeugt `src/plugins/auslastung/services/default-labels.ts`** aus `_labels/Labels PrjBsp_GPT.xlsx` via `scripts/build-default-labels.mjs`. Das generierte TS-File ist committed (Idempotenz), kann aber jederzeit über `npm run build:default-labels` regeneriert werden.
+
+**Feature-Flag `features.auslastung`** (default false; in `dev.config.json` true): aktiviert das Auslastungs-Plugin (Sidebar-Eintrag + Routing). Andere Variants müssen das Flag explizit setzen wenn das Modul gewünscht ist. Routing-Pflicht: `routes.ts` (`PLUGIN_ROUTES['auslastung']`) + `Router.tsx` (`flatIds`) — siehe [docs/agents/add-plugin.md](docs/agents/add-plugin.md).
+
 Config-Zugriff im Code:
 
 ```ts
@@ -651,3 +712,7 @@ Beim MAJOR-Bump zusätzlich: Migrations-Notiz in CLAUDE.md ergänzen (analog v1.
 11. **Neue Features hinter Flag setzen** (v1.10) — wenn ein Feature optional sein soll, in `scripts/config-schema.mjs` eine Flag ergänzen, in `src/config/feature-flags.ts` einen Helfer, und die betroffenen Stellen (Plugin-Filter, Komponenten-Rendering) damit gaten. OpenRouter in Prod-Builds wird zusätzlich in `validateConfig()` verboten
 12. **Antrag-Status: zwei Domaenen, eine Kategorie** — `AntragListItem.status` traegt entweder Bauantrag-Snake-Case-Werte (`neu`, `in_pruefung`, `genehmigt`, `abgelehnt`, `archiviert`, …) oder Foerderantrag-CSV-Rohwerte (Foyer-Quellsystem: `beantragt`, `VN geprüft`, `NF gestellt`, `bewilligt`, `Schlussvermerk`, `abgelehnt/zurückgezogen`, …). Views, Dashboard, Eingangs-Ampel und Workflow-Logik **NIE direkt** gegen einen der Werte-Saetze vergleichen (`status === 'bewilligt'`). Stattdessen die Kategorie-Helper aus [src/core/utils/status-canonical.ts](src/core/utils/status-canonical.ts) nutzen: `isOpenStatus()`, `isBewilligtStatus()`, `isNachforderungStatus()`, `isBegleitungStatus()`, `isClosedStatus()`, `getStatusCategory()`. Die Filter-Sidebar ([statusGroups.ts](src/plugins/antraege/filter/statusGroups.ts)) zeigt weiter Foerderantrag-Rohwerte als Phasen-Gruppen — sie ist hiervon unberuehrt. Neuer Foerderantrag-Status: in `statusGroups.ts` UND `status-canonical.ts` UND `status-mappings.ts` ergaenzen. **Wichtig zur Semantik:** (a) Foerderantraege haben keinen final-`abgelehnt`-Endzustand; `Ablehnung`/`Widerruf`/`Anhörung zum Widerruf` zaehlen als Kategorie `entscheidung` (= noch im Verfahren, `isOpenStatus`-true), und der final-negative Pfad geht ueber `abgelehnt/zurückgezogen` (Kategorie `abgeschlossen`). Nur die Bauantrag-Domain hat `abgelehnt` als finalen Endzustand. (b) **Begleit-Phase**: Status-Werte mit Praefix `VN ` (Verwendungsnachweis) oder `ZB ` (Zwischenbericht) zaehlen als Kategorie `begleitung` — die Phase nach Bewilligung und vor Schlussvermerk. Bekannte Vertreter: `VN geprüft`, `VN techn. geprüft`. Unbekannte VN-/ZB-Varianten werden automatisch via Pattern-Fallback (`/^(vn|zb)[\s.]/`) erkannt, neue Spielarten muessen nicht explizit gelistet werden. Zustaendigkeit wechselt von TIB/BIB (Antrag) zu ZTP/PFM (Begleitung). (c) **Bearbeiter-Filter-Toggle `bearbeiter_inkl_begleitung`** steuert NUR welche KUERZ-Spalten gematcht werden — NICHT die Phase. Ohne Toggle: nur TIB/BIB-Spalten. Mit Toggle: zusaetzlich ZTP/PFM-Spalten. Ein TIB-/BIB-Treffer ueberstimmt die Phase: Antraege, bei denen das TIB-/BIB-Kuerzel matched, bleiben sichtbar auch nach Uebergang in die Begleit-Phase (VN-/ZB-Stati). Begruendung: Recherche-Workflows brauchen die Sicht auch auf abgeschlossene/in-Begleitung-uebergegangene eigene Faelle (Textvorlagen aus alten aehnlichen Antraegen). Geaendert Mai 2026, vorher blendete `inkl_begleitung=false` Begleit-Phase pauschal aus. Tests in [src/plugins/antraege/__tests__/](src/plugins/antraege/__tests__/) laufen mit zwei handgeschriebenen Fixture-Saetzen (`seed-antraege.ts` Bauantrag, `real-csv-antraege.ts` Foerderantrag) plus den echten Real-Fixture-CSVs (`realCsvImport.test.ts`) — wenn ein Test mit Bauantrag-Fixture passt aber mit Foerderantrag-Fixture failt, ist genau das ein Domain-Mismatch-Bug.
 13. **Foerderantraege-Seeds kommen aus echten CSVs** (v2-Seed, ab Mai 2026) — Die Dev-Seed-Antraege werden nicht mehr in TypeScript handgeschrieben, sondern in [docs/fixtures/](docs/fixtures/) als anonymisierte Real-Foyer-CSVs abgelegt. Der Seed-Loader unter [src/core/services/seed/fixture-loader.ts](src/core/services/seed/fixture-loader.ts) durchlaeuft den vollen `importCsvSource`-Pfad — Bugs im Parser, Column-Mapping oder Merger werden so im Seed-Lauf sichtbar. Schemas (Master + Secondaries via FKZ-Join) sind in `docs/fixtures/schema-*.ts` committet, die CSVs sind via globalem `*.csv`-Pattern in `.gitignore` lokal-only. Fehlende CSVs → Loader returned graceful 0 Antraege, App startet trotzdem. Encoding-Pipeline: `scripts/normalize-fixture-csvs.mjs` konvertiert windows-1252 → UTF-8 idempotent als `prebuild`/`predev`. Migration: Seed-Flag heisst `seed-complete-v2` (Pre-v2 IDBs behalten ihre alten FA-2026-XXX-Antraege als Geister bis manuelles Reset im Kurator-Panel). Neue Fixture-CSV ergaenzen: (1) CSV in `docs/fixtures/` ablegen, (2) `schema-X.ts` schreiben, (3) `FIXTURE_DEFS` in `fixture-loader.ts` ergaenzen.
+14. **Toggleable Pills brauchen konstante Breite** (Auslastungs-Modul Lesson) — bei farbcodierten Pills mit aktiv/inaktiv-Toggle (z.B. `KategoriePill` mit `active`-Prop): den optionalen Inhalt (Häkchen ✓) IMMER rendern, im Inaktiv-Modus mit Tailwind-`invisible` (CSS `visibility: hidden`). Sonst horizontaler Layout-Shift in Tabellen. Kontrast aktiv/inaktiv NICHT über `opacity-40` — wirkt wie disabled. Stattdessen Inactive-Variante mit outline-only (siehe [DESIGN_GUIDE.md](DESIGN_GUIDE.md) Kapitel 5 „Toggleable Pill").
+15. **Async UI-Aktionen brauchen `try/catch` + sichtbares Error-Banner** (Auslastungs-Modul Lesson) — `try/finally` ohne `catch` + `onClick={() => void asyncFn()}` schluckt Promise-Rejections silent. Unter `file://` ist die Browser-Console oft nicht offen, der User sieht nichts. Pattern: `try { ... } catch (err) { setError(err.message); } finally { setBusy(false); }` + Error-Banner im JSX. Referenz: [SetupWizard.tsx](src/plugins/auslastung/views/admin/SetupWizard.tsx).
+16. **Multi-Step-Setup: EIN finaler setState + EIN persist** (Auslastungs-Modul Lesson) — der `useAuslastungData`-Store hat einen `if (saving) return;`-Lock im `persist`. Mehrere parallele `persist`-Aufrufe (z.B. wenn jede `upsertX`-Action ihren eigenen persist triggert) fallen raus → inkonsistenter Save. Im finalen Wizard-Schritt alle Mutationen in EINEM `setState({...})`-Call sammeln, dann EIN `await persist(storage)`. Gleiche Regel gilt für andere Stores mit save-lock-Pattern (`feedbackService`-Sync z.B.).
+17. **Auslastungs-AnonymMap nutzt ausschliesslich `tib_kuerz`** — nicht BIB/ZTP/PFM. `buildAnonymMap()` filtert hart auf das `tib_kuerz`-Feld. Ehemalige Bearbeiter (TIBs, die im aktuellen Programm nicht mehr aktiv sind) werden bewusst mitgezählt — deren historische Antraege liefern beim Embedding-Match wertvolle Kompetenz-Referenzen für neue MAs mit ähnlichem Hintergrund. Wer das filtern möchte (z.B. „nur aktive MAs"), muss eine separate Schicht oberhalb der AnonymMap einziehen.
