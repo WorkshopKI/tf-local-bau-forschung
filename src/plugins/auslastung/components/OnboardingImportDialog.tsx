@@ -166,9 +166,11 @@ export function OnboardingImportDialog({ open, onClose, onCalibrate }: Props): R
                               key={k.id}
                               type="button"
                               onClick={() => toggleKategorie(idx, k.id)}
-                              className={`cursor-pointer ${active ? '' : 'opacity-40 hover:opacity-70'}`}
+                              className="cursor-pointer"
+                              aria-pressed={active}
+                              title={k.name}
                             >
-                              <KategoriePill kategorie={k} />
+                              <KategoriePill kategorie={k} active={active} />
                             </button>
                           );
                         })}

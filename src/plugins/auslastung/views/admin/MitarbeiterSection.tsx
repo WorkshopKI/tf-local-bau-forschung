@@ -194,7 +194,7 @@ function MitarbeiterDrawer({
   ma, kategorien, onClose, onSave,
 }: {
   ma: AnonymerMitarbeiter;
-  kategorien: Array<{ id: string; name: string }>;
+  kategorien: import('../../types').UeberKategorie[];
   onClose: () => void;
   onSave: (next: AnonymerMitarbeiter) => Promise<void>;
 }): React.ReactElement {
@@ -264,10 +264,11 @@ function MitarbeiterDrawer({
                   key={k.id}
                   type="button"
                   onClick={() => toggleKat(k.id)}
-                  className={`text-[11.5px] px-2 py-0.5 rounded cursor-pointer ${active ? 'opacity-100' : 'opacity-40'}`}
-                  style={{ border: '0.5px solid var(--tf-border)' }}
+                  className="cursor-pointer"
+                  aria-pressed={active}
+                  title={k.name}
                 >
-                  {k.id}
+                  <KategoriePill kategorie={k} active={active} />
                 </button>
               );
             })}

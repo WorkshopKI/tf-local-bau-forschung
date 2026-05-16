@@ -274,13 +274,11 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: P
                                   key={k.id}
                                   type="button"
                                   onClick={() => toggleMapping(wert, k.id)}
-                                  className={`text-[11px] px-2 py-0.5 rounded-full cursor-pointer transition-all ${
-                                    active
-                                      ? 'opacity-100'
-                                      : 'opacity-40 hover:opacity-70'
-                                  }`}
+                                  className="cursor-pointer"
+                                  aria-pressed={active}
+                                  title={`${k.name}${active ? ' (zugeordnet)' : ' (nicht zugeordnet)'}`}
                                 >
-                                  <KategoriePill kategorie={k} />
+                                  <KategoriePill kategorie={k} active={active} />
                                 </button>
                               );
                             })}

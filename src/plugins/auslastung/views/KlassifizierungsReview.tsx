@@ -217,10 +217,11 @@ function Row({ view, kategorien, onToggleKategorie, onBestaetigen }: RowProps): 
                 key={k.id}
                 type="button"
                 onClick={() => onToggleKategorie(k.id, !active)}
-                className={`cursor-pointer ${active ? '' : 'opacity-30 hover:opacity-60'}`}
+                className="cursor-pointer"
+                aria-pressed={active}
                 title={active ? `${k.name} entfernen` : `${k.name} hinzufügen`}
               >
-                <KategoriePill kategorie={k} />
+                <KategoriePill kategorie={k} active={active} />
               </button>
             );
           })}
