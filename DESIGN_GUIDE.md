@@ -35,6 +35,9 @@ Im Zweifel weglassen. Kein Element verdient es auf dem Screen zu sein, wenn es n
 - ❌ Badge-Farben mit gleichem Farbton für Text und Hintergrund (rot auf rot, gelb auf gelb) — IMMER dunkler Text auf hellem Hintergrund
 - ❌ Dropdown-Selects wenn 2-6 Filter-Optionen verfügbar sind — Pills sind direkter
 - ❌ max-w auf Listenseiten/Boards — diese sollen die volle Breite nutzen
+- ❌ `opacity-40` (o.ä.) zur Unterscheidung aktiv/inaktiv bei Toggle-Buttons — wirkt wie „disabled", User unsicher ob klickbar. Stattdessen outline-only-Variante (siehe Kapitel 5 „Toggleable Pill")
+- ❌ Pills/Chips mit inhalts-abhängiger Breite (z.B. Häkchen nur bei `active` rendern) — verursacht horizontalen Layout-Shift in Listen. Optional-Slots immer rendern mit `invisible`
+- ❌ `try/finally` ohne `catch` in async UI-Aktionen + `onClick={() => void promise()}` — Errors werden silent geschluckt; UI sieht aus als wäre nichts passiert. Immer `try/catch` + sichtbares Error-Banner
 
 ### Vorbilder
 - Linear (App) — Minimale Sidebar, viel Whitespace, subtile Borders
@@ -248,6 +251,29 @@ Badges sind die EINZIGEN Elemente die semantische Hintergrundfarben nutzen dürf
 
 Im Dark Mode: Dunkle gedämpfte Hintergründe + hellere gedämpfte Text-Farben (siehe Kapitel 9).
 
+### Monospace-ID-Badge
+Für anonyme IDs (MA01), Aktenzeichen (FKZ-…), Tracking-Codes — alles wo der Wert eine maschinen-lesbare Kennung ist und auf einen Blick als solche erkennbar sein soll.
+
+```tsx
+<span className="font-mono px-2 py-0.5 rounded-md bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]">
+  MA07
+</span>
+```
+
+Sizes: `sm` (11px), `md` (13px), `lg` (18px). Tracking dezent (`tracking-wide`).
+Referenz: [src/plugins/auslastung/components/AnonymIdBadge.tsx](src/plugins/auslastung/components/AnonymIdBadge.tsx)
+
+### Confidence-Dot
+Kleiner farbiger Punkt für ML-Confidence oder Status-Indikator inline in Tabellen-Zeilen oder neben Titeln.
+
+```tsx
+<span className="inline-block w-2 h-2 rounded-full bg-emerald-500"
+      title="Hohe Sicherheit" aria-label="Hohe Sicherheit" />
+```
+
+Farben: `bg-emerald-500` (high), `bg-amber-500` (medium), `bg-rose-500` (low). Tooltip mit Klartext für Hover + Screenreader.
+Referenz: [src/plugins/auslastung/components/ConfidenceDot.tsx](src/plugins/auslastung/components/ConfidenceDot.tsx)
+
 ### Filter-Pills
 Für Filterung nach 2-6 sichtbaren Optionen. BEVORZUGT gegenüber Dropdown-Selects — User sehen sofort welche Optionen verfügbar sind.
 
@@ -282,6 +308,22 @@ Das macht visuell klar welche Pills zu welcher Dimension gehören. Labels sind k
 
 **Wann Dropdown statt Pills:** Wenn >6 Optionen oder Optionen dynamisch aus den Daten kommen (z.B. User-Filter bei 30+ Nutzern).
 
+### Toggleable Pill (farbcodiert)
+Variante einer Pill mit aktiv/inaktiv-Zustand, oft in Multi-Select-Listen (z.B. Kategorie-Zuordnung). Unterschied zu Filter-Pills: nicht schwarz/weiß, sondern semantische Farbe (eine Pill pro Kategorie).
+
+```tsx
+// active=true: voller Farbcode + Häkchen
+// active=false: outline-only, tertiary text
+<KategoriePill kategorie={k} active={selected.has(k.id)} />
+```
+
+Drei Pflicht-Eigenschaften:
+- **Klarer Kontrast**: aktiv = `bg-{farbe}-100 text-{farbe}-900 ring-{farbe}-300`; inaktiv = `bg-transparent text-tertiary ring-border` (kein `opacity-40`)
+- **Layout-Stable**: Häkchen-Slot immer rendern, im Inaktiv-Modus mit `invisible` (CSS `visibility: hidden`) — Pill-Breite bleibt konstant
+- **A11y**: `aria-pressed={active}` auf dem umschließenden Button
+
+Referenz: [src/plugins/auslastung/components/KategoriePill.tsx](src/plugins/auslastung/components/KategoriePill.tsx)
+
 ### Card
 ```css
 .card {
@@ -307,6 +349,19 @@ Kein Box-Shadow. Kein Hover-Effekt auf Cards (außer sie sind klickbar → dann 
 .input:focus { border-color: var(--tf-primary); outline: none; }
 .input.error { border-color: var(--tf-danger-border); }
 ```
+
+### Slider + Inline-Value
+Range-Slider zeigen den aktuellen Wert direkt im Label oben rechts, nicht erst nach Drag-Ende. Bei abhängigen Werten (z.B. Balance = 1 - Kompetenz) erscheint der Folgewert dezent unter dem Slider als Hint.
+
+```tsx
+<label>Gewichtung Kompetenz: {Math.round(value * 100)}%</label>
+<input type="range" min={0} max={100} value={value * 100} onChange={...} />
+<span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
+  Balance: {Math.round((1 - value) * 100)}%
+</span>
+```
+
+Referenzen: [src/plugins/auslastung/views/admin/KonfigurationSection.tsx](src/plugins/auslastung/views/admin/KonfigurationSection.tsx), [src/plugins/auslastung/components/KalibrierungsReport.tsx](src/plugins/auslastung/components/KalibrierungsReport.tsx) (Scope-Slider)
 
 ### Tabs
 Underline-Style, NICHT gefüllte Tabs:
@@ -371,6 +426,22 @@ Für wichtige Hinweise (nächster Schritt, Frist-Warnung):
 }
 ```
 Einziges Element mit sichtbarer linker Borderlinie. Sparsam einsetzen (max 1 pro Seite).
+
+### Inline-Error-Banner
+Für Speicher-Fehler, Operations-Fehler, Validierungs-Fehler am Form-Ende — alles wo der User wissen muss „die letzte Aktion ist fehlgeschlagen". Unterschied zu „Validierung inline am Feld" (bleibt direkt unter Input): Error-Banner ist eine separate Box, meist unten in der Section.
+
+```tsx
+{error && (
+  <div className="rounded p-2.5 text-[12px]"
+       style={{ background: '#fee2e2', color: '#991b1b', border: '0.5px solid #fca5a5' }}>
+    ⚠ Setup konnte nicht gespeichert werden: <span className="font-mono">{error}</span>
+  </div>
+)}
+```
+
+Persistent bis Error behoben oder Aktion erneut versucht. Bei Async-Operations (Save, Upload): **immer** mit `try/catch` setzen, nicht nur in Console loggen.
+
+Referenz: [src/plugins/auslastung/views/admin/SetupWizard.tsx](src/plugins/auslastung/views/admin/SetupWizard.tsx) (Setup-Fehler-Banner)
 
 ### Metric-Card (Dashboard-Widgets)
 ```css
@@ -446,6 +517,61 @@ Zwei-Spalten-Layout für Admin-Bereiche wo der User Items auswählt und bearbeit
 - Bei langen Titeln in der Liste: 50/50 statt 40/60, damit Titel nicht truncaten
 - Empty-State rechts wenn nichts ausgewählt: zentrierter Text "← Item auswählen" in tertiary color
 
+### Drag&Drop-Upload-Zone
+Für XLSX/CSV/JSON-Imports. Dashed Border als Drop-Target, hover-/dragging-State mit Primary-Border, IMMER mit File-Picker-Button als Fallback (manche User wissen nicht dass Drop möglich ist).
+
+```tsx
+<div onDragOver={onDragOver} onDrop={onDrop}
+     style={{ border: dragging ? '1.5px dashed var(--tf-primary)' : '1.5px dashed var(--tf-border)',
+              background: dragging ? 'var(--tf-bg-secondary)' : 'transparent' }}>
+  <p>Datei hier ablegen</p>
+  <label className="btn">Datei wählen<input type="file" hidden ... /></label>
+</div>
+```
+
+Multi-File-Support optional (für z.B. Multi-MA-Onboarding-Import).
+Referenzen: [src/plugins/auslastung/components/ImportDialog.tsx](src/plugins/auslastung/components/ImportDialog.tsx), [src/plugins/auslastung/components/OnboardingImportDialog.tsx](src/plugins/auslastung/components/OnboardingImportDialog.tsx)
+
+### Multi-Step Wizard
+Mehrstufiger Setup/Configuration-Flow in einer Card. Step-Dots oben rechts zeigen Fortschritt; Zurück (Ghost) / Weiter oder Fertig (Primary) unten.
+
+Step-Dot-Zustände: `active` = schwarz, `done` = `bg-emerald-500` + Häkchen, `pending` = `bg-secondary` + Nummer.
+
+**Kritischer Hinweis zum finalen Step:**
+Wenn `finish()` mehrere Stores/Felder ändert + persistiert, das in **EINEM** `setState` + **EINEM** `persist`-Call zusammenfassen. Mehrere parallele `persist`-Aufrufe (z.B. wenn jede `upsertX`-Action ihren eigenen persist triggert) fallen oft durch `if (saving) return;`-Locks raus → silent inkonsistenter Speicher-Zustand. Plus: finale Aktion immer mit `try/catch` + Error-Banner (siehe oben), nicht `try/finally` + `void promise()`.
+
+```tsx
+async function finish() {
+  setBusy(true); setError(null);
+  try {
+    useStore.setState(state => ({ data: { ...state.data, /* alle Änderungen */ } }));
+    await persist(storage);
+  } catch (err) {
+    console.error('[Wizard] finish failed:', err);
+    setError(err instanceof Error ? err.message : String(err));
+  } finally {
+    setBusy(false);
+  }
+}
+```
+
+Referenz: [src/plugins/auslastung/views/admin/SetupWizard.tsx](src/plugins/auslastung/views/admin/SetupWizard.tsx)
+
+### Toast (Auto-Dismiss)
+Fix bottom-right Notification für reversible Aktionen (Bestätigungen wie „Zugewiesen ✓", Statuswechsel). 3 Sekunden auto-dismiss, klickbar zum sofortigen Schließen.
+
+```tsx
+<div role="status" aria-live="polite"
+     className="fixed bottom-6 right-6 z-40 px-4 py-3 rounded-[10px] cursor-pointer shadow-lg"
+     style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-success-border)' }}>
+  {message}
+</div>
+```
+
+Tones (Border-Farbe): `success` emerald, `info` sky, `error` rose. Für nicht-reversible/destruktive Aktionen lieber Inline-Error-Banner.
+
+Referenz: [src/plugins/dokument-review/components/ReviewToast.tsx](src/plugins/dokument-review/components/ReviewToast.tsx)
+
 ---
 
 ## 6. Layout-Patterns
@@ -503,6 +629,33 @@ Zwei-Spalten-Layout für Admin-Bereiche wo der User Items auswählt und bearbeit
 
   (Tab-Inhalt, volle Breite)
 ```
+
+### Sectioned Admin-Page
+Wenn eine Admin-Seite mehrere Konfigurations-Bereiche hat, die alle gleichzeitig sichtbar/bearbeitbar sein sollen (statt versteckt hinter Tabs): **stacked Cards untereinander** statt sub-Tabs.
+
+```
+┌─ Setup-Wizard (nur wenn !setupAbgeschlossen) ──┐
+│ ...                                            │
+└────────────────────────────────────────────────┘
+┌─ Konfiguration ────────────────────────────────┐
+│ Stunden / Quartal / Gewichtung                 │
+└────────────────────────────────────────────────┘
+┌─ Überkategorien ───────────────────────────────┐
+│ Tabelle + Drawer für Mapping                   │
+└────────────────────────────────────────────────┘
+┌─ Embedding-Corpus ─────────────────────────────┐
+│ Progress + Build-Buttons                       │
+└────────────────────────────────────────────────┘
+┌─ Mitarbeiter ──────────────────────────────────┐
+│ MA-Tabelle + CRUD                              │
+└────────────────────────────────────────────────┘
+```
+
+Jede Card mit eigener `<h3>` (14px, 500, primary) + eigenem Save-Pfad. Reihenfolge: Setup-Wizard (falls offen) → Konfiguration → Inhalts-Sections → User-Verwaltung.
+
+Wann Tabs statt Sections: wenn die Bereiche zu lang/komplex sind und gleichzeitiges Anzeigen die Seite unscrollbar lang machen würde.
+
+Referenz: [src/plugins/auslastung/views/AuslastungAdmin.tsx](src/plugins/auslastung/views/AuslastungAdmin.tsx)
 
 ---
 
@@ -593,6 +746,13 @@ Warm-grau mit leichtem Gelbstich — wie Papier bei Lampenlicht. Nicht kalt, nic
 - Fehler: Inline am Element, rot, persistent bis gefixt
 - Loading: Dezenter Spinner oder "Laden..." Text, kein Skeleton
 - Leer: Freundlicher Text + eine Aktion ("Noch keine Bauanträge. Erstelle den ersten →")
+- **Async-Operations** (Save, Upload, Setup-Finish): IMMER sichtbarer Loading-State (Button-Text „Speichere…") UND Error-Banner bei Fehler. Errors aus `try/catch` ins UI rendern (siehe Inline-Error-Banner in Kapitel 5) — nicht nur in die Console: unter `file://` ist die Console oft nicht offen, der User sieht sonst nichts
+
+### Anonymisierung
+Wenn Daten anonymisiert angezeigt werden (Datenschutz-Kontext, z.B. MA-IDs MA01-MA30 statt echter Kürzel):
+- Anon-Kennungen IMMER als **Monospace-ID-Badges** (siehe Kapitel 5), nicht als inline-Text — sonst wirken sie wie normale Wörter
+- An prominenter Stelle (Plugin-Header, About-Section) ein Klartext-Hinweis: „Hinter MA-Nummern stecken echte Bearbeiter — De-Anonymisierung nur via geschütztem Export"
+- Echte Kürzel landen NIE im UI, NIE in IDB, NIE auf SMB-Share — ausschließlich im RAM während eines Export-Vorgangs (passwortgeschütztes AES-256-ZIP)
 
 ### Kognitive Last reduzieren
 - Max 5-7 Elemente pro visueller Gruppe
@@ -624,3 +784,9 @@ Bevor eine neue UI-Komponente committed wird, prüfe:
 - [ ] Unter 300 Zeilen pro Datei (Obergrenze für LLM-Kontext)
 - [ ] Kein redundantes Wrapping (div um div um div)
 - [ ] Tab-Count-Badges wo sinnvoll (Anzahl direkt im Tab-Label)
+- [ ] Toggle-Buttons (Pill, Chip) haben deutlich sichtbaren aktiv/inaktiv-Kontrast (nicht `opacity-40`-Trick)
+- [ ] Pills mit inhalts-abhängiger Breite reservieren ihren Platz konstant (z.B. `invisible`-Spans für optionale Icons/Häkchen)
+- [ ] Async UI-Aktionen haben `try/catch` + sichtbares Error-Banner (nicht nur Console-Error)
+- [ ] `aria-pressed` auf Toggle-Buttons, `aria-current` auf aktiven Nav-Items
+- [ ] Multi-Step-Setup: EIN finaler `setState` + EIN `persist` (keine Lock-Races durch mehrere parallele async-Aufrufe)
+- [ ] Anonymisierte IDs als Monospace-ID-Badges, nicht als inline-Text
