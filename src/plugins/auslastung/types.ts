@@ -234,6 +234,15 @@ export const DEFAULT_UEBERKATEGORIEN: UeberKategorie[] = [
   { id: 'NM', name: 'Naturwissenschaftliche Methoden',             farbe: 'violet',  deskriptorenMapping: deriveDefaultMappingFor('NM') },
 ];
 
+/**
+ * Default-Jahreskapazitaet pro MA in Stunden — ~Halbzeit-Aequivalent
+ * (PL faengt im Auslastungs-Modul typischerweise mit der Annahme an, dass
+ * MAs nur einen Teil ihrer Zeit fuer Antragsbearbeitung haben — Rest ist
+ * andere Projekte, Verwaltung, Urlaub). PL kann pro MA im Admin
+ * ueberschreiben.
+ */
+export const DEFAULT_JAHRESKAPAZITAET = 800;
+
 export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   stundenProTV: 10,
   aktuellesQuartal: deriveCurrentQuartal(),

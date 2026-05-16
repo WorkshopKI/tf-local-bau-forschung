@@ -22,7 +22,7 @@ import type {
   UeberKategorie,
   VirtuellesProjekt,
 } from '../types';
-import { ONBOARDING_CONFIDENCE } from '../types';
+import { DEFAULT_JAHRESKAPAZITAET, ONBOARDING_CONFIDENCE } from '../types';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { nextFreeAnonId, normalizeKuerzel, type AnonymMap } from './anonym-map';
 
@@ -330,7 +330,7 @@ export async function applyOnboardingImport(
     onboardingAbgeschlossen: true,
   } : {
     anonId,
-    jahresKapazitaet: 1600,
+    jahresKapazitaet: DEFAULT_JAHRESKAPAZITAET,
     abgemeldet: [],
     manuelleTechnologien: preview.manuelleTechnologien,
     ueberKategorien,

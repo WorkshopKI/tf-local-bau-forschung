@@ -155,9 +155,11 @@ export function deriveKategorienForMa(
  * NICHT genutzt: profilEmbeddingText, virtuelleProjekte, onboardingAbgeschlossen
  * (kommen in Prompt 2).
  *
- * Default-Kapazitaet: 1600h/Jahr (~Vollzeit minus Urlaub/Krankheit/Overhead).
+ * Default-Kapazitaet: siehe `DEFAULT_JAHRESKAPAZITAET` (`~Halbzeit-Aequivalent`
+ * — PL geht im Auslastungs-Modul davon aus, dass MAs nur einen Teil ihrer
+ * Zeit fuer Antragsbearbeitung haben). Pro MA im Admin ueberschreibbar.
  */
-import type { AnonymerMitarbeiter } from '../types';
+import { DEFAULT_JAHRESKAPAZITAET, type AnonymerMitarbeiter } from '../types';
 
 export interface SyncMitarbeiterOptions {
   /** Default-Kapazitaet fuer neu erkannte MAs (Stunden/Jahr). */
@@ -179,7 +181,7 @@ export function syncMitarbeiterFromAntraege(
   kategorien: UeberKategorie[],
   opts: SyncMitarbeiterOptions = {},
 ): SyncMitarbeiterResult {
-  const defaultJK = opts.defaultJahresKapazitaet ?? 1600;
+  const defaultJK = opts.defaultJahresKapazitaet ?? DEFAULT_JAHRESKAPAZITAET;
   const result: Record<string, AnonymerMitarbeiter> = { ...current };
   const hinzugefuegt: string[] = [];
   const aktualisiert: string[] = [];

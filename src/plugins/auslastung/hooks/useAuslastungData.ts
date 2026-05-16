@@ -15,6 +15,7 @@ import {
   saveAuslastungData,
 } from '../services/auslastung-store';
 import {
+  DEFAULT_JAHRESKAPAZITAET,
   emptyAuslastungData,
   type AuslastungConfig,
   type AuslastungData,
@@ -133,7 +134,7 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     const id = nextFreeAnonId(Object.keys(get().data.mitarbeiter));
     const ma: AnonymerMitarbeiter = {
       anonId: id,
-      jahresKapazitaet: init?.jahresKapazitaet ?? 1600,
+      jahresKapazitaet: init?.jahresKapazitaet ?? DEFAULT_JAHRESKAPAZITAET,
       abgemeldet: init?.abgemeldet ?? [],
       manuelleTechnologien: init?.manuelleTechnologien ?? [],
       ueberKategorien: init?.ueberKategorien ?? [],
