@@ -30,7 +30,7 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
             min={1}
             max={500}
             value={config.stundenProTV}
-            onChange={e => void update({ stundenProTV: Number(e.target.value) || 10 })}
+            onChange={e => void update({ stundenProTV: Number(e.target.value) || 9 })}
             disabled={busy}
             className="w-full text-[12.5px] px-2 py-1 rounded outline-none"
             style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}

@@ -104,7 +104,7 @@ export function runMatching(input: MatchInput): MatchResult[] {
   }
 
   // 5)-7) Score + Filter + Balance pro MA
-  const stundenProTV = config.stundenProTV ?? 10;
+  const stundenProTV = config.stundenProTV ?? 9;
   const anzahlTV = input.anzahlTV ?? 1;
   const benoetigt = stundenProTV * anzahlTV;
   const quartalsVerbrauchByAnon = computeVerbrauchByAnon(zuweisungen, config.aktuellesQuartal);

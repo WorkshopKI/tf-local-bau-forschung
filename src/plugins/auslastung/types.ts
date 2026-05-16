@@ -248,7 +248,7 @@ export const DEFAULT_UEBERKATEGORIEN: UeberKategorie[] = [
 export const DEFAULT_JAHRESKAPAZITAET = 800;
 
 export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
-  stundenProTV: 10,
+  stundenProTV: 9,
   aktuellesQuartal: deriveCurrentQuartal(),
   gewichtungKompetenz: 0.7,
   gewichtungBalance: 0.3,
