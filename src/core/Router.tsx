@@ -104,6 +104,7 @@ export function buildRouter(
   // Einfache Plugins ohne Detail-Routen
   const flatIds = [
     'dokumente',
+    'auslastung',
     'suche',
     'chat',
     'feedback-board',

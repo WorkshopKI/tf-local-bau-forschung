@@ -16,6 +16,7 @@ export const PLUGIN_ROUTES: Record<string, string> = {
   antraege: '/antraege',
   bauantraege: '/bauantraege',
   dokumente: '/dokumente',
+  auslastung: '/auslastung',
   suche: '/suche',
   chat: '/chat',
   'feedback-board': '/feedback-board',
