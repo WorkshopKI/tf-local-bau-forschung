@@ -254,7 +254,7 @@ export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   gewichtungBalance: 0.3,
   ueberKategorien: DEFAULT_UEBERKATEGORIEN,
   klassifizierungsSchwellwert: 0.15,
-  selbsteintragungFristTage: 14,
+  selbsteintragungFristTage: 7,
   stage2Aktiv: false,
   setupAbgeschlossen: false,
 };

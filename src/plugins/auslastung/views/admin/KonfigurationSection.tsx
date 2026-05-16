@@ -47,7 +47,7 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
             style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
           />
         </Field>
-        <Field label={`Gewichtung Kompetenz: ${Math.round(config.gewichtungKompetenz * 100)}%`}>
+        <Field label="Vorschlag-Priorität">
           <input
             type="range"
             min={0}
@@ -60,9 +60,13 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
             disabled={busy}
             className="w-full"
           />
-          <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
-            Balance: {Math.round(config.gewichtungBalance * 100)}%
-          </span>
+          <div className="flex items-center justify-between text-[10.5px] text-[var(--tf-text-tertiary)]">
+            <span>{Math.round(config.gewichtungKompetenz * 100)}% fachlich am besten</span>
+            <span>{Math.round(config.gewichtungBalance * 100)}% noch viel Kapazität</span>
+          </div>
+          <p className="text-[10.5px] text-[var(--tf-text-tertiary)] leading-snug mt-1">
+            Bei der Top-3-Auswahl: links → wer fachlich am besten passt (auch wenn knapp Kapazität). Rechts → wer noch viel frei hat (auch wenn fachlich nicht perfekt).
+          </p>
         </Field>
         <Field label="Selbsteintragungs-Frist (Tage)">
           <input
@@ -70,7 +74,7 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
             min={0}
             max={90}
             value={config.selbsteintragungFristTage}
-            onChange={e => void update({ selbsteintragungFristTage: Number(e.target.value) || 14 })}
+            onChange={e => void update({ selbsteintragungFristTage: Number(e.target.value) || 7 })}
             disabled={busy}
             className="w-full text-[12.5px] px-2 py-1 rounded outline-none"
             style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
