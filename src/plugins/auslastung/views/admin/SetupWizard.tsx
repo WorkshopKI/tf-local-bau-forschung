@@ -359,7 +359,10 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: P
             <ul className="text-[12.5px] text-[var(--tf-text-secondary)] space-y-1">
               <li>· {kategorien.length} Überkategorien angelegt</li>
               <li>· {zugeordnetCount} von {allDeskriptoren.length} Deskriptoren zugeordnet</li>
-              <li>· {anonymMap.toAnon.size} anonyme MA-IDs aus den historischen Anträgen abgeleitet</li>
+              <li>
+                · {anonymMap.toAnon.size} anonyme MA-IDs aus den TIB-Kürzeln der historischen Anträge
+                <span className="text-[var(--tf-text-tertiary)]"> — inkl. ehemalige Bearbeiter, deren Kompetenz-Profile beim Matching neuer MAs als Referenz dienen können</span>
+              </li>
               <li>· {ohneZuordnungCount} Deskriptoren ohne Zuordnung (kein Problem — können später ergänzt werden)</li>
             </ul>
             <p className="text-[12px] text-[var(--tf-text-tertiary)] mt-3">
