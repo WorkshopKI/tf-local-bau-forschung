@@ -132,7 +132,7 @@ function KategorieDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-end p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh]"
       style={{ background: 'rgba(0,0,0,0.3)' }}
       onClick={onClose}
     >
