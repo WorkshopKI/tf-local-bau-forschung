@@ -26,14 +26,18 @@ import type { CollapsibleSegItem } from './CollapsibleSeg';
 
 export const STATUS_FILTER_ID = 'system-status';
 
-export type PhaseLabel = 'Alle' | 'Offen' | 'Nachforderung' | 'Bewilligt' | 'Begleitung' | 'Abgeschlossen';
+// Kurz-Labels für die Filter-Pille — verhindern Umbruch der Toolbar wenn die
+// Phase-CollapsibleSeg mit Counts wie `Abgeschl. 10.845` aufgeklappt wird.
+// Die Status-Gruppierungs-Section-Header (antragGroups.ts → StatusPhaseLabel)
+// nutzen weiterhin die vollen Namen.
+export type PhaseLabel = 'Alle' | 'Offen' | 'NF' | 'Bewilligt' | 'Begleitung' | 'Abgeschl.';
 
 const PHASE_LABEL_BY_CHIP_ID: Record<StatusQuickChipId, PhaseLabel> = {
   offen: 'Offen',
-  nachforderung: 'Nachforderung',
+  nachforderung: 'NF',
   bewilligt: 'Bewilligt',
   begleitung: 'Begleitung',
-  abgeschlossen: 'Abgeschlossen',
+  abgeschlossen: 'Abgeschl.',
 };
 
 const SONSTIGE_VALUES: ReadonlySet<string> = new Set(getStatusValuesByCategory('sonstige'));
@@ -89,12 +93,12 @@ function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
  *  über die gesamte Antrags-Liste (vor allen Filtern). */
 export function getPhaseItems(antraege: AntragListItem[]): CollapsibleSegItem[] {
   const counts: Record<PhaseLabel, number> = {
-    Alle: antraege.length,
-    Offen: 0,
-    Nachforderung: 0,
-    Bewilligt: 0,
-    Begleitung: 0,
-    Abgeschlossen: 0,
+    'Alle': antraege.length,
+    'Offen': 0,
+    'NF': 0,
+    'Bewilligt': 0,
+    'Begleitung': 0,
+    'Abgeschl.': 0,
   };
   for (const a of antraege) {
     const s = typeof a.status === 'string' ? a.status.toLowerCase().trim() : '';
@@ -107,12 +111,12 @@ export function getPhaseItems(antraege: AntragListItem[]): CollapsibleSegItem[] 
     }
   }
   return [
-    { label: 'Alle', count: counts.Alle },
-    { label: 'Offen', count: counts.Offen },
-    { label: 'Nachforderung', count: counts.Nachforderung },
-    { label: 'Bewilligt', count: counts.Bewilligt },
-    { label: 'Begleitung', count: counts.Begleitung },
-    { label: 'Abgeschlossen', count: counts.Abgeschlossen },
+    { label: 'Alle', count: counts['Alle'] },
+    { label: 'Offen', count: counts['Offen'] },
+    { label: 'NF', count: counts['NF'] },
+    { label: 'Bewilligt', count: counts['Bewilligt'] },
+    { label: 'Begleitung', count: counts['Begleitung'] },
+    { label: 'Abgeschl.', count: counts['Abgeschl.'] },
   ];
 }
 
