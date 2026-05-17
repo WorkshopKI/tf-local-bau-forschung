@@ -61,10 +61,11 @@ export function runMatching(input: MatchInput): MatchResult[] {
 
   if (kategorieIds.length === 0) return [];
 
-  // 1) Eligible MAs: Schnittmenge ueberKategorien <-> kategorieIds
+  // 1) Eligible MAs: Schnittmenge ueberKategorien <-> kategorieIds, aktive nur
   const katSet = new Set(kategorieIds);
   const eligibleAnonIds = new Set<string>();
   for (const ma of Object.values(mitarbeiter)) {
+    if (!ma.aktiv) continue;
     if (ma.ueberKategorien.some(k => katSet.has(k))) {
       eligibleAnonIds.add(ma.anonId);
     }
@@ -112,6 +113,7 @@ export function runMatching(input: MatchInput): MatchResult[] {
   const out: MatchResult[] = [];
   for (const anonId of eligibleAnonIds) {
     const ma = mitarbeiter[anonId]!;
+    if (!ma.aktiv) continue;  // defensiv: eligible-Sammlung filtert schon, doppelt schadet nicht
     if (ma.abgemeldet.includes(config.aktuellesQuartal)) continue;
     // MA ohne Onboarding UND ohne hist. Antraege: ueberspringen
     if (!ma.onboardingAbgeschlossen && (historischeDeskriptorenByAnon.get(anonId) ?? []).length === 0) continue;

@@ -30,10 +30,17 @@ export function KapazitaetsDashboard(): React.ReactElement {
   const [openMa, setOpenMa] = useState<string | null>(null);
 
   const list = useMemo(() => {
-    const all = Object.values(mitarbeiter);
+    const all = Object.values(mitarbeiter).filter(m => m.aktiv);
     const filtered = kategorieFilter ? all.filter(m => m.ueberKategorien.includes(kategorieFilter)) : all;
     return filtered.sort((a, b) => a.anonId.localeCompare(b.anonId));
   }, [mitarbeiter, kategorieFilter]);
+
+  const totalCount = Object.keys(mitarbeiter).length;
+  const aktivCount = useMemo(
+    () => Object.values(mitarbeiter).filter(m => m.aktiv).length,
+    [mitarbeiter],
+  );
+  const hasGaps = totalCount > aktivCount;
 
   const verbrauchByAnon = useMemo(() => {
     const map = new Map<string, { freigegeben: number; selbst: number; vorgeschlagen: number }>();
@@ -61,10 +68,10 @@ export function KapazitaetsDashboard(): React.ReactElement {
           className={`text-[11.5px] px-2.5 py-1 rounded-full cursor-pointer ${kategorieFilter === '' ? '' : 'opacity-50'}`}
           style={{ border: '0.5px solid var(--tf-border)' }}
         >
-          Alle ({Object.keys(mitarbeiter).length})
+          Alle ({aktivCount})
         </button>
         {config.ueberKategorien.map(k => {
-          const count = Object.values(mitarbeiter).filter(m => m.ueberKategorien.includes(k.id)).length;
+          const count = Object.values(mitarbeiter).filter(m => m.aktiv && m.ueberKategorien.includes(k.id)).length;
           return (
             <button
               key={k.id}
@@ -123,6 +130,12 @@ export function KapazitaetsDashboard(): React.ReactElement {
           </div>
         )}
       </div>
+
+      {hasGaps && (
+        <p className="text-[11px] text-[var(--tf-text-tertiary)] leading-tight">
+          {aktivCount} von {totalCount} Mitarbeitern aktiv. Inaktive MAs behalten ihre Nummer — Lücken in der Nummerierung sind normal. Details unter Admin → „Inaktive anzeigen".
+        </p>
+      )}
 
       {/* Flyout */}
       {openMaObj && (

@@ -15,6 +15,7 @@ function makeMa(anonId: string, kategorien: string[], tech: string[] = []): Anon
     ueberKategorien: kategorien,
     virtuelleProjekte: [],
     onboardingAbgeschlossen: true,
+    aktiv: true,
   };
 }
 

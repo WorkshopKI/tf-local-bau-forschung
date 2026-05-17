@@ -199,6 +199,7 @@ export function syncMitarbeiterFromAntraege(
         ueberKategorien: derivedKategorien,
         virtuelleProjekte: [],
         onboardingAbgeschlossen: true,   // hat hist. Antraege -> kein Onboarding noetig
+        aktiv: true,                     // Default: aktiv; PL deaktiviert ggf. via Banner/Admin
       };
       hinzugefuegt.push(anonId);
     } else if (opts.overrideKategorien) {

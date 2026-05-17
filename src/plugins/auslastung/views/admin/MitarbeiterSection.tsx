@@ -21,6 +21,8 @@ import { KalibrierungsReport } from '../../components/KalibrierungsReport';
 import { exportAnonymousXlsx, exportProtectedZip } from '../../services/export-service';
 import { downloadOnboardingHtml } from '../../services/onboarding-html-generator';
 import type { OnboardingPreview } from '../../services/onboarding-import';
+import { detectAktiveMAs, shouldShowAktivVorschlag } from '../../services/aktiv-detection';
+import { AktivVorschlagBanner } from './AktivVorschlagBanner';
 
 interface Props {
   storage: StorageService;
@@ -33,6 +35,8 @@ export function MitarbeiterSection({ storage }: Props): React.ReactElement {
   const upsert = useAuslastungData(s => s.upsertMitarbeiter);
   const create = useAuslastungData(s => s.createMitarbeiter);
   const remove = useAuslastungData(s => s.removeMitarbeiter);
+  const setAktiv = useAuslastungData(s => s.setMitarbeiterAktiv);
+  const applyAktivMap = useAuslastungData(s => s.applyAktivMap);
   const cache = useAntraegeCache();
 
   const [editId, setEditId] = useState<string | null>(null);
@@ -40,6 +44,9 @@ export function MitarbeiterSection({ storage }: Props): React.ReactElement {
   const [calibPreviews, setCalibPreviews] = useState<OnboardingPreview[] | null>(null);
   const [pwOpen, setPwOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
+  const [vorschlagDismissed, setVorschlagDismissed] = useState(false);
+  const [vorschlagBusy, setVorschlagBusy] = useState(false);
 
   async function exportGeschuetzt(password: string): Promise<void> {
     setExportBusy(true);
@@ -54,16 +61,61 @@ export function MitarbeiterSection({ storage }: Props): React.ReactElement {
   }
 
   const list = useMemo(() => {
-    return Object.values(mitarbeiter).sort((a, b) => a.anonId.localeCompare(b.anonId));
-  }, [mitarbeiter]);
+    return Object.values(mitarbeiter)
+      .filter(m => showInactive || m.aktiv)
+      .sort((a, b) => a.anonId.localeCompare(b.anonId));
+  }, [mitarbeiter, showInactive]);
+
+  const aktivCount = useMemo(
+    () => Object.values(mitarbeiter).filter(m => m.aktiv).length,
+    [mitarbeiter],
+  );
+  const totalCount = Object.keys(mitarbeiter).length;
+  const inaktivCount = totalCount - aktivCount;
+
+  const referenzJahr = useMemo(() => new Date().getUTCFullYear(), []);
+
+  const vorschlag = useMemo(() => {
+    if (vorschlagDismissed) return null;
+    if (!cache.loaded) return null;
+    if (!shouldShowAktivVorschlag(mitarbeiter)) return null;
+    return detectAktiveMAs(cache.antraege, mitarbeiter, cache.anonymMap, referenzJahr);
+  }, [vorschlagDismissed, cache.loaded, cache.antraege, cache.anonymMap, mitarbeiter, referenzJahr]);
+
+  async function uebernehmenVorschlag(): Promise<void> {
+    if (!vorschlag) return;
+    setVorschlagBusy(true);
+    try {
+      await applyAktivMap(storage, vorschlag.vorschlag);
+    } finally {
+      setVorschlagBusy(false);
+    }
+  }
+
+  function manuellSetzen(): void {
+    setShowInactive(true);
+    setVorschlagDismissed(true);
+  }
 
   const editMa = editId ? mitarbeiter[editId] : null;
 
   return (
     <div className="rounded-[12px] p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="text-[14px] font-medium text-[var(--tf-text)]">Mitarbeiter ({list.length})</h3>
-        <div className="flex items-center gap-2">
+        <h3 className="text-[14px] font-medium text-[var(--tf-text)]">
+          Mitarbeiter ({aktivCount} aktiv{inaktivCount > 0 ? ` / ${totalCount} gesamt` : ''})
+        </h3>
+        <div className="flex items-center gap-3">
+          {inaktivCount > 0 && (
+            <label className="flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={e => setShowInactive(e.target.checked)}
+              />
+              Inaktive anzeigen
+            </label>
+          )}
           <button
             type="button"
             onClick={() => void create(storage)}
@@ -73,6 +125,16 @@ export function MitarbeiterSection({ storage }: Props): React.ReactElement {
           </button>
         </div>
       </div>
+      {vorschlag && (
+        <AktivVorschlagBanner
+          detection={vorschlag}
+          referenzJahr={referenzJahr}
+          busy={vorschlagBusy}
+          onUebernehmen={uebernehmenVorschlag}
+          onManuell={manuellSetzen}
+          onSpaeter={() => setVorschlagDismissed(true)}
+        />
+      )}
       <table className="w-full text-[12.5px]">
         <thead>
           <tr className="text-left text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
@@ -87,7 +149,13 @@ export function MitarbeiterSection({ storage }: Props): React.ReactElement {
           {list.map(ma => {
             const kats = kategorien.filter(k => ma.ueberKategorien.includes(k.id));
             return (
-              <tr key={ma.anonId} style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
+              <tr
+                key={ma.anonId}
+                style={{
+                  borderBottom: '0.5px solid var(--tf-border)',
+                  opacity: ma.aktiv ? 1 : 0.55,
+                }}
+              >
                 <td className="px-2 py-1.5"><AnonymIdBadge anonId={ma.anonId} /></td>
                 <td className="px-2 py-1.5 text-[var(--tf-text-secondary)]">{ma.jahresKapazitaet}h</td>
                 <td className="px-2 py-1.5">
@@ -103,6 +171,22 @@ export function MitarbeiterSection({ storage }: Props): React.ReactElement {
                   {!ma.onboardingAbgeschlossen && (
                     <span className="text-[10.5px] text-amber-700 mr-2">⚙ Onboarding</span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (ma.aktiv) {
+                        const ok = window.confirm(
+                          `${ma.anonId} deaktivieren?\n\nWird aus Matching, Dashboard und Cockpit ausgeblendet. Historische Anträge bleiben im Embedding-Corpus als Kompetenz-Referenz.`,
+                        );
+                        if (!ok) return;
+                      }
+                      void setAktiv(storage, ma.anonId, !ma.aktiv);
+                    }}
+                    className="text-[11.5px] cursor-pointer hover:underline mr-2"
+                    title={ma.aktiv ? 'Klicken zum Deaktivieren' : 'Klicken zum Aktivieren'}
+                  >
+                    {ma.aktiv ? 'Aktiv' : 'Inaktiv'}
+                  </button>
                   <button
                     type="button"
                     onClick={() => setEditId(ma.anonId)}

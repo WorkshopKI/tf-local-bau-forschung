@@ -24,11 +24,11 @@ function makeData(): AuslastungData {
   base.mitarbeiter = {
     MA01: {
       anonId: 'MA01', jahresKapazitaet: 1600, abgemeldet: [], manuelleTechnologien: ['KI'],
-      ueberKategorien: ['IKT'], virtuelleProjekte: [], onboardingAbgeschlossen: true,
+      ueberKategorien: ['IKT'], virtuelleProjekte: [], onboardingAbgeschlossen: true, aktiv: true,
     },
     MA02: {
       anonId: 'MA02', jahresKapazitaet: 1400, abgemeldet: [], manuelleTechnologien: [],
-      ueberKategorien: ['IND'], virtuelleProjekte: [], onboardingAbgeschlossen: true,
+      ueberKategorien: ['IND'], virtuelleProjekte: [], onboardingAbgeschlossen: true, aktiv: true,
     },
   };
   return base;

@@ -15,7 +15,7 @@ function makeAntrag(az: string, fields: Partial<Antrag> = {}): Antrag {
   } as Antrag;
 }
 
-function makeMa(anonId: string): AnonymerMitarbeiter {
+function makeMa(anonId: string, aktiv = true): AnonymerMitarbeiter {
   return {
     anonId,
     jahresKapazitaet: 1600,
@@ -24,6 +24,7 @@ function makeMa(anonId: string): AnonymerMitarbeiter {
     ueberKategorien: ['IKT'],
     virtuelleProjekte: [],
     onboardingAbgeschlossen: true,
+    aktiv,
   };
 }
 

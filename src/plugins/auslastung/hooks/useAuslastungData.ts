@@ -47,6 +47,13 @@ interface AuslastungDataState {
   upsertMitarbeiter: (storage: StorageService, ma: AnonymerMitarbeiter) => Promise<void>;
   createMitarbeiter: (storage: StorageService, init?: Partial<AnonymerMitarbeiter>) => Promise<AnonymerMitarbeiter>;
   removeMitarbeiter: (storage: StorageService, anonId: string) => Promise<void>;
+  /** Toggle aktiv-Flag fuer einen einzelnen MA. No-op wenn MA nicht existiert
+   *  oder Flag bereits den Zielwert hat (verhindert unnoetige Saves). */
+  setMitarbeiterAktiv: (storage: StorageService, anonId: string, aktiv: boolean) => Promise<void>;
+  /** Bulk: setzt aktiv-Flag fuer mehrere MAs in EINEM setState + persist.
+   *  Wird vom Auto-Vorschlag-Banner genutzt (sonst N persist-Roundtrips
+   *  durch den `if (saving) return`-Lock raus, siehe CLAUDE.md Lesson 16). */
+  applyAktivMap: (storage: StorageService, aktivById: Record<string, boolean>) => Promise<void>;
   // ── Klassifizierungen ────────────────────────────────────────────────
   upsertKlassifizierung: (storage: StorageService, k: Klassifizierung) => Promise<void>;
   freigebenKategorien: (storage: StorageService, antragId: string, kategorieIds: string[]) => Promise<void>;
@@ -141,6 +148,7 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       virtuelleProjekte: init?.virtuelleProjekte ?? [],
       profilEmbeddingText: init?.profilEmbeddingText,
       onboardingAbgeschlossen: init?.onboardingAbgeschlossen ?? false,
+      aktiv: init?.aktiv ?? true,
     };
     await get().upsertMitarbeiter(storage, ma);
     return ma;
@@ -153,6 +161,34 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       return { data: { ...state.data, mitarbeiter: next } };
     });
     await get().persist(storage);
+  },
+
+  setMitarbeiterAktiv: async (storage, anonId, aktiv) => {
+    const current = get().data.mitarbeiter[anonId];
+    if (!current || current.aktiv === aktiv) return;
+    set(state => ({
+      data: {
+        ...state.data,
+        mitarbeiter: { ...state.data.mitarbeiter, [anonId]: { ...current, aktiv } },
+      },
+    }));
+    await get().persist(storage);
+  },
+
+  applyAktivMap: async (storage, aktivById) => {
+    let changed = false;
+    set(state => {
+      const next = { ...state.data.mitarbeiter };
+      for (const [id, aktiv] of Object.entries(aktivById)) {
+        const ma = next[id];
+        if (!ma || ma.aktiv === aktiv) continue;
+        next[id] = { ...ma, aktiv };
+        changed = true;
+      }
+      if (!changed) return state;
+      return { data: { ...state.data, mitarbeiter: next } };
+    });
+    if (changed) await get().persist(storage);
   },
 
   upsertKlassifizierung: async (storage, k) => {

@@ -67,11 +67,13 @@ export function runEmbeddingMatching(input: RunEmbeddingMatchInput): EmbeddingMa
   // + aehnliche Projekte sammeln
   const perMa = new Map<string, { score: number; projekte: AehnlichesProjekt[] }>();
 
-  // Index der virtuellen Projekte pro MA: aktenzeichen -> confidence
+  // Index der virtuellen Projekte pro MA: aktenzeichen -> confidence.
+  // Inaktive MAs werden ausgeschlossen — ihre virtuellen Projekte erzeugen
+  // keinen Score, auch wenn sie in eligibleAnonIds steckten.
   const virtuelleByMa = new Map<string, Map<string, number>>();
   for (const anonId of input.eligibleAnonIds) {
     const ma = input.mitarbeiter[anonId];
-    if (!ma) continue;
+    if (!ma || !ma.aktiv) continue;
     const inner = new Map<string, number>();
     for (const vp of ma.virtuelleProjekte ?? []) {
       inner.set(vp.antragId, vp.confidence);
@@ -83,10 +85,15 @@ export function runEmbeddingMatching(input: RunEmbeddingMatchInput): EmbeddingMa
     const a = input.antraegeIndex.get(t.aktenzeichen);
     if (!a) continue;
 
-    // 1) Echter Bearbeiter (TIB) -> anonId, score gewichtet mit 1.0
+    // 1) Echter Bearbeiter (TIB) -> anonId, score gewichtet mit 1.0.
+    // Wichtig: corpusEmbeddings/antraegeIndex enthalten weiterhin ALLE hist.
+    // Antraege (auch von inaktiven Bearbeitern) — wir ueberspringen nur den
+    // Score-Credit, nicht den Top-K-Slot. Das laesst Centroids stabil.
     const tibKuerz = normalizeKuerzel(a.tib_kuerz);
     const tibAnonId = tibKuerz ? input.anonymMap.toAnon.get(tibKuerz) : undefined;
-    if (tibAnonId && input.eligibleAnonIds.has(tibAnonId)) {
+    if (tibAnonId
+      && input.eligibleAnonIds.has(tibAnonId)
+      && input.mitarbeiter[tibAnonId]?.aktiv) {
       addToMa(perMa, tibAnonId, t.sim * 1.0, t.aktenzeichen, a, t.sim);
     }
 

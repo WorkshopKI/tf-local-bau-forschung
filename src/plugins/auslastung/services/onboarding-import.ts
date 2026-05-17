@@ -337,6 +337,7 @@ export async function applyOnboardingImport(
     virtuelleProjekte,
     profilEmbeddingText: preview.profilFreitext,
     onboardingAbgeschlossen: true,
+    aktiv: true,
   };
 
   await state.upsertMitarbeiter(storage, next);

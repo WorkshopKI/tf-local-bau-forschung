@@ -90,6 +90,12 @@ export interface AnonymerMitarbeiter {
   virtuelleProjekte: VirtuellesProjekt[];
   profilEmbeddingText?: string;
   onboardingAbgeschlossen: boolean;
+  /** false = ehemaliger Bearbeiter / nicht mehr im Programm. UI + Matching
+   *  blenden inaktive MAs aus; ihre historischen Antraege bleiben aber im
+   *  Embedding-Corpus als Kompetenz-Referenz. Default beim Anlegen: true.
+   *  Migration alter Daten: ebenfalls true (PL deaktiviert manuell via
+   *  Admin-Tab oder ueber den Auto-Vorschlag-Banner). */
+  aktiv: boolean;
 }
 
 export interface Zuweisung {
@@ -204,6 +210,8 @@ export const CANONICAL_VERBUND_ID = 'verbund_id';
 export const CANONICAL_VERBUND_TITEL = 'verbund_titel';
 export const CANONICAL_TITEL = 'titel';
 export const CANONICAL_AKRONYM = 'akronym';
+/** ISO-Datum YYYY-MM-DD — fuer Aktiv-Heuristik "Antraege im aktuellen Jahr". */
+export const CANONICAL_ANTRAGSDATUM = 'antragsdatum';
 
 /** Custom-Field-Keys (nicht canonical, ueber antrag[key] erreichbar). */
 export const FIELD_PROJEKTBESCHREIBUNG = 'projektbeschreibung_text';

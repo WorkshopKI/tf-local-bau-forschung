@@ -24,6 +24,7 @@ function makeMa(
   ueberKategorien: string[],
   kap = 1600,
   tech: string[] = [],
+  aktiv = true,
 ): AnonymerMitarbeiter {
   return {
     anonId,
@@ -33,6 +34,7 @@ function makeMa(
     ueberKategorien,
     virtuelleProjekte: [],
     onboardingAbgeschlossen: true,
+    aktiv,
   };
 }
 
