@@ -44,6 +44,10 @@ export interface DashboardAggregateResult {
   naechsterSchritt: (Vorgang & { daysLeft: number }) | null;
   fristenDieseWoche: number;
   letzteAenderungen: Vorgang[];
+  /** Alle offenen eigenen Förderanträge, sortiert nach Frist asc, dann
+   *  vb_phase asc. Die UI (HomePage/MeineAntraegeSection) schneidet selbst
+   *  ab — initial nach `profile.home_meine_antraege_count` (Default 5),
+   *  optional erweiterbar via "+10 mehr"-Button. */
   meineAntraege: AntragVorgang[];
   stats: DashboardStats;
   /** Wurde mindestens ein Antrag mit einem nicht-leeren KUERZ-Feld gesehen?
@@ -191,7 +195,8 @@ export function computeDashboardAggregate(
 
   // Sortierung: Frist primaer (frueheste Frist oben), VB-Phase als Tie-Breaker.
   // Antraege ohne `deadline` (frist_datum nicht gepflegt) rutschen ans Ende
-  // durch den `￿`-Sentinel-Sort-Key.
+  // durch den `￿`-Sentinel-Sort-Key. Kein Slice — die UI schneidet selbst ab,
+  // damit "+10 mehr"-Erweiterung in-page funktioniert.
   const meineAntraege = [...offeneAntraege]
     .sort((a, b) => {
       const da = a.deadline ?? '￿';
@@ -201,8 +206,7 @@ export function computeDashboardAggregate(
       const pa = a.vb_phase ?? Number.POSITIVE_INFINITY;
       const pb = b.vb_phase ?? Number.POSITIVE_INFINITY;
       return pa - pb;
-    })
-    .slice(0, 5);
+    });
 
   return {
     offeneVorgaenge,

@@ -27,8 +27,11 @@ export interface DashboardData {
   naechsterSchritt: (Vorgang & { daysLeft: number }) | null;
   fristenDieseWoche: number;
   letzteAenderungen: Vorgang[];
-  /** Top-5 offene Förderanträge des Profils, sortiert nach vb_phase asc, dann Frist asc.
-   *  Leer wenn `department === 'bauantraege'` oder kein Antrag gefunden. */
+  /** Alle offenen eigenen Förderanträge, sortiert nach Frist asc, dann
+   *  vb_phase asc. UI schneidet selbst ab (Default 5 via
+   *  `profile.home_meine_antraege_count`, "+10 mehr"-Button erweitert
+   *  in-page). Leer wenn `department === 'bauantraege'` oder kein Antrag
+   *  gefunden. */
   meineAntraege: AntragVorgang[];
   stats: DashboardStats;
   /** Kürzel-Filter im Profil aktiv (≠ leer / "alle"). */

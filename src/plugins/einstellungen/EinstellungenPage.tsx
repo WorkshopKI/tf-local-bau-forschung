@@ -130,6 +130,30 @@ export function EinstellungenPage(): React.ReactElement {
                 </span>
               </label>
             </div>
+            <div className="mt-6">
+              <SectionHeader label="Home-Dashboard" />
+              <p className="mt-2 text-[12px] text-[var(--tf-text-secondary)] leading-snug">
+                Wie viele Ihrer offenen Anträge initial auf der Home-Seite erscheinen.
+                Über &quot;+10 mehr&quot; lassen sich weitere in-page anzeigen.
+              </p>
+              <div className="mt-3 flex flex-col gap-1.5 max-w-xs">
+                <label className="text-[13px] font-medium text-[var(--tf-text)]">Anträge auf Home anzeigen</label>
+                <input
+                  type="number"
+                  min={5}
+                  max={15}
+                  value={profile.home_meine_antraege_count ?? 5}
+                  onChange={e => {
+                    const raw = Number(e.target.value);
+                    if (Number.isNaN(raw)) return;
+                    const clamped = Math.max(5, Math.min(15, Math.round(raw)));
+                    updateProfile({ home_meine_antraege_count: clamped });
+                  }}
+                  className={inputClass}
+                  style={inputStyle}
+                />
+              </div>
+            </div>
             {isKuratorMenusEnabled() && (
               <div className="mt-6">
                 <SectionHeader label="Kurator-Funktionen" />

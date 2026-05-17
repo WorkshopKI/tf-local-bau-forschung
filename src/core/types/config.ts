@@ -34,6 +34,12 @@ export interface UserProfile {
    * Bearbeiter-Spalten (TiB_KUERZ, BIB_KUERZ).
    */
   bearbeiter_inkl_begleitung?: boolean;
+  /**
+   * Anzahl Anträge, die auf der Home-Seite in "Meine Anträge" initial gezeigt
+   * werden. Range 5–15. Default 5 (wenn unset). Der "+10 mehr"-Button am
+   * Listenende erweitert in-page (nicht persistent).
+   */
+  home_meine_antraege_count?: number;
 }
 
 export interface AIProviderConfig {

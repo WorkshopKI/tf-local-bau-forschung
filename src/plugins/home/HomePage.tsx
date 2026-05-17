@@ -212,60 +212,100 @@ export function HomePage(): React.ReactElement {
         {/* Main */}
         <div data-tour="document-list" className="min-w-0">
           {(() => {
-            // Stufe 2: "Meine Anträge" wird nur gezeigt, wenn der Bearbeiter-Filter
-            // im Profil aktiv ist. Ohne Filter wäre die Liste irreführend ("meine"
-            // sind eigentlich nur die ersten 5 nach VB-Phase). Stattdessen rendern
-            // wir dann nur "Aktuelle Vorgänge" — eine Sektion, keine Verdopplung.
-            const showMeine = data.bearbeiterFilterActive
-              && profile?.department !== 'bauantraege'
-              && data.meineAntraege.length > 0;
-            const meineIds = new Set(data.meineAntraege.map(a => a.id));
-            const weitereOffene = showMeine
-              ? data.letzteAenderungen.filter(v => !meineIds.has(v.id))
-              : data.letzteAenderungen;
-            const sekundaerLabel = showMeine ? 'Weitere offene' : 'Aktuelle Vorgänge';
+            // Bauanträge-Department behält den bisherigen "Aktuelle Vorgänge"-Render.
+            // Förderanträge-Pfad ('antraege' / 'beide') zeigt ausschließlich "Meine
+            // Anträge" — inkl. Onboarding-Karte (kein Kürzel) und Empty-State
+            // (Kürzel aktiv aber 0 Treffer).
+            if (profile?.department === 'bauantraege') {
+              if (data.letzteAenderungen.length === 0) return null;
+              return (
+                <>
+                  <SectionHeader
+                    label="Aktuelle Vorgänge"
+                    action={
+                      <button
+                        onClick={() => navigate('bauantraege')}
+                        className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+                      >
+                        Alle →
+                      </button>
+                    }
+                  />
+                  {data.letzteAenderungen.map((v, i) => {
+                    const isAntrag = (v as { _isAntrag?: boolean })._isAntrag === true;
+                    const vbPhase = isAntrag ? (v as { vb_phase?: number }).vb_phase : undefined;
+                    const phaseLabel = getVbPhaseLabel(vbPhase);
+                    return (
+                      <ListItem
+                        key={v.id}
+                        iconBare
+                        icon={
+                          phaseLabel ? (
+                            <Badge variant={getVbPhaseVariant(vbPhase)}>{phaseLabel}</Badge>
+                          ) : (
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--tf-text-tertiary)] opacity-40" />
+                          )
+                        }
+                        title={v.title}
+                        subtitle={v.id}
+                        meta={<Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>}
+                        onClick={() => navigate(isAntrag ? 'antraege' : 'bauantraege', { selectedId: v.id })}
+                        last={i === data.letzteAenderungen.length - 1}
+                      />
+                    );
+                  })}
+                </>
+              );
+            }
+
+            if (!data.bearbeiterFilterActive) {
+              return (
+                <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-5">
+                  <div className="flex items-start gap-3">
+                    <Settings size={18} className="mt-0.5 text-[var(--tf-text-secondary)] shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-medium text-[var(--tf-text)] mb-1">
+                        Ihr Bearbeiter-Kürzel ist noch nicht gesetzt
+                      </p>
+                      <p className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug mb-3">
+                        Tragen Sie in den Einstellungen Ihr Namenskürzel ein
+                        (z.B. <span className="font-mono">MUE</span>), damit hier automatisch
+                        Ihre offenen Anträge erscheinen.
+                      </p>
+                      <Button variant="secondary" size="sm" icon={ArrowRight} onClick={() => navigate('einstellungen')}>
+                        Zu den Einstellungen
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            if (data.meineAntraege.length === 0) {
+              return (
+                <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-5">
+                  <p className="text-[14px] font-medium text-[var(--tf-text)] mb-1">
+                    Keine offenen Anträge für Kürzel{' '}
+                    <span className="font-mono">{data.bearbeiterTokens.join(', ')}</span>
+                  </p>
+                  <p className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug mb-3">
+                    Aktuell sind keine offenen Förderanträge auf Sie zugeordnet. In der
+                    Förderanträge-Liste können Sie alle Vorgänge einsehen.
+                  </p>
+                  <Button variant="secondary" size="sm" icon={ArrowRight} onClick={() => navigate('antraege')}>
+                    Alle Förderanträge öffnen
+                  </Button>
+                </div>
+              );
+            }
+
+            const initialCount = Math.max(5, Math.min(15, profile?.home_meine_antraege_count ?? 5));
             return (
-              <>
-                {showMeine ? <MeineAntraegeSection antraege={data.meineAntraege} /> : null}
-                {weitereOffene.length > 0 ? (
-                  <>
-                    <SectionHeader
-                      label={sekundaerLabel}
-                      action={
-                        <button
-                          onClick={() => navigate(profile?.department === 'bauantraege' ? 'bauantraege' : 'antraege')}
-                          className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-                        >
-                          Alle →
-                        </button>
-                      }
-                    />
-                    {weitereOffene.map((v, i) => {
-                      const isAntrag = (v as { _isAntrag?: boolean })._isAntrag === true;
-                      const vbPhase = isAntrag ? (v as { vb_phase?: number }).vb_phase : undefined;
-                      const phaseLabel = getVbPhaseLabel(vbPhase);
-                      return (
-                        <ListItem
-                          key={v.id}
-                          iconBare
-                          icon={
-                            phaseLabel ? (
-                              <Badge variant={getVbPhaseVariant(vbPhase)}>{phaseLabel}</Badge>
-                            ) : (
-                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--tf-text-tertiary)] opacity-40" />
-                            )
-                          }
-                          title={v.title}
-                          subtitle={v.id}
-                          meta={<Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>}
-                          onClick={() => navigate(isAntrag ? 'antraege' : 'bauantraege', { selectedId: v.id })}
-                          last={i === weitereOffene.length - 1}
-                        />
-                      );
-                    })}
-                  </>
-                ) : null}
-              </>
+              <MeineAntraegeSection
+                antraege={data.meineAntraege}
+                initialCount={initialCount}
+                bearbeiterTokens={data.bearbeiterTokens}
+              />
             );
           })()}
         </div>

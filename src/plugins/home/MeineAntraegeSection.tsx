@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Badge, SectionHeader, ListItem } from '@/ui';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
@@ -24,8 +25,12 @@ function splitTitle(title: string, acronym: string | undefined): { acronym: stri
 }
 
 interface Props {
-  /** Top-5 offene eigene Förderanträge, bereits sortiert (vb_phase asc → Frist asc). */
+  /** Alle offenen eigenen Förderanträge, bereits sortiert (Frist asc → VB-Phase asc). */
   antraege: AntragVorgang[];
+  /** Initiale Anzahl angezeigter Anträge (aus Profil, gelampt 5–15). */
+  initialCount: number;
+  /** Aktive Bearbeiter-Filter-Tokens (uppercase). Für den Help-Text. */
+  bearbeiterTokens: string[];
 }
 
 function formatDaysShort(deadline: string | undefined): string | null {
@@ -41,13 +46,25 @@ function formatDaysShort(deadline: string | undefined): string | null {
  * des Profils zeigt — gruppiert nach VB-Phase (badge prominent als Icon).
  *
  * Sichtbarkeit:
- * - Wird durch HomePage nur eingebunden, wenn `department !== 'bauantraege'`.
- * - Gibt `null` zurück, wenn keine Anträge anliegen — z.B. wenn der Bearbeiter-
- *   Filter aktiv ist und niemand der eigenen Anträge offen ist.
+ * - Wird durch HomePage nur eingebunden, wenn `department !== 'bauantraege'`
+ *   und der Bearbeiter-Filter aktiv ist und mindestens ein Antrag matched.
  */
-export function MeineAntraegeSection({ antraege }: Props): React.ReactElement | null {
+export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens }: Props): React.ReactElement | null {
   const { navigate } = useNavigation();
+  const [visibleCount, setVisibleCount] = useState(initialCount);
+
+  // Wenn der Profil-Wert ändert (User passt im Einstellungs-Tab an), setzen
+  // wir die in-page-Expansion zurück auf den neuen Initialwert.
+  useEffect(() => {
+    setVisibleCount(initialCount);
+  }, [initialCount]);
+
   if (antraege.length === 0) return null;
+
+  const visible = antraege.slice(0, visibleCount);
+  const hasMore = antraege.length > visibleCount;
+  const remaining = antraege.length - visibleCount;
+  const nextChunk = Math.min(10, remaining);
 
   return (
     <div className="mb-6">
@@ -62,7 +79,10 @@ export function MeineAntraegeSection({ antraege }: Props): React.ReactElement | 
           </button>
         }
       />
-      {antraege.map((v, i) => {
+      <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2 -mt-1">
+        Anträge mit Ihrem Kürzel <span className="font-mono">{bearbeiterTokens.join(', ')}</span>, sortiert nach Frist
+      </p>
+      {visible.map((v, i) => {
         const phaseLabel = getVbPhaseLabel(v.vb_phase);
         const daysFmt = formatDaysShort(v.deadline);
         const { acronym: acrPrefix, rest } = splitTitle(v.title, v.acronym);
@@ -100,10 +120,23 @@ export function MeineAntraegeSection({ antraege }: Props): React.ReactElement | 
               </>
             }
             onClick={() => navigate('antraege', { selectedId: v.id })}
-            last={i === antraege.length - 1}
+            last={i === visible.length - 1}
           />
         );
       })}
+      {hasMore ? (
+        <div className="mt-2 flex items-center justify-between">
+          <button
+            onClick={() => setVisibleCount(c => Math.min(antraege.length, c + 10))}
+            className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+          >
+            +{nextChunk} mehr anzeigen
+          </button>
+          <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+            {visibleCount} von {antraege.length}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }
