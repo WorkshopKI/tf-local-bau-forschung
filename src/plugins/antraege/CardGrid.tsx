@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from './store';
-import { buildAntragGroups, takeGroupsUntil, type GroupingMode } from './antragGroups';
+import {
+  buildAntragGroups,
+  takeGroupsUntil,
+  splitByStatusPhase,
+  type AntragGroup,
+  type GroupingMode,
+} from './antragGroups';
 import { sortDisablesGrouping } from './sort';
 import { AntragTile } from './AntragTile';
 
@@ -43,28 +49,57 @@ export function CardGrid({
   const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
   const hasMoreGroups = groups.length < allGroups.length;
 
+  const renderTiles = (gs: AntragGroup[]): React.ReactElement => (
+    <div
+      className="grid gap-1.5"
+      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}
+    >
+      {gs.map(g => (
+        <AntragTile
+          key={g.tvs[0]!.aktenzeichen}
+          group={g}
+          selectedAktenzeichen={selectedAktenzeichen}
+          selectedVerbundId={selectedVerbundId}
+          onOpenAntrag={onOpenAntrag}
+          onOpenVerbund={onOpenVerbund}
+        />
+      ))}
+    </div>
+  );
+
   return (
     <div className="flex flex-col">
-      <div
-        className="grid gap-1.5"
-        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}
-      >
-        {groups.map(g => (
-          <AntragTile
-            key={g.tvs[0]!.aktenzeichen}
-            group={g}
-            selectedAktenzeichen={selectedAktenzeichen}
-            selectedVerbundId={selectedVerbundId}
-            onOpenAntrag={onOpenAntrag}
-            onOpenVerbund={onOpenVerbund}
-          />
-        ))}
-      </div>
+      {effectiveMode === 'status' ? (
+        <div className="flex flex-col gap-4">
+          {splitByStatusPhase(groups).map(section => (
+            <div key={section.label}>
+              <StatusSectionHeader label={section.label} count={section.groups.length} />
+              {renderTiles(section.groups)}
+            </div>
+          ))}
+        </div>
+      ) : (
+        renderTiles(groups)
+      )}
       {hasMoreGroups ? (
         <div ref={sentinelRef} className="py-4 text-center text-[11.5px] text-[var(--tf-text-tertiary)]">
           Lade weitere Einträge …
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function StatusSectionHeader({ label, count }: { label: string; count: number }): React.ReactElement {
+  return (
+    <div className="flex items-center gap-3 mb-2 mt-1 first:mt-0">
+      <span className="text-[11px] tracking-[0.08em] uppercase font-medium text-[var(--tf-text-tertiary)]">
+        {label}
+      </span>
+      <span className="text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">
+        {count.toLocaleString('de-DE')}
+      </span>
+      <div className="flex-1 h-px bg-[var(--tf-border)]" />
     </div>
   );
 }

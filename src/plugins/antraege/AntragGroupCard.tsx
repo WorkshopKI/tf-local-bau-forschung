@@ -83,8 +83,8 @@ export function AntragGroupCard({
     >
       {/* Foerderart-Badge ganz links — konsistent mit der Home-Page-Liste,
           wo das Badge ebenfalls die linke Bound der Card markiert. Kein
-          pl-padding hier, damit das Badge vertikal mit SortDropdown
-          ("Sortiert: …") in der Toolbar alignt. */}
+          pl-padding hier, damit das Badge vertikal mit der Quickfilter-
+          Toolbar darüber alignt. */}
       <div className="shrink-0 pt-[6px]">
         {phaseLabel ? (
           <Badge

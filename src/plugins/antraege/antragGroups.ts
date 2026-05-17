@@ -1,4 +1,5 @@
 import type { AntragListItem } from '@/core/services/csv/types';
+import { getStatusCategory } from '@/core/utils/status-canonical';
 import {
   extractNetzwerkId,
   isNetzwerkLead,
@@ -9,7 +10,9 @@ import {
 
 /**
  * Gruppierungs-Modus für die Antragsliste.
- * - `verbund`: Cluster nach `verbund_id` (Default; aktuelles Verhalten).
+ * - `verbund`: Cluster nach `verbund_id` (Legacy, weiterhin im Code für
+ *   bestehende Aufrufer/Tests; nicht mehr in der UI-Toolbar wählbar — siehe
+ *   GROUPING_OPTIONS in sort.ts).
  * - `netzwerk`: Cluster nach 4-Ziffer-Netzwerk-ID aus dem 16KN-FKZ. Cluster-
  *   Reihenfolge folgt dem ersten Auftreten in der primär-sortierten Eingabe
  *   (= User-Sort steuert auch die Supergruppen-Position). Anträge ohne
@@ -17,9 +20,48 @@ import {
  * - `netzwerk-by-size`: Wie `netzwerk`, aber die Supergruppen werden nach
  *   Mitglieder-Zahl absteigend sortiert (Tie-Break: Netzwerk-ID asc), Solos
  *   wandern ans Ende. Praktisch um „große" Netzwerke schnell zu sehen.
+ * - `status`: Flache Solo-Gruppen, sortiert nach Phase (Offen → Nachforderung
+ *   → Bewilligt → Begleitung → Abgeschlossen → Sonstige). Jede Gruppe trägt
+ *   `statusPhaseLabel` für Header-Rendering in der Listendarstellung.
  * - `none`: Flache Liste, jeder TV ist eine eigene Gruppe.
  */
-export type GroupingMode = 'verbund' | 'netzwerk' | 'netzwerk-by-size' | 'none';
+export type GroupingMode = 'verbund' | 'netzwerk' | 'netzwerk-by-size' | 'status' | 'none';
+
+/**
+ * Phasen-Reihenfolge für `mode='status'` (entspricht Bearbeitungs-Lifecycle).
+ * Mapping `StatusCategory` → Phase-Label aus `STATUS_QUICK_CHIPS` (Single
+ * Source of Truth in `filter/statusQuickChips.ts`).
+ */
+const STATUS_PHASE_ORDER = [
+  'Offen',
+  'Nachforderung',
+  'Bewilligt',
+  'Begleitung',
+  'Abgeschlossen',
+  'Sonstige',
+] as const;
+export type StatusPhaseLabel = (typeof STATUS_PHASE_ORDER)[number];
+
+function statusPhaseForAntrag(a: AntragListItem): StatusPhaseLabel {
+  const cat = getStatusCategory(a.status);
+  switch (cat) {
+    case 'offen':
+    case 'in_pruefung':
+    case 'entscheidung':
+      return 'Offen';
+    case 'nachforderung':
+      return 'Nachforderung';
+    case 'bewilligt':
+      return 'Bewilligt';
+    case 'begleitung':
+      return 'Begleitung';
+    case 'abgeschlossen':
+    case 'abgelehnt':
+      return 'Abgeschlossen';
+    default:
+      return 'Sonstige';
+  }
+}
 
 /**
  * Gruppe von Anträgen für die kompakte Listendarstellung. Eine Gruppe ist
@@ -49,6 +91,11 @@ export interface AntragGroup {
    *  Einzelanträge innerhalb des Netzwerks. Reihenfolge: Sub-Gruppe mit Lead
    *  zuerst, dann nach erstem-FKZ aufsteigend. */
   subGroups?: AntragGroup[];
+  /** Nur bei `mode='status'` gesetzt: Phase-Label des head-TVs (Offen /
+   *  Nachforderung / Bewilligt / Begleitung / Abgeschlossen / Sonstige). Der
+   *  Renderer (GroupedList) rendert einen Section-Header zwischen aufeinander-
+   *  folgenden Gruppen mit unterschiedlichem Label. */
+  statusPhaseLabel?: StatusPhaseLabel;
 }
 
 const EN_DASH = '–';
@@ -69,6 +116,38 @@ export function formatFkzRange(tvs: AntragListItem[]): string {
     if (az.localeCompare(max) > 0) max = az;
   }
   return `${min}${EN_DASH}${max}`;
+}
+
+/**
+ * Section für `mode='status'`: ein Phase-Label + die zugehörigen Antrags-
+ * Gruppen. Renderer nutzen das, um zwischen Sektionen einen Header zu
+ * zeichnen.
+ */
+export interface StatusPhaseSection {
+  label: StatusPhaseLabel;
+  groups: AntragGroup[];
+}
+
+/**
+ * Teilt eine Status-gruppierte Gruppen-Liste in zusammenhängende Sektionen
+ * pro Phase. Reihenfolge bleibt erhalten (= Lifecycle-Reihenfolge aus
+ * `buildAntragGroups`). Leere Phasen werden nicht ausgegeben.
+ * Wenn keine Gruppe ein `statusPhaseLabel` hat, returnt das Array eine einzige
+ * Sektion mit `label='Sonstige'` (defensiv — sollte nie passieren, weil der
+ * Aufrufer nur mit `mode='status'` aufgerufen wird).
+ */
+export function splitByStatusPhase(groups: AntragGroup[]): StatusPhaseSection[] {
+  const sections: StatusPhaseSection[] = [];
+  let current: StatusPhaseSection | null = null;
+  for (const g of groups) {
+    const label = g.statusPhaseLabel ?? 'Sonstige';
+    if (!current || current.label !== label) {
+      current = { label, groups: [] };
+      sections.push(current);
+    }
+    current.groups.push(g);
+  }
+  return sections;
 }
 
 /**
@@ -219,6 +298,28 @@ export function buildAntragGroups(
 
   if (mode === 'none') {
     return antraege.map(a => soloGroup(a));
+  }
+
+  if (mode === 'status') {
+    // Phasen-Buckets befüllen, Reihenfolge der Antraege innerhalb des Buckets
+    // = primärer Sort der Caller-Pipeline (nicht re-sortieren). Buckets selbst
+    // in Lifecycle-Reihenfolge ausgeben.
+    const buckets = new Map<StatusPhaseLabel, AntragListItem[]>();
+    for (const phase of STATUS_PHASE_ORDER) buckets.set(phase, []);
+    for (const a of antraege) {
+      const phase = statusPhaseForAntrag(a);
+      buckets.get(phase)!.push(a);
+    }
+    const out: AntragGroup[] = [];
+    for (const phase of STATUS_PHASE_ORDER) {
+      const items = buckets.get(phase)!;
+      for (const a of items) {
+        const g = soloGroup(a);
+        g.statusPhaseLabel = phase;
+        out.push(g);
+      }
+    }
+    return out;
   }
 
   if (mode === 'netzwerk' || mode === 'netzwerk-by-size') {

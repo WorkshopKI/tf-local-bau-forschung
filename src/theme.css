@@ -114,6 +114,15 @@ body {
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+/* CollapsibleSeg: Quickfilter-Pille klappt nach rechts in einen Seg auf
+   (siehe src/plugins/antraege/filter/CollapsibleSeg.tsx). Origin links,
+   damit die Animation nicht zentriert "atmet", sondern aus der Pille
+   herauswächst. */
+@keyframes seg-expand {
+  from { opacity: 0; transform: scaleX(0.94); }
+  to   { opacity: 1; transform: scaleX(1); }
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;

@@ -6,13 +6,17 @@ import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEff
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
-import { StatusQuickChipsBar } from './filter/StatusQuickChipsBar';
+import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
 import { AntragGroupCard } from './AntragGroupCard';
 import { NetzwerkClusterCard } from './NetzwerkClusterCard';
-import { buildAntragGroups, takeGroupsUntil, type GroupingMode } from './antragGroups';
+import {
+  buildAntragGroups,
+  takeGroupsUntil,
+  splitByStatusPhase,
+  type AntragGroup,
+  type GroupingMode,
+} from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
-import { SortDropdown } from './SortDropdown';
-import { GroupingDropdown } from './GroupingDropdown';
 import { sortDisablesGrouping } from './sort';
 import { CompactList } from './CompactList';
 import { CardGrid } from './CardGrid';
@@ -145,22 +149,22 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     <div className={containerClass} style={containerStyle}>
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
         <div className={innerClass}>
-          {/* Sort-Dropdown + Profil-Pill links, ActiveFilterChips rechts.
-              Profil-Pill direkt neben SortDropdown, weil sie wie Sort eine
-              persistente Voreinstellung repräsentiert (nicht inline änderbar). */}
+          {/* QuickfilterToolbar (Phase / Kategorie / Antragsdatum + Extra-Sort
+              + Gruppieren) links, Bearbeiter-Pill + ActiveFilterChips rechts.
+              Letztere bleibt erhalten, damit Filter aus der Sidebar (z.B.
+              Bewilligungsdatum-Range) weiterhin sichtbar als Chip-Pille
+              erscheinen. */}
           <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
-              <SortDropdown />
-              <GroupingDropdown />
+              <QuickfilterToolbar />
+            </div>
+            <div className="flex-1 min-w-0 flex items-center justify-end gap-3 flex-wrap">
               {bearbeiterFilter.active ? (
                 <BearbeiterFilterPill
                   tokens={bearbeiterFilter.tokens}
                   includeBegleitung={bearbeiterFilter.includeBegleitung}
                 />
               ) : null}
-            </div>
-            <div className="flex-1 min-w-0 flex items-center justify-end gap-3 flex-wrap">
-              <StatusQuickChipsBar />
               {active.length > 0 ? (
                 <ActiveFilterChips active={active} definitions={definitions} onRemove={clearFilter} />
               ) : null}
@@ -286,38 +290,70 @@ function GroupedList({
   );
   const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
   const hasMoreGroups = groups.length < allGroups.length;
+
+  const renderGroup = (g: AntragGroup): React.ReactElement => {
+    const isNetzwerkSuper = g.netzwerkId !== null && (g.subGroups?.length ?? 0) > 0;
+    if (isNetzwerkSuper) {
+      return (
+        <NetzwerkClusterCard
+          key={g.tvs[0]!.aktenzeichen}
+          group={g}
+          selectedAktenzeichen={selectedAktenzeichen}
+          onOpenAntrag={onOpenAntrag}
+          onOpenVerbund={onOpenVerbund}
+          narrow={narrow}
+        />
+      );
+    }
+    return (
+      <AntragGroupCard
+        key={g.tvs[0]!.aktenzeichen}
+        group={g}
+        selectedAktenzeichen={selectedAktenzeichen}
+        onOpenAntrag={onOpenAntrag}
+        onOpenVerbund={onOpenVerbund}
+        narrow={narrow}
+      />
+    );
+  };
+
   return (
-    <div className="flex flex-col gap-1">
-      {groups.map(g => {
-        const isNetzwerkSuper = g.netzwerkId !== null && (g.subGroups?.length ?? 0) > 0;
-        if (isNetzwerkSuper) {
-          return (
-            <NetzwerkClusterCard
-              key={g.tvs[0]!.aktenzeichen}
-              group={g}
-              selectedAktenzeichen={selectedAktenzeichen}
-              onOpenAntrag={onOpenAntrag}
-              onOpenVerbund={onOpenVerbund}
-              narrow={narrow}
-            />
-          );
-        }
-        return (
-          <AntragGroupCard
-            key={g.tvs[0]!.aktenzeichen}
-            group={g}
-            selectedAktenzeichen={selectedAktenzeichen}
-            onOpenAntrag={onOpenAntrag}
-            onOpenVerbund={onOpenVerbund}
-            narrow={narrow}
-          />
-        );
-      })}
+    <div className="flex flex-col">
+      {effectiveMode === 'status' ? (
+        <div className="flex flex-col gap-3">
+          {splitByStatusPhase(groups).map(section => (
+            <div key={section.label}>
+              <StatusSectionHeader label={section.label} count={section.groups.length} />
+              <div className="flex flex-col gap-1">
+                {section.groups.map(renderGroup)}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {groups.map(renderGroup)}
+        </div>
+      )}
       {hasMoreGroups ? (
         <div ref={sentinelRef} className="py-4 text-center text-[11.5px] text-[var(--tf-text-tertiary)]">
           Lade weitere Einträge …
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function StatusSectionHeader({ label, count }: { label: string; count: number }): React.ReactElement {
+  return (
+    <div className="flex items-center gap-3 mb-1.5 mt-1 first:mt-0">
+      <span className="text-[11px] tracking-[0.08em] uppercase font-medium text-[var(--tf-text-tertiary)]">
+        {label}
+      </span>
+      <span className="text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">
+        {count.toLocaleString('de-DE')}
+      </span>
+      <div className="flex-1 h-px bg-[var(--tf-border)]" />
     </div>
   );
 }

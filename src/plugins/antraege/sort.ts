@@ -145,24 +145,27 @@ export interface GroupingOption {
   label: string;
 }
 
-/** Sichtbare Gruppierungs-Optionen für das UI-Dropdown. Reihenfolge =
- *  Anzeige-Reihenfolge. */
+/** Sichtbare Gruppierungs-Optionen für die UI-Toolbar (Quickfilter-Seg).
+ *  Reihenfolge = Anzeige-Reihenfolge. Vor v1.17: 4 Werte inkl. `verbund`;
+ *  seit Design-Handoff-Refactor: `verbund` aus der UI entfernt, neue `status`-
+ *  Gruppierung ergänzt. `verbund` bleibt im Code (`antragGroups.ts`) für Tests
+ *  und potenzielle programmatische Aufrufer. */
 export const GROUPING_OPTIONS: readonly GroupingOption[] = [
-  { key: 'verbund', label: 'Verbund (Akronym)' },
-  { key: 'netzwerk', label: 'Netzwerk (16KN)' },
-  { key: 'netzwerk-by-size', label: 'Netzwerk (16KN, Größe absteigend)' },
-  { key: 'none', label: 'Keine Gruppierung' },
+  { key: 'none', label: 'Keine' },
+  { key: 'status', label: 'Status' },
+  { key: 'netzwerk', label: 'NW' },
+  { key: 'netzwerk-by-size', label: 'NW-Größe' },
 ];
 
-/** Default-Gruppierung pro View. Verbund ist die produktive Hauptansicht;
- *  Netzwerk und Keine sind explizite User-Wahl. */
+/** Default-Gruppierung pro View. Mit Wegfall von `verbund` als UI-Option
+ *  fallen alle Views auf `none` zurück — explizit und vorhersagbar. */
 export const DEFAULT_GROUPING_BY_VIEW: Record<ViewKey, GroupingMode> = {
-  meine_offenen: 'verbund',
-  diese_woche_faellig: 'verbund',
-  ueberfaellig: 'verbund',
-  nachforderungen: 'verbund',
-  bewilligt_jahr: 'verbund',
-  alle: 'verbund',
+  meine_offenen: 'none',
+  diese_woche_faellig: 'none',
+  ueberfaellig: 'none',
+  nachforderungen: 'none',
+  bewilligt_jahr: 'none',
+  alle: 'none',
 };
 
 export function getGroupingOption(key: GroupingMode): GroupingOption {

@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from './store';
-import { buildAntragGroups, takeGroupsUntil, type GroupingMode } from './antragGroups';
+import {
+  buildAntragGroups,
+  takeGroupsUntil,
+  splitByStatusPhase,
+  type AntragGroup,
+  type GroupingMode,
+} from './antragGroups';
 import { sortDisablesGrouping } from './sort';
 import { CompactGroup } from './CompactGroup';
 
@@ -39,9 +45,9 @@ export function CompactList({
   const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
   const hasMoreGroups = groups.length < allGroups.length;
 
-  return (
+  const renderRows = (gs: AntragGroup[]): React.ReactElement => (
     <div className="flex flex-col gap-0.5">
-      {groups.map(g => (
+      {gs.map(g => (
         <CompactGroup
           key={g.tvs[0]!.aktenzeichen}
           group={g}
@@ -49,11 +55,42 @@ export function CompactList({
           onOpenAntrag={onOpenAntrag}
         />
       ))}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col">
+      {effectiveMode === 'status' ? (
+        <div className="flex flex-col gap-3">
+          {splitByStatusPhase(groups).map(section => (
+            <div key={section.label}>
+              <StatusSectionHeader label={section.label} count={section.groups.length} />
+              {renderRows(section.groups)}
+            </div>
+          ))}
+        </div>
+      ) : (
+        renderRows(groups)
+      )}
       {hasMoreGroups ? (
         <div ref={sentinelRef} className="py-3 text-center text-[11px] text-[var(--tf-text-tertiary)]">
           Lade weitere Einträge …
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function StatusSectionHeader({ label, count }: { label: string; count: number }): React.ReactElement {
+  return (
+    <div className="flex items-center gap-3 mb-1.5 mt-1 first:mt-0">
+      <span className="text-[11px] tracking-[0.08em] uppercase font-medium text-[var(--tf-text-tertiary)]">
+        {label}
+      </span>
+      <span className="text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">
+        {count.toLocaleString('de-DE')}
+      </span>
+      <div className="flex-1 h-px bg-[var(--tf-border)]" />
     </div>
   );
 }
