@@ -5,8 +5,10 @@
  * - "Corpus aufbauen" / "Inkrementell" Buttons
  * - Toggle "Stage-2 aktivieren" (disabled bis Corpus >= 95%)
  * - Centroid-Berechnung nach Mapping-Aenderung
+ * - Auto-Download vom SMB-Share wenn lokal leer + Korpus passt
+ * - Auto-Upload nach Build (Build-Lock-Schutz beim Schreiben)
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
 import type { Antrag } from '@/core/services/csv/types';
 import {
@@ -18,6 +20,10 @@ import {
 } from '../../services/embedding-corpus';
 import { computeKategorieCentroids } from '../../services/klassifizierung-engine';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
+import { useEmbeddingCorpusMirror } from '../../hooks/useEmbeddingCorpusMirror';
+import { checkCompat, hashAktenzeichenSet } from '../../services/embedding-corpus-mirror';
+import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
+import { useProfile } from '@/core/hooks/useProfile';
 
 interface Props {
   storage: StorageService;
@@ -29,11 +35,25 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
   const updateConfig = useAuslastungData(s => s.updateConfig);
   const persistAuslastung = useAuslastungData(s => s.persist);
+  const { profile } = useProfile();
+
+  const mirrorManifest = useEmbeddingCorpusMirror(s => s.manifest);
+  const mirrorLoaded = useEmbeddingCorpusMirror(s => s.manifestLoaded);
+  const mirrorDownloading = useEmbeddingCorpusMirror(s => s.downloading);
+  const mirrorDownloadProgress = useEmbeddingCorpusMirror(s => s.downloadProgress);
+  const mirrorUploading = useEmbeddingCorpusMirror(s => s.uploading);
+  const mirrorError = useEmbeddingCorpusMirror(s => s.error);
+  const loadMirrorManifest = useEmbeddingCorpusMirror(s => s.loadManifest);
+  const downloadMirror = useEmbeddingCorpusMirror(s => s.downloadAndApply);
+  const uploadMirror = useEmbeddingCorpusMirror(s => s.uploadFromIdb);
 
   const [count, setCount] = useState(0);
   const [progress, setProgress] = useState<BuildProgress | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lokalModell, setLokalModell] = useState<{ id: string; dim: number } | null>(null);
+  const [aktenzeichenHash, setAktenzeichenHash] = useState<string | null>(null);
+  const [autoDownloadAttempted, setAutoDownloadAttempted] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const total = antraege.length;
@@ -46,6 +66,63 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
   }, [storage]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  // Aktives Embedding-Modell laden (fuer Compat-Check + Upload-Metadaten).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const id = await getActiveModelId(storage.idb);
+      if (cancelled) return;
+      const cfg = getModelById(id);
+      setLokalModell({ id, dim: cfg.dimensions });
+    })();
+    return () => { cancelled = true; };
+  }, [storage]);
+
+  // Manifest vom Share lesen (klein, kein 42 MB Roundtrip).
+  useEffect(() => {
+    if (!mirrorLoaded) void loadMirrorManifest(storage);
+  }, [mirrorLoaded, loadMirrorManifest, storage]);
+
+  // SHA-256 ueber die aktuelle aktenzeichen-Liste berechnen (Drift-Detection).
+  useEffect(() => {
+    if (antraege.length === 0) { setAktenzeichenHash(null); return; }
+    let cancelled = false;
+    const list = antraege.map(a => a.aktenzeichen);
+    void hashAktenzeichenSet(list).then(h => { if (!cancelled) setAktenzeichenHash(h); });
+    return () => { cancelled = true; };
+  }, [antraege]);
+
+  // Auto-Download: lokal leer + Share-Manifest da + Modell-Kompat OK + Hash passt
+  // → einmaliger Versuch, sonst sind Auto-Loops zu nervig.
+  useEffect(() => {
+    if (autoDownloadAttempted) return;
+    if (!mirrorLoaded || !mirrorManifest) return;
+    if (!lokalModell || !aktenzeichenHash) return;
+    if (count > 0) return; // lokal schon was da, nicht ueberschreiben
+    if (running || mirrorDownloading) return;
+    const compat = checkCompat(mirrorManifest, lokalModell.id, lokalModell.dim);
+    if (compat.kind !== 'compatible') return;
+    if (mirrorManifest.aktenzeichenSetHash !== aktenzeichenHash) return;
+    setAutoDownloadAttempted(true);
+    void downloadMirror(storage).then(async (r) => {
+      if (r && r.count > 0) await refresh();
+    }).catch(err => {
+      setError(`Auto-Download fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
+    });
+  }, [
+    autoDownloadAttempted, mirrorLoaded, mirrorManifest, lokalModell,
+    aktenzeichenHash, count, running, mirrorDownloading, downloadMirror, storage, refresh,
+  ]);
+
+  // Compat-Status fuer die UI-Hinweise (memoisiert).
+  const compatStatus = useMemo(() => {
+    if (!mirrorManifest || !lokalModell) return null;
+    return checkCompat(mirrorManifest, lokalModell.id, lokalModell.dim);
+  }, [mirrorManifest, lokalModell]);
+
+  const hashMismatch = !!(mirrorManifest && aktenzeichenHash
+    && mirrorManifest.aktenzeichenSetHash !== aktenzeichenHash);
 
   async function build(incremental: boolean): Promise<void> {
     setError(null);
@@ -76,6 +153,17 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
         },
       }));
       await persistAuslastung(storage);
+
+      // Auto-Upload auf den Daten-Share. Soft-fail — lokaler Build bleibt
+      // erfolgreich, nur die Share-Sync hat ggf. nicht geklappt.
+      if (lokalModell) {
+        try {
+          await uploadMirror(storage, lokalModell.id, lokalModell.dim, profile?.name);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setError(`Build OK — Share-Upload fehlgeschlagen: ${msg}`);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -129,7 +217,43 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
         </div>
       )}
 
+      {mirrorDownloading && mirrorDownloadProgress && (
+        <div className="text-[11.5px] text-[var(--tf-text-secondary)] mb-2">
+          Lade vom Daten-Share: {mirrorDownloadProgress.done}/{mirrorDownloadProgress.total} Vektoren
+        </div>
+      )}
+
+      {mirrorUploading && (
+        <div className="text-[11.5px] text-[var(--tf-text-secondary)] mb-2">
+          Lade Korpus auf den Daten-Share hoch…
+        </div>
+      )}
+
+      {compatStatus && compatStatus.kind !== 'compatible' && (
+        <div className="rounded p-2 mb-2 text-[11.5px]" style={{ background: 'var(--tf-warning-bg, #fef3c7)', color: 'var(--tf-warning-text, #92400e)', border: '0.5px solid var(--tf-warning-border, #fde68a)' }}>
+          {compatStatus.kind === 'modell-mismatch' && (
+            <>⚠ Share-Korpus wurde mit Modell <code>{compatStatus.shareModell}</code> gebaut, du nutzt <code>{compatStatus.lokalModell}</code>. Vektoren sind inkompatibel — Korpus kann nicht vom Share geladen werden. Lokal neu bauen oder Modell wechseln.</>
+          )}
+          {compatStatus.kind === 'dim-mismatch' && (
+            <>⚠ Share-Korpus hat Dim <code>{compatStatus.shareDim}</code>, dein Modell liefert <code>{compatStatus.lokalDim}</code>. Modell-Version weicht ab — lokal neu bauen.</>
+          )}
+        </div>
+      )}
+
+      {compatStatus?.kind === 'compatible' && hashMismatch && (
+        <div className="rounded p-2 mb-2 text-[11.5px]" style={{ background: 'var(--tf-info-bg, #dbeafe)', color: 'var(--tf-info-text, #1e40af)', border: '0.5px solid var(--tf-info-border, #bfdbfe)' }}>
+          ℹ Share-Korpus: {mirrorManifest?.antraegeCount} Anträge (Stand {mirrorManifest ? new Date(mirrorManifest.builtAt).toLocaleDateString('de-DE') : '?'}). Lokaler Antrags-Stand: {total}. Hash weicht ab — Auto-Download übersprungen. „Inkrementell" baut den lokalen Cache weiter und lädt neuen Stand hoch.
+        </div>
+      )}
+
+      {mirrorManifest && compatStatus?.kind === 'compatible' && !hashMismatch && count > 0 && count === mirrorManifest.antraegeCount && (
+        <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
+          ✓ Korpus mit Daten-Share synchron ({mirrorManifest.antraegeCount} Vektoren, Stand {new Date(mirrorManifest.builtAt).toLocaleDateString('de-DE')}{mirrorManifest.builderProfile ? ` von ${mirrorManifest.builderProfile}` : ''}).
+        </div>
+      )}
+
       {error && <div className="text-[11.5px] text-rose-700 mb-2">{error}</div>}
+      {mirrorError && !error && <div className="text-[11.5px] text-rose-700 mb-2">{mirrorError}</div>}
 
       <div className="flex flex-wrap gap-2 items-center">
         {!running ? (
@@ -187,7 +311,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       </div>
 
       <p className="text-[11px] text-[var(--tf-text-tertiary)] mt-3">
-        Einmaliger Vorgang. Cache liegt lokal im Browser-Storage (~{Math.round(total * 768 * 4 / 1024 / 1024)} MB für {total} Anträge), wird nicht auf den Daten-Share gespiegelt.
+        Einmaliger Vorgang. Cache liegt lokal im Browser-Storage (~{Math.round(total * (lokalModell?.dim ?? 768) * 4 / 1024 / 1024)} MB für {total} Anträge) und wird nach jedem erfolgreichen Build automatisch auf den Daten-Share gespiegelt (`_intern/auslastung-embedding-corpus.*`) — andere Teammitglieder laden den Korpus dann in ~10 sec statt selbst neu zu bauen.
       </p>
     </div>
   );

@@ -1,9 +1,14 @@
 /**
  * Embedding-Corpus — laedt pro historischem Antrag ein Embedding und cached
- * es in IDB (kv-Store, Prefix `auslastung-emb:`). 5000 × 768d × 4 B ≈ 15 MB.
+ * es in IDB (kv-Store, Prefix `auslastung-emb:`). 13k × 768d × 4 B ≈ 40 MB.
  *
- * Bewusst NICHT auf den SMB-Share gespiegelt (zu gross, nutzerspezifisch wegen
- * GPU/Modell-Determinismus).
+ * Wird seit Mai 2026 auch auf den SMB-Daten-Share gespiegelt
+ * (`_intern/auslastung-embedding-corpus.{manifest.json,bin}`), damit ein
+ * zweiter PL den Korpus nicht 46 min lang neu bauen muss. Mirroring-Logik
+ * lebt in `embedding-corpus-mirror.ts` + `useEmbeddingCorpusMirror`. Hier
+ * unveraendert: lokale IDB-CRUD-Operationen + Build-Pipeline. Der Caller
+ * (EmbeddingCorpusSection) triggert nach jedem erfolgreichen Build
+ * automatisch den Upload.
  *
  * Operationen:
  *  - `buildEmbeddingCorpus(idb, antraege, onProgress, signal)` — alle Antraege

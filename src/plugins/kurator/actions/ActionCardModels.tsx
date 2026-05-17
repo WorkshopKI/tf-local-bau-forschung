@@ -56,6 +56,24 @@ export function ActionCardModels({
           value={activeModelId}
           onChange={async (e) => {
             const newId = e.target.value;
+            if (newId === activeModelId) return;
+            const oldLabel = EMBEDDING_MODELS.find(m => m.id === activeModelId)?.label ?? activeModelId;
+            const newLabel = EMBEDDING_MODELS.find(m => m.id === newId)?.label ?? newId;
+            const ok = window.confirm(
+              `Embedding-Modell wechseln?\n\n` +
+              `Von: ${oldLabel}\n` +
+              `Zu:  ${newLabel}\n\n` +
+              `Konsequenzen:\n` +
+              `· Bestehender Suchindex (Volltext-Suche) wird inkompatibel und muss neu gebaut werden.\n` +
+              `· Auslastungs-Modul: Stage-2-Embedding-Korpus auf dem Daten-Share wird inkompatibel — andere Teammitglieder können ihn nicht mehr nutzen, müssen lokal neu bauen (~46 min).\n` +
+              `· Centroids in auslastung.json bleiben gespeichert, sind aber falsch dimensioniert und müssen neu berechnet werden.\n\n` +
+              `Diese Aktion betrifft das gesamte Team. Wirklich wechseln?`
+            );
+            if (!ok) {
+              // Select-Wert zuruecksetzen, weil das DOM bereits geaendert hat
+              e.target.value = activeModelId;
+              return;
+            }
             setActiveModelIdState(newId);
             await setActiveModelId(storage.idb, newId);
           }} />
