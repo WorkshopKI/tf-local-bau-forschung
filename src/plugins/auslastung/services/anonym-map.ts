@@ -41,6 +41,18 @@ function anonId(idx: number): string {
  *
  * Akzeptiert sowohl `Antrag[]` (voller Record, key per `[CANONICAL_TIB_KUERZ]`)
  * als auch `AntragListItem[]` (Slim, key direkt als `.tib_kuerz`).
+ *
+ * @deprecated Drift-prone: alphabetischer Sort verschiebt anonIds wenn neue
+ * Kuerzel in der Mitte einsortieren — die Store-Keys (mitarbeiter[anonId])
+ * folgen aber nicht mit und es entsteht Identitaets-Drift. Verwende
+ * stattdessen die persistente Map ueber `useKuerzelMap` /
+ * `buildAnonymMapFromKuerzelMap` (siehe `services/kuerzel-map.ts`).
+ *
+ * Bleibt hier nur als Fallback im Bootstrap-Pfad (`bootstrapKuerzelMap`
+ * nutzt dieselbe Sort-Logik fuer Initial-Befuellung), fuer Unit-Tests
+ * existierender Matching-Logik mit expliziten Fixture-Maps, und falls in
+ * Edge-Cases (z.B. App-Start ohne SMB-Share-Handle) keine persistente Map
+ * verfuegbar ist.
  */
 export function buildAnonymMap(
   antraege: Array<Antrag | AntragListItem>,

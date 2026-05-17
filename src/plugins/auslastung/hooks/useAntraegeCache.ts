@@ -13,7 +13,9 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
 import type { Antrag } from '@/core/services/csv/types';
-import { buildAnonymMap, type AnonymMap } from '../services/anonym-map';
+import { type AnonymMap } from '../services/anonym-map';
+import { buildAnonymMapFromKuerzelMap } from '../services/kuerzel-map';
+import { useKuerzelMap } from './useKuerzelMap';
 import { aggregateMaProfilesByAnon, collectAllDeskriptorenMitCount } from '../services/profil-aggregator';
 
 interface AntraegeCache {
@@ -34,6 +36,11 @@ export function useAntraegeCache(): AntraegeCache {
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const kuerzelMapFile = useKuerzelMap(s => s.file);
+  const kuerzelMapLoaded = useKuerzelMap(s => s.loaded);
+  const loadKuerzelMap = useKuerzelMap(s => s.load);
+  const syncKuerzelMap = useKuerzelMap(s => s.syncWithAntraege);
 
   const refresh = useCallback(async (): Promise<void> => {
     if (!activeProgrammId) {
@@ -56,7 +63,24 @@ export function useAntraegeCache(): AntraegeCache {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const anonymMap = useMemo(() => buildAnonymMap(antraege), [antraege]);
+  // Lazy load der persistenten Kuerzel-Map beim ersten Render.
+  useEffect(() => {
+    if (!kuerzelMapLoaded) void loadKuerzelMap(storage);
+  }, [kuerzelMapLoaded, loadKuerzelMap, storage]);
+
+  // Sync der Kuerzel-Map mit den geladenen Antraegen (Bootstrap falls leer,
+  // sonst Append neuer Kuerzel). Idempotent — kein Write wenn nichts neu.
+  useEffect(() => {
+    if (!loaded || !kuerzelMapLoaded || antraege.length === 0) return;
+    void syncKuerzelMap(storage, antraege).catch(err => {
+      console.warn('[useAntraegeCache] kuerzel-map sync fehlgeschlagen:', err);
+    });
+  }, [loaded, kuerzelMapLoaded, antraege, storage, syncKuerzelMap]);
+
+  const anonymMap = useMemo(
+    () => buildAnonymMapFromKuerzelMap(kuerzelMapFile),
+    [kuerzelMapFile],
+  );
   const historischeDeskriptorenByAnon = useMemo(
     () => aggregateMaProfilesByAnon(antraege, anonymMap),
     [antraege, anonymMap],
