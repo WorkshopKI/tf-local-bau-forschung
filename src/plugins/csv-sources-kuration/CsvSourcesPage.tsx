@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
   ensureDefaultProgramm,
   listSchemas,
@@ -31,7 +32,6 @@ export function CsvSourcesPage(): React.ReactElement {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetCounts, setResetCounts] = useState<ClearAntragDataResult | null>(null);
-  const [resetRunning, setResetRunning] = useState(false);
   const [resetResult, setResetResult] = useState<ClearAntragDataResult | null>(null);
 
   const refresh = useCallback(async () => {
@@ -49,28 +49,23 @@ export function CsvSourcesPage(): React.ReactElement {
     await refresh();
   };
 
-  const onOpenResetConfirm = async (): Promise<void> => {
+  const openResetConfirm = useAsyncAction(async () => {
     setResetResult(null);
     const c = await countAntragData(storage.idb);
     setResetCounts(c);
     setResetConfirmOpen(true);
-  };
+  });
 
-  const onConfirmReset = async (): Promise<void> => {
-    setResetRunning(true);
-    try {
-      const r = await clearAntragData(storage.idb);
-      await logAudit(storage.idb, {
-        action: 'antrag_data_cleared',
-        user: session.kuratorName ?? undefined,
-        details: { ...r },
-      });
-      setResetResult(r);
-      setResetConfirmOpen(false);
-    } finally {
-      setResetRunning(false);
-    }
-  };
+  const confirmReset = useAsyncAction(async () => {
+    const r = await clearAntragData(storage.idb);
+    await logAudit(storage.idb, {
+      action: 'antrag_data_cleared',
+      user: session.kuratorName ?? undefined,
+      details: { ...r },
+    });
+    setResetResult(r);
+    setResetConfirmOpen(false);
+  });
 
 
   return (
@@ -217,34 +212,46 @@ export function CsvSourcesPage(): React.ReactElement {
               CSV-Schemas und Programme bleiben erhalten — die importierten Quellen kannst du
               danach unverändert re-importieren.
             </p>
+            {confirmReset.error ? (
+              <div className="text-[12px] text-[var(--tf-danger-text)]">
+                Fehler: {confirmReset.error}
+              </div>
+            ) : null}
             <div className="flex gap-2 justify-end">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setResetConfirmOpen(false)}
-                disabled={resetRunning}
+                disabled={confirmReset.busy}
               >
                 Abbrechen
               </Button>
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => void onConfirmReset()}
-                disabled={resetRunning}
+                onClick={() => confirmReset.run()}
+                disabled={confirmReset.busy}
               >
-                {resetRunning ? 'Lösche…' : 'Antrags-Daten löschen'}
+                {confirmReset.busy ? 'Lösche…' : 'Antrags-Daten löschen'}
               </Button>
             </div>
           </div>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void onOpenResetConfirm()}
-            disabled={!session.isActive}
-          >
-            Antrags-Daten zurücksetzen
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openResetConfirm.run()}
+              disabled={!session.isActive || openResetConfirm.busy}
+            >
+              Antrags-Daten zurücksetzen
+            </Button>
+            {openResetConfirm.error ? (
+              <div className="mt-2 text-[12px] text-[var(--tf-danger-text)]">
+                Fehler: {openResetConfirm.error}
+              </div>
+            ) : null}
+          </>
         )}
       </section>
 
