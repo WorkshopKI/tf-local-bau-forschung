@@ -26,6 +26,9 @@ Wiederkehrende Erweiterungen haben jeweils mehrere Touch-Points, die synchron ge
 - [docs/agents/add-view.md](docs/agents/add-view.md) — Neue View in `src/plugins/antraege/views.ts`
 - [docs/agents/add-filter-facet.md](docs/agents/add-filter-facet.md) — Neue Filter-Facet in der Filter-Sidebar
 - [docs/agents/add-phase2-stage.md](docs/agents/add-phase2-stage.md) — Neue Stage in der Triage-Pipeline
+- [docs/agents/add-sidecar-persistence.md](docs/agents/add-sidecar-persistence.md) — Sidecar-Datei auf SMB-Daten-Share spiegeln
+- [docs/agents/add-build-script.md](docs/agents/add-build-script.md) — Neues Build-Script / Prebuild-Hook anlegen
+- [docs/agents/async-error-pattern.md](docs/agents/async-error-pattern.md) — Async-UI-Aktion mit Error-Handling (`useAsyncAction`)
 - [docs/agents/change-app-branding.md](docs/agents/change-app-branding.md) — App-Name, Untertitel und HTML-Filename ändern
 - [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) — `file://`-Quick-Reference
 - [docs/agents/port-design-export.md](docs/agents/port-design-export.md) — Claude-Design-Tool-Exporte portieren
