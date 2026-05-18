@@ -57,8 +57,18 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
   const abortRef = useRef<AbortController | null>(null);
 
   const total = antraege.length;
-  const pct = total > 0 ? (count / total) * 100 : 0;
-  const stage2Eligible = pct >= 95;
+  // Waehrend des Builds tickt `progress` pro Antrag. `count` aktualisiert sich nur
+  // im `refresh()` nach Build-Abschluss — die Bar darf nicht erst am Ende auf 100
+  // springen. Daher fuer die Anzeige: live-Werte aus `progress`, sonst aus dem
+  // persistierten Cache-Stand. Bei `incremental: true` zeigt das den Build-Job-
+  // Fortschritt (queue-relativ), bei `incremental: false` den Gesamt-Stand.
+  const displayCount = progress ? progress.done : count;
+  const displayTotal = progress ? progress.total : total;
+  const pct = displayTotal > 0 ? (displayCount / displayTotal) * 100 : 0;
+  // Stage-2-Eligibility immer am Gesamt-Coverage messen, nicht am Build-Job —
+  // sonst koennte ein 100/100-Inkrementell-Bau das Flag aktivieren, obwohl
+  // insgesamt < 95% embedded sind.
+  const stage2Eligible = total > 0 && (count / total) >= 0.95;
 
   const refresh = useCallback(async (): Promise<void> => {
     const c = await countEmbeddings(storage.idb);
@@ -194,7 +204,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       <div className="flex items-baseline justify-between mb-3">
         <h3 className="text-[14px] font-medium text-[var(--tf-text)]">Embedding-Corpus (Stufe 2)</h3>
         <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-          {count} von {total} eingebettet ({Math.round(pct)}%)
+          {displayCount} von {displayTotal} eingebettet ({Math.round(pct)}%)
         </span>
       </div>
 
@@ -240,15 +250,15 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
         </div>
       )}
 
-      {compatStatus?.kind === 'compatible' && hashMismatch && (
+      {compatStatus?.kind === 'compatible' && hashMismatch && count === 0 && (
         <div className="rounded p-2 mb-2 text-[11.5px]" style={{ background: 'var(--tf-info-bg, #dbeafe)', color: 'var(--tf-info-text, #1e40af)', border: '0.5px solid var(--tf-info-border, #bfdbfe)' }}>
-          ℹ Share-Korpus: {mirrorManifest?.antraegeCount} Anträge (Stand {mirrorManifest ? new Date(mirrorManifest.builtAt).toLocaleDateString('de-DE') : '?'}). Lokaler Antrags-Stand: {total}. Hash weicht ab — Auto-Download übersprungen. „Inkrementell" baut den lokalen Cache weiter und lädt neuen Stand hoch.
+          ℹ Share-Korpus: {mirrorManifest?.antraegeCount} Anträge (Stand {mirrorManifest ? new Date(mirrorManifest.builtAt).toLocaleDateString('de-DE') : '?'}). Lokaler Antrags-Stand: {total}. Sätze unterscheiden sich — der Korpus deckt deinen aktuellen Stand nicht ab, daher kein Auto-Download. Klick „Corpus aufbauen", um lokal zu bauen und den Stand auf den Share zu heben.
         </div>
       )}
 
-      {mirrorManifest && compatStatus?.kind === 'compatible' && !hashMismatch && count > 0 && count === mirrorManifest.antraegeCount && (
+      {mirrorManifest && compatStatus?.kind === 'compatible' && count > 0 && count === mirrorManifest.antraegeCount && (
         <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
-          ✓ Korpus mit Daten-Share synchron ({mirrorManifest.antraegeCount} Vektoren, Stand {new Date(mirrorManifest.builtAt).toLocaleDateString('de-DE')}{mirrorManifest.builderProfile ? ` von ${mirrorManifest.builderProfile}` : ''}).
+          ✓ Korpus mit Daten-Share synchron ({mirrorManifest.antraegeCount} Vektoren, Stand {new Date(mirrorManifest.builtAt).toLocaleDateString('de-DE')}{mirrorManifest.builderProfile ? ` von ${mirrorManifest.builderProfile}` : ''}){total > mirrorManifest.antraegeCount ? ` — ${total - mirrorManifest.antraegeCount} Anträge ohne Text-Daten, kein Embedding möglich` : ''}.
         </div>
       )}
 
