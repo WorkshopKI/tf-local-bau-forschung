@@ -8,6 +8,26 @@
  *
  * Bei Tab-Crash bleiben alle bis zum letzten Error-Flush geschriebenen Events
  * erhalten — der User kann sie nach Reload nachlesen.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * **Bewusste Ausnahme zu CLAUDE.md Pitfall #10**: dieser Logger nutzt
+ * `fh.createWritable({ keepExistingData: true })` mit `position: file.size`
+ * direkt — NICHT `atomicWrite()` und NICHT `appendToFile()` aus
+ * `core/services/infrastructure/atomic-write.ts`.
+ *
+ * Grund: `appendToFile()` liest die existierende Datei bei jedem Aufruf
+ * komplett in den Speicher und schreibt sie + die neue Zeile zurueck (O(n)
+ * pro Append). Bei 13k+ Antraegen pro Bulk-Lauf + Progress-Event alle 500
+ * Antraege wuerde das jede Append-Zeit linear mit der Log-Groesse wachsen
+ * lassen und am Ende des Laufs Minuten kosten.
+ *
+ * Sicherheits-Argument: das Risiko (Crash mid-write korrumpiert das File)
+ * ist hier akzeptabel, weil (a) die JSONL pro Run neu angelegt wird (keine
+ * langlebige Master-Datei), (b) Events einzeln und sofort geflusht werden,
+ * (c) ein korrumpiertes Tail-Event wird beim Re-Parse einfach uebersprungen.
+ *
+ * NICHT zu `atomicWrite()` migrieren — das war wohlueberlegt.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 import type { BulkScanStats } from './bulk-scan';
 
