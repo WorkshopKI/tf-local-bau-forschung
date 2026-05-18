@@ -9,6 +9,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
+import { useKuerzelMap } from '../hooks/useKuerzelMap';
 import { useKlassifizierungenView } from '../hooks/useKlassifizierungen';
 import { resolveAnonIdForUser } from '../services/anonym-map';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
@@ -32,6 +33,7 @@ export function SelbsteintragungView(): React.ReactElement {
   const upsertZuweisung = useAuslastungData(s => s.upsertZuweisung);
 
   const cache = useAntraegeCache();
+  const kuerzelMapLoaded = useKuerzelMap(s => s.loaded);
   const view = useKlassifizierungenView(cache.antraege, config.ueberKategorien, klassifizierungen);
 
   const myAnonId = resolveAnonIdForUser(profile?.bearbeiter_kuerzel, cache.anonymMap);
@@ -57,6 +59,15 @@ export function SelbsteintragungView(): React.ReactElement {
       return !zugewiesen;
     });
   }, [view, myAnonId, myKategorien, zuweisungen]);
+
+  if (!cache.loaded || !kuerzelMapLoaded) {
+    return (
+      <div className="rounded-[12px] p-6" style={{ border: '0.5px solid var(--tf-border)' }}>
+        <h2 className="text-[15px] font-medium mb-2">Selbsteintragung</h2>
+        <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Lade Daten…</p>
+      </div>
+    );
+  }
 
   if (!myAnonId) {
     return (
