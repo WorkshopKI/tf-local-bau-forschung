@@ -15,6 +15,7 @@ import {
   buildEmbeddingCorpus,
   clearEmbeddings,
   countEmbeddings,
+  getEmbeddableAktenzeichen,
   loadAllEmbeddings,
   type BuildProgress,
 } from '../../services/embedding-corpus';
@@ -94,11 +95,16 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
     if (!mirrorLoaded) void loadMirrorManifest(storage);
   }, [mirrorLoaded, loadMirrorManifest, storage]);
 
-  // SHA-256 ueber die aktuelle aktenzeichen-Liste berechnen (Drift-Detection).
+  // SHA-256 ueber die aktuelle aktenzeichen-Liste — aber nur ueber die
+  // embedbaren Antraege, sonst weicht der Hash strukturell vom Manifest-Hash
+  // ab (Foyer-Exporte enthalten regelmaessig 5–10 Antraege ohne Titel/VB-Titel/
+  // Projektbeschreibung, die im Build geskipt werden und nicht im Manifest
+  // landen). 13k Field-Lookups + Filter sind <50 ms — laeuft nur bei
+  // antraege-Aenderung, nicht pro Render.
   useEffect(() => {
     if (antraege.length === 0) { setAktenzeichenHash(null); return; }
     let cancelled = false;
-    const list = antraege.map(a => a.aktenzeichen);
+    const list = getEmbeddableAktenzeichen(antraege);
     void hashAktenzeichenSet(list).then(h => { if (!cancelled) setAktenzeichenHash(h); });
     return () => { cancelled = true; };
   }, [antraege]);

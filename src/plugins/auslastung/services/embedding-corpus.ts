@@ -42,6 +42,27 @@ export function buildEmbeddingTextForAntrag(antrag: Antrag): string {
   return parts.join(' \n ').slice(0, 4000); // cap fuer Modell-Token-Limit
 }
 
+/**
+ * True wenn ein Antrag genug Text-Daten fuer ein Embedding hat. Identische
+ * Bedingung wie im Build-Loop ({@link buildEmbeddingCorpus}, der ohne Text
+ * skipt). Wird in der UI gebraucht, damit Drift-Detection (lokaler Hash vs.
+ * Share-Manifest-Hash) nur ueber die tatsaechlich embedbaren Akz rechnet —
+ * sonst weicht der Hash strukturell ab, weil Foyer-Exporte regelmaessig
+ * 5–10 Antraege ohne Titel/VB-Titel/Projektbeschreibung enthalten.
+ */
+export function isEmbeddableAntrag(antrag: Antrag): boolean {
+  return buildEmbeddingTextForAntrag(antrag).length > 0;
+}
+
+/** Sortierte aktenzeichen-Liste der embedbaren Antraege — Input fuer `hashAktenzeichenSet`. */
+export function getEmbeddableAktenzeichen(antraege: Antrag[]): string[] {
+  const out: string[] = [];
+  for (const a of antraege) {
+    if (isEmbeddableAntrag(a)) out.push(a.aktenzeichen);
+  }
+  return out;
+}
+
 function idbKey(aktenzeichen: string): string {
   return `${AUSLASTUNG_EMB_PREFIX}${aktenzeichen}`;
 }
