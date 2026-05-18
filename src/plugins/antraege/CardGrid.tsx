@@ -10,6 +10,8 @@ import {
 } from './antragGroups';
 import { sortDisablesGrouping } from './sort';
 import { AntragTile } from './AntragTile';
+import { StatusSectionHeader } from './StatusSectionHeader';
+import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
 
 interface Props {
   filtered: AntragListItem[];
@@ -48,6 +50,7 @@ export function CardGrid({
   );
   const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
   const hasMoreGroups = groups.length < allGroups.length;
+  const collapsedSet = useStatusSectionCollapsed(s => s.collapsed);
 
   const renderTiles = (gs: AntragGroup[]): React.ReactElement => (
     <div
@@ -74,7 +77,7 @@ export function CardGrid({
           {splitByStatusPhase(groups).map(section => (
             <div key={section.label}>
               <StatusSectionHeader label={section.label} count={section.groups.length} />
-              {renderTiles(section.groups)}
+              {collapsedSet.has(section.label) ? null : renderTiles(section.groups)}
             </div>
           ))}
         </div>
@@ -86,20 +89,6 @@ export function CardGrid({
           Lade weitere Einträge …
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function StatusSectionHeader({ label, count }: { label: string; count: number }): React.ReactElement {
-  return (
-    <div className="flex items-center gap-3 mb-2 mt-1 first:mt-0">
-      <span className="text-[11px] tracking-[0.08em] uppercase font-medium text-[var(--tf-text-tertiary)]">
-        {label}
-      </span>
-      <span className="text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">
-        {count.toLocaleString('de-DE')}
-      </span>
-      <div className="flex-1 h-px bg-[var(--tf-border)]" />
     </div>
   );
 }

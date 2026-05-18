@@ -10,6 +10,8 @@ import {
 } from './antragGroups';
 import { sortDisablesGrouping } from './sort';
 import { CompactGroup } from './CompactGroup';
+import { StatusSectionHeader } from './StatusSectionHeader';
+import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
 
 interface Props {
   filtered: AntragListItem[];
@@ -44,6 +46,7 @@ export function CompactList({
   );
   const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
   const hasMoreGroups = groups.length < allGroups.length;
+  const collapsedSet = useStatusSectionCollapsed(s => s.collapsed);
 
   const renderRows = (gs: AntragGroup[]): React.ReactElement => (
     <div className="flex flex-col gap-0.5">
@@ -65,7 +68,7 @@ export function CompactList({
           {splitByStatusPhase(groups).map(section => (
             <div key={section.label}>
               <StatusSectionHeader label={section.label} count={section.groups.length} />
-              {renderRows(section.groups)}
+              {collapsedSet.has(section.label) ? null : renderRows(section.groups)}
             </div>
           ))}
         </div>
@@ -77,20 +80,6 @@ export function CompactList({
           Lade weitere Einträge …
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function StatusSectionHeader({ label, count }: { label: string; count: number }): React.ReactElement {
-  return (
-    <div className="flex items-center gap-3 mb-1.5 mt-1 first:mt-0">
-      <span className="text-[11px] tracking-[0.08em] uppercase font-medium text-[var(--tf-text-tertiary)]">
-        {label}
-      </span>
-      <span className="text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">
-        {count.toLocaleString('de-DE')}
-      </span>
-      <div className="flex-1 h-px bg-[var(--tf-border)]" />
     </div>
   );
 }

@@ -18,6 +18,8 @@ import {
 } from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
 import { sortDisablesGrouping } from './sort';
+import { StatusSectionHeader } from './StatusSectionHeader';
+import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
 import { CompactList } from './CompactList';
 import { CardGrid } from './CardGrid';
 import type { ViewMode } from './viewModes';
@@ -290,6 +292,7 @@ function GroupedList({
   );
   const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
   const hasMoreGroups = groups.length < allGroups.length;
+  const collapsedSet = useStatusSectionCollapsed(s => s.collapsed);
 
   const renderGroup = (g: AntragGroup): React.ReactElement => {
     const isNetzwerkSuper = g.netzwerkId !== null && (g.subGroups?.length ?? 0) > 0;
@@ -324,9 +327,11 @@ function GroupedList({
           {splitByStatusPhase(groups).map(section => (
             <div key={section.label}>
               <StatusSectionHeader label={section.label} count={section.groups.length} />
-              <div className="flex flex-col gap-1">
-                {section.groups.map(renderGroup)}
-              </div>
+              {collapsedSet.has(section.label) ? null : (
+                <div className="flex flex-col gap-1">
+                  {section.groups.map(renderGroup)}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -344,16 +349,3 @@ function GroupedList({
   );
 }
 
-function StatusSectionHeader({ label, count }: { label: string; count: number }): React.ReactElement {
-  return (
-    <div className="flex items-center gap-3 mb-1.5 mt-1 first:mt-0">
-      <span className="text-[11px] tracking-[0.08em] uppercase font-medium text-[var(--tf-text-tertiary)]">
-        {label}
-      </span>
-      <span className="text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">
-        {count.toLocaleString('de-DE')}
-      </span>
-      <div className="flex-1 h-px bg-[var(--tf-border)]" />
-    </div>
-  );
-}
