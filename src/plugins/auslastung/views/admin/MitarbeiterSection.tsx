@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
 import type { AnonymerMitarbeiter } from '../../types';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
-import { useAntraegeCache } from '../../hooks/useAntraegeCache';
+import type { useAntraegeCache } from '../../hooks/useAntraegeCache';
 import { AnonymIdBadge } from '../../components/AnonymIdBadge';
 import { KategoriePill } from '../../components/KategoriePill';
 import { TechnologieTags } from '../../components/TechnologieTags';
@@ -26,9 +26,15 @@ import { AktivVorschlagBanner } from './AktivVorschlagBanner';
 
 interface Props {
   storage: StorageService;
+  /** Vom AuslastungAdmin durchgereicht. Frueher rief MitarbeiterSection
+   *  `useAntraegeCache()` selbst auf — das erzeugte eine zweite, parallele
+   *  IDB-Roundtrip-Instanz der 13k+ Antraege und sichtbaren Layout-Flash
+   *  beim Banner-Render. Jetzt teilt sich die Section den cache mit dem
+   *  Parent. */
+  cache: ReturnType<typeof useAntraegeCache>;
 }
 
-export function MitarbeiterSection({ storage }: Props): React.ReactElement {
+export function MitarbeiterSection({ storage, cache }: Props): React.ReactElement {
   const data = useAuslastungData(s => s.data);
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
   const kategorien = useAuslastungData(s => s.data.config.ueberKategorien);
@@ -37,7 +43,6 @@ export function MitarbeiterSection({ storage }: Props): React.ReactElement {
   const remove = useAuslastungData(s => s.removeMitarbeiter);
   const setAktiv = useAuslastungData(s => s.setMitarbeiterAktiv);
   const applyAktivMap = useAuslastungData(s => s.applyAktivMap);
-  const cache = useAntraegeCache();
 
   const [editId, setEditId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
