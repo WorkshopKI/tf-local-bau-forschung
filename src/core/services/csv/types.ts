@@ -31,6 +31,24 @@ export type CanonicalField =
  */
 export type CanonicalLevel = 'antrag' | 'verbund';
 
+/**
+ * Gebrandeter Status-Typ für Antrag/Verbund — verhindert direkte
+ * String-Literal-Vergleiche zur Compile-Zeit (CLAUDE.md Pitfall #12).
+ *
+ *     // FALSCH:  antrag.status === 'bewilligt'   ← TS-Error nach Branding
+ *     // RICHTIG: isBewilligtStatus(antrag.status)
+ *
+ * Die Helper in `src/core/utils/status-canonical.ts` akzeptieren `unknown`
+ * und arbeiten case-insensitive — sie nehmen `AntragStatusRaw` transparent
+ * an. Boundary-Cast via `asAntragStatusRaw()` nur an Schreib-Stellen
+ * (CSV-Merger, Seed-Loader, Test-Fixtures).
+ *
+ * Vorgang.status (Bauantrag-Domain) bleibt als Union-Type — dort verhindert
+ * die Union schon Typos. Branded ist nur die offene CSV-Status-Domäne.
+ */
+export type AntragStatusRaw = string & { readonly __brand: 'AntragStatusRaw' };
+export const asAntragStatusRaw = (s: string): AntragStatusRaw => s as AntragStatusRaw;
+
 export type AntragDokumentTyp =
   | 'projektbeschreibung'
   | 'nachforderung'
@@ -136,7 +154,7 @@ export interface Antrag {
   akronym?: string;
   titel?: string;
   antragsteller?: string;
-  status?: string;
+  status?: AntragStatusRaw;
   verbund_id?: string;
   foerdergeber?: string;
   branche?: string;
@@ -164,7 +182,7 @@ export interface AntragListItem {
   // Anzeige
   titel?: string;
   akronym?: string;
-  status?: string;
+  status?: AntragStatusRaw;
   antragsteller?: string;
   branche?: string;
   /** Verbund-Phasen-Code aus CSV-Spalte `VB_PHASE` (1=NW1, 2=NW2, 3=FuE, 4=DL, 5=DS, 9=Irrläufer). */
@@ -215,7 +233,7 @@ export interface Verbund {
   akronym?: string;
   titel?: string;
   /** Verbund-Status (gleich für alle TVs eines Verbundes). */
-  status?: string;
+  status?: AntragStatusRaw;
   teilantrags_ids: string[];
   /** Quellen pro VB-Feld (csv_schema_id) — analog zu Antrag._field_sources. */
   _field_sources?: Record<string, string>;

@@ -32,6 +32,7 @@ import type {
   Verbund,
   VerbundHistorieEntry,
 } from '../types';
+import { asAntragStatusRaw } from '../types';
 import { coerceValue, findMatchingRows, resolveFieldKey } from './helpers';
 import { loadAllSchemasWithRows, type SchemaWithRows } from './loader';
 
@@ -172,7 +173,7 @@ export async function recomputeAntrag(
     const vb = await getVerbund(idb, newVerbund);
     const tvTitel = typeof merged.titel === 'string' ? merged.titel : undefined;
     const vbTitel = typeof verbundUpdates.verbund_titel === 'string' ? verbundUpdates.verbund_titel : undefined;
-    const vbStatus = typeof verbundUpdates.verbund_status === 'string' ? verbundUpdates.verbund_status : undefined;
+    const vbStatus = typeof verbundUpdates.verbund_status === 'string' ? asAntragStatusRaw(verbundUpdates.verbund_status) : undefined;
 
     // Verbund-Level-Felder priorisieren: Wenn aus CSV ein verbund_titel gemappt ist,
     // gewinnt dieser; sonst Fallback auf TV-Titel (Backward-Compat).

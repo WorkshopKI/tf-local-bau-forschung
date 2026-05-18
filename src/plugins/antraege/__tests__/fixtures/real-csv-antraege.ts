@@ -10,20 +10,23 @@
  * aber mit Fixture B (Foerderantrag) failt, ist genau das der Bug.
  */
 import type { AntragListItem } from '@/core/services/csv/types';
+import { asAntragStatusRaw } from '@/core/services/csv/types';
 
 export { TEST_TODAY, TEST_TODAY_MS } from './seed-antraege';
 
-type Partial0 = Partial<AntragListItem> & {
+type Partial0 = Partial<Omit<AntragListItem, 'status'>> & {
   aktenzeichen: string;
   status: string;
 };
 
 function mk(p: Partial0): AntragListItem {
+  const { status, ...rest } = p;
   return {
     programm_id: 'TEST-PROG',
     titel: `Titel ${p.aktenzeichen}`,
     _updated_at: '2026-05-01T08:00:00Z',
-    ...p,
+    ...rest,
+    status: asAntragStatusRaw(status),
   };
 }
 

@@ -10,6 +10,7 @@ import { parseBearbeiterFilter } from '../bearbeiterFilter';
 import { SEED_ANTRAEGE, TEST_TODAY } from './fixtures/seed-antraege';
 import { REAL_CSV_ANTRAEGE } from './fixtures/real-csv-antraege';
 import type { AntragListItem } from '@/core/services/csv/types';
+import { asAntragStatusRaw } from '@/core/services/csv/types';
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -19,8 +20,14 @@ afterAll(() => {
   vi.useRealTimers();
 });
 
-function mk(p: Partial<AntragListItem> & { aktenzeichen: string }): AntragListItem {
-  return { programm_id: 'P', _updated_at: '2026-01-01T00:00:00Z', ...p };
+function mk(p: Partial<Omit<AntragListItem, 'status'>> & { aktenzeichen: string; status?: string }): AntragListItem {
+  const { status, ...rest } = p;
+  return {
+    programm_id: 'P',
+    _updated_at: '2026-01-01T00:00:00Z',
+    ...rest,
+    ...(status !== undefined ? { status: asAntragStatusRaw(status) } : {}),
+  };
 }
 
 describe('getEingangAmpel — Schwellen', () => {

@@ -31,6 +31,7 @@ import type {
   Verbund,
   VerbundHistorieEntry,
 } from '../types';
+import { asAntragStatusRaw } from '../types';
 import { toAntragListItem } from '../list-view';
 import type { AntragListItem } from '../types';
 import { coerceValue, findJoinColumn, resolveFieldKey } from './helpers';
@@ -338,7 +339,7 @@ function recomputeAntragIntoBatch(
     const vb = caches.verbuendeById.get(newVerbund);
     const tvTitel = typeof merged.titel === 'string' ? merged.titel : undefined;
     const vbTitel = typeof verbundUpdates.verbund_titel === 'string' ? verbundUpdates.verbund_titel : undefined;
-    const vbStatus = typeof verbundUpdates.verbund_status === 'string' ? verbundUpdates.verbund_status : undefined;
+    const vbStatus = typeof verbundUpdates.verbund_status === 'string' ? asAntragStatusRaw(verbundUpdates.verbund_status) : undefined;
     const effectiveTitel = vbTitel ?? tvTitel;
     const sources = { ...(vb?._field_sources ?? {}), ...verbundFieldSources };
 
