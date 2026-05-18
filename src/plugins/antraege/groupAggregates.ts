@@ -1,7 +1,9 @@
-import type { AntragListItem } from '@/core/services/csv/types';
+import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
 import { getEingangAmpel, type EingangAmpel } from './eingangAmpel';
 import { daysUntilFrist } from './views';
+import { formatFkzRange } from './antragGroups';
+import type { StatusPhaseLabel } from './antragGroups';
 
 /**
  * Reine Aggregator-Helpers für `AntragGroup.tvs[]` — werden von der Card- und
@@ -97,4 +99,104 @@ export function getStatusCategoryLabel(cat: StatusCategory): string {
     case 'abgeschlossen': return 'Abgeschlossen';
     case 'sonstige':      return 'Sonstige';
   }
+}
+
+function trimmedString(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t.length === 0 ? null : t;
+}
+
+/** Subset der Antrag-/AntragListItem-Felder, die für die Cluster-Aggregate
+ *  ausreichen. Damit funktionieren `dominantStatus`, `sumFoerdersumme` etc.
+ *  sowohl auf der schmalen Listen-Projektion (`AntragListItem`) als auch auf
+ *  dem vollen `Antrag`-Record (z.B. im Verbund-Detail). */
+interface StatusTv {
+  status?: unknown;
+}
+
+/**
+ * Status, der auf der Verbund-Card/Cluster-Zeile als einzelne Pill angezeigt
+ * wird. Bevorzugt das gepflegte `Verbund.status` (CSV-Feld `verbund_status`),
+ * fällt bei Leer/Fehlen auf den ersten TV in der Eingabe-Reihenfolge zurück —
+ * die Caller-Pipeline (Lead-First-Sort innerhalb von Verbund-Clustern) hat
+ * den Konsortialführer dort hingeführt. Liefert `null` wenn weder Verbund-
+ * Status noch TV-Status gesetzt ist.
+ */
+export function dominantStatus(
+  tvs: ReadonlyArray<StatusTv>,
+  verbundStatus?: string | null,
+): string | null {
+  const v = trimmedString(verbundStatus);
+  if (v) return v;
+  for (const tv of tvs) {
+    const s = trimmedString(tv.status);
+    if (s) return s;
+  }
+  return null;
+}
+
+/**
+ * Phase-Label für eine Verbund-/Cluster-Gruppe — basiert auf `dominantStatus`.
+ * Eingesetzt in `buildAntragGroups({ mode: 'status' })`, damit Verbund-Cluster
+ * komplett in eine Phase-Section wandern statt pro TV einzeln verteilt zu
+ * werden.
+ */
+export function statusPhaseForGroup(
+  tvs: AntragListItem[],
+  verbundStatus?: string | null,
+): StatusPhaseLabel {
+  const raw = dominantStatus(tvs, verbundStatus);
+  const cat = getStatusCategory(raw);
+  switch (cat) {
+    case 'offen':
+    case 'in_pruefung':
+    case 'entscheidung':
+      return 'Offen';
+    case 'nachforderung':
+      return 'Nachforderung';
+    case 'bewilligt':
+      return 'Bewilligt';
+    case 'begleitung':
+      return 'Begleitung';
+    case 'abgeschlossen':
+    case 'abgelehnt':
+      return 'Abgeschlossen';
+    default:
+      return 'Sonstige';
+  }
+}
+
+/**
+ * Förderkennzeichen, das auf der Verbund-Card als Subtitle erscheint.
+ * Bevorzugt `verbund.verbund_id` (= das in der CSV gepflegte Verbund-FKZ),
+ * fällt sonst auf die FKZ-Range der TVs zurück (`16KN…–16KN…`).
+ */
+export function verbundFkz(verbund: Verbund | undefined, tvs: AntragListItem[]): string {
+  const vid = trimmedString(verbund?.verbund_id);
+  if (vid) return vid;
+  return formatFkzRange(tvs);
+}
+
+/**
+ * Summe der TV-Fördervolumen (kanonisches Feld `foerdersumme`). Liefert `null`
+ * wenn kein TV das Feld gesetzt hat. Wird auf der Verbund-Detail-Stammdaten-
+ * Card als „Fördervolumen (geplant)" angezeigt.
+ */
+export function sumFoerdersumme(tvs: ReadonlyArray<Record<string, unknown>>): number | null {
+  let sum = 0;
+  let any = false;
+  for (const tv of tvs) {
+    const raw = tv.foerdersumme;
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      sum += raw;
+      any = true;
+      continue;
+    }
+    if (typeof raw === 'string' && raw.trim().length > 0) {
+      const n = Number(raw.replace(/\./g, '').replace(',', '.'));
+      if (Number.isFinite(n)) { sum += n; any = true; }
+    }
+  }
+  return any ? sum : null;
 }

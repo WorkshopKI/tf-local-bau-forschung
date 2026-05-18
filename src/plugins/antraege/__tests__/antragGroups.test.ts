@@ -5,6 +5,7 @@ import {
   formatFkzRange,
   takeGroupsUntil,
 } from '../antragGroups';
+import { asAntragStatusRaw } from '@/core/services/csv/types';
 import type { AntragListItem } from '@/core/services/csv/types';
 
 function mk(aktenzeichen: string, verbund_id?: string): AntragListItem {
@@ -417,5 +418,70 @@ describe('takeGroupsUntil', () => {
   it('erste Gruppe alleine groesser als target → wird trotzdem mitgenommen', () => {
     const all = build([200, 10]);
     expect(takeGroupsUntil(all, 60).map(g => g.tvs.length)).toEqual([200]);
+  });
+});
+
+describe('buildAntragGroups mode=status — Verbund-First', () => {
+  // Verbund-TVs werden EIN Cluster, der in EINE Status-Phase einsortiert wird.
+  // Damit erscheint ein Verbund nie mehrfach in unterschiedlichen Phase-Sections,
+  // auch wenn die individuellen TV-Status divergieren.
+
+  function mkStatus(az: string, status: string, verbund_id?: string): AntragListItem {
+    return {
+      aktenzeichen: az,
+      programm_id: 'P',
+      _updated_at: '2026-01-01T00:00:00Z',
+      status: asAntragStatusRaw(status),
+      ...(verbund_id ? { verbund_id } : {}),
+    };
+  }
+
+  it('Verbund-TVs mit divergenten Status landen in EINEM Cluster + EINER Phase', () => {
+    // V1: TV-A=beantragt (Offen), TV-B=NF gestellt (Nachforderung).
+    // Verbund.status ist nicht gesetzt → Lead-TV (Input-Order-First) gewinnt.
+    const input: AntragListItem[] = [
+      mkStatus('A', 'beantragt', 'V1'),
+      mkStatus('B', 'NF gestellt', 'V1'),
+      mkStatus('C', 'bewilligt'), // Solo-Antrag, andere Phase
+    ];
+    const groups = buildAntragGroups(input, { mode: 'status' });
+    // Ein Cluster für V1 (zwei TVs), eine Solo-Gruppe für C → 2 Groups total.
+    expect(groups.length).toBe(2);
+    const verbundGroup = groups.find(g => g.verbundId === 'V1');
+    expect(verbundGroup).toBeDefined();
+    expect(verbundGroup!.tvs.map(t => t.aktenzeichen)).toEqual(['A', 'B']);
+    expect(verbundGroup!.statusPhaseLabel).toBe('Offen'); // = Lead-TV-Status
+    const soloGroup = groups.find(g => g.verbundId === null);
+    expect(soloGroup!.statusPhaseLabel).toBe('Bewilligt');
+  });
+
+  it('Verbund.status (aus verbundById) überschreibt Lead-TV-Status für die Phase', () => {
+    const input: AntragListItem[] = [
+      mkStatus('A', 'beantragt', 'V1'),
+      mkStatus('B', 'beantragt', 'V1'),
+    ];
+    const verbundById = new Map<string, import('@/core/services/csv/types').Verbund>();
+    verbundById.set('V1', {
+      verbund_id: 'V1',
+      programm_id: 'P',
+      teilantrags_ids: ['A', 'B'],
+      status: asAntragStatusRaw('bewilligt'),
+      _field_sources: {},
+      _updated_at: '2026-01-01T00:00:00Z',
+    } as import('@/core/services/csv/types').Verbund);
+    const groups = buildAntragGroups(input, { mode: 'status', verbundById });
+    expect(groups.length).toBe(1);
+    expect(groups[0]!.statusPhaseLabel).toBe('Bewilligt');
+  });
+
+  it('Solo-Anträge ohne verbund_id bleiben individuelle Gruppen in ihren Phasen', () => {
+    const input: AntragListItem[] = [
+      mkStatus('A', 'beantragt'),
+      mkStatus('B', 'NF gestellt'),
+      mkStatus('C', 'bewilligt'),
+    ];
+    const groups = buildAntragGroups(input, { mode: 'status' });
+    expect(groups.length).toBe(3);
+    expect(groups.map(g => g.statusPhaseLabel)).toEqual(['Offen', 'Nachforderung', 'Bewilligt']);
   });
 });

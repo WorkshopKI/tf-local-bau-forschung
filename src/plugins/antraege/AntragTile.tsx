@@ -3,14 +3,14 @@ import type { AntragGroup } from './antragGroups';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { AMPEL_COLOR, AMPEL_TOOLTIP } from './eingangAmpel';
 import { daysUntilFrist } from './views';
-import { getStatusCategory } from '@/core/utils/status-canonical';
 import {
   worstAmpel,
   criticalFrist,
-  uniqueStatusCategories,
-  getStatusCategoryLabel,
+  dominantStatus,
+  verbundFkz,
 } from './groupAggregates';
-import { StatusDotRow } from './StatusDotRow';
+import { StatusBarRow } from './StatusBarRow';
+import { useAntraegeStore } from './store';
 
 interface Props {
   group: AntragGroup;
@@ -33,9 +33,18 @@ function formatFrist(d: number | null): string {
 }
 
 /**
- * Single-Tile: 1 TV → kompakte Card mit Akronym als Hauptinfo.
- * Verbund-Tile: ≥2 TVs → Sammeltile mit ×N + StatusDotRow oder (bei
- * einheitlichem Status) einem normalen Status-Badge.
+ * Karten-Tile für die Förderanträge-Liste. Ein Tile = ein Verbund-Cluster
+ * (≥ 1 TV). Layout (matched Design-Handoff):
+ *
+ *   ┌─────────────────────┐
+ *   │ ▬▬▬▬           +N   │  ← StatusBarRow + TV-Total (rechts)
+ *   │       AKRONYM       │  ← Hauptelement
+ *   │     16VS251043      │  ← FKZ-Subtitle (mono, dezent)
+ *   │   [Status-Pill]     │  ← Dominant-Status (Verbund.status oder Lead-TV)
+ *   └─────────────────────┘
+ *
+ * Klick auf Verbund-Tile (≥ 2 TVs) öffnet die Verbund-Detail-Route, Solo-Tile
+ * (1 TV) öffnet die Antrag-Detail-Route.
  */
 export function AntragTile({
   group,
@@ -47,13 +56,23 @@ export function AntragTile({
   const isVerbund = group.tvs.length >= 2;
   const headTv = group.tvs[0]!;
   const isNetzwerkSuper = group.netzwerkId !== null && group.netzwerkLabel !== null;
-  // Bei Netzwerk-Supergruppen wird das Akronym-Slot durch den Netzwerk-Namen
-  // ersetzt. `formatNetzwerkLabel` produziert "<Name> · Phase 1 + 2" — bei
-  // 110px-Tile ist nur der vor-Phase-Teil sinnvoll lesbar; den schneiden wir
-  // am " · " ab. Ohne Phase-Teil bleibt der ganze Label übrig.
+
+  // Verbund-Stammsatz: Status-Quelle und FKZ-Display ziehen aus dem Index.
+  // Bei Netzwerk-Supergruppe (keine `verbundId`) bleibt `verbund` undefined —
+  // Fallback auf Lead-TV-Status und FKZ-Range.
+  const verbund = useAntraegeStore(s =>
+    group.verbundId !== null ? s.verbundById.get(group.verbundId) : undefined,
+  );
+
   const akronym = isNetzwerkSuper
     ? (group.netzwerkLabel!.split(' · ')[0] ?? group.netzwerkLabel!)
     : (strOrNull(headTv.akronym) ?? headTv.aktenzeichen);
+
+  // FKZ-Subtitle: bei Verbund das Verbund-FKZ (oder Range), bei Solo direkt
+  // das Aktenzeichen.
+  const fkzSubtitle = isVerbund
+    ? verbundFkz(verbund, group.tvs)
+    : headTv.aktenzeichen;
 
   // Auswahl-Highlight
   const isSelected = isVerbund
@@ -75,20 +94,17 @@ export function AntragTile({
   const fristTxt = formatFrist(frist);
   const fristCritical = frist !== null && frist < 0;
 
-  // Status: bei einheitlicher Kategorie → Badge mit Label des head TV.
-  // Bei gemischten Kategorien (nur im Verbund-Fall möglich) → StatusDotRow.
-  const categories = uniqueStatusCategories(group.tvs);
-  const showSingleStatus = !isVerbund || categories.size === 1;
-  const status = strOrNull(headTv.status);
+  // Dominanter Status für die Card-Pill (immer einheitlich, keine Dot-Row mehr —
+  // die granularen TV-Stati sind über die StatusBarRow oben kodiert).
+  const status = dominantStatus(group.tvs, verbund?.status);
 
-  // Tooltip: bei Verbund Liste aller TVs → Status
+  // Tooltip: bei Verbund Liste aller TVs → Status, sonst nur Head-TV.
   const titleText = isVerbund
     ? group.tvs
         .map(tv => {
           const az = tv.aktenzeichen;
           const s = strOrNull(tv.status);
-          if (s) return `${az} — ${getStatusLabel(s)}`;
-          return `${az} — ${getStatusCategoryLabel(getStatusCategory(tv.status))}`;
+          return s ? `${az} — ${getStatusLabel(s)}` : az;
         })
         .join('\n')
     : status
@@ -100,29 +116,31 @@ export function AntragTile({
       type="button"
       onClick={onClick}
       title={titleText}
-      className={`group flex flex-col items-center justify-between rounded-[var(--tf-radius)] transition-colors text-left ${
+      className={`group flex flex-col items-stretch justify-between rounded-[var(--tf-radius)] transition-colors text-left ${
         isSelected
           ? 'ring-2 ring-[var(--tf-primary)] bg-[var(--tf-bg-secondary)]'
           : 'hover:bg-[var(--tf-bg-secondary)]'
       }`}
       style={{
         border: '0.5px solid var(--tf-border)',
-        minHeight: '72px',
+        minHeight: '88px',
         padding: '6px 8px',
       }}
     >
-      {/* Header-Zeile: Ampel + Frist links, ×N rechts (Verbund). */}
+      {/* Top-Row: StatusBarRow (Balken pro TV) links, "+N"-TV-Total rechts.
+          Ampel-Dot vor den Balken; Frist als kleiner Text nach +N. */}
       <div className="w-full flex items-center justify-between gap-1 min-w-0">
-        <span className="inline-flex items-center gap-1 shrink-0">
+        <span className="inline-flex items-center gap-1.5 shrink-0">
           {ampel !== null ? (
             <span
               className="w-2 h-2 rounded-full shrink-0"
               style={{ background: AMPEL_COLOR[ampel] }}
               aria-label={AMPEL_TOOLTIP[ampel]}
             />
-          ) : (
-            <span className="w-2 h-2 shrink-0" aria-hidden="true" />
-          )}
+          ) : null}
+          <StatusBarRow tvs={group.tvs} />
+        </span>
+        <span className="inline-flex items-center gap-1 shrink-0">
           {fristTxt ? (
             <span
               className={`tabular-nums text-[10px] ${
@@ -132,32 +150,33 @@ export function AntragTile({
               {fristTxt}
             </span>
           ) : null}
+          {isVerbund ? (
+            <span className="text-[10px] text-[var(--tf-text-tertiary)] tabular-nums">
+              +{group.tvs.length}
+            </span>
+          ) : null}
         </span>
-        {isVerbund ? (
-          <span className="shrink-0 text-[10px] text-[var(--tf-text-tertiary)] tabular-nums">
-            ×{group.tvs.length}
-          </span>
-        ) : null}
       </div>
 
-      {/* Akronym — dominantes Element. */}
-      <div className="w-full flex items-center justify-center min-w-0 py-0.5">
-        <span className="font-semibold text-[13px] text-[var(--tf-text)] truncate max-w-full">
+      {/* Akronym + FKZ-Subtitle vertikal gestapelt, beide zentriert. */}
+      <div className="w-full flex flex-col items-center justify-center min-w-0 py-0.5 gap-0.5">
+        <span className="font-semibold text-[13px] text-[var(--tf-text)] truncate max-w-full leading-tight">
           {akronym}
         </span>
+        <span className="font-mono text-[9.5px] text-[var(--tf-text-tertiary)] truncate max-w-full leading-tight">
+          {fkzSubtitle}
+        </span>
       </div>
 
-      {/* Status-Footer: Badge bei einheitlichem Status, sonst Dot-Row. */}
+      {/* Status-Footer: einheitliche Dominant-Status-Pill. */}
       <div className="w-full flex items-center justify-center min-w-0">
-        {showSingleStatus && status ? (
+        {status ? (
           <Badge
             variant={getStatusVariant(status)}
             className="text-[9px] px-1.5 py-0 leading-tight max-w-full whitespace-nowrap overflow-hidden text-ellipsis"
           >
             {getStatusLabel(status)}
           </Badge>
-        ) : isVerbund ? (
-          <StatusDotRow tvs={group.tvs} />
         ) : null}
       </div>
     </button>

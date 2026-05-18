@@ -1,4 +1,4 @@
-import type { AntragListItem } from '@/core/services/csv/types';
+import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import { getStatusCategory } from '@/core/utils/status-canonical';
 import {
   extractNetzwerkId,
@@ -61,6 +61,36 @@ function statusPhaseForAntrag(a: AntragListItem): StatusPhaseLabel {
     default:
       return 'Sonstige';
   }
+}
+
+/**
+ * Phase für einen Verbund-Cluster. Wenn `verbund_status` (CSV-Feld) gepflegt
+ * ist, basiert die Phase darauf; sonst Status des Lead-TVs (= erster TV in
+ * Eingabe-Reihenfolge, Caller-Pipeline sortiert Lead-first).
+ */
+function statusPhaseForGroup(tvs: AntragListItem[], verbund?: Verbund): StatusPhaseLabel {
+  const v = typeof verbund?.status === 'string' ? verbund.status.trim() : '';
+  if (v.length > 0) {
+    const cat = getStatusCategory(v);
+    switch (cat) {
+      case 'offen':
+      case 'in_pruefung':
+      case 'entscheidung':
+        return 'Offen';
+      case 'nachforderung':
+        return 'Nachforderung';
+      case 'bewilligt':
+        return 'Bewilligt';
+      case 'begleitung':
+        return 'Begleitung';
+      case 'abgeschlossen':
+      case 'abgelehnt':
+        return 'Abgeschlossen';
+      default:
+        return 'Sonstige';
+    }
+  }
+  return statusPhaseForAntrag(tvs[0]!);
 }
 
 /**
@@ -284,6 +314,9 @@ export function buildAntragGroups(
     /** Cross-Programm-Index: 4-Ziffer-Netzwerk-ID → Netzwerk-Name. Wenn
      *  gesetzt, schlägt der Index-Wert den lokalen Lead-Akronym-Scan. */
     netzwerkNames?: Map<string, string> | null;
+    /** Verbund-Lookup für Status-Phase pro Cluster (nutzt `verbund_status`
+     *  falls gepflegt). Optional — ohne fällt die Phase auf den Lead-TV. */
+    verbundById?: Map<string, Verbund> | null;
   },
 ): AntragGroup[] {
   // Backward-kompatibler `flat`-Schalter — bestehende Aufrufer (Tests)
@@ -295,29 +328,31 @@ export function buildAntragGroups(
     return 'verbund';
   })();
   const netzwerkNames = opts?.netzwerkNames ?? null;
+  const verbundById = opts?.verbundById ?? null;
 
   if (mode === 'none') {
     return antraege.map(a => soloGroup(a));
   }
 
   if (mode === 'status') {
-    // Phasen-Buckets befüllen, Reihenfolge der Antraege innerhalb des Buckets
-    // = primärer Sort der Caller-Pipeline (nicht re-sortieren). Buckets selbst
-    // in Lifecycle-Reihenfolge ausgeben.
-    const buckets = new Map<StatusPhaseLabel, AntragListItem[]>();
+    // Erst Verbund-Cluster bilden (TVs gleicher verbund_id bleiben zusammen),
+    // dann pro Cluster eine Phase bestimmen. Damit landet jeder Verbund in
+    // GENAU einer Status-Section — TVs werden nicht über mehrere Phasen
+    // verteilt, auch wenn ihre individuellen Status-Werte divergieren.
+    const clusters = buildVerbundClusters(antraege);
+    const buckets = new Map<StatusPhaseLabel, AntragGroup[]>();
     for (const phase of STATUS_PHASE_ORDER) buckets.set(phase, []);
-    for (const a of antraege) {
-      const phase = statusPhaseForAntrag(a);
-      buckets.get(phase)!.push(a);
+    for (const cluster of clusters) {
+      const verbund = cluster.verbundId !== null
+        ? verbundById?.get(cluster.verbundId)
+        : undefined;
+      const phase = statusPhaseForGroup(cluster.tvs, verbund);
+      cluster.statusPhaseLabel = phase;
+      buckets.get(phase)!.push(cluster);
     }
     const out: AntragGroup[] = [];
     for (const phase of STATUS_PHASE_ORDER) {
-      const items = buckets.get(phase)!;
-      for (const a of items) {
-        const g = soloGroup(a);
-        g.statusPhaseLabel = phase;
-        out.push(g);
-      }
+      out.push(...buckets.get(phase)!);
     }
     return out;
   }
@@ -372,6 +407,20 @@ export function buildAntragGroups(
   }
 
   // mode === 'verbund'
+  return buildVerbundClusters(antraege);
+}
+
+/**
+ * Baut Verbund-Cluster aus der Antrags-Liste: TVs mit gleicher `verbund_id`
+ * werden zu einer Gruppe zusammengefasst, Solo-Anträge (ohne/leerer
+ * `verbund_id`) bekommen jeweils eine eigene Solo-Gruppe. Cluster-Position
+ * folgt dem ersten Vorkommen in der Eingabe; TVs innerhalb des Clusters
+ * behalten Input-Order (= primärer Sort der Caller-Pipeline).
+ *
+ * Wird sowohl vom `mode='verbund'`-Pfad als auch vom `mode='status'`-Pfad
+ * verwendet — Letzterer wickelt die Cluster anschließend in Phase-Buckets.
+ */
+function buildVerbundClusters(antraege: AntragListItem[]): AntragGroup[] {
   const placed = new Set<string>();
   const out: AntragGroup[] = [];
   for (const a of antraege) {
@@ -382,10 +431,6 @@ export function buildAntragGroups(
     }
     if (placed.has(vid)) continue;
     placed.add(vid);
-
-    // TVs innerhalb des Verbund-Clusters behalten Input-Order (= primärer
-    // Sort der useFilteredAntraege-Pipeline). Kein Re-Sort, damit
-    // „Antragsdatum desc" o.ä. durchgreift.
     const tvs = antraege.filter(x => x.verbund_id === vid);
     out.push({
       verbundId: vid,
@@ -395,6 +440,5 @@ export function buildAntragGroups(
       fkzRange: formatFkzRange(tvs),
     });
   }
-
   return out;
 }

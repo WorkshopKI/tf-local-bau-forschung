@@ -278,6 +278,7 @@ function GroupedList({
   const sortKey = useAntraegeStore(s => getEffectiveSortKey(s.activeView, s.sortByView));
   const userGroupingMode = useAntraegeStore(s => getEffectiveGroupingMode(s.activeView, s.groupingByView));
   const netzwerkNames = useAntraegeStore(s => s.netzwerkNameById);
+  const verbundById = useAntraegeStore(s => s.verbundById);
   // Antragsteller-Sort überschreibt die User-Wahl: gleicher Antragsteller
   // soll direkt nebeneinander stehen, nicht durch Cluster-Header zerrissen.
   const effectiveMode: GroupingMode = sortDisablesGrouping(sortKey) ? 'none' : userGroupingMode;
@@ -287,8 +288,8 @@ function GroupedList({
   // `takeGroupsUntil` an Cluster-Grenzen (Overshoot bei sehr großen
   // Clustern akzeptiert — bevorzugt komplette Cluster über exakte TV-Zahl).
   const allGroups = useMemo(
-    () => buildAntragGroups(filtered, { mode: effectiveMode, netzwerkNames }),
-    [filtered, effectiveMode, netzwerkNames],
+    () => buildAntragGroups(filtered, { mode: effectiveMode, netzwerkNames, verbundById }),
+    [filtered, effectiveMode, netzwerkNames, verbundById],
   );
   const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
   const hasMoreGroups = groups.length < allGroups.length;

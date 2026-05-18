@@ -95,6 +95,11 @@ interface AntraegeState {
    *  `AntragDetail` lazy via `getAntrag(idb, az)`. */
   antraege: AntragListItem[];
   verbuende: Verbund[];
+  /** Aus `verbuende` abgeleitete Map für O(1)-Lookup nach `verbund_id`.
+   *  Wird in `loadAll` parallel zur Verbund-Liste aufgebaut, damit Renderer
+   *  (CardGrid/CompactList/GroupedList) sie an `buildAntragGroups` weiter-
+   *  reichen können, ohne pro Aufruf neu zu mappen. */
+  verbundById: Map<string, Verbund>;
   selectedAktenzeichen: string | null;
   selectedVerbundId: string | null;
   search: string;
@@ -176,6 +181,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   programmId: null,
   antraege: [],
   verbuende: [],
+  verbundById: new Map<string, Verbund>(),
   selectedAktenzeichen: null,
   selectedVerbundId: null,
   search: '',
@@ -232,10 +238,13 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
       // und der Detail-View verschwindet beim Direkt-Aufruf von
       // /antraege/:az.
       const programmChanged = oldProgrammId !== null && oldProgrammId !== targetId;
+      const verbundById = new Map<string, Verbund>();
+      for (const v of verbuende) verbundById.set(v.verbund_id, v);
       set({
         programmId: targetId,
         antraege,
         verbuende,
+        verbundById,
         lastLoadedAt: Date.now(),
         ...(programmChanged ? {
           selectedAktenzeichen: null,
