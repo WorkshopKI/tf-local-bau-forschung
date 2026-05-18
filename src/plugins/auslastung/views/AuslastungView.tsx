@@ -36,11 +36,27 @@ export function AuslastungView(): React.ReactElement {
   const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
   const setupDone = data.config.setupAbgeschlossen;
 
-  const [tab, setTab] = useState<TabId>(isKurator && !setupDone ? 'admin' : 'selbst');
+  // WICHTIG: Tab-Default ist immer 'selbst'. Sonst wuerde der useState-
+  // Initial-Computation mit dem in-memory-Default `setupAbgeschlossen=false`
+  // sofort 'admin' setzen und den Setup-Wizard kurz aufblitzen lassen, bevor
+  // `load(storage)` den echten Stand aus `auslastung.json` nachzieht.
+  // Auto-Sprung zu 'admin' passiert weiter unten via useEffect, sobald
+  // `loaded === true` und Setup wirklich nicht abgeschlossen ist.
+  const [tab, setTab] = useState<TabId>('selbst');
+  const [tabAutoSet, setTabAutoSet] = useState(false);
 
   useEffect(() => {
     void load(storage);
   }, [load, storage]);
+
+  // Einmalig nach erstem erfolgreichen Load: Kurator + Setup nicht
+  // abgeschlossen → Admin-Tab automatisch oeffnen (Setup-Wizard sichtbar).
+  // In allen anderen Faellen bleibt 'selbst' der Default.
+  useEffect(() => {
+    if (!loaded || tabAutoSet) return;
+    if (isKurator && !setupDone) setTab('admin');
+    setTabAutoSet(true);
+  }, [loaded, tabAutoSet, isKurator, setupDone]);
 
   // Sichtbare Tabs ableiten
   const tabs = useMemo(() => {
@@ -74,6 +90,18 @@ export function AuslastungView(): React.ReactElement {
     );
   }
 
+  // Solange die echten Daten noch nicht geladen sind: nichts vom Tab-Inhalt
+  // rendern. Verhindert, dass der Setup-Wizard mit den 5 Default-Kategorien
+  // kurz aufblitzt, bevor `loaded=true` und `setupAbgeschlossen` korrekt sind.
+  if (!loaded) {
+    return (
+      <div className="p-6">
+        <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-2">Auslastung</h1>
+        <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Lade Auslastungsdaten…</p>
+      </div>
+    );
+  }
+
   if (!setupDone && !isKurator) {
     return (
       <div className="p-6">
@@ -92,9 +120,6 @@ export function AuslastungView(): React.ReactElement {
         <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
           {Object.keys(data.mitarbeiter).length} MAs · {data.config.ueberKategorien.length} Kategorien · {data.config.aktuellesQuartal}
         </p>
-        {!loaded && (
-          <span className="text-[11px] text-[var(--tf-text-tertiary)]">Lade…</span>
-        )}
       </div>
 
       <Tabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as TabId)} />
