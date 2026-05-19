@@ -2,7 +2,7 @@
   "configVersion": 2,
   "variant": "production",
   "build": {
-    "label": "ZAH Forschungsförderung",
+    "label": "ZAH",
     "outputFilename": "zah-prod",
     "browserTabTitle": "ZAH prod"
   },

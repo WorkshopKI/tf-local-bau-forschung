@@ -2,7 +2,7 @@
   "configVersion": 2,
   "variant": "development",
   "build": {
-    "label": "ZAH",
+    "label": "ZAH dev",
     "outputFilename": "zah-dev",
     "outputSubdir": "dev",
     "browserTabTitle": "ZAH dev",
