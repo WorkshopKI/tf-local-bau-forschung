@@ -4,7 +4,7 @@
   "build": {
     "label": "TeamFlow Forschungsförderung",
     "outputFilename": "teamflow-prod",
-    "browserTabTitle": "TeamFlow Forschungsförderung"
+    "browserTabTitle": "ZAH prod"
   },
   "data": {
     "fixedDataSharePath": "\\\\server\\teamflow-forschungsfoerderung\\",

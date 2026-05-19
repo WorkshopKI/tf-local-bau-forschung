@@ -57,6 +57,16 @@ export function isChatEnabled(): boolean { return features.chat; }
 export function isSucheEnabled(): boolean { return features.suche; }
 export function isFeedbackBoardEnabled(): boolean { return features.feedbackBoard; }
 
+/**
+ * True nur im Entwickler-Kontext: `npm run build:dev` (variant=development) und
+ * `npm run dev` (variant=custom, DEFAULT_CONFIG). Production-Varianten
+ * (prod/kurator/pl) und demo fallen raus. Wird z.B. für den KI-Assistent-Tab
+ * in den Einstellungen genutzt — Endkunden konfigurieren keine LLM-Endpoints.
+ */
+export function isDevContext(): boolean {
+  return runtimeConfig.variant === 'development' || runtimeConfig.variant === 'custom';
+}
+
 export function isOpenRouterEnabled(): boolean {
   return kiConfig.openrouter.enabled;
 }

@@ -10,7 +10,7 @@ import { AIProviderTab } from './AIProviderTab';
 import { SpeicherTab } from './SpeicherTab';
 import { DokumentenquellenTab } from './DokumentenquellenTab';
 import { MeineTechnologienTab } from './MeineTechnologienTab';
-import { isKuratorMenusEnabled, isAntraegeEnabled, isAuslastungEnabled, isBauantraegeEnabled, menuLabel } from '@/config/feature-flags';
+import { isKuratorMenusEnabled, isAntraegeEnabled, isAuslastungEnabled, isBauantraegeEnabled, isDevContext, menuLabel } from '@/config/feature-flags';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
 const TABS: Array<{ id: string; label: string }> = [
@@ -20,8 +20,12 @@ const TABS: Array<{ id: string; label: string }> = [
   { id: 'dokumentenquellen', label: 'Dokumentenquellen' },
   { id: 'tags', label: 'Tags' },
   { id: 'tastatur', label: 'Tastatur' },
-  { id: 'ai', label: 'KI-Assistent' },
 ];
+// KI-Assistent-Tab nur im Entwickler-Kontext — in Produktiv-Varianten ist der
+// LLM-Endpoint via `ki.localLlama.endpoint` in der Build-Config fix verdrahtet.
+if (isDevContext()) {
+  TABS.push({ id: 'ai', label: 'KI-Assistent' });
+}
 if (isAuslastungEnabled()) {
   TABS.splice(1, 0, { id: 'meine-technologien', label: 'Meine Technologien' });
 }

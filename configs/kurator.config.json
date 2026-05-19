@@ -4,7 +4,7 @@
   "build": {
     "label": "TeamFlow Kurator",
     "outputFilename": "teamflow-kurator",
-    "browserTabTitle": "TeamFlow Kurator",
+    "browserTabTitle": "ZAH kurator",
     "sidebarSubtitle": "Forschungsförderung"
   },
   "data": {

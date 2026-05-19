@@ -4,6 +4,7 @@ import { Button, Badge, SectionHeader, ListItem } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { DirectoryEntry } from '@/core/types/config';
 import { shouldShowOpfsOption } from '@/core/utils/environment';
+import { isKuratorMenusEnabled } from '@/config/feature-flags';
 
 export function SpeicherTab(): React.ReactElement {
   const storage = useStorage();
@@ -102,31 +103,39 @@ export function SpeicherTab(): React.ReactElement {
         ))
       )}
 
-      <SectionHeader label="Verzeichnis hinzufügen" />
+      {/* Verzeichnis-Add-Section nur in Setup-fähigen Varianten (dev + kurator);
+          in demo/prod/pl ist der Daten-Share fix und persönliche Ordner werden
+          beim App-Start oder bei Kürzeleingabe automatisch gesetzt. Gate via
+          isKuratorMenusEnabled() — matched präzise dev + kurator. */}
+      {isKuratorMenusEnabled() && (
+        <>
+          <SectionHeader label="Verzeichnis hinzufügen" />
 
-      <div className="flex gap-3 flex-wrap">
-        <Button variant="secondary" icon={FileText} onClick={() => handleAdd('documents')}>
-          Dokumentverzeichnis (Lesen)
-        </Button>
-        <Button variant="secondary" icon={Database} onClick={() => handleAdd('data')}>
-          Datenverzeichnis (Lesen+Schreiben)
-        </Button>
-      </div>
-
-      {showOpfs && (
-        <div className="mt-2 p-3 rounded-[var(--tf-radius)] bg-amber-50/40 dark:bg-amber-950/20" style={{ border: '0.5px solid var(--tf-border)' }}>
-          <p className="text-[12px] font-medium text-[var(--tf-text)] mb-1 flex items-center gap-1.5">
-            <FlaskConical size={12} className="text-amber-700 dark:text-amber-400" /> OPFS-Sandbox (Dev/Preview)
-          </p>
-          <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2.5">
-            Browser-interner Speicher — funktioniert in iframes (Preview), aber kein echtes Sharing zwischen Usern oder Geräten.
-          </p>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="ghost" icon={FileText} onClick={() => handleAddOpfs('documents')}>OPFS-Dokumente</Button>
-            <Button variant="ghost" icon={Database} onClick={() => handleAddOpfs('data')}>OPFS-Daten</Button>
-            <Button variant="ghost" icon={FlaskConical} onClick={() => handleAddOpfs('models')}>OPFS-Modelle</Button>
+          <div className="flex gap-3 flex-wrap">
+            <Button variant="secondary" icon={FileText} onClick={() => handleAdd('documents')}>
+              Dokumentverzeichnis (Lesen)
+            </Button>
+            <Button variant="secondary" icon={Database} onClick={() => handleAdd('data')}>
+              Datenverzeichnis (Lesen+Schreiben)
+            </Button>
           </div>
-        </div>
+
+          {showOpfs && (
+            <div className="mt-2 p-3 rounded-[var(--tf-radius)] bg-amber-50/40 dark:bg-amber-950/20" style={{ border: '0.5px solid var(--tf-border)' }}>
+              <p className="text-[12px] font-medium text-[var(--tf-text)] mb-1 flex items-center gap-1.5">
+                <FlaskConical size={12} className="text-amber-700 dark:text-amber-400" /> OPFS-Sandbox (Dev/Preview)
+              </p>
+              <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2.5">
+                Browser-interner Speicher — funktioniert in iframes (Preview), aber kein echtes Sharing zwischen Usern oder Geräten.
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="ghost" icon={FileText} onClick={() => handleAddOpfs('documents')}>OPFS-Dokumente</Button>
+                <Button variant="ghost" icon={Database} onClick={() => handleAddOpfs('data')}>OPFS-Daten</Button>
+                <Button variant="ghost" icon={FlaskConical} onClick={() => handleAddOpfs('models')}>OPFS-Modelle</Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {error && <p className="text-[12px] text-[var(--tf-danger-text)]">{error}</p>}
