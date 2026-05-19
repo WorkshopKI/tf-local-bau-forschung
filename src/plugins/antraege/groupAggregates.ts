@@ -1,6 +1,7 @@
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
-import { getEingangAmpel, daysSinceEingang, type EingangAmpel } from './eingangAmpel';
+import { getEingangAmpel, type EingangAmpel } from './eingangAmpel';
+import { daysUntilFristAware } from '@/core/services/csv/frist';
 import { formatFkzRange } from './antragGroups';
 import type { StatusPhaseLabel } from './antragGroups';
 
@@ -37,18 +38,21 @@ export function worstAmpel(tvs: AntragListItem[]): EingangAmpel | null {
 }
 
 /**
- * Maximale Bearbeitungs-Wartezeit (groesster `daysSinceEingang`) aller TVs.
- * Der Verbund "wartet" so lange wie sein aeltester noch offener Antrag.
- * Liefert `null` wenn kein TV ein Antragsdatum hat.
+ * Kritischste Frist aller TVs (kleinster `daysUntilFristAware`). Der Verbund
+ * ist so kritisch wie sein dringendster TV (am staerksten negativer/kleinster
+ * Wert). Phase-abhaengig: Antragsphase-TV vs. Begleit-TV mischen ist OK,
+ * weil beide auf das gleiche "Tage bis zur Frist"-Mass normalisiert sind.
+ *
+ * Liefert `null` wenn kein TV eine berechenbare Frist hat.
  */
-export function maxWaitingDays(tvs: AntragListItem[]): number | null {
-  let max: number | null = null;
+export function criticalFristAware(tvs: AntragListItem[]): number | null {
+  let min: number | null = null;
   for (const tv of tvs) {
-    const d = daysSinceEingang(tv);
+    const d = daysUntilFristAware(tv);
     if (d === null) continue;
-    if (max === null || d > max) max = d;
+    if (min === null || d < min) min = d;
   }
-  return max;
+  return min;
 }
 
 /**

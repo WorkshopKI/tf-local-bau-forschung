@@ -1,0 +1,79 @@
+/**
+ * Phasen-aware Frist-Berechnung fuer Foerderantraege.
+ *
+ * Zwei verschiedene Lebenszyklen mit unterschiedlichen Fristen:
+ * - **Antragsphase** (Stati: offen / in_pruefung / nachforderung / entscheidung):
+ *   Bearbeitungs-SLA = `antragsdatum` (D_AAE) + 90 Tage. Bezugsdatum: Antrags-
+ *   eingang. Schwellen synchron zur Eingangs-Ampel (`eingangAmpel.ts`).
+ * - **Begleitphase** (Stati: begleitung, VN-/ZB-Pruefung):
+ *   VN-Frist = `vn_eingang_datum` (D_VBE) + 6 Monate. Bezugsdatum: Eingang
+ *   Verwendungsnachweis. Wenn D_VBE leer ist, gibt es keine Frist.
+ *
+ * Wohnt im csv-Layer (nicht im Plugin), damit der Merger-Fallback
+ * (`applyFristDatumFallback`) ohne Plugin-Cycle drauf zugreifen kann.
+ */
+
+import { isBegleitungStatus } from '@/core/utils/status-canonical';
+import type { AntragListItem } from './types';
+
+export const MS_PER_DAY = 1000 * 60 * 60 * 24;
+export const ANTRAG_SLA_DAYS = 90;
+export const VN_SLA_MONTHS = 6;
+
+/** Addiert N Kalendermonate auf ein ISO-Datum. Bei Monatsende-Drift (z.B.
+ *  31.01. + 1 Monat → 28.02.) faellt JavaScript automatisch auf den letzten
+ *  Tag des Zielmonats zurueck. Liefert ISO-String oder `null` bei ungueltigem
+ *  Input. */
+export function addMonths(iso: string, months: number): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + months;
+  const day = d.getUTCDate();
+  const next = new Date(Date.UTC(year, month, day));
+  return next.toISOString();
+}
+
+/** Addiert N Tage auf ein ISO-Datum. Liefert ISO-String oder `null` bei
+ *  ungueltigem Input. */
+export function addDays(iso: string, days: number): string | null {
+  const ms = new Date(iso).getTime();
+  if (Number.isNaN(ms)) return null;
+  return new Date(ms + days * MS_PER_DAY).toISOString();
+}
+
+/**
+ * Berechnet das Frist-Datum eines Antrags phasen-abhaengig:
+ * - Begleitphase + `vn_eingang_datum` gesetzt → `vn_eingang_datum + 6 Monate`
+ * - Begleitphase + `vn_eingang_datum` leer → `null` (keine Frist anzeigen)
+ * - Sonst (Antragsphase) + `antragsdatum` gesetzt → `antragsdatum + 90 Tage`
+ * - Sonst leer → `null`
+ *
+ * Akzeptiert auch das schlanke `AntragListItem` oder einen vollen `Antrag`-
+ * Record (beide haben die relevanten Felder als optionale Strings).
+ */
+export function computeFristDatum(
+  antrag: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>,
+): string | null {
+  if (isBegleitungStatus(antrag.status)) {
+    const vn = typeof antrag.vn_eingang_datum === 'string' ? antrag.vn_eingang_datum : null;
+    if (!vn) return null;
+    return addMonths(vn, VN_SLA_MONTHS);
+  }
+  const ad = typeof antrag.antragsdatum === 'string' ? antrag.antragsdatum : null;
+  if (!ad) return null;
+  return addDays(ad, ANTRAG_SLA_DAYS);
+}
+
+/** Tage bis zur Frist (Vorzeichen-konsistent). Negativ = ueberfaellig,
+ *  positiv = noch Zeit, `null` = keine Frist berechenbar. */
+export function daysUntilFristAware(
+  antrag: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>,
+  nowMs: number = Date.now(),
+): number | null {
+  const frist = computeFristDatum(antrag);
+  if (!frist) return null;
+  const ms = new Date(frist).getTime();
+  if (Number.isNaN(ms)) return null;
+  return Math.ceil((ms - nowMs) / MS_PER_DAY);
+}

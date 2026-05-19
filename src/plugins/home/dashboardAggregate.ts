@@ -11,13 +11,14 @@
  * gezaehlt.
  */
 import type { AntragListItem } from '@/core/services/csv/types';
+import { computeFristDatum } from '@/core/services/csv/frist';
 import type { Vorgang } from '@/core/types/vorgang';
 import {
   antragMatchesBearbeiter,
   type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
-import { getStatusCategory } from '@/core/utils/status-canonical';
+import { getStatusCategory, isBegleitungStatus } from '@/core/utils/status-canonical';
 
 export type AntragVorgang = Vorgang & {
   _isAntrag: true;
@@ -95,29 +96,15 @@ function daysUntil(dateStr: string | undefined, nowMs: number): number | null {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-/** Bearbeitungs-SLA-Fenster fuer Foerderantraege (in Tagen seit Eingang).
- *  Muss synchron zu eingangAmpel.ts-Schwellen bleiben: > 90 Tage = rote Ampel
- *  = SLA-Verstoss. Die Home-Aggregate `dringend`/`fristenDieseWoche` rechnen
- *  weiterhin in "daysLeft" — wir uebersetzen das Eingangsdatum (D_AAE) in
- *  eine virtuelle SLA-Deadline (Eingang + 90 Tage). Dadurch funktioniert die
- *  bestehende `daysUntil(deadline) <= 7`-Logik unveraendert. */
-const ANTRAG_SLA_DAYS = 90;
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-function antragSlaDeadline(antragsdatum: string | undefined): string | undefined {
-  if (typeof antragsdatum !== 'string' || antragsdatum.length === 0) return undefined;
-  const ms = new Date(antragsdatum).getTime();
-  if (Number.isNaN(ms)) return undefined;
-  return new Date(ms + ANTRAG_SLA_DAYS * MS_PER_DAY).toISOString();
-}
-
 /** Minimal-Projektion eines Antrags auf eine Vorgang-aehnliche Shape. */
 function antragToVorgangLike(a: AntragListItem): AntragVorgang {
   const antragsdatum = typeof a.antragsdatum === 'string' ? a.antragsdatum : undefined;
-  // `deadline` ist die virtuelle SLA-Frist = antragsdatum + 90 Tage. Damit
-  // bedeutet `daysLeft <= 0` "SLA verletzt", `daysLeft ∈ [0, 7]` "SLA droht
-  // diese Woche zu reissen" — kompatibel mit der bestehenden Aggregat-Logik.
-  const deadline = antragSlaDeadline(antragsdatum);
+  // `deadline` ist die phasen-abhaengige Frist (siehe csv/frist.ts):
+  // - Antragsphase: antragsdatum + 90 Tage
+  // - Begleitphase: vn_eingang_datum + 6 Monate
+  // Damit ist `daysLeft <= 0` "Frist verletzt", `daysLeft ∈ [0, 7]` "Frist
+  // droht diese Woche zu reissen" — kompatibel zur bestehenden Aggregat-Logik.
+  const deadline = computeFristDatum(a) ?? undefined;
   const created = antragsdatum ?? a._updated_at;
   return {
     id: a.aktenzeichen,
@@ -188,6 +175,11 @@ export function computeDashboardAggregate(
     for (const a of antraege) {
       if (!anyKuerzelSeen && antragHasAnyKuerzel(a)) anyKuerzelSeen = true;
       if (isIrrlaeufer(a.vb_phase)) continue;
+      // Phase-Filter: Antraege in Begleitphase (VN-/ZB-Stati) nur sichtbar,
+      // wenn der Profil-Toggle `bearbeiter_inkl_begleitung` aktiv ist. Die
+      // Begleitung hat andere Zustaendigkeit (ZTP/PFM) und andere Frist-
+      // Berechnung — Default ist sie auf der Home ausgeblendet.
+      if (isBegleitungStatus(a.status) && !bearbeiterMode.includeBegleitung) continue;
       if (bearbeiterMode.active && !antragMatchesBearbeiter(a, bearbeiterMode)) continue;
       const v = antragToVorgangLike(a);
       stats.total++;

@@ -4,6 +4,7 @@ import {
   isOpenStatus,
   isNachforderungStatus,
   isBewilligtStatus,
+  isBegleitungStatus,
 } from '@/core/utils/status-canonical';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { daysSinceEingang } from './eingangAmpel';
@@ -51,22 +52,26 @@ export const VIEWS: AntragView[] = [
   },
   {
     // Bearbeitungs-SLA: rote Eingangs-Ampel (>90 Tage) erreicht diese Woche.
-    // frist_datum spiegelt antragsdatum (D_AAE), daher uebernehmen wir die
-    // Schwellen der Eingangs-Ampel (eingangAmpel.ts).
+    // Nur Antragsphase — Begleit-Antraege haben einen anderen Lebenszyklus
+    // (VN-Frist = vn_eingang_datum + 6 Monate) und gehoeren NICHT in diese
+    // antragsdatum-basierte View.
     key: 'diese_woche_faellig',
     label: 'SLA-Risiko (diese Woche)',
     predicate: a => {
       if (!isOpenStatus(a.status)) return false;
+      if (isBegleitungStatus(a.status)) return false;
       const d = daysSinceEingang(a);
       return d !== null && d >= 84 && d <= 90;
     },
   },
   {
     // Bearbeitungs-SLA: rote Eingangs-Ampel (>90 Tage) bereits erreicht.
+    // Begleitphase explizit ausgeschlossen (siehe diese_woche_faellig).
     key: 'ueberfaellig',
     label: 'Überfällig',
     predicate: a => {
       if (!isOpenStatus(a.status)) return false;
+      if (isBegleitungStatus(a.status)) return false;
       const d = daysSinceEingang(a);
       return d !== null && d > 90;
     },

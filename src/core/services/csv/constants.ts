@@ -21,6 +21,7 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
   { key: 'bewilligung_datum', type: 'date', label: 'Bewilligungsdatum', level: 'antrag' },
   { key: 'antragsdatum', type: 'date', label: 'Antragsdatum', level: 'antrag' },
   { key: 'frist_datum', type: 'date', label: 'Fristdatum', level: 'antrag' },
+  { key: 'vn_eingang_datum', type: 'date', label: 'Eingang VN-Sach', level: 'antrag' },
   { key: 'foerdersumme', type: 'number', label: 'Fördersumme', level: 'antrag' },
   // Bearbeiter / Begleitung — Namenskürzel pro Antrag, für den Profil-Filter „Nur meine".
   { key: 'tib_kuerz', type: 'string', label: 'Bearbeiter TiB (Kürzel)', level: 'antrag' },
@@ -49,6 +50,7 @@ export const CANONICAL_FIELD_KEYS = CANONICAL_FIELDS.map(f => f.key);
 export const CANONICAL_FIELD_NAME_ALIASES: Record<string, CanonicalField> = {
   d_aae: 'antragsdatum',
   d_abb: 'bewilligung_datum',
+  d_vbe: 'vn_eingang_datum',
   org_afs: 'antragsteller',
   thema_ad: 'titel',
   vb_nummer: 'verbund_id',
@@ -79,6 +81,7 @@ export const LIST_VIEW_FIELDS: readonly string[] = [
   'frist_datum',
   'bewilligung_datum',
   'antragsdatum',
+  'vn_eingang_datum',
   // Filter-Standards
   'foerdergeber',
   'verbund_id',

@@ -33,6 +33,9 @@ export const SCHEMA_B_COLUMN_MAPPING: ColumnMapping = {
   // Datumsfelder
   D_AAE: { canonical: 'antragsdatum', type: 'date' },
   D_ABB: { canonical: 'bewilligung_datum', type: 'date' },
+  // Begleitphase: Eingang Verwendungsnachweis (Sach-Teil). Basis fuer die
+  // VN-Frist-Berechnung (vn_eingang_datum + 6 Monate). Nur in Bgl.
+  D_VBE: { canonical: 'vn_eingang_datum', type: 'date' },
   // Bearbeiter — Bgl ist die Quelle fuer ZTP/PFM-Begleitung
   TIB_KUERZ: { canonical: 'tib_kuerz', type: 'string' },
   BIB_KUERZ: { canonical: 'bib_kuerz', type: 'string' },

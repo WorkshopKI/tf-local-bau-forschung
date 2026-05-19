@@ -7,6 +7,7 @@ import {
   AMPEL_COLOR,
   AMPEL_TOOLTIP,
 } from './eingangAmpel';
+import { daysUntilFristAware } from '@/core/services/csv/frist';
 
 interface Props {
   tv: AntragListItem;
@@ -20,11 +21,13 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-/** Tage seit Eingang als kompakte Anzeige ("100d"). Negative Werte (Zukunft) und
- *  fehlende Datums werden als leer dargestellt. */
-function formatWaiting(d: number | null): string {
-  if (d === null || d < 0) return '';
+/** Tage bis zur Frist (Phase-abhaengig). Positiv = Zeit uebrig ("+45d"),
+ *  0 = heute, negativ = ueberfaellig ("-12d"). `null` = keine Frist
+ *  berechenbar (Quellfeld leer) → leere Anzeige. */
+function formatFrist(d: number | null): string {
+  if (d === null) return '';
   if (d === 0) return 'heute';
+  if (d > 0) return `+${d}d`;
   return `${d}d`;
 }
 
@@ -40,11 +43,13 @@ export function CompactRow({ tv, selected, onClick }: Props): React.ReactElement
   const akronym = strOrNull(tv.akronym);
   const antragsteller = strOrNull(tv.antragsteller);
   const status = strOrNull(tv.status) ?? '';
-  // "Frist" = Tage seit Eingang (Bearbeitungs-SLA). frist_datum spiegelt
-  // antragsdatum (D_AAE); ueber 90 Tage offen = SLA-Verstoss = rot.
-  const waiting = daysSinceEingang(tv);
-  const fristTxt = formatWaiting(waiting);
-  const fristCritical = waiting !== null && waiting > 90;
+  // Frist phase-abhaengig (siehe csv/frist.ts):
+  // - Antragsphase: antragsdatum + 90 Tage − heute
+  // - Begleitphase: vn_eingang_datum + 6 Monate − heute
+  // Negativ = ueberfaellig = rot.
+  const frist = daysUntilFristAware(tv);
+  const fristTxt = formatFrist(frist);
+  const fristCritical = frist !== null && frist < 0;
 
   const titleText = antragsteller ?? strOrNull(tv.titel) ?? tv.aktenzeichen;
 

@@ -26,6 +26,7 @@ export function toAntragListItem(antrag: Antrag): AntragListItem {
   copyStringField(antrag, item, 'frist_datum');
   copyStringField(antrag, item, 'bewilligung_datum');
   copyStringField(antrag, item, 'antragsdatum');
+  copyStringField(antrag, item, 'vn_eingang_datum');
   copyStringField(antrag, item, 'foerdergeber');
   copyStringField(antrag, item, 'verbund_id');
   copyStringField(antrag, item, 'unterprogramm_id');

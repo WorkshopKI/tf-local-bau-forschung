@@ -1,10 +1,11 @@
 import { Badge } from '@/ui';
 import type { AntragGroup } from './antragGroups';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
-import { AMPEL_COLOR, AMPEL_TOOLTIP, daysSinceEingang } from './eingangAmpel';
+import { AMPEL_COLOR, AMPEL_TOOLTIP } from './eingangAmpel';
+import { daysUntilFristAware } from '@/core/services/csv/frist';
 import {
   worstAmpel,
-  maxWaitingDays,
+  criticalFristAware,
   dominantStatus,
   verbundFkz,
 } from './groupAggregates';
@@ -25,11 +26,12 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-/** Tage seit Eingang als kompakte Anzeige ("100d"). Negative Werte (Zukunft)
- *  und fehlende Datums werden als leer dargestellt. */
-function formatWaiting(d: number | null): string {
-  if (d === null || d < 0) return '';
+/** Tage bis zur Frist (Phase-abhaengig). Positiv = Zeit uebrig ("+45d"),
+ *  0 = heute, negativ = ueberfaellig ("-12d"). */
+function formatFrist(d: number | null): string {
+  if (d === null) return '';
   if (d === 0) return 'heute';
+  if (d > 0) return `+${d}d`;
   return `${d}d`;
 }
 
@@ -89,12 +91,14 @@ export function AntragTile({
     }
   };
 
-  // Ampel + "Frist" (= Bearbeitungs-Wartezeit). frist_datum spiegelt
-  // antragsdatum (D_AAE); >90 Tage offen = SLA-Verstoss = rot.
+  // Ampel + Frist (phase-abhaengig via csv/frist.ts):
+  // - Antragsphase: antragsdatum + 90 Tage
+  // - Begleitphase: vn_eingang_datum + 6 Monate
+  // Negativ = ueberfaellig = rot.
   const ampel = worstAmpel(group.tvs);
-  const waiting = isVerbund ? maxWaitingDays(group.tvs) : daysSinceEingang(headTv);
-  const fristTxt = formatWaiting(waiting);
-  const fristCritical = waiting !== null && waiting > 90;
+  const frist = isVerbund ? criticalFristAware(group.tvs) : daysUntilFristAware(headTv);
+  const fristTxt = formatFrist(frist);
+  const fristCritical = frist !== null && frist < 0;
 
   // Dominanter Status für die Card-Pill (immer einheitlich, keine Dot-Row mehr —
   // die granularen TV-Stati sind über die StatusBarRow oben kodiert).

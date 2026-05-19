@@ -126,7 +126,12 @@ export function EinstellungenPage(): React.ReactElement {
                   className="mt-0.5 cursor-pointer accent-[var(--tf-primary)]"
                 />
                 <span className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug">
-                  Auch Begleitungen einschließen (Spalten <span className="font-mono">ZTP_KUERZ</span>, <span className="font-mono">PFM_KUERZ</span>)
+                  Auch Begleitungen einschließen
+                  <span className="block text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
+                    Zeigt Anträge in der Begleitphase (VN-/ZB-Stati) und matcht zusätzlich auf
+                    die Begleitungs-Kürzel <span className="font-mono">ZTP_KUERZ</span> und <span className="font-mono">PFM_KUERZ</span>.
+                    Frist-Berechnung für VN-Anträge: <span className="font-mono">D_VBE</span> (Eingang VN-Sach) + 6 Monate.
+                  </span>
                 </span>
               </label>
             </div>

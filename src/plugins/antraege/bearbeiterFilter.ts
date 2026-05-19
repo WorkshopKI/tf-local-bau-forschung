@@ -1,7 +1,8 @@
 import type { AntragListItem } from '@/core/services/csv/types';
+import { isBegleitungStatus } from '@/core/utils/status-canonical';
 
 /**
- * Bearbeiter-Kürzel-Filter.
+ * Bearbeiter-Kürzel-Filter + Begleitphase-Filter.
  *
  * CSV-Spalten (raw, kommen unverändert aus dem Import auf den Antrag):
  * - Bearbeiter:  `TiB_KUERZ`, `BIB_KUERZ`
@@ -14,23 +15,19 @@ import type { AntragListItem } from '@/core/services/csv/types';
  * matchen daher case-insensitive über `Object.entries(antrag)`.
  *
  * Profil-Konfiguration (`UserProfile.bearbeiter_kuerzel`):
- * - leer / nicht gesetzt → Filter inaktiv
- * - "alle" (case-insensitive) → Filter inaktiv (PL-Modus)
+ * - leer / nicht gesetzt → Kürzel-Filter inaktiv
+ * - "alle" (case-insensitive) → Kürzel-Filter inaktiv (PL-Modus)
  * - "MUE"  → matched gegen ein einzelnes Kürzel
  * - "MUE, SCH" → mehrere Kürzel komma-separiert (für Vertretung)
  *
- * `bearbeiter_inkl_begleitung` (Profil-Toggle):
- * - true:  zusaetzlich ZTP/PFM-Spalten matchen
- * - false: nur TIB/BIB-Spalten matchen
+ * `bearbeiter_inkl_begleitung` (Profil-Toggle, **Doppelwirkung**):
+ * - true:  Begleit-Stati (VN-/ZB-) bleiben sichtbar UND ZTP/PFM-Kürzel
+ *          werden zusätzlich gematcht.
+ * - false: Begleit-Stati werden komplett ausgeblendet (auch wenn das
+ *          TIB-/BIB-Kürzel matched). Nur TIB/BIB-Spalten werden gematcht.
  *
- * Wichtig: ein TIB-/BIB-Treffer ueberstimmt die Phase. Auch wenn der
- * Antrag inzwischen in Begleit-Phase (VN-/ZB-geprueft etc.) ist, bleibt
- * er sichtbar, solange das TIB-/BIB-Kuerzel den User identifiziert.
- * Das ist absichtlich: Recherche-Workflows (alte aehnliche Antraege fuer
- * Textvorlagen) brauchen die Sicht auch auf in-Begleitung-uebergegangene
- * Faelle. Der `inkl_begleitung`-Toggle bestimmt nur noch, ob zusaetzlich
- * uebernommene Begleitungs-Faelle (ZTP/PFM-Match ohne TIB-Match)
- * mitkommen.
+ * Die Phase-Filterung wirkt auch wenn der Kürzel-Filter inaktiv ist —
+ * deshalb wird `includeBegleitung` in der INACTIVE-Mode-Variante mitgeführt.
  */
 
 const BEARBEITER_FIELDS_LOWER: readonly string[] = ['tib_kuerz', 'bib_kuerz'];
@@ -52,28 +49,31 @@ export interface BearbeiterFilterMode {
   includeBegleitung: boolean;
 }
 
-const INACTIVE: BearbeiterFilterMode = { active: false, tokens: [], includeBegleitung: false };
-
 /**
  * Parst das Profil-Feld zu einem normalisierten Filter-Modus.
- * - Leer / undefined / nur Whitespace → inaktiv
- * - "alle" (case-insensitive) → inaktiv
+ * - Leer / undefined / nur Whitespace → Kürzel-Filter inaktiv (aber
+ *   `includeBegleitung` bleibt aus dem Profil erhalten, weil die Phase-
+ *   Filterung auch ohne aktiven Kürzel-Filter wirkt).
+ * - "alle" (case-insensitive) → Kürzel-Filter inaktiv
  * - Sonst: comma-split, trim, uppercase, leere Tokens entfernt.
  */
 export function parseBearbeiterFilter(
   raw: string | undefined,
   includeBegleitung: boolean | undefined,
 ): BearbeiterFilterMode {
-  if (!raw) return INACTIVE;
+  const incBegl = !!includeBegleitung;
+  if (!raw) return { active: false, tokens: [], includeBegleitung: incBegl };
   const trimmed = raw.trim();
-  if (!trimmed) return INACTIVE;
-  if (trimmed.toLowerCase() === 'alle') return INACTIVE;
+  if (!trimmed) return { active: false, tokens: [], includeBegleitung: incBegl };
+  if (trimmed.toLowerCase() === 'alle') {
+    return { active: false, tokens: [], includeBegleitung: incBegl };
+  }
   const tokens = trimmed
     .split(',')
     .map(t => t.trim().toUpperCase())
     .filter(t => t.length > 0);
-  if (tokens.length === 0) return INACTIVE;
-  return { active: true, tokens, includeBegleitung: !!includeBegleitung };
+  if (tokens.length === 0) return { active: false, tokens: [], includeBegleitung: incBegl };
+  return { active: true, tokens, includeBegleitung: incBegl };
 }
 
 /**
@@ -159,10 +159,25 @@ export function antragMatchesBearbeiter(antrag: AntragListItem, mode: Bearbeiter
 }
 
 /**
- * Convenience: filtert eine Liste mit dem Modus. Inaktiver Filter → unverändert.
+ * Filtert Begleitphase-Antraege raus, wenn der Profil-Toggle off ist.
+ * Wirkt unabhaengig vom Kuerzel-Filter — wenn `includeBegleitung=false`,
+ * werden VN-/ZB-Stati universell ausgeblendet (Home, Antrags-Liste, etc.).
  *
- * Phase-übergreifend: ein TIB-/BIB-Match überstimmt die Antrags-Phase
- * (siehe Modul-Docstring oben).
+ * Aufruf-Reihenfolge in `useFilteredAntraege`:
+ *   isIrrlaeufer → filterByBegleitungPhase → applyBearbeiterFilter
+ */
+export function filterByBegleitungPhase(
+  antraege: AntragListItem[],
+  includeBegleitung: boolean,
+): AntragListItem[] {
+  if (includeBegleitung) return antraege;
+  return antraege.filter(a => !isBegleitungStatus(a.status));
+}
+
+/**
+ * Convenience: filtert eine Liste mit dem Kuerzel-Modus. Inaktiver Filter →
+ * unverändert. **Phase-Filter ist eine separate Stufe** — siehe
+ * `filterByBegleitungPhase`.
  */
 export function applyBearbeiterFilter(antraege: AntragListItem[], mode: BearbeiterFilterMode): AntragListItem[] {
   if (!mode.active) return antraege;

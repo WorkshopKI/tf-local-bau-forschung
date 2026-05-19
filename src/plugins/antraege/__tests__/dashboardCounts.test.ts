@@ -14,11 +14,14 @@ const FIXTURES = [
 ] as const;
 
 describe.each(FIXTURES)('computeDashboardAggregate — $name (domain-unabhaengige Counts)', ({ data }) => {
-  it('total = 18 (2 Irrlaeufer ausgeblendet)', () => {
+  it('total reflektiert Phase-Filter (Begleit-Stati ausgeblendet)', () => {
     const agg = computeDashboardAggregate(BAUANTRAEGE, data, NEUTRAL, {
       includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
-    expect(agg.stats.total).toBe(18);
+    // Bauantrag-Fixture: 18 (2 Irrlaeufer raus). Foerderantrag: 16 (2 Irr +
+    // 2 VN-Stati raus durch Phase-Filter).
+    const expected = data === SEED_ANTRAEGE ? 18 : 16;
+    expect(agg.stats.total).toBe(expected);
   });
   it('nachforderung > 0 (deckt Bauantrag nachforderung/nachbesserung UND Foerderantrag NF gestellt)', () => {
     const agg = computeDashboardAggregate(BAUANTRAEGE, data, NEUTRAL, {
@@ -32,11 +35,18 @@ describe.each(FIXTURES)('computeDashboardAggregate — $name (domain-unabhaengig
     });
     expect(agg.stats.bewilligt).toBe(4);
   });
-  it('offen = 11 (begleitung zaehlt zu offen weil noch nicht abgeschlossen)', () => {
+  // NEUTRAL (Profil ohne bearbeiter_inkl_begleitung=true) blendet Begleit-Stati
+  // (VN-/ZB-Stati) komplett aus. Foerderantrag-Fixture hat 2 VN-Stati
+  // (REAL-002 + REAL-017) → die fehlen jetzt in `offen`. Bauantrag-Fixture
+  // hat 0 Begleit-Stati → unveraendert 11.
+  it('offen reflektiert Phase-Filter (Begleit-Stati ausgeblendet)', ({ }) => {
     const agg = computeDashboardAggregate(BAUANTRAEGE, data, NEUTRAL, {
       includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
-    expect(agg.stats.offen).toBe(11);
+    // Fixture-spezifisch: Bauantrag hat keine Begleit-Stati (11), Foerderantrag
+    // hat zwei VN-Stati die ausgeblendet werden (9).
+    const expected = data === SEED_ANTRAEGE ? 11 : 9;
+    expect(agg.stats.offen).toBe(expected);
   });
 });
 
@@ -62,11 +72,25 @@ describe('computeDashboardAggregate — Foerderantrag-Domain (CSV-Rohwerte mit B
     });
     expect(agg.stats.inPruefung).toBe(2);
   });
-  it('begleitung = 2 (REAL-002 + REAL-017 sind VN geprueft)', () => {
+  it('begleitung = 0 ohne Toggle (Phase-Filter blendet VN-Stati aus)', () => {
     const agg = computeDashboardAggregate(BAUANTRAEGE, REAL_CSV_ANTRAEGE, NEUTRAL, {
       includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
+    expect(agg.stats.begleitung).toBe(0);
+  });
+  it('begleitung = 2 mit Toggle aktiv (REAL-002 + REAL-017 sind VN geprueft)', () => {
+    const withBegleitung = parseBearbeiterFilter(undefined, true);
+    const agg = computeDashboardAggregate(BAUANTRAEGE, REAL_CSV_ANTRAEGE, withBegleitung, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
     expect(agg.stats.begleitung).toBe(2);
+  });
+  it('offen = 11 mit Toggle aktiv (Begleit-Stati zaehlen wieder)', () => {
+    const withBegleitung = parseBearbeiterFilter(undefined, true);
+    const agg = computeDashboardAggregate(BAUANTRAEGE, REAL_CSV_ANTRAEGE, withBegleitung, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.stats.offen).toBe(11);
   });
 });
 

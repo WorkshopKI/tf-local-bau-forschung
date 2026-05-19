@@ -11,6 +11,7 @@ import { useProfile } from '@/core/hooks/useProfile';
 import {
   parseBearbeiterFilter,
   applyBearbeiterFilter,
+  filterByBegleitungPhase,
   hasAnyKuerzelData,
   type BearbeiterFilterMode,
 } from './bearbeiterFilter';
@@ -77,8 +78,11 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     const byPreFilter = explicitVbPhase
       ? byView
       : byView.filter(a => !isIrrlaeufer(a.vb_phase));
+    // Phase-Filter (Begleitphase): wirkt unabhaengig vom Kuerzel-Filter.
+    // Ohne aktiven Toggle werden VN-/ZB-Stati ausgeblendet.
+    const byPhase = filterByBegleitungPhase(byPreFilter, bearbeiterFilter.includeBegleitung);
     // Bearbeiter-Filter (Profil-Kürzel) NACH der View, vor den Custom-Filtern.
-    const byBearbeiter = applyBearbeiterFilter(byPreFilter, bearbeiterFilter);
+    const byBearbeiter = applyBearbeiterFilter(byPhase, bearbeiterFilter);
     const filteredBase = applyFilters(byBearbeiter, active, definitions);
     const q = deferredSearch.trim().toLowerCase();
     const matched = q
