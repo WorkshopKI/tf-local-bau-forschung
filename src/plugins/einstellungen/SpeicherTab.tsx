@@ -4,15 +4,17 @@ import { Button, Badge, SectionHeader, ListItem } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { DirectoryEntry } from '@/core/types/config';
 import { shouldShowOpfsOption } from '@/core/utils/environment';
-import { isKuratorMenusEnabled, dataConfig } from '@/config/feature-flags';
+import { isKuratorMenusEnabled } from '@/config/feature-flags';
 import {
   clearPersoenlichHandle,
   getPersoenlichHandle,
   pickAndStorePersoenlichHandle,
 } from '@/core/services/infrastructure/smb-handle';
+import { useConnectionState } from '@/core/services/connection-status';
 
 export function SpeicherTab(): React.ReactElement {
   const storage = useStorage();
+  const setPersoenlichAvailable = useConnectionState(s => s.setPersoenlichAvailable);
   const [directories, setDirectories] = useState<DirectoryEntry[]>(storage.getDirectories());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
@@ -47,6 +49,7 @@ export function SpeicherTab(): React.ReactElement {
       }
       setPersConnected(true);
       setPersFolderName(res.handle.name);
+      setPersoenlichAvailable(true);
     } finally {
       setPersBusy(false);
     }
@@ -56,6 +59,7 @@ export function SpeicherTab(): React.ReactElement {
     await clearPersoenlichHandle(storage.idb);
     setPersConnected(false);
     setPersFolderName(null);
+    setPersoenlichAvailable(false);
   };
 
   const refresh = (): void => setDirectories(storage.getDirectories());
@@ -113,9 +117,6 @@ export function SpeicherTab(): React.ReactElement {
           <div className="min-w-0">
             <p className="text-[13px] text-[var(--tf-text)] truncate">
               {persConnected ? (persFolderName ?? 'Verbunden') : 'Noch nicht verbunden'}
-            </p>
-            <p className="text-[11.5px] text-[var(--tf-text-tertiary)] truncate">
-              Unterordner: <code>{dataConfig.expectedFolderName ? 'teamflow' : 'teamflow'}/</code>
             </p>
           </div>
         </div>

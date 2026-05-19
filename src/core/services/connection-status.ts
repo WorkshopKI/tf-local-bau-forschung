@@ -32,6 +32,7 @@ const INITIAL: ConnectionState = {
 interface ConnectionStore extends ConnectionState {
   applyRefreshResult: (result: RefreshAllResult, opts?: { lastSyncTimestamp?: string | null }) => void;
   setLastSyncTimestamp: (ts: string | null) => void;
+  setPersoenlichAvailable: (available: boolean) => void;
   reset: () => void;
 }
 
@@ -51,6 +52,8 @@ export const useConnectionState = create<ConnectionStore>((set) => ({
   },
 
   setLastSyncTimestamp: (ts) => set({ lastSyncTimestamp: ts }),
+
+  setPersoenlichAvailable: (available) => set({ persoenlichAvailable: available }),
 
   reset: () => set({ ...INITIAL }),
 }));
