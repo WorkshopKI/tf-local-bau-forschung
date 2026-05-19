@@ -45,6 +45,7 @@ export interface DashboardData {
 export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide' = 'beide'): DashboardData {
   const bauantraegeRaw = useBauantraegeStore(s => s.bauantraege);
   const antraegeRaw = useAntraegeStore(s => s.antraege);
+  const verbundByIdRaw = useAntraegeStore(s => s.verbundById);
   const { profile } = useProfile();
 
   // useDeferredValue puffert die kaskadierenden Store-Updates beim
@@ -54,6 +55,7 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
   // wenn beide Werte stabilisiert sind und mit niedriger Prioritaet.
   const antraege = useDeferredValue(antraegeRaw);
   const bauantraege = useDeferredValue(bauantraegeRaw);
+  const verbundById = useDeferredValue(verbundByIdRaw);
 
   return useMemo(() => {
     const end = tfPerfStart('useDashboardData memo');
@@ -67,6 +69,7 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
     const agg = computeDashboardAggregate(bauantraege, antraege, bearbeiterMode, {
       includeBauantraege,
       includeAntraege,
+      verbundById,
     });
 
     // KUERZ-Missing nur dann melden, wenn tatsächlich Antraege im Store
@@ -95,5 +98,5 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
     };
     end(`antraege=${antraege.length} bauantraege=${bauantraege.length} → total=${agg.stats.total} offen=${agg.stats.offen}`);
     return result;
-  }, [bauantraege, antraege, department, profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung]);
+  }, [bauantraege, antraege, verbundById, department, profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung]);
 }

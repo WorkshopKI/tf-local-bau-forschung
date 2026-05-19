@@ -10,7 +10,7 @@
  * (CSV-Rohwerte wie `bewilligt`/`VN geprüft`/`NF gestellt`) werden korrekt
  * gezaehlt.
  */
-import type { AntragListItem } from '@/core/services/csv/types';
+import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import { computeFristDatum } from '@/core/services/csv/frist';
 import type { Vorgang } from '@/core/types/vorgang';
 import {
@@ -30,6 +30,12 @@ export type AntragVorgang = Vorgang & {
   /** Verbund-ID des Antrags (leer / undefined bei Solo-Antraegen). Wird auf
    *  der Home fuer das Verbund-Clustering der `meineAntraege`-Liste genutzt. */
   verbund_id?: string;
+  /** Verbund-Titel aus dem `Verbund`-Store (CSV-Spalte `VB_TITEL`). Wird in
+   *  der Home-Liste bevorzugt vor dem TV-Titel angezeigt — sowohl bei Verbund-
+   *  Clustern (mehrere TVs gleicher verbund_id) als auch bei Einzelprojekten
+   *  (dort ist VB_TITEL meist identisch mit TV-Titel). Fallback auf TV-Titel
+   *  wenn `verbund_titel` leer ist. */
+  verbund_titel?: string;
   /** Anzahl Teilvorhaben im Verbund-Cluster. Bei Solo-Antraegen 1, bei
    *  Verbund-Lead-TVs = Anzahl aller TVs (inkl. Lead). UI rendert
    *  `+N`-Indikator wenn > 1. Wird nur in `meineAntraege` gesetzt. */
@@ -65,6 +71,11 @@ export interface DashboardAggregateResult {
 }
 
 export interface AggregateOptions {
+  /** Optional: Verbund-Lookup (verbund_id → Verbund). Wird in
+   *  `antragToVorgangLike` genutzt um `verbund_titel` an die MeineAntraege-
+   *  Liste anzuhaengen. Wenn nicht uebergeben, bleibt `verbund_titel`
+   *  undefined und das UI faellt auf den TV-Titel zurueck. */
+  verbundById?: Map<string, Verbund>;
   includeBauantraege: boolean;
   includeAntraege: boolean;
   /** Erlaubt Tests mit einem fixen Heute-Datum. Default `Date.now()`. */
@@ -104,7 +115,10 @@ function daysUntil(dateStr: string | undefined, nowMs: number): number | null {
 }
 
 /** Minimal-Projektion eines Antrags auf eine Vorgang-aehnliche Shape. */
-function antragToVorgangLike(a: AntragListItem): AntragVorgang {
+function antragToVorgangLike(
+  a: AntragListItem,
+  verbundById?: Map<string, Verbund>,
+): AntragVorgang {
   const antragsdatum = typeof a.antragsdatum === 'string' ? a.antragsdatum : undefined;
   // `deadline` ist die phasen-abhaengige Frist (siehe csv/frist.ts):
   // - Antragsphase: antragsdatum + 90 Tage
@@ -113,6 +127,17 @@ function antragToVorgangLike(a: AntragListItem): AntragVorgang {
   // droht diese Woche zu reissen" — kompatibel zur bestehenden Aggregat-Logik.
   const deadline = computeFristDatum(a) ?? undefined;
   const created = antragsdatum ?? a._updated_at;
+  const verbundId = typeof a.verbund_id === 'string' && a.verbund_id.length > 0 ? a.verbund_id : undefined;
+  // Verbund-Titel (VB_TITEL) bevorzugt aus dem Verbund-Store ziehen. Wenn der
+  // Verbund nicht gefunden wird oder das Titel-Feld leer ist, bleibt es
+  // undefined und das UI faellt auf den TV-Titel zurueck.
+  const verbundTitel = verbundId && verbundById
+    ? (() => {
+        const vb = verbundById.get(verbundId);
+        const t = typeof vb?.titel === 'string' ? vb.titel.trim() : '';
+        return t.length > 0 ? t : undefined;
+      })()
+    : undefined;
   return {
     id: a.aktenzeichen,
     type: 'bauantrag',
@@ -128,7 +153,8 @@ function antragToVorgangLike(a: AntragListItem): AntragVorgang {
     _isAntrag: true,
     vb_phase: typeof a.vb_phase === 'number' ? a.vb_phase : undefined,
     acronym: typeof a.akronym === 'string' && a.akronym.trim().length > 0 ? a.akronym.trim() : undefined,
-    verbund_id: typeof a.verbund_id === 'string' && a.verbund_id.length > 0 ? a.verbund_id : undefined,
+    verbund_id: verbundId,
+    verbund_titel: verbundTitel,
   };
 }
 
@@ -189,7 +215,7 @@ export function computeDashboardAggregate(
       // Berechnung — Default ist sie auf der Home ausgeblendet.
       if (isBegleitungStatus(a.status) && !bearbeiterMode.includeBegleitung) continue;
       if (bearbeiterMode.active && !antragMatchesBearbeiter(a, bearbeiterMode)) continue;
-      const v = antragToVorgangLike(a);
+      const v = antragToVorgangLike(a, options.verbundById);
       stats.total++;
       const isClosed = tallyStatus(v.status as string, stats);
       if (isClosed) continue;

@@ -3,7 +3,7 @@ import { computeDashboardAggregate } from '@/plugins/home/dashboardAggregate';
 import { parseBearbeiterFilter } from '../bearbeiterFilter';
 import { SEED_ANTRAEGE, TEST_TODAY_MS } from './fixtures/seed-antraege';
 import { REAL_CSV_ANTRAEGE } from './fixtures/real-csv-antraege';
-import { asAntragStatusRaw, type AntragListItem } from '@/core/services/csv/types';
+import { asAntragStatusRaw, type AntragListItem, type Verbund } from '@/core/services/csv/types';
 
 const NEUTRAL = parseBearbeiterFilter(undefined, undefined);
 
@@ -212,6 +212,78 @@ describe('computeDashboardAggregate — Verbund-Clustering in meineAntraege', ()
     expect(agg.meineAntraege[0]?.tv_count).toBe(2);
     // Solo darunter
     expect(agg.meineAntraege[1]?.id).toBe('S-001');
+  });
+});
+
+describe('computeDashboardAggregate — verbund_titel im AntragVorgang', () => {
+  function mkAntrag(p: Partial<Omit<AntragListItem, 'status'>> & { aktenzeichen: string; status: string }): AntragListItem {
+    const { status, ...rest } = p;
+    return {
+      programm_id: 'P',
+      _updated_at: '2026-05-01T00:00:00Z',
+      ...rest,
+      status: asAntragStatusRaw(status),
+    };
+  }
+
+  function mkVerbund(id: string, titel?: string): Verbund {
+    return {
+      verbund_id: id,
+      programm_id: 'P',
+      titel,
+      teilantrags_ids: [],
+      _field_sources: {},
+      _updated_at: '2026-05-01T00:00:00Z',
+    };
+  }
+
+  it('verbund_titel wird aus verbundById gemappt wenn vorhanden', () => {
+    const tvs: AntragListItem[] = [
+      mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-04-01',
+        verbund_id: 'VB-A', akronym: 'PROJEKT' }),
+    ];
+    const verbundById = new Map<string, Verbund>();
+    verbundById.set('VB-A', mkVerbund('VB-A', 'KI-gestuetzte Projektverwaltung'));
+    const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS, verbundById,
+    });
+    expect(agg.meineAntraege[0]?.verbund_titel).toBe('KI-gestuetzte Projektverwaltung');
+  });
+
+  it('verbund_titel ist undefined wenn Verbund nicht in verbundById', () => {
+    const tvs: AntragListItem[] = [
+      mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-04-01',
+        verbund_id: 'VB-UNKNOWN' }),
+    ];
+    const verbundById = new Map<string, Verbund>();
+    const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS, verbundById,
+    });
+    expect(agg.meineAntraege[0]?.verbund_titel).toBeUndefined();
+  });
+
+  it('verbund_titel ist undefined wenn Titel-Feld leer ist', () => {
+    const tvs: AntragListItem[] = [
+      mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-04-01',
+        verbund_id: 'VB-A' }),
+    ];
+    const verbundById = new Map<string, Verbund>();
+    verbundById.set('VB-A', mkVerbund('VB-A', '   '));   // nur Whitespace
+    const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS, verbundById,
+    });
+    expect(agg.meineAntraege[0]?.verbund_titel).toBeUndefined();
+  });
+
+  it('verbund_titel ist undefined wenn keine verbundById uebergeben wurde', () => {
+    const tvs: AntragListItem[] = [
+      mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-04-01',
+        verbund_id: 'VB-A' }),
+    ];
+    const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.meineAntraege[0]?.verbund_titel).toBeUndefined();
   });
 });
 

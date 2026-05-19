@@ -86,20 +86,25 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
         const phaseLabel = getVbPhaseLabel(v.vb_phase);
         const daysFmt = formatDaysShort(v.deadline);
         const isVerbund = (v.tv_count ?? 1) > 1;
-        // Bei Verbund-Clustern (mehrere TVs) zeigen wir nur das Akronym im Title.
-        // Der TV-Titel divergiert zwischen TVs (z.B. KOMPaSS: "Smart Speaker, ..."
-        // vs "Backend, ..."); kombinieren wuerde Verwirrung stiften. Bei Solo-
-        // Antraegen bleibt das Akronym-/-Titel-Layout wie vorher.
-        const { acronym: acrPrefix, rest } = splitTitle(v.title, v.acronym);
-        const titleNode = isVerbund && v.acronym ? (
-          <span className="truncate font-medium text-[var(--tf-text)]">{v.acronym}</span>
-        ) : acrPrefix ? (
+        // Verbund-Titel (VB_TITEL aus dem Verbund-Store) bevorzugt — konsistent
+        // fuer Verbund-Cluster (gleich fuer alle TVs) und Einzelprojekte (dort
+        // typischerweise identisch zum TV-Titel). Fallback auf TV-Titel wenn
+        // verbund_titel nicht gepflegt ist.
+        const baseTitle = v.verbund_titel ?? v.title;
+        // splitTitle erkennt das Pattern "${akronym} / ${rest}" im Titel und
+        // splittet das Akronym ab (bold-Rendering). Wenn der Verbund-Titel
+        // OHNE Akronym-Praefix gepflegt ist (Normalfall bei VB_TITEL), prefixen
+        // wir das Akronym manuell aus dem CSV-Feld — sonst geht es in der
+        // Anzeige verloren.
+        const split = splitTitle(baseTitle, v.acronym);
+        const displayAcronym = split.acronym ?? (v.acronym?.trim() || null);
+        const titleNode = displayAcronym ? (
           <span className="truncate">
-            <span className="font-medium text-[var(--tf-text)]">{acrPrefix}</span>
-            <span className="text-[var(--tf-text-secondary)]"> / {rest}</span>
+            <span className="font-medium text-[var(--tf-text)]">{displayAcronym}</span>
+            <span className="text-[var(--tf-text-secondary)]"> / {split.rest}</span>
           </span>
         ) : (
-          <span className="truncate text-[var(--tf-text-secondary)]">{rest}</span>
+          <span className="truncate text-[var(--tf-text-secondary)]">{split.rest}</span>
         );
         // Subtitle: Aktenzeichen + "+N TV"-Suffix bei Verbund-Clustern.
         // N = Anzahl weiterer TVs (= tv_count − 1).
