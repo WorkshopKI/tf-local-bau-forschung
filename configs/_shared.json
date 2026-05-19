@@ -1,7 +1,8 @@
 {
   "_comment": "Zentrale Defaults fuer ORG-WEITE invariante Werte. Wird vom build-with-config.mjs und vite.config.ts vor der Variant-Config geladen und mit Deep-Merge kombiniert. Variant-Configs koennen JEDES Feld ueberschreiben (z.B. demo.config.json setzt fixedDataSharePath explizit auf null). Felder die pro Variant unterschiedlich sind (features.*, build.*, ki.*, dev.*) GEHOEREN NICHT hier rein.",
   "data": {
-    "fixedDataSharePath": "\\\\server\\teamflow-forschungsfoerderung\\",
-    "expectedFolderName": "teamflow-forschungsfoerderung"
+    "fixedDataSharePath": "N:\\Projekte\\1786-ZIM-KN-Gesamt\\03_PT-intern\\06_Workflows und Arbeitshinweise\\05_Informationen\\ZAH\\",
+    "expectedFolderName": "ZAH"
   }
 }
+
