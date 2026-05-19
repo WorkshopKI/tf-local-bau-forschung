@@ -62,15 +62,19 @@ export function SmbBanner({ status, lastCheck, idb }: SmbBannerProps): React.Rea
 
   const handlePickFolder = async (): Promise<void> => {
     setInlineMsg(null);
+    // Picker MUSS als erster await im Click-Handler stehen — sonst verbraucht
+    // Chrome unter file:// nach dem ersten async-Hop die User-Activation und
+    // `showDirectoryPicker` schlaegt silent fehl. Den vorherigen Handle-Namen
+    // (fuer audit-log `old_folder`) bewusst weggelassen — frueherer Audit-
+    // Eintrag enthaelt ihn ohnehin, und ein zusaetzlicher IDB-Read davor
+    // bricht den Picker.
+    const r = await pickAndStoreParentHandle(idb);
     setBusy(true);
     try {
-      const prev = await getSmbHandle(idb);
-      const oldFolder = prev?.name ?? null;
-      const r = await pickAndStoreParentHandle(idb);
       if (r.ok) {
         await logAudit(idb, {
           action: 'smb_handle_replace',
-          details: { old_folder: oldFolder, new_folder: r.handle.name },
+          details: { new_folder: r.handle.name },
         });
         await smbStatus.check(idb);
       } else if (r.reason === 'aborted') {
@@ -120,9 +124,14 @@ export function SmbBanner({ status, lastCheck, idb }: SmbBannerProps): React.Rea
             </Button>
           </>
         ) : (
-          <Button size="xs" variant="outline" onClick={handleReconnect} disabled={busy}>
-            Erneut verbinden
-          </Button>
+          <>
+            <Button size="xs" variant="outline" onClick={handleReconnect} disabled={busy}>
+              Erneut verbinden
+            </Button>
+            <Button size="xs" variant="outline" onClick={handlePickFolder} disabled={busy}>
+              Anderen Ordner wählen
+            </Button>
+          </>
         )}
       </div>
       {inlineMsg ? (
