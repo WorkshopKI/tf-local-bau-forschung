@@ -1,25 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
-import { Upload, FileText, RefreshCw, AlertTriangle, Info } from 'lucide-react';
+import { FileText, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import {
   importCsvSource,
-  loadCsvSourceFile,
   parseCsvPreview,
   type ImportOptions,
   type ImportProgress,
 } from '@/core/services/csv';
+import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
+import { logAudit } from '@/core/services/infrastructure/audit-log';
 import type { CsvSchema, ImportResult } from '@/core/services/csv/types';
 import { Step4Progress } from './wizard/Step4Progress';
+import { setCsvSourceHandle } from './csv-source-handle';
 
 interface Props {
   schema: CsvSchema;
+  /** Bereits vom Aufrufer gewählte/geladene Datei. */
+  file: File;
+  /** Persistierbares Handle der Quelldatei (für künftige Auto-Update-Checks). `null`, wenn Browser keinen Handle liefert. */
+  sourceHandle: FileSystemFileHandle | null;
+  /** Auslöser des Dialogs — beeinflusst Titel + Audit-Log. */
+  trigger: 'reselect' | 'auto-update';
   onClose: () => void;
   onCompleted: () => void;
 }
 
-type Phase = 'choose' | 'reviewing' | 'importing';
+type Phase = 'reviewing' | 'importing';
 
 interface HeaderValidation {
   matched: string[];
@@ -44,20 +53,81 @@ function validateHeaders(schema: CsvSchema, csvHeaders: string[]): HeaderValidat
   };
 }
 
-export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props): React.ReactElement {
+export function CsvSourceReimportDialog({
+  schema,
+  file,
+  sourceHandle,
+  trigger,
+  onClose,
+  onCompleted,
+}: Props): React.ReactElement {
   const storage = useStorage();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [phase, setPhase] = useState<Phase>('choose');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const session = useKuratorSession();
+  const [phase, setPhase] = useState<Phase>('reviewing');
   const [validation, setValidation] = useState<HeaderValidation | null>(null);
-  const [validating, setValidating] = useState(false);
+  const [validating, setValidating] = useState(true);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [cancelled, setCancelled] = useState(false);
 
-  async function runImport(blob: Blob, extraOpts: Partial<ImportOptions> = {}): Promise<void> {
+  // Header-Validierung beim Mount — der Aufrufer hat schon die Datei
+  // ausgewählt, wir gehen direkt in den Review-Schritt.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setValidating(true);
+      setError(null);
+      try {
+        const preview = await parseCsvPreview(file, 1, {
+          encoding: schema.encoding,
+          separator: schema.separator,
+        });
+        if (!alive) return;
+        setValidation(validateHeaders(schema, preview.headers));
+      } catch (e) {
+        if (!alive) return;
+        setError(`Datei konnte nicht gelesen werden: ${(e as Error).message}`);
+      } finally {
+        if (alive) setValidating(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [file, schema]);
+
+  // Beim Unmount laufenden Import sauber abbrechen.
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  async function persistSourceMeta(): Promise<void> {
+    if (sourceHandle) {
+      try {
+        await setCsvSourceHandle(storage.idb, schema.id, sourceHandle);
+      } catch (e) {
+        console.warn('[csv-source-handle] persist failed', e);
+      }
+    }
+    const fresh = await getSchema(storage.idb, schema.id);
+    if (fresh) {
+      await putSchema(storage.idb, {
+        ...fresh,
+        source_file_name: file.name,
+        source_last_modified: file.lastModified,
+      });
+    }
+    await logAudit(storage.idb, {
+      action: trigger === 'auto-update' ? 'csv_source_auto_updated' : 'csv_source_reselected',
+      user: session.kuratorName ?? undefined,
+      details: {
+        schemaId: schema.id,
+        fileName: file.name,
+        lastModified: new Date(file.lastModified).toISOString(),
+        handlePersisted: sourceHandle != null,
+      },
+    });
+  }
+
+  async function runImport(extraOpts: Partial<ImportOptions> = {}): Promise<void> {
     setPhase('importing');
     setError(null);
     setResult(null);
@@ -65,12 +135,13 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
     setCancelled(false);
     abortRef.current = new AbortController();
     try {
-      const r = await importCsvSource(storage.idb, schema.id, blob, {
+      const r = await importCsvSource(storage.idb, schema.id, file, {
         signal: abortRef.current.signal,
         onProgress: p => setProgress(p),
         ...extraOpts,
       });
       setResult(r);
+      await persistSourceMeta();
       onCompleted();
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') {
@@ -83,55 +154,6 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
     }
   }
 
-  // Beim Unmount laufenden Import sauber abbrechen — verhindert, dass IDB-Writes
-  // ohne UI-Feedback weiterlaufen, wenn der Dialog z.B. durch Wegnavigation entfernt wird.
-  useEffect(() => () => abortRef.current?.abort(), []);
-
-  async function useStoredFile(): Promise<void> {
-    const text = await loadCsvSourceFile(storage.idb, schema.id);
-    if (!text) {
-      setError('Keine gespeicherte CSV-Datei gefunden. Bitte „Neue CSV-Datei wählen…" verwenden.');
-      setPhase('importing');
-      return;
-    }
-    // Die SMB-Datei ist immer UTF-8 (saveCsvSourceFile normalisiert beim
-    // ersten Import). encodingOverride verhindert, dass schema.encoding
-    // (z.B. 'windows-1252' aus dem Original-Wizard-Setup) die UTF-8-Bytes
-    // erneut als cp1252 dekodiert → Mojibake → Hash-Drift bei jedem
-    // Re-Import.
-    await runImport(new Blob([text], { type: 'text/csv' }), { encodingOverride: 'UTF-8' });
-  }
-
-  async function handleNewFile(file: File): Promise<void> {
-    setValidating(true);
-    setError(null);
-    try {
-      const preview = await parseCsvPreview(file, 1, {
-        encoding: schema.encoding,
-        separator: schema.separator,
-      });
-      const v = validateHeaders(schema, preview.headers);
-      setSelectedFile(file);
-      setValidation(v);
-      setPhase('reviewing');
-    } catch (e) {
-      setError(`Datei konnte nicht gelesen werden: ${(e as Error).message}`);
-    } finally {
-      setValidating(false);
-    }
-  }
-
-  function reset(): void {
-    setSelectedFile(null);
-    setValidation(null);
-    setError(null);
-    setPhase('choose');
-  }
-
-  const lastImportInfo = schema.last_imported_at
-    ? `${new Date(schema.last_imported_at).toLocaleString('de-DE')}${typeof schema.last_row_count === 'number' ? ` · ${schema.last_row_count} Zeilen` : ''}`
-    : 'noch nie importiert';
-
   const isImporting = phase === 'importing' && !result && !error && !cancelled;
   const cancelAvailable = isImporting && (
     progress === null ||
@@ -139,29 +161,33 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
     progress.phase === 'diffing'
   );
 
+  const title = trigger === 'auto-update'
+    ? `Datenaktualisierung: ${schema.csv_source_name}`
+    : `CSV neu wählen: ${schema.csv_source_name}`;
+
   return (
     <Dialog
       open
       onClose={isImporting
         ? (cancelAvailable ? () => abortRef.current?.abort() : () => {})
         : onClose}
-      title={`Re-Import: ${schema.csv_source_name}`}
+      title={title}
       className="max-w-[640px]"
       dismissOnOverlayClick={false}
       footer={
         phase === 'reviewing' ? (
           <div className="flex w-full items-center justify-between">
-            <Button size="sm" variant="ghost" onClick={reset}>Zurück</Button>
+            <Button size="sm" variant="ghost" onClick={onClose} disabled={validating}>Abbrechen</Button>
             <Button
               size="sm"
               variant="default"
-              onClick={() => selectedFile && void runImport(selectedFile)}
-              disabled={!selectedFile || (validation?.matched.length ?? 0) === 0}
+              onClick={() => void runImport()}
+              disabled={validating || !validation || validation.matched.length === 0}
             >
               Importieren mit gespeicherten Mappings
             </Button>
           </div>
-        ) : phase === 'importing' ? (
+        ) : (
           <div className="flex w-full items-center justify-between gap-3">
             {isImporting && !cancelAvailable ? (
               <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
@@ -178,120 +204,73 @@ export function CsvSourceReimportDialog({ schema, onClose, onCompleted }: Props)
               </Button>
             )}
           </div>
-        ) : (
-          <Button size="sm" variant="ghost" onClick={onClose}>Abbrechen</Button>
         )
       }
     >
-      {phase === 'choose' ? (
-        <div>
-          <div className="text-[12.5px] text-[var(--tf-text-secondary)] mb-4">
-            Letzter Import: {lastImportInfo}.<br />
-            Die {Object.keys(schema.column_mapping).length} Spalten-Zuordnungen aus dem Schema werden in beiden Fällen automatisch wiederverwendet.
-          </div>
-
-          <div className="flex flex-col gap-2.5">
-            <button
-              type="button"
-              onClick={() => void useStoredFile()}
-              className="flex items-start gap-3 rounded-lg border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-subtle)] px-4 py-3 text-left transition hover:bg-[var(--tf-bg-secondary)]"
-            >
-              <RefreshCw size={16} className="mt-0.5 flex-shrink-0 text-[var(--tf-text-secondary)]" />
-              <div>
-                <div className="text-[13px] font-medium text-[var(--tf-text)]">Gespeicherte Datei erneut importieren</div>
-                <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
-                  Nutzt die zuletzt hochgeladene CSV. Sinnvoll, wenn nur Filter, Unterprogramme oder das Schema geändert wurden.
-                </div>
-              </div>
-            </button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="hidden"
-              onChange={e => {
-                const f = e.target.files?.[0];
-                if (f) void handleNewFile(f);
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={validating}
-              className="flex items-start gap-3 rounded-lg border-[1.5px] border-dashed border-[var(--tf-border)] bg-[var(--tf-bg-subtle)] px-4 py-3 text-left transition hover:border-[var(--tf-text-tertiary)] hover:bg-[var(--tf-bg-secondary)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Upload size={16} className="mt-0.5 flex-shrink-0 text-[var(--tf-text-secondary)]" />
-              <div>
-                <div className="text-[13px] font-medium text-[var(--tf-text)]">Neue CSV-Datei wählen…</div>
-                <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
-                  Frische Version derselben CSV (z.B. mit zusätzlichen Datensätzen). Spalten werden gegen das Schema abgeglichen, alle bestehenden Mappings übernommen.
-                </div>
-              </div>
-            </button>
-          </div>
-
-          {validating ? (
-            <div className="mt-3 text-[12px] text-[var(--tf-text-tertiary)]">Datei wird geprüft …</div>
-          ) : null}
-          {error ? <div className="mt-3 text-[12px] text-red-700">{error}</div> : null}
-        </div>
-      ) : null}
-
-      {phase === 'reviewing' && selectedFile && validation ? (
+      {phase === 'reviewing' ? (
         <div>
           <div className="flex items-center gap-2 rounded-lg border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-subtle)] px-3 py-2 mb-4">
             <FileText size={15} className="flex-shrink-0 text-[var(--tf-text-secondary)]" />
             <div className="min-w-0">
-              <div className="truncate text-[12.5px] font-medium text-[var(--tf-text)]">{selectedFile.name}</div>
-              <div className="text-[11px] text-[var(--tf-text-tertiary)]">{formatBytes(selectedFile.size)}</div>
+              <div className="truncate text-[12.5px] font-medium text-[var(--tf-text)]">{file.name}</div>
+              <div className="text-[11px] text-[var(--tf-text-tertiary)]">
+                {formatBytes(file.size)} · geändert {new Date(file.lastModified).toLocaleString('de-DE')}
+              </div>
             </div>
           </div>
 
-          <div className="text-[12.5px] mb-3">
-            <span className="font-medium text-[var(--tf-text)]">{validation.matched.length}</span>
-            <span className="text-[var(--tf-text-secondary)]"> von {Object.keys(schema.column_mapping).length} Schema-Spalten gefunden — bestehende Mappings werden 1:1 übernommen.</span>
-          </div>
+          {validating ? (
+            <div className="text-[12px] text-[var(--tf-text-tertiary)]">Datei wird geprüft …</div>
+          ) : validation ? (
+            <>
+              <div className="text-[12.5px] mb-3">
+                <span className="font-medium text-[var(--tf-text)]">{validation.matched.length}</span>
+                <span className="text-[var(--tf-text-secondary)]"> von {Object.keys(schema.column_mapping).length} Schema-Spalten gefunden — bestehende Mappings werden 1:1 übernommen.</span>
+              </div>
 
-          {validation.missingFromCsv.length > 0 ? (
-            <div className="mb-3 rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-2.5">
-              <div className="flex items-start gap-2 mb-1">
-                <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-amber-700" />
-                <div className="text-[12px] font-medium text-amber-900">
-                  {validation.missingFromCsv.length} Spalte{validation.missingFromCsv.length === 1 ? '' : 'n'} aus dem Schema fehlt in der neuen Datei
+              {validation.missingFromCsv.length > 0 ? (
+                <div className="mb-3 rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-2.5">
+                  <div className="flex items-start gap-2 mb-1">
+                    <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-amber-700" />
+                    <div className="text-[12px] font-medium text-amber-900">
+                      {validation.missingFromCsv.length} Spalte{validation.missingFromCsv.length === 1 ? '' : 'n'} aus dem Schema fehlt in der neuen Datei
+                    </div>
+                  </div>
+                  <div className="text-[11.5px] text-amber-900 ml-6 mb-1">
+                    Diese Felder bleiben beim Import leer:
+                  </div>
+                  <div className="ml-6 max-h-[100px] overflow-y-auto text-[11px] font-mono text-amber-900">
+                    {validation.missingFromCsv.join(', ')}
+                  </div>
                 </div>
-              </div>
-              <div className="text-[11.5px] text-amber-900 ml-6 mb-1">
-                Diese Felder bleiben beim Import leer:
-              </div>
-              <div className="ml-6 max-h-[100px] overflow-y-auto text-[11px] font-mono text-amber-900">
-                {validation.missingFromCsv.join(', ')}
-              </div>
-            </div>
-          ) : null}
+              ) : null}
 
-          {validation.newColumns.length > 0 ? (
-            <div className="mb-3 rounded-md border-[0.5px] border-blue-300 bg-blue-50 p-2.5">
-              <div className="flex items-start gap-2 mb-1">
-                <Info size={14} className="mt-0.5 flex-shrink-0 text-blue-700" />
-                <div className="text-[12px] font-medium text-blue-900">
-                  {validation.newColumns.length} neue Spalte{validation.newColumns.length === 1 ? '' : 'n'} in der CSV (nicht im Schema)
+              {validation.newColumns.length > 0 ? (
+                <div className="mb-3 rounded-md border-[0.5px] border-blue-300 bg-blue-50 p-2.5">
+                  <div className="flex items-start gap-2 mb-1">
+                    <Info size={14} className="mt-0.5 flex-shrink-0 text-blue-700" />
+                    <div className="text-[12px] font-medium text-blue-900">
+                      {validation.newColumns.length} neue Spalte{validation.newColumns.length === 1 ? '' : 'n'} in der CSV (nicht im Schema)
+                    </div>
+                  </div>
+                  <div className="text-[11.5px] text-blue-900 ml-6 mb-1">
+                    Werden beim Import ignoriert. Wenn übernommen werden sollen, Schema neu registrieren.
+                  </div>
+                  <div className="ml-6 max-h-[100px] overflow-y-auto text-[11px] font-mono text-blue-900">
+                    {validation.newColumns.join(', ')}
+                  </div>
                 </div>
-              </div>
-              <div className="text-[11.5px] text-blue-900 ml-6 mb-1">
-                Werden beim Import ignoriert. Wenn übernommen werden sollen, Schema neu registrieren.
-              </div>
-              <div className="ml-6 max-h-[100px] overflow-y-auto text-[11px] font-mono text-blue-900">
-                {validation.newColumns.join(', ')}
-              </div>
-            </div>
+              ) : null}
+
+              {validation.matched.length === 0 ? (
+                <div className="mb-3 rounded-md border-[0.5px] border-red-300 bg-red-50 p-2.5 text-[12px] text-red-800">
+                  Keine einzige Schema-Spalte in der CSV gefunden. Wahrscheinlich falsche Datei oder Encoding/Separator-Mismatch — Import wird abgebrochen.
+                </div>
+              ) : null}
+            </>
           ) : null}
 
-          {validation.matched.length === 0 ? (
-            <div className="mb-3 rounded-md border-[0.5px] border-red-300 bg-red-50 p-2.5 text-[12px] text-red-800">
-              Keine einzige Schema-Spalte in der CSV gefunden. Wahrscheinlich falsche Datei oder Encoding/Separator-Mismatch — Re-Import wird abgebrochen.
-            </div>
-          ) : null}
+          {error ? <div className="mt-3 text-[12px] text-red-700">{error}</div> : null}
         </div>
       ) : null}
 

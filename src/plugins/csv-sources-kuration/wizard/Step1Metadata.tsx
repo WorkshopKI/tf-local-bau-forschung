@@ -64,7 +64,7 @@ interface Step1Props {
   api: WizardApi;
   existingMasterId: string | null;
   existingSchemas?: CsvSchema[];
-  onUseExistingSchema?: (schema: CsvSchema) => void;
+  onUseExistingSchema?: (schema: CsvSchema, file: File) => void;
 }
 
 export function Step1Metadata({ api, existingMasterId, existingSchemas = [], onUseExistingSchema }: Step1Props): React.ReactElement {
@@ -223,9 +223,10 @@ export function Step1Metadata({ api, existingMasterId, existingSchemas = [], onU
               <Button
                 size="xs"
                 variant="default"
-                onClick={() => onUseExistingSchema(matchingSchema)}
+                onClick={() => state.file && onUseExistingSchema(matchingSchema, state.file)}
+                disabled={!state.file}
               >
-                Re-Import „{matchingSchema.csv_source_name}" öffnen
+                „{matchingSchema.csv_source_name}" neu wählen
               </Button>
               <Button
                 size="xs"

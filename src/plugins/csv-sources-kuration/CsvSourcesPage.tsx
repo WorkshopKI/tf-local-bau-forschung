@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Trash2 } from 'lucide-react';
+import { RefreshCw, Trash2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
@@ -19,6 +19,64 @@ import { SectionHeader } from '@/ui/SectionHeader';
 import { CsvSourceWizard } from './wizard/CsvSourceWizard';
 import { CsvSourceReimportDialog } from './CsvSourceReimportDialog';
 import { CsvSchemaDetailDialog } from './CsvSchemaDetailDialog';
+import {
+  checkSourceForUpdate,
+  loadFileFromStoredHandle,
+  removeCsvSourceHandle,
+  type UpdateCheckResult,
+} from './csv-source-handle';
+
+interface ReimportRequest {
+  schema: CsvSchema;
+  file: File;
+  sourceHandle: FileSystemFileHandle | null;
+  trigger: 'reselect' | 'auto-update';
+}
+
+function isFsApiSupported(): boolean {
+  return typeof window !== 'undefined' && 'showOpenFilePicker' in window;
+}
+
+interface PickedFile {
+  file: File;
+  handle: FileSystemFileHandle | null;
+}
+
+async function pickCsvFile(): Promise<PickedFile | null> {
+  if (!isFsApiSupported()) {
+    // Fallback: lege ein verstecktes Input-Element an. Liefert kein
+    // persistierbares Handle (Auto-Update bleibt für diese Source aus).
+    return await new Promise<PickedFile | null>(resolve => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv,text/csv';
+      input.onchange = () => {
+        const f = input.files?.[0];
+        resolve(f ? { file: f, handle: null } : null);
+      };
+      input.click();
+    });
+  }
+  try {
+    const handles = await (window as typeof window & {
+      showOpenFilePicker(opts?: {
+        types?: { description?: string; accept: Record<string, string[]> }[];
+        multiple?: boolean;
+        excludeAcceptAllOption?: boolean;
+      }): Promise<FileSystemFileHandle[]>;
+    }).showOpenFilePicker({
+      types: [{ description: 'CSV-Datei', accept: { 'text/csv': ['.csv'] } }],
+      multiple: false,
+    });
+    const handle = handles[0];
+    if (!handle) return null;
+    const file = await handle.getFile();
+    return { file, handle };
+  } catch (err) {
+    if ((err as DOMException).name === 'AbortError') return null;
+    throw err;
+  }
+}
 
 export function CsvSourcesPage(): React.ReactElement {
   const storage = useStorage();
@@ -27,12 +85,14 @@ export function CsvSourcesPage(): React.ReactElement {
   const [programmId, setProgrammId] = useState<string | null>(null);
   const [schemas, setSchemas] = useState<CsvSchema[]>([]);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [reimportSchema, setReimportSchema] = useState<CsvSchema | null>(null);
+  const [reimportRequest, setReimportRequest] = useState<ReimportRequest | null>(null);
   const [detailSchema, setDetailSchema] = useState<CsvSchema | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetCounts, setResetCounts] = useState<ClearAntragDataResult | null>(null);
   const [resetResult, setResetResult] = useState<ClearAntragDataResult | null>(null);
+  const [updateChecks, setUpdateChecks] = useState<Record<string, UpdateCheckResult>>({});
+  const [pickError, setPickError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const id = activeProgrammId ?? (await ensureDefaultProgramm(storage.idb)).id;
@@ -42,8 +102,29 @@ export function CsvSourcesPage(): React.ReactElement {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
+  // Auto-Update-Check beim Mount und nach jedem Schema-Refresh: prüft für
+  // jedes Schema mit persistiertem FileSystemFileHandle, ob die Original-CSV
+  // einen neueren `lastModified`-Stempel hat. Banner mit "Aktualisieren"-
+  // Button erscheint pro Schema mit Treffer (siehe Liste unten).
+  useEffect(() => {
+    let alive = true;
+    if (schemas.length === 0) {
+      setUpdateChecks({});
+      return () => { alive = false; };
+    }
+    (async () => {
+      const results = await Promise.all(
+        schemas.map(async s => [s.id, await checkSourceForUpdate(storage.idb, s)] as const),
+      );
+      if (!alive) return;
+      setUpdateChecks(Object.fromEntries(results));
+    })();
+    return () => { alive = false; };
+  }, [schemas, storage.idb]);
+
   const onConfirmDelete = async (s: CsvSchema): Promise<void> => {
     await removeSchema(storage.idb, s.id);
+    await removeCsvSourceHandle(storage.idb, s.id);
     await logAudit(storage.idb, { action: 'csv_schema_deleted', user: session.kuratorName ?? undefined, details: { schemaId: s.id } });
     setDeleteConfirmId(null);
     await refresh();
@@ -67,6 +148,37 @@ export function CsvSourcesPage(): React.ReactElement {
     setResetConfirmOpen(false);
   });
 
+  async function handleReselect(schema: CsvSchema): Promise<void> {
+    setPickError(null);
+    try {
+      const picked = await pickCsvFile();
+      if (!picked) return;
+      setReimportRequest({
+        schema,
+        file: picked.file,
+        sourceHandle: picked.handle,
+        trigger: 'reselect',
+      });
+    } catch (err) {
+      setPickError((err as Error).message);
+    }
+  }
+
+  async function handleAutoUpdate(schema: CsvSchema): Promise<void> {
+    setPickError(null);
+    try {
+      const { file, handle } = await loadFileFromStoredHandle(storage.idb, schema.id);
+      setReimportRequest({
+        schema,
+        file,
+        sourceHandle: handle,
+        trigger: 'auto-update',
+      });
+    } catch (err) {
+      setPickError(`Auto-Update fehlgeschlagen: ${(err as Error).message}. Bitte „CSV neu wählen".`);
+    }
+  }
+
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -88,6 +200,12 @@ export function CsvSourcesPage(): React.ReactElement {
         </div>
       ) : null}
 
+      {pickError ? (
+        <div className="mb-4 rounded-md border-[0.5px] border-red-300 bg-red-50 p-2.5 text-[12px] text-red-800">
+          {pickError}
+        </div>
+      ) : null}
+
       <SectionHeader label={`Registrierte Schemas (${schemas.length})`} />
 
       {schemas.length === 0 ? (
@@ -98,6 +216,8 @@ export function CsvSourcesPage(): React.ReactElement {
         <div>
           {schemas.sort((a, b) => b.priority - a.priority).map((s, i) => {
             const isConfirming = deleteConfirmId === s.id;
+            const update = updateChecks[s.id];
+            const hasUpdate = update?.state === 'update_available';
             return (
               <div
                 key={s.id}
@@ -123,6 +243,20 @@ export function CsvSourcesPage(): React.ReactElement {
                     {s.last_imported_at ? ` · letzter Import ${new Date(s.last_imported_at).toLocaleString('de-DE')}` : ''}
                     {typeof s.last_row_count === 'number' ? ` · ${s.last_row_count} Zeilen` : ''}
                   </div>
+                  {hasUpdate && update.state === 'update_available' ? (
+                    <div
+                      className="mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px]"
+                      style={{
+                        background: 'var(--tf-primary-light)',
+                        color: 'var(--tf-primary)',
+                      }}
+                    >
+                      <Sparkles size={11} />
+                      <span>
+                        Neue Version vom {new Date(update.lastModified).toLocaleString('de-DE')} verfügbar
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
                 {isConfirming ? (
                   <div
@@ -150,14 +284,25 @@ export function CsvSourcesPage(): React.ReactElement {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5">
+                    {hasUpdate ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={e => { e.stopPropagation(); void handleAutoUpdate(s); }}
+                        disabled={!session.isActive}
+                        title="Erkannte neuere Version am ursprünglichen Speicherort importieren"
+                      >
+                        <Sparkles size={13} /> Aktualisieren
+                      </Button>
+                    ) : null}
                     <Button
                       size="sm"
-                      variant="default"
-                      onClick={e => { e.stopPropagation(); setReimportSchema(s); }}
+                      variant={hasUpdate ? 'outline' : 'default'}
+                      onClick={e => { e.stopPropagation(); void handleReselect(s); }}
                       disabled={!session.isActive}
-                      title="Datei neu hochladen — Spalten-Mapping aus diesem Schema wird wiederverwendet"
+                      title="Andere CSV-Datei wählen — z.B. wenn die Datei an einem neuen Ort liegt"
                     >
-                      <RefreshCw size={13} /> Re-Import
+                      <RefreshCw size={13} /> CSV neu wählen
                     </Button>
                     <Button
                       size="sm"
@@ -197,7 +342,7 @@ export function CsvSourcesPage(): React.ReactElement {
             {resetResult.verbuende.toLocaleString('de-DE')} Verbünde,{' '}
             {resetResult.historie.toLocaleString('de-DE')} Historie-Einträge,{' '}
             {resetResult.rowHashes.toLocaleString('de-DE')} Row-Hashes gelöscht.
-            Du kannst jetzt über „Re-Import" oder „Neu registrieren" die CSVs erneut einspielen.
+            Du kannst jetzt über „CSV neu wählen" oder „Neu registrieren" die CSVs erneut einspielen.
           </div>
         ) : null}
 
@@ -261,14 +406,22 @@ export function CsvSourcesPage(): React.ReactElement {
           onClose={() => setWizardOpen(false)}
           programmId={programmId}
           onCompleted={() => { void refresh(); }}
-          onUseExistingSchema={s => setReimportSchema(s)}
+          onUseExistingSchema={(schema, file) => setReimportRequest({
+            schema,
+            file,
+            sourceHandle: null,
+            trigger: 'reselect',
+          })}
         />
       ) : null}
 
-      {reimportSchema ? (
+      {reimportRequest ? (
         <CsvSourceReimportDialog
-          schema={reimportSchema}
-          onClose={() => setReimportSchema(null)}
+          schema={reimportRequest.schema}
+          file={reimportRequest.file}
+          sourceHandle={reimportRequest.sourceHandle}
+          trigger={reimportRequest.trigger}
+          onClose={() => setReimportRequest(null)}
           onCompleted={() => { void refresh(); }}
         />
       ) : null}

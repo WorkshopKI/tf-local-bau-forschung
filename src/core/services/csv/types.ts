@@ -139,6 +139,19 @@ export interface CsvSchema {
   file_checksum?: string;
   last_imported_at?: string;
   last_row_count?: number;
+  /**
+   * Dateiname der zuletzt via "CSV neu wählen" importierten Quelldatei.
+   * Wird mit dem `lastModified`-Timestamp und dem persistierten
+   * FileSystemFileHandle (siehe csv-source-handle.ts) für die Auto-
+   * Update-Erkennung verwendet.
+   */
+  source_file_name?: string;
+  /**
+   * `File.lastModified` (epoch ms) zum Zeitpunkt des Imports. Wird mit
+   * dem aktuellen Wert am Handle verglichen, um eine neue Version der
+   * gleichen Datei zu erkennen.
+   */
+  source_last_modified?: number;
   created_at: string;
 }
 

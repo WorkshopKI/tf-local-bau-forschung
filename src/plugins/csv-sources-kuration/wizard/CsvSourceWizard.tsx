@@ -29,8 +29,10 @@ interface Props {
   programmId: string;
   onCompleted: () => void;
   /** Aufgerufen, wenn der User die Smart-Detection-Empfehlung annimmt und stattdessen
-   *  einen Re-Import einer existierenden Source machen will. Schließt den Wizard. */
-  onUseExistingSchema?: (schema: CsvSchema) => void;
+   *  einen Re-Import einer existierenden Source machen will. Schließt den Wizard.
+   *  Die im Wizard bereits gewählte Datei wird durchgereicht, damit das Re-Import-
+   *  Dialog ohne erneutes Picker-Klicken direkt in den Review-Schritt springt. */
+  onUseExistingSchema?: (schema: CsvSchema, file: File) => void;
 }
 
 /**
@@ -342,8 +344,8 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseE
             api={api}
             existingMasterId={existingMasterId}
             existingSchemas={existingSchemas}
-            onUseExistingSchema={onUseExistingSchema ? (schema) => {
-              onUseExistingSchema(schema);
+            onUseExistingSchema={onUseExistingSchema ? (schema, file) => {
+              onUseExistingSchema(schema, file);
               onClose();
             } : undefined}
           />
