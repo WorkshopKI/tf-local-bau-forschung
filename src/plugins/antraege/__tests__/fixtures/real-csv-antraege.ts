@@ -56,10 +56,10 @@ export const REAL_CSV_ANTRAEGE: readonly AntragListItem[] = [
     aktenzeichen: 'REAL-005', status: 'NF gestellt', vb_phase: 3,
     antragsdatum: '2026-04-17', frist_datum: '2026-04-01',
   }),
-  // 6 — nachforderung, 75d (orange), 3d (diese_woche_faellig)
+  // 6 — nachforderung, 87d (orange), SLA-Risiko diese Woche (rot bei >90)
   mk({
     aktenzeichen: 'REAL-006', status: 'NF gestellt', vb_phase: 4,
-    antragsdatum: '2026-02-26', frist_datum: '2026-05-15',
+    antragsdatum: '2026-02-14', frist_datum: '2026-05-15',
   }),
   // 7 — bewilligt, in current year (bewilligt_jahr)
   mk({

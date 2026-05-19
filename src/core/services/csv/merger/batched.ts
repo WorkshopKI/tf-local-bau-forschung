@@ -34,7 +34,7 @@ import type {
 import { asAntragStatusRaw } from '../types';
 import { toAntragListItem } from '../list-view';
 import type { AntragListItem } from '../types';
-import { coerceValue, findJoinColumn, resolveFieldKey } from './helpers';
+import { applyFristDatumFallback, coerceValue, findJoinColumn, resolveFieldKey } from './helpers';
 import { loadAllSchemasWithRows, type SchemaWithRows } from './loader';
 
 interface RecomputeBatch {
@@ -251,6 +251,8 @@ function recomputeAntragIntoBatch(
       }
     }
   }
+
+  applyFristDatumFallback(merged);
 
   const nowIso = merged._updated_at;
   if (existing) {

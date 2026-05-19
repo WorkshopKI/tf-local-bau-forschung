@@ -95,10 +95,30 @@ function daysUntil(dateStr: string | undefined, nowMs: number): number | null {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
+/** Bearbeitungs-SLA-Fenster fuer Foerderantraege (in Tagen seit Eingang).
+ *  Muss synchron zu eingangAmpel.ts-Schwellen bleiben: > 90 Tage = rote Ampel
+ *  = SLA-Verstoss. Die Home-Aggregate `dringend`/`fristenDieseWoche` rechnen
+ *  weiterhin in "daysLeft" — wir uebersetzen das Eingangsdatum (D_AAE) in
+ *  eine virtuelle SLA-Deadline (Eingang + 90 Tage). Dadurch funktioniert die
+ *  bestehende `daysUntil(deadline) <= 7`-Logik unveraendert. */
+const ANTRAG_SLA_DAYS = 90;
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+function antragSlaDeadline(antragsdatum: string | undefined): string | undefined {
+  if (typeof antragsdatum !== 'string' || antragsdatum.length === 0) return undefined;
+  const ms = new Date(antragsdatum).getTime();
+  if (Number.isNaN(ms)) return undefined;
+  return new Date(ms + ANTRAG_SLA_DAYS * MS_PER_DAY).toISOString();
+}
+
 /** Minimal-Projektion eines Antrags auf eine Vorgang-aehnliche Shape. */
 function antragToVorgangLike(a: AntragListItem): AntragVorgang {
-  const deadline = typeof a.frist_datum === 'string' ? a.frist_datum : undefined;
-  const created = typeof a.antragsdatum === 'string' ? a.antragsdatum : a._updated_at;
+  const antragsdatum = typeof a.antragsdatum === 'string' ? a.antragsdatum : undefined;
+  // `deadline` ist die virtuelle SLA-Frist = antragsdatum + 90 Tage. Damit
+  // bedeutet `daysLeft <= 0` "SLA verletzt", `daysLeft ∈ [0, 7]` "SLA droht
+  // diese Woche zu reissen" — kompatibel mit der bestehenden Aggregat-Logik.
+  const deadline = antragSlaDeadline(antragsdatum);
+  const created = antragsdatum ?? a._updated_at;
   return {
     id: a.aktenzeichen,
     type: 'bauantrag',

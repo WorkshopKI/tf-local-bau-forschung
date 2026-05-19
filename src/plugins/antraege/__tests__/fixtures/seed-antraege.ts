@@ -54,10 +54,10 @@ export const SEED_ANTRAEGE: readonly AntragListItem[] = [
     aktenzeichen: 'SEED-005', status: 'nachforderung', vb_phase: 3,
     antragsdatum: '2026-04-17', frist_datum: '2026-04-01',
   }),
-  // 6 — nachbesserung, 75d (orange), frist in 3d (diese_woche_faellig)
+  // 6 — nachbesserung, 87d (orange), SLA-Risiko diese Woche (rot bei >90)
   mk({
     aktenzeichen: 'SEED-006', status: 'nachbesserung', vb_phase: 4,
-    antragsdatum: '2026-02-26', frist_datum: '2026-05-15',
+    antragsdatum: '2026-02-14', frist_datum: '2026-05-15',
   }),
   // 7 — bewilligt, in current year (bewilligt_jahr)
   mk({

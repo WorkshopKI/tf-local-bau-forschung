@@ -19,8 +19,11 @@ afterAll(() => {
 const EXPECTED: Record<ViewKey, { withPreFilter: number; withoutPreFilter: number }> = {
   // 11 offene (ohne Irrlaeufer) bzw. 13 (mit)
   meine_offenen: { withPreFilter: 11, withoutPreFilter: 13 },
-  diese_woche_faellig: { withPreFilter: 2, withoutPreFilter: 2 },
-  ueberfaellig: { withPreFilter: 2, withoutPreFilter: 2 },
+  // SLA-basiert: diese_woche_faellig = #(offen ∧ daysSinceEingang ∈ [84, 90]),
+  // ueberfaellig = #(offen ∧ daysSinceEingang > 90). Fixture: SEED-006/REAL-006
+  // ist 87d (SLA-Risk diese Woche), SEED-004/REAL-004 ist 131d (ueberfaellig).
+  diese_woche_faellig: { withPreFilter: 1, withoutPreFilter: 1 },
+  ueberfaellig: { withPreFilter: 1, withoutPreFilter: 1 },
   nachforderungen: { withPreFilter: 2, withoutPreFilter: 2 },
   bewilligt_jahr: { withPreFilter: 3, withoutPreFilter: 3 },
   alle: { withPreFilter: 18, withoutPreFilter: 20 },

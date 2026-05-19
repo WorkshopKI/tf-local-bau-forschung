@@ -6,6 +6,7 @@ import {
   isBewilligtStatus,
 } from '@/core/utils/status-canonical';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
+import { daysSinceEingang } from './eingangAmpel';
 
 export type ViewKey =
   | 'meine_offenen'
@@ -49,19 +50,25 @@ export const VIEWS: AntragView[] = [
     predicate: a => isOpenStatus(a.status),
   },
   {
+    // Bearbeitungs-SLA: rote Eingangs-Ampel (>90 Tage) erreicht diese Woche.
+    // frist_datum spiegelt antragsdatum (D_AAE), daher uebernehmen wir die
+    // Schwellen der Eingangs-Ampel (eingangAmpel.ts).
     key: 'diese_woche_faellig',
-    label: 'Diese Woche fällig',
+    label: 'SLA-Risiko (diese Woche)',
     predicate: a => {
-      const d = daysUntilFrist(a);
-      return d !== null && d >= 0 && d <= 7;
+      if (!isOpenStatus(a.status)) return false;
+      const d = daysSinceEingang(a);
+      return d !== null && d >= 84 && d <= 90;
     },
   },
   {
+    // Bearbeitungs-SLA: rote Eingangs-Ampel (>90 Tage) bereits erreicht.
     key: 'ueberfaellig',
     label: 'Überfällig',
     predicate: a => {
-      const d = daysUntilFrist(a);
-      return d !== null && d < 0 && isOpenStatus(a.status);
+      if (!isOpenStatus(a.status)) return false;
+      const d = daysSinceEingang(a);
+      return d !== null && d > 90;
     },
   },
   {

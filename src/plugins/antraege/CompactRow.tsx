@@ -7,7 +7,6 @@ import {
   AMPEL_COLOR,
   AMPEL_TOOLTIP,
 } from './eingangAmpel';
-import { daysUntilFrist } from './views';
 
 interface Props {
   tv: AntragListItem;
@@ -21,11 +20,12 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-function formatFrist(d: number | null): string {
-  if (d === null) return '';
+/** Tage seit Eingang als kompakte Anzeige ("100d"). Negative Werte (Zukunft) und
+ *  fehlende Datums werden als leer dargestellt. */
+function formatWaiting(d: number | null): string {
+  if (d === null || d < 0) return '';
   if (d === 0) return 'heute';
-  if (d > 0) return `${d}d`;
-  return `${d}d`; // negativ → "-3d"
+  return `${d}d`;
 }
 
 /**
@@ -40,9 +40,11 @@ export function CompactRow({ tv, selected, onClick }: Props): React.ReactElement
   const akronym = strOrNull(tv.akronym);
   const antragsteller = strOrNull(tv.antragsteller);
   const status = strOrNull(tv.status) ?? '';
-  const frist = daysUntilFrist(tv);
-  const fristTxt = formatFrist(frist);
-  const fristCritical = frist !== null && frist < 0;
+  // "Frist" = Tage seit Eingang (Bearbeitungs-SLA). frist_datum spiegelt
+  // antragsdatum (D_AAE); ueber 90 Tage offen = SLA-Verstoss = rot.
+  const waiting = daysSinceEingang(tv);
+  const fristTxt = formatWaiting(waiting);
+  const fristCritical = waiting !== null && waiting > 90;
 
   const titleText = antragsteller ?? strOrNull(tv.titel) ?? tv.aktenzeichen;
 

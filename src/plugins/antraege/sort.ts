@@ -84,7 +84,7 @@ export const SORT_OPTIONS: readonly SortOption[] = [
   },
   {
     key: 'frist_asc',
-    label: 'Frist (kürzeste zuerst)',
+    label: 'Älteste Eingänge zuerst',
     compare: compareFristAsc,
   },
   {

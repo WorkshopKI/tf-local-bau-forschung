@@ -33,7 +33,7 @@ import type {
   VerbundHistorieEntry,
 } from '../types';
 import { asAntragStatusRaw } from '../types';
-import { coerceValue, findMatchingRows, resolveFieldKey } from './helpers';
+import { applyFristDatumFallback, coerceValue, findMatchingRows, resolveFieldKey } from './helpers';
 import { loadAllSchemasWithRows, type SchemaWithRows } from './loader';
 
 /**
@@ -109,6 +109,8 @@ export async function recomputeAntrag(
       }
     }
   }
+
+  applyFristDatumFallback(merged);
 
   // History aus Diff zwischen vorherigem Stand und neuem merged-Stand ableiten
   const history: AntragHistorieEntry[] = [];

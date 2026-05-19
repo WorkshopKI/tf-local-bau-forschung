@@ -45,6 +45,28 @@ export function findJoinColumn(schema: CsvSchema): string | null {
   return entry ? entry[0] : null;
 }
 
+/**
+ * Fallback: `frist_datum` spiegelt `antragsdatum` (D_AAE), wenn kein Schema
+ * eine eigene Frist-Spalte mappt. Domain-Entscheidung: die "Frist" eines
+ * Antrags ist sein Eingangsdatum — ab da tickt die Bearbeitungs-SLA
+ * (Schwellen in `src/plugins/antraege/eingangAmpel.ts`). Antraege ohne
+ * `antragsdatum` bekommen kein `frist_datum` und tauchen in den
+ * Frist-Views nicht auf.
+ *
+ * Explizit gesetztes `frist_datum` (z.B. Dev-Fixture `status-aktive-mini`
+ * mit `FRIST_NEU`-Spalte) gewinnt — das Gate prüft auf leeres Feld.
+ */
+export function applyFristDatumFallback(merged: Antrag): void {
+  const current = merged.frist_datum;
+  const empty = current == null || current === '';
+  if (!empty) return;
+  const ad = merged.antragsdatum;
+  if (typeof ad !== 'string' || ad.length === 0) return;
+  merged.frist_datum = ad;
+  const src = merged._field_sources.antragsdatum;
+  if (src) merged._field_sources.frist_datum = src;
+}
+
 export function findMatchingRows(
   schema: CsvSchema,
   rows: Record<string, string>[],

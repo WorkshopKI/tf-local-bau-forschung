@@ -1,11 +1,10 @@
 import { Badge } from '@/ui';
 import type { AntragGroup } from './antragGroups';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
-import { AMPEL_COLOR, AMPEL_TOOLTIP } from './eingangAmpel';
-import { daysUntilFrist } from './views';
+import { AMPEL_COLOR, AMPEL_TOOLTIP, daysSinceEingang } from './eingangAmpel';
 import {
   worstAmpel,
-  criticalFrist,
+  maxWaitingDays,
   dominantStatus,
   verbundFkz,
 } from './groupAggregates';
@@ -26,8 +25,10 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-function formatFrist(d: number | null): string {
-  if (d === null) return '';
+/** Tage seit Eingang als kompakte Anzeige ("100d"). Negative Werte (Zukunft)
+ *  und fehlende Datums werden als leer dargestellt. */
+function formatWaiting(d: number | null): string {
+  if (d === null || d < 0) return '';
   if (d === 0) return 'heute';
   return `${d}d`;
 }
@@ -88,11 +89,12 @@ export function AntragTile({
     }
   };
 
-  // Ampel + Frist aggregieren — Single nutzt dieselben Helper wie Verbund.
+  // Ampel + "Frist" (= Bearbeitungs-Wartezeit). frist_datum spiegelt
+  // antragsdatum (D_AAE); >90 Tage offen = SLA-Verstoss = rot.
   const ampel = worstAmpel(group.tvs);
-  const frist = isVerbund ? criticalFrist(group.tvs) : daysUntilFrist(headTv);
-  const fristTxt = formatFrist(frist);
-  const fristCritical = frist !== null && frist < 0;
+  const waiting = isVerbund ? maxWaitingDays(group.tvs) : daysSinceEingang(headTv);
+  const fristTxt = formatWaiting(waiting);
+  const fristCritical = waiting !== null && waiting > 90;
 
   // Dominanter Status für die Card-Pill (immer einheitlich, keine Dot-Row mehr —
   // die granularen TV-Stati sind über die StatusBarRow oben kodiert).
