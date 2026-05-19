@@ -2,7 +2,7 @@
   "configVersion": 2,
   "variant": "production",
   "build": {
-    "label": "TeamFlow PL",
+    "label": "ZAH PL",
     "outputFilename": "zah-pl",
     "browserTabTitle": "ZAH pl",
     "sidebarSubtitle": "Forschungsförderung"

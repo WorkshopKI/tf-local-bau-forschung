@@ -2,7 +2,7 @@
   "configVersion": 2,
   "variant": "demo",
   "build": {
-    "label": "TeamFlow Demo",
+    "label": "ZAH Demo",
     "outputFilename": "zah-demo",
     "outputSubdir": "demo",
     "browserTabTitle": "ZAH demo"

@@ -2,7 +2,7 @@
   "configVersion": 2,
   "variant": "production",
   "build": {
-    "label": "TeamFlow Kurator",
+    "label": "ZAH Kurator",
     "outputFilename": "zah-kurator",
     "browserTabTitle": "ZAH kurator",
     "sidebarSubtitle": "Forschungsförderung"
