@@ -56,7 +56,7 @@ export const VIEWS: AntragView[] = [
     // (VN-Frist = vn_eingang_datum + 6 Monate) und gehoeren NICHT in diese
     // antragsdatum-basierte View.
     key: 'diese_woche_faellig',
-    label: 'SLA-Risiko (diese Woche)',
+    label: 'Diese Woche',
     predicate: a => {
       if (!isOpenStatus(a.status)) return false;
       if (isBegleitungStatus(a.status)) return false;
