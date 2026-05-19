@@ -18,7 +18,11 @@ import { useConnectionState } from '@/core/services/connection-status';
 import { runtimeConfig } from '@/config/runtime-config';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
-import { refreshAllPermissions } from '@/core/services/infrastructure/smb-handle';
+import {
+  getPersoenlichHandle,
+  pickAndStorePersoenlichHandle,
+  refreshAllPermissions,
+} from '@/core/services/infrastructure/smb-handle';
 
 function formatDate(iso: string | null): string {
   if (!iso) return 'unbekannt';
@@ -39,6 +43,7 @@ export function OfflineBanner(): React.ReactElement | null {
   const datenShareAvailable = useConnectionState(s => s.datenShareAvailable);
   const lastSync = useConnectionState(s => s.lastSyncTimestamp);
   const applyRefreshResult = useConnectionState(s => s.applyRefreshResult);
+  const setPersoenlichAvailable = useConnectionState(s => s.setPersoenlichAvailable);
   const storage = useStorage();
   const { profile } = useProfile();
   const [busy, setBusy] = useState(false);
@@ -46,6 +51,18 @@ export function OfflineBanner(): React.ReactElement | null {
   const handleReconnect = async (): Promise<void> => {
     setBusy(true);
     try {
+      // Persönlich-Ordner-Fall ohne gespeicherten Handle: `refreshAllPermissions`
+      // wäre hier ein No-Op (skipped persoenlich-Slot → result.persoenlich
+      // bleibt 'missing', Banner verschwindet nicht). Stattdessen den Picker
+      // öffnen, wie es der Speicher-Tab macht.
+      if (mode === 'online' && !persoenlichAvailable) {
+        const existing = await getPersoenlichHandle(storage.idb);
+        if (!existing) {
+          const r = await pickAndStorePersoenlichHandle(storage.idb);
+          if (r.ok) setPersoenlichAvailable(true);
+          return;
+        }
+      }
       const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
       const result = await refreshAllPermissions(storage.idb, { isKurator });
       applyRefreshResult(result);
