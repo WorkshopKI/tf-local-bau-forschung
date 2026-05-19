@@ -4,8 +4,7 @@
   "build": {
     "label": "ZAH Kurator",
     "outputFilename": "zah-kurator",
-    "browserTabTitle": "ZAH kurator",
-    "sidebarSubtitle": "Forschungsförderung"
+    "browserTabTitle": "ZAH kurator"
   },
   "data": {
     "fixedDataSharePath": "\\\\server\\teamflow-forschungsfoerderung\\",

@@ -5,8 +5,7 @@
     "label": "ZAH dev",
     "outputFilename": "zah-dev",
     "outputSubdir": "dev",
-    "browserTabTitle": "ZAH dev",
-    "sidebarSubtitle": "ZIM Arbeitshilfe"
+    "browserTabTitle": "ZAH dev"
   },
   "data": {
     "fixedDataSharePath": null,

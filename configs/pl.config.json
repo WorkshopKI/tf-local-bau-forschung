@@ -4,8 +4,7 @@
   "build": {
     "label": "ZAH PL",
     "outputFilename": "zah-pl",
-    "browserTabTitle": "ZAH pl",
-    "sidebarSubtitle": "Forschungsförderung"
+    "browserTabTitle": "ZAH pl"
   },
   "data": {
     "fixedDataSharePath": "\\\\server\\teamflow-forschungsfoerderung\\",

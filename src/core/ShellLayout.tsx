@@ -234,7 +234,6 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
           <div className="flex items-center justify-between pl-4 pr-1 pt-4 pb-2 shrink-0">
             <div>
               <span className="text-[15px] font-medium text-[var(--tf-text)]">{runtimeConfig.build.label}</span>
-              <span className="block text-[12px] text-[var(--tf-text-secondary)]">{runtimeConfig.build.sidebarSubtitle ?? 'Verwaltung'}</span>
             </div>
             <button onClick={() => setSidebarOpen(false)}
               className="p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer">
