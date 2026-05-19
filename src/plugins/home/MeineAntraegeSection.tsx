@@ -80,13 +80,20 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
         }
       />
       <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2 -mt-1">
-        Anträge mit Ihrem Kürzel <span className="font-mono">{bearbeiterTokens.join(', ')}</span>, sortiert nach Frist
+        Anträge mit Ihrem Kürzel <span className="font-mono">{bearbeiterTokens.join(', ')}</span>, sortiert nach Frist · Verbünde als ein Eintrag
       </p>
       {visible.map((v, i) => {
         const phaseLabel = getVbPhaseLabel(v.vb_phase);
         const daysFmt = formatDaysShort(v.deadline);
+        const isVerbund = (v.tv_count ?? 1) > 1;
+        // Bei Verbund-Clustern (mehrere TVs) zeigen wir nur das Akronym im Title.
+        // Der TV-Titel divergiert zwischen TVs (z.B. KOMPaSS: "Smart Speaker, ..."
+        // vs "Backend, ..."); kombinieren wuerde Verwirrung stiften. Bei Solo-
+        // Antraegen bleibt das Akronym-/-Titel-Layout wie vorher.
         const { acronym: acrPrefix, rest } = splitTitle(v.title, v.acronym);
-        const titleNode = acrPrefix ? (
+        const titleNode = isVerbund && v.acronym ? (
+          <span className="truncate font-medium text-[var(--tf-text)]">{v.acronym}</span>
+        ) : acrPrefix ? (
           <span className="truncate">
             <span className="font-medium text-[var(--tf-text)]">{acrPrefix}</span>
             <span className="text-[var(--tf-text-secondary)]"> / {rest}</span>
@@ -94,6 +101,11 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
         ) : (
           <span className="truncate text-[var(--tf-text-secondary)]">{rest}</span>
         );
+        // Subtitle: Aktenzeichen + "+N TV"-Suffix bei Verbund-Clustern.
+        // N = Anzahl weiterer TVs (= tv_count − 1).
+        const subtitleText = isVerbund
+          ? `${v.id} · +${(v.tv_count ?? 1) - 1} TV`
+          : v.id;
         return (
           <ListItem
             key={v.id}
@@ -107,7 +119,7 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
             }
             title={titleNode}
             titleClassName="text-[13px] truncate"
-            subtitle={v.id}
+            subtitle={subtitleText}
             subtitleClassName="text-[11px] font-mono text-[var(--tf-text-tertiary)] truncate"
             meta={
               <>

@@ -3,6 +3,7 @@ import { computeDashboardAggregate } from '@/plugins/home/dashboardAggregate';
 import { parseBearbeiterFilter } from '../bearbeiterFilter';
 import { SEED_ANTRAEGE, TEST_TODAY_MS } from './fixtures/seed-antraege';
 import { REAL_CSV_ANTRAEGE } from './fixtures/real-csv-antraege';
+import { asAntragStatusRaw, type AntragListItem } from '@/core/services/csv/types';
 
 const NEUTRAL = parseBearbeiterFilter(undefined, undefined);
 
@@ -132,6 +133,85 @@ describe('computeDashboardAggregate — leere Eingaben', () => {
       includeBauantraege: true, includeAntraege: false, nowMs: TEST_TODAY_MS,
     });
     expect(agg.stats.total).toBe(0);
+  });
+});
+
+describe('computeDashboardAggregate — Verbund-Clustering in meineAntraege', () => {
+  function mkAntrag(p: Partial<Omit<AntragListItem, 'status'>> & { aktenzeichen: string; status: string }): AntragListItem {
+    const { status, ...rest } = p;
+    return {
+      programm_id: 'P',
+      _updated_at: '2026-05-01T00:00:00Z',
+      ...rest,
+      status: asAntragStatusRaw(status),
+    };
+  }
+
+  it('TVs gleicher verbund_id werden auf einen Eintrag reduziert', () => {
+    const tvs: AntragListItem[] = [
+      mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-04-01',
+        verbund_id: 'VB-A', akronym: 'PROJEKT-A' }),
+      mkAntrag({ aktenzeichen: 'V-002', status: 'beantragt', antragsdatum: '2026-04-01',
+        verbund_id: 'VB-A', akronym: 'PROJEKT-A' }),
+      mkAntrag({ aktenzeichen: 'V-003', status: 'beantragt', antragsdatum: '2026-04-01',
+        verbund_id: 'VB-A', akronym: 'PROJEKT-A' }),
+      mkAntrag({ aktenzeichen: 'S-001', status: 'beantragt', antragsdatum: '2026-04-01',
+        akronym: 'SOLO' }),
+    ];
+    const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.meineAntraege).toHaveLength(2);          // 1 Verbund + 1 Solo
+    expect(agg.stats.offen).toBe(4);                    // alle 4 zaehlen weiter
+  });
+
+  it('Lead-TV bekommt tv_count = Anzahl aller TVs im Verbund', () => {
+    const tvs: AntragListItem[] = [
+      mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-04-01',
+        verbund_id: 'VB-A' }),
+      mkAntrag({ aktenzeichen: 'V-002', status: 'beantragt', antragsdatum: '2026-04-01',
+        verbund_id: 'VB-A' }),
+      mkAntrag({ aktenzeichen: 'V-003', status: 'beantragt', antragsdatum: '2026-04-01',
+        verbund_id: 'VB-A' }),
+    ];
+    const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.meineAntraege).toHaveLength(1);
+    expect(agg.meineAntraege[0]?.tv_count).toBe(3);
+    expect(agg.meineAntraege[0]?.verbund_id).toBe('VB-A');
+  });
+
+  it('Solo-Antraege bekommen tv_count = 1', () => {
+    const tvs: AntragListItem[] = [
+      mkAntrag({ aktenzeichen: 'S-001', status: 'beantragt', antragsdatum: '2026-04-01' }),
+      mkAntrag({ aktenzeichen: 'S-002', status: 'beantragt', antragsdatum: '2026-04-02' }),
+    ];
+    const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.meineAntraege).toHaveLength(2);
+    expect(agg.meineAntraege.every(a => a.tv_count === 1)).toBe(true);
+  });
+
+  it('Sortierung nach Frist: ältester Eingang oben, Verbund-Lead = ältester TV', () => {
+    const tvs: AntragListItem[] = [
+      // Solo, neu eingegangen → Frist weiter weg
+      mkAntrag({ aktenzeichen: 'S-001', status: 'beantragt', antragsdatum: '2026-05-01' }),
+      // Verbund, einer alt einer neu → Lead = der mit fruehestem antragsdatum (= aelteste Frist)
+      mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-01-01',
+        verbund_id: 'VB-A' }),
+      mkAntrag({ aktenzeichen: 'V-002', status: 'beantragt', antragsdatum: '2026-03-01',
+        verbund_id: 'VB-A' }),
+    ];
+    const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    // Verbund oben (kritischste Frist = V-001 mit antragsdatum 2026-01-01)
+    expect(agg.meineAntraege[0]?.id).toBe('V-001');
+    expect(agg.meineAntraege[0]?.tv_count).toBe(2);
+    // Solo darunter
+    expect(agg.meineAntraege[1]?.id).toBe('S-001');
   });
 });
 

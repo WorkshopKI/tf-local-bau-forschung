@@ -27,6 +27,13 @@ export type AntragVorgang = Vorgang & {
    *  als bold-prefix vom restlichen Titel separat gerendert, um den
    *  Render-Stil der Antraege-Seite zu spiegeln. */
   acronym?: string;
+  /** Verbund-ID des Antrags (leer / undefined bei Solo-Antraegen). Wird auf
+   *  der Home fuer das Verbund-Clustering der `meineAntraege`-Liste genutzt. */
+  verbund_id?: string;
+  /** Anzahl Teilvorhaben im Verbund-Cluster. Bei Solo-Antraegen 1, bei
+   *  Verbund-Lead-TVs = Anzahl aller TVs (inkl. Lead). UI rendert
+   *  `+N`-Indikator wenn > 1. Wird nur in `meineAntraege` gesetzt. */
+  tv_count?: number;
 };
 
 export interface DashboardStats {
@@ -121,6 +128,7 @@ function antragToVorgangLike(a: AntragListItem): AntragVorgang {
     _isAntrag: true,
     vb_phase: typeof a.vb_phase === 'number' ? a.vb_phase : undefined,
     acronym: typeof a.akronym === 'string' && a.akronym.trim().length > 0 ? a.akronym.trim() : undefined,
+    verbund_id: typeof a.verbund_id === 'string' && a.verbund_id.length > 0 ? a.verbund_id : undefined,
   };
 }
 
@@ -207,9 +215,8 @@ export function computeDashboardAggregate(
 
   // Sortierung: Frist primaer (frueheste Frist oben), VB-Phase als Tie-Breaker.
   // Antraege ohne `deadline` (frist_datum nicht gepflegt) rutschen ans Ende
-  // durch den `￿`-Sentinel-Sort-Key. Kein Slice — die UI schneidet selbst ab,
-  // damit "+10 mehr"-Erweiterung in-page funktioniert.
-  const meineAntraege = [...offeneAntraege]
+  // durch den `￿`-Sentinel-Sort-Key.
+  const sortedMeineAntraege = [...offeneAntraege]
     .sort((a, b) => {
       const da = a.deadline ?? '￿';
       const db = b.deadline ?? '￿';
@@ -219,6 +226,33 @@ export function computeDashboardAggregate(
       const pb = b.vb_phase ?? Number.POSITIVE_INFINITY;
       return pa - pb;
     });
+
+  // Verbund-Clustering: pro `verbund_id` nur den ersten TV behalten (= TV mit
+  // der kritischsten Frist, weil die Liste schon sortiert ist). Solo-Antraege
+  // ohne verbund_id bleiben einzeln. `tv_count` zaehlt die Geschwister inkl.
+  // Lead, damit die UI einen "+N"-Indikator rendern kann.
+  // Begruendung: die Home soll nur signalisieren *dass* an einem Antrag etwas
+  // offen ist — der User klickt darauf und sieht den vollen Cluster in der
+  // Antrags-Liste. TVs einzeln auflisten blaehte die Home auf (Beispiel
+  // KOMPaSS mit 3 TVs = 3 fast identische Zeilen). Kein Slice — UI schneidet
+  // selbst ab, damit "+10 mehr"-Erweiterung in-page funktioniert.
+  const verbundCount = new Map<string, number>();
+  for (const tv of sortedMeineAntraege) {
+    if (tv.verbund_id) {
+      verbundCount.set(tv.verbund_id, (verbundCount.get(tv.verbund_id) ?? 0) + 1);
+    }
+  }
+  const seenVerbund = new Set<string>();
+  const meineAntraege: AntragVorgang[] = [];
+  for (const tv of sortedMeineAntraege) {
+    if (tv.verbund_id) {
+      if (seenVerbund.has(tv.verbund_id)) continue;
+      seenVerbund.add(tv.verbund_id);
+      meineAntraege.push({ ...tv, tv_count: verbundCount.get(tv.verbund_id) ?? 1 });
+    } else {
+      meineAntraege.push({ ...tv, tv_count: 1 });
+    }
+  }
 
   return {
     offeneVorgaenge,
