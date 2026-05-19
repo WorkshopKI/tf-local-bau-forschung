@@ -315,24 +315,6 @@ export function HomePage(): React.ReactElement {
           {/* Antragseingang-Ampel — nur wenn Förderanträge im Profil sichtbar */}
           {profile?.department !== 'bauantraege' ? <EingangAmpelCard /> : null}
 
-          {/* Fristen */}
-          <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
-            <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3 uppercase tracking-[0.08em]">Offene Fristen</p>
-            {data.dringend.length === 0 ? (
-              <p className="text-[13px] text-[var(--tf-text-secondary)]">Keine dringenden Fristen</p>
-            ) : (
-              data.dringend.slice(0, 5).map(v => (
-                <div key={v.id} className="flex items-center gap-2 py-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${v.daysLeft < 0 ? 'bg-[var(--tf-danger-text)]' : v.daysLeft < 3 ? 'bg-[var(--tf-danger-text)]' : 'bg-[var(--tf-warning-text)]'}`} />
-                  <span className="text-[12px] font-mono text-[var(--tf-text-tertiary)] flex-1 truncate">{v.id}</span>
-                  <span className={`text-[11px] whitespace-nowrap ${v.daysLeft < 0 ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-text-tertiary)]'}`}>
-                    {v.daysLeft < 0 ? `${Math.abs(v.daysLeft)}d überfällig` : `in ${v.daysLeft}d`}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-
           {/* AI Status */}
           <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
             <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3 uppercase tracking-[0.08em]">AI-Assistent</p>
@@ -341,12 +323,6 @@ export function HomePage(): React.ReactElement {
               <span className="text-[13px] text-[var(--tf-text-secondary)]">Nicht verbunden</span>
             </div>
             <button onClick={() => navigate('chat')} className="text-[12px] text-[var(--tf-primary)] hover:underline cursor-pointer">Chat öffnen →</button>
-          </div>
-
-          {/* Search Index */}
-          <div data-tour="suchindex-status" className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
-            <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3 uppercase tracking-[0.08em]">Suchindex</p>
-            <p className="text-[13px] text-[var(--tf-text-secondary)]">{data.stats.total} Vorgänge indexiert</p>
           </div>
         </div>
       </div>

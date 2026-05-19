@@ -111,31 +111,38 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
         const subtitleText = isVerbund
           ? `${v.id} · +${(v.tv_count ?? 1) - 1} TV`
           : v.id;
+        const fristCritical = daysFmt !== null && daysFmt.startsWith('-');
+        // Frist + FuE-Phase als kombinierter Icon-Slot links vor dem Antrag.
+        // Frist mit fixer Breite, damit die Akronyme vertikal aligniert
+        // bleiben — sonst springt das Layout zwischen "-5d" und "-189d".
+        const iconNode = (
+          <div className="flex items-center gap-2">
+            <span
+              className={`shrink-0 w-12 text-right text-[11px] tabular-nums font-mono ${
+                fristCritical
+                  ? 'text-[var(--tf-danger-text)] font-medium'
+                  : 'text-[var(--tf-text-tertiary)]'
+              }`}
+            >
+              {daysFmt ?? ''}
+            </span>
+            {phaseLabel ? (
+              <Badge variant={getVbPhaseVariant(v.vb_phase)}>{phaseLabel}</Badge>
+            ) : (
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--tf-text-tertiary)] opacity-40" />
+            )}
+          </div>
+        );
         return (
           <ListItem
             key={v.id}
             iconBare
-            icon={
-              phaseLabel ? (
-                <Badge variant={getVbPhaseVariant(v.vb_phase)}>{phaseLabel}</Badge>
-              ) : (
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--tf-text-tertiary)] opacity-40" />
-              )
-            }
+            icon={iconNode}
             title={titleNode}
             titleClassName="text-[13px] truncate"
             subtitle={subtitleText}
             subtitleClassName="text-[11px] font-mono text-[var(--tf-text-tertiary)] truncate"
-            meta={
-              <>
-                {daysFmt ? (
-                  <span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums font-mono">
-                    {daysFmt}
-                  </span>
-                ) : null}
-                <Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>
-              </>
-            }
+            meta={<Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>}
             onClick={() => navigate('antraege', { selectedId: v.id })}
             last={i === visible.length - 1}
           />
