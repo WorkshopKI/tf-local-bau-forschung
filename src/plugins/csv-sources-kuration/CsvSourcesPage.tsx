@@ -282,20 +282,28 @@ export function CsvSourcesPage(): React.ReactElement {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5">
-                    {hasUpdate ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={e => { e.stopPropagation(); void handleAutoUpdate(s); }}
-                        disabled={!session.isActive}
-                        title="Erkannte neuere Version am ursprünglichen Speicherort importieren"
-                      >
-                        <Sparkles size={13} /> Aktualisieren
-                      </Button>
-                    ) : null}
                     <Button
                       size="sm"
-                      variant={hasUpdate ? 'outline' : 'default'}
+                      variant="default"
+                      onClick={e => { e.stopPropagation(); if (hasUpdate) void handleAutoUpdate(s); }}
+                      disabled={!session.isActive || !hasUpdate}
+                      title={
+                        hasUpdate && update.state === 'update_available'
+                          ? `Neuere Version vom ${new Date(update.lastModified).toLocaleString('de-DE')} importieren`
+                          : update?.state === 'no_handle'
+                            ? "Noch keine Quelldatei registriert — einmal 'CSV neu wählen' nutzen, damit Auto-Update aktiv wird"
+                            : update?.state === 'permission_required'
+                              ? "Datei-Zugriff nicht erlaubt — 'CSV neu wählen' nutzen, um die Quelldatei neu zuzuweisen"
+                              : update?.state === 'file_missing'
+                                ? "Quelldatei am alten Speicherort nicht gefunden — 'CSV neu wählen' nutzen"
+                                : "Keine neuere Version am Ablageort erkannt"
+                      }
+                    >
+                      <Sparkles size={13} /> CSV Daten aktualisieren
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={e => { e.stopPropagation(); void handleReselect(s); }}
                       disabled={!session.isActive}
                       title="Andere CSV-Datei wählen — z.B. wenn die Datei an einem neuen Ort liegt"
