@@ -50,7 +50,10 @@ const EMBEDDING_TOP_K = 50;
  *  Substring — verhindert dass ein einzelner Buchstabe Tausende semantischer
  *  Treffer aufmacht. */
 const MIN_QUERY_LEN_FOR_SEMANTIC = 2;
-const DEBOUNCE_MS = 300;
+const DEBOUNCE_MS = 500;
+/** Yield-Intervall im Cosine-Loop (in Iterationen). Bei ~13k × 768d sind das
+ *  ~50–120 ms ohne Yielding; mit Yield alle 2000 bleibt die UI smooth. */
+const COSINE_YIELD_INTERVAL = 2000;
 /** DMS-Index-Treffer (Orama hybridSearch). Mehr als der Default-Limit, damit
  *  wir nach Filter auf aktives Programm noch genug haben. */
 const DMS_HIT_LIMIT = 100;
@@ -115,20 +118,26 @@ async function getEmbeddings(idb: IDBStore): Promise<Map<string, number[]>> {
   }
 }
 
-/** Findet Top-K Akz aus dem Embedding-Korpus mit Cosine >= threshold. */
-function topKEmbeddingMatches(
+/** Findet Top-K Akz aus dem Embedding-Korpus mit Cosine >= threshold.
+ *  Async wegen periodischem Yielding alle 2000 Iterationen — verhindert
+ *  Long-Tasks > 50 ms auch wenn der Korpus auf 30k+ Antraege waechst. */
+async function topKEmbeddingMatches(
   queryVec: number[],
   embeddings: Map<string, number[]>,
   topK: number,
   threshold: number,
-): string[] {
-  // Min-Heap-Light: lineare Suche durch alle Embeddings, sortieren am Ende.
-  // Bei 13k × 768 ist das ~50–120 ms in Chrome — kein Heap noetig.
+  signal?: AbortSignal,
+): Promise<string[]> {
   const hits: Array<{ akz: string; score: number }> = [];
+  let i = 0;
   for (const [akz, vec] of embeddings.entries()) {
     if (vec.length !== queryVec.length) continue;
     const s = cosineSimilarity(queryVec, vec);
     if (s >= threshold) hits.push({ akz, score: s });
+    if (++i % COSINE_YIELD_INTERVAL === 0) {
+      await new Promise(r => setTimeout(r, 0));
+      if (signal?.aborted) return [];
+    }
   }
   hits.sort((a, b) => b.score - a.score);
   return hits.slice(0, topK).map(h => h.akz);
@@ -140,14 +149,17 @@ function substringMatches(
 ): Set<string> {
   // Substring auf die drei CSV-Volltext-Felder. Der Header-Substring auf
   // titel/akronym/akz/antragsteller laeuft separat in `useFilteredAntraege`
-  // (auf der AntragListItem-Slim-View). Hier nur die Erweiterungs-Felder.
+  // (auf der AntragListItem-Slim-View). Hier nur die Erweiterungs-Felder —
+  // mit vorberechneten lowercase-Strings: pro Keystroke nur eine
+  // toLowerCase()-Allokation (auf dem Query), keine 39 k toLowerCase-Calls
+  // auf den Korpus-Strings.
   const out = new Set<string>();
   const q = query.toLowerCase();
   for (const [akz, entry] of textCorpus.entries()) {
     if (
-      entry.vb.toLowerCase().includes(q)
-      || entry.tv.toLowerCase().includes(q)
-      || entry.abstract.toLowerCase().includes(q)
+      entry.vbLower.includes(q)
+      || entry.tvLower.includes(q)
+      || entry.absLower.includes(q)
     ) {
       out.add(akz);
     }
@@ -221,11 +233,12 @@ async function runHybridSearch(opts: RunOptions): Promise<RunResult> {
         );
         if (!unavailable.includes('embedding')) unavailable.push('embedding');
       } else {
-        const embHits = topKEmbeddingMatches(
+        const embHits = await topKEmbeddingMatches(
           queryVec,
           embeddings,
           EMBEDDING_TOP_K,
           EMBEDDING_THRESHOLD,
+          abortSignal,
         );
         for (const akz of embHits) matched.add(akz);
       }
@@ -291,6 +304,36 @@ export function useAntraegeHybridSearch(): void {
     }
     prevProgrammRef.current = activeProgrammId;
   }, [activeProgrammId]);
+
+  // Eager Background-Preload: sobald die Antraege-Seite gemountet ist (und
+  // ein aktives Programm vorliegt), starten wir den teuren Initial-Load
+  // (Cursor-Walk ueber alle Antraege + 13 k Embedding-IDB-Reads + Modell-
+  // Init) im Hintergrund. Der erste Keystroke trifft dann auf warme Caches
+  // statt einen mehrere-Sekunden-Block auszuloesen. Idempotent: wenn die
+  // Caches schon stehen, returnen die `get*`-Helper sofort.
+  useEffect(() => {
+    if (!activeProgrammId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await getProgrammCaches(storage.idb, activeProgrammId);
+        if (cancelled) return;
+        // Embedding-Modell + Korpus parallel im Hintergrund warmlaufen —
+        // beide Fehler sind nicht kritisch (Suche faellt dann auf Substring
+        // zurueck), darum nur warnen.
+        ensureEmbeddingReady(storage.idb).catch(err => {
+          console.warn('[useAntraegeHybridSearch] preload embedding model failed:', err);
+        });
+        getEmbeddings(storage.idb).catch(err => {
+          console.warn('[useAntraegeHybridSearch] preload embeddings failed:', err);
+        });
+      } catch (err) {
+        if (cancelled) return;
+        console.warn('[useAntraegeHybridSearch] preload corpus failed:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeProgrammId, storage]);
 
   useEffect(() => {
     const q = search.trim();

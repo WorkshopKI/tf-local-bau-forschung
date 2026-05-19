@@ -7,14 +7,16 @@
  *
  *  - `loadAntraegeTextCorpus` — projiziert den vollen `Antrag`-Record auf die
  *    drei suchrelevanten Text-Felder (`verbund_titel`, `titel`,
- *    `projektbeschreibung_text`). Liegt im RAM des aktiven Programms.
+ *    `projektbeschreibung_text`) und cached zusaetzlich die lowercase-Variante
+ *    (Substring-Match per Keystroke wird so von ~500 ms auf ~10–30 ms reduziert).
  *
  *  - `loadDmsFilenameToAkz` — Umkehr-Lookup fuer Phase-2-Treffer: Orama
  *    liefert pro Hit den `source`-Filename, wir wollen den `matched_antrag_id`
  *    (Aktenzeichen) wissen. Filter auf `triage_state === 'relevant'`.
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
+import { CSV_STORES } from '@/core/services/storage/idb-store';
+import type { Antrag } from '@/core/services/csv/types';
 import { listManifestEntries } from '@/phase2/scanner/manifest-store';
 
 export interface AntragTextEntry {
@@ -24,6 +26,12 @@ export interface AntragTextEntry {
   tv: string;
   /** Kurzbeschreibung / Abstract (CSV-Spalte `projektbeschreibung_text`). */
   abstract: string;
+  /** Pre-computed lowercase. Einmal beim Load berechnen, dann per Keystroke
+   *  nur `.includes(q)` ohne neue String-Allokation. Wichtig fuer 13k-Korpora,
+   *  sonst ~100 MB GC-Druck pro Keystroke. */
+  vbLower: string;
+  tvLower: string;
+  absLower: string;
 }
 
 /**
@@ -31,25 +39,46 @@ export interface AntragTextEntry {
  * die drei suchrelevanten Strings. Nur Antraege mit mindestens einem nicht-
  * leeren Feld kommen in die Map.
  *
- * Kosten: einmaliger structured-clone-Roundtrip ueber den vollen Store
- * (~36 KB × Antrags-Anzahl). Bei 13k Antraegen ~500 MB serialisiertes JSON
- * im Worst-Case, GC raeumt direkt nach der Projektion. Typische Laufzeit
- * 1–3 s — akzeptabel, weil einmalig pro Programm-Switch.
+ * Statt `index.getAll` (liefert ~500 MB Structured-Clone in einem Stoss und
+ * blockiert den Main-Thread mehrere Sekunden) iterieren wir den Index mit
+ * einem Cursor. Chrome liefert die Records inkrementell, der Peak-Speicher
+ * bleibt bei ~36 KB pro Schritt, und es gibt keine langen Sync-Blocker mehr
+ * — der Browser kann zwischen Cursor-Steps Frames rendern.
  */
 export async function loadAntraegeTextCorpus(
   idb: IDBStore,
   programmId: string,
+  signal?: AbortSignal,
 ): Promise<Map<string, AntragTextEntry>> {
-  const all = await listAntraegeByProgramm(idb, programmId);
+  const db = idb.getDb();
   const result = new Map<string, AntragTextEntry>();
-  for (const a of all) {
-    const vb = typeof a.verbund_titel === 'string' ? a.verbund_titel : '';
-    const tv = typeof a.titel === 'string' ? a.titel : '';
-    const abstract = typeof a.projektbeschreibung_text === 'string' ? a.projektbeschreibung_text : '';
-    if (vb.length > 0 || tv.length > 0 || abstract.length > 0) {
-      result.set(a.aktenzeichen, { vb, tv, abstract });
-    }
-  }
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(CSV_STORES.ANTRAEGE, 'readonly');
+    const idx = tx.objectStore(CSV_STORES.ANTRAEGE).index('programm_id');
+    const req = idx.openCursor(IDBKeyRange.only(programmId));
+    req.onsuccess = () => {
+      if (signal?.aborted) { resolve(); return; }
+      const cursor = req.result;
+      if (!cursor) { resolve(); return; }
+      const a = cursor.value as Antrag;
+      const vb = typeof a.verbund_titel === 'string' ? a.verbund_titel : '';
+      const tv = typeof a.titel === 'string' ? a.titel : '';
+      const ab = typeof a.projektbeschreibung_text === 'string' ? a.projektbeschreibung_text : '';
+      if (vb.length > 0 || tv.length > 0 || ab.length > 0) {
+        result.set(a.aktenzeichen, {
+          vb,
+          tv,
+          abstract: ab,
+          vbLower: vb.toLowerCase(),
+          tvLower: tv.toLowerCase(),
+          absLower: ab.toLowerCase(),
+        });
+      }
+      cursor.continue();
+    };
+    req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error);
+  });
   return result;
 }
 
