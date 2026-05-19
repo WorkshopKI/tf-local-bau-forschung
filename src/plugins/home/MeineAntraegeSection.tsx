@@ -33,12 +33,29 @@ interface Props {
   bearbeiterTokens: string[];
 }
 
-function formatDaysShort(deadline: string | undefined): string | null {
+type FristTone = 'overdue' | 'urgent' | 'normal';
+
+interface FristLabel {
+  /** Sprachlicher Kurz-Text: "vor 189d", "in 6d", "heute". */
+  label: string;
+  tone: FristTone;
+  /** ISO-Date der Frist; wird im Tooltip absolut ausgegeben. */
+  iso: string;
+}
+
+/**
+ * Bildet die phasen-abhängige Frist auf ein sprachliches Kurz-Label ab.
+ * Ohne Vorzeichen-Magie: "vor X d" für Vergangenheit, "in X d" für Zukunft,
+ * "heute" für diff=0. Tone steuert die Farb-Zuordnung im Render.
+ */
+function formatDaysShort(deadline: string | undefined): FristLabel | null {
   if (!deadline) return null;
   const diff = Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   if (Number.isNaN(diff)) return null;
-  if (diff < 0) return `${diff}d`;
-  return `+${diff}d`;
+  if (diff === 0) return { label: 'heute', tone: 'urgent', iso: deadline };
+  if (diff < 0) return { label: `vor ${-diff}d`, tone: 'overdue', iso: deadline };
+  if (diff <= 7) return { label: `in ${diff}d`, tone: 'urgent', iso: deadline };
+  return { label: `in ${diff}d`, tone: 'normal', iso: deadline };
 }
 
 /**
@@ -84,7 +101,7 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
       </p>
       {visible.map((v, i) => {
         const phaseLabel = getVbPhaseLabel(v.vb_phase);
-        const daysFmt = formatDaysShort(v.deadline);
+        const frist = formatDaysShort(v.deadline);
         const isVerbund = (v.tv_count ?? 1) > 1;
         // Verbund-Titel (VB_TITEL aus dem Verbund-Store) bevorzugt — konsistent
         // fuer Verbund-Cluster (gleich fuer alle TVs) und Einzelprojekte (dort
@@ -111,20 +128,24 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
         const subtitleText = isVerbund
           ? `${v.id} · +${(v.tv_count ?? 1) - 1} TV`
           : v.id;
-        const fristCritical = daysFmt !== null && daysFmt.startsWith('-');
         // Frist + FuE-Phase als kombinierter Icon-Slot links vor dem Antrag.
-        // Frist mit fixer Breite, damit die Akronyme vertikal aligniert
-        // bleiben — sonst springt das Layout zwischen "-5d" und "-189d".
+        // Frist mit fixer Breite, damit die Akronyme vertikal aligniert bleiben.
+        // Tone bestimmt die Farbe: rot/medium für ueberfaellig, amber/medium
+        // fuer "diese Woche" (heute oder in <=7d), grau/regular fuer alles
+        // darueber. Tooltip zeigt das absolute Frist-Datum.
+        const fristToneClass =
+          frist?.tone === 'overdue'
+            ? 'text-[var(--tf-danger-text)] font-medium'
+            : frist?.tone === 'urgent'
+              ? 'text-[var(--tf-warning-text)] font-medium'
+              : 'text-[var(--tf-text-tertiary)]';
         const iconNode = (
           <div className="flex items-center gap-2">
             <span
-              className={`shrink-0 w-12 text-right text-[11px] tabular-nums font-mono ${
-                fristCritical
-                  ? 'text-[var(--tf-danger-text)] font-medium'
-                  : 'text-[var(--tf-text-tertiary)]'
-              }`}
+              className={`shrink-0 w-[68px] text-right text-[11px] tabular-nums ${fristToneClass}`}
+              title={frist ? `Frist: ${new Date(frist.iso).toLocaleDateString('de-DE')}` : undefined}
             >
-              {daysFmt ?? ''}
+              {frist?.label ?? ''}
             </span>
             {phaseLabel ? (
               <Badge variant={getVbPhaseVariant(v.vb_phase)}>{phaseLabel}</Badge>
