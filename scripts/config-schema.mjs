@@ -6,7 +6,7 @@
  * weil kein Bundler-Step).
  */
 
-export const CONFIG_SCHEMA_VERSION = 1;
+export const CONFIG_SCHEMA_VERSION = 2;
 
 /** Wird als Fallback verwendet, wenn kein `TEAMFLOW_CONFIG` gesetzt ist (dev server). */
 export const DEFAULT_CONFIG = {
@@ -22,9 +22,26 @@ export const DEFAULT_CONFIG = {
 
   data: {
     fixedDataSharePath: null,
+    /**
+     * v2.0: erwarteter Ordner-Name beim Daten-Share-Picker (z.B.
+     * 'teamflow-forschungsfoerderung'). Wenn gesetzt: WelcomeScreen prueft
+     * handle.name gegen diesen Wert und verweigert den Pick bei Mismatch.
+     */
+    expectedFolderName: null,
     allowUserToChangePath: true,
     allowLocalFallback: false,
     demoDataBundled: false,
+  },
+
+  /**
+   * v2.0: Persoenlicher Ordner (User-Home-Laufwerk) fuer profile.json,
+   * einstellungen.json und Feedback-Outbox.
+   */
+  personalFolder: {
+    subfolder: 'teamflow',
+    required: false,
+    promptAfterProfile: true,
+    snapshotAgeWarningDays: 3,
   },
 
   features: {
@@ -139,6 +156,9 @@ export function validateConfig(config) {
   if (data.fixedDataSharePath != null && typeof data.fixedDataSharePath !== 'string') {
     errors.push('data.fixedDataSharePath muss string oder null sein');
   }
+  if (data.expectedFolderName != null && typeof data.expectedFolderName !== 'string') {
+    errors.push('data.expectedFolderName muss string oder null sein');
+  }
   if (data.fixedDataSharePath && data.allowUserToChangePath) {
     warnings.push(
       'Fester Pfad + User-Auswahl gleichzeitig aktiv: Nutzer kann den festen Pfad überschreiben',
@@ -148,6 +168,27 @@ export function validateConfig(config) {
     errors.push(
       'App wäre unbenutzbar: kein fester Pfad, keine User-Auswahl, kein Lokal-Fallback',
     );
+  }
+
+  // v2.0: personalFolder strukturell pruefen (optional, default-getragen)
+  const personalFolder = config.personalFolder ?? null;
+  if (personalFolder !== null) {
+    if (typeof personalFolder !== 'object' || Array.isArray(personalFolder)) {
+      errors.push('personalFolder muss Objekt oder weggelassen sein');
+    } else {
+      if (typeof personalFolder.subfolder !== 'string' || !personalFolder.subfolder.trim()) {
+        errors.push('personalFolder.subfolder muss nicht-leerer String sein');
+      }
+      if (typeof personalFolder.required !== 'boolean') {
+        errors.push('personalFolder.required muss boolean sein');
+      }
+      if (typeof personalFolder.promptAfterProfile !== 'boolean') {
+        errors.push('personalFolder.promptAfterProfile muss boolean sein');
+      }
+      if (typeof personalFolder.snapshotAgeWarningDays !== 'number' || personalFolder.snapshotAgeWarningDays < 0) {
+        errors.push('personalFolder.snapshotAgeWarningDays muss Zahl >= 0 sein');
+      }
+    }
   }
 
   const features = config.features ?? {};

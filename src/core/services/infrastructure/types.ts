@@ -5,6 +5,18 @@ export const SMB_HANDLES_IDB_KEY = 'smb-handles';
 // transparent als Fallback gelesen (siehe smb-handle.ts).
 export const SMB_HANDLE_DATEN_SHARE = 'daten-share';
 /**
+ * v2.0: Persoenlicher Ordner (User-rw). Liegt typischerweise auf dem
+ * Home-Laufwerk des Users. Pflegt profile.json, einstellungen.json
+ * und die Feedback-Outbox; siehe PERSOENLICH_*-Pfad-Konstanten.
+ */
+export const SMB_HANDLE_PERSOENLICH = 'persoenlich';
+/**
+ * v2.0: Wurzel-Ordner aller User-Home-Laufwerke (z.B. `\\share\home-laufwerke\`).
+ * Wird vom Kurator einmalig gepickt, damit die App im FeedbackInboxTab
+ * JSON-Dateien aus `<user>/teamflow/feedback/outbox/` einsammeln kann.
+ */
+export const SMB_HANDLE_USER_FOLDERS_ROOT = 'user-folders-root';
+/**
  * @deprecated Seit v1.15 wird Multi-Source via `dms-source-${id}`-Slots verwaltet
  * (siehe DMS_SOURCE_SLOT_PREFIX). Dieser Single-Slot bleibt nur bis die Migration
  * (`migrateLegacyDmsSource`) einmal pro Installation gelaufen ist.
@@ -52,6 +64,27 @@ export const DMS_INDEX_FILTERED_PATH = '_intern/dms-index-filtered.csv';
 /** Phase 2: editierbares Override-Mapping Aktenplanzuordnung → doc_type. */
 export const AKTENPLAN_MAPPING_PATH = '_intern/aktenplan-mapping.json';
 export const README_PATH = 'README.txt';
+
+/**
+ * v2.0: Pfade auf dem persoenlichen Laufwerk (Subpfade unterhalb des Persoenlich-
+ * Handles). Wird beim ersten Mount automatisch angelegt (siehe ensurePersoenlich-
+ * Folders) — sind hier zentral definiert, damit Outbox-Reader im Kurator-Plugin
+ * die gleiche Struktur erwartet.
+ */
+export const PERSOENLICH_TEAMFLOW_DIR = 'teamflow';
+export const PERSOENLICH_FEEDBACK_DIR = 'teamflow/feedback';
+export const PERSOENLICH_FEEDBACK_OUTBOX_DIR = 'teamflow/feedback/outbox';
+export const PERSOENLICH_PROFILE_FILE = 'teamflow/profile.json';
+export const PERSOENLICH_EINSTELLUNGEN_FILE = 'teamflow/einstellungen.json';
+export const PERSOENLICH_MEINE_FEEDBACKS_FILE = 'teamflow/feedback/meine-feedbacks.json';
+
+/**
+ * v2.0: IDB-Flag das die App beim Start anlegt, wenn ein bestehender Daten-
+ * Share-Handle mit `readwrite`-Mode existiert obwohl der User Nicht-Kurator
+ * ist. Der StartupScreen rendert dann ein Migrations-Banner und triggert
+ * einen Re-Pick mit `read`-Mode. Wird nach erfolgreichem Re-Pick geloescht.
+ */
+export const NEEDS_HANDLE_DOWNGRADE_IDB_KEY = 'needs-handle-downgrade';
 
 /** @deprecated Legacy-Pfade vor v1.9 — nur für Read-Fallback + Migration-Detection. */
 export const LEGACY_AUDIT_LOG_PATH = 'admin/audit-log.jsonl';

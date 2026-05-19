@@ -15,9 +15,26 @@ export interface TeamflowBuildInfo {
 
 export interface TeamflowDataConfig {
   fixedDataSharePath: string | null;
+  /**
+   * v2.0: Erwarteter Ordner-Name beim Daten-Share-Picker. Wenn gesetzt, prueft
+   * WelcomeScreen `handle.name` gegen diesen Wert; bei Mismatch wird der Picker
+   * erneut geoeffnet mit Hinweis.
+   */
+  expectedFolderName: string | null;
   allowUserToChangePath: boolean;
   allowLocalFallback: boolean;
   demoDataBundled: boolean;
+}
+
+/**
+ * v2.0: Persoenlicher Ordner (User-Home-Laufwerk). Steuert das Verhalten
+ * des Onboarding-Schritts und das "Daten alt"-Warning.
+ */
+export interface TeamflowPersonalFolderConfig {
+  subfolder: string;
+  required: boolean;
+  promptAfterProfile: boolean;
+  snapshotAgeWarningDays: number;
 }
 
 export interface TeamflowFeatures {
@@ -87,6 +104,8 @@ export interface TeamflowConfig {
   variant: 'development' | 'demo' | 'production' | 'custom';
   build: TeamflowBuildInfo;
   data: TeamflowDataConfig;
+  /** v2.0 — optional, Build-Layer fuellt mit Defaults wenn weggelassen. */
+  personalFolder?: TeamflowPersonalFolderConfig;
   features: TeamflowFeatures;
   menuLabels: TeamflowMenuLabels;
   ki: TeamflowKiConfig;

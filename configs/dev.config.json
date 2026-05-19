@@ -1,5 +1,5 @@
 {
-  "configVersion": 1,
+  "configVersion": 2,
   "variant": "development",
   "build": {
     "label": "ZAH",
@@ -10,9 +10,16 @@
   },
   "data": {
     "fixedDataSharePath": null,
+    "expectedFolderName": null,
     "allowUserToChangePath": true,
     "allowLocalFallback": true,
     "demoDataBundled": true
+  },
+  "personalFolder": {
+    "subfolder": "teamflow",
+    "required": false,
+    "promptAfterProfile": true,
+    "snapshotAgeWarningDays": 3
   },
   "features": {
     "kuratorMenus": true,

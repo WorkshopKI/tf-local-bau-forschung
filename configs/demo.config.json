@@ -1,17 +1,24 @@
 {
-  "configVersion": 1,
+  "configVersion": 2,
   "variant": "demo",
   "build": {
     "label": "TeamFlow Demo",
-    "outputFilename": "teamflow-demo",
+    "outputFilename": "zah-demo",
     "outputSubdir": "demo",
     "browserTabTitle": "ZAH demo"
   },
   "data": {
     "fixedDataSharePath": null,
+    "expectedFolderName": null,
     "allowUserToChangePath": false,
     "allowLocalFallback": true,
     "demoDataBundled": true
+  },
+  "personalFolder": {
+    "subfolder": "teamflow",
+    "required": false,
+    "promptAfterProfile": false,
+    "snapshotAgeWarningDays": 3
   },
   "features": {
     "kuratorMenus": false,

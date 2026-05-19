@@ -686,10 +686,10 @@ Build-Kommandos:
 
 ```bash
 npm run build:dev       # → dist-single/dev/zah-dev.html
-npm run build:demo      # → dist-single/demo/teamflow-demo.html
-npm run build:prod      # → dist-single/teamflow-prod.html
-npm run build:kurator   # → dist-single/teamflow-kurator.html
-npm run build:pl        # → dist-single/teamflow-pl.html
+npm run build:demo      # → dist-single/demo/zah-demo.html
+npm run build:prod      # → dist-single/zah-prod.html
+npm run build:kurator   # → dist-single/zah-kurator.html
+npm run build:pl        # → dist-single/zah-pl.html
 npm run build:variant -- --config configs/<datei>.config.json   # beliebige Variante
 npm run config-ui       # HTML-Konfigurator auf http://localhost:5174
 ```

@@ -1,13 +1,17 @@
 /**
- * SMB-Handle-Manager (Phase 1a + v1.9-Strukturkonsolidierung).
+ * SMB-Handle-Manager (Phase 1a + v1.9-Strukturkonsolidierung + v2.0).
  *
- * Persistiert bis zu zwei File System Access API DirectoryHandles:
+ * Persistiert mehrere File System Access API DirectoryHandles:
  *  - Daten-Share: Root-Ordner mit programm/, backups/, _intern/, README.txt
- *  - Dokumentenquelle (optional, Phase 2): separater Handle nur für Kurator-Scan
+ *  - Persoenlich (v2.0): Home-Laufwerk des Users (rw) fuer profile.json,
+ *    einstellungen.json, Feedback-Outbox
+ *  - Dokumentenquelle (Phase 2, deprecated seit v1.15): Legacy-Single-Slot
+ *  - DMS-Source (v1.15): `dms-source-${id}` pro Source (Kurator-Read-Only)
+ *  - User-Folders-Root (v2.0): Wurzel der Home-Laufwerke, einmaliger Kurator-
+ *    Pick um Feedback-Outboxen einzusammeln
  *
- * IDB-Layout: Key `smb-handles` → `Record<string, FileSystemDirectoryHandle>`
- * mit Slots `daten-share` und `dokumentenquelle`. Legacy-Slot `test-programm`
- * wird beim Laden transparent als Daten-Share gelesen.
+ * IDB-Layout: Key `smb-handles` → `Record<string, FileSystemDirectoryHandle>`.
+ * Legacy-Slot `test-programm` wird beim Laden transparent als Daten-Share gelesen.
  */
 
 import { IDBStore } from '@/core/services/storage/idb-store';
@@ -16,6 +20,8 @@ import {
   SMB_HANDLE_DATEN_SHARE,
   SMB_HANDLE_DOKUMENTENQUELLE,
   SMB_HANDLE_LEGACY_TEST_PROGRAMM,
+  SMB_HANDLE_PERSOENLICH,
+  SMB_HANDLE_USER_FOLDERS_ROOT,
   DMS_SOURCE_SLOT_PREFIX,
   dmsSourceSlotKey,
   PROGRAMM_SUBDIRS,
@@ -26,6 +32,7 @@ import {
   INTERN_FEEDBACK_DIR,
   HEARTBEAT_PROBE_PATH,
   README_PATH,
+  PERSOENLICH_TEAMFLOW_DIR,
 } from './types';
 
 type PermState = 'granted' | 'denied' | 'prompt';
@@ -67,9 +74,21 @@ async function pickDirectory(
   }
 }
 
-/** Öffnet den Picker und persistiert das Daten-Share-Handle (readwrite — App schreibt Manifest, Audit-Log, Backups). */
-export async function pickAndStoreDatenShareHandle(idb: IDBStore): Promise<PickResult> {
-  const res = await pickDirectory('readwrite');
+/**
+ * Öffnet den Picker und persistiert das Daten-Share-Handle.
+ *
+ * Mode-Logik (v2.0): Kurator pickt `readwrite` (App schreibt Manifest, Audit-Log,
+ * Backups), Nicht-Kurator pickt `read` (Hardening — die App schreibt im
+ * Nicht-Kurator-Pfad nicht in den Daten-Share). Default bleibt `readwrite` für
+ * Backwards-Kompatibilitaet; explizit `{ mode: 'read' }` setzen wenn die App
+ * den Nicht-Kurator-Pfad fahren soll.
+ */
+export async function pickAndStoreDatenShareHandle(
+  idb: IDBStore,
+  opts: { mode?: 'read' | 'readwrite' } = {},
+): Promise<PickResult> {
+  const mode = opts.mode ?? 'readwrite';
+  const res = await pickDirectory(mode);
   if ('aborted' in res) return { ok: false, reason: 'aborted' };
   if ('error' in res) {
     return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };
@@ -363,3 +382,174 @@ export async function writeHeartbeatProbe(parent: FileSystemDirectoryHandle): Pr
 }
 
 export { HEARTBEAT_PROBE_PATH, INTERN_FEEDBACK_DIR };
+
+/* --------------------------------------------------------------------------
+ * v2.0: Persoenlicher Ordner (Home-Laufwerk des Users)
+ * -------------------------------------------------------------------------- */
+
+/**
+ * Oeffnet den Picker (readwrite) und persistiert den Persoenlich-Handle.
+ * Legt die Unterstruktur `teamflow/feedback/outbox/` automatisch an, damit
+ * spaetere Outbox-Writes ohne extra Setup-Schritt funktionieren.
+ */
+export async function pickAndStorePersoenlichHandle(idb: IDBStore): Promise<PickResult> {
+  const res = await pickDirectory('readwrite');
+  if ('aborted' in res) return { ok: false, reason: 'aborted' };
+  if ('error' in res) {
+    return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };
+  }
+  const map = await readAll(idb);
+  map[SMB_HANDLE_PERSOENLICH] = res;
+  await writeAll(idb, map);
+  await ensurePersoenlichFolders(res).catch(() => undefined);
+  return { ok: true, handle: res };
+}
+
+export async function getPersoenlichHandle(idb: IDBStore): Promise<FileSystemDirectoryHandle | null> {
+  const map = await readAll(idb);
+  return map[SMB_HANDLE_PERSOENLICH] ?? null;
+}
+
+export async function clearPersoenlichHandle(idb: IDBStore): Promise<void> {
+  const map = await readAll(idb);
+  delete map[SMB_HANDLE_PERSOENLICH];
+  await writeAll(idb, map);
+}
+
+/** Legt `teamflow/` + `teamflow/feedback/` + `teamflow/feedback/outbox/` an (idempotent). */
+export async function ensurePersoenlichFolders(parent: FileSystemDirectoryHandle): Promise<void> {
+  const tf = await parent.getDirectoryHandle(PERSOENLICH_TEAMFLOW_DIR, { create: true });
+  const fb = await tf.getDirectoryHandle('feedback', { create: true });
+  await fb.getDirectoryHandle('outbox', { create: true });
+}
+
+/* --------------------------------------------------------------------------
+ * v2.0: User-Folders-Root (Kurator-Pick fuer Outbox-Einsammeln)
+ * -------------------------------------------------------------------------- */
+
+export async function pickAndStoreUserFoldersRootHandle(idb: IDBStore): Promise<PickResult> {
+  const res = await pickDirectory('read');
+  if ('aborted' in res) return { ok: false, reason: 'aborted' };
+  if ('error' in res) {
+    return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };
+  }
+  const map = await readAll(idb);
+  map[SMB_HANDLE_USER_FOLDERS_ROOT] = res;
+  await writeAll(idb, map);
+  return { ok: true, handle: res };
+}
+
+export async function getUserFoldersRootHandle(idb: IDBStore): Promise<FileSystemDirectoryHandle | null> {
+  const map = await readAll(idb);
+  return map[SMB_HANDLE_USER_FOLDERS_ROOT] ?? null;
+}
+
+export async function clearUserFoldersRootHandle(idb: IDBStore): Promise<void> {
+  const map = await readAll(idb);
+  delete map[SMB_HANDLE_USER_FOLDERS_ROOT];
+  await writeAll(idb, map);
+}
+
+/* --------------------------------------------------------------------------
+ * v2.0: refreshAllPermissions — eine User-Gesture-Quelle, alle Handles
+ * -------------------------------------------------------------------------- */
+
+export type PermStateOrMissing = 'granted' | 'denied' | 'prompt' | 'missing';
+
+export interface RefreshAllResult {
+  datenShare: PermStateOrMissing;
+  persoenlich: PermStateOrMissing;
+  userFoldersRoot: PermStateOrMissing;
+  dmsSources: Record<string, PermStateOrMissing>;
+}
+
+/**
+ * Fordert Permission fuer alle gespeicherten Handles in einer einzigen User-
+ * Gesture-Kette an. Mode-Wahl pro Slot:
+ * - daten-share: `read` wenn Nicht-Kurator, sonst `readwrite`
+ * - persoenlich: `readwrite`
+ * - user-folders-root: `read` (nur Kurator-Anwendungsfall)
+ * - dms-source-*: `read`
+ *
+ * Slots ohne gespeicherten Handle bekommen `'missing'`. Permissions die
+ * fehlschlagen werden als `'denied'` zurueckgegeben — der Aufrufer entscheidet
+ * was offline-mode ausloest.
+ *
+ * MUSS aus einem User-Gesture-Handler (Click) aufgerufen werden, damit der
+ * Browser die Permission-Dialoge nicht blockt.
+ */
+export async function refreshAllPermissions(
+  idb: IDBStore,
+  opts: { isKurator: boolean },
+): Promise<RefreshAllResult> {
+  const map = await readAll(idb);
+  const result: RefreshAllResult = {
+    datenShare: 'missing',
+    persoenlich: 'missing',
+    userFoldersRoot: 'missing',
+    dmsSources: {},
+  };
+
+  const datenShare = map[SMB_HANDLE_DATEN_SHARE] ?? map[SMB_HANDLE_LEGACY_TEST_PROGRAMM];
+  if (datenShare) {
+    const mode = opts.isKurator ? 'readwrite' : 'read';
+    try {
+      result.datenShare = await (datenShare as FsDirHandle).requestPermission({ mode });
+    } catch {
+      result.datenShare = 'denied';
+    }
+  }
+
+  const persoenlich = map[SMB_HANDLE_PERSOENLICH];
+  if (persoenlich) {
+    try {
+      result.persoenlich = await (persoenlich as FsDirHandle).requestPermission({ mode: 'readwrite' });
+    } catch {
+      result.persoenlich = 'denied';
+    }
+  }
+
+  if (opts.isKurator) {
+    const userFolders = map[SMB_HANDLE_USER_FOLDERS_ROOT];
+    if (userFolders) {
+      try {
+        result.userFoldersRoot = await (userFolders as FsDirHandle).requestPermission({ mode: 'read' });
+      } catch {
+        result.userFoldersRoot = 'denied';
+      }
+    }
+
+    for (const key of Object.keys(map)) {
+      if (!key.startsWith(DMS_SOURCE_SLOT_PREFIX)) continue;
+      const sourceId = key.slice(DMS_SOURCE_SLOT_PREFIX.length);
+      try {
+        result.dmsSources[sourceId] = await (map[key] as FsDirHandle).requestPermission({ mode: 'read' });
+      } catch {
+        result.dmsSources[sourceId] = 'denied';
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * v2.0 Migration-Check: Wenn ein Nicht-Kurator einen Daten-Share-Handle mit
+ * `readwrite`-Mode in IDB hat, sollte er beim Start einen Re-Pick mit
+ * `read`-Mode bekommen. Liefert `true` wenn ein Downgrade noetig ist.
+ */
+export async function needsDatenShareDowngrade(
+  idb: IDBStore,
+  opts: { isKurator: boolean },
+): Promise<boolean> {
+  if (opts.isKurator) return false;
+  const map = await readAll(idb);
+  const handle = map[SMB_HANDLE_DATEN_SHARE] ?? map[SMB_HANDLE_LEGACY_TEST_PROGRAMM];
+  if (!handle) return false;
+  try {
+    const rw = await (handle as FsDirHandle).queryPermission({ mode: 'readwrite' });
+    return rw === 'granted';
+  } catch {
+    return false;
+  }
+}

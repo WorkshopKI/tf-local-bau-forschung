@@ -37,4 +37,4 @@ grep -rn "localStorage.setItem.*JSON.stringify" src --include="*.ts" --include="
 
 ## Build-Verifikation
 
-`npm run build:dev` produziert eine Single-File-HTML. Dev-Server (`npm run dev`) toleriert `import()` und ähnliches — Anti-Patterns fallen erst beim Single-File-Build oder beim Doppelklick-Test im Browser auf. Daher: **immer einmal `dist-single/teamflow-dev.html` per Doppelklick öffnen** und Console prüfen.
+`npm run build:dev` produziert eine Single-File-HTML. Dev-Server (`npm run dev`) toleriert `import()` und ähnliches — Anti-Patterns fallen erst beim Single-File-Build oder beim Doppelklick-Test im Browser auf. Daher: **immer einmal `dist-single/dev/zah-dev.html` per Doppelklick öffnen** und Console prüfen.

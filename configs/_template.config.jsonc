@@ -8,7 +8,7 @@
 // Config-UI:    npm run config-ui
 
 {
-  "configVersion": 1,
+  "configVersion": 2,
   "variant": "custom", // "development" | "demo" | "production" | "custom"
 
   "build": {
@@ -26,12 +26,26 @@
     // Fester Pfad zum Daten-Share. Wenn gesetzt, sieht der User ihn im Welcome-Screen.
     // Beispiel Windows-SMB: "\\\\server\\teamflow-forschungsfoerderung\\"
     "fixedDataSharePath": null,
+    // v2.0: erwarteter Ordner-Name beim Daten-Share-Picker.
+    // Wenn gesetzt, prüft der WelcomeScreen handle.name gegen diesen Wert und
+    // verlangt einen Re-Pick bei Mismatch. Beispiel: "teamflow-forschungsfoerderung".
+    "expectedFolderName": null,
     // User darf den Pfad im Welcome-Screen selbst auswählen
     "allowUserToChangePath": true,
     // Lokaler tmp-Ordner erlaubt, falls kein SMB verfügbar (nur DEV/Demo sinnvoll)
     "allowLocalFallback": false,
     // Synthetische Test-CSVs ins Bundle einlegen (nur für Demo/Dev-Build)
     "demoDataBundled": false
+  },
+
+  // v2.0: Persönlicher Ordner auf dem User-Home-Laufwerk.
+  // Trägt profile.json, einstellungen.json und die Feedback-Outbox.
+  // Optional — wenn weggelassen, gelten die hier gezeigten Defaults.
+  "personalFolder": {
+    "subfolder": "teamflow",
+    "required": false,
+    "promptAfterProfile": true,
+    "snapshotAgeWarningDays": 3
   },
 
   "features": {

@@ -1,17 +1,24 @@
 {
-  "configVersion": 1,
+  "configVersion": 2,
   "variant": "production",
   "build": {
     "label": "TeamFlow Kurator",
-    "outputFilename": "teamflow-kurator",
+    "outputFilename": "zah-kurator",
     "browserTabTitle": "ZAH kurator",
     "sidebarSubtitle": "Forschungsförderung"
   },
   "data": {
     "fixedDataSharePath": "\\\\server\\teamflow-forschungsfoerderung\\",
+    "expectedFolderName": "teamflow-forschungsfoerderung",
     "allowUserToChangePath": false,
     "allowLocalFallback": false,
     "demoDataBundled": false
+  },
+  "personalFolder": {
+    "subfolder": "teamflow",
+    "required": false,
+    "promptAfterProfile": true,
+    "snapshotAgeWarningDays": 3
   },
   "features": {
     "kuratorMenus": true,
