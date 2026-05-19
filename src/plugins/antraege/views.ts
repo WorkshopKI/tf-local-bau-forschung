@@ -47,7 +47,7 @@ export interface AntragView {
 export const VIEWS: AntragView[] = [
   {
     key: 'meine_offenen',
-    label: 'Meine offenen',
+    label: 'Offen',
     predicate: a => isOpenStatus(a.status),
   },
   {
@@ -78,7 +78,7 @@ export const VIEWS: AntragView[] = [
   },
   {
     key: 'nachforderungen',
-    label: 'Nachforderungen',
+    label: 'NF',
     predicate: a => isNachforderungStatus(a.status),
   },
   {
