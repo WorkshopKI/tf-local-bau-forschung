@@ -19,18 +19,19 @@ describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
     ['techn geprüft', 'in_pruefung'],
     ['kaufm geprüft', 'in_pruefung'],
     ['Gutachten fertig', 'in_pruefung'],
-    // VN-Stati (Verwendungsnachweis-Pruefung) sind Begleit-Phase nach Bewilligung
+    // Begleit-Phase nach Bewilligung: VN/ZB-Pruefung + Widerrufs-Verfahren
     ['VN geprüft', 'begleitung'],
     ['VN techn. geprüft', 'begleitung'],
+    ['Widerruf', 'begleitung'],
+    ['Anhörung zum Widerruf', 'begleitung'],
     ['bewilligungsreif', 'entscheidung'],
     ['ablehnungsreif', 'entscheidung'],
     ['Bewilligungsentwurf VDI/VDE-IT', 'entscheidung'],
-    // Ablehnung + Widerruf zaehlen als entscheidung (noch im Verfahren), NICHT
-    // als final-abgelehnt — Foerderantraege haben keinen final-`abgelehnt`-
-    // Endzustand; negativ-final landet in `abgelehnt/zurueckgezogen` (abgeschlossen).
+    // Ablehnung + Ruecknahme zaehlen als entscheidung (noch im Verfahren, pre-
+    // Bewilligung), NICHT als final-abgelehnt — Foerderantraege haben keinen
+    // final-`abgelehnt`-Endzustand; negativ-final landet in
+    // `abgelehnt/zurueckgezogen` (abgeschlossen).
     ['Ablehnung', 'entscheidung'],
-    ['Widerruf', 'entscheidung'],
-    ['Anhörung zum Widerruf', 'entscheidung'],
     ['Rücknahmeempfehlung', 'entscheidung'],
     ['NF gestellt', 'nachforderung'],
     ['keine weiteren NF', 'nachforderung'],

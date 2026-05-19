@@ -31,9 +31,10 @@ export type StatusCategory =
   | 'nachforderung' // wartet auf Nachforderung
   | 'entscheidung'  // Entscheidungs-Vorbereitung (bewilligungsreif, ablehnungsreif, ...)
   | 'bewilligt'     // positiv entschieden
-  | 'begleitung'    // nach Bewilligung, vor Schlussvermerk: Verwendungsnachweis-/
-                    // Zwischenbericht-Pruefung (VN/ZB-Stati). Andere Zustaendigkeit
-                    // (ZTP/PFM) als die Antrags-Phase (TIB/BIB).
+  | 'begleitung'    // nach Bewilligung: Verwendungsnachweis-/Zwischenbericht-
+                    // Pruefung (VN/ZB-Stati) + Widerrufs-Verfahren (Widerruf,
+                    // Anhoerung zum Widerruf). Andere Zustaendigkeit (ZTP/PFM)
+                    // als die Antrags-Phase (TIB/BIB).
   | 'abgelehnt'     // negativ entschieden
   | 'abgeschlossen' // abgeschlossen (Schlussvermerk, abgebrochen, zurueckgezogen)
   | 'sonstige';     // Irrlaeufer, unvollstaendig, leer, unbekannt
@@ -47,25 +48,27 @@ const FOERDERANTRAG_STATUSES: ReadonlyArray<readonly [string, StatusCategory]> =
   ['techn geprüft', 'in_pruefung'],
   ['kaufm geprüft', 'in_pruefung'],
   ['gutachten fertig', 'in_pruefung'],
-  // Begleitung (nach Bewilligung): Verwendungsnachweis-Pruefung.
-  // Pattern-Fallback unten matched zusaetzlich alle Stati die mit "VN " oder
-  // "ZB " beginnen — neue VN-/ZB-Varianten muessen nicht zwingend manuell
-  // gelistet werden.
+  // Begleitung (nach Bewilligung): Verwendungsnachweis-Pruefung + Widerrufs-
+  // Verfahren. Pattern-Fallback unten matched zusaetzlich alle Stati die mit
+  // "VN " oder "ZB " beginnen — neue VN-/ZB-Varianten muessen nicht zwingend
+  // manuell gelistet werden. Widerruf-Stati gehoeren konzeptionell zur
+  // Begleitphase (post-Bewilligungs-Verfahren, gleicher Lebenszyklus); sie
+  // werden hier explizit gelistet, weil das VN-/ZB-Pattern sie nicht faengt.
   ['vn geprüft', 'begleitung'],
   ['vn techn. geprüft', 'begleitung'],
-  // Entscheidungs-Vorbereitung + in-Process-Negativ-Entscheidungen.
-  // Solange der Vorgang in Widerruf/Anhoerung/Ablehnungsreif laeuft, ist er
-  // aktiv im Verfahren — NICHT final-abgelehnt. Erst der abschliessende
-  // Status `abgelehnt/zurueckgezogen` (Kategorie `abgeschlossen`) macht den
-  // negativen Ausgang final. Konsequenz: `isOpenStatus` matched diese,
-  // `isClosedStatus` nicht. `isAbgelehntStatus` (Bauantrag-Domain) matched
-  // sie ebenfalls nicht.
+  ['widerruf', 'begleitung'],
+  ['anhörung zum widerruf', 'begleitung'],
+  // Entscheidungs-Vorbereitung + in-Process-Negativ-Entscheidungen
+  // (pre-Bewilligung). Solange der Vorgang in Ablehnungsreif/Ruecknahme/
+  // Widerspruch laeuft, ist er aktiv im Verfahren — NICHT final-abgelehnt.
+  // Erst der abschliessende Status `abgelehnt/zurueckgezogen` (Kategorie
+  // `abgeschlossen`) macht den negativen Ausgang final. Konsequenz:
+  // `isOpenStatus` matched diese, `isClosedStatus` nicht. `isAbgelehntStatus`
+  // (Bauantrag-Domain) matched sie ebenfalls nicht.
   ['bewilligungsreif', 'entscheidung'],
   ['bewilligungsentwurf vdi/vde-it', 'entscheidung'],
   ['ablehnungsreif', 'entscheidung'],
   ['ablehnung', 'entscheidung'],
-  ['widerruf', 'entscheidung'],
-  ['anhörung zum widerruf', 'entscheidung'],
   ['rücknahmeempfehlung', 'entscheidung'],
   ['stellungnahme zur rücknahmeempf.', 'entscheidung'],
   ['widerspruch zur ablehnung', 'entscheidung'],
