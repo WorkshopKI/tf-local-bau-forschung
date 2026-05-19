@@ -120,6 +120,11 @@ interface AntraegeState {
   selectedAktenzeichen: string | null;
   selectedVerbundId: string | null;
   search: string;
+  /** Such-Override: wenn `true` UND `search` non-empty → der Bearbeiter-Filter
+   *  (Profil-Kürzel) wird in `useFilteredAntraege` übersprungen, damit der User
+   *  auch in fremden Anträgen suchen kann. Wird in `setSearch` automatisch auf
+   *  `false` zurückgesetzt sobald der Suchstring geleert wird. */
+  searchIgnoreBearbeiterFilter: boolean;
   /** State der Hybrid-Suche (Substring + Embedding + DMS-Index). Wird vom
    *  Hook `useAntraegeHybridSearch` in `AntraegePage` gepflegt; Konsumenten
    *  sind `useFilteredAntraege` (Filter) und `AntraegeHeader` (Spinner +
@@ -153,6 +158,7 @@ interface AntraegeState {
    */
   loadAll: (idb: IDBStore, programmId?: string, opts?: { force?: boolean }) => Promise<void>;
   setSearch: (s: string) => void;
+  setSearchIgnoreBearbeiterFilter: (v: boolean) => void;
   setHybridSearch: (state: HybridSearchState) => void;
   setActiveView: (view: ViewKey) => void;
   setSortForView: (view: ViewKey, key: SortKey) => void;
@@ -208,6 +214,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   selectedAktenzeichen: null,
   selectedVerbundId: null,
   search: '',
+  searchIgnoreBearbeiterFilter: false,
   hybridSearch: { matchedAkz: null, loading: false, unavailable: [] },
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
@@ -283,7 +290,15 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     }
   },
 
-  setSearch: (s: string) => set({ search: s }),
+  setSearch: (s: string) => set(state => ({
+    search: s,
+    // Wenn der User die Suche leert, das Bearbeiter-Override automatisch
+    // zurücksetzen — sonst bleibt der Filter heimlich für die naechste
+    // Eingabe deaktiviert und die Liste zeigt voellig andere Anträge.
+    searchIgnoreBearbeiterFilter: s.trim() === '' ? false : state.searchIgnoreBearbeiterFilter,
+  })),
+
+  setSearchIgnoreBearbeiterFilter: (v: boolean) => set({ searchIgnoreBearbeiterFilter: v }),
 
   setHybridSearch: (state: HybridSearchState) => set({ hybridSearch: state }),
 

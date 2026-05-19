@@ -51,6 +51,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const antraege = useAntraegeStore(s => s.antraege);
   const search = useAntraegeStore(s => s.search);
   const hybridMatchAkz = useAntraegeStore(s => s.hybridSearch.matchedAkz);
+  const searchIgnoreBearbeiterFilter = useAntraegeStore(s => s.searchIgnoreBearbeiterFilter);
   const activeView = useAntraegeStore(s => s.activeView);
   const sortByView = useAntraegeStore(s => s.sortByView);
   const active = useFilterState(s => s.active);
@@ -84,9 +85,14 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // Ohne aktiven Toggle werden VN-/ZB-Stati ausgeblendet.
     const byPhase = filterByBegleitungPhase(byPreFilter, bearbeiterFilter.includeBegleitung);
     // Bearbeiter-Filter (Profil-Kürzel) NACH der View, vor den Custom-Filtern.
-    const byBearbeiter = applyBearbeiterFilter(byPhase, bearbeiterFilter);
-    const filteredBase = applyFilters(byBearbeiter, active, definitions);
+    // Override: wenn der User aktiv über die "Auch außerhalb meiner Anträge"-
+    // Checkbox neben dem Suchfeld den Filter deaktiviert hat UND eine Such-
+    // eingabe vorliegt, den Bearbeiter-Filter überspringen. Der Override wird
+    // beim Leeren der Suche automatisch wieder ausgeschaltet (siehe store).
     const q = deferredSearch.trim().toLowerCase();
+    const skipBearbeiter = searchIgnoreBearbeiterFilter && q.length > 0;
+    const byBearbeiter = skipBearbeiter ? byPhase : applyBearbeiterFilter(byPhase, bearbeiterFilter);
+    const filteredBase = applyFilters(byBearbeiter, active, definitions);
     // Hybrid-Suche: zusaetzlich zu den vier Slim-Feldern (akz/akronym/titel/
     // antragsteller) liefert `useAntraegeHybridSearch` ein Akz-Set mit
     // Treffern aus drei weiteren Quellen — Substring auf den CSV-Volltext-
@@ -121,5 +127,5 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       bearbeiterFilter,
       bearbeiterKuerzelMissing,
     };
-  }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, activeView, sortByView, bearbeiterFilter]);
+  }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, bearbeiterFilter]);
 }

@@ -22,13 +22,19 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const setActiveView = useAntraegeStore(s => s.setActiveView);
   const search = useAntraegeStore(s => s.search);
   const setSearch = useAntraegeStore(s => s.setSearch);
+  const searchIgnoreBearbeiter = useAntraegeStore(s => s.searchIgnoreBearbeiterFilter);
+  const setSearchIgnoreBearbeiter = useAntraegeStore(s => s.setSearchIgnoreBearbeiterFilter);
   const hybridLoading = useAntraegeStore(s => s.hybridSearch.loading);
   const hybridUnavailable = useAntraegeStore(s => s.hybridSearch.unavailable);
   const filterCount = useFilterState(s => s.active.length);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
   const { bearbeiterFilter } = useFilteredAntraege();
+  const searchActive = search.trim().length > 0;
   const showEmbeddingBanner = search.trim().length >= 2 && hybridUnavailable.includes('embedding');
+  // Checkbox nur zeigen wenn ein Bearbeiter-Filter ueberhaupt aktiv ist — sonst
+  // gaebe es nichts zu ignorieren und der UI-Punkt waere irrefuehrend.
+  const showIgnoreBearbeiterToggle = searchActive && bearbeiterFilter.active;
 
   const counts = useMemo(() => {
     // Pre-Filter konsistent zum Listenrendering: Irrlaeufer (vb_phase=9)
@@ -129,6 +135,20 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
             </Button>
           </div>
         </div>
+
+        {showIgnoreBearbeiterToggle ? (
+          <div className="mt-1.5 mb-1 flex justify-end pr-4">
+            <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={searchIgnoreBearbeiter}
+                onChange={e => setSearchIgnoreBearbeiter(e.target.checked)}
+                className="accent-[var(--tf-primary)] cursor-pointer"
+              />
+              Auch außerhalb meiner Anträge suchen
+            </label>
+          </div>
+        ) : null}
 
         {showEmbeddingBanner ? (
           <div className="mt-1 mb-2 text-[11.5px] text-[var(--tf-text-tertiary)] flex items-center gap-1.5">
