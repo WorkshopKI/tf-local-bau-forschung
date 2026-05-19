@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Filter, Search } from 'lucide-react';
+import { Filter, Loader2, Search } from 'lucide-react';
 import { useAntraegeStore } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { VIEWS, viewCount } from './views';
@@ -22,10 +22,13 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const setActiveView = useAntraegeStore(s => s.setActiveView);
   const search = useAntraegeStore(s => s.search);
   const setSearch = useAntraegeStore(s => s.setSearch);
+  const hybridLoading = useAntraegeStore(s => s.hybridSearch.loading);
+  const hybridUnavailable = useAntraegeStore(s => s.hybridSearch.unavailable);
   const filterCount = useFilterState(s => s.active.length);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
   const { bearbeiterFilter } = useFilteredAntraege();
+  const showEmbeddingBanner = search.trim().length >= 2 && hybridUnavailable.includes('embedding');
 
   const counts = useMemo(() => {
     // Pre-Filter konsistent zum Listenrendering: Irrlaeufer (vb_phase=9)
@@ -92,11 +95,19 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
                 className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none"
               />
               <Input
-                placeholder="Anträge suchen …"
+                placeholder="Anträge durchsuchen (Titel, Beschreibung, Dokumente)"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-7 h-8 w-[260px] text-[12.5px]"
+                className="pl-7 pr-7 h-8 w-[300px] text-[12.5px]"
+                title="Suche kombiniert Substring (Aktenzeichen/Akronym/Titel/Antragsteller/Verbund-Titel/Kurzbeschreibung), Embedding-Match aus dem Auslastungs-Korpus und DMS-Volltext-Treffer."
               />
+              {hybridLoading ? (
+                <Loader2
+                  size={12}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] animate-spin pointer-events-none"
+                  aria-label="Suche läuft"
+                />
+              ) : null}
             </div>
             <ViewModeToggle />
             <Button
@@ -118,6 +129,15 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
             </Button>
           </div>
         </div>
+
+        {showEmbeddingBanner ? (
+          <div className="mt-1 mb-2 text-[11.5px] text-[var(--tf-text-tertiary)] flex items-center gap-1.5">
+            <span aria-hidden="true">ⓘ</span>
+            <span>
+              Semantische Suche inaktiv — Embedding-Korpus im Auslastungs-Modul bauen für mehr Treffer.
+            </span>
+          </div>
+        ) : null}
       </div>
     </div>
   );

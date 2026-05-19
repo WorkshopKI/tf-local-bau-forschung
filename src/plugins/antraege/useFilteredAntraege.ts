@@ -50,6 +50,7 @@ export interface FilteredAntraegeResult {
 export function useFilteredAntraege(): FilteredAntraegeResult {
   const antraege = useAntraegeStore(s => s.antraege);
   const search = useAntraegeStore(s => s.search);
+  const hybridMatchAkz = useAntraegeStore(s => s.hybridSearch.matchedAkz);
   const activeView = useAntraegeStore(s => s.activeView);
   const sortByView = useAntraegeStore(s => s.sortByView);
   const active = useFilterState(s => s.active);
@@ -61,6 +62,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   // mit fetten Multi-CSV-Joins macht das den Unterschied zwischen
   // "stockt beim Tippen" und "flüssig".
   const deferredSearch = useDeferredValue(search);
+  const deferredHybridAkz = useDeferredValue(hybridMatchAkz);
 
   const bearbeiterFilter = useMemo(
     () => parseBearbeiterFilter(profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung),
@@ -85,12 +87,20 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     const byBearbeiter = applyBearbeiterFilter(byPhase, bearbeiterFilter);
     const filteredBase = applyFilters(byBearbeiter, active, definitions);
     const q = deferredSearch.trim().toLowerCase();
+    // Hybrid-Suche: zusaetzlich zu den vier Slim-Feldern (akz/akronym/titel/
+    // antragsteller) liefert `useAntraegeHybridSearch` ein Akz-Set mit
+    // Treffern aus drei weiteren Quellen — Substring auf den CSV-Volltext-
+    // feldern (verbund_titel/titel/projektbeschreibung_text), Embedding-
+    // Match aus dem Auslastungs-Korpus, und DMS-Index-Treffer (Phase-2).
+    // `null` heisst: Hook hat noch nicht geantwortet → keine Hybrid-Hits
+    // einbeziehen, aber Substring auf Slim-Feldern bleibt aktiv.
     const matched = q
       ? filteredBase.filter(a =>
           a.aktenzeichen.toLowerCase().includes(q)
           || (typeof a.akronym === 'string' && a.akronym.toLowerCase().includes(q))
           || (typeof a.titel === 'string' && a.titel.toLowerCase().includes(q))
-          || (typeof a.antragsteller === 'string' && a.antragsteller.toLowerCase().includes(q)),
+          || (typeof a.antragsteller === 'string' && a.antragsteller.toLowerCase().includes(q))
+          || (deferredHybridAkz !== null && deferredHybridAkz.has(a.aktenzeichen)),
         )
       : filteredBase;
     const sortKey = getEffectiveSortKey(activeView, sortByView);
@@ -111,5 +121,5 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       bearbeiterFilter,
       bearbeiterKuerzelMissing,
     };
-  }, [antraege, active, definitions, deferredSearch, activeView, sortByView, bearbeiterFilter]);
+  }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, activeView, sortByView, bearbeiterFilter]);
 }

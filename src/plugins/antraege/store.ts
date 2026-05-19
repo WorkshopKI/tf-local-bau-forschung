@@ -88,6 +88,23 @@ function saveGroupingByView(map: Partial<Record<ViewKey, GroupingMode>>): void {
   try { localStorage.setItem(GROUPING_BY_VIEW_KEY, JSON.stringify(map)); } catch { /* ignore */ }
 }
 
+/** Quellen, die die Hybrid-Suche aus Datenmangel nicht beitragen konnte —
+ *  von der UI in einen Hinweis-Banner uebersetzt. `embedding` haengt am
+ *  Auslastungs-Korpus, `dms` am Phase-2-Suchindex. */
+export type HybridUnavailableSource = 'embedding' | 'dms';
+
+export interface HybridSearchState {
+  /** Aktenzeichen-Set mit Hybrid-Treffern (Substring auf VB/TV/Abstract +
+   *  Embedding-Top-K + DMS-Volltext-Treffer). `null` = kein Filter aktiv
+   *  (Query leer oder Hook noch nicht initialisiert), `Set` = aktiv. */
+  matchedAkz: Set<string> | null;
+  /** True solange Embedding/DMS-Auswertung laeuft. Substring laeuft sync und
+   *  taucht hier nicht auf. */
+  loading: boolean;
+  /** Quellen, die wegen fehlender Daten nicht ausgewertet werden konnten. */
+  unavailable: HybridUnavailableSource[];
+}
+
 interface AntraegeState {
   programmId: string | null;
   /** Schmale Listen-Projektion aus dem `ANTRAEGE_LIST_VIEW`-Store —
@@ -103,6 +120,11 @@ interface AntraegeState {
   selectedAktenzeichen: string | null;
   selectedVerbundId: string | null;
   search: string;
+  /** State der Hybrid-Suche (Substring + Embedding + DMS-Index). Wird vom
+   *  Hook `useAntraegeHybridSearch` in `AntraegePage` gepflegt; Konsumenten
+   *  sind `useFilteredAntraege` (Filter) und `AntraegeHeader` (Spinner +
+   *  Banner). */
+  hybridSearch: HybridSearchState;
   activeView: ViewKey;
   /** User-Override pro View. Leer → Default aus DEFAULT_SORT_BY_VIEW. */
   sortByView: Partial<Record<ViewKey, SortKey>>;
@@ -131,6 +153,7 @@ interface AntraegeState {
    */
   loadAll: (idb: IDBStore, programmId?: string, opts?: { force?: boolean }) => Promise<void>;
   setSearch: (s: string) => void;
+  setHybridSearch: (state: HybridSearchState) => void;
   setActiveView: (view: ViewKey) => void;
   setSortForView: (view: ViewKey, key: SortKey) => void;
   setGroupingForView: (view: ViewKey, mode: GroupingMode) => void;
@@ -185,6 +208,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   selectedAktenzeichen: null,
   selectedVerbundId: null,
   search: '',
+  hybridSearch: { matchedAkz: null, loading: false, unavailable: [] },
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
   groupingByView: loadGroupingByView(),
@@ -260,6 +284,8 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   },
 
   setSearch: (s: string) => set({ search: s }),
+
+  setHybridSearch: (state: HybridSearchState) => set({ hybridSearch: state }),
 
   setActiveView: (view: ViewKey) => {
     try { localStorage.setItem(ACTIVE_VIEW_KEY, view); } catch { /* ignore */ }

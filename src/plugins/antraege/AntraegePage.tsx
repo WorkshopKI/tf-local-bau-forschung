@@ -7,6 +7,7 @@ import { VerbundDetail } from './VerbundDetail';
 import { FilterDrawer } from './FilterDrawer';
 import { FilterSidebar } from './filter/FilterSidebar';
 import { useAntraegeStore } from './store';
+import { useAntraegeHybridSearch } from './useAntraegeHybridSearch';
 
 const FILTER_OPEN_KEY = 'teamflow_antraege_filter_open';
 const FILTER_WIDTH_KEY = 'teamflow_antraege_filter_width';
@@ -38,6 +39,10 @@ export function AntraegePage(): React.ReactElement {
   const antraege = useAntraegeStore(s => s.antraege);
   const search = useAntraegeStore(s => s.search);
   const setSearch = useAntraegeStore(s => s.setSearch);
+  // Hybrid-Suche (Substring auf CSV-Volltexten + Embedding aus Auslastungs-
+  // Korpus + DMS-Index) — schreibt Treffer-Set in den Store. `useFiltered-
+  // Antraege` und `AntraegeHeader` lesen den State. Side-Effect-Only Hook.
+  useAntraegeHybridSearch();
   const hasDetail = !!(selectedAz || selectedVb);
   const [filterOpen, setFilterOpen] = useState(loadFilterOpen);
   const [filterWidth, setFilterWidth] = useState(loadFilterWidth);
