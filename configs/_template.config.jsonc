@@ -66,7 +66,15 @@
     "dokumente": false,
     // Auslastung-Modul: automatische Kategorisierung + MA-Zuweisung. Default
     // false; in dev.config aktivieren um das Plugin auszuprobieren.
-    "auslastung": false
+    "auslastung": false,
+
+    // User-Plugin-Gates (Sidebar-Sichtbarkeit). Getrennt von den Master-Flags
+    // volltextsuche/feedback, damit z.B. die kurator-Variante den Suchindex-
+    // Kurator und die Feedback-Kuration freischalten kann, ohne dass das
+    // User-Suche-Plugin / Feedback-Board in der normalen Sidebar erscheint.
+    "chat": true,           // AI-Chat-Plugin (Sidebar-Eintrag "Chat")
+    "suche": true,          // User-Hybrid-Suche-Plugin (Sidebar-Eintrag "Suche")
+    "feedbackBoard": true   // Öffentliches Feedback-Board (Sidebar-Eintrag)
   },
 
   // Pro Variant überschreibbare Sidebar-Labels für Bereichs-Menüs.

@@ -2,9 +2,10 @@
   "configVersion": 1,
   "variant": "production",
   "build": {
-    "label": "TeamFlow Forschungsförderung",
-    "outputFilename": "teamflow-prod",
-    "browserTabTitle": "TeamFlow Forschungsförderung"
+    "label": "TeamFlow Kurator",
+    "outputFilename": "teamflow-kurator",
+    "browserTabTitle": "TeamFlow Kurator",
+    "sidebarSubtitle": "Forschungsförderung"
   },
   "data": {
     "fixedDataSharePath": "\\\\server\\teamflow-forschungsfoerderung\\",
@@ -13,10 +14,10 @@
     "demoDataBundled": false
   },
   "features": {
-    "kuratorMenus": false,
-    "feedback": false,
-    "dokumentenscan": false,
-    "volltextsuche": false,
+    "kuratorMenus": true,
+    "feedback": true,
+    "dokumentenscan": true,
+    "volltextsuche": true,
     "devInfraPanel": false,
     "devFixtures": false,
     "antraege": true,

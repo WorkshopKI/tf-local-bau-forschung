@@ -53,6 +53,9 @@ export function isAntraegeEnabled(): boolean { return features.antraege; }
 export function isBauantraegeEnabled(): boolean { return features.bauantraege; }
 export function isDokumenteEnabled(): boolean { return features.dokumente; }
 export function isAuslastungEnabled(): boolean { return features.auslastung === true; }
+export function isChatEnabled(): boolean { return features.chat; }
+export function isSucheEnabled(): boolean { return features.suche; }
+export function isFeedbackBoardEnabled(): boolean { return features.feedbackBoard; }
 
 export function isOpenRouterEnabled(): boolean {
   return kiConfig.openrouter.enabled;

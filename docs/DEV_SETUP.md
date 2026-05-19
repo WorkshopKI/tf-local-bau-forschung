@@ -78,8 +78,8 @@ allerersten Click gekoppelt.
 
 ## Strukturelle Blockade in Demo/Prod
 
-`features.devFixtures: true` in `configs/demo.config.json` oder
-`configs/prod.config.json` bricht den Build mit KRITISCH-Fehler ab
+`features.devFixtures: true` in `configs/demo.config.json`, `configs/prod.config.json`,
+`configs/kurator.config.json` oder `configs/pl.config.json` bricht den Build mit KRITISCH-Fehler ab
 (siehe [`scripts/config-schema.mjs`](../scripts/config-schema.mjs)).
 
 Zusätzlich verifiziert `grep` im Prod-Bundle, dass kein Fixture-Symbol

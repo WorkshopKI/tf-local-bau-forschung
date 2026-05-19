@@ -22,12 +22,16 @@
     "devFixtures": false,
     "antraege": true,
     "bauantraege": true,
-    "dokumente": false,
-    "auslastung": false
+    "dokumente": true,
+    "auslastung": false,
+    "chat": true,
+    "suche": true,
+    "feedbackBoard": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",
-    "bauantraege": "Bauanträge"
+    "bauantraege": "Bauanträge",
+    "dokumente": "Dokumente"
   },
   "ki": {
     "localLlama": { "enabled": false, "endpoint": "http://localhost:8081" },

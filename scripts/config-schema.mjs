@@ -39,6 +39,14 @@ export const DEFAULT_CONFIG = {
     bauantraege: true,
     dokumente: false,
     auslastung: false,
+    // User-Plugin-Gates: getrennt von den Master-Flags volltextsuche/feedback,
+    // damit Varianten den Kurator-Index/Feedback-Verwaltung freischalten können,
+    // ohne dass das User-Suche-Plugin oder das User-Feedback-Board in der
+    // Sidebar erscheint (vgl. kurator-Variante: Kuration nach Login, aber
+    // Standard-Sidebar bleibt schmal).
+    chat: true,
+    suche: true,
+    feedbackBoard: true,
   },
 
   menuLabels: {
@@ -146,6 +154,7 @@ export function validateConfig(config) {
   const requiredFlags = [
     'kuratorMenus', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
     'antraege', 'bauantraege', 'dokumente', 'auslastung',
+    'chat', 'suche', 'feedbackBoard',
   ];
   for (const k of requiredFlags) {
     if (typeof features[k] !== 'boolean') {

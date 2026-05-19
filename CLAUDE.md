@@ -658,18 +658,40 @@ src/
 TeamFlow wird pro Einsatz-Kontext als eigene Variante gebaut. Configs liegen unter `configs/`:
 
 - `configs/dev.config.json` — Developer-Build, alle Features + OpenRouter aktiv
-- `configs/demo.config.json` — Showcase-Build, reduzierter Funktionsumfang, synthetische Daten
-- `configs/prod.config.json` — Produktion Forschungsförderung, fester Daten-Share, OpenRouter **aus**
+- `configs/demo.config.json` — Showcase-Build, mehrere Bereichs-Plugins + Suche/Chat/Board, kein Kurator
+- `configs/prod.config.json` — Produktion (End-User), nur Home + Förderanträge + Einstellungen, kein Kurator-Login
+- `configs/kurator.config.json` — Produktion (Kurator-Rolle), Standard-Sidebar wie prod + Kuration-Menüs nach Login
+- `configs/pl.config.json` — Produktion (Projektleitung), Home + Förderanträge + Auslastung + Einstellungen, kein Kurator-Login
 - `configs/_template.config.jsonc` — kommentierte Referenz (nicht direkt bauen)
+
+Sichtbarkeits-Matrix (was steht in der Sidebar):
+
+| Plugin | dev | demo | prod | kurator (vor Login) | kurator (nach Login) | pl |
+| --- | --- | --- | --- | --- | --- | --- |
+| Home | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Förderanträge | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Bauanträge | ✓ | ✓ | – | – | – | – |
+| Auslastung | ✓ | – | – | – | – | ✓ |
+| Dokumente | ✓ | ✓ | – | – | – | – |
+| Suche | ✓ | ✓ | – | – | – | – |
+| Chat | ✓ | ✓ | – | – | – | – |
+| Feedback-Board | ✓ | ✓ | – | – | – | – |
+| Einstellungen | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Kurator-Toggle in Einstellungen | ✓ | – | – | ✓ | ✓ | – |
+| Kuration-Menüs (Suchindex, Programme, CSV, DMS, Filter, Feedback, Review) | ✓ | – | – | – | ✓ | – |
+
+Die kurator-Variante ist der einzige Produktions-Build mit `features.kuratorMenus: true`. Sie kombiniert User-seitig einen schlanken Stack (Förderanträge + Einstellungen) mit allen Kuration-Plugins, die erst nach Aktivierung des Kurator-Toggles in den Einstellungen erscheinen.
 
 Build-Kommandos:
 
 ```bash
-npm run build:dev            # → dist-single/teamflow-dev.html
-npm run build:demo           # → dist-single/teamflow-demo.html
-npm run build:prod              # → dist-single/teamflow-prod.html
+npm run build:dev       # → dist-single/dev/zah-dev.html
+npm run build:demo      # → dist-single/demo/teamflow-demo.html
+npm run build:prod      # → dist-single/teamflow-prod.html
+npm run build:kurator   # → dist-single/teamflow-kurator.html
+npm run build:pl        # → dist-single/teamflow-pl.html
 npm run build:variant -- --config configs/<datei>.config.json   # beliebige Variante
-npm run config-ui            # HTML-Konfigurator auf http://localhost:5174
+npm run config-ui       # HTML-Konfigurator auf http://localhost:5174
 ```
 
 Jeder Build kopiert zusätzlich `Dokumentenindex-aktualisieren.bat` neben die HTML. Das generische `dist-single/index.html` wird nach dem Umbenennen gelöscht, damit im Filesystem kein Varianten-Mix entsteht.

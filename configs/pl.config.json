@@ -2,9 +2,10 @@
   "configVersion": 1,
   "variant": "production",
   "build": {
-    "label": "TeamFlow Forschungsförderung",
-    "outputFilename": "teamflow-prod",
-    "browserTabTitle": "TeamFlow Forschungsförderung"
+    "label": "TeamFlow PL",
+    "outputFilename": "teamflow-pl",
+    "browserTabTitle": "TeamFlow PL",
+    "sidebarSubtitle": "Forschungsförderung"
   },
   "data": {
     "fixedDataSharePath": "\\\\server\\teamflow-forschungsfoerderung\\",
@@ -22,7 +23,7 @@
     "antraege": true,
     "bauantraege": false,
     "dokumente": false,
-    "auslastung": false,
+    "auslastung": true,
     "chat": false,
     "suche": false,
     "feedbackBoard": false
@@ -37,8 +38,8 @@
   "branding": { "logoUrl": null, "primaryColor": null },
   "scan": {
     "sub_roots": [],
-    "file_extensions": [".pdf", ".docx"],
+    "file_extensions": [],
     "max_depth": 20,
-    "fkz_allowed_prefixes": ["16EP", "16KN", "16DS", "16DL"]
+    "fkz_allowed_prefixes": []
   }
 }

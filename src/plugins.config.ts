@@ -53,15 +53,22 @@ function passesFeatureFlags(p: TeamFlowPlugin): boolean {
   // Siehe isKuratorMenusEnabled() in feature-flags.ts.
   if (!features.kuratorMenus && p.category === 'kuration') return false;
 
-  // features.feedback: entfernt sowohl Board als auch Kurator-Verwaltung
-  if (!features.feedback && (p.id === 'feedback-kuration' || p.id === 'feedback-board')) {
-    return false;
-  }
+  // features.feedback: entfernt Kurator-Feedback-Verwaltung (Master-Switch).
+  // Das User-Plugin "Feedback-Board" hat zusätzlich features.feedbackBoard
+  // (siehe unten) — so kann eine Variante die Kurator-Verwaltung freischalten,
+  // ohne dass User das Board in der Sidebar sehen.
+  if (!features.feedback && p.id === 'feedback-kuration') return false;
+  if (!features.feedbackBoard && p.id === 'feedback-board') return false;
 
-  // features.volltextsuche: entfernt User-Suche und Suchindex-Kuration
-  if (!features.volltextsuche && (p.id === 'suche' || p.id === 'kurator')) {
-    return false;
-  }
+  // features.volltextsuche: gated den Suchindex-Kurator (Master-Switch für die
+  // Such-Pipeline). Das User-Plugin "Suche" hat zusätzlich features.suche —
+  // damit eine kurator-Variante den Index pflegen kann, ohne dass das User-
+  // Suche-Plugin in der Sidebar erscheint.
+  if (!features.volltextsuche && p.id === 'kurator') return false;
+  if (!features.suche && p.id === 'suche') return false;
+
+  // features.chat: User-Plugin Chat.
+  if (!features.chat && p.id === 'chat') return false;
 
   // features.dokumentenscan: entfernt Phase-2-Review-Queue + DMS-Quellen-Verwaltung
   if (!features.dokumentenscan && p.id === 'dokument-review') return false;

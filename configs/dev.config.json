@@ -24,7 +24,10 @@
     "antraege": true,
     "bauantraege": true,
     "dokumente": true,
-    "auslastung": true
+    "auslastung": true,
+    "chat": true,
+    "suche": true,
+    "feedbackBoard": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",

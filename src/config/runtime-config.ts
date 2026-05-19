@@ -32,6 +32,12 @@ export interface TeamflowFeatures {
   dokumente: boolean;
   /** Plugin "Auslastung" — automatische Kategorisierung + MA-Zuweisung. */
   auslastung: boolean;
+  /** User-Plugin "Chat" (AI-Chat). Build-Time-Gate, unabhängig von KI-Backend-Config. */
+  chat: boolean;
+  /** User-Plugin "Suche" (Hybrid-Suche). Trennt sich von `volltextsuche` (das gated den Suchindex-Kurator). */
+  suche: boolean;
+  /** User-Plugin "Feedback-Board". Trennt sich von `feedback` (das gated die Feedback-Kuration). */
+  feedbackBoard: boolean;
 }
 
 export interface TeamflowMenuLabels {

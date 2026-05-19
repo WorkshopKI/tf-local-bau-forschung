@@ -19,6 +19,8 @@ Alle Variant-Configs unter `configs/` müssen den neuen Flag explizit setzen, so
 - `configs/dev.config.json`
 - `configs/demo.config.json`
 - `configs/prod.config.json`
+- `configs/kurator.config.json`
+- `configs/pl.config.json`
 - `configs/_template.config.jsonc` (kommentierte Referenz)
 
 ## Sicherheits-Konstellationen
