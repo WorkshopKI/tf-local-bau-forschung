@@ -3,9 +3,22 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import path from 'path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_CONFIG } from './scripts/config-schema.mjs';
+import { DEFAULT_CONFIG, deepMerge } from './scripts/config-schema.mjs';
+
+// Dev-Server-Fallback: wenn TEAMFLOW_CONFIG nicht gesetzt ist (= `vite` direkt
+// statt `build-with-config.mjs`), lesen wir configs/_shared.json und mergen
+// auf DEFAULT_CONFIG. So sieht der Dev-Server denselben SMB-Pfad wie die
+// gebauten Varianten.
+const sharedConfigPath = fileURLToPath(new URL('./configs/_shared.json', import.meta.url));
+const sharedConfig: unknown = (() => {
+  if (!existsSync(sharedConfigPath)) return null;
+  try { return JSON.parse(readFileSync(sharedConfigPath, 'utf-8')); } catch { return null; }
+})();
+const devFallbackConfig: unknown = sharedConfig
+  ? deepMerge(DEFAULT_CONFIG, sharedConfig)
+  : DEFAULT_CONFIG;
 
 // Single source of truth für die App-Version: package.json#version.
 const pkgPath = fileURLToPath(new URL('./package.json', import.meta.url));
@@ -22,8 +35,9 @@ export default defineConfig(({ mode }) => {
   const isSingle = mode === 'single';
 
   // Config kommt entweder aus dem Build-Orchestrator (scripts/build-with-config.mjs)
-  // via Env-Var oder als Fallback aus DEFAULT_CONFIG (dev server, generisches `vite build`).
-  const rawConfig = process.env.TEAMFLOW_CONFIG ?? JSON.stringify(DEFAULT_CONFIG);
+  // via Env-Var oder als Fallback aus DEFAULT_CONFIG + _shared.json (dev server,
+  // generisches `vite build`).
+  const rawConfig = process.env.TEAMFLOW_CONFIG ?? JSON.stringify(devFallbackConfig);
   const buildTime = process.env.TEAMFLOW_BUILD_TIME ?? new Date().toISOString();
   const gitHash = process.env.TEAMFLOW_GIT_HASH ?? 'unknown';
 

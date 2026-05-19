@@ -8,6 +8,45 @@
 
 export const CONFIG_SCHEMA_VERSION = 2;
 
+/**
+ * Deep-Merge zweier Plain-Objekte. Override gewinnt; Sub-Objekte werden rekursiv
+ * gemergt; Arrays werden ERSETZT (nicht concatenated), weil variant-spezifische
+ * Listen wie `scan.file_extensions` sonst stillschweigend wachsen wuerden.
+ *
+ * **Null-Semantik**: `undefined` im Override bedeutet "nicht angegeben → Basis
+ * behalten". `null` ist ein expliziter Override-Wert (z.B. demo.config.json
+ * setzt `fixedDataSharePath: null` um den shared-Default zu deaktivieren).
+ *
+ * Wird von `build-with-config.mjs` (mergt `_shared.json` + Variant-Config) und
+ * `vite.config.ts` (mergt `_shared.json` + DEFAULT_CONFIG fuer den Dev-Server)
+ * mitgenutzt.
+ */
+export function deepMerge(base, override) {
+  if (override === undefined) return base;
+  if (base === undefined) return override;
+  // null ist ein expliziter Override-Wert (z.B. "Pfad bewusst deaktivieren")
+  if (override === null) return null;
+  if (base === null) return override;
+  if (typeof base !== 'object' || typeof override !== 'object') return override;
+  if (Array.isArray(base) || Array.isArray(override)) return override;
+
+  const result = { ...base };
+  for (const key of Object.keys(override)) {
+    if (key === '_comment') continue;
+    const baseVal = base[key];
+    const overrideVal = override[key];
+    if (
+      baseVal && typeof baseVal === 'object' && !Array.isArray(baseVal) &&
+      overrideVal && typeof overrideVal === 'object' && !Array.isArray(overrideVal)
+    ) {
+      result[key] = deepMerge(baseVal, overrideVal);
+    } else {
+      result[key] = overrideVal;
+    }
+  }
+  return result;
+}
+
 /** Wird als Fallback verwendet, wenn kein `TEAMFLOW_CONFIG` gesetzt ist (dev server). */
 export const DEFAULT_CONFIG = {
   configVersion: CONFIG_SCHEMA_VERSION,

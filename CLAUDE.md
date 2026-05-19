@@ -663,6 +663,7 @@ TeamFlow wird pro Einsatz-Kontext als eigene Variante gebaut. Configs liegen unt
 - `configs/kurator.config.json` — Produktion (Kurator-Rolle), Standard-Sidebar wie prod + Kuration-Menüs nach Login
 - `configs/pl.config.json` — Produktion (Projektleitung), Home + Förderanträge + Auslastung + Einstellungen, kein Kurator-Login
 - `configs/_template.config.jsonc` — kommentierte Referenz (nicht direkt bauen)
+- `configs/_shared.json` (v2.0.2) — **Org-weite invariante Defaults** (aktuell: `data.fixedDataSharePath` + `data.expectedFolderName`). `build-with-config.mjs` + `vite.config.ts` mergen diese Datei mit der Variant-Config via `deepMerge` aus [scripts/config-schema.mjs](scripts/config-schema.mjs). Variant-Configs können jedes Feld überschreiben (z.B. `demo.config.json` setzt `fixedDataSharePath: null` explizit). Datei fehlt → Build läuft trotzdem (Backward-Kompat).
 
 Sichtbarkeits-Matrix (was steht in der Sidebar):
 

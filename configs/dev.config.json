@@ -8,8 +8,6 @@
     "browserTabTitle": "ZAH dev"
   },
   "data": {
-    "fixedDataSharePath": null,
-    "expectedFolderName": null,
     "allowUserToChangePath": true,
     "allowLocalFallback": true,
     "demoDataBundled": true

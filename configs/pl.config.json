@@ -7,8 +7,6 @@
     "browserTabTitle": "ZAH pl"
   },
   "data": {
-    "fixedDataSharePath": "\\\\server\\teamflow-forschungsfoerderung\\",
-    "expectedFolderName": "teamflow-forschungsfoerderung",
     "allowUserToChangePath": false,
     "allowLocalFallback": false,
     "demoDataBundled": false

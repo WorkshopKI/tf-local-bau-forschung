@@ -14,7 +14,9 @@
 import { readFileSync, writeFileSync, copyFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
-import { validateConfig } from './config-schema.mjs';
+import { validateConfig, deepMerge } from './config-schema.mjs';
+
+const SHARED_CONFIG_PATH = resolve('configs/_shared.json');
 
 // .bat-Dateien brauchen CRLF, damit der Polyglot-Header (<# : ... #>) von cmd.exe
 // als Batch-Wrapper erkannt wird. Source-File kann LF haben (z.B. nach Edit-Tool oder
@@ -48,6 +50,22 @@ function loadConfig(configPath) {
   }
 }
 
+/**
+ * Liest configs/_shared.json wenn vorhanden. Returns null wenn die Datei fehlt
+ * (Backward-Kompat: ein Repo-Checkout ohne _shared.json baut weiter wie
+ * pre-v2.0.2 — die Variant-Config muss dann ggf. fixedDataSharePath selbst
+ * tragen, sonst greift der Hardcoded-Fallback in WelcomeScreen/StartupScreen).
+ */
+function loadSharedConfigIfExists() {
+  if (!existsSync(SHARED_CONFIG_PATH)) return null;
+  try {
+    return JSON.parse(readFileSync(SHARED_CONFIG_PATH, 'utf-8'));
+  } catch (err) {
+    console.error(`❌ configs/_shared.json ist kein gültiges JSON: ${err.message}`);
+    process.exit(1);
+  }
+}
+
 function getGitHash() {
   try {
     return execSync('git rev-parse --short HEAD', { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
@@ -58,7 +76,13 @@ function getGitHash() {
 
 function main() {
   const { configPath } = parseArgs(process.argv);
-  const config = loadConfig(configPath);
+  const variantConfig = loadConfig(configPath);
+  const sharedConfig = loadSharedConfigIfExists();
+  const config = sharedConfig ? deepMerge(sharedConfig, variantConfig) : variantConfig;
+
+  if (sharedConfig) {
+    console.log(`✓ configs/_shared.json gemergt (Override durch ${configPath})`);
+  }
 
   const { errors, warnings, valid } = validateConfig(config);
   if (warnings.length > 0) {
