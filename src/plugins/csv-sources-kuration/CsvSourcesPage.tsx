@@ -242,21 +242,19 @@ export function CsvSourcesPage(): React.ReactElement {
                     <span className="font-mono">{s.id}</span> · join={s.join_key} · priority={s.priority}
                     {s.last_imported_at ? ` · letzter Import ${new Date(s.last_imported_at).toLocaleString('de-DE')}` : ''}
                     {typeof s.last_row_count === 'number' ? ` · ${s.last_row_count} Zeilen` : ''}
+                    {hasUpdate && update.state === 'update_available' ? (
+                      <>
+                        {' · '}
+                        <span
+                          className="inline-flex items-center gap-1 font-medium"
+                          style={{ color: 'var(--tf-primary)' }}
+                        >
+                          <Sparkles size={11} />
+                          neue CSV vom {new Date(update.lastModified).toLocaleString('de-DE')}
+                        </span>
+                      </>
+                    ) : null}
                   </div>
-                  {hasUpdate && update.state === 'update_available' ? (
-                    <div
-                      className="mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px]"
-                      style={{
-                        background: 'var(--tf-primary-light)',
-                        color: 'var(--tf-primary)',
-                      }}
-                    >
-                      <Sparkles size={11} />
-                      <span>
-                        Neue Version vom {new Date(update.lastModified).toLocaleString('de-DE')} verfügbar
-                      </span>
-                    </div>
-                  ) : null}
                 </div>
                 {isConfirming ? (
                   <div
