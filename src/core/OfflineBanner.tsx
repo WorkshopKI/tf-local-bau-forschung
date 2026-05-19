@@ -19,7 +19,6 @@ import { runtimeConfig } from '@/config/runtime-config';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
-  getPersoenlichHandle,
   pickAndStorePersoenlichHandle,
   refreshAllPermissions,
 } from '@/core/services/infrastructure/smb-handle';
@@ -49,20 +48,23 @@ export function OfflineBanner(): React.ReactElement | null {
   const [busy, setBusy] = useState(false);
 
   const handleReconnect = async (): Promise<void> => {
+    // Persönlich-Ordner-Variante: User-Geste MUSS synchron in den FSAPI-Picker
+    // fliessen. Kein `await` (IDB-Read o.ä.) davor — Chrome verbrennt unter
+    // file:// nach dem ersten async-Hop die User-Activation und der Picker
+    // oeffnet sich silent gar nicht. Der Speicher-Tab funktioniert genau weil
+    // er den Picker als ersten await aufruft. Setze `busy` erst NACH dem
+    // Picker, damit React-State-Updates die Activation nicht schmaelern.
+    if (mode === 'online' && !persoenlichAvailable) {
+      try {
+        const r = await pickAndStorePersoenlichHandle(storage.idb);
+        if (r.ok) setPersoenlichAvailable(true);
+      } catch {
+        /* ignore — User kann erneut klicken */
+      }
+      return;
+    }
     setBusy(true);
     try {
-      // Persönlich-Ordner-Fall ohne gespeicherten Handle: `refreshAllPermissions`
-      // wäre hier ein No-Op (skipped persoenlich-Slot → result.persoenlich
-      // bleibt 'missing', Banner verschwindet nicht). Stattdessen den Picker
-      // öffnen, wie es der Speicher-Tab macht.
-      if (mode === 'online' && !persoenlichAvailable) {
-        const existing = await getPersoenlichHandle(storage.idb);
-        if (!existing) {
-          const r = await pickAndStorePersoenlichHandle(storage.idb);
-          if (r.ok) setPersoenlichAvailable(true);
-          return;
-        }
-      }
       const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
       const result = await refreshAllPermissions(storage.idb, { isKurator });
       applyRefreshResult(result);
