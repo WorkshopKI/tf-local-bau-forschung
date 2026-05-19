@@ -19,6 +19,8 @@ import { dataConfig } from '@/config/feature-flags';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
+  /** v2.0: Steuert Picker-Mode. Kurator pickt `readwrite`, alle anderen `read`. */
+  isKurator?: boolean;
 }
 
 function parsePathFromHash(): string | null {
@@ -39,9 +41,10 @@ type Dialog =
       onConfirm: () => void;
       onCancel: () => void;
     }
-  | { kind: 'subfolder'; detected: FolderValidationResult['kind'] };
+  | { kind: 'subfolder'; detected: FolderValidationResult['kind'] }
+  | { kind: 'name-mismatch'; pickedName: string; expectedName: string };
 
-export function WelcomeScreen({ onComplete }: WelcomeScreenProps): React.ReactElement {
+export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenProps): React.ReactElement {
   const storage = useStorage();
   // Priorität: Build-Time-Config (fester Pfad) > Hash-URL-Override > Default-Beispiel.
   const examplePath = useMemo(
@@ -49,6 +52,8 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps): React.ReactEl
     [],
   );
   const pathIsLocked = dataConfig.fixedDataSharePath !== null && !dataConfig.allowUserToChangePath;
+  const expectedFolderName = dataConfig.expectedFolderName ?? null;
+  const pickerMode: 'read' | 'readwrite' = isKurator ? 'readwrite' : 'read';
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,10 +74,20 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps): React.ReactEl
     setError(null);
     setBusy(true);
     try {
-      const res = await pickAndStoreDatenShareHandle(storage.idb);
+      const res = await pickAndStoreDatenShareHandle(storage.idb, { mode: pickerMode });
       if (!res.ok) {
         if (res.reason === 'aborted') { setBusy(false); return; }
         setError(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
+        setBusy(false);
+        return;
+      }
+      // v2.0: Erwarteter Ordner-Name-Check (z.B. 'teamflow-forschungsfoerderung').
+      if (expectedFolderName && res.handle.name !== expectedFolderName) {
+        setDialog({
+          kind: 'name-mismatch',
+          pickedName: res.handle.name,
+          expectedName: expectedFolderName,
+        });
         setBusy(false);
         return;
       }
@@ -234,6 +249,19 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps): React.ReactEl
             <code>_intern/</code> enthält).
           </p>}
           confirmLabel="Anderen Ordner wählen"
+          cancelLabel=""
+          onConfirm={() => setDialog({ kind: 'none' })}
+          onCancel={() => setDialog({ kind: 'none' })}
+        />
+      )}
+      {dialog.kind === 'name-mismatch' && (
+        <Dialog
+          title="Falscher Ordner-Name"
+          body={<p className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed">
+            Bitte wählen Sie den Ordner <code>{dialog.expectedName}</code>. Sie haben{' '}
+            <code>{dialog.pickedName}</code> gewählt.
+          </p>}
+          confirmLabel="Erneut wählen"
           cancelLabel=""
           onConfirm={() => setDialog({ kind: 'none' })}
           onCancel={() => setDialog({ kind: 'none' })}

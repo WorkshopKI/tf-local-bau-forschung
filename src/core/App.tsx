@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AppRouter } from '@/core/Router';
 import { Onboarding } from '@/core/Onboarding';
 import { WelcomeScreen } from '@/core/WelcomeScreen';
+import { StartupScreen } from '@/core/StartupScreen';
 import { enabledPlugins } from '@/plugins.config';
 import { StorageService } from '@/core/services/storage';
 import { StorageContext } from '@/core/hooks/useStorage';
@@ -15,7 +16,11 @@ import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { ErrorBoundary } from '@/core/ErrorBoundary';
 import { applyThemeColor, setDarkMode } from '@/ui/theme';
 import { checkQuarterReset, loadFeedbackConfig } from '@/core/services/feedback';
-import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
+import {
+  getDatenShareHandle,
+  needsDatenShareDowngrade,
+} from '@/core/services/infrastructure/smb-handle';
+import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/types';
 import { listProgramme } from '@/core/services/csv';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
@@ -24,15 +29,30 @@ import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
 import { runtimeConfig } from '@/config/runtime-config';
 import { isDemoDataBundled, dataConfig } from '@/config/feature-flags';
 import { seedTestData } from '@/core/services/seed/seed-data';
+import { useConnectionState } from '@/core/services/connection-status';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
-function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, showWelcome, setShowWelcome, department, seedToast, setSeedToast, syncToast, setSyncToast }: {
+function AppProviders({
+  storage, aiBridge,
+  showOnboarding, setShowOnboarding,
+  showWelcome, setShowWelcome,
+  showStartup, setShowStartup,
+  needsDowngrade,
+  initialProfile,
+  department,
+  seedToast, setSeedToast,
+  syncToast, setSyncToast,
+}: {
   storage: StorageService;
   aiBridge: AIBridge;
   showOnboarding: boolean;
   setShowOnboarding: (v: boolean) => void;
   showWelcome: boolean;
   setShowWelcome: (v: boolean) => void;
+  showStartup: boolean;
+  setShowStartup: (v: boolean) => void;
+  needsDowngrade: boolean;
+  initialProfile: UserProfile | null;
   department: UserProfile['department'];
   seedToast: string | null;
   setSeedToast: (v: string | null) => void;
@@ -47,6 +67,7 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, sh
 
   const activeDepartment = profileValue.profile?.department ?? department;
   const profileName = profileValue.profile?.name;
+  const isKurator = profileValue.profile?.is_kurator === true || profileValue.profile?.is_admin === true || initialProfile?.is_kurator === true || initialProfile?.is_admin === true;
 
   // Phase 3: Quartals-Reset-Check + Toast
   useEffect(() => {
@@ -75,7 +96,13 @@ function AppProviders({ storage, aiBridge, showOnboarding, setShowOnboarding, sh
                   setShowOnboarding(false);
                 }} />
               ) : showWelcome ? (
-                <WelcomeScreen onComplete={() => setShowWelcome(false)} />
+                <WelcomeScreen onComplete={() => setShowWelcome(false)} isKurator={isKurator} />
+              ) : showStartup ? (
+                <StartupScreen
+                  profile={profileValue.profile ?? initialProfile}
+                  needsDowngrade={needsDowngrade}
+                  onReady={() => setShowStartup(false)}
+                />
               ) : (
                 <AppRouter plugins={enabledPlugins} department={activeDepartment} />
               )}
@@ -163,6 +190,9 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showStartup, setShowStartup] = useState(false);
+  const [needsDowngrade, setNeedsDowngrade] = useState(false);
+  const [initialProfile, setInitialProfile] = useState<UserProfile | null>(null);
   const [department, setDepartment] = useState<UserProfile['department']>('beide');
   const [seedToast, setSeedToast] = useState<string | null>(null);
   const [syncToast, setSyncToast] = useState<string | null>(null);
@@ -171,16 +201,46 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
     document.title = runtimeConfig.build.browserTabTitle;
   }, []);
 
-  const refreshHandleGate = useCallback(async (): Promise<void> => {
+  const refreshHandleGate = useCallback(async (profile: UserProfile | null): Promise<void> => {
     // WelcomeScreen nur anzeigen, wenn die Variante dem User erlaubt, den Pfad selbst zu wählen.
     // Demo-Variante (demoDataBundled=true, allowUserToChangePath=false) und Prod-Variante mit
     // fixedDataSharePath skippen den Picker — die Daten kommen aus dem Bundle bzw. fixen Share.
     if (!dataConfig.allowUserToChangePath) {
       setShowWelcome(false);
+      setShowStartup(false);
       return;
     }
     const handle = await getDatenShareHandle(storage.idb);
-    setShowWelcome(!handle);
+    if (!handle) {
+      setShowWelcome(true);
+      setShowStartup(false);
+      return;
+    }
+    setShowWelcome(false);
+
+    // v2.0: StartupScreen anzeigen, damit Permissions in einem User-Gesture-
+    // Handler aktualisiert werden koennen.
+    const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
+    const downgradeFlag = await storage.idb.get<boolean>(NEEDS_HANDLE_DOWNGRADE_IDB_KEY);
+    const liveDowngrade = downgradeFlag === true ? true : await needsDatenShareDowngrade(storage.idb, { isKurator });
+    if (liveDowngrade) {
+      await storage.idb.set(NEEDS_HANDLE_DOWNGRADE_IDB_KEY, true);
+    }
+    setNeedsDowngrade(liveDowngrade);
+    setShowStartup(true);
+
+    // ConnectionState bereits mit dem aktuellen Persoenlich-Sync-Stand ergaenzen
+    try {
+      const programme = await listProgramme(storage.idb);
+      const first = programme[0];
+      if (first) {
+        const verKey = `snapshot-version-${first.id}`;
+        const ver = await storage.idb.get<{ ts?: string }>(verKey);
+        if (ver?.ts) useConnectionState.getState().setLastSyncTimestamp(ver.ts);
+      }
+    } catch {
+      /* best-effort */
+    }
   }, [storage]);
 
   useEffect(() => {
@@ -217,10 +277,11 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
           applyThemeColor(profile.theme.hue);
           setDarkMode(profile.theme.dark);
           setDepartment(profile.department);
+          setInitialProfile(profile);
         }
         setShowOnboarding(false);
         // Nach Onboarding-Complete: Welcome zeigen, wenn kein Daten-Share-Handle.
-        await refreshHandleGate();
+        await refreshHandleGate(profile);
       } else {
         setShowOnboarding(true);
       }
@@ -251,15 +312,25 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
 
   const handleOnboardingComplete = useCallback(async () => {
     setShowOnboarding(false);
-    await refreshHandleGate();
-  }, [refreshHandleGate]);
+    const profile = await storage.idb.get<UserProfile>('profile');
+    if (profile) setInitialProfile(profile);
+    await refreshHandleGate(profile);
+  }, [refreshHandleGate, storage]);
+
+  // Wenn der Welcome-Screen Daten-Share verbindet, soll danach der Startup-
+  // Screen die Permissions in einer User-Gesture-Kette aushandeln.
+  const handleWelcomeComplete = useCallback(async () => {
+    setShowWelcome(false);
+    const profile = await storage.idb.get<UserProfile>('profile');
+    await refreshHandleGate(profile);
+  }, [refreshHandleGate, storage]);
 
   // Demo-Daten-Auto-Seed: Wenn data.demoDataBundled aktiv ist und die IDB
   // noch keinen `seed-complete`-Marker trägt, lädt seedTestData() synthetische
   // Vorgänge/Dokumente/Artefakte. seedTestData() ist idempotent — zweiter Aufruf
   // liefert Nullen und es erscheint kein Toast.
   useEffect(() => {
-    if (!ready || showOnboarding || !isDemoDataBundled()) return;
+    if (!ready || showOnboarding || showWelcome || showStartup || !isDemoDataBundled()) return;
     let cancelled = false;
     (async () => {
       const result = await seedTestData(storage);
@@ -270,7 +341,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       }
     })();
     return () => { cancelled = true; };
-  }, [ready, showOnboarding, storage]);
+  }, [ready, showOnboarding, showWelcome, showStartup, storage]);
 
   // Snapshot-Sync — non-blocking, nach App-Start.
   // syncToastTimerRef haelt die ID des aktuell laufenden Auto-Dismiss-Timers.
@@ -279,7 +350,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   // Timer den zweiten Toast vorzeitig clearen).
   const syncToastTimerRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!ready || showOnboarding) return;
+    if (!ready || showOnboarding || showWelcome || showStartup) return;
     let cancelled = false;
     (async () => {
       const handle = await getDatenShareHandle(storage.idb);
@@ -324,7 +395,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, showOnboarding]);
+  }, [ready, showOnboarding, showWelcome, showStartup]);
 
   if (!ready) return <></>;
 
@@ -335,7 +406,11 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       showOnboarding={showOnboarding}
       setShowOnboarding={handleOnboardingComplete as unknown as (v: boolean) => void}
       showWelcome={showWelcome}
-      setShowWelcome={setShowWelcome}
+      setShowWelcome={handleWelcomeComplete as unknown as (v: boolean) => void}
+      showStartup={showStartup}
+      setShowStartup={setShowStartup}
+      needsDowngrade={needsDowngrade}
+      initialProfile={initialProfile}
       department={department}
       seedToast={seedToast}
       setSeedToast={setSeedToast}

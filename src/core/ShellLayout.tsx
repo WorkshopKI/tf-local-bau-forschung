@@ -20,6 +20,7 @@ import { useKuratorActivityTracker } from '@/core/hooks/useKuratorActivityTracke
 import { ensureDefaultProgramm } from '@/core/services/csv';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { SmbBanner } from '@/core/components/SmbBanner';
+import { OfflineBanner } from '@/core/OfflineBanner';
 import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
@@ -323,6 +324,7 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
         )}
 
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <OfflineBanner />
           {isDataShareEnabled() && (
             <SmbBanner status={smbStatus.status} lastCheck={smbStatus.lastCheck} idb={storage.idb} />
           )}

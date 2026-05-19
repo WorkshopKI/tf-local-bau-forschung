@@ -1,10 +1,20 @@
 import { useState } from 'react';
-import { Check, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight, FolderOpen, FolderHeart } from 'lucide-react';
 import { Button } from '@/ui';
 import { PRESET_COLORS, applyThemeColor } from '@/ui/theme';
 import type { UserProfile } from '@/core/types/config';
 import { useStorage } from '@/core/hooks/useStorage';
-import { isAntraegeEnabled, isBauantraegeEnabled, isKuratorMenusEnabled, menuLabel } from '@/config/feature-flags';
+import {
+  isAntraegeEnabled,
+  isBauantraegeEnabled,
+  isKuratorMenusEnabled,
+  menuLabel,
+} from '@/config/feature-flags';
+import { runtimeConfig } from '@/config/runtime-config';
+import {
+  pickAndStorePersoenlichHandle,
+} from '@/core/services/infrastructure/smb-handle';
+import { savePersonalSettings } from '@/core/services/personal-storage';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -13,8 +23,16 @@ interface OnboardingProps {
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
 
+/** 2–6 Großbuchstaben, keine Sonderzeichen — Validierung weich (Feld ist optional). */
+function normalizeKuerzel(raw: string): string {
+  return raw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6);
+}
+
 export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement {
   const storage = useStorage();
+  const promptPersFolder = runtimeConfig.personalFolder?.promptAfterProfile ?? true;
+  const totalSteps = promptPersFolder ? 3 : 2;
+
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const defaultDept: UserProfile['department'] =
@@ -22,10 +40,16 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
     : isAntraegeEnabled() ? 'antraege'
     : 'bauantraege';
   const [department, setDepartment] = useState<UserProfile['department']>(defaultDept);
+  const [kuerzel, setKuerzel] = useState('');
   const [isKurator, setIsKurator] = useState(false);
   const [selectedHue, setSelectedHue] = useState(221);
   const [selectedSat, setSelectedSat] = useState('25%');
   const [selectedLit, setSelectedLit] = useState('42%');
+
+  // Persoenlich-Ordner Step (nur wenn promptPersFolder)
+  const [persConnected, setPersConnected] = useState(false);
+  const [persBusy, setPersBusy] = useState(false);
+  const [persError, setPersError] = useState<string | null>(null);
 
   const showKuratorToggle = isKuratorMenusEnabled();
 
@@ -36,17 +60,57 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
     applyThemeColor(h, s, l);
   };
 
+  const handlePickPers = async (): Promise<void> => {
+    setPersError(null);
+    setPersBusy(true);
+    try {
+      const res = await pickAndStorePersoenlichHandle(storage.idb);
+      if (!res.ok) {
+        if (res.reason !== 'aborted') {
+          setPersError(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
+        }
+        return;
+      }
+      setPersConnected(true);
+    } finally {
+      setPersBusy(false);
+    }
+  };
+
+  // Pitfall 16: EIN finaler persist im Submit. Sammelt alle Werte in einem
+  // Profil-Object, schreibt es einmal in IDB + (best-effort) in den pers.
+  // Ordner. Kein verteilter setState in mehreren Steps.
   const handleFinish = async (): Promise<void> => {
-    const profile: UserProfile = { name, department, theme: { hue: selectedHue, dark: false }, is_kurator: isKurator };
-    await storage.idb.set('profile', profile);
+    const finalProfile: UserProfile = {
+      name: name.trim(),
+      department,
+      theme: { hue: selectedHue, dark: false },
+      is_kurator: isKurator,
+      ...(kuerzel ? { bearbeiter_kuerzel: kuerzel } : {}),
+    };
+    await storage.idb.set('profile', finalProfile);
     await storage.idb.set('onboarding-complete', true);
     applyThemeColor(selectedHue, selectedSat, selectedLit);
+
+    // Pers. Ordner: profile.json synchron-best-effort schreiben.
+    if (persConnected) {
+      try {
+        const { getPersoenlichHandle } = await import('@/core/services/infrastructure/smb-handle');
+        const persHandle = await getPersoenlichHandle(storage.idb);
+        await savePersonalSettings(storage.idb, persHandle, { profile: finalProfile });
+      } catch {
+        /* best-effort — IDB-Profil ist die Wahrheit */
+      }
+    }
     onComplete();
   };
 
+  const profileStepValid = name.trim().length > 0;
+  const lastStep = totalSteps - 1;
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50">
-      <div className="w-full max-w-[400px] mx-4 bg-[var(--tf-bg)] rounded-[16px] p-8" style={{ border: '0.5px solid var(--tf-border)' }}>
+      <div className="w-full max-w-[420px] mx-4 bg-[var(--tf-bg)] rounded-[16px] p-8" style={{ border: '0.5px solid var(--tf-border)' }}>
         {step === 0 && (
           <div className="space-y-6">
             <h1 className="text-[20px] font-medium text-[var(--tf-text)] text-center">Willkommen bei TeamFlow</h1>
@@ -54,6 +118,23 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[13px] font-medium text-[var(--tf-text)]">Dein Name</label>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="Max Mustermann" className={inputClass} style={inputStyle} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-medium text-[var(--tf-text)]">
+                  Kürzel <span className="text-[var(--tf-text-tertiary)] font-normal">(optional)</span>
+                </label>
+                <input
+                  value={kuerzel}
+                  onChange={e => setKuerzel(normalizeKuerzel(e.target.value))}
+                  placeholder="MUM"
+                  maxLength={6}
+                  className={inputClass}
+                  style={inputStyle}
+                />
+                <p className="text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">
+                  2–6 Großbuchstaben. Wird im Bearbeiter-Filter und in eingereichten
+                  Feedback-Tickets verwendet. Kann später in den Einstellungen geändert werden.
+                </p>
               </div>
               {isAntraegeEnabled() && isBauantraegeEnabled() && (
                 <div className="flex flex-col gap-1.5">
@@ -95,30 +176,90 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
                 </label>
               )}
             </div>
-            <Button icon={ArrowRight} disabled={!name.trim()} onClick={() => setStep(1)} className="w-full">Weiter</Button>
+            <Button icon={ArrowRight} disabled={!profileStepValid} onClick={() => setStep(1)} className="w-full">Weiter</Button>
           </div>
         )}
 
-        {step === 1 && (
+        {promptPersFolder && step === 1 && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-2.5">
+              <FolderHeart size={22} className="text-[var(--tf-primary)]" />
+              <h1 className="text-[18px] font-medium text-[var(--tf-text)]">
+                Persönlicher Ordner <span className="text-[var(--tf-text-tertiary)] text-[14px] font-normal">(optional)</span>
+              </h1>
+            </div>
+            <p className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed">
+              Damit Ihre Einstellungen, Filter-Presets und Feedback über Browser-Wechsel
+              und Citrix-Sessions hinweg erhalten bleiben, können Sie Ihr persönliches
+              Netzlaufwerk verbinden. Die App legt einen Unterordner{' '}
+              <code className="text-[11.5px] px-1 py-0.5 rounded bg-[var(--tf-bg-secondary)]">
+                {runtimeConfig.personalFolder?.subfolder ?? 'teamflow'}/
+              </code>{' '}
+              dort an.
+            </p>
+            <div className="space-y-2">
+              <Button
+                icon={FolderOpen}
+                onClick={handlePickPers}
+                disabled={persBusy}
+                className="w-full"
+              >
+                {persConnected ? 'Verbunden — Ordner ändern' : 'Ordner auswählen'}
+              </Button>
+              {persConnected && (
+                <p className="text-[12px] text-[var(--tf-success-text)] flex items-center gap-1.5">
+                  <Check size={14} /> Persönlicher Ordner verbunden.
+                </p>
+              )}
+              {persError && (
+                <p className="text-[12px] text-[var(--tf-danger-text)]">{persError}</p>
+              )}
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] underline-offset-2 hover:underline cursor-pointer"
+              >
+                Später einrichten
+              </button>
+              <Button
+                icon={ArrowRight}
+                onClick={() => setStep(2)}
+                disabled={persBusy}
+              >
+                Weiter
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === lastStep && (
           <div className="space-y-6 text-center">
             <div className="w-14 h-14 rounded-full bg-[var(--tf-success-bg)] flex items-center justify-center mx-auto">
               <Check size={28} className="text-[var(--tf-success-text)]" />
             </div>
             <h1 className="text-[20px] font-medium text-[var(--tf-text)]">Alles eingerichtet</h1>
             <div className="text-[13px] text-[var(--tf-text-secondary)] space-y-1.5">
-              <p><span className="text-[var(--tf-text-tertiary)]">Name:</span> {name}</p>
+              <p><span className="text-[var(--tf-text-tertiary)]">Name:</span> {name}{kuerzel && ` (${kuerzel})`}</p>
               <p><span className="text-[var(--tf-text-tertiary)]">Abteilung:</span> {department === 'bauantraege' ? menuLabel('bauantraege', 'Bauanträge') : department === 'antraege' ? menuLabel('antraege', 'Förderanträge') : 'Beide'}</p>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-[var(--tf-text-tertiary)]">Farbe:</span>
                 <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: `hsl(${selectedHue}, ${selectedSat}, ${selectedLit})` }} />
               </div>
+              {promptPersFolder && (
+                <p>
+                  <span className="text-[var(--tf-text-tertiary)]">Persönlicher Ordner:</span>{' '}
+                  {persConnected ? 'verbunden' : 'noch nicht eingerichtet'}
+                </p>
+              )}
             </div>
             <Button icon={ArrowRight} onClick={handleFinish} className="w-full">Los geht's</Button>
           </div>
         )}
 
         <div className="flex justify-center gap-2 mt-6">
-          {[0, 1].map(i => (
+          {Array.from({ length: totalSteps }).map((_, i) => (
             <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === step ? 'bg-[var(--tf-text)]' : 'bg-[var(--tf-border)]'}`} />
           ))}
         </div>

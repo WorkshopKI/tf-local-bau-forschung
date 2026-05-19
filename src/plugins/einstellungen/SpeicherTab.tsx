@@ -1,10 +1,15 @@
-import { useState } from 'react';
-import { Trash2, FileText, Database, Pencil, Check, FlaskConical } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen } from 'lucide-react';
 import { Button, Badge, SectionHeader, ListItem } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { DirectoryEntry } from '@/core/types/config';
 import { shouldShowOpfsOption } from '@/core/utils/environment';
-import { isKuratorMenusEnabled } from '@/config/feature-flags';
+import { isKuratorMenusEnabled, dataConfig } from '@/config/feature-flags';
+import {
+  clearPersoenlichHandle,
+  getPersoenlichHandle,
+  pickAndStorePersoenlichHandle,
+} from '@/core/services/infrastructure/smb-handle';
 
 export function SpeicherTab(): React.ReactElement {
   const storage = useStorage();
@@ -12,6 +17,46 @@ export function SpeicherTab(): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [error, setError] = useState('');
+
+  // v2.0: Persoenlicher Ordner — separate Slot, nicht Teil der DirectoryEntry-Liste.
+  const [persConnected, setPersConnected] = useState(false);
+  const [persFolderName, setPersFolderName] = useState<string | null>(null);
+  const [persBusy, setPersBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const h = await getPersoenlichHandle(storage.idb).catch(() => null);
+      if (cancelled) return;
+      setPersConnected(!!h);
+      setPersFolderName(h?.name ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [storage]);
+
+  const handleConnectPers = async (): Promise<void> => {
+    setError('');
+    setPersBusy(true);
+    try {
+      const res = await pickAndStorePersoenlichHandle(storage.idb);
+      if (!res.ok) {
+        if (res.reason !== 'aborted') {
+          setError(res.message ?? 'Persönlicher Ordner konnte nicht verbunden werden.');
+        }
+        return;
+      }
+      setPersConnected(true);
+      setPersFolderName(res.handle.name);
+    } finally {
+      setPersBusy(false);
+    }
+  };
+
+  const handleDisconnectPers = async (): Promise<void> => {
+    await clearPersoenlichHandle(storage.idb);
+    setPersConnected(false);
+    setPersFolderName(null);
+  };
 
   const refresh = (): void => setDirectories(storage.getDirectories());
 
@@ -57,6 +102,45 @@ export function SpeicherTab(): React.ReactElement {
 
   return (
     <div className="space-y-6">
+      <SectionHeader label="Persönlicher Ordner" />
+      <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
+        Speichert Profil, Filter-Presets und Feedback-Outbox dort. Bleibt über
+        Browser-Wechsel und Citrix-Sessions hinweg erhalten.
+      </p>
+      <div className="flex items-center justify-between gap-3 mt-1">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <FolderHeart size={16} className="text-[var(--tf-primary)] shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[13px] text-[var(--tf-text)] truncate">
+              {persConnected ? (persFolderName ?? 'Verbunden') : 'Noch nicht verbunden'}
+            </p>
+            <p className="text-[11.5px] text-[var(--tf-text-tertiary)] truncate">
+              Unterordner: <code>{dataConfig.expectedFolderName ? 'teamflow' : 'teamflow'}/</code>
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="secondary"
+            icon={FolderOpen}
+            onClick={handleConnectPers}
+            disabled={persBusy}
+          >
+            {persConnected ? 'Ändern' : 'Verbinden'}
+          </Button>
+          {persConnected && (
+            <button
+              onClick={handleDisconnectPers}
+              className="p-1 text-[var(--tf-danger-text)] cursor-pointer"
+              title="Trennen"
+              disabled={persBusy}
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+
       <SectionHeader label="Verbundene Verzeichnisse" />
 
       {directories.length === 0 ? (

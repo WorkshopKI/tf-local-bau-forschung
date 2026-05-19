@@ -36,12 +36,30 @@ import {
   readSharedFile,
   writeSharedFile,
 } from './feedbackSharedFile';
+import { submitFeedback as submitToOutbox } from '@/core/services/personal-storage';
 
 // ── Public CRUD API ─────────────────────────────────────────────────────────
+
+/**
+ * Submission-Routing-Options (v2.0).
+ *
+ * - `isKurator: true` → schreibt direkt nach `_intern/feedback/feedback.json`
+ *   wie vor v2.0 (Kurator hat readwrite auf Daten-Share).
+ * - `isKurator: false` + `persHandle` → schreibt in die Outbox auf dem
+ *   persoenlichen Laufwerk; der Kurator sammelt im FeedbackInboxTab ein.
+ * - `isKurator: false` ohne `persHandle` → nur localStorage; Aufrufer sollte
+ *   den Submit-Button vorher deaktivieren oder den User informieren.
+ */
+export interface SubmitFeedbackRouting {
+  isKurator: boolean;
+  persHandle?: FileSystemDirectoryHandle | null;
+  kuerzel?: string;
+}
 
 export async function submitFeedback(
   storage: StorageService,
   data: Omit<FeedbackItem, 'id' | 'kurator_status' | 'created_at'>,
+  routing?: SubmitFeedbackRouting,
 ): Promise<FeedbackItem> {
   const item: FeedbackItem = {
     ...data,
@@ -49,11 +67,32 @@ export async function submitFeedback(
     kurator_status: 'neu',
     created_at: new Date().toISOString(),
   };
-  // Local
+  // Local (immer)
   const items = loadLocalItems();
   items.unshift(item);
   saveLocalItems(items);
-  // Shared (best-effort: re-read + merge + write)
+
+  // v2.0 Dispatch
+  if (routing && routing.isKurator === false) {
+    // User-Pfad: Outbox auf pers. Laufwerk, KEIN Shared-File-Write
+    if (routing.persHandle) {
+      try {
+        await submitToOutbox(routing.persHandle, routing.kuerzel ?? 'unbekannt', {
+          id: item.id,
+          kuerzel: routing.kuerzel ?? 'unbekannt',
+          submitted_at: item.created_at,
+          text: item.text,
+          context: item.context,
+        });
+      } catch (err) {
+        console.warn('[feedbackService] outbox write failed', err);
+      }
+    }
+    emitFeedbackUpdated();
+    return item;
+  }
+
+  // Kurator-Pfad (oder pre-v2.0 Default): Shared-File (best-effort: re-read + merge + write)
   const shared = await readSharedFile(storage);
   if (shared) {
     const merged = mergeItems([item], shared.items);

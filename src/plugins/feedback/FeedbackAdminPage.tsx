@@ -11,6 +11,7 @@ import { FeedbackTicketDetail } from './sections/FeedbackTicketDetail';
 import { FeedbackFaqTab } from './sections/FeedbackFaqTab';
 import { FeedbackConfigPanel } from './sections/FeedbackConfigPanel';
 import { FeedbackSponsoringOverview } from './sections/FeedbackSponsoringOverview';
+import { FeedbackInboxTab } from './sections/FeedbackInboxTab';
 
 export function FeedbackAdminPage(): React.ReactElement {
   const storage = useStorage();
@@ -57,6 +58,7 @@ export function FeedbackAdminPage(): React.ReactElement {
 
   const tabs = useMemo(() => [
     { id: 'tickets', label: 'Tickets', badge: tickets.length },
+    { id: 'inbox', label: 'Inbox' },
     { id: 'faq', label: 'FAQ', badge: faqs.length },
     { id: 'sponsoring', label: 'Sponsoring' },
     { id: 'config', label: 'Einstellungen' },
@@ -98,6 +100,7 @@ export function FeedbackAdminPage(): React.ReactElement {
             </div>
           </div>
         )}
+        {tab === 'inbox' && <FeedbackInboxTab />}
         {tab === 'faq' && <FeedbackFaqTab faqs={faqs} onChanged={reload} />}
         {tab === 'sponsoring' && <FeedbackSponsoringOverview tickets={tickets} config={config} onConfigChanged={reload} />}
         {tab === 'config' && <FeedbackConfigPanel />}
