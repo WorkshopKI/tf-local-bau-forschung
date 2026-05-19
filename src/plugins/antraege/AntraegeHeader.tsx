@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Filter, Loader2, Search } from 'lucide-react';
 import { useAntraegeStore } from './store';
 import { useFilterState } from './filter/useFilterState';
-import { VIEWS, viewCount } from './views';
+import { VIEWS, viewCounts } from './views';
 import { menuLabel } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,11 +41,10 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
     // werden in den Tab-Counts ausgeblendet, AUSSER ein expliziter
     // vb_phase-Filter ist aktiv (dann uebernimmt die Sidebar die Kontrolle).
     const applyVbPhasePreFilter = !hasExplicitVbPhaseFilter(active, definitions);
-    const m = new Map<string, number>();
-    for (const v of VIEWS) {
-      m.set(v.key, viewCount(v.key, antraege, bearbeiterFilter, applyVbPhasePreFilter));
-    }
-    return m;
+    // Single-Pass: alle 6 View-Counts in einem Loop ueber `antraege` —
+    // statt 6× viewCount() mit jeweils neuer `new Date()`-Allokation pro
+    // Antrag im Predicate.
+    return viewCounts(antraege, bearbeiterFilter, applyVbPhasePreFilter);
   }, [antraege, bearbeiterFilter, active, definitions]);
 
   return (
@@ -73,7 +72,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
           <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">
             {VIEWS.map(v => {
               const isActive = v.key === activeView;
-              const cnt = counts.get(v.key) ?? 0;
+              const cnt = counts[v.key];
               return (
                 <button
                   key={v.key}

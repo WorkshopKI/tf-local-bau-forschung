@@ -212,8 +212,23 @@ export function takeGroupsUntil(
  * (= primärer Sort der `useFilteredAntraege`-Pipeline). Kein Re-Sort nach
  * Aktenzeichen, damit „Antragsdatum desc" o.ä. innerhalb des Clusters nicht
  * wieder zu FKZ-asc umsortiert wird.
+ *
+ * Perf: O(n) — ein Pre-Bucket-Pass legt `Map<verbund_id, TV[]>` an, der
+ * zweite Pass emittiert pro First-Occurrence den fertigen Bucket. Frueher
+ * O(n²) wegen `antraege.filter(x => x.verbund_id === vid)` pro Verbund.
  */
 export function applyVerbundClustering(antraege: AntragListItem[]): AntragListItem[] {
+  const buckets = new Map<string, AntragListItem[]>();
+  for (const a of antraege) {
+    const vid = a.verbund_id;
+    if (typeof vid !== 'string' || vid.length === 0) continue;
+    let bucket = buckets.get(vid);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(vid, bucket);
+    }
+    bucket.push(a);
+  }
   const placed = new Set<string>();
   const out: AntragListItem[] = [];
   for (const a of antraege) {
@@ -224,8 +239,7 @@ export function applyVerbundClustering(antraege: AntragListItem[]): AntragListIt
     }
     if (placed.has(vid)) continue;
     placed.add(vid);
-    const tvs = antraege.filter(x => x.verbund_id === vid);
-    out.push(...tvs);
+    out.push(...buckets.get(vid)!);
   }
   return out;
 }
@@ -247,6 +261,18 @@ function soloGroup(a: AntragListItem): AntragGroup {
  * Sub-Gruppen aufsteigend nach erstem-Aktenzeichen.
  */
 function buildVerbundSubGroups(members: AntragListItem[]): AntragGroup[] {
+  // Pre-Bucket: O(n) statt O(n²) — wichtig fuer grosse Netzwerke.
+  const buckets = new Map<string, AntragListItem[]>();
+  for (const a of members) {
+    const vid = a.verbund_id;
+    if (typeof vid !== 'string' || vid.length === 0) continue;
+    let bucket = buckets.get(vid);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(vid, bucket);
+    }
+    bucket.push(a);
+  }
   const placed = new Set<string>();
   const out: AntragGroup[] = [];
   for (const a of members) {
@@ -259,7 +285,7 @@ function buildVerbundSubGroups(members: AntragListItem[]): AntragGroup[] {
     placed.add(vid);
     // TVs innerhalb der Sub-Gruppe behalten Input-Order (= primärer Sort),
     // damit User-Sort wie „Antragsdatum desc" auch hier durchgreift.
-    const tvs = members.filter(x => x.verbund_id === vid);
+    const tvs = buckets.get(vid)!;
     out.push({
       verbundId: vid,
       netzwerkId: null,
@@ -358,6 +384,19 @@ export function buildAntragGroups(
   }
 
   if (mode === 'netzwerk' || mode === 'netzwerk-by-size') {
+    // Pre-Bucket nach Netzwerk-ID: O(n) statt O(n²). `extractNetzwerkId` wird
+    // pro Antrag genau einmal aufgerufen statt einmal pro (Antrag × Netzwerk).
+    const netzwerkBuckets = new Map<string, AntragListItem[]>();
+    for (const a of antraege) {
+      const nid = extractNetzwerkId(a.aktenzeichen);
+      if (nid === null) continue;
+      let bucket = netzwerkBuckets.get(nid);
+      if (!bucket) {
+        bucket = [];
+        netzwerkBuckets.set(nid, bucket);
+      }
+      bucket.push(a);
+    }
     const placed = new Set<string>();
     const out: AntragGroup[] = [];
     for (const a of antraege) {
@@ -372,7 +411,7 @@ export function buildAntragGroups(
       // erneut nach Verbund (bzw. Einzelantrag) gruppieren. Reihenfolge:
       // Sub-Gruppe mit Lead (Suffix 01/02 + vb_phase 1/2) zuerst, danach
       // restliche Sub-Gruppen aufsteigend nach erstem-Aktenzeichen.
-      const members = antraege.filter(x => extractNetzwerkId(x.aktenzeichen) === nid);
+      const members = netzwerkBuckets.get(nid)!;
       const subGroups = buildVerbundSubGroups(members);
       const flatTvs = subGroups.flatMap(g => g.tvs);
       const phases = collectPhases(flatTvs);
@@ -421,6 +460,18 @@ export function buildAntragGroups(
  * verwendet — Letzterer wickelt die Cluster anschließend in Phase-Buckets.
  */
 function buildVerbundClusters(antraege: AntragListItem[]): AntragGroup[] {
+  // Pre-Bucket: O(n) statt O(n²) (siehe applyVerbundClustering).
+  const buckets = new Map<string, AntragListItem[]>();
+  for (const a of antraege) {
+    const vid = a.verbund_id;
+    if (typeof vid !== 'string' || vid.length === 0) continue;
+    let bucket = buckets.get(vid);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(vid, bucket);
+    }
+    bucket.push(a);
+  }
   const placed = new Set<string>();
   const out: AntragGroup[] = [];
   for (const a of antraege) {
@@ -431,7 +482,7 @@ function buildVerbundClusters(antraege: AntragListItem[]): AntragGroup[] {
     }
     if (placed.has(vid)) continue;
     placed.add(vid);
-    const tvs = antraege.filter(x => x.verbund_id === vid);
+    const tvs = buckets.get(vid)!;
     out.push({
       verbundId: vid,
       netzwerkId: null,

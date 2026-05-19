@@ -39,6 +39,19 @@ import {
 import { loadAllEmbeddings } from '@/plugins/auslastung/services/embedding-corpus';
 import { hybridSearch, getOramaDB } from '@/core/services/search/orama-store';
 import type { IDBStore } from '@/core/services/storage/idb-store';
+import { features } from '@/config/feature-flags';
+
+/**
+ * True wenn der aktive Build mindestens eine semantische Quelle benoetigt
+ * (Auslastungs-Embeddings, DMS-Index oder Volltextsuche). Im prod-Build ohne
+ * diese Features waere `ensureEmbeddingReady` (lädt 300 MB ONNX-Modell im
+ * Main-Thread, siehe CLAUDE.md Pitfall #8) eine Sekunden-Blockade ohne
+ * Mehrwert — der Substring-Pfad bleibt aktiv und reicht in diesen Varianten.
+ */
+const SEMANTIC_SOURCES_ENABLED =
+  features.auslastung === true
+  || features.dokumentenscan === true
+  || features.suche === true;
 
 /** Schwelle fuer Embedding-Treffer (Cosine, L2-normalisiert -> [-1, 1]).
  *  0.55 ist empirisch gut: schliesst „Künstliche Intelligenz" -> „KI" /
@@ -191,6 +204,13 @@ async function runHybridSearch(opts: RunOptions): Promise<RunResult> {
   const subHits = substringMatches(query, caches.textCorpus);
   for (const akz of subHits) matched.add(akz);
 
+  // Schlanke Builds (prod ohne Auslastung/DMS/Suche): kein Modell-Init,
+  // kein Cosine-Loop. Substring-Pfad oben ist alles, was hier sinnvoll
+  // ist — der Embedding-Korpus existiert nicht, der DMS-Index ist leer.
+  if (!SEMANTIC_SOURCES_ENABLED) {
+    return { matchedAkz: matched, unavailable };
+  }
+
   // ----- Quelle 2 + 3: Embedding + DMS — nur wenn Query lang genug -----
   if (query.length < MIN_QUERY_LEN_FOR_SEMANTIC) {
     return { matchedAkz: matched, unavailable };
@@ -311,6 +331,12 @@ export function useAntraegeHybridSearch(): void {
   // Init) im Hintergrund. Der erste Keystroke trifft dann auf warme Caches
   // statt einen mehrere-Sekunden-Block auszuloesen. Idempotent: wenn die
   // Caches schon stehen, returnen die `get*`-Helper sofort.
+  //
+  // Der **Embedding-Pfad** (Modell-Init + 13 k IDB-Reads) wird nur dann
+  // angeschoben, wenn der aktive Build eine semantische Quelle nutzt. In
+  // den schlanken Varianten (prod/kurator/pl ohne Auslastung/DMS/Suche)
+  // bleibt der Substring-Pfad aktiv und warm — der Modell-Init ist dort
+  // funktional unnoetig und blockiert sonst den Mount-Pfad.
   useEffect(() => {
     if (!activeProgrammId) return;
     let cancelled = false;
@@ -318,6 +344,7 @@ export function useAntraegeHybridSearch(): void {
       try {
         await getProgrammCaches(storage.idb, activeProgrammId);
         if (cancelled) return;
+        if (!SEMANTIC_SOURCES_ENABLED) return;
         // Embedding-Modell + Korpus parallel im Hintergrund warmlaufen —
         // beide Fehler sind nicht kritisch (Suche faellt dann auf Substring
         // zurueck), darum nur warnen.

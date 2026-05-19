@@ -123,3 +123,52 @@ export function viewCount(
   }
   return n;
 }
+
+/**
+ * Single-Pass-Variante: berechnet die Counts fuer ALLE Views in einem Loop
+ * ueber die Antraege. Im Header laufen sonst 6 separate `viewCount`-Aufrufe
+ * mit jeweils einer Allokation pro Antrag (`new Date()` in `daysSinceEingang`,
+ * `Number(d.slice(0,4))` in `yearOfBewilligung`). Bei 13k Antraegen spart
+ * das ~78k Predicate-Calls auf ~13k mit gemeinsamen Zwischenwerten.
+ *
+ * Verhalten ist 1:1 aequivalent zu `VIEWS.map(v => viewCount(v.key, ...))` —
+ * jeder Eintrag im Ergebnis-Record entspricht dem gleichnamigen View-Predicate.
+ */
+export function viewCounts(
+  antraege: AntragListItem[],
+  bearbeiter?: BearbeiterFilterMode,
+  applyVbPhasePreFilter: boolean = true,
+): Record<ViewKey, number> {
+  const counts: Record<ViewKey, number> = {
+    meine_offenen: 0,
+    diese_woche_faellig: 0,
+    ueberfaellig: 0,
+    nachforderungen: 0,
+    bewilligt_jahr: 0,
+    alle: 0,
+  };
+  const currentYear = getCurrentYear();
+  for (const a of antraege) {
+    if (applyVbPhasePreFilter && isIrrlaeufer(a.vb_phase)) continue;
+    if (bearbeiter && !antragMatchesBearbeiter(a, bearbeiter)) continue;
+
+    counts.alle++;
+
+    const open = isOpenStatus(a.status);
+    if (open) counts.meine_offenen++;
+
+    if (open && !isBegleitungStatus(a.status)) {
+      const d = daysSinceEingang(a);
+      if (d !== null) {
+        if (d >= 84 && d <= 90) counts.diese_woche_faellig++;
+        if (d > 90) counts.ueberfaellig++;
+      }
+    }
+
+    if (isNachforderungStatus(a.status)) counts.nachforderungen++;
+    if (isBewilligtStatus(a.status) && yearOfBewilligung(a) === currentYear) {
+      counts.bewilligt_jahr++;
+    }
+  }
+  return counts;
+}
