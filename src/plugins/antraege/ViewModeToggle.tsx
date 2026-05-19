@@ -26,6 +26,11 @@ export function ViewModeToggle(): React.ReactElement {
     >
       {OPTIONS.map(({ mode, label, Icon }, idx) => {
         const isActive = mode === viewMode;
+        // Active-Stil: dezenter Soft-Grey-Background + 2px-Primary-Underline
+        // via box-shadow (kein Layout-Shift gegenüber inactive) + dickerer
+        // Icon-Stroke. Inaktiv bleibt transparent mit subtle Hover.
+        const baseShadow = idx === 0 ? 'none' : 'inset 0.5px 0 0 var(--tf-border)';
+        const activeShadow = `${baseShadow === 'none' ? '' : baseShadow + ', '}inset 0 -2px 0 var(--tf-primary)`;
         return (
           <button
             key={mode}
@@ -40,11 +45,11 @@ export function ViewModeToggle(): React.ReactElement {
                 : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-bg-secondary)]'
             }`}
             style={{
-              background: isActive ? 'var(--tf-primary-soft)' : 'transparent',
-              borderLeft: idx === 0 ? 'none' : '0.5px solid var(--tf-border)',
+              background: isActive ? 'var(--tf-bg-secondary)' : 'transparent',
+              boxShadow: isActive ? activeShadow : baseShadow,
             }}
           >
-            <Icon size={14} />
+            <Icon size={14} strokeWidth={isActive ? 2.25 : 1.75} />
           </button>
         );
       })}

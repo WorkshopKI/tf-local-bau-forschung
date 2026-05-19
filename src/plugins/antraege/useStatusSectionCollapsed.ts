@@ -17,7 +17,14 @@ const STORAGE_KEY = 'teamflow_antraege_status_collapsed';
 function loadCollapsed(): Set<StatusPhaseLabel> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return new Set();
+    if (raw === null) {
+      // Erst-Initialisierung: "Abgeschlossen" standardmäßig zugeklappt — die
+      // Sektion enthält bei typischer Datenmenge 100+ Anträge und ist für
+      // den aktiven Workflow selten relevant. Sobald der User sie aufklappt,
+      // wird sein Wille via saveCollapsed() persistiert und gewinnt beim
+      // nächsten Load.
+      return new Set<StatusPhaseLabel>(['Abgeschlossen']);
+    }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return new Set();
     return new Set(parsed.filter((v): v is StatusPhaseLabel => typeof v === 'string'));
