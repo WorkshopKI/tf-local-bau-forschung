@@ -255,7 +255,14 @@ export function AdminPanel(): React.ReactElement {
         </>}
       >
         <div className="flex flex-col gap-2">
-          <Input type="password" placeholder="Passwort" value={loginPw} onChange={e => setLoginPw(e.target.value)} autoFocus />
+          <Input
+            type="password"
+            placeholder="Passwort"
+            value={loginPw}
+            onChange={e => setLoginPw(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void onLogin(); } }}
+            autoFocus
+          />
           {loginError ? <div className="text-[12px] text-red-700">{loginError}</div> : null}
         </div>
       </Dialog>
