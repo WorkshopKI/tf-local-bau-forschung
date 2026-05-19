@@ -38,6 +38,7 @@ function AppProviders({
   showWelcome, setShowWelcome,
   showStartup, setShowStartup,
   needsDowngrade,
+  needsInitialPick,
   initialProfile,
   department,
   seedToast, setSeedToast,
@@ -52,6 +53,7 @@ function AppProviders({
   showStartup: boolean;
   setShowStartup: (v: boolean) => void;
   needsDowngrade: boolean;
+  needsInitialPick: boolean;
   initialProfile: UserProfile | null;
   department: UserProfile['department'];
   seedToast: string | null;
@@ -101,6 +103,7 @@ function AppProviders({
                 <StartupScreen
                   profile={profileValue.profile ?? initialProfile}
                   needsDowngrade={needsDowngrade}
+                  needsInitialPick={needsInitialPick}
                   onReady={() => setShowStartup(false)}
                 />
               ) : (
@@ -192,6 +195,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const [showWelcome, setShowWelcome] = useState(false);
   const [showStartup, setShowStartup] = useState(false);
   const [needsDowngrade, setNeedsDowngrade] = useState(false);
+  const [needsInitialPick, setNeedsInitialPick] = useState(false);
   const [initialProfile, setInitialProfile] = useState<UserProfile | null>(null);
   const [department, setDepartment] = useState<UserProfile['department']>('beide');
   const [seedToast, setSeedToast] = useState<string | null>(null);
@@ -202,25 +206,36 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   }, []);
 
   const refreshHandleGate = useCallback(async (profile: UserProfile | null): Promise<void> => {
-    // WelcomeScreen nur anzeigen, wenn die Variante dem User erlaubt, den Pfad selbst zu wählen.
-    // Demo-Variante (demoDataBundled=true, allowUserToChangePath=false) und Prod-Variante mit
-    // fixedDataSharePath skippen den Picker — die Daten kommen aus dem Bundle bzw. fixen Share.
-    if (!dataConfig.allowUserToChangePath) {
-      setShowWelcome(false);
-      setShowStartup(false);
-      return;
-    }
+    // v2.0.1: WelcomeScreen-Anzeige haengt an `allowUserToChangePath` (der Picker
+    // ist nur sichtbar wenn der User den Pfad aendern darf). StartupScreen ist
+    // davon entkoppelt — er fordert nur Permission fuer einen Handle an, der
+    // schon in IDB liegt, ODER triggert einen Initial-Pick wenn das IDB leer
+    // ist und der Daten-Share-Pfad fix vorgegeben wurde.
     const handle = await getDatenShareHandle(storage.idb);
+    const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
+
     if (!handle) {
-      setShowWelcome(true);
-      setShowStartup(false);
+      if (dataConfig.allowUserToChangePath) {
+        // User darf den Pfad waehlen → WelcomeScreen.
+        setShowWelcome(true);
+        setShowStartup(false);
+        setNeedsInitialPick(false);
+      } else {
+        // PL/Prod/Kurator-Variante mit fixedDataSharePath aber leerem IDB:
+        // StartupScreen mit Pfad-Hint + "Datenordner verbinden"-Button.
+        setShowWelcome(false);
+        setNeedsInitialPick(true);
+        setNeedsDowngrade(false);
+        setShowStartup(true);
+      }
       return;
     }
+
     setShowWelcome(false);
+    setNeedsInitialPick(false);
 
     // v2.0: StartupScreen anzeigen, damit Permissions in einem User-Gesture-
     // Handler aktualisiert werden koennen.
-    const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
     const downgradeFlag = await storage.idb.get<boolean>(NEEDS_HANDLE_DOWNGRADE_IDB_KEY);
     const liveDowngrade = downgradeFlag === true ? true : await needsDatenShareDowngrade(storage.idb, { isKurator });
     if (liveDowngrade) {
@@ -410,6 +425,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       showStartup={showStartup}
       setShowStartup={setShowStartup}
       needsDowngrade={needsDowngrade}
+      needsInitialPick={needsInitialPick}
       initialProfile={initialProfile}
       department={department}
       seedToast={seedToast}
