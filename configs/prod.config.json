@@ -3,7 +3,7 @@
   "variant": "production",
   "build": {
     "label": "TeamFlow Forschungsförderung",
-    "outputFilename": "teamflow-forschungsfoerderung",
+    "outputFilename": "teamflow-prod",
     "browserTabTitle": "TeamFlow Forschungsförderung"
   },
   "data": {

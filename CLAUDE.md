@@ -659,7 +659,7 @@ TeamFlow wird pro Einsatz-Kontext als eigene Variante gebaut. Configs liegen unt
 
 - `configs/dev.config.json` — Developer-Build, alle Features + OpenRouter aktiv
 - `configs/demo.config.json` — Showcase-Build, reduzierter Funktionsumfang, synthetische Daten
-- `configs/foerderprogramm.config.json` — Produktion Forschungsförderung, fester Daten-Share, OpenRouter **aus**
+- `configs/prod.config.json` — Produktion Forschungsförderung, fester Daten-Share, OpenRouter **aus**
 - `configs/_template.config.jsonc` — kommentierte Referenz (nicht direkt bauen)
 
 Build-Kommandos:
@@ -667,7 +667,7 @@ Build-Kommandos:
 ```bash
 npm run build:dev            # → dist-single/teamflow-dev.html
 npm run build:demo           # → dist-single/teamflow-demo.html
-npm run build:foerderprogramm   # → dist-single/teamflow-forschungsfoerderung.html
+npm run build:prod              # → dist-single/teamflow-prod.html
 npm run build:variant -- --config configs/<datei>.config.json   # beliebige Variante
 npm run config-ui            # HTML-Konfigurator auf http://localhost:5174
 ```

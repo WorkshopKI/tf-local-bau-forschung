@@ -14,7 +14,7 @@ import { DEFAULT_CONFIG, validateConfig, CONFIG_SCHEMA_VERSION } from './schema.
 const PRESET_PATHS = {
   dev: '/configs/dev.config.json',
   demo: '/configs/demo.config.json',
-  foerderprogramm: '/configs/foerderprogramm.config.json',
+  prod: '/configs/prod.config.json',
 };
 
 let currentConfig = structuredClone(DEFAULT_CONFIG);

@@ -1,7 +1,7 @@
 import { runtimeConfig } from '@/config/runtime-config';
 
 /** Aktiv in der development-Variante (build:dev) UND im vite dev server
- *  (variant 'custom' aus DEFAULT_CONFIG). In foerderprogramm/demo no-op —
+ *  (variant 'custom' aus DEFAULT_CONFIG). In prod/demo no-op —
  *  Marker werden vom Bundler nicht entfernt, sind aber praktisch kostenlos.
  *  Console mit `[tf-perf]` filtern, um die Zahlen zu sehen. */
 const ENABLED = runtimeConfig.variant === 'development' || runtimeConfig.variant === 'custom';

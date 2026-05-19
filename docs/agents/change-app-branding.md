@@ -8,7 +8,7 @@ Genau **eine** Variant-Config anfassen — die, deren Build umgebrandet werden s
 
 - `configs/dev.config.json` (gebaut via `npm run build:dev`)
 - `configs/demo.config.json` (gebaut via `npm run build:demo`)
-- `configs/foerderprogramm.config.json` (gebaut via `npm run build:foerderprogramm`)
+- `configs/prod.config.json` (gebaut via `npm run build:prod`)
 
 Im `build`-Block:
 
@@ -37,11 +37,11 @@ Im `build`-Block:
 
 ## Andere Varianten nicht mit-bauen
 
-`npm run build:demo` / `build:foerderprogramm` werden **nicht** routinemäßig nach Branding-Änderungen mitgebaut. Nur die geänderte Variant-Config bauen.
+`npm run build:demo` / `build:prod` werden **nicht** routinemäßig nach Branding-Änderungen mitgebaut. Nur die geänderte Variant-Config bauen.
 
 ## Verifikation
 
-1. `npm run build:dev` (bzw. `:demo` / `:foerderprogramm`) — fehlerfrei.
+1. `npm run build:dev` (bzw. `:demo` / `:prod`) — fehlerfrei.
 2. `dist-single/<outputFilename>.html` (bzw. `dist-single/<outputSubdir>/<outputFilename>.html`) existiert.
 3. Per Doppelklick in Chrome/Edge öffnen (`file://`):
    - Sidebar oben links zeigt `label` (groß) + `sidebarSubtitle` (klein darunter).

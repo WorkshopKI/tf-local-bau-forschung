@@ -52,4 +52,4 @@ npm run build:dev      # Single-File-Build erfolgreich
 
 Verifikation per Doppelklick auf die gebaute HTML unter `dist-single/` (z.B. `zah.html`, abhängig von `build.outputFilename` in der dev-Config) in Chrome/Edge — keine Console-Errors.
 
-`build:demo` und `build:foerderprogramm` **nicht** routinemäßig mit-bauen — nur bei strukturellen Änderungen an Variant-Configs. Siehe `CLAUDE.md` → Build-Varianten.
+`build:demo` und `build:prod` **nicht** routinemäßig mit-bauen — nur bei strukturellen Änderungen an Variant-Configs. Siehe `CLAUDE.md` → Build-Varianten.
