@@ -58,7 +58,7 @@ export function SyncStatusIndicator(): React.ReactElement {
     : status.pending > 0
       ? `${status.pending} ausstehend`
       : datenShareAvailable
-        ? 'Synchronisiert'
+        ? 'Verbunden'
         : `Offline${status.pending > 0 ? ` (${status.pending})` : ''}`;
 
   return (
@@ -75,6 +75,12 @@ export function SyncStatusIndicator(): React.ReactElement {
             <span className={`w-2 h-2 rounded-full ${dotColor}`} />
             <span className="text-[13px] text-[var(--tf-text)]">{label}</span>
           </div>
+
+          {datenShareAvailable && !status.syncing && status.pending === 0 && (
+            <p className="text-[12px] text-[var(--tf-text-tertiary)] leading-snug">
+              Datenordner ist erreichbar, Anträge sind aktuell.
+            </p>
+          )}
 
           {status.lastSync && (
             <p className="text-[12px] text-[var(--tf-text-tertiary)]">
