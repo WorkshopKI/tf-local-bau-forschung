@@ -1,20 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen } from 'lucide-react';
+import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen, Plug } from 'lucide-react';
 import { Button, Badge, SectionHeader, ListItem } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useProfile } from '@/core/hooks/useProfile';
 import type { DirectoryEntry } from '@/core/types/config';
 import { shouldShowOpfsOption } from '@/core/utils/environment';
 import { isKuratorMenusEnabled } from '@/config/feature-flags';
 import {
+  clearDatenShareHandle,
   clearPersoenlichHandle,
+  getDatenShareHandle,
   getPersoenlichHandle,
+  pickAndStoreDatenShareHandle,
   pickAndStorePersoenlichHandle,
+  refreshAllPermissions,
 } from '@/core/services/infrastructure/smb-handle';
 import { useConnectionState } from '@/core/services/connection-status';
 
 export function SpeicherTab(): React.ReactElement {
   const storage = useStorage();
+  const { profile } = useProfile();
   const setPersoenlichAvailable = useConnectionState(s => s.setPersoenlichAvailable);
+  const applyRefreshResult = useConnectionState(s => s.applyRefreshResult);
+  const dsConnected = useConnectionState(s => s.datenShareAvailable);
   const [directories, setDirectories] = useState<DirectoryEntry[]>(storage.getDirectories());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
@@ -25,13 +33,23 @@ export function SpeicherTab(): React.ReactElement {
   const [persFolderName, setPersFolderName] = useState<string | null>(null);
   const [persBusy, setPersBusy] = useState(false);
 
+  // Datenordner-Slot (separate vom DirectoryEntry-Storage)
+  const [dsHandleExists, setDsHandleExists] = useState(false);
+  const [dsFolderName, setDsFolderName] = useState<string | null>(null);
+  const [dsBusy, setDsBusy] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const h = await getPersoenlichHandle(storage.idb).catch(() => null);
+      const [pers, ds] = await Promise.all([
+        getPersoenlichHandle(storage.idb).catch(() => null),
+        getDatenShareHandle(storage.idb).catch(() => null),
+      ]);
       if (cancelled) return;
-      setPersConnected(!!h);
-      setPersFolderName(h?.name ?? null);
+      setPersConnected(!!pers);
+      setPersFolderName(pers?.name ?? null);
+      setDsHandleExists(!!ds);
+      setDsFolderName(ds?.name ?? null);
     })();
     return () => { cancelled = true; };
   }, [storage]);
@@ -60,6 +78,57 @@ export function SpeicherTab(): React.ReactElement {
     setPersConnected(false);
     setPersFolderName(null);
     setPersoenlichAvailable(false);
+  };
+
+  // Datenordner: Picker DIREKT (kein await davor — siehe OfflineBanner User-Gesture-Pattern).
+  const handlePickDatenShare = async (): Promise<void> => {
+    setError('');
+    const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
+    const mode = isKurator ? 'readwrite' : 'read';
+    const res = await pickAndStoreDatenShareHandle(storage.idb, { mode });
+    setDsBusy(true);
+    try {
+      if (!res.ok) {
+        if (res.reason !== 'aborted') {
+          setError(res.message ?? 'Datenordner konnte nicht verbunden werden.');
+        }
+        return;
+      }
+      setDsHandleExists(true);
+      setDsFolderName(res.handle.name);
+      const refreshed = await refreshAllPermissions(storage.idb, { isKurator });
+      applyRefreshResult(refreshed);
+    } finally {
+      setDsBusy(false);
+    }
+  };
+
+  const handleReconnectDatenShare = async (): Promise<void> => {
+    setError('');
+    setDsBusy(true);
+    try {
+      const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
+      const result = await refreshAllPermissions(storage.idb, { isKurator });
+      applyRefreshResult(result);
+    } finally {
+      setDsBusy(false);
+    }
+  };
+
+  const handleDisconnectDatenShare = async (): Promise<void> => {
+    if (!window.confirm('Datenordner trennen? Ohne verbundenen Datenordner laufen Anträge, Suche und Synchronisierung nicht. Die Auswahl muss anschließend neu getroffen werden.')) {
+      return;
+    }
+    await clearDatenShareHandle(storage.idb);
+    setDsHandleExists(false);
+    setDsFolderName(null);
+    const prev = useConnectionState.getState();
+    applyRefreshResult({
+      datenShare: 'missing',
+      persoenlich: prev.persoenlichAvailable ? 'granted' : 'missing',
+      userFoldersRoot: 'missing',
+      dmsSources: {},
+    });
   };
 
   const refresh = (): void => setDirectories(storage.getDirectories());
@@ -106,6 +175,57 @@ export function SpeicherTab(): React.ReactElement {
 
   return (
     <div className="space-y-6">
+      <SectionHeader label="Datenordner" />
+      <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
+        Geteilter Ordner auf dem Netzlaufwerk mit Anträgen, Suchindex und Sync-Stand.
+        {dsHandleExists && !dsConnected && ' Aktuell offline — Verbindung kann neu hergestellt werden.'}
+      </p>
+      <div className="flex items-center justify-between gap-3 mt-1">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Database size={16} className="text-[var(--tf-primary)] shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[13px] text-[var(--tf-text)] truncate">
+              {dsHandleExists ? (dsFolderName ?? 'Verbunden') : 'Noch nicht verbunden'}
+            </p>
+            {dsHandleExists && (
+              <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+                {dsConnected ? 'Online' : 'Offline'}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {dsHandleExists && !dsConnected && (
+            <Button
+              variant="secondary"
+              icon={Plug}
+              onClick={handleReconnectDatenShare}
+              disabled={dsBusy}
+            >
+              {dsBusy ? 'Verbinde...' : 'Verbindung herstellen'}
+            </Button>
+          )}
+          <Button
+            variant={dsHandleExists && !dsConnected ? 'ghost' : 'secondary'}
+            icon={FolderOpen}
+            onClick={handlePickDatenShare}
+            disabled={dsBusy}
+          >
+            {dsHandleExists ? (dsConnected ? 'Ändern' : 'Anderen Ordner wählen') : 'Verbinden'}
+          </Button>
+          {dsHandleExists && (
+            <button
+              onClick={handleDisconnectDatenShare}
+              className="p-1 text-[var(--tf-danger-text)] cursor-pointer"
+              title="Trennen"
+              disabled={dsBusy}
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+
       <SectionHeader label="Persönlicher Ordner" />
       <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
         Speichert Profil, Filter-Presets und Feedback-Outbox dort. Bleibt über
@@ -142,10 +262,14 @@ export function SpeicherTab(): React.ReactElement {
         </div>
       </div>
 
-      <SectionHeader label="Verbundene Verzeichnisse" />
+      {(directories.length > 0 || isKuratorMenusEnabled()) && (
+        <SectionHeader label="Verbundene Verzeichnisse" />
+      )}
 
       {directories.length === 0 ? (
-        <p className="text-[13px] text-[var(--tf-text-secondary)]">Keine Verzeichnisse verbunden</p>
+        isKuratorMenusEnabled() ? (
+          <p className="text-[13px] text-[var(--tf-text-secondary)]">Keine Verzeichnisse verbunden</p>
+        ) : null
       ) : (
         directories.map((dir, i) => (
           <ListItem key={dir.id}
