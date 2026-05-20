@@ -21,7 +21,7 @@
     "kuratorMenus": false,
     "feedback": false,
     "dokumentenscan": false,
-    "volltextsuche": false,
+    "volltextsuche": true,
     "devInfraPanel": false,
     "devFixtures": false,
     "antraege": true,

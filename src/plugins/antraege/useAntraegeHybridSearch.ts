@@ -37,21 +37,116 @@ import {
   cosineSimilarity,
 } from '@/plugins/auslastung/services/embed-wrapper';
 import { loadAllEmbeddings } from '@/plugins/auslastung/services/embedding-corpus';
+import {
+  loadManifest as loadMirrorManifest,
+  loadBin as loadMirrorBin,
+  parseCorpus as parseMirrorCorpus,
+  applyCorpusToIdb as applyMirrorCorpus,
+  checkCompat as checkMirrorCompat,
+} from '@/plugins/auslastung/services/embedding-corpus-mirror';
+import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
+import type { StorageService } from '@/core/services/storage';
 import { hybridSearch, getOramaDB } from '@/core/services/search/orama-store';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import { features } from '@/config/feature-flags';
 
 /**
- * True wenn der aktive Build mindestens eine semantische Quelle benoetigt
- * (Auslastungs-Embeddings, DMS-Index oder Volltextsuche). Im prod-Build ohne
- * diese Features waere `ensureEmbeddingReady` (lädt 300 MB ONNX-Modell im
- * Main-Thread, siehe CLAUDE.md Pitfall #8) eine Sekunden-Blockade ohne
- * Mehrwert — der Substring-Pfad bleibt aktiv und reicht in diesen Varianten.
+ * True wenn der aktive Build semantische Suche in der Antraege-Liste anbieten
+ * darf. `volltextsuche` ist der Master-Switch der Such-Pipeline (auch ohne
+ * Sidebar-Eintrag „Suche" sinnvoll — z.B. prod-User, die nur in der
+ * Antraege-Suche semantisch mitsuchen wollen). `auslastung`/`dokumentenscan`/
+ * `suche` impliziieren ihn ebenfalls, damit dev/pl/kurator/demo wie bisher
+ * laufen ohne Config-Anpassung.
+ *
+ * Im schlanken prod-Build OHNE eines dieser Flags wuerde `ensureEmbeddingReady`
+ * (laedt 300 MB ONNX-Modell im Main-Thread, siehe CLAUDE.md Pitfall #8) eine
+ * Sekunden-Blockade ohne Mehrwert ausloesen — der Substring-Pfad bleibt aktiv.
  */
 const SEMANTIC_SOURCES_ENABLED =
-  features.auslastung === true
+  features.volltextsuche === true
+  || features.auslastung === true
   || features.dokumentenscan === true
   || features.suche === true;
+
+/**
+ * Schedule a callback im naechsten Idle-Window. Fallback `setTimeout(0)` in
+ * Browsern ohne `requestIdleCallback` (Safari < 16.4). Wir benutzen das fuer
+ * den Modell-Init, damit der Mount-Render des Antraege-Plugins nicht durch
+ * den 300 MB ONNX-Load blockiert wird — der Init laeuft erst, wenn der
+ * Main-Thread mind. einmal idle war.
+ */
+function scheduleIdle(cb: () => void): () => void {
+  const w = window as Window & {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (typeof w.requestIdleCallback === 'function') {
+    const id = w.requestIdleCallback(cb, { timeout: 4000 });
+    return () => w.cancelIdleCallback?.(id);
+  }
+  const id = window.setTimeout(cb, 0);
+  return () => window.clearTimeout(id);
+}
+
+/**
+ * Modul-Singleton: stellt sicher, dass der Auto-Mirror-Bootstrap pro
+ * Session genau einmal versucht wird (selbst wenn der Antraege-Hook
+ * mehrfach remounted oder das Programm gewechselt wird). Eingehende
+ * Folgeaufrufe warten auf das gleiche Promise — keine konkurrenten
+ * IDB-Roundtrips/Share-Reads.
+ */
+let mirrorBootstrapPromise: Promise<void> | null = null;
+
+/**
+ * Best-Effort Auto-Download des Embedding-Korpus vom SMB-Daten-Share fuer
+ * schlanke Varianten ohne Auslastungs-Plugin (prod-User).
+ *
+ * Pfad:
+ *  1. Lokaler IDB-Cache schon befuellt? → nichts tun.
+ *  2. Manifest vom Share lesen (klein, ~ einige KB). Kein Manifest? → still raus.
+ *  3. Modell + Dim kompatibel mit dem lokal aktiven Modell? → sonst still raus.
+ *  4. Bin laden (~42 MB im LAN, akzeptabel), parsen, in IDB schreiben.
+ *
+ * Fehler werden ge-warned aber nicht propagiert — der Substring-Pfad bleibt
+ * funktional. Wird nur einmal pro Session versucht (Singleton-Promise).
+ */
+async function autoBootstrapEmbeddingMirror(storage: StorageService): Promise<void> {
+  if (mirrorBootstrapPromise) return mirrorBootstrapPromise;
+  mirrorBootstrapPromise = (async () => {
+    try {
+      const idb = storage.idb;
+      // (1) Schon ein lokaler Cache vorhanden — Auto-Mirror nicht noetig.
+      const existing = await loadAllEmbeddings(idb);
+      if (existing.size > 0) return;
+      // (2) Manifest vom Share lesen.
+      const manifest = await loadMirrorManifest(storage);
+      if (!manifest) return;
+      // (3) Kompat-Check gegen das aktiv konfigurierte Modell.
+      const modelId = await getActiveModelId(idb);
+      const cfg = getModelById(modelId);
+      const compat = checkMirrorCompat(manifest, cfg.id, cfg.dimensions);
+      if (compat.kind !== 'compatible') {
+        console.warn(
+          `[useAntraegeHybridSearch] embedding mirror inkompatibel mit aktivem Modell (${compat.kind}) — kein Auto-Download.`,
+        );
+        return;
+      }
+      // (4) Bin laden + in IDB schreiben. `applyMirrorCorpus` yieldet
+      // alle 100 Eintraege; bei ~13k Antraegen sind das ~130 micro-Pausen.
+      const bin = await loadMirrorBin(storage, manifest.binBytes);
+      if (!bin) return;
+      const map = parseMirrorCorpus(manifest, bin);
+      await applyMirrorCorpus(idb, map);
+    } catch (err) {
+      // Singleton-Fehlversuch: NICHT cachen, damit der naechste Page-Mount
+      // nochmal probieren darf (z.B. wenn der User in der Zwischenzeit
+      // Share-Zugriff erteilt hat).
+      mirrorBootstrapPromise = null;
+      throw err;
+    }
+  })();
+  return mirrorBootstrapPromise;
+}
 
 /** Schwelle fuer Embedding-Treffer (Cosine, L2-normalisiert -> [-1, 1]).
  *  0.55 ist empirisch gut: schliesst „Künstliche Intelligenz" -> „KI" /
@@ -325,41 +420,67 @@ export function useAntraegeHybridSearch(): void {
     prevProgrammRef.current = activeProgrammId;
   }, [activeProgrammId]);
 
-  // Eager Background-Preload: sobald die Antraege-Seite gemountet ist (und
-  // ein aktives Programm vorliegt), starten wir den teuren Initial-Load
-  // (Cursor-Walk ueber alle Antraege + 13 k Embedding-IDB-Reads + Modell-
-  // Init) im Hintergrund. Der erste Keystroke trifft dann auf warme Caches
-  // statt einen mehrere-Sekunden-Block auszuloesen. Idempotent: wenn die
-  // Caches schon stehen, returnen die `get*`-Helper sofort.
+  // Background-Preload in zwei Stufen:
   //
-  // Der **Embedding-Pfad** (Modell-Init + 13 k IDB-Reads) wird nur dann
-  // angeschoben, wenn der aktive Build eine semantische Quelle nutzt. In
-  // den schlanken Varianten (prod/kurator/pl ohne Auslastung/DMS/Suche)
-  // bleibt der Substring-Pfad aktiv und warm — der Modell-Init ist dort
-  // funktional unnoetig und blockiert sonst den Mount-Pfad.
+  // Stufe 1 (sofort, asynchron): `getProgrammCaches` — Cursor-Walk ueber die
+  // Antraege, baut den Substring-Korpus. Cheap (~36 KB Peak-Memory, kein
+  // Modell), kann ohne Schaden direkt nach Mount laufen — der erste
+  // Substring-Match braucht das warme Cache.
+  //
+  // Stufe 2 (im naechsten Idle-Window, nur wenn semantische Suche aktiv):
+  // Auto-Mirror-Download des Embedding-Korpus vom SMB-Daten-Share (best
+  // effort) + `ensureEmbeddingReady` (lädt 300 MB ONNX-Modell im Main-Thread)
+  // + `getEmbeddings`. Wir verschieben das via `requestIdleCallback`, damit
+  // der Mount-Render des Antraege-Plugins NICHT durch den Modell-Init
+  // blockiert wird ("Seite reagiert nicht" beim Oeffnen). User sieht
+  // sofort die Liste; semantische Treffer kommen, sobald das Modell warm ist.
+  //
+  // Schlanke Varianten (prod/kurator ohne Volltextsuche/Auslastung/DMS/Suche)
+  // ueberspringen Stufe 2 komplett — Substring-Pfad bleibt aktiv.
   useEffect(() => {
     if (!activeProgrammId) return;
     let cancelled = false;
+    let cancelIdle: (() => void) | null = null;
     void (async () => {
       try {
         await getProgrammCaches(storage.idb, activeProgrammId);
         if (cancelled) return;
         if (!SEMANTIC_SOURCES_ENABLED) return;
-        // Embedding-Modell + Korpus parallel im Hintergrund warmlaufen —
-        // beide Fehler sind nicht kritisch (Suche faellt dann auf Substring
-        // zurueck), darum nur warnen.
-        ensureEmbeddingReady(storage.idb).catch(err => {
-          console.warn('[useAntraegeHybridSearch] preload embedding model failed:', err);
-        });
-        getEmbeddings(storage.idb).catch(err => {
-          console.warn('[useAntraegeHybridSearch] preload embeddings failed:', err);
+
+        // Stufe 2: erst im Idle-Window — Mount darf nicht warten.
+        cancelIdle = scheduleIdle(() => {
+          if (cancelled) return;
+          // Modell-Init kann parallel zum Mirror-Bootstrap laufen — beide
+          // sind unabhaengig (Modell-Load vs. IDB-Schreibvorgang).
+          ensureEmbeddingReady(storage.idb).catch(err => {
+            console.warn('[useAntraegeHybridSearch] preload embedding model failed:', err);
+          });
+          // Korpus: erst Auto-Mirror-Download (best effort), DANN in den
+          // RAM-Cache via `getEmbeddings`. Sequenzielle Verkettung wichtig,
+          // sonst caced `getEmbeddings` die leere IDB-Map bevor der Download
+          // schreibt und der User sieht bis zum naechsten Programm-Switch
+          // keine semantischen Treffer.
+          void (async () => {
+            try {
+              await autoBootstrapEmbeddingMirror(storage);
+            } catch (err) {
+              console.warn('[useAntraegeHybridSearch] mirror bootstrap failed:', err);
+            }
+            if (cancelled) return;
+            getEmbeddings(storage.idb).catch(err => {
+              console.warn('[useAntraegeHybridSearch] preload embeddings failed:', err);
+            });
+          })();
         });
       } catch (err) {
         if (cancelled) return;
         console.warn('[useAntraegeHybridSearch] preload corpus failed:', err);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      cancelIdle?.();
+    };
   }, [activeProgrammId, storage]);
 
   useEffect(() => {
