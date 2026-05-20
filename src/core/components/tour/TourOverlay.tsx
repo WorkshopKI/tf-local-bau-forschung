@@ -90,7 +90,9 @@ export function TourOverlay({
           clearInterval(retryInterval);
           elevate(retryEl);
           measureAndShow(retryEl);
-          retryEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          const r = retryEl.getBoundingClientRect();
+          const b: ScrollLogicalPosition = r.height > window.innerHeight ? 'start' : 'nearest';
+          retryEl.scrollIntoView({ behavior: 'smooth', block: b });
           // Re-measure after scroll
           setTimeout(() => measureAndShow(retryEl), 400);
         } else if (attempts >= 3) {
@@ -104,7 +106,11 @@ export function TourOverlay({
     // Element available immediately
     elevate(el);
     measureAndShow(el);
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Wenn das Target hoeher ist als der Viewport (z.B. eine lange Liste),
+    // 'block: nearest' wuerde gar nicht scrollen — also den Anfang nach oben holen.
+    const rect = el.getBoundingClientRect();
+    const block: ScrollLogicalPosition = rect.height > window.innerHeight ? 'start' : 'nearest';
+    el.scrollIntoView({ behavior: 'smooth', block });
     const timer = setTimeout(() => measureAndShow(el), 400);
 
     const onResize = (): void => measureAndShow(el);
@@ -136,42 +142,51 @@ export function TourOverlay({
 
   const getTooltipStyle = (): React.CSSProperties => {
     const pos = step.position || 'bottom';
+    // Hoehe der Tooltip-Karte ist nicht vorab bekannt — konservative Schaetzung
+    // (Header + Titel + 2-3 Zeilen Description + Buttons + Progress-Dots).
+    // Wird nur zum Clampen verwendet, damit der Tooltip nie unter den
+    // Viewport-Rand rutscht.
+    const TOOLTIP_HEIGHT_ESTIMATE = 240;
     const base: React.CSSProperties = {
       position: 'fixed',
       zIndex: 110,
       maxWidth: 320,
       width: 320,
     };
+    const maxTop = window.innerHeight - TOOLTIP_HEIGHT_ESTIMATE - 8;
+    const clampTop = (t: number): number => Math.max(8, Math.min(t, maxTop));
+    const maxBottom = window.innerHeight - TOOLTIP_HEIGHT_ESTIMATE - 8;
+    const clampBottom = (b: number): number => Math.max(8, Math.min(b, maxBottom));
 
     switch (pos) {
       case 'bottom':
         return {
           ...base,
-          top: targetRect.top + targetRect.height + 12,
+          top: clampTop(targetRect.top + targetRect.height + 12),
           left: Math.max(8, Math.min(targetRect.left, window.innerWidth - 336)),
         };
       case 'top':
         return {
           ...base,
-          bottom: window.innerHeight - targetRect.top + 12,
+          bottom: clampBottom(window.innerHeight - targetRect.top + 12),
           left: Math.max(8, Math.min(targetRect.left, window.innerWidth - 336)),
         };
       case 'right':
         return {
           ...base,
-          top: Math.max(8, targetRect.top),
+          top: clampTop(targetRect.top),
           left: Math.min(targetRect.left + targetRect.width + 12, window.innerWidth - 336),
         };
       case 'left':
         return {
           ...base,
-          top: Math.max(8, targetRect.top),
+          top: clampTop(targetRect.top),
           right: Math.max(8, window.innerWidth - targetRect.left + 12),
         };
       default:
         return {
           ...base,
-          top: targetRect.top + targetRect.height + 12,
+          top: clampTop(targetRect.top + targetRect.height + 12),
           left: Math.max(8, targetRect.left),
         };
     }

@@ -165,9 +165,9 @@ export function HomePage(): React.ReactElement {
   }
 
   return (
-    <div data-tour="home-dashboard" className="px-8 pt-4 pb-6 max-w-5xl">
+    <div className="px-8 pt-4 pb-6 max-w-5xl">
       {/* Header */}
-      <div className="mb-6">
+      <div data-tour="home-dashboard" className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
         <p className="text-[13px] text-[var(--tf-text-secondary)]">
           {dept} · {data.stats.offen} offene Vorgänge · {data.fristenDieseWoche} Fristen diese Woche
