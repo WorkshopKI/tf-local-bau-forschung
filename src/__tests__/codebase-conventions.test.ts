@@ -139,6 +139,79 @@ describe('no-direct-status-compare (CLAUDE.md Pitfall #12)', () => {
   });
 });
 
+describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
+  // `onClick={() => void asyncFn()}` schluckt Promise-Rejections silent —
+  // try/finally ohne catch laesst Errors verschwinden. Pflicht fuer neuen
+  // Code: useAsyncAction-Hook nutzen.
+  //
+  // **File-Whitelist** statt Inline-Whitelist: ~30 bestehende Files nutzen
+  // das Pattern noch, opportunistische Migration laeuft. Hier whitelisten,
+  // bis sie migriert sind. Neue Files NICHT auf die Whitelist setzen.
+  const FILE_WHITELIST_LEGACY: ReadonlySet<string> = new Set([
+    // src/plugins/auslastung/ — Mai 2026 Plugin, Migration laeuft
+    'src/plugins/auslastung/views/admin/EmbeddingCorpusSection.tsx',
+    'src/plugins/auslastung/views/SelbsteintragungView.tsx',
+    'src/plugins/auslastung/views/admin/MitarbeiterSection.tsx',
+    'src/plugins/auslastung/views/admin/AktivVorschlagBanner.tsx',
+    'src/plugins/auslastung/components/OnboardingImportDialog.tsx',
+    'src/plugins/auslastung/components/ImportDialog.tsx',
+    'src/plugins/auslastung/components/PasswortDialog.tsx',
+    'src/plugins/auslastung/views/admin/KategorienSection.tsx',
+    'src/plugins/auslastung/views/admin/SetupWizard.tsx',
+    'src/plugins/auslastung/views/KlassifizierungsReview.tsx',
+    // src/plugins/csv-sources-kuration/ — Wizard, teilweise migriert
+    'src/plugins/csv-sources-kuration/wizard/Step1Metadata.tsx',
+    'src/plugins/csv-sources-kuration/wizard/CsvSourceWizard.tsx',
+    'src/plugins/csv-sources-kuration/CsvSourceReimportDialog.tsx',
+    // src/plugins/dev-infrastructure-test/ — Dev-only, Migration niedrige Prio
+    'src/plugins/dev-infrastructure-test/panels/AdminPanel.tsx',
+    'src/plugins/dev-infrastructure-test/panels/TriagePanel.tsx',
+    'src/plugins/dev-infrastructure-test/panels/SmbPanel.tsx',
+    'src/plugins/dev-infrastructure-test/panels/FixturesPanel.tsx',
+    'src/plugins/dev-infrastructure-test/panels/LockPanel.tsx',
+    'src/plugins/dev-infrastructure-test/panels/AtomicPanel.tsx',
+    // src/plugins/dev-state-inspector/ — Dev-only
+    'src/plugins/dev-state-inspector/StateInspectorPanel.tsx',
+    // src/plugins/dokumentenquellen-kuration/ — v1.15, Migration laeuft
+    'src/plugins/dokumentenquellen-kuration/components/SourceFormDialog.tsx',
+    'src/plugins/dokumentenquellen-kuration/sections/AktivierenIndexierenSection.tsx',
+    'src/plugins/dokumentenquellen-kuration/sections/VerwaltenSection.tsx',
+    'src/plugins/dokumentenquellen-kuration/components/SubRootsTreePicker.tsx',
+    // src/plugins/filter-kuration/, antraege/, einstellungen/ etc.
+    'src/plugins/filter-kuration/dialogs/FilterEditDialog.tsx',
+    'src/plugins/filter-kuration/sections/AdminCustomFilterList.tsx',
+    'src/plugins/antraege/filter/FilterSidebar.tsx',
+    'src/plugins/antraege/filter/SavePresetDialog.tsx',
+    'src/plugins/einstellungen/MeineTechnologienTab.tsx',
+    'src/plugins/programme-kuration/unterprogramme/UnterprogrammXlsxImportDialog.tsx',
+    'src/components/feedback/FeedbackChatbot.tsx',
+  ]);
+
+  const pattern = /onClick=\{\(\)\s*=>\s*void\s+/;
+
+  it('keine neuen `onClick={() => void asyncFn()}`-Pattern ausserhalb der Legacy-Whitelist', () => {
+    const newFindings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.endsWith('.tsx')) continue;
+      const rel = relPath(file);
+      if (FILE_WHITELIST_LEGACY.has(rel)) continue;
+      newFindings.push(...findInFile(file, l => pattern.test(l), 'allow-raw-async-onclick'));
+    }
+
+    if (newFindings.length > 0) {
+      const msg =
+        `Neuer 'onClick={() => void asyncFn()}'-Pattern in nicht-whitelisteter\n` +
+        `Datei (CLAUDE.md Pitfall #15). Pflicht: useAsyncAction-Hook aus\n` +
+        `src/core/hooks/useAsyncAction.ts nutzen — fängt Rejections + Doppelklick.\n` +
+        `Referenz: src/plugins/csv-sources-kuration/CsvSourcesPage.tsx,\n` +
+        `Cheatsheet: docs/agents/async-error-pattern.md.\n` +
+        `Wenn wirklich noetig: '// allow-raw-async-onclick: <grund>' inline.\n\n` +
+        `Treffer:\n${fmt(newFindings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
 describe('no-raw-worker (CLAUDE.md Pitfall #5)', () => {
   // `new Worker(...)` ohne Vite-`?worker&inline`-Import scheitert silent unter
   // file:// (kein Server, kein klassischer Worker-Loader). Standard-Pfad:
