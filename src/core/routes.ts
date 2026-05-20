@@ -1,37 +1,19 @@
 /**
- * Zentrale Routen-Map für alle Plugins.
+ * Zentrale Routen-Helper (HashRouter-kompatibel).
  *
- * HashRouter-kompatibel (Pfade ohne führendes `#`). URLs haben die Form
- * `teamflow.html#/kuration/unterprogramme` im Browser; `react-router-dom`
- * normalisiert das intern auf `/kuration/unterprogramme`.
+ * URLs haben die Form `teamflow.html#/kuration/unterprogramme` im Browser;
+ * `react-router-dom` normalisiert das intern auf `/kuration/unterprogramme`.
  *
- * Bei neuen Plugins: Hier registrieren, bevor die Route funktioniert.
+ * **Single Source of Truth**: `PLUGIN_ROUTES` wird in `src/plugins.config.ts`
+ * aus `allPlugins.map(p => [p.id, p.route])` generiert. Neue Plugins
+ * pflegen ihre Route direkt im Plugin-Index (`route: '/kuration/...'`),
+ * keine separate Map mehr hier.
  *
  * v1.9: Alte `/admin/*`-Routen wurden auf `/kuration/*` umgestellt.
  * Legacy-Redirects via `legacyRedirectTarget()` sichern bestehende
  * Bookmarks und Browser-History.
  */
-export const PLUGIN_ROUTES: Record<string, string> = {
-  home: '/',
-  antraege: '/antraege',
-  bauantraege: '/bauantraege',
-  dokumente: '/dokumente',
-  auslastung: '/auslastung',
-  suche: '/suche',
-  chat: '/chat',
-  'feedback-board': '/feedback-board',
-  einstellungen: '/einstellungen',
-  kurator: '/kuration/suchindex',
-  'programme-kuration': '/kuration/programme',
-  'csv-sources-kuration': '/kuration/csv-quellen',
-  'unterprogramme-kuration': '/kuration/unterprogramme',
-  'dokumentenquellen-kuration': '/kuration/dokumentenquellen',
-  'filter-kuration': '/kuration/filter',
-  'feedback-kuration': '/kuration/feedback',
-  'dokument-review': '/kuration/dokument-review',
-  'dev-infrastructure-test': '/dev-infrastructure-test',
-  'dev-state-inspector': '/dev-state-inspector',
-};
+import { PLUGIN_ROUTES } from '@/plugins.config';
 
 /** Kehrt die Map um (Route → Plugin-ID) für Lookups aus `pathname`. */
 const ROUTE_TO_PLUGIN: Array<{ route: string; pluginId: string }> =

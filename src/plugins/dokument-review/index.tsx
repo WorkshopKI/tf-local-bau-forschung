@@ -11,6 +11,8 @@ import { DokumentReviewPage } from './DokumentReviewPage';
 
 export const dokumentReviewPlugin: TeamFlowPlugin = {
   id: 'dokument-review',
+  route: '/kuration/dokument-review',
+  featureFlag: 'dokumentenscan',
   name: 'Dokument-Review',
   icon: 'ClipboardCheck',
   category: 'kuration',

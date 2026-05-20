@@ -10,6 +10,8 @@ import { AuslastungView } from './views/AuslastungView';
 
 export const auslastungPlugin: TeamFlowPlugin = {
   id: 'auslastung',
+  route: '/auslastung',
+  featureFlag: 'auslastung',
   name: 'Auslastung',
   icon: 'Users',
   category: 'workflow',

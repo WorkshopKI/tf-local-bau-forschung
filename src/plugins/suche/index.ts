@@ -3,6 +3,8 @@ import { SuchSeite } from './SuchSeite';
 
 export const suchePlugin: TeamFlowPlugin = {
   id: 'suche',
+  route: '/suche',
+  featureFlag: 'suche',
   name: 'Suche',
   icon: 'Search',
   category: 'tools',

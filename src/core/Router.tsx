@@ -14,6 +14,7 @@ import { ShellLayout } from '@/core/ShellLayout';
 import { NavigationContext } from '@/core/hooks/useNavigation';
 import type { NavigationParams } from '@/core/hooks/useNavigation';
 import { legacyRedirectTarget, pluginIdToRoute, routeToPluginId } from '@/core/routes';
+import { FLAT_ROUTE_PLUGIN_IDS } from '@/plugins.config';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 
@@ -101,26 +102,11 @@ export function buildRouter(
   const home = byId.get('home');
   if (home) children.push({ index: true, element: <home.component /> });
 
-  // Einfache Plugins ohne Detail-Routen
-  const flatIds = [
-    'dokumente',
-    'auslastung',
-    'suche',
-    'chat',
-    'feedback-board',
-    'einstellungen',
-    'kurator',
-    'programme-kuration',
-    'csv-sources-kuration',
-    'unterprogramme-kuration',
-    'dokumentenquellen-kuration',
-    'filter-kuration',
-    'feedback-kuration',
-    'dokument-review',
-    'dev-infrastructure-test',
-    'dev-state-inspector',
-  ];
-  for (const id of flatIds) {
+  // Einfache Plugins ohne Detail-Routen — die Liste wird aus den Plugin-
+  // Definitionen abgeleitet (`src/plugins.config.ts: FLAT_ROUTE_PLUGIN_IDS`),
+  // Plugins mit Custom-Route-Handlern (home, bauantraege, antraege) sind dort
+  // ausgenommen und werden unten explizit registriert.
+  for (const id of FLAT_ROUTE_PLUGIN_IDS) {
     const plugin = byId.get(id);
     if (!plugin) continue;
     const Component = plugin.component;

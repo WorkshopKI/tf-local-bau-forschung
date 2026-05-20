@@ -3,6 +3,7 @@ import { EinstellungenPage } from './EinstellungenPage';
 
 export const einstellungenPlugin: TeamFlowPlugin = {
   id: 'einstellungen',
+  route: '/einstellungen',
   name: 'Einstellungen',
   icon: 'Settings',
   category: 'tools',

@@ -16,6 +16,8 @@ import { DokumentenquellenPage } from './DokumentenquellenPage';
 
 export const dokumentenquellenKurationPlugin: TeamFlowPlugin = {
   id: 'dokumentenquellen-kuration',
+  route: '/kuration/dokumentenquellen',
+  featureFlag: 'dokumentenscan',
   name: 'Dokumentenquellen',
   icon: 'FolderTree',
   category: 'kuration',

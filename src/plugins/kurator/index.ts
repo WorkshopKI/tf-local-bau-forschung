@@ -3,6 +3,8 @@ import { IndexManager } from './IndexManager';
 
 export const adminPlugin: TeamFlowPlugin = {
   id: 'kurator',
+  route: '/kuration/suchindex',
+  featureFlag: 'volltextsuche',
   name: 'Suchindex',
   icon: 'Search',
   category: 'kuration',

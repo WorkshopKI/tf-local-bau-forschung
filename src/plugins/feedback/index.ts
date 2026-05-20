@@ -3,6 +3,8 @@ import { FeedbackAdminPage } from './FeedbackAdminPage';
 
 export const feedbackAdminPlugin: TeamFlowPlugin = {
   id: 'feedback-kuration',
+  route: '/kuration/feedback',
+  featureFlag: 'feedback',
   name: 'Feedback',
   icon: 'MessageSquare',
   category: 'kuration',

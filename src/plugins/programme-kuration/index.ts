@@ -3,6 +3,7 @@ import { ProgrammeAdminPage } from './ProgrammeAdminPage';
 
 export const programmeAdminPlugin: TeamFlowPlugin = {
   id: 'programme-kuration',
+  route: '/kuration/programme',
   name: 'Programme',
   icon: 'FolderCog',
   category: 'kuration',

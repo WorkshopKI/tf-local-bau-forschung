@@ -23,6 +23,8 @@ function DokumentePage(): React.ReactElement {
 
 export const dokumentePlugin: TeamFlowPlugin = {
   id: 'dokumente',
+  route: '/dokumente',
+  featureFlag: 'dokumente',
   name: 'Dokumente',
   icon: 'FileText',
   category: 'tools',
