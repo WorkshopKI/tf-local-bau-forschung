@@ -43,7 +43,7 @@ export async function saveCsvSourceFile(idb: IDBStore, schemaId: string, blob: B
   try {
     const programm = await getProgrammHandle(parent);
     const path = `${CSV_SOURCES_SUBDIR}/${schemaId}.csv`;
-    await atomicWrite(programm, path, blob);
+    await atomicWrite(programm, path, blob, { skipBackup: true });
   } catch {
     /* best-effort */
   }

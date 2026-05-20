@@ -128,6 +128,9 @@ export async function atomicWrite(
   if (targetExists && !opts.skipBackup) {
     await removeIfExists(dir, backupName);
     await rename(dir, filename, backupName);
+  } else if (opts.skipBackup) {
+    // Selbstheilung: stale .backup aus frueheren Writes ohne skipBackup wegraeumen.
+    await removeIfExists(dir, backupName);
   }
 
   // Tmp schreiben

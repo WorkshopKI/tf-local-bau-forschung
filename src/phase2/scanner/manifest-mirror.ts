@@ -28,7 +28,7 @@ export async function mirrorManifestToShare(
   const jsonl = entries.length === 0
     ? ''
     : entries.map(e => JSON.stringify(e)).join('\n') + '\n';
-  await atomicWrite(datenShare, SCAN_MANIFEST_PATH, jsonl);
+  await atomicWrite(datenShare, SCAN_MANIFEST_PATH, jsonl, { skipBackup: true });
   return {
     entries: entries.length,
     bytes: jsonl.length,

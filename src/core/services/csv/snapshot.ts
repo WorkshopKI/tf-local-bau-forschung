@@ -100,7 +100,7 @@ export async function writeProgrammSnapshot(
   const written: SnapshotStoreName[] = [];
   try {
     for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
-      await atomicWrite(programmDir, SNAPSHOT_FILES[key], data[key].jsonl);
+      await atomicWrite(programmDir, SNAPSHOT_FILES[key], data[key].jsonl, { skipBackup: true });
       written.push(key);
     }
   } catch (writeErr) {
@@ -123,7 +123,7 @@ export async function writeProgrammSnapshot(
     createdBy,
     stores,
   };
-  await atomicWrite(programmDir, 'manifest.json', JSON.stringify(manifest, null, 2));
+  await atomicWrite(programmDir, 'manifest.json', JSON.stringify(manifest, null, 2), { skipBackup: true });
 
   return { snapshotVersion, manifest };
 }
