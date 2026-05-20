@@ -30,6 +30,7 @@ import { runtimeConfig } from '@/config/runtime-config';
 import { isDemoDataBundled, dataConfig } from '@/config/feature-flags';
 import { seedTestData } from '@/core/services/seed/seed-data';
 import { useConnectionState } from '@/core/services/connection-status';
+import { useVisibilityPermissionProbe } from '@/core/hooks/useVisibilityPermissionProbe';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
 function AppProviders({
@@ -204,6 +205,12 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   useEffect(() => {
     document.title = runtimeConfig.build.browserTabTitle;
   }, []);
+
+  // Tab-Wakeup-Permission-Probe: bei sichtbarem Tab queryPermission auf die
+  // Handles, useConnectionState updaten. Nur queryPermission (kein User-Gesture).
+  // Wenn Permission entzogen → mode='offline' → OfflineBanner wird sichtbar.
+  const probeIsKurator = initialProfile?.is_kurator === true || initialProfile?.is_admin === true;
+  useVisibilityPermissionProbe(ready ? storage.idb : null, probeIsKurator);
 
   const refreshHandleGate = useCallback(async (profile: UserProfile | null): Promise<void> => {
     // v2.0.1: WelcomeScreen-Anzeige haengt an `allowUserToChangePath` (der Picker

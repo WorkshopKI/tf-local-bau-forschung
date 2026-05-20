@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen, Plug } from 'lucide-react';
+import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen, RefreshCw } from 'lucide-react';
 import { Button, Badge, SectionHeader, ListItem } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -23,6 +23,7 @@ export function SpeicherTab(): React.ReactElement {
   const setPersoenlichAvailable = useConnectionState(s => s.setPersoenlichAvailable);
   const applyRefreshResult = useConnectionState(s => s.applyRefreshResult);
   const dsConnected = useConnectionState(s => s.datenShareAvailable);
+  const persoenlichAvailable = useConnectionState(s => s.persoenlichAvailable);
   const [directories, setDirectories] = useState<DirectoryEntry[]>(storage.getDirectories());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
@@ -195,24 +196,25 @@ export function SpeicherTab(): React.ReactElement {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {dsHandleExists && !dsConnected && (
+          {dsHandleExists ? (
             <Button
               variant="secondary"
-              icon={Plug}
+              icon={RefreshCw}
               onClick={handleReconnectDatenShare}
               disabled={dsBusy}
             >
-              {dsBusy ? 'Verbinde...' : 'Verbindung herstellen'}
+              {dsBusy ? 'Aktualisiere...' : 'Aktualisieren'}
+            </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              icon={FolderOpen}
+              onClick={handlePickDatenShare}
+              disabled={dsBusy}
+            >
+              Verbinden
             </Button>
           )}
-          <Button
-            variant={dsHandleExists && !dsConnected ? 'ghost' : 'secondary'}
-            icon={FolderOpen}
-            onClick={handlePickDatenShare}
-            disabled={dsBusy}
-          >
-            {dsHandleExists ? (dsConnected ? 'Ändern' : 'Anderen Ordner wählen') : 'Verbinden'}
-          </Button>
           {dsHandleExists && (
             <button
               onClick={handleDisconnectDatenShare}
@@ -238,6 +240,11 @@ export function SpeicherTab(): React.ReactElement {
             <p className="text-[13px] text-[var(--tf-text)] truncate">
               {persConnected ? (persFolderName ?? 'Verbunden') : 'Noch nicht verbunden'}
             </p>
+            {persConnected && (
+              <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+                {persoenlichAvailable ? 'Online' : 'Offline'}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
