@@ -4,7 +4,13 @@
  * Build-Datum.
  */
 
-import { runtimeConfig, buildTime, gitHash, appVersion } from '@/config/runtime-config';
+import { runtimeConfig, buildTime, appVersion } from '@/config/runtime-config';
+
+const VARIANT_LABEL: Record<string, string> = {
+  production: 'Standard',
+  development: 'Entwicklung',
+  demo: 'Demo',
+};
 
 export function BuildInfo(): React.ReactElement {
   const dateStr = (() => {
@@ -16,15 +22,15 @@ export function BuildInfo(): React.ReactElement {
   })();
 
   const shortVersion = appVersion.split('.').slice(0, 2).join('.');
+  const variantLabel = VARIANT_LABEL[runtimeConfig.variant] ?? runtimeConfig.variant;
   const tooltip = [
     `App-Version: v${appVersion}`,
-    `Variante: ${runtimeConfig.variant}`,
+    `Variante: ${variantLabel}`,
     `Build vom: ${dateStr}`,
-    `Git-Hash: ${gitHash}`,
   ].join('\n');
   return (
     <span
-      className="text-[10.5px] text-[var(--tf-text-tertiary)] select-none shrink-0 px-1"
+      className="inline-flex items-center text-[10.5px] text-[var(--tf-text-tertiary)] select-none shrink-0 px-2 py-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] cursor-default"
       title={tooltip}
     >
       v{shortVersion}
