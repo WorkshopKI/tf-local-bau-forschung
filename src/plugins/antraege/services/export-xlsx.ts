@@ -26,6 +26,21 @@ function buildFilename(now: Date = new Date()): string {
   return `antraege-export-${ts}.xlsx`;
 }
 
+/** Extrahiert die 4-stellige Jahreszahl aus einem Datums-String. Funktioniert
+ *  fuer ISO (`2024-03-15`), DE (`15.03.2024`) und gemischte Formate — wir
+ *  nehmen die erste 4-stellige Sequenz innerhalb plausibler Bandbreite.
+ *  Rueckgabe als `number`, damit Excel die Spalte als Zahl filtert/sortiert
+ *  (nicht als Text wie z.B. "2024" vs "2024 ").
+ *  Leeres `''` wenn kein Jahr extrahierbar — Excel zeigt dann leere Zelle. */
+function extractYear(dateStr: string | undefined): number | '' {
+  if (!dateStr) return '';
+  const m = dateStr.match(/(\d{4})/);
+  if (!m) return '';
+  const y = Number(m[1]);
+  if (y < 1990 || y > 2100) return '';
+  return y;
+}
+
 /**
  * VB-Titel-Lookup mit drei Quellen in Prioritaets-Reihenfolge:
  *
@@ -65,21 +80,27 @@ export async function exportFilteredAntraegeXlsx(
   // damit auch unmapped CSV-Spalten gefunden werden.
   const textMap = await loadAntraegeTextCorpus(idb, programmId, { includeEmpty: true });
 
-  const aoa: string[][] = [
-    ['Förderkennzeichen', 'Antragsdatum', 'VB Titel', 'Kurzbeschreibung'],
+  const aoa: (string | number)[][] = [
+    ['Förderkennzeichen', 'Antragsdatum', 'Jahr', 'VB Titel', 'Kurzbeschreibung'],
     ...filtered.map(a => {
       const t = textMap.get(a.aktenzeichen);
       const vbTitel = resolveVbTitel(a, t?.vb ?? '', verbundById);
-      return [a.aktenzeichen, a.antragsdatum ?? '', vbTitel, t?.abstract ?? ''];
+      return [
+        a.aktenzeichen,
+        a.antragsdatum ?? '',
+        extractYear(a.antragsdatum),
+        vbTitel,
+        t?.abstract ?? '',
+      ];
     }),
   ];
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  // Spaltenbreiten: FKZ kompakt, Datum schmal, VB Titel mittel,
-  // Kurzbeschreibung breit (wird in Excel meist umgebrochen — wch ist nur
-  // ein Default).
-  ws['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 50 }, { wch: 80 }];
+  // Spaltenbreiten: FKZ kompakt, Datum schmal, Jahr sehr schmal,
+  // VB Titel mittel, Kurzbeschreibung breit (wird in Excel meist
+  // umgebrochen — wch ist nur ein Default).
+  ws['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 50 }, { wch: 80 }];
   XLSX.utils.book_append_sheet(wb, ws, 'Anträge');
 
   const filename = buildFilename();
