@@ -1,3 +1,5 @@
+import { features } from '@/config/feature-flags';
+
 /** Definition eines einzelnen Tour-Schritts */
 export interface TourStep {
   /** Selektor: `data-tour="..."` Attribut auf dem Ziel-Element */
@@ -10,10 +12,12 @@ export interface TourStep {
   position?: 'top' | 'bottom' | 'left' | 'right';
   /** Plugin-ID zu der vor Anzeige navigiert werden soll (Cross-Page-Tour) */
   navigateTo?: string;
+  /** Wenn gesetzt: Step nur anzeigen, wenn dieses Feature im Build aktiv ist. */
+  requiresFeature?: keyof typeof features;
 }
 
-/** Die 5 Tour-Schritte fuer das TeamFlow-Onboarding */
-export const TOUR_STEPS: TourStep[] = [
+/** Vollstaendiger Step-Katalog. Wird beim Modul-Load gegen `features` gefiltert. */
+const ALL_STEPS: TourStep[] = [
   {
     target: 'home-dashboard',
     title: 'Willkommen bei TeamFlow',
@@ -26,7 +30,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: 'nav-sidebar',
     title: 'Navigation',
     description:
-      'Wechsle zwischen Bauantraegen, Forschungsantraegen, Dokumenten und dem KI-Chat. Unter Admin findest du Einstellungen und den Suchindex.',
+      'Hier wechselst du zwischen den Bereichen der App. Unten siehst du den Verbindungs-Status zum Daten-Share und kannst diese Tour jederzeit neu starten.',
     position: 'right',
   },
   {
@@ -36,20 +40,19 @@ export const TOUR_STEPS: TourStep[] = [
       'Durchsuche alle indexierten Dokumente per Stichwort oder natuerlichsprachiger Frage. Die Suche kombiniert Volltextsuche mit KI-gestuetzter Aehnlichkeitssuche.',
     position: 'bottom',
     navigateTo: 'suche',
+    requiresFeature: 'suche',
   },
   {
     target: 'document-list',
     title: 'Vorgaenge & Dokumente',
     description:
-      'Klicke einen Vorgang an, um Details und automatisch extrahierte Metadaten zu sehen — Aktenzeichen, Fristen, Antragsteller und mehr.',
+      'Klicke auf einen Antrag, um Details und automatisch extrahierte Metadaten zu sehen — Aktenzeichen, Fristen, Antragsteller und mehr.',
     position: 'bottom',
     navigateTo: 'home',
   },
-  {
-    target: 'suchindex-status',
-    title: 'Suchindex',
-    description:
-      'Zeigt an, wie viele Dokumente indexiert sind. Den Index aktualisierst du ueber das Skript "Dokumentenindex-aktualisieren" auf dem Netzlaufwerk.',
-    position: 'left',
-  },
 ];
+
+/** Die aktiven Tour-Schritte fuer die jeweilige Build-Variante. */
+export const TOUR_STEPS: TourStep[] = ALL_STEPS.filter(
+  step => !step.requiresFeature || features[step.requiresFeature] === true,
+);

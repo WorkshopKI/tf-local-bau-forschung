@@ -7,6 +7,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useTourContext } from '@/core/hooks/useTour';
+import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -88,6 +89,7 @@ export function HomePage(): React.ReactElement {
   useEffect(() => {
     if (tourHasCompleted || tourIsActive) return;
     if (data.stats.total === 0) return;
+    if (TOUR_STEPS.length === 0) return;
     const timer = setTimeout(() => tourStart(), 800);
     return () => clearTimeout(timer);
   }, [tourHasCompleted, tourIsActive, tourStart, data.stats.total]);
