@@ -21,6 +21,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from '../store';
 import { useFilterState } from './useFilterState';
@@ -159,14 +160,15 @@ function ExtraSortSelect({
         size="sm"
         aria-label="Weitere Sortierung"
         title={title}
-        className={`h-8 w-8 p-0 gap-0 justify-center ${
+        className={`h-8 gap-1 ${
           active
-            ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
-            : 'bg-[var(--tf-bg)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-        } focus-visible:ring-0 focus-visible:border-transparent shadow-none [&_svg.lucide-chevron-down]:hidden`}
+            ? 'px-2 bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
+            : 'w-8 p-0 gap-0 justify-center bg-[var(--tf-bg)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+        } focus-visible:ring-0 focus-visible:border-transparent shadow-none [&_svg.lucide-chevron-down]:hidden text-[12px]`}
         style={{ border: '0.5px solid var(--tf-border)', borderRadius: '8px' }}
       >
         <ArrowDownUp size={13} />
+        {active ? <SelectValue /> : null}
       </SelectTrigger>
       <SelectContent align="start">
         {EXTRA_SORT_OPTIONS.map(opt => (
