@@ -33,6 +33,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
   const { filtered, bearbeiterFilter } = useFilteredAntraege();
+  const verbundById = useAntraegeStore(s => s.verbundById);
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const [exportBusy, setExportBusy] = useState(false);
@@ -42,7 +43,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
     if (!activeProgrammId) return;
     setExportBusy(true);
     try {
-      await exportFilteredAntraegeXlsx(filtered, storage.idb, activeProgrammId);
+      await exportFilteredAntraegeXlsx(filtered, storage.idb, activeProgrammId, verbundById);
     } catch (err) {
       console.warn('[antraege-export] failed:', err);
     } finally {

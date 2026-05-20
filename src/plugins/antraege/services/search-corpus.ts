@@ -20,11 +20,11 @@ import type { Antrag } from '@/core/services/csv/types';
 import { listManifestEntries } from '@/phase2/scanner/manifest-store';
 
 export interface AntragTextEntry {
-  /** Verbund-Titel (CSV-Spalte `verbund_titel`, fuer Master-Records). */
+  /** Verbund-Titel. */
   vb: string;
   /** Teilvorhaben-Titel (CSV-Spalte `titel`). */
   tv: string;
-  /** Kurzbeschreibung / Abstract (CSV-Spalte `projektbeschreibung_text`). */
+  /** Kurzbeschreibung / Abstract / VB-Inhalt. */
   abstract: string;
   /** Pre-computed lowercase. Einmal beim Load berechnen, dann per Keystroke
    *  nur `.includes(q)` ohne neue String-Allokation. Wichtig fuer 13k-Korpora,
@@ -32,6 +32,32 @@ export interface AntragTextEntry {
   vbLower: string;
   tvLower: string;
   absLower: string;
+}
+
+/**
+ * Feld-Name-Kandidaten je Spalte. Der CSV-Merger
+ * ([helpers.ts](src/core/services/csv/merger/helpers.ts)) speichert ein
+ * Feld unter `entry.canonical ?? entry.custom ?? col.toLowerCase()` — wenn
+ * der Kurator beim CSV-Wizard KEIN explizites canonical/custom-Mapping
+ * setzt, landet die Foyer-Spalte `VB_TITEL` als `vb_titel` im Antrag-Record
+ * (nicht als canonical `verbund_titel`). Wir probieren beide Wege durch,
+ * damit die Suche/der Export robust gegenueber der Wizard-Konfiguration ist.
+ */
+const VB_TITEL_CANDIDATES = ['verbund_titel', 'vb_titel'];
+const ABSTRACT_CANDIDATES = [
+  'projektbeschreibung_text',
+  'vb_inhalt',
+  'kurzbeschreibung',
+  'beschreibung',
+  'inhalt',
+];
+
+function pickString(record: Record<string, unknown>, candidates: readonly string[]): string {
+  for (const k of candidates) {
+    const v = record[k];
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return '';
 }
 
 export interface LoadCorpusOptions {
@@ -74,9 +100,10 @@ export async function loadAntraegeTextCorpus(
       const cursor = req.result;
       if (!cursor) { resolve(); return; }
       const a = cursor.value as Antrag;
-      const vb = typeof a.verbund_titel === 'string' ? a.verbund_titel : '';
+      const rec = a as unknown as Record<string, unknown>;
+      const vb = pickString(rec, VB_TITEL_CANDIDATES);
       const tv = typeof a.titel === 'string' ? a.titel : '';
-      const ab = typeof a.projektbeschreibung_text === 'string' ? a.projektbeschreibung_text : '';
+      const ab = pickString(rec, ABSTRACT_CANDIDATES);
       if (includeEmpty || vb.length > 0 || tv.length > 0 || ab.length > 0) {
         result.set(a.aktenzeichen, {
           vb,
