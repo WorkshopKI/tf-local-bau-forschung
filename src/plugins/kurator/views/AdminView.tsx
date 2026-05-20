@@ -6,6 +6,7 @@ import { ActionCardQuality } from '../actions/ActionCardQuality';
 import { ActionCardDocuments } from '../actions/ActionCardDocuments';
 import { ActionCardModels } from '../actions/ActionCardModels';
 import { ConfigSection } from '../sections/ConfigSection';
+import { EmbeddingCorpusStatusCard } from '../sections/EmbeddingCorpusStatusCard';
 import { EvalSection } from '../eval/EvalSection';
 import { MetadataSmokeTest } from '../MetadataSmokeTest';
 
@@ -82,6 +83,12 @@ export function AdminView({
 
       {/* Dokumenten-Triage (Phase 2) ist seit v1.15 ins eigene Plugin
           „Dokumentenquellen" gewandert (Multi-Source-Indexierung). */}
+
+      {/* ── EMBEDDING-KORPUS (read-only Status) ── */}
+      {/* Build/Sync/Stage-2-Aktivierung lebt im Auslastungs-Plugin, weil
+          es dort eng mit Centroid-Berechnung verflochten ist. Hier nur
+          Sichtbarkeit fuer Kurator-User, dass der Korpus existiert. */}
+      <EmbeddingCorpusStatusCard />
 
       {/* ── ERGEBNISSE (conditional) ── */}
       {resultPanel === 'eval' && (
