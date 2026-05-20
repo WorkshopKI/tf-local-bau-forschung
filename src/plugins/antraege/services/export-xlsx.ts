@@ -66,19 +66,20 @@ export async function exportFilteredAntraegeXlsx(
   const textMap = await loadAntraegeTextCorpus(idb, programmId, { includeEmpty: true });
 
   const aoa: string[][] = [
-    ['Förderkennzeichen', 'VB Titel', 'Kurzbeschreibung', 'Antragsdatum'],
+    ['Förderkennzeichen', 'Antragsdatum', 'VB Titel', 'Kurzbeschreibung'],
     ...filtered.map(a => {
       const t = textMap.get(a.aktenzeichen);
       const vbTitel = resolveVbTitel(a, t?.vb ?? '', verbundById);
-      return [a.aktenzeichen, vbTitel, t?.abstract ?? '', a.antragsdatum ?? ''];
+      return [a.aktenzeichen, a.antragsdatum ?? '', vbTitel, t?.abstract ?? ''];
     }),
   ];
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  // Spaltenbreiten: FKZ kompakt, VB Titel mittel, Kurzbeschreibung breit
-  // (wird in Excel meist umgebrochen — wch ist nur ein Default), Datum schmal.
-  ws['!cols'] = [{ wch: 16 }, { wch: 50 }, { wch: 80 }, { wch: 12 }];
+  // Spaltenbreiten: FKZ kompakt, Datum schmal, VB Titel mittel,
+  // Kurzbeschreibung breit (wird in Excel meist umgebrochen — wch ist nur
+  // ein Default).
+  ws['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 50 }, { wch: 80 }];
   XLSX.utils.book_append_sheet(wb, ws, 'Anträge');
 
   const filename = buildFilename();
