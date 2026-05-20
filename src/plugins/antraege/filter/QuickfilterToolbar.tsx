@@ -168,7 +168,11 @@ function ExtraSortSelect({
         style={{ border: '0.5px solid var(--tf-border)', borderRadius: '8px' }}
       >
         <ArrowDownUp size={13} />
-        {active ? <SelectValue /> : null}
+        {/* SelectValue MUSS strukturell drin sein — Radix's Trigger nutzt es als
+            Click-Anchor; conditional rendering hat den Klick komplett blockiert.
+            Im inactive-State (value=undefined) rendert es nichts und nimmt keinen
+            Platz ein, also kein visuelles Problem. */}
+        <SelectValue />
       </SelectTrigger>
       <SelectContent align="start">
         {EXTRA_SORT_OPTIONS.map(opt => (
