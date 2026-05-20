@@ -4,7 +4,7 @@ import {
   computeAlpha,
   computeVerbrauchByAnon,
 } from '../services/matching-engine';
-import { buildAnonymMap } from '../services/anonym-map';
+import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter, AuslastungConfig, Zuweisung } from '../types';
 import { DEFAULT_AUSLASTUNG_CONFIG } from '../types';
@@ -91,7 +91,7 @@ describe('runMatching', () => {
       mitarbeiter: { MA01: m1, MA02: m2 },
       zuweisungen: [],
       historischeDeskriptorenByAnon: new Map(),
-      anonymMap: buildAnonymMap([]),
+      anonymMap: buildAnonymMapForTests([]),
     });
     expect(res.every(r => r.anonId === 'MA01')).toBe(true);
   });
@@ -109,7 +109,7 @@ describe('runMatching', () => {
       mitarbeiter: { MA01: m1, MA02: m2 },
       zuweisungen,
       historischeDeskriptorenByAnon: new Map(),
-      anonymMap: buildAnonymMap([]),
+      anonymMap: buildAnonymMapForTests([]),
     });
     // MA01 hat noch 5h frei, braucht aber 10 -> raus
     expect(res.some(r => r.anonId === 'MA01')).toBe(false);
@@ -126,7 +126,7 @@ describe('runMatching', () => {
       mitarbeiter: { MA01: m1 },
       zuweisungen: [],
       historischeDeskriptorenByAnon: new Map(),
-      anonymMap: buildAnonymMap([]),
+      anonymMap: buildAnonymMapForTests([]),
     });
     expect(res).toEqual([]);
   });
@@ -147,7 +147,7 @@ describe('runMatching', () => {
       mitarbeiter: { MA01: m1, MA02: m2, MA03: m3, MA04: m4 },
       zuweisungen: [],
       historischeDeskriptorenByAnon: new Map(),
-      anonymMap: buildAnonymMap([]),
+      anonymMap: buildAnonymMapForTests([]),
       topN: 3,
     });
     expect(res.length).toBeLessThanOrEqual(3);
@@ -165,7 +165,7 @@ describe('runMatching', () => {
       mitarbeiter: { MA01: makeMa('MA01', ['IKT']) },
       zuweisungen: [],
       historischeDeskriptorenByAnon: new Map(),
-      anonymMap: buildAnonymMap([]),
+      anonymMap: buildAnonymMapForTests([]),
     });
     expect(res).toEqual([]);
   });
@@ -180,7 +180,7 @@ describe('runMatching', () => {
       mitarbeiter: { MA01: m1 },
       zuweisungen: [],
       historischeDeskriptorenByAnon: new Map(),  // keine Profile -> kein Match
-      anonymMap: buildAnonymMap([]),
+      anonymMap: buildAnonymMapForTests([]),
     });
     expect(res).toEqual([]);
   });

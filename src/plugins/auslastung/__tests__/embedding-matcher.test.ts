@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runEmbeddingMatching } from '../services/embedding-matcher';
-import { buildAnonymMap } from '../services/anonym-map';
+import { buildAnonymMapForTests } from './test-helpers';
 import { cosineSimilarity } from '@/core/services/embedding-corpus';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter } from '../types';
@@ -48,7 +48,7 @@ describe('runEmbeddingMatching', () => {
       makeAntrag('A2', { tib_kuerz: 'SCH', titel: 'Laser-Projekt' } as Partial<Antrag>),
       makeAntrag('A3', { tib_kuerz: 'MUE', titel: 'Auch-KI' } as Partial<Antrag>),
     ];
-    const map = buildAnonymMap(antraege);
+    const map = buildAnonymMapForTests(antraege);
     const muerAnon = map.toAnon.get('MUE')!;
     const schAnon = map.toAnon.get('SCH')!;
 
@@ -87,7 +87,7 @@ describe('runEmbeddingMatching', () => {
     const antraege = [
       makeAntrag('A1', { tib_kuerz: 'MUE', titel: 'X' } as Partial<Antrag>),
     ];
-    const map = buildAnonymMap(antraege);
+    const map = buildAnonymMapForTests(antraege);
     const muerAnon = map.toAnon.get('MUE')!;
 
     const result = runEmbeddingMatching({
@@ -105,7 +105,7 @@ describe('runEmbeddingMatching', () => {
     const antraege = [
       makeAntrag('A1', { tib_kuerz: 'MUE', titel: 'KI' } as Partial<Antrag>),
     ];
-    const map = buildAnonymMap(antraege);
+    const map = buildAnonymMapForTests(antraege);
     const muerAnon = map.toAnon.get('MUE')!;
 
     const newMaAnon = 'MA99';
@@ -131,7 +131,7 @@ describe('runEmbeddingMatching', () => {
   });
 
   it('leerer Corpus -> leere Liste', () => {
-    const map = buildAnonymMap([]);
+    const map = buildAnonymMapForTests([]);
     const result = runEmbeddingMatching({
       queryEmbedding: [1, 0],
       corpusEmbeddings: new Map(),

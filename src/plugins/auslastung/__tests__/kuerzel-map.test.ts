@@ -2,10 +2,8 @@
  * Unit-Tests fuer die persistente kuerzel↔anonId-Map.
  *
  * Drei Eigenschaften die garantiert sein muessen:
- *  1. Pre/Post-Patch-Kontinuitaet: `bootstrapKuerzelMap` aus einer
- *     Antraege-Menge produziert dieselbe Numerierung wie das alte
- *     `buildAnonymMap` aus derselben Menge (MA01 = alphabetisch erstes
- *     Kuerzel etc.).
+ *  1. Bootstrap-Sortierung: `bootstrapKuerzelMap` aus einer Antraege-Menge
+ *     vergibt anonIds alphabetisch (MA01 = alphabetisch erstes Kuerzel etc.).
  *  2. Append-only-Verhalten bei neuen Kuerzeln — auch wenn sie alphabetisch
  *     in der Mitte einsortieren, behalten bestehende ihre anonId. Das ist
  *     der Kern-Bug-Fix.
@@ -20,7 +18,6 @@ import {
   emptyKuerzelMap,
   type KuerzelMapFile,
 } from '../services/kuerzel-map';
-import { buildAnonymMap } from '../services/anonym-map';
 import type { Antrag } from '@/core/services/csv/types';
 
 function makeAntrag(az: string, tib?: string): Antrag {
@@ -34,23 +31,6 @@ function makeAntrag(az: string, tib?: string): Antrag {
 }
 
 describe('bootstrapKuerzelMap', () => {
-  it('produziert dieselbe Numerierung wie buildAnonymMap (Pre/Post-Patch-Kontinuitaet)', () => {
-    const antraege = [
-      makeAntrag('A1', 'MUE'),
-      makeAntrag('A2', 'SCH'),
-      makeAntrag('A3', 'ALB'),
-      makeAntrag('A4', 'MUE'),  // Duplikat — soll nicht doppelt zaehlen
-    ];
-    const file = bootstrapKuerzelMap(antraege);
-    const legacy = buildAnonymMap(antraege);
-
-    expect(file.entries.length).toBe(3);
-    for (const entry of file.entries) {
-      expect(legacy.toAnon.get(entry.kuerzel)).toBe(entry.anonId);
-      expect(legacy.toReal.get(entry.anonId)).toBe(entry.kuerzel);
-    }
-  });
-
   it('alphabetische Sortierung gibt ALB=MA01, MUE=MA02, SCH=MA03', () => {
     const file = bootstrapKuerzelMap([
       makeAntrag('A1', 'MUE'),
@@ -213,18 +193,21 @@ describe('normalizeKuerzelMap', () => {
 });
 
 describe('buildAnonymMapFromKuerzelMap', () => {
-  it('produziert eine AnonymMap mit der gleichen Semantik wie buildAnonymMap (gegeben gleiche Antraege als Bootstrap)', () => {
+  it('roundtrip: bootstrap + build ergibt anonIds passend zu den Kuerzeln', () => {
     const antraege = [
       makeAntrag('A1', 'MUE'),
       makeAntrag('A2', 'SCH'),
       makeAntrag('A3', 'ALB'),
     ];
     const file = bootstrapKuerzelMap(antraege);
-    const fromFile = buildAnonymMapFromKuerzelMap(file);
-    const legacy = buildAnonymMap(antraege);
+    const map = buildAnonymMapFromKuerzelMap(file);
 
-    expect([...fromFile.toAnon.entries()].sort()).toEqual([...legacy.toAnon.entries()].sort());
-    expect([...fromFile.toReal.entries()].sort()).toEqual([...legacy.toReal.entries()].sort());
+    expect(map.toAnon.get('ALB')).toBe('MA01');
+    expect(map.toAnon.get('MUE')).toBe('MA02');
+    expect(map.toAnon.get('SCH')).toBe('MA03');
+    expect(map.toReal.get('MA01')).toBe('ALB');
+    expect(map.toReal.get('MA02')).toBe('MUE');
+    expect(map.toReal.get('MA03')).toBe('SCH');
   });
 
   it('leere Map → leere AnonymMap', () => {

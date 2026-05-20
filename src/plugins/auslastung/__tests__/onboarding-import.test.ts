@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
 import { parseOnboardingXlsx, deriveUeberKategorien } from '../services/onboarding-import';
-import { buildAnonymMap } from '../services/anonym-map';
+import { buildAnonymMapForTests } from './test-helpers';
 import { emptyAuslastungData } from '../types';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AuslastungData, OnboardingBewertungEintrag, UeberKategorie } from '../types';
@@ -63,7 +63,7 @@ function makeData(): AuslastungData {
 
 describe('parseOnboardingXlsx', () => {
   const ctx = () => ({
-    anonymMap: buildAnonymMap([makeAntrag('A1', 'MUE'), makeAntrag('A2', 'SCH')]),
+    anonymMap: buildAnonymMapForTests([makeAntrag('A1', 'MUE'), makeAntrag('A2', 'SCH')]),
     data: makeData(),
   });
 

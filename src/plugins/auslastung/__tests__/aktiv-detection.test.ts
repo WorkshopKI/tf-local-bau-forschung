@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { detectAktiveMAs, shouldShowAktivVorschlag } from '../services/aktiv-detection';
-import { buildAnonymMap } from '../services/anonym-map';
+import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter } from '../types';
 
@@ -39,7 +39,7 @@ describe('detectAktiveMAs', () => {
       makeAntrag('A4', { tib_kuerz: 'ALB', antragsdatum: '2023-11-30' } as Partial<Antrag>),
       makeAntrag('A5', { tib_kuerz: 'KLA', antragsdatum: undefined } as Partial<Antrag>),
     ];
-    const map = buildAnonymMap(antraege);
+    const map = buildAnonymMapForTests(antraege);
     const mue = map.toAnon.get('MUE')!;
     const sch = map.toAnon.get('SCH')!;
     const alb = map.toAnon.get('ALB')!;
@@ -64,7 +64,7 @@ describe('detectAktiveMAs', () => {
     const antraege: Antrag[] = [
       makeAntrag('A1', { tib_kuerz: 'MUE', antragsdatum: '2026-03-15' } as Partial<Antrag>),
     ];
-    const map = buildAnonymMap(antraege);
+    const map = buildAnonymMapForTests(antraege);
     const mitarbeiter = {
       MA09: makeMa('MA09', false),  // im Store, aber nicht in der map
     };
@@ -78,7 +78,7 @@ describe('detectAktiveMAs', () => {
       // antragsdatum als Zahl (z.B. fehlerhaftes Mapping) — soll nicht zaehlen
       makeAntrag('A1', { tib_kuerz: 'MUE', antragsdatum: 20260315 } as unknown as Partial<Antrag>),
     ];
-    const map = buildAnonymMap(antraege);
+    const map = buildAnonymMapForTests(antraege);
     const mue = map.toAnon.get('MUE')!;
     const result = detectAktiveMAs(antraege, { [mue]: makeMa(mue) }, map, 2026);
     expect(result.vorschlag[mue]).toBe(false);
@@ -87,7 +87,7 @@ describe('detectAktiveMAs', () => {
   it('leere Antraege: MA ohne aufloesbares Kuerzel behaelt aktuellen aktiv-Status', () => {
     // Edge-Case: kein Antrag in der CSV → leere anonymMap → der Store-MA
     // hat kein aufloesbares Kuerzel → bleibt wie er ist (kein Vorschlag).
-    const map = buildAnonymMap([]);
+    const map = buildAnonymMapForTests([]);
     const result = detectAktiveMAs([], { MA01: makeMa('MA01', true) }, map, 2026);
     expect(result.vorschlag.MA01).toBe(true);
     expect(result.ohneKuerzelCount).toBe(1);

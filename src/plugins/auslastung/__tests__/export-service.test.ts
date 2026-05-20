@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildExportRows, buildWorkbook } from '../services/export-service';
-import { buildAnonymMap } from '../services/anonym-map';
+import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter, AuslastungData, MatchResult } from '../types';
 import { emptyAuslastungData } from '../types';
@@ -97,7 +97,7 @@ describe('buildWorkbook', () => {
 
 describe('AnonymMap-Roundtrip', () => {
   it('toReal kann anonyme ID wieder in Kuerzel umwandeln (in-memory only)', () => {
-    const map = buildAnonymMap([
+    const map = buildAnonymMapForTests([
       makeAntrag('A1', { tib_kuerz: 'MUE' }),
       makeAntrag('A2', { tib_kuerz: 'SCH' }),
     ]);

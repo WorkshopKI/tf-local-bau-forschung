@@ -2,11 +2,9 @@
  * KuerzelMap — persistente, append-only Map `TIB-Kuerzel ↔ anonId`.
  *
  * Lebt als Sidecar-Datei `_intern/auslastung-kuerzel-map.json` neben
- * `_intern/auslastung.json`. Ersetzt das alte ephemeral-alphabetisch-Sort
- * Modell aus `buildAnonymMap(antraege)` — dieses produzierte einen
- * Identitaets-Drift, sobald neue TIB-Kuerzel alphabetisch in der Mitte
- * einsortierten (siehe CLAUDE.md Common-Pitfall "Auslastungs-Modul: nie
- * ohne persistierte kuerzel-map arbeiten").
+ * `_intern/auslastung.json`. Append-only: einmal vergebene anonIds bleiben
+ * stabil, neue Kuerzel haengen hinten an — kein Identitaets-Drift bei
+ * alphabetischer Mitten-Insertion (Kern-Bugfix Mai 2026).
  *
  * Invariante: entries sind append-only, `entries[i].anonId === MA{i+1}`.
  * Einmal vergebene anonIds werden nie geaendert oder geloescht.
@@ -101,7 +99,7 @@ export async function saveKuerzelMap(
 }
 
 /** Baut eine in-memory `AnonymMap` aus der persistenten KuerzelMapFile.
- *  Ersatz fuer `buildAnonymMap(antraege)` aus `anonym-map.ts`. */
+ *  Standard-Pipeline: `bootstrapKuerzelMap(antraege)` → diese Funktion. */
 export function buildAnonymMapFromKuerzelMap(file: KuerzelMapFile): AnonymMap {
   const toAnon = new Map<string, string>();
   const toReal = new Map<string, string>();

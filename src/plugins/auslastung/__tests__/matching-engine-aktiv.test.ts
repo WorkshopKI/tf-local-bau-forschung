@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { runMatching } from '../services/matching-engine';
-import { buildAnonymMap } from '../services/anonym-map';
+import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter, AuslastungConfig } from '../types';
 import { DEFAULT_AUSLASTUNG_CONFIG } from '../types';
@@ -65,7 +65,7 @@ describe('runMatching mit aktiv-Filter', () => {
       mitarbeiter,
       zuweisungen: [],
       historischeDeskriptorenByAnon: new Map(),
-      anonymMap: buildAnonymMap([]),
+      anonymMap: buildAnonymMapForTests([]),
     });
     expect(out.find(r => r.anonId === 'MA01')).toBeUndefined();
     expect(out.map(r => r.anonId)).toContain('MA02');
@@ -87,7 +87,7 @@ describe('runMatching mit aktiv-Filter', () => {
       mitarbeiter,
       zuweisungen: [],
       historischeDeskriptorenByAnon: new Map(),
-      anonymMap: buildAnonymMap([]),
+      anonymMap: buildAnonymMapForTests([]),
     });
     expect(out).toEqual([]);
   });
@@ -110,7 +110,7 @@ describe('runMatching mit aktiv-Filter', () => {
       mitarbeiter,
       zuweisungen: [],
       historischeDeskriptorenByAnon: new Map(),
-      anonymMap: buildAnonymMap([]),
+      anonymMap: buildAnonymMapForTests([]),
     });
     const ids = out.map(r => r.anonId);
     expect(ids).not.toContain('MA02');

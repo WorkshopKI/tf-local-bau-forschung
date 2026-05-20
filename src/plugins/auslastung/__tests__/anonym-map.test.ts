@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildAnonymMap,
   resolveAnonIdForUser,
   nextFreeAnonId,
   normalizeKuerzel,
 } from '../services/anonym-map';
-import type { Antrag, AntragListItem } from '@/core/services/csv/types';
+import { buildAnonymMapForTests } from './test-helpers';
+import type { Antrag } from '@/core/services/csv/types';
 
 function makeAntrag(az: string, tib?: string): Antrag {
   return {
@@ -15,15 +15,6 @@ function makeAntrag(az: string, tib?: string): Antrag {
     _field_sources: {},
     _updated_at: new Date().toISOString(),
   } as Antrag;
-}
-
-function makeListItem(az: string, tib?: string): AntragListItem {
-  return {
-    aktenzeichen: az,
-    programm_id: 'p1',
-    tib_kuerz: tib,
-    _updated_at: new Date().toISOString(),
-  };
 }
 
 describe('normalizeKuerzel', () => {
@@ -41,84 +32,8 @@ describe('normalizeKuerzel', () => {
   });
 });
 
-describe('buildAnonymMap', () => {
-  it('alphabetische Sortierung -> stabile MA-Nummern', () => {
-    const map = buildAnonymMap([
-      makeAntrag('A1', 'MUE'),
-      makeAntrag('A2', 'SCH'),
-      makeAntrag('A3', 'ALB'),
-    ]);
-    expect(map.toAnon.get('ALB')).toBe('MA01');
-    expect(map.toAnon.get('MUE')).toBe('MA02');
-    expect(map.toAnon.get('SCH')).toBe('MA03');
-  });
-
-  it('inverse Map ist konsistent', () => {
-    const map = buildAnonymMap([
-      makeAntrag('A1', 'MUE'),
-      makeAntrag('A2', 'SCH'),
-    ]);
-    for (const [real, anon] of map.toAnon.entries()) {
-      expect(map.toReal.get(anon)).toBe(real);
-    }
-  });
-
-  it('Duplikate werden zusammengefasst (case-insensitive)', () => {
-    const map = buildAnonymMap([
-      makeAntrag('A1', 'mue'),
-      makeAntrag('A2', 'MUE'),
-      makeAntrag('A3', ' mue '),
-    ]);
-    expect(map.toAnon.size).toBe(1);
-    expect(map.toAnon.get('MUE')).toBe('MA01');
-  });
-
-  it('leeres tib_kuerz wird ignoriert', () => {
-    const map = buildAnonymMap([
-      makeAntrag('A1', ''),
-      makeAntrag('A2', undefined),
-      makeAntrag('A3', 'MUE'),
-    ]);
-    expect(map.toAnon.size).toBe(1);
-  });
-
-  it('determinismus: zwei Aufrufe -> gleiches Mapping', () => {
-    const input = [
-      makeAntrag('A1', 'MUE'),
-      makeAntrag('A2', 'SCH'),
-      makeAntrag('A3', 'ALB'),
-    ];
-    const a = buildAnonymMap(input);
-    const b = buildAnonymMap(input);
-    for (const [k, v] of a.toAnon.entries()) {
-      expect(b.toAnon.get(k)).toBe(v);
-    }
-  });
-
-  it('akzeptiert AntragListItem genauso wie Antrag', () => {
-    const map = buildAnonymMap([
-      makeListItem('A1', 'MUE'),
-      makeListItem('A2', 'SCH'),
-    ]);
-    expect(map.toAnon.size).toBe(2);
-  });
-
-  it('viele MAs -> Padding ueber 9 hinaus', () => {
-    const antraege = [];
-    for (let i = 1; i <= 12; i++) {
-      antraege.push(makeAntrag(`A${i}`, `B${String.fromCharCode(64 + i)}`));
-    }
-    const map = buildAnonymMap(antraege);
-    expect(map.toAnon.size).toBe(12);
-    expect([...map.toReal.keys()].sort()).toEqual([
-      'MA01', 'MA02', 'MA03', 'MA04', 'MA05', 'MA06',
-      'MA07', 'MA08', 'MA09', 'MA10', 'MA11', 'MA12',
-    ]);
-  });
-});
-
 describe('resolveAnonIdForUser', () => {
-  const map = buildAnonymMap([
+  const map = buildAnonymMapForTests([
     makeAntrag('A1', 'MUE'),
     makeAntrag('A2', 'SCH'),
   ]);

@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { runEmbeddingMatching } from '../services/embedding-matcher';
-import { buildAnonymMap } from '../services/anonym-map';
+import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter } from '../types';
 
@@ -41,7 +41,7 @@ describe('runEmbeddingMatching mit aktiv-Filter', () => {
       makeAntrag('A1', { tib_kuerz: 'MUE', titel: 'KI' } as Partial<Antrag>),
       makeAntrag('A2', { tib_kuerz: 'ALB', titel: 'Cybersicherheit' } as Partial<Antrag>),
     ];
-    const map = buildAnonymMap(antraege);
+    const map = buildAnonymMapForTests(antraege);
     const muerAnon = map.toAnon.get('MUE')!;
     const albAnon = map.toAnon.get('ALB')!;
     // MUE ist inaktiv → soll keinen Score bekommen
@@ -68,7 +68,7 @@ describe('runEmbeddingMatching mit aktiv-Filter', () => {
 
   it('virtuelles Projekt eines inaktiven MA erzeugt keinen Score', () => {
     const antraege = [makeAntrag('A1', { tib_kuerz: 'MUE', titel: 'KI' } as Partial<Antrag>)];
-    const map = buildAnonymMap(antraege);
+    const map = buildAnonymMapForTests(antraege);
     const muerAnon = map.toAnon.get('MUE')!;
     const inactiveAnon = 'MA99';
     const mitarbeiter = {
@@ -96,7 +96,7 @@ describe('runEmbeddingMatching mit aktiv-Filter', () => {
       makeAntrag('A1', { tib_kuerz: 'MUE' } as Partial<Antrag>),
       makeAntrag('A2', { tib_kuerz: 'ALB' } as Partial<Antrag>),
     ];
-    const map = buildAnonymMap(antraege);
+    const map = buildAnonymMapForTests(antraege);
     const mitarbeiter = {
       [map.toAnon.get('MUE')!]: makeMa(map.toAnon.get('MUE')!, false),
       [map.toAnon.get('ALB')!]: makeMa(map.toAnon.get('ALB')!, false),
