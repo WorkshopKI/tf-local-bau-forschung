@@ -21,7 +21,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from '../store';
 import { useFilterState } from './useFilterState';
@@ -168,7 +167,6 @@ function ExtraSortSelect({
         style={{ border: '0.5px solid var(--tf-border)', borderRadius: '8px' }}
       >
         <ArrowDownUp size={13} />
-        <SelectValue />
       </SelectTrigger>
       <SelectContent align="start">
         {EXTRA_SORT_OPTIONS.map(opt => (
