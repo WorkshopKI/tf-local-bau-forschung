@@ -28,6 +28,17 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 export const CORPUS_MANIFEST_PATH = '_intern/auslastung-embedding-corpus.manifest.json';
 export const CORPUS_BIN_PATH = '_intern/auslastung-embedding-corpus.bin';
 
+/**
+ * Inhaltliche Build-Version des Embedding-Texts. Aenderung bei jeder
+ * Erweiterung von `buildEmbeddingTextForAntrag` — z.B. v1 = nur Titel + VB-
+ * Titel + Abstract, v2 = + Deskriptoren (TECHN/BRANCHE/ANWEND + ZT-Klartexte).
+ *
+ * Separat vom Manifest-Schema-Version-Feld (`version: 1`) — alte v1-Korpora
+ * sind weiterhin lesbar, aber die UI schlaegt einen Rebuild fuer den
+ * Deskriptor-Anteil vor.
+ */
+export const CORPUS_BUILD_VERSION = 2;
+
 export interface EmbeddingCorpusManifest {
   version: 1;
   /** Modell-ID aus `model-registry.ts` (z.B. "embeddinggemma-300m"). */
@@ -49,6 +60,15 @@ export interface EmbeddingCorpusManifest {
   binFormat: 'f32-stream';
   /** Sanity-Check: erwartete Bytes der .bin (count × dim × 4). */
   binBytes: number;
+  /** Inhaltliche Build-Version (siehe `CORPUS_BUILD_VERSION`). Optional fuer
+   *  Rueckwaerts-Kompat mit alten v1-Manifests, die das Feld nicht hatten. */
+  corpusBuildVersion?: number;
+}
+
+/** Liefert die Build-Version eines Manifests; alte Manifests ohne Feld
+ *  gelten als Version 1 (vor dem Deskriptoren-Update). */
+export function getCorpusBuildVersion(manifest: EmbeddingCorpusManifest): number {
+  return manifest.corpusBuildVersion ?? 1;
 }
 
 export type CompatStatus =
@@ -106,6 +126,7 @@ export async function serializeCorpus(
     aktenzeichen,
     binFormat: 'f32-stream',
     binBytes: buffer.byteLength,
+    corpusBuildVersion: CORPUS_BUILD_VERSION,
   };
   return { manifest, bin: buffer };
 }

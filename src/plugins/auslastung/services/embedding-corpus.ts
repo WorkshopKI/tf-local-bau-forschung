@@ -27,13 +27,23 @@ import {
   FIELD_PROJEKTBESCHREIBUNG,
 } from '../types';
 import { embedText, ensureEmbeddingReady } from './embed-wrapper';
+import { buildDescriptorsText } from '@/plugins/antraege/services/descriptor-text';
 
-/** Erzeugt den Embedding-Text fuer einen Antrag. Reihenfolge: Titel, VB-Titel, Abstract. */
+/**
+ * Erzeugt den Embedding-Text fuer einen Antrag. Reihenfolge: VB-Titel,
+ * Titel, Abstract, Deskriptoren (TECHN/BRANCHE/ANWEND + ZT-Klartexte).
+ *
+ * Deskriptoren sind seit corpus-build-v2 Teil des Embedding-Texts — semantische
+ * Suche nach „Wärmedämmung" findet damit auch Antraege mit ZT-Leichtbau-Flag
+ * ohne Wörter-Match im Abstract. Aelteren Korpora (v1) fehlt dieser Anteil;
+ * sie bleiben funktional, der Auslastungs-Tab schlaegt einen Rebuild vor.
+ */
 export function buildEmbeddingTextForAntrag(antrag: Antrag): string {
   const fields = [
     antrag[CANONICAL_VERBUND_TITEL],
     antrag[CANONICAL_TITEL],
     antrag[FIELD_PROJEKTBESCHREIBUNG],
+    buildDescriptorsText(antrag),
   ];
   const parts: string[] = [];
   for (const f of fields) {

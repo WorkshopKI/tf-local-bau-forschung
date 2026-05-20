@@ -22,7 +22,7 @@ import {
 import { computeKategorieCentroids } from '../../services/klassifizierung-engine';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { useEmbeddingCorpusMirror } from '../../hooks/useEmbeddingCorpusMirror';
-import { checkCompat, hashAktenzeichenSet } from '../../services/embedding-corpus-mirror';
+import { checkCompat, hashAktenzeichenSet, getCorpusBuildVersion, CORPUS_BUILD_VERSION } from '../../services/embedding-corpus-mirror';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useProfile } from '@/core/hooks/useProfile';
 
@@ -265,6 +265,12 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       {mirrorManifest && compatStatus?.kind === 'compatible' && count > 0 && count === mirrorManifest.antraegeCount && (
         <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
           ✓ Korpus mit Daten-Share synchron ({mirrorManifest.antraegeCount} Vektoren, Stand {new Date(mirrorManifest.builtAt).toLocaleDateString('de-DE')}{mirrorManifest.builderProfile ? ` von ${mirrorManifest.builderProfile}` : ''}){total > mirrorManifest.antraegeCount ? ` — ${total - mirrorManifest.antraegeCount} Anträge ohne Text-Daten, kein Embedding möglich` : ''}.
+        </div>
+      )}
+
+      {mirrorManifest && compatStatus?.kind === 'compatible' && getCorpusBuildVersion(mirrorManifest) < CORPUS_BUILD_VERSION && (
+        <div className="rounded p-2 mb-2 text-[11.5px]" style={{ background: 'var(--tf-info-bg, #dbeafe)', color: 'var(--tf-info-text, #1e40af)', border: '0.5px solid var(--tf-info-border, #bfdbfe)' }}>
+          ℹ Korpus-Build-Version v{getCorpusBuildVersion(mirrorManifest)} — aktuell wäre v{CORPUS_BUILD_VERSION} (Embedding-Text enthält jetzt zusätzlich Deskriptor-Spalten: TECHN/BRANCHE/ANWEND + ZT-Klartexte). Rebuild empfohlen, damit die semantische Suche auf diese Tags zugreifen kann. „Corpus aufbauen" klicken und danach automatisch auf den Share spiegeln lassen.
         </div>
       )}
 
