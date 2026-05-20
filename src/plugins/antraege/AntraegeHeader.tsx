@@ -29,6 +29,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const setSearchIgnoreBearbeiter = useAntraegeStore(s => s.setSearchIgnoreBearbeiterFilter);
   const hybridLoading = useAntraegeStore(s => s.hybridSearch.loading);
   const hybridUnavailable = useAntraegeStore(s => s.hybridSearch.unavailable);
+  const downloadingCorpus = useAntraegeStore(s => s.hybridSearch.downloadingCorpus);
   const filterCount = useFilterState(s => s.active.length);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
@@ -181,7 +182,14 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
           </div>
         ) : null}
 
-        {showEmbeddingBanner ? (
+        {downloadingCorpus ? (
+          <div className="mt-1 mb-2 text-[11.5px] text-[var(--tf-text-tertiary)] flex items-center gap-1.5">
+            <Loader2 size={11} className="animate-spin" aria-hidden="true" />
+            <span>
+              Semantische Suche wird im Hintergrund vorbereitet (Embedding-Korpus vom Daten-Share laden, ~5–15 s).
+            </span>
+          </div>
+        ) : showEmbeddingBanner ? (
           <div className="mt-1 mb-2 text-[11.5px] text-[var(--tf-text-tertiary)] flex items-center gap-1.5">
             <span aria-hidden="true">ⓘ</span>
             <span>

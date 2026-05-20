@@ -103,6 +103,12 @@ export interface HybridSearchState {
   loading: boolean;
   /** Quellen, die wegen fehlender Daten nicht ausgewertet werden konnten. */
   unavailable: HybridUnavailableSource[];
+  /** True waehrend der Embedding-Korpus vom SMB-Share heruntergeladen wird
+   *  (frisch installierter prod-Rechner). UI zeigt einen freundlichen Hinweis
+   *  statt des „inaktiv"-Banners. */
+  downloadingCorpus: boolean;
+  /** Optionaler Fortschritt waehrend Korpus-Download. */
+  downloadProgress?: { done: number; total: number };
 }
 
 interface AntraegeState {
@@ -159,7 +165,10 @@ interface AntraegeState {
   loadAll: (idb: IDBStore, programmId?: string, opts?: { force?: boolean }) => Promise<void>;
   setSearch: (s: string) => void;
   setSearchIgnoreBearbeiterFilter: (v: boolean) => void;
-  setHybridSearch: (state: HybridSearchState) => void;
+  /** Partial-Merger: ueberschreibt nur die uebergebenen Felder, lasst den
+   *  Rest unangetastet. Erlaubt z.B. `setHybridSearch({ downloadingCorpus: true })`
+   *  ohne das laufende `matchedAkz`/`loading`-State versehentlich zu nullen. */
+  setHybridSearch: (state: Partial<HybridSearchState>) => void;
   setActiveView: (view: ViewKey) => void;
   setSortForView: (view: ViewKey, key: SortKey) => void;
   setGroupingForView: (view: ViewKey, mode: GroupingMode) => void;
@@ -215,7 +224,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   selectedVerbundId: null,
   search: '',
   searchIgnoreBearbeiterFilter: false,
-  hybridSearch: { matchedAkz: null, loading: false, unavailable: [] },
+  hybridSearch: { matchedAkz: null, loading: false, unavailable: [], downloadingCorpus: false },
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
   groupingByView: loadGroupingByView(),
@@ -300,7 +309,9 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
 
   setSearchIgnoreBearbeiterFilter: (v: boolean) => set({ searchIgnoreBearbeiterFilter: v }),
 
-  setHybridSearch: (state: HybridSearchState) => set({ hybridSearch: state }),
+  setHybridSearch: (state: Partial<HybridSearchState>) => set(s => ({
+    hybridSearch: { ...s.hybridSearch, ...state },
+  })),
 
   setActiveView: (view: ViewKey) => {
     try { localStorage.setItem(ACTIVE_VIEW_KEY, view); } catch { /* ignore */ }

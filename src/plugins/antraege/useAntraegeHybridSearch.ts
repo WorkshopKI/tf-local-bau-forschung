@@ -97,6 +97,16 @@ function scheduleIdle(cb: () => void): () => void {
  */
 let mirrorBootstrapPromise: Promise<void> | null = null;
 
+/** Status-Events des Mirror-Bootstrap fuer UI-Propagation. */
+export type MirrorBootstrapStatus =
+  | 'idle'              // noch nicht gestartet
+  | 'no-action-needed'  // lokal schon was da, oder kein Manifest auf Share
+  | 'downloading'       // Bin wird geladen (5–15 s, Banner zeigen!)
+  | 'applying'          // Bin wird in IDB geschrieben (1–3 s)
+  | 'done'              // erfolgreich abgeschlossen
+  | 'incompatible'      // Modell-/Dim-Mismatch, Korpus nicht nutzbar
+  | 'error';            // I/O-Fehler
+
 /**
  * Best-Effort Auto-Download des Embedding-Korpus vom SMB-Daten-Share fuer
  * schlanke Varianten ohne Auslastungs-Plugin (prod-User).
@@ -109,18 +119,23 @@ let mirrorBootstrapPromise: Promise<void> | null = null;
  *
  * Fehler werden ge-warned aber nicht propagiert — der Substring-Pfad bleibt
  * funktional. Wird nur einmal pro Session versucht (Singleton-Promise).
+ *
+ * `onStatus` ist optional — UI-Komponenten koennen damit den Banner steuern.
  */
-async function autoBootstrapEmbeddingMirror(storage: StorageService): Promise<void> {
+async function autoBootstrapEmbeddingMirror(
+  storage: StorageService,
+  onStatus?: (status: MirrorBootstrapStatus) => void,
+): Promise<void> {
   if (mirrorBootstrapPromise) return mirrorBootstrapPromise;
   mirrorBootstrapPromise = (async () => {
     try {
       const idb = storage.idb;
       // (1) Schon ein lokaler Cache vorhanden — Auto-Mirror nicht noetig.
       const existing = await loadAllEmbeddings(idb);
-      if (existing.size > 0) return;
+      if (existing.size > 0) { onStatus?.('no-action-needed'); return; }
       // (2) Manifest vom Share lesen.
       const manifest = await loadMirrorManifest(storage);
-      if (!manifest) return;
+      if (!manifest) { onStatus?.('no-action-needed'); return; }
       // (3) Kompat-Check gegen das aktiv konfigurierte Modell.
       const modelId = await getActiveModelId(idb);
       const cfg = getModelById(modelId);
@@ -129,19 +144,24 @@ async function autoBootstrapEmbeddingMirror(storage: StorageService): Promise<vo
         console.warn(
           `[useAntraegeHybridSearch] embedding mirror inkompatibel mit aktivem Modell (${compat.kind}) — kein Auto-Download.`,
         );
+        onStatus?.('incompatible');
         return;
       }
       // (4) Bin laden + in IDB schreiben. `applyMirrorCorpus` yieldet
       // alle 100 Eintraege; bei ~13k Antraegen sind das ~130 micro-Pausen.
+      onStatus?.('downloading');
       const bin = await loadMirrorBin(storage, manifest.binBytes);
-      if (!bin) return;
+      if (!bin) { onStatus?.('error'); return; }
       const map = parseMirrorCorpus(manifest, bin);
+      onStatus?.('applying');
       await applyMirrorCorpus(idb, map);
+      onStatus?.('done');
     } catch (err) {
       // Singleton-Fehlversuch: NICHT cachen, damit der naechste Page-Mount
       // nochmal probieren darf (z.B. wenn der User in der Zwischenzeit
       // Share-Zugriff erteilt hat).
       mirrorBootstrapPromise = null;
+      onStatus?.('error');
       throw err;
     }
   })();
@@ -462,11 +482,28 @@ export function useAntraegeHybridSearch(): void {
           // keine semantischen Treffer.
           void (async () => {
             try {
-              await autoBootstrapEmbeddingMirror(storage);
+              // Status-Events ins Store propagieren — Banner-UI in
+              // `AntraegeHeader` reagiert auf `downloadingCorpus` und zeigt
+              // einen freundlichen Hinweis statt des „inaktiv"-Banners.
+              await autoBootstrapEmbeddingMirror(storage, status => {
+                if (cancelled) return;
+                if (status === 'downloading' || status === 'applying') {
+                  setHybridSearch({ downloadingCorpus: true });
+                } else {
+                  setHybridSearch({ downloadingCorpus: false });
+                }
+                console.info('[antraege-search] mirror bootstrap:', status);
+              });
             } catch (err) {
+              if (!cancelled) setHybridSearch({ downloadingCorpus: false });
               console.warn('[useAntraegeHybridSearch] mirror bootstrap failed:', err);
             }
             if (cancelled) return;
+            // Modul-Cache invalidieren falls der Bootstrap frische Vektoren
+            // in IDB geschrieben hat — sonst wuerde `getEmbeddings()` noch
+            // die alte (leere) Map cachen.
+            cachedEmbeddings = null;
+            cachedEmbeddingsDim = null;
             getEmbeddings(storage.idb).catch(err => {
               console.warn('[useAntraegeHybridSearch] preload embeddings failed:', err);
             });
@@ -481,7 +518,7 @@ export function useAntraegeHybridSearch(): void {
       cancelled = true;
       cancelIdle?.();
     };
-  }, [activeProgrammId, storage]);
+  }, [activeProgrammId, storage, setHybridSearch]);
 
   useEffect(() => {
     const q = search.trim();
