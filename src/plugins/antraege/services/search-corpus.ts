@@ -19,6 +19,7 @@ import { CSV_STORES } from '@/core/services/storage/idb-store';
 import type { Antrag } from '@/core/services/csv/types';
 import { listManifestEntries } from '@/phase2/scanner/manifest-store';
 import { normalizeKey } from '../fieldLookup';
+import { buildDescriptorsText } from './descriptor-text';
 
 export interface AntragTextEntry {
   /** Verbund-Titel. */
@@ -27,12 +28,16 @@ export interface AntragTextEntry {
   tv: string;
   /** Kurzbeschreibung / Abstract / VB-Inhalt. */
   abstract: string;
+  /** Konkatenierte Deskriptor-Werte: TECHN/BRANCHE/ANWEND-Strings +
+   *  Klartexte der gesetzten ZT-Flags. Siehe `descriptor-text.ts`. */
+  descriptors: string;
   /** Pre-computed lowercase. Einmal beim Load berechnen, dann per Keystroke
    *  nur `.includes(q)` ohne neue String-Allokation. Wichtig fuer 13k-Korpora,
    *  sonst ~100 MB GC-Druck pro Keystroke. */
   vbLower: string;
   tvLower: string;
   absLower: string;
+  descriptorsLower: string;
 }
 
 /**
@@ -120,14 +125,17 @@ export async function loadAntraegeTextCorpus(
       const vb = pickByNormalized(rec, VB_TITEL_NORMALIZED);
       const tv = typeof a.titel === 'string' ? a.titel : '';
       const ab = pickByNormalized(rec, ABSTRACT_NORMALIZED);
-      if (includeEmpty || vb.length > 0 || tv.length > 0 || ab.length > 0) {
+      const descriptors = buildDescriptorsText(a);
+      if (includeEmpty || vb.length > 0 || tv.length > 0 || ab.length > 0 || descriptors.length > 0) {
         result.set(a.aktenzeichen, {
           vb,
           tv,
           abstract: ab,
+          descriptors,
           vbLower: vb.toLowerCase(),
           tvLower: tv.toLowerCase(),
           absLower: ab.toLowerCase(),
+          descriptorsLower: descriptors.toLowerCase(),
         });
       }
       cursor.continue();

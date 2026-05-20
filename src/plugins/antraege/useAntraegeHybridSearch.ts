@@ -288,6 +288,7 @@ function substringMatches(
       entry.vbLower.includes(q)
       || entry.tvLower.includes(q)
       || entry.absLower.includes(q)
+      || entry.descriptorsLower.includes(q)
     ) {
       out.add(akz);
     }
