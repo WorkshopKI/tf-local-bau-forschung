@@ -13,21 +13,48 @@ import { create } from 'zustand';
 import type { StatusPhaseLabel } from './antragGroups';
 
 const STORAGE_KEY = 'teamflow_antraege_status_collapsed';
+/** Sentinel-Marker fuer die einmalige Migration auf das neue Phase-Set
+ *  (Einfuehrung von 'Abgelehnt/Zurückgezogen'). Existierende User haben
+ *  bereits einen STORAGE_KEY-Wert, koennen aber das neue Label dort nicht
+ *  drinhaben — wir mergen es einmal beim ersten Load nach Update, danach
+ *  greift der normale Toggle-Pfad. Marker bleibt gesetzt = keine Re-Migration. */
+const MIGRATION_MARKER_KEY = 'teamflow_antraege_status_collapsed_v2_migrated';
+
+/** Sections, die beim ersten App-Start fuer einen frischen User
+ *  default-collapsed sind. Reihenfolge irrelevant (Set). */
+const FIRST_LOAD_DEFAULTS: StatusPhaseLabel[] = [
+  'Abgeschlossen',
+  'Abgelehnt/Zurückgezogen',
+];
 
 function loadCollapsed(): Set<StatusPhaseLabel> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw === null) {
-      // Erst-Initialisierung: "Abgeschlossen" standardmäßig zugeklappt — die
-      // Sektion enthält bei typischer Datenmenge 100+ Anträge und ist für
-      // den aktiven Workflow selten relevant. Sobald der User sie aufklappt,
-      // wird sein Wille via saveCollapsed() persistiert und gewinnt beim
-      // nächsten Load.
-      return new Set<StatusPhaseLabel>(['Abgeschlossen']);
+      // Erst-Initialisierung: defaultmaessig zugeklappte Sections. Die
+      // Sektionen enthalten bei typischer Datenmenge 100+ Antraege und sind
+      // fuer den aktiven Workflow selten relevant. Sobald der User sie
+      // aufklappt, wird sein Wille via saveCollapsed() persistiert und
+      // gewinnt beim naechsten Load.
+      const initial = new Set<StatusPhaseLabel>(FIRST_LOAD_DEFAULTS);
+      try { localStorage.setItem(MIGRATION_MARKER_KEY, '1'); } catch { /* ignore */ }
+      return initial;
     }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return new Set();
-    return new Set(parsed.filter((v): v is StatusPhaseLabel => typeof v === 'string'));
+    const existing = new Set(parsed.filter((v): v is StatusPhaseLabel => typeof v === 'string'));
+    // Einmal-Migration: bestehender User mit gefuelltem STORAGE_KEY hat
+    // die neue Phase noch nie gesehen — einmal default-collapsen, damit
+    // sie auch nach dem Update zugeklappt erscheint.
+    const migrated = localStorage.getItem(MIGRATION_MARKER_KEY) === '1';
+    if (!migrated) {
+      existing.add('Abgelehnt/Zurückgezogen');
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([...existing]));
+        localStorage.setItem(MIGRATION_MARKER_KEY, '1');
+      } catch { /* ignore */ }
+    }
+    return existing;
   } catch {
     return new Set();
   }

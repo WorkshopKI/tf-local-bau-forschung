@@ -38,11 +38,24 @@ const STATUS_PHASE_ORDER = [
   'Bewilligt',
   'Begleitung',
   'Abgeschlossen',
+  'Abgelehnt/Zurückgezogen',
   'Sonstige',
 ] as const;
 export type StatusPhaseLabel = (typeof STATUS_PHASE_ORDER)[number];
 
+/** Foerderantrag-Rohwert fuer den final-negativen Pfad — wird in eine eigene
+ *  Status-Section ausgegliedert (im Workflow am wenigsten relevant, blaeht
+ *  sonst "Abgeschlossen" auf). Bauantrag-`abgelehnt` (Kategorie `abgelehnt`)
+ *  bleibt bewusst in "Abgeschlossen" — andere Domain. */
+const STATUS_RAW_ABGELEHNT_ZURUECKGEZOGEN = 'abgelehnt/zurückgezogen';
+
+function isAbgelehntZurueckgezogenRaw(raw: unknown): boolean {
+  return typeof raw === 'string'
+    && raw.trim().toLowerCase() === STATUS_RAW_ABGELEHNT_ZURUECKGEZOGEN;
+}
+
 function statusPhaseForAntrag(a: AntragListItem): StatusPhaseLabel {
+  if (isAbgelehntZurueckgezogenRaw(a.status)) return 'Abgelehnt/Zurückgezogen';
   const cat = getStatusCategory(a.status);
   switch (cat) {
     case 'offen':
@@ -71,6 +84,7 @@ function statusPhaseForAntrag(a: AntragListItem): StatusPhaseLabel {
 function statusPhaseForGroup(tvs: AntragListItem[], verbund?: Verbund): StatusPhaseLabel {
   const v = typeof verbund?.status === 'string' ? verbund.status.trim() : '';
   if (v.length > 0) {
+    if (isAbgelehntZurueckgezogenRaw(v)) return 'Abgelehnt/Zurückgezogen';
     const cat = getStatusCategory(v);
     switch (cat) {
       case 'offen':
