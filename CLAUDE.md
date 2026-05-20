@@ -144,83 +144,8 @@ Geführte 5-Schritt-Tour für Erstnutzer (`src/core/components/tour/`, `src/core
 - TourOverlay nutzt CSS `clip-path` für Spotlight + z-index 102 für Target-Elevation
 
 ### Feedback-System
-Integriertes User-Feedback + Admin-Dashboard + öffentliches Board mit Sponsoring (Phase 1+2+3 komplett).
 
-**User-Komponenten** (`src/components/feedback/`):
-- `FeedbackButton.tsx` — globaler FAB (z-index 40, bottom-right). Wird in `Shell.tsx` gerendert (innerhalb NavigationContext) und ist während aktiver Tour ausgeblendet.
-- `FeedbackPanel.tsx` — 2-Step-Flow (Input → Bestätigung) + optional Chatbot. Panel öffnet direkt im Textfeld ("Was möchtest du uns mitteilen?"), keine Kategorie-Auswahl mehr. Unter dem Textarea drei Quick-Tag-Chips (aus `QUICK_TAGS` in `constants.ts`) die beim Klick einen Starter-Text vorfüllen und Cursor ans Ende setzen. Tags verschwinden nach Klick oder beim ersten Tippen. Bereich-Dropdown bleibt optional. Sterne-Rating entfernt. Bestätigungs-Step-Button heißt jetzt "Details ergänzen" (öffnet Chatbot mit Originaltext).
-- `FeedbackChatbot.tsx` — Multi-Turn-LLM-Dialog via `transport.submitConversation()`. Bei Streamlit-Transport: freundliche Meldung + Navigation zu Einstellungen. Überschreibt Auto-Klassifikation mit dialogbasierter Klassifikation + `user_confirmed: true`.
-- `FeedbackConfirmCard.tsx` — Yes/No auf LLM-generierte JSON-Summary.
-- `FaqSuggestions.tsx` — Inline FAQ-Vorschläge **immer** (debounced 500ms, Wort-Overlap ≥2, Stoppwörter ignoriert). Erscheint direkt nach dem Textarea (zwischen Textfeld und Quick-Tags).
-- `MyFeedbackList.tsx` — eigener Verlauf (gefiltert nach `user_id == profile.name`). Zeigt "Unklassifiziert" für Tickets ohne `category` (LLM-Call fehlgeschlagen oder noch nicht fertig).
-- `constants.ts` — `TEAMFLOW_AREAS`, Category/Status-Labels + Tailwind-Color-Maps, **`QUICK_TAGS`** (3 Chip-Vorlagen), **`LLM_CATEGORY_MAP`** (bug→problem, feature→idea, ux→idea, praise→praise, question→question).
-
-**Auto-Klassifikation (fire-and-forget)**:
-Nach Absenden im FeedbackPanel startet `autoClassifyFeedback(transport, text, context, area?)` einen Single-Turn-LLM-Call (`transport.submitMessage` mit kurzem `CLASSIFICATION_PROMPT`, `thinkingBudget: 'low'`). Bei Erfolg: `updateFeedback` setzt `llm_classification`, `llm_summary`, `category` (via `LLM_CATEGORY_MAP`). Bei Fehler/Streamlit: Ticket bleibt ohne Kategorie (Badge "Unklassifiziert"), kein Error-Toast. UI wartet nicht auf den Call — Bestätigungs-Step erscheint sofort.
-
-**Service-Layer** (`src/core/services/feedback/`):
-- `feedbackService.ts` — CRUD: localStorage primär (`teamflow_feedback_items`) + Shared-File-Sync (`_intern/feedback/feedback.json` im Datenverzeichnis, v1.9). Merge-by-id (User-Felder lokal, Kurator-Felder `kurator_status`/`kurator_priority`/`kurator_notes` shared-wins; `normalizeLegacyFields` mappt alte `admin_*`-Einträge beim Laden). FAQ-Helpers (`matchFaqEntries`, `createStandaloneFaq`, `bumpFaqAskCount`). `updateFeedback` Pick-Whitelist enthält `category` (damit Auto-Klassifikation das Feld nachträglich setzen kann).
-- `feedbackLlm.ts` — `loadSystemPrompt(storage)` liest `_intern/feedback/system-prompt.md` (Fallback `DEFAULT_SYSTEM_PROMPT`). `buildFeedbackSystemPrompt(template, context)` ersetzt `{{PAGE}}`/`{{ROUTE}}`/`{{DEVICE}}`/`{{VIEWPORT}}`/`{{LAST_ACTION}}`/`{{SESSION_MINUTES}}`/`{{ERRORS}}`. 3 Parser portiert verbatim aus Referenz: `parseFeedbackSummary`, `parseBotResponse`, `renderSimpleMarkdown`. `initSystemPromptFile(storage)` schreibt Default-Template ins Datenverzeichnis (Button im Kurator-Config-Panel). **`autoClassifyFeedback(transport, text, context, area?)`** + **`CLASSIFICATION_PROMPT`** (kurzer JSON-only-Prompt für stille Hintergrund-Klassifikation).
-- `feedbackContext.ts` — `captureFeedbackContext(activeId, activeName)` + Ring-Buffer für `window.onerror`/`unhandledrejection` (max 5).
-- `promptGenerator.ts` — `generateClaudeCodePrompt(ticket)` mit TeamFlow-Constraints-Block (file://, Single-File-Build, Tailwind v4, React 19, Zustand, lucide-react, Deutsche UI, CLAUDE.md primär).
-
-**Kurator-Plugin** (`src/plugins/feedback/`, `id: 'feedback-kuration'`, `kuratorOnly: true`):
-- `FeedbackAdminPage.tsx` — 4 Tabs (Tickets / FAQ / Sponsoring / Einstellungen) via `@/ui/Tabs`.
-- `sections/FeedbackTicketList.tsx` — Filter (Kategorie/Status), Karten-Liste links.
-- `sections/FeedbackTicketDetail.tsx` — Status-Dropdown, Priority-Slider, **Aufwand-Dropdown (S/M/L/XL, nur für Ideen)**, **Sponsoring-Fortschritt-Block mit "Schwelle erreicht"-Hinweis**, Notizen, FAQ-Markierung + Antwort + Stichwörter, "Claude Code Prompt generieren" mit Copy + Download .md.
-- `sections/FeedbackFaqTab.tsx` — Übersicht aller `is_faq===true` Items + manuell anlegen + bearbeiten + Markierung entfernen + löschen.
-- `sections/FeedbackSponsoringOverview.tsx` — Phase 3: Features-Ranking nach Progress, konfigurierbare Schwellen (S/M/L/XL + Hours-Faktor + Budget/Quartal), Budget-Statistik.
-- `sections/FeedbackConfigPanel.tsx` — Modell-Dropdown (Default `openai/gpt-oss-120b`), Max-Turns-Slider (2–12), System-Prompt-Pfad + Vorschau + "System-Prompt initialisieren"-Button (nur wenn Datei fehlt), Shared-File Status.
-
-**Öffentliches Board** (Phase 3, `src/plugins/feedback-board/`, `id: 'feedback-board'`, KEIN kuratorOnly):
-- Sichtbar für alle User in Sidebar Tools-Gruppe (order: 75).
-- `FeedbackBoardPage.tsx` — Header mit BudgetBadge + Filter-Pills (Alle/Bugs/Features/Offen/Umgesetzt) + sortierte Card-Liste.
-- Zeigt nur Bugs (problem) + Features (idea); Fragen/Lob/archivierte ausgefiltert.
-- Sortierung: `in_bearbeitung` oben, dann Sponsoring-Progress desc (bei Features), dann `created_at` desc.
-- Bugs ohne Sponsoring-Balken (werden immer gefixt).
-- Features mit `effort_estimate` zeigen Balken + Sponsor-Buttons.
-
-**Board-Komponenten** (`src/components/feedback/`):
-- `FeedbackBoardCard.tsx` — Einzelne Karte mit Status/Kategorie/Aufwand/Progress/Sponsor-Buttons/Sponsor-Liste.
-- `SponsorButton.tsx` — Punkte-Dropdown (1/2/3/5) + Stunden-Dialog (hours + project_ref) + "Du sponsorst"-Badge mit Zurückziehen.
-- `BudgetBadge.tsx` — `X/Y Punkte (Q2 2026)` mit Ampelfarbe (grün >5, gelb 2-5, rot 0-1).
-
-**Sponsoring-Service** (`src/core/services/feedback/`):
-- `budgetService.ts` — `getCurrentQuarter()`, `loadUserBudget(userId)` (auto-Reset bei Quartalswechsel), `spendPoints`, `refundPoints`, `checkQuarterReset` (beim App-Start).
-- `feedbackService.ts` erweitert: `sponsorTicket()` (Budget-Check + Doppel-Check + Merge-Write), `unsponsorTicket()` (Refund), `getSponsoringProgress(ticket, config)` (combined = points + hours × factor), `isSponsoringOpen(ticket)` (nur Ideen mit Aufwand + Status `neu`/`geplant`), `setEffortEstimate(storage, id, effort)`.
-
-**Sponsoring-Logik**:
-- Zwei Währungen pro Ticket: Punkte + Stunden (mit Projekt-Referenz).
-- User kann je Ticket 1x Punkte + 1x Stunden sponsern (nicht mehrfach pro Typ).
-- Combined = points + hours × `hours_to_points_factor` (Default 3).
-- Schwellen (konfigurierbar via `FeedbackConfig.sponsoring_thresholds`): S=5, M=15, L=30, XL=50.
-- Quartals-Reset: App-Start prüft via `checkQuarterReset`, bei Wechsel Toast "Neues Quartal — Punkte aufgefrischt" (App.tsx).
-- **Keine Auto-Transition**: Schwelle erreicht → Admin bekommt Hinweis "Status manuell auf Geplant setzen?", entscheidet selbst.
-- Sponsoring geschlossen sobald Status `in_bearbeitung`/`umgesetzt`/`abgelehnt`.
-
-**Admin-Gating**:
-- `UserProfile.is_admin?: boolean` (`src/core/types/config.ts`)
-- `ShellLayout.tsx` filtert `enabledPlugins` → Plugins mit `kuratorOnly: true` nur sichtbar wenn `profile?.is_kurator === true` (Fallback auf Legacy-Feld `is_admin` / `adminOnly` beim Laden vor-v1.9-Profile).
-- Aktivierung: Onboarding Step 0 (Checkbox) ODER Einstellungen → Profil-Tab → "Kurator-Funktionen aktivieren"
-- Default: `false` (jeder Nutzer kann sich selbst zum Kurator machen — single-user trust model)
-
-**LLM-Transport-Erweiterung** (`src/core/services/ai/transports/`):
-- Neue Methode `DirectLLMTransport.submitConversation(messages[], options?)` für Multi-Turn (vorher nur Single-Turn `submitMessage`).
-- `AITransport`-Interface erweitert um optionale `submitConversation?(...)` für Feature-Detection.
-
-**NavigationContext-Erweiterung** (`src/core/hooks/useNavigation.ts`):
-- `activeId: string` exposed → erlaubt FeedbackPanel, das aktive Plugin für Kontext-Erfassung zu ermitteln.
-
-**Datenverzeichnis-Layout** (v1.9):
-- `_intern/feedback/feedback.json` — Shared-Tickets (`SharedFeedbackFile { version: 1, updated_at, items[] }`)
-- `_intern/feedback/system-prompt.md` — Kurator-editierbarer Chatbot-Prompt (Fallback in `feedbackLlm.ts`)
-
-**Bekannte Einschränkungen**:
-- Streaming nicht implementiert (Buffer-Mode für Chatbot-Antworten)
-- Sync-Konflikt: Last-writer-wins bei concurrent Schreibzugriff auf `feedback.json` (akzeptabel bei niedriger Frequenz)
-- Budget (`teamflow_user_budget_v1_{userId}`) liegt in localStorage pro Gerät — User bekommt bei Browserwechsel neues 10-Punkte-Budget (Doppel-Sponsoring-Vektor theoretisch möglich, bei 5-15 User aber kein reales Problem)
-- Budget-Statistik im Kurator-Tab nur dieser Browser (für team-weite Stats müsste Shared-Storage ergänzt werden — out of scope)
-- `FeedbackItem.category` ist **optional** (`category?: FeedbackCategory`) — Tickets ohne LLM-Klassifikation (Streamlit-Transport, LLM-Fehler, ungültige Modell-Config) erscheinen als "Unklassifiziert". Kurator-Dashboard + MyFeedbackList + Board-Cards zeigen Fallback-Badge "Unklassifiziert" bei undefined.
+Integriertes User-Feedback + Admin-Dashboard + öffentliches Board mit Sponsoring (Phase 1+2+3 komplett). 4 Touchpoints: globaler FAB in `src/components/feedback/`, Service-Layer in `src/core/services/feedback/`, Kurator-Plugin `src/plugins/feedback/` (id `feedback-kuration`), öffentliches Board `src/plugins/feedback-board/` (id `feedback-board`). Details + Datenmodell + Sponsoring-Logik + Komponenten-Liste: [docs/architecture/feedback-system.md](docs/architecture/feedback-system.md).
 
 ### CSV-Import-Wizard (Phase 1b + Label-XLS-Hierarchie)
 
@@ -238,165 +163,17 @@ Kurator-Wizard unter `src/plugins/csv-sources-kuration/wizard/` für CSV-Source-
 
 ### Phase-2 Triage- & Matcher-Baustein (`src/phase2/`)
 
-Eingangsfilter für die DMS-Dokumenten-Pipeline. Pro Datei wird kaskadiert entschieden: relevant?, doc_type?, zugehöriger Antrag?
-
-**Kaskade (`src/phase2/triage/triage.ts` als Orchestrator):**
-- **Stage 0 — DMS-CSV-Lookup** (`stage0-dms-lookup.ts`): DocID-Lookup in der gefilterten DMS-CSV (`_intern/dms-index-filtered.csv`), erwartet ~60 % Treffer ohne Datei-Zugriff. Aktenplanzuordnung → doc_type via Mapping in `dms-csv/aktenplan-mapping.ts` (Defaults + Override-JSON unter `_intern/aktenplan-mapping.json`).
-- **Stage 1 — Strukturell** (`stage1-structural.ts`): Format-Check, PDF-Searchability-Probe, Sonderregel `Gutachten + DOCX → irrelevant` (Arbeitsversion). pdfjs ist lazy importiert — Tests in Node nutzen den `legacy`-Build via vitest-Alias.
-- **Stage 2 — Keywords** (`stage2-keywords.ts` + `keywords.ts`): erste ~500 Tokens via mammoth/pdfjs, Keyword-Marker pro doc_type, FKZ-Extraktion (strict + tolerant), Akronym-Hint. Sonderregel: `korrespondenz`-Top-Match wird auf `nachforderung` verfeinert wenn beide Keywords matchen.
-- **Stage 3 — Nemotron** (`stage3-nemotron.ts`): nur für ambige Fälle, ruft `DirectLLMTransport.submitMessage()` mit JSON-only-Schema. `enable_thinking: false`.
-
-**Matcher** (`matcher/`): nutzt **bestehende** IDB-Stores `antraege` + `akronym_index` — kein eigener FKZ/Akronym-Lookup. FKZ-Treffer im Antrags-Store → `confidence=high`. Akronym-Treffer eindeutig → `medium`, mehrdeutig → `review` mit `candidate_antrag_ids`. Konflikt FKZ vs. Akronym → `flag_conflict`.
-
-**Skip-Liste** (`skip-list/`): IDB-Store `phase2_skip_list`, gekeyt auf `filename` (DocID ist global eindeutig im DMS). `classifier_version` als Reset-Mechanik — bei Klassifikator-Update: zentrale Konstante `CLASSIFIER_VERSION` in `triage.ts` erhöhen, dann `resetSkipListByVersion()`.
-
-**Pending-Antrag-Bucket** (`pending-antrag/holding-bucket.ts`): IDB-Store `phase2_pending_antraege`, Index auf `akronym`. Projektbeschreibungen ohne Match landen hier statt in `orphan`. Re-Match wird automatisch getriggert:
-- Nach erfolgreichem CSV-Import (`importer.ts` → `rematchOnSnapshotReload()` Best-Effort)
-- Nach erfolgreichem Snapshot-Sync wenn `reloadedStores` `akronym_index`/`antraege` enthält (App.tsx-Sync-Bootstrap)
-
-**Scanner** (`scanner/scan-roots.ts`): rekursiver Walker über den `dokumentenquelle`-Handle (`smb-handle.ts`). Iteriert `runtimeConfig.scan.sub_roots` als Top-Level-Roots (1–10 Förderunterprogramm-Verzeichnisse), steigt dann in beliebig tiefe Datums-Unterordner ab (Limit `scan.max_depth`, Default 20). Filter `scan.file_extensions`. Yield zwischen Verzeichnissen für UI-Responsiveness.
-
-**Manifest-Store** (`scanner/manifest-store.ts`): IDB-Store `phase2_scan_manifest`, gekeyt auf `filename`, Indexe `matched_antrag_id` + `triage_state`. JSONL-Spiegelung auf den Daten-Share unter `SCAN_MANIFEST_PATH` (`_intern/scan-manifest.json`) ist vorbereitet, der Caller entscheidet wann gespiegelt wird.
-
-**OCR-Side-Car** (`ocr/side-car.ts`): nur Stub-Interface `ocrFirstPage(pdfBlob)`, wirft `OcrNotImplementedError` — echte Tesseract-Side-Car-Anbindung kommt in einem Folge-Patch.
-
-**DMS-Quellen-Verwaltung** (v1.15, `src/plugins/dokumentenquellen-kuration/`): Neues Kurator-Plugin (`id: 'dokumentenquellen-kuration'`, `kuratorOnly: true`, `category: 'kuration'`, sichtbar wenn `features.dokumentenscan === true`) mit zwei Sections:
-- **VerwaltenSection** (Dev-Bereich, sichtbar wenn `features.devInfraPanel === true || import.meta.env.DEV`): Quellen anlegen, Read-Only-Picker (`pickAndStoreDmsSourceHandle`), Sub-Roots editieren, Label ändern, löschen.
-- **AktivierenIndexierenSection** (immer sichtbar für Kuratoren): `is_active`-Switch pro Quelle + "Alle aktiven indexieren" + "Manifest auf Share spiegeln". Iteriert via `runBulkTriageForSources` sequentiell über aktive Sources mit globaler DMS-CSV-Cache.
-- **Datenmodell** (`src/core/services/dms-sources/`): IDB-Store `dms_sources` (Index `by_active` auf `is_active`), Felder `id`, `label`, `sub_roots[]`, `is_active`, `created_at`, `created_by`, `updated_at`, `last_indexed_at?`, `last_index_stats?`. Source-Handles leben in der `smb-handles`-Map unter Schlüssel `dms-source-${id}`.
-- **Manifest-Erweiterung**: `ManifestEntry.source_id?` (optional) — neuer Index `by_source_id` auf dem `phase2_scan_manifest`-Store. Listing-Helper `listManifestEntriesBySource(sourceId)` mappt Legacy-Einträge ohne `source_id` transparent auf die `default`-Source. Filename-Key bleibt unverändert; bei Cross-Source-Filename-Kollisionen Last-Write-Wins (dokumentierte Limitation, DMS-DocIDs sind in der Praxis pro Instanz eindeutig).
-- **Migration**: `migrateLegacyDmsSource(idb)` läuft idempotent beim App-Start (in `App.tsx` nach `storage.init()`). Wenn `dms_sources` leer ist UND ein Legacy-`dokumentenquelle`-Handle existiert: legt eine Default-Source mit `id='default'` an, übernimmt `phase2_scan_config.selected_paths` als `sub_roots`, kopiert den Handle auf `dms-source-default`. Audit-Action: `dms_source_migrated_from_legacy`.
-- **Audit-Actions**: `dms_source_added`, `dms_source_removed`, `dms_source_label_changed`, `dms_source_subroots_changed`, `dms_source_handle_picked`, `dms_source_handle_lost`, `dms_source_activated`, `dms_source_deactivated`, `dms_source_indexed_started`, `dms_source_indexed_finished`.
-- **Phase2RescanCard im Suchindex-Plugin entfernt** (vor v1.15 in `src/plugins/kurator/sections/`); Multi-Source-Indexierung lebt jetzt komplett im neuen Plugin.
-- **Einstellungen-Tab "Dokumentenquellen"** (`src/plugins/einstellungen/DokumentenquellenTab.tsx`): User-sichtbar, ausgegraut. Vorbereitend für persönliche User-Pfade, sobald internes Embedding/LLM-API verfügbar ist.
-
-**Build-Time-Config** (`runtimeConfig.scan`): neue Felder in `scripts/config-schema.mjs` und `src/config/runtime-config.ts`:
-- `scan.sub_roots: string[]` — relative Roots im dokumentenquelle-Handle
-- `scan.file_extensions: string[]` — Pflicht wenn `features.dokumentenscan = true`
-- `scan.max_depth: number`
-- `scan.fkz_allowed_prefixes: string[]` — Format `^\d{2}[A-Z]{2}$` (strukturell geprüft)
-`validateConfig()` prüft strukturell + erzwingt non-empty `file_extensions` wenn dokumentenscan an.
-
-**Vorfilter-Script** (`scripts/filter-dms-csv.mjs`): Streaming-Filter der 5M-Zeilen-DMS-CSV → ~250k Zeilen via FKZ-Präfix-Regex. Ausgabe mit Zusatzspalte `extracted_fkz`. Encoding-Detection (UTF-8 vs. cp1252) anhand der ersten 4 KB. Summary mit `rows_total`/`rows_kept`/`per_prefix`/`top_aktenplan`/`top_von`. Aufruf: `node scripts/filter-dms-csv.mjs input.csv output.csv [--prefixes 16EP,16KN,16DS,16DL]`.
-
-**FKZ-Regex-Detail**: `\b` matcht NICHT zwischen `\w` und `_`, aber FKZs sind im DMS-Export typischerweise von `_` umrahmt. Stattdessen: `(16EP|16KN|...)\d{6}(?!\d)` (nicht von einer Ziffer gefolgt). Gleiches Muster im `filter-dms-csv.mjs` und `fkz-extractor.ts`.
-
-**Eval-Suite** (`src/phase2/__tests__/`): Vitest-basiert (Test-Runner als Devdependency neu, `npm run test:phase2`). Schwelle: ≥ 9/11 korrekt klassifiziert auf den Beispiel-Dokumenten in `docs/phase-2/triage-beispiele/`. Vitest-Setup polyfillt DOMMatrix/Path2D/ImageData für pdfjs-Module-Init und aliased `pdfjs-dist` auf den Legacy-Build (Node-kompatibel).
-
-**Dev-Plugin** (`src/plugins/dev-infrastructure-test/panels/TriagePanel.tsx`): neues Panel "5 · Phase-2 Triage" — Buttons "Index laden", "Datei wählen + Triage", "Skip-Liste", "Pending". Output als JSON-Block für End-to-End-Validierung.
+Eingangsfilter für die DMS-Dokumenten-Pipeline: pro Datei wird kaskadiert entschieden (relevant?, doc_type?, zugehöriger Antrag?). 4-Stage-Kaskade (DMS-CSV-Lookup → strukturell → Keywords → Nemotron-LLM), Matcher gegen IDB-Stores `antraege` + `akronym_index`, Skip-Liste mit `classifier_version`-Reset, Pending-Bucket für Projektbeschreibungen ohne Match. Multi-Source-Indexierung über das DMS-Quellen-Plugin (v1.15). Details, Build-Config (`runtimeConfig.scan`), Vorfilter-Script, FKZ-Regex und Eval-Suite: [docs/architecture/phase2-triage.md](docs/architecture/phase2-triage.md).
 
 ### Phase-2 Review-Queue UI (`src/plugins/dokument-review/`)
 
-Kurator-Plugin (`id: 'dokument-review'`, `category: 'kuration'`, `kuratorOnly: true`, `order: 35`) für die Bearbeitung der Phase-2-Triage-Ergebnisse. Sichtbar wenn `features.dokumentenscan === true` UND `profile.is_kurator === true`. Phase-2-Pipeline und `Phase2RescanCard` (Bulk-Scan) bleiben unverändert.
-
-**Layout** (50/50-Split unter Header-Bereich):
-- `DashboardCard` — 6 Kacheln (relevant / irrelevant / review / pending / errors / gesamt) als klickbare Quick-Filter; "Pending re-matchen"-Button erscheint nur wenn `pending > 0`.
-- `FilterBar` — vier Pill-Reihen (Ansicht / Confidence / Typ / Source) mit Count-Badges. Typ-Pills werden dynamisch aus den im Manifest tatsächlich vorkommenden `doc_type`-Werten generiert.
-- `ManifestList` (linke Spalte) — paginiert 50 Einträge/Seite, Sort-Dropdown (Review zuerst / Dateiname / Typ / Confidence). Selektion synchron mit Store; Selektion springt automatisch auf den ersten Page-Eintrag wenn die aktuelle Wahl durch Filterwechsel rausfällt.
-- `DetailPanel` (rechte Spalte) — 4 Read-Only-Sections (Datei-Info / Triage / Match / DMS-CSV) + Aktionsleiste.
-- `PendingList` (col-span-2 statt Split, wenn `viewMode='pending'`) — Holding-Bucket-Einträge mit `Manuell zuordnen` (öffnet Inline-`AntragAutocomplete`) und `Eintrag entfernen`.
-
-**Aktionen im DetailPanel** (alle gehen über `useReviewActions`, schreiben `triage_source='manual'`, `classifier_version=CLASSIFIER_VERSION`, frischen Timestamp; Auto-Advance auf nächsten Listeneintrag in `review-queue`/`all`-Ansicht):
-- *Typ ändern* — `Select` mit allen 14 `DocType`-Werten → `putManifestEntry({ doc_type, triage_reason: 'manual_doc_type:<typ>' })`
-- *Antrag zuordnen* — `AntragAutocomplete` (FKZ/Akronym/Titel-Substring auf in-RAM-Index des aktiven Programms, max 8 Vorschläge) ODER Quick-Pick-Button pro `candidate_antrag_id` → `putManifestEntry({ matched_antrag_id, match_method:'manual', match_confidence:'high', requires_review:false, candidate_antrag_ids:[] })` + Skip-Liste-Eintrag wird gelöscht falls vorhanden
-- *Irrelevant* — `putManifestEntry({ triage_state:'irrelevant', requires_review:false })` + `putSkipEntry({ source:'manual', reason:'manual_irrelevant', dms_*, extracted_* })`
-- *Relevant ohne Zuordnung* — `putManifestEntry({ triage_state:'relevant', requires_review:false, match_confidence:'orphan' })`
-- *Erneut klassifizieren* — `deleteManifestEntry()` + `deleteSkipEntry()`. Toast: „Beim nächsten Bulk-Scan im Suchindex-Plugin wird neu klassifiziert" (kein eigener Re-Trigger im Plugin — User soll explizit zur `Phase2RescanCard` gehen).
-
-**Pending-Aktionen**:
-- *Manuell zuordnen* — liest den existierenden Manifest-Eintrag (Pending-Triage hat `triage_state='pending_antrag'` schon angelegt), setzt `triage_state='relevant'`, `match_method='manual'`, schreibt + löscht `phase2_pending_antraege`-Row.
-- *Pending re-matchen* — `rematchOnSnapshotReload(idb, activeProgrammId)` global (Button im Header der `DashboardCard`).
-
-**Keyboard-Shortcuts** (`KeyboardHandler` registriert globalen `keydown`-Listener; ignoriert Input/Textarea/Select/contenteditable; deaktiviert in `pending`-View):
-| Taste | Aktion |
-| --- | --- |
-| `j` / `↓` / `k` / `↑` | Liste navigieren |
-| `n` | nächster Review-Eintrag (skipt non-review) |
-| `Enter` | Selektion fokussieren |
-| `Escape` | Selektion zurücknehmen |
-| `i` | Irrelevant + Auto-Advance |
-| `r` | Relevant ohne Zuordnung + Auto-Advance |
-| `a` | Antrag-Autocomplete-Input fokussieren (`document.querySelector('[data-tf-autocomplete-input="true"]')`) |
-
-**Daten-Hooks**:
-- `useManifestData` — lädt `listManifestEntries` / `listAllSkipEntries` / `listAllPending` parallel beim Mount, hält im React-State. `reloadEntry(filename)` mergt einen einzelnen IDB-Roundtrip in den Cache; `removeEntry(filename)` ist nur State-seitig (für Optimistic-Updates nach `deleteManifestEntry`); `rematchPending(programmId)` ruft `rematchOnSnapshotReload` und reloadet Manifest+Pending.
-- `useAntraegeIndex` — `listAntraegeByProgramm(activeProgrammId)` einmal beim Mount/Programm-Switch; `filter(query, max)` und `byAktenzeichen(az)` als Substring-Such-Helper für `AntragAutocomplete`.
-- `useReviewActions` — wrappt die 5 Aktionen, ruft danach `onMutated(filename)` (= `reloadEntry`) bzw. `onRemoved(filename)` (= `removeEntry`) und zeigt einen Toast.
-
-**Filter + Sort** (`filtering.ts`): rein clientseitig auf dem in-memory-Array. `applyFilters({ viewMode, confidenceFilter, docTypeFilter, sourceFilter, sortKey })` + `isInReviewQueue(entry)` + `uniqueDocTypes(entries)`. Sort-Keys: `review_then_classified_desc` (Default) / `filename` / `doc_type` / `confidence`.
-
-**Toast** (`ReviewToast`): kein globales Toast-System — eigener Auto-Dismiss-Mechanismus im Store via `setTimeout(..., 3000)`. Tones `success`/`info`/`error` mappen auf Border-Farben (`--tf-success-*`/`--tf-info-*`/`--tf-danger-*`).
-
-**Persistenz** (localStorage): nur `viewMode` unter Key `teamflow_dokument_review_view`. Confidence/Typ/Source/Sort/Page/Selection werden bewusst nicht persistiert.
-
-**Auto-Cleanup** (`AutoCleanupCard` zwischen DashboardCard und FilterBar): sechs Heuristiken zum Reduzieren der Review-Queue. „Vorschau anzeigen" zeigt pro Regel die Trefferanzahl auf den aktuell offenen Review-Einträgen, jede Regel via Checkbox einzeln aktivierbar. „Anwenden" schreibt jede betroffene `ManifestEntry` auf `triage_state='irrelevant'` + `requires_review=false` (bzw. nur `requires_review=false` bei `matched_with_fkz`) und legt für irrelevant-Regeln einen `SkipListEntry` an. Reihenfolge — erster Match gewinnt; spezifische Regeln vor generischer Whitelist:
-1. `zero_byte` — `size_bytes === 0` → irrelevant
-2. `parse_error` — `triage_reason` startet mit `parse_error` → irrelevant
-3. `bescheid` — `doc_type === 'bescheid'` → irrelevant
-4. `bewilligung` — `dms_bezeichnung` enthält `Bewilligung` → irrelevant
-5. `zuwendungsbescheid` — `dms_bezeichnung` enthält `ZuwB`/`Zuwendungsbescheid` → irrelevant
-6. `format_outside_whitelist` — Whitelist-Tupel `(gutachten,pdf)`, `(nachforderung,doc/docx)`, `(projektbeschreibung,pdf)`, `(verwendungsnachweis,pdf/doc/docx)` — alles andere → irrelevant. **`matched_antrag_id` bleibt erhalten** für Folge-Anzeige in der Antrag-Detail-Sonstige-Section.
-7. `matched_with_fkz` — Whitelist-Treffer + `matched_antrag_id` + `extracted_fkz` → `requires_review=false`, Status bleibt.
-
-**Dokumente am Antrag**: `AntragDokumenteSection` (`src/plugins/antraege/AntragDokumenteSection.tsx`) wird zweimal am Ende der Antrag-Detail-Seite eingebunden — als „Dokumente" (Whitelist-Treffer mit `triage_state='relevant'`) und „Sonstige Dokumente" (alle mit `triage_state='irrelevant'`). Beide Sections sind defaultmäßig zugeklappt. Index-Lookup via `listByMatchedAntrag(idb, aktenzeichen)` (neu in `src/phase2/scanner/manifest-store.ts`, nutzt den bestehenden `matched_antrag_id`-Index — kein Full-Table-Scan). Sortierung in „Dokumente" folgt dem Lebenszyklus (projektbeschreibung → gutachten → nachforderung → verwendungsnachweis → verwendungsnachweispruefung); in „Sonstige" stehen `gutachten_qs` und `korrespondenz` zuerst. „Öffnen"-Button lädt die Datei via `getDokumentenquelleHandle` + `makeLoadBlobFromHandle` als Blob und öffnet sie in einem neuen Tab; Object-URL wird nach 60 s revoked.
-
-**Anti-Patterns** (in diesem Plugin nicht vornehmen):
-- Keine externe Virtualisierungs-Library (Pagination 50/Seite reicht für die erwartete Skala).
-- Keine direkten IDB-Transaktionen — alle Mutationen über die Phase-2-API in `@/phase2`.
-- Keine modalen Dialoge — Aktionen inline im `DetailPanel`.
-- Kein Renderer für PDF/DOCX-Inhalte (kommt erst wenn die Volltext-Pipeline steht).
-- Keine Veränderungen an `Phase2RescanCard.tsx` oder `TriagePanel.tsx`. Read-only-Accessors in `src/phase2/scanner/manifest-store.ts` (z.B. `listByMatchedAntrag`) sind erlaubt; Triage-Pipeline-Logik bleibt unverändert.
+Kurator-Plugin (`id: 'dokument-review'`, `category: 'kuration'`, `kuratorOnly: true`) für die Bearbeitung der Phase-2-Triage-Ergebnisse. Sichtbar wenn `features.dokumentenscan === true`. 50/50-Split-Layout (Manifest-Liste + Detail-Panel), 5 Override-Aktionen (Typ ändern / Antrag zuordnen / Irrelevant / Relevant ohne Zuordnung / Re-Klassifizieren) via `useReviewActions`, Keyboard-Shortcuts (`j`/`k`/`n`/`i`/`r`/`a`), Auto-Cleanup-Heuristiken, integriert ins Antrag-Detail über `AntragDokumenteSection`. Layout, Hook-Liste, Filter/Sort, Auto-Cleanup-Regeln und Anti-Patterns: [docs/architecture/phase2-review-queue.md](docs/architecture/phase2-review-queue.md).
 
 ### Auslastungs-Modul (Plugin "auslastung", v1.16)
 
-Plugin (`id: 'auslastung'`, `category: 'workflow'`, `kuratorOnly: false`, sichtbar wenn `features.auslastung === true`) für automatische Antrags-Klassifizierung in Überkategorien + MA-Zuweisung mit dreistufigem Matching. Quartalsbasierte Kapazitäts-Planung. Datenschutz-Kernprinzip: **MAs sind im gesamten Modul nur als anonyme IDs (MA01-MAxx) sichtbar**; echte TIB-Kürzel kommen in Profil-Daten ausschließlich im RAM während eines passwortgeschützten XLSX-Exports vor und werden nicht in `auslastung.json` gespeichert. **Ausnahme**: die Sidecar-Datei `_intern/auslastung-kuerzel-map.json` enthält das Mapping `kuerzel ↔ anonId` als Klartext. Diese Datei ist nötig, weil Selbsteintragungen pro User ihre eigene anonId stabil auflösen müssen und eine echte Verschlüsselung dies brechen würde. Sicherheits-Effekt vs. dem alten ephemeral-Sort-Modell: effektiv unverändert, da die antraege selbst `tib_kuerz` als Klartext-Spalte enthalten und das Mapping daraus trivial ableitbar war. Die persistente Datei macht das Mapping explizit und stabilisiert die anonIds gegen alphabetische Re-Sort-Drift bei neuen Kürzeln. Profil-Daten (Kapazität, Zuweisungen, Kategorien) in `auslastung.json` referenzieren MAs weiterhin nur über anonId.
+Plugin (`id: 'auslastung'`, `category: 'workflow'`, sichtbar wenn `features.auslastung === true`) für automatische Antrags-Klassifizierung in Überkategorien + MA-Zuweisung mit dreistufigem Matching (Stage 0 Boolean-Match auf ZT-Spalten → Stage 1 Regel-Mapping → Stage 2 Embedding-Centroid). Quartalsbasierte Kapazitäts-Planung. **Datenschutz-Kernprinzip**: MAs nur als anonyme IDs (MA01-MAxx) sichtbar; echte TIB-Kürzel nur im RAM während passwortgeschütztem XLSX-Export. Sidecar `_intern/auslastung-kuerzel-map.json` ist append-only Klartext-Map (Pitfall #18). Aktiv/Inaktiv-Flag pro MA filtert UI + Matching (inaktive MAs bleiben aber im Embedding-Corpus als Kompetenz-Referenz). Stage-2-Korpus wird auf SMB-Share gespiegelt (Cold-Start: 46 min → Download).
 
-**5 vordefinierte Überkategorien** (aus FZD-Kontext, im Admin editierbar): `IT` Industrielle Technologien, `DT` Digitale Technologien, `EU` Energie- und Umwelttechnologien, `LG` Lebens- und Gesundheitswissenschaften, `NM` Naturwissenschaftliche Methoden.
-
-**Tabs** (`AuslastungView`, role-gated): Selbsteintragung (alle User) · Klassifizierung · Zuweisung (50/50-Split-Cockpit) · Kapazität · Admin — letzte 4 nur für `is_kurator`. „Meine Technologien" als Tab im Einstellungs-Plugin.
-
-**Aktiv/Inaktiv-Flag** (`AnonymerMitarbeiter.aktiv: boolean`, Mai 2026): Filter-Schicht für ehemalige Bearbeiter. Inaktive MAs werden aus UI (Admin-Tabelle, KapazitaetsDashboard, Zuweisungs-Cockpit) und Matching (Eligible-Sammlung in `matching-engine.ts`, Score-Aggregation in `embedding-matcher.ts`) ausgeblendet — ihre historischen Antraege bleiben aber im Embedding-Corpus als Kompetenz-Referenz für neue MAs mit ähnlichem Hintergrund. Default beim Anlegen: `true`. Migration alter Daten (`normalizeMitarbeiterRecord` in `services/auslastung-store.ts`): ebenfalls `true`. PL bekommt im Admin-Tab einen einmaligen Vorschlag-Banner (`AktivVorschlagBanner.tsx` + `services/aktiv-detection.ts`): "MAs mit Antrag im aktuellen Jahr → aktiv vorgeschlagen, sonst inaktiv". Banner erscheint nur wenn `shouldShowAktivVorschlag(mitarbeiter) === true` (alle MAs noch `aktiv: true`); ist auch nur ein MA inaktiv, gilt die Liste als gepflegt und der Banner kommt nicht wieder. Aktivieren/Deaktivieren einzeln über Aktiv-Toggle pro Tabellenzeile (Bestätigungsdialog beim Deaktivieren). "Inaktive anzeigen"-Checkbox im Header zeigt ausgegraute inaktive MAs in der Tabelle. **Lücken in der MA-Nummerierung** sind durch das Aktiv-Flag normal: anonIds bleiben stabil (siehe Pitfall #18), nur die Anzeige filtert. KapazitaetsDashboard zeigt dezenten Hilfetext "30 von 79 MAs aktiv …" wenn Lücken vorhanden sind.
-
-**Engine-Layer** (`src/plugins/auslastung/services/`):
-- `klassifizierung-engine.ts` — dreistufig: **Stage 0** (Boolean-Match auf ZT-Spalten der CSV `"Künstliche"`, `"Gesundes L"`, `"Energie/Re"`, ... → direkt der Default-Überkategorie zugeordnet, höchste Confidence), **Stage 1** (Regel-Mapping aus PL-konfigurierten Deskriptoren-Listen, Multi-Label wenn 2 Kategorien matchen), **Stage 2** (Embedding-Centroid-Match, optional via `config.stage2Aktiv`).
-- `bm25-matcher.ts` — Mini-BM25 für MA-Profile mit deutschen Stoppwörtern.
-- `embedding-corpus.ts` — IDB-Cache `auslastung-emb:<aktz>` für Antrags-Embeddings (~40 MB bei 13k × 768d), Corpus-Build mit Progress-Callback, AbortSignal-Support. Wird seit Mai 2026 als Sidecar-Dateipaar (`_intern/auslastung-embedding-corpus.{manifest.json,bin}`) auf den SMB-Daten-Share gespiegelt — Cold-Start eines neuen Rechners lädt vom Share statt 46 min neu zu bauen. Mirroring-Logik in `embedding-corpus-mirror.ts` + Hook `useEmbeddingCorpusMirror`. Modell-Mismatch (Share-Korpus mit anderem Modell als lokal aktiv) blockiert Download und Upload mit explizitem UI-Hinweis; Antraege-Drift (`aktenzeichenSetHash` weicht ab) gibt sanften Hinweis zum inkrementellen Re-Build. Upload nutzt den bestehenden `build-lock`-Mechanismus mit `stufe: 'auslastung-corpus'`.
-- `embedding-matcher.ts` — Top-K Antrags-Similarity → TIB-Score-Aggregation mit virtueller-Projekt-Confidence.
-- `matching-engine.ts` — dynamische α-Fusion (BM25 vs Embedding je nach Konfidenz) + Kapazitäts-Filter + Balance-Score → Top-3 pro Antrag.
-- `anonym-map.ts` — deterministisches Mapping echtes TIB-Kürzel → MA01..MAxx, **nur im RAM**, nie persistiert. Liest ausschließlich `tib_kuerz` (nicht BIB/ZTP/PFM). Ehemalige Bearbeiter werden bewusst mitgezählt — deren Profile dienen als Embedding-Referenz für neue MAs mit ähnlichem Hintergrund.
-- `onboarding-kalibrierung.ts` — Spearman-Korrelation + Grid-Search über Confidence-Faktoren, für die Validierung des Standalone-Onboarding gegen historisches Matching.
-
-**Build-Pipeline** (`scripts/build-default-labels.mjs`, prebuild-Hook): liest `_labels/Labels PrjBsp_GPT.xlsx` → erzeugt `src/plugins/auslastung/services/default-labels.ts` (AUTO-GENERIERT, nicht manuell editieren) mit:
-- `LABEL_BY_CSV_COLUMN` — 148 Klarnamen pro CSV-Spaltencode
-- `ZUKUNFTSTECHNOLOGIE_FELDER` — 44 ZT-Felder (22 Themen × TV/VB-Ebene) mit Default-Mapping auf die 5 Kategorien
-- `KATEGORIE_KEYWORD_HEURISTIK` — Substring-Heuristik für TECHN_/BRANCHE_-Werte als Fallback
-
-**Pflegepunkt bei neuen ZT-Themen**: `ZT_TO_KATEGORIE`-Map in `build-default-labels.mjs` editieren → `npm run build:default-labels` → die VB-Spalten-Mappings in `docs/fixtures/schema-c.ts` ergänzen (PapaParse renamed Duplikate zu `<header>_1`). Stage-0-Match liest `customField`-Namen (`zt_*_tv` / `zt_*_vb`), nicht den CSV-Header.
-
-**Datenmodell** (`auslastung.json` auf SMB unter `_intern/auslastung.json`; Legacy-Pfad `_intern/auslastung/data.json` wird beim Laden als Fallback berücksichtigt — siehe `loadAuslastungData()`):
-```typescript
-interface AuslastungData {
-  version: 1;
-  updatedAt: string;
-  config: AuslastungConfig;              // ueberKategorien, gewichtungen, stage2Aktiv, setupAbgeschlossen
-  mitarbeiter: Record<string, AnonymerMitarbeiter>;  // Key = anonId (MA01)
-  klassifizierungen: Klassifizierung[];  // pro Antrag: vorgeschlagene + freigegebene Kategorien
-  zuweisungen: Zuweisung[];              // antragId, anonId, quartal, stunden, status
-  kalibrierung?: KalibrierungsState;     // Spearman-Ergebnisse + optimale Confidence-Faktoren
-}
-```
-
-**Standalone Kompetenz-Onboarding** (`tools/kompetenz-onboarding/`): Single-HTML-Datei (Vanilla-JS + Inline-SheetJS, file://-kompatibel) für neue MAs ohne SMB-Zugang. PL generiert die HTML im Admin (`generateOnboardingHtml`) — Generator liest `template.html` via Vite-`?raw`-Import + injiziert JSON-Blob mit 30-60 Beispiel-Anträgen. MA füllt aus, schickt XLSX zurück, PL importiert via `OnboardingImportDialog` → neuer MA mit `virtuelleProjekte` + Confidence-Faktoren.
-
-**Schema-Erweiterung** (`docs/fixtures/schema-c.ts`): mapped alle 22 ZT-TV-Spalten (`'Digitale W'`, `'Künstliche'`, ...) UND 22 ZT-VB-Spalten (`'Digitale W_1'`, `'Künstliche_1'`, ...) als Custom-Boolean-Felder. Beim Stage-0-Match werden TV und VB gleichwertig ausgewertet — Verbund-Deskriptoren vererben implizit auf alle TVs.
-
-**Sichtbarkeits-Gates**:
-- Plugin selbst: `features.auslastung` (default false; in `configs/dev.config.json` true). Andere Variants müssen das Flag aktiv setzen wenn das Modul gewünscht ist.
-- Routing: `routes.ts` (`PLUGIN_ROUTES['auslastung']`) + `Router.tsx` (`flatIds` enthält `'auslastung'`) — Pflicht-Einträge, sonst Sidebar-Klick landet auf Home.
-
-**Nicht anfassen**:
-- Bestehende Bearbeiter-Filter-Logik im `antraege`-Plugin (das nutzt `bearbeiter_kuerzel` aus dem Profil mit Mehrfach-Kürzel + Begleitungs-Spalten — andere Domain).
-- Embedding-Modell-Init: Plugin nutzt den Singleton `embeddingService` aus dem Such-Stack, lädt kein eigenes Modell.
+Details (Tabs, Engine-Layer, Datenmodell `auslastung.json`, Standalone-Onboarding-HTML, Schema-Erweiterung, Build-Pipeline): [docs/architecture/auslastung.md](docs/architecture/auslastung.md).
 
 ### Legacy: Vorgang-Infrastruktur
 
@@ -729,23 +506,9 @@ Beim MAJOR-Bump zusätzlich: Migrations-Notiz in CLAUDE.md ergänzen (analog v1.
 
 ### v2.0 — 2-Handle-Architektur (Persönlicher Ordner + Offline-Modus + Feedback-Inbox)
 
-Daten-Modell-Änderungen, die einen Re-Pick beim Start erzwingen:
+MAJOR-Bump v2.0 erzwingt Re-Pick beim Start. Neuer Handle-Slot `SMB_HANDLE_PERSOENLICH` pro User für `teamflow/{profile,einstellungen}.json` + Feedback-Outbox. Nicht-Kurator-Daten-Share-Handle wird automatisch von `readwrite` auf `read` heruntergestuft (Hardening, single-click Re-Pick auf neuem `StartupScreen`). `ConnectionMode` (`online`/`offline`) zeigt nicht-dismissbares `OfflineBanner` mit letztem Snapshot-Datum. Feedback-Dispatch domain-spezifisch: Kurator → direkt nach `_intern/feedback/feedback.json`, Nicht-Kurator → Outbox auf pers. Laufwerk (manueller Einsammel-Schritt im Kurator-Tab).
 
-- **Neuer Handle-Slot `SMB_HANDLE_PERSOENLICH`** in der `smb-handles`-Map ([smb-handle.ts](src/core/services/infrastructure/smb-handle.ts)). Pflegt `teamflow/profile.json`, `teamflow/einstellungen.json` und `teamflow/feedback/outbox/*.json` auf dem User-Home-Laufwerk. Optional — Skip im Onboarding ist erlaubt, Fallback ist IDB.
-- **Neuer Handle-Slot `SMB_HANDLE_USER_FOLDERS_ROOT`** für den Kurator (einmaliger Pick) zum Einsammeln der User-Outboxen via `FeedbackInboxTab`.
-- **`pickAndStoreDatenShareHandle(idb, { mode })`** ist jetzt mode-parametrisiert. Kurator pickt `readwrite` (wie bisher), Nicht-Kurator pickt `read` (Hardening). `refreshAllPermissions(idb, { isKurator })` aktualisiert beim Start in einer User-Gesture-Kette die Permissions aller Slots.
-- **Migrations-Flag `NEEDS_HANDLE_DOWNGRADE_IDB_KEY`**: bestehende Nicht-Kurator-User mit `readwrite`-Daten-Share-Handle werden auf dem `StartupScreen` ([src/core/StartupScreen.tsx](src/core/StartupScreen.tsx)) in einen Re-Pick mit `read`-Mode geführt. Single-Klick mit Banner-Erklärung.
-- **Config-Schema-Bump `CONFIG_SCHEMA_VERSION = 2`** in [scripts/config-schema.mjs](scripts/config-schema.mjs). Neue Felder: `data.expectedFolderName` (optional Ordner-Name-Validation beim Daten-Share-Picker) und `personalFolder` (`subfolder`/`required`/`promptAfterProfile`/`snapshotAgeWarningDays`). Alle `configs/*.json` wurden aktualisiert.
-- **Feedback-Dispatch in `feedbackService.submitFeedback`**: Kurator → direkt nach `_intern/feedback/feedback.json`; Nicht-Kurator → in die Outbox auf dem pers. Laufwerk. Kein automatischer Sync (out-of-scope; manueller "Feedback einsammeln"-Schritt im Kurator-Tab).
-- **`ConnectionMode`** lebt in [src/core/services/connection-status.ts](src/core/services/connection-status.ts). Werte `'online' | 'offline'` (kein `'citrix'` — funktional identisch). Setzt auf den bestehenden `useSmbStatus` auf. `OfflineBanner` ([src/core/OfflineBanner.tsx](src/core/OfflineBanner.tsx)) ist nicht-dismissbar, amber, zeigt das letzte Snapshot-Datum.
-- **Pfad-Konstanten** in [src/core/services/infrastructure/types.ts](src/core/services/infrastructure/types.ts):
-  - `PERSOENLICH_TEAMFLOW_DIR = 'teamflow'`
-  - `PERSOENLICH_FEEDBACK_OUTBOX_DIR = 'teamflow/feedback/outbox'`
-  - `PERSOENLICH_PROFILE_FILE = 'teamflow/profile.json'`
-  - `PERSOENLICH_EINSTELLUNGEN_FILE = 'teamflow/einstellungen.json'`
-  - `PERSOENLICH_MEINE_FEEDBACKS_FILE = 'teamflow/feedback/meine-feedbacks.json'`
-
-UI-Touchpoints: `Onboarding.tsx` (Kürzel-Feld optional + Step 2 Pers. Ordner), `WelcomeScreen.tsx` (`expectedFolderName`-Validation + Mode-Default abhängig von `is_kurator`), `StartupScreen.tsx` (neu), `OfflineBanner.tsx` (neu), `ShellLayout.tsx` (Banner eingehängt), `EinstellungenPage`/`SpeicherTab` (Section "Persönlicher Ordner" + Verbinden/Ändern/Trennen).
+Details (Migrations-Flag, Config-Schema-Bump `CONFIG_SCHEMA_VERSION = 2`, neue Pfad-Konstanten, UI-Touchpoints): [docs/architecture/v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md).
 
 ## Common Pitfalls
 
@@ -760,7 +523,7 @@ UI-Touchpoints: `Onboarding.tsx` (Kürzel-Feld optional + Step 2 Pers. Ordner), 
 9. **Status-Mappings sind domain-getrennt** — `src/core/utils/status-mappings.ts` ist NUR für Vorgang-Status (Bauantrag/Förderantrag: `neu`, `in_pruefung`, `genehmigt`, …). Feedback-Status (`neu`, `geplant`, `in_bearbeitung`, `umgesetzt`, `abgelehnt`, `archiviert`) hat seine eigenen Maps in `src/components/feedback/constants.ts` — bewusst getrennt, weil andere Semantik. Beim Hinzufügen neuer Status-Werte: Vorgang-Status zentral, Feedback-Status in der Feedback-Domain.
 10. **Infrastructure-Writes müssen `atomicWrite()` / `appendToFile()` verwenden** (Phase 1a) — direkter `FileSystemWritableFileStream` umgeht die `.tmp`+Rename+`.backup`-Rotation und kann bei Crash korrumpieren. **Dokumentierte Ausnahme**: [src/phase2/triage/run-log.ts](src/phase2/triage/run-log.ts) schreibt bewusst per `createWritable({ keepExistingData: true })` direkt — siehe Datei-Kommentar (O(n)-Append wäre bei 13k+ Antraegen prohibitiv, Risk-Profil per Run-spezifischer JSONL akzeptabel).
 11. **Neue Features hinter Flag setzen** (v1.10) — wenn ein Feature optional sein soll, in `scripts/config-schema.mjs` eine Flag ergänzen, in `src/config/feature-flags.ts` einen Helfer, und die betroffenen Stellen (Plugin-Filter, Komponenten-Rendering) damit gaten. OpenRouter in Prod-Builds wird zusätzlich in `validateConfig()` verboten
-12. **Antrag-Status: zwei Domaenen, eine Kategorie** — `AntragListItem.status` traegt entweder Bauantrag-Snake-Case-Werte (`neu`, `in_pruefung`, `genehmigt`, `abgelehnt`, `archiviert`, …) oder Foerderantrag-CSV-Rohwerte (Foyer-Quellsystem: `beantragt`, `VN geprüft`, `NF gestellt`, `bewilligt`, `Schlussvermerk`, `abgelehnt/zurückgezogen`, …). **Strukturelle Sicherung (Mai 2026)**: `Antrag.status`, `AntragListItem.status` und `Verbund.status` sind seit dem Branding-Patch als `AntragStatusRaw = string & { __brand }` typisiert. Direkte Schreib-Aktionen mit String-Literal (`antrag.status = 'bewilligt'`) sind TS-Compile-Errors. An Boundary-Stellen (CSV-Merger, Test-Fixtures, Seed-Loader) wird `asAntragStatusRaw(s)` aufgerufen — kein Branding-Cast im Plugin-Code. Views, Dashboard, Eingangs-Ampel und Workflow-Logik **NIE direkt** gegen einen der Werte-Saetze vergleichen (`status === 'bewilligt'`). Stattdessen die Kategorie-Helper aus [src/core/utils/status-canonical.ts](src/core/utils/status-canonical.ts) nutzen: `isOpenStatus()`, `isBewilligtStatus()`, `isNachforderungStatus()`, `isBegleitungStatus()`, `isClosedStatus()`, `getStatusCategory()`. Hinweis: TypeScript erlaubt `===` zwischen branded und literal noch wegen string-overlap (Sprach-Quirk), aber Helper-Pflicht ist Konvention und schlaegt in PR-Reviews durch. Die Filter-Sidebar ([statusGroups.ts](src/plugins/antraege/filter/statusGroups.ts)) zeigt weiter Foerderantrag-Rohwerte als Phasen-Gruppen — sie ist hiervon unberuehrt. Neuer Foerderantrag-Status: in `statusGroups.ts` UND `status-canonical.ts` UND `status-mappings.ts` ergaenzen. **Wichtig zur Semantik:** (a) Foerderantraege haben keinen final-`abgelehnt`-Endzustand; `Ablehnung`/`Widerruf`/`Anhörung zum Widerruf` zaehlen als Kategorie `entscheidung` (= noch im Verfahren, `isOpenStatus`-true), und der final-negative Pfad geht ueber `abgelehnt/zurückgezogen` (Kategorie `abgeschlossen`). Nur die Bauantrag-Domain hat `abgelehnt` als finalen Endzustand. (b) **Begleit-Phase**: Status-Werte mit Praefix `VN ` (Verwendungsnachweis) oder `ZB ` (Zwischenbericht) **plus die Widerrufs-Stati `Widerruf` und `Anhörung zum Widerruf`** zaehlen als Kategorie `begleitung` — die Phase nach Bewilligung. Bekannte Vertreter: `VN geprüft`, `VN techn. geprüft`, `Widerruf`, `Anhörung zum Widerruf`. Unbekannte VN-/ZB-Varianten werden automatisch via Pattern-Fallback (`/^(vn|zb)[\s.]/`) erkannt; Widerruf-Stati sind explizit gelistet (das Pattern faengt sie nicht). Begruendung: Widerruf ist post-Bewilligungs-Verfahren (Bescheid wurde erteilt und soll zurueckgenommen werden) — gleicher Lebenszyklus wie VN-Pruefung, andere Frist-Logik als Antragsphase. Zustaendigkeit wechselt von TIB/BIB (Antrag) zu ZTP/PFM (Begleitung). (c) **Bearbeiter-Filter-Toggle `bearbeiter_inkl_begleitung` (Doppelwirkung, Mai 2026 erneut revidiert)**: Steuert BEIDES — Phase-Sichtbarkeit UND KUERZ-Spalten. (i) **Phase-Filter**: ohne Toggle werden Begleit-Stati (VN-/ZB-) universell ausgeblendet (Home + Antrags-Liste + Aggregate), auch wenn das TIB-/BIB-Kuerzel matched. Mit Toggle bleiben sie sichtbar. Implementiert in `filterByBegleitungPhase` ([src/plugins/antraege/bearbeiterFilter.ts](src/plugins/antraege/bearbeiterFilter.ts)) und dem Phase-Gate in `computeDashboardAggregate` ([src/plugins/home/dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts)). (ii) **KUERZ-Match**: ohne Toggle matchen nur TIB/BIB-Spalten, mit Toggle zusaetzlich ZTP/PFM. (iii) **Frist-Berechnung phasen-abhaengig**: Antragsphase = `antragsdatum + 90 Tage` (Bearbeitungs-SLA); Begleitphase = `vn_eingang_datum + 6 Monate` (VN-Frist, D_VBE in Bgl-CSV). Wenn D_VBE leer ist, hat ein VN-Antrag keine Frist (`frist_datum = null`). Zentraler Helper: `computeFristDatum` in [src/core/services/csv/frist.ts](src/core/services/csv/frist.ts). Zwischenstand-Doku (Mai 2026 kurzzeitig, dann revidiert): Toggle steuerte NUR KUERZ-Spalten, TIB-Match überstimmte die Phase — diese Variante gilt nicht mehr. Tests in [src/plugins/antraege/__tests__/](src/plugins/antraege/__tests__/) laufen mit zwei handgeschriebenen Fixture-Saetzen (`seed-antraege.ts` Bauantrag, `real-csv-antraege.ts` Foerderantrag) plus den echten Real-Fixture-CSVs (`realCsvImport.test.ts`) — wenn ein Test mit Bauantrag-Fixture passt aber mit Foerderantrag-Fixture failt, ist genau das ein Domain-Mismatch-Bug.
+12. **Antrag-Status: zwei Domaenen, eine Kategorie** — `Antrag.status` / `AntragListItem.status` / `Verbund.status` ist als `AntragStatusRaw = string & { __brand }` typisiert (Bauantrag-Snake-Case ODER Foerderantrag-CSV-Rohwerte). Direkter Vergleich gegen Literal (`status === 'bewilligt'`) verboten — Kategorie-Helper aus [src/core/utils/status-canonical.ts](src/core/utils/status-canonical.ts) nutzen (`isOpenStatus`, `isBewilligtStatus`, `isBegleitungStatus`, `isClosedStatus`, `getStatusCategory`). Convention-Test `no-direct-status-compare` ([src/__tests__/codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)) faengt eindeutige Verstoesse. Semantik-Details (Foerderantrag-Domain hat keinen final-`abgelehnt`-Endzustand, Begleit-Phase mit VN-/ZB-/Widerruf-Stati, Toggle `bearbeiter_inkl_begleitung` Doppelwirkung, Frist-Berechnung phasen-abhaengig): [docs/architecture/antrag-status-domaenen.md](docs/architecture/antrag-status-domaenen.md).
 13. **Foerderantraege-Seeds kommen aus echten CSVs** (v2-Seed, ab Mai 2026) — Die Dev-Seed-Antraege werden nicht mehr in TypeScript handgeschrieben, sondern in [docs/fixtures/](docs/fixtures/) als anonymisierte Real-Foyer-CSVs abgelegt. Der Seed-Loader unter [src/core/services/seed/fixture-loader.ts](src/core/services/seed/fixture-loader.ts) durchlaeuft den vollen `importCsvSource`-Pfad — Bugs im Parser, Column-Mapping oder Merger werden so im Seed-Lauf sichtbar. Schemas (Master + Secondaries via FKZ-Join) sind in `docs/fixtures/schema-*.ts` committet, die CSVs sind via globalem `*.csv`-Pattern in `.gitignore` lokal-only. Fehlende CSVs → Loader returned graceful 0 Antraege, App startet trotzdem. Encoding-Pipeline: `scripts/normalize-fixture-csvs.mjs` konvertiert windows-1252 → UTF-8 idempotent als `prebuild`/`predev`. Migration: Seed-Flag heisst `seed-complete-v2` (Pre-v2 IDBs behalten ihre alten FA-2026-XXX-Antraege als Geister bis manuelles Reset im Kurator-Panel). Neue Fixture-CSV ergaenzen: (1) CSV in `docs/fixtures/` ablegen, (2) `schema-X.ts` schreiben, (3) `FIXTURE_DEFS` in `fixture-loader.ts` ergaenzen.
 14. **Toggleable Pills brauchen konstante Breite** (Auslastungs-Modul Lesson) — bei farbcodierten Pills mit aktiv/inaktiv-Toggle (z.B. `KategoriePill` mit `active`-Prop): den optionalen Inhalt (Häkchen ✓) IMMER rendern, im Inaktiv-Modus mit Tailwind-`invisible` (CSS `visibility: hidden`). Sonst horizontaler Layout-Shift in Tabellen. Kontrast aktiv/inaktiv NICHT über `opacity-40` — wirkt wie disabled. Stattdessen Inactive-Variante mit outline-only (siehe [DESIGN_GUIDE.md](DESIGN_GUIDE.md) Kapitel 5 „Toggleable Pill").
 15. **Async UI-Aktionen: `useAsyncAction` ist Standard** — `try/finally` ohne `catch` + `onClick={() => void asyncFn()}` schluckt Promise-Rejections silent. Unter `file://` ist die Browser-Console oft nicht offen, der User sieht nichts. **Pflicht für neuen Code**: `useAsyncAction(fn)` aus [src/core/hooks/useAsyncAction.ts](src/core/hooks/useAsyncAction.ts) — liefert `{ run, busy, error, clearError }`, fängt Rejections automatisch und schützt vor Doppelklick. Cheatsheet: [docs/agents/async-error-pattern.md](docs/agents/async-error-pattern.md). Referenz-Migration: [CsvSourcesPage.tsx](src/plugins/csv-sources-kuration/CsvSourcesPage.tsx). Hand-gerolltes try/catch (Pattern: `try { ... } catch (err) { setError(err.message); } finally { setBusy(false); }` + Error-Banner) bleibt fuer Edge-Cases zulässig (z.B. wenn Inline-Validierung vor dem Async-Call läuft). **Bestehender Code**: Grep nach `onClick={() => void` zeigt ~50 ältere Vorkommen (vor allem in `src/plugins/auslastung/` + `src/plugins/dev-infrastructure-test/`). Diese sind opportunistisch zu migrieren — wenn die Datei ohnehin angefasst wird, dabei mitnehmen. Keine Big-Bang-Migration nötig, weil die meisten Service-Calls ihre Errors intern abfangen (siehe `embedding-corpus.ts`, `onboarding-import.ts`).
