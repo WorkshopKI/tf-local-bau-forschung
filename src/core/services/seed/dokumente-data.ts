@@ -51,38 +51,9 @@ import { doc as doc033 } from './docs/bau-033-artenschutz-ba019';
 import { doc as doc034 } from './docs/bau-034-nachforderung-ba004';
 import { doc as doc035 } from './docs/bau-035-nachforderung-ba017';
 
-// Forschung: Projektbeschreibungen (10)
-import { doc as doc036 } from './docs/forschung-001-projekt-fa001';
-import { doc as doc037 } from './docs/forschung-002-projekt-fa002';
-import { doc as doc038 } from './docs/forschung-003-projekt-fa003';
-import { doc as doc039 } from './docs/forschung-004-projekt-fa005';
-import { doc as doc040 } from './docs/forschung-005-projekt-fa008';
-import { doc as doc041 } from './docs/forschung-006-projekt-fa009';
-import { doc as doc042 } from './docs/forschung-007-projekt-fa011';
-import { doc as doc043 } from './docs/forschung-008-projekt-fa013';
-import { doc as doc044 } from './docs/forschung-009-projekt-fa014';
-import { doc as doc045 } from './docs/forschung-010-projekt-fa016';
-
-// Forschung: Reviews/Gutachten (8)
-import { doc as doc046 } from './docs/forschung-011-review-fa001';
-import { doc as doc047 } from './docs/forschung-012-review-fa003';
-import { doc as doc048 } from './docs/forschung-013-review-fa006';
-import { doc as doc049 } from './docs/forschung-014-review-fa008';
-import { doc as doc050 } from './docs/forschung-015-review-fa010';
-import { doc as doc051 } from './docs/forschung-016-review-fa012';
-import { doc as doc052 } from './docs/forschung-017-review-fa015';
-import { doc as doc053 } from './docs/forschung-018-review-fa016';
-
-// Forschung: Ethik/Datenschutz/Compliance (5)
-import { doc as doc054 } from './docs/forschung-019-ethik-fa003';
-import { doc as doc055 } from './docs/forschung-020-ethik-fa010';
-import { doc as doc056 } from './docs/forschung-021-datenschutz-fa014';
-import { doc as doc057 } from './docs/forschung-022-compliance-fa009';
-import { doc as doc058 } from './docs/forschung-023-compliance-fa011';
-
-// Forschung: Zwischenberichte (2)
-import { doc as doc059 } from './docs/forschung-024-zwischenbericht-fa001';
-import { doc as doc060 } from './docs/forschung-025-zwischenbericht-fa004';
+// Forschungs-Dokumente (forschung-001..025) wurden entfernt — gehoerten zum
+// alten Forschungs-Demo-Modell, werden vom Real-Fixtures-Loader
+// (`src/core/services/seed/fixture-loader.ts`) abgeloest.
 
 export const allDokumente: Document[] = [
   doc001, doc002, doc003, doc004, doc005, doc006,
@@ -93,10 +64,4 @@ export const allDokumente: Document[] = [
   doc025, doc026, doc027, doc028, doc029,
   doc030, doc031, doc032, doc033,
   doc034, doc035,
-  doc036, doc037, doc038, doc039, doc040,
-  doc041, doc042, doc043, doc044, doc045,
-  doc046, doc047, doc048, doc049, doc050,
-  doc051, doc052, doc053,
-  doc054, doc055, doc056, doc057, doc058,
-  doc059, doc060,
 ];

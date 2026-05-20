@@ -402,7 +402,6 @@ interface AuslastungData {
 
 `src/core/types/vorgang.ts`, `src/core/components/SimilarCases.tsx`, `src/core/components/VorgangDokumenteTab.tsx`, `src/core/hooks/useVorgangDetail.ts` — Überbleibsel des alten Vorgang-zentrierten Datenmodells. Wird nur noch vom Bauanträge-Plugin (`src/plugins/bauantraege/`) genutzt. **Neue Features verwenden das `Antrag`-Interface aus dem CSV-Schema (`src/core/types/csv/types.ts`), nicht `Vorgang`.**
 
-Auch in dieser Kategorie: `src/core/services/seed/docs/forschung-*.ts` (25 Dateien, gehörten zum alten Forschungs-Demo-Modell). Werden vom Real-Fixtures-Loader (`src/core/services/seed/fixture-loader.ts`) abgelöst — beim nächsten Patch entfernen, NICHT als Referenz für neue Features nutzen.
 
 ### Referenz-App
 
