@@ -34,10 +34,22 @@ export interface AntragTextEntry {
   absLower: string;
 }
 
+export interface LoadCorpusOptions {
+  /** Cancel-Signal fuer lange Laufzeiten (Programm-Switch). */
+  signal?: AbortSignal;
+  /** Wenn `true`, kommen auch Antraege ohne jeglichen Text in die Map
+   *  (mit leeren Strings). Default `false` — die Hybrid-Suche braucht keine
+   *  Eintraege ohne Text, der XLSX-Export aber schon (sonst Lücken in der
+   *  FKZ-Spalte). */
+  includeEmpty?: boolean;
+}
+
 /**
  * Laedt den vollen Antrag-Store fuer das aktive Programm und projiziert auf
- * die drei suchrelevanten Strings. Nur Antraege mit mindestens einem nicht-
- * leeren Feld kommen in die Map.
+ * die drei suchrelevanten Strings. Default: nur Antraege mit mindestens einem
+ * nicht-leeren Feld kommen in die Map. Mit `includeEmpty: true` werden auch
+ * leere Eintraege geliefert (fuer den Export, wo jede gelistete Akz eine
+ * Zeile braucht).
  *
  * Statt `index.getAll` (liefert ~500 MB Structured-Clone in einem Stoss und
  * blockiert den Main-Thread mehrere Sekunden) iterieren wir den Index mit
@@ -48,8 +60,9 @@ export interface AntragTextEntry {
 export async function loadAntraegeTextCorpus(
   idb: IDBStore,
   programmId: string,
-  signal?: AbortSignal,
+  opts: LoadCorpusOptions = {},
 ): Promise<Map<string, AntragTextEntry>> {
+  const { signal, includeEmpty = false } = opts;
   const db = idb.getDb();
   const result = new Map<string, AntragTextEntry>();
   await new Promise<void>((resolve, reject) => {
@@ -64,7 +77,7 @@ export async function loadAntraegeTextCorpus(
       const vb = typeof a.verbund_titel === 'string' ? a.verbund_titel : '';
       const tv = typeof a.titel === 'string' ? a.titel : '';
       const ab = typeof a.projektbeschreibung_text === 'string' ? a.projektbeschreibung_text : '';
-      if (vb.length > 0 || tv.length > 0 || ab.length > 0) {
+      if (includeEmpty || vb.length > 0 || tv.length > 0 || ab.length > 0) {
         result.set(a.aktenzeichen, {
           vb,
           tv,

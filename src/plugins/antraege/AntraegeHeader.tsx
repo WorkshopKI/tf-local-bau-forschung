@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Filter, Loader2, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Download, Filter, Loader2, Search } from 'lucide-react';
 import { useAntraegeStore } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { VIEWS, viewCounts } from './views';
@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFilteredAntraege, hasExplicitVbPhaseFilter } from './useFilteredAntraege';
 import { ViewModeToggle } from './ViewModeToggle';
+import { useStorage } from '@/core/hooks/useStorage';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { exportFilteredAntraegeXlsx } from './services/export-xlsx';
 
 interface Props {
   filterOpen: boolean;
@@ -29,8 +32,23 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const filterCount = useFilterState(s => s.active.length);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
-  const { bearbeiterFilter } = useFilteredAntraege();
+  const { filtered, bearbeiterFilter } = useFilteredAntraege();
+  const storage = useStorage();
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
+  const [exportBusy, setExportBusy] = useState(false);
   const searchActive = search.trim().length > 0;
+
+  const handleExport = async (): Promise<void> => {
+    if (!activeProgrammId) return;
+    setExportBusy(true);
+    try {
+      await exportFilteredAntraegeXlsx(filtered, storage.idb, activeProgrammId);
+    } catch (err) {
+      console.warn('[antraege-export] failed:', err);
+    } finally {
+      setExportBusy(false);
+    }
+  };
   const showEmbeddingBanner = search.trim().length >= 2 && hybridUnavailable.includes('embedding');
   // Checkbox nur zeigen wenn ein Bearbeiter-Filter ueberhaupt aktiv ist — sonst
   // gaebe es nichts zu ignorieren und der UI-Punkt waere irrefuehrend.
@@ -114,6 +132,19 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
                 />
               ) : null}
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={exportBusy || filtered.length === 0 || !activeProgrammId}
+              aria-label={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
+              title={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
+              className="h-8 w-8 p-0"
+            >
+              {exportBusy
+                ? <Loader2 size={13} className="animate-spin" />
+                : <Download size={13} />}
+            </Button>
             <ViewModeToggle />
             <Button
               variant={filterOpen ? 'default' : 'outline'}
