@@ -61,9 +61,18 @@ export function SyncStatusIndicator(): React.ReactElement {
         ? 'Verbunden'
         : `Offline${status.pending > 0 ? ` (${status.pending})` : ''}`;
 
+  const triggerTooltip = status.syncing
+    ? 'Synchronisierung läuft...'
+    : status.pending > 0
+      ? `${status.pending} Sync-Operationen ausstehend`
+      : datenShareAvailable
+        ? 'Datenordner ist erreichbar, Anträge sind aktuell.'
+        : 'Datenordner offline — klicken um zu verbinden.';
+
   return (
     <>
       <button onClick={() => setShowDetail(true)}
+        title={triggerTooltip}
         className="flex items-center gap-2 px-3 py-2 w-full text-left cursor-pointer hover:bg-[var(--tf-hover)] rounded-[var(--tf-radius)]">
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
         <span className="text-[11px] text-[var(--tf-text-tertiary)] truncate">{label}</span>

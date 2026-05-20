@@ -16,10 +16,16 @@ export function BuildInfo(): React.ReactElement {
   })();
 
   const shortVersion = appVersion.split('.').slice(0, 2).join('.');
+  const tooltip = [
+    `App-Version: v${appVersion}`,
+    `Variante: ${runtimeConfig.variant}`,
+    `Build vom: ${dateStr}`,
+    `Git-Hash: ${gitHash}`,
+  ].join('\n');
   return (
     <span
       className="text-[10.5px] text-[var(--tf-text-tertiary)] select-none shrink-0 px-1"
-      title={`v${appVersion} · ${runtimeConfig.variant} · ${gitHash} · ${dateStr}`}
+      title={tooltip}
     >
       v{shortVersion}
     </span>
