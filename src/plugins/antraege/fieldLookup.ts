@@ -1,7 +1,7 @@
 import type { Antrag } from '@/core/services/csv/types';
 
 /** Normalisiert Feld-Bezeichner fuer robustes Lookup: lowercase + alle Trenner raus. */
-function normalizeKey(s: string): string {
+export function normalizeKey(s: string): string {
   return s.toLowerCase().replace(/[\s_\-.]/g, '');
 }
 

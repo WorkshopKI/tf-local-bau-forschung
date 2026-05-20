@@ -18,6 +18,7 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import { CSV_STORES } from '@/core/services/storage/idb-store';
 import type { Antrag } from '@/core/services/csv/types';
 import { listManifestEntries } from '@/phase2/scanner/manifest-store';
+import { normalizeKey } from '../fieldLookup';
 
 export interface AntragTextEntry {
   /** Verbund-Titel. */
@@ -37,25 +38,40 @@ export interface AntragTextEntry {
 /**
  * Feld-Name-Kandidaten je Spalte. Der CSV-Merger
  * ([helpers.ts](src/core/services/csv/merger/helpers.ts)) speichert ein
- * Feld unter `entry.canonical ?? entry.custom ?? col.toLowerCase()` — wenn
- * der Kurator beim CSV-Wizard KEIN explizites canonical/custom-Mapping
- * setzt, landet die Foyer-Spalte `VB_TITEL` als `vb_titel` im Antrag-Record
- * (nicht als canonical `verbund_titel`). Wir probieren beide Wege durch,
- * damit die Suche/der Export robust gegenueber der Wizard-Konfiguration ist.
+ * Feld unter `entry.canonical ?? entry.custom ?? col.toLowerCase()`. Foyer
+ * exportiert mit Leerzeichen im Spaltennamen (`VB INHALT`, `VB TITEL`) →
+ * ohne Wizard-Mapping landet das als `'vb inhalt'` / `'vb titel'` (mit
+ * Space, nicht Underscore). Wir gleichen deshalb gegen die NORMALISIERTE
+ * Form (lowercase + alle Trenner raus) ab — gleicher Algorithmus wie
+ * `findFieldValue` in `fieldLookup.ts`, der das im Detail-View erfolgreich
+ * loest.
+ *
+ * Listen identisch zu [AntragDetail.tsx:95](src/plugins/antraege/AntragDetail.tsx)
+ * plus die Canonical-Variante `projektbeschreibung_text`. Vorberechnete
+ * Sets als Modul-Konstanten — der Cursor-Walk macht 13 k × 2 Lookups,
+ * Re-Hashing der Kandidaten pro Eintrag waere Verschwendung.
  */
-const VB_TITEL_CANDIDATES = ['verbund_titel', 'vb_titel'];
-const ABSTRACT_CANDIDATES = [
-  'projektbeschreibung_text',
-  'vb_inhalt',
-  'kurzbeschreibung',
-  'beschreibung',
-  'inhalt',
-];
+const VB_TITEL_NORMALIZED: ReadonlySet<string> = new Set(
+  ['verbund_titel', 'vb_titel', 'vb titel'].map(normalizeKey),
+);
+const ABSTRACT_NORMALIZED: ReadonlySet<string> = new Set(
+  [
+    'projektbeschreibung_text',
+    'vb_inhalt', 'vb inhalt',
+    'vorhaben_inhalt', 'vorhabeninhalt',
+    'kurzbeschreibung', 'beschreibung', 'inhalt',
+  ].map(normalizeKey),
+);
 
-function pickString(record: Record<string, unknown>, candidates: readonly string[]): string {
-  for (const k of candidates) {
-    const v = record[k];
-    if (typeof v === 'string' && v.length > 0) return v;
+function pickByNormalized(
+  record: Record<string, unknown>,
+  targets: ReadonlySet<string>,
+): string {
+  for (const key of Object.keys(record)) {
+    if (key.startsWith('_')) continue;
+    const v = record[key];
+    if (typeof v !== 'string' || v.length === 0) continue;
+    if (targets.has(normalizeKey(key))) return v;
   }
   return '';
 }
@@ -101,9 +117,9 @@ export async function loadAntraegeTextCorpus(
       if (!cursor) { resolve(); return; }
       const a = cursor.value as Antrag;
       const rec = a as unknown as Record<string, unknown>;
-      const vb = pickString(rec, VB_TITEL_CANDIDATES);
+      const vb = pickByNormalized(rec, VB_TITEL_NORMALIZED);
       const tv = typeof a.titel === 'string' ? a.titel : '';
-      const ab = pickString(rec, ABSTRACT_CANDIDATES);
+      const ab = pickByNormalized(rec, ABSTRACT_NORMALIZED);
       if (includeEmpty || vb.length > 0 || tv.length > 0 || ab.length > 0) {
         result.set(a.aktenzeichen, {
           vb,
