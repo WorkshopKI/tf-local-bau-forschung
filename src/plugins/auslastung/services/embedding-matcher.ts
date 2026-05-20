@@ -21,7 +21,7 @@ import type {
   VirtuellesProjekt,
 } from '../types';
 import { CANONICAL_TITEL, CANONICAL_TIB_KUERZ, CANONICAL_VERBUND_TITEL } from '../types';
-import { cosineSimilarity } from './embed-wrapper';
+import { cosineSimilarity } from '@/core/services/embedding-corpus';
 import type { AnonymMap } from './anonym-map';
 import { normalizeKuerzel } from './anonym-map';
 

@@ -23,7 +23,7 @@ import type {
   VirtuellesProjekt,
 } from '../types';
 import { CANONICAL_TIB_KUERZ, ONBOARDING_CONFIDENCE } from '../types';
-import { cosineSimilarity } from './embed-wrapper';
+import { cosineSimilarity } from '@/core/services/embedding-corpus';
 import { normalizeKuerzel } from './anonym-map';
 import { readAntragDeskriptoren } from './profil-aggregator';
 

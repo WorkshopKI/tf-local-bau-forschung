@@ -1,42 +1,38 @@
 /**
- * Embedding-Corpus — laedt pro historischem Antrag ein Embedding und cached
- * es in IDB (kv-Store, Prefix `auslastung-emb:`). 13k × 768d × 4 B ≈ 40 MB.
+ * Auslastungs-Wrapper um den generischen Embedding-Korpus.
  *
- * Wird seit Mai 2026 auch auf den SMB-Daten-Share gespiegelt
- * (`_intern/auslastung-embedding-corpus.{manifest.json,bin}`), damit ein
- * zweiter PL den Korpus nicht 46 min lang neu bauen muss. Mirroring-Logik
- * lebt in `embedding-corpus-mirror.ts` + `useEmbeddingCorpusMirror`. Hier
- * unveraendert: lokale IDB-CRUD-Operationen + Build-Pipeline. Der Caller
- * (EmbeddingCorpusSection) triggert nach jedem erfolgreichen Build
- * automatisch den Upload.
+ * Schmale Antrag-spezifische Schicht ueber `@/core/services/embedding-corpus`:
+ *  - Antrag → Embedding-Text-Mapping (welche Felder fliessen ins Embedding)
+ *  - Build-Pipeline, die diesen Mapper + den generischen IDB-Cache nutzt
  *
- * Operationen:
- *  - `buildEmbeddingCorpus(idb, antraege, onProgress, signal)` — alle Antraege
- *  - `incrementalBuild(idb, antraege, onProgress, signal)` — nur fehlende
- *  - `loadAllEmbeddings(idb)` — Map<aktenzeichen, number[]>
- *  - `loadEmbedding(idb, az)` — single
- *  - `countEmbeddings(idb)` / `countMissing(idb, antraege)`
- *  - `clearEmbeddings(idb)`
+ * Generische Operationen (IDB-CRUD, SMB-Mirror, Modell-Init) leben in core.
+ * Die historischen IDB-Prefixe + SMB-Pfade (`auslastung-*`) bleiben dort
+ * unveraendert — siehe core/services/embedding-corpus/storage.ts.
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { Antrag } from '@/core/services/csv/types';
 import {
-  AUSLASTUNG_EMB_PREFIX,
   CANONICAL_TITEL,
   CANONICAL_VERBUND_TITEL,
   FIELD_PROJEKTBESCHREIBUNG,
 } from '../types';
-import { embedText, ensureEmbeddingReady } from './embed-wrapper';
+import {
+  storeEmbedding,
+  listEmbeddingKeys,
+  ensureEmbeddingReady,
+  embedText,
+} from '@/core/services/embedding-corpus';
 import { buildDescriptorsText } from '@/plugins/antraege/services/descriptor-text';
 
 /**
  * Erzeugt den Embedding-Text fuer einen Antrag. Reihenfolge: VB-Titel,
  * Titel, Abstract, Deskriptoren (TECHN/BRANCHE/ANWEND + ZT-Klartexte).
  *
- * Deskriptoren sind seit corpus-build-v2 Teil des Embedding-Texts — semantische
- * Suche nach „Wärmedämmung" findet damit auch Antraege mit ZT-Leichtbau-Flag
- * ohne Wörter-Match im Abstract. Aelteren Korpora (v1) fehlt dieser Anteil;
- * sie bleiben funktional, der Auslastungs-Tab schlaegt einen Rebuild vor.
+ * Deskriptoren sind seit corpus-build-v2 Teil des Embedding-Texts —
+ * semantische Suche nach „Wärmedämmung" findet damit auch Antraege mit
+ * ZT-Leichtbau-Flag ohne Wörter-Match im Abstract. Aelteren Korpora (v1)
+ * fehlt dieser Anteil; sie bleiben funktional, der Auslastungs-Tab schlaegt
+ * einen Rebuild vor.
  */
 export function buildEmbeddingTextForAntrag(antrag: Antrag): string {
   const fields = [
@@ -64,7 +60,8 @@ export function isEmbeddableAntrag(antrag: Antrag): boolean {
   return buildEmbeddingTextForAntrag(antrag).length > 0;
 }
 
-/** Sortierte aktenzeichen-Liste der embedbaren Antraege — Input fuer `hashAktenzeichenSet`. */
+/** Sortierte aktenzeichen-Liste der embedbaren Antraege — Input fuer
+ *  `hashAktenzeichenSet`. */
 export function getEmbeddableAktenzeichen(antraege: Antrag[]): string[] {
   const out: string[] = [];
   for (const a of antraege) {
@@ -73,60 +70,14 @@ export function getEmbeddableAktenzeichen(antraege: Antrag[]): string[] {
   return out;
 }
 
-function idbKey(aktenzeichen: string): string {
-  return `${AUSLASTUNG_EMB_PREFIX}${aktenzeichen}`;
-}
-
-export async function loadEmbedding(idb: IDBStore, aktenzeichen: string): Promise<number[] | null> {
-  const value = await idb.get<number[]>(idbKey(aktenzeichen));
-  return Array.isArray(value) ? value : null;
-}
-
-export async function storeEmbedding(
-  idb: IDBStore,
-  aktenzeichen: string,
-  vector: number[],
-): Promise<void> {
-  await idb.set(idbKey(aktenzeichen), vector);
-}
-
-/** Loescht ein einzelnes Embedding (falls Antrag aus dem Programm rausfaellt). */
-export async function deleteEmbedding(idb: IDBStore, aktenzeichen: string): Promise<void> {
-  await idb.delete(idbKey(aktenzeichen));
-}
-
-/** Vollstaendiger Iterator — wird bei Match-Stage-2 + Centroid-Berechnung benutzt. */
-export async function loadAllEmbeddings(idb: IDBStore): Promise<Map<string, number[]>> {
-  const keys = await idb.keys(AUSLASTUNG_EMB_PREFIX);
-  const result = new Map<string, number[]>();
-  for (const k of keys) {
-    const az = k.slice(AUSLASTUNG_EMB_PREFIX.length);
-    const v = await idb.get<number[]>(k);
-    if (Array.isArray(v)) result.set(az, v);
-  }
-  return result;
-}
-
-export async function countEmbeddings(idb: IDBStore): Promise<number> {
-  const keys = await idb.keys(AUSLASTUNG_EMB_PREFIX);
-  return keys.length;
-}
-
 /** Wieviele Antraege haben noch kein Embedding? */
 export async function countMissing(idb: IDBStore, antraege: Antrag[]): Promise<number> {
-  const keys = new Set(await idb.keys(AUSLASTUNG_EMB_PREFIX));
+  const existing = await listEmbeddingKeys(idb);
   let missing = 0;
   for (const a of antraege) {
-    if (!keys.has(idbKey(a.aktenzeichen))) missing++;
+    if (!existing.has(a.aktenzeichen)) missing++;
   }
   return missing;
-}
-
-/** Loescht den gesamten Embedding-Cache. */
-export async function clearEmbeddings(idb: IDBStore): Promise<number> {
-  const keys = await idb.keys(AUSLASTUNG_EMB_PREFIX);
-  for (const k of keys) await idb.delete(k);
-  return keys.length;
 }
 
 export interface BuildProgress {
@@ -145,8 +96,8 @@ export interface BuildOptions {
 }
 
 /**
- * Hauptpfad: laeuft durch alle Antraege, embed't (Tibtitel + VB_Titel +
- * Zusammenfassung) und schreibt in den IDB-Cache.
+ * Hauptpfad: laeuft durch alle Antraege, embed't den Text (VB-Titel + Titel
+ * + Abstract + Deskriptoren) und schreibt in den IDB-Cache.
  *
  * Annahme: Caller hat `ensureEmbeddingReady(idb)` bereits aufgerufen — wenn
  * nicht, machen wir das hier nochmal idempotent.
@@ -162,8 +113,8 @@ export async function buildEmbeddingCorpus(
   // Liste filtern
   let queue: Antrag[];
   if (incremental) {
-    const existing = new Set(await idb.keys(AUSLASTUNG_EMB_PREFIX));
-    queue = antraege.filter(a => !existing.has(idbKey(a.aktenzeichen)));
+    const existing = await listEmbeddingKeys(idb);
+    queue = antraege.filter(a => !existing.has(a.aktenzeichen));
   } else {
     queue = antraege;
   }

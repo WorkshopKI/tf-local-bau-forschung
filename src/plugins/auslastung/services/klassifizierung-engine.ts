@@ -22,7 +22,7 @@ import {
   type UeberKategorie,
 } from '../types';
 import { readAntragDeskriptoren } from './profil-aggregator';
-import { cosineSimilarity } from './embed-wrapper';
+import { cosineSimilarity } from '@/core/services/embedding-corpus';
 import { ZUKUNFTSTECHNOLOGIE_FELDER } from './default-labels';
 
 export interface KlassifizierungInput {

@@ -1,10 +1,15 @@
 /**
  * Embedding-Corpus-Mirror — spiegelt den lokalen IDB-Cache auf den
- * SMB-Daten-Share, damit ein zweiter PL nicht 46 min neu bauen muss.
+ * SMB-Daten-Share, damit ein zweiter PL den Korpus nicht 46 min neu
+ * bauen muss.
  *
  * Zwei Sidecar-Dateien:
  *  - `_intern/auslastung-embedding-corpus.manifest.json` (klein, Metadaten)
  *  - `_intern/auslastung-embedding-corpus.bin`           (~40 MB, konkat. float32)
+ *
+ * **Backward-Compat:** Filenames bleiben `auslastung-*`. Umbenennen wuerde
+ * geteilte Korpora fuer Teammitglieder unsichtbar machen, bis jemand neu
+ * baut + hochlaedt.
  *
  * Kompat-Modell:
  *  - Modell-Wechsel ist team-weiter Bruch → Manifest mit `modellId + dim`
@@ -12,6 +17,8 @@
  *  - Antraege-Drift wird ueber `aktenzeichenSetHash` (SHA-256 ueber die
  *    sortierten aktenzeichen) erkannt — Mismatch → Hinweis im UI,
  *    inkrementell neu bauen empfohlen.
+ *  - `corpusBuildVersion` markiert die inhaltliche Embedding-Text-Struktur
+ *    (v1 = nur Titel/VB/Abstract, v2 = + Deskriptoren).
  *
  * Sicherheit: Klartext-Vektoren. Sie enthalten keine Klartext-Antrags-
  * inhalte zurueck (Embeddings sind nicht umkehrbar), aber strukturelle
@@ -22,7 +29,7 @@
 import type { StorageService } from '@/core/services/storage';
 import { atomicWrite, readText, readBinary } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
-import { storeEmbedding } from './embedding-corpus';
+import { storeEmbedding } from './storage';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 
 export const CORPUS_MANIFEST_PATH = '_intern/auslastung-embedding-corpus.manifest.json';
@@ -30,7 +37,7 @@ export const CORPUS_BIN_PATH = '_intern/auslastung-embedding-corpus.bin';
 
 /**
  * Inhaltliche Build-Version des Embedding-Texts. Aenderung bei jeder
- * Erweiterung von `buildEmbeddingTextForAntrag` — z.B. v1 = nur Titel + VB-
+ * Erweiterung der Embedding-Text-Builder — z.B. v1 = nur Titel + VB-
  * Titel + Abstract, v2 = + Deskriptoren (TECHN/BRANCHE/ANWEND + ZT-Klartexte).
  *
  * Separat vom Manifest-Schema-Version-Feld (`version: 1`) — alte v1-Korpora

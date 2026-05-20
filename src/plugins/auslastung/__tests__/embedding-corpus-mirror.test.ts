@@ -14,7 +14,7 @@ import {
   hashAktenzeichenSet,
   checkCompat,
   type EmbeddingCorpusManifest,
-} from '../services/embedding-corpus-mirror';
+} from '@/core/services/embedding-corpus';
 
 function makeVec(dim: number, fill: number): number[] {
   return Array.from({ length: dim }, (_, i) => fill + i * 0.01);

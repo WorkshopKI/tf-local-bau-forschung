@@ -13,16 +13,21 @@ import type { StorageService } from '@/core/services/storage';
 import type { Antrag } from '@/core/services/csv/types';
 import {
   buildEmbeddingCorpus,
-  clearEmbeddings,
-  countEmbeddings,
   getEmbeddableAktenzeichen,
-  loadAllEmbeddings,
   type BuildProgress,
 } from '../../services/embedding-corpus';
+import {
+  clearEmbeddings,
+  countEmbeddings,
+  loadAllEmbeddings,
+  checkCompat,
+  hashAktenzeichenSet,
+  getCorpusBuildVersion,
+  CORPUS_BUILD_VERSION,
+} from '@/core/services/embedding-corpus';
+import { useEmbeddingCorpusMirror } from '@/core/hooks/useEmbeddingCorpusMirror';
 import { computeKategorieCentroids } from '../../services/klassifizierung-engine';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
-import { useEmbeddingCorpusMirror } from '../../hooks/useEmbeddingCorpusMirror';
-import { checkCompat, hashAktenzeichenSet, getCorpusBuildVersion, CORPUS_BUILD_VERSION } from '../../services/embedding-corpus-mirror';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useProfile } from '@/core/hooks/useProfile';
 

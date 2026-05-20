@@ -16,8 +16,9 @@ import {
 } from '../services/embedding-matcher';
 import {
   loadAllEmbeddings,
-} from '../services/embedding-corpus';
-import { embedText, ensureEmbeddingReady } from '../services/embed-wrapper';
+  embedText,
+  ensureEmbeddingReady,
+} from '@/core/services/embedding-corpus';
 import {
   CANONICAL_AKRONYM,
   CANONICAL_TITEL,

@@ -2,21 +2,23 @@
  * Zustand-Store fuer den geteilten Embedding-Korpus auf dem SMB-Daten-Share.
  *
  * Lifecycle:
- *  - `loadManifest(storage)` — beim Mount der EmbeddingCorpusSection,
- *    liest nur das kleine Manifest (kein 42 MB Roundtrip).
- *  - `downloadAndApply(storage, idb, onProgress)` — laedt Bin, parsed
- *    Vektoren, schreibt sie in den lokalen IDB-Cache. Caller pruefte
- *    vorher Kompat + Hash.
- *  - `uploadFromIdb(storage, idb, modellId, dim, builderProfile)` —
- *    serialisiert den aktuellen IDB-Cache und schreibt Manifest+Bin
- *    atomar auf den Share. Build-Lock-Schutz fuer den Schreib-Block
- *    (kurz, ~5 sec).
+ *  - `loadManifest(storage)` — beim Mount der UI-Section (klein, ohne 42 MB
+ *    Bin-Roundtrip).
+ *  - `downloadAndApply(storage)` — laedt Bin, parsed Vektoren, schreibt sie
+ *    in den lokalen IDB-Cache. Caller pruefte vorher Kompat + Hash.
+ *  - `uploadFromIdb(storage, modellId, dim, builderProfile)` — serialisiert
+ *    den aktuellen IDB-Cache und schreibt Manifest+Bin atomar auf den
+ *    Share. Build-Lock-Schutz fuer den Schreib-Block (kurz, ~5 sec).
+ *
+ * Konsumenten:
+ *  - Auslastungs-Admin `EmbeddingCorpusSection.tsx` (Build + Upload + Status)
+ *  - Antraege-Hybrid-Search-Hook (Auto-Download fuer prod-User)
  */
 import { create } from 'zustand';
 import type { StorageService } from '@/core/services/storage';
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import { loadAllEmbeddings } from '../services/embedding-corpus';
 import {
+  loadAllEmbeddings,
   loadManifest,
   loadBin,
   saveCorpusToShare,
@@ -24,7 +26,7 @@ import {
   parseCorpus,
   applyCorpusToIdb,
   type EmbeddingCorpusManifest,
-} from '../services/embedding-corpus-mirror';
+} from '@/core/services/embedding-corpus';
 import {
   acquireBuildLock,
   heartbeat,
@@ -41,7 +43,7 @@ interface EmbeddingCorpusMirrorState {
   downloadProgress: { done: number; total: number } | null;
   uploading: boolean;
   error: string | null;
-  /** Manifest vom Share lesen (klein, immer wenn Auslastungs-Tab oeffnet).
+  /** Manifest vom Share lesen (klein, immer wenn die Korpus-Section oeffnet).
    *  Idempotent — Doppel-Aufrufe schaden nicht. */
   loadManifest: (storage: StorageService) => Promise<void>;
   /** Bin downloaden + in IDB cachen. Caller MUSS vorher Kompat pruefen. */

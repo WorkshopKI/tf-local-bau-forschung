@@ -35,15 +35,13 @@ import {
   ensureEmbeddingReady,
   embedText,
   cosineSimilarity,
-} from '@/plugins/auslastung/services/embed-wrapper';
-import { loadAllEmbeddings } from '@/plugins/auslastung/services/embedding-corpus';
-import {
+  loadAllEmbeddings,
   loadManifest as loadMirrorManifest,
   loadBin as loadMirrorBin,
   parseCorpus as parseMirrorCorpus,
   applyCorpusToIdb as applyMirrorCorpus,
   checkCompat as checkMirrorCompat,
-} from '@/plugins/auslastung/services/embedding-corpus-mirror';
+} from '@/core/services/embedding-corpus';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import type { StorageService } from '@/core/services/storage';
 import { hybridSearch, getOramaDB } from '@/core/services/search/orama-store';

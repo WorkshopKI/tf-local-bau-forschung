@@ -1,15 +1,19 @@
 /**
- * Embed-Wrapper fuer das Auslastungs-Modul.
+ * Embed-Wrapper — duenne Schicht ueber dem `embeddingService`-Singleton
+ * aus dem Such-Stack. Stellt eine ergonomische API fuer alle Konsumenten
+ * (Auslastungs-Matching, Antraege-Hybrid-Suche) bereit.
  *
- * Nutzt die bestehende `embeddingService`-Singleton-Instanz aus dem Such-Stack.
- * KEIN zweites Modell laden — wenn das Modell noch nicht initialisiert ist
- * (z.B. weil Suche/Index noch nicht genutzt wurde), wird es lazy mit dem
- * aktiven Modell aus der Model-Registry geladen.
+ * Wichtig: KEIN zweites Modell laden. Wenn `embeddingService` noch nicht
+ * initialisiert ist (z.B. weil das Such-Plugin noch nie geoeffnet wurde),
+ * wird es lazy mit dem aktiv konfigurierten Modell aus der Model-Registry
+ * geladen.
  *
  * Public API:
- *   - ensureEmbeddingReady(idb, onProgress?) — laedt Modell falls noetig
- *   - embedText(text, mode) — single embedding, normalisiert L2
- *   - cosineSimilarity(a, b) — beide normalisiert -> dot product
+ *  - `ensureEmbeddingReady(idb, onProgress?)` — laedt das Modell falls noetig
+ *  - `embedText(text, mode)` — single embedding, L2-normalisiert
+ *  - `cosineSimilarity(a, b)` — beide normalisiert -> Dot-Product
+ *  - `meanCentroid(vectors)` — Mittelwert + L2-Normalisierung
+ *  - `getCurrentEmbeddingConfig()` — aktiv geladenes Modell (Debugging)
  */
 import {
   embeddingService,
@@ -71,7 +75,7 @@ export async function embedText(
   mode: 'query' | 'document' = 'query',
 ): Promise<number[]> {
   if (!currentConfig) {
-    throw new Error('embed-wrapper: ensureEmbeddingReady() muss vor embedText() laufen');
+    throw new Error('embedding-corpus/wrapper: ensureEmbeddingReady() muss vor embedText() laufen');
   }
   return embeddingService.embedSingle(text, currentConfig, mode);
 }
