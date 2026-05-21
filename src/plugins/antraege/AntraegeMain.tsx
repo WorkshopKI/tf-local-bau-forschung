@@ -138,24 +138,28 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     ? 'h-full flex'
     : 'flex-1 min-w-0 h-full flex';
 
+  // Toolbar nutzt volle Viewport-Breite — sonst wraped `Gruppiert:` bei
+  // aufgeklapptem Antragstyp obwohl rechts Platz waere.
+  const toolbarClass = narrow ? 'px-4 pt-3' : 'px-8 pt-3';
   // Karten-View nutzt die volle Browserbreite, damit auf breiten Monitoren
   // alle Anträge mit wenig Scrollen sichtbar sind. List/Kompakt behalten
-  // max-w-6xl als Lesbarkeits-Cap (Zeilen werden sonst unangenehm lang).
-  const innerClass = narrow
-    ? 'px-4 pt-3 pb-4'
+  // max-w-6xl als Lesbarkeits-Cap fuer die Listen-Zeilen (Zeilen werden
+  // sonst unangenehm lang).
+  const contentClass = narrow
+    ? 'px-4 pb-4'
     : viewMode === 'cards'
-      ? 'px-8 pt-3 pb-6'
-      : 'px-8 pt-3 pb-6 max-w-6xl';
+      ? 'px-8 pb-6'
+      : 'px-8 pb-6 max-w-6xl';
 
   return (
     <div className={containerClass} style={containerStyle}>
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
-        <div className={innerClass}>
-          {/* QuickfilterToolbar (Phase / Kategorie / Antragsdatum + Extra-Sort
-              + Gruppieren) links, Bearbeiter-Pill + ActiveFilterChips rechts.
-              Letztere bleibt erhalten, damit Filter aus der Sidebar (z.B.
-              Bewilligungsdatum-Range) weiterhin sichtbar als Chip-Pille
-              erscheinen. */}
+        {/* QuickfilterToolbar (Phase / Kategorie / Antragsdatum + Extra-Sort
+            + Gruppieren) links, Bearbeiter-Pill + ActiveFilterChips rechts.
+            Toolbar in eigenem Container ohne max-w-*, damit die volle
+            Viewport-Breite genutzt wird (Gruppiert: bricht sonst um). Liste
+            darunter behaelt den Lesbarkeits-Cap. */}
+        <div className={toolbarClass}>
           <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
               <QuickfilterToolbar />
@@ -172,7 +176,8 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
               ) : null}
             </div>
           </div>
-
+        </div>
+        <div className={contentClass}>
           {bearbeiterKuerzelMissing && antraege.length > 0 ? (
             <Alert variant="warning" className="mb-3">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
