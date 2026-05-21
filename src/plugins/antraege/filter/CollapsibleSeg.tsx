@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
  * Kollabierbare Filter-Pille. Default-Zustand: nur "{label}: {value} ▸" sichtbar.
@@ -94,7 +94,7 @@ export function CollapsibleSeg({
         className="inline-flex items-center gap-1 text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer bg-transparent border-0 p-0"
       >
         <span>{label}:</span>
-        <ChevronDown size={10} />
+        <ChevronLeft size={10} />
       </button>
       <SegGroup
         items={items}
