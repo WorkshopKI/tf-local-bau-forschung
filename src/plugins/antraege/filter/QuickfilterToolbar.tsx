@@ -15,14 +15,6 @@
  * - Sort + Grouping → `useAntraegeStore` (per-View persistiert)
  */
 import { useMemo } from 'react';
-import { ArrowDownUp } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from '../store';
 import { useFilterState } from './useFilterState';
 import { GROUPING_OPTIONS, type SortKey } from '../sort';
@@ -41,15 +33,18 @@ import {
   type KategorieLabel,
 } from './kategorieQuickfilter';
 
-const EXTRA_SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'frist_asc', label: 'Frist (kürzeste zuerst)' },
-  { key: 'akronym_asc', label: 'Akronym (A→Z)' },
-  { key: 'antragsteller_asc', label: 'Antragsteller (A→Z)' },
+/** Alle Sortier-Optionen in einer einzigen Liste — Source-of-Truth fuer
+ *  die `Sortiert nach`-Quickfilter-Pille. Reihenfolge bestimmt die UI-
+ *  Reihenfolge in der SegGroup. */
+const SORT_OPTIONS: { label: string; key: SortKey }[] = [
+  { label: 'Neueste zuerst', key: 'antrag_desc' },
+  { label: 'Älteste zuerst', key: 'antrag_asc' },
+  { label: 'Frist (kürzeste zuerst)', key: 'frist_asc' },
+  { label: 'Akronym (A→Z)', key: 'akronym_asc' },
+  { label: 'Antragsteller (A→Z)', key: 'antragsteller_asc' },
 ];
 
-const EXTRA_SORT_KEYS = new Set<SortKey>(EXTRA_SORT_OPTIONS.map(o => o.key));
-
-const ANTRAGSDATUM_PLACEHOLDER = '—';
+const DEFAULT_SORT_LABEL = 'Neueste zuerst';
 
 export function QuickfilterToolbar(): React.ReactElement {
   const antraege = useAntraegeStore(s => s.antraege);
@@ -80,20 +75,13 @@ export function QuickfilterToolbar(): React.ReactElement {
     applyKategorie(label as KategorieLabel, (id, v) => setActiveValue(id, v), clearFilter);
   };
 
-  // Antragsdatum
-  const antragsdatumValue =
-    sortKey === 'antrag_desc' ? 'Neueste zuerst'
-      : sortKey === 'antrag_asc' ? 'Älteste zuerst'
-        : ANTRAGSDATUM_PLACEHOLDER;
-  const onAntragsdatumChange = (label: string): void => {
-    setSortForView(activeView, label === 'Älteste zuerst' ? 'antrag_asc' : 'antrag_desc');
-  };
-
-  // Extra-Sort (Frist / Akronym / Antragsteller)
-  const extraSortValue: SortKey | '' = EXTRA_SORT_KEYS.has(sortKey) ? sortKey : '';
-  const onExtraSortChange = (v: string): void => {
-    if (v === '') return;
-    setSortForView(activeView, v as SortKey);
+  // Sortiert nach (unifiziert: Antragsdatum + Frist + Akronym + Antragsteller)
+  const currentSortLabel =
+    SORT_OPTIONS.find(o => o.key === sortKey)?.label ?? DEFAULT_SORT_LABEL;
+  const onSortChange = (label: string): void => {
+    const opt = SORT_OPTIONS.find(o => o.label === label);
+    if (!opt) return;
+    setSortForView(activeView, opt.key);
   };
 
   // Gruppieren
@@ -121,14 +109,12 @@ export function QuickfilterToolbar(): React.ReactElement {
         onChange={onKategorieChange}
       />
       <CollapsibleSeg
-        label="Antragsdatum"
-        value={antragsdatumValue}
-        defaultValue="Neueste zuerst"
-        items={[{ label: 'Neueste zuerst' }, { label: 'Älteste zuerst' }]}
-        onChange={onAntragsdatumChange}
+        label="Sortiert nach"
+        value={currentSortLabel}
+        defaultValue={DEFAULT_SORT_LABEL}
+        items={SORT_OPTIONS.map(o => ({ label: o.label }))}
+        onChange={onSortChange}
       />
-
-      <ExtraSortSelect value={extraSortValue} onChange={onExtraSortChange} />
 
       <CollapsibleSeg
         label="Gruppiert"
@@ -138,47 +124,5 @@ export function QuickfilterToolbar(): React.ReactElement {
         defaultValue="Keine"
       />
     </div>
-  );
-}
-
-function ExtraSortSelect({
-  value,
-  onChange,
-}: {
-  value: SortKey | '';
-  onChange: (v: string) => void;
-}): React.ReactElement {
-  const active = value !== '';
-  const title = active
-    ? `Sortiert nach: ${EXTRA_SORT_OPTIONS.find(o => o.key === value)?.label ?? ''}`
-    : 'Andere Sortierung';
-  return (
-    <Select value={value || undefined} onValueChange={onChange}>
-      <SelectTrigger
-        size="sm"
-        aria-label="Weitere Sortierung"
-        title={title}
-        className={`h-8 gap-1 ${
-          active
-            ? 'px-2 bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
-            : 'w-8 p-0 gap-0 justify-center bg-[var(--tf-bg)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-        } focus-visible:ring-0 focus-visible:border-transparent shadow-none [&_svg.lucide-chevron-down]:hidden text-[12px]`}
-        style={{ border: '0.5px solid var(--tf-border)', borderRadius: '8px' }}
-      >
-        <ArrowDownUp size={13} />
-        {/* SelectValue MUSS strukturell drin sein — Radix's Trigger nutzt es als
-            Click-Anchor; conditional rendering hat den Klick komplett blockiert.
-            Im inactive-State (value=undefined) rendert es nichts und nimmt keinen
-            Platz ein, also kein visuelles Problem. */}
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent align="start">
-        {EXTRA_SORT_OPTIONS.map(opt => (
-          <SelectItem key={opt.key} value={opt.key} className="text-[12px]">
-            {opt.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }
