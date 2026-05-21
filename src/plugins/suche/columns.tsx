@@ -155,7 +155,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     render: r => <TypeBadge r={r} />,
   },
   {
-    key: 'fkzDatei', label: 'FKZ / Dateiname', width: 130, defaultVisible: true,
+    key: 'fkzDatei', label: 'FKZ', width: 130, defaultVisible: true,
     sortable: true, filterable: true, appliesTo: 'both',
     accessor: r => r.type === 'antrag' ? safeString(r.fkz) : safeString(r.dateiname),
     filterType: 'type',
