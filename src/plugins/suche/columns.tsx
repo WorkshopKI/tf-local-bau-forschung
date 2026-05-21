@@ -213,7 +213,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
-    key: 'antragsdatum', label: 'Antragsdatum', width: 110, defaultVisible: false,
+    key: 'antragsdatum', label: 'Antragseingang', width: 110, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.antragsdatum),
     filterType: 'year',
