@@ -5,7 +5,7 @@ export const feedbackBoardPlugin: TeamFlowPlugin = {
   id: 'feedback-board',
   route: '/feedback-board',
   featureFlag: 'feedbackBoard',
-  name: 'Feedback-Board',
+  name: 'Feedback Übersicht',
   icon: 'TrendingUp',
   category: 'tools',
   order: 75,

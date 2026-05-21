@@ -30,7 +30,7 @@
     "auslastung": false,
     "chat": false,
     "suche": false,
-    "feedbackBoard": false
+    "feedbackBoard": true
   },
   "menuLabels": {
     "antraege": "Förderanträge"

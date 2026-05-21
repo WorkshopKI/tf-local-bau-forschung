@@ -452,7 +452,7 @@ Sichtbarkeits-Matrix (was steht in der Sidebar):
 | Dokumente | ✓ | ✓ | – | – | – | – |
 | Suche | ✓ | ✓ | – | – | – | – |
 | Chat | ✓ | ✓ | – | – | – | – |
-| Feedback-Board | ✓ | ✓ | – | – | – | – |
+| Feedback Übersicht | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Einstellungen | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Kurator-Toggle in Einstellungen | ✓ | – | – | ✓ | ✓ | – |
 | Kuration-Menüs (Suchindex, Programme, CSV, DMS, Filter, Feedback, Review) | ✓ | – | – | – | ✓ | – |

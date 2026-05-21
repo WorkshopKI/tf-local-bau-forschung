@@ -108,7 +108,7 @@ export function FeedbackBoardPage(): React.ReactElement {
       {/* Header */}
       <div className="flex items-baseline justify-between flex-wrap gap-3 mb-4">
         <div className="flex items-baseline gap-3">
-          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Feedback-Board</h1>
+          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Feedback Übersicht</h1>
           <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
             {counts.bugs} {counts.bugs === 1 ? 'Bug' : 'Bugs'} · {counts.features} Features
           </p>
