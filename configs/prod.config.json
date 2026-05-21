@@ -29,7 +29,7 @@
     "dokumente": false,
     "auslastung": false,
     "chat": false,
-    "suche": false,
+    "suche": true,
     "feedbackBoard": false
   },
   "menuLabels": {
