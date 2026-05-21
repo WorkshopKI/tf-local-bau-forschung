@@ -6,6 +6,16 @@ import type { UnifiedSearchResult } from '@/core/types/search-result';
 
 export type SuchePillFilterId = '' | 'antrag' | 'dokument' | 'bauantrag';
 
+/**
+ * Modul-Singleton-Collator. Spart bei N·log(N) Sort-Vergleichen (bis 10k+
+ * comparisons bei 1.000 Treffern) die wiederholte Intl-Lookup-Overhead.
+ * Wird auch in SuchSeite.tsx fuer die Filter-Kandidaten-Sortierung verwendet.
+ */
+export const SUCHE_COLLATOR = new Intl.Collator('de', {
+  numeric: true,
+  sensitivity: 'base',
+});
+
 export function matchesPillFilter(r: UnifiedSearchResult, filter: SuchePillFilterId): boolean {
   if (filter === '') return true;
   if (filter === 'antrag') return r.type === 'antrag';
@@ -20,7 +30,7 @@ export function compareValues(
   dir: 'asc' | 'desc',
 ): number {
   if (typeof a === 'number' && typeof b === 'number') return dir === 'asc' ? a - b : b - a;
-  const cmp = String(a).localeCompare(String(b), 'de', { numeric: true, sensitivity: 'base' });
+  const cmp = SUCHE_COLLATOR.compare(String(a), String(b));
   return dir === 'asc' ? cmp : -cmp;
 }
 

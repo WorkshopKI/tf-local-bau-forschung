@@ -8,7 +8,7 @@
  * Konvention: leere Zellen liefern `''` aus `accessor` und `null` aus `render`,
  * damit Sortierung deterministisch ist und Tailwind keinen Layout-Shift macht.
  */
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { FileText } from 'lucide-react';
 import { Badge } from '@/ui';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
@@ -85,15 +85,18 @@ function safeString(v: unknown): string {
   return String(v);
 }
 
-function MethodPill({ method }: { method: string }): ReactNode {
+// Zellen-Renderer sind ueber alle ~14 Spalten und alle Treffer-Zeilen
+// im Hot-Path. memo() spart bei Filter-/Sort-/Resize-Updates Tausende
+// Reconcile-Calls (siehe Performance-Audit, R2).
+const MethodPill = memo(function MethodPill({ method }: { method: string }): ReactNode {
   return (
     <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
       {METHOD_LABELS[method] ?? method}
     </span>
   );
-}
+});
 
-function TypeBadge({ r }: { r: UnifiedSearchResult }): ReactNode {
+const TypeBadge = memo(function TypeBadge({ r }: { r: UnifiedSearchResult }): ReactNode {
   if (r.type === 'antrag') {
     const dotColor = r.statusKategorie ? getStatusCategoryColor(r.statusKategorie) : '#d1d5db';
     return (
@@ -113,9 +116,9 @@ function TypeBadge({ r }: { r: UnifiedSearchResult }): ReactNode {
       Dok
     </span>
   );
-}
+});
 
-function StatusBadge({ r }: { r: UnifiedSearchResult }): ReactNode {
+const StatusBadge = memo(function StatusBadge({ r }: { r: UnifiedSearchResult }): ReactNode {
   if (r.type !== 'antrag' || !r.status) return null;
   const color = r.statusKategorie ? getStatusCategoryColor(r.statusKategorie) : '#9ca3af';
   return (
@@ -127,7 +130,7 @@ function StatusBadge({ r }: { r: UnifiedSearchResult }): ReactNode {
       {r.status}
     </span>
   );
-}
+});
 
 function formatEur(n: number): string {
   return n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });

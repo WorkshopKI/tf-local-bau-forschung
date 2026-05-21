@@ -8,7 +8,7 @@
  * useRef/useClickOutside-Pattern wie `ColumnPicker.tsx`, damit das ganze
  * Plugin konsistent bleibt.
  */
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { Copy, Download, FileSpreadsheet } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 
@@ -19,7 +19,7 @@ export interface SearchDownloadMenuProps {
   onExportClipboard: () => void;
 }
 
-export function SearchDownloadMenu(props: SearchDownloadMenuProps): React.ReactElement {
+function SearchDownloadMenuInner(props: SearchDownloadMenuProps): React.ReactElement {
   const { disabled, onExportCSV, onExportXLSX, onExportClipboard } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -78,3 +78,8 @@ export function SearchDownloadMenu(props: SearchDownloadMenuProps): React.ReactE
     </div>
   );
 }
+
+// Top-Toolbar-Komponente — wird vom SuchSeite-Parent oft re-rendered (Query-Updates),
+// aber die Props (disabled + 3 stable callbacks via useCallback haetten zwar geholfen;
+// hier reichts memo() weil die meisten Re-Renders gar nicht durch sie hindurch sollen).
+export const SearchDownloadMenu = memo(SearchDownloadMenuInner);

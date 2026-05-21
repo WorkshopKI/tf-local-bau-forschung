@@ -23,6 +23,7 @@ import { useStorage } from './useStorage';
 import { useActiveProgramm } from './useActiveProgramm';
 import { useSearch } from './useSearch';
 import { embeddingService } from '@/core/services/search/embedding-service';
+import { embedQueryCached } from '@/core/services/search/query-embedder';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import {
   hybridSearch,
@@ -156,7 +157,7 @@ async function embedQueryIfReady(
   try {
     const modelId = await getActiveModelId(idb);
     const cfg = getModelById(modelId);
-    return await embeddingService.embedSingle(query, cfg, 'query');
+    return await embedQueryCached(query, cfg, 'query');
   } catch {
     return null;
   }

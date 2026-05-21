@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, Search, Sparkles } from 'lucide-react';
 import { Badge } from '@/ui';
@@ -15,7 +15,7 @@ import { useAnalysePipeline } from './useAnalysePipeline';
 import { AnalysePipelineView } from './AnalysePipelineView';
 import { ValidationBanner } from './ValidationBanner';
 import {
-  matchesPillFilter, compareValues, countResultsByType,
+  matchesPillFilter, compareValues, countResultsByType, SUCHE_COLLATOR,
   type SuchePillFilterId,
 } from './suchseite-utils';
 
@@ -47,6 +47,10 @@ export function SuchSeite(): React.ReactElement {
   const analyse = useAnalysePipeline();
 
   const [query, setQuery] = useState('');
+  // Such-Pipeline laeuft auf der ge-deferreden Query, damit das Input-Feld
+  // frame-perfect bleibt waehrend Orama+Embedding+Filter+Sort durchlaufen
+  // (Pattern analog zum Foerderantraege-Plugin, useFilteredAntraege.ts).
+  const deferredQuery = useDeferredValue(query);
   const [typeFilter, setTypeFilter] = useState<FilterId>('');
   const [sortKey, setSortKey] = useState<string | null>(DEFAULT_SORT_KEY);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -63,7 +67,7 @@ export function SuchSeite(): React.ReactElement {
     });
   };
 
-  const { results: searchResults, loading, counts, indexInfo, vectorReady } = useUnifiedSearch(query);
+  const { results: searchResults, loading, counts, indexInfo, vectorReady } = useUnifiedSearch(deferredQuery);
   const showBauantraege = isBauantraegeEnabled();
   const analyseActive = analyse.result !== null;
 
@@ -97,18 +101,41 @@ export function SuchSeite(): React.ReactElement {
 
   const allColumns = useMemo(() => [...SEARCH_COLUMNS, ...dynamicColumns], [dynamicColumns]);
 
+  // Per-Result-Spalten-Cache fuer Filter-Werte. Erste Aggregation ueber 1000
+  // Treffer × 14 Spalten = 14.000 Accessor-Calls; jede Folge-Aggregation
+  // (Sort-Click, Filter-Toggle, Resize) ist dann nur noch Map.get statt
+  // Funktionsaufruf. WeakMap-Refs werden mit den Result-Objekten GC'd, wenn
+  // die naechste Query reinkommt — kein manuelles Invalidieren noetig.
+  const filterValueCacheRef = useRef<WeakMap<UnifiedSearchResult, Map<string, string>>>(new WeakMap());
+
+  const cachedFilterValue = (col: SearchColumn, r: UnifiedSearchResult): string => {
+    const cache = filterValueCacheRef.current;
+    let perResult = cache.get(r);
+    if (!perResult) {
+      perResult = new Map<string, string>();
+      cache.set(r, perResult);
+    }
+    let v = perResult.get(col.key);
+    if (v === undefined) {
+      v = getColumnFilterValue(col, r);
+      perResult.set(col.key, v);
+    }
+    return v;
+  };
+
   const filterCandidatesByColumn = useMemo<Record<string, string[]>>(() => {
     const out: Record<string, string[]> = {};
     for (const col of allColumns) {
       if (!col.filterable) continue;
       const set = new Set<string>();
       for (const r of pillFiltered) {
-        const s = getColumnFilterValue(col, r);
+        const s = cachedFilterValue(col, r);
         if (s) set.add(s);
       }
-      out[col.key] = Array.from(set).sort((a, b) => a.localeCompare(b, 'de', { numeric: true }));
+      out[col.key] = Array.from(set).sort(SUCHE_COLLATOR.compare);
     }
     return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cachedFilterValue ist stable per ref
   }, [pillFiltered, allColumns]);
 
   const columnFiltered = useMemo(() => {
@@ -117,8 +144,9 @@ export function SuchSeite(): React.ReactElement {
     return pillFiltered.filter(r => entries.every(([key, set]) => {
       const col = allColumns.find(c => c.key === key) ?? getColumnByKey(key);
       if (!col) return true;
-      return set.has(getColumnFilterValue(col, r));
+      return set.has(cachedFilterValue(col, r));
     }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cachedFilterValue ist stable per ref
   }, [pillFiltered, columnFilters, allColumns]);
 
   const sorted = useMemo(() => {

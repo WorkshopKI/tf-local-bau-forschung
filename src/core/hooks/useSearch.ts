@@ -4,6 +4,7 @@ import {
   type OramaSearchResult,
 } from '@/core/services/search/orama-store';
 import { embeddingService } from '@/core/services/search/embedding-service';
+import { embedQueryCached } from '@/core/services/search/query-embedder';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { initReRanker, isReRankerReady, rerank, disposeReRanker } from '@/core/services/search/re-ranker'; // PHASE 2: Re-Ranker
 import type { EmbeddingModelConfig } from '@/core/services/search/model-registry';
@@ -111,7 +112,7 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
     try {
       let queryVector: number[] | null = null;
       if (embeddingService.isReady() && modelConfigRef.current) {
-        queryVector = await embeddingService.embedSingle(
+        queryVector = await embedQueryCached(
           query, modelConfigRef.current, 'query',
         );
         pipelineLog.info('Embedding', `Query embedden mit ${modelConfigRef.current.label} — ${queryVector.length}d`);

@@ -12,7 +12,7 @@
  * hat, sollen die Status-Optionen weiterhin ALLE Stati zeigen die in X
  * vorkommen, nicht nur die schon angewendeten.
  */
-import { useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 import type { SearchColumn } from './columns';
@@ -33,7 +33,7 @@ export interface SearchTableHeaderProps {
 
 const MIN_RESIZE_WIDTH = 60;
 
-export function SearchTableHeader(props: SearchTableHeaderProps): React.ReactElement {
+function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactElement {
   const { columns, sortKey, sortDirection, onSort, columnFilters, onColumnFilterChange, filterCandidatesByColumn, onColumnWidthChange } = props;
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
 
@@ -125,6 +125,11 @@ export function SearchTableHeader(props: SearchTableHeaderProps): React.ReactEle
     </thead>
   );
 }
+
+// Header rendert pro Spalte einen Sort-Button + Filter-Dropdown + Resize-Handle;
+// bei Such-/Filter-/Sort-State-Updates triggert SuchSeite einen Parent-Re-Render,
+// der den Header sonst komplett neu mounten wuerde. memo() entkoppelt das.
+export const SearchTableHeader = memo(SearchTableHeaderInner);
 
 function SortIcon({ active, direction }: { active: boolean; direction: 'asc' | 'desc' }): React.ReactElement {
   if (!active) return <ArrowUpDown size={11} style={{ color: 'var(--tf-text-tertiary)' }} />;
