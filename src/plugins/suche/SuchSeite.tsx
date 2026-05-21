@@ -304,10 +304,11 @@ export function SuchSeite(): React.ReactElement {
           />
         </div>
         {showResults && (
-          <div className="flex items-center justify-between w-full max-w-4xl mt-2 text-[11px] text-[var(--tf-text-tertiary)]">
+          <div className="flex items-center gap-2 w-full max-w-4xl mt-2 text-[11px] text-[var(--tf-text-tertiary)]">
             <span>
               {sorted.length} Ergebnisse{analyseActive ? ' (KI-Analyse)' : ''}
             </span>
+            <span aria-hidden="true">·</span>
             <span>
               {indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte im Index ·{' '}
               {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Antraege geladen
