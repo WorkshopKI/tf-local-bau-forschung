@@ -27,7 +27,7 @@ import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from 
 import { useFilterState } from './useFilterState';
 import { GROUPING_OPTIONS, type SortKey } from '../sort';
 import type { GroupingMode } from '../antragGroups';
-import { CollapsibleSeg, SegGroup } from './CollapsibleSeg';
+import { CollapsibleSeg } from './CollapsibleSeg';
 import {
   getPhaseFromActive,
   getPhaseItems,
@@ -130,15 +130,13 @@ export function QuickfilterToolbar(): React.ReactElement {
 
       <ExtraSortSelect value={extraSortValue} onChange={onExtraSortChange} />
 
-      <div className="flex items-center gap-2 ml-2">
-        <span className="text-[12px] text-[var(--tf-text-tertiary)]">Gruppiert:</span>
-        <SegGroup
-          items={groupingItems}
-          value={currentGroupingLabel}
-          onChange={onGroupingChange}
-          ariaLabel="Gruppierung"
-        />
-      </div>
+      <CollapsibleSeg
+        label="Gruppiert"
+        value={currentGroupingLabel}
+        items={groupingItems}
+        onChange={onGroupingChange}
+        defaultValue="Keine"
+      />
     </div>
   );
 }
