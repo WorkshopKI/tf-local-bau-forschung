@@ -1,6 +1,12 @@
 /**
  * React-Hook der die KI-Analyse-Pipeline kapselt: State + Start/Cancel-API.
  * Pipeline-Code selbst ist React-frei — hier nur das State-Wiring.
+ *
+ * WICHTIG: KEIN Auto-`ping()` beim Mount! Streamlit-Bridge oeffnet im `ping()`
+ * automatisch ein neues Browser-Fenster (`http://localhost:8501/`) — das wuerde
+ * jeden Mount der Suche-Seite zum „pop-up" machen, auch wenn der User die
+ * KI-Analyse gar nicht nutzen will. Verfuegbarkeit wird **lazy** beim ersten
+ * Klick auf „Mit KI analysieren" geprueft.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
@@ -14,9 +20,6 @@ import {
 } from './analyse/pipeline';
 
 export interface UseAnalysePipeline {
-  available: boolean;
-  /** Wird waehrend `ping()` gesetzt; danach `available` reflektiert ping-Ergebnis. */
-  checkingAvailability: boolean;
   providerName: string;
   running: boolean;
   progress: PipelineProgress | null;
@@ -43,30 +46,12 @@ export function useAnalysePipeline(): UseAnalysePipeline {
 
   const transport = bridge.getActiveTransport();
 
-  const [available, setAvailable] = useState(false);
-  const [checkingAvailability, setCheckingAvailability] = useState(true);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<PipelineProgress | null>(null);
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
-
-  // Ping einmal beim Mount + wann immer der Provider wechselt.
-  useEffect(() => {
-    let cancelled = false;
-    setCheckingAvailability(true);
-    void transport.ping().then(ok => {
-      if (cancelled) return;
-      setAvailable(ok);
-      setCheckingAvailability(false);
-    }).catch(() => {
-      if (cancelled) return;
-      setAvailable(false);
-      setCheckingAvailability(false);
-    });
-    return () => { cancelled = true; };
-  }, [transport]);
 
   const start = useCallback((question: string) => {
     if (!activeProgrammId || running) return;
@@ -80,6 +65,19 @@ export function useAnalysePipeline(): UseAnalysePipeline {
 
     void (async () => {
       try {
+        // Verfuegbarkeitspruefung erst HIER (lazy), nicht beim Hook-Mount —
+        // sonst oeffnet die Streamlit-Bridge beim oeffnen der Suche-Seite
+        // automatisch ihr Fenster. `ping()` kann selbst Side-Effects haben
+        // (Streamlit-Bridge oeffnet hier window.open) — das ist okay, weil
+        // der User explizit „Mit KI analysieren" geklickt hat.
+        const reachable = await transport.ping().catch(() => false);
+        if (!reachable) {
+          setError(`KI-Provider „${transport.name}" nicht erreichbar. Konfiguration in den Einstellungen pruefen.`);
+          setRunning(false);
+          setProgress(null);
+          return;
+        }
+
         const res = await runAnalysisPipeline({
           question,
           transport,
@@ -123,8 +121,6 @@ export function useAnalysePipeline(): UseAnalysePipeline {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   return {
-    available,
-    checkingAvailability,
     providerName: transport.name,
     running,
     progress,

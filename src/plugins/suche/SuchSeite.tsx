@@ -136,14 +136,16 @@ export function SuchSeite(): React.ReactElement {
   }
 
   const startAnalyse = (): void => {
-    if (!query.trim() || analyse.running || !analyse.available) return;
+    if (!query.trim() || analyse.running) return;
     analyse.start(query.trim());
   };
 
-  const aiButtonDisabled = !query.trim() || analyse.running || analyse.checkingAvailability || !analyse.available;
-  const aiButtonTooltip = !analyse.available
-    ? `KI-Analyse nicht verfuegbar (${analyse.providerName} nicht erreichbar)`
-    : `Aktive LLM: ${analyse.providerName}`;
+  // Button ist optimistisch enabled (sobald Query nicht leer ist). Die echte
+  // Provider-Pruefung passiert lazy in `analyse.start()` — beim Mount der
+  // Suche-Seite KEIN `ping()`, damit die Streamlit-Bridge nicht ihr
+  // localhost:8501-Fenster automatisch oeffnet.
+  const aiButtonDisabled = !query.trim() || analyse.running;
+  const aiButtonTooltip = `Mit KI analysieren (Provider: ${analyse.providerName})`;
 
   const noQuery = !query.trim();
   const showStepper = analyse.running && analyse.progress;
