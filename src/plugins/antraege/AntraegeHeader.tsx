@@ -7,6 +7,7 @@ import { menuLabel } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFilteredAntraege, hasExplicitVbPhaseFilter } from './useFilteredAntraege';
+import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -77,12 +78,20 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
           der AntragCards darunter fluchtet. Der äußere Container behält das
           px-8 + Border, damit die Unterkanten-Border voll durchläuft. */}
       <div className="max-w-6xl">
-        {/* Title — Tabs zeigen Ansicht + Counts, Bearbeiter-Filter als Pill in
-            der Chips-Zeile über den Cards (siehe AntraegeMain). */}
-        <div className="mb-3">
+        {/* Title — Tabs zeigen Ansicht + Counts. Bearbeiter-Filter-Pill sitzt
+            direkt neben dem Titel, damit der User immer sieht, dass der
+            Kuerzel-Filter aktiv ist — auch wenn die Quickfilter-Toolbar
+            darunter expandiert ist. */}
+        <div className="mb-3 flex items-center gap-3 flex-wrap">
           <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">
             {menuLabel('antraege', 'Förderanträge')}
           </h1>
+          {bearbeiterFilter.active ? (
+            <BearbeiterFilterPill
+              tokens={bearbeiterFilter.tokens}
+              includeBegleitung={bearbeiterFilter.includeBegleitung}
+            />
+          ) : null}
         </div>
 
         {/* Toolbar: Tabs links, Suche + Filter rechts (ml-auto). pr-4 kompensiert

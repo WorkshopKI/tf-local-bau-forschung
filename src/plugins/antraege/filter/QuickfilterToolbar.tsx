@@ -16,6 +16,7 @@
  */
 import { useMemo } from 'react';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from '../store';
+import { useFilteredAntraege } from '../useFilteredAntraege';
 import { useFilterState } from './useFilterState';
 import { GROUPING_OPTIONS, type SortKey } from '../sort';
 import type { GroupingMode } from '../antragGroups';
@@ -47,7 +48,12 @@ const SORT_OPTIONS: { label: string; key: SortKey }[] = [
 const DEFAULT_SORT_LABEL = 'Neueste zuerst';
 
 export function QuickfilterToolbar(): React.ReactElement {
-  const antraege = useAntraegeStore(s => s.antraege);
+  // Counts auf der "Kürzel-gefilterten" Basis berechnen, nicht auf der
+  // Roh-Liste — sonst zeigen die Pillen Counts der gesamten Kohorte
+  // obwohl die Tabs oben (Offen / Alle …) bereits den Kürzel-Filter
+  // anwenden. countBase = View + Irrläufer-Pre-Filter + Begleitphase +
+  // Bearbeiter-Filter, ohne die Sidebar-Active-Filter (Stabilität).
+  const { countBase } = useFilteredAntraege();
   const activeView = useAntraegeStore(s => s.activeView);
   const sortByView = useAntraegeStore(s => s.sortByView);
   const groupingByView = useAntraegeStore(s => s.groupingByView);
@@ -62,14 +68,14 @@ export function QuickfilterToolbar(): React.ReactElement {
   const clearFilter = useFilterState(s => s.clearFilter);
 
   // Phase
-  const phaseItems = useMemo(() => getPhaseItems(antraege), [antraege]);
+  const phaseItems = useMemo(() => getPhaseItems(countBase), [countBase]);
   const phase = getPhaseFromActive(active);
   const onPhaseChange = (label: string): void => {
     applyPhase(label as PhaseLabel, (id, v) => setActiveValue(id, v), clearFilter);
   };
 
   // Kategorie
-  const kategorieItems = useMemo(() => getKategorieItems(antraege), [antraege]);
+  const kategorieItems = useMemo(() => getKategorieItems(countBase), [countBase]);
   const kategorie = getKategorieFromActive(active);
   const onKategorieChange = (label: string): void => {
     applyKategorie(label as KategorieLabel, (id, v) => setActiveValue(id, v), clearFilter);

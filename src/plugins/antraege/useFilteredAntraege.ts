@@ -42,6 +42,14 @@ export interface FilteredAntraegeResult {
    * einer kommentarlos leeren Liste einen Erklär-Hinweis zu zeigen.
    */
   bearbeiterKuerzelMissing: boolean;
+  /**
+   * Anträge nach View + Irrläufer-Pre-Filter + Begleitphase + Bearbeiter-
+   * Filter, aber VOR den Sidebar-Active-Filtern und der Such-Eingabe. Wird
+   * von den Quickfilter-Pillen als Count-Basis genutzt, damit die Counts
+   * den Kürzel-Filter widerspiegeln und stabil bleiben gegen Quickfilter-
+   * Wechsel.
+   */
+  countBase: AntragListItem[];
 }
 
 /** Zentrales Memo der View+Filter+Search+Sort-Pipeline. Header und List-Panel
@@ -126,6 +134,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       view,
       bearbeiterFilter,
       bearbeiterKuerzelMissing,
+      countBase: byBearbeiter,
     };
   }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, bearbeiterFilter]);
 }

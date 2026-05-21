@@ -5,7 +5,6 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
-import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
 import { AntragGroupCard } from './AntragGroupCard';
 import { NetzwerkClusterCard } from './NetzwerkClusterCard';
@@ -154,27 +153,20 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
   return (
     <div className={containerClass} style={containerStyle}>
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
-        {/* QuickfilterToolbar (Phase / Kategorie / Antragsdatum + Extra-Sort
-            + Gruppieren) links, Bearbeiter-Pill + ActiveFilterChips rechts.
-            Toolbar in eigenem Container ohne max-w-*, damit die volle
-            Viewport-Breite genutzt wird (Gruppiert: bricht sonst um). Liste
-            darunter behaelt den Lesbarkeits-Cap. */}
+        {/* QuickfilterToolbar (Status / Antragstyp / Sortiert nach /
+            Gruppiert) links, ActiveFilterChips rechts. Toolbar in eigenem
+            Container ohne max-w-*, damit die volle Viewport-Breite genutzt
+            wird. Bearbeiter-Pill sitzt im Header neben dem Titel. */}
         <div className={toolbarClass}>
           <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
               <QuickfilterToolbar />
             </div>
-            <div className="flex-1 min-w-0 flex items-center justify-end gap-3 flex-wrap">
-              {bearbeiterFilter.active ? (
-                <BearbeiterFilterPill
-                  tokens={bearbeiterFilter.tokens}
-                  includeBegleitung={bearbeiterFilter.includeBegleitung}
-                />
-              ) : null}
-              {active.length > 0 ? (
+            {active.length > 0 ? (
+              <div className="shrink-0 flex items-center justify-end gap-3 flex-wrap">
                 <ActiveFilterChips active={active} definitions={definitions} onRemove={clearFilter} />
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
         </div>
         <div className={contentClass}>
