@@ -57,6 +57,9 @@ export interface UnifiedSearchResult {
   zuwendung?: number;
   /** Tage seit Frist-Datum, falls ueberfaellig. Kommt in spaeterem Prompt. */
   ueberfaelligTage?: number;
+  /** Verbund-Phase (vb_phase aus CSV) — fuer die Antragstyp-Anzeige in
+   *  der Suche-Tabelle (FuE=3, DS=5, DL=4, NW=1|2). */
+  vbPhase?: number;
 
   // ----- Dokument-spezifisch (nur wenn type === 'dokument') -----
   dateiname?: string;

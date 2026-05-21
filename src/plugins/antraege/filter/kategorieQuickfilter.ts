@@ -65,6 +65,18 @@ export function getKategorieFromActive(active: ActiveFilter[]): KategorieLabel {
   return 'Alle';
 }
 
+/** Bucket-Label für eine vb_phase (FuE/DS/DL/NW). Liefert null für
+ *  Irrläufer (9), leere/unbekannte Werte, oder reservierte Phasen (6–8). */
+export function getKategorieLabel(vbPhase: unknown): Exclude<KategorieLabel, 'Alle'> | null {
+  const n = toVbPhaseNumber(vbPhase);
+  if (n === null) return null;
+  if (n === 3) return 'FuE';
+  if (n === 5) return 'DS';
+  if (n === 4) return 'DL';
+  if (n === 1 || n === 2) return 'NW';
+  return null;
+}
+
 /** Liefert die Items für `CollapsibleSeg`: Alle + 4 Kategorien mit Counts. */
 export function getKategorieItems(antraege: AntragListItem[]): CollapsibleSegItem[] {
   const counts: Record<KategorieLabel, number> = {

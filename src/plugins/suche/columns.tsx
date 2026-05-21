@@ -13,6 +13,7 @@ import { FileText } from 'lucide-react';
 import { Badge } from '@/ui';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import { getStatusCategoryColor } from '@/plugins/antraege/groupAggregates';
+import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 
 export type SearchColumnAppliesTo = 'both' | 'antrag' | 'dokument';
 
@@ -106,6 +107,7 @@ const MethodPill = memo(function MethodPill({ method }: { method: string }): Rea
 const TypeBadge = memo(function TypeBadge({ r }: { r: UnifiedSearchResult }): ReactNode {
   if (r.type === 'antrag') {
     const dotColor = r.statusKategorie ? getStatusCategoryColor(r.statusKategorie) : '#d1d5db';
+    const label = getKategorieLabel(r.vbPhase) ?? 'Antrag';
     return (
       <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded bg-blue-50 text-blue-800">
         <span
@@ -113,14 +115,14 @@ const TypeBadge = memo(function TypeBadge({ r }: { r: UnifiedSearchResult }): Re
           style={{ backgroundColor: dotColor }}
           aria-hidden
         />
-        Antrag
+        {label}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-violet-50 text-violet-800">
       <FileText size={10} aria-hidden />
-      Dok
+      Dokument
     </span>
   );
 });
@@ -147,7 +149,9 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
   {
     key: 'type', label: 'Typ', width: 80, defaultVisible: true,
     sortable: true, filterable: true, appliesTo: 'both',
-    accessor: r => r.type === 'antrag' ? 'Antrag' : (r.dokumentTyp ?? 'Dokument'),
+    accessor: r => r.type === 'antrag'
+      ? (getKategorieLabel(r.vbPhase) ?? 'Antrag')
+      : (r.dokumentTyp ?? 'Dokument'),
     render: r => <TypeBadge r={r} />,
   },
   {

@@ -134,6 +134,7 @@ function mapAntragHit(
     laufzeitende: item?.laufzeitende,
     ortAst: item?.ort_ast,
     zuwendung: typeof item?.foerdersumme === 'number' ? item.foerdersumme : undefined,
+    vbPhase: item?.vb_phase,
   };
 }
 
