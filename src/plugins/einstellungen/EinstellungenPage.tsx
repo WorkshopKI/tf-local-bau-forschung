@@ -53,7 +53,7 @@ export function EinstellungenPage(): React.ReactElement {
   };
 
   return (
-    <div className="px-8 pt-4 pb-6 max-w-2xl">
+    <div className="px-8 pt-4 pb-6 max-w-5xl">
       <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Einstellungen</h1>
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
