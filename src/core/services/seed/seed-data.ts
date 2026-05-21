@@ -8,6 +8,7 @@ import { bauantraegeData } from './bauantraege-data';
 import { artefakteData } from './artefakte-data';
 import { LEGACY_PRE_V2_AKTENZEICHEN } from './foerderantraege-data';
 import { FIXTURE_SCHEMA_IDS, seedFromFixtureCsvs } from './fixture-loader';
+import { isBauantraegeEnabled } from '@/config/feature-flags';
 
 export interface SeedResult {
   vorgaenge: number;
@@ -40,20 +41,26 @@ export async function seedTestData(
 
   const emptyVec = new Array(model.dimensions).fill(0) as number[];
 
-  // Bauantraege — save + index
+  // Bauantraege — save + index. Nur in Builds mit aktivem `features.bauantraege`
+  // (heute: demo-Variante). Andere Varianten haben kein Bauantraege-Plugin und
+  // brauchen die 24 synthetischen Vorgaenge auch nicht in IDB.
+  const seedBauantraege = isBauantraegeEnabled();
+  const bauantraegeCount = seedBauantraege ? bauantraegeData.length : 0;
   // Total wird zwei Stages spaeter um die importierten Foerderantraege ergaenzt;
   // hier ein konservativer Initialwert fuer den Progress-Balken.
-  const baseTotal = bauantraegeData.length + allDokumente.length + artefakteData.length;
+  const baseTotal = bauantraegeCount + allDokumente.length + artefakteData.length;
   let current = 0;
 
-  for (const v of bauantraegeData) {
-    await storage.saveVorgang(v);
-    insertDoc({
-      id: v.id, text: `${v.title} ${v.notes} ${v.tags.join(' ')}`,
-      title: v.title, source: v.id, tags: v.tags.join(','),
-      type: 'bauantrag', embedding: emptyVec,
-    });
-    onProgress?.(++current, baseTotal);
+  if (seedBauantraege) {
+    for (const v of bauantraegeData) {
+      await storage.saveVorgang(v);
+      insertDoc({
+        id: v.id, text: `${v.title} ${v.notes} ${v.tags.join(' ')}`,
+        title: v.title, source: v.id, tags: v.tags.join(','),
+        type: 'bauantrag', embedding: emptyVec,
+      });
+      onProgress?.(++current, baseTotal);
+    }
   }
 
   // Foerderantraege — kommen jetzt aus echten anonymisierten CSVs in

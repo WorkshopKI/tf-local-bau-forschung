@@ -25,7 +25,14 @@ import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { runtimeConfig } from '@/config/runtime-config';
-import { isFeedbackEnabled, isKuratorMenusEnabled, isDataShareEnabled, menuLabel } from '@/config/feature-flags';
+import {
+  isAntraegeEnabled,
+  isBauantraegeEnabled,
+  isFeedbackEnabled,
+  isKuratorMenusEnabled,
+  isDataShareEnabled,
+  menuLabel,
+} from '@/config/feature-flags';
 import { BuildInfo } from '@/core/components/BuildInfo';
 import { useAutoSmbRefresh } from '@/dev-fixtures/useAutoSmbRefresh';
 
@@ -77,15 +84,24 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Department-Filter nur greifen wenn BEIDE Bereiche im Build aktiv sind.
+  // Bauantraege sind synthetisch und nur in der demo-Variante an — wenn das
+  // Flag aus ist, ignorieren wir ein eventuell altes `department: 'bauantraege'`-
+  // Profil (sonst wuerde der User in dev/prod faelschlich kein Antraege-Plugin
+  // sehen). Plugin-Existenz selbst ist schon ueber `features.bauantraege` in
+  // `plugins.config.ts` zur Build-Zeit gegated.
+  const bothDepartmentsActive = isAntraegeEnabled() && isBauantraegeEnabled();
   const visiblePlugins = useMemo(() => {
     return plugins.filter(p => {
       const kuratorOnly = p.kuratorOnly ?? p.adminOnly;
       if (kuratorOnly && !isKurator) return false;
-      if (department === 'antraege' && p.id === 'bauantraege') return false;
-      if (department === 'bauantraege' && p.id === 'antraege') return false;
+      if (bothDepartmentsActive) {
+        if (department === 'antraege' && p.id === 'bauantraege') return false;
+        if (department === 'bauantraege' && p.id === 'antraege') return false;
+      }
       return true;
     });
-  }, [plugins, department, isKurator]);
+  }, [plugins, department, isKurator, bothDepartmentsActive]);
 
   const activeId = routeToPluginId(location.pathname) ?? 'home';
   const [sidebarOpen, setSidebarOpen] = useState(true);

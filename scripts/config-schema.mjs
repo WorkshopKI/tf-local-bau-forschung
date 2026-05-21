@@ -91,8 +91,11 @@ export const DEFAULT_CONFIG = {
     devInfraPanel: true,
     devFixtures: true,
     // Bereichs-Menüs: mindestens eines der beiden (antraege/bauantraege) muss aktiv sein.
+    // Bauantraege sind synthetische Demo-Daten — nur die `demo`-Variante aktiviert
+    // sie. In dev/prod/kurator/pl bleibt das Flag aus, damit weder das Plugin,
+    // noch die Department-Auswahl, noch die Seeds erscheinen.
     antraege: true,
-    bauantraege: true,
+    bauantraege: false,
     dokumente: false,
     auslastung: false,
     // User-Plugin-Gates: getrennt von den Master-Flags volltextsuche/feedback,

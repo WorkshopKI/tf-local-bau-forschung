@@ -26,7 +26,7 @@
     "devInfraPanel": true,
     "devFixtures": true,
     "antraege": true,
-    "bauantraege": true,
+    "bauantraege": false,
     "dokumente": true,
     "auslastung": true,
     "chat": true,

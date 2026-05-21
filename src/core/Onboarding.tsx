@@ -35,10 +35,14 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
+  // Wenn beide Bereiche aktiv sind (z.B. Demo-Variante): „beide". Wenn nur
+  // einer aktiv ist: dieser. `'bauantraege'` als Fallback nur wenn antraege
+  // wirklich aus ist — historisch ein Edge-Case der seit der Konsolidierung
+  // (May 2026) faktisch nicht mehr vorkommt.
   const defaultDept: UserProfile['department'] =
     isAntraegeEnabled() && isBauantraegeEnabled() ? 'beide'
-    : isAntraegeEnabled() ? 'antraege'
-    : 'bauantraege';
+    : isBauantraegeEnabled() ? 'bauantraege'
+    : 'antraege';
   const [department, setDepartment] = useState<UserProfile['department']>(defaultDept);
   const [kuerzel, setKuerzel] = useState('');
   const [isKurator, setIsKurator] = useState(false);
@@ -242,7 +246,9 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
             <h1 className="text-[20px] font-medium text-[var(--tf-text)]">Alles eingerichtet</h1>
             <div className="text-[13px] text-[var(--tf-text-secondary)] space-y-1.5">
               <p><span className="text-[var(--tf-text-tertiary)]">Name:</span> {name}{kuerzel && ` (${kuerzel})`}</p>
-              <p><span className="text-[var(--tf-text-tertiary)]">Abteilung:</span> {department === 'bauantraege' ? menuLabel('bauantraege', 'Bauanträge') : department === 'antraege' ? menuLabel('antraege', 'Förderanträge') : 'Beide'}</p>
+              {isAntraegeEnabled() && isBauantraegeEnabled() && (
+                <p><span className="text-[var(--tf-text-tertiary)]">Abteilung:</span> {department === 'bauantraege' ? menuLabel('bauantraege', 'Bauanträge') : department === 'antraege' ? menuLabel('antraege', 'Förderanträge') : 'Beide'}</p>
+              )}
               <div className="flex items-center justify-center gap-2">
                 <span className="text-[var(--tf-text-tertiary)]">Farbe:</span>
                 <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: `hsl(${selectedHue}, ${selectedSat}, ${selectedLit})` }} />
