@@ -13,7 +13,7 @@
  * vorkommen, nicht nur die schon angewendeten.
  */
 import { memo, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Filter } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 import type { SearchColumn } from './columns';
 
@@ -84,8 +84,9 @@ function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactEleme
               key={c.key}
               className="text-left px-3 py-2 text-[12px] font-medium text-[var(--tf-text-secondary)] relative"
               style={{
-                borderBottom: '0.5px solid var(--tf-border)',
+                borderBottom: active ? `2px solid ${ACTIVE_FILTER_COLOR}` : '0.5px solid var(--tf-border)',
                 borderRight: !isLastCol ? '0.5px solid var(--tf-border)' : undefined,
+                backgroundColor: active ? 'rgba(29, 158, 117, 0.08)' : undefined,
               }}
             >
               <div className="flex items-center gap-1">
@@ -103,10 +104,12 @@ function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactEleme
                     type="button"
                     onClick={() => setOpenFilterKey(prev => prev === c.key ? null : c.key)}
                     className="ml-auto p-0.5 hover:bg-[var(--tf-hover)] rounded"
-                    title="Filter"
+                    title={active ? `Filter aktiv (${columnFilters[c.key]!.size})` : 'Filter'}
                     style={active ? { color: ACTIVE_FILTER_COLOR } : { color: 'var(--tf-text-secondary)' }}
                   >
-                    <ChevronDown size={14} strokeWidth={2.25} />
+                    {active
+                      ? <Filter size={12} fill="currentColor" strokeWidth={2} />
+                      : <ChevronDown size={14} strokeWidth={2.25} />}
                   </button>
                 )}
               </div>
@@ -159,7 +162,13 @@ function FilterDropdown(props: FilterDropdownProps): React.ReactElement {
   const { candidates, selected, onApply, onClose, formatLabel } = props;
   const ref = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
-  const [local, setLocal] = useState<Set<string>>(() => new Set(selected));
+  // Leerer Filter im State == "kein Filter" == semantisch "alle Werte
+  // erlaubt". Im UI muss das als "alle ausgewaehlt" gespiegelt werden,
+  // sonst denkt der User er habe alles abgewaehlt. Bei Apply mit
+  // local == candidates schicken wir wieder ein leeres Set zurueck.
+  const [local, setLocal] = useState<Set<string>>(
+    () => selected.size === 0 ? new Set(candidates) : new Set(selected)
+  );
 
   useClickOutside(ref, onClose, true);
 
@@ -236,7 +245,11 @@ function FilterDropdown(props: FilterDropdownProps): React.ReactElement {
         </button>
         <button
           type="button"
-          onClick={() => onApply(local)}
+          onClick={() => {
+            // local == candidates -> kein Filter (leeres Set)
+            const next = local.size === candidates.length ? new Set<string>() : local;
+            onApply(next);
+          }}
           className="flex-1 px-2 py-1 text-[12px] bg-[var(--tf-text)] text-[var(--tf-bg)] rounded"
         >
           Anwenden

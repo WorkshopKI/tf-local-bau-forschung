@@ -109,7 +109,7 @@ export function QuickfilterToolbar(): React.ReactElement {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <CollapsibleSeg
-        label="Phase"
+        label="Status"
         value={phase}
         items={phaseItems}
         onChange={onPhaseChange}
