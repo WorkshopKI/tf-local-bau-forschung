@@ -104,9 +104,9 @@ function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactEleme
                     onClick={() => setOpenFilterKey(prev => prev === c.key ? null : c.key)}
                     className="ml-auto p-0.5 hover:bg-[var(--tf-hover)] rounded"
                     title="Filter"
-                    style={active ? { color: ACTIVE_FILTER_COLOR } : { color: 'var(--tf-text-tertiary)' }}
+                    style={active ? { color: ACTIVE_FILTER_COLOR } : { color: 'var(--tf-text-secondary)' }}
                   >
-                    <ChevronDown size={12} />
+                    <ChevronDown size={14} strokeWidth={2.25} />
                   </button>
                 )}
               </div>
