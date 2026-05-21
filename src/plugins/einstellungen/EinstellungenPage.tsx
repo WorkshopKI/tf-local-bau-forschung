@@ -11,11 +11,12 @@ import { AIProviderTab } from './AIProviderTab';
 import { SpeicherTab } from './SpeicherTab';
 import { DokumentenquellenTab } from './DokumentenquellenTab';
 import { MeineTechnologienTab } from './MeineTechnologienTab';
-import { isAuslastungEnabled, isDevContext } from '@/config/feature-flags';
+import { isDevContext } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
 
 const TABS: Array<{ id: string; label: string }> = [
   { id: 'profil', label: 'Profil' },
+  { id: 'meine-technologien', label: 'Meine Technologien' },
   { id: 'darstellung', label: 'Darstellung' },
   { id: 'speicher', label: 'Speicher' },
   { id: 'dokumentenquellen', label: 'Dokumentenquellen' },
@@ -26,9 +27,6 @@ const TABS: Array<{ id: string; label: string }> = [
 // LLM-Endpoint via `ki.localLlama.endpoint` in der Build-Config fix verdrahtet.
 if (isDevContext()) {
   TABS.push({ id: 'ai', label: 'KI-Assistent' });
-}
-if (isAuslastungEnabled()) {
-  TABS.splice(1, 0, { id: 'meine-technologien', label: 'Meine Technologien' });
 }
 
 export function EinstellungenPage(): React.ReactElement {
