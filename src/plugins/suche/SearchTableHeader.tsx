@@ -12,7 +12,8 @@
  * hat, sollen die Status-Optionen weiterhin ALLE Stati zeigen die in X
  * vorkommen, nicht nur die schon angewendeten.
  */
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Filter } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 import type { SearchColumn } from './columns';
@@ -43,6 +44,7 @@ function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactEleme
     onColumnWidthChange, onColumnWidthDrag,
   } = props;
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
+  const [filterAnchor, setFilterAnchor] = useState<HTMLButtonElement | null>(null);
 
   /** Drag-Handle Mousedown — Live-DOM-Mutation per mousemove (kein React-
    *  Re-Render der 80+ Zeilen × 10+ Spalten), finaler Commit on mouseup. */
@@ -102,7 +104,15 @@ function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactEleme
                 {c.filterable && (
                   <button
                     type="button"
-                    onClick={() => setOpenFilterKey(prev => prev === c.key ? null : c.key)}
+                    onClick={(e) => {
+                      if (openFilterKey === c.key) {
+                        setOpenFilterKey(null);
+                        setFilterAnchor(null);
+                      } else {
+                        setFilterAnchor(e.currentTarget);
+                        setOpenFilterKey(c.key);
+                      }
+                    }}
                     className="ml-auto p-0.5 hover:bg-[var(--tf-hover)] rounded"
                     title={active ? `Filter aktiv (${columnFilters[c.key]!.size})` : 'Filter'}
                     style={active ? { color: ACTIVE_FILTER_COLOR } : { color: 'var(--tf-text-secondary)' }}
@@ -117,9 +127,14 @@ function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactEleme
                 <FilterDropdown
                   candidates={filterCandidatesByColumn[c.key] ?? []}
                   selected={columnFilters[c.key] ?? new Set()}
-                  onApply={(values) => { onColumnFilterChange(c.key, values); setOpenFilterKey(null); }}
-                  onClose={() => setOpenFilterKey(null)}
+                  onApply={(values) => {
+                    onColumnFilterChange(c.key, values);
+                    setOpenFilterKey(null);
+                    setFilterAnchor(null);
+                  }}
+                  onClose={() => { setOpenFilterKey(null); setFilterAnchor(null); }}
                   formatLabel={c.formatFilterLabel}
+                  anchorEl={filterAnchor}
                 />
               )}
               <div
@@ -156,10 +171,11 @@ interface FilterDropdownProps {
   onApply: (values: Set<string>) => void;
   onClose: () => void;
   formatLabel?: (value: string) => string;
+  anchorEl: HTMLButtonElement | null;
 }
 
 function FilterDropdown(props: FilterDropdownProps): React.ReactElement {
-  const { candidates, selected, onApply, onClose, formatLabel } = props;
+  const { candidates, selected, onApply, onClose, formatLabel, anchorEl } = props;
   const ref = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
   // Leerer Filter im State == "kein Filter" == semantisch "alle Werte
@@ -169,8 +185,25 @@ function FilterDropdown(props: FilterDropdownProps): React.ReactElement {
   const [local, setLocal] = useState<Set<string>>(
     () => selected.size === 0 ? new Set(candidates) : new Set(selected)
   );
+  // Portal-Position: aus dem Anchor-Button berechnet, damit das Dropdown
+  // nicht vom overflow-x-auto-Wrapper der Tabelle geclippt wird.
+  // Window-Resize wird nicht live verfolgt — User schliesst per Click und
+  // oeffnet neu.
+  const [pos, setPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
 
   useClickOutside(ref, onClose, true);
+
+  useLayoutEffect(() => {
+    if (!anchorEl) return;
+    const rect = anchorEl.getBoundingClientRect();
+    const DROPDOWN_WIDTH = 240;
+    const VIEWPORT_PAD = 8;
+    const left = Math.max(
+      VIEWPORT_PAD,
+      Math.min(rect.left, window.innerWidth - DROPDOWN_WIDTH - VIEWPORT_PAD),
+    );
+    setPos({ left, top: rect.bottom + 4 });
+  }, [anchorEl]);
 
   const display = (v: string): string => formatLabel ? formatLabel(v) : v;
 
@@ -198,11 +231,15 @@ function FilterDropdown(props: FilterDropdownProps): React.ReactElement {
     setLocal(next);
   }
 
-  return (
+  return createPortal(
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 z-[100] w-[240px] bg-[var(--tf-bg)] rounded-[var(--tf-radius)] shadow-md"
-      style={{ border: '0.5px solid var(--tf-border)' }}
+      className="fixed z-[1000] w-[240px] bg-[var(--tf-bg)] rounded-[var(--tf-radius)] shadow-md"
+      style={{
+        border: '0.5px solid var(--tf-border)',
+        left: pos.left,
+        top: pos.top,
+      }}
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="p-2" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
@@ -255,6 +292,7 @@ function FilterDropdown(props: FilterDropdownProps): React.ReactElement {
           Anwenden
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
