@@ -36,9 +36,21 @@ function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'alle';
 }
 
-function isoDate(now: Date = new Date()): string {
-  return now.toISOString().slice(0, 10);
+/** `YYYY-MM-DD-HHmm` (lokale Zeit). HHmm ist drin damit der User mehrere
+ *  Exporte derselben Query am selben Tag unterscheiden kann. */
+function fileTimestamp(now: Date = new Date()): string {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  const y = now.getFullYear();
+  const m = pad(now.getMonth() + 1);
+  const d = pad(now.getDate());
+  const hh = pad(now.getHours());
+  const mm = pad(now.getMinutes());
+  return `${y}-${m}-${d}-${hh}${mm}`;
 }
+
+/** Branding-Prefix fuer Such-Exporte. Passt zu den Build-Output-Dateien
+ *  (`zah-prod.html`, „ZAH dev" in der Sidebar). */
+const EXPORT_PREFIX = 'zah-suche';
 
 function quoteCsvCell(v: string | number): string {
   const s = String(v);
@@ -70,7 +82,7 @@ export function exportCSV(
   ];
   const csv = '﻿' + lines.join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  downloadBlob(blob, `teamflow-suche-${slugify(query)}-${isoDate()}.csv`);
+  downloadBlob(blob, `${EXPORT_PREFIX}-${slugify(query)}-${fileTimestamp()}.csv`);
 }
 
 export async function exportClipboard(
@@ -98,5 +110,5 @@ export function exportXLSX(
   }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Suche');
-  XLSX.writeFile(wb, `teamflow-suche-${slugify(query)}-${isoDate()}.xlsx`);
+  XLSX.writeFile(wb, `${EXPORT_PREFIX}-${slugify(query)}-${fileTimestamp()}.xlsx`);
 }
