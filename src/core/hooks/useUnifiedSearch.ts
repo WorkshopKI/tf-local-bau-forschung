@@ -55,7 +55,7 @@ export interface UnifiedSearchCounts {
 }
 
 export interface UnifiedSearchIndexInfo {
-  dokumenteImIndex: number;
+  textabschnitteImIndex: number;
   antraegeGeladen: number;
 }
 
@@ -300,7 +300,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
     loading,
     error,
     counts,
-    indexInfo: { dokumenteImIndex: documentCount, antraegeGeladen },
+    indexInfo: { textabschnitteImIndex: documentCount, antraegeGeladen },
     vectorReady,
   };
 }

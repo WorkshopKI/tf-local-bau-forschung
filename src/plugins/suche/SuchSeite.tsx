@@ -253,7 +253,7 @@ export function SuchSeite(): React.ReactElement {
         <div className="text-center py-16">
           <Search size={40} className="text-[var(--tf-text-tertiary)] mx-auto mb-4" />
           <p className="text-[var(--tf-text-tertiary)]">
-            {indexInfo.dokumenteImIndex.toLocaleString('de-DE')} Dokumente im Index ·{' '}
+            {indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte im Index ·{' '}
             {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Antraege geladen
           </p>
         </div>
@@ -272,7 +272,7 @@ export function SuchSeite(): React.ReactElement {
               {sorted.length} Ergebnisse{analyseActive ? ' (KI-Analyse)' : ''}
             </span>
             <span>
-              {indexInfo.dokumenteImIndex.toLocaleString('de-DE')} Dokumente im Index ·{' '}
+              {indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte im Index ·{' '}
               {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Antraege geladen
             </span>
           </div>
