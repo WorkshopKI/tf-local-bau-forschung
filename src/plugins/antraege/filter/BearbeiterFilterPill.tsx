@@ -32,7 +32,7 @@ export function BearbeiterFilterPill({ tokens, includeBegleitung }: Props): Reac
       <User size={11} />
       <span>Profil: {tokens.join(', ')}</span>
       {includeBegleitung ? (
-        <span style={{ color: 'var(--tf-primary)' }}>· +ZTP/PFM</span>
+        <span style={{ color: 'var(--tf-primary)' }}>· inkl. Begleitung</span>
       ) : null}
     </button>
   );
