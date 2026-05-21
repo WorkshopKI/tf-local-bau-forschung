@@ -23,6 +23,9 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
   { key: 'frist_datum', type: 'date', label: 'Fristdatum', level: 'antrag' },
   { key: 'vn_eingang_datum', type: 'date', label: 'Eingang VN-Sach', level: 'antrag' },
   { key: 'foerdersumme', type: 'number', label: 'Fördersumme', level: 'antrag' },
+  { key: 'ort_ast', type: 'string', label: 'Ort Antragsteller', level: 'antrag' },
+  { key: 'laufzeitbeginn', type: 'date', label: 'Laufzeitbeginn', level: 'antrag' },
+  { key: 'laufzeitende', type: 'date', label: 'Laufzeitende', level: 'antrag' },
   // Bearbeiter / Begleitung — Namenskürzel pro Antrag, für den Profil-Filter „Nur meine".
   { key: 'tib_kuerz', type: 'string', label: 'Bearbeiter TiB (Kürzel)', level: 'antrag' },
   { key: 'bib_kuerz', type: 'string', label: 'Bearbeiter BIB (Kürzel)', level: 'antrag' },
@@ -54,6 +57,9 @@ export const CANONICAL_FIELD_NAME_ALIASES: Record<string, CanonicalField> = {
   org_afs: 'antragsteller',
   thema_ad: 'titel',
   vb_nummer: 'verbund_id',
+  lfz_tv_b: 'laufzeitbeginn',
+  lfz_tv_e: 'laufzeitende',
+  // `ort_ast` (CSV-Header ORT_AST) ist Direct-Match auf Canonical-Key — kein Alias nötig.
 };
 
 /**
@@ -82,6 +88,11 @@ export const LIST_VIEW_FIELDS: readonly string[] = [
   'bewilligung_datum',
   'antragsdatum',
   'vn_eingang_datum',
+  'laufzeitbeginn',
+  'laufzeitende',
+  // Numerische / sonstige Suchfeld-Spalten
+  'foerdersumme',
+  'ort_ast',
   // Filter-Standards
   'foerdergeber',
   'verbund_id',

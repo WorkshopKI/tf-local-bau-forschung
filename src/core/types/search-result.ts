@@ -45,10 +45,16 @@ export interface UnifiedSearchResult {
   statusKategorie?: StatusCategory;
   /** Antragsdatum als ISO oder dd.mm.yyyy (was im CSV steht). */
   antragsdatum?: string;
-  /** Netzwerk-Groesse, falls bekannt. */
-  nwGroesse?: string;
-  /** Themen-Kategorie / Branche, falls bekannt. */
-  kategorie?: string;
+  /** Bewilligungsdatum (Canonical bewilligung_datum). */
+  bewilligungsdatum?: string;
+  /** Laufzeitbeginn (Canonical laufzeitbeginn). */
+  laufzeitbeginn?: string;
+  /** Laufzeitende (Canonical laufzeitende). */
+  laufzeitende?: string;
+  /** Ort des Antragstellers (Canonical ort_ast). */
+  ortAst?: string;
+  /** Zuwendung / Foerdersumme in EUR (Canonical foerdersumme). */
+  zuwendung?: number;
   /** Tage seit Frist-Datum, falls ueberfaellig. Kommt in spaeterem Prompt. */
   ueberfaelligTage?: number;
 

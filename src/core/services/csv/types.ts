@@ -14,6 +14,9 @@ export type CanonicalField =
   | 'foerdersumme'
   | 'foerdergeber'
   | 'branche'
+  | 'ort_ast'
+  | 'laufzeitbeginn'
+  | 'laufzeitende'
   // Bearbeiter / Begleitung (Namenskürzel aus dem CSV-Import).
   // Werden für den Profil-Filter „Nur meine Anträge" verwendet
   // (siehe `src/plugins/antraege/bearbeiterFilter.ts`).
@@ -209,6 +212,14 @@ export interface AntragListItem {
    *  (vn_eingang_datum + 6 Monate). Leer bis der Verwendungsnachweis im
    *  Foyer eingelaufen ist. */
   vn_eingang_datum?: string;
+  /** Projekt-Laufzeitbeginn (CSV-Header LFZ_TV_B). ISO YYYY-MM-DD oder Roh-String. */
+  laufzeitbeginn?: string;
+  /** Projekt-Laufzeitende (CSV-Header LFZ_TV_E). ISO YYYY-MM-DD oder Roh-String. */
+  laufzeitende?: string;
+  /** Bewilligte Foerdersumme in EUR (Canonical foerdersumme). */
+  foerdersumme?: number;
+  /** Ort des Antragstellers (CSV-Header ORT_AST, Direct-Match auf Canonical ort_ast). */
+  ort_ast?: string;
   // Filter-Standards
   foerdergeber?: string;
   verbund_id?: string;

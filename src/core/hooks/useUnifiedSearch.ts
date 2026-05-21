@@ -115,7 +115,11 @@ function mapAntragHit(
     status: item?.status,
     statusKategorie: item?.status ? getStatusCategory(item.status) : undefined,
     antragsdatum: item?.antragsdatum,
-    kategorie: item?.branche,
+    bewilligungsdatum: item?.bewilligung_datum,
+    laufzeitbeginn: item?.laufzeitbeginn,
+    laufzeitende: item?.laufzeitende,
+    ortAst: item?.ort_ast,
+    zuwendung: typeof item?.foerdersumme === 'number' ? item.foerdersumme : undefined,
   };
 }
 

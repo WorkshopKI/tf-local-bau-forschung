@@ -27,6 +27,9 @@ export function toAntragListItem(antrag: Antrag): AntragListItem {
   copyStringField(antrag, item, 'bewilligung_datum');
   copyStringField(antrag, item, 'antragsdatum');
   copyStringField(antrag, item, 'vn_eingang_datum');
+  copyStringField(antrag, item, 'laufzeitbeginn');
+  copyStringField(antrag, item, 'laufzeitende');
+  copyStringField(antrag, item, 'ort_ast');
   copyStringField(antrag, item, 'foerdergeber');
   copyStringField(antrag, item, 'verbund_id');
   copyStringField(antrag, item, 'unterprogramm_id');
@@ -35,6 +38,7 @@ export function toAntragListItem(antrag: Antrag): AntragListItem {
   copyStringField(antrag, item, 'ztp_kuerz');
   copyStringField(antrag, item, 'pfm_kuerz');
   copyNumberField(antrag, item, 'vb_phase');
+  copyNumberField(antrag, item, 'foerdersumme');
   return item;
 }
 

@@ -16,6 +16,16 @@ import { getStatusCategoryColor } from '@/plugins/antraege/groupAggregates';
 
 export type SearchColumnAppliesTo = 'both' | 'antrag' | 'dokument';
 
+/**
+ * Filter-Typ pro Spalte:
+ *  - `multiSelect` (Default): Checkbox-Liste mit allen distinct accessor-Werten.
+ *  - `year`: Extrahiert das Jahr aus Datums-Werten (YYYY-MM-DD oder dd.mm.yyyy).
+ *    Filter zeigt Jahre als Multi-Select.
+ *  - `type`: Antrag / Dokument-Filter — Werte kommen aus `filterAccessor`, nicht
+ *    aus dem `accessor` (der dort den FKZ/Dateinamen liefert).
+ */
+export type SearchColumnFilterType = 'multiSelect' | 'year' | 'type';
+
 export interface SearchColumn {
   key: string;
   label: string;
@@ -27,6 +37,43 @@ export interface SearchColumn {
   appliesTo: SearchColumnAppliesTo;
   accessor: (r: UnifiedSearchResult) => string | number;
   render: (r: UnifiedSearchResult) => ReactNode;
+  /** Default `multiSelect`. */
+  filterType?: SearchColumnFilterType;
+  /** Optional separate Quelle fuer Filter-Kandidaten (wenn der Filter etwas
+   *  anderes filtert als der Sort-Accessor — z.B. `fkzDatei`: Sort nach
+   *  FKZ/Datei, Filter nach Antrag/Dokument). */
+  filterAccessor?: (r: UnifiedSearchResult) => string;
+}
+
+/** Extrahiert das Jahr (YYYY) aus einem ISO- oder dd.mm.yyyy-Datum.
+ *  Liefert leeren String bei nicht-parsebaren Werten. */
+export function extractYear(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '';
+  const s = String(value);
+  const iso = /^(\d{4})-\d{2}-\d{2}/.exec(s);
+  if (iso && iso[1]) return iso[1];
+  const de = /^\d{2}\.\d{2}\.(\d{4})/.exec(s);
+  if (de && de[1]) return de[1];
+  return '';
+}
+
+/**
+ * Liefert den Filter-Wert einer Spalte fuer eine Ergebniszeile — beruecksichtigt
+ * `filterType` und optionalen `filterAccessor`. Wird sowohl beim Sammeln der
+ * Filter-Kandidaten als auch beim Anwenden des Filters genutzt, damit beide
+ * Pfade identisch projizieren.
+ */
+export function getColumnFilterValue(col: SearchColumn, r: UnifiedSearchResult): string {
+  if (col.filterType === 'type' && col.filterAccessor) {
+    return col.filterAccessor(r);
+  }
+  if (col.filterType === 'year') {
+    const raw = col.filterAccessor ? col.filterAccessor(r) : col.accessor(r);
+    return extractYear(raw);
+  }
+  if (col.filterAccessor) return col.filterAccessor(r);
+  const v = col.accessor(r);
+  return v === undefined || v === null ? '' : String(v);
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -82,23 +129,29 @@ function StatusBadge({ r }: { r: UnifiedSearchResult }): ReactNode {
   );
 }
 
+function formatEur(n: number): string {
+  return n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+}
+
 export const SEARCH_COLUMNS: SearchColumn[] = [
   {
     key: 'type', label: 'Typ', width: 80, defaultVisible: true,
-    sortable: false, filterable: true, appliesTo: 'both',
+    sortable: true, filterable: true, appliesTo: 'both',
     accessor: r => r.type === 'antrag' ? 'Antrag' : (r.dokumentTyp ?? 'Dokument'),
     render: r => <TypeBadge r={r} />,
   },
   {
-    key: 'fkzDatei', label: 'FKZ / Datei', width: 130, defaultVisible: true,
-    sortable: true, filterable: false, appliesTo: 'both',
+    key: 'fkzDatei', label: 'FKZ / Dateiname', width: 130, defaultVisible: true,
+    sortable: true, filterable: true, appliesTo: 'both',
     accessor: r => r.type === 'antrag' ? safeString(r.fkz) : safeString(r.dateiname),
+    filterType: 'type',
+    filterAccessor: r => r.type === 'antrag' ? 'Antrag' : 'Dokument',
     render: r => r.type === 'antrag'
       ? <span className="font-mono text-[12px] text-[var(--tf-text)]">{r.fkz}</span>
       : <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.dateiname}>{r.dateiname}</span>,
   },
   {
-    key: 'programm', label: 'Programm', width: 100, defaultVisible: true,
+    key: 'programm', label: 'Programm', width: 100, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'both',
     accessor: r => safeString(r.programm ?? r.zugehoerigesProgramm),
     render: r => (
@@ -149,27 +202,55 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
-    key: 'antragsdatum', label: 'Antragsdatum', width: 100, defaultVisible: false,
-    sortable: true, filterable: false, appliesTo: 'antrag',
+    key: 'antragsdatum', label: 'Antragsdatum', width: 110, defaultVisible: false,
+    sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.antragsdatum),
+    filterType: 'year',
     render: r => r.antragsdatum
       ? <span className="text-[12px] text-[var(--tf-text)] font-mono">{r.antragsdatum}</span>
       : null,
   },
   {
-    key: 'nwGroesse', label: 'NW-Groesse', width: 90, defaultVisible: false,
+    key: 'bewilligungsdatum', label: 'Bewilligungsdatum', width: 130, defaultVisible: true,
     sortable: true, filterable: true, appliesTo: 'antrag',
-    accessor: r => safeString(r.nwGroesse),
-    render: r => r.nwGroesse
-      ? <span className="text-[12px] text-[var(--tf-text)]">{r.nwGroesse}</span>
+    accessor: r => safeString(r.bewilligungsdatum),
+    filterType: 'year',
+    render: r => r.bewilligungsdatum
+      ? <span className="text-[12px] text-[var(--tf-text)] font-mono">{r.bewilligungsdatum}</span>
       : null,
   },
   {
-    key: 'kategorie', label: 'Kategorie', width: 100, defaultVisible: false,
+    key: 'ortAst', label: 'Ort AST', width: 120, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'antrag',
-    accessor: r => safeString(r.kategorie),
-    render: r => r.kategorie
-      ? <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.kategorie}>{r.kategorie}</span>
+    accessor: r => safeString(r.ortAst),
+    render: r => r.ortAst
+      ? <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.ortAst}>{r.ortAst}</span>
+      : null,
+  },
+  {
+    key: 'laufzeitbeginn', label: 'Laufzeitbeginn', width: 120, defaultVisible: false,
+    sortable: true, filterable: true, appliesTo: 'antrag',
+    accessor: r => safeString(r.laufzeitbeginn),
+    filterType: 'year',
+    render: r => r.laufzeitbeginn
+      ? <span className="text-[12px] text-[var(--tf-text)] font-mono">{r.laufzeitbeginn}</span>
+      : null,
+  },
+  {
+    key: 'laufzeitende', label: 'Laufzeitende', width: 120, defaultVisible: false,
+    sortable: true, filterable: true, appliesTo: 'antrag',
+    accessor: r => safeString(r.laufzeitende),
+    filterType: 'year',
+    render: r => r.laufzeitende
+      ? <span className="text-[12px] text-[var(--tf-text)] font-mono">{r.laufzeitende}</span>
+      : null,
+  },
+  {
+    key: 'zuwendung', label: 'Zuwendung', width: 120, defaultVisible: false,
+    sortable: true, filterable: false, appliesTo: 'antrag',
+    accessor: r => typeof r.zuwendung === 'number' ? r.zuwendung : 0,
+    render: r => typeof r.zuwendung === 'number'
+      ? <span className="text-[12px] text-[var(--tf-text)] font-mono block text-right">{formatEur(r.zuwendung)}</span>
       : null,
   },
   {
@@ -182,7 +263,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
   },
   {
     key: 'method', label: 'Suchmethode', width: 90, defaultVisible: false,
-    sortable: false, filterable: true, appliesTo: 'both',
+    sortable: true, filterable: true, appliesTo: 'both',
     accessor: r => safeString(r.method),
     render: r => <MethodPill method={r.method} />,
   },

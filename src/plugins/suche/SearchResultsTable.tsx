@@ -24,21 +24,32 @@ export interface SearchResultsTableProps {
   columnFilters: Record<string, Set<string>>;
   onColumnFilterChange: (key: string, values: Set<string>) => void;
   filterCandidatesByColumn: Record<string, string[]>;
+  /** User-Override fuer Spaltenbreiten (per Drag-Handle gesetzt). Falls leer →
+   *  Default-Width aus `SearchColumn.width`. */
+  columnWidths: Record<string, number>;
+  onColumnWidthChange: (key: string, width: number) => void;
   onRowClick: (r: UnifiedSearchResult) => void;
 }
 
 function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactElement {
   const {
     results, columns, sortKey, sortDirection, onSort,
-    columnFilters, onColumnFilterChange, filterCandidatesByColumn, onRowClick,
+    columnFilters, onColumnFilterChange, filterCandidatesByColumn,
+    columnWidths, onColumnWidthChange, onRowClick,
   } = props;
+
+  function resolveWidth(c: SearchColumn): string | undefined {
+    const override = columnWidths[c.key];
+    if (typeof override === 'number') return `${override}px`;
+    return c.width === 'auto' ? undefined : `${c.width}px`;
+  }
 
   return (
     <div className="w-full overflow-x-auto" style={{ border: '0.5px solid var(--tf-border)', borderRadius: 'var(--tf-radius)' }}>
       <table style={{ tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' }}>
         <colgroup>
           {columns.map(c => (
-            <col key={c.key} style={{ width: c.width === 'auto' ? undefined : `${c.width}px` }} />
+            <col key={c.key} style={{ width: resolveWidth(c) }} />
           ))}
         </colgroup>
         <SearchTableHeader
@@ -49,6 +60,7 @@ function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactEle
           columnFilters={columnFilters}
           onColumnFilterChange={onColumnFilterChange}
           filterCandidatesByColumn={filterCandidatesByColumn}
+          onColumnWidthChange={onColumnWidthChange}
         />
         <tbody>
           {results.map((r, rowIdx) => {

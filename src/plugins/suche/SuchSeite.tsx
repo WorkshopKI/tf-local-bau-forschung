@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Sparkles } from 'lucide-react';
+import { MessageCircle, Search, Sparkles } from 'lucide-react';
 import { Badge } from '@/ui';
 import { useUnifiedSearch } from '@/core/hooks/useUnifiedSearch';
 import { isBauantraegeEnabled } from '@/config/feature-flags';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
-import { SEARCH_COLUMNS, buildDynamicColumns, getColumnByKey, type SearchColumn } from './columns';
+import { SEARCH_COLUMNS, buildDynamicColumns, getColumnByKey, getColumnFilterValue, type SearchColumn } from './columns';
 import { useSucheStore } from './store';
-import { SearchToolbar } from './SearchToolbar';
+import { ColumnPicker } from './ColumnPicker';
+import { SearchDownloadMenu } from './SearchDownloadMenu';
 import { SearchResultsTable } from './SearchResultsTable';
 import { exportCSV, exportClipboard, exportXLSX } from './export';
 import { useAnalysePipeline } from './useAnalysePipeline';
@@ -21,6 +22,24 @@ import {
 type FilterId = SuchePillFilterId;
 
 const DEFAULT_SORT_KEY = 'score';
+const COLUMN_WIDTHS_KEY = 'teamflow_suche_column_widths';
+const MIN_COLUMN_WIDTH = 60;
+
+function loadColumnWidths(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(COLUMN_WIDTHS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof v === 'number' && Number.isFinite(v) && v >= MIN_COLUMN_WIDTH) out[k] = v;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
 
 export function SuchSeite(): React.ReactElement {
   const navigate = useNavigate();
@@ -32,7 +51,17 @@ export function SuchSeite(): React.ReactElement {
   const [sortKey, setSortKey] = useState<string | null>(DEFAULT_SORT_KEY);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => loadColumnWidths());
   const [toast, setToast] = useState<string | null>(null);
+
+  const handleColumnWidthChange = (key: string, width: number): void => {
+    const clamped = Math.max(MIN_COLUMN_WIDTH, Math.round(width));
+    setColumnWidths(prev => {
+      const next = { ...prev, [key]: clamped };
+      try { localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const { results: searchResults, loading, counts, indexInfo, vectorReady } = useUnifiedSearch(query);
   const showBauantraege = isBauantraegeEnabled();
@@ -74,11 +103,10 @@ export function SuchSeite(): React.ReactElement {
       if (!col.filterable) continue;
       const set = new Set<string>();
       for (const r of pillFiltered) {
-        const v = col.accessor(r);
-        const s = v === undefined || v === null || v === '' ? '' : String(v);
+        const s = getColumnFilterValue(col, r);
         if (s) set.add(s);
       }
-      out[col.key] = Array.from(set).sort((a, b) => a.localeCompare(b, 'de'));
+      out[col.key] = Array.from(set).sort((a, b) => a.localeCompare(b, 'de', { numeric: true }));
     }
     return out;
   }, [pillFiltered, allColumns]);
@@ -89,9 +117,7 @@ export function SuchSeite(): React.ReactElement {
     return pillFiltered.filter(r => entries.every(([key, set]) => {
       const col = allColumns.find(c => c.key === key) ?? getColumnByKey(key);
       if (!col) return true;
-      const v = col.accessor(r);
-      const s = v === undefined || v === null ? '' : String(v);
-      return set.has(s);
+      return set.has(getColumnFilterValue(col, r));
     }));
   }, [pillFiltered, columnFilters, allColumns]);
 
@@ -181,8 +207,21 @@ export function SuchSeite(): React.ReactElement {
             <Sparkles size={14} />
             <span>Mit KI analysieren</span>
           </button>
+          <SearchDownloadMenu
+            disabled={sorted.length === 0}
+            onExportCSV={() => exportCSV(sorted, visibleColumnDefs, query)}
+            onExportXLSX={() => exportXLSX(sorted, visibleColumnDefs, query)}
+            onExportClipboard={() => {
+              void (async () => {
+                try {
+                  await exportClipboard(sorted, visibleColumnDefs);
+                  setToast(`${sorted.length} Ergebnisse in Zwischenablage kopiert`);
+                } catch { setToast('Kopieren fehlgeschlagen'); }
+              })();
+            }}
+          />
         </div>
-        <div className="flex gap-2 mt-3 flex-wrap">
+        <div className="flex items-center gap-2 mt-3 flex-wrap w-full">
           {filterChips.map(chip => {
             const active = typeFilter === chip.id;
             return (
@@ -210,6 +249,19 @@ export function SuchSeite(): React.ReactElement {
               Neue Analyse
             </button>
           )}
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              disabled
+              title="Kommt bald"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--tf-text-tertiary)] rounded opacity-60 cursor-not-allowed"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+            >
+              <MessageCircle size={14} />
+              <span>An Chatbot…</span>
+            </button>
+            <ColumnPicker typeFilter={typeFilter} />
+          </div>
         </div>
       </div>
 
@@ -221,23 +273,6 @@ export function SuchSeite(): React.ReactElement {
       )}
 
       {validation && <ValidationBanner validation={validation} />}
-
-      {!showStepper && (
-        <SearchToolbar
-          disabled={sorted.length === 0}
-          typeFilter={typeFilter}
-          onExportCSV={() => exportCSV(sorted, visibleColumnDefs, query)}
-          onExportXLSX={() => exportXLSX(sorted, visibleColumnDefs, query)}
-          onExportClipboard={() => {
-            void (async () => {
-              try {
-                await exportClipboard(sorted, visibleColumnDefs);
-                setToast(`${sorted.length} Ergebnisse in Zwischenablage kopiert`);
-              } catch { setToast('Kopieren fehlgeschlagen'); }
-            })();
-          }}
-        />
-      )}
 
       {toast && (
         <div role="status" className="mb-3 px-3 py-2 text-[12px] text-[var(--tf-text)] rounded"
@@ -285,6 +320,8 @@ export function SuchSeite(): React.ReactElement {
             columnFilters={columnFilters}
             onColumnFilterChange={handleColumnFilterChange}
             filterCandidatesByColumn={filterCandidatesByColumn}
+            columnWidths={columnWidths}
+            onColumnWidthChange={handleColumnWidthChange}
             onRowClick={handleRowClick}
           />
         </>

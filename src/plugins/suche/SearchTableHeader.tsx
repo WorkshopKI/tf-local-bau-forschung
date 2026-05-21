@@ -28,24 +28,54 @@ export interface SearchTableHeaderProps {
   onColumnFilterChange: (key: string, values: Set<string>) => void;
   /** Pre-column-filter-Set: alle pillFiltered Ergebnisse (vor Spaltenfiltern). */
   filterCandidatesByColumn: Record<string, string[]>;
+  onColumnWidthChange: (key: string, width: number) => void;
 }
 
+const MIN_RESIZE_WIDTH = 60;
+
 export function SearchTableHeader(props: SearchTableHeaderProps): React.ReactElement {
-  const { columns, sortKey, sortDirection, onSort, columnFilters, onColumnFilterChange, filterCandidatesByColumn } = props;
+  const { columns, sortKey, sortDirection, onSort, columnFilters, onColumnFilterChange, filterCandidatesByColumn, onColumnWidthChange } = props;
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
+
+  /** Drag-Handle Mousedown — startet globalen Mousemove/Mouseup-Listener, der
+   *  die Spalte auf die neue Breite zieht. Min-Width: 60px. Pattern analog zu
+   *  `AntraegePage.tsx`'s Filter-Panel-Resize. */
+  function startResize(key: string, e: React.MouseEvent<HTMLDivElement>): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const th = (e.currentTarget.parentElement as HTMLElement | null);
+    const startWidth = th ? th.offsetWidth : 100;
+    const startX = e.clientX;
+
+    function onMove(ev: MouseEvent): void {
+      const next = Math.max(MIN_RESIZE_WIDTH, startWidth + (ev.clientX - startX));
+      onColumnWidthChange(key, next);
+    }
+    function onUp(): void {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
 
   return (
     <thead>
       <tr style={{ backgroundColor: 'var(--tf-bg-secondary)' }}>
         {columns.map((c, i) => {
           const active = columnFilters[c.key]?.size ? columnFilters[c.key]!.size > 0 : false;
+          const isLastCol = i === columns.length - 1;
           return (
             <th
               key={c.key}
               className="text-left px-3 py-2 text-[12px] font-medium text-[var(--tf-text-secondary)] relative"
               style={{
                 borderBottom: '0.5px solid var(--tf-border)',
-                borderRight: i < columns.length - 1 ? '0.5px solid var(--tf-border)' : undefined,
+                borderRight: !isLastCol ? '0.5px solid var(--tf-border)' : undefined,
               }}
             >
               <div className="flex items-center gap-1">
@@ -76,6 +106,16 @@ export function SearchTableHeader(props: SearchTableHeaderProps): React.ReactEle
                   selected={columnFilters[c.key] ?? new Set()}
                   onApply={(values) => { onColumnFilterChange(c.key, values); setOpenFilterKey(null); }}
                   onClose={() => setOpenFilterKey(null)}
+                />
+              )}
+              {!isLastCol && (
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label={`Spaltenbreite ${c.label} anpassen`}
+                  onMouseDown={(e) => startResize(c.key, e)}
+                  className="absolute right-0 top-0 h-full w-[6px] cursor-col-resize hover:bg-[var(--tf-border-hover)] z-10"
+                  style={{ touchAction: 'none' }}
                 />
               )}
             </th>

@@ -55,7 +55,11 @@ export function mergeResults(opts: {
       status: c.item.status,
       statusKategorie: c.item.status ? getStatusCategory(c.item.status) : undefined,
       antragsdatum: c.item.antragsdatum,
-      kategorie: c.item.branche,
+      bewilligungsdatum: c.item.bewilligung_datum,
+      laufzeitbeginn: c.item.laufzeitbeginn,
+      laufzeitende: c.item.laufzeitende,
+      ortAst: c.item.ort_ast,
+      zuwendung: typeof c.item.foerdersumme === 'number' ? c.item.foerdersumme : undefined,
       extraFields: extra?.fields ?? undefined,
     };
     return result;
