@@ -15,7 +15,7 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps): React.ReactEleme
   return (
     <div
       role="tablist"
-      className="flex flex-nowrap overflow-x-auto whitespace-nowrap [scrollbar-width:thin]"
+      className="flex flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap [scrollbar-width:thin]"
       style={{ borderBottom: '0.5px solid var(--tf-border)' }}
     >
       {tabs.map(tab => (
