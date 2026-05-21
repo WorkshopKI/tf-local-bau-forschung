@@ -205,7 +205,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     ),
   },
   {
-    key: 'antragsteller', label: 'Antragsteller', width: 180, defaultVisible: false,
+    key: 'antragsteller', label: 'AST', width: 180, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.antragsteller),
     render: r => r.antragsteller
