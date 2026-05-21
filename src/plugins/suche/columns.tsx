@@ -122,7 +122,7 @@ const TypeBadge = memo(function TypeBadge({ r }: { r: UnifiedSearchResult }): Re
   return (
     <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-violet-50 text-violet-800">
       <FileText size={10} aria-hidden />
-      Dokument
+      Dok
     </span>
   );
 });
