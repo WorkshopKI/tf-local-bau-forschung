@@ -116,6 +116,7 @@ function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactEleme
                   selected={columnFilters[c.key] ?? new Set()}
                   onApply={(values) => { onColumnFilterChange(c.key, values); setOpenFilterKey(null); }}
                   onClose={() => setOpenFilterKey(null)}
+                  formatLabel={c.formatFilterLabel}
                 />
               )}
               <div
@@ -151,20 +152,24 @@ interface FilterDropdownProps {
   selected: Set<string>;
   onApply: (values: Set<string>) => void;
   onClose: () => void;
+  formatLabel?: (value: string) => string;
 }
 
 function FilterDropdown(props: FilterDropdownProps): React.ReactElement {
-  const { candidates, selected, onApply, onClose } = props;
+  const { candidates, selected, onApply, onClose, formatLabel } = props;
   const ref = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
   const [local, setLocal] = useState<Set<string>>(() => new Set(selected));
 
   useClickOutside(ref, onClose, true);
 
+  const display = (v: string): string => formatLabel ? formatLabel(v) : v;
+
   const visible = useMemo(() => {
     const q = search.toLowerCase();
-    return q ? candidates.filter(v => v.toLowerCase().includes(q)) : candidates;
-  }, [candidates, search]);
+    return q ? candidates.filter(v => display(v).toLowerCase().includes(q)) : candidates;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidates, search, formatLabel]);
 
   const allChecked = visible.length > 0 && visible.every(v => local.has(v));
 
@@ -216,7 +221,7 @@ function FilterDropdown(props: FilterDropdownProps): React.ReactElement {
             className="flex items-center gap-2 px-3 py-1.5 text-[12px] cursor-pointer hover:bg-[var(--tf-hover)] text-[var(--tf-text)]"
           >
             <input type="checkbox" checked={local.has(v)} onChange={() => toggle(v)} />
-            <span className="truncate" title={v}>{v}</span>
+            <span className="truncate" title={display(v)}>{display(v)}</span>
           </label>
         ))}
       </div>

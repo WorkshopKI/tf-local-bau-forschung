@@ -44,6 +44,9 @@ export interface SearchColumn {
    *  anderes filtert als der Sort-Accessor — z.B. `fkzDatei`: Sort nach
    *  FKZ/Datei, Filter nach Antrag/Dokument). */
   filterAccessor?: (r: UnifiedSearchResult) => string;
+  /** Optionaler Display-Mapper fuer Filter-Dropdown-Werte. Filter-State bleibt
+   *  nach Roh-Werten indexiert; nur das Label im Dropdown wird gemappt. */
+  formatFilterLabel?: (value: string) => string;
   /** Wenn true, wird der Zell-Inhalt nicht abgeschnitten sondern umgebrochen
    *  (z.B. fuer die Titel/Inhalt-Spalte mit Snippet-Text). Default false. */
   wrap?: boolean;
@@ -81,7 +84,7 @@ export function getColumnFilterValue(col: SearchColumn, r: UnifiedSearchResult):
 }
 
 const METHOD_LABELS: Record<string, string> = {
-  fulltext: 'BM25', vector: 'Vektor', hybrid: 'Hybrid',
+  fulltext: 'Stichwort', vector: 'Bedeutung', hybrid: 'Stichwort + Bedeutung',
 };
 
 function safeString(v: unknown): string {
@@ -194,10 +197,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     sortable: true, filterable: false, appliesTo: 'both',
     accessor: r => r.score,
     render: r => (
-      <span className="flex items-center gap-1.5">
-        <span className="font-mono text-[12px] text-[var(--tf-text)]">{r.score.toFixed(2)}</span>
-        <MethodPill method={r.method} />
-      </span>
+      <span className="font-mono text-[12px] text-[var(--tf-text)]">{r.score.toFixed(2)}</span>
     ),
   },
   {
@@ -269,10 +269,11 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
-    key: 'method', label: 'Suche', width: 90, defaultVisible: false,
+    key: 'method', label: 'Suche', width: 170, defaultVisible: true,
     sortable: true, filterable: true, appliesTo: 'both',
     accessor: r => safeString(r.method),
     render: r => <MethodPill method={r.method} />,
+    formatFilterLabel: v => METHOD_LABELS[v] ?? v,
   },
 ];
 
