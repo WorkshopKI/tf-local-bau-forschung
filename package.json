@@ -26,7 +26,7 @@
     "build:kurator": "node scripts/build-with-config.mjs --config configs/kurator.config.json",
     "build:pl": "node scripts/build-with-config.mjs --config configs/pl.config.json",
     "prebuild:all": "npm run generate:test-assets",
-    "build:all": "node scripts/build-with-config.mjs --config configs/dev.config.json && node scripts/build-with-config.mjs --config configs/prod.config.json && node scripts/build-with-config.mjs --config configs/kurator.config.json",
+    "build:all": "node scripts/build-with-config.mjs --config configs/dev.config.json && node scripts/build-with-config.mjs --config configs/demo.config.json && node scripts/build-with-config.mjs --config configs/prod.config.json && node scripts/build-with-config.mjs --config configs/kurator.config.json && node scripts/build-with-config.mjs --config configs/pl.config.json",
     "prebuild:devprod": "npm run generate:test-assets",
     "build:devprod": "node scripts/build-with-config.mjs --config configs/dev.config.json && node scripts/build-with-config.mjs --config configs/prod.config.json",
     "config-ui": "node scripts/serve-config-ui.mjs",
