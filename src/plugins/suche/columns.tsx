@@ -93,6 +93,15 @@ function safeString(v: unknown): string {
   return String(v);
 }
 
+/** Normalisiert die Orama-Roh-Types (lowercase: 'antrag', 'dokument', 'bauantrag')
+ *  auf Title-Case fuer Sort/Filter-Anzeige in der Typ-Spalte. Damit kollidiert
+ *  z.B. 'antrag' aus dokumentTyp nicht mehr mit dem 'Antrag'-Fallback der
+ *  Antrags-Treffer. */
+function titleCase(s: string): string {
+  if (s.length === 0) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 // Zellen-Renderer sind ueber alle ~14 Spalten und alle Treffer-Zeilen
 // im Hot-Path. memo() spart bei Filter-/Sort-/Resize-Updates Tausende
 // Reconcile-Calls (siehe Performance-Audit, R2).
@@ -151,7 +160,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     sortable: true, filterable: true, appliesTo: 'both',
     accessor: r => r.type === 'antrag'
       ? (getKategorieLabel(r.vbPhase) ?? 'Antrag')
-      : (r.dokumentTyp ?? 'Dokument'),
+      : titleCase(r.dokumentTyp ?? 'Dokument'),
     render: r => <TypeBadge r={r} />,
   },
   {
