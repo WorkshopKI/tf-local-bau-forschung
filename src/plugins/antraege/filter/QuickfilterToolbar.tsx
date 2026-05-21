@@ -115,7 +115,7 @@ export function QuickfilterToolbar(): React.ReactElement {
         onChange={onPhaseChange}
       />
       <CollapsibleSeg
-        label="Kategorie"
+        label="Antragstyp"
         value={kategorie}
         items={kategorieItems}
         onChange={onKategorieChange}
