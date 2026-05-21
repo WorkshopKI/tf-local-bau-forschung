@@ -370,3 +370,70 @@ function sortByScore(merged: Map<string, AntragSearchHit>): AntragSearchHit[] {
 export function _getCachedEmbeddingsDim(): number | null {
   return cachedEmbeddingsDim;
 }
+
+// ----- Streaming-API (Stage-by-Stage) ----------------------------------------
+//
+// Die drei Funktionen unten geben dem Caller eine progressive Pipeline:
+// Substring-Hits sind sofort verfuegbar (sync, <20 ms bei warmem Korpus);
+// Vector- und DMS-Hits kommen async hinterher. `useUnifiedSearch` orchestriert
+// das in drei Render-Stages, damit der User schon Treffer sieht waehrend
+// Embedding + Orama noch laufen.
+//
+// Die bestehende `searchAntraege` bleibt unveraendert (sie ist aequivalent zu
+// Substring + Vector + DMS in einem Aufruf) und wird weiter von
+// `useAntraegeHybridSearch` genutzt.
+
+/** Stage 1: Substring-Match (sync). Akz-Liste von Antraegen deren Volltext den
+ *  Query enthaelt. Score = 1.0, method = 'fulltext'. */
+export function searchAntraegeSubstring(
+  query: string,
+  textCorpus: Map<string, AntragTextEntry>,
+): string[] {
+  return Array.from(substringMatches(query, textCorpus));
+}
+
+/** Stage 2: Embedding-Cosine-Match (async, mit Yield-Loop). Braucht einen
+ *  bereits berechneten queryVec; ruft `topKEmbeddingMatches` intern auf. */
+export async function searchAntraegeVector(
+  queryVec: number[],
+  embeddings: Map<string, number[]>,
+  signal: AbortSignal,
+): Promise<Array<{ akz: string; score: number }>> {
+  if (embeddings.size === 0) return [];
+  if (cachedEmbeddingsDim !== null && cachedEmbeddingsDim !== queryVec.length) {
+    console.warn(
+      `[antraege-search-service] embedding dim mismatch: query=${queryVec.length} corpus=${cachedEmbeddingsDim}`,
+    );
+    return [];
+  }
+  return topKEmbeddingMatches(queryVec, embeddings, EMBEDDING_TOP_K, EMBEDDING_THRESHOLD, signal);
+}
+
+/** Stage 3 (Antraege-Anteil): DMS-Index-Match → Antrag-Hits via filenameToAkz.
+ *  Sync (Orama selbst ist sync). Liefert leere Liste wenn Index nicht da ist. */
+export function searchAntraegeDms(
+  query: string,
+  queryVec: number[] | null,
+  filenameToAkz: Map<string, string>,
+): Array<{ akz: string; score: number }> {
+  if (getOramaDB() === null) return [];
+  try {
+    const dmsHits = hybridSearch(query, queryVec, { type: 'dokument', limit: DMS_HIT_LIMIT });
+    const out: Array<{ akz: string; score: number }> = [];
+    for (const hit of dmsHits) {
+      const akz = filenameToAkz.get(hit.source);
+      if (akz) out.push({ akz, score: hit.score });
+    }
+    return out;
+  } catch (err) {
+    console.warn('[antraege-search-service] DMS search failed:', err);
+    return [];
+  }
+}
+
+/** Re-export der Streaming-Konstanten, damit Caller (z.B. useUnifiedSearch)
+ *  konsistente Schwellen verwenden. */
+export const STREAMING_CONSTS = {
+  MIN_QUERY_LEN_FOR_SEMANTIC,
+  SEMANTIC_SOURCES_ENABLED,
+} as const;

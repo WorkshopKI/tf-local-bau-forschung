@@ -25,6 +25,7 @@ import {
   autoBootstrapEmbeddingMirror,
 } from './services/antraege-search-service';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
+import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { features } from '@/config/feature-flags';
 
 /** Re-export fuer Konsumenten die den Mirror-Status verarbeiten (Banner-UI). */
@@ -39,21 +40,6 @@ const SEMANTIC_SOURCES_ENABLED =
   || features.auslastung === true
   || features.dokumentenscan === true
   || features.suche === true;
-
-/** Schedule a callback im naechsten Idle-Window. Fallback `setTimeout(0)` in
- *  Browsern ohne `requestIdleCallback` (Safari < 16.4). */
-function scheduleIdle(cb: () => void): () => void {
-  const w = window as Window & {
-    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-    cancelIdleCallback?: (id: number) => void;
-  };
-  if (typeof w.requestIdleCallback === 'function') {
-    const id = w.requestIdleCallback(cb, { timeout: 4000 });
-    return () => w.cancelIdleCallback?.(id);
-  }
-  const id = window.setTimeout(cb, 0);
-  return () => window.clearTimeout(id);
-}
 
 export function useAntraegeHybridSearch(): void {
   const storage = useStorage();

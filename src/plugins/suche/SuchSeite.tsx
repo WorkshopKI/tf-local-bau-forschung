@@ -1,8 +1,10 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Search, Sparkles } from 'lucide-react';
+import { Loader2, MessageCircle, Search, Sparkles } from 'lucide-react';
 import { Badge } from '@/ui';
-import { useUnifiedSearch } from '@/core/hooks/useUnifiedSearch';
+import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
+import { useStorage } from '@/core/hooks/useStorage';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { isBauantraegeEnabled } from '@/config/feature-flags';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import { SEARCH_COLUMNS, buildDynamicColumns, getColumnByKey, getColumnFilterValue, type SearchColumn } from './columns';
@@ -18,6 +20,22 @@ import {
   matchesPillFilter, compareValues, countResultsByType, SUCHE_COLLATOR,
   type SuchePillFilterId,
 } from './suchseite-utils';
+import { scheduleIdle } from '@/core/utils/scheduleIdle';
+import {
+  getProgrammCaches,
+  getEmbeddings,
+} from '@/plugins/antraege/services/antraege-search-service';
+import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
+
+/** UI-Text fuer die Search-Phase-Badge. */
+const PHASE_LABELS: Record<SearchPhase, string | null> = {
+  idle: null,
+  substring: 'Substring-Treffer…',
+  vector: 'Embedding-Treffer…',
+  orama: 'Dokumente…',
+  done: null,
+  error: null,
+};
 
 type FilterId = SuchePillFilterId;
 
@@ -45,6 +63,8 @@ export function SuchSeite(): React.ReactElement {
   const navigate = useNavigate();
   const visibleColumns = useSucheStore(s => s.visibleColumns);
   const analyse = useAnalysePipeline();
+  const storage = useStorage();
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
 
   const [query, setQuery] = useState('');
   // Such-Pipeline laeuft auf der ge-deferreden Query, damit das Input-Feld
@@ -67,9 +87,34 @@ export function SuchSeite(): React.ReactElement {
     });
   };
 
-  const { results: searchResults, loading, counts, indexInfo, vectorReady } = useUnifiedSearch(deferredQuery);
+  const { results: searchResults, loading, counts, indexInfo, vectorReady, searchPhase } = useUnifiedSearch(deferredQuery);
+  // Phase-Badge nicht synchron-flackern lassen: deferred, damit React beim
+  // Stage-Wechsel keine Render-Stalls macht.
+  const deferredPhase = useDeferredValue(searchPhase);
+  const phaseLabel = PHASE_LABELS[deferredPhase];
+  const queryNotEmpty = query.trim() !== '';
+  // Spinner sichtbar wenn entweder die Pipeline laeuft (loading) oder der
+  // User getippt hat aber deferredQuery noch nicht durch (Initialer
+  // useDeferredValue-Delay vor T=DEBOUNCE_MS — sonst stumme Phase).
+  const showSpinner = loading || (queryNotEmpty && deferredPhase !== 'done' && deferredPhase !== 'error');
   const showBauantraege = isBauantraegeEnabled();
   const analyseActive = analyse.result !== null;
+
+  // Eager Preload beim Mount der Suche-Seite (Hintergrund, idle). Loadet
+  // Programm-Caches (Substring-Korpus ~1-1.5s) + Embedding-Modell (~2.5-4s) +
+  // Embedding-Korpus (~0.2-0.4s) — alles Module-Level-Singletons mit Promise-
+  // Dedup, sodass parallele Search-Calls dieselbe Promise reusen. Wenn der
+  // User getippt hat bevor diese fertig sind, awaitet die Pipeline auf
+  // dieselbe Promise (kein Doppel-Load).
+  useEffect(() => {
+    if (!activeProgrammId) return;
+    const cancel = scheduleIdle(() => {
+      void getProgrammCaches(storage.idb, activeProgrammId).catch(() => { /* best effort */ });
+      void ensureEmbeddingReady(storage.idb).catch(() => { /* best effort */ });
+      void getEmbeddings(storage.idb).catch(() => { /* best effort */ });
+    });
+    return cancel;
+  }, [activeProgrammId, storage]);
 
   // Wenn ein Analyse-Ergebnis vorliegt, zeigen wir das statt der Live-Suche.
   const dataSource: UnifiedSearchResult[] = analyse.result?.results ?? searchResults;
@@ -203,7 +248,9 @@ export function SuchSeite(): React.ReactElement {
 
   const noQuery = !query.trim();
   const showStepper = analyse.running && analyse.progress;
-  const showResults = !showStepper && !noQuery && !loading && sorted.length > 0;
+  // Streaming: Tabelle zeigen sobald Stage 1 Treffer emittet hat, auch wenn
+  // Stage 2/3 noch laufen. Die Phase-Badge oben signalisiert „kommt noch".
+  const showResults = !showStepper && !noQuery && sorted.length > 0;
   const validation = analyse.result?.validation ?? null;
 
   return (
@@ -220,9 +267,16 @@ export function SuchSeite(): React.ReactElement {
               disabled={analyse.running}
               placeholder="Suche oder analytische Frage…"
               autoFocus
-              className="w-full pl-10 pr-4 py-3 text-[14px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] disabled:opacity-60"
+              className="w-full pl-10 pr-10 py-3 text-[14px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] disabled:opacity-60"
               style={{ border: '0.5px solid var(--tf-border)' }}
             />
+            {showSpinner && (
+              <Loader2
+                size={16}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] animate-spin"
+                aria-label="Suche laeuft"
+              />
+            )}
           </div>
           <button
             type="button"
@@ -267,6 +321,12 @@ export function SuchSeite(): React.ReactElement {
             );
           })}
           {!vectorReady && !analyseActive && <Badge variant="default">Embedding-Modell laedt…</Badge>}
+          {phaseLabel && !analyseActive && (
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] text-[var(--tf-text-secondary)] rounded-full" style={{ border: '0.5px solid var(--tf-border)' }}>
+              <Loader2 size={11} className="animate-spin" />
+              {phaseLabel}
+            </span>
+          )}
           {analyseActive && (
             <button
               type="button"
@@ -310,7 +370,12 @@ export function SuchSeite(): React.ReactElement {
       )}
 
       {showStepper && analyse.progress && <AnalysePipelineView progress={analyse.progress} onCancel={analyse.cancel} />}
-      {!showStepper && loading && <p className="text-[13px] text-[var(--tf-text-secondary)] text-center py-4">Suche…</p>}
+      {!showStepper && loading && sorted.length === 0 && (
+        <div className="flex items-center justify-center gap-2 py-6 text-[13px] text-[var(--tf-text-secondary)]">
+          <Loader2 size={14} className="animate-spin" />
+          <span>Suche laeuft{phaseLabel ? ` · ${phaseLabel}` : '…'}</span>
+        </div>
+      )}
 
       {!showStepper && noQuery && !loading && (
         <div className="text-center py-16">
@@ -322,7 +387,7 @@ export function SuchSeite(): React.ReactElement {
         </div>
       )}
 
-      {!showStepper && !noQuery && !loading && sorted.length === 0 && !analyseActive && (
+      {!showStepper && !noQuery && !loading && !showSpinner && sorted.length === 0 && !analyseActive && (
         <div className="text-center py-16">
           <p className="text-[var(--tf-text-secondary)]">Keine Ergebnisse fuer &quot;{query}&quot;</p>
         </div>

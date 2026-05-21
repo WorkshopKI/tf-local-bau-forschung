@@ -31,10 +31,16 @@ import {
   type OramaSearchResult,
 } from '@/core/services/search/orama-store';
 import {
-  searchAntraege,
+  searchAntraegeSubstring,
+  searchAntraegeVector,
+  searchAntraegeDms,
   getProgrammCaches,
+  getEmbeddings,
+  STREAMING_CONSTS,
   type AntragSearchHit,
 } from '@/plugins/antraege/services/antraege-search-service';
+import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
+import { pipelineLog } from '@/core/services/search/pipeline-logger';
 import {
   listAntraegeListViewByProgramm,
   countAntraegeListViewByProgramm,
@@ -60,6 +66,11 @@ export interface UnifiedSearchIndexInfo {
   antraegeGeladen: number;
 }
 
+/** Phase der Streaming-Pipeline. `substring` → erste Treffer sichtbar;
+ *  `vector` → Embedding-Treffer kommen hinzu; `orama` → Dokument-Treffer
+ *  + DMS-Antrags-Match werden ergaenzt; `done` → finaler Stand. */
+export type SearchPhase = 'idle' | 'substring' | 'vector' | 'orama' | 'done' | 'error';
+
 export interface UseUnifiedSearchResult {
   results: UnifiedSearchResult[];
   loading: boolean;
@@ -67,6 +78,8 @@ export interface UseUnifiedSearchResult {
   counts: UnifiedSearchCounts;
   indexInfo: UnifiedSearchIndexInfo;
   vectorReady: boolean;
+  /** Welche Pipeline-Stage gerade laeuft. Fuer Status-Badge im UI. */
+  searchPhase: SearchPhase;
 }
 
 interface AntraegeListCache {
@@ -173,6 +186,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [antraegeGeladen, setAntraegeGeladen] = useState(0);
+  const [searchPhase, setSearchPhase] = useState<SearchPhase>('idle');
 
   const programmNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -190,13 +204,19 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
     return () => { cancelled = true; };
   }, [activeProgrammId, storage]);
 
-  // Hauptsuche.
+  // Streaming-Hauptsuche. Drei Stages emittieren progressiv `setResults`,
+  // damit der User schon erste Treffer sieht waehrend die Embedding-Pipeline
+  // noch laeuft. Pattern:
+  //   Stage 1 (substring) — sync, ~10ms, gibt sofort 1.0-Score-Hits
+  //   Stage 2 (vector)    — async, ~200ms, ergaenzt cosine-Hits
+  //   Stage 3 (orama)     — sync, ~150-300ms, ergaenzt Dokument-Treffer + DMS
   useEffect(() => {
     const q = query.trim();
     if (!q) {
       setResults([]);
       setLoading(false);
       setError(null);
+      setSearchPhase('idle');
       return;
     }
 
@@ -207,73 +227,124 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
 
     const timer = setTimeout(() => {
       void (async () => {
+        const merged = new Map<string, UnifiedSearchResult>();
+        const tStart = performance.now();
+
+        function isCancelled(): boolean {
+          return cancelled || abort.signal.aborted;
+        }
+
+        function emit(): void {
+          if (isCancelled()) return;
+          setResults(Array.from(merged.values()).sort((a, b) => b.score - a.score));
+        }
+
+        function upsertAntrag(
+          hit: AntragSearchHit,
+          byAkz: Map<string, AntragListItem>,
+        ): void {
+          const key = `antrag:${hit.aktenzeichen}`;
+          const next = mapAntragHit(hit, byAkz.get(hit.aktenzeichen), programmNameById);
+          const prev = merged.get(key);
+          if (!prev || next.score > prev.score) merged.set(key, next);
+        }
+
         try {
-          // Antraege-Hits + Dokumente-Hits parallel anstossen.
-          const antraegePromise = activeProgrammId
-            ? searchAntraege({
-                query: q,
-                idb: storage.idb,
-                programmId: activeProgrammId,
-                abortSignal: abort.signal,
-              }).catch(err => {
-                console.warn('[useUnifiedSearch] searchAntraege failed:', err);
-                return { hits: [], unavailable: [] };
-              })
-            : Promise.resolve({ hits: [], unavailable: [] });
-
-          // Dokumente-Suche: nur wenn Index initialisiert.
-          let dokumentePromise: Promise<OramaSearchResult[]>;
-          if (getOramaDB() === null) {
-            dokumentePromise = Promise.resolve([]);
-          } else {
-            const queryVec = await embedQueryIfReady(q, storage.idb);
-            dokumentePromise = Promise.resolve(
-              hybridSearch(q, queryVec, { limit: DOC_HIT_LIMIT }),
-            );
-          }
-
-          // Antraege-Listen-Cache + Programm-Caches (fuer filenameToAkz) parallel.
-          const cachesPromise = activeProgrammId
-            ? Promise.all([
+          // Stage 0: Caches laden (idR warm wegen Mount-Preload in SuchSeite).
+          setSearchPhase('substring');
+          const [listCache, programmCaches] = activeProgrammId
+            ? await Promise.all([
                 getAntraegeListCache(storage.idb, activeProgrammId),
-                getProgrammCaches(storage.idb, activeProgrammId),
+                getProgrammCaches(storage.idb, activeProgrammId).catch(() => null),
               ])
-            : Promise.resolve([null, null] as const);
+            : [null, null];
+          if (isCancelled()) return;
 
-          const [antraegeResult, dokumenteHits, caches] = await Promise.all([
-            antraegePromise, dokumentePromise, cachesPromise,
-          ]);
-          if (cancelled || abort.signal.aborted) return;
-
-          const [listCache, programmCaches] = caches;
           const byAkz = listCache?.byAkz ?? new Map<string, AntragListItem>();
           const filenameToAkz = programmCaches?.filenameToAkz ?? new Map<string, string>();
 
-          const antraegeMapped = antraegeResult.hits.map(h =>
-            mapAntragHit(h, byAkz.get(h.aktenzeichen), programmNameById),
-          );
-          const dokumenteMapped = dokumenteHits.map(h =>
-            mapDokumentHit(h, filenameToAkz, byAkz, programmNameById),
-          );
+          // Stage 1: Substring (sync) — sofort sichtbare Treffer.
+          if (programmCaches) {
+            const tStage1 = performance.now();
+            const subAkz = searchAntraegeSubstring(q, programmCaches.textCorpus);
+            for (const akz of subAkz) {
+              upsertAntrag({ aktenzeichen: akz, score: 1.0, method: 'fulltext' }, byAkz);
+            }
+            pipelineLog.info('Suche', `Stage 1 (Substring): ${subAkz.length} Treffer in ${Math.round(performance.now() - tStage1)}ms`);
+            emit();
+          }
+          if (isCancelled()) return;
 
-          // Merge + sort. Dedup nur bei identischem {type, id}.
-          const merged = new Map<string, UnifiedSearchResult>();
-          for (const r of antraegeMapped) merged.set(`${r.type}:${r.id}`, r);
-          for (const r of dokumenteMapped) {
+          // Stage 2: Vector — Embedding berechnen, Cosine-Loop.
+          setSearchPhase('vector');
+          const semanticActive =
+            STREAMING_CONSTS.SEMANTIC_SOURCES_ENABLED
+            && q.length >= STREAMING_CONSTS.MIN_QUERY_LEN_FOR_SEMANTIC;
+
+          let queryVec: number[] | null = null;
+          if (semanticActive) {
+            try {
+              await ensureEmbeddingReady(storage.idb);
+              if (isCancelled()) return;
+              queryVec = await embedQueryIfReady(q, storage.idb);
+            } catch (err) {
+              console.warn('[useUnifiedSearch] embedding init failed:', err);
+            }
+            if (isCancelled()) return;
+          }
+
+          if (queryVec && programmCaches) {
+            try {
+              const tStage2 = performance.now();
+              const embeddings = await getEmbeddings(storage.idb);
+              if (isCancelled()) return;
+              const vecHits = await searchAntraegeVector(queryVec, embeddings, abort.signal);
+              if (isCancelled()) return;
+              for (const h of vecHits) {
+                upsertAntrag({ aktenzeichen: h.akz, score: h.score, method: 'vector' }, byAkz);
+              }
+              pipelineLog.info('Suche', `Stage 2 (Vector): ${vecHits.length} Treffer in ${Math.round(performance.now() - tStage2)}ms`);
+              emit();
+            } catch (err) {
+              console.warn('[useUnifiedSearch] vector stage failed:', err);
+            }
+          }
+          if (isCancelled()) return;
+
+          // Stage 3: Orama — Dokumente + DMS-Antraege-Match.
+          setSearchPhase('orama');
+          const tStage3 = performance.now();
+          const dokumenteHits: OramaSearchResult[] = getOramaDB() !== null
+            ? hybridSearch(q, queryVec, { limit: DOC_HIT_LIMIT })
+            : [];
+          for (const h of dokumenteHits) {
+            const r = mapDokumentHit(h, filenameToAkz, byAkz, programmNameById);
             const key = `${r.type}:${r.id}`;
             const prev = merged.get(key);
             if (!prev || r.score > prev.score) merged.set(key, r);
           }
-          const sorted = Array.from(merged.values()).sort((a, b) => b.score - a.score);
 
-          setResults(sorted);
+          // DMS-Antraege-Match (via filenameToAkz aus Orama-Hits).
+          if (programmCaches) {
+            const dmsAntragHits = searchAntraegeDms(q, queryVec, programmCaches.filenameToAkz);
+            for (const h of dmsAntragHits) {
+              upsertAntrag({ aktenzeichen: h.akz, score: h.score, method: 'hybrid' }, byAkz);
+            }
+          }
+          pipelineLog.info('Suche', `Stage 3 (Orama): ${dokumenteHits.length} Dok-Treffer in ${Math.round(performance.now() - tStage3)}ms`);
+          emit();
+
+          if (isCancelled()) return;
+          setSearchPhase('done');
           setLoading(false);
+          pipelineLog.info('Suche', `Pipeline gesamt: ${Math.round(performance.now() - tStart)}ms, ${merged.size} Treffer`);
         } catch (err) {
-          if (cancelled || abort.signal.aborted) return;
+          if (isCancelled()) return;
           if ((err as Error).name === 'AbortError') return;
           console.warn('[useUnifiedSearch] failed:', err);
           setError((err as Error).message ?? 'Suche fehlgeschlagen');
           setResults([]);
+          setSearchPhase('error');
           setLoading(false);
         }
       })();
@@ -307,5 +378,6 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
     counts,
     indexInfo: { textabschnitteImIndex: documentCount, antraegeGeladen },
     vectorReady,
+    searchPhase,
   };
 }
