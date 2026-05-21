@@ -4,14 +4,15 @@ import { Tabs, Badge, SectionHeader } from '@/ui';
 import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/ui/theme';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
+import { ProfilTab } from './ProfilTab';
 import { TagsTab } from './TagsTab';
 import { TastaturTab } from './TastaturTab';
 import { AIProviderTab } from './AIProviderTab';
 import { SpeicherTab } from './SpeicherTab';
 import { DokumentenquellenTab } from './DokumentenquellenTab';
 import { MeineTechnologienTab } from './MeineTechnologienTab';
-import { isKuratorMenusEnabled, isAntraegeEnabled, isAuslastungEnabled, isBauantraegeEnabled, isDevContext, menuLabel } from '@/config/feature-flags';
-import type { UserProfile, AIProviderConfig } from '@/core/types/config';
+import { isAuslastungEnabled, isDevContext } from '@/config/feature-flags';
+import type { AIProviderConfig } from '@/core/types/config';
 
 const TABS: Array<{ id: string; label: string }> = [
   { id: 'profil', label: 'Profil' },
@@ -29,9 +30,6 @@ if (isDevContext()) {
 if (isAuslastungEnabled()) {
   TABS.splice(1, 0, { id: 'meine-technologien', label: 'Meine Technologien' });
 }
-
-const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
-const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
 
 export function EinstellungenPage(): React.ReactElement {
   const storage = useStorage();
@@ -56,131 +54,13 @@ export function EinstellungenPage(): React.ReactElement {
     updateProfile({ theme: { ...profile!.theme, dark: next } });
   };
 
-  const initials = profile?.name ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '??';
-
   return (
     <div className="px-8 pt-4 pb-6 max-w-2xl">
       <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Einstellungen</h1>
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
       <div className="mt-6">
-        {activeTab === 'profil' && !profile && (
-          <div className="py-8 text-center text-[13px] text-[var(--tf-text-tertiary)]">
-            Kein Profil geladen. Bitte App-Storage leeren und Onboarding neu durchlaufen.
-          </div>
-        )}
-        {activeTab === 'profil' && profile && (
-          <div>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-full bg-[var(--tf-primary)] flex items-center justify-center text-white text-lg font-medium">{initials}</div>
-              <div>
-                <p className="text-[14px] font-medium text-[var(--tf-text)]">{profile.name}</p>
-                <p className="text-[12px] text-[var(--tf-text-secondary)]">
-                  {profile.department === 'antraege' ? menuLabel('antraege', 'Förderanträge')
-                    : profile.department === 'bauantraege' ? menuLabel('bauantraege', 'Bauanträge')
-                    : 'Beide'}
-                </p>
-              </div>
-            </div>
-            <SectionHeader label="Profil bearbeiten" />
-            <div className="grid gap-4 sm:grid-cols-2 mt-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-medium text-[var(--tf-text)]">Name</label>
-                <input value={profile.name} onChange={e => updateProfile({ name: e.target.value })} className={inputClass} style={inputStyle} />
-              </div>
-              {(() => {
-                const opts: Array<{ value: UserProfile['department']; label: string }> = [];
-                if (isAntraegeEnabled()) opts.push({ value: 'antraege', label: menuLabel('antraege', 'Förderanträge') });
-                if (isBauantraegeEnabled()) opts.push({ value: 'bauantraege', label: menuLabel('bauantraege', 'Bauanträge') });
-                if (opts.length >= 2) opts.push({ value: 'beide', label: 'Beide' });
-                if (opts.length < 2) return null;
-                return (
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] font-medium text-[var(--tf-text)]">Abteilung</label>
-                    <select value={profile.department} onChange={e => updateProfile({ department: e.target.value as UserProfile['department'] })} className={inputClass} style={inputStyle}>
-                      {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="mt-6">
-              <SectionHeader label="Bearbeiter-Filter" />
-              <p className="mt-2 text-[12px] text-[var(--tf-text-secondary)] leading-snug">
-                Wenn Sie ein Namenskürzel eintragen, zeigen Förderanträge-Liste und
-                Home-Dashboard automatisch nur Ihre Anträge an. Mehrere Kürzel
-                komma-separiert (z.B. <span className="font-mono">MUE, SCH</span>) für Vertretungen.
-                Wert <span className="font-mono">alle</span> deaktiviert den Filter (PL-/Übersichtsmodus).
-              </p>
-              <div className="mt-3 flex flex-col gap-1.5 max-w-xs">
-                <label className="text-[13px] font-medium text-[var(--tf-text)]">Namenskürzel</label>
-                <input
-                  value={profile.bearbeiter_kuerzel ?? ''}
-                  onChange={e => updateProfile({ bearbeiter_kuerzel: e.target.value })}
-                  placeholder="z.B. MUE oder MUE, SCH oder alle"
-                  className={inputClass}
-                  style={inputStyle}
-                />
-              </div>
-              <label className="flex items-start gap-2.5 cursor-pointer mt-3">
-                <input
-                  type="checkbox"
-                  checked={!!profile.bearbeiter_inkl_begleitung}
-                  onChange={e => updateProfile({ bearbeiter_inkl_begleitung: e.target.checked })}
-                  className="mt-0.5 cursor-pointer accent-[var(--tf-primary)]"
-                />
-                <span className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug">
-                  Auch Begleitungen einschließen
-                  <span className="block text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
-                    Zeigt Anträge in der Begleitphase (VN-/ZB-Stati) und matcht zusätzlich auf
-                    die Begleitungs-Kürzel <span className="font-mono">ZTP_KUERZ</span> und <span className="font-mono">PFM_KUERZ</span>.
-                    Frist-Berechnung für VN-Anträge: <span className="font-mono">D_VBE</span> (Eingang VN-Sach) + 6 Monate.
-                  </span>
-                </span>
-              </label>
-            </div>
-            <div className="mt-6">
-              <SectionHeader label="Home-Dashboard" />
-              <p className="mt-2 text-[12px] text-[var(--tf-text-secondary)] leading-snug">
-                Wie viele Ihrer offenen Anträge initial auf der Home-Seite erscheinen.
-                Über &quot;+10 mehr&quot; lassen sich weitere in-page anzeigen.
-              </p>
-              <div className="mt-3 flex flex-col gap-1.5 max-w-xs">
-                <label className="text-[13px] font-medium text-[var(--tf-text)]">Anträge auf Home anzeigen</label>
-                <input
-                  type="number"
-                  min={5}
-                  max={15}
-                  value={profile.home_meine_antraege_count ?? 5}
-                  onChange={e => {
-                    const raw = Number(e.target.value);
-                    if (Number.isNaN(raw)) return;
-                    const clamped = Math.max(5, Math.min(15, Math.round(raw)));
-                    updateProfile({ home_meine_antraege_count: clamped });
-                  }}
-                  className={inputClass}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-            {isKuratorMenusEnabled() && (
-              <div className="mt-6">
-                <SectionHeader label="Kurator-Funktionen" />
-                <label className="flex items-start gap-2.5 cursor-pointer mt-3">
-                  <input
-                    type="checkbox"
-                    checked={!!(profile.is_kurator ?? profile.is_admin)}
-                    onChange={e => updateProfile({ is_kurator: e.target.checked })}
-                    className="mt-0.5 cursor-pointer accent-[var(--tf-primary)]"
-                  />
-                  <span className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug">
-                    Kurator-Bereiche aktivieren (Suchindex, Feedback-Verwaltung)
-                  </span>
-                </label>
-              </div>
-            )}
-          </div>
-        )}
+        {activeTab === 'profil' && <ProfilTab />}
 
         {activeTab === 'darstellung' && (
           <div className="space-y-6">

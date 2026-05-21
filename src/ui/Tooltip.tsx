@@ -55,6 +55,8 @@ export function Tooltip({ text, children }: TooltipProps): React.ReactElement {
       className="inline-block"
       onMouseEnter={show}
       onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
     >
       {children}
       {visible && createPortal(
