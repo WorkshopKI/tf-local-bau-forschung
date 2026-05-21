@@ -257,7 +257,7 @@ export function SuchSeite(): React.ReactElement {
     <div className="px-8 pt-4 pb-6 max-w-[1400px]">
       <div className="flex flex-col items-start mb-4">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">Suche</h1>
-        <div className="flex items-center gap-2 w-full max-w-3xl">
+        <div className="flex items-center gap-2 w-full max-w-4xl">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)]" />
             <input
@@ -267,7 +267,7 @@ export function SuchSeite(): React.ReactElement {
               disabled={analyse.running}
               placeholder="Suche oder analytische Frage…"
               autoFocus
-              className="w-full pl-10 pr-10 py-3 text-[14px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] disabled:opacity-60"
+              className="w-full h-10 pl-10 pr-10 text-[14px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] disabled:opacity-60"
               style={{ border: '0.5px solid var(--tf-border)' }}
             />
             {showSpinner && (
@@ -283,7 +283,7 @@ export function SuchSeite(): React.ReactElement {
             onClick={startAnalyse}
             disabled={aiButtonDisabled}
             title={aiButtonTooltip}
-            className="flex items-center gap-1.5 px-3 py-2.5 text-[13px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            className="flex items-center gap-1.5 h-10 px-3 text-[13px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
             style={{ border: '0.5px solid var(--tf-border)' }}
           >
             <Sparkles size={14} />
@@ -303,6 +303,17 @@ export function SuchSeite(): React.ReactElement {
             }}
           />
         </div>
+        {showResults && (
+          <div className="flex items-center justify-between w-full max-w-4xl mt-2 text-[11px] text-[var(--tf-text-tertiary)]">
+            <span>
+              {sorted.length} Ergebnisse{analyseActive ? ' (KI-Analyse)' : ''}
+            </span>
+            <span>
+              {indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte im Index ·{' '}
+              {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Antraege geladen
+            </span>
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-3 flex-wrap w-full">
           {filterChips.map(chip => {
             const active = typeFilter === chip.id;
@@ -394,30 +405,19 @@ export function SuchSeite(): React.ReactElement {
       )}
 
       {showResults && (
-        <>
-          <div className="flex items-center justify-between mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
-            <span>
-              {sorted.length} Ergebnisse{analyseActive ? ' (KI-Analyse)' : ''}
-            </span>
-            <span>
-              {indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte im Index ·{' '}
-              {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Antraege geladen
-            </span>
-          </div>
-          <SearchResultsTable
-            results={sorted}
-            columns={visibleColumnDefs}
-            sortKey={sortKey}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            columnFilters={columnFilters}
-            onColumnFilterChange={handleColumnFilterChange}
-            filterCandidatesByColumn={filterCandidatesByColumn}
-            columnWidths={columnWidths}
-            onColumnWidthChange={handleColumnWidthChange}
-            onRowClick={handleRowClick}
-          />
-        </>
+        <SearchResultsTable
+          results={sorted}
+          columns={visibleColumnDefs}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          columnFilters={columnFilters}
+          onColumnFilterChange={handleColumnFilterChange}
+          filterCandidatesByColumn={filterCandidatesByColumn}
+          columnWidths={columnWidths}
+          onColumnWidthChange={handleColumnWidthChange}
+          onRowClick={handleRowClick}
+        />
       )}
 
       {/* searchResults-Counts (top-line via useUnifiedSearch) bleiben verfuegbar im Hover/Debug */}
