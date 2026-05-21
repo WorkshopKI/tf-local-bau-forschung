@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, Minus, Plus } from 'lucide-react';
-import { SectionHeader, Tooltip } from '@/ui';
+import { SectionHeader } from '@/ui';
 import { Switch } from '@/components/ui/switch';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
@@ -10,6 +10,13 @@ import {
   menuLabel,
 } from '@/config/feature-flags';
 import type { UserProfile } from '@/core/types/config';
+import {
+  SettingsRow,
+  SettingsRowGroup,
+  SettingsRowSeparator,
+  Avatar,
+  InfoHint,
+} from './_shared/settings-primitives';
 
 const NAME_INPUT_CLASS =
   'h-7 px-2 text-[13px] font-medium text-[var(--tf-text)] bg-[var(--tf-bg)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]';
@@ -153,33 +160,6 @@ export function ProfilTab(): React.ReactElement {
 
 // ---------- Sub-Komponenten ----------
 
-function SettingsRow({ children }: { children: React.ReactNode }): React.ReactElement {
-  return <div className="flex items-center gap-5 flex-wrap min-h-9">{children}</div>;
-}
-
-function SettingsRowGroup({ children }: { children: React.ReactNode }): React.ReactElement {
-  return <div className="inline-flex items-center gap-2.5">{children}</div>;
-}
-
-function SettingsRowSeparator(): React.ReactElement {
-  return <div className="w-px h-5 bg-[var(--tf-border)]" aria-hidden />;
-}
-
-function Avatar({ initials }: { initials: string }): React.ReactElement {
-  return (
-    <div
-      className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-medium shrink-0"
-      style={{
-        background: 'hsl(var(--tf-primary-h), var(--tf-primary-s), 35%)',
-        letterSpacing: '0.03em',
-      }}
-      aria-hidden
-    >
-      {initials}
-    </div>
-  );
-}
-
 function NameEditor({
   name,
   onSave,
@@ -251,22 +231,6 @@ function FieldLabel({ text, hint }: { text: string; hint: string }): React.React
       {text}
       <InfoHint text={hint} />
     </label>
-  );
-}
-
-function InfoHint({ text }: { text: string }): React.ReactElement {
-  return (
-    <Tooltip text={text}>
-      <span
-        tabIndex={0}
-        role="img"
-        aria-label="Info"
-        className="w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px] font-medium text-[var(--tf-text-tertiary)] cursor-help bg-[var(--tf-bg)] hover:text-[var(--tf-text)] focus:text-[var(--tf-text)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]/40"
-        style={{ border: '0.5px solid var(--tf-border-hover)', lineHeight: 1 }}
-      >
-        i
-      </span>
-    </Tooltip>
   );
 }
 

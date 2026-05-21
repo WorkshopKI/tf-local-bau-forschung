@@ -13,12 +13,18 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange }: TabsProps): React.ReactElement {
   return (
-    <div className="flex" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
+    <div
+      role="tablist"
+      className="flex flex-nowrap overflow-x-auto whitespace-nowrap [scrollbar-width:thin]"
+      style={{ borderBottom: '0.5px solid var(--tf-border)' }}
+    >
       {tabs.map(tab => (
         <button
           key={tab.id}
+          role="tab"
+          aria-selected={tab.id === activeTab}
           onClick={() => onChange(tab.id)}
-          className={`px-4 py-2 text-[13.5px] transition-colors cursor-pointer -mb-px ${
+          className={`shrink-0 whitespace-nowrap px-4 py-2 text-[13.5px] transition-colors cursor-pointer -mb-px ${
             tab.id === activeTab
               ? 'text-[var(--tf-text)] font-medium'
               : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
