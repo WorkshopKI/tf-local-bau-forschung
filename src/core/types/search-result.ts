@@ -61,4 +61,10 @@ export interface UnifiedSearchResult {
   zugehoerigerAntragFkz?: string;
   /** Programm-Name des zugehoerigen Antrags, falls aufloesbar. */
   zugehoerigesProgramm?: string;
+
+  // ----- KI-Analyse-spezifisch (Prompt 03) -----
+  /** Dynamisch vom LLM extrahierte Felder (z.B. `foerderzweck`, `foerderhoehe`,
+   *  `laufzeit`). Nur gesetzt wenn dieses Ergebnis aus der Analyse-Pipeline
+   *  kommt, nicht aus der normalen Hybrid-Suche. */
+  extraFields?: Record<string, string | number | null>;
 }

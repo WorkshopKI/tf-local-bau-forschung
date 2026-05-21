@@ -55,6 +55,7 @@ export class DirectLLMTransport implements AITransport {
     options?: {
       thinkingBudget?: 'none' | 'low' | 'medium' | 'high';
       responseFormat?: Record<string, unknown>;
+      signal?: AbortSignal;
     },
   ): Promise<string> {
     const messages: Array<{ role: string; content: string }> = [];
@@ -74,6 +75,7 @@ export class DirectLLMTransport implements AITransport {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(body),
+      signal: options?.signal,
     });
 
     if (!res.ok) {
@@ -102,6 +104,7 @@ export class DirectLLMTransport implements AITransport {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(body),
+      signal: options?.signal,
     });
 
     if (!res.ok) {

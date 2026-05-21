@@ -7,11 +7,17 @@ export interface ConversationOptions {
   thinkingBudget?: 'none' | 'low' | 'medium' | 'high';
   responseFormat?: Record<string, unknown>;
   maxTokens?: number;
+  /** Optional abort signal. DirectLLM reicht's an `fetch()` durch, Streamlit
+   *  rejected das pending-Promise; Streamlit kann den serverseitigen Run
+   *  nicht stoppen — der laeuft fertig, aber das UI reagiert sofort. */
+  signal?: AbortSignal;
 }
 
 export interface SubmitMessageOptions {
   thinkingBudget?: 'none' | 'low' | 'medium' | 'high';
   responseFormat?: Record<string, unknown>;
+  /** Siehe `ConversationOptions.signal`. */
+  signal?: AbortSignal;
 }
 
 export interface AITransport {
@@ -66,12 +72,30 @@ export class StreamlitBridgeTransport implements AITransport {
     }
   }
 
-  async submitMessage(message: string): Promise<string> {
+  async submitMessage(
+    message: string,
+    _systemPrompt?: string,
+    options?: SubmitMessageOptions,
+  ): Promise<string> {
+    if (options?.signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
     await this.ensureConnection();
-    const id = `msg-${Date.now()}`;
+    const id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => { this.pending.delete(id); reject(new Error('Response timeout')); }, 60000);
       this.pending.set(id, { resolve, reject, timeout });
+      // Abort-Listener: cleanup pending + reject. Der Streamlit-Backend-Run
+      // laeuft serverseitig fertig, aber der Caller bekommt sofort den
+      // AbortError und kann das UI freigeben.
+      const onAbort = (): void => {
+        const p = this.pending.get(id);
+        if (!p) return;
+        clearTimeout(p.timeout);
+        this.pending.delete(id);
+        reject(new DOMException('Aborted', 'AbortError'));
+      };
+      options?.signal?.addEventListener('abort', onAbort, { once: true });
       this.streamlitWindow?.postMessage({ type: 'tf-request', id, message }, '*');
     });
   }

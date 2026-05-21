@@ -1,41 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, Sparkles } from 'lucide-react';
 import { Badge } from '@/ui';
 import { useUnifiedSearch } from '@/core/hooks/useUnifiedSearch';
 import { isBauantraegeEnabled } from '@/config/feature-flags';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
-import { SEARCH_COLUMNS, getColumnByKey, type SearchColumn } from './columns';
+import { SEARCH_COLUMNS, buildDynamicColumns, getColumnByKey, type SearchColumn } from './columns';
 import { useSucheStore } from './store';
 import { SearchToolbar } from './SearchToolbar';
 import { SearchResultsTable } from './SearchResultsTable';
 import { exportCSV, exportClipboard, exportXLSX } from './export';
+import { useAnalysePipeline } from './useAnalysePipeline';
+import { AnalysePipelineView } from './AnalysePipelineView';
+import { ValidationBanner } from './ValidationBanner';
+import {
+  matchesPillFilter, compareValues, countResultsByType,
+  type SuchePillFilterId,
+} from './suchseite-utils';
 
-type FilterId = '' | 'antrag' | 'dokument' | 'bauantrag';
+type FilterId = SuchePillFilterId;
 
 const DEFAULT_SORT_KEY = 'score';
-
-function matchesPillFilter(r: UnifiedSearchResult, filter: FilterId): boolean {
-  if (filter === '') return true;
-  if (filter === 'antrag') return r.type === 'antrag';
-  if (filter === 'dokument') return r.type === 'dokument';
-  if (filter === 'bauantrag') return r.type === 'dokument' && r.dokumentTyp === 'bauantrag';
-  return true;
-}
-
-function compareValues(a: string | number, b: string | number, dir: 'asc' | 'desc'): number {
-  if (typeof a === 'number' && typeof b === 'number') {
-    return dir === 'asc' ? a - b : b - a;
-  }
-  const sa = String(a);
-  const sb = String(b);
-  const cmp = sa.localeCompare(sb, 'de', { numeric: true, sensitivity: 'base' });
-  return dir === 'asc' ? cmp : -cmp;
-}
 
 export function SuchSeite(): React.ReactElement {
   const navigate = useNavigate();
   const visibleColumns = useSucheStore(s => s.visibleColumns);
+  const analyse = useAnalysePipeline();
 
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<FilterId>('');
@@ -44,33 +34,43 @@ export function SuchSeite(): React.ReactElement {
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
   const [toast, setToast] = useState<string | null>(null);
 
-  const { results, loading, counts, indexInfo, vectorReady } = useUnifiedSearch(query);
-
+  const { results: searchResults, loading, counts, indexInfo, vectorReady } = useUnifiedSearch(query);
   const showBauantraege = isBauantraegeEnabled();
+  const analyseActive = analyse.result !== null;
 
-  const filterChips = useMemo(() => {
-    const base: Array<{ id: FilterId; label: string; count: number }> = [
-      { id: '', label: 'Alle', count: counts.total },
-      { id: 'antrag', label: 'Foerderantraege', count: counts.antraege },
-      { id: 'dokument', label: 'Dokumente', count: counts.dokumente },
-    ];
-    if (showBauantraege) {
-      base.push({ id: 'bauantrag', label: 'Bauantraege', count: counts.bauantraege });
-    }
-    return base;
-  }, [counts, showBauantraege]);
-
-  // Pipeline: pillFiltered → columnFiltered → sorted
-  const pillFiltered = useMemo(
-    () => results.filter(r => matchesPillFilter(r, typeFilter)),
-    [results, typeFilter],
+  // Wenn ein Analyse-Ergebnis vorliegt, zeigen wir das statt der Live-Suche.
+  const dataSource: UnifiedSearchResult[] = analyse.result?.results ?? searchResults;
+  const dynamicColumns = useMemo(
+    () => analyse.result ? buildDynamicColumns(analyse.result.dynamicColumnKeys) : [],
+    [analyse.result],
   );
 
-  // Filter-Candidates aus pillFiltered (vor Spalten-Filtern) — sonst kollabieren
-  // die Werte im Dropdown wenn der User einen Filter angewendet hat.
+  const handleQueryChange = (next: string): void => {
+    setQuery(next);
+    if (analyseActive) analyse.reset();
+  };
+
+  const filterChips = useMemo(() => {
+    const pillCounts = countResultsByType(dataSource);
+    const base: Array<{ id: FilterId; label: string; count: number }> = [
+      { id: '', label: 'Alle', count: dataSource.length },
+      { id: 'antrag', label: 'Foerderantraege', count: pillCounts.antraege },
+      { id: 'dokument', label: 'Dokumente', count: pillCounts.dokumente },
+    ];
+    if (showBauantraege) base.push({ id: 'bauantrag', label: 'Bauantraege', count: pillCounts.bauantraege });
+    return base;
+  }, [dataSource, showBauantraege]);
+
+  const pillFiltered = useMemo(
+    () => dataSource.filter(r => matchesPillFilter(r, typeFilter)),
+    [dataSource, typeFilter],
+  );
+
+  const allColumns = useMemo(() => [...SEARCH_COLUMNS, ...dynamicColumns], [dynamicColumns]);
+
   const filterCandidatesByColumn = useMemo<Record<string, string[]>>(() => {
     const out: Record<string, string[]> = {};
-    for (const col of SEARCH_COLUMNS) {
+    for (const col of allColumns) {
       if (!col.filterable) continue;
       const set = new Set<string>();
       for (const r of pillFiltered) {
@@ -81,35 +81,36 @@ export function SuchSeite(): React.ReactElement {
       out[col.key] = Array.from(set).sort((a, b) => a.localeCompare(b, 'de'));
     }
     return out;
-  }, [pillFiltered]);
+  }, [pillFiltered, allColumns]);
 
   const columnFiltered = useMemo(() => {
     const entries = Object.entries(columnFilters).filter(([, set]) => set.size > 0);
     if (entries.length === 0) return pillFiltered;
     return pillFiltered.filter(r => entries.every(([key, set]) => {
-      const col = getColumnByKey(key);
+      const col = allColumns.find(c => c.key === key) ?? getColumnByKey(key);
       if (!col) return true;
       const v = col.accessor(r);
       const s = v === undefined || v === null ? '' : String(v);
       return set.has(s);
     }));
-  }, [pillFiltered, columnFilters]);
+  }, [pillFiltered, columnFilters, allColumns]);
 
   const sorted = useMemo(() => {
     if (!sortKey) return columnFiltered;
-    const col = getColumnByKey(sortKey);
+    const col = allColumns.find(c => c.key === sortKey) ?? getColumnByKey(sortKey);
     if (!col) return columnFiltered;
     const copy = [...columnFiltered];
     copy.sort((a, b) => compareValues(col.accessor(a), col.accessor(b), sortDirection));
     return copy;
-  }, [columnFiltered, sortKey, sortDirection]);
+  }, [columnFiltered, sortKey, sortDirection, allColumns]);
 
-  const visibleColumnDefs = useMemo<SearchColumn[]>(
-    () => SEARCH_COLUMNS.filter(c => visibleColumns.includes(c.key)),
-    [visibleColumns],
-  );
+  const visibleColumnDefs = useMemo<SearchColumn[]>(() => {
+    const visibleSet = new Set(visibleColumns);
+    const staticCols = SEARCH_COLUMNS.filter(c => visibleSet.has(c.key));
+    // Dynamische Spalten sind in der aktiven Analyse immer sichtbar.
+    return [...staticCols, ...dynamicColumns];
+  }, [visibleColumns, dynamicColumns]);
 
-  // Toast auto-dismiss.
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3000);
@@ -117,65 +118,67 @@ export function SuchSeite(): React.ReactElement {
   }, [toast]);
 
   function handleSort(key: string): void {
-    if (sortKey !== key) {
-      setSortKey(key);
-      setSortDirection('asc');
-      return;
-    }
+    if (sortKey !== key) { setSortKey(key); setSortDirection('asc'); return; }
     if (sortDirection === 'asc') { setSortDirection('desc'); return; }
-    // war 'desc' → toggle off
     setSortKey(null);
   }
 
   function handleColumnFilterChange(key: string, values: Set<string>): void {
     setColumnFilters(prev => {
       const next = { ...prev };
-      if (values.size === 0) delete next[key];
-      else next[key] = values;
+      if (values.size === 0) delete next[key]; else next[key] = values;
       return next;
     });
   }
 
   function handleRowClick(r: UnifiedSearchResult): void {
-    if (r.type === 'antrag' && r.fkz) {
-      navigate(`/antraege/${encodeURIComponent(r.fkz)}`);
-    }
+    if (r.type === 'antrag' && r.fkz) navigate(`/antraege/${encodeURIComponent(r.fkz)}`);
   }
 
-  function handleExportCSV(): void {
-    exportCSV(sorted, visibleColumnDefs, query);
-  }
+  const startAnalyse = (): void => {
+    if (!query.trim() || analyse.running || !analyse.available) return;
+    analyse.start(query.trim());
+  };
 
-  function handleExportXLSX(): void {
-    exportXLSX(sorted, visibleColumnDefs, query);
-  }
-
-  async function handleExportClipboard(): Promise<void> {
-    try {
-      await exportClipboard(sorted, visibleColumnDefs);
-      setToast(`${sorted.length} Ergebnisse in Zwischenablage kopiert`);
-    } catch {
-      setToast('Kopieren fehlgeschlagen');
-    }
-  }
+  const aiButtonDisabled = !query.trim() || analyse.running || analyse.checkingAvailability || !analyse.available;
+  const aiButtonTooltip = !analyse.available
+    ? `KI-Analyse nicht verfuegbar (${analyse.providerName} nicht erreichbar)`
+    : `Aktive LLM: ${analyse.providerName}`;
 
   const noQuery = !query.trim();
+  const showStepper = analyse.running && analyse.progress;
+  const showResults = !showStepper && !noQuery && !loading && sorted.length > 0;
+  const validation = analyse.result?.validation ?? null;
 
   return (
     <div className="px-8 pt-4 pb-6 max-w-[1400px]">
       <div className="flex flex-col items-start mb-4">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">Suche</h1>
-        <div className="relative w-full max-w-xl">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)]" />
-          <input
-            data-tour="search-input"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Suche nach Foerderantraegen, Dokumenten..."
-            autoFocus
-            className="w-full pl-10 pr-4 py-3 text-[14px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
+        <div className="flex items-center gap-2 w-full max-w-3xl">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)]" />
+            <input
+              data-tour="search-input"
+              value={query}
+              onChange={e => handleQueryChange(e.target.value)}
+              disabled={analyse.running}
+              placeholder="Suche oder analytische Frage…"
+              autoFocus
+              className="w-full pl-10 pr-4 py-3 text-[14px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] disabled:opacity-60"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={startAnalyse}
+            disabled={aiButtonDisabled}
+            title={aiButtonTooltip}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-[13px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
             style={{ border: '0.5px solid var(--tf-border)' }}
-          />
+          >
+            <Sparkles size={14} />
+            <span>Mit KI analysieren</span>
+          </button>
         </div>
         <div className="flex gap-2 mt-3 flex-wrap">
           {filterChips.map(chip => {
@@ -184,44 +187,67 @@ export function SuchSeite(): React.ReactElement {
               <button
                 key={chip.id}
                 onClick={() => setTypeFilter(chip.id)}
+                disabled={analyse.running}
                 className={`px-3 py-1 text-[12px] rounded-full cursor-pointer transition-colors ${
-                  active
-                    ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
-                    : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-                }`}
+                  active ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+                } disabled:opacity-50`}
                 style={!active ? { border: '0.5px solid var(--tf-border)' } : undefined}
               >
                 {chip.label} <span className="opacity-70">{chip.count}</span>
               </button>
             );
           })}
-          {!vectorReady && <Badge variant="default">Embedding-Modell laedt…</Badge>}
+          {!vectorReady && !analyseActive && <Badge variant="default">Embedding-Modell laedt…</Badge>}
+          {analyseActive && (
+            <button
+              type="button"
+              onClick={() => { analyse.reset(); setQuery(''); }}
+              className="px-3 py-1 text-[12px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)]"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+            >
+              Neue Analyse
+            </button>
+          )}
         </div>
       </div>
 
-      <SearchToolbar
-        disabled={sorted.length === 0}
-        typeFilter={typeFilter}
-        onExportCSV={handleExportCSV}
-        onExportXLSX={handleExportXLSX}
-        onExportClipboard={() => { void handleExportClipboard(); }}
-      />
+      {analyse.error && (
+        <div className="mb-3 px-3 py-2 text-[12px] text-[var(--tf-text)] rounded"
+          style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
+          KI-Analyse fehlgeschlagen: {analyse.error}
+        </div>
+      )}
 
-      {/* Toast (inline, kein position: fixed wegen file:// Constraint) */}
+      {validation && <ValidationBanner validation={validation} />}
+
+      {!showStepper && (
+        <SearchToolbar
+          disabled={sorted.length === 0}
+          typeFilter={typeFilter}
+          onExportCSV={() => exportCSV(sorted, visibleColumnDefs, query)}
+          onExportXLSX={() => exportXLSX(sorted, visibleColumnDefs, query)}
+          onExportClipboard={() => {
+            void (async () => {
+              try {
+                await exportClipboard(sorted, visibleColumnDefs);
+                setToast(`${sorted.length} Ergebnisse in Zwischenablage kopiert`);
+              } catch { setToast('Kopieren fehlgeschlagen'); }
+            })();
+          }}
+        />
+      )}
+
       {toast && (
-        <div
-          role="status"
-          className="mb-3 px-3 py-2 text-[12px] text-[var(--tf-text)] rounded"
-          style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}
-        >
+        <div role="status" className="mb-3 px-3 py-2 text-[12px] text-[var(--tf-text)] rounded"
+          style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
           {toast}
         </div>
       )}
 
-      {/* Info / Loading / Empty / Tabelle */}
-      {loading && <p className="text-[13px] text-[var(--tf-text-secondary)] text-center py-4">Suche…</p>}
+      {showStepper && analyse.progress && <AnalysePipelineView progress={analyse.progress} onCancel={analyse.cancel} />}
+      {!showStepper && loading && <p className="text-[13px] text-[var(--tf-text-secondary)] text-center py-4">Suche…</p>}
 
-      {noQuery && !loading && (
+      {!showStepper && noQuery && !loading && (
         <div className="text-center py-16">
           <Search size={40} className="text-[var(--tf-text-tertiary)] mx-auto mb-4" />
           <p className="text-[var(--tf-text-tertiary)]">
@@ -231,16 +257,18 @@ export function SuchSeite(): React.ReactElement {
         </div>
       )}
 
-      {!noQuery && !loading && sorted.length === 0 && (
+      {!showStepper && !noQuery && !loading && sorted.length === 0 && !analyseActive && (
         <div className="text-center py-16">
           <p className="text-[var(--tf-text-secondary)]">Keine Ergebnisse fuer &quot;{query}&quot;</p>
         </div>
       )}
 
-      {!noQuery && !loading && sorted.length > 0 && (
+      {showResults && (
         <>
           <div className="flex items-center justify-between mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
-            <span>{sorted.length} Ergebnisse</span>
+            <span>
+              {sorted.length} Ergebnisse{analyseActive ? ' (KI-Analyse)' : ''}
+            </span>
             <span>
               {indexInfo.dokumenteImIndex.toLocaleString('de-DE')} Dokumente im Index ·{' '}
               {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Antraege geladen
@@ -259,6 +287,10 @@ export function SuchSeite(): React.ReactElement {
           />
         </>
       )}
+
+      {/* searchResults-Counts (top-line via useUnifiedSearch) bleiben verfuegbar im Hover/Debug */}
+      <span className="sr-only">{`unified-search: total=${counts.total} antraege=${counts.antraege} dokumente=${counts.dokumente}`}</span>
     </div>
   );
 }
+
