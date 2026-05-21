@@ -88,6 +88,20 @@ const METHOD_LABELS: Record<string, string> = {
   fulltext: 'Stichwort', vector: 'Bedeutung', hybrid: 'Stichwort + Bedeutung',
 };
 
+/** Abkuerzungen fuer ueberlange Status-Labels — Cell + Filter-Dropdown zeigen
+ *  die kurze Variante, Tooltip / Filter-State arbeiten weiterhin mit dem
+ *  Roh-Status. */
+const STATUS_LABEL_OVERRIDES: Record<string, string> = {
+  'Widerspruch zur Ablehnung': 'Wiederspr. zur Ablehn.',
+  'Stellungnahme zur Rücknahmeempfehlung': 'Stellungnahme zur RNE',
+  'abgelehnt/zurückgezogen': 'abgelehnt/zurückgez.',
+  'Bewilligungsentwurf VDI/VDE-IT': 'Bewilligungsentwurf',
+};
+
+function shortStatus(s: string): string {
+  return STATUS_LABEL_OVERRIDES[s] ?? s;
+}
+
 function safeString(v: unknown): string {
   if (v === null || v === undefined) return '';
   return String(v);
@@ -132,11 +146,11 @@ const StatusBadge = memo(function StatusBadge({ r }: { r: UnifiedSearchResult })
   const color = r.statusKategorie ? getStatusCategoryColor(r.statusKategorie) : '#9ca3af';
   return (
     <span
-      className="inline-block text-[11px] px-2 py-0.5 rounded"
+      className="inline-block text-[11px] px-2 py-0.5 rounded truncate max-w-full"
       style={{ backgroundColor: `${color}22`, color, border: `0.5px solid ${color}44` }}
-      title={r.statusKategorie}
+      title={r.status}
     >
-      {r.status}
+      {shortStatus(r.status)}
     </span>
   );
 });
@@ -147,7 +161,7 @@ function formatEur(n: number): string {
 
 export const SEARCH_COLUMNS: SearchColumn[] = [
   {
-    key: 'type', label: 'Typ', width: 80, defaultVisible: true,
+    key: 'type', label: 'Typ', width: 60, defaultVisible: true,
     sortable: true, filterable: true, appliesTo: 'both',
     // Accessor liefert exakt das Label, das TypeBadge anzeigt — damit
     // Filter-Dropdown / Sort konsistent zur Zell-Pill sind. Dokument-
@@ -160,7 +174,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     render: r => <TypeBadge r={r} />,
   },
   {
-    key: 'fkzDatei', label: 'FKZ', width: 130, defaultVisible: true,
+    key: 'fkzDatei', label: 'FKZ', width: 100, defaultVisible: true,
     sortable: true, filterable: true, appliesTo: 'both',
     accessor: r => r.type === 'antrag' ? safeString(r.fkz) : safeString(r.dateiname),
     filterType: 'type',
@@ -196,10 +210,11 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     ),
   },
   {
-    key: 'status', label: 'Status', width: 110, defaultVisible: true,
+    key: 'status', label: 'Status', width: 100, defaultVisible: true,
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.status),
     render: r => <StatusBadge r={r} />,
+    formatFilterLabel: shortStatus,
   },
   {
     key: 'score', label: 'Score', width: 80, defaultVisible: true,
