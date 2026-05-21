@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 /**
  * Kollabierbare Filter-Pille. Default-Zustand: nur "{label}: {value} ▸" sichtbar.
  * Klick → klappt nach rechts in einen Seg auf. Auswahl ≠ defaultValue → bleibt
  * sticky offen. Auswahl = defaultValue → kollabiert wieder. Klick außerhalb
  * (nur transient, also wenn aktuell auf defaultValue) → schließt zurück.
+ *
+ * Manuelles Schliessen: Klick auf das Label im expanded State setzt
+ * `manualClosed=true` und überschreibt den sticky-open-Modus. So kann der
+ * User die Pille auch bei aktivem Filter zusammenklappen und sieht weiter
+ * "{label}: {value} ▸". Nächster Klick auf die kollabierte Pille setzt
+ * `manualClosed=false` zurück.
  *
  * Visuelle und Verhaltens-Spec aus dem Design-Handoff
  * `_design/handoff/card-grid/design_handoff_filter_quickfilter/`
@@ -34,8 +40,9 @@ export function CollapsibleSeg({
   defaultValue = 'Alle',
 }: Props): React.ReactElement {
   const [forceOpen, setForceOpen] = useState(false);
+  const [manualClosed, setManualClosed] = useState(false);
   const isFiltered = value !== defaultValue;
-  const expanded = isFiltered || forceOpen;
+  const expanded = !manualClosed && (isFiltered || forceOpen);
 
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -56,7 +63,7 @@ export function CollapsibleSeg({
       <div ref={ref} className="inline-flex">
         <button
           type="button"
-          onClick={() => setForceOpen(true)}
+          onClick={() => { setForceOpen(true); setManualClosed(false); }}
           aria-label={`${label} filtern`}
           aria-expanded={false}
           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] bg-[var(--tf-bg)] text-[12px] cursor-pointer whitespace-nowrap transition-[border-color,background] duration-150 ease-out hover:bg-[var(--tf-hover)]"
@@ -79,7 +86,16 @@ export function CollapsibleSeg({
         transformOrigin: 'left center',
       }}
     >
-      <span className="text-[12px] text-[var(--tf-text-tertiary)]">{label}:</span>
+      <button
+        type="button"
+        onClick={() => { setManualClosed(true); setForceOpen(false); }}
+        aria-label={`${label} ausblenden`}
+        aria-expanded={true}
+        className="inline-flex items-center gap-1 text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer bg-transparent border-0 p-0"
+      >
+        <span>{label}:</span>
+        <ChevronDown size={10} />
+      </button>
       <SegGroup
         items={items}
         value={value}
