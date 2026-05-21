@@ -13,14 +13,27 @@
  *   `AntraegeMain.tsx`): Es werden initial `ROW_PAGE` Zeilen gerendert; ein
  *   Sentinel-`<tr>` am Listenende triggert beim Scrollen das Nachladen
  *   weiterer Pages. Spart bei 500+ Treffern den initial DOM-Blowup.
+ * - Spalten-Resize laeuft als Live-DOM-Mutation (siehe `applyLiveColumnWidth`):
+ *   waehrend des Drags wird `<col>.style.width` + `<table>.style.width` direkt
+ *   gesetzt, OHNE React-Re-Render aller Zeilen. Erst beim Mouseup wird der
+ *   finale Wert in den React-State + localStorage committed.
+ * - `<table>.width = Summe aller Spaltenbreiten`: wenn der User eine Spalte
+ *   nach rechts groesser zieht, waechst die ganze Tabelle und der Container
+ *   bekommt einen horizontalen Scrollbalken — die Nachbar-Spalten schrumpfen
+ *   NICHT mehr (bisheriges `width: 100%`-Verhalten).
  */
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { SearchColumn } from './columns';
 import { SearchTableHeader } from './SearchTableHeader';
 
 const ROW_PAGE = 80;
 const OVERSCAN_PX = 600;
+
+function getEffectiveWidth(c: SearchColumn, overrides: Record<string, number>): number {
+  const o = overrides[c.key];
+  return typeof o === 'number' ? o : c.width;
+}
 
 export interface SearchResultsTableProps {
   results: UnifiedSearchResult[];
@@ -48,6 +61,10 @@ function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactEle
   const [visibleCount, setVisibleCount] = useState(ROW_PAGE);
   const sentinelRef = useRef<HTMLTableRowElement | null>(null);
 
+  // DOM-Refs fuer Live-Resize ohne React-Re-Render.
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const colRefs = useRef<Map<string, HTMLTableColElement>>(new Map());
+
   // Reset bei jeder neuen Ergebnis-Liste (neue Query, neuer Filter, neuer Sort).
   useEffect(() => {
     setVisibleCount(ROW_PAGE);
@@ -70,21 +87,50 @@ function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactEle
     return () => observer.disconnect();
   }, [results.length, visibleCount]);
 
-  function resolveWidth(c: SearchColumn): string | undefined {
-    const override = columnWidths[c.key];
-    if (typeof override === 'number') return `${override}px`;
-    return c.width === 'auto' ? undefined : `${c.width}px`;
-  }
+  // Live-Drag-API: waehrend des Drags wird der Wert NICHT in den React-State
+  // committed, sondern direkt am DOM gesetzt (<col>.style.width + <table>.
+  // style.width). Spart bei 80+ Zeilen × ~10 Spalten den Re-Render pro
+  // Mouse-Frame. Beim Mouseup ruft der Header `onColumnWidthChange` auf, was
+  // den finalen Wert in State + localStorage schreibt.
+  const applyLiveColumnWidth = useCallback((key: string, width: number): void => {
+    const col = colRefs.current.get(key);
+    if (col) col.style.width = `${width}px`;
+    const table = tableRef.current;
+    if (!table) return;
+    // Gesamt-Breite neu berechnen aus den aktuellen <col>-Inline-Styles.
+    let sum = 0;
+    for (const c of columns) {
+      const ref = colRefs.current.get(c.key);
+      if (ref && ref.style.width) {
+        const px = parseFloat(ref.style.width);
+        if (Number.isFinite(px)) { sum += px; continue; }
+      }
+      sum += getEffectiveWidth(c, columnWidths);
+    }
+    table.style.width = `${sum}px`;
+  }, [columns, columnWidths]);
 
   const visibleResults = results.slice(0, visibleCount);
   const hasMore = visibleCount < results.length;
 
+  // Bei jedem Render: Summe der effektiven Spaltenbreiten als Pixel-Wert. So
+  // wird die Tabelle horizontal scrollbar wenn User die Spalten breiter zieht
+  // (statt dass Nachbar-Spalten schrumpfen).
+  const totalWidth = columns.reduce((s, c) => s + getEffectiveWidth(c, columnWidths), 0);
+
   return (
     <div className="w-full overflow-x-auto" style={{ border: '0.5px solid var(--tf-border)', borderRadius: 'var(--tf-radius)' }}>
-      <table style={{ tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' }}>
+      <table ref={tableRef} style={{ tableLayout: 'fixed', width: `${totalWidth}px`, borderCollapse: 'collapse' }}>
         <colgroup>
           {columns.map(c => (
-            <col key={c.key} style={{ width: resolveWidth(c) }} />
+            <col
+              key={c.key}
+              ref={el => {
+                if (el) colRefs.current.set(c.key, el);
+                else colRefs.current.delete(c.key);
+              }}
+              style={{ width: `${getEffectiveWidth(c, columnWidths)}px` }}
+            />
           ))}
         </colgroup>
         <SearchTableHeader
@@ -96,6 +142,7 @@ function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactEle
           onColumnFilterChange={onColumnFilterChange}
           filterCandidatesByColumn={filterCandidatesByColumn}
           onColumnWidthChange={onColumnWidthChange}
+          onColumnWidthDrag={applyLiveColumnWidth}
         />
         <tbody>
           {visibleResults.map((r, rowIdx) => {
@@ -116,7 +163,7 @@ function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactEle
                       borderRight: colIdx < columns.length - 1 ? '0.5px solid var(--tf-border)' : undefined,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      whiteSpace: c.width === 'auto' ? 'normal' : 'nowrap',
+                      whiteSpace: c.wrap ? 'normal' : 'nowrap',
                     }}
                   >
                     {c.render(r)}

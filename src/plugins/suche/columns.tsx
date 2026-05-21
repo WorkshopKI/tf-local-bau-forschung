@@ -29,7 +29,8 @@ export type SearchColumnFilterType = 'multiSelect' | 'year' | 'type';
 export interface SearchColumn {
   key: string;
   label: string;
-  width: number | 'auto';
+  /** Default-Spaltenbreite in Pixel. User kann sie per Drag-Handle ueberschreiben. */
+  width: number;
   defaultVisible: boolean;
   sortable: boolean;
   filterable: boolean;
@@ -43,6 +44,9 @@ export interface SearchColumn {
    *  anderes filtert als der Sort-Accessor — z.B. `fkzDatei`: Sort nach
    *  FKZ/Datei, Filter nach Antrag/Dokument). */
   filterAccessor?: (r: UnifiedSearchResult) => string;
+  /** Wenn true, wird der Zell-Inhalt nicht abgeschnitten sondern umgebrochen
+   *  (z.B. fuer die Titel/Inhalt-Spalte mit Snippet-Text). Default false. */
+  wrap?: boolean;
 }
 
 /** Extrahiert das Jahr (YYYY) aus einem ISO- oder dd.mm.yyyy-Datum.
@@ -164,8 +168,8 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     ),
   },
   {
-    key: 'titelInhalt', label: 'Titel / Inhalt', width: 'auto', defaultVisible: true,
-    sortable: true, filterable: false, locked: true, appliesTo: 'both',
+    key: 'titelInhalt', label: 'Titel / Inhalt', width: 400, defaultVisible: true,
+    sortable: true, filterable: false, locked: true, appliesTo: 'both', wrap: true,
     accessor: r => safeString(r.title),
     render: r => (
       <div className="min-w-0">
@@ -186,7 +190,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     render: r => <StatusBadge r={r} />,
   },
   {
-    key: 'score', label: 'Relevanz', width: 80, defaultVisible: true,
+    key: 'score', label: 'Score', width: 80, defaultVisible: true,
     sortable: true, filterable: false, appliesTo: 'both',
     accessor: r => r.score,
     render: r => (
@@ -265,7 +269,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
-    key: 'method', label: 'Suchmethode', width: 90, defaultVisible: false,
+    key: 'method', label: 'Suche', width: 90, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'both',
     accessor: r => safeString(r.method),
     render: r => <MethodPill method={r.method} />,

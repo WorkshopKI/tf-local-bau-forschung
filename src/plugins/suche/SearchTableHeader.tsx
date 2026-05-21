@@ -28,34 +28,44 @@ export interface SearchTableHeaderProps {
   onColumnFilterChange: (key: string, values: Set<string>) => void;
   /** Pre-column-filter-Set: alle pillFiltered Ergebnisse (vor Spaltenfiltern). */
   filterCandidatesByColumn: Record<string, string[]>;
+  /** Finaler Commit (mouseup) — schreibt State + localStorage. */
   onColumnWidthChange: (key: string, width: number) => void;
+  /** Live-Update waehrend des Drags — mutiert DOM direkt, kein React-Re-Render. */
+  onColumnWidthDrag: (key: string, width: number) => void;
 }
 
 const MIN_RESIZE_WIDTH = 60;
 
 function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactElement {
-  const { columns, sortKey, sortDirection, onSort, columnFilters, onColumnFilterChange, filterCandidatesByColumn, onColumnWidthChange } = props;
+  const {
+    columns, sortKey, sortDirection, onSort,
+    columnFilters, onColumnFilterChange, filterCandidatesByColumn,
+    onColumnWidthChange, onColumnWidthDrag,
+  } = props;
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
 
-  /** Drag-Handle Mousedown — startet globalen Mousemove/Mouseup-Listener, der
-   *  die Spalte auf die neue Breite zieht. Min-Width: 60px. Pattern analog zu
-   *  `AntraegePage.tsx`'s Filter-Panel-Resize. */
+  /** Drag-Handle Mousedown — Live-DOM-Mutation per mousemove (kein React-
+   *  Re-Render der 80+ Zeilen × 10+ Spalten), finaler Commit on mouseup. */
   function startResize(key: string, e: React.MouseEvent<HTMLDivElement>): void {
     e.preventDefault();
     e.stopPropagation();
     const th = (e.currentTarget.parentElement as HTMLElement | null);
     const startWidth = th ? th.offsetWidth : 100;
     const startX = e.clientX;
+    let latestWidth = startWidth;
 
     function onMove(ev: MouseEvent): void {
       const next = Math.max(MIN_RESIZE_WIDTH, startWidth + (ev.clientX - startX));
-      onColumnWidthChange(key, next);
+      latestWidth = next;
+      onColumnWidthDrag(key, next);
     }
     function onUp(): void {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      // Finaler Commit ans React-State + localStorage.
+      onColumnWidthChange(key, latestWidth);
     }
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
@@ -108,16 +118,14 @@ function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactEleme
                   onClose={() => setOpenFilterKey(null)}
                 />
               )}
-              {!isLastCol && (
-                <div
-                  role="separator"
-                  aria-orientation="vertical"
-                  aria-label={`Spaltenbreite ${c.label} anpassen`}
-                  onMouseDown={(e) => startResize(c.key, e)}
-                  className="absolute right-0 top-0 h-full w-[6px] cursor-col-resize hover:bg-[var(--tf-border-hover)] z-10"
-                  style={{ touchAction: 'none' }}
-                />
-              )}
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={`Spaltenbreite ${c.label} anpassen`}
+                onMouseDown={(e) => startResize(c.key, e)}
+                className="absolute right-0 top-0 h-full w-[6px] cursor-col-resize hover:bg-[var(--tf-border-hover)] z-10"
+                style={{ touchAction: 'none' }}
+              />
             </th>
           );
         })}

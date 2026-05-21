@@ -94,7 +94,7 @@ export function exportXLSX(
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   // Spaltenbreiten — Excel rechnet in Char-Breiten, ~6 Pixel pro Char.
   ws['!cols'] = columns.map(c => ({
-    wch: c.width === 'auto' ? 40 : Math.max(10, Math.round(c.width / 6)),
+    wch: Math.max(10, Math.round(c.width / 6)),
   }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Suche');
