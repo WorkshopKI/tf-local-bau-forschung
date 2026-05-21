@@ -128,6 +128,7 @@ export function QuickfilterToolbar(): React.ReactElement {
         items={groupingItems}
         onChange={onGroupingChange}
         defaultValue="Keine"
+        startCollapsed
       />
     </div>
   );

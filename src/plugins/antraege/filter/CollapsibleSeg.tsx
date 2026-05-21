@@ -30,6 +30,14 @@ interface Props {
   onChange: (label: string) => void;
   /** Wert der die Pille kollabiert. Default `"Alle"`. */
   defaultValue?: string;
+  /**
+   * Wenn true, bleibt die Pille auch bei `value !== defaultValue` initial
+   * kollabiert (keine Sticky-Open-Auto-Expansion). Nur der explizite Klick
+   * auf die Pille expandiert. Für Pillen wie "Gruppiert", bei denen der
+   * gewählte Nicht-Default-Wert dauerhaft persistiert ist und die Pille
+   * trotzdem ruhig im Layout sitzen soll.
+   */
+  startCollapsed?: boolean;
 }
 
 export function CollapsibleSeg({
@@ -38,9 +46,10 @@ export function CollapsibleSeg({
   items,
   onChange,
   defaultValue = 'Alle',
+  startCollapsed = false,
 }: Props): React.ReactElement {
   const [forceOpen, setForceOpen] = useState(false);
-  const [manualClosed, setManualClosed] = useState(false);
+  const [manualClosed, setManualClosed] = useState(startCollapsed);
   const isFiltered = value !== defaultValue;
   const expanded = !manualClosed && (isFiltered || forceOpen);
 
