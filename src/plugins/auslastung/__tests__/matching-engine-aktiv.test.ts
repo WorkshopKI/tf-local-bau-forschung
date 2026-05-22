@@ -30,6 +30,7 @@ function makeMa(anonId: string, tech: string[], aktiv = true): AnonymerMitarbeit
     jahresKapazitaet: 1600,
     abgemeldet: [],
     manuelleTechnologien: tech,
+    ausgeblendeteAutoTags: [],
     ueberKategorien: ['IKT'],
     virtuelleProjekte: [],
     onboardingAbgeschlossen: true,

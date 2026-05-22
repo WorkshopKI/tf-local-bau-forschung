@@ -12,6 +12,7 @@ function makeMa(anonId: string, kategorien: string[], tech: string[] = []): Anon
     jahresKapazitaet: 1600,
     abgemeldet: [],
     manuelleTechnologien: tech,
+    ausgeblendeteAutoTags: [],
     ueberKategorien: kategorien,
     virtuelleProjekte: [],
     onboardingAbgeschlossen: true,

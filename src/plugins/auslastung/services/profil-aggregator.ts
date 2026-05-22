@@ -14,6 +14,7 @@
  */
 import type { Antrag } from '@/core/services/csv/types';
 import { ALL_DESKRIPTOREN_SPALTEN, CANONICAL_TIB_KUERZ, type UeberKategorie } from '../types';
+import { ZUKUNFTSTECHNOLOGIE_FELDER } from './default-labels';
 import { normalizeKuerzel, type AnonymMap } from './anonym-map';
 
 /** Normalisiert einen Deskriptoren-Wert: trim + lowercase. Leere/non-string -> null. */
@@ -24,13 +25,33 @@ export function normalizeDeskriptor(raw: unknown): string | null {
   return trimmed.toLowerCase();
 }
 
-/** Liest alle Deskriptoren-Werte eines einzelnen Antrags (over alle Spalten, dedupliziert). */
+/**
+ * Liest alle Deskriptoren-Werte eines einzelnen Antrags (over alle Spalten, dedupliziert).
+ *
+ * Quellen:
+ *  1. TECHN_1..5-String-Spalten (`ALL_DESKRIPTOREN_SPALTEN`).
+ *  2. ZT-Boolean-Spalten (46 Felder, TV+VB-Ebene): wenn `true`, wird der
+ *     Klartext-Name aus `ZUKUNFTSTECHNOLOGIE_FELDER` als Deskriptor
+ *     hinzugefuegt. TV- und VB-Variante haben denselben Klartext, das
+ *     `Set` dedupliziert automatisch.
+ *
+ * Bewusst NICHT in dieser Liste: BRANCHE_-Spalten und ANWEND_-/anwendung_-
+ * Spalten — das sind Wirtschaftszweige bzw. Anwendungsdomaenen, keine
+ * Tech-Kompetenzen. Wuerden sonst KI-Querschnittstaeter faelschlich als
+ * Pflanzen-/Bautechnologie-Experten markieren.
+ */
 export function readAntragDeskriptoren(antrag: Antrag): string[] {
   const set = new Set<string>();
+  const rec = antrag as Record<string, unknown>;
   for (const spalte of ALL_DESKRIPTOREN_SPALTEN) {
-    const val = (antrag as Record<string, unknown>)[spalte];
-    const norm = normalizeDeskriptor(val);
+    const norm = normalizeDeskriptor(rec[spalte]);
     if (norm) set.add(norm);
+  }
+  for (const feld of ZUKUNFTSTECHNOLOGIE_FELDER) {
+    if (rec[feld.customField] === true) {
+      const norm = normalizeDeskriptor(feld.klartext);
+      if (norm) set.add(norm);
+    }
   }
   return [...set];
 }
@@ -196,6 +217,7 @@ export function syncMitarbeiterFromAntraege(
         jahresKapazitaet: defaultJK,
         abgemeldet: [],
         manuelleTechnologien: [],
+        ausgeblendeteAutoTags: [],
         ueberKategorien: derivedKategorien,
         virtuelleProjekte: [],
         onboardingAbgeschlossen: true,   // hat hist. Antraege -> kein Onboarding noetig

@@ -119,6 +119,7 @@ export function normalizeMitarbeiterRecord(
       jahresKapazitaet: typeof m.jahresKapazitaet === 'number' ? m.jahresKapazitaet : DEFAULT_JAHRESKAPAZITAET,
       abgemeldet: Array.isArray(m.abgemeldet) ? m.abgemeldet : [],
       manuelleTechnologien: Array.isArray(m.manuelleTechnologien) ? m.manuelleTechnologien : [],
+      ausgeblendeteAutoTags: Array.isArray(m.ausgeblendeteAutoTags) ? m.ausgeblendeteAutoTags : [],
       ueberKategorien: Array.isArray(m.ueberKategorien) ? m.ueberKategorien : [],
       virtuelleProjekte: Array.isArray(m.virtuelleProjekte) ? m.virtuelleProjekte : [],
       profilEmbeddingText: typeof m.profilEmbeddingText === 'string' ? m.profilEmbeddingText : undefined,

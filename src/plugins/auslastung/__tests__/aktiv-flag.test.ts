@@ -13,10 +13,12 @@ describe('normalizeMitarbeiterRecord (aktiv-Migration)', () => {
     const raw = {
       MA01: {
         anonId: 'MA01', jahresKapazitaet: 1000, abgemeldet: [], manuelleTechnologien: [],
+        ausgeblendeteAutoTags: [],
         ueberKategorien: ['IKT'], virtuelleProjekte: [], onboardingAbgeschlossen: true,
       },
       MA02: {
         anonId: 'MA02', jahresKapazitaet: 800, abgemeldet: [], manuelleTechnologien: [],
+        ausgeblendeteAutoTags: [],
         ueberKategorien: ['IND'], virtuelleProjekte: [], onboardingAbgeschlossen: false,
       },
     };
@@ -49,6 +51,7 @@ describe('normalizeMitarbeiterRecord (aktiv-Migration)', () => {
       jahresKapazitaet: DEFAULT_JAHRESKAPAZITAET,
       abgemeldet: [],
       manuelleTechnologien: [],
+      ausgeblendeteAutoTags: [],
       ueberKategorien: [],
       virtuelleProjekte: [],
       profilEmbeddingText: undefined,

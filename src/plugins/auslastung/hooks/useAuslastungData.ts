@@ -144,6 +144,7 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       jahresKapazitaet: init?.jahresKapazitaet ?? DEFAULT_JAHRESKAPAZITAET,
       abgemeldet: init?.abgemeldet ?? [],
       manuelleTechnologien: init?.manuelleTechnologien ?? [],
+      ausgeblendeteAutoTags: init?.ausgeblendeteAutoTags ?? [],
       ueberKategorien: init?.ueberKategorien ?? [],
       virtuelleProjekte: init?.virtuelleProjekte ?? [],
       profilEmbeddingText: init?.profilEmbeddingText,

@@ -24,10 +24,12 @@ function makeData(): AuslastungData {
   base.mitarbeiter = {
     MA01: {
       anonId: 'MA01', jahresKapazitaet: 1600, abgemeldet: [], manuelleTechnologien: ['KI'],
+      ausgeblendeteAutoTags: [],
       ueberKategorien: ['IKT'], virtuelleProjekte: [], onboardingAbgeschlossen: true, aktiv: true,
     },
     MA02: {
       anonId: 'MA02', jahresKapazitaet: 1400, abgemeldet: [], manuelleTechnologien: [],
+      ausgeblendeteAutoTags: [],
       ueberKategorien: ['IND'], virtuelleProjekte: [], onboardingAbgeschlossen: true, aktiv: true,
     },
   };

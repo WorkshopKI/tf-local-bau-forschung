@@ -13,18 +13,23 @@ export const KATEGORIE_FARBEN: KategorieFarbe[] = [
   'blue', 'emerald', 'amber', 'rose', 'violet', 'sky', 'slate',
 ];
 
-/** Quelle eines Deskriptoren-Werts. */
+/**
+ * Quelle eines Deskriptoren-Werts.
+ *
+ * Bewusste Beschraenkung auf die TECHN_*-String-Spalten — die echten
+ * Technologie-Deskriptoren eines Antrags. BRANCHE_* (Wirtschaftszweige) und
+ * ANWEND_* (Anwendungsdomaenen) bleiben absichtlich draussen, weil sie sonst
+ * z.B. einen KI-Bearbeiter faelschlich als Pflanzen-/Bautechnologie-Experten
+ * markieren wuerden (KI als Querschnittsthema in vielen Branchen). Die 46
+ * ZT_*-Boolean-Spalten (Zukunftstechnologien) werden in
+ * `readAntragDeskriptoren()` aus `ZUKUNFTSTECHNOLOGIE_FELDER` separat
+ * eingelesen — nicht ueber diesen Typ.
+ */
 export type DeskriptorenSpalte =
-  | 'techn_1' | 'techn_2' | 'techn_3' | 'techn_4' | 'techn_5'
-  | 'branche' | 'branche_2' | 'branche_3' | 'branche_4' | 'branche_5'
-  // ANWEND_1 mappt zu 'anwend_1' (Legacy aus schema-c.ts vor Mai 2026),
-  // ANWEND_2..5 zu 'anwendung_2..5'.
-  | 'anwend_1' | 'anwendung_2' | 'anwendung_3' | 'anwendung_4' | 'anwendung_5';
+  | 'techn_1' | 'techn_2' | 'techn_3' | 'techn_4' | 'techn_5';
 
 export const ALL_DESKRIPTOREN_SPALTEN: DeskriptorenSpalte[] = [
   'techn_1', 'techn_2', 'techn_3', 'techn_4', 'techn_5',
-  'branche', 'branche_2', 'branche_3', 'branche_4', 'branche_5',
-  'anwend_1', 'anwendung_2', 'anwendung_3', 'anwendung_4', 'anwendung_5',
 ];
 
 /** Eine Ueberkategorie. PL konfiguriert die im Setup-Wizard. */
@@ -85,6 +90,13 @@ export interface AnonymerMitarbeiter {
   jahresKapazitaet: number;        // Stunden/Jahr
   abgemeldet: string[];            // Quartal-Liste
   manuelleTechnologien: string[];
+  /** Negativ-Liste: aus den historischen Antraegen aggregierte Tags, die der
+   *  MA bewusst ausgeblendet hat (z.B. weil sie nicht zur fachlichen
+   *  Kompetenz passen — KI-Querschnittstaeter mit Antraegen in vielen
+   *  Branchen-Kontexten). Stored als lowercase-normalisierte Strings; matched
+   *  gegen das Output von `readAntragDeskriptoren()`. Auto-Aggregation laeuft
+   *  weiter, aber gefilterte Tags fliessen nicht ins Team-Profil. */
+  ausgeblendeteAutoTags: string[];
   /** In welchen Ueberkategorien arbeitet der MA. */
   ueberKategorien: string[];
   virtuelleProjekte: VirtuellesProjekt[];

@@ -31,6 +31,7 @@ function makeMa(
     jahresKapazitaet: kap,
     abgemeldet: [],
     manuelleTechnologien: tech,
+    ausgeblendeteAutoTags: [],
     ueberKategorien,
     virtuelleProjekte: [],
     onboardingAbgeschlossen: true,

@@ -33,7 +33,7 @@ const LS_KEY = 'teamflow-meineTechnologien';
 const TOOLTIP_PROGRAMM =
   'Deine anonyme Programm-ID. Wird verwendet, um deine Technologien im Team-Auslastungs-Profil zuzuordnen, ohne den Klarnamen preiszugeben.';
 const TOOLTIP_AUTO =
-  'Automatisch aus deinen bisherigen Anträgen abgeleitet (Branchen-/Technologie-Spalten). Aktualisiert sich beim nächsten Import — nicht direkt editierbar.';
+  'Automatisch aus deinen bisherigen Anträgen abgeleitet (TECHN_*-Spalten + Zukunftstechnologien). Nicht zutreffende Tags kannst du per Klick ausblenden — sie verschwinden dann aus deinem Team-Profil. Aktualisiert sich beim nächsten Import.';
 const TOOLTIP_MANUAL =
   'Frei eingegebene Stichworte ergänzen die automatische Erkennung. Sichtbar im Team-Auslastungs-Profil.';
 
@@ -50,6 +50,7 @@ export function MeineTechnologienTab(): React.ReactElement {
   const cache = useAntraegeCache();
 
   const [manualTags, setManualTags] = useState<string[]>([]);
+  const [excludedAutoTags, setExcludedAutoTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
@@ -71,10 +72,27 @@ export function MeineTechnologienTab(): React.ReactElement {
     ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : '??';
 
+  // Initial-Load der ausgeblendeten Auto-Tags aus `auslastung.json` — sobald
+  // sowohl AnonId aufgelöst als auch der Store geladen ist. Idempotent
+  // gegenüber späteren Re-Renders, schreibt nur beim Wechsel der AnonId.
+  useEffect(() => {
+    if (!myAnonId) return;
+    const existing = data.mitarbeiter[myAnonId];
+    if (existing) {
+      setExcludedAutoTags(existing.ausgeblendeteAutoTags ?? []);
+    }
+  }, [myAnonId, data.mitarbeiter]);
+
   const automatic = useMemo(() => {
     if (!profile?.bearbeiter_kuerzel) return [];
     return aggregateMaProfile(cache.antraege, profile.bearbeiter_kuerzel);
   }, [cache.antraege, profile?.bearbeiter_kuerzel]);
+
+  const toggleAutoTag = (tag: string): void => {
+    setExcludedAutoTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag],
+    );
+  };
 
   async function speichern(): Promise<void> {
     setSaving(true);
@@ -82,10 +100,14 @@ export function MeineTechnologienTab(): React.ReactElement {
       try { localStorage.setItem(LS_KEY, JSON.stringify(manualTags)); } catch { /* ignore */ }
       if (myAnonId) {
         const existing = data.mitarbeiter[myAnonId];
+        const patch = {
+          manuelleTechnologien: manualTags,
+          ausgeblendeteAutoTags: excludedAutoTags,
+        };
         if (existing) {
-          await upsertMitarbeiter(storage, { ...existing, manuelleTechnologien: manualTags });
+          await upsertMitarbeiter(storage, { ...existing, ...patch });
         } else {
-          await createMitarbeiter(storage, { manuelleTechnologien: manualTags, onboardingAbgeschlossen: true });
+          await createMitarbeiter(storage, { ...patch, onboardingAbgeschlossen: true });
         }
       }
       setSavedAt(new Date().toISOString());
@@ -129,10 +151,14 @@ export function MeineTechnologienTab(): React.ReactElement {
           hint={TOOLTIP_AUTO}
         />
         {automatic.length > 0 ? (
-          <AutoTagWand tags={automatic} />
+          <AutoTagToggleWand
+            tags={automatic}
+            excluded={excludedAutoTags}
+            onToggle={toggleAutoTag}
+          />
         ) : (
           <p className="text-[12px] text-[var(--tf-text-tertiary)]">
-            Keine historischen Anträge mit Branchen-/Technologie-Spalten gefunden.
+            Keine historischen Anträge mit Technologie-Spalten gefunden.
           </p>
         )}
       </section>
@@ -216,35 +242,60 @@ function truncateWZ(label: string): { short: string; truncated: boolean } {
   return { short: label.slice(0, LONG_TAG_THRESHOLD - 1) + '…', truncated: true };
 }
 
-function AutoTagWand({ tags }: { tags: string[] }): React.ReactElement {
+/**
+ * Toggle-Pill-Wand fuer die Auto-Tags. Pro Pill aktiv/inaktiv per Klick.
+ * Layout-konstant: Hakenslot wird auch im Inaktiv-State gerendert
+ * (`invisible`), damit kein horizontaler Shift entsteht (CLAUDE.md Pitfall
+ * #14). Inaktiv-Variante ist outline-only mit blasserem Text — bewusst NICHT
+ * `opacity-40`, weil das wie disabled wirkt.
+ */
+function AutoTagToggleWand({
+  tags,
+  excluded,
+  onToggle,
+}: {
+  tags: string[];
+  excluded: string[];
+  onToggle: (tag: string) => void;
+}): React.ReactElement {
+  const excludedSet = new Set(excluded);
   return (
     <div className="flex flex-wrap gap-1.5">
       {tags.map(tag => {
+        const isExcluded = excludedSet.has(tag);
+        const active = !isExcluded;
         const { short, truncated } = truncateWZ(tag);
-        if (!truncated) {
+        const button = (
+          <button
+            key={tag}
+            type="button"
+            onClick={() => onToggle(tag)}
+            aria-pressed={active}
+            aria-label={`${tag} — ${active ? 'aktiv im Team-Profil. Klicken zum Ausblenden.' : 'ausgeblendet. Klicken zum Aktivieren.'}`}
+            className={
+              active
+                ? 'inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] bg-[var(--tf-bg-secondary)] px-2.5 py-1.5 rounded-md cursor-pointer hover:bg-[var(--tf-bg)] hover:text-[var(--tf-text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]/40'
+                : 'inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)] bg-transparent px-2.5 py-1.5 rounded-md cursor-pointer hover:text-[var(--tf-text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]/40'
+            }
+            style={{
+              border: active
+                ? '0.5px solid transparent'
+                : '0.5px solid var(--tf-border)',
+              textDecoration: active ? 'none' : 'line-through',
+            }}
+          >
+            <span aria-hidden className={`text-[9px] leading-none ${active ? '' : 'invisible'}`}>✓</span>
+            <span>{short}</span>
+          </button>
+        );
+        if (truncated) {
           return (
-            <span
-              key={tag}
-              className="text-[12px] text-[var(--tf-text-secondary)] bg-[var(--tf-bg-secondary)] px-2.5 py-1.5 rounded-md"
-              style={{ border: '0.5px solid transparent' }}
-            >
-              {tag}
-            </span>
+            <Tooltip key={tag} text={tag}>
+              {button}
+            </Tooltip>
           );
         }
-        return (
-          <Tooltip key={tag} text={tag}>
-            <span
-              tabIndex={0}
-              className="text-[12px] text-[var(--tf-text-secondary)] bg-[var(--tf-bg-secondary)] px-2.5 py-1.5 rounded-md cursor-default outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]/40 hover:bg-[var(--tf-bg)] transition-colors"
-              style={{ border: '0.5px solid transparent' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--tf-border-hover)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; }}
-            >
-              {short}
-            </span>
-          </Tooltip>
-        );
+        return button;
       })}
     </div>
   );

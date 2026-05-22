@@ -333,6 +333,7 @@ export async function applyOnboardingImport(
     jahresKapazitaet: DEFAULT_JAHRESKAPAZITAET,
     abgemeldet: [],
     manuelleTechnologien: preview.manuelleTechnologien,
+    ausgeblendeteAutoTags: [],
     ueberKategorien,
     virtuelleProjekte,
     profilEmbeddingText: preview.profilFreitext,

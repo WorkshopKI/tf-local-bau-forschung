@@ -18,6 +18,7 @@ function makeAntrag(az: string, fields: Partial<Antrag> = {}): Antrag {
 function makeMa(anonId: string): AnonymerMitarbeiter {
   return {
     anonId, jahresKapazitaet: 1600, abgemeldet: [], manuelleTechnologien: [],
+    ausgeblendeteAutoTags: [],
     ueberKategorien: ['IKT'], virtuelleProjekte: [], onboardingAbgeschlossen: true, aktiv: true,
   };
 }
