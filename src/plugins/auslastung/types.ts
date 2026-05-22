@@ -233,7 +233,17 @@ export const CANONICAL_AKRONYM = 'akronym';
 export const CANONICAL_ANTRAGSDATUM = 'antragsdatum';
 
 /** Custom-Field-Keys (nicht canonical, ueber antrag[key] erreichbar). */
+/** VB_Inhalt aus dem Foyer-Schema — Inhalts-Zusammenfassung des Vorhabens,
+ *  vom Bearbeiter nach Bewilligung gepflegt. Nur fuer historische Antraege. */
 export const FIELD_PROJEKTBESCHREIBUNG = 'projektbeschreibung_text';
+/** Inhalts-Zusammenfassung des Vorhabens vom Antragsteller (100–300 Worte).
+ *  Wird mit dem Antrag eingereicht — verfuegbar fuer neue Antraege, sobald
+ *  elektronisch erfasst. Aktuell noch nicht im Schema; das Feld wird im
+ *  Verbund-Embedding optional gelesen. */
+export const FIELD_VORHABEN_ZUSAMMENFASSUNG_AST = 'vorhaben_zusammenfassung_ast';
+/** Aus der PDF-Vorhabensbeschreibung LLM-extrahierte Zusammenfassung. Wie
+ *  AST-Zusammenfassung, nur automatisch erzeugt. Auch noch nicht im Schema. */
+export const FIELD_VORHABEN_ZUSAMMENFASSUNG_PDF = 'vorhaben_zusammenfassung_pdf';
 
 /**
  * 5 vordefinierte Ueberkategorien aus dem FZD-Kontext (Mai 2026).

@@ -16,6 +16,9 @@ import {
   CANONICAL_AKRONYM,
   CANONICAL_VERBUND_TITEL,
   CANONICAL_TITEL,
+  FIELD_PROJEKTBESCHREIBUNG,
+  FIELD_VORHABEN_ZUSAMMENFASSUNG_AST,
+  FIELD_VORHABEN_ZUSAMMENFASSUNG_PDF,
 } from '../types';
 import { ensureEmbeddingReady, embedText } from '@/core/services/embedding-corpus';
 import { verbundKeyOf } from './verbund-aggregation';
@@ -83,11 +86,29 @@ export async function clearVerbundEmbeddings(idb: IDBStore): Promise<number> {
 // ───────────────────────────────────────────────────────────────────────────
 
 /**
- * Embedding-Text fuer einen Verbund. Reihenfolge: Verbund-Titel, Akronym.
+ * Embedding-Text fuer einen Verbund. Reihenfolge:
+ *  1. Verbund-Titel (Anker, immer da)
+ *  2. Akronym (Kurz-Anker)
+ *  3. Antragsteller-Zusammenfassung (AST, 100–300 Worte, fuer neue Antraege —
+ *     Feld wird elektronisch erfasst sobald verfuegbar)
+ *  4. PDF-Zusammenfassung (LLM-extrahiert aus der Vorhabensbeschreibung;
+ *     gibt es noch nicht im Schema)
+ *  5. VB_Inhalt (`projektbeschreibung_text`) — Bearbeiter-Zusammenfassung,
+ *     nur fuer historische, bereits bewilligte Antraege gefuellt
+ *
+ * Die optionalen Felder (3–5) decken sich inhaltlich (alle: Themen-
+ * Zusammenfassung des Vorhabens), kommen aber von verschiedenen Quellen.
+ * Sie fliessen alle ein, weil sie sich in der Praxis ergaenzen statt
+ * konkurrieren — fuer einen Verbund ist meist nur eine davon gefuellt.
  *
  * Wir nehmen den Verbund-Titel des **ersten** TVs als Quelle — alle TVs
  * eines Verbundes haben definitionsgemaess den gleichen `verbund_titel`.
- * Fallback bei Solo-TVs: TV-Titel.
+ * Fallback bei Solo-TVs: TV-Titel. Custom-Felder sind ebenfalls auf
+ * Verbund-Ebene gepflegt (gleicher Wert ueber alle TVs).
+ *
+ * Cap bei 4000 Zeichen fuer Modell-Token-Limit. Reihenfolge prioritaer:
+ * der wichtigste Anker (Titel + Akronym) steht vorne, damit er beim Cap
+ * nicht abgeschnitten wird.
  */
 export function buildVerbundEmbeddingText(tvs: Antrag[]): string {
   if (tvs.length === 0) return '';
@@ -95,6 +116,9 @@ export function buildVerbundEmbeddingText(tvs: Antrag[]): string {
   const fields = [
     readString(rep, CANONICAL_VERBUND_TITEL) || readString(rep, CANONICAL_TITEL),
     readString(rep, CANONICAL_AKRONYM),
+    readString(rep, FIELD_VORHABEN_ZUSAMMENFASSUNG_AST),
+    readString(rep, FIELD_VORHABEN_ZUSAMMENFASSUNG_PDF),
+    readString(rep, FIELD_PROJEKTBESCHREIBUNG),
   ];
   const parts: string[] = [];
   for (const f of fields) {
