@@ -1,8 +1,15 @@
 /**
  * Berechnet live die Klassifizierungs-Vorschlaege fuer alle Antraege des
- * aktiven Programms — basierend auf dem Stage-1-Regel-Mapping. Stage 2 wird
- * NICHT live ausgeloest (asynchron, gross) — der Caller (Admin-Tab) loest
- * das beim Build aus und persistiert die Klassifizierungs-Records.
+ * aktiven Programms.
+ *
+ * Standard-Aufruf nutzt Stage 0 (ZT-Boolean) + Stage 1 (Deskriptor-Regel).
+ * Wenn `corpusEmbeddings` + `stage2Aktiv: true` gereicht werden, wird
+ * zusaetzlich Stage 2 (Embedding-Centroid-Match) aktiviert — fuer neue
+ * Antraege ohne gesetzte Deskriptoren die einzige automatische Lösung
+ * (Bearbeiter setzt Deskriptoren erst NACH Antragsbearbeitung). Stage 2
+ * braucht zusätzlich `referenzEmbedding` pro Kategorie — bei Greenfield
+ * (noch keine freigegebenen Klassifizierungen) muss der User erst ein
+ * paar Beispiele pro Kategorie seedan und Corpus-Build laufen lassen.
  */
 import { useMemo } from 'react';
 import type { Antrag } from '@/core/services/csv/types';
@@ -21,6 +28,8 @@ export function buildKlassifizierungsView(
   antraege: Antrag[],
   kategorien: UeberKategorie[],
   persisted: Klassifizierung[],
+  corpusEmbeddings?: Map<string, number[]>,
+  stage2Aktiv?: boolean,
 ): KlassifizierungsView[] {
   const persistedById = new Map(persisted.map(k => [k.antragId, k]));
   return antraege.map(a => {
@@ -29,7 +38,13 @@ export function buildKlassifizierungsView(
     if (existing) {
       kl = existing;
     } else {
-      kl = klassifiziereAntrag({ antrag: a, kategorien });
+      const queryEmbedding = corpusEmbeddings?.get(a.aktenzeichen);
+      kl = klassifiziereAntrag({
+        antrag: a,
+        kategorien,
+        queryEmbedding,
+        stage2Aktiv: stage2Aktiv === true,
+      });
     }
     return {
       antrag: a,
@@ -52,9 +67,11 @@ export function useKlassifizierungenView(
   antraege: Antrag[],
   kategorien: UeberKategorie[],
   persisted: Klassifizierung[],
+  corpusEmbeddings?: Map<string, number[]>,
+  stage2Aktiv?: boolean,
 ): KlassifizierungsView[] {
   return useMemo(
-    () => buildKlassifizierungsView(antraege, kategorien, persisted),
-    [antraege, kategorien, persisted],
+    () => buildKlassifizierungsView(antraege, kategorien, persisted, corpusEmbeddings, stage2Aktiv),
+    [antraege, kategorien, persisted, corpusEmbeddings, stage2Aktiv],
   );
 }

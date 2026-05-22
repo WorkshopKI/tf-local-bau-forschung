@@ -9,8 +9,9 @@
  * Batch-Aktion: "Alle hohen Confidences freigeben".
  * Pool-Filter: aktuelles Jahr, ohne TiB, ohne abgelehnt/zurückgezogen/Irrläufer.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
+import { loadAllEmbeddings } from '@/core/services/embedding-corpus';
 import {
   ColumnPicker,
   SortableTable,
@@ -72,7 +73,40 @@ export function KlassifizierungsReview(): React.ReactElement {
     if (aktuellesJahr === null) return cache.antraege;
     return cache.antraege.filter(a => istZuVerteilen(a, aktuellesJahr));
   }, [cache.antraege, aktuellesJahr]);
-  const view = useKlassifizierungenView(antraegeImPool, config.ueberKategorien, klassifizierungen);
+
+  // Stage-2-Embedding-Fallback: nur wenn der User den Toggle im Admin
+  // aktiviert hat. Der IDB-Korpus wird einmal geladen und gecached, danach
+  // pro Antrag im Hook nach aktenzeichen gelookuped.
+  const [corpusEmbeddings, setCorpusEmbeddings] = useState<Map<string, number[]> | null>(null);
+  const [embeddingsLoading, setEmbeddingsLoading] = useState(false);
+  useEffect(() => {
+    if (!config.stage2Aktiv) {
+      setCorpusEmbeddings(null);
+      return;
+    }
+    let cancelled = false;
+    setEmbeddingsLoading(true);
+    void loadAllEmbeddings(storage.idb)
+      .then(map => { if (!cancelled) setCorpusEmbeddings(map); })
+      .catch(err => { console.warn('[KlassifizierungsReview] Embedding-Load fehlgeschlagen:', err); })
+      .finally(() => { if (!cancelled) setEmbeddingsLoading(false); });
+    return () => { cancelled = true; };
+  }, [config.stage2Aktiv, storage.idb]);
+
+  // Sind Kategorie-Centroids bereits berechnet? Wenn nicht, liefert Stage 2
+  // keinerlei Vorschlaege — der User braucht einen Bootstrap-Schritt.
+  const hasCentroids = useMemo(
+    () => config.ueberKategorien.some(k => Array.isArray(k.referenzEmbedding) && k.referenzEmbedding.length > 0),
+    [config.ueberKategorien],
+  );
+
+  const view = useKlassifizierungenView(
+    antraegeImPool,
+    config.ueberKategorien,
+    klassifizierungen,
+    corpusEmbeddings ?? undefined,
+    config.stage2Aktiv,
+  );
 
   const [filter, setFilter] = useState<ViewFilter>('alle');
 
@@ -200,6 +234,28 @@ export function KlassifizierungsReview(): React.ReactElement {
         <div className="text-[11px] text-[var(--tf-text-tertiary)]">
           Verteil-Pool: Anträge aus {aktuellesJahr} ohne TiB-Zuweisung, ohne Status
           „abgelehnt/zurückgezogen" und „Irrläufer".
+        </div>
+      )}
+
+      {/* Stage-2-Status: Hinweis wenn Centroids fehlen, sonst dezenter Loading-Indikator */}
+      {config.stage2Aktiv && !hasCentroids && (
+        <div
+          className="text-[11.5px] px-3 py-2 rounded"
+          style={{
+            background: 'var(--tf-info-soft, #fef3c7)',
+            color: 'var(--tf-text)',
+            border: '0.5px solid var(--tf-border)',
+          }}
+        >
+          <strong>Stage 2 aktiv, aber Kategorie-Referenzen fehlen.</strong>{' '}
+          Ohne Referenz-Embeddings kann der Embedding-Fallback keinen Vorschlag berechnen.
+          Bootstrap: einigen Anträgen pro Kategorie manuell die Pills zuweisen + „Freigeben",
+          danach im Admin „Inkrementell" laufen lassen.
+        </div>
+      )}
+      {config.stage2Aktiv && hasCentroids && embeddingsLoading && (
+        <div className="text-[11px] text-[var(--tf-text-tertiary)]">
+          Stage-2-Embeddings werden geladen …
         </div>
       )}
 
