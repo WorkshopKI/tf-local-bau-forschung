@@ -14,7 +14,7 @@ import {
 import { getCanonicalLabel } from '@/core/services/csv/constants';
 import type { Antrag, Verbund, VerbundHistorieEntry, CsvSchema } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
-import { dominantStatus, sumFoerdersumme } from './groupAggregates';
+import { dominantStatus } from './groupAggregates';
 import { isNetzwerkLead } from './netzwerk';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { VerbundAlleFelder } from './VerbundAlleFelder';
@@ -46,20 +46,6 @@ function strOrNull(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
   return t.length === 0 ? null : t;
-}
-
-function strOrNumOrNull(v: unknown): string | null {
-  if (typeof v === 'string') {
-    const t = v.trim();
-    return t.length === 0 ? null : t;
-  }
-  if (typeof v === 'number') return String(v);
-  return null;
-}
-
-function formatEuro(n: number | null): string {
-  if (n === null) return '—';
-  return n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 }
 
 /** TV-Rolle für die TEILVORHABEN-Anzeige. Heuristik:
@@ -192,9 +178,11 @@ export function VerbundDetail({
   const akronym = strOrNull(verbund.akronym) ?? strOrNull(lead?.akronym) ?? verbund.verbund_id;
   const titel = strOrNull(verbund.titel) ?? strOrNull(lead?.titel);
   const antragsteller = strOrNull(lead?.antragsteller);
-  const programm = strOrNull(lead?.foerdergeber) ?? lead?.programm_id ?? null;
+  const unterprogramm = lead?.unterprogramm_id ?? null;
   const antragsdatum = strOrNull(lead?.antragsdatum);
-  const foerdersumme = sumFoerdersumme(antraege as ReadonlyArray<Record<string, unknown>>);
+  // Zuwendung-CSV-Spalten folgen spaeter; bis dahin Placeholder. Verbund-
+  // Aggregat soll Summe ueber alle TVs werden, pro TV der einzelne Wert.
+  const zuwendungPlaceholder = 'wird noch ergänzt';
 
   // Verbund-Kurzbeschreibung aus dem Lead-TV. `vb_inhalt` (CSV-Spalte
   // VB_INHALT, Label "Inhalt / Kurzzusammenfassung") ist auf Verbund-Ebene
@@ -272,12 +260,12 @@ export function VerbundDetail({
           </h3>
           <div className="grid grid-cols-2 gap-x-6 gap-y-3">
             <KeyVal label="Antragsteller" value={antragsteller ?? '—'} />
-            <KeyVal label="Programm" value={programm ?? '—'} />
+            <KeyVal label="Unterprogramm" value={unterprogramm ?? '—'} />
             <KeyVal
               label="Antragsdatum"
               value={antragsdatum ? formatGermanDate(antragsdatum) : '—'}
             />
-            <KeyVal label="Fördervolumen (geplant)" value={formatEuro(foerdersumme)} />
+            <KeyVal label="Zuwendung" value={zuwendungPlaceholder} />
             <KeyVal label="Förderkennzeichen" value={verbund.verbund_id} mono />
             <KeyVal
               label="Verbund"
@@ -314,10 +302,6 @@ export function VerbundDetail({
               const tvAntragsteller = strOrNull(tv.antragsteller) ?? '—';
               const tvTitel = strOrNull(tv.titel);
               const tvStatus = strOrNull(tv.status);
-              const tvFoerder = strOrNumOrNull(tv.foerdersumme);
-              const foerderN = tvFoerder !== null
-                ? Number(String(tvFoerder).replace(/\./g, '').replace(',', '.'))
-                : null;
               const rolle = tvRolle(tv, idx, antraege);
               const isExpanded = expandedTvAz === tv.aktenzeichen;
               return (
@@ -347,7 +331,7 @@ export function VerbundDetail({
                         </div>
                         <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
                           {rolle} · <span className="font-mono">{tv.aktenzeichen}</span>
-                          {foerderN !== null ? <> · {formatEuro(foerderN)}</> : null}
+                          {' '}· Zuwendung: {zuwendungPlaceholder}
                         </div>
                         {tvTitel ? (
                           <div className="text-[11.5px] text-[var(--tf-text-secondary)] mt-0.5 truncate" title={tvTitel}>
