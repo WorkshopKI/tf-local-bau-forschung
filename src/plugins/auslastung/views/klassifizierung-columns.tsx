@@ -65,6 +65,7 @@ export function buildClassifierColumns(
       defaultVisible: true,
       sortable: true,
       width: 110,
+      wrap: false,
       accessor: row => row.antrag.aktenzeichen,
       render: row => (
         <span className="font-mono text-[11.5px]">{row.antrag.aktenzeichen}</span>
@@ -75,12 +76,12 @@ export function buildClassifierColumns(
       label: 'VB-Titel',
       defaultVisible: true,
       sortable: true,
+      width: 320,
+      wrap: true,
       accessor: row => readVbTitel(row) || '—',
       render: row => {
         const vb = readVbTitel(row) || '—';
-        return (
-          <span className="block max-w-md truncate" title={vb}>{vb}</span>
-        );
+        return <span>{vb}</span>;
       },
     },
     {
@@ -89,6 +90,7 @@ export function buildClassifierColumns(
       defaultVisible: true,
       sortable: true,
       width: 120,
+      wrap: false,
       accessor: row => readString(row, CANONICAL_AKRONYM),
       render: row => {
         const a = readString(row, CANONICAL_AKRONYM);
@@ -102,6 +104,7 @@ export function buildClassifierColumns(
       defaultVisible: true,
       sortable: true,
       width: 110,
+      wrap: false,
       accessor: row => readString(row, CANONICAL_ANTRAGSDATUM),
       render: row => {
         const d = readString(row, CANONICAL_ANTRAGSDATUM);
@@ -114,7 +117,8 @@ export function buildClassifierColumns(
       label: 'Status',
       defaultVisible: true,
       sortable: true,
-      width: 120,
+      width: 140,
+      wrap: true,
       accessor: row => (typeof row.antrag.status === 'string' ? row.antrag.status : ''),
       render: row => {
         const s = typeof row.antrag.status === 'string' ? row.antrag.status : '';
@@ -127,12 +131,13 @@ export function buildClassifierColumns(
       label: 'AST',
       defaultVisible: true,
       sortable: true,
-      width: 160,
+      width: 180,
+      wrap: true,
       accessor: row => row.antrag.antragsteller ?? '',
       render: row => {
         const ast = row.antrag.antragsteller ?? '';
         if (!ast) return null;
-        return <span className="block truncate text-[11.5px]" title={ast}>{ast}</span>;
+        return <span className="text-[11.5px]" title={ast}>{ast}</span>;
       },
     },
     {
@@ -141,6 +146,7 @@ export function buildClassifierColumns(
       defaultVisible: false,
       sortable: true,
       width: 80,
+      wrap: false,
       accessor: row => normalizeKuerzel((row.antrag as Record<string, unknown>)[CANONICAL_BIB_KUERZ]) ?? '',
       render: row => {
         const bib = normalizeKuerzel((row.antrag as Record<string, unknown>)[CANONICAL_BIB_KUERZ]);
@@ -165,6 +171,8 @@ export function buildClassifierColumns(
       label: 'Deskriptoren',
       defaultVisible: true,
       sortable: false,
+      width: 180,
+      wrap: true,
       accessor: () => '',
       render: row => <TechnologieTags tags={readAntragDeskriptoren(row.antrag)} max={3} />,
     },
@@ -174,6 +182,7 @@ export function buildClassifierColumns(
       defaultVisible: true,
       sortable: true,
       width: 220,
+      wrap: true,
       accessor: row => topVorschlagKey(row),
       render: row => <VorschlagCell view={row} kategorien={kategorien} onToggle={onToggleKategorie} />,
     },
@@ -183,6 +192,7 @@ export function buildClassifierColumns(
       defaultVisible: true,
       sortable: true,
       width: 70,
+      wrap: false,
       accessor: row => topConfidenceScore(row),
       render: row => <ConfidenceDot confidence={row.confidence} />,
     },
@@ -193,6 +203,7 @@ export function buildClassifierColumns(
       defaultVisible: true,
       sortable: false,
       width: 130,
+      wrap: false,
       accessor: () => '',
       render: row => <AktionCell view={row} onBestaetigen={onBestaetigen} />,
     },

@@ -1,16 +1,31 @@
 /**
- * Schlanke sortierbare Tabelle ohne Resize/Filter/Virtualisierung.
+ * Sortierbare Tabelle mit optionalem Spalten-Resize + responsive-Layout.
  *
- * Geeignet fuer Listen mit < ~500 Zeilen. Komplexere Such-Tabellen mit
- * Pro-Spalte-Filtern, Live-Resize und IntersectionObserver-Pagination
- * leben weiterhin im Suche-Plugin (`SearchResultsTable`).
+ * Layout-Modus: `table-layout: fixed` + `width: 100%`. Der Browser
+ * verteilt die in `<col width>` gesetzten Pixel-Widths proportional auf
+ * die verfuegbare Container-Breite. Folge: bei schmalerem Browser
+ * schrumpfen alle Spalten anteilig und Zell-Inhalte mit
+ * `whiteSpace: normal` (Default) brechen um statt weggekuerzt zu werden.
  *
- * Optik: gleiche CSS-Tokens wie die Suche-Tabelle (--tf-border,
- * --tf-bg-secondary, etc.), damit die UX konsistent wirkt.
+ * Spalten mit `wrap: false` (explizit) zeigen weiter ellipsis statt
+ * umbrechen — fuer kompakte Mono-Felder, Buttons, Indikatoren.
+ *
+ * Resize ist opt-in: nur wenn `onColumnWidthChange` gesetzt ist, rendert
+ * der Header Drag-Handles. Die Live-Mutation laeuft direkt am DOM
+ * (`<col ref>.style.width`), kein React-Re-Render pro Maus-Frame. Erst
+ * Mouseup commitet den finalen Wert via `onColumnWidthChange` (das in
+ * `useColumnWidths` State + localStorage schreibt).
+ *
+ * Fuer komplexere Tabellen mit Filter-Dropdowns + horizontal-scroll
+ * (Suche-Plugin) gibt es eine eigene Implementation —
+ * `src/plugins/suche/SearchResultsTable.tsx`. Diese hier ist die schlanke
+ * Variante.
  */
-import { type ReactNode } from 'react';
+import { useCallback, useRef, type ReactNode } from 'react';
 import { SortIcon } from './SortIcon';
 import type { SortDirection, SortableColumn } from './types';
+
+const DEFAULT_MIN_COLUMN_WIDTH = 60;
 
 export interface SortableTableProps<T> {
   rows: T[];
@@ -24,6 +39,22 @@ export interface SortableTableProps<T> {
   onRowClick?: (row: T) => void;
   /** Optional: Inhalt fuer den Empty-State (wenn `rows.length === 0`). */
   emptyContent?: ReactNode;
+  /** Optional: User-Overrides fuer Spaltenbreiten in Pixel. Wenn gesetzt UND
+   *  `onColumnWidthChange` gesetzt, sind Drag-Handles aktiv. */
+  columnWidths?: Record<string, number>;
+  /** Finaler Commit on mouseup nach einem Resize-Drag. */
+  onColumnWidthChange?: (key: string, width: number) => void;
+  /** Untergrenze beim Drag. Default 60px. */
+  minColumnWidth?: number;
+}
+
+function effectiveWidth<T>(
+  c: SortableColumn<T>,
+  overrides: Record<string, number> | undefined,
+): number | undefined {
+  const o = overrides?.[c.key];
+  if (typeof o === 'number' && Number.isFinite(o)) return o;
+  return c.width;
 }
 
 export function SortableTable<T>({
@@ -35,13 +66,68 @@ export function SortableTable<T>({
   rowKey,
   onRowClick,
   emptyContent,
+  columnWidths,
+  onColumnWidthChange,
+  minColumnWidth = DEFAULT_MIN_COLUMN_WIDTH,
 }: SortableTableProps<T>): React.ReactElement {
+  const resizeEnabled = onColumnWidthChange !== undefined;
+  const colRefs = useRef<Map<string, HTMLTableColElement>>(new Map());
+
+  const startResize = useCallback(
+    (key: string, e: React.MouseEvent<HTMLDivElement>): void => {
+      if (!resizeEnabled) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const th = (e.currentTarget.parentElement as HTMLElement | null);
+      const startWidth = th ? th.offsetWidth : 100;
+      const startX = e.clientX;
+      let latestWidth = startWidth;
+
+      function onMove(ev: MouseEvent): void {
+        const next = Math.max(minColumnWidth, startWidth + (ev.clientX - startX));
+        latestWidth = next;
+        const col = colRefs.current.get(key);
+        if (col) col.style.width = `${next}px`;
+      }
+      function onUp(): void {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        onColumnWidthChange?.(key, latestWidth);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    },
+    [resizeEnabled, minColumnWidth, onColumnWidthChange],
+  );
+
   return (
     <div
-      className="rounded-[12px] overflow-hidden"
+      className="w-full overflow-x-auto rounded-[12px]"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <table className="w-full text-[12.5px]" style={{ borderCollapse: 'collapse' }}>
+      <table
+        className="text-[12.5px]"
+        style={{ tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' }}
+      >
+        <colgroup>
+          {columns.map(c => {
+            const w = effectiveWidth(c, columnWidths);
+            return (
+              <col
+                key={c.key}
+                ref={el => {
+                  if (el) colRefs.current.set(c.key, el);
+                  else colRefs.current.delete(c.key);
+                }}
+                style={{ width: w !== undefined ? `${w}px` : undefined }}
+              />
+            );
+          })}
+        </colgroup>
         <thead>
           <tr
             className="text-left text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]"
@@ -53,8 +139,7 @@ export function SortableTable<T>({
               return (
                 <th
                   key={c.key}
-                  className="px-3 py-2 align-middle"
-                  style={{ width: c.width ? `${c.width}px` : undefined }}
+                  className="px-3 py-2 align-middle relative"
                   aria-sort={ariaSort}
                 >
                   {c.sortable ? (
@@ -69,6 +154,16 @@ export function SortableTable<T>({
                     </button>
                   ) : (
                     <span>{c.label}</span>
+                  )}
+                  {resizeEnabled && (
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Spaltenbreite ${c.label} anpassen`}
+                      onMouseDown={e => startResize(c.key, e)}
+                      className="absolute right-0 top-0 h-full w-[6px] cursor-col-resize hover:bg-[var(--tf-border-hover)] z-10"
+                      style={{ touchAction: 'none' }}
+                    />
                   )}
                 </th>
               );
@@ -86,18 +181,25 @@ export function SortableTable<T>({
                 className={clickable ? 'cursor-pointer hover:bg-[var(--tf-bg-secondary)]' : undefined}
                 style={{ borderTop: '0.5px solid var(--tf-border)' }}
               >
-                {columns.map(c => (
-                  <td
-                    key={c.key}
-                    className="px-3 py-2 align-top"
-                    style={{
-                      whiteSpace: c.wrap ? 'normal' : undefined,
-                      borderBottom: !isLast ? '0.5px solid var(--tf-border)' : undefined,
-                    }}
-                  >
-                    {c.render(row)}
-                  </td>
-                ))}
+                {columns.map(c => {
+                  // Default: Umbruch. Explizit `wrap: false` → kompakt mit ellipsis.
+                  const noWrap = c.wrap === false;
+                  return (
+                    <td
+                      key={c.key}
+                      className="px-3 py-2 align-top"
+                      style={{
+                        whiteSpace: noWrap ? 'nowrap' : 'normal',
+                        wordBreak: noWrap ? undefined : 'break-word',
+                        overflow: 'hidden',
+                        textOverflow: noWrap ? 'ellipsis' : undefined,
+                        borderBottom: !isLast ? '0.5px solid var(--tf-border)' : undefined,
+                      }}
+                    >
+                      {c.render(row)}
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}

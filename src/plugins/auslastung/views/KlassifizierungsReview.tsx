@@ -15,6 +15,7 @@ import {
   ColumnPicker,
   SortableTable,
   useColumnVisibility,
+  useColumnWidths,
   useTableSort,
 } from '@/components/data-table';
 import { useAuslastungData } from '../hooks/useAuslastungData';
@@ -32,6 +33,7 @@ import { buildClassifierColumns } from './klassifizierung-columns';
 type ViewFilter = 'alle' | 'review' | 'freigegeben';
 
 const COLUMN_VISIBILITY_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_columns';
+const COLUMN_WIDTHS_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_column_widths';
 
 /** Status-Werte (lowercase, getrimmt), die einen Antrag aus dem
  *  Verteil-Pool ausschliessen. Quelle: Foyer-CSV `STATUS_TV`. */
@@ -169,6 +171,21 @@ export function KlassifizierungsReview(): React.ReactElement {
     [allColumns, visibleKeys],
   );
 
+  // Default-Breiten aus den Spalten-Definitionen — User-Overrides aus
+  // localStorage werden im Hook gemerged + ueberschreiben einzelne Keys.
+  const defaultWidths = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const c of allColumns) {
+      if (typeof c.width === 'number') out[c.key] = c.width;
+    }
+    return out;
+  }, [allColumns]);
+
+  const { widths: columnWidths, setWidth } = useColumnWidths(
+    COLUMN_WIDTHS_STORAGE_KEY,
+    defaultWidths,
+  );
+
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(
     filtered,
     allColumns,
@@ -238,6 +255,8 @@ export function KlassifizierungsReview(): React.ReactElement {
         onSort={toggleSort}
         rowKey={v => v.antrag.aktenzeichen}
         emptyContent="Keine Anträge in dieser Ansicht."
+        columnWidths={columnWidths}
+        onColumnWidthChange={setWidth}
       />
     </div>
   );
