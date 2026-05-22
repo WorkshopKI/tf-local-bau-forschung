@@ -223,8 +223,8 @@ export function KlassifizierungsReview(): React.ReactElement {
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(
     filtered,
     allColumns,
-    'confidence',
-    'desc',
+    'akronym',
+    'asc',
   );
 
   return (
