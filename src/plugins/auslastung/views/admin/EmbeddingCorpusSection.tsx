@@ -19,14 +19,18 @@ import {
 import {
   clearEmbeddings,
   countEmbeddings,
-  loadAllEmbeddings,
   checkCompat,
   hashAktenzeichenSet,
   getCorpusBuildVersion,
   CORPUS_BUILD_VERSION,
 } from '@/core/services/embedding-corpus';
 import { useEmbeddingCorpusMirror } from '@/core/hooks/useEmbeddingCorpusMirror';
-import { computeKategorieCentroids } from '../../services/klassifizierung-engine';
+import { computeKategorieCentroidsFromVerbund } from '../../services/klassifizierung-engine';
+import {
+  buildVerbundEmbeddingCorpus,
+  loadAllVerbundEmbeddings,
+  clearVerbundEmbeddings,
+} from '../../services/verbund-embedding';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -155,10 +159,21 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
         onProgress: setProgress,
         signal: abortRef.current.signal,
       });
+      // Verbund-Embeddings (Stage-2-Klassifizierung) parallel mit aufbauen.
+      // Klein im Vergleich zum Antrag-Korpus (typisch 1/3 der Verbund-Anzahl).
+      await buildVerbundEmbeddingCorpus(storage.idb, antraege, {
+        incremental,
+        signal: abortRef.current.signal,
+      });
       await refresh();
-      // Centroids neu berechnen
-      const embs = await loadAllEmbeddings(storage.idb);
-      const cents = computeKategorieCentroids(klassifizierungen, embs, config.ueberKategorien);
+      // Centroids aus Verbund-Embeddings — pro Verbund-ID dedupliziert.
+      const verbundEmbs = await loadAllVerbundEmbeddings(storage.idb);
+      const cents = computeKategorieCentroidsFromVerbund(
+        klassifizierungen,
+        verbundEmbs,
+        config.ueberKategorien,
+        antraege,
+      );
       const nextKats = config.ueberKategorien.map(k => ({
         ...k,
         referenzEmbedding: cents.get(k.id),
@@ -203,6 +218,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
     setRunning(true);
     try {
       await clearEmbeddings(storage.idb);
+      await clearVerbundEmbeddings(storage.idb);
       await refresh();
       await updateConfig(storage, { stage2Aktiv: false, embeddingCorpusBuiltAt: undefined });
     } finally {

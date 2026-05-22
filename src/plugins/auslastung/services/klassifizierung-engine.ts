@@ -17,6 +17,7 @@
  */
 import type { Antrag } from '@/core/services/csv/types';
 import {
+  CANONICAL_VERBUND_ID,
   type KategorieVorschlag,
   type Klassifizierung,
   type UeberKategorie,
@@ -251,6 +252,74 @@ export function computeKategorieCentroids(
   // Mean-Centroid + L2-Normalisierung
   const result = new Map<string, number[]>();
   for (const [katId, vectors] of byKategorie.entries()) {
+    if (vectors.length === 0) continue;
+    const dim = vectors[0]!.length;
+    const sum = new Array<number>(dim).fill(0);
+    for (const v of vectors) {
+      for (let i = 0; i < dim; i++) sum[i]! += v[i]!;
+    }
+    for (let i = 0; i < dim; i++) sum[i]! /= vectors.length;
+    let norm = 0;
+    for (let i = 0; i < dim; i++) norm += sum[i]! * sum[i]!;
+    norm = Math.sqrt(norm);
+    if (norm > 0) {
+      for (let i = 0; i < dim; i++) sum[i]! /= norm;
+    }
+    result.set(katId, sum);
+  }
+  return result;
+}
+
+/**
+ * Variante: Centroids aus Verbund-Embeddings statt pro-TV-Embeddings.
+ *
+ * Klassifizierungen sind pro TV (`antragId`) persistiert, aber bei
+ * Verbund-Klassifizierung haben alle TVs eines Verbundes denselben Stand.
+ * Wir deduplizieren deshalb pro Verbund-ID — sonst zaehlt ein 4-TV-Verbund
+ * im Centroid vierfach.
+ *
+ * Lookup `antragId → verbund_id` kommt ueber die `antraege`-Liste; Antraege
+ * ohne `verbund_id` werden mit ihrem `aktenzeichen` als Pseudo-Verbund-ID
+ * behandelt (Solo-Verbund).
+ */
+export function computeKategorieCentroidsFromVerbund(
+  klassifizierungen: Klassifizierung[],
+  verbundEmbeddings: Map<string, number[]>,
+  kategorien: UeberKategorie[],
+  antraege: Antrag[],
+): Map<string, number[]> {
+  // Antrag-Lookup: aktenzeichen -> verbund_id (oder Solo-Pseudo-ID).
+  const verbundIdByAktz = new Map<string, string>();
+  for (const a of antraege) {
+    const vid = (a as Record<string, unknown>)[CANONICAL_VERBUND_ID];
+    const key = typeof vid === 'string' && vid.length > 0 ? vid : a.aktenzeichen;
+    verbundIdByAktz.set(a.aktenzeichen, key);
+  }
+
+  // Pro Kategorie: Set von Verbund-IDs (deduplikation).
+  const verbundIdsByKategorie = new Map<string, Set<string>>();
+  for (const k of kategorien) {
+    verbundIdsByKategorie.set(k.id, new Set());
+  }
+  for (const klass of klassifizierungen) {
+    const verbundId = verbundIdByAktz.get(klass.antragId);
+    if (!verbundId) continue;
+    const targetKats = klass.freigegebeneKategorien.length > 0
+      ? klass.freigegebeneKategorien
+      : klass.vorgeschlageneKategorien.map(v => v.kategorieId);
+    for (const katId of targetKats) {
+      verbundIdsByKategorie.get(katId)?.add(verbundId);
+    }
+  }
+
+  // Pro Kategorie: Mean der Verbund-Embeddings.
+  const result = new Map<string, number[]>();
+  for (const [katId, verbundIds] of verbundIdsByKategorie.entries()) {
+    const vectors: number[][] = [];
+    for (const vid of verbundIds) {
+      const emb = verbundEmbeddings.get(vid);
+      if (emb) vectors.push(emb);
+    }
     if (vectors.length === 0) continue;
     const dim = vectors[0]!.length;
     const sum = new Array<number>(dim).fill(0);

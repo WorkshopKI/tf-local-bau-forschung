@@ -1,0 +1,189 @@
+/**
+ * Verbund-Embedding-Korpus.
+ *
+ * Separater IDB-Storage neben dem Antrag-Embedding-Korpus
+ * (`auslastung-emb:<aktenzeichen>`), damit `loadAllEmbeddings` aus
+ * `@/core/services/embedding-corpus` nicht versehentlich Verbund-Vektoren
+ * mit ausliefert. Prefix: `auslastung-emb-verbund:<verbund_id>`.
+ *
+ * Embedding-Text: nur `verbund_titel` (+ `akronym` als Anchor). TV-spezifische
+ * Felder fliessen NICHT ein — der Verbund-Titel soll fuer die Klassifizierung
+ * maximale Gewichtung bekommen (User-Entscheidung).
+ */
+import type { IDBStore } from '@/core/services/storage/idb-store';
+import type { Antrag } from '@/core/services/csv/types';
+import {
+  CANONICAL_AKRONYM,
+  CANONICAL_VERBUND_TITEL,
+  CANONICAL_TITEL,
+} from '../types';
+import { ensureEmbeddingReady, embedText } from '@/core/services/embedding-corpus';
+import { verbundKeyOf } from './verbund-aggregation';
+
+const VERBUND_EMB_PREFIX = 'auslastung-emb-verbund:';
+
+function idbKey(key: string): string {
+  return `${VERBUND_EMB_PREFIX}${key}`;
+}
+
+function readString(antrag: Antrag, key: string): string {
+  const v = (antrag as Record<string, unknown>)[key];
+  return typeof v === 'string' ? v : '';
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Storage
+// ───────────────────────────────────────────────────────────────────────────
+
+export async function loadVerbundEmbedding(idb: IDBStore, verbundId: string): Promise<number[] | null> {
+  const value = await idb.get<number[]>(idbKey(verbundId));
+  return Array.isArray(value) ? value : null;
+}
+
+export async function storeVerbundEmbedding(
+  idb: IDBStore,
+  verbundId: string,
+  vector: number[],
+): Promise<void> {
+  await idb.set(idbKey(verbundId), vector);
+}
+
+/** Vollstaendige Map aller persistierten Verbund-Embeddings. */
+export async function loadAllVerbundEmbeddings(idb: IDBStore): Promise<Map<string, number[]>> {
+  const keys = await idb.keys(VERBUND_EMB_PREFIX);
+  const result = new Map<string, number[]>();
+  for (const k of keys) {
+    const id = k.slice(VERBUND_EMB_PREFIX.length);
+    const v = await idb.get<number[]>(k);
+    if (Array.isArray(v)) result.set(id, v);
+  }
+  return result;
+}
+
+export async function listVerbundEmbeddingKeys(idb: IDBStore): Promise<Set<string>> {
+  const keys = await idb.keys(VERBUND_EMB_PREFIX);
+  const result = new Set<string>();
+  for (const k of keys) result.add(k.slice(VERBUND_EMB_PREFIX.length));
+  return result;
+}
+
+export async function countVerbundEmbeddings(idb: IDBStore): Promise<number> {
+  const keys = await idb.keys(VERBUND_EMB_PREFIX);
+  return keys.length;
+}
+
+export async function clearVerbundEmbeddings(idb: IDBStore): Promise<number> {
+  const keys = await idb.keys(VERBUND_EMB_PREFIX);
+  for (const k of keys) await idb.delete(k);
+  return keys.length;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Text-Builder + Build-Pipeline
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Embedding-Text fuer einen Verbund. Reihenfolge: Verbund-Titel, Akronym.
+ *
+ * Wir nehmen den Verbund-Titel des **ersten** TVs als Quelle — alle TVs
+ * eines Verbundes haben definitionsgemaess den gleichen `verbund_titel`.
+ * Fallback bei Solo-TVs: TV-Titel.
+ */
+export function buildVerbundEmbeddingText(tvs: Antrag[]): string {
+  if (tvs.length === 0) return '';
+  const rep = tvs[0]!;
+  const fields = [
+    readString(rep, CANONICAL_VERBUND_TITEL) || readString(rep, CANONICAL_TITEL),
+    readString(rep, CANONICAL_AKRONYM),
+  ];
+  const parts: string[] = [];
+  for (const f of fields) {
+    if (f.trim()) parts.push(f.trim());
+  }
+  return parts.join(' \n ').slice(0, 4000);
+}
+
+/** Buckette Antraege nach Verbund-Key (verbund_id oder Solo-aktenzeichen). */
+export function bucketAntraegeByVerbund(antraege: Antrag[]): Map<string, Antrag[]> {
+  const map = new Map<string, Antrag[]>();
+  for (const a of antraege) {
+    const key = verbundKeyOf(a);
+    let bucket = map.get(key);
+    if (!bucket) {
+      bucket = [];
+      map.set(key, bucket);
+    }
+    bucket.push(a);
+  }
+  return map;
+}
+
+export interface VerbundBuildProgress {
+  done: number;
+  total: number;
+  lastVerbundId?: string;
+  etaSec?: number;
+}
+
+export interface VerbundBuildOptions {
+  onProgress?: (p: VerbundBuildProgress) => void;
+  signal?: AbortSignal;
+  incremental?: boolean;
+}
+
+/**
+ * Iteriert pro Verbund (dedupliziert ueber `verbund_id` bzw. Solo-aktenzeichen),
+ * embed't den Verbund-Text und persistiert.
+ */
+export async function buildVerbundEmbeddingCorpus(
+  idb: IDBStore,
+  antraege: Antrag[],
+  opts: VerbundBuildOptions = {},
+): Promise<{ done: number; skipped: number; aborted: boolean }> {
+  const incremental = opts.incremental ?? true;
+  await ensureEmbeddingReady(idb);
+
+  const buckets = bucketAntraegeByVerbund(antraege);
+  const existing = incremental ? await listVerbundEmbeddingKeys(idb) : new Set<string>();
+
+  const queue: Array<{ verbundId: string; tvs: Antrag[] }> = [];
+  for (const [verbundId, tvs] of buckets.entries()) {
+    if (!incremental || !existing.has(verbundId)) {
+      queue.push({ verbundId, tvs });
+    }
+  }
+
+  const total = queue.length;
+  let done = 0;
+  let skipped = 0;
+  const startedAt = Date.now();
+
+  for (const { verbundId, tvs } of queue) {
+    if (opts.signal?.aborted) {
+      return { done, skipped, aborted: true };
+    }
+    const text = buildVerbundEmbeddingText(tvs);
+    if (!text) {
+      skipped++;
+      done++;
+      opts.onProgress?.({ done, total, lastVerbundId: verbundId });
+      continue;
+    }
+    try {
+      const vec = await embedText(text, 'document');
+      await storeVerbundEmbedding(idb, verbundId, vec);
+      done++;
+      const elapsed = (Date.now() - startedAt) / 1000;
+      const etaSec = done > 5 ? (elapsed / done) * (total - done) : undefined;
+      opts.onProgress?.({ done, total, lastVerbundId: verbundId, etaSec });
+    } catch (err) {
+      console.warn(`[verbund-embedding] embed failed for ${verbundId}:`, err);
+      skipped++;
+      done++;
+      opts.onProgress?.({ done, total, lastVerbundId: verbundId });
+    }
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  return { done, skipped, aborted: false };
+}

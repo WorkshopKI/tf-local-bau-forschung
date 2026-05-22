@@ -1,53 +1,54 @@
 /**
- * Screen 1a — Klassifizierungs-Review.
+ * Screen 1a — Klassifizierungs-Review (pro Verbund).
  *
- * Tabelle: 11 Spalten, davon 7 default sichtbar — siehe
- * `klassifizierung-columns.tsx`. Sortierbar pro Spalte (asc → desc → null);
- * "Spalten ▼"-Picker persistiert sichtbare Spalten in localStorage.
+ * Die Klassifizierung erfolgt fachlich pro Verbund — alle TVs eines Verbundes
+ * haben dieselben Kategorien und gehen an denselben Bearbeiter. Die UI gruppiert
+ * TVs unter einem Verbund-Header; Pill-Toggle + Freigeben wirken verbund-weit
+ * (alle TV-`Klassifizierung`-Records werden synchron upgesertet). Stage 2 nutzt
+ * das Verbund-Titel-Embedding (siehe `verbund-embedding.ts`).
  *
- * Filter-Pills: Alle / Review nötig / Bereits freigegeben.
- * Batch-Aktion: "Alle hohen Confidences freigeben".
- * Pool-Filter: aktuelles Jahr, ohne TiB, ohne abgelehnt/zurückgezogen/Irrläufer.
+ * Filter-Pills: Alle / Review nötig / Bereits freigegeben — Counts auf
+ * Verbund-Ebene.
+ * Pool-Filter: aktuelles Jahr, ohne TiB, ohne abgelehnt/zurückgezogen/Irrläufer
+ * (TV-Ebene; ein Verbund erscheint wenn mindestens ein TV im Pool).
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { loadAllEmbeddings } from '@/core/services/embedding-corpus';
 import {
   ColumnPicker,
-  SortableTable,
   useColumnVisibility,
   useColumnWidths,
   useTableSort,
 } from '@/components/data-table';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
-import { useKlassifizierungenView, type KlassifizierungsView } from '../hooks/useKlassifizierungen';
 import { normalizeKuerzel } from '../services/anonym-map';
+import {
+  buildVerbundClassificationViews,
+  type VerbundKlassifizierungsView,
+} from '../services/verbund-aggregation';
+import { loadAllVerbundEmbeddings } from '../services/verbund-embedding';
 import type { Antrag } from '@/core/services/csv/types';
 import {
   CANONICAL_TIB_KUERZ,
   CANONICAL_ANTRAGSDATUM,
   type Klassifizierung,
 } from '../types';
-import { buildClassifierColumns } from './klassifizierung-columns';
+import { buildVerbundColumns } from './verbund-columns';
+import { VerbundClassificationTable } from './VerbundClassificationTable';
 
 type ViewFilter = 'alle' | 'review' | 'freigegeben';
 
-const COLUMN_VISIBILITY_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_columns';
-const COLUMN_WIDTHS_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_column_widths';
+const COLUMN_VISIBILITY_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_columns';
+const COLUMN_WIDTHS_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_column_widths';
 
-/** Status-Werte (lowercase, getrimmt), die einen Antrag aus dem
- *  Verteil-Pool ausschliessen. Quelle: Foyer-CSV `STATUS_TV`. */
 const EXCLUDED_STATUS = new Set(['abgelehnt/zurückgezogen', 'irrläufer']);
 
-/** Extrahiert das Jahr aus `config.aktuellesQuartal` (Format `YYYY-QN`). */
 function jahrAusQuartal(quartal: string): number | null {
   const m = /^(\d{4})-Q[1-4]$/.exec(quartal);
   return m ? Number(m[1]) : null;
 }
 
-/** True wenn der Antrag dem Verteil-Pool angehoert: aktuelles Jahr, ohne
- *  TiB-Zuweisung, Status nicht in `EXCLUDED_STATUS`. */
 function istZuVerteilen(antrag: Antrag, jahr: number): boolean {
   const datum = antrag[CANONICAL_ANTRAGSDATUM];
   if (typeof datum !== 'string' || !datum.startsWith(`${jahr}-`)) return false;
@@ -74,83 +75,78 @@ export function KlassifizierungsReview(): React.ReactElement {
     return cache.antraege.filter(a => istZuVerteilen(a, aktuellesJahr));
   }, [cache.antraege, aktuellesJahr]);
 
-  // Stage-2-Embedding-Fallback: nur wenn der User den Toggle im Admin
-  // aktiviert hat. Der IDB-Korpus wird einmal geladen und gecached, danach
-  // pro Antrag im Hook nach aktenzeichen gelookuped.
-  const [corpusEmbeddings, setCorpusEmbeddings] = useState<Map<string, number[]> | null>(null);
+  // Verbund-Embeddings (Stage 2) — separater IDB-Storage neben Antrag-Embeddings.
+  const [verbundEmbeddings, setVerbundEmbeddings] = useState<Map<string, number[]> | null>(null);
   const [embeddingsLoading, setEmbeddingsLoading] = useState(false);
   useEffect(() => {
     if (!config.stage2Aktiv) {
-      setCorpusEmbeddings(null);
+      setVerbundEmbeddings(null);
       return;
     }
     let cancelled = false;
     setEmbeddingsLoading(true);
-    void loadAllEmbeddings(storage.idb)
-      .then(map => { if (!cancelled) setCorpusEmbeddings(map); })
-      .catch(err => { console.warn('[KlassifizierungsReview] Embedding-Load fehlgeschlagen:', err); })
+    void loadAllVerbundEmbeddings(storage.idb)
+      .then(map => { if (!cancelled) setVerbundEmbeddings(map); })
+      .catch(err => { console.warn('[KlassifizierungsReview] Verbund-Embedding-Load fehlgeschlagen:', err); })
       .finally(() => { if (!cancelled) setEmbeddingsLoading(false); });
     return () => { cancelled = true; };
   }, [config.stage2Aktiv, storage.idb]);
 
-  // Sind Kategorie-Centroids bereits berechnet? Wenn nicht, liefert Stage 2
-  // keinerlei Vorschlaege — der User braucht einen Bootstrap-Schritt.
   const hasCentroids = useMemo(
     () => config.ueberKategorien.some(k => Array.isArray(k.referenzEmbedding) && k.referenzEmbedding.length > 0),
     [config.ueberKategorien],
   );
 
-  const view = useKlassifizierungenView(
-    antraegeImPool,
-    config.ueberKategorien,
-    klassifizierungen,
-    corpusEmbeddings ?? undefined,
-    config.stage2Aktiv,
+  // Verbund-Aggregation
+  const verbundViews = useMemo(
+    () => buildVerbundClassificationViews(
+      antraegeImPool,
+      config.ueberKategorien,
+      klassifizierungen,
+      verbundEmbeddings ?? undefined,
+      config.stage2Aktiv,
+    ),
+    [antraegeImPool, config.ueberKategorien, klassifizierungen, verbundEmbeddings, config.stage2Aktiv],
   );
 
   const [filter, setFilter] = useState<ViewFilter>('alle');
 
   const counts = useMemo(() => {
     let neu = 0, freig = 0, review = 0;
-    for (const v of view) {
+    for (const v of verbundViews) {
       if (v.klassifizierung.status === 'freigegeben') freig++;
       else if (v.confidence === 'high') neu++;
       else review++;
     }
-    return { neu, freig, review, total: view.length };
-  }, [view]);
+    return { neu, freig, review, total: verbundViews.length };
+  }, [verbundViews]);
 
   const filtered = useMemo(() => {
-    return view.filter(v => {
+    return verbundViews.filter(v => {
       if (filter === 'freigegeben') return v.klassifizierung.status === 'freigegeben';
       if (filter === 'review') return v.klassifizierung.status !== 'freigegeben' && v.confidence !== 'high';
       return true;
     });
-  }, [view, filter]);
+  }, [verbundViews, filter]);
 
-  async function bulkFreigeben(): Promise<void> {
-    const candidates = view.filter(v =>
-      v.klassifizierung.status !== 'freigegeben'
-      && v.confidence === 'high'
-      && v.klassifizierung.vorgeschlageneKategorien.length > 0
-    );
-    if (candidates.length === 0) return;
-    if (!confirm(`${candidates.length} Anträge mit hoher Sicherheit freigeben?`)) return;
-    for (const v of candidates) {
-      const ids = v.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId);
-      await freigeben(storage, v.antrag.aktenzeichen, ids);
+  // Persistenz-Wrapper: Verbund-Aktion wirkt auf alle TVs.
+  async function freigebeVerbund(view: VerbundKlassifizierungsView): Promise<void> {
+    const ids = view.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId);
+    if (ids.length === 0) return;
+    for (const tv of view.tvs) {
+      await freigeben(storage, tv.aktenzeichen, ids);
     }
   }
 
-  async function applyManualOverride(
-    v: KlassifizierungsView,
+  async function applyVerbundOverride(
+    view: VerbundKlassifizierungsView,
     kategorieId: string,
     add: boolean,
   ): Promise<void> {
     const current = new Set(
-      v.klassifizierung.status === 'freigegeben'
-        ? v.klassifizierung.freigegebeneKategorien
-        : v.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId),
+      view.klassifizierung.status === 'freigegeben'
+        ? view.klassifizierung.freigegebeneKategorien
+        : view.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId),
     );
     if (add) {
       if (current.size >= 2 && !current.has(kategorieId)) return;
@@ -159,38 +155,47 @@ export function KlassifizierungsReview(): React.ReactElement {
       current.delete(kategorieId);
     }
     const ids = [...current];
-    if (v.klassifizierung.status === 'freigegeben') {
-      await freigeben(storage, v.antrag.aktenzeichen, ids);
-    } else {
-      const next: Klassifizierung = {
-        ...v.klassifizierung,
-        vorgeschlageneKategorien: ids.map(id => ({
-          kategorieId: id,
-          confidence: 1.0,
-          methode: 'regel',
-        })),
-      };
-      await upsertKlassifizierung(storage, next);
+    for (const tv of view.tvs) {
+      if (view.klassifizierung.status === 'freigegeben') {
+        await freigeben(storage, tv.aktenzeichen, ids);
+      } else {
+        const next: Klassifizierung = {
+          antragId: tv.aktenzeichen,
+          status: 'vorgeschlagen',
+          freigegebeneKategorien: [],
+          vorgeschlageneKategorien: ids.map(id => ({
+            kategorieId: id,
+            confidence: 1.0,
+            methode: 'regel',
+          })),
+        };
+        await upsertKlassifizierung(storage, next);
+      }
     }
   }
 
-  async function bestaetigen(v: KlassifizierungsView): Promise<void> {
-    const ids = v.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId);
-    await freigeben(storage, v.antrag.aktenzeichen, ids);
+  async function bulkFreigeben(): Promise<void> {
+    const candidates = verbundViews.filter(v =>
+      v.klassifizierung.status !== 'freigegeben'
+      && v.confidence === 'high'
+      && v.klassifizierung.vorgeschlageneKategorien.length > 0
+    );
+    if (candidates.length === 0) return;
+    if (!confirm(`${candidates.length} Verbünde mit hoher Sicherheit freigeben?`)) return;
+    for (const v of candidates) {
+      await freigebeVerbund(v);
+    }
   }
 
-  // Spalten-Definition mit injizierten Callbacks. useMemo damit die `render`-
-  // Closures stabil bleiben (sonst rendert jeder Parent-Re-Render alle Zeilen
-  // neu).
+  // Spalten + Hooks
   const allColumns = useMemo(
-    () => buildClassifierColumns({
+    () => buildVerbundColumns({
       kategorien: config.ueberKategorien,
-      onToggleKategorie: (v, id, add) => void applyManualOverride(v, id, add),
-      onBestaetigen: v => void bestaetigen(v),
+      onToggleVerbund: (v, id, add) => void applyVerbundOverride(v, id, add),
+      onFreigebeVerbund: v => void freigebeVerbund(v),
     }),
-    // applyManualOverride + bestaetigen sind Closures ueber Hook-State, also
-    // ist die ueberKategorien-Liste der relevante Re-Build-Trigger. Storage/
-    // freigeben/upsert sind stabile Zustand-Hooks.
+    // applyVerbundOverride + freigebeVerbund sind Closures über Hook-State,
+    // ueberKategorien ist der relevante Re-Build-Trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [config.ueberKategorien],
   );
@@ -205,8 +210,6 @@ export function KlassifizierungsReview(): React.ReactElement {
     [allColumns, visibleKeys],
   );
 
-  // Default-Breiten aus den Spalten-Definitionen — User-Overrides aus
-  // localStorage werden im Hook gemerged + ueberschreiben einzelne Keys.
   const defaultWidths = useMemo(() => {
     const out: Record<string, number> = {};
     for (const c of allColumns) {
@@ -232,12 +235,12 @@ export function KlassifizierungsReview(): React.ReactElement {
       {/* Pool-Hint */}
       {aktuellesJahr !== null && (
         <div className="text-[11px] text-[var(--tf-text-tertiary)]">
-          Verteil-Pool: Anträge aus {aktuellesJahr} ohne TiB-Zuweisung, ohne Status
-          „abgelehnt/zurückgezogen" und „Irrläufer".
+          Verteil-Pool: Verbünde aus {aktuellesJahr} ohne TiB-Zuweisung, ohne Status
+          „abgelehnt/zurückgezogen" und „Irrläufer". Klassifizierung wirkt auf alle TVs eines Verbundes.
         </div>
       )}
 
-      {/* Stage-2-Status: Hinweis wenn Centroids fehlen, sonst dezenter Loading-Indikator */}
+      {/* Stage-2-Status */}
       {config.stage2Aktiv && !hasCentroids && (
         <div
           className="text-[11.5px] px-3 py-2 rounded"
@@ -248,14 +251,14 @@ export function KlassifizierungsReview(): React.ReactElement {
           }}
         >
           <strong>Stage 2 aktiv, aber Kategorie-Referenzen fehlen.</strong>{' '}
-          Ohne Referenz-Embeddings kann der Embedding-Fallback keinen Vorschlag berechnen.
-          Bootstrap: einigen Anträgen pro Kategorie manuell die Pills zuweisen + „Freigeben",
-          danach im Admin „Inkrementell" laufen lassen.
+          Bootstrap: einige Verbünde manuell pro Kategorie freigeben, danach
+          im Admin „Inkrementell" laufen lassen — Centroids werden aus den
+          Verbund-Embeddings berechnet.
         </div>
       )}
       {config.stage2Aktiv && hasCentroids && embeddingsLoading && (
         <div className="text-[11px] text-[var(--tf-text-tertiary)]">
-          Stage-2-Embeddings werden geladen …
+          Verbund-Embeddings werden geladen …
         </div>
       )}
 
@@ -284,7 +287,7 @@ export function KlassifizierungsReview(): React.ReactElement {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-            {counts.total} gesamt · {counts.freig} freigegeben · {counts.review} prüfen
+            {counts.total} Verbünde · {counts.freig} freigegeben · {counts.review} prüfen
           </span>
           <button
             type="button"
@@ -303,16 +306,15 @@ export function KlassifizierungsReview(): React.ReactElement {
         </div>
       </div>
 
-      <SortableTable
+      <VerbundClassificationTable
         rows={sortedRows}
         columns={visibleColumns}
         sortKey={sortKey}
         sortDirection={sortDirection}
         onSort={toggleSort}
-        rowKey={v => v.antrag.aktenzeichen}
-        emptyContent="Keine Anträge in dieser Ansicht."
         columnWidths={columnWidths}
         onColumnWidthChange={setWidth}
+        emptyContent="Keine Verbünde in dieser Ansicht."
       />
     </div>
   );
