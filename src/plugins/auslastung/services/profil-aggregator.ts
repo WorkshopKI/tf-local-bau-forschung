@@ -275,6 +275,37 @@ export function aggregateMaProfilesByAnon(
   return out;
 }
 
+/**
+ * Aggregiert pro anonId eine Map `AST-Name (normalisiert: trim+lowercase) →
+ * Anzahl bearbeiteter Antraege dieses AST`. Wird im MA-Match als
+ * Wiederholungs-Boost ausgewertet (siehe `computeAstBoost`).
+ *
+ * Single-pass über die Antraege, alle bekannten anonIds bekommen einen Eintrag
+ * (auch wenn ohne Treffer).
+ */
+export function aggregateAstByAnon(
+  antraege: Antrag[],
+  map: AnonymMap,
+): Map<string, Map<string, number>> {
+  const collector = new Map<string, Map<string, number>>();
+  for (const anonId of map.toAnon.values()) {
+    collector.set(anonId, new Map());
+  }
+  for (const a of antraege) {
+    const tib = normalizeKuerzel((a as Record<string, unknown>)[CANONICAL_TIB_KUERZ]);
+    if (!tib) continue;
+    const anonId = map.toAnon.get(tib);
+    if (!anonId) continue;
+    const ast = (a as { antragsteller?: unknown }).antragsteller;
+    if (typeof ast !== 'string') continue;
+    const normalized = ast.trim().toLowerCase();
+    if (!normalized) continue;
+    const inner = collector.get(anonId)!;
+    inner.set(normalized, (inner.get(normalized) ?? 0) + 1);
+  }
+  return collector;
+}
+
 /** Sammelt die Aktenzeichen aller Antraege EINES MAs (per anonId). */
 export function aktenzeichenForAnon(
   antraege: Antrag[],

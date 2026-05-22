@@ -27,7 +27,7 @@ import type { StorageService } from '@/core/services/storage';
 import { type AnonymMap } from '../services/anonym-map';
 import { buildAnonymMapFromKuerzelMap } from '../services/kuerzel-map';
 import { useKuerzelMap } from './useKuerzelMap';
-import { aggregateMaProfilesByAnon, collectAllDeskriptorenMitCount } from '../services/profil-aggregator';
+import { aggregateAstByAnon, aggregateMaProfilesByAnon, collectAllDeskriptorenMitCount } from '../services/profil-aggregator';
 
 interface AntraegeCache {
   antraege: Antrag[];
@@ -36,6 +36,9 @@ interface AntraegeCache {
   error: string | null;
   anonymMap: AnonymMap;
   historischeDeskriptorenByAnon: Map<string, string[]>;
+  /** Pro anonId: AST-Name (lower+trim) → Anzahl bearbeiteter Antraege. Wird
+   *  im MA-Match-AST-Boost ausgewertet. */
+  historischeAstByAnon: Map<string, Map<string, number>>;
   allDeskriptoren: Array<{ wert: string; count: number }>;
   refresh: () => Promise<void>;
 }
@@ -157,6 +160,10 @@ export function useAntraegeCache(): AntraegeCache {
     () => aggregateMaProfilesByAnon(antraege, anonymMap),
     [antraege, anonymMap],
   );
+  const historischeAstByAnon = useMemo(
+    () => aggregateAstByAnon(antraege, anonymMap),
+    [antraege, anonymMap],
+  );
   const allDeskriptoren = useMemo(
     () => collectAllDeskriptorenMitCount(antraege),
     [antraege],
@@ -169,6 +176,7 @@ export function useAntraegeCache(): AntraegeCache {
     error,
     anonymMap,
     historischeDeskriptorenByAnon,
+    historischeAstByAnon,
     allDeskriptoren,
     refresh,
   };

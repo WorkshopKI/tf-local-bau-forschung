@@ -47,4 +47,9 @@ export const SCHEMA_A_COLUMN_MAPPING: ColumnMapping = {
   BULAND_AFS: { custom: 'buland_afs', type: 'string' },
   NETZWERKNA: { custom: 'netzwerkname', type: 'string' },
   NAT_ZUORD: { custom: 'nat_zuord', type: 'string' },
+  // Antragsteller-Typ: 'U' = Unternehmen, 'F' = Forschungseinrichtung. Wird
+  // im Auslastungs-Match-Boost ausgewertet (Unternehmen bekommen staerkeren
+  // Wiederholungs-Boost als Forschungseinrichtungen, da letztere thematisch
+  // breit aufgestellt sind).
+  ATTR_AUFB: { custom: 'ast_typ', type: 'string' },
 };

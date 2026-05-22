@@ -146,6 +146,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
           mitarbeiter,
           zuweisungen,
           historischeDeskriptorenByAnon: cache.historischeDeskriptorenByAnon,
+          historischeAstByAnon: cache.historischeAstByAnon,
           anonymMap: cache.anonymMap,
           queryEmbedding,
           corpusEmbeddings,
@@ -380,6 +381,7 @@ function DetailPanel({
                 matchendeTechnologien: [], aehnlicheProjekte: [],
                 matchStufe: 1, confidence: 'high',
                 benoetigteStunden: selbstEintragung.stunden,
+                astMatchCount: 0, astBoost: 0,
               };
               onZuweisen(m);
             }}

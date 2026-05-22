@@ -27,6 +27,8 @@ import {
   CANONICAL_TITEL,
   CANONICAL_VERBUND_TITEL,
   FIELD_PROJEKTBESCHREIBUNG,
+  FIELD_AST_TYP,
+  type AstTyp,
 } from '../types';
 import { runBm25Matching, type Bm25Result } from './bm25-matcher';
 import { runEmbeddingMatching, type EmbeddingMatchResult } from './embedding-matcher';
@@ -42,6 +44,9 @@ export interface MatchInput {
   zuweisungen: Zuweisung[];
   /** Pro MA aggregierte hist. Deskriptoren — fuer BM25-Profile-Doc. */
   historischeDeskriptorenByAnon: Map<string, string[]>;
+  /** Pro MA: AST-Name (normalisiert) → Count. Optional; wenn nicht gesetzt,
+   *  laeuft das Matching ohne AST-Boost (Backwards-Kompat fuer Tests). */
+  historischeAstByAnon?: Map<string, Map<string, number>>;
   anonymMap: AnonymMap;
   /** Optional Stage-2: wenn null/leer, laeuft nur BM25. */
   queryEmbedding?: number[];
@@ -128,7 +133,12 @@ export function runMatching(input: MatchInput): MatchResult[] {
     const emb = embRes?.embeddingScore ?? 0;
     const aehnlich: AehnlichesProjekt[] = embRes?.aehnlicheProjekte ?? [];
 
-    const kompetenz = alpha * bm25 + (1 - alpha) * emb;
+    const { boost: astBoost, count: astMatchCount } = computeAstBoost(
+      antrag,
+      input.historischeAstByAnon?.get(anonId),
+    );
+
+    const kompetenz = clamp01(alpha * bm25 + (1 - alpha) * emb + astBoost);
     const balance = quartalsKap > 0 ? rest / quartalsKap : 0;
     const finalScore = kompetenz * config.gewichtungKompetenz + balance * config.gewichtungBalance;
 
@@ -136,7 +146,7 @@ export function runMatching(input: MatchInput): MatchResult[] {
       anonId,
       bm25Score: bm25,
       embeddingScore: emb,
-      kompetenzScore: clamp01(kompetenz),
+      kompetenzScore: kompetenz,
       restKapazitaet: rest,
       quartalsKapazitaet: quartalsKap,
       balanceScore: clamp01(balance),
@@ -146,6 +156,8 @@ export function runMatching(input: MatchInput): MatchResult[] {
       matchStufe: matchStufeFor(alpha),
       confidence: confidenceFor(kompetenz),
       benoetigteStunden: benoetigt,
+      astMatchCount,
+      astBoost,
     });
   }
 
@@ -157,6 +169,36 @@ function clamp01(n: number): number {
   if (n < 0) return 0;
   if (n > 1) return 1;
   return n;
+}
+
+/**
+ * AST-Wiederholungs-Boost: hat der MA den AST des aktuellen Antrags schon
+ * mal bearbeitet? Boost-Staerke abhaengig vom Antragsteller-Typ:
+ *
+ *  - `U` (Unternehmen, typ. KMU): +0.20 — thematisch sehr konsistent
+ *  - `F` (Forschungseinrichtung): +0.05 — Hochschulen breit aufgestellt,
+ *    AST-Identitaet allein ist schwaches Signal
+ *  - `''` (leer/unbekannt): +0.10 — mittlerer Boost
+ *
+ * Count-Multiplikator (sanft): 1 Match = 1×, 2–3 = 1.2×, 4+ = 1.5×.
+ */
+function computeAstBoost(
+  antrag: Antrag,
+  historicalAstCounts: Map<string, number> | undefined,
+): { boost: number; count: number } {
+  if (!historicalAstCounts || historicalAstCounts.size === 0) return { boost: 0, count: 0 };
+  const ast = (antrag as { antragsteller?: unknown }).antragsteller;
+  if (typeof ast !== 'string') return { boost: 0, count: 0 };
+  const normalized = ast.trim().toLowerCase();
+  if (!normalized) return { boost: 0, count: 0 };
+  const count = historicalAstCounts.get(normalized) ?? 0;
+  if (count === 0) return { boost: 0, count: 0 };
+
+  const typRaw = (antrag as Record<string, unknown>)[FIELD_AST_TYP];
+  const typ: AstTyp = typRaw === 'U' || typRaw === 'F' ? typRaw : '';
+  const baseBoost = typ === 'U' ? 0.20 : typ === 'F' ? 0.05 : 0.10;
+  const multiplier = count >= 4 ? 1.5 : count >= 2 ? 1.2 : 1.0;
+  return { boost: baseBoost * multiplier, count };
 }
 
 function buildQueryText(antrag: Antrag): string {

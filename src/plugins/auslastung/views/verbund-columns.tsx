@@ -18,6 +18,7 @@ import type { VerbundKlassifizierungsView } from '../services/verbund-aggregatio
 import {
   CANONICAL_BIB_KUERZ,
   CANONICAL_ANTRAGSDATUM,
+  FIELD_AST_TYP,
   type UeberKategorie,
 } from '../types';
 
@@ -146,6 +147,42 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
           ? <span className="text-[11.5px] text-[var(--tf-text-secondary)]" title={ast}>{ast}</span>
           : null;
       },
+    },
+    {
+      key: 'ast_typ',
+      label: 'AST-Typ',
+      defaultVisible: true,
+      sortable: true,
+      width: 90,
+      wrap: false,
+      accessor: v => readString(leadAntrag(v), FIELD_AST_TYP),
+      render: v => {
+        const t = readString(leadAntrag(v), FIELD_AST_TYP);
+        if (t === 'U') {
+          return (
+            <span
+              className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium"
+              style={{ background: '#dbeafe', color: '#1e40af', border: '0.5px solid #93c5fd' }}
+              title="Unternehmen — thematisch konsistente AST-Historie"
+            >
+              Unternehmen
+            </span>
+          );
+        }
+        if (t === 'F') {
+          return (
+            <span
+              className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium"
+              style={{ background: '#ede9fe', color: '#5b21b6', border: '0.5px solid #c4b5fd' }}
+              title="Forschungseinrichtung — thematisch breit aufgestellt"
+            >
+              Forschung
+            </span>
+          );
+        }
+        return null;
+      },
+      // TV-Row: leer (AST-Typ ist Verbund-/Antragsteller-Eigenschaft)
     },
     {
       key: 'antragsdatum',

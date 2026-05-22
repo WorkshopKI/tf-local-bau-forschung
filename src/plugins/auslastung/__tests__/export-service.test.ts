@@ -61,8 +61,8 @@ describe('buildExportRows', () => {
     data.zuweisungen = [];
     const matches = new Map<string, MatchResult[]>([
       ['A1', [
-        { anonId: 'MA01', bm25Score: 0.8, embeddingScore: 0, kompetenzScore: 0.8, restKapazitaet: 100, quartalsKapazitaet: 400, balanceScore: 0.5, finalScore: 0.7, matchendeTechnologien: [], aehnlicheProjekte: [], matchStufe: 1, confidence: 'high', benoetigteStunden: 10 },
-        { anonId: 'MA02', bm25Score: 0.3, embeddingScore: 0, kompetenzScore: 0.3, restKapazitaet: 200, quartalsKapazitaet: 400, balanceScore: 0.5, finalScore: 0.4, matchendeTechnologien: [], aehnlicheProjekte: [], matchStufe: 1, confidence: 'medium', benoetigteStunden: 10 },
+        { anonId: 'MA01', bm25Score: 0.8, embeddingScore: 0, kompetenzScore: 0.8, restKapazitaet: 100, quartalsKapazitaet: 400, balanceScore: 0.5, finalScore: 0.7, matchendeTechnologien: [], aehnlicheProjekte: [], matchStufe: 1, confidence: 'high', benoetigteStunden: 10, astMatchCount: 0, astBoost: 0 },
+        { anonId: 'MA02', bm25Score: 0.3, embeddingScore: 0, kompetenzScore: 0.3, restKapazitaet: 200, quartalsKapazitaet: 400, balanceScore: 0.5, finalScore: 0.4, matchendeTechnologien: [], aehnlicheProjekte: [], matchStufe: 1, confidence: 'medium', benoetigteStunden: 10, astMatchCount: 0, astBoost: 0 },
       ]],
     ]);
     const rows = buildExportRows({ data, antraege, pendingMatches: matches });

@@ -202,6 +202,10 @@ export interface MatchResult {
   matchStufe: 1 | 2 | 3;
   confidence: 'high' | 'medium' | 'low';
   benoetigteStunden: number;
+  /** Anzahl frueherer Antraege dieses MAs vom selben AST (0 = kein Match). */
+  astMatchCount: number;
+  /** Roher Boost-Beitrag aus dem AST-Match (Score-Komponente). */
+  astBoost: number;
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -244,6 +248,12 @@ export const FIELD_VORHABEN_ZUSAMMENFASSUNG_AST = 'vorhaben_zusammenfassung_ast'
 /** Aus der PDF-Vorhabensbeschreibung LLM-extrahierte Zusammenfassung. Wie
  *  AST-Zusammenfassung, nur automatisch erzeugt. Auch noch nicht im Schema. */
 export const FIELD_VORHABEN_ZUSAMMENFASSUNG_PDF = 'vorhaben_zusammenfassung_pdf';
+/** Antragsteller-Typ aus Foyer (ATTR_AUFB). Verteilt im Auslastungs-Match-
+ *  Boost: Unternehmen sind thematisch konsistent (starker Boost bei
+ *  Wiederholungs-AST), Forschungseinrichtungen breit aufgestellt (schwacher
+ *  Boost). */
+export const FIELD_AST_TYP = 'ast_typ';
+export type AstTyp = 'U' | 'F' | '';
 
 /**
  * 5 vordefinierte Ueberkategorien aus dem FZD-Kontext (Mai 2026).
