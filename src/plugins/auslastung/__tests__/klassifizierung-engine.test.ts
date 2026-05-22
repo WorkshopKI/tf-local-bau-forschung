@@ -246,6 +246,34 @@ describe('matchZukunftstechnologien (Stage 0)', () => {
     expect(matchZukunftstechnologien(a, reduziert)).toEqual([]);
   });
 
+  it('Wizard-NFD-Slug (kunstliche_intelligenz_ki) liefert DT genauso wie Fixture-Slug', () => {
+    // Regression: vor dem Multi-Candidate-Patch wurden nur die hartcodierten
+    // zt_<ue>_tv/_vb-Field-Namen erkannt. User-CSVs via Wizard mit Label-XLS
+    // landen unter den NFD-Slugs (ue → u, kein Prefix, kein Suffix) und
+    // wurden komplett verfehlt.
+    const a = makeAntrag('A', { kunstliche_intelligenz_ki: 'X' } as Partial<Antrag>);
+    const out = matchZukunftstechnologien(a, kats);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.kategorieId).toBe('DT');
+    expect(out[0]?.confidence).toBe(1.0);
+  });
+
+  it('Wizard-ue-Slug ohne zt_-Prefix (kuenstliche_intelligenz_ki) wird erkannt', () => {
+    const a = makeAntrag('A', { kuenstliche_intelligenz_ki: '1' } as Partial<Antrag>);
+    const out = matchZukunftstechnologien(a, kats);
+    expect(out[0]?.kategorieId).toBe('DT');
+  });
+
+  it('Gemischte Konventionen: Fixture-KI + Wizard-Leichtbau → Multi-Label', () => {
+    const a = makeAntrag('A', {
+      zt_kuenstliche_intelligenz_ki_tv: 'X',  // Fixture-Style → DT
+      leichtbautechnologien: 'ja',            // Wizard-Style ohne Prefix → IT
+    } as Partial<Antrag>);
+    const out = matchZukunftstechnologien(a, kats);
+    expect(out.length).toBe(2);
+    expect(new Set(out.map(x => x.kategorieId))).toEqual(new Set(['DT', 'IT']));
+  });
+
   it('klassifiziereAntrag laeuft Stage 0 vor Stage 1 (ZT-Match dominiert)', () => {
     const a = makeAntrag('A', {
       zt_gesundes_leben_tv: true,

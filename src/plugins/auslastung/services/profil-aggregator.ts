@@ -48,6 +48,95 @@ export function isZtTruthy(v: unknown): boolean {
   return false;
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// ZT-Field-Resolution: zwei Slug-Konventionen, ein Klartext
+// ───────────────────────────────────────────────────────────────────────────
+//
+// Im Code existieren zwei zueinander inkompatible Slug-Algorithmen fuer
+// CSV-Custom-Field-Namen:
+//
+//  1. ue-Variante (scripts/build-default-labels.mjs:makeCustomFieldName):
+//       "Künstliche Intelligenz (KI)" + tv → "zt_kuenstliche_intelligenz_ki_tv"
+//     Wird fuer hardcodierte Fixture-Schemas (docs/fixtures/schema-c.ts)
+//     verwendet.
+//
+//  2. NFD-Variante (csv-sources-kuration/wizard/useCsvWizardState.ts:
+//     slugifyFieldName):
+//       "Künstliche Intelligenz (KI)" → "kunstliche_intelligenz_ki"
+//     Wird vom CSV-Source-Wizard verwendet, wenn ein User seine eigene CSV
+//     mit Label-XLS importiert.
+//
+// Der ZT-Klartext ist die invariante Identitaet — der konkrete Field-Name
+// ist Convention-Artefakt. Wir generieren pro Klartext beide Slug-Varianten
+// plus Prefix-/Suffix-Permutationen und probieren beim Lesen alle durch.
+
+/** ue-Variante: matched die Fixture-Custom-Field-Namen. */
+function slugUe(s: string): string {
+  return s.toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+/** NFD-Variante: matched die Wizard-Custom-Field-Namen. */
+function slugNfd(s: string): string {
+  return s.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+/**
+ * Kandidaten-Field-Namen fuer einen ZT-Klartext. Deckt alle bekannten
+ * Slug-Konventionen + Prefix/Suffix-Permutationen ab.
+ */
+function ztFieldCandidates(klartext: string): string[] {
+  const slugs = new Set([slugUe(klartext), slugNfd(klartext)]);
+  const out = new Set<string>();
+  for (const slug of slugs) {
+    if (!slug) continue;
+    out.add(slug);                 // 'kuenstliche_intelligenz_ki'
+    out.add(`zt_${slug}`);         // 'zt_kuenstliche_intelligenz_ki'
+    out.add(`${slug}_tv`);         // 'kuenstliche_intelligenz_ki_tv'
+    out.add(`${slug}_vb`);         // 'kuenstliche_intelligenz_ki_vb'
+    out.add(`zt_${slug}_tv`);      // 'zt_kuenstliche_intelligenz_ki_tv' (fixture-style)
+    out.add(`zt_${slug}_vb`);      // 'zt_kuenstliche_intelligenz_ki_vb' (fixture-style)
+  }
+  return [...out];
+}
+
+/**
+ * Modul-statischer Cache: Klartext → Kandidaten-Field-Namen.
+ * TV- und VB-Eintraege in `ZUKUNFTSTECHNOLOGIE_FELDER` haben denselben
+ * Klartext → wir dedupizieren und berechnen die Kandidaten einmalig.
+ */
+const ZT_CANDIDATES_BY_KLARTEXT: ReadonlyMap<string, readonly string[]> = (() => {
+  const map = new Map<string, string[]>();
+  for (const feld of ZUKUNFTSTECHNOLOGIE_FELDER) {
+    if (!map.has(feld.klartext)) {
+      map.set(feld.klartext, ztFieldCandidates(feld.klartext));
+    }
+  }
+  return map;
+})();
+
+/**
+ * Prueft fuer einen ZT-Klartext, ob im Antrag IRGENDEINE seiner Kandidaten-
+ * Spalten truthy gesetzt ist. Single Source of Truth fuer beide Konsumenten:
+ *  - `readAntragDeskriptoren` (Profile-Aggregation)
+ *  - `matchZukunftstechnologien` (Klassifizierungs-Engine Stage-0)
+ *
+ * Cached die Kandidaten-Liste statisch (siehe `ZT_CANDIDATES_BY_KLARTEXT`).
+ *
+ * Wenn der Klartext nicht in der bekannten ZT-Liste ist, wird er ad-hoc
+ * geslugged — keine Fehler, nur kein Cache-Treffer.
+ */
+export function findTruthyZtField(rec: Record<string, unknown>, klartext: string): boolean {
+  const candidates = ZT_CANDIDATES_BY_KLARTEXT.get(klartext) ?? ztFieldCandidates(klartext);
+  for (const candidate of candidates) {
+    if (isZtTruthy(rec[candidate])) return true;
+  }
+  return false;
+}
+
 /**
  * Liest alle Deskriptoren-Werte eines einzelnen Antrags (over alle Spalten, dedupliziert).
  *
@@ -70,9 +159,13 @@ export function readAntragDeskriptoren(antrag: Antrag): string[] {
     const norm = normalizeDeskriptor(rec[spalte]);
     if (norm) set.add(norm);
   }
-  for (const feld of ZUKUNFTSTECHNOLOGIE_FELDER) {
-    if (isZtTruthy(rec[feld.customField])) {
-      const norm = normalizeDeskriptor(feld.klartext);
+  // Pro Klartext (TV+VB dedupliziert) genau ein Match-Versuch ueber alle
+  // bekannten Slug-Kandidaten. Funktioniert sowohl gegen Fixture-Schemas
+  // (zt_kuenstliche_intelligenz_ki_tv) als auch gegen Wizard-Imports mit
+  // Label-XLS (kunstliche_intelligenz_ki) — siehe `findTruthyZtField`.
+  for (const klartext of ZT_CANDIDATES_BY_KLARTEXT.keys()) {
+    if (findTruthyZtField(rec, klartext)) {
+      const norm = normalizeDeskriptor(klartext);
       if (norm) set.add(norm);
     }
   }

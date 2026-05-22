@@ -21,7 +21,7 @@ import {
   type Klassifizierung,
   type UeberKategorie,
 } from '../types';
-import { readAntragDeskriptoren, isZtTruthy } from './profil-aggregator';
+import { readAntragDeskriptoren, findTruthyZtField } from './profil-aggregator';
 import { cosineSimilarity } from '@/core/services/embedding-corpus';
 import { ZUKUNFTSTECHNOLOGIE_FELDER } from './default-labels';
 
@@ -108,14 +108,19 @@ export function matchZukunftstechnologien(
   if (kategorien.length === 0) return [];
   const aktiveKategorien = new Set(kategorien.map(k => k.id));
   const treffer = new Map<string, number>();
+  const rec = antrag as Record<string, unknown>;
 
-  // Sowohl TV-Ebene (Antrag-spezifisch) als auch VB-Ebene (Verbund-weit)
-  // auswerten — viele Deskriptoren sind nur am Verbund gesetzt und vererben
-  // sich implizit auf alle Teilvorhaben.
+  // Pro ZT-Klartext (TV+VB dedupliziert) genau ein Match-Versuch ueber alle
+  // bekannten Slug-Kandidaten via findTruthyZtField — deckt sowohl Fixture-
+  // Schemas (zt_kuenstliche_intelligenz_ki_tv) als auch Wizard-Imports mit
+  // Label-XLS (kunstliche_intelligenz_ki) ab. Vorher pro-Feld-Match haette
+  // bei Wizard-CSVs immer 0 Treffer ergeben.
+  const seenKlartexte = new Set<string>();
   for (const zt of ZUKUNFTSTECHNOLOGIE_FELDER) {
+    if (seenKlartexte.has(zt.klartext)) continue;
+    seenKlartexte.add(zt.klartext);
     if (!aktiveKategorien.has(zt.defaultUeberKategorie)) continue;
-    const value = (antrag as Record<string, unknown>)[zt.customField];
-    if (isZtTruthy(value)) {
+    if (findTruthyZtField(rec, zt.klartext)) {
       treffer.set(zt.defaultUeberKategorie, (treffer.get(zt.defaultUeberKategorie) ?? 0) + 1);
     }
   }
