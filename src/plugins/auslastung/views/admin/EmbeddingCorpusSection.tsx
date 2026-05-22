@@ -75,10 +75,6 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
   const displayCount = progress ? progress.done : count;
   const displayTotal = progress ? progress.total : total;
   const pct = displayTotal > 0 ? (displayCount / displayTotal) * 100 : 0;
-  // Stage-2-Eligibility immer am Gesamt-Coverage messen, nicht am Build-Job —
-  // sonst koennte ein 100/100-Inkrementell-Bau das Flag aktivieren, obwohl
-  // insgesamt < 95% embedded sind.
-  const stage2Eligible = total > 0 && (count / total) >= 0.95;
 
   const refresh = useCallback(async (): Promise<void> => {
     const c = await countEmbeddings(storage.idb);
@@ -220,7 +216,9 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       await clearEmbeddings(storage.idb);
       await clearVerbundEmbeddings(storage.idb);
       await refresh();
-      await updateConfig(storage, { stage2Aktiv: false, embeddingCorpusBuiltAt: undefined });
+      // stage2Aktiv bleibt true (kein User-Toggle mehr) — nur das Build-Datum
+      // zurücksetzen, damit die UI ein neues Build erzwingt.
+      await updateConfig(storage, { embeddingCorpusBuiltAt: undefined });
     } finally {
       setRunning(false);
     }
@@ -229,7 +227,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
   return (
     <div className="rounded-[12px] p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="text-[14px] font-medium text-[var(--tf-text)]">Embedding-Corpus (Stufe 2)</h3>
+        <h3 className="text-[14px] font-medium text-[var(--tf-text)]">Themen-Vektoren für Klassifizierung</h3>
         <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
           {displayCount} von {displayTotal} eingebettet ({Math.round(pct)}%)
         </span>
@@ -339,22 +337,10 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
             Abbrechen
           </button>
         )}
-
-        <label className="ml-auto flex items-center gap-2 text-[12.5px] cursor-pointer">
-          <input
-            type="checkbox"
-            checked={config.stage2Aktiv}
-            disabled={!stage2Eligible || running}
-            onChange={e => void updateConfig(storage, { stage2Aktiv: e.target.checked })}
-          />
-          <span className={stage2Eligible ? '' : 'text-[var(--tf-text-tertiary)]'}>
-            Stufe-2-Embedding aktivieren
-          </span>
-        </label>
       </div>
 
       <p className="text-[11px] text-[var(--tf-text-tertiary)] mt-3">
-        Einmaliger Vorgang. Cache liegt lokal im Browser-Storage (~{Math.round(total * (lokalModell?.dim ?? 768) * 4 / 1024 / 1024)} MB für {total} Anträge) und wird nach jedem erfolgreichen Build automatisch auf den Daten-Share gespiegelt (`_intern/auslastung-embedding-corpus.*`) — andere Teammitglieder laden den Korpus dann in ~10 sec statt selbst neu zu bauen.
+        Einmaliger Vorgang. Themen-Vektoren ermöglichen die automatische Zuordnung neuer Anträge zu Überkategorien (Cosine-Similarity gegen Kategorie-Centroids). Cache liegt lokal im Browser-Storage (~{Math.round(total * (lokalModell?.dim ?? 768) * 4 / 1024 / 1024)} MB für {total} Anträge) und wird nach jedem erfolgreichen Build automatisch auf den Daten-Share gespiegelt (`_intern/auslastung-embedding-corpus.*`) — andere Teammitglieder laden den Korpus dann in ~10 sec statt selbst neu zu bauen.
       </p>
     </div>
   );

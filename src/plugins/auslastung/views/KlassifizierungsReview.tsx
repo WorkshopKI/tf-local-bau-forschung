@@ -75,14 +75,13 @@ export function KlassifizierungsReview(): React.ReactElement {
     return cache.antraege.filter(a => istZuVerteilen(a, aktuellesJahr));
   }, [cache.antraege, aktuellesJahr]);
 
-  // Verbund-Embeddings (Stage 2) — separater IDB-Storage neben Antrag-Embeddings.
+  // Verbund-Embeddings (Themen-Vektoren) — separater IDB-Storage neben den
+  // Antrag-Embeddings. Wird seit Mai 2026 immer geladen (kein User-Toggle mehr),
+  // ein leerer Korpus führt einfach zu leeren Vorschlägen — der Bootstrap-
+  // Banner unten weist darauf hin.
   const [verbundEmbeddings, setVerbundEmbeddings] = useState<Map<string, number[]> | null>(null);
   const [embeddingsLoading, setEmbeddingsLoading] = useState(false);
   useEffect(() => {
-    if (!config.stage2Aktiv) {
-      setVerbundEmbeddings(null);
-      return;
-    }
     let cancelled = false;
     setEmbeddingsLoading(true);
     void loadAllVerbundEmbeddings(storage.idb)
@@ -90,7 +89,7 @@ export function KlassifizierungsReview(): React.ReactElement {
       .catch(err => { console.warn('[KlassifizierungsReview] Verbund-Embedding-Load fehlgeschlagen:', err); })
       .finally(() => { if (!cancelled) setEmbeddingsLoading(false); });
     return () => { cancelled = true; };
-  }, [config.stage2Aktiv, storage.idb]);
+  }, [storage.idb]);
 
   const hasCentroids = useMemo(
     () => config.ueberKategorien.some(k => Array.isArray(k.referenzEmbedding) && k.referenzEmbedding.length > 0),
@@ -240,8 +239,8 @@ export function KlassifizierungsReview(): React.ReactElement {
         </div>
       )}
 
-      {/* Stage-2-Status */}
-      {config.stage2Aktiv && !hasCentroids && (
+      {/* Themen-Modell-Status */}
+      {!hasCentroids && (
         <div
           className="text-[11.5px] px-3 py-2 rounded"
           style={{
@@ -250,15 +249,16 @@ export function KlassifizierungsReview(): React.ReactElement {
             border: '0.5px solid var(--tf-border)',
           }}
         >
-          <strong>Stage 2 aktiv, aber Kategorie-Referenzen fehlen.</strong>{' '}
-          Bootstrap: einige Verbünde manuell pro Kategorie freigeben, danach
-          im Admin „Inkrementell" laufen lassen — Centroids werden aus den
-          Verbund-Embeddings berechnet.
+          <strong>Kategorie-Referenzen fehlen.</strong>{' '}
+          Bootstrap für die automatische Themen-Erkennung: einige Verbünde
+          manuell pro Kategorie freigeben, danach im Admin „Inkrementell"
+          laufen lassen — die Themen-Vektoren werden dann pro Kategorie
+          gemittelt und Vorschläge greifen automatisch.
         </div>
       )}
-      {config.stage2Aktiv && hasCentroids && embeddingsLoading && (
+      {hasCentroids && embeddingsLoading && (
         <div className="text-[11px] text-[var(--tf-text-tertiary)]">
-          Verbund-Embeddings werden geladen …
+          Themen-Vektoren werden geladen …
         </div>
       )}
 

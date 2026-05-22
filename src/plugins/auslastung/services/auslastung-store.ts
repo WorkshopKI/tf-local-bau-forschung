@@ -88,10 +88,14 @@ export async function saveAuslastungData(
 function normalizeAuslastungData(raw: Partial<AuslastungData> | null | undefined): AuslastungData {
   const empty = emptyAuslastungData();
   if (!raw || typeof raw !== 'object') return empty;
+  const mergedConfig = { ...empty.config, ...(raw.config ?? {}) };
+  // Migration: stage2Aktiv ist seit Mai 2026 immer an (kein User-Toggle mehr).
+  // Pre-Migration-Stände mit `false` werden hier hochgezogen.
+  mergedConfig.stage2Aktiv = true;
   return {
     version: 1,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : empty.updatedAt,
-    config: { ...empty.config, ...(raw.config ?? {}) },
+    config: mergedConfig,
     mitarbeiter: normalizeMitarbeiterRecord(raw.mitarbeiter),
     klassifizierungen: Array.isArray(raw.klassifizierungen) ? raw.klassifizierungen : [],
     zuweisungen: Array.isArray(raw.zuweisungen) ? raw.zuweisungen : [],

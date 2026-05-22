@@ -379,8 +379,8 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: P
               <li>· {ohneZuordnungCount} Deskriptoren ohne Zuordnung (kein Problem — können später ergänzt werden)</li>
             </ul>
             <p className="text-[12px] text-[var(--tf-text-tertiary)] mt-3">
-              Nach Abschluss kannst du Anträge klassifizieren und MAs zuweisen. Stufe-2-Embedding-Matching bleibt deaktiviert,
-              bis du den Corpus separat aufbaust (Admin → Embedding-Corpus).
+              Nach Abschluss kannst du Anträge klassifizieren und MAs zuweisen. Die automatische Themen-Erkennung
+              greift, sobald die Themen-Vektoren gebaut sind (Admin → „Themen-Vektoren für Klassifizierung").
             </p>
             {error && (
               <div className="rounded p-2.5 text-[12px] mt-3" style={{ background: '#fee2e2', color: '#991b1b', border: '0.5px solid #fca5a5' }}>

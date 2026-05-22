@@ -5,7 +5,7 @@
  *  - Setup-Wizard (zwingend bei !setupAbgeschlossen)
  *  - Konfiguration (Stunden/Quartal/Gewichtung)
  *  - Ueberkategorien (CRUD + Mapping)
- *  - Embedding-Corpus (Stufe 2)
+ *  - Themen-Vektoren für Klassifizierung (frueher "Embedding-Corpus Stufe 2")
  *  - Mitarbeiter (CRUD)
  */
 import { useStorage } from '@/core/hooks/useStorage';

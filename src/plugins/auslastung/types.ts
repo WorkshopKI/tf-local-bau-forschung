@@ -71,7 +71,10 @@ export interface AuslastungConfig {
   klassifizierungsSchwellwert: number;
   /** Tage bis automatische PL-Zuweisung nach Klassifizierungs-Freigabe. */
   selbsteintragungFristTage: number;
-  /** Default false; PL aktiviert nach Corpus-Build. */
+  /** Embedding-basierte Themen-Erkennung (Cosine-Similarity gegen
+   *  Kategorie-Centroids). Seit Mai 2026 immer aktiv — der frühere Toggle
+   *  wurde entfernt, das Feld bleibt aus Datenmodell-Kompat-Gruenden im
+   *  Schema und wird beim Load auf `true` migriert. */
   stage2Aktiv: boolean;
   embeddingCorpusBuiltAt?: string;   // ISO
   /** Setup-Wizard zwingend durchlaufen? False = noch nicht. */
@@ -279,7 +282,7 @@ export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   ueberKategorien: DEFAULT_UEBERKATEGORIEN,
   klassifizierungsSchwellwert: 0.15,
   selbsteintragungFristTage: 7,
-  stage2Aktiv: false,
+  stage2Aktiv: true,
   setupAbgeschlossen: false,
 };
 
