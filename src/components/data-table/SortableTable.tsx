@@ -139,7 +139,7 @@ export function SortableTable<T>({
               return (
                 <th
                   key={c.key}
-                  className="px-3 py-2 align-middle relative"
+                  className="px-3 py-1.5 align-middle relative"
                   aria-sort={ariaSort}
                 >
                   {c.sortable ? (
@@ -187,7 +187,7 @@ export function SortableTable<T>({
                   return (
                     <td
                       key={c.key}
-                      className="px-3 py-2 align-top"
+                      className="px-3 py-1 align-top leading-tight"
                       style={{
                         whiteSpace: noWrap ? 'nowrap' : 'normal',
                         wordBreak: noWrap ? undefined : 'break-word',
