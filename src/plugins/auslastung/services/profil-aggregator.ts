@@ -31,7 +31,7 @@ export function normalizeDeskriptor(raw: unknown): string | null {
  * CSV-Merger konvertiert nur Spalten mit `type: 'boolean'` im Schema in
  * echte Booleans, der Rest bleibt String.
  */
-const ZT_TRUTHY_VALUES = new Set(['x', '1', 'true', 'ja', 'y', 'wahr']);
+const ZT_TRUTHY_VALUES = new Set(['x', '1', 'true', 'ja', 'j', 'y', 'wahr']);
 
 /**
  * Single Source of Truth fuer "ist diese ZT-Boolean-Spalte gesetzt?". Wird
@@ -87,18 +87,48 @@ function slugNfd(s: string): string {
 /**
  * Kandidaten-Field-Namen fuer einen ZT-Klartext. Deckt alle bekannten
  * Slug-Konventionen + Prefix/Suffix-Permutationen ab.
+ *
+ * Im Feld beobachtete User-Patterns:
+ *  - Fixture:               'zt_kuenstliche_intelligenz_ki_tv'
+ *  - Wizard ohne Gruppe:    'kunstliche_intelligenz_ki'
+ *  - Wizard mit Gruppe:     'kunstliche_intelligenz_ki_tv_ebene'
+ *                           (entsteht, wenn das Label-XLS einen Gruppen-Header
+ *                           "TV-Ebene" / "VB-Ebene" hat, der mit in den
+ *                           Slug einfliesst)
+ *  - VB-Roh-Header:         'künstliche_1' / 'cloud comp_1' / 'big data a_1'
+ *                           (CSV-Header sind oft 10-Zeichen-truncated, PapaParse
+ *                           appended '_1' bei Duplikaten. Spaces + Umlaute
+ *                           bleiben im Object-Key erhalten.)
  */
 function ztFieldCandidates(klartext: string): string[] {
   const slugs = new Set([slugUe(klartext), slugNfd(klartext)]);
   const out = new Set<string>();
   for (const slug of slugs) {
     if (!slug) continue;
-    out.add(slug);                 // 'kuenstliche_intelligenz_ki'
-    out.add(`zt_${slug}`);         // 'zt_kuenstliche_intelligenz_ki'
-    out.add(`${slug}_tv`);         // 'kuenstliche_intelligenz_ki_tv'
-    out.add(`${slug}_vb`);         // 'kuenstliche_intelligenz_ki_vb'
-    out.add(`zt_${slug}_tv`);      // 'zt_kuenstliche_intelligenz_ki_tv' (fixture-style)
-    out.add(`zt_${slug}_vb`);      // 'zt_kuenstliche_intelligenz_ki_vb' (fixture-style)
+    out.add(slug);                       // 'kuenstliche_intelligenz_ki'
+    out.add(`zt_${slug}`);               // 'zt_kuenstliche_intelligenz_ki'
+    out.add(`${slug}_tv`);               // '_tv'-Suffix (fixture-kurz)
+    out.add(`${slug}_vb`);
+    out.add(`${slug}_tv_ebene`);         // '_tv_ebene'-Suffix (wizard mit Gruppen-Header)
+    out.add(`${slug}_vb_ebene`);
+    out.add(`zt_${slug}_tv`);            // fixture-style
+    out.add(`zt_${slug}_vb`);
+    out.add(`zt_${slug}_tv_ebene`);      // defensive Permutation
+    out.add(`zt_${slug}_vb_ebene`);
+  }
+  // CSV-Header-Truncate mit '_1'-Suffix (PapaParse-Dedup-Konvention):
+  // Original-Header wird auf 10 Zeichen geschnitten, lowercase, Spaces +
+  // Umlaute bleiben erhalten. Beispiel:
+  //   "Künstliche Intelligenz (KI)" → 'künstliche_1'
+  //   "Cloud Computing"             → 'cloud comp_1'
+  //   "Big Data Analyse"            → 'big data a_1'
+  //   "Industrie 4.0"               → 'industrie _1' (mit trailing space)
+  //                                  → wir testen auch trimmed: 'industrie_1'
+  const truncRaw = klartext.toLowerCase().slice(0, 10);
+  if (truncRaw) {
+    out.add(`${truncRaw}_1`);            // mit ggf. trailing space
+    const trimmed = truncRaw.trimEnd();
+    if (trimmed && trimmed !== truncRaw) out.add(`${trimmed}_1`);
   }
   return [...out];
 }

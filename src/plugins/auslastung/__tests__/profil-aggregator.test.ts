@@ -35,11 +35,13 @@ describe('isZtTruthy', () => {
     expect(isZtTruthy('ja')).toBe(true);
     expect(isZtTruthy('Ja')).toBe(true);
     expect(isZtTruthy('JA')).toBe(true);
+    expect(isZtTruthy('J')).toBe(true);    // Deutsche Single-Letter-Konvention
+    expect(isZtTruthy('j')).toBe(true);
     expect(isZtTruthy('wahr')).toBe(true);
     expect(isZtTruthy(' true ')).toBe(true);
   });
 
-  it('null/empty/0/nein zaehlen als falsch', () => {
+  it('null/empty/0/nein/N zaehlen als falsch', () => {
     expect(isZtTruthy(null)).toBe(false);
     expect(isZtTruthy(undefined)).toBe(false);
     expect(isZtTruthy(0)).toBe(false);
@@ -47,6 +49,8 @@ describe('isZtTruthy', () => {
     expect(isZtTruthy('0')).toBe(false);
     expect(isZtTruthy('nein')).toBe(false);
     expect(isZtTruthy('false')).toBe(false);
+    expect(isZtTruthy('N')).toBe(false);   // Deutsche Single-Letter-Konvention
+    expect(isZtTruthy('n')).toBe(false);
     expect(isZtTruthy([])).toBe(false);
     expect(isZtTruthy({})).toBe(false);
   });
@@ -112,6 +116,67 @@ describe('findTruthyZtField — Multi-Slug-Matching', () => {
     // Sollte trotzdem funktionieren — Kandidaten werden ad-hoc generiert.
     const rec = { fantasie_technologie: 'X' };
     expect(findTruthyZtField(rec, 'Fantasie Technologie')).toBe(true);
+  });
+
+  // ─── Echte User-Patterns aus dem Feld (Wizard + Label-XLS mit Gruppen) ───
+  // Konvention: '_tv_ebene'-Suffix entsteht durch eine Gruppen-Spalte
+  // 'TV-Ebene' im Label-XLS. VB-Spalten landen als rohe 10-Zeichen-
+  // CSV-Header-Truncates mit '_1'-Dedup-Suffix (PapaParse).
+
+  it("User-Pattern: '_tv_ebene'-Suffix (kunstliche_intelligenz_ki_tv_ebene)", () => {
+    const rec = { kunstliche_intelligenz_ki_tv_ebene: 'J' };
+    expect(findTruthyZtField(rec, 'Künstliche Intelligenz (KI)')).toBe(true);
+  });
+
+  it("User-Pattern: '_vb_ebene'-Suffix (kunstliche_intelligenz_ki_vb_ebene)", () => {
+    const rec = { kunstliche_intelligenz_ki_vb_ebene: 'X' };
+    expect(findTruthyZtField(rec, 'Künstliche Intelligenz (KI)')).toBe(true);
+  });
+
+  it("User-Pattern: VB-Roh-Header 'cloud comp_1' (10-Zeichen-Truncate mit Space)", () => {
+    const rec = { 'cloud comp_1': 'J' };
+    expect(findTruthyZtField(rec, 'Cloud Computing')).toBe(true);
+  });
+
+  it("User-Pattern: VB-Roh-Header 'big data a_1' (Truncate mit Space)", () => {
+    const rec = { 'big data a_1': '1' };
+    expect(findTruthyZtField(rec, 'Big Data Analyse')).toBe(true);
+  });
+
+  it("User-Pattern: VB-Roh-Header 'künstliche_1' (Truncate mit Umlaut)", () => {
+    const rec = { 'künstliche_1': 'J' };
+    expect(findTruthyZtField(rec, 'Künstliche Intelligenz (KI)')).toBe(true);
+  });
+
+  it("User-Pattern: VB-Roh-Header 'industrie_1' (Trailing-Space trimmed)", () => {
+    const rec = { 'industrie_1': 'J' };
+    expect(findTruthyZtField(rec, 'Industrie 4.0')).toBe(true);
+  });
+
+  it("User-Pattern: VB-Roh-Header 'digitale w_1' (Truncate mit Space)", () => {
+    const rec = { 'digitale w_1': 'J' };
+    expect(findTruthyZtField(rec, 'Digitale Wirtschaft und Gesellschaft (IKT)')).toBe(true);
+  });
+
+  it("User-Pattern: nackter NFD-Slug ohne Suffix (digitale_wirtschaft_und_gesellschaft_ikt)", () => {
+    const rec = { digitale_wirtschaft_und_gesellschaft_ikt: 'J' };
+    expect(findTruthyZtField(rec, 'Digitale Wirtschaft und Gesellschaft (IKT)')).toBe(true);
+  });
+
+  it("User-Pattern: User-CSV mit allen N-Werten → kein Match (alle falsy)", () => {
+    // Regressions-Schutz fuer den realen User-Fall: ein Antrag, der gar keine
+    // ZT-Spalten gesetzt hat, liefert auch keine Tags.
+    const rec = {
+      digitale_wirtschaft_und_gesellschaft_ikt: 'N',
+      'digitale w_1': 'N',
+      kunstliche_intelligenz_ki_tv_ebene: 'N',
+      'künstliche_1': 'N',
+      cloud_computing_tv_ebene: 'N',
+      'cloud comp_1': 'N',
+    };
+    expect(findTruthyZtField(rec, 'Künstliche Intelligenz (KI)')).toBe(false);
+    expect(findTruthyZtField(rec, 'Cloud Computing')).toBe(false);
+    expect(findTruthyZtField(rec, 'Digitale Wirtschaft und Gesellschaft (IKT)')).toBe(false);
   });
 });
 
