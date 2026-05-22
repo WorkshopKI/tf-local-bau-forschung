@@ -37,7 +37,9 @@ function pageSizeForMode(mode: ViewMode): number {
 const NARROW_WIDTH_KEY = 'teamflow_antraege_narrow_width';
 const NARROW_DEFAULT_WIDTH = 460;
 const NARROW_MIN = 320;
-const NARROW_MAX = 920;
+/** Detail-Panel hat eine harte Mindestbreite — daraus ergibt sich das
+ *  dynamische obere Cap fuer die Liste (`viewport - DETAIL_MIN`). */
+const DETAIL_MIN = 300;
 
 interface Props {
   /** Wenn ein Detail-Panel offen ist, schrumpft die Liste auf eine
@@ -48,7 +50,7 @@ interface Props {
 function loadNarrowWidth(): number {
   try {
     const v = Number(localStorage.getItem(NARROW_WIDTH_KEY));
-    if (Number.isFinite(v) && v >= NARROW_MIN && v <= NARROW_MAX) return v;
+    if (Number.isFinite(v) && v >= NARROW_MIN) return v;
   } catch { /* ignore */ }
   return NARROW_DEFAULT_WIDTH;
 }
@@ -72,6 +74,21 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
   const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
   const [narrowWidth, setNarrowWidth] = useState(loadNarrowWidth);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Liste cappt dynamisch gegen Viewport - DETAIL_MIN, damit das
+  // Detail-Panel immer mindestens DETAIL_MIN Pixel breit bleibt.
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth : 1440,
+  );
+  useEffect(() => {
+    const handler = (): void => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  const effectiveNarrowWidth = Math.min(
+    narrowWidth,
+    Math.max(NARROW_MIN, viewportWidth - DETAIL_MIN),
+  );
 
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   useEffect(() => {
@@ -112,7 +129,8 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
       const drag = dragRef.current;
       if (!drag) return;
       const delta = ev.clientX - drag.startX;
-      const next = Math.min(NARROW_MAX, Math.max(NARROW_MIN, drag.startWidth + delta));
+      const dynMax = Math.max(NARROW_MIN, window.innerWidth - DETAIL_MIN);
+      const next = Math.min(dynMax, Math.max(NARROW_MIN, drag.startWidth + delta));
       setNarrowWidth(next);
     };
     const onUp = (): void => {
@@ -131,7 +149,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
   }, [narrowWidth]);
 
   const containerStyle: React.CSSProperties = narrow
-    ? { width: narrowWidth, flexShrink: 0, position: 'relative' }
+    ? { width: effectiveNarrowWidth, flexShrink: 0, position: 'relative' }
     : {};
   const containerClass = narrow
     ? 'h-full flex'
