@@ -9,29 +9,24 @@ import { NetzwerkMitgliederSection } from './NetzwerkMitgliederSection';
 import { EckdatenCard } from './EckdatenCard';
 import { KlassifikationPills } from './KlassifikationPills';
 import { AlleFelderSection } from './AlleFelderSection';
-import { findFieldValue } from './fieldLookup';
 
 interface Props {
   aktenzeichen: string;
   onOpenAntrag: (aktenzeichen: string) => void;
 }
 
-function strOrNull(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length === 0 ? null : t;
-}
-
 /**
  * Inline TV-Detail-Block fuer die zusammengefuehrte Verbund/TV-Ansicht.
- * Rendert die TV-spezifischen Sections (Vorhaben-Inhalt + Eckdaten + Klassifikation
- * + AlleFelder + Netzwerk + Dokumente) ohne eigenes Panel-Frame — der Container
+ * Rendert die TV-spezifischen Sections (Eckdaten + Klassifikation + AlleFelder
+ * + Netzwerk + Dokumente) ohne eigenes Panel-Frame — der Container
  * (`VerbundDetail`) stellt das Frame.
  *
  * Bewusst NICHT enthalten:
  *  - Workflow-Stepper (sitzt in der gemeinsamen Status-&-Workflow-Section
  *    der `VerbundDetail`, switcht je nach expandiertem TV)
  *  - Titel-h1 + Verbund-Banner (gehoert zum Verbund-Header oben)
+ *  - Kurzbeschreibung (`vb_inhalt`) — rendert die `VerbundDetail` ganz oben
+ *    aus dem Lead-TV, um Duplikation zu vermeiden.
  */
 export function TvDetailBlock({ aktenzeichen, onOpenAntrag }: Props): React.ReactElement {
   const storage = useStorage();
@@ -89,35 +84,9 @@ export function TvDetailBlock({ aktenzeichen, onOpenAntrag }: Props): React.Reac
     );
   }
 
-  const vorhabenInhalt = strOrNull(findFieldValue(antrag, [
-    'vb_inhalt', 'vb inhalt', 'vorhaben_inhalt', 'vorhabeninhalt', 'beschreibung', 'kurzbeschreibung',
-  ]));
-
   return (
     <>
-      {/* Top 2-col area: Vorhaben-Inhalt links, Eckdaten rechts. */}
-      <div className="@container">
-        <div className="grid grid-cols-1 @3xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
-          <div className="min-w-0">
-            {vorhabenInhalt ? (
-              <>
-                <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
-                  Vorhaben-Inhalt
-                </h3>
-                <div
-                  className="rounded-[var(--tf-radius)] p-4 text-[13px] leading-relaxed text-[var(--tf-text)] whitespace-pre-wrap"
-                  style={{ background: 'var(--tf-bg-secondary)' }}
-                >
-                  {vorhabenInhalt}
-                </div>
-              </>
-            ) : null}
-          </div>
-          <div className="min-w-0">
-            <EckdatenCard antrag={antrag} />
-          </div>
-        </div>
-      </div>
+      <EckdatenCard antrag={antrag} />
 
       <SectionDivider>
         <KlassifikationPills antrag={antrag} />

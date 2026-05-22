@@ -20,6 +20,7 @@ import { FieldHistoryModal } from './FieldHistoryModal';
 import { VerbundAlleFelder } from './VerbundAlleFelder';
 import { WorkflowStepper } from './WorkflowStepper';
 import { TvDetailBlock } from './TvDetailBlock';
+import { findFieldValue } from './fieldLookup';
 import {
   isPseudoVerbundId,
   aktenzeichenFromPseudoVerbundId,
@@ -195,6 +196,15 @@ export function VerbundDetail({
   const antragsdatum = strOrNull(lead?.antragsdatum);
   const foerdersumme = sumFoerdersumme(antraege as ReadonlyArray<Record<string, unknown>>);
 
+  // Verbund-Kurzbeschreibung aus dem Lead-TV. `vb_inhalt` (CSV-Spalte
+  // VB_INHALT, Label "Inhalt / Kurzzusammenfassung") ist auf Verbund-Ebene
+  // i.d.R. identisch ueber alle TVs hinweg — Lead-Wert reicht. TvDetailBlock
+  // rendert das Feld nicht mehr, um Duplikation zu vermeiden.
+  const vorhabenInhalt = lead ? strOrNull(findFieldValue(lead, [
+    'vb_inhalt', 'vb inhalt', 'vorhaben_inhalt', 'vorhabeninhalt', 'beschreibung', 'kurzbeschreibung',
+    'inhalt_kurzzusammenfassung', 'kurzzusammenfassung',
+  ])) : null;
+
   // Stepper-Daten: bei expandiertem TV → TV-Status, sonst Verbund-Aggregat.
   const expandedTv = expandedTvAz ? antraege.find(a => a.aktenzeichen === expandedTvAz) ?? null : null;
   const stepperStatus = expandedTv
@@ -231,6 +241,23 @@ export function VerbundDetail({
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">{akronym}</h1>
         {titel ? <div className="mt-1 text-[14px] text-[var(--tf-text-secondary)]">{titel}</div> : null}
       </div>
+
+      {/* KURZBESCHREIBUNG — Verbund-Inhalt aus VB_INHALT. Sitzt ganz oben,
+          damit der User die Projektidee sofort sieht ohne einen TV
+          aufklappen zu muessen. */}
+      {vorhabenInhalt ? (
+        <div className="mb-6">
+          <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
+            Kurzbeschreibung
+          </h3>
+          <div
+            className="rounded-[var(--tf-radius)] p-4 text-[13px] leading-relaxed text-[var(--tf-text)] whitespace-pre-wrap"
+            style={{ background: 'var(--tf-bg-secondary)' }}
+          >
+            {vorhabenInhalt}
+          </div>
+        </div>
+      ) : null}
 
       {/* STAMMDATEN — nur fuer echte Verbuende. Bei pseudo (Standalone) sind
           die Stammdaten identisch zu EckdatenCard, das spaeter im TvDetailBlock
