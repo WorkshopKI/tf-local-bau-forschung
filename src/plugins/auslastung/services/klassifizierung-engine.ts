@@ -21,7 +21,7 @@ import {
   type Klassifizierung,
   type UeberKategorie,
 } from '../types';
-import { readAntragDeskriptoren } from './profil-aggregator';
+import { readAntragDeskriptoren, isZtTruthy } from './profil-aggregator';
 import { cosineSimilarity } from '@/core/services/embedding-corpus';
 import { ZUKUNFTSTECHNOLOGIE_FELDER } from './default-labels';
 
@@ -101,16 +101,6 @@ export function klassifiziereAntrag(input: KlassifizierungInput): Klassifizierun
  * Filtert auf die aktiven `kategorien` (PL kann eine Kategorie umbenannt
  * oder geloescht haben — wir matchen anhand der ID).
  */
-const ZT_TRUTHY_VALUES = new Set(['x', '1', 'true', 'ja', 'y', 'wahr']);
-
-function isZtTruthy(v: unknown): boolean {
-  if (v === true) return true;
-  if (v == null) return false;
-  if (typeof v === 'number') return v !== 0;
-  if (typeof v === 'string') return ZT_TRUTHY_VALUES.has(v.trim().toLowerCase());
-  return false;
-}
-
 export function matchZukunftstechnologien(
   antrag: Antrag,
   kategorien: UeberKategorie[],

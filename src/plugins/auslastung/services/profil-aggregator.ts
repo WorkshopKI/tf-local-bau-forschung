@@ -26,6 +26,29 @@ export function normalizeDeskriptor(raw: unknown): string | null {
 }
 
 /**
+ * "Wahr"-Repraesentationen fuer ZT-Boolean-Spalten in CSV-Importen. Echte
+ * CSVs liefern oft "X", "1" oder "ja" statt JavaScript-`true` — der
+ * CSV-Merger konvertiert nur Spalten mit `type: 'boolean'` im Schema in
+ * echte Booleans, der Rest bleibt String.
+ */
+const ZT_TRUTHY_VALUES = new Set(['x', '1', 'true', 'ja', 'y', 'wahr']);
+
+/**
+ * Single Source of Truth fuer "ist diese ZT-Boolean-Spalte gesetzt?". Wird
+ * sowohl von `readAntragDeskriptoren` (Profile-Aggregation) als auch von
+ * `matchZukunftstechnologien` in der Klassifizierungs-Engine genutzt — beide
+ * muessen identisch entscheiden, sonst driftet das Tag-Set zwischen MA-Profil
+ * und Antrags-Anzeige.
+ */
+export function isZtTruthy(v: unknown): boolean {
+  if (v === true) return true;
+  if (v == null) return false;
+  if (typeof v === 'number') return v !== 0;
+  if (typeof v === 'string') return ZT_TRUTHY_VALUES.has(v.trim().toLowerCase());
+  return false;
+}
+
+/**
  * Liest alle Deskriptoren-Werte eines einzelnen Antrags (over alle Spalten, dedupliziert).
  *
  * Quellen:
@@ -48,7 +71,7 @@ export function readAntragDeskriptoren(antrag: Antrag): string[] {
     if (norm) set.add(norm);
   }
   for (const feld of ZUKUNFTSTECHNOLOGIE_FELDER) {
-    if (rec[feld.customField] === true) {
+    if (isZtTruthy(rec[feld.customField])) {
       const norm = normalizeDeskriptor(feld.klartext);
       if (norm) set.add(norm);
     }
