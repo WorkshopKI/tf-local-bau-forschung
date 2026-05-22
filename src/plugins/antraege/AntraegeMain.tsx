@@ -37,7 +37,7 @@ function pageSizeForMode(mode: ViewMode): number {
 const NARROW_WIDTH_KEY = 'teamflow_antraege_narrow_width';
 const NARROW_DEFAULT_WIDTH = 460;
 const NARROW_MIN = 320;
-const NARROW_MAX = 720;
+const NARROW_MAX = 920;
 
 interface Props {
   /** Wenn ein Detail-Panel offen ist, schrumpft die Liste auf eine
