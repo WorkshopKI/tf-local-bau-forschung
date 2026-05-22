@@ -22,6 +22,7 @@ import {
   CANONICAL_VERBUND_TITEL,
   CANONICAL_TITEL,
   CANONICAL_TIB_KUERZ,
+  CANONICAL_BIB_KUERZ,
   CANONICAL_ANTRAGSDATUM,
   type Klassifizierung,
 } from '../types';
@@ -236,6 +237,7 @@ interface RowProps {
 function Row({ view, kategorien, onToggleKategorie, onBestaetigen }: RowProps): React.ReactElement {
   const a = view.antrag;
   const vbTitel = (a[CANONICAL_VERBUND_TITEL] as string | undefined) ?? (a[CANONICAL_TITEL] as string | undefined) ?? '—';
+  const bib = normalizeKuerzel(a[CANONICAL_BIB_KUERZ]);
   const desk = readAntragDeskriptoren(a);
   const ids = new Set(
     view.klassifizierung.status === 'freigegeben'
@@ -246,10 +248,25 @@ function Row({ view, kategorien, onToggleKategorie, onBestaetigen }: RowProps): 
 
   return (
     <tr style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-      <td className="px-3 py-2 font-mono text-[11.5px]">{a.aktenzeichen}</td>
-      <td className="px-3 py-2 max-w-md truncate" title={vbTitel}>{vbTitel}</td>
-      <td className="px-3 py-2"><TechnologieTags tags={desk} max={3} /></td>
-      <td className="px-3 py-2">
+      <td className="px-3 py-2 font-mono text-[11.5px] align-top">
+        <div>{a.aktenzeichen}</div>
+        {bib && (
+          <div
+            className="mt-1 inline-block px-1.5 py-0.5 rounded text-[10px] font-sans"
+            style={{
+              background: 'var(--tf-bg-secondary)',
+              color: 'var(--tf-text-secondary)',
+              border: '0.5px solid var(--tf-border)',
+            }}
+            title="Administrativer Bearbeiter (BIB)"
+          >
+            BIB: {bib}
+          </div>
+        )}
+      </td>
+      <td className="px-3 py-2 max-w-md truncate align-top" title={vbTitel}>{vbTitel}</td>
+      <td className="px-3 py-2 align-top"><TechnologieTags tags={desk} max={3} /></td>
+      <td className="px-3 py-2 align-top">
         <div className="flex flex-wrap gap-1">
           {kategorien.map(k => {
             const active = ids.has(k.id);
@@ -268,8 +285,8 @@ function Row({ view, kategorien, onToggleKategorie, onBestaetigen }: RowProps): 
           })}
         </div>
       </td>
-      <td className="px-3 py-2"><ConfidenceDot confidence={view.confidence} /></td>
-      <td className="px-3 py-2">
+      <td className="px-3 py-2 align-top"><ConfidenceDot confidence={view.confidence} /></td>
+      <td className="px-3 py-2 align-top">
         {freigegeben ? (
           <span className="text-[11.5px] text-emerald-700">✓ freigegeben</span>
         ) : (

@@ -218,6 +218,10 @@ export const AUSLASTUNG_EMB_PREFIX = 'auslastung-emb:';
 /** Canonical-Field-Keys aus dem CSV-Schema. */
 export const CANONICAL_AKTENZEICHEN = 'aktenzeichen';
 export const CANONICAL_TIB_KUERZ = 'tib_kuerz';
+/** Administrativer Bearbeiter (BIB_KUERZ aus dem Foyer-Schema). Wird im
+ *  Auslastungs-Modul ausschliesslich informativ angezeigt — nicht Teil der
+ *  AnonymMap (siehe CLAUDE.md Pitfall #17), keine zu-verteilende Ressource. */
+export const CANONICAL_BIB_KUERZ = 'bib_kuerz';
 export const CANONICAL_VERBUND_ID = 'verbund_id';
 export const CANONICAL_VERBUND_TITEL = 'verbund_titel';
 export const CANONICAL_TITEL = 'titel';
