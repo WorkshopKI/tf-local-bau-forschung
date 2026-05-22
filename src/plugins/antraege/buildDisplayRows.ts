@@ -22,13 +22,27 @@ export interface DisplayGroup {
 
 const OTHER_LABEL = 'Weitere Felder';
 
-export function buildDisplayRows(antrag: Antrag): DisplayRow[] {
+/**
+ * Wenn `schemas` mitgegeben werden, wird das Custom-Field-Label aus dem
+ * Schema-Mapping (XLS-Label) gelesen — sonst Fallback auf den prettyfied
+ * Slug. Das Schema-Label respektiert Umlaute + Klammer-Suffixe wie
+ * "Künstliche Intelligenz (KI)", die im Slug verloren gehen.
+ *
+ * Rang-Reihenfolge wie in `groupDisplayRows`: dominante Source > Master >
+ * höchste Priority > erste Source mit Label.
+ */
+export function buildDisplayRows(antrag: Antrag, schemas: CsvSchema[] = []): DisplayRow[] {
   const rows: DisplayRow[] = [];
   const seen = new Set<string>();
+  const schemaById = new Map(schemas.map(s => [s.id, s]));
+  const rankedSchemas = [...schemas].sort((a, b) => {
+    if (a.is_master !== b.is_master) return a.is_master ? -1 : 1;
+    return (b.priority ?? 0) - (a.priority ?? 0);
+  });
 
   for (const key of CANONICAL_FIELD_KEYS) {
     if (antrag[key] !== undefined && antrag[key] !== '') {
-      rows.push(toDisplayRow(antrag, key, true));
+      rows.push(toDisplayRow(antrag, key, true, schemaById, rankedSchemas));
       seen.add(key);
     }
   }
@@ -38,7 +52,7 @@ export function buildDisplayRows(antrag: Antrag): DisplayRow[] {
     .sort();
 
   for (const key of customKeys) {
-    rows.push(toDisplayRow(antrag, key, false));
+    rows.push(toDisplayRow(antrag, key, false, schemaById, rankedSchemas));
   }
 
   return rows;
@@ -115,12 +129,48 @@ function findMappingEntry(
   return null;
 }
 
-function toDisplayRow(antrag: Antrag, key: string, isCanonical: boolean): DisplayRow {
+function toDisplayRow(
+  antrag: Antrag,
+  key: string,
+  isCanonical: boolean,
+  schemaById: Map<string, CsvSchema>,
+  rankedSchemas: CsvSchema[],
+): DisplayRow {
   const rawValue = antrag[key];
-  const label = isCanonical ? getCanonicalLabel(key) : prettyCustomLabel(key);
-  const value = formatValue(rawValue, key);
   const sourceSchemaId = antrag._field_sources?.[key];
+  const label = isCanonical
+    ? getCanonicalLabel(key)
+    : resolveCustomLabel(key, sourceSchemaId, schemaById, rankedSchemas);
+  const value = formatValue(rawValue, key);
   return { field: key, label, value, rawValue, sourceSchemaId, isCanonical };
+}
+
+/**
+ * Custom-Field-Label aus dem Schema-Mapping (XLS-Label) — Fallback:
+ * prettyfied Slug. Reihenfolge wie in `resolveGroupPath`: erst dominante
+ * Source, dann andere Schemas nach Rang.
+ *
+ * Wichtig fuer Umlaute/Sonderzeichen: der Slug-Field-Name verliert sie
+ * (`kunstliche_intelligenz_ki_tv_ebene`), das XLS-Label bewahrt sie
+ * ("Künstliche Intelligenz (KI)").
+ */
+function resolveCustomLabel(
+  field: string,
+  sourceSchemaId: string | undefined,
+  schemaById: Map<string, CsvSchema>,
+  rankedSchemas: CsvSchema[],
+): string {
+  if (sourceSchemaId) {
+    const s = schemaById.get(sourceSchemaId);
+    const entry = s?.column_mapping ? findMappingEntry(s.column_mapping, field) : null;
+    if (entry?.label) return entry.label;
+  }
+  for (const s of rankedSchemas) {
+    if (!s.column_mapping) continue;
+    const entry = findMappingEntry(s.column_mapping, field);
+    if (entry?.label) return entry.label;
+  }
+  return prettyCustomLabel(field);
 }
 
 function prettyCustomLabel(key: string): string {

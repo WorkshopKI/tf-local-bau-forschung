@@ -52,7 +52,7 @@ export function VerbundAlleFelder({
   const groups: DisplayGroup[] = useMemo(() => {
     if (tvs.length === 0) return [];
     const merged = mergeAntraegeForDisplay(tvs);
-    const rows = buildDisplayRows(merged).filter(r => !TV_SPECIFIC_FIELD_KEYS.has(r.field));
+    const rows = buildDisplayRows(merged, schemas).filter(r => !TV_SPECIFIC_FIELD_KEYS.has(r.field));
     return groupDisplayRows(rows, schemas);
   }, [tvs, schemas]);
 

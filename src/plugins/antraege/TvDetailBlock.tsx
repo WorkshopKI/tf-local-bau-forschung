@@ -72,7 +72,7 @@ export function TvDetailBlock({ aktenzeichen, onOpenAntrag }: Props): React.Reac
 
   const groups: DisplayGroup[] = useMemo(() => {
     if (!antrag) return [];
-    const rows = buildDisplayRows(antrag);
+    const rows = buildDisplayRows(antrag, schemas);
     return groupDisplayRows(rows, schemas);
   }, [antrag, schemas]);
 
