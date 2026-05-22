@@ -72,7 +72,7 @@ export async function listManifestEntriesBySource(
  * Liefert alle Manifest-Eintraege, deren matched_antrag_id auf das gegebene
  * Aktenzeichen zeigt. Nutzt den `matched_antrag_id`-Index — kein Full-Table-
  * Scan, auch bei 100k+ Eintraegen sub-millisecond. Konsumenten:
- * AntragDetail/SonstigeDokumenteSection.
+ * TvDetailBlock/AntragDokumenteSection.
  */
 export async function listByMatchedAntrag(
   idb: IDBStore,

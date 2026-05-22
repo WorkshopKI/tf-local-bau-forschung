@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getAntrag, getHistoryByAz, loadSchema, listSchemas } from '@/core/services/csv';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
@@ -11,14 +9,10 @@ import { NetzwerkMitgliederSection } from './NetzwerkMitgliederSection';
 import { EckdatenCard } from './EckdatenCard';
 import { KlassifikationPills } from './KlassifikationPills';
 import { AlleFelderSection } from './AlleFelderSection';
-import { WorkflowStepper } from './WorkflowStepper';
 import { findFieldValue } from './fieldLookup';
-import { useAntraegeStore } from './store';
 
 interface Props {
   aktenzeichen: string;
-  onClose: () => void;
-  onOpenVerbund: (verbundId: string) => void;
   onOpenAntrag: (aktenzeichen: string) => void;
 }
 
@@ -28,9 +22,19 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund, onOpenAntrag }: Props): React.ReactElement {
+/**
+ * Inline TV-Detail-Block fuer die zusammengefuehrte Verbund/TV-Ansicht.
+ * Rendert die TV-spezifischen Sections (Vorhaben-Inhalt + Eckdaten + Klassifikation
+ * + AlleFelder + Netzwerk + Dokumente) ohne eigenes Panel-Frame — der Container
+ * (`VerbundDetail`) stellt das Frame.
+ *
+ * Bewusst NICHT enthalten:
+ *  - Workflow-Stepper (sitzt in der gemeinsamen Status-&-Workflow-Section
+ *    der `VerbundDetail`, switcht je nach expandiertem TV)
+ *  - Titel-h1 + Verbund-Banner (gehoert zum Verbund-Header oben)
+ */
+export function TvDetailBlock({ aktenzeichen, onOpenAntrag }: Props): React.ReactElement {
   const storage = useStorage();
-  const { verbuende } = useAntraegeStore();
   const [antrag, setAntrag] = useState<Antrag | null>(null);
   const [historyCounts, setHistoryCounts] = useState<Record<string, number>>({});
   const [sourceNames, setSourceNames] = useState<Record<string, string>>({});
@@ -77,55 +81,29 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund, onOpenAntra
     return groupDisplayRows(rows, schemas);
   }, [antrag, schemas]);
 
-  const verbund = useMemo(() => {
-    if (!antrag || typeof antrag.verbund_id !== 'string') return null;
-    return verbuende.find(v => v.verbund_id === antrag.verbund_id) ?? null;
-  }, [antrag, verbuende]);
-
   if (!antrag) {
     return (
-      <PanelShell onClose={onClose}>
-        <div className="py-10 text-[13px] text-[var(--tf-text-tertiary)]">Antrag {aktenzeichen} nicht gefunden.</div>
-      </PanelShell>
+      <div className="py-6 text-[13px] text-[var(--tf-text-tertiary)]">
+        Antrag {aktenzeichen} nicht gefunden.
+      </div>
     );
   }
 
-  const titel = strOrNull(antrag.titel) ?? antrag.aktenzeichen;
-  const status = strOrNull(antrag.status);
-  const vorhabenInhalt = strOrNull(findFieldValue(antrag, ['vb_inhalt', 'vb inhalt', 'vorhaben_inhalt', 'vorhabeninhalt', 'beschreibung', 'kurzbeschreibung']));
-
-  const showVerbund = !!(verbund && verbund.teilantrags_ids.length > 1);
+  const vorhabenInhalt = strOrNull(findFieldValue(antrag, [
+    'vb_inhalt', 'vb inhalt', 'vorhaben_inhalt', 'vorhabeninhalt', 'beschreibung', 'kurzbeschreibung',
+  ]));
 
   return (
-    <PanelShell onClose={onClose}>
-      {/* Header (full-width) — nur Titel. Status sitzt im Workflow-Stepper, Eckdaten in der Card. */}
-      <div className="mb-6">
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-snug">{titel}</h1>
-      </div>
-
-      {showVerbund ? (
-        <div
-          className="mb-6 p-3 rounded-lg"
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        >
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-[13px]">
-              Teil des Verbundes <strong>{verbund!.akronym ?? verbund!.verbund_id}</strong> ({verbund!.teilantrags_ids.length} Teilanträge)
-            </div>
-            <Button size="sm" variant="outline" onClick={() => onOpenVerbund(verbund!.verbund_id)}>
-              Verbund öffnen
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Top 2-col area: Vorhaben-Inhalt links, Eckdaten rechts. Beide top-aligned. */}
+    <>
+      {/* Top 2-col area: Vorhaben-Inhalt links, Eckdaten rechts. */}
       <div className="@container">
         <div className="grid grid-cols-1 @3xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
           <div className="min-w-0">
             {vorhabenInhalt ? (
               <>
-                <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">Vorhaben-Inhalt</h3>
+                <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
+                  Vorhaben-Inhalt
+                </h3>
                 <div
                   className="rounded-[var(--tf-radius)] p-4 text-[13px] leading-relaxed text-[var(--tf-text)] whitespace-pre-wrap"
                   style={{ background: 'var(--tf-bg-secondary)' }}
@@ -140,14 +118,6 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund, onOpenAntra
           </div>
         </div>
       </div>
-
-      {/* Full-width Sektionen darunter, mit duennen Trennlinien dazwischen. */}
-      {status ? (
-        <SectionDivider>
-          <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">Status &amp; Workflow</h3>
-          <WorkflowStepper status={status} />
-        </SectionDivider>
-      ) : null}
 
       <SectionDivider>
         <KlassifikationPills antrag={antrag} />
@@ -176,11 +146,10 @@ export function AntragDetail({ aktenzeichen, onClose, onOpenVerbund, onOpenAntra
       </SectionDivider>
 
       <FieldHistoryModal aktenzeichen={aktenzeichen} feld={historyField} onClose={() => setHistoryField(null)} />
-    </PanelShell>
+    </>
   );
 }
 
-/** Vollwertige Section mit duenner Trennlinie + vertikalem Padding. Renderlos wenn keine Children-Output. */
 function SectionDivider({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
     <div
@@ -188,24 +157,6 @@ function SectionDivider({ children }: { children: React.ReactNode }): React.Reac
       style={{ borderTop: '0.5px solid var(--tf-border)' }}
     >
       {children}
-    </div>
-  );
-}
-
-function PanelShell({ onClose, children }: { onClose: () => void; children: React.ReactNode }): React.ReactElement {
-  return (
-    <div className="flex-1 min-w-0 h-full overflow-y-auto" style={{ borderLeft: '0.5px solid var(--tf-border)' }}>
-      <div className="sticky top-0 z-10 flex justify-end px-4 pt-3 pb-1 bg-[var(--tf-bg)]">
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
-          aria-label="Detail schließen"
-        >
-          <X size={18} />
-        </button>
-      </div>
-      <div className="px-6 pb-8">{children}</div>
     </div>
   );
 }

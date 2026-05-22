@@ -115,7 +115,7 @@ interface AntraegeState {
   programmId: string | null;
   /** Schmale Listen-Projektion aus dem `ANTRAEGE_LIST_VIEW`-Store —
    *  ~14 Felder pro Record. Die volle 461-Feld-Variante laedt
-   *  `AntragDetail` lazy via `getAntrag(idb, az)`. */
+   *  `TvDetailBlock` lazy via `getAntrag(idb, az)`. */
   antraege: AntragListItem[];
   verbuende: Verbund[];
   /** Aus `verbuende` abgeleitete Map für O(1)-Lookup nach `verbund_id`.

@@ -51,7 +51,7 @@ export interface AntragTextEntry {
  * `findFieldValue` in `fieldLookup.ts`, der das im Detail-View erfolgreich
  * loest.
  *
- * Listen identisch zu [AntragDetail.tsx:95](src/plugins/antraege/AntragDetail.tsx)
+ * Listen identisch zu `findFieldValue`-Aliasen in `TvDetailBlock.tsx`
  * plus die Canonical-Variante `projektbeschreibung_text`. Vorberechnete
  * Sets als Modul-Konstanten — der Cursor-Walk macht 13 k × 2 Lookups,
  * Re-Hashing der Kandidaten pro Eintrag waere Verschwendung.

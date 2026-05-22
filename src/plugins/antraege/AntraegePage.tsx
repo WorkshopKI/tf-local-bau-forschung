@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AntraegeMain } from './AntraegeMain';
 import { AntraegeHeader } from './AntraegeHeader';
-import { AntragDetail } from './AntragDetail';
 import { VerbundDetail } from './VerbundDetail';
 import { FilterDrawer } from './FilterDrawer';
 import { FilterSidebar } from './filter/FilterSidebar';
 import { useAntraegeStore } from './store';
 import { useAntraegeHybridSearch } from './useAntraegeHybridSearch';
+import { pseudoVerbundIdFor } from './pseudoVerbund';
 
 const FILTER_OPEN_KEY = 'teamflow_antraege_filter_open';
 const FILTER_WIDTH_KEY = 'teamflow_antraege_filter_width';
@@ -77,7 +77,22 @@ export function AntraegePage(): React.ReactElement {
 
   const closeDetail = (): void => navigate('/antraege');
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
-  const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
+
+  // Aufloesung Antrag → Verbund: Wenn aus der Liste eine TV-Row geklickt wird,
+  // sitzt der Antrag bereits im preloaded Slim-Store (`antraege` mit
+  // `verbund_id`). Daraus wird der Verbund-Container abgeleitet; faellt der
+  // Antrag aus dem Verbund-Verband heraus oder ist kein verbund_id gesetzt,
+  // wird ein Pseudo-Verbund mit einem TV gerendert.
+  const detailProps = ((): { verbundId: string; expanded: string | undefined } | null => {
+    if (selectedVb) return { verbundId: selectedVb, expanded: selectedAz ?? undefined };
+    if (selectedAz) {
+      const li = antraege.find(a => a.aktenzeichen === selectedAz);
+      const vid = typeof li?.verbund_id === 'string' && li.verbund_id.length > 0 ? li.verbund_id : null;
+      if (vid) return { verbundId: vid, expanded: selectedAz };
+      return { verbundId: pseudoVerbundIdFor(selectedAz), expanded: selectedAz };
+    }
+    return null;
+  })();
 
   const toggleFilter = (): void => {
     setFilterOpen(prev => {
@@ -101,13 +116,11 @@ export function AntraegePage(): React.ReactElement {
 
       <div className="flex-1 min-h-0 flex overflow-hidden">
         <AntraegeMain narrow={hasDetail} />
-        {selectedVb ? (
-          <VerbundDetail verbundId={selectedVb} onClose={closeDetail} onOpenAntrag={openAntrag} />
-        ) : selectedAz ? (
-          <AntragDetail
-            aktenzeichen={selectedAz}
+        {detailProps ? (
+          <VerbundDetail
+            verbundId={detailProps.verbundId}
+            initialExpandedTvAz={detailProps.expanded}
             onClose={closeDetail}
-            onOpenVerbund={openVerbund}
             onOpenAntrag={openAntrag}
           />
         ) : null}
