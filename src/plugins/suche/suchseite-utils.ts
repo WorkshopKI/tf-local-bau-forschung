@@ -1,20 +1,17 @@
 /**
- * Kleine Pure-Helper fuer die SuchSeite (Filter-Pill-Logik, Sort-Vergleich,
- * Pill-Counts). Ausgelagert um die Seite-Komponente schlank zu halten.
+ * Kleine Pure-Helper fuer die SuchSeite (Filter-Pill-Logik, Pill-Counts).
+ * Sort-Vergleich + Collator leben seit der data-table-Extraktion unter
+ * `@/components/data-table/compareValues` und werden hier nur re-exportiert,
+ * damit bestehende Such-Tests + interne Aufrufe stabil bleiben.
  */
 import type { UnifiedSearchResult } from '@/core/types/search-result';
+import { compareValues, DATA_TABLE_COLLATOR } from '@/components/data-table';
 
 export type SuchePillFilterId = '' | 'antrag' | 'dokument' | 'bauantrag';
 
-/**
- * Modul-Singleton-Collator. Spart bei N·log(N) Sort-Vergleichen (bis 10k+
- * comparisons bei 1.000 Treffern) die wiederholte Intl-Lookup-Overhead.
- * Wird auch in SuchSeite.tsx fuer die Filter-Kandidaten-Sortierung verwendet.
- */
-export const SUCHE_COLLATOR = new Intl.Collator('de', {
-  numeric: true,
-  sensitivity: 'base',
-});
+/** Backwards-Kompat: alter Name. */
+export const SUCHE_COLLATOR = DATA_TABLE_COLLATOR;
+export { compareValues };
 
 export function matchesPillFilter(r: UnifiedSearchResult, filter: SuchePillFilterId): boolean {
   if (filter === '') return true;
@@ -22,16 +19,6 @@ export function matchesPillFilter(r: UnifiedSearchResult, filter: SuchePillFilte
   if (filter === 'dokument') return r.type === 'dokument';
   if (filter === 'bauantrag') return r.type === 'dokument' && r.dokumentTyp === 'bauantrag';
   return true;
-}
-
-export function compareValues(
-  a: string | number,
-  b: string | number,
-  dir: 'asc' | 'desc',
-): number {
-  if (typeof a === 'number' && typeof b === 'number') return dir === 'asc' ? a - b : b - a;
-  const cmp = SUCHE_COLLATOR.compare(String(a), String(b));
-  return dir === 'asc' ? cmp : -cmp;
 }
 
 export function countResultsByType(rs: ReadonlyArray<UnifiedSearchResult>): {

@@ -14,8 +14,9 @@
  */
 import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Filter } from 'lucide-react';
+import { ChevronDown, Filter } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
+import { SortIcon } from '@/components/data-table';
 import type { SearchColumn } from './columns';
 
 const ACTIVE_FILTER_COLOR = '#1D9E75';
@@ -157,13 +158,6 @@ function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactEleme
 // bei Such-/Filter-/Sort-State-Updates triggert SuchSeite einen Parent-Re-Render,
 // der den Header sonst komplett neu mounten wuerde. memo() entkoppelt das.
 export const SearchTableHeader = memo(SearchTableHeaderInner);
-
-function SortIcon({ active, direction }: { active: boolean; direction: 'asc' | 'desc' }): React.ReactElement {
-  if (!active) return <ArrowUpDown size={11} style={{ color: 'var(--tf-text-tertiary)' }} />;
-  return direction === 'asc'
-    ? <ArrowUp size={11} style={{ color: 'var(--tf-text)' }} />
-    : <ArrowDown size={11} style={{ color: 'var(--tf-text)' }} />;
-}
 
 interface FilterDropdownProps {
   candidates: string[];

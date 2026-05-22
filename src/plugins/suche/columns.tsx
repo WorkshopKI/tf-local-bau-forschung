@@ -12,6 +12,7 @@ import { memo, type ReactNode } from 'react';
 import { FileText } from 'lucide-react';
 import { Badge } from '@/ui';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
+import type { SortableColumn } from '@/components/data-table';
 import { getStatusCategoryColor } from '@/plugins/antraege/groupAggregates';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 
@@ -27,18 +28,17 @@ export type SearchColumnAppliesTo = 'both' | 'antrag' | 'dokument';
  */
 export type SearchColumnFilterType = 'multiSelect' | 'year' | 'type';
 
-export interface SearchColumn {
-  key: string;
-  label: string;
+/**
+ * Such-spezifische Spalten-Definition: erweitert die generische
+ * `SortableColumn<UnifiedSearchResult>` um Filter- + Resize-spezifische
+ * Felder (Default-Width hier required, `filterable`, Filter-Typ, Filter-
+ * Accessor, etc.).
+ */
+export interface SearchColumn extends SortableColumn<UnifiedSearchResult> {
   /** Default-Spaltenbreite in Pixel. User kann sie per Drag-Handle ueberschreiben. */
   width: number;
-  defaultVisible: boolean;
-  sortable: boolean;
   filterable: boolean;
-  locked?: boolean;
   appliesTo: SearchColumnAppliesTo;
-  accessor: (r: UnifiedSearchResult) => string | number;
-  render: (r: UnifiedSearchResult) => ReactNode;
   /** Default `multiSelect`. */
   filterType?: SearchColumnFilterType;
   /** Optional separate Quelle fuer Filter-Kandidaten (wenn der Filter etwas
@@ -48,9 +48,6 @@ export interface SearchColumn {
   /** Optionaler Display-Mapper fuer Filter-Dropdown-Werte. Filter-State bleibt
    *  nach Roh-Werten indexiert; nur das Label im Dropdown wird gemappt. */
   formatFilterLabel?: (value: string) => string;
-  /** Wenn true, wird der Zell-Inhalt nicht abgeschnitten sondern umgebrochen
-   *  (z.B. fuer die Titel/Inhalt-Spalte mit Snippet-Text). Default false. */
-  wrap?: boolean;
 }
 
 /** Extrahiert das Jahr (YYYY) aus einem ISO- oder dd.mm.yyyy-Datum.

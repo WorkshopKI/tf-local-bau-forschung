@@ -1,33 +1,37 @@
 /**
  * Screen 1a — Klassifizierungs-Review.
  *
- * Tabelle: Aktenzeichen / VB-Titel / Deskriptoren / Vorgeschlagen /
- * Confidence / Aktion.
+ * Tabelle: 11 Spalten, davon 7 default sichtbar — siehe
+ * `klassifizierung-columns.tsx`. Sortierbar pro Spalte (asc → desc → null);
+ * "Spalten ▼"-Picker persistiert sichtbare Spalten in localStorage.
  *
  * Filter-Pills: Alle / Review nötig / Bereits freigegeben.
  * Batch-Aktion: "Alle hohen Confidences freigeben".
+ * Pool-Filter: aktuelles Jahr, ohne TiB, ohne abgelehnt/zurückgezogen/Irrläufer.
  */
 import { useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
+import {
+  ColumnPicker,
+  SortableTable,
+  useColumnVisibility,
+  useTableSort,
+} from '@/components/data-table';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useKlassifizierungenView, type KlassifizierungsView } from '../hooks/useKlassifizierungen';
-import { KategoriePill } from '../components/KategoriePill';
-import { ConfidenceDot } from '../components/ConfidenceDot';
-import { TechnologieTags } from '../components/TechnologieTags';
-import { readAntragDeskriptoren } from '../services/profil-aggregator';
 import { normalizeKuerzel } from '../services/anonym-map';
 import type { Antrag } from '@/core/services/csv/types';
 import {
-  CANONICAL_VERBUND_TITEL,
-  CANONICAL_TITEL,
   CANONICAL_TIB_KUERZ,
-  CANONICAL_BIB_KUERZ,
   CANONICAL_ANTRAGSDATUM,
   type Klassifizierung,
 } from '../types';
+import { buildClassifierColumns } from './klassifizierung-columns';
 
 type ViewFilter = 'alle' | 'review' | 'freigegeben';
+
+const COLUMN_VISIBILITY_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_columns';
 
 /** Status-Werte (lowercase, getrimmt), die einen Antrag aus dem
  *  Verteil-Pool ausschliessen. Quelle: Foyer-CSV `STATUS_TV`. */
@@ -119,11 +123,9 @@ export function KlassifizierungsReview(): React.ReactElement {
       current.delete(kategorieId);
     }
     const ids = [...current];
-    // Wenn bereits freigegeben: einfach updaten
     if (v.klassifizierung.status === 'freigegeben') {
       await freigeben(storage, v.antrag.aktenzeichen, ids);
     } else {
-      // Andernfalls: aktualisiere vorgeschlageneKategorien (override durch PL)
       const next: Klassifizierung = {
         ...v.klassifizierung,
         vorgeschlageneKategorien: ids.map(id => ({
@@ -140,6 +142,39 @@ export function KlassifizierungsReview(): React.ReactElement {
     const ids = v.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId);
     await freigeben(storage, v.antrag.aktenzeichen, ids);
   }
+
+  // Spalten-Definition mit injizierten Callbacks. useMemo damit die `render`-
+  // Closures stabil bleiben (sonst rendert jeder Parent-Re-Render alle Zeilen
+  // neu).
+  const allColumns = useMemo(
+    () => buildClassifierColumns({
+      kategorien: config.ueberKategorien,
+      onToggleKategorie: (v, id, add) => void applyManualOverride(v, id, add),
+      onBestaetigen: v => void bestaetigen(v),
+    }),
+    // applyManualOverride + bestaetigen sind Closures ueber Hook-State, also
+    // ist die ueberKategorien-Liste der relevante Re-Build-Trigger. Storage/
+    // freigeben/upsert sind stabile Zustand-Hooks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [config.ueberKategorien],
+  );
+
+  const { visibleKeys, toggleColumn } = useColumnVisibility(
+    COLUMN_VISIBILITY_STORAGE_KEY,
+    allColumns,
+  );
+
+  const visibleColumns = useMemo(
+    () => allColumns.filter(c => visibleKeys.includes(c.key)),
+    [allColumns, visibleKeys],
+  );
+
+  const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(
+    filtered,
+    allColumns,
+    'confidence',
+    'desc',
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -187,120 +222,23 @@ export function KlassifizierungsReview(): React.ReactElement {
           >
             Alle hohen Confidences freigeben ({counts.neu})
           </button>
+          <ColumnPicker
+            columns={allColumns}
+            visibleKeys={visibleKeys}
+            onToggleColumn={toggleColumn}
+          />
         </div>
       </div>
 
-      {/* Tabelle */}
-      <div className="rounded-[12px] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
-        <table className="w-full text-[12.5px]">
-          <thead>
-            <tr className="text-left text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]" style={{ background: 'var(--tf-bg-secondary)' }}>
-              <th className="px-3 py-2 w-28">Aktz.</th>
-              <th className="px-3 py-2">VB-Titel</th>
-              <th className="px-3 py-2">Deskriptoren</th>
-              <th className="px-3 py-2">Vorgeschlagen</th>
-              <th className="px-3 py-2 w-16">Conf.</th>
-              <th className="px-3 py-2 w-32">Aktion</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(v => (
-              <Row
-                key={v.antrag.aktenzeichen}
-                view={v}
-                kategorien={config.ueberKategorien}
-                onToggleKategorie={(id, add) => void applyManualOverride(v, id, add)}
-                onBestaetigen={() => void bestaetigen(v)}
-              />
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-[var(--tf-text-tertiary)]">
-                  Keine Anträge in dieser Ansicht.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <SortableTable
+        rows={sortedRows}
+        columns={visibleColumns}
+        sortKey={sortKey}
+        sortDirection={sortDirection}
+        onSort={toggleSort}
+        rowKey={v => v.antrag.aktenzeichen}
+        emptyContent="Keine Anträge in dieser Ansicht."
+      />
     </div>
-  );
-}
-
-interface RowProps {
-  view: KlassifizierungsView;
-  kategorien: Array<{ id: string; name: string; farbe: import('../types').KategorieFarbe }>;
-  onToggleKategorie: (kategorieId: string, add: boolean) => void;
-  onBestaetigen: () => void;
-}
-
-function Row({ view, kategorien, onToggleKategorie, onBestaetigen }: RowProps): React.ReactElement {
-  const a = view.antrag;
-  const vbTitel = (a[CANONICAL_VERBUND_TITEL] as string | undefined) ?? (a[CANONICAL_TITEL] as string | undefined) ?? '—';
-  const bib = normalizeKuerzel(a[CANONICAL_BIB_KUERZ]);
-  const desk = readAntragDeskriptoren(a);
-  const ids = new Set(
-    view.klassifizierung.status === 'freigegeben'
-      ? view.klassifizierung.freigegebeneKategorien
-      : view.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId),
-  );
-  const freigegeben = view.klassifizierung.status === 'freigegeben';
-
-  return (
-    <tr style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-      <td className="px-3 py-2 font-mono text-[11.5px] align-top">
-        <div>{a.aktenzeichen}</div>
-        {bib && (
-          <div
-            className="mt-1 inline-block px-1.5 py-0.5 rounded text-[10px] font-sans"
-            style={{
-              background: 'var(--tf-bg-secondary)',
-              color: 'var(--tf-text-secondary)',
-              border: '0.5px solid var(--tf-border)',
-            }}
-            title="Administrativer Bearbeiter (BIB)"
-          >
-            BIB: {bib}
-          </div>
-        )}
-      </td>
-      <td className="px-3 py-2 max-w-md truncate align-top" title={vbTitel}>{vbTitel}</td>
-      <td className="px-3 py-2 align-top"><TechnologieTags tags={desk} max={3} /></td>
-      <td className="px-3 py-2 align-top">
-        <div className="flex flex-wrap gap-1">
-          {kategorien.map(k => {
-            const active = ids.has(k.id);
-            return (
-              <button
-                key={k.id}
-                type="button"
-                onClick={() => onToggleKategorie(k.id, !active)}
-                className="cursor-pointer"
-                aria-pressed={active}
-                title={active ? `${k.name} entfernen` : `${k.name} hinzufügen`}
-              >
-                <KategoriePill kategorie={k} active={active} />
-              </button>
-            );
-          })}
-        </div>
-      </td>
-      <td className="px-3 py-2 align-top"><ConfidenceDot confidence={view.confidence} /></td>
-      <td className="px-3 py-2 align-top">
-        {freigegeben ? (
-          <span className="text-[11.5px] text-emerald-700">✓ freigegeben</span>
-        ) : (
-          <button
-            type="button"
-            onClick={onBestaetigen}
-            disabled={ids.size === 0}
-            className="text-[11.5px] px-2 py-1 rounded cursor-pointer disabled:opacity-50"
-            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-          >
-            Freigeben
-          </button>
-        )}
-      </td>
-    </tr>
   );
 }
