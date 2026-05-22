@@ -16,13 +16,38 @@ import { KategoriePill } from '../components/KategoriePill';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { TechnologieTags } from '../components/TechnologieTags';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
+import { normalizeKuerzel } from '../services/anonym-map';
+import type { Antrag } from '@/core/services/csv/types';
 import {
   CANONICAL_VERBUND_TITEL,
   CANONICAL_TITEL,
+  CANONICAL_TIB_KUERZ,
+  CANONICAL_ANTRAGSDATUM,
   type Klassifizierung,
 } from '../types';
 
 type ViewFilter = 'alle' | 'review' | 'freigegeben';
+
+/** Status-Werte (lowercase, getrimmt), die einen Antrag aus dem
+ *  Verteil-Pool ausschliessen. Quelle: Foyer-CSV `STATUS_TV`. */
+const EXCLUDED_STATUS = new Set(['abgelehnt/zurückgezogen', 'irrläufer']);
+
+/** Extrahiert das Jahr aus `config.aktuellesQuartal` (Format `YYYY-QN`). */
+function jahrAusQuartal(quartal: string): number | null {
+  const m = /^(\d{4})-Q[1-4]$/.exec(quartal);
+  return m ? Number(m[1]) : null;
+}
+
+/** True wenn der Antrag dem Verteil-Pool angehoert: aktuelles Jahr, ohne
+ *  TiB-Zuweisung, Status nicht in `EXCLUDED_STATUS`. */
+function istZuVerteilen(antrag: Antrag, jahr: number): boolean {
+  const datum = antrag[CANONICAL_ANTRAGSDATUM];
+  if (typeof datum !== 'string' || !datum.startsWith(`${jahr}-`)) return false;
+  if (normalizeKuerzel(antrag[CANONICAL_TIB_KUERZ]) !== null) return false;
+  const status = typeof antrag.status === 'string' ? antrag.status.trim().toLowerCase() : '';
+  if (EXCLUDED_STATUS.has(status)) return false;
+  return true;
+}
 
 export function KlassifizierungsReview(): React.ReactElement {
   const storage = useStorage();
@@ -32,7 +57,15 @@ export function KlassifizierungsReview(): React.ReactElement {
   const freigeben = useAuslastungData(s => s.freigebenKategorien);
 
   const cache = useAntraegeCache();
-  const view = useKlassifizierungenView(cache.antraege, config.ueberKategorien, klassifizierungen);
+  const aktuellesJahr = useMemo(
+    () => jahrAusQuartal(config.aktuellesQuartal),
+    [config.aktuellesQuartal],
+  );
+  const antraegeImPool = useMemo(() => {
+    if (aktuellesJahr === null) return cache.antraege;
+    return cache.antraege.filter(a => istZuVerteilen(a, aktuellesJahr));
+  }, [cache.antraege, aktuellesJahr]);
+  const view = useKlassifizierungenView(antraegeImPool, config.ueberKategorien, klassifizierungen);
 
   const [filter, setFilter] = useState<ViewFilter>('alle');
 
@@ -109,6 +142,14 @@ export function KlassifizierungsReview(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Pool-Hint */}
+      {aktuellesJahr !== null && (
+        <div className="text-[11px] text-[var(--tf-text-tertiary)]">
+          Verteil-Pool: Anträge aus {aktuellesJahr} ohne TiB-Zuweisung, ohne Status
+          „abgelehnt/zurückgezogen" und „Irrläufer".
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
