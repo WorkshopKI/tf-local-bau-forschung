@@ -257,15 +257,31 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       wrap: true,
       accessor: v => topVorschlagKey(v),
       render: v => {
-        const ids = new Set(
-          v.klassifizierung.status === 'freigegeben'
-            ? v.klassifizierung.freigegebeneKategorien
-            : v.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId),
-        );
+        // 1.17: Primaer vs Aspekt unterscheiden — Primaer-Kategorie gefuellt,
+        // Aspekte outline. Bei status='freigegeben' kommt das aus
+        // `freigegebenePrimaer`/`freigegebeneAspekte`, sonst aus den
+        // entsprechenden `vorgeschlagene*`-Feldern. Mit Fallback auf die
+        // deprecated 1.16-Felder fuer Pre-Migration-Daten.
+        const istFreigegeben = v.klassifizierung.status === 'freigegeben';
+        const primaer = istFreigegeben
+          ? (v.klassifizierung.freigegebenePrimaer || v.klassifizierung.freigegebeneKategorien?.[0] || '')
+          : (v.klassifizierung.vorgeschlagenePrimaer?.kategorieId
+              || v.klassifizierung.vorgeschlageneKategorien?.[0]?.kategorieId
+              || '');
+        const aspekte = istFreigegeben
+          ? (v.klassifizierung.freigegebeneAspekte ?? v.klassifizierung.freigegebeneKategorien?.slice(1) ?? [])
+          : (v.klassifizierung.vorgeschlageneAspekte?.map(a => a.kategorieId)
+              ?? v.klassifizierung.vorgeschlageneKategorien?.slice(1).map(c => c.kategorieId)
+              ?? []);
+        const aspekteSet = new Set(aspekte);
         return (
           <div className="flex flex-wrap gap-1">
             {kategorien.map(k => {
-              const active = ids.has(k.id);
+              const isPrimaer = k.id === primaer;
+              const isAspekt = aspekteSet.has(k.id);
+              const mode: 'primaer' | 'aspekt' | 'inactive' =
+                isPrimaer ? 'primaer' : isAspekt ? 'aspekt' : 'inactive';
+              const active = isPrimaer || isAspekt;
               return (
                 <button
                   key={k.id}
@@ -273,9 +289,13 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
                   onClick={() => onToggleVerbund(v, k.id, !active)}
                   className="cursor-pointer"
                   aria-pressed={active}
-                  title={active ? `${k.name} entfernen` : `${k.name} hinzufügen`}
+                  title={
+                    isPrimaer ? `${k.name} (Primär) — entfernen`
+                    : isAspekt ? `${k.name} (Aspekt) — entfernen`
+                    : `${k.name} als Aspekt hinzufügen`
+                  }
                 >
-                  <KategoriePill kategorie={k} active={active} />
+                  <KategoriePill kategorie={k} mode={mode} />
                 </button>
               );
             })}

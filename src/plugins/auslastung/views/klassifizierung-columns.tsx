@@ -217,15 +217,27 @@ interface VorschlagCellProps {
 }
 
 function VorschlagCell({ view, kategorien, onToggle }: VorschlagCellProps): ReactNode {
-  const ids = new Set(
-    view.klassifizierung.status === 'freigegeben'
-      ? view.klassifizierung.freigegebeneKategorien
-      : view.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId),
-  );
+  // 1.17: Primaer vs Aspekt visuell unterscheiden.
+  const istFreigegeben = view.klassifizierung.status === 'freigegeben';
+  const primaer = istFreigegeben
+    ? (view.klassifizierung.freigegebenePrimaer || view.klassifizierung.freigegebeneKategorien?.[0] || '')
+    : (view.klassifizierung.vorgeschlagenePrimaer?.kategorieId
+        || view.klassifizierung.vorgeschlageneKategorien?.[0]?.kategorieId
+        || '');
+  const aspekte = istFreigegeben
+    ? (view.klassifizierung.freigegebeneAspekte ?? view.klassifizierung.freigegebeneKategorien?.slice(1) ?? [])
+    : (view.klassifizierung.vorgeschlageneAspekte?.map(a => a.kategorieId)
+        ?? view.klassifizierung.vorgeschlageneKategorien?.slice(1).map(c => c.kategorieId)
+        ?? []);
+  const aspekteSet = new Set(aspekte);
   return (
     <div className="flex flex-wrap gap-1">
       {kategorien.map(k => {
-        const active = ids.has(k.id);
+        const isPrimaer = k.id === primaer;
+        const isAspekt = aspekteSet.has(k.id);
+        const mode: 'primaer' | 'aspekt' | 'inactive' =
+          isPrimaer ? 'primaer' : isAspekt ? 'aspekt' : 'inactive';
+        const active = isPrimaer || isAspekt;
         return (
           <button
             key={k.id}
@@ -233,9 +245,13 @@ function VorschlagCell({ view, kategorien, onToggle }: VorschlagCellProps): Reac
             onClick={() => onToggle(view, k.id, !active)}
             className="cursor-pointer"
             aria-pressed={active}
-            title={active ? `${k.name} entfernen` : `${k.name} hinzufügen`}
+            title={
+              isPrimaer ? `${k.name} (Primär) — entfernen`
+              : isAspekt ? `${k.name} (Aspekt) — entfernen`
+              : `${k.name} als Aspekt hinzufügen`
+            }
           >
-            <KategoriePill kategorie={k} active={active} />
+            <KategoriePill kategorie={k} mode={mode} />
           </button>
         );
       })}

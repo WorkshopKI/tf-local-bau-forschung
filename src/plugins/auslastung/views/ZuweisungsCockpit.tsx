@@ -271,7 +271,17 @@ export function ZuweisungsCockpit(): React.ReactElement {
           <div className="flex-1 overflow-y-auto">
             {filtered.map(v => {
               const isSel = selectedAz === v.antrag.aktenzeichen;
-              const kats = config.ueberKategorien.filter(k => v.klassifizierung.freigegebeneKategorien.includes(k.id));
+              // 1.17: Primaer (gefuellt) vs Aspekte (outline) trennen.
+              const primaerId = v.klassifizierung.freigegebenePrimaer
+                || v.klassifizierung.freigegebeneKategorien?.[0]
+                || '';
+              const aspektIds = v.klassifizierung.freigegebeneAspekte
+                ?? v.klassifizierung.freigegebeneKategorien?.slice(1)
+                ?? [];
+              const primaerKat = config.ueberKategorien.find(k => k.id === primaerId);
+              const aspektKats = aspektIds
+                .map(id => config.ueberKategorien.find(k => k.id === id))
+                .filter((k): k is NonNullable<typeof k> => k != null);
               const ze = zuweisungen.filter(z => z.antragId === v.antrag.aktenzeichen);
               const selbst = ze.some(z => z.status === 'selbst' || z.selbstEingetragen);
               const zug = ze.some(z => z.status === 'freigegeben');
@@ -288,7 +298,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
                   <span className="font-mono text-[11px] text-[var(--tf-text-secondary)]">{v.antrag.aktenzeichen}</span>
                   <span className="flex-1 truncate text-[12px]">{(v.antrag[CANONICAL_VERBUND_TITEL] as string | undefined) ?? '—'}</span>
                   <div className="flex gap-0.5">
-                    {kats.map(k => <KategoriePill key={k.id} kategorie={k} />)}
+                    {primaerKat && <KategoriePill key={primaerKat.id} kategorie={primaerKat} mode="primaer" />}
+                    {aspektKats.map(k => <KategoriePill key={k.id} kategorie={k} mode="aspekt" />)}
                   </div>
                   {zug && <span className="text-emerald-700 text-[11px]">✓✓</span>}
                   {selbst && !zug && <span className="text-blue-700 text-[11px]">✓</span>}
@@ -351,7 +362,18 @@ function DetailPanel({
   const summary = antrag[FIELD_PROJEKTBESCHREIBUNG] as string | undefined;
   const verbund_id = antrag[CANONICAL_VERBUND_ID] as string | undefined;
   const desk = readAntragDeskriptoren(antrag);
-  const kats = kategorien.filter(k => klassifizierung.freigegebeneKategorien.includes(k.id));
+  // 1.17: Primaer (gefuellt) + Aspekte (outline) trennen, mit Fallback auf
+  // deprecated freigegebeneKategorien fuer Pre-Migration-Stand.
+  const primaerKatId = klassifizierung.freigegebenePrimaer
+    || klassifizierung.freigegebeneKategorien?.[0]
+    || '';
+  const aspektKatIds = klassifizierung.freigegebeneAspekte
+    ?? klassifizierung.freigegebeneKategorien?.slice(1)
+    ?? [];
+  const primaerKategorie = kategorien.find(k => k.id === primaerKatId);
+  const aspektKategorien = aspektKatIds
+    .map(id => kategorien.find(k => k.id === id))
+    .filter((k): k is NonNullable<typeof k> => k != null);
   const selbstEintragung = zuweisungen.find(z => z.status === 'selbst' || z.selbstEingetragen);
   const hasLow = matches.length > 0 && matches.every(m => m.confidence === 'low');
 
@@ -364,7 +386,8 @@ function DetailPanel({
           {akt && <span className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">{akt}</span>}
           {verbund_id && <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">VB {verbund_id}</span>}
           <div className="ml-auto flex gap-1">
-            {kats.map(k => <KategoriePill key={k.id} kategorie={k} />)}
+            {primaerKategorie && <KategoriePill key={primaerKategorie.id} kategorie={primaerKategorie} mode="primaer" />}
+            {aspektKategorien.map(k => <KategoriePill key={k.id} kategorie={k} mode="aspekt" />)}
           </div>
         </div>
         <h2 className="text-[14px] font-medium text-[var(--tf-text)]">{vbTitel ?? '—'}</h2>

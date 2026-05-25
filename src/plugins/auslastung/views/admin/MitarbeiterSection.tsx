@@ -152,7 +152,12 @@ export function MitarbeiterSection({ storage, cache }: Props): React.ReactElemen
         </thead>
         <tbody>
           {list.map(ma => {
-            const kats = kategorien.filter(k => ma.ueberKategorien.includes(k.id));
+            // 1.17: Hauptkategorie (primaer) + Nebenkategorien (aspekt) visuell trennen.
+            const hauptId = ma.hauptKategorie || ma.ueberKategorien?.[0] || '';
+            const nebenIds = ma.nebenKategorien ?? (ma.ueberKategorien ? ma.ueberKategorien.slice(1) : []);
+            const hauptKat = kategorien.find(k => k.id === hauptId);
+            const nebenKats = nebenIds.map(id => kategorien.find(k => k.id === id)).filter((k): k is NonNullable<typeof k> => k != null);
+            const hasKats = hauptKat != null || nebenKats.length > 0;
             return (
               <tr
                 key={ma.anonId}
@@ -165,8 +170,9 @@ export function MitarbeiterSection({ storage, cache }: Props): React.ReactElemen
                 <td className="px-2 py-1.5 text-[var(--tf-text-secondary)]">{ma.jahresKapazitaet}h</td>
                 <td className="px-2 py-1.5">
                   <div className="flex flex-wrap gap-1">
-                    {kats.map(k => <KategoriePill key={k.id} kategorie={k} />)}
-                    {kats.length === 0 && <span className="text-[var(--tf-text-tertiary)]">—</span>}
+                    {hauptKat && <KategoriePill key={hauptKat.id} kategorie={hauptKat} mode="primaer" />}
+                    {nebenKats.map(k => <KategoriePill key={k.id} kategorie={k} mode="aspekt" />)}
+                    {!hasKats && <span className="text-[var(--tf-text-tertiary)]">—</span>}
                   </div>
                 </td>
                 <td className="px-2 py-1.5">
