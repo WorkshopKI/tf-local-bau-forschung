@@ -1,12 +1,14 @@
 /**
  * Top-3 MA-Vorschlags-Card im Zuweisungs-Cockpit.
- * Zeigt: anonId gross, Score, Stufe-Badge, Restkapazitaet, matchende
+ * Zeigt: anonId gross, Score, Stufe-Badge, Kapazitaet in Antraegen (NICHT
+ * Stunden — User-facing seit 1.17), Aspekt-Match-Hinweise, matchende
  * Technologien, aehnliche Projekte, Zuweisen/Ablehnen-Buttons.
  */
-import type { MatchResult } from '../types';
+import type { MatchResult, UeberKategorie } from '../types';
 import { AnonymIdBadge } from './AnonymIdBadge';
 import { ConfidenceDot } from './ConfidenceDot';
 import { TechnologieTags } from './TechnologieTags';
+import { useAuslastungData } from '../hooks/useAuslastungData';
 
 interface Props {
   match: MatchResult;
@@ -14,6 +16,9 @@ interface Props {
   onZuweisen: () => void;
   onAblehnen: () => void;
   disabled?: boolean;
+  /** Anzahl Tage bis Quartals-Ende. Wenn < quartalsEndeBonusTage, zeigen wir
+   *  einen Hinweis bei "Kapazitaet erschoepft". Optional. */
+  tageImQuartal?: number;
 }
 
 const STUFE_LABEL: Record<MatchResult['matchStufe'], string> = {
@@ -23,10 +28,22 @@ const STUFE_LABEL: Record<MatchResult['matchStufe'], string> = {
 };
 
 export function VorschlagCard({
-  match, matchendeQueryTokens, onZuweisen, onAblehnen, disabled,
+  match, matchendeQueryTokens, onZuweisen, onAblehnen, disabled, tageImQuartal,
 }: Props): React.ReactElement {
   const score = Math.round(match.kompetenzScore * 100);
-  const balancePct = Math.round(match.balanceScore * 100);
+  const config = useAuslastungData(s => s.data.config);
+  const stundenProTV = config.stundenProTV ?? 9;
+  const durchschnittTV = config.durchschnittTVproAntrag ?? 2;
+  const antragsStunden = stundenProTV * durchschnittTV;
+  const restAntraege = Math.floor(match.restKapazitaet / antragsStunden);
+  const maxAntraege = Math.floor(match.quartalsKapazitaet / antragsStunden);
+  const ueberbuchungAntraege = Math.ceil((match.ueberbuchung ?? 0) / antragsStunden);
+  const quartalsEndeBonusTage = config.quartalsEndeBonusTage ?? 21;
+  const kategorienById = new Map(config.ueberKategorien.map(k => [k.id, k]));
+  const aspektMatchKategorien = (match.aspektMatchIds ?? [])
+    .map(id => kategorienById.get(id))
+    .filter((k): k is UeberKategorie => k != null);
+
   return (
     <div
       className="rounded-[12px] p-4 flex flex-col gap-3"
@@ -48,18 +65,44 @@ export function VorschlagCard({
               <ConfidenceDot confidence={match.confidence} />
             </div>
             <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-              Kompetenz {Math.round(match.kompetenzScore * 100)}% · Balance {balancePct}%
+              Kompetenz {score}%
+              {(match.aspektBonus ?? 0) > 0 && (
+                <> · Aspekt +{Math.round((match.aspektBonus ?? 0) * 100)}%</>
+              )}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Kapazitaet */}
-      <div className="text-[12px] text-[var(--tf-text-secondary)]">
-        <span className="font-medium text-[var(--tf-text)]">{Math.round(match.restKapazitaet)}h</span>
-        {' von '}{Math.round(match.quartalsKapazitaet)}h frei
-        {' · '}<span className="text-[var(--tf-text-tertiary)]">Aufwand {match.benoetigteStunden}h</span>
+      {/* Kapazitaet — Antraege statt Stunden (1.17) */}
+      <div className="text-[12px]">
+        {ueberbuchungAntraege > 0 ? (
+          <span className="text-rose-700 font-medium">
+            Überbucht um ~{ueberbuchungAntraege} {ueberbuchungAntraege === 1 ? 'Antrag' : 'Anträge'}
+          </span>
+        ) : restAntraege === 0 ? (
+          <span className="text-orange-700">
+            Kapazität erschöpft
+            {tageImQuartal != null && tageImQuartal < quartalsEndeBonusTage && (
+              <span className="text-[var(--tf-text-tertiary)]"> · Neues Quartal in {tageImQuartal} Tagen</span>
+            )}
+          </span>
+        ) : restAntraege === 1 ? (
+          <span className="text-amber-700">1 Antrag frei</span>
+        ) : (
+          <span className="text-[var(--tf-text-secondary)]">
+            <span className="font-medium text-[var(--tf-text)]">{restAntraege}</span>
+            {' von '}{maxAntraege} Anträgen frei
+          </span>
+        )}
       </div>
+
+      {/* Aspekt-Match-Anzeige (1.17) */}
+      {aspektMatchKategorien.length > 0 && (
+        <div className="text-[11.5px] text-emerald-700">
+          {aspektMatchKategorien.map(k => `✓ ${k.id}-Aspekt abgedeckt`).join(' · ')}
+        </div>
+      )}
 
       {/* Matchende Technologien */}
       {match.matchendeTechnologien.length > 0 && (

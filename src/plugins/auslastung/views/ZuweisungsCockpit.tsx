@@ -32,6 +32,7 @@ import { KategoriePill } from '../components/KategoriePill';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { TechnologieTags } from '../components/TechnologieTags';
 import { VorschlagCard } from '../components/VorschlagCard';
+import { tageImQuartal as computeTageImQuartal } from '../services/kapazitaet';
 import { AnonymIdBadge } from '../components/AnonymIdBadge';
 import { PasswortDialog } from '../components/PasswortDialog';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
@@ -124,7 +125,11 @@ export function ZuweisungsCockpit(): React.ReactElement {
     void (async () => {
       setMatchingRunning(true);
       try {
-        const kategorieIds = selectedView.klassifizierung.freigegebeneKategorien;
+        // 1.17: primaer + aspekte aus den freigegebenen Feldern, Fallback
+        // auf die deprecated `freigegebeneKategorien`-Liste.
+        const k = selectedView.klassifizierung;
+        const primaerKategorie = k.freigegebenePrimaer || k.freigegebeneKategorien?.[0] || '';
+        const aspekte = k.freigegebeneAspekte ?? k.freigegebeneKategorien?.slice(1) ?? [];
         let queryEmbedding: number[] | undefined;
         let corpusEmbeddings: Map<string, number[]> | undefined;
         let antraegeIndex: ReturnType<typeof buildAntraegeIndexForMatching> | undefined;
@@ -141,7 +146,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
         }
         const result = runMatching({
           antrag: selected,
-          kategorieIds,
+          primaerKategorie,
+          aspekte,
           config,
           mitarbeiter,
           zuweisungen,
@@ -315,6 +321,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
               mitarbeiter={mitarbeiter}
               onZuweisen={zuweisen}
               onAblehnen={ablehnen}
+              tageImQuartal={computeTageImQuartal(config.aktuellesQuartal)}
             />
           )}
         </div>
@@ -325,7 +332,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
 function DetailPanel({
   antrag, klassifizierung, kategorien, matches, matchingRunning,
-  zuweisungen, mitarbeiter, onZuweisen, onAblehnen,
+  zuweisungen, mitarbeiter, onZuweisen, onAblehnen, tageImQuartal,
 }: {
   antrag: Antrag;
   klassifizierung: import('../types').Klassifizierung;
@@ -336,6 +343,7 @@ function DetailPanel({
   mitarbeiter: Record<string, import('../types').AnonymerMitarbeiter>;
   onZuweisen: (m: MatchResult) => void;
   onAblehnen: (m: MatchResult) => void;
+  tageImQuartal: number;
 }): React.ReactElement {
   const akt = antrag[CANONICAL_AKRONYM] as string | undefined;
   const vbTitel = antrag[CANONICAL_VERBUND_TITEL] as string | undefined;
@@ -425,6 +433,7 @@ function DetailPanel({
               match={m}
               onZuweisen={() => onZuweisen(m)}
               onAblehnen={() => onAblehnen(m)}
+              tageImQuartal={tageImQuartal}
             />
           ))}
           {matches.length === 0 && !matchingRunning && (
