@@ -53,6 +53,16 @@ export function isAntraegeEnabled(): boolean { return features.antraege; }
 export function isBauantraegeEnabled(): boolean { return features.bauantraege; }
 export function isDokumenteEnabled(): boolean { return features.dokumente; }
 export function isAuslastungEnabled(): boolean { return features.auslastung === true; }
+/** Homepage-Selbsteintragung + Banner. End-User-Feature, getrennt vom PL-
+ *  Plugin (`auslastung`). Wer das Plugin aktiviert hat, will i.d.R. auch
+ *  die Selbsteintragung — wenn der Flag fehlt, fallen wir auf `auslastung`
+ *  zurueck (Backwards-Kompat fuer pre-1.17-Configs). */
+export function isAuslastungSelbstEintragungEnabled(): boolean {
+  if (typeof features.auslastungSelbstEintragung === 'boolean') {
+    return features.auslastungSelbstEintragung;
+  }
+  return features.auslastung === true;
+}
 export function isChatEnabled(): boolean { return features.chat; }
 export function isSucheEnabled(): boolean { return features.suche; }
 export function isFeedbackBoardEnabled(): boolean { return features.feedbackBoard; }

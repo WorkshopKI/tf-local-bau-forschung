@@ -17,7 +17,7 @@ import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
 import { SelbsteintragungBanner } from '@/plugins/auslastung/components/SelbsteintragungBanner';
-import { menuLabel, dataConfig, isAuslastungEnabled } from '@/config/feature-flags';
+import { menuLabel, dataConfig, isAuslastungSelbstEintragungEnabled } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
@@ -182,7 +182,7 @@ export function HomePage(): React.ReactElement {
 
       {/* Benachrichtigungs-Banner fuer neu freigegebene Antraege in der
           Hauptkategorie des MAs (1.17). Nur sichtbar wenn auslastung-Build. */}
-      {profile?.department !== 'bauantraege' && isAuslastungEnabled() && (
+      {profile?.department !== 'bauantraege' && isAuslastungSelbstEintragungEnabled() && (
         <SelbsteintragungBanner />
       )}
 
@@ -323,7 +323,7 @@ export function HomePage(): React.ReactElement {
               (1.17 ersetzt den frueheren Tab "Selbsteintragung"). Nur sichtbar
               wenn features.auslastung aktiv ist und der User Foerderantraege
               im Profil hat. */}
-          {profile?.department !== 'bauantraege' && isAuslastungEnabled() && (
+          {profile?.department !== 'bauantraege' && isAuslastungSelbstEintragungEnabled() && (
             <NeueAntraegeFuerDich />
           )}
         </div>

@@ -29,6 +29,7 @@
     "bauantraege": false,
     "dokumente": true,
     "auslastung": true,
+    "auslastungSelbstEintragung": true,
     "chat": true,
     "suche": true,
     "feedbackBoard": true

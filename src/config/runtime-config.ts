@@ -47,8 +47,13 @@ export interface TeamflowFeatures {
   antraege: boolean;
   bauantraege: boolean;
   dokumente: boolean;
-  /** Plugin "Auslastung" — automatische Kategorisierung + MA-Zuweisung. */
+  /** Plugin "Auslastung" — automatische Kategorisierung + MA-Zuweisung (PL-Tool). */
   auslastung: boolean;
+  /** Homepage-Selbsteintragung + Benachrichtigungs-Banner (End-User-Feature).
+   *  Getrennt von `auslastung`, damit prod-Builds nur die Selbsteintragung
+   *  zeigen ohne das volle PL-Plugin in der Sidebar. Optional fuer
+   *  Backwards-Kompat mit pre-1.17-Configs — Fallback ist `auslastung`. */
+  auslastungSelbstEintragung?: boolean;
   /** User-Plugin "Chat" (AI-Chat). Build-Time-Gate, unabhängig von KI-Backend-Config. */
   chat: boolean;
   /** User-Plugin "Suche" (Hybrid-Suche). Trennt sich von `volltextsuche` (das gated den Suchindex-Kurator). */
