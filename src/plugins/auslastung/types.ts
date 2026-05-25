@@ -43,21 +43,63 @@ export interface UeberKategorie {
   referenzEmbedding?: number[];
 }
 
-/** Stufe-1-Vorschlag oder Stufe-2-Vorschlag pro Antrag. */
+/** Stufe-1-Vorschlag oder Stufe-2-Vorschlag pro Antrag.
+ *  Methode-Wertebereich seit Workflow-Revision 1.17: zusaetzlich 'llm' und
+ *  'manuell' fuer LLM-Batch-Klassifizierung bzw. PL-Korrektur. */
 export interface KategorieVorschlag {
   kategorieId: string;
   confidence: number;        // 0..1
-  methode: 'regel' | 'embedding';
+  methode: 'regel' | 'embedding' | 'llm' | 'manuell';
+}
+
+/** Vorgeschlagene Primaerkategorie eines Antrags (mit Methode + optionaler
+ *  LLM-Begruendung). Workflow-Revision 1.17: ersetzt das Multi-Label-Modell. */
+export interface PrimaerVorschlag {
+  kategorieId: string;
+  confidence: number;
+  methode: 'regel' | 'embedding' | 'llm' | 'manuell';
+  /** Nur bei methode='llm' gesetzt — Kurzbegruendung vom Modell. */
+  begruendung?: string;
+}
+
+/** Vorgeschlagener Aspekt — Querschnittstechnologie die im Antrag steckt,
+ *  aber NICHT das Kernthema ist. Beispiel: KI als Werkzeug in einem
+ *  Maschinenbau-Antrag (primaer=IT, aspekte=[DT]). */
+export interface AspektVorschlag {
+  kategorieId: string;
+  confidence: number;
 }
 
 export interface Klassifizierung {
   antragId: string;          // aktenzeichen
-  vorgeschlageneKategorien: KategorieVorschlag[];
-  /** Nach PL-Review — 1..2 Kategorien. Leer = noch nicht reviewed. */
-  freigegebeneKategorien: string[];
+
+  // ─── Workflow-Revision 1.17: Primaer + Aspekte ─────────────────────────
+  //     Optional WAEHREND der Migration (1.17 → 1.18). `loadAuslastungData`
+  //     setzt sie aus den deprecated-Feldern. Sobald Cleanup-Commit alle
+  //     Konsumenten umgestellt hat, werden sie required und die deprecated-
+  //     Felder fliegen raus.
+  /** Genau eine Primaerkategorie. `undefined` = pre-1.17-Stand (Migration
+   *  rekonstruiert aus `vorgeschlageneKategorien[0]`). */
+  vorgeschlagenePrimaer?: PrimaerVorschlag | null;
+  /** 0..n Aspekte (Querschnittstechnologien), sortiert nach Confidence desc. */
+  vorgeschlageneAspekte?: AspektVorschlag[];
+  /** Nach PL-Review — genau eine Primaerkategorie. '' = noch nicht reviewed. */
+  freigegebenePrimaer?: string;
+  /** Nach PL-Review — 0..n Aspekte. */
+  freigegebeneAspekte?: string[];
+
   status: 'vorgeschlagen' | 'freigegeben';
   /** ISO-Datum der PL-Freigabe (Trigger fuer Selbsteintragungs-Frist). */
   freigegebenAm?: string;
+
+  // ─── DEPRECATED — werden beim Save 1 Release weiter geschrieben, damit
+  //     externe Konsumenten (Test-Skripte, Exports, alte App-Stand-Reads)
+  //     nicht brechen. Cleanup geplant fuer v1.18.
+  //     Bis dahin sind sie **noch** required (Lese-Pfad).
+  /** @deprecated nutze `vorgeschlagenePrimaer` + `vorgeschlageneAspekte`. */
+  vorgeschlageneKategorien: KategorieVorschlag[];
+  /** @deprecated nutze `freigegebenePrimaer` + `freigegebeneAspekte`. */
+  freigegebeneKategorien: string[];
 }
 
 /** Globale Auslastungs-Config (PL-gepflegt). */
@@ -67,7 +109,9 @@ export interface AuslastungConfig {
   gewichtungKompetenz: number;       // 0..1
   gewichtungBalance: number;         // 0..1, in Praxis 1 - gewichtungKompetenz
   ueberKategorien: UeberKategorie[];
-  /** Multi-Label-Schwellwert: Differenz Top-1 vs Top-2 fuer Multi-Label. */
+  /** Schwellwert fuer Aspekt-Erkennung in der Klassifizierung: Wenn Top-2
+   *  weniger als `klassifizierungsSchwellwert` hinter Top-1 liegt, wird
+   *  Top-2 als Aspekt aufgenommen (statt verworfen). Default 0.15. */
   klassifizierungsSchwellwert: number;
   /** Tage bis automatische PL-Zuweisung nach Klassifizierungs-Freigabe. */
   selbsteintragungFristTage: number;
@@ -79,6 +123,20 @@ export interface AuslastungConfig {
   embeddingCorpusBuiltAt?: string;   // ISO
   /** Setup-Wizard zwingend durchlaufen? False = noch nicht. */
   setupAbgeschlossen: boolean;
+
+  // ─── Workflow-Revision 1.17 ──────────────────────────────────────────
+  /** Durchschnittliche Anzahl Teilvorhaben pro Verbund — wird fuer die
+   *  Anzeige-Umrechnung "Stunden → Antraege" verwendet. Stunden bleiben
+   *  intern (Berechnungs-Einheit), User-facing zeigen wir Antraege.
+   *  Default 2. */
+  durchschnittTVproAntrag: number;
+  /** Quartals-Ende-Bonus: in den letzten N Tagen eines Quartals bekommen
+   *  ueberbuchte MAs einen sanfteren Malus (weil das naechste Quartal ja
+   *  bald startet). Default 21 Tage. */
+  quartalsEndeBonusTage: number;
+  /** Bonus zum Kompetenz-Score pro Aspekt-Treffer (Antrag-Aspekt matched
+   *  MA-Nebenkategorie). Default 0.10. */
+  aspektBonus: number;
 }
 
 /** Pro MA: virtuelle Projekte aus Onboarding-Swipe (kommt in Prompt 2). */
@@ -100,8 +158,22 @@ export interface AnonymerMitarbeiter {
    *  gegen das Output von `readAntragDeskriptoren()`. Auto-Aggregation laeuft
    *  weiter, aber gefilterte Tags fliessen nicht ins Team-Profil. */
   ausgeblendeteAutoTags: string[];
-  /** In welchen Ueberkategorien arbeitet der MA. */
-  ueberKategorien: string[];
+
+  // ─── Workflow-Revision 1.17: Haupt + Neben ───────────────────────────
+  //     Optional WAEHREND der Migration. `normalizeMitarbeiterRecord`
+  //     rekonstruiert aus dem deprecated `ueberKategorien`-Feld.
+  /** Genau eine Hauptkategorie — "Ich bearbeite grundsaetzlich Antraege
+   *  aus diesem Bereich". Bestimmt den Pool fuer Selbsteintragung +
+   *  Matching. '' = nicht gesetzt (Setup unvollstaendig). */
+  hauptKategorie?: string;
+  /** 0..n Nebenkategorien — "Bei Antraegen mit diesen Aspekten werde
+   *  ich bevorzugt vorgeschlagen". Triggert Aspekt-Bonus im Matching. */
+  nebenKategorien?: string[];
+  /** Pauschal-Abschlag auf die Quartals-Kapazitaet, 0–100. Typischer
+   *  Use-Case: 25% fuer QS-MAs die einen Teil ihrer Zeit fuer
+   *  Querschnittsthemen aufwenden. Default 0. */
+  abschlagProzent?: number;
+
   virtuelleProjekte: VirtuellesProjekt[];
   profilEmbeddingText?: string;
   onboardingAbgeschlossen: boolean;
@@ -111,6 +183,12 @@ export interface AnonymerMitarbeiter {
    *  Migration alter Daten: ebenfalls true (PL deaktiviert manuell via
    *  Admin-Tab oder ueber den Auto-Vorschlag-Banner). */
   aktiv: boolean;
+
+  // ─── DEPRECATED — bleibt 1 Release in Schreibrichtung (Save-Path
+  //     rekonstruiert das Feld aus haupt+neben). Cleanup geplant fuer v1.18.
+  //     Bis dahin **noch** required (Lese-Pfad).
+  /** @deprecated nutze `hauptKategorie` + `nebenKategorien`. */
+  ueberKategorien: string[];
 }
 
 export interface Zuweisung {
@@ -121,6 +199,10 @@ export interface Zuweisung {
   status: 'vorgeschlagen' | 'freigegeben' | 'abgelehnt' | 'selbst';
   freigegebenAm?: string;
   selbstEingetragen?: boolean;
+  /** Echte TV-Anzahl des Verbunds (aus CSV). Wenn nicht gesetzt: 1.
+   *  Workflow-Revision 1.17 — wird fuer die "Antraege statt Stunden"-Anzeige
+   *  benoetigt, damit ein 4-TV-Verbund nicht wie ein 1-TV-Antrag wirkt. */
+  anzahlTV?: number;
 }
 
 /** Top-Level: kommt als JSON auf den SMB-Share. */
@@ -206,6 +288,18 @@ export interface MatchResult {
   astMatchCount: number;
   /** Roher Boost-Beitrag aus dem AST-Match (Score-Komponente). */
   astBoost: number;
+
+  // ─── Workflow-Revision 1.17 — optional waehrend Migration ───────────
+  /** Weiches Kapazitaets-Modell: 0..1+ Score statt hartem Filter. 1.0 =
+   *  reichlich Kapazitaet, 0..1 = knapper, < 0.2 = ueberbucht. Quartals-
+   *  Ende-Bonus eingepreist. */
+  kapazitaetsScore?: number;
+  /** Bonus-Beitrag aus Aspekt-Matches (Anzahl Treffer × config.aspektBonus). */
+  aspektBonus?: number;
+  /** Welche Antrag-Aspekte matched diese MA-Nebenkategorien? */
+  aspektMatchIds?: string[];
+  /** Stunden ueber dem Limit. > 0 bei Ueberbuchung, sonst 0. */
+  ueberbuchung?: number;
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -304,6 +398,10 @@ export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   selbsteintragungFristTage: 7,
   stage2Aktiv: true,
   setupAbgeschlossen: false,
+  // Workflow-Revision 1.17
+  durchschnittTVproAntrag: 2,
+  quartalsEndeBonusTage: 21,
+  aspektBonus: 0.10,
 };
 
 export function deriveCurrentQuartal(now: Date = new Date()): string {
