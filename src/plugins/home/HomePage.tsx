@@ -13,9 +13,10 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
 import { MeineAntraegeSection } from './MeineAntraegeSection';
+import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
-import { menuLabel, dataConfig } from '@/config/feature-flags';
+import { menuLabel, dataConfig, isAuslastungEnabled } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
@@ -310,6 +311,14 @@ export function HomePage(): React.ReactElement {
               />
             );
           })()}
+
+          {/* "Neue Antraege fuer dich" — Selbsteintragung aus Auslastung
+              (1.17 ersetzt den frueheren Tab "Selbsteintragung"). Nur sichtbar
+              wenn features.auslastung aktiv ist und der User Foerderantraege
+              im Profil hat. */}
+          {profile?.department !== 'bauantraege' && isAuslastungEnabled() && (
+            <NeueAntraegeFuerDich />
+          )}
         </div>
 
         {/* Sidebar cards */}
