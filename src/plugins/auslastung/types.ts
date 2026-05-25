@@ -139,6 +139,21 @@ export interface AuslastungConfig {
   aspektBonus: number;
 }
 
+/**
+ * Antragstyp-Bucket (v2.2) — spiegelt das UI-Filter-Schema der Foerderantraege-
+ * Liste (`KategorieLabel` aus `kategorieQuickfilter.ts`). Mappt auf `vb_phase`:
+ *  - FuE → 3
+ *  - DS  → 5
+ *  - DL  → 4
+ *  - NW  → 1 oder 2
+ *  (Irrlaeufer = vb_phase 9 → kein Bucket, wird nie matched.)
+ *
+ * Persistiert pro MA in `antragstypBevorzugt` + `antragstypUeberschreibung`.
+ */
+export type AntragstypBucket = 'FuE' | 'DS' | 'DL' | 'NW';
+
+export const ALL_ANTRAGSTYP_BUCKETS: AntragstypBucket[] = ['FuE', 'DS', 'DL', 'NW'];
+
 /** Pro MA: virtuelle Projekte aus Onboarding-Swipe (kommt in Prompt 2). */
 export interface VirtuellesProjekt {
   antragId: string;
@@ -173,6 +188,17 @@ export interface AnonymerMitarbeiter {
    *  Use-Case: 25% fuer QS-MAs die einen Teil ihrer Zeit fuer
    *  Querschnittsthemen aufwenden. Default 0. */
   abschlagProzent?: number;
+
+  // ─── Workflow-Revision v2.2: Antragstyp-Praeferenzen ─────────────────
+  /** Vom MA selbst gepflegte Praeferenz, welche Antragstypen er bearbeitet
+   *  (FuE/DS/DL/NW). Leeres Array oder undefined = alle erlaubt
+   *  (Backwards-Kompat). Wirkt sich auf Selbsteintragung + Matching aus. */
+  antragstypBevorzugt?: AntragstypBucket[];
+  /** PL-Override. Hat Vorrang vor `antragstypBevorzugt` wenn nicht-leer.
+   *  Use-Case: PL stellt fuer den MA temporaer einen engeren Filter ein
+   *  (z.B. wegen Auslastung in einem Bereich). Leeres Array oder
+   *  undefined = MA-Praeferenz gilt. */
+  antragstypUeberschreibung?: AntragstypBucket[];
 
   virtuelleProjekte: VirtuellesProjekt[];
   profilEmbeddingText?: string;
