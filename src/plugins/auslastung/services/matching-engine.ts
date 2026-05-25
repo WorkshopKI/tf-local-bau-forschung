@@ -33,6 +33,7 @@ import {
 import { runBm25Matching, type Bm25Result } from './bm25-matcher';
 import { runEmbeddingMatching, type EmbeddingMatchResult } from './embedding-matcher';
 import { kapazitaetsScore, tageImQuartal } from './kapazitaet';
+import { matchesAntragstyp } from './antragstyp-praeferenz';
 import type { AnonymMap } from './anonym-map';
 
 export interface MatchInput {
@@ -85,14 +86,17 @@ export function runMatching(input: MatchInput): MatchResult[] {
 
   // 1) Eligible MAs: Pool = MAs deren hauptKategorie == primaer.
   //    Fallback fuer noch nicht migrierte MAs: ueberKategorien enthaelt primaer.
+  //    v2.2: zusaetzlich Antragstyp-Praeferenz pruefen — MAs die diesen
+  //    Antragstyp gar nicht bearbeiten (FuE/DS/DL/NW) fallen sofort raus,
+  //    spart die teuren BM25/Embedding-Scores.
   const eligibleAnonIds = new Set<string>();
   for (const ma of Object.values(mitarbeiter)) {
     if (!ma.aktiv) continue;
     const matchesHaupt = ma.hauptKategorie ? ma.hauptKategorie === primaer : false;
     const matchesLegacy = !ma.hauptKategorie && (ma.ueberKategorien?.includes(primaer) ?? false);
-    if (matchesHaupt || matchesLegacy) {
-      eligibleAnonIds.add(ma.anonId);
-    }
+    if (!(matchesHaupt || matchesLegacy)) continue;
+    if (!matchesAntragstyp(antrag, ma)) continue;
+    eligibleAnonIds.add(ma.anonId);
   }
   if (eligibleAnonIds.size === 0) return [];
 

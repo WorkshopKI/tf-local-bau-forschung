@@ -346,4 +346,100 @@ describe('runMatching', () => {
       expect(res[0]!.quartalsKapazitaet).toBe(100);
     });
   });
+
+  describe('v2.2: Antragstyp-Praeferenz-Filter', () => {
+    function makeAntragMit(vbPhase: number): Antrag {
+      return makeAntrag('A1', {
+        verbund_titel: 'KI',
+        vb_phase: vbPhase,
+      } as unknown as Partial<Antrag>);
+    }
+
+    it('MA mit antragstypBevorzugt=[FuE] bekommt DS-Antrag nicht', () => {
+      const m1: AnonymerMitarbeiter = {
+        ...makeMa('MA01', ['IT'], 1600, ['KI']),
+        hauptKategorie: 'IT',
+        antragstypBevorzugt: ['FuE'],
+      };
+      const res = runMatching({
+        antrag: makeAntragMit(5),  // DS
+        primaerKategorie: 'IT',
+        config: makeConfig(),
+        mitarbeiter: { MA01: m1 },
+        zuweisungen: [],
+        historischeDeskriptorenByAnon: new Map([['MA01', ['ki']]]),
+        anonymMap: buildAnonymMapForTests([]),
+      });
+      expect(res).toEqual([]);
+    });
+
+    it('Override-Prioritaet: bevorzugt=[FuE,NW], override=[FuE] → NW raus', () => {
+      const m1: AnonymerMitarbeiter = {
+        ...makeMa('MA01', ['IT'], 1600, ['KI']),
+        hauptKategorie: 'IT',
+        antragstypBevorzugt: ['FuE', 'NW'],
+        antragstypUeberschreibung: ['FuE'],
+      };
+      // NW-Antrag (vb_phase=1) — vom Override raus
+      const resNw = runMatching({
+        antrag: makeAntragMit(1),
+        primaerKategorie: 'IT',
+        config: makeConfig(),
+        mitarbeiter: { MA01: m1 },
+        zuweisungen: [],
+        historischeDeskriptorenByAnon: new Map([['MA01', ['ki']]]),
+        anonymMap: buildAnonymMapForTests([]),
+      });
+      expect(resNw).toEqual([]);
+      // FuE-Antrag — durch beide Praeferenzen erlaubt
+      const resFue = runMatching({
+        antrag: makeAntragMit(3),
+        primaerKategorie: 'IT',
+        config: makeConfig(),
+        mitarbeiter: { MA01: m1 },
+        zuweisungen: [],
+        historischeDeskriptorenByAnon: new Map([['MA01', ['ki']]]),
+        anonymMap: buildAnonymMapForTests([]),
+      });
+      expect(resFue).toHaveLength(1);
+    });
+
+    it('Backwards-Kompat: MA ohne Praeferenz bekommt alle Antraege', () => {
+      const m1: AnonymerMitarbeiter = {
+        ...makeMa('MA01', ['IT'], 1600, ['KI']),
+        hauptKategorie: 'IT',
+        // KEIN antragstypBevorzugt / antragstypUeberschreibung gesetzt
+      };
+      for (const phase of [1, 2, 3, 4, 5]) {
+        const res = runMatching({
+          antrag: makeAntragMit(phase),
+          primaerKategorie: 'IT',
+          config: makeConfig(),
+          mitarbeiter: { MA01: m1 },
+          zuweisungen: [],
+          historischeDeskriptorenByAnon: new Map([['MA01', ['ki']]]),
+          anonymMap: buildAnonymMapForTests([]),
+        });
+        expect(res).toHaveLength(1);
+      }
+    });
+
+    it('Irrlaeufer (vb_phase=9) wird bei expliziter Praeferenz gefiltert', () => {
+      const m1: AnonymerMitarbeiter = {
+        ...makeMa('MA01', ['IT'], 1600, ['KI']),
+        hauptKategorie: 'IT',
+        antragstypBevorzugt: ['FuE', 'DS', 'DL', 'NW'],  // alle 4, aber expliziter Filter
+      };
+      const res = runMatching({
+        antrag: makeAntragMit(9),
+        primaerKategorie: 'IT',
+        config: makeConfig(),
+        mitarbeiter: { MA01: m1 },
+        zuweisungen: [],
+        historischeDeskriptorenByAnon: new Map([['MA01', ['ki']]]),
+        anonymMap: buildAnonymMapForTests([]),
+      });
+      expect(res).toEqual([]);
+    });
+  });
 });

@@ -29,6 +29,7 @@ import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { useKuerzelMap } from '@/plugins/auslastung/hooks/useKuerzelMap';
 import { resolveAnonIdForUser } from '@/plugins/auslastung/services/anonym-map';
 import { computeKapazitaet } from '@/plugins/auslastung/services/kapazitaet';
+import { matchesAntragstyp } from '@/plugins/auslastung/services/antragstyp-praeferenz';
 import { KategoriePill } from '@/plugins/auslastung/components/KategoriePill';
 import {
   CANONICAL_TITEL,
@@ -97,6 +98,9 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       if (zugewieseneIds.has(k.antragId)) continue;
       const antrag = antraegeById.get(k.antragId);
       if (!antrag) continue;
+      // v2.2: Antragstyp-Filter (FuE/DS/DL/NW). Ohne Praeferenz: passt alles
+      // durch (Backwards-Kompat). PL-Override hat Vorrang.
+      if (!matchesAntragstyp(antrag, myMa)) continue;
       // Frist berechnen
       const freigegebenAm = k.freigegebenAm ? new Date(k.freigegebenAm).getTime() : null;
       const deadline = freigegebenAm != null ? freigegebenAm + fristTage * 86400000 : null;
