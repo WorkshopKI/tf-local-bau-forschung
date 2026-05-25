@@ -1,82 +1,61 @@
 /**
- * AuslastungView — Top-Level-Layout des Auslastungs-Plugins.
+ * AuslastungView — Top-Level-Layout des Auslastungs-Plugins (1.17).
  *
- * Drei Sichtbarkeits-Modi:
- *  1. Setup nicht abgeschlossen + Kurator -> zwingender Setup-Wizard im
- *     Admin-Tab (alle anderen Tabs disabled/erklärt).
- *  2. Setup nicht abgeschlossen + Nicht-Kurator -> Empty-State.
- *  3. Setup abgeschlossen -> alle Tabs sichtbar, MA sieht nur Selbsteintragung.
+ * Reduziert von 5 auf 3 Tabs:
+ *  - Klassifizierung  — pro Verbund, mit LLM-Batch-Button (1.17)
+ *  - Zuweisung        — PL-Cockpit mit Top-3 Vorschlaegen
+ *  - Uebersicht       — fusioniert Admin + Kapazitaet
  *
- * Tab-Sichtbarkeit:
- *  - Selbsteintragung: alle User
- *  - Klassifizierung / Zuweisung / Kapazität / Admin: nur is_kurator
+ * Die ehemalige Selbsteintragung wandert auf die Homepage
+ * (NeueAntraegeFuerDich-Sektion). Sichtbarkeit "PL-only" ist bereits ueber
+ * Build-Varianten geregelt (`features.auslastung` nur in pl/dev configs).
+ *
+ * Auto-Switch: Setup nicht abgeschlossen → 'uebersicht' (zeigt Setup-Wizard).
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useProfile } from '@/core/hooks/useProfile';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { KlassifizierungsReview } from './KlassifizierungsReview';
 import { ZuweisungsCockpit } from './ZuweisungsCockpit';
-import { SelbsteintragungView } from './SelbsteintragungView';
-import { KapazitaetsDashboard } from './KapazitaetsDashboard';
-import { AuslastungAdmin } from './AuslastungAdmin';
+import { UebersichtView } from './UebersichtView';
 
-type TabId = 'selbst' | 'klassifizierung' | 'zuweisung' | 'kapazitaet' | 'admin';
+type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht';
 
 export function AuslastungView(): React.ReactElement {
   const storage = useStorage();
-  const { profile } = useProfile();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const data = useAuslastungData(s => s.data);
   const load = useAuslastungData(s => s.load);
   const loaded = useAuslastungData(s => s.loaded);
 
-  const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
   const setupDone = data.config.setupAbgeschlossen;
 
-  // WICHTIG: Tab-Default ist immer 'selbst'. Sonst wuerde der useState-
-  // Initial-Computation mit dem in-memory-Default `setupAbgeschlossen=false`
-  // sofort 'admin' setzen und den Setup-Wizard kurz aufblitzen lassen, bevor
-  // `load(storage)` den echten Stand aus `auslastung.json` nachzieht.
-  // Auto-Sprung zu 'admin' passiert weiter unten via useEffect, sobald
-  // `loaded === true` und Setup wirklich nicht abgeschlossen ist.
-  const [tab, setTab] = useState<TabId>('selbst');
+  // Default-Tab: 'klassifizierung'. Wenn Setup nicht abgeschlossen, springt
+  // ein useEffect (siehe unten) auf 'uebersicht' (zeigt Setup-Wizard).
+  const [tab, setTab] = useState<TabId>('klassifizierung');
   const [tabAutoSet, setTabAutoSet] = useState(false);
 
   useEffect(() => {
     void load(storage);
   }, [load, storage]);
 
-  // Einmalig nach erstem erfolgreichen Load: Kurator + Setup nicht
-  // abgeschlossen → Admin-Tab automatisch oeffnen (Setup-Wizard sichtbar).
-  // In allen anderen Faellen bleibt 'selbst' der Default.
+  // Einmalig nach erstem Load: Setup nicht abgeschlossen → Uebersicht-Tab.
   useEffect(() => {
     if (!loaded || tabAutoSet) return;
-    if (isKurator && !setupDone) setTab('admin');
+    if (!setupDone) setTab('uebersicht');
     setTabAutoSet(true);
-  }, [loaded, tabAutoSet, isKurator, setupDone]);
+  }, [loaded, tabAutoSet, setupDone]);
 
-  // Sichtbare Tabs ableiten
   const tabs = useMemo(() => {
-    const list: Array<{ id: TabId; label: string; badge?: number }> = [
-      { id: 'selbst', label: 'Selbsteintragung' },
+    const offene = data.klassifizierungen.filter(k => k.status === 'vorgeschlagen').length;
+    return [
+      { id: 'klassifizierung' as const, label: 'Klassifizierung', badge: offene || undefined },
+      { id: 'zuweisung' as const, label: 'Zuweisung' },
+      { id: 'uebersicht' as const, label: 'Übersicht' },
     ];
-    if (isKurator) {
-      const offene = data.klassifizierungen.filter(k => k.status === 'vorgeschlagen').length;
-      list.push({ id: 'klassifizierung', label: 'Klassifizierung', badge: offene || undefined });
-      list.push({ id: 'zuweisung', label: 'Zuweisung' });
-      list.push({ id: 'kapazitaet', label: 'Kapazität' });
-      list.push({ id: 'admin', label: 'Admin' });
-    }
-    return list;
-  }, [isKurator, data.klassifizierungen]);
-
-  // Wenn Tab nicht mehr sichtbar (z.B. Profile-Wechsel): zurueck auf selbst.
-  useEffect(() => {
-    if (!tabs.some(t => t.id === tab)) setTab('selbst');
-  }, [tabs, tab]);
+  }, [data.klassifizierungen]);
 
   // Empty-States
   if (!activeProgrammId) {
@@ -90,25 +69,11 @@ export function AuslastungView(): React.ReactElement {
     );
   }
 
-  // Solange die echten Daten noch nicht geladen sind: nichts vom Tab-Inhalt
-  // rendern. Verhindert, dass der Setup-Wizard mit den 5 Default-Kategorien
-  // kurz aufblitzt, bevor `loaded=true` und `setupAbgeschlossen` korrekt sind.
   if (!loaded) {
     return (
       <div className="p-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-2">Auslastung</h1>
         <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Lade Auslastungsdaten…</p>
-      </div>
-    );
-  }
-
-  if (!setupDone && !isKurator) {
-    return (
-      <div className="p-6">
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-2">Auslastung</h1>
-        <p className="text-[13.5px] text-[var(--tf-text-secondary)]">
-          Das Auslastungs-Modul wird gerade von der Projektleitung eingerichtet. Bitte schau später noch einmal vorbei.
-        </p>
       </div>
     );
   }
@@ -125,11 +90,9 @@ export function AuslastungView(): React.ReactElement {
       <Tabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as TabId)} />
 
       <div className="mt-5">
-        {tab === 'selbst' && <SelbsteintragungView />}
-        {tab === 'klassifizierung' && isKurator && <KlassifizierungsReview />}
-        {tab === 'zuweisung' && isKurator && <ZuweisungsCockpit />}
-        {tab === 'kapazitaet' && isKurator && <KapazitaetsDashboard />}
-        {tab === 'admin' && isKurator && <AuslastungAdmin />}
+        {tab === 'klassifizierung' && <KlassifizierungsReview />}
+        {tab === 'zuweisung' && <ZuweisungsCockpit />}
+        {tab === 'uebersicht' && <UebersichtView />}
       </div>
     </div>
   );
