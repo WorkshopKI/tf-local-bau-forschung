@@ -36,6 +36,7 @@ import {
 } from '../types';
 import { buildVerbundColumns } from './verbund-columns';
 import { VerbundClassificationTable } from './VerbundClassificationTable';
+import { LLMKlassifizierungButtons } from '../components/LLMKlassifizierungButtons';
 
 type ViewFilter = 'alle' | 'review' | 'freigegeben';
 
@@ -261,6 +262,20 @@ export function KlassifizierungsReview(): React.ReactElement {
           Themen-Vektoren werden geladen …
         </div>
       )}
+
+      {/* 1.17: LLM-Klassifizierung */}
+      <div
+        className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-[var(--tf-radius)]"
+        style={{ background: 'var(--tf-bg-secondary)', border: '0.5px solid var(--tf-border)' }}
+      >
+        <span className="text-[11.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
+          LLM-Klassifizierung
+        </span>
+        <LLMKlassifizierungButtons
+          antraege={antraegeImPool}
+          kategorien={config.ueberKategorien}
+        />
+      </div>
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
