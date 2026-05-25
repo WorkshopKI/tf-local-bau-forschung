@@ -52,6 +52,10 @@ describe('normalizeMitarbeiterRecord (aktiv-Migration)', () => {
       abgemeldet: [],
       manuelleTechnologien: [],
       ausgeblendeteAutoTags: [],
+      // 1.17: neue Felder + deprecated ueberKategorien
+      hauptKategorie: '',
+      nebenKategorien: [],
+      abschlagProzent: 0,
       ueberKategorien: [],
       virtuelleProjekte: [],
       profilEmbeddingText: undefined,

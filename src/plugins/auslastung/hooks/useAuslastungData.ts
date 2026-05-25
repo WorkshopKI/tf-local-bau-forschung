@@ -139,13 +139,21 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
 
   createMitarbeiter: async (storage, init) => {
     const id = nextFreeAnonId(Object.keys(get().data.mitarbeiter));
+    // 1.17-Migration: wenn `hauptKategorie` nicht gesetzt aber `ueberKategorien`,
+    // erste Kategorie als Haupt nehmen, Rest als Neben.
+    const altUeber = init?.ueberKategorien ?? [];
+    const haupt = init?.hauptKategorie ?? (altUeber[0] ?? '');
+    const neben = init?.nebenKategorien ?? altUeber.slice(1);
     const ma: AnonymerMitarbeiter = {
       anonId: id,
       jahresKapazitaet: init?.jahresKapazitaet ?? DEFAULT_JAHRESKAPAZITAET,
       abgemeldet: init?.abgemeldet ?? [],
       manuelleTechnologien: init?.manuelleTechnologien ?? [],
       ausgeblendeteAutoTags: init?.ausgeblendeteAutoTags ?? [],
-      ueberKategorien: init?.ueberKategorien ?? [],
+      hauptKategorie: haupt,
+      nebenKategorien: neben,
+      abschlagProzent: init?.abschlagProzent ?? 0,
+      ueberKategorien: altUeber.length > 0 ? altUeber : (haupt ? [haupt, ...neben] : []),
       virtuelleProjekte: init?.virtuelleProjekte ?? [],
       profilEmbeddingText: init?.profilEmbeddingText,
       onboardingAbgeschlossen: init?.onboardingAbgeschlossen ?? false,
@@ -205,8 +213,15 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
 
   freigebenKategorien: async (storage, antragId, kategorieIds) => {
     const existing = get().data.klassifizierungen.find(k => k.antragId === antragId);
+    // 1.17: ersten Eintrag als Primaer, Rest als Aspekte.
+    const primaer = kategorieIds[0] ?? '';
+    const aspekte = kategorieIds.slice(1);
     const next: Klassifizierung = {
       antragId,
+      vorgeschlagenePrimaer: existing?.vorgeschlagenePrimaer,
+      vorgeschlageneAspekte: existing?.vorgeschlageneAspekte,
+      freigegebenePrimaer: primaer,
+      freigegebeneAspekte: aspekte,
       vorgeschlageneKategorien: existing?.vorgeschlageneKategorien ?? [],
       freigegebeneKategorien: kategorieIds,
       status: 'freigegeben',

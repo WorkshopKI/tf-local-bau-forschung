@@ -1,0 +1,269 @@
+/**
+ * Migrations-Tests fuer Workflow-Revision 1.17.
+ *
+ * Deckt zwei Pfade ab:
+ *  1. `normalizeMitarbeiterRecord` — `ueberKategorien` → `hauptKategorie` + `nebenKategorien`
+ *  2. `normalizeKlassifizierungArray` — Multi-Label → Primaer + Aspekte
+ *
+ * Plus `withLegacyFields` als Round-Trip: 1.17-Daten → JSON enthaelt
+ * deprecated 1.16-Felder fuer aeltere Reader.
+ */
+import { describe, it, expect } from 'vitest';
+import {
+  normalizeKlassifizierungArray,
+  normalizeMitarbeiterRecord,
+  withLegacyFields,
+} from '../services/auslastung-store';
+import { DEFAULT_AUSLASTUNG_CONFIG, type AuslastungData } from '../types';
+
+describe('normalizeMitarbeiterRecord — 1.17 Haupt/Neben-Migration', () => {
+  it('verteilt ueberKategorien auf haupt + neben', () => {
+    const raw = {
+      MA01: {
+        anonId: 'MA01',
+        jahresKapazitaet: 800,
+        abgemeldet: [],
+        manuelleTechnologien: [],
+        ausgeblendeteAutoTags: [],
+        ueberKategorien: ['IT', 'DT'],
+        virtuelleProjekte: [],
+        onboardingAbgeschlossen: false,
+        aktiv: true,
+      },
+    };
+    const out = normalizeMitarbeiterRecord(raw);
+    expect(out.MA01!.hauptKategorie).toBe('IT');
+    expect(out.MA01!.nebenKategorien).toEqual(['DT']);
+    expect(out.MA01!.abschlagProzent).toBe(0);
+    // Deprecated-Feld bleibt fuer Reader.
+    expect(out.MA01!.ueberKategorien).toEqual(['IT', 'DT']);
+  });
+
+  it('leere ueberKategorien → leere haupt+neben', () => {
+    const raw = {
+      MA01: {
+        anonId: 'MA01',
+        jahresKapazitaet: 800,
+        abgemeldet: [],
+        manuelleTechnologien: [],
+        ausgeblendeteAutoTags: [],
+        ueberKategorien: [],
+        virtuelleProjekte: [],
+        onboardingAbgeschlossen: false,
+        aktiv: true,
+      },
+    };
+    const out = normalizeMitarbeiterRecord(raw);
+    expect(out.MA01!.hauptKategorie).toBe('');
+    expect(out.MA01!.nebenKategorien).toEqual([]);
+  });
+
+  it('bereits migrierter Datensatz unveraendert (Idempotenz)', () => {
+    const raw = {
+      MA01: {
+        anonId: 'MA01',
+        jahresKapazitaet: 800,
+        abgemeldet: [],
+        manuelleTechnologien: [],
+        ausgeblendeteAutoTags: [],
+        hauptKategorie: 'DT',
+        nebenKategorien: ['IT'],
+        abschlagProzent: 25,
+        ueberKategorien: ['DT', 'IT'],
+        virtuelleProjekte: [],
+        onboardingAbgeschlossen: true,
+        aktiv: true,
+      },
+    };
+    const out = normalizeMitarbeiterRecord(raw);
+    expect(out.MA01!.hauptKategorie).toBe('DT');
+    expect(out.MA01!.nebenKategorien).toEqual(['IT']);
+    expect(out.MA01!.abschlagProzent).toBe(25);
+  });
+
+  it('fehlende abschlagProzent → 0', () => {
+    const raw = {
+      MA01: {
+        anonId: 'MA01',
+        jahresKapazitaet: 800,
+        abgemeldet: [],
+        manuelleTechnologien: [],
+        ausgeblendeteAutoTags: [],
+        ueberKategorien: ['IT'],
+        virtuelleProjekte: [],
+        onboardingAbgeschlossen: false,
+        aktiv: true,
+      },
+    };
+    const out = normalizeMitarbeiterRecord(raw);
+    expect(out.MA01!.abschlagProzent).toBe(0);
+  });
+});
+
+describe('normalizeKlassifizierungArray — 1.17 Primaer+Aspekte-Migration', () => {
+  it('migriert vorgeschlageneKategorien → primaer + aspekte', () => {
+    const raw = [{
+      antragId: '16DS261161',
+      vorgeschlageneKategorien: [
+        { kategorieId: 'IT', confidence: 0.9, methode: 'embedding' },
+        { kategorieId: 'DT', confidence: 0.75, methode: 'embedding' },
+      ],
+      freigegebeneKategorien: [],
+      status: 'vorgeschlagen',
+    }];
+    const out = normalizeKlassifizierungArray(raw);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.vorgeschlagenePrimaer).toEqual({
+      kategorieId: 'IT',
+      confidence: 0.9,
+      methode: 'embedding',
+    });
+    expect(out[0]!.vorgeschlageneAspekte).toEqual([
+      { kategorieId: 'DT', confidence: 0.75 },
+    ]);
+  });
+
+  it('migriert freigegebeneKategorien → primaer + aspekte', () => {
+    const raw = [{
+      antragId: '16DS261161',
+      vorgeschlageneKategorien: [],
+      freigegebeneKategorien: ['IT', 'DT', 'EU'],
+      status: 'freigegeben',
+      freigegebenAm: '2026-05-20T10:00:00.000Z',
+    }];
+    const out = normalizeKlassifizierungArray(raw);
+    expect(out[0]!.freigegebenePrimaer).toBe('IT');
+    expect(out[0]!.freigegebeneAspekte).toEqual(['DT', 'EU']);
+  });
+
+  it('leere vorgeschlageneKategorien → primaer null, aspekte leer', () => {
+    const raw = [{
+      antragId: '16DS261161',
+      vorgeschlageneKategorien: [],
+      freigegebeneKategorien: [],
+      status: 'vorgeschlagen',
+    }];
+    const out = normalizeKlassifizierungArray(raw);
+    expect(out[0]!.vorgeschlagenePrimaer).toBeNull();
+    expect(out[0]!.vorgeschlageneAspekte).toEqual([]);
+    expect(out[0]!.freigegebenePrimaer).toBe('');
+    expect(out[0]!.freigegebeneAspekte).toEqual([]);
+  });
+
+  it('bereits migrierter Datensatz unveraendert (Idempotenz)', () => {
+    const raw = [{
+      antragId: '16DS261161',
+      vorgeschlagenePrimaer: { kategorieId: 'DT', confidence: 0.85, methode: 'llm', begruendung: 'Test' },
+      vorgeschlageneAspekte: [{ kategorieId: 'IT', confidence: 0.4 }],
+      freigegebenePrimaer: 'DT',
+      freigegebeneAspekte: ['IT'],
+      vorgeschlageneKategorien: [],
+      freigegebeneKategorien: [],
+      status: 'freigegeben',
+    }];
+    const out = normalizeKlassifizierungArray(raw);
+    expect(out[0]!.vorgeschlagenePrimaer).toEqual({
+      kategorieId: 'DT', confidence: 0.85, methode: 'llm', begruendung: 'Test',
+    });
+    expect(out[0]!.vorgeschlageneAspekte).toEqual([{ kategorieId: 'IT', confidence: 0.4 }]);
+    expect(out[0]!.freigegebenePrimaer).toBe('DT');
+    expect(out[0]!.freigegebeneAspekte).toEqual(['IT']);
+  });
+
+  it('filtert ungueltige Eintraege (ohne antragId)', () => {
+    const raw = [
+      { vorgeschlageneKategorien: [], freigegebeneKategorien: [], status: 'vorgeschlagen' },
+      { antragId: '', vorgeschlageneKategorien: [], freigegebeneKategorien: [], status: 'vorgeschlagen' },
+      { antragId: '16DS261161', vorgeschlageneKategorien: [], freigegebeneKategorien: [], status: 'vorgeschlagen' },
+    ];
+    const out = normalizeKlassifizierungArray(raw);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.antragId).toBe('16DS261161');
+  });
+
+  it('non-array Input → leeres Array', () => {
+    expect(normalizeKlassifizierungArray(null)).toEqual([]);
+    expect(normalizeKlassifizierungArray({})).toEqual([]);
+    expect(normalizeKlassifizierungArray('foo')).toEqual([]);
+  });
+});
+
+describe('withLegacyFields — Save-Path rekonstruiert deprecated 1.16-Felder', () => {
+  function makeData(overrides?: Partial<AuslastungData>): AuslastungData {
+    return {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      config: { ...DEFAULT_AUSLASTUNG_CONFIG },
+      mitarbeiter: {},
+      klassifizierungen: [],
+      zuweisungen: [],
+      ...overrides,
+    };
+  }
+
+  it('Mitarbeiter ohne ueberKategorien: rekonstruiert aus haupt+neben', () => {
+    const data = makeData({
+      mitarbeiter: {
+        MA01: {
+          anonId: 'MA01',
+          jahresKapazitaet: 800,
+          abgemeldet: [],
+          manuelleTechnologien: [],
+          ausgeblendeteAutoTags: [],
+          hauptKategorie: 'IT',
+          nebenKategorien: ['DT'],
+          abschlagProzent: 0,
+          ueberKategorien: [],
+          virtuelleProjekte: [],
+          onboardingAbgeschlossen: false,
+          aktiv: true,
+        },
+      },
+    });
+    const out = withLegacyFields(data);
+    expect(out.mitarbeiter.MA01!.ueberKategorien).toEqual(['IT', 'DT']);
+  });
+
+  it('Klassifizierung: rekonstruiert vorgeschlageneKategorien + freigegebeneKategorien', () => {
+    const data = makeData({
+      klassifizierungen: [{
+        antragId: '16DS261161',
+        vorgeschlagenePrimaer: { kategorieId: 'IT', confidence: 0.9, methode: 'llm' },
+        vorgeschlageneAspekte: [{ kategorieId: 'DT', confidence: 0.4 }],
+        freigegebenePrimaer: 'IT',
+        freigegebeneAspekte: ['DT'],
+        vorgeschlageneKategorien: [],
+        freigegebeneKategorien: [],
+        status: 'freigegeben',
+      }],
+    });
+    const out = withLegacyFields(data);
+    expect(out.klassifizierungen[0]!.vorgeschlageneKategorien).toEqual([
+      { kategorieId: 'IT', confidence: 0.9, methode: 'llm' },
+      { kategorieId: 'DT', confidence: 0.4, methode: 'embedding' },
+    ]);
+    expect(out.klassifizierungen[0]!.freigegebeneKategorien).toEqual(['IT', 'DT']);
+  });
+
+  it('Round-Trip: normalize → withLegacyFields → normalize ist Identitaet', () => {
+    const raw = {
+      MA01: {
+        anonId: 'MA01',
+        jahresKapazitaet: 800,
+        abgemeldet: [],
+        manuelleTechnologien: [],
+        ausgeblendeteAutoTags: [],
+        ueberKategorien: ['IT', 'DT'],
+        virtuelleProjekte: [],
+        onboardingAbgeschlossen: false,
+        aktiv: true,
+      },
+    };
+    const ma1 = normalizeMitarbeiterRecord(raw);
+    const data1 = makeData({ mitarbeiter: ma1 });
+    const data1WithLegacy = withLegacyFields(data1);
+    const ma2 = normalizeMitarbeiterRecord(data1WithLegacy.mitarbeiter);
+    expect(ma2.MA01!.hauptKategorie).toBe(ma1.MA01!.hauptKategorie);
+    expect(ma2.MA01!.nebenKategorien).toEqual(ma1.MA01!.nebenKategorien);
+  });
+});
