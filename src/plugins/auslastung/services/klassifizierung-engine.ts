@@ -1,25 +1,30 @@
 /**
- * Klassifizierungs-Engine — ordnet einen Antrag einer oder zwei Ueberkategorien zu.
+ * Klassifizierungs-Engine — ordnet einen Antrag einer Primaerkategorie + 0..n
+ * Aspekten zu (Workflow-Revision 1.17).
  *
- * Zweistufig:
+ * Dreistufig:
+ *  - Stufe 0 (ZT-Boolean): Zukunftstechnologie-Spalten der CSV direkt mappen
  *  - Stufe 1 (Regel): Deskriptoren -> Mapping -> Kategorien
- *  - Stufe 2 (Embedding-Fallback): Antrag-Titel-Embedding gegen Kategorie-Centroids
+ *  - Stufe 2 (Embedding): Antrag-Titel-Embedding gegen Kategorie-Centroids
  *
- * Stufe 2 wird nur ausgeloest wenn:
- *  - `config.stage2Aktiv === true`
- *  - UND Stufe 1 keine eindeutige Antwort liefert (0 matches)
- *  - UND ein `queryEmbedding` mitgeliefert wird (Caller embed't, weil async)
+ * Stufe 2 wird ausgeloest wenn Stufe 0/1 nichts liefert (oder fuer neue
+ * Antraege ohne Deskriptoren). `stage2Aktiv` ist seit Mai 2026 immer true.
  *
- * Multi-Label-Logik:
- *  - Stufe 1: alle matchenden Kategorien werden ausgegeben (kann 1..N sein,
- *    UI/Caller schneidet auf max 2 nach hoechster Confidence)
- *  - Stufe 2: Top-1, optional Top-2 wenn Differenz < `schwellwert`
+ * Primaer + Aspekte:
+ *  - Stufe 0/1: groesster Treffer-Count → Primaer, restliche → Aspekte
+ *  - Stufe 2: Top-1 → Primaer, Top-2 → Aspekt sofern Δ < `schwellwert`
+ *
+ * Die internen Stage-Helper liefern weiter `KategorieVorschlag[]` (Backwards-
+ * Kompat mit Tests). Der Orchestrator `klassifiziereAntrag` splittet das in
+ * `vorgeschlagenePrimaer` + `vorgeschlageneAspekte` ueber `splitInPrimaerUndAspekte`.
  */
 import type { Antrag } from '@/core/services/csv/types';
 import {
   CANONICAL_VERBUND_ID,
+  type AspektVorschlag,
   type KategorieVorschlag,
   type Klassifizierung,
+  type PrimaerVorschlag,
   type UeberKategorie,
 } from '../types';
 import { readAntragDeskriptoren, findTruthyZtField } from './profil-aggregator';
@@ -42,6 +47,22 @@ export function klassifiziereAntrag(input: KlassifizierungInput): Klassifizierun
   const schwellwert = input.schwellwert ?? 0.15;
   const stage2Aktiv = input.stage2Aktiv ?? false;
 
+  // Helper: einheitliche Rueckgabe — splittet Vorschlagsliste in Primaer +
+  // Aspekte, fuellt deprecated 1.16-Felder fuer Backwards-Kompat.
+  const wrap = (vorschlaege: KategorieVorschlag[]): Klassifizierung => {
+    const { primaer, aspekte } = splitInPrimaerUndAspekte(vorschlaege);
+    return {
+      antragId: antrag.aktenzeichen,
+      vorgeschlagenePrimaer: primaer,
+      vorgeschlageneAspekte: aspekte,
+      freigegebenePrimaer: '',
+      freigegebeneAspekte: [],
+      vorgeschlageneKategorien: vorschlaege,
+      freigegebeneKategorien: [],
+      status: 'vorgeschlagen',
+    };
+  };
+
   // ─── Stufe 0: Direkte Zukunftstechnologie-Boolean-Flags ──────────────
   // Wenn der Antrag ZT-Spalten gesetzt hat (z.B. "Künstliche Intelligenz"-
   // Spalte hat Wert "X" oder "1"), direkt der entsprechenden Ueberkategorie
@@ -49,45 +70,41 @@ export function klassifiziereAntrag(input: KlassifizierungInput): Klassifizierun
   // praeziser. Filtert auf die in `kategorien` vorhandenen IDs (damit
   // wir nicht "DT" vorschlagen wenn PL die Kategorie umbenannt hat).
   const ztVorschlaege = matchZukunftstechnologien(antrag, kategorien);
-  if (ztVorschlaege.length > 0) {
-    return {
-      antragId: antrag.aktenzeichen,
-      vorgeschlageneKategorien: ztVorschlaege,
-      freigegebeneKategorien: [],
-      status: 'vorgeschlagen',
-    };
-  }
+  if (ztVorschlaege.length > 0) return wrap(ztVorschlaege);
 
   // ─── Stufe 1: Regel-Mapping ───────────────────────────────────────────
   const deskriptoren = readAntragDeskriptoren(antrag);
   const regelVorschlaege = matchDeskriptoren(deskriptoren, kategorien);
-
-  if (regelVorschlaege.length > 0) {
-    return {
-      antragId: antrag.aktenzeichen,
-      vorgeschlageneKategorien: regelVorschlaege,
-      freigegebeneKategorien: [],
-      status: 'vorgeschlagen',
-    };
-  }
+  if (regelVorschlaege.length > 0) return wrap(regelVorschlaege);
 
   // ─── Stufe 2: Embedding-Fallback ───────────────────────────────────────
   if (stage2Aktiv && input.queryEmbedding) {
     const embVorschlaege = matchEmbeddings(input.queryEmbedding, kategorien, schwellwert);
-    return {
-      antragId: antrag.aktenzeichen,
-      vorgeschlageneKategorien: embVorschlaege,
-      freigegebeneKategorien: [],
-      status: 'vorgeschlagen',
-    };
+    return wrap(embVorschlaege);
   }
 
   // ─── Kein Match — leerer Vorschlag, UI flaggt als "manuelle Klassifizierung noetig"
+  return wrap([]);
+}
+
+/**
+ * Splittet eine Vorschlagsliste in Primaer (Top-1) + Aspekte (Rest, als
+ * AspektVorschlag ohne Methode). Confidence-Reihenfolge wird nicht
+ * umsortiert — Caller stellt sicher dass die Liste bereits in der gewuenschten
+ * Reihenfolge ist (Stage 0/1: sortByCount, Stage 2: sortBySimilarity).
+ */
+export function splitInPrimaerUndAspekte(
+  vorschlaege: KategorieVorschlag[],
+): { primaer: PrimaerVorschlag | null; aspekte: AspektVorschlag[] } {
+  if (vorschlaege.length === 0) return { primaer: null, aspekte: [] };
+  const [top, ...rest] = vorschlaege;
   return {
-    antragId: antrag.aktenzeichen,
-    vorgeschlageneKategorien: [],
-    freigegebeneKategorien: [],
-    status: 'vorgeschlagen',
+    primaer: {
+      kategorieId: top!.kategorieId,
+      confidence: top!.confidence,
+      methode: top!.methode,
+    },
+    aspekte: rest.map(v => ({ kategorieId: v.kategorieId, confidence: v.confidence })),
   };
 }
 
@@ -128,11 +145,15 @@ export function matchZukunftstechnologien(
 
   if (treffer.size === 0) return [];
   const confidence = treffer.size === 1 ? 1.0 : 0.8;
-  return [...treffer.keys()].map(katId => ({
-    kategorieId: katId,
-    confidence,
-    methode: 'regel' as const,
-  }));
+  // 1.17: sortiert nach Treffer-Count desc, dann nach Kategorie-ID asc fuer
+  // stabile Reihenfolge (Primaer = meiste Treffer; bei Gleichstand alphabetisch).
+  return [...treffer.entries()]
+    .sort(([aId, aCount], [bId, bCount]) => bCount - aCount || aId.localeCompare(bId))
+    .map(([katId]) => ({
+      kategorieId: katId,
+      confidence,
+      methode: 'regel' as const,
+    }));
 }
 
 /**
@@ -159,6 +180,9 @@ export function matchDeskriptoren(
   }
 
   if (hits.length === 0) return [];
+
+  // 1.17: sortiert nach Treffer-Count desc, dann Kategorie-ID asc.
+  hits.sort((a, b) => b.count - a.count || a.kategorieId.localeCompare(b.kategorieId));
 
   // Multi-Label: 1 Kategorie -> high; 2+ -> medium
   const confidence = hits.length === 1 ? 1.0 : 0.7;
@@ -218,6 +242,28 @@ function clampToConfidence(sim: number): number {
 }
 
 /**
+ * Bestimmt die "Primaer"-Kategorie einer Klassifizierung fuer Zwecke wie
+ * Centroid-Berechnung. Praezedenz:
+ *  1. `freigegebenePrimaer` (1.17, PL-Review)
+ *  2. `vorgeschlagenePrimaer.kategorieId` (1.17, Engine-Output)
+ *  3. `freigegebeneKategorien[0]` (deprecated 1.16-Fallback)
+ *  4. `vorgeschlageneKategorien[0].kategorieId` (deprecated 1.16-Fallback)
+ *
+ * Aspekte zaehlen explizit NICHT — sie wuerden Centroids verfaelschen.
+ */
+function primaerKategorieFor(klass: Klassifizierung): string | null {
+  if (klass.freigegebenePrimaer) return klass.freigegebenePrimaer;
+  if (klass.vorgeschlagenePrimaer?.kategorieId) return klass.vorgeschlagenePrimaer.kategorieId;
+  const altFrei = klass.freigegebeneKategorien;
+  if (altFrei && altFrei.length > 0 && altFrei[0]) return altFrei[0];
+  const altVorgeschlagen = klass.vorgeschlageneKategorien;
+  if (altVorgeschlagen && altVorgeschlagen.length > 0 && altVorgeschlagen[0]?.kategorieId) {
+    return altVorgeschlagen[0].kategorieId;
+  }
+  return null;
+}
+
+/**
  * Berechnet Centroid-Embeddings fuer alle Ueberkategorien aus der Map
  * (Klassifizierung -> Antrags-Embedding). Wird beim Corpus-Build aufgerufen.
  *
@@ -240,13 +286,13 @@ export function computeKategorieCentroids(
   for (const klass of klassifizierungen) {
     const emb = embeddings.get(klass.antragId);
     if (!emb) continue;
-    const targetKats = klass.freigegebeneKategorien.length > 0
-      ? klass.freigegebeneKategorien
-      : klass.vorgeschlageneKategorien.map(v => v.kategorieId);
-    for (const katId of targetKats) {
-      const list = byKategorie.get(katId);
-      if (list) list.push(emb);
-    }
+    // 1.17: nur die Primaerkategorie zaehlt — Aspekte (Querschnittstechnologien)
+    // wuerden den Centroid verfaelschen. Fallback auf deprecated 1.16-Felder
+    // fuer noch nicht migrierte Daten.
+    const targetKatId = primaerKategorieFor(klass);
+    if (!targetKatId) continue;
+    const list = byKategorie.get(targetKatId);
+    if (list) list.push(emb);
   }
 
   // Mean-Centroid + L2-Normalisierung
@@ -304,12 +350,11 @@ export function computeKategorieCentroidsFromVerbund(
   for (const klass of klassifizierungen) {
     const verbundId = verbundIdByAktz.get(klass.antragId);
     if (!verbundId) continue;
-    const targetKats = klass.freigegebeneKategorien.length > 0
-      ? klass.freigegebeneKategorien
-      : klass.vorgeschlageneKategorien.map(v => v.kategorieId);
-    for (const katId of targetKats) {
-      verbundIdsByKategorie.get(katId)?.add(verbundId);
-    }
+    // 1.17: nur Primaerkategorie — siehe computeKategorieCentroids fuer
+    // Begruendung.
+    const targetKatId = primaerKategorieFor(klass);
+    if (!targetKatId) continue;
+    verbundIdsByKategorie.get(targetKatId)?.add(verbundId);
   }
 
   // Pro Kategorie: Mean der Verbund-Embeddings.

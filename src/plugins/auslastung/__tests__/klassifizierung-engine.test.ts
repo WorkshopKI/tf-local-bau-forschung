@@ -5,6 +5,7 @@ import {
   matchEmbeddings,
   matchZukunftstechnologien,
   computeKategorieCentroids,
+  splitInPrimaerUndAspekte,
 } from '../services/klassifizierung-engine';
 import type { Antrag } from '@/core/services/csv/types';
 import { DEFAULT_UEBERKATEGORIEN, type UeberKategorie, type Klassifizierung } from '../types';
@@ -362,5 +363,82 @@ describe('computeKategorieCentroids', () => {
     const klass: Klassifizierung[] = [];
     const embeddings = new Map<string, number[]>();
     expect(computeKategorieCentroids(klass, embeddings, kats).size).toBe(0);
+  });
+
+  it('1.17: Aspekte zaehlen NICHT — nur Primaer fliesst in Centroid', () => {
+    const kats = [makeKategorie('IKT', ['ki']), makeKategorie('IND', ['sensorik'])];
+    const klass: Klassifizierung[] = [{
+      antragId: 'A1',
+      vorgeschlagenePrimaer: { kategorieId: 'IKT', confidence: 0.9, methode: 'embedding' },
+      vorgeschlageneAspekte: [{ kategorieId: 'IND', confidence: 0.4 }],
+      freigegebenePrimaer: 'IKT',
+      freigegebeneAspekte: ['IND'],
+      vorgeschlageneKategorien: [],
+      freigegebeneKategorien: [],
+      status: 'freigegeben',
+    }];
+    const embeddings = new Map<string, number[]>([['A1', [1, 0, 0]]]);
+    const centroids = computeKategorieCentroids(klass, embeddings, kats);
+    // IKT bekommt den Vector, IND nicht (war nur Aspekt).
+    expect(centroids.has('IKT')).toBe(true);
+    expect(centroids.has('IND')).toBe(false);
+  });
+});
+
+describe('splitInPrimaerUndAspekte (1.17)', () => {
+  it('leere Liste → primaer=null, aspekte=[]', () => {
+    expect(splitInPrimaerUndAspekte([])).toEqual({ primaer: null, aspekte: [] });
+  });
+
+  it('ein Vorschlag → primaer ohne Aspekte', () => {
+    const result = splitInPrimaerUndAspekte([
+      { kategorieId: 'IT', confidence: 0.9, methode: 'embedding' },
+    ]);
+    expect(result.primaer).toEqual({ kategorieId: 'IT', confidence: 0.9, methode: 'embedding' });
+    expect(result.aspekte).toEqual([]);
+  });
+
+  it('mehrere Vorschlaege → erster primaer, Rest aspekte', () => {
+    const result = splitInPrimaerUndAspekte([
+      { kategorieId: 'IT', confidence: 0.9, methode: 'embedding' },
+      { kategorieId: 'DT', confidence: 0.4, methode: 'embedding' },
+      { kategorieId: 'EU', confidence: 0.3, methode: 'embedding' },
+    ]);
+    expect(result.primaer!.kategorieId).toBe('IT');
+    expect(result.aspekte).toEqual([
+      { kategorieId: 'DT', confidence: 0.4 },
+      { kategorieId: 'EU', confidence: 0.3 },
+    ]);
+  });
+});
+
+describe('klassifiziereAntrag — neue Primaer+Aspekte-Rueckgabe (1.17)', () => {
+  it('Stage-0-Treffer wird in primaer + aspekte gesplittet', () => {
+    const kats = DEFAULT_UEBERKATEGORIEN;
+    const a = makeAntrag('A1', {
+      // Multi-ZT: Kuenstliche Intelligenz (DT) + Sensorik (IT)
+      // (Achtung: ZT-Felder kommen aus default-labels; hier ein bekanntes Paar)
+    } as Partial<Antrag>);
+    // Setze ZT-Felder direkt:
+    const rec = a as Record<string, unknown>;
+    rec.zt_kuenstliche_intelligenz_ki_tv = 'X';
+    rec.zt_kuenstliche_intelligenz_ki_vb = 'X';
+    const result = klassifiziereAntrag({ antrag: a, kategorien: kats });
+    // Mindestens primaer gesetzt
+    expect(result.vorgeschlagenePrimaer).not.toBeNull();
+    expect(result.vorgeschlagenePrimaer!.kategorieId).toBe('DT');
+    // Backwards-Kompat: deprecated Felder weiter befuellt
+    expect(result.vorgeschlageneKategorien.length).toBeGreaterThan(0);
+    expect(result.freigegebenePrimaer).toBe('');
+    expect(result.freigegebeneAspekte).toEqual([]);
+  });
+
+  it('kein Match → primaer null + leere aspekte', () => {
+    const kats = [makeKategorie('IKT', ['ki'])];
+    const a = makeAntrag('A1');
+    const result = klassifiziereAntrag({ antrag: a, kategorien: kats });
+    expect(result.vorgeschlagenePrimaer).toBeNull();
+    expect(result.vorgeschlageneAspekte).toEqual([]);
+    expect(result.status).toBe('vorgeschlagen');
   });
 });
