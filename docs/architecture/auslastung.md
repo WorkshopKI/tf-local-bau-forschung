@@ -12,9 +12,39 @@ Plugin (`id: 'auslastung'`, `category: 'workflow'`, `kuratorOnly: false`, sichtb
 
 Aus FZD-Kontext, im Admin editierbar: `IT` Industrielle Technologien, `DT` Digitale Technologien, `EU` Energie- und Umwelttechnologien, `LG` Lebens- und Gesundheitswissenschaften, `NM` Naturwissenschaftliche Methoden.
 
-## Tabs (`AuslastungView`, role-gated)
+## Tabs (`AuslastungView`)
 
-Selbsteintragung (alle User) · Klassifizierung · Zuweisung (50/50-Split-Cockpit) · Kapazität · Admin — letzte 4 nur für `is_kurator`. „Meine Technologien" als Tab im Einstellungs-Plugin.
+**Workflow-Revision 1.17 (v2.1)**: 3 Tabs statt 5 — Klassifizierung · Zuweisung (50/50-Split-Cockpit) · Übersicht (fusioniert ehemalige Kapazität + Admin). Selbsteintragung wandert auf die Homepage als Sektion `NeueAntraegeFuerDich` (Plugin "home"). Sichtbarkeit "PL-only" über Build-Variante (`features.auslastung` nur in `pl.config.json`/`dev.config.json`) — kein in-app-Rollencheck mehr. „Meine Technologien" als Tab im Einstellungs-Plugin.
+
+Selbsteintragung-UX auf der Home:
+- Pro Antrag: Aktenzeichen | Primär-Pill (gefüllt) | Aspekt-Pills (outline) | Titel | Frist „Noch X Tage" | „Übernehme ich"-Button.
+- Kapazitätszeile zeigt **Anträge** ("4 von 16 Anträgen frei in Q2-2026"), keine Stunden.
+- Banner-Hint „X neue Anträge in deinen Kategorien" via `useBenachrichtigung`-Hook + localStorage pro `anonId`.
+
+## Klassifizierungs-Modell (1.17)
+
+Pro Antrag genau eine **Primärkategorie** + 0..n **Aspekte** (Querschnittstechnologien). Beispiel: „KI-gestützte Schadenserkennung in Brückenstrukturen" → primaer=IT (Strukturüberwachung ist Ingenieurtechnik), aspekte=[DT] (KI ist das Werkzeug).
+
+Datenmodell:
+- `Klassifizierung.vorgeschlagenePrimaer: PrimaerVorschlag | null` (Methode: `'regel' | 'embedding' | 'llm' | 'manuell'`).
+- `Klassifizierung.vorgeschlageneAspekte: AspektVorschlag[]`.
+- `Klassifizierung.freigegebenePrimaer: string` + `freigegebeneAspekte: string[]` (nach PL-Review).
+- Deprecated 1.16-Felder `vorgeschlageneKategorien` + `freigegebeneKategorien` bleiben 1 Release im Save (`withLegacyFields` in `services/auslastung-store.ts`), Cleanup in v2.2.
+
+MA-Modell (1.17):
+- `AnonymerMitarbeiter.hauptKategorie: string` — bestimmt den Pool für Selbsteintragung + Matching.
+- `AnonymerMitarbeiter.nebenKategorien: string[]` — triggert Aspekt-Bonus im Matching.
+- `AnonymerMitarbeiter.abschlagProzent: number` — reduziert die effektive Quartals-Kapazität (z.B. 25% für QS-Bearbeiter).
+- Deprecated `ueberKategorien` bleibt 1 Release im Save.
+
+## LLM-Batch-Klassifizierung (1.17)
+
+`services/llm-klassifizierung.ts` ruft den **aktiven AIBridge-Transport** (DirectLLM/OpenRouter/Streamlit) mit JSON-Schema-Mode auf. UI-Buttons (Komponente `LLMKlassifizierungButtons`) im Klassifizierungs-Tab:
+- "LLM-Klassifizierung starten" — Progress-Anzeige, Bulk-Save am Ende (EIN persist, siehe CLAUDE.md Lesson 16).
+- "Prompt kopieren" — `navigator.clipboard.writeText()` für Streamlit-/ChatGPT-Fallback.
+- "LLM-Ergebnis einfügen" — Modal mit Textarea, robustes JSON-Parsing (Markdown-Wrapper, Umlaut-Schlüssel `primär`/`begründung`).
+
+Hierarchie LLM > Embedding > Manuell: Methode `'llm'` mit `begruendung` in `PrimaerVorschlag` gespeichert.
 
 ## Aktiv/Inaktiv-Flag (`AnonymerMitarbeiter.aktiv: boolean`, Mai 2026)
 
@@ -26,7 +56,9 @@ Filter-Schicht für ehemalige Bearbeiter. Inaktive MAs werden aus UI (Admin-Tabe
 - `bm25-matcher.ts` — Mini-BM25 für MA-Profile mit deutschen Stoppwörtern.
 - `embedding-corpus.ts` — IDB-Cache `auslastung-emb:<aktz>` für Antrags-Embeddings (~40 MB bei 13k × 768d), Corpus-Build mit Progress-Callback, AbortSignal-Support. Wird seit Mai 2026 als Sidecar-Dateipaar (`_intern/auslastung-embedding-corpus.{manifest.json,bin}`) auf den SMB-Daten-Share gespiegelt — Cold-Start eines neuen Rechners lädt vom Share statt 46 min neu zu bauen. Mirroring-Logik in `embedding-corpus-mirror.ts` + Hook `useEmbeddingCorpusMirror`. Modell-Mismatch (Share-Korpus mit anderem Modell als lokal aktiv) blockiert Download und Upload mit explizitem UI-Hinweis; Antraege-Drift (`aktenzeichenSetHash` weicht ab) gibt sanften Hinweis zum inkrementellen Re-Build. Upload nutzt den bestehenden `build-lock`-Mechanismus mit `stufe: 'auslastung-corpus'`.
 - `embedding-matcher.ts` — Top-K Antrags-Similarity → TIB-Score-Aggregation mit virtueller-Projekt-Confidence.
-- `matching-engine.ts` — dynamische α-Fusion (BM25 vs Embedding je nach Konfidenz) + Kapazitäts-Filter + Balance-Score → Top-3 pro Antrag.
+- `matching-engine.ts` — dynamische α-Fusion (BM25 vs Embedding je nach Konfidenz) + **weicher Kapazitäts-Score** (kein harter Filter mehr, ueberbuchte MAs bleiben im Ranking mit Malus) + Aspekt-Bonus (Antrag-Aspekt ∩ MA-Nebenkategorien) + Balance-Score → Top-3 pro Antrag. Pool-Filter ist seit 1.17 `ma.hauptKategorie === antrag.freigegebenePrimaer`.
+- `kapazitaet.ts` — `computeKapazitaet` (Antrags-Sicht mit Abschlag), `kapazitaetsScore` (5 Banden + Quartals-Ende-Bonus), `tageImQuartal`-Helper.
+- `llm-klassifizierung.ts` — LLM-Batch-Klassifizierung via aktivem AIBridge-Transport, JSON-Schema-Mode, Copy/Paste-Fallback.
 - `anonym-map.ts` — Helper für die in-RAM-Map (Normalisierung, User→AnonId-Lookup, nextFreeAnonId). Die eigentliche Map wird aus der persistenten kuerzel-map abgeleitet (siehe Pitfall #18).
 - `onboarding-kalibrierung.ts` — Spearman-Korrelation + Grid-Search über Confidence-Faktoren, für die Validierung des Standalone-Onboarding gegen historisches Matching.
 

@@ -149,8 +149,8 @@ describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
   // bis sie migriert sind. Neue Files NICHT auf die Whitelist setzen.
   const FILE_WHITELIST_LEGACY: ReadonlySet<string> = new Set([
     // src/plugins/auslastung/ — Mai 2026 Plugin, Migration laeuft
+    // (SelbsteintragungView.tsx in v1.17 entfernt — Logik wandert auf Homepage)
     'src/plugins/auslastung/views/admin/EmbeddingCorpusSection.tsx',
-    'src/plugins/auslastung/views/SelbsteintragungView.tsx',
     'src/plugins/auslastung/views/admin/MitarbeiterSection.tsx',
     'src/plugins/auslastung/views/admin/AktivVorschlagBanner.tsx',
     'src/plugins/auslastung/components/OnboardingImportDialog.tsx',
