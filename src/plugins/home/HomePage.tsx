@@ -16,6 +16,7 @@ import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
+import { SelbsteintragungBanner } from '@/plugins/auslastung/components/SelbsteintragungBanner';
 import { menuLabel, dataConfig, isAuslastungEnabled } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
@@ -178,6 +179,12 @@ export function HomePage(): React.ReactElement {
       {data.bearbeiterFilterActive && data.bearbeiterKuerzelMissing ? (
         <BearbeiterKuerzelMissingAlert tokens={data.bearbeiterTokens} />
       ) : null}
+
+      {/* Benachrichtigungs-Banner fuer neu freigegebene Antraege in der
+          Hauptkategorie des MAs (1.17). Nur sichtbar wenn auslastung-Build. */}
+      {profile?.department !== 'bauantraege' && isAuslastungEnabled() && (
+        <SelbsteintragungBanner />
+      )}
 
       {/* Multi-Programm-Übersicht — versteckt bei <= 1 Programm */}
       <ProgrammeOverviewCards />

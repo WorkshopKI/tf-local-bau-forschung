@@ -155,7 +155,7 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const hasMore = offene.length > 5;
 
   return (
-    <div className="mb-6">
+    <div className="mb-6" data-auslastung="neue-antraege">
       <SectionHeader
         label="Neue Anträge für dich"
         action={
