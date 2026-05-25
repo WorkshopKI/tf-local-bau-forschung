@@ -32,15 +32,22 @@ import {
 } from '../types';
 import { runBm25Matching, type Bm25Result } from './bm25-matcher';
 import { runEmbeddingMatching, type EmbeddingMatchResult } from './embedding-matcher';
+import { kapazitaetsScore, tageImQuartal } from './kapazitaet';
 import type { AnonymMap } from './anonym-map';
 
 export interface MatchInput {
   antrag: Antrag;
-  /** Freigegebene Ueberkategorien des Antrags (1..2). */
-  kategorieIds: string[];
+  /** @deprecated 1.17 — nutze `primaerKategorie` + `aspekte` getrennt.
+   *  Falls noch gesetzt: erstes Element = primaer, Rest = aspekte. */
+  kategorieIds?: string[];
+  /** Freigegebene Primaerkategorie. Bestimmt den eligible-Pool. */
+  primaerKategorie?: string;
+  /** Freigegebene Aspekte (Querschnittstechnologien). Triggern Aspekt-Bonus
+   *  fuer MAs mit passenden Nebenkategorien. */
+  aspekte?: string[];
   config: AuslastungConfig;
   mitarbeiter: Record<string, AnonymerMitarbeiter>;
-  /** Aktuelle Zuweisungen (fuer Kapazitaets-Filter). */
+  /** Aktuelle Zuweisungen (fuer Kapazitaets-Score). */
   zuweisungen: Zuweisung[];
   /** Pro MA aggregierte hist. Deskriptoren — fuer BM25-Profile-Doc. */
   historischeDeskriptorenByAnon: Map<string, string[]>;
@@ -54,24 +61,36 @@ export interface MatchInput {
   antraegeIndex?: Map<string, { aktenzeichen: string; tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown }>;
   /** Anzahl Teilvorhaben fuer Stundenberechnung. Default 1. */
   anzahlTV?: number;
+  /** Verbleibende Tage im Quartal. Default: aus `config.aktuellesQuartal`
+   *  + `new Date()` berechnet. */
+  tageImQuartal?: number;
   /** Wieviele Top-Ergebnisse zurueckgegeben werden. Default 3. */
   topN?: number;
 }
 
 export function runMatching(input: MatchInput): MatchResult[] {
   const {
-    antrag, kategorieIds, config, mitarbeiter, zuweisungen,
+    antrag, config, mitarbeiter, zuweisungen,
     historischeDeskriptorenByAnon, anonymMap,
   } = input;
 
-  if (kategorieIds.length === 0) return [];
+  // 1.17: Primaer + Aspekte aufloesen — kategorieIds-Backwards-Kompat zuerst.
+  const primaer = input.primaerKategorie
+    ?? input.kategorieIds?.[0]
+    ?? '';
+  const aspekte = input.aspekte
+    ?? input.kategorieIds?.slice(1)
+    ?? [];
+  if (!primaer) return [];
 
-  // 1) Eligible MAs: Schnittmenge ueberKategorien <-> kategorieIds, aktive nur
-  const katSet = new Set(kategorieIds);
+  // 1) Eligible MAs: Pool = MAs deren hauptKategorie == primaer.
+  //    Fallback fuer noch nicht migrierte MAs: ueberKategorien enthaelt primaer.
   const eligibleAnonIds = new Set<string>();
   for (const ma of Object.values(mitarbeiter)) {
     if (!ma.aktiv) continue;
-    if (ma.ueberKategorien.some(k => katSet.has(k))) {
+    const matchesHaupt = ma.hauptKategorie ? ma.hauptKategorie === primaer : false;
+    const matchesLegacy = !ma.hauptKategorie && (ma.ueberKategorien?.includes(primaer) ?? false);
+    if (matchesHaupt || matchesLegacy) {
       eligibleAnonIds.add(ma.anonId);
     }
   }
@@ -109,11 +128,14 @@ export function runMatching(input: MatchInput): MatchResult[] {
     embeddingByAnon = new Map(embResults.map(r => [r.anonId, r]));
   }
 
-  // 5)-7) Score + Filter + Balance pro MA
+  // 5)-7) Score + weicher Filter + Balance pro MA
   const stundenProTV = config.stundenProTV ?? 9;
   const anzahlTV = input.anzahlTV ?? 1;
   const benoetigt = stundenProTV * anzahlTV;
   const quartalsVerbrauchByAnon = computeVerbrauchByAnon(zuweisungen, config.aktuellesQuartal);
+  const restTageImQuartal = input.tageImQuartal ?? tageImQuartal(config.aktuellesQuartal);
+  const aspektBonusPerMatch = config.aspektBonus ?? 0.10;
+  const quartalsEndeBonusTage = config.quartalsEndeBonusTage ?? 21;
 
   const out: MatchResult[] = [];
   for (const anonId of eligibleAnonIds) {
@@ -123,10 +145,12 @@ export function runMatching(input: MatchInput): MatchResult[] {
     // MA ohne Onboarding UND ohne hist. Antraege: ueberspringen
     if (!ma.onboardingAbgeschlossen && (historischeDeskriptorenByAnon.get(anonId) ?? []).length === 0) continue;
 
-    const quartalsKap = ma.jahresKapazitaet / 4;
+    // Kapazitaet inkl. Abschlag — weiches Modell, kein harter Filter mehr.
+    const abschlag = Math.max(0, Math.min(100, ma.abschlagProzent ?? 0));
+    const quartalsKap = (ma.jahresKapazitaet * (1 - abschlag / 100)) / 4;
     const verbraucht = quartalsVerbrauchByAnon.get(anonId) ?? 0;
     const rest = quartalsKap - verbraucht;
-    if (rest < benoetigt) continue;
+    const ueberbuchung = rest < 0 ? -rest : 0;
 
     const bm25 = bm25ByAnon.get(anonId)?.score ?? 0;
     const embRes = embeddingByAnon.get(anonId);
@@ -138,9 +162,21 @@ export function runMatching(input: MatchInput): MatchResult[] {
       input.historischeAstByAnon?.get(anonId),
     );
 
-    const kompetenz = clamp01(alpha * bm25 + (1 - alpha) * emb + astBoost);
-    const balance = quartalsKap > 0 ? rest / quartalsKap : 0;
-    const finalScore = kompetenz * config.gewichtungKompetenz + balance * config.gewichtungBalance;
+    // 1.17: Aspekt-Bonus — Antrag-Aspekte ∩ MA-Nebenkategorien.
+    const nebenSet = new Set(ma.nebenKategorien ?? []);
+    const aspektMatchIds = aspekte.filter(a => nebenSet.has(a));
+    const aspektBonusValue = aspektMatchIds.length * aspektBonusPerMatch;
+
+    const kompetenz = clamp01(alpha * bm25 + (1 - alpha) * emb + astBoost + aspektBonusValue);
+    const balance = quartalsKap > 0 ? Math.max(0, rest) / quartalsKap : 0;
+    const kapScore = kapazitaetsScore(rest, benoetigt, restTageImQuartal, quartalsEndeBonusTage);
+    // Balance + KapScore werden gemeinsam in die `gewichtungBalance`-Komponente
+    // eingewogen (je zur Haelfte). Behaelt das alte Verhalten bei voller
+    // Kapazitaet (balance≈1.0, kapScore≈1.0 → gewichtungBalance × 1.0), aber
+    // ueberbuchte MAs rutschen sanft ab statt rauszufallen.
+    const finalScore =
+      kompetenz * config.gewichtungKompetenz
+      + (balance * 0.5 + kapScore * 0.5) * config.gewichtungBalance;
 
     out.push({
       anonId,
@@ -158,6 +194,11 @@ export function runMatching(input: MatchInput): MatchResult[] {
       benoetigteStunden: benoetigt,
       astMatchCount,
       astBoost,
+      // 1.17: neue Felder
+      kapazitaetsScore: kapScore,
+      aspektBonus: aspektBonusValue,
+      aspektMatchIds,
+      ueberbuchung,
     });
   }
 
