@@ -8,8 +8,10 @@
  */
 import { useMemo, useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
-import type { AnonymerMitarbeiter } from '../../types';
+import type { AnonymerMitarbeiter, AntragstypBucket } from '../../types';
+import { ALL_ANTRAGSTYP_BUCKETS } from '../../types';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
+import { getEffectiveAntragstypen, hasPlOverride } from '../../services/antragstyp-praeferenz';
 import type { useAntraegeCache } from '../../hooks/useAntraegeCache';
 import { AnonymIdBadge } from '../../components/AnonymIdBadge';
 import { KategoriePill } from '../../components/KategoriePill';
@@ -146,6 +148,7 @@ export function MitarbeiterSection({ storage, cache }: Props): React.ReactElemen
             <th className="px-2 py-1.5 w-20">ID</th>
             <th className="px-2 py-1.5 w-24">Kapazität</th>
             <th className="px-2 py-1.5">Kategorien</th>
+            <th className="px-2 py-1.5 w-56">Antragstypen</th>
             <th className="px-2 py-1.5">Technologien</th>
             <th className="px-2 py-1.5 w-32 text-right">Status / Aktion</th>
           </tr>
@@ -174,6 +177,11 @@ export function MitarbeiterSection({ storage, cache }: Props): React.ReactElemen
                     {nebenKats.map(k => <KategoriePill key={k.id} kategorie={k} mode="aspekt" />)}
                     {!hasKats && <span className="text-[var(--tf-text-tertiary)]">—</span>}
                   </div>
+                </td>
+                <td className="px-2 py-1.5">
+                  <AntragstypOverrideCell ma={ma} onSave={async (next) => {
+                    await upsert(storage, { ...ma, antragstypUeberschreibung: next });
+                  }} />
                 </td>
                 <td className="px-2 py-1.5">
                   <TechnologieTags tags={ma.manuelleTechnologien} max={5} />
@@ -282,6 +290,142 @@ export function MitarbeiterSection({ storage, cache }: Props): React.ReactElemen
         onClose={() => setPwOpen(false)}
         onConfirm={exportGeschuetzt}
       />
+    </div>
+  );
+}
+
+/**
+ * AntragstypOverrideCell (v2.2): zeigt den effektiven Antragstyp-Filter eines
+ * MAs (Override > Bevorzugt > 'Alle') und erlaubt PL inline ein Override zu
+ * setzen oder zurueckzusetzen.
+ */
+function AntragstypOverrideCell({
+  ma,
+  onSave,
+}: {
+  ma: AnonymerMitarbeiter;
+  onSave: (next: AntragstypBucket[] | undefined) => Promise<void>;
+}): React.ReactElement {
+  const [open, setOpen] = useState(false);
+  const effective = getEffectiveAntragstypen(ma);
+  const overrideAktiv = hasPlOverride(ma);
+  const bevorzugt = ma.antragstypBevorzugt ?? [];
+
+  const label = effective === null
+    ? 'Alle'
+    : effective.join(', ');
+
+  // Lokaler Edit-State waehrend des Edit-Modus
+  const [draft, setDraft] = useState<AntragstypBucket[]>(() => ma.antragstypUeberschreibung ?? []);
+  const [busy, setBusy] = useState(false);
+
+  if (!open) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className={`text-[11.5px] ${effective === null ? 'text-[var(--tf-text-tertiary)]' : 'text-[var(--tf-text-secondary)]'}`}>
+          {label}
+        </span>
+        {overrideAktiv && (
+          <span
+            className="text-[9.5px] font-medium px-1 py-0.5 rounded"
+            style={{ background: 'var(--tf-warning-soft, #fef3c7)', color: 'var(--tf-text)' }}
+            title={`PL-Override aktiv. MA-Praeferenz: ${bevorzugt.length > 0 ? bevorzugt.join(', ') : 'keine'}`}
+          >
+            PL
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(ma.antragstypUeberschreibung ?? []);
+            setOpen(true);
+          }}
+          className="text-[10.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer ml-1"
+        >
+          ändern
+        </button>
+      </div>
+    );
+  }
+
+  const toggle = (bucket: AntragstypBucket): void => {
+    setDraft(prev => prev.includes(bucket) ? prev.filter(b => b !== bucket) : [...prev, bucket]);
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap gap-1">
+        {ALL_ANTRAGSTYP_BUCKETS.map(bucket => {
+          const isActive = draft.includes(bucket);
+          return (
+            <button
+              key={bucket}
+              type="button"
+              onClick={() => toggle(bucket)}
+              className="text-[10.5px] px-1.5 py-0.5 rounded cursor-pointer"
+              style={
+                isActive
+                  ? { background: 'var(--tf-primary-light)', color: 'var(--tf-primary)', border: '0.5px solid var(--tf-primary)' }
+                  : { background: 'transparent', color: 'var(--tf-text-tertiary)', border: '0.5px solid var(--tf-border)' }
+              }
+            >
+              {isActive ? '✓ ' : ''}{bucket}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              // Leeres Array → undefined (Override zurueckziehen)
+              await onSave(draft.length > 0 ? draft : undefined);
+              setOpen(false);
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="text-[10.5px] px-2 py-0.5 rounded cursor-pointer disabled:opacity-50"
+          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+        >
+          {busy ? '…' : 'Speichern'}
+        </button>
+        {(ma.antragstypUeberschreibung?.length ?? 0) > 0 && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await onSave(undefined);
+                setOpen(false);
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className="text-[10.5px] px-2 py-0.5 rounded cursor-pointer disabled:opacity-50 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]"
+            style={{ border: '0.5px solid var(--tf-border)' }}
+            title="Override entfernen → MA-Praeferenz greift wieder"
+          >
+            Override entfernen
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-[10.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+        >
+          Abbrechen
+        </button>
+      </div>
+      {bevorzugt.length > 0 && (
+        <p className="text-[10px] text-[var(--tf-text-tertiary)]">
+          MA-Präferenz: {bevorzugt.join(', ')}
+        </p>
+      )}
     </div>
   );
 }

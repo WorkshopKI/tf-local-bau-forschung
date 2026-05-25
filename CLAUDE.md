@@ -169,7 +169,7 @@ Eingangsfilter für die DMS-Dokumenten-Pipeline: pro Datei wird kaskadiert entsc
 
 Kurator-Plugin (`id: 'dokument-review'`, `category: 'kuration'`, `kuratorOnly: true`) für die Bearbeitung der Phase-2-Triage-Ergebnisse. Sichtbar wenn `features.dokumentenscan === true`. 50/50-Split-Layout (Manifest-Liste + Detail-Panel), 5 Override-Aktionen (Typ ändern / Antrag zuordnen / Irrelevant / Relevant ohne Zuordnung / Re-Klassifizieren) via `useReviewActions`, Keyboard-Shortcuts (`j`/`k`/`n`/`i`/`r`/`a`), Auto-Cleanup-Heuristiken, integriert ins Antrag-Detail über `AntragDokumenteSection`. Layout, Hook-Liste, Filter/Sort, Auto-Cleanup-Regeln und Anti-Patterns: [docs/architecture/phase2-review-queue.md](docs/architecture/phase2-review-queue.md).
 
-### Auslastungs-Modul (Plugin "auslastung", v2.1)
+### Auslastungs-Modul (Plugin "auslastung", v2.2)
 
 Plugin (`id: 'auslastung'`, `category: 'workflow'`, sichtbar wenn `features.auslastung === true`) für automatische Antrags-Klassifizierung in Überkategorien + MA-Zuweisung mit dreistufigem Matching (Stage 0 Boolean-Match auf ZT-Spalten → Stage 1 Regel-Mapping → Stage 2 Embedding-Centroid). Quartalsbasierte Kapazitäts-Planung. **Datenschutz-Kernprinzip**: MAs nur als anonyme IDs (MA01-MAxx) sichtbar; echte TIB-Kürzel nur im RAM während passwortgeschütztem XLSX-Export. Sidecar `_intern/auslastung-kuerzel-map.json` ist append-only Klartext-Map (Pitfall #18). Aktiv/Inaktiv-Flag pro MA filtert UI + Matching (inaktive MAs bleiben aber im Embedding-Corpus als Kompetenz-Referenz). Stage-2-Korpus wird auf SMB-Share gespiegelt (Cold-Start: 46 min → Download).
 
@@ -182,8 +182,15 @@ Plugin (`id: 'auslastung'`, `category: 'workflow'`, sichtbar wenn `features.ausl
 - **Selbsteintragung auf Homepage** (Plugin "home" → `NeueAntraegeFuerDich.tsx`) — eigener Tab entfällt. Anzeige in **Anträgen statt Stunden**.
 - **Banner "X neue Anträge"** auf Homepage (Hook `useBenachrichtigung`, localStorage pro anonId).
 - **3 Tabs statt 5**: Klassifizierung / Zuweisung / Übersicht (Kapazität + Admin fusioniert in `UebersichtView.tsx`).
-- **Deprecated**: `ueberKategorien` (MA) + `vorgeschlageneKategorien`/`freigegebeneKategorien` (Klassifizierung) bleiben 1 Release in Schreibrichtung erhalten (`withLegacyFields` im Save-Path). Cleanup in v2.2 geplant.
+- **Deprecated**: `ueberKategorien` (MA) + `vorgeschlageneKategorien`/`freigegebeneKategorien` (Klassifizierung) bleiben 1 Release in Schreibrichtung erhalten (`withLegacyFields` im Save-Path). Cleanup in v2.3 geplant.
 - **Action `freigebenKategorien`** (Store) bleibt API-kompatibel, schreibt aber zusätzlich `freigegebenePrimaer` + `freigegebeneAspekte`.
+
+**Workflow-Revision v2.2** — ergänzt **Antragstyp-Präferenzen pro MA**:
+- `AnonymerMitarbeiter.antragstypBevorzugt?: AntragstypBucket[]` (`'FuE'|'DS'|'DL'|'NW'`) — vom MA selbst gepflegt in „Einstellungen → Meine Technologien → Welche Antragstypen bearbeite ich?".
+- `AnonymerMitarbeiter.antragstypUeberschreibung?: AntragstypBucket[]` — PL-Override mit Vorrang, editierbar in der Mitarbeiter-Tabelle (UebersichtView). Override leeren → MA-Präferenz greift wieder.
+- Filter in `services/antragstyp-praeferenz.ts` (`getEffectiveAntragstypen`, `matchesAntragstyp`) — nutzt das bestehende UI-Mapping `getKategorieLabel(vb_phase)` aus [src/plugins/antraege/filter/kategorieQuignis.ts](src/plugins/antraege/filter/kategorieQuickfilter.ts) als Single Source of Truth, kein zweites Mapping.
+- Wirkt in der Selbsteintragung (`NeueAntraegeFuerDich`) + im PL-Matching (`matching-engine.ts` Pool-Filter). Backwards-kompat: MA ohne Präferenz sieht weiter alle Typen.
+- Irrläufer (`vb_phase=9`) werden bei expliziter Präferenz nie matched.
 
 Details (Tabs, Engine-Layer, Datenmodell `auslastung.json`, Standalone-Onboarding-HTML, Schema-Erweiterung, Build-Pipeline): [docs/architecture/auslastung.md](docs/architecture/auslastung.md).
 

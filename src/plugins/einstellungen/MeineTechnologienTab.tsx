@@ -20,7 +20,9 @@ import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData'
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { resolveAnonIdForUser } from '@/plugins/auslastung/services/anonym-map';
 import { aggregateMaProfile } from '@/plugins/auslastung/services/profil-aggregator';
+import { hasPlOverride } from '@/plugins/auslastung/services/antragstyp-praeferenz';
 import { KategoriePill } from '@/plugins/auslastung/components/KategoriePill';
+import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket } from '@/plugins/auslastung/types';
 import {
   SettingsRow,
   SettingsRowGroup,
@@ -38,6 +40,8 @@ const TOOLTIP_HAUPT =
   'Bestimmt, in welchem Pool du fuer die Selbsteintragung + Top-3-Vorschlaege landest. Genau eine Kategorie — das Kernthema deiner Antragsbearbeitung.';
 const TOOLTIP_NEBEN =
   'Bei Antraegen mit diesen Aspekten als Querschnittstechnologie wirst du bevorzugt vorgeschlagen. Mehrere moeglich.';
+const TOOLTIP_ANTRAGSTYP =
+  'Welche Antragstypen bearbeitest du grundsaetzlich? Nichts ausgewaehlt = alle (Backwards-Kompat). Sonst werden in der Home + im Matching nur Antraege dieser Typen angezeigt.';
 const TOOLTIP_AUTO =
   'Automatisch aus deinen bisherigen Anträgen abgeleitet (TECHN_*-Spalten + Zukunftstechnologien). Nicht zutreffende Tags kannst du per Klick ausblenden — sie verschwinden dann aus deinem Team-Profil. Aktualisiert sich beim nächsten Import.';
 const TOOLTIP_MANUAL =
@@ -60,6 +64,7 @@ export function MeineTechnologienTab(): React.ReactElement {
   const [excludedAutoTags, setExcludedAutoTags] = useState<string[]>([]);
   const [hauptKategorie, setHauptKategorie] = useState<string>('');
   const [nebenKategorien, setNebenKategorien] = useState<string[]>([]);
+  const [antragstypBevorzugt, setAntragstypBevorzugt] = useState<AntragstypBucket[]>([]);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
@@ -95,6 +100,9 @@ export function MeineTechnologienTab(): React.ReactElement {
       // Fallback fuer ganz frische MAs ohne Eintrag: leer.
       setHauptKategorie(existing.hauptKategorie ?? '');
       setNebenKategorien(existing.nebenKategorien ?? []);
+      // v2.2: Antragstyp-Praeferenz hydrieren (nur das vom MA gepflegte Feld;
+      // Override gehoert dem PL und wird nur als Hinweis-Banner angezeigt).
+      setAntragstypBevorzugt(existing.antragstypBevorzugt ?? []);
       hydratedRef.current = myAnonId;
     }
   }, [myAnonId, data.mitarbeiter]);
@@ -126,6 +134,12 @@ export function MeineTechnologienTab(): React.ReactElement {
     setNebenKategorien(prev => prev.filter(x => x !== id));
   };
 
+  const toggleAntragstyp = (bucket: AntragstypBucket): void => {
+    setAntragstypBevorzugt(prev =>
+      prev.includes(bucket) ? prev.filter(b => b !== bucket) : [...prev, bucket],
+    );
+  };
+
   async function speichern(): Promise<void> {
     setSaving(true);
     try {
@@ -145,6 +159,8 @@ export function MeineTechnologienTab(): React.ReactElement {
           hauptKategorie,
           nebenKategorien,
           ueberKategorien: reconstructedUeber,
+          // v2.2: Antragstyp-Praeferenz (Override ist PL-only, nicht hier).
+          antragstypBevorzugt,
         };
         if (existing) {
           await upsertMitarbeiter(storage, { ...existing, ...patch });
@@ -203,7 +219,19 @@ export function MeineTechnologienTab(): React.ReactElement {
         )}
       </section>
 
-      {/* Section 3 — Auto-Tags */}
+      {/* Section 3 — Antragstyp-Praeferenz (v2.2) */}
+      {myAnonId && (
+        <section className="mt-8">
+          <SettingsSectionHeader label="Welche Antragstypen bearbeite ich?" hint={TOOLTIP_ANTRAGSTYP} />
+          <AntragstypSection
+            currentMa={data.mitarbeiter[myAnonId]}
+            bevorzugt={antragstypBevorzugt}
+            onToggle={toggleAntragstyp}
+          />
+        </section>
+      )}
+
+      {/* Section 4 — Auto-Tags */}
       <section className="mt-8">
         <SettingsSectionHeader
           label="Aus deinen bisherigen Anträgen"
@@ -223,7 +251,7 @@ export function MeineTechnologienTab(): React.ReactElement {
         )}
       </section>
 
-      {/* Section 3 — Manuelle Chips */}
+      {/* Section 5 — Manuelle Chips */}
       <section className="mt-8">
         <SettingsSectionHeader label="Zusätzliche Kompetenzen" hint={TOOLTIP_MANUAL} />
         <ChipInput
@@ -356,6 +384,88 @@ function KategorienSection({
           Bei Anträgen mit diesen Aspekten wirst du im Matching bevorzugt vorgeschlagen.
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Antragstyp-Praeferenz-Section (v2.2): Toggle-Pills fuer FuE/DS/DL/NW.
+ *
+ * Wenn PL aktuell einen Override gesetzt hat, zeigt ein Amber-Banner den
+ * effektiven Wert + die unwirksame MA-Praeferenz. MA kann seine Praeferenz
+ * trotzdem editieren — sie greift sobald PL den Override leert.
+ */
+function AntragstypSection({
+  currentMa,
+  bevorzugt,
+  onToggle,
+}: {
+  currentMa: import('@/plugins/auslastung/types').AnonymerMitarbeiter | undefined;
+  bevorzugt: AntragstypBucket[];
+  onToggle: (bucket: AntragstypBucket) => void;
+}): React.ReactElement {
+  const overrideActive = currentMa ? hasPlOverride(currentMa) : false;
+  const overrideValue = currentMa?.antragstypUeberschreibung ?? [];
+  const bevorzugtSet = new Set(bevorzugt);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {overrideActive && (
+        <div
+          className="text-[12px] px-3 py-2 rounded-[var(--tf-radius)]"
+          style={{
+            background: 'var(--tf-warning-soft, #fef3c7)',
+            border: '0.5px solid var(--tf-border)',
+            color: 'var(--tf-text)',
+          }}
+        >
+          <p className="font-medium mb-0.5">⚠ Aktuell vom PL eingeschränkt</p>
+          <p className="text-[11.5px] text-[var(--tf-text-secondary)]">
+            Du bekommst zur Zeit nur {overrideValue.join(', ')}-Anträge zugewiesen.
+            Deine Präferenz unten ({bevorzugt.length > 0 ? bevorzugt.join(', ') : 'keine'})
+            greift wieder, sobald der PL die Einschränkung aufhebt.
+          </p>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-1.5">
+        {ALL_ANTRAGSTYP_BUCKETS.map(bucket => {
+          const isActive = bevorzugtSet.has(bucket);
+          return (
+            <button
+              key={bucket}
+              type="button"
+              onClick={() => onToggle(bucket)}
+              aria-pressed={isActive}
+              className={
+                isActive
+                  ? 'inline-flex items-center gap-1 text-[12px] px-3 py-1.5 rounded-md cursor-pointer'
+                  : 'inline-flex items-center gap-1 text-[12px] px-3 py-1.5 rounded-md cursor-pointer hover:bg-[var(--tf-bg-secondary)]'
+              }
+              style={
+                isActive
+                  ? {
+                      background: 'var(--tf-primary-light)',
+                      color: 'var(--tf-primary)',
+                      border: '0.5px solid var(--tf-primary)',
+                    }
+                  : {
+                      background: 'transparent',
+                      color: 'var(--tf-text-tertiary)',
+                      border: '0.5px solid var(--tf-border)',
+                    }
+              }
+            >
+              <span aria-hidden className={`text-[9px] leading-none ${isActive ? '' : 'invisible'}`}>✓</span>
+              {bucket}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-[var(--tf-text-tertiary)] leading-snug">
+        {bevorzugt.length === 0
+          ? 'Nichts ausgewählt — du siehst alle Antragstypen deiner Hauptkategorie (Standard).'
+          : `Auf der Home + im Matching werden nur ${bevorzugt.join(', ')}-Anträge angezeigt.`}
+      </p>
     </div>
   );
 }

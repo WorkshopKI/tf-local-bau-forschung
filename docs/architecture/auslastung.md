@@ -21,6 +21,23 @@ Selbsteintragung-UX auf der Home:
 - Kapazitätszeile zeigt **Anträge** ("4 von 16 Anträgen frei in Q2-2026"), keine Stunden.
 - Banner-Hint „X neue Anträge in deinen Kategorien" via `useBenachrichtigung`-Hook + localStorage pro `anonId`.
 
+## Antragstyp-Präferenzen pro MA (v2.2)
+
+Zusätzlich zur fachlichen `hauptKategorie` (IT/DT/EU/LG/NM) pflegt jeder MA eine **Antragstyp-Präferenz** — welche der vier Buckets FuE/DS/DL/NW er bearbeitet (Mapping auf `vb_phase`: 3=FuE, 5=DS, 4=DL, 1+2=NW, 9=Irrläufer). Zwei Felder am `AnonymerMitarbeiter`:
+
+- `antragstypBevorzugt?: AntragstypBucket[]` — vom MA selbst gepflegt in **Einstellungen → Meine Technologien**.
+- `antragstypUeberschreibung?: AntragstypBucket[]` — vom PL gepflegt in der Mitarbeiter-Tabelle (UebersichtView, Spalte „Antragstypen"). Hat Vorrang. Leeres Array → MA-Präferenz greift wieder.
+
+Filter-Logik in `services/antragstyp-praeferenz.ts`:
+- `getEffectiveAntragstypen(ma): AntragstypBucket[] | null` — Override > Bevorzugt > null (= alle erlaubt, Backwards-Kompat für pre-v2.2-Daten).
+- `matchesAntragstyp(antrag, ma): boolean` — nutzt `getKategorieLabel(vb_phase)` aus `kategorieQuickfilter.ts` (Single Source of Truth), kein zweites Mapping. Irrläufer immer false bei expliziter Präferenz.
+
+Wirkt in: `NeueAntraegeFuerDich` (Home-Selbsteintragung) + `matching-engine.ts` (Eligible-Pool VOR den teuren BM25/Embedding-Scores).
+
+UI-Konventionen:
+- MA-Profil zeigt ein Amber-Banner („Aktuell vom PL eingeschränkt") wenn `antragstypUeberschreibung` nicht leer ist. MA kann seine Präferenz weiter editieren, sie greift sobald PL den Override entfernt.
+- PL-Tabelle: kleines „PL"-Badge an der effektiven Pill-Liste signalisiert aktives Override; „Override entfernen"-Button setzt es auf `undefined` zurück.
+
 ## Klassifizierungs-Modell (1.17)
 
 Pro Antrag genau eine **Primärkategorie** + 0..n **Aspekte** (Querschnittstechnologien). Beispiel: „KI-gestützte Schadenserkennung in Brückenstrukturen" → primaer=IT (Strukturüberwachung ist Ingenieurtechnik), aspekte=[DT] (KI ist das Werkzeug).
