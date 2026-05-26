@@ -4,6 +4,11 @@
  *
  * Farbtier:
  *  - <70% emerald, 70-90% amber, >90% rose
+ *
+ * Optionaler informativer Sub-Track unterhalb (`altlast.stunden > 0`): zeigt
+ * die Stunden offener Antraege aus den letzten 2 Quartalen, skaliert wie der
+ * Hauptbalken. Bewusst getrennt, weil Altlasten KEINE aktuelle Q0-Kapazitaet
+ * verbrauchen und nicht ins Ranking einfliessen.
  */
 interface Props {
   freigegeben: number;
@@ -11,10 +16,14 @@ interface Props {
   vorgeschlagen: number;
   quartalsKapazitaet: number;
   showLabels?: boolean;
+  /** Optional: heller Sub-Track unter dem Hauptbalken. Nur wenn `stunden > 0`
+   *  gerendert. Skala = `quartalsKapazitaet` (gleiche Bezugsgroesse wie oben),
+   *  bei >100% gecapped. */
+  altlast?: { stunden: number };
 }
 
 export function KapazitaetsBalken({
-  freigegeben, selbst, vorgeschlagen, quartalsKapazitaet, showLabels = true,
+  freigegeben, selbst, vorgeschlagen, quartalsKapazitaet, showLabels = true, altlast,
 }: Props): React.ReactElement {
   const total = freigegeben + selbst + vorgeschlagen;
   const pct = quartalsKapazitaet > 0 ? (total / quartalsKapazitaet) * 100 : 0;
@@ -32,6 +41,11 @@ export function KapazitaetsBalken({
   const sPct = quartalsKapazitaet > 0 ? Math.min(100, (selbst / quartalsKapazitaet) * 100) : 0;
   const vPct = quartalsKapazitaet > 0 ? Math.min(100, (vorgeschlagen / quartalsKapazitaet) * 100) : 0;
 
+  const showAltlast = altlast != null && altlast.stunden > 0;
+  const altlastPct = showAltlast && quartalsKapazitaet > 0
+    ? Math.min(100, (altlast.stunden / quartalsKapazitaet) * 100)
+    : 0;
+
   return (
     <div className="w-full">
       <div
@@ -46,6 +60,15 @@ export function KapazitaetsBalken({
         <div className="bg-blue-400" style={{ width: `${sPct}%` }} title={`${selbst}h selbst`} />
         <div className="bg-slate-300" style={{ width: `${vPct}%`, opacity: 0.7 }} title={`${vorgeschlagen}h vorgeschlagen`} />
       </div>
+      {showAltlast && (
+        <div
+          className="h-1 mt-0.5 rounded-full overflow-hidden"
+          style={{ background: 'var(--tf-bg-secondary)' }}
+          title={`Altlast (informativ, kein Ranking-Bezug): ${Math.round(altlast.stunden)}h aus den letzten 2 Quartalen`}
+        >
+          <div className="h-full bg-slate-400" style={{ width: `${altlastPct}%`, opacity: 0.55 }} />
+        </div>
+      )}
       {showLabels && (
         <div className="flex items-center justify-between mt-1 text-[10.5px] text-[var(--tf-text-tertiary)]">
           <span>{Math.round(total)}h / {Math.round(quartalsKapazitaet)}h</span>

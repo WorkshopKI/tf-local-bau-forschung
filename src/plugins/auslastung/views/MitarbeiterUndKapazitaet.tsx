@@ -85,7 +85,9 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
   }
 
   // v2.9: gemeinsamer Provider-Memo statt eigener Berechnung.
-  const { auslastungByAnon } = useAuslastungIndex();
+  // altlastByAnon (informativ): Anträge aus den letzten 2 Quartalen, die noch
+  // in einem der 5 "offen"-Stati hängen. Sub-Track in MaRow visualisiert das.
+  const { auslastungByAnon, altlastByAnon } = useAuslastungIndex();
 
   // v2.10: KapazitaetsView pro MA EINMAL pro Render vorberechnen (statt
   // im map-Loop 79x). React-Memo kommt zum Tragen, weil die Map-Reference
@@ -228,6 +230,7 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
               ma={ma}
               auslastung={auslastung}
               kapView={kapView}
+              altlast={altlastByAnon.get(ma.anonId)}
               kategorien={kategorien}
               realName={resolveName(ma.anonId)}
               quartal={config.aktuellesQuartal}

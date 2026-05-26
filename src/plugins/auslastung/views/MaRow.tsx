@@ -23,12 +23,17 @@ import { AntragstypOverrideCell } from './AntragstypOverrideCell';
 import { MaInlineDetail } from './MaInlineDetail';
 import type { AnonymerMitarbeiter, AntragstypBucket, UeberKategorie } from '../types';
 import type { MaQuartalsAuslastung } from '../services/quartals-auslastung';
+import type { MaAltlastBucket } from '../services/altlast';
 import type { KapazitaetsView } from '../services/kapazitaet';
 
 interface Props {
   ma: AnonymerMitarbeiter;
   auslastung: MaQuartalsAuslastung;
   kapView: KapazitaetsView;
+  /** Optional: noch offene Antraege aus den letzten 2 Quartalen. Wenn vorhanden
+   *  und `antraege > 0`, wird ein hellgrauer Sub-Track unter dem Hauptbalken
+   *  + ein Sub-Label-Hinweis gerendert. Rein informativ, kein Ranking-Bezug. */
+  altlast?: MaAltlastBucket;
   kategorien: UeberKategorie[];
   realName: string | null;
   quartal: string;
@@ -42,10 +47,18 @@ interface Props {
   onUpsertAntragstyp: (anonId: string, next: AntragstypBucket[] | undefined) => Promise<void>;
 }
 
+/** "2025-Q4" → "Q4/25" — kompakter Format fuer das Altlast-Sub-Label. */
+function formatQuartalShort(q: string): string {
+  const m = /^(\d{4})-Q([1-4])$/.exec(q);
+  if (!m || !m[1] || !m[2]) return q;
+  return `Q${m[2]}/${m[1].slice(2)}`;
+}
+
 function MaRowImpl({
-  ma, auslastung, kapView, kategorien, realName, quartal,
+  ma, auslastung, kapView, altlast, kategorien, realName, quartal,
   expanded, onToggleExpand, onSetAktiv, onRemove, onUpsertAntragstyp,
 }: Props): React.ReactElement {
+  const hasAltlast = altlast != null && altlast.antraege > 0;
   const hauptId = ma.hauptKategorie || ma.ueberKategorien?.[0] || '';
   const nebenIds = ma.nebenKategorien ?? (ma.ueberKategorien ? ma.ueberKategorien.slice(1) : []);
   const hauptKat = kategorien.find(k => k.id === hauptId);
@@ -101,6 +114,7 @@ function MaRowImpl({
               selbst={kapView.pending.stunden}
               vorgeschlagen={0}
               quartalsKapazitaet={kapView.effektivStunden}
+              altlast={hasAltlast ? { stunden: altlast.stunden } : undefined}
               showLabels={false}
             />
           </div>
@@ -156,6 +170,14 @@ function MaRowImpl({
             Festgebucht: <span className="text-[var(--tf-text-secondary)]">{kapView.fest.antraege}</span> Anträge ({kapView.fest.tvs} TVs)
             {kapView.pending.antraege > 0 && (
               <> · Pending: <span className="text-[var(--tf-text-secondary)]">{kapView.pending.antraege}</span> ({kapView.pending.tvs})</>
+            )}
+            {hasAltlast && (
+              <> · <span
+                className="text-[var(--tf-text-secondary)]"
+                title="Noch offene Anträge aus den letzten 2 Quartalen (informativ, kein Ranking-Bezug)"
+              >
+                Altlast: {altlast.tvs} TVs aus {altlast.quartale.map(formatQuartalShort).join(' + ')}
+              </span></>
             )}
             {` · ${ma.jahresKapazitaet}h/Jahr${(ma.abschlagProzent ?? 0) > 0 ? ` (−${ma.abschlagProzent}%)` : ''}`}
           </div>

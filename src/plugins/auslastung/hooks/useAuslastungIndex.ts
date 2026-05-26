@@ -16,12 +16,17 @@
  */
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
 import { computeQuartalsAuslastung, type MaQuartalsAuslastung } from '../services/quartals-auslastung';
+import { computeAltlasten, type MaAltlastBucket } from '../services/altlast';
 import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';
 
 export interface AuslastungIndex {
   /** Pro anonId: fest-/pending-Buckets fuer das aktuelle Quartal. */
   auslastungByAnon: Map<string, MaQuartalsAuslastung>;
+  /** Pro anonId: noch offene Antraege aus den letzten 2 Quartalen (exklusiv
+   *  aktuelles). Rein informativ — fliesst NICHT in `kapazitaetsScore` ein.
+   *  MAs ohne Altlast erscheinen NICHT in der Map. */
+  altlastByAnon: Map<string, MaAltlastBucket>;
 }
 
 const AuslastungIndexCtx = createContext<AuslastungIndex | null>(null);
@@ -43,7 +48,20 @@ export function AuslastungIndexProvider({ children }: { children: ReactNode }): 
     [cache.antraege, cache.anonymMap, zuweisungen, aktuellesQuartal, stundenProTV],
   );
 
-  const value = useMemo<AuslastungIndex>(() => ({ auslastungByAnon }), [auslastungByAnon]);
+  const altlastByAnon = useMemo(
+    () => computeAltlasten(
+      cache.antraege,
+      cache.anonymMap.toAnon,
+      aktuellesQuartal,
+      stundenProTV ?? 9,
+    ),
+    [cache.antraege, cache.anonymMap, aktuellesQuartal, stundenProTV],
+  );
+
+  const value = useMemo<AuslastungIndex>(
+    () => ({ auslastungByAnon, altlastByAnon }),
+    [auslastungByAnon, altlastByAnon],
+  );
   return createElement(AuslastungIndexCtx.Provider, { value }, children);
 }
 
