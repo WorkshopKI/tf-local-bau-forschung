@@ -54,25 +54,43 @@ const STORE_TARGETS: Record<SnapshotStoreName, CsvStoreName> = {
   csv_schemas: CSV_STORES.CSV_SCHEMAS,
 };
 
+export interface SyncOptions {
+  onProgress?: (p: SyncProgress) => void;
+  /**
+   * Day-Throttle ueberspringen — fuer User-getriggerte Refreshes (z.B.
+   * Banner-Klick „Jetzt laden", wenn der Watcher einen neueren Snapshot
+   * gefunden hat). Default `false`: 1x/Tag wie bisher.
+   */
+  force?: boolean;
+}
+
 /**
  * Synchronisiert einen Programm-Snapshot von Daten-Share → lokale IDB.
  *
- * Drosselung: maximal 1x pro Kalendertag (lokale Zeit). Beim ersten Aufruf
- * des Tages wird der `snapshot-last-check-day-<programmId>`-Marker SOFORT
- * gesetzt — auch wenn der Sync danach skipped, faillt oder kein Manifest
- * findet. Damit prueft jeder Client wirklich nur 1x pro Tag.
+ * Drosselung: maximal 1x pro Kalendertag (lokale Zeit), ueberspringbar mit
+ * `force: true`. Beim ersten Aufruf des Tages wird der
+ * `snapshot-last-check-day-<programmId>`-Marker SOFORT gesetzt — auch wenn
+ * der Sync danach skipped, faillt oder kein Manifest findet. Damit prueft
+ * jeder Client wirklich nur 1x pro Tag.
  */
 export async function syncProgrammSnapshot(
   idb: IDBStore,
   smbHandle: FileSystemDirectoryHandle,
   programmId: string,
-  onProgress?: (p: SyncProgress) => void,
+  optsOrOnProgress?: SyncOptions | ((p: SyncProgress) => void),
 ): Promise<SyncResult> {
-  // Day-Throttle
+  const opts: SyncOptions = typeof optsOrOnProgress === 'function'
+    ? { onProgress: optsOrOnProgress }
+    : (optsOrOnProgress ?? {});
+  const onProgress = opts.onProgress;
+
+  // Day-Throttle (ueberspringbar via opts.force)
   const today = todayKey();
-  const lastCheckDay = await idb.get<string>(SYNC_LAST_CHECK_DAY_KEY(programmId));
-  if (lastCheckDay === today) {
-    return { synced: false };
+  if (!opts.force) {
+    const lastCheckDay = await idb.get<string>(SYNC_LAST_CHECK_DAY_KEY(programmId));
+    if (lastCheckDay === today) {
+      return { synced: false };
+    }
   }
 
   // Verzeichnisstruktur navigieren — bei jedem Step kann das Programm-Snapshot fehlen

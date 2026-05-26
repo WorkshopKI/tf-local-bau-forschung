@@ -21,6 +21,9 @@ import { ensureDefaultProgramm } from '@/core/services/csv';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { SmbBanner } from '@/core/components/SmbBanner';
 import { OfflineBanner } from '@/core/OfflineBanner';
+import { NewSnapshotBanner } from '@/core/components/NewSnapshotBanner';
+import { useSnapshotWatcher } from '@/core/hooks/useSnapshotWatcher';
+import { CsvAutoRefreshBanner } from '@/plugins/csv-sources-kuration/components/CsvAutoRefreshBanner';
 import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
@@ -149,6 +152,11 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
 
   useKuratorActivityTracker();
   useAutoSmbRefresh(storage.idb);
+
+  // Snapshot-Watcher: alle 15 Min Manifest checken, ob ein anderer Kurator
+  // einen neueren Datenbestand geschrieben hat. Banner wird im <main>-
+  // Bereich gerendert. Im Demo-Build deaktiviert (kein Daten-Share).
+  const snapshotWatcher = useSnapshotWatcher({ enabled: isDataShareEnabled() });
 
   const goToPlugin = useCallback((pluginId: string) => {
     // Beim Wechsel zu Listen-Plugins: Detail-State in Stores clearen (Route-Param fehlt → Effekt clearet ohnehin, aber wir machen es hier explizit)
@@ -343,6 +351,8 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
           {isDataShareEnabled() && (
             <SmbBanner status={smbStatus.status} lastCheck={smbStatus.lastCheck} idb={storage.idb} />
           )}
+          {isKuratorMenusEnabled() && <CsvAutoRefreshBanner />}
+          {isDataShareEnabled() && <NewSnapshotBanner state={snapshotWatcher} />}
           <div className="flex-1 overflow-y-auto relative">
             {!sidebarOpen && (
               <button onClick={() => setSidebarOpen(true)}
