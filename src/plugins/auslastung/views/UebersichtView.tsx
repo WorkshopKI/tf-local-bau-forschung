@@ -1,18 +1,12 @@
 /**
- * UebersichtView — fusioniert ehemalige Tabs "Kapazitaet" + "Admin" (1.17).
+ * UebersichtView (v2.6) — Tab "Übersicht" des Auslastungs-Moduls.
  *
- * Drei thematische Bloecke + ein Aufklapper "Erweitert" fuer selten geaenderte
- * Konfiguration:
+ * Konsolidierte Sicht: DeAnon-Panel (gated) + Statistik-Panel (collapsible) +
+ * Mitarbeiter-&-Kapazität-Tabelle (zwei-Zeilen-Layout mit Inline-Expand) +
+ * Überkategorien-Verwaltung + Import/Export + Erweitert-Aufklapper.
  *
- *  1. **Kapazitaet** — MA-Liste mit Balken (Antraege statt Stunden), klick auf
- *     MA oeffnet das Bearbeiten-Flyout aus der MA-Verwaltung.
- *  2. **Ueberkategorien** — Liste der UeberKategorien + Deskriptoren-Mapping.
- *  3. **Mitarbeiter** — Detail-Verwaltung (CRUD, Onboarding, Kalibrierung).
- *  4. **Import/Export** — XLSX-Import, Vorlage, Onboarding-HTML, Export.
- *  5. **Erweitert ▾** — Stunden/TV, durchschnittTV, Frist-Tage, Embedding-
- *     Corpus, Cache leeren.
- *
- * Setup-Wizard zwingend wenn `setupAbgeschlossen=false`.
+ * v2.6 ersetzt die fruehere Aufteilung in zwei MA-Listen (KapazitaetsSection
+ * + MitarbeiterSection) durch eine einzelne `MitarbeiterUndKapazitaet`.
  */
 import { useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -22,9 +16,9 @@ import { SetupWizard } from './admin/SetupWizard';
 import { KonfigurationSection } from './admin/KonfigurationSection';
 import { KategorienSection } from './admin/KategorienSection';
 import { EmbeddingCorpusSection } from './admin/EmbeddingCorpusSection';
-import { MitarbeiterSection } from './admin/MitarbeiterSection';
 import { ImportExportSection } from './admin/ImportExportSection';
-import { KapazitaetsSection } from './KapazitaetsSection';
+import { StatistikPanel } from './StatistikPanel';
+import { MitarbeiterUndKapazitaet } from './MitarbeiterUndKapazitaet';
 import { DeAnonPanel } from '../components/DeAnonPanel';
 import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
 
@@ -56,9 +50,13 @@ export function UebersichtView(): React.ReactElement {
   return (
     <div className="flex flex-col gap-4">
       {isDeAnonymisierungEnabled() && <DeAnonPanel />}
-      <KapazitaetsSection />
+      <div className="rounded-[12px]" style={{ border: '0.5px solid var(--tf-border)' }}>
+        <div className="px-4">
+          <StatistikPanel />
+        </div>
+      </div>
+      <MitarbeiterUndKapazitaet storage={storage} cache={cache} />
       <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
-      <MitarbeiterSection storage={storage} cache={cache} />
       <ImportExportSection antraege={cache.antraege} />
 
       {/* Erweitert-Aufklapper — selten geaenderte Konfig */}
