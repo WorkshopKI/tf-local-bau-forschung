@@ -17,6 +17,7 @@ import { detectAktiveMAs, shouldShowAktivVorschlag } from '../services/aktiv-det
 import { AktivVorschlagBanner } from './admin/AktivVorschlagBanner';
 import { EMPTY_AUSLASTUNG } from '../services/quartals-auslastung';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
+import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { computeKapazitaet, type KapazitaetsView } from '../services/kapazitaet';
 import { MaRow } from './MaRow';
 import type { AntragstypBucket } from '../types';
@@ -48,16 +49,26 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
 
   const referenzJahr = useMemo(() => new Date().getUTCFullYear(), []);
 
+  // `ready` = beide Master-Quellen geladen (Antraege-Cache + Auslastungs-Store).
+  // Wichtig: ohne dieses Gate kann der Auto-Create-persist gegen die noch
+  // laufende `useAuslastungData.load`-Action rennen — Last-Write-Wins wuerde
+  // dann entweder die User-Customizations ueberschreiben oder den persist
+  // durch den `if (saving) return`-Lock fallen lassen, sodass die neuen MAs
+  // beim naechsten Reload wieder fehlen.
+  const { ready } = useAuslastungReady();
+
   // Auto-Create: jede anonId aus der Kuerzel-Map (= jedes TIB-Kuerzel in der
   // Master-CSV) bekommt automatisch einen MA-Eintrag in `data.mitarbeiter`,
   // sonst tauchen neue Kuerzel wie z.B. Umlaut-haltige (THü → THÜ → MA72)
   // nicht in der Liste auf, obwohl sie Antraege haben. Default aktiv=true.
+  // Bestehende MAs (auch inaktive) werden NICHT angefasst — nur fehlende
+  // anonIds neu angelegt.
   useEffect(() => {
-    if (!cache.loaded) return;
+    if (!ready) return;
     const anonIds = [...cache.anonymMap.toReal.keys()];
     if (anonIds.length === 0) return;
     void ensureMitarbeiterForAnonIds(storage, anonIds);
-  }, [cache.loaded, cache.anonymMap, ensureMitarbeiterForAnonIds, storage]);
+  }, [ready, cache.anonymMap, ensureMitarbeiterForAnonIds, storage]);
 
   const vorschlag = useMemo(() => {
     if (vorschlagDismissed) return null;

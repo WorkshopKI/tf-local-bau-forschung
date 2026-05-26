@@ -30,6 +30,21 @@ describe('normalizeKuerzel', () => {
     expect(normalizeKuerzel('')).toBe(null);
     expect(normalizeKuerzel('   ')).toBe(null);
   });
+  it('NFC: behandelt NFC- und NFD-Umlaut-Formen identisch', () => {
+    // CSV-Quellen koennen "ü" precomposed (NFC, U+00FC) ODER decomposed
+    // (NFD, "u" + U+0308 Combining-Diaeresis) liefern. Ohne NFC-Normalisierung
+    // waeren das verschiedene Map-Keys.
+    const nfc = 'THÜ';                          // U+00DC = Ü precomposed
+    const nfd = 'TH' + 'U' + '̈';     // U+0055 (U) + U+0308 (combining diaeresis)
+    expect(normalizeKuerzel(nfc)).toBe(normalizeKuerzel(nfd));
+    expect(normalizeKuerzel('THü')).toBe(normalizeKuerzel('thü'));
+  });
+  it('NFC: typische deutsche Umlaut-Kürzel werden konsistent', () => {
+    expect(normalizeKuerzel('THü')).toBe('THÜ');
+    expect(normalizeKuerzel('Müller')).toBe('MÜLLER');
+    expect(normalizeKuerzel('Bär')).toBe('BÄR');
+    expect(normalizeKuerzel('groß')).toBe('GROSS');  // ß → SS (ASCII upper)
+  });
 });
 
 describe('resolveAnonIdForUser', () => {

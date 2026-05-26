@@ -20,12 +20,17 @@ export interface AnonymMap {
   toReal: Map<string, string>;
 }
 
-/** Normalisiert ein Kuerzel: trim + uppercase. Leere Strings -> null. */
+/** Normalisiert ein Kuerzel: trim + NFC-Unicode + uppercase. Leere Strings -> null.
+ *  NFC-Normalisierung ist kritisch für Umlaut-Kürzel: CSV-Quellen koennen "ü"
+ *  als NFC (U+00FC, 1 Codepoint) ODER als NFD ("u" + U+0308 Combining-Diaeresis)
+ *  ausliefern. Ohne `normalize('NFC')` waeren `'THü' (NFD)` und `'THÜ' (NFC)`
+ *  unterschiedliche Map-Keys, der MA wuerde nicht gefunden. Siehe auch
+ *  scripts/normalize-fixture-csvs.mjs fuer die Pipeline-Seite. */
 export function normalizeKuerzel(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
-  return trimmed.toUpperCase();
+  return trimmed.normalize('NFC').toUpperCase();
 }
 
 /**
