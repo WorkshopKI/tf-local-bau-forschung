@@ -22,6 +22,7 @@ import {
 } from '@/components/data-table';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
+import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { normalizeKuerzel } from '../services/anonym-map';
 import {
   buildVerbundClassificationViews,
@@ -37,6 +38,12 @@ import {
 import { buildVerbundColumns } from './verbund-columns';
 import { VerbundClassificationTable } from './VerbundClassificationTable';
 import { LLMKlassifizierungButtons } from '../components/LLMKlassifizierungButtons';
+import { SkeletonRows } from '../components/Skeleton';
+
+/** Helper: zeigt „…" waehrend Loading, sonst die Zahl. */
+function fmtCount(value: number, loading: boolean): string {
+  return loading ? '…' : String(value);
+}
 
 type ViewFilter = 'alle' | 'review' | 'freigegeben';
 
@@ -67,6 +74,8 @@ export function KlassifizierungsReview(): React.ReactElement {
   const freigeben = useAuslastungData(s => s.freigebenKategorien);
 
   const cache = useAntraegeCache();
+  const { ready } = useAuslastungReady();
+  const isInitialLoading = !ready;
   const aktuellesJahr = useMemo(
     () => jahrAusQuartal(config.aktuellesQuartal),
     [config.aktuellesQuartal],
@@ -274,6 +283,7 @@ export function KlassifizierungsReview(): React.ReactElement {
         <LLMKlassifizierungButtons
           antraege={antraegeImPool}
           kategorien={config.ueberKategorien}
+          isLoading={isInitialLoading}
         />
       </div>
 
@@ -294,24 +304,24 @@ export function KlassifizierungsReview(): React.ReactElement {
                 border: '0.5px solid var(--tf-border)',
               }}
             >
-              {f === 'alle' && `Alle (${counts.total})`}
-              {f === 'review' && `Review nötig (${counts.review})`}
-              {f === 'freigegeben' && `Freigegeben (${counts.freig})`}
+              {f === 'alle' && `Alle (${fmtCount(counts.total, isInitialLoading)})`}
+              {f === 'review' && `Review nötig (${fmtCount(counts.review, isInitialLoading)})`}
+              {f === 'freigegeben' && `Freigegeben (${fmtCount(counts.freig, isInitialLoading)})`}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-            {counts.total} Verbünde · {counts.freig} freigegeben · {counts.review} prüfen
+            {fmtCount(counts.total, isInitialLoading)} Verbünde · {fmtCount(counts.freig, isInitialLoading)} freigegeben · {fmtCount(counts.review, isInitialLoading)} prüfen
           </span>
           <button
             type="button"
-            disabled={counts.neu === 0}
+            disabled={isInitialLoading || counts.neu === 0}
             onClick={() => void bulkFreigeben()}
             className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
             style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
           >
-            Alle hohen Confidences freigeben ({counts.neu})
+            Alle hohen Confidences freigeben ({fmtCount(counts.neu, isInitialLoading)})
           </button>
           <ColumnPicker
             columns={allColumns}
@@ -329,7 +339,11 @@ export function KlassifizierungsReview(): React.ReactElement {
         onSort={toggleSort}
         columnWidths={columnWidths}
         onColumnWidthChange={setWidth}
-        emptyContent="Keine Verbünde in dieser Ansicht."
+        emptyContent={
+          isInitialLoading
+            ? <SkeletonRows count={6} columns={[70, 80, 240, 140, 80, 70, 70]} />
+            : 'Keine Verbünde in dieser Ansicht.'
+        }
       />
     </div>
   );

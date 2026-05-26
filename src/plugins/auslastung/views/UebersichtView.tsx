@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
+import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { SetupWizard } from './admin/SetupWizard';
 import { KonfigurationSection } from './admin/KonfigurationSection';
 import { KategorienSection } from './admin/KategorienSection';
@@ -20,18 +21,33 @@ import { ImportExportSection } from './admin/ImportExportSection';
 import { StatistikPanel } from './StatistikPanel';
 import { MitarbeiterUndKapazitaet } from './MitarbeiterUndKapazitaet';
 import { DeAnonPanel } from '../components/DeAnonPanel';
+import { SkeletonRows, SkeletonBar } from '../components/Skeleton';
 import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
 
 export function UebersichtView(): React.ReactElement {
   const storage = useStorage();
   const setupDone = useAuslastungData(s => s.data.config.setupAbgeschlossen);
   const cache = useAntraegeCache();
+  const { ready } = useAuslastungReady();
   const [erweitertOpen, setErweitertOpen] = useState(false);
 
-  if (setupDone && !cache.loaded) {
+  if (setupDone && !ready) {
+    // Volles Skeleton-Layout statt nur Text — User sieht sofort,
+    // dass die Tabelle/Panels im Aufbau sind, nicht leer.
     return (
-      <div className="rounded-[12px] p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-        <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Lade Anträge…</p>
+      <div className="flex flex-col gap-4">
+        <div className="rounded-[12px] p-3" style={{ border: '0.5px solid var(--tf-border)' }}>
+          <SkeletonBar width="40%" height={14} />
+        </div>
+        <div className="rounded-[12px] py-3 px-4" style={{ border: '0.5px solid var(--tf-border)' }}>
+          <SkeletonBar width="60%" height={14} />
+        </div>
+        <div className="rounded-[12px] p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
+          <div className="mb-3">
+            <SkeletonBar width="30%" height={14} />
+          </div>
+          <SkeletonRows count={8} columns={[60, 90, 140, 120, 80, 90]} rowHeight={48} />
+        </div>
       </div>
     );
   }

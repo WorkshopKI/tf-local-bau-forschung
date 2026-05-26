@@ -34,9 +34,11 @@ interface Props {
   /** Antraege die klassifiziert werden sollen (z.B. nur unklassifizierte). */
   antraege: Antrag[];
   kategorien: UeberKategorie[];
+  /** v2.7: Master-Daten noch nicht geladen → Buttons disabled, Counts „…". */
+  isLoading?: boolean;
 }
 
-export function LLMKlassifizierungButtons({ antraege, kategorien }: Props): React.ReactElement {
+export function LLMKlassifizierungButtons({ antraege, kategorien, isLoading = false }: Props): React.ReactElement {
   const storage = useStorage();
   const aiBridge = useAIBridge();
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
@@ -160,25 +162,28 @@ export function LLMKlassifizierungButtons({ antraege, kategorien }: Props): Reac
   const unklassifiziertCount = antraege.filter(a => !klassifizierteIds.has(a.aktenzeichen)).length;
 
   const busy = startLLM.busy || copyPrompt.busy;
+  // v2.7: Master-Loading blockt alle Klassifizierungs-Aktionen, weil
+  // antraege noch leer waere. Count als „…" statt 0.
+  const countLabel = isLoading ? '…' : String(antraege.length);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <button
         type="button"
         onClick={() => startLLM.run()}
-        disabled={busy || antraege.length === 0}
+        disabled={busy || isLoading || antraege.length === 0}
         className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ background: 'var(--tf-primary)', color: 'var(--tf-bg)' }}
         title="Klassifiziert alle uebergebenen Antraege via aktivem AI-Bridge-Transport"
       >
         {startLLM.busy && progress
           ? `${progress.done} / ${progress.total} klassifiziert…`
-          : `LLM-Klassifizierung starten (${antraege.length})`}
+          : `LLM-Klassifizierung starten (${countLabel})`}
       </button>
       <button
         type="button"
         onClick={() => copyPrompt.run()}
-        disabled={busy || antraege.length === 0}
+        disabled={busy || isLoading || antraege.length === 0}
         className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
         style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
       >
@@ -187,13 +192,13 @@ export function LLMKlassifizierungButtons({ antraege, kategorien }: Props): Reac
       <button
         type="button"
         onClick={() => setShowPasteModal(true)}
-        disabled={busy}
+        disabled={busy || isLoading}
         className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
         style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
       >
         LLM-Ergebnis einfügen
       </button>
-      {unklassifiziertCount !== antraege.length && (
+      {!isLoading && unklassifiziertCount !== antraege.length && (
         <span className="text-[11px] text-[var(--tf-text-tertiary)] ml-2">
           {unklassifiziertCount} noch unklassifiziert (von {antraege.length})
         </span>

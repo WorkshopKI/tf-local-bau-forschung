@@ -11,6 +11,8 @@ import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useKlassifizierungenView } from '../hooks/useKlassifizierungen';
 import { runMatching } from '../services/matching-engine';
+import { useAuslastungReady } from '../hooks/useAuslastungReady';
+import { SkeletonRows } from '../components/Skeleton';
 import {
   computeQuartalsAuslastung,
   getTVCount,
@@ -54,6 +56,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const upsertZuweisung = useAuslastungData(s => s.upsertZuweisung);
 
   const cache = useAntraegeCache();
+  const { ready } = useAuslastungReady();
+  const isInitialLoading = !ready;
   const view = useKlassifizierungenView(cache.antraege, config.ueberKategorien, klassifizierungen);
 
   const [kategorieFilter, setKategorieFilter] = useState<string>('');
@@ -294,10 +298,13 @@ export function ZuweisungsCockpit(): React.ReactElement {
         {/* Links: Liste */}
         <div className="rounded-[12px] overflow-hidden flex flex-col" style={{ border: '0.5px solid var(--tf-border)' }}>
           <div className="px-3 py-2 text-[11.5px] text-[var(--tf-text-tertiary)]" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-            {filtered.length} Antrag{filtered.length !== 1 ? 'e' : ''}
+            {isInitialLoading ? '…' : `${filtered.length} Antrag${filtered.length !== 1 ? 'e' : ''}`}
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filtered.map(v => {
+            {isInitialLoading && (
+              <SkeletonRows count={8} columns={[80, 220, 60, 24]} />
+            )}
+            {!isInitialLoading && filtered.map(v => {
               const isSel = selectedAz === v.antrag.aktenzeichen;
               // 1.17: Primaer (gefuellt) vs Aspekte (outline) trennen.
               const primaerId = v.klassifizierung.freigegebenePrimaer
@@ -335,7 +342,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
                 </div>
               );
             })}
-            {filtered.length === 0 && (
+            {!isInitialLoading && filtered.length === 0 && (
               <div className="px-3 py-8 text-center text-[var(--tf-text-tertiary)] text-[12.5px]">
                 Keine freigegebenen Anträge in dieser Ansicht.
               </div>
@@ -345,7 +352,16 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
         {/* Rechts: Detail */}
         <div className="rounded-[12px] p-4 overflow-y-auto" style={{ border: '0.5px solid var(--tf-border)' }}>
-          {!selected || !selectedView ? (
+          {isInitialLoading ? (
+            <div className="flex flex-col gap-3">
+              <SkeletonRows count={1} columns={['80%']} rowHeight={48} />
+              <SkeletonRows count={3} columns={['60%']} rowHeight={20} />
+              <div className="mt-3 text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
+                Lade Vorschläge …
+              </div>
+              <SkeletonRows count={3} columns={['100%']} rowHeight={120} />
+            </div>
+          ) : !selected || !selectedView ? (
             <div className="flex items-center justify-center h-full text-[var(--tf-text-tertiary)] text-[12.5px]">
               ← Wähle einen Antrag aus
             </div>
