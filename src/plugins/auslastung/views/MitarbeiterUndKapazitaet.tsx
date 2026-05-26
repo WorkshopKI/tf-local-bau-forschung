@@ -21,7 +21,8 @@ import { downloadOnboardingHtml } from '../services/onboarding-html-generator';
 import type { OnboardingPreview } from '../services/onboarding-import';
 import { detectAktiveMAs, shouldShowAktivVorschlag } from '../services/aktiv-detection';
 import { AktivVorschlagBanner } from './admin/AktivVorschlagBanner';
-import { computeQuartalsAuslastung, EMPTY_AUSLASTUNG } from '../services/quartals-auslastung';
+import { EMPTY_AUSLASTUNG } from '../services/quartals-auslastung';
+import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { computeKapazitaet } from '../services/kapazitaet';
 import { MaRow } from './MaRow';
 
@@ -35,7 +36,8 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
   const config = useAuslastungData(s => s.data.config);
   const kategorien = config.ueberKategorien;
-  const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
+  // v2.9: zuweisungen werden nicht mehr direkt benoetigt — der gemeinsame
+  // Provider (useAuslastungIndex) konsumiert sie.
   const upsert = useAuslastungData(s => s.upsertMitarbeiter);
   const create = useAuslastungData(s => s.createMitarbeiter);
   const remove = useAuslastungData(s => s.removeMitarbeiter);
@@ -81,18 +83,8 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
     setVorschlagDismissed(true);
   }
 
-  // Quartals-Auslastung-Index (gemeinsam mit StatistikPanel; React-Caching
-  // macht das praktisch frei).
-  const auslastungByAnon = useMemo(
-    () => computeQuartalsAuslastung(
-      cache.antraege,
-      zuweisungen,
-      cache.anonymMap.toAnon,
-      config.aktuellesQuartal,
-      config.stundenProTV ?? 9,
-    ),
-    [cache.antraege, cache.anonymMap, zuweisungen, config.aktuellesQuartal, config.stundenProTV],
-  );
+  // v2.9: gemeinsamer Provider-Memo statt eigener Berechnung.
+  const { auslastungByAnon } = useAuslastungIndex();
 
   // MA-Liste: Filter + Sort.
   const list = useMemo(() => {

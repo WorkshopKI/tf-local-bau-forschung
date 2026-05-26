@@ -11,9 +11,9 @@ import { AlertTriangle } from 'lucide-react';
 import { CollapsibleSection } from '@/ui/CollapsibleSection';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
+import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { useDeAnonResolver } from '../components/AnonymIdBadge';
 import { computeQuartalsStatistik } from '../services/statistik';
-import { computeQuartalsAuslastung } from '../services/quartals-auslastung';
 import { KategoriePill } from '../components/KategoriePill';
 
 /** Format-Helfer fuer Stunden (Tausender-Trenner, ohne Nachkommastellen). */
@@ -23,22 +23,12 @@ function fmtH(n: number): string {
 
 export function StatistikPanel(): React.ReactElement {
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
-  const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
   const config = useAuslastungData(s => s.data.config);
   const cache = useAntraegeCache();
   const resolveName = useDeAnonResolver();
 
-  // Quartals-Auslastung pro MA (gleicher Index wie in der MA-Tabelle).
-  const auslastungByAnon = useMemo(
-    () => computeQuartalsAuslastung(
-      cache.antraege,
-      zuweisungen,
-      cache.anonymMap.toAnon,
-      config.aktuellesQuartal,
-      config.stundenProTV ?? 9,
-    ),
-    [cache.antraege, cache.anonymMap, zuweisungen, config.aktuellesQuartal, config.stundenProTV],
-  );
+  // v2.9: gemeinsamer Provider-Memo statt eigener Berechnung.
+  const { auslastungByAnon } = useAuslastungIndex();
 
   // Deskriptoren ohne Zuordnung: alle Werte, die in KEINER Kategorie deskriptorenMapping liegen.
   const deskriptorenOhneZuordnung = useMemo(() => {

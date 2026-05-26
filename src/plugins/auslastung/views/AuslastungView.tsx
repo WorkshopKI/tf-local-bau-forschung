@@ -23,11 +23,13 @@ import { Tabs } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAuslastungData } from '../hooks/useAuslastungData';
+import { AuslastungIndexProvider } from '../hooks/useAuslastungIndex';
 import { KlassifizierungsReview } from './KlassifizierungsReview';
 import { ZuweisungsCockpit } from './ZuweisungsCockpit';
 import { UebersichtView } from './UebersichtView';
 
 type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht';
+const ALL_TABS: ReadonlySet<TabId> = new Set(['klassifizierung', 'zuweisung', 'uebersicht']);
 
 export function AuslastungView(): React.ReactElement {
   const storage = useStorage();
@@ -42,12 +44,13 @@ export function AuslastungView(): React.ReactElement {
   // ein useEffect (siehe unten) auf 'uebersicht' (zeigt Setup-Wizard).
   const [tab, setTab] = useState<TabId>('klassifizierung');
   const [tabAutoSet, setTabAutoSet] = useState(false);
-  // v2.8: Lazy + Sticky — sobald ein Tab einmal aktiv war, bleibt er
-  // gemountet (display:none wenn nicht aktiv). Initial: der Default-Tab.
-  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set(['klassifizierung']));
-
+  // v2.9: Eager Mount aller Tabs (statt Lazy+Sticky aus v2.8).
+  // Alle drei Tabs werden beim Modul-Open parallel gemountet — der
+  // gemeinsame AuslastungIndexProvider berechnet `auslastungByAnon` 1×
+  // statt 3×. Initial-Mount des Moduls dauert dadurch nicht laenger
+  // (Skeleton fängt das ab), aber JEDER Tab-Wechsel ist von Anfang an
+  // <100 ms (reiner CSS-Toggle, kein Mount mehr).
   const switchTab = useCallback((next: TabId): void => {
-    setVisitedTabs(prev => (prev.has(next) ? prev : new Set([...prev, next])));
     setTab(next);
   }, []);
 
@@ -58,12 +61,7 @@ export function AuslastungView(): React.ReactElement {
   // Einmalig nach erstem Load: Setup nicht abgeschlossen → Uebersicht-Tab.
   useEffect(() => {
     if (!loaded || tabAutoSet) return;
-    if (!setupDone) {
-      // Auch hier durch switchTab leiten, damit visitedTabs den Auto-Switch
-      // korrekt vermerkt.
-      setVisitedTabs(prev => (prev.has('uebersicht') ? prev : new Set([...prev, 'uebersicht'])));
-      setTab('uebersicht');
-    }
+    if (!setupDone) setTab('uebersicht');
     setTabAutoSet(true);
   }, [loaded, tabAutoSet, setupDone]);
 
@@ -108,27 +106,31 @@ export function AuslastungView(): React.ReactElement {
 
       <Tabs tabs={tabs} activeTab={tab} onChange={(id) => switchTab(id as TabId)} />
 
-      {/* v2.8: Lazy + Sticky Tab-Mounts. Nicht-aktive besuchte Tabs werden
-          per `display:none` ausgeblendet — State, Scroll-Position und
-          Memos bleiben erhalten. Tab-Wechsel ist nach erstem Besuch
-          jedes Tabs ein reiner CSS-Toggle (<100 ms). */}
-      <div className="mt-5">
-        {visitedTabs.has('klassifizierung') && (
-          <div style={{ display: tab === 'klassifizierung' ? 'block' : 'none' }}>
-            <KlassifizierungsReview />
-          </div>
-        )}
-        {visitedTabs.has('zuweisung') && (
-          <div style={{ display: tab === 'zuweisung' ? 'block' : 'none' }}>
-            <ZuweisungsCockpit />
-          </div>
-        )}
-        {visitedTabs.has('uebersicht') && (
-          <div style={{ display: tab === 'uebersicht' ? 'block' : 'none' }}>
-            <UebersichtView />
-          </div>
-        )}
-      </div>
+      {/* v2.9: Eager Mount aller Tabs + gemeinsamer Index-Provider. Alle
+          drei Tabs sind dauerhaft im DOM; nicht-aktive werden per
+          `display: none` ausgeblendet. Tab-Wechsel ist von Anfang an
+          ein reiner CSS-Toggle (<100 ms). Das hilft besonders, weil
+          `computeQuartalsAuslastung` jetzt 1x pro Render-Cycle via
+          Provider statt 3x in den Konsumenten laeuft. */}
+      <AuslastungIndexProvider>
+        <div className="mt-5">
+          {ALL_TABS.has('klassifizierung') && (
+            <div style={{ display: tab === 'klassifizierung' ? 'block' : 'none' }}>
+              <KlassifizierungsReview />
+            </div>
+          )}
+          {ALL_TABS.has('zuweisung') && (
+            <div style={{ display: tab === 'zuweisung' ? 'block' : 'none' }}>
+              <ZuweisungsCockpit />
+            </div>
+          )}
+          {ALL_TABS.has('uebersicht') && (
+            <div style={{ display: tab === 'uebersicht' ? 'block' : 'none' }}>
+              <UebersichtView />
+            </div>
+          )}
+        </div>
+      </AuslastungIndexProvider>
     </div>
   );
 }

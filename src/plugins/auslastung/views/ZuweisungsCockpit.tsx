@@ -12,11 +12,9 @@ import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useKlassifizierungenView } from '../hooks/useKlassifizierungen';
 import { runMatching } from '../services/matching-engine';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
+import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
-import {
-  computeQuartalsAuslastung,
-  getTVCount,
-} from '../services/quartals-auslastung';
+import { getTVCount } from '../services/quartals-auslastung';
 import {
   buildAntraegeIndexForMatching,
 } from '../services/embedding-matcher';
@@ -89,19 +87,10 @@ export function ZuweisungsCockpit(): React.ReactElement {
     }
   }
 
-  // v2.4: Quartals-Auslastung pro MA — einmal pro Render-Cycle. Wird an
-  // die Matching-Engine UEBERGEBEN, damit fest+pending in den Score
-  // einfliessen (statt nur die Store-Zuweisungen).
-  const auslastungByAnon = useMemo(
-    () => computeQuartalsAuslastung(
-      cache.antraege,
-      zuweisungen,
-      cache.anonymMap.toAnon,
-      config.aktuellesQuartal,
-      config.stundenProTV ?? 9,
-    ),
-    [cache.antraege, cache.anonymMap, zuweisungen, config.aktuellesQuartal, config.stundenProTV],
-  );
+  // v2.9: gemeinsamer Provider-Memo statt eigener Berechnung. Wird in die
+  // Matching-Engine durchgereicht, damit fest+pending in den Score
+  // einfliessen (statt nur Store-Zuweisungen).
+  const { auslastungByAnon } = useAuslastungIndex();
 
   // Nur freigegebene Klassifizierungen sind hier sichtbar (Phase 1 muss durch)
   const freigegebene = useMemo(() => {
