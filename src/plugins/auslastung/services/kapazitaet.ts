@@ -1,116 +1,104 @@
 /**
- * Kapazitaets-Service — Workflow-Revision 1.17.
+ * Kapazitaets-Service — v2.4 Single-Source-of-Truth-Modell.
  *
  * Bietet eine einheitliche Sicht auf die Quartals-Kapazitaet eines MAs in
- * **Stunden UND Antraegen**. Stunden bleiben die interne Berechnungs-Einheit
- * (kompatibel zur bestehenden Matching-Engine), aber alle User-facing UIs
- * (Homepage, VorschlagCards, Selbsteintragung) zeigen Antraege.
+ * **Stunden UND Antraegen**, getrennt nach Buchungs-Status:
  *
- * Zusaetzlich der **weiche Kapazitaets-Score** fuer das Matching: statt
- * MAs mit `rest < benoetigt` hart auszufiltern, bekommen sie einen Malus,
- * bleiben aber im Ranking. Quartals-Ende-Bonus: in den letzten ~3 Wochen
- * eines Quartals milderer Malus, weil das neue Quartal bald startet.
+ *  - **fest** (aus Master-CSV): die einzige Quelle fuer "harte" Buchungen.
+ *  - **pending** (aus Auslastungs-Store): noch nicht in CSV bestaetigt.
+ *
+ * "Frei"-Stunden = `effektivStunden − (fest.stunden + pending.stunden)`.
+ * Diese Definition ist konservativ — pending zaehlt schon als verbraucht,
+ * damit ein MA seine Kapazitaet nicht versehentlich ueberzeichnet.
+ *
+ * Weicher Kapazitaets-Score (`kapazitaetsScore`) bleibt unveraendert — er
+ * arbeitet auf `restStunden` und ist von der Datenherkunft unabhaengig.
  */
 
-import type {
-  AnonymerMitarbeiter,
-  AuslastungConfig,
-  Zuweisung,
-} from '../types';
+import type { AnonymerMitarbeiter, AuslastungConfig } from '../types';
+import {
+  EMPTY_AUSLASTUNG,
+  type MaQuartalsAuslastung,
+} from './quartals-auslastung';
 
-/** Antrags-Anzeige + Stunden-Sicht fuer einen MA in einem Quartal. */
+/** Bucket-Snapshot pro MA fuer die KapazitaetsView. */
+export interface KapazitaetsBucket {
+  antraege: number;       // Anzahl Verbund-Anteile
+  tvs: number;            // echte TV-Anzahl
+  stunden: number;        // tvs × stundenProTV
+}
+
+/** Antrags- + Stunden-Sicht fuer einen MA in einem Quartal. */
 export interface KapazitaetsView {
   /** Quartals-Stunden nach Abschlag: jahresKap × (1 - abschlag/100) / 4. */
   effektivStunden: number;
-  /** Summe aller Stunden aus `freigegebenen`/`selbst`-Zuweisungen + extern. */
+  /** Aus Master-CSV gebuchte Antraege/TVs/Stunden. */
+  fest: KapazitaetsBucket;
+  /** Selbsteintragungen im Store, noch nicht in CSV. */
+  pending: KapazitaetsBucket;
+  /** Summe aller verbrauchten Stunden: `fest.stunden + pending.stunden`. */
   verbrauchteStunden: number;
-  /** effektivStunden - verbrauchteStunden. Kann negativ werden bei Ueberbuchung. */
+  /** `effektivStunden − verbrauchteStunden`. Kann negativ werden bei Ueberbuchung. */
   restStunden: number;
-  /** Maximale Antrags-Anzahl: floor(effektivStunden / (stundenProTV × durchschnittTV)). */
-  maxAntraege: number;
-  /** Anzahl bereits zugewiesener Antraege (freigegeben + selbst + extern). */
-  zugewiesenAnzahl: number;
-  /** Verbleibende Antraege: floor(restStunden / (stundenProTV × durchschnittTV)).
-   *  Wichtig: aus restStunden gerechnet, NICHT als maxAntraege - zugewiesen
-   *  (sonst wuerde ein MA mit 4-TV-Verbund nicht mehr ueberbucht erscheinen). */
-  restAntraege: number;
-  /** Stunden ueber dem Limit. > 0 nur bei Ueberbuchung, sonst 0. */
+  /** Verbleibende TVs: `floor(max(0, restStunden) / stundenProTV)`. */
+  restTVs: number;
+  /** Stunden ueber dem Limit (> 0 nur bei Ueberbuchung, sonst 0). */
   ueberbuchung: number;
-  /** Davon: extern via Master-CSV (tib_kuerz) zugewiesen (Teilmenge von
-   *  `zugewiesenAnzahl`). 0 wenn `externeAnzahl` nicht uebergeben wurde. */
-  externeAnzahl: number;
 }
 
 /**
- * Berechnet die Quartals-Sicht eines MAs aus seinem Profil + den aktuellen
- * Zuweisungen.
+ * Berechnet die Quartals-Sicht eines MAs aus seinem Profil + dem
+ * aggregierten Auslastungs-Index (siehe `computeQuartalsAuslastung`).
  *
- * `externeAnzahl` (optional, Default 0): Anzahl Antraege, die der PL direkt
- * im Master-CSV via `tib_kuerz` zugewiesen hat (am Auslastungs-Workflow
- * vorbei). Werden mit `stundenProTV × durchschnittTV` als Default-Stunden
- * gebucht, weil die CSV keine Stundenangabe pro Antrag fuehrt. Siehe
- * `externe-zuweisungen.ts` fuer die Ableitung.
+ * `auslastung` darf undefined sein — in dem Fall werden leere Buckets
+ * angenommen (MA hat im Quartal noch nichts).
  */
 export function computeKapazitaet(
   ma: AnonymerMitarbeiter,
-  zuweisungen: Zuweisung[],
+  auslastung: MaQuartalsAuslastung | undefined,
   config: AuslastungConfig,
-  quartal: string,
-  externeAnzahl: number = 0,
 ): KapazitaetsView {
   const abschlag = Math.max(0, Math.min(100, ma.abschlagProzent ?? 0));
   const effektivStunden = (ma.jahresKapazitaet * (1 - abschlag / 100)) / 4;
-
-  let verbrauchteStunden = 0;
-  let zugewiesenAnzahl = 0;
-  for (const z of zuweisungen) {
-    if (z.quartal !== quartal) continue;
-    if (z.anonId !== ma.anonId) continue;
-    if (z.status !== 'freigegeben' && z.status !== 'selbst') continue;
-    verbrauchteStunden += z.stunden;
-    zugewiesenAnzahl += 1;
-  }
-
   const stundenProTV = Math.max(1, config.stundenProTV ?? 9);
-  const durchschnittTV = Math.max(1, config.durchschnittTVproAntrag ?? 2);
-  const antragsStunden = stundenProTV * durchschnittTV;
 
-  // Externe Zuweisungen (PL hat direkt im Master-CSV vergeben) — mit
-  // Default-Stunden pro Antrag dazubuchen. Wir nehmen sie ausdruecklich
-  // NICHT in den Zuweisungs-Store auf (Source-of-Truth bleibt die CSV),
-  // sondern leiten sie pro Render dynamisch ab.
-  const externeStunden = Math.max(0, externeAnzahl) * antragsStunden;
-  verbrauchteStunden += externeStunden;
-  zugewiesenAnzahl += Math.max(0, externeAnzahl);
-
+  const a = auslastung ?? EMPTY_AUSLASTUNG;
+  const fest: KapazitaetsBucket = {
+    antraege: a.fest.antraege,
+    tvs: a.fest.tvs,
+    stunden: a.fest.stunden,
+  };
+  const pending: KapazitaetsBucket = {
+    antraege: a.pending.antraege,
+    tvs: a.pending.tvs,
+    stunden: a.pending.stunden,
+  };
+  const verbrauchteStunden = fest.stunden + pending.stunden;
   const restStunden = effektivStunden - verbrauchteStunden;
-  const maxAntraege = Math.floor(effektivStunden / antragsStunden);
-  const restAntraege = Math.floor(restStunden / antragsStunden);
+  const restTVs = Math.floor(Math.max(0, restStunden) / stundenProTV);
   const ueberbuchung = restStunden < 0 ? -restStunden : 0;
 
   return {
     effektivStunden,
+    fest,
+    pending,
     verbrauchteStunden,
     restStunden,
-    maxAntraege,
-    zugewiesenAnzahl,
-    restAntraege,
+    restTVs,
     ueberbuchung,
-    externeAnzahl: Math.max(0, externeAnzahl),
   };
 }
 
 /**
- * Weicher Kapazitaets-Score 0..1. Statt hartem Filter wird der Score in das
- * finale Ranking eingewichtet — ein MA mit perfektem fachlichen Match aber
- * leerer Kapazitaet rutscht nach hinten, aber bleibt sichtbar.
+ * Weicher Kapazitaets-Score 0..1 (unveraendert seit 1.17). Wird vom
+ * Matching gegen einen benoetigten Stunden-Wert ausgewertet.
  *
  * Banden:
  *  - ratio ≥ 1.5     →  1.0   (reichlich Luft)
- *  - 1.0 ≤ ratio < 1.5  →  0.8 + (ratio - 1) × 0.4   (knapp ueber dem Bedarf)
- *  - 0.5 ≤ ratio < 1.0  →  0.5 + (ratio - 0.5) × 0.6 (knapp drunter)
- *  - 0.0 ≤ ratio < 0.5  →  0.2 + ratio × 0.6         (deutlich knapp)
- *  - ratio < 0       →  Math.max(0.05, 0.2 + ratio × 0.3) (ueberbucht)
+ *  - 1.0 ≤ ratio < 1.5  →  0.8 + (ratio - 1) × 0.4
+ *  - 0.5 ≤ ratio < 1.0  →  0.5 + (ratio - 0.5) × 0.6
+ *  - 0.0 ≤ ratio < 0.5  →  0.2 + ratio × 0.6
+ *  - ratio < 0       →  Math.max(0.05, 0.2 + ratio × 0.3)
  *
  * Quartals-Ende-Bonus: wenn weniger als `bonusTage` Tage im Quartal verbleiben,
  * wird der Score zusaetzlich um `(bonusTage - tage) / bonusTage × 0.15`
@@ -149,10 +137,8 @@ export function tageImQuartal(quartal: string, now: Date = new Date()): number {
   if (!match) return 0;
   const year = Number(match[1]);
   const q = Number(match[2]);
-  // Quartals-Ende: Q1=31.3., Q2=30.6., Q3=30.9., Q4=31.12.
-  const endMonth = q * 3 - 1;          // 0-indiziert: Q1→2 (Maerz), Q2→5 (Juni), ...
+  const endMonth = q * 3 - 1;
   const endDay = (endMonth === 2 || endMonth === 11) ? 31 : 30;
-  // Lokales Datum (Date konstruiert end-of-day in lokaler TZ).
   const endDate = new Date(year, endMonth, endDay, 23, 59, 59, 999).getTime();
   const diff = endDate - now.getTime();
   if (diff <= 0) return 0;

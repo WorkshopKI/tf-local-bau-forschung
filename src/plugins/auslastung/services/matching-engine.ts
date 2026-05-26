@@ -35,6 +35,7 @@ import { runEmbeddingMatching, type EmbeddingMatchResult } from './embedding-mat
 import { kapazitaetsScore, tageImQuartal } from './kapazitaet';
 import { matchesAntragstyp } from './antragstyp-praeferenz';
 import type { AnonymMap } from './anonym-map';
+import type { MaQuartalsAuslastung } from './quartals-auslastung';
 
 export interface MatchInput {
   antrag: Antrag;
@@ -67,6 +68,13 @@ export interface MatchInput {
   tageImQuartal?: number;
   /** Wieviele Top-Ergebnisse zurueckgegeben werden. Default 3. */
   topN?: number;
+  /** v2.4: Aggregierte Quartals-Auslastung pro MA (fest+pending). Wenn
+   *  gesetzt, wird der "verbraucht"-Wert daraus gelesen statt aus dem
+   *  Zuweisungs-Store. Bei `undefined` (Tests, Backwards-Kompat) faellt
+   *  die Engine auf `computeVerbrauchByAnon(zuweisungen)` zurueck — das
+   *  ignoriert dann die CSV-Buchungen. Aufrufer (ZuweisungsCockpit) sollten
+   *  den Index per `computeQuartalsAuslastung` aufbauen und mitgeben. */
+  auslastungByAnon?: Map<string, MaQuartalsAuslastung>;
 }
 
 export function runMatching(input: MatchInput): MatchResult[] {
@@ -136,7 +144,11 @@ export function runMatching(input: MatchInput): MatchResult[] {
   const stundenProTV = config.stundenProTV ?? 9;
   const anzahlTV = input.anzahlTV ?? 1;
   const benoetigt = stundenProTV * anzahlTV;
-  const quartalsVerbrauchByAnon = computeVerbrauchByAnon(zuweisungen, config.aktuellesQuartal);
+  // v2.4: Wenn der Aufrufer einen aggregierten Auslastungs-Index mitgibt,
+  // nutzen wir den (fest + pending) — sonst Fallback auf Store-only-Logik.
+  const quartalsVerbrauchByAnon = input.auslastungByAnon
+    ? mapAuslastungToVerbrauch(input.auslastungByAnon)
+    : computeVerbrauchByAnon(zuweisungen, config.aktuellesQuartal);
   const restTageImQuartal = input.tageImQuartal ?? tageImQuartal(config.aktuellesQuartal);
   const aspektBonusPerMatch = config.aspektBonus ?? 0.10;
   const quartalsEndeBonusTage = config.quartalsEndeBonusTage ?? 21;
@@ -276,7 +288,9 @@ function confidenceFor(kompetenzScore: number): 'high' | 'medium' | 'low' {
   return 'low';
 }
 
-/** Summiert verbrauchte Stunden pro MA fuer ein gegebenes Quartal. */
+/** Summiert verbrauchte Stunden pro MA fuer ein gegebenes Quartal aus dem
+ *  Zuweisungs-Store. Wird nur noch als Fallback genutzt — die Hauptlogik
+ *  fuer v2.4 ist `computeQuartalsAuslastung` (fest+pending). */
 export function computeVerbrauchByAnon(
   zuweisungen: Zuweisung[],
   quartal: string,
@@ -286,6 +300,19 @@ export function computeVerbrauchByAnon(
     if (z.quartal !== quartal) continue;
     if (z.status !== 'freigegeben' && z.status !== 'selbst') continue;
     map.set(z.anonId, (map.get(z.anonId) ?? 0) + z.stunden);
+  }
+  return map;
+}
+
+/** v2.4: Aggregiert `fest+pending`-Stunden pro MA zu einer Verbrauchs-Map.
+ *  Wird intern in der Matching-Engine genutzt, wenn der Aufrufer den
+ *  Auslastungs-Index liefert. */
+function mapAuslastungToVerbrauch(
+  byAnon: Map<string, MaQuartalsAuslastung>,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const [anonId, a] of byAnon) {
+    map.set(anonId, a.fest.stunden + a.pending.stunden);
   }
   return map;
 }

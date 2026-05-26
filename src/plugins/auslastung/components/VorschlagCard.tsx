@@ -33,11 +33,12 @@ export function VorschlagCard({
   const score = Math.round(match.kompetenzScore * 100);
   const config = useAuslastungData(s => s.data.config);
   const stundenProTV = config.stundenProTV ?? 9;
-  const durchschnittTV = config.durchschnittTVproAntrag ?? 2;
-  const antragsStunden = stundenProTV * durchschnittTV;
-  const restAntraege = Math.floor(match.restKapazitaet / antragsStunden);
-  const maxAntraege = Math.floor(match.quartalsKapazitaet / antragsStunden);
-  const ueberbuchungAntraege = Math.ceil((match.ueberbuchung ?? 0) / antragsStunden);
+  // v2.4: Rest-Sicht in TVs (echte Buchungseinheit), nicht in "Anträgen"
+  // (Heuristik mit durchschnittTV). restStunden / stundenProTV = freie TVs.
+  const restStunden = Math.max(0, match.restKapazitaet);
+  const restTVs = Math.floor(restStunden / stundenProTV);
+  const ueberbuchungStunden = Math.max(0, match.ueberbuchung ?? 0);
+  const ueberbuchungTVs = Math.ceil(ueberbuchungStunden / stundenProTV);
   const quartalsEndeBonusTage = config.quartalsEndeBonusTage ?? 21;
   const kategorienById = new Map(config.ueberKategorien.map(k => [k.id, k]));
   const aspektMatchKategorien = (match.aspektMatchIds ?? [])
@@ -74,25 +75,25 @@ export function VorschlagCard({
         </div>
       </div>
 
-      {/* Kapazitaet — Antraege statt Stunden (1.17) */}
+      {/* Kapazitaet — TVs + Stunden (v2.4) */}
       <div className="text-[12px]">
-        {ueberbuchungAntraege > 0 ? (
+        {ueberbuchungStunden > 0 ? (
           <span className="text-rose-700 font-medium">
-            Überbucht um ~{ueberbuchungAntraege} {ueberbuchungAntraege === 1 ? 'Antrag' : 'Anträge'}
+            Überbucht um {Math.round(ueberbuchungStunden)}h (~{ueberbuchungTVs} {ueberbuchungTVs === 1 ? 'TV' : 'TVs'})
           </span>
-        ) : restAntraege === 0 ? (
+        ) : restTVs === 0 ? (
           <span className="text-orange-700">
             Kapazität erschöpft
             {tageImQuartal != null && tageImQuartal < quartalsEndeBonusTage && (
               <span className="text-[var(--tf-text-tertiary)]"> · Neues Quartal in {tageImQuartal} Tagen</span>
             )}
           </span>
-        ) : restAntraege === 1 ? (
-          <span className="text-amber-700">1 Antrag frei</span>
+        ) : restTVs === 1 ? (
+          <span className="text-amber-700">1 TV frei ({Math.round(restStunden)}h)</span>
         ) : (
           <span className="text-[var(--tf-text-secondary)]">
-            <span className="font-medium text-[var(--tf-text)]">{restAntraege}</span>
-            {' von '}{maxAntraege} Anträgen frei
+            <span className="font-medium text-[var(--tf-text)]">{restTVs}</span>
+            {' TVs frei ('}{Math.round(restStunden)}{'h)'}
           </span>
         )}
       </div>

@@ -12,6 +12,10 @@ import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useKlassifizierungenView } from '../hooks/useKlassifizierungen';
 import { runMatching } from '../services/matching-engine';
 import {
+  computeQuartalsAuslastung,
+  getTVCount,
+} from '../services/quartals-auslastung';
+import {
   buildAntraegeIndexForMatching,
 } from '../services/embedding-matcher';
 import {
@@ -81,6 +85,20 @@ export function ZuweisungsCockpit(): React.ReactElement {
     }
   }
 
+  // v2.4: Quartals-Auslastung pro MA — einmal pro Render-Cycle. Wird an
+  // die Matching-Engine UEBERGEBEN, damit fest+pending in den Score
+  // einfliessen (statt nur die Store-Zuweisungen).
+  const auslastungByAnon = useMemo(
+    () => computeQuartalsAuslastung(
+      cache.antraege,
+      zuweisungen,
+      cache.anonymMap.toAnon,
+      config.aktuellesQuartal,
+      config.stundenProTV ?? 9,
+    ),
+    [cache.antraege, cache.anonymMap, zuweisungen, config.aktuellesQuartal, config.stundenProTV],
+  );
+
   // Nur freigegebene Klassifizierungen sind hier sichtbar (Phase 1 muss durch)
   const freigegebene = useMemo(() => {
     return view.filter(v => v.klassifizierung.status === 'freigegeben');
@@ -144,6 +162,10 @@ export function ZuweisungsCockpit(): React.ReactElement {
           corpusEmbeddings = await loadAllEmbeddings(storage.idb);
           antraegeIndex = buildAntraegeIndexForMatching(cache.antraege);
         }
+        // v2.4: echte TV-Anzahl aus der Anträge-Liste, damit Engine die
+        // korrekten benoetigtenStunden berechnet (Verbund mit 4 TVs = 36h).
+        const verbundId = (selected as { verbund_id?: string }).verbund_id;
+        const tvCount = getTVCount(cache.antraege, verbundId, selected.aktenzeichen);
         const result = runMatching({
           antrag: selected,
           primaerKategorie,
@@ -157,22 +179,28 @@ export function ZuweisungsCockpit(): React.ReactElement {
           queryEmbedding,
           corpusEmbeddings,
           antraegeIndex,
-          anzahlTV: 1,
+          anzahlTV: tvCount,
+          auslastungByAnon,
         });
         setMatches(result);
       } finally {
         setMatchingRunning(false);
       }
     })();
-  }, [selectedAz, selected, selectedView, config, mitarbeiter, zuweisungen, cache.antraege, cache.historischeDeskriptorenByAnon, cache.anonymMap, storage]);
+  }, [selectedAz, selected, selectedView, config, mitarbeiter, zuweisungen, cache.antraege, cache.historischeDeskriptorenByAnon, cache.anonymMap, storage, auslastungByAnon]);
 
   async function zuweisen(match: MatchResult): Promise<void> {
     if (!selected) return;
+    // v2.4: PL-Freigabe bucht echte tvCount-Stunden + setzt anzahlTV im
+    // Zuweisungs-Record, damit die Buchung mit der CSV konsistent ist.
+    const verbundId = (selected as { verbund_id?: string }).verbund_id;
+    const tvCount = getTVCount(cache.antraege, verbundId, selected.aktenzeichen);
     const z: Zuweisung = {
       antragId: selected.aktenzeichen,
       anonId: match.anonId,
       quartal: config.aktuellesQuartal,
       stunden: match.benoetigteStunden,
+      anzahlTV: tvCount,
       status: 'freigegeben',
       freigegebenAm: new Date().toISOString(),
     };

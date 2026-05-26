@@ -32,10 +32,9 @@ import { resolveAnonIdForUser } from '@/plugins/auslastung/services/anonym-map';
 import { computeKapazitaet } from '@/plugins/auslastung/services/kapazitaet';
 import { matchesAntragstyp } from '@/plugins/auslastung/services/antragstyp-praeferenz';
 import {
-  countExterneZuweisungenImQuartal,
-  getExterneAntragIds,
-  parseKuerzelTokens,
-} from '@/plugins/auslastung/services/externe-zuweisungen';
+  computeQuartalsAuslastung,
+  getTVCount,
+} from '@/plugins/auslastung/services/quartals-auslastung';
 import { KategoriePill } from '@/plugins/auslastung/components/KategoriePill';
 import {
   CANONICAL_TITEL,
@@ -97,30 +96,23 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
     return m;
   }, [cache.antraege]);
 
-  // Zuweisungen pro Antrag (Set fuer "schon vergeben").
-  const zugewieseneIds = useMemo(() => {
-    const s = new Set<string>();
-    for (const z of zuweisungen) {
-      if (z.status === 'freigegeben' || z.status === 'selbst') s.add(z.antragId);
-    }
-    return s;
-  }, [zuweisungen]);
-
-  // Externe Zuweisungen via Master-CSV `tib_kuerz` (PL hat direkt vergeben,
-  // ohne Auslastungs-Workflow). Reduzieren die Kapazitaet UND filtern den
-  // Pool aus — der Antrag taucht ohnehin in "Meine Anträge" auf.
-  const meineKuerzel = useMemo(
-    () => parseKuerzelTokens(profile?.bearbeiter_kuerzel),
-    [profile?.bearbeiter_kuerzel],
+  // v2.4: Zentrale Quartals-Auslastungs-Berechnung — Single Source of Truth.
+  // Liefert pro MA `{ fest, pending }` mit `aktenzeichenSet`, das wir fuer
+  // den Pool-Filter (Antraege, die schon fest gebucht sind, nicht mehr
+  // anbieten) UND fuer Pending-Dedup nutzen.
+  const auslastungByAnon = useMemo(
+    () => computeQuartalsAuslastung(
+      cache.antraege,
+      zuweisungen,
+      cache.anonymMap.toAnon,
+      config.aktuellesQuartal,
+      config.stundenProTV ?? 9,
+    ),
+    [cache.antraege, cache.anonymMap, zuweisungen, config.aktuellesQuartal, config.stundenProTV],
   );
-  const externeAntragIds = useMemo(
-    () => getExterneAntragIds(cache.antraege, meineKuerzel, config.aktuellesQuartal),
-    [cache.antraege, meineKuerzel, config.aktuellesQuartal],
-  );
-  const externeAnzahl = useMemo(
-    () => countExterneZuweisungenImQuartal(cache.antraege, meineKuerzel, config.aktuellesQuartal),
-    [cache.antraege, meineKuerzel, config.aktuellesQuartal],
-  );
+  const myAuslastung = myAnonId ? auslastungByAnon.get(myAnonId) : undefined;
+  const myFestAktenzeichen = myAuslastung?.fest.aktenzeichenSet;
+  const myPendingAktenzeichen = myAuslastung?.pending.aktenzeichenSet;
 
   const offene = useMemo((): OffenerAntrag[] => {
     if (!myMa || !myHauptKategorie) return [];
@@ -130,10 +122,10 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       if (k.status !== 'freigegeben') continue;
       const primaer = k.freigegebenePrimaer || k.freigegebeneKategorien?.[0];
       if (primaer !== myHauptKategorie) continue;
-      if (zugewieseneIds.has(k.antragId)) continue;
-      // Extern via Master-CSV bereits zugewiesen → nicht mehr im Pool anbieten
-      // (v2.3). Der Antrag erscheint trotzdem in "Meine Anträge".
-      if (externeAntragIds.has(k.antragId)) continue;
+      // Fest gebucht (CSV) — nicht mehr anbieten
+      if (myFestAktenzeichen?.has(k.antragId)) continue;
+      // Pending (eigene Selbsteintragung) — nicht mehr anbieten
+      if (myPendingAktenzeichen?.has(k.antragId)) continue;
       const antrag = antraegeById.get(k.antragId);
       if (!antrag) continue;
       // v2.2: Antragstyp-Filter (FuE/DS/DL/NW). Ohne Praeferenz: passt alles
@@ -154,24 +146,31 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       return akA.localeCompare(akB);
     });
     return items;
-  }, [klassifizierungen, myMa, myHauptKategorie, zugewieseneIds, externeAntragIds, antraegeById, config.selbsteintragungFristTage]);
+  }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, antraegeById, config.selbsteintragungFristTage]);
 
-  // Kapazitaets-Sicht in Antraegen (NICHT Stunden). v2.3 zusätzlich extern
-  // zugewiesene Antraege als verbraucht buchen.
+  // Kapazitaets-Sicht (v2.4): konsumiert MaQuartalsAuslastung statt
+  // zuweisungen[]+externeAnzahl. Rest in TVs statt "Antraegen" (Stunden-
+  // basiert, kein durchschnittTV-Faktor mehr).
   const kapView = useMemo(() => {
     if (!myMa) return null;
-    return computeKapazitaet(myMa, zuweisungen, config, config.aktuellesQuartal, externeAnzahl);
-  }, [myMa, zuweisungen, config, externeAnzahl]);
+    return computeKapazitaet(myMa, myAuslastung, config);
+  }, [myMa, myAuslastung, config]);
 
-  // "Uebernehme ich" — Selbsteintragung
+  // "Kann ich uebernehmen" — Selbsteintragung mit ECHTER TV-Anzahl (v2.4).
+  // Bei einem 4-TV-Verbund werden tvCount × stundenProTV = 36h gebucht, nicht
+  // pauschal 9h wie vorher.
   const uebernehmen = useAsyncAction(async (antragId: string) => {
     if (!myAnonId) return;
     const stundenProTV = config.stundenProTV ?? 9;
+    const antrag = antraegeById.get(antragId);
+    const verbundId = (antrag as { verbund_id?: string } | undefined)?.verbund_id ?? null;
+    const tvCount = getTVCount(cache.antraege, verbundId, antragId);
     const z: Zuweisung = {
       antragId,
       anonId: myAnonId,
       quartal: config.aktuellesQuartal,
-      stunden: stundenProTV,  // 1-TV-Default; PL korrigiert ggf. spaeter
+      stunden: tvCount * stundenProTV,
+      anzahlTV: tvCount,
       status: 'selbst',
       selbstEingetragen: true,
       freigegebenAm: new Date().toISOString(),
@@ -238,8 +237,13 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       </div>
       {kapView && (
         <p className="mt-2 text-[11px] text-[var(--tf-text-tertiary)]">
-          {kapView.restAntraege} von {kapView.maxAntraege} Anträgen frei in {config.aktuellesQuartal}
-          {externeAnzahl > 0 && ` · ${externeAnzahl} extern zugewiesen`}
+          Festgebucht: {kapView.fest.antraege} {kapView.fest.antraege === 1 ? 'Antrag' : 'Anträge'} ({kapView.fest.tvs} TVs)
+          {kapView.pending.antraege > 0 && ` · Pending: ${kapView.pending.antraege} (${kapView.pending.tvs} TVs)`}
+          {' · '}
+          {kapView.ueberbuchung > 0
+            ? <span className="text-[var(--tf-warning-text)]">Überbucht um {Math.ceil(kapView.ueberbuchung)}h</span>
+            : <>Frei: {kapView.restTVs} TVs</>}
+          {' in '}{config.aktuellesQuartal}
         </p>
       )}
       {uebernehmen.error && (

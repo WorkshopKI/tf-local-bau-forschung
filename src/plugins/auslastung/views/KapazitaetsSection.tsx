@@ -1,13 +1,13 @@
 /**
- * KapazitaetsSection — Kapazitaets-Liste fuer den Uebersicht-Tab (1.17).
+ * KapazitaetsSection — Kapazitaets-Liste fuer den Uebersicht-Tab (v2.4).
  *
- * Loest das frueher als eigener Tab existierende `KapazitaetsDashboard` ab.
- * Statt Stunden zeigt der Balken jetzt **Antraege** ("12 / 16"), der Hover-
- * Tooltip behaelt die Stunden-Sicht fuer PL-Detailbetrachtung.
+ * Single-Source-of-Truth-Modell: pro MA wird `computeQuartalsAuslastung`
+ * mit der Master-CSV + den Auslastungs-Store-Zuweisungen aggregiert,
+ * danach zeigt jede Zeile die Antrags-/TV-/Stunden-Aufschluesselung:
+ *   - **fest**: aus CSV (PL hat tib_kuerz eingetragen)
+ *   - **pending**: Selbsteintragungen, noch nicht in CSV
  *
- * Klick auf MA → Flyout aus der MitarbeiterSection (Edit-Sicht). Hier
- * implementieren wir es als einfacheres Read-Flyout — die volle Edit-Sicht
- * bleibt in `MitarbeiterSection`.
+ * Klick auf MA → Read-Flyout mit zwei Sections (Festgebucht + Pending).
  */
 import { useMemo, useState } from 'react';
 import { useAuslastungData } from '../hooks/useAuslastungData';
@@ -17,10 +17,12 @@ import { KategoriePill } from '../components/KategoriePill';
 import { KapazitaetsBalken } from '../components/KapazitaetsBalken';
 import { computeKapazitaet } from '../services/kapazitaet';
 import {
-  CANONICAL_TITEL,
-  CANONICAL_VERBUND_TITEL,
-  type AnonymerMitarbeiter,
-} from '../types';
+  computeQuartalsAuslastung,
+  EMPTY_AUSLASTUNG,
+  type AuslastungVerbund,
+  type MaQuartalsAuslastung,
+} from '../services/quartals-auslastung';
+import type { AnonymerMitarbeiter } from '../types';
 
 export function KapazitaetsSection(): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
@@ -38,17 +40,30 @@ export function KapazitaetsSection(): React.ReactElement {
     const filtered = kategorieFilter
       ? sichtbar.filter(m => (m.hauptKategorie === kategorieFilter)
           || (m.nebenKategorien?.includes(kategorieFilter) ?? false)
-          // Fallback fuer noch nicht migrierte MAs
           || (m.ueberKategorien?.includes(kategorieFilter) ?? false))
       : sichtbar;
     return filtered.sort((a, b) => a.anonId.localeCompare(b.anonId));
   }, [mitarbeiter, kategorieFilter, zeigeInaktive]);
+
+  // v2.4: Quartals-Auslastung pro MA — einmal pro Render gecacht statt im
+  // map-Loop pro MA neu berechnet.
+  const auslastungByAnon = useMemo(
+    () => computeQuartalsAuslastung(
+      cache.antraege,
+      zuweisungen,
+      cache.anonymMap.toAnon,
+      config.aktuellesQuartal,
+      config.stundenProTV ?? 9,
+    ),
+    [cache.antraege, cache.anonymMap, zuweisungen, config.aktuellesQuartal, config.stundenProTV],
+  );
 
   const totalCount = Object.keys(mitarbeiter).length;
   const aktivCount = Object.values(mitarbeiter).filter(m => m.aktiv).length;
   const hasGaps = totalCount > aktivCount;
 
   const openMaObj = openMa ? mitarbeiter[openMa] : null;
+  const openMaAuslastung = openMa ? (auslastungByAnon.get(openMa) ?? EMPTY_AUSLASTUNG) : EMPTY_AUSLASTUNG;
 
   return (
     <div className="rounded-[12px] p-4 flex flex-col gap-3" style={{ border: '0.5px solid var(--tf-border)' }}>
@@ -98,7 +113,8 @@ export function KapazitaetsSection(): React.ReactElement {
       {/* MA-Liste */}
       <div className="rounded-[12px] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
         {list.map(ma => {
-          const kap = computeKapazitaet(ma, zuweisungen, config, config.aktuellesQuartal);
+          const auslastung = auslastungByAnon.get(ma.anonId);
+          const kap = computeKapazitaet(ma, auslastung, config);
           const abgemeldet = ma.abgemeldet.includes(config.aktuellesQuartal);
           const haupt = ma.hauptKategorie || ma.ueberKategorien?.[0] || '';
           const neben = ma.nebenKategorien ?? (ma.ueberKategorien ? ma.ueberKategorien.slice(1) : []);
@@ -124,20 +140,30 @@ export function KapazitaetsSection(): React.ReactElement {
                   )}
                 </div>
                 <KapazitaetsBalken
-                  freigegeben={kap.verbrauchteStunden}
-                  selbst={0}
+                  freigegeben={kap.fest.stunden}
+                  selbst={kap.pending.stunden}
                   vorgeschlagen={0}
                   quartalsKapazitaet={kap.effektivStunden}
                   showLabels={false}
                 />
                 <div className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
                   <span className="font-medium text-[var(--tf-text-secondary)]">
-                    {kap.zugewiesenAnzahl}/{kap.maxAntraege} Anträge
+                    Festgebucht: {kap.fest.antraege} {kap.fest.antraege === 1 ? 'Antrag' : 'Anträge'} ({kap.fest.tvs} TVs)
                   </span>
+                  {kap.pending.antraege > 0 && (
+                    <>
+                      {' · '}
+                      <span>Pending: {kap.pending.antraege} ({kap.pending.tvs} TVs)</span>
+                    </>
+                  )}
                   {' · '}
-                  <span title={`${Math.round(kap.verbrauchteStunden)}h von ${Math.round(kap.effektivStunden)}h`}>
-                    {kap.restAntraege >= 0 ? `${kap.restAntraege} frei` : `${-kap.restAntraege} überbucht`}
-                  </span>
+                  {kap.ueberbuchung > 0
+                    ? <span className="text-[var(--tf-warning-text)]" title={`${Math.round(kap.verbrauchteStunden)}h von ${Math.round(kap.effektivStunden)}h`}>
+                        Überbucht um {Math.ceil(kap.ueberbuchung)}h
+                      </span>
+                    : <span title={`${Math.round(kap.verbrauchteStunden)}h von ${Math.round(kap.effektivStunden)}h`}>
+                        Frei: {kap.restTVs} TVs
+                      </span>}
                 </div>
               </div>
               {abgemeldet && (
@@ -168,8 +194,7 @@ export function KapazitaetsSection(): React.ReactElement {
           ma={openMaObj}
           quartal={config.aktuellesQuartal}
           kategorien={config.ueberKategorien}
-          zuweisungen={zuweisungen.filter(z => z.anonId === openMaObj.anonId && z.quartal === config.aktuellesQuartal)}
-          antraegeIndex={new Map(cache.antraege.map(a => [a.aktenzeichen, a]))}
+          auslastung={openMaAuslastung}
           onClose={() => setOpenMa(null)}
         />
       )}
@@ -178,13 +203,12 @@ export function KapazitaetsSection(): React.ReactElement {
 }
 
 function MaReadFlyout({
-  ma, quartal, kategorien, zuweisungen, antraegeIndex, onClose,
+  ma, quartal, kategorien, auslastung, onClose,
 }: {
   ma: AnonymerMitarbeiter;
   quartal: string;
   kategorien: import('../types').UeberKategorie[];
-  zuweisungen: import('../types').Zuweisung[];
-  antraegeIndex: Map<string, import('@/core/services/csv/types').Antrag>;
+  auslastung: MaQuartalsAuslastung;
   onClose: () => void;
 }): React.ReactElement {
   const haupt = ma.hauptKategorie || ma.ueberKategorien?.[0] || '';
@@ -199,7 +223,7 @@ function MaReadFlyout({
       onClick={onClose}
     >
       <div
-        className="w-[480px] max-h-full rounded-[12px] p-5 overflow-y-auto flex flex-col gap-4"
+        className="w-[520px] max-h-full rounded-[12px] p-5 overflow-y-auto flex flex-col gap-4"
         style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -220,34 +244,70 @@ function MaReadFlyout({
           <button type="button" onClick={onClose} className="cursor-pointer text-[var(--tf-text-tertiary)]">×</button>
         </div>
 
-        <div>
-          <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
-            Zuweisungen in {quartal} ({zuweisungen.length})
-          </div>
-          <ul className="space-y-1">
-            {zuweisungen.map(z => {
-              const a = antraegeIndex.get(z.antragId);
-              const titel = (a?.[CANONICAL_VERBUND_TITEL] as string | undefined)
-                ?? (a?.[CANONICAL_TITEL] as string | undefined)
-                ?? '—';
-              return (
-                <li key={`${z.antragId}-${z.anonId}`} className="flex items-center gap-2 text-[11.5px]">
-                  <span className="font-mono text-[var(--tf-text-secondary)]">{z.antragId}</span>
-                  <span className="flex-1 truncate">{titel}</span>
-                  <span className="text-[10px] text-[var(--tf-text-tertiary)]">{z.status}</span>
-                </li>
-              );
-            })}
-            {zuweisungen.length === 0 && (
-              <li className="text-[11.5px] text-[var(--tf-text-tertiary)]">Keine Zuweisungen in diesem Quartal.</li>
-            )}
-          </ul>
-        </div>
+        <VerbundSection
+          label={`Festgebucht (Master-CSV) — ${quartal}`}
+          verbuende={auslastung.fest.verbuende}
+          empty="Keine festen Buchungen im Quartal."
+          hint="Quelle: tib_kuerz in der Master-CSV mit Antragsdatum im Quartal."
+        />
+
+        <VerbundSection
+          label={`Eigene Eintragungen (pending) — ${quartal}`}
+          verbuende={auslastung.pending.verbuende}
+          empty="Keine offenen Selbsteintragungen."
+          hint="Werden in die Kapazität gerechnet, bis der PL das Kürzel in die CSV einträgt."
+        />
 
         <p className="text-[11px] text-[var(--tf-text-tertiary)] leading-snug">
           Zur vollen Bearbeitung des MA-Profils → Abschnitt „Mitarbeiter" weiter unten.
         </p>
       </div>
+    </div>
+  );
+}
+
+function VerbundSection({
+  label, verbuende, empty, hint,
+}: {
+  label: string;
+  verbuende: readonly AuslastungVerbund[];
+  empty: string;
+  hint: string;
+}): React.ReactElement {
+  return (
+    <div>
+      <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
+        {label} ({verbuende.length})
+      </div>
+      {verbuende.length === 0 ? (
+        <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">{empty}</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {verbuende.map((v, i) => {
+            const azDisplay = v.aktenzeichen.length === 1
+              ? v.aktenzeichen[0]
+              : `${v.aktenzeichen[0]} +${v.aktenzeichen.length - 1}`;
+            return (
+              <li
+                key={`${v.verbundId ?? v.aktenzeichen[0] ?? i}`}
+                className="flex items-baseline gap-2 text-[11.5px] py-1"
+                style={{ borderBottom: i < verbuende.length - 1 ? '0.5px dashed var(--tf-border)' : 'none' }}
+              >
+                <span className="font-mono text-[var(--tf-text-secondary)] shrink-0">{azDisplay}</span>
+                <div className="flex-1 min-w-0">
+                  {v.akronym && <span className="font-medium">{v.akronym}</span>}
+                  {v.akronym && v.titel && <span className="text-[var(--tf-text-tertiary)]"> · </span>}
+                  {v.titel && <span className="text-[var(--tf-text-secondary)]">{v.titel}</span>}
+                </div>
+                <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0 tabular-nums">
+                  {v.tvCount} TVs · {v.stunden}h
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="text-[10.5px] text-[var(--tf-text-tertiary)] leading-snug mt-1.5">{hint}</p>
     </div>
   );
 }
