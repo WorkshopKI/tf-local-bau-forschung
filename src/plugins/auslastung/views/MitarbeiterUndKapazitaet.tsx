@@ -6,7 +6,7 @@
  * Expand (Tab Detail / Bearbeiten). Behaelt alle PL-Aktionen (Aktiv-Toggle,
  * Antragstyp-Override, MA-Anlegen, Onboarding-Import, XLSX-Export, ...).
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useAuslastungData } from '../hooks/useAuslastungData';
@@ -23,8 +23,9 @@ import { detectAktiveMAs, shouldShowAktivVorschlag } from '../services/aktiv-det
 import { AktivVorschlagBanner } from './admin/AktivVorschlagBanner';
 import { EMPTY_AUSLASTUNG } from '../services/quartals-auslastung';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
-import { computeKapazitaet } from '../services/kapazitaet';
+import { computeKapazitaet, type KapazitaetsView } from '../services/kapazitaet';
 import { MaRow } from './MaRow';
+import type { AntragstypBucket } from '../types';
 
 interface Props {
   storage: StorageService;
@@ -85,6 +86,39 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
 
   // v2.9: gemeinsamer Provider-Memo statt eigener Berechnung.
   const { auslastungByAnon } = useAuslastungIndex();
+
+  // v2.10: KapazitaetsView pro MA EINMAL pro Render vorberechnen (statt
+  // im map-Loop 79x). React-Memo kommt zum Tragen, weil die Map-Reference
+  // nur bei tatsaechlichen Input-Aenderungen wechselt.
+  const kapByAnon = useMemo(() => {
+    const map = new Map<string, KapazitaetsView>();
+    for (const ma of Object.values(mitarbeiter)) {
+      const auslastung = auslastungByAnon.get(ma.anonId) ?? EMPTY_AUSLASTUNG;
+      map.set(ma.anonId, computeKapazitaet(ma, auslastung, config));
+    }
+    return map;
+  }, [mitarbeiter, auslastungByAnon, config]);
+
+  // v2.10: stabile Action-Callbacks fuer MaRow. Nehmen anonId als ersten
+  // Arg — so kann eine einzige Handler-Referenz an alle Rows weitergegeben
+  // werden. React.memo greift damit korrekt.
+  const handleToggleExpand = useCallback((anonId: string): void => {
+    setExpandedMa(prev => (prev === anonId ? null : anonId));
+  }, []);
+
+  const handleSetAktiv = useCallback((anonId: string, next: boolean): void => {
+    void setAktiv(storage, anonId, next);
+  }, [setAktiv, storage]);
+
+  const handleRemove = useCallback((anonId: string): void => {
+    void remove(storage, anonId);
+  }, [remove, storage]);
+
+  const handleUpsertAntragstyp = useCallback(async (anonId: string, next: AntragstypBucket[] | undefined): Promise<void> => {
+    const target = mitarbeiter[anonId];
+    if (!target) return;
+    await upsert(storage, { ...target, antragstypUeberschreibung: next });
+  }, [mitarbeiter, upsert, storage]);
 
   // MA-Liste: Filter + Sort.
   const list = useMemo(() => {
@@ -187,7 +221,7 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
       <div className="rounded-[12px] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
         {list.map(ma => {
           const auslastung = auslastungByAnon.get(ma.anonId) ?? EMPTY_AUSLASTUNG;
-          const kapView = computeKapazitaet(ma, auslastung, config);
+          const kapView = kapByAnon.get(ma.anonId)!;
           return (
             <MaRow
               key={ma.anonId}
@@ -198,12 +232,10 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
               realName={resolveName(ma.anonId)}
               quartal={config.aktuellesQuartal}
               expanded={expandedMa === ma.anonId}
-              onToggleExpand={() => setExpandedMa(prev => prev === ma.anonId ? null : ma.anonId)}
-              onSetAktiv={(next) => void setAktiv(storage, ma.anonId, next)}
-              onRemove={() => void remove(storage, ma.anonId)}
-              onUpsertAntragstyp={async (next) => {
-                await upsert(storage, { ...ma, antragstypUeberschreibung: next });
-              }}
+              onToggleExpand={handleToggleExpand}
+              onSetAktiv={handleSetAktiv}
+              onRemove={handleRemove}
+              onUpsertAntragstyp={handleUpsertAntragstyp}
             />
           );
         })}

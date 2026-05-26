@@ -12,7 +12,7 @@
  * Pool-Filter: aktuelles Jahr, ohne TiB, ohne abgelehnt/zurückgezogen/Irrläufer
  * (TV-Ebene; ein Verbund erscheint wenn mindestens ein TV im Pool).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   ColumnPicker,
@@ -101,6 +101,13 @@ export function KlassifizierungsReview(): React.ReactElement {
     return () => { cancelled = true; };
   }, [storage.idb]);
 
+  // v2.10: Stage-2-Embedding-Matching ist teuer (~690 ms bei 138 Verbuenden).
+  // useDeferredValue verschiebt den Recompute mit Stage-2 in einen Background-
+  // Render, sobald die Embeddings da sind — der initiale Mount (ohne Stage-2)
+  // bleibt unblockiert und die Tabelle erscheint sofort. React tauscht die
+  // Tabelle dann im naechsten idle Frame durch die Stage-2-Variante aus.
+  const deferredEmbeddings = useDeferredValue(verbundEmbeddings);
+
   const hasCentroids = useMemo(
     () => config.ueberKategorien.some(k => Array.isArray(k.referenzEmbedding) && k.referenzEmbedding.length > 0),
     [config.ueberKategorien],
@@ -112,10 +119,10 @@ export function KlassifizierungsReview(): React.ReactElement {
       antraegeImPool,
       config.ueberKategorien,
       klassifizierungen,
-      verbundEmbeddings ?? undefined,
+      deferredEmbeddings ?? undefined,
       config.stage2Aktiv,
     ),
-    [antraegeImPool, config.ueberKategorien, klassifizierungen, verbundEmbeddings, config.stage2Aktiv],
+    [antraegeImPool, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv],
   );
 
   const [filter, setFilter] = useState<ViewFilter>('alle');

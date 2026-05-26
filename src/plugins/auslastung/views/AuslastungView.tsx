@@ -24,6 +24,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { AuslastungIndexProvider } from '../hooks/useAuslastungIndex';
+import { ModulLoadingBanner } from '../components/ModulLoadingBanner';
 import { KlassifizierungsReview } from './KlassifizierungsReview';
 import { ZuweisungsCockpit } from './ZuweisungsCockpit';
 import { UebersichtView } from './UebersichtView';
@@ -106,6 +107,13 @@ export function AuslastungView(): React.ReactElement {
 
       <Tabs tabs={tabs} activeTab={tab} onChange={(id) => switchTab(id as TabId)} />
 
+      {/* v2.10: prominenter Loading-Banner mit Spinner + Countdown,
+          waehrend der initialen Mount-Phase. Verschwindet sobald
+          useAuslastungReady() ready=true meldet. */}
+      <div className="mt-5">
+        <ModulLoadingBanner />
+      </div>
+
       {/* v2.9: Eager Mount aller Tabs + gemeinsamer Index-Provider. Alle
           drei Tabs sind dauerhaft im DOM; nicht-aktive werden per
           `display: none` ausgeblendet. Tab-Wechsel ist von Anfang an
@@ -113,7 +121,7 @@ export function AuslastungView(): React.ReactElement {
           `computeQuartalsAuslastung` jetzt 1x pro Render-Cycle via
           Provider statt 3x in den Konsumenten laeuft. */}
       <AuslastungIndexProvider>
-        <div className="mt-5">
+        <div className="mt-1">
           {ALL_TABS.has('klassifizierung') && (
             <div style={{ display: tab === 'klassifizierung' ? 'block' : 'none' }}>
               <KlassifizierungsReview />

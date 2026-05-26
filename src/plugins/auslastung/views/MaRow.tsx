@@ -1,5 +1,5 @@
 /**
- * MaRow (v2.6) — Zwei-Zeilen-Zeile pro MA in der konsolidierten Tabelle.
+ * MaRow (v2.6, in v2.10 memoized) — Zwei-Zeilen-Zeile pro MA in der konsolidierten Tabelle.
  *
  * Zeile 1 (Haupt): AnonymIdBadge · Kategorien · Antragstypen · Balken · Frei-Text · Aktionen
  * Zeile 2 (Sekundär, gedämpft): Technologien · Festgebucht-Zusammenfassung · Marker
@@ -7,7 +7,13 @@
  * Klick auf Haupt-/Sekundär-Bereich (außerhalb Action-Buttons) toggelt
  * den Expand. Aufrufer (`MitarbeiterUndKapazitaet`) stellt sicher, dass
  * nur genau ein MA gleichzeitig expandiert (Akkordion).
+ *
+ * v2.10: `React.memo`-Wrap — bei stabilen Handler-Callbacks (per
+ * useCallback im Parent) wird die Row nur neu gerendert wenn sich `ma`,
+ * `kapView` oder `expanded` aendert. Eliminiert ~250ms bei 79 MAs auf
+ * jedem Filter-Klick / Store-Update.
  */
+import { memo } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { AnonymIdBadge } from '../components/AnonymIdBadge';
 import { KategoriePill } from '../components/KategoriePill';
@@ -15,7 +21,7 @@ import { TechnologieTags } from '../components/TechnologieTags';
 import { KapazitaetsBalken } from '../components/KapazitaetsBalken';
 import { AntragstypOverrideCell } from './AntragstypOverrideCell';
 import { MaInlineDetail } from './MaInlineDetail';
-import type { AnonymerMitarbeiter, UeberKategorie } from '../types';
+import type { AnonymerMitarbeiter, AntragstypBucket, UeberKategorie } from '../types';
 import type { MaQuartalsAuslastung } from '../services/quartals-auslastung';
 import type { KapazitaetsView } from '../services/kapazitaet';
 
@@ -27,13 +33,16 @@ interface Props {
   realName: string | null;
   quartal: string;
   expanded: boolean;
-  onToggleExpand: () => void;
-  onSetAktiv: (next: boolean) => void;
-  onRemove: () => void;
-  onUpsertAntragstyp: (next: import('../types').AntragstypBucket[] | undefined) => Promise<void>;
+  /** Stabile Handler (per useCallback im Parent), nehmen anonId als
+   *  ersten Arg — so kann der Parent EINEN Handler haben, der fuer alle
+   *  MAs identisch ist. */
+  onToggleExpand: (anonId: string) => void;
+  onSetAktiv: (anonId: string, next: boolean) => void;
+  onRemove: (anonId: string) => void;
+  onUpsertAntragstyp: (anonId: string, next: AntragstypBucket[] | undefined) => Promise<void>;
 }
 
-export function MaRow({
+function MaRowImpl({
   ma, auslastung, kapView, kategorien, realName, quartal,
   expanded, onToggleExpand, onSetAktiv, onRemove, onUpsertAntragstyp,
 }: Props): React.ReactElement {
@@ -52,7 +61,7 @@ export function MaRow({
   const triggerExpand = (e: React.MouseEvent): void => {
     const t = e.target as HTMLElement;
     if (t.closest('button, input, textarea, select, [data-no-expand]')) return;
-    onToggleExpand();
+    onToggleExpand(ma.anonId);
   };
 
   return (
@@ -81,7 +90,10 @@ export function MaRow({
             {!hasKats && <span className="text-[11px] text-[var(--tf-text-tertiary)]">—</span>}
           </div>
           <div className="flex-1 min-w-[100px] max-w-[200px]" data-no-expand>
-            <AntragstypOverrideCell ma={ma} onSave={onUpsertAntragstyp} />
+            <AntragstypOverrideCell
+              ma={ma}
+              onSave={next => onUpsertAntragstyp(ma.anonId, next)}
+            />
           </div>
           <div className="shrink-0 w-[140px]">
             <KapazitaetsBalken
@@ -115,7 +127,7 @@ export function MaRow({
                   );
                   if (!ok) return;
                 }
-                onSetAktiv(!ma.aktiv);
+                onSetAktiv(ma.anonId, !ma.aktiv);
               }}
               className="text-[11px] cursor-pointer hover:underline px-1"
               title={ma.aktiv ? 'Deaktivieren' : 'Aktivieren'}
@@ -124,7 +136,7 @@ export function MaRow({
             </button>
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onRemove(); }}
+              onClick={(e) => { e.stopPropagation(); onRemove(ma.anonId); }}
               className="text-[11px] text-[var(--tf-text-tertiary)] cursor-pointer hover:text-rose-700 px-1"
               title="Löschen"
             >
@@ -156,9 +168,14 @@ export function MaRow({
           ma={ma}
           auslastung={auslastung}
           quartal={quartal}
-          onSaved={onToggleExpand}
+          onSaved={() => onToggleExpand(ma.anonId)}
         />
       )}
     </div>
   );
 }
+
+/** v2.10: React.memo-Wrap. Bei stabilen Callback-Props (per useCallback im
+ *  Parent) wird die Row nur neu gerendert wenn sich `ma`, `kapView`,
+ *  `expanded`, `realName` oder `kategorien` aendert. */
+export const MaRow = memo(MaRowImpl);
