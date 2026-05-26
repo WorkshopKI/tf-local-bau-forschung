@@ -134,35 +134,43 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
     await upsert(storage, { ...target, antragstypUeberschreibung: next });
   }, [mitarbeiter, upsert, storage]);
 
+  // "Hat aktuell Anträge" — Single Source of Truth fuer Counter + Filter +
+  // Kategorie-Chips. Per User-Anweisung: ein MA gilt als aktiv, wenn er
+  // aktuelle Anträge (fest/pending im laufenden Quartal) oder Altanträge
+  // (Q-2/Q-1, offen-Status) hat. Das `m.aktiv`-Flag bleibt als manueller
+  // Override erhalten — ein MA mit `aktiv: true` aber ohne Anträge ist im
+  // Default-View nicht sichtbar (kein "Working") und zaehlt nicht im Counter,
+  // wird aber im "+MA hinzufuegen"-Flow sichtbar bis Anträge ankommen.
+  const hasAntraege = useCallback((anonId: string): boolean => {
+    const a = auslastungByAnon.get(anonId);
+    if ((a?.fest.antraege ?? 0) > 0) return true;
+    if ((a?.pending.antraege ?? 0) > 0) return true;
+    const al = altlastByAnon.get(anonId);
+    if ((al?.antraege ?? 0) > 0) return true;
+    return false;
+  }, [auslastungByAnon, altlastByAnon]);
+
   // MA-Liste: Filter + Sort.
-  // Inaktive MAs werden NICHT pauschal ausgeblendet, sondern nur die ohne
-  // aktuelle Buchungen oder Altanträge. Sonst verschwindet ein MA wie THÜ
-  // (aktiv: false aus altem Onboarding) trotz neuer Anträge aus dem Blickfeld.
-  // Default-Filter: aktiv ODER hat fest/pending im aktuellen Quartal ODER
-  // hat Altanträge (Q-2/Q-1). "Inaktive anzeigen" zeigt zusätzlich alle ohne Arbeit.
+  // Default zeigt: alle MAs mit aktuellen/Alt-Anträgen. PLUS neu erstellte
+  // aktiv-true-MAs ohne Anträge noch nicht (sonst verschwinden frisch
+  // angelegte MAs sofort wieder — Workaround: "Inaktive anzeigen" einschalten
+  // oder erste Anträge eintragen).
   const list = useMemo(() => {
     const all = Object.values(mitarbeiter);
     const sichtbar = showInactive
       ? all
-      : all.filter(m => {
-          if (m.aktiv) return true;
-          const a = auslastungByAnon.get(m.anonId);
-          if ((a?.fest.antraege ?? 0) > 0) return true;
-          if ((a?.pending.antraege ?? 0) > 0) return true;
-          const al = altlastByAnon.get(m.anonId);
-          if ((al?.antraege ?? 0) > 0) return true;
-          return false;
-        });
+      : all.filter(m => m.aktiv || hasAntraege(m.anonId));
     const filtered = kategorieFilter
       ? sichtbar.filter(m => (m.hauptKategorie === kategorieFilter)
           || (m.nebenKategorien?.includes(kategorieFilter) ?? false)
           || (m.ueberKategorien?.includes(kategorieFilter) ?? false))
       : sichtbar;
     return filtered.sort((a, b) => a.anonId.localeCompare(b.anonId));
-  }, [mitarbeiter, kategorieFilter, showInactive, auslastungByAnon, altlastByAnon]);
+  }, [mitarbeiter, kategorieFilter, showInactive, hasAntraege]);
 
   const totalCount = Object.keys(mitarbeiter).length;
-  const aktivCount = Object.values(mitarbeiter).filter(m => m.aktiv).length;
+  // Counter: MAs mit aktuellen Anträgen oder Altanträgen (User-Definition).
+  const aktivCount = Object.values(mitarbeiter).filter(m => hasAntraege(m.anonId)).length;
   const inaktivCount = totalCount - aktivCount;
   const hasGaps = totalCount > aktivCount;
 
@@ -173,7 +181,7 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
         <h2 className="text-[15px] font-medium">
           Mitarbeiter &amp; Kapazität
           <span className="ml-2 text-[11.5px] font-normal text-[var(--tf-text-tertiary)]">
-            ({aktivCount} aktiv{inaktivCount > 0 ? ` / ${totalCount} gesamt` : ''} · {config.aktuellesQuartal})
+            ({aktivCount} mit Anträgen{inaktivCount > 0 ? ` / ${totalCount} gesamt` : ''} · {config.aktuellesQuartal})
           </span>
         </h2>
         <button
@@ -199,7 +207,7 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
         </button>
         {kategorien.map(k => {
           const count = Object.values(mitarbeiter).filter(m =>
-            m.aktiv && (m.hauptKategorie === k.id || m.nebenKategorien?.includes(k.id) || m.ueberKategorien?.includes(k.id))).length;
+            hasAntraege(m.anonId) && (m.hauptKategorie === k.id || m.nebenKategorien?.includes(k.id) || m.ueberKategorien?.includes(k.id))).length;
           return (
             <button
               key={k.id}
@@ -266,7 +274,7 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
 
       {hasGaps && !showInactive && (
         <p className="text-[11px] text-[var(--tf-text-tertiary)] leading-tight">
-          {aktivCount} von {totalCount} Mitarbeitern aktiv. Inaktive MAs behalten ihre Nummer — Lücken sind normal.
+          {aktivCount} von {totalCount} Mitarbeitern haben aktuelle Anträge. MAs ohne Anträge sind ausgeblendet — Lücken in der Nummerierung sind normal.
         </p>
       )}
 
