@@ -16,7 +16,6 @@ import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
-import { SelbsteintragungBanner } from '@/plugins/auslastung/components/SelbsteintragungBanner';
 import { menuLabel, dataConfig, isAuslastungSelbstEintragungEnabled } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
@@ -180,42 +179,8 @@ export function HomePage(): React.ReactElement {
         <BearbeiterKuerzelMissingAlert tokens={data.bearbeiterTokens} />
       ) : null}
 
-      {/* Benachrichtigungs-Banner fuer neu freigegebene Antraege in der
-          Hauptkategorie des MAs (1.17). Nur sichtbar wenn auslastung-Build. */}
-      {profile?.department !== 'bauantraege' && isAuslastungSelbstEintragungEnabled() && (
-        <SelbsteintragungBanner />
-      )}
-
       {/* Multi-Programm-Übersicht — versteckt bei <= 1 Programm */}
       <ProgrammeOverviewCards />
-
-      {/* Callout */}
-      {data.naechsterSchritt && data.naechsterSchritt.daysLeft <= 7 && (
-        <div className="flex items-center justify-between p-4 mb-6 rounded-[var(--tf-radius)]" style={{ borderLeft: '3px solid var(--tf-border-hover)' }}>
-          <div>
-            <p className="text-[12px] text-[var(--tf-text-tertiary)]">
-              Nächster Schritt · {data.naechsterSchritt.daysLeft < 0 ? (
-                <span className="text-[var(--tf-danger-text)]">
-                  Frist seit {Math.abs(data.naechsterSchritt.daysLeft)} Tagen überschritten
-                </span>
-              ) : (
-                <>Frist in {data.naechsterSchritt.daysLeft} Tagen</>
-              )}
-            </p>
-            <p className="text-[14px] font-medium text-[var(--tf-text)]">
-              <span className="text-[var(--tf-text-tertiary)] font-mono">{data.naechsterSchritt.id}</span> — {data.naechsterSchritt.title}
-            </p>
-          </div>
-          <Button variant="secondary" size="sm" icon={ArrowRight}
-            onClick={() => {
-              const v = data.naechsterSchritt!;
-              const target = (v as { _isAntrag?: boolean })._isAntrag ? 'antraege' : 'bauantraege';
-              navigate(target, { selectedId: v.id });
-            }}>
-            Öffnen
-          </Button>
-        </div>
-      )}
 
       {/* Two-column grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-8">

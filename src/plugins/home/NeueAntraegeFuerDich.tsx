@@ -27,9 +27,15 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { useKuerzelMap } from '@/plugins/auslastung/hooks/useKuerzelMap';
+import { useBenachrichtigung } from '@/plugins/auslastung/hooks/useBenachrichtigung';
 import { resolveAnonIdForUser } from '@/plugins/auslastung/services/anonym-map';
 import { computeKapazitaet } from '@/plugins/auslastung/services/kapazitaet';
 import { matchesAntragstyp } from '@/plugins/auslastung/services/antragstyp-praeferenz';
+import {
+  countExterneZuweisungenImQuartal,
+  getExterneAntragIds,
+  parseKuerzelTokens,
+} from '@/plugins/auslastung/services/externe-zuweisungen';
 import { KategoriePill } from '@/plugins/auslastung/components/KategoriePill';
 import {
   CANONICAL_TITEL,
@@ -71,6 +77,19 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const myHauptKategorie = myMa?.hauptKategorie
     || (myMa?.ueberKategorien && myMa.ueberKategorien.length > 0 ? myMa.ueberKategorien[0]! : '');
 
+  // Zähler-Badge: ersetzt den frueheren SelbsteintragungBanner (v2.3).
+  // Der User sieht die Liste direkt darunter — die Banner-Funktion ist
+  // erfuellt. Wir lassen den Badge 5 s sichtbar, damit der User die Zahl
+  // wahrnehmen kann, und dismissen dann automatisch (markiert lastSeen=now).
+  // Beim naechsten Page-Visit ist das Badge weg, sofern keine neuen
+  // Klassifizierungen seitdem dazugekommen sind.
+  const { neueAnzahl, dismiss } = useBenachrichtigung(myAnonId, myHauptKategorie);
+  useEffect(() => {
+    if (neueAnzahl === 0) return;
+    const t = setTimeout(() => dismiss(), 5000);
+    return () => clearTimeout(t);
+  }, [neueAnzahl, dismiss]);
+
   // Antrag-Index fuer schnellen Lookup.
   const antraegeById = useMemo(() => {
     const m = new Map<string, Antrag>();
@@ -87,6 +106,22 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
     return s;
   }, [zuweisungen]);
 
+  // Externe Zuweisungen via Master-CSV `tib_kuerz` (PL hat direkt vergeben,
+  // ohne Auslastungs-Workflow). Reduzieren die Kapazitaet UND filtern den
+  // Pool aus — der Antrag taucht ohnehin in "Meine Anträge" auf.
+  const meineKuerzel = useMemo(
+    () => parseKuerzelTokens(profile?.bearbeiter_kuerzel),
+    [profile?.bearbeiter_kuerzel],
+  );
+  const externeAntragIds = useMemo(
+    () => getExterneAntragIds(cache.antraege, meineKuerzel, config.aktuellesQuartal),
+    [cache.antraege, meineKuerzel, config.aktuellesQuartal],
+  );
+  const externeAnzahl = useMemo(
+    () => countExterneZuweisungenImQuartal(cache.antraege, meineKuerzel, config.aktuellesQuartal),
+    [cache.antraege, meineKuerzel, config.aktuellesQuartal],
+  );
+
   const offene = useMemo((): OffenerAntrag[] => {
     if (!myMa || !myHauptKategorie) return [];
     const fristTage = config.selbsteintragungFristTage;
@@ -96,6 +131,9 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       const primaer = k.freigegebenePrimaer || k.freigegebeneKategorien?.[0];
       if (primaer !== myHauptKategorie) continue;
       if (zugewieseneIds.has(k.antragId)) continue;
+      // Extern via Master-CSV bereits zugewiesen → nicht mehr im Pool anbieten
+      // (v2.3). Der Antrag erscheint trotzdem in "Meine Anträge".
+      if (externeAntragIds.has(k.antragId)) continue;
       const antrag = antraegeById.get(k.antragId);
       if (!antrag) continue;
       // v2.2: Antragstyp-Filter (FuE/DS/DL/NW). Ohne Praeferenz: passt alles
@@ -116,13 +154,14 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       return akA.localeCompare(akB);
     });
     return items;
-  }, [klassifizierungen, myMa, myHauptKategorie, zugewieseneIds, antraegeById, config.selbsteintragungFristTage]);
+  }, [klassifizierungen, myMa, myHauptKategorie, zugewieseneIds, externeAntragIds, antraegeById, config.selbsteintragungFristTage]);
 
-  // Kapazitaets-Sicht in Antraegen (NICHT Stunden).
+  // Kapazitaets-Sicht in Antraegen (NICHT Stunden). v2.3 zusätzlich extern
+  // zugewiesene Antraege als verbraucht buchen.
   const kapView = useMemo(() => {
     if (!myMa) return null;
-    return computeKapazitaet(myMa, zuweisungen, config, config.aktuellesQuartal);
-  }, [myMa, zuweisungen, config]);
+    return computeKapazitaet(myMa, zuweisungen, config, config.aktuellesQuartal, externeAnzahl);
+  }, [myMa, zuweisungen, config, externeAnzahl]);
 
   // "Uebernehme ich" — Selbsteintragung
   const uebernehmen = useAsyncAction(async (antragId: string) => {
@@ -163,14 +202,28 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       <SectionHeader
         label="Neue Anträge für dich"
         action={
-          hasMore ? (
-            <button
-              onClick={() => setShowAlleModal(true)}
-              className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-            >
-              Alle ({offene.length}) →
-            </button>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            {neueAnzahl > 0 && (
+              <span
+                className="text-[10.5px] font-medium px-1.5 py-0.5 rounded"
+                style={{
+                  background: 'var(--tf-primary-soft, var(--tf-bg-secondary))',
+                  color: 'var(--tf-primary)',
+                }}
+                title={`${neueAnzahl} neu seit deinem letzten Besuch`}
+              >
+                {neueAnzahl} neu
+              </span>
+            )}
+            {hasMore && (
+              <button
+                onClick={() => setShowAlleModal(true)}
+                className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+              >
+                Alle ({offene.length}) →
+              </button>
+            )}
+          </div>
         }
       />
       <div className="flex flex-col gap-2">
@@ -186,6 +239,7 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       {kapView && (
         <p className="mt-2 text-[11px] text-[var(--tf-text-tertiary)]">
           {kapView.restAntraege} von {kapView.maxAntraege} Anträgen frei in {config.aktuellesQuartal}
+          {externeAnzahl > 0 && ` · ${externeAnzahl} extern zugewiesen`}
         </p>
       )}
       {uebernehmen.error && (
@@ -210,9 +264,12 @@ interface RowProps {
   item: OffenerAntrag;
   onUebernehmen: () => void;
   disabled?: boolean;
+  /** Kompakte Layout-Variante fuer das "Alle"-Modal (v2.3):
+   *  weniger Padding, Akronym/Titel/Frist/Button in einer Zeile. */
+  compact?: boolean;
 }
 
-function NeueAntraegeRow({ item, onUebernehmen, disabled }: RowProps): React.ReactElement {
+function NeueAntraegeRow({ item, onUebernehmen, disabled, compact }: RowProps): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
   const { antrag, klassifizierung, daysLeft } = item;
   const primaerId = klassifizierung.freigegebenePrimaer || klassifizierung.freigegebeneKategorien?.[0];
@@ -226,9 +283,52 @@ function NeueAntraegeRow({ item, onUebernehmen, disabled }: RowProps): React.Rea
   const titel = (antrag[CANONICAL_VERBUND_TITEL] as string | undefined)
     ?? (antrag[CANONICAL_TITEL] as string | undefined)
     ?? '—';
+  const akronym = (antrag.akronym as string | undefined) ?? null;
   const fristTone = daysLeft <= 2 ? 'text-rose-700 font-medium'
     : daysLeft <= 3 ? 'text-amber-700 font-medium'
     : 'text-[var(--tf-text-tertiary)]';
+
+  // v2.3: dezenter Secondary-Style fuer den CTA-Button. Der vorherige
+  // schwarz/weiss-Kontrast suggeriert Endgueltigkeit — der User signalisiert
+  // hier aber nur Absicht, die PL entscheidet final.
+  const buttonClasses = 'rounded-md text-[12px] cursor-pointer border bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] text-[var(--tf-text)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
+  const buttonStyle: React.CSSProperties = { borderColor: 'var(--tf-border)' };
+
+  if (compact) {
+    return (
+      <div
+        className="rounded-[8px] px-2.5 py-1.5 flex items-center gap-3"
+        style={{ border: '0.5px solid var(--tf-border)' }}
+      >
+        <span className="font-mono text-[10.5px] text-[var(--tf-text-secondary)] shrink-0 w-[88px] truncate">
+          {antrag.aktenzeichen}
+        </span>
+        {primaerKat && (
+          <div className="shrink-0">
+            <KategoriePill kategorie={primaerKat} active />
+          </div>
+        )}
+        <div className="flex-1 min-w-0 text-[12px] text-[var(--tf-text)] truncate">
+          {akronym && <span className="font-medium">{akronym}</span>}
+          {akronym && <span className="text-[var(--tf-text-tertiary)]"> · </span>}
+          <span className="text-[var(--tf-text-secondary)]">{titel}</span>
+        </div>
+        <span className={`text-[10.5px] tabular-nums shrink-0 ${fristTone}`} title="Verbleibende Frist">
+          Noch {daysLeft}d
+        </span>
+        <button
+          type="button"
+          onClick={onUebernehmen}
+          disabled={disabled}
+          className={`${buttonClasses} px-2.5 py-1 shrink-0`}
+          style={buttonStyle}
+          aria-label={`Kann ich übernehmen — ${akronym ?? antrag.aktenzeichen}`}
+        >
+          Kann ich übernehmen
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -255,10 +355,11 @@ function NeueAntraegeRow({ item, onUebernehmen, disabled }: RowProps): React.Rea
           type="button"
           onClick={onUebernehmen}
           disabled={disabled}
-          className="px-3 py-1 rounded-md text-[12px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+          className={`${buttonClasses} px-3 py-1`}
+          style={buttonStyle}
+          aria-label={`Kann ich übernehmen — ${akronym ?? antrag.aktenzeichen}`}
         >
-          Übernehme ich
+          Kann ich übernehmen
         </button>
       </div>
     </div>
@@ -276,45 +377,42 @@ interface ModalProps {
 function NeueAntraegeAlleModal({ alle, onClose, onUebernehmen, busy }: ModalProps): React.ReactElement {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center p-6"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.4)' }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-3xl max-h-full overflow-y-auto rounded-[12px] p-5 flex flex-col gap-3"
+        className="w-full max-w-4xl max-h-[92vh] rounded-[12px] flex flex-col"
         style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
-          <h2 className="text-[16px] font-medium">Alle neuen Anträge ({alle.length})</h2>
+        {/* Sticky Header */}
+        <div className="flex items-center justify-between px-4 py-2.5 shrink-0"
+          style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
+          <h2 className="text-[14px] font-medium">Alle neuen Anträge ({alle.length})</h2>
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]"
+            className="cursor-pointer text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] text-[18px] leading-none px-1"
             aria-label="Schließen"
           >
             ×
           </button>
         </div>
-        <div className="flex flex-col gap-2">
-          {alle.map(item => (
-            <NeueAntraegeRow
-              key={item.antrag.aktenzeichen}
-              item={item}
-              onUebernehmen={() => onUebernehmen(item.antrag.aktenzeichen)}
-              disabled={busy}
-            />
-          ))}
-        </div>
-        <div className="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer"
-            style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
-          >
-            Schließen
-          </button>
+        {/* Scrollbarer Body — kompakte Rows damit moeglichst viele ohne
+            Scrollen sichtbar sind. */}
+        <div className="flex-1 overflow-y-auto px-4 py-3">
+          <div className="flex flex-col gap-1.5">
+            {alle.map(item => (
+              <NeueAntraegeRow
+                key={item.antrag.aktenzeichen}
+                item={item}
+                onUebernehmen={() => onUebernehmen(item.antrag.aktenzeichen)}
+                disabled={busy}
+                compact
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>

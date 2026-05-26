@@ -183,6 +183,7 @@ describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
     'src/plugins/antraege/filter/FilterSidebar.tsx',
     'src/plugins/antraege/filter/SavePresetDialog.tsx',
     'src/plugins/einstellungen/MeineTechnologienTab.tsx',
+    'src/plugins/einstellungen/KuratorSessionPanel.tsx',
     'src/plugins/programme-kuration/unterprogramme/UnterprogrammXlsxImportDialog.tsx',
     'src/components/feedback/FeedbackChatbot.tsx',
   ]);

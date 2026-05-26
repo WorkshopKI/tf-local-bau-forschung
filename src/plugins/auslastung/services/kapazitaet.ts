@@ -22,13 +22,13 @@ import type {
 export interface KapazitaetsView {
   /** Quartals-Stunden nach Abschlag: jahresKap × (1 - abschlag/100) / 4. */
   effektivStunden: number;
-  /** Summe aller Stunden aus `freigegebenen`/`selbst`-Zuweisungen. */
+  /** Summe aller Stunden aus `freigegebenen`/`selbst`-Zuweisungen + extern. */
   verbrauchteStunden: number;
   /** effektivStunden - verbrauchteStunden. Kann negativ werden bei Ueberbuchung. */
   restStunden: number;
   /** Maximale Antrags-Anzahl: floor(effektivStunden / (stundenProTV × durchschnittTV)). */
   maxAntraege: number;
-  /** Anzahl bereits zugewiesener Antraege (freigegeben + selbst). */
+  /** Anzahl bereits zugewiesener Antraege (freigegeben + selbst + extern). */
   zugewiesenAnzahl: number;
   /** Verbleibende Antraege: floor(restStunden / (stundenProTV × durchschnittTV)).
    *  Wichtig: aus restStunden gerechnet, NICHT als maxAntraege - zugewiesen
@@ -36,17 +36,27 @@ export interface KapazitaetsView {
   restAntraege: number;
   /** Stunden ueber dem Limit. > 0 nur bei Ueberbuchung, sonst 0. */
   ueberbuchung: number;
+  /** Davon: extern via Master-CSV (tib_kuerz) zugewiesen (Teilmenge von
+   *  `zugewiesenAnzahl`). 0 wenn `externeAnzahl` nicht uebergeben wurde. */
+  externeAnzahl: number;
 }
 
 /**
  * Berechnet die Quartals-Sicht eines MAs aus seinem Profil + den aktuellen
  * Zuweisungen.
+ *
+ * `externeAnzahl` (optional, Default 0): Anzahl Antraege, die der PL direkt
+ * im Master-CSV via `tib_kuerz` zugewiesen hat (am Auslastungs-Workflow
+ * vorbei). Werden mit `stundenProTV × durchschnittTV` als Default-Stunden
+ * gebucht, weil die CSV keine Stundenangabe pro Antrag fuehrt. Siehe
+ * `externe-zuweisungen.ts` fuer die Ableitung.
  */
 export function computeKapazitaet(
   ma: AnonymerMitarbeiter,
   zuweisungen: Zuweisung[],
   config: AuslastungConfig,
   quartal: string,
+  externeAnzahl: number = 0,
 ): KapazitaetsView {
   const abschlag = Math.max(0, Math.min(100, ma.abschlagProzent ?? 0));
   const effektivStunden = (ma.jahresKapazitaet * (1 - abschlag / 100)) / 4;
@@ -61,11 +71,19 @@ export function computeKapazitaet(
     zugewiesenAnzahl += 1;
   }
 
-  const restStunden = effektivStunden - verbrauchteStunden;
   const stundenProTV = Math.max(1, config.stundenProTV ?? 9);
   const durchschnittTV = Math.max(1, config.durchschnittTVproAntrag ?? 2);
   const antragsStunden = stundenProTV * durchschnittTV;
 
+  // Externe Zuweisungen (PL hat direkt im Master-CSV vergeben) — mit
+  // Default-Stunden pro Antrag dazubuchen. Wir nehmen sie ausdruecklich
+  // NICHT in den Zuweisungs-Store auf (Source-of-Truth bleibt die CSV),
+  // sondern leiten sie pro Render dynamisch ab.
+  const externeStunden = Math.max(0, externeAnzahl) * antragsStunden;
+  verbrauchteStunden += externeStunden;
+  zugewiesenAnzahl += Math.max(0, externeAnzahl);
+
+  const restStunden = effektivStunden - verbrauchteStunden;
   const maxAntraege = Math.floor(effektivStunden / antragsStunden);
   const restAntraege = Math.floor(restStunden / antragsStunden);
   const ueberbuchung = restStunden < 0 ? -restStunden : 0;
@@ -78,6 +96,7 @@ export function computeKapazitaet(
     zugewiesenAnzahl,
     restAntraege,
     ueberbuchung,
+    externeAnzahl: Math.max(0, externeAnzahl),
   };
 }
 

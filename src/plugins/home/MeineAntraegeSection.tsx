@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Badge, SectionHeader, ListItem } from '@/ui';
 import { useNavigation } from '@/core/hooks/useNavigation';
+import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import type { AntragVorgang } from './useDashboardData';
@@ -83,13 +84,24 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
   const remaining = antraege.length - visibleCount;
   const nextChunk = Math.min(10, remaining);
 
+  // v2.3: "Alle →" springt zu /antraege mit View "Offen" + Sort nach Frist
+  // — sonst zeigt die Foerderantraege-Seite eine andere View/Sortierung als
+  // die Home-Liste, was Verwirrung stiftete. Bearbeiter-Filter ist via
+  // profile.bearbeiter_kuerzel sowieso automatisch aktiv.
+  const handleAlle = (): void => {
+    const store = useAntraegeStore.getState();
+    store.setActiveView('meine_offenen');
+    store.setSortForView('meine_offenen', 'frist_asc');
+    navigate('antraege');
+  };
+
   return (
     <div className="mb-6">
       <SectionHeader
         label="Meine Anträge"
         action={
           <button
-            onClick={() => navigate('antraege')}
+            onClick={handleAlle}
             className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
           >
             Alle →

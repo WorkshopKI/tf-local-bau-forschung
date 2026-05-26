@@ -121,6 +121,48 @@ describe('computeKapazitaet', () => {
     expect(v.restStunden).toBe(-18);
     expect(v.ueberbuchung).toBe(18);
   });
+
+  describe('externeAnzahl (Master-CSV-Zuweisungen)', () => {
+    it('externeAnzahl=0 (default) → identisch zum bisherigen Verhalten', () => {
+      const ma = makeMa();
+      const a = computeKapazitaet(ma, [], DEFAULT_AUSLASTUNG_CONFIG, '2026-Q2');
+      const b = computeKapazitaet(ma, [], DEFAULT_AUSLASTUNG_CONFIG, '2026-Q2', 0);
+      expect(a.restStunden).toBe(b.restStunden);
+      expect(a.restAntraege).toBe(b.restAntraege);
+      expect(a.zugewiesenAnzahl).toBe(b.zugewiesenAnzahl);
+      expect(a.externeAnzahl).toBe(0);
+      expect(b.externeAnzahl).toBe(0);
+    });
+
+    it('externeAnzahl=3 → reduziert restAntraege + erhöht zugewiesenAnzahl', () => {
+      const ma = makeMa();  // 800 h/Jahr → 200 h/Q → maxAntraege=11
+      const v = computeKapazitaet(ma, [], DEFAULT_AUSLASTUNG_CONFIG, '2026-Q2', 3);
+      // 3 externe × 18h = 54h verbraucht
+      expect(v.verbrauchteStunden).toBe(54);
+      expect(v.zugewiesenAnzahl).toBe(3);
+      expect(v.externeAnzahl).toBe(3);
+      expect(v.restStunden).toBe(146);
+      expect(v.restAntraege).toBe(8); // floor(146/18)
+    });
+
+    it('externeAnzahl + Store-Zuweisungen kombinieren sich additiv', () => {
+      const ma = makeMa();
+      const zw = [makeZuweisung({ antragId: 'A', stunden: 18, status: 'selbst' })];
+      const v = computeKapazitaet(ma, zw, DEFAULT_AUSLASTUNG_CONFIG, '2026-Q2', 2);
+      // Store: 18h + Extern: 2*18 = 36h → 54h gesamt
+      expect(v.verbrauchteStunden).toBe(54);
+      expect(v.zugewiesenAnzahl).toBe(3);
+      expect(v.externeAnzahl).toBe(2);
+    });
+
+    it('externeAnzahl=-1 → wird auf 0 geklemmt (kein negativer Verbrauch)', () => {
+      const ma = makeMa();
+      const v = computeKapazitaet(ma, [], DEFAULT_AUSLASTUNG_CONFIG, '2026-Q2', -1);
+      expect(v.verbrauchteStunden).toBe(0);
+      expect(v.zugewiesenAnzahl).toBe(0);
+      expect(v.externeAnzahl).toBe(0);
+    });
+  });
 });
 
 describe('kapazitaetsScore', () => {
