@@ -73,7 +73,7 @@ export function UebersichtView(): React.ReactElement {
       </div>
       <MitarbeiterUndKapazitaet storage={storage} cache={cache} />
       <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
-      <ImportExportSection antraege={cache.antraege} />
+      <ImportExportSection antraege={cache.antraege} anonymMap={cache.anonymMap} />
 
       {/* Erweitert-Aufklapper — selten geaenderte Konfig */}
       <div

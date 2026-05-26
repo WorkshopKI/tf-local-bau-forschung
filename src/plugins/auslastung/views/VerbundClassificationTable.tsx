@@ -186,8 +186,15 @@ interface VerbundHeaderRowProps {
 function VerbundHeaderRow({ view, columns }: VerbundHeaderRowProps): React.ReactElement {
   return (
     <tr style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-      {columns.map(c => {
+      {columns.map((c, idx) => {
         const noWrap = c.wrap === false;
+        const isFirst = idx === 0;
+        // Bei Multi-TV bekommt auch der Verbund-Header den gruenen Akzent-
+        // Border-Left (analog zu den TV-Sub-Rows) — so spannen Header + Subs
+        // einen durchgehenden Strich, der Verbund wird visuell zur Einheit.
+        // Padding bleibt Default (px-3) — Sub-Rows haben paddingLeft:20px und
+        // sind dadurch sichtbar eingerueckt; der gruene Strich verbindet sie.
+        const showAccent = isFirst && !view.isSolo;
         return (
           <td
             key={c.key}
@@ -197,6 +204,7 @@ function VerbundHeaderRow({ view, columns }: VerbundHeaderRowProps): React.React
               wordBreak: noWrap ? undefined : 'break-word',
               overflow: 'hidden',
               textOverflow: noWrap ? 'ellipsis' : undefined,
+              borderLeft: showAccent ? '3px solid var(--tf-primary, #1D9E75)' : undefined,
             }}
           >
             {c.render(view)}
