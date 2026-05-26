@@ -11,8 +11,14 @@
  * Build-Varianten geregelt (`features.auslastung` nur in pl/dev configs).
  *
  * Auto-Switch: Setup nicht abgeschlossen → 'uebersicht' (zeigt Setup-Wizard).
+ *
+ * v2.8 — Tab-Persistenz (lazy + sticky): einmal besuchte Tabs bleiben im
+ * DOM (display:none wenn nicht aktiv). Tab-Wechsel ist nur noch ein CSS-
+ * Toggle, schwergewichtige Memos (`buildVerbundClassificationViews`,
+ * `computeQuartalsAuslastung`) und IDB-Reads (`loadAllVerbundEmbeddings`)
+ * laufen genau einmal pro Tab pro App-Session statt bei jedem Wechsel.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -36,6 +42,14 @@ export function AuslastungView(): React.ReactElement {
   // ein useEffect (siehe unten) auf 'uebersicht' (zeigt Setup-Wizard).
   const [tab, setTab] = useState<TabId>('klassifizierung');
   const [tabAutoSet, setTabAutoSet] = useState(false);
+  // v2.8: Lazy + Sticky — sobald ein Tab einmal aktiv war, bleibt er
+  // gemountet (display:none wenn nicht aktiv). Initial: der Default-Tab.
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set(['klassifizierung']));
+
+  const switchTab = useCallback((next: TabId): void => {
+    setVisitedTabs(prev => (prev.has(next) ? prev : new Set([...prev, next])));
+    setTab(next);
+  }, []);
 
   useEffect(() => {
     void load(storage);
@@ -44,7 +58,12 @@ export function AuslastungView(): React.ReactElement {
   // Einmalig nach erstem Load: Setup nicht abgeschlossen → Uebersicht-Tab.
   useEffect(() => {
     if (!loaded || tabAutoSet) return;
-    if (!setupDone) setTab('uebersicht');
+    if (!setupDone) {
+      // Auch hier durch switchTab leiten, damit visitedTabs den Auto-Switch
+      // korrekt vermerkt.
+      setVisitedTabs(prev => (prev.has('uebersicht') ? prev : new Set([...prev, 'uebersicht'])));
+      setTab('uebersicht');
+    }
     setTabAutoSet(true);
   }, [loaded, tabAutoSet, setupDone]);
 
@@ -87,12 +106,28 @@ export function AuslastungView(): React.ReactElement {
         </p>
       </div>
 
-      <Tabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as TabId)} />
+      <Tabs tabs={tabs} activeTab={tab} onChange={(id) => switchTab(id as TabId)} />
 
+      {/* v2.8: Lazy + Sticky Tab-Mounts. Nicht-aktive besuchte Tabs werden
+          per `display:none` ausgeblendet — State, Scroll-Position und
+          Memos bleiben erhalten. Tab-Wechsel ist nach erstem Besuch
+          jedes Tabs ein reiner CSS-Toggle (<100 ms). */}
       <div className="mt-5">
-        {tab === 'klassifizierung' && <KlassifizierungsReview />}
-        {tab === 'zuweisung' && <ZuweisungsCockpit />}
-        {tab === 'uebersicht' && <UebersichtView />}
+        {visitedTabs.has('klassifizierung') && (
+          <div style={{ display: tab === 'klassifizierung' ? 'block' : 'none' }}>
+            <KlassifizierungsReview />
+          </div>
+        )}
+        {visitedTabs.has('zuweisung') && (
+          <div style={{ display: tab === 'zuweisung' ? 'block' : 'none' }}>
+            <ZuweisungsCockpit />
+          </div>
+        )}
+        {visitedTabs.has('uebersicht') && (
+          <div style={{ display: tab === 'uebersicht' ? 'block' : 'none' }}>
+            <UebersichtView />
+          </div>
+        )}
       </div>
     </div>
   );
