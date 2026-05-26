@@ -54,6 +54,11 @@ interface AuslastungDataState {
    *  Wird vom Auto-Vorschlag-Banner genutzt (sonst N persist-Roundtrips
    *  durch den `if (saving) return`-Lock raus, siehe CLAUDE.md Lesson 16). */
   applyAktivMap: (storage: StorageService, aktivById: Record<string, boolean>) => Promise<void>;
+  /** Stellt sicher, dass fuer jede anonId aus der Kuerzel-Map ein
+   *  `data.mitarbeiter`-Eintrag existiert. Fehlende MAs werden mit
+   *  Default-Werten (aktiv: true) angelegt — EIN setState + EIN persist
+   *  (Lesson 16). No-op wenn alles schon da ist. */
+  ensureMitarbeiterForAnonIds: (storage: StorageService, anonIds: Iterable<string>) => Promise<void>;
   // ── Klassifizierungen ────────────────────────────────────────────────
   upsertKlassifizierung: (storage: StorageService, k: Klassifizierung) => Promise<void>;
   freigebenKategorien: (storage: StorageService, antragId: string, kategorieIds: string[]) => Promise<void>;
@@ -198,6 +203,33 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       return { data: { ...state.data, mitarbeiter: next } };
     });
     if (changed) await get().persist(storage);
+  },
+
+  ensureMitarbeiterForAnonIds: async (storage, anonIds) => {
+    const state = get();
+    let changed = false;
+    const next = { ...state.data.mitarbeiter };
+    for (const anonId of anonIds) {
+      if (next[anonId]) continue;
+      next[anonId] = {
+        anonId,
+        jahresKapazitaet: DEFAULT_JAHRESKAPAZITAET,
+        abgemeldet: [],
+        manuelleTechnologien: [],
+        ausgeblendeteAutoTags: [],
+        hauptKategorie: '',
+        nebenKategorien: [],
+        abschlagProzent: 0,
+        ueberKategorien: [],
+        virtuelleProjekte: [],
+        onboardingAbgeschlossen: false,
+        aktiv: true,
+      };
+      changed = true;
+    }
+    if (!changed) return;
+    set(s => ({ data: { ...s.data, mitarbeiter: next } }));
+    await get().persist(storage);
   },
 
   upsertKlassifizierung: async (storage, k) => {

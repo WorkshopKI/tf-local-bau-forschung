@@ -6,7 +6,7 @@
  * Expand (Tab Detail / Bearbeiten). Behaelt alle PL-Aktionen (Aktiv-Toggle,
  * Antragstyp-Override, MA-Anlegen, Onboarding-Import, XLSX-Export, ...).
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useAuslastungData } from '../hooks/useAuslastungData';
@@ -44,6 +44,7 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
   const remove = useAuslastungData(s => s.removeMitarbeiter);
   const setAktiv = useAuslastungData(s => s.setMitarbeiterAktiv);
   const applyAktivMap = useAuslastungData(s => s.applyAktivMap);
+  const ensureMitarbeiterForAnonIds = useAuslastungData(s => s.ensureMitarbeiterForAnonIds);
 
   const resolveName = useDeAnonResolver();
   const [kategorieFilter, setKategorieFilter] = useState<string>('');
@@ -57,6 +58,17 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
   const [vorschlagBusy, setVorschlagBusy] = useState(false);
 
   const referenzJahr = useMemo(() => new Date().getUTCFullYear(), []);
+
+  // Auto-Create: jede anonId aus der Kuerzel-Map (= jedes TIB-Kuerzel in der
+  // Master-CSV) bekommt automatisch einen MA-Eintrag in `data.mitarbeiter`,
+  // sonst tauchen neue Kuerzel wie z.B. Umlaut-haltige (THü → THÜ → MA72)
+  // nicht in der Liste auf, obwohl sie Antraege haben. Default aktiv=true.
+  useEffect(() => {
+    if (!cache.loaded) return;
+    const anonIds = [...cache.anonymMap.toReal.keys()];
+    if (anonIds.length === 0) return;
+    void ensureMitarbeiterForAnonIds(storage, anonIds);
+  }, [cache.loaded, cache.anonymMap, ensureMitarbeiterForAnonIds, storage]);
 
   const vorschlag = useMemo(() => {
     if (vorschlagDismissed) return null;

@@ -10,7 +10,6 @@ import { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { CollapsibleSection } from '@/ui/CollapsibleSection';
 import { useAuslastungData } from '../hooks/useAuslastungData';
-import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { useDeAnonResolver } from '../components/AnonymIdBadge';
 import { computeQuartalsStatistik } from '../services/statistik';
@@ -24,28 +23,14 @@ function fmtH(n: number): string {
 export function StatistikPanel(): React.ReactElement {
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
   const config = useAuslastungData(s => s.data.config);
-  const cache = useAntraegeCache();
   const resolveName = useDeAnonResolver();
 
   // v2.9: gemeinsamer Provider-Memo statt eigener Berechnung.
   const { auslastungByAnon } = useAuslastungIndex();
 
-  // Deskriptoren ohne Zuordnung: alle Werte, die in KEINER Kategorie deskriptorenMapping liegen.
-  const deskriptorenOhneZuordnung = useMemo(() => {
-    const zugeordnet = new Set<string>();
-    for (const k of config.ueberKategorien) {
-      for (const d of k.deskriptorenMapping) zugeordnet.add(d.toLowerCase().trim());
-    }
-    let n = 0;
-    for (const d of cache.allDeskriptoren) {
-      if (!zugeordnet.has(d.wert.toLowerCase().trim())) n++;
-    }
-    return n;
-  }, [config.ueberKategorien, cache.allDeskriptoren]);
-
   const stats = useMemo(
-    () => computeQuartalsStatistik(mitarbeiter, auslastungByAnon, config, config.aktuellesQuartal, deskriptorenOhneZuordnung),
-    [mitarbeiter, auslastungByAnon, config, deskriptorenOhneZuordnung],
+    () => computeQuartalsStatistik(mitarbeiter, auslastungByAnon, config, config.aktuellesQuartal),
+    [mitarbeiter, auslastungByAnon, config],
   );
 
   // Max-Count fuer Bar-Skalierung in der Kategorien-Verteilung.
@@ -112,8 +97,7 @@ export function StatistikPanel(): React.ReactElement {
 
         {/* Warnungen */}
         {(stats.warnungen.ueberbuchteMAs.length > 0
-          || stats.warnungen.leereMAs.length > 0
-          || stats.warnungen.deskriptorenOhneZuordnung > 0) && (
+          || stats.warnungen.leereMAs.length > 0) && (
           <div className="flex flex-col gap-1.5">
             <span className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
               Warnungen
@@ -143,12 +127,6 @@ export function StatistikPanel(): React.ReactElement {
                   <span>
                     {stats.warnungen.leereMAs.length} aktive {stats.warnungen.leereMAs.length === 1 ? 'MA' : 'MAs'} ohne Buchungen im Quartal
                   </span>
-                </li>
-              )}
-              {stats.warnungen.deskriptorenOhneZuordnung > 0 && (
-                <li className="flex items-baseline gap-2 text-amber-700">
-                  <AlertTriangle size={12} className="shrink-0" />
-                  <span>{stats.warnungen.deskriptorenOhneZuordnung} Deskriptoren ohne Kategorie-Zuordnung</span>
                 </li>
               )}
             </ul>

@@ -3,8 +3,7 @@
  *
  * Aggregiert ueber alle MAs eines Quartals zu einer PL-Uebersichts-Sicht:
  * MA-Counts (aktiv/abgemeldet/ohne-Buchungen), Stunden-Bilanz, Antrags-
- * Bilanz, Warnungen (ueberbucht, leer, ohne Deskriptor-Zuordnung) und die
- * MA-Verteilung pro Kategorie.
+ * Bilanz, Warnungen (ueberbucht, leer) und die MA-Verteilung pro Kategorie.
  *
  * Pure-Funktion, testbar ohne React. Wird einmal pro Render im
  * `StatistikPanel` aufgerufen, kostet O(MAs) — fuer ~80 MAs unkritisch.
@@ -43,10 +42,6 @@ export interface QuartalsStatistik {
     ueberbuchteMAs: string[];
     /** Aktive MAs ohne fest+pending im Quartal — Pool ist frei. */
     leereMAs: string[];
-    /** Eingangs-Hinweis: Anzahl Deskriptoren ohne Kategorie-Zuordnung
-     *  (= reicht der Caller durch, kommt urspruenglich aus
-     *  `KategorienSection`-Style-Zaehler). */
-    deskriptorenOhneZuordnung: number;
   };
   kategorienVerteilung: Array<{
     id: string;
@@ -88,7 +83,6 @@ export function computeQuartalsStatistik(
   auslastungByAnon: Map<string, MaQuartalsAuslastung>,
   config: AuslastungConfig,
   quartal: string,
-  deskriptorenOhneZuordnung: number,
   now: Date = new Date(),
 ): QuartalsStatistik {
   const stundenProTV = Math.max(1, config.stundenProTV ?? 9);
@@ -150,7 +144,7 @@ export function computeQuartalsStatistik(
     ma: { aktiv, gesamt, abgemeldet, ohneBuchungen: leereMAs.length },
     kapazitaet: { effektivStunden, verbrauchteStunden, freiStunden, prozent },
     antraege: { fest, festTvs, pending, pendingTvs, freieTVs },
-    warnungen: { ueberbuchteMAs, leereMAs, deskriptorenOhneZuordnung },
+    warnungen: { ueberbuchteMAs, leereMAs },
     kategorienVerteilung,
   };
 }

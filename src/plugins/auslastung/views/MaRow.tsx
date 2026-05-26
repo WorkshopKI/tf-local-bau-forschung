@@ -47,7 +47,7 @@ interface Props {
   onUpsertAntragstyp: (anonId: string, next: AntragstypBucket[] | undefined) => Promise<void>;
 }
 
-/** "2025-Q4" → "Q4/25" — kompakter Format fuer das Altlast-Sub-Label. */
+/** "2025-Q4" → "Q4/25" — kompakter Format fuer das Sub-Label und Tooltips. */
 function formatQuartalShort(q: string): string {
   const m = /^(\d{4})-Q([1-4])$/.exec(q);
   if (!m || !m[1] || !m[2]) return q;
@@ -115,6 +115,18 @@ function MaRowImpl({
               vorgeschlagen={0}
               quartalsKapazitaet={kapView.effektivStunden}
               altlast={hasAltlast ? { stunden: altlast.stunden } : undefined}
+              mainTitle={
+                `Festgebucht: ${kapView.fest.antraege} ${kapView.fest.antraege === 1 ? 'Verbund' : 'Verbünde'}`
+                + ` mit ${kapView.fest.tvs} TV (in ${quartal})`
+                + (kapView.pending.antraege > 0
+                  ? ` · Pending: ${kapView.pending.antraege} ${kapView.pending.antraege === 1 ? 'Verbund' : 'Verbünde'} mit ${kapView.pending.tvs} TV`
+                  : '')
+              }
+              altlastTitle={hasAltlast
+                ? `Altanträge: ${altlast.antraege} ${altlast.antraege === 1 ? 'Verbund' : 'Verbünde'} mit ${altlast.tvs} TV`
+                  + ` (aus ${altlast.quartale.map(formatQuartalShort).join(' und ')})`
+                : undefined
+              }
               showLabels={false}
             />
           </div>
@@ -174,9 +186,13 @@ function MaRowImpl({
             {hasAltlast && (
               <> · <span
                 className="text-[var(--tf-text-secondary)]"
-                title="Noch offene Anträge aus den letzten 2 Quartalen (informativ, kein Ranking-Bezug)"
+                title={
+                  `Altanträge: ${altlast.antraege} ${altlast.antraege === 1 ? 'Verbund' : 'Verbünde'} mit ${altlast.tvs} TV`
+                  + ` (aus ${altlast.quartale.map(formatQuartalShort).join(' und ')})`
+                  + ' — informativ, kein Ranking-Bezug'
+                }
               >
-                Altlast: {altlast.tvs} TVs aus {altlast.quartale.map(formatQuartalShort).join(' + ')}
+                Altanträge: {altlast.antraege} ({altlast.tvs} TVs) aus {altlast.quartale.map(formatQuartalShort).join(' + ')}
               </span></>
             )}
             {` · ${ma.jahresKapazitaet}h/Jahr${(ma.abschlagProzent ?? 0) > 0 ? ` (−${ma.abschlagProzent}%)` : ''}`}

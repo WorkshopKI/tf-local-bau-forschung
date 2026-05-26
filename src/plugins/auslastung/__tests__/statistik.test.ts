@@ -100,7 +100,7 @@ describe('tageVergangenImQuartal', () => {
 
 describe('computeQuartalsStatistik', () => {
   it('leere Eingabe → alles 0', () => {
-    const s = computeQuartalsStatistik({}, new Map(), makeConfig(), '2026-Q2', 0, new Date(2026, 3, 15));
+    const s = computeQuartalsStatistik({}, new Map(), makeConfig(), '2026-Q2', new Date(2026, 3, 15));
     expect(s.ma.aktiv).toBe(0);
     expect(s.ma.gesamt).toBe(0);
     expect(s.kapazitaet.effektivStunden).toBe(0);
@@ -116,7 +116,7 @@ describe('computeQuartalsStatistik', () => {
       MA02: makeMa({ anonId: 'MA02', aktiv: false }),
       MA03: makeMa({ anonId: 'MA03', aktiv: true }),
     };
-    const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig(), '2026-Q2', 0);
+    const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig(), '2026-Q2');
     expect(s.ma.aktiv).toBe(2);
     expect(s.ma.gesamt).toBe(3);
   });
@@ -126,7 +126,7 @@ describe('computeQuartalsStatistik', () => {
       MA01: makeMa({ anonId: 'MA01', aktiv: true, jahresKapazitaet: 800 }),  // 200 h/Q
       MA02: makeMa({ anonId: 'MA02', aktiv: false, jahresKapazitaet: 800 }), // ausgeschlossen
     };
-    const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig(), '2026-Q2', 0);
+    const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig(), '2026-Q2');
     expect(s.kapazitaet.effektivStunden).toBe(200);
   });
 
@@ -136,7 +136,7 @@ describe('computeQuartalsStatistik', () => {
       MA02: makeMa({ anonId: 'MA02', abgemeldet: ['2026-Q1'] }),  // anderes Quartal
       MA03: makeMa({ anonId: 'MA03', abgemeldet: [] }),
     };
-    const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig(), '2026-Q2', 0);
+    const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig(), '2026-Q2');
     expect(s.ma.abgemeldet).toBe(1);
   });
 
@@ -150,7 +150,7 @@ describe('computeQuartalsStatistik', () => {
         { antraege: 1, tvs: 1, stunden: 9 },
       )],
     ]);
-    const s = computeQuartalsStatistik(mitarbeiter, auslastung, makeConfig(), '2026-Q2', 0);
+    const s = computeQuartalsStatistik(mitarbeiter, auslastung, makeConfig(), '2026-Q2');
     expect(s.kapazitaet.verbrauchteStunden).toBe(45);
     expect(s.kapazitaet.freiStunden).toBe(155);
     expect(s.kapazitaet.prozent).toBe(23);  // round(45/200*100)
@@ -170,7 +170,7 @@ describe('computeQuartalsStatistik', () => {
       ['MA01', makeAuslastung({ stunden: 36 })],  // ueberbucht!
       ['MA02', makeAuslastung({ stunden: 36 })],  // ok
     ]);
-    const s = computeQuartalsStatistik(mitarbeiter, auslastung, makeConfig(), '2026-Q2', 0);
+    const s = computeQuartalsStatistik(mitarbeiter, auslastung, makeConfig(), '2026-Q2');
     expect(s.warnungen.ueberbuchteMAs).toEqual(['MA01']);
   });
 
@@ -182,7 +182,7 @@ describe('computeQuartalsStatistik', () => {
     const auslastung = new Map<string, MaQuartalsAuslastung>([
       ['MA01', makeAuslastung({ stunden: 9 })],
     ]);
-    const s = computeQuartalsStatistik(mitarbeiter, auslastung, makeConfig(), '2026-Q2', 0);
+    const s = computeQuartalsStatistik(mitarbeiter, auslastung, makeConfig(), '2026-Q2');
     expect(s.warnungen.leereMAs).toEqual(['MA02']);
     expect(s.ma.ohneBuchungen).toBe(1);
   });
@@ -197,7 +197,7 @@ describe('computeQuartalsStatistik', () => {
       MA04: makeMa({ anonId: 'MA04', hauptKategorie: 'DT' }),
       MA05: makeMa({ anonId: 'MA05', hauptKategorie: 'DT' }),
     };
-    const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig([it, dt]), '2026-Q2', 0);
+    const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig([it, dt]), '2026-Q2');
     const itEntry = s.kategorienVerteilung.find(e => e.id === 'IT')!;
     const dtEntry = s.kategorienVerteilung.find(e => e.id === 'DT')!;
     expect(itEntry.aktiveCount).toBe(3);
@@ -209,23 +209,18 @@ describe('computeQuartalsStatistik', () => {
   it('Quartal-Fortschritt-Prozent korrekt', () => {
     const s = computeQuartalsStatistik(
       {}, new Map(), makeConfig(), '2026-Q2',
-      0, new Date(2026, 4, 16, 12, 0, 0),  // Mitte Mai = Q2-Tag 46
+      new Date(2026, 4, 16, 12, 0, 0),  // Mitte Mai = Q2-Tag 46
     );
     expect(s.quartal.tageGesamt).toBe(91);
     expect(s.quartal.tagAktuell).toBe(46);
     expect(s.quartal.fortschrittProzent).toBe(51);  // round(46/91*100)
   });
 
-  it('deskriptorenOhneZuordnung wird durchgereicht', () => {
-    const s = computeQuartalsStatistik({}, new Map(), makeConfig(), '2026-Q2', 11);
-    expect(s.warnungen.deskriptorenOhneZuordnung).toBe(11);
-  });
-
   it('Abschlag reduziert effektivStunden', () => {
     const mitarbeiter = {
       MA01: makeMa({ anonId: 'MA01', jahresKapazitaet: 800, abschlagProzent: 25 }),
     };
-    const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig(), '2026-Q2', 0);
+    const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig(), '2026-Q2');
     expect(s.kapazitaet.effektivStunden).toBe(150);  // 800 × 0.75 / 4
   });
 });
