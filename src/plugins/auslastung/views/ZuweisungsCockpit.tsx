@@ -37,7 +37,7 @@ import { ConfidenceDot } from '../components/ConfidenceDot';
 import { TechnologieTags } from '../components/TechnologieTags';
 import { VorschlagCard } from '../components/VorschlagCard';
 import { tageImQuartal as computeTageImQuartal } from '../services/kapazitaet';
-import { AnonymIdBadge } from '../components/AnonymIdBadge';
+import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
 import { PasswortDialog } from '../components/PasswortDialog';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
 import { exportAnonymousXlsx, exportProtectedZip } from '../services/export-service';
@@ -384,6 +384,7 @@ function DetailPanel({
   onAblehnen: (m: MatchResult) => void;
   tageImQuartal: number;
 }): React.ReactElement {
+  const resolveName = useDeAnonResolver();
   const akt = antrag[CANONICAL_AKRONYM] as string | undefined;
   const vbTitel = antrag[CANONICAL_VERBUND_TITEL] as string | undefined;
   const tvTitel = antrag[CANONICAL_TITEL] as string | undefined;
@@ -428,7 +429,7 @@ function DetailPanel({
       {selbstEintragung && (
         <div className="rounded p-2.5 flex items-center justify-between text-[12px]" style={{ background: 'var(--tf-info-soft, #dbeafe)', color: '#075985' }}>
           <span>
-            <AnonymIdBadge anonId={selbstEintragung.anonId} size="sm" /> hat sich selbst eingetragen
+            <AnonymIdBadge anonId={selbstEintragung.anonId} size="sm" realName={resolveName(selbstEintragung.anonId)} /> hat sich selbst eingetragen
           </span>
           <button
             type="button"
@@ -504,7 +505,7 @@ function DetailPanel({
               const ma = mitarbeiter[z.anonId];
               return (
                 <li key={z.anonId} className="flex items-center gap-2">
-                  <AnonymIdBadge anonId={z.anonId} size="sm" />
+                  <AnonymIdBadge anonId={z.anonId} size="sm" realName={resolveName(z.anonId)} />
                   <span className="text-[var(--tf-text-secondary)]">{z.status}</span>
                   <span className="text-[var(--tf-text-tertiary)]">· {z.stunden}h</span>
                   {ma && <span className="text-[var(--tf-text-tertiary)]">· Q {z.quartal}</span>}

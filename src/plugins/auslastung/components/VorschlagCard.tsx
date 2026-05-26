@@ -5,7 +5,7 @@
  * Technologien, aehnliche Projekte, Zuweisen/Ablehnen-Buttons.
  */
 import type { MatchResult, UeberKategorie } from '../types';
-import { AnonymIdBadge } from './AnonymIdBadge';
+import { AnonymIdBadge, useDeAnonName } from './AnonymIdBadge';
 import { ConfidenceDot } from './ConfidenceDot';
 import { TechnologieTags } from './TechnologieTags';
 import { useAuslastungData } from '../hooks/useAuslastungData';
@@ -44,6 +44,7 @@ export function VorschlagCard({
   const aspektMatchKategorien = (match.aspektMatchIds ?? [])
     .map(id => kategorienById.get(id))
     .filter((k): k is UeberKategorie => k != null);
+  const realName = useDeAnonName(match.anonId);
 
   return (
     <div
@@ -53,7 +54,7 @@ export function VorschlagCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <AnonymIdBadge anonId={match.anonId} size="lg" />
+          <AnonymIdBadge anonId={match.anonId} size="lg" realName={realName} />
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className="text-[16px] font-medium text-[var(--tf-text)]">{score}%</span>

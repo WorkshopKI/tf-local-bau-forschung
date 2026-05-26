@@ -11,7 +11,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { applyOnboardingImport, parseOnboardingXlsx, type OnboardingPreview } from '../services/onboarding-import';
-import { AnonymIdBadge } from './AnonymIdBadge';
+import { AnonymIdBadge, useDeAnonResolver } from './AnonymIdBadge';
 import { KategoriePill } from './KategoriePill';
 import { useDialogEsc } from './useDialogEsc';
 
@@ -32,6 +32,7 @@ export function OnboardingImportDialog({ open, onClose, onCalibrate }: Props): R
   const data = useAuslastungData(s => s.data);
   const cache = useAntraegeCache();
   const kategorien = data.config.ueberKategorien;
+  const resolveName = useDeAnonResolver();
   const [items, setItems] = useState<Item[]>([]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -128,9 +129,9 @@ export function OnboardingImportDialog({ open, onClose, onCalibrate }: Props): R
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-[12px]">{p.effektivesKuerzel ?? '—'}</span>
                       {p.existierterAnonId ? (
-                        <AnonymIdBadge anonId={p.existierterAnonId} size="sm" />
+                        <AnonymIdBadge anonId={p.existierterAnonId} size="sm" realName={resolveName(p.existierterAnonId)} />
                       ) : (
-                        p.vorgeschlageneAnonId && <AnonymIdBadge anonId={p.vorgeschlageneAnonId} size="sm" />
+                        p.vorgeschlageneAnonId && <AnonymIdBadge anonId={p.vorgeschlageneAnonId} size="sm" realName={resolveName(p.vorgeschlageneAnonId)} />
                       )}
                       {isKalibrierung && (
                         <span className="text-[10.5px] px-2 py-0.5 rounded" style={{ background: '#dbeafe', color: '#075985' }}>

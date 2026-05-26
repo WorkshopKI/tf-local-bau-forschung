@@ -12,7 +12,7 @@
 import { useMemo, useState } from 'react';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
-import { AnonymIdBadge } from '../components/AnonymIdBadge';
+import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
 import { KategoriePill } from '../components/KategoriePill';
 import { KapazitaetsBalken } from '../components/KapazitaetsBalken';
 import { computeKapazitaet } from '../services/kapazitaet';
@@ -64,6 +64,7 @@ export function KapazitaetsSection(): React.ReactElement {
 
   const openMaObj = openMa ? mitarbeiter[openMa] : null;
   const openMaAuslastung = openMa ? (auslastungByAnon.get(openMa) ?? EMPTY_AUSLASTUNG) : EMPTY_AUSLASTUNG;
+  const resolveName = useDeAnonResolver();
 
   return (
     <div className="rounded-[12px] p-4 flex flex-col gap-3" style={{ border: '0.5px solid var(--tf-border)' }}>
@@ -128,7 +129,7 @@ export function KapazitaetsSection(): React.ReactElement {
               style={{ borderBottom: '0.5px solid var(--tf-border)' }}
               onClick={() => setOpenMa(ma.anonId)}
             >
-              <AnonymIdBadge anonId={ma.anonId} />
+              <AnonymIdBadge anonId={ma.anonId} realName={resolveName(ma.anonId)} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   {hauptKat && <KategoriePill kategorie={hauptKat} active />}
@@ -195,6 +196,7 @@ export function KapazitaetsSection(): React.ReactElement {
           quartal={config.aktuellesQuartal}
           kategorien={config.ueberKategorien}
           auslastung={openMaAuslastung}
+          realName={resolveName(openMaObj.anonId)}
           onClose={() => setOpenMa(null)}
         />
       )}
@@ -203,12 +205,13 @@ export function KapazitaetsSection(): React.ReactElement {
 }
 
 function MaReadFlyout({
-  ma, quartal, kategorien, auslastung, onClose,
+  ma, quartal, kategorien, auslastung, realName, onClose,
 }: {
   ma: AnonymerMitarbeiter;
   quartal: string;
   kategorien: import('../types').UeberKategorie[];
   auslastung: MaQuartalsAuslastung;
+  realName: string | null;
   onClose: () => void;
 }): React.ReactElement {
   const haupt = ma.hauptKategorie || ma.ueberKategorien?.[0] || '';
@@ -229,7 +232,7 @@ function MaReadFlyout({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <AnonymIdBadge anonId={ma.anonId} size="lg" />
+            <AnonymIdBadge anonId={ma.anonId} size="lg" realName={realName} />
             <div className="flex flex-col gap-1">
               <div className="flex gap-1">
                 {hauptKat && <KategoriePill kategorie={hauptKat} active />}

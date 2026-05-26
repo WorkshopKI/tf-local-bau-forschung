@@ -41,6 +41,19 @@ export const KURATOR_NAME_LOCAL_IDB_KEY = 'admin-name-local';
 
 export const DEFAULT_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
+/** v2.5: De-Anonymisierungs-Session (24h TTL, Activity-verlaengert). */
+export const DEANON_SESSION_META_IDB_KEY = 'deanon-session-meta';
+export const DEFAULT_DEANON_TTL_MS = 24 * 60 * 60 * 1000;
+
+export interface DeAnonConfigPlain {
+  version: 1;
+  created: string;
+}
+
+export interface DeAnonSessionMeta {
+  expiresAt: number;
+}
+
 /** Programm-Ordner-Name (v1.9). Migration aus `programm-test/` liegt in migration.ts. */
 export const PROGRAMM_DIR_NAME = 'programm';
 /** @deprecated Vor v1.9. Migration-Helper prüft auf diesen Namen. */
@@ -56,6 +69,9 @@ export const INTERN_DIR = '_intern';
 export const INTERN_FEEDBACK_DIR = '_intern/feedback';
 export const AUDIT_LOG_PATH = '_intern/audit-log.jsonl';
 export const KURATOR_CONFIG_PATH = '_intern/kurator-config.enc';
+/** v2.5: De-Anonymisierungs-Passwort fuer PL — schaltet die Klartext-Anzeige
+ *  der TIB-Kuerzel (statt MA01..MAxx) in den dev + pl Varianten frei. */
+export const DEANON_CONFIG_PATH = '_intern/deanon-config.enc';
 export const BUILD_LOCK_PATH = '_intern/build-lock.json';
 export const HEARTBEAT_PROBE_PATH = '_intern/heartbeat-probe';
 export const SCAN_MANIFEST_PATH = '_intern/scan-manifest.json';

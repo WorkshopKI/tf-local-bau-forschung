@@ -63,6 +63,11 @@ export function isAuslastungSelbstEintragungEnabled(): boolean {
   }
   return features.auslastung === true;
 }
+/** v2.5: Klartext-Anzeige der TIB-Kuerzel im Auslastungs-Modul, mit Passwort
+ *  freischaltbar (24h-Session). Nur in dev + pl Varianten aktiviert. */
+export function isDeAnonymisierungEnabled(): boolean {
+  return features.deAnonymisierung === true;
+}
 export function isChatEnabled(): boolean { return features.chat; }
 export function isSucheEnabled(): boolean { return features.suche; }
 export function isFeedbackBoardEnabled(): boolean { return features.feedbackBoard; }

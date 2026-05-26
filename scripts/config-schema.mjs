@@ -104,6 +104,11 @@ export const DEFAULT_CONFIG = {
      *  passende Antraege seiner Hauptkategorie auf der Home. Default false,
      *  damit prod-Builds das Feature explizit aktivieren. */
     auslastungSelbstEintragung: false,
+    /** v2.5: Klartext-Anzeige der TIB-Kuerzel im Auslastungs-Modul, nach
+     *  Passwort-Eingabe freischaltbar (24h-Session). Nur in dev + pl
+     *  Varianten aktiviert, die auf einem geschuetzten SMB-Bereich liegen
+     *  und nur von der PL aufgerufen werden. */
+    deAnonymisierung: false,
     // User-Plugin-Gates: getrennt von den Master-Flags volltextsuche/feedback,
     // damit Varianten den Kurator-Index/Feedback-Verwaltung freischalten können,
     // ohne dass das User-Suche-Plugin oder das User-Feedback-Board in der
@@ -243,6 +248,7 @@ export function validateConfig(config) {
   const requiredFlags = [
     'kuratorMenus', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
     'antraege', 'bauantraege', 'dokumente', 'auslastung', 'auslastungSelbstEintragung',
+    'deAnonymisierung',
     'chat', 'suche', 'feedbackBoard',
   ];
   for (const k of requiredFlags) {

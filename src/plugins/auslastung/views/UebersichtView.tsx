@@ -25,6 +25,8 @@ import { EmbeddingCorpusSection } from './admin/EmbeddingCorpusSection';
 import { MitarbeiterSection } from './admin/MitarbeiterSection';
 import { ImportExportSection } from './admin/ImportExportSection';
 import { KapazitaetsSection } from './KapazitaetsSection';
+import { DeAnonPanel } from '../components/DeAnonPanel';
+import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
 
 export function UebersichtView(): React.ReactElement {
   const storage = useStorage();
@@ -53,6 +55,7 @@ export function UebersichtView(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-4">
+      {isDeAnonymisierungEnabled() && <DeAnonPanel />}
       <KapazitaetsSection />
       <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
       <MitarbeiterSection storage={storage} cache={cache} />

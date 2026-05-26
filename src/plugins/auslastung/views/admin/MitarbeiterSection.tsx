@@ -13,7 +13,7 @@ import { ALL_ANTRAGSTYP_BUCKETS } from '../../types';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { getEffectiveAntragstypen, hasPlOverride } from '../../services/antragstyp-praeferenz';
 import type { useAntraegeCache } from '../../hooks/useAntraegeCache';
-import { AnonymIdBadge } from '../../components/AnonymIdBadge';
+import { AnonymIdBadge, useDeAnonResolver } from '../../components/AnonymIdBadge';
 import { KategoriePill } from '../../components/KategoriePill';
 import { TechnologieTags } from '../../components/TechnologieTags';
 import { PasswortDialog } from '../../components/PasswortDialog';
@@ -46,6 +46,7 @@ export function MitarbeiterSection({ storage, cache }: Props): React.ReactElemen
   const setAktiv = useAuslastungData(s => s.setMitarbeiterAktiv);
   const applyAktivMap = useAuslastungData(s => s.applyAktivMap);
 
+  const resolveName = useDeAnonResolver();
   const [editId, setEditId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [calibPreviews, setCalibPreviews] = useState<OnboardingPreview[] | null>(null);
@@ -169,7 +170,7 @@ export function MitarbeiterSection({ storage, cache }: Props): React.ReactElemen
                   opacity: ma.aktiv ? 1 : 0.55,
                 }}
               >
-                <td className="px-2 py-1.5"><AnonymIdBadge anonId={ma.anonId} /></td>
+                <td className="px-2 py-1.5"><AnonymIdBadge anonId={ma.anonId} realName={resolveName(ma.anonId)} /></td>
                 <td className="px-2 py-1.5 text-[var(--tf-text-secondary)]">{ma.jahresKapazitaet}h</td>
                 <td className="px-2 py-1.5">
                   <div className="flex flex-wrap gap-1">

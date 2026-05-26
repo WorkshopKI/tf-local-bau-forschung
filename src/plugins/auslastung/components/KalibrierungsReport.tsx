@@ -30,7 +30,7 @@ import {
 import { CANONICAL_TIB_KUERZ, CANONICAL_VERBUND_TITEL, type KalibrierungsErgebnis } from '../types';
 import type { OnboardingPreview } from '../services/onboarding-import';
 import { normalizeKuerzel } from '../services/anonym-map';
-import { AnonymIdBadge } from './AnonymIdBadge';
+import { AnonymIdBadge, useDeAnonName, useDeAnonResolver } from './AnonymIdBadge';
 import type { Antrag } from '@/core/services/csv/types';
 
 interface Props {
@@ -287,11 +287,13 @@ function SingleMaView({ result, scope, onApply }: { result: PerMaResult; scope: 
     return [...grid].sort((a, b) => b.spearman - a.spearman).slice(0, 10);
   }, [grid]);
 
+  const singleRealName = useDeAnonName(result.anonId);
+
   return (
     <div className="flex flex-col gap-4 p-1">
       <div className="flex items-center gap-3">
         <Ampel spearman={single.spearman} accuracy={accuracy} />
-        <AnonymIdBadge anonId={result.anonId} />
+        <AnonymIdBadge anonId={result.anonId} realName={singleRealName} />
         <span className="text-[12px] text-[var(--tf-text-tertiary)]">{preview.bewertungen.length} Bewertungen · {result.histAntraege.length} hist. Anträge</span>
       </div>
 
@@ -389,6 +391,7 @@ function AggregateView({ results, aggregate, onApply }: {
   // Ausreisser: > 1 sigma vom Mittel
   const stddev = Math.sqrt(results.reduce((s, r) => s + Math.pow(r.single.spearman - meanSpearman, 2), 0) / results.length);
   const ausreisser = results.filter(r => Math.abs(r.single.spearman - meanSpearman) > stddev);
+  const resolveName = useDeAnonResolver();
 
   return (
     <div className="flex flex-col gap-4 p-1">
@@ -423,7 +426,7 @@ function AggregateView({ results, aggregate, onApply }: {
                 const isAusreisser = ausreisser.includes(r);
                 return (
                   <tr key={r.anonId} style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-                    <td className="px-2 py-1"><AnonymIdBadge anonId={r.anonId} size="sm" /></td>
+                    <td className="px-2 py-1"><AnonymIdBadge anonId={r.anonId} size="sm" realName={resolveName(r.anonId)} /></td>
                     <td className="px-2 py-1 text-right font-mono">{r.single.spearman.toFixed(2)}</td>
                     <td className="px-2 py-1 text-right font-mono">{Math.round(r.single.top3Overlap * 100)}%</td>
                     <td className="px-2 py-1 text-right font-mono">{Math.round(r.accuracy * 100)}%</td>

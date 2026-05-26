@@ -29,6 +29,7 @@
     "dokumente": false,
     "auslastung": false,
     "auslastungSelbstEintragung": false,
+    "deAnonymisierung": false,
     "chat": false,
     "suche": false,
     "feedbackBoard": true

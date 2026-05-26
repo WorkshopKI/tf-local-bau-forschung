@@ -54,6 +54,10 @@ export interface TeamflowFeatures {
    *  zeigen ohne das volle PL-Plugin in der Sidebar. Optional fuer
    *  Backwards-Kompat mit pre-1.17-Configs — Fallback ist `auslastung`. */
   auslastungSelbstEintragung?: boolean;
+  /** v2.5: Klartext-Anzeige der TIB-Kuerzel im Auslastungs-Modul (passwort-
+   *  geschuetzt, 24h-Session). Nur in dev/pl-Varianten aktiviert, die auf
+   *  einem geschuetzten SMB-Bereich liegen. */
+  deAnonymisierung: boolean;
   /** User-Plugin "Chat" (AI-Chat). Build-Time-Gate, unabhängig von KI-Backend-Config. */
   chat: boolean;
   /** User-Plugin "Suche" (Hybrid-Suche). Trennt sich von `volltextsuche` (das gated den Suchindex-Kurator). */
