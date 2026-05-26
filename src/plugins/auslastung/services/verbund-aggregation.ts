@@ -26,6 +26,11 @@ export interface VerbundKlassifizierungsView {
   /** Stabile ID — `verbund_id` bei Verbund-Antraegen, sonst `aktenzeichen` als
    *  Pseudo-ID (Solo-TV als 1er-Verbund). */
   verbundId: string;
+  /** True wenn dieser Verbund nur 1 TV hat — dann sind TV-Sub-Rows in der UI
+   *  redundant (zeigen identische Daten wie der Header). UI rendert
+   *  TV-Sub-Rows nur bei `!isSolo`. Achtung: das hat NICHTS damit zu tun, ob
+   *  `verbund_id` gesetzt ist — auch ein "Einzel-Antrag mit verbund_id" ist
+   *  ein Solo-Verbund aus UI-Sicht. */
   isSolo: boolean;
   akronym: string;
   verbundTitel: string;
@@ -86,8 +91,10 @@ export function buildVerbundClassificationViews(
     // FKZ-Sortierung innerhalb des Verbundes (lexikografisch).
     tvs.sort((a, b) => a.aktenzeichen.localeCompare(b.aktenzeichen, 'de'));
     const rep = tvs[0]!;
-    const verbundIdValue = readString(rep, CANONICAL_VERBUND_ID);
-    const isSolo = verbundIdValue.length === 0;
+    // isSolo prueft die TV-Anzahl, NICHT ob verbund_id leer ist — sonst wuerde
+    // ein Einzelantrag mit gesetzter verbund_id eine redundante TV-Sub-Row in
+    // der Klassifizierungs-Tabelle bekommen (Header + 1 identische Sub-Row).
+    const isSolo = tvs.length === 1;
     const akronym = readString(rep, CANONICAL_AKRONYM);
     const verbundTitel = readString(rep, CANONICAL_VERBUND_TITEL) || readString(rep, CANONICAL_TITEL);
 
