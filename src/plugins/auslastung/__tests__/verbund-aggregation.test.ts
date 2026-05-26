@@ -8,7 +8,7 @@
  * Antraege mit gesetzter verbund_id bekamen so eine doppelte Zeile.
  */
 import { describe, it, expect } from 'vitest';
-import type { Antrag } from '@/core/services/csv/types';
+import type { Antrag, Verbund } from '@/core/services/csv/types';
 import { buildVerbundClassificationViews } from '../services/verbund-aggregation';
 
 function makeAntrag(overrides: Partial<Antrag> & Pick<Antrag, 'aktenzeichen'>): Antrag {
@@ -16,6 +16,14 @@ function makeAntrag(overrides: Partial<Antrag> & Pick<Antrag, 'aktenzeichen'>): 
     _updated_at: '2026-04-15T12:00:00Z',
     ...overrides,
   } as Antrag;
+}
+
+function makeVerbund(overrides: Partial<Verbund> & Pick<Verbund, 'verbund_id'>): Verbund {
+  return {
+    programm_id: 'p1',
+    teilantrags_ids: [],
+    ...overrides,
+  } as Verbund;
 }
 
 describe('buildVerbundClassificationViews — isSolo', () => {
@@ -74,5 +82,64 @@ describe('buildVerbundClassificationViews — isSolo', () => {
     expect(views).toHaveLength(4);
     const soloFlags = views.map(v => v.isSolo).sort();
     expect(soloFlags).toEqual([false, true, true, true]);
+  });
+});
+
+describe('buildVerbundClassificationViews — verbuendeById (Verbund-Store-Lookup)', () => {
+  it('Verbund-Objekt vorhanden → titel + akronym aus dem Verbund-Store', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: '16KN127430', verbund_id: 'V1', titel: 'H2Select - EcoPlay / Entwicklung der Extrusionsparameter' }),
+      makeAntrag({ aktenzeichen: '16KN127431', verbund_id: 'V1', titel: 'H2Select - EcoPlay / Entwicklung Inline-Messeinrichtungen' }),
+    ];
+    const verbuendeById = new Map<string, Verbund>([
+      ['V1', makeVerbund({ verbund_id: 'V1', titel: 'EcoPlay-Verbund', akronym: 'ECOPLAY' })],
+    ]);
+    const views = buildVerbundClassificationViews(antraege, [], [], undefined, undefined, verbuendeById);
+    expect(views[0]?.verbundTitel).toBe('EcoPlay-Verbund');
+    expect(views[0]?.akronym).toBe('ECOPLAY');
+  });
+
+  it('Verbund-Objekt fehlt → Fallback auf Antrag-Felder (Solo-Antrag)', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'A1', akronym: 'SOLO-AK', titel: 'Solo-Titel' }),
+    ];
+    const verbuendeById = new Map<string, Verbund>();
+    const views = buildVerbundClassificationViews(antraege, [], [], undefined, undefined, verbuendeById);
+    expect(views[0]?.akronym).toBe('SOLO-AK');
+    expect(views[0]?.verbundTitel).toBe('Solo-Titel');
+  });
+
+  it('Verbund-Objekt mit leerem titel → Fallback auf TV1.verbund_titel/titel', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'B1', verbund_id: 'V2', titel: 'TV1-Titel-Fallback' }),
+    ];
+    const verbuendeById = new Map<string, Verbund>([
+      ['V2', makeVerbund({ verbund_id: 'V2', titel: '', akronym: '' })],
+    ]);
+    const views = buildVerbundClassificationViews(antraege, [], [], undefined, undefined, verbuendeById);
+    expect(views[0]?.verbundTitel).toBe('TV1-Titel-Fallback');
+  });
+
+  it('Backward-Kompat: verbuendeById === undefined → Verhalten wie zuvor', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'C1', titel: 'Default-Titel' }),
+    ];
+    const views = buildVerbundClassificationViews(antraege, [], []);
+    expect(views[0]?.verbundTitel).toBe('Default-Titel');
+  });
+
+  it('Multi-TV-Verbund mit Verbund-Objekt → ein View mit Verbund-Titel + 2 TVs', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'X1', verbund_id: 'VX', titel: 'XTV1' }),
+      makeAntrag({ aktenzeichen: 'X2', verbund_id: 'VX', titel: 'XTV2' }),
+    ];
+    const verbuendeById = new Map<string, Verbund>([
+      ['VX', makeVerbund({ verbund_id: 'VX', titel: 'Gemeinsamer Verbund-Titel', akronym: 'GVT' })],
+    ]);
+    const views = buildVerbundClassificationViews(antraege, [], [], undefined, undefined, verbuendeById);
+    expect(views).toHaveLength(1);
+    expect(views[0]?.verbundTitel).toBe('Gemeinsamer Verbund-Titel');
+    expect(views[0]?.tvs).toHaveLength(2);
+    expect(views[0]?.isSolo).toBe(false);
   });
 });

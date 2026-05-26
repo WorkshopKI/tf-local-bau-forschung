@@ -130,16 +130,17 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       sortable: true,
       width: 180,
       wrap: true,
+      // Sort/Filter weiterhin auf TV1-AST (deterministisch, fuer Solo + Multi).
       accessor: v => leadAntrag(v).antragsteller ?? '',
       render: v => {
+        // AST ist TV-Eigenschaft. Bei Multi-TV haben die TVs unterschiedliche
+        // AST-Namen → der Header zeigt nichts; jede Sub-Row zeigt ihren eigenen.
+        // Bei Solo-Verbund (1 TV) gibt's keine Sub-Row → AST hier rendern.
+        if (!v.isSolo) return null;
         const ast = leadAntrag(v).antragsteller ?? '';
-        if (!ast) return null;
-        const extra = v.tvs.length > 1 ? ` +${v.tvs.length - 1}` : '';
-        return (
-          <span className="text-[11.5px]" title={ast}>
-            {ast}{extra && <span className="text-[var(--tf-text-tertiary)]">{extra}</span>}
-          </span>
-        );
+        return ast
+          ? <span className="text-[11.5px]" title={ast}>{ast}</span>
+          : null;
       },
       renderTV: tv => {
         const ast = tv.antragsteller ?? '';

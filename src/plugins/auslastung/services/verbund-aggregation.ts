@@ -11,7 +11,7 @@
  * Solo-TVs (kein `verbund_id`) werden als 1er-Verbund behandelt, damit die
  * Liste eine einheitliche Render-Logik hat.
  */
-import type { Antrag } from '@/core/services/csv/types';
+import type { Antrag, Verbund } from '@/core/services/csv/types';
 import {
   CANONICAL_AKRONYM,
   CANONICAL_VERBUND_ID,
@@ -68,6 +68,7 @@ export function buildVerbundClassificationViews(
   persisted: Klassifizierung[],
   verbundEmbeddings?: Map<string, number[]>,
   stage2Aktiv?: boolean,
+  verbuendeById?: ReadonlyMap<string, Verbund>,
 ): VerbundKlassifizierungsView[] {
   // 1) Bucket nach Verbund-Key, Reihenfolge der ersten Sichtung beibehalten.
   const persistedById = new Map(persisted.map(k => [k.antragId, k]));
@@ -95,8 +96,17 @@ export function buildVerbundClassificationViews(
     // ein Einzelantrag mit gesetzter verbund_id eine redundante TV-Sub-Row in
     // der Klassifizierungs-Tabelle bekommen (Header + 1 identische Sub-Row).
     const isSolo = tvs.length === 1;
-    const akronym = readString(rep, CANONICAL_AKRONYM);
-    const verbundTitel = readString(rep, CANONICAL_VERBUND_TITEL) || readString(rep, CANONICAL_TITEL);
+    // Verbund-Level-Felder (akronym, titel) stehen NICHT auf dem Antrag-Objekt,
+    // sondern im separaten `verbuende`-IDB-Store (CSV-Merger schreibt Felder
+    // mit `level: 'verbund'` dort hin). Fallback auf Antrag-Felder fuer Solo-
+    // Antraege ohne Verbund-Objekt oder bei Backward-Kompat (Map undefined).
+    const verbund = verbuendeById?.get(key);
+    const akronym = (verbund?.akronym && verbund.akronym.length > 0)
+      ? verbund.akronym
+      : readString(rep, CANONICAL_AKRONYM);
+    const verbundTitel = (verbund?.titel && verbund.titel.length > 0)
+      ? verbund.titel
+      : readString(rep, CANONICAL_VERBUND_TITEL) || readString(rep, CANONICAL_TITEL);
 
     // Persistierte Klassifizierung — pruefe alle TVs (sollten gleich sein,
     // nimm den ersten Treffer).

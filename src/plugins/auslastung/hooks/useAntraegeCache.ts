@@ -21,8 +21,8 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { create } from 'zustand';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
-import type { Antrag } from '@/core/services/csv/types';
+import { listAntraegeByProgramm, listVerbuendeByProgramm } from '@/core/services/csv/idb-csv';
+import type { Antrag, Verbund } from '@/core/services/csv/types';
 import type { StorageService } from '@/core/services/storage';
 import { type AnonymMap } from '../services/anonym-map';
 import { buildAnonymMapFromKuerzelMap } from '../services/kuerzel-map';
@@ -31,6 +31,11 @@ import { aggregateAstByAnon, aggregateMaProfilesByAnon, collectAllDeskriptorenMi
 
 interface AntraegeCache {
   antraege: Antrag[];
+  /** Pro `verbund_id` das Verbund-Objekt aus dem `verbuende`-IDB-Store.
+   *  Wird benoetigt fuer den korrekten Verbund-Titel + Akronym in der UI +
+   *  im LLM-Klassifizierungs-Prompt (Verbund-Level-Felder werden vom
+   *  CSV-Merger separat gespeichert, nicht auf dem Antrag-Objekt). */
+  verbuendeById: Map<string, Verbund>;
   loading: boolean;
   loaded: boolean;
   error: string | null;
@@ -45,6 +50,7 @@ interface AntraegeCache {
 
 interface CacheStoreState {
   antraege: Antrag[];
+  verbuende: Verbund[];
   loading: boolean;
   loaded: boolean;
   error: string | null;
@@ -60,6 +66,7 @@ interface CacheStoreState {
 
 const useCacheStore = create<CacheStoreState>((set, get) => ({
   antraege: [],
+  verbuende: [],
   loading: false,
   loaded: false,
   error: null,
@@ -75,15 +82,20 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
       return;
     }
     if (!programmId) {
-      set({ antraege: [], loaded: true, error: null, cachedProgrammId: null });
+      set({ antraege: [], verbuende: [], loaded: true, error: null, cachedProgrammId: null });
       return;
     }
     const promise = (async () => {
       set({ loading: true, error: null });
       try {
-        const all = await listAntraegeByProgramm(storage.idb, programmId);
+        // Antraege + Verbuende parallel laden (gleiche IDB, verschiedene Stores).
+        const [allAntraege, allVerbuende] = await Promise.all([
+          listAntraegeByProgramm(storage.idb, programmId),
+          listVerbuendeByProgramm(storage.idb, programmId),
+        ]);
         set({
-          antraege: all,
+          antraege: allAntraege,
+          verbuende: allVerbuende,
           loaded: true,
           loading: false,
           error: null,
@@ -102,7 +114,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
     await promise;
   },
   invalidate: () => {
-    set({ antraege: [], loaded: false, cachedProgrammId: null, error: null });
+    set({ antraege: [], verbuende: [], loaded: false, cachedProgrammId: null, error: null });
   },
 }));
 
@@ -115,6 +127,7 @@ export function useAntraegeCache(): AntraegeCache {
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const antraege = useCacheStore(s => s.antraege);
+  const verbuende = useCacheStore(s => s.verbuende);
   const loading = useCacheStore(s => s.loading);
   const loaded = useCacheStore(s => s.loaded);
   const error = useCacheStore(s => s.error);
@@ -156,6 +169,10 @@ export function useAntraegeCache(): AntraegeCache {
     () => buildAnonymMapFromKuerzelMap(kuerzelMapFile),
     [kuerzelMapFile],
   );
+  const verbuendeById = useMemo(
+    () => new Map(verbuende.map(v => [v.verbund_id, v])),
+    [verbuende],
+  );
   const historischeDeskriptorenByAnon = useMemo(
     () => aggregateMaProfilesByAnon(antraege, anonymMap),
     [antraege, anonymMap],
@@ -171,6 +188,7 @@ export function useAntraegeCache(): AntraegeCache {
 
   return {
     antraege,
+    verbuendeById,
     loading,
     loaded,
     error,

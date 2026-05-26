@@ -114,6 +114,10 @@ export function KlassifizierungsReview(): React.ReactElement {
   );
 
   // Verbund-Aggregation
+  // cache.verbuendeById liefert die Verbund-Level-Felder (titel, akronym) aus
+  // dem separaten `verbuende`-IDB-Store — sonst wuerde der Verbund-Header
+  // den TV1-`titel` zeigen (CSV-Merger speichert Verbund-Felder dort, NICHT
+  // auf den TV-Antragsobjekten).
   const verbundViews = useMemo(
     () => buildVerbundClassificationViews(
       antraegeImPool,
@@ -121,8 +125,9 @@ export function KlassifizierungsReview(): React.ReactElement {
       klassifizierungen,
       deferredEmbeddings ?? undefined,
       config.stage2Aktiv,
+      cache.verbuendeById,
     ),
-    [antraegeImPool, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv],
+    [antraegeImPool, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv, cache.verbuendeById],
   );
 
   const [filter, setFilter] = useState<ViewFilter>('alle');
@@ -288,7 +293,7 @@ export function KlassifizierungsReview(): React.ReactElement {
           LLM-Klassifizierung
         </span>
         <LLMKlassifizierungButtons
-          antraege={antraegeImPool}
+          verbundViews={verbundViews}
           kategorien={config.ueberKategorien}
           isLoading={isInitialLoading}
         />

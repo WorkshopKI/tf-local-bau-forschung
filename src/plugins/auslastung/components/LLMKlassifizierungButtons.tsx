@@ -19,29 +19,33 @@ import {
   buildPromptForClipboard,
   klassifiziereBatch,
   parseClipboardResponse,
-  type LLMAntrag,
+  type LLMVerbund,
   type LLMKlassifizierungEintrag,
 } from '../services/llm-klassifizierung';
 import {
-  CANONICAL_TITEL,
-  CANONICAL_VERBUND_TITEL,
   type Klassifizierung,
   type UeberKategorie,
 } from '../types';
-import type { Antrag } from '@/core/services/csv/types';
+import type { VerbundKlassifizierungsView } from '../services/verbund-aggregation';
 
 interface Props {
-  /** Antraege die klassifiziert werden sollen (z.B. nur unklassifizierte). */
-  antraege: Antrag[];
+  /** Verbund-Views aus `buildVerbundClassificationViews` — der Hook liefert
+   *  Title + Akronym aus dem Verbund-Store. Der Klassifizierungs-Prompt nutzt
+   *  einen Eintrag pro Verbund (alle TVs teilen die Klassifizierung). */
+  verbundViews: VerbundKlassifizierungsView[];
   kategorien: UeberKategorie[];
   /** v2.7: Master-Daten noch nicht geladen → Buttons disabled, Counts „…". */
   isLoading?: boolean;
 }
 
-export function LLMKlassifizierungButtons({ antraege, kategorien, isLoading = false }: Props): React.ReactElement {
+function readString(a: { [key: string]: unknown }, key: string): string {
+  const v = a[key];
+  return typeof v === 'string' ? v : '';
+}
+
+export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading = false }: Props): React.ReactElement {
   const storage = useStorage();
   const aiBridge = useAIBridge();
-  const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
   const persist = useAuslastungData(s => s.persist);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [showPasteModal, setShowPasteModal] = useState(false);
@@ -52,23 +56,54 @@ export function LLMKlassifizierungButtons({ antraege, kategorien, isLoading = fa
     setTimeout(() => setToast(null), 2400);
   }
 
-  // Builder fuer LLMAntrag aus Antrag.
-  function toLLMAntrag(a: Antrag): LLMAntrag {
+  // Filter: nur Verbuende, die noch nicht klassifiziert sind. Ein Verbund gilt
+  // als klassifiziert, wenn seine Klassifizierung freigegeben ist ODER bereits
+  // einen LLM-/Regel-Vorschlag mit Primaer hat. (Bei nur Stage-2-Embedding-
+  // Match ist `methode === 'embedding'` — den koennen wir mit LLM ueberschreiben.)
+  const offeneVerbuende = verbundViews.filter(v => {
+    const kl = v.klassifizierung;
+    if (kl.status === 'freigegeben') return false;
+    if (kl.vorgeschlagenePrimaer && kl.vorgeschlagenePrimaer.methode === 'llm') return false;
+    return true;
+  });
+
+  // Builder fuer LLMVerbund aus VerbundKlassifizierungsView.
+  function toLLMVerbund(v: VerbundKlassifizierungsView): LLMVerbund {
+    const lead = v.tvs[0];
+    const antragsteller = (lead && typeof lead.antragsteller === 'string')
+      ? lead.antragsteller
+      : undefined;
     return {
-      id: a.aktenzeichen,
-      vbTitel: typeof a[CANONICAL_VERBUND_TITEL] === 'string' ? (a[CANONICAL_VERBUND_TITEL] as string) : '',
-      tvTitel: typeof a[CANONICAL_TITEL] === 'string' ? (a[CANONICAL_TITEL] as string) : '',
+      id: v.verbundId,
+      verbundTitel: v.verbundTitel,
+      tvTitels: v.tvs.map(tv => readString(tv as { [key: string]: unknown }, 'titel')).filter(t => t.length > 0),
+      ...(antragsteller ? { antragsteller } : {}),
     };
   }
 
-  // Applikator: schreibt das LLM-Ergebnis in den Store. EIN persist am Ende
-  // (siehe CLAUDE.md Lesson 16 — sonst fallen Schreibvorgaenge durch den
-  // save-lock raus).
-  async function applyResults(results: Map<string, LLMKlassifizierungEintrag>): Promise<number> {
-    if (results.size === 0) return 0;
+  // Applikator: pro LLM-Verbund-Eintrag alle TVs des Verbundes mit derselben
+  // Klassifizierung versorgen. EIN persist am Ende (siehe CLAUDE.md Lesson 16).
+  async function applyResults(resultsByVerbundId: Map<string, LLMKlassifizierungEintrag>): Promise<number> {
+    if (resultsByVerbundId.size === 0) return 0;
+
+    // verbundId → Liste der aktenzeichen aller TVs dieses Verbundes.
+    const tvsByVerbundId = new Map<string, string[]>();
+    for (const view of verbundViews) {
+      tvsByVerbundId.set(view.verbundId, view.tvs.map(tv => tv.aktenzeichen));
+    }
+
+    // Pro aktenzeichen das Klassifizierungs-Ergebnis (alle TVs eines Verbundes
+    // bekommen dasselbe Result-Objekt).
+    const resultsByAktz = new Map<string, LLMKlassifizierungEintrag>();
+    for (const [verbundId, r] of resultsByVerbundId) {
+      const aktzs = tvsByVerbundId.get(verbundId);
+      if (!aktzs) continue;
+      for (const aktz of aktzs) resultsByAktz.set(aktz, r);
+    }
+
     let updated = 0;
     const next = useAuslastungData.getState().data.klassifizierungen.map((k): Klassifizierung => {
-      const r = results.get(k.antragId);
+      const r = resultsByAktz.get(k.antragId);
       if (!r) return k;
       updated++;
       return {
@@ -80,18 +115,15 @@ export function LLMKlassifizierungButtons({ antraege, kategorien, isLoading = fa
           begruendung: r.begruendung,
         },
         vorgeschlageneAspekte: r.aspekte.map(a => ({ kategorieId: a, confidence: 0.6 })),
-        // Bei nicht existierender Klassifizierung wird upsertKlassifizierung
-        // genutzt. Hier mutieren wir nur bestehende; der Fallback unten haengt
-        // neue an.
         vorgeschlageneKategorien: [
           { kategorieId: r.primaer, confidence: 0.9, methode: 'llm' },
           ...r.aspekte.map(a => ({ kategorieId: a, confidence: 0.6, methode: 'llm' as const })),
         ],
       };
     });
-    // Antraege ohne bestehende Klassifizierung → anhaengen.
+    // TVs ohne bestehende Klassifizierung → anhaengen.
     const existingIds = new Set(next.map(k => k.antragId));
-    for (const [antragId, r] of results) {
+    for (const [antragId, r] of resultsByAktz) {
       if (existingIds.has(antragId)) continue;
       next.push({
         antragId,
@@ -119,22 +151,22 @@ export function LLMKlassifizierungButtons({ antraege, kategorien, isLoading = fa
   }
 
   const startLLM = useAsyncAction(async () => {
-    if (antraege.length === 0) {
-      showToast('Keine unklassifizierten Antraege gefunden.', 'error');
+    if (offeneVerbuende.length === 0) {
+      showToast('Keine unklassifizierten Verbuende gefunden.', 'error');
       return;
     }
-    setProgress({ done: 0, total: antraege.length });
+    setProgress({ done: 0, total: offeneVerbuende.length });
     try {
       const result = await klassifiziereBatch({
-        antraege: antraege.map(toLLMAntrag),
+        verbuende: offeneVerbuende.map(toLLMVerbund),
         kategorien,
         bridge: aiBridge,
         onProgress: (done, total) => setProgress({ done, total }),
       });
-      const updated = await applyResults(result.byAntragId);
+      const updated = await applyResults(result.byVerbundId);
       const errorCount = result.errors.length;
       showToast(
-        `${updated} Antraege klassifiziert${errorCount > 0 ? ` (${errorCount} Fehler)` : ''}.`,
+        `${updated} Anträge (über ${result.byVerbundId.size} Verbünde) klassifiziert${errorCount > 0 ? ` (${errorCount} Fehler)` : ''}.`,
         errorCount > 0 ? 'error' : 'success',
       );
     } finally {
@@ -143,47 +175,41 @@ export function LLMKlassifizierungButtons({ antraege, kategorien, isLoading = fa
   });
 
   const copyPrompt = useAsyncAction(async () => {
-    if (antraege.length === 0) {
-      showToast('Keine unklassifizierten Antraege gefunden.', 'error');
+    if (offeneVerbuende.length === 0) {
+      showToast('Keine unklassifizierten Verbuende gefunden.', 'error');
       return;
     }
-    const prompt = buildPromptForClipboard(antraege.map(toLLMAntrag), kategorien);
+    const prompt = buildPromptForClipboard(offeneVerbuende.map(toLLMVerbund), kategorien);
     await navigator.clipboard.writeText(prompt);
-    showToast(`Prompt fuer ${antraege.length} Antraege in Zwischenablage.`);
+    showToast(`Prompt fuer ${offeneVerbuende.length} Verbünde in Zwischenablage.`);
   });
 
-  // Nicht-klassifizierte = Pool ohne bestehende Klassifizierung mit
-  // freigegebenePrimaer ODER vorgeschlagenePrimaer.
-  const klassifizierteIds = new Set(
-    klassifizierungen
-      .filter(k => k.vorgeschlagenePrimaer || k.freigegebenePrimaer || (k.vorgeschlageneKategorien?.length ?? 0) > 0)
-      .map(k => k.antragId),
-  );
-  const unklassifiziertCount = antraege.filter(a => !klassifizierteIds.has(a.aktenzeichen)).length;
+  const unklassifiziertCount = offeneVerbuende.length;
+  const totalCount = verbundViews.length;
 
   const busy = startLLM.busy || copyPrompt.busy;
-  // v2.7: Master-Loading blockt alle Klassifizierungs-Aktionen, weil
-  // antraege noch leer waere. Count als „…" statt 0.
-  const countLabel = isLoading ? '…' : String(antraege.length);
+  // v2.7: Master-Loading blockt alle Klassifizierungs-Aktionen. Count als „…" statt 0.
+  const countLabel = isLoading ? '…' : String(unklassifiziertCount);
+  const noOpen = unklassifiziertCount === 0;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <button
         type="button"
         onClick={() => startLLM.run()}
-        disabled={busy || isLoading || antraege.length === 0}
+        disabled={busy || isLoading || noOpen}
         className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ background: 'var(--tf-primary)', color: 'var(--tf-bg)' }}
-        title="Klassifiziert alle uebergebenen Antraege via aktivem AI-Bridge-Transport"
+        title="Klassifiziert alle offenen Verbuende via aktivem AI-Bridge-Transport"
       >
         {startLLM.busy && progress
-          ? `${progress.done} / ${progress.total} klassifiziert…`
+          ? `${progress.done} / ${progress.total} Verbünde klassifiziert…`
           : `LLM-Klassifizierung starten (${countLabel})`}
       </button>
       <button
         type="button"
         onClick={() => copyPrompt.run()}
-        disabled={busy || isLoading || antraege.length === 0}
+        disabled={busy || isLoading || noOpen}
         className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
         style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
       >
@@ -198,9 +224,9 @@ export function LLMKlassifizierungButtons({ antraege, kategorien, isLoading = fa
       >
         LLM-Ergebnis einfügen
       </button>
-      {!isLoading && unklassifiziertCount !== antraege.length && (
+      {!isLoading && unklassifiziertCount !== totalCount && (
         <span className="text-[11px] text-[var(--tf-text-tertiary)] ml-2">
-          {unklassifiziertCount} noch unklassifiziert (von {antraege.length})
+          {unklassifiziertCount} noch unklassifiziert (von {totalCount} Verbünden)
         </span>
       )}
       {startLLM.error && (

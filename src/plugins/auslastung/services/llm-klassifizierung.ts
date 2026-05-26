@@ -27,19 +27,33 @@ import type { UeberKategorie } from '../types';
 
 // ─── Public Types ────────────────────────────────────────────────────────
 
-export interface LLMAntrag {
-  /** Aktenzeichen / Antrag-ID. */
+/**
+ * Eingabe-Eintrag fuer den LLM-Prompt — EIN Eintrag pro VERBUND (nicht pro TV).
+ * Klassifizierung erfolgt fachlich pro Verbund; alle TVs eines Verbundes
+ * teilen dasselbe Ergebnis.
+ *
+ * Vor v2.11 hiess der Typ `LLMAntrag` und hatte ein Item pro TV — das
+ * fuehrte zu redundanter LLM-Last (4 TVs eines Verbundes = 4 fast identische
+ * Inputs) und zu leerem `vbTitel`, weil der Verbund-Titel auf dem Antrag-
+ * Objekt nicht existiert (Verbund-Felder liegen im separaten IDB-Store).
+ */
+export interface LLMVerbund {
+  /** Verbund-ID (= `verbund_id` bei echten Verbuenden, sonst das Aktenzeichen
+   *  des einzigen TVs als Pseudo-ID — analog zu `verbundKeyOf()`). */
   id: string;
-  /** Verbund-Titel (oder leer). */
-  vbTitel: string;
-  /** Teilvorhaben-Titel. */
-  tvTitel: string;
-  /** Optional: Antragsteller-Name (zur Kontextualisierung). */
+  /** Verbund-Titel (gemeinsamer Titel aus dem `verbuende`-Store). Kann leer
+   *  sein, wenn `verbund_titel` nicht gepflegt ist. */
+  verbundTitel: string;
+  /** TV-Titel aller TVs dieses Verbundes (FKZ-sortiert). Bei Solo: 1 Eintrag.
+   *  Wird im Prompt als Array gerendert, damit der LLM den thematischen
+   *  Kontext aller TVs sieht. */
+  tvTitels: string[];
+  /** Optional: AST-Name (Lead-TV) — zur Kontextualisierung. */
   antragsteller?: string;
 }
 
 export interface LLMKlassifizierungInput {
-  antraege: LLMAntrag[];
+  verbuende: LLMVerbund[];
   kategorien: UeberKategorie[];
   bridge: AIBridge;
   /** Default 12. Kleinere Batches: stabiler, mehr Roundtrips. */
@@ -56,7 +70,10 @@ export interface LLMKlassifizierungEintrag {
 }
 
 export interface LLMKlassifizierungResult {
-  byAntragId: Map<string, LLMKlassifizierungEintrag>;
+  /** Map `verbund_id → Klassifizierungs-Eintrag`. Der Caller iteriert dann
+   *  ueber die TVs jedes Verbundes und schreibt den Eintrag auf alle TV-
+   *  Klassifizierungs-Records. */
+  byVerbundId: Map<string, LLMKlassifizierungEintrag>;
   errors: Array<{ batchIndex: number; message: string }>;
 }
 
@@ -64,43 +81,53 @@ export interface LLMKlassifizierungResult {
 
 const SYSTEM_PROMPT_DE = (
   'Du bist ein Experte fuer Foerderprogramm-Klassifizierung. ' +
+  'Du bekommst Verbuende (Forschungs-Verbuende mit einem oder mehreren ' +
+  'Teilvorhaben/TVs). Klassifiziere pro VERBUND — alle TVs eines Verbundes ' +
+  'gehoeren zum selben Thema und teilen die Klassifizierung. ' +
   'Antworte AUSSCHLIESSLICH mit einem JSON-Array. ' +
   'Kein Markdown, keine Erklaerung davor oder danach, kein Denkprozess.'
 );
 
 /**
- * Baut den User-Prompt aus Kategorien + Antraege-Liste. Konsistent fuer
+ * Baut den User-Prompt aus Kategorien + Verbund-Liste. Konsistent fuer
  * Bridge-Mode und Clipboard-Fallback.
+ *
+ * Schema (ab v2.11): EIN Eintrag pro Verbund mit `verbundTitel` + `tvTitels[]`.
+ * Vorher: ein Eintrag pro TV mit immer leerem `vbTitel`-Feld.
  */
-export function buildPromptText(antraege: LLMAntrag[], kategorien: UeberKategorie[]): string {
+export function buildPromptText(verbuende: LLMVerbund[], kategorien: UeberKategorie[]): string {
   const katBlock = kategorien.map(k => `- ${k.id}: ${k.name}`).join('\n');
-  const antraegeJson = JSON.stringify(
-    antraege.map(a => ({
-      id: a.id,
-      vbTitel: a.vbTitel,
-      tvTitel: a.tvTitel,
-      ...(a.antragsteller ? { antragsteller: a.antragsteller } : {}),
+  const verbuendeJson = JSON.stringify(
+    verbuende.map(v => ({
+      id: v.id,
+      verbundTitel: v.verbundTitel,
+      tvTitels: v.tvTitels,
+      ...(v.antragsteller ? { antragsteller: v.antragsteller } : {}),
     })),
     null,
     2,
   );
   return [
-    'Ordne jeden Antrag einer Primaerkategorie zu und identifiziere optionale',
+    'Ordne jeden Verbund einer Primaerkategorie zu und identifiziere optionale',
     'Aspekte (Querschnittstechnologien die als Werkzeug oder Methode genutzt',
     'werden, NICHT das Kernthema sind).',
+    '',
+    'Ein Verbund kann mehrere TVs (Teilvorhaben) haben — sie sind thematisch',
+    'verwandt und teilen die Klassifizierung. Nutze `verbundTitel` als Haupt-',
+    'kontext und `tvTitels[]` fuer den thematischen Reichtum.',
     '',
     'Kategorien:',
     katBlock,
     '',
-    'Beispiel: "KI-gestuetzte Schadenserkennung in Bruckenstrukturen"',
-    `→ primaer: ${kategorien[0]?.id ?? 'IT'} (Strukturueberwachung ist Ingenieurtechnik)`,
-    `→ aspekte: [${kategorien[1]?.id ?? 'DT'}] (KI ist das Werkzeug, nicht das Thema)`,
+    'Beispiel: verbundTitel "H2Select - EcoPlay", tvTitels ["Entwicklung kompatibilisierter Polymerblends...", "Greifersystem mit adaptiver Prozessregelung..."]',
+    `→ primaer: ${kategorien[0]?.id ?? 'IT'} (Materialentwicklung ist Ingenieurtechnik)`,
+    `→ aspekte: [${kategorien[1]?.id ?? 'DT'}] (Prozessregelung ist Werkzeug, nicht das Thema)`,
     '',
-    'Antworte NUR als JSON-Array dieser Form, KEINE Erklaerung davor oder danach:',
-    `[{"id":"AZ-1","primaer":"${kategorien[0]?.id ?? 'IT'}","aspekte":["${kategorien[1]?.id ?? 'DT'}"],"begruendung":"kurzer Satz"}]`,
+    'Antworte NUR als JSON-Array dieser Form (id = Verbund-ID, KEINE Erklaerung davor oder danach):',
+    `[{"id":"VB-1","primaer":"${kategorien[0]?.id ?? 'IT'}","aspekte":["${kategorien[1]?.id ?? 'DT'}"],"begruendung":"kurzer Satz"}]`,
     '',
-    'Antraege:',
-    antraegeJson,
+    'Verbuende:',
+    verbuendeJson,
   ].join('\n');
 }
 
@@ -197,26 +224,29 @@ function stripMarkdownWrapper(text: string): string {
 // ─── Bridge-Mode (DirectLLM / Streamlit) ─────────────────────────────────
 
 /**
- * Klassifiziert eine Liste von Antraegen via AIBridge. Chunked in `batchSize`-
+ * Klassifiziert eine Liste von Verbuenden via AIBridge. Chunked in `batchSize`-
  * Paketen, mit Fehler-Tolerant (ein fehlgeschlagener Batch unterbricht nicht
  * den ganzen Lauf).
+ *
+ * Output: `byVerbundId` — Caller iteriert ueber die TVs jedes Verbundes und
+ * schreibt das Ergebnis auf alle TV-Klassifizierungs-Records.
  */
 export async function klassifiziereBatch(input: LLMKlassifizierungInput): Promise<LLMKlassifizierungResult> {
-  const { antraege, kategorien, bridge, onProgress, signal } = input;
+  const { verbuende, kategorien, bridge, onProgress, signal } = input;
   const batchSize = Math.max(1, input.batchSize ?? 12);
   const out: LLMKlassifizierungResult = {
-    byAntragId: new Map(),
+    byVerbundId: new Map(),
     errors: [],
   };
   const transport = bridge.getActiveTransport();
   const responseFormat = buildResponseFormat(kategorien);
   const validKategorieIds = new Set(kategorien.map(k => k.id));
   let done = 0;
-  const total = antraege.length;
+  const total = verbuende.length;
 
-  for (let i = 0; i < antraege.length; i += batchSize) {
+  for (let i = 0; i < verbuende.length; i += batchSize) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    const batch = antraege.slice(i, i + batchSize);
+    const batch = verbuende.slice(i, i + batchSize);
     const batchIndex = Math.floor(i / batchSize);
     const prompt = buildPromptText(batch, kategorien);
 
@@ -230,12 +260,12 @@ export async function klassifiziereBatch(input: LLMKlassifizierungInput): Promis
         if (!validKategorieIds.has(item.primaer)) {
           out.errors.push({
             batchIndex,
-            message: `Antrag ${item.id}: unbekannte Primaer-Kategorie "${item.primaer}" — uebersprungen.`,
+            message: `Verbund ${item.id}: unbekannte Primaer-Kategorie "${item.primaer}" — uebersprungen.`,
           });
           continue;
         }
         const aspekte = item.aspekte.filter(a => validKategorieIds.has(a));
-        out.byAntragId.set(item.id, {
+        out.byVerbundId.set(item.id, {
           primaer: item.primaer,
           aspekte,
           begruendung: item.begruendung,
@@ -265,10 +295,10 @@ export async function klassifiziereBatch(input: LLMKlassifizierungInput): Promis
  * Baut den Prompt-Text fuer den Clipboard-Workflow: User kopiert das in eine
  * Streamlit-/Chat-UI, kopiert die JSON-Antwort zurueck.
  */
-export function buildPromptForClipboard(antraege: LLMAntrag[], kategorien: UeberKategorie[]): string {
+export function buildPromptForClipboard(verbuende: LLMVerbund[], kategorien: UeberKategorie[]): string {
   // Identisch zum bridge-Prompt — aber der User braucht das System-Prompt
   // explizit am Anfang (Streamlit/ChatGPT haben oft keinen separaten Slot).
-  return SYSTEM_PROMPT_DE + '\n\n' + buildPromptText(antraege, kategorien);
+  return SYSTEM_PROMPT_DE + '\n\n' + buildPromptText(verbuende, kategorien);
 }
 
 /**
