@@ -135,16 +135,31 @@ export function MitarbeiterUndKapazitaet({ storage, cache }: Props): React.React
   }, [mitarbeiter, upsert, storage]);
 
   // MA-Liste: Filter + Sort.
+  // Inaktive MAs werden NICHT pauschal ausgeblendet, sondern nur die ohne
+  // aktuelle Buchungen oder Altanträge. Sonst verschwindet ein MA wie THÜ
+  // (aktiv: false aus altem Onboarding) trotz neuer Anträge aus dem Blickfeld.
+  // Default-Filter: aktiv ODER hat fest/pending im aktuellen Quartal ODER
+  // hat Altanträge (Q-2/Q-1). "Inaktive anzeigen" zeigt zusätzlich alle ohne Arbeit.
   const list = useMemo(() => {
     const all = Object.values(mitarbeiter);
-    const sichtbar = showInactive ? all : all.filter(m => m.aktiv);
+    const sichtbar = showInactive
+      ? all
+      : all.filter(m => {
+          if (m.aktiv) return true;
+          const a = auslastungByAnon.get(m.anonId);
+          if ((a?.fest.antraege ?? 0) > 0) return true;
+          if ((a?.pending.antraege ?? 0) > 0) return true;
+          const al = altlastByAnon.get(m.anonId);
+          if ((al?.antraege ?? 0) > 0) return true;
+          return false;
+        });
     const filtered = kategorieFilter
       ? sichtbar.filter(m => (m.hauptKategorie === kategorieFilter)
           || (m.nebenKategorien?.includes(kategorieFilter) ?? false)
           || (m.ueberKategorien?.includes(kategorieFilter) ?? false))
       : sichtbar;
     return filtered.sort((a, b) => a.anonId.localeCompare(b.anonId));
-  }, [mitarbeiter, kategorieFilter, showInactive]);
+  }, [mitarbeiter, kategorieFilter, showInactive, auslastungByAnon, altlastByAnon]);
 
   const totalCount = Object.keys(mitarbeiter).length;
   const aktivCount = Object.values(mitarbeiter).filter(m => m.aktiv).length;
