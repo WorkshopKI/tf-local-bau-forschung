@@ -93,7 +93,7 @@ export function FilterAdminPage(): React.ReactElement {
 
       {!session.isActive ? (
         <div className="mb-4 text-[12.5px] text-[var(--tf-text-secondary)]">
-          Kurator-Modus nicht aktiv. Filter sind nur lesbar.
+          Kurator-Modus nicht aktiv. Filter sind nur lesbar. Aktivierung in Einstellungen → Profil → Kurator-Bereich.
         </div>
       ) : null}
 

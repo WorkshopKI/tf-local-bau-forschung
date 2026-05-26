@@ -196,7 +196,7 @@ export function CsvSourcesPage(): React.ReactElement {
 
       {!session.isActive ? (
         <div className="mb-4 text-[12.5px] text-[var(--tf-text-secondary)]">
-          Kurator-Modus nicht aktiv. Schemas sind nur lesbar. Kurator-Login im Dev-Panel.
+          Kurator-Modus nicht aktiv. Schemas sind nur lesbar. Aktivierung in Einstellungen → Profil → Kurator-Bereich.
         </div>
       ) : null}
 

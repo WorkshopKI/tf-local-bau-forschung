@@ -148,7 +148,7 @@ export function UnterprogrammeSection({ programmId, programmName }: Props): Reac
 
       {!session.isActive ? (
         <div className="mb-4 text-[12.5px] text-[var(--tf-text-secondary)]">
-          Kurator-Modus nicht aktiv. Inline-Bearbeitung und XLSX-Import deaktiviert.
+          Kurator-Modus nicht aktiv. Inline-Bearbeitung und XLSX-Import deaktiviert. Aktivierung in Einstellungen → Profil → Kurator-Bereich.
         </div>
       ) : null}
 

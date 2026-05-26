@@ -17,6 +17,7 @@ import {
   Avatar,
   InfoHint,
 } from './_shared/settings-primitives';
+import { KuratorSessionPanel } from './KuratorSessionPanel';
 
 const NAME_INPUT_CLASS =
   'h-7 px-2 text-[13px] font-medium text-[var(--tf-text)] bg-[var(--tf-bg)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]';
@@ -152,6 +153,7 @@ export function ProfilTab(): React.ReactElement {
               />
             </SettingsRowGroup>
           </SettingsRow>
+          <KuratorSessionPanel />
         </section>
       )}
     </div>
