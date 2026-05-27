@@ -292,6 +292,19 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         console.warn('[App] ensureListViewProjection fehlgeschlagen', e);
       }
 
+      // v2.13: Plugin onInit-Hooks parallel + fehlertolerant. Non-blocking
+      // — blockiert den App-Start NICHT, laeuft im Hintergrund. Plugins
+      // nutzen das zum Pre-Cache von Sidecar-Dateien (z.B. Auslastung laedt
+      // auslastung.json + kuerzel-map waehrend der User noch auf Home steht).
+      // Erster Aufruf der Plugin-Seite findet die Daten schon im Store.
+      void Promise.allSettled(
+        enabledPlugins
+          .filter(p => p.onInit)
+          .map(p => p.onInit!({ storage }).catch(err => {
+            console.warn(`[App] Plugin ${p.id} onInit fehlgeschlagen:`, err);
+          })),
+      );
+
       const complete = await storage.idb.get<boolean>('onboarding-complete');
       if (complete) {
         const profile = await storage.idb.get<UserProfile>('profile');

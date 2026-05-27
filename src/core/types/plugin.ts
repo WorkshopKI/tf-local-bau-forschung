@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import type { StorageService } from '@/core/services/storage';
 
 /**
  * Feature-Flags, die einzelne Plugins gaten koennen. Subset von
@@ -19,6 +20,15 @@ export type PluginFeatureKey =
   | 'feedbackBoard'
   | 'suche'
   | 'volltextsuche';
+
+/**
+ * Services, die ein Plugin in seinem `onInit`-Hook nutzen darf. Aktuell nur
+ * `storage` — wenn weitere Services gebraucht werden (aiBridge, etc.), hier
+ * ergaenzen.
+ */
+export interface PluginInitServices {
+  storage: StorageService;
+}
 
 export interface TeamFlowPlugin {
   id: string;
@@ -47,4 +57,21 @@ export interface TeamFlowPlugin {
   /** @deprecated Legacy-Alias vor v1.9; wird per Fallback als kuratorOnly behandelt. */
   adminOnly?: boolean;
   badge?: () => number | null;
+  /**
+   * Optional: einmaliger Init-Hook, der nach `storage.init()` beim App-Start
+   * aufgerufen wird (asynchron, fehlertolerant, non-blocking). Gedacht fuer
+   * Pre-Caching von Sidecar-Dateien, Service-Bootstrap oder Default-Seeds.
+   *
+   * Erwartete Eigenschaften:
+   *  - Idempotent: kann beliebig oft aufgerufen werden (Stores haben ihre
+   *    eigenen Idempotenz-Guards).
+   *  - Fehler werden vom App-Loader geschluckt — onInit darf scheitern, ohne
+   *    den App-Start zu blockieren.
+   *  - Sollte schnell sein (<1 s) — fuer schwere Operationen (Embedding-
+   *    Korpus etc.) `scheduleIdle` o.ae. nutzen.
+   *
+   * Dinge die NICHT in onInit gehoeren: Daten die erst beim ersten Render
+   * der Plugin-Seite gebraucht werden (laden sonst beim App-Start unnoetig).
+   */
+  onInit?: (services: PluginInitServices) => Promise<void>;
 }

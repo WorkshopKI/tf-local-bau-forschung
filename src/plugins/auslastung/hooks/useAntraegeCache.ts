@@ -262,6 +262,15 @@ export function invalidateAntraegeCache(): void {
   useCacheStore.getState().invalidate();
 }
 
+/** Externer Trigger fuer Antraege-Cache-Warmup, z.B. aus dem Auslastung-
+ *  Plugin-onInit. Idempotent — nutzt den `refresh()`-Hit-Check intern. */
+export async function warmupAntraegeCache(
+  storage: StorageService,
+  programmId: string | null,
+): Promise<void> {
+  await useCacheStore.getState().refresh(storage, programmId);
+}
+
 export function useAntraegeCache(): AntraegeCache {
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
