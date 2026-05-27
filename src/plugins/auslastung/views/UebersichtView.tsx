@@ -18,13 +18,15 @@ import { KonfigurationSection } from './admin/KonfigurationSection';
 import { KategorienSection } from './admin/KategorienSection';
 import { EmbeddingCorpusSection } from './admin/EmbeddingCorpusSection';
 import { ImportExportSection } from './admin/ImportExportSection';
-import { StatistikPanel } from './StatistikPanel';
 import { MitarbeiterUndKapazitaet } from './MitarbeiterUndKapazitaet';
 import { SkeletonRows, SkeletonBar } from '../components/Skeleton';
+import { StatistikSection } from './uebersicht/StatistikSection';
+import { HeadlineInsight } from './uebersicht/HeadlineInsight';
 
 export function UebersichtView(): React.ReactElement {
   const storage = useStorage();
   const setupDone = useAuslastungData(s => s.data.config.setupAbgeschlossen);
+  const quartal = useAuslastungData(s => s.data.config.aktuellesQuartal);
   const cache = useAntraegeCache();
   const { ready } = useAuslastungReady();
   const [erweitertOpen, setErweitertOpen] = useState(false);
@@ -63,11 +65,9 @@ export function UebersichtView(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-[12px]" style={{ border: '0.5px solid var(--tf-border)' }}>
-        <div className="px-4">
-          <StatistikPanel />
-        </div>
-      </div>
+      <StatistikSection label="Statistik-Übersicht" count={quartal}>
+        <HeadlineInsight />
+      </StatistikSection>
       <MitarbeiterUndKapazitaet storage={storage} cache={cache} />
       <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
       <ImportExportSection antraege={cache.antraege} anonymMap={cache.anonymMap} />
