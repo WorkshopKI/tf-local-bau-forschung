@@ -87,58 +87,58 @@ export function AuslastungView(): React.ReactElement {
     );
   }
 
-  if (!loaded) {
-    return (
-      <div className="p-6">
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-2">Auslastung</h1>
-        <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Lade Auslastungsdaten…</p>
-      </div>
-    );
-  }
-
+  // v2.13: Kein Early-Return mehr fuer !loaded. Header + ModulLoadingBanner
+  // werden sofort gerendert — beim Re-Mount sieht der User innerhalb von
+  // ~16ms den Spinner mit Countdown statt 2-3s blank wie vorher. Tabs werden
+  // erst nach loaded=true gerendert, damit ihre Mount-Effekte (LLM-Bridge,
+  // Verbund-Embeddings etc.) nicht doppelt feuern.
   return (
     <div className="p-6">
       <div className="flex items-baseline gap-3 mb-4">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Auslastung</h1>
         <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
-          {Object.keys(data.mitarbeiter).length} MAs · {data.config.ueberKategorien.length} Kategorien · {data.config.aktuellesQuartal}
+          {loaded
+            ? `${Object.keys(data.mitarbeiter).length} MAs · ${data.config.ueberKategorien.length} Kategorien · ${data.config.aktuellesQuartal}`
+            : 'wird geladen …'}
         </p>
       </div>
 
-      <Tabs tabs={tabs} activeTab={tab} onChange={(id) => switchTab(id as TabId)} />
+      {/* v2.13: Banner direkt unter dem Header (vor den Tabs) — sofort
+          sichtbares "etwas-passiert"-Signal bei jedem Mount. Verschwindet
+          sobald useAuslastungReady() ready=true meldet. */}
+      <ModulLoadingBanner />
 
-      {/* v2.10: prominenter Loading-Banner mit Spinner + Countdown,
-          waehrend der initialen Mount-Phase. Verschwindet sobald
-          useAuslastungReady() ready=true meldet. */}
-      <div className="mt-5">
-        <ModulLoadingBanner />
-      </div>
+      {loaded && (
+        <>
+          <Tabs tabs={tabs} activeTab={tab} onChange={(id) => switchTab(id as TabId)} />
 
-      {/* v2.9: Eager Mount aller Tabs + gemeinsamer Index-Provider. Alle
-          drei Tabs sind dauerhaft im DOM; nicht-aktive werden per
-          `display: none` ausgeblendet. Tab-Wechsel ist von Anfang an
-          ein reiner CSS-Toggle (<100 ms). Das hilft besonders, weil
-          `computeQuartalsAuslastung` jetzt 1x pro Render-Cycle via
-          Provider statt 3x in den Konsumenten laeuft. */}
-      <AuslastungIndexProvider>
-        <div className="mt-1">
-          {ALL_TABS.has('klassifizierung') && (
-            <div style={{ display: tab === 'klassifizierung' ? 'block' : 'none' }}>
-              <KlassifizierungsReview />
+          {/* v2.9: Eager Mount aller Tabs + gemeinsamer Index-Provider. Alle
+              drei Tabs sind dauerhaft im DOM; nicht-aktive werden per
+              `display: none` ausgeblendet. Tab-Wechsel ist von Anfang an
+              ein reiner CSS-Toggle (<100 ms). Das hilft besonders, weil
+              `computeQuartalsAuslastung` jetzt 1x pro Render-Cycle via
+              Provider statt 3x in den Konsumenten laeuft. */}
+          <AuslastungIndexProvider>
+            <div className="mt-1">
+              {ALL_TABS.has('klassifizierung') && (
+                <div style={{ display: tab === 'klassifizierung' ? 'block' : 'none' }}>
+                  <KlassifizierungsReview />
+                </div>
+              )}
+              {ALL_TABS.has('zuweisung') && (
+                <div style={{ display: tab === 'zuweisung' ? 'block' : 'none' }}>
+                  <ZuweisungsCockpit />
+                </div>
+              )}
+              {ALL_TABS.has('uebersicht') && (
+                <div style={{ display: tab === 'uebersicht' ? 'block' : 'none' }}>
+                  <UebersichtView />
+                </div>
+              )}
             </div>
-          )}
-          {ALL_TABS.has('zuweisung') && (
-            <div style={{ display: tab === 'zuweisung' ? 'block' : 'none' }}>
-              <ZuweisungsCockpit />
-            </div>
-          )}
-          {ALL_TABS.has('uebersicht') && (
-            <div style={{ display: tab === 'uebersicht' ? 'block' : 'none' }}>
-              <UebersichtView />
-            </div>
-          )}
-        </div>
-      </AuslastungIndexProvider>
+          </AuslastungIndexProvider>
+        </>
+      )}
     </div>
   );
 }
