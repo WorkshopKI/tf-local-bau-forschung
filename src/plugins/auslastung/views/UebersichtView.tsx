@@ -91,10 +91,11 @@ export function UebersichtView(): React.ReactElement {
         warningFilter={warningFilter}
         onClearWarningFilter={() => setWarningFilter(null)}
       />
-      <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
-      <ImportExportSection antraege={cache.antraege} anonymMap={cache.anonymMap} />
 
-      {/* Erweitert-Aufklapper — selten geaenderte Konfig */}
+      {/* Erweitert-Aufklapper — Admin-Konfiguration (Kategorien, Import/Export,
+       *  Konfiguration, Embedding-Corpus). Default geschlossen, damit der
+       *  Übersicht-Tab oberhalb auf die Story (Statistik + MA-Liste) reduziert
+       *  ist. */}
       <div
         className="rounded-[12px]"
         style={{ border: '0.5px solid var(--tf-border)' }}
@@ -110,8 +111,13 @@ export function UebersichtView(): React.ReactElement {
           </span>
         </button>
         {erweitertOpen && (
-          <div className="border-t px-4 pt-3 pb-4 flex flex-col gap-4" style={{ borderColor: 'var(--tf-border)' }}>
+          <div className="border-t px-4 pt-4 pb-4 flex flex-col" style={{ borderColor: 'var(--tf-border)' }}>
+            <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
+            <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
+            <ImportExportSection antraege={cache.antraege} anonymMap={cache.anonymMap} />
+            <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
             <KonfigurationSection storage={storage} />
+            <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
             <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} />
           </div>
         )}
