@@ -28,9 +28,14 @@ import { type AnonymMap } from '../services/anonym-map';
 import { buildAnonymMapFromKuerzelMap } from '../services/kuerzel-map';
 import { useKuerzelMap } from './useKuerzelMap';
 import { aggregateAstByAnon, aggregateMaProfilesByAnon, collectAllDeskriptorenMitCount } from '../services/profil-aggregator';
+import { loadAllVerbundEmbeddings } from '../services/verbund-embedding';
 
 interface AntraegeCache {
   antraege: Antrag[];
+  /** Raw-Array aus dem Store — ref-stable ueber Re-Mount (im Gegensatz zu
+   *  `verbuendeById`, das durch useMemo geht). Konsumenten, die Closure-
+   *  Caches keyen, nutzen DIESE Property. */
+  verbuende: Verbund[];
   /** Pro `verbund_id` das Verbund-Objekt aus dem `verbuende`-IDB-Store.
    *  Wird benoetigt fuer den korrekten Verbund-Titel + Akronym in der UI +
    *  im LLM-Klassifizierungs-Prompt (Verbund-Level-Felder werden vom
@@ -89,9 +94,15 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
       set({ loading: true, error: null });
       try {
         // Antraege + Verbuende parallel laden (gleiche IDB, verschiedene Stores).
+        // Plus Verbund-Embeddings als Cache-Warm: das Resultat landet im
+        // modul-globalen Closure-Cache von verbund-embedding.ts und ist
+        // beim ersten Mount der KlassifizierungsReview synchron lesbar
+        // (Hebel B). Fehler werden geschluckt — der KlassifizierungsReview-
+        // useEffect macht im Worst Case einen zweiten Versuch.
         const [allAntraege, allVerbuende] = await Promise.all([
           listAntraegeByProgramm(storage.idb, programmId),
           listVerbuendeByProgramm(storage.idb, programmId),
+          loadAllVerbundEmbeddings(storage.idb).catch(() => null),
         ]);
         set({
           antraege: allAntraege,
@@ -188,6 +199,7 @@ export function useAntraegeCache(): AntraegeCache {
 
   return {
     antraege,
+    verbuende,
     verbuendeById,
     loading,
     loaded,

@@ -8,6 +8,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
+  getCachedVerbundEmbeddings,
   loadAllVerbundEmbeddings,
   invalidateVerbundEmbeddingsCache,
 } from '../services/verbund-embedding';
@@ -83,5 +84,43 @@ describe('loadAllVerbundEmbeddings — Closure-Cache', () => {
     expect(first.size).toBe(0);
     const second = await loadAllVerbundEmbeddings(idb);
     expect(second).toBe(first);
+  });
+});
+
+describe('getCachedVerbundEmbeddings — synchroner Cache-Read (Hebel B)', () => {
+  beforeEach(() => {
+    invalidateVerbundEmbeddingsCache();
+  });
+
+  it('Cache leer → null (kein async Load)', () => {
+    const idb = makeMockIdb({});
+    const result = getCachedVerbundEmbeddings(idb);
+    expect(result).toBe(null);
+    // KEIN IDB-Zugriff
+    expect((idb as unknown as { keysCalls: number }).keysCalls).toBe(0);
+  });
+
+  it('Nach loadAllVerbundEmbeddings → identische Map-Ref synchron', async () => {
+    const idb = makeMockIdb({
+      'auslastung-emb-verbund:V1': [0.1, 0.2],
+    });
+    const loaded = await loadAllVerbundEmbeddings(idb);
+    const cached = getCachedVerbundEmbeddings(idb);
+    expect(cached).toBe(loaded);
+  });
+
+  it('Nach invalidateVerbundEmbeddingsCache → null', async () => {
+    const idb = makeMockIdb({ 'auslastung-emb-verbund:V1': [1] });
+    await loadAllVerbundEmbeddings(idb);
+    invalidateVerbundEmbeddingsCache();
+    expect(getCachedVerbundEmbeddings(idb)).toBe(null);
+  });
+
+  it('anderer idb-Identity → null (Cross-Session-Schutz)', async () => {
+    const idb1 = makeMockIdb({ 'auslastung-emb-verbund:V1': [1] });
+    const idb2 = makeMockIdb({ 'auslastung-emb-verbund:V1': [1] });
+    await loadAllVerbundEmbeddings(idb1);
+    expect(getCachedVerbundEmbeddings(idb2)).toBe(null);
+    expect(getCachedVerbundEmbeddings(idb1)).not.toBe(null);
   });
 });

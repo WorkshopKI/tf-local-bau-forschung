@@ -98,9 +98,21 @@ export async function saveKuerzelMap(
   return next;
 }
 
+// ─── Module-globaler Cache (ueberlebt Komponenten-Unmount) ─────────────────
+// Der useMemo in `useAntraegeCache.ts` ist beim Re-Mount tot — wenn diese
+// Funktion bei jedem Re-Mount eine neue AnonymMap baut, sind ihre `toAnon`/
+// `toReal`-Refs neu, und der cachedIndex in useAuslastungIndex.ts greift nicht.
+// Cache keyed auf `file`-Identity — funktioniert in Kombination mit
+// `useKuerzelMap`s `isSameKuerzelContent`-Stabilisierung.
+let cachedAnonymMap: { file: KuerzelMapFile; map: AnonymMap } | null = null;
+
 /** Baut eine in-memory `AnonymMap` aus der persistenten KuerzelMapFile.
- *  Standard-Pipeline: `bootstrapKuerzelMap(antraege)` → diese Funktion. */
+ *  Standard-Pipeline: `bootstrapKuerzelMap(antraege)` → diese Funktion.
+ *  Cached auf `file`-Identity — Re-Mounts liefern dieselbe Map-Ref. */
 export function buildAnonymMapFromKuerzelMap(file: KuerzelMapFile): AnonymMap {
+  if (cachedAnonymMap && cachedAnonymMap.file === file) {
+    return cachedAnonymMap.map;
+  }
   const toAnon = new Map<string, string>();
   const toReal = new Map<string, string>();
   for (const e of file.entries) {
@@ -109,7 +121,16 @@ export function buildAnonymMapFromKuerzelMap(file: KuerzelMapFile): AnonymMap {
     toAnon.set(k, e.anonId);
     toReal.set(e.anonId, k);
   }
-  return { toAnon, toReal };
+  const map: AnonymMap = { toAnon, toReal };
+  cachedAnonymMap = { file, map };
+  return map;
+}
+
+/** Cache-Invalidierung — primaer fuer Tests; in der App nicht noetig, weil
+ *  jede Mutation in `useKuerzelMap` eine neue `file`-Ref erzeugt und damit
+ *  automatisch einen Cache-Miss ausloest. */
+export function invalidateAnonymMapCache(): void {
+  cachedAnonymMap = null;
 }
 
 /**

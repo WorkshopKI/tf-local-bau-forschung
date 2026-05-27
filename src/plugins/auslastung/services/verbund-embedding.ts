@@ -91,6 +91,19 @@ export function invalidateVerbundEmbeddingsCache(): void {
   cachedEmbeddings = null;
 }
 
+/** Synchroner Cache-Read fuer den useState-Initializer in
+ *  KlassifizierungsReview. Liefert die gecachte Map wenn vorhanden, sonst null
+ *  (kein async-Load — den uebernimmt der nachgelagerte useEffect). Spart
+ *  beim Re-Mount einen Render-Cycle: erster Render hat schon Stage 2 statt
+ *  zwischendurch ohne Embeddings zu rendern und im naechsten Render
+ *  Stage-2-Recompute auszuloesen. */
+export function getCachedVerbundEmbeddings(idb: IDBStore): Map<string, number[]> | null {
+  if (cachedEmbeddings && cachedEmbeddings.idb === idb) {
+    return cachedEmbeddings.map;
+  }
+  return null;
+}
+
 export async function listVerbundEmbeddingKeys(idb: IDBStore): Promise<Set<string>> {
   const keys = await idb.keys(VERBUND_EMB_PREFIX);
   const result = new Set<string>();

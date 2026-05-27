@@ -23,18 +23,15 @@ import {
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
-import { normalizeKuerzel } from '../services/anonym-map';
 import {
   buildVerbundClassificationViews,
   type VerbundKlassifizierungsView,
 } from '../services/verbund-aggregation';
-import { loadAllVerbundEmbeddings } from '../services/verbund-embedding';
-import type { Antrag } from '@/core/services/csv/types';
 import {
-  CANONICAL_TIB_KUERZ,
-  CANONICAL_ANTRAGSDATUM,
-  type Klassifizierung,
-} from '../types';
+  getCachedVerbundEmbeddings,
+  loadAllVerbundEmbeddings,
+} from '../services/verbund-embedding';
+import { type Klassifizierung } from '../types';
 import { buildVerbundColumns } from './verbund-columns';
 import { VerbundClassificationTable } from './VerbundClassificationTable';
 import { LLMKlassifizierungButtons } from '../components/LLMKlassifizierungButtons';
@@ -50,20 +47,9 @@ type ViewFilter = 'alle' | 'review' | 'freigegeben';
 const COLUMN_VISIBILITY_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_columns';
 const COLUMN_WIDTHS_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_column_widths';
 
-const EXCLUDED_STATUS = new Set(['abgelehnt/zurückgezogen', 'irrläufer']);
-
 function jahrAusQuartal(quartal: string): number | null {
   const m = /^(\d{4})-Q[1-4]$/.exec(quartal);
   return m ? Number(m[1]) : null;
-}
-
-function istZuVerteilen(antrag: Antrag, jahr: number): boolean {
-  const datum = antrag[CANONICAL_ANTRAGSDATUM];
-  if (typeof datum !== 'string' || !datum.startsWith(`${jahr}-`)) return false;
-  if (normalizeKuerzel(antrag[CANONICAL_TIB_KUERZ]) !== null) return false;
-  const status = typeof antrag.status === 'string' ? antrag.status.trim().toLowerCase() : '';
-  if (EXCLUDED_STATUS.has(status)) return false;
-  return true;
 }
 
 export function KlassifizierungsReview(): React.ReactElement {
@@ -80,18 +66,23 @@ export function KlassifizierungsReview(): React.ReactElement {
     () => jahrAusQuartal(config.aktuellesQuartal),
     [config.aktuellesQuartal],
   );
-  const antraegeImPool = useMemo(() => {
-    if (aktuellesJahr === null) return cache.antraege;
-    return cache.antraege.filter(a => istZuVerteilen(a, aktuellesJahr));
-  }, [cache.antraege, aktuellesJahr]);
 
   // Verbund-Embeddings (Themen-Vektoren) — separater IDB-Storage neben den
   // Antrag-Embeddings. Wird seit Mai 2026 immer geladen (kein User-Toggle mehr),
   // ein leerer Korpus führt einfach zu leeren Vorschlägen — der Bootstrap-
   // Banner unten weist darauf hin.
-  const [verbundEmbeddings, setVerbundEmbeddings] = useState<Map<string, number[]> | null>(null);
-  const [embeddingsLoading, setEmbeddingsLoading] = useState(false);
+  //
+  // Initializer-Funktion liest den modul-globalen Cache aus verbund-embedding.ts
+  // synchron — beim Re-Mount ist die Map damit schon im ersten Render verfuegbar.
+  // useEffect bleibt fuer den Initial-Async-Load (App-Cold-Start, Cache leer);
+  // wenn der Pre-Load aus `useAntraegeCache.refresh` (Hebel D) den Cache schon
+  // gefuellt hat, ist auch das erste Mount synchron.
+  const [verbundEmbeddings, setVerbundEmbeddings] = useState<Map<string, number[]> | null>(
+    () => getCachedVerbundEmbeddings(storage.idb),
+  );
+  const [embeddingsLoading, setEmbeddingsLoading] = useState(verbundEmbeddings === null);
   useEffect(() => {
+    if (verbundEmbeddings !== null) return;
     let cancelled = false;
     setEmbeddingsLoading(true);
     void loadAllVerbundEmbeddings(storage.idb)
@@ -99,6 +90,9 @@ export function KlassifizierungsReview(): React.ReactElement {
       .catch(err => { console.warn('[KlassifizierungsReview] Verbund-Embedding-Load fehlgeschlagen:', err); })
       .finally(() => { if (!cancelled) setEmbeddingsLoading(false); });
     return () => { cancelled = true; };
+    // verbundEmbeddings darf NICHT in der Dep-Liste stehen — sonst feuert der
+    // Effekt nochmal nach erfolgreichem setState. Die Guard oben reicht.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storage.idb]);
 
   // v2.10: Stage-2-Embedding-Matching ist teuer (~690 ms bei 138 Verbuenden).
@@ -113,21 +107,21 @@ export function KlassifizierungsReview(): React.ReactElement {
     [config.ueberKategorien],
   );
 
-  // Verbund-Aggregation
-  // cache.verbuendeById liefert die Verbund-Level-Felder (titel, akronym) aus
-  // dem separaten `verbuende`-IDB-Store — sonst wuerde der Verbund-Header
-  // den TV1-`titel` zeigen (CSV-Merger speichert Verbund-Felder dort, NICHT
-  // auf den TV-Antragsobjekten).
+  // Verbund-Aggregation. Pool-Filterung + verbuende-Lookup passieren intern
+  // im Service — wir uebergeben Store-Refs (cache.antraege, cache.verbuende),
+  // damit der Modul-globale Closure-Cache in verbund-aggregation.ts ueber
+  // Re-Mounts hinweg greifen kann (~690 ms Stage-2-Recompute gespart).
   const verbundViews = useMemo(
     () => buildVerbundClassificationViews(
-      antraegeImPool,
+      cache.antraege,
+      aktuellesJahr,
       config.ueberKategorien,
       klassifizierungen,
       deferredEmbeddings ?? undefined,
-      config.stage2Aktiv,
-      cache.verbuendeById,
+      config.stage2Aktiv === true,
+      cache.verbuende,
     ),
-    [antraegeImPool, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv, cache.verbuendeById],
+    [cache.antraege, aktuellesJahr, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv, cache.verbuende],
   );
 
   const [filter, setFilter] = useState<ViewFilter>('alle');
