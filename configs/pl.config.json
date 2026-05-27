@@ -19,7 +19,7 @@
   },
   "features": {
     "kuratorMenus": false,
-    "feedback": false,
+    "feedback": true,
     "dokumentenscan": false,
     "volltextsuche": false,
     "devInfraPanel": false,
