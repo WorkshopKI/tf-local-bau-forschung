@@ -14,3 +14,5 @@ export { Field } from './Field';
 export { CollapsibleSection } from './CollapsibleSection';
 export { ProgressBar } from './ProgressBar';
 export { Tooltip } from './Tooltip';
+export { SegmentedToggle } from './SegmentedToggle';
+export type { SegmentedToggleOption } from './SegmentedToggle';

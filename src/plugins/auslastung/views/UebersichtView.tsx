@@ -1,12 +1,14 @@
 /**
- * UebersichtView (v2.6) — Tab "Übersicht" des Auslastungs-Moduls.
+ * UebersichtView (v2.14) — Tab "Übersicht" des Auslastungs-Moduls.
  *
- * Konsolidierte Sicht: DeAnon-Panel (gated) + Statistik-Panel (collapsible) +
- * Mitarbeiter-&-Kapazität-Tabelle (zwei-Zeilen-Layout mit Inline-Expand) +
- * Überkategorien-Verwaltung + Import/Export + Erweitert-Aufklapper.
+ * Redesign nach Claude-Design-Tool-Handoff (`_design/handoff/auslastung/`):
+ *   - StatistikSection (collapsible) mit HeadlineInsight + KpiGrid + WarnungenZeile
+ *   - MaListSection (kompakte Tabelle mit Click-to-Expand auf MaInlineDetail)
+ *   - Admin-Sektionen (Kategorien, Import/Export, Konfig, Embedding-Corpus) im
+ *     Erweitert-Aufklapper
  *
- * v2.6 ersetzt die fruehere Aufteilung in zwei MA-Listen (KapazitaetsSection
- * + MitarbeiterSection) durch eine einzelne `MitarbeiterUndKapazitaet`.
+ * Privacy/Klartext-Modus lebt jetzt im Page-Header von AuslastungView
+ * (PrivacyChip + PrivacyPopover) — kein Banner mehr in der Übersicht.
  */
 import { useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -18,12 +20,12 @@ import { KonfigurationSection } from './admin/KonfigurationSection';
 import { KategorienSection } from './admin/KategorienSection';
 import { EmbeddingCorpusSection } from './admin/EmbeddingCorpusSection';
 import { ImportExportSection } from './admin/ImportExportSection';
-import { MitarbeiterUndKapazitaet } from './MitarbeiterUndKapazitaet';
 import { SkeletonRows, SkeletonBar } from '../components/Skeleton';
 import { StatistikSection } from './uebersicht/StatistikSection';
 import { HeadlineInsight } from './uebersicht/HeadlineInsight';
 import { KpiGrid } from './uebersicht/KpiGrid';
 import { WarnungenZeile } from './uebersicht/WarnungenZeile';
+import { MaListSection, type WarningFilter } from './uebersicht/MaListSection';
 
 export function UebersichtView(): React.ReactElement {
   const storage = useStorage();
@@ -32,6 +34,15 @@ export function UebersichtView(): React.ReactElement {
   const cache = useAntraegeCache();
   const { ready } = useAuslastungReady();
   const [erweitertOpen, setErweitertOpen] = useState(false);
+  const [warningFilter, setWarningFilter] = useState<WarningFilter>(null);
+
+  const handleWarningFilter = (filter: 'no-bookings' | 'overbooked'): void => {
+    setWarningFilter(prev => prev === filter ? null : filter);
+    // Sanftes Scrollen zur MA-Liste, damit der User die Wirkung des Filters sieht.
+    requestAnimationFrame(() => {
+      document.getElementById('ma-list-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   if (setupDone && !ready) {
     // Volles Skeleton-Layout statt nur Text — User sieht sofort,
@@ -71,10 +82,15 @@ export function UebersichtView(): React.ReactElement {
         <div className="flex flex-col gap-4">
           <HeadlineInsight />
           <KpiGrid />
-          <WarnungenZeile />
+          <WarnungenZeile onFilter={handleWarningFilter} />
         </div>
       </StatistikSection>
-      <MitarbeiterUndKapazitaet storage={storage} cache={cache} />
+      <MaListSection
+        storage={storage}
+        cache={cache}
+        warningFilter={warningFilter}
+        onClearWarningFilter={() => setWarningFilter(null)}
+      />
       <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
       <ImportExportSection antraege={cache.antraege} anonymMap={cache.anonymMap} />
 
