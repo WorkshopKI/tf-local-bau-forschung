@@ -12,6 +12,16 @@ Plugin (`id: 'auslastung'`, `category: 'workflow'`, `kuratorOnly: false`, sichtb
 
 Aus FZD-Kontext, im Admin editierbar: `IT` Industrielle Technologien, `DT` Digitale Technologien, `EU` Energie- und Umwelttechnologien, `LG` Lebens- und Gesundheitswissenschaften, `NM` Naturwissenschaftliche Methoden.
 
+## Performance (v2.13)
+
+Re-Mount-Latenz von 7 s → <1 s. Drei Hebel kombiniert:
+
+- **Hebel C — Aggregate im Store**: `anonymMap`, `verbuendeById`, `historischeDeskriptorenByAnon`, `historischeAstByAnon`, `allDeskriptoren` wandern aus den Component-`useMemo`-Kaskaden in den `useCacheStore`. Single-Pass-Aggregationen über 5000+ Antraege laufen genau einmal pro Daten-Load (nicht pro Tab-Mount). `ensureAggregates()` rechnet nach, wenn die kuerzel-map später ankommt.
+- **Hebel A — Banner immer sichtbar**: Der `if (!loaded)` Early-Return in `AuslastungView` ist weg. Header + `ModulLoadingBanner` rendern ab dem ersten Mount, Tabs kommen unter `loaded && (...)`. Spinner + Countdown bleiben auch beim Re-Mount sichtbar.
+- **Hebel B1 — Plugin `onInit`-Pre-Cache**: Auslastung-Plugin lädt `useAuslastungData` + `useKuerzelMap` parallel beim App-Start (non-blocking, fehlertolerant). `warmupAntraegeCache` wird via `useActiveProgramm`-Subscribe getriggert sobald die programmId steht. Erster Klick auf Auslastung findet die Daten schon im Store.
+
+Generisches Pattern für andere Plugins mit derselben Symptomatik: [docs/agents/optimize-remount-latency.md](../agents/optimize-remount-latency.md).
+
 ## Tabs (`AuslastungView`)
 
 **Workflow-Revision 1.17 (v2.1)**: 3 Tabs statt 5 — Klassifizierung · Zuweisung (50/50-Split-Cockpit) · Übersicht (fusioniert ehemalige Kapazität + Admin). Selbsteintragung wandert auf die Homepage als Sektion `NeueAntraegeFuerDich` (Plugin "home"). Sichtbarkeit "PL-only" über Build-Variante (`features.auslastung` nur in `pl.config.json`/`dev.config.json`) — kein in-app-Rollencheck mehr. „Meine Technologien" als Tab im Einstellungs-Plugin.

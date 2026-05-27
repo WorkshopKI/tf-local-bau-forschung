@@ -60,8 +60,12 @@ automatisch generiert.
   soll: `src/core/components/tour/tourSteps.ts` → neuen Step zu `TOUR_STEPS`
   hinzufügen, `data-tour="..."`-Attribut auf Ziel-Element setzen
 - **Badge-Counter**: `badge: () => myStore.count` in der Plugin-Definition
-- **Init-Hook**: aktuell nicht im `TeamFlowPlugin`-Interface — wenn benötigt,
-  im Plugin-Component selbst per `useEffect`
+- **Init-Hook**: `onInit?: (services: PluginInitServices) => Promise<void>`
+  im Plugin-Objekt. Wird non-blocking nach `storage.init()` aus
+  [src/core/App.tsx](../../src/core/App.tsx) parallel zu anderen Plugin-Inits
+  aufgerufen — gut für Pre-Cache von Sidecar-Dateien, IDB-Migrationen oder
+  Default-Seeds. Spielregeln + Beispiel: [optimize-remount-latency.md](optimize-remount-latency.md)
+  (Hebel B1).
 
 ## Sichtbarkeits-Regeln (zur Orientierung)
 

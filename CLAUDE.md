@@ -29,6 +29,7 @@ Wiederkehrende Erweiterungen haben jeweils mehrere Touch-Points, die synchron ge
 - [docs/agents/add-sidecar-persistence.md](docs/agents/add-sidecar-persistence.md) — Sidecar-Datei auf SMB-Daten-Share spiegeln
 - [docs/agents/add-build-script.md](docs/agents/add-build-script.md) — Neues Build-Script / Prebuild-Hook anlegen
 - [docs/agents/async-error-pattern.md](docs/agents/async-error-pattern.md) — Async-UI-Aktion mit Error-Handling (`useAsyncAction`)
+- [docs/agents/optimize-remount-latency.md](docs/agents/optimize-remount-latency.md) — Re-Mount-Latenz eines Plugins optimieren (Aggregate-im-Store + Banner + onInit)
 - [docs/agents/change-app-branding.md](docs/agents/change-app-branding.md) — App-Name, Untertitel und HTML-Filename ändern
 - [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) — `file://`-Quick-Reference
 - [docs/agents/port-design-export.md](docs/agents/port-design-export.md) — Claude-Design-Tool-Exporte portieren
@@ -92,13 +93,13 @@ interface TeamFlowPlugin {
   component: ComponentType;
   adminOnly?: boolean;
   badge?: () => number | null;
-  onInit?: (services: CoreServices) => Promise<void>;
+  onInit?: (services: PluginInitServices) => Promise<void>;
 }
 ```
 
 Plugins are registered in `src/plugins.config.ts`. Build-time filtering via `VITE_PLUGINS` env var.
 
-**Plugin-Initialisierung**: Plugins können optional einen `onInit?: (services: CoreServices) => Promise<void>` exportieren. Der Hook wird beim App-Start aufgerufen (asynchron, fehlertolerant) und ist der richtige Ort für IDB-Schema-Migrationen, Service-Bootstrap und Default-Seeds. Wer Daten erst beim ersten Render des Plugin-Bildschirms braucht, gehört NICHT in `onInit` (lädt sonst unnötig beim App-Start).
+**Plugin-Initialisierung** (seit v2.13 aktiv): Plugins können optional einen `onInit?: (services: PluginInitServices) => Promise<void>` exportieren. Der Hook wird **non-blocking** nach `storage.init()` aus [src/core/App.tsx](src/core/App.tsx) parallel zu anderen Plugin-Inits aufgerufen (`void Promise.allSettled(...)`, fehlertolerant) und ist der richtige Ort für IDB-Schema-Migrationen, Service-Bootstrap, Default-Seeds und Pre-Cache von Sidecar-Dateien. Wer Daten erst beim ersten Render des Plugin-Bildschirms braucht, gehört NICHT in `onInit` (lädt sonst unnötig beim App-Start). Konkretes Pattern für Re-Mount-Latenz-Optimierung mit Aggregate-im-Store + sofortigem UI-Feedback + onInit-Pre-Cache: [docs/agents/optimize-remount-latency.md](docs/agents/optimize-remount-latency.md).
 
 ### Storage Dual-Layer
 - **IndexedDB**: Fast cache, embedding vectors, ONNX model cache, UI state, FS handle persistence

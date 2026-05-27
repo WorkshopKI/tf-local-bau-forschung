@@ -15,6 +15,7 @@ Kompakte Checklisten für häufige Erweiterungen, die jeweils mehrere synchronis
 | Sidecar-Datei auf SMB-Daten-Share spiegeln | [add-sidecar-persistence.md](add-sidecar-persistence.md) |
 | Neues Build-Script / Prebuild-Hook anlegen | [add-build-script.md](add-build-script.md) |
 | Async-UI-Aktion mit Error-Handling | [async-error-pattern.md](async-error-pattern.md) |
+| Re-Mount-Latenz eines Plugins optimieren | [optimize-remount-latency.md](optimize-remount-latency.md) |
 | App-Name / Untertitel / HTML-Filename ändern | [change-app-branding.md](change-app-branding.md) |
 | `file://`-Pitfalls (kompakte Quick-Reference) | [file-protocol-pitfalls.md](file-protocol-pitfalls.md) |
 | Design-Export aus Claude Design Tool portieren | [port-design-export.md](port-design-export.md) |
