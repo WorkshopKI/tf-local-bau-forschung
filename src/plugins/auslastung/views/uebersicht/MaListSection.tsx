@@ -29,6 +29,7 @@ import { MaInlineDetail } from '../MaInlineDetail';
 import { InlineCapsHeader } from './InlineCapsHeader';
 import { MaListFilterBar, type ViewMode } from './MaListFilterBar';
 import { MaTable, type SortColumn, type SortDir } from './MaTable';
+import { MaTileGrid } from './MaTileGrid';
 
 export type WarningFilter = null | 'no-bookings' | 'overbooked';
 
@@ -319,9 +320,27 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           }}
         />
       ) : (
-        <div className="text-center text-[var(--tf-text-tertiary)] py-12 text-[12.5px]">
-          Karten-View folgt in Etappe 5.
-        </div>
+        <MaTileGrid
+          list={list}
+          altlastByAnon={altlastByAnon}
+          kapByAnon={kapByAnon}
+          kategorien={kategorien}
+          stundenProTV={stundenProTV}
+          expandedMa={expandedMa}
+          onToggleExpand={handleToggleExpand}
+          sort={{ col: sortCol, dir: sortDir }}
+          renderInlineDetail={(ma) => {
+            const auslastung = auslastungByAnon.get(ma.anonId) ?? EMPTY_AUSLASTUNG;
+            return (
+              <MaInlineDetail
+                ma={ma}
+                auslastung={auslastung}
+                quartal={config.aktuellesQuartal}
+                onSaved={() => setExpandedMa(null)}
+              />
+            );
+          }}
+        />
       )}
 
       {!showInactive && totalCount > aktivCount && (
