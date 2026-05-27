@@ -22,12 +22,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { AuslastungIndexProvider } from '../hooks/useAuslastungIndex';
 import { ModulLoadingBanner } from '../components/ModulLoadingBanner';
 import { KlassifizierungsReview } from './KlassifizierungsReview';
 import { ZuweisungsCockpit } from './ZuweisungsCockpit';
 import { UebersichtView } from './UebersichtView';
+import { PrivacyChip } from './uebersicht/PrivacyChip';
 
 type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht';
 const ALL_TABS: ReadonlySet<TabId> = new Set(['klassifizierung', 'zuweisung', 'uebersicht']);
@@ -94,13 +96,23 @@ export function AuslastungView(): React.ReactElement {
   // Verbund-Embeddings etc.) nicht doppelt feuern.
   return (
     <div className="p-6">
-      <div className="flex items-baseline gap-3 mb-4">
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Auslastung</h1>
-        <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
+      <div className="flex items-center gap-0 mb-4">
+        <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-none tracking-[-0.01em]">
+          Auslastung
+        </h1>
+        <p
+          className="text-[12px] text-[var(--tf-text-tertiary)] font-mono"
+          style={{ paddingLeft: 14, marginLeft: 14, borderLeft: '0.5px solid var(--tf-border)' }}
+        >
           {loaded
             ? `${Object.keys(data.mitarbeiter).length} MAs · ${data.config.ueberKategorien.length} Kategorien · ${data.config.aktuellesQuartal}`
             : 'wird geladen …'}
         </p>
+        {isDeAnonymisierungEnabled() && (
+          <div className="ml-auto">
+            <PrivacyChip />
+          </div>
+        )}
       </div>
 
       {/* v2.13: Banner direkt unter dem Header (vor den Tabs) — sofort

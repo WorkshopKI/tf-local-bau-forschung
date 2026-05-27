@@ -20,9 +20,7 @@ import { EmbeddingCorpusSection } from './admin/EmbeddingCorpusSection';
 import { ImportExportSection } from './admin/ImportExportSection';
 import { StatistikPanel } from './StatistikPanel';
 import { MitarbeiterUndKapazitaet } from './MitarbeiterUndKapazitaet';
-import { DeAnonPanel } from '../components/DeAnonPanel';
 import { SkeletonRows, SkeletonBar } from '../components/Skeleton';
-import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
 
 export function UebersichtView(): React.ReactElement {
   const storage = useStorage();
@@ -65,7 +63,6 @@ export function UebersichtView(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-4">
-      {isDeAnonymisierungEnabled() && <DeAnonPanel />}
       <div className="rounded-[12px]" style={{ border: '0.5px solid var(--tf-border)' }}>
         <div className="px-4">
           <StatistikPanel />
