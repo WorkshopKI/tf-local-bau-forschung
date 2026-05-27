@@ -2,7 +2,7 @@
  * useAuslastungIndex (v2.9 + v2.11) — gemeinsamer computeQuartalsAuslastung-Memo
  * fuer alle drei Tabs des Auslastungs-Moduls.
  *
- * Bisher berechneten StatistikPanel, MitarbeiterUndKapazitaet UND
+ * Bisher berechneten Statistik-Bereich, MitarbeiterUndKapazitaet UND
  * ZuweisungsCockpit denselben `Map<anonId, MaQuartalsAuslastung>` jeweils
  * unabhaengig (3× redundant, je ~200-500ms bei 5000 Antraegen). Mit dem
  * `AuslastungIndexProvider` auf AuslastungView-Ebene laeuft die Berechnung

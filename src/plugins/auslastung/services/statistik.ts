@@ -6,7 +6,8 @@
  * Bilanz, Warnungen (ueberbucht, leer) und die MA-Verteilung pro Kategorie.
  *
  * Pure-Funktion, testbar ohne React. Wird einmal pro Render im
- * `StatistikPanel` aufgerufen, kostet O(MAs) — fuer ~80 MAs unkritisch.
+ * Statistik-Bereich (HeadlineInsight + KpiGrid + WarnungenZeile)
+ * aufgerufen, kostet O(MAs) — fuer ~80 MAs unkritisch.
  */
 import type { AnonymerMitarbeiter, AuslastungConfig, UeberKategorie } from '../types';
 import type { MaQuartalsAuslastung } from './quartals-auslastung';

@@ -22,6 +22,8 @@ import { MitarbeiterUndKapazitaet } from './MitarbeiterUndKapazitaet';
 import { SkeletonRows, SkeletonBar } from '../components/Skeleton';
 import { StatistikSection } from './uebersicht/StatistikSection';
 import { HeadlineInsight } from './uebersicht/HeadlineInsight';
+import { KpiGrid } from './uebersicht/KpiGrid';
+import { WarnungenZeile } from './uebersicht/WarnungenZeile';
 
 export function UebersichtView(): React.ReactElement {
   const storage = useStorage();
@@ -66,7 +68,11 @@ export function UebersichtView(): React.ReactElement {
   return (
     <div className="flex flex-col gap-4">
       <StatistikSection label="Statistik-Übersicht" count={quartal}>
-        <HeadlineInsight />
+        <div className="flex flex-col gap-4">
+          <HeadlineInsight />
+          <KpiGrid />
+          <WarnungenZeile />
+        </div>
       </StatistikSection>
       <MitarbeiterUndKapazitaet storage={storage} cache={cache} />
       <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
