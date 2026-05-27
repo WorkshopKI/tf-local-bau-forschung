@@ -82,6 +82,11 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
 
   load: async (storage) => {
     if (get().loading) return;
+    // Idempotenz: schon geladen ohne Fehler → kein SMB-Re-Fetch. Sonst wuerde
+    // jedes Plugin-Wechsel-Re-Mount der AuslastungView einen vollen Roundtrip
+    // gegen `_intern/auslastung.json` triggern (~0.5–2 s). Manuelle Invalidierung
+    // via Mutatoren (upsertKategorie, upsertMitarbeiter etc.) bleibt unberührt.
+    if (get().loaded && !get().error) return;
     set({ loading: true, error: null });
     try {
       const data = await loadAuslastungData(storage);

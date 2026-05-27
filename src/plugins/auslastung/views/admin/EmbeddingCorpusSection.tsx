@@ -30,6 +30,7 @@ import {
   buildVerbundEmbeddingCorpus,
   loadAllVerbundEmbeddings,
   clearVerbundEmbeddings,
+  invalidateVerbundEmbeddingsCache,
 } from '../../services/verbund-embedding';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
@@ -161,6 +162,10 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
         incremental,
         signal: abortRef.current.signal,
       });
+      // v2.11: Cache invalidieren, damit nachfolgende loadAllVerbundEmbeddings-
+      // Calls (auch in `KlassifizierungsReview`) die neu gebauten Vektoren
+      // sehen — sonst wuerde der Module-Cache die alten Daten weiter liefern.
+      invalidateVerbundEmbeddingsCache();
       await refresh();
       // Centroids aus Verbund-Embeddings — pro Verbund-ID dedupliziert.
       const verbundEmbs = await loadAllVerbundEmbeddings(storage.idb);
@@ -215,6 +220,9 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
     try {
       await clearEmbeddings(storage.idb);
       await clearVerbundEmbeddings(storage.idb);
+      // v2.11: Module-Cache mit-invalidieren, sonst liefert der naechste
+      // loadAllVerbundEmbeddings die alten Vektoren weiter.
+      invalidateVerbundEmbeddingsCache();
       await refresh();
       // stage2Aktiv bleibt true (kein User-Toggle mehr) — nur das Build-Datum
       // zurücksetzen, damit die UI ein neues Build erzwingt.

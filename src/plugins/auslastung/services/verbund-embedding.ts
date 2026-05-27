@@ -49,10 +49,30 @@ export async function storeVerbundEmbedding(
   vector: number[],
 ): Promise<void> {
   await idb.set(idbKey(verbundId), vector);
+  // Single-Eintrag-Updates invalidieren den Cache nicht — der naechste
+  // `loadAllVerbundEmbeddings`-Call wuerde sonst stale Daten liefern.
+  // Aktuell wird storeVerbundEmbedding nur vom Corpus-Build genutzt, der
+  // selbst `invalidateVerbundEmbeddingsCache()` ruft. Falls das spaeter
+  // ausserhalb des Builds passiert, dort die Cache-Invalidierung mitziehen.
 }
 
-/** Vollstaendige Map aller persistierten Verbund-Embeddings. */
+// ─── Module-globaler Cache (ueberlebt Komponenten-Unmount) ───────────────
+// KlassifizierungsReview.useEffect ruft `loadAllVerbundEmbeddings(idb)` auf
+// jedem Mount → bei Plugin-Wechsel (Auslastung → Förderanträge → Auslastung)
+// triggerte das einen vollen IDB-Scan ueber 400+ Verbuende (~300-500 ms).
+// Cache keyed auf `idb`-Identity, weil das `IDBStore`-Objekt waehrend der
+// App-Session stabil ist (kommt aus dem Storage-Singleton).
+
+let cachedEmbeddings: { idb: IDBStore; map: Map<string, number[]> } | null = null;
+
+/** Vollstaendige Map aller persistierten Verbund-Embeddings. Cached auf
+ *  `idb`-Identity — Folge-Calls innerhalb derselben App-Session liefern den
+ *  gecachten Wert ohne IDB-Roundtrip. Cache wird beim Corpus-Rebuild via
+ *  `invalidateVerbundEmbeddingsCache()` invalidiert. */
 export async function loadAllVerbundEmbeddings(idb: IDBStore): Promise<Map<string, number[]>> {
+  if (cachedEmbeddings && cachedEmbeddings.idb === idb) {
+    return cachedEmbeddings.map;
+  }
   const keys = await idb.keys(VERBUND_EMB_PREFIX);
   const result = new Map<string, number[]>();
   for (const k of keys) {
@@ -60,7 +80,15 @@ export async function loadAllVerbundEmbeddings(idb: IDBStore): Promise<Map<strin
     const v = await idb.get<number[]>(k);
     if (Array.isArray(v)) result.set(id, v);
   }
+  cachedEmbeddings = { idb, map: result };
   return result;
+}
+
+/** Cache invalidieren — Caller: `EmbeddingCorpusSection.buildCorpus` nach
+ *  erfolgreichem Rebuild des Verbund-Korpus. Sonst wuerde der naechste
+ *  Load die stale Daten zurueckgeben. */
+export function invalidateVerbundEmbeddingsCache(): void {
+  cachedEmbeddings = null;
 }
 
 export async function listVerbundEmbeddingKeys(idb: IDBStore): Promise<Set<string>> {
