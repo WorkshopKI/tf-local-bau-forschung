@@ -62,6 +62,14 @@ interface AuslastungDataState {
   // ── Klassifizierungen ────────────────────────────────────────────────
   upsertKlassifizierung: (storage: StorageService, k: Klassifizierung) => Promise<void>;
   freigebenKategorien: (storage: StorageService, antragId: string, kategorieIds: string[]) => Promise<void>;
+  /** Bulk-Freigabe: mehrere Antraege (z.B. alle TVs mehrerer Verbuende) in
+   *  EINEM setState + EINEM persist. Verhindert N sequentielle SMB-Roundtrips
+   *  (Pitfall #16/#20). Bestehende Vorschlaege werden gemergt wie bei der
+   *  Einzel-Freigabe. No-op bei leeren entries. */
+  freigebenKategorienBulk: (
+    storage: StorageService,
+    entries: ReadonlyArray<{ antragId: string; kategorieIds: string[] }>,
+  ) => Promise<void>;
   // ── Zuweisungen ──────────────────────────────────────────────────────
   upsertZuweisung: (storage: StorageService, z: Zuweisung) => Promise<void>;
   removeZuweisung: (storage: StorageService, antragId: string, anonId: string) => Promise<void>;
@@ -72,6 +80,25 @@ interface AuslastungDataState {
 }
 
 const initialData = emptyAuslastungData();
+
+/** Baut einen freigegebenen Klassifizierungs-Record. Bestehende Vorschlaege
+ *  (`vorgeschlagene*`) bleiben erhalten, erste kategorieId wird Primaer, Rest
+ *  Aspekte. Pure — geteilt von Einzel- und Bulk-Freigabe. */
+function buildFreigegebenRecord(
+  existing: Klassifizierung | undefined,
+  antragId: string,
+  kategorieIds: string[],
+): Klassifizierung {
+  return {
+    antragId,
+    vorgeschlagenePrimaer: existing?.vorgeschlagenePrimaer ?? null,
+    vorgeschlageneAspekte: existing?.vorgeschlageneAspekte ?? [],
+    freigegebenePrimaer: kategorieIds[0] ?? '',
+    freigegebeneAspekte: kategorieIds.slice(1),
+    status: 'freigegeben',
+    freigegebenAm: new Date().toISOString(),
+  };
+}
 
 export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
   data: initialData,
@@ -243,19 +270,28 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
 
   freigebenKategorien: async (storage, antragId, kategorieIds) => {
     const existing = get().data.klassifizierungen.find(k => k.antragId === antragId);
-    // 1.17: ersten Eintrag als Primaer, Rest als Aspekte.
-    const primaer = kategorieIds[0] ?? '';
-    const aspekte = kategorieIds.slice(1);
-    const next: Klassifizierung = {
-      antragId,
-      vorgeschlagenePrimaer: existing?.vorgeschlagenePrimaer ?? null,
-      vorgeschlageneAspekte: existing?.vorgeschlageneAspekte ?? [],
-      freigegebenePrimaer: primaer,
-      freigegebeneAspekte: aspekte,
-      status: 'freigegeben',
-      freigegebenAm: new Date().toISOString(),
-    };
-    await get().upsertKlassifizierung(storage, next);
+    await get().upsertKlassifizierung(storage, buildFreigegebenRecord(existing, antragId, kategorieIds));
+  },
+
+  freigebenKategorienBulk: async (storage, entries) => {
+    if (entries.length === 0) return;
+    set(state => {
+      const list = [...state.data.klassifizierungen];
+      const idxById = new Map(list.map((k, i) => [k.antragId, i]));
+      for (const { antragId, kategorieIds } of entries) {
+        const idx = idxById.get(antragId);
+        const existing = idx !== undefined ? list[idx] : undefined;
+        const rec = buildFreigegebenRecord(existing, antragId, kategorieIds);
+        if (idx !== undefined) {
+          list[idx] = rec;
+        } else {
+          idxById.set(antragId, list.length);
+          list.push(rec);
+        }
+      }
+      return { data: { ...state.data, klassifizierungen: list } };
+    });
+    await get().persist(storage);
   },
 
   upsertZuweisung: async (storage, z) => {

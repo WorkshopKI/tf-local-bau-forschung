@@ -58,6 +58,7 @@ export function KlassifizierungsReview(): React.ReactElement {
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
   const upsertKlassifizierung = useAuslastungData(s => s.upsertKlassifizierung);
   const freigeben = useAuslastungData(s => s.freigebenKategorien);
+  const freigebenBulk = useAuslastungData(s => s.freigebenKategorienBulk);
 
   const cache = useAntraegeCache();
   const { ready } = useAuslastungReady();
@@ -144,14 +145,21 @@ export function KlassifizierungsReview(): React.ReactElement {
     });
   }, [verbundViews, filter]);
 
-  // Persistenz-Wrapper: Verbund-Aktion wirkt auf alle TVs.
-  async function freigebeVerbund(view: VerbundKlassifizierungsView): Promise<void> {
+  // Sammelt die Freigabe-Entries fuer alle TVs eines Verbundes (gleiche
+  // Kategorien fuer alle TVs). Leeres Array, wenn kein Primaer-Vorschlag.
+  function collectVerbundFreigaben(
+    view: VerbundKlassifizierungsView,
+  ): { antragId: string; kategorieIds: string[] }[] {
     const primaer = view.klassifizierung.vorgeschlagenePrimaer;
-    if (!primaer) return;
+    if (!primaer) return [];
     const ids = [primaer.kategorieId, ...view.klassifizierung.vorgeschlageneAspekte.map(a => a.kategorieId)];
-    for (const tv of view.tvs) {
-      await freigeben(storage, tv.aktenzeichen, ids);
-    }
+    return view.tvs.map(tv => ({ antragId: tv.aktenzeichen, kategorieIds: ids }));
+  }
+
+  // Persistenz-Wrapper: Verbund-Aktion wirkt auf alle TVs — EIN persist
+  // statt einem pro TV (Pitfall #16/#20).
+  async function freigebeVerbund(view: VerbundKlassifizierungsView): Promise<void> {
+    await freigebenBulk(storage, collectVerbundFreigaben(view));
   }
 
   async function applyVerbundOverride(
@@ -200,9 +208,10 @@ export function KlassifizierungsReview(): React.ReactElement {
     );
     if (candidates.length === 0) return;
     if (!confirm(`${candidates.length} Verbünde mit hoher Sicherheit freigeben?`)) return;
-    for (const v of candidates) {
-      await freigebeVerbund(v);
-    }
+    // Alle TVs aller Kandidaten in EINEM persist statt N SMB-Roundtrips
+    // (Pitfall #16/#20): vorher ~2 s/Verbund (40 Verbuende = 80 s), jetzt ~2 s.
+    const entries = candidates.flatMap(collectVerbundFreigaben);
+    await freigebenBulk(storage, entries);
   }
 
   // Spalten + Hooks
