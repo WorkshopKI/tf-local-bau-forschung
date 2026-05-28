@@ -15,5 +15,14 @@ Daten-Modell-Änderungen, die einen Re-Pick beim Start erzwingen:
   - `PERSOENLICH_PROFILE_FILE = 'teamflow/profile.json'`
   - `PERSOENLICH_EINSTELLUNGEN_FILE = 'teamflow/einstellungen.json'`
   - `PERSOENLICH_MEINE_FEEDBACKS_FILE = 'teamflow/feedback/meine-feedbacks.json'`
+  - `PERSOENLICH_AUSLASTUNG_PROFIL_FILE = 'teamflow/auslastung-profil.json'` (v2.6)
+
+## v2.6 — MA-Selbst-Profil über den persönlichen Ordner
+
+Zweiter Personal-Ordner-Flow neben der Feedback-Outbox, gleiche Begründung (Nicht-Kuratoren haben nur `read` auf dem Daten-Share und können `_intern/auslastung.json` nicht schreiben):
+
+- **Schreiben (User)**: Der Tab „Meine Technologien" ([MeineTechnologienTab.tsx](../../src/plugins/einstellungen/MeineTechnologienTab.tsx)) schreibt die MA-pflegbaren Felder (`manuelleTechnologien`, `ausgeblendeteAutoTags`, `hauptKategorie`, `nebenKategorien`, `antragstypBevorzugt`) via `writeAuslastungProfil` ([persoenliches-profil.ts](../../src/plugins/auslastung/services/persoenliches-profil.ts)) nach `teamflow/auslastung-profil.json` + IDB-Cache. Kein Direktschreiben mehr nach `auslastung.json`.
+- **Cross-Browser-Hydration**: `loadAuslastungProfil` liest beim Tab-Mount aus dem persönlichen Ordner (Source-of-Truth) → IDB-Cache → null, LWW über `updatedAt`. Hat Vorrang vor dem aus `auslastung.json` abgeleiteten Record (der erst nach PL-Aggregation aktuell ist). Wichtig, weil User mobil + vor Ort zwei Browser nutzen.
+- **Einsammeln (PL)**: `collectUserProfiles` + `mergeProfilesIntoMitarbeiter` ([profil-einsammeln.ts](../../src/plugins/auslastung/services/profil-einsammeln.ts)) lesen über `SMB_HANDLE_USER_FOLDERS_ROOT` alle Profile ein (Iterations-Muster wie `FeedbackInboxTab`) und mergen sie via `kuerzel → anonId` in `auslastung.json`. PL-only-Felder (`jahresKapazitaet`, `abschlagProzent`, `aktiv`, `abgemeldet`, `antragstypUeberschreibung`) bleiben erhalten; unbekannte Kürzel legen neue MAs an. Trigger: Button „Team-Profile einsammeln" in der Auslastungs-Übersicht ([MaListSection.tsx](../../src/plugins/auslastung/views/uebersicht/MaListSection.tsx)) — manuell, EIN `setState` + EIN `persist` (Pitfall #16/#20).
 
 UI-Touchpoints: `Onboarding.tsx` (Kürzel-Feld optional + Step 2 Pers. Ordner), `WelcomeScreen.tsx` (`expectedFolderName`-Validation + Mode-Default abhängig von `is_kurator`), `StartupScreen.tsx` (neu), `OfflineBanner.tsx` (neu), `ShellLayout.tsx` (Banner eingehängt), `EinstellungenPage`/`SpeicherTab` (Section "Persönlicher Ordner" + Verbinden/Ändern/Trennen).

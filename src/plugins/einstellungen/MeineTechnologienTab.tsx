@@ -17,12 +17,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { Tooltip } from '@/ui';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { resolveAnonIdForUser } from '@/plugins/auslastung/services/anonym-map';
 import { aggregateMaProfile } from '@/plugins/auslastung/services/profil-aggregator';
+import {
+  loadAuslastungProfil,
+  writeAuslastungProfil,
+} from '@/plugins/auslastung/services/persoenliches-profil';
 import { hasPlOverride } from '@/plugins/auslastung/services/antragstyp-praeferenz';
+import type { PersoenlichesAuslastungProfil } from '@/plugins/auslastung/types';
 import { KategoriePill } from '@/plugins/auslastung/components/KategoriePill';
 import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket } from '@/plugins/auslastung/types';
 import {
@@ -33,8 +40,6 @@ import {
   InfoHint,
   SettingsSectionHeader,
 } from './_shared/settings-primitives';
-
-const LS_KEY = 'teamflow-meineTechnologien';
 
 const TOOLTIP_PROGRAMM =
   'Deine anonyme Programm-ID. Wird verwendet, um deine Technologien im Team-Auslastungs-Profil zuzuordnen, ohne den Klarnamen preiszugeben.';
@@ -58,8 +63,6 @@ export function MeineTechnologienTab(): React.ReactElement {
   const data = useAuslastungData(s => s.data);
   const config = useAuslastungData(s => s.data.config);
   const load = useAuslastungData(s => s.load);
-  const upsertMitarbeiter = useAuslastungData(s => s.upsertMitarbeiter);
-  const createMitarbeiter = useAuslastungData(s => s.createMitarbeiter);
   const cache = useAntraegeCache();
 
   const [manualTags, setManualTags] = useState<string[]>([]);
@@ -67,19 +70,31 @@ export function MeineTechnologienTab(): React.ReactElement {
   const [hauptKategorie, setHauptKategorie] = useState<string>('');
   const [nebenKategorien, setNebenKategorien] = useState<string[]>([]);
   const [antragstypBevorzugt, setAntragstypBevorzugt] = useState<AntragstypBucket[]>([]);
-  const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  /** null = noch nicht geladen, true = persoenliches Profil existierte (autoritativ),
+   *  false = keins → Fallback-Hydration aus auslastung.json erlaubt. */
+  const [hasPersonalProfil, setHasPersonalProfil] = useState<boolean | null>(null);
 
-  // Initial-Load: aus localStorage
+  // Cross-Browser-Hydration: das eigene Profil aus dem persoenlichen Ordner
+  // (Source-of-Truth) bzw. dem IDB-Cache laden. Hat Vorrang vor dem aus
+  // auslastung.json abgeleiteten Record (der erst nach PL-Aggregation aktuell ist).
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) setManualTags(parsed.filter(s => typeof s === 'string'));
+    let cancelled = false;
+    (async () => {
+      const persHandle = await getPersoenlichHandle(storage.idb).catch(() => null);
+      const profil = await loadAuslastungProfil(storage.idb, persHandle);
+      if (cancelled) return;
+      if (profil) {
+        setManualTags(profil.manuelleTechnologien ?? []);
+        setExcludedAutoTags(profil.ausgeblendeteAutoTags ?? []);
+        setHauptKategorie(profil.hauptKategorie ?? '');
+        setNebenKategorien(profil.nebenKategorien ?? []);
+        setAntragstypBevorzugt(profil.antragstypBevorzugt ?? []);
       }
-    } catch { /* ignore */ }
-  }, []);
+      setHasPersonalProfil(!!profil);
+    })();
+    return () => { cancelled = true; };
+  }, [storage]);
 
   useEffect(() => { void load(storage); }, [storage, load]);
 
@@ -88,11 +103,13 @@ export function MeineTechnologienTab(): React.ReactElement {
     ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : '??';
 
-  // Initial-Load der MA-Profil-Felder aus `auslastung.json` — sobald sowohl
-  // AnonId aufgelöst als auch der Store geladen ist. Idempotent gegenueber
-  // spaeteren Re-Renders, ueberschreibt User-Eingaben nicht (nur initial).
+  // Fallback-Hydration aus `auslastung.json` — NUR wenn kein persoenliches
+  // Profil existiert (hasPersonalProfil === false). Sonst ist das persoenliche
+  // Profil autoritativ (Cross-Browser-Source-of-Truth) und darf nicht vom
+  // ggf. veralteten auslastung.json-Record ueberschrieben werden.
   const hydratedRef = useRef<string | null>(null);
   useEffect(() => {
+    if (hasPersonalProfil !== false) return;  // null = lädt noch, true = Profil hat Vorrang
     if (!myAnonId) return;
     if (hydratedRef.current === myAnonId) return;  // schon befuellt fuer diese ID
     const existing = data.mitarbeiter[myAnonId];
@@ -107,7 +124,7 @@ export function MeineTechnologienTab(): React.ReactElement {
       setAntragstypBevorzugt(existing.antragstypBevorzugt ?? []);
       hydratedRef.current = myAnonId;
     }
-  }, [myAnonId, data.mitarbeiter]);
+  }, [myAnonId, data.mitarbeiter, hasPersonalProfil]);
 
   const automatic = useMemo(() => {
     if (!profile?.bearbeiter_kuerzel) return [];
@@ -142,31 +159,31 @@ export function MeineTechnologienTab(): React.ReactElement {
     );
   };
 
-  async function speichern(): Promise<void> {
-    setSaving(true);
-    try {
-      try { localStorage.setItem(LS_KEY, JSON.stringify(manualTags)); } catch { /* ignore */ }
-      if (myAnonId) {
-        const existing = data.mitarbeiter[myAnonId];
-        const patch = {
-          manuelleTechnologien: manualTags,
-          ausgeblendeteAutoTags: excludedAutoTags,
-          hauptKategorie,
-          nebenKategorien,
-          // v2.2: Antragstyp-Praeferenz (Override ist PL-only, nicht hier).
-          antragstypBevorzugt,
-        };
-        if (existing) {
-          await upsertMitarbeiter(storage, { ...existing, ...patch });
-        } else {
-          await createMitarbeiter(storage, { ...patch, onboardingAbgeschlossen: true });
-        }
-      }
-      setSavedAt(new Date().toISOString());
-    } finally {
-      setSaving(false);
+  // Speichern schreibt das Selbst-Profil in den persoenlichen Ordner (immer
+  // readwrite). Direktschreiben nach auslastung.json scheitert fuer Nicht-
+  // Kuratoren am v2.0-Read-Only-Daten-Share — die PL sammelt die Profile
+  // ueber den User-Folders-Root ein. `useAsyncAction` macht Rejections
+  // sichtbar (Pitfall #15) statt sie unter file:// still zu schlucken.
+  const saveAction = useAsyncAction(async () => {
+    const kuerzel = profile?.bearbeiter_kuerzel?.trim();
+    if (!kuerzel || kuerzel.toLowerCase() === 'alle') {
+      throw new Error('Kein Bearbeiter-Kürzel im Profil hinterlegt — bitte zuerst im Tab "Profil" eintragen.');
     }
-  }
+    const profil: PersoenlichesAuslastungProfil = {
+      version: 1,
+      kuerzel,
+      manuelleTechnologien: manualTags,
+      ausgeblendeteAutoTags: excludedAutoTags,
+      hauptKategorie,
+      nebenKategorien,
+      antragstypBevorzugt,
+      updatedAt: new Date().toISOString(),
+    };
+    const persHandle = await getPersoenlichHandle(storage.idb).catch(() => null);
+    await writeAuslastungProfil(storage.idb, persHandle, profil);
+    setHasPersonalProfil(true);
+    setSavedAt(new Date().toISOString());
+  });
 
   return (
     <div className="flex flex-col">
@@ -268,22 +285,31 @@ export function MeineTechnologienTab(): React.ReactElement {
           — andere im Team sehen deine Technologien dort.
         </p>
         <div className="flex items-center gap-3">
-          {savedAt && (
+          {savedAt && !saveAction.error && (
             <span className="text-[11px] text-[var(--tf-text-tertiary)]">
               ✓ {new Date(savedAt).toLocaleTimeString('de-DE')}
             </span>
           )}
           <button
             type="button"
-            onClick={() => void speichern()}
-            disabled={saving}
+            onClick={() => saveAction.run()}
+            disabled={saveAction.busy}
             className="h-9 px-[18px] rounded-[var(--tf-radius)] text-[13px] font-medium cursor-pointer disabled:opacity-50 transition-opacity hover:opacity-90"
             style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
           >
-            {saving ? 'Speichere…' : 'Speichern'}
+            {saveAction.busy ? 'Speichere…' : 'Speichern'}
           </button>
         </div>
       </div>
+
+      {saveAction.error && (
+        <div
+          className="mt-3 rounded-md px-3 py-2 text-[12px] leading-relaxed"
+          style={{ background: 'var(--tf-warning-bg)', color: 'var(--tf-warning-text)' }}
+        >
+          {saveAction.error}
+        </div>
+      )}
     </div>
   );
 }

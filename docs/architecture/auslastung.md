@@ -31,6 +31,16 @@ Selbsteintragung-UX auf der Home:
 - Kapazitätszeile zeigt **Anträge** ("4 von 16 Anträgen frei in Q2-2026"), keine Stunden.
 - Banner-Hint „X neue Anträge in deinen Kategorien" via `useBenachrichtigung`-Hook + localStorage pro `anonId`.
 
+## MA-Selbst-Profil über persönlichen Ordner (v2.6)
+
+Der „Meine Technologien"-Tab kann `auslastung.json` nicht direkt schreiben — Nicht-Kuratoren haben seit v2.0 nur `read` auf dem Daten-Share. Stattdessen:
+
+- **User schreibt** sein Selbst-Profil (`manuelleTechnologien`, `ausgeblendeteAutoTags`, `hauptKategorie`, `nebenKategorien`, `antragstypBevorzugt`) nach `teamflow/auslastung-profil.json` im eigenen Ordner — `writeAuslastungProfil` in [services/persoenliches-profil.ts](../../src/plugins/auslastung/services/persoenliches-profil.ts) (+ IDB-Cache für Cross-Browser/Offline).
+- **Tab hydratisiert** beim Mount via `loadAuslastungProfil` (persönlicher Ordner → IDB-Cache, LWW über `updatedAt`) und priorisiert das gegenüber dem `auslastung.json`-Record.
+- **PL sammelt ein**: Button „Team-Profile einsammeln" in der Übersicht ([MaListSection.tsx](../../src/plugins/auslastung/views/uebersicht/MaListSection.tsx)) → `collectUserProfiles` (User-Folders-Root, Iterations-Muster wie FeedbackInboxTab) → `mergeProfilesIntoMitarbeiter` ([services/profil-einsammeln.ts](../../src/plugins/auslastung/services/profil-einsammeln.ts)) → Store-Action `applyAggregatedProfiles` (EIN setState + EIN persist). Merge mappt `kuerzel → anonId` (NFC), überschreibt nur die MA-pflegbaren Felder und lässt PL-only-Felder (`jahresKapazitaet`, `abschlagProzent`, `aktiv`, `abgemeldet`, `antragstypUeberschreibung`) unangetastet; unbekannte Kürzel legen neue MAs an.
+
+Siehe CLAUDE.md Pitfall #24 + [v2-handle-architektur.md](v2-handle-architektur.md).
+
 ## Antragstyp-Präferenzen pro MA (v2.2)
 
 Zusätzlich zur fachlichen `hauptKategorie` (IT/DT/EU/LG/NM) pflegt jeder MA eine **Antragstyp-Präferenz** — welche der vier Buckets FuE/DS/DL/NW er bearbeitet (Mapping auf `vb_phase`: 3=FuE, 5=DS, 4=DL, 1+2=NW, 9=Irrläufer). Zwei Felder am `AnonymerMitarbeiter`:

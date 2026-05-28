@@ -16,7 +16,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import {
+  getUserFoldersRootHandle,
+  pickAndStoreUserFoldersRootHandle,
+} from '@/core/services/infrastructure/smb-handle';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
+import { collectUserProfiles } from '../../services/profil-einsammeln';
 import type { useAntraegeCache } from '../../hooks/useAntraegeCache';
 import { useDeAnonResolver } from '../../components/AnonymIdBadge';
 import { detectAktiveMAs, shouldShowAktivVorschlag } from '../../services/aktiv-detection';
@@ -57,6 +62,8 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
   const create = useAuslastungData(s => s.createMitarbeiter);
   const applyAktivMap = useAuslastungData(s => s.applyAktivMap);
   const ensureMitarbeiterForAnonIds = useAuslastungData(s => s.ensureMitarbeiterForAnonIds);
+  const applyAggregatedProfiles = useAuslastungData(s => s.applyAggregatedProfiles);
+  const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
 
   const resolveName = useDeAnonResolver();
   const [kategorieFilter, setKategorieFilter] = useState<string>('');
@@ -106,6 +113,28 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
 
   const createAction = useAsyncAction(async () => {
     await create(storage);
+  });
+
+  // v2.6: MA-Selbst-Profile aus den persoenlichen Ordnern einsammeln und in
+  // auslastung.json mergen. Liest ueber den User-Folders-Root (nur read noetig).
+  // Manuell statt auto-on-mount, um die Load-Idempotenz + SMB-Roundtrips nicht
+  // zu unterlaufen. EIN setState + EIN persist im Store (Pitfall #16/#20).
+  const einsammelnAction = useAsyncAction(async () => {
+    setEinsammelnMsg(null);
+    let root = await getUserFoldersRootHandle(storage.idb);
+    if (!root) {
+      const res = await pickAndStoreUserFoldersRootHandle(storage.idb);
+      if (!res.ok) {
+        if (res.reason === 'aborted') return;
+        throw new Error(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
+      }
+      root = res.handle;
+    }
+    const profile = await collectUserProfiles(root);
+    const { aktualisiert, neu } = await applyAggregatedProfiles(storage, profile, cache.anonymMap);
+    setEinsammelnMsg(
+      `${profile.length} Profil(e) gelesen · ${aktualisiert.length} aktualisiert · ${neu.length} neu angelegt`,
+    );
   });
 
   async function uebernehmenVorschlag(): Promise<void> {
@@ -240,10 +269,35 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
       className="rounded-[12px] p-4 flex flex-col gap-3"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <InlineCapsHeader
-        label="Mitarbeiter & Kapazität"
-        count={`${aktivCount} aktiv / ${totalCount} gesamt`}
-      />
+      <div className="flex items-center justify-between gap-3">
+        <InlineCapsHeader
+          label="Mitarbeiter & Kapazität"
+          count={`${aktivCount} aktiv / ${totalCount} gesamt`}
+        />
+        <button
+          type="button"
+          onClick={() => einsammelnAction.run()}
+          disabled={einsammelnAction.busy}
+          className="h-7 px-3 rounded-md text-[12px] font-medium cursor-pointer disabled:opacity-50 transition-opacity hover:opacity-90 whitespace-nowrap"
+          style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
+          title="Liest die in „Meine Technologien“ gepflegten Profile aus den persönlichen Ordnern aller Teammitglieder ein und übernimmt sie."
+        >
+          {einsammelnAction.busy ? 'Sammle ein…' : 'Team-Profile einsammeln'}
+        </button>
+      </div>
+
+      {(einsammelnMsg || einsammelnAction.error) && (
+        <div
+          className="rounded-md px-3 py-1.5 text-[12px]"
+          style={
+            einsammelnAction.error
+              ? { background: 'var(--tf-warning-bg)', color: 'var(--tf-warning-text)' }
+              : { background: 'var(--tf-info-bg)', color: 'var(--tf-info-text)' }
+          }
+        >
+          {einsammelnAction.error ?? einsammelnMsg}
+        </div>
+      )}
 
       <MaListFilterBar
         kategorien={kategorien}

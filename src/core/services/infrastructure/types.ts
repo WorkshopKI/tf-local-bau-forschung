@@ -93,6 +93,15 @@ export const PERSOENLICH_FEEDBACK_OUTBOX_DIR = 'teamflow/feedback/outbox';
 export const PERSOENLICH_PROFILE_FILE = 'teamflow/profile.json';
 export const PERSOENLICH_EINSTELLUNGEN_FILE = 'teamflow/einstellungen.json';
 export const PERSOENLICH_MEINE_FEEDBACKS_FILE = 'teamflow/feedback/meine-feedbacks.json';
+/**
+ * v2.6: MA-Selbst-Profil fuers Auslastungs-Modul (Technologien/Kategorien).
+ * Nicht-Kuratoren haben seit v2.0 nur `read` auf dem Daten-Share und koennen
+ * `_intern/auslastung.json` nicht schreiben — sie pflegen ihr Profil hier im
+ * eigenen Ordner; die PL sammelt alle Profile ueber den User-Folders-Root ein.
+ * Relativ zum User-Home-Root, daher in beiden Lese-Kontexten (eigener
+ * Persoenlich-Handle + fremder User-Ordner) identisch nutzbar.
+ */
+export const PERSOENLICH_AUSLASTUNG_PROFIL_FILE = 'teamflow/auslastung-profil.json';
 
 /**
  * v2.0: IDB-Flag das die App beim Start anlegt, wenn ein bestehender Daten-

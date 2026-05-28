@@ -141,6 +141,36 @@ export type AntragstypBucket = 'FuE' | 'DS' | 'DL' | 'NW';
 
 export const ALL_ANTRAGSTYP_BUCKETS: AntragstypBucket[] = ['FuE', 'DS', 'DL', 'NW'];
 
+/**
+ * v2.6: Selbst-Profil eines MA, geschrieben in den persoenlichen Ordner
+ * (`teamflow/auslastung-profil.json`). Enthaelt ausschliesslich die
+ * MA-pflegbaren Felder — der PL-Einsammel-Schritt
+ * (`profil-einsammeln.ts:mergeProfilesIntoMitarbeiter`) merged sie ueber das
+ * `kuerzel` in `auslastung.json`, ohne PL-only-Felder (`jahresKapazitaet`,
+ * `abschlagProzent`, `aktiv`, `abgemeldet`, `antragstypUeberschreibung`) zu
+ * ueberschreiben.
+ *
+ * Hintergrund: Nicht-Kuratoren haben seit v2.0 nur `read` auf dem Daten-Share
+ * und koennen `auslastung.json` nicht direkt schreiben (siehe CLAUDE.md).
+ */
+export interface PersoenlichesAuslastungProfil {
+  version: 1;
+  /** Echtes Bearbeiter-Kuerzel. Roh gespeichert; der Einsammel-Schritt
+   *  normalisiert via `normalizeKuerzel` (NFC + uppercase, Pitfall #22). */
+  kuerzel: string;
+  manuelleTechnologien: string[];
+  ausgeblendeteAutoTags: string[];
+  hauptKategorie: string;
+  nebenKategorien: string[];
+  antragstypBevorzugt: AntragstypBucket[];
+  updatedAt: string;
+}
+
+/** IDB-Cache-Key fuer das eigene Auslastungs-Selbst-Profil. Cross-Browser-
+ *  Fallback (Pitfall: IDB ist browser-scoped) — der persoenliche Ordner bleibt
+ *  Source-of-Truth, der Cache ueberbrueckt Offline-Starts. */
+export const PERSOENLICH_AUSLASTUNG_PROFIL_IDB_KEY = 'personal-auslastung-profil-cache';
+
 /** Pro MA: virtuelle Projekte aus Onboarding-Swipe (kommt in Prompt 2). */
 export interface VirtuellesProjekt {
   antragId: string;

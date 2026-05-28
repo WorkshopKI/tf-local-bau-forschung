@@ -25,8 +25,10 @@ import {
   type Klassifizierung,
   type UeberKategorie,
   type Zuweisung,
+  type PersoenlichesAuslastungProfil,
 } from '../types';
-import { nextFreeAnonId } from '../services/anonym-map';
+import { nextFreeAnonId, type AnonymMap } from '../services/anonym-map';
+import { mergeProfilesIntoMitarbeiter } from '../services/profil-einsammeln';
 
 interface AuslastungDataState {
   data: AuslastungData;
@@ -72,6 +74,14 @@ interface AuslastungDataState {
    *  Default-Werten (aktiv: true) angelegt — EIN setState + EIN persist
    *  (Lesson 16). No-op wenn alles schon da ist. */
   ensureMitarbeiterForAnonIds: (storage: StorageService, anonIds: Iterable<string>) => Promise<void>;
+  /** v2.6: PL-Einsammel-Schritt. Merged MA-Selbst-Profile (aus den persoenlichen
+   *  Ordnern) in die Mitarbeiter-Map — EIN setState + EIN persist (Pitfall #16/#20).
+   *  PL-only-Felder bleiben erhalten. Liefert aktualisierte + neue anonIds. */
+  applyAggregatedProfiles: (
+    storage: StorageService,
+    profile: PersoenlichesAuslastungProfil[],
+    anonymMap: AnonymMap,
+  ) => Promise<{ aktualisiert: string[]; neu: string[] }>;
   // ── Klassifizierungen ────────────────────────────────────────────────
   upsertKlassifizierung: (storage: StorageService, k: Klassifizierung) => Promise<void>;
   /** Mergt mehrere Klassifizierungen in EINEM setState, OHNE persist. Caller
@@ -253,6 +263,18 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     };
     await get().upsertMitarbeiter(storage, ma);
     return ma;
+  },
+
+  applyAggregatedProfiles: async (storage, profile, anonymMap) => {
+    const { next, aktualisiert, neu } = mergeProfilesIntoMitarbeiter(
+      get().data.mitarbeiter,
+      profile,
+      anonymMap,
+    );
+    if (aktualisiert.length === 0 && neu.length === 0) return { aktualisiert, neu };
+    set(state => ({ data: { ...state.data, mitarbeiter: next } }));
+    await get().persist(storage);
+    return { aktualisiert, neu };
   },
 
   removeMitarbeiter: async (storage, anonId) => {
