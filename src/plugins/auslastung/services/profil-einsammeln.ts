@@ -74,6 +74,37 @@ function defaultMitarbeiter(anonId: string): AnonymerMitarbeiter {
   };
 }
 
+/**
+ * Berechnet den "effektiven" MA-Record fuer die EIGENE Self-Ansicht (Home
+ * „Neue Anträge für dich"). Das persoenliche Profil ist autoritativ fuer die
+ * MA-pflegbaren Felder; PL-only-Felder (`jahresKapazitaet`, `abschlagProzent`,
+ * `antragstypUeberschreibung`, …) bleiben aus dem `auslastung.json`-Store-Record.
+ *
+ * - Kein Store-Record + kein persoenliches Profil → `undefined`.
+ * - Nur Store-Record → unveraendert (Back-Compat: User ohne persoenliches Profil).
+ * - Persoenliches Profil vorhanden → Store-Record (bzw. Default-Base wenn keiner
+ *   existiert) mit den Self-Feldern ueberschrieben. `hauptKategorie` faellt bei
+ *   leerem persoenlichem Wert auf den Store-/Auto-Wert zurueck.
+ *
+ * Pure — kein FS, kein Store.
+ */
+export function mergeSelfProfile(
+  storeRecord: AnonymerMitarbeiter | undefined,
+  personal: PersoenlichesAuslastungProfil | null,
+  anonId: string | null,
+): AnonymerMitarbeiter | undefined {
+  if (!personal) return storeRecord;
+  const base = storeRecord ?? defaultMitarbeiter(anonId ?? 'ME');
+  const self = selfFields(personal);
+  return {
+    ...base,
+    ...self,
+    // Leeres persoenliches Haupt nicht ueber einen vorhandenen (auto-abgeleiteten)
+    // Store-Wert schreiben.
+    hauptKategorie: self.hauptKategorie || base.hauptKategorie,
+  };
+}
+
 export interface MergeProfilesResult {
   next: Record<string, AnonymerMitarbeiter>;
   /** anonIds bestehender MAs, deren Selbst-Felder aktualisiert wurden. */

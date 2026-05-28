@@ -22,13 +22,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useProfile } from '@/core/hooks/useProfile';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { useKuerzelMap } from '@/plugins/auslastung/hooks/useKuerzelMap';
 import { useBenachrichtigung } from '@/plugins/auslastung/hooks/useBenachrichtigung';
-import { resolveAnonIdForUser } from '@/plugins/auslastung/services/anonym-map';
+import { useMyAuslastungProfil } from '@/plugins/auslastung/hooks/useMyAuslastungProfil';
 import { computeKapazitaet } from '@/plugins/auslastung/services/kapazitaet';
 import { matchesAntragstyp } from '@/plugins/auslastung/services/antragstyp-praeferenz';
 import {
@@ -52,9 +51,7 @@ interface OffenerAntrag {
 
 export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const storage = useStorage();
-  const { profile } = useProfile();
   const config = useAuslastungData(s => s.data.config);
-  const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
   const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
   const upsertZuweisung = useAuslastungData(s => s.upsertZuweisung);
@@ -70,9 +67,10 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
     if (!loaded) void load(storage);
   }, [load, loaded, storage]);
 
-  const myAnonId = resolveAnonIdForUser(profile?.bearbeiter_kuerzel, cache.anonymMap);
-  const myMa = myAnonId ? mitarbeiter[myAnonId] : undefined;
-  const myHauptKategorie = myMa?.hauptKategorie ?? '';
+  // Eigenes Profil: persoenliches Profil (ZAH/auslastung-profil.json) hat Vorrang
+  // vor dem auslastung.json-Store-Record — sonst sieht ein frischer User seine
+  // gerade gesetzte Hauptkategorie erst nach PL-Aggregation (v2.6-Regression).
+  const { myAnonId, effectiveMa: myMa, hauptKategorie: myHauptKategorie, loading: profilLoading } = useMyAuslastungProfil();
 
   // Zähler-Badge: ersetzt den frueheren SelbsteintragungBanner (v2.3).
   // Der User sieht die Liste direkt darunter — die Banner-Funktion ist
@@ -177,6 +175,7 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
 
   // Sichtbarkeit
   if (!loaded || !kuerzelMapLoaded) return null;
+  if (profilLoading) return null;  // warten bis das persoenliche Profil geladen ist (kein Empty-State-Flackern)
   if (!myAnonId) return null;  // User hat kein Kuerzel oder nicht im Auslastungs-Modul
   if (!myHauptKategorie) {
     return (

@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import {
   collectUserProfiles,
   mergeProfilesIntoMitarbeiter,
+  mergeSelfProfile,
 } from '../services/profil-einsammeln';
 import type { AnonymMap } from '../services/anonym-map';
 import type { AnonymerMitarbeiter, PersoenlichesAuslastungProfil } from '../types';
@@ -139,6 +140,61 @@ describe('mergeProfilesIntoMitarbeiter', () => {
     );
     expect(new Set(neu).size).toBe(2);
     expect(neu).not.toContain('MA01');
+  });
+});
+
+describe('mergeSelfProfile', () => {
+  it('persoenliches Profil ueberschreibt Self-Felder, PL-only-Felder bleiben aus dem Store', () => {
+    const store = makeMa({
+      anonId: 'MA01',
+      jahresKapazitaet: 1200,
+      abschlagProzent: 25,
+      aktiv: false,
+      antragstypUeberschreibung: ['FuE'],
+      hauptKategorie: 'IT',
+      manuelleTechnologien: ['alt'],
+    });
+    const personal = makeProfil({
+      kuerzel: 'MUE',
+      hauptKategorie: 'DT',
+      nebenKategorien: ['EU'],
+      antragstypBevorzugt: ['DS'],
+      manuelleTechnologien: ['neu'],
+    });
+    const eff = mergeSelfProfile(store, personal, 'MA01')!;
+    expect(eff.hauptKategorie).toBe('DT');
+    expect(eff.nebenKategorien).toEqual(['EU']);
+    expect(eff.antragstypBevorzugt).toEqual(['DS']);
+    expect(eff.manuelleTechnologien).toEqual(['neu']);
+    // PL-only erhalten:
+    expect(eff.jahresKapazitaet).toBe(1200);
+    expect(eff.abschlagProzent).toBe(25);
+    expect(eff.aktiv).toBe(false);
+    expect(eff.antragstypUeberschreibung).toEqual(['FuE']);
+  });
+
+  it('ohne persoenliches Profil → Store-Record unveraendert', () => {
+    const store = makeMa({ anonId: 'MA01', hauptKategorie: 'IT' });
+    expect(mergeSelfProfile(store, null, 'MA01')).toBe(store);
+  });
+
+  it('ohne Store-Record → Default-Base mit Self-Feldern (aktiv, Default-Kapazitaet)', () => {
+    const personal = makeProfil({ kuerzel: 'NEU', hauptKategorie: 'EU' });
+    const eff = mergeSelfProfile(undefined, personal, 'MA09')!;
+    expect(eff.anonId).toBe('MA09');
+    expect(eff.hauptKategorie).toBe('EU');
+    expect(eff.aktiv).toBe(true);
+    expect(eff.jahresKapazitaet).toBe(800);
+  });
+
+  it('leeres persoenliches hauptKategorie faellt auf Store-Wert zurueck', () => {
+    const store = makeMa({ anonId: 'MA01', hauptKategorie: 'IT' });
+    const personal = makeProfil({ kuerzel: 'MUE', hauptKategorie: '' });
+    expect(mergeSelfProfile(store, personal, 'MA01')!.hauptKategorie).toBe('IT');
+  });
+
+  it('weder Store noch persoenliches Profil → undefined', () => {
+    expect(mergeSelfProfile(undefined, null, 'MA01')).toBeUndefined();
   });
 });
 
