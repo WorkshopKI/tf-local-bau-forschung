@@ -2,11 +2,7 @@
  * kurator-config.enc Handling (Phase 1a + v1.9).
  *
  * File-Layout (Sektion 10.3): [16B salt][12B IV][N+16B ciphertext||tag]
- *
- * v1.9: Datei liegt jetzt im Daten-Share-Root unter `_intern/kurator-config.enc`
- * (nicht mehr in `programm-test/admin/admin-config.enc`). Beim Lesen wird als
- * Fallback der Legacy-Pfad geprüft, bis die Migration gelaufen ist. Writes
- * erfolgen ausschließlich an die neue Position.
+ * Datei liegt im Daten-Share-Root unter `_intern/kurator-config.enc`.
  */
 
 import {
@@ -22,7 +18,7 @@ import {
 import { atomicWrite, readBinary, readText, fileExists } from './atomic-write';
 import { getInternHandle, getProgrammHandle, getSmbHandle } from './smb-handle';
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import { KURATOR_CONFIG_PATH, LEGACY_KURATOR_CONFIG_PATH, KURATOR_NAME_LOCAL_IDB_KEY } from './types';
+import { KURATOR_CONFIG_PATH, KURATOR_NAME_LOCAL_IDB_KEY } from './types';
 import type { KuratorConfigPlain } from './types';
 
 async function parentHandle(idb: IDBStore): Promise<FileSystemDirectoryHandle | null> {
@@ -40,24 +36,16 @@ async function programmHandle(idb: IDBStore): Promise<FileSystemDirectoryHandle 
   }
 }
 
-/** Liest Binary mit Fallback von neuem auf Legacy-Pfad. */
 async function readKuratorConfigBlob(idb: IDBStore): Promise<Uint8Array | null> {
   const parent = await parentHandle(idb);
   if (!parent) return null;
-  const viaNew = await readBinary(parent, KURATOR_CONFIG_PATH);
-  if (viaNew) return viaNew;
-  const programm = await programmHandle(idb);
-  if (!programm) return null;
-  return readBinary(programm, LEGACY_KURATOR_CONFIG_PATH);
+  return readBinary(parent, KURATOR_CONFIG_PATH);
 }
 
 export async function isKuratorConfigured(idb: IDBStore): Promise<boolean> {
   const parent = await parentHandle(idb);
   if (!parent) return false;
-  if (await fileExists(parent, KURATOR_CONFIG_PATH)) return true;
-  const programm = await programmHandle(idb);
-  if (!programm) return false;
-  return fileExists(programm, LEGACY_KURATOR_CONFIG_PATH);
+  return fileExists(parent, KURATOR_CONFIG_PATH);
 }
 
 /** Erstellt kurator-config.enc mit frischem Salt/IV + schreibt kurator-name-{fp}.txt. */
@@ -81,9 +69,8 @@ export async function setupKuratorConfig(
  * Prüft Passwort durch Decrypt-Versuch. Gibt den im File hinterlegten
  * kuratorName zurück oder null bei falschem Passwort / fehlendem Config.
  *
- * Kompat-Fallback: Alte Configs enthalten `adminName` statt `kuratorName`;
- * wird beim Einlesen auf das neue Feld gemappt. Zusätzlich wird der
- * Legacy-Pfad `admin/admin-config.enc` als Fallback gelesen.
+ * Kompat-Fallback (Content-Level): Alte Configs enthalten `adminName` statt
+ * `kuratorName`; wird beim Einlesen auf das neue Feld gemappt.
  */
 export async function verifyPassword(
   idb: IDBStore,
@@ -105,8 +92,7 @@ export async function verifyPassword(
 
 /**
  * Entschlüsselt mit oldPassword, reverschlüsselt mit newPassword und frischem
- * Salt/IV. Schreibt die neue Datei an den v1.9-Pfad (Legacy-Datei bleibt vorerst
- * bis zur Migration).
+ * Salt/IV. Schreibt die neue Datei nach `_intern/kurator-config.enc`.
  */
 export async function changeKuratorPassword(
   idb: IDBStore,

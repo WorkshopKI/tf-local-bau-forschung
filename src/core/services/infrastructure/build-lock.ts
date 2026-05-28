@@ -4,17 +4,14 @@
  * Schema Sektion 10.6: `_intern/build-lock.json` verhindert parallele Builds.
  * Stale-Detection: Heartbeat älter als 2h → Lock gilt als abgestürzt und
  * kann direkt übernommen werden.
- *
- * v1.9: Pfad wanderte von `programm-test/admin/build-lock.json` in
- * `_intern/build-lock.json` (Parent-Root). Legacy-Read als Fallback.
  */
 
-import { getInternHandle, getProgrammHandle, getSmbHandle } from './smb-handle';
+import { getInternHandle, getSmbHandle } from './smb-handle';
 import { atomicWrite, readText, removeFile } from './atomic-write';
 import { logAudit } from './audit-log';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { BuildLock } from './types';
-import { BUILD_LOCK_PATH, LEGACY_BUILD_LOCK_PATH, PROGRAMM_DIR_NAME } from './types';
+import { BUILD_LOCK_PATH, PROGRAMM_DIR_NAME } from './types';
 import { readKuratorName } from './kurator-config';
 
 export const STALE_HEARTBEAT_MS = 2 * 60 * 60 * 1000;
@@ -22,13 +19,7 @@ export const STALE_HEARTBEAT_MS = 2 * 60 * 60 * 1000;
 export async function readBuildLock(idb: IDBStore): Promise<BuildLock | null> {
   const parent = await getSmbHandle(idb);
   if (!parent) return null;
-  let text = await readText(parent, BUILD_LOCK_PATH);
-  if (!text) {
-    try {
-      const programm = await getProgrammHandle(parent);
-      text = await readText(programm, LEGACY_BUILD_LOCK_PATH);
-    } catch { /* no legacy */ }
-  }
+  const text = await readText(parent, BUILD_LOCK_PATH);
   if (!text) return null;
   try {
     const raw = JSON.parse(text) as BuildLock & { admin_name?: string };
@@ -152,11 +143,6 @@ export async function releaseLock(idb: IDBStore): Promise<void> {
   if (!parent) return;
   const existing = await readBuildLock(idb);
   await removeFile(parent, BUILD_LOCK_PATH).catch(() => undefined);
-  // Legacy-Pfad ggf. mit löschen.
-  try {
-    const programm = await getProgrammHandle(parent);
-    await removeFile(programm, LEGACY_BUILD_LOCK_PATH).catch(() => undefined);
-  } catch { /* ignore */ }
   if (existing) {
     await logAudit(idb, { action: 'build_lock_release', user: existing.kurator_name, details: { stufe: existing.stufe } });
   }

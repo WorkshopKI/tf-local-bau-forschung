@@ -102,12 +102,6 @@ export const PERSOENLICH_MEINE_FEEDBACKS_FILE = 'teamflow/feedback/meine-feedbac
  */
 export const NEEDS_HANDLE_DOWNGRADE_IDB_KEY = 'needs-handle-downgrade';
 
-/** @deprecated Legacy-Pfade vor v1.9 — nur für Read-Fallback + Migration-Detection. */
-export const LEGACY_AUDIT_LOG_PATH = 'admin/audit-log.jsonl';
-export const LEGACY_KURATOR_CONFIG_PATH = 'admin/admin-config.enc';
-export const LEGACY_BUILD_LOCK_PATH = 'admin/build-lock.json';
-export const LEGACY_HEARTBEAT_PROBE_PATH = 'admin/heartbeat-probe';
-
 /** Backup-Root. v1.9: ohne programm-test-Zwischenordner; Rolling 4 Generationen. */
 export const BACKUPS_DIR = 'backups';
 export const BACKUP_MAX_GENERATIONS = 4;
