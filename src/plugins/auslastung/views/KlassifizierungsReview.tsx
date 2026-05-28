@@ -20,7 +20,7 @@ import {
   useColumnWidths,
   useTableSort,
 } from '@/components/data-table';
-import { useAuslastungData } from '../hooks/useAuslastungData';
+import { useAuslastungData, buildFreigegebenRecord } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import {
@@ -56,8 +56,9 @@ export function KlassifizierungsReview(): React.ReactElement {
   const storage = useStorage();
   const config = useAuslastungData(s => s.data.config);
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
-  const upsertKlassifizierung = useAuslastungData(s => s.upsertKlassifizierung);
-  const freigeben = useAuslastungData(s => s.freigebenKategorien);
+  const upsertLocal = useAuslastungData(s => s.upsertKlassifizierungenLocal);
+  const schedulePersist = useAuslastungData(s => s.schedulePersist);
+  const flushPersist = useAuslastungData(s => s.flushPersist);
   const freigebenBulk = useAuslastungData(s => s.freigebenKategorienBulk);
 
   const cache = useAntraegeCache();
@@ -95,6 +96,15 @@ export function KlassifizierungsReview(): React.ReactElement {
     // Effekt nochmal nach erfolgreichem setState. Die Guard oben reicht.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storage.idb]);
+
+  // Unmount/Plugin-Wechsel: einen noch ausstehenden Debounce-Write (Pill-Toggle)
+  // sofort schreiben, damit kein Edit verloren geht. flushPersist ist No-op,
+  // wenn nichts aussteht.
+  useEffect(() => {
+    return () => { void flushPersist(storage); };
+    // Nur beim Unmount feuern; storage/flushPersist sind ref-stabil.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // v2.10: Stage-2-Embedding-Matching ist teuer (~690 ms bei 138 Verbuenden).
   // useDeferredValue verschiebt den Recompute mit Stage-2 in einen Background-
@@ -162,12 +172,16 @@ export function KlassifizierungsReview(): React.ReactElement {
     await freigebenBulk(storage, collectVerbundFreigaben(view));
   }
 
-  async function applyVerbundOverride(
+  // Pill-Toggle: optimistisch (ein setState) + debounced persist. Wirkt auf
+  // alle TVs eines Verbundes. Kein await pro TV mehr (Pitfall #16/#20), kein
+  // synchroner Recompute-Stau (Fix A cacht die Live-Klassifizierungen).
+  function applyVerbundOverride(
     view: VerbundKlassifizierungsView,
     kategorieId: string,
     add: boolean,
-  ): Promise<void> {
-    const currentIds = view.klassifizierung.status === 'freigegeben'
+  ): void {
+    const istFreigegeben = view.klassifizierung.status === 'freigegeben';
+    const currentIds = istFreigegeben
       ? [view.klassifizierung.freigegebenePrimaer, ...view.klassifizierung.freigegebeneAspekte].filter(Boolean)
       : (view.klassifizierung.vorgeschlagenePrimaer
           ? [view.klassifizierung.vorgeschlagenePrimaer.kategorieId, ...view.klassifizierung.vorgeschlageneAspekte.map(a => a.kategorieId)]
@@ -180,24 +194,25 @@ export function KlassifizierungsReview(): React.ReactElement {
       current.delete(kategorieId);
     }
     const ids = [...current];
-    for (const tv of view.tvs) {
-      if (view.klassifizierung.status === 'freigegeben') {
-        await freigeben(storage, tv.aktenzeichen, ids);
-      } else {
-        const [primaerId, ...aspektIds] = ids;
-        const next: Klassifizierung = {
-          antragId: tv.aktenzeichen,
-          status: 'vorgeschlagen',
-          vorgeschlagenePrimaer: primaerId
-            ? { kategorieId: primaerId, confidence: 1.0, methode: 'regel' }
-            : null,
-          vorgeschlageneAspekte: aspektIds.map(id => ({ kategorieId: id, confidence: 1.0 })),
-          freigegebenePrimaer: '',
-          freigegebeneAspekte: [],
-        };
-        await upsertKlassifizierung(storage, next);
+    const records: Klassifizierung[] = view.tvs.map(tv => {
+      if (istFreigegeben) {
+        const existing = klassifizierungen.find(k => k.antragId === tv.aktenzeichen);
+        return buildFreigegebenRecord(existing, tv.aktenzeichen, ids);
       }
-    }
+      const [primaerId, ...aspektIds] = ids;
+      return {
+        antragId: tv.aktenzeichen,
+        status: 'vorgeschlagen',
+        vorgeschlagenePrimaer: primaerId
+          ? { kategorieId: primaerId, confidence: 1.0, methode: 'regel' }
+          : null,
+        vorgeschlageneAspekte: aspektIds.map(id => ({ kategorieId: id, confidence: 1.0 })),
+        freigegebenePrimaer: '',
+        freigegebeneAspekte: [],
+      };
+    });
+    upsertLocal(records);
+    schedulePersist(storage);
   }
 
   async function bulkFreigeben(): Promise<void> {
@@ -218,7 +233,7 @@ export function KlassifizierungsReview(): React.ReactElement {
   const allColumns = useMemo(
     () => buildVerbundColumns({
       kategorien: config.ueberKategorien,
-      onToggleVerbund: (v, id, add) => void applyVerbundOverride(v, id, add),
+      onToggleVerbund: (v, id, add) => applyVerbundOverride(v, id, add),
       onFreigebeVerbund: v => void freigebeVerbund(v),
     }),
     // applyVerbundOverride + freigebeVerbund sind Closures über Hook-State,

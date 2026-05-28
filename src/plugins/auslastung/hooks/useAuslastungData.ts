@@ -33,11 +33,24 @@ interface AuslastungDataState {
   loading: boolean;
   loaded: boolean;
   saving: boolean;
+  /** True wenn waehrend eines laufenden Saves eine weitere Mutation kam —
+   *  loest nach dem aktuellen Save einen Nachschreib-Durchlauf aus (kein Drop,
+   *  Pitfall #16/#20). */
+  persistDirty: boolean;
   error: string | null;
   /** Initial-Load — idempotent, kann beliebig oft aufgerufen werden. */
   load: (storage: StorageService) => Promise<void>;
-  /** Persistiert das gesamte data-Objekt zurueck auf den Share. */
+  /** Persistiert das gesamte data-Objekt sofort zurueck auf den Share. */
   persist: (storage: StorageService) => Promise<void>;
+  /** Interne Save-Logik: cleart den Debounce-Timer, schreibt (oder markiert
+   *  persistDirty falls bereits ein Save laeuft) und schreibt bei gesetztem
+   *  persistDirty hinterher nach. Von persist/schedulePersist/flushPersist genutzt. */
+  persistNow: (storage: StorageService) => Promise<void>;
+  /** Debounced Persist (~600 ms) — coalesct rapide Mutationen (Pill-Klicks)
+   *  zu einem SMB-Write. */
+  schedulePersist: (storage: StorageService) => void;
+  /** Schreibt einen ausstehenden Debounce-Write sofort (Unmount/App-Close). */
+  flushPersist: (storage: StorageService) => Promise<void>;
   // ── Config ────────────────────────────────────────────────────────────
   updateConfig: (storage: StorageService, partial: Partial<AuslastungConfig>) => Promise<void>;
   // ── Ueberkategorien ──────────────────────────────────────────────────
@@ -61,6 +74,10 @@ interface AuslastungDataState {
   ensureMitarbeiterForAnonIds: (storage: StorageService, anonIds: Iterable<string>) => Promise<void>;
   // ── Klassifizierungen ────────────────────────────────────────────────
   upsertKlassifizierung: (storage: StorageService, k: Klassifizierung) => Promise<void>;
+  /** Mergt mehrere Klassifizierungen in EINEM setState, OHNE persist. Caller
+   *  triggert die Persistenz selbst (z.B. schedulePersist). Fuer den
+   *  optimistischen Pill-Klick-Pfad. */
+  upsertKlassifizierungenLocal: (ks: Klassifizierung[]) => void;
   freigebenKategorien: (storage: StorageService, antragId: string, kategorieIds: string[]) => Promise<void>;
   /** Bulk-Freigabe: mehrere Antraege (z.B. alle TVs mehrerer Verbuende) in
    *  EINEM setState + EINEM persist. Verhindert N sequentielle SMB-Roundtrips
@@ -81,10 +98,16 @@ interface AuslastungDataState {
 
 const initialData = emptyAuslastungData();
 
+/** Debounce-Timer fuer `schedulePersist` — modul-global, ueberlebt Re-Mounts.
+ *  ~600 ms: lang genug, dass rapides Pill-Klicken zu EINEM SMB-Write coalesced,
+ *  kurz genug, dass das Verlust-Fenster (App-Close vor Flush) klein bleibt. */
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+const PERSIST_DEBOUNCE_MS = 600;
+
 /** Baut einen freigegebenen Klassifizierungs-Record. Bestehende Vorschlaege
  *  (`vorgeschlagene*`) bleiben erhalten, erste kategorieId wird Primaer, Rest
- *  Aspekte. Pure — geteilt von Einzel- und Bulk-Freigabe. */
-function buildFreigegebenRecord(
+ *  Aspekte. Pure — geteilt von Einzel-, Bulk- und View-Override-Freigabe. */
+export function buildFreigegebenRecord(
   existing: Klassifizierung | undefined,
   antragId: string,
   kategorieIds: string[],
@@ -105,6 +128,7 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
   loading: false,
   loaded: false,
   saving: false,
+  persistDirty: false,
   error: null,
 
   load: async (storage) => {
@@ -124,14 +148,51 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
   },
 
   persist: async (storage) => {
-    if (get().saving) return;
-    set({ saving: true, error: null });
+    await get().persistNow(storage);
+  },
+
+  persistNow: async (storage) => {
+    // Ausstehenden Debounce-Write absorbieren — wir schreiben jetzt sowieso.
+    if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; }
+    // Laeuft bereits ein Save? Dann nur als "noch zu schreiben" markieren statt
+    // den Write zu verwerfen (Pitfall #16/#20). Der laufende Save schreibt nach.
+    if (get().saving) { set({ persistDirty: true }); return; }
+    set({ saving: true, persistDirty: false, error: null });
     try {
-      const next = await saveAuslastungData(storage, get().data);
-      set({ data: next, saving: false });
+      const written = await saveAuslastungData(storage, get().data);
+      // NICHT `data: written` setzen — `written` ist der Snapshot vom Write-Start.
+      // Mutationen waehrend des await wuerden sonst ueberschrieben (Clobber-Bug).
+      // Nur den Timestamp auf den aktuellen Stand stempeln.
+      set(s => ({ data: { ...s.data, updatedAt: written.updatedAt }, saving: false }));
     } catch (err) {
       set({ saving: false, error: err instanceof Error ? err.message : String(err) });
       throw err;
+    }
+    // Kam waehrend des Writes eine weitere Mutation? Dann den neuesten Stand
+    // nachschreiben.
+    if (get().persistDirty) {
+      set({ persistDirty: false });
+      await get().persistNow(storage);
+    }
+  },
+
+  schedulePersist: (storage) => {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      void get().persistNow(storage).catch(err => {
+        console.warn('[auslastung] debounced persist fehlgeschlagen:', err);
+      });
+    }, PERSIST_DEBOUNCE_MS);
+  },
+
+  flushPersist: async (storage) => {
+    const hadPending = persistTimer !== null;
+    if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; }
+    // Nur schreiben wenn wirklich etwas aussteht — sonst keine redundanten
+    // SMB-Writes bei jedem Unmount.
+    if (hadPending || get().persistDirty) {
+      await get().persistNow(storage);
     }
   },
 
@@ -271,6 +332,24 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
   freigebenKategorien: async (storage, antragId, kategorieIds) => {
     const existing = get().data.klassifizierungen.find(k => k.antragId === antragId);
     await get().upsertKlassifizierung(storage, buildFreigegebenRecord(existing, antragId, kategorieIds));
+  },
+
+  upsertKlassifizierungenLocal: (ks) => {
+    if (ks.length === 0) return;
+    set(state => {
+      const list = [...state.data.klassifizierungen];
+      const idxById = new Map(list.map((k, i) => [k.antragId, i]));
+      for (const k of ks) {
+        const idx = idxById.get(k.antragId);
+        if (idx !== undefined) {
+          list[idx] = k;
+        } else {
+          idxById.set(k.antragId, list.length);
+          list.push(k);
+        }
+      }
+      return { data: { ...state.data, klassifizierungen: list } };
+    });
   },
 
   freigebenKategorienBulk: async (storage, entries) => {

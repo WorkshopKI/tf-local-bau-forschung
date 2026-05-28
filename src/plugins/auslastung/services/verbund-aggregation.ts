@@ -99,6 +99,22 @@ interface CachedClassificationViews {
 
 let cachedViews: CachedClassificationViews | null = null;
 
+// ─── Live-Klassifizierungs-Cache (Klick-Lag-Fix) ─────────────────────────
+// Die Live-Klassifizierung (`klassifiziereAntrag`, Stage-2-Embedding) eines
+// unklassifizierten Verbundes haengt NUR von (rep, kategorien, embedding[key],
+// stage2Aktiv) ab — NICHT vom `persisted`-Array. Damit ein Pill-Klick (neues
+// persisted-Array) nicht alle Live-Klassifizierungen neu rechnet, cachen wir
+// sie pro Verbund-Key. Der Cache wird verworfen, sobald sich eine der echten
+// Live-Deps (antraege/kategorien/embeddings/stage2Aktiv) ref-seitig aendert.
+interface LiveKlGeneration {
+  antraege: readonly Antrag[];
+  kategorien: readonly UeberKategorie[];
+  verbundEmbeddings: ReadonlyMap<string, number[]> | undefined;
+  stage2Aktiv: boolean;
+}
+let liveGen: LiveKlGeneration | null = null;
+let liveKlCache = new Map<string, Klassifizierung>();
+
 export function buildVerbundClassificationViews(
   antraege: readonly Antrag[],
   jahr: number | null,
@@ -130,6 +146,8 @@ export function buildVerbundClassificationViews(
  *  und damit automatisch einen Cache-Miss ausloest. */
 export function invalidateVerbundClassificationCache(): void {
   cachedViews = null;
+  liveGen = null;
+  liveKlCache = new Map();
 }
 
 function computeVerbundClassificationViews(
@@ -141,6 +159,20 @@ function computeVerbundClassificationViews(
   stage2Aktiv: boolean,
   verbuende: readonly Verbund[],
 ): VerbundKlassifizierungsView[] {
+  // Live-Cache verwerfen, sobald sich eine echte Live-Dep-Ref geaendert hat.
+  // (Eine reine `persisted`-Aenderung — der Pill-Klick-Fall — laesst diese
+  // Refs unberuehrt, der Cache greift also.)
+  if (
+    !liveGen
+    || liveGen.antraege !== antraege
+    || liveGen.kategorien !== kategorien
+    || liveGen.verbundEmbeddings !== verbundEmbeddings
+    || liveGen.stage2Aktiv !== stage2Aktiv
+  ) {
+    liveKlCache = new Map();
+    liveGen = { antraege, kategorien, verbundEmbeddings, stage2Aktiv };
+  }
+
   // 0) Pool filtern.
   const pool = jahr === null ? antraege : antraege.filter(a => istZuVerteilen(a, jahr));
 
@@ -199,17 +231,24 @@ function computeVerbundClassificationViews(
     if (!kl) {
       // Live klassifizieren auf Basis des repraesentativen TVs. Stage 2 nutzt
       // das Verbund-Titel-Embedding (NICHT das pro-TV-Embedding), damit der
-      // Verbund-Titel maximale Gewichtung bekommt.
-      const queryEmbedding = verbundEmbeddings?.get(key);
-      kl = klassifiziereAntrag({
-        antrag: rep,
-        kategorien: kategorien as UeberKategorie[],
-        queryEmbedding,
-        stage2Aktiv,
-      });
-      // Re-Identify auf Verbund-Key — die persistierten Records bleiben pro
-      // antragId, aber der live-Vorschlag braucht keine valide antragId.
-      kl = { ...kl, antragId: rep.aktenzeichen };
+      // Verbund-Titel maximale Gewichtung bekommt. Ergebnis pro Verbund-Key
+      // cachen — bei reiner persisted-Aenderung (Pill-Klick) greift der Cache.
+      const cached = liveKlCache.get(key);
+      if (cached) {
+        kl = cached;
+      } else {
+        const queryEmbedding = verbundEmbeddings?.get(key);
+        const live = klassifiziereAntrag({
+          antrag: rep,
+          kategorien: kategorien as UeberKategorie[],
+          queryEmbedding,
+          stage2Aktiv,
+        });
+        // Re-Identify auf Verbund-Key — die persistierten Records bleiben pro
+        // antragId, aber der live-Vorschlag braucht keine valide antragId.
+        kl = { ...live, antragId: rep.aktenzeichen };
+        liveKlCache.set(key, kl);
+      }
     }
 
     out.push({
