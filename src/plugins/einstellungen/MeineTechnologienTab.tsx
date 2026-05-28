@@ -217,7 +217,7 @@ export function MeineTechnologienTab(): React.ReactElement {
     <div className="flex flex-col">
       {/* Auto-Save-Status — immer sichtbar, kein Scrollen nötig */}
       <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
-        <p className="text-[12px] leading-relaxed text-[var(--tf-text-secondary)] max-w-md">
+        <p className="text-[12px] leading-relaxed text-[var(--tf-text-secondary)] whitespace-nowrap">
           Änderungen werden automatisch gespeichert — andere im Team sehen deine{' '}
           <span className="font-medium text-[var(--tf-text)]">Technologien</span> dort.
         </p>
