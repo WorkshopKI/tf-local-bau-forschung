@@ -1,7 +1,7 @@
 /**
  * MA-Selbst-Profil im persoenlichen Ordner (v2.6).
  *
- * Schreibt/liest `teamflow/auslastung-profil.json` ueber den Persoenlich-Handle
+ * Schreibt/liest `ZAH/auslastung-profil.json` ueber den Persoenlich-Handle
  * (immer `readwrite`) — der Workaround fuer das v2.0-Read-Only-Daten-Share
  * (siehe CLAUDE.md: Nicht-Kuratoren koennen `auslastung.json` nicht schreiben).
  *
@@ -47,7 +47,7 @@ export function isValidProfil(raw: unknown): raw is PersoenlichesAuslastungProfi
 /**
  * Liest das Profil aus einem User-Home-Root-Handle. Funktioniert sowohl fuer
  * den eigenen Persoenlich-Handle als auch fuer einen fremden User-Ordner
- * (Einsammel-Schritt) — der Pfad `teamflow/auslastung-profil.json` ist in
+ * (Einsammel-Schritt) — der Pfad `ZAH/auslastung-profil.json` ist in
  * beiden Faellen relativ zum User-Home identisch.
  */
 export async function readAuslastungProfilFromShare(

@@ -143,7 +143,7 @@ export const ALL_ANTRAGSTYP_BUCKETS: AntragstypBucket[] = ['FuE', 'DS', 'DL', 'N
 
 /**
  * v2.6: Selbst-Profil eines MA, geschrieben in den persoenlichen Ordner
- * (`teamflow/auslastung-profil.json`). Enthaelt ausschliesslich die
+ * (`ZAH/auslastung-profil.json`). Enthaelt ausschliesslich die
  * MA-pflegbaren Felder — der PL-Einsammel-Schritt
  * (`profil-einsammeln.ts:mergeProfilesIntoMitarbeiter`) merged sie ueber das
  * `kuerzel` in `auslastung.json`, ohne PL-only-Felder (`jahresKapazitaet`,

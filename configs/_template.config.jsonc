@@ -47,7 +47,7 @@
   // Trägt profile.json, einstellungen.json und die Feedback-Outbox.
   // Optional — wenn weggelassen, gelten die hier gezeigten Defaults.
   "personalFolder": {
-    "subfolder": "teamflow",
+    "subfolder": "ZAH",
     "required": false,
     "promptAfterProfile": true,
     "snapshotAgeWarningDays": 3

@@ -1,7 +1,7 @@
 /**
  * PL-Einsammel-Schritt fuer MA-Selbst-Profile (v2.6).
  *
- * Liest `teamflow/auslastung-profil.json` aus allen User-Ordnern unter dem
+ * Liest `ZAH/auslastung-profil.json` aus allen User-Ordnern unter dem
  * User-Folders-Root (Kurator/PL-Pfad, nur `read` noetig) und merged die
  * MA-pflegbaren Felder in die `auslastung.json`-Mitarbeiter — ohne PL-only-
  * Felder zu ueberschreiben.
@@ -19,10 +19,10 @@ import {
 
 /**
  * Liest alle MA-Selbst-Profile unter dem User-Folders-Root ein. User-Ordner
- * ohne `teamflow/auslastung-profil.json` werden uebersprungen.
+ * ohne `ZAH/auslastung-profil.json` werden uebersprungen.
  *
  * `entry.name` (User-Ordner) ist selbst der User-Home-Root, daher liest
- * `readAuslastungProfilFromShare(userDir)` direkt `teamflow/auslastung-profil.json`.
+ * `readAuslastungProfilFromShare(userDir)` direkt `ZAH/auslastung-profil.json`.
  */
 export async function collectUserProfiles(
   root: FileSystemDirectoryHandle,
@@ -37,7 +37,7 @@ export async function collectUserProfiles(
       const profil = await readAuslastungProfilFromShare(userDir);
       if (profil) out.push(profil);
     } catch {
-      // User-Ordner ohne teamflow/-Struktur oder ohne Profil → ignorieren.
+      // User-Ordner ohne ZAH/-Struktur oder ohne Profil → ignorieren.
     }
   }
   return out;

@@ -77,7 +77,7 @@ export const DEFAULT_CONFIG = {
    * einstellungen.json und Feedback-Outbox.
    */
   personalFolder: {
-    subfolder: 'teamflow',
+    subfolder: 'ZAH',
     required: false,
     promptAfterProfile: true,
     snapshotAgeWarningDays: 3,

@@ -3,7 +3,7 @@
  *
  * Sammelt Feedback-Outboxen aller User ein. Kurator pickt einmalig den
  * Wurzel-Ordner aller Home-Laufwerke (z.B. `\\share\home-laufwerke\`), die
- * App scannt `<user>/teamflow/feedback/outbox/*.json`. Beim "Genehmigen"
+ * App scannt `<user>/ZAH/feedback/outbox/*.json`. Beim "Genehmigen"
  * landet das Ticket in der zentralen `_intern/feedback/feedback.json`,
  * "Ablehnen" schreibt den Status zurueck in die Outbox-Datei des Users.
  */
@@ -16,7 +16,7 @@ import {
   getUserFoldersRootHandle,
   pickAndStoreUserFoldersRootHandle,
 } from '@/core/services/infrastructure/smb-handle';
-import { PERSOENLICH_TEAMFLOW_DIR } from '@/core/services/infrastructure/types';
+import { PERSOENLICH_ZAH_DIR } from '@/core/services/infrastructure/types';
 import {
   listOutboxItems,
   writeOutboxStatus,
@@ -88,13 +88,13 @@ export function FeedbackInboxTab(): React.ReactElement {
         if (entry.kind !== 'directory') continue;
         try {
           const userDir = await root.getDirectoryHandle(entry.name);
-          const teamflowHandle = await userDir.getDirectoryHandle(PERSOENLICH_TEAMFLOW_DIR);
+          const teamflowHandle = await userDir.getDirectoryHandle(PERSOENLICH_ZAH_DIR);
           const userItems = await listOutboxItems(teamflowHandle);
           for (const item of userItems) {
             collected.push({ userDirName: entry.name, teamflowHandle, item });
           }
         } catch {
-          /* User-Ordner ohne teamflow/ wird ignoriert */
+          /* User-Ordner ohne ZAH/ wird ignoriert */
         }
       }
       collected.sort((a, b) => b.item.submitted_at.localeCompare(a.item.submitted_at));

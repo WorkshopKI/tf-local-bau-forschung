@@ -43,10 +43,10 @@ Alle geteilten Daten und Config-Dateien liegen im **Daten-Share** (separater SMB
 
 Pro User auf dem Home-Laufwerk (Subpfade unterhalb des Persoenlich-Handles, siehe `PERSOENLICH_*`-Konstanten in [types.ts](../../src/core/services/infrastructure/types.ts)):
 
-- `teamflow/profile.json` — User-Profil
-- `teamflow/einstellungen.json` — User-Settings
-- `teamflow/feedback/outbox/` — Feedback-Outbox (Nicht-Kurator) für späteren Einsammel-Schritt
-- `teamflow/feedback/meine-feedbacks.json` — User-eigene Feedback-Items
-- `teamflow/auslastung-profil.json` (v2.6) — MA-Selbst-Profil fürs Auslastungs-Modul (Technologien/Kategorien/Antragstypen). Nicht-Kuratoren können `_intern/auslastung.json` nicht schreiben (v2.0-Read-Only-Daten-Share), pflegen ihr Profil daher hier; die PL sammelt alle Profile über den User-Folders-Root ein und merged sie in `auslastung.json`. Atomic-overwrite, kein Backup nötig (Re-Build aus dem Tab). Idempotent über `updatedAt` (LWW).
+- `ZAH/profile.json` — User-Profil
+- `ZAH/einstellungen.json` — User-Settings
+- `ZAH/feedback/outbox/` — Feedback-Outbox (Nicht-Kurator) für späteren Einsammel-Schritt
+- `ZAH/feedback/meine-feedbacks.json` — User-eigene Feedback-Items
+- `ZAH/auslastung-profil.json` (v2.6) — MA-Selbst-Profil fürs Auslastungs-Modul (Technologien/Kategorien/Antragstypen). Nicht-Kuratoren können `_intern/auslastung.json` nicht schreiben (v2.0-Read-Only-Daten-Share), pflegen ihr Profil daher hier; die PL sammelt alle Profile über den User-Folders-Root ein und merged sie in `auslastung.json`. Atomic-overwrite, kein Backup nötig (Re-Build aus dem Tab). Idempotent über `updatedAt` (LWW).
 
 Details zur 2-Handle-Architektur: [v2-handle-architektur.md](v2-handle-architektur.md).

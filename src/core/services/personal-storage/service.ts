@@ -6,8 +6,8 @@
  * nicht erreichbar ist.
  *
  * Feedback-Outbox: User schreibt seine Tickets in
- * `teamflow/feedback/outbox/<datum>-<id>.json` und eine Kopie in
- * `teamflow/feedback/meine-feedbacks.json`. Kurator sammelt im
+ * `ZAH/feedback/outbox/<datum>-<id>.json` und eine Kopie in
+ * `ZAH/feedback/meine-feedbacks.json`. Kurator sammelt im
  * FeedbackInboxTab ein und schreibt Status-Updates zurueck in die
  * jeweilige Outbox-Datei des Users.
  */
@@ -220,7 +220,7 @@ export async function listOutboxItems(
 
 /**
  * Schreibt den Status (z.B. 'approved' / 'rejected') in die Outbox-Datei des
- * Users zurueck. `userTeamflowDir` ist der `teamflow/`-Ordner des Users im
+ * Users zurueck. `userTeamflowDir` ist der `ZAH/`-Ordner des Users im
  * User-Folders-Root — Kurator-Pfad.
  */
 export async function writeOutboxStatus(

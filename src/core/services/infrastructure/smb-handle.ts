@@ -32,7 +32,7 @@ import {
   INTERN_FEEDBACK_DIR,
   HEARTBEAT_PROBE_PATH,
   README_PATH,
-  PERSOENLICH_TEAMFLOW_DIR,
+  PERSOENLICH_ZAH_DIR,
 } from './types';
 
 type PermState = 'granted' | 'denied' | 'prompt';
@@ -389,7 +389,7 @@ export { HEARTBEAT_PROBE_PATH, INTERN_FEEDBACK_DIR };
 
 /**
  * Oeffnet den Picker (readwrite) und persistiert den Persoenlich-Handle.
- * Legt die Unterstruktur `teamflow/feedback/outbox/` automatisch an, damit
+ * Legt die Unterstruktur `ZAH/feedback/outbox/` automatisch an, damit
  * spaetere Outbox-Writes ohne extra Setup-Schritt funktionieren.
  */
 export async function pickAndStorePersoenlichHandle(idb: IDBStore): Promise<PickResult> {
@@ -416,9 +416,9 @@ export async function clearPersoenlichHandle(idb: IDBStore): Promise<void> {
   await writeAll(idb, map);
 }
 
-/** Legt `teamflow/` + `teamflow/feedback/` + `teamflow/feedback/outbox/` an (idempotent). */
+/** Legt `ZAH/` + `ZAH/feedback/` + `ZAH/feedback/outbox/` an (idempotent). */
 export async function ensurePersoenlichFolders(parent: FileSystemDirectoryHandle): Promise<void> {
-  const tf = await parent.getDirectoryHandle(PERSOENLICH_TEAMFLOW_DIR, { create: true });
+  const tf = await parent.getDirectoryHandle(PERSOENLICH_ZAH_DIR, { create: true });
   const fb = await tf.getDirectoryHandle('feedback', { create: true });
   await fb.getDirectoryHandle('outbox', { create: true });
 }

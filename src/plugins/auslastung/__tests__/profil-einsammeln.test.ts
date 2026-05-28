@@ -148,7 +148,7 @@ function fileHandle(text: string): unknown {
   return { kind: 'file', getFile: async () => ({ text: async () => text }) };
 }
 
-/** User-Home-Ordner-Mock: getDirectoryHandle('teamflow') → File 'auslastung-profil.json'. */
+/** User-Home-Ordner-Mock: getDirectoryHandle('ZAH') → File 'auslastung-profil.json'. */
 function userDir(profilJson: string | null): unknown {
   const teamflow = {
     kind: 'directory',
@@ -161,7 +161,7 @@ function userDir(profilJson: string | null): unknown {
   return {
     kind: 'directory',
     getDirectoryHandle: async (name: string) => {
-      if (name === 'teamflow') return teamflow;
+      if (name === 'ZAH') return teamflow;
       throw new Error('no');
     },
     getFileHandle: async () => { throw new Error('no'); },

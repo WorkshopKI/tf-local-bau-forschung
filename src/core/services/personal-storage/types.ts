@@ -5,7 +5,7 @@
  * IDB ist der Cache wenn der Share offline ist. Sync-Strategie ist Last-Writer-Wins
  * via `updatedAt`-Timestamp (analog snapshot-sync.ts).
  *
- * Die User-Einstellungen leben unter `teamflow/einstellungen.json`; Filter-Presets
+ * Die User-Einstellungen leben unter `ZAH/einstellungen.json`; Filter-Presets
  * sind heute (v2.0) noch nicht aktiv genutzt — die Schema-Slots existieren, damit
  * die App spaeter ergaenzen kann ohne IDB-Migration.
  */

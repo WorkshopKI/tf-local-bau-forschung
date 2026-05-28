@@ -13,7 +13,7 @@ export const SMB_HANDLE_PERSOENLICH = 'persoenlich';
 /**
  * v2.0: Wurzel-Ordner aller User-Home-Laufwerke (z.B. `\\share\home-laufwerke\`).
  * Wird vom Kurator einmalig gepickt, damit die App im FeedbackInboxTab
- * JSON-Dateien aus `<user>/teamflow/feedback/outbox/` einsammeln kann.
+ * JSON-Dateien aus `<user>/ZAH/feedback/outbox/` einsammeln kann.
  */
 export const SMB_HANDLE_USER_FOLDERS_ROOT = 'user-folders-root';
 /**
@@ -86,13 +86,17 @@ export const README_PATH = 'README.txt';
  * Handles). Wird beim ersten Mount automatisch angelegt (siehe ensurePersoenlich-
  * Folders) — sind hier zentral definiert, damit Outbox-Reader im Kurator-Plugin
  * die gleiche Struktur erwartet.
+ *
+ * v2.6.2: Subordner von `teamflow` auf `ZAH` umbenannt (App-Branding). Der
+ * Config-Wert `personalFolder.subfolder` (Anzeige im Onboarding) wird parallel
+ * gepflegt. Legacy-`teamflow/`-Ordner werden NICHT automatisch migriert.
  */
-export const PERSOENLICH_TEAMFLOW_DIR = 'teamflow';
-export const PERSOENLICH_FEEDBACK_DIR = 'teamflow/feedback';
-export const PERSOENLICH_FEEDBACK_OUTBOX_DIR = 'teamflow/feedback/outbox';
-export const PERSOENLICH_PROFILE_FILE = 'teamflow/profile.json';
-export const PERSOENLICH_EINSTELLUNGEN_FILE = 'teamflow/einstellungen.json';
-export const PERSOENLICH_MEINE_FEEDBACKS_FILE = 'teamflow/feedback/meine-feedbacks.json';
+export const PERSOENLICH_ZAH_DIR = 'ZAH';
+export const PERSOENLICH_FEEDBACK_DIR = 'ZAH/feedback';
+export const PERSOENLICH_FEEDBACK_OUTBOX_DIR = 'ZAH/feedback/outbox';
+export const PERSOENLICH_PROFILE_FILE = 'ZAH/profile.json';
+export const PERSOENLICH_EINSTELLUNGEN_FILE = 'ZAH/einstellungen.json';
+export const PERSOENLICH_MEINE_FEEDBACKS_FILE = 'ZAH/feedback/meine-feedbacks.json';
 /**
  * v2.6: MA-Selbst-Profil fuers Auslastungs-Modul (Technologien/Kategorien).
  * Nicht-Kuratoren haben seit v2.0 nur `read` auf dem Daten-Share und koennen
@@ -101,7 +105,7 @@ export const PERSOENLICH_MEINE_FEEDBACKS_FILE = 'teamflow/feedback/meine-feedbac
  * Relativ zum User-Home-Root, daher in beiden Lese-Kontexten (eigener
  * Persoenlich-Handle + fremder User-Ordner) identisch nutzbar.
  */
-export const PERSOENLICH_AUSLASTUNG_PROFIL_FILE = 'teamflow/auslastung-profil.json';
+export const PERSOENLICH_AUSLASTUNG_PROFIL_FILE = 'ZAH/auslastung-profil.json';
 
 /**
  * v2.0: IDB-Flag das die App beim Start anlegt, wenn ein bestehender Daten-

@@ -197,7 +197,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
               und Citrix-Sessions hinweg erhalten bleiben, können Sie Ihr persönliches
               Netzlaufwerk verbinden. Die App legt einen Unterordner{' '}
               <code className="text-[11.5px] px-1 py-0.5 rounded bg-[var(--tf-bg-secondary)]">
-                {runtimeConfig.personalFolder?.subfolder ?? 'teamflow'}/
+                {runtimeConfig.personalFolder?.subfolder ?? 'ZAH'}/
               </code>{' '}
               dort an.
             </p>
