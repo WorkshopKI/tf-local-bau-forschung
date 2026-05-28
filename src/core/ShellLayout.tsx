@@ -46,9 +46,13 @@ interface ShellLayoutProps {
 }
 
 const SIDEBAR_WIDTH_KEY = 'teamflow_sidebar_width';
+const SIDEBAR_MODE_KEY = 'teamflow_sidebar_mode';
 const SIDEBAR_DEFAULT = 220;
-const SIDEBAR_MIN = 180;
+const SIDEBAR_MIN = 140;
 const SIDEBAR_MAX = 360;
+const SIDEBAR_RAIL_WIDTH = 52;
+
+type SidebarMode = 'expanded' | 'rail';
 
 function loadSidebarWidth(): number {
   try {
@@ -56,6 +60,13 @@ function loadSidebarWidth(): number {
     if (Number.isFinite(v) && v >= SIDEBAR_MIN && v <= SIDEBAR_MAX) return v;
   } catch { /* ignore */ }
   return SIDEBAR_DEFAULT;
+}
+
+function loadSidebarMode(): SidebarMode {
+  try {
+    if (localStorage.getItem(SIDEBAR_MODE_KEY) === 'rail') return 'rail';
+  } catch { /* ignore */ }
+  return 'expanded';
 }
 
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
@@ -107,11 +118,15 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
   }, [plugins, department, isKurator, bothDepartmentsActive]);
 
   const activeId = routeToPluginId(location.pathname) ?? 'home';
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(loadSidebarMode);
   const [isMobile, setIsMobile] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
   const [sidebarDragging, setSidebarDragging] = useState(false);
+
+  const toggleSidebar = useCallback((): void => {
+    setSidebarMode(prev => (prev === 'expanded' ? 'rail' : 'expanded'));
+  }, []);
 
   // Sidebar-Breite per Drag-Handle anpassen.
   const sidebarDragRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -143,6 +158,10 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)); } catch { /* ignore */ }
   }, [sidebarWidth]);
+
+  useEffect(() => {
+    try { localStorage.setItem(SIDEBAR_MODE_KEY, sidebarMode); } catch { /* ignore */ }
+  }, [sidebarMode]);
 
   const tour = useTourContext();
   const storage = useStorage();
@@ -214,14 +233,14 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
       items.push({ id: `nav-${p.id}`, label: displayName(p), category: 'Navigation', shortcut: i < 7 ? `${mod}${i + 1}` : undefined, action: () => goToPlugin(p.id) });
     });
     items.push({ id: 'act-dark', label: 'Dark Mode umschalten', category: 'Einstellungen', shortcut: `${mod}⇧D`, action: () => setDarkMode(!isDarkMode()) });
-    items.push({ id: 'act-sidebar', label: 'Sidebar ein/ausblenden', category: 'Einstellungen', shortcut: `${mod}/`, action: () => setSidebarOpen(prev => !prev) });
+    items.push({ id: 'act-sidebar', label: 'Sidebar ein-/einklappen', category: 'Einstellungen', shortcut: `${mod}/`, action: toggleSidebar });
     return items;
-  }, [sortedPlugins, goToPlugin]);
+  }, [sortedPlugins, goToPlugin, toggleSidebar]);
 
   useEffect(() => {
     keyboardService.init();
     keyboardService.register('mod+k', () => setCmdPaletteOpen(prev => !prev), { description: 'Command Palette', category: 'Global' });
-    keyboardService.register('mod+/', () => setSidebarOpen(prev => !prev), { description: 'Sidebar toggle', category: 'Global' });
+    keyboardService.register('mod+/', () => setSidebarMode(prev => prev === 'expanded' ? 'rail' : 'expanded'), { description: 'Sidebar toggle', category: 'Global' });
     keyboardService.register('mod+shift+d', () => setDarkMode(!isDarkMode()), { description: 'Dark Mode toggle', category: 'Global' });
     keyboardService.register('escape', () => setCmdPaletteOpen(false), { description: 'Schließen', category: 'Global' });
     return () => { keyboardService.unregister('mod+k'); keyboardService.unregister('mod+/'); keyboardService.unregister('mod+shift+d'); keyboardService.unregister('escape'); };
@@ -231,7 +250,7 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
     const check = (): void => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      if (mobile) setSidebarOpen(false);
+      if (mobile) setSidebarMode('rail');
     };
     check();
     window.addEventListener('resize', check);
@@ -253,19 +272,22 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
         <aside
           data-tour="nav-sidebar"
           className={`flex flex-col bg-[var(--tf-bg-sidebar)] overflow-hidden shrink-0 ${sidebarDragging ? '' : 'transition-[width] duration-200'}`}
-          style={{ width: sidebarOpen ? sidebarWidth : 0 }}
+          style={{ width: sidebarMode === 'expanded' ? sidebarWidth : SIDEBAR_RAIL_WIDTH }}
         >
-          <div className="flex items-center justify-between pl-4 pr-1 pt-4 pb-2 shrink-0">
-            <div>
-              <span className="text-[15px] font-medium text-[var(--tf-text)]">{runtimeConfig.build.label}</span>
-            </div>
-            <button onClick={() => setSidebarOpen(false)}
+          <div className={`flex items-center ${sidebarMode === 'expanded' ? 'justify-between pl-4 pr-1' : 'justify-center px-1'} pt-4 pb-2 shrink-0`}>
+            {sidebarMode === 'expanded' && (
+              <div>
+                <span className="text-[15px] font-medium text-[var(--tf-text)]">{runtimeConfig.build.label}</span>
+              </div>
+            )}
+            <button onClick={toggleSidebar}
+              title={sidebarMode === 'expanded' ? 'Sidebar einklappen' : 'Sidebar ausklappen'}
               className="p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer">
               <Icons.PanelLeft size={18} />
             </button>
           </div>
 
-          <ProgrammSwitcher />
+          {sidebarMode === 'expanded' && <ProgrammSwitcher />}
 
           <nav className="flex-1 overflow-y-auto px-2 py-2">
             {(['workflow', 'tools'] as const).map(cat => {
@@ -276,15 +298,19 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
                   {items.map(plugin => {
                     const Icon = getIcon(plugin.icon);
                     const isActive = plugin.id === activeId;
+                    const isRail = sidebarMode === 'rail';
                     return (
                       <button key={plugin.id}
-                        onClick={() => { goToPlugin(plugin.id); if (isMobile) setSidebarOpen(false); }}
-                        className={`flex items-center gap-2.5 w-full px-3 py-[8px] rounded-[var(--tf-radius)] text-[13.5px] transition-colors cursor-pointer ${
+                        onClick={() => { goToPlugin(plugin.id); if (isMobile) setSidebarMode('rail'); }}
+                        title={isRail ? displayName(plugin) : undefined}
+                        className={`flex items-center w-full py-[8px] rounded-[var(--tf-radius)] text-[13.5px] transition-colors cursor-pointer ${
+                          isRail ? 'justify-center px-0' : 'gap-2.5 px-3'
+                        } ${
                           isActive ? 'bg-[var(--tf-primary-light)] text-[var(--tf-text)] font-medium' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
                         }`}
                         style={isActive ? { borderLeft: '2px solid var(--tf-primary)' } : undefined}>
                         <Icon size={16} className={isActive ? 'opacity-80' : 'opacity-50'} />
-                        <span>{displayName(plugin)}</span>
+                        {!isRail && <span>{displayName(plugin)}</span>}
                       </button>
                     );
                   })}
@@ -294,21 +320,27 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
 
             {(grouped.kuration?.length ?? 0) > 0 && (
               <div className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-                <div className="px-3 mb-2">
-                  <span className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">Kuration</span>
-                </div>
+                {sidebarMode === 'expanded' && (
+                  <div className="px-3 mb-2">
+                    <span className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">Kuration</span>
+                  </div>
+                )}
                 {grouped.kuration?.map(plugin => {
                   const Icon = getIcon(plugin.icon);
                   const isActive = plugin.id === activeId;
+                  const isRail = sidebarMode === 'rail';
                   return (
                     <button key={plugin.id}
-                      onClick={() => { goToPlugin(plugin.id); if (isMobile) setSidebarOpen(false); }}
-                      className={`flex items-center gap-2.5 w-full px-3 py-[8px] rounded-[var(--tf-radius)] text-[13.5px] transition-colors cursor-pointer ${
+                      onClick={() => { goToPlugin(plugin.id); if (isMobile) setSidebarMode('rail'); }}
+                      title={isRail ? displayName(plugin) : undefined}
+                      className={`flex items-center w-full py-[8px] rounded-[var(--tf-radius)] text-[13.5px] transition-colors cursor-pointer ${
+                        isRail ? 'justify-center px-0' : 'gap-2.5 px-3'
+                      } ${
                         isActive ? 'bg-[var(--tf-primary-light)] text-[var(--tf-text)] font-medium' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
                       }`}
                       style={isActive ? { borderLeft: '2px solid var(--tf-primary)' } : undefined}>
                       <Icon size={16} className={isActive ? 'opacity-80' : 'opacity-50'} />
-                      <span>{displayName(plugin)}</span>
+                      {!isRail && <span>{displayName(plugin)}</span>}
                     </button>
                   );
                 })}
@@ -316,26 +348,32 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
             )}
           </nav>
 
-          <div className="px-2 py-1 shrink-0 flex items-center gap-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <div className={`px-2 py-1 shrink-0 flex items-center gap-1 ${sidebarMode === 'rail' ? 'justify-center' : ''}`} style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             <button
               onClick={() => tour.start()}
-              className="relative flex items-center gap-1.5 px-2 py-1.5 rounded-[var(--tf-radius)] text-[11px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors cursor-pointer shrink-0"
+              className={`relative flex items-center py-1.5 rounded-[var(--tf-radius)] text-[11px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors cursor-pointer shrink-0 ${
+                sidebarMode === 'expanded' ? 'gap-1.5 px-2' : 'justify-center px-1.5'
+              }`}
               title="Onboarding-Tour starten"
             >
               <Icons.PlayCircle size={12} className="opacity-60" />
-              <span>Neu hier?</span>
+              {sidebarMode === 'expanded' && <span>Neu hier?</span>}
               {!tour.hasCompleted && (
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--tf-primary)] animate-pulse" />
               )}
             </button>
-            <div className="flex-1 min-w-0">
-              <SyncStatusIndicator />
-            </div>
-            <BuildInfo />
+            {sidebarMode === 'expanded' && (
+              <>
+                <div className="flex-1 min-w-0">
+                  <SyncStatusIndicator />
+                </div>
+                <BuildInfo />
+              </>
+            )}
           </div>
         </aside>
 
-        {sidebarOpen && (
+        {sidebarMode === 'expanded' && (
           <div
             role="separator"
             aria-orientation="vertical"
@@ -354,13 +392,6 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
           {isKuratorMenusEnabled() && <CsvAutoRefreshBanner />}
           {isDataShareEnabled() && <NewSnapshotBanner state={snapshotWatcher} />}
           <div className="flex-1 overflow-y-auto relative">
-            {!sidebarOpen && (
-              <button onClick={() => setSidebarOpen(true)}
-                className="fixed top-3 left-3 z-10 p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer bg-[var(--tf-bg)]"
-                style={{ border: '0.5px solid var(--tf-border)' }}>
-                <Icons.PanelLeft size={16} />
-              </button>
-            )}
             {children}
           </div>
         </main>
