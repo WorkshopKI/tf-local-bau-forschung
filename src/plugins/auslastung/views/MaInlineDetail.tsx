@@ -1,15 +1,19 @@
 /**
- * MaInlineDetail (v2.6) — Inline-Expand-Bereich pro MA-Zeile.
+ * MaInlineDetail (v2.6 + v2.14) — Inline-Expand-Bereich pro MA-Zeile.
  *
  * Zwei Tabs:
- *  - **Detail**: Verbund-Listen "Festgebucht (CSV)" + "Pending (Store)"
+ *  - **Detail**: Verbund-Listen "Aktuelle Buchung" (Master-CSV) + "Eigene
+ *    Eintragungen (pending)"
  *  - **Bearbeiten**: Form mit Kapazitaet, Haupt-/Nebenkategorien, Technologien,
  *    Abgemeldungen, Aktiv-Toggle. Speichern -> Tab zurueck auf Detail.
  *
- * Ersetzt die fruehere Kombi aus `MaReadFlyout` (KapazitaetsSection) +
- * `MitarbeiterDrawer` (MitarbeiterSection).
+ * v2.14: Source-Hint wandert aus einer eigenen Zeile in einen Info-Icon-
+ * Tooltip in der Section-Headline (spart vertikalen Platz). Aktenzeichen-
+ * Spalte bekommt feste Breite + separaten +N-Slot, damit Akronyme bei
+ * gemischten Verbund-/Einzel-Antragen aligned bleiben.
  */
 import { useState } from 'react';
+import { Info } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -82,7 +86,7 @@ function DetailTab({ auslastung, quartal }: {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       <VerbundSection
-        label={`Festgebucht (Master-CSV) — ${quartal}`}
+        label={`Aktuelle Buchung — ${quartal}`}
         verbuende={auslastung.fest.verbuende}
         empty="Keine festen Buchungen im Quartal."
         hint="Quelle: tib_kuerz in der Master-CSV mit Antragsdatum im Quartal."
@@ -105,24 +109,46 @@ function VerbundSection({ label, verbuende, empty, hint }: {
 }): React.ReactElement {
   return (
     <div className="rounded-[8px] p-3" style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}>
-      <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1.5">
-        {label} ({verbuende.length})
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
+          {label} ({verbuende.length})
+        </span>
+        <span
+          className="text-[var(--tf-text-tertiary)] cursor-help opacity-70 hover:opacity-100 inline-flex"
+          title={hint}
+          aria-label={hint}
+        >
+          <Info size={11} aria-hidden />
+        </span>
       </div>
       {verbuende.length === 0 ? (
         <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">{empty}</p>
       ) : (
         <ul className="space-y-1.5">
           {verbuende.map((v, i) => {
-            const azDisplay = v.aktenzeichen.length === 1
-              ? v.aktenzeichen[0]
-              : `${v.aktenzeichen[0]} +${v.aktenzeichen.length - 1}`;
+            const extra = v.aktenzeichen.length - 1;
+            const allAz = v.aktenzeichen.join(', ');
             return (
               <li
                 key={`${v.verbundId ?? v.aktenzeichen[0] ?? i}`}
                 className="flex items-baseline gap-2 text-[11.5px] py-1"
                 style={{ borderBottom: i < verbuende.length - 1 ? '0.5px dashed var(--tf-border)' : 'none' }}
               >
-                <span className="font-mono text-[var(--tf-text-secondary)] shrink-0">{azDisplay}</span>
+                <span
+                  className="font-mono text-[var(--tf-text-secondary)] shrink-0 overflow-hidden text-ellipsis"
+                  style={{ width: 110, whiteSpace: 'nowrap' }}
+                  title={extra > 0 ? allAz : (v.aktenzeichen[0] ?? '')}
+                >
+                  {v.aktenzeichen[0]}
+                </span>
+                <span
+                  className="font-mono text-[var(--tf-text-tertiary)] shrink-0 text-right"
+                  style={{ width: 28, visibility: extra > 0 ? 'visible' : 'hidden' }}
+                  aria-hidden={extra === 0}
+                  title={extra > 0 ? allAz : undefined}
+                >
+                  +{extra}
+                </span>
                 <div className="flex-1 min-w-0">
                   {v.akronym && <span className="font-medium">{v.akronym}</span>}
                   {v.akronym && v.titel && <span className="text-[var(--tf-text-tertiary)]"> · </span>}
@@ -136,7 +162,6 @@ function VerbundSection({ label, verbuende, empty, hint }: {
           })}
         </ul>
       )}
-      <p className="text-[10.5px] text-[var(--tf-text-tertiary)] leading-snug mt-1.5">{hint}</p>
     </div>
   );
 }

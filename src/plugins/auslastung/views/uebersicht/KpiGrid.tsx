@@ -63,7 +63,7 @@ export function KpiGrid(): React.ReactElement {
       />
       <KpiCard
         label="Anträge im Quartal"
-        primary={`${stats.antraege.fest} fest`}
+        primary={`${stats.antraege.fest} aktuell`}
         ofText={`· ${stats.antraege.pendingTvs} pending TVs`}
         progressPct={tvsProgress}
         progressColor={antraegeColor}

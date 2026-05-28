@@ -39,8 +39,8 @@ function sortLabel(sort: SortState): string {
     ma: 'MA',
     belegt: 'Auslastung',
     frei: 'Frei',
-    fest: 'Fest',
-    altlast: 'Altlast',
+    fest: 'Aktuell',
+    altlast: 'Altanträge',
   }[sort.col];
   return `Sortierung: ${colLabel} ${sort.dir === 'asc' ? '↑' : '↓'}`;
 }
@@ -90,11 +90,11 @@ export function MaTileGrid({
         </span>
         <div className="flex items-center gap-3">
           <LegendItem
-            label="Fest"
+            label="Aktuell"
             color="var(--tf-primary)"
           />
           <LegendItem
-            label="Altlast"
+            label="Altanträge"
             color="hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.4), 70%)"
           />
         </div>
@@ -141,8 +141,8 @@ export function MaTileGrid({
         style={{ borderTop: '0.5px solid var(--tf-border)' }}
       >
         <div className="flex items-center gap-4 flex-wrap">
-          <LegendItem label="Fest" color="var(--tf-primary)" swatchShape="bar" />
-          <LegendItem label="Altlast" color="hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.4), 70%)" swatchShape="bar" />
+          <LegendItem label="Aktuell" color="var(--tf-primary)" swatchShape="bar" />
+          <LegendItem label="Altanträge" color="hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.4), 70%)" swatchShape="bar" />
           <LegendItem label="Keine Buchung" color="var(--tf-bg-secondary)" swatchShape="hatched" />
           <LegendItem label="Inaktiv" color="var(--tf-bg-secondary)" swatchShape="hatched" dim />
         </div>

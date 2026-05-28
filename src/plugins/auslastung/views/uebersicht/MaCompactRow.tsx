@@ -136,13 +136,17 @@ function MaCompactRowImpl({
         {kapView.restTVs}
       </td>
 
-      {/* Fest */}
-      <td className="font-mono align-middle whitespace-nowrap" style={{ padding: '6px 8px', fontSize: 12, width: 85, color: 'var(--tf-text-secondary)' }}>
+      {/* Aktuell (Festbuchung im laufenden Quartal) */}
+      <td
+        className="font-mono align-middle whitespace-nowrap"
+        style={{ padding: '6px 8px', fontSize: 12, width: 95, color: 'var(--tf-text-secondary)' }}
+        title={`${kapView.fest.antraege} ${kapView.fest.antraege === 1 ? 'Antrag' : 'Anträge'} mit insgesamt ${kapView.fest.tvs} TVs`}
+      >
         {kapView.fest.tvs} TVs <span className="text-[var(--tf-text-tertiary)]">({kapView.fest.antraege})</span>
       </td>
 
-      {/* Altlast */}
-      <td className="font-mono align-middle" style={{ padding: '6px 8px', fontSize: 12, width: 75, color: altlastTvs > 0 ? 'var(--tf-text-secondary)' : 'var(--tf-text-tertiary)' }}>
+      {/* Altanträge (offene Anträge aus den letzten 2 Quartalen) */}
+      <td className="font-mono align-middle" style={{ padding: '6px 8px', fontSize: 12, width: 85, color: altlastTvs > 0 ? 'var(--tf-text-secondary)' : 'var(--tf-text-tertiary)' }}>
         {altlastTvs > 0 ? `${altlastTvs} TVs` : '—'}
       </td>
 
