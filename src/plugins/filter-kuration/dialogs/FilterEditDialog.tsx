@@ -1,3 +1,5 @@
+// TODO(refactor v2.4+): 507 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// Vorschlag: Step1..Step4 als eigene Files extrahieren, Dialog bleibt als Orchestrator.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';

@@ -1,3 +1,5 @@
+// TODO(refactor v2.4+): 429 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// Vorschlag: SearchFilters.tsx + SearchResults.tsx + ResultDetails.tsx extrahieren.
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, MessageCircle, Search, Sparkles } from 'lucide-react';

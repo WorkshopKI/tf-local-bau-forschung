@@ -1,3 +1,5 @@
+// TODO(refactor v2.4+): 443 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// Vorschlag: SourceList.tsx + SourceDetailPanel.tsx + SourceModals.tsx; Plugin-Page wird zum Layout-Container.
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, Trash2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';

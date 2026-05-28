@@ -1,3 +1,5 @@
+// TODO(refactor v2.4+): 458 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// Vorschlag: DocumentHeader.tsx + DocumentMetadata.tsx + DocumentActions.tsx aus dem Panel-Layout extrahieren.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Pin, MoreHorizontal, Eye, ArrowRight, FileText, Trash2 } from 'lucide-react';

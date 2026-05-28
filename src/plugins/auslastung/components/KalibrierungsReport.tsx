@@ -1,3 +1,5 @@
+// TODO(refactor v2.4+): 458 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// Vorschlag: CalibrationTable.tsx + SummaryCards.tsx als Sub-Komponenten, Export-Logik in einen Service auslagern.
 /**
  * Kalibrierungs-Report Modal/Drawer.
  *

@@ -1,3 +1,5 @@
+// TODO(refactor v2.4+): 452 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// Vorschlag: MetadataForm.tsx + CsvPreview.tsx extrahieren, Step1 bleibt schlanker Orchestrator.
 import { useRef, useState, useMemo } from 'react';
 import { Upload, FileText, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';

@@ -1,3 +1,5 @@
+// TODO(refactor v2.4+): 660 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// Vorschlag: AutoTagSection.tsx + CategoriesSection.tsx + ChipsInput.tsx extrahieren, Aggregations-Logik in eigenen Hook.
 /**
  * "Meine Technologien" — User-sichtbarer Settings-Tab.
  *
