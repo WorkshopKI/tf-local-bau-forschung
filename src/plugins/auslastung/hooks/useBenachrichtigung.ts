@@ -54,7 +54,7 @@ export function findNeueAntraegeIds(
   const ids: string[] = [];
   for (const k of klassifizierungen) {
     if (k.status !== 'freigegeben') continue;
-    const primaer = k.freigegebenePrimaer || k.freigegebeneKategorien?.[0];
+    const primaer = k.freigegebenePrimaer;
     if (primaer !== myHauptKategorie) continue;
     const ts = k.freigegebenAm ? Date.parse(k.freigegebenAm) : 0;
     if (!Number.isFinite(ts) || ts <= lastSeenMs) continue;

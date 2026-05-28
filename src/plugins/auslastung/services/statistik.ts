@@ -121,7 +121,7 @@ export function computeQuartalsStatistik(
     if (verbraucht === 0) leereMAs.push(ma.anonId);
 
     // Kategorien-Verteilung: nur hauptKategorie zaehlt (Default-Ansicht).
-    const haupt = ma.hauptKategorie || ma.ueberKategorien?.[0] || '';
+    const haupt = ma.hauptKategorie;
     if (haupt) {
       verteilungMap.set(haupt, (verteilungMap.get(haupt) ?? 0) + 1);
     }

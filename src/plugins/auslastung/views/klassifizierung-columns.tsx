@@ -30,17 +30,13 @@ export interface ClassifierColumnsContext {
 
 /** Top-1 Confidence-Score als Sort-Wert. Anträge ohne Vorschlag → 0. */
 function topConfidenceScore(v: KlassifizierungsView): number {
-  const vorgeschl = v.klassifizierung.vorgeschlageneKategorien;
-  if (vorgeschl.length === 0) return 0;
-  return vorgeschl.reduce((max, c) => (c.confidence > max ? c.confidence : max), 0);
+  return v.klassifizierung.vorgeschlagenePrimaer?.confidence ?? 0;
 }
 
 /** Top-1 Kategorie-ID als Sort-Wert für die "Vorgeschlagen"-Spalte. */
 function topVorschlagKey(v: KlassifizierungsView): string {
-  const ids = v.klassifizierung.status === 'freigegeben'
-    ? v.klassifizierung.freigegebeneKategorien
-    : v.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId);
-  return ids[0] ?? '';
+  if (v.klassifizierung.status === 'freigegeben') return v.klassifizierung.freigegebenePrimaer;
+  return v.klassifizierung.vorgeschlagenePrimaer?.kategorieId ?? '';
 }
 
 function readString(row: KlassifizierungsView, key: string): string {
@@ -220,15 +216,11 @@ function VorschlagCell({ view, kategorien, onToggle }: VorschlagCellProps): Reac
   // 1.17: Primaer vs Aspekt visuell unterscheiden.
   const istFreigegeben = view.klassifizierung.status === 'freigegeben';
   const primaer = istFreigegeben
-    ? (view.klassifizierung.freigegebenePrimaer || view.klassifizierung.freigegebeneKategorien?.[0] || '')
-    : (view.klassifizierung.vorgeschlagenePrimaer?.kategorieId
-        || view.klassifizierung.vorgeschlageneKategorien?.[0]?.kategorieId
-        || '');
+    ? view.klassifizierung.freigegebenePrimaer
+    : (view.klassifizierung.vorgeschlagenePrimaer?.kategorieId ?? '');
   const aspekte = istFreigegeben
-    ? (view.klassifizierung.freigegebeneAspekte ?? view.klassifizierung.freigegebeneKategorien?.slice(1) ?? [])
-    : (view.klassifizierung.vorgeschlageneAspekte?.map(a => a.kategorieId)
-        ?? view.klassifizierung.vorgeschlageneKategorien?.slice(1).map(c => c.kategorieId)
-        ?? []);
+    ? view.klassifizierung.freigegebeneAspekte
+    : view.klassifizierung.vorgeschlageneAspekte.map(a => a.kategorieId);
   const aspekteSet = new Set(aspekte);
   return (
     <div className="flex flex-wrap gap-1">
@@ -269,14 +261,12 @@ function AktionCell({ view, onBestaetigen }: AktionCellProps): ReactNode {
   if (freigegeben) {
     return <span className="text-[11.5px] text-emerald-700">✓ freigegeben</span>;
   }
-  const ids = view.klassifizierung.status === 'freigegeben'
-    ? view.klassifizierung.freigegebeneKategorien
-    : view.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId);
+  const hasPrimaer = view.klassifizierung.vorgeschlagenePrimaer !== null;
   return (
     <button
       type="button"
       onClick={() => onBestaetigen(view)}
-      disabled={ids.length === 0}
+      disabled={!hasPrimaer}
       className="text-[11.5px] px-2 py-1 rounded cursor-pointer disabled:opacity-50"
       style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
     >

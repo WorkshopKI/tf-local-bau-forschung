@@ -13,7 +13,9 @@ function makeMa(anonId: string, kategorien: string[], tech: string[] = []): Anon
     abgemeldet: [],
     manuelleTechnologien: tech,
     ausgeblendeteAutoTags: [],
-    ueberKategorien: kategorien,
+    hauptKategorie: kategorien[0] ?? '',
+    nebenKategorien: kategorien.slice(1),
+    abschlagProzent: 0,
     virtuelleProjekte: [],
     onboardingAbgeschlossen: true,
     aktiv: true,
@@ -44,7 +46,6 @@ describe('buildMaDocument', () => {
     expect(doc.technologien.sort()).toEqual(['big data', 'ki', 'sensorik'].sort());
     expect(doc.tokens).toContain('ki');
     expect(doc.tokens).toContain('sensorik');
-    expect(doc.ueberKategorien).toEqual(['IKT']);
   });
 });
 

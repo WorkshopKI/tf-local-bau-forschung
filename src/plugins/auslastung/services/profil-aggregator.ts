@@ -347,7 +347,7 @@ export function deriveKategorienForMa(
 /**
  * Pflegt die Mitarbeiter-Liste in `auslastung.json` aus den aktuellen Antraegen
  * auf — fuegt fehlende MAs an (mit Default-Kapazitaet) und aktualisiert die
- * abgeleiteten `ueberKategorien`-Listen (nur fuer MAs, die keine manuelle
+ * abgeleiteten Haupt-/Nebenkategorien (nur fuer MAs, die keine manuelle
  * Override durch die PL haben).
  *
  * NICHT genutzt: profilEmbeddingText, virtuelleProjekte, onboardingAbgeschlossen
@@ -362,7 +362,7 @@ import { DEFAULT_JAHRESKAPAZITAET, type AnonymerMitarbeiter } from '../types';
 export interface SyncMitarbeiterOptions {
   /** Default-Kapazitaet fuer neu erkannte MAs (Stunden/Jahr). */
   defaultJahresKapazitaet?: number;
-  /** Wenn true, ueberschreibt auch vorhandene ueberKategorien-Listen. */
+  /** Wenn true, ueberschreibt auch vorhandene Haupt-/Nebenkategorien. */
   overrideKategorien?: boolean;
 }
 
@@ -388,6 +388,8 @@ export function syncMitarbeiterFromAntraege(
   for (const [anonId, deskriptoren] of profiles.entries()) {
     const derivedKategorien = deriveKategorienForMa(deskriptoren, kategorien);
     const existing = result[anonId];
+    const hauptKategorie = derivedKategorien[0] ?? '';
+    const nebenKategorien = derivedKategorien.slice(1);
     if (!existing) {
       result[anonId] = {
         anonId,
@@ -395,14 +397,16 @@ export function syncMitarbeiterFromAntraege(
         abgemeldet: [],
         manuelleTechnologien: [],
         ausgeblendeteAutoTags: [],
-        ueberKategorien: derivedKategorien,
+        hauptKategorie,
+        nebenKategorien,
+        abschlagProzent: 0,
         virtuelleProjekte: [],
         onboardingAbgeschlossen: true,   // hat hist. Antraege -> kein Onboarding noetig
         aktiv: true,                     // Default: aktiv; PL deaktiviert ggf. via Banner/Admin
       };
       hinzugefuegt.push(anonId);
     } else if (opts.overrideKategorien) {
-      result[anonId] = { ...existing, ueberKategorien: derivedKategorien };
+      result[anonId] = { ...existing, hauptKategorie, nebenKategorien };
       aktualisiert.push(anonId);
     }
   }

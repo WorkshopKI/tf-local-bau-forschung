@@ -33,16 +33,12 @@ export interface VerbundColumnsContext {
 }
 
 function topConfidenceScore(v: VerbundKlassifizierungsView): number {
-  const vorgeschl = v.klassifizierung.vorgeschlageneKategorien;
-  if (vorgeschl.length === 0) return 0;
-  return vorgeschl.reduce((max, c) => (c.confidence > max ? c.confidence : max), 0);
+  return v.klassifizierung.vorgeschlagenePrimaer?.confidence ?? 0;
 }
 
 function topVorschlagKey(v: VerbundKlassifizierungsView): string {
-  const ids = v.klassifizierung.status === 'freigegeben'
-    ? v.klassifizierung.freigegebeneKategorien
-    : v.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId);
-  return ids[0] ?? '';
+  if (v.klassifizierung.status === 'freigegeben') return v.klassifizierung.freigegebenePrimaer;
+  return v.klassifizierung.vorgeschlagenePrimaer?.kategorieId ?? '';
 }
 
 function leadAntrag(v: VerbundKlassifizierungsView): Antrag {
@@ -261,19 +257,14 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
         // 1.17: Primaer vs Aspekt unterscheiden — Primaer-Kategorie gefuellt,
         // Aspekte outline. Bei status='freigegeben' kommt das aus
         // `freigegebenePrimaer`/`freigegebeneAspekte`, sonst aus den
-        // entsprechenden `vorgeschlagene*`-Feldern. Mit Fallback auf die
-        // deprecated 1.16-Felder fuer Pre-Migration-Daten.
+        // entsprechenden `vorgeschlagene*`-Feldern.
         const istFreigegeben = v.klassifizierung.status === 'freigegeben';
         const primaer = istFreigegeben
-          ? (v.klassifizierung.freigegebenePrimaer || v.klassifizierung.freigegebeneKategorien?.[0] || '')
-          : (v.klassifizierung.vorgeschlagenePrimaer?.kategorieId
-              || v.klassifizierung.vorgeschlageneKategorien?.[0]?.kategorieId
-              || '');
+          ? v.klassifizierung.freigegebenePrimaer
+          : (v.klassifizierung.vorgeschlagenePrimaer?.kategorieId ?? '');
         const aspekte = istFreigegeben
-          ? (v.klassifizierung.freigegebeneAspekte ?? v.klassifizierung.freigegebeneKategorien?.slice(1) ?? [])
-          : (v.klassifizierung.vorgeschlageneAspekte?.map(a => a.kategorieId)
-              ?? v.klassifizierung.vorgeschlageneKategorien?.slice(1).map(c => c.kategorieId)
-              ?? []);
+          ? v.klassifizierung.freigegebeneAspekte
+          : v.klassifizierung.vorgeschlageneAspekte.map(a => a.kategorieId);
         const aspekteSet = new Set(aspekte);
         return (
           <div className="flex flex-wrap gap-1">
@@ -327,12 +318,12 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       render: v => {
         const freigegeben = v.klassifizierung.status === 'freigegeben';
         if (freigegeben) return <span className="text-[11.5px] text-emerald-700">✓ freigegeben</span>;
-        const ids = v.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId);
+        const hasPrimaer = v.klassifizierung.vorgeschlagenePrimaer !== null;
         return (
           <button
             type="button"
             onClick={() => onFreigebeVerbund(v)}
-            disabled={ids.length === 0}
+            disabled={!hasPrimaer}
             className="text-[11.5px] px-2 py-1 rounded cursor-pointer disabled:opacity-50"
             style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             title="Verbund freigeben (alle TVs)"

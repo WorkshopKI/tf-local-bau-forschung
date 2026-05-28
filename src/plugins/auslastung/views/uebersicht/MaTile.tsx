@@ -53,7 +53,7 @@ function MaTileImpl({ ma, kapView, altlast, kategorien, stundenProTV, onClick }:
     ? Math.min(100, Math.round((altlastTvs * stundenProTV / kapView.effektivStunden) * 100))
     : 0;
 
-  const hauptKat = kategorien.find(k => k.id === (ma.hauptKategorie || ma.ueberKategorien?.[0] || ''));
+  const hauptKat = kategorien.find(k => k.id === ma.hauptKategorie);
 
   const hatchedBg =
     'repeating-linear-gradient(135deg, var(--tf-bg-secondary), var(--tf-bg-secondary) 4px, var(--tf-bg) 4px, var(--tf-bg) 8px)';

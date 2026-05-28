@@ -51,10 +51,10 @@ function readString(antrag: Antrag, key: string): string {
 }
 
 function confidenceFor(kl: Klassifizierung): 'high' | 'medium' | 'low' {
-  if (kl.vorgeschlageneKategorien.length === 0) return 'low';
-  const top = kl.vorgeschlageneKategorien.reduce((a, b) => a.confidence > b.confidence ? a : b);
-  if (top.confidence >= 0.7) return 'high';
-  if (top.confidence >= 0.4) return 'medium';
+  const primaer = kl.vorgeschlagenePrimaer;
+  if (!primaer) return 'low';
+  if (primaer.confidence >= 0.7) return 'high';
+  if (primaer.confidence >= 0.4) return 'medium';
   return 'low';
 }
 

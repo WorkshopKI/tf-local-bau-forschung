@@ -178,10 +178,8 @@ function EditTab({ ma, onSaved }: {
   const upsert = useAuslastungData(s => s.upsertMitarbeiter);
   const kategorien = useAuslastungData(s => s.data.config.ueberKategorien);
 
-  // Hauptkategorie + Nebenkategorien getrennt — bei Save schreiben wir auch
-  // das Legacy-Feld `ueberKategorien` mit (Save-Path-Kompat fuer Pre-1.18).
-  const initialHaupt = ma.hauptKategorie || ma.ueberKategorien?.[0] || '';
-  const initialNeben = ma.nebenKategorien ?? (ma.ueberKategorien ? ma.ueberKategorien.slice(1) : []);
+  const initialHaupt = ma.hauptKategorie;
+  const initialNeben = ma.nebenKategorien;
 
   const [kap, setKap] = useState(ma.jahresKapazitaet);
   const [abschlag, setAbschlag] = useState(ma.abschlagProzent ?? 0);
@@ -212,14 +210,12 @@ function EditTab({ ma, onSaved }: {
 
   const saveAction = useAsyncAction(async () => {
     const neben = [...nebenKats];
-    const ueberKategorien = hauptKat ? [hauptKat, ...neben] : neben;
     await upsert(storage, {
       ...ma,
       jahresKapazitaet: kap,
       abschlagProzent: abschlag,
       hauptKategorie: hauptKat,
       nebenKategorien: neben,
-      ueberKategorien,
       manuelleTechnologien: techRaw.split(',').map(s => s.trim()).filter(Boolean),
       abgemeldet: abgRaw.split(',').map(s => s.trim()).filter(Boolean),
       aktiv,

@@ -73,33 +73,20 @@ export interface AspektVorschlag {
 export interface Klassifizierung {
   antragId: string;          // aktenzeichen
 
-  // ─── Workflow-Revision 1.17: Primaer + Aspekte ─────────────────────────
-  //     Optional WAEHREND der Migration (1.17 → 1.18). `loadAuslastungData`
-  //     setzt sie aus den deprecated-Feldern. Sobald Cleanup-Commit alle
-  //     Konsumenten umgestellt hat, werden sie required und die deprecated-
-  //     Felder fliegen raus.
-  /** Genau eine Primaerkategorie. `undefined` = pre-1.17-Stand (Migration
-   *  rekonstruiert aus `vorgeschlageneKategorien[0]`). */
-  vorgeschlagenePrimaer?: PrimaerVorschlag | null;
+  // Workflow-Revision 1.17: Primaer + Aspekte (seit v2.3 required;
+  // Migration aus Pre-1.17-Daten passiert in normalizeKlassifizierungArray).
+  /** Genau eine Primaerkategorie. `null` = noch keine Klassifizierung. */
+  vorgeschlagenePrimaer: PrimaerVorschlag | null;
   /** 0..n Aspekte (Querschnittstechnologien), sortiert nach Confidence desc. */
-  vorgeschlageneAspekte?: AspektVorschlag[];
+  vorgeschlageneAspekte: AspektVorschlag[];
   /** Nach PL-Review — genau eine Primaerkategorie. '' = noch nicht reviewed. */
-  freigegebenePrimaer?: string;
+  freigegebenePrimaer: string;
   /** Nach PL-Review — 0..n Aspekte. */
-  freigegebeneAspekte?: string[];
+  freigegebeneAspekte: string[];
 
   status: 'vorgeschlagen' | 'freigegeben';
   /** ISO-Datum der PL-Freigabe (Trigger fuer Selbsteintragungs-Frist). */
   freigegebenAm?: string;
-
-  // ─── DEPRECATED — werden beim Save 1 Release weiter geschrieben, damit
-  //     externe Konsumenten (Test-Skripte, Exports, alte App-Stand-Reads)
-  //     nicht brechen. Cleanup geplant fuer v1.18.
-  //     Bis dahin sind sie **noch** required (Lese-Pfad).
-  /** @deprecated nutze `vorgeschlagenePrimaer` + `vorgeschlageneAspekte`. */
-  vorgeschlageneKategorien: KategorieVorschlag[];
-  /** @deprecated nutze `freigegebenePrimaer` + `freigegebeneAspekte`. */
-  freigegebeneKategorien: string[];
 }
 
 /** Globale Auslastungs-Config (PL-gepflegt). */
@@ -174,20 +161,19 @@ export interface AnonymerMitarbeiter {
    *  weiter, aber gefilterte Tags fliessen nicht ins Team-Profil. */
   ausgeblendeteAutoTags: string[];
 
-  // ─── Workflow-Revision 1.17: Haupt + Neben ───────────────────────────
-  //     Optional WAEHREND der Migration. `normalizeMitarbeiterRecord`
-  //     rekonstruiert aus dem deprecated `ueberKategorien`-Feld.
+  // Workflow-Revision 1.17: Haupt + Neben (seit v2.3 required;
+  // Migration aus Pre-1.17-`ueberKategorien` passiert in normalizeMitarbeiterRecord).
   /** Genau eine Hauptkategorie — "Ich bearbeite grundsaetzlich Antraege
    *  aus diesem Bereich". Bestimmt den Pool fuer Selbsteintragung +
    *  Matching. '' = nicht gesetzt (Setup unvollstaendig). */
-  hauptKategorie?: string;
+  hauptKategorie: string;
   /** 0..n Nebenkategorien — "Bei Antraegen mit diesen Aspekten werde
    *  ich bevorzugt vorgeschlagen". Triggert Aspekt-Bonus im Matching. */
-  nebenKategorien?: string[];
+  nebenKategorien: string[];
   /** Pauschal-Abschlag auf die Quartals-Kapazitaet, 0–100. Typischer
    *  Use-Case: 25% fuer QS-MAs die einen Teil ihrer Zeit fuer
    *  Querschnittsthemen aufwenden. Default 0. */
-  abschlagProzent?: number;
+  abschlagProzent: number;
 
   // ─── Workflow-Revision v2.2: Antragstyp-Praeferenzen ─────────────────
   /** Vom MA selbst gepflegte Praeferenz, welche Antragstypen er bearbeitet
@@ -209,12 +195,6 @@ export interface AnonymerMitarbeiter {
    *  Migration alter Daten: ebenfalls true (PL deaktiviert manuell via
    *  Admin-Tab oder ueber den Auto-Vorschlag-Banner). */
   aktiv: boolean;
-
-  // ─── DEPRECATED — bleibt 1 Release in Schreibrichtung (Save-Path
-  //     rekonstruiert das Feld aus haupt+neben). Cleanup geplant fuer v1.18.
-  //     Bis dahin **noch** required (Lese-Pfad).
-  /** @deprecated nutze `hauptKategorie` + `nebenKategorien`. */
-  ueberKategorien: string[];
 }
 
 export interface Zuweisung {

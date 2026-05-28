@@ -72,13 +72,7 @@ export async function loadAuslastungData(storage: StorageService): Promise<Ausla
   }
 }
 
-/** Schreibt die Datei via atomicWrite. Wirft falls Daten-Share nicht verbunden.
- *
- *  Der Save-Path **schreibt zusaetzlich die deprecated 1.16-Felder** mit
- *  (`klassifizierungen[].{vorgeschlageneKategorien,freigegebeneKategorien}`,
- *   `mitarbeiter[].ueberKategorien`), damit Test-Skripte / Exports / aelterer
- *  App-Stand weiter lesen kann. Cleanup geplant fuer v1.18.
- */
+/** Schreibt die Datei via atomicWrite. Wirft falls Daten-Share nicht verbunden. */
 export async function saveAuslastungData(
   storage: StorageService,
   data: AuslastungData,
@@ -86,52 +80,9 @@ export async function saveAuslastungData(
   const handle = await getDatenShareHandle(storage.idb);
   if (!handle) throw new Error('Daten-Share nicht verbunden — bitte im Welcome-Screen einrichten.');
   const next: AuslastungData = { ...data, updatedAt: new Date().toISOString() };
-  const json = JSON.stringify(withLegacyFields(next), null, 2);
+  const json = JSON.stringify(next, null, 2);
   await atomicWrite(handle, AUSLASTUNG_JSON_PATH, json);
   return next;
-}
-
-/** Rekonstruiert die deprecated 1.16-Felder fuer den Save-Path. NICHT in den
- *  Store-State zurueckschreiben — nur fuer die JSON-Repraesentation. */
-export function withLegacyFields(data: AuslastungData): AuslastungData {
-  return {
-    ...data,
-    mitarbeiter: Object.fromEntries(
-      Object.entries(data.mitarbeiter).map(([id, ma]) => {
-        const haupt = ma.hauptKategorie ?? '';
-        const neben = ma.nebenKategorien ?? [];
-        const reconstructed = haupt ? [haupt, ...neben] : [...neben];
-        return [id, {
-          ...ma,
-          // Nur ueberschreiben, wenn nichts Sinnvolles drinsteht. Sonst respektieren
-          // wir alte Schreibrichtung (z.B. wenn jemand die alte Liste manuell pflegte).
-          ueberKategorien: ma.ueberKategorien && ma.ueberKategorien.length > 0
-            ? ma.ueberKategorien
-            : reconstructed,
-        }];
-      }),
-    ),
-    klassifizierungen: data.klassifizierungen.map(k => {
-      const primaer = k.vorgeschlagenePrimaer ?? null;
-      const aspekte = k.vorgeschlageneAspekte ?? [];
-      const altVorgeschlagen: KategorieVorschlag[] = primaer
-        ? [
-            { kategorieId: primaer.kategorieId, confidence: primaer.confidence, methode: primaer.methode },
-            ...aspekte.map(a => ({ kategorieId: a.kategorieId, confidence: a.confidence, methode: 'embedding' as const })),
-          ]
-        : (k.vorgeschlageneKategorien ?? []);
-      const freiPrimaer = k.freigegebenePrimaer ?? '';
-      const freiAspekte = k.freigegebeneAspekte ?? [];
-      const altFreigegeben = freiPrimaer
-        ? [freiPrimaer, ...freiAspekte]
-        : (k.freigegebeneKategorien ?? []);
-      return {
-        ...k,
-        vorgeschlageneKategorien: altVorgeschlagen,
-        freigegebeneKategorien: altFreigegeben,
-      };
-    }),
-  };
 }
 
 /**
@@ -157,9 +108,10 @@ function normalizeAuslastungData(raw: Partial<AuslastungData> | null | undefined
 
 /**
  * Migration 1.16 → 1.17 fuer Klassifizierungen: pro Eintrag wird die
- * Multi-Label-Liste (`vorgeschlageneKategorien`/`freigegebeneKategorien`) in
- * die neue Primaer+Aspekte-Struktur transformiert. Bereits migrierte Eintraege
- * werden unveraendert durchgereicht (Idempotenz).
+ * Multi-Label-Liste (`vorgeschlageneKategorien`/`freigegebeneKategorien`,
+ * nur noch im Roh-JSON auf dem SMB-Share — die Interface-Felder sind seit
+ * v2.3 entfernt) in die neue Primaer+Aspekte-Struktur transformiert. Bereits
+ * migrierte Eintraege werden unveraendert durchgereicht (Idempotenz).
  *
  * Exportiert fuer Unit-Tests.
  */
@@ -223,10 +175,6 @@ export function normalizeKlassifizierungArray(raw: unknown): Klassifizierung[] {
       freigegebeneAspekte: freiAspekte,
       status: obj.status === 'freigegeben' ? 'freigegeben' : 'vorgeschlagen',
       freigegebenAm: typeof obj.freigegebenAm === 'string' ? obj.freigegebenAm : undefined,
-      // Deprecated-Felder beibehalten (Reader-Migration ist Pflicht — Save
-      // rekonstruiert sie aus den neuen Feldern in withLegacyFields).
-      vorgeschlageneKategorien: altVorgeschlagen,
-      freigegebeneKategorien: altFreigegeben,
     };
   }).filter((k): k is Klassifizierung => k !== null && k.antragId.length > 0);
 }
@@ -238,12 +186,12 @@ export function normalizeKlassifizierungArray(raw: unknown): Klassifizierung[] {
  * Auto-Vorschlag-Banner (`detectAktiveMAs`-Heuristik).
  *
  * Workflow-Revision 1.17: zusaetzlich `hauptKategorie`/`nebenKategorien`/
- * `abschlagProzent` aus dem deprecated `ueberKategorien`-Feld ableiten.
+ * `abschlagProzent` aus dem deprecated `ueberKategorien`-Feld ableiten
+ * (nur noch im Roh-JSON auf dem SMB-Share — das Interface-Feld ist seit
+ * v2.3 entfernt). Idempotent.
  *  - `ueberKategorien: ['IT','DT']` → haupt='IT', neben=['DT']
  *  - `ueberKategorien: []` oder fehlt → haupt='', neben=[]
  *  - bereits migrierter Datensatz (`hauptKategorie` gesetzt) → unveraendert
- *
- * Idempotent.
  *
  * Exportiert fuer Unit-Tests — Produktiv-Aufrufer gehen ueber
  * `loadAuslastungData()`.
@@ -253,7 +201,7 @@ export function normalizeMitarbeiterRecord(
 ): Record<string, AnonymerMitarbeiter> {
   if (!raw || typeof raw !== 'object') return {};
   const out: Record<string, AnonymerMitarbeiter> = {};
-  for (const [id, m] of Object.entries(raw as Record<string, Partial<AnonymerMitarbeiter>>)) {
+  for (const [id, m] of Object.entries(raw as Record<string, Partial<AnonymerMitarbeiter> & { ueberKategorien?: string[] }>)) {
     if (!m || typeof m !== 'object') continue;
 
     const altKategorien = Array.isArray(m.ueberKategorien) ? m.ueberKategorien : [];
@@ -277,12 +225,9 @@ export function normalizeMitarbeiterRecord(
       abgemeldet: Array.isArray(m.abgemeldet) ? m.abgemeldet : [],
       manuelleTechnologien: Array.isArray(m.manuelleTechnologien) ? m.manuelleTechnologien : [],
       ausgeblendeteAutoTags: Array.isArray(m.ausgeblendeteAutoTags) ? m.ausgeblendeteAutoTags : [],
-      // 1.17: neue Felder
       hauptKategorie,
       nebenKategorien,
       abschlagProzent,
-      // deprecated, bleibt fuer Reader (Aufrufer die noch nicht migriert sind)
-      ueberKategorien: altKategorien.length > 0 ? altKategorien : (hauptKategorie ? [hauptKategorie, ...nebenKategorien] : []),
       virtuelleProjekte: Array.isArray(m.virtuelleProjekte) ? m.virtuelleProjekte : [],
       profilEmbeddingText: typeof m.profilEmbeddingText === 'string' ? m.profilEmbeddingText : undefined,
       onboardingAbgeschlossen: typeof m.onboardingAbgeschlossen === 'boolean' ? m.onboardingAbgeschlossen : false,

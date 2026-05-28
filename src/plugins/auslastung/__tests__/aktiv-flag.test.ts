@@ -10,17 +10,20 @@ import { DEFAULT_JAHRESKAPAZITAET } from '../types';
 
 describe('normalizeMitarbeiterRecord (aktiv-Migration)', () => {
   it('Pre-Patch-Daten ohne aktiv-Feld → aktiv: true fuer alle', () => {
+    // Raw JSON aus altem App-Stand: `ueberKategorien` ist v2.3 entfernt aus
+    // dem Interface, kommt aber in Pre-v2.3-Daten noch im JSON vor — wird
+    // beim Load via normalizeMitarbeiterRecord auf hauptKategorie+neben gehoben.
     const raw = {
       MA01: {
         anonId: 'MA01', jahresKapazitaet: 1000, abgemeldet: [], manuelleTechnologien: [],
         ausgeblendeteAutoTags: [],
         ueberKategorien: ['IKT'], virtuelleProjekte: [], onboardingAbgeschlossen: true,
-      },
+      } as Record<string, unknown>,
       MA02: {
         anonId: 'MA02', jahresKapazitaet: 800, abgemeldet: [], manuelleTechnologien: [],
         ausgeblendeteAutoTags: [],
         ueberKategorien: ['IND'], virtuelleProjekte: [], onboardingAbgeschlossen: false,
-      },
+      } as Record<string, unknown>,
     };
     const out = normalizeMitarbeiterRecord(raw);
     expect(out.MA01!.aktiv).toBe(true);
@@ -52,11 +55,9 @@ describe('normalizeMitarbeiterRecord (aktiv-Migration)', () => {
       abgemeldet: [],
       manuelleTechnologien: [],
       ausgeblendeteAutoTags: [],
-      // 1.17: neue Felder + deprecated ueberKategorien
       hauptKategorie: '',
       nebenKategorien: [],
       abschlagProzent: 0,
-      ueberKategorien: [],
       virtuelleProjekte: [],
       profilEmbeddingText: undefined,
       onboardingAbgeschlossen: false,

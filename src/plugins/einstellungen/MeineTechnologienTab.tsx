@@ -148,19 +148,11 @@ export function MeineTechnologienTab(): React.ReactElement {
       try { localStorage.setItem(LS_KEY, JSON.stringify(manualTags)); } catch { /* ignore */ }
       if (myAnonId) {
         const existing = data.mitarbeiter[myAnonId];
-        // 1.17: zusaetzlich hauptKategorie + nebenKategorien speichern.
-        // ueberKategorien (deprecated) wird via withLegacyFields beim Save
-        // automatisch rekonstruiert; wir schreiben es trotzdem konsistent
-        // mit, damit Aufrufer die das Feld direkt lesen aktuell bleiben.
-        const reconstructedUeber = hauptKategorie
-          ? [hauptKategorie, ...nebenKategorien]
-          : nebenKategorien;
         const patch = {
           manuelleTechnologien: manualTags,
           ausgeblendeteAutoTags: excludedAutoTags,
           hauptKategorie,
           nebenKategorien,
-          ueberKategorien: reconstructedUeber,
           // v2.2: Antragstyp-Praeferenz (Override ist PL-only, nicht hier).
           antragstypBevorzugt,
         };

@@ -319,14 +319,21 @@ export async function applyOnboardingImport(
 
   const ueberKategorien = overrideUeberKategorien ?? preview.abgeleiteteUeberKategorien;
   const existing = data.mitarbeiter[anonId];
+  // Bestehende Kategorien-Wahl NICHT ueberschreiben (PL hat ggf. manuell justiert).
+  const haupt = existing && existing.hauptKategorie
+    ? existing.hauptKategorie
+    : (ueberKategorien[0] ?? '');
+  const neben = existing && existing.hauptKategorie
+    ? existing.nebenKategorien
+    : ueberKategorien.slice(1);
 
   const next: AnonymerMitarbeiter = existing ? {
     ...existing,
     virtuelleProjekte,
     profilEmbeddingText: preview.profilFreitext ?? existing.profilEmbeddingText,
     manuelleTechnologien: mergeTags(existing.manuelleTechnologien, preview.manuelleTechnologien),
-    // Bestehende ueberKategorien NICHT ueberschreiben (PL hat ggf. manuell justiert)
-    ueberKategorien: existing.ueberKategorien.length > 0 ? existing.ueberKategorien : ueberKategorien,
+    hauptKategorie: haupt,
+    nebenKategorien: neben,
     onboardingAbgeschlossen: true,
   } : {
     anonId,
@@ -334,7 +341,9 @@ export async function applyOnboardingImport(
     abgemeldet: [],
     manuelleTechnologien: preview.manuelleTechnologien,
     ausgeblendeteAutoTags: [],
-    ueberKategorien,
+    hauptKategorie: haupt,
+    nebenKategorien: neben,
+    abschlagProzent: 0,
     virtuelleProjekte,
     profilEmbeddingText: preview.profilFreitext,
     onboardingAbgeschlossen: true,

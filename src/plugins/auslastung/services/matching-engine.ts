@@ -93,16 +93,13 @@ export function runMatching(input: MatchInput): MatchResult[] {
   if (!primaer) return [];
 
   // 1) Eligible MAs: Pool = MAs deren hauptKategorie == primaer.
-  //    Fallback fuer noch nicht migrierte MAs: ueberKategorien enthaelt primaer.
   //    v2.2: zusaetzlich Antragstyp-Praeferenz pruefen — MAs die diesen
   //    Antragstyp gar nicht bearbeiten (FuE/DS/DL/NW) fallen sofort raus,
   //    spart die teuren BM25/Embedding-Scores.
   const eligibleAnonIds = new Set<string>();
   for (const ma of Object.values(mitarbeiter)) {
     if (!ma.aktiv) continue;
-    const matchesHaupt = ma.hauptKategorie ? ma.hauptKategorie === primaer : false;
-    const matchesLegacy = !ma.hauptKategorie && (ma.ueberKategorien?.includes(primaer) ?? false);
-    if (!(matchesHaupt || matchesLegacy)) continue;
+    if (ma.hauptKategorie !== primaer) continue;
     if (!matchesAntragstyp(antrag, ma)) continue;
     eligibleAnonIds.add(ma.anonId);
   }

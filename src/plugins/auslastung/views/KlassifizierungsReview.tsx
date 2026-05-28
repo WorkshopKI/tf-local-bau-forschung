@@ -146,8 +146,9 @@ export function KlassifizierungsReview(): React.ReactElement {
 
   // Persistenz-Wrapper: Verbund-Aktion wirkt auf alle TVs.
   async function freigebeVerbund(view: VerbundKlassifizierungsView): Promise<void> {
-    const ids = view.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId);
-    if (ids.length === 0) return;
+    const primaer = view.klassifizierung.vorgeschlagenePrimaer;
+    if (!primaer) return;
+    const ids = [primaer.kategorieId, ...view.klassifizierung.vorgeschlageneAspekte.map(a => a.kategorieId)];
     for (const tv of view.tvs) {
       await freigeben(storage, tv.aktenzeichen, ids);
     }
@@ -158,11 +159,12 @@ export function KlassifizierungsReview(): React.ReactElement {
     kategorieId: string,
     add: boolean,
   ): Promise<void> {
-    const current = new Set(
-      view.klassifizierung.status === 'freigegeben'
-        ? view.klassifizierung.freigegebeneKategorien
-        : view.klassifizierung.vorgeschlageneKategorien.map(c => c.kategorieId),
-    );
+    const currentIds = view.klassifizierung.status === 'freigegeben'
+      ? [view.klassifizierung.freigegebenePrimaer, ...view.klassifizierung.freigegebeneAspekte].filter(Boolean)
+      : (view.klassifizierung.vorgeschlagenePrimaer
+          ? [view.klassifizierung.vorgeschlagenePrimaer.kategorieId, ...view.klassifizierung.vorgeschlageneAspekte.map(a => a.kategorieId)]
+          : []);
+    const current = new Set(currentIds);
     if (add) {
       if (current.size >= 2 && !current.has(kategorieId)) return;
       current.add(kategorieId);
@@ -174,15 +176,16 @@ export function KlassifizierungsReview(): React.ReactElement {
       if (view.klassifizierung.status === 'freigegeben') {
         await freigeben(storage, tv.aktenzeichen, ids);
       } else {
+        const [primaerId, ...aspektIds] = ids;
         const next: Klassifizierung = {
           antragId: tv.aktenzeichen,
           status: 'vorgeschlagen',
-          freigegebeneKategorien: [],
-          vorgeschlageneKategorien: ids.map(id => ({
-            kategorieId: id,
-            confidence: 1.0,
-            methode: 'regel',
-          })),
+          vorgeschlagenePrimaer: primaerId
+            ? { kategorieId: primaerId, confidence: 1.0, methode: 'regel' }
+            : null,
+          vorgeschlageneAspekte: aspektIds.map(id => ({ kategorieId: id, confidence: 1.0 })),
+          freigegebenePrimaer: '',
+          freigegebeneAspekte: [],
         };
         await upsertKlassifizierung(storage, next);
       }
@@ -193,7 +196,7 @@ export function KlassifizierungsReview(): React.ReactElement {
     const candidates = verbundViews.filter(v =>
       v.klassifizierung.status !== 'freigegeben'
       && v.confidence === 'high'
-      && v.klassifizierung.vorgeschlageneKategorien.length > 0
+      && v.klassifizierung.vorgeschlagenePrimaer !== null
     );
     if (candidates.length === 0) return;
     if (!confirm(`${candidates.length} Verbünde mit hoher Sicherheit freigeben?`)) return;

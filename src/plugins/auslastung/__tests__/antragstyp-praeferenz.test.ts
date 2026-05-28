@@ -24,7 +24,6 @@ function makeMa(overrides: Partial<AnonymerMitarbeiter> = {}): AnonymerMitarbeit
     hauptKategorie: 'IT',
     nebenKategorien: [],
     abschlagProzent: 0,
-    ueberKategorien: ['IT'],
     virtuelleProjekte: [],
     onboardingAbgeschlossen: true,
     aktiv: true,

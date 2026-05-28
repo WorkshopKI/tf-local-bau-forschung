@@ -48,8 +48,6 @@ export interface MaDocument {
   tokens: string[];
   /** Set fuer "matchende Technologien" Anzeige. */
   technologien: string[];
-  /** In welchen Ueberkategorien arbeitet der MA. */
-  ueberKategorien: string[];
 }
 
 export interface Bm25Result {
@@ -74,7 +72,6 @@ export function buildMaDocument(
     anonId: ma.anonId,
     tokens,
     technologien,
-    ueberKategorien: ma.ueberKategorien,
   };
 }
 

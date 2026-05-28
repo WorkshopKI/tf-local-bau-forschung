@@ -72,9 +72,7 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
 
   const myAnonId = resolveAnonIdForUser(profile?.bearbeiter_kuerzel, cache.anonymMap);
   const myMa = myAnonId ? mitarbeiter[myAnonId] : undefined;
-  // Hauptkategorie mit Fallback (Pre-Migration-MAs: erste ueberKategorie).
-  const myHauptKategorie = myMa?.hauptKategorie
-    || (myMa?.ueberKategorien && myMa.ueberKategorien.length > 0 ? myMa.ueberKategorien[0]! : '');
+  const myHauptKategorie = myMa?.hauptKategorie ?? '';
 
   // Zähler-Badge: ersetzt den frueheren SelbsteintragungBanner (v2.3).
   // Der User sieht die Liste direkt darunter — die Banner-Funktion ist
@@ -120,8 +118,7 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
     const items: OffenerAntrag[] = [];
     for (const k of klassifizierungen) {
       if (k.status !== 'freigegeben') continue;
-      const primaer = k.freigegebenePrimaer || k.freigegebeneKategorien?.[0];
-      if (primaer !== myHauptKategorie) continue;
+      if (k.freigegebenePrimaer !== myHauptKategorie) continue;
       // Fest gebucht (CSV) — nicht mehr anbieten
       if (myFestAktenzeichen?.has(k.antragId)) continue;
       // Pending (eigene Selbsteintragung) — nicht mehr anbieten
@@ -276,10 +273,8 @@ interface RowProps {
 function NeueAntraegeRow({ item, onUebernehmen, disabled, compact }: RowProps): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
   const { antrag, klassifizierung, daysLeft } = item;
-  const primaerId = klassifizierung.freigegebenePrimaer || klassifizierung.freigegebeneKategorien?.[0];
-  const aspektIds = klassifizierung.freigegebeneAspekte
-    ?? klassifizierung.freigegebeneKategorien?.slice(1)
-    ?? [];
+  const primaerId = klassifizierung.freigegebenePrimaer;
+  const aspektIds = klassifizierung.freigegebeneAspekte;
   const primaerKat = config.ueberKategorien.find(k => k.id === primaerId);
   const aspektKats = aspektIds
     .map(id => config.ueberKategorien.find(k => k.id === id))

@@ -115,10 +115,6 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
           begruendung: r.begruendung,
         },
         vorgeschlageneAspekte: r.aspekte.map(a => ({ kategorieId: a, confidence: 0.6 })),
-        vorgeschlageneKategorien: [
-          { kategorieId: r.primaer, confidence: 0.9, methode: 'llm' },
-          ...r.aspekte.map(a => ({ kategorieId: a, confidence: 0.6, methode: 'llm' as const })),
-        ],
       };
     });
     // TVs ohne bestehende Klassifizierung → anhaengen.
@@ -136,11 +132,6 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
         vorgeschlageneAspekte: r.aspekte.map(a => ({ kategorieId: a, confidence: 0.6 })),
         freigegebenePrimaer: '',
         freigegebeneAspekte: [],
-        vorgeschlageneKategorien: [
-          { kategorieId: r.primaer, confidence: 0.9, methode: 'llm' },
-          ...r.aspekte.map(a => ({ kategorieId: a, confidence: 0.6, methode: 'llm' as const })),
-        ],
-        freigegebeneKategorien: [],
         status: 'vorgeschlagen',
       });
       updated++;

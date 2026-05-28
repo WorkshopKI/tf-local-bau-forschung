@@ -32,7 +32,9 @@ function makeMa(
     abgemeldet: [],
     manuelleTechnologien: tech,
     ausgeblendeteAutoTags: [],
-    ueberKategorien,
+    hauptKategorie: ueberKategorien[0] ?? '',
+    nebenKategorien: ueberKategorien.slice(1),
+    abschlagProzent: 0,
     virtuelleProjekte: [],
     onboardingAbgeschlossen: true,
     aktiv,
@@ -285,22 +287,6 @@ describe('runMatching', () => {
       expect(res).toHaveLength(1);
       // Aspekt-Bonus auch im legacy-Pfad sichtbar
       expect(res[0]!.aspektMatchIds).toEqual(['DT']);
-    });
-
-    it('Fallback: nicht-migrierter MA ohne hauptKategorie nutzt ueberKategorien', () => {
-      // Realer Pre-Migration-Zustand: hauptKategorie undefined, ueberKategorien gesetzt
-      const m1: AnonymerMitarbeiter = makeMa('MA01', ['IT'], 1600, ['KI']);
-      delete (m1 as Partial<AnonymerMitarbeiter>).hauptKategorie;
-      const res = runMatching({
-        antrag: makeAntrag('A1', { verbund_titel: 'KI' } as Partial<Antrag>),
-        primaerKategorie: 'IT',
-        config: makeConfig(),
-        mitarbeiter: { MA01: m1 },
-        zuweisungen: [],
-        historischeDeskriptorenByAnon: new Map([['MA01', ['ki']]]),
-        anonymMap: buildAnonymMapForTests([]),
-      });
-      expect(res).toHaveLength(1);
     });
 
     it('Ueberbuchung wird im Output ausgewiesen', () => {

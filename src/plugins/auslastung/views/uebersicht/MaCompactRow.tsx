@@ -36,7 +36,7 @@ interface Props {
 function MaCompactRowImpl({
   ma, kapView, altlast, kategorien, realName, quartal, stundenProTV, expanded, onToggleExpand,
 }: Props): React.ReactElement {
-  const hauptId = ma.hauptKategorie || ma.ueberKategorien?.[0] || '';
+  const hauptId = ma.hauptKategorie;
   const hauptKat = kategorien.find(k => k.id === hauptId);
 
   const abgemeldet = ma.abgemeldet.includes(quartal);

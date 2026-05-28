@@ -49,8 +49,6 @@ function makeKlass(
     vorgeschlageneAspekte: [],
     freigegebenePrimaer: primaer,
     freigegebeneAspekte: [],
-    vorgeschlageneKategorien: [],
-    freigegebeneKategorien: primaer ? [primaer] : [],
     status,
     freigegebenAm,
   };
@@ -79,21 +77,6 @@ describe('findNeueAntraegeIds', () => {
   it('myHauptKategorie leer → []', () => {
     const klass = [makeKlass('A1', 'IT', '2026-05-20T10:00:00.000Z')];
     expect(findNeueAntraegeIds(klass, '', 0)).toEqual([]);
-  });
-
-  it('Fallback auf freigegebeneKategorien[0]', () => {
-    const k: Klassifizierung = {
-      antragId: 'A1',
-      vorgeschlagenePrimaer: null,
-      vorgeschlageneAspekte: [],
-      freigegebenePrimaer: '',
-      freigegebeneAspekte: [],
-      vorgeschlageneKategorien: [],
-      freigegebeneKategorien: ['IT'],
-      status: 'freigegeben',
-      freigegebenAm: '2026-05-20T10:00:00.000Z',
-    };
-    expect(findNeueAntraegeIds([k], 'IT', 0)).toEqual(['A1']);
   });
 
   it('leere klassifizierungen → []', () => {

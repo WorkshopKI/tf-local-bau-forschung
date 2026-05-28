@@ -272,6 +272,10 @@ Beim MAJOR-Bump zusätzlich: Migrations-Notiz in CLAUDE.md ergänzen (analog v1.
 
 MAJOR-Bump v2.0 erzwingt Re-Pick beim Start. Neuer Handle-Slot `SMB_HANDLE_PERSOENLICH` pro User für `teamflow/{profile,einstellungen}.json` + Feedback-Outbox. Nicht-Kurator-Daten-Share-Handle wird automatisch von `readwrite` auf `read` heruntergestuft. Details: [docs/architecture/v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md).
 
+### v2.3 — Auslastungs-Modul Deprecation-Cleanup (Mai 2026)
+
+MINOR-Bump v2.3 entfernt die seit v2.1 deprecated Felder im Auslastungs-Modul: `AnonymerMitarbeiter.ueberKategorien` sowie `Klassifizierung.vorgeschlageneKategorien` / `freigegebeneKategorien`. Die `withLegacyFields()`-Wrapper-Funktion im Save-Path ist weg, der Save schreibt nur noch das v2.1-Schema (Primaer + Aspekte / hauptKategorie + nebenKategorien). Die Migrations-Funktionen `normalizeMitarbeiterRecord` + `normalizeKlassifizierungArray` lesen Pre-v2.1-Roh-JSON weiterhin (für Legacy-IDB/SMB-Daten), heben es aber jetzt sofort auf das aktuelle Schema. Keine User-Aktion nötig.
+
 ## Common Pitfalls
 
 > **Hinweis zur Nummerierung**: append-only. Niemals umnummerieren — Querverweise (in Code-Kommentaren, anderen Docs, Commit-Messages) werden sonst ungültig. Wer einen Pitfall für überholt hält, markiert ihn mit *„(überholt seit vX.Y, siehe …)"* statt ihn zu löschen.

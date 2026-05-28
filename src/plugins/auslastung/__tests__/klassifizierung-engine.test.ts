@@ -114,15 +114,17 @@ describe('klassifiziereAntrag', () => {
     const a = makeAntrag('A1', { techn_1: 'KI' } as Partial<Antrag>);
     const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
     expect(k.status).toBe('vorgeschlagen');
-    expect(k.vorgeschlageneKategorien[0]?.methode).toBe('regel');
-    expect(k.vorgeschlageneKategorien[0]?.kategorieId).toBe('IKT');
-    expect(k.freigegebeneKategorien).toEqual([]);
+    expect(k.vorgeschlagenePrimaer?.methode).toBe('regel');
+    expect(k.vorgeschlagenePrimaer?.kategorieId).toBe('IKT');
+    expect(k.freigegebenePrimaer).toBe('');
+    expect(k.freigegebeneAspekte).toEqual([]);
   });
 
   it('Stufe 1 leer, Stage-2 aus -> leerer Vorschlag (manuelle Klass.)', () => {
     const a = makeAntrag('A2');
     const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
-    expect(k.vorgeschlageneKategorien).toEqual([]);
+    expect(k.vorgeschlagenePrimaer).toBeNull();
+    expect(k.vorgeschlageneAspekte).toEqual([]);
   });
 
   it('Stufe 1 leer + Stage-2 an mit Embedding -> embedding-Vorschlag', () => {
@@ -137,9 +139,9 @@ describe('klassifiziereAntrag', () => {
       stage2Aktiv: true,
       queryEmbedding: [1, 0, 0],
     });
-    expect(k.vorgeschlageneKategorien.length).toBeGreaterThan(0);
-    expect(k.vorgeschlageneKategorien[0]?.methode).toBe('embedding');
-    expect(k.vorgeschlageneKategorien[0]?.kategorieId).toBe('IKT');
+    expect(k.vorgeschlagenePrimaer).not.toBeNull();
+    expect(k.vorgeschlagenePrimaer?.methode).toBe('embedding');
+    expect(k.vorgeschlagenePrimaer?.kategorieId).toBe('IKT');
   });
 
   it('Stufe 1 hit -> Stage 2 wird gar nicht aufgerufen (auch wenn aktiv)', () => {
@@ -154,8 +156,8 @@ describe('klassifiziereAntrag', () => {
       stage2Aktiv: true,
       queryEmbedding: [0, 1, 0],   // wuerde IND vorschlagen — wird ignoriert
     });
-    expect(k.vorgeschlageneKategorien[0]?.methode).toBe('regel');
-    expect(k.vorgeschlageneKategorien[0]?.kategorieId).toBe('IKT');
+    expect(k.vorgeschlagenePrimaer?.methode).toBe('regel');
+    expect(k.vorgeschlagenePrimaer?.kategorieId).toBe('IKT');
   });
 
   it('Multi-Label: zwei matchende Kategorien in Stufe 1', () => {
@@ -164,8 +166,10 @@ describe('klassifiziereAntrag', () => {
       techn_2: 'Sensorik',
     } as Partial<Antrag>);
     const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
-    expect(k.vorgeschlageneKategorien.length).toBe(2);
-    expect(new Set(k.vorgeschlageneKategorien.map(v => v.kategorieId))).toEqual(new Set(['IKT', 'IND']));
+    expect(k.vorgeschlagenePrimaer).not.toBeNull();
+    expect(k.vorgeschlageneAspekte.length).toBe(1);
+    const allIds = [k.vorgeschlagenePrimaer?.kategorieId, ...k.vorgeschlageneAspekte.map(a => a.kategorieId)].filter(Boolean);
+    expect(new Set(allIds)).toEqual(new Set(['IKT', 'IND']));
   });
 });
 
@@ -281,14 +285,14 @@ describe('matchZukunftstechnologien (Stage 0)', () => {
       techn_1: 'KI',   // wuerde sonst DT vorschlagen
     } as Partial<Antrag>);
     const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
-    expect(k.vorgeschlageneKategorien[0]?.kategorieId).toBe('LG');
+    expect(k.vorgeschlagenePrimaer?.kategorieId).toBe('LG');
   });
 
   it('Kein ZT-Match -> Fallback auf Stage 1 Deskriptoren-Match', () => {
     const a = makeAntrag('A', { techn_1: 'KI' } as Partial<Antrag>);
     const k = klassifiziereAntrag({ antrag: a, kategorien: kats });
-    expect(k.vorgeschlageneKategorien.length).toBeGreaterThan(0);
-    expect(k.vorgeschlageneKategorien[0]?.kategorieId).toBe('DT');
+    expect(k.vorgeschlagenePrimaer).not.toBeNull();
+    expect(k.vorgeschlagenePrimaer?.kategorieId).toBe('DT');
   });
 });
 
@@ -323,20 +327,26 @@ describe('computeKategorieCentroids', () => {
     const klass: Klassifizierung[] = [
       {
         antragId: 'A1',
-        vorgeschlageneKategorien: [{ kategorieId: 'IKT', confidence: 1, methode: 'regel' }],
-        freigegebeneKategorien: ['IKT'],
+        vorgeschlagenePrimaer: { kategorieId: 'IKT', confidence: 1, methode: 'regel' },
+        vorgeschlageneAspekte: [],
+        freigegebenePrimaer: 'IKT',
+        freigegebeneAspekte: [],
         status: 'freigegeben',
       },
       {
         antragId: 'A2',
-        vorgeschlageneKategorien: [{ kategorieId: 'IKT', confidence: 1, methode: 'regel' }],
-        freigegebeneKategorien: ['IKT'],
+        vorgeschlagenePrimaer: { kategorieId: 'IKT', confidence: 1, methode: 'regel' },
+        vorgeschlageneAspekte: [],
+        freigegebenePrimaer: 'IKT',
+        freigegebeneAspekte: [],
         status: 'freigegeben',
       },
       {
         antragId: 'A3',
-        vorgeschlageneKategorien: [{ kategorieId: 'IND', confidence: 1, methode: 'regel' }],
-        freigegebeneKategorien: ['IND'],
+        vorgeschlagenePrimaer: { kategorieId: 'IND', confidence: 1, methode: 'regel' },
+        vorgeschlageneAspekte: [],
+        freigegebenePrimaer: 'IND',
+        freigegebeneAspekte: [],
         status: 'freigegeben',
       },
     ];
@@ -373,8 +383,6 @@ describe('computeKategorieCentroids', () => {
       vorgeschlageneAspekte: [{ kategorieId: 'IND', confidence: 0.4 }],
       freigegebenePrimaer: 'IKT',
       freigegebeneAspekte: ['IND'],
-      vorgeschlageneKategorien: [],
-      freigegebeneKategorien: [],
       status: 'freigegeben',
     }];
     const embeddings = new Map<string, number[]>([['A1', [1, 0, 0]]]);
@@ -427,8 +435,6 @@ describe('klassifiziereAntrag — neue Primaer+Aspekte-Rueckgabe (1.17)', () => 
     // Mindestens primaer gesetzt
     expect(result.vorgeschlagenePrimaer).not.toBeNull();
     expect(result.vorgeschlagenePrimaer!.kategorieId).toBe('DT');
-    // Backwards-Kompat: deprecated Felder weiter befuellt
-    expect(result.vorgeschlageneKategorien.length).toBeGreaterThan(0);
     expect(result.freigegebenePrimaer).toBe('');
     expect(result.freigegebeneAspekte).toEqual([]);
   });

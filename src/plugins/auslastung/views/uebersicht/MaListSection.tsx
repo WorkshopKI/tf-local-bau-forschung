@@ -150,8 +150,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
     if (kategorieFilter) {
       sichtbar = sichtbar.filter(m =>
         m.hauptKategorie === kategorieFilter
-        || (m.nebenKategorien?.includes(kategorieFilter) ?? false)
-        || (m.ueberKategorien?.includes(kategorieFilter) ?? false),
+        || m.nebenKategorien.includes(kategorieFilter),
       );
     }
     if (warningFilter === 'no-bookings') {
@@ -225,8 +224,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
     for (const k of kategorien) {
       perKategorie[k.id] = considered.filter(m =>
         m.hauptKategorie === k.id
-        || (m.nebenKategorien?.includes(k.id) ?? false)
-        || (m.ueberKategorien?.includes(k.id) ?? false),
+        || m.nebenKategorien.includes(k.id),
       ).length;
     }
     return { all, perKategorie };

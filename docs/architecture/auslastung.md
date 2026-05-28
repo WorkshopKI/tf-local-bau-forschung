@@ -56,7 +56,7 @@ Datenmodell:
 - `Klassifizierung.vorgeschlagenePrimaer: PrimaerVorschlag | null` (Methode: `'regel' | 'embedding' | 'llm' | 'manuell'`).
 - `Klassifizierung.vorgeschlageneAspekte: AspektVorschlag[]`.
 - `Klassifizierung.freigegebenePrimaer: string` + `freigegebeneAspekte: string[]` (nach PL-Review).
-- Deprecated 1.16-Felder `vorgeschlageneKategorien` + `freigegebeneKategorien` bleiben 1 Release im Save (`withLegacyFields` in `services/auslastung-store.ts`), Cleanup in v2.3.
+- Deprecated 1.16-Felder `vorgeschlageneKategorien` + `freigegebeneKategorien` wurden mit v2.3 entfernt. Pre-v2.1-Roh-JSON wird beim Load weiterhin migriert (`normalizeKlassifizierungArray` in `services/auslastung-store.ts`).
 
 MA-Modell (1.17):
 - `AnonymerMitarbeiter.hauptKategorie: string` — bestimmt den Pool für Selbsteintragung + Matching.

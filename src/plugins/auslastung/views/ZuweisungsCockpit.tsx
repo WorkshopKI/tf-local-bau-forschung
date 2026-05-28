@@ -102,7 +102,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   // Filter anwenden
   const filtered = useMemo(() => {
     return freigegebene.filter(v => {
-      const kats = v.klassifizierung.freigegebeneKategorien;
+      const kats = [v.klassifizierung.freigegebenePrimaer, ...v.klassifizierung.freigegebeneAspekte].filter(Boolean);
       if (kategorieFilter && !kats.includes(kategorieFilter)) return false;
       if (statusFilter !== 'alle') {
         const ze = zuweisungen.filter(z => z.antragId === v.antrag.aktenzeichen);
@@ -138,11 +138,10 @@ export function ZuweisungsCockpit(): React.ReactElement {
     void (async () => {
       setMatchingRunning(true);
       try {
-        // 1.17: primaer + aspekte aus den freigegebenen Feldern, Fallback
-        // auf die deprecated `freigegebeneKategorien`-Liste.
+        // 1.17: primaer + aspekte aus den freigegebenen Feldern.
         const k = selectedView.klassifizierung;
-        const primaerKategorie = k.freigegebenePrimaer || k.freigegebeneKategorien?.[0] || '';
-        const aspekte = k.freigegebeneAspekte ?? k.freigegebeneKategorien?.slice(1) ?? [];
+        const primaerKategorie = k.freigegebenePrimaer;
+        const aspekte = k.freigegebeneAspekte;
         let queryEmbedding: number[] | undefined;
         let corpusEmbeddings: Map<string, number[]> | undefined;
         let antraegeIndex: ReturnType<typeof buildAntraegeIndexForMatching> | undefined;
@@ -298,12 +297,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
             {!isInitialLoading && filtered.map(v => {
               const isSel = selectedAz === v.antrag.aktenzeichen;
               // 1.17: Primaer (gefuellt) vs Aspekte (outline) trennen.
-              const primaerId = v.klassifizierung.freigegebenePrimaer
-                || v.klassifizierung.freigegebeneKategorien?.[0]
-                || '';
-              const aspektIds = v.klassifizierung.freigegebeneAspekte
-                ?? v.klassifizierung.freigegebeneKategorien?.slice(1)
-                ?? [];
+              const primaerId = v.klassifizierung.freigegebenePrimaer;
+              const aspektIds = v.klassifizierung.freigegebeneAspekte;
               const primaerKat = config.ueberKategorien.find(k => k.id === primaerId);
               const aspektKats = aspektIds
                 .map(id => config.ueberKategorien.find(k => k.id === id))
@@ -398,14 +393,9 @@ function DetailPanel({
   const summary = antrag[FIELD_PROJEKTBESCHREIBUNG] as string | undefined;
   const verbund_id = antrag[CANONICAL_VERBUND_ID] as string | undefined;
   const desk = readAntragDeskriptoren(antrag);
-  // 1.17: Primaer (gefuellt) + Aspekte (outline) trennen, mit Fallback auf
-  // deprecated freigegebeneKategorien fuer Pre-Migration-Stand.
-  const primaerKatId = klassifizierung.freigegebenePrimaer
-    || klassifizierung.freigegebeneKategorien?.[0]
-    || '';
-  const aspektKatIds = klassifizierung.freigegebeneAspekte
-    ?? klassifizierung.freigegebeneKategorien?.slice(1)
-    ?? [];
+  // 1.17: Primaer (gefuellt) + Aspekte (outline) trennen.
+  const primaerKatId = klassifizierung.freigegebenePrimaer;
+  const aspektKatIds = klassifizierung.freigegebeneAspekte;
   const primaerKategorie = kategorien.find(k => k.id === primaerKatId);
   const aspektKategorien = aspektKatIds
     .map(id => kategorien.find(k => k.id === id))

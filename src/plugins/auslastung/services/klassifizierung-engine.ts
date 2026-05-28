@@ -48,7 +48,7 @@ export function klassifiziereAntrag(input: KlassifizierungInput): Klassifizierun
   const stage2Aktiv = input.stage2Aktiv ?? false;
 
   // Helper: einheitliche Rueckgabe — splittet Vorschlagsliste in Primaer +
-  // Aspekte, fuellt deprecated 1.16-Felder fuer Backwards-Kompat.
+  // Aspekte.
   const wrap = (vorschlaege: KategorieVorschlag[]): Klassifizierung => {
     const { primaer, aspekte } = splitInPrimaerUndAspekte(vorschlaege);
     return {
@@ -57,8 +57,6 @@ export function klassifiziereAntrag(input: KlassifizierungInput): Klassifizierun
       vorgeschlageneAspekte: aspekte,
       freigegebenePrimaer: '',
       freigegebeneAspekte: [],
-      vorgeschlageneKategorien: vorschlaege,
-      freigegebeneKategorien: [],
       status: 'vorgeschlagen',
     };
   };
@@ -246,20 +244,12 @@ function clampToConfidence(sim: number): number {
  * Centroid-Berechnung. Praezedenz:
  *  1. `freigegebenePrimaer` (1.17, PL-Review)
  *  2. `vorgeschlagenePrimaer.kategorieId` (1.17, Engine-Output)
- *  3. `freigegebeneKategorien[0]` (deprecated 1.16-Fallback)
- *  4. `vorgeschlageneKategorien[0].kategorieId` (deprecated 1.16-Fallback)
  *
  * Aspekte zaehlen explizit NICHT — sie wuerden Centroids verfaelschen.
  */
 function primaerKategorieFor(klass: Klassifizierung): string | null {
   if (klass.freigegebenePrimaer) return klass.freigegebenePrimaer;
   if (klass.vorgeschlagenePrimaer?.kategorieId) return klass.vorgeschlagenePrimaer.kategorieId;
-  const altFrei = klass.freigegebeneKategorien;
-  if (altFrei && altFrei.length > 0 && altFrei[0]) return altFrei[0];
-  const altVorgeschlagen = klass.vorgeschlageneKategorien;
-  if (altVorgeschlagen && altVorgeschlagen.length > 0 && altVorgeschlagen[0]?.kategorieId) {
-    return altVorgeschlagen[0].kategorieId;
-  }
   return null;
 }
 
