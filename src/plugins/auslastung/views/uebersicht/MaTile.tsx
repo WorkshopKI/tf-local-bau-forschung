@@ -33,10 +33,12 @@ interface Props {
   altlast?: MaAltlastBucket;
   kategorien: UeberKategorie[];
   stundenProTV: number;
+  /** Echtes Kürzel bei aktiver De-Anon-Session, sonst null. */
+  realName: string | null;
   onClick: (anonId: string) => void;
 }
 
-function MaTileImpl({ ma, kapView, altlast, kategorien, stundenProTV, onClick }: Props): React.ReactElement {
+function MaTileImpl({ ma, kapView, altlast, kategorien, stundenProTV, realName, onClick }: Props): React.ReactElement {
   const altlastTvs = altlast?.tvs ?? 0;
   const hasFest = kapView.verbrauchteStunden > 0;
   const hasAltlast = altlastTvs > 0;
@@ -79,7 +81,7 @@ function MaTileImpl({ ma, kapView, altlast, kategorien, stundenProTV, onClick }:
       onClick={() => onClick(ma.anonId)}
       style={containerStyle}
       className="hover:-translate-y-px hover:border-[var(--tf-border-hover)] text-left"
-      title={ma.anonId}
+      title={realName ? `${ma.anonId} (${realName})` : ma.anonId}
     >
       {/* Kategorie-Punkt */}
       {hauptKat && (
@@ -109,6 +111,9 @@ function MaTileImpl({ ma, kapView, altlast, kategorien, stundenProTV, onClick }:
         }}
       >
         {ma.anonId}
+        {realName && (
+          <span style={{ color: 'var(--tf-text-tertiary)' }}> · {realName}</span>
+        )}
       </div>
 
       {/* Twin-Bars rechts */}

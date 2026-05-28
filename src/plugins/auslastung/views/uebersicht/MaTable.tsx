@@ -45,7 +45,7 @@ interface ColumnSpec {
 }
 
 const COLUMNS: ColumnSpec[] = [
-  { id: 'ma', label: 'MA', align: 'left', width: 80 },
+  { id: 'ma', label: 'MA', align: 'left', width: 110 },
   { id: null, label: 'Kategorie', align: 'left', width: 90 },
   { id: null, label: 'Auslastung', align: 'left', width: 0 },
   { id: 'belegt', label: 'Belegt', align: 'right', width: 70 },

@@ -75,8 +75,11 @@ function MaCompactRowImpl({
       style={{ borderTop: '0.5px solid var(--tf-border)' }}
     >
       {/* MA */}
-      <td className="font-mono align-middle" style={{ padding: '6px 8px', fontSize: 11.5, fontWeight: 500, width: 80, color: dimmed ? 'var(--tf-text-tertiary)' : 'var(--tf-text)' }}>
-        <span title={realName ? `${ma.anonId} (${realName})` : ma.anonId}>{ma.anonId}</span>
+      <td className="font-mono align-middle whitespace-nowrap" style={{ padding: '6px 8px', fontSize: 11.5, fontWeight: 500, width: 110, color: dimmed ? 'var(--tf-text-tertiary)' : 'var(--tf-text)' }}>
+        <span title={realName ? `${ma.anonId} (${realName})` : ma.anonId}>
+          {ma.anonId}
+          {realName && <span style={{ color: 'var(--tf-text-tertiary)' }}> · {realName}</span>}
+        </span>
       </td>
 
       {/* Kategorie */}

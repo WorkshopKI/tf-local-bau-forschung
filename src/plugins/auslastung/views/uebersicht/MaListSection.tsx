@@ -378,6 +378,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           kapByAnon={kapByAnon}
           kategorien={kategorien}
           stundenProTV={stundenProTV}
+          resolveName={resolveName}
           expandedMa={expandedMa}
           onToggleExpand={handleToggleExpand}
           sort={{ col: sortCol, dir: sortDir }}
