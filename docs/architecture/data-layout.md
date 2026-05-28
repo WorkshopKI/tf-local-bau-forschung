@@ -1,0 +1,51 @@
+# Datenverzeichnis & Pfad-Layout (v1.9+)
+
+*Last reviewed: 2026-05-28 (v2.2.0)*
+
+Alle geteilten Daten und Config-Dateien liegen im **Daten-Share** (separater SMB-Share vom App-Share mit `teamflow.html`). Struktur:
+
+## `programm/` — domänenspezifische Daten
+
+- `programm/antraege/imports/` — rohe CSV-Importe (ersetzt v1.8-Pfad `csv-sources/`)
+- `programm/antraege/bauantraege/` — Vorgang-Artefakte Bauanträge (ersetzt `vorgaenge/bauantrag`). Seit v1.14 entfällt `programm/antraege/forschung/`; Förderanträge leben im IDB-Store ANTRAEGE (CSV-Import-Schema), Artefakte werden dort (noch) nicht auf dem Share abgelegt.
+- `programm/schemas/` — Column-Mapping-JSONs (ersetzt `csv-schemas/`)
+- `programm/index/` — Orama-Snapshots + `index-meta.json`
+
+## `_intern/` — Infrastruktur + Sidecars
+
+- `_intern/feedback/feedback.json` — Multi-User-Tickets
+- `_intern/feedback/system-prompt.md` — Kurator-editierbarer Chatbot-Prompt
+- `_intern/audit-log.jsonl` — Kurator-Events (Append-Only JSONL)
+- `_intern/build-lock.json` — Aktiver Build-Lock (Heartbeat)
+- `_intern/kurator-config.enc` — verschlüsselte Kurator-Credentials
+- `_intern/kurator-name-*.txt` — rechnerspezifische Kurator-Kennung (Fingerprint-suffixed)
+- `_intern/scan-manifest.json` — Phase 2: JSONL-Spiegel des `phase2_scan_manifest`-IDB-Stores (optional, Caller-getriggert)
+- `_intern/dms-index-filtered.csv` — Phase 2: gefilterte DMS-CSV (Output von `scripts/filter-dms-csv.mjs`)
+- `_intern/aktenplan-mapping.json` — Phase 2: optionales Override des Aktenplanzuordnung→doc_type Mappings
+
+## `_intern/auslastung*` — Auslastungs-Modul
+
+- `_intern/auslastung.json` — Konfig (Überkategorien, Gewichtungen, Setup-Flag), anonyme MA-Profile, Klassifizierungen, Zuweisungen, Kalibrierungs-Ergebnisse. Last-Write-Wins. KEINE echten Bearbeiter-Kürzel. Legacy-Pfad `_intern/auslastung/data.json` vor Mai 2026 — Load liest beide, Save schreibt nur den neuen.
+- `_intern/auslastung-kuerzel-map.json` — persistente `kuerzel ↔ anonId`-Map (append-only, Klartext). Stabilisiert anonIds gegen ephemeral-Sort-Drift bei neuen TIB-Kürzeln. Schema: `{ version: 1, updatedAt, entries: Array<{ kuerzel, anonId, createdAt }> }`. Invariante: `entries[i].anonId === MA{i+1}`, einmal vergebene Einträge werden nie geändert oder gelöscht. Wird beim ersten Render des `useAntraegeCache` aus dem aktuellen alphabetischen Sort der Antraege bootstrapped; danach werden neue Kürzel nur hinten angehängt.
+- `_intern/auslastung-embedding-corpus.manifest.json` — (Mai 2026) Metadaten zum geteilten Stage-2-Embedding-Korpus. Schema: `{ version: 1, modellId, dim, antraegeCount, builtAt, builderProfile?, aktenzeichenSetHash, aktenzeichen[], binFormat: 'f32-stream', binBytes }`. Klein (~200 KB für 13k aktenzeichen), `.backup`-Rotation deaktiviert.
+- `_intern/auslastung-embedding-corpus.bin` — (Mai 2026) konkatenierte float32-Vektoren in der Reihenfolge `manifest.aktenzeichen[]`. Größe = `count × dim × 4 Bytes` (typisch ~40 MB bei 13k × 768d). Wird nach jedem erfolgreichen Build automatisch hochgeladen; Auto-Download wenn lokal leer + Modell/Dim/Hash passen. Atomar geschrieben mit `skipBackup: true` (Recovery via Re-Build).
+
+## Wurzel-Ebene
+
+- `backups/YYYY-MM-DD/` — Wöchentliche Snapshots (Rolling 4 Gen., Daten-Share-Root)
+- `README.txt` — Orientierungs-Text (von der App beim Setup angelegt)
+
+## Externe Handles
+
+- Phase 2: separater Dokumentenquelle-Handle (`smb-handles.dokumentenquelle`) für die Scan-Source — wird via `pickAndStoreDokumentenquelleHandle()` gesetzt; Scanner traversiert von dort über `runtimeConfig.scan.sub_roots`. Seit v1.15 multi-source via `smb-handles.dms-source-${id}`.
+
+## v2.0 — Persoenlicher Ordner
+
+Pro User auf dem Home-Laufwerk (Subpfade unterhalb des Persoenlich-Handles, siehe `PERSOENLICH_*`-Konstanten in [types.ts](../../src/core/services/infrastructure/types.ts)):
+
+- `teamflow/profile.json` — User-Profil
+- `teamflow/einstellungen.json` — User-Settings
+- `teamflow/feedback/outbox/` — Feedback-Outbox (Nicht-Kurator) für späteren Einsammel-Schritt
+- `teamflow/feedback/meine-feedbacks.json` — User-eigene Feedback-Items
+
+Details zur 2-Handle-Architektur: [v2-handle-architektur.md](v2-handle-architektur.md).

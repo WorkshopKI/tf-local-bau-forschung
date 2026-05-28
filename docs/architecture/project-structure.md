@@ -1,0 +1,202 @@
+# Project Structure
+
+*Last reviewed: 2026-05-28 (v2.2.0)*
+
+```
+src/
+├── core/
+│   ├── App.tsx                  <- Entry, providers, onboarding check
+│   ├── Shell.tsx                <- Sidebar + content layout
+│   ├── ErrorBoundary.tsx        <- React error boundary
+│   ├── Onboarding.tsx           <- First-run setup wizard
+│   ├── components/
+│   │   ├── ArtefakteTab.tsx     <- Shared artifact management (both departments)
+│   │   ├── SimilarCases.tsx     <- AI-powered similar case suggestions
+│   │   ├── VerlaufTab.tsx       <- Workflow history timeline
+│   │   ├── VorgangDokumenteTab.tsx <- Document viewer per Vorgang
+│   │   └── tour/
+│   │       ├── TourOverlay.tsx  <- Spotlight-Overlay für Onboarding-Tour (clip-path, Retry, Auto-Nav)
+│   │       └── tourSteps.ts     <- 5 Tour-Schritte mit data-tour Targets + navigateTo
+│   ├── hooks/
+│   │   ├── useAIBridge.ts       <- AI provider context
+│   │   ├── useKuratorSession.ts   <- Phase 1a + v1.9: 12h-TTL Kurator-Session (IDB-persistiert)
+│   │   ├── useKuratorActivityTracker.ts <- Phase 1a: Auto-Extend bei User-Aktivität
+│   │   ├── useKeyboard.ts       <- Keyboard shortcut registration
+│   │   ├── useNavigation.ts     <- Plugin navigation
+│   │   ├── useProfile.ts        <- User profile management
+│   │   ├── useSearch.ts         <- Search context (Orama + Embedding + Re-Ranker)
+│   │   ├── useSmbStatus.ts      <- Phase 1a: SMB-Polling (5min) + Offline-Simulation
+│   │   ├── useStorage.ts        <- Storage service context
+│   │   ├── useTags.ts           <- Tag management (Zustand)
+│   │   ├── useTour.ts           <- Onboarding-Tour State + Context (localStorage-persistiert)
+│   │   └── useVorgangDetail.ts  <- Shared Detail-View logic (states, handlers)
+│   ├── services/
+│   │   ├── ai/
+│   │   │   ├── bridge.ts        <- AIBridge orchestrator
+│   │   │   ├── prompts.ts       <- Chat prompt templates
+│   │   │   ├── rag-context.ts   <- RAG context builder
+│   │   │   └── transports/      <- DirectLLM, Streamlit
+│   │   ├── search/
+│   │   │   ├── orama-store.ts       <- Orama DB CRUD + hybrid search
+│   │   │   ├── embedding-service.ts <- Transformers.js embedding pipeline
+│   │   │   ├── batch-indexer.ts     <- Document indexing orchestrator
+│   │   │   ├── chunking.ts          <- Text chunking (heading-based + fixed)
+│   │   │   ├── metadata-extractor.ts <- LLM-based metadata extraction
+│   │   │   ├── metadata-prompts.ts  <- Prompt templates + JSON schema
+│   │   │   ├── model-registry.ts    <- Embedding model definitions
+│   │   │   ├── model-loader.ts      <- Model loading from file server
+│   │   │   ├── contextual-chunker.ts <- Context-prefixed chunks
+│   │   │   ├── query-embedder.ts    <- Query embedding wrapper
+│   │   │   ├── pipeline-logger.ts   <- Structured console logging (DEV-only)
+│   │   │   ├── document-scanner.ts  <- File server document sync
+│   │   │   ├── checkpoint.ts        <- Index checkpoint management
+│   │   │   ├── index-persistence.ts <- Index save/load to file server
+│   │   │   ├── re-ranker.ts         <- Cross-encoder re-ranking (PHASE 2)
+│   │   │   ├── example-docs.ts      <- Seed documents for testing
+│   │   │   └── eval/                <- Search quality evaluation
+│   │   │       ├── eval-runner.ts
+│   │   │       ├── eval-types.ts
+│   │   │       ├── eval-suites.ts
+│   │   │       ├── eval-export.ts
+│   │   │       └── test-cases.ts
+│   │   ├── converter/
+│   │   │   └── index.ts         <- PDF + DOCX to Markdown
+│   │   ├── export/
+│   │   │   ├── docx-export.ts   <- DOCX generation
+│   │   │   └── docx-templates.ts
+│   │   ├── seed/                <- Demo/test data generators
+│   │   ├── storage/
+│   │   │   ├── index.ts         <- StorageService facade
+│   │   │   ├── idb-store.ts     <- IndexedDB wrapper
+│   │   │   └── fs-store.ts      <- File System Access API wrapper
+│   │   ├── sync/                <- File server sync queue
+│   │   ├── versioning/          <- Document version management
+│   │   ├── workflow/
+│   │   │   ├── engine.ts        <- Status transitions
+│   │   │   ├── history.ts       <- Workflow history
+│   │   │   └── deadlines.ts     <- Deadline calculations
+│   │   ├── review/              <- Document review service
+│   │   ├── artifacts.ts         <- Artifact CRUD
+│   │   ├── keyboard.ts          <- Shortcut registry
+│   │   ├── tags.ts              <- Tag operations
+│   │   └── templates.ts         <- Document templates
+│   │   ├── feedback/            <- Feedback-System Service-Layer
+│   │   │   ├── feedbackService.ts   <- CRUD + Shared-File-Sync + FAQ + Sponsoring (sponsorTicket/unsponsorTicket/getSponsoringProgress)
+│   │   │   ├── feedbackLlm.ts       <- System-Prompt-Loader + Parser + DEFAULT_SYSTEM_PROMPT
+│   │   │   ├── feedbackContext.ts   <- Auto-Kontext + window.onerror Ring-Buffer
+│   │   │   ├── promptGenerator.ts   <- Claude-Code-Prompt-Generator
+│   │   │   ├── budgetService.ts     <- Phase 3: Quartals-Budget (localStorage pro User)
+│   │   │   └── index.ts
+│   │   ├── infrastructure/      <- Phase 1a + v1.9: Kurator-Session + Datei-Integrität + Migration
+│   │   │   ├── kurator-config.ts    <- Verschlüsselte Kurator-Creds (Setup/Activate/Password)
+│   │   │   ├── crypto.ts            <- AES-GCM 256 + PBKDF2-SHA-256 (Web Crypto API)
+│   │   │   ├── atomic-write.ts      <- Write-tmp+Rename + 1-Gen-Backup-Rotation
+│   │   │   ├── audit-log.ts         <- JSONL-Append-Only Event-Log (_intern/audit-log.jsonl)
+│   │   │   ├── build-lock.ts        <- Heartbeat-basierter Build-Lock (Stale > 2h)
+│   │   │   ├── backup.ts            <- Wöchentliche Snapshots + 4-Gen-Rotation (backups/YYYY-MM-DD/)
+│   │   │   ├── smb-handle.ts        <- Daten-Share + Dokumentenquelle Handles + ensureFolderStructure
+│   │   │   ├── migration.ts         <- v1.9: validateSelectedFolder + migrateLegacyStructure
+│   │   │   ├── offline-check.ts     <- Offline-Detection-Helpers
+│   │   │   ├── types.ts             <- AuditEntry, BuildLock, BackupEntry, SessionMeta, KuratorConfigPlain, FolderValidationResult, Pfad-Konstanten
+│   │   │   └── index.ts             <- Barrel-Export
+│   ├── types/
+│   │   ├── vorgang.ts           <- Vorgang + Artifact types
+│   │   ├── config.ts            <- UserProfile (is_kurator + Legacy is_admin), AIProviderConfig
+│   │   ├── plugin.ts            <- TeamFlowPlugin interface (kuratorOnly + Legacy adminOnly, category 'kuration')
+│   │   ├── feedback.ts          <- FeedbackItem (kurator_status/_priority/_notes + Legacy admin_*), FeedbackCategory, FeedbackStatus, ChatMsg, etc.
+│   │   ├── review.ts
+│   │   └── version.ts
+│   └── utils/
+│       └── status-mappings.ts   <- Status-Labels + Badge-Variants für Vorgang-Status (NICHT Feedback)
+├── phase2/                       <- Phase-2 Triage- & Matcher-Baustein (Eingangsfilter vor Volltext-Pipeline)
+│   ├── types.ts                     <- DmsEntry, ManifestEntry, SkipListEntry, TriageResult, MatchResult, PendingAntragEntry
+│   ├── index.ts                     <- Barrel-Export
+│   ├── ui-tokens.ts                 <- CONFIDENCE_BADGE_CLASSES + TRIAGE_SOURCE_BADGE_CLASSES (für UI-Folge-Patch)
+│   ├── dms-csv/                     <- DMS-CSV-Loader + Aktenplan-Mapping
+│   ├── scanner/                     <- Rekursiver dokumentenquelle-Walker + Manifest-Store
+│   ├── triage/                      <- Stage 0 (DMS-Lookup) → 1 (strukturell) → 2 (Keywords) → 3 (Nemotron) + Orchestrator
+│   ├── matcher/                     <- FKZ-Extraktor (strict + tolerant) + Akronym-Matcher + Match-Orchestrator
+│   ├── skip-list/                   <- IDB-Store + Versions-Reset
+│   ├── pending-antrag/              <- Holding-Bucket für Projektbeschreibungen vor CSV-Import
+│   ├── ocr/                         <- Side-Car-Stub (echte Implementation in Folge-Patch)
+│   └── __tests__/                   <- Vitest: dms-csv-parser / aktenplan / fkz / keywords / stage0 / filter-script / triage.eval
+├── plugins/
+│   # Nutzer-Plugins (category 'workflow' / 'tools')
+│   ├── home/                    <- Dashboard (id='home')
+│   ├── antraege/                <- Förderanträge-Liste + Detail (id='antraege', generische Ansicht über CSV-Schema; seit v1.14 konsolidiert inkl. ehem. Forschungs-Fixtures + optionaler AntragDokumentRef[])
+│   ├── auslastung/              <- Auslastungs-Modul (id='auslastung', features.auslastung-gegated, 5 Tabs, Anonymisierung MA01..MAxx, dreistufiges Matching, Standalone-Onboarding-HTML-Generator)
+│   ├── bauantraege/             <- Bauanträge-Workflow (id='bauantraege', Vorgang-Typ bauantrag — nur in dev/demo-Variants sichtbar)
+│   ├── dokumente/               <- Dokumenten-Browser (id='dokumente', Phase-2-Platzhalter)
+│   ├── suche/                   <- Hybrid-Suche-UI (id='suche', Orama + Vector)
+│   ├── chat/                    <- AI-Chat (id='chat')
+│   ├── feedback-board/          <- Öffentliches Feedback-Board (id='feedback-board', KEIN kuratorOnly)
+│   ├── einstellungen/           <- Profil, Theme, AI-Provider, is_kurator-Toggle (id='einstellungen')
+│   # Kurator-Plugins (category 'kuration', kuratorOnly: true) — Directory-Name == Plugin-ID
+│   ├── kurator/                 <- Suchindex-Kurations-Panel (id='kurator', route /kuration/suchindex)
+│   ├── programme-kuration/      <- Programm-Verwaltung inkl. Unterprogramme-Sub-Feature (id='programme-kuration')
+│   ├── csv-sources-kuration/    <- CSV-Import-Wizard (id='csv-sources-kuration', 5-Step-Wizard + Label-XLS-Hierarchie)
+│   ├── dokumentenquellen-kuration/ <- DMS-Quellen-Verwaltung (id='dokumentenquellen-kuration', v1.15, Multi-Source + Indexierung)
+│   ├── filter-kuration/         <- Filter-Verwaltung (id='filter-kuration', 4-Step-Wizard)
+│   ├── feedback/                <- Feedback-Verwaltung (id='feedback-kuration', 4 Tabs)
+│   │   ├── FeedbackAdminPage.tsx    <- 4 Tabs (Tickets / FAQ / Sponsoring / Einstellungen)
+│   │   ├── sections/
+│   │   │   ├── FeedbackTicketList.tsx
+│   │   │   ├── FeedbackTicketDetail.tsx      <- + Aufwand-Dropdown + Sponsoring-Info (Phase 3)
+│   │   │   ├── FeedbackFaqTab.tsx
+│   │   │   ├── FeedbackSponsoringOverview.tsx <- Phase 3: Features-Ranking + Schwellen-Form + Budget-Stats
+│   │   │   └── FeedbackConfigPanel.tsx
+│   │   └── index.ts
+│   ├── dokument-review/         <- Phase-2 Review-Queue UI (id='dokument-review', kuratorOnly + features.dokumentenscan)
+│   │   ├── DokumentReviewPage.tsx
+│   │   ├── store.ts                  <- Zustand: viewMode/Filter/Sort/Pagination/Toast
+│   │   ├── filtering.ts              <- applyFilters + isInReviewQueue + Sort-Keys
+│   │   ├── hooks/
+│   │   │   ├── useManifestData.ts    <- Manifest/Skip/Pending parallel laden + reload/remove/rematch
+│   │   │   ├── useAntraegeIndex.ts   <- listAntraegeByProgramm-Cache + Substring-Filter
+│   │   │   └── useReviewActions.ts   <- 5 Override-Aktionen + Toast
+│   │   ├── components/
+│   │   │   ├── DashboardCard.tsx     <- 6 Quick-Filter-Kacheln + Pending-Re-Match-Button
+│   │   │   ├── FilterBar.tsx         <- 4 Pill-Reihen (Ansicht / Confidence / Typ / Source)
+│   │   │   ├── ManifestList.tsx      <- Pagination 50/Seite + Sort-Dropdown
+│   │   │   ├── ManifestListItem.tsx  <- Listenzeile mit Badges
+│   │   │   ├── DetailPanel.tsx       <- 4 Sections + Aktionsleiste
+│   │   │   ├── AntragAutocomplete.tsx<- FKZ/Akronym/Titel-Substring (data-tf-autocomplete-input)
+│   │   │   ├── PendingList.tsx       <- Holding-Bucket + Manuell-Zuordnen + Eintrag-Entfernen
+│   │   │   ├── KeyboardHandler.tsx   <- j/k/n/i/r/a/Enter/Escape
+│   │   │   └── ReviewToast.tsx       <- Auto-dismiss 3s
+│   │   └── index.tsx                 <- Plugin-Registrierung (icon ClipboardCheck, order 35)
+│   # Dev-Plugins (nur bei aktiven Dev-Flags sichtbar)
+│   ├── dev-infrastructure-test/ <- DEV-Test-Harness (id='dev-infrastructure-test', 5+ Panels inkl. Phase-2-Triage)
+│   │   ├── DevPanel.tsx
+│   │   ├── panels/
+│   │   └── index.ts
+│   └── dev-state-inspector/     <- DEV-State-Viewer (id='dev-state-inspector', Fixture-Sibling)
+├── components/
+│   ├── ui/                      <- shadcn/ui Komponenten (Button, Card, Select, Tabs, Label, Collapsible, etc.)
+│   └── feedback/                <- Globales Feedback-System (FAB + Panel + Chatbot + ConfirmCard + FAQ + MyFeedbackList + Board-Cards)
+│       ├── FeedbackButton.tsx
+│       ├── FeedbackPanel.tsx
+│       ├── FeedbackChatbot.tsx
+│       ├── FeedbackConfirmCard.tsx
+│       ├── FaqSuggestions.tsx
+│       ├── MyFeedbackList.tsx
+│       ├── FeedbackBoardCard.tsx <- Phase 3: Board-Karte mit Sponsoring-Progress
+│       ├── SponsorButton.tsx     <- Phase 3: Punkte/Stunden-Sponsor-UI
+│       ├── BudgetBadge.tsx       <- Phase 3: X/Y Punkte (Q.) mit Ampelfarbe
+│       ├── constants.ts
+│       └── index.ts
+├── ui/                          <- App-spezifische shared components (legacy, ggf. nach components/ui/ migrieren)
+├── plugins.config.ts            <- Build-time plugin selection
+└── main.tsx
+```
+
+## Außerhalb von `src/`
+
+- `tools/config-ui/` — Vanilla-JS Build-Konfigurator (siehe `npm run config-ui`)
+- `tools/kompetenz-onboarding/` — Standalone-HTML-Template für das Auslastungs-Onboarding (Vanilla-JS + Inline-SheetJS, wird vom Generator-Service über Vite-`?raw`-Import verarbeitet, kein eigener Build-Schritt)
+- `_labels/` — Quell-XLSX für CSV-Spalten-Klarnamen + ZT-Themenfeld-Mapping. Wird von `scripts/build-default-labels.mjs` verarbeitet (prebuild-Hook) → `src/plugins/auslastung/services/default-labels.ts`.
+- `docs/architecture/` — Tiefen-Dokumentation pro Modul/Layer (dieses Verzeichnis).
+- `docs/agents/` — Cheatsheets für wiederkehrende Erweiterungen.
+- `docs/fixtures/` — Anonymisierte Real-CSVs für Dev-Seeds (mit `schema-*.ts`-Definitionen).
+- `configs/` — Build-Varianten-Configs (`dev`, `demo`, `prod`, `kurator`, `pl`).
+- `scripts/` — Build-Scripts (Test-Assets-Generierung, Label-XLSX-Build, Filter-DMS-CSV).
