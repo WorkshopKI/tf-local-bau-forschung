@@ -134,21 +134,23 @@ function VerbundSection({ label, verbuende, empty, hint }: {
                 className="flex items-baseline gap-2 text-[11.5px] py-1"
                 style={{ borderBottom: i < verbuende.length - 1 ? '0.5px dashed var(--tf-border)' : 'none' }}
               >
-                <span
-                  className="font-mono text-[var(--tf-text-secondary)] shrink-0 overflow-hidden text-ellipsis"
-                  style={{ width: 110, whiteSpace: 'nowrap' }}
+                {/* Aktenzeichen + optional +N als kombinierte Fix-Breite-Box.
+                 *  Inhalt linksbündig, +N direkt am Aktenzeichen — Akronym startet
+                 *  immer bei `width`. Sparsamer Whitespace gegenüber zwei Slots. */}
+                <div
+                  className="shrink-0 flex items-baseline"
+                  style={{ width: 105, gap: 4 }}
                   title={extra > 0 ? allAz : (v.aktenzeichen[0] ?? '')}
                 >
-                  {v.aktenzeichen[0]}
-                </span>
-                <span
-                  className="font-mono text-[var(--tf-text-tertiary)] shrink-0 text-right"
-                  style={{ width: 28, visibility: extra > 0 ? 'visible' : 'hidden' }}
-                  aria-hidden={extra === 0}
-                  title={extra > 0 ? allAz : undefined}
-                >
-                  +{extra}
-                </span>
+                  <span className="font-mono text-[var(--tf-text-secondary)]">
+                    {v.aktenzeichen[0]}
+                  </span>
+                  {extra > 0 && (
+                    <span className="font-mono text-[var(--tf-text-tertiary)]">
+                      +{extra}
+                    </span>
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
                   {v.akronym && <span className="font-medium">{v.akronym}</span>}
                   {v.akronym && v.titel && <span className="text-[var(--tf-text-tertiary)]"> · </span>}
