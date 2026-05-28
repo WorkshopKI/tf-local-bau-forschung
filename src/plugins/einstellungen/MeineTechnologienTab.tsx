@@ -131,7 +131,13 @@ export function MeineTechnologienTab(): React.ReactElement {
     return aggregateMaProfile(cache.antraege, profile.bearbeiter_kuerzel);
   }, [cache.antraege, profile?.bearbeiter_kuerzel]);
 
+  // Auto-Save: dirtyRef wird NUR von User-Mutatoren gesetzt (nicht von der
+  // Hydration), damit Laden/Browser-Wechsel keinen Save triggert.
+  const dirtyRef = useRef(false);
+  const markDirty = (): void => { dirtyRef.current = true; };
+
   const toggleAutoTag = (tag: string): void => {
+    markDirty();
     setExcludedAutoTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag],
     );
@@ -142,6 +148,7 @@ export function MeineTechnologienTab(): React.ReactElement {
     // Haupt UND Neben sein, was inkonsistent waere). User muss erst die
     // Hauptkategorie wechseln.
     if (id === hauptKategorie) return;
+    markDirty();
     setNebenKategorien(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
     );
@@ -149,11 +156,13 @@ export function MeineTechnologienTab(): React.ReactElement {
 
   const setHauptUndBereinige = (id: string): void => {
     // Wenn neue Hauptkategorie schon in Neben war → aus Neben entfernen.
+    markDirty();
     setHauptKategorie(id);
     setNebenKategorien(prev => prev.filter(x => x !== id));
   };
 
   const toggleAntragstyp = (bucket: AntragstypBucket): void => {
+    markDirty();
     setAntragstypBevorzugt(prev =>
       prev.includes(bucket) ? prev.filter(b => b !== bucket) : [...prev, bucket],
     );
@@ -185,8 +194,40 @@ export function MeineTechnologienTab(): React.ReactElement {
     setSavedAt(new Date().toISOString());
   });
 
+  // Stabiler Save-Aufruf über Ref — vermeidet Stale-Closure + Dep-Churn im
+  // Debounce-Effect (saveAction.run-Identität ändert sich pro Render).
+  const saveRef = useRef<() => void>(() => {});
+  saveRef.current = () => { void saveAction.run(); };
+  const pendingRef = useRef(false);
+
+  // Debounced Auto-Save (~800 ms nach der letzten Eingabe). Feuert nur wenn der
+  // User wirklich etwas geändert hat (dirtyRef), nicht bei der Hydration.
+  useEffect(() => {
+    if (!dirtyRef.current) return;
+    pendingRef.current = true;
+    const t = setTimeout(() => { pendingRef.current = false; saveRef.current(); }, 800);
+    return () => clearTimeout(t);
+  }, [manualTags, excludedAutoTags, hauptKategorie, nebenKategorien, antragstypBevorzugt]);
+
+  // Flush beim Verlassen des Tabs: ausstehenden Debounce sofort schreiben, damit
+  // die letzte Eingabe bei schnellem Tab-Wechsel nicht verloren geht.
+  useEffect(() => () => { if (pendingRef.current) saveRef.current(); }, []);
+
   return (
     <div className="flex flex-col">
+      {/* Auto-Save-Status — immer sichtbar, kein Scrollen nötig */}
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
+        <p className="text-[12px] leading-relaxed text-[var(--tf-text-secondary)] max-w-md">
+          Änderungen werden automatisch gespeichert — andere im Team sehen deine{' '}
+          <span className="font-medium text-[var(--tf-text)]">Technologien</span> dort.
+        </p>
+        <SaveStatus
+          busy={saveAction.busy}
+          error={saveAction.error}
+          savedAt={savedAt}
+        />
+      </div>
+
       {/* Section 1 — Programmkennung */}
       <section>
         <SettingsSectionHeader label="Programmkennung" />
@@ -267,51 +308,51 @@ export function MeineTechnologienTab(): React.ReactElement {
         <SettingsSectionHeader label="Zusätzliche Kompetenzen" hint={TOOLTIP_MANUAL} />
         <ChipInput
           tags={manualTags}
-          onChange={setManualTags}
+          onChange={(t) => { markDirty(); setManualTags(t); }}
           maxChips={MAX_CHIPS}
           maxChipLen={MAX_CHIP_LEN}
           placeholder="Stichwort eintippen, Enter zum Hinzufügen…"
         />
       </section>
-
-      {/* Save-Row */}
-      <div
-        className="mt-8 pt-5 flex items-center justify-between gap-4 flex-wrap"
-        style={{ borderTop: '0.5px solid var(--tf-border)' }}
-      >
-        <p className="text-[12px] leading-relaxed text-[var(--tf-text-secondary)] max-w-md">
-          Speichern aktualisiert dein{' '}
-          <span className="font-medium text-[var(--tf-text)]">Team-Auslastungs-Profil</span>{' '}
-          — andere im Team sehen deine Technologien dort.
-        </p>
-        <div className="flex items-center gap-3">
-          {savedAt && !saveAction.error && (
-            <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-              ✓ {new Date(savedAt).toLocaleTimeString('de-DE')}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => saveAction.run()}
-            disabled={saveAction.busy}
-            className="h-9 px-[18px] rounded-[var(--tf-radius)] text-[13px] font-medium cursor-pointer disabled:opacity-50 transition-opacity hover:opacity-90"
-            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-          >
-            {saveAction.busy ? 'Speichere…' : 'Speichern'}
-          </button>
-        </div>
-      </div>
-
-      {saveAction.error && (
-        <div
-          className="mt-3 rounded-md px-3 py-2 text-[12px] leading-relaxed"
-          style={{ background: 'var(--tf-warning-bg)', color: 'var(--tf-warning-text)' }}
-        >
-          {saveAction.error}
-        </div>
-      )}
     </div>
   );
+}
+
+/**
+ * Auto-Save-Status oben im Tab. Reihenfolge: laufender Save > Fehler > zuletzt
+ * gespeichert > Default-Hint. Fehler nutzt die Warn-Tokens (sichtbar, nicht
+ * still — Pitfall #15).
+ */
+function SaveStatus({
+  busy,
+  error,
+  savedAt,
+}: {
+  busy: boolean;
+  error: string | null;
+  savedAt: string | null;
+}): React.ReactElement {
+  if (busy) {
+    return <span className="text-[11px] text-[var(--tf-text-tertiary)] whitespace-nowrap">Speichert…</span>;
+  }
+  if (error) {
+    return (
+      <span
+        className="rounded-md px-3 py-1.5 text-[12px] leading-relaxed max-w-md"
+        style={{ background: 'var(--tf-warning-bg)', color: 'var(--tf-warning-text)' }}
+      >
+        {error}
+      </span>
+    );
+  }
+  if (savedAt) {
+    return (
+      <span className="text-[11px] text-[var(--tf-text-tertiary)] whitespace-nowrap">
+        Gespeichert ✓ {new Date(savedAt).toLocaleTimeString('de-DE')}
+      </span>
+    );
+  }
+  return <span className="text-[11px] text-[var(--tf-text-tertiary)] whitespace-nowrap">Automatisch gespeichert</span>;
 }
 
 // ---------- Sub-Komponenten ----------
