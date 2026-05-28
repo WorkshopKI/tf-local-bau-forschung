@@ -6,12 +6,16 @@ Kompakte Checklisten für häufige Erweiterungen, die jeweils mehrere synchronis
 |---------|------------|
 | Neues Plugin anlegen | [add-plugin.md](add-plugin.md) |
 | Neues CSV-Standardfeld (`CanonicalField`) | [add-csv-field.md](add-csv-field.md) |
+| Neuer CSV-FieldType (Wert-Koerzion) | [add-csv-field-type.md](add-csv-field-type.md) |
 | Neuer Phase-2 doc_type | [add-doc-type.md](add-doc-type.md) |
 | Neuer Feature-Flag | [add-feature-flag.md](add-feature-flag.md) |
 | Neuer IndexedDB-Store | [add-idb-store.md](add-idb-store.md) |
+| Neuer Tab im Auslastungs-Plugin | [add-auslastung-tab.md](add-auslastung-tab.md) |
 | Neue View in `src/plugins/antraege/views.ts` | [add-view.md](add-view.md) |
 | Neue Filter-Facet in der Filter-Sidebar | [add-filter-facet.md](add-filter-facet.md) |
 | Neue Stage in der Phase-2-Triage-Pipeline | [add-phase2-stage.md](add-phase2-stage.md) |
+| Neuer Feedback-Status (FeedbackStatus-Union) | [add-feedback-status.md](add-feedback-status.md) |
+| Neues Embedding-Modell registrieren | [add-embedding-model.md](add-embedding-model.md) |
 | Sidecar-Datei auf SMB-Daten-Share spiegeln | [add-sidecar-persistence.md](add-sidecar-persistence.md) |
 | Neues Build-Script / Prebuild-Hook anlegen | [add-build-script.md](add-build-script.md) |
 | Async-UI-Aktion mit Error-Handling | [async-error-pattern.md](async-error-pattern.md) |
