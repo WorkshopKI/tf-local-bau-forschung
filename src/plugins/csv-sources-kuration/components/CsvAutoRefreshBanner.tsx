@@ -16,6 +16,32 @@ import { Sparkles, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useCsvAutoRefreshCheck } from '../hooks/useCsvAutoRefreshCheck';
 import { CsvAutoRefreshDriftDialog } from './CsvAutoRefreshDriftDialog';
 import { pluginIdToRoute } from '@/core/routes';
+import { ProgressBar } from '@/ui';
+import type { RefreshProgress } from '../services/auto-refresh';
+
+/** Kurzes Verb je Pipeline-Phase fuer das Banner. */
+const PHASE_LABEL: Record<RefreshProgress['phase'], string> = {
+  reading: 'lese',
+  validating: 'prüfe',
+  importing: 'importiere',
+  persisting: 'speichere',
+};
+
+/**
+ * Feinanteil innerhalb der aktuellen Quelle, damit der Balken mit den Phasen
+ * weiterwandert statt nur je Quelle zu springen. Determinierter Fortschritt
+ * fuer eine Kurator-Indexierung (per DESIGN_GUIDE erlaubt).
+ */
+const PHASE_FRACTION: Record<RefreshProgress['phase'], number> = {
+  reading: 0,
+  validating: 0.3,
+  importing: 0.6,
+  persisting: 0.85,
+};
+
+function refreshFraction(p: RefreshProgress): number {
+  return (p.index + (PHASE_FRACTION[p.phase] ?? 0)) / Math.max(1, p.total);
+}
 
 export function CsvAutoRefreshBanner(): React.ReactElement | null {
   const state = useCsvAutoRefreshCheck();
@@ -56,11 +82,21 @@ export function CsvAutoRefreshBanner(): React.ReactElement | null {
         <Sparkles size={14} className="shrink-0" style={{ color: 'var(--tf-primary)' }} />
 
         {state.refreshing ? (
-          <span className="flex-1">
-            {state.refreshProgress
-              ? `Aktualisiere ${state.refreshProgress.index + 1}/${state.refreshProgress.total}: ${state.refreshProgress.schemaName}…`
-              : 'Aktualisierung startet…'}
-          </span>
+          state.refreshProgress ? (
+            <div className="flex-1 flex items-center gap-3 min-w-0">
+              <span className="shrink-0 truncate max-w-[50%]">
+                Aktualisiere {state.refreshProgress.schemaName} · {PHASE_LABEL[state.refreshProgress.phase]}…
+              </span>
+              <div className="flex-1 min-w-0">
+                <ProgressBar value={refreshFraction(state.refreshProgress)} />
+              </div>
+              <span className="shrink-0 tabular-nums text-[var(--tf-text-secondary)]">
+                {state.refreshProgress.index + 1}/{state.refreshProgress.total}
+              </span>
+            </div>
+          ) : (
+            <span className="flex-1">Aktualisierung startet…</span>
+          )
         ) : state.lockConflict ? (
           <span className="flex-1 inline-flex items-center gap-1.5">
             <AlertTriangle size={13} className="shrink-0" />
