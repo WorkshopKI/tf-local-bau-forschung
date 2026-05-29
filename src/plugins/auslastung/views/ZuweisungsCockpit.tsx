@@ -9,10 +9,16 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import {
+  getUserFoldersRootHandle,
+  pickAndStoreUserFoldersRootHandle,
+} from '@/core/services/infrastructure/smb-handle';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useKlassifizierungenView } from '../hooks/useKlassifizierungen';
 import { runMatching } from '../services/matching-engine';
+import { collectUebernahmeWuensche } from '../services/uebernahme-einsammeln';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
@@ -47,6 +53,15 @@ import type { Antrag } from '@/core/services/csv/types';
 
 type StatusFilter = 'offen' | 'selbst' | 'zugewiesen' | 'alle';
 
+/** Labels der Status-Filter-Pills. `selbst` heisst nutzerseitig „Übernahme-
+ *  Wunsch" (v2.9) — so filtert die PL gezielt Anträge, die jemand haben will. */
+const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
+  offen: 'offen',
+  selbst: 'Übernahme-Wunsch',
+  zugewiesen: 'zugewiesen',
+  alle: 'alle',
+};
+
 export function ZuweisungsCockpit(): React.ReactElement {
   const storage = useStorage();
   const config = useAuslastungData(s => s.data.config);
@@ -54,6 +69,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
   const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
   const upsertZuweisung = useAuslastungData(s => s.upsertZuweisung);
+  const applyUebernahmeWuensche = useAuslastungData(s => s.applyUebernahmeWuensche);
 
   const cache = useAntraegeCache();
   const { ready } = useAuslastungReady();
@@ -65,6 +81,29 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const [selectedAz, setSelectedAz] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [matchingRunning, setMatchingRunning] = useState(false);
+  const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
+
+  // v2.9: Übernahme-Wünsche aus den persoenlichen Ordnern einsammeln (read-Mode
+  // ueber den User-Folders-Root, gespiegelt von MaListSection). Merged sie als
+  // Zuweisung{status:'selbst'} in auslastung.json (EIN persist im Store).
+  const einsammelnAction = useAsyncAction(async () => {
+    setEinsammelnMsg(null);
+    let root = await getUserFoldersRootHandle(storage.idb);
+    if (!root) {
+      const res = await pickAndStoreUserFoldersRootHandle(storage.idb);
+      if (!res.ok) {
+        if (res.reason === 'aborted') return;
+        throw new Error(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
+      }
+      root = res.handle;
+    }
+    const batch = await collectUebernahmeWuensche(root);
+    const total = batch.reduce((n, p) => n + p.wuensche.length, 0);
+    const { neu, entfernt } = await applyUebernahmeWuensche(storage, batch, cache.anonymMap);
+    setEinsammelnMsg(
+      `${total} Wunsch/Wünsche gelesen · ${neu} neu · ${entfernt} zurückgezogen`,
+    );
+  });
 
   const data = useAuslastungData(s => s.data);
 
@@ -214,24 +253,44 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Export-Toolbar */}
-      <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={exportAnonym}
-          className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        >
-          Export (anonym)
-        </button>
-        <button
-          type="button"
-          onClick={exportMitKuerzeln}
-          className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
-          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-        >
-          Export (mit Kürzeln)
-        </button>
+      {/* Toolbar: Übernahme-Wünsche einsammeln (links) + Export (rechts) */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => einsammelnAction.run()}
+            disabled={einsammelnAction.busy}
+            className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ border: '0.5px solid var(--tf-border)' }}
+            title="Liest die Übernahme-Wünsche der MAs aus deren persönlichen Ordnern ein"
+          >
+            {einsammelnAction.busy ? 'Sammle ein…' : 'Übernahme-Wünsche einsammeln'}
+          </button>
+          {einsammelnMsg && (
+            <span className="text-[11px] text-[var(--tf-text-tertiary)]">{einsammelnMsg}</span>
+          )}
+          {einsammelnAction.error && (
+            <span className="text-[11px] text-[var(--tf-danger-text)]">Fehler: {einsammelnAction.error}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={exportAnonym}
+            className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
+            style={{ border: '0.5px solid var(--tf-border)' }}
+          >
+            Export (anonym)
+          </button>
+          <button
+            type="button"
+            onClick={exportMitKuerzeln}
+            className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
+            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+          >
+            Export (mit Kürzeln)
+          </button>
+        </div>
       </div>
 
       {/* Filter-Pills (Kategorien) */}
@@ -268,7 +327,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
               border: '0.5px solid var(--tf-border)',
             }}
           >
-            {s}
+            {STATUS_FILTER_LABELS[s]}
           </button>
         ))}
       </div>
@@ -295,8 +354,11 @@ export function ZuweisungsCockpit(): React.ReactElement {
                 .filter((k): k is NonNullable<typeof k> => k != null);
               // Status ueber ALLE TVs des Verbundes aggregieren.
               const ze = zuweisungen.filter(z => row.tvAktenzeichen.includes(z.antragId));
-              const selbst = ze.some(z => z.status === 'selbst' || z.selbstEingetragen);
               const zug = ze.some(z => z.status === 'freigegeben');
+              // v2.9: distinct Interessenten (selbst-Zuweisungen) zaehlen.
+              const interessentenCount = new Set(
+                ze.filter(z => z.status === 'selbst' || z.selbstEingetragen).map(z => z.anonId),
+              ).size;
               return (
                 <div
                   key={row.verbundId}
@@ -319,8 +381,15 @@ export function ZuweisungsCockpit(): React.ReactElement {
                     {primaerKat && <KategoriePill key={primaerKat.id} kategorie={primaerKat} mode="primaer" />}
                     {aspektKats.map(k => <KategoriePill key={k.id} kategorie={k} mode="aspekt" />)}
                   </div>
-                  {zug && <span className="text-emerald-700 text-[11px]">✓✓</span>}
-                  {selbst && !zug && <span className="text-blue-700 text-[11px]">✓</span>}
+                  {zug && <span className="text-emerald-700 text-[11px]" title="zugewiesen">✓✓</span>}
+                  {interessentenCount > 0 && !zug && (
+                    <span
+                      className="text-blue-700 text-[10.5px] font-medium shrink-0"
+                      title={`${interessentenCount} Übernahme-Wunsch/Wünsche`}
+                    >
+                      {interessentenCount} will
+                    </span>
+                  )}
                   <ConfidenceDot confidence={row.confidence} />
                 </div>
               );
@@ -357,7 +426,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
               kategorien={config.ueberKategorien}
               matches={matches}
               matchingRunning={matchingRunning}
-              zuweisungen={zuweisungen.filter(z => z.antragId === selected.aktenzeichen)}
+              zuweisungen={zuweisungen.filter(z => (selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen]).includes(z.antragId))}
               mitarbeiter={mitarbeiter}
               onZuweisen={zuweisen}
               onAblehnen={ablehnen}
@@ -403,7 +472,15 @@ function DetailPanel({
   const aspektKategorien = aspektKatIds
     .map(id => kategorien.find(k => k.id === id))
     .filter((k): k is NonNullable<typeof k> => k != null);
-  const selbstEintragung = zuweisungen.find(z => z.status === 'selbst' || z.selbstEingetragen);
+  // v2.9: ALLE Interessenten (selbst-Eintraege) — die PL waehlt einen aus.
+  // Pro MA nur einmal (ein MA kann mehrere TVs desselben Verbunds vormerken).
+  const interessenten = Array.from(
+    new Map(
+      zuweisungen
+        .filter(z => z.status === 'selbst' || z.selbstEingetragen)
+        .map(z => [z.anonId, z] as const),
+    ).values(),
+  );
   const hasLow = matches.length > 0 && matches.every(m => m.confidence === 'low');
 
   return (
@@ -425,31 +502,40 @@ function DetailPanel({
         )}
       </div>
 
-      {/* Selbst eingetragen Banner */}
-      {selbstEintragung && (
-        <div className="rounded p-2.5 flex items-center justify-between text-[12px]" style={{ background: 'var(--tf-info-soft, #dbeafe)', color: '#075985' }}>
-          <span>
-            <AnonymIdBadge anonId={selbstEintragung.anonId} size="sm" realName={resolveName(selbstEintragung.anonId)} /> hat sich selbst eingetragen
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              const m: MatchResult = {
-                anonId: selbstEintragung.anonId,
-                bm25Score: 1, embeddingScore: 0, kompetenzScore: 1, restKapazitaet: 0,
-                quartalsKapazitaet: 0, balanceScore: 0, finalScore: 1,
-                matchendeTechnologien: [], aehnlicheProjekte: [],
-                matchStufe: 1, confidence: 'high',
-                benoetigteStunden: selbstEintragung.stunden,
-                astMatchCount: 0, astBoost: 0,
-              };
-              onZuweisen(m);
-            }}
-            className="text-[11.5px] px-2 py-0.5 rounded cursor-pointer font-medium"
-            style={{ background: '#075985', color: 'white' }}
-          >
-            Bestätigen
-          </button>
+      {/* Übernahme-Wünsche: alle Interessenten, PL weist gezielt einem zu */}
+      {interessenten.length > 0 && (
+        <div className="rounded p-2.5 text-[12px]" style={{ background: 'var(--tf-info-soft, #dbeafe)', color: '#075985' }}>
+          <div className="font-medium mb-1.5">
+            {interessenten.length === 1
+              ? 'Übernahme-Wunsch'
+              : `${interessenten.length} Übernahme-Wünsche`}
+          </div>
+          <ul className="flex flex-col gap-1">
+            {interessenten.map(z => (
+              <li key={z.anonId} className="flex items-center justify-between gap-2">
+                <AnonymIdBadge anonId={z.anonId} size="sm" realName={resolveName(z.anonId)} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const m: MatchResult = {
+                      anonId: z.anonId,
+                      bm25Score: 1, embeddingScore: 0, kompetenzScore: 1, restKapazitaet: 0,
+                      quartalsKapazitaet: 0, balanceScore: 0, finalScore: 1,
+                      matchendeTechnologien: [], aehnlicheProjekte: [],
+                      matchStufe: 1, confidence: 'high',
+                      benoetigteStunden: z.stunden,
+                      astMatchCount: 0, astBoost: 0,
+                    };
+                    onZuweisen(m);
+                  }}
+                  className="text-[11.5px] px-2 py-0.5 rounded cursor-pointer font-medium shrink-0"
+                  style={{ background: '#075985', color: 'white' }}
+                >
+                  Zuweisen
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -504,7 +590,7 @@ function DetailPanel({
             {zuweisungen.map(z => {
               const ma = mitarbeiter[z.anonId];
               return (
-                <li key={z.anonId} className="flex items-center gap-2">
+                <li key={`${z.antragId} ${z.anonId}`} className="flex items-center gap-2">
                   <AnonymIdBadge anonId={z.anonId} size="sm" realName={resolveName(z.anonId)} />
                   <span className="text-[var(--tf-text-secondary)]">{z.status}</span>
                   <span className="text-[var(--tf-text-tertiary)]">· {z.stunden}h</span>

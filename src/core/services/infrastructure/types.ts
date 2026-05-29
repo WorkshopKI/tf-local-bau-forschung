@@ -106,6 +106,15 @@ export const PERSOENLICH_MEINE_FEEDBACKS_FILE = 'ZAH/feedback/meine-feedbacks.js
  * Persoenlich-Handle + fremder User-Ordner) identisch nutzbar.
  */
 export const PERSOENLICH_AUSLASTUNG_PROFIL_FILE = 'ZAH/auslastung-profil.json';
+/**
+ * v2.9: Übernahme-Wünsche („Kann ich übernehmen"). Spiegelbild des Profils:
+ * Nicht-Kuratoren (prod) haben nur `read` auf dem Daten-Share und koennen
+ * `_intern/auslastung.json` nicht schreiben — der Wunsch landet hier im eigenen
+ * Ordner, die PL sammelt alle Wünsche ueber den User-Folders-Root ein und mergt
+ * sie als `Zuweisung{status:'selbst'}` in `auslastung.json`. Relativ zum
+ * User-Home-Root, daher in beiden Lese-Kontexten identisch nutzbar.
+ */
+export const PERSOENLICH_AUSLASTUNG_UEBERNAHME_FILE = 'ZAH/auslastung-uebernahme.json';
 
 /**
  * v2.0: IDB-Flag das die App beim Start anlegt, wenn ein bestehender Daten-

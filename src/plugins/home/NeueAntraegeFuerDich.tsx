@@ -23,7 +23,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
-import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { XswSuffix } from '@/plugins/antraege/XswSuffix';
 import { readXsw, xswMatchesOwnKuerzel } from '@/plugins/antraege/xsw';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
@@ -31,6 +30,7 @@ import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { useKuerzelMap } from '@/plugins/auslastung/hooks/useKuerzelMap';
 import { useBenachrichtigung } from '@/plugins/auslastung/hooks/useBenachrichtigung';
 import { useMyAuslastungProfil } from '@/plugins/auslastung/hooks/useMyAuslastungProfil';
+import { useMyUebernahmeWuensche } from '@/plugins/auslastung/hooks/useMyUebernahmeWuensche';
 import { computeKapazitaet } from '@/plugins/auslastung/services/kapazitaet';
 import { matchesAntragstyp } from '@/plugins/auslastung/services/antragstyp-praeferenz';
 import {
@@ -42,7 +42,6 @@ import {
   CANONICAL_TITEL,
   CANONICAL_VERBUND_TITEL,
   type Klassifizierung,
-  type Zuweisung,
 } from '@/plugins/auslastung/types';
 import type { Antrag } from '@/core/services/csv/types';
 
@@ -52,6 +51,10 @@ interface OffenerAntrag {
   daysLeft: number;
   /** T_XSW enthält das EIGENE Kürzel des Users → „mein alter Antrag" → nach oben. */
   xswMine: boolean;
+  /** Vom User vorgemerkt („Kann ich übernehmen" geklickt) — lokaler Wunsch
+   *  ODER bereits von der PL eingesammelte Selbst-Zuweisung. Bleibt sichtbar
+   *  (gedämpft, mit „Rückgängig"), statt zu verschwinden. */
+  claimed: boolean;
 }
 
 export function NeueAntraegeFuerDich(): React.ReactElement | null {
@@ -59,7 +62,6 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const config = useAuslastungData(s => s.data.config);
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
   const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
-  const upsertZuweisung = useAuslastungData(s => s.upsertZuweisung);
   const loaded = useAuslastungData(s => s.loaded);
   const load = useAuslastungData(s => s.load);
   const cache = useAntraegeCache();
@@ -79,6 +81,19 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   // vor dem auslastung.json-Store-Record — sonst sieht ein frischer User seine
   // gerade gesetzte Hauptkategorie erst nach PL-Aggregation (v2.6-Regression).
   const { myAnonId, effectiveMa: myMa, hauptKategorie: myHauptKategorie, loading: profilLoading } = useMyAuslastungProfil();
+
+  // v2.9: eigene Übernahme-Wünsche aus dem persoenlichen Ordner. Schreibt NICHT
+  // mehr direkt in auslastung.json (prod-User sind read-only) — der Wunsch geht
+  // in ZAH/auslastung-uebernahme.json, die PL sammelt ihn ein.
+  const {
+    claimedSet,
+    wuensche,
+    loading: wuenscheLoading,
+    busy: wuenscheBusy,
+    error: wuenscheError,
+    claim,
+    undo,
+  } = useMyUebernahmeWuensche();
 
   // Zähler-Badge: ersetzt den frueheren SelbsteintragungBanner (v2.3).
   // Der User sieht die Liste direkt darunter — die Banner-Funktion ist
@@ -118,7 +133,7 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const myFestAktenzeichen = myAuslastung?.fest.aktenzeichenSet;
   const myPendingAktenzeichen = myAuslastung?.pending.aktenzeichenSet;
 
-  const offene = useMemo((): OffenerAntrag[] => {
+  const eintraege = useMemo((): OffenerAntrag[] => {
     if (!myMa || !myHauptKategorie) return [];
     const fristTage = config.selbsteintragungFristTage;
     const items: OffenerAntrag[] = [];
@@ -127,32 +142,56 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       if (k.freigegebenePrimaer !== myHauptKategorie) continue;
       // Fest gebucht (CSV) — nicht mehr anbieten
       if (myFestAktenzeichen?.has(k.antragId)) continue;
-      // Pending (eigene Selbsteintragung) — nicht mehr anbieten
-      if (myPendingAktenzeichen?.has(k.antragId)) continue;
       const antrag = antraegeById.get(k.antragId);
       if (!antrag) continue;
       // v2.2: Antragstyp-Filter (FuE/DS/DL/NW). Ohne Praeferenz: passt alles
       // durch (Backwards-Kompat). PL-Override hat Vorrang.
       if (!matchesAntragstyp(antrag, myMa)) continue;
+      // v2.9: vorgemerkt = lokaler Wunsch ODER bereits eingesammelte
+      // Selbst-Zuweisung (Pending). Bleibt sichtbar statt zu verschwinden.
+      const claimed = claimedSet.has(k.antragId) || (myPendingAktenzeichen?.has(k.antragId) ?? false);
       // Frist berechnen
       const freigegebenAm = k.freigegebenAm ? new Date(k.freigegebenAm).getTime() : null;
       const deadline = freigegebenAm != null ? freigegebenAm + fristTage * 86400000 : null;
       const daysLeft = deadline != null ? Math.max(0, Math.ceil((deadline - Date.now()) / 86400000)) : fristTage;
-      if (deadline != null && daysLeft <= 0) continue;
+      // Frist gilt nur fuer noch nicht vorgemerkte Antraege — vorgemerkte bleiben
+      // sichtbar (der User hat schon gehandelt, „Rückgängig" moeglich).
+      if (!claimed && deadline != null && daysLeft <= 0) continue;
       // Wiedereinreicher-Bump: T_XSW enthält das eigene Kürzel → „mein alter Antrag".
       const xswMine = xswMatchesOwnKuerzel(readXsw(antrag), ownKuerzelRaw);
-      items.push({ antrag, klassifizierung: k, daysLeft, xswMine });
+      items.push({ antrag, klassifizierung: k, daysLeft, xswMine, claimed });
     }
-    // Sortierung: eigene Wiedereinreicher zuerst, dann Frist asc, dann Akronym asc
+    // Sortierung: vorgemerkte ans Ende (weniger prominent); unter den offenen
+    // eigene Wiedereinreicher zuerst, dann Frist asc; Tiebreak Akronym asc.
     items.sort((a, b) => {
-      if (a.xswMine !== b.xswMine) return a.xswMine ? -1 : 1;
-      if (a.daysLeft !== b.daysLeft) return a.daysLeft - b.daysLeft;
+      if (a.claimed !== b.claimed) return a.claimed ? 1 : -1;
+      if (!a.claimed) {
+        if (a.xswMine !== b.xswMine) return a.xswMine ? -1 : 1;
+        if (a.daysLeft !== b.daysLeft) return a.daysLeft - b.daysLeft;
+      }
       const akA = (a.antrag.akronym as string | undefined) ?? a.antrag.aktenzeichen;
       const akB = (b.antrag.akronym as string | undefined) ?? b.antrag.aktenzeichen;
       return akA.localeCompare(akB);
     });
     return items;
-  }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw]);
+  }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw]);
+
+  const offene = useMemo(() => eintraege.filter(e => !e.claimed), [eintraege]);
+  const vorgemerkt = useMemo(() => eintraege.filter(e => e.claimed), [eintraege]);
+
+  // Lokale Wünsche, die noch nicht in auslastung.json (Pending) stehen, in die
+  // Pending-Anzeige einrechnen — sonst sieht der prod-User nach dem Klick keine
+  // Veraenderung (Wunsch ist erst nach PL-Einsammeln im Store).
+  const extraPending = useMemo(() => {
+    let antraege = 0;
+    let tvs = 0;
+    for (const w of wuensche) {
+      if (myPendingAktenzeichen?.has(w.antragId)) continue;
+      antraege += 1;
+      tvs += w.anzahlTV > 0 ? w.anzahlTV : 1;
+    }
+    return { antraege, tvs };
+  }, [wuensche, myPendingAktenzeichen]);
 
   // Kapazitaets-Sicht (v2.4): konsumiert MaQuartalsAuslastung statt
   // zuweisungen[]+externeAnzahl. Rest in TVs statt "Antraegen" (Stunden-
@@ -162,31 +201,19 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
     return computeKapazitaet(myMa, myAuslastung, config);
   }, [myMa, myAuslastung, config]);
 
-  // "Kann ich uebernehmen" — Selbsteintragung mit ECHTER TV-Anzahl (v2.4).
-  // Bei einem 4-TV-Verbund werden tvCount × stundenProTV = 36h gebucht, nicht
-  // pauschal 9h wie vorher.
-  const uebernehmen = useAsyncAction(async (antragId: string) => {
-    if (!myAnonId) return;
-    const stundenProTV = config.stundenProTV ?? 9;
+  // "Kann ich uebernehmen" (v2.9): kein Direkt-Write in auslastung.json mehr
+  // (prod-User read-only → NotAllowedError). Der Wunsch geht mit ECHTER
+  // TV-Anzahl in den persoenlichen Ordner; die PL sammelt ihn ein.
+  function handleClaim(antragId: string): void {
     const antrag = antraegeById.get(antragId);
     const verbundId = (antrag as { verbund_id?: string } | undefined)?.verbund_id ?? null;
     const tvCount = getTVCount(cache.antraege, verbundId, antragId);
-    const z: Zuweisung = {
-      antragId,
-      anonId: myAnonId,
-      quartal: config.aktuellesQuartal,
-      stunden: tvCount * stundenProTV,
-      anzahlTV: tvCount,
-      status: 'selbst',
-      selbstEingetragen: true,
-      freigegebenAm: new Date().toISOString(),
-    };
-    await upsertZuweisung(storage, z);
-  });
+    void claim(antragId, tvCount, config.aktuellesQuartal);
+  }
 
   // Sichtbarkeit
   if (!loaded || !kuerzelMapLoaded) return null;
-  if (profilLoading) return null;  // warten bis das persoenliche Profil geladen ist (kein Empty-State-Flackern)
+  if (profilLoading || wuenscheLoading) return null;  // warten bis Profil + Wünsche geladen sind (kein Flackern claimed↔offen)
   if (!myAnonId) return null;  // User hat kein Kuerzel oder nicht im Auslastungs-Modul
   if (!myHauptKategorie) {
     return (
@@ -198,7 +225,8 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       </div>
     );
   }
-  if (offene.length === 0) return null;
+  // Nichts Offenes UND nichts Vorgemerktes → Sektion ausblenden.
+  if (eintraege.length === 0) return null;
 
   const visible = offene.slice(0, 5);
   const hasMore = offene.length > 5;
@@ -237,25 +265,37 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
           <NeueAntraegeRow
             key={item.antrag.aktenzeichen}
             item={item}
-            onUebernehmen={() => uebernehmen.run(item.antrag.aktenzeichen)}
-            disabled={uebernehmen.busy}
+            onUebernehmen={() => handleClaim(item.antrag.aktenzeichen)}
+            onUndo={() => void undo(item.antrag.aktenzeichen)}
+            disabled={wuenscheBusy}
+          />
+        ))}
+        {/* Vorgemerkte Antraege: gedämpft inline darunter, „Rückgängig" statt
+            „Kann ich übernehmen" — der User hat sich schon eingetragen. */}
+        {vorgemerkt.map(item => (
+          <NeueAntraegeRow
+            key={item.antrag.aktenzeichen}
+            item={item}
+            onUebernehmen={() => handleClaim(item.antrag.aktenzeichen)}
+            onUndo={() => void undo(item.antrag.aktenzeichen)}
+            disabled={wuenscheBusy}
           />
         ))}
       </div>
       {kapView && (
         <p className="mt-2 text-[11px] text-[var(--tf-text-tertiary)]">
           Festgebucht: {kapView.fest.antraege} {kapView.fest.antraege === 1 ? 'Antrag' : 'Anträge'} ({kapView.fest.tvs} TVs)
-          {kapView.pending.antraege > 0 && ` · Pending: ${kapView.pending.antraege} (${kapView.pending.tvs} TVs)`}
+          {(kapView.pending.antraege + extraPending.antraege) > 0 && ` · Pending: ${kapView.pending.antraege + extraPending.antraege} (${kapView.pending.tvs + extraPending.tvs} TVs)`}
           {' · '}
           {kapView.ueberbuchung > 0
             ? <span className="text-[var(--tf-warning-text)]">Überbucht um {Math.ceil(kapView.ueberbuchung)}h</span>
-            : <>Frei: {kapView.restTVs} TVs</>}
+            : <>Frei: {Math.max(0, kapView.restTVs - extraPending.tvs)} TVs</>}
           {' in '}{config.aktuellesQuartal}
         </p>
       )}
-      {uebernehmen.error && (
+      {wuenscheError && (
         <div className="mt-2 text-[11.5px] text-[var(--tf-danger-text)]">
-          Fehler: {uebernehmen.error}
+          Fehler: {wuenscheError}
         </div>
       )}
       {showAlleModal && (
@@ -263,8 +303,8 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
           alle={offene}
           configKategorien={config.ueberKategorien}
           onClose={() => setShowAlleModal(false)}
-          onUebernehmen={(id) => uebernehmen.run(id)}
-          busy={uebernehmen.busy}
+          onUebernehmen={(id) => handleClaim(id)}
+          busy={wuenscheBusy}
         />
       )}
     </div>
@@ -274,15 +314,17 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
 interface RowProps {
   item: OffenerAntrag;
   onUebernehmen: () => void;
+  /** v2.9: „Rückgängig" — Vormerkung zuruecknehmen (nur fuer claimed-Rows). */
+  onUndo?: () => void;
   disabled?: boolean;
   /** Kompakte Layout-Variante fuer das "Alle"-Modal (v2.3):
    *  weniger Padding, Akronym/Titel/Frist/Button in einer Zeile. */
   compact?: boolean;
 }
 
-function NeueAntraegeRow({ item, onUebernehmen, disabled, compact }: RowProps): React.ReactElement {
+function NeueAntraegeRow({ item, onUebernehmen, onUndo, disabled, compact }: RowProps): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
-  const { antrag, klassifizierung, daysLeft } = item;
+  const { antrag, klassifizierung, daysLeft, claimed } = item;
   const primaerId = klassifizierung.freigegebenePrimaer;
   const aspektIds = klassifizierung.freigegebeneAspekte;
   const primaerKat = config.ueberKategorien.find(k => k.id === primaerId);
@@ -303,11 +345,20 @@ function NeueAntraegeRow({ item, onUebernehmen, disabled, compact }: RowProps): 
   const buttonClasses = 'rounded-md text-[12px] cursor-pointer border bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] text-[var(--tf-text)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
   const buttonStyle: React.CSSProperties = { borderColor: 'var(--tf-border)' };
 
+  // v2.9: vorgemerkte Rows gedämpft (dezenter Hintergrund + Tertiär-Text statt
+  // opacity, Pitfall #14) + Button „Rückgängig" statt „Kann ich übernehmen".
+  const rowStyle: React.CSSProperties = claimed
+    ? { border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg-secondary)' }
+    : { border: '0.5px solid var(--tf-border)' };
+  const actionLabel = claimed ? 'Rückgängig' : 'Kann ich übernehmen';
+  const onAction = claimed ? onUndo : onUebernehmen;
+  const actionAria = `${actionLabel} — ${akronym ?? antrag.aktenzeichen}`;
+
   if (compact) {
     return (
       <div
         className="rounded-[8px] px-2.5 py-1.5 flex items-center gap-3"
-        style={{ border: '0.5px solid var(--tf-border)' }}
+        style={rowStyle}
       >
         <span className="font-mono text-[10.5px] text-[var(--tf-text-secondary)] shrink-0 w-[88px] truncate">
           {antrag.aktenzeichen}
@@ -323,18 +374,22 @@ function NeueAntraegeRow({ item, onUebernehmen, disabled, compact }: RowProps): 
           <span className="text-[var(--tf-text-secondary)]">{titel}</span>
         </div>
         <XswSuffix value={antrag} className="shrink-0 max-w-[35%] truncate text-[12px]" />
-        <span className={`text-[10.5px] tabular-nums shrink-0 ${fristTone}`} title="Verbleibende Frist">
-          Noch {daysLeft}d
-        </span>
+        {claimed ? (
+          <span className="text-[10.5px] shrink-0 text-[var(--tf-text-tertiary)]">Vorgemerkt</span>
+        ) : (
+          <span className={`text-[10.5px] tabular-nums shrink-0 ${fristTone}`} title="Verbleibende Frist">
+            Noch {daysLeft}d
+          </span>
+        )}
         <button
           type="button"
-          onClick={onUebernehmen}
+          onClick={onAction}
           disabled={disabled}
           className={`${buttonClasses} px-2.5 py-1 shrink-0`}
           style={buttonStyle}
-          aria-label={`Kann ich übernehmen — ${akronym ?? antrag.aktenzeichen}`}
+          aria-label={actionAria}
         >
-          Kann ich übernehmen
+          {actionLabel}
         </button>
       </div>
     );
@@ -343,7 +398,7 @@ function NeueAntraegeRow({ item, onUebernehmen, disabled, compact }: RowProps): 
   return (
     <div
       className="rounded-[12px] p-3 flex items-center gap-4"
-      style={{ border: '0.5px solid var(--tf-border)' }}
+      style={rowStyle}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -354,6 +409,11 @@ function NeueAntraegeRow({ item, onUebernehmen, disabled, compact }: RowProps): 
           {aspektKats.map(k => (
             <KategoriePill key={k.id} kategorie={k} active={false} />
           ))}
+          {claimed && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded text-[var(--tf-text-tertiary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
+              Vorgemerkt
+            </span>
+          )}
         </div>
         <div className="flex items-baseline gap-1 min-w-0">
           <span className="text-[12.5px] text-[var(--tf-text)] truncate">{titel}</span>
@@ -361,18 +421,20 @@ function NeueAntraegeRow({ item, onUebernehmen, disabled, compact }: RowProps): 
         </div>
       </div>
       <div className="text-right flex flex-col items-end gap-1 shrink-0">
-        <span className={`text-[10.5px] ${fristTone}`}>
-          Noch {daysLeft} Tag{daysLeft === 1 ? '' : 'e'}
-        </span>
+        {!claimed && (
+          <span className={`text-[10.5px] ${fristTone}`}>
+            Noch {daysLeft} Tag{daysLeft === 1 ? '' : 'e'}
+          </span>
+        )}
         <button
           type="button"
-          onClick={onUebernehmen}
+          onClick={onAction}
           disabled={disabled}
           className={`${buttonClasses} px-3 py-1`}
           style={buttonStyle}
-          aria-label={`Kann ich übernehmen — ${akronym ?? antrag.aktenzeichen}`}
+          aria-label={actionAria}
         >
-          Kann ich übernehmen
+          {actionLabel}
         </button>
       </div>
     </div>

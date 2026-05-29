@@ -26,9 +26,11 @@ import {
   type UeberKategorie,
   type Zuweisung,
   type PersoenlichesAuslastungProfil,
+  type PersoenlicheUebernahmeWuensche,
 } from '../types';
 import { nextFreeAnonId, type AnonymMap } from '../services/anonym-map';
 import { mergeProfilesIntoMitarbeiter } from '../services/profil-einsammeln';
+import { mergeWuenscheIntoZuweisungen } from '../services/uebernahme-einsammeln';
 
 interface AuslastungDataState {
   data: AuslastungData;
@@ -82,6 +84,16 @@ interface AuslastungDataState {
     profile: PersoenlichesAuslastungProfil[],
     anonymMap: AnonymMap,
   ) => Promise<{ aktualisiert: string[]; neu: string[] }>;
+  /** v2.9: PL-Einsammel-Schritt fuer Übernahme-Wünsche. Merged die Wünsche aus
+   *  den persoenlichen Ordnern als `Zuweisung{status:'selbst'}` in die
+   *  Zuweisungs-Liste — EIN setState + EIN persist (Pitfall #16/#20). PL-/
+   *  Matching-Entscheidungen bleiben erhalten; Retraktion entfernt zurueck-
+   *  gezogene Wünsche. Liefert Anzahl neu/entfernt. */
+  applyUebernahmeWuensche: (
+    storage: StorageService,
+    batch: PersoenlicheUebernahmeWuensche[],
+    anonymMap: AnonymMap,
+  ) => Promise<{ neu: number; entfernt: number }>;
   // ── Klassifizierungen ────────────────────────────────────────────────
   upsertKlassifizierung: (storage: StorageService, k: Klassifizierung) => Promise<void>;
   /** Mergt mehrere Klassifizierungen in EINEM setState, OHNE persist. Caller
@@ -275,6 +287,21 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     set(state => ({ data: { ...state.data, mitarbeiter: next } }));
     await get().persist(storage);
     return { aktualisiert, neu };
+  },
+
+  applyUebernahmeWuensche: async (storage, batch, anonymMap) => {
+    const cfg = get().data.config;
+    const { next, neu, entfernt } = mergeWuenscheIntoZuweisungen(
+      get().data.zuweisungen,
+      batch,
+      anonymMap,
+      cfg.aktuellesQuartal,
+      cfg.stundenProTV ?? 9,
+    );
+    if (neu === 0 && entfernt === 0) return { neu, entfernt };
+    set(state => ({ data: { ...state.data, zuweisungen: next } }));
+    await get().persist(storage);
+    return { neu, entfernt };
   },
 
   removeMitarbeiter: async (storage, anonId) => {

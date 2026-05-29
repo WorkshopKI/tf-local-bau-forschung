@@ -171,6 +171,39 @@ export interface PersoenlichesAuslastungProfil {
  *  Source-of-Truth, der Cache ueberbrueckt Offline-Starts. */
 export const PERSOENLICH_AUSLASTUNG_PROFIL_IDB_KEY = 'personal-auslastung-profil-cache';
 
+/**
+ * Ein einzelner Übernahme-Wunsch („Kann ich übernehmen") eines MA. Wird im
+ * persoenlichen Ordner gehalten (read-only-Daten-Share-Workaround, v2.9) und
+ * beim PL-Einsammeln zu einer `Zuweisung{status:'selbst'}` gemerged.
+ */
+export interface UebernahmeWunsch {
+  /** Aktenzeichen des Antrags (Lead-TV des Verbunds, wie auf der Homepage angezeigt). */
+  antragId: string;
+  quartal: string;
+  /** TV-Anzahl des Verbunds zum Klick-Zeitpunkt — fuer Pending-Anzeige + Stunden-
+   *  Berechnung beim Merge (anzahlTV × stundenProTV). */
+  anzahlTV: number;
+  createdAt: string;
+}
+
+/**
+ * MA-Selbst-Datei mit allen offenen Übernahme-Wünschen. Append/Remove statt
+ * Single-Wert, weil ein MA mehrere Anträge gleichzeitig vormerken kann. Die
+ * PL reconciled beim Einsammeln gegen diese Liste (Retraktion = Wunsch fehlt).
+ */
+export interface PersoenlicheUebernahmeWuensche {
+  version: 1;
+  /** Rohes Bearbeiter-Kuerzel; der Einsammel-Schritt normalisiert via
+   *  `normalizeKuerzel` (NFC + uppercase, Pitfall #22). */
+  kuerzel: string;
+  wuensche: UebernahmeWunsch[];
+  updatedAt: string;
+}
+
+/** IDB-Cache-Key fuer die eigenen Übernahme-Wünsche (Cross-Browser-Fallback,
+ *  analog zum Profil-Cache — persoenlicher Ordner bleibt Source-of-Truth). */
+export const PERSOENLICH_AUSLASTUNG_UEBERNAHME_IDB_KEY = 'personal-auslastung-uebernahme-cache';
+
 /** Pro MA: virtuelle Projekte aus Onboarding-Swipe (kommt in Prompt 2). */
 export interface VirtuellesProjekt {
   antragId: string;
