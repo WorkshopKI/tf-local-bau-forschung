@@ -28,8 +28,13 @@ function anonMap(pairs: Array<[string, string]>): AnonymMap {
   return { toAnon, toReal };
 }
 
-function wunsch(antragId: string, anzahlTV = 1, quartal = '2026-Q2'): UebernahmeWunsch {
-  return { antragId, quartal, anzahlTV, createdAt: '2026-05-29T00:00:00.000Z' };
+function wunsch(
+  antragId: string,
+  anzahlTV = 1,
+  quartal = '2026-Q2',
+  createdAt = '2026-05-29T00:00:00.000Z',
+): UebernahmeWunsch {
+  return { antragId, quartal, anzahlTV, createdAt };
 }
 
 function batchOf(
@@ -61,7 +66,24 @@ describe('mergeWuenscheIntoZuweisungen', () => {
       selbstEingetragen: true,
       anzahlTV: 4,
       stunden: 36,
+      selbstEingetragenAm: '2026-05-29T00:00:00.000Z',
     });
+  });
+
+  it('uebernimmt den Klick-Zeitpunkt (createdAt) je Interessent — für „wer zuerst"', () => {
+    const { next } = mergeWuenscheIntoZuweisungen(
+      [],
+      [
+        batchOf('mue', [wunsch('A', 1, '2026-Q2', '2026-05-28T08:00:00.000Z')]),
+        batchOf('sch', [wunsch('A', 1, '2026-Q2', '2026-05-29T09:30:00.000Z')]),
+      ],
+      anonMap([['MUE', 'MA01'], ['SCH', 'MA02']]),
+      Q,
+      STUNDEN_PRO_TV,
+    );
+    const ts = new Map(next.map(z => [z.anonId, z.selbstEingetragenAm]));
+    expect(ts.get('MA01')).toBe('2026-05-28T08:00:00.000Z');
+    expect(ts.get('MA02')).toBe('2026-05-29T09:30:00.000Z');
   });
 
   it('dedupt pro (antragId, anonId) — kein Doppel-Eintrag', () => {

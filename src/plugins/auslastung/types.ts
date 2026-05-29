@@ -268,6 +268,11 @@ export interface Zuweisung {
   status: 'vorgeschlagen' | 'freigegeben' | 'abgelehnt' | 'selbst';
   freigegebenAm?: string;
   selbstEingetragen?: boolean;
+  /** ISO-Zeitpunkt, zu dem der MA „Kann ich übernehmen" geklickt hat (v2.9).
+   *  Stammt aus `UebernahmeWunsch.createdAt`. Erlaubt der PL, bei mehreren
+   *  Interessenten zu sehen, wer zuerst wollte (Sortierung asc). Nur fuer
+   *  `status:'selbst'`-Eintraege gesetzt. */
+  selbstEingetragenAm?: string;
   /** Echte TV-Anzahl des Verbunds (aus CSV). Wenn nicht gesetzt: 1.
    *  Workflow-Revision 1.17 — wird fuer die "Antraege statt Stunden"-Anzeige
    *  benoetigt, damit ein 4-TV-Verbund nicht wie ein 1-TV-Antrag wirkt. */

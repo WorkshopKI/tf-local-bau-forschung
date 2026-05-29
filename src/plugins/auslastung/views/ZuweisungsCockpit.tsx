@@ -62,6 +62,16 @@ const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
   alle: 'alle',
 };
 
+/** Formatiert den Klick-Zeitpunkt einer Vormerkung kompakt (de-DE). */
+function formatKlickZeit(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  return new Date(t).toLocaleString('de-DE', {
+    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+}
+
 export function ZuweisungsCockpit(): React.ReactElement {
   const storage = useStorage();
   const config = useAuslastungData(s => s.data.config);
@@ -473,14 +483,21 @@ function DetailPanel({
     .map(id => kategorien.find(k => k.id === id))
     .filter((k): k is NonNullable<typeof k> => k != null);
   // v2.9: ALLE Interessenten (selbst-Eintraege) — die PL waehlt einen aus.
-  // Pro MA nur einmal (ein MA kann mehrere TVs desselben Verbunds vormerken).
-  const interessenten = Array.from(
-    new Map(
-      zuweisungen
-        .filter(z => z.status === 'selbst' || z.selbstEingetragen)
-        .map(z => [z.anonId, z] as const),
-    ).values(),
-  );
+  // Pro MA nur EIN Eintrag (frueheste Vormerkung, falls mehrere TVs), sortiert
+  // nach Klick-Zeit aufsteigend → der zuerst Wollende steht oben.
+  const klickTs = (z: Zuweisung): number => {
+    const iso = z.selbstEingetragenAm ?? z.freigegebenAm; // Fallback fuer Pre-v2.9-Eintraege
+    return iso ? Date.parse(iso) : Number.POSITIVE_INFINITY;
+  };
+  const interessenten = (() => {
+    const byAnon = new Map<string, Zuweisung>();
+    for (const z of zuweisungen) {
+      if (z.status !== 'selbst' && !z.selbstEingetragen) continue;
+      const prev = byAnon.get(z.anonId);
+      if (!prev || klickTs(z) < klickTs(prev)) byAnon.set(z.anonId, z);
+    }
+    return Array.from(byAnon.values()).sort((a, b) => klickTs(a) - klickTs(b));
+  })();
   const hasLow = matches.length > 0 && matches.every(m => m.confidence === 'low');
 
   return (
@@ -511,9 +528,18 @@ function DetailPanel({
               : `${interessenten.length} Übernahme-Wünsche`}
           </div>
           <ul className="flex flex-col gap-1">
-            {interessenten.map(z => (
+            {interessenten.map((z, i) => {
+              const ts = formatKlickZeit(z.selbstEingetragenAm ?? z.freigegebenAm);
+              return (
               <li key={z.anonId} className="flex items-center justify-between gap-2">
-                <AnonymIdBadge anonId={z.anonId} size="sm" realName={resolveName(z.anonId)} />
+                <span className="flex items-center gap-2 min-w-0">
+                  <AnonymIdBadge anonId={z.anonId} size="sm" realName={resolveName(z.anonId)} />
+                  {ts && (
+                    <span className="text-[10.5px] opacity-75 shrink-0" title="Zeitpunkt des Klicks auf den Übernahme-Button">
+                      {i === 0 && interessenten.length > 1 ? `zuerst · ${ts}` : ts}
+                    </span>
+                  )}
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -534,7 +560,8 @@ function DetailPanel({
                   Zuweisen
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}

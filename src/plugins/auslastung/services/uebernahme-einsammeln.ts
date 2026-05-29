@@ -93,6 +93,7 @@ export function mergeWuenscheIntoZuweisungen(
         stunden: anzahlTV * stundenProTV,
         status: 'selbst',
         selbstEingetragen: true,
+        selbstEingetragenAm: w.createdAt, // Klick-Zeitpunkt → „wer wollte zuerst"
       });
     }
   }
