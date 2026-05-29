@@ -12,6 +12,7 @@ import { type ReactNode } from 'react';
 import type { SortableColumn } from '@/components/data-table';
 import type { Antrag } from '@/core/services/csv/types';
 import { KategoriePill } from '../components/KategoriePill';
+import { HoverTooltip } from '../components/HoverTooltip';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { normalizeKuerzel } from '../services/anonym-map';
 import type { VerbundKlassifizierungsView } from '../services/verbund-aggregation';
@@ -278,12 +279,14 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
               const mode: 'primaer' | 'aspekt' | 'inactive' =
                 isPrimaer ? 'primaer' : isAspekt ? 'aspekt' : 'inactive';
               const active = isPrimaer || isAspekt;
-              // Pill-Tooltip: am Primaer-Chip die LLM-Begruendung (falls vorhanden),
-              // sonst der Default aus KategoriePill. Das innere span-`title` der
-              // Pill gewinnt beim Hover gegen das Button-`title`, daher hier setzen.
-              const pillTitle = isPrimaer && llmBegruendung
-                ? `${k.name} (Primär)\nLLM: ${llmBegruendung}`
-                : undefined;
+              // Card-Tooltip mit LLM-Begruendung nur am Primaer-Chip, wenn eine
+              // Begruendung vorliegt. Dann natives `title` unterdruecken
+              // (Pill: title="" → kein Browser-Tooltip; Button: title weglassen),
+              // damit nicht zwei Tooltips konkurrieren.
+              const showLlmCard = isPrimaer && !!llmBegruendung;
+              const pill = (
+                <KategoriePill kategorie={k} mode={mode} title={showLlmCard ? '' : undefined} />
+              );
               return (
                 <button
                   key={k.id}
@@ -292,12 +295,26 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
                   className="cursor-pointer"
                   aria-pressed={active}
                   title={
-                    isPrimaer ? `${k.name} (Primär) — entfernen`
+                    showLlmCard ? undefined
+                    : isPrimaer ? `${k.name} (Primär) — entfernen`
                     : isAspekt ? `${k.name} (Aspekt) — entfernen`
                     : `${k.name} als Aspekt hinzufügen`
                   }
                 >
-                  <KategoriePill kategorie={k} mode={mode} title={pillTitle} />
+                  {showLlmCard ? (
+                    <HoverTooltip
+                      content={
+                        <>
+                          <div className="font-medium mb-0.5 text-[var(--tf-text-secondary)]">
+                            {k.name} · LLM-Begründung
+                          </div>
+                          <div>{llmBegruendung}</div>
+                        </>
+                      }
+                    >
+                      {pill}
+                    </HoverTooltip>
+                  ) : pill}
                 </button>
               );
             })}
