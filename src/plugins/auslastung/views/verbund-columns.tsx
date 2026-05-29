@@ -266,6 +266,10 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
           ? v.klassifizierung.freigegebeneAspekte
           : v.klassifizierung.vorgeschlageneAspekte.map(a => a.kategorieId);
         const aspekteSet = new Set(aspekte);
+        // LLM-Kurzbegruendung (nur bei methode='llm' gesetzt) — als Tooltip
+        // ueber dem Primaer-Chip anzeigen, damit der PL die LLM-Entscheidung
+        // beim Review nachvollziehen kann.
+        const llmBegruendung = v.klassifizierung.vorgeschlagenePrimaer?.begruendung?.trim();
         return (
           <div className="flex flex-wrap gap-1">
             {kategorien.map(k => {
@@ -274,6 +278,12 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
               const mode: 'primaer' | 'aspekt' | 'inactive' =
                 isPrimaer ? 'primaer' : isAspekt ? 'aspekt' : 'inactive';
               const active = isPrimaer || isAspekt;
+              // Pill-Tooltip: am Primaer-Chip die LLM-Begruendung (falls vorhanden),
+              // sonst der Default aus KategoriePill. Das innere span-`title` der
+              // Pill gewinnt beim Hover gegen das Button-`title`, daher hier setzen.
+              const pillTitle = isPrimaer && llmBegruendung
+                ? `${k.name} (Primär)\nLLM: ${llmBegruendung}`
+                : undefined;
               return (
                 <button
                   key={k.id}
@@ -287,7 +297,7 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
                     : `${k.name} als Aspekt hinzufügen`
                   }
                 >
-                  <KategoriePill kategorie={k} mode={mode} />
+                  <KategoriePill kategorie={k} mode={mode} title={pillTitle} />
                 </button>
               );
             })}

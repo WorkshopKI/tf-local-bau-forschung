@@ -42,7 +42,13 @@ function fmtCount(value: number, loading: boolean): string {
   return loading ? '…' : String(value);
 }
 
-type ViewFilter = 'alle' | 'review' | 'freigegeben';
+type ViewFilter = 'alle' | 'review' | 'llm' | 'freigegeben';
+
+/** Verbund mit offenem (= noch nicht freigegebenem) LLM-Vorschlag. */
+function istLlmVorschlag(v: VerbundKlassifizierungsView): boolean {
+  return v.klassifizierung.status !== 'freigegeben'
+    && v.klassifizierung.vorgeschlagenePrimaer?.methode === 'llm';
+}
 
 const COLUMN_VISIBILITY_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_columns';
 const COLUMN_WIDTHS_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_column_widths';
@@ -154,13 +160,16 @@ export function KlassifizierungsReview(): React.ReactElement {
   }, []);
 
   const counts = useMemo(() => {
-    let neu = 0, freig = 0, review = 0;
+    let neu = 0, freig = 0, review = 0, llm = 0;
     for (const v of verbundViews) {
-      if (v.klassifizierung.status === 'freigegeben') freig++;
-      else if (v.confidence === 'high') neu++;
+      if (v.klassifizierung.status === 'freigegeben') { freig++; continue; }
+      // LLM-Vorschlag ist eine Teilmenge der hohen Confidences (neu) — eigener
+      // Zaehler fuer den LLM-Filter-Tab, neu bleibt die Bulk-Freigabe-Basis.
+      if (istLlmVorschlag(v)) llm++;
+      if (v.confidence === 'high') neu++;
       else review++;
     }
-    return { neu, freig, review, total: verbundViews.length };
+    return { neu, freig, review, llm, total: verbundViews.length };
   }, [verbundViews]);
 
   const filtered = useMemo(() => {
@@ -170,6 +179,10 @@ export function KlassifizierungsReview(): React.ReactElement {
         // Frisch freigegeben → noch in der Flash-Grace-Period sichtbar lassen.
         if (justFreigegeben.has(v.verbundId)) return true;
         return v.klassifizierung.status !== 'freigegeben' && v.confidence !== 'high';
+      }
+      if (filter === 'llm') {
+        if (justFreigegeben.has(v.verbundId)) return true;
+        return istLlmVorschlag(v);
       }
       return true;
     });
@@ -356,7 +369,7 @@ export function KlassifizierungsReview(): React.ReactElement {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          {(['alle', 'review', 'freigegeben'] as const).map(f => (
+          {(['alle', 'review', 'llm', 'freigegeben'] as const).map(f => (
             <button
               key={f}
               type="button"
@@ -372,6 +385,7 @@ export function KlassifizierungsReview(): React.ReactElement {
             >
               {f === 'alle' && `Alle (${fmtCount(counts.total, isInitialLoading)})`}
               {f === 'review' && `Review nötig (${fmtCount(counts.review, isInitialLoading)})`}
+              {f === 'llm' && `LLM-Vorschlag (${fmtCount(counts.llm, isInitialLoading)})`}
               {f === 'freigegeben' && `Freigegeben (${fmtCount(counts.freig, isInitialLoading)})`}
             </button>
           ))}

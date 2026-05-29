@@ -48,6 +48,9 @@ interface Props {
   mode?: KategoriePillMode;
   /** Legacy: `true` → primaer, `false` → inactive. */
   active?: boolean;
+  /** Ueberschreibt den Default-Tooltip (`${name} (Primär)`). Genutzt z.B. um die
+   *  LLM-Begruendung ueber dem Primaer-Chip anzuzeigen. */
+  title?: string;
 }
 
 function resolveMode(mode: KategoriePillMode | undefined, active: boolean): KategoriePillMode {
@@ -55,7 +58,7 @@ function resolveMode(mode: KategoriePillMode | undefined, active: boolean): Kate
   return active ? 'primaer' : 'inactive';
 }
 
-export function KategoriePill({ kategorie, onRemove, size = 'sm', mode, active = true }: Props): React.ReactElement {
+export function KategoriePill({ kategorie, onRemove, size = 'sm', mode, active = true, title }: Props): React.ReactElement {
   const resolved = resolveMode(mode, active);
   const farbe = kategorie.farbe ?? 'slate';
   const cls = resolved === 'primaer'
@@ -69,7 +72,7 @@ export function KategoriePill({ kategorie, onRemove, size = 'sm', mode, active =
   return (
     <span
       className={`inline-flex items-center gap-1 ${cls} ${fontSize} px-2 py-0.5 rounded-full ring-1 ring-inset transition-colors`}
-      title={`${kategorie.name}${titleSuffix}`}
+      title={title ?? `${kategorie.name}${titleSuffix}`}
     >
       {/* Haken-Slot immer rendern, damit Pill-Breite konstant bleibt
           (verhindert Layout-Shift in Toggle-Listen). */}
