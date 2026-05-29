@@ -10,6 +10,7 @@ import { Fragment } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { AnonymerMitarbeiter, UeberKategorie } from '../../types';
 import type { MaQuartalsAuslastung } from '../../services/quartals-auslastung';
+import { EMPTY_AUSLASTUNG } from '../../services/quartals-auslastung';
 import type { MaAltlastBucket } from '../../services/altlast';
 import type { KapazitaetsView } from '../../services/kapazitaet';
 import { MaCompactRow } from './MaCompactRow';
@@ -101,9 +102,12 @@ export function MaTable({
       </thead>
       <tbody>
         {list.map(ma => {
-          const auslastung = auslastungByAnon.get(ma.anonId);
           const kapView = kapByAnon.get(ma.anonId);
-          if (!auslastung || !kapView) return null;
+          if (!kapView) return null;
+          // MAs ohne aktuelle Quartals-Buchung haben keinen auslastungByAnon-
+          // Eintrag (computeQuartalsAuslastung listet nur Gebuchte). Fallback auf
+          // EMPTY_AUSLASTUNG, sonst wuerden Inaktive + neue MAs nie gerendert.
+          const auslastung = auslastungByAnon.get(ma.anonId) ?? EMPTY_AUSLASTUNG;
           const isExpanded = expandedMa === ma.anonId;
           return (
             <Fragment key={ma.anonId}>
