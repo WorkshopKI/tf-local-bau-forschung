@@ -18,7 +18,8 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { KategoriePill } from '../components/KategoriePill';
-import type { AnonymerMitarbeiter, UeberKategorie } from '../types';
+import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket, type UeberKategorie } from '../types';
+import { hasPlOverride } from '../services/antragstyp-praeferenz';
 import type { AuslastungVerbund, MaQuartalsAuslastung } from '../services/quartals-auslastung';
 
 type Tab = 'detail' | 'edit';
@@ -188,6 +189,20 @@ function EditTab({ ma, onSaved }: {
   const [techRaw, setTechRaw] = useState(ma.manuelleTechnologien.join(', '));
   const [abgRaw, setAbgRaw] = useState(ma.abgemeldet.join(', '));
   const [aktiv, setAktiv] = useState(ma.aktiv);
+  // Antragstyp-Vorbelegung: schreibt in die MA-Praeferenz (antragstypBevorzugt),
+  // NICHT das PL-Override. Wird beim "Team-Profile einsammeln" durch die MA-
+  // eigene Eingabe ersetzt — echte einmalige Ueberbrueckung.
+  const [antragstypen, setAntragstypen] = useState<Set<AntragstypBucket>>(
+    () => new Set(ma.antragstypBevorzugt ?? []),
+  );
+
+  function toggleTyp(b: AntragstypBucket): void {
+    setAntragstypen(prev => {
+      const next = new Set(prev);
+      if (next.has(b)) next.delete(b); else next.add(b);
+      return next;
+    });
+  }
 
   function toggleNeben(id: string): void {
     if (id === hauptKat) return;  // Haupt kann nicht zusaetzlich neben sein
@@ -219,6 +234,7 @@ function EditTab({ ma, onSaved }: {
       manuelleTechnologien: techRaw.split(',').map(s => s.trim()).filter(Boolean),
       abgemeldet: abgRaw.split(',').map(s => s.trim()).filter(Boolean),
       aktiv,
+      antragstypBevorzugt: [...antragstypen],
     });
     onSaved();
   });
@@ -311,6 +327,38 @@ function EditTab({ ma, onSaved }: {
             className="text-[12.5px] px-2 py-1 rounded outline-none resize-none w-full"
             style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
           />
+        </FormRow>
+        <FormRow
+          label="Antragstypen (Vorbelegung)"
+          subtitle="Wird ersetzt, sobald der MA seine Antragstypen im eigenen Profil setzt. Leer = keine Einschränkung."
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {ALL_ANTRAGSTYP_BUCKETS.map(b => {
+              const isActive = antragstypen.has(b);
+              return (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => toggleTyp(b)}
+                  aria-pressed={isActive}
+                  className="text-[11.5px] px-2 py-0.5 rounded cursor-pointer"
+                  style={
+                    isActive
+                      ? { background: 'var(--tf-primary-light)', color: 'var(--tf-primary)', border: '0.5px solid var(--tf-primary)' }
+                      : { background: 'transparent', color: 'var(--tf-text-tertiary)', border: '0.5px solid var(--tf-border)' }
+                  }
+                >
+                  {isActive ? '✓ ' : ''}{b}
+                </button>
+              );
+            })}
+          </div>
+          {hasPlOverride(ma) && (
+            <p className="text-[10.5px] leading-snug" style={{ color: 'var(--tf-warning-text, #92400e)' }}>
+              Hinweis: Für diesen MA ist ein PL-Override aktiv ({ma.antragstypUeberschreibung?.join(', ')})
+              — es hat im Matching Vorrang vor dieser Vorbelegung.
+            </p>
+          )}
         </FormRow>
       </div>
 
