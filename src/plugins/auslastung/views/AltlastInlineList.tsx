@@ -45,13 +45,18 @@ export function AltlastInlineList({ altlast }: { altlast?: MaAltlastBucket }): R
               key={`${v.verbundId ?? v.aktenzeichen[0] ?? i}`}
               className="flex items-baseline gap-2 text-[11.5px]"
             >
+              {/* Fix-Breite-Box für Aktenzeichen + optional +N → alle Akronyme
+               *  starten bündig bei derselben x-Position (analog VerbundSection). */}
               <span
-                className="font-mono text-[var(--tf-text-tertiary)] shrink-0"
+                className="shrink-0 flex items-baseline gap-1 font-mono text-[var(--tf-text-tertiary)] overflow-hidden w-[96px]"
                 title={extra > 0 ? allAz : (v.aktenzeichen[0] ?? '')}
               >
-                {v.aktenzeichen[0]}{extra > 0 ? ` +${extra}` : ''}
+                <span>{v.aktenzeichen[0]}</span>
+                {extra > 0 && <span>+{extra}</span>}
               </span>
-              <span className="flex-1 min-w-0 truncate text-[var(--tf-text-secondary)]" title={label}>
+              {/* Fixe Akronym-Breite (kein flex-1) → TVs steht bündig untereinander
+               *  und nicht am Karten-Rand. */}
+              <span className="shrink-0 truncate text-[var(--tf-text-secondary)] w-[104px]" title={label}>
                 {label}
               </span>
               <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0 tabular-nums">
