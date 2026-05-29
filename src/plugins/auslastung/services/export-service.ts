@@ -14,21 +14,23 @@
  * wird NIE persistiert; es lebt nur fuer die Dauer eines Export-Vorgangs.
  */
 import * as XLSX from 'xlsx';
-import type { Antrag } from '@/core/services/csv/types';
+import type { Antrag, Verbund } from '@/core/services/csv/types';
 import {
   CANONICAL_TITEL,
-  CANONICAL_VERBUND_TITEL,
   type AnonymerMitarbeiter,
   type AuslastungData,
   type MatchResult,
   type Zuweisung,
 } from '../types';
 import type { AnonymMap } from './anonym-map';
+import { resolveVerbundMeta, verbundKeyOf } from './verbund-aggregation';
 
 export interface ExportRow {
   aktenzeichen: string;
+  akronym: string;
   vbTitel: string;
   tvTitel: string;
+  anzahlTV: number;       // TVs des Verbundes (Zuweisung erfolgt pro Verbund)
   ma: string;             // anonyme oder echte ID — je nach Variante
   score: number;          // 0..1
   restkapazitaet: number; // Stunden
@@ -55,10 +57,12 @@ export interface BuildRowsInput {
   pendingMatches?: Map<string, MatchResult[]>;
   /** Filter — wenn gesetzt, nur Zuweisungen dieses Quartals. */
   quartal?: string;
+  /** Verbund-Store fuer Titel/Akronym-Aufloesung (liegen NICHT am Antrag). */
+  verbuendeById?: ReadonlyMap<string, Verbund>;
 }
 
 export function buildExportRows(input: BuildRowsInput): ExportRow[] {
-  const { data, antraege, pendingMatches } = input;
+  const { data, antraege, pendingMatches, verbuendeById } = input;
   const quartal = input.quartal ?? data.config.aktuellesQuartal;
   const indexAz = new Map<string, Antrag>(antraege.map(a => [a.aktenzeichen, a]));
   const rows: ExportRow[] = [];
@@ -69,7 +73,7 @@ export function buildExportRows(input: BuildRowsInput): ExportRow[] {
     if (z.status === 'abgelehnt') continue;
     const a = indexAz.get(z.antragId);
     if (!a) continue;
-    rows.push(toRow(a, z.anonId, scoreFromAssignment(z), z, quartal, data.mitarbeiter));
+    rows.push(toRow(a, z.anonId, scoreFromAssignment(z), z, quartal, data.mitarbeiter, verbuendeById));
   }
 
   // 2) Optional: Top-N-Vorschlaege fuer nicht-zugewiesene Antraege
@@ -83,11 +87,14 @@ export function buildExportRows(input: BuildRowsInput): ExportRow[] {
       if (zugewiesen.has(az)) continue;
       const a = indexAz.get(az);
       if (!a) continue;
+      const meta = resolveVerbundMeta(verbuendeById?.get(verbundKeyOf(a)), a);
       for (const m of matches.slice(0, 3)) {
         rows.push({
           aktenzeichen: a.aktenzeichen,
-          vbTitel: stringOr(a[CANONICAL_VERBUND_TITEL], '—'),
+          akronym: meta.akronym,
+          vbTitel: meta.verbundTitel || '—',
           tvTitel: stringOr(a[CANONICAL_TITEL], '—'),
+          anzahlTV: 1,
           ma: m.anonId,
           score: m.kompetenzScore,
           restkapazitaet: m.restKapazitaet,
@@ -121,6 +128,7 @@ function toRow(
   z: Zuweisung,
   _quartal: string,
   mitarbeiter: Record<string, AnonymerMitarbeiter>,
+  verbuendeById?: ReadonlyMap<string, Verbund>,
 ): ExportRow {
   const ma = mitarbeiter[anonId];
   const quartKap = ma ? ma.jahresKapazitaet / 4 : 0;
@@ -128,10 +136,14 @@ function toRow(
   // - z.stunden als Naeherung. Der Empfaenger sieht ja die echten Werte sowieso
   // im Dashboard.
   const rest = Math.max(0, quartKap - z.stunden);
+  // Verbund-Titel/Akronym aus dem verbuende-Store (liegen nicht am Antrag).
+  const meta = resolveVerbundMeta(verbuendeById?.get(verbundKeyOf(a)), a);
   return {
     aktenzeichen: a.aktenzeichen,
-    vbTitel: stringOr(a[CANONICAL_VERBUND_TITEL], '—'),
+    akronym: meta.akronym,
+    vbTitel: meta.verbundTitel || '—',
     tvTitel: stringOr(a[CANONICAL_TITEL], '—'),
+    anzahlTV: z.anzahlTV ?? 1,
     ma: anonId,
     score,
     restkapazitaet: rest,
@@ -149,11 +161,13 @@ function stringOr(v: unknown, fallback: string): string {
 export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
   const sheetData = [
-    ['Aktenzeichen', 'VB-Titel', 'TV-Titel', 'Empfohlener MA', 'Kompetenz-Score', 'Restkapazitaet (h)', 'Aufwand (h)', 'Confidence', 'Status'],
+    ['Aktenzeichen', 'Akronym', 'VB-Titel', 'TV-Titel', 'TVs', 'Empfohlener MA', 'Kompetenz-Score', 'Restkapazitaet (h)', 'Aufwand (h)', 'Confidence', 'Status'],
     ...rows.map(r => [
       r.aktenzeichen,
+      r.akronym,
       r.vbTitel,
       r.tvTitel,
+      r.anzahlTV,
       r.ma,
       Number(r.score.toFixed(3)),
       Math.round(r.restkapazitaet),
@@ -165,7 +179,7 @@ export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
   // Spalten-Breiten — minimale Aesthetik
   ws['!cols'] = [
-    { wch: 18 }, { wch: 40 }, { wch: 40 }, { wch: 8 },
+    { wch: 18 }, { wch: 16 }, { wch: 40 }, { wch: 40 }, { wch: 6 }, { wch: 8 },
     { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 14 },
   ];
   XLSX.utils.book_append_sheet(wb, ws, `Auslastung ${quartal}`);

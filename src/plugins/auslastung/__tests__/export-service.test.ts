@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildExportRows, buildWorkbook } from '../services/export-service';
 import { buildAnonymMapForTests } from './test-helpers';
-import type { Antrag } from '@/core/services/csv/types';
+import type { Antrag, Verbund } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter, AuslastungData, MatchResult } from '../types';
 import { emptyAuslastungData } from '../types';
 
@@ -78,6 +78,22 @@ describe('buildExportRows', () => {
       expect(r.ma).toMatch(/^MA\d{2}$/);
     }
   });
+
+  it('löst VB-Titel/Akronym aus dem verbuende-Store auf (Titel nicht am Antrag) + anzahlTV', () => {
+    const data = makeData();
+    data.zuweisungen = [
+      { antragId: 'A1', anonId: 'MA01', quartal: '2026-Q2', stunden: 36, status: 'freigegeben', anzahlTV: 4 },
+    ];
+    const antraegeOhneTitel = [makeAntrag('A1', { verbund_id: 'V1', titel: 'TV1-Titel' })]; // KEIN verbund_titel
+    const verbuendeById = new Map<string, Verbund>([
+      ['V1', { verbund_id: 'V1', programm_id: 'p1', teilantrags_ids: [], titel: 'Verbund-Titel', akronym: 'AKR' } as Verbund],
+    ]);
+    const rows = buildExportRows({ data, antraege: antraegeOhneTitel, verbuendeById });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.vbTitel).toBe('Verbund-Titel');
+    expect(rows[0]?.akronym).toBe('AKR');
+    expect(rows[0]?.anzahlTV).toBe(4);
+  });
 });
 
 describe('buildWorkbook', () => {
@@ -87,13 +103,15 @@ describe('buildWorkbook', () => {
     expect(wb.SheetNames[0]).toBe('Auslastung 2026-Q2');
   });
 
-  it('hat 9 Spalten in Header-Zeile', () => {
+  it('hat 11 Spalten in Header-Zeile (inkl. Akronym + TVs)', () => {
     const rows = buildExportRows({ data: makeData(), antraege: [makeAntrag('A1', { verbund_titel: 'X', titel: 'Y' })] });
     const wb = buildWorkbook(rows, '2026-Q2');
     const sheet = wb.Sheets[wb.SheetNames[0]!]!;
-    // Header in A1..I1
+    // Header in A1..K1
     expect(sheet['A1']?.v).toBe('Aktenzeichen');
-    expect(sheet['I1']?.v).toBe('Status');
+    expect(sheet['B1']?.v).toBe('Akronym');
+    expect(sheet['E1']?.v).toBe('TVs');
+    expect(sheet['K1']?.v).toBe('Status');
   });
 });
 

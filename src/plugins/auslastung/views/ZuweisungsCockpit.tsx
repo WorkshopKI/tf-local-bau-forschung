@@ -72,7 +72,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const data = useAuslastungData(s => s.data);
 
   function exportAnonym(): void {
-    exportAnonymousXlsx({ data, antraege: cache.antraege });
+    exportAnonymousXlsx({ data, antraege: cache.antraege, verbuendeById: cache.verbuendeById });
   }
 
   async function exportGeschuetzt(password: string): Promise<void> {
@@ -82,6 +82,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
         data,
         antraege: cache.antraege,
         anonymMap: cache.anonymMap,
+        verbuendeById: cache.verbuendeById,
         password,
       });
       setPwOpen(false);
