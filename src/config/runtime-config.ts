@@ -39,6 +39,11 @@ export interface TeamflowPersonalFolderConfig {
 
 export interface TeamflowFeatures {
   kuratorMenus: boolean;
+  /** v2.10: Erzwingt beim App-Start eine Kurator-Login-Wall (Passwort). Nach
+   *  erfolgreichem Login werden `is_kurator` (Menüs) + Schreib-Session
+   *  freigeschaltet. Nur in der kurator-Variante true — dev hat zwar ebenfalls
+   *  `kuratorMenus`, aber keine Wall (Auto-Kurator via Fixtures). */
+  requireKuratorLogin: boolean;
   feedback: boolean;
   dokumentenscan: boolean;
   volltextsuche: boolean;

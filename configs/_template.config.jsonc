@@ -55,6 +55,10 @@
 
   "features": {
     "kuratorMenus": true,      // Kurator-Sidebar-Kategorie + Kuration-Plugins
+    // v2.10: Login-Wall beim App-Start. Erzwingt Kurator-Passwort, schaltet
+    // danach is_kurator (Menüs) + Schreib-Session frei. Nur kurator-Variante
+    // true; dev hat zwar kuratorMenus, aber keine Wall (Auto-Kurator).
+    "requireKuratorLogin": false,
     "feedback": true,          // Feedback-FAB + Board + Kurator-Verwaltung
     "dokumentenscan": false,   // ab Phase 2, noch nicht implementiert
     "volltextsuche": true,     // Such-Route + Index-Kuration

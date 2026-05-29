@@ -268,6 +268,10 @@ Bump-Regeln (semver-pragmatisch für diese App):
 
 Beim MAJOR-Bump zusätzlich: Migrations-Notiz in CLAUDE.md ergänzen (analog v1.9-Block in [docs/architecture/infrastructure-layer.md](docs/architecture/infrastructure-layer.md)), und sicherstellen dass `migrateLegacyStructure()` (oder Pendant) die alte Struktur erkennt.
 
+### v2.10 — Kurator-Login-Wall beim App-Start (Mai 2026)
+
+MINOR-Bump v2.10: Die **kurator-Variante** erzwingt beim Start einen Kurator-Login. Neuer Build-Flag `features.requireKuratorLogin` (nur in [configs/kurator.config.json](configs/kurator.config.json) `true`; dev hat zwar `kuratorMenus`, aber keine Wall — Auto-Kurator via Fixtures). Nach dem `StartupScreen` (Daten-Share-Permission steht, damit `kurator-config.enc` lesbar ist) entscheidet `decideKuratorGate` in [App.tsx](src/core/App.tsx): gültige rehydrierte Session → direkt App; konfiguriert + keine Session → **Pflicht-Login** via [KuratorLoginGate](src/core/KuratorLoginGate.tsx) (setzt bei Erfolg `profile.is_kurator` = Menüs frei + aktiviert die Session + stuft den Daten-Share-Handle per `refreshAllPermissions({isKurator:true})` auf `readwrite` hoch, vgl. Pitfall #25); nicht konfiguriert / offline (`isKuratorConfigured`=false) → still übersprungen. Da `kurator-config.enc` auf dem geteilten Daten-Share liegt, ist „konfiguriert" team-weit nach dem ersten Setup immer wahr. Additiv, keine Migration; dev/prod/pl/demo unverändert (`requireKuratorLogin: false`).
+
 ### v2.0 — 2-Handle-Architektur (Persoenlicher Ordner + Offline-Modus + Feedback-Inbox)
 
 MAJOR-Bump v2.0 erzwingt Re-Pick beim Start. Neuer Handle-Slot `SMB_HANDLE_PERSOENLICH` pro User für `ZAH/{profile,einstellungen}.json` + Feedback-Outbox. Nicht-Kurator-Daten-Share-Handle wird automatisch von `readwrite` auf `read` heruntergestuft. Details: [docs/architecture/v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md).

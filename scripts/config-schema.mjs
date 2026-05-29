@@ -85,6 +85,10 @@ export const DEFAULT_CONFIG = {
 
   features: {
     kuratorMenus: true,
+    /** v2.10: Erzwingt beim App-Start einen Kurator-Login (Passwort-Wall) und
+     *  schaltet danach is_kurator (Menüs) + Schreib-Session frei. Nur in der
+     *  kurator-Variante true. dev bleibt false (Auto-Kurator via Fixtures). */
+    requireKuratorLogin: false,
     feedback: true,
     dokumentenscan: false,
     volltextsuche: true,
@@ -252,7 +256,7 @@ export function validateConfig(config) {
 
   const features = config.features ?? {};
   const requiredFlags = [
-    'kuratorMenus', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
+    'kuratorMenus', 'requireKuratorLogin', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
     'antraege', 'bauantraege', 'dokumente', 'auslastung', 'auslastungSelbstEintragung',
     'deAnonymisierung', 'datenShareSchreibrecht',
     'chat', 'suche', 'feedbackBoard',

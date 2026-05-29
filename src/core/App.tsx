@@ -3,6 +3,7 @@ import { AppRouter } from '@/core/Router';
 import { Onboarding } from '@/core/Onboarding';
 import { WelcomeScreen } from '@/core/WelcomeScreen';
 import { StartupScreen } from '@/core/StartupScreen';
+import { KuratorLoginGate } from '@/core/KuratorLoginGate';
 import { enabledPlugins } from '@/plugins.config';
 import { StorageService } from '@/core/services/storage';
 import { StorageContext } from '@/core/hooks/useStorage';
@@ -27,7 +28,9 @@ import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { rematchOnSnapshotReload } from '@/phase2';
 import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
 import { runtimeConfig } from '@/config/runtime-config';
-import { isDemoDataBundled, dataConfig } from '@/config/feature-flags';
+import { isDemoDataBundled, dataConfig, isKuratorLoginRequired } from '@/config/feature-flags';
+import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { isKuratorConfigured } from '@/core/services/infrastructure/kurator-config';
 import { seedTestData } from '@/core/services/seed/seed-data';
 import { useConnectionState } from '@/core/services/connection-status';
 import { useVisibilityPermissionProbe } from '@/core/hooks/useVisibilityPermissionProbe';
@@ -37,7 +40,8 @@ function AppProviders({
   storage, aiBridge,
   showOnboarding, setShowOnboarding,
   showWelcome, setShowWelcome,
-  showStartup, setShowStartup,
+  showStartup, onStartupReady,
+  showKuratorGate, setShowKuratorGate,
   needsDowngrade,
   needsInitialPick,
   initialProfile,
@@ -52,7 +56,11 @@ function AppProviders({
   showWelcome: boolean;
   setShowWelcome: (v: boolean) => void;
   showStartup: boolean;
-  setShowStartup: (v: boolean) => void;
+  /** v2.10: laeuft wenn der StartupScreen fertig ist — setzt showStartup=false
+   *  und entscheidet danach ueber die Kurator-Login-Wall. */
+  onStartupReady: () => void;
+  showKuratorGate: boolean;
+  setShowKuratorGate: (v: boolean) => void;
   needsDowngrade: boolean;
   needsInitialPick: boolean;
   initialProfile: UserProfile | null;
@@ -105,8 +113,10 @@ function AppProviders({
                   profile={profileValue.profile ?? initialProfile}
                   needsDowngrade={needsDowngrade}
                   needsInitialPick={needsInitialPick}
-                  onReady={() => setShowStartup(false)}
+                  onReady={onStartupReady}
                 />
+              ) : showKuratorGate ? (
+                <KuratorLoginGate onSuccess={() => setShowKuratorGate(false)} />
               ) : (
                 <AppRouter plugins={enabledPlugins} department={activeDepartment} />
               )}
@@ -201,6 +211,8 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const [department, setDepartment] = useState<UserProfile['department']>('beide');
   const [seedToast, setSeedToast] = useState<string | null>(null);
   const [syncToast, setSyncToast] = useState<string | null>(null);
+  // v2.10: Kurator-Login-Wall (nur kurator-Variante, requireKuratorLogin).
+  const [showKuratorGate, setShowKuratorGate] = useState(false);
 
   useEffect(() => {
     document.title = runtimeConfig.build.browserTabTitle;
@@ -345,6 +357,25 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
     });
   }, [storage, aiBridge, refreshHandleGate]);
 
+  // v2.10: Entscheidet NACH dem StartupScreen (Daten-Share-Permission steht,
+  // damit kurator-config.enc lesbar ist) ueber die Kurator-Login-Wall.
+  //  - Flag aus → keine Wall.
+  //  - gueltige Session rehydriert (<TTL) → keine Wall, direkt App.
+  //  - konfiguriert + keine Session → Pflicht-Login-Wall.
+  //  - nicht konfiguriert / offline (isKuratorConfigured=false) → ueberspringen.
+  const decideKuratorGate = useCallback(async (): Promise<void> => {
+    if (!isKuratorLoginRequired()) { setShowKuratorGate(false); return; }
+    await useKuratorSession.getState().rehydrate(storage.idb);
+    if (useKuratorSession.getState().isActive) { setShowKuratorGate(false); return; }
+    const configured = await isKuratorConfigured(storage.idb);
+    setShowKuratorGate(configured);
+  }, [storage]);
+
+  const handleStartupReady = useCallback(async (): Promise<void> => {
+    setShowStartup(false);
+    await decideKuratorGate();
+  }, [decideKuratorGate]);
+
   const handleOnboardingComplete = useCallback(async () => {
     setShowOnboarding(false);
     const profile = await storage.idb.get<UserProfile>('profile');
@@ -365,7 +396,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   // Vorgänge/Dokumente/Artefakte. seedTestData() ist idempotent — zweiter Aufruf
   // liefert Nullen und es erscheint kein Toast.
   useEffect(() => {
-    if (!ready || showOnboarding || showWelcome || showStartup || !isDemoDataBundled()) return;
+    if (!ready || showOnboarding || showWelcome || showStartup || showKuratorGate || !isDemoDataBundled()) return;
     let cancelled = false;
     (async () => {
       const result = await seedTestData(storage);
@@ -376,7 +407,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       }
     })();
     return () => { cancelled = true; };
-  }, [ready, showOnboarding, showWelcome, showStartup, storage]);
+  }, [ready, showOnboarding, showWelcome, showStartup, showKuratorGate, storage]);
 
   // Snapshot-Sync — non-blocking, nach App-Start.
   // syncToastTimerRef haelt die ID des aktuell laufenden Auto-Dismiss-Timers.
@@ -385,7 +416,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   // Timer den zweiten Toast vorzeitig clearen).
   const syncToastTimerRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!ready || showOnboarding || showWelcome || showStartup) return;
+    if (!ready || showOnboarding || showWelcome || showStartup || showKuratorGate) return;
     let cancelled = false;
     (async () => {
       const handle = await getDatenShareHandle(storage.idb);
@@ -430,7 +461,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, showOnboarding, showWelcome, showStartup]);
+  }, [ready, showOnboarding, showWelcome, showStartup, showKuratorGate]);
 
   if (!ready) return <></>;
 
@@ -443,7 +474,9 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       showWelcome={showWelcome}
       setShowWelcome={handleWelcomeComplete as unknown as (v: boolean) => void}
       showStartup={showStartup}
-      setShowStartup={setShowStartup}
+      onStartupReady={() => void handleStartupReady()}
+      showKuratorGate={showKuratorGate}
+      setShowKuratorGate={setShowKuratorGate}
       needsDowngrade={needsDowngrade}
       needsInitialPick={needsInitialPick}
       initialProfile={initialProfile}

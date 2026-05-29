@@ -29,6 +29,13 @@ export function isKuratorMenusEnabled(): boolean {
   return features.kuratorMenus;
 }
 
+/** v2.10: True nur in der kurator-Variante — erzwingt beim App-Start eine
+ *  Kurator-Login-Wall (Passwort). Nach Login werden `is_kurator` + Schreib-
+ *  Session aktiviert. Siehe KuratorLoginGate + App.tsx-Startup-Gate. */
+export function isKuratorLoginRequired(): boolean {
+  return features.requireKuratorLogin === true;
+}
+
 export function isFeedbackEnabled(): boolean {
   return features.feedback;
 }

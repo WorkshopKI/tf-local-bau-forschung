@@ -19,6 +19,7 @@
   },
   "features": {
     "kuratorMenus": true,
+    "requireKuratorLogin": true,
     "feedback": true,
     "dokumentenscan": true,
     "volltextsuche": true,
