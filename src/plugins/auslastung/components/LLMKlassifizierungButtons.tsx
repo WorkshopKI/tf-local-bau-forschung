@@ -38,6 +38,12 @@ interface Props {
   isLoading?: boolean;
 }
 
+/** Clipboard-Prompt auf so viele Verbuende pro Seite begrenzen, damit das
+ *  externe LLM nicht ins Output-Token-Limit laeuft (Truncation → kaputtes JSON).
+ *  Klassifizierte Verbuende fallen aus `offeneVerbuende` raus, der naechste
+ *  Klick liefert automatisch die naechsten N. */
+const CLIPBOARD_CHUNK_SIZE = 30;
+
 function readString(a: { [key: string]: unknown }, key: string): string {
   const v = a[key];
   return typeof v === 'string' ? v : '';
@@ -170,9 +176,14 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
       showToast('Keine unklassifizierten Verbuende gefunden.', 'error');
       return;
     }
-    const prompt = buildPromptForClipboard(offeneVerbuende.map(toLLMVerbund), kategorien);
+    const chunk = offeneVerbuende.slice(0, CLIPBOARD_CHUNK_SIZE);
+    const prompt = buildPromptForClipboard(chunk.map(toLLMVerbund), kategorien);
     await navigator.clipboard.writeText(prompt);
-    showToast(`Prompt fuer ${offeneVerbuende.length} Verbünde in Zwischenablage.`);
+    showToast(
+      chunk.length < offeneVerbuende.length
+        ? `Prompt für ${chunk.length} von ${offeneVerbuende.length} Verbünden kopiert.`
+        : `Prompt für ${chunk.length} Verbünde in Zwischenablage.`,
+    );
   });
 
   const unklassifiziertCount = offeneVerbuende.length;
@@ -203,8 +214,11 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
         disabled={busy || isLoading || noOpen}
         className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
         style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
+        title={`Kopiert max. ${CLIPBOARD_CHUNK_SIZE} Verbünde pro Seite (verhindert LLM-Output-Truncation)`}
       >
-        Prompt kopieren
+        {!isLoading && unklassifiziertCount > CLIPBOARD_CHUNK_SIZE
+          ? `Prompt kopieren (${CLIPBOARD_CHUNK_SIZE} von ${unklassifiziertCount})`
+          : 'Prompt kopieren'}
       </button>
       <button
         type="button"

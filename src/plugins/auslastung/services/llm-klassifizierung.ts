@@ -176,26 +176,23 @@ interface RawLLMItem {
  *  - Markdown-Wrapping (```json ... ```)
  *  - Leading/Trailing-Whitespace + Erklaerungs-Text
  *  - Umlaut-Schluessel ("primär" statt "primaer")
+ *  - Abgeschnittenes JSON (Output-Token-Limit): vollstaendige Objekte werden
+ *    gerettet, das angeschnittene letzte Objekt verworfen.
  *
- * Wirft bei nicht parsebaren Antworten.
+ * Wirft nur, wenn KEIN vollstaendiges Objekt gerettet werden kann.
  */
 export function parseLLMResponse(raw: string): Array<{ id: string; primaer: string; aspekte: string[]; begruendung: string }> {
   const stripped = stripMarkdownWrapper(raw).trim();
   // Erste eckige Klammer suchen — verhindert dass Erklaerungs-Text davor
   // den Parser blockiert.
   const start = stripped.indexOf('[');
-  const end = stripped.lastIndexOf(']');
-  if (start < 0 || end < start) {
+  if (start < 0) {
     throw new Error('Keine JSON-Array-Klammer im LLM-Output gefunden.');
   }
-  const slice = stripped.slice(start, end + 1);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(slice);
-  } catch (err) {
-    throw new Error(`JSON-Parse fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
+  const parsed = parseJsonArrayTolerant(stripped.slice(start));
+  if (parsed.length === 0) {
+    throw new Error('Keine vollstaendigen JSON-Objekte im LLM-Output gefunden — evtl. komplett abgeschnitten.');
   }
-  if (!Array.isArray(parsed)) throw new Error('Erwartet JSON-Array, bekommen: ' + typeof parsed);
 
   const out: Array<{ id: string; primaer: string; aspekte: string[]; begruendung: string }> = [];
   for (const item of parsed as RawLLMItem[]) {
@@ -219,6 +216,60 @@ function stripMarkdownWrapper(text: string): string {
   const match = /^```(?:json|JSON)?\s*\n?([\s\S]*?)\n?```\s*$/m.exec(text.trim());
   if (match && match[1]) return match[1];
   return text;
+}
+
+/**
+ * Parst ein JSON-Array von Objekten und ist tolerant gegen Truncation.
+ *
+ * `slice` beginnt bei der ersten `[`. Happy Path: striktes `JSON.parse` ueber
+ * den Bereich bis zur letzten `]`. Schlaegt das fehl (z.B. weil die schliessende
+ * `]` fehlt oder das letzte Objekt mitten im Token-Limit abbricht), faellt die
+ * Funktion auf einen Objekt-Walker zurueck: sie sammelt jedes balancierte
+ * Top-Level-`{…}` und parst es einzeln. Ein angeschnittenes letztes Objekt
+ * schliesst nie (Tiefe > 0 am Stringende) und wird damit automatisch verworfen.
+ */
+function parseJsonArrayTolerant(slice: string): unknown[] {
+  const lastBracket = slice.lastIndexOf(']');
+  if (lastBracket > 0) {
+    try {
+      const parsed = JSON.parse(slice.slice(0, lastBracket + 1));
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // Happy Path fehlgeschlagen → Salvage unten.
+    }
+  }
+
+  const objects: unknown[] = [];
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let objStart = -1;
+  for (let i = 0; i < slice.length; i++) {
+    const ch = slice[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === '{') {
+      if (depth === 0) objStart = i;
+      depth++;
+    } else if (ch === '}') {
+      if (depth > 0) depth--;
+      if (depth === 0 && objStart >= 0) {
+        try {
+          objects.push(JSON.parse(slice.slice(objStart, i + 1)));
+        } catch {
+          // Einzelnes Objekt nicht parsebar → ueberspringen.
+        }
+        objStart = -1;
+      }
+    }
+  }
+  return objects;
 }
 
 // ─── Bridge-Mode (DirectLLM / Streamlit) ─────────────────────────────────

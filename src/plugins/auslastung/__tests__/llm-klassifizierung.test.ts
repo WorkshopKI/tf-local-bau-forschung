@@ -84,6 +84,26 @@ describe('parseLLMResponse — robust JSON-Parsing', () => {
     expect(() => parseLLMResponse('[invalid json}')).toThrow();
   });
 
+  it('rettet vollstaendige Objekte aus abgeschnittenem Array (Truncation)', () => {
+    // Letztes Objekt mitten im begruendung-Feld abgeschnitten, keine schliessende ].
+    const raw = '[{"id":"V1","primaer":"IT","aspekte":[],"begruendung":"a"},{"id":"V2","primaer":"DT","aspekte":["EU"],"begr';
+    const out = parseLLMResponse(raw);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.id).toBe('V1');
+  });
+
+  it('rettet vollstaendiges Objekt bei Abbruch direkt nach Komma', () => {
+    const raw = '[{"id":"V1","primaer":"IT","aspekte":["DT"],"begruendung":"x"},{';
+    const out = parseLLMResponse(raw);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.id).toBe('V1');
+    expect(out[0]!.aspekte).toEqual(['DT']);
+  });
+
+  it('wirft, wenn das erste Objekt schon abgeschnitten ist', () => {
+    expect(() => parseLLMResponse('[{"id":"V1","primaer":"IT"')).toThrow();
+  });
+
   it('parseClipboardResponse ist Identitaet zu parseLLMResponse', () => {
     const raw = '[{"id":"V1","primaer":"IT","aspekte":[],"begruendung":""}]';
     expect(parseClipboardResponse(raw)).toEqual(parseLLMResponse(raw));
