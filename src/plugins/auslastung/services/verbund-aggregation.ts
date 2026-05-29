@@ -24,6 +24,7 @@ import {
 } from '../types';
 import { klassifiziereAntrag } from './klassifizierung-engine';
 import { normalizeKuerzel } from './anonym-map';
+import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
 
 export interface VerbundKlassifizierungsView {
   /** Stabile ID — `verbund_id` bei Verbund-Antraegen, sonst `aktenzeichen` als
@@ -63,6 +64,22 @@ function confidenceFor(kl: Klassifizierung): 'high' | 'medium' | 'low' {
 export function verbundKeyOf(antrag: Antrag): string {
   const vid = readString(antrag, CANONICAL_VERBUND_ID);
   return vid.length > 0 ? vid : antrag.aktenzeichen;
+}
+
+/** Verbund-Anzeige-Metadaten (Akronym + Titel): primaer aus dem `verbuende`-
+ *  Store, Fallback auf die Felder des repraesentativen TVs. Geteilt von der
+ *  Klassifizierungs-Aggregation und der Zuweisungs-Gruppierung. */
+export function resolveVerbundMeta(
+  verbund: Verbund | undefined,
+  rep: Antrag,
+): { akronym: string; verbundTitel: string } {
+  const akronym = (verbund?.akronym && verbund.akronym.length > 0)
+    ? verbund.akronym
+    : readString(rep, CANONICAL_AKRONYM);
+  const verbundTitel = (verbund?.titel && verbund.titel.length > 0)
+    ? verbund.titel
+    : readString(rep, CANONICAL_VERBUND_TITEL) || readString(rep, CANONICAL_TITEL);
+  return { akronym, verbundTitel };
 }
 
 // ─── Pool-Filterung (frueher in KlassifizierungsReview.istZuVerteilen) ──
@@ -212,13 +229,7 @@ function computeVerbundClassificationViews(
     // sondern im separaten `verbuende`-IDB-Store (CSV-Merger schreibt Felder
     // mit `level: 'verbund'` dort hin). Fallback auf Antrag-Felder fuer Solo-
     // Antraege ohne Verbund-Objekt.
-    const verbund = verbuendeById.get(key);
-    const akronym = (verbund?.akronym && verbund.akronym.length > 0)
-      ? verbund.akronym
-      : readString(rep, CANONICAL_AKRONYM);
-    const verbundTitel = (verbund?.titel && verbund.titel.length > 0)
-      ? verbund.titel
-      : readString(rep, CANONICAL_VERBUND_TITEL) || readString(rep, CANONICAL_TITEL);
+    const { akronym, verbundTitel } = resolveVerbundMeta(verbuendeById.get(key), rep);
 
     // Persistierte Klassifizierung — pruefe alle TVs (sollten gleich sein,
     // nimm den ersten Treffer).
@@ -262,5 +273,63 @@ function computeVerbundClassificationViews(
     });
   }
 
+  return out;
+}
+
+// ─── Zuweisungs-Tab: Verbund-Gruppierung der freigegebenen Klassifizierungen ──
+
+export interface VerbundZuweisungRow {
+  /** verbund_id, sonst aktenzeichen (Solo). */
+  verbundId: string;
+  /** Repraesentativer TV (erster in FKZ-Reihenfolge) — Selektion + Zuweisung
+   *  laufen ueber dieses Aktenzeichen. */
+  leadAktenzeichen: string;
+  akronym: string;
+  verbundTitel: string;
+  /** Aktenzeichen aller TVs dieses Verbundes — fuer aggregierte Status-/Filter-
+   *  Pruefung gegen die Zuweisungen. */
+  tvAktenzeichen: string[];
+  tvCount: number;
+  /** Geteilte Klassifizierung des Verbundes (vom Lead-TV). */
+  klassifizierung: Klassifizierung;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Gruppiert bereits auf `status==='freigegeben'` gefilterte per-TV-Views zu
+ * EINER Zeile pro Verbund. Lead = erster TV in FKZ-Reihenfolge; alle TVs eines
+ * Verbundes teilen Klassifizierung + confidence. Titel/Akronym via
+ * `resolveVerbundMeta` (verbuende-Store mit Antrag-Fallback). Pure — testbar.
+ */
+export function groupFreigegebeneByVerbund(
+  views: readonly KlassifizierungsView[],
+  verbuendeById: ReadonlyMap<string, Verbund>,
+): VerbundZuweisungRow[] {
+  const buckets = new Map<string, KlassifizierungsView[]>();
+  const order: string[] = [];
+  for (const v of views) {
+    const key = verbundKeyOf(v.antrag);
+    let bucket = buckets.get(key);
+    if (!bucket) { bucket = []; buckets.set(key, bucket); order.push(key); }
+    bucket.push(v);
+  }
+
+  const out: VerbundZuweisungRow[] = [];
+  for (const key of order) {
+    const group = buckets.get(key)!;
+    group.sort((a, b) => a.antrag.aktenzeichen.localeCompare(b.antrag.aktenzeichen, 'de'));
+    const lead = group[0]!;
+    const { akronym, verbundTitel } = resolveVerbundMeta(verbuendeById.get(key), lead.antrag);
+    out.push({
+      verbundId: key,
+      leadAktenzeichen: lead.antrag.aktenzeichen,
+      akronym,
+      verbundTitel,
+      tvAktenzeichen: group.map(g => g.antrag.aktenzeichen),
+      tvCount: group.length,
+      klassifizierung: lead.klassifizierung,
+      confidence: lead.confidence,
+    });
+  }
   return out;
 }

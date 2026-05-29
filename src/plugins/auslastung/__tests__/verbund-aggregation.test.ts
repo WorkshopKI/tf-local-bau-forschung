@@ -11,8 +11,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { Antrag, Verbund } from '@/core/services/csv/types';
 import {
   buildVerbundClassificationViews,
+  groupFreigegebeneByVerbund,
   invalidateVerbundClassificationCache,
 } from '../services/verbund-aggregation';
+import type { Klassifizierung } from '../types';
+import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
 
 beforeEach(() => {
   // Modul-globaler Closure-Cache (Hebel A) wuerde sonst Test-Isolation brechen,
@@ -150,5 +153,63 @@ describe('buildVerbundClassificationViews — verbuendeById (Verbund-Store-Looku
     expect(views[0]?.verbundTitel).toBe('Gemeinsamer Verbund-Titel');
     expect(views[0]?.tvs).toHaveLength(2);
     expect(views[0]?.isSolo).toBe(false);
+  });
+});
+
+describe('groupFreigegebeneByVerbund', () => {
+  function makeView(
+    antrag: Antrag,
+    primaer: string,
+    confidence: KlassifizierungsView['confidence'] = 'high',
+  ): KlassifizierungsView {
+    const klassifizierung: Klassifizierung = {
+      antragId: antrag.aktenzeichen,
+      vorgeschlagenePrimaer: null,
+      vorgeschlageneAspekte: [],
+      freigegebenePrimaer: primaer,
+      freigegebeneAspekte: [],
+      status: 'freigegeben',
+    };
+    return { antrag, klassifizierung, confidence };
+  }
+
+  it('bündelt TVs desselben Verbundes zu EINER Zeile (Lead = erster FKZ)', () => {
+    const views = [
+      makeView(makeAntrag({ aktenzeichen: '16KN127431', verbund_id: 'V1' }), 'IT'),
+      makeView(makeAntrag({ aktenzeichen: '16KN127430', verbund_id: 'V1' }), 'IT'),
+    ];
+    const verbuendeById = new Map<string, Verbund>([
+      ['V1', makeVerbund({ verbund_id: 'V1', titel: 'Verbund-Titel', akronym: 'AKR' })],
+    ]);
+    const rows = groupFreigegebeneByVerbund(views, verbuendeById);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.leadAktenzeichen).toBe('16KN127430'); // FKZ-sortiert
+    expect(rows[0]?.verbundTitel).toBe('Verbund-Titel');
+    expect(rows[0]?.akronym).toBe('AKR');
+    expect(rows[0]?.tvCount).toBe(2);
+    expect(rows[0]?.tvAktenzeichen.sort()).toEqual(['16KN127430', '16KN127431']);
+    expect(rows[0]?.klassifizierung.freigegebenePrimaer).toBe('IT');
+  });
+
+  it('Solo-Antrag ohne verbund_id → eigene 1er-Zeile, Titel-Fallback auf Antrag', () => {
+    const views = [makeView(makeAntrag({ aktenzeichen: 'A1', akronym: 'SOLO', titel: 'Solo-Titel' }), 'DT')];
+    const rows = groupFreigegebeneByVerbund(views, new Map());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.verbundId).toBe('A1');
+    expect(rows[0]?.leadAktenzeichen).toBe('A1');
+    expect(rows[0]?.tvCount).toBe(1);
+    expect(rows[0]?.verbundTitel).toBe('Solo-Titel');
+    expect(rows[0]?.akronym).toBe('SOLO');
+  });
+
+  it('Mix: 1 Verbund (2 TVs) + 1 Solo → 2 Zeilen', () => {
+    const views = [
+      makeView(makeAntrag({ aktenzeichen: 'B1', verbund_id: 'M' }), 'IT'),
+      makeView(makeAntrag({ aktenzeichen: 'B2', verbund_id: 'M' }), 'IT'),
+      makeView(makeAntrag({ aktenzeichen: 'C1' }), 'EU'),
+    ];
+    const rows = groupFreigegebeneByVerbund(views, new Map());
+    expect(rows).toHaveLength(2);
+    expect(rows.map(r => r.tvCount).sort()).toEqual([1, 2]);
   });
 });

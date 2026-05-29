@@ -17,6 +17,7 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
+import { groupFreigegebeneByVerbund } from '../services/verbund-aggregation';
 import {
   buildAntraegeIndexForMatching,
 } from '../services/embedding-matcher';
@@ -94,18 +95,24 @@ export function ZuweisungsCockpit(): React.ReactElement {
   // einfliessen (statt nur Store-Zuweisungen).
   const { auslastungByAnon } = useAuslastungIndex();
 
-  // Nur freigegebene Klassifizierungen sind hier sichtbar (Phase 1 muss durch)
+  // Nur freigegebene Klassifizierungen sind hier sichtbar (Phase 1 muss durch).
   const freigegebene = useMemo(() => {
     return view.filter(v => v.klassifizierung.status === 'freigegeben');
   }, [view]);
 
-  // Filter anwenden
+  // v2.6.6: Eine Zeile pro Verbund (alle TVs teilen Klassifizierung + Bearbeiter).
+  const verbundRows = useMemo(
+    () => groupFreigegebeneByVerbund(freigegebene, cache.verbuendeById),
+    [freigegebene, cache.verbuendeById],
+  );
+
+  // Filter anwenden — Status aggregiert ueber alle TVs des Verbundes.
   const filtered = useMemo(() => {
-    return freigegebene.filter(v => {
-      const kats = [v.klassifizierung.freigegebenePrimaer, ...v.klassifizierung.freigegebeneAspekte].filter(Boolean);
+    return verbundRows.filter(row => {
+      const kats = [row.klassifizierung.freigegebenePrimaer, ...row.klassifizierung.freigegebeneAspekte].filter(Boolean);
       if (kategorieFilter && !kats.includes(kategorieFilter)) return false;
       if (statusFilter !== 'alle') {
-        const ze = zuweisungen.filter(z => z.antragId === v.antrag.aktenzeichen);
+        const ze = zuweisungen.filter(z => row.tvAktenzeichen.includes(z.antragId));
         const offen = ze.length === 0 || ze.every(z => z.status === 'abgelehnt');
         const selbst = ze.some(z => z.status === 'selbst' || z.selbstEingetragen);
         const zug = ze.some(z => z.status === 'freigegeben');
@@ -115,17 +122,18 @@ export function ZuweisungsCockpit(): React.ReactElement {
       }
       return true;
     });
-  }, [freigegebene, kategorieFilter, statusFilter, zuweisungen]);
+  }, [verbundRows, kategorieFilter, statusFilter, zuweisungen]);
 
   const selected = selectedAz ? cache.antraege.find(a => a.aktenzeichen === selectedAz) : null;
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
+  const selectedRow = selectedAz ? verbundRows.find(r => r.leadAktenzeichen === selectedAz) : null;
 
-  // Wenn Selektion durch Filter wegfaellt
+  // Wenn Selektion durch Filter wegfaellt — auf den Lead-TV des ersten Verbundes.
   useEffect(() => {
-    if (selectedAz && !filtered.some(v => v.antrag.aktenzeichen === selectedAz)) {
-      setSelectedAz(filtered[0]?.antrag.aktenzeichen ?? null);
+    if (selectedAz && !filtered.some(r => r.leadAktenzeichen === selectedAz)) {
+      setSelectedAz(filtered[0]?.leadAktenzeichen ?? null);
     } else if (!selectedAz && filtered.length > 0) {
-      setSelectedAz(filtered[0]!.antrag.aktenzeichen);
+      setSelectedAz(filtered[0]!.leadAktenzeichen);
     }
   }, [filtered, selectedAz]);
 
@@ -288,49 +296,56 @@ export function ZuweisungsCockpit(): React.ReactElement {
         {/* Links: Liste */}
         <div className="rounded-[12px] overflow-hidden flex flex-col" style={{ border: '0.5px solid var(--tf-border)' }}>
           <div className="px-3 py-2 text-[11.5px] text-[var(--tf-text-tertiary)]" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-            {isInitialLoading ? '…' : `${filtered.length} Antrag${filtered.length !== 1 ? 'e' : ''}`}
+            {isInitialLoading ? '…' : `${filtered.length} Verbund${filtered.length !== 1 ? 'e' : ''}`}
           </div>
           <div className="flex-1 overflow-y-auto">
             {isInitialLoading && (
               <SkeletonRows count={8} columns={[80, 220, 60, 24]} />
             )}
-            {!isInitialLoading && filtered.map(v => {
-              const isSel = selectedAz === v.antrag.aktenzeichen;
+            {!isInitialLoading && filtered.map(row => {
+              const isSel = selectedAz === row.leadAktenzeichen;
               // 1.17: Primaer (gefuellt) vs Aspekte (outline) trennen.
-              const primaerId = v.klassifizierung.freigegebenePrimaer;
-              const aspektIds = v.klassifizierung.freigegebeneAspekte;
+              const primaerId = row.klassifizierung.freigegebenePrimaer;
+              const aspektIds = row.klassifizierung.freigegebeneAspekte;
               const primaerKat = config.ueberKategorien.find(k => k.id === primaerId);
               const aspektKats = aspektIds
                 .map(id => config.ueberKategorien.find(k => k.id === id))
                 .filter((k): k is NonNullable<typeof k> => k != null);
-              const ze = zuweisungen.filter(z => z.antragId === v.antrag.aktenzeichen);
+              // Status ueber ALLE TVs des Verbundes aggregieren.
+              const ze = zuweisungen.filter(z => row.tvAktenzeichen.includes(z.antragId));
               const selbst = ze.some(z => z.status === 'selbst' || z.selbstEingetragen);
               const zug = ze.some(z => z.status === 'freigegeben');
               return (
                 <div
-                  key={v.antrag.aktenzeichen}
-                  onClick={() => setSelectedAz(v.antrag.aktenzeichen)}
+                  key={row.verbundId}
+                  onClick={() => setSelectedAz(row.leadAktenzeichen)}
                   className="px-3 py-2 cursor-pointer flex items-center gap-2"
                   style={{
                     background: isSel ? 'var(--tf-bg-secondary)' : 'transparent',
                     borderBottom: '0.5px solid var(--tf-border)',
                   }}
                 >
-                  <span className="font-mono text-[11px] text-[var(--tf-text-secondary)]">{v.antrag.aktenzeichen}</span>
-                  <span className="flex-1 truncate text-[12px]">{(v.antrag[CANONICAL_VERBUND_TITEL] as string | undefined) ?? '—'}</span>
+                  <span className="font-mono text-[11px] text-[var(--tf-text-secondary)] shrink-0">{row.leadAktenzeichen}</span>
+                  {row.akronym && (
+                    <span className="text-[10.5px] px-1 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">{row.akronym}</span>
+                  )}
+                  <span className="flex-1 truncate text-[12px]">{row.verbundTitel || '—'}</span>
+                  {row.tvCount > 1 && (
+                    <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0" title={`${row.tvCount} Teilvorhaben`}>×{row.tvCount} TVs</span>
+                  )}
                   <div className="flex gap-0.5">
                     {primaerKat && <KategoriePill key={primaerKat.id} kategorie={primaerKat} mode="primaer" />}
                     {aspektKats.map(k => <KategoriePill key={k.id} kategorie={k} mode="aspekt" />)}
                   </div>
                   {zug && <span className="text-emerald-700 text-[11px]">✓✓</span>}
                   {selbst && !zug && <span className="text-blue-700 text-[11px]">✓</span>}
-                  <ConfidenceDot confidence={v.confidence} />
+                  <ConfidenceDot confidence={row.confidence} />
                 </div>
               );
             })}
             {!isInitialLoading && filtered.length === 0 && (
               <div className="px-3 py-8 text-center text-[var(--tf-text-tertiary)] text-[12.5px]">
-                Keine freigegebenen Anträge in dieser Ansicht.
+                Keine freigegebenen Verbünde in dieser Ansicht.
               </div>
             )}
           </div>
@@ -354,6 +369,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
           ) : (
             <DetailPanel
               antrag={selected}
+              akronym={selectedRow?.akronym ?? ''}
+              verbundTitel={selectedRow?.verbundTitel ?? ''}
               klassifizierung={selectedView.klassifizierung}
               kategorien={config.ueberKategorien}
               matches={matches}
@@ -372,10 +389,14 @@ export function ZuweisungsCockpit(): React.ReactElement {
 }
 
 function DetailPanel({
-  antrag, klassifizierung, kategorien, matches, matchingRunning,
+  antrag, akronym, verbundTitel, klassifizierung, kategorien, matches, matchingRunning,
   zuweisungen, mitarbeiter, onZuweisen, onAblehnen, tageImQuartal,
 }: {
   antrag: Antrag;
+  /** Verbund-Akronym/-Titel (aus dem verbuende-Store aufgeloest, siehe
+   *  resolveVerbundMeta) — konsistent mit der linken Liste. */
+  akronym: string;
+  verbundTitel: string;
   klassifizierung: import('../types').Klassifizierung;
   kategorien: import('../types').UeberKategorie[];
   matches: MatchResult[];
@@ -387,8 +408,8 @@ function DetailPanel({
   tageImQuartal: number;
 }): React.ReactElement {
   const resolveName = useDeAnonResolver();
-  const akt = antrag[CANONICAL_AKRONYM] as string | undefined;
-  const vbTitel = antrag[CANONICAL_VERBUND_TITEL] as string | undefined;
+  const akt = akronym || (antrag[CANONICAL_AKRONYM] as string | undefined);
+  const vbTitel = verbundTitel || (antrag[CANONICAL_VERBUND_TITEL] as string | undefined);
   const tvTitel = antrag[CANONICAL_TITEL] as string | undefined;
   const summary = antrag[FIELD_PROJEKTBESCHREIBUNG] as string | undefined;
   const verbund_id = antrag[CANONICAL_VERBUND_ID] as string | undefined;
