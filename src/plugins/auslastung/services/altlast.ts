@@ -49,6 +49,9 @@ interface GroupState {
   akronym?: string;
   titel?: string;
   antragsdatum?: string;
+  /** Roh-Status des ersten zur Gruppe gehoerenden Teilantrags (Repraesentant —
+   *  alle Teilantraege sind ohnehin in Kategorie offen/nachforderung). */
+  status?: string;
 }
 
 function readField(a: Antrag, key: string): string | undefined {
@@ -117,6 +120,7 @@ export function computeAltlasten(
         akronym: readField(a, 'akronym'),
         titel: readField(a, 'verbund_titel') ?? readField(a, 'titel'),
         antragsdatum: typeof datum === 'string' ? datum : undefined,
+        status: typeof status === 'string' ? status : undefined,
       };
       perAnon.set(groupKey, group);
     }
@@ -139,6 +143,7 @@ export function computeAltlasten(
         akronym: g.akronym,
         titel: g.titel,
         antragsdatum: g.antragsdatum,
+        status: g.status,
         tvCount,
         stunden: tvCount * stunden,
       });

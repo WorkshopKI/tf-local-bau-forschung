@@ -38,6 +38,10 @@ export interface AuslastungVerbund {
   akronym?: string;
   titel?: string;
   antragsdatum?: string;
+  /** Roh-Status des (ersten) Teilantrags der Gruppe. Heute nur von
+   *  `computeAltlasten` gesetzt (Altanträge-Liste zeigt ihn an); im
+   *  fest/pending-Pfad `undefined`. Anzeige via `getStatusLabel`. */
+  status?: string;
   tvCount: number;                 // = aktenzeichen.length
   stunden: number;                 // tvCount × stundenProTV
 }

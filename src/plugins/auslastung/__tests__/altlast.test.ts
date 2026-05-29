@@ -54,7 +54,7 @@ describe('computeAltlasten', () => {
     expect(a.tvs).toBe(1);
     expect(a.stunden).toBe(9);
     expect(a.quartale).toEqual(['2025-Q4', '2026-Q1']);
-    expect(a.verbuende[0]).toMatchObject({ akronym: 'TEST', tvCount: 1 });
+    expect(a.verbuende[0]).toMatchObject({ akronym: 'TEST', tvCount: 1, status: 'beantragt' });
   });
 
   it('alle 5 User-Status zaehlen', () => {
@@ -135,6 +135,8 @@ describe('computeAltlasten', () => {
     expect(a.antraege).toBe(1);
     expect(a.tvs).toBe(3);
     expect(a.stunden).toBe(27);
+    // Repraesentativ-Status = erster Teilantrag der Gruppe (Iterations-Reihenfolge).
+    expect(a.verbuende[0]).toMatchObject({ status: 'beantragt' });
   });
 
   it('Verbund mit 3 TVs, 2 MUE + 1 SCH → MUE 1 Antrag/2 TVs, SCH 1 Antrag/1 TV', () => {
