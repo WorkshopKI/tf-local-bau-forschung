@@ -21,6 +21,8 @@ import { KategoriePill } from '../components/KategoriePill';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket, type UeberKategorie } from '../types';
 import { hasPlOverride } from '../services/antragstyp-praeferenz';
 import type { AuslastungVerbund, MaQuartalsAuslastung } from '../services/quartals-auslastung';
+import type { MaAltlastBucket } from '../services/altlast';
+import { AltlastInlineList } from './AltlastInlineList';
 
 type Tab = 'detail' | 'edit';
 
@@ -28,11 +30,13 @@ interface Props {
   ma: AnonymerMitarbeiter;
   auslastung: MaQuartalsAuslastung;
   quartal: string;
+  /** Offene Antraege aus den letzten 2 Quartalen — rein informativ (rechte Karte). */
+  altlast?: MaAltlastBucket;
   /** Nach erfolgreichem Save schliesst der Caller (MaRow) den Expand. */
   onSaved?: () => void;
 }
 
-export function MaInlineDetail({ ma, auslastung, quartal, onSaved }: Props): React.ReactElement {
+export function MaInlineDetail({ ma, auslastung, quartal, altlast, onSaved }: Props): React.ReactElement {
   const [tab, setTab] = useState<Tab>('detail');
 
   return (
@@ -45,7 +49,7 @@ export function MaInlineDetail({ ma, auslastung, quartal, onSaved }: Props): Rea
       </div>
 
       {tab === 'detail' && (
-        <DetailTab auslastung={auslastung} quartal={quartal} />
+        <DetailTab auslastung={auslastung} quartal={quartal} altlast={altlast} />
       )}
       {tab === 'edit' && (
         <EditTab
@@ -80,9 +84,10 @@ function TabButton({ active, onClick, children }: {
 
 // ─── Detail-Tab ───────────────────────────────────────────────────────────
 
-function DetailTab({ auslastung, quartal }: {
+function DetailTab({ auslastung, quartal, altlast }: {
   auslastung: MaQuartalsAuslastung;
   quartal: string;
+  altlast?: MaAltlastBucket;
 }): React.ReactElement {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -97,16 +102,19 @@ function DetailTab({ auslastung, quartal }: {
         verbuende={auslastung.pending.verbuende}
         empty="Keine offenen Selbsteintragungen."
         hint="Werden in die Kapazität gerechnet, bis der PL das Kürzel in die CSV einträgt."
+        footer={<AltlastInlineList altlast={altlast} />}
       />
     </div>
   );
 }
 
-function VerbundSection({ label, verbuende, empty, hint }: {
+function VerbundSection({ label, verbuende, empty, hint, footer }: {
   label: string;
   verbuende: readonly AuslastungVerbund[];
   empty: string;
   hint: string;
+  /** Optionaler Zusatz-Block am Fuss der Karte (z.B. Altanträge-Liste). */
+  footer?: React.ReactNode;
 }): React.ReactElement {
   return (
     <div className="rounded-[8px] p-3" style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}>
@@ -158,13 +166,14 @@ function VerbundSection({ label, verbuende, empty, hint }: {
                   {v.titel && <span className="text-[var(--tf-text-secondary)]">{v.titel}</span>}
                 </div>
                 <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0 tabular-nums">
-                  {v.tvCount} TVs · {v.stunden}h
+                  {v.tvCount} TVs
                 </span>
               </li>
             );
           })}
         </ul>
       )}
+      {footer}
     </div>
   );
 }

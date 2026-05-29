@@ -366,6 +366,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
                 ma={ma}
                 auslastung={auslastung}
                 quartal={config.aktuellesQuartal}
+                altlast={altlastByAnon.get(ma.anonId)}
                 onSaved={() => setExpandedMa(null)}
               />
             );
@@ -389,6 +390,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
                 ma={ma}
                 auslastung={auslastung}
                 quartal={config.aktuellesQuartal}
+                altlast={altlastByAnon.get(ma.anonId)}
                 onSaved={() => setExpandedMa(null)}
               />
             );
