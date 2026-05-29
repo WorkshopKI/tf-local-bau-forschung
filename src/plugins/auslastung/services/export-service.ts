@@ -3,8 +3,9 @@
  *
  * Zwei Varianten:
  *  - exportAnonymousXlsx(): direkter Download mit anonymen IDs (MA01...)
- *  - exportProtectedZip(password): AES-256-verschluesseltes ZIP mit
- *    de-anonymisiertem XLSX (echte Kuerzel ausschliesslich im RAM).
+ *  - exportDeAnonymizedXlsx(): direkter Download mit echten Kuerzeln (kein
+ *    Passwortschutz — die Variante liegt auf einem geschuetzten SMB-Bereich;
+ *    das Mapping anonId→Kuerzel lebt ausschliesslich im RAM).
  *
  * Datenmodell der Export-Zeile:
  *   Aktenzeichen | VB-Titel | TV-Titel | MA | Score | Restkapazitaet |
@@ -198,74 +199,23 @@ export function exportAnonymousXlsx(input: BuildRowsInput): void {
 }
 
 /**
- * Erzeugt ein XLSX-Workbook mit DE-ANONYMISIERTEN Rows. Das invertierte
- * Mapping wird NICHT persistiert — nur fuer diesen Aufruf.
+ * De-anonymisierter XLSX-Export — direkter Download mit echten TIB-Kuerzeln.
  *
- * Rueckgabe als ArrayBuffer fuer das anschliessende Verpacken ins ZIP.
+ * Kein Passwortschutz: die PL-/Kurator-Variante liegt auf einem zugriffs-
+ * geschuetzten SMB-Bereich (Schutz auf Ordner-Ebene). Das invertierte Mapping
+ * (anonId → echtes Kuerzel) wird NICHT persistiert — es lebt nur fuer die Dauer
+ * dieses Aufrufs im RAM.
+ *
+ * Dateiname: `auslastung-kuerzel-{quartal}.xlsx`.
  */
-export function buildDeAnonymizedWorkbook(
+export function exportDeAnonymizedXlsx(
   input: BuildRowsInput & { anonymMap: AnonymMap },
-): { workbook: ArrayBuffer; quartal: string; rowCount: number } {
+): void {
   const quartal = input.quartal ?? input.data.config.aktuellesQuartal;
-  const rows = buildExportRows({ ...input, quartal });
-  // De-Anonymisierung
-  const deAnonymizedRows: ExportRow[] = rows.map(r => ({
+  const rows: ExportRow[] = buildExportRows({ ...input, quartal }).map(r => ({
     ...r,
     ma: input.anonymMap.toReal.get(r.ma) ?? r.ma,  // fallback if unknown
   }));
-  const wb = buildWorkbook(deAnonymizedRows, quartal);
-  const arr = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
-  return { workbook: arr, quartal, rowCount: rows.length };
-}
-
-/**
- * Packt das de-anonymisierte XLSX in ein AES-256-verschluesseltes ZIP.
- * Caller muss das Passwort liefern.
- *
- * Dateiname: `auslastung-{quartal}.zip` — die XLSX im ZIP heisst dann
- * `auslastung-{quartal}.xlsx`.
- *
- * Technologie: `@zip.js/zip.js` — unterstuetzt AES-256 nativ.
- */
-export async function exportProtectedZip(
-  input: BuildRowsInput & { anonymMap: AnonymMap; password: string },
-): Promise<void> {
-  if (!input.password || input.password.length < 4) {
-    throw new Error('Passwort muss mindestens 4 Zeichen lang sein');
-  }
-  const zipjs = await import('@zip.js/zip.js');
-  const { ZipWriter, BlobReader, BlobWriter, Uint8ArrayReader } = zipjs;
-
-  const { workbook, quartal } = buildDeAnonymizedWorkbook(input);
-  const xlsxBlobBytes = new Uint8Array(workbook);
-  const xlsxFilename = `auslastung-${quartal}.xlsx`;
-
-  const zipBlob = new BlobWriter('application/zip');
-  const writer = new ZipWriter(zipBlob, {
-    password: input.password,
-    encryptionStrength: 3,   // 3 = AES-256
-    zipCrypto: false,        // strikt AES, keine Legacy-Verschluesselung
-  });
-  await writer.add(xlsxFilename, new Uint8ArrayReader(xlsxBlobBytes));
-  // README im ZIP — erinnert dass die Datei sensitive Daten enthaelt.
-  const readme = `Diese Datei enthaelt de-anonymisierte Auslastungs-Daten ` +
-    `fuer das Quartal ${quartal}.\n` +
-    `Bitte vertraulich behandeln und nach Gebrauch loeschen.\n\n` +
-    `Erstellt am: ${new Date().toLocaleString('de-DE')}\n`;
-  await writer.add(
-    'README.txt',
-    new BlobReader(new Blob([readme], { type: 'text/plain' })),
-    { password: input.password, encryptionStrength: 3 } as Parameters<typeof writer.add>[2],
-  );
-  await writer.close();
-
-  const blob = await zipBlob.getData();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `auslastung-${quartal}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const wb = buildWorkbook(rows, quartal);
+  XLSX.writeFile(wb, `auslastung-kuerzel-${quartal}.xlsx`);
 }

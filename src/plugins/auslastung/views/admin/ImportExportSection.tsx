@@ -12,16 +12,14 @@
 import { useState } from 'react';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymMap } from '../../services/anonym-map';
-import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { downloadKapazitaetsTemplate } from '../../services/kapazitaets-import';
 import { downloadOnboardingHtml } from '../../services/onboarding-html-generator';
-import { exportAnonymousXlsx, exportProtectedZip } from '../../services/export-service';
+import { exportAnonymousXlsx, exportDeAnonymizedXlsx } from '../../services/export-service';
 import type { OnboardingPreview } from '../../services/onboarding-import';
 import { ImportDialog } from '../../components/ImportDialog';
 import { OnboardingImportDialog } from '../../components/OnboardingImportDialog';
 import { KalibrierungsReport } from '../../components/KalibrierungsReport';
-import { PasswortDialog } from '../../components/PasswortDialog';
 
 interface Props {
   antraege: Antrag[];
@@ -41,12 +39,6 @@ export function ImportExportSection({ antraege, anonymMap }: Props): React.React
   const [onboardingImportOpen, setOnboardingImportOpen] = useState(false);
   const [calibPreviews, setCalibPreviews] = useState<OnboardingPreview[] | null>(null);
 
-  // Protected-Export mit Passwort.
-  const [pwOpen, setPwOpen] = useState(false);
-  const exportGeschuetzt = useAsyncAction(async (password: string) => {
-    await exportProtectedZip({ data, antraege, anonymMap, password });
-    setPwOpen(false);
-  });
 
   return (
     <div className="rounded-[12px] p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
@@ -109,7 +101,7 @@ export function ImportExportSection({ antraege, anonymMap }: Props): React.React
         <div>
           <h4 className="text-[12.5px] font-medium mb-1">Snapshot-Export</h4>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-2 leading-snug">
-            Anonyme XLSX für externe Auswertung — oder passwortgeschützter ZIP mit Klartext-Kürzeln.
+            Anonyme XLSX für externe Auswertung — oder XLSX mit Klartext-Kürzeln (Ablage auf geschütztem Bereich).
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -122,12 +114,11 @@ export function ImportExportSection({ antraege, anonymMap }: Props): React.React
             </button>
             <button
               type="button"
-              onClick={() => setPwOpen(true)}
-              disabled={exportGeschuetzt.busy}
-              className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
+              onClick={() => exportDeAnonymizedXlsx({ data, antraege, anonymMap })}
+              className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
               style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >
-              Mit Kürzeln (geschützt)
+              Mit Kürzeln (XLSX)
             </button>
           </div>
         </div>
@@ -145,17 +136,6 @@ export function ImportExportSection({ antraege, anonymMap }: Props): React.React
         previews={calibPreviews ?? []}
         onClose={() => setCalibPreviews(null)}
       />
-      <PasswortDialog
-        open={pwOpen}
-        busy={exportGeschuetzt.busy}
-        onClose={() => setPwOpen(false)}
-        onConfirm={(password) => exportGeschuetzt.run(password)}
-      />
-      {exportGeschuetzt.error && (
-        <p className="mt-2 text-[11px] text-[var(--tf-danger-text)]">
-          Export fehlgeschlagen: {exportGeschuetzt.error}
-        </p>
-      )}
     </div>
   );
 }

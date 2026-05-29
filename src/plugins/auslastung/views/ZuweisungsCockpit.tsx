@@ -41,9 +41,8 @@ import { TechnologieTags } from '../components/TechnologieTags';
 import { VorschlagCard } from '../components/VorschlagCard';
 import { tageImQuartal as computeTageImQuartal } from '../services/kapazitaet';
 import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
-import { PasswortDialog } from '../components/PasswortDialog';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
-import { exportAnonymousXlsx, exportProtectedZip } from '../services/export-service';
+import { exportAnonymousXlsx, exportDeAnonymizedXlsx } from '../services/export-service';
 import type { Antrag } from '@/core/services/csv/types';
 
 type StatusFilter = 'offen' | 'selbst' | 'zugewiesen' | 'alle';
@@ -66,8 +65,6 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const [selectedAz, setSelectedAz] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [matchingRunning, setMatchingRunning] = useState(false);
-  const [pwOpen, setPwOpen] = useState(false);
-  const [exportBusy, setExportBusy] = useState(false);
 
   const data = useAuslastungData(s => s.data);
 
@@ -75,20 +72,13 @@ export function ZuweisungsCockpit(): React.ReactElement {
     exportAnonymousXlsx({ data, antraege: cache.antraege, verbuendeById: cache.verbuendeById });
   }
 
-  async function exportGeschuetzt(password: string): Promise<void> {
-    setExportBusy(true);
-    try {
-      await exportProtectedZip({
-        data,
-        antraege: cache.antraege,
-        anonymMap: cache.anonymMap,
-        verbuendeById: cache.verbuendeById,
-        password,
-      });
-      setPwOpen(false);
-    } finally {
-      setExportBusy(false);
-    }
+  function exportMitKuerzeln(): void {
+    exportDeAnonymizedXlsx({
+      data,
+      antraege: cache.antraege,
+      anonymMap: cache.anonymMap,
+      verbuendeById: cache.verbuendeById,
+    });
   }
 
   // v2.9: gemeinsamer Provider-Memo statt eigener Berechnung. Wird in die
@@ -229,29 +219,20 @@ export function ZuweisungsCockpit(): React.ReactElement {
         <button
           type="button"
           onClick={exportAnonym}
-          disabled={exportBusy}
-          className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
+          className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
           style={{ border: '0.5px solid var(--tf-border)' }}
         >
           Export (anonym)
         </button>
         <button
           type="button"
-          onClick={() => setPwOpen(true)}
-          disabled={exportBusy}
-          className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
+          onClick={exportMitKuerzeln}
+          className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
           style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
         >
-          Export (mit Kürzeln, geschützt)
+          Export (mit Kürzeln)
         </button>
       </div>
-
-      <PasswortDialog
-        open={pwOpen}
-        busy={exportBusy}
-        onClose={() => setPwOpen(false)}
-        onConfirm={exportGeschuetzt}
-      />
 
       {/* Filter-Pills (Kategorien) */}
       <div className="flex items-center gap-3 flex-wrap">
