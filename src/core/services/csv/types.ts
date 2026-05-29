@@ -202,6 +202,11 @@ export interface AntragListItem {
   status?: AntragStatusRaw;
   antragsteller?: string;
   branche?: string;
+  /** Wiedereinreicher-Hinweis (CSV-Spalte `T_XSW`, custom-Feld `t_xsw`).
+   *  Freitext mit den TIB-Kürzeln des damaligen Bearbeiters. Wird in den
+   *  Titel-Ansichten rot/fett hinter dem VB-Titel gerendert (siehe
+   *  `src/plugins/antraege/xsw.ts`). */
+  t_xsw?: string;
   /** Verbund-Phasen-Code aus CSV-Spalte `VB_PHASE` (1=NW1, 2=NW2, 3=FuE, 4=DL, 5=DS, 9=Irrläufer). */
   vb_phase?: number;
   // Sort + View-Predicates

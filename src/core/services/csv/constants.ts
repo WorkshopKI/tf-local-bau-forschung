@@ -82,6 +82,7 @@ export const LIST_VIEW_FIELDS: readonly string[] = [
   'status',
   'antragsteller',
   'branche',
+  't_xsw',
   'vb_phase',
   // Sort + View-Predicates
   'frist_datum',

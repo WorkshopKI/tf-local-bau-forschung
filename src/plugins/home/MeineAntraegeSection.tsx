@@ -4,6 +4,7 @@ import { useNavigation } from '@/core/hooks/useNavigation';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
+import { XswSuffix } from '@/plugins/antraege/XswSuffix';
 import type { AntragVorgang } from './useDashboardData';
 
 /**
@@ -128,12 +129,12 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
         const split = splitTitle(baseTitle, v.acronym);
         const displayAcronym = split.acronym ?? (v.acronym?.trim() || null);
         const titleNode = displayAcronym ? (
-          <span className="truncate">
+          <span className="truncate min-w-0">
             <span className="font-medium text-[var(--tf-text)]">{displayAcronym}</span>
             <span className="text-[var(--tf-text-secondary)]"> / {split.rest}</span>
           </span>
         ) : (
-          <span className="truncate text-[var(--tf-text-secondary)]">{split.rest}</span>
+          <span className="truncate min-w-0 text-[var(--tf-text-secondary)]">{split.rest}</span>
         );
         // Subtitle: Aktenzeichen + "+N TV"-Suffix bei Verbund-Clustern.
         // N = Anzahl weiterer TVs (= tv_count − 1).
@@ -171,8 +172,8 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
             key={v.id}
             iconBare
             icon={iconNode}
-            title={titleNode}
-            titleClassName="text-[13px] truncate"
+            title={<>{titleNode}<XswSuffix value={v.t_xsw} className="shrink-0 max-w-[40%] truncate" /></>}
+            titleClassName="text-[13px] flex items-baseline gap-1 min-w-0"
             subtitle={subtitleText}
             subtitleClassName="text-[11px] font-mono text-[var(--tf-text-tertiary)] truncate"
             meta={<Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>}

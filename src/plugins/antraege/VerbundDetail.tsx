@@ -21,6 +21,8 @@ import { VerbundAlleFelder } from './VerbundAlleFelder';
 import { WorkflowStepper } from './WorkflowStepper';
 import { TvDetailBlock } from './TvDetailBlock';
 import { findFieldValue } from './fieldLookup';
+import { XswSuffix } from './XswSuffix';
+import { readXsw } from './xsw';
 import {
   isPseudoVerbundId,
   aktenzeichenFromPseudoVerbundId,
@@ -177,6 +179,8 @@ export function VerbundDetail({
   const displayStatus = verbundStatus ?? dominantStatus(antraege, null);
   const akronym = strOrNull(verbund.akronym) ?? strOrNull(lead?.akronym) ?? verbund.verbund_id;
   const titel = strOrNull(verbund.titel) ?? strOrNull(lead?.titel);
+  // Verbund hat keine Custom-Felder → T_XSW vom Lead-TV ziehen (Verbund≈Lead).
+  const leadXsw = readXsw(lead);
   const antragsteller = strOrNull(lead?.antragsteller);
   const unterprogramm = lead?.unterprogramm_id ?? null;
   const antragsdatum = strOrNull(lead?.antragsdatum);
@@ -227,7 +231,13 @@ export function VerbundDetail({
           <span className="text-[12px] text-[var(--tf-text-tertiary)] font-mono">{headerId}</span>
         </div>
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">{akronym}</h1>
-        {titel ? <div className="mt-1 text-[14px] text-[var(--tf-text-secondary)]">{titel}</div> : null}
+        {titel ? (
+          <div className="mt-1 text-[14px] text-[var(--tf-text-secondary)]">
+            {titel}<XswSuffix value={leadXsw} />
+          </div>
+        ) : leadXsw ? (
+          <div className="mt-1 text-[14px]"><XswSuffix value={leadXsw} /></div>
+        ) : null}
       </div>
 
       {/* KURZBESCHREIBUNG — Verbund-Inhalt aus VB_INHALT. Sitzt ganz oben,
@@ -301,6 +311,7 @@ export function VerbundDetail({
             {antraege.map((tv, idx) => {
               const tvAntragsteller = strOrNull(tv.antragsteller) ?? '—';
               const tvTitel = strOrNull(tv.titel);
+              const tvXsw = readXsw(tv);
               const tvStatus = strOrNull(tv.status);
               const rolle = tvRolle(tv, idx, antraege);
               const isExpanded = expandedTvAz === tv.aktenzeichen;
@@ -333,9 +344,14 @@ export function VerbundDetail({
                           {rolle} · <span className="font-mono">{tv.aktenzeichen}</span>
                           {' '}· Zuwendung: {zuwendungPlaceholder}
                         </div>
-                        {tvTitel ? (
-                          <div className="text-[11.5px] text-[var(--tf-text-secondary)] mt-0.5 truncate" title={tvTitel}>
-                            {tvTitel}
+                        {tvTitel || tvXsw ? (
+                          <div className="flex items-baseline gap-1 mt-0.5 min-w-0">
+                            {tvTitel ? (
+                              <span className="text-[11.5px] text-[var(--tf-text-secondary)] truncate" title={tvTitel}>
+                                {tvTitel}
+                              </span>
+                            ) : null}
+                            <XswSuffix value={tvXsw} className="shrink-0 max-w-[55%] truncate text-[11.5px]" />
                           </div>
                         ) : null}
                       </div>

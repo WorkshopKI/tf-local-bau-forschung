@@ -40,6 +40,9 @@ export type AntragVorgang = Vorgang & {
    *  Verbund-Lead-TVs = Anzahl aller TVs (inkl. Lead). UI rendert
    *  `+N`-Indikator wenn > 1. Wird nur in `meineAntraege` gesetzt. */
   tv_count?: number;
+  /** Wiedereinreicher-Hinweis aus der CSV-Spalte `T_XSW` (custom-Feld
+   *  `t_xsw`). Wird in „Meine Anträge" rot/fett hinter dem Titel gerendert. */
+  t_xsw?: string;
 };
 
 export interface DashboardStats {
@@ -155,6 +158,7 @@ function antragToVorgangLike(
     acronym: typeof a.akronym === 'string' && a.akronym.trim().length > 0 ? a.akronym.trim() : undefined,
     verbund_id: verbundId,
     verbund_titel: verbundTitel,
+    t_xsw: typeof a.t_xsw === 'string' && a.t_xsw.trim().length > 0 ? a.t_xsw.trim() : undefined,
   };
 }
 

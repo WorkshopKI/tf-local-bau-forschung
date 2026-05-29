@@ -52,4 +52,9 @@ export const SCHEMA_A_COLUMN_MAPPING: ColumnMapping = {
   // Wiederholungs-Boost als Forschungseinrichtungen, da letztere thematisch
   // breit aufgestellt sind).
   ATTR_AUFB: { custom: 'ast_typ', type: 'string' },
+  // Wiedereinreicher-Hinweis: Freitext (z.B. "Wiedereinreicher ZEP250142_JoA/KaLa"),
+  // enthaelt die TIB-Kuerzel des damaligen Bearbeiters. Wird in allen Titel-
+  // Ansichten rot/fett hinter dem VB-Titel angezeigt; auf der Home sortiert ein
+  // Match mit dem eigenen Kuerzel den Antrag nach oben (siehe xsw.ts).
+  T_XSW: { custom: 't_xsw', type: 'string' },
 };

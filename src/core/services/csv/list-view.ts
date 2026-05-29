@@ -23,6 +23,7 @@ export function toAntragListItem(antrag: Antrag): AntragListItem {
   copyStringField(antrag, item, 'status');
   copyStringField(antrag, item, 'antragsteller');
   copyStringField(antrag, item, 'branche');
+  copyStringField(antrag, item, 't_xsw');
   copyStringField(antrag, item, 'frist_datum');
   copyStringField(antrag, item, 'bewilligung_datum');
   copyStringField(antrag, item, 'antragsdatum');

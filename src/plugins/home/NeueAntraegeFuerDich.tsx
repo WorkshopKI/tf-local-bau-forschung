@@ -22,7 +22,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useProfile } from '@/core/hooks/useProfile';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { XswSuffix } from '@/plugins/antraege/XswSuffix';
+import { readXsw, xswMatchesOwnKuerzel } from '@/plugins/antraege/xsw';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { useKuerzelMap } from '@/plugins/auslastung/hooks/useKuerzelMap';
@@ -47,6 +50,8 @@ interface OffenerAntrag {
   antrag: Antrag;
   klassifizierung: Klassifizierung;
   daysLeft: number;
+  /** T_XSW enthält das EIGENE Kürzel des Users → „mein alter Antrag" → nach oben. */
+  xswMine: boolean;
 }
 
 export function NeueAntraegeFuerDich(): React.ReactElement | null {
@@ -59,6 +64,9 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const load = useAuslastungData(s => s.load);
   const cache = useAntraegeCache();
   const kuerzelMapLoaded = useKuerzelMap(s => s.loaded);
+  const { profile } = useProfile();
+  // Rohes eigenes Kürzel (ggf. kommagetrennt) für den T_XSW-Wiedereinreicher-Bump.
+  const ownKuerzelRaw = profile?.bearbeiter_kuerzel ?? null;
   const [showAlleModal, setShowAlleModal] = useState(false);
 
   // Idempotent: triggert Initial-Load auch wenn der User noch nie im
@@ -131,17 +139,20 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       const deadline = freigegebenAm != null ? freigegebenAm + fristTage * 86400000 : null;
       const daysLeft = deadline != null ? Math.max(0, Math.ceil((deadline - Date.now()) / 86400000)) : fristTage;
       if (deadline != null && daysLeft <= 0) continue;
-      items.push({ antrag, klassifizierung: k, daysLeft });
+      // Wiedereinreicher-Bump: T_XSW enthält das eigene Kürzel → „mein alter Antrag".
+      const xswMine = xswMatchesOwnKuerzel(readXsw(antrag), ownKuerzelRaw);
+      items.push({ antrag, klassifizierung: k, daysLeft, xswMine });
     }
-    // Sortierung: Frist asc, dann Akronym asc
+    // Sortierung: eigene Wiedereinreicher zuerst, dann Frist asc, dann Akronym asc
     items.sort((a, b) => {
+      if (a.xswMine !== b.xswMine) return a.xswMine ? -1 : 1;
       if (a.daysLeft !== b.daysLeft) return a.daysLeft - b.daysLeft;
       const akA = (a.antrag.akronym as string | undefined) ?? a.antrag.aktenzeichen;
       const akB = (b.antrag.akronym as string | undefined) ?? b.antrag.aktenzeichen;
       return akA.localeCompare(akB);
     });
     return items;
-  }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, antraegeById, config.selbsteintragungFristTage]);
+  }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw]);
 
   // Kapazitaets-Sicht (v2.4): konsumiert MaQuartalsAuslastung statt
   // zuweisungen[]+externeAnzahl. Rest in TVs statt "Antraegen" (Stunden-
@@ -311,6 +322,7 @@ function NeueAntraegeRow({ item, onUebernehmen, disabled, compact }: RowProps): 
           {akronym && <span className="text-[var(--tf-text-tertiary)]"> · </span>}
           <span className="text-[var(--tf-text-secondary)]">{titel}</span>
         </div>
+        <XswSuffix value={antrag} className="shrink-0 max-w-[35%] truncate text-[12px]" />
         <span className={`text-[10.5px] tabular-nums shrink-0 ${fristTone}`} title="Verbleibende Frist">
           Noch {daysLeft}d
         </span>
@@ -343,7 +355,10 @@ function NeueAntraegeRow({ item, onUebernehmen, disabled, compact }: RowProps): 
             <KategoriePill key={k.id} kategorie={k} active={false} />
           ))}
         </div>
-        <div className="text-[12.5px] text-[var(--tf-text)] truncate">{titel}</div>
+        <div className="flex items-baseline gap-1 min-w-0">
+          <span className="text-[12.5px] text-[var(--tf-text)] truncate">{titel}</span>
+          <XswSuffix value={antrag} className="shrink-0 max-w-[50%] truncate text-[12.5px]" />
+        </div>
       </div>
       <div className="text-right flex flex-col items-end gap-1 shrink-0">
         <span className={`text-[10.5px] ${fristTone}`}>

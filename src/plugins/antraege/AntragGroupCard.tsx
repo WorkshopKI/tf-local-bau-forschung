@@ -10,6 +10,7 @@ import {
 } from './eingangAmpel';
 import type { AntragGroup } from './antragGroups';
 import { isNetzwerkLead } from './netzwerk';
+import { XswSuffix } from './XswSuffix';
 
 interface Props {
   group: AntragGroup;
@@ -202,6 +203,7 @@ function TvRow({ tv, showLine, selected, onClick, narrow }: TvRowProps): React.R
           <span className={`truncate ${narrow ? 'text-[12px]' : 'text-[12.5px]'} text-[var(--tf-text-secondary)]`}>
             {lineText}
           </span>
+          <XswSuffix value={tv} className={`shrink-0 max-w-[45%] truncate ${narrow ? 'text-[12px]' : 'text-[12.5px]'}`} />
           {isLead ? (
             <span
               className="shrink-0 inline-flex items-center rounded-full text-[10px] font-medium uppercase tracking-wider"
