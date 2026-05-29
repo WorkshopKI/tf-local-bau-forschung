@@ -23,8 +23,14 @@ const HINT =
   'Noch offene Anträge aus den letzten 2 Quartalen — rein informativ, fließen nicht in die Kapazität ein.';
 
 /** Gemeinsames Spalten-Raster für Kopfzeile + Datenzeilen → alle Spalten
- *  stehen bündig untereinander. FKZ · Akronym(flex) · Status · Datum · TVs. */
-const GRID = 'grid items-baseline gap-x-3 grid-cols-[92px_minmax(0,1fr)_116px_78px_auto]';
+ *  stehen bündig untereinander.
+ *  FKZ · Akronym · Status · Datum · TVs · Spacer.
+ *  ALLE realen Spalten sind feste px (sonst säßen Kopf und Zeilen — je eigenes
+ *  Grid — wegen unterschiedlich breitem `auto`-Inhalt nicht bündig). Der
+ *  flexible Rest landet im leeren Spacer GANZ RECHTS: dadurch packen die Spalten
+ *  links zusammen (Status rückt nach links, TVs klebt nicht am Rand). */
+const GRID =
+  'grid items-baseline gap-x-3 grid-cols-[92px_132px_116px_78px_28px_minmax(0,1fr)]';
 
 export function AltlastInlineList({ altlast }: { altlast?: MaAltlastBucket }): React.ReactElement | null {
   if (!altlast || altlast.verbuende.length === 0) return null;
@@ -51,6 +57,7 @@ export function AltlastInlineList({ altlast }: { altlast?: MaAltlastBucket }): R
         <span>Status</span>
         <span>Datum</span>
         <span className="text-right">TVs</span>
+        <span aria-hidden />
       </div>
 
       <ul className="flex flex-col gap-y-1">
@@ -79,6 +86,7 @@ export function AltlastInlineList({ altlast }: { altlast?: MaAltlastBucket }): R
               <span className="text-[var(--tf-text-tertiary)] tabular-nums text-right">
                 {v.tvCount}
               </span>
+              <span aria-hidden />
             </li>
           );
         })}
