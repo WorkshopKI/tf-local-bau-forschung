@@ -29,6 +29,9 @@ export interface VerbundClassificationTableProps {
   onColumnWidthChange?: (key: string, width: number) => void;
   minColumnWidth?: number;
   emptyContent?: React.ReactNode;
+  /** Verbund-IDs, deren Header-Zeile kurz mit Freigabe-Flash hervorgehoben wird
+   *  (Grace-Period nach „Freigeben", bevor die Zeile aus dem Filter faellt). */
+  highlightRowIds?: Set<string>;
 }
 
 function effectiveWidth(c: VerbundColumn, overrides: Record<string, number> | undefined): number | undefined {
@@ -47,6 +50,7 @@ export function VerbundClassificationTable({
   onColumnWidthChange,
   minColumnWidth = DEFAULT_MIN_COLUMN_WIDTH,
   emptyContent,
+  highlightRowIds,
 }: VerbundClassificationTableProps): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
   const colRefs = useRef<Map<string, HTMLTableColElement>>(new Map());
@@ -151,7 +155,11 @@ export function VerbundClassificationTable({
         <tbody>
           {rows.map(view => (
             <Fragment key={view.verbundId}>
-              <VerbundHeaderRow view={view} columns={columns} />
+              <VerbundHeaderRow
+                view={view}
+                columns={columns}
+                highlight={highlightRowIds?.has(view.verbundId) ?? false}
+              />
               {!view.isSolo && view.tvs.map(tv => (
                 <TVSubRow
                   key={`${view.verbundId}::${tv.aktenzeichen}`}
@@ -181,11 +189,15 @@ export function VerbundClassificationTable({
 interface VerbundHeaderRowProps {
   view: VerbundKlassifizierungsView;
   columns: VerbundColumn[];
+  highlight?: boolean;
 }
 
-function VerbundHeaderRow({ view, columns }: VerbundHeaderRowProps): React.ReactElement {
+function VerbundHeaderRow({ view, columns, highlight = false }: VerbundHeaderRowProps): React.ReactElement {
   return (
-    <tr style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+    <tr
+      className={highlight ? 'animate-[freigabe-flash_1400ms_ease-out]' : undefined}
+      style={{ borderTop: '0.5px solid var(--tf-border)' }}
+    >
       {columns.map((c, idx) => {
         const noWrap = c.wrap === false;
         const isFirst = idx === 0;

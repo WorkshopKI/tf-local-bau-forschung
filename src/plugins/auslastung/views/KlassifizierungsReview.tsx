@@ -12,7 +12,7 @@
  * Pool-Filter: aktuelles Jahr, ohne TiB, ohne abgelehnt/zurückgezogen/Irrläufer
  * (TV-Ebene; ein Verbund erscheint wenn mindestens ein TV im Pool).
  */
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   ColumnPicker,
@@ -46,6 +46,11 @@ type ViewFilter = 'alle' | 'review' | 'freigegeben';
 
 const COLUMN_VISIBILITY_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_columns';
 const COLUMN_WIDTHS_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_column_widths';
+
+/** Dauer, die eine frisch freigegebene Zeile im „Review nötig"-Filter mit
+ *  Flash sichtbar bleibt, bevor sie ausgeblendet wird. Muss zur Keyframe-Dauer
+ *  `freigabe-flash` in theme.css passen. */
+const FREIGABE_FLASH_MS = 1400;
 
 function jahrAusQuartal(quartal: string): number | null {
   const m = /^(\d{4})-Q[1-4]$/.exec(quartal);
@@ -137,6 +142,17 @@ export function KlassifizierungsReview(): React.ReactElement {
 
   const [filter, setFilter] = useState<ViewFilter>('alle');
 
+  // Freigabe-Grace-Period: nach „Freigeben" wechselt der Verbund auf Status
+  // 'freigegeben' und faellt aus dem „Review nötig"-Filter. Statt sofort zu
+  // verschwinden bleibt die Zeile FREIGABE_FLASH_MS mit gruenem Flash stehen
+  // (Erfolgs-Feedback), dann wird sie entfernt.
+  const [justFreigegeben, setJustFreigegeben] = useState<Set<string>>(() => new Set());
+  const freigabeTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  useEffect(() => {
+    const timers = freigabeTimers.current;
+    return () => { for (const t of timers.values()) clearTimeout(t); };
+  }, []);
+
   const counts = useMemo(() => {
     let neu = 0, freig = 0, review = 0;
     for (const v of verbundViews) {
@@ -150,10 +166,14 @@ export function KlassifizierungsReview(): React.ReactElement {
   const filtered = useMemo(() => {
     return verbundViews.filter(v => {
       if (filter === 'freigegeben') return v.klassifizierung.status === 'freigegeben';
-      if (filter === 'review') return v.klassifizierung.status !== 'freigegeben' && v.confidence !== 'high';
+      if (filter === 'review') {
+        // Frisch freigegeben → noch in der Flash-Grace-Period sichtbar lassen.
+        if (justFreigegeben.has(v.verbundId)) return true;
+        return v.klassifizierung.status !== 'freigegeben' && v.confidence !== 'high';
+      }
       return true;
     });
-  }, [verbundViews, filter]);
+  }, [verbundViews, filter, justFreigegeben]);
 
   // Sammelt die Freigabe-Entries fuer alle TVs eines Verbundes (gleiche
   // Kategorien fuer alle TVs). Leeres Array, wenn kein Primaer-Vorschlag.
@@ -167,9 +187,22 @@ export function KlassifizierungsReview(): React.ReactElement {
   }
 
   // Persistenz-Wrapper: Verbund-Aktion wirkt auf alle TVs — EIN persist
-  // statt einem pro TV (Pitfall #16/#20).
+  // statt einem pro TV (Pitfall #16/#20). Danach Grace-Period starten, damit
+  // die Zeile im „Review nötig"-Filter nicht sofort verschwindet.
   async function freigebeVerbund(view: VerbundKlassifizierungsView): Promise<void> {
     await freigebenBulk(storage, collectVerbundFreigaben(view));
+    const id = view.verbundId;
+    setJustFreigegeben(prev => new Set(prev).add(id));
+    const existing = freigabeTimers.current.get(id);
+    if (existing) clearTimeout(existing);
+    freigabeTimers.current.set(id, setTimeout(() => {
+      setJustFreigegeben(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      freigabeTimers.current.delete(id);
+    }, FREIGABE_FLASH_MS));
   }
 
   // Pill-Toggle: optimistisch (ein setState) + debounced persist. Wirkt auf
@@ -372,6 +405,7 @@ export function KlassifizierungsReview(): React.ReactElement {
         onSort={toggleSort}
         columnWidths={columnWidths}
         onColumnWidthChange={setWidth}
+        highlightRowIds={justFreigegeben}
         emptyContent={
           isInitialLoading
             ? <SkeletonRows count={6} columns={[70, 80, 240, 140, 80, 70, 70]} />
