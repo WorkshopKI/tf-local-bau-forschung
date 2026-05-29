@@ -109,6 +109,12 @@ export const DEFAULT_CONFIG = {
      *  Varianten aktiviert, die auf einem geschuetzten SMB-Bereich liegen
      *  und nur von der PL aufgerufen werden. */
     deAnonymisierung: false,
+    /** v2.x: Schreibrecht auf den Daten-Share auch fuer Nicht-Kuratoren. Hebt
+     *  das v2.0-read-only-Hardening (Pitfall #24) gezielt fuer Rollen auf, die
+     *  aktiv in `_intern/*` schreiben muessen — konkret die PL (Auslastungs-
+     *  Klassifizierung schreibt `auslastung.json`). Steuert Picker-/Grant-Mode
+     *  (`canWriteDatenShare`). Nur in dev + pl true. */
+    datenShareSchreibrecht: true,
     // User-Plugin-Gates: getrennt von den Master-Flags volltextsuche/feedback,
     // damit Varianten den Kurator-Index/Feedback-Verwaltung freischalten können,
     // ohne dass das User-Suche-Plugin oder das User-Feedback-Board in der
@@ -248,7 +254,7 @@ export function validateConfig(config) {
   const requiredFlags = [
     'kuratorMenus', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
     'antraege', 'bauantraege', 'dokumente', 'auslastung', 'auslastungSelbstEintragung',
-    'deAnonymisierung',
+    'deAnonymisierung', 'datenShareSchreibrecht',
     'chat', 'suche', 'feedbackBoard',
   ];
   for (const k of requiredFlags) {

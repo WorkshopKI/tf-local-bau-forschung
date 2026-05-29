@@ -15,7 +15,7 @@ import {
 } from '@/core/services/infrastructure/smb-handle';
 import { validateSelectedFolder, migrateLegacyStructure } from '@/core/services/infrastructure/migration';
 import type { FolderValidationResult } from '@/core/services/infrastructure/types';
-import { dataConfig } from '@/config/feature-flags';
+import { dataConfig, canWriteDatenShare } from '@/config/feature-flags';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -53,7 +53,7 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
   );
   const pathIsLocked = dataConfig.fixedDataSharePath !== null && !dataConfig.allowUserToChangePath;
   const expectedFolderName = dataConfig.expectedFolderName ?? null;
-  const pickerMode: 'read' | 'readwrite' = isKurator ? 'readwrite' : 'read';
+  const pickerMode: 'read' | 'readwrite' = canWriteDatenShare(isKurator) ? 'readwrite' : 'read';
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -68,6 +68,21 @@ export function isAuslastungSelbstEintragungEnabled(): boolean {
 export function isDeAnonymisierungEnabled(): boolean {
   return features.deAnonymisierung === true;
 }
+/** v2.x: Build erlaubt Schreibzugriff auf den Daten-Share auch ohne Kurator-
+ *  Profil (z.B. pl-Variante — die PL schreibt die Auslastungs-Klassifizierung
+ *  nach `_intern/auslastung.json`). Ausnahme vom v2.0-read-only-Hardening. */
+export function isDatenShareWritable(): boolean {
+  return features.datenShareSchreibrecht === true;
+}
+/** Effektives Daten-Share-Schreibrecht: Kurator-Profil ODER der Build erlaubt
+ *  es generell (`datenShareSchreibrecht`). EINZIGE Stelle, an der der
+ *  Picker-/Grant-Mode (`read` vs `readwrite`) fuer den Daten-Share entschieden
+ *  wird — alle Call-Sites (WelcomeScreen, StartupScreen, SpeicherTab,
+ *  refreshAllPermissions, needsDatenShareDowngrade, Visibility-Probe) routen
+ *  hier durch. */
+export function canWriteDatenShare(isKurator: boolean): boolean {
+  return isKurator || isDatenShareWritable();
+}
 export function isChatEnabled(): boolean { return features.chat; }
 export function isSucheEnabled(): boolean { return features.suche; }
 export function isFeedbackBoardEnabled(): boolean { return features.feedbackBoard; }

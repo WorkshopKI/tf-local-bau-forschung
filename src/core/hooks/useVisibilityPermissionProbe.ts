@@ -19,6 +19,7 @@ import {
   type FsDirHandle,
 } from '@/core/services/infrastructure/smb-handle';
 import { useConnectionState } from '@/core/services/connection-status';
+import { canWriteDatenShare } from '@/config/feature-flags';
 
 type PermStateOrMissing = 'granted' | 'denied' | 'prompt' | 'missing';
 
@@ -50,7 +51,7 @@ export function useVisibilityPermissionProbe(
         getPersoenlichHandle(idb).catch(() => null),
       ]);
       const [dsState, psState] = await Promise.all([
-        queryHandlePermission(datenShare, isKurator ? 'readwrite' : 'read'),
+        queryHandlePermission(datenShare, canWriteDatenShare(isKurator) ? 'readwrite' : 'read'),
         queryHandlePermission(persoenlich, 'readwrite'),
       ]);
       applyRefreshResult({

@@ -21,7 +21,7 @@ import {
 } from '@/core/services/infrastructure/smb-handle';
 import { useConnectionState } from '@/core/services/connection-status';
 import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/types';
-import { dataConfig } from '@/config/feature-flags';
+import { dataConfig, canWriteDatenShare } from '@/config/feature-flags';
 import { ensureReadme } from '@/core/services/infrastructure/smb-handle';
 import { validateSelectedFolder } from '@/core/services/infrastructure/migration';
 import type { UserProfile } from '@/core/types/config';
@@ -104,7 +104,7 @@ export function StartupScreen({
     setError(null);
     setBusy(true);
     try {
-      const mode: 'read' | 'readwrite' = isKurator ? 'readwrite' : 'read';
+      const mode: 'read' | 'readwrite' = canWriteDatenShare(isKurator) ? 'readwrite' : 'read';
       const res = await pickAndStoreDatenShareHandle(storage.idb, { mode });
       if (!res.ok) {
         if (res.reason !== 'aborted') {
@@ -214,7 +214,7 @@ export function StartupScreen({
           <>
             <p className="text-[12.5px] text-[var(--tf-text-tertiary)] leading-relaxed mb-5">
               Beim Start fragt der Browser einmalig nach Erlaubnis für den Datenordner
-              {profile && !isKurator ? ' (Lese-Zugriff)' : ''} und Ihren persönlichen
+              {profile && !canWriteDatenShare(isKurator) ? ' (Lese-Zugriff)' : ''} und Ihren persönlichen
               Ordner.
             </p>
             <Button icon={ArrowRight} onClick={handleStart} disabled={busy} className="w-full">

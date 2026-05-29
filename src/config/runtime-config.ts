@@ -58,6 +58,10 @@ export interface TeamflowFeatures {
    *  geschuetzt, 24h-Session). Nur in dev/pl-Varianten aktiviert, die auf
    *  einem geschuetzten SMB-Bereich liegen. */
   deAnonymisierung: boolean;
+  /** v2.x: Schreibrecht auf den Daten-Share auch fuer Nicht-Kuratoren (hebt das
+   *  v2.0-read-only-Hardening gezielt auf, z.B. fuer die PL). Steuert Picker-/
+   *  Grant-Mode via `canWriteDatenShare`. Nur dev + pl. */
+  datenShareSchreibrecht: boolean;
   /** User-Plugin "Chat" (AI-Chat). Build-Time-Gate, unabhängig von KI-Backend-Config. */
   chat: boolean;
   /** User-Plugin "Suche" (Hybrid-Suche). Trennt sich von `volltextsuche` (das gated den Suchindex-Kurator). */

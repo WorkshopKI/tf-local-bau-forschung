@@ -34,6 +34,7 @@ import {
   README_PATH,
   PERSOENLICH_ZAH_DIR,
 } from './types';
+import { canWriteDatenShare } from '@/config/feature-flags';
 
 type PermState = 'granted' | 'denied' | 'prompt';
 
@@ -492,7 +493,9 @@ export async function refreshAllPermissions(
 
   const datenShare = map[SMB_HANDLE_DATEN_SHARE] ?? map[SMB_HANDLE_LEGACY_TEST_PROGRAMM];
   if (datenShare) {
-    const mode = opts.isKurator ? 'readwrite' : 'read';
+    // Schreibrecht: Kurator ODER Build erlaubt es generell (pl-Variante).
+    // userFoldersRoot/DMS unten bleiben bewusst kurator-only.
+    const mode = canWriteDatenShare(opts.isKurator) ? 'readwrite' : 'read';
     try {
       result.datenShare = await (datenShare as FsDirHandle).requestPermission({ mode });
     } catch {
@@ -542,7 +545,9 @@ export async function needsDatenShareDowngrade(
   idb: IDBStore,
   opts: { isKurator: boolean },
 ): Promise<boolean> {
-  if (opts.isKurator) return false;
+  // Kein Downgrade fuer Rollen, die schreiben duerfen (Kurator ODER Build mit
+  // datenShareSchreibrecht, z.B. pl) — die sollen readwrite behalten.
+  if (canWriteDatenShare(opts.isKurator)) return false;
   const map = await readAll(idb);
   const handle = map[SMB_HANDLE_DATEN_SHARE] ?? map[SMB_HANDLE_LEGACY_TEST_PROGRAMM];
   if (!handle) return false;

@@ -87,6 +87,12 @@
     // false; in dev.config aktivieren um das Plugin auszuprobieren.
     "auslastung": false,
 
+    // Schreibrecht auf den Daten-Share auch ohne Kurator-Profil. Hebt das
+    // v2.0-read-only-Hardening gezielt fuer Rollen auf, die aktiv in `_intern/*`
+    // schreiben (PL: Auslastungs-Klassifizierung → auslastung.json). Steuert
+    // Picker-/Grant-Mode (read vs readwrite). Nur dev + pl true.
+    "datenShareSchreibrecht": false,
+
     // User-Plugin-Gates (Sidebar-Sichtbarkeit). Getrennt von den Master-Flags
     // volltextsuche/feedback, damit z.B. die kurator-Variante den Suchindex-
     // Kurator und die Feedback-Kuration freischalten kann, ohne dass das

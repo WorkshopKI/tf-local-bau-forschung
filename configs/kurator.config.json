@@ -30,6 +30,7 @@
     "auslastung": false,
     "auslastungSelbstEintragung": false,
     "deAnonymisierung": false,
+    "datenShareSchreibrecht": false,
     "chat": false,
     "suche": false,
     "feedbackBoard": true

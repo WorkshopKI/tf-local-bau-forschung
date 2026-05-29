@@ -5,7 +5,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import type { DirectoryEntry } from '@/core/types/config';
 import { shouldShowOpfsOption } from '@/core/utils/environment';
-import { isKuratorMenusEnabled } from '@/config/feature-flags';
+import { isKuratorMenusEnabled, canWriteDatenShare } from '@/config/feature-flags';
 import {
   clearDatenShareHandle,
   clearPersoenlichHandle,
@@ -85,7 +85,7 @@ export function SpeicherTab(): React.ReactElement {
   const handlePickDatenShare = async (): Promise<void> => {
     setError('');
     const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
-    const mode = isKurator ? 'readwrite' : 'read';
+    const mode = canWriteDatenShare(isKurator) ? 'readwrite' : 'read';
     const res = await pickAndStoreDatenShareHandle(storage.idb, { mode });
     setDsBusy(true);
     try {
