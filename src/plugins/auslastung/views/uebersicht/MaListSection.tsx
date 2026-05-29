@@ -88,13 +88,11 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
     }
   }, [view]);
 
-  // Wenn ein Warning-Filter aktiv ist, blenden wir inaktive MAs automatisch ein,
-  // damit der User die Treffer auch sieht — sonst wird der Filter "leer" wirken.
-  useEffect(() => {
-    if (warningFilter === 'no-bookings' && !showInactive) {
-      setShowInactive(true);
-    }
-  }, [warningFilter, showInactive]);
+  // Hinweis: Der "no-bookings"-Filter erzwingt NICHT mehr showInactive=true.
+  // Die zugehoerige Warnung zaehlt nur AKTIVE MAs ohne Buchungen (statistik.ts),
+  // und ein erzwungenes showInactive liess sich nicht mehr abwaehlen (Effect
+  // re-setzte das Haekchen sofort). Der Filter zeigt jetzt per Default die
+  // aktiven Treffer; inaktive sind ueber die Checkbox optional zuschaltbar.
 
   // Auto-Create: fehlende MAs anlegen (siehe Original-Logik).
   useEffect(() => {
