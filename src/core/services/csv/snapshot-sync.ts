@@ -2,6 +2,7 @@ import type { IDBStore } from '../storage/idb-store';
 import { CSV_STORES, type CsvStoreName } from '../storage/idb-store';
 import { readText } from '../infrastructure/atomic-write';
 import type { ProgrammSnapshotManifest, SnapshotStoreName } from './snapshot';
+import { SYNC_VERSION_KEY, SYNC_STORE_HASH_KEY, SYNC_LAST_CHECK_DAY_KEY } from './snapshot-keys';
 import { MAX_WRITES_PER_TX } from './constants';
 
 export interface SyncProgress {
@@ -18,11 +19,6 @@ export interface SyncResult {
   /** Welche Stores wirklich neu geladen wurden (Hash-Mismatch). */
   reloadedStores?: SnapshotStoreName[];
 }
-
-const SYNC_VERSION_KEY = (programmId: string) => `snapshot-version-${programmId}`;
-const SYNC_STORE_HASH_KEY = (programmId: string, store: SnapshotStoreName) =>
-  `snapshot-store-hash-${programmId}-${store}`;
-const SYNC_LAST_CHECK_DAY_KEY = (programmId: string) => `snapshot-last-check-day-${programmId}`;
 
 /** YYYY-MM-DD im lokalen Zeit-Sinne (User-orientiert). */
 function todayKey(): string {

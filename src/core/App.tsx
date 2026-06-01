@@ -269,8 +269,10 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       const first = programme[0];
       if (first) {
         const verKey = `snapshot-version-${first.id}`;
-        const ver = await storage.idb.get<{ ts?: string }>(verKey);
-        if (ver?.ts) useConnectionState.getState().setLastSyncTimestamp(ver.ts);
+        // snapshot-version-<id> haelt einen ISO-String (siehe snapshot-keys.ts),
+        // kein { ts }-Objekt — direkt als String lesen.
+        const ver = await storage.idb.get<string>(verKey);
+        if (ver) useConnectionState.getState().setLastSyncTimestamp(ver);
       }
     } catch {
       /* best-effort */

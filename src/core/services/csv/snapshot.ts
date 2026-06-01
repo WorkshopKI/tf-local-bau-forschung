@@ -11,6 +11,7 @@ import {
   listUnterprogrammeByProgramm,
   getProgramm,
 } from './idb-csv';
+import { SYNC_VERSION_KEY, SYNC_STORE_HASH_KEY } from './snapshot-keys';
 
 const SNAPSHOT_FILES = {
   antraege: 'antraege.jsonl',
@@ -124,6 +125,18 @@ export async function writeProgrammSnapshot(
     stores,
   };
   await atomicWrite(programmDir, 'manifest.json', JSON.stringify(manifest, null, 2), { skipBackup: true });
+
+  // Lokales Sync-Tracking sofort auf den veroeffentlichten Stand setzen: der
+  // schreibende Client (Kurator) hat exakt diese Daten bereits lokal. Ohne das
+  // meldet useSnapshotWatcher den EIGENEN Snapshot als „neuer Datenbestand"
+  // (Bug: Banner bei jedem Neustart, weil der auf 1x/Tag gedrosselte Startup-
+  // Sync das Tracking am selben Tag nicht mehr nachzieht). Store-Hashes gleich
+  // mitsetzen, damit ein spaeterer (force-)Sync die Stores nicht unnoetig neu
+  // laedt. snapshotVersion + stores stammen aus genau diesen lokalen Daten.
+  await idb.set(SYNC_VERSION_KEY(programmId), snapshotVersion);
+  for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
+    await idb.set(SYNC_STORE_HASH_KEY(programmId, key), stores[key].hash);
+  }
 
   return { snapshotVersion, manifest };
 }
