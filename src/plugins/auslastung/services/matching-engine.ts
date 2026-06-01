@@ -34,6 +34,9 @@ import { runBm25Matching, type Bm25Result } from './bm25-matcher';
 import { runEmbeddingMatching, type EmbeddingMatchResult } from './embedding-matcher';
 import { kapazitaetsScore, tageImQuartal } from './kapazitaet';
 import { matchesAntragstyp } from './antragstyp-praeferenz';
+import { normLevelForUeber } from './kompetenz-derivation';
+import { computeKontingentVerbrauch, kontingentInfoFor } from './kontingent';
+import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import type { AnonymMap } from './anonym-map';
 import type { MaQuartalsAuslastung } from './quartals-auslastung';
 
@@ -60,7 +63,7 @@ export interface MatchInput {
   /** Optional Stage-2: wenn null/leer, laeuft nur BM25. */
   queryEmbedding?: number[];
   corpusEmbeddings?: Map<string, number[]>;
-  antraegeIndex?: Map<string, { aktenzeichen: string; tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown }>;
+  antraegeIndex?: Map<string, { aktenzeichen: string; tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown; vb_phase?: unknown }>;
   /** Anzahl Teilvorhaben fuer Stundenberechnung. Default 1. */
   anzahlTV?: number;
   /** Verbleibende Tage im Quartal. Default: aus `config.aktuellesQuartal`
@@ -149,6 +152,13 @@ export function runMatching(input: MatchInput): MatchResult[] {
   const restTageImQuartal = input.tageImQuartal ?? tageImQuartal(config.aktuellesQuartal);
   const aspektBonusPerMatch = config.aspektBonus ?? 0.10;
   const quartalsEndeBonusTage = config.quartalsEndeBonusTage ?? 21;
+  // v2.15: Kompetenz-Level-Faktor + Antragstyp-Kontingent.
+  const kompetenzLevelGewicht = config.kompetenzLevelGewicht ?? 0.3;
+  const kontingentGewicht = config.kontingentGewicht ?? 0.3;
+  const antragBucket = getKategorieLabel((antrag as Record<string, unknown>).vb_phase);
+  const kontingentVerbrauch = computeKontingentVerbrauch(
+    zuweisungen, input.antraegeIndex, config.aktuellesQuartal,
+  );
 
   const out: MatchResult[] = [];
   for (const anonId of eligibleAnonIds) {
@@ -176,20 +186,37 @@ export function runMatching(input: MatchInput): MatchResult[] {
     );
 
     // 1.17: Aspekt-Bonus — Antrag-Aspekte ∩ MA-Nebenkategorien.
+    // v2.15: jeder Aspekt-Treffer wird mit dem Kompetenz-Level des MAs in der
+    // Aspekt-Ueberkategorie gewichtet (ohne Matrix → Faktor 1.0 = altes Verhalten).
     const nebenSet = new Set(ma.nebenKategorien ?? []);
     const aspektMatchIds = aspekte.filter(a => nebenSet.has(a));
-    const aspektBonusValue = aspektMatchIds.length * aspektBonusPerMatch;
+    let aspektBonusValue = 0;
+    for (const a of aspektMatchIds) {
+      aspektBonusValue += aspektBonusPerMatch * normLevelForUeber(ma.kompetenzMatrix, a);
+    }
 
-    const kompetenz = clamp01(alpha * bm25 + (1 - alpha) * emb + astBoost + aspektBonusValue);
+    // v2.15: Kompetenz-Level-Faktor auf die Primaerkategorie. Experte (Level 3)
+    // → Faktor 1.0, Grundkenntnis → gedaempft; ohne Matrix → 1.0 (unveraendert).
+    const primaerFaktor = normLevelForUeber(ma.kompetenzMatrix, primaer);
+    const baseKompetenz = (alpha * bm25 + (1 - alpha) * emb + astBoost)
+      * ((1 - kompetenzLevelGewicht) + kompetenzLevelGewicht * primaerFaktor);
+    const kompetenz = clamp01(baseKompetenz + aspektBonusValue);
     const balance = quartalsKap > 0 ? Math.max(0, rest) / quartalsKap : 0;
     const kapScore = kapazitaetsScore(rest, benoetigt, restTageImQuartal, quartalsEndeBonusTage);
+
+    // v2.15: Antragstyp-Kontingent — weicher Malus bei erschoepftem Pro-Typ-
+    // Kontingent (kein harter Filter). Ohne Kontingent → Score 1.0.
+    const kInfo = kontingentInfoFor(ma, antragBucket, kontingentVerbrauch.get(anonId));
+
     // Balance + KapScore werden gemeinsam in die `gewichtungBalance`-Komponente
     // eingewogen (je zur Haelfte). Behaelt das alte Verhalten bei voller
     // Kapazitaet (balance≈1.0, kapScore≈1.0 → gewichtungBalance × 1.0), aber
-    // ueberbuchte MAs rutschen sanft ab statt rauszufallen.
+    // ueberbuchte MAs rutschen sanft ab statt rauszufallen. Das Kontingent
+    // skaliert den finalScore multiplikativ (weicher Typ-Deckel).
     const finalScore =
-      kompetenz * config.gewichtungKompetenz
-      + (balance * 0.5 + kapScore * 0.5) * config.gewichtungBalance;
+      (kompetenz * config.gewichtungKompetenz
+        + (balance * 0.5 + kapScore * 0.5) * config.gewichtungBalance)
+      * ((1 - kontingentGewicht) + kontingentGewicht * kInfo.score);
 
     out.push({
       anonId,
@@ -212,6 +239,9 @@ export function runMatching(input: MatchInput): MatchResult[] {
       aspektBonus: aspektBonusValue,
       aspektMatchIds,
       ueberbuchung,
+      // v2.15: Antragstyp-Kontingent
+      kontingentScore: kInfo.score,
+      kontingentRest: kInfo.rest ?? undefined,
     });
   }
 

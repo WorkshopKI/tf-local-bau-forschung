@@ -17,6 +17,7 @@
  * 30 MAs ist klein genug fuer eine eigene Mini-Impl. ~50 LOC, debug-bar.
  */
 import type { AnonymerMitarbeiter } from '../types';
+import { kompetenzTokens } from './kompetenz-derivation';
 
 // BM25-Parameter — Standard-Defaults.
 const K1 = 1.5;
@@ -58,7 +59,13 @@ export interface Bm25Result {
   confidence: 'high' | 'medium' | 'low';
 }
 
-/** Baut Pro-MA-Dokument aus Profile-Deskriptoren + manuellen Tags. */
+/** Baut Pro-MA-Dokument aus Profile-Deskriptoren + manuellen Tags.
+ *
+ *  v2.15: zusätzlich die level-gewichteten Unterkategorie-Labels der
+ *  PL-Kompetenz-Matrix (`kompetenzTokens`: Level 3 ⇒ Token 3×). Diese fließen
+ *  in die `tokens` (BM25-Termfrequenz, gewichtet Experten höher), aber NICHT in
+ *  `technologien` (das treibt die „matchende Technologien"-Anzeige; dort sollen
+ *  weiterhin nur echte Tags stehen). MAs ohne Matrix bleiben unverändert. */
 export function buildMaDocument(
   ma: AnonymerMitarbeiter,
   historischeDeskriptoren: string[],
@@ -67,7 +74,8 @@ export function buildMaDocument(
     ...historischeDeskriptoren,
     ...ma.manuelleTechnologien,
   ]);
-  const tokens = tokenize(technologien.join(' '));
+  const matrixTokens = kompetenzTokens(ma.kompetenzMatrix);
+  const tokens = tokenize([...technologien, ...matrixTokens].join(' '));
   return {
     anonId: ma.anonId,
     tokens,

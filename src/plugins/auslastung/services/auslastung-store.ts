@@ -26,6 +26,7 @@ import {
   type Klassifizierung,
   type PrimaerVorschlag,
 } from '../types';
+import { normalizeKompetenzMatrix, normalizeKontingent } from './kompetenz-derivation';
 
 async function readJsonAt(
   handle: FileSystemDirectoryHandle,
@@ -232,6 +233,11 @@ export function normalizeMitarbeiterRecord(
       profilEmbeddingText: typeof m.profilEmbeddingText === 'string' ? m.profilEmbeddingText : undefined,
       onboardingAbgeschlossen: typeof m.onboardingAbgeschlossen === 'boolean' ? m.onboardingAbgeschlossen : false,
       aktiv: typeof m.aktiv === 'boolean' ? m.aktiv : true,
+      // v2.15: PL-Kompetenz-Vorbelegung — additive optionale Felder, nur
+      // durchgereicht wenn valide (sonst undefined = wie vor v2.15).
+      kompetenzMatrix: normalizeKompetenzMatrix(m.kompetenzMatrix),
+      jahresKapazitaetProTyp: normalizeKontingent(m.jahresKapazitaetProTyp),
+      kompetenzQuelle: m.kompetenzQuelle === 'pl-upload' ? 'pl-upload' : undefined,
     };
   }
   return out;

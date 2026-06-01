@@ -17,12 +17,15 @@ import {
 import {
   DEFAULT_JAHRESKAPAZITAET,
   emptyAuslastungData,
+  type AntragstypBucket,
   type AuslastungConfig,
   type AuslastungData,
   type AnonymerMitarbeiter,
   type KalibrierungsErgebnis,
   type KalibrierungsState,
   type Klassifizierung,
+  type KompetenzMatrix,
+  type KompetenzSchemaEntry,
   type UeberKategorie,
   type Zuweisung,
   type PersoenlichesAuslastungProfil,
@@ -31,6 +34,17 @@ import {
 import { nextFreeAnonId, type AnonymMap } from '../services/anonym-map';
 import { mergeProfilesIntoMitarbeiter } from '../services/profil-einsammeln';
 import { mergeWuenscheIntoZuweisungen } from '../services/uebernahme-einsammeln';
+import { deriveHauptNeben } from '../services/kompetenz-derivation';
+
+/** Eine Kompetenz-Mutation (PL-XLSX-Import oder Matrix-Editor). Felder, die
+ *  `undefined` bleiben, lassen den Bestand unverändert; ein gesetztes Feld
+ *  überschreibt (Pitfall: kein versehentliches Clearen beim Abschlag-only-Edit). */
+export interface KompetenzMatrixUpdate {
+  anonId: string;
+  kompetenzMatrix?: KompetenzMatrix;
+  jahresKapazitaetProTyp?: Partial<Record<AntragstypBucket, number>>;
+  abschlagProzent?: number;
+}
 
 interface AuslastungDataState {
   data: AuslastungData;
@@ -76,6 +90,16 @@ interface AuslastungDataState {
    *  Default-Werten (aktiv: true) angelegt — EIN setState + EIN persist
    *  (Lesson 16). No-op wenn alles schon da ist. */
   ensureMitarbeiterForAnonIds: (storage: StorageService, anonIds: Iterable<string>) => Promise<void>;
+  /** v2.15: PL-Kompetenz-Vorbelegung. Wendet eine Batch von Kompetenz-Mutationen
+   *  (aus XLSX-Import oder Matrix-Editor) an — EIN setState + EIN persist
+   *  (Pitfall #16/#20). Leitet `hauptKategorie`/`nebenKategorien` aus der (neuen
+   *  oder bestehenden) Matrix ab; legt fehlende MAs an (anonId stammt aus der
+   *  Kürzel-Map). Setzt optional das `kompetenzSchema` in der Config. */
+  applyKompetenzMatrixBatch: (
+    storage: StorageService,
+    updates: ReadonlyArray<KompetenzMatrixUpdate>,
+    schema?: KompetenzSchemaEntry[],
+  ) => Promise<{ applied: number; created: number }>;
   /** v2.6: PL-Einsammel-Schritt. Merged MA-Selbst-Profile (aus den persoenlichen
    *  Ordnern) in die Mitarbeiter-Map — EIN setState + EIN persist (Pitfall #16/#20).
    *  PL-only-Felder bleiben erhalten. Liefert aktualisierte + neue anonIds. */
@@ -142,6 +166,24 @@ export function buildFreigegebenRecord(
     freigegebeneAspekte: kategorieIds.slice(1),
     status: 'freigegeben',
     freigegebenAm: new Date().toISOString(),
+  };
+}
+
+/** Default-MA-Record (aktiv, leere Profile). Geteilt von
+ *  `ensureMitarbeiterForAnonIds` + `applyKompetenzMatrixBatch`. */
+function defaultMitarbeiter(anonId: string): AnonymerMitarbeiter {
+  return {
+    anonId,
+    jahresKapazitaet: DEFAULT_JAHRESKAPAZITAET,
+    abgemeldet: [],
+    manuelleTechnologien: [],
+    ausgeblendeteAutoTags: [],
+    hauptKategorie: '',
+    nebenKategorien: [],
+    abschlagProzent: 0,
+    virtuelleProjekte: [],
+    onboardingAbgeschlossen: false,
+    aktiv: true,
   };
 }
 
@@ -349,24 +391,55 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     const next = { ...state.data.mitarbeiter };
     for (const anonId of anonIds) {
       if (next[anonId]) continue;
-      next[anonId] = {
-        anonId,
-        jahresKapazitaet: DEFAULT_JAHRESKAPAZITAET,
-        abgemeldet: [],
-        manuelleTechnologien: [],
-        ausgeblendeteAutoTags: [],
-        hauptKategorie: '',
-        nebenKategorien: [],
-        abschlagProzent: 0,
-        virtuelleProjekte: [],
-        onboardingAbgeschlossen: false,
-        aktiv: true,
-      };
+      next[anonId] = defaultMitarbeiter(anonId);
       changed = true;
     }
     if (!changed) return;
     set(s => ({ data: { ...s.data, mitarbeiter: next } }));
     await get().persist(storage);
+  },
+
+  applyKompetenzMatrixBatch: async (storage, updates, schema) => {
+    let applied = 0;
+    let created = 0;
+    set(state => {
+      if (updates.length === 0 && !schema) return state;
+      const next = { ...state.data.mitarbeiter };
+      for (const u of updates) {
+        const existing = next[u.anonId];
+        const base = existing ?? defaultMitarbeiter(u.anonId);
+        if (!existing) created++;
+        const kompetenzMatrix = u.kompetenzMatrix !== undefined ? u.kompetenzMatrix : base.kompetenzMatrix;
+        const jahresKapazitaetProTyp = u.jahresKapazitaetProTyp !== undefined
+          ? u.jahresKapazitaetProTyp
+          : base.jahresKapazitaetProTyp;
+        const abschlagProzent = u.abschlagProzent !== undefined ? u.abschlagProzent : base.abschlagProzent;
+        const hasMatrix = !!kompetenzMatrix && Object.keys(kompetenzMatrix).length > 0;
+        // Haupt/Neben nur aus der Matrix neu ableiten wenn eine existiert —
+        // sonst MA-Selbst-Kategorien (ohne Matrix) nicht versehentlich leeren.
+        const derived = hasMatrix
+          ? deriveHauptNeben(kompetenzMatrix)
+          : { hauptKategorie: base.hauptKategorie, nebenKategorien: base.nebenKategorien };
+        next[u.anonId] = {
+          ...base,
+          kompetenzMatrix,
+          jahresKapazitaetProTyp,
+          abschlagProzent,
+          hauptKategorie: derived.hauptKategorie,
+          nebenKategorien: derived.nebenKategorien,
+          kompetenzQuelle: hasMatrix ? 'pl-upload' : base.kompetenzQuelle,
+          // Geseedeter MA mit Profil passiert das Matcher-Onboarding-Gate.
+          onboardingAbgeschlossen: hasMatrix ? true : base.onboardingAbgeschlossen,
+        };
+        applied++;
+      }
+      const config = schema
+        ? { ...state.data.config, kompetenzSchema: schema }
+        : state.data.config;
+      return { data: { ...state.data, mitarbeiter: next, config } };
+    });
+    if (applied > 0 || schema) await get().persist(storage);
+    return { applied, created };
   },
 
   upsertKlassifizierung: async (storage, k) => {

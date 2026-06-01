@@ -151,14 +151,17 @@ function addToMa(
  */
 export function buildAntraegeIndexForMatching(
   antraege: Antrag[],
-): Map<string, Pick<Antrag, 'aktenzeichen'> & { tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown }> {
-  const m = new Map<string, { aktenzeichen: string; tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown }>();
+): Map<string, Pick<Antrag, 'aktenzeichen'> & { tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown; vb_phase?: unknown }> {
+  const m = new Map<string, { aktenzeichen: string; tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown; vb_phase?: unknown }>();
   for (const a of antraege) {
     m.set(a.aktenzeichen, {
       aktenzeichen: a.aktenzeichen,
       tib_kuerz: (a as Record<string, unknown>)[CANONICAL_TIB_KUERZ],
       titel: (a as Record<string, unknown>)[CANONICAL_TITEL],
       verbund_titel: (a as Record<string, unknown>)[CANONICAL_VERBUND_TITEL],
+      // v2.15: Antragstyp-Kontingent braucht vb_phase, um Zuweisungen → Bucket
+      // (FuE/DS/DL/NW) zu zaehlen.
+      vb_phase: (a as Record<string, unknown>)['vb_phase'],
     });
   }
   return m;

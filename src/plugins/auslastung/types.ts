@@ -125,6 +125,20 @@ export interface AuslastungConfig {
    *  MA-Nebenkategorie). Default 0.10. */
   aspektBonus: number;
 
+  // ─── v2.15: PL-Kompetenz-Vorbelegung ────────────────────────────────
+  /** Gewicht des Kompetenz-Levels (0..1) im Matcher: skaliert den Kompetenz-
+   *  Score mit `(1-w) + w * normLevel(Primärkat.)`. 0 = Level ignoriert (altes
+   *  Verhalten), 1 = voll. Default 0.3. */
+  kompetenzLevelGewicht: number;
+  /** Gewicht des Antragstyp-Kontingents (0..1) im Matcher: skaliert den
+   *  finalScore mit `(1-w) + w * kontingentScore`. MAs mit erschöpftem Typ-
+   *  Kontingent rutschen sanft ab (kein harter Filter). Default 0.3. */
+  kontingentGewicht: number;
+  /** Spalten-Schema der Kompetenz-Matrix (Überkat. → Unterkat.-Labels), gesetzt
+   *  beim PL-XLSX-Upload. Quelle der Wahrheit für die editierbare Matrix-Tabelle.
+   *  Optional → fehlt vor dem ersten Upload. */
+  kompetenzSchema?: KompetenzSchemaEntry[];
+
   // ─── v2.12: Zugangspasswort-Versand per E-Mail ──────────────────────
   /** Betreff-Vorlage fuer den „✉ E-Mail"-Link im Passwort-Dialog. Platzhalter
    *  `{kuerzel}` `{passwort}` `{anonId}`. Optional → Default greift. */
@@ -218,6 +232,27 @@ export interface VirtuellesProjekt {
   confidence: number;
 }
 
+// ─── v2.15: PL-Kompetenz-Vorbelegung ────────────────────────────────────────
+/** Kompetenz-Level einer Unterkategorie: 1=Grundkenntnisse, 2=vertiefte
+ *  Kenntnisse, 3=Expertenwissen. */
+export type KompetenzLevel = 1 | 2 | 3;
+
+/** PL-gepflegte Kompetenz-Matrix eines MA: ÜberkatID → (Unterkat.-Label → Level).
+ *  Quelle ist der PL-XLSX-Upload (`kompetenz-import.ts`). Unterkat.-Labels werden
+ *  getrimmt gespeichert; ihre Reihenfolge + Anzeige-Namen stehen im
+ *  `kompetenzSchema` der Config. */
+export type KompetenzMatrix = Partial<Record<UeberkategorieId, Record<string, KompetenzLevel>>>;
+
+/** Eine Überkategorie-Spaltengruppe im Kompetenz-Schema (Reihenfolge wie im
+ *  hochgeladenen XLSX). */
+export interface KompetenzSchemaEntry {
+  ueberId: UeberkategorieId;
+  /** Anzeige-Label der Überkategorie (XLSX-Header Zeile 1). */
+  label: string;
+  /** Geordnete Unterkategorie-Labels (XLSX-Header Zeile 2), getrimmt. */
+  subKategorien: string[];
+}
+
 export interface AnonymerMitarbeiter {
   anonId: string;                  // "MA01"
   jahresKapazitaet: number;        // Stunden/Jahr
@@ -265,6 +300,18 @@ export interface AnonymerMitarbeiter {
    *  Migration alter Daten: ebenfalls true (PL deaktiviert manuell via
    *  Admin-Tab oder ueber den Auto-Vorschlag-Banner). */
   aktiv: boolean;
+
+  // ─── v2.15: PL-Kompetenz-Vorbelegung ─────────────────────────────────
+  /** PL-vorbelegte Kompetenz-Matrix (Level 1/2/3 pro Unterkategorie). Optional;
+   *  fehlt bei MAs ohne PL-Upload. Speist die Matcher-Gewichtung (Überkat.-Faktor
+   *  in der Engine + level-gewichtete BM25-Tokens). */
+  kompetenzMatrix?: KompetenzMatrix;
+  /** Antrags-Kontingent pro Antragstyp (Anträge/Jahr), PL-gepflegt. Optional;
+   *  fehlt → keine Pro-Typ-Deckelung im Matcher. */
+  jahresKapazitaetProTyp?: Partial<Record<AntragstypBucket, number>>;
+  /** Provenienz der abgeleiteten Kategorien — 'pl-upload' wenn aus der
+   *  Kompetenz-XLSX vorbelegt (nur UI-Kennzeichnung). */
+  kompetenzQuelle?: 'pl-upload';
 }
 
 export interface Zuweisung {
@@ -381,6 +428,15 @@ export interface MatchResult {
   aspektMatchIds?: string[];
   /** Stunden ueber dem Limit. > 0 bei Ueberbuchung, sonst 0. */
   ueberbuchung?: number;
+
+  // ─── v2.15: Antragstyp-Kontingent ───────────────────────────────────
+  /** Kontingent-Score (0..1) fuer den Antragstyp dieses Antrags: 1.0 = kein
+   *  Limit oder Rest vorhanden, < 1 wenn das Typ-Kontingent des MAs knapp/
+   *  erschoepft ist. */
+  kontingentScore?: number;
+  /** Verbleibendes Quartals-Kontingent (Antraege) fuer diesen Antragstyp, oder
+   *  undefined = kein Limit gesetzt. */
+  kontingentRest?: number;
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -496,6 +552,9 @@ export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   durchschnittTVproAntrag: 2,
   quartalsEndeBonusTage: 21,
   aspektBonus: 0.10,
+  // v2.15: PL-Kompetenz-Vorbelegung
+  kompetenzLevelGewicht: 0.3,
+  kontingentGewicht: 0.3,
   zugangEmailBetreff: DEFAULT_ZUGANG_EMAIL_BETREFF,
   zugangEmailVorlage: DEFAULT_ZUGANG_EMAIL_VORLAGE,
 };
