@@ -20,6 +20,7 @@ import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { SectionHeader } from '@/ui/SectionHeader';
 import { CsvSourceWizard } from './wizard/CsvSourceWizard';
 import { CsvSourceReimportDialog } from './CsvSourceReimportDialog';
+import { CsvAddColumnsDialog } from './CsvAddColumnsDialog';
 import { CsvSchemaDetailDialog } from './CsvSchemaDetailDialog';
 import {
   checkSourceForUpdate,
@@ -33,6 +34,13 @@ interface ReimportRequest {
   file: File;
   sourceHandle: FileSystemFileHandle | null;
   trigger: 'reselect' | 'auto-update';
+}
+
+interface AddColumnsRequest {
+  schema: CsvSchema;
+  file: File;
+  sourceHandle: FileSystemFileHandle | null;
+  newColumns: string[];
 }
 
 function isFsApiSupported(): boolean {
@@ -88,6 +96,7 @@ export function CsvSourcesPage(): React.ReactElement {
   const [schemas, setSchemas] = useState<CsvSchema[]>([]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [reimportRequest, setReimportRequest] = useState<ReimportRequest | null>(null);
+  const [addColumnsRequest, setAddColumnsRequest] = useState<AddColumnsRequest | null>(null);
   const [detailSchema, setDetailSchema] = useState<CsvSchema | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -430,6 +439,27 @@ export function CsvSourcesPage(): React.ReactElement {
           sourceHandle={reimportRequest.sourceHandle}
           trigger={reimportRequest.trigger}
           onClose={() => setReimportRequest(null)}
+          onCompleted={() => { void refresh(); }}
+          onAddNewColumns={newColumns => {
+            if (!reimportRequest) return;
+            setAddColumnsRequest({
+              schema: reimportRequest.schema,
+              file: reimportRequest.file,
+              sourceHandle: reimportRequest.sourceHandle,
+              newColumns,
+            });
+            setReimportRequest(null);
+          }}
+        />
+      ) : null}
+
+      {addColumnsRequest ? (
+        <CsvAddColumnsDialog
+          schema={addColumnsRequest.schema}
+          file={addColumnsRequest.file}
+          sourceHandle={addColumnsRequest.sourceHandle}
+          newColumns={addColumnsRequest.newColumns}
+          onClose={() => setAddColumnsRequest(null)}
           onCompleted={() => { void refresh(); }}
         />
       ) : null}

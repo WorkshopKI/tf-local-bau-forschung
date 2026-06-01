@@ -10,11 +10,10 @@ import {
   type ImportOptions,
   type ImportProgress,
 } from '@/core/services/csv';
-import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import type { CsvSchema, ImportResult } from '@/core/services/csv/types';
 import { Step4Progress } from './wizard/Step4Progress';
-import { setCsvSourceHandle } from './csv-source-handle';
+import { persistCsvSourceMeta } from './csv-source-handle';
 import { validateHeaders, type HeaderValidation } from './services/csv-drift-check';
 
 interface Props {
@@ -27,6 +26,8 @@ interface Props {
   trigger: 'reselect' | 'auto-update';
   onClose: () => void;
   onCompleted: () => void;
+  /** Öffnet den „neue Spalten ins Schema übernehmen"-Dialog (Link in der New-Columns-Warnung). */
+  onAddNewColumns: (newColumns: string[]) => void;
 }
 
 type Phase = 'reviewing' | 'importing';
@@ -44,6 +45,7 @@ export function CsvSourceReimportDialog({
   trigger,
   onClose,
   onCompleted,
+  onAddNewColumns,
 }: Props): React.ReactElement {
   const storage = useStorage();
   const session = useKuratorSession();
@@ -84,21 +86,7 @@ export function CsvSourceReimportDialog({
   useEffect(() => () => abortRef.current?.abort(), []);
 
   async function persistSourceMeta(): Promise<void> {
-    if (sourceHandle) {
-      try {
-        await setCsvSourceHandle(storage.idb, schema.id, sourceHandle);
-      } catch (e) {
-        console.warn('[csv-source-handle] persist failed', e);
-      }
-    }
-    const fresh = await getSchema(storage.idb, schema.id);
-    if (fresh) {
-      await putSchema(storage.idb, {
-        ...fresh,
-        source_file_name: file.name,
-        source_last_modified: file.lastModified,
-      });
-    }
+    await persistCsvSourceMeta(storage.idb, { schema, file, sourceHandle });
     await logAudit(storage.idb, {
       action: trigger === 'auto-update' ? 'csv_source_auto_updated' : 'csv_source_reselected',
       user: session.kuratorName ?? undefined,
@@ -238,7 +226,14 @@ export function CsvSourceReimportDialog({
                     </div>
                   </div>
                   <div className="text-[11.5px] text-blue-900 ml-6 mb-1">
-                    Werden beim Import ignoriert. Wenn übernommen werden sollen, Schema neu registrieren.
+                    Werden beim Import ignoriert.{' '}
+                    <button
+                      type="button"
+                      onClick={() => onAddNewColumns(validation.newColumns)}
+                      className="font-medium underline text-blue-800 hover:text-blue-900 cursor-pointer"
+                    >
+                      Diese Spalten jetzt ins Schema übernehmen
+                    </button>
                   </div>
                   <div className="ml-6 max-h-[100px] overflow-y-auto text-[11px] font-mono text-blue-900">
                     {validation.newColumns.join(', ')}

@@ -18,6 +18,7 @@
 
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { CsvSchema } from '@/core/services/csv/types';
+import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
 
 const HANDLES_IDB_KEY = 'csv-source-handles';
 
@@ -145,4 +146,35 @@ export async function loadFileFromStoredHandle(
   }
   const file = await handle.getFile();
   return { file, handle };
+}
+
+/**
+ * Persistiert nach einem (Re-)Import die Quelldatei-Metadaten eines Schemas:
+ *  - das `FileSystemFileHandle` (für künftige Auto-Update-Checks), falls vorhanden,
+ *  - `source_file_name` + `source_last_modified` auf dem Schema-Record.
+ *
+ * Audit-Logging bleibt bewusst beim Aufrufer — die Event-Semantik unterscheidet
+ * sich je nach Trigger (Reselect / Auto-Update / neue Spalten übernommen).
+ * Wird von `CsvSourceReimportDialog` und `CsvAddColumnsDialog` geteilt.
+ */
+export async function persistCsvSourceMeta(
+  idb: IDBStore,
+  opts: { schema: CsvSchema; file: File; sourceHandle: FileSystemFileHandle | null },
+): Promise<void> {
+  const { schema, file, sourceHandle } = opts;
+  if (sourceHandle) {
+    try {
+      await setCsvSourceHandle(idb, schema.id, sourceHandle);
+    } catch (e) {
+      console.warn('[csv-source-handle] persist failed', e);
+    }
+  }
+  const fresh = await getSchema(idb, schema.id);
+  if (fresh) {
+    await putSchema(idb, {
+      ...fresh,
+      source_file_name: file.name,
+      source_last_modified: file.lastModified,
+    });
+  }
 }

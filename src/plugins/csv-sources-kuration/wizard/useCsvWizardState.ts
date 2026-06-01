@@ -542,7 +542,7 @@ export function useCsvWizardState(): WizardApi {
   };
 }
 
-function guessDecision(col: string, samples: string[] = []): PerColumnDecision {
+export function guessDecision(col: string, samples: string[] = []): PerColumnDecision {
   const c = col.toLowerCase();
   // Bearbeiter / Begleitung KUERZ — vor `antragsteller|bearbeiter` matchen,
   // damit ein Header `TiB_KUERZ` nicht versehentlich als 'antragsteller'
