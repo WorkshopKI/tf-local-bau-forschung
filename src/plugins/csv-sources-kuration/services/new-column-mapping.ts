@@ -58,3 +58,37 @@ export function mergeNewColumns(
   }
   return { ...existing, ...additions };
 }
+
+/**
+ * Reverse zu `buildNewColumnEntry`: bestehender `ColumnMappingEntry` →
+ * `PerColumnDecision`, um den Spalten-Editor (`NewColumnRow`) mit dem aktuellen
+ * Mapping zu seeden. Fuer das nachtraegliche Bearbeiten bestehender Mappings
+ * (CsvSchemaDetailDialog-Edit-Modus).
+ */
+export function decisionFromEntry(entry: ColumnMappingEntry): PerColumnDecision {
+  if (entry.ignore) return { mode: 'ignore' };
+  if (entry.canonical) {
+    return { mode: 'canonical', canonical: String(entry.canonical), type: entry.type, trackHistory: entry.trackHistory };
+  }
+  return { mode: 'custom', custom: entry.custom, type: entry.type, trackHistory: entry.trackHistory };
+}
+
+/**
+ * Wendet eine bearbeitete Entscheidung auf einen BESTEHENDEN Eintrag an. Die
+ * Label-XLS-Herkunft (`label`/`group_path`/`ambiguous_merge_resolution`) und
+ * `required` bleiben erhalten — anders als beim rein additiven Neu-Spalten-Pfad.
+ */
+export function applyDecisionToEntry(
+  col: string,
+  existing: ColumnMappingEntry,
+  d: PerColumnDecision,
+): ColumnMappingEntry {
+  const base = buildNewColumnEntry(col, d);
+  if (existing.label !== undefined) base.label = existing.label;
+  if (existing.group_path !== undefined) base.group_path = existing.group_path;
+  if (existing.ambiguous_merge_resolution !== undefined) {
+    base.ambiguous_merge_resolution = existing.ambiguous_merge_resolution;
+  }
+  if (existing.required !== undefined) base.required = existing.required;
+  return base;
+}

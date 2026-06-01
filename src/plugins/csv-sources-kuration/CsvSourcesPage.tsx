@@ -468,6 +468,7 @@ export function CsvSourcesPage(): React.ReactElement {
         <CsvSchemaDetailDialog
           schema={detailSchema}
           onClose={() => setDetailSchema(null)}
+          onSaved={() => { void refresh(); }}
         />
       ) : null}
     </div>

@@ -1,13 +1,23 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { useStorage } from '@/core/hooks/useStorage';
+import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { saveSchema } from '@/core/services/csv';
+import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { getCanonicalLabel } from '@/core/services/csv/constants';
-import type { CsvSchema, ColumnMappingEntry } from '@/core/services/csv/types';
+import type { CsvSchema, ColumnMapping, ColumnMappingEntry } from '@/core/services/csv/types';
+import { NewColumnRow } from './NewColumnRow';
+import { decisionFromEntry, applyDecisionToEntry } from './services/new-column-mapping';
+import type { PerColumnDecision } from './wizard/useCsvWizardState';
 
 interface Props {
   schema: CsvSchema;
   onClose: () => void;
+  /** v2.12: nach erfolgreichem Mapping-Edit — Parent kann die Schema-Liste refreshen. */
+  onSaved?: () => void;
 }
 
 interface GroupBucket {
@@ -27,7 +37,14 @@ function detectMode(entry: ColumnMappingEntry): DisplayMode {
   return 'custom';
 }
 
-export function CsvSchemaDetailDialog({ schema, onClose }: Props): React.ReactElement {
+export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved }: Props): React.ReactElement {
+  const storage = useStorage();
+  const session = useKuratorSession();
+  const [schema, setSchema] = useState<CsvSchema>(initialSchema);
+  const [editing, setEditing] = useState(false);
+  const [decisions, setDecisions] = useState<Record<string, PerColumnDecision>>({});
+  const [savedHint, setSavedHint] = useState(false);
+
   const columnMapping = schema.column_mapping;
 
   const hasGroups = useMemo(
@@ -75,6 +92,50 @@ export function CsvSchemaDetailDialog({ schema, onClose }: Props): React.ReactEl
     return { standard, custom, ignore, total: standard + custom + ignore };
   }, [columnMapping]);
 
+  function startEdit(): void {
+    const init: Record<string, PerColumnDecision> = {};
+    for (const [col, e] of Object.entries(columnMapping)) init[col] = decisionFromEntry(e);
+    setDecisions(init);
+    setSavedHint(false);
+    setEditing(true);
+  }
+
+  function updateDecision(col: string, patch: Partial<PerColumnDecision>): void {
+    setDecisions(prev => {
+      const base: PerColumnDecision = prev[col] ?? { mode: 'ignore' };
+      return { ...prev, [col]: { ...base, ...patch } };
+    });
+  }
+
+  // Canonical doppelt belegt unter den Entscheidungen → Warnung (last-wins beim Import).
+  const conflictCanonicals = useMemo(() => {
+    const used = new Map<string, number>();
+    for (const d of Object.values(decisions)) {
+      if (d.mode === 'canonical' && d.canonical) used.set(d.canonical, (used.get(d.canonical) ?? 0) + 1);
+    }
+    const set = new Set<string>();
+    for (const [c, n] of used) if (n > 1) set.add(c);
+    return set;
+  }, [decisions]);
+
+  const save = useAsyncAction(async () => {
+    const merged: ColumnMapping = {};
+    for (const [col, e] of Object.entries(columnMapping)) {
+      merged[col] = applyDecisionToEntry(col, e, decisions[col] ?? decisionFromEntry(e));
+    }
+    const updated: CsvSchema = { ...schema, column_mapping: merged };
+    await saveSchema(storage.idb, updated);
+    await logAudit(storage.idb, {
+      action: 'csv_schema_mapping_edited',
+      user: session.kuratorName ?? undefined,
+      details: { schemaId: schema.id, columns: Object.keys(merged).length },
+    });
+    setSchema(updated);
+    setEditing(false);
+    setSavedHint(true);
+    onSaved?.();
+  });
+
   const lastImported = schema.last_imported_at
     ? new Date(schema.last_imported_at).toLocaleString('de-DE')
     : '—';
@@ -93,14 +154,36 @@ export function CsvSchemaDetailDialog({ schema, onClose }: Props): React.ReactEl
             </span>
           ) : null}
           <span className="ml-1 text-[12px] font-normal text-[var(--tf-text-tertiary)]">
-            · Mapping (read-only)
+            {editing ? '· Mapping bearbeiten' : '· Mapping (read-only)'}
           </span>
         </span>
       }
       footer={
-        <Button variant="outline" size="sm" onClick={onClose}>
-          Schließen
-        </Button>
+        editing ? (
+          <div className="flex w-full items-center justify-between">
+            <Button variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={save.busy}>
+              Abbrechen
+            </Button>
+            <Button variant="default" size="sm" onClick={() => save.run()} disabled={save.busy}>
+              {save.busy ? 'Speichern…' : 'Speichern'}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex w-full items-center justify-between">
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Schließen
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={startEdit}
+              disabled={!session.isActive}
+              title={!session.isActive ? 'Kurator-Modus aktivieren, um das Mapping zu bearbeiten' : undefined}
+            >
+              <Pencil size={13} /> Mapping bearbeiten
+            </Button>
+          </div>
+        )
       }
     >
       <div className="flex flex-col gap-4 pb-4 text-[13px]">
@@ -138,24 +221,70 @@ export function CsvSchemaDetailDialog({ schema, onClose }: Props): React.ReactEl
           </div>
         </section>
 
-        <section>
-          <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
-            Mapping ({totals.total} Spalten — {totals.standard} Standard · {totals.custom} Eigen ·{' '}
-            {totals.ignore} Ignore)
+        {savedHint ? (
+          <div className="rounded-md border-[0.5px] border-emerald-300 bg-emerald-50 p-2.5 text-[12px] text-emerald-800">
+            ✓ Mapping gespeichert. Damit die Änderung auf den bereits importierten Anträgen greift, muss die
+            Quelle <strong>neu importiert</strong> werden — nutze „CSV Daten aktualisieren" oder „CSV neu wählen"
+            in der Quellen-Liste.
           </div>
-          <div className="flex flex-col gap-2">
-            {buckets.map(bucket => (
-              <BucketSection
-                key={bucket.key}
-                bucket={bucket}
-                isGroupedView={hasGroups}
-                collapsed={!!collapsed[bucket.key]}
-                onToggle={() => toggleGroup(bucket.key)}
-                columnMapping={columnMapping}
-              />
-            ))}
-          </div>
-        </section>
+        ) : null}
+
+        {editing ? (
+          <section>
+            <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
+              Mapping bearbeiten ({Object.keys(columnMapping).length} Spalten)
+            </div>
+            <p className="text-[12px] text-[var(--tf-text-secondary)] mb-2 leading-relaxed">
+              Stelle pro Spalte ein, ob sie als <strong>Standardfeld</strong>, <strong>Eigenes Feld</strong> oder{' '}
+              <strong>Ignoriert</strong> übernommen wird. Label-/Gruppen-Infos aus dem Label-XLS bleiben erhalten.
+              Die Änderung greift auf den Anträgen erst nach dem nächsten Import.
+            </p>
+            {save.error ? (
+              <div className="mb-2 text-[12px] text-red-700">Fehler: {save.error}</div>
+            ) : null}
+            {conflictCanonicals.size > 0 ? (
+              <div className="mb-2 rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-2.5 text-[12px] text-amber-900">
+                <span className="font-medium">⚠ Standardfeld doppelt belegt: </span>
+                {Array.from(conflictCanonicals).map(c => getCanonicalLabel(c)).join(', ')} — beim Import gewinnt
+                die in der CSV zuletzt stehende Spalte.
+              </div>
+            ) : null}
+            <div className="rounded-md border-[0.5px] border-[var(--tf-border)] px-3 py-1 max-h-[50vh] overflow-y-auto">
+              {Object.keys(columnMapping).map(col => (
+                <NewColumnRow
+                  key={col}
+                  column={col}
+                  decision={decisions[col] ?? { mode: 'ignore' }}
+                  conflict={
+                    decisions[col]?.mode === 'canonical' &&
+                    !!decisions[col]?.canonical &&
+                    conflictCanonicals.has(decisions[col].canonical as string)
+                  }
+                  onChange={patch => updateDecision(col, patch)}
+                />
+              ))}
+            </div>
+          </section>
+        ) : (
+          <section>
+            <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
+              Mapping ({totals.total} Spalten — {totals.standard} Standard · {totals.custom} Eigen ·{' '}
+              {totals.ignore} Ignore)
+            </div>
+            <div className="flex flex-col gap-2">
+              {buckets.map(bucket => (
+                <BucketSection
+                  key={bucket.key}
+                  bucket={bucket}
+                  isGroupedView={hasGroups}
+                  collapsed={!!collapsed[bucket.key]}
+                  onToggle={() => toggleGroup(bucket.key)}
+                  columnMapping={columnMapping}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </Dialog>
   );
