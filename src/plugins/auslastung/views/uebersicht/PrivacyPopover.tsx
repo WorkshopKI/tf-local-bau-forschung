@@ -128,7 +128,7 @@ export function PrivacyPopover({ onRequestClose }: Props): React.ReactElement {
               Passwort ändern
             </LinkButton>
             <LinkButton
-              onClick={() => void deactivateAction.run()}
+              onClick={() => deactivateAction.run()}
               variant="neutral"
               className="ml-auto"
               disabled={deactivateAction.busy}

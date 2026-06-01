@@ -74,7 +74,7 @@ export function MaLoginGate({ onSuccess }: MaLoginGateProps): React.ReactElement
         <Button
           icon={LogIn}
           loading={login.busy}
-          onClick={() => { void login.run(); }}
+          onClick={() => login.run()}
           disabled={pw.length === 0}
           className="w-full mt-5"
         >

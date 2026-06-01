@@ -94,7 +94,7 @@ export function KuratorLoginGate({ onSuccess }: KuratorLoginGateProps): React.Re
 
         <Button
           icon={LogIn}
-          onClick={() => void login.run()}
+          onClick={() => login.run()}
           disabled={login.busy || pw.length === 0}
           className="w-full mt-5"
         >
