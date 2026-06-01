@@ -30,10 +30,11 @@ import { ModulLoadingBanner } from '../components/ModulLoadingBanner';
 import { KlassifizierungsReview } from './KlassifizierungsReview';
 import { ZuweisungsCockpit } from './ZuweisungsCockpit';
 import { UebersichtView } from './UebersichtView';
+import { KompetenzMatrixView } from './KompetenzMatrixView';
 import { PrivacyChip } from './uebersicht/PrivacyChip';
 
-type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht';
-const ALL_TABS: ReadonlySet<TabId> = new Set(['klassifizierung', 'zuweisung', 'uebersicht']);
+type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht' | 'kompetenzen';
+const ALL_TABS: ReadonlySet<TabId> = new Set(['klassifizierung', 'zuweisung', 'uebersicht', 'kompetenzen']);
 
 export function AuslastungView(): React.ReactElement {
   const storage = useStorage();
@@ -81,19 +82,24 @@ export function AuslastungView(): React.ReactElement {
     return [
       {
         id: 'klassifizierung' as const,
-        label: 'Klassifizierung',
+        label: 'Anträge klassifizieren',
         badge: offene || undefined,
         tooltip: `Verteil-Pool: Verbünde${jahr ? ` aus ${jahr}` : ''} ohne TiB-Zuweisung, ohne Status „abgelehnt/zurückgezogen" und „Irrläufer". Die Klassifizierung wirkt auf alle TVs eines Verbundes.`,
       },
       {
         id: 'zuweisung' as const,
-        label: 'Zuweisung',
+        label: 'Anträge zuweisen',
         tooltip: 'Freigegebene Anträge an passende Mitarbeitende zuweisen — Top-3-Match-Vorschläge aus Kompetenz und freier Kapazität, inkl. Übernahme-Wünschen der MAs.',
       },
       {
         id: 'uebersicht' as const,
-        label: 'Übersicht',
+        label: 'Kapazitäten MAs',
         tooltip: 'Statistik, Mitarbeiter & Kapazität (pro Quartal) und Konfiguration — Kategorien, CSV-Import/Export, E-Mail-Vorlage, Themen-Modell.',
+      },
+      {
+        id: 'kompetenzen' as const,
+        label: 'Kompetenzen',
+        tooltip: 'PL-Kompetenz-Vorbelegung: XLSX mit Kompetenz-Leveln (1–3), Antragstyp-Kontingent und Abschlag pro Kürzel hochladen und in einer xlsx-ähnlichen Tabelle pflegen.',
       },
     ];
   }, [data.klassifizierungen, data.config.aktuellesQuartal]);
@@ -166,6 +172,11 @@ export function AuslastungView(): React.ReactElement {
               {ALL_TABS.has('uebersicht') && (
                 <div style={{ display: tab === 'uebersicht' ? 'block' : 'none' }}>
                   <UebersichtView />
+                </div>
+              )}
+              {ALL_TABS.has('kompetenzen') && (
+                <div style={{ display: tab === 'kompetenzen' ? 'block' : 'none' }}>
+                  <KompetenzMatrixView />
                 </div>
               )}
             </div>
