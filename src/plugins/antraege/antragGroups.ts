@@ -148,8 +148,12 @@ const EN_DASH = '–';
  * Formatiert das Aktenzeichen-Range für die Header-Zeile. Bei mehreren
  * TVs `min–max` (En-Dash), bei einem TV das einzelne Aktenzeichen.
  * Eingabe muss nicht sortiert sein — wir lesen min/max via localeCompare.
+ *
+ * Signatur bewusst auf das strukturelle Minimum (`{ aktenzeichen }`) geweitet,
+ * damit auch `Antrag[]` (Auslastungs-/Home-Pfad) ohne Cast durchgereicht
+ * werden kann — `AntragListItem[]` erfüllt das weiterhin.
  */
-export function formatFkzRange(tvs: AntragListItem[]): string {
+export function formatFkzRange(tvs: readonly { aktenzeichen: string }[]): string {
   if (tvs.length === 0) return '';
   if (tvs.length === 1) return tvs[0]!.aktenzeichen;
   let min = tvs[0]!.aktenzeichen;

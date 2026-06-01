@@ -23,7 +23,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
-import { XswSuffix } from '@/plugins/antraege/XswSuffix';
 import { readXsw, xswMatchesOwnKuerzel } from '@/plugins/antraege/xsw';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
@@ -37,25 +36,13 @@ import {
   computeQuartalsAuslastung,
   getTVCount,
 } from '@/plugins/auslastung/services/quartals-auslastung';
-import { KategoriePill } from '@/plugins/auslastung/components/KategoriePill';
-import {
-  CANONICAL_TITEL,
-  CANONICAL_VERBUND_TITEL,
-  type Klassifizierung,
-} from '@/plugins/auslastung/types';
 import type { Antrag } from '@/core/services/csv/types';
-
-interface OffenerAntrag {
-  antrag: Antrag;
-  klassifizierung: Klassifizierung;
-  daysLeft: number;
-  /** T_XSW enthält das EIGENE Kürzel des Users → „mein alter Antrag" → nach oben. */
-  xswMine: boolean;
-  /** Vom User vorgemerkt („Kann ich übernehmen" geklickt) — lokaler Wunsch
-   *  ODER bereits von der PL eingesammelte Selbst-Zuweisung. Bleibt sichtbar
-   *  (gedämpft, mit „Rückgängig"), statt zu verschwinden. */
-  claimed: boolean;
-}
+import {
+  groupEintraegeByVerbund,
+  type OffenerAntrag,
+  type VerbundEintrag,
+} from './neueAntraegeVerbund';
+import { NeueAntraegeVerbundRow } from './NeueAntraegeVerbundRow';
 
 export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const storage = useStorage();
@@ -176,8 +163,14 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
     return items;
   }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw]);
 
-  const offene = useMemo(() => eintraege.filter(e => !e.claimed), [eintraege]);
-  const vorgemerkt = useMemo(() => eintraege.filter(e => e.claimed), [eintraege]);
+  // Verbund-Gruppierung: Bearbeiter übernehmen den ganzen Verbund, nicht
+  // einzelne TVs. Aus den per-TV-Einträgen wird eine Zeile pro Verbund.
+  const verbundEintraege = useMemo(
+    () => groupEintraegeByVerbund(eintraege, cache.antraege, cache.verbuendeById, claimedSet),
+    [eintraege, cache.antraege, cache.verbuendeById, claimedSet],
+  );
+  const offene = useMemo(() => verbundEintraege.filter(v => !v.claimed), [verbundEintraege]);
+  const vorgemerkt = useMemo(() => verbundEintraege.filter(v => v.claimed), [verbundEintraege]);
 
   // Lokale Wünsche, die noch nicht in auslastung.json (Pending) stehen, in die
   // Pending-Anzeige einrechnen — sonst sieht der prod-User nach dem Klick keine
@@ -261,23 +254,23 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
         }
       />
       <div className="flex flex-col gap-2">
-        {visible.map(item => (
-          <NeueAntraegeRow
-            key={item.antrag.aktenzeichen}
-            item={item}
-            onUebernehmen={() => handleClaim(item.antrag.aktenzeichen)}
-            onUndo={() => void undo(item.antrag.aktenzeichen)}
+        {visible.map(v => (
+          <NeueAntraegeVerbundRow
+            key={v.verbundId}
+            verbund={v}
+            onUebernehmen={() => handleClaim(v.leadAktenzeichen)}
+            onUndo={() => v.claimedAktenzeichen.forEach(az => void undo(az))}
             disabled={wuenscheBusy}
           />
         ))}
-        {/* Vorgemerkte Antraege: gedämpft inline darunter, „Rückgängig" statt
+        {/* Vorgemerkte Verbünde: gedämpft inline darunter, „Rückgängig" statt
             „Kann ich übernehmen" — der User hat sich schon eingetragen. */}
-        {vorgemerkt.map(item => (
-          <NeueAntraegeRow
-            key={item.antrag.aktenzeichen}
-            item={item}
-            onUebernehmen={() => handleClaim(item.antrag.aktenzeichen)}
-            onUndo={() => void undo(item.antrag.aktenzeichen)}
+        {vorgemerkt.map(v => (
+          <NeueAntraegeVerbundRow
+            key={v.verbundId}
+            verbund={v}
+            onUebernehmen={() => handleClaim(v.leadAktenzeichen)}
+            onUndo={() => v.claimedAktenzeichen.forEach(az => void undo(az))}
             disabled={wuenscheBusy}
           />
         ))}
@@ -301,9 +294,8 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       {showAlleModal && (
         <NeueAntraegeAlleModal
           alle={offene}
-          configKategorien={config.ueberKategorien}
           onClose={() => setShowAlleModal(false)}
-          onUebernehmen={(id) => handleClaim(id)}
+          onUebernehmen={(leadAktenzeichen) => handleClaim(leadAktenzeichen)}
           busy={wuenscheBusy}
         />
       )}
@@ -311,141 +303,10 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   );
 }
 
-interface RowProps {
-  item: OffenerAntrag;
-  onUebernehmen: () => void;
-  /** v2.9: „Rückgängig" — Vormerkung zuruecknehmen (nur fuer claimed-Rows). */
-  onUndo?: () => void;
-  disabled?: boolean;
-  /** Kompakte Layout-Variante fuer das "Alle"-Modal (v2.3):
-   *  weniger Padding, Akronym/Titel/Frist/Button in einer Zeile. */
-  compact?: boolean;
-}
-
-function NeueAntraegeRow({ item, onUebernehmen, onUndo, disabled, compact }: RowProps): React.ReactElement {
-  const config = useAuslastungData(s => s.data.config);
-  const { antrag, klassifizierung, daysLeft, claimed } = item;
-  const primaerId = klassifizierung.freigegebenePrimaer;
-  const aspektIds = klassifizierung.freigegebeneAspekte;
-  const primaerKat = config.ueberKategorien.find(k => k.id === primaerId);
-  const aspektKats = aspektIds
-    .map(id => config.ueberKategorien.find(k => k.id === id))
-    .filter((k): k is NonNullable<typeof k> => k != null);
-  const titel = (antrag[CANONICAL_VERBUND_TITEL] as string | undefined)
-    ?? (antrag[CANONICAL_TITEL] as string | undefined)
-    ?? '—';
-  const akronym = (antrag.akronym as string | undefined) ?? null;
-  const fristTone = daysLeft <= 2 ? 'text-rose-700 font-medium'
-    : daysLeft <= 3 ? 'text-amber-700 font-medium'
-    : 'text-[var(--tf-text-tertiary)]';
-
-  // v2.3: dezenter Secondary-Style fuer den CTA-Button. Der vorherige
-  // schwarz/weiss-Kontrast suggeriert Endgueltigkeit — der User signalisiert
-  // hier aber nur Absicht, die PL entscheidet final.
-  const buttonClasses = 'rounded-md text-[12px] cursor-pointer border bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] text-[var(--tf-text)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
-  const buttonStyle: React.CSSProperties = { borderColor: 'var(--tf-border)' };
-
-  // v2.9: vorgemerkte Rows gedämpft (dezenter Hintergrund + Tertiär-Text statt
-  // opacity, Pitfall #14) + Button „Rückgängig" statt „Kann ich übernehmen".
-  const rowStyle: React.CSSProperties = claimed
-    ? { border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg-secondary)' }
-    : { border: '0.5px solid var(--tf-border)' };
-  const actionLabel = claimed ? 'Rückgängig' : 'Kann ich übernehmen';
-  const onAction = claimed ? onUndo : onUebernehmen;
-  const actionAria = `${actionLabel} — ${akronym ?? antrag.aktenzeichen}`;
-
-  if (compact) {
-    return (
-      <div
-        className="rounded-[8px] px-2.5 py-1.5 flex items-center gap-3"
-        style={rowStyle}
-      >
-        <span className="font-mono text-[10.5px] text-[var(--tf-text-secondary)] shrink-0 w-[88px] truncate">
-          {antrag.aktenzeichen}
-        </span>
-        {primaerKat && (
-          <div className="shrink-0">
-            <KategoriePill kategorie={primaerKat} active />
-          </div>
-        )}
-        <div className="flex-1 min-w-0 text-[12px] text-[var(--tf-text)] truncate">
-          {akronym && <span className="font-medium">{akronym}</span>}
-          {akronym && <span className="text-[var(--tf-text-tertiary)]"> · </span>}
-          <span className="text-[var(--tf-text-secondary)]">{titel}</span>
-        </div>
-        <XswSuffix value={antrag} className="shrink-0 max-w-[35%] truncate text-[12px]" />
-        {claimed ? (
-          <span className="text-[10.5px] shrink-0 text-[var(--tf-text-tertiary)]">Vorgemerkt</span>
-        ) : (
-          <span className={`text-[10.5px] tabular-nums shrink-0 ${fristTone}`} title="Verbleibende Frist">
-            Noch {daysLeft}d
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={onAction}
-          disabled={disabled}
-          className={`${buttonClasses} px-2.5 py-1 shrink-0`}
-          style={buttonStyle}
-          aria-label={actionAria}
-        >
-          {actionLabel}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="rounded-[12px] p-3 flex items-center gap-4"
-      style={rowStyle}
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1 flex-wrap">
-          <span className="font-mono text-[11px] text-[var(--tf-text-secondary)]">
-            {antrag.aktenzeichen}
-          </span>
-          {primaerKat && <KategoriePill kategorie={primaerKat} active />}
-          {aspektKats.map(k => (
-            <KategoriePill key={k.id} kategorie={k} active={false} />
-          ))}
-          {claimed && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded text-[var(--tf-text-tertiary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
-              Vorgemerkt
-            </span>
-          )}
-        </div>
-        <div className="flex items-baseline gap-1 min-w-0">
-          <span className="text-[12.5px] text-[var(--tf-text)] truncate">{titel}</span>
-          <XswSuffix value={antrag} className="shrink-0 max-w-[50%] truncate text-[12.5px]" />
-        </div>
-      </div>
-      <div className="text-right flex flex-col items-end gap-1 shrink-0">
-        {!claimed && (
-          <span className={`text-[10.5px] ${fristTone}`}>
-            Noch {daysLeft} Tag{daysLeft === 1 ? '' : 'e'}
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={onAction}
-          disabled={disabled}
-          className={`${buttonClasses} px-3 py-1`}
-          style={buttonStyle}
-          aria-label={actionAria}
-        >
-          {actionLabel}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 interface ModalProps {
-  alle: OffenerAntrag[];
-  configKategorien: import('@/plugins/auslastung/types').UeberKategorie[];
+  alle: VerbundEintrag[];
   onClose: () => void;
-  onUebernehmen: (antragId: string) => void;
+  onUebernehmen: (leadAktenzeichen: string) => void;
   busy?: boolean;
 }
 
@@ -474,15 +335,15 @@ function NeueAntraegeAlleModal({ alle, onClose, onUebernehmen, busy }: ModalProp
             ×
           </button>
         </div>
-        {/* Scrollbarer Body — kompakte Rows damit moeglichst viele ohne
-            Scrollen sichtbar sind. */}
+        {/* Scrollbarer Body — kompakte Verbund-Zeilen, damit möglichst viele
+            ohne Scrollen sichtbar sind. */}
         <div className="flex-1 overflow-y-auto px-4 py-3">
           <div className="flex flex-col gap-1.5">
-            {alle.map(item => (
-              <NeueAntraegeRow
-                key={item.antrag.aktenzeichen}
-                item={item}
-                onUebernehmen={() => onUebernehmen(item.antrag.aktenzeichen)}
+            {alle.map(v => (
+              <NeueAntraegeVerbundRow
+                key={v.verbundId}
+                verbund={v}
+                onUebernehmen={() => onUebernehmen(v.leadAktenzeichen)}
                 disabled={busy}
                 compact
               />
