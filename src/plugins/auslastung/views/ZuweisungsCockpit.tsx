@@ -52,6 +52,7 @@ import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
 import { exportAnonymousXlsx, exportDeAnonymizedXlsx } from '../services/export-service';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
+import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import type { Antrag } from '@/core/services/csv/types';
 
 type StatusFilter = 'offen' | 'selbst' | 'zugewiesen' | 'alle';
@@ -107,6 +108,20 @@ function formatKlickZeit(iso: string | undefined): string | null {
   return new Date(t).toLocaleString('de-DE', {
     day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
   });
+}
+
+/** Aggregierter Status eines Verbundes ueber alle seine TVs. Geteilt von der
+ *  Filterung und der Count-Berechnung (eine Quelle statt Duplizierung). */
+function verbundStatusFlags(
+  tvAktenzeichen: string[],
+  zuweisungen: Zuweisung[],
+): { offen: boolean; selbst: boolean; zug: boolean } {
+  const ze = zuweisungen.filter(z => tvAktenzeichen.includes(z.antragId));
+  return {
+    offen: ze.length === 0 || ze.every(z => z.status === 'abgelehnt'),
+    selbst: ze.some(z => z.status === 'selbst' || z.selbstEingetragen),
+    zug: ze.some(z => z.status === 'freigegeben'),
+  };
 }
 
 export function ZuweisungsCockpit(): React.ReactElement {
@@ -210,10 +225,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
       // → getKategorieLabel === null → matcht keinen Bucket, nur „Alle").
       if (antragstypFilter && getKategorieLabel(phaseByAz.get(row.leadAktenzeichen)) !== antragstypFilter) return false;
       if (statusFilter !== 'alle') {
-        const ze = zuweisungen.filter(z => row.tvAktenzeichen.includes(z.antragId));
-        const offen = ze.length === 0 || ze.every(z => z.status === 'abgelehnt');
-        const selbst = ze.some(z => z.status === 'selbst' || z.selbstEingetragen);
-        const zug = ze.some(z => z.status === 'freigegeben');
+        const { offen, selbst, zug } = verbundStatusFlags(row.tvAktenzeichen, zuweisungen);
         if (statusFilter === 'offen' && !offen) return false;
         if (statusFilter === 'selbst' && !selbst) return false;
         if (statusFilter === 'zugewiesen' && !zug) return false;
@@ -221,6 +233,28 @@ export function ZuweisungsCockpit(): React.ReactElement {
       return true;
     });
   }, [verbundRows, kategorieFilter, antragstypFilter, phaseByAz, statusFilter, zuweisungen]);
+
+  // Counts pro Filter-Option — ueber ALLE freigegebenen Verbunde (stabil, nicht
+  // ueber die aktuell gefilterte Teilmenge; gleiche Regel wie die Foerderantraege-
+  // Quickfilter). Werden im aufgeklappten Chip-Segment angezeigt.
+  const filterCounts = useMemo(() => {
+    const kategorie: Record<string, number> = {};
+    const antragstyp: Record<AntragstypBucket, number> = { FuE: 0, DS: 0, DL: 0, NW: 0 };
+    let offen = 0, selbst = 0, zugewiesen = 0;
+    for (const row of verbundRows) {
+      const kats = new Set(
+        [row.klassifizierung.freigegebenePrimaer, ...row.klassifizierung.freigegebeneAspekte].filter(Boolean),
+      );
+      for (const id of kats) kategorie[id] = (kategorie[id] ?? 0) + 1;
+      const bucket = getKategorieLabel(phaseByAz.get(row.leadAktenzeichen));
+      if (bucket) antragstyp[bucket]++;
+      const flags = verbundStatusFlags(row.tvAktenzeichen, zuweisungen);
+      if (flags.offen) offen++;
+      if (flags.selbst) selbst++;
+      if (flags.zug) zugewiesen++;
+    }
+    return { kategorie, antragstyp, offen, selbst, zugewiesen, total: verbundRows.length };
+  }, [verbundRows, phaseByAz, zuweisungen]);
 
   const selected = selectedAz ? cache.antraege.find(a => a.aktenzeichen === selectedAz) : null;
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
@@ -355,6 +389,39 @@ export function ZuweisungsCockpit(): React.ReactElement {
     persistSplitPct(next);
   }, []);
 
+  // ─── Filter-Chips (Stil wie Foerderantraege-Quickfilter / CollapsibleSeg) ──
+  const kategorieItems: CollapsibleSegItem[] = [
+    { label: 'Alle', count: filterCounts.total },
+    ...config.ueberKategorien.map(k => ({ label: k.id, count: filterCounts.kategorie[k.id] ?? 0 })),
+  ];
+  const onKategorieChange = (label: string): void => {
+    setKategorieFilter(label === 'Alle' ? '' : label);
+  };
+
+  const antragstypItems: CollapsibleSegItem[] = [
+    { label: 'Alle', count: filterCounts.total },
+    ...ALL_ANTRAGSTYP_BUCKETS.map(b => ({ label: b, count: filterCounts.antragstyp[b] })),
+  ];
+  const onAntragstypChange = (label: string): void => {
+    setAntragstypFilter(label === 'Alle' ? '' : (label as AntragstypBucket));
+  };
+
+  const statusKeys: StatusFilter[] = ['offen', 'selbst', 'zugewiesen', 'alle'];
+  const statusCountByKey: Record<StatusFilter, number> = {
+    offen: filterCounts.offen,
+    selbst: filterCounts.selbst,
+    zugewiesen: filterCounts.zugewiesen,
+    alle: filterCounts.total,
+  };
+  const statusItems: CollapsibleSegItem[] = statusKeys.map(s => ({
+    label: STATUS_FILTER_LABELS[s],
+    count: statusCountByKey[s],
+  }));
+  const onStatusChange = (label: string): void => {
+    const key = statusKeys.find(s => STATUS_FILTER_LABELS[s] === label);
+    if (key) setStatusFilter(key);
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {/* Toolbar: Übernahme-Wünsche einsammeln (links) + Export (rechts) */}
@@ -397,71 +464,27 @@ export function ZuweisungsCockpit(): React.ReactElement {
         </div>
       </div>
 
-      {/* Filter-Pills (Kategorien) */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Kategorie</span>
-        <button
-          type="button"
-          onClick={() => setKategorieFilter('')}
-          className={`text-[11.5px] px-2.5 py-1 rounded-full cursor-pointer ${kategorieFilter === '' ? '' : 'opacity-50'}`}
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        >
-          Alle
-        </button>
-        {config.ueberKategorien.map(k => (
-          <button
-            key={k.id}
-            type="button"
-            onClick={() => setKategorieFilter(k.id === kategorieFilter ? '' : k.id)}
-            className={`cursor-pointer ${kategorieFilter === k.id ? '' : 'opacity-50'}`}
-          >
-            <KategoriePill kategorie={k} />
-          </button>
-        ))}
-        <span className="ml-4 text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Antragstyp</span>
-        <button
-          type="button"
-          onClick={() => setAntragstypFilter('')}
-          className={`text-[11.5px] px-2.5 py-1 rounded-full cursor-pointer ${antragstypFilter === '' ? '' : 'opacity-60'}`}
-          style={{
-            background: antragstypFilter === '' ? 'var(--tf-text)' : 'transparent',
-            color: antragstypFilter === '' ? 'var(--tf-bg)' : 'var(--tf-text-secondary)',
-            border: '0.5px solid var(--tf-border)',
-          }}
-        >
-          Alle
-        </button>
-        {ALL_ANTRAGSTYP_BUCKETS.map(b => (
-          <button
-            key={b}
-            type="button"
-            onClick={() => setAntragstypFilter(b === antragstypFilter ? '' : b)}
-            className={`text-[11.5px] px-2.5 py-1 rounded-full cursor-pointer ${antragstypFilter === b ? '' : 'opacity-60'}`}
-            style={{
-              background: antragstypFilter === b ? 'var(--tf-text)' : 'transparent',
-              color: antragstypFilter === b ? 'var(--tf-bg)' : 'var(--tf-text-secondary)',
-              border: '0.5px solid var(--tf-border)',
-            }}
-          >
-            {b}
-          </button>
-        ))}
-        <span className="ml-4 text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Status</span>
-        {(['offen', 'selbst', 'zugewiesen', 'alle'] as const).map(s => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setStatusFilter(s)}
-            className={`text-[11.5px] px-2.5 py-1 rounded-full cursor-pointer ${statusFilter === s ? '' : 'opacity-60'}`}
-            style={{
-              background: statusFilter === s ? 'var(--tf-text)' : 'transparent',
-              color: statusFilter === s ? 'var(--tf-bg)' : 'var(--tf-text-secondary)',
-              border: '0.5px solid var(--tf-border)',
-            }}
-          >
-            {STATUS_FILTER_LABELS[s]}
-          </button>
-        ))}
+      {/* Filter-Chips im Stil der Foerderantraege-Quickfilter (CollapsibleSeg) */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <CollapsibleSeg
+          label="Kategorie"
+          value={kategorieFilter || 'Alle'}
+          items={kategorieItems}
+          onChange={onKategorieChange}
+        />
+        <CollapsibleSeg
+          label="Antragstyp"
+          value={antragstypFilter || 'Alle'}
+          items={antragstypItems}
+          onChange={onAntragstypChange}
+        />
+        <CollapsibleSeg
+          label="Status"
+          value={STATUS_FILTER_LABELS[statusFilter]}
+          items={statusItems}
+          onChange={onStatusChange}
+          defaultValue={STATUS_FILTER_LABELS.offen}
+        />
       </div>
 
       {/* Split — resizable: linke Liste per Ziehgriff breiter ziehbar (lange VB-Titel lesen) */}
