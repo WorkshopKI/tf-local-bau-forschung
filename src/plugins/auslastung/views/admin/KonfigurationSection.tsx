@@ -21,6 +21,26 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
     try { await updateConfig(storage, partial); } finally { setBusy(false); }
   }
 
+  // v2.12 Fix: E-Mail-Vorlage in LOKALEM Draft-State editieren und NUR beim
+  // Verlassen des Feldes (onBlur) persistieren. Sonst schrieb jeder Tastendruck
+  // das ganze auslastung.json auf den SMB-Share → UI fror bei langem Text ein.
+  // (Init-once aus config — die Auslastungs-Daten sind beim Öffnen dieser
+  // Sektion längst geladen.)
+  const [betreff, setBetreff] = useState(config.zugangEmailBetreff ?? DEFAULT_ZUGANG_EMAIL_BETREFF);
+  const [vorlage, setVorlage] = useState(config.zugangEmailVorlage ?? DEFAULT_ZUGANG_EMAIL_VORLAGE);
+  const [emailSaved, setEmailSaved] = useState(false);
+
+  function commitEmail(): void {
+    const curB = config.zugangEmailBetreff ?? DEFAULT_ZUGANG_EMAIL_BETREFF;
+    const curV = config.zugangEmailVorlage ?? DEFAULT_ZUGANG_EMAIL_VORLAGE;
+    if (betreff === curB && vorlage === curV) return; // nichts geändert
+    void (async () => {
+      await update({ zugangEmailBetreff: betreff, zugangEmailVorlage: vorlage });
+      setEmailSaved(true);
+      window.setTimeout(() => setEmailSaved(false), 1500);
+    })();
+  }
+
   return (
     <div className="rounded-[12px] p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
       <h3 className="text-[14px] font-medium text-[var(--tf-text)] mb-3">Konfiguration</h3>
@@ -64,23 +84,26 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
 
       {/* v2.12: Zugangspasswort-E-Mail-Vorlage (für den „✉ E-Mail"-Link im Passwort-Dialog) */}
       <div className="mt-4 pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-        <h4 className="text-[12.5px] font-medium text-[var(--tf-text)] mb-2">Zugangspasswort-E-Mail-Vorlage</h4>
+        <h4 className="text-[12.5px] font-medium text-[var(--tf-text)] mb-2 flex items-center gap-2">
+          Zugangspasswort-E-Mail-Vorlage
+          {emailSaved ? <span className="text-[11px] font-normal text-emerald-600">✓ gespeichert</span> : null}
+        </h4>
         <div className="flex flex-col gap-3">
           <Field label="Betreff">
             <input
               type="text"
-              value={config.zugangEmailBetreff ?? DEFAULT_ZUGANG_EMAIL_BETREFF}
-              onChange={e => void update({ zugangEmailBetreff: e.target.value })}
-              disabled={busy}
+              value={betreff}
+              onChange={e => setBetreff(e.target.value)}
+              onBlur={commitEmail}
               className="w-full text-[12.5px] px-2 py-1 rounded outline-none"
               style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
             />
           </Field>
           <Field label="Text">
             <textarea
-              value={config.zugangEmailVorlage ?? DEFAULT_ZUGANG_EMAIL_VORLAGE}
-              onChange={e => void update({ zugangEmailVorlage: e.target.value })}
-              disabled={busy}
+              value={vorlage}
+              onChange={e => setVorlage(e.target.value)}
+              onBlur={commitEmail}
               rows={8}
               className="w-full text-[12.5px] px-2 py-1 rounded outline-none resize-y"
               style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
@@ -88,7 +111,8 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
           </Field>
           <p className="text-[10.5px] text-[var(--tf-text-tertiary)] leading-snug">
             Platzhalter <code>{'{kuerzel}'}</code>, <code>{'{passwort}'}</code> und <code>{'{anonId}'}</code>{' '}
-            werden beim Versand pro Mitarbeitenden ersetzt. Der „✉ E-Mail"-Link im Passwort-Dialog öffnet Outlook mit diesem Text.
+            werden beim Versand pro Mitarbeitenden ersetzt. Wird beim Verlassen des Feldes gespeichert.
+            Der „✉ E-Mail"-Link im Passwort-Dialog öffnet Outlook mit diesem Text.
           </p>
         </div>
       </div>
