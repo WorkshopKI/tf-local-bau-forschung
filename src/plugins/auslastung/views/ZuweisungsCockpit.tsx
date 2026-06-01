@@ -7,7 +7,7 @@
  *  - Links: Antragsliste mit Filter-Pills (Quartal/Kategorie/Status)
  *  - Rechts: Detail + Top-3 VorschlagCards (Matching-Engine live)
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
@@ -33,11 +33,13 @@ import {
   ensureEmbeddingReady,
 } from '@/core/services/embedding-corpus';
 import {
+  ALL_ANTRAGSTYP_BUCKETS,
   CANONICAL_AKRONYM,
   CANONICAL_TITEL,
   CANONICAL_VERBUND_ID,
   CANONICAL_VERBUND_TITEL,
   FIELD_PROJEKTBESCHREIBUNG,
+  type AntragstypBucket,
   type MatchResult,
   type Zuweisung,
 } from '../types';
@@ -49,6 +51,7 @@ import { tageImQuartal as computeTageImQuartal } from '../services/kapazitaet';
 import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
 import { exportAnonymousXlsx, exportDeAnonymizedXlsx } from '../services/export-service';
+import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import type { Antrag } from '@/core/services/csv/types';
 
 type StatusFilter = 'offen' | 'selbst' | 'zugewiesen' | 'alle';
@@ -61,6 +64,40 @@ const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
   zugewiesen: 'zugewiesen',
   alle: 'alle',
 };
+
+// ─── Resizable Split (linke Liste vs. Detail) ───────────────────────────
+// Der User kann die linke Antragsliste breiter ziehen, um lange VB-Titel zu
+// lesen. Breite (linke Spalte in %) wird in localStorage gehalten — laut
+// CLAUDE.md fuer User-Preferences erlaubt.
+const SPLIT_STORAGE_KEY = 'tf-auslastung-zuweisung-split';
+const SPLIT_MIN = 25;
+const SPLIT_MAX = 75;
+const SPLIT_DEFAULT = 50;
+
+/** Klemmt einen Prozentwert auf den erlaubten Split-Bereich. */
+function clampSplitPct(n: number): number {
+  if (!Number.isFinite(n)) return SPLIT_DEFAULT;
+  return Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, n));
+}
+
+/** Liest die gespeicherte Split-Breite (linke Spalte in %) aus localStorage. */
+function readSplitPct(): number {
+  try {
+    const raw = localStorage.getItem(SPLIT_STORAGE_KEY);
+    return raw === null ? SPLIT_DEFAULT : clampSplitPct(parseFloat(raw));
+  } catch {
+    return SPLIT_DEFAULT;
+  }
+}
+
+/** Persistiert die Split-Breite (best-effort — localStorage kann fehlen). */
+function persistSplitPct(pct: number): void {
+  try {
+    localStorage.setItem(SPLIT_STORAGE_KEY, String(Math.round(pct)));
+  } catch {
+    /* localStorage nicht verfuegbar — Breite bleibt nur fuer die Session */
+  }
+}
 
 /** Formatiert den Klick-Zeitpunkt einer Vormerkung kompakt (de-DE). */
 function formatKlickZeit(iso: string | undefined): string | null {
@@ -87,8 +124,16 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const view = useKlassifizierungenView(cache.antraege, config.ueberKategorien, klassifizierungen);
 
   const [kategorieFilter, setKategorieFilter] = useState<string>('');
+  const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('offen');
   const [selectedAz, setSelectedAz] = useState<string | null>(null);
+
+  // Resizable Split: Breite der linken Liste in %. Ref haelt den Live-Wert
+  // waehrend des Ziehens, damit pointerup/keydown ohne Stale-Closure persisten.
+  const [leftPct, setLeftPct] = useState<number>(() => readSplitPct());
+  const leftPctRef = useRef(leftPct);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [matchingRunning, setMatchingRunning] = useState(false);
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
@@ -146,11 +191,24 @@ export function ZuweisungsCockpit(): React.ReactElement {
     [freigegebene, cache.verbuendeById],
   );
 
+  // Antragstyp-Filter: vb_phase pro Aktenzeichen, fuer den Lead-TV-Lookup.
+  // vb_phase steht auf dem Antrag-Objekt (nicht auf der Verbund-Zeile).
+  const phaseByAz = useMemo(() => {
+    const m = new Map<string, unknown>();
+    for (const a of cache.antraege) {
+      m.set(a.aktenzeichen, (a as Record<string, unknown>).vb_phase);
+    }
+    return m;
+  }, [cache.antraege]);
+
   // Filter anwenden — Status aggregiert ueber alle TVs des Verbundes.
   const filtered = useMemo(() => {
     return verbundRows.filter(row => {
       const kats = [row.klassifizierung.freigegebenePrimaer, ...row.klassifizierung.freigegebeneAspekte].filter(Boolean);
       if (kategorieFilter && !kats.includes(kategorieFilter)) return false;
+      // Antragstyp via Lead-TV (vb_phase ist verbund-weit gleich; Irrlaeufer/9
+      // → getKategorieLabel === null → matcht keinen Bucket, nur „Alle").
+      if (antragstypFilter && getKategorieLabel(phaseByAz.get(row.leadAktenzeichen)) !== antragstypFilter) return false;
       if (statusFilter !== 'alle') {
         const ze = zuweisungen.filter(z => row.tvAktenzeichen.includes(z.antragId));
         const offen = ze.length === 0 || ze.every(z => z.status === 'abgelehnt');
@@ -162,7 +220,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
       }
       return true;
     });
-  }, [verbundRows, kategorieFilter, statusFilter, zuweisungen]);
+  }, [verbundRows, kategorieFilter, antragstypFilter, phaseByAz, statusFilter, zuweisungen]);
 
   const selected = selectedAz ? cache.antraege.find(a => a.aktenzeichen === selectedAz) : null;
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
@@ -261,6 +319,42 @@ export function ZuweisungsCockpit(): React.ReactElement {
     await upsertZuweisung(storage, z);
   }
 
+  // ─── Resize-Handler ────────────────────────────────────────────────────
+  const setSplitFromClientX = useCallback((clientX: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    const pct = clampSplitPct(((clientX - rect.left) / rect.width) * 100);
+    leftPctRef.current = pct;
+    setLeftPct(pct);
+  }, []);
+
+  const onHandlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+
+  const onHandlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    setSplitFromClientX(e.clientX);
+  }, [setSplitFromClientX]);
+
+  const onHandlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* schon freigegeben */ }
+    persistSplitPct(leftPctRef.current);
+  }, []);
+
+  const onHandleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const next = clampSplitPct(leftPctRef.current + (e.key === 'ArrowLeft' ? -2 : 2));
+    leftPctRef.current = next;
+    setLeftPct(next);
+    persistSplitPct(next);
+  }, []);
+
   return (
     <div className="flex flex-col gap-3">
       {/* Toolbar: Übernahme-Wünsche einsammeln (links) + Export (rechts) */}
@@ -324,6 +418,34 @@ export function ZuweisungsCockpit(): React.ReactElement {
             <KategoriePill kategorie={k} />
           </button>
         ))}
+        <span className="ml-4 text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Antragstyp</span>
+        <button
+          type="button"
+          onClick={() => setAntragstypFilter('')}
+          className={`text-[11.5px] px-2.5 py-1 rounded-full cursor-pointer ${antragstypFilter === '' ? '' : 'opacity-60'}`}
+          style={{
+            background: antragstypFilter === '' ? 'var(--tf-text)' : 'transparent',
+            color: antragstypFilter === '' ? 'var(--tf-bg)' : 'var(--tf-text-secondary)',
+            border: '0.5px solid var(--tf-border)',
+          }}
+        >
+          Alle
+        </button>
+        {ALL_ANTRAGSTYP_BUCKETS.map(b => (
+          <button
+            key={b}
+            type="button"
+            onClick={() => setAntragstypFilter(b === antragstypFilter ? '' : b)}
+            className={`text-[11.5px] px-2.5 py-1 rounded-full cursor-pointer ${antragstypFilter === b ? '' : 'opacity-60'}`}
+            style={{
+              background: antragstypFilter === b ? 'var(--tf-text)' : 'transparent',
+              color: antragstypFilter === b ? 'var(--tf-bg)' : 'var(--tf-text-secondary)',
+              border: '0.5px solid var(--tf-border)',
+            }}
+          >
+            {b}
+          </button>
+        ))}
         <span className="ml-4 text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Status</span>
         {(['offen', 'selbst', 'zugewiesen', 'alle'] as const).map(s => (
           <button
@@ -342,10 +464,13 @@ export function ZuweisungsCockpit(): React.ReactElement {
         ))}
       </div>
 
-      {/* Split */}
-      <div className="grid grid-cols-2 gap-4 min-h-[600px]">
+      {/* Split — resizable: linke Liste per Ziehgriff breiter ziehbar (lange VB-Titel lesen) */}
+      <div ref={containerRef} className="flex min-h-[600px]">
         {/* Links: Liste */}
-        <div className="rounded-[12px] overflow-hidden flex flex-col" style={{ border: '0.5px solid var(--tf-border)' }}>
+        <div
+          className="rounded-[12px] overflow-hidden flex flex-col min-w-0"
+          style={{ width: `${leftPct}%`, border: '0.5px solid var(--tf-border)' }}
+        >
           <div className="px-3 py-2 text-[11.5px] text-[var(--tf-text-tertiary)]" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
             {isInitialLoading ? '…' : `${filtered.length} Verbund${filtered.length !== 1 ? 'e' : ''}`}
           </div>
@@ -383,7 +508,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
                   {row.akronym && (
                     <span className="text-[10.5px] px-1 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">{row.akronym}</span>
                   )}
-                  <span className="flex-1 truncate text-[12px]">{row.verbundTitel || '—'}</span>
+                  <span className="flex-1 truncate text-[12px]" title={row.verbundTitel || undefined}>{row.verbundTitel || '—'}</span>
                   {row.tvCount > 1 && (
                     <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0" title={`${row.tvCount} Teilvorhaben`}>×{row.tvCount} TVs</span>
                   )}
@@ -412,8 +537,29 @@ export function ZuweisungsCockpit(): React.ReactElement {
           </div>
         </div>
 
+        {/* Ziehgriff — Spaltenbreite anpassen (Pointer + Pfeiltasten) */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Spaltenbreite anpassen"
+          aria-valuenow={Math.round(leftPct)}
+          aria-valuemin={SPLIT_MIN}
+          aria-valuemax={SPLIT_MAX}
+          tabIndex={0}
+          onPointerDown={onHandlePointerDown}
+          onPointerMove={onHandlePointerMove}
+          onPointerUp={onHandlePointerUp}
+          onKeyDown={onHandleKeyDown}
+          className="group shrink-0 mx-1 w-1.5 self-stretch flex items-center justify-center cursor-col-resize touch-none focus:outline-none"
+        >
+          <div
+            className="w-0.5 h-10 rounded-full transition-all group-hover:h-16 group-focus-visible:h-16"
+            style={{ background: 'var(--tf-border)' }}
+          />
+        </div>
+
         {/* Rechts: Detail */}
-        <div className="rounded-[12px] p-4 overflow-y-auto" style={{ border: '0.5px solid var(--tf-border)' }}>
+        <div className="flex-1 min-w-0 rounded-[12px] p-4 overflow-y-auto" style={{ border: '0.5px solid var(--tf-border)' }}>
           {isInitialLoading ? (
             <div className="flex flex-col gap-3">
               <SkeletonRows count={1} columns={['80%']} rowHeight={48} />
