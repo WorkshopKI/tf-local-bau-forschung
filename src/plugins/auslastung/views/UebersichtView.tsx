@@ -11,6 +11,7 @@
  * (PrivacyChip + PrivacyPopover) — kein Banner mehr in der Übersicht.
  */
 import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
@@ -93,25 +94,37 @@ export function UebersichtView(): React.ReactElement {
       />
 
       {/* Erweitert-Aufklapper — Admin-Konfiguration (Kategorien, Import/Export,
-       *  Konfiguration, Embedding-Corpus). Default geschlossen, damit der
-       *  Übersicht-Tab oberhalb auf die Story (Statistik + MA-Liste) reduziert
-       *  ist. */}
-      <div
-        className="rounded-[12px]"
+       *  Konfiguration, Embedding-Corpus). Default geschlossen. Gleicher Klapp-
+       *  Stil wie StatistikSection / MaListSection: Chevron links + Caps-Label +
+       *  Hairline in einer Bordered-Card. */}
+      <section
+        className="rounded-[12px] p-4 flex flex-col gap-3"
         style={{ border: '0.5px solid var(--tf-border)' }}
       >
         <button
           type="button"
           onClick={() => setErweitertOpen(o => !o)}
-          className="w-full px-4 py-3 flex items-center justify-between cursor-pointer text-[13px] font-medium text-[var(--tf-text)]"
+          aria-expanded={erweitertOpen}
+          className="flex items-center gap-2 w-full cursor-pointer text-left select-none"
         >
-          <span>Erweitert</span>
-          <span aria-hidden className="text-[var(--tf-text-tertiary)]">
-            {erweitertOpen ? '▾' : '▸'}
+          <ChevronRight
+            size={14}
+            className="text-[var(--tf-text-tertiary)] shrink-0"
+            style={{
+              transform: erweitertOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+              transition: 'transform var(--tf-duration-med) var(--tf-ease)',
+            }}
+          />
+          <span
+            className="uppercase text-[var(--tf-text-tertiary)] shrink-0"
+            style={{ fontSize: 10.5, fontWeight: 500, letterSpacing: 'var(--tf-tracking-caps)', lineHeight: 1 }}
+          >
+            Erweitert
           </span>
+          <span aria-hidden className="flex-1" style={{ height: '0.5px', background: 'var(--tf-border)' }} />
         </button>
         {erweitertOpen && (
-          <div className="border-t px-4 pt-4 pb-4 flex flex-col" style={{ borderColor: 'var(--tf-border)' }}>
+          <div className="flex flex-col">
             <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
             <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
             <ImportExportSection antraege={cache.antraege} anonymMap={cache.anonymMap} />
@@ -121,7 +134,7 @@ export function UebersichtView(): React.ReactElement {
             <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} />
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

@@ -152,7 +152,7 @@ export function AuslastungView(): React.ReactElement {
               `computeQuartalsAuslastung` jetzt 1x pro Render-Cycle via
               Provider statt 3x in den Konsumenten laeuft. */}
           <AuslastungIndexProvider>
-            <div className="mt-1">
+            <div className="mt-5">
               {ALL_TABS.has('klassifizierung') && (
                 <div style={{ display: tab === 'klassifizierung' ? 'block' : 'none' }}>
                   <KlassifizierungsReview />
