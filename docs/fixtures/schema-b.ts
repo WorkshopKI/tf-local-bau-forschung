@@ -41,6 +41,8 @@ export const SCHEMA_B_COLUMN_MAPPING: ColumnMapping = {
   BIB_KUERZ: { canonical: 'bib_kuerz', type: 'string' },
   ZTP_KUERZ: { canonical: 'ztp_kuerz', type: 'string' },
   PFM_KUERZ: { canonical: 'pfm_kuerz', type: 'string' },
+  // E-Mail des TiB-Bearbeiters (v2.12) — Empfaenger fuer den Zugangspasswort-Versand.
+  TIB_MAIL: { canonical: 'tib_mail', type: 'string' },
   // Adress-Metadaten
   ORT_AFS: { custom: 'ort_afs', type: 'string' },
   PLZ_AFS: { custom: 'plz_afs', type: 'string' },

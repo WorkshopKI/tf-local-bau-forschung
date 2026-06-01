@@ -10,9 +10,13 @@
  * Bewusst getrennt vom bestehenden `PasswortDialog.tsx` (De-Anon-Passwort
  * SETZEN/EINGEBEN) — hier wird ein generiertes Passwort ANGEZEIGT.
  */
-import { useState } from 'react';
-import { KeyRound, Copy, Check, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { KeyRound, Copy, Check, X, Mail } from 'lucide-react';
 import { Button } from '@/ui';
+import { useAuslastungData } from '../hooks/useAuslastungData';
+import { useAntraegeCache } from '../hooks/useAntraegeCache';
+import { buildKuerzelMailMap, buildMailtoUrl } from '../services/tib-mail';
+import { DEFAULT_ZUGANG_EMAIL_BETREFF, DEFAULT_ZUGANG_EMAIL_VORLAGE } from '../types';
 
 export interface ZugangPasswortEintrag {
   anonId: string;
@@ -28,6 +32,15 @@ interface Props {
 
 export function PasswortAnzeigeDialog({ eintraege, onClose }: Props): React.ReactElement {
   const [copied, setCopied] = useState<string | null>(null);
+
+  // v2.12: E-Mail-Vorlage (PL-konfiguriert) + kuerzel→email-Map aus den Antraegen.
+  // mailMap ist leer, solange die Bgl-Quelle nicht mit TIB_MAIL neu importiert
+  // wurde → der „✉ E-Mail"-Link oeffnet dann Outlook ohne Empfaenger.
+  const config = useAuslastungData(s => s.data.config);
+  const betreff = config.zugangEmailBetreff ?? DEFAULT_ZUGANG_EMAIL_BETREFF;
+  const vorlage = config.zugangEmailVorlage ?? DEFAULT_ZUGANG_EMAIL_VORLAGE;
+  const cache = useAntraegeCache();
+  const mailMap = useMemo(() => buildKuerzelMailMap(cache.antraege), [cache.antraege]);
 
   // Sync-Handler (keine roh-async onClick-Arrow): Clipboard-Write bewusst
   // best-effort mit .catch — unter file:// kann der Zugriff fehlen, das
@@ -101,6 +114,13 @@ export function PasswortAnzeigeDialog({ eintraege, onClose }: Props): React.Reac
                   {e.kuerzel} <span className="text-[var(--tf-text-tertiary)]">({e.anonId})</span>
                 </span>
                 <code className="flex-1 text-[13px] font-medium text-[var(--tf-text)] select-all">{e.passwort}</code>
+                <a
+                  href={buildMailtoUrl(mailMap.get(e.kuerzel) ?? '', betreff, vorlage, { kuerzel: e.kuerzel, passwort: e.passwort, anonId: e.anonId })}
+                  className="shrink-0 inline-flex items-center gap-1 text-[11.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+                  title={mailMap.get(e.kuerzel) ? `E-Mail an ${mailMap.get(e.kuerzel)}` : 'Keine E-Mail hinterlegt — Empfänger manuell eintragen'}
+                >
+                  <Mail size={13} /> E-Mail
+                </a>
                 <button
                   type="button"
                   onClick={() => copy(e.passwort, e.anonId)}

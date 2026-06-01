@@ -24,6 +24,8 @@ export type CanonicalField =
   | 'bib_kuerz'
   | 'ztp_kuerz'
   | 'pfm_kuerz'
+  // E-Mail des TiB-Bearbeiters (v2.12) — Empfänger für den Zugangspasswort-Versand.
+  | 'tib_mail'
   // Verbund-Ebene (gemeinsam für alle TVs eines Verbundes)
   | 'verbund_titel'
   | 'verbund_status';

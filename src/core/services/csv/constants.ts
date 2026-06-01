@@ -31,6 +31,7 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
   { key: 'bib_kuerz', type: 'string', label: 'Bearbeiter BIB (Kürzel)', level: 'antrag' },
   { key: 'ztp_kuerz', type: 'string', label: 'Begleitung ZTP (Kürzel)', level: 'antrag' },
   { key: 'pfm_kuerz', type: 'string', label: 'Begleitung PFM (Kürzel)', level: 'antrag' },
+  { key: 'tib_mail', type: 'string', label: 'Bearbeiter TiB (E-Mail)', level: 'antrag' },
   // Verbund-Ebene (gleich für alle TVs eines Verbundes)
   { key: 'verbund_titel', type: 'string', label: 'Verbund-Titel', level: 'verbund' },
   { key: 'verbund_status', type: 'string', label: 'Verbund-Status', level: 'verbund' },

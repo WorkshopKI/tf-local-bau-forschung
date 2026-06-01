@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
+import { DEFAULT_ZUGANG_EMAIL_BETREFF, DEFAULT_ZUGANG_EMAIL_VORLAGE } from '../../types';
 
 interface Props {
   storage: StorageService;
@@ -59,6 +60,37 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
             style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
           />
         </Field>
+      </div>
+
+      {/* v2.12: Zugangspasswort-E-Mail-Vorlage (für den „✉ E-Mail"-Link im Passwort-Dialog) */}
+      <div className="mt-4 pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <h4 className="text-[12.5px] font-medium text-[var(--tf-text)] mb-2">Zugangspasswort-E-Mail-Vorlage</h4>
+        <div className="flex flex-col gap-3">
+          <Field label="Betreff">
+            <input
+              type="text"
+              value={config.zugangEmailBetreff ?? DEFAULT_ZUGANG_EMAIL_BETREFF}
+              onChange={e => void update({ zugangEmailBetreff: e.target.value })}
+              disabled={busy}
+              className="w-full text-[12.5px] px-2 py-1 rounded outline-none"
+              style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
+            />
+          </Field>
+          <Field label="Text">
+            <textarea
+              value={config.zugangEmailVorlage ?? DEFAULT_ZUGANG_EMAIL_VORLAGE}
+              onChange={e => void update({ zugangEmailVorlage: e.target.value })}
+              disabled={busy}
+              rows={8}
+              className="w-full text-[12.5px] px-2 py-1 rounded outline-none resize-y"
+              style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
+            />
+          </Field>
+          <p className="text-[10.5px] text-[var(--tf-text-tertiary)] leading-snug">
+            Platzhalter <code>{'{kuerzel}'}</code>, <code>{'{passwort}'}</code> und <code>{'{anonId}'}</code>{' '}
+            werden beim Versand pro Mitarbeitenden ersetzt. Der „✉ E-Mail"-Link im Passwort-Dialog öffnet Outlook mit diesem Text.
+          </p>
+        </div>
       </div>
     </div>
   );

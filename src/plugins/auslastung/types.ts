@@ -124,6 +124,13 @@ export interface AuslastungConfig {
   /** Bonus zum Kompetenz-Score pro Aspekt-Treffer (Antrag-Aspekt matched
    *  MA-Nebenkategorie). Default 0.10. */
   aspektBonus: number;
+
+  // ─── v2.12: Zugangspasswort-Versand per E-Mail ──────────────────────
+  /** Betreff-Vorlage fuer den „✉ E-Mail"-Link im Passwort-Dialog. Platzhalter
+   *  `{kuerzel}` `{passwort}` `{anonId}`. Optional → Default greift. */
+  zugangEmailBetreff?: string;
+  /** Body-Vorlage fuer den E-Mail-Versand. Gleiche Platzhalter. Optional. */
+  zugangEmailVorlage?: string;
 }
 
 /**
@@ -397,6 +404,8 @@ export const CANONICAL_TIB_KUERZ = 'tib_kuerz';
  *  Auslastungs-Modul ausschliesslich informativ angezeigt — nicht Teil der
  *  AnonymMap (siehe CLAUDE.md Pitfall #17), keine zu-verteilende Ressource. */
 export const CANONICAL_BIB_KUERZ = 'bib_kuerz';
+/** E-Mail des TiB-Bearbeiters (v2.12) — Empfaenger fuer den Zugangspasswort-Versand. */
+export const CANONICAL_TIB_MAIL = 'tib_mail';
 export const CANONICAL_VERBUND_ID = 'verbund_id';
 export const CANONICAL_VERBUND_TITEL = 'verbund_titel';
 export const CANONICAL_TITEL = 'titel';
@@ -462,6 +471,17 @@ export const DEFAULT_UEBERKATEGORIEN: UeberKategorie[] = [
  */
 export const DEFAULT_JAHRESKAPAZITAET = 800;
 
+/** v2.12: Default-Vorlage fuer den Zugangspasswort-Versand. PL-editierbar in
+ *  der Konfiguration (Uebersicht-Tab). Platzhalter `{kuerzel}` `{passwort}`. */
+export const DEFAULT_ZUGANG_EMAIL_BETREFF = 'Ihre Zugangsdaten für die Förderanträge-App';
+export const DEFAULT_ZUGANG_EMAIL_VORLAGE =
+  'Hallo {kuerzel},\n\n' +
+  'dein persönliches Passwort für die Förderanträge-App lautet:\n\n' +
+  '{passwort}\n\n' +
+  'Bitte sicher aufbewahren. Beim Start der App gibst du nur dieses Passwort ein — ' +
+  'dein Kürzel wird daraus automatisch ermittelt.\n\n' +
+  'Viele Grüße\nDie Projektleitung';
+
 export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   stundenProTV: 9,
   aktuellesQuartal: deriveCurrentQuartal(),
@@ -476,6 +496,8 @@ export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   durchschnittTVproAntrag: 2,
   quartalsEndeBonusTage: 21,
   aspektBonus: 0.10,
+  zugangEmailBetreff: DEFAULT_ZUGANG_EMAIL_BETREFF,
+  zugangEmailVorlage: DEFAULT_ZUGANG_EMAIL_VORLAGE,
 };
 
 export function deriveCurrentQuartal(now: Date = new Date()): string {

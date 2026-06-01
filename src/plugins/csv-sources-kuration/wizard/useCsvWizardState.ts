@@ -551,6 +551,9 @@ export function guessDecision(col: string, samples: string[] = []): PerColumnDec
   if (/^bib[._-]?kuerz$/.test(c)) return { mode: 'canonical', canonical: 'bib_kuerz', type: 'string' };
   if (/^ztp[._-]?kuerz$/.test(c)) return { mode: 'canonical', canonical: 'ztp_kuerz', type: 'string' };
   if (/^pfm[._-]?kuerz$/.test(c)) return { mode: 'canonical', canonical: 'pfm_kuerz', type: 'string' };
+  // v2.12: TIB-E-Mail (Empfänger für Zugangspasswort-Versand). Vor den breiten
+  // Patterns matchen, damit `tib_mail` nicht als custom durchfällt.
+  if (/^tib[._-]?mail$/.test(c)) return { mode: 'canonical', canonical: 'tib_mail', type: 'string' };
   if (/akz|aktenzeichen|fkz/.test(c)) return { mode: 'canonical', canonical: 'aktenzeichen', type: 'string' };
   if (/kurz|akronym/.test(c)) return { mode: 'canonical', canonical: 'akronym', type: 'string' };
   if (/verbund.?id|vb_nr/.test(c)) return { mode: 'canonical', canonical: 'verbund_id', type: 'string' };
