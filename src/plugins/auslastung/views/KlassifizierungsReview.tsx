@@ -343,11 +343,8 @@ export function KlassifizierungsReview(): React.ReactElement {
         </div>
       )}
 
-      {/* 1.17: LLM-Klassifizierung */}
-      <div
-        className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-[var(--tf-radius)]"
-        style={{ background: 'var(--tf-bg-secondary)', border: '0.5px solid var(--tf-border)' }}
-      >
+      {/* 1.17: LLM-Klassifizierung — dezent ohne Karten-Hintergrund */}
+      <div className="flex flex-wrap items-center gap-3">
         <span className="text-[11.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
           LLM-Klassifizierung
         </span>
