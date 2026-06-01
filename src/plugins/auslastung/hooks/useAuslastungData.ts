@@ -83,7 +83,7 @@ interface AuslastungDataState {
     storage: StorageService,
     profile: PersoenlichesAuslastungProfil[],
     anonymMap: AnonymMap,
-  ) => Promise<{ aktualisiert: string[]; neu: string[] }>;
+  ) => Promise<{ aktualisiert: string[]; neu: string[]; unzuordenbar: string[] }>;
   /** v2.9: PL-Einsammel-Schritt fuer Übernahme-Wünsche. Merged die Wünsche aus
    *  den persoenlichen Ordnern als `Zuweisung{status:'selbst'}` in die
    *  Zuweisungs-Liste — EIN setState + EIN persist (Pitfall #16/#20). PL-/
@@ -278,15 +278,17 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
   },
 
   applyAggregatedProfiles: async (storage, profile, anonymMap) => {
-    const { next, aktualisiert, neu } = mergeProfilesIntoMitarbeiter(
+    const { next, aktualisiert, neu, unzuordenbar } = mergeProfilesIntoMitarbeiter(
       get().data.mitarbeiter,
       profile,
       anonymMap,
     );
-    if (aktualisiert.length === 0 && neu.length === 0) return { aktualisiert, neu };
+    // Nur persistieren, wenn sich die Mitarbeiter-Map geaendert hat. Reine
+    // `unzuordenbar`-Faelle (kein Match) aendern nichts → nur melden.
+    if (aktualisiert.length === 0 && neu.length === 0) return { aktualisiert, neu, unzuordenbar };
     set(state => ({ data: { ...state.data, mitarbeiter: next } }));
     await get().persist(storage);
-    return { aktualisiert, neu };
+    return { aktualisiert, neu, unzuordenbar };
   },
 
   applyUebernahmeWuensche: async (storage, batch, anonymMap) => {

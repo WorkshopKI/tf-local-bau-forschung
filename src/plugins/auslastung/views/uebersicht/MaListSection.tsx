@@ -155,10 +155,11 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
       root = res.handle;
     }
     const profile = await collectUserProfiles(root);
-    const { aktualisiert, neu } = await applyAggregatedProfiles(storage, profile, cache.anonymMap);
-    setEinsammelnMsg(
-      `${profile.length} Profil(e) gelesen · ${aktualisiert.length} aktualisiert · ${neu.length} neu angelegt`,
-    );
+    const { aktualisiert, neu, unzuordenbar } = await applyAggregatedProfiles(storage, profile, cache.anonymMap);
+    const teile = [`${profile.length} Profil(e) gelesen`, `${aktualisiert.length} aktualisiert`];
+    if (neu.length > 0) teile.push(`${neu.length} neu angelegt`);
+    if (unzuordenbar.length > 0) teile.push(`${unzuordenbar.length} nicht zuordenbar (${unzuordenbar.join(', ')})`);
+    setEinsammelnMsg(teile.join(' · '));
   });
 
   // v2.12: Öffnet die Zugangspasswort-Verwaltung (Übersicht ALLER aktiven MAs +
@@ -461,6 +462,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
                 auslastung={auslastung}
                 quartal={config.aktuellesQuartal}
                 altlast={altlastByAnon.get(ma.anonId)}
+                removable={!cache.anonymMap.toReal.has(ma.anonId)}
                 onSaved={() => setExpandedMa(null)}
               />
             );
@@ -485,6 +487,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
                 auslastung={auslastung}
                 quartal={config.aktuellesQuartal}
                 altlast={altlastByAnon.get(ma.anonId)}
+                removable={!cache.anonymMap.toReal.has(ma.anonId)}
                 onSaved={() => setExpandedMa(null)}
               />
             );

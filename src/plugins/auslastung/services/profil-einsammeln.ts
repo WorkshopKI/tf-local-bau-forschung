@@ -10,7 +10,7 @@
  * Outbox-Einsammeln). Merge ist pure → testbar ohne FS.
  */
 import { readAuslastungProfilFromShare } from './persoenliches-profil';
-import { normalizeKuerzel, nextFreeAnonId, type AnonymMap } from './anonym-map';
+import { resolveAnonIdForUser, type AnonymMap } from './anonym-map';
 import {
   DEFAULT_JAHRESKAPAZITAET,
   type AnonymerMitarbeiter,
@@ -109,18 +109,30 @@ export interface MergeProfilesResult {
   next: Record<string, AnonymerMitarbeiter>;
   /** anonIds bestehender MAs, deren Selbst-Felder aktualisiert wurden. */
   aktualisiert: string[];
-  /** anonIds neu angelegter MAs (Kuerzel war noch nicht in der AnonymMap). */
+  /** anonIds neu materialisierter MAs — Kuerzel IST in der Map, hatte aber noch
+   *  keinen `mitarbeiter`-Record (selten, da Auto-Create i.d.R. vorausläuft). */
   neu: string[];
+  /** Rohe Kuerzel von Profilen, die KEINEM bekannten MA zugeordnet werden
+   *  konnten (Tippfehler, Nicht-TIB-/Admin-Kuerzel, neue Person ohne CSV).
+   *  Werden NICHT als Phantom-MA angelegt (das war die Ursache der MA80/MA81-
+   *  Geister) — die PL bekommt sie gemeldet und entscheidet selbst. */
+  unzuordenbar: string[];
 }
 
 /**
  * Merged die Selbst-Profile in die Mitarbeiter-Map.
  *
- * - `kuerzel → anonId` ueber die AnonymMap (NFC-normalisiert, Pitfall #22).
+ * - `kuerzel → anonId` ueber `resolveAnonIdForUser` (NFC-normalisiert +
+ *   Mehrfach-Kuerzel-Split "MUE,SCH" + "alle"→null, Pitfall #22).
  * - Bestehender MA: nur die MA-pflegbaren Felder werden ueberschrieben, alle
  *   PL-only-Felder (`jahresKapazitaet`, `abschlagProzent`, `aktiv`,
  *   `abgemeldet`, `antragstypUeberschreibung`, …) bleiben erhalten.
- * - Unbekanntes Kuerzel: neuer MA mit naechster freier anonId + Default-Werten.
+ * - Kuerzel aufloesbar, aber (noch) kein Record: Record am AUFGELOESTEN (Map-)
+ *   anonId materialisieren — nie eine frische `nextFreeAnonId` vergeben.
+ * - **Unauflösbares Kuerzel: KEIN neuer MA** — gemeldet via `unzuordenbar`.
+ *   Ein Self-Service-Profil darf keine neue MA-Identität erzeugen; der
+ *   MA-Bestand ergibt sich aus der tib_kuerz-Map (Pitfall #17). Genau dieses
+ *   Auto-Anlegen erzeugte zuvor die Geister-MAs (MA80/MA81).
  * - Konflikt-Regel: das Selbst-Profil ist autoritativ fuer seine Felder.
  *
  * Pure — kein FS, kein Store. Aufrufer persistiert das Ergebnis.
@@ -133,24 +145,21 @@ export function mergeProfilesIntoMitarbeiter(
   const next: Record<string, AnonymerMitarbeiter> = { ...current };
   const aktualisiert: string[] = [];
   const neu: string[] = [];
+  const unzuordenbar: string[] = [];
 
   for (const p of profile) {
-    const k = normalizeKuerzel(p.kuerzel);
-    if (!k) continue;
-
-    const mappedId = anonymMap.toAnon.get(k);
-    if (mappedId && next[mappedId]) {
-      next[mappedId] = { ...next[mappedId]!, ...selfFields(p) };
-      aktualisiert.push(mappedId);
-    } else {
-      // Kuerzel ohne (noch) existierenden MA-Record: neue anonId vergeben.
-      // `nextFreeAnonId` gegen die wachsende `next`-Map, damit mehrere neue
-      // Profile in einem Lauf disjunkte IDs bekommen.
-      const anonId = mappedId ?? nextFreeAnonId(Object.keys(next));
-      next[anonId] = { ...defaultMitarbeiter(anonId), ...selfFields(p) };
-      neu.push(anonId);
+    const mappedId = resolveAnonIdForUser(p.kuerzel, anonymMap);
+    if (!mappedId) {
+      // Keinem bekannten MA zuzuordnen → NICHT als Phantom-MA anlegen, melden.
+      const raw = typeof p.kuerzel === 'string' ? p.kuerzel.trim() : '';
+      if (raw) unzuordenbar.push(raw);
+      continue;
     }
+    const existed = next[mappedId] != null;
+    const base = next[mappedId] ?? defaultMitarbeiter(mappedId);
+    next[mappedId] = { ...base, ...selfFields(p) };
+    (existed ? aktualisiert : neu).push(mappedId);
   }
 
-  return { next, aktualisiert, neu };
+  return { next, aktualisiert, neu, unzuordenbar };
 }

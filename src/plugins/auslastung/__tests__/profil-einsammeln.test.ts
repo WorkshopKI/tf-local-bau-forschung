@@ -2,7 +2,8 @@
  * Tests fuer profil-einsammeln.ts (v2.6 — PL sammelt MA-Selbst-Profile ein).
  *
  *  - mergeProfilesIntoMitarbeiter: PL-only-Felder bleiben erhalten, MA-Felder
- *    werden ueberschrieben, unbekanntes Kuerzel legt neuen MA an, NFC-Match.
+ *    werden ueberschrieben, unauflösbares Kuerzel wird gemeldet (KEIN neuer MA,
+ *    verhindert MA80/MA81-Geister), NFC- + Mehrfach-Kuerzel-Match.
  *  - collectUserProfiles: iteriert User-Ordner gegen Mock-Dir-Handles.
  */
 import { describe, it, expect } from 'vitest';
@@ -101,19 +102,16 @@ describe('mergeProfilesIntoMitarbeiter', () => {
     expect(ma.antragstypUeberschreibung).toEqual(['FuE']);
   });
 
-  it('legt fuer unbekanntes Kuerzel einen neuen aktiven MA an', () => {
-    const { next, aktualisiert, neu } = mergeProfilesIntoMitarbeiter(
+  it('legt fuer unauflösbares Kuerzel KEINEN neuen MA an, meldet es als unzuordenbar', () => {
+    const { next, aktualisiert, neu, unzuordenbar } = mergeProfilesIntoMitarbeiter(
       {},
       [makeProfil({ kuerzel: 'NEU', hauptKategorie: 'EU' })],
       anonMap([]),
     );
     expect(aktualisiert).toEqual([]);
-    expect(neu).toHaveLength(1);
-    const id = neu[0]!;
-    expect(id).toBe('MA01');
-    expect(next[id]!.aktiv).toBe(true);
-    expect(next[id]!.jahresKapazitaet).toBe(800);
-    expect(next[id]!.hauptKategorie).toBe('EU');
+    expect(neu).toEqual([]);
+    expect(unzuordenbar).toEqual(['NEU']);
+    expect(Object.keys(next)).toEqual([]);
   });
 
   it('matcht Umlaut-Kuerzel ueber NFC-Normalisierung (Pitfall #22)', () => {
@@ -131,15 +129,29 @@ describe('mergeProfilesIntoMitarbeiter', () => {
     expect(next.MA05!.hauptKategorie).toBe('LG');
   });
 
-  it('vergibt disjunkte anonIds fuer mehrere neue Profile', () => {
+  it('meldet mehrere unauflösbare Kuerzel als unzuordenbar, ohne MAs anzulegen', () => {
     const current = { MA01: makeMa({ anonId: 'MA01' }) };
-    const { neu } = mergeProfilesIntoMitarbeiter(
+    const { next, neu, unzuordenbar } = mergeProfilesIntoMitarbeiter(
       current,
       [makeProfil({ kuerzel: 'AAA' }), makeProfil({ kuerzel: 'BBB' })],
       anonMap([]),
     );
-    expect(new Set(neu).size).toBe(2);
-    expect(neu).not.toContain('MA01');
+    expect(neu).toEqual([]);
+    expect([...unzuordenbar].sort()).toEqual(['AAA', 'BBB']);
+    expect(Object.keys(next)).toEqual(['MA01']);
+  });
+
+  it('loest Mehrfach-Kuerzel ("MUE,SCH") ueber das erste Match auf', () => {
+    const current = { MA01: makeMa({ anonId: 'MA01', hauptKategorie: 'IT' }) };
+    const { next, aktualisiert, neu, unzuordenbar } = mergeProfilesIntoMitarbeiter(
+      current,
+      [makeProfil({ kuerzel: 'MUE,SCH', hauptKategorie: 'DT' })],
+      anonMap([['MUE', 'MA01']]),
+    );
+    expect(aktualisiert).toEqual(['MA01']);
+    expect(neu).toEqual([]);
+    expect(unzuordenbar).toEqual([]);
+    expect(next.MA01!.hauptKategorie).toBe('DT');
   });
 });
 

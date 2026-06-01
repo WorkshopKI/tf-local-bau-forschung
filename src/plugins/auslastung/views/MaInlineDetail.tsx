@@ -33,11 +33,15 @@ interface Props {
   quartal: string;
   /** Offene Antraege aus den letzten 2 Quartalen — rein informativ (rechte Karte). */
   altlast?: MaAltlastBucket;
+  /** True = MA hat KEINEN Eintrag in der Kürzel-Map (Phantom/manuell, kein
+   *  echtes tib_kuerz). Nur dann ist „MA entfernen" erlaubt — CSV-MAs bleiben
+   *  (würden eh re-auto-angelegt). */
+  removable?: boolean;
   /** Nach erfolgreichem Save schliesst der Caller (MaRow) den Expand. */
   onSaved?: () => void;
 }
 
-export function MaInlineDetail({ ma, auslastung, quartal, altlast, onSaved }: Props): React.ReactElement {
+export function MaInlineDetail({ ma, auslastung, quartal, altlast, removable, onSaved }: Props): React.ReactElement {
   const [tab, setTab] = useState<Tab>('detail');
 
   return (
@@ -55,6 +59,7 @@ export function MaInlineDetail({ ma, auslastung, quartal, altlast, onSaved }: Pr
       {tab === 'edit' && (
         <EditTab
           ma={ma}
+          removable={removable}
           onSaved={() => { setTab('detail'); onSaved?.(); }}
         />
       )}
@@ -181,12 +186,14 @@ function VerbundSection({ label, verbuende, empty, hint, footer }: {
 
 // ─── Edit-Tab ─────────────────────────────────────────────────────────────
 
-function EditTab({ ma, onSaved }: {
+function EditTab({ ma, removable, onSaved }: {
   ma: AnonymerMitarbeiter;
+  removable?: boolean;
   onSaved: () => void;
 }): React.ReactElement {
   const storage = useStorage();
   const upsert = useAuslastungData(s => s.upsertMitarbeiter);
+  const removeMa = useAuslastungData(s => s.removeMitarbeiter);
   const kategorien = useAuslastungData(s => s.data.config.ueberKategorien);
 
   const initialHaupt = ma.hauptKategorie;
@@ -246,6 +253,17 @@ function EditTab({ ma, onSaved }: {
       aktiv,
       antragstypBevorzugt: [...antragstypen],
     });
+    onSaved();
+  });
+
+  const removeAction = useAsyncAction(async () => {
+    const ok = window.confirm(
+      `„${ma.anonId}" entfernen?\n\nDieser MA hat kein Kürzel in der Kürzel-Map ` +
+      `(Phantom- oder manueller Eintrag, kein echtes Bearbeiter-Kürzel). Echte ` +
+      `CSV-MAs lassen sich nicht entfernen. Die Aktion kann nicht rückgängig gemacht werden.`,
+    );
+    if (!ok) return;
+    await removeMa(storage, ma.anonId);
     onSaved();
   });
 
@@ -376,31 +394,45 @@ function EditTab({ ma, onSaved }: {
           + aktive De-Anon-Session). Komponente rendert null wenn Flag aus. */}
       <ZugangPasswortSection anonId={ma.anonId} />
 
-      {/* Save / Cancel — spannt ueber beide Spalten */}
-      <div className="md:col-span-2 flex justify-end gap-2 pt-1">
-        {saveAction.error && (
-          <span className="text-[11.5px] text-[var(--tf-danger-text)] mr-auto self-center">
-            {saveAction.error}
+      {/* Entfernen (nur Phantom/manuell) · Save / Cancel — spannt ueber beide Spalten */}
+      <div className="md:col-span-2 flex items-center gap-2 pt-1">
+        {removable && (
+          <button
+            type="button"
+            onClick={() => removeAction.run()}
+            disabled={removeAction.busy || saveAction.busy}
+            className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
+            style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-danger-text)' }}
+            title="Dieser MA hat keinen Eintrag in der Kürzel-Map (Phantom/manuell) und kann entfernt werden."
+          >
+            {removeAction.busy ? 'Entferne…' : 'MA entfernen'}
+          </button>
+        )}
+        {(saveAction.error || removeAction.error) && (
+          <span className="text-[11.5px] text-[var(--tf-danger-text)] self-center">
+            {saveAction.error ?? removeAction.error}
           </span>
         )}
-        <button
-          type="button"
-          onClick={onSaved}
-          disabled={saveAction.busy}
-          className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
-          style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
-        >
-          Abbrechen
-        </button>
-        <button
-          type="button"
-          onClick={() => saveAction.run()}
-          disabled={saveAction.busy}
-          className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-        >
-          {saveAction.busy ? 'Speichere…' : 'Speichern'}
-        </button>
+        <div className="ml-auto flex gap-2">
+          <button
+            type="button"
+            onClick={onSaved}
+            disabled={saveAction.busy}
+            className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
+            style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
+          >
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            onClick={() => saveAction.run()}
+            disabled={saveAction.busy}
+            className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
+            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+          >
+            {saveAction.busy ? 'Speichere…' : 'Speichern'}
+          </button>
+        </div>
       </div>
     </div>
   );
