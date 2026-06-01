@@ -15,7 +15,7 @@ import type { MaAltlastBucket } from '../../services/altlast';
 import type { KapazitaetsView } from '../../services/kapazitaet';
 import { MaCompactRow } from './MaCompactRow';
 
-export type SortColumn = 'ma' | 'belegt' | 'frei' | 'fest' | 'altlast';
+export type SortColumn = 'ma' | 'kategorie' | 'auslastung' | 'belegt' | 'frei' | 'fest' | 'altlast' | 'status';
 export type SortDir = 'asc' | 'desc';
 export interface SortState {
   col: SortColumn;
@@ -47,14 +47,16 @@ interface ColumnSpec {
 
 const COLUMNS: ColumnSpec[] = [
   { id: 'ma', label: 'MA', align: 'left', width: 110 },
-  { id: null, label: 'Kategorie', align: 'left', width: 90 },
-  { id: null, label: 'Auslastung', align: 'left', width: 0 },
+  { id: 'kategorie', label: 'Kategorie', align: 'left', width: 90 },
+  { id: 'auslastung', label: 'Auslastung', align: 'left', width: 0 },
   { id: 'belegt', label: 'Belegt', align: 'right', width: 70 },
   { id: 'frei', label: 'Frei (TVs)', align: 'right', width: 80 },
   { id: 'fest', label: 'Aktuell', align: 'left', width: 95 },
   { id: 'altlast', label: 'Altanträge', align: 'left', width: 85 },
+  // Verlauf: Phase-1-Platzhalter ohne Datenaggregat (Sparkline.tsx) → nichts
+  // zum Sortieren. Bleibt non-sortable bis `weeklyTrendByAnon` existiert.
   { id: null, label: 'Verlauf', align: 'left', width: 80 },
-  { id: null, label: 'Status', align: 'left', width: 90 },
+  { id: 'status', label: 'Status', align: 'left', width: 90 },
   { id: null, label: '', align: 'right', width: 30 },
 ];
 

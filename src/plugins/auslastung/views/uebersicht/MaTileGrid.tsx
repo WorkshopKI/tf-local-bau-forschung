@@ -38,10 +38,13 @@ interface Props {
 function sortLabel(sort: SortState): string {
   const colLabel = {
     ma: 'MA',
-    belegt: 'Auslastung',
+    kategorie: 'Kategorie',
+    auslastung: 'Auslastung',
+    belegt: 'Belegt',
     frei: 'Frei',
     fest: 'Aktuell',
     altlast: 'Altanträge',
+    status: 'Status',
   }[sort.col];
   return `Sortierung: ${colLabel} ${sort.dir === 'asc' ? '↑' : '↓'}`;
 }

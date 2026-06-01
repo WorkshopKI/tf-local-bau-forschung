@@ -30,6 +30,7 @@ import { EMPTY_AUSLASTUNG } from '../../services/quartals-auslastung';
 import { useAuslastungIndex } from '../../hooks/useAuslastungIndex';
 import { useAuslastungReady } from '../../hooks/useAuslastungReady';
 import { computeKapazitaet, type KapazitaetsView } from '../../services/kapazitaet';
+import type { AnonymerMitarbeiter } from '../../types';
 import { MaInlineDetail } from '../MaInlineDetail';
 import { ChevronRight } from 'lucide-react';
 import { MaListFilterBar, type ViewMode } from './MaListFilterBar';
@@ -231,6 +232,19 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
       });
     }
     // Sort
+    // Kategorie-Reihenfolge = Config-Order (wie in der Filter-Leiste); MAs ohne
+    // Hauptkategorie ans Ende. Status-Rang spiegelt die Status-Logik aus
+    // MaCompactRow: Aktiv < Ohne Buchung < Inaktiv < Abgemeldet.
+    const quartal = config.aktuellesQuartal;
+    const katOrder = new Map(kategorien.map((k, i) => [k.id, i]));
+    const kategorieRank = (id: string): number =>
+      id && katOrder.has(id) ? katOrder.get(id)! : Number.MAX_SAFE_INTEGER;
+    const statusRank = (ma: AnonymerMitarbeiter, kv: KapazitaetsView): number => {
+      if (ma.abgemeldet.includes(quartal)) return 3;
+      if (!ma.aktiv) return 2;
+      const ohneBuchung = kv.verbrauchteStunden === 0 && (altlastByAnon.get(ma.anonId)?.tvs ?? 0) === 0;
+      return ohneBuchung ? 1 : 0;
+    };
     const sorted = [...sichtbar].sort((a, b) => {
       const kva = kapByAnon.get(a.anonId);
       const kvb = kapByAnon.get(b.anonId);
@@ -240,6 +254,11 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         case 'ma':
           cmp = a.anonId.localeCompare(b.anonId);
           break;
+        case 'kategorie':
+          cmp = kategorieRank(a.hauptKategorie) - kategorieRank(b.hauptKategorie);
+          break;
+        // "Auslastung" (Mini-Bar) visualisiert den Belegt-Anteil → gleiche Metrik.
+        case 'auslastung':
         case 'belegt': {
           const pa = kva.effektivStunden > 0 ? kva.verbrauchteStunden / kva.effektivStunden : 0;
           const pb = kvb.effektivStunden > 0 ? kvb.verbrauchteStunden / kvb.effektivStunden : 0;
@@ -255,12 +274,15 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         case 'altlast':
           cmp = (altlastByAnon.get(a.anonId)?.tvs ?? 0) - (altlastByAnon.get(b.anonId)?.tvs ?? 0);
           break;
+        case 'status':
+          cmp = statusRank(a, kva) - statusRank(b, kvb);
+          break;
       }
       if (cmp === 0) cmp = a.anonId.localeCompare(b.anonId);
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [mitarbeiter, showInactive, kategorieFilter, warningFilter, kapByAnon, altlastByAnon, hasAntraege, sortCol, sortDir]);
+  }, [mitarbeiter, showInactive, kategorieFilter, warningFilter, kapByAnon, altlastByAnon, hasAntraege, sortCol, sortDir, kategorien, config.aktuellesQuartal]);
 
   const handleToggleExpand = useCallback((anonId: string): void => {
     setExpandedMa(prev => (prev === anonId ? null : anonId));
@@ -272,9 +294,10 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         setSortDir(d => d === 'asc' ? 'desc' : 'asc');
         return prev;
       }
-      // Defaults pro Spalte: frei/fest aufsteigend macht weniger Sinn,
-      // typischerweise will man "die größten" — also desc beim Wechsel.
-      setSortDir(col === 'ma' ? 'asc' : 'desc');
+      // Defaults pro Spalte: numerische Spalten beim Wechsel desc ("die
+      // größten zuerst"), Text-/Ordinal-Spalten (MA, Kategorie, Status) asc.
+      const ascDefault = col === 'ma' || col === 'kategorie' || col === 'status';
+      setSortDir(ascDefault ? 'asc' : 'desc');
       return col;
     });
   }, []);
