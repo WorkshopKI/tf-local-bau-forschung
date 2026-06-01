@@ -31,7 +31,7 @@ import { useAuslastungIndex } from '../../hooks/useAuslastungIndex';
 import { useAuslastungReady } from '../../hooks/useAuslastungReady';
 import { computeKapazitaet, type KapazitaetsView } from '../../services/kapazitaet';
 import { MaInlineDetail } from '../MaInlineDetail';
-import { InlineCapsHeader } from './InlineCapsHeader';
+import { ChevronRight } from 'lucide-react';
 import { MaListFilterBar, type ViewMode } from './MaListFilterBar';
 import { MaTable, type SortColumn, type SortDir } from './MaTable';
 import { MaTileGrid } from './MaTileGrid';
@@ -49,12 +49,22 @@ interface Props {
 }
 
 const VIEW_LS_KEY = 'auslastung_view';
+const MA_COLLAPSE_LS_KEY = 'auslastung_ma_collapsed';
 
 function readInitialView(): ViewMode {
   try {
     return window.localStorage.getItem(VIEW_LS_KEY) === 'cards' ? 'cards' : 'table';
   } catch {
     return 'table';
+  }
+}
+
+/** Klappzustand der MA-Sektion (analog StatistikSection). Default offen. */
+function readInitialMaOpen(): boolean {
+  try {
+    return window.localStorage.getItem(MA_COLLAPSE_LS_KEY) !== '1';
+  } catch {
+    return true;
   }
 }
 
@@ -77,6 +87,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
   const [vorschlagDismissed, setVorschlagDismissed] = useState(false);
   const [vorschlagBusy, setVorschlagBusy] = useState(false);
   const [view, setView] = useState<ViewMode>(readInitialView);
+  const [maOpen, setMaOpen] = useState<boolean>(readInitialMaOpen);
   const [sortCol, setSortCol] = useState<SortColumn>('belegt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -92,6 +103,15 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
       // localStorage nicht verfuegbar — silently ignorieren.
     }
   }, [view]);
+
+  // Klappzustand-Persistenz (analog StatistikSection).
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MA_COLLAPSE_LS_KEY, maOpen ? '0' : '1');
+    } catch {
+      // localStorage nicht verfuegbar — silently ignorieren.
+    }
+  }, [maOpen]);
 
   // Hinweis: Der "no-bookings"-Filter erzwingt NICHT mehr showInactive=true.
   // Die zugehoerige Warnung zaehlt nur AKTIVE MAs ohne Buchungen (statistik.ts),
@@ -284,12 +304,33 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
       className="rounded-[12px] p-4 flex flex-col gap-3"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <div className="flex items-center justify-between gap-3">
-        <InlineCapsHeader
-          label="Mitarbeiter & Kapazität"
-          count={`${aktivCount} aktiv / ${totalCount} gesamt`}
-        />
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setMaOpen(o => !o)}
+          aria-expanded={maOpen}
+          className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer text-left select-none"
+        >
+          <ChevronRight
+            size={14}
+            className="text-[var(--tf-text-tertiary)] shrink-0"
+            style={{
+              transform: maOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+              transition: 'transform var(--tf-duration-med) var(--tf-ease)',
+            }}
+          />
+          <span
+            className="uppercase text-[var(--tf-text-tertiary)] shrink-0"
+            style={{ fontSize: 10.5, fontWeight: 500, letterSpacing: 'var(--tf-tracking-caps)', lineHeight: 1 }}
+          >
+            Mitarbeiter &amp; Kapazität
+          </span>
+          <span className="text-[var(--tf-text-tertiary)] shrink-0" style={{ fontSize: 11.5, lineHeight: 1 }}>
+            {`${aktivCount} aktiv / ${totalCount} gesamt`}
+          </span>
+          <span aria-hidden className="flex-1" style={{ height: '0.5px', background: 'var(--tf-border)' }} />
+        </button>
+        <div className="flex items-center gap-2 shrink-0">
           {isMaVerwaltungPasswortEnabled() && isDeAnon && (
             <button
               type="button"
@@ -327,6 +368,8 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         </div>
       )}
 
+      {maOpen && (
+        <>
       <MaListFilterBar
         kategorien={kategorien}
         kategorieFilter={kategorieFilter}
@@ -430,6 +473,8 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         <p className="text-[11px] text-[var(--tf-text-tertiary)] leading-tight">
           {aktivCount} von {totalCount} Mitarbeitern haben aktuelle Anträge. MAs ohne Anträge sind ausgeblendet — Lücken in der Nummerierung sind normal.
         </p>
+      )}
+        </>
       )}
 
       {zugangListe && (
