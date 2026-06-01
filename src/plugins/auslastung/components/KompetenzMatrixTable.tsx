@@ -69,10 +69,18 @@ export function KompetenzMatrixTable({ schema, storage, anonymMap }: Props): Rea
   const deAnonActive = useDeAnonSession(s => s.isActive);
   const showKuerzel = isDeAnonymisierungEnabled() && deAnonActive;
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [showInactive, setShowInactive] = useState(false);
 
-  const maList = useMemo(
+  const allMaSorted = useMemo(
     () => Object.values(mitarbeiter).sort((a, b) => a.anonId.localeCompare(b.anonId)),
     [mitarbeiter],
+  );
+  const inactiveCount = useMemo(() => allMaSorted.filter(m => !m.aktiv).length, [allMaSorted]);
+  // Inaktive MAs standardmäßig ausblenden (per Checkbox einblendbar). Bereits
+  // bearbeitete Drafts bleiben erhalten und werden beim Speichern mitgeschrieben.
+  const maList = useMemo(
+    () => (showInactive ? allMaSorted : allMaSorted.filter(m => m.aktiv)),
+    [allMaSorted, showInactive],
   );
   const totalSubCols = useMemo(() => schema.reduce((n, e) => n + e.subKategorien.length, 0), [schema]);
 
@@ -134,11 +142,24 @@ export function KompetenzMatrixTable({ schema, storage, anonymMap }: Props): Rea
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-          {maList.length} MA · {totalSubCols} Unterkategorien · Level klicken zum Ändern (1 Grund · 2 vertieft · 3 Experte)
-        </p>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            {maList.length} MA · {totalSubCols} Unterkategorien · Level klicken zum Ändern (1 Grund · 2 vertieft · 3 Experte)
+          </p>
+          {inactiveCount > 0 && (
+            <label className="flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={e => setShowInactive(e.target.checked)}
+                className="cursor-pointer"
+              />
+              Inaktive einblenden ({inactiveCount})
+            </label>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           {dirtyCount > 0 && (
             <span className="text-[11.5px] text-amber-700">{dirtyCount} ungespeichert</span>
           )}
