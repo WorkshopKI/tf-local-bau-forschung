@@ -13,7 +13,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useProfile } from '@/core/hooks/useProfile';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';
@@ -35,11 +35,11 @@ export interface MyAuslastungProfil {
 
 export function useMyAuslastungProfil(): MyAuslastungProfil {
   const storage = useStorage();
-  const { profile } = useProfile();
+  const meinKuerzel = useMeinKuerzel();
   const cache = useAntraegeCache();
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
 
-  const myAnonId = resolveAnonIdForUser(profile?.bearbeiter_kuerzel, cache.anonymMap);
+  const myAnonId = resolveAnonIdForUser(meinKuerzel, cache.anonymMap);
   const storeRecord = myAnonId ? mitarbeiter[myAnonId] : undefined;
 
   const [personal, setPersonal] = useState<PersoenlichesAuslastungProfil | null>(null);

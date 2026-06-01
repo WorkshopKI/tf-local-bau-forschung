@@ -22,7 +22,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useProfile } from '@/core/hooks/useProfile';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { XswSuffix } from '@/plugins/antraege/XswSuffix';
 import { readXsw, xswMatchesOwnKuerzel } from '@/plugins/antraege/xsw';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
@@ -66,9 +66,9 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const load = useAuslastungData(s => s.load);
   const cache = useAntraegeCache();
   const kuerzelMapLoaded = useKuerzelMap(s => s.loaded);
-  const { profile } = useProfile();
   // Rohes eigenes Kürzel (ggf. kommagetrennt) für den T_XSW-Wiedereinreicher-Bump.
-  const ownKuerzelRaw = profile?.bearbeiter_kuerzel ?? null;
+  // Aus dem MA-Login (sonst Profilfeld) via zentralem Getter.
+  const ownKuerzelRaw = useMeinKuerzel() ?? null;
   const [showAlleModal, setShowAlleModal] = useState(false);
 
   // Idempotent: triggert Initial-Load auch wenn der User noch nie im

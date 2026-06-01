@@ -17,6 +17,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { Tooltip } from '@/ui';
@@ -60,6 +61,7 @@ const MAX_CHIP_LEN = 60;
 export function MeineTechnologienTab(): React.ReactElement {
   const storage = useStorage();
   const { profile } = useProfile();
+  const meinKuerzel = useMeinKuerzel();
   const data = useAuslastungData(s => s.data);
   const config = useAuslastungData(s => s.data.config);
   const load = useAuslastungData(s => s.load);
@@ -98,7 +100,7 @@ export function MeineTechnologienTab(): React.ReactElement {
 
   useEffect(() => { void load(storage); }, [storage, load]);
 
-  const myAnonId = resolveAnonIdForUser(profile?.bearbeiter_kuerzel, cache.anonymMap);
+  const myAnonId = resolveAnonIdForUser(meinKuerzel, cache.anonymMap);
   const initials = profile?.name
     ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : '??';
@@ -127,9 +129,9 @@ export function MeineTechnologienTab(): React.ReactElement {
   }, [myAnonId, data.mitarbeiter, hasPersonalProfil]);
 
   const automatic = useMemo(() => {
-    if (!profile?.bearbeiter_kuerzel) return [];
-    return aggregateMaProfile(cache.antraege, profile.bearbeiter_kuerzel);
-  }, [cache.antraege, profile?.bearbeiter_kuerzel]);
+    if (!meinKuerzel) return [];
+    return aggregateMaProfile(cache.antraege, meinKuerzel);
+  }, [cache.antraege, meinKuerzel]);
 
   // Auto-Save: dirtyRef wird NUR von User-Mutatoren gesetzt (nicht von der
   // Hydration), damit Laden/Browser-Wechsel keinen Save triggert.
@@ -174,9 +176,9 @@ export function MeineTechnologienTab(): React.ReactElement {
   // ueber den User-Folders-Root ein. `useAsyncAction` macht Rejections
   // sichtbar (Pitfall #15) statt sie unter file:// still zu schlucken.
   const saveAction = useAsyncAction(async () => {
-    const kuerzel = profile?.bearbeiter_kuerzel?.trim();
+    const kuerzel = meinKuerzel?.trim();
     if (!kuerzel || kuerzel.toLowerCase() === 'alle') {
-      throw new Error('Kein Bearbeiter-Kürzel im Profil hinterlegt — bitte zuerst im Tab "Profil" eintragen.');
+      throw new Error('Kein Bearbeiter-Kürzel hinterlegt — bitte zuerst im Tab "Profil" eintragen bzw. anmelden.');
     }
     const profil: PersoenlichesAuslastungProfil = {
       version: 1,

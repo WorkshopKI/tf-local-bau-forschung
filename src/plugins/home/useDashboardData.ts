@@ -3,6 +3,7 @@ import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import {
@@ -47,6 +48,7 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
   const antraegeRaw = useAntraegeStore(s => s.antraege);
   const verbundByIdRaw = useAntraegeStore(s => s.verbundById);
   const { profile } = useProfile();
+  const meinKuerzel = useMeinKuerzel();
 
   // useDeferredValue puffert die kaskadierenden Store-Updates beim
   // Home-Mount: zuerst landet `antraege` im Store, kurz darauf
@@ -60,7 +62,7 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
   return useMemo(() => {
     const end = tfPerfStart('useDashboardData memo');
     const bearbeiterMode = parseBearbeiterFilter(
-      profile?.bearbeiter_kuerzel,
+      meinKuerzel,
       profile?.bearbeiter_inkl_begleitung,
     );
     const includeBauantraege = department !== 'antraege';
@@ -98,5 +100,5 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
     };
     end(`antraege=${antraege.length} bauantraege=${bauantraege.length} → total=${agg.stats.total} offen=${agg.stats.offen}`);
     return result;
-  }, [bauantraege, antraege, verbundById, department, profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung]);
+  }, [bauantraege, antraege, verbundById, department, meinKuerzel, profile?.bearbeiter_inkl_begleitung]);
 }

@@ -32,6 +32,8 @@
     "auslastungSelbstEintragung": false,
     "deAnonymisierung": false,
     "datenShareSchreibrecht": false,
+    "maLogin": false,
+    "maVerwaltungPasswort": false,
     "chat": false,
     "suche": false,
     "feedbackBoard": true

@@ -119,6 +119,17 @@ export const DEFAULT_CONFIG = {
      *  Klassifizierung schreibt `auslastung.json`). Steuert Picker-/Grant-Mode
      *  (`canWriteDatenShare`). Nur in dev + pl true. */
     datenShareSchreibrecht: true,
+    /** v2.11: Erzwingt beim App-Start eine MA-Login-Wall (nur Passwort). Das
+     *  Bearbeiter-Kuerzel wird aus dem Passwort entschluesselt (gegen
+     *  `_intern/auslastung-zugang.enc`), nicht mehr frei im Profil getippt —
+     *  verhindert Fremd-Eintragen. Greift nur wenn die Zugangsdatei existiert
+     *  (sonst Fallback aufs alte Kuerzelfeld). Nur prod (+ dev zum Testen). */
+    maLogin: true,
+    /** v2.11: PL-Funktion „Zugangspasswort generieren" in der MA-Verwaltung —
+     *  verschluesselt das echte Kuerzel unter einem generierten 2-Wort-Passwort
+     *  und schreibt den Eintrag in `_intern/auslastung-zugang.enc`. Braucht
+     *  `datenShareSchreibrecht` + `deAnonymisierung`. Nur pl (+ dev zum Testen). */
+    maVerwaltungPasswort: true,
     // User-Plugin-Gates: getrennt von den Master-Flags volltextsuche/feedback,
     // damit Varianten den Kurator-Index/Feedback-Verwaltung freischalten können,
     // ohne dass das User-Suche-Plugin oder das User-Feedback-Board in der
@@ -259,6 +270,7 @@ export function validateConfig(config) {
     'kuratorMenus', 'requireKuratorLogin', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
     'antraege', 'bauantraege', 'dokumente', 'auslastung', 'auslastungSelbstEintragung',
     'deAnonymisierung', 'datenShareSchreibrecht',
+    'maLogin', 'maVerwaltungPasswort',
     'chat', 'suche', 'feedbackBoard',
   ];
   for (const k of requiredFlags) {
@@ -382,6 +394,21 @@ export function validateConfig(config) {
   if (features.feedback === false && features.kuratorMenus === true) {
     warnings.push(
       'Feedback-System aus, Kurator-Menüs aber an: Feedback-Verwaltung/-Board im Kurator-UI wird nicht sichtbar sein',
+    );
+  }
+  // v2.11: PL-Passwort-Erzeugung schreibt `_intern/auslastung-zugang.enc` —
+  // braucht Schreibrecht auf dem Daten-Share, sonst wirft die Aktion NotAllowedError.
+  if (features.maVerwaltungPasswort === true && features.datenShareSchreibrecht !== true) {
+    warnings.push(
+      'features.maVerwaltungPasswort=true ohne datenShareSchreibrecht: die PL kann die Zugangsdatei nicht schreiben (NotAllowedError beim Passwort-Generieren).',
+    );
+  }
+  // v2.11: maLogin (MA-Login-Wall) und requireKuratorLogin (Kurator-Wall) würden
+  // beide eine Startup-Login-Wall erzwingen — der Kurator-Gate gewinnt (App.tsx),
+  // die MA-Wall käme nie. In der Praxis schließen sich die Varianten aus.
+  if (features.maLogin === true && features.requireKuratorLogin === true) {
+    warnings.push(
+      'features.maLogin und features.requireKuratorLogin gleichzeitig true: nur die Kurator-Login-Wall greift, die MA-Login-Wall wird übersprungen.',
     );
   }
 

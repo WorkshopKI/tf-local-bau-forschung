@@ -8,6 +8,7 @@ import { getView, type AntragView } from './views';
 import { getSortOption } from './sort';
 import { applyVerbundClustering } from './antragGroups';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import {
   parseBearbeiterFilter,
   applyBearbeiterFilter,
@@ -65,6 +66,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
   const { profile } = useProfile();
+  const meinKuerzel = useMeinKuerzel();
 
   // Such-Eingabe entkoppeln: das Input bleibt responsiv, der teure
   // Filter+Sort-Pass läuft erst wenn React Idle-Zeit hat. Bei 13k+ Records
@@ -74,8 +76,8 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const deferredHybridAkz = useDeferredValue(hybridMatchAkz);
 
   const bearbeiterFilter = useMemo(
-    () => parseBearbeiterFilter(profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung),
-    [profile?.bearbeiter_kuerzel, profile?.bearbeiter_inkl_begleitung],
+    () => parseBearbeiterFilter(meinKuerzel, profile?.bearbeiter_inkl_begleitung),
+    [meinKuerzel, profile?.bearbeiter_inkl_begleitung],
   );
 
   return useMemo(() => {

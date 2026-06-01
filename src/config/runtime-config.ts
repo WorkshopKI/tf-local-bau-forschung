@@ -67,6 +67,17 @@ export interface TeamflowFeatures {
    *  v2.0-read-only-Hardening gezielt auf, z.B. fuer die PL). Steuert Picker-/
    *  Grant-Mode via `canWriteDatenShare`. Nur dev + pl. */
   datenShareSchreibrecht: boolean;
+  /** v2.11: MA-Login-Wall beim App-Start. Das Bearbeiter-Kuerzel wird aus dem
+   *  persoenlichen Passwort entschluesselt (gegen `_intern/auslastung-zugang.enc`)
+   *  statt frei im Profil getippt — verhindert Fremd-Eintragen. Greift nur wenn
+   *  die Zugangsdatei existiert (sonst Fallback aufs alte Kuerzelfeld). Nur prod
+   *  (+ dev zum Testen). */
+  maLogin: boolean;
+  /** v2.11: PL-UI „Zugangspasswort generieren" in der MA-Verwaltung. Verschluesselt
+   *  das echte Kuerzel unter einem generierten 2-Wort-Passwort und schreibt den
+   *  Eintrag in die Zugangsdatei. Braucht `datenShareSchreibrecht` +
+   *  `deAnonymisierung`. Nur pl (+ dev zum Testen). */
+  maVerwaltungPasswort: boolean;
   /** User-Plugin "Chat" (AI-Chat). Build-Time-Gate, unabhängig von KI-Backend-Config. */
   chat: boolean;
   /** User-Plugin "Suche" (Hybrid-Suche). Trennt sich von `volltextsuche` (das gated den Suchindex-Kurator). */

@@ -72,6 +72,36 @@ export const KURATOR_CONFIG_PATH = '_intern/kurator-config.enc';
 /** v2.5: De-Anonymisierungs-Passwort fuer PL — schaltet die Klartext-Anzeige
  *  der TIB-Kuerzel (statt MA01..MAxx) in den dev + pl Varianten frei. */
 export const DEANON_CONFIG_PATH = '_intern/deanon-config.enc';
+/** v2.11: Zugangsdatei der MA-Login-Wall. JSON-Huelle mit pro-Eintrag Salt +
+ *  AES-GCM-verschluesseltem Kuerzel (kein Klartext-Kuerzel/Passwort/Hint).
+ *  Liegt neben kurator-config.enc / deanon-config.enc auf dem Daten-Share.
+ *  Schreib-Profil (Pitfall #23): idempotent-overwrite via `atomicWrite` MIT
+ *  Backup (ganze Datei wird pro Mutation neu geschrieben). */
+export const ZUGANG_CONFIG_PATH = '_intern/auslastung-zugang.enc';
+
+export interface ZugangsEintrag {
+  /** Base64, randomBytes(16) — pro Eintrag eigenes Salt. */
+  salt: string;
+  /** Base64 von `[12B IV][ciphertext+tag]` (Output von `crypto.encrypt`). */
+  verschluesseltesKuerzel: string;
+  /** Pseudonyme MA-ID ("MA01"). Erlaubt der PL Replace/Revoke per anonId. Login
+   *  nutzt das Feld NICHT (probiert weiterhin ALLE Eintraege per Passwort, kein
+   *  Hint) — verraet nichts ueber die ohnehin im Klartext liegende
+   *  `_intern/auslastung-kuerzel-map.json` hinaus. */
+  anonId: string;
+}
+
+export interface ZugangsFile {
+  version: 1;
+  updatedAt: string;
+  eintraege: ZugangsEintrag[];
+}
+
+/** v2.11: sessionStorage-Key fuer das eingeloggte MA-Kuerzel. sessionStorage
+ *  (NICHT IDB): TTL = Browser-Tab, loescht sich beim Schliessen → erzwingt Login
+ *  pro Arbeitstag. Es wird AUSSCHLIESSLICH das entschluesselte Kuerzel abgelegt,
+ *  NIE Passwort oder abgeleiteter Key. */
+export const MA_KUERZEL_SESSION_KEY = 'tf-ma-kuerzel';
 export const BUILD_LOCK_PATH = '_intern/build-lock.json';
 export const HEARTBEAT_PROBE_PATH = '_intern/heartbeat-probe';
 export const SCAN_MANIFEST_PATH = '_intern/scan-manifest.json';

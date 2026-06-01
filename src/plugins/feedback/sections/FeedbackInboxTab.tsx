@@ -24,7 +24,7 @@ import {
 } from '@/core/services/personal-storage';
 import { getFeedbackList, submitFeedback as submitFeedbackToShared } from '@/core/services/feedback';
 import type { FeedbackContext } from '@/core/types/feedback';
-import { useProfile } from '@/core/hooks/useProfile';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 
 interface InboxItem {
   /** User-Ordner (Name aus dem Verzeichnis-Listing, fuer Anzeige). */
@@ -37,8 +37,7 @@ interface InboxItem {
 
 export function FeedbackInboxTab(): React.ReactElement {
   const storage = useStorage();
-  const { profile } = useProfile();
-  const reviewerKuerzel = profile?.bearbeiter_kuerzel ?? 'KURATOR';
+  const reviewerKuerzel = useMeinKuerzel() ?? 'KURATOR';
   const [rootConnected, setRootConnected] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

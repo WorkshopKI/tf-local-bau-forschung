@@ -3,10 +3,12 @@ import { Pencil, Minus, Plus } from 'lucide-react';
 import { SectionHeader } from '@/ui';
 import { Switch } from '@/components/ui/switch';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useMAIdentity } from '@/core/hooks/useMAIdentity';
 import {
   isKuratorMenusEnabled,
   isAntraegeEnabled,
   isBauantraegeEnabled,
+  isMaLoginEnabled,
   menuLabel,
 } from '@/config/feature-flags';
 import type { UserProfile } from '@/core/types/config';
@@ -29,6 +31,11 @@ const FIELD_BORDER = { border: '0.5px solid var(--tf-border-hover)' } as const;
 
 export function ProfilTab(): React.ReactElement {
   const { profile, updateProfile } = useProfile();
+  const sessionKuerzel = useMAIdentity(s => s.kuerzel);
+  const istAngemeldet = useMAIdentity(s => s.istAngemeldet);
+  // v2.11: im MA-Login-Modus (prod, angemeldet) ist das Kürzel aus dem Passwort
+  // abgeleitet und read-only — kein freies Eingabefeld mehr.
+  const maLoginActive = isMaLoginEnabled() && istAngemeldet;
 
   if (!profile) {
     return (
@@ -89,17 +96,31 @@ export function ProfilTab(): React.ReactElement {
         <SectionHeader label="Bearbeiter-Filter" />
         <SettingsRow>
           <SettingsRowGroup>
-            <FieldLabel
-              text="Kürzel"
-              hint="Mehrere Kürzel komma-separiert für Vertretungen (z.B. MUE, SCH). Wert 'alle' deaktiviert den Filter (Übersichtsmodus)."
-            />
-            <input
-              value={profile.bearbeiter_kuerzel ?? ''}
-              onChange={e => updateProfile({ bearbeiter_kuerzel: e.target.value })}
-              placeholder="z.B. MUE"
-              className={KUERZEL_INPUT_CLASS}
-              style={FIELD_BORDER}
-            />
+            {maLoginActive ? (
+              <>
+                <FieldLabel
+                  text="Angemeldet als"
+                  hint="Dein Kürzel wird beim Login aus deinem Passwort ermittelt und kann hier nicht geändert werden."
+                />
+                <span className="h-8 inline-flex items-center px-3 text-[13px] font-medium uppercase text-[var(--tf-text)]">
+                  {sessionKuerzel ?? '—'}
+                </span>
+              </>
+            ) : (
+              <>
+                <FieldLabel
+                  text="Kürzel"
+                  hint="Mehrere Kürzel komma-separiert für Vertretungen (z.B. MUE, SCH). Wert 'alle' deaktiviert den Filter (Übersichtsmodus)."
+                />
+                <input
+                  value={profile.bearbeiter_kuerzel ?? ''}
+                  onChange={e => updateProfile({ bearbeiter_kuerzel: e.target.value })}
+                  placeholder="z.B. MUE"
+                  className={KUERZEL_INPUT_CLASS}
+                  style={FIELD_BORDER}
+                />
+              </>
+            )}
           </SettingsRowGroup>
           <SettingsRowSeparator />
           <SettingsRowGroup>

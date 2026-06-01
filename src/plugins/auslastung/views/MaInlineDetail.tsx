@@ -23,6 +23,7 @@ import { hasPlOverride } from '../services/antragstyp-praeferenz';
 import type { AuslastungVerbund, MaQuartalsAuslastung } from '../services/quartals-auslastung';
 import type { MaAltlastBucket } from '../services/altlast';
 import { AltlastInlineList } from './AltlastInlineList';
+import { ZugangPasswortSection } from '../components/ZugangPasswortSection';
 
 type Tab = 'detail' | 'edit';
 
@@ -370,6 +371,10 @@ function EditTab({ ma, onSaved }: {
           )}
         </FormRow>
       </div>
+
+      {/* v2.11: PL erzeugt/erneuert das MA-Login-Passwort (nur maVerwaltungPasswort
+          + aktive De-Anon-Session). Komponente rendert null wenn Flag aus. */}
+      <ZugangPasswortSection anonId={ma.anonId} />
 
       {/* Save / Cancel — spannt ueber beide Spalten */}
       <div className="md:col-span-2 flex justify-end gap-2 pt-1">

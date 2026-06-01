@@ -90,6 +90,16 @@ export function isDatenShareWritable(): boolean {
 export function canWriteDatenShare(isKurator: boolean): boolean {
   return isKurator || isDatenShareWritable();
 }
+/** v2.11: MA-Login-Wall beim Start (Kuerzel aus Passwort entschluesselt). Nur
+ *  prod + dev. Greift erst wenn die Zugangsdatei existiert (sonst Fallback aufs
+ *  alte Kuerzelfeld). Siehe MaLoginGate + useMAIdentity + App.tsx-Startup-Gate. */
+export function isMaLoginEnabled(): boolean {
+  return features.maLogin === true;
+}
+/** v2.11: PL-UI „Zugangspasswort generieren" in der MA-Verwaltung. Nur pl + dev. */
+export function isMaVerwaltungPasswortEnabled(): boolean {
+  return features.maVerwaltungPasswort === true;
+}
 export function isChatEnabled(): boolean { return features.chat; }
 export function isSucheEnabled(): boolean { return features.suche; }
 export function isFeedbackBoardEnabled(): boolean { return features.feedbackBoard; }

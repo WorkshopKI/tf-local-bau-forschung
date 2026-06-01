@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useProfile } from '@/core/hooks/useProfile';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import {
@@ -38,7 +38,7 @@ export interface MyUebernahmeWuensche {
 
 export function useMyUebernahmeWuensche(): MyUebernahmeWuensche {
   const storage = useStorage();
-  const { profile } = useProfile();
+  const meinKuerzel = useMeinKuerzel();
   const [wuensche, setWuensche] = useState<UebernahmeWunsch[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,7 +54,7 @@ export function useMyUebernahmeWuensche(): MyUebernahmeWuensche {
     return () => { cancelled = true; };
   }, [storage]);
 
-  const kuerzel = profile?.bearbeiter_kuerzel ?? '';
+  const kuerzel = meinKuerzel ?? '';
 
   // Persistiert eine neue Wunsch-Liste: lokal optimistisch setzen (UI reagiert
   // sofort, der IDB-Cache wird in writeUebernahmeWuensche immer geschrieben),

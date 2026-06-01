@@ -35,6 +35,14 @@ import { InlineCapsHeader } from './InlineCapsHeader';
 import { MaListFilterBar, type ViewMode } from './MaListFilterBar';
 import { MaTable, type SortColumn, type SortDir } from './MaTable';
 import { MaTileGrid } from './MaTileGrid';
+import { isMaVerwaltungPasswortEnabled } from '@/config/feature-flags';
+import { useDeAnonSession } from '../../hooks/useDeAnonSession';
+import {
+  loadZugangFile,
+  addOrReplaceManyEintraege,
+} from '@/core/services/infrastructure/zugang-config';
+import { generatePassphrase } from '@/core/services/infrastructure/passphrase-woerter';
+import { PasswortAnzeigeDialog, type ZugangPasswortEintrag } from '../../components/PasswortAnzeigeDialog';
 
 export type WarningFilter = null | 'no-bookings' | 'overbooked';
 
@@ -66,6 +74,8 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
 
   const resolveName = useDeAnonResolver();
+  const isDeAnon = useDeAnonSession(s => s.isActive);
+  const [pwDialog, setPwDialog] = useState<ZugangPasswortEintrag[] | null>(null);
   const [kategorieFilter, setKategorieFilter] = useState<string>('');
   const [showInactive, setShowInactive] = useState(false);
   const [expandedMa, setExpandedMa] = useState<string | null>(null);
@@ -133,6 +143,29 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
     setEinsammelnMsg(
       `${profile.length} Profil(e) gelesen · ${aktualisiert.length} aktualisiert · ${neu.length} neu angelegt`,
     );
+  });
+
+  // v2.11: Batch — erzeugt fuer alle aktiven MAs OHNE bestehenden Zugang ein
+  // Login-Passwort, sammelt sie in EINEM read-modify-write (Pitfall #16/#20) und
+  // zeigt die {Kuerzel, Passwort}-Liste einmalig. Nur maVerwaltungPasswort +
+  // aktive De-Anon-Session (braucht das Klartext-Kuerzel zu jeder anonId).
+  const batchPwAction = useAsyncAction(async () => {
+    setEinsammelnMsg(null);
+    const existing = (await loadZugangFile(storage.idb))?.eintraege ?? [];
+    const have = new Set(existing.map(e => e.anonId));
+    const items: ZugangPasswortEintrag[] = [];
+    for (const m of Object.values(mitarbeiter)) {
+      if (!m.aktiv || have.has(m.anonId)) continue;
+      const kuerzel = resolveName(m.anonId);
+      if (!kuerzel) continue;
+      items.push({ anonId: m.anonId, kuerzel, passwort: generatePassphrase() });
+    }
+    if (items.length === 0) {
+      setEinsammelnMsg('Alle aktiven MAs haben bereits ein Zugangspasswort.');
+      return;
+    }
+    await addOrReplaceManyEintraege(storage.idb, items);
+    setPwDialog(items);
   });
 
   async function uebernehmenVorschlag(): Promise<void> {
@@ -272,28 +305,42 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           label="Mitarbeiter & Kapazität"
           count={`${aktivCount} aktiv / ${totalCount} gesamt`}
         />
-        <button
-          type="button"
-          onClick={() => einsammelnAction.run()}
-          disabled={einsammelnAction.busy}
-          className="h-7 px-3 rounded-md text-[12px] font-medium cursor-pointer disabled:opacity-50 transition-opacity hover:opacity-90 whitespace-nowrap"
-          style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
-          title="Liest die in „Meine Technologien“ gepflegten Profile aus den persönlichen Ordnern aller Teammitglieder ein und übernimmt sie."
-        >
-          {einsammelnAction.busy ? 'Sammle ein…' : 'Team-Profile einsammeln'}
-        </button>
+        <div className="flex items-center gap-2">
+          {isMaVerwaltungPasswortEnabled() && isDeAnon && (
+            <button
+              type="button"
+              onClick={() => batchPwAction.run()}
+              disabled={batchPwAction.busy}
+              className="h-7 px-3 rounded-md text-[12px] font-medium cursor-pointer disabled:opacity-50 transition-opacity hover:opacity-90 whitespace-nowrap"
+              style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
+              title="Erzeugt für alle aktiven MAs ohne Zugang ein Login-Passwort und zeigt die Liste einmalig zum Verteilen."
+            >
+              {batchPwAction.busy ? 'Erzeuge…' : 'Passwörter für alle aktiven MAs'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => einsammelnAction.run()}
+            disabled={einsammelnAction.busy}
+            className="h-7 px-3 rounded-md text-[12px] font-medium cursor-pointer disabled:opacity-50 transition-opacity hover:opacity-90 whitespace-nowrap"
+            style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
+            title="Liest die in „Meine Technologien“ gepflegten Profile aus den persönlichen Ordnern aller Teammitglieder ein und übernimmt sie."
+          >
+            {einsammelnAction.busy ? 'Sammle ein…' : 'Team-Profile einsammeln'}
+          </button>
+        </div>
       </div>
 
-      {(einsammelnMsg || einsammelnAction.error) && (
+      {(einsammelnMsg || einsammelnAction.error || batchPwAction.error) && (
         <div
           className="rounded-md px-3 py-1.5 text-[12px]"
           style={
-            einsammelnAction.error
+            (einsammelnAction.error || batchPwAction.error)
               ? { background: 'var(--tf-warning-bg)', color: 'var(--tf-warning-text)' }
               : { background: 'var(--tf-info-bg)', color: 'var(--tf-info-text)' }
           }
         >
-          {einsammelnAction.error ?? einsammelnMsg}
+          {einsammelnAction.error ?? batchPwAction.error ?? einsammelnMsg}
         </div>
       )}
 
@@ -400,6 +447,10 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         <p className="text-[11px] text-[var(--tf-text-tertiary)] leading-tight">
           {aktivCount} von {totalCount} Mitarbeitern haben aktuelle Anträge. MAs ohne Anträge sind ausgeblendet — Lücken in der Nummerierung sind normal.
         </p>
+      )}
+
+      {pwDialog && (
+        <PasswortAnzeigeDialog eintraege={pwDialog} onClose={() => setPwDialog(null)} />
       )}
     </section>
   );

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, ChevronDown, ChevronRight, MessageSquare, X } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { enabledPlugins } from '@/plugins.config';
@@ -32,6 +33,7 @@ type View = 'input' | 'confirm' | 'chatbot' | 'my-feedback';
 export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | null {
   const storage = useStorage();
   const { profile } = useProfile();
+  const meinKuerzel = useMeinKuerzel();
   const { activeId } = useNavigation();
   const bridge = useAIBridge();
 
@@ -94,7 +96,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
       }, {
         isKurator,
         persHandle,
-        kuerzel: profile?.bearbeiter_kuerzel,
+        kuerzel: meinKuerzel,
       });
       setSubmittedItem(item);
       setView('confirm');
@@ -116,7 +118,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
     } finally {
       setSubmitting(false);
     }
-  }, [text, areaRef, context, profile, storage, bridge, selectedHint]);
+  }, [text, areaRef, context, profile, meinKuerzel, storage, bridge, selectedHint]);
 
   if (!open) return null;
 
