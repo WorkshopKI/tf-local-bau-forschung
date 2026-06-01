@@ -320,14 +320,6 @@ export function KlassifizierungsReview(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Pool-Hint */}
-      {aktuellesJahr !== null && (
-        <div className="text-[11px] text-[var(--tf-text-tertiary)]">
-          Verteil-Pool: Verbünde aus {aktuellesJahr} ohne TiB-Zuweisung, ohne Status
-          „abgelehnt/zurückgezogen" und „Irrläufer". Klassifizierung wirkt auf alle TVs eines Verbundes.
-        </div>
-      )}
-
       {/* Themen-Modell-Status */}
       {!hasCentroids && (
         <div

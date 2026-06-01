@@ -3,6 +3,8 @@ interface Tab {
   label: string;
   /** Optional badge count shown after the label. */
   badge?: number;
+  /** Optionaler Hover-Tooltip (native `title`) auf dem Tab. */
+  tooltip?: string;
 }
 
 interface TabsProps {
@@ -23,6 +25,7 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps): React.ReactEleme
           key={tab.id}
           role="tab"
           aria-selected={tab.id === activeTab}
+          title={tab.tooltip}
           onClick={() => onChange(tab.id)}
           className={`shrink-0 whitespace-nowrap px-4 py-2 text-[13.5px] transition-colors cursor-pointer -mb-px ${
             tab.id === activeTab

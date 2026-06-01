@@ -76,12 +76,27 @@ export function AuslastungView(): React.ReactElement {
 
   const tabs = useMemo(() => {
     const offene = data.klassifizierungen.filter(k => k.status === 'vorgeschlagen').length;
+    const jahrMatch = /^(\d{4})-Q[1-4]$/.exec(data.config.aktuellesQuartal);
+    const jahr = jahrMatch ? jahrMatch[1] : null;
     return [
-      { id: 'klassifizierung' as const, label: 'Klassifizierung', badge: offene || undefined },
-      { id: 'zuweisung' as const, label: 'Zuweisung' },
-      { id: 'uebersicht' as const, label: 'Übersicht' },
+      {
+        id: 'klassifizierung' as const,
+        label: 'Klassifizierung',
+        badge: offene || undefined,
+        tooltip: `Verteil-Pool: Verbünde${jahr ? ` aus ${jahr}` : ''} ohne TiB-Zuweisung, ohne Status „abgelehnt/zurückgezogen" und „Irrläufer". Die Klassifizierung wirkt auf alle TVs eines Verbundes.`,
+      },
+      {
+        id: 'zuweisung' as const,
+        label: 'Zuweisung',
+        tooltip: 'Freigegebene Anträge an passende Mitarbeitende zuweisen — Top-3-Match-Vorschläge aus Kompetenz und freier Kapazität, inkl. Übernahme-Wünschen der MAs.',
+      },
+      {
+        id: 'uebersicht' as const,
+        label: 'Übersicht',
+        tooltip: 'Statistik, Mitarbeiter & Kapazität (pro Quartal) und Konfiguration — Kategorien, CSV-Import/Export, E-Mail-Vorlage, Themen-Modell.',
+      },
     ];
-  }, [data.klassifizierungen]);
+  }, [data.klassifizierungen, data.config.aktuellesQuartal]);
 
   // Empty-States
   if (!activeProgrammId) {
