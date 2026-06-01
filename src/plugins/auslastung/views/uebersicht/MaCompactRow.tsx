@@ -18,7 +18,6 @@ import type { MaQuartalsAuslastung } from '../../services/quartals-auslastung';
 import type { MaAltlastBucket } from '../../services/altlast';
 import type { KapazitaetsView } from '../../services/kapazitaet';
 import { dotColor } from './kategorie-colors';
-import { Sparkline } from './Sparkline';
 
 interface Props {
   ma: AnonymerMitarbeiter;
@@ -151,11 +150,6 @@ function MaCompactRowImpl({
       {/* Altanträge (offene Anträge aus den letzten 2 Quartalen) */}
       <td className="font-mono align-middle" style={{ padding: '6px 8px', fontSize: 12, width: 85, color: altlastTvs > 0 ? 'var(--tf-text-secondary)' : 'var(--tf-text-tertiary)' }}>
         {altlastTvs > 0 ? `${altlastTvs} TVs` : '—'}
-      </td>
-
-      {/* Verlauf (Sparkline-Placeholder) */}
-      <td className="align-middle" style={{ padding: '6px 8px', width: 80 }}>
-        <Sparkline inactive={dimmed} />
       </td>
 
       {/* Status */}

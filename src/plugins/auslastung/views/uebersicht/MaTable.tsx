@@ -53,9 +53,6 @@ const COLUMNS: ColumnSpec[] = [
   { id: 'frei', label: 'Frei (TVs)', align: 'right', width: 80 },
   { id: 'fest', label: 'Aktuell', align: 'left', width: 95 },
   { id: 'altlast', label: 'Altanträge', align: 'left', width: 85 },
-  // Verlauf: Phase-1-Platzhalter ohne Datenaggregat (Sparkline.tsx) → nichts
-  // zum Sortieren. Bleibt non-sortable bis `weeklyTrendByAnon` existiert.
-  { id: null, label: 'Verlauf', align: 'left', width: 80 },
   { id: 'status', label: 'Status', align: 'left', width: 90 },
   { id: null, label: '', align: 'right', width: 30 },
 ];
