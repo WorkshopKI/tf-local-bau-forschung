@@ -37,12 +37,7 @@ import { MaTable, type SortColumn, type SortDir } from './MaTable';
 import { MaTileGrid } from './MaTileGrid';
 import { isMaVerwaltungPasswortEnabled } from '@/config/feature-flags';
 import { useDeAnonSession } from '../../hooks/useDeAnonSession';
-import {
-  loadZugangFile,
-  addOrReplaceManyEintraege,
-} from '@/core/services/infrastructure/zugang-config';
-import { generatePassphrase } from '@/core/services/infrastructure/passphrase-woerter';
-import { PasswortAnzeigeDialog, type ZugangPasswortEintrag } from '../../components/PasswortAnzeigeDialog';
+import { ZugangVerwaltungDialog, type MaZugangItem } from '../../components/ZugangVerwaltungDialog';
 
 export type WarningFilter = null | 'no-bookings' | 'overbooked';
 
@@ -75,7 +70,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
 
   const resolveName = useDeAnonResolver();
   const isDeAnon = useDeAnonSession(s => s.isActive);
-  const [pwDialog, setPwDialog] = useState<ZugangPasswortEintrag[] | null>(null);
+  const [zugangListe, setZugangListe] = useState<MaZugangItem[] | null>(null);
   const [kategorieFilter, setKategorieFilter] = useState<string>('');
   const [showInactive, setShowInactive] = useState(false);
   const [expandedMa, setExpandedMa] = useState<string | null>(null);
@@ -145,28 +140,17 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
     );
   });
 
-  // v2.11: Batch — erzeugt fuer alle aktiven MAs OHNE bestehenden Zugang ein
-  // Login-Passwort, sammelt sie in EINEM read-modify-write (Pitfall #16/#20) und
-  // zeigt die {Kuerzel, Passwort}-Liste einmalig. Nur maVerwaltungPasswort +
-  // aktive De-Anon-Session (braucht das Klartext-Kuerzel zu jeder anonId).
-  const batchPwAction = useAsyncAction(async () => {
-    setEinsammelnMsg(null);
-    const existing = (await loadZugangFile(storage.idb))?.eintraege ?? [];
-    const have = new Set(existing.map(e => e.anonId));
-    const items: ZugangPasswortEintrag[] = [];
-    for (const m of Object.values(mitarbeiter)) {
-      if (!m.aktiv || have.has(m.anonId)) continue;
-      const kuerzel = resolveName(m.anonId);
-      if (!kuerzel) continue;
-      items.push({ anonId: m.anonId, kuerzel, passwort: generatePassphrase() });
-    }
-    if (items.length === 0) {
-      setEinsammelnMsg('Alle aktiven MAs haben bereits ein Zugangspasswort.');
-      return;
-    }
-    await addOrReplaceManyEintraege(storage.idb, items);
-    setPwDialog(items);
-  });
+  // v2.12: Öffnet die Zugangspasswort-Verwaltung (Übersicht ALLER aktiven MAs +
+  // erzeugen/neu erzeugen + E-Mail-Versand). Die Liste wird EINMALIG beim Klick
+  // gebaut (stabile Referenz für den Dialog-Mount-Effekt). Nur maVerwaltungs-
+  // Passwort + aktive De-Anon-Session (braucht das Klartext-Kuerzel pro anonId).
+  function openZugangVerwaltung(): void {
+    const liste: MaZugangItem[] = Object.values(mitarbeiter)
+      .filter(m => m.aktiv)
+      .map(m => ({ anonId: m.anonId, kuerzel: resolveName(m.anonId) ?? '' }))
+      .filter(x => x.kuerzel);
+    setZugangListe(liste);
+  }
 
   async function uebernehmenVorschlag(): Promise<void> {
     if (!vorschlag) return;
@@ -309,13 +293,12 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           {isMaVerwaltungPasswortEnabled() && isDeAnon && (
             <button
               type="button"
-              onClick={() => batchPwAction.run()}
-              disabled={batchPwAction.busy}
-              className="h-7 px-3 rounded-md text-[12px] font-medium cursor-pointer disabled:opacity-50 transition-opacity hover:opacity-90 whitespace-nowrap"
+              onClick={openZugangVerwaltung}
+              className="h-7 px-3 rounded-md text-[12px] font-medium cursor-pointer transition-opacity hover:opacity-90 whitespace-nowrap"
               style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
-              title="Erzeugt für alle aktiven MAs ohne Zugang ein Login-Passwort und zeigt die Liste einmalig zum Verteilen."
+              title="Übersicht aller aktiven MAs: Passwörter erzeugen/neu erzeugen + per E-Mail versenden."
             >
-              {batchPwAction.busy ? 'Erzeuge…' : 'Passwörter für alle aktiven MAs'}
+              Passwörter für alle aktiven MAs
             </button>
           )}
           <button
@@ -331,16 +314,16 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         </div>
       </div>
 
-      {(einsammelnMsg || einsammelnAction.error || batchPwAction.error) && (
+      {(einsammelnMsg || einsammelnAction.error) && (
         <div
           className="rounded-md px-3 py-1.5 text-[12px]"
           style={
-            (einsammelnAction.error || batchPwAction.error)
+            einsammelnAction.error
               ? { background: 'var(--tf-warning-bg)', color: 'var(--tf-warning-text)' }
               : { background: 'var(--tf-info-bg)', color: 'var(--tf-info-text)' }
           }
         >
-          {einsammelnAction.error ?? batchPwAction.error ?? einsammelnMsg}
+          {einsammelnAction.error ?? einsammelnMsg}
         </div>
       )}
 
@@ -449,8 +432,8 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         </p>
       )}
 
-      {pwDialog && (
-        <PasswortAnzeigeDialog eintraege={pwDialog} onClose={() => setPwDialog(null)} />
+      {zugangListe && (
+        <ZugangVerwaltungDialog maListe={zugangListe} onClose={() => setZugangListe(null)} />
       )}
     </section>
   );
