@@ -119,7 +119,10 @@ function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, quartal, stunden
       >
         {ma.anonId}
         {realName && (
-          <span style={{ color: 'var(--tf-text-tertiary)' }}> · {realName}</span>
+          <>
+            <span style={{ color: 'var(--tf-text-tertiary)' }}> · </span>
+            <span style={{ color: 'var(--tf-text)', fontWeight: 700 }}>{realName}</span>
+          </>
         )}
       </div>
 
