@@ -178,6 +178,11 @@ export const DEFAULT_CONFIG = {
     max_depth: 20,
     fkz_allowed_prefixes: [], // z.B. ['16EP', '16KN', '16DS', '16DL']
   },
+
+  // v2.16: Build-Time Rollen-Passwort-Gate. null = keine Wall (Dev-Server +
+  // Varianten ohne Gate). pl/kurator bekommen den auth-Block via
+  // `npm run set-password -- <variant> <pw>` eingebacken (scripts/set-app-password.mjs).
+  auth: null,
 };
 
 /**
@@ -409,6 +414,43 @@ export function validateConfig(config) {
   if (features.maLogin === true && features.requireKuratorLogin === true) {
     warnings.push(
       'features.maLogin und features.requireKuratorLogin gleichzeitig true: nur die Kurator-Login-Wall greift, die MA-Login-Wall wird übersprungen.',
+    );
+  }
+
+  // v2.16: Build-Time Rollen-Passwort-Gate (auth-Block) strukturell prüfen.
+  const auth = config.auth ?? null;
+  if (auth !== null) {
+    if (typeof auth !== 'object' || Array.isArray(auth)) {
+      errors.push('auth muss Objekt oder null/weggelassen sein');
+    } else {
+      if (typeof auth.required !== 'boolean') {
+        errors.push('auth.required muss boolean sein');
+      }
+      if (auth.required === true) {
+        if (typeof auth.salt !== 'string' || !auth.salt.trim()) {
+          errors.push(
+            'KRITISCH: auth.required=true aber auth.salt ist leer — das Gate ist nicht verifizierbar (App wäre ausgesperrt). ' +
+            'Passwort via `npm run set-password -- <variant> <passwort>` setzen.',
+          );
+        }
+        if (typeof auth.verifier !== 'string' || !auth.verifier.trim()) {
+          errors.push(
+            'KRITISCH: auth.required=true aber auth.verifier ist leer — das Gate ist nicht verifizierbar (App wäre ausgesperrt). ' +
+            'Passwort via `npm run set-password -- <variant> <passwort>` setzen.',
+          );
+        }
+      }
+      if (auth.hint != null && typeof auth.hint !== 'string') {
+        errors.push('auth.hint muss string oder weggelassen sein');
+      }
+    }
+  }
+
+  // v2.16: requireKuratorLogin ist durch das build-time auth-Gate abgelöst.
+  if (features.requireKuratorLogin === true && auth?.required !== true) {
+    warnings.push(
+      'features.requireKuratorLogin=true ohne auth.required: das alte SMB-basierte Kurator-Gate (v2.10) greift, nicht das neue build-time Gate. ' +
+      'Auf das auth-Gate migrieren: `npm run set-password -- kurator <pw>` + requireKuratorLogin=false.',
     );
   }
 

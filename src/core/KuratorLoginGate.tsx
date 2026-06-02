@@ -1,6 +1,12 @@
 /**
  * KuratorLoginGate (v2.10).
  *
+ * @deprecated v2.16 — abgeloest durch das build-time Rollen-Passwort-Gate
+ * (`AppPasswordGate` + `runtimeConfig.auth`). Wird seit v2.16 nicht mehr aus
+ * App.tsx gerendert; bleibt als Referenz erhalten (Datei-Loeschung optionaler
+ * Folgeschritt). `KuratorSessionPanel` nutzt weiterhin kurator-config.ts
+ * (setup/changePassword/Logout) fuer die optionale In-App-Session.
+ *
  * Vollbild-Pflicht-Login fuer die kurator-Variante (`features.requireKuratorLogin`).
  * Wird im Startup-Flow von App.tsx NACH dem StartupScreen (Daten-Share-Permission
  * steht) und VOR dem AppRouter gerendert, wenn ein Kurator konfiguriert ist

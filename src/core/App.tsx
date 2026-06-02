@@ -3,7 +3,7 @@ import { AppRouter } from '@/core/Router';
 import { Onboarding } from '@/core/Onboarding';
 import { WelcomeScreen } from '@/core/WelcomeScreen';
 import { StartupScreen } from '@/core/StartupScreen';
-import { KuratorLoginGate } from '@/core/KuratorLoginGate';
+import { AppPasswordGate } from '@/core/AppPasswordGate';
 import { MaLoginGate } from '@/core/MaLoginGate';
 import { enabledPlugins } from '@/plugins.config';
 import { StorageService } from '@/core/services/storage';
@@ -29,10 +29,9 @@ import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { rematchOnSnapshotReload } from '@/phase2';
 import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
 import { runtimeConfig } from '@/config/runtime-config';
-import { isDemoDataBundled, dataConfig, isKuratorLoginRequired, isMaLoginEnabled } from '@/config/feature-flags';
-import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { isDemoDataBundled, dataConfig, isMaLoginEnabled } from '@/config/feature-flags';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
-import { isKuratorConfigured } from '@/core/services/infrastructure/kurator-config';
+import { getAppGateSession } from '@/core/hooks/useAppGateSession';
 import { seedTestData } from '@/core/services/seed/seed-data';
 import { useConnectionState } from '@/core/services/connection-status';
 import { useVisibilityPermissionProbe } from '@/core/hooks/useVisibilityPermissionProbe';
@@ -43,7 +42,7 @@ function AppProviders({
   showOnboarding, setShowOnboarding,
   showWelcome, setShowWelcome,
   showStartup, onStartupReady,
-  showKuratorGate, setShowKuratorGate,
+  showAppGate, setShowAppGate,
   showMaLoginGate, setShowMaLoginGate,
   needsDowngrade,
   needsInitialPick,
@@ -59,11 +58,11 @@ function AppProviders({
   showWelcome: boolean;
   setShowWelcome: (v: boolean) => void;
   showStartup: boolean;
-  /** v2.10: laeuft wenn der StartupScreen fertig ist — setzt showStartup=false
-   *  und entscheidet danach ueber die Kurator-Login-Wall. */
+  /** v2.16: laeuft wenn der StartupScreen fertig ist — setzt showStartup=false
+   *  und entscheidet danach ueber die Rollen-Passwort-Wall (pl + kurator). */
   onStartupReady: () => void;
-  showKuratorGate: boolean;
-  setShowKuratorGate: (v: boolean) => void;
+  showAppGate: boolean;
+  setShowAppGate: (v: boolean) => void;
   /** v2.11: MA-Login-Wall (nur prod-Variante, maLogin). */
   showMaLoginGate: boolean;
   setShowMaLoginGate: (v: boolean) => void;
@@ -121,8 +120,8 @@ function AppProviders({
                   needsInitialPick={needsInitialPick}
                   onReady={onStartupReady}
                 />
-              ) : showKuratorGate ? (
-                <KuratorLoginGate onSuccess={() => setShowKuratorGate(false)} />
+              ) : showAppGate ? (
+                <AppPasswordGate onSuccess={() => setShowAppGate(false)} />
               ) : showMaLoginGate ? (
                 <MaLoginGate onSuccess={() => setShowMaLoginGate(false)} />
               ) : (
@@ -219,8 +218,9 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const [department, setDepartment] = useState<UserProfile['department']>('beide');
   const [seedToast, setSeedToast] = useState<string | null>(null);
   const [syncToast, setSyncToast] = useState<string | null>(null);
-  // v2.10: Kurator-Login-Wall (nur kurator-Variante, requireKuratorLogin).
-  const [showKuratorGate, setShowKuratorGate] = useState(false);
+  // v2.16: Rollen-Passwort-Wall (pl + kurator, runtimeConfig.auth). Loest die
+  // v2.10-Kurator-Wall ab — vereinheitlicht ueber AppPasswordGate.
+  const [showAppGate, setShowAppGate] = useState(false);
   // v2.11: MA-Login-Wall (nur prod-Variante, maLogin).
   const [showMaLoginGate, setShowMaLoginGate] = useState(false);
 
@@ -369,27 +369,24 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
     });
   }, [storage, aiBridge, refreshHandleGate]);
 
-  // v2.10: Entscheidet NACH dem StartupScreen (Daten-Share-Permission steht,
-  // damit kurator-config.enc lesbar ist) ueber die Kurator-Login-Wall.
-  //  - Flag aus → keine Wall.
-  //  - gueltige Session rehydriert (<TTL) → keine Wall, direkt App.
-  //  - konfiguriert + keine Session → Pflicht-Login-Wall.
-  //  - nicht konfiguriert / offline (isKuratorConfigured=false) → ueberspringen.
-  const decideKuratorGate = useCallback(async (): Promise<void> => {
-    if (!isKuratorLoginRequired()) { setShowKuratorGate(false); return; }
-    await useKuratorSession.getState().rehydrate(storage.idb);
-    if (useKuratorSession.getState().isActive) { setShowKuratorGate(false); return; }
-    const configured = await isKuratorConfigured(storage.idb);
-    setShowKuratorGate(configured);
-  }, [storage]);
+  // v2.16: Entscheidet NACH dem StartupScreen ueber die Rollen-Passwort-Wall
+  // (pl + kurator). Build-time eingebetteter Verifier (`runtimeConfig.auth`) —
+  // keine SMB-Abhaengigkeit, unbedingte Wall:
+  //  - kein auth.required → keine Wall.
+  //  - sessionStorage-Flag (Same-Tab seit Login) → keine Wall.
+  //  - sonst → Pflicht-Login-Wall (AppPasswordGate). Loest v2.10 decideKuratorGate ab.
+  const decideAppGate = useCallback((): void => {
+    if (runtimeConfig.auth?.required !== true) { setShowAppGate(false); return; }
+    setShowAppGate(!getAppGateSession());
+  }, []);
 
   // v2.11: Entscheidet NACH dem StartupScreen ueber die MA-Login-Wall (prod).
   //  - Flag aus → keine Wall.
   //  - rehydrierte sessionStorage-Session (Same-Tab-Reload) → keine Wall.
   //  - Zugangsdatei existiert + nicht angemeldet → Pflicht-Login.
   //  - Zugangsdatei fehlt → ueberspringen (Fallback aufs alte Kuerzelfeld).
-  // Mutual-exclusive zur Kurator-Wall (prod hat maLogin, kurator
-  // requireKuratorLogin — nie beides) → die Gates kollidieren nicht.
+  // Mutual-exclusive zur Rollen-Passwort-Wall (v2.16): prod hat maLogin, pl/kurator
+  // haben auth.required + maLogin:false — nie beides → die Gates kollidieren nicht.
   const decideMaGate = useCallback(async (): Promise<void> => {
     if (!isMaLoginEnabled()) { setShowMaLoginGate(false); return; }
     if (useMAIdentity.getState().istAngemeldet) { setShowMaLoginGate(false); return; }
@@ -399,9 +396,9 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
 
   const handleStartupReady = useCallback(async (): Promise<void> => {
     setShowStartup(false);
-    await decideKuratorGate();
+    decideAppGate();
     await decideMaGate();
-  }, [decideKuratorGate, decideMaGate]);
+  }, [decideAppGate, decideMaGate]);
 
   const handleOnboardingComplete = useCallback(async () => {
     setShowOnboarding(false);
@@ -423,7 +420,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   // Vorgänge/Dokumente/Artefakte. seedTestData() ist idempotent — zweiter Aufruf
   // liefert Nullen und es erscheint kein Toast.
   useEffect(() => {
-    if (!ready || showOnboarding || showWelcome || showStartup || showKuratorGate || showMaLoginGate || !isDemoDataBundled()) return;
+    if (!ready || showOnboarding || showWelcome || showStartup || showAppGate || showMaLoginGate || !isDemoDataBundled()) return;
     let cancelled = false;
     (async () => {
       const result = await seedTestData(storage);
@@ -434,7 +431,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       }
     })();
     return () => { cancelled = true; };
-  }, [ready, showOnboarding, showWelcome, showStartup, showKuratorGate, showMaLoginGate, storage]);
+  }, [ready, showOnboarding, showWelcome, showStartup, showAppGate, showMaLoginGate, storage]);
 
   // Snapshot-Sync — non-blocking, nach App-Start.
   // syncToastTimerRef haelt die ID des aktuell laufenden Auto-Dismiss-Timers.
@@ -443,7 +440,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   // Timer den zweiten Toast vorzeitig clearen).
   const syncToastTimerRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!ready || showOnboarding || showWelcome || showStartup || showKuratorGate || showMaLoginGate) return;
+    if (!ready || showOnboarding || showWelcome || showStartup || showAppGate || showMaLoginGate) return;
     let cancelled = false;
     (async () => {
       const handle = await getDatenShareHandle(storage.idb);
@@ -488,7 +485,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, showOnboarding, showWelcome, showStartup, showKuratorGate, showMaLoginGate]);
+  }, [ready, showOnboarding, showWelcome, showStartup, showAppGate, showMaLoginGate]);
 
   if (!ready) return <></>;
 
@@ -502,8 +499,8 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       setShowWelcome={handleWelcomeComplete as unknown as (v: boolean) => void}
       showStartup={showStartup}
       onStartupReady={() => void handleStartupReady()}
-      showKuratorGate={showKuratorGate}
-      setShowKuratorGate={setShowKuratorGate}
+      showAppGate={showAppGate}
+      setShowAppGate={setShowAppGate}
       showMaLoginGate={showMaLoginGate}
       setShowMaLoginGate={setShowMaLoginGate}
       needsDowngrade={needsDowngrade}

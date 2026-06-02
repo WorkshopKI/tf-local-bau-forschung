@@ -170,4 +170,25 @@
     // in der Antrags-CSV müssen erlaubtes Präfix haben) findet beim CSV-Import statt.
     "fkz_allowed_prefixes": ["16EP", "16KN", "16DS", "16DL"]
   }
+
+  // v2.16: Build-Time Rollen-Passwort-Gate (optional). Wenn gesetzt + required=true,
+  // erzwingt der Build beim App-Start eine Vollbild-Passwort-Wall (AppPasswordGate) —
+  // ohne korrektes Passwort ist die App nicht nutzbar. Genutzt fuer pl + kurator.
+  //
+  // NICHT von Hand eintragen! salt + verifier werden generiert via:
+  //   npm run set-password -- <pl|kurator> "Mein-Passwort"
+  // Das schreibt nur den gesalzenen Verifier in die Config — niemals das Klartext-
+  // Passwort. In der kurator-Variante fuehrt ein erfolgreicher Login zusaetzlich die
+  // Kurator-Eskalation aus (is_kurator + Schreib-Session + readwrite-Handle).
+  //
+  // Sicherheits-Einordnung: Casual-Access-Gate (verhindert versehentliches Oeffnen
+  // durch normale MAs). Der Verifier ist offline brute-forcebar — akzeptiert unter
+  // dem Single-Team-Trust-Modell. Starkes Passwort waehlen.
+  //
+  // "auth": {
+  //   "required": true,
+  //   "hint": "Bei Fragen zum Zugang: Projektleitung.",  // optional, unter dem Feld
+  //   "salt": "<base64 — generiert>",
+  //   "verifier": "<base64 — generiert>"
+  // }
 }

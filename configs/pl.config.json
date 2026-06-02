@@ -42,14 +42,29 @@
     "antraege": "Förderanträge"
   },
   "ki": {
-    "localLlama": { "enabled": true, "endpoint": "http://localhost:8081" },
-    "openrouter": { "enabled": false, "allowedModels": [] }
+    "localLlama": {
+      "enabled": true,
+      "endpoint": "http://localhost:8081"
+    },
+    "openrouter": {
+      "enabled": false,
+      "allowedModels": []
+    }
   },
-  "branding": { "logoUrl": null, "primaryColor": null },
+  "branding": {
+    "logoUrl": null,
+    "primaryColor": null
+  },
   "scan": {
     "sub_roots": [],
     "file_extensions": [],
     "max_depth": 20,
     "fkz_allowed_prefixes": []
+  },
+  "auth": {
+    "required": true,
+    "hint": "Bei Fragen zum Zugang: Projektleitung.",
+    "salt": "q5stZHkJcJy1RCBolu+L5g==",
+    "verifier": "/9FJk84XddgXIg/RyEYQ5QcFzIaPTfkcHXDPFOcvepkDAm4UOECtZbje+jPKDTo="
   }
 }

@@ -28,6 +28,10 @@ export interface KuratorSessionState {
 
   setup: (idb: IDBStore, name: string, password: string) => Promise<boolean>;
   activate: (idb: IDBStore, password: string) => Promise<boolean>;
+  /** v2.16: Aktiviert die Session OHNE SMB-Lesen von kurator-config.enc — wird
+   *  vom AppPasswordGate aufgerufen, nachdem das build-time Passwort bereits
+   *  verifiziert wurde. Siehe Implementierung. */
+  activateSynthetic: (idb: IDBStore, name: string) => Promise<void>;
   deactivate: (idb: IDBStore) => Promise<void>;
   extend: () => void;
   setTtl: (ms: number) => void;
@@ -68,6 +72,20 @@ export const useKuratorSession = create<KuratorSessionState>((set, get) => ({
     await writeMeta(idb, { kuratorName, expiresAt });
     await logAudit(idb, { action: 'kurator_login', user: kuratorName });
     return true;
+  },
+
+  /**
+   * v2.16: Aktiviert die Session ohne SMB-Lesen von kurator-config.enc — wird
+   * vom AppPasswordGate (build-time Passwort bereits verifiziert) aufgerufen.
+   * Schreibt IDB-Meta + Audit analog activate(), damit isActive (Schreib-Buttons)
+   * und kuratorName (Audit-Identitaet) gesetzt sind. Reload restauriert via
+   * rehydrate(). `name` ist bei Shared-Passwort das Build-Label (keine Person).
+   */
+  activateSynthetic: async (idb, name) => {
+    const expiresAt = Date.now() + get().ttlMs;
+    set({ isActive: true, kuratorName: name, expiresAt });
+    await writeMeta(idb, { kuratorName: name, expiresAt });
+    await logAudit(idb, { action: 'kurator_login_buildtime', user: name });
   },
 
   deactivate: async (idb) => {

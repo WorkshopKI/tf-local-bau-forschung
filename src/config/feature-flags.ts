@@ -29,11 +29,23 @@ export function isKuratorMenusEnabled(): boolean {
   return features.kuratorMenus;
 }
 
-/** v2.10: True nur in der kurator-Variante — erzwingt beim App-Start eine
- *  Kurator-Login-Wall (Passwort). Nach Login werden `is_kurator` + Schreib-
- *  Session aktiviert. Siehe KuratorLoginGate + App.tsx-Startup-Gate. */
+/**
+ * @deprecated v2.16 — abgeloest durch das build-time Rollen-Passwort-Gate
+ * (`isAppGateRequired` / runtimeConfig.auth). Bleibt nur fuer Legacy-Configs +
+ * die Validierungs-Deprecation-Warnung erhalten.
+ *
+ * v2.10: True nur in der kurator-Variante — erzwang beim App-Start eine
+ * Kurator-Login-Wall (Passwort gegen kurator-config.enc auf dem Share).
+ */
 export function isKuratorLoginRequired(): boolean {
   return features.requireKuratorLogin === true;
+}
+
+/** v2.16: True wenn der Build eine Rollen-Passwort-Wall beim Start erzwingt
+ *  (pl + kurator). Build-time Verifier in `runtimeConfig.auth`. Siehe
+ *  AppPasswordGate + app-password.ts. */
+export function isAppGateRequired(): boolean {
+  return runtimeConfig.auth?.required === true;
 }
 
 export function isFeedbackEnabled(): boolean {

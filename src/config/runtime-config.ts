@@ -117,6 +117,23 @@ export interface TeamflowBranding {
   primaryColor: string | null;
 }
 
+/**
+ * v2.16: Build-Time Rollen-Passwort-Gate. Salt + AES-GCM-Verifier werden via
+ * `npm run set-password -- <variant> <pw>` (scripts/set-app-password.mjs) erzeugt
+ * und in die Variant-Config eingebacken — kein Klartext-Passwort, keine SMB-Datei.
+ * Greift in pl + kurator (AppPasswordGate). Siehe app-password.ts.
+ */
+export interface TeamflowAuthConfig {
+  /** True → unbedingte Vollbild-Login-Wall beim App-Start (kein Skip). */
+  required: boolean;
+  /** Base64, 16 Random-Bytes (PBKDF2-Salt). */
+  salt: string;
+  /** Base64, [12B IV][ciphertext+tag] = encrypt(Sentinel-JSON, deriveKey(pw, salt)). */
+  verifier: string;
+  /** Optionaler Hinweis unter dem Passwortfeld (z.B. „Wende dich an die PL"). */
+  hint?: string;
+}
+
 export interface TeamflowScanConfig {
   /** Relative Unterprogramm-Roots im dokumentenquelle-Handle. Leer = ganzer Handle. */
   sub_roots: string[];
@@ -142,6 +159,8 @@ export interface TeamflowConfig {
   /** Phase 2 — optional, default-leere Werte werden vom Build-Layer gesetzt. */
   scan?: TeamflowScanConfig;
   dev?: TeamflowDevConfig;
+  /** v2.16 — optionales Build-Time Rollen-Passwort-Gate (pl + kurator). */
+  auth?: TeamflowAuthConfig;
 }
 
 export const runtimeConfig: TeamflowConfig = __TEAMFLOW_CONFIG__;

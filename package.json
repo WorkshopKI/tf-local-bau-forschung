@@ -1,7 +1,7 @@
 {
   "name": "teamflow-local",
   "private": true,
-  "version": "2.15.1",
+  "version": "2.16.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "generate:test-label-xlsx": "node scripts/generate-test-label-xlsx.mjs",
     "normalize:fixture-csvs": "node scripts/normalize-fixture-csvs.mjs",
     "build:default-labels": "node scripts/build-default-labels.mjs",
+    "set-password": "node scripts/set-app-password.mjs",
     "generate:test-assets": "npm run generate:test-csvs && npm run generate:test-label-xlsx && npm run normalize:fixture-csvs && npm run build:default-labels",
     "predev": "npm run normalize:fixture-csvs",
     "prebuild": "npm run generate:test-assets",
