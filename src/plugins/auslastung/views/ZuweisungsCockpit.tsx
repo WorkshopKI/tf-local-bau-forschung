@@ -52,6 +52,12 @@ import { readAntragDeskriptoren } from '../services/profil-aggregator';
 import { exportAnonymousXlsx, exportDeAnonymizedXlsx } from '../services/export-service';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
+import {
+  buildZuweisungSortOptions,
+  DEFAULT_ZUWEISUNG_SORT,
+  ZUWEISUNG_SORT_LABELS,
+  type ZuweisungSortKey,
+} from '../services/zuweisung-sort';
 import type { Antrag } from '@/core/services/csv/types';
 
 type StatusFilter = 'offen' | 'selbst' | 'zugewiesen' | 'alle';
@@ -144,6 +150,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const [kategorieFilter, setKategorieFilter] = useState<string>('');
   const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('offen');
+  const [sortKey, setSortKey] = useState<ZuweisungSortKey>(DEFAULT_ZUWEISUNG_SORT);
   const [selectedAz, setSelectedAz] = useState<string | null>(null);
 
   // Resizable Split: Breite der linken Liste in %. Ref haelt den Live-Wert
@@ -259,6 +266,19 @@ export function ZuweisungsCockpit(): React.ReactElement {
     });
   }, [verbundRows, kategorieFilter, antragstypFilter, phaseByAz, statusFilter, zuweisungen]);
 
+  // Sortier-Optionen — „Kategorie" respektiert die konfigurierte Reihenfolge der
+  // Überkategorien (id → Index). Wird in die reinen Comparatoren durchgereicht.
+  const sortOptions = useMemo(() => {
+    const rank = new Map(config.ueberKategorien.map((k, i) => [k.id, i]));
+    return buildZuweisungSortOptions(rank);
+  }, [config.ueberKategorien]);
+
+  // Sortieren NACH dem Filtern (Default: Akronym A→Z statt zufälliger Pool-Reihenfolge).
+  const sorted = useMemo(() => {
+    const compare = sortOptions.find(o => o.key === sortKey)?.compare;
+    return compare ? [...filtered].sort(compare) : filtered;
+  }, [filtered, sortKey, sortOptions]);
+
   // Counts pro Filter-Option — ueber ALLE freigegebenen Verbunde (stabil, nicht
   // ueber die aktuell gefilterte Teilmenge; gleiche Regel wie die Foerderantraege-
   // Quickfilter). Werden im aufgeklappten Chip-Segment angezeigt.
@@ -298,14 +318,16 @@ export function ZuweisungsCockpit(): React.ReactElement {
     return Array.from(new Set(azs.flatMap(az => pendingByAntrag.get(az) ?? []))).filter(a => !storeWunsch.has(a));
   })();
 
-  // Wenn Selektion durch Filter wegfaellt — auf den Lead-TV des ersten Verbundes.
+  // Wenn Selektion durch Filter wegfaellt — auf den Lead-TV des ersten (nach
+  // aktueller Sortierung obersten) Verbundes. Membership ist sortier-unabhängig,
+  // daher bleibt eine noch sichtbare Selektion beim Umsortieren erhalten.
   useEffect(() => {
-    if (selectedAz && !filtered.some(r => r.leadAktenzeichen === selectedAz)) {
-      setSelectedAz(filtered[0]?.leadAktenzeichen ?? null);
-    } else if (!selectedAz && filtered.length > 0) {
-      setSelectedAz(filtered[0]!.leadAktenzeichen);
+    if (selectedAz && !sorted.some(r => r.leadAktenzeichen === selectedAz)) {
+      setSelectedAz(sorted[0]?.leadAktenzeichen ?? null);
+    } else if (!selectedAz && sorted.length > 0) {
+      setSelectedAz(sorted[0]!.leadAktenzeichen);
     }
-  }, [filtered, selectedAz]);
+  }, [sorted, selectedAz]);
 
   // Matching-Engine fuer selektierten Antrag
   useEffect(() => {
@@ -476,6 +498,13 @@ export function ZuweisungsCockpit(): React.ReactElement {
     if (key) setStatusFilter(key);
   };
 
+  // Sortier-Pille — bewusst ohne Counts (Sortierung partitioniert nicht).
+  const sortItems: CollapsibleSegItem[] = sortOptions.map(o => ({ label: o.label }));
+  const onSortChange = (label: string): void => {
+    const opt = sortOptions.find(o => o.label === label);
+    if (opt) setSortKey(opt.key);
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {/* Toolbar: Übernahme-Wünsche einsammeln (links) + Export (rechts) */}
@@ -539,6 +568,14 @@ export function ZuweisungsCockpit(): React.ReactElement {
           onChange={onStatusChange}
           defaultValue={STATUS_FILTER_LABELS.offen}
         />
+        <CollapsibleSeg
+          label="Sortiert nach"
+          value={ZUWEISUNG_SORT_LABELS[sortKey]}
+          items={sortItems}
+          onChange={onSortChange}
+          defaultValue={ZUWEISUNG_SORT_LABELS[DEFAULT_ZUWEISUNG_SORT]}
+          startCollapsed
+        />
       </div>
 
       {/* Split — resizable: linke Liste per Ziehgriff breiter ziehbar (lange VB-Titel lesen) */}
@@ -549,7 +586,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
           style={{ width: `${leftPct}%`, border: '0.5px solid var(--tf-border)' }}
         >
           <div className="px-3 py-2 flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)]" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-            <span>{isInitialLoading ? '…' : `${filtered.length} Verbund${filtered.length !== 1 ? 'e' : ''}`}</span>
+            <span>{isInitialLoading ? '…' : `${sorted.length} Verbund${sorted.length !== 1 ? 'e' : ''}`}</span>
             {!isInitialLoading && (
               <>
                 <span>· nur ohne TIB-Kürzel (letzte {config.verteilLookbackMonate ?? 6} Mon.)</span>
@@ -567,7 +604,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
             {isInitialLoading && (
               <SkeletonRows count={8} columns={[80, 220, 60, 24]} />
             )}
-            {!isInitialLoading && filtered.map(row => {
+            {!isInitialLoading && sorted.map(row => {
               const isSel = selectedAz === row.leadAktenzeichen;
               // 1.17: Primaer (gefuellt) vs Aspekte (outline) trennen.
               const primaerId = row.klassifizierung.freigegebenePrimaer;
@@ -634,7 +671,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
                 </div>
               );
             })}
-            {!isInitialLoading && filtered.length === 0 && (
+            {!isInitialLoading && sorted.length === 0 && (
               <div className="px-3 py-8 text-center text-[var(--tf-text-tertiary)] text-[12.5px]">
                 Keine freigegebenen Verbünde in dieser Ansicht.
               </div>
