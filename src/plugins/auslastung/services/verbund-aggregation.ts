@@ -100,23 +100,33 @@ export function hatBearbeiterKuerzel(antrag: Antrag): boolean {
 }
 
 /**
- * Parst das Jahr aus einem Quartal-String „YYYY-QN". null bei ungültigem Format.
- * Geteilt von Klassifizierungs- und Zuweisungs-Pool, damit beide denselben
- * „Verteil-Jahr"-Filter nutzen.
+ * Untere Datums-Grenze (inklusive, ISO `YYYY-MM-01`) des rollierenden Verteil-
+ * Fensters: die letzten `lookbackMonate` Monate bis zum Ende des Quartals
+ * `quartal` (YYYY-QN). null bei ungültigem Quartal-Format. Gleitet sauber über
+ * den Jahreswechsel — ein Dezember-Antrag bleibt `lookbackMonate` Monate sichtbar,
+ * unabhängig vom Kalenderjahr. Geteilt von Klassifizierungs- + Zuweisungs-Pool.
  */
-export function jahrAusQuartal(quartal: string): number | null {
-  const m = /^(\d{4})-Q[1-4]$/.exec(quartal);
-  return m ? Number(m[1]) : null;
+export function verteilCutoffDatum(quartal: string, lookbackMonate: number): string | null {
+  const m = /^(\d{4})-Q([1-4])$/.exec(quartal);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const endMonth = Number(m[2]) * 3 - 1;        // 0-basiert: Q1→2 (März) … Q4→11 (Dez)
+  const back = Math.max(1, Math.floor(lookbackMonate));
+  let cm = endMonth - (back - 1);               // erster Monat des Fensters (0-basiert)
+  let cy = year;
+  while (cm < 0) { cm += 12; cy -= 1; }
+  return `${cy}-${String(cm + 1).padStart(2, '0')}-01`;
 }
 
 /**
- * Pool-Gate „zu verteilen": Antrag aus dem aktuellen Jahr, OHNE Bearbeiter-Kürzel
- * und nicht in einem ausgeschlossenen Status. Geteilt von der Klassifizierungs-
- * Liste UND der Zuweisungs-Worklist — beide zeigen denselben Antrags-Pool.
+ * Pool-Gate „zu verteilen": Antragsdatum im rollierenden Fenster
+ * (≥ `cutoffDatum`, ISO-Vergleich), OHNE Bearbeiter-Kürzel und nicht in einem
+ * ausgeschlossenen Status. Geteilt von der Klassifizierungs-Liste UND der
+ * Zuweisungs-Worklist — beide zeigen denselben Antrags-Pool.
  */
-export function istZuVerteilen(antrag: Antrag, jahr: number): boolean {
+export function istZuVerteilen(antrag: Antrag, cutoffDatum: string): boolean {
   const datum = (antrag as Record<string, unknown>)[CANONICAL_ANTRAGSDATUM];
-  if (typeof datum !== 'string' || !datum.startsWith(`${jahr}-`)) return false;
+  if (typeof datum !== 'string' || datum < cutoffDatum) return false;
   if (hatBearbeiterKuerzel(antrag)) return false;
   const status = typeof antrag.status === 'string' ? antrag.status.trim().toLowerCase() : '';
   if (POOL_EXCLUDED_STATUS.has(status)) return false;
@@ -130,7 +140,7 @@ export function istZuVerteilen(antrag: Antrag, jahr: number): boolean {
 
 interface CachedClassificationViews {
   antraege: readonly Antrag[];
-  jahr: number | null;
+  cutoffDatum: string | null;
   kategorien: readonly UeberKategorie[];
   persisted: readonly Klassifizierung[];
   verbundEmbeddings: ReadonlyMap<string, number[]> | undefined;
@@ -159,7 +169,7 @@ let liveKlCache = new Map<string, Klassifizierung>();
 
 export function buildVerbundClassificationViews(
   antraege: readonly Antrag[],
-  jahr: number | null,
+  cutoffDatum: string | null,
   kategorien: readonly UeberKategorie[],
   persisted: readonly Klassifizierung[],
   verbundEmbeddings: ReadonlyMap<string, number[]> | undefined,
@@ -168,7 +178,7 @@ export function buildVerbundClassificationViews(
 ): VerbundKlassifizierungsView[] {
   if (cachedViews
       && cachedViews.antraege === antraege
-      && cachedViews.jahr === jahr
+      && cachedViews.cutoffDatum === cutoffDatum
       && cachedViews.kategorien === kategorien
       && cachedViews.persisted === persisted
       && cachedViews.verbundEmbeddings === verbundEmbeddings
@@ -177,9 +187,9 @@ export function buildVerbundClassificationViews(
     return cachedViews.value;
   }
   const value = computeVerbundClassificationViews(
-    antraege, jahr, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende,
+    antraege, cutoffDatum, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende,
   );
-  cachedViews = { antraege, jahr, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende, value };
+  cachedViews = { antraege, cutoffDatum, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende, value };
   return value;
 }
 
@@ -194,7 +204,7 @@ export function invalidateVerbundClassificationCache(): void {
 
 function computeVerbundClassificationViews(
   antraege: readonly Antrag[],
-  jahr: number | null,
+  cutoffDatum: string | null,
   kategorien: readonly UeberKategorie[],
   persisted: readonly Klassifizierung[],
   verbundEmbeddings: ReadonlyMap<string, number[]> | undefined,
@@ -216,7 +226,7 @@ function computeVerbundClassificationViews(
   }
 
   // 0) Pool filtern.
-  const pool = jahr === null ? antraege : antraege.filter(a => istZuVerteilen(a, jahr));
+  const pool = cutoffDatum === null ? antraege : antraege.filter(a => istZuVerteilen(a, cutoffDatum));
 
   // 0a) verbuende-Map einmal pro Compute bauen. Bei Cache-Hit oben skipped.
   const verbuendeById = new Map<string, Verbund>();

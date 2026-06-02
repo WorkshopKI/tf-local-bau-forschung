@@ -24,7 +24,7 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
-import { groupFreigegebeneByVerbund, istZuVerteilen, jahrAusQuartal } from '../services/verbund-aggregation';
+import { groupFreigegebeneByVerbund, istZuVerteilen, verteilCutoffDatum } from '../services/verbund-aggregation';
 import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
   embedText,
@@ -206,20 +206,23 @@ export function ZuweisungsCockpit(): React.ReactElement {
   // einfliessen (statt nur Store-Zuweisungen).
   const { auslastungByAnon } = useAuslastungIndex();
 
-  // Jahr aus dem aktuellen Quartal — exakt wie die Klassifizierungs-Liste, damit
-  // beide denselben Verteil-Pool nutzen.
-  const aktuellesJahr = useMemo(() => jahrAusQuartal(config.aktuellesQuartal), [config.aktuellesQuartal]);
+  // Rollierendes Verteil-Fenster (Cutoff) — exakt wie die Klassifizierungs-Liste,
+  // damit beide denselben Pool nutzen (gleitet über den Jahreswechsel).
+  const verteilCutoff = useMemo(
+    () => verteilCutoffDatum(config.aktuellesQuartal, config.verteilLookbackMonate ?? 6),
+    [config.aktuellesQuartal, config.verteilLookbackMonate],
+  );
 
   // Worklist = freigegebene Klassifizierungen ∩ derselbe „zu verteilen"-Pool wie
-  // in der Klassifizierungs-Liste (`istZuVerteilen`: aktuelles Jahr, KEIN
-  // tib_kuerz, kein ausgeschlossener Status). jahr===null → kein Jahr-Filter
+  // in der Klassifizierungs-Liste (`istZuVerteilen`: Antragsdatum im Fenster, KEIN
+  // tib_kuerz, kein ausgeschlossener Status). cutoff===null → kein Datums-Filter
   // (identisch zur Klassifizierungs-Liste, verbund-aggregation.ts).
   const freigegebene = useMemo(() => {
     return view.filter(v =>
       v.klassifizierung.status === 'freigegeben'
-      && (aktuellesJahr === null || istZuVerteilen(v.antrag, aktuellesJahr)),
+      && (verteilCutoff === null || istZuVerteilen(v.antrag, verteilCutoff)),
     );
-  }, [view, aktuellesJahr]);
+  }, [view, verteilCutoff]);
 
   // v2.6.6: Eine Zeile pro Verbund (alle TVs teilen Klassifizierung + Bearbeiter).
   const verbundRows = useMemo(

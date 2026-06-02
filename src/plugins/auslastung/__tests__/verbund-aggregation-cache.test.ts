@@ -53,13 +53,13 @@ describe('buildVerbundClassificationViews — Closure-Cache', () => {
     expect(b).not.toBe(a);
   });
 
-  it('anderes jahr → Re-Compute (Pool-Filter aendert sich)', () => {
+  it('anderer cutoff → Re-Compute (Pool-Filter aendert sich)', () => {
     const antraege: Antrag[] = [];
     const k: UeberKategorie[] = [];
     const p: Klassifizierung[] = [];
     const v: Verbund[] = [];
     const a = buildVerbundClassificationViews(antraege, null, k, p, undefined, false, v);
-    const b = buildVerbundClassificationViews(antraege, 2026, k, p, undefined, false, v);
+    const b = buildVerbundClassificationViews(antraege, '2026-01-01', k, p, undefined, false, v);
     expect(b).not.toBe(a);
   });
 
@@ -123,13 +123,13 @@ describe('buildVerbundClassificationViews — Closure-Cache', () => {
     expect(b).not.toBe(a);
   });
 
-  it('Pool-Filterung im Service: jahr=2026 filtert antraege ohne datum/2026-Prefix raus', () => {
+  it('Pool-Filterung im Service: cutoff filtert Anträge vor dem Fenster raus', () => {
     const antraege: Antrag[] = [
       makeAntrag({ aktenzeichen: 'A1', antragsdatum: '2026-04-15' }),
       makeAntrag({ aktenzeichen: 'A2', antragsdatum: '2025-12-01' }),
       makeAntrag({ aktenzeichen: 'A3', antragsdatum: '2026-01-01' }),
     ];
-    const views = buildVerbundClassificationViews(antraege, 2026, [], [], undefined, false, []);
+    const views = buildVerbundClassificationViews(antraege, '2026-01-01', [], [], undefined, false, []);
     const aktenzeichen = views.map(v => v.tvs[0]!.aktenzeichen).sort();
     expect(aktenzeichen).toEqual(['A1', 'A3']);
   });
@@ -141,11 +141,11 @@ describe('buildVerbundClassificationViews — Closure-Cache', () => {
       makeAntrag({ aktenzeichen: 'A3', antragsdatum: '2026-04-15', status: 'irrläufer' }),     // raus
       makeAntrag({ aktenzeichen: 'A4', antragsdatum: '2026-04-15', status: 'abgelehnt/zurückgezogen' }), // raus
     ];
-    const views = buildVerbundClassificationViews(antraege, 2026, [], [], undefined, false, []);
+    const views = buildVerbundClassificationViews(antraege, '2026-01-01', [], [], undefined, false, []);
     expect(views.map(v => v.tvs[0]!.aktenzeichen)).toEqual(['A1']);
   });
 
-  it('jahr=null → keine Pool-Filterung', () => {
+  it('cutoff=null → keine Pool-Filterung', () => {
     const antraege: Antrag[] = [
       makeAntrag({ aktenzeichen: 'A1', antragsdatum: '2025-04-15' }),
       makeAntrag({ aktenzeichen: 'A2', antragsdatum: '2026-04-15', tib_kuerz: 'MUE' }),

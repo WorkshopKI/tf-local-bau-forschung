@@ -25,7 +25,7 @@ import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import {
   buildVerbundClassificationViews,
-  jahrAusQuartal,
+  verteilCutoffDatum,
   type VerbundKlassifizierungsView,
 } from '../services/verbund-aggregation';
 import {
@@ -71,9 +71,9 @@ export function KlassifizierungsReview(): React.ReactElement {
   const cache = useAntraegeCache();
   const { ready } = useAuslastungReady();
   const isInitialLoading = !ready;
-  const aktuellesJahr = useMemo(
-    () => jahrAusQuartal(config.aktuellesQuartal),
-    [config.aktuellesQuartal],
+  const verteilCutoff = useMemo(
+    () => verteilCutoffDatum(config.aktuellesQuartal, config.verteilLookbackMonate ?? 6),
+    [config.aktuellesQuartal, config.verteilLookbackMonate],
   );
 
   // Verbund-Embeddings (Themen-Vektoren) — separater IDB-Storage neben den
@@ -132,14 +132,14 @@ export function KlassifizierungsReview(): React.ReactElement {
   const verbundViews = useMemo(
     () => buildVerbundClassificationViews(
       cache.antraege,
-      aktuellesJahr,
+      verteilCutoff,
       config.ueberKategorien,
       klassifizierungen,
       deferredEmbeddings ?? undefined,
       config.stage2Aktiv === true,
       cache.verbuende,
     ),
-    [cache.antraege, aktuellesJahr, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv, cache.verbuende],
+    [cache.antraege, verteilCutoff, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv, cache.verbuende],
   );
 
   const [filter, setFilter] = useState<ViewFilter>('alle');

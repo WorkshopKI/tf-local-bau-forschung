@@ -77,14 +77,13 @@ export function AuslastungView(): React.ReactElement {
 
   const tabs = useMemo(() => {
     const offene = data.klassifizierungen.filter(k => k.status === 'vorgeschlagen').length;
-    const jahrMatch = /^(\d{4})-Q[1-4]$/.exec(data.config.aktuellesQuartal);
-    const jahr = jahrMatch ? jahrMatch[1] : null;
+    const lookback = data.config.verteilLookbackMonate ?? 6;
     return [
       {
         id: 'klassifizierung' as const,
         label: 'Anträge klassifizieren',
         badge: offene || undefined,
-        tooltip: `Verteil-Pool: Verbünde${jahr ? ` aus ${jahr}` : ''} ohne TiB-Zuweisung, ohne Status „abgelehnt/zurückgezogen" und „Irrläufer". Die Klassifizierung wirkt auf alle TVs eines Verbundes.`,
+        tooltip: `Verteil-Pool: Verbünde der letzten ${lookback} Monate (nach Antragsdatum) ohne TiB-Zuweisung, ohne Status „abgelehnt/zurückgezogen" und „Irrläufer". Gleitet über den Jahreswechsel. Die Klassifizierung wirkt auf alle TVs eines Verbundes.`,
       },
       {
         id: 'zuweisung' as const,

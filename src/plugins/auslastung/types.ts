@@ -102,6 +102,11 @@ export interface AuslastungConfig {
   klassifizierungsSchwellwert: number;
   /** Tage bis automatische PL-Zuweisung nach Klassifizierungs-Freigabe. */
   selbsteintragungFristTage: number;
+  /** Rollierendes Verteil-Fenster in Monaten: nur Anträge, deren Antragsdatum in
+   *  den letzten N Monaten bis zum aktuellen Quartalsende liegt, erscheinen in der
+   *  Klassifizierungs- UND der Zuweisungs-Liste. Gleitet sauber über den
+   *  Jahreswechsel (Dezember-Anträge bleiben im Januar sichtbar). Default 6. */
+  verteilLookbackMonate: number;
   /** Embedding-basierte Themen-Erkennung (Cosine-Similarity gegen
    *  Kategorie-Centroids). Seit Mai 2026 immer aktiv — der frühere Toggle
    *  wurde entfernt, das Feld bleibt aus Datenmodell-Kompat-Gruenden im
@@ -579,6 +584,7 @@ export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   ueberKategorien: DEFAULT_UEBERKATEGORIEN,
   klassifizierungsSchwellwert: 0.15,
   selbsteintragungFristTage: 7,
+  verteilLookbackMonate: 6,
   stage2Aktiv: true,
   setupAbgeschlossen: false,
   // Workflow-Revision 1.17
