@@ -36,6 +36,32 @@ export async function collectUebernahmeWuensche(
   return out;
 }
 
+/**
+ * Reine Gruppierung der eingelesenen Wünsche zu `antragId → anonIds[]` (dedupe).
+ * Kürzel werden via AnonymMap aufgelöst (NFC + Split, Pitfall #22); unauflösbare
+ * Kürzel übersprungen. Für die Read-only-Markierung „vorgemerkt" im Zuweisungs-
+ * Cockpit VOR dem Einsammeln — schreibt NICHT in den Store.
+ */
+export function buildPendingByAntrag(
+  batch: readonly PersoenlicheUebernahmeWuensche[],
+  anonymMap: AnonymMap,
+): Map<string, string[]> {
+  const tmp = new Map<string, Set<string>>();
+  for (const p of batch) {
+    const anonId = resolveAnonIdForUser(p.kuerzel, anonymMap);
+    if (!anonId) continue;
+    for (const w of p.wuensche) {
+      if (!w || typeof w.antragId !== 'string' || !w.antragId) continue;
+      let set = tmp.get(w.antragId);
+      if (!set) { set = new Set<string>(); tmp.set(w.antragId, set); }
+      set.add(anonId);
+    }
+  }
+  const out = new Map<string, string[]>();
+  for (const [antragId, set] of tmp) out.set(antragId, [...set]);
+  return out;
+}
+
 export interface MergeWuenscheResult {
   next: Zuweisung[];
   /** Anzahl neu angelegter `selbst`-Zuweisungen. */

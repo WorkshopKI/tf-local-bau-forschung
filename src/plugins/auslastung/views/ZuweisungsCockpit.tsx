@@ -16,6 +16,7 @@ import {
 } from '@/core/services/infrastructure/smb-handle';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
+import { usePendingUebernahmeWuensche } from '../hooks/usePendingUebernahmeWuensche';
 import { useKlassifizierungenView } from '../hooks/useKlassifizierungen';
 import { runMatching } from '../services/matching-engine';
 import { collectUebernahmeWuensche } from '../services/uebernahme-einsammeln';
@@ -131,6 +132,10 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const applyUebernahmeWuensche = useAuslastungData(s => s.applyUebernahmeWuensche);
 
   const cache = useAntraegeCache();
+  // v2.9: offene Übernahme-Wünsche (read-only aus den persönlichen Ordnern) —
+  // markiert Anträge schon VOR dem Einsammeln als „vorgemerkt".
+  const { pendingByAntrag, reloadPending } = usePendingUebernahmeWuensche(cache.anonymMap);
+  const resolveName = useDeAnonResolver();
   const { ready } = useAuslastungReady();
   const isInitialLoading = !ready;
   const view = useKlassifizierungenView(cache.antraege, config.ueberKategorien, klassifizierungen);
@@ -177,6 +182,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
     setEinsammelnMsg(
       `${total} Wunsch/Wünsche gelesen · ${neu} neu · ${entfernt} zurückgezogen`,
     );
+    // Pending-Markierung aktualisieren (eingesammelte Wünsche sind nun im Store).
+    reloadPending();
   });
 
   const data = useAuslastungData(s => s.data);
@@ -263,6 +270,19 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const selected = selectedAz ? cache.antraege.find(a => a.aktenzeichen === selectedAz) : null;
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
   const selectedRow = selectedAz ? verbundRows.find(r => r.leadAktenzeichen === selectedAz) : null;
+
+  // v2.9: offene Übernahme-Wünsche für den ausgewählten Antrag (read-only, vor
+  // dem Einsammeln) — abzüglich bereits im Store erfasster anonIds.
+  const detailPendingAnonIds = (() => {
+    if (!selected) return [] as string[];
+    const azs = selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen];
+    const storeWunsch = new Set(
+      zuweisungen
+        .filter(z => azs.includes(z.antragId) && (z.status === 'selbst' || z.selbstEingetragen || z.status === 'freigegeben'))
+        .map(z => z.anonId),
+    );
+    return Array.from(new Set(azs.flatMap(az => pendingByAntrag.get(az) ?? []))).filter(a => !storeWunsch.has(a));
+  })();
 
   // Wenn Selektion durch Filter wegfaellt — auf den Lead-TV des ersten Verbundes.
   useEffect(() => {
@@ -537,6 +557,14 @@ export function ZuweisungsCockpit(): React.ReactElement {
               const interessentenCount = new Set(
                 ze.filter(z => z.status === 'selbst' || z.selbstEingetragen).map(z => z.anonId),
               ).size;
+              // Offene (noch nicht eingesammelte) Übernahme-Wünsche — abzüglich
+              // bereits im Store erfasster anonIds (sonst Doppel-Signal nach Einsammeln).
+              const storeWunschAnonIds = new Set(
+                ze.filter(z => z.status === 'selbst' || z.selbstEingetragen || z.status === 'freigegeben').map(z => z.anonId),
+              );
+              const pendingAnonIds = Array.from(new Set(
+                row.tvAktenzeichen.flatMap(az => pendingByAntrag.get(az) ?? []),
+              )).filter(a => !storeWunschAnonIds.has(a));
               return (
                 <div
                   key={row.verbundId}
@@ -566,6 +594,14 @@ export function ZuweisungsCockpit(): React.ReactElement {
                       title={`${interessentenCount} Übernahme-Wunsch/Wünsche`}
                     >
                       {interessentenCount} will
+                    </span>
+                  )}
+                  {pendingAnonIds.length > 0 && !zug && (
+                    <span
+                      className="text-amber-700 text-[10.5px] font-medium shrink-0"
+                      title={`Vorgemerkt (noch nicht eingesammelt): ${pendingAnonIds.map(a => resolveName(a) ?? a).join(', ')}`}
+                    >
+                      ⚑ {pendingAnonIds.length} vorgemerkt
                     </span>
                   )}
                   <ConfidenceDot confidence={row.confidence} />
@@ -627,6 +663,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
               matchingRunning={matchingRunning}
               zuweisungen={zuweisungen.filter(z => (selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen]).includes(z.antragId))}
               mitarbeiter={mitarbeiter}
+              pendingAnonIds={detailPendingAnonIds}
               onZuweisen={zuweisen}
               onAblehnen={ablehnen}
               tageImQuartal={computeTageImQuartal(config.aktuellesQuartal)}
@@ -640,7 +677,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
 function DetailPanel({
   antrag, akronym, verbundTitel, klassifizierung, kategorien, matches, matchingRunning,
-  zuweisungen, mitarbeiter, onZuweisen, onAblehnen, tageImQuartal,
+  zuweisungen, mitarbeiter, pendingAnonIds, onZuweisen, onAblehnen, tageImQuartal,
 }: {
   antrag: Antrag;
   /** Verbund-Akronym/-Titel (aus dem verbuende-Store aufgeloest, siehe
@@ -653,6 +690,8 @@ function DetailPanel({
   matchingRunning: boolean;
   zuweisungen: Zuweisung[];
   mitarbeiter: Record<string, import('../types').AnonymerMitarbeiter>;
+  /** anonIds mit offenem (noch nicht eingesammeltem) Übernahme-Wunsch für diesen Antrag. */
+  pendingAnonIds: string[];
   onZuweisen: (m: MatchResult) => void;
   onAblehnen: (m: MatchResult) => void;
   tageImQuartal: number;
@@ -707,6 +746,24 @@ function DetailPanel({
           <p className="text-[12px] text-[var(--tf-text-secondary)] mt-0.5">{tvTitel}</p>
         )}
       </div>
+
+      {/* v2.9: offene Übernahme-Wünsche (noch nicht eingesammelt) — read-only,
+          damit die PL den Antrag nicht versehentlich erneut zuweist. */}
+      {pendingAnonIds.length > 0 && (
+        <div className="rounded p-2.5 text-[12px]" style={{ background: '#fef3c7', color: '#92400e' }}>
+          <div className="font-medium mb-1.5">
+            ⚑ Vorgemerkt — noch nicht eingesammelt
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {pendingAnonIds.map(a => (
+              <AnonymIdBadge key={a} anonId={a} size="sm" realName={resolveName(a)} />
+            ))}
+          </div>
+          <p className="text-[10.5px] mt-1.5 opacity-90">
+            Über »Übernahme-Wünsche einsammeln« formalisieren — danach erscheint der Antrag unter „Übernahme-Wunsch".
+          </p>
+        </div>
+      )}
 
       {/* Übernahme-Wünsche: alle Interessenten, PL weist gezielt einem zu */}
       {interessenten.length > 0 && (
