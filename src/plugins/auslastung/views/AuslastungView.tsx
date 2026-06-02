@@ -98,7 +98,7 @@ export function AuslastungView(): React.ReactElement {
       },
       {
         id: 'kompetenzen' as const,
-        label: 'Kompetenzen & Jahreskapazität MA',
+        label: 'Kompetenzen & Jahreskapazitäten',
         tooltip: 'PL-Kompetenz-Vorbelegung: XLSX mit Kompetenz-Leveln (1–3), Antragstyp-Kontingent und Abschlag pro Kürzel hochladen und in einer xlsx-ähnlichen Tabelle pflegen.',
       },
     ];
