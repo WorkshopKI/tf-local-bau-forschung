@@ -30,8 +30,8 @@ import { EMPTY_AUSLASTUNG } from '../../services/quartals-auslastung';
 import { useAuslastungIndex } from '../../hooks/useAuslastungIndex';
 import { useAuslastungReady } from '../../hooks/useAuslastungReady';
 import { computeKapazitaet, type KapazitaetsView } from '../../services/kapazitaet';
-import { computeKapazitaetProTyp, type KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
-import type { AnonymerMitarbeiter } from '../../types';
+import { computeKapazitaetProTyp, hatTypKapazitaet, type KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
+import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket } from '../../types';
 import { MaInlineDetail } from '../MaInlineDetail';
 import { ChevronRight } from 'lucide-react';
 import { MaListFilterBar, type ViewMode } from './MaListFilterBar';
@@ -84,6 +84,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
   const isDeAnon = useDeAnonSession(s => s.isActive);
   const [zugangListe, setZugangListe] = useState<MaZugangItem[] | null>(null);
   const [kategorieFilter, setKategorieFilter] = useState<string>('');
+  const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>('');
   const [showInactive, setShowInactive] = useState(false);
   const [expandedMa, setExpandedMa] = useState<string | null>(null);
   const [vorschlagDismissed, setVorschlagDismissed] = useState(false);
@@ -230,6 +231,9 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         || m.nebenKategorien.includes(kategorieFilter),
       );
     }
+    if (antragstypFilter) {
+      sichtbar = sichtbar.filter(m => hatTypKapazitaet(m, antragstypFilter));
+    }
     if (warningFilter === 'no-bookings') {
       sichtbar = sichtbar.filter(m => {
         const kv = kapByAnon.get(m.anonId);
@@ -244,9 +248,13 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
       });
     }
     // Sort
-    // Status-Rang spiegelt die Status-Logik aus MaCompactRow:
-    // Aktiv < Ohne Buchung < Inaktiv < Abgemeldet.
+    // Kategorie-Reihenfolge = Config-Order (wie in der Filter-Leiste); MAs ohne
+    // Hauptkategorie ans Ende. Status-Rang spiegelt die Status-Logik aus
+    // MaCompactRow: Aktiv < Ohne Buchung < Inaktiv < Abgemeldet.
     const quartal = config.aktuellesQuartal;
+    const katOrder = new Map(kategorien.map((k, i) => [k.id, i]));
+    const kategorieRank = (id: string): number =>
+      id && katOrder.has(id) ? katOrder.get(id)! : Number.MAX_SAFE_INTEGER;
     const statusRank = (ma: AnonymerMitarbeiter, kv: KapazitaetsView): number => {
       if (ma.abgemeldet.includes(quartal)) return 3;
       if (!ma.aktiv) return 2;
@@ -261,6 +269,9 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
       switch (sortCol) {
         case 'ma':
           cmp = a.anonId.localeCompare(b.anonId);
+          break;
+        case 'kategorie':
+          cmp = kategorieRank(a.hauptKategorie) - kategorieRank(b.hauptKategorie);
           break;
         // "Auslastung" (Balken) visualisiert den Belegt-Anteil → gleiche Metrik.
         case 'auslastung':
@@ -287,7 +298,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [mitarbeiter, showInactive, kategorieFilter, warningFilter, kapByAnon, altlastByAnon, hasAntraege, sortCol, sortDir, config.aktuellesQuartal]);
+  }, [mitarbeiter, showInactive, kategorieFilter, antragstypFilter, warningFilter, kapByAnon, altlastByAnon, hasAntraege, sortCol, sortDir, kategorien, config.aktuellesQuartal]);
 
   const handleToggleExpand = useCallback((anonId: string): void => {
     setExpandedMa(prev => (prev === anonId ? null : anonId));
@@ -300,8 +311,8 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         return prev;
       }
       // Defaults pro Spalte: numerische Spalten beim Wechsel desc ("die
-      // größten zuerst"), Text-/Ordinal-Spalten (MA, Status) asc.
-      const ascDefault = col === 'ma' || col === 'status';
+      // größten zuerst"), Text-/Ordinal-Spalten (MA, Kategorie, Status) asc.
+      const ascDefault = col === 'ma' || col === 'kategorie' || col === 'status';
       setSortDir(ascDefault ? 'asc' : 'desc');
       return col;
     });
@@ -319,7 +330,11 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         || m.nebenKategorien.includes(k.id),
       ).length;
     }
-    return { all, perKategorie };
+    const perAntragstyp = { FuE: 0, DS: 0, DL: 0, NW: 0 } as Record<AntragstypBucket, number>;
+    for (const b of ALL_ANTRAGSTYP_BUCKETS) {
+      perAntragstyp[b] = considered.filter(m => hatTypKapazitaet(m, b)).length;
+    }
+    return { all, perKategorie, perAntragstyp };
   }, [mitarbeiter, kategorien, showInactive, hasAntraege]);
 
   const aktivCount = Object.values(mitarbeiter).filter(m => hasAntraege(m.anonId)).length;
@@ -402,6 +417,8 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         kategorien={kategorien}
         kategorieFilter={kategorieFilter}
         onKategorieFilter={setKategorieFilter}
+        antragstypFilter={antragstypFilter}
+        onAntragstypFilter={setAntragstypFilter}
         counts={counts}
         view={view}
         onView={setView}
@@ -451,6 +468,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           altlastByAnon={altlastByAnon}
           kapByAnon={kapByAnon}
           kapTypByAnon={kapTypByAnon}
+          kategorien={kategorien}
           quartal={config.aktuellesQuartal}
           stundenProTV={stundenProTV}
           resolveName={resolveName}

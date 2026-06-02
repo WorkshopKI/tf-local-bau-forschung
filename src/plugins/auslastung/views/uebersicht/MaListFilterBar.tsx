@@ -2,17 +2,16 @@
  * MaListFilterBar — Filter-Leiste über der MA-Liste.
  *
  * Layout:
- *   [KATEGORIE]  [Alle 31][IT 1][DT 0][EU 0][LG 0][NM 0]   [Tabelle|Karten]  [☐ Inaktive]  [+ MA hinzufügen]
+ *   [Kategorie: Alle ›]  [Antragstyp: Alle ›]   [Tabelle|Karten]  [☐ Inaktive]  [+ MA hinzufügen]
  *
- * Kategorie-Pills sitzen in einem outline-Pill-Container; aktive Pille ist
- * gefüllt (dark bg + light text), inaktive transparent mit Swatch-Punkt links.
- *
- * View-Switch + Inaktive-Checkbox + "+MA hinzufügen" am rechten Rand.
+ * Filter-Chips = `CollapsibleSeg` (gleicher Pattern wie im „Anträge zuweisen"-
+ * Cockpit). Kein Status-Filter (in der Auslastung nicht relevant).
+ * View-Switch + Inaktive-Checkbox + „+MA hinzufügen" am rechten Rand.
  */
 import { LayoutGrid, Menu, Plus } from 'lucide-react';
 import { SegmentedToggle } from '@/ui/SegmentedToggle';
-import type { UeberKategorie } from '../../types';
-import { dotColor } from './kategorie-colors';
+import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
+import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket, type UeberKategorie } from '../../types';
 
 export type ViewMode = 'table' | 'cards';
 
@@ -20,7 +19,13 @@ interface Props {
   kategorien: UeberKategorie[];
   kategorieFilter: string;
   onKategorieFilter: (id: string) => void;
-  counts: { all: number; perKategorie: Record<string, number> };
+  antragstypFilter: AntragstypBucket | '';
+  onAntragstypFilter: (b: AntragstypBucket | '') => void;
+  counts: {
+    all: number;
+    perKategorie: Record<string, number>;
+    perAntragstyp: Record<AntragstypBucket, number>;
+  };
   view: ViewMode;
   onView: (v: ViewMode) => void;
   showInactive: boolean;
@@ -30,50 +35,35 @@ interface Props {
 }
 
 export function MaListFilterBar({
-  kategorien, kategorieFilter, onKategorieFilter,
+  kategorien, kategorieFilter, onKategorieFilter, antragstypFilter, onAntragstypFilter,
   counts, view, onView, showInactive, onShowInactive,
   onAddMa, addBusy,
 }: Props): React.ReactElement {
+  const kategorieItems: CollapsibleSegItem[] = [
+    { label: 'Alle', count: counts.all },
+    ...kategorien.map(k => ({ label: k.id, count: counts.perKategorie[k.id] ?? 0 })),
+  ];
+  const antragstypItems: CollapsibleSegItem[] = [
+    { label: 'Alle', count: counts.all },
+    ...ALL_ANTRAGSTYP_BUCKETS.map(b => ({ label: b, count: counts.perAntragstyp[b] ?? 0 })),
+  ];
+
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {/* Kategorie-Caps-Label */}
-      <span
-        className="uppercase text-[var(--tf-text-tertiary)]"
-        style={{
-          fontSize: 10.5,
-          fontWeight: 500,
-          letterSpacing: 'var(--tf-tracking-caps)',
-        }}
-      >
-        Kategorie
-      </span>
-
-      {/* Pill-Container */}
-      <div
-        className="inline-flex items-center"
-        style={{
-          border: '0.5px solid var(--tf-border)',
-          borderRadius: 'var(--tf-radius-pill)',
-          padding: 3,
-          gap: 0,
-        }}
-      >
-        <KategoriePill
-          label="Alle"
-          count={counts.all}
-          active={kategorieFilter === ''}
-          onClick={() => onKategorieFilter('')}
+      {/* Filter-Chips (kollabierbar) */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <CollapsibleSeg
+          label="Kategorie"
+          value={kategorieFilter || 'Alle'}
+          items={kategorieItems}
+          onChange={(l) => onKategorieFilter(l === 'Alle' ? '' : l)}
         />
-        {kategorien.map(k => (
-          <KategoriePill
-            key={k.id}
-            label={k.id}
-            count={counts.perKategorie[k.id] ?? 0}
-            swatch={dotColor(k.farbe)}
-            active={kategorieFilter === k.id}
-            onClick={() => onKategorieFilter(k.id === kategorieFilter ? '' : k.id)}
-          />
-        ))}
+        <CollapsibleSeg
+          label="Antragstyp"
+          value={antragstypFilter || 'Alle'}
+          items={antragstypItems}
+          onChange={(l) => onAntragstypFilter(l === 'Alle' ? '' : (l as AntragstypBucket))}
+        />
       </div>
 
       {/* Right side */}
@@ -115,45 +105,5 @@ export function MaListFilterBar({
         </button>
       </div>
     </div>
-  );
-}
-
-function KategoriePill({
-  label, count, swatch, active, onClick,
-}: {
-  label: string;
-  count: number;
-  swatch?: string;
-  active: boolean;
-  onClick: () => void;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-      style={{
-        padding: '6px 11px',
-        fontSize: 12,
-        borderRadius: 'var(--tf-radius-pill)',
-        background: active ? 'var(--tf-text)' : 'transparent',
-        color: active ? 'var(--tf-bg)' : 'var(--tf-text-secondary)',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {swatch && (
-        <span
-          aria-hidden
-          style={{ width: 7, height: 7, borderRadius: '50%', background: swatch, display: 'inline-block' }}
-        />
-      )}
-      <span>{label}</span>
-      <span
-        className="font-mono"
-        style={{ fontSize: 11.5, opacity: 0.7 }}
-      >
-        {count}
-      </span>
-    </button>
   );
 }

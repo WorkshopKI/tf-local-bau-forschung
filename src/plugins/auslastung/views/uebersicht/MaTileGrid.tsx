@@ -41,6 +41,7 @@ interface Props {
 function sortLabel(sort: SortState): string {
   const colLabel = {
     ma: 'MA',
+    kategorie: 'Kategorie',
     auslastung: 'Auslastung',
     belegt: 'Belegt',
     frei: 'Frei',

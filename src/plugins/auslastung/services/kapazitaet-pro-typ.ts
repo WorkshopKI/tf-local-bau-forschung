@@ -41,6 +41,15 @@ export function effektiveJahresStunden(ma: AnonymerMitarbeiter): number {
 }
 
 /**
+ * true, wenn der MA für diesen Antragstyp ein Kontingent (> 0 Stunden/Jahr) in
+ * der Kompetenz-Matrix gepflegt hat. Basis für den Antragstyp-Filter der
+ * MA-Liste („zeige MAs, die diesen Typ bearbeiten können").
+ */
+export function hatTypKapazitaet(ma: AnonymerMitarbeiter, bucket: AntragstypBucket): boolean {
+  return (ma.jahresKapazitaetProTyp?.[bucket] ?? 0) > 0;
+}
+
+/**
  * Quartals-Kontingent eines MAs für einen Antragstyp in **Stunden/Quartal**,
  * inkl. Abschlag: `(jahresKapazitaetProTyp[bucket] × (1 − abschlag/100)) / 4`.
  * `null` = kein Kontingent gesetzt (unbegrenzt).

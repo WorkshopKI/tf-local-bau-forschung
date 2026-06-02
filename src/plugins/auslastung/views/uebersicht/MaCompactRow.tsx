@@ -2,7 +2,7 @@
  * MaCompactRow — kompakte einzeilige MA-Zeile in der Übersichts-Tabelle.
  *
  * Layout-Spalten:
- *  MA · Auslastung (2 Balken + per-Typ) · Belegt% · Frei(TVs) · Aktuell · Altanträge · Status · ⋯
+ *  MA · Auslastung (2 Balken + per-Typ) · Belegt% · Frei(TVs) · Aktuell · Altanträge · Kategorie · Status · ⋯
  *
  * Click auf die Zeile (außer Buttons/Inputs) toggelt den Inline-Expand —
  * der Caller rendert dann eine zweite Zeile mit `MaInlineDetail`.
@@ -13,11 +13,12 @@
  */
 import { memo } from 'react';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
-import type { AnonymerMitarbeiter } from '../../types';
+import type { AnonymerMitarbeiter, UeberKategorie } from '../../types';
 import type { MaQuartalsAuslastung } from '../../services/quartals-auslastung';
 import type { MaAltlastBucket } from '../../services/altlast';
 import type { KapazitaetsView } from '../../services/kapazitaet';
 import type { KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
+import { dotColor } from './kategorie-colors';
 import { TypKapazitaetBars } from './TypKapazitaetBars';
 import { GesamtauslastungBar } from './GesamtauslastungBar';
 
@@ -28,6 +29,7 @@ interface Props {
   /** v2.16: per-Antragstyp-Auslastung (primäres Modell, wenn Kontingent gepflegt). */
   kapTyp?: KapazitaetProTypView;
   altlast?: MaAltlastBucket;
+  kategorien: UeberKategorie[];
   realName: string | null;
   quartal: string;
   stundenProTV: number;
@@ -36,8 +38,9 @@ interface Props {
 }
 
 function MaCompactRowImpl({
-  ma, kapView, kapTyp, altlast, realName, quartal, stundenProTV, expanded, onToggleExpand,
+  ma, kapView, kapTyp, altlast, kategorien, realName, quartal, stundenProTV, expanded, onToggleExpand,
 }: Props): React.ReactElement {
+  const hauptKat = kategorien.find(k => k.id === ma.hauptKategorie);
   const abgemeldet = ma.abgemeldet.includes(quartal);
   const ohneBuchung = kapView.verbrauchteStunden === 0 && (altlast?.tvs ?? 0) === 0;
   const altlastTvs = altlast?.tvs ?? 0;
@@ -121,6 +124,30 @@ function MaCompactRowImpl({
       {/* Altanträge (offene Anträge aus den letzten 2 Quartalen) */}
       <td className="font-mono align-middle" style={{ padding: '6px 8px', fontSize: 12, width: 85, color: altlastTvs > 0 ? 'var(--tf-text-secondary)' : 'var(--tf-text-tertiary)' }}>
         {altlastTvs > 0 ? `${altlastTvs} TVs` : '—'}
+      </td>
+
+      {/* Kategorie */}
+      <td className="align-middle" style={{ padding: '6px 8px', width: 90 }}>
+        {hauptKat ? (
+          <span
+            className="inline-flex items-center gap-1 font-mono"
+            style={{
+              fontSize: 10.5,
+              padding: '1px 5px',
+              borderRadius: 4,
+              background: 'var(--tf-bg-secondary)',
+              color: 'var(--tf-text-secondary)',
+            }}
+          >
+            <span
+              aria-hidden
+              style={{ width: 5, height: 5, borderRadius: '50%', background: dotColor(hauptKat.farbe), display: 'inline-block' }}
+            />
+            {hauptKat.id}
+          </span>
+        ) : (
+          <span className="italic text-[var(--tf-text-tertiary)]" style={{ fontSize: 11 }}>—</span>
+        )}
       </td>
 
       {/* Status */}

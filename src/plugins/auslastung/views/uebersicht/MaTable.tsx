@@ -8,7 +8,7 @@
  */
 import { Fragment } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { AnonymerMitarbeiter } from '../../types';
+import type { AnonymerMitarbeiter, UeberKategorie } from '../../types';
 import type { MaQuartalsAuslastung } from '../../services/quartals-auslastung';
 import { EMPTY_AUSLASTUNG } from '../../services/quartals-auslastung';
 import type { MaAltlastBucket } from '../../services/altlast';
@@ -16,7 +16,7 @@ import type { KapazitaetsView } from '../../services/kapazitaet';
 import type { KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
 import { MaCompactRow } from './MaCompactRow';
 
-export type SortColumn = 'ma' | 'auslastung' | 'belegt' | 'frei' | 'fest' | 'altlast' | 'status';
+export type SortColumn = 'ma' | 'auslastung' | 'belegt' | 'frei' | 'fest' | 'altlast' | 'kategorie' | 'status';
 export type SortDir = 'asc' | 'desc';
 export interface SortState {
   col: SortColumn;
@@ -29,6 +29,7 @@ interface Props {
   altlastByAnon: Map<string, MaAltlastBucket>;
   kapByAnon: Map<string, KapazitaetsView>;
   kapTypByAnon: Map<string, KapazitaetProTypView>;
+  kategorien: UeberKategorie[];
   quartal: string;
   stundenProTV: number;
   resolveName: (anonId: string) => string | null;
@@ -53,12 +54,13 @@ const COLUMNS: ColumnSpec[] = [
   { id: 'frei', label: 'Frei (TVs)', align: 'right', width: 80 },
   { id: 'fest', label: 'Aktuell', align: 'left', width: 95 },
   { id: 'altlast', label: 'Altanträge', align: 'left', width: 85 },
+  { id: 'kategorie', label: 'Kategorie', align: 'left', width: 90 },
   { id: 'status', label: 'Status', align: 'left', width: 90 },
   { id: null, label: '', align: 'right', width: 30 },
 ];
 
 export function MaTable({
-  list, auslastungByAnon, altlastByAnon, kapByAnon, kapTypByAnon, quartal, stundenProTV,
+  list, auslastungByAnon, altlastByAnon, kapByAnon, kapTypByAnon, kategorien, quartal, stundenProTV,
   resolveName, expandedMa, onToggleExpand, sort, onSort, renderInlineDetail,
 }: Props): React.ReactElement {
   return (
@@ -116,6 +118,7 @@ export function MaTable({
                 kapView={kapView}
                 kapTyp={kapTypByAnon.get(ma.anonId)}
                 altlast={altlastByAnon.get(ma.anonId)}
+                kategorien={kategorien}
                 realName={resolveName(ma.anonId)}
                 quartal={quartal}
                 stundenProTV={stundenProTV}
