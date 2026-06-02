@@ -93,12 +93,12 @@ export function AuslastungView(): React.ReactElement {
       },
       {
         id: 'uebersicht' as const,
-        label: 'Kapazitäten MAs',
+        label: 'Auslastung MA',
         tooltip: 'Statistik, Mitarbeiter & Kapazität (pro Quartal) und Konfiguration — Kategorien, CSV-Import/Export, E-Mail-Vorlage, Themen-Modell.',
       },
       {
         id: 'kompetenzen' as const,
-        label: 'Kompetenzen',
+        label: 'Kompetenzen & Jahreskapazität MA',
         tooltip: 'PL-Kompetenz-Vorbelegung: XLSX mit Kompetenz-Leveln (1–3), Antragstyp-Kontingent und Abschlag pro Kürzel hochladen und in einer xlsx-ähnlichen Tabelle pflegen.',
       },
     ];
