@@ -20,6 +20,7 @@ import type { KapazitaetsView } from '../../services/kapazitaet';
 import type { KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
 import { dotColor } from './kategorie-colors';
 import { TypKapazitaetBars } from './TypKapazitaetBars';
+import { GesamtauslastungBar } from './GesamtauslastungBar';
 
 interface Props {
   ma: AnonymerMitarbeiter;
@@ -109,31 +110,12 @@ function MaCompactRowImpl({
         )}
       </td>
 
-      {/* Auslastung — primär per Antragstyp (v2.16), Fallback: Stunden-Mini-Bar */}
+      {/* Auslastung — Gesamt-Balken oben, per-Antragstyp-Werte darunter (v2.16) */}
       <td className="align-middle" style={{ padding: '6px 8px', minWidth: 200 }}>
-        {kapTyp?.hatKontingent ? (
-          <TypKapazitaetBars view={kapTyp} variant="row" />
-        ) : (
-          <div className="relative" style={{ height: 4, background: 'var(--tf-bg-secondary)', borderRadius: 'var(--tf-radius-pill)' }}>
-            {belegtPct > 0 && (
-              <div
-                className="absolute top-0 bottom-0 left-0"
-                style={{ width: `${Math.min(100, belegtPct)}%`, background: 'var(--tf-primary)', borderRadius: 'var(--tf-radius-pill)' }}
-              />
-            )}
-            {altlastFillPct > 0 && (
-              <div
-                className="absolute top-0 bottom-0"
-                style={{
-                  left: `${Math.min(100, belegtPct)}%`,
-                  width: `${altlastFillPct}%`,
-                  background: 'hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.4), 70%)',
-                  borderRadius: 'var(--tf-radius-pill)',
-                }}
-              />
-            )}
-          </div>
-        )}
+        <div className="flex flex-col gap-1">
+          <GesamtauslastungBar belegtPct={belegtPct} altlastFillPct={altlastFillPct} />
+          {kapTyp?.hatKontingent && <TypKapazitaetBars view={kapTyp} variant="row" />}
+        </div>
       </td>
 
       {/* Belegt % */}

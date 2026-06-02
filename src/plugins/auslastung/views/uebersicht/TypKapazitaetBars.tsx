@@ -20,7 +20,7 @@ interface Props {
 }
 
 function fmt(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
+  return String(Math.round(n));
 }
 function freiCount(rest: number): number {
   return Math.max(0, Math.floor(rest));
