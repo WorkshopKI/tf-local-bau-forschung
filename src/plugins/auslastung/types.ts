@@ -255,7 +255,10 @@ export interface KompetenzSchemaEntry {
 
 export interface AnonymerMitarbeiter {
   anonId: string;                  // "MA01"
-  jahresKapazitaet: number;        // Stunden/Jahr
+  /** @deprecated (Juni 2026) Wird nicht mehr gelesen/editiert. Die effektiven
+   *  Jahresstunden = Summe der Typ-Stunden (`jahresKapazitaetProTyp`), abgeleitet
+   *  via `effektiveJahresStunden()`. Feld bleibt für Legacy-Daten/Migration. */
+  jahresKapazitaet: number;        // Stunden/Jahr (deprecated)
   abgemeldet: string[];            // Quartal-Liste
   manuelleTechnologien: string[];
   /** Negativ-Liste: aus den historischen Antraegen aggregierte Tags, die der
@@ -306,8 +309,10 @@ export interface AnonymerMitarbeiter {
    *  fehlt bei MAs ohne PL-Upload. Speist die Matcher-Gewichtung (Überkat.-Faktor
    *  in der Engine + level-gewichtete BM25-Tokens). */
   kompetenzMatrix?: KompetenzMatrix;
-  /** Antrags-Kontingent pro Antragstyp (Anträge/Jahr), PL-gepflegt. Optional;
-   *  fehlt → keine Pro-Typ-Deckelung im Matcher. */
+  /** Kapazität pro Antragstyp in **Stunden/Jahr**, PL-gepflegt in der Kompetenz-
+   *  Matrix. Einzige Kapazitätsquelle: Summe = effektive Jahresstunden
+   *  (`effektiveJahresStunden`); fehlt → 0 (keine Kapazität, keine Pro-Typ-
+   *  Deckelung im Matcher). */
   jahresKapazitaetProTyp?: Partial<Record<AntragstypBucket, number>>;
   /** Provenienz der abgeleiteten Kategorien — 'pl-upload' wenn aus der
    *  Kompetenz-XLSX vorbelegt (nur UI-Kennzeichnung). */
@@ -434,10 +439,10 @@ export interface MatchResult {
    *  Limit oder Rest vorhanden, < 1 wenn das Typ-Kontingent des MAs knapp/
    *  erschoepft ist. */
   kontingentScore?: number;
-  /** Verbleibendes Quartals-Kontingent (Antraege) fuer diesen Antragstyp, oder
+  /** Verbleibendes Quartals-Kontingent (TVs) fuer diesen Antragstyp, oder
    *  undefined = kein Limit gesetzt. */
   kontingentRest?: number;
-  /** Quartals-Kontingent (Antraege) fuer diesen Antragstyp, oder undefined =
+  /** Quartals-Kontingent (TVs) fuer diesen Antragstyp, oder undefined =
    *  kein Limit. Fuer die „v/N frei"-Anzeige im Vorschlag (v2.16). */
   kontingentQuartal?: number;
 }

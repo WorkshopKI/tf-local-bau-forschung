@@ -99,7 +99,8 @@ function DetailTab({ ma, auslastung, quartal, altlast }: {
   altlast?: MaAltlastBucket;
 }): React.ReactElement {
   // v2.16: per-Antragstyp-Auslastung als primäres Kapazitätsmodell (oben).
-  const kapTyp = computeKapazitaetProTyp(ma, auslastung);
+  const stundenProTV = useAuslastungData(s => Math.max(1, s.data.config.stundenProTV ?? 9));
+  const kapTyp = computeKapazitaetProTyp(ma, auslastung, stundenProTV);
   const showTyp = kapTyp.hatKontingent || kapTyp.verbrauchGesamt > 0;
   return (
     <div className="flex flex-col gap-3">
@@ -215,7 +216,6 @@ function EditTab({ ma, removable, onSaved }: {
   const initialHaupt = ma.hauptKategorie;
   const initialNeben = ma.nebenKategorien;
 
-  const [kap, setKap] = useState(ma.jahresKapazitaet);
   const [abschlag, setAbschlag] = useState(ma.abschlagProzent ?? 0);
   const [hauptKat, setHauptKat] = useState<string>(initialHaupt);
   const [nebenKats, setNebenKats] = useState<Set<string>>(new Set(initialNeben));
@@ -228,22 +228,6 @@ function EditTab({ ma, removable, onSaved }: {
   const [antragstypen, setAntragstypen] = useState<Set<AntragstypBucket>>(
     () => new Set(ma.antragstypBevorzugt ?? []),
   );
-  // v2.16: Kontingent pro Antragstyp (Anträge/Jahr) — primäres Kapazitätsmodell,
-  // dasselbe Feld wie in der Kompetenz-Matrix (kein Konflikt: beide spreaden ma).
-  const [kontingent, setKontingent] = useState<Partial<Record<AntragstypBucket, number>>>(
-    () => ({ ...(ma.jahresKapazitaetProTyp ?? {}) }),
-  );
-
-  function setKont(b: AntragstypBucket, raw: string): void {
-    setKontingent(prev => {
-      const next = { ...prev };
-      const v = Number(raw.replace(',', '.'));
-      if (!raw.trim() || !Number.isFinite(v) || v <= 0) delete next[b];
-      else next[b] = v;
-      return next;
-    });
-  }
-
   function toggleTyp(b: AntragstypBucket): void {
     setAntragstypen(prev => {
       const next = new Set(prev);
@@ -275,7 +259,6 @@ function EditTab({ ma, removable, onSaved }: {
     const neben = [...nebenKats];
     await upsert(storage, {
       ...ma,
-      jahresKapazitaet: kap,
       abschlagProzent: abschlag,
       hauptKategorie: hauptKat,
       nebenKategorien: neben,
@@ -283,7 +266,6 @@ function EditTab({ ma, removable, onSaved }: {
       abgemeldet: abgRaw.split(',').map(s => s.trim()).filter(Boolean),
       aktiv,
       antragstypBevorzugt: [...antragstypen],
-      jahresKapazitaetProTyp: Object.keys(kontingent).length > 0 ? kontingent : undefined,
     });
     onSaved();
   });
@@ -301,19 +283,10 @@ function EditTab({ ma, removable, onSaved }: {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {/* Linke Spalte: Kapazitaet + Abschlag + Aktiv */}
+      {/* Linke Spalte: Abschlag + Aktiv + Abgemeldet.
+       *  Kapazität (Jahresstunden + Typ-Kontingent) wird ausschließlich in der
+       *  Kompetenz-Matrix gepflegt — hier bewusst keine Kapazitäts-Felder mehr. */}
       <div className="flex flex-col gap-3">
-        <FormRow label="Jahreskapazität (Std.)">
-          <input
-            type="number"
-            min={0}
-            max={3000}
-            value={kap}
-            onChange={e => setKap(Number(e.target.value) || 0)}
-            className="text-[12.5px] px-2 py-1 rounded outline-none w-full"
-            style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
-          />
-        </FormRow>
         <FormRow label="Abschlag (%)" subtitle="Reduziert die Quartals-Kapazität (z.B. 25 für QS-Anteil)">
           <input
             type="number"
@@ -422,30 +395,8 @@ function EditTab({ ma, removable, onSaved }: {
         </FormRow>
       </div>
 
-      {/* v2.16: Kontingent pro Antragstyp (Anträge/Jahr) — primäres Kapazitätsmodell. */}
-      <div className="md:col-span-2">
-        <FormRow
-          label="Kontingent pro Antragstyp (Anträge/Jahr)"
-          subtitle="Primäres Kapazitätsmodell: weiche Pro-Typ-Deckelung im Matching (verbraucht/Kontingent). Leer = unbegrenzt. Dieselben Werte wie in der Kompetenz-Matrix."
-        >
-          <div className="flex flex-wrap gap-3">
-            {ALL_ANTRAGSTYP_BUCKETS.map(b => (
-              <label key={b} className="flex items-center gap-1.5 text-[11.5px]">
-                <span className="font-mono text-[var(--tf-text-tertiary)]" style={{ width: 26 }}>{b}</span>
-                <input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={kontingent[b] ?? ''}
-                  onChange={e => setKont(b, e.target.value)}
-                  className="text-[12.5px] px-2 py-1 rounded outline-none font-mono"
-                  style={{ width: 72, border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
-                />
-              </label>
-            ))}
-          </div>
-        </FormRow>
-      </div>
+      {/* Kapazität (Typ-Stunden) wird in der Kompetenz-Matrix gepflegt — hier
+          bewusst kein Kontingent-Editor mehr. */}
 
       {/* v2.11: PL erzeugt/erneuert das MA-Login-Passwort (nur maVerwaltungPasswort
           + aktive De-Anon-Session). Komponente rendert null wenn Flag aus. */}

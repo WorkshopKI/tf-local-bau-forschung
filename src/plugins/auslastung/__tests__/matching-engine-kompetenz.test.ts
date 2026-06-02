@@ -63,10 +63,11 @@ describe('v2.15: Kompetenz-Level-Gewichtung', () => {
 
 describe('v2.15: Antragstyp-Kontingent', () => {
   it('MA mit erschöpftem FuE-Kontingent rutscht ab', () => {
-    // Beide verbrauchen gleich viel Kapazität (je 1 Antrag), aber MA01 hat ein
-    // FuE-Kontingent von 4/Jahr (= 1/Quartal) das bereits aufgebraucht ist.
-    const gedeckelt = makeMa('MA01', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { FuE: 4 } });
-    const offen = makeMa('MA02', 'IT', { manuelleTechnologien: ['KI'] });
+    // MA01 hat ein FuE-Kontingent von 36 Std./Jahr (= 9 h/Quartal = 1 TV bei
+    // stundenProTV 9) das durch 1 TV bereits aufgebraucht ist. MA02 hat keine
+    // FuE-Stunden (kein FuE-Limit), aber DS-Kapazität → bleibt matchbar.
+    const gedeckelt = makeMa('MA01', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { FuE: 36 } });
+    const offen = makeMa('MA02', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { DS: 800 } });
     const zuweisungen: Zuweisung[] = [
       { antragId: 'X', anonId: 'MA01', quartal: '2026-Q2', stunden: 9, status: 'freigegeben' }, // FuE
       { antragId: 'Y', anonId: 'MA02', quartal: '2026-Q2', stunden: 9, status: 'freigegeben' }, // DS
@@ -95,10 +96,12 @@ describe('v2.15: Antragstyp-Kontingent', () => {
   });
 
   it('v2.16: Kontingent-Malus greift aus fest gebuchten CSV-Anträgen (auslastungByAnon)', () => {
-    const gedeckelt = makeMa('MA01', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { FuE: 4 } }); // Q=1
-    const offen = makeMa('MA02', 'IT', { manuelleTechnologien: ['KI'] });
+    // FuE 36 Std./Jahr → 1 TV/Quartal (stundenProTV 9); 1 fest gebuchter FuE-TV → erschöpft.
+    const gedeckelt = makeMa('MA01', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { FuE: 36 } });
+    const offen = makeMa('MA02', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { DS: 800 } });
     const bucket = (proTyp: Record<string, number>) => ({
-      antraege: 0, tvs: 0, stunden: 0, aktenzeichenSet: new Set<string>(), verbuende: [], antraegeProTyp: proTyp,
+      antraege: 0, tvs: 0, stunden: 0, aktenzeichenSet: new Set<string>(), verbuende: [],
+      antraegeProTyp: proTyp, tvsProTyp: proTyp,
     });
     // MA01 hat 1 FuE-Antrag fest in der CSV (keine Store-Zuweisung!) → Kontingent erschöpft.
     const auslastungByAnon = new Map([

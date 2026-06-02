@@ -25,6 +25,7 @@ import {
 } from '../types';
 import type { AnonymMap } from './anonym-map';
 import { resolveVerbundMeta, verbundKeyOf } from './verbund-aggregation';
+import { effektiveJahresStunden } from './kapazitaet-pro-typ';
 
 export interface ExportRow {
   aktenzeichen: string;
@@ -132,7 +133,7 @@ function toRow(
   verbuendeById?: ReadonlyMap<string, Verbund>,
 ): ExportRow {
   const ma = mitarbeiter[anonId];
-  const quartKap = ma ? ma.jahresKapazitaet / 4 : 0;
+  const quartKap = ma ? effektiveJahresStunden(ma) / 4 : 0;
   // Rest ist hier post-hoc nicht 100% exakt verfuegbar — wir geben quartalsKap
   // - z.stunden als Naeherung. Der Empfaenger sieht ja die echten Werte sowieso
   // im Dashboard.

@@ -4,7 +4,7 @@
  *
  * Pro `enabled`-Wechsel auf true wird der Listener aufgehaengt, beim
  * Unmount oder enabled=false abgehaengt. Pattern fuer alle Editor-Dialogs
- * im Auslastungs-Plugin (KategorieDrawer, MitarbeiterDrawer, ImportDialog,
+ * im Auslastungs-Plugin (KategorieDrawer, MitarbeiterDrawer,
  * OnboardingImportDialog, PasswortDialog, KalibrierungsReport).
  */
 import { useEffect } from 'react';

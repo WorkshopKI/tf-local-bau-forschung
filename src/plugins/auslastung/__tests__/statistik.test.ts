@@ -20,7 +20,8 @@ import type { MaQuartalsAuslastung, MaQuartalsBucket } from '../services/quartal
 function makeMa(overrides: Partial<AnonymerMitarbeiter> = {}): AnonymerMitarbeiter {
   return {
     anonId: 'MA01',
-    jahresKapazitaet: 800,
+    jahresKapazitaet: 800, // deprecated, wird nicht mehr gelesen
+    jahresKapazitaetProTyp: { FuE: 800 }, // effektive Jahresstunden = 800
     abgemeldet: [],
     manuelleTechnologien: [],
     ausgeblendeteAutoTags: [],
@@ -42,6 +43,7 @@ function makeBucket(overrides: Partial<MaQuartalsBucket> = {}): MaQuartalsBucket
     aktenzeichenSet: new Set<string>(),
     verbuende: [],
     antraegeProTyp: {},
+    tvsProTyp: {},
     ...overrides,
   };
 }
@@ -163,8 +165,8 @@ describe('computeQuartalsStatistik', () => {
 
   it('überbuchte MAs werden gelistet', () => {
     const mitarbeiter = {
-      MA01: makeMa({ anonId: 'MA01', jahresKapazitaet: 100 }),  // 25 h/Q
-      MA02: makeMa({ anonId: 'MA02', jahresKapazitaet: 800 }),  // 200 h/Q
+      MA01: makeMa({ anonId: 'MA01', jahresKapazitaetProTyp: { FuE: 100 } }),  // 25 h/Q
+      MA02: makeMa({ anonId: 'MA02', jahresKapazitaetProTyp: { FuE: 800 } }),  // 200 h/Q
     };
     const auslastung = new Map<string, MaQuartalsAuslastung>([
       ['MA01', makeAuslastung({ stunden: 36 })],  // ueberbucht!

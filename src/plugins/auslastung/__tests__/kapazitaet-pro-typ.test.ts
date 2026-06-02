@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { computeKapazitaetProTyp, quartalsKontingentProTyp } from '../services/kapazitaet-pro-typ';
+import {
+  computeKapazitaetProTyp,
+  quartalsKontingentProTyp,
+  quartalsTVsProTyp,
+  effektiveJahresStunden,
+} from '../services/kapazitaet-pro-typ';
 import type { MaQuartalsAuslastung, MaQuartalsBucket } from '../services/quartals-auslastung';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket } from '../types';
+
+const STD = 9; // stundenProTV
 
 function ma(kontingent: Partial<Record<AntragstypBucket, number>>, abschlag = 0): AnonymerMitarbeiter {
   return {
@@ -12,8 +19,9 @@ function ma(kontingent: Partial<Record<AntragstypBucket, number>>, abschlag = 0)
   };
 }
 
-function bucket(antraegeProTyp: Partial<Record<AntragstypBucket, number>>): MaQuartalsBucket {
-  return { antraege: 0, tvs: 0, stunden: 0, aktenzeichenSet: new Set(), verbuende: [], antraegeProTyp };
+/** Bucket mit per-Typ-TV-Verbrauch (`tvsProTyp`) — die neue Kapazitäts-Währung. */
+function bucket(tvsProTyp: Partial<Record<AntragstypBucket, number>>): MaQuartalsBucket {
+  return { antraege: 0, tvs: 0, stunden: 0, aktenzeichenSet: new Set(), verbuende: [], antraegeProTyp: {}, tvsProTyp };
 }
 
 function auslastung(
@@ -26,8 +34,20 @@ function auslastung(
 const slot = (v: ReturnType<typeof computeKapazitaetProTyp>, b: AntragstypBucket) =>
   v.slots.find(s => s.bucket === b)!;
 
-describe('quartalsKontingentProTyp', () => {
-  it('teilt das Jahres-Kontingent auf vier Quartale', () => {
+describe('effektiveJahresStunden', () => {
+  it('summiert die Typ-Stunden', () => {
+    expect(effektiveJahresStunden(ma({ FuE: 72, DS: 36 }))).toBe(108);
+  });
+  it('0 ohne Typ-Stunden (kein Default mehr)', () => {
+    expect(effektiveJahresStunden(ma({}))).toBe(0);
+  });
+  it('ignoriert 0/negative Einträge', () => {
+    expect(effektiveJahresStunden(ma({ FuE: 72, DS: 0 }))).toBe(72);
+  });
+});
+
+describe('quartalsKontingentProTyp (Stunden/Quartal)', () => {
+  it('teilt die Jahres-Stunden auf vier Quartale', () => {
     expect(quartalsKontingentProTyp(ma({ FuE: 8 }), 'FuE')).toBe(2);
   });
   it('wendet den Abschlag an', () => {
@@ -39,14 +59,24 @@ describe('quartalsKontingentProTyp', () => {
   });
 });
 
-describe('computeKapazitaetProTyp', () => {
+describe('quartalsTVsProTyp (TVs/Quartal)', () => {
+  it('Stunden/Quartal ÷ stundenProTV', () => {
+    // 72 h/Jahr → 18 h/Quartal → /9 = 2 TVs
+    expect(quartalsTVsProTyp(ma({ FuE: 72 }), 'FuE', 9)).toBe(2);
+  });
+  it('null ohne Kontingent', () => {
+    expect(quartalsTVsProTyp(ma({}), 'FuE', 9)).toBeNull();
+  });
+});
+
+describe('computeKapazitaetProTyp (TVs)', () => {
   it('liefert immer 4 Slots in fester Reihenfolge', () => {
-    const v = computeKapazitaetProTyp(ma({}), undefined);
+    const v = computeKapazitaetProTyp(ma({}), undefined, STD);
     expect(v.slots.map(s => s.bucket)).toEqual(ALL_ANTRAGSTYP_BUCKETS);
   });
 
   it('ohne Kontingent → unlimited (nur Count, keine Bar)', () => {
-    const v = computeKapazitaetProTyp(ma({}), auslastung({ FuE: 2 }));
+    const v = computeKapazitaetProTyp(ma({}), auslastung({ FuE: 2 }), STD);
     expect(v.hatKontingent).toBe(false);
     const fue = slot(v, 'FuE');
     expect(fue.unlimited).toBe(true);
@@ -57,34 +87,38 @@ describe('computeKapazitaetProTyp', () => {
   });
 
   it('Kontingent mit Rest → rest>0, nicht überbucht', () => {
-    const v = computeKapazitaetProTyp(ma({ FuE: 4 }), auslastung({}));
+    // 72 h/Jahr → 2 TVs/Quartal, 0 verbraucht
+    const v = computeKapazitaetProTyp(ma({ FuE: 72 }), auslastung({}), STD);
     const fue = slot(v, 'FuE');
     expect(v.hatKontingent).toBe(true);
-    expect(fue.kontingentQ).toBe(1);
+    expect(fue.kontingentQ).toBe(2);
     expect(fue.verbraucht).toBe(0);
-    expect(fue.rest).toBe(1);
+    expect(fue.rest).toBe(2);
     expect(fue.pct).toBe(0);
     expect(fue.ueberbucht).toBe(false);
   });
 
   it('Verbrauch > Kontingent → überbucht, pct auf 100 geclampt', () => {
-    const v = computeKapazitaetProTyp(ma({ FuE: 4 }), auslastung({ FuE: 2 }));
+    // 2 TVs Kontingent, 3 TVs verbraucht
+    const v = computeKapazitaetProTyp(ma({ FuE: 72 }), auslastung({ FuE: 3 }), STD);
     const fue = slot(v, 'FuE');
     expect(fue.rest).toBe(-1);
     expect(fue.ueberbucht).toBe(true);
     expect(fue.pct).toBe(100);
   });
 
-  it('summiert fest + pending je Typ', () => {
-    const v = computeKapazitaetProTyp(ma({ FuE: 8 }), auslastung({ FuE: 1 }, { FuE: 1 }));
+  it('summiert fest + pending je Typ (TVs)', () => {
+    // 2 TVs Kontingent, 1 fest + 1 pending = 2 verbraucht
+    const v = computeKapazitaetProTyp(ma({ FuE: 72 }), auslastung({ FuE: 1 }, { FuE: 1 }), STD);
     expect(slot(v, 'FuE').verbraucht).toBe(2);
     expect(slot(v, 'FuE').rest).toBe(0);
   });
 
   it('Abschlag senkt das Quartals-Kontingent', () => {
-    const v = computeKapazitaetProTyp(ma({ FuE: 8 }, 50), auslastung({ FuE: 1 }));
+    // 144 h × 50 % = 72 h effektiv → 18 h/Quartal → 2 TVs
+    const v = computeKapazitaetProTyp(ma({ FuE: 144 }, 50), auslastung({ FuE: 1 }), STD);
     const fue = slot(v, 'FuE');
-    expect(fue.kontingentQ).toBe(1);
-    expect(fue.rest).toBe(0);
+    expect(fue.kontingentQ).toBe(2);
+    expect(fue.rest).toBe(1);
   });
 });

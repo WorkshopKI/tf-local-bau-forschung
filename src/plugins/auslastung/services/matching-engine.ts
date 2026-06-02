@@ -33,6 +33,7 @@ import {
 import { runBm25Matching, type Bm25Result } from './bm25-matcher';
 import { runEmbeddingMatching, type EmbeddingMatchResult } from './embedding-matcher';
 import { kapazitaetsScore, tageImQuartal } from './kapazitaet';
+import { effektiveJahresStunden } from './kapazitaet-pro-typ';
 import { matchesAntragstyp } from './antragstyp-praeferenz';
 import { normLevelForUeber } from './kompetenz-derivation';
 import { computeKontingentVerbrauch, kontingentInfoFor, verbrauchFromAuslastung } from './kontingent';
@@ -173,7 +174,7 @@ export function runMatching(input: MatchInput): MatchResult[] {
 
     // Kapazitaet inkl. Abschlag — weiches Modell, kein harter Filter mehr.
     const abschlag = Math.max(0, Math.min(100, ma.abschlagProzent ?? 0));
-    const quartalsKap = (ma.jahresKapazitaet * (1 - abschlag / 100)) / 4;
+    const quartalsKap = (effektiveJahresStunden(ma) * (1 - abschlag / 100)) / 4;
     const verbraucht = quartalsVerbrauchByAnon.get(anonId) ?? 0;
     const rest = quartalsKap - verbraucht;
     const ueberbuchung = rest < 0 ? -rest : 0;
@@ -209,7 +210,7 @@ export function runMatching(input: MatchInput): MatchResult[] {
 
     // v2.15: Antragstyp-Kontingent — weicher Malus bei erschoepftem Pro-Typ-
     // Kontingent (kein harter Filter). Ohne Kontingent → Score 1.0.
-    const kInfo = kontingentInfoFor(ma, antragBucket, kontingentVerbrauch.get(anonId));
+    const kInfo = kontingentInfoFor(ma, antragBucket, kontingentVerbrauch.get(anonId), stundenProTV);
 
     // Balance + KapScore werden gemeinsam in die `gewichtungBalance`-Komponente
     // eingewogen (je zur Haelfte). Behaelt das alte Verhalten bei voller

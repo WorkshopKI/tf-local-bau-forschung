@@ -114,7 +114,7 @@ export function VorschlagCard({
             <span className="text-[var(--tf-text-tertiary)]">
               {antragstyp ?? 'Typ'}-Kontingent:{' '}
               <span className="text-[var(--tf-text-secondary)]">
-                {Math.max(0, Math.floor(match.kontingentRest ?? 0))}/{fmtKont(match.kontingentQuartal)} frei
+                {Math.max(0, Math.floor(match.kontingentRest ?? 0))}/{fmtKont(match.kontingentQuartal)} TVs frei
               </span>
             </span>
           )}

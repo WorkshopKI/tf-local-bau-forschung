@@ -28,7 +28,9 @@ function makeMa(
 ): AnonymerMitarbeiter {
   return {
     anonId,
-    jahresKapazitaet: kap,
+    jahresKapazitaet: kap, // deprecated, wird nicht mehr gelesen
+    // Effektive Jahresstunden = Summe der Typ-Stunden; hier komplett auf FuE.
+    jahresKapazitaetProTyp: { FuE: kap },
     abgemeldet: [],
     manuelleTechnologien: tech,
     ausgeblendeteAutoTags: [],

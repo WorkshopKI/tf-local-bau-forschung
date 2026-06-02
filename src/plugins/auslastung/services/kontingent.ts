@@ -1,18 +1,19 @@
 /**
- * Antragstyp-Kontingent (v2.15) — weiche Pro-Typ-Deckelung im Matcher.
+ * Antragstyp-Kontingent (v2.15, Stunden-Modell ab Juni 2026) — weiche
+ * Pro-Typ-Deckelung im Matcher.
  *
- * Die PL pflegt pro MA ein Kontingent in **Anträgen/Jahr** je Antragstyp
- * (`AnonymerMitarbeiter.jahresKapazitaetProTyp`). Der Verbrauch wird aus den
- * Zuweisungen des aktuellen Quartals gezählt (Typ über `vb_phase` des Antrags,
- * via `getKategorieLabel` — dieselbe Single-Source-of-Truth wie der
- * Antragstyp-Filter). Erschöpftes Kontingent → weicher Malus, kein harter
- * Filter (konsistent mit dem weichen Kapazitätsmodell der Engine).
+ * Die PL pflegt pro MA in der Kompetenz-Matrix je Antragstyp ein Kontingent in
+ * **Stunden/Jahr** (`AnonymerMitarbeiter.jahresKapazitaetProTyp`); daraus wird
+ * das Quartals-Kontingent in **TVs** abgeleitet (`quartalsTVsProTyp`). Der
+ * Verbrauch wird in **TVs** gezählt (`tvsProTyp` aus dem Auslastungs-Index).
+ * Erschöpftes Kontingent → weicher Malus, kein harter Filter (konsistent mit
+ * dem weichen Kapazitätsmodell der Engine).
  *
  * Pure + ohne Seiteneffekte → unit-testbar.
  */
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket, type Zuweisung } from '../types';
-import { quartalsKontingentProTyp } from './kapazitaet-pro-typ';
+import { quartalsTVsProTyp } from './kapazitaet-pro-typ';
 import type { MaQuartalsAuslastung } from './quartals-auslastung';
 
 /** Pro anonId: gezählte Anträge je Antragstyp im betrachteten Quartal. */
@@ -43,11 +44,11 @@ export function computeKontingentVerbrauch(
 }
 
 /**
- * Verbrauch je Typ aus dem aggregierten Auslastungs-Index (fest CSV + pending
- * Store) — die korrekte, vollständige Quelle (v2.16). `computeKontingentVerbrauch`
- * zählt nur Store-Zuweisungen und übersieht fest gebuchte CSV-Anträge; diese
- * Variante nutzt dieselben deduplizierten `antraegeProTyp`-Counts wie das
- * per-Typ-Kapazitätsmodell, damit „verbraucht" überall identisch ist.
+ * Verbrauch je Typ in **TVs** aus dem aggregierten Auslastungs-Index (fest CSV +
+ * pending Store) — die korrekte, vollständige Quelle (v2.16). `computeKontingent‐
+ * Verbrauch` zählt nur Store-Zuweisungen und übersieht fest gebuchte CSV-Anträge;
+ * diese Variante nutzt dieselben deduplizierten `tvsProTyp`-Counts wie das
+ * per-Typ-Kapazitätsmodell, damit „verbraucht" überall identisch (TVs) ist.
  */
 export function verbrauchFromAuslastung(
   auslastungByAnon: Map<string, MaQuartalsAuslastung>,
@@ -55,7 +56,7 @@ export function verbrauchFromAuslastung(
   const out: KontingentVerbrauch = new Map();
   for (const [anonId, a] of auslastungByAnon) {
     const m: Partial<Record<AntragstypBucket, number>> = {};
-    for (const src of [a.fest.antraegeProTyp, a.pending.antraegeProTyp]) {
+    for (const src of [a.fest.tvsProTyp, a.pending.tvsProTyp]) {
       for (const b of ALL_ANTRAGSTYP_BUCKETS) {
         const n = src[b];
         if (n) m[b] = (m[b] ?? 0) + n;
@@ -69,9 +70,9 @@ export function verbrauchFromAuslastung(
 export interface KontingentInfo {
   /** 0..1 — 1.0 = kein Limit oder Rest ≥ 1; 0.8 = unter 1 frei; 0.5 = überbucht. */
   score: number;
-  /** Verbleibendes Quartals-Kontingent (Anträge) oder null = kein Limit. */
+  /** Verbleibendes Quartals-Kontingent (TVs) oder null = kein Limit. */
   rest: number | null;
-  /** Quartals-Kontingent (Anträge) oder null = kein Limit. */
+  /** Quartals-Kontingent (TVs) oder null = kein Limit. */
   kontingentQ: number | null;
 }
 
@@ -79,17 +80,18 @@ const KEIN_LIMIT: KontingentInfo = { score: 1, rest: null, kontingentQ: null };
 
 /**
  * Kontingent-Status eines MAs für einen Antragstyp. Kein Kontingent gesetzt →
- * neutral (Score 1.0). Sonst Quartals-Kontingent via `quartalsKontingentProTyp`
- * (Jahres-Kontingent × (1 − Abschlag) / 4), Rest = Kontingent − Verbrauch.
+ * neutral (Score 1.0). Sonst Quartals-Kontingent in TVs via `quartalsTVsProTyp`
+ * (Stunden/Quartal ÷ stundenProTV), Rest = Kontingent − TV-Verbrauch.
  */
 export function kontingentInfoFor(
   ma: AnonymerMitarbeiter,
   bucket: AntragstypBucket | null,
   verbrauch: Partial<Record<AntragstypBucket, number>> | undefined,
+  stundenProTV: number,
 ): KontingentInfo {
   if (!bucket) return KEIN_LIMIT;
   // Gemeinsamer Helper (inkl. Abschlag) — identisch zur per-Typ-Kapazitäts-View.
-  const kontingentQ = quartalsKontingentProTyp(ma, bucket);
+  const kontingentQ = quartalsTVsProTyp(ma, bucket, stundenProTV);
   if (kontingentQ == null) return KEIN_LIMIT;
   const used = verbrauch?.[bucket] ?? 0;
   const rest = kontingentQ - used;

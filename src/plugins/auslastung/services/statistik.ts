@@ -11,6 +11,7 @@
  */
 import type { AnonymerMitarbeiter, AuslastungConfig, UeberKategorie } from '../types';
 import type { MaQuartalsAuslastung } from './quartals-auslastung';
+import { effektiveJahresStunden } from './kapazitaet-pro-typ';
 
 export interface QuartalsStatistik {
   quartal: {
@@ -106,7 +107,7 @@ export function computeQuartalsStatistik(
   for (const ma of aktive) {
     if (ma.abgemeldet.includes(quartal)) abgemeldet++;
     const abschlag = Math.max(0, Math.min(100, ma.abschlagProzent ?? 0));
-    const eff = (ma.jahresKapazitaet * (1 - abschlag / 100)) / 4;
+    const eff = (effektiveJahresStunden(ma) * (1 - abschlag / 100)) / 4;
     effektivStunden += eff;
     const auslastung = auslastungByAnon.get(ma.anonId);
     const festS = auslastung?.fest.stunden ?? 0;

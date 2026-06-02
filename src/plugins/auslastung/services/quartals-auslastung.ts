@@ -57,9 +57,14 @@ export interface MaQuartalsBucket {
   aktenzeichenSet: Set<string>;
   verbuende: AuslastungVerbund[];
   /** v2.16: Anzahl Verbund-Anteile je Antragstyp (FuE/DS/DL/NW), via
-   *  `getKategorieLabel(vb_phase)`. Speist das per-Typ-Kapazitaetsmodell +
-   *  den Matcher-Kontingent-Verbrauch (1 pro Verbund-Anteil, wie `antraege`). */
+   *  `getKategorieLabel(vb_phase)`. Speist die „(N)"-Anträge-Zahl in der
+   *  AKTUELL-Spalte (1 pro Verbund-Anteil, wie `antraege`). */
   antraegeProTyp: Partial<Record<AntragstypBucket, number>>;
+  /** TV-Anzahl je Antragstyp (FuE/DS/DL/NW) — Σ `tvCount` je Bucket. Speist das
+   *  per-Typ-Kapazitaetsmodell (Verbrauch in TVs) + den Matcher-Kontingent-
+   *  Verbrauch, damit „verbraucht/Kapazität" in derselben TV-Währung steht wie
+   *  FREI/AKTUELL. Summe über Buckets ≈ `tvs` (Irrläufer ohne Bucket fehlen). */
+  tvsProTyp: Partial<Record<AntragstypBucket, number>>;
 }
 
 /** Gesamt-Sicht pro MA fuer ein Quartal. */
@@ -98,6 +103,7 @@ function emptyBucket(): MaQuartalsBucket {
     aktenzeichenSet: new Set<string>(),
     verbuende: [],
     antraegeProTyp: {},
+    tvsProTyp: {},
   };
 }
 
@@ -247,15 +253,20 @@ function buildBucket(groupsByKey: Map<string, GroupState>, stundenProTV: number)
   const verbuende: AuslastungVerbund[] = [];
   const aktenzeichenSet = new Set<string>();
   const antraegeProTyp: Partial<Record<AntragstypBucket, number>> = {};
+  const tvsProTyp: Partial<Record<AntragstypBucket, number>> = {};
   let totalTvs = 0;
   for (const g of groupsByKey.values()) {
     const tvCount = g.aktenzeichen.length;
     if (tvCount === 0) continue;
     for (const az of g.aktenzeichen) aktenzeichenSet.add(az);
     totalTvs += tvCount;
-    // 1 Verbund-Anteil = 1 "Antrag" je Typ (konsistent mit `antraege`).
+    // 1 Verbund-Anteil = 1 "Antrag" je Typ (konsistent mit `antraege`); die
+    // TVs des Verbund-Anteils fliessen zusätzlich in `tvsProTyp` (Kapazität).
     const bucket = getKategorieLabel(g.vbPhase);
-    if (bucket) antraegeProTyp[bucket] = (antraegeProTyp[bucket] ?? 0) + 1;
+    if (bucket) {
+      antraegeProTyp[bucket] = (antraegeProTyp[bucket] ?? 0) + 1;
+      tvsProTyp[bucket] = (tvsProTyp[bucket] ?? 0) + tvCount;
+    }
     verbuende.push({
       verbundId: g.verbundId,
       aktenzeichen: g.aktenzeichen.slice(),
@@ -283,6 +294,7 @@ function buildBucket(groupsByKey: Map<string, GroupState>, stundenProTV: number)
     aktenzeichenSet,
     verbuende,
     antraegeProTyp,
+    tvsProTyp,
   };
 }
 
@@ -295,6 +307,7 @@ export const EMPTY_BUCKET: MaQuartalsBucket = Object.freeze({
   aktenzeichenSet: new Set<string>(),
   verbuende: [],
   antraegeProTyp: Object.freeze({}),
+  tvsProTyp: Object.freeze({}),
 }) as MaQuartalsBucket;
 
 export const EMPTY_AUSLASTUNG: MaQuartalsAuslastung = Object.freeze({

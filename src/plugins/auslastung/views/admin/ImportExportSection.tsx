@@ -3,21 +3,21 @@
  *
  * Vorher gab es zwei separate UI-Bloecke (Aktion-Buttons unter der MA-Tabelle
  * + ImportExportSection unten) mit dem Onboarding-HTML-Button doppelt. Jetzt
- * eine einzige Sektion mit drei thematischen Spalten:
+ * eine einzige Sektion mit zwei thematischen Spalten:
  *
- *  1. Kapazitäten (Bulk-Edit) — XLSX-Template-Roundtrip
- *  2. Onboarding (neue MAs)  — HTML-Generator + XLSX-Antwort-Import
- *  3. Snapshot-Export        — anonym vs. mit Klartext-Kuerzeln (geschuetzt)
+ *  1. Onboarding (neue MAs)  — HTML-Generator + XLSX-Antwort-Import
+ *  2. Snapshot-Export        — anonym vs. mit Klartext-Kuerzeln (geschuetzt)
+ *
+ * Der frühere „Kapazitäten (Bulk-Edit)"-XLSX-Roundtrip ist entfallen — Kapazität
+ * (Typ-Stunden) wird ausschließlich in der Kompetenz-Matrix gepflegt.
  */
 import { useState } from 'react';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymMap } from '../../services/anonym-map';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
-import { downloadKapazitaetsTemplate } from '../../services/kapazitaets-import';
 import { downloadOnboardingHtml } from '../../services/onboarding-html-generator';
 import { exportAnonymousXlsx, exportDeAnonymizedXlsx } from '../../services/export-service';
 import type { OnboardingPreview } from '../../services/onboarding-import';
-import { ImportDialog } from '../../components/ImportDialog';
 import { OnboardingImportDialog } from '../../components/OnboardingImportDialog';
 import { KalibrierungsReport } from '../../components/KalibrierungsReport';
 
@@ -32,9 +32,6 @@ export function ImportExportSection({ antraege, anonymMap }: Props): React.React
   const noKategorien = kategorien.length === 0;
   const noAntraege = antraege.length === 0;
 
-  // Kapazitaeten-Bulk-Edit: Template-Upload via separatem Dialog.
-  const [kapazUploadOpen, setKapazUploadOpen] = useState(false);
-
   // Onboarding-Antwort-Import (XLSX-Rueckmeldung vom MA).
   const [onboardingImportOpen, setOnboardingImportOpen] = useState(false);
   const [calibPreviews, setCalibPreviews] = useState<OnboardingPreview[] | null>(null);
@@ -43,34 +40,8 @@ export function ImportExportSection({ antraege, anonymMap }: Props): React.React
   return (
     <div className="rounded-[12px] p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
       <h3 className="text-[14px] font-medium text-[var(--tf-text)] mb-3">Import / Export</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Spalte 1 — Kapazitäten Bulk-Edit */}
-        <div>
-          <h4 className="text-[12.5px] font-medium mb-1">Kapazitäten (Bulk-Edit)</h4>
-          <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-2 leading-snug">
-            XLSX-Vorlage mit allen MAs herunterladen, in Excel editieren, wieder hochladen.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => downloadKapazitaetsTemplate(data)}
-              className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              Vorlage herunterladen
-            </button>
-            <button
-              type="button"
-              onClick={() => setKapazUploadOpen(true)}
-              className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
-              style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-            >
-              XLSX hochladen
-            </button>
-          </div>
-        </div>
-
-        {/* Spalte 2 — Onboarding (neue MAs) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Spalte 1 — Onboarding (neue MAs) */}
         <div>
           <h4 className="text-[12.5px] font-medium mb-1">Onboarding (neue MAs)</h4>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-2 leading-snug">
@@ -97,7 +68,7 @@ export function ImportExportSection({ antraege, anonymMap }: Props): React.React
           </div>
         </div>
 
-        {/* Spalte 3 — Snapshot-Export */}
+        {/* Spalte 2 — Snapshot-Export */}
         <div>
           <h4 className="text-[12.5px] font-medium mb-1">Snapshot-Export</h4>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-2 leading-snug">
@@ -125,7 +96,6 @@ export function ImportExportSection({ antraege, anonymMap }: Props): React.React
       </div>
 
       {/* Modale */}
-      <ImportDialog open={kapazUploadOpen} onClose={() => setKapazUploadOpen(false)} />
       <OnboardingImportDialog
         open={onboardingImportOpen}
         onClose={() => setOnboardingImportOpen(false)}

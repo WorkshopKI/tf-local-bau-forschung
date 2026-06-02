@@ -20,6 +20,7 @@ import {
   EMPTY_AUSLASTUNG,
   type MaQuartalsAuslastung,
 } from './quartals-auslastung';
+import { effektiveJahresStunden } from './kapazitaet-pro-typ';
 
 /** Bucket-Snapshot pro MA fuer die KapazitaetsView. */
 export interface KapazitaetsBucket {
@@ -59,7 +60,9 @@ export function computeKapazitaet(
   config: AuslastungConfig,
 ): KapazitaetsView {
   const abschlag = Math.max(0, Math.min(100, ma.abschlagProzent ?? 0));
-  const effektivStunden = (ma.jahresKapazitaet * (1 - abschlag / 100)) / 4;
+  // Jahresstunden = Summe der Typ-Stunden (effektiveJahresStunden); 0 ohne
+  // gepflegte Kompetenz-Matrix. `ma.jahresKapazitaet` ist deprecated.
+  const effektivStunden = (effektiveJahresStunden(ma) * (1 - abschlag / 100)) / 4;
   const stundenProTV = Math.max(1, config.stundenProTV ?? 9);
 
   const a = auslastung ?? EMPTY_AUSLASTUNG;

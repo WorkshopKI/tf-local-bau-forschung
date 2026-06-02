@@ -203,11 +203,12 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
   // v2.16: per-Antragstyp-Kapazität (primäres Modell) — 1x pro Render-Cycle.
   const kapTypByAnon = useMemo(() => {
     const map = new Map<string, KapazitaetProTypView>();
+    const stdProTV = Math.max(1, config.stundenProTV ?? 9);
     for (const ma of Object.values(mitarbeiter)) {
-      map.set(ma.anonId, computeKapazitaetProTyp(ma, auslastungByAnon.get(ma.anonId)));
+      map.set(ma.anonId, computeKapazitaetProTyp(ma, auslastungByAnon.get(ma.anonId), stdProTV));
     }
     return map;
-  }, [mitarbeiter, auslastungByAnon]);
+  }, [mitarbeiter, auslastungByAnon, config]);
 
   // "Hat aktuelle Anträge im Quartal" — Filter-Helfer.
   const hasAntraege = useCallback((anonId: string): boolean => {

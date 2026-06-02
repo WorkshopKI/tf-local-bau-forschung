@@ -22,7 +22,9 @@ import { DEFAULT_AUSLASTUNG_CONFIG, type AnonymerMitarbeiter } from '../types';
 function makeMa(overrides: Partial<AnonymerMitarbeiter> = {}): AnonymerMitarbeiter {
   return {
     anonId: 'MA01',
-    jahresKapazitaet: 800,
+    jahresKapazitaet: 800, // deprecated, wird nicht mehr gelesen
+    // Effektive Jahresstunden = Summe der Typ-Stunden (= 800).
+    jahresKapazitaetProTyp: { FuE: 800 },
     abgemeldet: [],
     manuelleTechnologien: [],
     ausgeblendeteAutoTags: [],
@@ -44,6 +46,7 @@ function makeBucket(overrides: Partial<MaQuartalsBucket> = {}): MaQuartalsBucket
     aktenzeichenSet: new Set<string>(),
     verbuende: [],
     antraegeProTyp: {},
+    tvsProTyp: {},
     ...overrides,
   };
 }
@@ -117,8 +120,15 @@ describe('computeKapazitaet', () => {
     expect(v.restTVs).toBe(17); // floor(155 / 9)
   });
 
+  it('ohne Typ-Stunden → Kapazität 0 (kein 800-Default)', () => {
+    const ma = makeMa({ jahresKapazitaetProTyp: undefined });
+    const v = computeKapazitaet(ma, undefined, DEFAULT_AUSLASTUNG_CONFIG);
+    expect(v.effektivStunden).toBe(0);
+    expect(v.restTVs).toBe(0);
+  });
+
   it('Ueberbuchung: verbraucht > effektiv', () => {
-    const ma = makeMa({ jahresKapazitaet: 100 });  // 25 h/Q
+    const ma = makeMa({ jahresKapazitaetProTyp: { FuE: 100 } });  // 25 h/Q
     const a = makeAuslastung({ antraege: 1, tvs: 4, stunden: 36 });
     const v = computeKapazitaet(ma, a, DEFAULT_AUSLASTUNG_CONFIG);
     expect(v.effektivStunden).toBe(25);

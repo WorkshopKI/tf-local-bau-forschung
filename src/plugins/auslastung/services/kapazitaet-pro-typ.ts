@@ -1,18 +1,19 @@
 /**
- * Per-Antragstyp-Kapazität (v2.16) — primäres Kapazitätsmodell pro MA.
+ * Per-Antragstyp-Kapazität (v2.16, Stunden-Modell ab Juni 2026) — EINZIGE
+ * Kapazitätsquelle pro MA.
  *
- * Die PL pflegt pro MA ein Kontingent in **Anträgen/Jahr** je Antragstyp
- * (`AnonymerMitarbeiter.jahresKapazitaetProTyp`, aus der Kompetenz-Matrix oder
- * dem MA-Bearbeiten-Formular). Diese Funktion formt daraus zusammen mit dem
- * gezählten Quartals-Verbrauch (fest aus CSV + pending aus Store, via
- * `computeQuartalsAuslastung().*.antraegeProTyp`) die per-Typ-Auslastungs-Sicht
- * für Tabelle/Tile/Detail.
+ * Die PL pflegt pro MA in der Kompetenz-Matrix je Antragstyp ein Kontingent in
+ * **Stunden/Jahr** (`AnonymerMitarbeiter.jahresKapazitaetProTyp`). Daraus werden
+ * abgeleitet:
+ *  - die Gesamt-Jahresstunden des MAs (`effektiveJahresStunden` = Summe der
+ *    Typ-Stunden; keine Typ-Stunden → 0), die das Stunden-Modell
+ *    (`computeKapazitaet` → BELEGT/FREI/AKTUELL) speisen,
+ *  - das per-Typ-Quartals-Kontingent in **TVs** (`quartalsTVsProTyp` =
+ *    Stunden/Quartal ÷ `stundenProTV`), verglichen gegen den per-Typ-
+ *    TV-Verbrauch (`computeQuartalsAuslastung().*.tvsProTyp`).
  *
- * `quartalsKontingentProTyp` ist die EINE Quelle der Kontingent-Berechnung
- * (inkl. Abschlag) — sowohl diese View als auch der Matcher (`kontingent.ts`)
- * nutzen sie, damit „verbraucht/Kontingent" überall identisch ist.
- *
- * Pure + ohne Seiteneffekte → unit-testbar.
+ * So stehen per-Typ-Anzeige, FREI/AKTUELL und der Matcher (`kontingent.ts`) in
+ * derselben TV-/Stunden-Währung. Pure + ohne Seiteneffekte → unit-testbar.
  */
 import {
   ALL_ANTRAGSTYP_BUCKETS,
@@ -22,10 +23,27 @@ import {
 import { EMPTY_AUSLASTUNG, type MaQuartalsAuslastung } from './quartals-auslastung';
 
 /**
- * Quartals-Kontingent eines MAs für einen Antragstyp (Anträge/Quartal), inkl.
- * Abschlag: `(jahresKapazitaetProTyp[bucket] × (1 − abschlag/100)) / 4`.
- * `null` = kein Kontingent gesetzt (unbegrenzt). Gemeinsamer Helper für View +
- * Matcher (Plan-Risiko #3: sonst divergiert „v/N frei").
+ * Effektive Jahresstunden eines MAs = Summe der gepflegten Typ-Stunden
+ * (`jahresKapazitaetProTyp`). Keine Typ-Stunden gesetzt → **0** (kein Default
+ * mehr — `ma.jahresKapazitaet` ist deprecated und wird nicht mehr gelesen).
+ * Single Source für alle Kapazitäts-Reader (computeKapazitaet, statistik,
+ * matching-engine, export).
+ */
+export function effektiveJahresStunden(ma: AnonymerMitarbeiter): number {
+  const k = ma.jahresKapazitaetProTyp;
+  if (!k) return 0;
+  let sum = 0;
+  for (const b of ALL_ANTRAGSTYP_BUCKETS) {
+    const v = k[b];
+    if (typeof v === 'number' && v > 0) sum += v;
+  }
+  return sum;
+}
+
+/**
+ * Quartals-Kontingent eines MAs für einen Antragstyp in **Stunden/Quartal**,
+ * inkl. Abschlag: `(jahresKapazitaetProTyp[bucket] × (1 − abschlag/100)) / 4`.
+ * `null` = kein Kontingent gesetzt (unbegrenzt).
  */
 export function quartalsKontingentProTyp(
   ma: AnonymerMitarbeiter,
@@ -37,16 +55,34 @@ export function quartalsKontingentProTyp(
   return (jahr * (1 - abschlag / 100)) / 4;
 }
 
-/** Auslastung eines MAs für genau einen Antragstyp. */
+/**
+ * Quartals-Kontingent eines MAs für einen Antragstyp in **TVs/Quartal** =
+ * `quartalsKontingentProTyp / stundenProTV`. `null` = kein Kontingent.
+ * Gemeinsamer Helper für View + Matcher, damit „verbraucht/Kontingent" überall
+ * in derselben TV-Währung wie FREI/AKTUELL steht.
+ */
+export function quartalsTVsProTyp(
+  ma: AnonymerMitarbeiter,
+  bucket: AntragstypBucket,
+  stundenProTV: number,
+): number | null {
+  const hQ = quartalsKontingentProTyp(ma, bucket);
+  if (hQ == null) return null;
+  const s = stundenProTV > 0 ? stundenProTV : 9;
+  return hQ / s;
+}
+
+/** Auslastung eines MAs für genau einen Antragstyp. Werte in **TVs** (außer
+ *  `kontingentJahr`). */
 export interface TypSlot {
   bucket: AntragstypBucket;
-  /** Jahres-Kontingent (Anträge/Jahr) oder null = unbegrenzt. */
+  /** Jahres-Kontingent (Stunden/Jahr) oder null = unbegrenzt. */
   kontingentJahr: number | null;
-  /** Quartals-Kontingent nach Abschlag oder null = unbegrenzt. */
+  /** Quartals-Kontingent in TVs (Stunden/Quartal ÷ stundenProTV) oder null. */
   kontingentQ: number | null;
-  /** Verbrauchte Anträge im Quartal (fest + pending). */
+  /** Verbrauchte TVs im Quartal (fest + pending). */
   verbraucht: number;
-  /** Verbleibend (kontingentQ − verbraucht) oder null bei unbegrenzt. */
+  /** Verbleibende TVs (kontingentQ − verbraucht) oder null bei unbegrenzt. */
   rest: number | null;
   /** Füllgrad 0..100 für die Bar oder null bei unbegrenzt. */
   pct: number | null;
@@ -60,26 +96,28 @@ export interface KapazitaetProTypView {
   slots: TypSlot[];
   /** Mindestens ein Typ hat ein Kontingent → per-Typ-Bars als primäre Anzeige. */
   hatKontingent: boolean;
-  /** Summe verbrauchter Anträge über alle Typen. */
+  /** Summe verbrauchter TVs über alle Typen. */
   verbrauchGesamt: number;
 }
 
 /**
- * Baut die per-Typ-Auslastungs-Sicht eines MAs. `auslastung` darf undefined sein
- * (MA hat im Quartal noch nichts → verbraucht 0).
+ * Baut die per-Typ-Auslastungs-Sicht eines MAs in TVs. `auslastung` darf
+ * undefined sein (MA hat im Quartal noch nichts → verbraucht 0). `stundenProTV`
+ * konvertiert das Stunden-Kontingent in TVs (gleiche Skala wie FREI/AKTUELL).
  */
 export function computeKapazitaetProTyp(
   ma: AnonymerMitarbeiter,
   auslastung: MaQuartalsAuslastung | undefined,
+  stundenProTV: number,
 ): KapazitaetProTypView {
   const a = auslastung ?? EMPTY_AUSLASTUNG;
   let verbrauchGesamt = 0;
   let hatKontingent = false;
 
   const slots: TypSlot[] = ALL_ANTRAGSTYP_BUCKETS.map(bucket => {
-    const verbraucht = (a.fest.antraegeProTyp[bucket] ?? 0) + (a.pending.antraegeProTyp[bucket] ?? 0);
+    const verbraucht = (a.fest.tvsProTyp[bucket] ?? 0) + (a.pending.tvsProTyp[bucket] ?? 0);
     verbrauchGesamt += verbraucht;
-    const kontingentQ = quartalsKontingentProTyp(ma, bucket);
+    const kontingentQ = quartalsTVsProTyp(ma, bucket, stundenProTV);
     if (kontingentQ == null) {
       return {
         bucket,

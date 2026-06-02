@@ -38,29 +38,39 @@ describe('computeKontingentVerbrauch', () => {
 });
 
 describe('kontingentInfoFor', () => {
+  // stundenProTV=1 → Quartals-Kontingent in TVs == Stunden/Quartal (Math bleibt
+  // wie vor der TV-Umstellung prüfbar).
   it('kein Kontingent gesetzt → neutral (Score 1, rest null)', () => {
-    expect(kontingentInfoFor(maMit({}), 'FuE', undefined)).toEqual({ score: 1, rest: null, kontingentQ: null });
+    expect(kontingentInfoFor(maMit({}), 'FuE', undefined, 1)).toEqual({ score: 1, rest: null, kontingentQ: null });
   });
 
   it('Rest >= 1 → Score 1.0', () => {
-    const info = kontingentInfoFor(maMit({ FuE: 8 }), 'FuE', { FuE: 0 }); // Q-Kontingent 2
+    const info = kontingentInfoFor(maMit({ FuE: 8 }), 'FuE', { FuE: 0 }, 1); // Q-Kontingent 2 TVs
     expect(info.kontingentQ).toBe(2);
     expect(info.rest).toBe(2);
     expect(info.score).toBe(1);
   });
 
   it('0 < Rest < 1 → Score 0.8', () => {
-    const info = kontingentInfoFor(maMit({ FuE: 6 }), 'FuE', { FuE: 1 }); // Q 1.5, rest 0.5
+    const info = kontingentInfoFor(maMit({ FuE: 6 }), 'FuE', { FuE: 1 }, 1); // Q 1.5, rest 0.5
     expect(info.score).toBe(0.8);
   });
 
   it('Rest <= 0 (überbucht) → weicher Malus 0.5', () => {
-    const info = kontingentInfoFor(maMit({ FuE: 8 }), 'FuE', { FuE: 2 }); // Q 2, rest 0
+    const info = kontingentInfoFor(maMit({ FuE: 8 }), 'FuE', { FuE: 2 }, 1); // Q 2, rest 0
     expect(info.rest).toBe(0);
     expect(info.score).toBe(0.5);
   });
 
+  it('stundenProTV konvertiert Stunden-Kontingent → TVs', () => {
+    // 72 h/Jahr → 18 h/Quartal → /9 = 2 TVs Kontingent
+    const info = kontingentInfoFor(maMit({ FuE: 72 }), 'FuE', { FuE: 1 }, 9);
+    expect(info.kontingentQ).toBe(2);
+    expect(info.rest).toBe(1);
+    expect(info.score).toBe(1);
+  });
+
   it('Antrag ohne Bucket (Irrläufer) → neutral', () => {
-    expect(kontingentInfoFor(maMit({ FuE: 8 }), null, undefined).score).toBe(1);
+    expect(kontingentInfoFor(maMit({ FuE: 8 }), null, undefined, 9).score).toBe(1);
   });
 });

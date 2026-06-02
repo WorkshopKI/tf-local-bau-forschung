@@ -93,7 +93,7 @@ export function KompetenzImportDialog({ open, anonymMap, onClose }: Props): Reac
           >
             <p className="text-[13px] mb-1">PL-Kompetenz-XLSX hier ablegen</p>
             <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-3">
-              Spalten: Antragstyp-Kontingent (DL/DS/NW/FuE), TIB_KUERZ, Abschlag, dann je Überkategorie die Unterkategorie-Level (1–3).
+              Spalten: Antragstyp-Kontingent in Stunden/Jahr (DL/DS/NW/FuE), TIB_KUERZ, Abschlag, dann je Überkategorie die Unterkategorie-Level (1–3).
             </p>
             <label className="inline-block px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer" style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}>
               {parsing ? 'Lese…' : 'Datei wählen'}

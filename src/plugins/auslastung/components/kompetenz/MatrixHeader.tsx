@@ -43,7 +43,7 @@ export function MatrixHeader({ geometry, farbeByUeber, sort, onSort }: Props): R
 
         {capCols.length > 0 && (
           <th className="km-h-kapband km-sl" style={{ left: COL_W.ma }} colSpan={capCols.length}>
-            <span className="km-gtag">KAP</span>Kontingent (Anträge/Jahr)
+            <span className="km-gtag">KAP</span>Kontingent (Stunden/Jahr)
           </th>
         )}
         {abschCol && (

@@ -12,7 +12,7 @@
  * Pro Zeile:
  *   - TIB_KUERZ → anonId via Kürzel-Map (NFC, Pitfall #22). Unbekannt → Warnung,
  *     Zeile übersprungen (keine Phantom-MAs).
- *   - Kompetenz-Matrix (gesetzte Zellen), Kontingent pro Typ (Anträge/Jahr),
+ *   - Kompetenz-Matrix (gesetzte Zellen), Kontingent pro Typ (Stunden/Jahr),
  *     Abschlag %.
  *   - Haupt-/Nebenkategorie werden im Store-Apply aus der Matrix abgeleitet.
  *

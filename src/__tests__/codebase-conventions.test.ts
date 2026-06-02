@@ -153,7 +153,6 @@ describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
     'src/plugins/auslastung/views/admin/EmbeddingCorpusSection.tsx',
     'src/plugins/auslastung/views/admin/AktivVorschlagBanner.tsx',
     'src/plugins/auslastung/components/OnboardingImportDialog.tsx',
-    'src/plugins/auslastung/components/ImportDialog.tsx',
     'src/plugins/auslastung/components/PasswortDialog.tsx',
     'src/plugins/auslastung/views/admin/KategorienSection.tsx',
     'src/plugins/auslastung/views/admin/SetupWizard.tsx',

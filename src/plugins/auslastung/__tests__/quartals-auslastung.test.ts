@@ -246,6 +246,19 @@ describe('computeQuartalsAuslastung — antraegeProTyp (v2.16)', () => {
     const antraege = [makeAntrag({ aktenzeichen: 'A1', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', vb_phase: 3 })];
     const m = computeQuartalsAuslastung(antraege, [], new Map([['MUE', 'MA01']]), '2026-Q2', STD);
     expect(m.get('MA01')!.fest.antraegeProTyp).toEqual({ FuE: 1 });
+    expect(m.get('MA01')!.fest.tvsProTyp).toEqual({ FuE: 1 });
+  });
+
+  it('tvsProTyp zählt TVs, antraegeProTyp Verbund-Anteile (3-TV-Verbund FuE)', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'V1-A', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', verbund_id: 'V1', vb_phase: 3 }),
+      makeAntrag({ aktenzeichen: 'V1-B', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', verbund_id: 'V1', vb_phase: 3 }),
+      makeAntrag({ aktenzeichen: 'V1-C', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', verbund_id: 'V1', vb_phase: 3 }),
+    ];
+    const m = computeQuartalsAuslastung(antraege, [], new Map([['MUE', 'MA01']]), '2026-Q2', STD);
+    const a = m.get('MA01')!;
+    expect(a.fest.antraegeProTyp).toEqual({ FuE: 1 }); // 1 Verbund-Anteil
+    expect(a.fest.tvsProTyp).toEqual({ FuE: 3 });       // 3 TVs
   });
 
   it('fest: 4-TV-Verbund zählt 1 pro Verbund-Anteil (nicht pro TV)', () => {
@@ -277,9 +290,11 @@ describe('computeQuartalsAuslastung — antraegeProTyp (v2.16)', () => {
     expect(m.get('MA01')!.fest.antraegeProTyp).toEqual({});
   });
 
-  it('EMPTY_AUSLASTUNG hat leere antraegeProTyp', () => {
+  it('EMPTY_AUSLASTUNG hat leere antraegeProTyp + tvsProTyp', () => {
     expect(EMPTY_AUSLASTUNG.fest.antraegeProTyp).toEqual({});
     expect(EMPTY_AUSLASTUNG.pending.antraegeProTyp).toEqual({});
+    expect(EMPTY_AUSLASTUNG.fest.tvsProTyp).toEqual({});
+    expect(EMPTY_AUSLASTUNG.pending.tvsProTyp).toEqual({});
   });
 });
 

@@ -26,8 +26,8 @@ function freiCount(rest: number): number {
   return Math.max(0, Math.floor(rest));
 }
 function slotTitle(s: TypSlot): string {
-  if (s.unlimited) return `${s.bucket}: ${s.verbraucht} Anträge (kein Kontingent)`;
-  const base = `${s.bucket}: ${s.verbraucht} von ${fmt(s.kontingentQ!)} Anträgen/Quartal`;
+  if (s.unlimited) return `${s.bucket}: ${s.verbraucht} TVs (kein Kontingent)`;
+  const base = `${s.bucket}: ${s.verbraucht} von ${fmt(s.kontingentQ!)} TVs/Quartal`;
   return s.ueberbucht ? `${base} · überbucht` : `${base} · frei ${freiCount(s.rest!)}`;
 }
 function fillColor(s: TypSlot): string {
