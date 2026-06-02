@@ -2,14 +2,15 @@
  * MaTile — einzelne MA-Karte für die Heatmap-View.
  *
  * Layout (siehe `_design/handoff/auslastung/README.md`):
- *  - `aspect-ratio: 1.15`, 0.5px border, 6px radius, padding 8px 40px 6px 8px
+ *  - `aspect-ratio: 1.15`, 0.5px border, 6px radius, padding 10px 44px 8px 10px
  *    (rechts mehr, weil die per-Typ-Bars dort sitzen).
- *  - **Header** oben links: MA-Kürzel, 11px monospace.
+ *  - **Header** oben links: MA-Kürzel, 13px monospace.
  *  - **Kategorie-Punkt** (optional) top-left bei 6/6 px, 6×6.
  *  - **Per-Antragstyp-Bars** rechts (`TypKapazitaetBars` variant `tile`, nur wenn
  *     ein Kontingent gepflegt ist) — 4 schmale vertikale Bars je Typ.
- *  - **Footer** unten links: Gesamt-Auslastungs-% (12 px / weight 500).
- *     Bei „ohne Buchung mit Altlast": stattdessen `— · +X` in tertiary.
+ *  - **Footer** unten links: Gesamt-Auslastungs-% (15 px / weight 600), gefolgt
+ *     von `· +X` (offene Altanträge der 2 Vorquartale) in gedämpfter Farbe —
+ *     für ALLE States, sofern Altanträge > 0. Empty-State: `— · +X`.
  *  - **Gesamt-Balken** am unteren Rand (`GesamtauslastungBar`, horizontal):
  *     belegt (Primary) + offene Altanträge der 2 Vorquartale (desaturated Primary).
  *
@@ -70,7 +71,7 @@ function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, stundenProTV, re
     aspectRatio: '1.15',
     border: '0.5px solid var(--tf-border)',
     borderRadius: 6,
-    padding: '8px 40px 6px 8px',
+    padding: '10px 44px 8px 10px',
     background: state === 'empty' || state === 'inactive' ? hatchedBg : 'var(--tf-bg)',
     opacity: state === 'inactive' ? 0.55 : 1,
     position: 'relative',
@@ -109,7 +110,7 @@ function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, stundenProTV, re
       <div
         className="font-mono"
         style={{
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: 500,
           color: state === 'empty' ? 'var(--tf-text-tertiary)' : 'var(--tf-text)',
           marginLeft: hauptKat ? 10 : 0,
@@ -125,26 +126,34 @@ function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, stundenProTV, re
       {/* Rechts: v2.16 per-Antragstyp-Bars (nur bei gepflegtem Kontingent) */}
       {kapTyp?.hatKontingent && <TypKapazitaetBars view={kapTyp} variant="tile" />}
 
-      {/* Footer unten links: Gesamt-% */}
+      {/* Footer unten links: Gesamt-% + offene Altanträge (· +X) für alle States */}
       <div
         style={{
           position: 'absolute',
-          left: 8,
-          bottom: 6,
-          fontSize: 12,
-          fontWeight: 500,
+          left: 10,
+          bottom: 8,
+          fontSize: 15,
+          fontWeight: 600,
           color: footerColor,
           lineHeight: 1,
         }}
       >
         {state === 'inactive' && <span>inakt.</span>}
-        {state === 'empty' && <span>— · +{altlastTvs}</span>}
+        {state === 'empty' && <span>—</span>}
         {state === 'normal' && <span>{belegtPct} %</span>}
+        {altlastTvs > 0 && (
+          <span
+            style={{ fontSize: 12, fontWeight: 500, color: 'var(--tf-text-tertiary)' }}
+            title={`${altlastTvs} offene Altanträge (TVs) aus den letzten 2 Quartalen`}
+          >
+            {' · +'}{altlastTvs}
+          </span>
+        )}
       </div>
 
       {/* Gesamtauslastungs-Balken am unteren Kartenrand (belegt + Altlast) */}
-      <div aria-hidden style={{ position: 'absolute', left: 8, right: 8, bottom: 2 }}>
-        <GesamtauslastungBar belegtPct={belegtPct} altlastFillPct={altlastFillPct} height={3} />
+      <div aria-hidden style={{ position: 'absolute', left: 10, right: 10, bottom: 2 }}>
+        <GesamtauslastungBar belegtPct={belegtPct} altlastFillPct={altlastFillPct} height={4} />
       </div>
     </button>
   );

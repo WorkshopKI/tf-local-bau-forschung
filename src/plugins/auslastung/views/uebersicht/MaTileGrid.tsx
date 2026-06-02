@@ -3,7 +3,7 @@
  *
  * Layout:
  *  - Grid-Head: Sort-Hinweis links + inline-Legende rechts
- *  - Grid: `grid auto-fill, minmax(86px, 1fr); gap: 6px`
+ *  - Grid: `grid auto-fill, minmax(150px, 1fr); gap: 8px`
  *  - Grid-Foot: 4-Item-Legende + Hinweis "Klick auf Tile öffnet Detail"
  *  - Detail unterhalb des Grids (Etappe-1-Pattern, ggf. später als Drawer)
  *
@@ -110,8 +110,8 @@ export function MaTileGrid({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(86px, 1fr))',
-          gap: 6,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+          gap: 8,
         }}
       >
         {[...grouped.active, ...grouped.empty, ...grouped.inactive].map(ma => {
