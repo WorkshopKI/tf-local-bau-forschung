@@ -13,6 +13,7 @@
  * (TV-Ebene; ein Verbund erscheint wenn mindestens ein TV im Pool).
  */
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { Info } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   ColumnPicker,
@@ -379,8 +380,15 @@ export function KlassifizierungsReview(): React.ReactElement {
           ))}
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-            {fmtCount(counts.total, isInitialLoading)} Verbünde · {fmtCount(counts.freig, isInitialLoading)} freigegeben · {fmtCount(counts.review, isInitialLoading)} prüfen
+          <span className="flex items-center gap-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
+            <span>{fmtCount(counts.total, isInitialLoading)} Verbünde · {fmtCount(counts.freig, isInitialLoading)} freigegeben · {fmtCount(counts.review, isInitialLoading)} prüfen</span>
+            <span
+              className="cursor-help inline-flex opacity-70 hover:opacity-100"
+              title={`Verteil-Pool: nur Anträge OHNE Bearbeiter-Kürzel (tib_kuerz) mit Antragsdatum aus den letzten ${config.verteilLookbackMonate ?? 6} Monaten (rollierend — gleitet über den Jahreswechsel), ohne Status „abgelehnt/zurückgezogen"/„Irrläufer". Die Klassifizierung wirkt auf alle TVs eines Verbundes.`}
+              aria-label="Filter-Hinweis: Verteil-Pool (nur unverteilte Anträge der letzten Monate)"
+            >
+              <Info size={11} aria-hidden />
+            </span>
           </span>
           <button
             type="button"
