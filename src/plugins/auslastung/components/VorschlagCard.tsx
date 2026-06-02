@@ -52,13 +52,48 @@ export function VorschlagCard({
     .filter((k): k is UeberKategorie => k != null);
   const realName = useDeAnonName(match.anonId);
 
+  // Kapazität (rechts in der Titelzeile) — farbige Rest-/Überbucht-/Erschöpft-Variante.
+  const kapazitaetNode = ueberbuchungStunden > 0 ? (
+    <span className="text-rose-700 font-medium">
+      Überbucht um {Math.round(ueberbuchungStunden)}h (~{ueberbuchungTVs} {ueberbuchungTVs === 1 ? 'TV' : 'TVs'})
+    </span>
+  ) : restTVs === 0 ? (
+    <span className="text-orange-700">
+      Kapazität erschöpft
+      {tageImQuartal != null && tageImQuartal < quartalsEndeBonusTage && (
+        <span className="text-[var(--tf-text-tertiary)]"> · Neues Quartal in {tageImQuartal} T.</span>
+      )}
+    </span>
+  ) : restTVs === 1 ? (
+    <span className="text-amber-700">1 TV frei ({Math.round(restStunden)}h)</span>
+  ) : (
+    <span className="text-[var(--tf-text-secondary)]">
+      <span className="font-medium text-[var(--tf-text)]">{restTVs}</span>
+      {' TVs frei ('}{Math.round(restStunden)}{'h)'}
+    </span>
+  );
+
+  // Typ-Kontingent (rechts in der Titelzeile, v2.16) — weicher Deckel.
+  const kontingentNode = match.kontingentQuartal != null ? (
+    (match.kontingentRest ?? 0) <= 0 ? (
+      <span className="text-orange-700">{antragstyp ?? 'Typ'}-Kontingent erschöpft</span>
+    ) : (
+      <span className="text-[var(--tf-text-tertiary)]">
+        {antragstyp ?? 'Typ'}-Kontingent:{' '}
+        <span className="text-[var(--tf-text-secondary)]">
+          {Math.max(0, Math.floor(match.kontingentRest ?? 0))}/{fmtKont(match.kontingentQuartal)} TVs
+        </span>
+      </span>
+    )
+  ) : null;
+
   return (
     <div
-      className="rounded-[12px] p-3 flex flex-col gap-2.5"
+      className="rounded-[12px] p-3 flex flex-col gap-2"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
+      {/* Header — Identität + Score links, Kapazität + Kontingent rechts (kompakt) */}
+      <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <AnonymIdBadge anonId={match.anonId} size="lg" realName={realName} />
           <div className="flex flex-col">
@@ -80,46 +115,12 @@ export function VorschlagCard({
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Kapazitaet — TVs + Stunden (v2.4) */}
-      <div className="text-[12px]">
-        {ueberbuchungStunden > 0 ? (
-          <span className="text-rose-700 font-medium">
-            Überbucht um {Math.round(ueberbuchungStunden)}h (~{ueberbuchungTVs} {ueberbuchungTVs === 1 ? 'TV' : 'TVs'})
-          </span>
-        ) : restTVs === 0 ? (
-          <span className="text-orange-700">
-            Kapazität erschöpft
-            {tageImQuartal != null && tageImQuartal < quartalsEndeBonusTage && (
-              <span className="text-[var(--tf-text-tertiary)]"> · Neues Quartal in {tageImQuartal} Tagen</span>
-            )}
-          </span>
-        ) : restTVs === 1 ? (
-          <span className="text-amber-700">1 TV frei ({Math.round(restStunden)}h)</span>
-        ) : (
-          <span className="text-[var(--tf-text-secondary)]">
-            <span className="font-medium text-[var(--tf-text)]">{restTVs}</span>
-            {' TVs frei ('}{Math.round(restStunden)}{'h)'}
-          </span>
-        )}
-      </div>
-
-      {/* Typ-Kontingent (v2.16) — weicher Deckel, sichtbar gemacht */}
-      {match.kontingentQuartal != null && (
-        <div className="text-[11.5px]">
-          {(match.kontingentRest ?? 0) <= 0 ? (
-            <span className="text-orange-700">{antragstyp ?? 'Typ'}-Kontingent erschöpft</span>
-          ) : (
-            <span className="text-[var(--tf-text-tertiary)]">
-              {antragstyp ?? 'Typ'}-Kontingent:{' '}
-              <span className="text-[var(--tf-text-secondary)]">
-                {Math.max(0, Math.floor(match.kontingentRest ?? 0))}/{fmtKont(match.kontingentQuartal)} TVs frei
-              </span>
-            </span>
-          )}
+        {/* Kapazität (v2.4) + Typ-Kontingent (v2.16) — kompakt in der Titelzeile */}
+        <div className="flex flex-col items-end text-right gap-0.5 shrink-0">
+          <span className="text-[11.5px]">{kapazitaetNode}</span>
+          {kontingentNode && <span className="text-[10.5px]">{kontingentNode}</span>}
         </div>
-      )}
+      </div>
 
       {/* Aspekt-Match-Anzeige (1.17) */}
       {aspektMatchKategorien.length > 0 && (
@@ -164,7 +165,7 @@ export function VorschlagCard({
           type="button"
           onClick={onZuweisen}
           disabled={disabled}
-          className="flex-1 px-3 py-1 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1 rounded-md text-[12px] font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
         >
           Zuweisen
@@ -173,7 +174,7 @@ export function VorschlagCard({
           type="button"
           onClick={onAblehnen}
           disabled={disabled}
-          className="px-3 py-1 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
+          className="px-3 py-1 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
           style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
         >
           Ablehnen
