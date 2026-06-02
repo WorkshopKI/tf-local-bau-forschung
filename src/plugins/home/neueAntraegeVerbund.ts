@@ -61,13 +61,32 @@ export interface VerbundEintrag {
   tvCount: number;
   /** Alle TVs des Verbundes (FKZ + Titel) — speist den Badge-Tooltip. */
   alleTvs: VerbundTvInfo[];
-  /** Lokal vorgemerkte (= im claimedSet) TVs — für „Rückgängig". */
+  /** Aktuell vorgemerkte TVs (lokaler Wunsch ODER PL-Pending, ohne bereits
+   *  zurueckgenommene) — Ziel-Liste für „Rückgängig". */
   claimedAktenzeichen: string[];
 }
 
 function readTitel(a: Antrag): string {
   const v = (a as Record<string, unknown>)[CANONICAL_TITEL];
   return typeof v === 'string' ? v : '';
+}
+
+/**
+ * Ist dieses Aktenzeichen für den User „vorgemerkt"? Vorgemerkt = lokaler Wunsch
+ * (`claimedSet`) ODER bereits von der PL eingesammelte `selbst`-Zuweisung
+ * (`pendingSet`) — ABER nicht, wenn der User die Vormerkung gerade lokal
+ * zurueckgenommen hat (`retractedSet`, Optimistic-Overlay; das geteilte
+ * `auslastung.json` ist read-only, daher die UI-seitige Unterdrueckung).
+ * Single Source of Truth für die per-TV- UND die Verbund-Sicht.
+ */
+export function isClaimed(
+  aktenzeichen: string,
+  claimedSet: ReadonlySet<string>,
+  pendingSet: ReadonlySet<string>,
+  retractedSet: ReadonlySet<string>,
+): boolean {
+  if (retractedSet.has(aktenzeichen)) return false;
+  return claimedSet.has(aktenzeichen) || pendingSet.has(aktenzeichen);
 }
 
 function byFkz(a: { aktenzeichen: string }, b: { aktenzeichen: string }): number {
@@ -84,6 +103,8 @@ export function groupEintraegeByVerbund(
   cacheAntraege: readonly Antrag[],
   verbuendeById: ReadonlyMap<string, Verbund>,
   claimedSet: ReadonlySet<string>,
+  pendingSet: ReadonlySet<string> = new Set(),
+  retractedSet: ReadonlySet<string> = new Set(),
 ): VerbundEintrag[] {
   // Alle TVs pro Verbund-Key (für fkzRange, tvCount, Tooltip). O(n) einmal.
   const tvsByKey = new Map<string, Antrag[]>();
@@ -127,7 +148,7 @@ export function groupEintraegeByVerbund(
       tvCount: fullTvs.length,
       alleTvs: fullTvs.map(a => ({ aktenzeichen: a.aktenzeichen, titel: readTitel(a) })),
       claimedAktenzeichen: group
-        .filter(g => claimedSet.has(g.antrag.aktenzeichen))
+        .filter(g => isClaimed(g.antrag.aktenzeichen, claimedSet, pendingSet, retractedSet))
         .map(g => g.antrag.aktenzeichen),
     });
   }

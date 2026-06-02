@@ -40,10 +40,14 @@ import {
 import type { Antrag } from '@/core/services/csv/types';
 import {
   groupEintraegeByVerbund,
+  isClaimed,
   type OffenerAntrag,
-  type VerbundEintrag,
 } from './neueAntraegeVerbund';
 import { NeueAntraegeVerbundRow } from './NeueAntraegeVerbundRow';
+import { NeueAntraegeAlleModal } from './NeueAntraegeAlleModal';
+
+/** Stabile leere Menge — vermeidet Render-Churn beim Hook-Param/Deps. */
+const EMPTY_AKTENZEICHEN: ReadonlySet<string> = new Set();
 
 export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const storage = useStorage();
@@ -70,19 +74,6 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   // vor dem auslastung.json-Store-Record — sonst sieht ein frischer User seine
   // gerade gesetzte Hauptkategorie erst nach PL-Aggregation (v2.6-Regression).
   const { myAnonId, effectiveMa: myMa, hauptKategorie: myHauptKategorie, loading: profilLoading } = useMyAuslastungProfil();
-
-  // v2.9: eigene Übernahme-Wünsche aus dem persoenlichen Ordner. Schreibt NICHT
-  // mehr direkt in auslastung.json (prod-User sind read-only) — der Wunsch geht
-  // in ZAH/auslastung-uebernahme.json, die PL sammelt ihn ein.
-  const {
-    claimedSet,
-    wuensche,
-    loading: wuenscheLoading,
-    busy: wuenscheBusy,
-    error: wuenscheError,
-    claim,
-    undo,
-  } = useMyUebernahmeWuensche();
 
   // Zähler-Badge: ersetzt den frueheren SelbsteintragungBanner (v2.3).
   // Der User sieht die Liste direkt darunter — die Banner-Funktion ist
@@ -122,6 +113,22 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const myFestAktenzeichen = myAuslastung?.fest.aktenzeichenSet;
   const myPendingAktenzeichen = myAuslastung?.pending.aktenzeichenSet;
 
+  // v2.9: eigene Übernahme-Wünsche aus dem persoenlichen Ordner. Schreibt NICHT
+  // mehr direkt in auslastung.json (prod-User sind read-only) — der Wunsch geht
+  // in ZAH/auslastung-uebernahme.json, die PL sammelt ihn ein. Das pendingSet
+  // (aus auslastung.json) speist das self-healing Prune des Ruecknahme-Overlays
+  // — erst wenn der Store geladen ist (sonst leert ein leeres Set es vorzeitig).
+  const {
+    claimedSet,
+    retractedSet,
+    wuensche,
+    loading: wuenscheLoading,
+    busy: wuenscheBusy,
+    error: wuenscheError,
+    claim,
+    undo,
+  } = useMyUebernahmeWuensche(loaded ? (myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN) : undefined);
+
   const eintraege = useMemo((): OffenerAntrag[] => {
     if (!myMa || !myHauptKategorie) return [];
     const fristTage = config.selbsteintragungFristTage;
@@ -137,8 +144,9 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       // durch (Backwards-Kompat). PL-Override hat Vorrang.
       if (!matchesAntragstyp(antrag, myMa)) continue;
       // v2.9: vorgemerkt = lokaler Wunsch ODER bereits eingesammelte
-      // Selbst-Zuweisung (Pending). Bleibt sichtbar statt zu verschwinden.
-      const claimed = claimedSet.has(k.antragId) || (myPendingAktenzeichen?.has(k.antragId) ?? false);
+      // Selbst-Zuweisung (Pending) — abzueglich lokal zurueckgenommener
+      // (retractedSet, Optimistic-Overlay). Bleibt sichtbar statt zu verschwinden.
+      const claimed = isClaimed(k.antragId, claimedSet, myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN, retractedSet);
       // Frist berechnen
       const freigegebenAm = k.freigegebenAm ? new Date(k.freigegebenAm).getTime() : null;
       const deadline = freigegebenAm != null ? freigegebenAm + fristTage * 86400000 : null;
@@ -163,13 +171,15 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       return akA.localeCompare(akB);
     });
     return items;
-  }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw]);
+  }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, retractedSet, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw]);
 
   // Verbund-Gruppierung: Bearbeiter übernehmen den ganzen Verbund, nicht
   // einzelne TVs. Aus den per-TV-Einträgen wird eine Zeile pro Verbund.
+  // pendingSet + retractedSet → claimedAktenzeichen umfasst auch PL-Pending-TVs
+  // (sonst hätte „Rückgängig" bei eingesammelten Anträgen kein Ziel).
   const verbundEintraege = useMemo(
-    () => groupEintraegeByVerbund(eintraege, cache.antraege, cache.verbuendeById, claimedSet),
-    [eintraege, cache.antraege, cache.verbuendeById, claimedSet],
+    () => groupEintraegeByVerbund(eintraege, cache.antraege, cache.verbuendeById, claimedSet, myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN, retractedSet),
+    [eintraege, cache.antraege, cache.verbuendeById, claimedSet, myPendingAktenzeichen, retractedSet],
   );
   const offene = useMemo(() => verbundEintraege.filter(v => !v.claimed), [verbundEintraege]);
   const vorgemerkt = useMemo(() => verbundEintraege.filter(v => v.claimed), [verbundEintraege]);
@@ -296,6 +306,11 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
           {' in '}{config.aktuellesQuartal}
         </p>
       )}
+      {retractedSet.size > 0 && (
+        <p className="mt-1 text-[10.5px] text-[var(--tf-text-tertiary)]">
+          Zurückgenommene Vormerkungen verschwinden beim nächsten Einsammeln durch die Projektleitung.
+        </p>
+      )}
       {wuenscheError && (
         <div className="mt-2 text-[11.5px] text-[var(--tf-danger-text)]">
           Fehler: {wuenscheError}
@@ -311,58 +326,6 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
           busy={wuenscheBusy}
         />
       )}
-    </div>
-  );
-}
-
-interface ModalProps {
-  alle: VerbundEintrag[];
-  onClose: () => void;
-  onUebernehmen: (leadAktenzeichen: string) => void;
-  busy?: boolean;
-}
-
-function NeueAntraegeAlleModal({ alle, onClose, onUebernehmen, busy }: ModalProps): React.ReactElement {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.4)' }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-4xl max-h-[92vh] rounded-[12px] flex flex-col"
-        style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Sticky Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 shrink-0"
-          style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-          <h2 className="text-[14px] font-medium">Alle neuen Anträge ({alle.length})</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] text-[18px] leading-none px-1"
-            aria-label="Schließen"
-          >
-            ×
-          </button>
-        </div>
-        {/* Scrollbarer Body — kompakte Verbund-Zeilen, damit möglichst viele
-            ohne Scrollen sichtbar sind. */}
-        <div className="flex-1 overflow-y-auto px-4 py-3">
-          <div className="flex flex-col gap-1.5">
-            {alle.map(v => (
-              <NeueAntraegeVerbundRow
-                key={v.verbundId}
-                verbund={v}
-                onUebernehmen={() => onUebernehmen(v.leadAktenzeichen)}
-                disabled={busy}
-                compact
-              />
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

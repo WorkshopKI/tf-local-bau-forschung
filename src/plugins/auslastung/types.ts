@@ -250,6 +250,23 @@ export interface PersoenlicheUebernahmeWuensche {
  *  analog zum Profil-Cache — persoenlicher Ordner bleibt Source-of-Truth). */
 export const PERSOENLICH_AUSLASTUNG_UEBERNAHME_IDB_KEY = 'personal-auslastung-uebernahme-cache';
 
+/**
+ * Optimistic-Overlay (v2.9-Fix): lokal zurueckgenommene „Pending"-Vormerkungen.
+ * Eine Zeile gilt als „Vorgemerkt", solange die PL-eingesammelte `selbst`-
+ * Zuweisung im read-only `auslastung.json` steht (`myPendingAktenzeichen`). Da
+ * der prod-User die nicht loeschen kann, unterdrueckt dieses browser-lokale Set
+ * die „Vorgemerkt"-Anzeige sofort nach „Rückgängig" — bis die PL neu einsammelt
+ * und die `selbst`-Zuweisung wegfaellt (dann self-healing prune). KEIN Vertrag:
+ * wird NIE auf den SMB-Share geschrieben; der durable Retraktions-Vertrag bleibt
+ * „Wunsch fehlt in der persoenlichen Datei" (das liest die PL beim Einsammeln). */
+export const PERSOENLICH_AUSLASTUNG_RETRACTED_IDB_KEY = 'personal-auslastung-retracted-pending-cache';
+
+export interface RetractedPendingCache {
+  version: 1;
+  antragIds: string[];
+  updatedAt: string;
+}
+
 /** Pro MA: virtuelle Projekte aus Onboarding-Swipe (kommt in Prompt 2). */
 export interface VirtuellesProjekt {
   antragId: string;

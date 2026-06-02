@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Antrag } from '@/core/services/csv/types';
 import type { Klassifizierung } from '@/plugins/auslastung/types';
-import { groupEintraegeByVerbund, type OffenerAntrag } from '../neueAntraegeVerbund';
+import { groupEintraegeByVerbund, isClaimed, type OffenerAntrag } from '../neueAntraegeVerbund';
 
 function makeAntrag(
   aktenzeichen: string,
@@ -136,5 +136,77 @@ describe('groupEintraegeByVerbund', () => {
       new Set(),
     );
     expect(out.map(v => v.verbundId)).toEqual(['VB', 'VA']);
+  });
+
+  // v2.9-Fix: „Rückgängig" wirkt auch fuer bereits eingesammelte (Pending)
+  // Vormerkungen. claimedAktenzeichen muss die Pending-TVs enthalten, sonst
+  // haette der Undo-Button kein Ziel (Regression: leeres forEach → no-op).
+  it('claimedAktenzeichen enthält auch reine Pending-TVs (PL eingesammelt, kein lokaler Wunsch)', () => {
+    const tv1 = makeAntrag('16KN126325', 'V1', 'DroneSPELL', 'A');
+    const tv2 = makeAntrag('16KN126326', 'V1', 'DroneSPELL', 'B');
+    const pending = new Set(['16KN126325', '16KN126326']);
+    const out = groupEintraegeByVerbund(
+      [makeOffen(tv1, { claimed: true }), makeOffen(tv2, { claimed: true })],
+      [tv1, tv2],
+      EMPTY_VERBUENDE,
+      new Set(),       // claimedSet leer — nur Pending
+      pending,
+      new Set(),       // retractedSet leer
+    );
+    expect(out[0]!.claimed).toBe(true);
+    expect(out[0]!.claimedAktenzeichen).toEqual(['16KN126325', '16KN126326']);
+  });
+
+  it('retractedSet entfernt das TV aus claimedAktenzeichen (Optimistic-Overlay)', () => {
+    const tv1 = makeAntrag('16KN126325', 'V1', 'DroneSPELL', 'A');
+    const tv2 = makeAntrag('16KN126326', 'V1', 'DroneSPELL', 'B');
+    const pending = new Set(['16KN126325', '16KN126326']);
+    const out = groupEintraegeByVerbund(
+      // tv1 lokal zurueckgenommen → in der Komponente claimed:false
+      [makeOffen(tv1, { claimed: false }), makeOffen(tv2, { claimed: true })],
+      [tv1, tv2],
+      EMPTY_VERBUENDE,
+      new Set(),
+      pending,
+      new Set(['16KN126325']),  // tv1 zurueckgenommen
+    );
+    expect(out[0]!.claimed).toBe(true); // tv2 haelt den Verbund vorgemerkt
+    expect(out[0]!.claimedAktenzeichen).toEqual(['16KN126326']);
+  });
+
+  it('claimedAktenzeichen = Vereinigung aus lokalem Wunsch und Pending', () => {
+    const tv1 = makeAntrag('16KN126325', 'V1', 'DroneSPELL', 'A'); // lokaler Wunsch
+    const tv2 = makeAntrag('16KN126326', 'V1', 'DroneSPELL', 'B'); // Pending
+    const out = groupEintraegeByVerbund(
+      [makeOffen(tv1, { claimed: true }), makeOffen(tv2, { claimed: true })],
+      [tv1, tv2],
+      EMPTY_VERBUENDE,
+      new Set(['16KN126325']),
+      new Set(['16KN126326']),
+      new Set(),
+    );
+    expect(out[0]!.claimedAktenzeichen).toEqual(['16KN126325', '16KN126326']);
+  });
+});
+
+describe('isClaimed', () => {
+  const C = new Set(['lokal']);
+  const P = new Set(['pending']);
+  const R = new Set(['weg']);
+
+  it('true bei lokalem Wunsch', () => {
+    expect(isClaimed('lokal', C, new Set(), new Set())).toBe(true);
+  });
+  it('true bei Pending (PL eingesammelt)', () => {
+    expect(isClaimed('pending', new Set(), P, new Set())).toBe(true);
+  });
+  it('false wenn weder lokal noch pending', () => {
+    expect(isClaimed('fremd', C, P, new Set())).toBe(false);
+  });
+  it('false wenn zurueckgenommen — auch bei lokalem Wunsch', () => {
+    expect(isClaimed('weg', new Set(['weg']), new Set(), R)).toBe(false);
+  });
+  it('false wenn zurueckgenommen — auch bei Pending', () => {
+    expect(isClaimed('weg', new Set(), new Set(['weg']), R)).toBe(false);
   });
 });
