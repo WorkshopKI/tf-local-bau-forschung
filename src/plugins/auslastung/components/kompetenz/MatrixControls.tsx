@@ -5,7 +5,7 @@
  * Button), „Inaktive einblenden"-Checkbox (+Zähler), Level-Legende. Toggles
  * sind `aria-pressed`-gelabelt.
  */
-import { Columns3 } from 'lucide-react';
+import { Columns3, Pencil } from 'lucide-react';
 import type { KompetenzMatrixModel } from '../../hooks/useKompetenzMatrixModel';
 
 interface Props {
@@ -19,9 +19,17 @@ const LEGEND: { lvl: 1 | 2 | 3; text: string }[] = [
 ];
 
 export function MatrixControls({ model }: Props): React.ReactElement {
-  const { kapHidden, toggleKap, showInactive, setShowInactive, inactiveCount } = model;
+  const { kapHidden, toggleKap, editMode, setEditMode, showInactive, setShowInactive, inactiveCount } = model;
   return (
     <div className="flex items-center gap-5 flex-wrap text-[11.5px]">
+      <label
+        className={`flex items-center gap-1.5 cursor-pointer select-none ${editMode ? 'text-[var(--tf-text)]' : 'text-[var(--tf-text-secondary)]'}`}
+        title="Werte schreibgeschützt, bis Bearbeiten aktiviert ist — schützt vor versehentlichem Ändern."
+      >
+        <input type="checkbox" checked={editMode} onChange={e => setEditMode(e.target.checked)} className="cursor-pointer" />
+        <Pencil size={13} /> Bearbeiten
+      </label>
+
       <button
         type="button"
         onClick={toggleKap}

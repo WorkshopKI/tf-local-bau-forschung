@@ -69,7 +69,7 @@ export function buildHoverCss(hover: HoverHighlight): string {
     return [
       `${cell}${hit}{box-shadow:inset 0 0 0 1.6px ${hl};}`,
       `.km-wrap tr[data-row]:not(:has(.km-cc[data-ci="${n}"]${hit})){opacity:.62;}`,
-      `.km-wrap tr[data-row]:has(.km-cc[data-ci="${n}"]${hit}) .km-ma{box-shadow:inset 3px 0 0 ${hl};background:${tint};}`,
+      `.km-wrap tr[data-row]:has(.km-cc[data-ci="${n}"]${hit}) .km-ma{box-shadow:inset 3px 0 0 ${hl};background:${tint};color:${hl};}`,
       `${cell}{border-left:1px solid ${frame};border-right:1px solid ${frame};}`,
       `.km-wrap .km-h-code[data-ci="${n}"]{box-shadow:inset 0 2px 0 ${frame},inset 1px 0 0 ${frame},inset -1px 0 0 ${frame};}`,
     ].join('\n');
@@ -79,7 +79,7 @@ export function buildHoverCss(hover: HoverHighlight): string {
   return [
     `.km-wrap .km-cc[data-gi="${g}"]${hit}{box-shadow:inset 0 0 0 1.6px ${hl};}`,
     `.km-wrap tr[data-row]:not(:has(.km-cc[data-gi="${g}"]${hit})){opacity:.62;}`,
-    `.km-wrap tr[data-row]:has(.km-cc[data-gi="${g}"]${hit}) .km-ma{box-shadow:inset 3px 0 0 ${hl};background:${tint};}`,
+    `.km-wrap tr[data-row]:has(.km-cc[data-gi="${g}"]${hit}) .km-ma{box-shadow:inset 3px 0 0 ${hl};background:${tint};color:${hl};}`,
     `.km-wrap .km-cc[data-gi="${g}"].gs-first{border-left:1px solid ${frame};}`,
     `.km-wrap .km-cc[data-gi="${g}"].gs-last{border-right:1px solid ${frame};}`,
     `.km-wrap .km-h-band[data-gi="${g}"]{box-shadow:inset 0 2px 0 ${frame};}`,

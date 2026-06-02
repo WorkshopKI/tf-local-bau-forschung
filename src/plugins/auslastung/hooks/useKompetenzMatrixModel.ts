@@ -63,6 +63,9 @@ export interface KompetenzMatrixModel {
   clearHover: () => void;
   kapHidden: boolean;
   toggleKap: () => void;
+  /** Editier-Modus — aus = Werte read-only (Schutz vor versehentlichem Ändern). */
+  editMode: boolean;
+  setEditMode: (v: boolean) => void;
   showInactive: boolean;
   setShowInactive: (v: boolean) => void;
   inactiveCount: number;
@@ -114,6 +117,7 @@ export function useKompetenzMatrixModel(storage: StorageService): KompetenzMatri
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [sort, setSort] = useState<SortState>({ col: null, dir: 'desc' });
   const [hover, setHover] = useState<HoverState>(null);
+  const [editMode, setEditMode] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [kapHidden, setKapHidden] = useState(() => {
@@ -220,6 +224,8 @@ export function useKompetenzMatrixModel(storage: StorageService): KompetenzMatri
     clearHover,
     kapHidden,
     toggleKap,
+    editMode,
+    setEditMode,
     showInactive,
     setShowInactive,
     inactiveCount,

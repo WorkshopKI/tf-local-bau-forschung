@@ -8,16 +8,20 @@
  */
 interface Props {
   value: number | undefined;
+  /** Nur im Bearbeiten-Modus editierbar (sonst read-only). */
+  editable: boolean;
   onChange: (raw: string) => void;
   ariaLabel: string;
 }
 
-export function CapCell({ value, onChange, ariaLabel }: Props): React.ReactElement {
+export function CapCell({ value, editable, onChange, ariaLabel }: Props): React.ReactElement {
   return (
     <input
       type="text"
       inputMode="numeric"
       value={value ?? ''}
+      readOnly={!editable}
+      tabIndex={editable ? undefined : -1}
       aria-label={ariaLabel}
       onChange={e => onChange(e.target.value)}
     />

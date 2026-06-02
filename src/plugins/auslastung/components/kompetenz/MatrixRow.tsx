@@ -26,6 +26,8 @@ interface Props {
   cols: ColMeta[];
   colMax: ColMaxMap;
   farbeByUeber: Record<string, KategorieFarbe>;
+  /** Werte nur im Bearbeiten-Modus änderbar. */
+  editable: boolean;
   /** Klartext-Kürzel (nur unter aktiver De-Anon-Session) oder null. */
   kuerzel: string | null;
   onCycle: (anonId: string, ueber: UeberkategorieId, label: string) => void;
@@ -34,7 +36,7 @@ interface Props {
 }
 
 function MatrixRowImpl({
-  ma, draft, cols, colMax, farbeByUeber, kuerzel, onCycle, onKontingent, onAbschlag,
+  ma, draft, cols, colMax, farbeByUeber, editable, kuerzel, onCycle, onKontingent, onAbschlag,
 }: Props): React.ReactElement {
   const eff = useMemo(() => draft ?? maToDraft(ma), [draft, ma]);
 
@@ -54,7 +56,7 @@ function MatrixRowImpl({
             const v = eff.kontingent[bucket];
             return (
               <td key={col.key} className="km-cap km-sl" style={{ left: col.stickyLeft, background: capCellBg(v, colMax[bucket]) }}>
-                <CapCell value={v} onChange={raw => onKontingent(ma.anonId, bucket, raw)} ariaLabel={`${ma.anonId} ${bucket} Kontingent`} />
+                <CapCell value={v} editable={editable} onChange={raw => onKontingent(ma.anonId, bucket, raw)} ariaLabel={`${ma.anonId} ${bucket} Kontingent`} />
               </td>
             );
           }
@@ -62,7 +64,7 @@ function MatrixRowImpl({
             const v = eff.abschlag || undefined;
             return (
               <td key={col.key} className="km-absch km-sl" style={{ left: col.stickyLeft, background: capCellBg(v, colMax.Ab) }}>
-                <CapCell value={v} onChange={raw => onAbschlag(ma.anonId, raw)} ariaLabel={`${ma.anonId} Abschlag Prozent`} />
+                <CapCell value={v} editable={editable} onChange={raw => onAbschlag(ma.anonId, raw)} ariaLabel={`${ma.anonId} Abschlag Prozent`} />
               </td>
             );
           }
@@ -78,7 +80,7 @@ function MatrixRowImpl({
                 data-ci={col.subIdx}
                 data-gi={ueber}
               >
-                <LevelCell level={lvl} label={label} onCycle={() => onCycle(ma.anonId, ueber, label)} />
+                <LevelCell level={lvl} label={label} editable={editable} onCycle={() => onCycle(ma.anonId, ueber, label)} />
               </td>
             );
           }

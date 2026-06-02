@@ -12,21 +12,19 @@ import type { Geometry } from '../../services/kompetenz-geometry';
 import { COL_W } from '../../services/kompetenz-geometry';
 import { katVars } from '../../services/kompetenz-matrix-colors';
 import { deriveCode } from '../../services/kompetenz-codes';
-import type { SortCol, SortState, HoverState } from '../../hooks/useKompetenzMatrixModel';
+import type { SortCol, SortState } from '../../hooks/useKompetenzMatrixModel';
 
 interface Props {
   geometry: Geometry;
   farbeByUeber: Record<string, KategorieFarbe>;
   sort: SortState;
   onSort: (col: SortCol) => void;
-  onHover: (h: HoverState) => void;
 }
 
-export function MatrixHeader({ geometry, farbeByUeber, sort, onSort, onHover }: Props): React.ReactElement {
+export function MatrixHeader({ geometry, farbeByUeber, sort, onSort }: Props): React.ReactElement {
   const { cols, groups } = geometry;
   const capCols = cols.filter(c => c.kind === 'cap');
   const abschCol = cols.find(c => c.kind === 'absch');
-  const ueberLabel = new Map(groups.map(g => [g.ueberId, g.label]));
 
   return (
     <thead>
@@ -59,7 +57,6 @@ export function MatrixHeader({ geometry, farbeByUeber, sort, onSort, onHover }: 
             style={katVars(farbeByUeber[g.ueberId])}
             colSpan={g.span}
             data-gi={g.ueberId}
-            onMouseEnter={() => onHover({ kind: 'group', ueberId: g.ueberId, ueberLabel: g.label })}
           >
             <span className="km-gtag">{g.ueberId}</span>{g.label}
           </th>
@@ -91,13 +88,6 @@ export function MatrixHeader({ geometry, farbeByUeber, sort, onSort, onHover }: 
             data-ci={c.subIdx}
             data-gi={c.ueberId}
             title={c.label}
-            onMouseEnter={() => onHover({
-              kind: 'col',
-              subIdx: c.subIdx!,
-              ueberId: c.ueberId!,
-              label: c.label!,
-              ueberLabel: ueberLabel.get(c.ueberId!) ?? '',
-            })}
           >
             {deriveCode(c.label!)}
           </th>

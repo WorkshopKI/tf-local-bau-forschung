@@ -6,8 +6,13 @@
  * geteilten Draft). Speichern + Dirty-Count + „✓ Gespeichert" lesen das
  * gemeinsame Modell, damit Zell-Edits und Toolbar synchron sind.
  */
-import { Upload, Check } from 'lucide-react';
+import { Upload, Check, Info } from 'lucide-react';
 import type { KompetenzMatrixModel } from '../../hooks/useKompetenzMatrixModel';
+
+const INFO_TEXT =
+  'Kompetenz-Level (1–3) je Unterkategorie, Antragstyp-Kontingent und Abschlag pro MA — als XLSX '
+  + 'hochladen oder (im Bearbeiten-Modus) direkt in der Tabelle pflegen. Haupt-/Nebenkategorie wird '
+  + 'live abgeleitet.';
 
 interface Props {
   model: KompetenzMatrixModel;
@@ -17,13 +22,18 @@ interface Props {
 export function MatrixToolbar({ model, onOpenUpload }: Props): React.ReactElement {
   const { save, dirtyCount, justSaved } = model;
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <h2 className="text-[15px] font-medium text-[var(--tf-text)] mb-0.5">Kompetenz-Vorbelegung</h2>
-        <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug max-w-[640px]">
-          Kompetenz-Level (1–3) je Unterkategorie, Antragstyp-Kontingent und Abschlag pro MA — als XLSX
-          hochladen oder direkt in der Tabelle pflegen. Haupt-/Nebenkategorie wird live abgeleitet.
-        </p>
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-1.5">
+        <h2 className="text-[15px] font-medium text-[var(--tf-text)]">Kompetenz-Vorbelegung</h2>
+        <span
+          tabIndex={0}
+          role="note"
+          aria-label={INFO_TEXT}
+          title={INFO_TEXT}
+          className="inline-flex items-center text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] cursor-help"
+        >
+          <Info size={14} />
+        </span>
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
