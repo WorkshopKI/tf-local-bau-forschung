@@ -7,7 +7,7 @@
  * Tabelle + Footer. Das Hover-Highlight wird als `<style>` aus dem aktuellen
  * Hover generiert (`buildHoverCss`) — die 79 Zeilen re-rendern dabei NICHT.
  */
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { useDeAnonResolver } from '../AnonymIdBadge';
 import type { KompetenzSchemaEntry } from '../../types';
@@ -49,6 +49,38 @@ export function KompetenzMatrix({ model, schema }: Props): React.ReactElement {
   }, [geometry]);
   const groupLabel = useMemo(() => new Map(geometry.groups.map(g => [g.ueberId, g.label])), [geometry]);
   const hoverKeyRef = useRef<string | null>(null);
+
+  // Füll-Höhe: die Matrix soll den vertikalen Platz bis knapp über den
+  // Viewport-Rand nutzen statt bei festen 70vh zu stoppen (CSS-Fallback). Reine
+  // Layout-Messung (kein Data-Fetch) → useEffect hier legitim. Gemessen wird
+  // `max-height` (nicht `height`): kurze Tabellen bleiben kurz, lange füllen den
+  // Platz und scrollen erst dann intern. Adaptiert an Header/Tabs/Toolbar/Banner.
+  // Hidden-Guard (top<=0) wegen Eager-Mount: inaktive Tabs sind `display:none`
+  // (→ getBoundingClientRect().top = 0), dann CSS-70vh-Fallback behalten.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    let raf = 0;
+    const recompute = (): void => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const top = el.getBoundingClientRect().top;
+        if (top <= 0) return; // versteckt / display:none → Fallback behalten
+        const avail = window.innerHeight - top - 40; // 40px ≈ Footer-Zeile + Luft
+        el.style.maxHeight = `${Math.max(240, Math.round(avail))}px`;
+      });
+    };
+    recompute();
+    const io = new IntersectionObserver(recompute);
+    io.observe(el);
+    window.addEventListener('resize', recompute);
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      window.removeEventListener('resize', recompute);
+    };
+  }, []);
 
   const handleOver = useCallback((e: React.MouseEvent<HTMLDivElement>): void => {
     const t = e.target as HTMLElement;
@@ -106,7 +138,7 @@ export function KompetenzMatrix({ model, schema }: Props): React.ReactElement {
       <div className="mt-3">
         <RevealBar hover={model.hover} farbeByUeber={farbeByUeber} />
         {highlight && <style dangerouslySetInnerHTML={{ __html: buildHoverCss(highlight) }} />}
-        <div className="km-wrap" onMouseOver={handleOver} onMouseLeave={handleLeave}>
+        <div ref={wrapRef} className="km-wrap" onMouseOver={handleOver} onMouseLeave={handleLeave}>
           <table className="km-table">
             <colgroup>
               {geometry.cols.map(c => <col key={c.key} style={{ width: c.width }} />)}

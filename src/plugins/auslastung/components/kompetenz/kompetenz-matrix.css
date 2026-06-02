@@ -9,6 +9,9 @@
 .km-wrap {
   position: relative;
   overflow: auto;
+  /* Fallback vor der ersten Messung / falls JS scheitert. Sobald der Tab
+     sichtbar ist, setzt KompetenzMatrix.tsx ein inline max-height (gemessene
+     Füll-Höhe bis knapp über den Viewport-Rand), das diesen Wert übersteuert. */
   max-height: 70vh;
   border: 0.5px solid var(--tf-border);
   border-radius: 0 0 12px 12px; /* oben an die Reveal-Leiste angedockt */
