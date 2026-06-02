@@ -1,4 +1,5 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
+import { PasswordRevealButton } from '@/components/ui/password-reveal-button';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -7,8 +8,23 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, description, className = '', id, ...props }, ref) => {
+  ({ label, error, description, className = '', id, type = 'text', ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
+    const [revealed, setRevealed] = useState(false);
+    const isPassword = type === 'password';
+    const effectiveType = isPassword ? (revealed ? 'text' : 'password') : type;
+
+    const inputEl = (
+      <input
+        ref={ref}
+        id={inputId}
+        type={effectiveType}
+        className={`w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none transition-colors placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] ${isPassword ? 'pr-9' : ''} ${className}`}
+        style={{ border: `0.5px solid ${error ? 'var(--tf-danger-border)' : 'var(--tf-border)'}` }}
+        {...props}
+      />
+    );
+
     return (
       <div className="flex flex-col gap-1.5">
         {label && (
@@ -19,13 +35,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {description && (
           <p className="text-[12px] text-[var(--tf-text-tertiary)]">{description}</p>
         )}
-        <input
-          ref={ref}
-          id={inputId}
-          className={`w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none transition-colors placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] ${className}`}
-          style={{ border: `0.5px solid ${error ? 'var(--tf-danger-border)' : 'var(--tf-border)'}` }}
-          {...props}
-        />
+        {/* Passwortfelder bekommen einen "Anzeigen"-Toggle (Auge) — nur das input wrappen. */}
+        {isPassword ? (
+          <div className="relative">
+            {inputEl}
+            <PasswordRevealButton revealed={revealed} onToggle={() => setRevealed(v => !v)} />
+          </div>
+        ) : inputEl}
         {error && <p className="text-[12px] text-[var(--tf-danger-text)]">{error}</p>}
       </div>
     );
