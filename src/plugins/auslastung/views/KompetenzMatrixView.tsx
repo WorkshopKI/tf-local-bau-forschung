@@ -1,58 +1,36 @@
 /**
- * KompetenzMatrixView (v2.15) — Tab „Kompetenzen" des Auslastungs-Moduls.
+ * KompetenzMatrixView (v2.16) — Tab „Kompetenzen" des Auslastungs-Moduls.
  *
- * Einstieg für die PL-Kompetenz-Vorbelegung:
- *  - XLSX-Upload (KompetenzImportDialog) — legt/überschreibt die Kompetenz-Matrix
- *    + Antragstyp-Kontingent + Abschlag pro MA und setzt das Spalten-Schema.
- *  - Editierbare Matrix (KompetenzMatrixTable) — nachträgliches Feintuning in
- *    xlsx-ähnlicher Optik.
- *
- * Solange noch kein Schema hochgeladen wurde, zeigt der Tab einen Empty-State.
+ * Tab-Shell für die PL-Kompetenz-Vorbelegung (dichte Skill-Matrix, Design-
+ * Handoff-Port). Erzeugt das geteilte `useKompetenzMatrixModel` und reicht es
+ * an Toolbar (Speichern) + Matrix (Zell-Edits) durch — so teilen beide einen
+ * Draft. Die Toolbar (Lead + XLSX-Upload + Speichern) steht immer, damit auch
+ * im Empty-State (noch kein Schema) hochgeladen werden kann.
  */
 import { useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
+import { useKompetenzMatrixModel } from '../hooks/useKompetenzMatrixModel';
 import { KompetenzImportDialog } from '../components/KompetenzImportDialog';
-import { KompetenzMatrixTable } from '../components/KompetenzMatrixTable';
+import { MatrixToolbar } from '../components/kompetenz/MatrixToolbar';
+import { KompetenzMatrix } from '../components/kompetenz/KompetenzMatrix';
 
 export function KompetenzMatrixView(): React.ReactElement {
   const storage = useStorage();
   const cache = useAntraegeCache();
   const schema = useAuslastungData(s => s.data.config.kompetenzSchema);
+  const model = useKompetenzMatrixModel(storage);
   const [uploadOpen, setUploadOpen] = useState(false);
-
-  const hasSchema = Array.isArray(schema) && schema.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-[15px] font-medium text-[var(--tf-text)] mb-1">Kompetenz-Vorbelegung</h2>
-          <p className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug max-w-[640px]">
-            Die PL lädt eine XLSX mit Kompetenz-Leveln (1–3) je Unterkategorie, Antragstyp-Kontingent
-            und Abschlag pro Kürzel hoch. Daraus werden Haupt-/Nebenkategorie abgeleitet, damit Anträge
-            zugewiesen werden können — auch ohne MA-Selbsteingabe. Werte lassen sich danach direkt in der
-            Tabelle anpassen.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setUploadOpen(true)}
-          className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer shrink-0"
-          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-        >
-          XLSX hochladen
-        </button>
-      </div>
+      <MatrixToolbar model={model} onOpenUpload={() => setUploadOpen(true)} />
 
-      {hasSchema ? (
-        <KompetenzMatrixTable schema={schema} storage={storage} anonymMap={cache.anonymMap} />
+      {schema && schema.length > 0 ? (
+        <KompetenzMatrix model={model} schema={schema} />
       ) : (
-        <div
-          className="rounded-[12px] p-8 text-center"
-          style={{ border: '0.5px dashed var(--tf-border)' }}
-        >
+        <div className="rounded-[12px] p-8 text-center" style={{ border: '0.5px dashed var(--tf-border)' }}>
           <p className="text-[13px] text-[var(--tf-text-secondary)] mb-1">Noch keine Kompetenz-Matrix vorhanden.</p>
           <p className="text-[12px] text-[var(--tf-text-tertiary)]">
             Lade die PL-Kompetenz-XLSX hoch — danach erscheint hier die editierbare Tabelle.

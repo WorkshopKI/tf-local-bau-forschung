@@ -574,6 +574,20 @@ Referenz: [src/plugins/dokument-review/components/ReviewToast.tsx](src/plugins/d
 
 ---
 
+### Dichte Daten-Matrix (Skill-/Heatmap-Tabelle)
+
+Für die Kompetenz-Matrix (Auslastung) gelten Sonderregeln gegenüber dem sonst monochromen Fundament — bewusst, weil hier Farbe Information transportiert (Kompetenz-Niveau + Kapazitäts-Menge auf einen Blick). Referenz: [src/plugins/auslastung/components/kompetenz/](src/plugins/auslastung/components/kompetenz/).
+
+- **Zwei getrennte Heatmap-Sprachen, nie vermischt:** **Grün** = Kompetenz-Level (Qualität), **Graustufen** = Kapazitäts-Menge (Quantität). Eine zweite Farb-Heatmap für Kapazität ist verboten — sonst verschwimmt „viel Kontingent" mit „hohe Kompetenz".
+- **Neue Tokens** (`src/theme.css`, Light + `[data-theme="dark"]`):
+  - `--tf-level-{1,2,3}-bg` / `--tf-level-{1,2,3}-text` — grüne Level-Heatmap (Level-Zelle setzt nur `data-v`, Farbe kommt aus dem CSS-Selektor → Dark automatisch).
+  - `--tf-cap-base-l` / `--tf-cap-range` — Graustufen-Rampe `L = (base − ratio × range) %`. Dark hat negativen `range` (dichter = heller). `--tf-cap-band-bg/-border/-text` für das KAP-Header-Band.
+  - `--kat-band-l` / `--kat-code-bg-l` / `--kat-text-l` — theme-skopierte Lightness der Kategorie-Bänder/Code-Header/Chips. Hue/Sat kommen pro Kategorie als `--kat-h`/`--kat-s` (aus `KATEGORIE_HS`, gesetzt via `katVars()`); ein Theme-Switch tintet so alle Kategorien automatisch. Bandfarbe folgt `config.ueberKategorien[].farbe` (konsistent mit den übrigen Tabs), nicht festen Hues.
+- **Hover-Highlight ohne Per-Frame-Re-Render:** Spalten-/Gruppen-Hover (Ring auf Treffer-Zellen, Dimmen der Nicht-Treffer-Zeilen, Perimeter-Rahmen) laufen rein über CSS-Attribut-Selektoren mit `:has()` / `:not(:has())`, getrieben von `data-hcol`/`data-hgrp` auf der `.twrap` (einziger React-State für die Reveal-Bar). Per-Zelle nur statische `data-ci`/`data-gi`/`data-v`. Chrome/Edge-only (`:has()`) ist hier akzeptiert (`file://`-Zielbrowser).
+- **Inline-Style-Ausnahme:** Nur für dynamische, datengetriebene Werte erlaubt — die Graustufen-bg (`capCellBg`), die `--kat-h`/`--kat-s`-Custom-Props und die Sticky-`left`/`right`-Offsets (aus einer einzigen Geometrie-Quelle, `kompetenz-geometry.ts`). Alles andere via Token/Tailwind.
+
+---
+
 ## 6. Layout-Patterns
 
 ### Dashboard / Home

@@ -38,6 +38,28 @@
   /* Orange — Zwischenstufe zwischen warning (gelb) und danger (rot)
      für die Eingangs-Ampel auf AntragCards. */
   --tf-orange-text: hsl(20, 75%, 45%);
+
+  /* ── Kompetenz-Matrix (v2.16, Design-Handoff) — zwei bewusst getrennte
+     Heatmap-Sprachen: Grün = Kompetenz-Level (Qualität), Graustufen =
+     Kapazität (Menge). Theme-skopierte Lightness-Vars (--kat-*-l,
+     --tf-cap-base-l/range) flippen in Dark; Hue/Sat bleiben → ein
+     Theme-Switch tintet alle Kategorien automatisch. ── */
+  --tf-level-1-bg: hsl(145, 50%, 90%);
+  --tf-level-1-text: hsl(145, 40%, 30%);
+  --tf-level-2-bg: hsl(145, 45%, 65%);
+  --tf-level-2-text: hsl(145, 55%, 15%);
+  --tf-level-3-bg: hsl(145, 50%, 40%);
+  --tf-level-3-text: #ffffff;
+  /* Graustufen-Kapazität: L = (base − ratio × range) %, ratio = wert/spaltenmax. */
+  --tf-cap-base-l: 100;
+  --tf-cap-range: 15;
+  --tf-cap-band-bg: hsl(220, 8%, 94%);
+  --tf-cap-band-border: hsl(220, 8%, 55%);
+  --tf-cap-band-text: hsl(220, 8%, 32%);
+  /* Kategorie-Bänder/Code-Header/Chips: hsl(var(--kat-h), var(--kat-s), <l>). */
+  --kat-band-l: 96%;
+  --kat-code-bg-l: 95%;
+  --kat-text-l: 34%;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -94,6 +116,24 @@
   --tf-danger-text: hsl(0, 28%, 68%);
   --tf-danger-border: hsl(0, 20%, 36%);
   --tf-orange-text: hsl(20, 50%, 62%);
+
+  /* Kompetenz-Matrix — Dark: Lightness flippt, Hue/Sat bleiben (warm-grey,
+     reduzierter Kontrast). Grün-Level dunkler+entsättigt, Graustufe invertiert
+     (dichter = heller via negativem range), Kategorie-Bänder dunkel getintet. */
+  --tf-level-1-bg: hsl(145, 18%, 22%);
+  --tf-level-1-text: hsl(145, 30%, 68%);
+  --tf-level-2-bg: hsl(145, 25%, 34%);
+  --tf-level-2-text: hsl(145, 30%, 88%);
+  --tf-level-3-bg: hsl(145, 32%, 42%);
+  --tf-level-3-text: #e9efe9;
+  --tf-cap-base-l: 26;
+  --tf-cap-range: -14;
+  --tf-cap-band-bg: hsl(220, 6%, 24%);
+  --tf-cap-band-border: hsl(220, 6%, 45%);
+  --tf-cap-band-text: hsl(220, 8%, 70%);
+  --kat-band-l: 22%;
+  --kat-code-bg-l: 24%;
+  --kat-text-l: 70%;
 }
 
 body {

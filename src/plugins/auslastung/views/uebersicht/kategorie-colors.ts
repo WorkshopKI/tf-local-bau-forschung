@@ -32,6 +32,22 @@ export const KATEGORIE_BG_HSL: Record<KategorieFarbe, string> = {
   slate:   'hsl(215, 10%, 96%)',
 };
 
+/**
+ * Hue + Saturation pro Kategorie-Farbe (Zahlen, ohne Einheit/`%`) — für die
+ * Kompetenz-Matrix, die `--kat-h`/`--kat-s` als CSS-Custom-Props auf Bänder,
+ * Code-Header, Chips und die `.twrap` setzt und daraus mit den theme-skopierten
+ * Lightness-Vars (`--kat-band-l` etc.) die Farbe komponiert. Spiegelt die Hues
+ * von `KATEGORIE_DOT_HSL`. */
+export const KATEGORIE_HS: Record<KategorieFarbe, { h: number; s: number }> = {
+  blue:    { h: 215, s: 35 },
+  emerald: { h: 145, s: 35 },
+  amber:   { h: 38,  s: 70 },
+  rose:    { h: 15,  s: 55 },
+  violet:  { h: 270, s: 30 },
+  sky:     { h: 195, s: 45 },
+  slate:   { h: 215, s: 10 },
+};
+
 export function dotColor(farbe: KategorieFarbe | undefined | null): string {
   if (!farbe) return KATEGORIE_DOT_HSL.slate;
   return KATEGORIE_DOT_HSL[farbe] ?? KATEGORIE_DOT_HSL.slate;

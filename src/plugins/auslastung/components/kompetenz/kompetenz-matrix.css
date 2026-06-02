@@ -1,0 +1,206 @@
+/* ============================================================
+   Kompetenz-Matrix (v2.16) — dichte Skill-Matrix, Design-Handoff-Port.
+   Quelle: _design/handoff/kompetenzen/. Zwei Heatmap-Sprachen:
+   Grün = Kompetenz-Level (--tf-level-*), Graustufen = Kapazität.
+   Hover-Highlight (Ring/Dim/Rahmen) wird pro Hover als <style> generiert
+   (buildHoverCss) — CSS kann data-hcol nicht mit data-ci vergleichen.
+   ============================================================ */
+
+.km-wrap {
+  position: relative;
+  overflow: auto;
+  max-height: 70vh;
+  border: 0.5px solid var(--tf-border);
+  border-radius: 0 0 12px 12px; /* oben an die Reveal-Leiste angedockt */
+  --km-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.km-table {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  color: var(--tf-text);
+}
+
+.km-table td,
+.km-table th {
+  border-bottom: 0.5px solid var(--tf-border);
+}
+.km-table tbody td { height: 26px; }
+
+/* ── Sticky-Geometrie ─────────────────────────────────────────────────────
+   left/right-Offsets kommen inline aus der Geometrie (einzige Breitenquelle). */
+.km-sl { position: sticky; z-index: 2; }
+.km-sr { position: sticky; right: 0; z-index: 2; }
+.km-table thead th { position: sticky; z-index: 3; }
+.km-table thead th.km-sl,
+.km-table thead th.km-sr { z-index: 6; }
+
+/* ── Header-Zeilen ───────────────────────────────────────────────────────── */
+.km-table thead tr:first-child th { top: 0; height: 24px; }      /* Band-Zeile */
+.km-table thead tr:last-child th { top: 24px; height: 34px; }    /* Code-Zeile */
+.km-table th { font-weight: 500; vertical-align: middle; }
+.km-h-code,
+.km-h-cap { vertical-align: bottom; }
+
+.km-h-ma,
+.km-h-haupt {
+  background: var(--tf-bg-secondary);
+  color: var(--tf-text-tertiary);
+  font-size: 10px;
+  text-align: left;
+  padding: 0 6px;
+}
+.km-h-haupt { background: var(--tf-bg); }
+
+/* KAP-Kontingent-Band + Kapazitäts-Code-Header — neutral grau. */
+.km-h-kapband {
+  background: var(--tf-cap-band-bg);
+  color: var(--tf-cap-band-text);
+  border-bottom: 2px solid var(--tf-cap-band-border);
+  height: 24px;
+  text-align: left;
+  padding: 0 6px;
+  font-size: 10px;
+  vertical-align: middle;
+}
+.km-h-cap,
+.km-h-absch {
+  background: var(--tf-cap-band-bg);
+  color: var(--tf-cap-band-text);
+  font-size: 10px;
+  text-align: center;
+}
+.km-h-absch { vertical-align: middle; padding: 0 4px; }
+
+/* Kategorie-Band (Zeile 1) — Hue/Sat aus --kat-h/--kat-s, Lightness theme-skopiert. */
+.km-h-band {
+  height: 24px;
+  text-align: left;
+  padding: 0 6px;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  vertical-align: middle;
+  background: hsl(var(--kat-h), calc(var(--kat-s) * 0.8), var(--kat-band-l));
+  color: hsl(var(--kat-h), var(--kat-s), var(--kat-text-l));
+  border-bottom: 2px solid hsl(var(--kat-h), var(--kat-s), 50%);
+}
+/* Code-Header (Zeile 2) — heller Tint. */
+.km-h-code {
+  padding: 0 2px;
+  font-size: 9px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+  background: hsl(var(--kat-h), calc(var(--kat-s) * 0.7), var(--kat-code-bg-l));
+  color: hsl(var(--kat-h), var(--kat-s), var(--kat-text-l));
+}
+
+/* Gefüllter Gruppen-/KAP-Tag im Band. */
+.km-gtag {
+  display: inline-flex;
+  align-items: center;
+  font: 500 9px var(--km-mono);
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-right: 6px;
+  background: hsl(var(--kat-h), var(--kat-s), 50%);
+  color: #fff;
+}
+.km-h-kapband .km-gtag { background: var(--tf-cap-band-border); }
+
+/* Sortier-Pfeil. */
+.km-sortable { cursor: pointer; user-select: none; }
+.km-sarr {
+  display: inline-block;
+  width: 0; height: 0;
+  margin-left: 3px;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 4px solid currentColor;
+  opacity: 0.3;
+  vertical-align: middle;
+}
+.km-sortable[data-sortdir] .km-sarr { opacity: 1; }
+.km-sortable[data-sortdir="asc"] .km-sarr {
+  border-top: 0;
+  border-bottom: 4px solid currentColor;
+}
+
+/* ── MA-Spalte (frozen left) ─────────────────────────────────────────────── */
+.km-ma {
+  background: var(--tf-bg-secondary);
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+.km-table tbody tr:hover .km-ma { background: var(--tf-hover); }
+
+/* ── Kapazitäts-Zellen (Graustufen-Heatmap) ──────────────────────────────── */
+.km-cap,
+.km-absch {
+  background: var(--tf-bg);
+  padding: 0;
+  text-align: right;
+}
+.km-absch { border-right: 1.5px solid var(--tf-border-hover); }
+.km-h-absch { border-right: 1.5px solid var(--tf-border-hover); }
+.km-cap input,
+.km-absch input {
+  width: 100%;
+  height: 100%;
+  text-align: right;
+  padding: 0 6px;
+  background: transparent;
+  border: 0;
+  font: 400 12px var(--km-mono);
+  color: var(--tf-text);
+  -moz-appearance: textfield;
+}
+.km-cap input::-webkit-outer-spin-button,
+.km-cap input::-webkit-inner-spin-button,
+.km-absch input::-webkit-outer-spin-button,
+.km-absch input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.km-cap input:focus,
+.km-absch input:focus {
+  outline: 0;
+  background: var(--tf-primary-light);
+  box-shadow: inset 0 0 0 1.5px var(--tf-primary);
+}
+
+/* ── Kompetenz-Zellen (grüne Heatmap) ────────────────────────────────────── */
+.km-cc {
+  padding: 0;
+  text-align: center;
+  border-right: 0.5px solid var(--tf-border);
+}
+.km-cc.gs-first { border-left: 1px solid var(--tf-border-hover); }
+.km-cc[data-v="0"] { color: var(--tf-text-tertiary); }
+.km-cc[data-v="1"] { background: var(--tf-level-1-bg); color: var(--tf-level-1-text); }
+.km-cc[data-v="2"] { background: var(--tf-level-2-bg); color: var(--tf-level-2-text); }
+.km-cc[data-v="3"] { background: var(--tf-level-3-bg); color: var(--tf-level-3-text); }
+.km-cc:hover { filter: brightness(0.96); }
+.km-cc button {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 11px var(--km-mono);
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.km-cc[data-v="3"] button { font-weight: 500; }
+
+/* ── Hauptkat-Chip (frozen right) ────────────────────────────────────────── */
+.km-haupt {
+  background: var(--tf-bg);
+  padding: 2px 8px;
+  text-align: left;
+}
+.km-h-code.gs-first { border-left: 1px solid var(--tf-border-hover); }
