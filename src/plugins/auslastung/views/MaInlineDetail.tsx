@@ -16,8 +16,11 @@ import { useState } from 'react';
 import { Info } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
+import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { KategoriePill } from '../components/KategoriePill';
+import { AutoTagToggleWand } from '../components/AutoTagToggleWand';
+import { TechChipInput } from '../components/TechChipInput';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket, type UeberKategorie } from '../types';
 import { hasPlOverride } from '../services/antragstyp-praeferenz';
 import type { AuslastungVerbund, MaQuartalsAuslastung } from '../services/quartals-auslastung';
@@ -212,6 +215,7 @@ function EditTab({ ma, removable, onSaved }: {
   const upsert = useAuslastungData(s => s.upsertMitarbeiter);
   const removeMa = useAuslastungData(s => s.removeMitarbeiter);
   const kategorien = useAuslastungData(s => s.data.config.ueberKategorien);
+  const cache = useAntraegeCache();
 
   const initialHaupt = ma.hauptKategorie;
   const initialNeben = ma.nebenKategorien;
@@ -219,9 +223,25 @@ function EditTab({ ma, removable, onSaved }: {
   const [abschlag, setAbschlag] = useState(ma.abschlagProzent ?? 0);
   const [hauptKat, setHauptKat] = useState<string>(initialHaupt);
   const [nebenKats, setNebenKats] = useState<Set<string>>(new Set(initialNeben));
-  const [techRaw, setTechRaw] = useState(ma.manuelleTechnologien.join(', '));
+  // v2.x: 1:1-Spiegelung des Selbst-Service-Tabs „Meine Technologien" — der PL
+  // kann das MA-Technologie-Profil vorbelegen, falls der MA es selbst noch nicht
+  // gepflegt hat (Anträge müssen trotzdem verteilt werden). Wird beim „Team-
+  // Profile einsammeln" durch das MA-eigene Profil ersetzt (selfFields).
+  const [manualTags, setManualTags] = useState<string[]>(ma.manuelleTechnologien ?? []);
+  const [excludedAutoTags, setExcludedAutoTags] = useState<string[]>(ma.ausgeblendeteAutoTags ?? []);
   const [abgRaw, setAbgRaw] = useState(ma.abgemeldet.join(', '));
   const [aktiv, setAktiv] = useState(ma.aktiv);
+
+  // Auto-Tags aus den historischen Anträgen des MA — die im Cache pro anonId
+  // vorab aggregierten Deskriptoren (rein intern, das Klartext-Kürzel wird NICHT
+  // angezeigt → ohne De-Anon-Session nutzbar). Identische Quelle wie der Selbst-
+  // Service-Tab „Meine Technologien".
+  const automatic = cache.historischeDeskriptorenByAnon.get(ma.anonId) ?? [];
+  function toggleAutoTag(tag: string): void {
+    setExcludedAutoTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag],
+    );
+  }
   // Antragstyp-Vorbelegung: schreibt in die MA-Praeferenz (antragstypBevorzugt),
   // NICHT das PL-Override. Wird beim "Team-Profile einsammeln" durch die MA-
   // eigene Eingabe ersetzt — echte einmalige Ueberbrueckung.
@@ -262,7 +282,8 @@ function EditTab({ ma, removable, onSaved }: {
       abschlagProzent: abschlag,
       hauptKategorie: hauptKat,
       nebenKategorien: neben,
-      manuelleTechnologien: techRaw.split(',').map(s => s.trim()).filter(Boolean),
+      manuelleTechnologien: manualTags,
+      ausgeblendeteAutoTags: excludedAutoTags,
       abgemeldet: abgRaw.split(',').map(s => s.trim()).filter(Boolean),
       aktiv,
       antragstypBevorzugt: [...antragstypen],
@@ -352,13 +373,13 @@ function EditTab({ ma, removable, onSaved }: {
             })}
           </div>
         </FormRow>
-        <FormRow label="Manuelle Technologien" subtitle="Komma-getrennt">
-          <textarea
-            value={techRaw}
-            onChange={e => setTechRaw(e.target.value)}
-            rows={3}
-            className="text-[12.5px] px-2 py-1 rounded outline-none resize-none w-full"
-            style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
+        <FormRow label="Manuelle Technologien" subtitle="Enter oder Komma fügt ein Stichwort hinzu">
+          <TechChipInput
+            tags={manualTags}
+            onChange={setManualTags}
+            maxChips={20}
+            maxChipLen={60}
+            placeholder="Stichwort eintippen, Enter zum Hinzufügen…"
           />
         </FormRow>
         <FormRow
@@ -390,6 +411,28 @@ function EditTab({ ma, removable, onSaved }: {
             <p className="text-[10.5px] leading-snug" style={{ color: 'var(--tf-warning-text, #92400e)' }}>
               Hinweis: Für diesen MA ist ein PL-Override aktiv ({ma.antragstypUeberschreibung?.join(', ')})
               — es hat im Matching Vorrang vor dieser Vorbelegung.
+            </p>
+          )}
+        </FormRow>
+      </div>
+
+      {/* Auto-Tags aus den bisherigen Anträgen — Full-Width, weil die Pill-Wand
+          viele Tags haben kann. Spiegelt Sektion „Aus deinen bisherigen Anträgen"
+          aus dem Selbst-Service-Tab; Ausblenden schreibt `ausgeblendeteAutoTags`. */}
+      <div className="md:col-span-2">
+        <FormRow
+          label="Aus bisherigen Anträgen"
+          subtitle="Automatisch erkannte Technologien — Klick blendet einen Tag aus dem Team-Profil aus."
+        >
+          {automatic.length > 0 ? (
+            <AutoTagToggleWand
+              tags={automatic}
+              excluded={excludedAutoTags}
+              onToggle={toggleAutoTag}
+            />
+          ) : (
+            <p className="text-[12px] text-[var(--tf-text-tertiary)]">
+              Keine historischen Anträge mit Technologie-Spalten gefunden.
             </p>
           )}
         </FormRow>

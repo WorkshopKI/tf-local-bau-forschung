@@ -20,7 +20,6 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
-import { Tooltip } from '@/ui';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { resolveAnonIdForUser } from '@/plugins/auslastung/services/anonym-map';
@@ -32,6 +31,8 @@ import {
 import { hasPlOverride } from '@/plugins/auslastung/services/antragstyp-praeferenz';
 import type { PersoenlichesAuslastungProfil } from '@/plugins/auslastung/types';
 import { KategoriePill } from '@/plugins/auslastung/components/KategoriePill';
+import { AutoTagToggleWand } from '@/plugins/auslastung/components/AutoTagToggleWand';
+import { TechChipInput } from '@/plugins/auslastung/components/TechChipInput';
 import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket } from '@/plugins/auslastung/types';
 import {
   SettingsRow,
@@ -308,7 +309,7 @@ export function MeineTechnologienTab(): React.ReactElement {
       {/* Section 5 — Manuelle Chips */}
       <section className="mt-8">
         <SettingsSectionHeader label="Zusätzliche Kompetenzen" hint={TOOLTIP_MANUAL} />
-        <ChipInput
+        <TechChipInput
           tags={manualTags}
           onChange={(t) => { markDirty(); setManualTags(t); }}
           maxChips={MAX_CHIPS}
@@ -547,177 +548,3 @@ function ProgrammPill({ anonId }: { anonId: string }): React.ReactElement {
   );
 }
 
-const LONG_TAG_THRESHOLD = 38;
-
-/**
- * Kürzt einen WZ-Tag der Form "präfix (a, b, c, d, e)" auf
- * "präfix (a, b, …)" wenn er zu lang ist. Tags ohne Klammer werden nur dann
- * abgekürzt wenn sie über die Schwelle gehen — dann ellipsen wir am Ende.
- */
-function truncateWZ(label: string): { short: string; truncated: boolean } {
-  if (label.length <= LONG_TAG_THRESHOLD) return { short: label, truncated: false };
-  const m = label.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
-  if (m && m[1] != null && m[2] != null) {
-    const head = m[1].trim();
-    const parts = m[2].split(',').map(s => s.trim()).filter(Boolean);
-    if (parts.length > 2) {
-      return { short: `${head} (${parts.slice(0, 2).join(', ')}, …)`, truncated: true };
-    }
-  }
-  return { short: label.slice(0, LONG_TAG_THRESHOLD - 1) + '…', truncated: true };
-}
-
-/**
- * Toggle-Pill-Wand fuer die Auto-Tags. Pro Pill aktiv/inaktiv per Klick.
- * Layout-konstant: Hakenslot wird auch im Inaktiv-State gerendert
- * (`invisible`), damit kein horizontaler Shift entsteht (CLAUDE.md Pitfall
- * #14). Inaktiv-Variante ist outline-only mit blasserem Text — bewusst NICHT
- * `opacity-40`, weil das wie disabled wirkt.
- */
-function AutoTagToggleWand({
-  tags,
-  excluded,
-  onToggle,
-}: {
-  tags: string[];
-  excluded: string[];
-  onToggle: (tag: string) => void;
-}): React.ReactElement {
-  const excludedSet = new Set(excluded);
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {tags.map(tag => {
-        const isExcluded = excludedSet.has(tag);
-        const active = !isExcluded;
-        const { short, truncated } = truncateWZ(tag);
-        const button = (
-          <button
-            key={tag}
-            type="button"
-            onClick={() => onToggle(tag)}
-            aria-pressed={active}
-            aria-label={`${tag} — ${active ? 'aktiv im Team-Profil. Klicken zum Ausblenden.' : 'ausgeblendet. Klicken zum Aktivieren.'}`}
-            className={
-              active
-                ? 'inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] bg-[var(--tf-bg-secondary)] px-2.5 py-1.5 rounded-md cursor-pointer hover:bg-[var(--tf-bg)] hover:text-[var(--tf-text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]/40'
-                : 'inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)] bg-transparent px-2.5 py-1.5 rounded-md cursor-pointer hover:text-[var(--tf-text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]/40'
-            }
-            style={{
-              border: active
-                ? '0.5px solid transparent'
-                : '0.5px solid var(--tf-border)',
-              textDecoration: active ? 'none' : 'line-through',
-            }}
-          >
-            <span aria-hidden className={`text-[9px] leading-none ${active ? '' : 'invisible'}`}>✓</span>
-            <span>{short}</span>
-          </button>
-        );
-        if (truncated) {
-          return (
-            <Tooltip key={tag} text={tag}>
-              {button}
-            </Tooltip>
-          );
-        }
-        return button;
-      })}
-    </div>
-  );
-}
-
-function ChipInput({
-  tags,
-  onChange,
-  maxChips,
-  maxChipLen,
-  placeholder,
-}: {
-  tags: string[];
-  onChange: (next: string[]) => void;
-  maxChips: number;
-  maxChipLen: number;
-  placeholder: string;
-}): React.ReactElement {
-  const [draft, setDraft] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const commit = (raw: string): void => {
-    const candidate = raw.trim().slice(0, maxChipLen);
-    if (!candidate) return;
-    if (tags.length >= maxChips) return;
-    const lower = candidate.toLowerCase();
-    if (tags.some(t => t.toLowerCase() === lower)) {
-      setDraft('');
-      return;
-    }
-    onChange([...tags, candidate]);
-    setDraft('');
-  };
-
-  const removeAt = (idx: number): void => {
-    onChange(tags.filter((_, i) => i !== idx));
-  };
-
-  const onKey = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      commit(draft);
-    } else if (e.key === 'Backspace' && draft === '' && tags.length > 0) {
-      e.preventDefault();
-      removeAt(tags.length - 1);
-    }
-  };
-
-  const onChangeRaw = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const val = e.target.value;
-    // Komma im Wert (z.B. Paste) sofort splitten und committen
-    if (val.includes(',')) {
-      const parts = val.split(',');
-      const last = parts.pop() ?? '';
-      for (const p of parts) commit(p);
-      setDraft(last);
-      return;
-    }
-    setDraft(val);
-  };
-
-  return (
-    <div
-      className="flex flex-wrap items-center gap-1.5 p-2 rounded-[var(--tf-radius)] bg-[var(--tf-bg)] min-h-[44px] cursor-text"
-      style={{ border: '0.5px solid var(--tf-border-hover)' }}
-      onClick={e => {
-        if (e.target === e.currentTarget) inputRef.current?.focus();
-      }}
-    >
-      {tags.map((tag, idx) => (
-        <span
-          key={`${tag}-${idx}`}
-          className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text)] bg-[var(--tf-bg)] pl-2.5 pr-1 py-1 rounded-md"
-          style={{ border: '0.5px solid var(--tf-border-hover)' }}
-        >
-          {tag}
-          <button
-            type="button"
-            aria-label={`Stichwort '${tag}' entfernen`}
-            onClick={() => removeAt(idx)}
-            className="w-[18px] h-[18px] inline-flex items-center justify-center rounded text-[14px] leading-none text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer"
-          >
-            ×
-          </button>
-        </span>
-      ))}
-      <input
-        ref={inputRef}
-        type="text"
-        value={draft}
-        onChange={onChangeRaw}
-        onKeyDown={onKey}
-        onBlur={() => { if (draft) commit(draft); }}
-        placeholder={tags.length === 0 ? placeholder : ''}
-        disabled={tags.length >= maxChips}
-        className="flex-1 min-w-[160px] py-1 px-1 bg-transparent text-[12px] text-[var(--tf-text)] outline-none placeholder:text-[var(--tf-text-tertiary)] disabled:cursor-not-allowed"
-      />
-    </div>
-  );
-}
