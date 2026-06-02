@@ -89,10 +89,20 @@ export function resolveVerbundMeta(
 
 const POOL_EXCLUDED_STATUS = new Set(['abgelehnt/zurückgezogen', 'irrläufer']);
 
+/**
+ * True, wenn der Antrag in der (Master-)CSV bereits ein Bearbeiter-Kürzel
+ * (`tib_kuerz`) trägt — also schon vergeben ist. Pure + testbar; geteilt vom
+ * Klassifizierungs-Pool (`istZuVerteilen`) und der Zuweisungs-Worklist
+ * (bereits gekürzelte Anträge gehören in keine der beiden Listen).
+ */
+export function hatBearbeiterKuerzel(antrag: Antrag): boolean {
+  return normalizeKuerzel((antrag as Record<string, unknown>)[CANONICAL_TIB_KUERZ]) !== null;
+}
+
 function istZuVerteilen(antrag: Antrag, jahr: number): boolean {
   const datum = (antrag as Record<string, unknown>)[CANONICAL_ANTRAGSDATUM];
   if (typeof datum !== 'string' || !datum.startsWith(`${jahr}-`)) return false;
-  if (normalizeKuerzel((antrag as Record<string, unknown>)[CANONICAL_TIB_KUERZ]) !== null) return false;
+  if (hatBearbeiterKuerzel(antrag)) return false;
   const status = typeof antrag.status === 'string' ? antrag.status.trim().toLowerCase() : '';
   if (POOL_EXCLUDED_STATUS.has(status)) return false;
   return true;

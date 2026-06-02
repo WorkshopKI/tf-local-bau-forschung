@@ -24,7 +24,7 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
-import { groupFreigegebeneByVerbund } from '../services/verbund-aggregation';
+import { groupFreigegebeneByVerbund, hatBearbeiterKuerzel } from '../services/verbund-aggregation';
 import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
   embedText,
@@ -207,8 +207,13 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const { auslastungByAnon } = useAuslastungIndex();
 
   // Nur freigegebene Klassifizierungen sind hier sichtbar (Phase 1 muss durch).
+  // Bereits in der CSV gekürzelte Anträge (tib_kuerz gesetzt = schon vergeben)
+  // fallen raus — konsistent mit der Klassifizierungs-Phase (istZuVerteilen).
+  // Ein Verbund, dessen TVs alle gekürzelt sind, liefert keine Rows mehr.
   const freigegebene = useMemo(() => {
-    return view.filter(v => v.klassifizierung.status === 'freigegeben');
+    return view.filter(v =>
+      v.klassifizierung.status === 'freigegeben' && !hatBearbeiterKuerzel(v.antrag),
+    );
   }, [view]);
 
   // v2.6.6: Eine Zeile pro Verbund (alle TVs teilen Klassifizierung + Bearbeiter).
