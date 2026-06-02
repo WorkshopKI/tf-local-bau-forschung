@@ -25,6 +25,7 @@ import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import {
   buildVerbundClassificationViews,
+  jahrAusQuartal,
   type VerbundKlassifizierungsView,
 } from '../services/verbund-aggregation';
 import {
@@ -57,11 +58,6 @@ const COLUMN_WIDTHS_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_c
  *  Flash sichtbar bleibt, bevor sie ausgeblendet wird. Muss zur Keyframe-Dauer
  *  `freigabe-flash` in theme.css passen. */
 const FREIGABE_FLASH_MS = 1400;
-
-function jahrAusQuartal(quartal: string): number | null {
-  const m = /^(\d{4})-Q[1-4]$/.exec(quartal);
-  return m ? Number(m[1]) : null;
-}
 
 export function KlassifizierungsReview(): React.ReactElement {
   const storage = useStorage();

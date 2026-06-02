@@ -99,7 +99,22 @@ export function hatBearbeiterKuerzel(antrag: Antrag): boolean {
   return normalizeKuerzel((antrag as Record<string, unknown>)[CANONICAL_TIB_KUERZ]) !== null;
 }
 
-function istZuVerteilen(antrag: Antrag, jahr: number): boolean {
+/**
+ * Parst das Jahr aus einem Quartal-String „YYYY-QN". null bei ungültigem Format.
+ * Geteilt von Klassifizierungs- und Zuweisungs-Pool, damit beide denselben
+ * „Verteil-Jahr"-Filter nutzen.
+ */
+export function jahrAusQuartal(quartal: string): number | null {
+  const m = /^(\d{4})-Q[1-4]$/.exec(quartal);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Pool-Gate „zu verteilen": Antrag aus dem aktuellen Jahr, OHNE Bearbeiter-Kürzel
+ * und nicht in einem ausgeschlossenen Status. Geteilt von der Klassifizierungs-
+ * Liste UND der Zuweisungs-Worklist — beide zeigen denselben Antrags-Pool.
+ */
+export function istZuVerteilen(antrag: Antrag, jahr: number): boolean {
   const datum = (antrag as Record<string, unknown>)[CANONICAL_ANTRAGSDATUM];
   if (typeof datum !== 'string' || !datum.startsWith(`${jahr}-`)) return false;
   if (hatBearbeiterKuerzel(antrag)) return false;
