@@ -14,6 +14,15 @@ import { katVars } from '../../services/kompetenz-matrix-colors';
 import { deriveCode } from '../../services/kompetenz-codes';
 import type { SortCol, SortState } from '../../hooks/useKompetenzMatrixModel';
 
+/** Display-Kürzung einzelner Band-Labels für die dichte Matrix — rein
+ *  visuell, ändert NICHT den Überkategorie-Namen aus der Config (der wird in
+ *  Matching/Klassifizierung/anderen Tabs voll gebraucht). NM hat nur EINE
+ *  Unterkategorie; das volle "Naturwissenschaftliche Methoden" bläht die
+ *  schmale Spalte sonst stark auf. */
+const BAND_LABEL_OVERRIDE: Partial<Record<string, string>> = {
+  NM: 'Naturw. Methoden',
+};
+
 interface Props {
   geometry: Geometry;
   farbeByUeber: Record<string, KategorieFarbe>;
@@ -58,7 +67,7 @@ export function MatrixHeader({ geometry, farbeByUeber, sort, onSort }: Props): R
             colSpan={g.span}
             data-gi={g.ueberId}
           >
-            <span className="km-gtag">{g.ueberId}</span>{g.label}
+            <span className="km-gtag">{g.ueberId}</span>{BAND_LABEL_OVERRIDE[g.ueberId] ?? g.label}
           </th>
         ))}
 
