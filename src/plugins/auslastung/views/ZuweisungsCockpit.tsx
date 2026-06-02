@@ -24,11 +24,8 @@ import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
 import { groupFreigegebeneByVerbund } from '../services/verbund-aggregation';
+import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
-  buildAntraegeIndexForMatching,
-} from '../services/embedding-matcher';
-import {
-  loadAllEmbeddings,
   embedText,
   ensureEmbeddingReady,
 } from '@/core/services/embedding-corpus';
@@ -153,6 +150,13 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const [matchingRunning, setMatchingRunning] = useState(false);
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
 
+  // Perf: Embedding-Korpus + Antraege-Index einmal pro Daten-Stand cachen
+  // (statt pro Klick neu laden/bauen). Plus pro-Antrag-Query-Embedding-Cache und
+  // ein Request-Token gegen Out-of-Order-Ergebnisse bei schnellem Durchklicken.
+  const loadCorpus = useMatchingCorpus(cache.antraege, storage.idb);
+  const queryEmbeddingCacheRef = useRef<Map<string, number[]>>(new Map());
+  const matchReqIdRef = useRef(0);
+
   // v2.9: Übernahme-Wünsche aus den persoenlichen Ordnern einsammeln (read-Mode
   // ueber den User-Folders-Root, gespiegelt von MaListSection). Merged sie als
   // Zuweisung{status:'selbst'} in auslastung.json (EIN persist im Store).
@@ -272,9 +276,12 @@ export function ZuweisungsCockpit(): React.ReactElement {
   // Matching-Engine fuer selektierten Antrag
   useEffect(() => {
     if (!selected || !selectedView) {
+      matchReqIdRef.current++; // laufende Berechnung invalidieren
       setMatches([]);
+      setMatchingRunning(false);
       return;
     }
+    const reqId = ++matchReqIdRef.current;
     void (async () => {
       setMatchingRunning(true);
       try {
@@ -283,18 +290,24 @@ export function ZuweisungsCockpit(): React.ReactElement {
         const primaerKategorie = k.freigegebenePrimaer;
         const aspekte = k.freigegebeneAspekte;
         let queryEmbedding: number[] | undefined;
-        let corpusEmbeddings: Map<string, number[]> | undefined;
-        let antraegeIndex: ReturnType<typeof buildAntraegeIndexForMatching> | undefined;
+        let corpus: MatchingCorpus | undefined;
         if (config.stage2Aktiv) {
-          await ensureEmbeddingReady(storage.idb);
-          const text = [
-            selected[CANONICAL_VERBUND_TITEL],
-            selected[CANONICAL_TITEL],
-            selected[FIELD_PROJEKTBESCHREIBUNG],
-          ].filter(s => typeof s === 'string').join(' ');
-          queryEmbedding = await embedText(text, 'query');
-          corpusEmbeddings = await loadAllEmbeddings(storage.idb);
-          antraegeIndex = buildAntraegeIndexForMatching(cache.antraege);
+          // Query-Embedding pro Antrag cachen — Re-Klick spart die Inferenz.
+          const cachedQuery = queryEmbeddingCacheRef.current.get(selected.aktenzeichen);
+          if (cachedQuery) {
+            queryEmbedding = cachedQuery;
+          } else {
+            await ensureEmbeddingReady(storage.idb);
+            const text = [
+              selected[CANONICAL_VERBUND_TITEL],
+              selected[CANONICAL_TITEL],
+              selected[FIELD_PROJEKTBESCHREIBUNG],
+            ].filter(s => typeof s === 'string').join(' ');
+            queryEmbedding = await embedText(text, 'query');
+            queryEmbeddingCacheRef.current.set(selected.aktenzeichen, queryEmbedding);
+          }
+          // Korpus + Index einmal pro Daten-Stand (gecacht ueber Klicks hinweg).
+          corpus = await loadCorpus();
         }
         // v2.4: echte TV-Anzahl aus der Anträge-Liste, damit Engine die
         // korrekten benoetigtenStunden berechnet (Verbund mit 4 TVs = 36h).
@@ -312,20 +325,23 @@ export function ZuweisungsCockpit(): React.ReactElement {
           historischeAntraegeCountByAnon: cache.historischeAntraegeCountByAnon,
           anonymMap: cache.anonymMap,
           queryEmbedding,
-          corpusEmbeddings,
-          antraegeIndex,
+          corpusEmbeddings: corpus?.corpusEmbeddings,
+          antraegeIndex: corpus?.antraegeIndex,
           anzahlTV: tvCount,
           auslastungByAnon,
           // 5 Vorschläge statt der Engine-Default-3 — die PL sieht mehr
           // Kandidaten ohne zu scrollen (Cards zusätzlich kompakter).
           topN: 5,
         });
-        setMatches(result);
+        // Stale-Guard: nur anwenden, wenn diese Selektion noch aktuell ist
+        // (verhindert, dass ein langsamerer frueherer Lauf einen neueren
+        // ueberschreibt, wenn der User schnell durchklickt).
+        if (matchReqIdRef.current === reqId) setMatches(result);
       } finally {
-        setMatchingRunning(false);
+        if (matchReqIdRef.current === reqId) setMatchingRunning(false);
       }
     })();
-  }, [selectedAz, selected, selectedView, config, mitarbeiter, zuweisungen, cache.antraege, cache.historischeDeskriptorenByAnon, cache.historischeAntraegeCountByAnon, cache.anonymMap, storage, auslastungByAnon]);
+  }, [selectedAz, selected, selectedView, config, mitarbeiter, zuweisungen, cache.antraege, cache.historischeDeskriptorenByAnon, cache.historischeAntraegeCountByAnon, cache.anonymMap, storage, auslastungByAnon, loadCorpus]);
 
   async function zuweisen(match: MatchResult): Promise<void> {
     if (!selected) return;

@@ -236,6 +236,37 @@ export class IDBStore {
     });
   }
 
+  /**
+   * Alle Key/Value-Paare (optional Prefix-gefiltert) in EINER readonly-
+   * Transaktion via Cursor. Fuer Bulk-Reads — z.B. den Embedding-Korpus —
+   * drastisch schneller als `keys()` + N einzelne `get()`-Roundtrips (jeder
+   * `get()` oeffnet sonst seine eigene Transaktion).
+   *
+   * Prefix-Filter ueber eine String-Range `[prefix, prefix+￿]`. Setzt
+   * String-Keys voraus (der `kv`-Store nutzt out-of-line String-Keys) und dass
+   * kein Key das Zeichen U+FFFF enthaelt — fuer alle bestehenden Prefixe erfuellt.
+   */
+  async entries(prefix?: string): Promise<Array<[string, unknown]>> {
+    const db = this.getDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this.storeName, 'readonly');
+      const store = tx.objectStore(this.storeName);
+      const range = prefix ? IDBKeyRange.bound(prefix, `${prefix}￿`) : undefined;
+      const req = store.openCursor(range);
+      const result: Array<[string, unknown]> = [];
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (cursor) {
+          result.push([cursor.key as string, cursor.value]);
+          cursor.continue();
+        } else {
+          resolve(result);
+        }
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   getDb(): IDBDatabase {
     if (!this.db) throw new Error('IDBStore not opened. Call open() first.');
     return this.db;

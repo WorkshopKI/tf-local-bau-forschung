@@ -132,3 +132,42 @@ describe('IDBStore.get/set/delete/keys', () => {
     expect(() => store.getDb()).toThrow('IDBStore not opened');
   });
 });
+
+describe('IDBStore.entries — Bulk-Read via Cursor', () => {
+  it('liefert alle Key/Value-Paare ohne Prefix', async () => {
+    const store = await freshStore();
+    await store.set('a', 1);
+    await store.set('b', { x: 2 });
+    const entries = await store.entries();
+    expect(entries.sort((p, q) => p[0].localeCompare(q[0]))).toEqual([
+      ['a', 1],
+      ['b', { x: 2 }],
+    ]);
+  });
+
+  it('filtert nach Präfix (gleiche Treffermenge wie keys(prefix))', async () => {
+    const store = await freshStore();
+    await store.set('user:1', { name: 'A' });
+    await store.set('user:2', { name: 'B' });
+    await store.set('config:theme', 'dark');
+
+    const entries = await store.entries('user:');
+    expect(entries.map(([k]) => k).sort()).toEqual(['user:1', 'user:2']);
+    expect(Object.fromEntries(entries)).toEqual({
+      'user:1': { name: 'A' },
+      'user:2': { name: 'B' },
+    });
+
+    // Äquivalenz zum alten keys()+get()-Pfad.
+    const keys = await store.keys('user:');
+    const viaGet = new Map<string, unknown>();
+    for (const k of keys) viaGet.set(k, await store.get(k));
+    expect(new Map(entries)).toEqual(viaGet);
+  });
+
+  it('leeres Ergebnis wenn kein Key den Prefix trifft', async () => {
+    const store = await freshStore();
+    await store.set('config:theme', 'dark');
+    expect(await store.entries('user:')).toEqual([]);
+  });
+});

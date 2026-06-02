@@ -42,14 +42,14 @@ export async function deleteEmbedding(idb: IDBStore, key: string): Promise<void>
 }
 
 /** Vollstaendiger Iterator — Stage-2-Matching, Centroid-Berechnung,
- *  Hybrid-Suche. Macht N IDB-Roundtrips, daher Caller-Caching empfohlen. */
+ *  Hybrid-Suche. Liest den gesamten Korpus in EINER Transaktion (Cursor) statt
+ *  ueber N einzelne get()-Roundtrips; bei mehrfachem Aufruf trotzdem
+ *  Caller-Caching empfohlen (der Korpus aendert sich nur bei Daten-Reload). */
 export async function loadAllEmbeddings(idb: IDBStore): Promise<Map<string, number[]>> {
-  const keys = await idb.keys(EMBEDDING_CORPUS_IDB_PREFIX);
+  const entries = await idb.entries(EMBEDDING_CORPUS_IDB_PREFIX);
   const result = new Map<string, number[]>();
-  for (const k of keys) {
-    const id = k.slice(EMBEDDING_CORPUS_IDB_PREFIX.length);
-    const v = await idb.get<number[]>(k);
-    if (Array.isArray(v)) result.set(id, v);
+  for (const [k, v] of entries) {
+    if (Array.isArray(v)) result.set(k.slice(EMBEDDING_CORPUS_IDB_PREFIX.length), v);
   }
   return result;
 }
