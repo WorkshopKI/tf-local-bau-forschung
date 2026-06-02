@@ -134,6 +134,12 @@ export interface AuslastungConfig {
    *  finalScore mit `(1-w) + w * kontingentScore`. MAs mit erschöpftem Typ-
    *  Kontingent rutschen sanft ab (kein harter Filter). Default 0.3. */
   kontingentGewicht: number;
+  /** Stärke des MULTIPLIKATIVEN Kapazitäts-Malus (0..1): skaliert den finalScore
+   *  mit `(1-m) + m * kapScore`. Damit fallen ausgelastete MAs deutlich ab —
+   *  praktisch immer unter MAs mit freier Kapazität — ohne harten Filter (volle
+   *  MAs bleiben im Notfall sichtbar). 0 = aus (altes rein additives Verhalten),
+   *  1 = maximal. Default 0.6. */
+  auslastungMalus?: number;
   /** Schwelle für „wenig historische Anträge": MAs mit weniger als so vielen
    *  bearbeiteten Anträgen bekommen — sofern eine Kompetenz-Matrix vorliegt —
    *  ein erhöhtes Level-Gewicht (`kompetenzMatrixSparseGewicht`), weil ihr BM25-/
@@ -582,6 +588,8 @@ export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   // v2.15: PL-Kompetenz-Vorbelegung
   kompetenzLevelGewicht: 0.3,
   kontingentGewicht: 0.3,
+  // Multiplikativer Kapazitäts-Malus (ausgelastete MAs deutlich abwerten)
+  auslastungMalus: 0.6,
   // Wenig-Historie-Boost + PL-Technologie-Gewicht
   kompetenzMatrixSparseSchwelle: 5,
   kompetenzMatrixSparseGewicht: 0.7,

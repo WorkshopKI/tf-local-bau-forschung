@@ -188,3 +188,66 @@ describe('v2.15: Antragstyp-Kontingent', () => {
     expect(m2.finalScore).toBeGreaterThan(m1.finalScore);
   });
 });
+
+describe('Multiplikativer Kapazitäts-Malus (ausgelastete MAs deutlich abwerten)', () => {
+  // Synthetischer Bucket: nur `stunden` befüllt (erschöpft die Stunden-Kapazität),
+  // tvsProTyp leer (kein Kontingent-Effekt) → isoliert den kapMultiplier.
+  const bucket = (stunden: number) => ({
+    antraege: 0, tvs: 0, stunden, aktenzeichenSet: new Set<string>(), verbuende: [],
+    antraegeProTyp: {}, tvsProTyp: {},
+  });
+  type Ausl = Parameters<typeof runMatching>[0]['auslastungByAnon'];
+
+  const runSingle = (auslastungMalus: number, festStunden: number) => {
+    const ma = makeMa('MA01', 'IT', {
+      manuelleTechnologien: ['Robotik'],
+      jahresKapazitaetProTyp: { FuE: 360 }, // 90h/Quartal
+    });
+    const auslastungByAnon = new Map([
+      ['MA01', { fest: bucket(festStunden), pending: bucket(0) }],
+    ]) as unknown as Ausl;
+    return runMatching({
+      antrag: makeAntrag('A1', { verbund_titel: 'Robotik Vorhaben', vb_phase: 3 } as unknown as Partial<Antrag>),
+      primaerKategorie: 'IT',
+      config: makeConfig({ aktuellesQuartal: '2026-Q2', auslastungMalus }),
+      mitarbeiter: { MA01: ma },
+      zuweisungen: [],
+      historischeDeskriptorenByAnon: new Map(),
+      anonymMap: buildAnonymMapForTests([]),
+      auslastungByAnon,
+      tageImQuartal: 90, // deterministisch: kein Quartalsende-Bonus
+    })[0]!;
+  };
+
+  it('ausgelasteter MA: finalScore mit Malus deutlich < ohne Malus', () => {
+    const mit = runSingle(0.6, 90);  // 90h gebucht = voll
+    const ohne = runSingle(0, 90);
+    expect(mit.finalScore).toBeLessThan(ohne.finalScore);
+  });
+
+  it('MA mit freier Kapazität: Malus wirkungslos (kapScore≈1 → Faktor 1)', () => {
+    const mit = runSingle(0.6, 0);   // nichts gebucht = frei
+    const ohne = runSingle(0, 0);
+    expect(mit.finalScore).toBeCloseTo(ohne.finalScore, 10);
+  });
+
+  it('bei gleicher Kompetenz rankt der MA mit freier Kapazität vor dem ausgelasteten', () => {
+    const frei = makeMa('MA01', 'IT', { manuelleTechnologien: ['Robotik'], jahresKapazitaetProTyp: { FuE: 360 } });
+    const voll = makeMa('MA02', 'IT', { manuelleTechnologien: ['Robotik'], jahresKapazitaetProTyp: { FuE: 360 } });
+    const auslastungByAnon = new Map([
+      ['MA02', { fest: bucket(90), pending: bucket(0) }], // MA02 ausgelastet
+    ]) as unknown as Ausl;
+    const res = runMatching({
+      antrag: makeAntrag('A1', { verbund_titel: 'Robotik Vorhaben', vb_phase: 3 } as unknown as Partial<Antrag>),
+      primaerKategorie: 'IT',
+      config: makeConfig({ aktuellesQuartal: '2026-Q2' }),
+      mitarbeiter: { MA01: frei, MA02: voll },
+      zuweisungen: [],
+      historischeDeskriptorenByAnon: new Map(),
+      anonymMap: buildAnonymMapForTests([]),
+      auslastungByAnon,
+      tageImQuartal: 90,
+    });
+    expect(res[0]!.anonId).toBe('MA01');
+  });
+});

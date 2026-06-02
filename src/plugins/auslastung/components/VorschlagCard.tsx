@@ -23,10 +23,6 @@ interface Props {
   antragstyp?: AntragstypBucket | null;
 }
 
-function fmtKont(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
-}
-
 const STUFE_LABEL: Record<MatchResult['matchStufe'], string> = {
   1: 'BM25',
   2: 'Embedding',
@@ -81,7 +77,7 @@ export function VorschlagCard({
       <span className="text-[var(--tf-text-tertiary)]">
         {antragstyp ?? 'Typ'}-Kontingent:{' '}
         <span className="text-[var(--tf-text-secondary)]">
-          {Math.max(0, Math.floor(match.kontingentRest ?? 0))}/{fmtKont(match.kontingentQuartal)} TVs
+          {Math.max(0, Math.floor(match.kontingentRest ?? 0))}/{Math.round(match.kontingentQuartal ?? 0)} TVs
         </span>
       </span>
     )

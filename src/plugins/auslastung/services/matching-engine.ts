@@ -162,6 +162,9 @@ export function runMatching(input: MatchInput): MatchResult[] {
   // v2.15: Kompetenz-Level-Faktor + Antragstyp-Kontingent.
   const kompetenzLevelGewicht = config.kompetenzLevelGewicht ?? 0.3;
   const kontingentGewicht = config.kontingentGewicht ?? 0.3;
+  // Multiplikativer Kapazitäts-Malus: zieht ausgelastete MAs deutlich nach unten
+  // (nicht nur additiv im gewichtungBalance-Term). 0 = aus (altes Verhalten).
+  const auslastungMalus = config.auslastungMalus ?? 0.6;
   // Wenig-Historie-Boost: MAs unter der Schwelle mit Kompetenz-Matrix bekommen
   // ein erhoehtes Level-Gewicht (PL-Bewertung dominiert statt duenner Historie).
   const sparseSchwelle = config.kompetenzMatrixSparseSchwelle ?? 5;
@@ -235,10 +238,16 @@ export function runMatching(input: MatchInput): MatchResult[] {
     // Kapazitaet (balance≈1.0, kapScore≈1.0 → gewichtungBalance × 1.0), aber
     // ueberbuchte MAs rutschen sanft ab statt rauszufallen. Das Kontingent
     // skaliert den finalScore multiplikativ (weicher Typ-Deckel).
+    // Zusaetzlich ein multiplikativer Kapazitaets-Malus: bei freier Kapazitaet
+    // (kapScore≈1.0) Faktor ≈1.0, bei ausgelastet/ueberbucht deutlich <1 — so
+    // fallen volle MAs praktisch immer unter freie, bleiben aber im Notfall
+    // sichtbar (kein harter Filter). auslastungMalus=0 → Faktor 1.0 (alt).
+    const kapMultiplier = (1 - auslastungMalus) + auslastungMalus * kapScore;
     const finalScore =
       (kompetenz * config.gewichtungKompetenz
         + (balance * 0.5 + kapScore * 0.5) * config.gewichtungBalance)
-      * ((1 - kontingentGewicht) + kontingentGewicht * kInfo.score);
+      * ((1 - kontingentGewicht) + kontingentGewicht * kInfo.score)
+      * kapMultiplier;
 
     out.push({
       anonId,
