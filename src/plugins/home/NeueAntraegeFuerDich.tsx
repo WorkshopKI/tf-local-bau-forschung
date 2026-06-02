@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { readXsw, xswMatchesOwnKuerzel } from '@/plugins/antraege/xsw';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
@@ -57,6 +58,7 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   // Aus dem MA-Login (sonst Profilfeld) via zentralem Getter.
   const ownKuerzelRaw = useMeinKuerzel() ?? null;
   const [showAlleModal, setShowAlleModal] = useState(false);
+  const [open, toggleOpen] = useCollapsedSection('home_neue_antraege_collapsed');
 
   // Idempotent: triggert Initial-Load auch wenn der User noch nie im
   // Auslastungs-Tab war. Store ignoriert Doppel-Aufrufe via loading-Lock.
@@ -228,6 +230,9 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
     <div className="mb-6" data-auslastung="neue-antraege">
       <SectionHeader
         label="Neue Anträge für dich"
+        collapsible
+        collapsed={!open}
+        onToggleCollapsed={toggleOpen}
         action={
           <div className="flex items-center gap-2">
             {neueAnzahl > 0 && (
@@ -253,6 +258,11 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
           </div>
         }
       />
+      <div
+        className="grid transition-[grid-template-rows] ease-out"
+        style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionDuration: 'var(--tf-duration-med)' }}
+      >
+        <div className="overflow-hidden">
       <div className="flex flex-col gap-2">
         {visible.map(v => (
           <NeueAntraegeVerbundRow
@@ -291,6 +301,8 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
           Fehler: {wuenscheError}
         </div>
       )}
+        </div>
+      </div>
       {showAlleModal && (
         <NeueAntraegeAlleModal
           alle={offene}

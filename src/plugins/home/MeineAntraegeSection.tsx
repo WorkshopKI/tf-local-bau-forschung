@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Badge, SectionHeader, ListItem } from '@/ui';
 import { useNavigation } from '@/core/hooks/useNavigation';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
@@ -71,6 +72,7 @@ function formatDaysShort(deadline: string | undefined): FristLabel | null {
 export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens }: Props): React.ReactElement | null {
   const { navigate } = useNavigation();
   const [visibleCount, setVisibleCount] = useState(initialCount);
+  const [open, toggleOpen] = useCollapsedSection('home_meine_antraege_collapsed');
 
   // Wenn der Profil-Wert ändert (User passt im Einstellungs-Tab an), setzen
   // wir die in-page-Expansion zurück auf den neuen Initialwert.
@@ -100,6 +102,9 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
     <div className="mb-6">
       <SectionHeader
         label="Meine Anträge"
+        collapsible
+        collapsed={!open}
+        onToggleCollapsed={toggleOpen}
         action={
           <button
             onClick={handleAlle}
@@ -109,6 +114,11 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
           </button>
         }
       />
+      <div
+        className="grid transition-[grid-template-rows] ease-out"
+        style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionDuration: 'var(--tf-duration-med)' }}
+      >
+        <div className="overflow-hidden">
       <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2 -mt-1">
         Anträge mit Ihrem Kürzel <span className="font-mono">{bearbeiterTokens.join(', ')}</span>, sortiert nach Frist · Verbünde als ein Eintrag
       </p>
@@ -195,6 +205,8 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
           </span>
         </div>
       ) : null}
+        </div>
+      </div>
     </div>
   );
 }
