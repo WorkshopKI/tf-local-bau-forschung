@@ -8,6 +8,7 @@
  *  - Rechts: Detail + Top-3 VorschlagCards (Matching-Engine live)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Info } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
@@ -547,8 +548,20 @@ export function ZuweisungsCockpit(): React.ReactElement {
           className="rounded-[12px] overflow-hidden flex flex-col min-w-0"
           style={{ width: `${leftPct}%`, border: '0.5px solid var(--tf-border)' }}
         >
-          <div className="px-3 py-2 text-[11.5px] text-[var(--tf-text-tertiary)]" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-            {isInitialLoading ? '…' : `${filtered.length} Verbund${filtered.length !== 1 ? 'e' : ''}`}
+          <div className="px-3 py-2 flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)]" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
+            <span>{isInitialLoading ? '…' : `${filtered.length} Verbund${filtered.length !== 1 ? 'e' : ''}`}</span>
+            {!isInitialLoading && (
+              <>
+                <span>· nur ohne TIB-Kürzel (letzte {config.verteilLookbackMonate ?? 6} Mon.)</span>
+                <span
+                  className="cursor-help inline-flex opacity-70 hover:opacity-100"
+                  title={`Gelistet werden nur Anträge OHNE Bearbeiter-Kürzel (tib_kuerz) mit Antragsdatum aus den letzten ${config.verteilLookbackMonate ?? 6} Monaten (rollierend — gleitet über den Jahreswechsel). Bereits vergebene, ältere oder „abgelehnt/zurückgezogen"/„Irrläufer"-Anträge erscheinen nicht.`}
+                  aria-label="Filter-Hinweis: nur unverteilte Anträge der letzten Monate"
+                >
+                  <Info size={11} aria-hidden />
+                </span>
+              </>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             {isInitialLoading && (
