@@ -4,7 +4,7 @@
  * Stunden — User-facing seit 1.17), Aspekt-Match-Hinweise, matchende
  * Technologien, aehnliche Projekte, Zuweisen/Ablehnen-Buttons.
  */
-import type { MatchResult, UeberKategorie } from '../types';
+import type { AntragstypBucket, MatchResult, UeberKategorie } from '../types';
 import { AnonymIdBadge, useDeAnonName } from './AnonymIdBadge';
 import { ConfidenceDot } from './ConfidenceDot';
 import { TechnologieTags } from './TechnologieTags';
@@ -19,6 +19,12 @@ interface Props {
   /** Anzahl Tage bis Quartals-Ende. Wenn < quartalsEndeBonusTage, zeigen wir
    *  einen Hinweis bei "Kapazitaet erschoepft". Optional. */
   tageImQuartal?: number;
+  /** Antragstyp dieses Antrags (für die Typ-Kontingent-Anzeige). Optional. */
+  antragstyp?: AntragstypBucket | null;
+}
+
+function fmtKont(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
 }
 
 const STUFE_LABEL: Record<MatchResult['matchStufe'], string> = {
@@ -28,7 +34,7 @@ const STUFE_LABEL: Record<MatchResult['matchStufe'], string> = {
 };
 
 export function VorschlagCard({
-  match, matchendeQueryTokens, onZuweisen, onAblehnen, disabled, tageImQuartal,
+  match, matchendeQueryTokens, onZuweisen, onAblehnen, disabled, tageImQuartal, antragstyp,
 }: Props): React.ReactElement {
   const score = Math.round(match.kompetenzScore * 100);
   const config = useAuslastungData(s => s.data.config);
@@ -98,6 +104,22 @@ export function VorschlagCard({
           </span>
         )}
       </div>
+
+      {/* Typ-Kontingent (v2.16) — weicher Deckel, sichtbar gemacht */}
+      {match.kontingentQuartal != null && (
+        <div className="text-[11.5px]">
+          {(match.kontingentRest ?? 0) <= 0 ? (
+            <span className="text-orange-700">{antragstyp ?? 'Typ'}-Kontingent erschöpft</span>
+          ) : (
+            <span className="text-[var(--tf-text-tertiary)]">
+              {antragstyp ?? 'Typ'}-Kontingent:{' '}
+              <span className="text-[var(--tf-text-secondary)]">
+                {Math.max(0, Math.floor(match.kontingentRest ?? 0))}/{fmtKont(match.kontingentQuartal)} frei
+              </span>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Aspekt-Match-Anzeige (1.17) */}
       {aspektMatchKategorien.length > 0 && (

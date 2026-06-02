@@ -35,7 +35,7 @@ import { runEmbeddingMatching, type EmbeddingMatchResult } from './embedding-mat
 import { kapazitaetsScore, tageImQuartal } from './kapazitaet';
 import { matchesAntragstyp } from './antragstyp-praeferenz';
 import { normLevelForUeber } from './kompetenz-derivation';
-import { computeKontingentVerbrauch, kontingentInfoFor } from './kontingent';
+import { computeKontingentVerbrauch, kontingentInfoFor, verbrauchFromAuslastung } from './kontingent';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import type { AnonymMap } from './anonym-map';
 import type { MaQuartalsAuslastung } from './quartals-auslastung';
@@ -156,9 +156,12 @@ export function runMatching(input: MatchInput): MatchResult[] {
   const kompetenzLevelGewicht = config.kompetenzLevelGewicht ?? 0.3;
   const kontingentGewicht = config.kontingentGewicht ?? 0.3;
   const antragBucket = getKategorieLabel((antrag as Record<string, unknown>).vb_phase);
-  const kontingentVerbrauch = computeKontingentVerbrauch(
-    zuweisungen, input.antraegeIndex, config.aktuellesQuartal,
-  );
+  // v2.16: Verbrauch je Typ aus fest+pending (auslastungByAnon) — derselbe
+  // Index wie das per-Typ-Kapazitätsmodell. Fallback (Tests/kein Index): nur
+  // Store-Zuweisungen via computeKontingentVerbrauch.
+  const kontingentVerbrauch = input.auslastungByAnon
+    ? verbrauchFromAuslastung(input.auslastungByAnon)
+    : computeKontingentVerbrauch(zuweisungen, input.antraegeIndex, config.aktuellesQuartal);
 
   const out: MatchResult[] = [];
   for (const anonId of eligibleAnonIds) {
@@ -242,6 +245,8 @@ export function runMatching(input: MatchInput): MatchResult[] {
       // v2.15: Antragstyp-Kontingent
       kontingentScore: kInfo.score,
       kontingentRest: kInfo.rest ?? undefined,
+      // v2.16: Quartals-Kontingent (Anträge) für „v/N frei" im Vorschlag.
+      kontingentQuartal: kInfo.kontingentQ ?? undefined,
     });
   }
 

@@ -23,13 +23,17 @@ import { memo } from 'react';
 import type { AnonymerMitarbeiter, UeberKategorie } from '../../types';
 import type { MaAltlastBucket } from '../../services/altlast';
 import type { KapazitaetsView } from '../../services/kapazitaet';
+import type { KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
 import { dotColor } from './kategorie-colors';
+import { TypKapazitaetBars } from './TypKapazitaetBars';
 
 type TileState = 'normal' | 'empty' | 'inactive';
 
 interface Props {
   ma: AnonymerMitarbeiter;
   kapView: KapazitaetsView;
+  /** v2.16: per-Antragstyp-Auslastung (primäres Modell, wenn Kontingent gepflegt). */
+  kapTyp?: KapazitaetProTypView;
   altlast?: MaAltlastBucket;
   kategorien: UeberKategorie[];
   stundenProTV: number;
@@ -38,7 +42,7 @@ interface Props {
   onClick: (anonId: string) => void;
 }
 
-function MaTileImpl({ ma, kapView, altlast, kategorien, stundenProTV, realName, onClick }: Props): React.ReactElement {
+function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, stundenProTV, realName, onClick }: Props): React.ReactElement {
   const altlastTvs = altlast?.tvs ?? 0;
   const hasFest = kapView.verbrauchteStunden > 0;
   const hasAltlast = altlastTvs > 0;
@@ -116,12 +120,16 @@ function MaTileImpl({ ma, kapView, altlast, kategorien, stundenProTV, realName, 
         )}
       </div>
 
-      {/* Twin-Bars rechts */}
-      <TwinBars
-        festPct={belegtPct}
-        altlastPct={altlastPct}
-        emptyFest={state === 'empty'}
-      />
+      {/* Rechts: v2.16 per-Antragstyp-Bars (primär), Fallback: Stunden-Twin-Bars */}
+      {kapTyp?.hatKontingent ? (
+        <TypKapazitaetBars view={kapTyp} variant="tile" />
+      ) : (
+        <TwinBars
+          festPct={belegtPct}
+          altlastPct={altlastPct}
+          emptyFest={state === 'empty'}
+        />
+      )}
 
       {/* Footer unten links */}
       <div

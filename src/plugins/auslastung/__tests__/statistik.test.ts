@@ -41,6 +41,7 @@ function makeBucket(overrides: Partial<MaQuartalsBucket> = {}): MaQuartalsBucket
     stunden: 0,
     aktenzeichenSet: new Set<string>(),
     verbuende: [],
+    antraegeProTyp: {},
     ...overrides,
   };
 }

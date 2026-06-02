@@ -24,7 +24,8 @@
  * verschwindet automatisch.
  */
 import type { Antrag } from '@/core/services/csv/types';
-import type { Zuweisung } from '../types';
+import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
+import type { AntragstypBucket, Zuweisung } from '../types';
 import { dateToQuartal } from './externe-zuweisungen';
 
 /** Ein logisch zusammengehoeriger Antrag (Verbund mit N TVs oder
@@ -55,6 +56,10 @@ export interface MaQuartalsBucket {
    *  Dedup zwischen fest und pending. */
   aktenzeichenSet: Set<string>;
   verbuende: AuslastungVerbund[];
+  /** v2.16: Anzahl Verbund-Anteile je Antragstyp (FuE/DS/DL/NW), via
+   *  `getKategorieLabel(vb_phase)`. Speist das per-Typ-Kapazitaetsmodell +
+   *  den Matcher-Kontingent-Verbrauch (1 pro Verbund-Anteil, wie `antraege`). */
+  antraegeProTyp: Partial<Record<AntragstypBucket, number>>;
 }
 
 /** Gesamt-Sicht pro MA fuer ein Quartal. */
@@ -92,6 +97,7 @@ function emptyBucket(): MaQuartalsBucket {
     stunden: 0,
     aktenzeichenSet: new Set<string>(),
     verbuende: [],
+    antraegeProTyp: {},
   };
 }
 
@@ -101,6 +107,8 @@ interface GroupState {
   akronym?: string;
   titel?: string;
   antragsdatum?: string;
+  /** vb_phase des Lead-TV (verbund-weit gleich) → Antragstyp-Bucket. */
+  vbPhase?: unknown;
 }
 
 function readField(a: Antrag, key: string): string | undefined {
@@ -159,6 +167,7 @@ export function computeQuartalsAuslastung(
         akronym: readField(a, 'akronym'),
         titel: readField(a, 'verbund_titel') ?? readField(a, 'titel'),
         antragsdatum: typeof datum === 'string' ? datum : undefined,
+        vbPhase: (a as Record<string, unknown>).vb_phase,
       };
       perAnon.set(groupKey, group);
     }
@@ -207,6 +216,7 @@ export function computeQuartalsAuslastung(
         akronym: readField(antrag, 'akronym'),
         titel: readField(antrag, 'verbund_titel') ?? readField(antrag, 'titel'),
         antragsdatum: typeof datum === 'string' ? datum : undefined,
+        vbPhase: (antrag as Record<string, unknown>).vb_phase,
       };
       perAnon.set(groupKey, group);
     }
@@ -236,12 +246,16 @@ export function computeQuartalsAuslastung(
 function buildBucket(groupsByKey: Map<string, GroupState>, stundenProTV: number): MaQuartalsBucket {
   const verbuende: AuslastungVerbund[] = [];
   const aktenzeichenSet = new Set<string>();
+  const antraegeProTyp: Partial<Record<AntragstypBucket, number>> = {};
   let totalTvs = 0;
   for (const g of groupsByKey.values()) {
     const tvCount = g.aktenzeichen.length;
     if (tvCount === 0) continue;
     for (const az of g.aktenzeichen) aktenzeichenSet.add(az);
     totalTvs += tvCount;
+    // 1 Verbund-Anteil = 1 "Antrag" je Typ (konsistent mit `antraege`).
+    const bucket = getKategorieLabel(g.vbPhase);
+    if (bucket) antraegeProTyp[bucket] = (antraegeProTyp[bucket] ?? 0) + 1;
     verbuende.push({
       verbundId: g.verbundId,
       aktenzeichen: g.aktenzeichen.slice(),
@@ -268,6 +282,7 @@ function buildBucket(groupsByKey: Map<string, GroupState>, stundenProTV: number)
     stunden: totalTvs * stundenProTV,
     aktenzeichenSet,
     verbuende,
+    antraegeProTyp,
   };
 }
 
@@ -279,6 +294,7 @@ export const EMPTY_BUCKET: MaQuartalsBucket = Object.freeze({
   stunden: 0,
   aktenzeichenSet: new Set<string>(),
   verbuende: [],
+  antraegeProTyp: Object.freeze({}),
 }) as MaQuartalsBucket;
 
 export const EMPTY_AUSLASTUNG: MaQuartalsAuslastung = Object.freeze({

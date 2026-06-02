@@ -93,4 +93,33 @@ describe('v2.15: Antragstyp-Kontingent', () => {
     expect(m2.kontingentRest).toBeUndefined();
     expect(m2.finalScore).toBeGreaterThan(m1.finalScore);
   });
+
+  it('v2.16: Kontingent-Malus greift aus fest gebuchten CSV-Anträgen (auslastungByAnon)', () => {
+    const gedeckelt = makeMa('MA01', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { FuE: 4 } }); // Q=1
+    const offen = makeMa('MA02', 'IT', { manuelleTechnologien: ['KI'] });
+    const bucket = (proTyp: Record<string, number>) => ({
+      antraege: 0, tvs: 0, stunden: 0, aktenzeichenSet: new Set<string>(), verbuende: [], antraegeProTyp: proTyp,
+    });
+    // MA01 hat 1 FuE-Antrag fest in der CSV (keine Store-Zuweisung!) → Kontingent erschöpft.
+    const auslastungByAnon = new Map([
+      ['MA01', { fest: bucket({ FuE: 1 }), pending: bucket({}) }],
+    ]) as unknown as Parameters<typeof runMatching>[0]['auslastungByAnon'];
+    const res = runMatching({
+      antrag: makeAntrag('A1', { verbund_titel: 'KI', vb_phase: 3 } as unknown as Partial<Antrag>),
+      primaerKategorie: 'IT',
+      config: makeConfig({ aktuellesQuartal: '2026-Q2' }),
+      mitarbeiter: { MA01: gedeckelt, MA02: offen },
+      zuweisungen: [],
+      historischeDeskriptorenByAnon: new Map(),
+      anonymMap: buildAnonymMapForTests([]),
+      auslastungByAnon,
+    });
+    const m1 = res.find(r => r.anonId === 'MA01')!;
+    const m2 = res.find(r => r.anonId === 'MA02')!;
+    expect(m1.kontingentScore).toBe(0.5);
+    expect(m1.kontingentRest).toBe(0);
+    expect(m1.kontingentQuartal).toBe(1);
+    expect(m2.kontingentScore).toBe(1);
+    expect(m2.finalScore).toBeGreaterThan(m1.finalScore);
+  });
 });

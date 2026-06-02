@@ -437,6 +437,9 @@ export interface MatchResult {
   /** Verbleibendes Quartals-Kontingent (Antraege) fuer diesen Antragstyp, oder
    *  undefined = kein Limit gesetzt. */
   kontingentRest?: number;
+  /** Quartals-Kontingent (Antraege) fuer diesen Antragstyp, oder undefined =
+   *  kein Limit. Fuer die „v/N frei"-Anzeige im Vorschlag (v2.16). */
+  kontingentQuartal?: number;
 }
 
 // ───────────────────────────────────────────────────────────────────────────

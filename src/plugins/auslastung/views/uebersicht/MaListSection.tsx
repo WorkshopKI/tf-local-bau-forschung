@@ -30,6 +30,7 @@ import { EMPTY_AUSLASTUNG } from '../../services/quartals-auslastung';
 import { useAuslastungIndex } from '../../hooks/useAuslastungIndex';
 import { useAuslastungReady } from '../../hooks/useAuslastungReady';
 import { computeKapazitaet, type KapazitaetsView } from '../../services/kapazitaet';
+import { computeKapazitaetProTyp, type KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
 import type { AnonymerMitarbeiter } from '../../types';
 import { MaInlineDetail } from '../MaInlineDetail';
 import { ChevronRight } from 'lucide-react';
@@ -198,6 +199,15 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
     }
     return map;
   }, [mitarbeiter, auslastungByAnon, config]);
+
+  // v2.16: per-Antragstyp-Kapazität (primäres Modell) — 1x pro Render-Cycle.
+  const kapTypByAnon = useMemo(() => {
+    const map = new Map<string, KapazitaetProTypView>();
+    for (const ma of Object.values(mitarbeiter)) {
+      map.set(ma.anonId, computeKapazitaetProTyp(ma, auslastungByAnon.get(ma.anonId)));
+    }
+    return map;
+  }, [mitarbeiter, auslastungByAnon]);
 
   // "Hat aktuelle Anträge im Quartal" — Filter-Helfer.
   const hasAntraege = useCallback((anonId: string): boolean => {
@@ -446,6 +456,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           auslastungByAnon={auslastungByAnon}
           altlastByAnon={altlastByAnon}
           kapByAnon={kapByAnon}
+          kapTypByAnon={kapTypByAnon}
           kategorien={kategorien}
           quartal={config.aktuellesQuartal}
           stundenProTV={stundenProTV}
@@ -473,6 +484,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           list={list}
           altlastByAnon={altlastByAnon}
           kapByAnon={kapByAnon}
+          kapTypByAnon={kapTypByAnon}
           kategorien={kategorien}
           stundenProTV={stundenProTV}
           resolveName={resolveName}

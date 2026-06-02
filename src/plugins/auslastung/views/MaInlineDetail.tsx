@@ -21,8 +21,10 @@ import { KategoriePill } from '../components/KategoriePill';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket, type UeberKategorie } from '../types';
 import { hasPlOverride } from '../services/antragstyp-praeferenz';
 import type { AuslastungVerbund, MaQuartalsAuslastung } from '../services/quartals-auslastung';
+import { computeKapazitaetProTyp } from '../services/kapazitaet-pro-typ';
 import type { MaAltlastBucket } from '../services/altlast';
 import { AltlastInlineList } from './AltlastInlineList';
+import { TypKapazitaetBars } from './uebersicht/TypKapazitaetBars';
 import { ZugangPasswortSection } from '../components/ZugangPasswortSection';
 
 type Tab = 'detail' | 'edit';
@@ -54,7 +56,7 @@ export function MaInlineDetail({ ma, auslastung, quartal, altlast, removable, on
       </div>
 
       {tab === 'detail' && (
-        <DetailTab auslastung={auslastung} quartal={quartal} altlast={altlast} />
+        <DetailTab ma={ma} auslastung={auslastung} quartal={quartal} altlast={altlast} />
       )}
       {tab === 'edit' && (
         <EditTab
@@ -90,13 +92,26 @@ function TabButton({ active, onClick, children }: {
 
 // ─── Detail-Tab ───────────────────────────────────────────────────────────
 
-function DetailTab({ auslastung, quartal, altlast }: {
+function DetailTab({ ma, auslastung, quartal, altlast }: {
+  ma: AnonymerMitarbeiter;
   auslastung: MaQuartalsAuslastung;
   quartal: string;
   altlast?: MaAltlastBucket;
 }): React.ReactElement {
+  // v2.16: per-Antragstyp-Auslastung als primäres Kapazitätsmodell (oben).
+  const kapTyp = computeKapazitaetProTyp(ma, auslastung);
+  const showTyp = kapTyp.hatKontingent || kapTyp.verbrauchGesamt > 0;
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div className="flex flex-col gap-3">
+      {showTyp && (
+        <div className="rounded-[8px] p-3" style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}>
+          <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
+            Auslastung pro Antragstyp — {quartal}
+          </div>
+          <TypKapazitaetBars view={kapTyp} variant="detail" />
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       <VerbundSection
         label={`Aktuelle Buchung — ${quartal}`}
         verbuende={auslastung.fest.verbuende}
@@ -110,6 +125,7 @@ function DetailTab({ auslastung, quartal, altlast }: {
         hint="Werden in die Kapazität gerechnet, bis der PL das Kürzel in die CSV einträgt."
         footer={<AltlastInlineList altlast={altlast} />}
       />
+      </div>
     </div>
   );
 }
@@ -212,6 +228,21 @@ function EditTab({ ma, removable, onSaved }: {
   const [antragstypen, setAntragstypen] = useState<Set<AntragstypBucket>>(
     () => new Set(ma.antragstypBevorzugt ?? []),
   );
+  // v2.16: Kontingent pro Antragstyp (Anträge/Jahr) — primäres Kapazitätsmodell,
+  // dasselbe Feld wie in der Kompetenz-Matrix (kein Konflikt: beide spreaden ma).
+  const [kontingent, setKontingent] = useState<Partial<Record<AntragstypBucket, number>>>(
+    () => ({ ...(ma.jahresKapazitaetProTyp ?? {}) }),
+  );
+
+  function setKont(b: AntragstypBucket, raw: string): void {
+    setKontingent(prev => {
+      const next = { ...prev };
+      const v = Number(raw.replace(',', '.'));
+      if (!raw.trim() || !Number.isFinite(v) || v <= 0) delete next[b];
+      else next[b] = v;
+      return next;
+    });
+  }
 
   function toggleTyp(b: AntragstypBucket): void {
     setAntragstypen(prev => {
@@ -252,6 +283,7 @@ function EditTab({ ma, removable, onSaved }: {
       abgemeldet: abgRaw.split(',').map(s => s.trim()).filter(Boolean),
       aktiv,
       antragstypBevorzugt: [...antragstypen],
+      jahresKapazitaetProTyp: Object.keys(kontingent).length > 0 ? kontingent : undefined,
     });
     onSaved();
   });
@@ -387,6 +419,31 @@ function EditTab({ ma, removable, onSaved }: {
               — es hat im Matching Vorrang vor dieser Vorbelegung.
             </p>
           )}
+        </FormRow>
+      </div>
+
+      {/* v2.16: Kontingent pro Antragstyp (Anträge/Jahr) — primäres Kapazitätsmodell. */}
+      <div className="md:col-span-2">
+        <FormRow
+          label="Kontingent pro Antragstyp (Anträge/Jahr)"
+          subtitle="Primäres Kapazitätsmodell: weiche Pro-Typ-Deckelung im Matching (verbraucht/Kontingent). Leer = unbegrenzt. Dieselben Werte wie in der Kompetenz-Matrix."
+        >
+          <div className="flex flex-wrap gap-3">
+            {ALL_ANTRAGSTYP_BUCKETS.map(b => (
+              <label key={b} className="flex items-center gap-1.5 text-[11.5px]">
+                <span className="font-mono text-[var(--tf-text-tertiary)]" style={{ width: 26 }}>{b}</span>
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={kontingent[b] ?? ''}
+                  onChange={e => setKont(b, e.target.value)}
+                  className="text-[12.5px] px-2 py-1 rounded outline-none font-mono"
+                  style={{ width: 72, border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
+                />
+              </label>
+            ))}
+          </div>
         </FormRow>
       </div>
 

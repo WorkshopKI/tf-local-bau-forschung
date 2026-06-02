@@ -765,6 +765,7 @@ function DetailPanel({
             <VorschlagCard
               key={m.anonId}
               match={m}
+              antragstyp={getKategorieLabel((antrag as Record<string, unknown>).vb_phase)}
               onZuweisen={() => onZuweisen(m)}
               onAblehnen={() => onAblehnen(m)}
               tageImQuartal={tageImQuartal}

@@ -19,6 +19,7 @@ import { useMemo } from 'react';
 import type { AnonymerMitarbeiter, UeberKategorie } from '../../types';
 import type { MaAltlastBucket } from '../../services/altlast';
 import type { KapazitaetsView } from '../../services/kapazitaet';
+import type { KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
 import { MaTile } from './MaTile';
 import type { SortState } from './MaTable';
 
@@ -26,6 +27,7 @@ interface Props {
   list: AnonymerMitarbeiter[];
   altlastByAnon: Map<string, MaAltlastBucket>;
   kapByAnon: Map<string, KapazitaetsView>;
+  kapTypByAnon: Map<string, KapazitaetProTypView>;
   kategorien: UeberKategorie[];
   stundenProTV: number;
   resolveName: (anonId: string) => string | null;
@@ -50,7 +52,7 @@ function sortLabel(sort: SortState): string {
 }
 
 export function MaTileGrid({
-  list, altlastByAnon, kapByAnon, kategorien, stundenProTV, resolveName,
+  list, altlastByAnon, kapByAnon, kapTypByAnon, kategorien, stundenProTV, resolveName,
   expandedMa, onToggleExpand, sort, renderInlineDetail,
 }: Props): React.ReactElement {
   // Gruppierung: active / empty / inactive.
@@ -120,6 +122,7 @@ export function MaTileGrid({
               key={ma.anonId}
               ma={ma}
               kapView={kv}
+              kapTyp={kapTypByAnon.get(ma.anonId)}
               altlast={altlastByAnon.get(ma.anonId)}
               kategorien={kategorien}
               stundenProTV={stundenProTV}

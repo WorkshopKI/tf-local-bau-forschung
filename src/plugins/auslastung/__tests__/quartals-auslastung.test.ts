@@ -241,6 +241,48 @@ describe('computeQuartalsAuslastung', () => {
   });
 });
 
+describe('computeQuartalsAuslastung — antraegeProTyp (v2.16)', () => {
+  it('fest: zählt pro Antragstyp via vb_phase (3 → FuE)', () => {
+    const antraege = [makeAntrag({ aktenzeichen: 'A1', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', vb_phase: 3 })];
+    const m = computeQuartalsAuslastung(antraege, [], new Map([['MUE', 'MA01']]), '2026-Q2', STD);
+    expect(m.get('MA01')!.fest.antraegeProTyp).toEqual({ FuE: 1 });
+  });
+
+  it('fest: 4-TV-Verbund zählt 1 pro Verbund-Anteil (nicht pro TV)', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'V1-TV1', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', verbund_id: 'V1', vb_phase: 5 }),
+      makeAntrag({ aktenzeichen: 'V1-TV2', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', verbund_id: 'V1', vb_phase: 5 }),
+      makeAntrag({ aktenzeichen: 'V1-TV3', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', verbund_id: 'V1', vb_phase: 5 }),
+      makeAntrag({ aktenzeichen: 'V1-TV4', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', verbund_id: 'V1', vb_phase: 5 }),
+    ];
+    const m = computeQuartalsAuslastung(antraege, [], new Map([['MUE', 'MA01']]), '2026-Q2', STD);
+    expect(m.get('MA01')!.fest.antraegeProTyp).toEqual({ DS: 1 });
+  });
+
+  it('fest FuE + pending DS am selben MA → getrennt je Bucket', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'A1', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', vb_phase: 3 }),
+      makeAntrag({ aktenzeichen: 'A2', antragsdatum: '2026-04-15', vb_phase: 5 }),
+    ];
+    const z = [makeZuweisung({ antragId: 'A2', anonId: 'MA01', status: 'selbst' })];
+    const m = computeQuartalsAuslastung(antraege, z, new Map([['MUE', 'MA01']]), '2026-Q2', STD);
+    const a = m.get('MA01')!;
+    expect(a.fest.antraegeProTyp).toEqual({ FuE: 1 });
+    expect(a.pending.antraegeProTyp).toEqual({ DS: 1 });
+  });
+
+  it('Irrläufer (vb_phase 9) → kein Bucket', () => {
+    const antraege = [makeAntrag({ aktenzeichen: 'A1', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', vb_phase: 9 })];
+    const m = computeQuartalsAuslastung(antraege, [], new Map([['MUE', 'MA01']]), '2026-Q2', STD);
+    expect(m.get('MA01')!.fest.antraegeProTyp).toEqual({});
+  });
+
+  it('EMPTY_AUSLASTUNG hat leere antraegeProTyp', () => {
+    expect(EMPTY_AUSLASTUNG.fest.antraegeProTyp).toEqual({});
+    expect(EMPTY_AUSLASTUNG.pending.antraegeProTyp).toEqual({});
+  });
+});
+
 describe('getTVCount', () => {
   it('Einzelantrag (kein verbund_id) → 1', () => {
     expect(getTVCount([], undefined, 'A1')).toBe(1);

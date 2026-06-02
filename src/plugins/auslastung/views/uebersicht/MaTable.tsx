@@ -13,6 +13,7 @@ import type { MaQuartalsAuslastung } from '../../services/quartals-auslastung';
 import { EMPTY_AUSLASTUNG } from '../../services/quartals-auslastung';
 import type { MaAltlastBucket } from '../../services/altlast';
 import type { KapazitaetsView } from '../../services/kapazitaet';
+import type { KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
 import { MaCompactRow } from './MaCompactRow';
 
 export type SortColumn = 'ma' | 'kategorie' | 'auslastung' | 'belegt' | 'frei' | 'fest' | 'altlast' | 'status';
@@ -27,6 +28,7 @@ interface Props {
   auslastungByAnon: Map<string, MaQuartalsAuslastung>;
   altlastByAnon: Map<string, MaAltlastBucket>;
   kapByAnon: Map<string, KapazitaetsView>;
+  kapTypByAnon: Map<string, KapazitaetProTypView>;
   kategorien: UeberKategorie[];
   quartal: string;
   stundenProTV: number;
@@ -58,7 +60,7 @@ const COLUMNS: ColumnSpec[] = [
 ];
 
 export function MaTable({
-  list, auslastungByAnon, altlastByAnon, kapByAnon, kategorien, quartal, stundenProTV,
+  list, auslastungByAnon, altlastByAnon, kapByAnon, kapTypByAnon, kategorien, quartal, stundenProTV,
   resolveName, expandedMa, onToggleExpand, sort, onSort, renderInlineDetail,
 }: Props): React.ReactElement {
   return (
@@ -114,6 +116,7 @@ export function MaTable({
                 ma={ma}
                 auslastung={auslastung}
                 kapView={kapView}
+                kapTyp={kapTypByAnon.get(ma.anonId)}
                 altlast={altlastByAnon.get(ma.anonId)}
                 kategorien={kategorien}
                 realName={resolveName(ma.anonId)}

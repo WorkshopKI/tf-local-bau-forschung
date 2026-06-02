@@ -17,12 +17,16 @@ import type { AnonymerMitarbeiter, UeberKategorie } from '../../types';
 import type { MaQuartalsAuslastung } from '../../services/quartals-auslastung';
 import type { MaAltlastBucket } from '../../services/altlast';
 import type { KapazitaetsView } from '../../services/kapazitaet';
+import type { KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
 import { dotColor } from './kategorie-colors';
+import { TypKapazitaetBars } from './TypKapazitaetBars';
 
 interface Props {
   ma: AnonymerMitarbeiter;
   auslastung: MaQuartalsAuslastung;
   kapView: KapazitaetsView;
+  /** v2.16: per-Antragstyp-Auslastung (primäres Modell, wenn Kontingent gepflegt). */
+  kapTyp?: KapazitaetProTypView;
   altlast?: MaAltlastBucket;
   kategorien: UeberKategorie[];
   realName: string | null;
@@ -33,7 +37,7 @@ interface Props {
 }
 
 function MaCompactRowImpl({
-  ma, kapView, altlast, kategorien, realName, quartal, stundenProTV, expanded, onToggleExpand,
+  ma, kapView, kapTyp, altlast, kategorien, realName, quartal, stundenProTV, expanded, onToggleExpand,
 }: Props): React.ReactElement {
   const hauptId = ma.hauptKategorie;
   const hauptKat = kategorien.find(k => k.id === hauptId);
@@ -105,27 +109,31 @@ function MaCompactRowImpl({
         )}
       </td>
 
-      {/* Auslastung Mini-Bar */}
+      {/* Auslastung — primär per Antragstyp (v2.16), Fallback: Stunden-Mini-Bar */}
       <td className="align-middle" style={{ padding: '6px 8px', minWidth: 200 }}>
-        <div className="relative" style={{ height: 4, background: 'var(--tf-bg-secondary)', borderRadius: 'var(--tf-radius-pill)' }}>
-          {belegtPct > 0 && (
-            <div
-              className="absolute top-0 bottom-0 left-0"
-              style={{ width: `${Math.min(100, belegtPct)}%`, background: 'var(--tf-primary)', borderRadius: 'var(--tf-radius-pill)' }}
-            />
-          )}
-          {altlastFillPct > 0 && (
-            <div
-              className="absolute top-0 bottom-0"
-              style={{
-                left: `${Math.min(100, belegtPct)}%`,
-                width: `${altlastFillPct}%`,
-                background: 'hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.4), 70%)',
-                borderRadius: 'var(--tf-radius-pill)',
-              }}
-            />
-          )}
-        </div>
+        {kapTyp?.hatKontingent ? (
+          <TypKapazitaetBars view={kapTyp} variant="row" />
+        ) : (
+          <div className="relative" style={{ height: 4, background: 'var(--tf-bg-secondary)', borderRadius: 'var(--tf-radius-pill)' }}>
+            {belegtPct > 0 && (
+              <div
+                className="absolute top-0 bottom-0 left-0"
+                style={{ width: `${Math.min(100, belegtPct)}%`, background: 'var(--tf-primary)', borderRadius: 'var(--tf-radius-pill)' }}
+              />
+            )}
+            {altlastFillPct > 0 && (
+              <div
+                className="absolute top-0 bottom-0"
+                style={{
+                  left: `${Math.min(100, belegtPct)}%`,
+                  width: `${altlastFillPct}%`,
+                  background: 'hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.4), 70%)',
+                  borderRadius: 'var(--tf-radius-pill)',
+                }}
+              />
+            )}
+          </div>
+        )}
       </td>
 
       {/* Belegt % */}
