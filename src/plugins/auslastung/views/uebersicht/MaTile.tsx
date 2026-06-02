@@ -8,11 +8,10 @@
  *  - **Kategorie-Punkt** (optional) top-left bei 6/6 px, 6×6.
  *  - **Per-Antragstyp-Bars** rechts (`TypKapazitaetBars` variant `tile`, nur wenn
  *     ein Kontingent gepflegt ist) — 4 schmale vertikale Bars je Typ.
- *  - **Footer** unten links: Gesamt-Auslastungs-% (15 px / weight 600), gefolgt
- *     von `· +X` (offene Altanträge der 2 Vorquartale) in gedämpfter Farbe —
- *     für ALLE States, sofern Altanträge > 0. Empty-State: `— · +X`.
- *  - **Gesamt-Balken** am unteren Rand (`GesamtauslastungBar`, horizontal):
- *     belegt (Primary) + offene Altanträge der 2 Vorquartale (desaturated Primary).
+ *  - **Unten-links-Block**: Zeile `% · +X` (15 px / weight 600; `· +X` =
+ *     offene Altanträge der 2 Vorquartale, gedämpft, für ALLE States sofern > 0),
+ *     darunter zwei Balken (`GesamtauslastungBar`): „Auslastung Quartal" +
+ *     „Altanträge", je mit Tooltip. `right`-Abstand hält die per-Typ-Bars frei.
  *
  * Drei States (auf dem Container):
  *  - `normal`   : MA hat Festbuchung oder Pending.
@@ -38,13 +37,14 @@ interface Props {
   kapTyp?: KapazitaetProTypView;
   altlast?: MaAltlastBucket;
   kategorien: UeberKategorie[];
+  quartal: string;
   stundenProTV: number;
   /** Echtes Kürzel bei aktiver De-Anon-Session, sonst null. */
   realName: string | null;
   onClick: (anonId: string) => void;
 }
 
-function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, stundenProTV, realName, onClick }: Props): React.ReactElement {
+function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, quartal, stundenProTV, realName, onClick }: Props): React.ReactElement {
   const altlastTvs = altlast?.tvs ?? 0;
   const hasFest = kapView.verbrauchteStunden > 0;
   const hasAltlast = altlastTvs > 0;
@@ -60,7 +60,7 @@ function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, stundenProTV, re
   const altlastPct = kapView.effektivStunden > 0
     ? Math.min(100, Math.round((altlastTvs * stundenProTV / kapView.effektivStunden) * 100))
     : 0;
-  const altlastFillPct = Math.min(100 - belegtPct, altlastPct);
+  const hatTypBars = !!kapTyp?.hatKontingent;
 
   const hauptKat = kategorien.find(k => k.id === ma.hauptKategorie);
 
@@ -124,36 +124,31 @@ function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, stundenProTV, re
       </div>
 
       {/* Rechts: v2.16 per-Antragstyp-Bars (nur bei gepflegtem Kontingent) */}
-      {kapTyp?.hatKontingent && <TypKapazitaetBars view={kapTyp} variant="tile" />}
+      {hatTypBars && <TypKapazitaetBars view={kapTyp!} variant="tile" />}
 
-      {/* Footer unten links: Gesamt-% + offene Altanträge (· +X) für alle States */}
-      <div
-        style={{
-          position: 'absolute',
-          left: 10,
-          bottom: 8,
-          fontSize: 15,
-          fontWeight: 600,
-          color: footerColor,
-          lineHeight: 1,
-        }}
-      >
-        {state === 'inactive' && <span>inakt.</span>}
-        {state === 'empty' && <span>—</span>}
-        {state === 'normal' && <span>{belegtPct} %</span>}
-        {altlastTvs > 0 && (
-          <span
-            style={{ fontSize: 12, fontWeight: 500, color: 'var(--tf-text-tertiary)' }}
-            title={`${altlastTvs} offene Altanträge (TVs) aus den letzten 2 Quartalen`}
-          >
-            {' · +'}{altlastTvs}
+      {/* Unten links: % · +X + zwei Balken (Auslastung Quartal / Altanträge).
+          right hält Abstand zu den per-Typ-Vertikal-Bars, falls vorhanden. */}
+      <div style={{ position: 'absolute', left: 10, right: hatTypBars ? 44 : 10, bottom: 8 }}>
+        <div className="flex items-baseline gap-1" style={{ color: footerColor, lineHeight: 1 }}>
+          <span style={{ fontSize: 15, fontWeight: 600 }}>
+            {state === 'inactive' ? 'inakt.' : state === 'empty' ? '—' : `${belegtPct} %`}
           </span>
-        )}
-      </div>
-
-      {/* Gesamtauslastungs-Balken am unteren Kartenrand (belegt + Altlast) */}
-      <div aria-hidden style={{ position: 'absolute', left: 10, right: 10, bottom: 2 }}>
-        <GesamtauslastungBar belegtPct={belegtPct} altlastFillPct={altlastFillPct} height={4} />
+          {altlastTvs > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--tf-text-tertiary)' }}>
+              · +{altlastTvs}
+            </span>
+          )}
+        </div>
+        <div style={{ marginTop: 5 }}>
+          <GesamtauslastungBar
+            belegtPct={belegtPct}
+            altlastPct={altlastPct}
+            freiTVs={kapView.restTVs}
+            altlastTvs={altlastTvs}
+            quartal={quartal}
+            height={4}
+          />
+        </div>
       </div>
     </button>
   );

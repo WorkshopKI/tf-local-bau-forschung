@@ -244,13 +244,9 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
       });
     }
     // Sort
-    // Kategorie-Reihenfolge = Config-Order (wie in der Filter-Leiste); MAs ohne
-    // Hauptkategorie ans Ende. Status-Rang spiegelt die Status-Logik aus
-    // MaCompactRow: Aktiv < Ohne Buchung < Inaktiv < Abgemeldet.
+    // Status-Rang spiegelt die Status-Logik aus MaCompactRow:
+    // Aktiv < Ohne Buchung < Inaktiv < Abgemeldet.
     const quartal = config.aktuellesQuartal;
-    const katOrder = new Map(kategorien.map((k, i) => [k.id, i]));
-    const kategorieRank = (id: string): number =>
-      id && katOrder.has(id) ? katOrder.get(id)! : Number.MAX_SAFE_INTEGER;
     const statusRank = (ma: AnonymerMitarbeiter, kv: KapazitaetsView): number => {
       if (ma.abgemeldet.includes(quartal)) return 3;
       if (!ma.aktiv) return 2;
@@ -266,10 +262,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         case 'ma':
           cmp = a.anonId.localeCompare(b.anonId);
           break;
-        case 'kategorie':
-          cmp = kategorieRank(a.hauptKategorie) - kategorieRank(b.hauptKategorie);
-          break;
-        // "Auslastung" (Mini-Bar) visualisiert den Belegt-Anteil → gleiche Metrik.
+        // "Auslastung" (Balken) visualisiert den Belegt-Anteil → gleiche Metrik.
         case 'auslastung':
         case 'belegt': {
           const pa = kva.effektivStunden > 0 ? kva.verbrauchteStunden / kva.effektivStunden : 0;
@@ -294,7 +287,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [mitarbeiter, showInactive, kategorieFilter, warningFilter, kapByAnon, altlastByAnon, hasAntraege, sortCol, sortDir, kategorien, config.aktuellesQuartal]);
+  }, [mitarbeiter, showInactive, kategorieFilter, warningFilter, kapByAnon, altlastByAnon, hasAntraege, sortCol, sortDir, config.aktuellesQuartal]);
 
   const handleToggleExpand = useCallback((anonId: string): void => {
     setExpandedMa(prev => (prev === anonId ? null : anonId));
@@ -307,8 +300,8 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         return prev;
       }
       // Defaults pro Spalte: numerische Spalten beim Wechsel desc ("die
-      // größten zuerst"), Text-/Ordinal-Spalten (MA, Kategorie, Status) asc.
-      const ascDefault = col === 'ma' || col === 'kategorie' || col === 'status';
+      // größten zuerst"), Text-/Ordinal-Spalten (MA, Status) asc.
+      const ascDefault = col === 'ma' || col === 'status';
       setSortDir(ascDefault ? 'asc' : 'desc');
       return col;
     });
@@ -458,7 +451,6 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           altlastByAnon={altlastByAnon}
           kapByAnon={kapByAnon}
           kapTypByAnon={kapTypByAnon}
-          kategorien={kategorien}
           quartal={config.aktuellesQuartal}
           stundenProTV={stundenProTV}
           resolveName={resolveName}
@@ -487,6 +479,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           kapByAnon={kapByAnon}
           kapTypByAnon={kapTypByAnon}
           kategorien={kategorien}
+          quartal={config.aktuellesQuartal}
           stundenProTV={stundenProTV}
           resolveName={resolveName}
           expandedMa={expandedMa}

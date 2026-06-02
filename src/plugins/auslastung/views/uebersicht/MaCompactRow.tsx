@@ -1,8 +1,8 @@
 /**
  * MaCompactRow — kompakte einzeilige MA-Zeile in der Übersichts-Tabelle.
  *
- * Layout-Spalten (s. Handoff-Design):
- *  MA · Kategorie · Auslastung (Mini-Bar) · Belegt% · Frei(TVs) · Fest · Altlast · Verlauf · Status · ⋯
+ * Layout-Spalten:
+ *  MA · Auslastung (2 Balken + per-Typ) · Belegt% · Frei(TVs) · Aktuell · Altanträge · Status · ⋯
  *
  * Click auf die Zeile (außer Buttons/Inputs) toggelt den Inline-Expand —
  * der Caller rendert dann eine zweite Zeile mit `MaInlineDetail`.
@@ -13,12 +13,11 @@
  */
 import { memo } from 'react';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
-import type { AnonymerMitarbeiter, UeberKategorie } from '../../types';
+import type { AnonymerMitarbeiter } from '../../types';
 import type { MaQuartalsAuslastung } from '../../services/quartals-auslastung';
 import type { MaAltlastBucket } from '../../services/altlast';
 import type { KapazitaetsView } from '../../services/kapazitaet';
 import type { KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
-import { dotColor } from './kategorie-colors';
 import { TypKapazitaetBars } from './TypKapazitaetBars';
 import { GesamtauslastungBar } from './GesamtauslastungBar';
 
@@ -29,7 +28,6 @@ interface Props {
   /** v2.16: per-Antragstyp-Auslastung (primäres Modell, wenn Kontingent gepflegt). */
   kapTyp?: KapazitaetProTypView;
   altlast?: MaAltlastBucket;
-  kategorien: UeberKategorie[];
   realName: string | null;
   quartal: string;
   stundenProTV: number;
@@ -38,11 +36,8 @@ interface Props {
 }
 
 function MaCompactRowImpl({
-  ma, kapView, kapTyp, altlast, kategorien, realName, quartal, stundenProTV, expanded, onToggleExpand,
+  ma, kapView, kapTyp, altlast, realName, quartal, stundenProTV, expanded, onToggleExpand,
 }: Props): React.ReactElement {
-  const hauptId = ma.hauptKategorie;
-  const hauptKat = kategorien.find(k => k.id === hauptId);
-
   const abgemeldet = ma.abgemeldet.includes(quartal);
   const ohneBuchung = kapView.verbrauchteStunden === 0 && (altlast?.tvs ?? 0) === 0;
   const altlastTvs = altlast?.tvs ?? 0;
@@ -53,7 +48,6 @@ function MaCompactRowImpl({
   const altlastPct = kapView.effektivStunden > 0
     ? Math.min(100, Math.round((altlastTvs * stundenProTV / kapView.effektivStunden) * 100))
     : 0;
-  const altlastFillPct = Math.min(100 - belegtPct, altlastPct);
 
   const isMaxFrei = kapView.verbrauchteStunden === 0;
   const dimmed = ohneBuchung || abgemeldet;
@@ -86,34 +80,16 @@ function MaCompactRowImpl({
         </span>
       </td>
 
-      {/* Kategorie */}
-      <td className="align-middle" style={{ padding: '6px 8px', width: 90 }}>
-        {hauptKat ? (
-          <span
-            className="inline-flex items-center gap-1 font-mono"
-            style={{
-              fontSize: 10.5,
-              padding: '1px 5px',
-              borderRadius: 4,
-              background: 'var(--tf-bg-secondary)',
-              color: 'var(--tf-text-secondary)',
-            }}
-          >
-            <span
-              aria-hidden
-              style={{ width: 5, height: 5, borderRadius: '50%', background: dotColor(hauptKat.farbe), display: 'inline-block' }}
-            />
-            {hauptKat.id}
-          </span>
-        ) : (
-          <span className="italic text-[var(--tf-text-tertiary)]" style={{ fontSize: 11 }}>—</span>
-        )}
-      </td>
-
-      {/* Auslastung — Gesamt-Balken oben, per-Antragstyp-Werte darunter (v2.16) */}
+      {/* Auslastung — zwei Balken (Auslastung Q / Altanträge), per-Typ darunter */}
       <td className="align-middle" style={{ padding: '6px 8px', minWidth: 200 }}>
-        <div className="flex flex-col gap-1">
-          <GesamtauslastungBar belegtPct={belegtPct} altlastFillPct={altlastFillPct} />
+        <div className="flex flex-col gap-1.5">
+          <GesamtauslastungBar
+            belegtPct={belegtPct}
+            altlastPct={altlastPct}
+            freiTVs={kapView.restTVs}
+            altlastTvs={altlastTvs}
+            quartal={quartal}
+          />
           {kapTyp?.hatKontingent && <TypKapazitaetBars view={kapTyp} variant="row" />}
         </div>
       </td>

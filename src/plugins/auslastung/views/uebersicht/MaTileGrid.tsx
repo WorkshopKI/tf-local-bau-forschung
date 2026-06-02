@@ -29,6 +29,7 @@ interface Props {
   kapByAnon: Map<string, KapazitaetsView>;
   kapTypByAnon: Map<string, KapazitaetProTypView>;
   kategorien: UeberKategorie[];
+  quartal: string;
   stundenProTV: number;
   resolveName: (anonId: string) => string | null;
   expandedMa: string | null;
@@ -40,7 +41,6 @@ interface Props {
 function sortLabel(sort: SortState): string {
   const colLabel = {
     ma: 'MA',
-    kategorie: 'Kategorie',
     auslastung: 'Auslastung',
     belegt: 'Belegt',
     frei: 'Frei',
@@ -52,7 +52,7 @@ function sortLabel(sort: SortState): string {
 }
 
 export function MaTileGrid({
-  list, altlastByAnon, kapByAnon, kapTypByAnon, kategorien, stundenProTV, resolveName,
+  list, altlastByAnon, kapByAnon, kapTypByAnon, kategorien, quartal, stundenProTV, resolveName,
   expandedMa, onToggleExpand, sort, renderInlineDetail,
 }: Props): React.ReactElement {
   // Gruppierung: active / empty / inactive.
@@ -125,6 +125,7 @@ export function MaTileGrid({
               kapTyp={kapTypByAnon.get(ma.anonId)}
               altlast={altlastByAnon.get(ma.anonId)}
               kategorien={kategorien}
+              quartal={quartal}
               stundenProTV={stundenProTV}
               realName={resolveName(ma.anonId)}
               onClick={onToggleExpand}
