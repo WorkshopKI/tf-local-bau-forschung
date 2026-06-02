@@ -238,6 +238,9 @@ export function normalizeMitarbeiterRecord(
       kompetenzMatrix: normalizeKompetenzMatrix(m.kompetenzMatrix),
       jahresKapazitaetProTyp: normalizeKontingent(m.jahresKapazitaetProTyp),
       kompetenzQuelle: m.kompetenzQuelle === 'pl-upload' ? 'pl-upload' : undefined,
+      technologienQuelle: m.technologienQuelle === 'pl' || m.technologienQuelle === 'ma'
+        ? m.technologienQuelle
+        : undefined,
     };
   }
   return out;

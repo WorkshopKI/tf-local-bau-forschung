@@ -12,7 +12,9 @@ import {
   findTruthyZtField,
   normalizeDeskriptor,
   isZtTruthy,
+  aggregateAntragCountByAnon,
 } from '../services/profil-aggregator';
+import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 
 function makeAntrag(fields: Partial<Antrag> & Record<string, unknown> = {}): Antrag {
@@ -257,5 +259,21 @@ describe('readAntragDeskriptoren — End-to-End', () => {
     expect(out).not.toContain('maschinenbau');
     expect(out).not.toContain('pflanzenproduktion');
     expect(out).not.toContain('verkehr');
+  });
+});
+
+describe('aggregateAntragCountByAnon', () => {
+  it('zaehlt historische Antraege pro anonId; leeres/fehlendes Kuerzel ignoriert', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'A1', tib_kuerz: 'ABC' }),
+      makeAntrag({ aktenzeichen: 'A2', tib_kuerz: 'ABC' }),
+      makeAntrag({ aktenzeichen: 'A3', tib_kuerz: 'XYZ' }),
+      makeAntrag({ aktenzeichen: 'A4', tib_kuerz: '' }), // ohne Kuerzel → ignoriert
+    ];
+    const map = buildAnonymMapForTests(antraege);
+    const counts = aggregateAntragCountByAnon(antraege, map);
+    const nonzero = [...counts.values()].filter(n => n > 0).sort((a, b) => a - b);
+    expect(nonzero).toEqual([1, 2]);
+    expect([...counts.values()].reduce((s, n) => s + n, 0)).toBe(3);
   });
 });

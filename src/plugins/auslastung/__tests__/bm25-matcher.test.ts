@@ -47,6 +47,30 @@ describe('buildMaDocument', () => {
     expect(doc.tokens).toContain('ki');
     expect(doc.tokens).toContain('sensorik');
   });
+
+  it('PL-Technologien (quelle=pl) werden mit hoeherer Term-Frequenz eingewoben', () => {
+    const pl = makeMa('MA01', ['IT'], ['Robotik']);
+    pl.technologienQuelle = 'pl';
+    const doc = buildMaDocument(pl, [], 3);
+    // 1× via technologien + 2× Boost-Kopien = 3 Tokens.
+    expect(doc.tokens.filter(t => t === 'robotik').length).toBe(3);
+    // Anzeige-Liste bleibt 1×.
+    expect(doc.technologien.filter(t => t === 'robotik').length).toBe(1);
+  });
+
+  it('MA-eigene Technologien (quelle=ma) bleiben 1×, kein Boost', () => {
+    const ma = makeMa('MA01', ['IT'], ['Robotik']);
+    ma.technologienQuelle = 'ma';
+    const doc = buildMaDocument(ma, [], 3);
+    expect(doc.tokens.filter(t => t === 'robotik').length).toBe(1);
+  });
+
+  it('Default-Gewicht 1: auch quelle=pl ohne Boost (Backwards-Kompat)', () => {
+    const pl = makeMa('MA01', ['IT'], ['Robotik']);
+    pl.technologienQuelle = 'pl';
+    const doc = buildMaDocument(pl, []);
+    expect(doc.tokens.filter(t => t === 'robotik').length).toBe(1);
+  });
 });
 
 describe('runBm25Matching', () => {
@@ -134,5 +158,20 @@ describe('runBm25Matching', () => {
       historischeDeskriptorenByAnon: new Map(),
     });
     expect(res[0]?.matchendeTechnologien).toContain('ki');
+  });
+
+  it('PL-getaggter MA rankt vor MA-getaggtem MA bei gleichem Tech-Stack', () => {
+    const plMa = makeMa('MA01', ['IT'], ['Robotik']);
+    plMa.technologienQuelle = 'pl';
+    const maMa = makeMa('MA02', ['IT'], ['Robotik']);
+    maMa.technologienQuelle = 'ma';
+    const res = runBm25Matching({
+      queryText: 'Robotik Vorhaben',
+      eligibleAnonIds: new Set(['MA01', 'MA02']),
+      mitarbeiter: { MA01: plMa, MA02: maMa },
+      historischeDeskriptorenByAnon: new Map(),
+      plTechnologieGewicht: 3,
+    });
+    expect(res[0]?.anonId).toBe('MA01');
   });
 });

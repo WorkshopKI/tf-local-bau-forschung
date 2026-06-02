@@ -306,6 +306,33 @@ export function aggregateAstByAnon(
   return collector;
 }
 
+/**
+ * Aggregiert pro anonId die Gesamtzahl bearbeiteter historischer Antraege
+ * (Treffer auf `tib_kuerz`). Wird im Matcher genutzt, um MAs mit wenig Historie
+ * zu erkennen (dann wird die PL-Kompetenz-Matrix staerker gewichtet, weil das
+ * BM25-/Embedding-Signal duenn ist).
+ *
+ * Single-pass; alle bekannten anonIds bekommen einen Eintrag (0 wenn ohne
+ * Antraege).
+ */
+export function aggregateAntragCountByAnon(
+  antraege: Antrag[],
+  map: AnonymMap,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const anonId of map.toAnon.values()) {
+    out.set(anonId, 0);
+  }
+  for (const a of antraege) {
+    const tib = normalizeKuerzel((a as Record<string, unknown>)[CANONICAL_TIB_KUERZ]);
+    if (!tib) continue;
+    const anonId = map.toAnon.get(tib);
+    if (!anonId) continue;
+    out.set(anonId, (out.get(anonId) ?? 0) + 1);
+  }
+  return out;
+}
+
 /** Sammelt die Aktenzeichen aller Antraege EINES MAs (per anonId). */
 export function aktenzeichenForAnon(
   antraege: Antrag[],

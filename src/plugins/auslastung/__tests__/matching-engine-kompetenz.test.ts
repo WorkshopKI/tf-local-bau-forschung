@@ -61,6 +61,68 @@ describe('v2.15: Kompetenz-Level-Gewichtung', () => {
   });
 });
 
+describe('Wenig-Historie → Kompetenz-Matrix staerker gewichtet', () => {
+  const baseInput = (ma: AnonymerMitarbeiter) => ({
+    antrag: makeAntrag('A1', { verbund_titel: 'Robotik Vorhaben' } as Partial<Antrag>),
+    primaerKategorie: 'IT',
+    config: makeConfig(),
+    mitarbeiter: { [ma.anonId]: ma },
+    zuweisungen: [],
+    historischeDeskriptorenByAnon: new Map(),
+    anonymMap: buildAnonymMapForTests([]),
+  });
+
+  it('Anfaenger mit Matrix + wenig Historie wird staerker gedaempft als ohne Count-Map', () => {
+    const anfaenger = makeMa('MA01', 'IT', { kompetenzMatrix: { IT: { Robotik: 1 } } });
+    const ohneCount = runMatching(baseInput(anfaenger));
+    const sparse = runMatching({
+      ...baseInput(anfaenger),
+      historischeAntraegeCountByAnon: new Map([['MA01', 0]]),
+    });
+    // Sparse-Boost erhoeht wEff → Level-1-Primaerfaktor (0.33) daempft mehr.
+    expect(sparse[0]!.kompetenzScore).toBeLessThan(ohneCount[0]!.kompetenzScore);
+  });
+
+  it('MA ueber der Schwelle (genug Historie) bleibt beim Normalgewicht', () => {
+    const anfaenger = makeMa('MA01', 'IT', { kompetenzMatrix: { IT: { Robotik: 1 } } });
+    const ohneCount = runMatching(baseInput(anfaenger));
+    const reich = runMatching({
+      ...baseInput(anfaenger),
+      historischeAntraegeCountByAnon: new Map([['MA01', 10]]),
+    });
+    expect(reich[0]!.kompetenzScore).toBeCloseTo(ohneCount[0]!.kompetenzScore, 10);
+  });
+
+  it('MA ohne Matrix: Sparse-Boost wirkungslos (primaerFaktor 1.0)', () => {
+    const ohne = makeMa('MA01', 'IT', { manuelleTechnologien: ['Robotik'] });
+    const ohneCount = runMatching(baseInput(ohne));
+    const sparse = runMatching({
+      ...baseInput(ohne),
+      historischeAntraegeCountByAnon: new Map([['MA01', 0]]),
+    });
+    expect(sparse[0]!.kompetenzScore).toBeCloseTo(ohneCount[0]!.kompetenzScore, 10);
+  });
+
+  it('Experte vs Anfaenger: Score-Gap unter Sparse-Boost groesser als bei reicher Historie', () => {
+    const expert = makeMa('MA01', 'IT', { kompetenzMatrix: { IT: { Robotik: 3 } } });
+    const anfaenger = makeMa('MA02', 'IT', { kompetenzMatrix: { IT: { Robotik: 1 } } });
+    const base = {
+      antrag: makeAntrag('A1', { verbund_titel: 'Robotik Vorhaben' } as Partial<Antrag>),
+      primaerKategorie: 'IT',
+      config: makeConfig(),
+      mitarbeiter: { MA01: expert, MA02: anfaenger },
+      zuweisungen: [],
+      historischeDeskriptorenByAnon: new Map(),
+      anonymMap: buildAnonymMapForTests([]),
+    };
+    const reich = runMatching({ ...base, historischeAntraegeCountByAnon: new Map([['MA01', 10], ['MA02', 10]]) });
+    const sparse = runMatching({ ...base, historischeAntraegeCountByAnon: new Map([['MA01', 0], ['MA02', 0]]) });
+    const gap = (rs: ReturnType<typeof runMatching>) =>
+      rs.find(r => r.anonId === 'MA01')!.kompetenzScore - rs.find(r => r.anonId === 'MA02')!.kompetenzScore;
+    expect(gap(sparse)).toBeGreaterThan(gap(reich));
+  });
+});
+
 describe('v2.15: Antragstyp-Kontingent', () => {
   it('MA mit erschöpftem FuE-Kontingent rutscht ab', () => {
     // MA01 hat ein FuE-Kontingent von 36 Std./Jahr (= 9 h/Quartal = 1 TV bei

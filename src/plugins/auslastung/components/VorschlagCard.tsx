@@ -54,12 +54,12 @@ export function VorschlagCard({
 
   return (
     <div
-      className="rounded-[12px] p-4 flex flex-col gap-3"
+      className="rounded-[12px] p-3 flex flex-col gap-2.5"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
           <AnonymIdBadge anonId={match.anonId} size="lg" realName={realName} />
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
@@ -159,12 +159,12 @@ export function VorschlagCard({
       )}
 
       {/* Aktionen */}
-      <div className="flex gap-2 pt-1">
+      <div className="flex gap-2 pt-0.5">
         <button
           type="button"
           onClick={onZuweisen}
           disabled={disabled}
-          className="flex-1 px-3 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 px-3 py-1 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
         >
           Zuweisen
@@ -173,7 +173,7 @@ export function VorschlagCard({
           type="button"
           onClick={onAblehnen}
           disabled={disabled}
-          className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
+          className="px-3 py-1 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
           style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
         >
           Ablehnen

@@ -65,17 +65,39 @@ export interface Bm25Result {
  *  PL-Kompetenz-Matrix (`kompetenzTokens`: Level 3 ⇒ Token 3×). Diese fließen
  *  in die `tokens` (BM25-Termfrequenz, gewichtet Experten höher), aber NICHT in
  *  `technologien` (das treibt die „matchende Technologien"-Anzeige; dort sollen
- *  weiterhin nur echte Tags stehen). MAs ohne Matrix bleiben unverändert. */
+ *  weiterhin nur echte Tags stehen). MAs ohne Matrix bleiben unverändert.
+ *
+ *  PL-Technologien: hat die PL die manuellen Tags eingetragen
+ *  (`technologienQuelle === 'pl'`), werden sie mit `plTechnologieGewicht`-facher
+ *  Term-Frequenz eingewoben (jedes Tag insgesamt N× in `tokens`) — kuratiertes
+ *  Signal stärker gewichten, bis der MA es selbst pflegt. `technologien`
+ *  (Anzeige) bleibt 1×. Default-Gewicht 1 = kein Boost (Backwards-Kompat für
+ *  Direkt-Aufrufer/Tests; den Prod-Wert reicht `runBm25Matching` durch). */
 export function buildMaDocument(
   ma: AnonymerMitarbeiter,
   historischeDeskriptoren: string[],
+  plTechnologieGewicht = 1,
 ): MaDocument {
   const technologien = uniqueLower([
     ...historischeDeskriptoren,
     ...ma.manuelleTechnologien,
   ]);
+  // Zusätzliche Kopien der PL-gesetzten manuellen Tags (über das eine Vorkommen
+  // in `technologien` hinaus), um auf insgesamt N× Term-Frequenz zu kommen.
+  const plBoost = ma.technologienQuelle === 'pl'
+    ? Math.max(1, Math.floor(plTechnologieGewicht))
+    : 1;
+  const extraManuelleTokens: string[] = [];
+  if (plBoost > 1) {
+    for (const t of ma.manuelleTechnologien) {
+      if (typeof t !== 'string') continue;
+      const norm = t.trim().toLowerCase();
+      if (!norm) continue;
+      for (let i = 1; i < plBoost; i++) extraManuelleTokens.push(norm);
+    }
+  }
   const matrixTokens = kompetenzTokens(ma.kompetenzMatrix);
-  const tokens = tokenize([...technologien, ...matrixTokens].join(' '));
+  const tokens = tokenize([...technologien, ...extraManuelleTokens, ...matrixTokens].join(' '));
   return {
     anonId: ma.anonId,
     tokens,
@@ -136,6 +158,9 @@ export interface RunBm25Input {
   eligibleAnonIds: Set<string>;       // bereits gefiltert nach Ueberkategorie
   mitarbeiter: Record<string, AnonymerMitarbeiter>;
   historischeDeskriptorenByAnon: Map<string, string[]>;
+  /** Token-Multiplikator für PL-gesetzte manuelle Technologien
+   *  (`technologienQuelle === 'pl'`). Default 1 = kein Boost. */
+  plTechnologieGewicht?: number;
 }
 
 /**
@@ -146,12 +171,13 @@ export function runBm25Matching(input: RunBm25Input): Bm25Result[] {
   const queryTokens = tokenize(input.queryText);
   const queryTokenSet = new Set(queryTokens);
 
+  const plTechnologieGewicht = input.plTechnologieGewicht ?? 1;
   const docs: MaDocument[] = [];
   for (const anonId of input.eligibleAnonIds) {
     const ma = input.mitarbeiter[anonId];
     if (!ma) continue;
     const desk = input.historischeDeskriptorenByAnon.get(anonId) ?? [];
-    docs.push(buildMaDocument(ma, desk));
+    docs.push(buildMaDocument(ma, desk, plTechnologieGewicht));
   }
 
   if (docs.length === 0 || queryTokens.length === 0) return [];

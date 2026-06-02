@@ -309,19 +309,23 @@ export function ZuweisungsCockpit(): React.ReactElement {
           zuweisungen,
           historischeDeskriptorenByAnon: cache.historischeDeskriptorenByAnon,
           historischeAstByAnon: cache.historischeAstByAnon,
+          historischeAntraegeCountByAnon: cache.historischeAntraegeCountByAnon,
           anonymMap: cache.anonymMap,
           queryEmbedding,
           corpusEmbeddings,
           antraegeIndex,
           anzahlTV: tvCount,
           auslastungByAnon,
+          // 5 Vorschläge statt der Engine-Default-3 — die PL sieht mehr
+          // Kandidaten ohne zu scrollen (Cards zusätzlich kompakter).
+          topN: 5,
         });
         setMatches(result);
       } finally {
         setMatchingRunning(false);
       }
     })();
-  }, [selectedAz, selected, selectedView, config, mitarbeiter, zuweisungen, cache.antraege, cache.historischeDeskriptorenByAnon, cache.anonymMap, storage, auslastungByAnon]);
+  }, [selectedAz, selected, selectedView, config, mitarbeiter, zuweisungen, cache.antraege, cache.historischeDeskriptorenByAnon, cache.historischeAntraegeCountByAnon, cache.anonymMap, storage, auslastungByAnon]);
 
   async function zuweisen(match: MatchResult): Promise<void> {
     if (!selected) return;

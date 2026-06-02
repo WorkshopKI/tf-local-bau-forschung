@@ -37,6 +37,7 @@ import { type AnonymMap } from '../services/anonym-map';
 import { buildAnonymMapFromKuerzelMap, type KuerzelMapFile } from '../services/kuerzel-map';
 import { useKuerzelMap } from './useKuerzelMap';
 import {
+  aggregateAntragCountByAnon,
   aggregateAstByAnon,
   aggregateMaProfilesByAnon,
   collectAllDeskriptorenMitCount,
@@ -62,6 +63,9 @@ interface AntraegeCache {
   /** Pro anonId: AST-Name (lower+trim) → Anzahl bearbeiteter Antraege. Wird
    *  im MA-Match-AST-Boost ausgewertet. */
   historischeAstByAnon: Map<string, Map<string, number>>;
+  /** Pro anonId: Gesamtzahl bearbeiteter historischer Antraege. Wird im
+   *  Matcher genutzt, um „wenig Historie" zu erkennen (Kompetenz-Matrix-Boost). */
+  historischeAntraegeCountByAnon: Map<string, number>;
   allDeskriptoren: Array<{ wert: string; count: number }>;
   refresh: () => Promise<void>;
 }
@@ -72,6 +76,7 @@ const EMPTY_ANONYM_MAP: AnonymMap = { toAnon: new Map(), toReal: new Map() };
 const EMPTY_VERBUEND_BY_ID: ReadonlyMap<string, Verbund> = new Map();
 const EMPTY_DESKR_BY_ANON: ReadonlyMap<string, string[]> = new Map();
 const EMPTY_AST_BY_ANON: ReadonlyMap<string, Map<string, number>> = new Map();
+const EMPTY_COUNT_BY_ANON: ReadonlyMap<string, number> = new Map();
 const EMPTY_DESKR_LIST: ReadonlyArray<{ wert: string; count: number }> = [];
 
 interface CacheStoreState {
@@ -89,6 +94,7 @@ interface CacheStoreState {
   verbuendeById: Map<string, Verbund>;
   historischeDeskriptorenByAnon: Map<string, string[]>;
   historischeAstByAnon: Map<string, Map<string, number>>;
+  historischeAntraegeCountByAnon: Map<string, number>;
   allDeskriptoren: Array<{ wert: string; count: number }>;
   /** Key der zuletzt berechneten Aggregate. Null = noch nichts. */
   aggregatesKey: string | null;
@@ -118,6 +124,7 @@ function computeAggregates(antraege: Antrag[], verbuende: Verbund[], kuerzelMapF
   verbuendeById: Map<string, Verbund>;
   historischeDeskriptorenByAnon: Map<string, string[]>;
   historischeAstByAnon: Map<string, Map<string, number>>;
+  historischeAntraegeCountByAnon: Map<string, number>;
   allDeskriptoren: Array<{ wert: string; count: number }>;
 } {
   const anonymMap = buildAnonymMapFromKuerzelMap(kuerzelMapFile);
@@ -126,6 +133,7 @@ function computeAggregates(antraege: Antrag[], verbuende: Verbund[], kuerzelMapF
     verbuendeById: new Map(verbuende.map(v => [v.verbund_id, v])),
     historischeDeskriptorenByAnon: aggregateMaProfilesByAnon(antraege, anonymMap),
     historischeAstByAnon: aggregateAstByAnon(antraege, anonymMap),
+    historischeAntraegeCountByAnon: aggregateAntragCountByAnon(antraege, anonymMap),
     allDeskriptoren: collectAllDeskriptorenMitCount(antraege),
   };
 }
@@ -142,6 +150,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
   verbuendeById: EMPTY_VERBUEND_BY_ID as Map<string, Verbund>,
   historischeDeskriptorenByAnon: EMPTY_DESKR_BY_ANON as Map<string, string[]>,
   historischeAstByAnon: EMPTY_AST_BY_ANON as Map<string, Map<string, number>>,
+  historischeAntraegeCountByAnon: EMPTY_COUNT_BY_ANON as Map<string, number>,
   allDeskriptoren: EMPTY_DESKR_LIST as Array<{ wert: string; count: number }>,
   aggregatesKey: null,
   refresh: async (storage, programmId) => {
@@ -164,6 +173,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
         verbuendeById: EMPTY_VERBUEND_BY_ID as Map<string, Verbund>,
         historischeDeskriptorenByAnon: EMPTY_DESKR_BY_ANON as Map<string, string[]>,
         historischeAstByAnon: EMPTY_AST_BY_ANON as Map<string, Map<string, number>>,
+        historischeAntraegeCountByAnon: EMPTY_COUNT_BY_ANON as Map<string, number>,
         allDeskriptoren: EMPTY_DESKR_LIST as Array<{ wert: string; count: number }>,
         aggregatesKey: null,
       });
@@ -240,6 +250,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
       verbuendeById: EMPTY_VERBUEND_BY_ID as Map<string, Verbund>,
       historischeDeskriptorenByAnon: EMPTY_DESKR_BY_ANON as Map<string, string[]>,
       historischeAstByAnon: EMPTY_AST_BY_ANON as Map<string, Map<string, number>>,
+      historischeAntraegeCountByAnon: EMPTY_COUNT_BY_ANON as Map<string, number>,
       allDeskriptoren: EMPTY_DESKR_LIST as Array<{ wert: string; count: number }>,
       aggregatesKey: null,
     });
@@ -287,6 +298,7 @@ export function useAntraegeCache(): AntraegeCache {
   const verbuendeById = useCacheStore(s => s.verbuendeById);
   const historischeDeskriptorenByAnon = useCacheStore(s => s.historischeDeskriptorenByAnon);
   const historischeAstByAnon = useCacheStore(s => s.historischeAstByAnon);
+  const historischeAntraegeCountByAnon = useCacheStore(s => s.historischeAntraegeCountByAnon);
   const allDeskriptoren = useCacheStore(s => s.allDeskriptoren);
   const ensureAggregates = useCacheStore(s => s.ensureAggregates);
 
@@ -339,6 +351,7 @@ export function useAntraegeCache(): AntraegeCache {
     anonymMap,
     historischeDeskriptorenByAnon,
     historischeAstByAnon,
+    historischeAntraegeCountByAnon,
     allDeskriptoren,
     refresh,
   };

@@ -60,6 +60,11 @@ export interface MatchInput {
   /** Pro MA: AST-Name (normalisiert) → Count. Optional; wenn nicht gesetzt,
    *  laeuft das Matching ohne AST-Boost (Backwards-Kompat fuer Tests). */
   historischeAstByAnon?: Map<string, Map<string, number>>;
+  /** Pro MA: Gesamtzahl bearbeiteter historischer Antraege. Optional; treibt den
+   *  „wenig Historie → Kompetenz-Matrix staerker gewichten"-Boost. Fehlt die ganze
+   *  Map (Tests/Backwards-Kompat), greift der Boost NICHT (altes Verhalten). Ist
+   *  sie gesetzt, gilt ein fehlender MA-Eintrag als 0 Antraege. */
+  historischeAntraegeCountByAnon?: Map<string, number>;
   anonymMap: AnonymMap;
   /** Optional Stage-2: wenn null/leer, laeuft nur BM25. */
   queryEmbedding?: number[];
@@ -116,6 +121,7 @@ export function runMatching(input: MatchInput): MatchResult[] {
     eligibleAnonIds,
     mitarbeiter,
     historischeDeskriptorenByAnon,
+    plTechnologieGewicht: config.plTechnologieGewicht ?? 2,
   });
   const bm25ByAnon = new Map(bm25Results.map(r => [r.anonId, r]));
 
@@ -156,6 +162,11 @@ export function runMatching(input: MatchInput): MatchResult[] {
   // v2.15: Kompetenz-Level-Faktor + Antragstyp-Kontingent.
   const kompetenzLevelGewicht = config.kompetenzLevelGewicht ?? 0.3;
   const kontingentGewicht = config.kontingentGewicht ?? 0.3;
+  // Wenig-Historie-Boost: MAs unter der Schwelle mit Kompetenz-Matrix bekommen
+  // ein erhoehtes Level-Gewicht (PL-Bewertung dominiert statt duenner Historie).
+  const sparseSchwelle = config.kompetenzMatrixSparseSchwelle ?? 5;
+  const sparseGewicht = config.kompetenzMatrixSparseGewicht ?? 0.7;
+  const histCountByAnon = input.historischeAntraegeCountByAnon;
   const antragBucket = getKategorieLabel((antrag as Record<string, unknown>).vb_phase);
   // v2.16: Verbrauch je Typ aus fest+pending (auslastungByAnon) — derselbe
   // Index wie das per-Typ-Kapazitätsmodell. Fallback (Tests/kein Index): nur
@@ -202,8 +213,15 @@ export function runMatching(input: MatchInput): MatchResult[] {
     // v2.15: Kompetenz-Level-Faktor auf die Primaerkategorie. Experte (Level 3)
     // → Faktor 1.0, Grundkenntnis → gedaempft; ohne Matrix → 1.0 (unveraendert).
     const primaerFaktor = normLevelForUeber(ma.kompetenzMatrix, primaer);
+    // Wenig-Historie-Boost: MAs mit < Schwelle hist. Antraegen UND vorhandener
+    // Matrix bekommen ein erhoehtes Level-Gewicht — die PL-Kompetenzbewertung
+    // soll dominieren, weil BM25/Embedding bei duenner Historie unzuverlaessig
+    // sind. Ohne Count-Map (Tests) oder ohne Matrix bleibt es beim Normalgewicht.
+    const sparse = histCountByAnon != null
+      && (histCountByAnon.get(anonId) ?? 0) < sparseSchwelle;
+    const wEff = sparse && ma.kompetenzMatrix ? sparseGewicht : kompetenzLevelGewicht;
     const baseKompetenz = (alpha * bm25 + (1 - alpha) * emb + astBoost)
-      * ((1 - kompetenzLevelGewicht) + kompetenzLevelGewicht * primaerFaktor);
+      * ((1 - wEff) + wEff * primaerFaktor);
     const kompetenz = clamp01(baseKompetenz + aspektBonusValue);
     const balance = quartalsKap > 0 ? Math.max(0, rest) / quartalsKap : 0;
     const kapScore = kapazitaetsScore(rest, benoetigt, restTageImQuartal, quartalsEndeBonusTage);

@@ -134,6 +134,20 @@ export interface AuslastungConfig {
    *  finalScore mit `(1-w) + w * kontingentScore`. MAs mit erschöpftem Typ-
    *  Kontingent rutschen sanft ab (kein harter Filter). Default 0.3. */
   kontingentGewicht: number;
+  /** Schwelle für „wenig historische Anträge": MAs mit weniger als so vielen
+   *  bearbeiteten Anträgen bekommen — sofern eine Kompetenz-Matrix vorliegt —
+   *  ein erhöhtes Level-Gewicht (`kompetenzMatrixSparseGewicht`), weil ihr BM25-/
+   *  Embedding-Signal dünn ist. Default 5. */
+  kompetenzMatrixSparseSchwelle?: number;
+  /** Erhöhtes `kompetenzLevelGewicht` (0..1) für MAs unter der Sparse-Schwelle
+   *  mit Kompetenz-Matrix. Lässt die PL-Kompetenzbewertung dominieren statt der
+   *  dünnen Historie. Default 0.7. */
+  kompetenzMatrixSparseGewicht?: number;
+  /** Token-Multiplikator für PL-gesetzte manuelle Technologien
+   *  (`technologienQuelle === 'pl'`) im BM25-Profil-Doc: jedes Tag wird so oft
+   *  als Token eingewoben (höhere Term-Frequenz = stärkeres Match). Default 2.
+   *  MA-eigene Tags (`'ma'`) bleiben 1×. */
+  plTechnologieGewicht?: number;
   /** Spalten-Schema der Kompetenz-Matrix (Überkat. → Unterkat.-Labels), gesetzt
    *  beim PL-XLSX-Upload. Quelle der Wahrheit für die editierbare Matrix-Tabelle.
    *  Optional → fehlt vor dem ersten Upload. */
@@ -317,6 +331,11 @@ export interface AnonymerMitarbeiter {
   /** Provenienz der abgeleiteten Kategorien — 'pl-upload' wenn aus der
    *  Kompetenz-XLSX vorbelegt (nur UI-Kennzeichnung). */
   kompetenzQuelle?: 'pl-upload';
+  /** Herkunft von `manuelleTechnologien`: 'pl' = von der PL als Vorbelegung
+   *  eingetragen (im Matcher höher gewichtet, siehe `plTechnologieGewicht`),
+   *  'ma' = vom MA selbst gepflegt (normales Gewicht, kippt beim Profil-
+   *  Einsammeln). Undefined = neutral/Legacy (wie 'ma' behandelt). */
+  technologienQuelle?: 'pl' | 'ma';
 }
 
 export interface Zuweisung {
@@ -563,6 +582,10 @@ export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   // v2.15: PL-Kompetenz-Vorbelegung
   kompetenzLevelGewicht: 0.3,
   kontingentGewicht: 0.3,
+  // Wenig-Historie-Boost + PL-Technologie-Gewicht
+  kompetenzMatrixSparseSchwelle: 5,
+  kompetenzMatrixSparseGewicht: 0.7,
+  plTechnologieGewicht: 2,
   zugangEmailBetreff: DEFAULT_ZUGANG_EMAIL_BETREFF,
   zugangEmailVorlage: DEFAULT_ZUGANG_EMAIL_VORLAGE,
 };

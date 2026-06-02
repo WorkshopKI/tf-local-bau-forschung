@@ -283,6 +283,9 @@ function EditTab({ ma, removable, onSaved }: {
       hauptKategorie: hauptKat,
       nebenKategorien: neben,
       manuelleTechnologien: manualTags,
+      // PL-Eingabe markieren → im Matching höher gewichtet (bis der MA sein
+      // eigenes Profil einsammeln lässt, dann kippt die Quelle auf 'ma').
+      technologienQuelle: manualTags.length > 0 ? 'pl' : ma.technologienQuelle,
       ausgeblendeteAutoTags: excludedAutoTags,
       abgemeldet: abgRaw.split(',').map(s => s.trim()).filter(Boolean),
       aktiv,
@@ -373,7 +376,7 @@ function EditTab({ ma, removable, onSaved }: {
             })}
           </div>
         </FormRow>
-        <FormRow label="Manuelle Technologien" subtitle="Enter oder Komma fügt ein Stichwort hinzu">
+        <FormRow label="Manuelle Technologien" subtitle="Enter oder Komma fügt ein Stichwort hinzu · PL-Eingaben werden im Matching höher gewichtet, bis der MA sie selbst pflegt">
           <TechChipInput
             tags={manualTags}
             onChange={setManualTags}
