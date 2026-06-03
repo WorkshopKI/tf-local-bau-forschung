@@ -39,8 +39,10 @@ export function FeedbackBoardPage(): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const reload = useCallback(async (): Promise<void> => {
-    setLoading(true);
+  // silent: kein Loading-Spinner (für Hintergrund-Re-Reads bei Tab-Fokus —
+  // verhindert „Lade…"-Flackern bei jedem Tab-Wechsel).
+  const reload = useCallback(async (silent = false): Promise<void> => {
+    if (!silent) setLoading(true);
     try {
       const [items, cfg] = await Promise.all([
         getFeedbackList(storage),
@@ -49,17 +51,28 @@ export function FeedbackBoardPage(): React.ReactElement {
       setTickets(items);
       setConfig(cfg);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [storage]);
 
   useEffect(() => { void reload(); }, [reload]);
 
-  // Live-Refresh bei globalem feedback-updated Event
+  // Live-Refresh bei globalem feedback-updated Event (nur im eigenen Tab)
   useEffect(() => {
     const handler = (): void => { void reload(); };
     window.addEventListener('feedback-updated', handler);
     return () => window.removeEventListener('feedback-updated', handler);
+  }, [reload]);
+
+  // Offene Übersichten anderer User: beim Zurückwechseln auf den Tab die
+  // geteilte feedback.json neu einlesen → zwischenzeitlich von PL/Kurator
+  // hinzugefügtes Feedback erscheint ohne manuellen Reload.
+  useEffect(() => {
+    const onVisible = (): void => {
+      if (document.visibilityState === 'visible') void reload(true);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [reload]);
 
   const handleChanged = useCallback(() => {

@@ -17,6 +17,7 @@ import {
   updateFeedback,
 } from '@/core/services/feedback';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
+import { canWriteDatenShare } from '@/config/feature-flags';
 import type { FeedbackContext, FeedbackItem } from '@/core/types/feedback';
 import { LLM_CATEGORY_MAP, QUICK_TAGS, TEAMFLOW_AREAS, type QuickTag } from './constants';
 import { FaqSuggestions } from './FaqSuggestions';
@@ -84,9 +85,13 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
         screenRef: areaRef || undefined,
         screenRefLabel: areaInfo?.label,
       };
-      // v2.0 Dispatch: Kurator → Shared-File, Nicht-Kurator → pers. Outbox
+      // Dispatch: Clients mit Daten-Share-Schreibrecht (Kurator / PL via
+      // datenShareSchreibrecht / dev) schreiben direkt ins geteilte Feedback-File
+      // (sofort für alle sichtbar); read-only-Clients (prod-Enduser) in die
+      // pers. Outbox, die der Kurator einsammelt.
       const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
-      const persHandle = isKurator ? null : await getPersoenlichHandle(storage.idb).catch(() => null);
+      const canWriteShared = canWriteDatenShare(isKurator);
+      const persHandle = canWriteShared ? null : await getPersoenlichHandle(storage.idb).catch(() => null);
       const item = await submitFeedback(storage, {
         user_id: userId,
         user_display_name: profile?.name,
@@ -95,6 +100,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
         context: fullContext,
       }, {
         isKurator,
+        writeToShared: canWriteShared,
         persHandle,
         kuerzel: meinKuerzel,
       });

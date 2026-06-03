@@ -41,17 +41,26 @@ import { submitFeedback as submitToOutbox } from '@/core/services/personal-stora
 // ── Public CRUD API ─────────────────────────────────────────────────────────
 
 /**
- * Submission-Routing-Options (v2.0).
+ * Submission-Routing-Options.
  *
- * - `isKurator: true` → schreibt direkt nach `_intern/feedback/feedback.json`
- *   wie vor v2.0 (Kurator hat readwrite auf Daten-Share).
- * - `isKurator: false` + `persHandle` → schreibt in die Outbox auf dem
- *   persoenlichen Laufwerk; der Kurator sammelt im FeedbackInboxTab ein.
- * - `isKurator: false` ohne `persHandle` → nur localStorage; Aufrufer sollte
+ * Maßgeblich ist `writeToShared` (Call-Site berechnet es über
+ * `canWriteDatenShare(isKurator)` — Kurator ODER PL/dev via
+ * `datenShareSchreibrecht`):
+ * - `writeToShared: true` (Default wenn weggelassen) → schreibt direkt nach
+ *   `_intern/feedback/feedback.json` (Daten-Share readwrite). Sofort für alle
+ *   sichtbar.
+ * - `writeToShared: false` + `persHandle` → schreibt in die Outbox auf dem
+ *   persoenlichen Laufwerk; der Kurator sammelt im FeedbackInboxTab ein
+ *   (read-only-Clients, z.B. prod-Enduser).
+ * - `writeToShared: false` ohne `persHandle` → nur localStorage; Aufrufer sollte
  *   den Submit-Button vorher deaktivieren oder den User informieren.
+ *
+ * `isKurator` bleibt für Backward-Compat erhalten: fehlt `writeToShared`, wird
+ * darauf zurückgefallen (Legacy-Caller wie FeedbackInboxTab `{isKurator:true}`).
  */
 export interface SubmitFeedbackRouting {
   isKurator: boolean;
+  writeToShared?: boolean;
   persHandle?: FileSystemDirectoryHandle | null;
   kuerzel?: string;
 }
@@ -72,10 +81,13 @@ export async function submitFeedback(
   items.unshift(item);
   saveLocalItems(items);
 
-  // v2.0 Dispatch
-  if (routing && routing.isKurator === false) {
-    // User-Pfad: Outbox auf pers. Laufwerk, KEIN Shared-File-Write
-    if (routing.persHandle) {
+  // Dispatch: writeToShared maßgeblich (Fallback auf isKurator für Legacy-Caller,
+  // Default true wenn gar kein routing übergeben wird = pre-v2.0-Verhalten).
+  const writeToShared = routing == null ? true : (routing.writeToShared ?? routing.isKurator);
+
+  if (!writeToShared) {
+    // User-Pfad (read-only Client): Outbox auf pers. Laufwerk, KEIN Shared-File-Write
+    if (routing?.persHandle) {
       try {
         await submitToOutbox(routing.persHandle, routing.kuerzel ?? 'unbekannt', {
           id: item.id,
@@ -92,14 +104,11 @@ export async function submitFeedback(
     return item;
   }
 
-  // Kurator-Pfad (oder pre-v2.0 Default): Shared-File (best-effort: re-read + merge + write)
+  // Shared-Pfad (Kurator / PL / dev): re-read + merge + atomicWrite. writeSharedFile
+  // ist self-gated (no-op ohne readwrite), daher kein storage.fs-Check mehr nötig.
   const shared = await readSharedFile(storage);
-  if (shared) {
-    const merged = mergeItems([item], shared.items);
-    await writeSharedFile(storage, merged);
-  } else if (storage.fs && !storage.fs.isReadOnly()) {
-    await writeSharedFile(storage, [item]);
-  }
+  const merged = shared ? mergeItems([item], shared.items) : [item];
+  await writeSharedFile(storage, merged);
   emitFeedbackUpdated();
   return item;
 }
@@ -147,21 +156,19 @@ export async function updateFeedback(
     items[idx] = { ...localItem, ...updates };
     saveLocalItems(items);
   }
-  // Update shared (best-effort, nur wenn fs verbunden und schreibbar)
-  if (storage.fs && !storage.fs.isReadOnly()) {
-    const shared = await readSharedFile(storage);
-    if (shared) {
-      const sharedIdx = shared.items.findIndex(i => i.id === id);
-      const sharedItem = sharedIdx >= 0 ? shared.items[sharedIdx] : undefined;
-      if (sharedIdx >= 0 && sharedItem) {
-        shared.items[sharedIdx] = { ...sharedItem, ...updates };
-      } else if (localItem) {
-        shared.items.unshift({ ...localItem, ...updates });
-      }
-      await writeSharedFile(storage, shared.items);
+  // Update shared (best-effort; writeSharedFile ist self-gated → no-op ohne readwrite)
+  const shared = await readSharedFile(storage);
+  if (shared) {
+    const sharedIdx = shared.items.findIndex(i => i.id === id);
+    const sharedItem = sharedIdx >= 0 ? shared.items[sharedIdx] : undefined;
+    if (sharedIdx >= 0 && sharedItem) {
+      shared.items[sharedIdx] = { ...sharedItem, ...updates };
     } else if (localItem) {
-      await writeSharedFile(storage, [{ ...localItem, ...updates }]);
+      shared.items.unshift({ ...localItem, ...updates });
     }
+    await writeSharedFile(storage, shared.items);
+  } else if (localItem) {
+    await writeSharedFile(storage, [{ ...localItem, ...updates }]);
   }
   emitFeedbackUpdated();
 }
@@ -169,12 +176,11 @@ export async function updateFeedback(
 export async function deleteFeedback(storage: StorageService, id: string): Promise<void> {
   const items = loadLocalItems().filter(i => i.id !== id);
   saveLocalItems(items);
-  if (storage.fs && !storage.fs.isReadOnly()) {
-    const shared = await readSharedFile(storage);
-    if (shared) {
-      const remaining = shared.items.filter(i => i.id !== id);
-      await writeSharedFile(storage, remaining);
-    }
+  // writeSharedFile self-gated → no-op ohne readwrite
+  const shared = await readSharedFile(storage);
+  if (shared) {
+    const remaining = shared.items.filter(i => i.id !== id);
+    await writeSharedFile(storage, remaining);
   }
   emitFeedbackUpdated();
 }
@@ -203,7 +209,6 @@ export async function saveFeedbackConfig(_storage: StorageService, cfg: Feedback
 export async function getSharedFileStatus(
   storage: StorageService,
 ): Promise<{ path: string; exists: boolean; itemCount: number; updatedAt?: string }> {
-  if (!storage.fs) return { path: FEEDBACK_SHARED_FILE, exists: false, itemCount: 0 };
   const shared = await readSharedFile(storage);
   if (!shared) return { path: FEEDBACK_SHARED_FILE, exists: false, itemCount: 0 };
   return {

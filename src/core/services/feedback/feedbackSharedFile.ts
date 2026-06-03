@@ -5,27 +5,35 @@
  * Konflikt-Strategie (Sektion R4): Merge-by-id mit Field-Precedence —
  * User-Felder lokal-wins, Kurator-/FAQ-/Sponsoring-Felder shared-wins.
  *
- * No-op wenn fs nicht verbunden (z.B. dev ohne Share oder read-only-FS).
+ * Geht über den Infrastruktur-Daten-Share-Handle (`getDatenShareHandle` +
+ * `atomicWrite`/`readText`), NICHT über den Legacy-`storage.fs`-FileServerStore:
+ * der ist im modernen Welcome/Startup-Flow nie gesetzt (vgl. auslastung-store.ts).
+ * - Lesen braucht nur `read` → funktioniert für alle Rollen.
+ * - Schreiben ist self-gated über `queryPermission({mode:'readwrite'})` — nur
+ *   Rollen mit Schreibrecht (Kurator, PL via `datenShareSchreibrecht`, dev)
+ *   schreiben tatsächlich; read-only-Clients (prod) sind ein No-op.
+ * Sidecar-Profil (Pitfall #23): Idempotent-overwrite/Single-Source →
+ * `atomicWrite` MIT Backup-Rotation (Default).
  */
 
 import type { StorageService } from '@/core/services/storage';
-import {
-  FEEDBACK_DATA_DIR,
-  FEEDBACK_SHARED_FILE,
-} from '@/core/types/feedback';
+import { FEEDBACK_SHARED_FILE } from '@/core/types/feedback';
 import type { FeedbackItem, SharedFeedbackFile } from '@/core/types/feedback';
+import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
+import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import { normalizeLegacyFields } from './feedbackStorage';
 
 export async function readSharedFile(storage: StorageService): Promise<SharedFeedbackFile | null> {
-  if (!storage.fs) return null;
+  const handle = await getDatenShareHandle(storage.idb);
+  if (!handle) return null;
+  const text = await readText(handle, FEEDBACK_SHARED_FILE);
+  if (text == null) return null;
   try {
-    const exists = await storage.fs.exists(FEEDBACK_SHARED_FILE);
-    if (!exists) return null;
-    const data = await storage.fs.readJSON<SharedFeedbackFile>(FEEDBACK_SHARED_FILE);
+    const data = JSON.parse(text) as SharedFeedbackFile;
     if (!data || data.version !== 1 || !Array.isArray(data.items)) return null;
     return { ...data, items: data.items.map(normalizeLegacyFields) };
   } catch (err) {
-    console.warn('[feedbackSharedFile] readSharedFile failed:', err);
+    console.warn('[feedbackSharedFile] readSharedFile parse failed:', err);
     return null;
   }
 }
@@ -34,15 +42,18 @@ export async function writeSharedFile(
   storage: StorageService,
   items: FeedbackItem[],
 ): Promise<boolean> {
-  if (!storage.fs || storage.fs.isReadOnly()) return false;
+  const handle = await getDatenShareHandle(storage.idb);
+  if (!handle) return false;
+  // Self-Gate (Ersatz für das alte storage.fs.isReadOnly()): nur Clients mit
+  // readwrite-Berechtigung auf dem Daten-Share schreiben (Kurator/PL/dev).
+  if ((await queryPermission(handle)) !== 'granted') return false;
   try {
-    await storage.fs.ensureDir(FEEDBACK_DATA_DIR);
     const payload: SharedFeedbackFile = {
       version: 1,
       updated_at: new Date().toISOString(),
       items,
     };
-    await storage.fs.writeJSON(FEEDBACK_SHARED_FILE, payload);
+    await atomicWrite(handle, FEEDBACK_SHARED_FILE, JSON.stringify(payload, null, 2));
     return true;
   } catch (err) {
     console.error('[feedbackSharedFile] writeSharedFile failed:', err);

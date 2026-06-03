@@ -126,7 +126,7 @@ export function FeedbackInboxTab(): React.ReactElement {
             text: entry.item.text,
             context: (entry.item.context as FeedbackContext) ?? makeFallbackContext(entry.item),
           },
-          { isKurator: true }, // erzwingt Shared-File-Write
+          { isKurator: true, writeToShared: true }, // erzwingt Shared-File-Write
         );
       }
       // 2. Status in der Outbox-Datei zurueckschreiben
