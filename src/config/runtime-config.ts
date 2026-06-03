@@ -84,6 +84,12 @@ export interface TeamflowFeatures {
   suche: boolean;
   /** User-Plugin "Feedback-Board". Trennt sich von `feedback` (das gated die Feedback-Kuration). */
   feedbackBoard: boolean;
+  /** Dev-only: Kurator-Dashboard darf Feedback-Tickets löschen (nach Bestätigung).
+   *  Destruktiv (entfernt aus localStorage + geteilter feedback.json) — daher
+   *  optional + default false (fehlt = aus), nur im dev-Build true. Optional
+   *  gelassen, damit Variant-Configs den Flag weglassen dürfen (kein
+   *  requiredFlags-Eintrag). */
+  feedbackDelete?: boolean;
   /** v2.18: CSV-Auto-Refresh-Banner + Datei-Picker auch ohne Kurator-Menüs
    *  (z.B. pl-Variante). Pollt registrierte CSV-Quellen auf neuere
    *  `lastModified`-Stände; in Nicht-Kurator-Builds verknüpft ein schlanker

@@ -1,8 +1,9 @@
 // Detail-Panel: Metadaten, Admin-Felder (2×2 Grid), FAQ, Claude-Code-Prompt.
 
 import { useEffect, useState } from 'react';
-import { Check, Copy, Download, FileText, TrendingUp, Wand2, X } from 'lucide-react';
+import { Check, Copy, Download, FileText, Trash2, TrendingUp, Wand2, X } from 'lucide-react';
 import {
+  deleteFeedback,
   generateClaudeCodePrompt,
   getSponsoringProgress,
   loadFeedbackConfig,
@@ -10,6 +11,8 @@ import {
   updateFeedback,
 } from '@/core/services/feedback';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { isFeedbackDeleteEnabled } from '@/config/feature-flags';
 import { DEFAULT_FEEDBACK_CONFIG, EFFORT_LABELS } from '@/core/types/feedback';
 import type { EffortEstimate, FeedbackCategory, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { CATEGORY_COLORS, CATEGORY_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/components/feedback/constants';
@@ -34,7 +37,18 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
+
+  // Dev-only: Ticket löschen (nach Bestätigung). deleteFeedback entfernt aus
+  // localStorage + geteilter feedback.json; danach Auswahl leeren + Liste neu laden.
+  const del = useAsyncAction(async () => {
+    if (!ticket) return;
+    await deleteFeedback(storage, ticket.id);
+    setConfirmDelete(false);
+    onClose();
+    onUpdated();
+  });
 
   useEffect(() => { void loadFeedbackConfig(storage).then(setConfig); }, [storage]);
 
@@ -51,6 +65,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
     setPrompt(ticket.generated_prompt ?? '');
     setShowPrompt(false);
     setSavedNotice(false);
+    setConfirmDelete(false);
   }, [ticket]);
 
   if (!ticket) {
@@ -219,6 +234,45 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
           </button>
         )}
       </div>
+
+      {/* Löschen (dev-only, nach Bestätigung) */}
+      {isFeedbackDeleteEnabled() && (
+        <div className="pt-2 mt-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          {!confirmDelete ? (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-danger-text)] hover:bg-[var(--tf-danger-bg)] cursor-pointer"
+              style={inputStyle}
+            >
+              <Trash2 size={12} /> Löschen
+            </button>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[12px] text-[var(--tf-text)]">Dieses Ticket wirklich löschen?</span>
+              <button
+                type="button"
+                onClick={() => void del.run()}
+                disabled={del.busy}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] font-medium bg-[var(--tf-danger-text)] text-white hover:opacity-90 disabled:opacity-40 cursor-pointer"
+              >
+                <Trash2 size={12} /> {del.busy ? 'Lösche…' : 'Ja, löschen'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { del.clearError(); setConfirmDelete(false); }}
+                className="px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+                style={inputStyle}
+              >
+                Abbrechen
+              </button>
+            </div>
+          )}
+          {del.error && (
+            <p className="mt-1 text-[11px] text-[var(--tf-danger-text)]">Löschen fehlgeschlagen: {del.error}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

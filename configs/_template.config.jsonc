@@ -104,6 +104,8 @@
     "chat": true,           // AI-Chat-Plugin (Sidebar-Eintrag "Chat")
     "suche": true,          // User-Hybrid-Suche-Plugin (Sidebar-Eintrag "Suche")
     "feedbackBoard": true,  // Öffentliches Feedback-Board (Sidebar-Eintrag)
+    "feedbackDelete": false, // Dev-only: Löschen von Feedback-Tickets im Kurator-Dashboard (nach Bestätigung); optional, fehlt = aus
+    // Hinweis: pl/kurator lassen diesen optionalen Flag weg (= aus) — nur dev setzt true.
     // v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
     // Kurator-Menüs. Der Kurator-Banner läuft unabhängig über kuratorMenus —
     // dieser Flag schaltet ihn zusätzlich in Nicht-Kurator-Builds frei (pl).

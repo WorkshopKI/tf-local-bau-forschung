@@ -138,6 +138,9 @@ export const DEFAULT_CONFIG = {
     chat: true,
     suche: true,
     feedbackBoard: true,
+    /** Dev-only: Löschen von Feedback-Tickets im Kurator-Dashboard (nach
+     *  Bestätigung). Destruktiv — default false, nur dev true. */
+    feedbackDelete: true,
     /** v2.18: CSV-Auto-Refresh-Banner + Datei-Picker auch ohne Kurator-Menüs
      *  (z.B. pl-Variante). Der Banner pollt registrierte CSV-Quellen auf neuere
      *  `lastModified`-Stände; in Nicht-Kurator-Builds kann die Quelldatei über

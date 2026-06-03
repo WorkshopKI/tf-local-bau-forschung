@@ -37,6 +37,7 @@
     "chat": false,
     "suche": true,
     "feedbackBoard": true,
+    "feedbackDelete": false,
     "csvAutoRefresh": false
   },
   "menuLabels": {

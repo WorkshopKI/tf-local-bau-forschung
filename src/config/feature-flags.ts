@@ -71,6 +71,10 @@ export function isDevFixturesEnabled(): boolean {
 export function isAntraegeEnabled(): boolean { return features.antraege; }
 export function isBauantraegeEnabled(): boolean { return features.bauantraege; }
 export function isDokumenteEnabled(): boolean { return features.dokumente; }
+/** Dev-only: Löschen von Feedback-Tickets im Kurator-Dashboard (nach Bestätigung).
+ *  Destruktiv — nur im dev-Build true. `=== true` für Backward-Kompat mit
+ *  pre-2.18-Configs ohne den Flag. */
+export function isFeedbackDeleteEnabled(): boolean { return features.feedbackDelete === true; }
 export function isAuslastungEnabled(): boolean { return features.auslastung === true; }
 /** Homepage-Selbsteintragung + Banner. End-User-Feature, getrennt vom PL-
  *  Plugin (`auslastung`). Wer das Plugin aktiviert hat, will i.d.R. auch
