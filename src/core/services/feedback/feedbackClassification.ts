@@ -44,3 +44,20 @@ export function isClassifiedAs(category: FeedbackCategory) {
   return (item: FeedbackItem): item is FeedbackItem & { category: FeedbackCategory } =>
     item.category === category;
 }
+
+/**
+ * Plugin-id des Auslastungs-Moduls. Muss mit `id: 'auslastung'` in
+ * src/plugins/auslastung/index.tsx übereinstimmen — `captureFeedbackContext`
+ * legt diese id beim Erfassen als `context.route` ab.
+ */
+export const AUSLASTUNG_PLUGIN_ID = 'auslastung';
+
+/**
+ * True, wenn das Feedback im Auslastungs-Modul erfasst wurde (`context.route`).
+ * Genutzt um modul-spezifisches Feedback in Varianten OHNE Auslastungs-Modul
+ * (prod, kurator) aus der Übersicht auszublenden — sonst leakt es über die
+ * geteilte feedback.json aus der pl-Variante in fremde Boards.
+ */
+export function isAuslastungFeedback(item: FeedbackItem): boolean {
+  return item.context?.route === AUSLASTUNG_PLUGIN_ID;
+}

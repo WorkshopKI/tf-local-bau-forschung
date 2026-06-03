@@ -36,6 +36,8 @@ import {
   readSharedFile,
   writeSharedFile,
 } from './feedbackSharedFile';
+import { isAuslastungFeedback } from './feedbackClassification';
+import { isAuslastungEnabled } from '@/config/feature-flags';
 import { submitFeedback as submitToOutbox } from '@/core/services/personal-storage';
 
 // ── Public CRUD API ─────────────────────────────────────────────────────────
@@ -122,8 +124,14 @@ export async function getFeedbackList(
   const merged = shared
     ? mergeItems(local, shared.items)
     : local.slice().sort((a, b) => b.created_at.localeCompare(a.created_at));
-  if (!filters) return merged;
-  return merged.filter(item => {
+  // Auslastungs-Modul-Feedback nur in Varianten mit aktivem Modul (pl/dev) zeigen.
+  // In prod/kurator (kein Auslastungs-Modul) ausblenden — sonst leakt PL-Feedback
+  // über die geteilte feedback.json in fremde Übersichten.
+  const scoped = isAuslastungEnabled()
+    ? merged
+    : merged.filter(item => !isAuslastungFeedback(item));
+  if (!filters) return scoped;
+  return scoped.filter(item => {
     if (filters.category && item.category !== filters.category) return false;
     if (filters.status && item.kurator_status !== filters.status) return false;
     if (filters.priority !== undefined && item.kurator_priority !== filters.priority) return false;

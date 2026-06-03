@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AUSLASTUNG_PLUGIN_ID,
   getFeedbackClassification,
+  isAuslastungFeedback,
   isClassifiedAs,
   isClassifiedFeedback,
 } from '../feedbackClassification';
@@ -83,5 +85,33 @@ describe('isClassifiedAs', () => {
     ];
     expect(items.filter(isClassifiedAs('praise'))).toHaveLength(1);
     expect(items.filter(isClassifiedAs('question'))).toHaveLength(1);
+  });
+});
+
+describe('isAuslastungFeedback', () => {
+  // route auf einem vollständigen Default-Context überschreiben (Typ erwartet
+  // full FeedbackContext, daher über das fertige Item spreaden).
+  const withRoute = (route: string) => {
+    const item = makeFeedback();
+    return { ...item, context: { ...item.context, route } };
+  };
+
+  it('true wenn context.route das Auslastungs-Modul ist', () => {
+    expect(isAuslastungFeedback(withRoute(AUSLASTUNG_PLUGIN_ID))).toBe(true);
+  });
+
+  it('false für anderes Modul (z.B. Förderanträge)', () => {
+    expect(isAuslastungFeedback(withRoute('antraege'))).toBe(false);
+  });
+
+  it('blendet als Array.filter Auslastungs-Feedback aus', () => {
+    const items = [
+      withRoute(AUSLASTUNG_PLUGIN_ID),
+      withRoute('antraege'),
+      withRoute('home'),
+    ];
+    const ohneAuslastung = items.filter(i => !isAuslastungFeedback(i));
+    expect(ohneAuslastung).toHaveLength(2);
+    expect(ohneAuslastung.some(isAuslastungFeedback)).toBe(false);
   });
 });
