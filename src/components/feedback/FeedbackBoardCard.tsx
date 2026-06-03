@@ -48,6 +48,11 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
           {summary}
         </p>
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+          {ticket.context?.page && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
+              {ticket.context.page}
+            </span>
+          )}
           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
             {ticket.category ? CATEGORY_LABELS[ticket.category] : 'Unklassifiziert'}
           </span>

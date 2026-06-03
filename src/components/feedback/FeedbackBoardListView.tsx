@@ -65,9 +65,14 @@ function FeedbackListRow({ ticket, config }: { ticket: FeedbackItem; config: Fee
         </span>
       </span>
 
-      {/* Titel */}
-      <span className="flex-1 min-w-0 truncate text-[var(--tf-text)]">
-        {summary}
+      {/* Titel + Bereich-Chip */}
+      <span className="flex-1 min-w-0 flex items-center gap-1.5">
+        {ticket.context?.page && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">
+            {ticket.context.page}
+          </span>
+        )}
+        <span className="truncate text-[var(--tf-text)]">{summary}</span>
       </span>
 
       {/* Status */}

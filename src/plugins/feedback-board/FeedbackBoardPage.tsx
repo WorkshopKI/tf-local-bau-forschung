@@ -16,26 +16,39 @@ import {
   isClassifiedAs,
   loadFeedbackConfig,
 } from '@/core/services/feedback';
-import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
+import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 
-type Filter = 'all' | 'bugs' | 'features' | 'sonstige' | 'open' | 'done';
 type ViewMode = 'card' | 'list';
+type StatusFilter = 'all' | 'open' | 'done';
 
-const FILTERS: { id: Filter; label: string }[] = [
+const pillBase = 'px-2.5 py-1 rounded-full text-[11.5px] cursor-pointer transition-colors';
+const pillActive = `${pillBase} bg-[var(--tf-primary)] text-white`;
+const pillInactive = `${pillBase} text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]`;
+
+// Status als Gruppen (wie bisher auf dem Board): „Offen" = neu/geplant/in_bearbeitung.
+const STATUS_PILLS: { id: StatusFilter; label: string }[] = [
   { id: 'all', label: 'Alle' },
-  { id: 'bugs', label: 'Bugs' },
-  { id: 'features', label: 'Features' },
-  { id: 'sonstige', label: 'Sonstige' },
   { id: 'open', label: 'Offen' },
   { id: 'done', label: 'Umgesetzt' },
+];
+
+// Kategorie wie im Kurator-Dashboard (CATEGORY_PILLS).
+const CATEGORY_PILLS: { id: FeedbackCategory | ''; label: string }[] = [
+  { id: '', label: 'Alle' },
+  { id: 'problem', label: 'Bug' },
+  { id: 'idea', label: 'Idee' },
+  { id: 'praise', label: 'Lob' },
+  { id: 'question', label: 'Frage' },
 ];
 
 export function FeedbackBoardPage(): React.ReactElement {
   const storage = useStorage();
   const [tickets, setTickets] = useState<FeedbackItem[]>([]);
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
+  const [filterKategorie, setFilterKategorie] = useState<FeedbackCategory | ''>('');
+  const [filterArea, setFilterArea] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -85,21 +98,29 @@ export function FeedbackBoardPage(): React.ReactElement {
   const isBug = isClassifiedAs('problem');
   const isFeature = isClassifiedAs('idea');
 
+  // Distinct Bereiche (context.route → page-Label) aus den Tickets, für die
+  // Bereich-Filter-Pills (z.B. „alle Tickets zur Homepage"). Wie im Kurator-Dashboard.
+  const areas = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of tickets) {
+      const route = t.context?.route;
+      if (!route) continue;
+      if (!map.has(route)) map.set(route, t.context.page || route);
+    }
+    return Array.from(map, ([route, label]) => ({ route, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [tickets]);
+
   const filteredSorted = useMemo(() => {
-    // Alle nicht-archivierten Einträge — inkl. Lob/Frage/Unklassifiziert, damit
-    // eingereichtes Feedback in der Übersicht sichtbar ist (auch ohne LLM-
-    // Klassifikation). Bugs/Features bleiben über die Filter-Pills erreichbar.
+    // Alle nicht-archivierten Einträge — inkl. Lob/Frage/Unklassifiziert.
+    // Drei unabhängige Filter (UND-kombiniert), wie im Kurator-Dashboard.
     const base = tickets.filter(t => t.kurator_status !== 'archiviert');
     const byFilter = base.filter(t => {
-      switch (filter) {
-        case 'bugs': return isBug(t);
-        case 'features': return isFeature(t);
-        case 'sonstige': return !isBug(t) && !isFeature(t);
-        case 'open': return t.kurator_status === 'neu' || t.kurator_status === 'geplant' || t.kurator_status === 'in_bearbeitung';
-        case 'done': return t.kurator_status === 'umgesetzt';
-        case 'all':
-        default: return true;
-      }
+      if (filterKategorie && t.category !== filterKategorie) return false;
+      if (filterArea && t.context?.route !== filterArea) return false;
+      if (filterStatus === 'open' && !(t.kurator_status === 'neu' || t.kurator_status === 'geplant' || t.kurator_status === 'in_bearbeitung')) return false;
+      if (filterStatus === 'done' && t.kurator_status !== 'umgesetzt') return false;
+      return true;
     });
     return byFilter.sort((a, b) => {
       const aBearb = a.kurator_status === 'in_bearbeitung' ? 0 : 1;
@@ -112,7 +133,7 @@ export function FeedbackBoardPage(): React.ReactElement {
       }
       return b.created_at.localeCompare(a.created_at);
     });
-  }, [tickets, filter, config, isBug, isFeature]);
+  }, [tickets, filterStatus, filterKategorie, filterArea, config, isFeature]);
 
   const counts = useMemo(() => {
     const active = tickets.filter(t => t.kurator_status !== 'archiviert');
@@ -140,50 +161,79 @@ export function FeedbackBoardPage(): React.ReactElement {
       {/* Info-Banner */}
       <SponsoringInfoBanner />
 
-      {/* Filter-Pills + View-Toggle */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-4">
-        {FILTERS.map(f => (
+      {/* Filter: Status / Kategorie / Bereich (UND-kombiniert) + View-Toggle */}
+      <div className="space-y-1.5 mb-4">
+        {/* Status + View-Toggle */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[68px] shrink-0">Status</span>
+          <div className="flex flex-wrap gap-1">
+            {STATUS_PILLS.map(p => (
+              <button key={p.id} type="button" onClick={() => setFilterStatus(p.id)}
+                className={filterStatus === p.id ? pillActive : pillInactive}
+                style={filterStatus !== p.id ? { border: '0.5px solid var(--tf-border)' } : undefined}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1" />
           <button
-            key={f.id}
             type="button"
-            onClick={() => setFilter(f.id)}
-            className={`px-3 py-1 rounded-full text-[12px] cursor-pointer transition-colors ${
-              filter === f.id
-                ? 'bg-[var(--tf-primary)] text-white'
-                : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+            onClick={() => setViewMode('card')}
+            className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
+              viewMode === 'card'
+                ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
+                : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
             }`}
-            style={filter !== f.id ? { border: '0.5px solid var(--tf-border)' } : undefined}
+            title="Kartenansicht"
           >
-            {f.label}
+            <LayoutGrid size={15} />
           </button>
-        ))}
-
-        <div className="flex-1" />
-
-        <button
-          type="button"
-          onClick={() => setViewMode('card')}
-          className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-            viewMode === 'card'
-              ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
-              : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
-          }`}
-          title="Kartenansicht"
-        >
-          <LayoutGrid size={15} />
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode('list')}
-          className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-            viewMode === 'list'
-              ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
-              : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
-          }`}
-          title="Listenansicht"
-        >
-          <List size={15} />
-        </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
+              viewMode === 'list'
+                ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
+                : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
+            }`}
+            title="Listenansicht"
+          >
+            <List size={15} />
+          </button>
+        </div>
+        {/* Kategorie */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[68px] shrink-0">Kategorie</span>
+          <div className="flex flex-wrap gap-1">
+            {CATEGORY_PILLS.map(p => (
+              <button key={p.id} type="button" onClick={() => setFilterKategorie(p.id)}
+                className={filterKategorie === p.id ? pillActive : pillInactive}
+                style={filterKategorie !== p.id ? { border: '0.5px solid var(--tf-border)' } : undefined}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Bereich */}
+        {areas.length > 0 && (
+          <div className="flex items-start gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[68px] shrink-0 mt-1">Bereich</span>
+            <div className="flex flex-wrap gap-1">
+              <button type="button" onClick={() => setFilterArea('')}
+                className={filterArea === '' ? pillActive : pillInactive}
+                style={filterArea !== '' ? { border: '0.5px solid var(--tf-border)' } : undefined}>
+                Alle
+              </button>
+              {areas.map(a => (
+                <button key={a.route} type="button" onClick={() => setFilterArea(a.route)}
+                  className={filterArea === a.route ? pillActive : pillInactive}
+                  style={filterArea !== a.route ? { border: '0.5px solid var(--tf-border)' } : undefined}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}
