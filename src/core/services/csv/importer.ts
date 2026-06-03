@@ -208,17 +208,27 @@ export async function importCsvSource(
     // Letzte Cancel-Barriere vor IDB-Writes
     opts.signal?.throwIfAborted();
 
+    // Nur wenn es echte Deltas gibt, die teuren Schritte (Merge, Unterprogramm-
+    // Statistik, Snapshot-Write ~50-100 MB + SHA-256, Phase-2-Rematch) fahren.
+    // Ein force-Re-Import ohne Aenderungen (gleiche Datei + gleiches Mapping)
+    // aktualisiert nur Hashes/Schema und ist damit quasi-instant — kein voller
+    // 13k-Recompute + kein synchrones JSON.stringify des gesamten Programms.
+    const hasDeltas =
+      newJoinValues.length > 0 || changedJoinValues.length > 0 || removedJoinValues.length > 0;
+
     // Merge für alle betroffenen Antraege (IDB-Writes pro Antrag)
-    opts.onProgress?.({ phase: 'merging', done: 0, total: 0 });
-    await runMergeForDeltas({
-      idb,
-      schema: updatedSchema,
-      newJoinValues,
-      changedJoinValues,
-      removedJoinValues,
-      onProgress: (done, total) =>
-        opts.onProgress?.({ phase: 'merging', done, total }),
-    });
+    if (hasDeltas) {
+      opts.onProgress?.({ phase: 'merging', done: 0, total: 0 });
+      await runMergeForDeltas({
+        idb,
+        schema: updatedSchema,
+        newJoinValues,
+        changedJoinValues,
+        removedJoinValues,
+        onProgress: (done, total) =>
+          opts.onProgress?.({ phase: 'merging', done, total }),
+      });
+    }
 
     // Hashes + Schema NACH erfolgreichem Merge persistieren — Cancel zwischen
     // Diff und Merge hat dann nichts in IDB hinterlassen.
@@ -229,8 +239,9 @@ export async function importCsvSource(
     }
     await saveSchema(idb, updatedSchema);
 
-    // Nach Merge: Antrag-Counts + Auto-Zeitraum pro Unterprogramm neu berechnen (für Admin-Panel)
-    if (schema.is_master) {
+    // Nach Merge: Antrag-Counts + Auto-Zeitraum pro Unterprogramm neu berechnen (für Admin-Panel).
+    // Ohne Deltas bleiben die Counts gleich → ueberspringen.
+    if (schema.is_master && hasDeltas) {
       opts.onProgress?.({ phase: 'finalizing', done: 1, total: 4, stage: 'Unterprogramm-Statistiken' });
       await recomputeUnterprogrammStats(idb, schema.programm_id);
     }
@@ -238,8 +249,9 @@ export async function importCsvSource(
     // Snapshot ins Daten-Share — best-effort, blockiert den Import-Result nicht.
     // Bei 13k+ Antraegen sind die JSONL-Files ~50-100 MB — der Write kann
     // 10-20 s dauern, daher hier eine eigene 'finalizing'-Sub-Stage damit der
-    // User nicht im "100%-Stillstand" haengt.
-    try {
+    // User nicht im "100%-Stillstand" haengt. Ohne Deltas ist der Antraege-Stand
+    // unveraendert → der vorhandene Snapshot ist bereits aktuell, Write entfaellt.
+    if (hasDeltas) try {
       const handle = await getSmbHandle(idb);
       if (handle) {
         opts.onProgress?.({ phase: 'finalizing', done: 2, total: 4, stage: 'Snapshot in Daten-Share schreiben (kann einige Sekunden dauern)' });
@@ -279,7 +291,8 @@ export async function importCsvSource(
     // Phase 2: Pending-Antrag-Bucket nach Import re-matchen, damit
     // Projektbeschreibungen, die vor dem Antrag eingegangen sind, jetzt
     // automatisch zugeordnet werden. Best-effort, blockiert das Result nicht.
-    try {
+    // Ohne neue/geaenderte Antraege gibt es nichts neu zu matchen → ueberspringen.
+    if (hasDeltas) try {
       const { rematchOnSnapshotReload } = await import('../../../phase2');
       await rematchOnSnapshotReload(idb, schema.programm_id);
     } catch (e) {

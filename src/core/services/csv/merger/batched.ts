@@ -463,11 +463,13 @@ export async function recomputeMultipleBatched(
   args: BatchedRecomputeArgs,
   onProgress?: (done: number, total: number) => void,
 ): Promise<void> {
-  const schemas = args.schemasCache ?? (await loadAllSchemasWithRows(idb, programmId));
-  const caches = await loadRecomputeCaches(idb, programmId, schemas);
-
+  // Nichts zu tun → sofort raus, BEVOR die teuren Caches geladen werden
+  // (loadRecomputeCaches liest alle Antraege/Verbuende/Akronyme des Programms).
   const total = args.touchedAz.length + args.removedAz.length;
   if (total === 0) return;
+
+  const schemas = args.schemasCache ?? (await loadAllSchemasWithRows(idb, programmId));
+  const caches = await loadRecomputeCaches(idb, programmId, schemas);
 
   const FLUSH_THRESHOLD = 500;
   const YIELD_EVERY_MS = 100;
