@@ -22,7 +22,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAutoCollectTeamProfiles } from '../hooks/useAutoCollectTeamProfiles';
 import { useReconcileZuweisungen } from '../hooks/useReconcileZuweisungen';
@@ -32,7 +31,6 @@ import { KlassifizierungsReview } from './KlassifizierungsReview';
 import { ZuweisungsCockpit } from './ZuweisungsCockpit';
 import { UebersichtView } from './UebersichtView';
 import { KompetenzMatrixView } from './KompetenzMatrixView';
-import { PrivacyChip } from './uebersicht/PrivacyChip';
 
 type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht' | 'kompetenzen';
 const ALL_TABS: ReadonlySet<TabId> = new Set(['klassifizierung', 'zuweisung', 'uebersicht', 'kompetenzen']);
@@ -140,11 +138,6 @@ export function AuslastungView(): React.ReactElement {
             ? `${Object.keys(data.mitarbeiter).length} MAs · ${data.config.ueberKategorien.length} Kategorien · ${data.config.aktuellesQuartal}`
             : 'wird geladen …'}
         </p>
-        {isDeAnonymisierungEnabled() && (
-          <div className="ml-auto">
-            <PrivacyChip />
-          </div>
-        )}
       </div>
 
       {/* v2.13: Banner direkt unter dem Header (vor den Tabs) — sofort

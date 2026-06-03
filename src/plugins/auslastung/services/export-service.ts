@@ -199,23 +199,12 @@ export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook
 }
 
 /**
- * Anonymer XLSX-Export — direkter Download.
- * Dateiname: `auslastung-anonym-{quartal}.xlsx`.
- */
-export function exportAnonymousXlsx(input: BuildRowsInput): void {
-  const quartal = input.quartal ?? input.data.config.aktuellesQuartal;
-  const rows = buildExportRows({ ...input, quartal });
-  const wb = buildWorkbook(rows, quartal);
-  XLSX.writeFile(wb, `auslastung-anonym-${quartal}.xlsx`);
-}
-
-/**
  * De-anonymisierter XLSX-Export — direkter Download mit echten TIB-Kuerzeln.
  *
- * Kein Passwortschutz: die PL-/Kurator-Variante liegt auf einem zugriffs-
- * geschuetzten SMB-Bereich (Schutz auf Ordner-Ebene). Das invertierte Mapping
- * (anonId → echtes Kuerzel) wird NICHT persistiert — es lebt nur fuer die Dauer
- * dieses Aufrufs im RAM.
+ * Kein Passwortschutz: der PL-Build ist seit v2.16 beim App-Start per Rollen-
+ * Passwort gated ([AppPasswordGate]). Das invertierte Mapping (anonId → echtes
+ * Kuerzel) wird NICHT persistiert — es lebt nur fuer die Dauer dieses Aufrufs
+ * im RAM.
  *
  * Dateiname: `auslastung-kuerzel-{quartal}.xlsx`.
  */

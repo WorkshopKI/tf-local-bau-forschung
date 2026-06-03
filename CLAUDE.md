@@ -292,6 +292,15 @@ Gate-Entscheidung `decideAppGate` ([App.tsx](src/core/App.tsx)) läuft NACH dem 
 
 **Audit-Identität:** bei Shared-Passwort gibt es keine Person → Audit-`user` = Build-Label (z.B. „ZAH Kurator"). **Sicherheits-Einordnung:** Casual-Access-Gate (verhindert versehentliches Öffnen durch normale MAs), konsistent mit dem Single-Team-Trust-Modell; der Verifier ist offline brute-forcebar (starkes Passwort wählen). Passwort wechseln = `set-password` + Rebuild. Additiv, keine Daten-/IDB-/SMB-Migration; dev/prod/demo unverändert (kein `auth` → keine Wall; prod behält die per-User-MA-Wall `maLogin`). Mutual-exclusive zur MA-Wall (pl/kurator haben `maLogin:false`).
 
+### v2.17 — De-Anon-Passwort + anonymer Export entfernt (Juni 2026)
+
+MINOR-Bump v2.17: Da der pl-Build seit v2.16 beim App-Start per Rollen-Passwort gated ist, ist die **zweite** Schutzschicht im Auslastungs-Modul redundant und entfällt:
+
+- **De-Anon-Passwort/Session weg.** Die `useDeAnonSession`-Wall (24h-TTL, Chip „Klartext (Xh)" + Popover) ist gelöscht — samt [PrivacyChip]/[PrivacyPopover] und `deanon-config.ts` (+ `DEANON_*`-Konstanten in [types.ts](src/core/services/infrastructure/types.ts)). `useDeAnonName`/`useDeAnonResolver` ([AnonymIdBadge.tsx](src/plugins/auslastung/components/AnonymIdBadge.tsx)) gaten nur noch auf das **bestehende** Feature-Flag `deAnonymisierung` (true in pl/dev) → echte Kürzel werden dort **immer** angezeigt (kein zweites Passwort). Konsumenten (VorschlagCard, KompetenzMatrix, KalibrierungsReport, OnboardingImportDialog, MaListSection, ZugangPasswortSection) lesen unverändert über die Resolver — der MA-Login-Passwort-Generator ([ZugangPasswortSection](src/plugins/auslastung/components/ZugangPasswortSection.tsx)) ist nicht mehr auf die De-Anon-Session gated, nur noch auf `maVerwaltungPasswort`.
+- **Anonymer Export weg.** „Export (anonym)" / „Anonym (XLSX)" sind aus beiden Oberflächen ([ZuweisungsCockpit](src/plugins/auslastung/views/ZuweisungsCockpit.tsx) + [admin/ImportExportSection](src/plugins/auslastung/views/admin/ImportExportSection.tsx)) entfernt; `exportAnonymousXlsx` ist gelöscht. Es bleibt nur der Kürzel-Export.
+
+**Bewusst behalten:** die Anonymisierung der *gespeicherten* Daten (`auslastung.json` = MA01-IDs; echte Kürzel nur in `auslastung-kuerzel-map.json` + RAM) — schützt die Daten *at rest* auf dem geteilten Share, unabhängig vom Passwort. Additiv, keine Daten-/IDB-/SMB-Migration; ein evtl. vorhandenes `_intern/deanon-config.enc` verwaist harmlos (nichts liest es mehr). dev/prod/demo/kurator unverändert (kein De-Anon-Modul sichtbar).
+
 ### v2.0 — 2-Handle-Architektur (Persoenlicher Ordner + Offline-Modus + Feedback-Inbox)
 
 MAJOR-Bump v2.0 erzwingt Re-Pick beim Start. Neuer Handle-Slot `SMB_HANDLE_PERSOENLICH` pro User für `ZAH/{profile,einstellungen}.json` + Feedback-Outbox. Nicht-Kurator-Daten-Share-Handle wird automatisch von `readwrite` auf `read` heruntergestuft. Details: [docs/architecture/v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md).

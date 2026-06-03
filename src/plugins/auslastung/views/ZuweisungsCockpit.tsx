@@ -49,7 +49,7 @@ import { VorschlagCard } from '../components/VorschlagCard';
 import { tageImQuartal as computeTageImQuartal } from '../services/kapazitaet';
 import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
-import { exportAnonymousXlsx, exportDeAnonymizedXlsx } from '../services/export-service';
+import { exportDeAnonymizedXlsx } from '../services/export-service';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import {
@@ -204,10 +204,6 @@ export function ZuweisungsCockpit(): React.ReactElement {
   });
 
   const data = useAuslastungData(s => s.data);
-
-  function exportAnonym(): void {
-    exportAnonymousXlsx({ data, antraege: cache.antraege, verbuendeById: cache.verbuendeById });
-  }
 
   function exportMitKuerzeln(): void {
     exportDeAnonymizedXlsx({
@@ -539,14 +535,6 @@ export function ZuweisungsCockpit(): React.ReactElement {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={exportAnonym}
-            className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
-            style={{ border: '0.5px solid var(--tf-border)' }}
-          >
-            Export (anonym)
-          </button>
           <button
             type="button"
             onClick={exportMitKuerzeln}

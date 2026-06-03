@@ -7,8 +7,8 @@
  *   - Admin-Sektionen (Kategorien, Import/Export, Konfig, Embedding-Corpus) im
  *     Erweitert-Aufklapper
  *
- * Privacy/Klartext-Modus lebt jetzt im Page-Header von AuslastungView
- * (PrivacyChip + PrivacyPopover) — kein Banner mehr in der Übersicht.
+ * Seit v2.17 ohne De-Anon-Passwort/Chip — echte Kürzel werden im pl/dev-Build
+ * (passwortgeschützter App-Start, v2.16) direkt angezeigt.
  */
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';

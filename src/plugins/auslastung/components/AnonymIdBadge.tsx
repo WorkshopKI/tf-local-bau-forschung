@@ -6,7 +6,6 @@
  *  Session inaktiv oder Feature deaktiviert ist).
  */
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
-import { useDeAnonSession } from '../hooks/useDeAnonSession';
 import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
 
 interface Props {
@@ -49,33 +48,32 @@ export function AnonymIdBadge({ anonId, size = 'md', realName }: Props): React.R
 
 /**
  * Looked-up Klartext-Kuerzel fuer einen anonId, ODER null wenn:
- *  - das Feature in der aktuellen Variante deaktiviert ist
- *  - die DeAnon-Session nicht aktiv ist
+ *  - das Feature in der aktuellen Variante deaktiviert ist (`deAnonymisierung`)
  *  - das Mapping kein echtes Kuerzel hat (anonId unbekannt)
  *
- * Konsumenten reichen den Wert direkt als `realName`-Prop in den Badge.
+ * Seit v2.17 ohne De-Anon-Passwort/Session: der PL-Build ist beim App-Start
+ * per Rollen-Passwort gated ([AppPasswordGate]) — echte Kuerzel werden in
+ * pl/dev (`deAnonymisierung: true`) direkt angezeigt. Konsumenten reichen den
+ * Wert direkt als `realName`-Prop in den Badge.
  */
 export function useDeAnonName(anonId: string): string | null {
   const enabled = isDeAnonymisierungEnabled();
-  const isActive = useDeAnonSession(s => s.isActive);
   const cache = useAntraegeCache();
-  if (!enabled || !isActive) return null;
+  if (!enabled) return null;
   return cache.anonymMap.toReal.get(anonId) ?? null;
 }
 
 /**
  * Resolver-Variante fuer Loop-Konsumenten (z.B. Mitarbeiter-Tabelle mit
  * map()). Hook wird einmal aufgerufen, gibt eine pure Funktion zurueck,
- * die pro anonId das Kuerzel liefert (oder null). Respektiert Feature-Flag
- * + Session-Status wie `useDeAnonName`.
+ * die pro anonId das Kuerzel liefert (oder null). Respektiert das
+ * `deAnonymisierung`-Feature-Flag wie `useDeAnonName`.
  */
 export function useDeAnonResolver(): (anonId: string) => string | null {
   const enabled = isDeAnonymisierungEnabled();
-  const isActive = useDeAnonSession(s => s.isActive);
   const cache = useAntraegeCache();
-  const active = enabled && isActive;
   return (anonId: string): string | null => {
-    if (!active) return null;
+    if (!enabled) return null;
     return cache.anonymMap.toReal.get(anonId) ?? null;
   };
 }

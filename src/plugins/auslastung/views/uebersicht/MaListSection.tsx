@@ -38,7 +38,6 @@ import { MaListFilterBar, type ViewMode } from './MaListFilterBar';
 import { MaTable, type SortColumn, type SortDir } from './MaTable';
 import { MaTileGrid } from './MaTileGrid';
 import { isMaVerwaltungPasswortEnabled } from '@/config/feature-flags';
-import { useDeAnonSession } from '../../hooks/useDeAnonSession';
 import { ZugangVerwaltungDialog, type MaZugangItem } from '../../components/ZugangVerwaltungDialog';
 
 export type WarningFilter = null | 'no-bookings' | 'overbooked';
@@ -81,7 +80,6 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
 
   const resolveName = useDeAnonResolver();
-  const isDeAnon = useDeAnonSession(s => s.isActive);
   const [zugangListe, setZugangListe] = useState<MaZugangItem[] | null>(null);
   const [kategorieFilter, setKategorieFilter] = useState<string>('');
   const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>('');
@@ -374,7 +372,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           <span aria-hidden className="flex-1" style={{ height: '0.5px', background: 'var(--tf-border)' }} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {isMaVerwaltungPasswortEnabled() && isDeAnon && (
+          {isMaVerwaltungPasswortEnabled() && (
             <button
               type="button"
               onClick={openZugangVerwaltung}

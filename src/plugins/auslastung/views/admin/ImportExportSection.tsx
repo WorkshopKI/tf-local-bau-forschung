@@ -16,7 +16,7 @@ import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymMap } from '../../services/anonym-map';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { downloadOnboardingHtml } from '../../services/onboarding-html-generator';
-import { exportAnonymousXlsx, exportDeAnonymizedXlsx } from '../../services/export-service';
+import { exportDeAnonymizedXlsx } from '../../services/export-service';
 import type { OnboardingPreview } from '../../services/onboarding-import';
 import { OnboardingImportDialog } from '../../components/OnboardingImportDialog';
 import { KalibrierungsReport } from '../../components/KalibrierungsReport';
@@ -72,17 +72,9 @@ export function ImportExportSection({ antraege, anonymMap }: Props): React.React
         <div>
           <h4 className="text-[12.5px] font-medium mb-1">Snapshot-Export</h4>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-2 leading-snug">
-            Anonyme XLSX für externe Auswertung — oder XLSX mit Klartext-Kürzeln (Ablage auf geschütztem Bereich).
+            XLSX mit Klartext-Kürzeln für Auswertung / Ablage.
           </p>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => exportAnonymousXlsx({ data, antraege })}
-              className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              Anonym (XLSX)
-            </button>
             <button
               type="button"
               onClick={() => exportDeAnonymizedXlsx({ data, antraege, anonymMap })}
