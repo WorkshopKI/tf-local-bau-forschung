@@ -214,7 +214,7 @@ Sichtbarkeits-Matrix (was steht in der Sidebar):
 | Bauanträge | ✓ | ✓ | – | – | – | – |
 | Auslastung | ✓ | – | – | – | – | ✓ |
 | Dokumente | ✓ | ✓ | – | – | – | – |
-| Suche | ✓ | ✓ | – | – | – | – |
+| Suche | ✓ | ✓ | – | ✓ | ✓ | ✓ |
 | Chat | ✓ | ✓ | – | – | – | – |
 | Feedback Übersicht | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Einstellungen | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |

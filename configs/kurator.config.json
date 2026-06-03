@@ -35,7 +35,7 @@
     "maLogin": false,
     "maVerwaltungPasswort": false,
     "chat": false,
-    "suche": false,
+    "suche": true,
     "feedbackBoard": true
   },
   "menuLabels": {
