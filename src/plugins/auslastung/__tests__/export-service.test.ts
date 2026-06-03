@@ -196,8 +196,8 @@ describe('buildWorkbook', () => {
     expect(sheet['G1']?.v).toBe('Restkapazität (TVs)');
     expect(sheet['H1']?.v).toBe('Confidence');
     expect(sheet['I1']?.v).toBe('Status');
-    expect(sheet['J1']?.v).toBe('Alternative 1');
-    expect(sheet['N1']?.v).toBe('Alternative 5');
+    expect(sheet['J1']?.v).toBe('Alternative 1 (Kürzel · Kompetenz · TVs frei)');
+    expect(sheet['N1']?.v).toBe('Alternative 5 (Kürzel · Kompetenz · TVs frei)');
     // O1 existiert nicht → genau 14 Spalten.
     expect(sheet['O1']).toBeUndefined();
   });

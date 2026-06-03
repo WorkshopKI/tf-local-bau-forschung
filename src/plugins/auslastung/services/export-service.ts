@@ -215,7 +215,7 @@ export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook
   const header = [
     'Aktenzeichen', 'Akronym', 'VB-Titel', 'TVs', 'Empfohlener MA',
     'Kompetenz-Score', 'Restkapazität (TVs)', 'Confidence', 'Status',
-    ...Array.from({ length: ALT_COUNT }, (_, i) => `Alternative ${i + 1}`),
+    ...Array.from({ length: ALT_COUNT }, (_, i) => `Alternative ${i + 1} (Kürzel · Kompetenz · TVs frei)`),
   ];
   const sheetData = [
     header,
@@ -236,7 +236,7 @@ export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook
   ws['!cols'] = [
     { wch: 18 }, { wch: 16 }, { wch: 40 }, { wch: 6 }, { wch: 10 },
     { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 14 },
-    ...Array.from({ length: ALT_COUNT }, () => ({ wch: 24 })),
+    ...Array.from({ length: ALT_COUNT }, () => ({ wch: 32 })),
   ];
   XLSX.utils.book_append_sheet(wb, ws, `Auslastung ${quartal}`);
   return wb;
