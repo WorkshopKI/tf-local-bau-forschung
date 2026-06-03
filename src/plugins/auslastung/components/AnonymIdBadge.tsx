@@ -1,9 +1,10 @@
-/** Anzeige fuer anonyme MA-IDs (MA01..MA30). Monospace, dezent.
+/** Anzeige fuer MA-Identitaeten. Monospace, dezent.
  *
- *  v2.5: Wenn `realName` mitgegeben wird, rendert der Badge "MA01 · MUE" —
- *  PL sieht die anonyme ID UND das echte Kuerzel parallel. Konsumenten
- *  lesen das echte Kuerzel ueber `useDeAnonName(anonId)` (gibt null wenn
- *  Session inaktiv oder Feature deaktiviert ist).
+ *  v2.18: Ist ein echtes Kuerzel (`realName`) bekannt, zeigt der Badge NUR das
+ *  echte TIB-Kuerzel (z.B. "PG") — das anonyme "MAxx" ist im passwortgeschuetzten
+ *  PL-Build redundant. Die anonyme ID bleibt als Hover-`title` erhalten. Fehlt
+ *  das Kuerzel (Feature deaktiviert), faellt der Badge auf die anonyme ID zurueck.
+ *  Konsumenten lesen das Kuerzel ueber `useDeAnonName(anonId)` / `useDeAnonResolver`.
  */
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
@@ -11,10 +12,10 @@ import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
 interface Props {
   anonId: string;
   size?: 'sm' | 'md' | 'lg';
-  /** Wenn gesetzt: parallel zum anonId angezeigt ("MA01 · MUE"). Wenn
-   *  `undefined`/`null`, zeigt der Badge nur die anonyme ID. Konsumenten
-   *  sollten `useDeAnonName(anonId)` nutzen, statt das Mapping selbst zu
-   *  loesen — der Hook respektiert Feature-Flag + Session-Status. */
+  /** Wenn gesetzt: der Badge zeigt NUR dieses echte Kuerzel (die anonyme ID
+   *  wandert in den Hover-`title`). Wenn `undefined`/`null`, zeigt der Badge die
+   *  anonyme ID. Konsumenten sollten `useDeAnonName(anonId)` nutzen, statt das
+   *  Mapping selbst zu loesen — der Hook respektiert das Feature-Flag. */
   realName?: string | null;
 }
 
@@ -29,19 +30,14 @@ export function AnonymIdBadge({ anonId, size = 'md', realName }: Props): React.R
     : 'px-2 py-0.5';
   return (
     <span
+      title={realName ? anonId : undefined}
       className={`inline-flex items-center font-mono font-medium tracking-wide ${fontSize} ${padding} rounded-md`}
       style={{
         background: 'var(--tf-bg-secondary)',
         color: 'var(--tf-text)',
       }}
     >
-      {anonId}
-      {realName && (
-        <>
-          <span className="opacity-50 mx-1">·</span>
-          <span>{realName}</span>
-        </>
-      )}
+      {realName ?? anonId}
     </span>
   );
 }
