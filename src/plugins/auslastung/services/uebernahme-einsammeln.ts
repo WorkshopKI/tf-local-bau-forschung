@@ -86,12 +86,20 @@ const keyOf = (antragId: string, anonId: string): string => `${antragId}::${anon
  *    (PL-Entscheidungen + Matching-Vorschlaege sind autoritativ); fuer ein
  *    bereits zugewiesenes `(antragId, anonId)` wird KEIN konkurrierender
  *    `selbst`-Eintrag erzeugt.
+ *  - Verbund-Sperre (eine Einheit, ein Bearbeiter): ist IRGENDEIN TV des
+ *    Verbundes bereits `freigegeben`, wird fuer diesen Verbund KEIN neuer
+ *    `selbst`-Wunsch erzeugt — egal von welchem MA. Ein dabei bereits gelesener
+ *    veralteter Selbst-Eintrag faellt ueber die Retraktion unten raus (raeumt
+ *    Altdaten auf). Mehrere Interessenten VOR der Freigabe bleiben erlaubt
+ *    (Pitfall #26) — die Sperre greift erst nach der Freigabe.
  *  - Retraktion (Undo erreicht die PL): fuer jede anonId, deren Ordner in
  *    DIESEM Batch gelesen wurde, werden `selbst`-Eintraege entfernt, die nicht
  *    mehr in ihren aktuellen Wünschen stehen. anonIds OHNE Datei im Batch
  *    bleiben unangetastet (kein versehentliches Loeschen).
  *
- * Pure — kein FS, kein Store. Aufrufer persistiert das Ergebnis.
+ * `verbundKeyOfAntrag` mappt eine TV-`antragId` auf ihren Verbund-Key (Default
+ * Identitaet = jeder Antrag ein eigener Verbund). Pure — kein FS, kein Store.
+ * Aufrufer persistiert das Ergebnis.
  */
 export function mergeWuenscheIntoZuweisungen(
   current: readonly Zuweisung[],
@@ -99,7 +107,15 @@ export function mergeWuenscheIntoZuweisungen(
   anonymMap: AnonymMap,
   fallbackQuartal: string,
   stundenProTV: number,
+  verbundKeyOfAntrag: (antragId: string) => string = (id) => id,
 ): MergeWuenscheResult {
+  // Verbund-Keys mit bestehender Freigabe — fuer diese werden keine neuen
+  // Selbst-Wünsche mehr angelegt (eine Einheit, ein Bearbeiter).
+  const freigegebeneVerbundKeys = new Set<string>();
+  for (const z of current) {
+    if (z.status === 'freigegeben') freigegebeneVerbundKeys.add(verbundKeyOfAntrag(z.antragId));
+  }
+
   // anonIds, deren Wunsch-Datei in diesem Lauf gelesen wurde (nur diese werden
   // reconciled). + gewuenschte selbst-Zuweisungen je (antragId, anonId).
   const collectedAnonIds = new Set<string>();
@@ -110,6 +126,9 @@ export function mergeWuenscheIntoZuweisungen(
     if (!anonId) continue;
     collectedAnonIds.add(anonId);
     for (const w of p.wuensche) {
+      // Verbund schon vergeben → Wunsch ignorieren (ein bereits vorhandener
+      // veralteter Selbst-Eintrag dieses MA wird unten als Retraktion entfernt).
+      if (freigegebeneVerbundKeys.has(verbundKeyOfAntrag(w.antragId))) continue;
       const anzahlTV = w.anzahlTV > 0 ? w.anzahlTV : 1;
       desired.set(keyOf(w.antragId, anonId), {
         antragId: w.antragId,

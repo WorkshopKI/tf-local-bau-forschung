@@ -46,6 +46,20 @@ export interface KompetenzMatrixUpdate {
   abschlagProzent?: number;
 }
 
+/** Eingabe fuer die Verbund-atomare Freigabe (`assignVerbund`). Ein Verbund
+ *  geht an genau EINEN Bearbeiter — alle TVs des Verbundes werden konsolidiert. */
+export interface AssignVerbundInput {
+  /** Aktenzeichen ALLER TVs des Verbundes — zum Wegraeumen konkurrierender
+   *  Records (Geist-Freigaben + Fremd-Selbst-Wünsche) vor der neuen Freigabe. */
+  tvAktenzeichen: string[];
+  /** Lead-TV — Aktenzeichen, unter dem die EINE Freigabe gebucht wird. */
+  leadAktenzeichen: string;
+  anonId: string;
+  quartal: string;
+  stunden: number;
+  anzahlTV: number;
+}
+
 interface AuslastungDataState {
   data: AuslastungData;
   loading: boolean;
@@ -117,6 +131,9 @@ interface AuslastungDataState {
     storage: StorageService,
     batch: PersoenlicheUebernahmeWuensche[],
     anonymMap: AnonymMap,
+    /** antragId → Verbund-Key — sperrt neue Selbst-Wünsche fuer bereits
+     *  freigegebene Verbünde (eine Einheit, ein Bearbeiter). */
+    verbundKeyOfAntrag: (antragId: string) => string,
   ) => Promise<{ neu: number; entfernt: number }>;
   // ── Klassifizierungen ────────────────────────────────────────────────
   upsertKlassifizierung: (storage: StorageService, k: Klassifizierung) => Promise<void>;
@@ -136,6 +153,11 @@ interface AuslastungDataState {
   // ── Zuweisungen ──────────────────────────────────────────────────────
   upsertZuweisung: (storage: StorageService, z: Zuweisung) => Promise<void>;
   removeZuweisung: (storage: StorageService, antragId: string, anonId: string) => Promise<void>;
+  /** Verbund-atomare Freigabe: entfernt ALLE Zuweisungen aller TVs des
+   *  Verbundes im Quartal und setzt GENAU EINE `freigegeben` (eine Einheit, ein
+   *  Bearbeiter) — verhindert Geist-Records bei Re-Zuweisung + konkurrierende
+   *  Selbst-Wünsche. EIN setState + EIN persist (Pitfall #16/#20). */
+  assignVerbund: (storage: StorageService, opts: AssignVerbundInput) => Promise<void>;
   // ── Kalibrierung ─────────────────────────────────────────────────────
   upsertKalibrierungsErgebnis: (storage: StorageService, e: KalibrierungsErgebnis) => Promise<void>;
   setOptimalConfidence: (storage: StorageService, kannIch: number, teilweise: number) => Promise<void>;
@@ -333,7 +355,7 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     return { aktualisiert, neu, unzuordenbar };
   },
 
-  applyUebernahmeWuensche: async (storage, batch, anonymMap) => {
+  applyUebernahmeWuensche: async (storage, batch, anonymMap, verbundKeyOfAntrag) => {
     const cfg = get().data.config;
     const { next, neu, entfernt } = mergeWuenscheIntoZuweisungen(
       get().data.zuweisungen,
@@ -341,6 +363,7 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       anonymMap,
       cfg.aktuellesQuartal,
       cfg.stundenProTV ?? 9,
+      verbundKeyOfAntrag,
     );
     if (neu === 0 && entfernt === 0) return { neu, entfernt };
     set(state => ({ data: { ...state.data, zuweisungen: next } }));
@@ -519,6 +542,33 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
         ),
       },
     }));
+    await get().persist(storage);
+  },
+
+  assignVerbund: async (storage, { tvAktenzeichen, leadAktenzeichen, anonId, quartal, stunden, anzahlTV }) => {
+    // Lead immer mit-raeumen, falls der Caller ihn nicht in der TV-Liste fuehrt
+    // (sonst bliebe eine alte Lead-Freigabe als Duplikat stehen).
+    const tvSet = new Set(tvAktenzeichen);
+    tvSet.add(leadAktenzeichen);
+    set(state => {
+      // Alle Zuweisungen aller TVs des Verbundes im Quartal entfernen (Geist-
+      // Freigaben anderer MAs + konkurrierende Selbst-Wünsche) …
+      const kept = state.data.zuweisungen.filter(
+        z => !(z.quartal === quartal && tvSet.has(z.antragId)),
+      );
+      // … dann GENAU EINE Freigabe auf dem Lead-TV setzen (eine Einheit, ein
+      // Bearbeiter).
+      kept.push({
+        antragId: leadAktenzeichen,
+        anonId,
+        quartal,
+        stunden,
+        anzahlTV,
+        status: 'freigegeben',
+        freigegebenAm: new Date().toISOString(),
+      });
+      return { data: { ...state.data, zuweisungen: kept } };
+    });
     await get().persist(storage);
   },
 

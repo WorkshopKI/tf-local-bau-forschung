@@ -44,9 +44,11 @@ export interface ExportRow {
 /**
  * Baut die Export-Zeilen aus dem aktuellen Zustand zusammen.
  *
- * Pro Zuweisung des aktiven Quartals eine Zeile. Bei `freigegeben` UND
- * `selbst` kommt eine Zeile pro MA pro Antrag — bei der UI sieht man
- * dann genau, wer wie viel macht. `abgelehnt`-Zeilen werden ueberlesen.
+ * EINE Zeile pro Verbund des aktiven Quartals (eine Einheit, ein Bearbeiter) —
+ * zugewiesene Zuweisungen werden pro `verbundKeyOf` gebuendelt. Bei Altdaten mit
+ * mehreren konkurrierenden Zuweisungen eines Verbundes entscheidet
+ * `pickVerbundZuweisung` (Praezedenz freigegeben > selbst > vorgeschlagen).
+ * `abgelehnt`-Zeilen werden ueberlesen.
  *
  * Caller kann zusaetzlich noch Match-Vorschlaege fuer NICHT-zugewiesene
  * Antraege uebergeben (`pendingMatches`) — dann werden auch Top-3-Vorschlaege
@@ -69,12 +71,20 @@ export function buildExportRows(input: BuildRowsInput): ExportRow[] {
   const indexAz = new Map<string, Antrag>(antraege.map(a => [a.aktenzeichen, a]));
   const rows: ExportRow[] = [];
 
-  // 1) Zuweisungen mit Status `freigegeben` oder `selbst`
+  // 1) Zugewiesene Zuweisungen pro Verbund buendeln — EINE Zeile pro Verbund.
+  const verbundGroups = new Map<string, Zuweisung[]>();
   for (const z of data.zuweisungen) {
     if (z.quartal !== quartal) continue;
     if (z.status === 'abgelehnt') continue;
     const a = indexAz.get(z.antragId);
     if (!a) continue;
+    const key = verbundKeyOf(a);
+    const g = verbundGroups.get(key);
+    if (g) g.push(z); else verbundGroups.set(key, [z]);
+  }
+  for (const candidates of verbundGroups.values()) {
+    const z = pickVerbundZuweisung(candidates);
+    const a = indexAz.get(z.antragId)!;
     rows.push(toRow(a, z.anonId, scoreFromAssignment(z), z, quartal, data.mitarbeiter, verbuendeById));
   }
 
@@ -114,6 +124,24 @@ export function buildExportRows(input: BuildRowsInput): ExportRow[] {
     || b.score - a.score
   );
   return rows;
+}
+
+// Praezedenz bei mehreren Zuweisungen EINES Verbundes (Altdaten-Konflikt):
+// PL-Freigabe schlaegt Selbst-Eintrag schlaegt Matching-Vorschlag.
+const STATUS_RANK: Record<string, number> = { freigegeben: 0, selbst: 1, vorgeschlagen: 2 };
+const statusRank = (s: string): number => STATUS_RANK[s] ?? 3;
+
+/** Maßgebliche Zuweisung EINES Verbundes: Freigabe > Selbst > Vorschlag; bei
+ *  Gleichstand der Lead-TV (kleinstes Aktenzeichen), dann meiste Stunden.
+ *  Deterministisch — `candidates` ist nie leer (Bucket hat ≥1 Eintrag). */
+function pickVerbundZuweisung(candidates: Zuweisung[]): Zuweisung {
+  return candidates.reduce((best, z) => {
+    const r = statusRank(z.status) - statusRank(best.status);
+    if (r !== 0) return r < 0 ? z : best;
+    const az = z.antragId.localeCompare(best.antragId, 'de');
+    if (az !== 0) return az < 0 ? z : best;
+    return z.stunden > best.stunden ? z : best;
+  });
 }
 
 function scoreFromAssignment(z: Zuweisung): number {

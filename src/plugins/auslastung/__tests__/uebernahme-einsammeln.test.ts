@@ -196,6 +196,63 @@ describe('mergeWuenscheIntoZuweisungen', () => {
     expect(neu).toBe(0);
     expect(next).toHaveLength(0);
   });
+
+  // ── Verbund-Sperre (eine Einheit, ein Bearbeiter) ────────────────────────
+  // A1 + A2 gehoeren zum selben Verbund V1.
+  const inV1 = (id: string): string => (id === 'A1' || id === 'A2' ? 'V1' : id);
+
+  it('legt KEINEN selbst-Wunsch fuer einen bereits freigegebenen Verbund an (Fremd-TV)', () => {
+    const existing: Zuweisung[] = [
+      { antragId: 'A1', anonId: 'MA09', quartal: Q, stunden: 9, anzahlTV: 1, status: 'freigegeben', freigegebenAm: '2026-05-01T00:00:00.000Z' },
+    ];
+    // SCH (MA05) wuenscht A2 — anderes TV desselben Verbundes V1 → gesperrt.
+    const { next, neu, entfernt } = mergeWuenscheIntoZuweisungen(
+      existing,
+      [batchOf('sch', [wunsch('A2')])],
+      anonMap([['SCH', 'MA05']]),
+      Q,
+      STUNDEN_PRO_TV,
+      inV1,
+    );
+    expect(neu).toBe(0);
+    expect(entfernt).toBe(0);
+    expect(next).toHaveLength(1);
+    expect(next[0]).toMatchObject({ anonId: 'MA09', status: 'freigegeben' });
+  });
+
+  it('raeumt einen veralteten selbst-Eintrag fuer einen inzwischen freigegebenen Verbund auf (MA im Batch)', () => {
+    const existing: Zuweisung[] = [
+      { antragId: 'A1', anonId: 'MA09', quartal: Q, stunden: 9, anzahlTV: 1, status: 'freigegeben', freigegebenAm: '2026-05-01T00:00:00.000Z' },
+      { antragId: 'A1', anonId: 'MA05', quartal: Q, stunden: 9, anzahlTV: 1, status: 'selbst', selbstEingetragen: true },
+    ];
+    // SCH (MA05) will A1 weiterhin, aber V1 ist an MA09 vergeben → Wunsch
+    // gesperrt + alter selbst entfernt (Retraktion, da MA05 im Batch).
+    const { next, neu, entfernt } = mergeWuenscheIntoZuweisungen(
+      existing,
+      [batchOf('sch', [wunsch('A1')])],
+      anonMap([['SCH', 'MA05']]),
+      Q,
+      STUNDEN_PRO_TV,
+      inV1,
+    );
+    expect(neu).toBe(0);
+    expect(entfernt).toBe(1);
+    expect(next).toHaveLength(1);
+    expect(next[0]).toMatchObject({ anonId: 'MA09', status: 'freigegeben' });
+  });
+
+  it('mehrere Interessenten VOR der Freigabe bleiben erhalten (Sperre greift erst nach Freigabe, Pitfall #26)', () => {
+    const { next, neu } = mergeWuenscheIntoZuweisungen(
+      [],
+      [batchOf('mue', [wunsch('A1')]), batchOf('sch', [wunsch('A2')])],
+      anonMap([['MUE', 'MA01'], ['SCH', 'MA02']]),
+      Q,
+      STUNDEN_PRO_TV,
+      inV1, // beide Wünsche im selben Verbund, aber KEINE Freigabe vorhanden
+    );
+    expect(neu).toBe(2);
+    expect(new Set(next.map(z => z.anonId))).toEqual(new Set(['MA01', 'MA02']));
+  });
 });
 
 // ─── collectUebernahmeWuensche gegen Mock-Handles ──────────────────────────

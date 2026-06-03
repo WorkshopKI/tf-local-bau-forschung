@@ -25,7 +25,7 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
-import { groupFreigegebeneByVerbund, istZuVerteilen, verteilCutoffDatum } from '../services/verbund-aggregation';
+import { groupFreigegebeneByVerbund, istZuVerteilen, verteilCutoffDatum, verbundKeyOf } from '../services/verbund-aggregation';
 import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
   embedText,
@@ -136,6 +136,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
   const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
   const upsertZuweisung = useAuslastungData(s => s.upsertZuweisung);
+  const assignVerbund = useAuslastungData(s => s.assignVerbund);
   const applyUebernahmeWuensche = useAuslastungData(s => s.applyUebernahmeWuensche);
 
   const cache = useAntraegeCache();
@@ -186,7 +187,15 @@ export function ZuweisungsCockpit(): React.ReactElement {
     }
     const batch = await collectUebernahmeWuensche(root);
     const total = batch.reduce((n, p) => n + p.wuensche.length, 0);
-    const { neu, entfernt } = await applyUebernahmeWuensche(storage, batch, cache.anonymMap);
+    // antragId → Verbund-Key, damit der Merge keine Selbst-Wünsche fuer bereits
+    // freigegebene Verbünde anlegt (eine Einheit, ein Bearbeiter).
+    const verbundKeyByAntrag = new Map(cache.antraege.map(a => [a.aktenzeichen, verbundKeyOf(a)]));
+    const { neu, entfernt } = await applyUebernahmeWuensche(
+      storage,
+      batch,
+      cache.anonymMap,
+      (id) => verbundKeyByAntrag.get(id) ?? id,
+    );
     setEinsammelnMsg(
       `${total} Wunsch/Wünsche gelesen · ${neu} neu · ${entfernt} zurückgezogen`,
     );
@@ -403,18 +412,20 @@ export function ZuweisungsCockpit(): React.ReactElement {
     if (!selected) return;
     // v2.4: PL-Freigabe bucht echte tvCount-Stunden + setzt anzahlTV im
     // Zuweisungs-Record, damit die Buchung mit der CSV konsistent ist.
+    // Verbund-atomar: assignVerbund raeumt alle konkurrierenden Zuweisungen
+    // ALLER TVs des Verbundes weg (Geist-Freigaben + Fremd-Selbst-Wünsche) und
+    // setzt GENAU EINE Freigabe — eine Einheit, ein Bearbeiter.
     const verbundId = (selected as { verbund_id?: string }).verbund_id;
     const tvCount = getTVCount(cache.antraege, verbundId, selected.aktenzeichen);
-    const z: Zuweisung = {
-      antragId: selected.aktenzeichen,
+    const tvAktenzeichen = selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen];
+    await assignVerbund(storage, {
+      tvAktenzeichen,
+      leadAktenzeichen: selected.aktenzeichen,
       anonId: match.anonId,
       quartal: config.aktuellesQuartal,
       stunden: match.benoetigteStunden,
       anzahlTV: tvCount,
-      status: 'freigegeben',
-      freigegebenAm: new Date().toISOString(),
-    };
-    await upsertZuweisung(storage, z);
+    });
   }
 
   async function ablehnen(match: MatchResult): Promise<void> {

@@ -94,6 +94,49 @@ describe('buildExportRows', () => {
     expect(rows[0]?.akronym).toBe('AKR');
     expect(rows[0]?.anzahlTV).toBe(4);
   });
+
+  // ── Eine Zeile pro Verbund (eine Einheit, ein Bearbeiter) ────────────────
+
+  it('buendelt mehrere Zuweisungen desselben Antrags zu EINER Zeile (Freigabe gewinnt vor selbst)', () => {
+    const data = makeData();
+    // Screenshot-Fall: ein Antrag, zwei Zuweisungen (PG freigegeben + THÜ selbst).
+    data.zuweisungen = [
+      { antragId: 'A1', anonId: 'MA02', quartal: '2026-Q2', stunden: 9, status: 'selbst', selbstEingetragen: true },
+      { antragId: 'A1', anonId: 'MA01', quartal: '2026-Q2', stunden: 9, status: 'freigegeben' },
+    ];
+    const rows = buildExportRows({ data, antraege });
+    const a1 = rows.filter(r => r.aktenzeichen === 'A1');
+    expect(a1).toHaveLength(1);
+    expect(a1[0]?.ma).toBe('MA01');
+    expect(a1[0]?.status).toBe('freigegeben');
+  });
+
+  it('buendelt TVs desselben Verbundes (verbund_id) zu EINER Zeile (Freigabe gewinnt)', () => {
+    const data = makeData();
+    data.zuweisungen = [
+      { antragId: 'A1', anonId: 'MA01', quartal: '2026-Q2', stunden: 18, status: 'freigegeben', anzahlTV: 2 },
+      { antragId: 'A2', anonId: 'MA02', quartal: '2026-Q2', stunden: 9, status: 'selbst', selbstEingetragen: true },
+    ];
+    const antr = [
+      makeAntrag('A1', { verbund_id: 'V1', titel: 'TV1' }),
+      makeAntrag('A2', { verbund_id: 'V1', titel: 'TV2' }),
+    ];
+    const rows = buildExportRows({ data, antraege: antr });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.ma).toBe('MA01');
+    expect(rows[0]?.status).toBe('freigegeben');
+  });
+
+  it('selbst-only Verbund erscheint als EINE selbst-Zeile', () => {
+    const data = makeData();
+    data.zuweisungen = [
+      { antragId: 'A2', anonId: 'MA02', quartal: '2026-Q2', stunden: 9, status: 'selbst', selbstEingetragen: true },
+    ];
+    const rows = buildExportRows({ data, antraege });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.ma).toBe('MA02');
+    expect(rows[0]?.status).toBe('selbst');
+  });
 });
 
 describe('buildWorkbook', () => {
