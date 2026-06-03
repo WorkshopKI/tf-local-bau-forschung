@@ -32,6 +32,7 @@ function makeRow(
     verbundId: overrides.leadAktenzeichen,
     akronym: '',
     verbundTitel: '',
+    antragsdatum: '',
     tvAktenzeichen: [overrides.leadAktenzeichen],
     tvCount: 1,
     confidence: 'high',
@@ -52,7 +53,7 @@ function sortBy(key: ZuweisungSortKey, rows: VerbundZuweisungRow[]): string[] {
 describe('zuweisung-sort', () => {
   it('Default ist Akronym aufsteigend', () => {
     expect(DEFAULT_ZUWEISUNG_SORT).toBe('akronym_asc');
-    expect(OPTIONS).toHaveLength(6);
+    expect(OPTIONS).toHaveLength(7);
   });
 
   it('akronym_asc: A→Z, leere Akronyme ans Ende, FKZ-Tiebreak', () => {
@@ -82,6 +83,18 @@ describe('zuweisung-sort', () => {
       makeRow({ leadAktenzeichen: 'F3', verbundTitel: 'Antriebsstrang' }),
     ];
     expect(sortBy('titel_asc', rows)).toEqual(['F3', 'F2', 'F1']);
+  });
+
+  it('antragsdatum_desc: neueste zuerst, leere Datümer ans Ende, FKZ-Tiebreak', () => {
+    const rows = [
+      makeRow({ leadAktenzeichen: 'F1', antragsdatum: '2026-01-15' }),
+      makeRow({ leadAktenzeichen: 'F2', antragsdatum: '2026-05-20' }),
+      makeRow({ leadAktenzeichen: 'FKZ-B', antragsdatum: '' }),
+      makeRow({ leadAktenzeichen: 'F3', antragsdatum: '2026-03-10' }),
+      makeRow({ leadAktenzeichen: 'FKZ-A', antragsdatum: '' }),
+    ];
+    // Neueste zuerst, dann die beiden leeren — leere untereinander per FKZ.
+    expect(sortBy('antragsdatum_desc', rows)).toEqual(['F2', 'F3', 'F1', 'FKZ-A', 'FKZ-B']);
   });
 
   it('kategorie_asc: nach konfigurierter Kategorie-Reihenfolge, unbekannte ans Ende', () => {

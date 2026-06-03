@@ -195,6 +195,23 @@ describe('groupFreigegebeneByVerbund', () => {
     expect(rows[0]?.klassifizierung.freigegebenePrimaer).toBe('IT');
   });
 
+  it('übernimmt antragsdatum vom Lead-TV (für Antragsdatum-Sortierung)', () => {
+    const views = [
+      makeView(makeAntrag({ aktenzeichen: '16KN127431', verbund_id: 'V1', antragsdatum: '2026-02-01' }), 'IT'),
+      makeView(makeAntrag({ aktenzeichen: '16KN127430', verbund_id: 'V1', antragsdatum: '2026-05-09' }), 'IT'),
+    ];
+    const rows = groupFreigegebeneByVerbund(views, new Map());
+    // Lead = '16KN127430' (FKZ-sortiert) → dessen Antragsdatum landet auf der Row.
+    expect(rows[0]?.leadAktenzeichen).toBe('16KN127430');
+    expect(rows[0]?.antragsdatum).toBe('2026-05-09');
+  });
+
+  it('antragsdatum leer wenn nicht gesetzt', () => {
+    const views = [makeView(makeAntrag({ aktenzeichen: 'A1' }), 'DT')];
+    const rows = groupFreigegebeneByVerbund(views, new Map());
+    expect(rows[0]?.antragsdatum).toBe('');
+  });
+
   it('Solo-Antrag ohne verbund_id → eigene 1er-Zeile, Titel-Fallback auf Antrag', () => {
     const views = [makeView(makeAntrag({ aktenzeichen: 'A1', akronym: 'SOLO', titel: 'Solo-Titel' }), 'DT')];
     const rows = groupFreigegebeneByVerbund(views, new Map());

@@ -387,6 +387,9 @@ export interface VerbundZuweisungRow {
   leadAktenzeichen: string;
   akronym: string;
   verbundTitel: string;
+  /** Antragsdatum des Lead-TV (ISO `YYYY-MM-DD`; leer wenn nicht gesetzt) — fuer
+   *  die „Antragsdatum (Neu→Alt)"-Sortierung. */
+  antragsdatum: string;
   /** Aktenzeichen aller TVs dieses Verbundes — fuer aggregierte Status-/Filter-
    *  Pruefung gegen die Zuweisungen. */
   tvAktenzeichen: string[];
@@ -426,6 +429,7 @@ export function groupFreigegebeneByVerbund(
       leadAktenzeichen: lead.antrag.aktenzeichen,
       akronym,
       verbundTitel,
+      antragsdatum: readString(lead.antrag, CANONICAL_ANTRAGSDATUM),
       tvAktenzeichen: group.map(g => g.antrag.aktenzeichen),
       tvCount: group.length,
       klassifizierung: lead.klassifizierung,

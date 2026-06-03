@@ -14,6 +14,7 @@ export type ZuweisungSortKey =
   | 'akronym_asc'
   | 'fkz_asc'
   | 'titel_asc'
+  | 'antragsdatum_desc'
   | 'kategorie_asc'
   | 'sicherheit_asc'
   | 'sicherheit_desc';
@@ -24,11 +25,12 @@ export const DEFAULT_ZUWEISUNG_SORT: ZuweisungSortKey = 'akronym_asc';
 /** Anzeige-Labels — muessen exakt den `CollapsibleSegItem.label`-Strings entsprechen. */
 export const ZUWEISUNG_SORT_LABELS: Record<ZuweisungSortKey, string> = {
   akronym_asc: 'Akronym (A→Z)',
-  fkz_asc: 'Förderkennzeichen (A→Z)',
+  fkz_asc: 'FKZ (A→Z)',
   titel_asc: 'Verbundtitel (A→Z)',
+  antragsdatum_desc: 'Antragsdatum (Neu→Alt)',
   kategorie_asc: 'Kategorie',
-  sicherheit_asc: 'Sicherheit (niedrigste zuerst)',
-  sicherheit_desc: 'Sicherheit (höchste zuerst)',
+  sicherheit_asc: 'Sicherheit (niedrig→hoch)',
+  sicherheit_desc: 'Sicherheit (hoch→niedrig)',
 };
 
 export interface ZuweisungSortOption {
@@ -59,6 +61,16 @@ function textCompareEmptyLast(av: string, bv: string): number {
   return a.localeCompare(b, 'de');
 }
 
+/** Antragsdatum absteigend (neueste zuerst, ISO-Vergleich), leere ans Ende. */
+function dateCompareNewestFirst(a: VerbundZuweisungRow, b: VerbundZuweisungRow): number {
+  const av = a.antragsdatum.trim();
+  const bv = b.antragsdatum.trim();
+  if (!av && !bv) return 0;
+  if (!av) return 1;
+  if (!bv) return -1;
+  return bv.localeCompare(av, 'de'); // absteigend
+}
+
 /**
  * Baut die Sort-Optionen. `kategorieRank` = Kategorie-ID → Index aus
  * `config.ueberKategorien`, damit „Kategorie" in der konfigurierten Reihenfolge
@@ -85,6 +97,11 @@ export function buildZuweisungSortOptions(
       key: 'titel_asc',
       label: ZUWEISUNG_SORT_LABELS.titel_asc,
       compare: (a, b) => textCompareEmptyLast(a.verbundTitel, b.verbundTitel) || fkzCompare(a, b),
+    },
+    {
+      key: 'antragsdatum_desc',
+      label: ZUWEISUNG_SORT_LABELS.antragsdatum_desc,
+      compare: (a, b) => dateCompareNewestFirst(a, b) || fkzCompare(a, b),
     },
     {
       key: 'kategorie_asc',
