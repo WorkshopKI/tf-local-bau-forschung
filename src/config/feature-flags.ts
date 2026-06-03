@@ -115,6 +115,14 @@ export function isMaVerwaltungPasswortEnabled(): boolean {
 export function isChatEnabled(): boolean { return features.chat; }
 export function isSucheEnabled(): boolean { return features.suche; }
 export function isFeedbackBoardEnabled(): boolean { return features.feedbackBoard; }
+/** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
+ *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über
+ *  `isKuratorMenusEnabled()` — dieser Flag ist eine *zusätzliche* Bedingung für
+ *  Nicht-Kurator-Builds. Braucht `datenShareSchreibrecht` (sonst kein Snapshot-
+ *  Write). `=== true` für Backward-Kompat mit pre-2.18-Configs. */
+export function isCsvAutoRefreshEnabled(): boolean {
+  return features.csvAutoRefresh === true;
+}
 
 /**
  * True nur im Entwickler-Kontext: `npm run build:dev` (variant=development) und

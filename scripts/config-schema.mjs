@@ -138,6 +138,14 @@ export const DEFAULT_CONFIG = {
     chat: true,
     suche: true,
     feedbackBoard: true,
+    /** v2.18: CSV-Auto-Refresh-Banner + Datei-Picker auch ohne Kurator-Menüs
+     *  (z.B. pl-Variante). Der Banner pollt registrierte CSV-Quellen auf neuere
+     *  `lastModified`-Stände; in Nicht-Kurator-Builds kann die Quelldatei über
+     *  einen schlanken Picker verknüpft werden (showOpenFilePicker →
+     *  setCsvSourceHandle). Default false — opt-in pro Variante (pl + dev).
+     *  Braucht `datenShareSchreibrecht` zum Schreiben des Snapshots. Der Kurator-
+     *  Banner läuft unabhängig weiter über `kuratorMenus`. */
+    csvAutoRefresh: false,
   },
 
   menuLabels: {
@@ -277,6 +285,7 @@ export function validateConfig(config) {
     'deAnonymisierung', 'datenShareSchreibrecht',
     'maLogin', 'maVerwaltungPasswort',
     'chat', 'suche', 'feedbackBoard',
+    'csvAutoRefresh',
   ];
   for (const k of requiredFlags) {
     if (typeof features[k] !== 'boolean') {
@@ -406,6 +415,15 @@ export function validateConfig(config) {
   if (features.maVerwaltungPasswort === true && features.datenShareSchreibrecht !== true) {
     warnings.push(
       'features.maVerwaltungPasswort=true ohne datenShareSchreibrecht: die PL kann die Zugangsdatei nicht schreiben (NotAllowedError beim Passwort-Generieren).',
+    );
+  }
+  // v2.18: CSV-Auto-Refresh (pl-Banner) schreibt beim Aktualisieren den Snapshot
+  // auf den Daten-Share — braucht Schreibrecht (in Nicht-Kurator-Builds via
+  // datenShareSchreibrecht), sonst wirft die Pipeline NotAllowedError. Im
+  // Kurator-Build deckt die Kurator-Session das Schreibrecht ab.
+  if (features.csvAutoRefresh === true && features.datenShareSchreibrecht !== true && features.kuratorMenus !== true) {
+    warnings.push(
+      'features.csvAutoRefresh=true ohne datenShareSchreibrecht (und ohne kuratorMenus): das Aktualisieren kann den Snapshot nicht schreiben (NotAllowedError).',
     );
   }
   // v2.11: maLogin (MA-Login-Wall) und requireKuratorLogin (Kurator-Wall) würden

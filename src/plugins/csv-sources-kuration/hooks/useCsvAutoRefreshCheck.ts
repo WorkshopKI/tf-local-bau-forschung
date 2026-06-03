@@ -1,26 +1,31 @@
 /**
- * Background-Check beim Kurator-Login: hat eine registrierte CSV-Quelle ein
- * neueres `lastModified` als beim letzten Import?
+ * Background-Check: hat eine registrierte CSV-Quelle ein neueres `lastModified`
+ * als beim letzten Import?
  *
  * Triggert wenn:
- *  - `features.kuratorMenus` aktiv (nur kurator/dev Build)
- *  - Kurator-Session aktiv (rehydrate ODER fresh activate)
+ *  - `features.kuratorMenus` ODER `features.csvAutoRefresh` aktiv
+ *  - Kurator-Modus (`kuratorMenus`): zusätzlich Kurator-Session aktiv
+ *    (rehydrate ODER fresh activate). pl-Modus (`csvAutoRefresh` ohne
+ *    `kuratorMenus`): keine Session nötig, läuft beim Mount.
  *  - SMB-Status online
- *  - Pro Session noch nicht gepruefft
+ *  - Pro Session/Mount noch nicht geprüft
  *
- * Liefert Banner-State + Aktionen. Der Banner ruft `runRefresh()` (das
- * delegiert an `runAutoRefresh()` aus `services/auto-refresh.ts`), sammelt
- * Progress + Report und kann manuell dismisst werden.
+ * Liefert Banner-State + Aktionen. Der Banner ruft `runRefresh()` (delegiert an
+ * `runAutoRefresh()` aus `services/auto-refresh.ts`), sammelt Progress + Report
+ * und kann manuell dismisst werden. In Nicht-Kurator-Builds (pl) bekommt der
+ * User die Schemas per Snapshot, aber nie ein Datei-Handle — `unlinked` listet
+ * diese Quellen, `linkSource()` verknüpft sie per Picker (v2.18).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
-import { isKuratorMenusEnabled } from '@/config/feature-flags';
-import { listSchemas, listProgramme } from '@/core/services/csv';
+import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
+import { runtimeConfig } from '@/config/runtime-config';
+import { listSchemas, listProgramme, loadSchema } from '@/core/services/csv';
 import type { CsvSchema } from '@/core/services/csv/types';
-import { checkSourceForUpdate, type UpdateCheckResult } from '../csv-source-handle';
+import { checkSourceForUpdate, pickAndLinkCsvSource, type UpdateCheckResult } from '../csv-source-handle';
 import {
   runAutoRefresh,
   BuildLockBusyError,
@@ -39,6 +44,9 @@ export interface AutoRefreshCheckState {
   candidates: RefreshCandidate[];
   /** Quellen, deren Handle/Permission vom User neu erteilt werden muss. */
   permissionNeeded: PermissionNeededEntry[];
+  /** Quellen ohne gespeichertes Datei-Handle (z.B. pl-Build: Schemas per
+   *  Snapshot, aber nie eine Datei gepickt). Über `linkSource()` verknüpfbar. */
+  unlinked: PermissionNeededEntry[];
   /** Hintergrund-Check laeuft gerade. */
   checking: boolean;
   /** Banner vom User dismisst. */
@@ -60,11 +68,21 @@ export interface AutoRefreshCheckState {
   clearReport: () => void;
   /** Refresh starten. Returnt true, wenn erfolgreich abgeschlossen. */
   runRefresh: () => Promise<void>;
+  /** Eine Quelle ohne Handle (oder mit abgelaufener Permission) mit einer
+   *  lokalen Datei verknüpfen — öffnet den Datei-Picker (User-Gesture nötig).
+   *  Wirft bei Datei-Mismatch; bei Abbruch passiert nichts. */
+  linkSource: (schemaId: string) => Promise<void>;
+}
+
+interface CollectResult {
+  candidates: RefreshCandidate[];
+  permissionNeeded: PermissionNeededEntry[];
+  unlinked: PermissionNeededEntry[];
 }
 
 async function collectCandidates(
   idb: ReturnType<typeof useStorage>['idb'],
-): Promise<{ candidates: RefreshCandidate[]; permissionNeeded: PermissionNeededEntry[] }> {
+): Promise<CollectResult> {
   const programme = await listProgramme(idb);
   const all: CsvSchema[] = [];
   for (const p of programme) {
@@ -73,15 +91,18 @@ async function collectCandidates(
   }
   const candidates: RefreshCandidate[] = [];
   const permissionNeeded: PermissionNeededEntry[] = [];
+  const unlinked: PermissionNeededEntry[] = [];
   for (const schema of all) {
     const r: UpdateCheckResult = await checkSourceForUpdate(idb, schema);
     if (r.state === 'update_available') {
       candidates.push({ schemaId: schema.id, schema });
     } else if (r.state === 'permission_required') {
       permissionNeeded.push({ schemaId: schema.id, schemaName: schema.csv_source_name });
+    } else if (r.state === 'no_handle') {
+      unlinked.push({ schemaId: schema.id, schemaName: schema.csv_source_name });
     }
   }
-  return { candidates, permissionNeeded };
+  return { candidates, permissionNeeded, unlinked };
 }
 
 export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
@@ -89,8 +110,15 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
   const session = useKuratorSession();
   const smbStatus = useSmbStatus();
 
+  // Build-konstante Gates: Kurator-Banner läuft über `kuratorMenus`, der pl-
+  // Banner über `csvAutoRefresh`. Im Kurator-Modus ist zusätzlich eine aktive
+  // Kurator-Session Vorbedingung; im reinen csvAutoRefresh-Modus (pl) nicht.
+  const enabled = isKuratorMenusEnabled() || isCsvAutoRefreshEnabled();
+  const requireSession = isKuratorMenusEnabled();
+
   const [candidates, setCandidates] = useState<RefreshCandidate[]>([]);
   const [permissionNeeded, setPermissionNeeded] = useState<PermissionNeededEntry[]>([]);
+  const [unlinked, setUnlinked] = useState<PermissionNeededEntry[]>([]);
   const [checking, setChecking] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -108,43 +136,47 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     return () => { mountedRef.current = false; };
   }, []);
 
-  // Session-Ende → State reset, damit der naechste Login wieder pruefft.
+  const runCheck = useCallback(async () => {
+    if (mountedRef.current) setChecking(true);
+    try {
+      const r = await collectCandidates(storage.idb);
+      if (!mountedRef.current) return;
+      setCandidates(r.candidates);
+      setPermissionNeeded(r.permissionNeeded);
+      setUnlinked(r.unlinked);
+    } catch (err) {
+      console.warn('[csv-auto-refresh] check failed', err);
+    } finally {
+      if (mountedRef.current) setChecking(false);
+    }
+  }, [storage.idb]);
+
+  // Session-Ende → State reset, damit der naechste Login wieder pruefft. Nur im
+  // Kurator-Modus relevant — die pl hat keine Session (session.isActive bleibt
+  // dauerhaft false, sonst würden wir den Check-Lock endlos resetten).
   useEffect(() => {
+    if (!requireSession) return;
     if (!session.isActive) {
       checkedRef.current = false;
       setCandidates([]);
       setPermissionNeeded([]);
+      setUnlinked([]);
       setDismissed(false);
       setReport(null);
       setLockConflict(null);
       setRefreshError(null);
     }
-  }, [session.isActive]);
+  }, [requireSession, session.isActive]);
 
   // Background-Check sobald alle Vorbedingungen erfuellt sind.
   useEffect(() => {
-    if (!isKuratorMenusEnabled()) return;
-    if (!session.isActive) return;
+    if (!enabled) return;
+    if (requireSession && !session.isActive) return;
     if (smbStatus.status !== 'online') return;
     if (checkedRef.current) return;
     checkedRef.current = true;
-
-    let alive = true;
-    (async () => {
-      if (mountedRef.current) setChecking(true);
-      try {
-        const r = await collectCandidates(storage.idb);
-        if (!alive || !mountedRef.current) return;
-        setCandidates(r.candidates);
-        setPermissionNeeded(r.permissionNeeded);
-      } catch (err) {
-        console.warn('[csv-auto-refresh] check failed', err);
-      } finally {
-        if (alive && mountedRef.current) setChecking(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [session.isActive, smbStatus.status, storage.idb]);
+    void runCheck();
+  }, [enabled, requireSession, session.isActive, smbStatus.status, runCheck]);
 
   const dismiss = useCallback(() => setDismissed(true), []);
   const clearReport = useCallback(() => {
@@ -164,8 +196,12 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     setLockConflict(null);
     setRefreshProgress(null);
     try {
+      // Audit-/Lock-Identität: Kurator-Name wenn vorhanden, sonst das Build-Label
+      // (z.B. „ZAH PL") — konsistent mit der v2.16-Audit-Identität bei Shared-
+      // Passwort-Rollen (Build-Label statt Person).
+      const identity = session.kuratorName ?? runtimeConfig.build.label;
       const r = await runAutoRefresh(storage.idb, candidates, {
-        kuratorName: session.kuratorName ?? undefined,
+        kuratorName: identity,
         onProgress: p => {
           if (mountedRef.current) setRefreshProgress(p);
         },
@@ -191,9 +227,22 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     }
   }, [candidates, refreshing, session.kuratorName, storage.idb]);
 
+  const linkSource = useCallback(async (schemaId: string) => {
+    const schema = await loadSchema(storage.idb, schemaId);
+    if (!schema) return;
+    const res = await pickAndLinkCsvSource(storage.idb, schema);
+    // Nach erfolgreichem Verknüpfen neu prüfen: die Quelle wandert je nach
+    // lastModified von `unlinked` nach `candidates` oder fällt (up_to_date) raus.
+    if (res.linked) {
+      if (mountedRef.current) setDismissed(false);
+      await runCheck();
+    }
+  }, [storage.idb, runCheck]);
+
   return {
     candidates,
     permissionNeeded,
+    unlinked,
     checking,
     dismissed,
     refreshing,
@@ -204,5 +253,6 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     dismiss,
     clearReport,
     runRefresh,
+    linkSource,
   };
 }

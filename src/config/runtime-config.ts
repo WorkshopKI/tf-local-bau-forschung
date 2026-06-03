@@ -84,6 +84,11 @@ export interface TeamflowFeatures {
   suche: boolean;
   /** User-Plugin "Feedback-Board". Trennt sich von `feedback` (das gated die Feedback-Kuration). */
   feedbackBoard: boolean;
+  /** v2.18: CSV-Auto-Refresh-Banner + Datei-Picker auch ohne Kurator-Menüs
+   *  (z.B. pl-Variante). Pollt registrierte CSV-Quellen auf neuere
+   *  `lastModified`-Stände; in Nicht-Kurator-Builds verknüpft ein schlanker
+   *  Picker die Quelldatei. Braucht `datenShareSchreibrecht`. Nur dev + pl. */
+  csvAutoRefresh: boolean;
 }
 
 export interface TeamflowMenuLabels {

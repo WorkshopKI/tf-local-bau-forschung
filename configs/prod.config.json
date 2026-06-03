@@ -36,7 +36,8 @@
     "maVerwaltungPasswort": false,
     "chat": false,
     "suche": true,
-    "feedbackBoard": true
+    "feedbackBoard": true,
+    "csvAutoRefresh": false
   },
   "menuLabels": {
     "antraege": "Förderanträge"

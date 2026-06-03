@@ -33,6 +33,7 @@ import {
   isBauantraegeEnabled,
   isFeedbackEnabled,
   isKuratorMenusEnabled,
+  isCsvAutoRefreshEnabled,
   isDataShareEnabled,
   menuLabel,
 } from '@/config/feature-flags';
@@ -389,7 +390,7 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
           {isDataShareEnabled() && (
             <SmbBanner status={smbStatus.status} lastCheck={smbStatus.lastCheck} idb={storage.idb} />
           )}
-          {isKuratorMenusEnabled() && <CsvAutoRefreshBanner />}
+          {(isKuratorMenusEnabled() || isCsvAutoRefreshEnabled()) && <CsvAutoRefreshBanner />}
           {isDataShareEnabled() && <NewSnapshotBanner state={snapshotWatcher} />}
           <div className="flex-1 overflow-y-auto relative">
             {children}

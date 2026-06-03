@@ -19,6 +19,8 @@
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { CsvSchema } from '@/core/services/csv/types';
 import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
+import { parseCsvPreview } from '@/core/services/csv';
+import { validateHeaders } from './services/csv-drift-check';
 
 const HANDLES_IDB_KEY = 'csv-source-handles';
 
@@ -177,4 +179,71 @@ export async function persistCsvSourceMeta(
       source_last_modified: file.lastModified,
     });
   }
+}
+
+export interface LinkSourceResult {
+  /** True wenn ein Handle gespeichert wurde; false wenn der User den Picker abbrach. */
+  linked: boolean;
+}
+
+/**
+ * v2.18: Verknüpft eine (per Snapshot bekannte) CSV-Quelle mit einer lokalen
+ * Datei. Öffnet den Datei-Picker (MUSS aus einem User-Gesture laufen — Browser-
+ * Constraint), prüft grob ob die Datei zum Schema passt und legt das
+ * `FileSystemFileHandle` ab. Danach kann der Auto-Refresh-Check die Quelle
+ * normal auf neuere `lastModified`-Stände prüfen.
+ *
+ * Hintergrund: Nicht-Kurator-Builds (pl) bekommen die Schemas über den Share-
+ * Snapshot, aber nie ein Handle (das entsteht sonst nur im Kurator-Wizard).
+ * Dieser Picker schließt die Lücke ohne das volle Kuration-Plugin.
+ *
+ * `source_last_modified` wird bewusst NICHT überschrieben — so wird eine
+ * neuere Datei beim nächsten Check korrekt zum Update-Kandidaten.
+ *
+ * Wirft, wenn die Datei offensichtlich nicht zum Schema passt (keine einzige
+ * bekannte Spalte) oder der Browser keinen persistierbaren Picker bietet.
+ */
+export async function pickAndLinkCsvSource(
+  idb: IDBStore,
+  schema: CsvSchema,
+): Promise<LinkSourceResult> {
+  const win = window as typeof window & {
+    showOpenFilePicker?: (opts?: {
+      types?: { description?: string; accept: Record<string, string[]> }[];
+      multiple?: boolean;
+      excludeAcceptAllOption?: boolean;
+    }) => Promise<FileSystemFileHandle[]>;
+  };
+  if (typeof win.showOpenFilePicker !== 'function') {
+    throw new Error('Datei-Verknüpfung braucht Chrome oder Edge (File System Access API).');
+  }
+
+  let handle: FileSystemFileHandle;
+  try {
+    const handles = await win.showOpenFilePicker({
+      types: [{ description: 'CSV-Datei', accept: { 'text/csv': ['.csv'] } }],
+      multiple: false,
+    });
+    const picked = handles[0];
+    if (!picked) return { linked: false };
+    handle = picked;
+  } catch (err) {
+    if ((err as DOMException).name === 'AbortError') return { linked: false };
+    throw err;
+  }
+
+  const file = await handle.getFile();
+  const preview = await parseCsvPreview(file, 1, {
+    encoding: schema.encoding,
+    separator: schema.separator,
+  });
+  const validation = validateHeaders(schema, preview.headers);
+  if (validation.matched.length === 0) {
+    throw new Error(
+      `Diese Datei passt nicht zu „${schema.csv_source_name}" — keine bekannte Spalte gefunden. Falsche Datei gewählt?`,
+    );
+  }
+
+  await setCsvSourceHandle(idb, schema.id, handle);
+  return { linked: true };
 }

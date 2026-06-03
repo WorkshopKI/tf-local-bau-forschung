@@ -91,11 +91,19 @@ export function CsvAutoRefreshDriftDialog({ report, onClose, onOpenWizard }: Pro
                 </div>
               ))}
             </div>
-            <div className="ml-6 mt-2 text-[11px] text-amber-900">
-              Öffne „Kuration → CSV-Sources" und nutze pro Quelle den Button „CSV Daten aktualisieren"
-              oder „CSV neu wählen". Im Dialog siehst du die volle Drift-Analyse und kannst entscheiden,
-              ob du die Datei trotzdem importierst (alte Mappings bleiben erhalten) oder das Schema neu registrierst.
-            </div>
+            {onOpenWizard ? (
+              <div className="ml-6 mt-2 text-[11px] text-amber-900">
+                Öffne „Kuration → CSV-Sources" und nutze pro Quelle den Button „CSV Daten aktualisieren"
+                oder „CSV neu wählen". Im Dialog siehst du die volle Drift-Analyse und kannst entscheiden,
+                ob du die Datei trotzdem importierst (alte Mappings bleiben erhalten) oder das Schema neu registrierst.
+              </div>
+            ) : (
+              <div className="ml-6 mt-2 text-[11px] text-amber-900">
+                Bei diesen Quellen haben sich die Spalten geändert — das Spalten-Mapping kann nur der Kurator
+                im CSV-Sources-Plugin anpassen. Bitte den Kurator informieren; die übrigen Quellen wurden normal
+                aktualisiert.
+              </div>
+            )}
           </div>
         ) : null}
 

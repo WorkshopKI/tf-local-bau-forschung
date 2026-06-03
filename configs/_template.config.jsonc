@@ -103,7 +103,12 @@
     // User-Suche-Plugin / Feedback-Board in der normalen Sidebar erscheint.
     "chat": true,           // AI-Chat-Plugin (Sidebar-Eintrag "Chat")
     "suche": true,          // User-Hybrid-Suche-Plugin (Sidebar-Eintrag "Suche")
-    "feedbackBoard": true   // Öffentliches Feedback-Board (Sidebar-Eintrag)
+    "feedbackBoard": true,  // Öffentliches Feedback-Board (Sidebar-Eintrag)
+    // v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
+    // Kurator-Menüs. Der Kurator-Banner läuft unabhängig über kuratorMenus —
+    // dieser Flag schaltet ihn zusätzlich in Nicht-Kurator-Builds frei (pl).
+    // Braucht datenShareSchreibrecht zum Schreiben des Snapshots. Nur dev + pl.
+    "csvAutoRefresh": false
   },
 
   // Pro Variant überschreibbare Sidebar-Labels für Bereichs-Menüs.
