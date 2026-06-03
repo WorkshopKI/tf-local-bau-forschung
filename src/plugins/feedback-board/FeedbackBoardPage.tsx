@@ -1,5 +1,5 @@
 // Öffentliches Feedback-Board: Bugs + Features mit Sponsoring-Fortschritt.
-// Card- und Listen-Ansicht, Filter-Pills, Sponsoring-Info-Banner.
+// Card- und Listen-Ansicht, Filter-Chips (CollapsibleSeg wie Förderanträge), Sponsoring-Info-Banner.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutGrid, List } from 'lucide-react';
@@ -16,31 +16,24 @@ import {
   isClassifiedAs,
   loadFeedbackConfig,
 } from '@/core/services/feedback';
+import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 
 type ViewMode = 'card' | 'list';
 type StatusFilter = 'all' | 'open' | 'done';
 
-const pillBase = 'px-2.5 py-1 rounded-full text-[11.5px] cursor-pointer transition-colors';
-const pillActive = `${pillBase} bg-[var(--tf-primary)] text-white`;
-const pillInactive = `${pillBase} text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]`;
-
 // Status als Gruppen (wie bisher auf dem Board): „Offen" = neu/geplant/in_bearbeitung.
-const STATUS_PILLS: { id: StatusFilter; label: string }[] = [
-  { id: 'all', label: 'Alle' },
-  { id: 'open', label: 'Offen' },
-  { id: 'done', label: 'Umgesetzt' },
-];
+const STATUS_TO_LABEL: Record<StatusFilter, string> = { all: 'Alle', open: 'Offen', done: 'Umgesetzt' };
+const LABEL_TO_STATUS: Record<string, StatusFilter> = { Alle: 'all', Offen: 'open', Umgesetzt: 'done' };
 
-// Kategorie wie im Kurator-Dashboard (CATEGORY_PILLS).
-const CATEGORY_PILLS: { id: FeedbackCategory | ''; label: string }[] = [
-  { id: '', label: 'Alle' },
-  { id: 'problem', label: 'Bug' },
-  { id: 'idea', label: 'Idee' },
-  { id: 'praise', label: 'Lob' },
-  { id: 'question', label: 'Frage' },
-];
+// Kategorie wie im Kurator-Dashboard.
+const KAT_TO_LABEL: Record<FeedbackCategory | '', string> = {
+  '': 'Alle', problem: 'Bug', idea: 'Idee', praise: 'Lob', question: 'Frage',
+};
+const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
+  Alle: '', Bug: 'problem', Idee: 'idea', Lob: 'praise', Frage: 'question',
+};
 
 export function FeedbackBoardPage(): React.ReactElement {
   const storage = useStorage();
@@ -48,6 +41,7 @@ export function FeedbackBoardPage(): React.ReactElement {
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
   const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
   const [filterKategorie, setFilterKategorie] = useState<FeedbackCategory | ''>('');
+  // Bereich = context.page-Label (CollapsibleSeg ist label-basiert). '' = Alle.
   const [filterArea, setFilterArea] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [loading, setLoading] = useState(true);
@@ -98,26 +92,45 @@ export function FeedbackBoardPage(): React.ReactElement {
   const isBug = isClassifiedAs('problem');
   const isFeature = isClassifiedAs('idea');
 
-  // Distinct Bereiche (context.route → page-Label) aus den Tickets, für die
-  // Bereich-Filter-Pills (z.B. „alle Tickets zur Homepage"). Wie im Kurator-Dashboard.
-  const areas = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const t of tickets) {
-      const route = t.context?.route;
-      if (!route) continue;
-      if (!map.has(route)) map.set(route, t.context.page || route);
+  // Nicht-archivierte Basis für Filter-Optionen + -Zähler.
+  const base = useMemo(() => tickets.filter(t => t.kurator_status !== 'archiviert'), [tickets]);
+
+  // Filter-Items (Label + Zähler) für die CollapsibleSeg-Chips.
+  const statusItems: CollapsibleSegItem[] = useMemo(() => {
+    const open = base.filter(t => t.kurator_status === 'neu' || t.kurator_status === 'geplant' || t.kurator_status === 'in_bearbeitung').length;
+    const done = base.filter(t => t.kurator_status === 'umgesetzt').length;
+    return [
+      { label: 'Alle', count: base.length },
+      { label: 'Offen', count: open },
+      { label: 'Umgesetzt', count: done },
+    ];
+  }, [base]);
+
+  const kategorieItems: CollapsibleSegItem[] = useMemo(() => [
+    { label: 'Alle', count: base.length },
+    { label: 'Bug', count: base.filter(t => t.category === 'problem').length },
+    { label: 'Idee', count: base.filter(t => t.category === 'idea').length },
+    { label: 'Lob', count: base.filter(t => t.category === 'praise').length },
+    { label: 'Frage', count: base.filter(t => t.category === 'question').length },
+  ], [base]);
+
+  // Bereich = context.page (Label). Distinct page-Labels + Zähler, alphabetisch.
+  const bereichItems: CollapsibleSegItem[] = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of base) {
+      const p = t.context?.page;
+      if (p) counts.set(p, (counts.get(p) ?? 0) + 1);
     }
-    return Array.from(map, ([route, label]) => ({ route, label }))
+    const items = Array.from(counts, ([label, count]) => ({ label, count }))
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [tickets]);
+    return [{ label: 'Alle', count: base.length }, ...items];
+  }, [base]);
 
   const filteredSorted = useMemo(() => {
-    // Alle nicht-archivierten Einträge — inkl. Lob/Frage/Unklassifiziert.
     // Drei unabhängige Filter (UND-kombiniert), wie im Kurator-Dashboard.
-    const base = tickets.filter(t => t.kurator_status !== 'archiviert');
     const byFilter = base.filter(t => {
       if (filterKategorie && t.category !== filterKategorie) return false;
-      if (filterArea && t.context?.route !== filterArea) return false;
+      if (filterArea && t.context?.page !== filterArea) return false;
       if (filterStatus === 'open' && !(t.kurator_status === 'neu' || t.kurator_status === 'geplant' || t.kurator_status === 'in_bearbeitung')) return false;
       if (filterStatus === 'done' && t.kurator_status !== 'umgesetzt') return false;
       return true;
@@ -133,16 +146,13 @@ export function FeedbackBoardPage(): React.ReactElement {
       }
       return b.created_at.localeCompare(a.created_at);
     });
-  }, [tickets, filterStatus, filterKategorie, filterArea, config, isFeature]);
+  }, [base, filterStatus, filterKategorie, filterArea, config, isFeature]);
 
-  const counts = useMemo(() => {
-    const active = tickets.filter(t => t.kurator_status !== 'archiviert');
-    return {
-      bugs: active.filter(isBug).length,
-      features: active.filter(isFeature).length,
-      sonstige: active.filter(t => !isBug(t) && !isFeature(t)).length,
-    };
-  }, [tickets, isBug, isFeature]);
+  const counts = useMemo(() => ({
+    bugs: base.filter(isBug).length,
+    features: base.filter(isFeature).length,
+    sonstige: base.filter(t => !isBug(t) && !isFeature(t)).length,
+  }), [base, isBug, isFeature]);
 
   return (
     <div className="px-8 py-6">
@@ -161,79 +171,56 @@ export function FeedbackBoardPage(): React.ReactElement {
       {/* Info-Banner */}
       <SponsoringInfoBanner />
 
-      {/* Filter: Status / Kategorie / Bereich (UND-kombiniert) + View-Toggle */}
-      <div className="space-y-1.5 mb-4">
-        {/* Status + View-Toggle */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[68px] shrink-0">Status</span>
-          <div className="flex flex-wrap gap-1">
-            {STATUS_PILLS.map(p => (
-              <button key={p.id} type="button" onClick={() => setFilterStatus(p.id)}
-                className={filterStatus === p.id ? pillActive : pillInactive}
-                style={filterStatus !== p.id ? { border: '0.5px solid var(--tf-border)' } : undefined}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex-1" />
-          <button
-            type="button"
-            onClick={() => setViewMode('card')}
-            className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-              viewMode === 'card'
-                ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
-                : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
-            }`}
-            title="Kartenansicht"
-          >
-            <LayoutGrid size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-              viewMode === 'list'
-                ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
-                : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
-            }`}
-            title="Listenansicht"
-          >
-            <List size={15} />
-          </button>
-        </div>
-        {/* Kategorie */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[68px] shrink-0">Kategorie</span>
-          <div className="flex flex-wrap gap-1">
-            {CATEGORY_PILLS.map(p => (
-              <button key={p.id} type="button" onClick={() => setFilterKategorie(p.id)}
-                className={filterKategorie === p.id ? pillActive : pillInactive}
-                style={filterKategorie !== p.id ? { border: '0.5px solid var(--tf-border)' } : undefined}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {/* Bereich */}
-        {areas.length > 0 && (
-          <div className="flex items-start gap-1.5">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[68px] shrink-0 mt-1">Bereich</span>
-            <div className="flex flex-wrap gap-1">
-              <button type="button" onClick={() => setFilterArea('')}
-                className={filterArea === '' ? pillActive : pillInactive}
-                style={filterArea !== '' ? { border: '0.5px solid var(--tf-border)' } : undefined}>
-                Alle
-              </button>
-              {areas.map(a => (
-                <button key={a.route} type="button" onClick={() => setFilterArea(a.route)}
-                  className={filterArea === a.route ? pillActive : pillInactive}
-                  style={filterArea !== a.route ? { border: '0.5px solid var(--tf-border)' } : undefined}>
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* Filter-Chips (CollapsibleSeg, wie Förderanträge) + View-Toggle */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        <CollapsibleSeg
+          label="Status"
+          value={STATUS_TO_LABEL[filterStatus]}
+          items={statusItems}
+          onChange={l => setFilterStatus(LABEL_TO_STATUS[l] ?? 'all')}
+        />
+        <CollapsibleSeg
+          label="Kategorie"
+          value={KAT_TO_LABEL[filterKategorie]}
+          items={kategorieItems}
+          onChange={l => setFilterKategorie(LABEL_TO_KAT[l] ?? '')}
+        />
+        {bereichItems.length > 1 && (
+          <CollapsibleSeg
+            label="Bereich"
+            value={filterArea || 'Alle'}
+            items={bereichItems}
+            onChange={l => setFilterArea(l === 'Alle' ? '' : l)}
+            startCollapsed
+          />
         )}
+
+        <div className="flex-1" />
+
+        <button
+          type="button"
+          onClick={() => setViewMode('card')}
+          className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
+            viewMode === 'card'
+              ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
+              : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
+          }`}
+          title="Kartenansicht"
+        >
+          <LayoutGrid size={15} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('list')}
+          className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
+            viewMode === 'list'
+              ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
+              : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
+          }`}
+          title="Listenansicht"
+        >
+          <List size={15} />
+        </button>
       </div>
 
       {/* Content */}
