@@ -18,6 +18,7 @@ import { Step4Progress } from './wizard/Step4Progress';
 import { guessDecision, type PerColumnDecision } from './wizard/useCsvWizardState';
 import { mergeNewColumns } from './services/new-column-mapping';
 import { persistCsvSourceMeta } from './csv-source-handle';
+import { confirmLockConflict } from './lock-conflict';
 import { NewColumnRow } from './NewColumnRow';
 
 interface Props {
@@ -153,6 +154,8 @@ export function CsvAddColumnsDialog({
         // Mapping wurde gerade geaendert → byte-gleiche Datei trotzdem neu
         // verarbeiten (sonst Checksum-Skip, neue Spalten blieben leer).
         force: true,
+        // Belegter Build-Lock (z.B. abgestürzter Import) → nachfragen statt abbrechen.
+        onLockConflict: confirmLockConflict,
       });
       setResult(r);
       await persistCsvSourceMeta(storage.idb, { schema, file, sourceHandle });

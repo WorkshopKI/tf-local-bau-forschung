@@ -14,6 +14,7 @@ import { logAudit } from '@/core/services/infrastructure/audit-log';
 import type { CsvSchema, ImportResult } from '@/core/services/csv/types';
 import { Step4Progress } from './wizard/Step4Progress';
 import { persistCsvSourceMeta } from './csv-source-handle';
+import { confirmLockConflict } from './lock-conflict';
 import { validateHeaders, type HeaderValidation } from './services/csv-drift-check';
 
 interface Props {
@@ -113,6 +114,10 @@ export function CsvSourceReimportDialog({
         // Expliziter „CSV neu wählen"-Re-Import → Checksum-Skip umgehen (z.B.
         // wenn nur das Mapping geändert wurde, die Datei aber identisch ist).
         force: true,
+        // Belegter Build-Lock (z.B. von einem abgestürzten Import): nachfragen
+        // statt hart abzubrechen. Ohne diesen Handler ist man bis zur 2h-Stale-
+        // Grenze ausgesperrt (es gibt im Prod-Build keine Lock-UI).
+        onLockConflict: confirmLockConflict,
         ...extraOpts,
       });
       setResult(r);
