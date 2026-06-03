@@ -21,6 +21,7 @@ export function FeedbackAdminPage(): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState<FeedbackCategory | ''>('');
   const [filterStatus, setFilterStatus] = useState<FeedbackStatus | ''>('');
+  const [filterArea, setFilterArea] = useState<string>('');
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
 
   const reload = useCallback(async (): Promise<void> => {
@@ -49,9 +50,23 @@ export function FeedbackAdminPage(): React.ReactElement {
     return tickets.filter(t => {
       if (filterCategory && t.category !== filterCategory) return false;
       if (filterStatus && t.kurator_status !== filterStatus) return false;
+      if (filterArea && t.context?.route !== filterArea) return false;
       return true;
     });
-  }, [tickets, filterCategory, filterStatus]);
+  }, [tickets, filterCategory, filterStatus, filterArea]);
+
+  // Distinct Bereiche (context.route → page-Label) aus den geladenen Tickets,
+  // für die Bereich-Filter-Pills (z.B. „alle Tickets zur Homepage").
+  const areas = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of tickets) {
+      const route = t.context?.route;
+      if (!route) continue;
+      if (!map.has(route)) map.set(route, t.context.page || route);
+    }
+    return Array.from(map, ([route, label]) => ({ route, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [tickets]);
 
   const faqs = useMemo(() => tickets.filter(t => t.is_faq), [tickets]);
   const selectedTicket = useMemo(() => tickets.find(t => t.id === selectedId) ?? null, [tickets, selectedId]);
@@ -86,8 +101,11 @@ export function FeedbackAdminPage(): React.ReactElement {
                 selectedId={selectedId}
                 filterCategory={filterCategory}
                 filterStatus={filterStatus}
+                filterArea={filterArea}
+                areas={areas}
                 onFilterCategory={setFilterCategory}
                 onFilterStatus={setFilterStatus}
+                onFilterArea={setFilterArea}
                 onSelect={t => setSelectedId(t.id)}
               />
             </div>

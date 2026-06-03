@@ -12,8 +12,11 @@ interface Props {
   selectedId?: string;
   filterCategory: FeedbackCategory | '';
   filterStatus: FeedbackStatus | '';
+  filterArea: string;
+  areas: { route: string; label: string }[];
   onFilterCategory: (v: FeedbackCategory | '') => void;
   onFilterStatus: (v: FeedbackStatus | '') => void;
+  onFilterArea: (v: string) => void;
   onSelect: (ticket: FeedbackItem) => void;
 }
 
@@ -39,7 +42,7 @@ const pillActive = `${pillBase} bg-[var(--tf-primary)] text-white`;
 const pillInactive = `${pillBase} text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]`;
 
 export function FeedbackTicketList(props: Props): React.ReactElement {
-  const { tickets, loading, selectedId, filterCategory, filterStatus, onFilterCategory, onFilterStatus, onSelect } = props;
+  const { tickets, loading, selectedId, filterCategory, filterStatus, filterArea, areas, onFilterCategory, onFilterStatus, onFilterArea, onSelect } = props;
 
   return (
     <div>
@@ -69,6 +72,25 @@ export function FeedbackTicketList(props: Props): React.ReactElement {
             ))}
           </div>
         </div>
+        {areas.length > 0 && (
+          <div className="flex items-start gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[60px] shrink-0 mt-1">Bereich</span>
+            <div className="flex flex-wrap gap-1">
+              <button type="button" onClick={() => onFilterArea('')}
+                className={filterArea === '' ? pillActive : pillInactive}
+                style={filterArea !== '' ? { border: '0.5px solid var(--tf-border)' } : undefined}>
+                Alle
+              </button>
+              {areas.map(a => (
+                <button key={a.route} type="button" onClick={() => onFilterArea(a.route)}
+                  className={filterArea === a.route ? pillActive : pillInactive}
+                  style={filterArea !== a.route ? { border: '0.5px solid var(--tf-border)' } : undefined}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* List */}
@@ -79,10 +101,8 @@ export function FeedbackTicketList(props: Props): React.ReactElement {
           const summary = ticket.llm_summary || ticket.text || '–';
           const isSelected = selectedId === ticket.id;
           const date = new Date(ticket.created_at).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' });
-          const contextLine = [
-            ticket.context.page,
-            ticket.user_display_name || ticket.user_id,
-          ].filter(Boolean).join(' · ');
+          const area = ticket.context?.page;
+          const user = ticket.user_display_name || ticket.user_id;
 
           return (
             <button
@@ -104,9 +124,14 @@ export function FeedbackTicketList(props: Props): React.ReactElement {
                 <p className="flex-1 min-w-0 text-[12px] font-medium text-[var(--tf-text)] truncate">{summary}</p>
                 <span className="text-[10px] text-[var(--tf-text-tertiary)] shrink-0">{date}</span>
               </div>
-              <p className="text-[10px] text-[var(--tf-text-tertiary)] truncate mt-0.5 ml-[calc(theme(spacing.1.5)*2+theme(spacing.2)+2ch)]" style={{ marginLeft: '4.5rem' }}>
-                {contextLine}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5 truncate" style={{ marginLeft: '4.5rem' }}>
+                {area && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">
+                    {area}
+                  </span>
+                )}
+                <span className="text-[10px] text-[var(--tf-text-tertiary)] truncate">{user}</span>
+              </div>
             </button>
           );
         })}

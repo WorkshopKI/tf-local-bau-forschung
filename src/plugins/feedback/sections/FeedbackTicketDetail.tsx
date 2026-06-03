@@ -133,6 +133,11 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${STATUS_COLORS[ticket.kurator_status]}`}>
             {STATUS_LABELS[ticket.kurator_status]}
           </span>
+          {ticket.context?.page && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
+              {ticket.context.page}
+            </span>
+          )}
           <span className="text-[10.5px] text-[var(--tf-text-tertiary)] font-mono">#{ticket.id.slice(-6)}</span>
         </div>
         <button type="button" onClick={onClose} className="p-1 rounded hover:bg-[var(--tf-hover)] cursor-pointer text-[var(--tf-text-tertiary)]" aria-label="Schließen"><X size={14} /></button>
