@@ -65,7 +65,7 @@
   "auth": {
     "required": true,
     "hint": "Bei Fragen zum Zugang: Projektleitung.",
-    "salt": "q5stZHkJcJy1RCBolu+L5g==",
-    "verifier": "/9FJk84XddgXIg/RyEYQ5QcFzIaPTfkcHXDPFOcvepkDAm4UOECtZbje+jPKDTo="
+    "salt": "NEJGDL5AQE5Pk1/auJWKmg==",
+    "verifier": "8zJuKh0MGo2TACVApCSNzjEgBcPlhHZZMsMKZyXLsR29MjdlYeuQ5RNQVb8hGNc="
   }
 }

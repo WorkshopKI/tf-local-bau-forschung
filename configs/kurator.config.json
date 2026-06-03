@@ -73,7 +73,7 @@
   "auth": {
     "required": true,
     "hint": "Bei Fragen zum Zugang: Kurator / IT-Koordination.",
-    "salt": "AJSG7eGI54QryP7iTzY+pQ==",
-    "verifier": "wFj12hVmu7mPsByiItZ4dMpJj9pBqIPmldcPpawsHYnj9BcyYVmDZUJYTortJNiiiSPK9g=="
+    "salt": "tCxj+w1eBMA2/kkmz8lPRg==",
+    "verifier": "sc9bSxTUF5Zka94mM2Pjd5QssOe13KOgzfniQyfjVNTHbnZVzU6ZOh8xKdwjCGxKTqrcEQ=="
   }
 }
