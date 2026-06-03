@@ -20,6 +20,9 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 export interface CollapsibleSegItem {
   label: string;
   count?: number;
+  /** Optionaler Hover-Tooltip auf dem Item-Button (z.B. Richtungs-Erklärung bei
+   *  Pfeil-Sortier-Chips). Weggelassen → kein `title`-Attribut. */
+  title?: string;
 }
 
 interface Props {
@@ -149,6 +152,7 @@ export function SegGroup({
             type="button"
             role="tab"
             aria-selected={active}
+            title={it.title}
             onClick={() => onChange(it.label)}
             className={`px-2.5 py-1.5 text-[12px] font-inherit cursor-pointer transition-colors ${
               active

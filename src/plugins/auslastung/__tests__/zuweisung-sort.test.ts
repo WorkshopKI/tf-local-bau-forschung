@@ -7,6 +7,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildZuweisungSortOptions,
+  buildSortChips,
+  sortChipValue,
+  nextSortKeyForClick,
   DEFAULT_ZUWEISUNG_SORT,
   type ZuweisungSortKey,
 } from '../services/zuweisung-sort';
@@ -53,7 +56,7 @@ function sortBy(key: ZuweisungSortKey, rows: VerbundZuweisungRow[]): string[] {
 describe('zuweisung-sort', () => {
   it('Default ist Akronym aufsteigend', () => {
     expect(DEFAULT_ZUWEISUNG_SORT).toBe('akronym_asc');
-    expect(OPTIONS).toHaveLength(7);
+    expect(OPTIONS).toHaveLength(8);
   });
 
   it('akronym_asc: A→Z, leere Akronyme ans Ende, FKZ-Tiebreak', () => {
@@ -97,6 +100,18 @@ describe('zuweisung-sort', () => {
     expect(sortBy('antragsdatum_desc', rows)).toEqual(['F2', 'F3', 'F1', 'FKZ-A', 'FKZ-B']);
   });
 
+  it('antragsdatum_asc: älteste zuerst, leere Datümer ans Ende, FKZ-Tiebreak', () => {
+    const rows = [
+      makeRow({ leadAktenzeichen: 'F1', antragsdatum: '2026-01-15' }),
+      makeRow({ leadAktenzeichen: 'F2', antragsdatum: '2026-05-20' }),
+      makeRow({ leadAktenzeichen: 'FKZ-B', antragsdatum: '' }),
+      makeRow({ leadAktenzeichen: 'F3', antragsdatum: '2026-03-10' }),
+      makeRow({ leadAktenzeichen: 'FKZ-A', antragsdatum: '' }),
+    ];
+    // Älteste zuerst, leere bleiben (wie desc) am Ende — leere untereinander per FKZ.
+    expect(sortBy('antragsdatum_asc', rows)).toEqual(['F1', 'F3', 'F2', 'FKZ-A', 'FKZ-B']);
+  });
+
   it('kategorie_asc: nach konfigurierter Kategorie-Reihenfolge, unbekannte ans Ende', () => {
     const rows = [
       makeRow({ leadAktenzeichen: 'F1' }, { primaer: 'EU' }),
@@ -132,5 +147,58 @@ describe('zuweisung-sort', () => {
       makeRow({ leadAktenzeichen: 'FKZ-A' }, { confidence: 0.5 }),
     ];
     expect(sortBy('sicherheit_desc', rows)).toEqual(['FKZ-A', 'FKZ-B']);
+  });
+});
+
+describe('zuweisung-sort: Chip-Modell + Toggle', () => {
+  it('buildSortChips: genau 6 Chips, aktives Label == sortChipValue', () => {
+    const chips = buildSortChips('akronym_asc');
+    expect(chips).toHaveLength(6);
+    // Default-Richtungen der umschaltbaren Dimensionen sind ↓.
+    expect(chips.map(c => c.label)).toEqual([
+      'Akronym (A→Z)', 'FKZ (A→Z)', 'Verbundtitel (A→Z)',
+      'Antragsdatum ↓', 'Kategorie', 'Sicherheit ↓',
+    ]);
+    expect(sortChipValue('akronym_asc')).toBe('Akronym (A→Z)');
+  });
+
+  it('buildSortChips: aktive umschaltbare Dimension spiegelt die Richtung (Pfeil + Tooltip)', () => {
+    const chips = buildSortChips('antragsdatum_asc');
+    const datum = chips.find(c => c.key === 'antragsdatum_asc');
+    expect(datum?.label).toBe('Antragsdatum ↑');
+    expect(datum?.title).toContain('Alt→Neu');
+    // Sicherheit bleibt bei Default-Richtung (↓), da nicht aktiv.
+    expect(chips.find(c => c.label === 'Sicherheit ↓')).toBeTruthy();
+    expect(sortChipValue('antragsdatum_asc')).toBe('Antragsdatum ↑');
+    // Statische Chips tragen keinen Tooltip.
+    expect(chips.find(c => c.key === 'akronym_asc')?.title).toBeUndefined();
+  });
+
+  it('nextSortKeyForClick: inaktiver Datums-Chip → Default-Richtung (↓ = desc)', () => {
+    expect(nextSortKeyForClick('Antragsdatum ↓', 'akronym_asc')).toBe('antragsdatum_desc');
+  });
+
+  it('nextSortKeyForClick: erneuter Klick dreht Antragsdatum desc↔asc', () => {
+    const a = nextSortKeyForClick('Antragsdatum ↓', 'antragsdatum_desc');
+    expect(a).toBe('antragsdatum_asc');
+    // Nach dem Toggle zeigt der Chip ↑; erneuter Klick dreht zurück.
+    const b = nextSortKeyForClick(sortChipValue(a), a);
+    expect(b).toBe('antragsdatum_desc');
+  });
+
+  it('nextSortKeyForClick: erneuter Klick dreht Sicherheit desc↔asc', () => {
+    const a = nextSortKeyForClick('Sicherheit ↓', 'sicherheit_desc');
+    expect(a).toBe('sicherheit_asc');
+    const b = nextSortKeyForClick(sortChipValue(a), a);
+    expect(b).toBe('sicherheit_desc');
+  });
+
+  it('nextSortKeyForClick: statischer Chip wählt ohne Toggle, Re-Klick = No-Op', () => {
+    expect(nextSortKeyForClick('FKZ (A→Z)', 'akronym_asc')).toBe('fkz_asc');
+    expect(nextSortKeyForClick('FKZ (A→Z)', 'fkz_asc')).toBe('fkz_asc');
+  });
+
+  it('nextSortKeyForClick: unbekanntes Label → No-Op (current)', () => {
+    expect(nextSortKeyForClick('Quatsch', 'kategorie_asc')).toBe('kategorie_asc');
   });
 });

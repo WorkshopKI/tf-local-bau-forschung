@@ -57,8 +57,11 @@ import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilte
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import {
   buildZuweisungSortOptions,
+  buildSortChips,
+  sortChipValue,
+  nextSortKeyForClick,
+  SORT_CHIP_DISPLAY,
   DEFAULT_ZUWEISUNG_SORT,
-  ZUWEISUNG_SORT_LABELS,
   type ZuweisungSortKey,
 } from '../services/zuweisung-sort';
 import type { Antrag } from '@/core/services/csv/types';
@@ -586,11 +589,12 @@ export function ZuweisungsCockpit(): React.ReactElement {
     if (key) setStatusFilter(key);
   };
 
-  // Sortier-Pille — bewusst ohne Counts (Sortierung partitioniert nicht).
-  const sortItems: CollapsibleSegItem[] = sortOptions.map(o => ({ label: o.label }));
+  // Sortier-Chips — kompakt; „Antragsdatum"/„Sicherheit" je EIN Pfeil-Toggle
+  // (Klick auf den aktiven Chip dreht die Richtung). Bewusst ohne Counts
+  // (Sortierung partitioniert nicht). Tooltip erklärt die Richtung.
+  const sortItems: CollapsibleSegItem[] = buildSortChips(sortKey).map(c => ({ label: c.label, title: c.title }));
   const onSortChange = (label: string): void => {
-    const opt = sortOptions.find(o => o.label === label);
-    if (opt) setSortKey(opt.key);
+    setSortKey(prev => nextSortKeyForClick(label, prev));
   };
 
   return (
@@ -654,10 +658,10 @@ export function ZuweisungsCockpit(): React.ReactElement {
         />
         <CollapsibleSeg
           label="Sortiert nach"
-          value={ZUWEISUNG_SORT_LABELS[sortKey]}
+          value={sortChipValue(sortKey)}
           items={sortItems}
           onChange={onSortChange}
-          defaultValue={ZUWEISUNG_SORT_LABELS[DEFAULT_ZUWEISUNG_SORT]}
+          defaultValue={SORT_CHIP_DISPLAY[DEFAULT_ZUWEISUNG_SORT]}
           startCollapsed
         />
       </div>
@@ -686,7 +690,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
           </div>
           <div className="flex-1 overflow-y-auto">
             {isInitialLoading && (
-              <SkeletonRows count={8} columns={[80, 190, 70, 60, 24]} />
+              <SkeletonRows count={8} columns={[80, 64, 180, 60, 24]} />
             )}
             {!isInitialLoading && sorted.map(row => {
               const isSel = selectedAz === row.leadAktenzeichen;
@@ -734,16 +738,16 @@ export function ZuweisungsCockpit(): React.ReactElement {
                     </span>
                   )}
                   <span className="font-mono text-[11px] text-[var(--tf-text-secondary)] shrink-0">{row.leadAktenzeichen}</span>
-                  {row.akronym && (
-                    <span className="text-[10.5px] px-1 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">{row.akronym}</span>
-                  )}
-                  <span className="flex-1 truncate text-[12px]" title={row.verbundTitel || undefined}>{row.verbundTitel || '—'}</span>
                   <span
-                    className="text-[10.5px] text-[var(--tf-text-tertiary)] tabular-nums shrink-0"
+                    className="text-[10.5px] text-[var(--tf-text-tertiary)] tabular-nums shrink-0 w-[64px]"
                     title="Antragsdatum"
                   >
                     {formatAntragsdatum(row.antragsdatum)}
                   </span>
+                  {row.akronym && (
+                    <span className="text-[10.5px] px-1 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">{row.akronym}</span>
+                  )}
+                  <span className="flex-1 truncate text-[12px]" title={row.verbundTitel || undefined}>{row.verbundTitel || '—'}</span>
                   {row.tvCount > 1 && (
                     <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0" title={`${row.tvCount} Teilvorhaben`}>×{row.tvCount} TVs</span>
                   )}
