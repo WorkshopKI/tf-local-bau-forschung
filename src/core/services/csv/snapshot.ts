@@ -1,7 +1,7 @@
 import type { IDBStore } from '../storage/idb-store';
-import { atomicWrite } from '../infrastructure/atomic-write';
+import { atomicWrite, atomicWriteStream } from '../infrastructure/atomic-write';
 import {
-  listAntraegeByProgramm,
+  forEachAntragByProgramm,
   listAntragHistorieByProgramm,
   listVerbundsByProgramm,
   listVerbundHistorieByProgramm,
@@ -44,6 +44,24 @@ async function sha256Hex(text: string): Promise<string> {
     .join('');
 }
 
+/**
+ * SHA-256 über bereits UTF-8-kodierte Chunks (gestreamtes JSONL) — ohne den
+ * vollständigen String im RAM neu aufzubauen. Liefert exakt denselben Hash wie
+ * `sha256Hex(chunks.map(decode).join(''))`. Leere Chunk-Liste → Hash des
+ * leeren Inputs (identisch zu `sha256Hex('')`).
+ */
+async function sha256HexFromChunks(chunks: Uint8Array[]): Promise<string> {
+  let total = 0;
+  for (const c of chunks) total += c.length;
+  const all = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { all.set(c, off); off += c.length; }
+  const digest = await crypto.subtle.digest('SHA-256', all);
+  return 'sha256-' + Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 function toJsonl<T>(items: readonly T[], sortKey: (item: T) => string): string {
   const sorted = [...items].sort((a, b) => {
     const ka = sortKey(a), kb = sortKey(b);
@@ -72,7 +90,9 @@ export async function writeProgrammSnapshot(
   const programmObj = await getProgramm(idb, programmId);
   if (!programmObj) throw new Error(`Programm ${programmId} nicht in IDB`);
 
-  const antraege = await listAntraegeByProgramm(idb, programmId);
+  // Alle Stores AUSSER antraege laden + serialisieren — diese sind klein.
+  // antraege (13k × ~36 KB volle Records = ~470 MB als Array) wird getrennt per
+  // Cursor gestreamt, damit nie alle Records gleichzeitig im RAM liegen (OOM-Fix).
   const antragHistorie = await listAntragHistorieByProgramm(idb, programmId);
   const verbuende = await listVerbundsByProgramm(idb, programmId);
   const verbundHistorie = await listVerbundHistorieByProgramm(idb, programmId);
@@ -81,8 +101,7 @@ export async function writeProgrammSnapshot(
   const csvRowHashes = await listRowHashesBySchemas(idb, csvSchemas.map(s => s.id));
   const unterprogramme = await listUnterprogrammeByProgramm(idb, programmId);
 
-  const data: Record<SnapshotStoreName, { jsonl: string; count: number }> = {
-    antraege:         { jsonl: toJsonl(antraege,        a => String(a.aktenzeichen)), count: antraege.length },
+  const smallData: Partial<Record<SnapshotStoreName, { jsonl: string; count: number }>> = {
     antrag_historie:  { jsonl: toJsonl(antragHistorie,  h => h.id),                   count: antragHistorie.length },
     verbuende:        { jsonl: toJsonl(verbuende,       v => v.verbund_id),           count: verbuende.length },
     verbund_historie: { jsonl: toJsonl(verbundHistorie, h => h.id),                   count: verbundHistorie.length },
@@ -94,14 +113,36 @@ export async function writeProgrammSnapshot(
   };
 
   const stores: ProgrammSnapshotManifest['stores'] = {} as ProgrammSnapshotManifest['stores'];
-  for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
-    stores[key] = { count: data[key].count, hash: await sha256Hex(data[key].jsonl) };
-  }
-
   const written: SnapshotStoreName[] = [];
   try {
+    // 1) antraege per Cursor gestreamt: jeder Record wird sofort serialisiert
+    //    (volles Objekt danach GC-frei). Output byte-identisch zu toJsonl —
+    //    Cursor liefert nach aktenzeichen aufsteigend = derselbe Sort.
+    {
+      let lines: string[] = [];
+      await forEachAntragByProgramm(idb, programmId, a => { lines.push(JSON.stringify(a)); });
+      const count = lines.length;
+      const enc = new TextEncoder();
+      const byteChunks: Uint8Array[] = [];
+      await atomicWriteStream(programmDir, SNAPSHOT_FILES.antraege, async sink => {
+        const BATCH = 2000;
+        for (let i = 0; i < lines.length; i += BATCH) {
+          const chunk = lines.slice(i, i + BATCH).join('\n') + '\n';
+          await sink.write(chunk);
+          byteChunks.push(enc.encode(chunk));
+        }
+      }, { skipBackup: true });
+      written.push('antraege');
+      lines = []; // vor dem Hash-Concat freigeben
+      stores.antraege = { count, hash: await sha256HexFromChunks(byteChunks) };
+    }
+
+    // 2) Restliche (kleine) Stores klassisch: Hash + atomicWrite.
     for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
-      await atomicWrite(programmDir, SNAPSHOT_FILES[key], data[key].jsonl, { skipBackup: true });
+      if (key === 'antraege') continue;
+      const d = smallData[key]!;
+      stores[key] = { count: d.count, hash: await sha256Hex(d.jsonl) };
+      await atomicWrite(programmDir, SNAPSHOT_FILES[key], d.jsonl, { skipBackup: true });
       written.push(key);
     }
   } catch (writeErr) {

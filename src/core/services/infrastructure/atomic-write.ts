@@ -142,6 +142,56 @@ export async function atomicWrite(
   await rename(dir, tmpName, filename);
 }
 
+export interface AtomicWriteSink {
+  /** Schreibt einen Chunk ans Ende der Datei (sequentiell). */
+  write: (chunk: string | BufferSource) => Promise<void>;
+}
+
+/**
+ * Wie `atomicWrite`, aber der Inhalt wird vom `produce`-Callback in **Chunks**
+ * in den `.tmp`-WritableStream geschrieben — für große Dateien (Snapshot-JSONL
+ * bei 13k+ Antraegen), die nicht als ein einziger String/Buffer im RAM gehalten
+ * werden sollen. Gleiche `.backup`-Rotation + atomarer Rename wie `atomicWrite`.
+ *
+ * Bei einem Fehler im `produce` wird der WritableStream verworfen und das `.tmp`
+ * entfernt — das Ziel bleibt unberührt.
+ */
+export async function atomicWriteStream(
+  root: FileSystemDirectoryHandle,
+  path: string,
+  produce: (sink: AtomicWriteSink) => Promise<void>,
+  opts: { skipBackup?: boolean } = {},
+): Promise<void> {
+  const { dirParts, filename } = splitPath(path);
+  const dir = await navigateToDir(root, dirParts, true);
+  const tmpName = `${filename}.tmp`;
+  const backupName = `${filename}.backup`;
+
+  await removeIfExists(dir, tmpName);
+
+  const targetExists = await exists(dir, filename);
+  if (targetExists && !opts.skipBackup) {
+    await removeIfExists(dir, backupName);
+    await rename(dir, filename, backupName);
+  } else if (opts.skipBackup) {
+    await removeIfExists(dir, backupName);
+  }
+
+  const tmpFh = await dir.getFileHandle(tmpName, { create: true });
+  const w = await tmpFh.createWritable();
+  try {
+    await produce({ write: (chunk) => w.write(chunk) });
+    await w.close();
+  } catch (err) {
+    try { await w.abort(); } catch { /* Stream evtl. schon fehlerhaft */ }
+    await removeIfExists(dir, tmpName);
+    throw err;
+  }
+
+  await removeIfExists(dir, filename);
+  await rename(dir, tmpName, filename);
+}
+
 /** Rein Append-Writer (kein .tmp, kein .backup). Nur für audit-log. */
 export async function appendToFile(
   root: FileSystemDirectoryHandle,

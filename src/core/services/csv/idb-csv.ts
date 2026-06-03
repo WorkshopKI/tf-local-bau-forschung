@@ -168,6 +168,36 @@ export async function listAntraegeByProgramm(idb: IDBStore, programmId: string):
   return (await req(idx.getAll(programmId))) as Antrag[];
 }
 
+/**
+ * Iteriert alle Antraege eines Programms per Cursor und ruft `onRecord`
+ * **synchron** pro Datensatz. Reihenfolge: aktenzeichen aufsteigend (der
+ * `programm_id`-Index liefert pro Index-Key nach Primary-Key = aktenzeichen).
+ *
+ * Anders als `listAntraegeByProgramm` haelt es NIE alle Records gleichzeitig im
+ * Speicher — der Aufrufer serialisiert jeden Record sofort und gibt das volle
+ * Objekt zur GC frei. Fuer den Snapshot-Write bei 13k+ Antraegen, der sonst
+ * ~470 MB Array-Peak (volle 461-Feld-Records) erzeugt → OOM.
+ *
+ * WICHTIG: `onRecord` MUSS synchron sein — ein `await` auf ein nicht-IDB-Promise
+ * (z.B. FS-Write) wuerde die Transaktion schliessen und den Cursor abbrechen.
+ */
+export function forEachAntragByProgramm(
+  idb: IDBStore,
+  programmId: string,
+  onRecord: (a: Antrag) => void,
+): Promise<void> {
+  const t = tx(idb, CSV_STORES.ANTRAEGE, 'readonly');
+  const idx = t.objectStore(CSV_STORES.ANTRAEGE).index('programm_id');
+  const cursorReq = idx.openCursor(IDBKeyRange.only(programmId));
+  cursorReq.onsuccess = () => {
+    const cursor = cursorReq.result;
+    if (!cursor) return; // fertig — Promise löst über waitTx (t.oncomplete)
+    onRecord(cursor.value as Antrag);
+    cursor.continue();
+  };
+  return waitTx(t);
+}
+
 export async function listAntraegeByVerbund(idb: IDBStore, verbundId: string): Promise<Antrag[]> {
   const t = tx(idb, CSV_STORES.ANTRAEGE, 'readonly');
   const idx = t.objectStore(CSV_STORES.ANTRAEGE).index('verbund_id');
