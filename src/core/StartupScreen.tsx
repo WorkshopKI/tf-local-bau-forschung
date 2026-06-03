@@ -19,11 +19,10 @@ import {
   refreshAllPermissions,
   type RefreshAllResult,
 } from '@/core/services/infrastructure/smb-handle';
+import { connectDataShare } from '@/core/services/infrastructure/connect-data-share';
 import { useConnectionState } from '@/core/services/connection-status';
 import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/types';
 import { dataConfig, canWriteDatenShare } from '@/config/feature-flags';
-import { ensureReadme } from '@/core/services/infrastructure/smb-handle';
-import { validateSelectedFolder } from '@/core/services/infrastructure/migration';
 import type { UserProfile } from '@/core/types/config';
 
 interface StartupScreenProps {
@@ -104,33 +103,16 @@ export function StartupScreen({
     setError(null);
     setBusy(true);
     try {
-      const mode: 'read' | 'readwrite' = canWriteDatenShare(isKurator) ? 'readwrite' : 'read';
-      const res = await pickAndStoreDatenShareHandle(storage.idb, { mode });
+      // Pick + Name-Check + Struktur-Validierung + refreshAllPermissions in einem
+      // gemeinsamen Helfer (geteilt mit HomeCallToAction/OfflineBanner).
+      const res = await connectDataShare(storage.idb, { isKurator });
       if (!res.ok) {
         if (res.reason !== 'aborted') {
           setError(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
         }
         return;
       }
-      // Name-Check (v2.0)
-      if (expectedName && res.handle.name !== expectedName) {
-        setError(`Bitte den Ordner "${expectedName}" auswählen (gewählt: "${res.handle.name}").`);
-        return;
-      }
-      // Validation: ist es eine existierende TeamFlow-Struktur oder leer?
-      const validation = await validateSelectedFolder(res.handle);
-      if (validation.kind === 'subfolder') {
-        setError('Sie haben einen Unterordner gewählt. Bitte den übergeordneten Datenordner wählen.');
-        return;
-      }
-      if (validation.kind === 'current') {
-        await ensureReadme(res.handle);
-      }
-      // Bei 'empty' / 'legacy' uebernehmen Kuratoren das Setup spaeter — hier
-      // nur den Handle persistieren und Permissions in einem User-Gesture
-      // aushandeln.
-      const result = await refreshAllPermissions(storage.idb, { isKurator });
-      applyRefreshResult(result);
+      applyRefreshResult(res.refresh);
       onReady();
     } catch (err) {
       setError((err as Error).message ?? 'Verbindung fehlgeschlagen.');

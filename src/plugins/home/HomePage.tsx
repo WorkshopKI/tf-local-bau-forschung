@@ -16,7 +16,7 @@ import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
-import { menuLabel, dataConfig, isAuslastungSelbstEintragungEnabled } from '@/config/feature-flags';
+import { menuLabel, isDataShareEnabled, isAuslastungSelbstEintragungEnabled } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
@@ -99,9 +99,13 @@ export function HomePage(): React.ReactElement {
     return <div className="min-h-[60vh]" />;
   }
 
-  // CTA nur wenn die Variante dem User erlaubt, einen Daten-Share selbst zu waehlen.
-  // Demo (demoDataBundled=true) und Prod-Fixed-Path-Varianten ueberspringen die Aktion.
-  if (hasHandle === false && dataConfig.allowUserToChangePath) {
+  // CTA immer wenn die Variante den Daten-Share nutzt und (noch) kein Handle
+  // verbunden ist — inkl. fixed-path-Varianten (prod/pl). Frueher nur bei
+  // allowUserToChangePath, was prod/pl ohne In-App-Verbindungsweg in einer
+  // leeren App stranden liess, wenn der Handle fehlte/unbrauchbar war (StartupScreen
+  // uebersprungen, stale/denied Handle, Citrix-Neumount). Demo (demoDataBundled,
+  // kein Daten-Share) bleibt via isDataShareEnabled() ausgenommen.
+  if (hasHandle === false && isDataShareEnabled()) {
     return <HomeCallToAction idb={storage.idb} onConnected={() => setHasHandle(true)} />;
   }
 

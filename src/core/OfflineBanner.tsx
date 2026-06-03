@@ -12,16 +12,18 @@
  * App bleibt nutzbar (IDB-Cache).
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CloudOff, FolderX, RefreshCw } from 'lucide-react';
 import { useConnectionState } from '@/core/services/connection-status';
 import { runtimeConfig } from '@/config/runtime-config';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
+  getDatenShareHandle,
   pickAndStorePersoenlichHandle,
   refreshAllPermissions,
 } from '@/core/services/infrastructure/smb-handle';
+import { connectDataShare } from '@/core/services/infrastructure/connect-data-share';
 
 function formatDate(iso: string | null): string {
   if (!iso) return 'unbekannt';
@@ -46,6 +48,18 @@ export function OfflineBanner(): React.ReactElement | null {
   const storage = useStorage();
   const { profile } = useProfile();
   const [busy, setBusy] = useState(false);
+  // Ob ueberhaupt ein Daten-Share-Handle in IDB liegt — vorab ermittelt (nicht
+  // im Click), damit der Reconnect-Picker als erster async-Hop laufen kann
+  // (User-Gesture-Regel, siehe handleReconnect). Re-Check bei Mode-Wechsel.
+  const [dataShareMissing, setDataShareMissing] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const h = await getDatenShareHandle(storage.idb);
+      if (!cancelled) setDataShareMissing(!h);
+    })();
+    return () => { cancelled = true; };
+  }, [storage.idb, mode]);
 
   const handleReconnect = async (): Promise<void> => {
     // Persönlich-Ordner-Variante: User-Geste MUSS synchron in den FSAPI-Picker
@@ -63,9 +77,26 @@ export function OfflineBanner(): React.ReactElement | null {
       }
       return;
     }
+    const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
+    // Offline UND gar kein Daten-Share-Handle gespeichert → Picker, denn
+    // refreshAllPermissions waere ein No-op (es erneuert nur Permissions
+    // vorhandener Handles). Picker MUSS erster async-Hop sein (isKurator oben
+    // ist synchron). Fuer fixed-path-Varianten (prod/pl) ist das der einzige
+    // In-App-Weg, einen verlorenen Daten-Share neu zu verbinden.
+    if (mode === 'offline' && dataShareMissing) {
+      try {
+        const r = await connectDataShare(storage.idb, { isKurator });
+        if (r.ok) {
+          applyRefreshResult(r.refresh);
+          setDataShareMissing(false);
+        }
+      } catch {
+        /* ignore — User kann erneut klicken */
+      }
+      return;
+    }
     setBusy(true);
     try {
-      const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
       const result = await refreshAllPermissions(storage.idb, { isKurator });
       applyRefreshResult(result);
     } catch {
