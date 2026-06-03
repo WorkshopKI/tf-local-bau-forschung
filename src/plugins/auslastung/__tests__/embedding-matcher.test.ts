@@ -133,6 +133,37 @@ describe('runEmbeddingMatching', () => {
     expect(result[1]?.embeddingScore).toBeGreaterThan(0);
   });
 
+  it('DL-Antrag (vb_phase 4) traegt KEINEN embeddingScore bei (kompetenz-irrelevant)', () => {
+    const antraege = [makeAntrag('A1', { tib_kuerz: 'MUE', titel: 'KI' } as Partial<Antrag>)];
+    const map = buildAnonymMapForTests(antraege);
+    const muerAnon = map.toAnon.get('MUE')!;
+    const result = runEmbeddingMatching({
+      queryEmbedding: [1, 0],
+      corpusEmbeddings: new Map([['A1', [1, 0]]]),
+      antraegeIndex: new Map([['A1', { aktenzeichen: 'A1', tib_kuerz: 'MUE', vb_phase: 4 }]]),
+      anonymMap: map,
+      eligibleAnonIds: new Set([muerAnon]),
+      mitarbeiter: { [muerAnon]: makeMa(muerAnon) },
+    });
+    expect(result).toEqual([]); // DL gefiltert → kein Score → leere Liste
+  });
+
+  it('Nicht-DL-Antrag (vb_phase 3) traegt weiterhin bei', () => {
+    const antraege = [makeAntrag('A1', { tib_kuerz: 'MUE', titel: 'KI' } as Partial<Antrag>)];
+    const map = buildAnonymMapForTests(antraege);
+    const muerAnon = map.toAnon.get('MUE')!;
+    const result = runEmbeddingMatching({
+      queryEmbedding: [1, 0],
+      corpusEmbeddings: new Map([['A1', [1, 0]]]),
+      antraegeIndex: new Map([['A1', { aktenzeichen: 'A1', tib_kuerz: 'MUE', vb_phase: 3 }]]),
+      anonymMap: map,
+      eligibleAnonIds: new Set([muerAnon]),
+      mitarbeiter: { [muerAnon]: makeMa(muerAnon) },
+    });
+    expect(result.length).toBe(1);
+    expect(result[0]?.anonId).toBe(muerAnon);
+  });
+
   it('leerer Corpus -> leere Liste', () => {
     const map = buildAnonymMapForTests([]);
     const result = runEmbeddingMatching({

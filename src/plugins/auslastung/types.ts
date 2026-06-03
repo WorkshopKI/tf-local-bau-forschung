@@ -492,6 +492,12 @@ export interface MatchResult {
   /** Quartals-Kontingent (TVs) fuer diesen Antragstyp, oder undefined =
    *  kein Limit. Fuer die „v/N frei"-Anzeige im Vorschlag (v2.16). */
   kontingentQuartal?: number;
+
+  // ─── v2.19: manueller PL-Eintrag ────────────────────────────────────
+  /** true = von der PL manuell hinzugefuegt (nicht vom Matcher vorgeschlagen).
+   *  Kein Score; die Card zeigt nur die Kapazitaets-/Kontingent-Angaben + ein
+   *  „Manuell"-Badge. */
+  manuell?: boolean;
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -523,6 +529,13 @@ export const CANONICAL_TITEL = 'titel';
 export const CANONICAL_AKRONYM = 'akronym';
 /** ISO-Datum YYYY-MM-DD — fuer Aktiv-Heuristik "Antraege im aktuellen Jahr". */
 export const CANONICAL_ANTRAGSDATUM = 'antragsdatum';
+/** Freitext-Bemerkung (T_HINT aus der Master-CSV) — in der Zuweisen-/Klassifizieren-
+ *  Detailansicht angezeigt, falls befuellt. */
+export const CANONICAL_T_HINT = 't_hint';
+/** Vollstaendigkeits-Datum (D_XTEC): gesetzt, sobald alle TVs eines Verbundes
+ *  eingegangen + erfasst sind. Fehlt das Datum bei einem unverteilten Antrag,
+ *  gilt er als „nicht vollstaendig" (Markierung in beiden Tabs). */
+export const CANONICAL_D_XTEC = 'd_xtec';
 
 /** Custom-Field-Keys (nicht canonical, ueber antrag[key] erreichbar). */
 /** VB_Inhalt aus dem Foyer-Schema — Inhalts-Zusammenfassung des Vorhabens,

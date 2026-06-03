@@ -9,6 +9,7 @@
  * Sort + Picker + Resize arbeiten auf Verbund-Ebene über `accessor(view)`.
  */
 import { type ReactNode } from 'react';
+import { AlertTriangle, StickyNote } from 'lucide-react';
 import type { SortableColumn } from '@/components/data-table';
 import type { Antrag } from '@/core/services/csv/types';
 import { KategoriePill } from '../components/KategoriePill';
@@ -16,9 +17,11 @@ import { HoverTooltip } from '../components/HoverTooltip';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { normalizeKuerzel } from '../services/anonym-map';
 import type { VerbundKlassifizierungsView } from '../services/verbund-aggregation';
+import { istUnvollstaendig, UNVOLLSTAENDIG_TOOLTIP } from '../services/verbund-aggregation';
 import {
   CANONICAL_BIB_KUERZ,
   CANONICAL_ANTRAGSDATUM,
+  CANONICAL_T_HINT,
   FIELD_AST_TYP,
   type UeberKategorie,
 } from '../types';
@@ -31,6 +34,9 @@ export interface VerbundColumnsContext {
   kategorien: UeberKategorie[];
   onToggleVerbund: (view: VerbundKlassifizierungsView, kategorieId: string, add: boolean) => void;
   onFreigebeVerbund: (view: VerbundKlassifizierungsView) => void;
+  /** True, wenn das D_XTEC-Feld irgendwo befuellt ist — sonst keine
+   *  Unvollstaendig-Markierung (Transitions-Schutz, solange D_XTEC nicht gemappt). */
+  dxtecVerfuegbar: boolean;
 }
 
 function topConfidenceScore(v: VerbundKlassifizierungsView): number {
@@ -63,7 +69,7 @@ function fkzRange(v: VerbundKlassifizierungsView): string {
 }
 
 export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[] {
-  const { kategorien, onToggleVerbund, onFreigebeVerbund } = ctx;
+  const { kategorien, onToggleVerbund, onFreigebeVerbund, dxtecVerfuegbar } = ctx;
 
   return [
     {
@@ -75,16 +81,26 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       width: 150,
       wrap: false,
       accessor: v => leadAntrag(v).aktenzeichen,
-      render: v => (
-        <div className="font-mono text-[11.5px] leading-tight">
-          <div>{fkzRange(v)}</div>
-          {v.tvs.length > 1 && (
-            <div className="text-[10px] text-[var(--tf-text-tertiary)] mt-0.5">
-              {v.tvs.length} TVs
+      render: v => {
+        const unvollstaendig = dxtecVerfuegbar && istUnvollstaendig(leadAntrag(v));
+        return (
+          <div className="font-mono text-[11.5px] leading-tight">
+            <div className="flex items-center gap-1">
+              {unvollstaendig && (
+                <span className="text-amber-600 shrink-0 inline-flex" title={UNVOLLSTAENDIG_TOOLTIP} aria-label={UNVOLLSTAENDIG_TOOLTIP}>
+                  <AlertTriangle size={12} aria-hidden />
+                </span>
+              )}
+              <span>{fkzRange(v)}</span>
             </div>
-          )}
-        </div>
-      ),
+            {v.tvs.length > 1 && (
+              <div className="text-[10px] text-[var(--tf-text-tertiary)] mt-0.5">
+                {v.tvs.length} TVs
+              </div>
+            )}
+          </div>
+        );
+      },
       renderTV: tv => (
         <span className="font-mono text-[11px] text-[var(--tf-text-secondary)]">
           {tv.aktenzeichen}
@@ -112,7 +128,28 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       width: 340,
       wrap: true,
       accessor: v => v.verbundTitel || '—',
-      render: v => <span className="font-medium">{v.verbundTitel || '—'}</span>,
+      render: v => {
+        const tHint = readString(leadAntrag(v), CANONICAL_T_HINT).trim();
+        return (
+          <span className="font-medium inline-flex items-center gap-1">
+            <span>{v.verbundTitel || '—'}</span>
+            {tHint && (
+              <HoverTooltip
+                content={
+                  <>
+                    <div className="font-medium mb-0.5 text-[var(--tf-text-secondary)]">Bemerkung</div>
+                    <div className="whitespace-pre-wrap">{tHint}</div>
+                  </>
+                }
+              >
+                <span className="text-[var(--tf-text-tertiary)] shrink-0 inline-flex cursor-help" aria-label="Bemerkung vorhanden">
+                  <StickyNote size={12} aria-hidden />
+                </span>
+              </HoverTooltip>
+            )}
+          </span>
+        );
+      },
       renderTV: tv => {
         const tvTitel = readString(tv, 'titel');
         return tvTitel

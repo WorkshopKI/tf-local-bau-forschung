@@ -26,6 +26,7 @@ import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import {
   buildVerbundClassificationViews,
+  hatDXtecDatum,
   verteilCutoffDatum,
   type VerbundKlassifizierungsView,
 } from '../services/verbund-aggregation';
@@ -124,6 +125,14 @@ export function KlassifizierungsReview(): React.ReactElement {
   const hasCentroids = useMemo(
     () => config.ueberKategorien.some(k => Array.isArray(k.referenzEmbedding) && k.referenzEmbedding.length > 0),
     [config.ueberKategorien],
+  );
+
+  // D_XTEC-Markierung nur, wenn das Feld irgendwo befuellt ist (Transitions-
+  // Schutz: solange D_XTEC nicht gemappt ist, hat kein Antrag einen Wert →
+  // sonst wuerde jeder Antrag faelschlich als unvollstaendig markiert).
+  const dxtecVerfuegbar = useMemo(
+    () => cache.antraege.some(a => hatDXtecDatum(a)),
+    [cache.antraege],
   );
 
   // Verbund-Aggregation. Pool-Filterung + verbuende-Lookup passieren intern
@@ -278,11 +287,12 @@ export function KlassifizierungsReview(): React.ReactElement {
       kategorien: config.ueberKategorien,
       onToggleVerbund: (v, id, add) => applyVerbundOverride(v, id, add),
       onFreigebeVerbund: v => void freigebeVerbund(v),
+      dxtecVerfuegbar,
     }),
     // applyVerbundOverride + freigebeVerbund sind Closures über Hook-State,
-    // ueberKategorien ist der relevante Re-Build-Trigger.
+    // ueberKategorien + dxtecVerfuegbar sind die relevanten Re-Build-Trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [config.ueberKategorien],
+    [config.ueberKategorien, dxtecVerfuegbar],
   );
 
   const { visibleKeys, toggleColumn } = useColumnVisibility(

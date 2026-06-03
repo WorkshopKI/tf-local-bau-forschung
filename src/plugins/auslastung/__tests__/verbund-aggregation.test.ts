@@ -12,7 +12,10 @@ import type { Antrag, Verbund } from '@/core/services/csv/types';
 import {
   buildVerbundClassificationViews,
   groupFreigegebeneByVerbund,
+  hatDXtecDatum,
   invalidateVerbundClassificationCache,
+  istUnvollstaendig,
+  istZuVerteilen,
 } from '../services/verbund-aggregation';
 import type { Klassifizierung } from '../types';
 import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
@@ -211,5 +214,30 @@ describe('groupFreigegebeneByVerbund', () => {
     const rows = groupFreigegebeneByVerbund(views, new Map());
     expect(rows).toHaveLength(2);
     expect(rows.map(r => r.tvCount).sort()).toEqual([1, 2]);
+  });
+});
+
+describe('D_XTEC — Vollständigkeit (hatDXtecDatum / istUnvollstaendig)', () => {
+  it('hatDXtecDatum: nicht-leerer String true, leer/whitespace/fehlend false', () => {
+    expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '2026-05-01' }))).toBe(true);
+    expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '   ' }))).toBe(false);
+    expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '' }))).toBe(false);
+    expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A' }))).toBe(false);
+  });
+
+  it('istUnvollstaendig: nur wenn KEIN D_XTEC UND KEIN TIB', () => {
+    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A' }))).toBe(true);
+    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', d_xtec: '2026-05-01' }))).toBe(false);
+    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', tib_kuerz: 'ABC' }))).toBe(false);
+    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', tib_kuerz: 'ABC', d_xtec: '2026-05-01' }))).toBe(false);
+  });
+
+  it('istZuVerteilen bleibt unverändert: D_XTEC ändert die Pool-Membership NICHT', () => {
+    const cutoff = '2026-01-01';
+    const ohne = makeAntrag({ aktenzeichen: 'A', antragsdatum: '2026-04-01' });
+    const mit = makeAntrag({ aktenzeichen: 'B', antragsdatum: '2026-04-01', d_xtec: '2026-05-01' });
+    // Beide ohne TIB, Datum im Fenster → beide im Pool (Markierung ist rein visuell).
+    expect(istZuVerteilen(ohne, cutoff)).toBe(true);
+    expect(istZuVerteilen(mit, cutoff)).toBe(true);
   });
 });

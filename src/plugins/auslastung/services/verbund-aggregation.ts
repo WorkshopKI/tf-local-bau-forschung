@@ -15,6 +15,7 @@ import type { Antrag, Verbund } from '@/core/services/csv/types';
 import {
   CANONICAL_AKRONYM,
   CANONICAL_ANTRAGSDATUM,
+  CANONICAL_D_XTEC,
   CANONICAL_TIB_KUERZ,
   CANONICAL_VERBUND_ID,
   CANONICAL_VERBUND_TITEL,
@@ -120,6 +121,29 @@ const POOL_EXCLUDED_STATUS = new Set(['abgelehnt/zurückgezogen', 'irrläufer'])
 export function hatBearbeiterKuerzel(antrag: Antrag): boolean {
   return normalizeKuerzel((antrag as Record<string, unknown>)[CANONICAL_TIB_KUERZ]) !== null;
 }
+
+/**
+ * True, wenn der Antrag im Feld `d_xtec` (D_XTEC) ein Datum traegt — d.h. alle
+ * TVs des Verbundes sind eingegangen + erfasst. Pures Vorhandensein eines
+ * nicht-leeren Strings reicht (Date-Felder landen als ISO-String im Merger).
+ */
+export function hatDXtecDatum(antrag: Antrag): boolean {
+  const v = (antrag as Record<string, unknown>)[CANONICAL_D_XTEC];
+  return typeof v === 'string' && v.trim().length > 0;
+}
+
+/**
+ * True, wenn der Antrag „nicht vollstaendig" ist: kein D_XTEC-Datum UND kein
+ * Bearbeiter-Kuerzel. Solche Antraege bleiben im Verteil-Pool sichtbar +
+ * zuweisbar, werden aber farbig markiert (Tooltip `UNVOLLSTAENDIG_TOOLTIP`).
+ * Greift NICHT in `istZuVerteilen` ein (Pool unveraendert).
+ */
+export function istUnvollstaendig(antrag: Antrag): boolean {
+  return !hatDXtecDatum(antrag) && !hatBearbeiterKuerzel(antrag);
+}
+
+/** Tooltip-Text fuer unvollstaendige Antraege (kein D_XTEC). Geteilt von beiden Tabs. */
+export const UNVOLLSTAENDIG_TOOLTIP = 'Antrag nicht vollständig - kein D_XTEC gesetzt';
 
 /**
  * Untere Datums-Grenze (inklusive, ISO `YYYY-MM-01`) des rollierenden Verteil-

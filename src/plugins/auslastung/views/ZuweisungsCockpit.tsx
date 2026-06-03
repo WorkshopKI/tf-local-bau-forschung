@@ -8,7 +8,7 @@
  *  - Rechts: Detail + Top-3 VorschlagCards (Matching-Engine live)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Info, Undo2 } from 'lucide-react';
+import { AlertTriangle, Info, Undo2 } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
@@ -25,7 +25,7 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
-import { groupFreigegebeneByVerbund, istZuVerteilen, verteilCutoffDatum, verbundKeyOf, type VerbundZuweisungRow } from '../services/verbund-aggregation';
+import { groupFreigegebeneByVerbund, hatDXtecDatum, istUnvollstaendig, istZuVerteilen, UNVOLLSTAENDIG_TOOLTIP, verteilCutoffDatum, verbundKeyOf, type VerbundZuweisungRow } from '../services/verbund-aggregation';
 import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
   embedText,
@@ -34,6 +34,7 @@ import {
 import {
   ALL_ANTRAGSTYP_BUCKETS,
   CANONICAL_AKRONYM,
+  CANONICAL_T_HINT,
   CANONICAL_TITEL,
   CANONICAL_VERBUND_ID,
   CANONICAL_VERBUND_TITEL,
@@ -46,7 +47,10 @@ import { KategoriePill } from '../components/KategoriePill';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { TechnologieTags } from '../components/TechnologieTags';
 import { VorschlagCard } from '../components/VorschlagCard';
-import { tageImQuartal as computeTageImQuartal } from '../services/kapazitaet';
+import { ManuellerMaPicker } from '../components/ManuellerMaPicker';
+import { buildManualMatch } from '../services/manual-match';
+import { verbrauchFromAuslastung } from '../services/kontingent';
+import { computeKapazitaet, tageImQuartal as computeTageImQuartal } from '../services/kapazitaet';
 import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
 import { useKuerzelExport } from '../hooks/useKuerzelExport';
@@ -166,6 +170,9 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [matchingRunning, setMatchingRunning] = useState(false);
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
+  // v2.19: von der PL manuell hinzugefuegte MAs (anonIds) fuer den selektierten
+  // Antrag — Reset bei Selektionswechsel (siehe useEffect weiter unten).
+  const [manualAnonIds, setManualAnonIds] = useState<string[]>([]);
 
   // Perf: Embedding-Korpus + Antraege-Index einmal pro Daten-Stand cachen
   // (statt pro Klick neu laden/bauen). Plus pro-Antrag-Query-Embedding-Cache und
@@ -303,6 +310,56 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const selected = selectedAz ? cache.antraege.find(a => a.aktenzeichen === selectedAz) : null;
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
   const selectedRow = selectedAz ? verbundRows.find(r => r.leadAktenzeichen === selectedAz) : null;
+
+  // v2.19 — D_XTEC-Markierung: nur wenn das Feld irgendwo befuellt ist
+  // (Transitions-Schutz, solange D_XTEC nicht gemappt ist).
+  const dxtecVerfuegbar = useMemo(() => cache.antraege.some(a => hatDXtecDatum(a)), [cache.antraege]);
+  const antragByAz = useMemo(() => new Map(cache.antraege.map(a => [a.aktenzeichen, a])), [cache.antraege]);
+
+  // v2.19 — Manueller MA-Eintrag.
+  // Reset der manuellen Auswahl bei Selektionswechsel (nicht bei zuweisungen/
+  // mitarbeiter-Aenderungen — sonst verschwaende die Card beim Zuweisen).
+  useEffect(() => { setManualAnonIds([]); }, [selectedAz]);
+
+  // Freie TVs pro aktivem MA — Kapazitaets-Hinweis im Picker (least-loaded zuerst sichtbar).
+  const restTVsByAnon = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const ma of Object.values(mitarbeiter)) {
+      if (!ma.aktiv) continue;
+      m.set(ma.anonId, computeKapazitaet(ma, auslastungByAnon.get(ma.anonId), config).restTVs);
+    }
+    return m;
+  }, [mitarbeiter, auslastungByAnon, config]);
+
+  // Manuelle Cards bauen — gleiche Kapazitaets-/Kontingent-Helfer wie die Engine.
+  const kontingentVerbrauch = useMemo(() => verbrauchFromAuslastung(auslastungByAnon), [auslastungByAnon]);
+  const selectedTvCount = useMemo(
+    () => selected ? getTVCount(cache.antraege, (selected as { verbund_id?: string }).verbund_id, selected.aktenzeichen) : 1,
+    [selected, cache.antraege],
+  );
+  const selectedBucket = selected ? getKategorieLabel((selected as Record<string, unknown>).vb_phase) : null;
+  const manualMatches = useMemo(() => {
+    if (!selected) return [] as MatchResult[];
+    const benoetigt = (config.stundenProTV ?? 9) * selectedTvCount;
+    return manualAnonIds
+      .map(anonId => mitarbeiter[anonId])
+      .filter((ma): ma is NonNullable<typeof ma> => !!ma)
+      .map(ma => buildManualMatch(ma, selectedBucket, auslastungByAnon.get(ma.anonId), kontingentVerbrauch.get(ma.anonId), config, benoetigt));
+  }, [selected, manualAnonIds, mitarbeiter, auslastungByAnon, kontingentVerbrauch, config, selectedBucket, selectedTvCount]);
+
+  // Engine-Treffer + manuelle Cards (Dedupe gegen Engine-anonIds).
+  const mergedMatches = useMemo(() => {
+    if (manualMatches.length === 0) return matches;
+    const engineIds = new Set(matches.map(m => m.anonId));
+    return [...matches, ...manualMatches.filter(m => !engineIds.has(m.anonId))];
+  }, [matches, manualMatches]);
+
+  const addManual = useCallback((anonId: string) => {
+    setManualAnonIds(prev => prev.includes(anonId) ? prev : [...prev, anonId]);
+  }, []);
+  const removeManual = useCallback((anonId: string) => {
+    setManualAnonIds(prev => prev.filter(id => id !== anonId));
+  }, []);
 
   // v2.18: Rücknahme einer Verbund-Zuweisung (PL-Umplanung) — entfernt die
   // Freigabe, die Auslastung des MA rechnet reaktiv neu (zuweisungen-Ref ändert).
@@ -613,6 +670,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
             )}
             {!isInitialLoading && sorted.map(row => {
               const isSel = selectedAz === row.leadAktenzeichen;
+              const rowLead = antragByAz.get(row.leadAktenzeichen);
+              const unvollstaendig = dxtecVerfuegbar && rowLead != null && istUnvollstaendig(rowLead);
               // 1.17: Primaer (gefuellt) vs Aspekte (outline) trennen.
               const primaerId = row.klassifizierung.freigegebenePrimaer;
               const aspektIds = row.klassifizierung.freigegebeneAspekte;
@@ -649,6 +708,11 @@ export function ZuweisungsCockpit(): React.ReactElement {
                     borderBottom: '0.5px solid var(--tf-border)',
                   }}
                 >
+                  {unvollstaendig && (
+                    <span className="text-amber-600 shrink-0 inline-flex" title={UNVOLLSTAENDIG_TOOLTIP} aria-label={UNVOLLSTAENDIG_TOOLTIP}>
+                      <AlertTriangle size={12} aria-hidden />
+                    </span>
+                  )}
                   <span className="font-mono text-[11px] text-[var(--tf-text-secondary)] shrink-0">{row.leadAktenzeichen}</span>
                   {row.akronym && (
                     <span className="text-[10.5px] px-1 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">{row.akronym}</span>
@@ -774,13 +838,17 @@ export function ZuweisungsCockpit(): React.ReactElement {
               verbundTitel={selectedRow?.verbundTitel ?? ''}
               klassifizierung={selectedView.klassifizierung}
               kategorien={config.ueberKategorien}
-              matches={matches}
+              matches={mergedMatches}
               matchingRunning={matchingRunning}
               zuweisungen={zuweisungen.filter(z => (selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen]).includes(z.antragId))}
               mitarbeiter={mitarbeiter}
               pendingAnonIds={detailPendingAnonIds}
+              unvollstaendig={dxtecVerfuegbar && istUnvollstaendig(selected)}
+              restTVsByAnon={restTVsByAnon}
               onZuweisen={zuweisen}
               onAblehnen={ablehnen}
+              onAddManual={addManual}
+              onRemoveManual={removeManual}
               onUnassign={() => { void unassignSelectedAction.run(); }}
               tageImQuartal={computeTageImQuartal(config.aktuellesQuartal)}
             />
@@ -793,7 +861,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
 function DetailPanel({
   antrag, akronym, verbundTitel, klassifizierung, kategorien, matches, matchingRunning,
-  zuweisungen, mitarbeiter, pendingAnonIds, onZuweisen, onAblehnen, onUnassign, tageImQuartal,
+  zuweisungen, mitarbeiter, pendingAnonIds, unvollstaendig, restTVsByAnon,
+  onZuweisen, onAblehnen, onAddManual, onRemoveManual, onUnassign, tageImQuartal,
 }: {
   antrag: Antrag;
   /** Verbund-Akronym/-Titel (aus dem verbuende-Store aufgeloest, siehe
@@ -808,8 +877,16 @@ function DetailPanel({
   mitarbeiter: Record<string, import('../types').AnonymerMitarbeiter>;
   /** anonIds mit offenem (noch nicht eingesammeltem) Übernahme-Wunsch für diesen Antrag. */
   pendingAnonIds: string[];
+  /** v2.19: Antrag „nicht vollständig" (kein D_XTEC) → Warn-Markierung im Header. */
+  unvollstaendig: boolean;
+  /** v2.19: freie TVs pro aktivem MA — Kapazitäts-Hinweis im manuellen Picker. */
+  restTVsByAnon: Map<string, number>;
   onZuweisen: (m: MatchResult) => void;
   onAblehnen: (m: MatchResult) => void;
+  /** v2.19: aktiven MA manuell als Vorschlag hinzufügen. */
+  onAddManual: (anonId: string) => void;
+  /** v2.19: manuelle Card wieder entfernen (Ablehnen auf manueller Card). */
+  onRemoveManual: (anonId: string) => void;
   /** Ruecknahme der Verbund-Freigabe (entfernt die freigegebene Zuweisung). */
   onUnassign: () => void;
   tageImQuartal: number;
@@ -819,6 +896,7 @@ function DetailPanel({
   const vbTitel = verbundTitel || (antrag[CANONICAL_VERBUND_TITEL] as string | undefined);
   const tvTitel = antrag[CANONICAL_TITEL] as string | undefined;
   const summary = antrag[FIELD_PROJEKTBESCHREIBUNG] as string | undefined;
+  const tHint = (antrag[CANONICAL_T_HINT] as string | undefined)?.trim();
   const verbund_id = antrag[CANONICAL_VERBUND_ID] as string | undefined;
   const desk = readAntragDeskriptoren(antrag);
   // 1.17: Primaer (gefuellt) + Aspekte (outline) trennen.
@@ -844,13 +922,21 @@ function DetailPanel({
     }
     return Array.from(byAnon.values()).sort((a, b) => klickTs(a) - klickTs(b));
   })();
-  const hasLow = matches.length > 0 && matches.every(m => m.confidence === 'low');
+  // „Kein klares Match"-Hinweis nur über die echten Matcher-Treffer — manuelle
+  // Cards (immer confidence 'low') sollen die Warnung nicht auslösen.
+  const echteMatches = matches.filter(m => !m.manuell);
+  const hasLow = echteMatches.length > 0 && echteMatches.every(m => m.confidence === 'low');
 
   return (
     <div className="flex flex-col gap-3">
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
+          {unvollstaendig && (
+            <span className="text-amber-600 shrink-0 inline-flex" title={UNVOLLSTAENDIG_TOOLTIP} aria-label={UNVOLLSTAENDIG_TOOLTIP}>
+              <AlertTriangle size={13} aria-hidden />
+            </span>
+          )}
           <span className="font-mono text-[11px] text-[var(--tf-text-secondary)]">{antrag.aktenzeichen}</span>
           {akt && <span className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">{akt}</span>}
           {verbund_id && <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">VB {verbund_id}</span>}
@@ -943,12 +1029,28 @@ function DetailPanel({
           <p className="text-[12px] text-[var(--tf-text-secondary)] line-clamp-5">{summary}</p>
         </div>
       )}
+      {/* v2.19: Bemerkung (T_HINT) — nur wenn befuellt. */}
+      {tHint && (
+        <div className="rounded p-2.5" style={{ background: 'var(--tf-bg-secondary)' }}>
+          <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">Bemerkung</div>
+          <p className="text-[12px] text-[var(--tf-text-secondary)] whitespace-pre-wrap">{tHint}</p>
+        </div>
+      )}
 
       {/* Match-Vorschlaege */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-[12.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Vorschläge (Top {matches.length})</h3>
-          {matchingRunning && <span className="text-[11px] text-[var(--tf-text-tertiary)]">Berechne…</span>}
+        <div className="flex items-center justify-between mb-2 gap-2">
+          <h3 className="text-[12.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Vorschläge ({matches.length})</h3>
+          <div className="flex items-center gap-2">
+            {matchingRunning && <span className="text-[11px] text-[var(--tf-text-tertiary)]">Berechne…</span>}
+            <ManuellerMaPicker
+              mitarbeiter={mitarbeiter}
+              excludeAnonIds={new Set(matches.map(m => m.anonId))}
+              resolveName={resolveName}
+              restTVsByAnon={restTVsByAnon}
+              onAdd={onAddManual}
+            />
+          </div>
         </div>
         {hasLow && (
           <div className="mb-2 rounded p-2 text-[11.5px]" style={{ background: '#fef3c7', color: '#92400e' }}>
@@ -962,7 +1064,7 @@ function DetailPanel({
               match={m}
               antragstyp={getKategorieLabel((antrag as Record<string, unknown>).vb_phase)}
               onZuweisen={() => onZuweisen(m)}
-              onAblehnen={() => onAblehnen(m)}
+              onAblehnen={() => (m.manuell ? onRemoveManual(m.anonId) : onAblehnen(m))}
               tageImQuartal={tageImQuartal}
             />
           ))}

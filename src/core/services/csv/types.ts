@@ -26,6 +26,10 @@ export type CanonicalField =
   | 'pfm_kuerz'
   // E-Mail des TiB-Bearbeiters (v2.12) — Empfänger für den Zugangspasswort-Versand.
   | 'tib_mail'
+  // Bemerkungsfeld (T_HINT) — Freitext-Notiz pro Antrag, in der Auslastungs-Detailansicht angezeigt.
+  | 't_hint'
+  // Vollständigkeits-Datum (D_XTEC): gesetzt, sobald alle TVs eines Verbundes eingegangen + erfasst sind.
+  | 'd_xtec'
   // Verbund-Ebene (gemeinsam für alle TVs eines Verbundes)
   | 'verbund_titel'
   | 'verbund_status';

@@ -93,22 +93,34 @@ export function VorschlagCard({
         <div className="flex items-center gap-2">
           <AnonymIdBadge anonId={match.anonId} size="lg" realName={realName} />
           <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-[16px] font-medium text-[var(--tf-text)]">{score}%</span>
+            {match.manuell ? (
+              // Manuell hinzugefuegt: kein Score, nur ein dezentes Badge.
               <span
-                className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] px-1.5 py-0.5 rounded"
+                className="self-start text-[10.5px] uppercase tracking-wider text-[var(--tf-text-secondary)] px-1.5 py-0.5 rounded"
                 style={{ background: 'var(--tf-bg-secondary)' }}
               >
-                {STUFE_LABEL[match.matchStufe]}
+                Manuell hinzugefügt
               </span>
-              <ConfidenceDot confidence={match.confidence} />
-            </div>
-            <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-              Kompetenz {score}%
-              {(match.aspektBonus ?? 0) > 0 && (
-                <> · Aspekt +{Math.round((match.aspektBonus ?? 0) * 100)}%</>
-              )}
-            </span>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-[16px] font-medium text-[var(--tf-text)]">{score}%</span>
+                  <span
+                    className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] px-1.5 py-0.5 rounded"
+                    style={{ background: 'var(--tf-bg-secondary)' }}
+                  >
+                    {STUFE_LABEL[match.matchStufe]}
+                  </span>
+                  <ConfidenceDot confidence={match.confidence} />
+                </div>
+                <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+                  Kompetenz {score}%
+                  {(match.aspektBonus ?? 0) > 0 && (
+                    <> · Aspekt +{Math.round((match.aspektBonus ?? 0) * 100)}%</>
+                  )}
+                </span>
+              </>
+            )}
           </div>
         </div>
         {/* Kapazität (v2.4) + Typ-Kontingent (v2.16) — kompakt in der Titelzeile */}

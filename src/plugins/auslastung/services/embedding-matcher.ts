@@ -24,6 +24,7 @@ import { CANONICAL_TITEL, CANONICAL_TIB_KUERZ, CANONICAL_VERBUND_TITEL } from '.
 import { cosineSimilarity } from '@/core/services/embedding-corpus';
 import type { AnonymMap } from './anonym-map';
 import { normalizeKuerzel } from './anonym-map';
+import { istDlVbPhase } from './profil-aggregator';
 
 export interface EmbeddingMatchResult {
   anonId: string;
@@ -35,8 +36,8 @@ export interface RunEmbeddingMatchInput {
   queryEmbedding: number[];
   /** Pro hist. Antrag: aktenzeichen -> embedding. */
   corpusEmbeddings: Map<string, number[]>;
-  /** Pro hist. Antrag: aktenzeichen -> {tib_kuerz, titel, verbund_titel}. */
-  antraegeIndex: Map<string, Pick<Antrag, 'aktenzeichen'> & { tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown }>;
+  /** Pro hist. Antrag: aktenzeichen -> {tib_kuerz, titel, verbund_titel, vb_phase}. */
+  antraegeIndex: Map<string, Pick<Antrag, 'aktenzeichen'> & { tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown; vb_phase?: unknown }>;
   /** AnonymMap fuer Kuerzel -> anonId. */
   anonymMap: AnonymMap;
   /** Nur diese MAs werden gemattched (gefiltert nach Ueberkategorie). */
@@ -54,9 +55,13 @@ export interface RunEmbeddingMatchInput {
 export function runEmbeddingMatching(input: RunEmbeddingMatchInput): EmbeddingMatchResult[] {
   const topK = input.topK ?? 20;
 
-  // Pro hist. Antrag: similarity berechnen, Top-K behalten
+  // Pro hist. Antrag: similarity berechnen, Top-K behalten.
+  // DL-Antraege werden VOR dem Top-K-Slice ausgefiltert (nicht kompetenz-
+  // repraesentativ), damit Top-K mit Nicht-DL-Antraegen gefuellt wird. Der
+  // Korpus bleibt unveraendert — kein Rebuild noetig (analog inaktive Bearbeiter).
   const scored: Array<{ aktenzeichen: string; sim: number }> = [];
   for (const [az, vec] of input.corpusEmbeddings.entries()) {
+    if (istDlVbPhase(input.antraegeIndex.get(az)?.vb_phase)) continue;
     const sim = cosineSimilarity(input.queryEmbedding, vec);
     if (sim > 0) scored.push({ aktenzeichen: az, sim });
   }

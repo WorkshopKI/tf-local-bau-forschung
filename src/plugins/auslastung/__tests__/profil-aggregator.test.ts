@@ -13,6 +13,10 @@ import {
   normalizeDeskriptor,
   isZtTruthy,
   aggregateAntragCountByAnon,
+  aggregateMaProfilesByAnon,
+  aggregateAstByAnon,
+  istDlAntrag,
+  istDlVbPhase,
 } from '../services/profil-aggregator';
 import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
@@ -259,6 +263,32 @@ describe('readAntragDeskriptoren — End-to-End', () => {
     expect(out).not.toContain('maschinenbau');
     expect(out).not.toContain('pflanzenproduktion');
     expect(out).not.toContain('verkehr');
+  });
+});
+
+describe('DL-Ausschluss aus den Kompetenz-Aggregaten', () => {
+  it('istDlVbPhase / istDlAntrag erkennen vb_phase 4 (DL)', () => {
+    expect(istDlVbPhase(4)).toBe(true);
+    expect(istDlVbPhase('4')).toBe(true);
+    expect(istDlVbPhase(3)).toBe(false);     // FuE
+    expect(istDlVbPhase(1)).toBe(false);     // NW
+    expect(istDlVbPhase(undefined)).toBe(false);
+    expect(istDlAntrag(makeAntrag({ vb_phase: 4 }))).toBe(true);
+    expect(istDlAntrag(makeAntrag({ vb_phase: 1 }))).toBe(false);
+  });
+
+  it('DL-Antraege erhoehen weder Deskriptoren noch AST-Count noch Antrags-Count', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'A1', tib_kuerz: 'ABC', vb_phase: 3, techn_1: 'KI', antragsteller: 'Foo GmbH' }),
+      // DL (vb_phase 4) → muss komplett ignoriert werden:
+      makeAntrag({ aktenzeichen: 'A2', tib_kuerz: 'ABC', vb_phase: 4, techn_1: 'Laser', antragsteller: 'Foo GmbH' }),
+    ];
+    const map = buildAnonymMapForTests(antraege);
+    const anon = map.toAnon.get('ABC')!;
+
+    expect(aggregateMaProfilesByAnon(antraege, map).get(anon)).toEqual(['ki']); // 'laser' (DL) fehlt
+    expect(aggregateAstByAnon(antraege, map).get(anon)?.get('foo gmbh')).toBe(1); // nur A1
+    expect(aggregateAntragCountByAnon(antraege, map).get(anon)).toBe(1);          // nur A1
   });
 });
 

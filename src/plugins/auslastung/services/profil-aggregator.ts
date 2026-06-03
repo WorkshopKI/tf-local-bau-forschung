@@ -13,9 +13,26 @@
  *      -> Liste der Ueberkategorien-IDs, in denen der MA gearbeitet hat
  */
 import type { Antrag } from '@/core/services/csv/types';
+import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { ALL_DESKRIPTOREN_SPALTEN, CANONICAL_TIB_KUERZ, type UeberKategorie } from '../types';
 import { ZUKUNFTSTECHNOLOGIE_FELDER } from './default-labels';
 import { normalizeKuerzel, type AnonymMap } from './anonym-map';
+
+/**
+ * True, wenn die `vb_phase` zum Antragstyp DL gehoert (Dienstleistung). DL gilt
+ * als nicht repraesentativ fuer eine Kompetenz-Zuschreibung und wird deshalb aus
+ * allen kompetenz-bildenden Aggregaten (BM25-Deskriptoren, AST-Boost, Sparse-
+ * History) UND aus dem Embedding-Score-Credit ausgeschlossen. Kapazitaet/
+ * Kontingent bleiben unberuehrt (das ist organisatorisch, nicht kompetenz-bezogen).
+ */
+export function istDlVbPhase(vbPhase: unknown): boolean {
+  return getKategorieLabel(vbPhase) === 'DL';
+}
+
+/** Wie `istDlVbPhase`, aber liest die `vb_phase` direkt vom Antrag. */
+export function istDlAntrag(antrag: Antrag): boolean {
+  return istDlVbPhase((antrag as Record<string, unknown>).vb_phase);
+}
 
 /** Normalisiert einen Deskriptoren-Wert: trim + lowercase. Leere/non-string -> null. */
 export function normalizeDeskriptor(raw: unknown): string | null {
@@ -260,6 +277,7 @@ export function aggregateMaProfilesByAnon(
     collector.set(anonId, new Set());
   }
   for (const a of antraege) {
+    if (istDlAntrag(a)) continue;   // DL nicht kompetenz-repraesentativ
     const raw = (a as Record<string, unknown>)[CANONICAL_TIB_KUERZ];
     const k = normalizeKuerzel(raw);
     if (!k) continue;
@@ -292,6 +310,7 @@ export function aggregateAstByAnon(
     collector.set(anonId, new Map());
   }
   for (const a of antraege) {
+    if (istDlAntrag(a)) continue;   // DL nicht kompetenz-repraesentativ
     const tib = normalizeKuerzel((a as Record<string, unknown>)[CANONICAL_TIB_KUERZ]);
     if (!tib) continue;
     const anonId = map.toAnon.get(tib);
@@ -324,6 +343,7 @@ export function aggregateAntragCountByAnon(
     out.set(anonId, 0);
   }
   for (const a of antraege) {
+    if (istDlAntrag(a)) continue;   // DL nicht kompetenz-repraesentativ
     const tib = normalizeKuerzel((a as Record<string, unknown>)[CANONICAL_TIB_KUERZ]);
     if (!tib) continue;
     const anonId = map.toAnon.get(tib);
