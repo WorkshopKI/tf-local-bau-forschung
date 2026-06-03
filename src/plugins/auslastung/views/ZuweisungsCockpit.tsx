@@ -108,6 +108,18 @@ function persistSplitPct(pct: number): void {
   }
 }
 
+/** Formatiert das Antragsdatum (ISO `YYYY-MM-DD`) als de-DE-Datum (DD.MM.YYYY).
+ *  Leeres/ungültiges Datum → „—" (Spalte bleibt konsistent gefüllt). */
+function formatAntragsdatum(iso: string | undefined): string {
+  if (iso && /^\d{4}-\d{2}-\d{2}/.test(iso)) {
+    const d = new Date(iso);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+  }
+  return '—';
+}
+
 /** Formatiert den Klick-Zeitpunkt einer Vormerkung kompakt (de-DE). */
 function formatKlickZeit(iso: string | undefined): string | null {
   if (!iso) return null;
@@ -674,7 +686,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
           </div>
           <div className="flex-1 overflow-y-auto">
             {isInitialLoading && (
-              <SkeletonRows count={8} columns={[80, 220, 60, 24]} />
+              <SkeletonRows count={8} columns={[80, 190, 70, 60, 24]} />
             )}
             {!isInitialLoading && sorted.map(row => {
               const isSel = selectedAz === row.leadAktenzeichen;
@@ -726,6 +738,12 @@ export function ZuweisungsCockpit(): React.ReactElement {
                     <span className="text-[10.5px] px-1 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">{row.akronym}</span>
                   )}
                   <span className="flex-1 truncate text-[12px]" title={row.verbundTitel || undefined}>{row.verbundTitel || '—'}</span>
+                  <span
+                    className="text-[10.5px] text-[var(--tf-text-tertiary)] tabular-nums shrink-0"
+                    title="Antragsdatum"
+                  >
+                    {formatAntragsdatum(row.antragsdatum)}
+                  </span>
                   {row.tvCount > 1 && (
                     <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0" title={`${row.tvCount} Teilvorhaben`}>×{row.tvCount} TVs</span>
                   )}
