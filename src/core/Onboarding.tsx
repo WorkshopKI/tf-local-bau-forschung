@@ -8,6 +8,7 @@ import {
   isAntraegeEnabled,
   isBauantraegeEnabled,
   isKuratorMenusEnabled,
+  isMaLoginEnabled,
   menuLabel,
 } from '@/config/feature-flags';
 import { runtimeConfig } from '@/config/runtime-config';
@@ -56,6 +57,10 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
   const [persError, setPersError] = useState<string | null>(null);
 
   const showKuratorToggle = isKuratorMenusEnabled();
+  // Im MA-Login-Modus (prod/dev) wird das Kuerzel aus dem Passwort abgeleitet
+  // (MaLoginGate) — die freie Eingabe hier waere widerspruechlich. Andere
+  // Varianten (pl/kurator/demo) tippen das Kuerzel weiter frei.
+  const askKuerzel = !isMaLoginEnabled();
 
   const handleColorSelect = (h: number, s: string, l: string): void => {
     setSelectedHue(h);
@@ -123,23 +128,25 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
                 <label className="text-[13px] font-medium text-[var(--tf-text)]">Dein Name</label>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="Max Mustermann" className={inputClass} style={inputStyle} />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-medium text-[var(--tf-text)]">
-                  Kürzel <span className="text-[var(--tf-text-tertiary)] font-normal">(optional)</span>
-                </label>
-                <input
-                  value={kuerzel}
-                  onChange={e => setKuerzel(normalizeKuerzel(e.target.value))}
-                  placeholder="MUM"
-                  maxLength={6}
-                  className={inputClass}
-                  style={inputStyle}
-                />
-                <p className="text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">
-                  2–6 Großbuchstaben. Wird im Bearbeiter-Filter und in eingereichten
-                  Feedback-Tickets verwendet. Kann später in den Einstellungen geändert werden.
-                </p>
-              </div>
+              {askKuerzel && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[13px] font-medium text-[var(--tf-text)]">
+                    Kürzel <span className="text-[var(--tf-text-tertiary)] font-normal">(optional)</span>
+                  </label>
+                  <input
+                    value={kuerzel}
+                    onChange={e => setKuerzel(normalizeKuerzel(e.target.value))}
+                    placeholder="MUM"
+                    maxLength={6}
+                    className={inputClass}
+                    style={inputStyle}
+                  />
+                  <p className="text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">
+                    2–6 Großbuchstaben. Wird im Bearbeiter-Filter und in eingereichten
+                    Feedback-Tickets verwendet. Kann später in den Einstellungen geändert werden.
+                  </p>
+                </div>
+              )}
               {isAntraegeEnabled() && isBauantraegeEnabled() && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] font-medium text-[var(--tf-text)]">Abteilung</label>

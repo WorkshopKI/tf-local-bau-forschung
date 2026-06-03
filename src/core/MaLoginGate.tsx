@@ -13,7 +13,7 @@
  * Abbrechen/Ueberspringen: ohne korrektes Passwort kein App-Zugang.
  */
 import { useState } from 'react';
-import { LogIn, KeyRound } from 'lucide-react';
+import { LogIn, KeyRound, Check, ArrowRight } from 'lucide-react';
 import { Button } from '@/ui';
 import { Input } from '@/components/ui/input';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -29,6 +29,11 @@ export function MaLoginGate({ onSuccess }: MaLoginGateProps): React.ReactElement
   const session = useMAIdentity();
   const [pw, setPw] = useState('');
   const [wrong, setWrong] = useState(false);
+  // Nach erfolgreichem Login: das aus dem Passwort entschluesselte Kuerzel. Wird
+  // in einer Bestaetigungs-/Welcome-Phase angezeigt (statt direkt durchzuwinken),
+  // damit der User seine abgeleitete Identitaet sieht — das Kuerzel kann ja seit
+  // v2.11 nicht mehr frei eingegeben werden.
+  const [bestaetigtKuerzel, setBestaetigtKuerzel] = useState<string | null>(null);
 
   const login = useAsyncAction(async () => {
     setWrong(false);
@@ -37,8 +42,40 @@ export function MaLoginGate({ onSuccess }: MaLoginGateProps): React.ReactElement
       setWrong(true);
       return;
     }
-    onSuccess();
+    setPw('');
+    setBestaetigtKuerzel(useMAIdentity.getState().kuerzel);
   });
+
+  // Bestaetigungs-Phase: zeigt das ermittelte Kuerzel, bevor die App oeffnet.
+  if (bestaetigtKuerzel) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50">
+        <div
+          className="w-full max-w-[420px] mx-4 bg-[var(--tf-bg)] rounded-[16px] p-8 text-center"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          <div className="w-14 h-14 rounded-full bg-[var(--tf-success-bg)] flex items-center justify-center mx-auto mb-4">
+            <Check size={28} className="text-[var(--tf-success-text)]" />
+          </div>
+          <h1 className="text-[20px] font-medium text-[var(--tf-text)] mb-1">Willkommen</h1>
+          <p className="text-[13px] text-[var(--tf-text-secondary)] mb-4">Angemeldet mit dem Kürzel</p>
+          <div className="text-[28px] font-semibold tracking-wide text-[var(--tf-primary)] mb-6">
+            {bestaetigtKuerzel}
+          </div>
+          <Button icon={ArrowRight} onClick={onSuccess} className="w-full">
+            Weiter zur App
+          </Button>
+          <button
+            type="button"
+            onClick={() => { session.logout(); setBestaetigtKuerzel(null); }}
+            className="mt-4 text-[11.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] underline-offset-2 hover:underline cursor-pointer"
+          >
+            Nicht du? Erneut anmelden
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50">
