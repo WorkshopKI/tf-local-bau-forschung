@@ -83,3 +83,85 @@ describe('assignVerbund', () => {
     expect(z[0]).toMatchObject({ antragId: 'A1', anonId: 'MA02', status: 'freigegeben' });
   });
 });
+
+describe('unassignVerbund', () => {
+  beforeEach(() => {
+    saveSpy.mockClear();
+    useAuslastungData.setState({ data: emptyAuslastungData(), saving: false, loaded: true });
+  });
+
+  it('entfernt die Freigabe aller TVs des Verbundes im Quartal (EIN persist)', async () => {
+    useAuslastungData.setState({
+      data: {
+        ...emptyAuslastungData(),
+        zuweisungen: [
+          { antragId: 'A1', anonId: 'MA01', quartal: Q, stunden: 18, anzahlTV: 2, status: 'freigegeben' },
+          { antragId: 'B1', anonId: 'MA03', quartal: Q, stunden: 9, anzahlTV: 1, status: 'freigegeben' }, // anderer Verbund
+        ],
+      },
+      saving: false,
+      loaded: true,
+    });
+
+    await useAuslastungData.getState().unassignVerbund(fakeStorage, { tvAktenzeichen: ['A1', 'A2'], quartal: Q });
+
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+    const z = useAuslastungData.getState().data.zuweisungen;
+    expect(z.find(x => x.antragId === 'A1')).toBeUndefined();
+    expect(z.find(x => x.antragId === 'B1')).toBeDefined(); // Fremd-Verbund unberührt
+  });
+
+  it('lässt Freigaben in anderem Quartal unberührt', async () => {
+    useAuslastungData.setState({
+      data: {
+        ...emptyAuslastungData(),
+        zuweisungen: [{ antragId: 'A1', anonId: 'MA01', quartal: '2026-Q1', stunden: 9, anzahlTV: 1, status: 'freigegeben' }],
+      },
+      saving: false,
+      loaded: true,
+    });
+
+    await useAuslastungData.getState().unassignVerbund(fakeStorage, { tvAktenzeichen: ['A1'], quartal: Q });
+
+    expect(saveSpy).not.toHaveBeenCalled();
+    expect(useAuslastungData.getState().data.zuweisungen).toHaveLength(1);
+  });
+
+  it('behält selbst- und abgelehnt-Einträge des Verbundes', async () => {
+    useAuslastungData.setState({
+      data: {
+        ...emptyAuslastungData(),
+        zuweisungen: [
+          { antragId: 'A1', anonId: 'MA01', quartal: Q, stunden: 9, anzahlTV: 1, status: 'freigegeben' },
+          { antragId: 'A1', anonId: 'MA05', quartal: Q, stunden: 9, anzahlTV: 1, status: 'selbst', selbstEingetragen: true },
+          { antragId: 'A1', anonId: 'MA03', quartal: Q, stunden: 0, status: 'abgelehnt' },
+        ],
+      },
+      saving: false,
+      loaded: true,
+    });
+
+    await useAuslastungData.getState().unassignVerbund(fakeStorage, { tvAktenzeichen: ['A1'], quartal: Q });
+
+    const z = useAuslastungData.getState().data.zuweisungen;
+    expect(z.find(x => x.status === 'freigegeben')).toBeUndefined();
+    expect(z.find(x => x.status === 'selbst')).toBeDefined();
+    expect(z.find(x => x.status === 'abgelehnt')).toBeDefined();
+  });
+
+  it('ist ein No-op (kein persist), wenn es keine Freigabe zu entfernen gibt', async () => {
+    useAuslastungData.setState({
+      data: {
+        ...emptyAuslastungData(),
+        zuweisungen: [{ antragId: 'A1', anonId: 'MA05', quartal: Q, stunden: 9, anzahlTV: 1, status: 'selbst', selbstEingetragen: true }],
+      },
+      saving: false,
+      loaded: true,
+    });
+
+    await useAuslastungData.getState().unassignVerbund(fakeStorage, { tvAktenzeichen: ['A1'], quartal: Q });
+
+    expect(saveSpy).not.toHaveBeenCalled();
+    expect(useAuslastungData.getState().data.zuweisungen).toHaveLength(1);
+  });
+});

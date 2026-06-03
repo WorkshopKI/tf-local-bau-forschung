@@ -8,7 +8,7 @@
  *  - Rechts: Detail + Top-3 VorschlagCards (Matching-Engine live)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Undo2 } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
@@ -25,7 +25,7 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
-import { groupFreigegebeneByVerbund, istZuVerteilen, verteilCutoffDatum, verbundKeyOf } from '../services/verbund-aggregation';
+import { groupFreigegebeneByVerbund, istZuVerteilen, verteilCutoffDatum, verbundKeyOf, type VerbundZuweisungRow } from '../services/verbund-aggregation';
 import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
   embedText,
@@ -137,6 +137,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
   const upsertZuweisung = useAuslastungData(s => s.upsertZuweisung);
   const assignVerbund = useAuslastungData(s => s.assignVerbund);
+  const unassignVerbund = useAuslastungData(s => s.unassignVerbund);
   const applyUebernahmeWuensche = useAuslastungData(s => s.applyUebernahmeWuensche);
 
   const cache = useAntraegeCache();
@@ -153,6 +154,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('offen');
   const [sortKey, setSortKey] = useState<ZuweisungSortKey>(DEFAULT_ZUWEISUNG_SORT);
   const [selectedAz, setSelectedAz] = useState<string | null>(null);
+  // v2.18: Inline-Bestätigung für die Rücknahme einer Zuweisung (verbundId).
+  const [confirmUnassignId, setConfirmUnassignId] = useState<string | null>(null);
 
   // Resizable Split: Breite der linken Liste in %. Ref haelt den Live-Wert
   // waehrend des Ziehens, damit pointerup/keydown ohne Stale-Closure persisten.
@@ -309,6 +312,16 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const selected = selectedAz ? cache.antraege.find(a => a.aktenzeichen === selectedAz) : null;
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
   const selectedRow = selectedAz ? verbundRows.find(r => r.leadAktenzeichen === selectedAz) : null;
+
+  // v2.18: Rücknahme einer Verbund-Zuweisung (PL-Umplanung) — entfernt die
+  // Freigabe, die Auslastung des MA rechnet reaktiv neu (zuweisungen-Ref ändert).
+  const unassignRowAction = useAsyncAction(async (row: VerbundZuweisungRow) => {
+    await unassignVerbund(storage, { tvAktenzeichen: row.tvAktenzeichen, quartal: config.aktuellesQuartal });
+  });
+  const unassignSelectedAction = useAsyncAction(async () => {
+    if (!selectedRow) return;
+    await unassignVerbund(storage, { tvAktenzeichen: selectedRow.tvAktenzeichen, quartal: config.aktuellesQuartal });
+  });
 
   // v2.9: offene Übernahme-Wünsche für den ausgewählten Antrag (read-only, vor
   // dem Einsammeln) — abzüglich bereits im Store erfasster anonIds.
@@ -615,6 +628,10 @@ export function ZuweisungsCockpit(): React.ReactElement {
               // Status ueber ALLE TVs des Verbundes aggregieren.
               const ze = zuweisungen.filter(z => row.tvAktenzeichen.includes(z.antragId));
               const zug = ze.some(z => z.status === 'freigegeben');
+              // v2.18: an wen zugewiesen (freigegeben) — fuer die „zugewiesen an"-Anzeige.
+              const assignedAnonIds = Array.from(new Set(
+                ze.filter(z => z.status === 'freigegeben').map(z => z.anonId),
+              ));
               // v2.9: distinct Interessenten (selbst-Zuweisungen) zaehlen.
               const interessentenCount = new Set(
                 ze.filter(z => z.status === 'selbst' || z.selbstEingetragen).map(z => z.anonId),
@@ -649,7 +666,48 @@ export function ZuweisungsCockpit(): React.ReactElement {
                     {primaerKat && <KategoriePill key={primaerKat.id} kategorie={primaerKat} mode="primaer" />}
                     {aspektKats.map(k => <KategoriePill key={k.id} kategorie={k} mode="aspekt" />)}
                   </div>
-                  {zug && <span className="text-emerald-700 text-[11px]" title="zugewiesen">✓✓</span>}
+                  {zug && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      {assignedAnonIds.map(a => (
+                        <AnonymIdBadge key={a} anonId={a} size="sm" realName={resolveName(a)} />
+                      ))}
+                      {confirmUnassignId === row.verbundId ? (
+                        <span className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            title="Zuweisung wirklich zurücknehmen"
+                            disabled={unassignRowAction.busy}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmUnassignId(null);
+                              void unassignRowAction.run(row);
+                            }}
+                            className="text-[10.5px] font-medium px-1.5 py-0.5 rounded cursor-pointer disabled:opacity-50"
+                            style={{ background: 'var(--tf-danger-bg)', color: 'var(--tf-danger-text)' }}
+                          >
+                            Zurücknehmen
+                          </button>
+                          <button
+                            type="button"
+                            title="Abbrechen"
+                            onClick={(e) => { e.stopPropagation(); setConfirmUnassignId(null); }}
+                            className="text-[11px] text-[var(--tf-text-tertiary)] px-1 cursor-pointer"
+                          >
+                            ✗
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          title="Zuweisung zurücknehmen"
+                          onClick={(e) => { e.stopPropagation(); setConfirmUnassignId(row.verbundId); }}
+                          className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer p-0.5 rounded"
+                        >
+                          <Undo2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {interessentenCount > 0 && !zug && (
                     <span
                       className="text-blue-700 text-[10.5px] font-medium shrink-0"
@@ -728,6 +786,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
               pendingAnonIds={detailPendingAnonIds}
               onZuweisen={zuweisen}
               onAblehnen={ablehnen}
+              onUnassign={() => { void unassignSelectedAction.run(); }}
               tageImQuartal={computeTageImQuartal(config.aktuellesQuartal)}
             />
           )}
@@ -739,7 +798,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
 function DetailPanel({
   antrag, akronym, verbundTitel, klassifizierung, kategorien, matches, matchingRunning,
-  zuweisungen, mitarbeiter, pendingAnonIds, onZuweisen, onAblehnen, tageImQuartal,
+  zuweisungen, mitarbeiter, pendingAnonIds, onZuweisen, onAblehnen, onUnassign, tageImQuartal,
 }: {
   antrag: Antrag;
   /** Verbund-Akronym/-Titel (aus dem verbuende-Store aufgeloest, siehe
@@ -756,6 +815,8 @@ function DetailPanel({
   pendingAnonIds: string[];
   onZuweisen: (m: MatchResult) => void;
   onAblehnen: (m: MatchResult) => void;
+  /** Ruecknahme der Verbund-Freigabe (entfernt die freigegebene Zuweisung). */
+  onUnassign: () => void;
   tageImQuartal: number;
 }): React.ReactElement {
   const resolveName = useDeAnonResolver();
@@ -931,6 +992,17 @@ function DetailPanel({
                   <span className="text-[var(--tf-text-secondary)]">{z.status}</span>
                   <span className="text-[var(--tf-text-tertiary)]">· {z.stunden}h</span>
                   {ma && <span className="text-[var(--tf-text-tertiary)]">· Q {z.quartal}</span>}
+                  {z.status === 'freigegeben' && (
+                    <button
+                      type="button"
+                      title="Zuweisung zurücknehmen"
+                      onClick={onUnassign}
+                      className="ml-auto inline-flex items-center gap-1 text-[10.5px] font-medium px-1.5 py-0.5 rounded cursor-pointer"
+                      style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
+                    >
+                      <Undo2 size={11} /> Zurücknehmen
+                    </button>
+                  )}
                 </li>
               );
             })}

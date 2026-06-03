@@ -61,6 +61,13 @@ export interface AssignVerbundInput {
   anzahlTV: number;
 }
 
+/** Eingabe fuer die Ruecknahme einer Verbund-Zuweisung (`unassignVerbund`). */
+export interface UnassignVerbundInput {
+  /** Aktenzeichen ALLER TVs des Verbundes. */
+  tvAktenzeichen: string[];
+  quartal: string;
+}
+
 interface AuslastungDataState {
   data: AuslastungData;
   loading: boolean;
@@ -159,6 +166,12 @@ interface AuslastungDataState {
    *  Bearbeiter) — verhindert Geist-Records bei Re-Zuweisung + konkurrierende
    *  Selbst-Wünsche. EIN setState + EIN persist (Pitfall #16/#20). */
   assignVerbund: (storage: StorageService, opts: AssignVerbundInput) => Promise<void>;
+  /** Ruecknahme der Verbund-Freigabe (PL-Umplanung): entfernt die
+   *  `freigegeben`-Zuweisung(en) aller TVs des Verbundes im Quartal — der
+   *  Verbund wird wieder „offen", die gebuchten Stunden des MA werden frei
+   *  (Auslastung rechnet reaktiv neu). `selbst`/`abgelehnt` bleiben. No-op +
+   *  KEIN persist, wenn keine Freigabe zu entfernen ist. */
+  unassignVerbund: (storage: StorageService, opts: UnassignVerbundInput) => Promise<void>;
   /** Einmal-Bereinigung von Altdaten (eine Einheit, ein Bearbeiter):
    *  1. pro (Verbund, Quartal) nur die hoechstrangige ACTIVE Zuweisung behalten
    *     (freigegeben > selbst), die uebrigen ACTIVE-Dubletten verwerfen.
@@ -584,6 +597,19 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       });
       return { data: { ...state.data, zuweisungen: kept } };
     });
+    await get().persist(storage);
+  },
+
+  unassignVerbund: async (storage, { tvAktenzeichen, quartal }) => {
+    const tvSet = new Set(tvAktenzeichen);
+    const current = get().data.zuweisungen;
+    // Nur die Freigabe(n) des Verbundes im Quartal entfernen (selbst/abgelehnt
+    // bleiben). Stunden des MA werden frei → Auslastung rechnet reaktiv neu.
+    const next = current.filter(
+      z => !(z.quartal === quartal && tvSet.has(z.antragId) && z.status === 'freigegeben'),
+    );
+    if (next.length === current.length) return; // nichts zu entfernen → kein persist
+    set(state => ({ data: { ...state.data, zuweisungen: next } }));
     await get().persist(storage);
   },
 
