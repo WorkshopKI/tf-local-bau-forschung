@@ -25,6 +25,7 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAutoCollectTeamProfiles } from '../hooks/useAutoCollectTeamProfiles';
+import { useReconcileZuweisungen } from '../hooks/useReconcileZuweisungen';
 import { AuslastungIndexProvider } from '../hooks/useAuslastungIndex';
 import { ModulLoadingBanner } from '../components/ModulLoadingBanner';
 import { KlassifizierungsReview } from './KlassifizierungsReview';
@@ -49,6 +50,11 @@ export function AuslastungView(): React.ReactElement {
   // Ordnern) beim Modul-Open automatisch einsammeln, damit der Matcher mit
   // aktuellen Präferenzen arbeitet (z.B. FuE-MA nicht für DS vorschlägt).
   useAutoCollectTeamProfiles();
+
+  // Einmal-Bereinigung von Altdaten-Dubletten (eine Einheit, ein Bearbeiter):
+  // collapst pro Verbund/Quartal auf die höchstrangige Zuweisung. CSV-Refresh
+  // heilt diese Phantome nicht (eigener PL-Stand) → hier beim Modul-Open.
+  useReconcileZuweisungen();
 
   // Default-Tab: 'klassifizierung'. Wenn Setup nicht abgeschlossen, springt
   // ein useEffect (siehe unten) auf 'uebersicht' (zeigt Setup-Wizard).

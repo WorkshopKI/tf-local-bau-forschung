@@ -34,6 +34,7 @@ import {
 import { nextFreeAnonId, type AnonymMap } from '../services/anonym-map';
 import { mergeProfilesIntoMitarbeiter } from '../services/profil-einsammeln';
 import { mergeWuenscheIntoZuweisungen } from '../services/uebernahme-einsammeln';
+import { pickVerbundZuweisung } from '../services/verbund-aggregation';
 import { deriveHauptNeben } from '../services/kompetenz-derivation';
 
 /** Eine Kompetenz-Mutation (PL-XLSX-Import oder Matrix-Editor). Felder, die
@@ -158,6 +159,15 @@ interface AuslastungDataState {
    *  Bearbeiter) — verhindert Geist-Records bei Re-Zuweisung + konkurrierende
    *  Selbst-Wünsche. EIN setState + EIN persist (Pitfall #16/#20). */
   assignVerbund: (storage: StorageService, opts: AssignVerbundInput) => Promise<void>;
+  /** Einmal-Bereinigung von Altdaten (eine Einheit, ein Bearbeiter): pro
+   *  (Verbund, Quartal) nur die hoechstrangige ACTIVE Zuweisung behalten
+   *  (freigegeben > selbst), die uebrigen ACTIVE-Dubletten verwerfen.
+   *  `abgelehnt`-Marker bleiben unangetastet. No-op + KEIN persist, wenn nichts
+   *  zu bereinigen ist (idempotent). Liefert Anzahl entfernter Dubletten. */
+  reconcileZuweisungen: (
+    storage: StorageService,
+    verbundKeyOfAntrag: (antragId: string) => string,
+  ) => Promise<{ entfernt: number }>;
   // ── Kalibrierung ─────────────────────────────────────────────────────
   upsertKalibrierungsErgebnis: (storage: StorageService, e: KalibrierungsErgebnis) => Promise<void>;
   setOptimalConfidence: (storage: StorageService, kannIch: number, teilweise: number) => Promise<void>;
@@ -570,6 +580,31 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       return { data: { ...state.data, zuweisungen: kept } };
     });
     await get().persist(storage);
+  },
+
+  reconcileZuweisungen: async (storage, verbundKeyOfAntrag) => {
+    const current = get().data.zuweisungen;
+    // ACTIVE Zuweisungen (freigegeben/selbst) pro (Verbund, Quartal) sammeln.
+    // abgelehnt-Marker sind keine Zuweisungen → bleiben unberuehrt.
+    const activeByGroup = new Map<string, Zuweisung[]>();
+    for (const z of current) {
+      if (z.status !== 'freigegeben' && z.status !== 'selbst') continue;
+      const key = `${verbundKeyOfAntrag(z.antragId)}::${z.quartal}`;
+      const g = activeByGroup.get(key);
+      if (g) g.push(z); else activeByGroup.set(key, [z]);
+    }
+    // Pro Gruppe nur die hoechstrangige behalten — die uebrigen sind Dubletten.
+    const losers = new Set<Zuweisung>();
+    for (const list of activeByGroup.values()) {
+      if (list.length <= 1) continue;
+      const winner = pickVerbundZuweisung(list);
+      for (const z of list) if (z !== winner) losers.add(z);
+    }
+    if (losers.size === 0) return { entfernt: 0 }; // idempotent: kein persist
+    const next = current.filter(z => !losers.has(z));
+    set(state => ({ data: { ...state.data, zuweisungen: next } }));
+    await get().persist(storage);
+    return { entfernt: losers.size };
   },
 
   upsertKalibrierungsErgebnis: async (storage, e) => {

@@ -21,6 +21,7 @@ import {
   CANONICAL_TITEL,
   type Klassifizierung,
   type UeberKategorie,
+  type Zuweisung,
 } from '../types';
 import { klassifiziereAntrag } from './klassifizierung-engine';
 import { normalizeKuerzel } from './anonym-map';
@@ -80,6 +81,27 @@ export function resolveVerbundMeta(
     ? verbund.titel
     : readString(rep, CANONICAL_VERBUND_TITEL) || readString(rep, CANONICAL_TITEL);
   return { akronym, verbundTitel };
+}
+
+// ─── Verbund = eine Einheit, ein Bearbeiter ──────────────────────────────
+// Praezedenz bei mehreren ACTIVE Zuweisungen EINES Verbundes (Konflikt/Altdaten):
+// PL-Freigabe schlaegt Selbst-Eintrag schlaegt Matching-Vorschlag.
+const ZUWEISUNG_STATUS_RANK: Record<string, number> = { freigegeben: 0, selbst: 1, vorgeschlagen: 2 };
+const zuweisungStatusRank = (s: string): number => ZUWEISUNG_STATUS_RANK[s] ?? 3;
+
+/** Maßgebliche Zuweisung EINES Verbundes aus konkurrierenden Kandidaten:
+ *  Freigabe > Selbst > Vorschlag; bei Gleichstand der Lead-TV (kleinstes
+ *  Aktenzeichen), dann meiste Stunden. Deterministisch; gibt eine der
+ *  Eingaben per Referenz zurueck (`candidates` ist nie leer). Geteilt vom
+ *  Export (Anzeige-Gruppierung) und der Store-Reconciliation (Altdaten-Cleanup). */
+export function pickVerbundZuweisung(candidates: readonly Zuweisung[]): Zuweisung {
+  return candidates.reduce((best, z) => {
+    const r = zuweisungStatusRank(z.status) - zuweisungStatusRank(best.status);
+    if (r !== 0) return r < 0 ? z : best;
+    const az = z.antragId.localeCompare(best.antragId, 'de');
+    if (az !== 0) return az < 0 ? z : best;
+    return z.stunden > best.stunden ? z : best;
+  });
 }
 
 // ─── Pool-Filterung (frueher in KlassifizierungsReview.istZuVerteilen) ──

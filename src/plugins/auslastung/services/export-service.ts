@@ -24,7 +24,7 @@ import {
   type Zuweisung,
 } from '../types';
 import type { AnonymMap } from './anonym-map';
-import { resolveVerbundMeta, verbundKeyOf } from './verbund-aggregation';
+import { resolveVerbundMeta, verbundKeyOf, pickVerbundZuweisung } from './verbund-aggregation';
 import { effektiveJahresStunden } from './kapazitaet-pro-typ';
 
 export interface ExportRow {
@@ -124,24 +124,6 @@ export function buildExportRows(input: BuildRowsInput): ExportRow[] {
     || b.score - a.score
   );
   return rows;
-}
-
-// Praezedenz bei mehreren Zuweisungen EINES Verbundes (Altdaten-Konflikt):
-// PL-Freigabe schlaegt Selbst-Eintrag schlaegt Matching-Vorschlag.
-const STATUS_RANK: Record<string, number> = { freigegeben: 0, selbst: 1, vorgeschlagen: 2 };
-const statusRank = (s: string): number => STATUS_RANK[s] ?? 3;
-
-/** Maßgebliche Zuweisung EINES Verbundes: Freigabe > Selbst > Vorschlag; bei
- *  Gleichstand der Lead-TV (kleinstes Aktenzeichen), dann meiste Stunden.
- *  Deterministisch — `candidates` ist nie leer (Bucket hat ≥1 Eintrag). */
-function pickVerbundZuweisung(candidates: Zuweisung[]): Zuweisung {
-  return candidates.reduce((best, z) => {
-    const r = statusRank(z.status) - statusRank(best.status);
-    if (r !== 0) return r < 0 ? z : best;
-    const az = z.antragId.localeCompare(best.antragId, 'de');
-    if (az !== 0) return az < 0 ? z : best;
-    return z.stunden > best.stunden ? z : best;
-  });
 }
 
 function scoreFromAssignment(z: Zuweisung): number {
