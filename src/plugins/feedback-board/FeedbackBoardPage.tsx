@@ -19,13 +19,14 @@ import {
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 
-type Filter = 'all' | 'bugs' | 'features' | 'open' | 'done';
+type Filter = 'all' | 'bugs' | 'features' | 'sonstige' | 'open' | 'done';
 type ViewMode = 'card' | 'list';
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'Alle' },
   { id: 'bugs', label: 'Bugs' },
   { id: 'features', label: 'Features' },
+  { id: 'sonstige', label: 'Sonstige' },
   { id: 'open', label: 'Offen' },
   { id: 'done', label: 'Umgesetzt' },
 ];
@@ -85,13 +86,15 @@ export function FeedbackBoardPage(): React.ReactElement {
   const isFeature = isClassifiedAs('idea');
 
   const filteredSorted = useMemo(() => {
-    const base = tickets.filter(
-      t => (isBug(t) || isFeature(t)) && t.kurator_status !== 'archiviert',
-    );
+    // Alle nicht-archivierten Einträge — inkl. Lob/Frage/Unklassifiziert, damit
+    // eingereichtes Feedback in der Übersicht sichtbar ist (auch ohne LLM-
+    // Klassifikation). Bugs/Features bleiben über die Filter-Pills erreichbar.
+    const base = tickets.filter(t => t.kurator_status !== 'archiviert');
     const byFilter = base.filter(t => {
       switch (filter) {
         case 'bugs': return isBug(t);
         case 'features': return isFeature(t);
+        case 'sonstige': return !isBug(t) && !isFeature(t);
         case 'open': return t.kurator_status === 'neu' || t.kurator_status === 'geplant' || t.kurator_status === 'in_bearbeitung';
         case 'done': return t.kurator_status === 'umgesetzt';
         case 'all':
@@ -111,10 +114,14 @@ export function FeedbackBoardPage(): React.ReactElement {
     });
   }, [tickets, filter, config, isBug, isFeature]);
 
-  const counts = useMemo(() => ({
-    bugs: tickets.filter(t => isBug(t) && t.kurator_status !== 'archiviert').length,
-    features: tickets.filter(t => isFeature(t) && t.kurator_status !== 'archiviert').length,
-  }), [tickets, isBug, isFeature]);
+  const counts = useMemo(() => {
+    const active = tickets.filter(t => t.kurator_status !== 'archiviert');
+    return {
+      bugs: active.filter(isBug).length,
+      features: active.filter(isFeature).length,
+      sonstige: active.filter(t => !isBug(t) && !isFeature(t)).length,
+    };
+  }, [tickets, isBug, isFeature]);
 
   return (
     <div className="px-8 py-6">
@@ -124,6 +131,7 @@ export function FeedbackBoardPage(): React.ReactElement {
           <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Feedback Übersicht</h1>
           <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
             {counts.bugs} {counts.bugs === 1 ? 'Bug' : 'Bugs'} · {counts.features} Features
+            {counts.sonstige > 0 && ` · ${counts.sonstige} Sonstige`}
           </p>
         </div>
         <BudgetBadge refreshKey={refreshKey} />

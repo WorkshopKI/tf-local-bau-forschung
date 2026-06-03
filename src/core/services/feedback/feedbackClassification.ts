@@ -61,3 +61,53 @@ export const AUSLASTUNG_PLUGIN_ID = 'auslastung';
 export function isAuslastungFeedback(item: FeedbackItem): boolean {
   return item.context?.route === AUSLASTUNG_PLUGIN_ID;
 }
+
+// ── Deterministische Klassifikation ohne LLM ─────────────────────────────────
+
+/** Schlüsselwort-Cues je Kategorie — bewusst konservativ (Lob ohne bloßes „gut"). */
+const KEYWORD_CUES: { category: FeedbackCategory; cues: string[] }[] = [
+  {
+    category: 'problem',
+    cues: [
+      'funktioniert nicht', 'geht nicht', 'klappt nicht', 'kaputt', 'fehler',
+      'stürzt ab', 'absturz', 'bug', 'defekt', 'hängt', 'lädt nicht', 'fehlerhaft',
+    ],
+  },
+  {
+    category: 'idea',
+    cues: [
+      'wünsche mir', 'wäre toll', 'wäre gut', 'wäre schön', 'könnte man',
+      'sollte man', 'fehlt', 'bräuchte', 'vorschlag', 'einbauen', 'hinzufügen',
+      'ergänzen', 'feature', 'wäre praktisch', 'sortieren', 'filter',
+    ],
+  },
+  {
+    category: 'praise',
+    cues: [
+      'sehr gut', 'finde gut', 'gefällt', 'super', 'toll', 'klasse', 'prima',
+      'danke', 'spitze', 'gut gemacht',
+    ],
+  },
+];
+
+/**
+ * Deterministische Klassifikation eines Feedback-Texts OHNE LLM. Fallback wenn
+ * kein LLM-Transport läuft (z.B. prod/pl-Builds) — sonst bliebe alles
+ * „Unklassifiziert" und unsichtbar im Bugs/Features-Board.
+ *
+ * Reihenfolge: Defekt-Signale (bug) > Wunsch-Signale (feature/idea) > Frage
+ * (endet auf „?") > Lob. Kein Treffer → undefined (bleibt unklassifiziert,
+ * erscheint aber unter „Sonstige" im Board). Bewusst simpel + konservativ;
+ * ein laufendes LLM verfeinert anschließend via autoClassifyFeedback.
+ */
+export function classifyByKeywords(text: string): FeedbackCategory | undefined {
+  const t = text.toLowerCase();
+  for (const { category, cues } of KEYWORD_CUES) {
+    if (category === 'praise') break; // Lob erst nach der Frage-Prüfung
+    if (cues.some(c => t.includes(c))) return category;
+  }
+  if (t.trim().endsWith('?')) return 'question';
+  const praise = KEYWORD_CUES.find(k => k.category === 'praise');
+  if (praise && praise.cues.some(c => t.includes(c))) return 'praise';
+  return undefined;
+}

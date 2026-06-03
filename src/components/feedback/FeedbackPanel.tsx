@@ -13,6 +13,7 @@ import { enabledPlugins } from '@/plugins.config';
 import {
   autoClassifyFeedback,
   captureFeedbackContext,
+  classifyByKeywords,
   submitFeedback,
   updateFeedback,
 } from '@/core/services/feedback';
@@ -92,10 +93,15 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
       const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
       const canWriteShared = canWriteDatenShare(isKurator);
       const persHandle = canWriteShared ? null : await getPersoenlichHandle(storage.idb).catch(() => null);
+      // Sofort-Kategorie ohne LLM: Quick-Tag-Hint bevorzugt, sonst Schlüsselwort-
+      // Heuristik. So erscheint Feedback auch ohne laufendes LLM klassifiziert im
+      // Board; ein verfügbares LLM verfeinert anschließend via autoClassifyFeedback.
+      const hintCategory = selectedHint ? LLM_CATEGORY_MAP[selectedHint] : undefined;
+      const initialCategory = hintCategory ?? classifyByKeywords(text.trim());
       const item = await submitFeedback(storage, {
         user_id: userId,
         user_display_name: profile?.name,
-        // category bewusst weggelassen — wird vom LLM per autoClassifyFeedback gesetzt
+        category: initialCategory,
         text: text.trim(),
         context: fullContext,
       }, {

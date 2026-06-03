@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AUSLASTUNG_PLUGIN_ID,
+  classifyByKeywords,
   getFeedbackClassification,
   isAuslastungFeedback,
   isClassifiedAs,
@@ -113,5 +114,37 @@ describe('isAuslastungFeedback', () => {
     const ohneAuslastung = items.filter(i => !isAuslastungFeedback(i));
     expect(ohneAuslastung).toHaveLength(2);
     expect(ohneAuslastung.some(isAuslastungFeedback)).toBe(false);
+  });
+});
+
+describe('classifyByKeywords', () => {
+  it('erkennt Bugs an Defekt-Signalen', () => {
+    expect(classifyByKeywords('Die Suche funktioniert nicht')).toBe('problem');
+    expect(classifyByKeywords('Seite stürzt ab beim Öffnen')).toBe('problem');
+  });
+
+  it('erkennt Feature-Wünsche', () => {
+    expect(classifyByKeywords('Ich wünsche mir einen Dark Mode')).toBe('idea');
+    expect(classifyByKeywords('müll, nach alter sortieren')).toBe('idea');
+    expect(classifyByKeywords('in der suche Filter für Antragstyp')).toBe('idea');
+  });
+
+  it('erkennt Fragen an abschließendem ?', () => {
+    expect(classifyByKeywords('Wie exportiere ich die Liste?')).toBe('question');
+  });
+
+  it('erkennt Lob — aber nicht an bloßem "gut"', () => {
+    expect(classifyByKeywords('homeage sehr gut')).toBe('praise');
+    expect(classifyByKeywords('Ich finde gut, dass die Seite aktuell ist')).toBe('praise');
+    expect(classifyByKeywords('seite gut')).toBeUndefined();
+  });
+
+  it('Feature-Signal schlägt Lob (Reihenfolge)', () => {
+    // "fehlt" (feature) gewinnt gegen "toll" (praise)
+    expect(classifyByKeywords('Wäre toll, aber mir fehlt ein Filter')).toBe('idea');
+  });
+
+  it('kein Treffer → undefined (bleibt unklassifiziert)', () => {
+    expect(classifyByKeywords('asdf qwer')).toBeUndefined();
   });
 });

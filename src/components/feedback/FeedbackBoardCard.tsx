@@ -31,6 +31,7 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
   const Icon = getIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const summary = ticket.llm_summary || ticket.text || '–';
   const isFeature = ticket.category === 'idea';
+  const isBug = ticket.category === 'problem';
   const hasEffort = !!ticket.effort_estimate;
   const progress = getSponsoringProgress(ticket, config);
   const open = isSponsoringOpen(ticket);
@@ -86,8 +87,8 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
         </div>
       )}
 
-      {/* Bug: knapper Hinweis */}
-      {!isFeature && (
+      {/* Bug: knapper Hinweis (nur für echte Bugs, nicht Lob/Frage/Unklassifiziert) */}
+      {isBug && (
         <p className="text-[11px] text-[var(--tf-text-tertiary)] italic">
           Bugs werden ohne Sponsoring bearbeitet.
         </p>
