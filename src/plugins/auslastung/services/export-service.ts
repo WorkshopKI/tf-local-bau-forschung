@@ -215,7 +215,7 @@ export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook
   const header = [
     'Aktenzeichen', 'Akronym', 'VB-Titel', 'TVs', 'Empfohlener MA',
     'Kompetenz-Score', 'Restkapazität (TVs)', 'Confidence', 'Status',
-    ...Array.from({ length: ALT_COUNT }, (_, i) => `Alternative ${i + 1} (Kürzel · Kompetenz · TVs frei)`),
+    ...Array.from({ length: ALT_COUNT }, (_, i) => `Option ${i + 1} (Kürzel · Kompetenz · TVs frei)`),
   ];
   const sheetData = [
     header,
