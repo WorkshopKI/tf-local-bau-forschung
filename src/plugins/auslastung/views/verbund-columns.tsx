@@ -17,11 +17,10 @@ import { HoverTooltip } from '../components/HoverTooltip';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { normalizeKuerzel } from '../services/anonym-map';
 import type { VerbundKlassifizierungsView } from '../services/verbund-aggregation';
-import { istUnvollstaendig, UNVOLLSTAENDIG_TOOLTIP } from '../services/verbund-aggregation';
+import { collectVerbundTHints, istUnvollstaendig, UNVOLLSTAENDIG_TOOLTIP } from '../services/verbund-aggregation';
 import {
   CANONICAL_BIB_KUERZ,
   CANONICAL_ANTRAGSDATUM,
-  CANONICAL_T_HINT,
   FIELD_AST_TYP,
   type UeberKategorie,
 } from '../types';
@@ -129,16 +128,19 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       wrap: true,
       accessor: v => v.verbundTitel || '—',
       render: v => {
-        const tHint = readString(leadAntrag(v), CANONICAL_T_HINT).trim();
+        // T_HINT verbund-weit: Bemerkung auf irgendeinem TV (nicht nur Lead).
+        const tHints = collectVerbundTHints(v.tvs);
         return (
           <span className="font-medium inline-flex items-center gap-1">
             <span>{v.verbundTitel || '—'}</span>
-            {tHint && (
+            {tHints.length > 0 && (
               <HoverTooltip
                 content={
                   <>
                     <div className="font-medium mb-0.5 text-[var(--tf-text-secondary)]">Bemerkung</div>
-                    <div className="whitespace-pre-wrap">{tHint}</div>
+                    {tHints.map((t, i) => (
+                      <div key={i} className="whitespace-pre-wrap">{t}</div>
+                    ))}
                   </>
                 }
               >

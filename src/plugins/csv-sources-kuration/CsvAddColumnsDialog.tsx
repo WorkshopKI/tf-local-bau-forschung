@@ -150,6 +150,9 @@ export function CsvAddColumnsDialog({
       const r = await importCsvSource(storage.idb, schema.id, file, {
         signal: abortRef.current.signal,
         onProgress: p => setProgress(p),
+        // Mapping wurde gerade geaendert → byte-gleiche Datei trotzdem neu
+        // verarbeiten (sonst Checksum-Skip, neue Spalten blieben leer).
+        force: true,
       });
       setResult(r);
       await persistCsvSourceMeta(storage.idb, { schema, file, sourceHandle });

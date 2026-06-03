@@ -47,6 +47,17 @@ export interface ImportOptions {
    * Re-Import.
    */
   encodingOverride?: CsvEncoding;
+  /**
+   * Umgeht den SHA-1-Datei-Checksum-Skip (Zeile unten). Wird von EXPLIZITEN,
+   * vom Kurator ausgeloesten Re-Imports gesetzt (Wizard-Abschluss, „Neue
+   * Spalten uebernehmen", „CSV neu waehlen") — dort ist die Absicht eindeutig
+   * „jetzt neu verarbeiten", auch wenn die Datei byte-gleich ist (z.B. weil nur
+   * das Column-Mapping geaendert wurde). Der Row-Hash-Diff (`canonicalRowHash`
+   * bezieht das Mapping ein) erkennt dann die geaenderten Zeilen und merged neu.
+   * Der automatische Auto-Refresh setzt das NICHT — dort ist der Checksum-Skip
+   * als „hat sich die Datei geaendert?"-Optimierung korrekt.
+   */
+  force?: boolean;
 }
 
 /**
@@ -88,7 +99,9 @@ export async function importCsvSource(
   try {
     // SHA-1 der Datei berechnen
     const fileSha = await sha1Hex(csvBlob);
-    if (schema.file_checksum === fileSha) {
+    // `force` umgeht den Skip: ein expliziter Re-Import (z.B. nach Mapping-
+    // Aenderung) muss auch bei byte-gleicher Datei neu verarbeiten.
+    if (!opts.force && schema.file_checksum === fileSha) {
       result.skipped = true;
       result.durationMs = Date.now() - started;
       await logAudit(idb, {

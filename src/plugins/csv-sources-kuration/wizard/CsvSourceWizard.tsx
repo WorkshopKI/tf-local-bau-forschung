@@ -261,6 +261,9 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseE
         onProgress: p => setProgress(p),
         onLockConflict: ageMinutes =>
           new Promise(resolve => setLockConflict({ ageMinutes, resolve })),
+        // Wizard-Abschluss ist ein expliziter Re-Import: auch bei unveränderter
+        // Datei neu verarbeiten (Mapping kann sich geändert haben).
+        force: true,
       });
       setImportResult(result);
       onCompleted();

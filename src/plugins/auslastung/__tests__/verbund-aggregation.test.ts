@@ -11,6 +11,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { Antrag, Verbund } from '@/core/services/csv/types';
 import {
   buildVerbundClassificationViews,
+  collectVerbundTHints,
   groupFreigegebeneByVerbund,
   hatDXtecDatum,
   invalidateVerbundClassificationCache,
@@ -239,5 +240,31 @@ describe('D_XTEC — Vollständigkeit (hatDXtecDatum / istUnvollstaendig)', () =
     // Beide ohne TIB, Datum im Fenster → beide im Pool (Markierung ist rein visuell).
     expect(istZuVerteilen(ohne, cutoff)).toBe(true);
     expect(istZuVerteilen(mit, cutoff)).toBe(true);
+  });
+});
+
+describe('collectVerbundTHints — T_HINT verbund-weit', () => {
+  it('distinkte, nicht-leere Werte über alle TVs (reihenfolgestabil)', () => {
+    const tvs = [
+      makeAntrag({ aktenzeichen: 'A1', t_hint: 'Bemerkung A' }),
+      makeAntrag({ aktenzeichen: 'A2', t_hint: '   ' }),         // whitespace → raus
+      makeAntrag({ aktenzeichen: 'A3', t_hint: 'Bemerkung B' }),
+      makeAntrag({ aktenzeichen: 'A4', t_hint: 'Bemerkung A' }), // Dublette → raus
+      makeAntrag({ aktenzeichen: 'A5' }),                        // kein t_hint
+    ];
+    expect(collectVerbundTHints(tvs)).toEqual(['Bemerkung A', 'Bemerkung B']);
+  });
+
+  it('trimmt + leere Liste → []', () => {
+    expect(collectVerbundTHints([])).toEqual([]);
+    expect(collectVerbundTHints([makeAntrag({ aktenzeichen: 'A', t_hint: '  x  ' })])).toEqual(['x']);
+  });
+
+  it('Bemerkung auf Nicht-Lead-TV wird erfasst', () => {
+    const tvs = [
+      makeAntrag({ aktenzeichen: 'L1' }),                        // Lead, ohne Bemerkung
+      makeAntrag({ aktenzeichen: 'L2', t_hint: 'nur auf TV2' }),
+    ];
+    expect(collectVerbundTHints(tvs)).toEqual(['nur auf TV2']);
   });
 });

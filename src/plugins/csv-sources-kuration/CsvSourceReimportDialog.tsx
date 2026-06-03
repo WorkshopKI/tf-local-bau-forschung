@@ -110,6 +110,9 @@ export function CsvSourceReimportDialog({
       const r = await importCsvSource(storage.idb, schema.id, file, {
         signal: abortRef.current.signal,
         onProgress: p => setProgress(p),
+        // Expliziter „CSV neu wählen"-Re-Import → Checksum-Skip umgehen (z.B.
+        // wenn nur das Mapping geändert wurde, die Datei aber identisch ist).
+        force: true,
         ...extraOpts,
       });
       setResult(r);

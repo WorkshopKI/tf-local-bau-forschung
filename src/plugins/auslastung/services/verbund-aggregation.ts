@@ -16,6 +16,7 @@ import {
   CANONICAL_AKRONYM,
   CANONICAL_ANTRAGSDATUM,
   CANONICAL_D_XTEC,
+  CANONICAL_T_HINT,
   CANONICAL_TIB_KUERZ,
   CANONICAL_VERBUND_ID,
   CANONICAL_VERBUND_TITEL,
@@ -144,6 +145,25 @@ export function istUnvollstaendig(antrag: Antrag): boolean {
 
 /** Tooltip-Text fuer unvollstaendige Antraege (kein D_XTEC). Geteilt von beiden Tabs. */
 export const UNVOLLSTAENDIG_TOOLTIP = 'Antrag nicht vollständig - kein D_XTEC gesetzt';
+
+/**
+ * Distinkte, nicht-leere T_HINT-Bemerkungen ueber ALLE TVs eines Verbundes
+ * (reihenfolgestabil). T_HINT ist ein per-TV-Feld — eine Bemerkung auf einem
+ * Nicht-Lead-TV soll in der Detail-/Tabellen-Ansicht trotzdem sichtbar sein.
+ */
+export function collectVerbundTHints(tvs: readonly Antrag[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const tv of tvs) {
+    const v = (tv as Record<string, unknown>)[CANONICAL_T_HINT];
+    if (typeof v !== 'string') continue;
+    const t = v.trim();
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out;
+}
 
 /**
  * Untere Datums-Grenze (inklusive, ISO `YYYY-MM-01`) des rollierenden Verteil-

@@ -25,7 +25,7 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
-import { groupFreigegebeneByVerbund, hatDXtecDatum, istUnvollstaendig, istZuVerteilen, UNVOLLSTAENDIG_TOOLTIP, verteilCutoffDatum, verbundKeyOf, type VerbundZuweisungRow } from '../services/verbund-aggregation';
+import { collectVerbundTHints, groupFreigegebeneByVerbund, hatDXtecDatum, istUnvollstaendig, istZuVerteilen, UNVOLLSTAENDIG_TOOLTIP, verteilCutoffDatum, verbundKeyOf, type VerbundZuweisungRow } from '../services/verbund-aggregation';
 import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
   embedText,
@@ -34,7 +34,6 @@ import {
 import {
   ALL_ANTRAGSTYP_BUCKETS,
   CANONICAL_AKRONYM,
-  CANONICAL_T_HINT,
   CANONICAL_TITEL,
   CANONICAL_VERBUND_ID,
   CANONICAL_VERBUND_TITEL,
@@ -315,6 +314,15 @@ export function ZuweisungsCockpit(): React.ReactElement {
   // (Transitions-Schutz, solange D_XTEC nicht gemappt ist).
   const dxtecVerfuegbar = useMemo(() => cache.antraege.some(a => hatDXtecDatum(a)), [cache.antraege]);
   const antragByAz = useMemo(() => new Map(cache.antraege.map(a => [a.aktenzeichen, a])), [cache.antraege]);
+
+  // v2.19: T_HINT verbund-weit — Bemerkung auf irgendeinem TV des Verbundes
+  // (nicht nur dem Lead) im Detail anzeigen.
+  const detailTHints = useMemo(() => {
+    if (!selected) return [] as string[];
+    const azs = selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen];
+    const tvs = azs.map(az => antragByAz.get(az)).filter((a): a is Antrag => !!a);
+    return collectVerbundTHints(tvs.length > 0 ? tvs : [selected]);
+  }, [selected, selectedRow, antragByAz]);
 
   // v2.19 — Manueller MA-Eintrag.
   // Reset der manuellen Auswahl bei Selektionswechsel (nicht bei zuweisungen/
@@ -844,6 +852,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
               mitarbeiter={mitarbeiter}
               pendingAnonIds={detailPendingAnonIds}
               unvollstaendig={dxtecVerfuegbar && istUnvollstaendig(selected)}
+              tHints={detailTHints}
               restTVsByAnon={restTVsByAnon}
               onZuweisen={zuweisen}
               onAblehnen={ablehnen}
@@ -861,7 +870,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
 function DetailPanel({
   antrag, akronym, verbundTitel, klassifizierung, kategorien, matches, matchingRunning,
-  zuweisungen, mitarbeiter, pendingAnonIds, unvollstaendig, restTVsByAnon,
+  zuweisungen, mitarbeiter, pendingAnonIds, unvollstaendig, tHints, restTVsByAnon,
   onZuweisen, onAblehnen, onAddManual, onRemoveManual, onUnassign, tageImQuartal,
 }: {
   antrag: Antrag;
@@ -879,6 +888,8 @@ function DetailPanel({
   pendingAnonIds: string[];
   /** v2.19: Antrag „nicht vollständig" (kein D_XTEC) → Warn-Markierung im Header. */
   unvollstaendig: boolean;
+  /** v2.19: T_HINT-Bemerkungen über alle TVs des Verbundes (distinct, nicht-leer). */
+  tHints: string[];
   /** v2.19: freie TVs pro aktivem MA — Kapazitäts-Hinweis im manuellen Picker. */
   restTVsByAnon: Map<string, number>;
   onZuweisen: (m: MatchResult) => void;
@@ -896,7 +907,6 @@ function DetailPanel({
   const vbTitel = verbundTitel || (antrag[CANONICAL_VERBUND_TITEL] as string | undefined);
   const tvTitel = antrag[CANONICAL_TITEL] as string | undefined;
   const summary = antrag[FIELD_PROJEKTBESCHREIBUNG] as string | undefined;
-  const tHint = (antrag[CANONICAL_T_HINT] as string | undefined)?.trim();
   const verbund_id = antrag[CANONICAL_VERBUND_ID] as string | undefined;
   const desk = readAntragDeskriptoren(antrag);
   // 1.17: Primaer (gefuellt) + Aspekte (outline) trennen.
@@ -1029,11 +1039,13 @@ function DetailPanel({
           <p className="text-[12px] text-[var(--tf-text-secondary)] line-clamp-5">{summary}</p>
         </div>
       )}
-      {/* v2.19: Bemerkung (T_HINT) — nur wenn befuellt. */}
-      {tHint && (
+      {/* v2.19: Bemerkung (T_HINT) — verbund-weit, nur wenn befuellt. */}
+      {tHints.length > 0 && (
         <div className="rounded p-2.5" style={{ background: 'var(--tf-bg-secondary)' }}>
           <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">Bemerkung</div>
-          <p className="text-[12px] text-[var(--tf-text-secondary)] whitespace-pre-wrap">{tHint}</p>
+          {tHints.map((t, i) => (
+            <p key={i} className="text-[12px] text-[var(--tf-text-secondary)] whitespace-pre-wrap">{t}</p>
+          ))}
         </div>
       )}
 
