@@ -24,6 +24,15 @@ function makeMa(anonId: string): AnonymerMitarbeiter {
   };
 }
 
+function mkMatch(anonId: string, kompetenz: number, restKapazitaet: number): MatchResult {
+  return {
+    anonId, bm25Score: 0, embeddingScore: 0, kompetenzScore: kompetenz,
+    restKapazitaet, quartalsKapazitaet: 400, balanceScore: 0.5, finalScore: kompetenz,
+    matchendeTechnologien: [], aehnlicheProjekte: [], matchStufe: 1, confidence: 'high',
+    benoetigteStunden: 9, astMatchCount: 0, astBoost: 0,
+  };
+}
+
 function makeData(): AuslastungData {
   const base = emptyAuslastungData();
   base.config.aktuellesQuartal = '2026-Q2';
@@ -137,6 +146,34 @@ describe('buildExportRows', () => {
     expect(rows[0]?.ma).toBe('MA02');
     expect(rows[0]?.status).toBe('selbst');
   });
+
+  it('matchesByLead: Kompetenz/Restkapazität(TVs) des zugewiesenen MA + Top-5-Alternativen ohne ihn', () => {
+    const data = makeData();
+    data.config.stundenProTV = 9;
+    data.zuweisungen = [
+      { antragId: 'A1', anonId: 'MA01', quartal: '2026-Q2', stunden: 9, status: 'freigegeben', anzahlTV: 1 },
+    ];
+    // 7 Kandidaten inkl. zugewiesenem MA01 → Alternativen max 5, MA01 ausgeschlossen.
+    const matchesByLead = new Map<string, MatchResult[]>([
+      ['A1', [
+        mkMatch('MA01', 0.9, 90),
+        mkMatch('MA02', 0.8, 45),
+        mkMatch('MA03', 0.7, 18),
+        mkMatch('MA04', 0.6, 9),
+        mkMatch('MA05', 0.5, 0),
+        mkMatch('MA06', 0.4, 270),
+        mkMatch('MA07', 0.3, 36),
+      ]],
+    ]);
+    const rows = buildExportRows({ data, antraege: [makeAntrag('A1', { verbund_titel: 'X', titel: 'Y' })], matchesByLead });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.score).toBe(0.9);          // Kompetenz des zugewiesenen MA01
+    expect(rows[0]?.restTVs).toBe(10);         // 90h / 9
+    const alts = rows[0]!.alternativen;
+    expect(alts).toHaveLength(5);              // genau 5
+    expect(alts.map(a => a.anonId)).toEqual(['MA02', 'MA03', 'MA04', 'MA05', 'MA06']); // MA01 raus
+    expect(alts[0]).toMatchObject({ anonId: 'MA02', kompetenz: 0.8, tvsFrei: 5 });
+  });
 });
 
 describe('buildWorkbook', () => {
@@ -146,15 +183,39 @@ describe('buildWorkbook', () => {
     expect(wb.SheetNames[0]).toBe('Auslastung 2026-Q2');
   });
 
-  it('hat 11 Spalten in Header-Zeile (inkl. Akronym + TVs)', () => {
+  it('hat das v2.18-Spaltenlayout (kein TV-Titel/Aufwand, Restkapazität in TVs, 5 Alternativen)', () => {
     const rows = buildExportRows({ data: makeData(), antraege: [makeAntrag('A1', { verbund_titel: 'X', titel: 'Y' })] });
     const wb = buildWorkbook(rows, '2026-Q2');
     const sheet = wb.Sheets[wb.SheetNames[0]!]!;
-    // Header in A1..K1
     expect(sheet['A1']?.v).toBe('Aktenzeichen');
     expect(sheet['B1']?.v).toBe('Akronym');
-    expect(sheet['E1']?.v).toBe('TVs');
-    expect(sheet['K1']?.v).toBe('Status');
+    expect(sheet['C1']?.v).toBe('VB-Titel');
+    expect(sheet['D1']?.v).toBe('TVs');
+    expect(sheet['E1']?.v).toBe('Empfohlener MA');
+    expect(sheet['F1']?.v).toBe('Kompetenz-Score');
+    expect(sheet['G1']?.v).toBe('Restkapazität (TVs)');
+    expect(sheet['H1']?.v).toBe('Confidence');
+    expect(sheet['I1']?.v).toBe('Status');
+    expect(sheet['J1']?.v).toBe('Alternative 1');
+    expect(sheet['N1']?.v).toBe('Alternative 5');
+    // O1 existiert nicht → genau 14 Spalten.
+    expect(sheet['O1']).toBeUndefined();
+  });
+
+  it('formatiert Restkapazität in TVs + Alternative-Zellen "Kürzel · X% · N TVs"', () => {
+    const data = makeData();
+    data.config.stundenProTV = 9;
+    data.zuweisungen = [
+      { antragId: 'A1', anonId: 'MA01', quartal: '2026-Q2', stunden: 9, status: 'freigegeben', anzahlTV: 1 },
+    ];
+    const matchesByLead = new Map<string, MatchResult[]>([
+      ['A1', [mkMatch('MA01', 0.9, 90), mkMatch('MA02', 0.8, 45)]],
+    ]);
+    const rows = buildExportRows({ data, antraege: [makeAntrag('A1', { verbund_titel: 'X', titel: 'Y' })], matchesByLead });
+    const wb = buildWorkbook(rows, '2026-Q2');
+    const sheet = wb.Sheets[wb.SheetNames[0]!]!;
+    expect(sheet['G2']?.v).toBe(10);                       // 90h / 9 = 10 TVs frei
+    expect(sheet['J2']?.v).toBe('MA02 · 80% · 5 TVs');     // Alternative 1
   });
 });
 

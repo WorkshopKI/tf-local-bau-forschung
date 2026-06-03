@@ -127,7 +127,7 @@ export function UebersichtView(): React.ReactElement {
           <div className="flex flex-col">
             <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
             <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
-            <ImportExportSection antraege={cache.antraege} anonymMap={cache.anonymMap} />
+            <ImportExportSection antraege={cache.antraege} />
             <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
             <KonfigurationSection storage={storage} />
             <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />

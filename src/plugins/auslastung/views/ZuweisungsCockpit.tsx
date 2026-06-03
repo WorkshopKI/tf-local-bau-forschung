@@ -49,7 +49,7 @@ import { VorschlagCard } from '../components/VorschlagCard';
 import { tageImQuartal as computeTageImQuartal } from '../services/kapazitaet';
 import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
 import { readAntragDeskriptoren } from '../services/profil-aggregator';
-import { exportDeAnonymizedXlsx } from '../services/export-service';
+import { useKuerzelExport } from '../hooks/useKuerzelExport';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import {
@@ -206,16 +206,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
     reloadPending();
   });
 
-  const data = useAuslastungData(s => s.data);
-
-  function exportMitKuerzeln(): void {
-    exportDeAnonymizedXlsx({
-      data,
-      antraege: cache.antraege,
-      anonymMap: cache.anonymMap,
-      verbuendeById: cache.verbuendeById,
-    });
-  }
+  const kuerzelExport = useKuerzelExport();
 
   // v2.9: gemeinsamer Provider-Memo statt eigener Berechnung. Wird in die
   // Matching-Engine durchgereicht, damit fest+pending in den Score
@@ -548,13 +539,17 @@ export function ZuweisungsCockpit(): React.ReactElement {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {kuerzelExport.error && (
+            <span className="text-[11px] text-[var(--tf-danger-text)]">Fehler: {kuerzelExport.error}</span>
+          )}
           <button
             type="button"
-            onClick={exportMitKuerzeln}
-            className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
+            onClick={() => { void kuerzelExport.run(); }}
+            disabled={kuerzelExport.busy}
+            className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
             style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
           >
-            Export (mit Kürzeln)
+            {kuerzelExport.busy ? 'Exportiere…' : 'Export (mit Kürzeln)'}
           </button>
         </div>
       </div>

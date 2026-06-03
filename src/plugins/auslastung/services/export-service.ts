@@ -1,23 +1,22 @@
 /**
  * Export-Service fuer das Auslastungs-Modul.
  *
- * Zwei Varianten:
- *  - exportAnonymousXlsx(): direkter Download mit anonymen IDs (MA01...)
- *  - exportDeAnonymizedXlsx(): direkter Download mit echten Kuerzeln (kein
- *    Passwortschutz — die Variante liegt auf einem geschuetzten SMB-Bereich;
- *    das Mapping anonId→Kuerzel lebt ausschliesslich im RAM).
+ * `exportDeAnonymizedXlsx()`: direkter Download mit echten TIB-Kuerzeln. Der
+ * PL-Build ist seit v2.16 beim App-Start per Rollen-Passwort gated; das Mapping
+ * anonId→Kuerzel lebt ausschliesslich im RAM und wird NIE persistiert.
  *
- * Datenmodell der Export-Zeile:
- *   Aktenzeichen | VB-Titel | TV-Titel | MA | Score | Restkapazitaet |
- *   Aufwand (h) | Confidence | Status
+ * Datenmodell der Export-Zeile (v2.18):
+ *   Aktenzeichen | Akronym | VB-Titel | TVs | Empfohlener MA | Kompetenz-Score |
+ *   Restkapazität (TVs) | Confidence | Status | Alternative 1 … Alternative 5
  *
- * Anonymitaets-Garantie: das invertierte Mapping (MA01 -> echtes Kuerzel)
- * wird NIE persistiert; es lebt nur fuer die Dauer eines Export-Vorgangs.
+ * Die „Alternative N"-Spalten listen pro Verbund die naechstbesten ANDEREN
+ * Bearbeiter (Matching-Top-5 ohne den zugewiesenen MA), je Zelle
+ * `Kuerzel · Kompetenz% · N TVs frei`. Die dafuer noetigen MatchResults
+ * uebergibt der Aufrufer als `matchesByLead` (Hook `useKuerzelExport`).
  */
 import * as XLSX from 'xlsx';
 import type { Antrag, Verbund } from '@/core/services/csv/types';
 import {
-  CANONICAL_TITEL,
   type AnonymerMitarbeiter,
   type AuslastungData,
   type MatchResult,
@@ -27,18 +26,45 @@ import type { AnonymMap } from './anonym-map';
 import { resolveVerbundMeta, verbundKeyOf, pickVerbundZuweisung } from './verbund-aggregation';
 import { effektiveJahresStunden } from './kapazitaet-pro-typ';
 
+/** Anzahl der „weitere moegliche Bearbeiter"-Spalten. */
+const ALT_COUNT = 5;
+
+/** Ein alternativer Bearbeiter (Matching-Kandidat) fuer die Alternative-Spalten. */
+export interface ExportAlternative {
+  anonId: string;
+  /** Echtes Kuerzel — wird in `exportDeAnonymizedXlsx` aus der AnonymMap gefuellt. */
+  kuerzel?: string;
+  kompetenz: number; // 0..1
+  tvsFrei: number;
+}
+
 export interface ExportRow {
   aktenzeichen: string;
   akronym: string;
   vbTitel: string;
-  tvTitel: string;
   anzahlTV: number;       // TVs des Verbundes (Zuweisung erfolgt pro Verbund)
   ma: string;             // anonyme oder echte ID — je nach Variante
-  score: number;          // 0..1
-  restkapazitaet: number; // Stunden
-  aufwand: number;
+  score: number;          // 0..1 — Kompetenz des zugewiesenen MA
+  restTVs: number;        // Restkapazität des zugewiesenen MA in TVs
   confidence: 'high' | 'medium' | 'low';
   status: string;
+  /** Top-5 alternative Bearbeiter (ohne den zugewiesenen MA). */
+  alternativen: ExportAlternative[];
+}
+
+export interface BuildRowsInput {
+  data: AuslastungData;
+  antraege: Antrag[];
+  /** Optional: pro Antrag die Top-N-Vorschlaege (fuer noch nicht zugewiesene). */
+  pendingMatches?: Map<string, MatchResult[]>;
+  /** Pro zugewiesenem Verbund (Buchungs-Lead-Aktenzeichen) die vollstaendig
+   *  gescorten MatchResults — fuer Kompetenz/Restkapazität des zugewiesenen MA
+   *  + die Top-5-Alternativen. */
+  matchesByLead?: Map<string, MatchResult[]>;
+  /** Filter — wenn gesetzt, nur Zuweisungen dieses Quartals. */
+  quartal?: string;
+  /** Verbund-Store fuer Titel/Akronym-Aufloesung (liegen NICHT am Antrag). */
+  verbuendeById?: ReadonlyMap<string, Verbund>;
 }
 
 /**
@@ -46,28 +72,15 @@ export interface ExportRow {
  *
  * EINE Zeile pro Verbund des aktiven Quartals (eine Einheit, ein Bearbeiter) —
  * zugewiesene Zuweisungen werden pro `verbundKeyOf` gebuendelt. Bei Altdaten mit
- * mehreren konkurrierenden Zuweisungen eines Verbundes entscheidet
- * `pickVerbundZuweisung` (Praezedenz freigegeben > selbst > vorgeschlagen).
- * `abgelehnt`-Zeilen werden ueberlesen.
- *
- * Caller kann zusaetzlich noch Match-Vorschlaege fuer NICHT-zugewiesene
- * Antraege uebergeben (`pendingMatches`) — dann werden auch Top-3-Vorschlaege
- * mit Status `vorgeschlagen` zur Tabelle hinzugefuegt.
+ * mehreren konkurrierenden Zuweisungen entscheidet `pickVerbundZuweisung`
+ * (Praezedenz freigegeben > selbst > vorgeschlagen). `abgelehnt`-Zeilen werden
+ * ueberlesen. Mit `matchesByLead` werden Kompetenz/Restkapazität des zugewiesenen
+ * MA + die Top-5-Alternativen befuellt (sonst graceful-Fallback).
  */
-export interface BuildRowsInput {
-  data: AuslastungData;
-  antraege: Antrag[];
-  /** Optional: pro Antrag die Top-3-Vorschlaege (fuer noch nicht zugewiesene). */
-  pendingMatches?: Map<string, MatchResult[]>;
-  /** Filter — wenn gesetzt, nur Zuweisungen dieses Quartals. */
-  quartal?: string;
-  /** Verbund-Store fuer Titel/Akronym-Aufloesung (liegen NICHT am Antrag). */
-  verbuendeById?: ReadonlyMap<string, Verbund>;
-}
-
 export function buildExportRows(input: BuildRowsInput): ExportRow[] {
-  const { data, antraege, pendingMatches, verbuendeById } = input;
+  const { data, antraege, pendingMatches, matchesByLead, verbuendeById } = input;
   const quartal = input.quartal ?? data.config.aktuellesQuartal;
+  const stundenProTV = data.config.stundenProTV && data.config.stundenProTV > 0 ? data.config.stundenProTV : 9;
   const indexAz = new Map<string, Antrag>(antraege.map(a => [a.aktenzeichen, a]));
   const rows: ExportRow[] = [];
 
@@ -85,10 +98,11 @@ export function buildExportRows(input: BuildRowsInput): ExportRow[] {
   for (const candidates of verbundGroups.values()) {
     const z = pickVerbundZuweisung(candidates);
     const a = indexAz.get(z.antragId)!;
-    rows.push(toRow(a, z.anonId, scoreFromAssignment(z), z, quartal, data.mitarbeiter, verbuendeById));
+    rows.push(toRow(a, z.anonId, scoreFromAssignment(z), z, data.mitarbeiter, stundenProTV, verbuendeById, matchesByLead));
   }
 
-  // 2) Optional: Top-N-Vorschlaege fuer nicht-zugewiesene Antraege
+  // 2) Optional: Top-N-Vorschlaege fuer nicht-zugewiesene Antraege (nicht vom
+  //    De-Anon-Export genutzt; bleibt fuer evtl. andere Aufrufer).
   if (pendingMatches) {
     const zugewiesen = new Set(
       data.zuweisungen
@@ -105,14 +119,13 @@ export function buildExportRows(input: BuildRowsInput): ExportRow[] {
           aktenzeichen: a.aktenzeichen,
           akronym: meta.akronym,
           vbTitel: meta.verbundTitel || '—',
-          tvTitel: stringOr(a[CANONICAL_TITEL], '—'),
           anzahlTV: 1,
           ma: m.anonId,
           score: m.kompetenzScore,
-          restkapazitaet: m.restKapazitaet,
-          aufwand: m.benoetigteStunden,
+          restTVs: Math.floor(Math.max(0, m.restKapazitaet) / stundenProTV),
           confidence: m.confidence,
           status: 'vorgeschlagen',
+          alternativen: [],
         });
       }
     }
@@ -127,84 +140,118 @@ export function buildExportRows(input: BuildRowsInput): ExportRow[] {
 }
 
 function scoreFromAssignment(z: Zuweisung): number {
-  // Bei manuell freigegebenen Zuweisungen kein Score verfuegbar -> 1.0.
-  // Selbst-eingetragen ebenfalls 1.0 (MA hat selbst entschieden).
+  // Fallback ohne Match-Daten: manuell freigegeben/selbst -> 1.0.
   if (z.status === 'freigegeben' || z.status === 'selbst') return 1.0;
   return 0;
+}
+
+/** Restkapazität (in TVs) eines MA aus der groben Quartals-Naeherung — Fallback,
+ *  wenn keine MatchResults vorliegen (z.B. Tests). */
+function restTVsFallback(
+  mitarbeiter: Record<string, AnonymerMitarbeiter>,
+  anonId: string,
+  z: Zuweisung,
+  stundenProTV: number,
+): number {
+  const ma = mitarbeiter[anonId];
+  const quartKap = ma ? effektiveJahresStunden(ma) / 4 : 0;
+  return Math.floor(Math.max(0, quartKap - z.stunden) / stundenProTV);
 }
 
 function toRow(
   a: Antrag,
   anonId: string,
-  score: number,
+  fallbackScore: number,
   z: Zuweisung,
-  _quartal: string,
   mitarbeiter: Record<string, AnonymerMitarbeiter>,
+  stundenProTV: number,
   verbuendeById?: ReadonlyMap<string, Verbund>,
+  matchesByLead?: Map<string, MatchResult[]>,
 ): ExportRow {
-  const ma = mitarbeiter[anonId];
-  const quartKap = ma ? effektiveJahresStunden(ma) / 4 : 0;
-  // Rest ist hier post-hoc nicht 100% exakt verfuegbar — wir geben quartalsKap
-  // - z.stunden als Naeherung. Der Empfaenger sieht ja die echten Werte sowieso
-  // im Dashboard.
-  const rest = Math.max(0, quartKap - z.stunden);
-  // Verbund-Titel/Akronym aus dem verbuende-Store (liegen nicht am Antrag).
   const meta = resolveVerbundMeta(verbuendeById?.get(verbundKeyOf(a)), a);
+  const matches = matchesByLead?.get(a.aktenzeichen);
+
+  let score = fallbackScore;
+  let restTVs: number;
+  let alternativen: ExportAlternative[] = [];
+
+  if (matches && matches.length > 0) {
+    const assigned = matches.find(m => m.anonId === anonId);
+    if (assigned) {
+      score = assigned.kompetenzScore;
+      restTVs = Math.floor(Math.max(0, assigned.restKapazitaet) / stundenProTV);
+    } else {
+      restTVs = restTVsFallback(mitarbeiter, anonId, z, stundenProTV);
+    }
+    alternativen = matches
+      .filter(m => m.anonId !== anonId)
+      .slice(0, ALT_COUNT)
+      .map(m => ({
+        anonId: m.anonId,
+        kompetenz: m.kompetenzScore,
+        tvsFrei: Math.floor(Math.max(0, m.restKapazitaet) / stundenProTV),
+      }));
+  } else {
+    restTVs = restTVsFallback(mitarbeiter, anonId, z, stundenProTV);
+  }
+
   return {
     aktenzeichen: a.aktenzeichen,
     akronym: meta.akronym,
     vbTitel: meta.verbundTitel || '—',
-    tvTitel: stringOr(a[CANONICAL_TITEL], '—'),
     anzahlTV: z.anzahlTV ?? 1,
     ma: anonId,
     score,
-    restkapazitaet: rest,
-    aufwand: z.stunden,
+    restTVs,
     confidence: score >= 0.5 ? 'high' : score >= 0.2 ? 'medium' : 'low',
     status: z.status,
+    alternativen,
   };
-}
-
-function stringOr(v: unknown, fallback: string): string {
-  return typeof v === 'string' && v.trim() ? v : fallback;
 }
 
 /** XLSX-WorkBook aus Export-Zeilen. */
 export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
+  const header = [
+    'Aktenzeichen', 'Akronym', 'VB-Titel', 'TVs', 'Empfohlener MA',
+    'Kompetenz-Score', 'Restkapazität (TVs)', 'Confidence', 'Status',
+    ...Array.from({ length: ALT_COUNT }, (_, i) => `Alternative ${i + 1}`),
+  ];
   const sheetData = [
-    ['Aktenzeichen', 'Akronym', 'VB-Titel', 'TV-Titel', 'TVs', 'Empfohlener MA', 'Kompetenz-Score', 'Restkapazitaet (h)', 'Aufwand (h)', 'Confidence', 'Status'],
+    header,
     ...rows.map(r => [
       r.aktenzeichen,
       r.akronym,
       r.vbTitel,
-      r.tvTitel,
       r.anzahlTV,
       r.ma,
       Number(r.score.toFixed(3)),
-      Math.round(r.restkapazitaet),
-      r.aufwand,
+      r.restTVs,
       r.confidence,
       r.status,
+      ...Array.from({ length: ALT_COUNT }, (_, i) => formatAlternative(r.alternativen[i])),
     ]),
   ];
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
-  // Spalten-Breiten — minimale Aesthetik
   ws['!cols'] = [
-    { wch: 18 }, { wch: 16 }, { wch: 40 }, { wch: 40 }, { wch: 6 }, { wch: 8 },
-    { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 14 },
+    { wch: 18 }, { wch: 16 }, { wch: 40 }, { wch: 6 }, { wch: 10 },
+    { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 14 },
+    ...Array.from({ length: ALT_COUNT }, () => ({ wch: 24 })),
   ];
   XLSX.utils.book_append_sheet(wb, ws, `Auslastung ${quartal}`);
   return wb;
 }
 
+/** Eine Alternative-Zelle: `Kuerzel · 87% · 21 TVs` (leer wenn kein Kandidat). */
+function formatAlternative(alt: ExportAlternative | undefined): string {
+  if (!alt) return '';
+  const name = alt.kuerzel ?? alt.anonId;
+  return `${name} · ${Math.round(alt.kompetenz * 100)}% · ${alt.tvsFrei} TVs`;
+}
+
 /**
  * De-anonymisierter XLSX-Export — direkter Download mit echten TIB-Kuerzeln.
- *
- * Kein Passwortschutz: der PL-Build ist seit v2.16 beim App-Start per Rollen-
- * Passwort gated ([AppPasswordGate]). Das invertierte Mapping (anonId → echtes
- * Kuerzel) wird NICHT persistiert — es lebt nur fuer die Dauer dieses Aufrufs
- * im RAM.
+ * Mappt den zugewiesenen MA UND alle Alternativen anonId→Kuerzel.
  *
  * Dateiname: `auslastung-kuerzel-{quartal}.xlsx`.
  */
@@ -212,9 +259,11 @@ export function exportDeAnonymizedXlsx(
   input: BuildRowsInput & { anonymMap: AnonymMap },
 ): void {
   const quartal = input.quartal ?? input.data.config.aktuellesQuartal;
+  const toReal = input.anonymMap.toReal;
   const rows: ExportRow[] = buildExportRows({ ...input, quartal }).map(r => ({
     ...r,
-    ma: input.anonymMap.toReal.get(r.ma) ?? r.ma,  // fallback if unknown
+    ma: toReal.get(r.ma) ?? r.ma,
+    alternativen: r.alternativen.map(alt => ({ ...alt, kuerzel: toReal.get(alt.anonId) ?? alt.anonId })),
   }));
   const wb = buildWorkbook(rows, quartal);
   XLSX.writeFile(wb, `auslastung-kuerzel-${quartal}.xlsx`);

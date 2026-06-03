@@ -13,24 +13,23 @@
  */
 import { useState } from 'react';
 import type { Antrag } from '@/core/services/csv/types';
-import type { AnonymMap } from '../../services/anonym-map';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { downloadOnboardingHtml } from '../../services/onboarding-html-generator';
-import { exportDeAnonymizedXlsx } from '../../services/export-service';
+import { useKuerzelExport } from '../../hooks/useKuerzelExport';
 import type { OnboardingPreview } from '../../services/onboarding-import';
 import { OnboardingImportDialog } from '../../components/OnboardingImportDialog';
 import { KalibrierungsReport } from '../../components/KalibrierungsReport';
 
 interface Props {
   antraege: Antrag[];
-  anonymMap: AnonymMap;
 }
 
-export function ImportExportSection({ antraege, anonymMap }: Props): React.ReactElement {
+export function ImportExportSection({ antraege }: Props): React.ReactElement {
   const data = useAuslastungData(s => s.data);
   const kategorien = data.config.ueberKategorien;
   const noKategorien = kategorien.length === 0;
   const noAntraege = antraege.length === 0;
+  const kuerzelExport = useKuerzelExport();
 
   // Onboarding-Antwort-Import (XLSX-Rueckmeldung vom MA).
   const [onboardingImportOpen, setOnboardingImportOpen] = useState(false);
@@ -74,15 +73,19 @@ export function ImportExportSection({ antraege, anonymMap }: Props): React.React
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-2 leading-snug">
             XLSX mit Klartext-Kürzeln für Auswertung / Ablage.
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => exportDeAnonymizedXlsx({ data, antraege, anonymMap })}
-              className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
+              onClick={() => { void kuerzelExport.run(); }}
+              disabled={kuerzelExport.busy}
+              className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
               style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >
-              Mit Kürzeln (XLSX)
+              {kuerzelExport.busy ? 'Exportiere…' : 'Mit Kürzeln (XLSX)'}
             </button>
+            {kuerzelExport.error && (
+              <span className="text-[11px] text-[var(--tf-danger-text)]">Fehler: {kuerzelExport.error}</span>
+            )}
           </div>
         </div>
       </div>
