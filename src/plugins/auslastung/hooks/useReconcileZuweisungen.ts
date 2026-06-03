@@ -23,7 +23,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';
 import { useAuslastungReady } from './useAuslastungReady';
-import { verbundKeyOf } from '../services/verbund-aggregation';
+import { verbundKeyOf, hatBearbeiterKuerzel } from '../services/verbund-aggregation';
 
 /** Einmal pro App-Session (überlebt Plugin-/Tab-Wechsel-Remounts). */
 let reconcileDone = false;
@@ -47,7 +47,16 @@ export function useReconcileZuweisungen(): void {
     reconcileDone = true;
 
     const verbundKeyByAntrag = new Map(cache.antraege.map(a => [a.aktenzeichen, verbundKeyOf(a)]));
-    void reconcileZuweisungen(storage, (id) => verbundKeyByAntrag.get(id) ?? id).catch(() => {
+    // Extern (in der CSV) zugewiesene Anträge → ihr App-seitiger Arbeitsstand ist
+    // obsolet und wird mit-geräumt (siehe reconcileZuweisungen Schritt 2).
+    const kuerzeltSet = new Set(
+      cache.antraege.filter(hatBearbeiterKuerzel).map(a => a.aktenzeichen),
+    );
+    void reconcileZuweisungen(
+      storage,
+      (id) => verbundKeyByAntrag.get(id) ?? id,
+      (id) => kuerzeltSet.has(id),
+    ).catch(() => {
       // Best-effort — nicht schreibbare Variante / Race: still überspringen.
     });
   }, [ready, cache.antraege, reconcileZuweisungen, storage]);

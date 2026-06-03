@@ -17,7 +17,7 @@ vi.mock('../services/auslastung-store', () => ({
 }));
 
 import { useAuslastungData } from '../hooks/useAuslastungData';
-import { emptyAuslastungData, type Zuweisung } from '../types';
+import { emptyAuslastungData, type Klassifizierung, type Zuweisung } from '../types';
 
 const fakeStorage = {} as never;
 const Q = '2026-Q2';
@@ -31,6 +31,17 @@ function setZuweisungen(zuweisungen: Zuweisung[]): void {
     saving: false,
     loaded: true,
   });
+}
+
+function makeKl(antragId: string): Klassifizierung {
+  return {
+    antragId,
+    vorgeschlagenePrimaer: { kategorieId: 'IT', confidence: 0.9, methode: 'regel' },
+    vorgeschlageneAspekte: [],
+    freigegebenePrimaer: 'IT',
+    freigegebeneAspekte: [],
+    status: 'freigegeben',
+  };
 }
 
 describe('reconcileZuweisungen', () => {
@@ -96,6 +107,45 @@ describe('reconcileZuweisungen', () => {
     expect(entfernt).toBe(0);
     expect(saveSpy).not.toHaveBeenCalled();
     expect(useAuslastungData.getState().data.zuweisungen).toHaveLength(2);
+  });
+
+  // ── Kürzel-Supersede: extern (CSV) zugewiesene Anträge ───────────────────
+
+  it('verwirft ALLE App-Records eines extern (CSV-tib_kuerz) zugewiesenen Antrags', async () => {
+    useAuslastungData.setState({
+      data: {
+        ...emptyAuslastungData(),
+        zuweisungen: [
+          { antragId: 'A1', anonId: 'MA09', quartal: Q, stunden: 9, anzahlTV: 1, status: 'freigegeben' },
+          { antragId: 'B1', anonId: 'MA05', quartal: Q, stunden: 9, anzahlTV: 1, status: 'selbst', selbstEingetragen: true },
+        ],
+        klassifizierungen: [makeKl('A1'), makeKl('B1')],
+      },
+      saving: false,
+      loaded: true,
+    });
+    // A1 wurde extern in der CSV einem TIB-Kürzel zugewiesen → tib_kuerz gesetzt.
+    const hatKuerzel = (id: string): boolean => id === 'A1';
+
+    const { entfernt } = await useAuslastungData.getState().reconcileZuweisungen(fakeStorage, idResolver, hatKuerzel);
+
+    expect(entfernt).toBe(2); // A1-Zuweisung + A1-Klassifizierung
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+    const d = useAuslastungData.getState().data;
+    expect(d.zuweisungen.map(z => z.antragId)).toEqual(['B1']);
+    expect(d.klassifizierungen.map(k => k.antragId)).toEqual(['B1']);
+  });
+
+  it('lässt Records für (noch) nicht extern zugewiesene Anträge unberührt', async () => {
+    setZuweisungen([
+      { antragId: 'A1', anonId: 'MA09', quartal: Q, stunden: 9, anzahlTV: 1, status: 'freigegeben' },
+    ]);
+    // Kein Antrag trägt ein CSV-Kürzel.
+    const { entfernt } = await useAuslastungData.getState().reconcileZuweisungen(fakeStorage, idResolver, () => false);
+
+    expect(entfernt).toBe(0);
+    expect(saveSpy).not.toHaveBeenCalled();
+    expect(useAuslastungData.getState().data.zuweisungen).toHaveLength(1);
   });
 
   it('ist ein No-op (kein persist), wenn nichts zu bereinigen ist', async () => {

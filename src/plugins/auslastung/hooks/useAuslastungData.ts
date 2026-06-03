@@ -159,14 +159,19 @@ interface AuslastungDataState {
    *  Bearbeiter) — verhindert Geist-Records bei Re-Zuweisung + konkurrierende
    *  Selbst-Wünsche. EIN setState + EIN persist (Pitfall #16/#20). */
   assignVerbund: (storage: StorageService, opts: AssignVerbundInput) => Promise<void>;
-  /** Einmal-Bereinigung von Altdaten (eine Einheit, ein Bearbeiter): pro
-   *  (Verbund, Quartal) nur die hoechstrangige ACTIVE Zuweisung behalten
-   *  (freigegeben > selbst), die uebrigen ACTIVE-Dubletten verwerfen.
-   *  `abgelehnt`-Marker bleiben unangetastet. No-op + KEIN persist, wenn nichts
-   *  zu bereinigen ist (idempotent). Liefert Anzahl entfernter Dubletten. */
+  /** Einmal-Bereinigung von Altdaten (eine Einheit, ein Bearbeiter):
+   *  1. pro (Verbund, Quartal) nur die hoechstrangige ACTIVE Zuweisung behalten
+   *     (freigegeben > selbst), die uebrigen ACTIVE-Dubletten verwerfen.
+   *  2. `hatKuerzel(antragId)` (CSV-`tib_kuerz` gesetzt = extern zugewiesen) →
+   *     der App-seitige Arbeitsstand ist obsolet: ALLE Zuweisungen + verwaiste
+   *     Klassifizierungen dieses Antrags werden verworfen (Quelle der Wahrheit
+   *     ist die CSV). Default `() => false` = nur Dubletten-Cleanup.
+   *  `abgelehnt`-Marker bleiben (1) unangetastet. No-op + KEIN persist, wenn
+   *  nichts zu bereinigen ist (idempotent). Liefert Anzahl entfernter Records. */
   reconcileZuweisungen: (
     storage: StorageService,
     verbundKeyOfAntrag: (antragId: string) => string,
+    hatKuerzel?: (antragId: string) => boolean,
   ) => Promise<{ entfernt: number }>;
   // ── Kalibrierung ─────────────────────────────────────────────────────
   upsertKalibrierungsErgebnis: (storage: StorageService, e: KalibrierungsErgebnis) => Promise<void>;
@@ -582,10 +587,12 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     await get().persist(storage);
   },
 
-  reconcileZuweisungen: async (storage, verbundKeyOfAntrag) => {
+  reconcileZuweisungen: async (storage, verbundKeyOfAntrag, hatKuerzel = () => false) => {
     const current = get().data.zuweisungen;
-    // ACTIVE Zuweisungen (freigegeben/selbst) pro (Verbund, Quartal) sammeln.
-    // abgelehnt-Marker sind keine Zuweisungen → bleiben unberuehrt.
+    const currentKl = get().data.klassifizierungen;
+
+    // (1) ACTIVE Zuweisungen (freigegeben/selbst) pro (Verbund, Quartal) sammeln
+    //     und auf die hoechstrangige collapsen. abgelehnt-Marker bleiben hier.
     const activeByGroup = new Map<string, Zuweisung[]>();
     for (const z of current) {
       if (z.status !== 'freigegeben' && z.status !== 'selbst') continue;
@@ -593,18 +600,26 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       const g = activeByGroup.get(key);
       if (g) g.push(z); else activeByGroup.set(key, [z]);
     }
-    // Pro Gruppe nur die hoechstrangige behalten — die uebrigen sind Dubletten.
     const losers = new Set<Zuweisung>();
     for (const list of activeByGroup.values()) {
       if (list.length <= 1) continue;
       const winner = pickVerbundZuweisung(list);
       for (const z of list) if (z !== winner) losers.add(z);
     }
-    if (losers.size === 0) return { entfernt: 0 }; // idempotent: kein persist
-    const next = current.filter(z => !losers.has(z));
-    set(state => ({ data: { ...state.data, zuweisungen: next } }));
+
+    // (2) Extern zugewiesen (CSV-tib_kuerz) → App-Stand obsolet: ALLE Records
+    //     (jeder Status) dieses Antrags fallen weg; verwaiste Klassifizierungen
+    //     ebenso. Quelle der Wahrheit ist die CSV.
+    const zuweisungenNext = current.filter(z => !losers.has(z) && !hatKuerzel(z.antragId));
+    const klassifizierungenNext = currentKl.filter(k => !hatKuerzel(k.antragId));
+
+    const entfernt = (current.length - zuweisungenNext.length) + (currentKl.length - klassifizierungenNext.length);
+    if (entfernt === 0) return { entfernt: 0 }; // idempotent: kein persist
+    set(state => ({
+      data: { ...state.data, zuweisungen: zuweisungenNext, klassifizierungen: klassifizierungenNext },
+    }));
     await get().persist(storage);
-    return { entfernt: losers.size };
+    return { entfernt };
   },
 
   upsertKalibrierungsErgebnis: async (storage, e) => {
