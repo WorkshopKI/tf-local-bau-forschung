@@ -14,6 +14,7 @@
 
 import { Download, X, AlertTriangle } from 'lucide-react';
 import type { SnapshotWatcherState } from '@/core/hooks/useSnapshotWatcher';
+import { ProgressBar } from '@/ui/ProgressBar';
 
 interface Props {
   state: SnapshotWatcherState;
@@ -56,7 +57,10 @@ export function NewSnapshotBanner({ state }: Props): React.ReactElement | null {
       <Download size={14} className="shrink-0" />
 
       {state.applying ? (
-        <span className="flex-1">Lade neuen Datenbestand…</span>
+        <span className="flex-1 flex flex-col gap-1">
+          <span>Lade neuen Datenbestand…</span>
+          <ProgressBar value={state.progress ?? 0} />
+        </span>
       ) : state.applyError ? (
         <span className="flex-1 inline-flex items-center gap-1.5">
           <AlertTriangle size={13} className="shrink-0" />

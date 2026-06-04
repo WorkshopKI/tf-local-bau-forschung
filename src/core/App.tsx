@@ -26,6 +26,7 @@ import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/t
 import { listProgramme } from '@/core/services/csv';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
+import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { rematchOnSnapshotReload } from '@/phase2';
 import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
 import { runtimeConfig } from '@/config/runtime-config';
@@ -465,9 +466,12 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
             syncToastTimerRef.current = null;
             if (!cancelled) setSyncToast(null);
           }, 6000);
+          const reloaded = 'reloadedStores' in r ? (r.reloadedStores ?? []) : [];
+          // In-Memory-Antraege-Store neu laden, damit die Homepage/Listen die
+          // frisch synchronisierten Daten ohne Browser-Reload zeigen.
+          await refreshAntraegeStoreAfterSync(storage.idb, p.id, reloaded);
           // Phase-2 Pending-Antrag Re-Match: wenn akronym_index oder antraege
           // neu geladen wurden, ist der Holding-Bucket evtl. abräumbar.
-          const reloaded = 'reloadedStores' in r ? (r.reloadedStores ?? []) : [];
           if (reloaded.includes('akronym_index') || reloaded.includes('antraege')) {
             await rematchOnSnapshotReload(storage.idb, p.id).catch(err => {
               console.warn(`[phase2/pending-rematch] ${p.id} fehlgeschlagen`, err);

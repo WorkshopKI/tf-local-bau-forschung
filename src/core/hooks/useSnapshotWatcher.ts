@@ -28,6 +28,7 @@ import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { readText } from '@/core/services/infrastructure/atomic-write';
 import { listProgramme } from '@/core/services/csv';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
+import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import type { ProgrammSnapshotManifest } from '@/core/services/csv/snapshot';
 
 const POLL_INTERVAL_MS = 15 * 60 * 1000; // 15 Min
@@ -45,6 +46,12 @@ export interface SnapshotWatcherState {
   availableUpdates: AvailableSnapshot[];
   applying: boolean;
   applyError: string | null;
+  /**
+   * Fortschritt waehrend `applyNow()` als Fraktion 0..1 (ueber alle
+   * betroffenen Programme aggregiert), oder `null` solange noch kein
+   * Store-Fortschritt vorliegt (Manifest-Phase / nicht laufend).
+   */
+  progress: number | null;
   /** Banner ausblenden bis zum naechsten Polling-Tick mit neuerem Snapshot. */
   dismissed: boolean;
   dismiss: () => void;
@@ -91,6 +98,7 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
   const [availableUpdates, setAvailableUpdates] = useState<AvailableSnapshot[]>([]);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   const mountedRef = useRef(true);
@@ -170,17 +178,33 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
     if (availableUpdates.length === 0) return;
     setApplying(true);
     setApplyError(null);
+    setProgress(null);
     try {
       const handle = await getDatenShareHandle(storage.idb);
       if (!handle) throw new Error('Daten-Share nicht verbunden');
-      for (const u of availableUpdates) {
-        const r = await syncProgrammSnapshot(storage.idb, handle, u.programmId, { force: true });
-        if (r.synced && r.createdAt) {
-          onSyncedRef.current?.({
-            programmId: u.programmId,
-            programmName: u.programmName,
-            createdAt: r.createdAt,
-          });
+      const total = availableUpdates.length;
+      for (let i = 0; i < total; i++) {
+        const u = availableUpdates[i];
+        if (!u) continue;
+        const r = await syncProgrammSnapshot(storage.idb, handle, u.programmId, {
+          force: true,
+          onProgress: sp => {
+            if (!mountedRef.current) return;
+            const within = sp.storesTotal > 0 ? sp.storesDone / sp.storesTotal : 0;
+            setProgress((i + within) / total);
+          },
+        });
+        if (r.synced) {
+          // In-Memory-Antraege-Store neu laden, damit Homepage/Listen die
+          // frisch geladenen Daten ohne Browser-Reload zeigen.
+          await refreshAntraegeStoreAfterSync(storage.idb, u.programmId, r.reloadedStores ?? []);
+          if (r.createdAt) {
+            onSyncedRef.current?.({
+              programmId: u.programmId,
+              programmName: u.programmName,
+              createdAt: r.createdAt,
+            });
+          }
         }
       }
       if (mountedRef.current) {
@@ -190,7 +214,10 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
     } catch (err) {
       if (mountedRef.current) setApplyError((err as Error).message);
     } finally {
-      if (mountedRef.current) setApplying(false);
+      if (mountedRef.current) {
+        setApplying(false);
+        setProgress(null);
+      }
     }
   }, [applying, availableUpdates, storage.idb]);
 
@@ -198,6 +225,7 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
     availableUpdates,
     applying,
     applyError,
+    progress,
     dismissed,
     dismiss,
     applyNow,
