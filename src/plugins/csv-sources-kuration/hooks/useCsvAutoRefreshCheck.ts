@@ -25,7 +25,7 @@ import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature
 import { runtimeConfig } from '@/config/runtime-config';
 import { listSchemas, listProgramme, loadSchema } from '@/core/services/csv';
 import type { CsvSchema } from '@/core/services/csv/types';
-import { checkSourceForUpdate, pickAndLinkCsvSource, type UpdateCheckResult } from '../csv-source-handle';
+import { checkSourceForUpdate, pickAndLinkCsvSource, pickAndLinkCsvFolder, type UpdateCheckResult } from '../csv-source-handle';
 import {
   runAutoRefresh,
   BuildLockBusyError,
@@ -72,6 +72,11 @@ export interface AutoRefreshCheckState {
    *  lokalen Datei verknüpfen — öffnet den Datei-Picker (User-Gesture nötig).
    *  Wirft bei Datei-Mismatch; bei Abbruch passiert nichts. */
   linkSource: (schemaId: string) => Promise<void>;
+  /** Alle offenen Quellen über EINEN Ordner verknüpfen (v2.27) — öffnet den
+   *  Verzeichnis-Picker (User-Gesture nötig). Bevorzugter Weg auf der pl: das
+   *  Ordner-Handle wird beim Start mit EINEM Prompt re-granted (Kaskade), statt
+   *  pro Datei. Wirft, wenn keine Datei passt; bei Abbruch passiert nichts. */
+  linkFolder: () => Promise<void>;
 }
 
 interface CollectResult {
@@ -239,6 +244,22 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     }
   }, [storage.idb, runCheck]);
 
+  const linkFolder = useCallback(async () => {
+    // Alle aktuell offenen Quellen einsammeln (ohne Handle ODER permission-bedürftig).
+    const entries = [...unlinked, ...permissionNeeded];
+    const schemas: CsvSchema[] = [];
+    for (const e of entries) {
+      const schema = await loadSchema(storage.idb, e.schemaId);
+      if (schema) schemas.push(schema);
+    }
+    if (schemas.length === 0) return;
+    const res = await pickAndLinkCsvFolder(storage.idb, schemas);
+    if (res.linked) {
+      if (mountedRef.current) setDismissed(false);
+      await runCheck();
+    }
+  }, [unlinked, permissionNeeded, storage.idb, runCheck]);
+
   return {
     candidates,
     permissionNeeded,
@@ -254,5 +275,6 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     clearReport,
     runRefresh,
     linkSource,
+    linkFolder,
   };
 }

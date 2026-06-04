@@ -21,13 +21,22 @@ import type { CsvSchema } from '@/core/services/csv/types';
 import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
 import { parseCsvPreview } from '@/core/services/csv';
 import { validateHeaders } from './services/csv-drift-check';
-// Key in Core definiert (zentrale IDB-Key-Registry) — derselbe Record wird beim
-// App-Start von refreshAllPermissions re-granted (v2.19.1).
-import { CSV_SOURCE_HANDLES_IDB_KEY as HANDLES_IDB_KEY } from '@/core/services/infrastructure/types';
+// Keys in Core definiert (zentrale IDB-Key-Registry) — die Per-Datei-Handles
+// werden beim App-Start von refreshAllPermissions re-granted (v2.19.1), das
+// Ordner-Handle ersetzt sie als Re-Grant-Ziel (v2.27).
+import {
+  CSV_SOURCE_HANDLES_IDB_KEY as HANDLES_IDB_KEY,
+  CSV_SOURCE_DIR_HANDLE_IDB_KEY as DIR_HANDLE_IDB_KEY,
+} from '@/core/services/infrastructure/types';
 
 type PermState = 'granted' | 'denied' | 'prompt';
 
 interface FsFileHandleExt extends FileSystemFileHandle {
+  queryPermission(opts: { mode: 'read' | 'readwrite' }): Promise<PermState>;
+  requestPermission(opts: { mode: 'read' | 'readwrite' }): Promise<PermState>;
+}
+
+interface FsDirHandleExt extends FileSystemDirectoryHandle {
   queryPermission(opts: { mode: 'read' | 'readwrite' }): Promise<PermState>;
   requestPermission(opts: { mode: 'read' | 'readwrite' }): Promise<PermState>;
 }
@@ -83,9 +92,102 @@ export async function requestCsvSourcePermission(
   return (handle as FsFileHandleExt).requestPermission({ mode: 'read' });
 }
 
+// ---------------------------------------------------------------------------
+// v2.27: EIN Ordner-Handle für alle CSV-Quellen (Kaskade statt N Per-Datei-
+// Handles). Re-Grant des Ordner-Handles deckt alle enthaltenen CSVs mit EINEM
+// Prompt ab → umgeht das one-prompt-per-gesture-Limit (siehe
+// CSV_SOURCE_DIR_HANDLE_IDB_KEY in infrastructure/types.ts).
+// ---------------------------------------------------------------------------
+
+export async function getCsvSourceDirHandle(
+  idb: IDBStore,
+): Promise<FileSystemDirectoryHandle | null> {
+  return (await idb.get<FileSystemDirectoryHandle>(DIR_HANDLE_IDB_KEY)) ?? null;
+}
+
+export async function setCsvSourceDirHandle(
+  idb: IDBStore,
+  handle: FileSystemDirectoryHandle,
+): Promise<void> {
+  await idb.set(DIR_HANDLE_IDB_KEY, handle);
+}
+
+export async function clearCsvSourceDirHandle(idb: IDBStore): Promise<void> {
+  await idb.delete(DIR_HANDLE_IDB_KEY);
+}
+
+export async function queryCsvSourceDirPermission(
+  handle: FileSystemDirectoryHandle,
+): Promise<PermState> {
+  return (handle as FsDirHandleExt).queryPermission({ mode: 'read' });
+}
+
+/** MUSS aus einem User-Gesture aufgerufen werden (Browser-Constraint). */
+export async function requestCsvSourceDirPermission(
+  handle: FileSystemDirectoryHandle,
+): Promise<PermState> {
+  return (handle as FsDirHandleExt).requestPermission({ mode: 'read' });
+}
+
+/**
+ * Löst die zu einem Schema gehörende CSV-Datei INNERHALB des verknüpften
+ * Ordner-Handles auf. Die Permission kaskadiert vom (bereits granted)
+ * Verzeichnis-Handle auf die Kind-Datei — kein eigener Datei-Prompt nötig.
+ *
+ * Match-Strategie:
+ *  1. `schema.source_file_name` gesetzt + Datei existiert → direkt `getFileHandle`.
+ *  2. sonst: alle `.csv`-Dateien des Ordners gegen das Schema validieren
+ *     (`parseCsvPreview` + `validateHeaders`), die Datei mit den meisten
+ *     gematchten Spalten (>0) nehmen. Begründung: `source_file_name` ist auf
+ *     pl-Schemas (Snapshot-Import) nicht zuverlässig gesetzt.
+ *
+ * Nicht-rekursiv — erfasst nur Dateien DIREKT im gewählten Ordner. Liefert
+ * `null`, wenn keine passende Datei gefunden wird.
+ */
+export async function resolveFileViaDir(
+  dirHandle: FileSystemDirectoryHandle,
+  schema: CsvSchema,
+): Promise<{ file: File; fileName: string } | null> {
+  // 1. exakter Dateiname
+  const wanted = schema.source_file_name;
+  if (wanted) {
+    try {
+      const fh = await dirHandle.getFileHandle(wanted);
+      return { file: await fh.getFile(), fileName: wanted };
+    } catch {
+      /* nicht gefunden → Header-Fallback */
+    }
+  }
+  // 2. Header-Fallback: beste Übereinstimmung unter den .csv-Dateien
+  let best: { file: File; fileName: string; score: number } | null = null;
+  try {
+    const iter = dirHandle as unknown as AsyncIterable<[string, FileSystemHandle]>;
+    for await (const [name, handle] of iter) {
+      if (handle.kind !== 'file') continue;
+      if (!name.toLowerCase().endsWith('.csv')) continue;
+      try {
+        const file = await (handle as FileSystemFileHandle).getFile();
+        const preview = await parseCsvPreview(file, 1, {
+          encoding: schema.encoding,
+          separator: schema.separator,
+        });
+        const score = validateHeaders(schema, preview.headers).matched.length;
+        if (score > 0 && (!best || score > best.score)) {
+          best = { file, fileName: name, score };
+        }
+      } catch {
+        /* unlesbare/inkompatible Datei überspringen */
+      }
+    }
+  } catch {
+    /* Verzeichnis nicht iterierbar (Permission?) → null */
+  }
+  return best ? { file: best.file, fileName: best.fileName } : null;
+}
+
 export type UpdateCheckResult =
   | { state: 'no_handle' }
-  | { state: 'permission_required'; handle: FileSystemFileHandle; fileName: string }
+  | { state: 'permission_required'; handle: FileSystemFileHandle | null; fileName: string }
   | { state: 'file_missing'; reason: string }
   | { state: 'up_to_date'; lastModified: number; fileName: string }
   | { state: 'update_available'; lastModified: number; fileName: string; previousLastModified: number | null };
@@ -100,6 +202,40 @@ export async function checkSourceForUpdate(
   idb: IDBStore,
   schema: CsvSchema,
 ): Promise<UpdateCheckResult> {
+  // v2.27: bevorzugt das verknüpfte Ordner-Handle (Permission kaskadiert auf
+  // alle CSVs → ein Re-Grant deckt alle ab). Per-Datei-Handle bleibt Fallback.
+  const dirHandle = await getCsvSourceDirHandle(idb);
+  if (dirHandle) {
+    let dirPerm: PermState;
+    try {
+      dirPerm = await queryCsvSourceDirPermission(dirHandle);
+    } catch {
+      dirPerm = 'prompt';
+    }
+    if (dirPerm !== 'granted') {
+      const fallbackHandle = await getCsvSourceHandle(idb, schema.id);
+      return {
+        state: 'permission_required',
+        handle: fallbackHandle,
+        fileName: schema.source_file_name ?? schema.csv_source_name,
+      };
+    }
+    const resolved = await resolveFileViaDir(dirHandle, schema);
+    if (resolved) {
+      const recorded = schema.source_last_modified ?? null;
+      if (recorded != null && resolved.file.lastModified <= recorded) {
+        return { state: 'up_to_date', lastModified: resolved.file.lastModified, fileName: resolved.fileName };
+      }
+      return {
+        state: 'update_available',
+        lastModified: resolved.file.lastModified,
+        fileName: resolved.fileName,
+        previousLastModified: recorded,
+      };
+    }
+    // Ordner verknüpft + granted, aber Datei nicht (mehr) drin → Per-Datei-Pfad.
+  }
+
   const handle = await getCsvSourceHandle(idb, schema.id);
   if (!handle) return { state: 'no_handle' };
   let perm: PermState;
@@ -137,7 +273,25 @@ export async function checkSourceForUpdate(
 export async function loadFileFromStoredHandle(
   idb: IDBStore,
   schemaId: string,
-): Promise<{ file: File; handle: FileSystemFileHandle }> {
+): Promise<{ file: File; handle: FileSystemFileHandle | null }> {
+  // v2.27: bevorzugt das Ordner-Handle (Permission kaskadiert auf die Datei).
+  // `handle: null` signalisiert dem Caller, KEIN veraltetes Per-Datei-Handle
+  // nachzuziehen (`persistCsvSourceMeta`/`persistSourceMeta` guarden auf null).
+  const dirHandle = await getCsvSourceDirHandle(idb);
+  if (dirHandle) {
+    const schema = await getSchema(idb, schemaId);
+    if (schema) {
+      const perm = await queryCsvSourceDirPermission(dirHandle);
+      if (perm !== 'granted') {
+        const granted = await requestCsvSourceDirPermission(dirHandle);
+        if (granted !== 'granted') throw new Error('Ordner-Zugriff nicht erlaubt.');
+      }
+      const resolved = await resolveFileViaDir(dirHandle, schema);
+      if (resolved) return { file: resolved.file, handle: null };
+      // Datei nicht im Ordner → Per-Datei-Handle als Fallback versuchen.
+    }
+  }
+
   const handle = await getCsvSourceHandle(idb, schemaId);
   if (!handle) throw new Error('Kein gespeicherter Datei-Handle für dieses Schema.');
   const perm = await queryCsvSourcePermission(handle);
@@ -247,4 +401,71 @@ export async function pickAndLinkCsvSource(
 
   await setCsvSourceHandle(idb, schema.id, handle);
   return { linked: true };
+}
+
+export interface LinkFolderResult {
+  /** True wenn ein Ordner-Handle gespeichert wurde; false bei Abbruch. */
+  linked: boolean;
+  /** schemaIds, die im Ordner einer Datei zugeordnet werden konnten. */
+  matched: string[];
+  /** Anzeige-Namen der Schemas, für die keine Datei gefunden wurde. */
+  unmatched: string[];
+}
+
+/**
+ * v2.27: Verknüpft ALLE CSV-Quellen über EIN Ordner-Handle statt N Per-Datei-
+ * Handles. Öffnet `showDirectoryPicker` (MUSS aus einem User-Gesture laufen —
+ * Browser-Constraint), ordnet jedes Schema einer Datei im Ordner zu
+ * (`resolveFileViaDir`) und legt das Verzeichnis-Handle ab.
+ *
+ * Vorteil: Das Ordner-Handle wird beim App-Start mit EINEM Prompt re-granted
+ * und die Permission kaskadiert auf alle CSVs — der Auto-Refresh-Banner fragt
+ * nach einem Neustart nicht mehr pro Datei nach Verknüpfung (Fix des
+ * one-prompt-per-gesture-Bugs auf der pl-Variante).
+ *
+ * Migration: für gematchte Schemas wird das nun überflüssige Per-Datei-Handle
+ * entfernt (`removeCsvSourceHandle`).
+ *
+ * Wirft, wenn keine einzige Datei zum Schema passt (falscher Ordner?) oder der
+ * Browser keinen Verzeichnis-Picker bietet.
+ */
+export async function pickAndLinkCsvFolder(
+  idb: IDBStore,
+  schemas: CsvSchema[],
+): Promise<LinkFolderResult> {
+  const win = window as typeof window & {
+    showDirectoryPicker?: (opts?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
+  };
+  if (typeof win.showDirectoryPicker !== 'function') {
+    throw new Error('Ordner-Verknüpfung braucht Chrome oder Edge (File System Access API).');
+  }
+
+  let dirHandle: FileSystemDirectoryHandle;
+  try {
+    dirHandle = await win.showDirectoryPicker({ mode: 'read' });
+  } catch (err) {
+    if ((err as DOMException).name === 'AbortError') return { linked: false, matched: [], unmatched: [] };
+    throw err;
+  }
+
+  const matched: string[] = [];
+  const unmatched: string[] = [];
+  for (const schema of schemas) {
+    const resolved = await resolveFileViaDir(dirHandle, schema);
+    if (resolved) matched.push(schema.id);
+    else unmatched.push(schema.csv_source_name);
+  }
+
+  if (matched.length === 0) {
+    throw new Error(
+      'In diesem Ordner wurde keine passende CSV-Datei gefunden. Falscher Ordner gewählt?',
+    );
+  }
+
+  await setCsvSourceDirHandle(idb, dirHandle);
+  // Migration: gematchte Quellen brauchen ihr altes Per-Datei-Handle nicht mehr.
+  for (const schemaId of matched) {
+    await removeCsvSourceHandle(idb, schemaId);
+  }
+  return { linked: true, matched, unmatched };
 }

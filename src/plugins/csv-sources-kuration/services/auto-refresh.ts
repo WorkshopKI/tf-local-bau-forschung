@@ -161,7 +161,7 @@ export async function runAutoRefresh(
 
     opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'reading' });
     let file: File;
-    let handle: FileSystemFileHandle;
+    let handle: FileSystemFileHandle | null;
     try {
       const loaded = await loadFileFromStoredHandle(idb, schemaId);
       file = loaded.file;

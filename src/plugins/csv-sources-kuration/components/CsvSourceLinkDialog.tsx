@@ -1,17 +1,21 @@
 /**
- * v2.18: „CSV-Quelle verknüpfen"-Dialog.
+ * v2.18 / v2.27: „CSV-Quellen verknüpfen"-Dialog.
  *
  * Nicht-Kurator-Builds (pl) bekommen die CSV-Schemas über den Share-Snapshot,
  * aber nie ein lokales Datei-Handle (das entsteht sonst nur im Kurator-Import-
- * Wizard). Dieser Dialog listet die noch nicht verknüpften Quellen und lässt
- * den User pro Quelle die zugehörige CSV-Datei wählen (`pickAndLinkCsvSource`
- * im Hook). Danach läuft der Auto-Refresh-Check für die Quelle normal.
+ * Wizard). Dieser Dialog verknüpft die Quellen mit lokalen Dateien.
  *
- * Jede Zeile kapselt ihren eigenen busy/error-State via `useAsyncAction`
+ * Bevorzugt (v2.27): EIN Ordner-Handle über „CSV-Ordner verknüpfen" — die App
+ * ordnet alle Quellen automatisch den Dateien im Ordner zu. Vorteil: das
+ * Ordner-Handle wird beim App-Start mit EINEM Prompt re-granted (Permission
+ * kaskadiert), sodass der Banner nach einem Neustart nicht mehr nachfragt.
+ * Fallback: pro Quelle eine Einzeldatei wählen (`pickAndLinkCsvSource`).
+ *
+ * Jede Aktion kapselt ihren eigenen busy/error-State via `useAsyncAction`
  * (Pitfall #15) — der Picker-Aufruf läuft aus dem Klick-Gesture.
  */
 
-import { FileText, Link2, CheckCircle2 } from 'lucide-react';
+import { FileText, Link2, CheckCircle2, FolderInput } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -21,6 +25,8 @@ interface Props {
   sources: PermissionNeededEntry[];
   /** Öffnet den Datei-Picker für die Quelle und speichert das Handle. Wirft bei Mismatch. */
   onLink: (schemaId: string) => Promise<void>;
+  /** Öffnet den Ordner-Picker und verknüpft alle Quellen über EIN Ordner-Handle (v2.27). */
+  onLinkFolder: () => Promise<void>;
   onClose: () => void;
 }
 
@@ -51,7 +57,8 @@ function LinkRow({ source, onLink }: { source: PermissionNeededEntry; onLink: Pr
   );
 }
 
-export function CsvSourceLinkDialog({ sources, onLink, onClose }: Props): React.ReactElement {
+export function CsvSourceLinkDialog({ sources, onLink, onLinkFolder, onClose }: Props): React.ReactElement {
+  const linkFolder = useAsyncAction(onLinkFolder);
   return (
     <Dialog
       open
@@ -65,23 +72,54 @@ export function CsvSourceLinkDialog({ sources, onLink, onClose }: Props): React.
       }
     >
       <div className="space-y-3">
-        <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
-          Diese CSV-Quellen sind registriert, aber auf diesem Rechner noch nicht mit
-          einer Datei verknüpft. Wähle pro Quelle die zugehörige CSV-Datei — danach
-          prüft die App automatisch auf neue Daten und bietet die Aktualisierung an.
-        </p>
-
         {sources.length === 0 ? (
           <div className="flex items-center gap-1.5 rounded-md border-[0.5px] border-green-300 bg-green-50 px-3 py-2 text-[12.5px] text-green-900">
             <CheckCircle2 size={14} className="shrink-0" />
             Alle Quellen sind verknüpft.
           </div>
         ) : (
-          <div className="space-y-2">
-            {sources.map(s => (
-              <LinkRow key={s.schemaId} source={s} onLink={onLink} />
-            ))}
-          </div>
+          <>
+            {/* Bevorzugt: EIN Ordner-Handle für alle Quellen (v2.27). */}
+            <div
+              className="rounded-md px-3 py-2.5"
+              style={{ border: '0.5px solid var(--tf-primary)', background: 'var(--tf-primary-light)' }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[12.5px] font-medium text-[var(--tf-text)]">
+                    Alle Quellen über den Ordner verknüpfen
+                  </div>
+                  <div className="mt-0.5 text-[11.5px] text-[var(--tf-text-secondary)]">
+                    Wähle den Ordner, in dem alle CSV-Quelldateien direkt liegen — die App
+                    ordnet sie automatisch zu und muss nach einem Browser-Neustart nicht
+                    erneut nachfragen.
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => { void linkFolder.run(); }}
+                  disabled={linkFolder.busy}
+                  className="shrink-0"
+                >
+                  <FolderInput size={13} className="mr-1" />
+                  {linkFolder.busy ? 'Wählen…' : 'CSV-Ordner verknüpfen'}
+                </Button>
+              </div>
+              {linkFolder.error ? (
+                <div className="mt-1.5 text-[11.5px] text-red-700">{linkFolder.error}</div>
+              ) : null}
+            </div>
+
+            <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+              Oder einzeln verknüpfen — eine CSV-Datei pro Quelle:
+            </p>
+            <div className="space-y-2">
+              {sources.map(s => (
+                <LinkRow key={s.schemaId} source={s} onLink={onLink} />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </Dialog>

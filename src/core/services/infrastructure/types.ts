@@ -148,6 +148,19 @@ export const NEEDS_HANDLE_DOWNGRADE_IDB_KEY = 'needs-handle-downgrade';
  */
 export const CSV_SOURCE_HANDLES_IDB_KEY = 'csv-source-handles';
 
+/**
+ * v2.27: EIN `FileSystemDirectoryHandle` für den Ordner, der alle CSV-Quell-
+ * dateien einer pl-Installation enthält. Löst die N Per-Datei-Handles
+ * (`CSV_SOURCE_HANDLES_IDB_KEY`) als Re-Grant-Ziel ab: FSAPI-Directory-Permission
+ * **kaskadiert** auf Kind-Dateien, die über `dirHandle.getFileHandle(name)`
+ * geöffnet werden — EIN `requestPermission`-Prompt deckt alle CSVs ab. Das
+ * umgeht das Chromium-Limit „nur der erste Permission-Prompt pro User-Gesture
+ * wird angezeigt": die alte Per-Datei-Schleife in `refreshAllPermissions` lief
+ * nach dem Daten-Share-Prompt, der den Gesture bereits verbraucht hatte → die
+ * CSV-Handles blieben nach jedem Neustart ungranted (v2.19.1-Folgebug).
+ */
+export const CSV_SOURCE_DIR_HANDLE_IDB_KEY = 'csv-source-dir-handle';
+
 /** Backup-Root. v1.9: ohne programm-test-Zwischenordner; Rolling 4 Generationen. */
 export const BACKUPS_DIR = 'backups';
 export const BACKUP_MAX_GENERATIONS = 4;

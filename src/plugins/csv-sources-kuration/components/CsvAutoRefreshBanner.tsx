@@ -188,7 +188,7 @@ export function CsvAutoRefreshBanner(): React.ReactElement | null {
             style={{ border: '0.5px solid var(--tf-border)' }}
           >
             <Link2 size={12} />
-            CSV-Datei verknüpfen
+            CSV-Ordner verknüpfen
           </button>
         ) : null}
 
@@ -231,6 +231,7 @@ export function CsvAutoRefreshBanner(): React.ReactElement | null {
         <CsvSourceLinkDialog
           sources={linkSources}
           onLink={state.linkSource}
+          onLinkFolder={state.linkFolder}
           onClose={() => setLinkDialogOpen(false)}
         />
       ) : null}

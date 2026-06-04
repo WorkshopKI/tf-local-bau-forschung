@@ -34,6 +34,7 @@ import {
   README_PATH,
   PERSOENLICH_ZAH_DIR,
   CSV_SOURCE_HANDLES_IDB_KEY,
+  CSV_SOURCE_DIR_HANDLE_IDB_KEY,
 } from './types';
 import { canWriteDatenShare, isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
 
@@ -567,22 +568,67 @@ export async function refreshAllPermissions(
   // best-effort — denied/Fehler ignorieren (Banner faellt dann auf den
   // Re-Pick-Picker zurueck).
   if (isKuratorMenusEnabled() || isCsvAutoRefreshEnabled()) {
-    const csvHandles = await idb.get<Record<string, FileSystemFileHandle>>(CSV_SOURCE_HANDLES_IDB_KEY);
-    if (csvHandles) {
-      for (const handle of Object.values(csvHandles)) {
-        const h = handle as FsFileHandle;
-        try {
-          if ((await h.queryPermission({ mode: 'read' })) !== 'granted') {
-            await h.requestPermission({ mode: 'read' });
+    // v2.27: bevorzugt das EINE Ordner-Handle — ein Prompt, Permission kaskadiert
+    // auf alle CSVs. Existiert es, ist die Legacy-Per-Datei-Schleife überflüssig
+    // (und würde nur unnötig Gesture-Budget verbrauchen). Beachte: aus dem
+    // StartupScreen-Gesture verbraucht schon der Daten-Share oben die Activation
+    // → dieser Re-Grant schlägt dort still fehl; er gelingt im sauberen pl-
+    // AppPasswordGate-Gesture (siehe refreshCsvSourceDirPermission).
+    const dirHandle = await idb.get<FileSystemDirectoryHandle>(CSV_SOURCE_DIR_HANDLE_IDB_KEY);
+    if (dirHandle) {
+      try {
+        const h = dirHandle as FsDirHandle;
+        if ((await h.queryPermission({ mode: 'read' })) !== 'granted') {
+          await h.requestPermission({ mode: 'read' });
+        }
+      } catch {
+        /* best-effort — denied/Fehler ignorieren */
+      }
+    } else {
+      const csvHandles = await idb.get<Record<string, FileSystemFileHandle>>(CSV_SOURCE_HANDLES_IDB_KEY);
+      if (csvHandles) {
+        for (const handle of Object.values(csvHandles)) {
+          const h = handle as FsFileHandle;
+          try {
+            if ((await h.queryPermission({ mode: 'read' })) !== 'granted') {
+              await h.requestPermission({ mode: 'read' });
+            }
+          } catch {
+            /* best-effort — denied/Fehler ignorieren */
           }
-        } catch {
-          /* best-effort — denied/Fehler ignorieren */
         }
       }
     }
   }
 
   return result;
+}
+
+/**
+ * v2.27: Gibt NUR das CSV-Quellen-Ordner-Handle frei (nicht Daten-Share/
+ * persoenlich). Gedacht für einen "sauberen" zweiten User-Gesture (pl-
+ * AppPasswordGate), in dem der Daten-Share bereits aus dem vorherigen
+ * StartupScreen-Gesture granted ist — so bekommt der Ordner-Prompt den
+ * einzigen Prompt-Slot des Gestures (das one-prompt-per-gesture-Limit unter
+ * `file://`). Ein Re-Grant des Ordner-Handles deckt via Permission-Kaskade
+ * alle enthaltenen CSV-Dateien ab.
+ *
+ * MUSS aus einem User-Gesture-Handler aufgerufen werden. Best-effort:
+ * `'missing'` wenn kein Ordner verknüpft ist, sonst der resultierende
+ * Permission-State (`'denied'` bei Fehler).
+ */
+export async function refreshCsvSourceDirPermission(
+  idb: IDBStore,
+): Promise<PermState | 'missing'> {
+  const handle = await idb.get<FileSystemDirectoryHandle>(CSV_SOURCE_DIR_HANDLE_IDB_KEY);
+  if (!handle) return 'missing';
+  try {
+    const h = handle as FsDirHandle;
+    if ((await h.queryPermission({ mode: 'read' })) === 'granted') return 'granted';
+    return await h.requestPermission({ mode: 'read' });
+  } catch {
+    return 'denied';
+  }
 }
 
 /**

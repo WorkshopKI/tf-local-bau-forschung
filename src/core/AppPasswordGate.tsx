@@ -26,9 +26,9 @@ import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { verifyAppPassword } from '@/core/services/infrastructure/app-password';
 import { setAppGateSession } from '@/core/hooks/useAppGateSession';
-import { refreshAllPermissions } from '@/core/services/infrastructure/smb-handle';
+import { refreshAllPermissions, refreshCsvSourceDirPermission } from '@/core/services/infrastructure/smb-handle';
 import { useConnectionState } from '@/core/services/connection-status';
-import { isKuratorMenusEnabled } from '@/config/feature-flags';
+import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
 import { runtimeConfig } from '@/config/runtime-config';
 
 interface AppPasswordGateProps {
@@ -50,6 +50,15 @@ export function AppPasswordGate({ onSuccess }: AppPasswordGateProps): React.Reac
       return;
     }
     setAppGateSession();
+    // v2.27 (pl): den sauberen Login-Gesture nutzen, um das CSV-Quellen-Ordner-
+    // Handle neu freizugeben. Der Daten-Share wurde im vorherigen StartupScreen-
+    // Gesture schon gewährt → hier ist der einzige Prompt-Slot frei für den
+    // Ordner-Prompt; ein Re-Grant deckt via Kaskade alle CSVs ab. BEWUSST nicht
+    // refreshAllPermissions — das würde den persoenlich-Handle (pl hat einen) vor
+    // dem Ordner prompten und den Slot stehlen (one-prompt-per-gesture).
+    if (!isKuratorMenusEnabled() && isCsvAutoRefreshEnabled()) {
+      try { await refreshCsvSourceDirPermission(storage.idb); } catch { /* best-effort */ }
+    }
     // Kurator-Variante: volle Eskalation (wie der v2.10-KuratorLoginGate).
     if (isKuratorMenusEnabled()) {
       // Menue-Sichtbarkeit freischalten (Gate in ShellLayout liest profile.is_kurator).
