@@ -73,6 +73,86 @@ export async function loadAuslastungData(storage: StorageService): Promise<Ausla
   }
 }
 
+// ── Rolling-Backups (v2.24.5) ────────────────────────────────────────────────
+// atomicWrite haelt nur EINE `.backup`-Generation (der unmittelbar vorherige
+// Stand). Nach dem Juni-2026-Clobber (263 KB → 7 KB) ist das zu wenig: zwei
+// Writes hintereinander rotieren die gute `.backup` weg. Deshalb archivieren wir
+// VOR jedem Overwrite den aktuellen Stand zusaetzlich als datierten Snapshot in
+// `_intern/auslastung-backups/` — gedrosselt (max. 1 / 10 min, sonst flutet ein
+// aktiver PL-Tag die Historie) und auf KEEP Generationen begrenzt. Nur „echte"
+// Staende (setupAbgeschlossen=true) werden gesichert, damit ein leeres Skelett
+// die guten Backups nicht verdraengt. Best-effort: ein Backup-Fehler darf den
+// eigentlichen Save nie blockieren.
+const AUSLASTUNG_BACKUP_DIR = `${AUSLASTUNG_JSON_PATH.replace(/\/[^/]*$/, '')}/auslastung-backups`;
+const AUSLASTUNG_BACKUP_KEEP = 20;
+const AUSLASTUNG_BACKUP_MIN_INTERVAL_MS = 10 * 60 * 1000;
+let lastBackupAt = 0;
+
+/** Nur fuer Tests — setzt den Throttle-Timestamp zurueck. */
+export function resetAuslastungBackupThrottleForTests(): void {
+  lastBackupAt = 0;
+}
+
+function backupFilename(iso: string): string {
+  // Doppelpunkt/Punkt sind unter Windows in Dateinamen unzulaessig → '-'.
+  // Fixed-width ISO ⇒ lexikalischer Sort = chronologisch.
+  return `auslastung-${iso.replace(/[:.]/g, '-')}.json`;
+}
+
+async function openBackupDir(
+  handle: FileSystemDirectoryHandle,
+  create: boolean,
+): Promise<FileSystemDirectoryHandle | null> {
+  try {
+    let dir = handle;
+    for (const part of AUSLASTUNG_BACKUP_DIR.split('/').filter(Boolean)) {
+      dir = await dir.getDirectoryHandle(part, { create });
+    }
+    return dir;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Begrenzt die Backup-Historie auf `keep` Generationen und loescht die
+ * aeltesten (ISO-Namen → lexikalischer Sort). Exportiert fuer Unit-Tests.
+ * Liefert die geloeschten Namen.
+ */
+export async function pruneAuslastungBackups(
+  dir: FileSystemDirectoryHandle,
+  keep: number,
+): Promise<string[]> {
+  const names: string[] = [];
+  for await (const entry of (dir as FileSystemDirectoryHandle & {
+    values(): AsyncIterableIterator<FileSystemHandle>;
+  }).values()) {
+    if (entry.kind === 'file' && /^auslastung-.*\.json$/.test(entry.name)) names.push(entry.name);
+  }
+  names.sort();
+  const toDelete = names.length > keep ? names.slice(0, names.length - keep) : [];
+  for (const name of toDelete) {
+    try { await dir.removeEntry(name); } catch { /* best-effort */ }
+  }
+  return toDelete;
+}
+
+/** Archiviert den aktuellen (vor dem Overwrite stehenden) auslastung.json-Stand. */
+async function archiveCurrentAuslastung(handle: FileSystemDirectoryHandle, now: number): Promise<void> {
+  if (now - lastBackupAt < AUSLASTUNG_BACKUP_MIN_INTERVAL_MS) return;
+  const text = await readText(handle, AUSLASTUNG_JSON_PATH);
+  if (text == null) return; // erster Write — nichts zu sichern
+  let parsed: Partial<AuslastungData> | null = null;
+  try { parsed = JSON.parse(text) as Partial<AuslastungData>; } catch { return; }
+  // Kein leeres Skelett in die Historie aufnehmen (vgl. Cold-Start-Clobber).
+  if (parsed?.config?.setupAbgeschlossen !== true) return;
+  lastBackupAt = now;
+  const name = backupFilename(new Date(now).toISOString());
+  await atomicWrite(handle, `${AUSLASTUNG_BACKUP_DIR}/${name}`, text, { skipBackup: true });
+  const dir = await openBackupDir(handle, false);
+  if (dir) await pruneAuslastungBackups(dir, AUSLASTUNG_BACKUP_KEEP);
+}
+
 /** Schreibt die Datei via atomicWrite. Wirft falls Daten-Share nicht verbunden. */
 export async function saveAuslastungData(
   storage: StorageService,
@@ -80,6 +160,12 @@ export async function saveAuslastungData(
 ): Promise<AuslastungData> {
   const handle = await getDatenShareHandle(storage.idb);
   if (!handle) throw new Error('Daten-Share nicht verbunden — bitte im Welcome-Screen einrichten.');
+  // Roll-Backup VOR dem Overwrite — best-effort, blockiert den Save nie.
+  try {
+    await archiveCurrentAuslastung(handle, Date.now());
+  } catch (err) {
+    console.warn('[auslastung-store] Roll-Backup fehlgeschlagen (best-effort):', err);
+  }
   const next: AuslastungData = { ...data, updatedAt: new Date().toISOString() };
   const json = JSON.stringify(next, null, 2);
   await atomicWrite(handle, AUSLASTUNG_JSON_PATH, json);
