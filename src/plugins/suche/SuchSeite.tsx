@@ -20,8 +20,11 @@ import { AnalysePipelineView } from './AnalysePipelineView';
 import { ValidationBanner } from './ValidationBanner';
 import {
   matchesPillFilter, compareValues, countResultsByType, SUCHE_COLLATOR,
+  getSucheAntragstypItems, matchesSucheAntragstyp,
   type SuchePillFilterId,
 } from './suchseite-utils';
+import { CollapsibleSeg } from '@/plugins/antraege/filter/CollapsibleSeg';
+import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import {
   getProgrammCaches,
@@ -74,6 +77,7 @@ export function SuchSeite(): React.ReactElement {
   // (Pattern analog zum Foerderantraege-Plugin, useFilteredAntraege.ts).
   const deferredQuery = useDeferredValue(query);
   const [typeFilter, setTypeFilter] = useState<FilterId>('');
+  const [antragstypFilter, setAntragstypFilter] = useState<KategorieLabel>('Alle');
   const [sortKey, setSortKey] = useState<string | null>(DEFAULT_SORT_KEY);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
@@ -146,6 +150,17 @@ export function SuchSeite(): React.ReactElement {
     [dataSource, typeFilter],
   );
 
+  // Antragstyp ist ein Foerderantrag-Konzept (vb_phase → FuE/DS/DL/NW). Counts
+  // ueber die gesamte Treffer-Liste (stabil). Sichtbar/aktiv nur fuer die
+  // Antrag-Pills ('' = Alle, 'antrag') — bei Dokument-/Bauantrag-Pills waere er
+  // irrelevant und wuerde die Liste leeren, daher dort nicht angewandt.
+  const antragstypItems = useMemo(() => getSucheAntragstypItems(dataSource), [dataSource]);
+  const antragstypApplicable = typeFilter === '' || typeFilter === 'antrag';
+  const antragstypFiltered = useMemo(() => {
+    if (antragstypFilter === 'Alle' || !antragstypApplicable) return pillFiltered;
+    return pillFiltered.filter(r => matchesSucheAntragstyp(r, antragstypFilter));
+  }, [pillFiltered, antragstypFilter, antragstypApplicable]);
+
   const allColumns = useMemo(() => [...SEARCH_COLUMNS, ...dynamicColumns], [dynamicColumns]);
 
   // Per-Result-Spalten-Cache fuer Filter-Werte. Erste Aggregation ueber 1000
@@ -187,14 +202,14 @@ export function SuchSeite(): React.ReactElement {
 
   const columnFiltered = useMemo(() => {
     const entries = Object.entries(columnFilters).filter(([, set]) => set.size > 0);
-    if (entries.length === 0) return pillFiltered;
-    return pillFiltered.filter(r => entries.every(([key, set]) => {
+    if (entries.length === 0) return antragstypFiltered;
+    return antragstypFiltered.filter(r => entries.every(([key, set]) => {
       const col = allColumns.find(c => c.key === key) ?? getColumnByKey(key);
       if (!col) return true;
       return set.has(cachedFilterValue(col, r));
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cachedFilterValue ist stable per ref
-  }, [pillFiltered, columnFilters, allColumns]);
+  }, [antragstypFiltered, columnFilters, allColumns]);
 
   const sorted = useMemo(() => {
     if (!sortKey) return columnFiltered;
@@ -334,6 +349,14 @@ export function SuchSeite(): React.ReactElement {
               </button>
             );
           })}
+          {showResults && antragstypApplicable && (
+            <CollapsibleSeg
+              label="Antragstyp"
+              value={antragstypFilter}
+              items={antragstypItems}
+              onChange={label => setAntragstypFilter(label as KategorieLabel)}
+            />
+          )}
           {!vectorReady && !analyseActive && <Badge variant="default">Embedding-Modell laedt…</Badge>}
           {phaseLabel && !analyseActive && (
             <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] text-[var(--tf-text-secondary)] rounded-full" style={{ border: '0.5px solid var(--tf-border)' }}>

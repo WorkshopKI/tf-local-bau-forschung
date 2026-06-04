@@ -34,7 +34,9 @@ import {
   getCachedVerbundEmbeddings,
   loadAllVerbundEmbeddings,
 } from '../services/verbund-embedding';
-import { type Klassifizierung } from '../types';
+import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket, type Klassifizierung } from '../types';
+import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
+import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { buildVerbundColumns } from './verbund-columns';
 import { VerbundClassificationTable } from './VerbundClassificationTable';
 import { LLMKlassifizierungButtons } from '../components/LLMKlassifizierungButtons';
@@ -51,6 +53,27 @@ type ViewFilter = 'alle' | 'review' | 'llm' | 'freigegeben';
 function istLlmVorschlag(v: VerbundKlassifizierungsView): boolean {
   return v.klassifizierung.status !== 'freigegeben'
     && v.klassifizierung.vorgeschlagenePrimaer?.methode === 'llm';
+}
+
+/** Effektive Kategorie-IDs eines Verbundes: die freigegebenen, wenn freigegeben,
+ *  sonst die vorgeschlagenen — damit der Kategorie-Filter auch VOR der Freigabe
+ *  greift (anders als die Zuweisen-Liste, die nur freigegebene Verbünde sieht). */
+function effectiveKategorienOf(v: VerbundKlassifizierungsView): string[] {
+  const k = v.klassifizierung;
+  if (k.status === 'freigegeben') {
+    return [k.freigegebenePrimaer, ...k.freigegebeneAspekte].filter(Boolean);
+  }
+  const ids: string[] = [];
+  if (k.vorgeschlagenePrimaer) ids.push(k.vorgeschlagenePrimaer.kategorieId);
+  for (const a of k.vorgeschlageneAspekte) ids.push(a.kategorieId);
+  return ids.filter(Boolean);
+}
+
+/** Antragstyp-Bucket (FuE/DS/DL/NW) des Verbundes über den Lead-TV; vb_phase ist
+ *  verbund-weit gleich. Null für Irrläufer/unbekannte Phase. */
+function antragstypOf(v: VerbundKlassifizierungsView): AntragstypBucket | null {
+  const tv = v.tvs[0] as Record<string, unknown> | undefined;
+  return tv ? getKategorieLabel(tv.vb_phase) : null;
 }
 
 const COLUMN_VISIBILITY_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_columns';
@@ -153,6 +176,8 @@ export function KlassifizierungsReview(): React.ReactElement {
   );
 
   const [filter, setFilter] = useState<ViewFilter>('alle');
+  const [kategorieFilter, setKategorieFilter] = useState<string>('');
+  const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>('');
 
   // Freigabe-Grace-Period: nach „Freigeben" wechselt der Verbund auf Status
   // 'freigegeben' und faellt aus dem „Review nötig"-Filter. Statt sofort zu
@@ -178,8 +203,27 @@ export function KlassifizierungsReview(): React.ReactElement {
     return { neu, freig, review, llm, total: verbundViews.length };
   }, [verbundViews]);
 
+  // Counts pro Kategorie/Antragstyp über ALLE Verbünde (stabil, nicht über die
+  // gefilterte Teilmenge — gleiche Regel wie die Zuweisen-Quickfilter).
+  const filterCounts = useMemo(() => {
+    const kategorie: Record<string, number> = {};
+    const antragstyp: Record<AntragstypBucket, number> = { FuE: 0, DS: 0, DL: 0, NW: 0 };
+    for (const v of verbundViews) {
+      for (const id of new Set(effectiveKategorienOf(v))) {
+        kategorie[id] = (kategorie[id] ?? 0) + 1;
+      }
+      const bucket = antragstypOf(v);
+      if (bucket) antragstyp[bucket]++;
+    }
+    return { kategorie, antragstyp, total: verbundViews.length };
+  }, [verbundViews]);
+
   const filtered = useMemo(() => {
     return verbundViews.filter(v => {
+      // Facetten: Kategorie (effektiv freigegeben ODER vorgeschlagen) + Antragstyp.
+      if (kategorieFilter && !effectiveKategorienOf(v).includes(kategorieFilter)) return false;
+      if (antragstypFilter && antragstypOf(v) !== antragstypFilter) return false;
+      // Bestehende Status-Pills (Alle/Review/LLM/Freigegeben).
       if (filter === 'freigegeben') return v.klassifizierung.status === 'freigegeben';
       if (filter === 'review') {
         // Frisch freigegeben → noch in der Flash-Grace-Period sichtbar lassen.
@@ -192,7 +236,7 @@ export function KlassifizierungsReview(): React.ReactElement {
       }
       return true;
     });
-  }, [verbundViews, filter, justFreigegeben]);
+  }, [verbundViews, filter, justFreigegeben, kategorieFilter, antragstypFilter]);
 
   // Sammelt die Freigabe-Entries fuer alle TVs eines Verbundes (gleiche
   // Kategorien fuer alle TVs). Leeres Array, wenn kein Primaer-Vorschlag.
@@ -325,6 +369,16 @@ export function KlassifizierungsReview(): React.ReactElement {
     'asc',
   );
 
+  // Filter-Chips im Stil der Förderanträge-/Zuweisen-Quickfilter (CollapsibleSeg).
+  const kategorieItems: CollapsibleSegItem[] = [
+    { label: 'Alle', count: filterCounts.total },
+    ...config.ueberKategorien.map(k => ({ label: k.id, count: filterCounts.kategorie[k.id] ?? 0 })),
+  ];
+  const antragstypItems: CollapsibleSegItem[] = [
+    { label: 'Alle', count: filterCounts.total },
+    ...ALL_ANTRAGSTYP_BUCKETS.map(b => ({ label: b, count: filterCounts.antragstyp[b] })),
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       {/* Themen-Modell-Status */}
@@ -415,6 +469,22 @@ export function KlassifizierungsReview(): React.ReactElement {
             onToggleColumn={toggleColumn}
           />
         </div>
+      </div>
+
+      {/* Facetten-Filter (Stil wie „Anträge zuweisen"): Kategorie + Antragstyp */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <CollapsibleSeg
+          label="Kategorie"
+          value={kategorieFilter || 'Alle'}
+          items={kategorieItems}
+          onChange={label => setKategorieFilter(label === 'Alle' ? '' : label)}
+        />
+        <CollapsibleSeg
+          label="Antragstyp"
+          value={antragstypFilter || 'Alle'}
+          items={antragstypItems}
+          onChange={label => setAntragstypFilter(label === 'Alle' ? '' : (label as AntragstypBucket))}
+        />
       </div>
 
       <VerbundClassificationTable

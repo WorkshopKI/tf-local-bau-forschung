@@ -6,6 +6,8 @@
  */
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import { compareValues, DATA_TABLE_COLLATOR } from '@/components/data-table';
+import { getKategorieLabel, type KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
+import type { CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 
 export type SuchePillFilterId = '' | 'antrag' | 'dokument' | 'bauantrag';
 
@@ -33,4 +35,36 @@ export function countResultsByType(rs: ReadonlyArray<UnifiedSearchResult>): {
     }
   }
   return { antraege, dokumente, bauantraege };
+}
+
+const SUCHE_ANTRAGSTYP_ORDER: KategorieLabel[] = ['Alle', 'FuE', 'DS', 'DL', 'NW'];
+
+/**
+ * Items fuer den Antragstyp-`CollapsibleSeg` auf der Such-Seite: Alle +
+ * FuE/DS/DL/NW mit Counts. Gezaehlt wird ueber die Antrag-Treffer (Dokumente
+ * haben kein `vbPhase`). Counts gehen ueber die gesamte uebergebene Liste —
+ * stabil, nicht ueber die aktuell gefilterte Teilmenge (gleiche Regel wie die
+ * Foerderantraege-Quickfilter).
+ */
+export function getSucheAntragstypItems(
+  results: ReadonlyArray<UnifiedSearchResult>,
+): CollapsibleSegItem[] {
+  const counts: Record<KategorieLabel, number> = { Alle: 0, FuE: 0, DS: 0, DL: 0, NW: 0 };
+  for (const r of results) {
+    if (r.type !== 'antrag') continue;
+    counts.Alle++;
+    const bucket = getKategorieLabel(r.vbPhase);
+    if (bucket) counts[bucket]++;
+  }
+  return SUCHE_ANTRAGSTYP_ORDER.map(label => ({ label, count: counts[label] }));
+}
+
+/**
+ * Predicate: matcht der Treffer den gewaehlten Antragstyp? `'Alle'` matcht
+ * alles. Nur Antrag-Treffer koennen einen Bucket matchen — Dokumente fallen
+ * bei gesetztem Filter heraus (gleiche Semantik wie der Typ-Spalten-Filter).
+ */
+export function matchesSucheAntragstyp(r: UnifiedSearchResult, antragstyp: KategorieLabel): boolean {
+  if (antragstyp === 'Alle') return true;
+  return r.type === 'antrag' && getKategorieLabel(r.vbPhase) === antragstyp;
 }
