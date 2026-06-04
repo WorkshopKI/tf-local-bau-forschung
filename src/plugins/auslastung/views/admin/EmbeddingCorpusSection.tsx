@@ -14,7 +14,6 @@ import type { Antrag } from '@/core/services/csv/types';
 import {
   buildEmbeddingCorpus,
   getEmbeddableAktenzeichen,
-  type BuildProgress,
 } from '../../services/embedding-corpus';
 import {
   clearEmbeddings,
@@ -42,6 +41,17 @@ interface Props {
   antraege: Antrag[];
 }
 
+// Der Build läuft in mehreren Phasen. Vor v2.21.2 war nur die per-Antrag-Phase
+// an die Fortschritts-Anzeige gekoppelt; die nachfolgende (oft minutenlange)
+// Verbund-Embedding-Phase lief stumm und ließ die Bar bei 100% „einfrieren".
+type BuildPhase = 'antrag' | 'verbund' | 'centroids';
+interface PhaseProgress { phase: BuildPhase; done: number; total: number; last?: string; etaSec?: number; }
+const PHASE_LABELS: Record<BuildPhase, string> = {
+  antrag: 'Themen-Vektoren (Anträge)',
+  verbund: 'Verbund-Vektoren',
+  centroids: 'Kategorie-Centroids berechnen…',
+};
+
 export function EmbeddingCorpusSection({ storage, antraege }: Props): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
@@ -60,7 +70,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
   const uploadMirror = useEmbeddingCorpusMirror(s => s.uploadFromIdb);
 
   const [count, setCount] = useState(0);
-  const [progress, setProgress] = useState<BuildProgress | null>(null);
+  const [phaseProgress, setPhaseProgress] = useState<PhaseProgress | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lokalModell, setLokalModell] = useState<{ id: string; dim: number } | null>(null);
@@ -69,14 +79,18 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
   const abortRef = useRef<AbortController | null>(null);
 
   const total = antraege.length;
-  // Waehrend des Builds tickt `progress` pro Antrag. `count` aktualisiert sich nur
-  // im `refresh()` nach Build-Abschluss — die Bar darf nicht erst am Ende auf 100
-  // springen. Daher fuer die Anzeige: live-Werte aus `progress`, sonst aus dem
-  // persistierten Cache-Stand. Bei `incremental: true` zeigt das den Build-Job-
-  // Fortschritt (queue-relativ), bei `incremental: false` den Gesamt-Stand.
-  const displayCount = progress ? progress.done : count;
-  const displayTotal = progress ? progress.total : total;
-  const pct = displayTotal > 0 ? (displayCount / displayTotal) * 100 : 0;
+  // Waehrend des Builds tickt `phaseProgress` pro Item (Antrag bzw. Verbund).
+  // `count` aktualisiert sich nur im `refresh()` nach der Verbund-Phase — die Bar
+  // darf nicht erst am Ende auf 100 springen. Daher fuer die Anzeige: live-Werte
+  // aus `phaseProgress`, sonst aus dem persistierten Cache-Stand. Bei
+  // `incremental: true` zeigt das den Build-Job-Fortschritt (queue-relativ), bei
+  // `incremental: false` den Gesamt-Stand.
+  const displayCount = phaseProgress ? phaseProgress.done : count;
+  const displayTotal = phaseProgress ? phaseProgress.total : total;
+  // Centroid-Phase hat keinen Zähler (total 0) → Bar voll lassen statt auf 0% fallen.
+  const pct = phaseProgress?.phase === 'centroids'
+    ? 100
+    : displayTotal > 0 ? (displayCount / displayTotal) * 100 : 0;
 
   const refresh = useCallback(async (): Promise<void> => {
     const c = await countEmbeddings(storage.idb);
@@ -154,14 +168,18 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
     try {
       await buildEmbeddingCorpus(storage.idb, antraege, {
         incremental,
-        onProgress: setProgress,
+        onProgress: p => setPhaseProgress({ phase: 'antrag', done: p.done, total: p.total, last: p.lastAntrag, etaSec: p.etaSec }),
         signal: abortRef.current.signal,
       });
       // Verbund-Embeddings (Stage-2-Klassifizierung) parallel mit aufbauen.
-      // Klein im Vergleich zum Antrag-Korpus (typisch 1/3 der Verbund-Anzahl).
+      // Klein im Vergleich zum Antrag-Korpus (typisch 1/3 der Verbund-Anzahl),
+      // aber bei `incremental: false` ein voller zweiter Embedding-Lauf von
+      // mehreren Minuten — daher MUSS der Fortschritt sichtbar sein (sonst friert
+      // die Bar nach der per-Antrag-100% scheinbar ein, v2.21.2-Fix).
       await buildVerbundEmbeddingCorpus(storage.idb, antraege, {
         incremental,
         signal: abortRef.current.signal,
+        onProgress: p => setPhaseProgress({ phase: 'verbund', done: p.done, total: p.total, last: p.lastVerbundId, etaSec: p.etaSec }),
       });
       // v2.11: Cache invalidieren, damit nachfolgende loadAllVerbundEmbeddings-
       // Calls (auch in `KlassifizierungsReview`) die neu gebauten Vektoren
@@ -169,6 +187,10 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       invalidateVerbundEmbeddingsCache();
       await refresh();
       // Centroids aus Verbund-Embeddings — pro Verbund-ID dedupliziert.
+      // Phase-Label setzen + einen Tick yielden, damit React es paintet, BEVOR
+      // die synchrone Centroid-Berechnung den Main-Thread blockiert.
+      setPhaseProgress({ phase: 'centroids', done: 0, total: 0 });
+      await new Promise(r => setTimeout(r, 0));
       const verbundEmbs = await loadAllVerbundEmbeddings(storage.idb);
       const cents = computeKategorieCentroidsFromVerbund(
         klassifizierungen,
@@ -192,6 +214,11 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       }));
       await persistAuslastung(storage);
 
+      // Centroid-Phase fertig → Phase-Anzeige beenden; den Upload signalisiert
+      // ab hier `mirrorUploading` ("Lade Korpus … hoch"), Header fällt auf den
+      // (eben refreshten) Cache-Stand zurück.
+      setPhaseProgress(null);
+
       // Auto-Upload auf den Daten-Share. Soft-fail — lokaler Build bleibt
       // erfolgreich, nur die Share-Sync hat ggf. nicht geklappt.
       if (lokalModell) {
@@ -211,7 +238,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setRunning(false);
-      setProgress(null);
+      setPhaseProgress(null);
       abortRef.current = null;
     }
   }
@@ -274,7 +301,11 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       <div className="flex items-baseline justify-between mb-3">
         <h3 className="text-[14px] font-medium text-[var(--tf-text)]">Themen-Vektoren für Klassifizierung</h3>
         <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-          {displayCount} von {displayTotal} eingebettet ({Math.round(pct)}%)
+          {phaseProgress
+            ? (phaseProgress.phase === 'centroids'
+                ? PHASE_LABELS.centroids
+                : `${PHASE_LABELS[phaseProgress.phase]}: ${displayCount} von ${displayTotal} (${Math.round(pct)}%)`)
+            : `${displayCount} von ${displayTotal} eingebettet (${Math.round(pct)}%)`}
         </span>
       </div>
 
@@ -285,13 +316,13 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
         />
       </div>
 
-      {progress && (
+      {phaseProgress && phaseProgress.phase !== 'centroids' && (
         <div className="text-[11.5px] text-[var(--tf-text-secondary)] mb-2">
-          {progress.done}/{progress.total}
-          {progress.lastAntrag && <span className="font-mono ml-2">{progress.lastAntrag}</span>}
-          {progress.etaSec != null && (
+          {phaseProgress.done}/{phaseProgress.total}
+          {phaseProgress.last && <span className="font-mono ml-2">{phaseProgress.last}</span>}
+          {phaseProgress.etaSec != null && (
             <span className="text-[var(--tf-text-tertiary)] ml-3">
-              ≈ {formatEta(progress.etaSec)} verbleibend
+              ≈ {formatEta(phaseProgress.etaSec)} verbleibend
             </span>
           )}
         </div>
@@ -395,7 +426,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       </div>
 
       <p className="text-[11px] text-[var(--tf-text-tertiary)] mt-3">
-        Einmaliger Vorgang. Themen-Vektoren ermöglichen die automatische Zuordnung neuer Anträge zu Überkategorien (Cosine-Similarity gegen Kategorie-Centroids). Cache liegt lokal im Browser-Storage (~{Math.round(total * (lokalModell?.dim ?? 768) * 4 / 1024 / 1024)} MB für {total} Anträge) und wird nach jedem erfolgreichen Build automatisch auf den Daten-Share gespiegelt (`_intern/auslastung-embedding-corpus.*`) — andere Teammitglieder laden den Korpus dann in ~10 sec statt selbst neu zu bauen.
+        Einmaliger Vorgang. Der Build läuft in Phasen (Anträge → Verbünde → Centroids → Upload) — nach den Anträgen folgt noch ein kürzerer Verbund-Lauf, dessen Fortschritt die Anzeige separat ausweist. Themen-Vektoren ermöglichen die automatische Zuordnung neuer Anträge zu Überkategorien (Cosine-Similarity gegen Kategorie-Centroids). Cache liegt lokal im Browser-Storage (~{Math.round(total * (lokalModell?.dim ?? 768) * 4 / 1024 / 1024)} MB für {total} Anträge) und wird nach jedem erfolgreichen Build automatisch auf den Daten-Share gespiegelt (`_intern/auslastung-embedding-corpus.*`) — andere Teammitglieder laden den Korpus dann in ~10 sec statt selbst neu zu bauen.
       </p>
     </div>
   );
