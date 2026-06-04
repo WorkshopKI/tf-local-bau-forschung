@@ -58,7 +58,7 @@ export const AUDIT_LOG_PATH = '_intern/audit-log.jsonl';
 export const KURATOR_CONFIG_PATH = '_intern/kurator-config.enc';
 /** v2.11: Zugangsdatei der MA-Login-Wall. JSON-Huelle mit pro-Eintrag Salt +
  *  AES-GCM-verschluesseltem Kuerzel (kein Klartext-Kuerzel/Passwort/Hint).
- *  Liegt neben kurator-config.enc / deanon-config.enc auf dem Daten-Share.
+ *  Liegt neben kurator-config.enc auf dem Daten-Share.
  *  Schreib-Profil (Pitfall #23): idempotent-overwrite via `atomicWrite` MIT
  *  Backup (ganze Datei wird pro Mutation neu geschrieben). */
 export const ZUGANG_CONFIG_PATH = '_intern/auslastung-zugang.enc';

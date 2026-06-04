@@ -19,6 +19,7 @@ import type {
   FeedbackSponsor,
 } from '@/core/types/feedback';
 import { refundPoints, spendPoints } from './budgetService';
+import { FEEDBACK_STATUS } from './feedback-status';
 import {
   emitFeedbackUpdated,
   loadLocalItems,
@@ -73,7 +74,7 @@ export function getSponsoringProgress(
 export function isSponsoringOpen(ticket: FeedbackItem): boolean {
   if (ticket.category !== 'idea') return false;
   if (!ticket.effort_estimate) return false;
-  return ticket.kurator_status === 'neu' || ticket.kurator_status === 'geplant';
+  return ticket.kurator_status === FEEDBACK_STATUS.neu || ticket.kurator_status === FEEDBACK_STATUS.geplant;
 }
 
 export interface SponsorResult {

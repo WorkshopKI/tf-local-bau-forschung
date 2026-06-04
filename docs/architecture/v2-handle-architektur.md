@@ -10,7 +10,7 @@ Daten-Modell-Änderungen, die einen Re-Pick beim Start erzwingen:
 - **Feedback-Dispatch in `feedbackService.submitFeedback`**: Kurator → direkt nach `_intern/feedback/feedback.json`; Nicht-Kurator → in die Outbox auf dem pers. Laufwerk. Kein automatischer Sync (out-of-scope; manueller "Feedback einsammeln"-Schritt im Kurator-Tab).
 - **`ConnectionMode`** lebt in [src/core/services/connection-status.ts](../../src/core/services/connection-status.ts). Werte `'online' | 'offline'` (kein `'citrix'` — funktional identisch). Setzt auf den bestehenden `useSmbStatus` auf. `OfflineBanner` ([src/core/OfflineBanner.tsx](../../src/core/OfflineBanner.tsx)) ist nicht-dismissbar, amber, zeigt das letzte Snapshot-Datum.
 - **Pfad-Konstanten** in [src/core/services/infrastructure/types.ts](../../src/core/services/infrastructure/types.ts):
-  - `PERSOENLICH_TEAMFLOW_DIR = 'teamflow'`
+  - `PERSOENLICH_ZAH_DIR = 'ZAH'` (seit v2.6.2 — vorher `PERSOENLICH_TEAMFLOW_DIR = 'teamflow'`, ohne Auto-Migration)
   - `PERSOENLICH_FEEDBACK_OUTBOX_DIR = 'ZAH/feedback/outbox'`
   - `PERSOENLICH_PROFILE_FILE = 'ZAH/profile.json'`
   - `PERSOENLICH_EINSTELLUNGEN_FILE = 'ZAH/einstellungen.json'`

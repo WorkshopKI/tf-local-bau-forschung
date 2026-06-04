@@ -1,4 +1,4 @@
-# Auslastungs-Modul (Plugin "auslastung", v1.16)
+# Auslastungs-Modul (Plugin "auslastung", v2.15)
 
 Plugin (`id: 'auslastung'`, `category: 'workflow'`, `kuratorOnly: false`, sichtbar wenn `features.auslastung === true`) für automatische Antrags-Klassifizierung in Überkategorien + MA-Zuweisung mit dreistufigem Matching. Quartalsbasierte Kapazitäts-Planung.
 
@@ -86,6 +86,24 @@ Hierarchie LLM > Embedding > Manuell: Methode `'llm'` mit `begruendung` in `Prim
 ## Aktiv/Inaktiv-Flag (`AnonymerMitarbeiter.aktiv: boolean`, Mai 2026)
 
 Filter-Schicht für ehemalige Bearbeiter. Inaktive MAs werden aus UI (Admin-Tabelle, KapazitaetsDashboard, Zuweisungs-Cockpit) und Matching (Eligible-Sammlung in `matching-engine.ts`, Score-Aggregation in `embedding-matcher.ts`) ausgeblendet — ihre historischen Antraege bleiben aber im Embedding-Corpus als Kompetenz-Referenz für neue MAs mit ähnlichem Hintergrund. Default beim Anlegen: `true`. Migration alter Daten (`normalizeMitarbeiterRecord` in `services/auslastung-store.ts`): ebenfalls `true`. PL bekommt im Admin-Tab einen einmaligen Vorschlag-Banner (`AktivVorschlagBanner.tsx` + `services/aktiv-detection.ts`): "MAs mit Antrag im aktuellen Jahr → aktiv vorgeschlagen, sonst inaktiv". Banner erscheint nur wenn `shouldShowAktivVorschlag(mitarbeiter) === true` (alle MAs noch `aktiv: true`); ist auch nur ein MA inaktiv, gilt die Liste als gepflegt und der Banner kommt nicht wieder. Aktivieren/Deaktivieren einzeln über Aktiv-Toggle pro Tabellenzeile (Bestätigungsdialog beim Deaktivieren). "Inaktive anzeigen"-Checkbox im Header zeigt ausgegraute inaktive MAs in der Tabelle. **Lücken in der MA-Nummerierung** sind durch das Aktiv-Flag normal: anonIds bleiben stabil (siehe Pitfall #18), nur die Anzeige filtert. KapazitaetsDashboard zeigt dezenten Hilfetext "30 von 79 MAs aktiv …" wenn Lücken vorhanden sind.
+
+## Kompetenz-Matrix (PL-Upload + editierbares Grid, v2.15)
+
+Damit alle MAs sofort matchbar sind — auch ohne MA-Selbsteingabe — lädt die PL eine **Kompetenz-XLSX** hoch und pflegt die Werte danach in einem editierbaren Grid (Tab „Kompetenzen"). Pro TIB-Kürzel: Antragstyp-Kontingent DL/DS/NW/FuE (Anträge/Jahr), Abschlag %, sowie Kompetenz-Level 1/2/3 je Unterkategorie über die fünf Überkategorien (IT/DT/EU/LG/NM).
+
+Additive optionale Felder am `AnonymerMitarbeiter` (bestehende `auslastung.json` ohne sie laden mit Defaults, Faktor 1.0 = altes Verhalten):
+- `kompetenzMatrix?` — `ÜberkatID → Unterkat.-Label → Level (1|2|3)`.
+- `jahresKapazitaetProTyp?` — Anträge/Jahr je Antragstyp-Bucket (DL/DS/NW/FuE).
+- `kompetenzQuelle?: 'pl-upload'` — markiert per XLSX vorbelegte MAs.
+
+Sowie am `config`: `kompetenzSchema` (Spalten-Schema aus dem XLSX-Header) + `kompetenzLevelGewicht` / `kontingentGewicht`.
+
+- **Parser** [kompetenz-import.ts](../../src/plugins/auslastung/services/kompetenz-import.ts): liest das Merge-Header-Layout (Zeile 1 = Überkat-Merges, Zeile 2 = Unterkat-Labels), löst `TIB_KUERZ → anonId` via Kürzel-Map (NFC-normalisiert, Pitfall #22); unbekannte Kürzel → warnen + überspringen (keine Phantom-MAs).
+- **Ableitung** [kompetenz-derivation.ts](../../src/plugins/auslastung/services/kompetenz-derivation.ts) (reine Funktionen): `deriveHauptNeben`, `kompetenzTokens`, `normLevelForUeber`.
+- **Merge = Überschreiben** über die Batch-Store-Action `applyKompetenzMatrixBatch` (EIN setState + EIN persist, Pitfall #16/#20): leitet Haupt-/Nebenkategorie aus der Matrix ab und setzt `onboardingAbgeschlossen` (Matcher-Gate).
+- **Matcher-Integration**: das BM25-Profil-Doc bekommt level-gewichtete Unterkat.-Tokens (Level 3 = Token 3×); die Engine skaliert den Kompetenz-Score mit dem Überkat.-Level der Primärkategorie und deckelt weich per Antragstyp-Kontingent ([kontingent.ts](../../src/plugins/auslastung/services/kontingent.ts)).
+
+UI: [KompetenzMatrixView](../../src/plugins/auslastung/views/KompetenzMatrixView.tsx) + [KompetenzImportDialog](../../src/plugins/auslastung/components/KompetenzImportDialog.tsx) + die in `src/plugins/auslastung/components/kompetenz/` zerlegte Grid-Komponente ([KompetenzMatrix.tsx](../../src/plugins/auslastung/components/kompetenz/KompetenzMatrix.tsx) + `MatrixRow`/`MatrixHeader`/`MatrixToolbar`/`MatrixControls`/`LevelCell`/`CapCell`). Datenschutz: das Grid zeigt anonIds; echte Kürzel nur in Varianten mit Flag `deAnonymisierung` (pl/dev — seit v2.17 ohne separates De-Anon-Passwort).
 
 ## Engine-Layer (`src/plugins/auslastung/services/`)
 

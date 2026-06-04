@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
-import { getMyFeedback } from '@/core/services/feedback';
+import { getMyFeedback, FEEDBACK_STATUS } from '@/core/services/feedback';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { CATEGORY_ICONS, CATEGORY_LABELS, STATUS_COLORS, STATUS_LABELS } from './constants';
 import * as Icons from 'lucide-react';
@@ -84,7 +84,7 @@ export function MyFeedbackList(): React.ReactElement {
                     {STATUS_LABELS[item.kurator_status]}
                   </span>
                 </div>
-                {item.kurator_status === 'abgelehnt' && item.kurator_notes && (
+                {item.kurator_status === FEEDBACK_STATUS.abgelehnt && item.kurator_notes && (
                   <p className="mt-1 text-[10.5px] text-[var(--tf-text-tertiary)] italic">
                     Hinweis: {item.kurator_notes}
                   </p>

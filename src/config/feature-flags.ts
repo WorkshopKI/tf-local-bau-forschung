@@ -29,17 +29,11 @@ export function isKuratorMenusEnabled(): boolean {
   return features.kuratorMenus;
 }
 
-/**
- * @deprecated v2.16 — abgeloest durch das build-time Rollen-Passwort-Gate
- * (`isAppGateRequired` / runtimeConfig.auth). Bleibt nur fuer Legacy-Configs +
- * die Validierungs-Deprecation-Warnung erhalten.
- *
- * v2.10: True nur in der kurator-Variante — erzwang beim App-Start eine
- * Kurator-Login-Wall (Passwort gegen kurator-config.enc auf dem Share).
- */
-export function isKuratorLoginRequired(): boolean {
-  return features.requireKuratorLogin === true;
-}
+// Hinweis: der frühere Helper `isKuratorLoginRequired()` (v2.10) wurde entfernt —
+// abgelöst durch `isAppGateRequired()` (v2.16). Das Legacy-Flag
+// `features.requireKuratorLogin` bleibt nur für die Deprecation-Warnung in
+// `validateConfig()` (scripts/config-schema.mjs) erhalten, hat aber keinen
+// Runtime-Konsumenten mehr.
 
 /** v2.16: True wenn der Build eine Rollen-Passwort-Wall beim Start erzwingt
  *  (pl + kurator). Build-time Verifier in `runtimeConfig.auth`. Siehe

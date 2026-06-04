@@ -15,6 +15,10 @@ import {
   getSponsoringProgress,
   isClassifiedAs,
   loadFeedbackConfig,
+  FEEDBACK_STATUS,
+  istOffen,
+  istUmgesetzt,
+  istArchiviert,
 } from '@/core/services/feedback';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
@@ -93,12 +97,12 @@ export function FeedbackBoardPage(): React.ReactElement {
   const isFeature = isClassifiedAs('idea');
 
   // Nicht-archivierte Basis für Filter-Optionen + -Zähler.
-  const base = useMemo(() => tickets.filter(t => t.kurator_status !== 'archiviert'), [tickets]);
+  const base = useMemo(() => tickets.filter(t => !istArchiviert(t.kurator_status)), [tickets]);
 
   // Filter-Items (Label + Zähler) für die CollapsibleSeg-Chips.
   const statusItems: CollapsibleSegItem[] = useMemo(() => {
-    const open = base.filter(t => t.kurator_status === 'neu' || t.kurator_status === 'geplant' || t.kurator_status === 'in_bearbeitung').length;
-    const done = base.filter(t => t.kurator_status === 'umgesetzt').length;
+    const open = base.filter(t => istOffen(t.kurator_status)).length;
+    const done = base.filter(t => istUmgesetzt(t.kurator_status)).length;
     return [
       { label: 'Alle', count: base.length },
       { label: 'Offen', count: open },
@@ -131,13 +135,13 @@ export function FeedbackBoardPage(): React.ReactElement {
     const byFilter = base.filter(t => {
       if (filterKategorie && t.category !== filterKategorie) return false;
       if (filterArea && t.context?.page !== filterArea) return false;
-      if (filterStatus === 'open' && !(t.kurator_status === 'neu' || t.kurator_status === 'geplant' || t.kurator_status === 'in_bearbeitung')) return false;
-      if (filterStatus === 'done' && t.kurator_status !== 'umgesetzt') return false;
+      if (filterStatus === 'open' && !istOffen(t.kurator_status)) return false;
+      if (filterStatus === 'done' && !istUmgesetzt(t.kurator_status)) return false;
       return true;
     });
     return byFilter.sort((a, b) => {
-      const aBearb = a.kurator_status === 'in_bearbeitung' ? 0 : 1;
-      const bBearb = b.kurator_status === 'in_bearbeitung' ? 0 : 1;
+      const aBearb = a.kurator_status === FEEDBACK_STATUS.in_bearbeitung ? 0 : 1;
+      const bBearb = b.kurator_status === FEEDBACK_STATUS.in_bearbeitung ? 0 : 1;
       if (aBearb !== bBearb) return aBearb - bBearb;
       if (isFeature(a) && isFeature(b)) {
         const pa = getSponsoringProgress(a, config).percentage;

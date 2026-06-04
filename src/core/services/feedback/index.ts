@@ -5,6 +5,7 @@ export * from './feedbackStorage';
 export * from './feedbackSharedFile';
 export * from './feedbackFaq';
 export * from './feedbackSponsoring';
+export * from './feedback-status';
 export * from './feedbackClassification';
 export * from './promptGenerator';
 export * from './budgetService';

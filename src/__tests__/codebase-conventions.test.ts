@@ -10,9 +10,14 @@
  * Ausnahme review-bar.
  *
  * Geprueft:
- *   - no-direct-status-compare → CLAUDE.md Pitfall #12, Helper aus
+ *   - no-direct-status-compare          → Pitfall #12 (Antrag-Status), Helper aus
  *     src/core/utils/status-canonical.ts nutzen.
- *   - no-raw-worker            → CLAUDE.md Pitfall #5, Worker als
+ *   - no-direct-feedback-status-compare → Pitfall #21 (Feedback-Status),
+ *     FEEDBACK_STATUS / Praedikate aus src/core/services/feedback/feedback-status.ts.
+ *   - no-direct-bearbeiter-kuerzel      → Pitfall #27, useMeinKuerzel() statt
+ *     direktem profile.bearbeiter_kuerzel-Lesezugriff.
+ *   - no-raw-async-onclick              → Pitfall #15, useAsyncAction-Hook.
+ *   - no-raw-worker                     → Pitfall #5, Worker als
  *     `?worker&inline`-Import einbinden (file://-Kompat).
  */
 import { describe, it, expect } from 'vitest';
@@ -233,6 +238,86 @@ describe('no-raw-worker (CLAUDE.md Pitfall #5)', () => {
         `  import MyWorker from './worker.ts?worker&inline';\n` +
         `  const w = new MyWorker();\n` +
         `Siehe docs/agents/file-protocol-pitfalls.md.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-direct-feedback-status-compare (CLAUDE.md Pitfall #21)', () => {
+  // Feedback-Status (`kurator_status` / Legacy `admin_status`) nicht gegen String-
+  // Literale vergleichen — refactor-fragil (analog Pitfall #12 fuer Antrag-Status:
+  // Tippfehler, IDE-Rename-Luecke, Status-Rename uebersieht Stellen). Stattdessen
+  // die Konstante `FEEDBACK_STATUS` (Einzelwert) oder die Praedikate (`istOffen`,
+  // `istUmgesetzt`, `istArchiviert`) aus services/feedback/feedback-status.ts.
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+    `${sep}feedback${sep}feedback-status.ts`, // das Helper-Modul selbst
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  // `.kurator_status === 'x'` / `!== "x"` (auch Legacy `admin_status`).
+  const pattern = /\.(kurator_status|admin_status)\s*[!=]==?\s*['"]/;
+
+  it('keine direkten Feedback-Status-Literal-Vergleiche (FEEDBACK_STATUS / Praedikate nutzen)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(...findInFile(file, l => pattern.test(l), 'allow-feedback-status-literal'));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Direkter Feedback-Status-Vergleich verboten (CLAUDE.md Pitfall #21).\n` +
+        `Nutze die Konstante FEEDBACK_STATUS bzw. die Praedikate istOffen /\n` +
+        `istUmgesetzt / istArchiviert aus\n` +
+        `src/core/services/feedback/feedback-status.ts.\n` +
+        `Cheatsheet fuer neue Status: docs/agents/add-feedback-status.md.\n` +
+        `Wenn wirklich ein Einzel-Literal noetig ist, Zeile mit\n` +
+        `'// allow-feedback-status-literal: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-direct-bearbeiter-kuerzel (CLAUDE.md Pitfall #27)', () => {
+  // Das effektive Bearbeiter-Kuerzel ueber useMeinKuerzel() lesen, nicht direkt
+  // `profile.bearbeiter_kuerzel`: im MA-Login-Modus (prod) ist das Profilfeld
+  // read-only/leer, die echte Identitaet kommt aus der entschluesselten Session.
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+    `${sep}hooks${sep}useMeinKuerzel.ts`,    // der kanonische Getter selbst
+    `${sep}einstellungen${sep}ProfilTab.tsx`, // das editierbare Profilfeld (Schreib-Quelle)
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  // Kommentar-Zeilen (Doku-Erwaehnungen von `profile.bearbeiter_kuerzel`) sind
+  // keine Lesezugriffe — ueberspringen, sonst False-Positives in JSDoc.
+  const isComment = (l: string): boolean => {
+    const t = l.trim();
+    return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*');
+  };
+  // Fuehrender Punkt = Lesezugriff. Writes (`{ bearbeiter_kuerzel: … }`) und die
+  // Type-Definition (`bearbeiter_kuerzel?:`) haben keinen Punkt → kein Treffer.
+  const pattern = /\.bearbeiter_kuerzel\b/;
+
+  it('kein direkter profile.bearbeiter_kuerzel-Lesezugriff (useMeinKuerzel nutzen)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(...findInFile(file, l => !isComment(l) && pattern.test(l), 'allow-direct-kuerzel'));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Direkter profile.bearbeiter_kuerzel-Lesezugriff verboten (CLAUDE.md Pitfall #27).\n` +
+        `Nutze useMeinKuerzel() aus src/core/hooks/useMeinKuerzel.ts\n` +
+        `(Session > Profilfeld, drop-in-kompatibel: string | undefined).\n` +
+        `Pre-Login-Ausnahme (Code laeuft vor der MaLoginGate)? Zeile mit\n` +
+        `'// allow-direct-kuerzel: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });

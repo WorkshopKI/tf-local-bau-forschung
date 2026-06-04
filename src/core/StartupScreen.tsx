@@ -122,7 +122,7 @@ export function StartupScreen({
   };
 
   const display = profile?.name
-    ? `${profile.name}${profile.bearbeiter_kuerzel ? ` (${profile.bearbeiter_kuerzel})` : ''}`
+    ? `${profile.name}${profile.bearbeiter_kuerzel ? ` (${profile.bearbeiter_kuerzel})` : ''}` // allow-direct-kuerzel: Startup laeuft VOR der MaLoginGate — Profilfeld ist hier die einzige Identitaetsquelle (Session existiert noch nicht)
     : 'Unbekannt';
 
   return (

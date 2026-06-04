@@ -9,6 +9,7 @@ import {
   loadFeedbackConfig,
   setEffortEstimate,
   updateFeedback,
+  FEEDBACK_STATUS,
 } from '@/core/services/feedback';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -171,7 +172,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
             <div className="h-full" style={{ width: `${progress.percentage}%`, background: progress.thresholdReached ? 'var(--tf-success-text)' : 'var(--tf-primary)' }} />
           </div>
           <p className="text-[10.5px] text-[var(--tf-text-tertiary)]">{progress.combinedPoints}/{progress.threshold} Pkt · {progress.sponsorCount} Sponsoren</p>
-          {progress.thresholdReached && ticket.kurator_status === 'neu' && (
+          {progress.thresholdReached && ticket.kurator_status === FEEDBACK_STATUS.neu && (
             <p className="text-[10.5px] text-[var(--tf-success-text)]">Schwelle erreicht — Status auf "Geplant" setzen?</p>
           )}
         </div>

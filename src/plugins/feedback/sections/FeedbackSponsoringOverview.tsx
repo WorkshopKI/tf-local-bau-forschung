@@ -8,6 +8,7 @@ import {
   isClassifiedAs,
   loadAllLocalBudgets,
   saveFeedbackConfig,
+  istArchiviert,
 } from '@/core/services/feedback';
 import type { EffortEstimate, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_BUDGET_POINTS_PER_QUARTER, DEFAULT_HOURS_TO_POINTS_FACTOR, DEFAULT_SPONSORING_THRESHOLDS } from '@/core/types/feedback';
@@ -28,7 +29,7 @@ export function FeedbackSponsoringOverview({ tickets, config, onConfigChanged }:
   const featuresRanked = useMemo(() => {
     const isFeature = isClassifiedAs('idea');
     return tickets
-      .filter(t => isFeature(t) && t.effort_estimate && t.kurator_status !== 'archiviert')
+      .filter(t => isFeature(t) && t.effort_estimate && !istArchiviert(t.kurator_status))
       .map(t => ({ ticket: t, progress: getSponsoringProgress(t, config) }))
       .sort((a, b) => b.progress.percentage - a.progress.percentage);
   }, [tickets, config]);

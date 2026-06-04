@@ -1,14 +1,21 @@
 # Project Structure
 
-*Last reviewed: 2026-05-28 (v2.2.0)*
+*Last reviewed: 2026-06-04 (v2.18)*
 
 ```
 src/
 ├── core/
-│   ├── App.tsx                  <- Entry, providers, onboarding check
-│   ├── Shell.tsx                <- Sidebar + content layout
+│   ├── App.tsx                  <- Entry, providers, onboarding check + Start-Gate-Kette (decideAppGate/decideMaGate)
+│   ├── ShellLayout.tsx          <- Sidebar + content layout (Render-Gate für Kurator-/CSV-Auto-Refresh)
+│   ├── Router.tsx               <- Plugin-Routing (flatIds)
 │   ├── ErrorBoundary.tsx        <- React error boundary
 │   ├── Onboarding.tsx           <- First-run setup wizard
+│   ├── WelcomeScreen.tsx        <- Daten-Share-Pick + expectedFolderName-Validation (v2.0)
+│   ├── StartupScreen.tsx        <- Daten-Share-Permission/Re-Pick beim Start (v2.0)
+│   ├── OfflineBanner.tsx        <- Nicht-dismissbarer Offline-Hinweis + letztes Snapshot-Datum (v2.0)
+│   ├── AppPasswordGate.tsx      <- v2.16: build-time Rollen-Passwort-Wall (pl + kurator), generisch
+│   ├── MaLoginGate.tsx          <- v2.11: MA-Login-Wall (Kürzel aus Passwort, prod + dev)
+│   ├── KuratorLoginGate.tsx     <- @deprecated v2.16 (abgelöst durch AppPasswordGate); bleibt für KuratorSessionPanel-Referenz
 │   ├── components/
 │   │   ├── ArtefakteTab.tsx     <- Shared artifact management (both departments)
 │   │   ├── SimilarCases.tsx     <- AI-powered similar case suggestions
@@ -29,7 +36,10 @@ src/
 │   │   ├── useStorage.ts        <- Storage service context
 │   │   ├── useTags.ts           <- Tag management (Zustand)
 │   │   ├── useTour.ts           <- Onboarding-Tour State + Context (localStorage-persistiert)
-│   │   └── useVorgangDetail.ts  <- Shared Detail-View logic (states, handlers)
+│   │   ├── useVorgangDetail.ts  <- Shared Detail-View logic (states, handlers)
+│   │   ├── useMAIdentity.ts     <- v2.11: MA-Login-Session (sessionStorage, Key tf-ma-kuerzel)
+│   │   ├── useMeinKuerzel.ts    <- v2.11: zentraler Kürzel-Getter (Session > Profilfeld, Pitfall #27)
+│   │   └── useAppGateSession.ts <- v2.16: App-Passwort-Gate-Session (sessionStorage, Key tf-app-gate)
 │   ├── services/
 │   │   ├── ai/
 │   │   │   ├── bridge.ts        <- AIBridge orchestrator
@@ -94,10 +104,13 @@ src/
 │   │   │   ├── audit-log.ts         <- JSONL-Append-Only Event-Log (_intern/audit-log.jsonl)
 │   │   │   ├── build-lock.ts        <- Heartbeat-basierter Build-Lock (Stale > 2h)
 │   │   │   ├── backup.ts            <- Wöchentliche Snapshots + 4-Gen-Rotation (backups/YYYY-MM-DD/)
-│   │   │   ├── smb-handle.ts        <- Daten-Share + Dokumentenquelle Handles + ensureFolderStructure
+│   │   │   ├── smb-handle.ts        <- Daten-Share + Persönlich + DMS-Source + User-Folders-Root Handles + ensureFolderStructure
 │   │   │   ├── migration.ts         <- v1.9: validateSelectedFolder + migrateLegacyStructure
 │   │   │   ├── offline-check.ts     <- Offline-Detection-Helpers
-│   │   │   ├── types.ts             <- AuditEntry, BuildLock, BackupEntry, SessionMeta, KuratorConfigPlain, FolderValidationResult, Pfad-Konstanten
+│   │   │   ├── zugang-config.ts     <- v2.11: MA-Login-Zugangsdatei (verifyPasswortAgainstAll, _intern/auslastung-zugang.enc)
+│   │   │   ├── zugang-worker.ts     <- v2.11: Passwort-Verify im Worker (?worker&inline) + Main-Thread-Fallback
+│   │   │   ├── app-password.ts      <- v2.16: verifyAppPassword (build-time Rollen-Passwort-Verifier)
+│   │   │   ├── types.ts             <- AuditEntry, BuildLock, BackupEntry, SessionMeta, KuratorConfigPlain, ZugangsEintrag/-File, FolderValidationResult, Pfad-Konstanten
 │   │   │   └── index.ts             <- Barrel-Export
 │   ├── types/
 │   │   ├── vorgang.ts           <- Vorgang + Artifact types
@@ -124,7 +137,10 @@ src/
 │   # Nutzer-Plugins (category 'workflow' / 'tools')
 │   ├── home/                    <- Dashboard (id='home')
 │   ├── antraege/                <- Förderanträge-Liste + Detail (id='antraege', generische Ansicht über CSV-Schema; seit v1.14 konsolidiert inkl. ehem. Forschungs-Fixtures + optionaler AntragDokumentRef[])
-│   ├── auslastung/              <- Auslastungs-Modul (id='auslastung', features.auslastung-gegated, 5 Tabs, Anonymisierung MA01..MAxx, dreistufiges Matching, Standalone-Onboarding-HTML-Generator)
+│   ├── auslastung/              <- Auslastungs-Modul (id='auslastung', features.auslastung-gegated, Tabs Klassifizierung/Zuweisung/Übersicht + Kompetenzen (v2.15), Anonymisierung MA01..MAxx, dreistufiges Matching, Standalone-Onboarding-HTML-Generator)
+│   │   ├── views/KompetenzMatrixView.tsx <- v2.15: PL-Kompetenz-Tab (XLSX-Upload + editierbares Grid)
+│   │   ├── components/kompetenz/    <- v2.15: zerlegte Matrix-Grid-Komponenten (KompetenzMatrix + MatrixRow/Header/Toolbar/Controls/LevelCell/CapCell)
+│   │   └── services/kompetenz-*.ts  <- v2.15: import (XLSX-Parser) + derivation + geometry + codes + matrix-colors
 │   ├── bauantraege/             <- Bauanträge-Workflow (id='bauantraege', Vorgang-Typ bauantrag — nur in dev/demo-Variants sichtbar)
 │   ├── dokumente/               <- Dokumenten-Browser (id='dokumente', Phase-2-Platzhalter)
 │   ├── suche/                   <- Hybrid-Suche-UI (id='suche', Orama + Vector)
@@ -134,7 +150,7 @@ src/
 │   # Kurator-Plugins (category 'kuration', kuratorOnly: true) — Directory-Name == Plugin-ID
 │   ├── kurator/                 <- Suchindex-Kurations-Panel (id='kurator', route /kuration/suchindex)
 │   ├── programme-kuration/      <- Programm-Verwaltung inkl. Unterprogramme-Sub-Feature (id='programme-kuration')
-│   ├── csv-sources-kuration/    <- CSV-Import-Wizard (id='csv-sources-kuration', 5-Step-Wizard + Label-XLS-Hierarchie)
+│   ├── csv-sources-kuration/    <- CSV-Import-Wizard (id='csv-sources-kuration', 5-Step-Wizard + Label-XLS-Hierarchie; v2.18: csv-source-handle.ts pickAndLinkCsvSource + components/CsvSourceLinkDialog.tsx für pl-Handle-Lücke)
 │   ├── dokumentenquellen-kuration/ <- DMS-Quellen-Verwaltung (id='dokumentenquellen-kuration', v1.15, Multi-Source + Indexierung)
 │   ├── filter-kuration/         <- Filter-Verwaltung (id='filter-kuration', 4-Step-Wizard)
 │   ├── feedback/                <- Feedback-Verwaltung (id='feedback-kuration', 4 Tabs)
