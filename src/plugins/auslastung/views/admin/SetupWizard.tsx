@@ -1,4 +1,4 @@
-// TODO(refactor v2.4+): 427 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// TODO(refactor v2.4+): Multi-Step-Wizard — 3 Steps (Kategorien/Mapping/Abschluss) + Finish-Persist in einer Datei; Steps extrahieren (siehe CLAUDE.md → File Size Limit).
 // Vorschlag: SetupStep1.tsx..SetupStep3.tsx als eigene Files, Wizard bleibt als Schritt-Navigator.
 /**
  * Setup-Wizard fuer das Auslastungs-Modul.

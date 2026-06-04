@@ -1,4 +1,4 @@
-// TODO(refactor v2.4+): 660 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// TODO(refactor v2.4+): mischt Profil-Hydration/Auto-Save-Logik mit mehreren Settings-Sektionen (Kategorien/Antragstyp/Auto-Tags/Chips) — entlang dieser Grenzen aufteilen (opportunistisch beim nächsten Anfassen).
 // Vorschlag: AutoTagSection.tsx + CategoriesSection.tsx + ChipsInput.tsx extrahieren, Aggregations-Logik in eigenen Hook.
 /**
  * "Meine Technologien" — User-sichtbarer Settings-Tab.

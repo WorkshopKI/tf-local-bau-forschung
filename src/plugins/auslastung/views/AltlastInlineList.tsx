@@ -12,7 +12,7 @@
  * nach unten (kein Scroll-Cap — bewusst, als PL-Übersicht).
  *
  * Bewusst eigene Datei (nicht in MaInlineDetail.tsx), damit jene Datei nicht
- * weiter über den 300-Zeilen-Richtwert wächst (CLAUDE.md).
+ * weiter über den Größen-Richtwert (~400–500) wächst (CLAUDE.md → File Size Limit).
  */
 import { Info } from 'lucide-react';
 import { getStatusLabel } from '@/core/utils/status-mappings';

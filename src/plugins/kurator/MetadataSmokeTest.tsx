@@ -238,7 +238,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
   );
 }
 
-/* ── Results sub-component (keeps main component under 300 lines) ── */
+/* ── Results sub-component (keeps the main component focused) ── */
 function SmokeTestResults({ results, avgScore, avgTime, totalTime, modelLoadMs, modelLabel,
   llmCount, fallbackCount, expandedRows, setExpandedRows, isDone,
 }: {

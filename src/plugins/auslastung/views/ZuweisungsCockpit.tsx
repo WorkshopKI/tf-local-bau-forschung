@@ -1,5 +1,5 @@
-// TODO(refactor v2.4+): 525 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
-// Vorschlag: AssignmentTable.tsx + AssignmentFilters.tsx + PaginationControls.tsx als Sub-Komponenten.
+// TODO(refactor v2.4+): mischt Filter/Sort + Matching-Orchestrierung, Verbund-Liste und das große DetailPanel — entlang dieser Grenzen aufteilen (opportunistisch beim nächsten Anfassen).
+// Vorschlag: DetailPanel.tsx (rechte Spalte) + Verbund-Liste + Filter-Chips als Sub-Komponenten.
 /**
  * Screen 1b — Zuweisungs-Cockpit.
  *

@@ -1,4 +1,4 @@
-// TODO(refactor v2.4+): 426 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// TODO(refactor v2.4+): mischt Datei-Import/Konvertierung, Such-/Tag-Filter + Pagination und Listen-Rendering — entlang dieser Grenzen aufteilen (opportunistisch beim nächsten Anfassen).
 // Vorschlag: DocumentTable.tsx + DocumentFilters.tsx als Sub-Komponenten.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, Search, Upload, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Pin } from 'lucide-react';

@@ -1,4 +1,4 @@
-// TODO(refactor v2.4+): 429 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// TODO(refactor v2.4+): mischt Such-Input/Recent-Vorschläge, Filter-/Sort-/Spalten-State und Ergebnis-Tabelle + KI-Analyse — entlang dieser Grenzen aufteilen (opportunistisch beim nächsten Anfassen).
 // Vorschlag: SearchFilters.tsx + SearchResults.tsx + ResultDetails.tsx extrahieren.
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';

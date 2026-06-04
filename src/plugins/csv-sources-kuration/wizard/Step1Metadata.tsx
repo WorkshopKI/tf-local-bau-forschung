@@ -1,4 +1,4 @@
-// TODO(refactor v2.4+): 452 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// TODO(refactor v2.4+): mischt Metadaten-Formular, CSV-Upload/Vorschau-Tabelle und Test-Corpus/Smart-Match-Banner — entlang dieser Grenzen aufteilen (opportunistisch beim nächsten Anfassen).
 // Vorschlag: MetadataForm.tsx + CsvPreview.tsx extrahieren, Step1 bleibt schlanker Orchestrator.
 import { useRef, useState, useMemo } from 'react';
 import { Upload, FileText, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';

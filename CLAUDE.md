@@ -89,21 +89,29 @@ Index: [docs/agents/README.md](docs/agents/README.md).
 
 ### File Size Limit
 
-Source-Files sollten **300 Zeilen nicht überschreiten**. Begründung: kleinere Files sind lesbarer, testbarer und verhindern kollidierende Patches bei paralleler Arbeit.
+[#file-size-limit](#file-size-limit)
 
-**Ausnahmen (explizit erlaubt):**
+**Kohäsion vor Zeilenzahl.** Eine Datei soll **eine kohärente Verantwortung** haben — nicht eine bestimmte Zeilenzahl treffen. Die Leitfrage beim Review ist „tut diese Datei mehr als eine Sache?", nicht „hat sie mehr als N Zeilen?".
+
+Ab **~400–500 Zeilen** lohnt ein prüfender Blick: Vermischt die Datei mehrere Verantwortlichkeiten? Falls ja → entlang dieser Grenzen aufteilen. Falls nein (eine kohärente Einheit) → so lassen. Die Zeilenzahl ist ein **Prüf-Hinweis, kein hartes Limit**. Begründung: kleinere Files sind oft lesbarer, testbarer und verhindern kollidierende Patches bei paralleler Arbeit — aber das gilt nur, solange die Aufteilung echten logischen Grenzen folgt. Moderne Coding-Agents halten 400–500 Zeilen problemlos im Arbeitskontext; die früher harte 300-Zeilen-Grenze ist überholt.
+
+**Niemals splitten, nur um eine Zahl zu treffen.** Künstliches Aufteilen einer zusammenhängenden Einheit zerreißt Logik, erzeugt Fragmentierung und verschlechtert die Lesbarkeit. Wenn ein Refactoring-Tool eine kohärente Datei allein wegen der Zeilenzahl als „Optimierungspotential" meldet, ist das ein Fehlalarm — ignorieren.
+
+**Kohärente Einheiten dürfen größer sein (Beispiele):**
 
 - **Statische Daten-Files** (z.B. `src/core/services/search/example-docs.ts`, `src/dev-fixtures/fixture-schemas.ts`): Größe ergibt sich aus den Daten, nicht aus Logik-Struktur. Keine Aufteilung nötig.
 - **Kohärente State-Machines** (z.B. `src/plugins/csv-sources-kuration/wizard/useCsvWizardState.ts`): Eine in sich geschlossene State-Machine ist oft lesbarer als in drei Module aufgeteilt. Aufteilen nur wenn klare logische Grenzen auftauchen.
 - **Orchestrator-Services** (z.B. `src/core/services/search/batch-indexer.ts`): Ein Service, der eine Pipeline von 8–10 Schritten orchestriert, darf länger sein — solange die einzelnen Schritte klar trennbar bleiben.
 
-**Keine Ausnahme für:**
 
-- UI-Komponenten: immer aufteilbar, eine Komponente pro Verantwortlichkeit.
+**Trotzdem aufteilen (echte Mehrfach-Verantwortung):**
+
+- UI-Komponenten: eine Komponente pro Verantwortlichkeit.
 - Multi-Step-Wizards als einzelne JSX-Komponente: Step-Sub-Komponenten extrahieren (`Step1Meta`, `Step2Mapping`, …).
 - Services die mehrere Domains abdecken (z.B. CRUD + Sync + FAQ in einem Service): Domain-spezifische Services trennen.
 
-Konkrete Stellen, die unter diese Regel fallen und aufzuteilen wären, werden **nicht proaktiv** refactored — sondern **opportunistisch**: wenn ein Patch die Datei ohnehin anfasst, gleich aufteilen. Die Top-10 oversized Files tragen seit v2.3 einen `// TODO(refactor v2.4+)`-Header mit Split-Vorschlag.
+
+Aufgeteilt wird **nicht proaktiv**, sondern **opportunistisch**: wenn ein Patch die Datei ohnehin anfasst und eine echte Mehrfach-Verantwortung sichtbar wird, gleich aufteilen. Die Top-10 oversized Files tragen seit v2.3 einen `// TODO(refactor v2.4+)`-Header mit Split-Vorschlag — diese sind Kandidaten für eine echte logische Trennung, nicht für ein Splitten nach Zeilenzahl.
 
 ### Plugin System
 

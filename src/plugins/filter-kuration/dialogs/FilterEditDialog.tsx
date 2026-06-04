@@ -1,4 +1,4 @@
-// TODO(refactor v2.4+): 507 Zeilen — opportunistisch splitten, wenn diese Datei naechstes Mal angefasst wird.
+// TODO(refactor v2.4+): Multi-Step-Wizard — Orchestrator + 4 Step-Komponenten (StepField/Type/Config/Meta) in einer Datei; Steps extrahieren (siehe CLAUDE.md → File Size Limit).
 // Vorschlag: Step1..Step4 als eigene Files extrahieren, Dialog bleibt als Orchestrator.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';

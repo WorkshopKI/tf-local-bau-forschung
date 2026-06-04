@@ -795,7 +795,7 @@ Bevor eine neue UI-Komponente committed wird, prüfe:
 - [ ] Dark Mode funktioniert (data-theme="dark" testen)
 - [ ] Text-Hierarchie stimmt (primary/secondary/tertiary)
 - [ ] Genug Whitespace (im Zweifel mehr)
-- [ ] Unter 300 Zeilen pro Datei (Obergrenze für LLM-Kontext)
+- [ ] Eine kohärente Verantwortung pro Datei; ab ~400–500 Zeilen auf Mehrfach-Verantwortung prüfen (siehe CLAUDE.md → File Size Limit)
 - [ ] Kein redundantes Wrapping (div um div um div)
 - [ ] Tab-Count-Badges wo sinnvoll (Anzahl direkt im Tab-Label)
 - [ ] Toggle-Buttons (Pill, Chip) haben deutlich sichtbaren aktiv/inaktiv-Kontrast (nicht `opacity-40`-Trick)

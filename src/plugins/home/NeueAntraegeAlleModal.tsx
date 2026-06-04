@@ -1,7 +1,7 @@
 /**
  * NeueAntraegeAlleModal — „Alle"-Overlay der Homepage-Sektion „Neue Anträge für
  * dich". Listet alle offenen Verbünde kompakt; aus NeueAntraegeFuerDich.tsx
- * extrahiert (300-Zeilen-Regel, CLAUDE.md).
+ * extrahiert (Datei-Größe / Kohäsion, CLAUDE.md → File Size Limit).
  */
 import { NeueAntraegeVerbundRow } from './NeueAntraegeVerbundRow';
 import type { VerbundEintrag } from './neueAntraegeVerbund';

@@ -7,7 +7,7 @@
  * Online-Bedrohungsmodell (beilaeufiges Fremd-Eintragen verhindern, KEIN
  * GPU-Offline-Schutz) mehr als ausreichend.
  *
- * Statische Daten-Datei — bewusste Ausnahme von der 300-Zeilen-Regel
+ * Statische Daten-Datei — bewusste Ausnahme vom Groessen-Richtwert
  * (CLAUDE.md "Architecture Principles / File Size Limit": Groesse ergibt sich
  * aus den Daten, nicht aus Logik-Struktur).
  *
