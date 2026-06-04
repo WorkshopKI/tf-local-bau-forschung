@@ -43,7 +43,6 @@ import {
   aggregateMaProfilesByAnon,
   collectAllDeskriptorenMitCount,
 } from '../services/profil-aggregator';
-import { PERF, perfNow, timed } from '../services/perf';
 
 interface AntraegeCache {
   antraege: Antrag[];
@@ -187,22 +186,19 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
       return;
     }
     const promise = (async () => {
-      const tStart = perfNow();
       set({ loading: true, error: null });
       try {
         // Antraege + Verbuende parallel laden (gleiche IDB, verschiedene Stores).
         // v2.26.x: Die Verbund-Embeddings werden hier NICHT mehr mitgeladen.
         // Ihr Deserialisieren (~44 MB Vektoren) war mit Abstand der laengste Pol
-        // des Cold-Loads (~7 s) und blockierte den `ready`-Banner unnoetig — sie
-        // werden nur fuer die Klassifizierungs-Stage-2 gebraucht. Die eager-
-        // gemountete KlassifizierungsReview laedt sie selbst (ensureVerbundEmbeddings
-        // im useEffect, mit „Themen-Vektoren werden geladen …"-Hinweis). Damit
-        // ist das Modul ~3,75 s frueher nutzbar; Stage 2 fuellt sich kurz danach.
-        // tA/tV: Einzel-Timings (concurrent). Perf-Messung, opt-in.
-        const tA = { v: 0 }, tV = { v: 0 };
+        // des Cold-Loads und blockierte den `ready`-Banner unnoetig — sie werden
+        // nur fuer die Klassifizierungs-Stage-2 gebraucht. Die eager-gemountete
+        // KlassifizierungsReview laedt sie selbst (ensureVerbundEmbeddings im
+        // useEffect, mit „Themen-Vektoren werden geladen …"-Hinweis). Damit ist
+        // das Modul deutlich frueher nutzbar; Stage 2 fuellt sich kurz danach.
         const [allAntraege, allVerbuende] = await Promise.all([
-          timed(() => listAntraegeByProgramm(storage.idb, programmId), tA),
-          timed(() => listVerbuendeByProgramm(storage.idb, programmId), tV),
+          listAntraegeByProgramm(storage.idb, programmId),
+          listVerbuendeByProgramm(storage.idb, programmId),
         ]);
         // Snapshot-Version mitlesen, gegen die geladen wird — damit ein
         // späterer CSV-Refresh (neue Version in der IDB) erkannt wird.
@@ -216,11 +212,8 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
         const kuerzelMapFile = kuerzelState.loaded
           ? kuerzelState.file
           : null;
-        let aggMs = 0;
         if (kuerzelMapFile) {
-          const tAgg = perfNow();
           const agg = computeAggregates(allAntraege, allVerbuende, kuerzelMapFile);
-          aggMs = perfNow() - tAgg;
           set({
             antraege: allAntraege,
             verbuende: allVerbuende,
@@ -246,18 +239,6 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
             // im Hook-useEffect nachgerechnet, sobald die kuerzel-map da ist.
             aggregatesKey: null,
             cachedSnapshotVersion: snapshotVersion,
-          });
-        }
-        if (PERF) {
-          // eslint-disable-next-line no-console
-          console.info('[auslastung-perf]', {
-            antraege: allAntraege.length,
-            verbuende: allVerbuende.length,
-            listAntraege_ms: Math.round(tA.v),
-            listVerbuende_ms: Math.round(tV.v),
-            computeAggregates_ms: Math.round(aggMs),
-            kuerzelMapLoaded: !!kuerzelMapFile,
-            refreshTotal_ms: Math.round(perfNow() - tStart),
           });
         }
       } catch (err) {
@@ -296,12 +277,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
     const kuerzelMapFile = kuerzelState.file;
     const nextKey = buildAggregatesKey(s.cachedProgrammId, s.antraege, s.verbuende, kuerzelMapFile);
     if (nextKey === s.aggregatesKey) return; // no-op
-    const tAgg = perfNow();
     const agg = computeAggregates(s.antraege, s.verbuende, kuerzelMapFile);
-    if (PERF) {
-      // eslint-disable-next-line no-console
-      console.info('[auslastung-perf] ensureAggregates_ms', Math.round(perfNow() - tAgg), { antraege: s.antraege.length });
-    }
     set({ ...agg, aggregatesKey: nextKey });
   },
 }));

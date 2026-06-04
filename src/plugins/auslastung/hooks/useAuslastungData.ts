@@ -35,7 +35,6 @@ import {
 import { nextFreeAnonId, type AnonymMap } from '../services/anonym-map';
 import { mergeProfilesIntoMitarbeiter } from '../services/profil-einsammeln';
 import { pingAuslastungWrite } from '../services/cross-tab';
-import { PERF } from '../services/perf';
 import { mergeWuenscheIntoZuweisungen } from '../services/uebernahme-einsammeln';
 import { pickVerbundZuweisung } from '../services/verbund-aggregation';
 import { deriveHauptNeben } from '../services/kompetenz-derivation';
@@ -263,7 +262,6 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     if (get().loaded && !get().error) return;
     set({ loading: true, error: null });
     try {
-      const tLoad = PERF ? performance.now() : 0;
       const data = await loadAuslastungData(storage);
       // v2.19.2: `loaded` (= Reload-Guard scharf) nur setzen, wenn der Daten-
       // Share beim Laden wirklich lesbar war. Der Plugin-onInit lädt VOR dem
@@ -273,13 +271,6 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       // auf der pl). shareReadable=false ⇒ loaded bleibt false ⇒ der Post-Grant-
       // Mount der AuslastungView lädt die echten Daten nach.
       const shareReadable = await isDatenShareReadable(storage.idb);
-      if (PERF) {
-        // eslint-disable-next-line no-console
-        console.info('[auslastung-perf] auslastung.json load_ms', Math.round(performance.now() - tLoad), {
-          mas: Object.keys(data.mitarbeiter).length,
-          shareReadable,
-        });
-      }
       set({ data, loaded: shareReadable, loading: false });
     } catch (err) {
       set({ loading: false, error: err instanceof Error ? err.message : String(err) });
