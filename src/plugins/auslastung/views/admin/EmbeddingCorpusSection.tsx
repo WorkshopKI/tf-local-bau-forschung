@@ -32,6 +32,7 @@ import {
   clearVerbundEmbeddings,
   invalidateVerbundEmbeddingsCache,
 } from '../../services/verbund-embedding';
+import { uploadVerbundCorpusToShare } from '../../services/corpus-share-sync';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -196,6 +197,11 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       if (lokalModell) {
         try {
           await uploadMirror(storage, lokalModell.id, lokalModell.dim, profile?.name);
+          // v2.19: Verbund-Embeddings separat mitspiegeln — der core-Mirror
+          // (uploadMirror) deckt nur den per-Antrag-Korpus ab. Ohne das hätte
+          // ein neuer Rechner keine Themen-Vektoren für die Klassifizierung
+          // (er kann sie nur lokal neu bauen). Eigene Sidecar-Dateien.
+          await uploadVerbundCorpusToShare(storage, lokalModell.id, lokalModell.dim, profile?.name);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           setError(`Build OK — Share-Upload fehlgeschlagen: ${msg}`);

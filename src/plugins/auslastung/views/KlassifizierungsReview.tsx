@@ -30,10 +30,8 @@ import {
   verteilCutoffDatum,
   type VerbundKlassifizierungsView,
 } from '../services/verbund-aggregation';
-import {
-  getCachedVerbundEmbeddings,
-  loadAllVerbundEmbeddings,
-} from '../services/verbund-embedding';
+import { getCachedVerbundEmbeddings } from '../services/verbund-embedding';
+import { ensureVerbundEmbeddings, type CorpusSyncResult } from '../services/corpus-share-sync';
 import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket, type Klassifizierung } from '../types';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
@@ -115,19 +113,30 @@ export function KlassifizierungsReview(): React.ReactElement {
     () => getCachedVerbundEmbeddings(storage.idb),
   );
   const [embeddingsLoading, setEmbeddingsLoading] = useState(verbundEmbeddings === null);
+  // Ergebnis des „download-if-empty"-Versuchs (Verbund-Korpus vom Share).
+  // Treibt den Hinweis-Banner, wenn lokal keine Themen-Vektoren vorhanden sind
+  // UND keine kompatiblen auf dem Datenspeicher geladen werden konnten.
+  const [corpusSync, setCorpusSync] = useState<CorpusSyncResult | null>(null);
   useEffect(() => {
     if (verbundEmbeddings !== null) return;
     let cancelled = false;
     setEmbeddingsLoading(true);
-    void loadAllVerbundEmbeddings(storage.idb)
-      .then(map => { if (!cancelled) setVerbundEmbeddings(map); })
+    // Auf einem neuen Rechner ist der Verbund-Korpus lokal leer → ensureVerbund-
+    // Embeddings lädt ihn (falls kompatibel) vom Share, bevor die Map gelesen
+    // wird. Selbstheilung ohne Accordion-Suche (v2.19).
+    void ensureVerbundEmbeddings(storage)
+      .then(({ map, result }) => {
+        if (cancelled) return;
+        setVerbundEmbeddings(map);
+        setCorpusSync(result);
+      })
       .catch(err => { console.warn('[KlassifizierungsReview] Verbund-Embedding-Load fehlgeschlagen:', err); })
       .finally(() => { if (!cancelled) setEmbeddingsLoading(false); });
     return () => { cancelled = true; };
     // verbundEmbeddings darf NICHT in der Dep-Liste stehen — sonst feuert der
     // Effekt nochmal nach erfolgreichem setState. Die Guard oben reicht.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storage.idb]);
+  }, [storage]);
 
   // Unmount/Plugin-Wechsel: einen noch ausstehenden Debounce-Write (Pill-Toggle)
   // sofort schreiben, damit kein Edit verloren geht. flushPersist ist No-op,
@@ -403,6 +412,34 @@ export function KlassifizierungsReview(): React.ReactElement {
       {hasCentroids && embeddingsLoading && (
         <div className="text-[11px] text-[var(--tf-text-tertiary)]">
           Themen-Vektoren werden geladen …
+        </div>
+      )}
+      {hasCentroids && !embeddingsLoading && (verbundEmbeddings?.size ?? 0) === 0
+        && (corpusSync === 'unavailable' || corpusSync === 'incompatible' || corpusSync === 'error') && (
+        <div
+          className="text-[11.5px] px-3 py-2 rounded"
+          style={{
+            background: 'var(--tf-warning-bg, #fef3c7)',
+            color: 'var(--tf-warning-text, #92400e)',
+            border: '0.5px solid var(--tf-warning-border, #fde68a)',
+          }}
+        >
+          {corpusSync === 'incompatible' ? (
+            <>
+              <strong>Themen-Vektoren nicht ladbar.</strong>{' '}
+              Der Korpus auf dem Datenspeicher wurde mit einem anderen Embedding-Modell
+              gebaut. Bitte einmalig neu aufbauen: Tab „Auslastung MA" → „Erweitert" →
+              „Corpus aufbauen".
+            </>
+          ) : (
+            <>
+              <strong>Keine Themen-Vektoren auf diesem Rechner.</strong>{' '}
+              Die automatische Klassifizierung braucht den Themen-Vektor-Korpus. Auf dem
+              Datenspeicher liegt noch keiner — einmalig aufbauen: Tab „Auslastung MA" →
+              „Erweitert" → „Corpus aufbauen" (lädt das Modell, dauert einige Minuten).
+              Danach steht der Korpus auch anderen Rechnern automatisch zur Verfügung.
+            </>
+          )}
         </div>
       )}
 

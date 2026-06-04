@@ -35,7 +35,7 @@ export function useKuerzelExport(): UseAsyncActionResult<[]> {
   const data = useAuslastungData(s => s.data);
   const cache = useAntraegeCache();
   const { auslastungByAnon } = useAuslastungIndex();
-  const loadCorpus = useMatchingCorpus(cache.antraege, storage.idb);
+  const loadCorpus = useMatchingCorpus(cache.antraege, storage);
 
   return useAsyncAction(async () => {
     const config = data.config;

@@ -17,9 +17,10 @@
  */
 import { useCallback, useRef } from 'react';
 import type { Antrag } from '@/core/services/csv/types';
-import type { IDBStore } from '@/core/services/storage/idb-store';
+import type { StorageService } from '@/core/services/storage';
 import { loadAllEmbeddings } from '@/core/services/embedding-corpus';
 import { buildAntraegeIndexForMatching } from '../services/embedding-matcher';
+import { ensureAntragCorpus } from '../services/corpus-share-sync';
 
 export interface MatchingCorpus {
   corpusEmbeddings: Map<string, number[]>;
@@ -32,7 +33,7 @@ export interface MatchingCorpus {
  */
 export function useMatchingCorpus(
   antraege: Antrag[],
-  idb: IDBStore,
+  storage: StorageService,
 ): () => Promise<MatchingCorpus> {
   const cacheRef = useRef<{ key: Antrag[]; value: MatchingCorpus } | null>(null);
   const inflightRef = useRef<{ key: Antrag[]; promise: Promise<MatchingCorpus> } | null>(null);
@@ -46,7 +47,12 @@ export function useMatchingCorpus(
       return inflightRef.current.promise;
     }
     const promise = (async (): Promise<MatchingCorpus> => {
-      const corpusEmbeddings = await loadAllEmbeddings(idb);
+      // Selbstheilung (v2.19): auf einem neuen Rechner ist der per-Antrag-Korpus
+      // lokal leer → vom Share laden (falls kompatibel + Antrags-Stand passt),
+      // bevor er aus der IDB gelesen wird. Sonst lieferte das Matching ohne
+      // Embedding-Anteil — Kompetenz wirkte „nicht verknüpft".
+      await ensureAntragCorpus(storage, antraege);
+      const corpusEmbeddings = await loadAllEmbeddings(storage.idb);
       const antraegeIndex = buildAntraegeIndexForMatching(antraege);
       const value: MatchingCorpus = { corpusEmbeddings, antraegeIndex };
       cacheRef.current = { key: antraege, value };
@@ -59,5 +65,5 @@ export function useMatchingCorpus(
       // Nur den eigenen Inflight-Eintrag aufraeumen (ein neuerer darf bleiben).
       if (inflightRef.current?.promise === promise) inflightRef.current = null;
     }
-  }, [antraege, idb]);
+  }, [antraege, storage]);
 }

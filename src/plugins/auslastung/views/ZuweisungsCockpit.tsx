@@ -191,7 +191,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   // Perf: Embedding-Korpus + Antraege-Index einmal pro Daten-Stand cachen
   // (statt pro Klick neu laden/bauen). Plus pro-Antrag-Query-Embedding-Cache und
   // ein Request-Token gegen Out-of-Order-Ergebnisse bei schnellem Durchklicken.
-  const loadCorpus = useMatchingCorpus(cache.antraege, storage.idb);
+  const loadCorpus = useMatchingCorpus(cache.antraege, storage);
   const queryEmbeddingCacheRef = useRef<Map<string, number[]>>(new Map());
   const matchReqIdRef = useRef(0);
 
