@@ -64,6 +64,9 @@ export async function storeVerbundEmbedding(
 // App-Session stabil ist (kommt aus dem Storage-Singleton).
 
 let cachedEmbeddings: { idb: IDBStore; map: Map<string, number[]> } | null = null;
+/** In-Flight-Load (Dedupe): mehrere Consumer beim Modul-Open sollen sich EINEN
+ *  ~44-MB-Scan teilen, statt ihn parallel doppelt zu fahren. */
+let inflightLoad: { idb: IDBStore; promise: Promise<Map<string, number[]>> } | null = null;
 
 /** Vollstaendige Map aller persistierten Verbund-Embeddings. Cached auf
  *  `idb`-Identity — Folge-Calls innerhalb derselben App-Session liefern den
@@ -73,17 +76,28 @@ export async function loadAllVerbundEmbeddings(idb: IDBStore): Promise<Map<strin
   if (cachedEmbeddings && cachedEmbeddings.idb === idb) {
     return cachedEmbeddings.map;
   }
-  // Bulk-Read in EINER Transaktion (Cursor) statt `keys()` + N einzelne
-  // `get()`-Roundtrips: bei 7000+ Verbünden war der alte Pfad der mit Abstand
-  // teuerste Teil des Cold-Loads (gemessen ~15 s). `entries()` ist genau dafür
-  // gebaut. Identisches Ergebnis (Map<verbundId, vector>).
-  const entries = await idb.entries(VERBUND_EMB_PREFIX);
-  const result = new Map<string, number[]>();
-  for (const [k, v] of entries) {
-    if (Array.isArray(v)) result.set(k.slice(VERBUND_EMB_PREFIX.length), v as number[]);
+  if (inflightLoad && inflightLoad.idb === idb) {
+    return inflightLoad.promise;
   }
-  cachedEmbeddings = { idb, map: result };
-  return result;
+  // Bulk-Read in EINER Transaktion (Cursor) statt `keys()` + N einzelne
+  // `get()`-Roundtrips: bei 7000+ Verbünden war der alte N+1-Pfad ein großer
+  // Teil des Cold-Loads. `entries()` ist genau dafür gebaut. Identisches
+  // Ergebnis (Map<verbundId, vector>).
+  const promise = (async () => {
+    const entries = await idb.entries(VERBUND_EMB_PREFIX);
+    const result = new Map<string, number[]>();
+    for (const [k, v] of entries) {
+      if (Array.isArray(v)) result.set(k.slice(VERBUND_EMB_PREFIX.length), v as number[]);
+    }
+    cachedEmbeddings = { idb, map: result };
+    return result;
+  })();
+  inflightLoad = { idb, promise };
+  try {
+    return await promise;
+  } finally {
+    if (inflightLoad && inflightLoad.idb === idb) inflightLoad = null;
+  }
 }
 
 /** Cache invalidieren — Caller: `EmbeddingCorpusSection.buildCorpus` nach
@@ -91,6 +105,7 @@ export async function loadAllVerbundEmbeddings(idb: IDBStore): Promise<Map<strin
  *  Load die stale Daten zurueckgeben. */
 export function invalidateVerbundEmbeddingsCache(): void {
   cachedEmbeddings = null;
+  inflightLoad = null;
 }
 
 /** Synchroner Cache-Read fuer den useState-Initializer in

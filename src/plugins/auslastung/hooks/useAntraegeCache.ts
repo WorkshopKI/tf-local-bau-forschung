@@ -43,7 +43,6 @@ import {
   aggregateMaProfilesByAnon,
   collectAllDeskriptorenMitCount,
 } from '../services/profil-aggregator';
-import { loadAllVerbundEmbeddings } from '../services/verbund-embedding';
 import { PERF, perfNow, timed } from '../services/perf';
 
 interface AntraegeCache {
@@ -192,17 +191,18 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
       set({ loading: true, error: null });
       try {
         // Antraege + Verbuende parallel laden (gleiche IDB, verschiedene Stores).
-        // Plus Verbund-Embeddings als Cache-Warm: das Resultat landet im
-        // modul-globalen Closure-Cache von verbund-embedding.ts und ist
-        // beim ersten Mount der KlassifizierungsReview synchron lesbar
-        // (Hebel B). Fehler werden geschluckt — der KlassifizierungsReview-
-        // useEffect macht im Worst Case einen zweiten Versuch.
-        // tA/tV/tE: Einzel-Timings (concurrent → zeigen den langen Pol). Perf-Messung, opt-in.
-        const tA = { v: 0 }, tV = { v: 0 }, tE = { v: 0 };
+        // v2.26.x: Die Verbund-Embeddings werden hier NICHT mehr mitgeladen.
+        // Ihr Deserialisieren (~44 MB Vektoren) war mit Abstand der laengste Pol
+        // des Cold-Loads (~7 s) und blockierte den `ready`-Banner unnoetig — sie
+        // werden nur fuer die Klassifizierungs-Stage-2 gebraucht. Die eager-
+        // gemountete KlassifizierungsReview laedt sie selbst (ensureVerbundEmbeddings
+        // im useEffect, mit „Themen-Vektoren werden geladen …"-Hinweis). Damit
+        // ist das Modul ~3,75 s frueher nutzbar; Stage 2 fuellt sich kurz danach.
+        // tA/tV: Einzel-Timings (concurrent). Perf-Messung, opt-in.
+        const tA = { v: 0 }, tV = { v: 0 };
         const [allAntraege, allVerbuende] = await Promise.all([
           timed(() => listAntraegeByProgramm(storage.idb, programmId), tA),
           timed(() => listVerbuendeByProgramm(storage.idb, programmId), tV),
-          timed(() => loadAllVerbundEmbeddings(storage.idb).catch(() => null), tE),
         ]);
         // Snapshot-Version mitlesen, gegen die geladen wird — damit ein
         // späterer CSV-Refresh (neue Version in der IDB) erkannt wird.
@@ -255,7 +255,6 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
             verbuende: allVerbuende.length,
             listAntraege_ms: Math.round(tA.v),
             listVerbuende_ms: Math.round(tV.v),
-            loadEmbeddings_ms: Math.round(tE.v),
             computeAggregates_ms: Math.round(aggMs),
             kuerzelMapLoaded: !!kuerzelMapFile,
             refreshTotal_ms: Math.round(perfNow() - tStart),
