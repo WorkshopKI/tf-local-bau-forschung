@@ -20,11 +20,13 @@ import { AnalysePipelineView } from './AnalysePipelineView';
 import { ValidationBanner } from './ValidationBanner';
 import {
   matchesPillFilter, compareValues, countResultsByType, SUCHE_COLLATOR,
-  getSucheAntragstypItems, matchesSucheAntragstyp,
+  getSucheAntragstypItems, matchesSucheAntragstyp, filterRecentSearches,
   type SuchePillFilterId,
 } from './suchseite-utils';
 import { CollapsibleSeg } from '@/plugins/antraege/filter/CollapsibleSeg';
 import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
+import { SearchSuggestions } from './SearchSuggestions';
+import { useClickOutside } from '@/core/hooks/useClickOutside';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import {
   getProgrammCaches,
@@ -67,6 +69,10 @@ function loadColumnWidths(): Record<string, number> {
 export function SuchSeite(): React.ReactElement {
   const navigate = useNavigate();
   const visibleColumns = useSucheStore(s => s.visibleColumns);
+  const recentSearches = useSucheStore(s => s.recentSearches);
+  const addRecentSearch = useSucheStore(s => s.addRecentSearch);
+  const removeRecentSearch = useSucheStore(s => s.removeRecentSearch);
+  const clearRecentSearches = useSucheStore(s => s.clearRecentSearches);
   const analyse = useAnalysePipeline();
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
@@ -78,6 +84,11 @@ export function SuchSeite(): React.ReactElement {
   const deferredQuery = useDeferredValue(query);
   const [typeFilter, setTypeFilter] = useState<FilterId>('');
   const [antragstypFilter, setAntragstypFilter] = useState<KategorieLabel>('Alle');
+  // Recent-Search-Vorschläge (Dropdown unter dem Input).
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const searchBoxRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [sortKey, setSortKey] = useState<string | null>(DEFAULT_SORT_KEY);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
@@ -132,6 +143,64 @@ export function SuchSeite(): React.ReactElement {
   const handleQueryChange = (next: string): void => {
     setQuery(next);
     if (analyseActive) analyse.reset();
+  };
+
+  // ── Recent-Search-Vorschläge ──────────────────────────────────────────────
+  const suggestions = useMemo(
+    () => filterRecentSearches(recentSearches, query),
+    [recentSearches, query],
+  );
+  useClickOutside(searchBoxRef, () => { setSuggestOpen(false); setActiveIndex(-1); }, suggestOpen);
+
+  const handleSearchInput = (next: string): void => {
+    handleQueryChange(next);
+    setSuggestOpen(true);
+    setActiveIndex(-1);
+  };
+
+  const selectSuggestion = (s: string): void => {
+    handleQueryChange(s);
+    setSuggestOpen(false);
+    setActiveIndex(-1);
+    inputRef.current?.focus();
+  };
+
+  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === 'ArrowDown') {
+      if (suggestions.length === 0) return;
+      e.preventDefault();
+      if (!suggestOpen) { setSuggestOpen(true); return; }
+      setActiveIndex(i => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      if (!suggestOpen || suggestions.length === 0) return;
+      e.preventDefault();
+      setActiveIndex(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      const picked = suggestOpen && activeIndex >= 0 ? suggestions[activeIndex] : undefined;
+      if (picked !== undefined) {
+        e.preventDefault();
+        selectSuggestion(picked);
+      } else {
+        const q = query.trim();
+        if (q) addRecentSearch(q);
+        setSuggestOpen(false);
+        setActiveIndex(-1);
+      }
+    } else if (e.key === 'Escape') {
+      if (suggestOpen) { e.preventDefault(); setSuggestOpen(false); setActiveIndex(-1); }
+    }
+  };
+
+  const onSearchBlur = (e: React.FocusEvent<HTMLInputElement>): void => {
+    // Klick auf einen Vorschlag / ✕ / „Verlauf leeren" (innerhalb des Wrappers)
+    // soll die Teil-Query NICHT committen und das Dropdown offen lassen.
+    if (searchBoxRef.current && e.relatedTarget instanceof Node && searchBoxRef.current.contains(e.relatedTarget)) {
+      return;
+    }
+    const q = query.trim();
+    if (q) addRecentSearch(q);
+    setSuggestOpen(false);
+    setActiveIndex(-1);
   };
 
   const filterChips = useMemo(() => {
@@ -252,8 +321,10 @@ export function SuchSeite(): React.ReactElement {
   }
 
   const startAnalyse = (): void => {
-    if (!query.trim() || analyse.running) return;
-    analyse.start(query.trim());
+    const q = query.trim();
+    if (!q || analyse.running) return;
+    addRecentSearch(q);
+    analyse.start(q);
   };
 
   // Button ist optimistisch enabled (sobald Query nicht leer ist). Die echte
@@ -275,15 +346,23 @@ export function SuchSeite(): React.ReactElement {
       <div className="flex flex-col items-start mb-4">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">Suche</h1>
         <div className="flex items-center gap-2 w-full max-w-4xl">
-          <div className="relative flex-1">
+          <div className="relative flex-1" ref={searchBoxRef}>
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)]" />
             <input
+              ref={inputRef}
               data-tour="search-input"
               value={query}
-              onChange={e => handleQueryChange(e.target.value)}
+              onChange={e => handleSearchInput(e.target.value)}
+              onFocus={() => setSuggestOpen(true)}
+              onKeyDown={onSearchKeyDown}
+              onBlur={onSearchBlur}
               disabled={analyse.running}
               placeholder="Suche oder analytische Frage…"
               autoFocus
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={suggestOpen && suggestions.length > 0}
+              aria-autocomplete="list"
               className="w-full h-10 pl-10 pr-10 text-[14px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] disabled:opacity-60"
               style={{ border: '0.5px solid var(--tf-border)' }}
             />
@@ -292,6 +371,16 @@ export function SuchSeite(): React.ReactElement {
                 size={16}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] animate-spin"
                 aria-label="Suche laeuft"
+              />
+            )}
+            {suggestOpen && suggestions.length > 0 && (
+              <SearchSuggestions
+                items={suggestions}
+                activeIndex={activeIndex}
+                onSelect={selectSuggestion}
+                onRemove={q => { removeRecentSearch(q); inputRef.current?.focus(); }}
+                onClear={() => { clearRecentSearches(); setSuggestOpen(false); setActiveIndex(-1); }}
+                onHover={setActiveIndex}
               />
             )}
           </div>

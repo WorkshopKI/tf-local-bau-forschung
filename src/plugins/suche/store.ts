@@ -11,8 +11,10 @@ import {
   DEFAULT_VISIBLE_COLUMN_KEYS,
   LOCKED_COLUMN_KEYS,
 } from './columns';
+import { pushRecentSearch, MAX_RECENT_SEARCHES } from './suchseite-utils';
 
 const VISIBLE_COLUMNS_KEY = 'teamflow_suche_visible_columns';
+const RECENT_SEARCHES_KEY = 'teamflow_suche_recent_queries';
 
 const VALID_KEYS: ReadonlySet<string> = new Set(SEARCH_COLUMNS.map(c => c.key));
 
@@ -38,10 +40,33 @@ function saveVisibleColumns(keys: string[]): void {
   try { localStorage.setItem(VISIBLE_COLUMNS_KEY, JSON.stringify(keys)); } catch { /* ignore */ }
 }
 
+function loadRecentSearches(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
+      .slice(0, MAX_RECENT_SEARCHES);
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentSearches(list: string[]): void {
+  try { localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+}
+
 interface SucheState {
   visibleColumns: string[];
   setVisibleColumns: (keys: string[]) => void;
   toggleColumn: (key: string) => void;
+  /** Zuletzt verwendete Such-/Analyse-Anfragen (most-recent-first). */
+  recentSearches: string[];
+  addRecentSearch: (q: string) => void;
+  removeRecentSearch: (q: string) => void;
+  clearRecentSearches: () => void;
 }
 
 export const useSucheStore = create<SucheState>((set, get) => ({
@@ -65,5 +90,26 @@ export const useSucheStore = create<SucheState>((set, get) => ({
       : [...current, key];
     saveVisibleColumns(next);
     set({ visibleColumns: next });
+  },
+
+  recentSearches: loadRecentSearches(),
+
+  addRecentSearch: (q: string) => {
+    const current = get().recentSearches;
+    const next = pushRecentSearch(current, q, MAX_RECENT_SEARCHES);
+    if (next === current) return; // No-op (z.B. len<2)
+    saveRecentSearches(next);
+    set({ recentSearches: next });
+  },
+
+  removeRecentSearch: (q: string) => {
+    const next = get().recentSearches.filter(e => e !== q);
+    saveRecentSearches(next);
+    set({ recentSearches: next });
+  },
+
+  clearRecentSearches: () => {
+    saveRecentSearches([]);
+    set({ recentSearches: [] });
   },
 }));
