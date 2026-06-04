@@ -44,6 +44,7 @@ import {
   collectAllDeskriptorenMitCount,
 } from '../services/profil-aggregator';
 import { loadAllVerbundEmbeddings } from '../services/verbund-embedding';
+import { PERF, perfNow, timed } from '../services/perf';
 
 interface AntraegeCache {
   antraege: Antrag[];
@@ -187,6 +188,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
       return;
     }
     const promise = (async () => {
+      const tStart = perfNow();
       set({ loading: true, error: null });
       try {
         // Antraege + Verbuende parallel laden (gleiche IDB, verschiedene Stores).
@@ -195,10 +197,12 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
         // beim ersten Mount der KlassifizierungsReview synchron lesbar
         // (Hebel B). Fehler werden geschluckt — der KlassifizierungsReview-
         // useEffect macht im Worst Case einen zweiten Versuch.
+        // tA/tV/tE: Einzel-Timings (concurrent → zeigen den langen Pol). Perf-Messung, opt-in.
+        const tA = { v: 0 }, tV = { v: 0 }, tE = { v: 0 };
         const [allAntraege, allVerbuende] = await Promise.all([
-          listAntraegeByProgramm(storage.idb, programmId),
-          listVerbuendeByProgramm(storage.idb, programmId),
-          loadAllVerbundEmbeddings(storage.idb).catch(() => null),
+          timed(() => listAntraegeByProgramm(storage.idb, programmId), tA),
+          timed(() => listVerbuendeByProgramm(storage.idb, programmId), tV),
+          timed(() => loadAllVerbundEmbeddings(storage.idb).catch(() => null), tE),
         ]);
         // Snapshot-Version mitlesen, gegen die geladen wird — damit ein
         // späterer CSV-Refresh (neue Version in der IDB) erkannt wird.
@@ -212,8 +216,11 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
         const kuerzelMapFile = kuerzelState.loaded
           ? kuerzelState.file
           : null;
+        let aggMs = 0;
         if (kuerzelMapFile) {
+          const tAgg = perfNow();
           const agg = computeAggregates(allAntraege, allVerbuende, kuerzelMapFile);
+          aggMs = perfNow() - tAgg;
           set({
             antraege: allAntraege,
             verbuende: allVerbuende,
@@ -239,6 +246,19 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
             // im Hook-useEffect nachgerechnet, sobald die kuerzel-map da ist.
             aggregatesKey: null,
             cachedSnapshotVersion: snapshotVersion,
+          });
+        }
+        if (PERF) {
+          // eslint-disable-next-line no-console
+          console.info('[auslastung-perf]', {
+            antraege: allAntraege.length,
+            verbuende: allVerbuende.length,
+            listAntraege_ms: Math.round(tA.v),
+            listVerbuende_ms: Math.round(tV.v),
+            loadEmbeddings_ms: Math.round(tE.v),
+            computeAggregates_ms: Math.round(aggMs),
+            kuerzelMapLoaded: !!kuerzelMapFile,
+            refreshTotal_ms: Math.round(perfNow() - tStart),
           });
         }
       } catch (err) {
@@ -277,7 +297,12 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
     const kuerzelMapFile = kuerzelState.file;
     const nextKey = buildAggregatesKey(s.cachedProgrammId, s.antraege, s.verbuende, kuerzelMapFile);
     if (nextKey === s.aggregatesKey) return; // no-op
+    const tAgg = perfNow();
     const agg = computeAggregates(s.antraege, s.verbuende, kuerzelMapFile);
+    if (PERF) {
+      // eslint-disable-next-line no-console
+      console.info('[auslastung-perf] ensureAggregates_ms', Math.round(perfNow() - tAgg), { antraege: s.antraege.length });
+    }
     set({ ...agg, aggregatesKey: nextKey });
   },
 }));
