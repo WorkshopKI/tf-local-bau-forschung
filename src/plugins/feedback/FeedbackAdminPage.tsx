@@ -12,10 +12,13 @@ import { FeedbackFaqTab } from './sections/FeedbackFaqTab';
 import { FeedbackConfigPanel } from './sections/FeedbackConfigPanel';
 import { FeedbackSponsoringOverview } from './sections/FeedbackSponsoringOverview';
 import { FeedbackInboxTab } from './sections/FeedbackInboxTab';
+import { useAutoCollectFeedback } from './hooks/useAutoCollectFeedback';
 import type { CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 
 export function FeedbackAdminPage(): React.ReactElement {
   const storage = useStorage();
+  // v2.22: User-Feedback-Outboxen beim Öffnen automatisch einsammeln (ohne Review).
+  useAutoCollectFeedback();
   const [tab, setTab] = useState('tickets');
   const [tickets, setTickets] = useState<FeedbackItem[]>([]);
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);

@@ -25,8 +25,9 @@ Nach Absenden im FeedbackPanel startet `autoClassifyFeedback(transport, text, co
 
 ## Kurator-Plugin (`src/plugins/feedback/`, `id: 'feedback-kuration'`, `kuratorOnly: true`)
 
-- `FeedbackAdminPage.tsx` — 4 Tabs (Tickets / FAQ / Sponsoring / Einstellungen) via `@/ui/Tabs`.
-- `sections/FeedbackTicketList.tsx` — Filter (Kategorie/Status), Karten-Liste links.
+- `FeedbackAdminPage.tsx` — 5 Tabs (Tickets / Inbox / FAQ / Sponsoring / Einstellungen) via `@/ui/Tabs`.
+- `sections/FeedbackTicketList.tsx` — Filter (Status/Kategorie/Bereich) als `CollapsibleSeg`-Dropdowns mit Live-Zählern (identisch zum öffentlichen Board, v2.21.4), Karten-Liste links.
+- `sections/FeedbackInboxTab.tsx` — sammelt die persönlichen Feedback-Outboxen der read-only-Enduser ein (User-Folders-Root → `<user>/ZAH/feedback/outbox/*.json`). **v2.22: Auto-Collect** — `useAutoCollectFeedback` ([hooks/useAutoCollectFeedback.ts](../../src/plugins/feedback/hooks/useAutoCollectFeedback.ts)) importiert beim Öffnen des Moduls alle offenen Outbox-Einträge **ohne Review** direkt in die zentrale `feedback.json` (Status „neu"; Service `autoCollectFeedbackOutboxes`, Outbox-id als FeedbackItem-id → idempotent). Der Inbox-Tab dient weiterhin dem einmaligen User-Wurzel-Connect (FSAPI-Geste) + manuellem Nachladen/Override.
 - `sections/FeedbackTicketDetail.tsx` — Status-Dropdown, Priority-Slider, **Aufwand-Dropdown (S/M/L/XL, nur für Ideen)**, **Sponsoring-Fortschritt-Block mit "Schwelle erreicht"-Hinweis**, Notizen, FAQ-Markierung + Antwort + Stichwörter, "Claude Code Prompt generieren" mit Copy + Download .md.
 - `sections/FeedbackFaqTab.tsx` — Übersicht aller `is_faq===true` Items + manuell anlegen + bearbeiten + Markierung entfernen + löschen.
 - `sections/FeedbackSponsoringOverview.tsx` — Phase 3: Features-Ranking nach Progress, konfigurierbare Schwellen (S/M/L/XL + Hours-Faktor + Budget/Quartal), Budget-Statistik.
