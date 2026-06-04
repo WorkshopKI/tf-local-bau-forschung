@@ -192,12 +192,12 @@ describe('buildWorkbook', () => {
     expect(sheet['C1']?.v).toBe('VB-Titel');
     expect(sheet['D1']?.v).toBe('TVs');
     expect(sheet['E1']?.v).toBe('Empfohlener MA');
-    expect(sheet['F1']?.v).toBe('Kompetenz-Score');
+    expect(sheet['F1']?.v).toBe('Passungs-Score');
     expect(sheet['G1']?.v).toBe('Restkapazität (TVs)');
     expect(sheet['H1']?.v).toBe('Confidence');
     expect(sheet['I1']?.v).toBe('Status');
-    expect(sheet['J1']?.v).toBe('Option 1 (Kürzel · Kompetenz · TVs frei)');
-    expect(sheet['N1']?.v).toBe('Option 5 (Kürzel · Kompetenz · TVs frei)');
+    expect(sheet['J1']?.v).toBe('Option 1 (Kürzel · Passung · TVs frei)');
+    expect(sheet['N1']?.v).toBe('Option 5 (Kürzel · Passung · TVs frei)');
     // O1 existiert nicht → genau 14 Spalten.
     expect(sheet['O1']).toBeUndefined();
   });

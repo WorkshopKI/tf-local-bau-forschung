@@ -96,7 +96,7 @@ export function AuslastungView(): React.ReactElement {
       {
         id: 'zuweisung' as const,
         label: 'Anträge zuweisen',
-        tooltip: 'Freigegebene Anträge an passende Mitarbeitende zuweisen — Top-3-Match-Vorschläge aus Kompetenz und freier Kapazität, inkl. Übernahme-Wünschen der MAs.',
+        tooltip: 'Freigegebene Anträge an passende Mitarbeitende zuweisen — Top-3-Match-Vorschläge aus fachlicher Passung und freier Kapazität, inkl. Übernahme-Wünschen der MAs.',
       },
       {
         id: 'uebersicht' as const,

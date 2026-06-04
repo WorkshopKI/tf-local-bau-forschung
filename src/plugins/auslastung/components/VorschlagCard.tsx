@@ -1,6 +1,6 @@
 /**
  * Top-3 MA-Vorschlags-Card im Zuweisungs-Cockpit.
- * Zeigt: anonId gross, Kompetenz-Score, Kapazitaet in Antraegen (NICHT
+ * Zeigt: anonId gross, Passungs-Score, Kapazitaet in Antraegen (NICHT
  * Stunden — User-facing seit 1.17), Aspekt-Match-Hinweise, matchende
  * Technologien, aehnliche Projekte, Zuweisen/Ablehnen-Buttons.
  */
@@ -99,7 +99,12 @@ export function VorschlagCard({
               <>
                 <div className="flex items-center gap-2">
                   <span className="text-[16px] font-medium text-[var(--tf-text)]">{score}%</span>
-                  <span className="text-[12px] text-[var(--tf-text-secondary)]">Kompetenz</span>
+                  <span
+                    className="text-[12px] text-[var(--tf-text-secondary)] cursor-help"
+                    title="Fachliche Passung des/der MA zu diesem Antrag — abgeleitet aus ähnlichen früheren Anträgen, Stichwörtern und der Kompetenzmatrix. Kein Maß der persönlichen Kompetenz."
+                  >
+                    Passung
+                  </span>
                   <ConfidenceDot confidence={match.confidence} />
                 </div>
                 {(match.aspektBonus ?? 0) > 0 && (

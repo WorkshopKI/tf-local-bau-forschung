@@ -6,7 +6,7 @@
  * anonId→Kuerzel lebt ausschliesslich im RAM und wird NIE persistiert.
  *
  * Datenmodell der Export-Zeile (v2.18):
- *   Aktenzeichen | Akronym | VB-Titel | TVs | Empfohlener MA | Kompetenz-Score |
+ *   Aktenzeichen | Akronym | VB-Titel | TVs | Empfohlener MA | Passungs-Score |
  *   Restkapazität (TVs) | Confidence | Status | Alternative 1 … Alternative 5
  *
  * Die „Alternative N"-Spalten listen pro Verbund die naechstbesten ANDEREN
@@ -214,8 +214,8 @@ export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook
   const wb = XLSX.utils.book_new();
   const header = [
     'Aktenzeichen', 'Akronym', 'VB-Titel', 'TVs', 'Empfohlener MA',
-    'Kompetenz-Score', 'Restkapazität (TVs)', 'Confidence', 'Status',
-    ...Array.from({ length: ALT_COUNT }, (_, i) => `Option ${i + 1} (Kürzel · Kompetenz · TVs frei)`),
+    'Passungs-Score', 'Restkapazität (TVs)', 'Confidence', 'Status',
+    ...Array.from({ length: ALT_COUNT }, (_, i) => `Option ${i + 1} (Kürzel · Passung · TVs frei)`),
   ];
   const sheetData = [
     header,
