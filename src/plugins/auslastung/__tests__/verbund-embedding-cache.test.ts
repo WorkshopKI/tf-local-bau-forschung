@@ -2,9 +2,13 @@
  * Tests fuer den Closure-Cache in `loadAllVerbundEmbeddings`.
  *
  * Wichtig: dieser Cache spart einen vollen IDB-Scan beim Re-Mount von
- * `KlassifizierungsReview` (Plugin-Wechsel-Szenario, ~300–500 ms pro Mount).
- * Bei Corpus-Rebuild muss der Cache via `invalidateVerbundEmbeddingsCache()`
- * geleert werden, sonst liefert der naechste Load stale Vektoren.
+ * `KlassifizierungsReview` (Plugin-Wechsel-Szenario). Bei Corpus-Rebuild muss
+ * der Cache via `invalidateVerbundEmbeddingsCache()` geleert werden, sonst
+ * liefert der naechste Load stale Vektoren.
+ *
+ * v2.26.x: Der Read laeuft ueber `idb.entries(prefix)` (EIN Cursor-Scan) statt
+ * `keys()` + N `get()` — bei 7000+ Verbuenden war der alte Pfad der teuerste
+ * Teil des Cold-Loads (~15 s). Tests asserten daher auf `entriesCalls`.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
@@ -14,23 +18,19 @@ import {
 } from '../services/verbund-embedding';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 
-function makeMockIdb(entries: Record<string, number[]>): IDBStore & { keysCalls: number; getCalls: number } {
-  let keysCalls = 0;
-  let getCalls = 0;
+function makeMockIdb(data: Record<string, number[]>): IDBStore & { entriesCalls: number } {
+  let entriesCalls = 0;
   return {
-    get keysCalls() { return keysCalls; },
-    get getCalls() { return getCalls; },
-    keys: vi.fn(async (prefix: string) => {
-      keysCalls++;
-      return Object.keys(entries).filter(k => k.startsWith(prefix));
+    get entriesCalls() { return entriesCalls; },
+    entries: vi.fn(async (prefix?: string) => {
+      entriesCalls++;
+      return Object.entries(data).filter(([k]) => !prefix || k.startsWith(prefix));
     }),
-    get: vi.fn(async (key: string) => {
-      getCalls++;
-      return entries[key];
-    }),
+    keys: vi.fn(async (prefix?: string) => Object.keys(data).filter(k => !prefix || k.startsWith(prefix))),
+    get: vi.fn(async (key: string) => data[key]),
     set: vi.fn(),
     delete: vi.fn(),
-  } as unknown as IDBStore & { keysCalls: number; getCalls: number };
+  } as unknown as IDBStore & { entriesCalls: number };
 }
 
 describe('loadAllVerbundEmbeddings — Closure-Cache', () => {
@@ -46,16 +46,13 @@ describe('loadAllVerbundEmbeddings — Closure-Cache', () => {
 
     const first = await loadAllVerbundEmbeddings(idb);
     expect(first.size).toBe(2);
-    const initialKeysCalls = (idb as unknown as { keysCalls: number }).keysCalls;
-    const initialGetCalls = (idb as unknown as { getCalls: number }).getCalls;
-    expect(initialKeysCalls).toBe(1);
-    expect(initialGetCalls).toBe(2);
+    expect(first.get('V1')).toEqual([0.1, 0.2, 0.3]);
+    expect((idb as unknown as { entriesCalls: number }).entriesCalls).toBe(1);
 
     const second = await loadAllVerbundEmbeddings(idb);
     expect(second).toBe(first);  // exakte Map-Identitaet
     // KEIN weiterer IDB-Zugriff
-    expect((idb as unknown as { keysCalls: number }).keysCalls).toBe(initialKeysCalls);
-    expect((idb as unknown as { getCalls: number }).getCalls).toBe(initialGetCalls);
+    expect((idb as unknown as { entriesCalls: number }).entriesCalls).toBe(1);
   });
 
   it('anderer idb → Cache-Miss, neuer Read', async () => {
@@ -72,10 +69,10 @@ describe('loadAllVerbundEmbeddings — Closure-Cache', () => {
       'auslastung-emb-verbund:V1': [1, 2, 3],
     });
     await loadAllVerbundEmbeddings(idb);
-    const callsBefore = (idb as unknown as { keysCalls: number }).keysCalls;
+    const callsBefore = (idb as unknown as { entriesCalls: number }).entriesCalls;
     invalidateVerbundEmbeddingsCache();
     await loadAllVerbundEmbeddings(idb);
-    expect((idb as unknown as { keysCalls: number }).keysCalls).toBe(callsBefore + 1);
+    expect((idb as unknown as { entriesCalls: number }).entriesCalls).toBe(callsBefore + 1);
   });
 
   it('leere Map wird genauso gecacht', async () => {
@@ -97,7 +94,7 @@ describe('getCachedVerbundEmbeddings — synchroner Cache-Read (Hebel B)', () =>
     const result = getCachedVerbundEmbeddings(idb);
     expect(result).toBe(null);
     // KEIN IDB-Zugriff
-    expect((idb as unknown as { keysCalls: number }).keysCalls).toBe(0);
+    expect((idb as unknown as { entriesCalls: number }).entriesCalls).toBe(0);
   });
 
   it('Nach loadAllVerbundEmbeddings → identische Map-Ref synchron', async () => {
