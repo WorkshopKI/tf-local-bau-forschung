@@ -63,6 +63,11 @@ export const CANONICAL_FIELD_NAME_ALIASES: Record<string, CanonicalField> = {
   vb_nummer: 'verbund_id',
   lfz_tv_b: 'laufzeitbeginn',
   lfz_tv_e: 'laufzeitende',
+  // Finanz: ZUW_MU_FST ("aktuelle Zuwendung", aktueller Förderbetrag) ist die
+  // Quelle für das Standardfeld `foerdersumme` (= Such-Spalte „Zuwendung").
+  // Andere Finanzspalten (FST_AZX_GK „Zuwendung Bewilligung", GKO_AZX_GK
+  // „Gesamtkosten", ZA_GS_GEZ „Auszahlungen") bleiben bewusst Custom-Felder.
+  zuw_mu_fst: 'foerdersumme',
   // `ort_ast` (CSV-Header ORT_AST) ist Direct-Match auf Canonical-Key — kein Alias nötig.
 };
 
