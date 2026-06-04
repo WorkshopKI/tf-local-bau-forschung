@@ -52,7 +52,12 @@ export function FeedbackSponsoringOverview({ tickets, config, onConfigChanged }:
       <section>
         <h2 className="text-[13px] font-medium text-[var(--tf-text)] mb-2">Features nach Sponsoring-Fortschritt</h2>
         {featuresRanked.length === 0 ? (
-          <p className="text-[12px] text-[var(--tf-text-tertiary)]">Noch keine Features mit Aufwand-Schätzung.</p>
+          <div className="space-y-1">
+            <p className="text-[12px] text-[var(--tf-text-tertiary)]">Noch keine Features mit Aufwand-Schätzung.</p>
+            <p className="text-[10.5px] text-[var(--tf-text-tertiary)]">
+              Öffne im Tab „Tickets" eine Idee und setze rechts im Detail das Feld „Aufwand" (S/M/L/XL) — danach erscheint sie hier zum Sponsoring.
+            </p>
+          </div>
         ) : (
           <div>
             <div className="flex items-center gap-3 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
