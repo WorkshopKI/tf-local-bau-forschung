@@ -34,6 +34,7 @@ import {
 } from '../types';
 import { nextFreeAnonId, type AnonymMap } from '../services/anonym-map';
 import { mergeProfilesIntoMitarbeiter } from '../services/profil-einsammeln';
+import { pingAuslastungWrite } from '../services/cross-tab';
 import { mergeWuenscheIntoZuweisungen } from '../services/uebernahme-einsammeln';
 import { pickVerbundZuweisung } from '../services/verbund-aggregation';
 import { deriveHauptNeben } from '../services/kompetenz-derivation';
@@ -92,6 +93,12 @@ interface AuslastungDataState {
   schedulePersist: (storage: StorageService) => void;
   /** Schreibt einen ausstehenden Debounce-Write sofort (Unmount/App-Close). */
   flushPersist: (storage: StorageService) => Promise<void>;
+  /** Loescht den letzten Fehler (z.B. Banner schliessen). */
+  clearError: () => void;
+  /** Cross-Tab-Sync (v2.25): laedt den Stand frisch vom Share, wenn ein anderer
+   *  pl-Tab geschrieben hat. No-op waehrend eigener Writes; ueberschreibt den
+   *  aktuellen Stand NICHT mit einem transienten Leer-Read. */
+  reloadFromShare: (storage: StorageService) => Promise<void>;
   // ── Config ────────────────────────────────────────────────────────────
   updateConfig: (storage: StorageService, partial: Partial<AuslastungConfig>) => Promise<void>;
   // ── Ueberkategorien ──────────────────────────────────────────────────
@@ -270,6 +277,30 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     }
   },
 
+  clearError: () => set({ error: null }),
+
+  reloadFromShare: async (storage) => {
+    // Cross-Tab-Sync: ein anderer pl-Tab hat geschrieben → frisch nachladen.
+    // Nicht waehrend eigener Writes (sonst Clobber des laufenden Saves).
+    if (get().loading || get().saving || get().persistDirty) return;
+    set({ loading: true });
+    try {
+      const data = await loadAuslastungData(storage);
+      const shareReadable = await isDatenShareReadable(storage.idb);
+      // Schutz wie beim Cold-Start: einen transienten Leer-Read (Datei gerade
+      // im atomicWrite-.tmp-Fenster des schreibenden Tabs) NICHT uebernehmen —
+      // sonst blankt der Sync den eigenen guten Stand.
+      const istEcht = data.config.setupAbgeschlossen || Object.keys(data.mitarbeiter).length > 0;
+      if (shareReadable && istEcht) {
+        set({ data, loaded: true, loading: false });
+      } else {
+        set({ loading: false });
+      }
+    } catch {
+      set({ loading: false });
+    }
+  },
+
   persist: async (storage) => {
     await get().persistNow(storage);
   },
@@ -287,8 +318,16 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       // Mutationen waehrend des await wuerden sonst ueberschrieben (Clobber-Bug).
       // Nur den Timestamp auf den aktuellen Stand stempeln.
       set(s => ({ data: { ...s.data, updatedAt: written.updatedAt }, saving: false }));
+      // Cross-Tab-Sync: andere pl-Tabs benachrichtigen, damit sie nachladen.
+      pingAuslastungWrite();
     } catch (err) {
-      set({ saving: false, error: err instanceof Error ? err.message : String(err) });
+      // NotAllowedError (read-only Handle, z.B. durch eine parallel offene
+      // Nur-Lese-Variante) ist die haeufigste stille Verlust-Ursache → klare
+      // Meldung statt der kryptischen DOMException (sichtbar via Banner).
+      const msg = err instanceof DOMException && err.name === 'NotAllowedError'
+        ? 'Kein Schreibrecht auf dem Daten-Share — die Änderung wurde NICHT gespeichert. Bitte andere TeamFlow-Tabs/-Varianten schließen und die Seite neu laden.'
+        : (err instanceof Error ? err.message : String(err));
+      set({ saving: false, error: msg });
       throw err;
     }
     // Kam waehrend des Writes eine weitere Mutation? Dann den neuesten Stand

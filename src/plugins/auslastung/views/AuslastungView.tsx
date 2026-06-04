@@ -28,8 +28,10 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAutoCollectTeamProfiles } from '../hooks/useAutoCollectTeamProfiles';
 import { useReconcileZuweisungen } from '../hooks/useReconcileZuweisungen';
+import { useAuslastungCrossTabSync } from '../hooks/useAuslastungCrossTabSync';
 import { AuslastungIndexProvider } from '../hooks/useAuslastungIndex';
 import { ModulLoadingBanner } from '../components/ModulLoadingBanner';
+import { AuslastungSaveErrorBanner } from '../components/AuslastungSaveErrorBanner';
 import { KlassifizierungsReview } from './KlassifizierungsReview';
 import { ZuweisungsCockpit } from './ZuweisungsCockpit';
 import { UebersichtView } from './UebersichtView';
@@ -57,6 +59,11 @@ export function AuslastungView(): React.ReactElement {
   // collapst pro Verbund/Quartal auf die höchstrangige Zuweisung. CSV-Refresh
   // heilt diese Phantome nicht (eigener PL-Stand) → hier beim Modul-Open.
   useReconcileZuweisungen();
+
+  // v2.25: Cross-Tab-Sync — ein zweiter pl-Tab (z.B. auf einem zweiten Monitor)
+  // lädt frisch vom Share nach, sobald dieser Tab schreibt (verhindert Lost-
+  // Updates bei geteilter IDB + Datei-Handle).
+  useAuslastungCrossTabSync();
 
   // Default-Tab: 'klassifizierung'. Wenn Setup nicht abgeschlossen, springt
   // ein useEffect (siehe unten) auf 'uebersicht' (zeigt Setup-Wizard).
@@ -153,6 +160,10 @@ export function AuslastungView(): React.ReactElement {
           sichtbares "etwas-passiert"-Signal bei jedem Mount. Verschwindet
           sobald useAuslastungReady() ready=true meldet. */}
       <ModulLoadingBanner />
+
+      {/* v2.25: Sichtbarer Schreib-/Lade-Fehler (z.B. fehlendes Schreibrecht) —
+          statt still geschluckter Rejection (Pitfall #15). */}
+      <AuslastungSaveErrorBanner />
 
       {loaded && (
         <>

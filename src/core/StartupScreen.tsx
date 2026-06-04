@@ -195,9 +195,10 @@ export function StartupScreen({
         ) : (
           <>
             <p className="text-[12.5px] text-[var(--tf-text-tertiary)] leading-relaxed mb-5">
-              Beim Start fragt der Browser einmalig nach Erlaubnis für den Datenordner
+              Beim Start kann der Browser einmalig nach Erlaubnis für den Datenordner
               {profile && !canWriteDatenShare(isKurator) ? ' (Lese-Zugriff)' : ''} und Ihren persönlichen
-              Ordner.
+              Ordner fragen. Wenn die Erlaubnis noch gültig ist (z.&nbsp;B. ein weiterer Tab ist
+              offen), startet die App direkt.
             </p>
             <Button icon={ArrowRight} onClick={handleStart} disabled={busy} className="w-full">
               Starten
