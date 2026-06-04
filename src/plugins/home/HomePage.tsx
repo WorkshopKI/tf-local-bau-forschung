@@ -16,7 +16,7 @@ import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
-import { menuLabel, isDataShareEnabled, isAuslastungSelbstEintragungEnabled } from '@/config/feature-flags';
+import { menuLabel, isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
@@ -88,6 +88,9 @@ export function HomePage(): React.ReactElement {
   const tourIsActive = tour.isActive;
   const tourStart = tour.start;
   useEffect(() => {
+    // v2.21: Auto-Start nur im prod-Endkunden-Build — pl/kurator/dev/demo
+    // starten die Tour nicht automatisch (der „Neu hier?"-Button bleibt überall).
+    if (!isEndUserProdVariant()) return;
     if (tourHasCompleted || tourIsActive) return;
     if (data.stats.total === 0) return;
     if (TOUR_STEPS.length === 0) return;

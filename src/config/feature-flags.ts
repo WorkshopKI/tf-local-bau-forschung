@@ -42,6 +42,14 @@ export function isAppGateRequired(): boolean {
   return runtimeConfig.auth?.required === true;
 }
 
+/** v2.21: True nur im reinen prod-Endkunden-Build (variant=production OHNE
+ *  Rollen-Passwort-Wall). pl + kurator sind ebenfalls variant=production, aber
+ *  per `auth.required` (AppPasswordGate) abgegrenzt; dev/demo per Variante.
+ *  Genutzt um den Onboarding-Tour-Auto-Start auf prod zu beschränken. */
+export function isEndUserProdVariant(): boolean {
+  return runtimeConfig.variant === 'production' && !isAppGateRequired();
+}
+
 export function isFeedbackEnabled(): boolean {
   return features.feedback;
 }

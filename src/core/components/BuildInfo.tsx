@@ -4,13 +4,7 @@
  * Build-Datum.
  */
 
-import { runtimeConfig, buildTime, appVersion } from '@/config/runtime-config';
-
-const VARIANT_LABEL: Record<string, string> = {
-  production: 'Standard',
-  development: 'Entwicklung',
-  demo: 'Demo',
-};
+import { buildTime, appVersion } from '@/config/runtime-config';
 
 export function BuildInfo(): React.ReactElement {
   const dateStr = (() => {
@@ -22,10 +16,8 @@ export function BuildInfo(): React.ReactElement {
   })();
 
   const shortVersion = appVersion.split('.').slice(0, 2).join('.');
-  const variantLabel = VARIANT_LABEL[runtimeConfig.variant] ?? runtimeConfig.variant;
   const tooltip = [
     `App-Version: v${appVersion}`,
-    `Variante: ${variantLabel}`,
     `Build vom: ${dateStr}`,
   ].join('\n');
   return (
