@@ -7,11 +7,14 @@ import { Clock, X } from 'lucide-react';
  * ([SuchSeite](src/plugins/suche/SuchSeite.tsx)).
  *
  * Stil nach DESIGN_GUIDE (Panel-Konvention wie ColumnPicker): `--tf-*`-Tokens,
- * 0.5px-Border, z-[100], max-h 240px. Die Zeile selbst (`div` mit `onClick`)
- * ist NICHT fokussierbar — so verliert der Input beim Klick auf einen Vorschlag
- * NICHT den Fokus und der `onBlur`-Commit im Parent feuert nicht versehentlich.
- * Die fokussierbaren Buttons (✕, „Verlauf leeren") liegen innerhalb des
- * Wrappers, daher greift dort der `relatedTarget`-Guard des Parents.
+ * 0.5px-Border, z-[100], max-h 240px. Die Zeile (`div` mit `onClick`) ruft auf
+ * ihrem `mousedown` `e.preventDefault()` auf — DAS hält den Input-Fokus und
+ * verhindert, dass der `onBlur`-Commit im Parent das Dropdown schließt, bevor der
+ * Klick ankommt (ein nicht-fokussierbares Element allein blurrt den Input in
+ * Chromium/Firefox trotzdem → Fokus fällt auf `<body>`). Gleiches Typeahead-
+ * Pattern wie in `dokument-review/AntragAutocomplete`. Die fokussierbaren Buttons
+ * (✕, „Verlauf leeren") liegen innerhalb des Wrappers, daher greift dort der
+ * `relatedTarget`-Guard des Parents.
  */
 export interface SearchSuggestionsProps {
   items: string[];
@@ -43,6 +46,9 @@ export function SearchSuggestions({
           role="option"
           aria-selected={i === activeIndex}
           onMouseEnter={() => onHover(i)}
+          // mousedown-preventDefault haelt den Input-Fokus → kein Blur-Close,
+          // sonst unmountet das Dropdown bevor der Klick `onSelect` erreicht.
+          onMouseDown={e => e.preventDefault()}
           onClick={() => onSelect(q)}
           className={`group flex items-center gap-2 px-3 py-1.5 text-[12px] cursor-pointer ${
             i === activeIndex ? 'bg-[var(--tf-hover)]' : ''
