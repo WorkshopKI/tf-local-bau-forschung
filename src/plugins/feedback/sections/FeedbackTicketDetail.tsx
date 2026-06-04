@@ -257,7 +257,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
               <span className="text-[12px] text-[var(--tf-text)]">Dieses Ticket wirklich löschen?</span>
               <button
                 type="button"
-                onClick={() => void del.run()}
+                onClick={() => del.run()}
                 disabled={del.busy}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] font-medium bg-[var(--tf-danger-text)] text-white hover:opacity-90 disabled:opacity-40 cursor-pointer"
               >
