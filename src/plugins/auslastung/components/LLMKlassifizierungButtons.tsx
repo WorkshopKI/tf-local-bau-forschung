@@ -10,9 +10,11 @@
  *  3. "LLM-Ergebnis einfuegen" — oeffnet Modal mit Textarea, parst JSON,
  *     wendet an.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Play, ChevronDown, Copy, Download } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useClickOutside } from '@/core/hooks/useClickOutside';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import {
@@ -56,6 +58,18 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null);
+
+  // „Manuell ▾"-Dropdown: schliesst bei Aussen-Klick (useClickOutside, pointerdown
+  // — touch-faehig) und bei Esc.
+  const [manualOpen, setManualOpen] = useState(false);
+  const manualWrapRef = useRef<HTMLDivElement>(null);
+  useClickOutside(manualWrapRef, () => setManualOpen(false), manualOpen);
+  useEffect(() => {
+    if (!manualOpen) return;
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') setManualOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [manualOpen]);
 
   function showToast(msg: string, tone: 'success' | 'error' = 'success'): void {
     setToast({ msg, tone });
@@ -190,70 +204,117 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
   const totalCount = verbundViews.length;
 
   const busy = startLLM.busy || copyPrompt.busy;
-  // v2.7: Master-Loading blockt alle Klassifizierungs-Aktionen. Count als „…" statt 0.
-  const countLabel = isLoading ? '…' : String(unklassifiziertCount);
+  // v2.7: Master-Loading blockt alle Klassifizierungs-Aktionen — Hinweis-Text
+  // zeigt waehrend des Ladens nichts (isLoading-Guard im Render).
   const noOpen = unklassifiziertCount === 0;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={() => startLLM.run()}
-        disabled={busy || isLoading || noOpen}
-        className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ background: 'var(--tf-primary)', color: 'var(--tf-bg)' }}
-        title="Klassifiziert alle offenen Verbuende via aktivem AI-Bridge-Transport"
-      >
-        {startLLM.busy && progress
-          ? `${progress.done} / ${progress.total} Verbünde klassifiziert…`
-          : `LLM-Klassifizierung starten (${countLabel})`}
-      </button>
-      <button
-        type="button"
-        onClick={() => copyPrompt.run()}
-        disabled={busy || isLoading || noOpen}
-        className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
-        style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
-        title={`Kopiert max. ${CLIPBOARD_CHUNK_SIZE} Verbünde pro Seite (verhindert LLM-Output-Truncation)`}
-      >
-        {!isLoading && unklassifiziertCount > CLIPBOARD_CHUNK_SIZE
-          ? `Prompt kopieren (${CLIPBOARD_CHUNK_SIZE} von ${unklassifiziertCount})`
-          : 'Prompt kopieren'}
-      </button>
-      <button
-        type="button"
-        onClick={() => setShowPasteModal(true)}
-        disabled={busy || isLoading}
-        className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
-        style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
-      >
-        LLM-Ergebnis einfügen
-      </button>
-      {!isLoading && unklassifiziertCount !== totalCount && (
-        <span className="text-[11px] text-[var(--tf-text-tertiary)] ml-2">
-          {unklassifiziertCount} noch unklassifiziert (von {totalCount} Verbünden)
-        </span>
-      )}
-      {startLLM.error && (
-        <span className="text-[11.5px] text-[var(--tf-danger-text)]">
-          LLM-Fehler: {startLLM.error}
-        </span>
-      )}
-      {copyPrompt.error && (
-        <span className="text-[11.5px] text-[var(--tf-danger-text)]">
-          Clipboard-Fehler: {copyPrompt.error}
-        </span>
-      )}
-      {toast && (
-        <span
-          className="text-[11.5px] px-2 py-0.5 rounded"
-          style={{
-            background: toast.tone === 'success' ? 'var(--tf-success-soft, #d1fae5)' : 'var(--tf-danger-soft, #fee2e2)',
-            color: 'var(--tf-text)',
-          }}
+    <div className="flex flex-col gap-1 min-w-0">
+      {/* Reihe 1 — Lead-Cluster: Primaer-Aktion + „Manuell ▾" + Hinweis-Text. */}
+      <div className="flex items-center gap-2.5 min-w-0">
+        <button
+          type="button"
+          onClick={() => startLLM.run()}
+          disabled={busy || isLoading || noOpen}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[8px] text-[12.5px] font-medium cursor-pointer hover:opacity-90 disabled:opacity-45 disabled:cursor-not-allowed whitespace-nowrap"
+          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+          title="Klassifiziert alle offenen Verbuende via aktivem AI-Bridge-Transport"
         >
-          {toast.msg}
-        </span>
+          <Play size={13} aria-hidden />
+          {startLLM.busy && progress
+            ? `${progress.done} / ${progress.total} Verbünde…`
+            : 'LLM-Klassifizierung starten'}
+        </button>
+
+        <div ref={manualWrapRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setManualOpen(o => !o)}
+            disabled={busy || isLoading}
+            aria-expanded={manualOpen}
+            aria-haspopup="menu"
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[8px] text-[12.5px] font-medium cursor-pointer hover:bg-[var(--tf-hover)] disabled:opacity-45 whitespace-nowrap"
+            style={{ border: '0.5px solid var(--tf-border-hover)', background: 'var(--tf-bg)', color: 'var(--tf-text-secondary)' }}
+          >
+            Manuell
+            <ChevronDown size={13} aria-hidden />
+          </button>
+          {manualOpen && (
+            <div
+              role="menu"
+              className="absolute left-0 top-[38px] z-50 min-w-[210px] rounded-[10px] p-1.5"
+              style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border-hover)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}
+            >
+              <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-medium uppercase tracking-[0.07em] text-[var(--tf-text-tertiary)]">
+                Manueller Lauf
+              </div>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setManualOpen(false); copyPrompt.run(); }}
+                disabled={busy || isLoading || noOpen}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[7px] text-left text-[12.5px] cursor-pointer hover:bg-[var(--tf-hover)] disabled:opacity-45 text-[var(--tf-text)]"
+                title={`Kopiert max. ${CLIPBOARD_CHUNK_SIZE} Verbünde pro Seite (verhindert LLM-Output-Truncation)`}
+              >
+                <Copy size={14} className="text-[var(--tf-text-tertiary)] shrink-0" aria-hidden />
+                {!isLoading && unklassifiziertCount > CLIPBOARD_CHUNK_SIZE
+                  ? `Prompt kopieren (${CLIPBOARD_CHUNK_SIZE} von ${unklassifiziertCount})`
+                  : 'Prompt kopieren'}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setManualOpen(false); setShowPasteModal(true); }}
+                disabled={busy || isLoading}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[7px] text-left text-[12.5px] cursor-pointer hover:bg-[var(--tf-hover)] disabled:opacity-45 text-[var(--tf-text)]"
+              >
+                <Download size={14} className="text-[var(--tf-text-tertiary)] shrink-0" aria-hidden />
+                LLM-Ergebnis einfügen
+              </button>
+            </div>
+          )}
+        </div>
+
+        {!isLoading && (
+          <span className="text-[12.5px] leading-snug text-[var(--tf-text-tertiary)] truncate">
+            {noOpen ? (
+              <>
+                <b className="font-medium text-[var(--tf-success-text)]">Alle {totalCount} Verbünde klassifiziert</b>
+                {' · 0 offen'}
+              </>
+            ) : (
+              <>{unklassifiziertCount} noch unklassifiziert (von {totalCount} Verbünden)</>
+            )}
+          </span>
+        )}
+      </div>
+
+      {/* Reihe 2 — Fehler/Toast (nur wenn vorhanden); getrennt, damit lange
+          Meldungen den ml-auto-Rechtscluster der Toolbar nicht verschieben. */}
+      {(startLLM.error || copyPrompt.error || toast) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {startLLM.error && (
+            <span className="text-[11.5px] text-[var(--tf-danger-text)]">
+              LLM-Fehler: {startLLM.error}
+            </span>
+          )}
+          {copyPrompt.error && (
+            <span className="text-[11.5px] text-[var(--tf-danger-text)]">
+              Clipboard-Fehler: {copyPrompt.error}
+            </span>
+          )}
+          {toast && (
+            <span
+              className="text-[11.5px] px-2 py-0.5 rounded"
+              style={{
+                background: toast.tone === 'success' ? 'var(--tf-success-soft, #d1fae5)' : 'var(--tf-danger-soft, #fee2e2)',
+                color: 'var(--tf-text)',
+              }}
+            >
+              {toast.msg}
+            </span>
+          )}
+        </div>
       )}
       {showPasteModal && (
         <PasteModal

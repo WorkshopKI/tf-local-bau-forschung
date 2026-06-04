@@ -13,8 +13,8 @@
  * (TV-Ebene; ein Verbund erscheint wenn mindestens ein TV im Pool).
  */
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { Info } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
   ColumnPicker,
   useColumnVisibility,
@@ -311,7 +311,9 @@ export function KlassifizierungsReview(): React.ReactElement {
     schedulePersist(storage);
   }
 
-  async function bulkFreigeben(): Promise<void> {
+  // Pitfall #15: useAsyncAction statt hand-gerolltem void-onClick — faengt
+  // Rejections (unter file:// ist die Console oft zu) und schuetzt vor Doppelklick.
+  const bulkFreigebenAction = useAsyncAction(async () => {
     const candidates = verbundViews.filter(v =>
       v.klassifizierung.status !== 'freigegeben'
       && v.confidence === 'high'
@@ -323,7 +325,7 @@ export function KlassifizierungsReview(): React.ReactElement {
     // (Pitfall #16/#20): vorher ~2 s/Verbund (40 Verbuende = 80 s), jetzt ~2 s.
     const entries = candidates.flatMap(collectVerbundFreigaben);
     await freigebenBulk(storage, entries);
-  }
+  });
 
   // Spalten + Hooks
   const allColumns = useMemo(
@@ -404,83 +406,86 @@ export function KlassifizierungsReview(): React.ReactElement {
         </div>
       )}
 
-      {/* 1.17: LLM-Klassifizierung — Karte mit weissem Hintergrund */}
-      <div
-        className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-[var(--tf-radius)]"
-        style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}
-      >
-        <span className="text-[11.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
-          LLM-Klassifizierung
-        </span>
+      {/* Reihe 1 — Aktionen: LLM-Cluster links, Utility-Buttons rechts. */}
+      <div className="flex items-center gap-3 flex-wrap">
         <LLMKlassifizierungButtons
           verbundViews={verbundViews}
           kategorien={config.ueberKategorien}
           isLoading={isInitialLoading}
         />
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          {(['alle', 'review', 'llm', 'freigegeben'] as const).map(f => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={`text-[11.5px] px-3 py-1 rounded-full cursor-pointer transition-colors ${
-                filter === f ? 'opacity-100' : 'opacity-60 hover:opacity-90'
-              }`}
-              style={{
-                background: filter === f ? 'var(--tf-text)' : 'transparent',
-                color: filter === f ? 'var(--tf-bg)' : 'var(--tf-text-secondary)',
-                border: '0.5px solid var(--tf-border)',
-              }}
-            >
-              {f === 'alle' && `Alle (${fmtCount(counts.total, isInitialLoading)})`}
-              {f === 'review' && `Review nötig (${fmtCount(counts.review, isInitialLoading)})`}
-              {f === 'llm' && `LLM-Vorschlag (${fmtCount(counts.llm, isInitialLoading)})`}
-              {f === 'freigegeben' && `Freigegeben (${fmtCount(counts.freig, isInitialLoading)})`}
-            </button>
-          ))}
-          <CollapsibleSeg
-            label="Kategorie"
-            value={kategorieFilter || 'Alle'}
-            items={kategorieItems}
-            onChange={label => setKategorieFilter(label === 'Alle' ? '' : label)}
-          />
-          <CollapsibleSeg
-            label="Antragstyp"
-            value={antragstypFilter || 'Alle'}
-            items={antragstypItems}
-            onChange={label => setAntragstypFilter(label === 'Alle' ? '' : (label as AntragstypBucket))}
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
-            <span>{fmtCount(counts.total, isInitialLoading)} Verbünde · {fmtCount(counts.freig, isInitialLoading)} freigegeben · {fmtCount(counts.review, isInitialLoading)} prüfen</span>
-            <span
-              className="cursor-help inline-flex opacity-70 hover:opacity-100"
-              title={`Verteil-Pool: nur Anträge OHNE Bearbeiter-Kürzel (tib_kuerz) mit Antragsdatum aus den letzten ${config.verteilLookbackMonate ?? 6} Monaten (rollierend — gleitet über den Jahreswechsel), ohne Status „abgelehnt/zurückgezogen"/„Irrläufer". Die Klassifizierung wirkt auf alle TVs eines Verbundes.`}
-              aria-label="Filter-Hinweis: Verteil-Pool (nur unverteilte Anträge der letzten Monate)"
-            >
-              <Info size={11} aria-hidden />
-            </span>
-          </span>
-          <button
-            type="button"
-            disabled={isInitialLoading || counts.neu === 0}
-            onClick={() => void bulkFreigeben()}
-            className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
-            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-          >
-            Alle hohen Confidences freigeben ({fmtCount(counts.neu, isInitialLoading)})
-          </button>
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          {/* Bulk-Freigabe nur im Triage-Kontext „Review nötig" (Designer-Vorschlag):
+              raeumt die hoch-konfidenten Verbuende auf einen Klick weg. */}
+          {filter === 'review' && (
+            <>
+              {bulkFreigebenAction.error && (
+                <span className="text-[11px] text-[var(--tf-danger-text)]">
+                  Fehler: {bulkFreigebenAction.error}
+                </span>
+              )}
+              <button
+                type="button"
+                disabled={isInitialLoading || counts.neu === 0 || bulkFreigebenAction.busy}
+                onClick={() => bulkFreigebenAction.run()}
+                className="inline-flex items-center gap-1 h-8 px-3 rounded-[8px] text-[12.5px] font-medium cursor-pointer hover:bg-[var(--tf-hover)] disabled:opacity-45 disabled:cursor-not-allowed whitespace-nowrap"
+                style={{ border: '0.5px solid var(--tf-border-hover)', background: 'var(--tf-bg)', color: 'var(--tf-text)' }}
+              >
+                {bulkFreigebenAction.busy ? 'Freigeben…' : 'Hohe Confidences freigeben'}
+                <span className="font-normal text-[var(--tf-text-tertiary)]">({fmtCount(counts.neu, isInitialLoading)})</span>
+              </button>
+            </>
+          )}
           <ColumnPicker
             columns={allColumns}
             visibleKeys={visibleKeys}
             onToggleColumn={toggleColumn}
           />
         </div>
+      </div>
+
+      {/* Reihe 2 — Filter/Steuerung: Status-Segment + Attribut-Filter. */}
+      <div className="flex items-center gap-3.5 flex-wrap">
+        <div className="inline-flex gap-[7px] flex-wrap" role="tablist" aria-label="Status">
+          {(['alle', 'review', 'llm', 'freigegeben'] as const).map(f => {
+            const active = filter === f;
+            return (
+              <button
+                key={f}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilter(f)}
+                className={`text-[12.5px] rounded-full cursor-pointer transition-colors whitespace-nowrap ${
+                  active ? 'font-medium' : 'font-normal bg-[var(--tf-bg)] hover:bg-[var(--tf-hover)]'
+                }`}
+                style={{
+                  padding: '6px 13px',
+                  background: active ? 'var(--tf-text)' : undefined,
+                  color: active ? 'var(--tf-bg)' : 'var(--tf-text-secondary)',
+                  border: `0.5px solid ${active ? 'var(--tf-text)' : 'var(--tf-border-hover)'}`,
+                }}
+              >
+                {f === 'alle' && `Alle (${fmtCount(counts.total, isInitialLoading)})`}
+                {f === 'review' && `Review nötig (${fmtCount(counts.review, isInitialLoading)})`}
+                {f === 'llm' && `LLM-Vorschlag (${fmtCount(counts.llm, isInitialLoading)})`}
+                {f === 'freigegeben' && `Freigegeben (${fmtCount(counts.freig, isInitialLoading)})`}
+              </button>
+            );
+          })}
+        </div>
+        <span className="h-5 shrink-0" style={{ width: '0.5px', background: 'var(--tf-border)' }} aria-hidden />
+        <CollapsibleSeg
+          label="Kategorie"
+          value={kategorieFilter || 'Alle'}
+          items={kategorieItems}
+          onChange={label => setKategorieFilter(label === 'Alle' ? '' : label)}
+        />
+        <CollapsibleSeg
+          label="Antragstyp"
+          value={antragstypFilter || 'Alle'}
+          items={antragstypItems}
+          onChange={label => setAntragstypFilter(label === 'Alle' ? '' : (label as AntragstypBucket))}
+        />
       </div>
 
       <VerbundClassificationTable
