@@ -32,7 +32,7 @@ import {
   clearVerbundEmbeddings,
   invalidateVerbundEmbeddingsCache,
 } from '../../services/verbund-embedding';
-import { uploadVerbundCorpusToShare } from '../../services/corpus-share-sync';
+import { uploadVerbundCorpusToShare, ensureVerbundCorpus } from '../../services/corpus-share-sync';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -238,6 +238,37 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
     }
   }
 
+  /**
+   * Manuell: per-Antrag- + Verbund-Korpus vom Daten-Share in den lokalen Cache
+   * ziehen — die schnelle Alternative zum (auf CPU stundenlangen) Rebuild, wenn
+   * ein anderer (z.B. GPU-)Rechner den Korpus schon gebaut + hochgeladen hat.
+   * Räumt vorher den lokalen Cache (ein angefangener Build würde den Download
+   * sonst blockieren) und ignoriert bewusst den aktenzeichen-Hash (manueller
+   * „trotzdem laden"-Pfad — Modell-Kompat ist über die Button-Sichtbarkeit
+   * garantiert). v2.20.
+   */
+  async function downloadFromShare(): Promise<void> {
+    setError(null);
+    setRunning(true);
+    try {
+      await clearEmbeddings(storage.idb);
+      await clearVerbundEmbeddings(storage.idb);
+      invalidateVerbundEmbeddingsCache();
+      const r = await downloadMirror(storage);
+      const v = await ensureVerbundCorpus(storage);
+      await refresh();
+      if (!r || r.count === 0) {
+        setError('Es wurden keine per-Antrag-Vektoren vom Datenspeicher geladen — Manifest/Bin fehlt oder ist leer.');
+      } else if (v !== 'downloaded') {
+        setError('Der per-Antrag-Korpus ist geladen, aber der Verbund-Korpus (für die Klassifizierung) liegt nicht (kompatibel) auf dem Datenspeicher. Auf einem Rechner mit der aktuellen Version „Corpus aufbauen" laufen lassen — dann werden die Verbund-Vektoren mitgespiegelt.');
+      }
+    } catch (err) {
+      setError(`Laden vom Datenspeicher fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setRunning(false);
+    }
+  }
+
   return (
     <div className="rounded-[12px] p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
       <div className="flex items-baseline justify-between mb-3">
@@ -291,7 +322,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
 
       {compatStatus?.kind === 'compatible' && hashMismatch && count === 0 && (
         <div className="rounded p-2 mb-2 text-[11.5px]" style={{ background: 'var(--tf-info-bg, #dbeafe)', color: 'var(--tf-info-text, #1e40af)', border: '0.5px solid var(--tf-info-border, #bfdbfe)' }}>
-          ℹ Share-Korpus: {mirrorManifest?.antraegeCount} Anträge (Stand {mirrorManifest ? new Date(mirrorManifest.builtAt).toLocaleDateString('de-DE') : '?'}). Lokaler Antrags-Stand: {total}. Sätze unterscheiden sich — der Korpus deckt deinen aktuellen Stand nicht ab, daher kein Auto-Download. Klick „Corpus aufbauen", um lokal zu bauen und den Stand auf den Share zu heben.
+          ℹ Share-Korpus: {mirrorManifest?.antraegeCount} Anträge (Stand {mirrorManifest ? new Date(mirrorManifest.builtAt).toLocaleDateString('de-DE') : '?'}). Lokaler Antrags-Stand: {total}. Sätze unterscheiden sich — daher kein automatischer Download. Du kannst den Share-Korpus trotzdem „Vom Datenspeicher laden" (schnell, deckt aber nur die {mirrorManifest?.antraegeCount} Share-Anträge ab), oder „Corpus aufbauen", um lokal mit deinem aktuellen Stand neu zu bauen und ihn auf den Share zu heben.
         </div>
       )}
 
@@ -313,6 +344,16 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       <div className="flex flex-wrap gap-2 items-center">
         {!running ? (
           <>
+            {mirrorManifest && compatStatus?.kind === 'compatible' && count < mirrorManifest.antraegeCount && (
+              <button
+                type="button"
+                onClick={() => void downloadFromShare()}
+                className="px-3 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer"
+                style={{ background: 'var(--tf-primary)', color: 'white', border: '0.5px solid var(--tf-primary)' }}
+              >
+                Vom Datenspeicher laden (~{mirrorManifest.antraegeCount} Vektoren, ≈10 s)
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void build(false)}
