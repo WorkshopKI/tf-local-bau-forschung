@@ -2,6 +2,7 @@
 // Registriert idempotent window.onerror + unhandledrejection für Ring-Buffer der letzten 5 Fehler.
 
 import type { FeedbackContext } from '@/core/types/feedback';
+import { appVersion, gitHash } from '@/config/runtime-config';
 
 const sessionStart = Date.now();
 const errorBuffer: string[] = [];
@@ -48,6 +49,8 @@ export function captureFeedbackContext(activePluginId: string, activePluginName:
     sessionDuration: Math.round((Date.now() - sessionStart) / 1000),
     errors: [...errorBuffer],
     timestamp: new Date().toISOString(),
+    appVersion,
+    gitHash,
   };
 }
 

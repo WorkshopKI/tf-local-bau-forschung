@@ -21,6 +21,7 @@
     "kuratorMenus": true,
     "requireKuratorLogin": false,
     "feedback": true,
+    "feedbackDelete": true,
     "dokumentenscan": true,
     "volltextsuche": true,
     "devInfraPanel": false,

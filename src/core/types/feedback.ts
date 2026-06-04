@@ -63,6 +63,11 @@ export interface FeedbackContext {
   /** TEAMFLOW_AREAS.ref vom DetailsStep-Dropdown. */
   screenRef?: string;
   screenRefLabel?: string;
+  /** App-Version + Git-Hash zum Zeitpunkt des Feedbacks (v2.23) — wichtig fürs
+   *  Bug-Review ("auf welchem Stand trat das auf?"). Optional: Alt-Tickets ohne
+   *  diese Felder zeigen "—". */
+  appVersion?: string;
+  gitHash?: string;
 }
 
 export interface LLMClassification {

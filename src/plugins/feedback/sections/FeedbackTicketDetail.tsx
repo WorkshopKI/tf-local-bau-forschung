@@ -41,8 +41,10 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
 
-  // Dev-only: Ticket löschen (nach Bestätigung). deleteFeedback entfernt aus
-  // localStorage + geteilter feedback.json; danach Auswahl leeren + Liste neu laden.
+  // Kurator (+ dev): Ticket löschen (nach Bestätigung, gated via feedbackDelete —
+  // v2.23 auch im kurator-Build, für versehentlich gegebenes Feedback). deleteFeedback
+  // entfernt aus localStorage + geteilter feedback.json; danach Auswahl leeren + Liste
+  // neu laden. Auto-Collect re-importiert nicht (Outbox-Eintrag ist 'approved').
   const del = useAsyncAction(async () => {
     if (!ticket) return;
     await deleteFeedback(storage, ticket.id);
@@ -150,6 +152,12 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
         <div><span className="text-[var(--tf-text-tertiary)]">Gerät:</span> {ticket.context.device}</div>
         <div><span className="text-[var(--tf-text-tertiary)]">User:</span> {ticket.user_display_name || ticket.user_id}</div>
         <div><span className="text-[var(--tf-text-tertiary)]">Datum:</span> {new Date(ticket.created_at).toLocaleString('de-DE')}</div>
+        <div className="col-span-2">
+          <span className="text-[var(--tf-text-tertiary)]">Version:</span>{' '}
+          {ticket.context.appVersion
+            ? <span className="font-mono">v{ticket.context.appVersion}{ticket.context.gitHash ? ` · ${ticket.context.gitHash}` : ''}</span>
+            : '—'}
+        </div>
       </div>
 
       {/* Original-Feedback */}
