@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen, RefreshCw } from 'lucide-react';
+import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen, RefreshCw, FolderInput } from 'lucide-react';
 import { Button, Badge, SectionHeader, ListItem } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import type { DirectoryEntry } from '@/core/types/config';
 import { shouldShowOpfsOption } from '@/core/utils/environment';
-import { isKuratorMenusEnabled, canWriteDatenShare } from '@/config/feature-flags';
+import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled, canWriteDatenShare } from '@/config/feature-flags';
 import {
   clearDatenShareHandle,
   clearPersoenlichHandle,
@@ -16,6 +16,14 @@ import {
   refreshAllPermissions,
 } from '@/core/services/infrastructure/smb-handle';
 import { useConnectionState } from '@/core/services/connection-status';
+import {
+  getCsvSourceDirHandle,
+  queryCsvSourceDirPermission,
+  clearCsvSourceDirHandle,
+  pickAndLinkCsvFolder,
+} from '@/plugins/csv-sources-kuration/csv-source-handle';
+import { listProgramme, listSchemas } from '@/core/services/csv';
+import type { CsvSchema } from '@/core/services/csv/types';
 
 export function SpeicherTab(): React.ReactElement {
   const storage = useStorage();
@@ -39,6 +47,14 @@ export function SpeicherTab(): React.ReactElement {
   const [dsFolderName, setDsFolderName] = useState<string | null>(null);
   const [dsBusy, setDsBusy] = useState(false);
 
+  // v2.27: CSV-Quellen-Ordner — EIN Handle für alle CSV-Quelldateien (pl + kurator).
+  const showCsvFolder = isCsvAutoRefreshEnabled() || isKuratorMenusEnabled();
+  const [csvDirExists, setCsvDirExists] = useState(false);
+  const [csvDirName, setCsvDirName] = useState<string | null>(null);
+  const [csvDirOnline, setCsvDirOnline] = useState(false);
+  const [csvSchemas, setCsvSchemas] = useState<CsvSchema[]>([]);
+  const [csvBusy, setCsvBusy] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -54,6 +70,32 @@ export function SpeicherTab(): React.ReactElement {
     })();
     return () => { cancelled = true; };
   }, [storage]);
+
+  // v2.27: CSV-Ordner-Handle + Status + alle CSV-Schemas vorab laden, damit der
+  // Picker im Klick-Gesture OHNE await-davor läuft (file://-User-Activation).
+  useEffect(() => {
+    if (!showCsvFolder) return;
+    let cancelled = false;
+    (async () => {
+      const handle = await getCsvSourceDirHandle(storage.idb).catch(() => null);
+      let online = false;
+      if (handle) {
+        try { online = (await queryCsvSourceDirPermission(handle)) === 'granted'; } catch { online = false; }
+      }
+      const schemas: CsvSchema[] = [];
+      try {
+        for (const p of await listProgramme(storage.idb)) {
+          schemas.push(...await listSchemas(storage.idb, p.id));
+        }
+      } catch { /* leer lassen */ }
+      if (cancelled) return;
+      setCsvDirExists(!!handle);
+      setCsvDirName(handle?.name ?? null);
+      setCsvDirOnline(online);
+      setCsvSchemas(schemas);
+    })();
+    return () => { cancelled = true; };
+  }, [storage, showCsvFolder]);
 
   const handleConnectPers = async (): Promise<void> => {
     setError('');
@@ -79,6 +121,35 @@ export function SpeicherTab(): React.ReactElement {
     setPersConnected(false);
     setPersFolderName(null);
     setPersoenlichAvailable(false);
+  };
+
+  // CSV-Ordner: Picker DIREKT (csvSchemas sind vorab geladen — kein await davor,
+  // sonst verbrennt Chrome unter file:// die User-Activation, vgl. Datenordner).
+  const handlePickCsvFolder = async (): Promise<void> => {
+    setError('');
+    try {
+      const res = await pickAndLinkCsvFolder(storage.idb, csvSchemas);
+      setCsvBusy(true);
+      if (!res.linked) return;
+      const handle = await getCsvSourceDirHandle(storage.idb);
+      setCsvDirExists(!!handle);
+      setCsvDirName(handle?.name ?? null);
+      setCsvDirOnline(handle ? (await queryCsvSourceDirPermission(handle)) === 'granted' : false);
+      if (res.unmatched.length > 0) {
+        setError(`Ordner verknüpft. Für diese Quellen wurde keine passende Datei im Ordner gefunden: ${res.unmatched.join(', ')}.`);
+      }
+    } catch (err) {
+      setError((err as Error).message ?? 'CSV-Ordner konnte nicht verknüpft werden.');
+    } finally {
+      setCsvBusy(false);
+    }
+  };
+
+  const handleDisconnectCsv = async (): Promise<void> => {
+    await clearCsvSourceDirHandle(storage.idb);
+    setCsvDirExists(false);
+    setCsvDirName(null);
+    setCsvDirOnline(false);
   };
 
   // Datenordner: Picker DIREKT (kein await davor — siehe OfflineBanner User-Gesture-Pattern).
@@ -268,6 +339,52 @@ export function SpeicherTab(): React.ReactElement {
           )}
         </div>
       </div>
+
+      {showCsvFolder && (
+        <>
+          <SectionHeader label="CSV-Quellen-Ordner" />
+          <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
+            Ordner mit den CSV-Quelldateien für die automatische Aktualisierung. Eine
+            Freigabe deckt alle Dateien darin ab — nach einem Neustart genügt ein
+            „Zulassen", kein erneutes Verknüpfen je Datei.
+          </p>
+          <div className="flex items-center justify-between gap-3 mt-1">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <FolderInput size={16} className="text-[var(--tf-primary)] shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[13px] text-[var(--tf-text)] truncate">
+                  {csvDirExists ? (csvDirName ?? 'Verknüpft') : 'Noch nicht verknüpft'}
+                </p>
+                {csvDirExists && (
+                  <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+                    {csvDirOnline ? 'Online' : 'Offline'}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="secondary"
+                icon={FolderOpen}
+                onClick={handlePickCsvFolder}
+                disabled={csvBusy}
+              >
+                {csvBusy ? 'Wähle...' : (csvDirExists ? 'Ändern' : 'Verknüpfen')}
+              </Button>
+              {csvDirExists && (
+                <button
+                  onClick={handleDisconnectCsv}
+                  className="p-1 text-[var(--tf-danger-text)] cursor-pointer"
+                  title="Trennen"
+                  disabled={csvBusy}
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {(directories.length > 0 || isKuratorMenusEnabled()) && (
         <SectionHeader label="Verbundene Verzeichnisse" />

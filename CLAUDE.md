@@ -342,6 +342,8 @@ MINOR-Bump v2.27: Behebt den hartnäckigen pl-Bug „nach jedem Browser-Neustart
 
 **Migration:** keine stille — der User verknüpft **einmalig** den Ordner über den Banner („CSV-Ordner verknüpfen"); gematchte Quellen verlieren ihr nun überflüssiges Per-Datei-Handle (`removeCsvSourceHandle`). Bis dahin läuft der Legacy-Per-Datei-Pfad als Fallback weiter (nichts regrediert). **Constraint:** die Kaskade ist nicht rekursiv — alle CSVs müssen **direkt** im gewählten Ordner liegen. Additiv, keine Daten-/IDB-/SMB-Migration; demo/prod/kurator unverändert (kurator nutzt weiter den Wizard-Per-Datei-Pfad, profitiert aber automatisch vom Dir-Handle, falls eins existiert).
 
+**v2.27.1 (CSV-Ordner in Einstellungen/Speicher):** Der CSV-Quellen-Ordner erscheint jetzt in **Einstellungen → Speicher** als dritte Datenquelle neben „Datenordner" und „Persönlicher Ordner" (gated `csvAutoRefresh || kuratorMenus` → pl + kurator + dev), [SpeicherTab.tsx](src/plugins/einstellungen/SpeicherTab.tsx). Zeigt Ordnername + Online/Offline (silent `queryCsvSourceDirPermission`) und bietet „Verknüpfen"/„Ändern" (`pickAndLinkCsvFolder`, Picker direkt im Klick-Gesture — CSV-Schemas werden im Mount-Effect vorab geladen, damit kein `await` vor dem Picker die file://-User-Activation verbrennt) + „Trennen" (`clearCsvSourceDirHandle`). Reiner UI-Zusatz, keine Logik-/Daten-Änderung.
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*
