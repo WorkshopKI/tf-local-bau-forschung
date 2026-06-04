@@ -5,6 +5,7 @@ import {
   CATEGORY_COLORS,
   CATEGORY_LABELS,
 } from '@/components/feedback/constants';
+import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 
 interface Props {
   tickets: FeedbackItem[];
@@ -13,83 +14,60 @@ interface Props {
   filterCategory: FeedbackCategory | '';
   filterStatus: FeedbackStatus | '';
   filterArea: string;
-  areas: { route: string; label: string }[];
+  statusItems: CollapsibleSegItem[];
+  kategorieItems: CollapsibleSegItem[];
+  bereichItems: CollapsibleSegItem[];
   onFilterCategory: (v: FeedbackCategory | '') => void;
   onFilterStatus: (v: FeedbackStatus | '') => void;
   onFilterArea: (v: string) => void;
   onSelect: (ticket: FeedbackItem) => void;
 }
 
-const STATUS_PILLS: { id: FeedbackStatus | ''; label: string }[] = [
-  { id: '', label: 'Alle' },
-  { id: 'neu', label: 'Neu' },
-  { id: 'geplant', label: 'Geplant' },
-  { id: 'in_bearbeitung', label: 'In Bearb.' },
-  { id: 'umgesetzt', label: 'Umgesetzt' },
-  { id: 'abgelehnt', label: 'Abgelehnt' },
-];
-
-const CATEGORY_PILLS: { id: FeedbackCategory | ''; label: string }[] = [
-  { id: '', label: 'Alle' },
-  { id: 'problem', label: 'Bug' },
-  { id: 'idea', label: 'Idee' },
-  { id: 'praise', label: 'Lob' },
-  { id: 'question', label: 'Frage' },
-];
-
-const pillBase = 'px-2 py-0.5 rounded-full text-[11px] cursor-pointer transition-colors';
-const pillActive = `${pillBase} bg-[var(--tf-primary)] text-white`;
-const pillInactive = `${pillBase} text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]`;
+// Label↔Wert-Maps für die label-basierte CollapsibleSeg (wie im User-Board).
+// Status bleibt granular (Kurator braucht die feinen Stati); 'archiviert' wird im
+// Filter nicht angeboten, ist im TO_LABEL-Record aber vollständig (Typ-Deckung).
+const STATUS_TO_LABEL: Record<FeedbackStatus | '', string> = {
+  '': 'Alle', neu: 'Neu', geplant: 'Geplant', in_bearbeitung: 'In Bearb.',
+  umgesetzt: 'Umgesetzt', abgelehnt: 'Abgelehnt', archiviert: 'Archiviert',
+};
+const LABEL_TO_STATUS: Record<string, FeedbackStatus | ''> = {
+  Alle: '', Neu: 'neu', Geplant: 'geplant', 'In Bearb.': 'in_bearbeitung',
+  Umgesetzt: 'umgesetzt', Abgelehnt: 'abgelehnt',
+};
+const KAT_TO_LABEL: Record<FeedbackCategory | '', string> = {
+  '': 'Alle', problem: 'Bug', idea: 'Idee', praise: 'Lob', question: 'Frage',
+};
+const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
+  Alle: '', Bug: 'problem', Idee: 'idea', Lob: 'praise', Frage: 'question',
+};
 
 export function FeedbackTicketList(props: Props): React.ReactElement {
-  const { tickets, loading, selectedId, filterCategory, filterStatus, filterArea, areas, onFilterCategory, onFilterStatus, onFilterArea, onSelect } = props;
+  const { tickets, loading, selectedId, filterCategory, filterStatus, filterArea, statusItems, kategorieItems, bereichItems, onFilterCategory, onFilterStatus, onFilterArea, onSelect } = props;
 
   return (
     <div>
-      {/* Filter-Pills */}
-      <div className="space-y-1.5 mb-3">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[60px] shrink-0">Status</span>
-          <div className="flex flex-wrap gap-1">
-            {STATUS_PILLS.map(p => (
-              <button key={p.id} type="button" onClick={() => onFilterStatus(p.id)}
-                className={filterStatus === p.id ? pillActive : pillInactive}
-                style={filterStatus !== p.id ? { border: '0.5px solid var(--tf-border)' } : undefined}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[60px] shrink-0">Kategorie</span>
-          <div className="flex flex-wrap gap-1">
-            {CATEGORY_PILLS.map(p => (
-              <button key={p.id} type="button" onClick={() => onFilterCategory(p.id)}
-                className={filterCategory === p.id ? pillActive : pillInactive}
-                style={filterCategory !== p.id ? { border: '0.5px solid var(--tf-border)' } : undefined}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {areas.length > 0 && (
-          <div className="flex items-start gap-1.5">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] font-medium w-[60px] shrink-0 mt-1">Bereich</span>
-            <div className="flex flex-wrap gap-1">
-              <button type="button" onClick={() => onFilterArea('')}
-                className={filterArea === '' ? pillActive : pillInactive}
-                style={filterArea !== '' ? { border: '0.5px solid var(--tf-border)' } : undefined}>
-                Alle
-              </button>
-              {areas.map(a => (
-                <button key={a.route} type="button" onClick={() => onFilterArea(a.route)}
-                  className={filterArea === a.route ? pillActive : pillInactive}
-                  style={filterArea !== a.route ? { border: '0.5px solid var(--tf-border)' } : undefined}>
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* Filter-Chips (CollapsibleSeg, identisch zum User-Board) */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        <CollapsibleSeg
+          label="Status"
+          value={STATUS_TO_LABEL[filterStatus]}
+          items={statusItems}
+          onChange={l => onFilterStatus(LABEL_TO_STATUS[l] ?? '')}
+        />
+        <CollapsibleSeg
+          label="Kategorie"
+          value={KAT_TO_LABEL[filterCategory]}
+          items={kategorieItems}
+          onChange={l => onFilterCategory(LABEL_TO_KAT[l] ?? '')}
+        />
+        {bereichItems.length > 1 && (
+          <CollapsibleSeg
+            label="Bereich"
+            value={filterArea || 'Alle'}
+            items={bereichItems}
+            onChange={l => onFilterArea(l === 'Alle' ? '' : l)}
+            startCollapsed
+          />
         )}
       </div>
 

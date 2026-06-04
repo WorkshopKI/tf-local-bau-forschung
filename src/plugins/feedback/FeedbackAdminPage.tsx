@@ -12,6 +12,7 @@ import { FeedbackFaqTab } from './sections/FeedbackFaqTab';
 import { FeedbackConfigPanel } from './sections/FeedbackConfigPanel';
 import { FeedbackSponsoringOverview } from './sections/FeedbackSponsoringOverview';
 import { FeedbackInboxTab } from './sections/FeedbackInboxTab';
+import type { CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 
 export function FeedbackAdminPage(): React.ReactElement {
   const storage = useStorage();
@@ -50,22 +51,41 @@ export function FeedbackAdminPage(): React.ReactElement {
     return tickets.filter(t => {
       if (filterCategory && t.category !== filterCategory) return false;
       if (filterStatus && t.kurator_status !== filterStatus) return false;
-      if (filterArea && t.context?.route !== filterArea) return false;
+      if (filterArea && t.context?.page !== filterArea) return false;
       return true;
     });
   }, [tickets, filterCategory, filterStatus, filterArea]);
 
-  // Distinct Bereiche (context.route → page-Label) aus den geladenen Tickets,
-  // für die Bereich-Filter-Pills (z.B. „alle Tickets zur Homepage").
-  const areas = useMemo(() => {
-    const map = new Map<string, string>();
+  // Filter-Items (Label + Zähler) für die CollapsibleSeg-Chips — wie im User-Board,
+  // aber Status granular (Kurator braucht die feinen Stati). Zähler über das volle
+  // `tickets` (inkl. archivierter — der Admin verwaltet auch die).
+  const statusItems = useMemo<CollapsibleSegItem[]>(() => [
+    { label: 'Alle', count: tickets.length },
+    { label: 'Neu', count: tickets.filter(t => t.kurator_status === 'neu').length },
+    { label: 'Geplant', count: tickets.filter(t => t.kurator_status === 'geplant').length },
+    { label: 'In Bearb.', count: tickets.filter(t => t.kurator_status === 'in_bearbeitung').length },
+    { label: 'Umgesetzt', count: tickets.filter(t => t.kurator_status === 'umgesetzt').length },
+    { label: 'Abgelehnt', count: tickets.filter(t => t.kurator_status === 'abgelehnt').length },
+  ], [tickets]);
+
+  const kategorieItems = useMemo<CollapsibleSegItem[]>(() => [
+    { label: 'Alle', count: tickets.length },
+    { label: 'Bug', count: tickets.filter(t => t.category === 'problem').length },
+    { label: 'Idee', count: tickets.filter(t => t.category === 'idea').length },
+    { label: 'Lob', count: tickets.filter(t => t.category === 'praise').length },
+    { label: 'Frage', count: tickets.filter(t => t.category === 'question').length },
+  ], [tickets]);
+
+  // Bereich = context.page (Label, wie im Board). Distinct + Zähler, alphabetisch.
+  const bereichItems = useMemo<CollapsibleSegItem[]>(() => {
+    const counts = new Map<string, number>();
     for (const t of tickets) {
-      const route = t.context?.route;
-      if (!route) continue;
-      if (!map.has(route)) map.set(route, t.context.page || route);
+      const p = t.context?.page;
+      if (p) counts.set(p, (counts.get(p) ?? 0) + 1);
     }
-    return Array.from(map, ([route, label]) => ({ route, label }))
+    const items = Array.from(counts, ([label, count]) => ({ label, count }))
       .sort((a, b) => a.label.localeCompare(b.label));
+    return [{ label: 'Alle', count: tickets.length }, ...items];
   }, [tickets]);
 
   const faqs = useMemo(() => tickets.filter(t => t.is_faq), [tickets]);
@@ -102,7 +122,9 @@ export function FeedbackAdminPage(): React.ReactElement {
                 filterCategory={filterCategory}
                 filterStatus={filterStatus}
                 filterArea={filterArea}
-                areas={areas}
+                statusItems={statusItems}
+                kategorieItems={kategorieItems}
+                bereichItems={bereichItems}
                 onFilterCategory={setFilterCategory}
                 onFilterStatus={setFilterStatus}
                 onFilterArea={setFilterArea}
