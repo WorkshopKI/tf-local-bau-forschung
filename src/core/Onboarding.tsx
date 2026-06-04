@@ -24,9 +24,12 @@ interface OnboardingProps {
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
 
-/** 2–6 Großbuchstaben, keine Sonderzeichen — Validierung weich (Feld ist optional). */
+/** 2–6 Großbuchstaben (inkl. Umlaute Ä/Ö/Ü), keine Sonderzeichen — Validierung weich (Feld ist optional). */
 function normalizeKuerzel(raw: string): string {
-  return raw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6);
+  // NFC vor Regex: Umlaut-Eingaben koennen als NFD (U + Combining-Diaeresis)
+  // ankommen; ohne NFC wuerde [^A-ZÄÖÜ] die kombinierende Diaerese strippen und
+  // still "U" uebrig lassen. Deckt sich mit anonym-map.ts normalizeKuerzel (Pitfall #22).
+  return raw.normalize('NFC').toUpperCase().replace(/[^A-ZÄÖÜ]/g, '').slice(0, 6);
 }
 
 export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement {
