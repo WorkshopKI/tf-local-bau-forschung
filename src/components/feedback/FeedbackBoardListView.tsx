@@ -15,6 +15,7 @@ import {
   SortableTable,
   useTableSort,
   useColumnFilters,
+  useColumnWidths,
   type SortableColumn,
 } from '@/components/data-table';
 import {
@@ -32,6 +33,11 @@ interface Props {
 
 export function FeedbackBoardListView({ tickets, config }: Props): React.ReactElement {
   const columns = useMemo(() => buildColumns(config), [config]);
+  const defaultWidths = useMemo(
+    () => Object.fromEntries(columns.map(c => [c.key, c.width ?? 120])),
+    [columns],
+  );
+  const { widths, setWidth } = useColumnWidths('tf-feedback-board-list-widths', defaultWidths);
   const { columnFilters, setColumnFilter, filterCandidates, filteredRows } = useColumnFilters(tickets, columns);
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(filteredRows, columns, null, 'desc');
 
@@ -46,6 +52,8 @@ export function FeedbackBoardListView({ tickets, config }: Props): React.ReactEl
       columnFilters={columnFilters}
       onColumnFilterChange={setColumnFilter}
       filterCandidates={filterCandidates}
+      columnWidths={widths}
+      onColumnWidthChange={setWidth}
       emptyContent="Keine Einträge."
     />
   );
