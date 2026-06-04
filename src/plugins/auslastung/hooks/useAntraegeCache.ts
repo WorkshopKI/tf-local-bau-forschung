@@ -31,6 +31,7 @@ import { create } from 'zustand';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { listAntraegeByProgramm, listVerbuendeByProgramm } from '@/core/services/csv/idb-csv';
+import { SYNC_VERSION_KEY } from '@/core/services/csv/snapshot-keys';
 import type { Antrag, Verbund } from '@/core/services/csv/types';
 import type { StorageService } from '@/core/services/storage';
 import { type AnonymMap } from '../services/anonym-map';
@@ -98,6 +99,10 @@ interface CacheStoreState {
   allDeskriptoren: Array<{ wert: string; count: number }>;
   /** Key der zuletzt berechneten Aggregate. Null = noch nichts. */
   aggregatesKey: string | null;
+  /** Snapshot-Version (`snapshot-version-<programmId>`), gegen die der Cache
+   *  geladen wurde. Weicht die IDB-Version davon ab (CSV-Refresh / Cross-User-
+   *  Snapshot-Pull), lädt der Cache neu — ohne App-Reload (v2.26.x). */
+  cachedSnapshotVersion: string | null;
   /** Loesst den Refresh aus; idempotent fuer dieselbe programmId. */
   refresh: (storage: StorageService, programmId: string | null) => Promise<void>;
   /** Externe Invalidierung (CSV-Re-Import, Antrag-Edit). */
@@ -153,6 +158,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
   historischeAntraegeCountByAnon: EMPTY_COUNT_BY_ANON as Map<string, number>,
   allDeskriptoren: EMPTY_DESKR_LIST as Array<{ wert: string; count: number }>,
   aggregatesKey: null,
+  cachedSnapshotVersion: null,
   refresh: async (storage, programmId) => {
     const s = get();
     // Hit: gleiche programmId schon geladen → no-op.
@@ -176,6 +182,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
         historischeAntraegeCountByAnon: EMPTY_COUNT_BY_ANON as Map<string, number>,
         allDeskriptoren: EMPTY_DESKR_LIST as Array<{ wert: string; count: number }>,
         aggregatesKey: null,
+        cachedSnapshotVersion: null,
       });
       return;
     }
@@ -193,6 +200,10 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
           listVerbuendeByProgramm(storage.idb, programmId),
           loadAllVerbundEmbeddings(storage.idb).catch(() => null),
         ]);
+        // Snapshot-Version mitlesen, gegen die geladen wird — damit ein
+        // späterer CSV-Refresh (neue Version in der IDB) erkannt wird.
+        const snapshotVersion =
+          (await storage.idb.get<string>(SYNC_VERSION_KEY(programmId)).catch(() => null)) ?? null;
         // Aggregate sofort mitberechnen, falls die kuerzel-map schon
         // geladen ist (B1-Pfad). Sonst bleiben sie auf den Default-Refs
         // und ensureAggregates() rechnet sie nach, sobald die kuerzel-map
@@ -213,6 +224,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
             refreshing: null,
             ...agg,
             aggregatesKey: buildAggregatesKey(programmId, allAntraege, allVerbuende, kuerzelMapFile),
+            cachedSnapshotVersion: snapshotVersion,
           });
         } else {
           set({
@@ -226,6 +238,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
             // Aggregate vorerst auf Default — werden durch ensureAggregates()
             // im Hook-useEffect nachgerechnet, sobald die kuerzel-map da ist.
             aggregatesKey: null,
+            cachedSnapshotVersion: snapshotVersion,
           });
         }
       } catch (err) {
@@ -253,6 +266,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
       historischeAntraegeCountByAnon: EMPTY_COUNT_BY_ANON as Map<string, number>,
       allDeskriptoren: EMPTY_DESKR_LIST as Array<{ wert: string; count: number }>,
       aggregatesKey: null,
+      cachedSnapshotVersion: null,
     });
   },
   ensureAggregates: () => {
@@ -280,6 +294,63 @@ export async function warmupAntraegeCache(
   programmId: string | null,
 ): Promise<void> {
   await useCacheStore.getState().refresh(storage, programmId);
+}
+
+/** Reine Entscheidung: weicht die IDB-Snapshot-Version von der gecachten ab? */
+export function needsSnapshotRefresh(current: string | null, cached: string | null): boolean {
+  return current !== cached;
+}
+
+const SNAPSHOT_REFRESH_INTERVAL_MS = 90_000;
+
+/**
+ * Hält den Auslastungs-Antraege-Cache nach einem CSV-Refresh aktuell — OHNE
+ * App-Reload. Vergleicht die aktuelle IDB-Snapshot-Version
+ * (`snapshot-version-<programmId>`, gesetzt von `importCsvSource`/`syncProgrammSnapshot`
+ * NACH dem frischen IDB-Write) mit der Version, gegen die der Cache geladen wurde;
+ * bei Abweichung wird invalidiert + neu gewarmt (idempotent, `refreshing`-Dedupe).
+ *
+ * Geprüft wird beim Mount, bei `visibilitychange`(visible)/`focus` und über ein
+ * leichtes Intervall (Fallback für den Zwei-Monitor-Fall, in dem das Modul
+ * dauerhaft sichtbar bleibt). Reine Lese-Aktualisierung — `auslastung.json`
+ * (Config/MAs/Klassifizierungen/Zuweisungen) bleibt unberührt; eine
+ * Klassifizierung wird NICHT automatisch angestoßen. Einmal pro Modul gemountet
+ * (in `AuslastungView`).
+ */
+export function useAntraegeCacheSnapshotRefresh(): void {
+  const storage = useStorage();
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
+
+  useEffect(() => {
+    if (!activeProgrammId) return;
+    let cancelled = false;
+
+    const checkAndRefresh = async (): Promise<void> => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      const s = useCacheStore.getState();
+      // Nicht waehrend laufendem (Erst-)Load — sonst Race mit dem Warmup.
+      if (!s.loaded || s.loading || s.refreshing) return;
+      const current =
+        (await storage.idb.get<string>(SYNC_VERSION_KEY(activeProgrammId)).catch(() => null)) ?? null;
+      if (cancelled) return;
+      if (!needsSnapshotRefresh(current, s.cachedSnapshotVersion)) return;
+      invalidateAntraegeCache();
+      await warmupAntraegeCache(storage, activeProgrammId);
+    };
+
+    void checkAndRefresh();
+    const onVisible = (): void => { void checkAndRefresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    const timer = setInterval(() => { void checkAndRefresh(); }, SNAPSHOT_REFRESH_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      clearInterval(timer);
+    };
+  }, [storage, activeProgrammId]);
 }
 
 export function useAntraegeCache(): AntraegeCache {

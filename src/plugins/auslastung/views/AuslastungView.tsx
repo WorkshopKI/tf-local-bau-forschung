@@ -29,6 +29,7 @@ import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAutoCollectTeamProfiles } from '../hooks/useAutoCollectTeamProfiles';
 import { useReconcileZuweisungen } from '../hooks/useReconcileZuweisungen';
 import { useAuslastungCrossTabSync } from '../hooks/useAuslastungCrossTabSync';
+import { useAntraegeCacheSnapshotRefresh } from '../hooks/useAntraegeCache';
 import { AuslastungIndexProvider } from '../hooks/useAuslastungIndex';
 import { ModulLoadingBanner } from '../components/ModulLoadingBanner';
 import { AuslastungSaveErrorBanner } from '../components/AuslastungSaveErrorBanner';
@@ -64,6 +65,10 @@ export function AuslastungView(): React.ReactElement {
   // lädt frisch vom Share nach, sobald dieser Tab schreibt (verhindert Lost-
   // Updates bei geteilter IDB + Datei-Handle).
   useAuslastungCrossTabSync();
+
+  // v2.26: nach einem CSV-Refresh (neue Snapshot-Version in der IDB) die
+  // Anträge ohne App-Reload nachladen — Klassifizierung bleibt manuell.
+  useAntraegeCacheSnapshotRefresh();
 
   // Default-Tab: 'klassifizierung'. Wenn Setup nicht abgeschlossen, springt
   // ein useEffect (siehe unten) auf 'uebersicht' (zeigt Setup-Wizard).
