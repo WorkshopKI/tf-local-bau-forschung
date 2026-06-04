@@ -421,7 +421,7 @@ export function KlassifizierungsReview(): React.ReactElement {
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {(['alle', 'review', 'llm', 'freigegeben'] as const).map(f => (
             <button
               key={f}
@@ -442,6 +442,18 @@ export function KlassifizierungsReview(): React.ReactElement {
               {f === 'freigegeben' && `Freigegeben (${fmtCount(counts.freig, isInitialLoading)})`}
             </button>
           ))}
+          <CollapsibleSeg
+            label="Kategorie"
+            value={kategorieFilter || 'Alle'}
+            items={kategorieItems}
+            onChange={label => setKategorieFilter(label === 'Alle' ? '' : label)}
+          />
+          <CollapsibleSeg
+            label="Antragstyp"
+            value={antragstypFilter || 'Alle'}
+            items={antragstypItems}
+            onChange={label => setAntragstypFilter(label === 'Alle' ? '' : (label as AntragstypBucket))}
+          />
         </div>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
@@ -469,22 +481,6 @@ export function KlassifizierungsReview(): React.ReactElement {
             onToggleColumn={toggleColumn}
           />
         </div>
-      </div>
-
-      {/* Facetten-Filter (Stil wie „Anträge zuweisen"): Kategorie + Antragstyp */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <CollapsibleSeg
-          label="Kategorie"
-          value={kategorieFilter || 'Alle'}
-          items={kategorieItems}
-          onChange={label => setKategorieFilter(label === 'Alle' ? '' : label)}
-        />
-        <CollapsibleSeg
-          label="Antragstyp"
-          value={antragstypFilter || 'Alle'}
-          items={antragstypItems}
-          onChange={label => setAntragstypFilter(label === 'Alle' ? '' : (label as AntragstypBucket))}
-        />
       </div>
 
       <VerbundClassificationTable

@@ -230,7 +230,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
-    key: 'antragsdatum', label: 'Antragseingang', width: 110, defaultVisible: false,
+    key: 'antragsdatum', label: 'Antragseingang', width: 150, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.antragsdatum),
     filterType: 'year',
@@ -239,7 +239,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
-    key: 'bewilligungsdatum', label: 'Bewilligungsdatum', width: 130, defaultVisible: true,
+    key: 'bewilligungsdatum', label: 'Bewilligungsdatum', width: 165, defaultVisible: true,
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.bewilligungsdatum),
     filterType: 'year',
@@ -256,7 +256,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
-    key: 'laufzeitbeginn', label: 'Laufzeitbeginn', width: 120, defaultVisible: false,
+    key: 'laufzeitbeginn', label: 'Laufzeitbeginn', width: 150, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.laufzeitbeginn),
     filterType: 'year',
@@ -265,7 +265,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
-    key: 'laufzeitende', label: 'Laufzeitende', width: 120, defaultVisible: false,
+    key: 'laufzeitende', label: 'Laufzeitende', width: 140, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.laufzeitende),
     filterType: 'year',
@@ -282,7 +282,7 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
-    key: 'dokumentTyp', label: 'Dokumenttyp', width: 110, defaultVisible: false,
+    key: 'dokumentTyp', label: 'Dokumenttyp', width: 140, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'dokument',
     accessor: r => safeString(r.dokumentTyp),
     render: r => r.dokumentTyp
