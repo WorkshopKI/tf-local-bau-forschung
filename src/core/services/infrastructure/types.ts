@@ -138,6 +138,16 @@ export const PERSOENLICH_AUSLASTUNG_UEBERNAHME_FILE = 'ZAH/auslastung-uebernahme
  */
 export const NEEDS_HANDLE_DOWNGRADE_IDB_KEY = 'needs-handle-downgrade';
 
+/**
+ * IDB-Key für die pro-CsvSchema gespeicherten `FileSystemFileHandle`s
+ * (Auto-Refresh-Quelldateien). In Core definiert (zentrale IDB-Key-Registry),
+ * genutzt vom csv-sources-kuration-Plugin UND vom Start-Re-Grant in
+ * `refreshAllPermissions` (smb-handle.ts), das die FSAPI-Datei-Berechtigung
+ * beim App-Start neu erteilt — sonst fragt der Auto-Refresh-Banner nach jedem
+ * Neustart erneut nach Verknüpfung (v2.19.1).
+ */
+export const CSV_SOURCE_HANDLES_IDB_KEY = 'csv-source-handles';
+
 /** Backup-Root. v1.9: ohne programm-test-Zwischenordner; Rolling 4 Generationen. */
 export const BACKUPS_DIR = 'backups';
 export const BACKUP_MAX_GENERATIONS = 4;

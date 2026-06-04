@@ -21,8 +21,9 @@ import type { CsvSchema } from '@/core/services/csv/types';
 import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
 import { parseCsvPreview } from '@/core/services/csv';
 import { validateHeaders } from './services/csv-drift-check';
-
-const HANDLES_IDB_KEY = 'csv-source-handles';
+// Key in Core definiert (zentrale IDB-Key-Registry) — derselbe Record wird beim
+// App-Start von refreshAllPermissions re-granted (v2.19.1).
+import { CSV_SOURCE_HANDLES_IDB_KEY as HANDLES_IDB_KEY } from '@/core/services/infrastructure/types';
 
 type PermState = 'granted' | 'denied' | 'prompt';
 

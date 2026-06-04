@@ -33,12 +33,19 @@ import {
   HEARTBEAT_PROBE_PATH,
   README_PATH,
   PERSOENLICH_ZAH_DIR,
+  CSV_SOURCE_HANDLES_IDB_KEY,
 } from './types';
-import { canWriteDatenShare } from '@/config/feature-flags';
+import { canWriteDatenShare, isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
 
 type PermState = 'granted' | 'denied' | 'prompt';
 
 export interface FsDirHandle extends FileSystemDirectoryHandle {
+  queryPermission(opts: { mode: 'read' | 'readwrite' }): Promise<PermState>;
+  requestPermission(opts: { mode: 'read' | 'readwrite' }): Promise<PermState>;
+}
+
+/** Wie FsDirHandle, aber fuer Datei-Handles (z.B. CSV-Quelldateien). */
+export interface FsFileHandle extends FileSystemFileHandle {
   queryPermission(opts: { mode: 'read' | 'readwrite' }): Promise<PermState>;
   requestPermission(opts: { mode: 'read' | 'readwrite' }): Promise<PermState>;
 }
@@ -529,6 +536,30 @@ export async function refreshAllPermissions(
         result.dmsSources[sourceId] = await (map[key] as FsDirHandle).requestPermission({ mode: 'read' });
       } catch {
         result.dmsSources[sourceId] = 'denied';
+      }
+    }
+  }
+
+  // v2.19.1: CSV-Quellen-Datei-Handles im selben User-Gesture re-granten (pl +
+  // kurator + dev). FSAPI-Datei-Berechtigungen gehen unter file:// pro Browser-
+  // Session verloren — genau wie der Daten-Share oben; ohne das fragt der
+  // Auto-Refresh-Banner nach jedem Neustart erneut nach Verknüpfung. Die
+  // CSV-Handles liegen in einem eigenen IDB-Key (nicht im smb-handles-Map),
+  // daher separat. Nur Handles mit verlorener Permission ('prompt') anfragen;
+  // best-effort — denied/Fehler ignorieren (Banner faellt dann auf den
+  // Re-Pick-Picker zurueck).
+  if (isKuratorMenusEnabled() || isCsvAutoRefreshEnabled()) {
+    const csvHandles = await idb.get<Record<string, FileSystemFileHandle>>(CSV_SOURCE_HANDLES_IDB_KEY);
+    if (csvHandles) {
+      for (const handle of Object.values(csvHandles)) {
+        const h = handle as FsFileHandle;
+        try {
+          if ((await h.queryPermission({ mode: 'read' })) !== 'granted') {
+            await h.requestPermission({ mode: 'read' });
+          }
+        } catch {
+          /* best-effort — denied/Fehler ignorieren */
+        }
       }
     }
   }
