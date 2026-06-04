@@ -1,6 +1,6 @@
 /**
  * Top-3 MA-Vorschlags-Card im Zuweisungs-Cockpit.
- * Zeigt: anonId gross, Score, Stufe-Badge, Kapazitaet in Antraegen (NICHT
+ * Zeigt: anonId gross, Kompetenz-Score, Kapazitaet in Antraegen (NICHT
  * Stunden — User-facing seit 1.17), Aspekt-Match-Hinweise, matchende
  * Technologien, aehnliche Projekte, Zuweisen/Ablehnen-Buttons.
  */
@@ -22,12 +22,6 @@ interface Props {
   /** Antragstyp dieses Antrags (für die Typ-Kontingent-Anzeige). Optional. */
   antragstyp?: AntragstypBucket | null;
 }
-
-const STUFE_LABEL: Record<MatchResult['matchStufe'], string> = {
-  1: 'BM25',
-  2: 'Embedding',
-  3: 'Hybrid',
-};
 
 export function VorschlagCard({
   match, matchendeQueryTokens, onZuweisen, onAblehnen, disabled, tageImQuartal, antragstyp,
@@ -105,20 +99,14 @@ export function VorschlagCard({
               <>
                 <div className="flex items-center gap-2">
                   <span className="text-[16px] font-medium text-[var(--tf-text)]">{score}%</span>
-                  <span
-                    className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] px-1.5 py-0.5 rounded"
-                    style={{ background: 'var(--tf-bg-secondary)' }}
-                  >
-                    {STUFE_LABEL[match.matchStufe]}
-                  </span>
+                  <span className="text-[12px] text-[var(--tf-text-secondary)]">Kompetenz</span>
                   <ConfidenceDot confidence={match.confidence} />
                 </div>
-                <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-                  Kompetenz {score}%
-                  {(match.aspektBonus ?? 0) > 0 && (
-                    <> · Aspekt +{Math.round((match.aspektBonus ?? 0) * 100)}%</>
-                  )}
-                </span>
+                {(match.aspektBonus ?? 0) > 0 && (
+                  <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+                    Aspekt +{Math.round((match.aspektBonus ?? 0) * 100)}%
+                  </span>
+                )}
               </>
             )}
           </div>
