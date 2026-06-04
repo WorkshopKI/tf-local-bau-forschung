@@ -1,10 +1,13 @@
 /**
  * AuslastungView — Top-Level-Layout des Auslastungs-Plugins (1.17).
  *
- * Reduziert von 5 auf 3 Tabs:
+ * Tabs (v2.21):
  *  - Klassifizierung  — pro Verbund, mit LLM-Batch-Button (1.17)
  *  - Zuweisung        — PL-Cockpit mit Top-3 Vorschlaegen
- *  - Uebersicht       — fusioniert Admin + Kapazitaet
+ *  - Auslastung MA    — Statistik + MA-Liste/Kapazitaet
+ *  - Kompetenzen      — PL-Kompetenz-Matrix (v2.15)
+ *  - Einstellungen    — Kategorien/Import-Export/Konfig/Themen-Vektoren
+ *                       (bis v2.20 im „Erweitert"-Aufklapper der Uebersicht)
  *
  * Die ehemalige Selbsteintragung wandert auf die Homepage
  * (NeueAntraegeFuerDich-Sektion). Sichtbarkeit "PL-only" ist bereits ueber
@@ -31,9 +34,10 @@ import { KlassifizierungsReview } from './KlassifizierungsReview';
 import { ZuweisungsCockpit } from './ZuweisungsCockpit';
 import { UebersichtView } from './UebersichtView';
 import { KompetenzMatrixView } from './KompetenzMatrixView';
+import { EinstellungenView } from './EinstellungenView';
 
-type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht' | 'kompetenzen';
-const ALL_TABS: ReadonlySet<TabId> = new Set(['klassifizierung', 'zuweisung', 'uebersicht', 'kompetenzen']);
+type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht' | 'kompetenzen' | 'einstellungen';
+const ALL_TABS: ReadonlySet<TabId> = new Set(['klassifizierung', 'zuweisung', 'uebersicht', 'kompetenzen', 'einstellungen']);
 
 export function AuslastungView(): React.ReactElement {
   const storage = useStorage();
@@ -103,6 +107,11 @@ export function AuslastungView(): React.ReactElement {
         id: 'kompetenzen' as const,
         label: 'Kompetenzen & Jahreskapazitäten',
         tooltip: 'PL-Kompetenz-Vorbelegung: XLSX mit Kompetenz-Leveln (1–3), Antragstyp-Kontingent und Abschlag pro Kürzel hochladen und in einer xlsx-ähnlichen Tabelle pflegen.',
+      },
+      {
+        id: 'einstellungen' as const,
+        label: 'Einstellungen',
+        tooltip: 'Kategorien, CSV-Import/Export, Konfiguration und Themen-Vektoren (Embedding-Korpus) — bis v2.20 im „Erweitert"-Aufklapper versteckt.',
       },
     ];
   }, [data.klassifizierungen, data.config.aktuellesQuartal]);
@@ -175,6 +184,11 @@ export function AuslastungView(): React.ReactElement {
               {ALL_TABS.has('kompetenzen') && (
                 <div style={{ display: tab === 'kompetenzen' ? 'block' : 'none' }}>
                   <KompetenzMatrixView />
+                </div>
+              )}
+              {ALL_TABS.has('einstellungen') && (
+                <div style={{ display: tab === 'einstellungen' ? 'block' : 'none' }}>
+                  <EinstellungenView />
                 </div>
               )}
             </div>

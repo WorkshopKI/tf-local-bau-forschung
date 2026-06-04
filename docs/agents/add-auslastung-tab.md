@@ -1,6 +1,6 @@
 # Neuen Tab im Auslastungs-Plugin hinzufügen
 
-Das Auslastungs-Plugin (`src/plugins/auslastung/`) hat aktuell 4 Tabs (Klassifizierung / Zuweisung / Übersicht — v1.17 — + Kompetenzen — v2.15). Neue Tabs werden in [AuslastungView.tsx](../../src/plugins/auslastung/views/AuslastungView.tsx) eingehängt; alle Tabs werden eager gemountet und per CSS-Toggle umgeschaltet (v2.9), damit `computeQuartalsAuslastung` nur einmal pro Mount läuft.
+Das Auslastungs-Plugin (`src/plugins/auslastung/`) hat aktuell 5 Tabs (Klassifizierung / Zuweisung / Auslastung MA — v1.17 — + Kompetenzen — v2.15 — + Einstellungen — v2.21, bündelt die Admin-/Konfig-Sektionen). Neue Tabs werden in [AuslastungView.tsx](../../src/plugins/auslastung/views/AuslastungView.tsx) eingehängt; alle Tabs werden eager gemountet und per CSS-Toggle umgeschaltet (v2.9), damit `computeQuartalsAuslastung` nur einmal pro Mount läuft.
 
 ## Touch-Points (Pflicht)
 
