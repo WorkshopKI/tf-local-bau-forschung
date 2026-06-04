@@ -29,6 +29,7 @@ import { readText } from '@/core/services/infrastructure/atomic-write';
 import { listProgramme } from '@/core/services/csv';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
+import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { ProgrammSnapshotManifest } from '@/core/services/csv/snapshot';
 
 const POLL_INTERVAL_MS = 15 * 60 * 1000; // 15 Min
@@ -205,6 +206,12 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
               createdAt: r.createdAt,
             });
           }
+        } else if (useAntraegeStore.getState().antraege.length === 0) {
+          // v2.21.3: synced:false, weil ein vorheriger (Startup-)Sync die
+          // Version schon konsumiert hat — die Daten liegen dann bereits in der
+          // IDB, nur der In-Memory-Store ist leer. „Jetzt laden" darf hier kein
+          // stiller No-Op sein: Store aus der IDB nachladen.
+          await refreshAntraegeStoreAfterSync(storage.idb, u.programmId, ['antraege']);
         }
       }
       if (mountedRef.current) {

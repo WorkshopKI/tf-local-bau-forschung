@@ -285,7 +285,11 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
         antraege,
         verbuende,
         verbundById,
-        lastLoadedAt: Date.now(),
+        // TTL nur „armen", wenn wirklich Daten geladen wurden. Ein leerer
+        // Erst-Load (Cold-Start: IDB noch nicht vom Snapshot-Sync befüllt) darf
+        // den nächsten loadAll NICHT 5 Min blockieren — sonst bleibt die UI bis
+        // zum manuellen Reload leer, obwohl der Sync die IDB inzwischen füllt (v2.21.3).
+        lastLoadedAt: antraege.length > 0 ? Date.now() : 0,
         ...(programmChanged ? {
           selectedAktenzeichen: null,
           selectedVerbundId: null,

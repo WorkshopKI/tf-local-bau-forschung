@@ -23,7 +23,7 @@ import {
   needsDatenShareDowngrade,
 } from '@/core/services/infrastructure/smb-handle';
 import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/types';
-import { listProgramme } from '@/core/services/csv';
+import { listProgramme, ensureDefaultProgramm } from '@/core/services/csv';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
@@ -446,6 +446,11 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
     (async () => {
       const handle = await getDatenShareHandle(storage.idb);
       if (!handle) return;
+      // v2.21.3: Cold-Start — auf einem frisch geleerten Rechner ist der
+      // programme-Store noch leer (Default-Programm wird sonst erst lazy beim
+      // ersten loadAll angelegt). Ohne dieses ensure liefe der Sync ins Leere
+      // und der erste Datenbestand käme erst nach manuellem Reload. Idempotent.
+      await ensureDefaultProgramm(storage.idb);
       const programme = await listProgramme(storage.idb);
       for (const p of programme) {
         if (cancelled) return;
