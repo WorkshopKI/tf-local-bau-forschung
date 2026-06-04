@@ -30,7 +30,7 @@ import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refre
 import { rematchOnSnapshotReload } from '@/phase2';
 import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
 import { runtimeConfig } from '@/config/runtime-config';
-import { isDemoDataBundled, dataConfig, isMaLoginEnabled } from '@/config/feature-flags';
+import { isDemoDataBundled, dataConfig, isMaLoginEnabled, canWriteDatenShare } from '@/config/feature-flags';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
 import { getAppGateSession } from '@/core/hooks/useAppGateSession';
 import { seedTestData } from '@/core/services/seed/seed-data';
@@ -266,9 +266,23 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
 
     // v2.0: StartupScreen anzeigen, damit Permissions in einem User-Gesture-
     // Handler aktualisiert werden koennen.
+    //
+    // Das Downgrade-Flag ist rollen-spezifisch, liegt aber in der unter `file://`
+    // GETEILTEN IndexedDB (alle Varianten = ein `teamflow`-Store, gleicher
+    // Origin). Eine Nur-Lese-Variante (prod / kurator-vor-Login) setzt es; ohne
+    // die `writeRole`-Guard wuerde ein parallel offener pl-Tab das fremde Flag
+    // befolgen und sich grundlos auf `read` herunterstufen → stille
+    // NotAllowedError-Writes, Datenverlust (Juni-2026-Vorfall). Schreib-Rollen
+    // ignorieren das Flag und raeumen ein fremd-gesetztes weg (Pitfall #25:
+    // Mode-Entscheidung ausschliesslich ueber canWriteDatenShare).
+    const writeRole = canWriteDatenShare(isKurator);
     const downgradeFlag = await storage.idb.get<boolean>(NEEDS_HANDLE_DOWNGRADE_IDB_KEY);
-    const liveDowngrade = downgradeFlag === true ? true : await needsDatenShareDowngrade(storage.idb, { isKurator });
-    if (liveDowngrade) {
+    const liveDowngrade = writeRole
+      ? false
+      : (downgradeFlag === true ? true : await needsDatenShareDowngrade(storage.idb, { isKurator }));
+    if (writeRole && downgradeFlag) {
+      await storage.idb.delete(NEEDS_HANDLE_DOWNGRADE_IDB_KEY);
+    } else if (liveDowngrade) {
       await storage.idb.set(NEEDS_HANDLE_DOWNGRADE_IDB_KEY, true);
     }
     setNeedsDowngrade(liveDowngrade);

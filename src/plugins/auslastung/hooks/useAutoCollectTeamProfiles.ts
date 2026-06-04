@@ -33,10 +33,17 @@ export function useAutoCollectTeamProfiles(): void {
   const storage = useStorage();
   const { ready } = useAuslastungReady();
   const cache = useAntraegeCache();
+  const setupDone = useAuslastungData(s => s.data.config.setupAbgeschlossen);
   const applyAggregatedProfiles = useAuslastungData(s => s.applyAggregatedProfiles);
 
   useEffect(() => {
     if (!ready) return;
+    // Cold-Start-Clobber-Schutz: nur einsammeln, wenn das Modul wirklich
+    // eingerichtet ist. Ein transienter Leer-Read setzt zwar `loaded=true`
+    // (→ ready), liefert aber `setupAbgeschlossen=false`/0 MAs — dann darf
+    // NICHTS auf die leere Basis persistiert werden (sonst 263→7-KB-Clobber).
+    // Flag NICHT setzen → laeuft nach, sobald Setup steht / echte Daten da sind.
+    if (!setupDone) return;
     // AnonymMap muss geladen sein — sonst würde mergeProfilesIntoMitarbeiter
     // jedes Kürzel als unbekannt behandeln und Dubletten-MAs anlegen.
     if (cache.anonymMap.toAnon.size === 0) return;
@@ -55,5 +62,5 @@ export function useAutoCollectTeamProfiles(): void {
         // Best-effort — manueller „Team-Profile einsammeln"-Button bleibt.
       }
     })();
-  }, [ready, cache.anonymMap, applyAggregatedProfiles, storage]);
+  }, [ready, setupDone, cache.anonymMap, applyAggregatedProfiles, storage]);
 }

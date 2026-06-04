@@ -379,6 +379,16 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
   },
 
   applyAggregatedProfiles: async (storage, profile, anonymMap) => {
+    // Cold-Start-Clobber-Schutz: NIE Profile auf eine un-eingerichtete (leere)
+    // Basis schreiben. Ein transienter Leer-Read von auslastung.json (Datei liegt
+    // gerade im atomicWrite-.tmp-Rename-Fenster eines parallel offenen Tabs) setzt
+    // `loaded=true` mit 0 MAs; der Auto-Collect-Effekt wuerde hier sonst die
+    // Profile als „neue MAs" persistieren und die volle Datei mit einem Skelett
+    // ueberschreiben (Juni-2026-Datenverlust 263 KB → 7 KB). MA-Bestand entsteht
+    // nur aus echtem Setup / Kuerzel-Map.
+    if (!get().data.config.setupAbgeschlossen && Object.keys(get().data.mitarbeiter).length === 0) {
+      return { aktualisiert: [], neu: [], unzuordenbar: [] };
+    }
     const { next, aktualisiert, neu, unzuordenbar } = mergeProfilesIntoMitarbeiter(
       get().data.mitarbeiter,
       profile,

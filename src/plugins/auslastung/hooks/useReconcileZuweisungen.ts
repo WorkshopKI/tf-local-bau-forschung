@@ -37,10 +37,16 @@ export function useReconcileZuweisungen(): void {
   const storage = useStorage();
   const { ready } = useAuslastungReady();
   const cache = useAntraegeCache();
+  const setupDone = useAuslastungData(s => s.data.config.setupAbgeschlossen);
   const reconcileZuweisungen = useAuslastungData(s => s.reconcileZuweisungen);
 
   useEffect(() => {
     if (!ready) return;
+    // Cold-Start-Clobber-Schutz (analog useAutoCollectTeamProfiles): bei einem
+    // transienten Leer-Read ist `ready` zwar true, aber das Modul nicht
+    // eingerichtet — dann keine Auto-Mutation auf die leere Basis. Flag NICHT
+    // setzen → laeuft nach, sobald echte Daten geladen sind.
+    if (!setupDone) return;
     // Ohne antraege keine Verbund-Auflösung — warten (Flag NICHT setzen).
     if (cache.antraege.length === 0) return;
     if (reconcileDone) return;
@@ -59,5 +65,5 @@ export function useReconcileZuweisungen(): void {
     ).catch(() => {
       // Best-effort — nicht schreibbare Variante / Race: still überspringen.
     });
-  }, [ready, cache.antraege, reconcileZuweisungen, storage]);
+  }, [ready, setupDone, cache.antraege, reconcileZuweisungen, storage]);
 }
