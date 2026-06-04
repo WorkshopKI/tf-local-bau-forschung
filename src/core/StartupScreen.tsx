@@ -140,7 +140,7 @@ export function StartupScreen({
           <>
             <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3 leading-relaxed">
               Bevor es losgeht, verbinden Sie die App einmalig mit dem Datenspeicher.
-              Der vom Build vorgegebene Pfad lautet:
+              Der vorgegebene Pfad lautet:
             </p>
             {fixedPath && (
               <div className="flex items-stretch gap-2 mb-4">
