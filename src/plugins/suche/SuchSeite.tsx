@@ -256,7 +256,7 @@ export function SuchSeite(): React.ReactElement {
   const validation = analyse.result?.validation ?? null;
 
   return (
-    <div className="px-8 pt-4 pb-6 max-w-[1400px]">
+    <div className="px-8 pt-4 pb-6">
       <div className="flex flex-col items-start mb-4">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">Suche</h1>
         <div className="flex items-center gap-2 w-full max-w-4xl">
