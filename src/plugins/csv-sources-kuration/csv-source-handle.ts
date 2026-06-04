@@ -27,6 +27,7 @@ import { validateHeaders } from './services/csv-drift-check';
 import {
   CSV_SOURCE_HANDLES_IDB_KEY as HANDLES_IDB_KEY,
   CSV_SOURCE_DIR_HANDLE_IDB_KEY as DIR_HANDLE_IDB_KEY,
+  CSV_SOURCE_DIR_FILEMAP_IDB_KEY as DIR_FILEMAP_IDB_KEY,
 } from '@/core/services/infrastructure/types';
 
 type PermState = 'granted' | 'denied' | 'prompt';
@@ -114,6 +115,20 @@ export async function setCsvSourceDirHandle(
 
 export async function clearCsvSourceDirHandle(idb: IDBStore): Promise<void> {
   await idb.delete(DIR_HANDLE_IDB_KEY);
+  await idb.delete(DIR_FILEMAP_IDB_KEY);
+}
+
+/** Lokale (nicht synchronisierte) Zuordnung schemaId → Dateiname im Ordner. */
+type DirFileMap = Record<string, string>;
+
+export async function getCsvDirFileMap(idb: IDBStore): Promise<DirFileMap> {
+  return (await idb.get<DirFileMap>(DIR_FILEMAP_IDB_KEY)) ?? {};
+}
+
+/** Merge-Update der Filemap (überschreibt nur die übergebenen schemaIds). */
+export async function setCsvDirFileMapEntries(idb: IDBStore, entries: DirFileMap): Promise<void> {
+  const map = await getCsvDirFileMap(idb);
+  await idb.set(DIR_FILEMAP_IDB_KEY, { ...map, ...entries });
 }
 
 export async function queryCsvSourceDirPermission(
@@ -135,11 +150,14 @@ export async function requestCsvSourceDirPermission(
  * Verzeichnis-Handle auf die Kind-Datei — kein eigener Datei-Prompt nötig.
  *
  * Match-Strategie:
- *  1. `schema.source_file_name` gesetzt + Datei existiert → direkt `getFileHandle`.
+ *  1. `knownFileName` (lokale Filemap) bzw. `schema.source_file_name` gesetzt +
+ *     Datei existiert → direkt `getFileHandle` (nur Metadaten, KEIN Scan/Parse).
  *  2. sonst: alle `.csv`-Dateien des Ordners gegen das Schema validieren
  *     (`parseCsvPreview` + `validateHeaders`), die Datei mit den meisten
  *     gematchten Spalten (>0) nehmen. Begründung: `source_file_name` ist auf
- *     pl-Schemas (Snapshot-Import) nicht zuverlässig gesetzt.
+ *     pl-Schemas (Snapshot-Import) nicht zuverlässig gesetzt. Dieser Pfad ist
+ *     teuer (liest+parst jede CSV) — Caller cachen den Treffer in der lokalen
+ *     Filemap, damit er pro Quelle nur EINMAL läuft (Perf-Fix v2.27.2).
  *
  * Nicht-rekursiv — erfasst nur Dateien DIREKT im gewählten Ordner. Liefert
  * `null`, wenn keine passende Datei gefunden wird.
@@ -147,15 +165,16 @@ export async function requestCsvSourceDirPermission(
 export async function resolveFileViaDir(
   dirHandle: FileSystemDirectoryHandle,
   schema: CsvSchema,
+  knownFileName?: string,
 ): Promise<{ file: File; fileName: string } | null> {
-  // 1. exakter Dateiname
-  const wanted = schema.source_file_name;
-  if (wanted) {
+  // 1. bekannter Dateiname (Filemap > source_file_name) — schneller Pfad ohne Scan
+  for (const candidate of [knownFileName, schema.source_file_name]) {
+    if (!candidate) continue;
     try {
-      const fh = await dirHandle.getFileHandle(wanted);
-      return { file: await fh.getFile(), fileName: wanted };
+      const fh = await dirHandle.getFileHandle(candidate);
+      return { file: await fh.getFile(), fileName: candidate };
     } catch {
-      /* nicht gefunden → Header-Fallback */
+      /* nicht (mehr) gefunden → nächster Kandidat / Header-Fallback */
     }
   }
   // 2. Header-Fallback: beste Übereinstimmung unter den .csv-Dateien
@@ -220,8 +239,14 @@ export async function checkSourceForUpdate(
         fileName: schema.source_file_name ?? schema.csv_source_name,
       };
     }
-    const resolved = await resolveFileViaDir(dirHandle, schema);
+    const fileMap = await getCsvDirFileMap(idb);
+    const resolved = await resolveFileViaDir(dirHandle, schema, fileMap[schema.id]);
     if (resolved) {
+      // Self-Heal: gescannten Treffer in die lokale Filemap schreiben, damit der
+      // nächste Lauf den schnellen Pfad nimmt (kein erneuter Ordner-Scan/Parse).
+      if (fileMap[schema.id] !== resolved.fileName) {
+        await setCsvDirFileMapEntries(idb, { [schema.id]: resolved.fileName });
+      }
       const recorded = schema.source_last_modified ?? null;
       if (recorded != null && resolved.file.lastModified <= recorded) {
         return { state: 'up_to_date', lastModified: resolved.file.lastModified, fileName: resolved.fileName };
@@ -286,8 +311,14 @@ export async function loadFileFromStoredHandle(
         const granted = await requestCsvSourceDirPermission(dirHandle);
         if (granted !== 'granted') throw new Error('Ordner-Zugriff nicht erlaubt.');
       }
-      const resolved = await resolveFileViaDir(dirHandle, schema);
-      if (resolved) return { file: resolved.file, handle: null };
+      const fileMap = await getCsvDirFileMap(idb);
+      const resolved = await resolveFileViaDir(dirHandle, schema, fileMap[schema.id]);
+      if (resolved) {
+        if (fileMap[schema.id] !== resolved.fileName) {
+          await setCsvDirFileMapEntries(idb, { [schema.id]: resolved.fileName });
+        }
+        return { file: resolved.file, handle: null };
+      }
       // Datei nicht im Ordner → Per-Datei-Handle als Fallback versuchen.
     }
   }
@@ -450,9 +481,10 @@ export async function pickAndLinkCsvFolder(
 
   const matched: string[] = [];
   const unmatched: string[] = [];
+  const fileMap: DirFileMap = {};
   for (const schema of schemas) {
     const resolved = await resolveFileViaDir(dirHandle, schema);
-    if (resolved) matched.push(schema.id);
+    if (resolved) { matched.push(schema.id); fileMap[schema.id] = resolved.fileName; }
     else unmatched.push(schema.csv_source_name);
   }
 
@@ -463,6 +495,9 @@ export async function pickAndLinkCsvFolder(
   }
 
   await setCsvSourceDirHandle(idb, dirHandle);
+  // Lokale Filemap schreiben → künftige checkSourceForUpdate-Läufe nehmen den
+  // schnellen getFileHandle-Pfad statt den Ordner zu scannen (Perf v2.27.2).
+  await setCsvDirFileMapEntries(idb, fileMap);
   // Migration: gematchte Quellen brauchen ihr altes Per-Datei-Handle nicht mehr.
   for (const schemaId of matched) {
     await removeCsvSourceHandle(idb, schemaId);

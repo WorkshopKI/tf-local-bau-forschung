@@ -161,6 +161,20 @@ export const CSV_SOURCE_HANDLES_IDB_KEY = 'csv-source-handles';
  */
 export const CSV_SOURCE_DIR_HANDLE_IDB_KEY = 'csv-source-dir-handle';
 
+/**
+ * v2.27.2: Lokale Zuordnung schemaId → Dateiname INNERHALB des CSV-Ordner-Handles
+ * (`Record<schemaId, fileName>`). Macht das Auflösen einer CSV-Quelle zum
+ * schnellen `dirHandle.getFileHandle(name)` (nur Metadaten), statt bei jedem
+ * `checkSourceForUpdate` den ganzen Ordner zu scannen + jede CSV zu parsen, um
+ * die Datei per Header-Validierung zu finden (auf einem SMB-Share = mehrere
+ * Sekunden, v.a. bei kaltem OS-Cache). Bewusst ein EIGENER, **nicht
+ * synchronisierter** Key (nicht `source_file_name` auf dem Schema), damit die
+ * Zuordnung maschine-lokal bleibt und nicht vom Share-Snapshot überschrieben
+ * wird. Wird in `pickAndLinkCsvFolder` geschrieben + beim ersten Lauf
+ * selbst-geheilt; mit `clearCsvSourceDirHandle` zusammen gelöscht.
+ */
+export const CSV_SOURCE_DIR_FILEMAP_IDB_KEY = 'csv-source-dir-filemap';
+
 /** Backup-Root. v1.9: ohne programm-test-Zwischenordner; Rolling 4 Generationen. */
 export const BACKUPS_DIR = 'backups';
 export const BACKUP_MAX_GENERATIONS = 4;

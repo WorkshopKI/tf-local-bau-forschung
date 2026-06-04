@@ -22,6 +22,8 @@ import {
   pickAndLinkCsvFolder,
   setCsvSourceHandle,
   getCsvSourceHandle,
+  getCsvDirFileMap,
+  setCsvDirFileMapEntries,
 } from '../csv-source-handle';
 import type { CsvSchema } from '@/core/services/csv/types';
 
@@ -49,6 +51,9 @@ class MemDir {
   readonly kind = 'directory' as const;
   children = new Map<string, MemFile>();
   perm: Perm = 'granted';
+  /** Wenn true, wirft die Verzeichnis-Iteration — beweist, dass der teure
+   *  Header-Scan NICHT genommen wurde (schneller getFileHandle-Pfad). */
+  failIter = false;
   constructor(public name = 'csv-folder') {}
   add(file: MemFile): this { this.children.set(file.name, file); return this; }
   async getFileHandle(name: string): Promise<MemFile> {
@@ -59,6 +64,7 @@ class MemDir {
   async queryPermission(): Promise<Perm> { return this.perm; }
   async requestPermission(): Promise<Perm> { this.perm = 'granted'; return this.perm; }
   async *[Symbol.asyncIterator](): AsyncIterableIterator<[string, MemFile]> {
+    if (this.failIter) throw new Error('Verzeichnis-Scan blockiert (Test)');
     for (const entry of this.children) yield entry;
   }
 }
@@ -127,6 +133,14 @@ describe('resolveFileViaDir', () => {
     const dir = new MemDir().add(new MemFile('falsch.csv', CSV_OTHER, 1000));
     expect(await resolveFileViaDir(asDir(dir), makeSchema({ source_file_name: undefined }))).toBeNull();
   });
+
+  it('nimmt bei bekanntem Dateinamen den schnellen Pfad OHNE Scan', async () => {
+    const dir = new MemDir().add(new MemFile('antraege.csv', CSV_OK, 1000));
+    dir.failIter = true; // ein Scan würde hier werfen
+    // schema ohne source_file_name → ohne knownFileName müsste gescannt werden
+    const res = await resolveFileViaDir(asDir(dir), makeSchema({ source_file_name: undefined }), 'antraege.csv');
+    expect(res?.fileName).toBe('antraege.csv');
+  });
 });
 
 // ─── checkSourceForUpdate (Dir-Pfad) ─────────────────────────────────────────
@@ -154,6 +168,17 @@ describe('checkSourceForUpdate (Ordner-Handle)', () => {
     const r = await checkSourceForUpdate(idb, makeSchema({ source_file_name: 'antraege.csv', source_last_modified: 1000 }));
     expect(r.state).toBe('permission_required');
   });
+
+  it('nutzt die lokale Filemap und scannt den Ordner NICHT (Perf v2.27.2)', async () => {
+    const idb = await freshIdb();
+    await setCsvDirFileMapEntries(idb, { 'schema-1': 'antraege.csv' });
+    const dir = new MemDir().add(new MemFile('antraege.csv', CSV_OK, 5000));
+    dir.failIter = true; // Header-Scan würde werfen → state wäre dann nicht update_available
+    injectDir(idb, dir);
+    // schema OHNE source_file_name: nur die Filemap kann den schnellen Pfad liefern
+    const r = await checkSourceForUpdate(idb, makeSchema({ source_file_name: undefined, source_last_modified: 1000 }));
+    expect(r.state).toBe('update_available');
+  });
 });
 
 // ─── pickAndLinkCsvFolder ────────────────────────────────────────────────────
@@ -170,6 +195,8 @@ describe('pickAndLinkCsvFolder', () => {
     expect(res.linked).toBe(true);
     expect(res.matched).toEqual(['schema-1']);
     expect(await getCsvSourceHandle(idb, 'schema-1')).toBeNull();
+    // Filemap persistiert → künftige Checks nehmen den schnellen Pfad
+    expect(await getCsvDirFileMap(idb)).toEqual({ 'schema-1': 'antraege.csv' });
   });
 
   it('wirft, wenn keine Datei im Ordner passt', async () => {
