@@ -21,8 +21,10 @@
  * `src/plugins/suche/SearchResultsTable.tsx`. Diese hier ist die schlanke
  * Variante.
  */
-import { useCallback, useRef, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, Filter } from 'lucide-react';
 import { SortIcon } from './SortIcon';
+import { ColumnFilterDropdown } from './ColumnFilterDropdown';
 import type { SortDirection, SortableColumn } from './types';
 
 const DEFAULT_MIN_COLUMN_WIDTH = 60;
@@ -46,6 +48,13 @@ export interface SortableTableProps<T> {
   onColumnWidthChange?: (key: string, width: number) => void;
   /** Untergrenze beim Drag. Default 60px. */
   minColumnWidth?: number;
+  /** Optionaler Spalten-Filter (Header-Dropdown). Aktiv nur wenn ALLE drei
+   *  gesetzt sind UND die Spalte `filterable` ist. Backward-kompatibel:
+   *  bestehende Caller ohne diese Props bekommen keine Filter-UI. */
+  columnFilters?: Record<string, Set<string>>;
+  onColumnFilterChange?: (key: string, values: Set<string>) => void;
+  /** Distinct Werte je filterbarer Spalte (z.B. aus `useColumnFilters`). */
+  filterCandidates?: Record<string, string[]>;
 }
 
 function effectiveWidth<T>(
@@ -69,9 +78,17 @@ export function SortableTable<T>({
   columnWidths,
   onColumnWidthChange,
   minColumnWidth = DEFAULT_MIN_COLUMN_WIDTH,
+  columnFilters,
+  onColumnFilterChange,
+  filterCandidates,
 }: SortableTableProps<T>): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
+  const filtersEnabled = onColumnFilterChange !== undefined
+    && columnFilters !== undefined
+    && filterCandidates !== undefined;
   const colRefs = useRef<Map<string, HTMLTableColElement>>(new Map());
+  const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
+  const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
 
   const startResize = useCallback(
     (key: string, e: React.MouseEvent<HTMLDivElement>): void => {
@@ -136,24 +153,62 @@ export function SortableTable<T>({
             {columns.map(c => {
               const active = sortKey === c.key;
               const ariaSort = active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none';
+              const filterActive = filtersEnabled && (columnFilters?.[c.key]?.size ?? 0) > 0;
               return (
                 <th
                   key={c.key}
                   className="px-3 py-1.5 align-middle relative"
                   aria-sort={ariaSort}
                 >
-                  {c.sortable ? (
-                    <button
-                      type="button"
-                      onClick={() => onSort(c.key)}
-                      className="flex items-center gap-1.5 cursor-pointer hover:text-[var(--tf-text)]"
-                      title={`Nach ${c.label} sortieren`}
-                    >
+                  <div className="flex items-center gap-1">
+                    {c.sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => onSort(c.key)}
+                        className="flex items-center gap-1.5 cursor-pointer hover:text-[var(--tf-text)]"
+                        title={`Nach ${c.label} sortieren`}
+                      >
+                        <span>{c.label}</span>
+                        <SortIcon active={active} direction={sortDirection} />
+                      </button>
+                    ) : (
                       <span>{c.label}</span>
-                      <SortIcon active={active} direction={sortDirection} />
-                    </button>
-                  ) : (
-                    <span>{c.label}</span>
+                    )}
+                    {filtersEnabled && c.filterable && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          if (openFilterKey === c.key) {
+                            setOpenFilterKey(null);
+                            setFilterAnchor(null);
+                          } else {
+                            setFilterAnchor(e.currentTarget);
+                            setOpenFilterKey(c.key);
+                          }
+                        }}
+                        className="ml-auto p-0.5 rounded hover:bg-[var(--tf-hover)] cursor-pointer"
+                        title={filterActive ? `Filter aktiv (${columnFilters![c.key]!.size})` : 'Filter'}
+                        style={filterActive ? { color: 'var(--tf-primary)' } : { color: 'var(--tf-text-secondary)' }}
+                      >
+                        {filterActive
+                          ? <Filter size={12} fill="currentColor" strokeWidth={2} />
+                          : <ChevronDown size={13} strokeWidth={2.25} />}
+                      </button>
+                    )}
+                  </div>
+                  {filtersEnabled && c.filterable && openFilterKey === c.key && (
+                    <ColumnFilterDropdown
+                      candidates={filterCandidates![c.key] ?? []}
+                      selected={columnFilters![c.key] ?? new Set()}
+                      onApply={(values) => {
+                        onColumnFilterChange!(c.key, values);
+                        setOpenFilterKey(null);
+                        setFilterAnchor(null);
+                      }}
+                      onClose={() => { setOpenFilterKey(null); setFilterAnchor(null); }}
+                      formatLabel={c.formatFilterLabel}
+                      anchorEl={filterAnchor}
+                    />
                   )}
                   {resizeEnabled && (
                     <div

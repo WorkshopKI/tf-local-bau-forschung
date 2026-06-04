@@ -32,4 +32,12 @@ export interface SortableColumn<T> {
   accessor: (row: T) => string | number;
   /** JSX fuer eine Zelle. Sollte `null` liefern wenn kein Inhalt. */
   render: (row: T) => ReactNode;
+  /** Wenn `true`: Header zeigt einen Filter-Button (Dropdown mit den distinct
+   *  Spaltenwerten). Nur wirksam, wenn der Tabellen-Verbraucher die Filter-Props
+   *  durchreicht (z.B. `SortableTable` mit `columnFilters`/`filterCandidates`). */
+  filterable?: boolean;
+  /** Wert fuer Filter-Kandidaten + -Anwendung. Default: `String(accessor(row))`. */
+  filterAccessor?: (row: T) => string;
+  /** Anzeige-Mapper fuer die Filter-Dropdown-Werte. Default: Identitaet. */
+  formatFilterLabel?: (value: string) => string;
 }

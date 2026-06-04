@@ -1,8 +1,22 @@
 // Tabellarische Listen-Ansicht für das öffentliche Feedback-Board.
 // Read-only: Sponsoring-Aktionen erfolgen in der Card-Ansicht.
+//
+// Sortier- + filterbare Spalten-Header über die generische data-table-Basis
+// (wie die Suche-Tabelle): `SortableTable` + `useTableSort` + `useColumnFilters`.
+// Default-Reihenfolge = die kuratierte Sortierung aus FeedbackBoardPage
+// (sortKey=null → unverändert), bis der User eine Spalte sortiert. Die
+// Spalten-Filter greifen ZUSÄTZLICH zu den Top-Chips (UND-kombiniert).
 
+import { useMemo } from 'react';
 import { getSponsoringProgress } from '@/core/services/feedback';
-import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
+import { EFFORT_HOURS } from '@/core/types/feedback';
+import type { EffortEstimate, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
+import {
+  SortableTable,
+  useTableSort,
+  useColumnFilters,
+  type SortableColumn,
+} from '@/components/data-table';
 import {
   CATEGORY_COLORS,
   CATEGORY_LABELS,
@@ -17,97 +31,88 @@ interface Props {
 }
 
 export function FeedbackBoardListView({ tickets, config }: Props): React.ReactElement {
+  const columns = useMemo(() => buildColumns(config), [config]);
+  const { columnFilters, setColumnFilter, filterCandidates, filteredRows } = useColumnFilters(tickets, columns);
+  const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(filteredRows, columns, null, 'desc');
+
   return (
-    <div>
-      {/* Header */}
-      <div
-        className="flex items-center gap-3 px-3 py-2 text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]"
-        style={{ borderBottom: '0.5px solid var(--tf-border)' }}
-      >
-        <span className="w-14 shrink-0">Typ</span>
-        <span className="flex-1 min-w-0">Titel</span>
-        <span className="w-20 shrink-0">Status</span>
-        <span className="w-28 shrink-0">Sponsoring</span>
-        <span className="w-20 shrink-0 text-right">Aufwand</span>
-      </div>
-
-      {/* Rows */}
-      {tickets.map(t => (
-        <FeedbackListRow key={t.id} ticket={t} config={config} />
-      ))}
-
-      {tickets.length === 0 && (
-        <p className="text-[12.5px] text-[var(--tf-text-tertiary)] text-center py-8">
-          Keine Einträge.
-        </p>
-      )}
-    </div>
+    <SortableTable
+      rows={sortedRows}
+      columns={columns}
+      sortKey={sortKey}
+      sortDirection={sortDirection}
+      onSort={toggleSort}
+      rowKey={t => t.id}
+      columnFilters={columnFilters}
+      onColumnFilterChange={setColumnFilter}
+      filterCandidates={filterCandidates}
+      emptyContent="Keine Einträge."
+    />
   );
 }
 
-// ── Einzelne Zeile ────────────────────────────────────────────────────────
+function effortRank(e?: EffortEstimate): number {
+  return e ? EFFORT_HOURS[e] : 0;
+}
 
-function FeedbackListRow({ ticket, config }: { ticket: FeedbackItem; config: FeedbackConfig }): React.ReactElement {
-  const isFeature = ticket.category === 'idea';
-  const hasEffort = !!ticket.effort_estimate;
-  const progress = isFeature && hasEffort ? getSponsoringProgress(ticket, config) : null;
-  const summary = ticket.llm_summary || ticket.text || '–';
-
-  return (
-    <div
-      className="flex items-center gap-3 px-3 py-2.5 text-[12.5px]"
-      style={{ borderBottom: '0.5px solid var(--tf-border)' }}
-    >
-      {/* Typ */}
-      <span className="w-14 shrink-0">
-        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
-          {ticket.category ? CATEGORY_LABELS[ticket.category] : '–'}
+function buildColumns(config: FeedbackConfig): SortableColumn<FeedbackItem>[] {
+  return [
+    {
+      key: 'typ', label: 'Typ', defaultVisible: true, sortable: true, filterable: true, width: 96, wrap: false,
+      accessor: t => (t.category ? CATEGORY_LABELS[t.category] : 'Unklassifiziert'),
+      render: t => (
+        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${t.category ? CATEGORY_COLORS[t.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
+          {t.category ? CATEGORY_LABELS[t.category] : '–'}
         </span>
-      </span>
-
-      {/* Titel + Bereich-Chip */}
-      <span className="flex-1 min-w-0 flex items-center gap-1.5">
-        {ticket.context?.page && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">
-            {ticket.context.page}
-          </span>
-        )}
-        <span className="truncate text-[var(--tf-text)]">{summary}</span>
-      </span>
-
-      {/* Status */}
-      <span className="w-20 shrink-0">
-        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${STATUS_COLORS[ticket.kurator_status]}`}>
-          {STATUS_LABELS[ticket.kurator_status]}
+      ),
+    },
+    {
+      key: 'bereich', label: 'Bereich', defaultVisible: true, sortable: true, filterable: true, width: 120, wrap: false,
+      accessor: t => t.context?.page ?? '',
+      filterAccessor: t => t.context?.page ?? '(kein)',
+      render: t => (t.context?.page
+        ? <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">{t.context.page}</span>
+        : <span className="text-[var(--tf-text-tertiary)]">—</span>),
+    },
+    {
+      key: 'titel', label: 'Titel', defaultVisible: true, sortable: true, width: 360,
+      accessor: t => t.llm_summary || t.text || '',
+      render: t => <span className="text-[var(--tf-text)]">{t.llm_summary || t.text || '–'}</span>,
+    },
+    {
+      key: 'status', label: 'Status', defaultVisible: true, sortable: true, filterable: true, width: 120, wrap: false,
+      accessor: t => STATUS_LABELS[t.kurator_status],
+      render: t => (
+        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${STATUS_COLORS[t.kurator_status]}`}>
+          {STATUS_LABELS[t.kurator_status]}
         </span>
-      </span>
-
-      {/* Sponsoring */}
-      <div className="w-28 shrink-0">
-        {progress ? (
+      ),
+    },
+    {
+      key: 'sponsoring', label: 'Sponsoring', defaultVisible: true, sortable: true, width: 124, wrap: false,
+      // Nicht-Features / ohne Aufwand → -1, damit sie unter den bewerteten landen.
+      accessor: t => ((t.category === 'idea' && t.effort_estimate) ? getSponsoringProgress(t, config).percentage : -1),
+      render: t => {
+        const progress = (t.category === 'idea' && t.effort_estimate) ? getSponsoringProgress(t, config) : null;
+        return progress ? (
           <div className="flex items-center gap-1.5">
             <div className="flex-1 h-1.5 rounded-full bg-[var(--tf-bg-secondary)] overflow-hidden">
               <div
                 className="h-full"
-                style={{
-                  width: `${progress.percentage}%`,
-                  background: progress.thresholdReached ? 'var(--tf-success-text)' : 'var(--tf-primary)',
-                }}
+                style={{ width: `${progress.percentage}%`, background: progress.thresholdReached ? 'var(--tf-success-text)' : 'var(--tf-primary)' }}
               />
             </div>
-            <span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">
-              {progress.percentage}%
-            </span>
+            <span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">{progress.percentage}%</span>
           </div>
-        ) : (
-          <span className="text-[11px] text-[var(--tf-text-tertiary)]">—</span>
-        )}
-      </div>
-
-      {/* Aufwand */}
-      <span className="w-20 shrink-0 text-right text-[11.5px] text-[var(--tf-text-secondary)]">
-        {hasEffort ? EFFORT_SHORT_LABELS[ticket.effort_estimate!] : '—'}
-      </span>
-    </div>
-  );
+        ) : <span className="text-[11px] text-[var(--tf-text-tertiary)]">—</span>;
+      },
+    },
+    {
+      key: 'aufwand', label: 'Aufwand', defaultVisible: true, sortable: true, filterable: true, width: 104, wrap: false,
+      accessor: t => effortRank(t.effort_estimate),
+      filterAccessor: t => t.effort_estimate ?? '(keiner)',
+      formatFilterLabel: v => (v === '(keiner)' ? v : (EFFORT_SHORT_LABELS[v as EffortEstimate] ?? v)),
+      render: t => <span className="text-[11.5px] text-[var(--tf-text-secondary)]">{t.effort_estimate ? EFFORT_SHORT_LABELS[t.effort_estimate] : '—'}</span>,
+    },
+  ];
 }
