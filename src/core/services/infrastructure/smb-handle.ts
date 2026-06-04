@@ -210,6 +210,24 @@ export async function refreshReadPermission(handle: FileSystemDirectoryHandle): 
   return (handle as FsDirHandle).requestPermission({ mode: 'read' });
 }
 
+/**
+ * True, wenn der Daten-Share-Handle existiert UND aktuell read-`granted` ist
+ * (silent `queryPermission`, kein Gesture). Genutzt vom Auslastungs-Store, um
+ * einen pre-grant/offline-Load (Permission noch `'prompt'`) NICHT als
+ * endgueltig „geladen" festzuschreiben — sonst bliebe die Reload-Guard scharf
+ * und echte `auslastung.json`-Daten wuerden nach dem Grant nie nachgeladen
+ * (v2.19.2-Bug: 0 MAs / fehlende Centroids nach Restart auf der pl).
+ */
+export async function isDatenShareReadable(idb: IDBStore): Promise<boolean> {
+  const handle = await getDatenShareHandle(idb);
+  if (!handle) return false;
+  try {
+    return (await queryReadPermission(handle)) === 'granted';
+  } catch {
+    return false;
+  }
+}
+
 /* --------------------------------------------------------------------------
  * v1.15: Multi-Source-DMS-Handles
  * -------------------------------------------------------------------------- */

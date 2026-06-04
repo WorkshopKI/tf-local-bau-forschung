@@ -14,6 +14,7 @@ import {
   loadAuslastungData,
   saveAuslastungData,
 } from '../services/auslastung-store';
+import { isDatenShareReadable } from '@/core/services/infrastructure/smb-handle';
 import {
   DEFAULT_JAHRESKAPAZITAET,
   emptyAuslastungData,
@@ -255,7 +256,15 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const data = await loadAuslastungData(storage);
-      set({ data, loaded: true, loading: false });
+      // v2.19.2: `loaded` (= Reload-Guard scharf) nur setzen, wenn der Daten-
+      // Share beim Laden wirklich lesbar war. Der Plugin-onInit lädt VOR dem
+      // StartupScreen-Grant — `loadAuslastungData` schluckt den Permission-
+      // Fehler still und liefert Leer-Daten; ohne dieses Gate schriebe der
+      // Guard sie dauerhaft fest (Bug: 0 MAs / fehlende Centroids nach Restart
+      // auf der pl). shareReadable=false ⇒ loaded bleibt false ⇒ der Post-Grant-
+      // Mount der AuslastungView lädt die echten Daten nach.
+      const shareReadable = await isDatenShareReadable(storage.idb);
+      set({ data, loaded: shareReadable, loading: false });
     } catch (err) {
       set({ loading: false, error: err instanceof Error ? err.message : String(err) });
     }
