@@ -403,10 +403,14 @@ export function KlassifizierungsReview(): React.ReactElement {
           }}
         >
           <strong>Kategorie-Referenzen fehlen.</strong>{' '}
-          Bootstrap für die automatische Themen-Erkennung: einige Verbünde
-          manuell pro Kategorie freigeben, danach im Admin „Inkrementell"
-          laufen lassen — die Themen-Vektoren werden dann pro Kategorie
-          gemittelt und Vorschläge greifen automatisch.
+          Für die automatische Themen-Erkennung müssen die Themen-Vektoren
+          einmalig berechnet werden: Tab <strong>„Auslastung MA"</strong> →
+          Abschnitt <strong>„Erweitert"</strong> aufklappen →{' '}
+          <strong>„Corpus aufbauen"</strong>.
+          {counts.freig > 0
+            ? ` Die ${counts.freig} bereits freigegebenen Verbünde dienen als Grundlage (pro Kategorie gemittelt) — nichts weiter freizugeben nötig.`
+            : ' Vorher einige Verbünde pro Kategorie freigeben — sie sind die Grundlage für die Mittelung.'}
+          {' '}Danach greifen die Vorschläge für neue Anträge automatisch.
         </div>
       )}
       {hasCentroids && embeddingsLoading && (
