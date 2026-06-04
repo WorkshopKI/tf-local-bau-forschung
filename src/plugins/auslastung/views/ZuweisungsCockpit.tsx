@@ -5,7 +5,8 @@
  *
  * 50/50 Split:
  *  - Links: Antragsliste mit Filter-Pills (Quartal/Kategorie/Status)
- *  - Rechts: Detail + Top-3 VorschlagCards (Matching-Engine live)
+ *  - Rechts: Detail + kompakte VorschlagRows (Matching-Engine live), mit
+ *    Zuweisungs-Streifen am Kopf (Redesign v2.26).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Info, Undo2 } from 'lucide-react';
@@ -45,7 +46,8 @@ import {
 import { KategoriePill } from '../components/KategoriePill';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { TechnologieTags } from '../components/TechnologieTags';
-import { VorschlagCard } from '../components/VorschlagCard';
+import { VorschlagRow } from '../components/VorschlagRow';
+import { ZuweisungStreifen } from '../components/ZuweisungStreifen';
 import { ManuellerMaPicker } from '../components/ManuellerMaPicker';
 import { buildManualMatch } from '../services/manual-match';
 import { verbrauchFromAuslastung } from '../services/kontingent';
@@ -959,6 +961,14 @@ function DetailPanel({
   const echteMatches = matches.filter(m => !m.manuell);
   const hasLow = echteMatches.length > 0 && echteMatches.every(m => m.confidence === 'low');
 
+  // Redesign v2.26: der freigegebene Zustand steht oben als Streifen (statt der
+  // alten „Aktuelle Zuweisungen"-Liste unten). assignVerbund setzt genau EINE
+  // Freigabe pro Verbund → in der Praxis ein Eintrag.
+  const freigegebeneZuweisung = zuweisungen.find(z => z.status === 'freigegeben');
+  const assignedAnonIds = new Set(
+    zuweisungen.filter(z => z.status === 'freigegeben').map(z => z.anonId),
+  );
+
   return (
     <div className="flex flex-col gap-3">
       {/* Header */}
@@ -969,19 +979,30 @@ function DetailPanel({
               <AlertTriangle size={13} aria-hidden />
             </span>
           )}
-          <span className="font-mono text-[11px] text-[var(--tf-text-secondary)]">{antrag.aktenzeichen}</span>
-          {akt && <span className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">{akt}</span>}
-          {verbund_id && <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">VB {verbund_id}</span>}
+          <span className="font-mono text-[11.5px] text-[var(--tf-text-tertiary)]">{antrag.aktenzeichen}</span>
+          {akt && <span className="font-mono text-[11.5px] text-[var(--tf-text-secondary)]">{akt}</span>}
+          {verbund_id && <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)]">VB {verbund_id}</span>}
           <div className="ml-auto flex gap-1">
             {primaerKategorie && <KategoriePill key={primaerKategorie.id} kategorie={primaerKategorie} mode="primaer" />}
             {aspektKategorien.map(k => <KategoriePill key={k.id} kategorie={k} mode="aspekt" />)}
           </div>
         </div>
-        <h2 className="text-[14px] font-medium text-[var(--tf-text)]">{vbTitel ?? '—'}</h2>
+        <h2 className="text-[15px] leading-[1.4] font-medium text-[var(--tf-text)] [text-wrap:pretty] tracking-[-0.005em]">{vbTitel ?? '—'}</h2>
         {tvTitel && tvTitel !== vbTitel && (
-          <p className="text-[12px] text-[var(--tf-text-secondary)] mt-0.5">{tvTitel}</p>
+          <p className="text-[12.5px] leading-[1.5] text-[var(--tf-text-tertiary)] mt-0.5 [text-wrap:pretty]">{tvTitel}</p>
         )}
       </div>
+
+      {/* v2.26: Zuweisungs-Streifen ganz oben — nur wenn freigegeben. */}
+      {freigegebeneZuweisung && (
+        <ZuweisungStreifen
+          anonId={freigegebeneZuweisung.anonId}
+          realName={resolveName(freigegebeneZuweisung.anonId)}
+          stunden={freigegebeneZuweisung.stunden}
+          quartal={freigegebeneZuweisung.quartal}
+          onUnassign={onUnassign}
+        />
+      )}
 
       {/* v2.9: offene Übernahme-Wünsche (noch nicht eingesammelt) — read-only,
           damit die PL den Antrag nicht versehentlich erneut zuweist. */}
@@ -1073,73 +1094,46 @@ function DetailPanel({
 
       {/* Match-Vorschlaege */}
       <div>
-        <div className="flex items-center justify-between mb-2 gap-2">
-          <h3 className="text-[12.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Vorschläge ({matches.length})</h3>
-          <div className="flex items-center gap-2">
-            {matchingRunning && <span className="text-[11px] text-[var(--tf-text-tertiary)]">Berechne…</span>}
-            <ManuellerMaPicker
-              mitarbeiter={mitarbeiter}
-              excludeAnonIds={new Set(matches.map(m => m.anonId))}
-              resolveName={resolveName}
-              restTVsByAnon={restTVsByAnon}
-              onAdd={onAddManual}
-            />
-          </div>
+        <div className="flex items-center gap-2.5 mb-2">
+          <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">Vorschläge</span>
+          <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)]">{matches.length} · sortiert nach Passung</span>
+          <span className="flex-1 h-[0.5px]" style={{ background: 'var(--tf-border)' }} />
+          {matchingRunning && <span className="text-[11px] text-[var(--tf-text-tertiary)]">Berechne…</span>}
+          <ManuellerMaPicker
+            mitarbeiter={mitarbeiter}
+            excludeAnonIds={new Set(matches.map(m => m.anonId))}
+            resolveName={resolveName}
+            restTVsByAnon={restTVsByAnon}
+            onAdd={onAddManual}
+          />
         </div>
         {hasLow && (
           <div className="mb-2 rounded p-2 text-[11.5px]" style={{ background: '#fef3c7', color: '#92400e' }}>
             ⚠ Kein klares Match — manuelle Prüfung empfohlen.
           </div>
         )}
-        <div className="flex flex-col gap-2">
-          {matches.map(m => (
-            <VorschlagCard
-              key={m.anonId}
-              match={m}
-              antragstyp={getKategorieLabel((antrag as Record<string, unknown>).vb_phase)}
-              onZuweisen={() => onZuweisen(m)}
-              onAblehnen={() => (m.manuell ? onRemoveManual(m.anonId) : onAblehnen(m))}
-              tageImQuartal={tageImQuartal}
-            />
-          ))}
-          {matches.length === 0 && !matchingRunning && (
+        {matches.length > 0 ? (
+          <div className="rounded-[10px] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
+            {matches.map(m => (
+              <VorschlagRow
+                key={m.anonId}
+                match={m}
+                isAssigned={assignedAnonIds.has(m.anonId)}
+                antragstyp={getKategorieLabel((antrag as Record<string, unknown>).vb_phase)}
+                onZuweisen={() => onZuweisen(m)}
+                onAblehnen={() => (m.manuell ? onRemoveManual(m.anonId) : onAblehnen(m))}
+                tageImQuartal={tageImQuartal}
+              />
+            ))}
+          </div>
+        ) : (
+          !matchingRunning && (
             <p className="text-[12px] text-[var(--tf-text-tertiary)] text-center py-4">
               Keine passenden MAs gefunden — möglicherweise keine MAs in den Kategorien, alle abgemeldet oder Kapazität voll.
             </p>
-          )}
-        </div>
+          )
+        )}
       </div>
-
-      {/* Aktuelle Zuweisungen */}
-      {zuweisungen.length > 0 && (
-        <div>
-          <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">Zuweisungen</div>
-          <ul className="text-[11.5px] space-y-0.5">
-            {zuweisungen.map(z => {
-              const ma = mitarbeiter[z.anonId];
-              return (
-                <li key={`${z.antragId} ${z.anonId}`} className="flex items-center gap-2">
-                  <AnonymIdBadge anonId={z.anonId} size="sm" realName={resolveName(z.anonId)} />
-                  <span className="text-[var(--tf-text-secondary)]">{z.status}</span>
-                  <span className="text-[var(--tf-text-tertiary)]">· {z.stunden}h</span>
-                  {ma && <span className="text-[var(--tf-text-tertiary)]">· Q {z.quartal}</span>}
-                  {z.status === 'freigegeben' && (
-                    <button
-                      type="button"
-                      title="Zuweisung zurücknehmen"
-                      onClick={onUnassign}
-                      className="ml-auto inline-flex items-center gap-1 text-[10.5px] font-medium px-1.5 py-0.5 rounded cursor-pointer"
-                      style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
-                    >
-                      <Undo2 size={11} /> Zurücknehmen
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
