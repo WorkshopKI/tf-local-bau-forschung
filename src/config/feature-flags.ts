@@ -94,8 +94,9 @@ export function isDeAnonymisierungEnabled(): boolean {
   return features.deAnonymisierung === true;
 }
 /** v2.x: Build erlaubt Schreibzugriff auf den Daten-Share auch ohne Kurator-
- *  Profil (z.B. pl-Variante — die PL schreibt die Auslastungs-Klassifizierung
- *  nach `_intern/auslastung.json`). Ausnahme vom v2.0-read-only-Hardening. */
+ *  Profil (pl-Variante — die PL schreibt die Auslastungs-Klassifizierung nach
+ *  `_intern/auslastung.json`; kurator-Variante — Schreibrecht durchgehend, statt
+ *  erst nach dem Passwort-Login, v2.30.1). Ausnahme vom v2.0-read-only-Hardening. */
 export function isDatenShareWritable(): boolean {
   return features.datenShareSchreibrecht === true;
 }

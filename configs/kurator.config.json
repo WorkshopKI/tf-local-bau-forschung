@@ -32,7 +32,7 @@
     "auslastung": false,
     "auslastungSelbstEintragung": false,
     "deAnonymisierung": false,
-    "datenShareSchreibrecht": false,
+    "datenShareSchreibrecht": true,
     "maLogin": false,
     "maVerwaltungPasswort": false,
     "chat": false,

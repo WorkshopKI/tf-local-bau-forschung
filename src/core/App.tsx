@@ -270,8 +270,8 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
     //
     // Das Downgrade-Flag ist rollen-spezifisch, liegt aber in der unter `file://`
     // GETEILTEN IndexedDB (alle Varianten = ein `teamflow`-Store, gleicher
-    // Origin). Eine Nur-Lese-Variante (prod / kurator-vor-Login) setzt es; ohne
-    // die `writeRole`-Guard wuerde ein parallel offener pl-Tab das fremde Flag
+    // Origin). Nur die Nur-Lese-Variante (prod) setzt es; ohne
+    // die `writeRole`-Guard wuerde ein parallel offener pl-/kurator-Tab das fremde Flag
     // befolgen und sich grundlos auf `read` herunterstufen → stille
     // NotAllowedError-Writes, Datenverlust (Juni-2026-Vorfall). Schreib-Rollen
     // ignorieren das Flag und raeumen ein fremd-gesetztes weg (Pitfall #25:
