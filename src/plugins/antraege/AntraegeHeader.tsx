@@ -138,26 +138,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
           </div>
 
           <div className="flex items-center gap-2 shrink-0 pb-2 ml-auto pr-4">
-            <div className="relative">
-              <Search
-                size={13}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none"
-              />
-              <Input
-                placeholder="Anträge durchsuchen (Titel, Beschreibung, Dokumente)"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-7 pr-7 h-8 w-[300px] text-[12.5px]"
-                title="Suche kombiniert Substring (Aktenzeichen/Akronym/Titel/Antragsteller/Verbund-Titel/Kurzbeschreibung), Embedding-Match aus dem Auslastungs-Korpus und DMS-Volltext-Treffer."
-              />
-              {hybridLoading ? (
-                <Loader2
-                  size={12}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] animate-spin pointer-events-none"
-                  aria-label="Suche läuft"
-                />
-              ) : null}
-            </div>
             <Button
               variant="outline"
               size="sm"
@@ -199,6 +179,42 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
           </div>
         </div>
 
+        {/* Such-Zeile (eigene Zeile unter den Tabs): breites Suchfeld links,
+            im „alle"-Modus der Inaktiv-MA-Toggle rechts daneben. */}
+        <div className="mt-2 flex items-center gap-3 pr-4">
+          <div className="relative flex-1 min-w-0 max-w-[640px]">
+            <Search
+              size={13}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none"
+            />
+            <Input
+              placeholder="Anträge durchsuchen (Titel, Beschreibung, Dokumente)"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-7 pr-7 h-8 w-full text-[12.5px]"
+              title="Suche kombiniert Substring (Aktenzeichen/Akronym/Titel/Antragsteller/Verbund-Titel/Kurzbeschreibung), Embedding-Match aus dem Auslastungs-Korpus und DMS-Volltext-Treffer."
+            />
+            {hybridLoading ? (
+              <Loader2
+                size={12}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] animate-spin pointer-events-none"
+                aria-label="Suche läuft"
+              />
+            ) : null}
+          </div>
+          {!bearbeiterFilter.active && isAuslastungEnabled() ? (
+            <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none shrink-0 whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={showInaktive}
+                onChange={e => setShowInaktive(e.target.checked)}
+                className="accent-[var(--tf-primary)] cursor-pointer"
+              />
+              inaktive MAs
+            </label>
+          ) : null}
+        </div>
+
         {showIgnoreBearbeiterToggle ? (
           <div className="mt-1.5 mb-1 flex justify-end pr-4">
             <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none">
@@ -209,20 +225,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
                 className="accent-[var(--tf-primary)] cursor-pointer"
               />
               Auch außerhalb meiner Anträge suchen
-            </label>
-          </div>
-        ) : null}
-
-        {!bearbeiterFilter.active && isAuslastungEnabled() ? (
-          <div className="mt-1.5 mb-1 flex justify-end pr-4">
-            <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={showInaktive}
-                onChange={e => setShowInaktive(e.target.checked)}
-                className="accent-[var(--tf-primary)] cursor-pointer"
-              />
-              Anträge inaktiver MAs einblenden
             </label>
           </div>
         ) : null}
