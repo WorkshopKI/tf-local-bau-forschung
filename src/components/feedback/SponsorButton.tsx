@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Check, Clock, Coins, Plus, X } from 'lucide-react';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { loadUserBudget, sponsorTicket, unsponsorTicket } from '@/core/services/feedback';
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_BUDGET_POINTS_PER_QUARTER } from '@/core/types/feedback';
@@ -23,15 +24,19 @@ const POINT_OPTIONS = [1, 2, 3, 5];
 export function SponsorButton({ ticket, config, open, onChanged, compact }: Props): React.ReactElement | null {
   const { profile } = useProfile();
   const storage = useStorage();
+  const meinKuerzel = useMeinKuerzel();
   const [showPointsMenu, setShowPointsMenu] = useState(false);
   const [showHoursDialog, setShowHoursDialog] = useState(false);
   const [hours, setHours] = useState(2);
   const [projectRef, setProjectRef] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [noticeMsg, setNoticeMsg] = useState<string | null>(null);
 
   if (!profile?.name) return null;
-  const userId = profile.name;
-  const userDisplay = profile.name;
+  // Identität = Session-Kürzel (MA-Login) ?? Profilname — konsistent für
+  // Sponsor-Eintrag, Outbox-Datei und Budget-Key (Pitfall #27).
+  const userId = meinKuerzel ?? profile.name;
+  const userDisplay = userId;
 
   const sponsors = ticket.sponsors ?? [];
   const mineP = sponsors.find(s => s.user_id === userId && s.type === 'points');
@@ -46,14 +51,20 @@ export function SponsorButton({ ticket, config, open, onChanged, compact }: Prop
   const budget = loadUserBudget(userId, config.budget_points_per_quarter ?? DEFAULT_BUDGET_POINTS_PER_QUARTER);
   const remainingPoints = budget.points_total - budget.points_spent;
 
+  // Setzt die eigene Punktzahl auf `amount` (Stepper-Upsert). `<= 0` → zurückziehen.
   const doSponsorPoints = async (amount: number): Promise<void> => {
     setErrorMsg(null);
+    setNoticeMsg(null);
     setShowPointsMenu(false);
+    if (amount <= 0) { await doUnsponsor('points'); return; }
     const res = await sponsorTicket(storage, ticket.id, {
       user_id: userId, user_display_name: userDisplay, type: 'points', amount,
       created_at: new Date().toISOString(),
     }, config);
     if (!res.ok) { setErrorMsg(errorToMsg(res.error)); return; }
+    if (res.warning === 'no_personal_folder') {
+      setNoticeMsg('Stimme gespeichert. Verbinde deinen persönlichen Ordner unter Einstellungen → Speicher, damit sie eingesammelt werden kann.');
+    }
     onChanged();
   };
 
@@ -72,6 +83,8 @@ export function SponsorButton({ ticket, config, open, onChanged, compact }: Prop
   };
 
   const doUnsponsor = async (type: 'points' | 'hours'): Promise<void> => {
+    setErrorMsg(null);
+    setNoticeMsg(null);
     await unsponsorTicket(storage, ticket.id, userId, type, config);
     onChanged();
   };
@@ -81,12 +94,35 @@ export function SponsorButton({ ticket, config, open, onChanged, compact }: Prop
     return (
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Punkte: bereits gesponsort oder Quick-Sponsor */}
+          {/* Punkte: Stepper (hoch/runter) sobald gesponsort, sonst Quick-Sponsor */}
           {mineP ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--tf-primary-light)] text-[var(--tf-primary)]">
-              <Coins size={10} /> Du: {mineP.amount} Pkt
-              <button type="button" onClick={() => doUnsponsor('points')} className="ml-0.5 cursor-pointer hover:opacity-70" aria-label="Zurückziehen"><X size={10} /></button>
-            </span>
+            <div
+              className="inline-flex items-center rounded-[var(--tf-radius)] overflow-hidden bg-[var(--tf-primary-light)]"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+            >
+              <button
+                type="button"
+                onClick={() => doSponsorPoints(mineP.amount - 1)}
+                className="px-2 py-1 leading-none text-[13px] text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+                aria-label="Einen Punkt zurücknehmen"
+                title={mineP.amount > 1 ? 'Einen Punkt zurücknehmen' : 'Stimme zurückziehen'}
+              >
+                −
+              </button>
+              <span className="inline-flex items-center gap-1 px-1.5 text-[11px] font-medium text-[var(--tf-primary)]">
+                <Coins size={10} /> Du: {mineP.amount} Pkt
+              </span>
+              <button
+                type="button"
+                onClick={() => doSponsorPoints(mineP.amount + 1)}
+                disabled={remainingPoints <= 0}
+                className="px-2 py-1 leading-none text-[13px] text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                aria-label="Einen Punkt hinzufügen"
+                title={remainingPoints <= 0 ? 'Kein Budget übrig' : `+1 (noch ${remainingPoints} übrig)`}
+              >
+                +
+              </button>
+            </div>
           ) : (
             <button
               type="button"
@@ -152,6 +188,7 @@ export function SponsorButton({ ticket, config, open, onChanged, compact }: Prop
         {showHoursDialog && renderHoursDialog()}
 
         {errorMsg && <p className="text-[11px] text-[var(--tf-danger-text)]">{errorMsg}</p>}
+        {noticeMsg && <p className="text-[11px] text-[var(--tf-text-tertiary)]">{noticeMsg}</p>}
       </div>
     );
   }

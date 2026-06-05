@@ -393,6 +393,17 @@ MINOR-Bump v2.31: Die **Kompakt-Ansicht** der Förderanträge ist jetzt eine ech
 
 Additiv, keine Daten-/IDB-/SMB-Migration; nur ein neuer localStorage-Key. Sichtbar in allen Varianten mit Förderanträge-Plugin (dev/demo/prod/kurator/pl).
 
+### v2.32 — Feedback-Board-Sponsoring: Balken aktualisiert + Punkte hoch-/runterzählen + prod-Outbox (Juni 2026)
+
+MINOR-Bump v2.32: Auf dem öffentlichen Feedback-Board ([FeedbackBoardPage](src/plugins/feedback-board/FeedbackBoardPage.tsx)) ließen sich Feature-Stimmen („+1 Punkt") **nicht wirksam vergeben**: das Budget sank, aber der Fortschrittsbalken blieb bei `0/5`, und die Stimme ging still verloren. **Zwei Ursachen** (beide gefixt): (1) `sponsorTicket`/`unsponsorTicket` ([feedbackSponsoring.ts](src/core/services/feedback/feedbackSponsoring.ts)) gateten ihren Shared-Write auf den Legacy-Handle `storage.fs`, der im modernen Flow **nie gesetzt** ist (Sponsoring wurde bei der `writeSharedFile`-Migration der übrigen Feedback-CRUD-Ops vergessen) → Stimmen landeten nur im localStorage; (2) `mergeItems` ([feedbackSharedFile.ts](src/core/services/feedback/feedbackSharedFile.ts)) war für `sponsors` „shared-wins" und verwarf den lokalen Stand beim nächsten Reload.
+
+- **Persistenz-Fix:** beide Funktionen schreiben jetzt über `writeSharedFile` (self-gated wie die Geschwister-Ops). `mergeItems` macht einen **Union-Merge** der `sponsors` (neuer Helper `unionMergeSponsors`): der eigene lokale Eintrag überlebt den Reload, fremde Stimmen aus Shared bleiben. **Anti-Stale-Regel:** lokale Items tragen nur die **eigenen** Sponsor-Einträge des Users (`saveOwnSponsorsLocally`), damit der Union nie einen veralteten fremden Eintrag wiederbelebt.
+- **Hoch-/Runterzählen (Stepper):** für Punkte ist `sponsor.amount` jetzt die **Ziel-Punktzahl** (Upsert): „+" gibt nur die Differenz aus dem Quartals-Budget aus, „−" erstattet sie zurück, bei 0 verschwindet der Eintrag ([SponsorButton](src/components/feedback/SponsorButton.tsx), compact-Stepper `[−] Du: N Pkt [+]`). **Stunden bleiben Single-Entry** (unverändert, hinter „Mehr…"). Punkte-absteigende Board-Sortierung greift damit automatisch (war schon da).
+- **prod-Outbox + Einsammeln:** read-only prod-User können `_intern/feedback/feedback.json` nicht schreiben → ihre Stimmen landen in `ZAH/feedback/sponsor-wuensche.json` ([feedbackSponsorOutbox.ts](src/core/services/feedback/feedbackSponsorOutbox.ts), Map `ticketId → Punkte`, IDB-Cache-Fallback, Spiegelbild der Übernahme-Wünsche). Der **Kurator** sammelt sie über den User-Folders-Root ein (`autoCollectSponsorVotes` in [feedbackOutboxCollect.ts](src/core/services/feedback/feedbackOutboxCollect.ts), pure-Merge `mergeSponsorVotesIntoItems` mit Retraktion) — automatisch beim Öffnen des Feedback-Admins ([useAutoCollectFeedback](src/plugins/feedback/hooks/useAutoCollectFeedback.ts)) ODER manuell per Button „Sponsor-Stimmen einsammeln" im Inbox-Tab.
+- **Identität** vereinheitlicht auf `useMeinKuerzel() ?? profile.name` (Sponsor-Eintrag, Outbox-Datei, Budget-Key; Pitfall #27).
+
+Additiv, keine Daten-/IDB-/SMB-Migration; neue Sidecar `ZAH/feedback/sponsor-wuensche.json` (idempotent-overwrite, Pitfall #23). Sichtbar in allen Varianten mit Feedback-Board; Einsammeln nur im kurator-Build (kuratorOnly). Budget-Key wechselt ggf. von `profile.name` auf das Kürzel — verwaist alte Quartals-Budgets harmlos (Quartals-Reset).
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*

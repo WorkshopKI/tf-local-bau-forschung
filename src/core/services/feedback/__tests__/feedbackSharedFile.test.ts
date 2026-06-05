@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { mergeItems } from '../feedbackSharedFile';
-import { makeFeedback } from './fixtures';
+import { mergeItems, unionMergeSponsors } from '../feedbackSharedFile';
+import { makeFeedback, makeSponsor } from './fixtures';
 
 describe('mergeItems', () => {
   it('konkateniert disjunkte IDs', () => {
@@ -101,5 +101,81 @@ describe('mergeItems', () => {
     const local = [makeFeedback({ id: 'a' }), makeFeedback({ id: 'b' })];
     const merged = mergeItems(local, []);
     expect(merged).toHaveLength(2);
+  });
+
+  // ── v2.32: Sponsors Union-Merge (eigene lokale Stimme überlebt Reload) ──────
+  it('eigene lokale Stimme überlebt den Reload (Union)', () => {
+    const localItem = makeFeedback({
+      id: 'x',
+      sponsors: [makeSponsor({ user_id: 'ME', amount: 1 })],
+    });
+    const sharedItem = makeFeedback({ id: 'x', sponsors: [] });
+    const merged = mergeItems([localItem], [sharedItem]);
+    expect(merged[0]?.sponsors?.find(s => s.user_id === 'ME')?.amount).toBe(1);
+    expect(merged[0]?.sponsor_points_total).toBe(1);
+  });
+
+  it('fremde Stimme aus shared bleibt neben eigener lokaler erhalten', () => {
+    const localItem = makeFeedback({
+      id: 'x',
+      sponsors: [makeSponsor({ user_id: 'ME', amount: 1 })],
+    });
+    const sharedItem = makeFeedback({
+      id: 'x',
+      sponsors: [makeSponsor({ user_id: 'OTHER', amount: 3 })],
+    });
+    const merged = mergeItems([localItem], [sharedItem]);
+    const ids = (merged[0]?.sponsors ?? []).map(s => `${s.user_id}:${s.amount}`).sort();
+    expect(ids).toEqual(['ME:1', 'OTHER:3']);
+    expect(merged[0]?.sponsor_points_total).toBe(4);
+  });
+
+  it('lokaler eigener Eintrag gewinnt gegen veralteten shared-Eintrag gleichen Keys', () => {
+    const localItem = makeFeedback({
+      id: 'x',
+      sponsors: [makeSponsor({ user_id: 'ME', amount: 2 })],
+    });
+    const sharedItem = makeFeedback({
+      id: 'x',
+      sponsors: [makeSponsor({ user_id: 'ME', amount: 1 }), makeSponsor({ user_id: 'OTHER', amount: 5 })],
+    });
+    const merged = mergeItems([localItem], [sharedItem]);
+    expect(merged[0]?.sponsors?.find(s => s.user_id === 'ME')?.amount).toBe(2);
+    expect(merged[0]?.sponsor_points_total).toBe(7);
+  });
+
+  it('lokal leeres sponsors-Array clobbert den Shared-Stand NICHT', () => {
+    const localItem = makeFeedback({ id: 'x', sponsors: [] });
+    const sharedItem = makeFeedback({
+      id: 'x',
+      sponsors: [makeSponsor({ user_id: 'OTHER', amount: 3 })],
+      sponsor_points_total: 3,
+    });
+    const merged = mergeItems([localItem], [sharedItem]);
+    expect(merged[0]?.sponsors?.find(s => s.user_id === 'OTHER')?.amount).toBe(3);
+    expect(merged[0]?.sponsor_points_total).toBe(3);
+  });
+});
+
+describe('unionMergeSponsors', () => {
+  it('lokal überschreibt nur eigene Keys, fremde shared bleiben', () => {
+    const shared = [makeSponsor({ user_id: 'OTHER', amount: 5 }), makeSponsor({ user_id: 'ME', amount: 1 })];
+    const local = [makeSponsor({ user_id: 'ME', amount: 3 })];
+    const merged = unionMergeSponsors(shared, local);
+    expect(merged.find(s => s.user_id === 'ME')?.amount).toBe(3);
+    expect(merged.find(s => s.user_id === 'OTHER')?.amount).toBe(5);
+  });
+
+  it('Punkte und Stunden desselben Users sind getrennte Keys', () => {
+    const local = [
+      makeSponsor({ user_id: 'ME', type: 'points', amount: 2 }),
+      makeSponsor({ user_id: 'ME', type: 'hours', amount: 8, project_ref: 'BA-1' }),
+    ];
+    const merged = unionMergeSponsors([], local);
+    expect(merged).toHaveLength(2);
+  });
+
+  it('undefined-Eingaben → leeres Array', () => {
+    expect(unionMergeSponsors(undefined, undefined)).toEqual([]);
   });
 });

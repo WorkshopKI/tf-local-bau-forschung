@@ -112,6 +112,15 @@ export const PERSOENLICH_PROFILE_FILE = 'ZAH/profile.json';
 export const PERSOENLICH_EINSTELLUNGEN_FILE = 'ZAH/einstellungen.json';
 export const PERSOENLICH_MEINE_FEEDBACKS_FILE = 'ZAH/feedback/meine-feedbacks.json';
 /**
+ * v2.32: Sponsoring-Stimmen des Feedback-Boards. Read-only prod-Enduser koennen
+ * `_intern/feedback/feedback.json` nicht schreiben — ihre Punkte-Stimmen landen
+ * hier im eigenen Ordner als Map `ticketId → Punkte`, der Kurator sammelt sie
+ * ueber den User-Folders-Root ein und mergt sie in die zentrale feedback.json
+ * (Sponsoring-Felder). Spiegelbild von `PERSOENLICH_AUSLASTUNG_UEBERNAHME_FILE`.
+ * Relativ zum User-Home-Root, daher in beiden Lese-Kontexten identisch nutzbar.
+ */
+export const PERSOENLICH_FEEDBACK_SPONSOR_FILE = 'ZAH/feedback/sponsor-wuensche.json';
+/**
  * v2.6: MA-Selbst-Profil fuers Auslastungs-Modul (Technologien/Kategorien).
  * Nicht-Kuratoren haben seit v2.0 nur `read` auf dem Daten-Share und koennen
  * `_intern/auslastung.json` nicht schreiben — sie pflegen ihr Profil hier im

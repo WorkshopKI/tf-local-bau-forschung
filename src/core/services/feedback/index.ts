@@ -6,6 +6,8 @@ export * from './feedbackStorage';
 export * from './feedbackSharedFile';
 export * from './feedbackFaq';
 export * from './feedbackSponsoring';
+export * from './feedbackSponsorOutbox';
+export * from './mergeSponsorVotes';
 export * from './feedback-status';
 export * from './feedbackClassification';
 export * from './promptGenerator';

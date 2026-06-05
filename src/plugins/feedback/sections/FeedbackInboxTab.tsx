@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FolderOpen, Check, X, RefreshCcw, Inbox, MessageSquare } from 'lucide-react';
+import { FolderOpen, Check, X, RefreshCcw, Inbox, MessageSquare, Coins } from 'lucide-react';
 import { Button, SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
@@ -22,7 +22,11 @@ import {
   writeOutboxStatus,
   type FeedbackOutboxItem,
 } from '@/core/services/personal-storage';
-import { getFeedbackList, submitFeedback as submitFeedbackToShared } from '@/core/services/feedback';
+import {
+  getFeedbackList,
+  submitFeedback as submitFeedbackToShared,
+  autoCollectSponsorVotes,
+} from '@/core/services/feedback';
 import type { FeedbackContext } from '@/core/types/feedback';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 
@@ -43,6 +47,7 @@ export function FeedbackInboxTab(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<InboxItem[]>([]);
   const [filterStatus, setFilterStatus] = useState<'pending' | 'all'>('pending');
+  const [sponsorMsg, setSponsorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +71,25 @@ export function FeedbackInboxTab(): React.ReactElement {
       }
       setRootConnected(true);
       await loadInbox();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Sammelt die Sponsoring-Stimmen (Feedback-Board) aller User ein + merged sie. */
+  const handleCollectSponsorVotes = async (): Promise<void> => {
+    setError(null);
+    setSponsorMsg(null);
+    setBusy(true);
+    try {
+      const root = await getUserFoldersRootHandle(storage.idb);
+      if (!root) { setRootConnected(false); return; }
+      const res = await autoCollectSponsorVotes(storage, root);
+      setSponsorMsg(
+        `${res.scanned} Stimmen-Datei(en) gelesen · ${res.merged} Änderung(en) übernommen.`,
+      );
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -205,6 +229,9 @@ export function FeedbackInboxTab(): React.ReactElement {
           >
             {filterStatus === 'pending' ? 'Alle anzeigen' : 'Nur offene'}
           </button>
+          <Button variant="secondary" icon={Coins} onClick={handleCollectSponsorVotes} disabled={busy}>
+            Sponsor-Stimmen einsammeln
+          </Button>
           <Button variant="secondary" icon={RefreshCcw} onClick={loadInbox} disabled={busy}>
             Neu laden
           </Button>
@@ -212,6 +239,7 @@ export function FeedbackInboxTab(): React.ReactElement {
       </div>
 
       {error && <p className="text-[12.5px] text-[var(--tf-danger-text)]">{error}</p>}
+      {sponsorMsg && <p className="text-[12.5px] text-[var(--tf-text-secondary)]">{sponsorMsg}</p>}
 
       {visibleItems.length === 0 ? (
         <p className="py-8 text-center text-[13px] text-[var(--tf-text-tertiary)]">

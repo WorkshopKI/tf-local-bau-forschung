@@ -27,6 +27,8 @@ import {
 } from '@/core/services/personal-storage';
 import { readSharedFile, writeSharedFile, mergeItems } from './feedbackSharedFile';
 import { emitFeedbackUpdated } from './feedbackStorage';
+import { readSponsorVotesFromDir, type SponsorVoteFile } from './feedbackSponsorOutbox';
+import { mergeSponsorVotesIntoItems } from './mergeSponsorVotes';
 
 export interface FeedbackCollectResult {
   scanned: number;
@@ -111,4 +113,55 @@ export async function autoCollectFeedbackOutboxes(
 
   if (newItems.length > 0) emitFeedbackUpdated();
   return { scanned: pending.length, imported: newItems.length };
+}
+
+export interface SponsorVotesCollectResult {
+  /** Anzahl gelesener Stimmen-Dateien (User mit `sponsor-wuensche.json`). */
+  scanned: number;
+  /** Übernommene Änderungen (neu + aktualisiert + entfernt). */
+  merged: number;
+}
+
+/**
+ * Sammelt die Sponsoring-Stimmen (`<user>/ZAH/feedback/sponsor-wuensche.json`)
+ * aller User unter dem User-Folders-Root ein und merged sie in die zentrale
+ * `feedback.json` (Punkte-Sponsor-Einträge). Read-only prod-User schreiben ihre
+ * Stimmen in den eigenen Ordner (`sponsorTicket` → Outbox); hier landen sie für
+ * alle sichtbar im Aggregat. Pure-Merge `mergeSponsorVotesIntoItems` mit
+ * Retraktion (zurückgezogene Stimmen → Eintrag entfernt). Iterations-Muster
+ * gespiegelt von `autoCollectFeedbackOutboxes` / `collectUebernahmeWuensche`.
+ *
+ * `readSponsorVotesFromDir` liest relativ zum **User-Home** (Pfad enthält `ZAH/`)
+ * — daher der User-Ordner, NICHT dessen `ZAH/`-Subdir (anders als die Outbox).
+ */
+export async function autoCollectSponsorVotes(
+  storage: StorageService,
+  root: FileSystemDirectoryHandle,
+): Promise<SponsorVotesCollectResult> {
+  const batch: SponsorVoteFile[] = [];
+  for await (const entry of (root as FileSystemDirectoryHandle & {
+    values(): AsyncIterableIterator<FileSystemHandle>;
+  }).values()) {
+    if (entry.kind !== 'directory') continue;
+    try {
+      const userDir = await root.getDirectoryHandle(entry.name);
+      const votes = await readSponsorVotesFromDir(userDir);
+      if (votes) batch.push(votes);
+    } catch {
+      /* User-Ordner ohne Stimmen-Datei → ignorieren */
+    }
+  }
+  if (batch.length === 0) return { scanned: 0, merged: 0 };
+
+  const shared = await readSharedFile(storage);
+  const { items, neu, aktualisiert, entfernt } = mergeSponsorVotesIntoItems(
+    shared?.items ?? [],
+    batch,
+  );
+  const changes = neu + aktualisiert + entfernt;
+  if (changes > 0) {
+    await writeSharedFile(storage, items);
+    emitFeedbackUpdated();
+  }
+  return { scanned: batch.length, merged: changes };
 }

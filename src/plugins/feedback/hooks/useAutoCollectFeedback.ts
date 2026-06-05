@@ -12,7 +12,7 @@
 import { useEffect } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getUserFoldersRootHandle } from '@/core/services/infrastructure/smb-handle';
-import { autoCollectFeedbackOutboxes } from '@/core/services/feedback';
+import { autoCollectFeedbackOutboxes, autoCollectSponsorVotes } from '@/core/services/feedback';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 
 /** Einmal pro App-Session (ueberlebt Plugin-/Tab-Wechsel-Remounts). */
@@ -36,6 +36,12 @@ export function useAutoCollectFeedback(): void {
       if (!root) return; // Root nicht verbunden — still ueberspringen.
       try {
         await autoCollectFeedbackOutboxes(storage, root, reviewerKuerzel);
+      } catch {
+        // Best-effort — manuelles Einsammeln im Inbox-Tab bleibt verfuegbar.
+      }
+      try {
+        // Sponsoring-Stimmen (Feedback-Board) der read-only prod-User einsammeln.
+        await autoCollectSponsorVotes(storage, root);
       } catch {
         // Best-effort — manuelles Einsammeln im Inbox-Tab bleibt verfuegbar.
       }
