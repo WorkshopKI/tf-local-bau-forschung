@@ -46,6 +46,10 @@ export interface VerbundKlassifizierungsView {
   verbundTitel: string;
   /** TVs in FKZ-Reihenfolge (alphanumerisch aufsteigend). */
   tvs: Antrag[];
+  /** Maßgebliches Antragsdatum des Verbundes = zuletzt eingegangenes TV
+   *  (max antragsdatum über alle TVs; ISO `YYYY-MM-DD`, leer wenn keins gesetzt).
+   *  Header-Datum + Sortierung. Die TV-Sub-Rows zeigen ihr eigenes Datum. */
+  antragsdatum: string;
   /** Klassifizierung des repraesentativen (ersten) TVs — alle TVs eines
    *  Verbundes teilen denselben Stand. */
   klassifizierung: Klassifizierung;
@@ -444,6 +448,8 @@ function computeVerbundClassificationViews(
       akronym,
       verbundTitel,
       tvs,
+      // Maßgebliches Datum = zuletzt eingegangenes TV (nicht der FKZ-Lead).
+      antragsdatum: verbundAntragsdatum(tvs) ?? '',
       klassifizierung: kl,
       confidence: confidenceFor(kl),
       manuell: istManuell(kl),

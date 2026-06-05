@@ -203,6 +203,26 @@ describe('buildVerbundClassificationViews — manuell-Flag (v2.34)', () => {
   });
 });
 
+describe('buildVerbundClassificationViews — antragsdatum (zuletzt eingegangenes TV)', () => {
+  it('Verbund-Header-Datum = spätestes TV-Antragsdatum, nicht das des Lead-TV', () => {
+    // TORAERO-Fall aus dem Screenshot: Lead (FKZ-first) hat das früheste Datum.
+    const antraege = [
+      makeAntrag({ aktenzeichen: '16KN092877', verbund_id: 'V1', antragsdatum: '2026-03-13' }),
+      makeAntrag({ aktenzeichen: '16KN092878', verbund_id: 'V1', antragsdatum: '2026-03-30' }),
+      makeAntrag({ aktenzeichen: '16KN092879', verbund_id: 'V1', antragsdatum: '2026-04-02' }),
+    ];
+    const views = buildVerbundClassificationViews(antraege, null, [], [], undefined, false, []);
+    expect(views).toHaveLength(1);
+    expect(views[0]?.antragsdatum).toBe('2026-04-02');
+  });
+
+  it('Solo-Antrag: antragsdatum = eigenes Datum', () => {
+    const antraege = [makeAntrag({ aktenzeichen: 'A1', antragsdatum: '2026-01-15' })];
+    const views = buildVerbundClassificationViews(antraege, null, [], [], undefined, false, []);
+    expect(views[0]?.antragsdatum).toBe('2026-01-15');
+  });
+});
+
 describe('groupFreigegebeneByVerbund', () => {
   function makeView(
     antrag: Antrag,

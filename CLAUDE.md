@@ -442,6 +442,8 @@ MINOR-Bump v2.36: Das maßgebliche **Antragsdatum eines Verbundes** (und damit d
 
 Additiv, keine Daten-/IDB-/SMB-Migration. Wirksam überall, wo Förderanträge als Verbund gebündelt erscheinen (prod/kurator/pl/dev); Zuweisungs-Cockpit nur pl + dev.
 
+**v2.36.1-Fix (Tab „Anträge klassifizieren"):** Die Klassifizierungs-Tabelle zeigte im Verbund-Header weiter das Datum des FKZ-Lead-TV statt des zuletzt eingegangenen TV (die Spalte las `leadAntrag(v).antragsdatum`). Neu: `VerbundKlassifizierungsView.antragsdatum` (= `verbundAntragsdatum(tvs)`, vorberechnet in `buildVerbundClassificationViews`, [verbund-aggregation.ts](src/plugins/auslastung/services/verbund-aggregation.ts)); die „Datum"-Spalte ([verbund-columns.tsx](src/plugins/auslastung/views/verbund-columns.tsx)) liest für den Header `v.antragsdatum` (Sort + Anzeige), die TV-Sub-Rows weiter ihr eigenes Datum. Damit konsistent zum Zuweisungs-Cockpit (v2.36). pl + dev.
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*

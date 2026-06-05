@@ -226,9 +226,12 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       sortable: true,
       width: 110,
       wrap: false,
-      accessor: v => readString(leadAntrag(v), CANONICAL_ANTRAGSDATUM),
+      // Header-Datum = maßgebliches Verbund-Datum (zuletzt eingegangenes TV),
+      // vorberechnet in `buildVerbundClassificationViews`. Die TV-Sub-Rows zeigen
+      // weiterhin ihr eigenes Antragsdatum.
+      accessor: v => v.antragsdatum,
       render: v => {
-        const d = readString(leadAntrag(v), CANONICAL_ANTRAGSDATUM);
+        const d = v.antragsdatum;
         return d ? <span className="font-mono text-[11px] text-[var(--tf-text-secondary)]">{d}</span> : null;
       },
       renderTV: tv => {
