@@ -25,7 +25,7 @@
  */
 import type { Antrag } from '@/core/services/csv/types';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
-import type { AntragstypBucket, Zuweisung } from '../types';
+import { stundenProTVFor, type AntragstypBucket, type Zuweisung } from '../types';
 import { dateToQuartal } from './externe-zuweisungen';
 
 /** Ein logisch zusammengehoeriger Antrag (Verbund mit N TVs oder
@@ -132,8 +132,13 @@ export function computeQuartalsAuslastung(
   toAnon: ReadonlyMap<string, string>,
   quartal: string,
   stundenProTV: number,
+  stundenProTVProTyp?: Partial<Record<AntragstypBucket, number>>,
 ): Map<string, MaQuartalsAuslastung> {
-  const stunden = stundenProTV > 0 ? stundenProTV : 9;
+  // v2.31: pro Verbund-Anteil wird der Antragstyp-spezifische Stunden-Faktor
+  // benutzt (z.B. DS 4,5 h statt 9 h). Ohne `stundenProTVProTyp` → Standard fuer
+  // alle Typen (= altes Verhalten).
+  const stundenFor = (bucket: AntragstypBucket | null): number =>
+    stundenProTVFor({ stundenProTV, stundenProTVProTyp }, bucket);
   const result = new Map<string, MaQuartalsAuslastung>();
 
   // Lookup fuer Pass 2 (pending): aktenzeichen → Antrag.
@@ -238,10 +243,10 @@ export function computeQuartalsAuslastung(
 
   for (const anonId of allAnonIds) {
     const fest = collectFest.has(anonId)
-      ? buildBucket(collectFest.get(anonId)!, stunden)
+      ? buildBucket(collectFest.get(anonId)!, stundenFor)
       : emptyBucket();
     const pending = collectPending.has(anonId)
-      ? buildBucket(collectPending.get(anonId)!, stunden)
+      ? buildBucket(collectPending.get(anonId)!, stundenFor)
       : emptyBucket();
     result.set(anonId, { fest, pending });
   }
@@ -249,12 +254,16 @@ export function computeQuartalsAuslastung(
   return result;
 }
 
-function buildBucket(groupsByKey: Map<string, GroupState>, stundenProTV: number): MaQuartalsBucket {
+function buildBucket(
+  groupsByKey: Map<string, GroupState>,
+  stundenFor: (bucket: AntragstypBucket | null) => number,
+): MaQuartalsBucket {
   const verbuende: AuslastungVerbund[] = [];
   const aktenzeichenSet = new Set<string>();
   const antraegeProTyp: Partial<Record<AntragstypBucket, number>> = {};
   const tvsProTyp: Partial<Record<AntragstypBucket, number>> = {};
   let totalTvs = 0;
+  let totalStunden = 0;
   for (const g of groupsByKey.values()) {
     const tvCount = g.aktenzeichen.length;
     if (tvCount === 0) continue;
@@ -267,6 +276,10 @@ function buildBucket(groupsByKey: Map<string, GroupState>, stundenProTV: number)
       antraegeProTyp[bucket] = (antraegeProTyp[bucket] ?? 0) + 1;
       tvsProTyp[bucket] = (tvsProTyp[bucket] ?? 0) + tvCount;
     }
+    // v2.31: Stunden mit dem Antragstyp-spezifischen Faktor (bucket null →
+    // Standard via `stundenFor`).
+    const gStunden = tvCount * stundenFor(bucket);
+    totalStunden += gStunden;
     verbuende.push({
       verbundId: g.verbundId,
       aktenzeichen: g.aktenzeichen.slice(),
@@ -274,7 +287,7 @@ function buildBucket(groupsByKey: Map<string, GroupState>, stundenProTV: number)
       titel: g.titel,
       antragsdatum: g.antragsdatum,
       tvCount,
-      stunden: tvCount * stundenProTV,
+      stunden: gStunden,
     });
   }
   // Sortierung: antragsdatum desc (juengste oben). Eintraege ohne Datum nach
@@ -290,7 +303,7 @@ function buildBucket(groupsByKey: Map<string, GroupState>, stundenProTV: number)
   return {
     antraege: verbuende.length,
     tvs: totalTvs,
-    stunden: totalTvs * stundenProTV,
+    stunden: totalStunden,
     aktenzeichenSet,
     verbuende,
     antraegeProTyp,

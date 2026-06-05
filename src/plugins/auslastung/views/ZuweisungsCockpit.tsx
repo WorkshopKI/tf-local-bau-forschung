@@ -39,6 +39,7 @@ import {
   CANONICAL_VERBUND_ID,
   CANONICAL_VERBUND_TITEL,
   FIELD_PROJEKTBESCHREIBUNG,
+  stundenProTVFor,
   type AntragstypBucket,
   type MatchResult,
   type Zuweisung,
@@ -365,7 +366,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const selectedBucket = selected ? getKategorieLabel((selected as Record<string, unknown>).vb_phase) : null;
   const manualMatches = useMemo(() => {
     if (!selected) return [] as MatchResult[];
-    const benoetigt = (config.stundenProTV ?? 9) * selectedTvCount;
+    const benoetigt = stundenProTVFor(config, selectedBucket) * selectedTvCount;
     return manualAnonIds
       .map(anonId => mitarbeiter[anonId])
       .filter((ma): ma is NonNullable<typeof ma> => !!ma)

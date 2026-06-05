@@ -106,8 +106,9 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       cache.anonymMap.toAnon,
       config.aktuellesQuartal,
       config.stundenProTV ?? 9,
+      config.stundenProTVProTyp,
     ),
-    [cache.antraege, cache.anonymMap, zuweisungen, config.aktuellesQuartal, config.stundenProTV],
+    [cache.antraege, cache.anonymMap, zuweisungen, config.aktuellesQuartal, config.stundenProTV, config.stundenProTVProTyp],
   );
   const myAuslastung = myAnonId ? auslastungByAnon.get(myAnonId) : undefined;
   const myFestAktenzeichen = myAuslastung?.fest.aktenzeichenSet;

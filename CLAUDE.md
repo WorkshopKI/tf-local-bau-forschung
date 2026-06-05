@@ -404,6 +404,14 @@ MINOR-Bump v2.32: Auf dem öffentlichen Feedback-Board ([FeedbackBoardPage](src/
 
 Additiv, keine Daten-/IDB-/SMB-Migration; neue Sidecar `ZAH/feedback/sponsor-wuensche.json` (idempotent-overwrite, Pitfall #23). Sichtbar in allen Varianten mit Feedback-Board; Einsammeln nur im kurator-Build (kuratorOnly). Budget-Key wechselt ggf. von `profile.name` auf das Kürzel — verwaist alte Quartals-Budgets harmlos (Quartals-Reset).
 
+### v2.33 — Stunden pro Teilvorhaben antragstyp-spezifisch (FuE/DS/DL/NW) (Juni 2026)
+
+MINOR-Bump v2.33: Der bisher globale Faktor `config.stundenProTV` (pauschal 9 h) ist jetzt **pro Antragstyp** konfigurierbar. Neues optionales Config-Feld `stundenProTVProTyp?: Partial<Record<AntragstypBucket, number>>` neben dem `stundenProTV`-Standard + zentraler Aufloeser `stundenProTVFor(config, bucket?)` ([types.ts](src/plugins/auslastung/types.ts)): typ-spezifischer Wert > globaler Standard > 9. UI: vier Felder FuE/DS/DL/NW in der Sektion „Konfiguration" (Tab „Einstellungen", [KonfigurationSection.tsx](src/plugins/auslastung/views/admin/KonfigurationSection.tsx)), leer = Standard.
+
+Der per-Typ-Faktor fliesst in alle **type-aware** Pfade ein (Bucket via `getKategorieLabel(vb_phase)` bekannt): Stundenbedarf + Pro-Typ-Kontingent-Deckel im Matcher ([matching-engine.ts](src/plugins/auslastung/services/matching-engine.ts)), per-Typ-Kapazitaetsbalken ([kapazitaet-pro-typ.ts](src/plugins/auslastung/services/kapazitaet-pro-typ.ts)), verbrauchte Stunden im Quartals-Index ([quartals-auslastung.ts](src/plugins/auslastung/services/quartals-auslastung.ts), per Verbund-Anteil), manuelle Zuweisung ([manual-match.ts](src/plugins/auslastung/services/manual-match.ts) + [ZuweisungsCockpit](src/plugins/auslastung/views/ZuweisungsCockpit.tsx)) und der Quartals-Index-Cache-Key ([useAuslastungIndex.ts](src/plugins/auslastung/hooks/useAuslastungIndex.ts)). **Typ-uebergreifende Aggregat-Anzeigen** („X TVs frei" in MaTile/Vorschlag/Statistik/Export, `computeKapazitaet.restTVs`) bleiben bewusst auf dem Standard-Faktor. Beispiel: bei DS = 4,5 h hat ein MA mit gleichem Stunden-Konto doppelt so viele freie DS-Teilvorhaben wie bei FuE = 9 h.
+
+Voll abwaertskompatibel (leeres `stundenProTVProTyp` = altes Verhalten; Load-Merge gegen `DEFAULT_AUSLASTUNG_CONFIG` ergaenzt das Feld als `{}`). Keine Migration. Sichtbar/wirksam in **pl + dev** (wo das Auslastungs-Modul existiert); prod/demo/kurator unveraendert.
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*

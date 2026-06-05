@@ -298,6 +298,37 @@ describe('computeQuartalsAuslastung — antraegeProTyp (v2.16)', () => {
   });
 });
 
+describe('computeQuartalsAuslastung — per-Typ-Stunden (v2.31)', () => {
+  it('DS-Verbund (vb_phase 5) verbraucht tvCount × 4,5 statt × Standard', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'D1', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', verbund_id: 'V1', vb_phase: 5 }),
+      makeAntrag({ aktenzeichen: 'D2', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', verbund_id: 'V1', vb_phase: 5 }),
+    ];
+    const m = computeQuartalsAuslastung(antraege, [], new Map([['MUE', 'MA01']]), '2026-Q2', STD, { DS: 4.5 });
+    const a = m.get('MA01')!;
+    expect(a.fest.tvs).toBe(2);
+    expect(a.fest.stunden).toBe(9);            // 2 TVs × 4,5 h
+    expect(a.fest.verbuende[0]!.stunden).toBe(9);
+    expect(a.fest.tvsProTyp).toEqual({ DS: 2 });
+  });
+
+  it('gemischte Buckets: FuE Standard 9, DS Override 4,5 → Summe je Faktor', () => {
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'F1', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', vb_phase: 3 }),
+      makeAntrag({ aktenzeichen: 'D1', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', vb_phase: 5 }),
+    ];
+    const m = computeQuartalsAuslastung(antraege, [], new Map([['MUE', 'MA01']]), '2026-Q2', STD, { DS: 4.5 });
+    // 1 FuE-TV × 9 + 1 DS-TV × 4,5 = 13,5
+    expect(m.get('MA01')!.fest.stunden).toBe(13.5);
+  });
+
+  it('ohne per-Typ-Map → Standard-Faktor (Backward-Compat)', () => {
+    const antraege = [makeAntrag({ aktenzeichen: 'D1', tib_kuerz: 'MUE', antragsdatum: '2026-04-15', vb_phase: 5 })];
+    const m = computeQuartalsAuslastung(antraege, [], new Map([['MUE', 'MA01']]), '2026-Q2', STD);
+    expect(m.get('MA01')!.fest.stunden).toBe(9);
+  });
+});
+
 describe('getTVCount', () => {
   it('Einzelantrag (kein verbund_id) → 1', () => {
     expect(getTVCount([], undefined, 'A1')).toBe(1);

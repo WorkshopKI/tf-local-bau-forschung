@@ -204,7 +204,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
     const map = new Map<string, KapazitaetProTypView>();
     const stdProTV = Math.max(1, config.stundenProTV ?? 9);
     for (const ma of Object.values(mitarbeiter)) {
-      map.set(ma.anonId, computeKapazitaetProTyp(ma, auslastungByAnon.get(ma.anonId), stdProTV));
+      map.set(ma.anonId, computeKapazitaetProTyp(ma, auslastungByAnon.get(ma.anonId), stdProTV, config.stundenProTVProTyp));
     }
     return map;
   }, [mitarbeiter, auslastungByAnon, config]);

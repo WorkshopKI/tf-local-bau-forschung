@@ -27,7 +27,7 @@ import { createContext, createElement, useContext, useMemo, type ReactNode } fro
 import type { Antrag } from '@/core/services/csv/types';
 import { computeQuartalsAuslastung, type MaQuartalsAuslastung } from '../services/quartals-auslastung';
 import { computeAltlasten, type MaAltlastBucket } from '../services/altlast';
-import type { Zuweisung } from '../types';
+import type { AntragstypBucket, Zuweisung } from '../types';
 import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';
 
@@ -50,6 +50,9 @@ interface CachedIndex {
   toAnon: ReadonlyMap<string, string>;
   quartal: string;
   stundenProTV: number;
+  /** v2.31: per-Typ-Stunden-Faktoren (stabile Zustand-Slice) — Teil des
+   *  Cache-Keys, damit eine Aenderung den Index neu rechnet. */
+  stundenProTVProTyp: Partial<Record<AntragstypBucket, number>> | undefined;
   value: AuslastungIndex;
 }
 let cachedIndex: CachedIndex | null = null;
@@ -64,20 +67,24 @@ export function getOrComputeIndex(
   toAnon: ReadonlyMap<string, string>,
   quartal: string,
   stundenProTV: number,
+  stundenProTVProTyp?: Partial<Record<AntragstypBucket, number>>,
 ): AuslastungIndex {
   if (cachedIndex
       && cachedIndex.antraege === antraege
       && cachedIndex.zuweisungen === zuweisungen
       && cachedIndex.toAnon === toAnon
       && cachedIndex.quartal === quartal
-      && cachedIndex.stundenProTV === stundenProTV) {
+      && cachedIndex.stundenProTV === stundenProTV
+      && cachedIndex.stundenProTVProTyp === stundenProTVProTyp) {
     return cachedIndex.value;
   }
   const value: AuslastungIndex = {
-    auslastungByAnon: computeQuartalsAuslastung(antraege, zuweisungen, toAnon, quartal, stundenProTV),
+    // v2.31: per-Typ-Stunden-Faktor fliesst in den Verbrauch (fest+pending) ein.
+    auslastungByAnon: computeQuartalsAuslastung(antraege, zuweisungen, toAnon, quartal, stundenProTV, stundenProTVProTyp),
+    // Altlast bleibt auf dem Standard-Faktor (typ-uebergreifende Anzeige).
     altlastByAnon: computeAltlasten(antraege, toAnon, quartal, stundenProTV),
   };
-  cachedIndex = { antraege, zuweisungen, toAnon, quartal, stundenProTV, value };
+  cachedIndex = { antraege, zuweisungen, toAnon, quartal, stundenProTV, stundenProTVProTyp, value };
   return value;
 }
 
@@ -93,6 +100,7 @@ export function AuslastungIndexProvider({ children }: { children: ReactNode }): 
   const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
   const aktuellesQuartal = useAuslastungData(s => s.data.config.aktuellesQuartal);
   const stundenProTV = useAuslastungData(s => s.data.config.stundenProTV);
+  const stundenProTVProTyp = useAuslastungData(s => s.data.config.stundenProTVProTyp);
 
   const value = useMemo<AuslastungIndex>(
     () => getOrComputeIndex(
@@ -101,8 +109,9 @@ export function AuslastungIndexProvider({ children }: { children: ReactNode }): 
       cache.anonymMap.toAnon,
       aktuellesQuartal,
       stundenProTV ?? 9,
+      stundenProTVProTyp,
     ),
-    [cache.antraege, cache.anonymMap, zuweisungen, aktuellesQuartal, stundenProTV],
+    [cache.antraege, cache.anonymMap, zuweisungen, aktuellesQuartal, stundenProTV, stundenProTVProTyp],
   );
   return createElement(AuslastungIndexCtx.Provider, { value }, children);
 }

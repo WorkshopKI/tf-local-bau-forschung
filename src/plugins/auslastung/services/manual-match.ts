@@ -8,11 +8,12 @@
  * (`computeKapazitaet` + `kontingentInfoFor`), damit „X TVs frei" und
  * „Typ-Kontingent: r/N TVs" konsistent sind.
  */
-import type {
-  AnonymerMitarbeiter,
-  AntragstypBucket,
-  AuslastungConfig,
-  MatchResult,
+import {
+  stundenProTVFor,
+  type AnonymerMitarbeiter,
+  type AntragstypBucket,
+  type AuslastungConfig,
+  type MatchResult,
 } from '../types';
 import { computeKapazitaet } from './kapazitaet';
 import { kontingentInfoFor } from './kontingent';
@@ -26,7 +27,8 @@ export function buildManualMatch(
   config: AuslastungConfig,
   benoetigteStunden: number,
 ): MatchResult {
-  const stundenProTV = config.stundenProTV ?? 9;
+  // v2.31: Pro-Typ-Stunden-Faktor fuer die Kontingent-Anzeige (Bucket bekannt).
+  const stundenProTV = stundenProTVFor(config, antragBucket);
   const kap = computeKapazitaet(ma, auslastung, config);
   const kInfo = kontingentInfoFor(ma, antragBucket, verbrauch, stundenProTV);
 

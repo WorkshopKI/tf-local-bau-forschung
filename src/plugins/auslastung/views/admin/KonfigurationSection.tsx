@@ -5,7 +5,12 @@
 import { useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
-import { DEFAULT_ZUGANG_EMAIL_BETREFF, DEFAULT_ZUGANG_EMAIL_VORLAGE } from '../../types';
+import {
+  ALL_ANTRAGSTYP_BUCKETS,
+  DEFAULT_ZUGANG_EMAIL_BETREFF,
+  DEFAULT_ZUGANG_EMAIL_VORLAGE,
+  type AntragstypBucket,
+} from '../../types';
 
 interface Props {
   storage: StorageService;
@@ -30,6 +35,19 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
   const [vorlage, setVorlage] = useState(config.zugangEmailVorlage ?? DEFAULT_ZUGANG_EMAIL_VORLAGE);
   const [emailSaved, setEmailSaved] = useState(false);
 
+  // v2.31: Antragstyp-spezifischer Stunden-pro-TV-Override. Leeres/0-Feld → Key
+  // entfernen (Standard greift via `stundenProTVFor`).
+  function updateTyp(bucket: AntragstypBucket, raw: string): void {
+    const next: Partial<Record<AntragstypBucket, number>> = { ...(config.stundenProTVProTyp ?? {}) };
+    const v = Number(raw);
+    if (raw.trim() === '' || !Number.isFinite(v) || v <= 0) {
+      delete next[bucket];
+    } else {
+      next[bucket] = v;
+    }
+    void update({ stundenProTVProTyp: next });
+  }
+
   function commitEmail(): void {
     const curB = config.zugangEmailBetreff ?? DEFAULT_ZUGANG_EMAIL_BETREFF;
     const curV = config.zugangEmailVorlage ?? DEFAULT_ZUGANG_EMAIL_VORLAGE;
@@ -50,6 +68,7 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
             type="number"
             min={1}
             max={500}
+            step={0.5}
             value={config.stundenProTV}
             onChange={e => void update({ stundenProTV: Number(e.target.value) || 9 })}
             disabled={busy}
@@ -80,6 +99,37 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
             style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
           />
         </Field>
+      </div>
+
+      {/* v2.31: Antragstyp-spezifische Stunden pro TV (FuE/DS/DL/NW) */}
+      <div className="mt-4 pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <h4 className="text-[12.5px] font-medium text-[var(--tf-text)] mb-2">
+          Stunden pro Teilvorhaben je Antragstyp
+        </h4>
+        <div className="grid grid-cols-4 gap-3">
+          {ALL_ANTRAGSTYP_BUCKETS.map(bucket => (
+            <Field key={bucket} label={bucket}>
+              <input
+                type="number"
+                min={0}
+                max={500}
+                step={0.5}
+                value={config.stundenProTVProTyp?.[bucket] ?? ''}
+                placeholder={String(config.stundenProTV)}
+                onChange={e => updateTyp(bucket, e.target.value)}
+                disabled={busy}
+                className="w-full text-[12.5px] px-2 py-1 rounded outline-none"
+                style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
+              />
+            </Field>
+          ))}
+        </div>
+        <p className="mt-2 text-[10.5px] text-[var(--tf-text-tertiary)] leading-snug">
+          Leer = Standard-Faktor ({config.stundenProTV} h). Ein eigener Wert je Antragstyp
+          wirkt auf Kapazität, Matching und Kontingent — z.&nbsp;B. bei 4,5&nbsp;h für DS
+          hat ein MA mit gleichem Stunden-Konto doppelt so viele freie DS-Teilvorhaben wie
+          bei 9&nbsp;h.
+        </p>
       </div>
 
       {/* v2.12: Zugangspasswort-E-Mail-Vorlage (für den „✉ E-Mail"-Link im Passwort-Dialog) */}

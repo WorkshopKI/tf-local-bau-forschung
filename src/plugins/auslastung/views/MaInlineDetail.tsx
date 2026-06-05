@@ -103,7 +103,9 @@ function DetailTab({ ma, auslastung, quartal, altlast }: {
 }): React.ReactElement {
   // v2.16: per-Antragstyp-Auslastung als primäres Kapazitätsmodell (oben).
   const stundenProTV = useAuslastungData(s => Math.max(1, s.data.config.stundenProTV ?? 9));
-  const kapTyp = computeKapazitaetProTyp(ma, auslastung, stundenProTV);
+  // v2.31: per-Typ-Stunden-Faktoren (z.B. DS 4,5 h) für die Pro-Typ-Bars.
+  const stundenProTVProTyp = useAuslastungData(s => s.data.config.stundenProTVProTyp);
+  const kapTyp = computeKapazitaetProTyp(ma, auslastung, stundenProTV, stundenProTVProTyp);
   const showTyp = kapTyp.hatKontingent || kapTyp.verbrauchGesamt > 0;
   return (
     <div className="flex flex-col gap-3">

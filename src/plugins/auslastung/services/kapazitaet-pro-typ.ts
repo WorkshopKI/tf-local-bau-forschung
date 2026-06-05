@@ -17,6 +17,7 @@
  */
 import {
   ALL_ANTRAGSTYP_BUCKETS,
+  stundenProTVFor,
   type AntragstypBucket,
   type AnonymerMitarbeiter,
 } from '../types';
@@ -118,6 +119,7 @@ export function computeKapazitaetProTyp(
   ma: AnonymerMitarbeiter,
   auslastung: MaQuartalsAuslastung | undefined,
   stundenProTV: number,
+  stundenProTVProTyp?: Partial<Record<AntragstypBucket, number>>,
 ): KapazitaetProTypView {
   const a = auslastung ?? EMPTY_AUSLASTUNG;
   let verbrauchGesamt = 0;
@@ -126,7 +128,9 @@ export function computeKapazitaetProTyp(
   const slots: TypSlot[] = ALL_ANTRAGSTYP_BUCKETS.map(bucket => {
     const verbraucht = (a.fest.tvsProTyp[bucket] ?? 0) + (a.pending.tvsProTyp[bucket] ?? 0);
     verbrauchGesamt += verbraucht;
-    const kontingentQ = quartalsTVsProTyp(ma, bucket, stundenProTV);
+    // v2.31: Kontingent in TVs mit dem Antragstyp-spezifischen Stunden-Faktor
+    // (z.B. DS 4,5 h → doppelt so viele TVs wie FuE bei gleichem Stunden-Konto).
+    const kontingentQ = quartalsTVsProTyp(ma, bucket, stundenProTVFor({ stundenProTV, stundenProTVProTyp }, bucket));
     if (kontingentQ == null) {
       return {
         bucket,

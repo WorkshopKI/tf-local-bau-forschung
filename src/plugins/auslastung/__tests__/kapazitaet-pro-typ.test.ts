@@ -122,3 +122,24 @@ describe('computeKapazitaetProTyp (TVs)', () => {
     expect(fue.rest).toBe(1);
   });
 });
+
+describe('computeKapazitaetProTyp — per-Typ-Stunden (v2.31)', () => {
+  it('DS-Faktor 4,5 → doppelt so viele DS-TVs wie FuE bei gleichem Stunden-Konto', () => {
+    // FuE+DS je 72 h/Jahr → je 18 h/Quartal. FuE ÷ 9 = 2 TVs, DS ÷ 4,5 = 4 TVs.
+    const v = computeKapazitaetProTyp(ma({ FuE: 72, DS: 72 }), auslastung({}), STD, { DS: 4.5 });
+    expect(slot(v, 'FuE').kontingentQ).toBe(2);
+    expect(slot(v, 'DS').kontingentQ).toBe(4);
+  });
+
+  it('ohne per-Typ-Map → alle Typen Standard (Backward-Compat)', () => {
+    const v = computeKapazitaetProTyp(ma({ FuE: 72, DS: 72 }), auslastung({}), STD);
+    expect(slot(v, 'FuE').kontingentQ).toBe(2);
+    expect(slot(v, 'DS').kontingentQ).toBe(2);
+  });
+
+  it('nur gesetzter Typ wird ueberschrieben, Rest faellt auf Standard', () => {
+    const v = computeKapazitaetProTyp(ma({ FuE: 72, DL: 72 }), auslastung({}), STD, { DS: 4.5 });
+    expect(slot(v, 'FuE').kontingentQ).toBe(2); // Standard 9
+    expect(slot(v, 'DL').kontingentQ).toBe(2);  // Standard 9 (kein Override)
+  });
+});
