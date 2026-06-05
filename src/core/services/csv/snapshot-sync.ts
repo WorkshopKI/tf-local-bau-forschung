@@ -4,6 +4,7 @@ import { readText } from '../infrastructure/atomic-write';
 import type { ProgrammSnapshotManifest, SnapshotStoreName } from './snapshot';
 import { SYNC_VERSION_KEY, SYNC_STORE_HASH_KEY, SYNC_LAST_CHECK_DAY_KEY } from './snapshot-keys';
 import { MAX_WRITES_PER_TX } from './constants';
+import { rebuildAntraegeListView } from './list-view-migration';
 
 export interface SyncProgress {
   phase: 'manifest' | 'store' | 'done';
@@ -163,6 +164,16 @@ export async function syncProgrammSnapshot(
     await idb.set(SYNC_STORE_HASH_KEY(programmId, storeKey), remoteHash);
     reloadedStores.push(storeKey);
     storesDone++;
+  }
+
+  // Der Snapshot enthält nur den vollen ANTRAEGE-Store, NICHT die Slim-
+  // Projektion ANTRAEGE_LIST_VIEW (die Listen/Dashboards/Home lesen). Nach
+  // einem In-Session-Sync (Banner „Jetzt laden") muss sie hier neu projiziert
+  // werden — sonst liest die Home die leere/stale Projektion und bleibt bis zum
+  // nächsten App-Start (= manueller Reload, der ensureListViewProjection neu
+  // laufen lässt) leer. Nur nötig, wenn der ANTRAEGE-Store wirklich neu kam.
+  if (reloadedStores.includes('antraege')) {
+    await rebuildAntraegeListView(idb);
   }
 
   await idb.set(SYNC_VERSION_KEY(programmId), manifest.snapshotVersion);

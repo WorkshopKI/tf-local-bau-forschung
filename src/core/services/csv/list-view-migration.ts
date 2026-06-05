@@ -4,6 +4,7 @@ import {
   countAntraegeListViewByProgramm,
   listAntraegeByProgramm,
   putAntraegeListView,
+  clearAntraegeListView,
 } from './idb-csv';
 import { toAntragListItem } from './list-view';
 import { tfPerfStart } from '@/core/utils/tfPerf';
@@ -55,4 +56,29 @@ export async function ensureListViewProjection(
     totalProjected += fullList.length;
   }
   end(`projected=${totalProjected}`);
+}
+
+/**
+ * VOLLSTÄNDIGER Neuaufbau der List-View-Projektion: leert den Slim-Store und
+ * projiziert ALLE Antraege neu. Anders als `ensureListViewProjection` (nur
+ * Backfill, wenn der Spiegel zu KLEIN ist) ist das zwingend nach einem
+ * Snapshot-Sync, der den `ANTRAEGE`-Store via `replaceStore` komplett ersetzt
+ * (clear + put), die List-View aber nicht berührt. Ohne diesen Rebuild liest
+ * die Home die alte/leere Projektion und bleibt bis zum nächsten App-Start
+ * (= manueller Reload, der `ensureListViewProjection` neu laufen lässt) leer.
+ */
+export async function rebuildAntraegeListView(idb: IDBStore): Promise<void> {
+  const end = tfPerfStart('rebuildAntraegeListView');
+  await clearAntraegeListView(idb);
+  const programme = await listProgramme(idb);
+  let total = 0;
+  const CHUNK = 500;
+  for (const p of programme) {
+    const fullList = await listAntraegeByProgramm(idb, p.id);
+    for (let i = 0; i < fullList.length; i += CHUNK) {
+      await putAntraegeListView(idb, fullList.slice(i, i + CHUNK).map(toAntragListItem));
+    }
+    total += fullList.length;
+  }
+  end(`reprojected=${total}`);
 }

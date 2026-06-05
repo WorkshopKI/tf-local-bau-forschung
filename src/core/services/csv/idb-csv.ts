@@ -225,6 +225,15 @@ export async function putAntraegeListView(
   }
 }
 
+/** Leert die gesamte Slim-Projektion. Für den vollständigen Neuaufbau nach
+ *  einem Snapshot-Sync (der den ANTRAEGE-Store via replaceStore komplett
+ *  ersetzt, die List-View aber nicht berührt). */
+export async function clearAntraegeListView(idb: IDBStore): Promise<void> {
+  const t = tx(idb, CSV_STORES.ANTRAEGE_LIST_VIEW, 'readwrite');
+  t.objectStore(CSV_STORES.ANTRAEGE_LIST_VIEW).clear();
+  return waitTx(t);
+}
+
 export async function listAntraegeListViewByProgramm(
   idb: IDBStore,
   programmId: string,
