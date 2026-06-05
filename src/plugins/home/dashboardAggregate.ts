@@ -11,7 +11,7 @@
  * gezaehlt.
  */
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
-import { computeFristDatum } from '@/core/services/csv/frist';
+import { computeVerbundFristDatum } from '@/core/services/csv/frist';
 import type { Vorgang } from '@/core/types/vorgang';
 import {
   antragMatchesBearbeiter,
@@ -121,16 +121,22 @@ function daysUntil(dateStr: string | undefined, nowMs: number): number | null {
 function antragToVorgangLike(
   a: AntragListItem,
   verbundById?: Map<string, Verbund>,
+  verbundAllTvs?: Map<string, AntragListItem[]>,
 ): AntragVorgang {
   const antragsdatum = typeof a.antragsdatum === 'string' ? a.antragsdatum : undefined;
+  const verbundId = typeof a.verbund_id === 'string' && a.verbund_id.length > 0 ? a.verbund_id : undefined;
   // `deadline` ist die phasen-abhaengige Frist (siehe csv/frist.ts):
   // - Antragsphase: antragsdatum + 90 Tage
   // - Begleitphase: vn_eingang_datum + 6 Monate
+  // Bei einem Verbund startet die Antragsphase-Frist ab dem ZULETZT eingegangenen
+  // TV (max antragsdatum ueber alle TVs) — vorher kann der Verbund nicht bearbeitet
+  // werden. `computeVerbundFristDatum` kapselt das (Begleitphase bleibt per-TV); fuer
+  // Solo-Antraege ist es identisch zu `computeFristDatum(a)`.
   // Damit ist `daysLeft <= 0` "Frist verletzt", `daysLeft ∈ [0, 7]` "Frist
   // droht diese Woche zu reissen" — kompatibel zur bestehenden Aggregat-Logik.
-  const deadline = computeFristDatum(a) ?? undefined;
+  const verbundTvs = verbundId && verbundAllTvs ? (verbundAllTvs.get(verbundId) ?? [a]) : [a];
+  const deadline = computeVerbundFristDatum(verbundTvs, a) ?? undefined;
   const created = antragsdatum ?? a._updated_at;
-  const verbundId = typeof a.verbund_id === 'string' && a.verbund_id.length > 0 ? a.verbund_id : undefined;
   // Verbund-Titel (VB_TITEL) bevorzugt aus dem Verbund-Store ziehen. Wenn der
   // Verbund nicht gefunden wird oder das Titel-Feld leer ist, bleibt es
   // undefined und das UI faellt auf den TV-Titel zurueck.
@@ -208,6 +214,25 @@ export function computeDashboardAggregate(
     }
   }
 
+  // Alle TVs pro verbund_id (ueber den GESAMTEN Antrags-Bestand, inkl. nicht
+  // offener) — Basis fuer die Verbund-Frist (max antragsdatum = zuletzt
+  // eingegangenes TV). Wird in `antragToVorgangLike` durchgereicht.
+  const verbundAllTvs = new Map<string, AntragListItem[]>();
+  if (options.includeAntraege) {
+    for (const a of antraege) {
+      const vid = typeof a.verbund_id === 'string' && a.verbund_id.length > 0 ? a.verbund_id : null;
+      if (!vid) continue;
+      let arr = verbundAllTvs.get(vid);
+      if (!arr) { arr = []; verbundAllTvs.set(vid, arr); }
+      arr.push(a);
+    }
+  }
+
+  // Pro Verbund nur EIN Frist-Kandidat: alle TVs eines Verbundes teilen jetzt
+  // dieselbe (vom letzten TV abgeleitete) Frist — ohne Dedupe wuerde ein Verbund
+  // in `fristenDieseWoche`/`dringend` mehrfach gezaehlt. Solo-Antraege bleiben
+  // einzeln. Bauantraege (oben) haben kein Verbund-Konzept.
+  const seenFristVerbund = new Set<string>();
   const offeneAntraege: AntragVorgang[] = [];
   if (options.includeAntraege) {
     for (const a of antraege) {
@@ -219,7 +244,7 @@ export function computeDashboardAggregate(
       // Berechnung — Default ist sie auf der Home ausgeblendet.
       if (isBegleitungStatus(a.status) && !bearbeiterMode.includeBegleitung) continue;
       if (bearbeiterMode.active && !antragMatchesBearbeiter(a, bearbeiterMode)) continue;
-      const v = antragToVorgangLike(a, options.verbundById);
+      const v = antragToVorgangLike(a, options.verbundById, verbundAllTvs);
       stats.total++;
       const isClosed = tallyStatus(v.status as string, stats);
       if (isClosed) continue;
@@ -227,7 +252,13 @@ export function computeDashboardAggregate(
       offeneVorgaenge.push(v);
       offeneAntraege.push(v);
       const dl = daysUntil(v.deadline, nowMs);
-      if (dl !== null) fristKandidaten.push({ ...v, daysLeft: dl });
+      if (dl !== null) {
+        const fkKey = v.verbund_id ?? `solo:${a.aktenzeichen}`;
+        if (!seenFristVerbund.has(fkKey)) {
+          seenFristVerbund.add(fkKey);
+          fristKandidaten.push({ ...v, daysLeft: dl });
+        }
+      }
     }
   }
 

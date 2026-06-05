@@ -238,13 +238,16 @@ describe('groupFreigegebeneByVerbund', () => {
     expect(rows[0]?.klassifizierung.freigegebenePrimaer).toBe('IT');
   });
 
-  it('übernimmt antragsdatum vom Lead-TV (für Antragsdatum-Sortierung)', () => {
+  it('übernimmt das SPÄTESTE antragsdatum (zuletzt eingegangenes TV), nicht das des Lead-TV', () => {
     const views = [
-      makeView(makeAntrag({ aktenzeichen: '16KN127431', verbund_id: 'V1', antragsdatum: '2026-02-01' }), 'IT'),
-      makeView(makeAntrag({ aktenzeichen: '16KN127430', verbund_id: 'V1', antragsdatum: '2026-05-09' }), 'IT'),
+      // Lead (FKZ-sortiert) ist '16KN127430' mit dem FRÜHEREN Datum — das spätere
+      // Datum des anderen TV ist maßgeblich für den Gesamtverbund.
+      makeView(makeAntrag({ aktenzeichen: '16KN127430', verbund_id: 'V1', antragsdatum: '2026-02-01' }), 'IT'),
+      makeView(makeAntrag({ aktenzeichen: '16KN127431', verbund_id: 'V1', antragsdatum: '2026-05-09' }), 'IT'),
     ];
     const rows = groupFreigegebeneByVerbund(views, new Map());
-    // Lead = '16KN127430' (FKZ-sortiert) → dessen Antragsdatum landet auf der Row.
+    // Lead-Auswahl (Selektion/Zuweisung) bleibt FKZ-sortiert; nur das Antragsdatum
+    // kommt vom zuletzt eingegangenen TV.
     expect(rows[0]?.leadAktenzeichen).toBe('16KN127430');
     expect(rows[0]?.antragsdatum).toBe('2026-05-09');
   });

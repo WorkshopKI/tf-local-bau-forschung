@@ -11,6 +11,7 @@ import {
   listSchemas,
   formatGermanDate,
 } from '@/core/services/csv';
+import { verbundAntragsdatum } from '@/core/services/csv/frist';
 import { getCanonicalLabel } from '@/core/services/csv/constants';
 import type { Antrag, Verbund, VerbundHistorieEntry, CsvSchema } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
@@ -183,7 +184,10 @@ export function VerbundDetail({
   const leadXsw = readXsw(lead);
   const antragsteller = strOrNull(lead?.antragsteller);
   const unterprogramm = lead?.unterprogramm_id ?? null;
-  const antragsdatum = strOrNull(lead?.antragsdatum);
+  // Maßgebliches Antragsdatum des Verbundes = zuletzt eingegangenes TV (max über
+  // alle TVs), nicht das des Lead-TV — vorher kann der Verbund nicht bearbeitet
+  // werden. Bei Solo (1 TV) identisch zum TV-Datum.
+  const antragsdatum = verbundAntragsdatum(antraege);
   // Zuwendung-CSV-Spalten folgen spaeter; bis dahin Placeholder. Verbund-
   // Aggregat soll Summe ueber alle TVs werden, pro TV der einzelne Wert.
   const zuwendungPlaceholder = 'wird noch ergänzt';

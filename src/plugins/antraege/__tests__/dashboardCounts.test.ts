@@ -198,7 +198,7 @@ describe('computeDashboardAggregate — Verbund-Clustering in meineAntraege', ()
     const tvs: AntragListItem[] = [
       // Solo, neu eingegangen → Frist weiter weg
       mkAntrag({ aktenzeichen: 'S-001', status: 'beantragt', antragsdatum: '2026-05-01' }),
-      // Verbund, einer alt einer neu → Lead = der mit fruehestem antragsdatum (= aelteste Frist)
+      // Verbund: Frist ab spätestem TV (2026-03-01) → früher als Solo (2026-05-01) → oben.
       mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-01-01',
         verbund_id: 'VB-A' }),
       mkAntrag({ aktenzeichen: 'V-002', status: 'beantragt', antragsdatum: '2026-03-01',
@@ -207,11 +207,44 @@ describe('computeDashboardAggregate — Verbund-Clustering in meineAntraege', ()
     const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
       includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
-    // Verbund oben (kritischste Frist = V-001 mit antragsdatum 2026-01-01)
+    // Verbund oben; repräsentiert vom ersten TV (V-001), tv_count = 2.
     expect(agg.meineAntraege[0]?.id).toBe('V-001');
     expect(agg.meineAntraege[0]?.tv_count).toBe(2);
     // Solo darunter
     expect(agg.meineAntraege[1]?.id).toBe('S-001');
+  });
+
+  it('Verbund-Frist = spätestes TV-Antragsdatum + 90 Tage (zuletzt eingegangenes TV)', () => {
+    const tvs: AntragListItem[] = [
+      mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-01-01',
+        verbund_id: 'VB-A' }),
+      mkAntrag({ aktenzeichen: 'V-002', status: 'beantragt', antragsdatum: '2026-03-01',
+        verbund_id: 'VB-A' }),
+    ];
+    const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.meineAntraege).toHaveLength(1);
+    // max(antragsdatum) = 2026-03-01 + 90 Tage = 2026-05-30 (NICHT das frühere 2026-01-01).
+    expect(agg.meineAntraege[0]?.deadline).toBe('2026-05-30T00:00:00.000Z');
+  });
+
+  it('Verbund zählt nur EINMAL als Frist-Kandidat (dringend), nicht pro TV', () => {
+    const tvs: AntragListItem[] = [
+      // Alle drei TVs überfällig (2025) → gemeinsame Verbund-Frist, EIN Kandidat.
+      mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2025-01-01',
+        verbund_id: 'VB-A' }),
+      mkAntrag({ aktenzeichen: 'V-002', status: 'beantragt', antragsdatum: '2025-02-01',
+        verbund_id: 'VB-A' }),
+      mkAntrag({ aktenzeichen: 'V-003', status: 'beantragt', antragsdatum: '2025-03-01',
+        verbund_id: 'VB-A' }),
+    ];
+    const agg = computeDashboardAggregate(BAUANTRAEGE, tvs, NEUTRAL, {
+      includeBauantraege: false, includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    expect(agg.dringend).toHaveLength(1);
+    // Repräsentant = erstes offenes TV des Verbundes (Input-Reihenfolge).
+    expect(agg.dringend[0]?.id).toBe('V-001');
   });
 });
 

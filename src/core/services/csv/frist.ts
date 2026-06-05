@@ -65,6 +65,64 @@ export function computeFristDatum(
   return addDays(ad, ANTRAG_SLA_DAYS);
 }
 
+/**
+ * Maßgebliches Antragsdatum eines Verbundes = das **späteste** (max) `antragsdatum`
+ * über alle übergebenen TVs (= das zuletzt eingegangene Teilvorhaben). Leere und
+ * ungültige Datumswerte werden ignoriert; liefert `null`, wenn kein TV ein
+ * `antragsdatum` hat.
+ *
+ * Fachlich: Ein Verbund kann erst bearbeitet werden, wenn das letzte TV eingegangen
+ * ist — vorher darf keine (Antrags-)Frist laufen. Für ein einzelnes TV ist das
+ * Ergebnis dessen eigenes `antragsdatum`.
+ */
+export function verbundAntragsdatum(
+  // `object` (statt `{ antragsdatum?: unknown }`) akzeptiert sowohl den index-
+  // signierten `Antrag` als auch das getypte `AntragListItem` / `Pick<…>` und
+  // Test-Literale — der schmale Shape-Typ wuerde an `Antrag` (nur Index-Signatur,
+  // kein benanntes `antragsdatum`) am Weak-Type-Check scheitern.
+  tvs: ReadonlyArray<object>,
+): string | null {
+  let best: string | null = null;
+  let bestMs = -Infinity;
+  for (const tv of tvs) {
+    const raw = (tv as { antragsdatum?: unknown }).antragsdatum;
+    const ad = typeof raw === 'string' ? raw : '';
+    if (!ad) continue;
+    const ms = new Date(ad).getTime();
+    if (Number.isNaN(ms)) continue;
+    if (ms > bestMs) {
+      bestMs = ms;
+      best = ad;
+    }
+  }
+  return best;
+}
+
+/**
+ * Frist-Datum eines Verbundes — Verbund-aware Variante von `computeFristDatum`:
+ * - **Antragsphase**: `max(antragsdatum über alle TVs) + 90 Tage` — die Frist
+ *   startet ab dem zuletzt eingegangenen TV (siehe `verbundAntragsdatum`).
+ * - **Begleitphase**: per-TV wie gehabt (`computeFristDatum(representative)`,
+ *   `vn_eingang_datum + 6 Monate`) — die „letztes TV"-Regel gilt nur für die
+ *   Antragsphase.
+ *
+ * Für einen Solo-Antrag (`tvs = [antrag]`, `representative = antrag`) ist das
+ * Ergebnis identisch zu `computeFristDatum(antrag)` → kein Regress bei Einzelanträgen.
+ */
+export function computeVerbundFristDatum(
+  tvs: ReadonlyArray<Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>>,
+  representative: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>,
+): string | null {
+  // Begleitphase: eigener Lebenszyklus (VN-Frist), Regel greift nicht.
+  if (isBegleitungStatus(representative.status)) {
+    return computeFristDatum(representative);
+  }
+  // Antragsphase: Frist ab dem spätesten Antragsdatum aller TVs.
+  const maxAntragsdatum = verbundAntragsdatum(tvs);
+  if (!maxAntragsdatum) return computeFristDatum(representative);
+  return computeFristDatum({ ...representative, antragsdatum: maxAntragsdatum });
+}
+
 /** Tage bis zur Frist (Vorzeichen-konsistent). Negativ = ueberfaellig,
  *  positiv = noch Zeit, `null` = keine Frist berechenbar. */
 export function daysUntilFristAware(

@@ -12,6 +12,7 @@
  * Liste eine einheitliche Render-Logik hat.
  */
 import type { Antrag, Verbund } from '@/core/services/csv/types';
+import { verbundAntragsdatum } from '@/core/services/csv/frist';
 import {
   CANONICAL_AKRONYM,
   CANONICAL_ANTRAGSDATUM,
@@ -509,7 +510,9 @@ export function groupFreigegebeneByVerbund(
       leadAktenzeichen: lead.antrag.aktenzeichen,
       akronym,
       verbundTitel,
-      antragsdatum: readString(lead.antrag, CANONICAL_ANTRAGSDATUM),
+      // Maßgebliches Antragsdatum = zuletzt eingegangenes TV (max über alle TVs),
+      // nicht das des FKZ-Lead — vorher kann der Verbund nicht bearbeitet werden.
+      antragsdatum: verbundAntragsdatum(group.map(g => g.antrag)) ?? '',
       tvAktenzeichen: group.map(g => g.antrag.aktenzeichen),
       tvCount: group.length,
       klassifizierung: lead.klassifizierung,

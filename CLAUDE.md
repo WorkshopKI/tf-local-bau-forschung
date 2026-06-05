@@ -432,6 +432,16 @@ MINOR-Bump v2.34: In der Klassifizierungs-Tabelle (Tab „Anträge klassifiziere
 
 Additiv, keine Daten-/IDB-/SMB-Migration (das `methode`-Feld existierte schon im Schema). pl + dev (Auslastungs-Modul); prod/demo/kurator unverändert.
 
+### v2.36 — Verbund-Frist startet ab dem zuletzt eingegangenen TV (Juni 2026)
+
+MINOR-Bump v2.36: Das maßgebliche **Antragsdatum eines Verbundes** (und damit die antragsdatum-basierte Bearbeitungs-Frist) wird nicht mehr vom **ersten/frühesten** Teilvorhaben (TV) abgeleitet, sondern vom **zuletzt eingegangenen TV** = `max(antragsdatum)` über alle TVs. Fachlich: Ein Verbund kann erst bearbeitet werden, wenn das letzte TV eingegangen ist — vorher darf keine Frist laufen.
+
+- **Zentraler Helper** im csv-Layer ([frist.ts](src/core/services/csv/frist.ts)): `verbundAntragsdatum(tvs)` (spätestes `antragsdatum`, ignoriert leere/ungültige Werte) + `computeVerbundFristDatum(tvs, representative)` (Antragsphase: `max-antragsdatum + 90 Tage`; **Begleitphase per-TV** wie gehabt — die Regel gilt nur für die Antragsphase). Für einen Solo-Antrag identisch zu `computeFristDatum` (kein Regress).
+- **Betroffen (Verbund als EIN Eintrag):** Home „Meine Anträge" ([dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts)) — Verbund-Frist + „Fristen diese Woche"/„dringend"/„nächster Schritt" zählen einen Verbund **einmal** mit der vom letzten TV abgeleiteten Frist (Frist-Kandidaten pro `verbund_id` dedupliziert; `stats`-Status-Counts bleiben per-TV); Verbund-Detail-Feld „Antragsdatum" ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)); Zuweisungs-Cockpit-Sort „Antragsdatum (Neu→Alt)" ([verbund-aggregation.ts](src/plugins/auslastung/services/verbund-aggregation.ts)).
+- **Bewusst NICHT betroffen:** die flache Anträge-Liste / Filter / Eingangs-Ampel / Views „Überfällig"·„Diese Woche" zeigen einzelne TVs weiter mit deren eigenem `frist_datum` (kein Merger-Eingriff). „Neue Anträge für dich" nutzt die **Selbsteintragungs-Frist** (`freigegebenAm + selbsteintragungFristTage`), nicht das Antragsdatum — unverändert.
+
+Additiv, keine Daten-/IDB-/SMB-Migration. Wirksam überall, wo Förderanträge als Verbund gebündelt erscheinen (prod/kurator/pl/dev); Zuweisungs-Cockpit nur pl + dev.
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*
