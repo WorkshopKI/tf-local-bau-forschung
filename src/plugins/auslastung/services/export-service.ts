@@ -5,14 +5,17 @@
  * PL-Build ist seit v2.16 beim App-Start per Rollen-Passwort gated; das Mapping
  * anonId→Kuerzel lebt ausschliesslich im RAM und wird NIE persistiert.
  *
- * Datenmodell der Export-Zeile (v2.18):
- *   Aktenzeichen | Akronym | VB-Titel | TVs | Empfohlener MA | Passungs-Score |
- *   Restkapazität (TVs) | Confidence | Status | Alternative 1 … Alternative 5
+ * Datenmodell der Export-Zeile (v2.30):
+ *   Aktenzeichen | Akronym | VB-Titel | TVs | zugewiesen | Status |
+ *   Option 1 … Option 5
  *
- * Die „Alternative N"-Spalten listen pro Verbund die naechstbesten ANDEREN
- * Bearbeiter (Matching-Top-5 ohne den zugewiesenen MA), je Zelle
- * `Kuerzel · Kompetenz% · N TVs frei`. Die dafuer noetigen MatchResults
- * uebergibt der Aufrufer als `matchesByLead` (Hook `useKuerzelExport`).
+ * Der zugewiesene MA („zugewiesen") UND die „Option N"-Spalten teilen dasselbe
+ * Zellen-Format `Kuerzel · Kompetenz% · N TVs frei` (siehe `formatMaCell`) — es
+ * gibt nur den zugewiesenen MA + die naechstbesten ANDEREN Bearbeiter
+ * (Matching-Top-5 ohne den zugewiesenen MA). Die dafuer noetigen MatchResults
+ * uebergibt der Aufrufer als `matchesByLead` (Hook `useKuerzelExport`). Die
+ * Felder `score`/`restTVs`/`confidence` auf `ExportRow` bleiben erhalten (sie
+ * speisen die „zugewiesen"-Zelle), erscheinen aber nicht mehr als eigene Spalten.
  */
 import * as XLSX from 'xlsx';
 import type { Antrag, Verbund } from '@/core/services/csv/types';
@@ -213,8 +216,7 @@ function toRow(
 export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
   const header = [
-    'Aktenzeichen', 'Akronym', 'VB-Titel', 'TVs', 'Empfohlener MA',
-    'Passungs-Score', 'Restkapazität (TVs)', 'Confidence', 'Status',
+    'Aktenzeichen', 'Akronym', 'VB-Titel', 'TVs', 'zugewiesen', 'Status',
     ...Array.from({ length: ALT_COUNT }, (_, i) => `Option ${i + 1} (Kürzel · Passung · TVs frei)`),
   ];
   const sheetData = [
@@ -224,29 +226,31 @@ export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook
       r.akronym,
       r.vbTitel,
       r.anzahlTV,
-      r.ma,
-      Number(r.score.toFixed(3)),
-      r.restTVs,
-      r.confidence,
+      // Zugewiesener MA im selben Format wie die Option-Spalten (Kürzel · Passung · TVs frei).
+      formatMaCell(r.ma, r.score, r.restTVs),
       r.status,
       ...Array.from({ length: ALT_COUNT }, (_, i) => formatAlternative(r.alternativen[i])),
     ]),
   ];
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
   ws['!cols'] = [
-    { wch: 18 }, { wch: 16 }, { wch: 40 }, { wch: 6 }, { wch: 10 },
-    { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 14 },
+    { wch: 18 }, { wch: 16 }, { wch: 40 }, { wch: 6 }, { wch: 32 }, { wch: 14 },
     ...Array.from({ length: ALT_COUNT }, () => ({ wch: 32 })),
   ];
   XLSX.utils.book_append_sheet(wb, ws, `Auslastung ${quartal}`);
   return wb;
 }
 
-/** Eine Alternative-Zelle: `Kuerzel · 87% · 21 TVs` (leer wenn kein Kandidat). */
+/** Einheitliche MA-Zelle: `Kuerzel · 87% · 21 TVs`. Geteilt von der „zugewiesen"-
+ *  Spalte (zugewiesener MA) und den „Option N"-Spalten (Alternativen). */
+function formatMaCell(name: string, kompetenz: number, tvsFrei: number): string {
+  return `${name} · ${Math.round(kompetenz * 100)}% · ${tvsFrei} TVs`;
+}
+
+/** Eine Option-Zelle: `Kuerzel · 87% · 21 TVs` (leer wenn kein Kandidat). */
 function formatAlternative(alt: ExportAlternative | undefined): string {
   if (!alt) return '';
-  const name = alt.kuerzel ?? alt.anonId;
-  return `${name} · ${Math.round(alt.kompetenz * 100)}% · ${alt.tvsFrei} TVs`;
+  return formatMaCell(alt.kuerzel ?? alt.anonId, alt.kompetenz, alt.tvsFrei);
 }
 
 /**

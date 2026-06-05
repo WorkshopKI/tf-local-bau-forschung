@@ -183,7 +183,7 @@ describe('buildWorkbook', () => {
     expect(wb.SheetNames[0]).toBe('Auslastung 2026-Q2');
   });
 
-  it('hat das v2.18-Spaltenlayout (kein TV-Titel/Aufwand, Restkapazität in TVs, 5 Alternativen)', () => {
+  it('hat das v2.30-Spaltenlayout (zugewiesen statt empfohlen/score/confidence, Status, 5 Optionen)', () => {
     const rows = buildExportRows({ data: makeData(), antraege: [makeAntrag('A1', { verbund_titel: 'X', titel: 'Y' })] });
     const wb = buildWorkbook(rows, '2026-Q2');
     const sheet = wb.Sheets[wb.SheetNames[0]!]!;
@@ -191,18 +191,15 @@ describe('buildWorkbook', () => {
     expect(sheet['B1']?.v).toBe('Akronym');
     expect(sheet['C1']?.v).toBe('VB-Titel');
     expect(sheet['D1']?.v).toBe('TVs');
-    expect(sheet['E1']?.v).toBe('Empfohlener MA');
-    expect(sheet['F1']?.v).toBe('Passungs-Score');
-    expect(sheet['G1']?.v).toBe('Restkapazität (TVs)');
-    expect(sheet['H1']?.v).toBe('Confidence');
-    expect(sheet['I1']?.v).toBe('Status');
-    expect(sheet['J1']?.v).toBe('Option 1 (Kürzel · Passung · TVs frei)');
-    expect(sheet['N1']?.v).toBe('Option 5 (Kürzel · Passung · TVs frei)');
-    // O1 existiert nicht → genau 14 Spalten.
-    expect(sheet['O1']).toBeUndefined();
+    expect(sheet['E1']?.v).toBe('zugewiesen');
+    expect(sheet['F1']?.v).toBe('Status');
+    expect(sheet['G1']?.v).toBe('Option 1 (Kürzel · Passung · TVs frei)');
+    expect(sheet['K1']?.v).toBe('Option 5 (Kürzel · Passung · TVs frei)');
+    // L1 existiert nicht → genau 11 Spalten.
+    expect(sheet['L1']).toBeUndefined();
   });
 
-  it('formatiert Restkapazität in TVs + Alternative-Zellen "Kürzel · X% · N TVs"', () => {
+  it('formatiert die zugewiesen- + Option-Zellen "Kürzel · X% · N TVs"', () => {
     const data = makeData();
     data.config.stundenProTV = 9;
     data.zuweisungen = [
@@ -214,8 +211,8 @@ describe('buildWorkbook', () => {
     const rows = buildExportRows({ data, antraege: [makeAntrag('A1', { verbund_titel: 'X', titel: 'Y' })], matchesByLead });
     const wb = buildWorkbook(rows, '2026-Q2');
     const sheet = wb.Sheets[wb.SheetNames[0]!]!;
-    expect(sheet['G2']?.v).toBe(10);                       // 90h / 9 = 10 TVs frei
-    expect(sheet['J2']?.v).toBe('MA02 · 80% · 5 TVs');     // Alternative 1
+    expect(sheet['E2']?.v).toBe('MA01 · 90% · 10 TVs');    // zugewiesener MA (90h / 9 = 10 TVs frei)
+    expect(sheet['G2']?.v).toBe('MA02 · 80% · 5 TVs');     // Option 1
   });
 });
 
