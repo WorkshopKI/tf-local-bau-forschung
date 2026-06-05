@@ -89,8 +89,9 @@ interface AuslastungDataState {
    *  persistDirty hinterher nach. Von persist/schedulePersist/flushPersist genutzt. */
   persistNow: (storage: StorageService) => Promise<void>;
   /** Debounced Persist (~600 ms) — coalesct rapide Mutationen (Pill-Klicks)
-   *  zu einem SMB-Write. */
-  schedulePersist: (storage: StorageService) => void;
+   *  zu einem SMB-Write. `onSaved` (optional) feuert nach erfolgreichem Write —
+   *  z.B. fuer eine „gespeichert"-Bestaetigung (v2.34). */
+  schedulePersist: (storage: StorageService, onSaved?: () => void) => void;
   /** Schreibt einen ausstehenden Debounce-Write sofort (Unmount/App-Close). */
   flushPersist: (storage: StorageService) => Promise<void>;
   /** Loescht den letzten Fehler (z.B. Banner schliessen). */
@@ -338,13 +339,18 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     }
   },
 
-  schedulePersist: (storage) => {
+  schedulePersist: (storage, onSaved) => {
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
       persistTimer = null;
-      void get().persistNow(storage).catch(err => {
-        console.warn('[auslastung] debounced persist fehlgeschlagen:', err);
-      });
+      void get().persistNow(storage)
+        // v2.34: optionaler Completion-Callback fuer die „gespeichert"-Anzeige.
+        // Feuert nach erfolgreichem Write (im seltenen Reentrancy-Fall ggf. leicht
+        // vor dem allerletzten Re-Write — fuer eine UI-Bestaetigung ausreichend).
+        .then(() => { onSaved?.(); })
+        .catch(err => {
+          console.warn('[auslastung] debounced persist fehlgeschlagen:', err);
+        });
     }, PERSIST_DEBOUNCE_MS);
   },
 

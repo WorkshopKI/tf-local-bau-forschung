@@ -82,6 +82,7 @@ const COLUMN_WIDTHS_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_c
  *  Flash sichtbar bleibt, bevor sie ausgeblendet wird. Muss zur Keyframe-Dauer
  *  `freigabe-flash` in theme.css passen. */
 const FREIGABE_FLASH_MS = 1400;
+const SAVED_FLASH_MS = 1500;
 
 export function KlassifizierungsReview(): React.ReactElement {
   const storage = useStorage();
@@ -91,6 +92,12 @@ export function KlassifizierungsReview(): React.ReactElement {
   const schedulePersist = useAuslastungData(s => s.schedulePersist);
   const flushPersist = useAuslastungData(s => s.flushPersist);
   const freigebenBulk = useAuslastungData(s => s.freigebenKategorienBulk);
+
+  // v2.34: dezente „gespeichert"-Bestätigung nach einer manuellen Pill-Änderung
+  // (Auto-Save läuft schon über schedulePersist/flushPersist — die Bestätigung
+  // hängt am Persist-Completion-Callback).
+  const [savedFlash, setSavedFlash] = useState(false);
+  const savedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cache = useAntraegeCache();
   const { ready } = useAuslastungReady();
@@ -154,7 +161,10 @@ export function KlassifizierungsReview(): React.ReactElement {
   // sofort schreiben, damit kein Edit verloren geht. flushPersist ist No-op,
   // wenn nichts aussteht.
   useEffect(() => {
-    return () => { void flushPersist(storage); };
+    return () => {
+      void flushPersist(storage);
+      if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
+    };
     // Nur beim Unmount feuern; storage/flushPersist sind ref-stabil.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -289,6 +299,13 @@ export function KlassifizierungsReview(): React.ReactElement {
     }, FREIGABE_FLASH_MS));
   }
 
+  // v2.34: kurz „✓ gespeichert" zeigen, getriggert vom Persist-Completion-Callback.
+  function showSavedFlash(): void {
+    setSavedFlash(true);
+    if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
+    savedFlashTimer.current = setTimeout(() => setSavedFlash(false), SAVED_FLASH_MS);
+  }
+
   // Pill-Toggle: optimistisch (ein setState) + debounced persist. Wirkt auf
   // alle TVs eines Verbundes. Kein await pro TV mehr (Pitfall #16/#20), kein
   // synchroner Recompute-Stau (Fix A cacht die Live-Klassifizierungen).
@@ -320,8 +337,10 @@ export function KlassifizierungsReview(): React.ReactElement {
       return {
         antragId: tv.aktenzeichen,
         status: 'vorgeschlagen',
+        // v2.34: PL-Pill-Klick = menschliche Klassifizierung → methode 'manuell'
+        // (statt 'regel'). Treibt den grünen „Von Hand"-Punkt + Tooltip.
         vorgeschlagenePrimaer: primaerId
-          ? { kategorieId: primaerId, confidence: 1.0, methode: 'regel' }
+          ? { kategorieId: primaerId, confidence: 1.0, methode: 'manuell' }
           : null,
         vorgeschlageneAspekte: aspektIds.map(id => ({ kategorieId: id, confidence: 1.0 })),
         freigegebenePrimaer: '',
@@ -329,7 +348,7 @@ export function KlassifizierungsReview(): React.ReactElement {
       };
     });
     upsertLocal(records);
-    schedulePersist(storage);
+    schedulePersist(storage, showSavedFlash);
   }
 
   // Pitfall #15: useAsyncAction statt hand-gerolltem void-onClick — faengt
@@ -466,6 +485,15 @@ export function KlassifizierungsReview(): React.ReactElement {
           kategorien={config.ueberKategorien}
           isLoading={isInitialLoading}
         />
+        {savedFlash && (
+          <span
+            className="text-[11.5px] text-emerald-600 whitespace-nowrap"
+            role="status"
+            aria-live="polite"
+          >
+            ✓ gespeichert
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-2 shrink-0">
           {/* Bulk-Freigabe nur im Triage-Kontext „Review nötig" (Designer-Vorschlag):
               raeumt die hoch-konfidenten Verbuende auf einen Klick weg. */}

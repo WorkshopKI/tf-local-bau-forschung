@@ -816,7 +816,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
                       ⚑ {pendingAnonIds.length} vorgemerkt
                     </span>
                   )}
-                  <ConfidenceDot confidence={row.confidence} />
+                  <ConfidenceDot confidence={row.confidence} manuell={row.manuell} />
                 </div>
               );
             })}

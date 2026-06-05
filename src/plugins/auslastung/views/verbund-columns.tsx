@@ -370,7 +370,7 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       width: 70,
       wrap: false,
       accessor: v => topConfidenceScore(v),
-      render: v => <ConfidenceDot confidence={v.confidence} />,
+      render: v => <ConfidenceDot confidence={v.confidence} manuell={v.manuell} />,
     },
     {
       key: 'aktion',

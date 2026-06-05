@@ -160,6 +160,46 @@ describe('buildVerbundClassificationViews — verbuendeById (Verbund-Store-Looku
   });
 });
 
+describe('buildVerbundClassificationViews — manuell-Flag (v2.34)', () => {
+  function klMethode(antragId: string, methode: 'regel' | 'manuell' | 'llm'): Klassifizierung {
+    return {
+      antragId,
+      vorgeschlagenePrimaer: { kategorieId: 'IT', confidence: 1.0, methode },
+      vorgeschlageneAspekte: [],
+      freigegebenePrimaer: '',
+      freigegebeneAspekte: [],
+      status: 'vorgeschlagen',
+    };
+  }
+
+  it('persistierte methode "manuell" → manuell=true (grüner Von-Hand-Punkt)', () => {
+    const antraege = [makeAntrag({ aktenzeichen: 'A1' })];
+    const views = buildVerbundClassificationViews(antraege, null, [], [klMethode('A1', 'manuell')], undefined, false, []);
+    expect(views[0]?.manuell).toBe(true);
+  });
+
+  it('methode "regel"/"llm" → manuell=false', () => {
+    const antraege = [makeAntrag({ aktenzeichen: 'A1' }), makeAntrag({ aktenzeichen: 'A2' })];
+    const views = buildVerbundClassificationViews(
+      antraege, null, [],
+      [klMethode('A1', 'regel'), klMethode('A2', 'llm')],
+      undefined, false, [],
+    );
+    expect(views.find(v => v.verbundId === 'A1')?.manuell).toBe(false);
+    expect(views.find(v => v.verbundId === 'A2')?.manuell).toBe(false);
+  });
+
+  it('keine Primär (vorgeschlagenePrimaer null) → manuell=false', () => {
+    const antraege = [makeAntrag({ aktenzeichen: 'A1' })];
+    const noPrimaer: Klassifizierung = {
+      antragId: 'A1', vorgeschlagenePrimaer: null, vorgeschlageneAspekte: [],
+      freigegebenePrimaer: '', freigegebeneAspekte: [], status: 'vorgeschlagen',
+    };
+    const views = buildVerbundClassificationViews(antraege, null, [], [noPrimaer], undefined, false, []);
+    expect(views[0]?.manuell).toBe(false);
+  });
+});
+
 describe('groupFreigegebeneByVerbund', () => {
   function makeView(
     antrag: Antrag,
@@ -232,6 +272,23 @@ describe('groupFreigegebeneByVerbund', () => {
     const rows = groupFreigegebeneByVerbund(views, new Map());
     expect(rows).toHaveLength(2);
     expect(rows.map(r => r.tvCount).sort()).toEqual([1, 2]);
+  });
+
+  it('manuell-Flag aus der Lead-Klassifizierung (v2.34)', () => {
+    const antrag = makeAntrag({ aktenzeichen: 'A1', verbund_id: 'V1' });
+    const view: KlassifizierungsView = {
+      antrag,
+      klassifizierung: {
+        antragId: 'A1',
+        vorgeschlagenePrimaer: { kategorieId: 'IT', confidence: 1.0, methode: 'manuell' },
+        vorgeschlageneAspekte: [],
+        freigegebenePrimaer: 'IT',
+        freigegebeneAspekte: [],
+        status: 'freigegeben',
+      },
+      confidence: 'high',
+    };
+    expect(groupFreigegebeneByVerbund([view], new Map())[0]?.manuell).toBe(true);
   });
 });
 

@@ -412,6 +412,15 @@ Der per-Typ-Faktor fliesst in alle **type-aware** Pfade ein (Bucket via `getKate
 
 Voll abwaertskompatibel (leeres `stundenProTVProTyp` = altes Verhalten; Load-Merge gegen `DEFAULT_AUSLASTUNG_CONFIG` ergaenzt das Feld als `{}`). Keine Migration. Sichtbar/wirksam in **pl + dev** (wo das Auslastungs-Modul existiert); prod/demo/kurator unveraendert.
 
+### v2.34 — Klassifizierung: manuelle PL-Vergabe = grüner „Von Hand"-Punkt + Auto-Save-Bestätigung (Juni 2026)
+
+MINOR-Bump v2.34: In der Klassifizierungs-Tabelle (Tab „Anträge klassifizieren", [KlassifizierungsReview.tsx](src/plugins/auslastung/views/KlassifizierungsReview.tsx)) zählt ein PL-Pill-Klick jetzt als **menschliche Klassifizierung**: `applyVerbundOverride` schreibt die Primär mit `methode: 'manuell'` (statt `'regel'`). Der bisher nie gesetzte `methode`-Wert `'manuell'` ([PrimaerVorschlag](src/plugins/auslastung/types.ts)) ist damit endlich aktiv.
+
+- **Grüner Punkt + Tooltip:** Die Aggregation ([verbund-aggregation.ts](src/plugins/auslastung/services/verbund-aggregation.ts)) liefert pro Verbund-Zeile ein neues `manuell`-Flag (`vorgeschlagenePrimaer.methode === 'manuell'`, Helper `istManuell`) auf `VerbundKlassifizierungsView` + `VerbundZuweisungRow`. [ConfidenceDot](src/plugins/auslastung/components/ConfidenceDot.tsx) bekommt einen optionalen `manuell`-Prop → **immer grün** (eine menschliche Entscheidung gilt als sicher, überschreibt auch eine vorherige rote LLM-/Low-Conf-Bewertung) mit Tooltip **„Von Hand klassifiziert"** statt „Hohe Sicherheit". Durchgereicht in [verbund-columns.tsx](src/plugins/auslastung/views/verbund-columns.tsx) (Klassifizierungs-Tabelle) + [ZuweisungsCockpit.tsx](src/plugins/auslastung/views/ZuweisungsCockpit.tsx) (Zuweisungs-Tab).
+- **Auto-Save-Bestätigung:** Die Persistenz nach SMB (`_intern/auslastung.json`) lief schon zuverlässig (debounced `schedulePersist` + `flushPersist` beim Verlassen der Tabelle → andere PL sehen die Änderung nach Reload). Neu: `schedulePersist(storage, onSaved?)` ([useAuslastungData.ts](src/plugins/auslastung/hooks/useAuslastungData.ts)) feuert einen Completion-Callback nach erfolgreichem Write; die View zeigt dann ~1,5 s ein dezentes **„✓ gespeichert"** in der Toolbar.
+
+Additiv, keine Daten-/IDB-/SMB-Migration (das `methode`-Feld existierte schon im Schema). pl + dev (Auslastungs-Modul); prod/demo/kurator unverändert.
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*

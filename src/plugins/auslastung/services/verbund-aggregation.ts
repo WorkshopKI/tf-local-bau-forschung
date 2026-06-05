@@ -47,6 +47,8 @@ export interface VerbundKlassifizierungsView {
    *  Verbundes teilen denselben Stand. */
   klassifizierung: Klassifizierung;
   confidence: 'high' | 'medium' | 'low';
+  /** v2.34: Primaer von Hand vergeben (`methode === 'manuell'`) → gruener Punkt. */
+  manuell: boolean;
 }
 
 function readString(antrag: Antrag, key: string): string {
@@ -60,6 +62,12 @@ function confidenceFor(kl: Klassifizierung): 'high' | 'medium' | 'low' {
   if (primaer.confidence >= 0.7) return 'high';
   if (primaer.confidence >= 0.4) return 'medium';
   return 'low';
+}
+
+/** v2.34: true, wenn die Primaer-Klassifizierung von Hand (PL-Pill-Klick →
+ *  `methode === 'manuell'`) vergeben wurde. Treibt den gruenen „Von Hand"-Punkt. */
+function istManuell(kl: Klassifizierung): boolean {
+  return kl.vorgeschlagenePrimaer?.methode === 'manuell';
 }
 
 /** Eindeutige Verbund-Key fuer Bucketing — `verbund_id` falls gesetzt,
@@ -371,6 +379,7 @@ function computeVerbundClassificationViews(
       tvs,
       klassifizierung: kl,
       confidence: confidenceFor(kl),
+      manuell: istManuell(kl),
     });
   }
 
@@ -397,6 +406,8 @@ export interface VerbundZuweisungRow {
   /** Geteilte Klassifizierung des Verbundes (vom Lead-TV). */
   klassifizierung: Klassifizierung;
   confidence: 'high' | 'medium' | 'low';
+  /** v2.34: Primaer von Hand vergeben (`methode === 'manuell'`) → gruener Punkt. */
+  manuell: boolean;
 }
 
 /**
@@ -434,6 +445,7 @@ export function groupFreigegebeneByVerbund(
       tvCount: group.length,
       klassifizierung: lead.klassifizierung,
       confidence: lead.confidence,
+      manuell: istManuell(lead.klassifizierung),
     });
   }
   return out;

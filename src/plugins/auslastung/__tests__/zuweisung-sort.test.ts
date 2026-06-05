@@ -39,6 +39,7 @@ function makeRow(
     tvAktenzeichen: [overrides.leadAktenzeichen],
     tvCount: 1,
     confidence: 'high',
+    manuell: false,
     ...overrides,
     klassifizierung,
   };
