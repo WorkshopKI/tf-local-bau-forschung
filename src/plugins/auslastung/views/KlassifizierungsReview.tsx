@@ -48,7 +48,7 @@ function fmtCount(value: number, loading: boolean): string {
   return loading ? '…' : String(value);
 }
 
-type ViewFilter = 'alle' | 'review' | 'llm' | 'freigegeben';
+type ViewFilter = 'alle' | 'review' | 'llm' | 'freigegeben' | 'unvollstaendig';
 
 /** Verbund mit offenem (= noch nicht freigegebenem) LLM-Vorschlag. */
 function istLlmVorschlag(v: VerbundKlassifizierungsView): boolean {
@@ -228,8 +228,11 @@ export function KlassifizierungsReview(): React.ReactElement {
   }, []);
 
   const counts = useMemo(() => {
-    let neu = 0, freig = 0, review = 0, llm = 0;
+    let neu = 0, freig = 0, review = 0, llm = 0, unvollstaendig = 0;
     for (const v of verbundViews) {
+      // Unvollständig (D_XTEC/D_ADV fehlt) — orthogonal zum Status; freigegebene
+      // sind per Definition vollständig (v2.35 sperrt sonst die Freigabe).
+      if (!v.vollstaendig) unvollstaendig++;
       if (v.klassifizierung.status === 'freigegeben') { freig++; continue; }
       // LLM-Vorschlag ist eine Teilmenge der hohen Confidences (neu) — eigener
       // Zaehler fuer den LLM-Filter-Tab, neu bleibt die Bulk-Freigabe-Basis.
@@ -237,7 +240,7 @@ export function KlassifizierungsReview(): React.ReactElement {
       if (v.confidence === 'high') neu++;
       else review++;
     }
-    return { neu, freig, review, llm, total: verbundViews.length };
+    return { neu, freig, review, llm, unvollstaendig, total: verbundViews.length };
   }, [verbundViews]);
 
   // Counts pro Kategorie/Antragstyp über ALLE Verbünde (stabil, nicht über die
@@ -260,7 +263,8 @@ export function KlassifizierungsReview(): React.ReactElement {
       // Facetten: Kategorie (effektiv freigegeben ODER vorgeschlagen) + Antragstyp.
       if (kategorieFilter && !effectiveKategorienOf(v).includes(kategorieFilter)) return false;
       if (antragstypFilter && antragstypOf(v) !== antragstypFilter) return false;
-      // Bestehende Status-Pills (Alle/Review/LLM/Freigegeben).
+      // Bestehende Status-Pills (Alle/Review/LLM/Freigegeben/Unvollständig).
+      if (filter === 'unvollstaendig') return !v.vollstaendig;
       if (filter === 'freigegeben') return v.klassifizierung.status === 'freigegeben';
       if (filter === 'review') {
         // Frisch freigegeben → noch in der Flash-Grace-Period sichtbar lassen.
@@ -535,7 +539,7 @@ export function KlassifizierungsReview(): React.ReactElement {
       {/* Reihe 2 — Filter/Steuerung: Status-Segment + Attribut-Filter. */}
       <div className="flex items-center gap-3.5 flex-wrap">
         <div className="inline-flex gap-[7px] flex-wrap" role="tablist" aria-label="Status">
-          {(['alle', 'review', 'llm', 'freigegeben'] as const).map(f => {
+          {(['alle', 'review', 'llm', 'freigegeben', 'unvollstaendig'] as const).map(f => {
             const active = filter === f;
             return (
               <button
@@ -558,6 +562,7 @@ export function KlassifizierungsReview(): React.ReactElement {
                 {f === 'review' && `Review nötig (${fmtCount(counts.review, isInitialLoading)})`}
                 {f === 'llm' && `LLM-Vorschlag (${fmtCount(counts.llm, isInitialLoading)})`}
                 {f === 'freigegeben' && `Freigegeben (${fmtCount(counts.freig, isInitialLoading)})`}
+                {f === 'unvollstaendig' && `Unvollständig (${fmtCount(counts.unvollstaendig, isInitialLoading)})`}
               </button>
             );
           })}

@@ -423,6 +423,8 @@ MINOR-Bump v2.35: Ein Verbund darf erst **freigegeben** (Tab „Anträge klassif
 
 Additiv, keine Daten-/IDB-/SMB-Migration; bestehende `auslastung.json` lädt unverändert. Wirksam in **pl + dev** (Auslastungs-Modul); prod/demo/kurator unverändert.
 
+**v2.38.1 (Status-Filter „Unvollständig"):** Die Status-Pill-Leiste im Tab „Anträge klassifizieren" ([KlassifizierungsReview.tsx](src/plugins/auslastung/views/KlassifizierungsReview.tsx)) hat eine fünfte Option **„Unvollständig (N)"** neben Alle/Review nötig/LLM-Vorschlag/Freigegeben. Auswahl filtert auf `!v.vollstaendig` (die v2.35-Pro-Verbund-Flag) → zeigt genau die Verbünde, die sichtbar aber noch nicht freigeb-/zuweisbar sind (D_XTEC/D_ADV fehlt), damit die PL gezielt nachfassen kann. Reuse von `v.vollstaendig` + `counts` + `filtered`, kein neuer State; komponiert mit den Kategorie-/Antragstyp-Facetten. Default bleibt „Alle". Transitions-bewusst (Spalte nirgends befüllt → 0). Reiner UI-Zusatz, keine Daten-/Verhaltensänderung am Gate selbst. Zuweisen-Tab ohne diesen Filter (unvollständige Verbünde sind dort per v2.35-Freigabe-Sperre nie sichtbar).
+
 ### v2.34 — Klassifizierung: manuelle PL-Vergabe = grüner „Von Hand"-Punkt + Auto-Save-Bestätigung (Juni 2026)
 
 MINOR-Bump v2.34: In der Klassifizierungs-Tabelle (Tab „Anträge klassifizieren", [KlassifizierungsReview.tsx](src/plugins/auslastung/views/KlassifizierungsReview.tsx)) zählt ein PL-Pill-Klick jetzt als **menschliche Klassifizierung**: `applyVerbundOverride` schreibt die Primär mit `methode: 'manuell'` (statt `'regel'`). Der bisher nie gesetzte `methode`-Wert `'manuell'` ([PrimaerVorschlag](src/plugins/auslastung/types.ts)) ist damit endlich aktiv.
