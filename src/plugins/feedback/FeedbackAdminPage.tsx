@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getFeedbackList, loadFeedbackConfig } from '@/core/services/feedback';
+import { FEEDBACK_STATUS } from '@/core/services/feedback/feedback-status';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { FeedbackTicketList } from './sections/FeedbackTicketList';
@@ -64,11 +65,11 @@ export function FeedbackAdminPage(): React.ReactElement {
   // `tickets` (inkl. archivierter — der Admin verwaltet auch die).
   const statusItems = useMemo<CollapsibleSegItem[]>(() => [
     { label: 'Alle', count: tickets.length },
-    { label: 'Neu', count: tickets.filter(t => t.kurator_status === 'neu').length },
-    { label: 'Geplant', count: tickets.filter(t => t.kurator_status === 'geplant').length },
-    { label: 'In Bearb.', count: tickets.filter(t => t.kurator_status === 'in_bearbeitung').length },
-    { label: 'Umgesetzt', count: tickets.filter(t => t.kurator_status === 'umgesetzt').length },
-    { label: 'Abgelehnt', count: tickets.filter(t => t.kurator_status === 'abgelehnt').length },
+    { label: 'Neu', count: tickets.filter(t => t.kurator_status === FEEDBACK_STATUS.neu).length },
+    { label: 'Geplant', count: tickets.filter(t => t.kurator_status === FEEDBACK_STATUS.geplant).length },
+    { label: 'In Bearb.', count: tickets.filter(t => t.kurator_status === FEEDBACK_STATUS.in_bearbeitung).length },
+    { label: 'Umgesetzt', count: tickets.filter(t => t.kurator_status === FEEDBACK_STATUS.umgesetzt).length },
+    { label: 'Abgelehnt', count: tickets.filter(t => t.kurator_status === FEEDBACK_STATUS.abgelehnt).length },
   ], [tickets]);
 
   const kategorieItems = useMemo<CollapsibleSegItem[]>(() => [

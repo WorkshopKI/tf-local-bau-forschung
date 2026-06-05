@@ -2,8 +2,8 @@
  * AuslastungSaveErrorBanner (v2.25) — macht Schreib-/Lade-Fehler des
  * Auslastungs-Stores sichtbar.
  *
- * Viele Auslastungs-Buttons rufen Store-Mutationen via `onClick={() => void …}`
- * auf und schlucken eine Promise-Rejection still (Pitfall #15). Der Store setzt
+ * Viele Auslastungs-Buttons rufen Store-Mutationen in fire-and-forget-`onClick`-
+ * Handlern auf und schlucken eine Promise-Rejection still (Pitfall #15). Der Store setzt
  * bei einem fehlgeschlagenen Persist aber `error` (vor dem Rethrow) — dieses
  * Banner zeigt es prominent an, statt dass ein verlorener Write (z.B. fehlendes
  * Schreibrecht durch eine parallel offene Nur-Lese-Variante) unbemerkt bleibt.
