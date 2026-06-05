@@ -15,7 +15,7 @@
  * - Sort + Grouping → `useAntraegeStore` (per-View persistiert)
  */
 import { useMemo } from 'react';
-import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode } from '../store';
+import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode } from '../store';
 import { useFilteredAntraege } from '../useFilteredAntraege';
 import { useFilterState } from './useFilterState';
 import { GROUPING_OPTIONS, type SortKey } from '../sort';
@@ -62,6 +62,9 @@ export function QuickfilterToolbar(): React.ReactElement {
 
   const sortKey = getEffectiveSortKey(activeView, sortByView);
   const groupingMode = getEffectiveGroupingMode(activeView, groupingByView);
+  // Tabellen-Ansicht ("compact") ist flach → Gruppierung hat keinen Effekt,
+  // daher die "Gruppiert"-Pille dort ausblenden.
+  const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
 
   const active = useFilterState(s => s.active);
   const setActiveValue = useFilterState(s => s.setActiveValue);
@@ -122,14 +125,16 @@ export function QuickfilterToolbar(): React.ReactElement {
         onChange={onSortChange}
       />
 
-      <CollapsibleSeg
-        label="Gruppiert"
-        value={currentGroupingLabel}
-        items={groupingItems}
-        onChange={onGroupingChange}
-        defaultValue="Keine"
-        startCollapsed
-      />
+      {viewMode === 'compact' ? null : (
+        <CollapsibleSeg
+          label="Gruppiert"
+          value={currentGroupingLabel}
+          items={groupingItems}
+          onChange={onGroupingChange}
+          defaultValue="Keine"
+          startCollapsed
+        />
+      )}
     </div>
   );
 }

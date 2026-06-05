@@ -5,7 +5,8 @@ import type { ViewKey } from './views';
  * und zum Sort: bestimmt nur die visuelle Render-Form.
  *
  * - `list`    — heutige gestapelte Cards mit Header + TV-Zeilen + Akzentbar
- * - `compact` — einzeilig pro TV (~28px Höhe), maximale Anzahl Anträge pro Screen
+ * - `compact` — echte Header-Tabelle mit konfigurierbaren Spalten + Header-Sort
+ *               (`AntraegeTable`/`SortableTable`); flach, keine Gruppierung
  * - `cards`   — Tile-Grid (~110×72px), Akronym ist die Hauptinfo, "alle auf einen Blick"
  */
 export type ViewMode = 'list' | 'compact' | 'cards';

@@ -7,8 +7,8 @@
  * die unveränderte `AntragGroupCard` gerendert (Verbund-Klammer-Linie etc.
  * bleiben dadurch konsistent zur Default-Listen-Darstellung).
  *
- * Wird nur in der List-View verwendet — CompactList und CardGrid iterieren
- * weiterhin flach über `group.tvs`.
+ * Wird nur in der List-View verwendet — die Tabellen- und CardGrid-Ansicht
+ * iterieren weiterhin flach über die Anträge.
  */
 import type { AntragGroup } from './antragGroups';
 import { AntragGroupCard } from './AntragGroupCard';

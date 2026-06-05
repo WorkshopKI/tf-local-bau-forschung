@@ -120,7 +120,7 @@ interface AntraegeState {
   verbuende: Verbund[];
   /** Aus `verbuende` abgeleitete Map für O(1)-Lookup nach `verbund_id`.
    *  Wird in `loadAll` parallel zur Verbund-Liste aufgebaut, damit Renderer
-   *  (CardGrid/CompactList/GroupedList) sie an `buildAntragGroups` weiter-
+   *  (CardGrid/GroupedList) sie an `buildAntragGroups` weiter-
    *  reichen können, ohne pro Aufruf neu zu mappen. */
   verbundById: Map<string, Verbund>;
   selectedAktenzeichen: string | null;

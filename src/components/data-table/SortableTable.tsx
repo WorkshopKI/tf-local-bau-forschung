@@ -39,6 +39,9 @@ export interface SortableTableProps<T> {
   rowKey: (row: T) => string;
   /** Optional: Klick auf eine Zeile (cursor-pointer wird automatisch gesetzt). */
   onRowClick?: (row: T) => void;
+  /** Optional: markiert eine Zeile als selektiert (Soft-Grey-Background). Backward-
+   *  kompatibel — Caller ohne dieses Prop bekommen keine Selektions-Hervorhebung. */
+  isRowSelected?: (row: T) => boolean;
   /** Optional: Inhalt fuer den Empty-State (wenn `rows.length === 0`). */
   emptyContent?: ReactNode;
   /** Optional: User-Overrides fuer Spaltenbreiten in Pixel. Wenn gesetzt UND
@@ -74,6 +77,7 @@ export function SortableTable<T>({
   onSort,
   rowKey,
   onRowClick,
+  isRowSelected,
   emptyContent,
   columnWidths,
   onColumnWidthChange,
@@ -229,12 +233,16 @@ export function SortableTable<T>({
           {rows.map((row, idx) => {
             const isLast = idx === rows.length - 1;
             const clickable = onRowClick !== undefined;
+            const selected = isRowSelected?.(row) ?? false;
             return (
               <tr
                 key={rowKey(row)}
                 onClick={clickable ? () => onRowClick(row) : undefined}
                 className={clickable ? 'cursor-pointer hover:bg-[var(--tf-bg-secondary)]' : undefined}
-                style={{ borderTop: '0.5px solid var(--tf-border)' }}
+                style={{
+                  borderTop: '0.5px solid var(--tf-border)',
+                  background: selected ? 'var(--tf-bg-secondary)' : undefined,
+                }}
               >
                 {columns.map(c => {
                   // Default: Umbruch. Explizit `wrap: false` → kompakt mit ellipsis.

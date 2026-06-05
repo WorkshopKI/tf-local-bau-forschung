@@ -3,8 +3,8 @@ import type { StatusPhaseLabel } from './antragGroups';
 import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
 
 /**
- * Section-Header für `Gruppiert: Status`. Wird in den drei Listen-Renderern
- * (CardGrid, CompactList, GroupedList) gerendert, sobald der Modus aktiv ist.
+ * Section-Header für `Gruppiert: Status`. Wird in den Listen-Renderern
+ * (CardGrid, GroupedList) gerendert, sobald der Modus aktiv ist.
  *
  * Klick auf den gesamten Row-Bereich (button-rolled) toggelt den Collapsed-
  * State im persistenten Store (`useStatusSectionCollapsed`). Chevron rotiert

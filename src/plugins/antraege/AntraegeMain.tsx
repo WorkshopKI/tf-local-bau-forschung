@@ -19,7 +19,7 @@ import { useFilteredAntraege } from './useFilteredAntraege';
 import { sortDisablesGrouping } from './sort';
 import { StatusSectionHeader } from './StatusSectionHeader';
 import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
-import { CompactList } from './CompactList';
+import { AntraegeTable } from './AntraegeTable';
 import { CardGrid } from './CardGrid';
 import type { ViewMode } from './viewModes';
 import { Alert } from '@/components/ui/alert';
@@ -225,7 +225,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
               Keine Anträge matchen die aktuellen Filter.
             </div>
           ) : viewMode === 'compact' ? (
-            <CompactList
+            <AntraegeTable
               filtered={filtered}
               visibleRows={visibleRows}
               selectedAktenzeichen={selectedAktenzeichen}

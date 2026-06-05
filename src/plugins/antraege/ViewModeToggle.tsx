@@ -1,10 +1,10 @@
-import { List, Rows3, LayoutGrid } from 'lucide-react';
+import { List, Table, LayoutGrid } from 'lucide-react';
 import { useAntraegeStore, getEffectiveViewMode } from './store';
 import type { ViewMode } from './viewModes';
 
 const OPTIONS: ReadonlyArray<{ mode: ViewMode; label: string; Icon: typeof List }> = [
   { mode: 'list',    label: 'Listenansicht',    Icon: List },
-  { mode: 'compact', label: 'Kompaktansicht',   Icon: Rows3 },
+  { mode: 'compact', label: 'Tabellenansicht',  Icon: Table },
   { mode: 'cards',   label: 'Kartenansicht',    Icon: LayoutGrid },
 ];
 

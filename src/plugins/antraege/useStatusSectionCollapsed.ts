@@ -1,8 +1,8 @@
 /**
  * Persistenter Collapsed-State pro Status-Section-Label.
  *
- * Wird vom geteilten `StatusSectionHeader` + den drei Listen-Renderern
- * (CardGrid, CompactList, GroupedList) gelesen. Gilt nur bei
+ * Wird vom geteilten `StatusSectionHeader` + den Listen-Renderern
+ * (CardGrid, GroupedList) gelesen. Gilt nur bei
  * `Gruppiert: Status` — andere Gruppierungsmodi rendern keine Sections.
  *
  * Persistenz: localStorage unter `teamflow_antraege_status_collapsed`
