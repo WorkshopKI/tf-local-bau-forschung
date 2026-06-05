@@ -19,6 +19,8 @@ import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { daysUntilFristAware, computeFristDatum } from '@/core/services/csv/frist';
 import { isBegleitungStatus } from '@/core/utils/status-canonical';
 import { getKategorieLabel } from './filter/kategorieQuickfilter';
+import type { AntragTableRow } from './tableGrouping';
+import { worstAmpel, criticalFristAware } from './groupAggregates';
 import {
   getEingangAmpel,
   daysSinceEingang,
@@ -67,7 +69,7 @@ function dateCell(v: string | null): ReactNode {
   return v ? <span className="font-mono text-[11.5px] text-[var(--tf-text)]">{v}</span> : null;
 }
 
-export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragListItem>[] = [
+export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'aktenzeichen',
     label: 'FKZ',
@@ -78,8 +80,12 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragListItem>[] = [
     wrap: false,
     accessor: r => r.aktenzeichen,
     render: r => {
-      const ampel = getEingangAmpel(r);
-      const ampelDays = ampel !== null ? daysSinceEingang(r) : null;
+      // Verbund-Zeile (Gruppiert: Verbund) → FKZ-Range + Count-Chip + worst-
+      // Ampel über alle TVs; sonst Einzel-FKZ + eigene Eingangs-Ampel.
+      const meta = r._verbund;
+      const ampel = meta ? worstAmpel(meta.tvs) : getEingangAmpel(r);
+      const ampelDays = !meta && ampel !== null ? daysSinceEingang(r) : null;
+      const fkzText = meta ? meta.fkzRange : r.aktenzeichen;
       return (
         <span className="inline-flex items-center gap-1.5">
           <span className="shrink-0 w-2 h-2 inline-flex items-center justify-center">
@@ -92,7 +98,15 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragListItem>[] = [
               />
             ) : null}
           </span>
-          <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)]">{r.aktenzeichen}</span>
+          <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)] truncate">{fkzText}</span>
+          {meta ? (
+            <span
+              className="shrink-0 font-mono text-[10px] text-[var(--tf-text-tertiary)]"
+              title={`${meta.tvCount} Teilvorhaben`}
+            >
+              ·{meta.tvCount}
+            </span>
+          ) : null}
         </span>
       );
     },
@@ -153,10 +167,11 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragListItem>[] = [
     sortable: true,
     width: 72,
     wrap: false,
-    // Leere Fristen ans Ende (asc) → große Zahl statt null.
-    accessor: r => daysUntilFristAware(r) ?? Number.MAX_SAFE_INTEGER,
+    // Leere Fristen ans Ende (asc) → große Zahl statt null. Verbund-Zeile:
+    // dringendste Frist über alle TVs (kritischster TV), sonst per-TV.
+    accessor: r => (r._verbund ? criticalFristAware(r._verbund.tvs) : daysUntilFristAware(r)) ?? Number.MAX_SAFE_INTEGER,
     render: r => {
-      const d = daysUntilFristAware(r);
+      const d = r._verbund ? criticalFristAware(r._verbund.tvs) : daysUntilFristAware(r);
       if (d === null) return null;
       const critical = d < 0;
       return (
@@ -164,7 +179,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragListItem>[] = [
           className={`tabular-nums text-[11px] ${
             critical ? 'text-[var(--tf-danger-text)] font-medium' : 'text-[var(--tf-text-tertiary)]'
           }`}
-          title={fristTooltip(r)}
+          title={r._verbund ? 'Dringendste Frist im Verbund' : fristTooltip(r)}
         >
           {formatFrist(d)}
         </span>

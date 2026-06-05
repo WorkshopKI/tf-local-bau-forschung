@@ -32,7 +32,7 @@ export type GroupingMode = 'verbund' | 'netzwerk' | 'netzwerk-by-size' | 'status
  * Mapping `StatusCategory` → Phase-Label aus `STATUS_QUICK_CHIPS` (Single
  * Source of Truth in `filter/statusQuickChips.ts`).
  */
-const STATUS_PHASE_ORDER = [
+export const STATUS_PHASE_ORDER = [
   'Offen',
   'Nachforderung',
   'Bewilligt',
@@ -54,7 +54,7 @@ function isAbgelehntZurueckgezogenRaw(raw: unknown): boolean {
     && raw.trim().toLowerCase() === STATUS_RAW_ABGELEHNT_ZURUECKGEZOGEN;
 }
 
-function statusPhaseForAntrag(a: AntragListItem): StatusPhaseLabel {
+export function statusPhaseForAntrag(a: AntragListItem): StatusPhaseLabel {
   if (isAbgelehntZurueckgezogenRaw(a.status)) return 'Abgelehnt/Zurückgezogen';
   const cat = getStatusCategory(a.status);
   switch (cat) {

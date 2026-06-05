@@ -19,6 +19,7 @@ import {
   GROUPING_OPTIONS,
 } from './sort';
 import type { GroupingMode } from './antragGroups';
+import type { TableGroupingMode } from './tableGrouping';
 import {
   DEFAULT_VIEW_MODE,
   loadViewModeByTab,
@@ -29,6 +30,7 @@ import {
 const ACTIVE_VIEW_KEY = 'teamflow_antraege_active_view';
 const SORT_BY_VIEW_KEY = 'teamflow_antraege_sort_by_view';
 const GROUPING_BY_VIEW_KEY = 'teamflow_antraege_grouping_by_view';
+const TABLE_GROUPING_BY_VIEW_KEY = 'teamflow_antraege_table_grouping_by_view';
 const VIEW_MODE_BY_TAB_KEY = 'teamflow_antraege_view_mode_by_tab';
 
 function loadActiveView(): ViewKey {
@@ -88,6 +90,29 @@ function saveGroupingByView(map: Partial<Record<ViewKey, GroupingMode>>): void {
   try { localStorage.setItem(GROUPING_BY_VIEW_KEY, JSON.stringify(map)); } catch { /* ignore */ }
 }
 
+const VALID_TABLE_GROUPING_KEYS = new Set<TableGroupingMode>(['none', 'verbund', 'status']);
+
+function loadTableGroupingByView(): Partial<Record<ViewKey, TableGroupingMode>> {
+  try {
+    const raw = localStorage.getItem(TABLE_GROUPING_BY_VIEW_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: Partial<Record<ViewKey, TableGroupingMode>> = {};
+    for (const [view, key] of Object.entries(parsed)) {
+      if (typeof key === 'string' && VALID_TABLE_GROUPING_KEYS.has(key as TableGroupingMode)) {
+        out[view as ViewKey] = key as TableGroupingMode;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function saveTableGroupingByView(map: Partial<Record<ViewKey, TableGroupingMode>>): void {
+  try { localStorage.setItem(TABLE_GROUPING_BY_VIEW_KEY, JSON.stringify(map)); } catch { /* ignore */ }
+}
+
 /** Quellen, die die Hybrid-Suche aus Datenmangel nicht beitragen konnte —
  *  von der UI in einen Hinweis-Banner uebersetzt. `embedding` haengt am
  *  Auslastungs-Korpus, `dms` am Phase-2-Suchindex. */
@@ -141,6 +166,10 @@ interface AntraegeState {
   sortByView: Partial<Record<ViewKey, SortKey>>;
   /** User-Override pro View. Leer → Default aus DEFAULT_GROUPING_BY_VIEW. */
   groupingByView: Partial<Record<ViewKey, GroupingMode>>;
+  /** Eigener Gruppierungs-Slot für die Tabellen-Ansicht (Compact-Modus).
+   *  Getrennt von `groupingByView`, weil die Optionen abweichen (Verbund nur
+   *  hier, NW/NW-Größe nur in der List-View). Leer → Default `'none'`. */
+  tableGroupingByView: Partial<Record<ViewKey, TableGroupingMode>>;
   /** User-Override pro View. Leer → Default `DEFAULT_VIEW_MODE` ('list'). */
   viewModeByTab: Partial<Record<ViewKey, ViewMode>>;
   /** Cross-Programm-Index: 4-Ziffer-Netzwerk-ID → Netzwerk-Name (akronym des
@@ -172,6 +201,7 @@ interface AntraegeState {
   setActiveView: (view: ViewKey) => void;
   setSortForView: (view: ViewKey, key: SortKey) => void;
   setGroupingForView: (view: ViewKey, mode: GroupingMode) => void;
+  setTableGroupingForView: (view: ViewKey, mode: TableGroupingMode) => void;
   setViewModeForTab: (view: ViewKey, mode: ViewMode) => void;
   setSelectedAktenzeichen: (az: string | null) => void;
   setSelectedVerbundId: (id: string | null) => void;
@@ -207,6 +237,13 @@ export function getEffectiveGroupingMode(
   return DEFAULT_GROUPING_BY_VIEW[view];
 }
 
+export function getEffectiveTableGroupingMode(
+  view: ViewKey,
+  overrides: Partial<Record<ViewKey, TableGroupingMode>>,
+): TableGroupingMode {
+  return overrides[view] ?? 'none';
+}
+
 export function getEffectiveViewMode(
   view: ViewKey,
   overrides: Partial<Record<ViewKey, ViewMode>>,
@@ -228,6 +265,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
   groupingByView: loadGroupingByView(),
+  tableGroupingByView: loadTableGroupingByView(),
   viewModeByTab: loadViewModeByTab(VIEW_MODE_BY_TAB_KEY),
   netzwerkNameById: new Map<string, string>(),
   netzwerkNameIndexLoaded: false,
@@ -344,6 +382,18 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     }
     saveGroupingByView(next);
     set({ groupingByView: next });
+  },
+
+  setTableGroupingForView: (view: ViewKey, mode: TableGroupingMode) => {
+    const current = useAntraegeStore.getState().tableGroupingByView;
+    const next: Partial<Record<ViewKey, TableGroupingMode>> = { ...current };
+    if (mode === 'none') {
+      delete next[view];
+    } else {
+      next[view] = mode;
+    }
+    saveTableGroupingByView(next);
+    set({ tableGroupingByView: next });
   },
 
   setViewModeForTab: (view: ViewKey, mode: ViewMode) => {

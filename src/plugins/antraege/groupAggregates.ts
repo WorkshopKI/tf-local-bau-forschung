@@ -193,7 +193,7 @@ export function verbundFkz(verbund: Verbund | undefined, tvs: AntragListItem[]):
  * wenn kein TV das Feld gesetzt hat. Wird auf der Verbund-Detail-Stammdaten-
  * Card als „Fördervolumen (geplant)" angezeigt.
  */
-export function sumFoerdersumme(tvs: ReadonlyArray<Record<string, unknown>>): number | null {
+export function sumFoerdersumme(tvs: ReadonlyArray<{ foerdersumme?: unknown }>): number | null {
   let sum = 0;
   let any = false;
   for (const tv of tvs) {

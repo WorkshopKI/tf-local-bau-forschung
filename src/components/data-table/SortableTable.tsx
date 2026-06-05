@@ -21,7 +21,7 @@
  * `src/plugins/suche/SearchResultsTable.tsx`. Diese hier ist die schlanke
  * Variante.
  */
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, Filter } from 'lucide-react';
 import { SortIcon } from './SortIcon';
 import { ColumnFilterDropdown } from './ColumnFilterDropdown';
@@ -58,6 +58,14 @@ export interface SortableTableProps<T> {
   onColumnFilterChange?: (key: string, values: Set<string>) => void;
   /** Distinct Werte je filterbarer Spalte (z.B. aus `useColumnFilters`). */
   filterCandidates?: Record<string, string[]>;
+  /** Optionale Section-Header: liefert den Section-Key pro Zeile. Die Rows
+   *  MÜSSEN bereits nach Section gruppiert (kontiguierlich) übergeben werden —
+   *  beim Wechsel des Keys (inkl. erster Zeile) wird eine volle-Breite-Header-
+   *  Zeile eingeschoben. Nur wirksam zusammen mit `renderSectionHeader`. */
+  sectionKeyOf?: (row: T) => string;
+  /** Rendert den Inhalt der Section-Header-Zeile (Band) für einen Section-Key
+   *  + die Zeilen-Anzahl der Section. */
+  renderSectionHeader?: (sectionKey: string, count: number) => ReactNode;
 }
 
 function effectiveWidth<T>(
@@ -85,11 +93,24 @@ export function SortableTable<T>({
   columnFilters,
   onColumnFilterChange,
   filterCandidates,
+  sectionKeyOf,
+  renderSectionHeader,
 }: SortableTableProps<T>): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
   const filtersEnabled = onColumnFilterChange !== undefined
     && columnFilters !== undefined
     && filterCandidates !== undefined;
+  const sectionsEnabled = sectionKeyOf !== undefined && renderSectionHeader !== undefined;
+  // Section-Counts einmal vorab zählen (Rows sind kontiguierlich gruppiert).
+  const sectionCounts = useMemo(() => {
+    if (!sectionKeyOf) return null;
+    const m = new Map<string, number>();
+    for (const r of rows) {
+      const k = sectionKeyOf(r);
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  }, [rows, sectionKeyOf]);
   const colRefs = useRef<Map<string, HTMLTableColElement>>(new Map());
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
@@ -234,36 +255,55 @@ export function SortableTable<T>({
             const isLast = idx === rows.length - 1;
             const clickable = onRowClick !== undefined;
             const selected = isRowSelected?.(row) ?? false;
+            // Section-Band beim Phasen-Wechsel (inkl. erster Zeile) einschieben.
+            const sectionKey = sectionsEnabled ? sectionKeyOf!(row) : null;
+            const showSection = sectionsEnabled
+              && (idx === 0 || sectionKeyOf!(rows[idx - 1]!) !== sectionKey);
             return (
-              <tr
-                key={rowKey(row)}
-                onClick={clickable ? () => onRowClick(row) : undefined}
-                className={clickable ? 'cursor-pointer hover:bg-[var(--tf-bg-secondary)]' : undefined}
-                style={{
-                  borderTop: '0.5px solid var(--tf-border)',
-                  background: selected ? 'var(--tf-bg-secondary)' : undefined,
-                }}
-              >
-                {columns.map(c => {
-                  // Default: Umbruch. Explizit `wrap: false` → kompakt mit ellipsis.
-                  const noWrap = c.wrap === false;
-                  return (
+              <Fragment key={rowKey(row)}>
+                {showSection ? (
+                  <tr>
                     <td
-                      key={c.key}
-                      className="px-3 py-1 align-top leading-tight"
+                      colSpan={columns.length}
+                      className="px-3 py-1.5"
                       style={{
-                        whiteSpace: noWrap ? 'nowrap' : 'normal',
-                        wordBreak: noWrap ? undefined : 'break-word',
-                        overflow: 'hidden',
-                        textOverflow: noWrap ? 'ellipsis' : undefined,
-                        borderBottom: !isLast ? '0.5px solid var(--tf-border)' : undefined,
+                        background: 'var(--tf-bg-secondary)',
+                        borderTop: '0.5px solid var(--tf-border)',
                       }}
                     >
-                      {c.render(row)}
+                      {renderSectionHeader!(sectionKey!, sectionCounts?.get(sectionKey!) ?? 0)}
                     </td>
-                  );
-                })}
-              </tr>
+                  </tr>
+                ) : null}
+                <tr
+                  onClick={clickable ? () => onRowClick(row) : undefined}
+                  className={clickable ? 'cursor-pointer hover:bg-[var(--tf-bg-secondary)]' : undefined}
+                  style={{
+                    borderTop: '0.5px solid var(--tf-border)',
+                    background: selected ? 'var(--tf-bg-secondary)' : undefined,
+                  }}
+                >
+                  {columns.map(c => {
+                    // Default: Umbruch. Explizit `wrap: false` → kompakt mit ellipsis.
+                    const noWrap = c.wrap === false;
+                    return (
+                      <td
+                        key={c.key}
+                        className="px-3 py-1 align-top leading-tight"
+                        style={{
+                          whiteSpace: noWrap ? 'nowrap' : 'normal',
+                          wordBreak: noWrap ? undefined : 'break-word',
+                          overflow: 'hidden',
+                          textOverflow: noWrap ? 'ellipsis' : undefined,
+                          borderBottom: !isLast ? '0.5px solid var(--tf-border)' : undefined,
+                        }}
+                      >
+                        {c.render(row)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </Fragment>
             );
           })}
           {rows.length === 0 && (

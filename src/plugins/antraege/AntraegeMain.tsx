@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode } from './store';
+import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode, getEffectiveTableGroupingMode } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
@@ -67,6 +67,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     loadAll,
   } = useAntraegeStore();
   const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
+  const tableGrouping = useAntraegeStore(s => getEffectiveTableGroupingMode(s.activeView, s.tableGroupingByView));
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
   const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
@@ -229,7 +230,10 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
               filtered={filtered}
               visibleRows={visibleRows}
               selectedAktenzeichen={selectedAktenzeichen}
+              selectedVerbundId={selectedVerbundId}
+              grouping={tableGrouping}
               onOpenAntrag={openAntrag}
+              onOpenVerbund={openVerbund}
               sentinelRef={sentinelRef}
             />
           ) : viewMode === 'cards' ? (

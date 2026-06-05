@@ -15,11 +15,12 @@
  * - Sort + Grouping → `useAntraegeStore` (per-View persistiert)
  */
 import { useMemo } from 'react';
-import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode } from '../store';
+import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode, getEffectiveTableGroupingMode } from '../store';
 import { useFilteredAntraege } from '../useFilteredAntraege';
 import { useFilterState } from './useFilterState';
 import { GROUPING_OPTIONS, type SortKey } from '../sort';
 import type { GroupingMode } from '../antragGroups';
+import { TABLE_GROUPING_OPTIONS, type TableGroupingMode } from '../tableGrouping';
 import { CollapsibleSeg } from './CollapsibleSeg';
 import {
   getPhaseFromActive,
@@ -57,11 +58,14 @@ export function QuickfilterToolbar(): React.ReactElement {
   const activeView = useAntraegeStore(s => s.activeView);
   const sortByView = useAntraegeStore(s => s.sortByView);
   const groupingByView = useAntraegeStore(s => s.groupingByView);
+  const tableGroupingByView = useAntraegeStore(s => s.tableGroupingByView);
   const setSortForView = useAntraegeStore(s => s.setSortForView);
   const setGroupingForView = useAntraegeStore(s => s.setGroupingForView);
+  const setTableGroupingForView = useAntraegeStore(s => s.setTableGroupingForView);
 
   const sortKey = getEffectiveSortKey(activeView, sortByView);
   const groupingMode = getEffectiveGroupingMode(activeView, groupingByView);
+  const tableGroupingMode = getEffectiveTableGroupingMode(activeView, tableGroupingByView);
   // Tabellen-Ansicht ("compact") ist flach → Gruppierung hat keinen Effekt,
   // daher die "Gruppiert"-Pille dort ausblenden.
   const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
@@ -93,7 +97,7 @@ export function QuickfilterToolbar(): React.ReactElement {
     setSortForView(activeView, opt.key);
   };
 
-  // Gruppieren
+  // Gruppieren (List-/Karten-View: Keine/Status/NW/NW-Größe)
   const groupingItems = GROUPING_OPTIONS.map(opt => ({ label: opt.label }));
   const currentGroupingLabel =
     GROUPING_OPTIONS.find(o => o.key === groupingMode)?.label ?? GROUPING_OPTIONS[0]!.label;
@@ -101,6 +105,17 @@ export function QuickfilterToolbar(): React.ReactElement {
     const opt = GROUPING_OPTIONS.find(o => o.label === label);
     if (!opt) return;
     setGroupingForView(activeView, opt.key as GroupingMode);
+  };
+
+  // Gruppieren in der Tabellen-Ansicht (eigene, kleinere Optionen:
+  // Keine/Verbund/Status — eigener Store-Slot).
+  const tableGroupingItems = TABLE_GROUPING_OPTIONS.map(opt => ({ label: opt.label }));
+  const currentTableGroupingLabel =
+    TABLE_GROUPING_OPTIONS.find(o => o.key === tableGroupingMode)?.label ?? TABLE_GROUPING_OPTIONS[0]!.label;
+  const onTableGroupingChange = (label: string): void => {
+    const opt = TABLE_GROUPING_OPTIONS.find(o => o.label === label);
+    if (!opt) return;
+    setTableGroupingForView(activeView, opt.key as TableGroupingMode);
   };
 
   return (
@@ -125,7 +140,16 @@ export function QuickfilterToolbar(): React.ReactElement {
         onChange={onSortChange}
       />
 
-      {viewMode === 'compact' ? null : (
+      {viewMode === 'compact' ? (
+        <CollapsibleSeg
+          label="Gruppiert"
+          value={currentTableGroupingLabel}
+          items={tableGroupingItems}
+          onChange={onTableGroupingChange}
+          defaultValue="Keine"
+          startCollapsed
+        />
+      ) : (
         <CollapsibleSeg
           label="Gruppiert"
           value={currentGroupingLabel}
