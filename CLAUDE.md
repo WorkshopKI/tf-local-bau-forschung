@@ -356,6 +356,8 @@ Neue Sidecar-Datei `_intern/csv-source-filenames.json` (`{version, updatedAt, ma
 
 **v2.28.1-Fix (Home zeigt importierte Daten erst nach Reload):** Auf einem frischen System lud `runRefresh` (Banner „Datenbestand aktualisieren") via `importCsvSource` die Anträge nach IDB, aber der In-Memory-`useAntraegeStore` wurde NICHT neu geladen — die Home blieb leer bis zum manuellen Browser-Reload (cold-start-store-refresh-Klasse, vgl. [cold-start-store-refresh-pattern]). Fix: `runRefresh` ([useCsvAutoRefreshCheck.ts](src/plugins/csv-sources-kuration/hooks/useCsvAutoRefreshCheck.ts)) ruft nach erfolgreichem Import pro betroffenem Programm `refreshAntraegeStoreAfterSync` ([snapshot-refresh.ts](src/plugins/antraege/snapshot-refresh.ts)) auf — dieselbe `force`-Reload-Logik (inkl. Cold-Start-Guard) wie nach dem Snapshot-Sync (v2.21.3). Die Home liest den Store reaktiv → Daten erscheinen sofort. Gilt für pl + kurator (gemeinsamer Banner-Pfad).
 
+**v2.28.2-Fix (gleiche Store-Refresh-Lücke in den Kurator-Import-Pfaden):** Derselbe Reload fehlte in den beiden Kurator-only-Import-Pfaden, die NICHT über den Banner laufen — Registrierungs-Wizard ([CsvSourceWizard.tsx](src/plugins/csv-sources-kuration/wizard/CsvSourceWizard.tsx) `handleSave`) und Reimport-/„CSV neu wählen"-Dialog ([CsvSourceReimportDialog.tsx](src/plugins/csv-sources-kuration/CsvSourceReimportDialog.tsx) `runImport`). Beide rufen jetzt nach `importCsvSource` ebenfalls `refreshAntraegeStoreAfterSync(idb, schema.programm_id, ['antraege','verbuende'])` → Kurator-Home zeigt importierte Daten sofort, ohne TTL-Wartezeit/Reload. Reiner Bugfix, kurator-only.
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*

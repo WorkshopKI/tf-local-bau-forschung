@@ -16,6 +16,7 @@ import { Step4Progress } from './wizard/Step4Progress';
 import { persistCsvSourceMeta } from './csv-source-handle';
 import { confirmLockConflict } from './lock-conflict';
 import { validateHeaders, type HeaderValidation } from './services/csv-drift-check';
+import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 
 interface Props {
   schema: CsvSchema;
@@ -122,6 +123,9 @@ export function CsvSourceReimportDialog({
       });
       setResult(r);
       await persistSourceMeta();
+      // v2.28.2: In-Memory-Antraege-Store neu laden, sonst zeigt die Home die
+      // importierten Daten erst nach manuellem Reload (cold-start-store-refresh).
+      await refreshAntraegeStoreAfterSync(storage.idb, schema.programm_id, ['antraege', 'verbuende'] as const);
       onCompleted();
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') {

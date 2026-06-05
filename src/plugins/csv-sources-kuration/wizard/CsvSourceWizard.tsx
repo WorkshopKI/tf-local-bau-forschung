@@ -16,6 +16,7 @@ import {
 import type { CsvSchema, ImportResult, Unterprogramm } from '@/core/services/csv/types';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { saveSharedCsvFilenames } from '../csv-source-filenames';
+import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { Step1Metadata } from './Step1Metadata';
 import { Step2Columns } from './Step2Columns';
 import { Step3Unterprogramme } from './Step3Unterprogramme';
@@ -273,6 +274,9 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseE
       // v2.28: Dateiname team-weit auf den Daten-Ordner spiegeln, damit PLs den
       // CSV-Ordner nur freigeben müssen (kein Scan). Best-effort.
       if (state.file) await saveSharedCsvFilenames(storage.idb, { [schema.id]: state.file.name });
+      // v2.28.2: In-Memory-Antraege-Store neu laden, sonst zeigt die Home die
+      // importierten Daten erst nach manuellem Reload (cold-start-store-refresh).
+      await refreshAntraegeStoreAfterSync(storage.idb, programmId, ['antraege', 'verbuende'] as const);
       onCompleted();
     } catch (e) {
       setImportError((e as Error).message);
