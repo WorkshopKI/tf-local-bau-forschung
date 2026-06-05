@@ -35,6 +35,7 @@ import {
   type UpdateCheckResult,
 } from '../csv-source-handle';
 import { loadSharedCsvFilenames } from '../csv-source-filenames';
+import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import {
   runAutoRefresh,
   BuildLockBusyError,
@@ -245,6 +246,20 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
         // baut die Liste erneut auf (Quellen mit Drift werden dann wieder
         // gefunden, sind aber im Drift-Report bereits sichtbar).
         setCandidates([]);
+      }
+      // Nach erfolgreichem Import den In-Memory-Antraege-Store neu laden —
+      // sonst zeigt die Home die neuen Daten erst nach manuellem Browser-Reload
+      // (importCsvSource schreibt nur IDB; der Store hat einen 5-Min-TTL-Skip).
+      // Reuse der Snapshot-Sync-Logik (refreshAntraegeStoreAfterSync deckt
+      // Cold-Start + „aktuelles Programm betroffen" ab). Unabhängig von
+      // mountedRef — der globale Store lebt weiter, die Home liest ihn reaktiv.
+      const reloadProgrammIds = new Set<string>();
+      for (const p of r.processed) {
+        const schema = await loadSchema(storage.idb, p.schemaId);
+        if (schema) reloadProgrammIds.add(schema.programm_id);
+      }
+      for (const pid of reloadProgrammIds) {
+        await refreshAntraegeStoreAfterSync(storage.idb, pid, ['antraege', 'verbuende'] as const);
       }
     } catch (err) {
       if (err instanceof BuildLockBusyError) {

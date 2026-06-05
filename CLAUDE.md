@@ -354,6 +354,8 @@ Neue Sidecar-Datei `_intern/csv-source-filenames.json` (`{version, updatedAt, ma
 
 **Robust gegen Abweichungen:** passt ein geteilter Dateiname auf einem Rechner nicht (umbenannt / anderer Export), schlägt `getFileHandle` fehl → Fallback auf den lokalen Header-Scan + Self-Heal (v2.27.2). Der erste PL mit den echten Dateien korrigiert die geteilte Zuordnung beim Verknüpfen. Additiv, keine Migration; ein evtl. fehlendes Sidecar = altes Verhalten (lokaler Scan einmalig). demo/prod unverändert (kein CSV-Auto-Refresh).
 
+**v2.28.1-Fix (Home zeigt importierte Daten erst nach Reload):** Auf einem frischen System lud `runRefresh` (Banner „Datenbestand aktualisieren") via `importCsvSource` die Anträge nach IDB, aber der In-Memory-`useAntraegeStore` wurde NICHT neu geladen — die Home blieb leer bis zum manuellen Browser-Reload (cold-start-store-refresh-Klasse, vgl. [cold-start-store-refresh-pattern]). Fix: `runRefresh` ([useCsvAutoRefreshCheck.ts](src/plugins/csv-sources-kuration/hooks/useCsvAutoRefreshCheck.ts)) ruft nach erfolgreichem Import pro betroffenem Programm `refreshAntraegeStoreAfterSync` ([snapshot-refresh.ts](src/plugins/antraege/snapshot-refresh.ts)) auf — dieselbe `force`-Reload-Logik (inkl. Cold-Start-Guard) wie nach dem Snapshot-Sync (v2.21.3). Die Home liest den Store reaktiv → Daten erscheinen sofort. Gilt für pl + kurator (gemeinsamer Banner-Pfad).
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*
