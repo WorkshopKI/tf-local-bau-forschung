@@ -28,6 +28,9 @@ import { ColumnFilterDropdown } from './ColumnFilterDropdown';
 import type { SortDirection, SortableColumn } from './types';
 
 const DEFAULT_MIN_COLUMN_WIDTH = 60;
+/** Fallback-Breite für Spalten ohne explizite `width`, wenn `fitContentWidth`
+ *  aktiv ist (die Pixel-Summe braucht für jede Spalte einen Wert). */
+const DEFAULT_FIT_WIDTH = 120;
 
 export interface SortableTableProps<T> {
   rows: T[];
@@ -66,6 +69,13 @@ export interface SortableTableProps<T> {
   /** Rendert den Inhalt der Section-Header-Zeile (Band) für einen Section-Key
    *  + die Zeilen-Anzahl der Section. */
   renderSectionHeader?: (sectionKey: string, count: number) => ReactNode;
+  /** Horizontale Responsive-Variante (wie `SearchResultsTable`): die Tabelle
+   *  nimmt die **Summe der Spaltenbreiten** als Pixel-Breite an (statt
+   *  `width:100%`) und scrollt horizontal, sobald mehr/breitere Spalten
+   *  hinzukommen — statt die Nachbar-Spalten zu stauchen. `minWidth:100%` füllt
+   *  weiterhin den Container, wenn die Summe schmaler als der Container ist.
+   *  Default `false` = bisheriges fill-Verhalten (alle Spalten teilen sich 100 %). */
+  fitContentWidth?: boolean;
 }
 
 function effectiveWidth<T>(
@@ -95,8 +105,15 @@ export function SortableTable<T>({
   filterCandidates,
   sectionKeyOf,
   renderSectionHeader,
+  fitContentWidth = false,
 }: SortableTableProps<T>): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
+  // Pixel-Gesamtbreite (Summe der effektiven Spaltenbreiten) für den
+  // horizontal-scroll-Modus. Spalten ohne explizite Breite zählen mit
+  // `DEFAULT_FIT_WIDTH`. Nur relevant wenn `fitContentWidth` aktiv ist.
+  const totalFitWidth = fitContentWidth
+    ? columns.reduce((s, c) => s + (effectiveWidth(c, columnWidths) ?? DEFAULT_FIT_WIDTH), 0)
+    : 0;
   const filtersEnabled = onColumnFilterChange !== undefined
     && columnFilters !== undefined
     && filterCandidates !== undefined;
@@ -153,11 +170,18 @@ export function SortableTable<T>({
     >
       <table
         className="text-[12.5px]"
-        style={{ tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' }}
+        style={
+          fitContentWidth
+            ? { tableLayout: 'fixed', width: `${totalFitWidth}px`, minWidth: '100%', borderCollapse: 'collapse' }
+            : { tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' }
+        }
       >
         <colgroup>
           {columns.map(c => {
             const w = effectiveWidth(c, columnWidths);
+            // Im fit-Modus braucht jede Spalte eine px-Breite (sonst stimmt die
+            // Summe nicht mit der tatsächlichen Tabellenbreite überein).
+            const colWidth = fitContentWidth ? (w ?? DEFAULT_FIT_WIDTH) : w;
             return (
               <col
                 key={c.key}
@@ -165,7 +189,7 @@ export function SortableTable<T>({
                   if (el) colRefs.current.set(c.key, el);
                   else colRefs.current.delete(c.key);
                 }}
-                style={{ width: w !== undefined ? `${w}px` : undefined }}
+                style={{ width: colWidth !== undefined ? `${colWidth}px` : undefined }}
               />
             );
           })}

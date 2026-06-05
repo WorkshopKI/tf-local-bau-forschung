@@ -139,6 +139,7 @@ export function AntraegeTable({
           r._verbund ? r._verbund.verbundId === selectedVerbundId : r.aktenzeichen === selectedAktenzeichen
         }
         emptyContent="Keine Anträge."
+        fitContentWidth
         {...sectionProps}
       />
       {hasMore ? (
