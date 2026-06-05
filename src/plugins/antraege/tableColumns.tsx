@@ -16,7 +16,8 @@ import { Badge } from '@/ui';
 import type { SortableColumn } from '@/components/data-table';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
-import { daysUntilFristAware } from '@/core/services/csv/frist';
+import { daysUntilFristAware, computeFristDatum } from '@/core/services/csv/frist';
+import { isBegleitungStatus } from '@/core/utils/status-canonical';
 import { getKategorieLabel } from './filter/kategorieQuickfilter';
 import {
   getEingangAmpel,
@@ -38,6 +39,19 @@ function formatFrist(d: number | null): string {
   if (d === 0) return 'heute';
   if (d > 0) return `+${d}d`;
   return `${d}d`;
+}
+
+/** Absolutes Frist-Datum + Berechnungsbasis als Tooltip-Text — macht die
+ *  Tage-Differenz (z.B. "-74d") nachvollziehbar. Phasen-bewusst (Pitfall #12). */
+function fristTooltip(
+  r: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>,
+): string | undefined {
+  const iso = computeFristDatum(r);
+  if (!iso) return undefined;
+  const datum = new Date(iso).toLocaleDateString('de-DE');
+  return isBegleitungStatus(r.status)
+    ? `VN-Frist: ${datum} (VN-Eingang + 6 Monate)`
+    : `Bearbeitungsfrist: ${datum} (Antragseingang + 90 Tage)`;
 }
 
 /** EUR ohne Nachkommastellen — lokal gehalten (wie `suche/columns.tsx`). */
@@ -150,6 +164,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragListItem>[] = [
           className={`tabular-nums text-[11px] ${
             critical ? 'text-[var(--tf-danger-text)] font-medium' : 'text-[var(--tf-text-tertiary)]'
           }`}
+          title={fristTooltip(r)}
         >
           {formatFrist(d)}
         </span>
