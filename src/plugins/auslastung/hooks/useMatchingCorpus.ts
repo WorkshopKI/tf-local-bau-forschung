@@ -15,7 +15,7 @@
  * kein Index-Rebuild. Parallele Aufrufe fuer denselben Stand teilen sich einen
  * laufenden Load (`inflightRef`).
  */
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import type { Antrag } from '@/core/services/csv/types';
 import type { StorageService } from '@/core/services/storage';
 import { loadAllEmbeddings } from '@/core/services/embedding-corpus';
@@ -39,18 +39,25 @@ export function useMatchingCorpus(
   const cacheRef = useRef<{ key: Antrag[]; value: MatchingCorpus } | null>(null);
   const inflightRef = useRef<{ key: Antrag[]; promise: Promise<MatchingCorpus> } | null>(null);
 
-  // v2.29.1: Korpus-Signal — wird der per-Antrag-Korpus extern in die IDB
-  // geschrieben (Start-Autoload / „Vom Datenspeicher laden"), ändert sich die
-  // `antraege`-Referenz NICHT → der Cache-Key bliebe gleich und `loadCorpus`
-  // lieferte den (leeren) Stand von vor dem Download weiter, bis zum Browser-
-  // Reload. Bei jedem Bump den Cache verwerfen → nächster `loadCorpus` liest frisch.
+  // v2.29.1/.2: Korpus-Signal — wird der per-Antrag-Korpus extern in die IDB
+  // geschrieben (Start-Autoload / „Vom Datenspeicher laden" / „Corpus aufbauen"),
+  // ändert sich die `antraege`-Referenz NICHT → der Cache-Key bliebe gleich und
+  // `loadCorpus` lieferte den (leeren) Stand von vor dem Download weiter, bis zum
+  // Browser-Reload. `corpusVersion` in den useCallback-Deps gibt `loadCorpus` bei
+  // jedem Bump eine neue Identität → Konsumenten, die `loadCorpus` in ihren
+  // Effekt-Deps führen (Zuweisungs-Cockpit-Matching), re-matchen die aktuelle
+  // Selektion automatisch (v2.29.2). Den Cache verwirft der Callback selbst —
+  // ordering-unabhängig statt über einen separaten Effekt.
   const corpusVersion = useAuslastungCorpusSignal(s => s.version);
-  useEffect(() => {
-    cacheRef.current = null;
-    inflightRef.current = null;
-  }, [corpusVersion]);
+  const cachedVersionRef = useRef(corpusVersion);
 
   return useCallback(async (): Promise<MatchingCorpus> => {
+    // Externe Korpus-Mutation seit dem letzten Load → Cache + Inflight verwerfen.
+    if (cachedVersionRef.current !== corpusVersion) {
+      cachedVersionRef.current = corpusVersion;
+      cacheRef.current = null;
+      inflightRef.current = null;
+    }
     if (cacheRef.current && cacheRef.current.key === antraege) {
       return cacheRef.current.value;
     }
@@ -77,5 +84,5 @@ export function useMatchingCorpus(
       // Nur den eigenen Inflight-Eintrag aufraeumen (ein neuerer darf bleiben).
       if (inflightRef.current?.promise === promise) inflightRef.current = null;
     }
-  }, [antraege, storage]);
+  }, [antraege, storage, corpusVersion]);
 }
