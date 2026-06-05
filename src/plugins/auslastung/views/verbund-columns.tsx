@@ -17,7 +17,7 @@ import { HoverTooltip } from '../components/HoverTooltip';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { normalizeKuerzel } from '../services/anonym-map';
 import type { VerbundKlassifizierungsView } from '../services/verbund-aggregation';
-import { collectVerbundTHints, istUnvollstaendig, UNVOLLSTAENDIG_TOOLTIP } from '../services/verbund-aggregation';
+import { collectVerbundTHints, unvollstaendigGrund } from '../services/verbund-aggregation';
 import {
   CANONICAL_BIB_KUERZ,
   CANONICAL_ANTRAGSDATUM,
@@ -33,9 +33,6 @@ export interface VerbundColumnsContext {
   kategorien: UeberKategorie[];
   onToggleVerbund: (view: VerbundKlassifizierungsView, kategorieId: string, add: boolean) => void;
   onFreigebeVerbund: (view: VerbundKlassifizierungsView) => void;
-  /** True, wenn das D_XTEC-Feld irgendwo befuellt ist — sonst keine
-   *  Unvollstaendig-Markierung (Transitions-Schutz, solange D_XTEC nicht gemappt). */
-  dxtecVerfuegbar: boolean;
 }
 
 function topConfidenceScore(v: VerbundKlassifizierungsView): number {
@@ -68,7 +65,7 @@ function fkzRange(v: VerbundKlassifizierungsView): string {
 }
 
 export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[] {
-  const { kategorien, onToggleVerbund, onFreigebeVerbund, dxtecVerfuegbar } = ctx;
+  const { kategorien, onToggleVerbund, onFreigebeVerbund } = ctx;
 
   return [
     {
@@ -81,12 +78,13 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       wrap: false,
       accessor: v => leadAntrag(v).aktenzeichen,
       render: v => {
-        const unvollstaendig = dxtecVerfuegbar && istUnvollstaendig(leadAntrag(v));
+        const unvollstaendig = !v.vollstaendig;
+        const grund = unvollstaendig ? unvollstaendigGrund(leadAntrag(v)) : '';
         return (
           <div className="font-mono text-[11.5px] leading-tight">
             <div className="flex items-center gap-1">
               {unvollstaendig && (
-                <span className="text-amber-600 shrink-0 inline-flex" title={UNVOLLSTAENDIG_TOOLTIP} aria-label={UNVOLLSTAENDIG_TOOLTIP}>
+                <span className="text-amber-600 shrink-0 inline-flex" title={grund} aria-label={grund}>
                   <AlertTriangle size={12} aria-hidden />
                 </span>
               )}
@@ -385,14 +383,19 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
         const freigegeben = v.klassifizierung.status === 'freigegeben';
         if (freigegeben) return <span className="text-[11.5px] text-emerald-700">✓ freigegeben</span>;
         const hasPrimaer = v.klassifizierung.vorgeschlagenePrimaer !== null;
+        // Unvollstaendige Verbuende (D_XTEC/D_ADV fehlt) bleiben sichtbar, koennen
+        // aber NICHT freigegeben werden, bis sie vollstaendig erfasst sind.
+        const gesperrt = !v.vollstaendig;
         return (
           <button
             type="button"
             onClick={() => onFreigebeVerbund(v)}
-            disabled={!hasPrimaer}
-            className="text-[11.5px] px-2 py-1 rounded cursor-pointer disabled:opacity-50"
+            disabled={!hasPrimaer || gesperrt}
+            className="text-[11.5px] px-2 py-1 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-            title="Verbund freigeben (alle TVs)"
+            title={gesperrt
+              ? `${unvollstaendigGrund(leadAntrag(v))} — Freigabe gesperrt`
+              : 'Verbund freigeben (alle TVs)'}
           >
             Freigeben
           </button>

@@ -26,7 +26,7 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
-import { collectVerbundTHints, groupFreigegebeneByVerbund, hatDXtecDatum, istUnvollstaendig, istZuVerteilen, UNVOLLSTAENDIG_TOOLTIP, verteilCutoffDatum, verbundKeyOf, type VerbundZuweisungRow } from '../services/verbund-aggregation';
+import { collectVerbundTHints, groupFreigegebeneByVerbund, hatDXtecDatum, hatDAdvDatum, istUnvollstaendig, istVollstaendigFuerTyp, istZuVerteilen, unvollstaendigGrund, verteilCutoffDatum, verbundKeyOf, type VollstaendigkeitsGate, type VerbundZuweisungRow } from '../services/verbund-aggregation';
 import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
   embedText,
@@ -328,9 +328,15 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
   const selectedRow = selectedAz ? verbundRows.find(r => r.leadAktenzeichen === selectedAz) : null;
 
-  // v2.19 — D_XTEC-Markierung: nur wenn das Feld irgendwo befuellt ist
-  // (Transitions-Schutz, solange D_XTEC nicht gemappt ist).
+  // Vollstaendigkeits-Gate (D_XTEC fuer FuE/DS, D_ADV fuer DL/NW): Markierung +
+  // Zuweisungs-Sperre greifen pro Bucket nur, wenn die jeweilige Spalte irgendwo
+  // befuellt ist (Transitions-Schutz, solange nicht gemappt).
   const dxtecVerfuegbar = useMemo(() => cache.antraege.some(a => hatDXtecDatum(a)), [cache.antraege]);
+  const dadvVerfuegbar = useMemo(() => cache.antraege.some(a => hatDAdvDatum(a)), [cache.antraege]);
+  const gate = useMemo<VollstaendigkeitsGate>(
+    () => ({ dxtec: dxtecVerfuegbar, dadv: dadvVerfuegbar }),
+    [dxtecVerfuegbar, dadvVerfuegbar],
+  );
   const antragByAz = useMemo(() => new Map(cache.antraege.map(a => [a.aktenzeichen, a])), [cache.antraege]);
 
   // v2.19: T_HINT verbund-weit — Bemerkung auf irgendeinem TV des Verbundes
@@ -341,6 +347,18 @@ export function ZuweisungsCockpit(): React.ReactElement {
     const tvs = azs.map(az => antragByAz.get(az)).filter((a): a is Antrag => !!a);
     return collectVerbundTHints(tvs.length > 0 ? tvs : [selected]);
   }, [selected, selectedRow, antragByAz]);
+
+  // Zuweisung gesperrt, solange NICHT alle TVs des selektierten Verbundes fuer
+  // ihren Antragstyp vollstaendig erfasst sind (D_XTEC fuer FuE/DS, D_ADV fuer
+  // DL/NW; Gate-/Transitions-bewusst). Sichtbar bleibt der Antrag (Warndreieck),
+  // nur die Aktion ist gated.
+  const selectedVollstaendig = useMemo(() => {
+    if (!selected) return true;
+    const azs = selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen];
+    const tvs = azs.map(az => antragByAz.get(az)).filter((a): a is Antrag => !!a);
+    const list = tvs.length > 0 ? tvs : [selected];
+    return list.every(tv => istVollstaendigFuerTyp(tv, gate));
+  }, [selected, selectedRow, antragByAz, gate]);
 
   // v2.19 — Manueller MA-Eintrag.
   // Reset der manuellen Auswahl bei Selektionswechsel (nicht bei zuweisungen/
@@ -493,6 +511,9 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
   async function zuweisen(match: MatchResult): Promise<void> {
     if (!selected) return;
+    // Sperre: unvollstaendige Verbuende (D_XTEC/D_ADV fehlt) sind sichtbar, aber
+    // nicht zuweisbar (Defense-in-Depth zur UI-Sperre).
+    if (!selectedVollstaendig) return;
     // v2.4: PL-Freigabe bucht echte tvCount-Stunden + setzt anzahlTV im
     // Zuweisungs-Record, damit die Buchung mit der CSV konsistent ist.
     // Verbund-atomar: assignVerbund raeumt alle konkurrierenden Zuweisungen
@@ -698,7 +719,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
             {!isInitialLoading && sorted.map(row => {
               const isSel = selectedAz === row.leadAktenzeichen;
               const rowLead = antragByAz.get(row.leadAktenzeichen);
-              const unvollstaendig = dxtecVerfuegbar && rowLead != null && istUnvollstaendig(rowLead);
+              const unvollstaendig = rowLead != null && istUnvollstaendig(rowLead, gate);
+              const unvollstaendigGrundText = unvollstaendig && rowLead ? unvollstaendigGrund(rowLead) : '';
               // 1.17: Primaer (gefuellt) vs Aspekte (outline) trennen.
               const primaerId = row.klassifizierung.freigegebenePrimaer;
               const aspektIds = row.klassifizierung.freigegebeneAspekte;
@@ -736,7 +758,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
                   }}
                 >
                   {unvollstaendig && (
-                    <span className="text-amber-600 shrink-0 inline-flex" title={UNVOLLSTAENDIG_TOOLTIP} aria-label={UNVOLLSTAENDIG_TOOLTIP}>
+                    <span className="text-amber-600 shrink-0 inline-flex" title={unvollstaendigGrundText} aria-label={unvollstaendigGrundText}>
                       <AlertTriangle size={12} aria-hidden />
                     </span>
                   )}
@@ -876,7 +898,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
               zuweisungen={zuweisungen.filter(z => (selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen]).includes(z.antragId))}
               mitarbeiter={mitarbeiter}
               pendingAnonIds={detailPendingAnonIds}
-              unvollstaendig={dxtecVerfuegbar && istUnvollstaendig(selected)}
+              unvollstaendig={istUnvollstaendig(selected, gate)}
+              zuweisenGesperrt={!selectedVollstaendig}
               tHints={detailTHints}
               restTVsByAnon={restTVsByAnon}
               onZuweisen={zuweisen}
@@ -895,7 +918,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
 function DetailPanel({
   antrag, akronym, verbundTitel, klassifizierung, kategorien, matches, matchingRunning,
-  zuweisungen, mitarbeiter, pendingAnonIds, unvollstaendig, tHints, restTVsByAnon,
+  zuweisungen, mitarbeiter, pendingAnonIds, unvollstaendig, zuweisenGesperrt, tHints, restTVsByAnon,
   onZuweisen, onAblehnen, onAddManual, onRemoveManual, onUnassign, tageImQuartal,
 }: {
   antrag: Antrag;
@@ -911,8 +934,12 @@ function DetailPanel({
   mitarbeiter: Record<string, import('../types').AnonymerMitarbeiter>;
   /** anonIds mit offenem (noch nicht eingesammeltem) Übernahme-Wunsch für diesen Antrag. */
   pendingAnonIds: string[];
-  /** v2.19: Antrag „nicht vollständig" (kein D_XTEC) → Warn-Markierung im Header. */
+  /** Antrag „nicht vollständig" (kein D_XTEC/D_ADV je nach Antragstyp) →
+   *  Warn-Markierung im Header. */
   unvollstaendig: boolean;
+  /** Verbund noch nicht vollständig erfasst → Zuweisung gesperrt (Buttons
+   *  deaktiviert + Hinweis-Banner). Sichtbarkeit bleibt erhalten. */
+  zuweisenGesperrt: boolean;
   /** v2.19: T_HINT-Bemerkungen über alle TVs des Verbundes (distinct, nicht-leer). */
   tHints: string[];
   /** v2.19: freie TVs pro aktivem MA — Kapazitäts-Hinweis im manuellen Picker. */
@@ -976,7 +1003,7 @@ function DetailPanel({
       <div>
         <div className="flex items-center gap-2 mb-1">
           {unvollstaendig && (
-            <span className="text-amber-600 shrink-0 inline-flex" title={UNVOLLSTAENDIG_TOOLTIP} aria-label={UNVOLLSTAENDIG_TOOLTIP}>
+            <span className="text-amber-600 shrink-0 inline-flex" title={unvollstaendigGrund(antrag)} aria-label={unvollstaendigGrund(antrag)}>
               <AlertTriangle size={13} aria-hidden />
             </span>
           )}
@@ -993,6 +1020,17 @@ function DetailPanel({
           <p className="text-[12.5px] leading-[1.5] text-[var(--tf-text-tertiary)] mt-0.5 [text-wrap:pretty]">{tvTitel}</p>
         )}
       </div>
+
+      {/* Sperr-Hinweis: Verbund noch nicht vollständig erfasst → keine Zuweisung. */}
+      {zuweisenGesperrt && (
+        <div className="rounded p-2.5 text-[12px]" style={{ background: '#fef3c7', color: '#92400e' }}>
+          <div className="font-medium">⚠ Zuweisung gesperrt</div>
+          <p className="text-[11px] mt-0.5 opacity-90">
+            {unvollstaendigGrund(antrag)}. Sobald der Verbund vollständig im System
+            erfasst ist (D_XTEC für FuE/DS bzw. D_ADV für DL/NW), kann zugewiesen werden.
+          </p>
+        </div>
+      )}
 
       {/* v2.26: Zuweisungs-Streifen ganz oben — nur wenn freigegeben. */}
       {freigegebeneZuweisung && (
@@ -1058,7 +1096,9 @@ function DetailPanel({
                     };
                     onZuweisen(m);
                   }}
-                  className="text-[11.5px] px-2 py-0.5 rounded cursor-pointer font-medium shrink-0"
+                  disabled={zuweisenGesperrt}
+                  title={zuweisenGesperrt ? 'Verbund noch nicht vollständig erfasst (D_XTEC/D_ADV fehlt) — Zuweisung gesperrt' : undefined}
+                  className="text-[11.5px] px-2 py-0.5 rounded cursor-pointer font-medium shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: '#075985', color: 'white' }}
                 >
                   Zuweisen
@@ -1121,6 +1161,7 @@ function DetailPanel({
                 match={m}
                 isAssigned={assignedAnonIds.has(m.anonId)}
                 antragstyp={getKategorieLabel((antrag as Record<string, unknown>).vb_phase)}
+                zuweisenGesperrt={zuweisenGesperrt}
                 onZuweisen={() => onZuweisen(m)}
                 onAblehnen={() => (m.manuell ? onRemoveManual(m.anonId) : onAblehnen(m))}
                 tageImQuartal={tageImQuartal}

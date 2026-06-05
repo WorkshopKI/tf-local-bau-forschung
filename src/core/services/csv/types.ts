@@ -29,7 +29,10 @@ export type CanonicalField =
   // Bemerkungsfeld (T_HINT) — Freitext-Notiz pro Antrag, in der Auslastungs-Detailansicht angezeigt.
   | 't_hint'
   // Vollständigkeits-Datum (D_XTEC): gesetzt, sobald alle TVs eines Verbundes eingegangen + erfasst sind.
+  // Maßgeblich für die Vollständigkeit von FuE- (vb_phase 3) + DS-Anträgen (vb_phase 5).
   | 'd_xtec'
+  // Vollständigkeits-Datum (D_ADV): Pendant zu D_XTEC für DL- (vb_phase 4) + NW-Anträge (vb_phase 1|2).
+  | 'd_adv'
   // Verbund-Ebene (gemeinsam für alle TVs eines Verbundes)
   | 'verbund_titel'
   | 'verbund_status';

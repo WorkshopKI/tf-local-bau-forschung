@@ -562,9 +562,13 @@ export const CANONICAL_ANTRAGSDATUM = 'antragsdatum';
  *  Detailansicht angezeigt, falls befuellt. */
 export const CANONICAL_T_HINT = 't_hint';
 /** Vollstaendigkeits-Datum (D_XTEC): gesetzt, sobald alle TVs eines Verbundes
- *  eingegangen + erfasst sind. Fehlt das Datum bei einem unverteilten Antrag,
- *  gilt er als „nicht vollstaendig" (Markierung in beiden Tabs). */
+ *  eingegangen + erfasst sind. Maßgeblich fuer FuE (vb_phase 3) + DS (vb_phase 5).
+ *  Fehlt das Datum bei einem unverteilten Antrag, gilt er als „nicht vollstaendig"
+ *  (Markierung in beiden Tabs + Freigabe/Zuweisung gesperrt). */
 export const CANONICAL_D_XTEC = 'd_xtec';
+/** Vollstaendigkeits-Datum (D_ADV): Pendant zu D_XTEC fuer DL (vb_phase 4) +
+ *  NW (vb_phase 1|2). Gleiche Semantik (Verbund vollstaendig im System erfasst). */
+export const CANONICAL_D_ADV = 'd_adv';
 
 /** Custom-Field-Keys (nicht canonical, ueber antrag[key] erreichbar). */
 /** VB_Inhalt aus dem Foyer-Schema — Inhalts-Zusammenfassung des Vorhabens,

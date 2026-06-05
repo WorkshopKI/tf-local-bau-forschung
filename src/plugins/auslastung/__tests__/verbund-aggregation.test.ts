@@ -14,9 +14,12 @@ import {
   collectVerbundTHints,
   groupFreigegebeneByVerbund,
   hatDXtecDatum,
+  hatDAdvDatum,
   invalidateVerbundClassificationCache,
   istUnvollstaendig,
+  istVollstaendigFuerTyp,
   istZuVerteilen,
+  type VollstaendigkeitsGate,
 } from '../services/verbund-aggregation';
 import type { Klassifizierung } from '../types';
 import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
@@ -292,7 +295,11 @@ describe('groupFreigegebeneByVerbund', () => {
   });
 });
 
-describe('D_XTEC — Vollständigkeit (hatDXtecDatum / istUnvollstaendig)', () => {
+describe('Vollständigkeit pro Antragstyp (D_XTEC / D_ADV)', () => {
+  // vb_phase-Mapping: FuE=3, DS=5, DL=4, NW=1|2 (getKategorieLabel).
+  const GATE_BEIDE: VollstaendigkeitsGate = { dxtec: true, dadv: true };
+  const GATE_NUR_XTEC: VollstaendigkeitsGate = { dxtec: true, dadv: false };
+
   it('hatDXtecDatum: nicht-leerer String true, leer/whitespace/fehlend false', () => {
     expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '2026-05-01' }))).toBe(true);
     expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '   ' }))).toBe(false);
@@ -300,20 +307,80 @@ describe('D_XTEC — Vollständigkeit (hatDXtecDatum / istUnvollstaendig)', () =
     expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A' }))).toBe(false);
   });
 
-  it('istUnvollstaendig: nur wenn KEIN D_XTEC UND KEIN TIB', () => {
-    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A' }))).toBe(true);
-    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', d_xtec: '2026-05-01' }))).toBe(false);
-    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', tib_kuerz: 'ABC' }))).toBe(false);
-    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', tib_kuerz: 'ABC', d_xtec: '2026-05-01' }))).toBe(false);
+  it('hatDAdvDatum: nicht-leerer String true, leer/whitespace/fehlend false', () => {
+    expect(hatDAdvDatum(makeAntrag({ aktenzeichen: 'A', d_adv: '2026-05-01' }))).toBe(true);
+    expect(hatDAdvDatum(makeAntrag({ aktenzeichen: 'A', d_adv: '   ' }))).toBe(false);
+    expect(hatDAdvDatum(makeAntrag({ aktenzeichen: 'A' }))).toBe(false);
   });
 
-  it('istZuVerteilen bleibt unverändert: D_XTEC ändert die Pool-Membership NICHT', () => {
+  it('FuE/DS brauchen D_XTEC, DL/NW brauchen D_ADV (Gate beide aktiv)', () => {
+    // FuE (vb_phase 3) + DS (vb_phase 5) → D_XTEC maßgeblich.
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3 }), GATE_BEIDE)).toBe(false);
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3, d_xtec: '2026-05-01' }), GATE_BEIDE)).toBe(true);
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'S', vb_phase: 5 }), GATE_BEIDE)).toBe(false);
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'S', vb_phase: 5, d_xtec: '2026-05-01' }), GATE_BEIDE)).toBe(true);
+    // FuE mit D_ADV (falscher Spalte) bleibt unvollständig.
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3, d_adv: '2026-05-01' }), GATE_BEIDE)).toBe(false);
+
+    // DL (vb_phase 4) + NW (vb_phase 1|2) → D_ADV maßgeblich.
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'D', vb_phase: 4 }), GATE_BEIDE)).toBe(false);
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'D', vb_phase: 4, d_adv: '2026-05-01' }), GATE_BEIDE)).toBe(true);
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'N', vb_phase: 1, d_adv: '2026-05-01' }), GATE_BEIDE)).toBe(true);
+    // DL mit D_XTEC (falscher Spalte) bleibt unvollständig.
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'D', vb_phase: 4, d_xtec: '2026-05-01' }), GATE_BEIDE)).toBe(false);
+  });
+
+  it('Transitions-Schutz: Gate inaktiv (Spalte nicht befüllt) → immer vollständig', () => {
+    // D_ADV nirgends befüllt (gate.dadv=false) → DL/NW ungated trotz fehlendem Datum.
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'D', vb_phase: 4 }), GATE_NUR_XTEC)).toBe(true);
+    // FuE bleibt gegen D_XTEC geprüft (gate.dxtec=true).
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3 }), GATE_NUR_XTEC)).toBe(false);
+  });
+
+  it('Unbekannter Antragstyp (vb_phase nicht 1–5 / fehlt) → immer vollständig', () => {
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'X', vb_phase: 7 }), GATE_BEIDE)).toBe(true);
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'X' }), GATE_BEIDE)).toBe(true);
+  });
+
+  it('istUnvollstaendig: unvollständig nur, wenn Vollständigkeits-Datum fehlt UND kein TIB', () => {
+    const gate = GATE_BEIDE;
+    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', vb_phase: 3 }), gate)).toBe(true);
+    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', vb_phase: 3, d_xtec: '2026-05-01' }), gate)).toBe(false);
+    // bereits vergeben (TIB) → nicht markiert, egal ob vollständig.
+    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', vb_phase: 3, tib_kuerz: 'ABC' }), gate)).toBe(false);
+    // DL ohne D_ADV → unvollständig (nicht fälschlich gegen D_XTEC).
+    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', vb_phase: 4 }), gate)).toBe(true);
+    expect(istUnvollstaendig(makeAntrag({ aktenzeichen: 'A', vb_phase: 4, d_adv: '2026-05-01' }), gate)).toBe(false);
+  });
+
+  it('istZuVerteilen bleibt unverändert: D_XTEC/D_ADV ändern die Pool-Membership NICHT', () => {
     const cutoff = '2026-01-01';
-    const ohne = makeAntrag({ aktenzeichen: 'A', antragsdatum: '2026-04-01' });
-    const mit = makeAntrag({ aktenzeichen: 'B', antragsdatum: '2026-04-01', d_xtec: '2026-05-01' });
-    // Beide ohne TIB, Datum im Fenster → beide im Pool (Markierung ist rein visuell).
+    const ohne = makeAntrag({ aktenzeichen: 'A', vb_phase: 3, antragsdatum: '2026-04-01' });
+    const mit = makeAntrag({ aktenzeichen: 'B', vb_phase: 3, antragsdatum: '2026-04-01', d_xtec: '2026-05-01' });
+    // Beide ohne TIB, Datum im Fenster → beide im Pool (Sichtbarkeit unverändert).
     expect(istZuVerteilen(ohne, cutoff)).toBe(true);
     expect(istZuVerteilen(mit, cutoff)).toBe(true);
+  });
+
+  it('VerbundView.vollstaendig: nur true, wenn ALLE TVs vollständig (every)', () => {
+    const gate: VollstaendigkeitsGate = { dxtec: true, dadv: false };
+    // Verbund mit 2 FuE-TVs, nur einer hat D_XTEC → unvollständig.
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'A1', vb_phase: 3, verbund_id: 'V1', d_xtec: '2026-05-01' }),
+      makeAntrag({ aktenzeichen: 'A2', vb_phase: 3, verbund_id: 'V1' }),
+    ];
+    const views = buildVerbundClassificationViews(antraege, null, [], [], undefined, false, [], gate);
+    expect(views).toHaveLength(1);
+    expect(views[0]?.vollstaendig).toBe(false);
+
+    // Beide TVs mit D_XTEC → vollständig.
+    invalidateVerbundClassificationCache();
+    const antraege2 = [
+      makeAntrag({ aktenzeichen: 'B1', vb_phase: 3, verbund_id: 'V2', d_xtec: '2026-05-01' }),
+      makeAntrag({ aktenzeichen: 'B2', vb_phase: 3, verbund_id: 'V2', d_xtec: '2026-05-02' }),
+    ];
+    const views2 = buildVerbundClassificationViews(antraege2, null, [], [], undefined, false, [], gate);
+    expect(views2[0]?.vollstaendig).toBe(true);
   });
 });
 

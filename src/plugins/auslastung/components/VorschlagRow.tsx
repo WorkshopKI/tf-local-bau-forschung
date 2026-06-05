@@ -26,6 +26,9 @@ interface Props {
   onZuweisen: () => void;
   onAblehnen: () => void;
   disabled?: boolean;
+  /** true → NUR „Zuweisen" gesperrt (Verbund noch nicht vollständig erfasst,
+   *  D_XTEC/D_ADV fehlt); „Ablehnen" bleibt erlaubt. */
+  zuweisenGesperrt?: boolean;
   /** Anzahl Tage bis Quartals-Ende — Hinweis bei „Kapazität erschöpft". */
   tageImQuartal?: number;
   /** Antragstyp dieses Antrags (für die Typ-Kontingent-Anzeige). */
@@ -41,7 +44,7 @@ function barColor(v: number): string {
 }
 
 export function VorschlagRow({
-  match, isAssigned, matchendeQueryTokens, onZuweisen, onAblehnen, disabled, tageImQuartal, antragstyp,
+  match, isAssigned, matchendeQueryTokens, onZuweisen, onAblehnen, disabled, zuweisenGesperrt, tageImQuartal, antragstyp,
 }: Props): React.ReactElement {
   const score = Math.round(match.kompetenzScore * 100);
   const config = useAuslastungData(s => s.data.config);
@@ -194,7 +197,8 @@ export function VorschlagRow({
             <button
               type="button"
               onClick={onZuweisen}
-              disabled={disabled}
+              disabled={disabled || zuweisenGesperrt}
+              title={zuweisenGesperrt ? 'Verbund noch nicht vollständig erfasst (D_XTEC/D_ADV fehlt) — Zuweisung gesperrt' : undefined}
               className="h-[27px] px-2.5 rounded-md text-[11.5px] font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >

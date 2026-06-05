@@ -16,6 +16,7 @@ import {
   CANONICAL_AKRONYM,
   CANONICAL_ANTRAGSDATUM,
   CANONICAL_D_XTEC,
+  CANONICAL_D_ADV,
   CANONICAL_T_HINT,
   CANONICAL_TIB_KUERZ,
   CANONICAL_VERBUND_ID,
@@ -27,6 +28,7 @@ import {
 } from '../types';
 import { klassifiziereAntrag } from './klassifizierung-engine';
 import { normalizeKuerzel } from './anonym-map';
+import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
 
 export interface VerbundKlassifizierungsView {
@@ -49,6 +51,11 @@ export interface VerbundKlassifizierungsView {
   confidence: 'high' | 'medium' | 'low';
   /** v2.34: Primaer von Hand vergeben (`methode === 'manuell'`) → gruener Punkt. */
   manuell: boolean;
+  /** True, wenn ALLE TVs des Verbundes fuer ihren Antragstyp vollstaendig erfasst
+   *  sind (D_XTEC fuer FuE/DS, D_ADV fuer DL/NW; Gate-/Transitions-bewusst). Nur
+   *  ein vollstaendiger Verbund darf freigegeben werden; sonst Warndreieck +
+   *  „Freigeben" gesperrt. */
+  vollstaendig: boolean;
 }
 
 function readString(antrag: Antrag, key: string): string {
@@ -135,6 +142,7 @@ export function hatBearbeiterKuerzel(antrag: Antrag): boolean {
  * True, wenn der Antrag im Feld `d_xtec` (D_XTEC) ein Datum traegt — d.h. alle
  * TVs des Verbundes sind eingegangen + erfasst. Pures Vorhandensein eines
  * nicht-leeren Strings reicht (Date-Felder landen als ISO-String im Merger).
+ * Maßgeblich fuer FuE (vb_phase 3) + DS (vb_phase 5).
  */
 export function hatDXtecDatum(antrag: Antrag): boolean {
   const v = (antrag as Record<string, unknown>)[CANONICAL_D_XTEC];
@@ -142,17 +150,65 @@ export function hatDXtecDatum(antrag: Antrag): boolean {
 }
 
 /**
- * True, wenn der Antrag „nicht vollstaendig" ist: kein D_XTEC-Datum UND kein
- * Bearbeiter-Kuerzel. Solche Antraege bleiben im Verteil-Pool sichtbar +
- * zuweisbar, werden aber farbig markiert (Tooltip `UNVOLLSTAENDIG_TOOLTIP`).
- * Greift NICHT in `istZuVerteilen` ein (Pool unveraendert).
+ * True, wenn der Antrag im Feld `d_adv` (D_ADV) ein Datum traegt. Pendant zu
+ * `hatDXtecDatum` fuer DL (vb_phase 4) + NW (vb_phase 1|2).
  */
-export function istUnvollstaendig(antrag: Antrag): boolean {
-  return !hatDXtecDatum(antrag) && !hatBearbeiterKuerzel(antrag);
+export function hatDAdvDatum(antrag: Antrag): boolean {
+  const v = (antrag as Record<string, unknown>)[CANONICAL_D_ADV];
+  return typeof v === 'string' && v.trim().length > 0;
 }
 
-/** Tooltip-Text fuer unvollstaendige Antraege (kein D_XTEC). Geteilt von beiden Tabs. */
-export const UNVOLLSTAENDIG_TOOLTIP = 'Antrag nicht vollständig - kein D_XTEC gesetzt';
+/**
+ * Verfuegbarkeits-Flags pro Vollstaendigkeits-Spalte: ist `D_XTEC` / `D_ADV`
+ * im aktuellen Datenbestand UEBERHAUPT irgendwo befuellt? Transitions-Schutz —
+ * solange eine Spalte nicht gemappt/befuellt ist, gilt das zugehoerige Gate als
+ * inaktiv (sonst waeren alle Antraege des Buckets faelschlich „unvollstaendig"
+ * und gesperrt). Berechnet vom Caller via `antraege.some(hatDXtecDatum)` etc.
+ */
+export interface VollstaendigkeitsGate {
+  dxtec: boolean;
+  dadv: boolean;
+}
+
+/** „Kein Gate" — beide Spalten gelten als nicht-befuellt → jeder Antrag ist
+ *  vollstaendig (Default fuer Aufrufer ohne Gate, z.B. Tests). */
+export const NO_VOLLSTAENDIGKEITS_GATE: VollstaendigkeitsGate = { dxtec: false, dadv: false };
+
+/**
+ * True, wenn der Antrag fuer SEINEN Antragstyp als „vollstaendig im System
+ * erfasst" gilt: FuE/DS brauchen ein D_XTEC-Datum, DL/NW ein D_ADV-Datum — aber
+ * nur, wenn die jeweilige Spalte ueberhaupt befuellt ist (`gate`). Antragstypen
+ * ausserhalb FuE/DS/DL/NW (vb_phase nicht 1–5; Irrlaeufer/9 ist ohnehin per
+ * Status ausgeschlossen) bleiben ungated → immer vollstaendig.
+ */
+export function istVollstaendigFuerTyp(antrag: Antrag, gate: VollstaendigkeitsGate): boolean {
+  const bucket = getKategorieLabel((antrag as Record<string, unknown>).vb_phase);
+  if (bucket === 'FuE' || bucket === 'DS') return !gate.dxtec || hatDXtecDatum(antrag);
+  if (bucket === 'DL' || bucket === 'NW') return !gate.dadv || hatDAdvDatum(antrag);
+  return true;
+}
+
+/**
+ * True, wenn der Antrag „nicht vollstaendig" ist: fehlt das antragstyp-spezifische
+ * Vollstaendigkeits-Datum (D_XTEC fuer FuE/DS, D_ADV fuer DL/NW) UND kein
+ * Bearbeiter-Kuerzel. Solche Antraege bleiben im Verteil-Pool sichtbar (Pool
+ * via `istZuVerteilen` unveraendert), werden aber farbig markiert und koennen
+ * NICHT freigegeben/zugewiesen werden.
+ */
+export function istUnvollstaendig(antrag: Antrag, gate: VollstaendigkeitsGate): boolean {
+  return !istVollstaendigFuerTyp(antrag, gate) && !hatBearbeiterKuerzel(antrag);
+}
+
+/** Bucket-abhaengiger Grund-Text fuer die Unvollstaendig-Markierung (Tooltip). */
+export function unvollstaendigGrund(antrag: Antrag): string {
+  const bucket = getKategorieLabel((antrag as Record<string, unknown>).vb_phase);
+  const spalte = bucket === 'DL' || bucket === 'NW' ? 'D_ADV' : 'D_XTEC';
+  return `Antrag nicht vollständig - kein ${spalte} gesetzt`;
+}
+
+/** Generischer Fallback-Tooltip (bucket-unspezifisch). Bevorzugt
+ *  `unvollstaendigGrund(antrag)` nutzen. */
+export const UNVOLLSTAENDIG_TOOLTIP = 'Antrag nicht vollständig - Verbund noch nicht vollständig im System erfasst';
 
 /**
  * Distinkte, nicht-leere T_HINT-Bemerkungen ueber ALLE TVs eines Verbundes
@@ -220,6 +276,9 @@ interface CachedClassificationViews {
   verbundEmbeddings: ReadonlyMap<string, number[]> | undefined;
   stage2Aktiv: boolean;
   verbuende: readonly Verbund[];
+  // Gate als Werte cachen (das Objekt ist ueber Re-Mounts nicht ref-stabil).
+  gateDxtec: boolean;
+  gateDadv: boolean;
   value: VerbundKlassifizierungsView[];
 }
 
@@ -249,6 +308,7 @@ export function buildVerbundClassificationViews(
   verbundEmbeddings: ReadonlyMap<string, number[]> | undefined,
   stage2Aktiv: boolean,
   verbuende: readonly Verbund[],
+  gate: VollstaendigkeitsGate = NO_VOLLSTAENDIGKEITS_GATE,
 ): VerbundKlassifizierungsView[] {
   if (cachedViews
       && cachedViews.antraege === antraege
@@ -257,13 +317,18 @@ export function buildVerbundClassificationViews(
       && cachedViews.persisted === persisted
       && cachedViews.verbundEmbeddings === verbundEmbeddings
       && cachedViews.stage2Aktiv === stage2Aktiv
-      && cachedViews.verbuende === verbuende) {
+      && cachedViews.verbuende === verbuende
+      && cachedViews.gateDxtec === gate.dxtec
+      && cachedViews.gateDadv === gate.dadv) {
     return cachedViews.value;
   }
   const value = computeVerbundClassificationViews(
-    antraege, cutoffDatum, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende,
+    antraege, cutoffDatum, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende, gate,
   );
-  cachedViews = { antraege, cutoffDatum, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende, value };
+  cachedViews = {
+    antraege, cutoffDatum, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende,
+    gateDxtec: gate.dxtec, gateDadv: gate.dadv, value,
+  };
   return value;
 }
 
@@ -284,6 +349,7 @@ function computeVerbundClassificationViews(
   verbundEmbeddings: ReadonlyMap<string, number[]> | undefined,
   stage2Aktiv: boolean,
   verbuende: readonly Verbund[],
+  gate: VollstaendigkeitsGate,
 ): VerbundKlassifizierungsView[] {
   // Live-Cache verwerfen, sobald sich eine echte Live-Dep-Ref geaendert hat.
   // (Eine reine `persisted`-Aenderung — der Pill-Klick-Fall — laesst diese
@@ -380,6 +446,9 @@ function computeVerbundClassificationViews(
       klassifizierung: kl,
       confidence: confidenceFor(kl),
       manuell: istManuell(kl),
+      // Verbund freigebbar nur, wenn ALLE TVs fuer ihren Antragstyp vollstaendig
+      // erfasst sind (Gate-/Transitions-bewusst).
+      vollstaendig: tvs.every(tv => istVollstaendigFuerTyp(tv, gate)),
     });
   }
 

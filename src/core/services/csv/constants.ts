@@ -35,6 +35,7 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
   // Bemerkung + Vollständigkeits-Datum (Auslastungs-Modul)
   { key: 't_hint', type: 'string', label: 'Bemerkung (T_HINT)', level: 'antrag' },
   { key: 'd_xtec', type: 'date', label: 'Vollständig erfasst (D_XTEC)', level: 'antrag' },
+  { key: 'd_adv', type: 'date', label: 'Vollständig erfasst (D_ADV)', level: 'antrag' },
   // Verbund-Ebene (gleich für alle TVs eines Verbundes)
   { key: 'verbund_titel', type: 'string', label: 'Verbund-Titel', level: 'verbund' },
   { key: 'verbund_status', type: 'string', label: 'Verbund-Status', level: 'verbund' },

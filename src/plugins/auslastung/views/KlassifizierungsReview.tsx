@@ -27,7 +27,9 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import {
   buildVerbundClassificationViews,
   hatDXtecDatum,
+  hatDAdvDatum,
   verteilCutoffDatum,
+  type VollstaendigkeitsGate,
   type VerbundKlassifizierungsView,
 } from '../services/verbund-aggregation';
 import { getCachedVerbundEmbeddings } from '../services/verbund-embedding';
@@ -181,12 +183,15 @@ export function KlassifizierungsReview(): React.ReactElement {
     [config.ueberKategorien],
   );
 
-  // D_XTEC-Markierung nur, wenn das Feld irgendwo befuellt ist (Transitions-
-  // Schutz: solange D_XTEC nicht gemappt ist, hat kein Antrag einen Wert →
-  // sonst wuerde jeder Antrag faelschlich als unvollstaendig markiert).
-  const dxtecVerfuegbar = useMemo(
-    () => cache.antraege.some(a => hatDXtecDatum(a)),
-    [cache.antraege],
+  // Vollstaendigkeits-Gate (D_XTEC fuer FuE/DS, D_ADV fuer DL/NW): Markierung +
+  // Freigabe-Sperre greifen pro Bucket nur, wenn die jeweilige Spalte irgendwo
+  // befuellt ist (Transitions-Schutz: solange nicht gemappt, hat kein Antrag
+  // einen Wert → sonst waeren alle faelschlich unvollstaendig + gesperrt).
+  const dxtecVerfuegbar = useMemo(() => cache.antraege.some(a => hatDXtecDatum(a)), [cache.antraege]);
+  const dadvVerfuegbar = useMemo(() => cache.antraege.some(a => hatDAdvDatum(a)), [cache.antraege]);
+  const gate = useMemo<VollstaendigkeitsGate>(
+    () => ({ dxtec: dxtecVerfuegbar, dadv: dadvVerfuegbar }),
+    [dxtecVerfuegbar, dadvVerfuegbar],
   );
 
   // Verbund-Aggregation. Pool-Filterung + verbuende-Lookup passieren intern
@@ -202,8 +207,9 @@ export function KlassifizierungsReview(): React.ReactElement {
       deferredEmbeddings ?? undefined,
       config.stage2Aktiv === true,
       cache.verbuende,
+      gate,
     ),
-    [cache.antraege, verteilCutoff, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv, cache.verbuende],
+    [cache.antraege, verteilCutoff, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv, cache.verbuende, gate],
   );
 
   const [filter, setFilter] = useState<ViewFilter>('alle');
@@ -358,6 +364,8 @@ export function KlassifizierungsReview(): React.ReactElement {
       v.klassifizierung.status !== 'freigegeben'
       && v.confidence === 'high'
       && v.klassifizierung.vorgeschlagenePrimaer !== null
+      // Unvollstaendige Verbuende (D_XTEC/D_ADV fehlt) nicht mit-freigeben.
+      && v.vollstaendig
     );
     if (candidates.length === 0) return;
     if (!confirm(`${candidates.length} Verbünde mit hoher Sicherheit freigeben?`)) return;
@@ -373,12 +381,12 @@ export function KlassifizierungsReview(): React.ReactElement {
       kategorien: config.ueberKategorien,
       onToggleVerbund: (v, id, add) => applyVerbundOverride(v, id, add),
       onFreigebeVerbund: v => void freigebeVerbund(v),
-      dxtecVerfuegbar,
     }),
     // applyVerbundOverride + freigebeVerbund sind Closures über Hook-State,
-    // ueberKategorien + dxtecVerfuegbar sind die relevanten Re-Build-Trigger.
+    // ueberKategorien ist der relevante Re-Build-Trigger. Die Vollstaendigkeit
+    // steckt jetzt pro Zeile in view.vollstaendig (kein Column-Rebuild noetig).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [config.ueberKategorien, dxtecVerfuegbar],
+    [config.ueberKategorien],
   );
 
   const { visibleKeys, toggleColumn } = useColumnVisibility(
