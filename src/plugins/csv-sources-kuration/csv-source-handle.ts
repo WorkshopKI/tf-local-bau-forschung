@@ -21,6 +21,7 @@ import type { CsvSchema } from '@/core/services/csv/types';
 import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
 import { parseCsvPreview } from '@/core/services/csv';
 import { validateHeaders } from './services/csv-drift-check';
+import { saveSharedCsvFilenames } from './csv-source-filenames';
 // Keys in Core definiert (zentrale IDB-Key-Registry) — die Per-Datei-Handles
 // werden beim App-Start von refreshAllPermissions re-granted (v2.19.1), das
 // Ordner-Handle ersetzt sie als Re-Grant-Ziel (v2.27).
@@ -498,6 +499,9 @@ export async function pickAndLinkCsvFolder(
   // Lokale Filemap schreiben → künftige checkSourceForUpdate-Läufe nehmen den
   // schnellen getFileHandle-Pfad statt den Ordner zu scannen (Perf v2.27.2).
   await setCsvDirFileMapEntries(idb, fileMap);
+  // v2.28: Zuordnung team-weit auf den Daten-Ordner spiegeln, damit andere PLs
+  // nur noch den Ordner freigeben müssen (kein Scan). Best-effort (Schreibrecht).
+  await saveSharedCsvFilenames(idb, fileMap);
   // Migration: gematchte Quellen brauchen ihr altes Per-Datei-Handle nicht mehr.
   for (const schemaId of matched) {
     await removeCsvSourceHandle(idb, schemaId);

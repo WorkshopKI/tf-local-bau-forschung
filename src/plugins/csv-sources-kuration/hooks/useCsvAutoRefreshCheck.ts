@@ -25,7 +25,16 @@ import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature
 import { runtimeConfig } from '@/config/runtime-config';
 import { listSchemas, listProgramme, loadSchema } from '@/core/services/csv';
 import type { CsvSchema } from '@/core/services/csv/types';
-import { checkSourceForUpdate, pickAndLinkCsvSource, pickAndLinkCsvFolder, type UpdateCheckResult } from '../csv-source-handle';
+import {
+  checkSourceForUpdate,
+  pickAndLinkCsvSource,
+  pickAndLinkCsvFolder,
+  getCsvSourceDirHandle,
+  getCsvDirFileMap,
+  setCsvDirFileMapEntries,
+  type UpdateCheckResult,
+} from '../csv-source-handle';
+import { loadSharedCsvFilenames } from '../csv-source-filenames';
 import {
   runAutoRefresh,
   BuildLockBusyError,
@@ -94,6 +103,25 @@ async function collectCandidates(
     const s = await listSchemas(idb, p.id);
     all.push(...s);
   }
+
+  // v2.28: lokale Filemap aus der geteilten Zuordnung (Daten-Ordner) seeden,
+  // bevor wir prüfen — so löst ein frisch verknüpfter CSV-Ordner direkt per
+  // Dateiname auf (kein teurer Header-Scan), auch auf einem neuen PL-Rechner.
+  // Lokale Einträge (eigener Scan/Heal) haben Vorrang und werden NICHT überschrieben.
+  try {
+    const dir = await getCsvSourceDirHandle(idb);
+    if (dir) {
+      const [shared, local] = await Promise.all([loadSharedCsvFilenames(idb), getCsvDirFileMap(idb)]);
+      const toSeed: Record<string, string> = {};
+      for (const [sid, fn] of Object.entries(shared)) {
+        if (!local[sid]) toSeed[sid] = fn;
+      }
+      if (Object.keys(toSeed).length > 0) await setCsvDirFileMapEntries(idb, toSeed);
+    }
+  } catch {
+    /* best-effort — ein Seed-Fehler darf den Check nicht blockieren */
+  }
+
   const candidates: RefreshCandidate[] = [];
   const permissionNeeded: PermissionNeededEntry[] = [];
   const unlinked: PermissionNeededEntry[] = [];

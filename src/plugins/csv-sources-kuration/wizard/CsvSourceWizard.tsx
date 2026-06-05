@@ -15,6 +15,7 @@ import {
 } from '@/core/services/csv';
 import type { CsvSchema, ImportResult, Unterprogramm } from '@/core/services/csv/types';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
+import { saveSharedCsvFilenames } from '../csv-source-filenames';
 import { Step1Metadata } from './Step1Metadata';
 import { Step2Columns } from './Step2Columns';
 import { Step3Unterprogramme } from './Step3Unterprogramme';
@@ -210,6 +211,9 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseE
         encoding: state.encoding,
         separator: state.separator,
         ...(hasLabelXlsx ? { label_xlsx_header_rows: state.headerRowCount } : {}),
+        // v2.28: Quelldatei-Name festhalten → fließt via Snapshot zu den PLs und
+        // dient dort als Schnell-Auflösung im verknüpften CSV-Ordner (kein Scan).
+        ...(state.file ? { source_file_name: state.file.name, source_last_modified: state.file.lastModified } : {}),
         created_at: new Date().toISOString(),
       };
       await saveSchema(storage.idb, schema);
@@ -266,6 +270,9 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseE
         force: true,
       });
       setImportResult(result);
+      // v2.28: Dateiname team-weit auf den Daten-Ordner spiegeln, damit PLs den
+      // CSV-Ordner nur freigeben müssen (kein Scan). Best-effort.
+      if (state.file) await saveSharedCsvFilenames(storage.idb, { [schema.id]: state.file.name });
       onCompleted();
     } catch (e) {
       setImportError((e as Error).message);
