@@ -12,10 +12,13 @@ import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import {
   parseBearbeiterFilter,
   applyBearbeiterFilter,
+  applyInaktiveExclusion,
   filterByBegleitungPhase,
   hasAnyKuerzelData,
   type BearbeiterFilterMode,
 } from './bearbeiterFilter';
+import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
+import { useShowInaktiveMasStore } from './useShowInaktiveMasStore';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 
@@ -67,6 +70,10 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const definitions = useFilterState(s => s.definitions);
   const { profile } = useProfile();
   const meinKuerzel = useMeinKuerzel();
+  // „alle"-Modus: Anträge inaktiver MAs ausblenden (pl/dev). Außerhalb pl/dev
+  // ist das Set leer → die Exklusions-Stufe ist ein No-op.
+  const inaktiveKuerzel = useInaktiveKuerzelSet();
+  const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
 
   // Such-Eingabe entkoppeln: das Input bleibt responsiv, der teure
   // Filter+Sort-Pass läuft erst wenn React Idle-Zeit hat. Bei 13k+ Records
@@ -102,7 +109,10 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     const q = deferredSearch.trim().toLowerCase();
     const skipBearbeiter = searchIgnoreBearbeiterFilter && q.length > 0;
     const byBearbeiter = skipBearbeiter ? byPhase : applyBearbeiterFilter(byPhase, bearbeiterFilter);
-    const filteredBase = applyFilters(byBearbeiter, active, definitions);
+    // Inaktiv-Ausblendung NACH dem Kürzel-Filter, VOR den Sidebar-Filtern —
+    // damit auch die Quickfilter-Counts (countBase) die Ausblendung spiegeln.
+    const byInaktive = applyInaktiveExclusion(byBearbeiter, bearbeiterFilter.active, inaktiveKuerzel, showInaktive);
+    const filteredBase = applyFilters(byInaktive, active, definitions);
     // Hybrid-Suche: zusaetzlich zu den vier Slim-Feldern (akz/akronym/titel/
     // antragsteller) liefert `useAntraegeHybridSearch` ein Akz-Set mit
     // Treffern aus drei weiteren Quellen — Substring auf den CSV-Volltext-
@@ -136,7 +146,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       view,
       bearbeiterFilter,
       bearbeiterKuerzelMissing,
-      countBase: byBearbeiter,
+      countBase: byInaktive,
     };
-  }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, bearbeiterFilter]);
+  }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, bearbeiterFilter, inaktiveKuerzel, showInaktive]);
 }

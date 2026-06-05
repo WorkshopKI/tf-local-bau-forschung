@@ -10,12 +10,15 @@ import {
   verbundFkz,
 } from './groupAggregates';
 import { StatusBarRow } from './StatusBarRow';
+import { MaKuerzelBadge } from './MaKuerzelBadge';
 import { useAntraegeStore } from './store';
 
 interface Props {
   group: AntragGroup;
   selectedAktenzeichen: string | null;
   selectedVerbundId: string | null;
+  /** „alle"-Modus → MA-Kürzel des Lead-TVs unter dem FKZ anzeigen. */
+  showMa: boolean;
   onOpenAntrag: (aktenzeichen: string) => void;
   onOpenVerbund: (verbundId: string) => void;
 }
@@ -53,6 +56,7 @@ export function AntragTile({
   group,
   selectedAktenzeichen,
   selectedVerbundId,
+  showMa,
   onOpenAntrag,
   onOpenVerbund,
 }: Props): React.ReactElement {
@@ -172,6 +176,7 @@ export function AntragTile({
         <span className="font-mono text-[9.5px] text-[var(--tf-text-tertiary)] truncate max-w-full leading-tight">
           {fkzSubtitle}
         </span>
+        {showMa ? <MaKuerzelBadge kuerzel={headTv.tib_kuerz} /> : null}
       </div>
 
       {/* Status-Footer: einheitliche Dominant-Status-Pill. */}

@@ -22,6 +22,7 @@ import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
 import { AntraegeTable } from './AntraegeTable';
 import { CardGrid } from './CardGrid';
 import type { ViewMode } from './viewModes';
+import { isAuslastungEnabled } from '@/config/feature-flags';
 import { Alert } from '@/components/ui/alert';
 import { AlertTriangle, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -72,6 +73,9 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
   const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
   const { filtered, bearbeiterFilter, bearbeiterKuerzelMissing } = useFilteredAntraege();
+  // Im „alle"-/Übersichtsmodus (pl/dev) wird je Antrag das MA-Kürzel angezeigt,
+  // damit sichtbar ist, welcher Bearbeiter zuständig ist.
+  const showMa = isAuslastungEnabled() && !bearbeiterFilter.active;
   const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
   const [narrowWidth, setNarrowWidth] = useState(loadNarrowWidth);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -232,6 +236,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
               selectedAktenzeichen={selectedAktenzeichen}
               selectedVerbundId={selectedVerbundId}
               grouping={tableGrouping}
+              showMaColumn={showMa}
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}
               sentinelRef={sentinelRef}
@@ -242,6 +247,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
               visibleRows={visibleRows}
               selectedAktenzeichen={selectedAktenzeichen}
               selectedVerbundId={selectedVerbundId}
+              showMa={showMa}
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}
               sentinelRef={sentinelRef}
@@ -251,6 +257,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
               filtered={filtered}
               visibleRows={visibleRows}
               selectedAktenzeichen={selectedAktenzeichen}
+              showMa={showMa}
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}
               narrow={narrow}
@@ -279,6 +286,8 @@ interface GroupedListProps {
   filtered: import('@/core/services/csv/types').AntragListItem[];
   visibleRows: number;
   selectedAktenzeichen: string | null;
+  /** „alle"-Modus → MA-Kürzel je TV-Zeile anzeigen. */
+  showMa: boolean;
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
   narrow: boolean;
@@ -289,6 +298,7 @@ function GroupedList({
   filtered,
   visibleRows,
   selectedAktenzeichen,
+  showMa,
   onOpenAntrag,
   onOpenVerbund,
   narrow,
@@ -322,6 +332,7 @@ function GroupedList({
           key={g.tvs[0]!.aktenzeichen}
           group={g}
           selectedAktenzeichen={selectedAktenzeichen}
+          showMa={showMa}
           onOpenAntrag={onOpenAntrag}
           onOpenVerbund={onOpenVerbund}
           narrow={narrow}
@@ -333,6 +344,7 @@ function GroupedList({
         key={g.tvs[0]!.aktenzeichen}
         group={g}
         selectedAktenzeichen={selectedAktenzeichen}
+        showMa={showMa}
         onOpenAntrag={onOpenAntrag}
         onOpenVerbund={onOpenVerbund}
         narrow={narrow}

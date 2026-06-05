@@ -4,7 +4,9 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
-import { parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
+import { parseBearbeiterFilter, applyInaktiveExclusion } from '@/plugins/antraege/bearbeiterFilter';
+import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
+import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasStore';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import {
   computeDashboardAggregate,
@@ -49,6 +51,10 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
   const verbundByIdRaw = useAntraegeStore(s => s.verbundById);
   const { profile } = useProfile();
   const meinKuerzel = useMeinKuerzel();
+  // „alle"-Modus: Förderanträge inaktiver MAs ausblenden (pl/dev). Außerhalb
+  // pl/dev ist das Set leer → No-op.
+  const inaktiveKuerzel = useInaktiveKuerzelSet();
+  const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
 
   // useDeferredValue puffert die kaskadierenden Store-Updates beim
   // Home-Mount: zuerst landet `antraege` im Store, kurz darauf
@@ -68,7 +74,13 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
     const includeBauantraege = department !== 'antraege';
     const includeAntraege = department !== 'bauantraege';
 
-    const agg = computeDashboardAggregate(bauantraege, antraege, bearbeiterMode, {
+    // Im „alle"-Modus die Förderanträge inaktiver MAs ausblenden (pl/dev),
+    // konsistent zur Förderanträge-Liste. Bauanträge haben keinen MA-Bezug.
+    const antraegeFiltered = includeAntraege
+      ? applyInaktiveExclusion(antraege, bearbeiterMode.active, inaktiveKuerzel, showInaktive)
+      : antraege;
+
+    const agg = computeDashboardAggregate(bauantraege, antraegeFiltered, bearbeiterMode, {
       includeBauantraege,
       includeAntraege,
       verbundById,
@@ -100,5 +112,5 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
     };
     end(`antraege=${antraege.length} bauantraege=${bauantraege.length} → total=${agg.stats.total} offen=${agg.stats.offen}`);
     return result;
-  }, [bauantraege, antraege, verbundById, department, meinKuerzel, profile?.bearbeiter_inkl_begleitung]);
+  }, [bauantraege, antraege, verbundById, department, meinKuerzel, profile?.bearbeiter_inkl_begleitung, inaktiveKuerzel, showInaktive]);
 }

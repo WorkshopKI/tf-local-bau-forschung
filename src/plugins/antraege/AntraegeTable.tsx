@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { SortableTable, useTableSort, compareValues } from '@/components/data-table';
-import { ANTRAG_TABLE_COLUMNS } from './tableColumns';
+import { ANTRAG_TABLE_COLUMNS, MA_COLUMN } from './tableColumns';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useAntraegeStore } from './store';
 import {
@@ -17,6 +17,8 @@ interface Props {
   selectedAktenzeichen: string | null;
   selectedVerbundId: string | null;
   grouping: TableGroupingMode;
+  /** „alle"-/Übersichtsmodus → MA-Spalte (tib_kuerz) automatisch einblenden. */
+  showMaColumn: boolean;
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
@@ -60,6 +62,7 @@ export function AntraegeTable({
   selectedAktenzeichen,
   selectedVerbundId,
   grouping,
+  showMaColumn,
   onOpenAntrag,
   onOpenVerbund,
   sentinelRef,
@@ -67,10 +70,14 @@ export function AntraegeTable({
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const verbundById = useAntraegeStore(s => s.verbundById);
   // Registry-Reihenfolge beibehalten (nicht Toggle-Reihenfolge des Stores).
+  // Im „alle"-Modus die MA-Spalte direkt nach der gelockten FKZ-Spalte
+  // einblenden (auto-verwaltet, nicht im Spalten-Picker).
   const columns = useMemo(() => {
     const set = new Set(visibleColumns);
-    return ANTRAG_TABLE_COLUMNS.filter(c => set.has(c.key));
-  }, [visibleColumns]);
+    const base = ANTRAG_TABLE_COLUMNS.filter(c => set.has(c.key));
+    if (!showMaColumn || base.length === 0) return base;
+    return [base[0]!, MA_COLUMN, ...base.slice(1)];
+  }, [visibleColumns, showMaColumn]);
 
   // Basis-Zeilen je Gruppierungs-Modus (vor Header-Sort + Slice).
   const { allRows, sectionOf } = useMemo(() => {

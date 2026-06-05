@@ -43,6 +43,9 @@ export type AntragVorgang = Vorgang & {
   /** Wiedereinreicher-Hinweis aus der CSV-Spalte `T_XSW` (custom-Feld
    *  `t_xsw`). Wird in „Meine Anträge" rot/fett hinter dem Titel gerendert. */
   t_xsw?: string;
+  /** TIB-Bearbeiter-Kürzel (Roh-`tib_kuerz`). Wird in der Home-„Alle Anträge"-
+   *  Übersicht (alle-Modus, pl/dev) je Zeile als MA-Badge angezeigt. */
+  tib_kuerz?: string;
 };
 
 export interface DashboardStats {
@@ -165,6 +168,7 @@ function antragToVorgangLike(
     verbund_id: verbundId,
     verbund_titel: verbundTitel,
     t_xsw: typeof a.t_xsw === 'string' && a.t_xsw.trim().length > 0 ? a.t_xsw.trim() : undefined,
+    tib_kuerz: typeof a.tib_kuerz === 'string' && a.tib_kuerz.trim().length > 0 ? a.tib_kuerz.trim() : undefined,
   };
 }
 

@@ -4,6 +4,8 @@ import { SectionHeader } from '@/ui';
 import { Switch } from '@/components/ui/switch';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
+import { useKuerzelFilterOptions } from '@/plugins/auslastung/hooks/useKuerzelFilterOptions';
+import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasStore';
 import {
   isKuratorMenusEnabled,
   isAntraegeEnabled,
@@ -107,19 +109,7 @@ export function ProfilTab(): React.ReactElement {
                 </span>
               </>
             ) : (
-              <>
-                <FieldLabel
-                  text="Kürzel"
-                  hint="Mehrere Kürzel komma-separiert für Vertretungen (z.B. MUE, SCH). Wert 'alle' deaktiviert den Filter (Übersichtsmodus)."
-                />
-                <input
-                  value={profile.bearbeiter_kuerzel ?? ''}
-                  onChange={e => updateProfile({ bearbeiter_kuerzel: e.target.value })}
-                  placeholder="z.B. MUE"
-                  className={KUERZEL_INPUT_CLASS}
-                  style={FIELD_BORDER}
-                />
-              </>
+              <KuerzelEditor />
             )}
           </SettingsRowGroup>
           <SettingsRowSeparator />
@@ -254,6 +244,92 @@ function FieldLabel({ text, hint }: { text: string; hint: string }): React.React
       {text}
       <InfoHint text={hint} />
     </label>
+  );
+}
+
+/**
+ * Bearbeiter-Kürzel-Auswahl im Nicht-MA-Login-Modus.
+ *
+ * - pl/dev (Auslastungs-Modul aktiv, MAs vorhanden): Dropdown mit „Alle" +
+ *   jedem MA (Klartext-Kürzel). Inaktive MAs sind per Checkbox einblendbar
+ *   (geteilter Store, wirkt auch auf die Anträge-Ausblendung in Liste + Home).
+ * - sonst (kurator/demo oder noch keine MA-Daten): bestehendes Freitextfeld.
+ */
+function KuerzelEditor(): React.ReactElement {
+  const { profile, updateProfile } = useProfile();
+  const options = useKuerzelFilterOptions();
+  const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
+  const setShowInaktive = useShowInaktiveMasStore(s => s.setShowInaktive);
+  const current = profile?.bearbeiter_kuerzel ?? '';
+
+  // Stale-Guard: ist ein inaktives Kürzel gewählt und werden Inaktive wieder
+  // ausgeblendet, würde es aus dem Dropdown verschwinden — zurück auf „alle".
+  useEffect(() => {
+    if (showInaktive || !options) return;
+    const cur = current.trim();
+    if (!cur || cur.toLowerCase() === 'alle') return;
+    const opt = options.find(o => o.kuerzel === cur.toUpperCase());
+    if (opt && !opt.aktiv) updateProfile({ bearbeiter_kuerzel: 'alle' });
+  }, [showInaktive, options, current, updateProfile]);
+
+  // Fallback: kein Auslastungs-Modul (options === null) oder noch keine
+  // MA-Daten (leere kuerzel-map) → bestehendes Freitextfeld.
+  if (!options || options.length === 0) {
+    return (
+      <>
+        <FieldLabel
+          text="Kürzel"
+          hint="Mehrere Kürzel komma-separiert für Vertretungen (z.B. MUE, SCH). Wert 'alle' deaktiviert den Filter (Übersichtsmodus)."
+        />
+        <input
+          value={current}
+          onChange={e => updateProfile({ bearbeiter_kuerzel: e.target.value })}
+          placeholder="z.B. MUE"
+          className={KUERZEL_INPUT_CLASS}
+          style={FIELD_BORDER}
+        />
+      </>
+    );
+  }
+
+  const visibleOptions = showInaktive ? options : options.filter(o => o.aktiv);
+  // Angezeigter Wert: leer = „Alle" (gleiches Filterverhalten, kein Zwangs-Save).
+  // Ein gewähltes, aber gerade nicht sichtbares Kürzel fällt visuell auf „Alle".
+  const cur = current.trim();
+  const upper = cur.toUpperCase();
+  const selectValue =
+    !cur || cur.toLowerCase() === 'alle' || !visibleOptions.some(o => o.kuerzel === upper)
+      ? 'alle'
+      : upper;
+
+  return (
+    <>
+      <FieldLabel
+        text="Kürzel"
+        hint="Kürzel auswählen, dessen Anträge angezeigt werden. 'Alle' zeigt die Anträge aller MAs (Übersichtsmodus)."
+      />
+      <select
+        value={selectValue}
+        onChange={e => updateProfile({ bearbeiter_kuerzel: e.target.value })}
+        className={SELECT_CLASS}
+        style={FIELD_BORDER}
+        aria-label="Bearbeiter-Kürzel"
+      >
+        <option value="alle">Alle</option>
+        {visibleOptions.map(o => (
+          <option key={o.kuerzel} value={o.kuerzel}>{o.kuerzel}</option>
+        ))}
+      </select>
+      <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer select-none ml-1">
+        <input
+          type="checkbox"
+          checked={showInaktive}
+          onChange={e => setShowInaktive(e.target.checked)}
+          className="accent-[var(--tf-primary)] cursor-pointer"
+        />
+        Inaktive einblenden
+      </label>
+    </>
   );
 }
 

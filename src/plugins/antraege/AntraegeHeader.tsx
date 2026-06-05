@@ -6,10 +6,13 @@ import { ColumnPicker } from '@/components/data-table';
 import { ANTRAG_TABLE_COLUMNS } from './tableColumns';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { VIEWS, viewCounts } from './views';
-import { menuLabel } from '@/config/feature-flags';
+import { menuLabel, isAuslastungEnabled } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFilteredAntraege, hasExplicitVbPhaseFilter } from './useFilteredAntraege';
+import { applyInaktiveExclusion } from './bearbeiterFilter';
+import { useShowInaktiveMasStore } from './useShowInaktiveMasStore';
+import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
 import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -41,6 +44,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const toggleColumn = useAntraegeColumnsStore(s => s.toggleColumn);
   const { filtered, bearbeiterFilter } = useFilteredAntraege();
+  const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
+  const setShowInaktive = useShowInaktiveMasStore(s => s.setShowInaktive);
+  const inaktiveKuerzel = useInaktiveKuerzelSet();
   const verbundById = useAntraegeStore(s => s.verbundById);
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
@@ -68,11 +74,14 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
     // werden in den Tab-Counts ausgeblendet, AUSSER ein expliziter
     // vb_phase-Filter ist aktiv (dann uebernimmt die Sidebar die Kontrolle).
     const applyVbPhasePreFilter = !hasExplicitVbPhaseFilter(active, definitions);
+    // Tab-Counts konsistent zur Liste: im „alle"-Modus Anträge inaktiver MAs
+    // ausblenden (pl/dev; außerhalb ist das Set leer → No-op).
+    const antraegeForCounts = applyInaktiveExclusion(antraege, bearbeiterFilter.active, inaktiveKuerzel, showInaktive);
     // Single-Pass: alle 6 View-Counts in einem Loop ueber `antraege` —
     // statt 6× viewCount() mit jeweils neuer `new Date()`-Allokation pro
     // Antrag im Predicate.
-    return viewCounts(antraege, bearbeiterFilter, applyVbPhasePreFilter);
-  }, [antraege, bearbeiterFilter, active, definitions]);
+    return viewCounts(antraegeForCounts, bearbeiterFilter, applyVbPhasePreFilter);
+  }, [antraege, bearbeiterFilter, active, definitions, inaktiveKuerzel, showInaktive]);
 
   return (
     <div
@@ -200,6 +209,20 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
                 className="accent-[var(--tf-primary)] cursor-pointer"
               />
               Auch außerhalb meiner Anträge suchen
+            </label>
+          </div>
+        ) : null}
+
+        {!bearbeiterFilter.active && isAuslastungEnabled() ? (
+          <div className="mt-1.5 mb-1 flex justify-end pr-4">
+            <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showInaktive}
+                onChange={e => setShowInaktive(e.target.checked)}
+                className="accent-[var(--tf-primary)] cursor-pointer"
+              />
+              Anträge inaktiver MAs einblenden
             </label>
           </div>
         ) : null}

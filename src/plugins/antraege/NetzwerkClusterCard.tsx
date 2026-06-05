@@ -18,6 +18,8 @@ interface Props {
   selectedAktenzeichen: string | null;
   onOpenAntrag: (aktenzeichen: string) => void;
   onOpenVerbund: (verbundId: string) => void;
+  /** „alle"-Modus → MA-Kürzel je TV-Zeile anzeigen (an AntragGroupCard durchgereicht). */
+  showMa?: boolean;
   narrow?: boolean;
 }
 
@@ -26,6 +28,7 @@ export function NetzwerkClusterCard({
   selectedAktenzeichen,
   onOpenAntrag,
   onOpenVerbund,
+  showMa = false,
   narrow = false,
 }: Props): React.ReactElement {
   const subGroups = group.subGroups ?? [];
@@ -88,6 +91,7 @@ export function NetzwerkClusterCard({
             key={sg.tvs[0]!.aktenzeichen}
             group={sg}
             selectedAktenzeichen={selectedAktenzeichen}
+            showMa={showMa}
             onOpenAntrag={onOpenAntrag}
             onOpenVerbund={onOpenVerbund}
             narrow={narrow}

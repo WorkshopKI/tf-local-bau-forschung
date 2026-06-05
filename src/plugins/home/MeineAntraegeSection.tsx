@@ -6,6 +6,7 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { XswSuffix } from '@/plugins/antraege/XswSuffix';
+import { MaKuerzelBadge } from '@/plugins/antraege/MaKuerzelBadge';
 import type { AntragVorgang } from './useDashboardData';
 
 /**
@@ -34,6 +35,8 @@ interface Props {
   initialCount: number;
   /** Aktive Bearbeiter-Filter-Tokens (uppercase). Für den Help-Text. */
   bearbeiterTokens: string[];
+  /** „alle"-/Übersichtsmodus (pl/dev): Titel „Alle Anträge" + MA-Kürzel je Zeile. */
+  alleMode?: boolean;
 }
 
 type FristTone = 'overdue' | 'urgent' | 'normal';
@@ -69,7 +72,7 @@ function formatDaysShort(deadline: string | undefined): FristLabel | null {
  * - Wird durch HomePage nur eingebunden, wenn `department !== 'bauantraege'`
  *   und der Bearbeiter-Filter aktiv ist und mindestens ein Antrag matched.
  */
-export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens }: Props): React.ReactElement | null {
+export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens, alleMode = false }: Props): React.ReactElement | null {
   const { navigate } = useNavigation();
   const [visibleCount, setVisibleCount] = useState(initialCount);
   const [open, toggleOpen] = useCollapsedSection('home_meine_antraege_collapsed');
@@ -101,7 +104,7 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
   return (
     <div className="mb-6">
       <SectionHeader
-        label="Meine Anträge"
+        label={alleMode ? 'Alle Anträge' : 'Meine Anträge'}
         collapsible
         collapsed={!open}
         onToggleCollapsed={toggleOpen}
@@ -120,7 +123,11 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
       >
         <div className="overflow-hidden">
       <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2 -mt-1">
-        Anträge mit Ihrem Kürzel <span className="font-mono">{bearbeiterTokens.join(', ')}</span>, sortiert nach Frist · Verbünde als ein Eintrag
+        {alleMode ? (
+          'Offene Anträge aller aktiven MAs, sortiert nach Frist · Verbünde als ein Eintrag'
+        ) : (
+          <>Anträge mit Ihrem Kürzel <span className="font-mono">{bearbeiterTokens.join(', ')}</span>, sortiert nach Frist · Verbünde als ein Eintrag</>
+        )}
       </p>
       {visible.map((v, i) => {
         const phaseLabel = getVbPhaseLabel(v.vb_phase);
@@ -186,7 +193,12 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens 
             titleClassName="text-[13px] flex items-baseline gap-1 min-w-0"
             subtitle={subtitleText}
             subtitleClassName="text-[11px] font-mono text-[var(--tf-text-tertiary)] truncate"
-            meta={<Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>}
+            meta={
+              <span className="inline-flex items-center gap-1.5">
+                {alleMode ? <MaKuerzelBadge kuerzel={v.tib_kuerz} /> : null}
+                <Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>
+              </span>
+            }
             onClick={() => navigate('antraege', { selectedId: v.id })}
             last={i === visible.length - 1}
           />

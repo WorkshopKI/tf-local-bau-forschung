@@ -18,6 +18,8 @@ interface Props {
   visibleRows: number;
   selectedAktenzeichen: string | null;
   selectedVerbundId: string | null;
+  /** „alle"-Modus → MA-Kürzel je Kachel anzeigen. */
+  showMa: boolean;
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
@@ -33,6 +35,7 @@ export function CardGrid({
   visibleRows,
   selectedAktenzeichen,
   selectedVerbundId,
+  showMa,
   onOpenAntrag,
   onOpenVerbund,
   sentinelRef,
@@ -64,6 +67,7 @@ export function CardGrid({
           group={g}
           selectedAktenzeichen={selectedAktenzeichen}
           selectedVerbundId={selectedVerbundId}
+          showMa={showMa}
           onOpenAntrag={onOpenAntrag}
           onOpenVerbund={onOpenVerbund}
         />

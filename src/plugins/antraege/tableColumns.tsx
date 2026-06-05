@@ -19,6 +19,7 @@ import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { daysUntilFristAware, computeFristDatum } from '@/core/services/csv/frist';
 import { isBegleitungStatus } from '@/core/utils/status-canonical';
 import { getKategorieLabel } from './filter/kategorieQuickfilter';
+import { MaKuerzelBadge } from './MaKuerzelBadge';
 import type { AntragTableRow } from './tableGrouping';
 import { worstAmpel, criticalFristAware } from './groupAggregates';
 import {
@@ -289,3 +290,23 @@ export const DEFAULT_VISIBLE_COLUMN_KEYS: string[] =
 
 export const LOCKED_COLUMN_KEYS: string[] =
   ANTRAG_TABLE_COLUMNS.filter(c => c.locked === true).map(c => c.key);
+
+/**
+ * „MA"-Spalte (TIB-Bearbeiter-Kürzel). Bewusst NICHT Teil von
+ * `ANTRAG_TABLE_COLUMNS` → der Spalten-Picker listet sie nicht; sie wird von
+ * `AntraegeTable` automatisch eingeblendet, sobald der „alle"-/Übersichtsmodus
+ * aktiv ist (`showMaColumn`). Für die Verbund-Sammelzeile zeigt sie das Kürzel
+ * des Lead-TVs.
+ */
+export const MA_COLUMN: SortableColumn<AntragTableRow> = {
+  key: 'tib_kuerz',
+  label: 'MA',
+  // Nicht im Spalten-Picker (steht nicht in ANTRAG_TABLE_COLUMNS); `defaultVisible`
+  // ist nur Pflichtfeld des Typs und hier ohne Wirkung.
+  defaultVisible: false,
+  sortable: true,
+  width: 72,
+  wrap: false,
+  accessor: r => strOrNull(r.tib_kuerz) ?? '',
+  render: r => <MaKuerzelBadge kuerzel={r.tib_kuerz} />,
+};

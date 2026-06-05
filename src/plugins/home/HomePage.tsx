@@ -16,7 +16,7 @@ import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
-import { menuLabel, isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant } from '@/config/feature-flags';
+import { menuLabel, isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant, isAuslastungEnabled } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
@@ -240,7 +240,14 @@ export function HomePage(): React.ReactElement {
               );
             }
 
-            if (!data.bearbeiterFilterActive) {
+            // „alle"-Modus = kein aktiver Kürzel-Filter. In pl/dev zeigt Home
+            // dann die Übersicht aller (aktiven) MAs (mit MA-Kürzel je Zeile)
+            // statt des „Kürzel setzen"-Hinweises. Die übrigen Varianten (prod
+            // via MA-Login, kurator/demo ohne Auslastungs-Modul) behalten den
+            // Hinweis.
+            const alleMode = !data.bearbeiterFilterActive;
+
+            if (alleMode && !isAuslastungEnabled()) {
               return (
                 <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-5">
                   <div className="flex items-start gap-3">
@@ -267,12 +274,16 @@ export function HomePage(): React.ReactElement {
               return (
                 <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-5">
                   <p className="text-[14px] font-medium text-[var(--tf-text)] mb-1">
-                    Keine offenen Anträge für Kürzel{' '}
-                    <span className="font-mono">{data.bearbeiterTokens.join(', ')}</span>
+                    {alleMode ? (
+                      'Keine offenen Anträge'
+                    ) : (
+                      <>Keine offenen Anträge für Kürzel{' '}<span className="font-mono">{data.bearbeiterTokens.join(', ')}</span></>
+                    )}
                   </p>
                   <p className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug mb-3">
-                    Aktuell sind keine offenen Förderanträge auf Sie zugeordnet. In der
-                    Förderanträge-Liste können Sie alle Vorgänge einsehen.
+                    {alleMode
+                      ? 'Aktuell sind keine offenen Förderanträge erfasst. In der Förderanträge-Liste können Sie alle Vorgänge einsehen.'
+                      : 'Aktuell sind keine offenen Förderanträge auf Sie zugeordnet. In der Förderanträge-Liste können Sie alle Vorgänge einsehen.'}
                   </p>
                   <Button variant="secondary" size="sm" icon={ArrowRight} onClick={() => navigate('antraege')}>
                     Alle Förderanträge öffnen
@@ -287,6 +298,7 @@ export function HomePage(): React.ReactElement {
                 antraege={data.meineAntraege}
                 initialCount={initialCount}
                 bearbeiterTokens={data.bearbeiterTokens}
+                alleMode={alleMode}
               />
             );
           })()}

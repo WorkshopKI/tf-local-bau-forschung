@@ -210,3 +210,45 @@ export function hasAnyKuerzelData(antraege: AntragListItem[], includeBegleitung:
   }
   return false;
 }
+
+/** True wenn das Profil-Kürzelfeld den "alle"-/Übersichtsmodus bedeutet
+ *  (leer / nur Whitespace / "alle"). Äquivalent zu
+ *  `!parseBearbeiterFilter(raw, false).active`. Genutzt für die MA-Anzeige
+ *  (Teil B) und die Home-„Alle Anträge"-Liste. */
+export function isAlleMode(raw: string | undefined): boolean {
+  return !parseBearbeiterFilter(raw, false).active;
+}
+
+/** NFC+uppercase-Normalisierung eines tib_kuerz-Rohwerts für den Vergleich
+ *  gegen die (bereits NFC+upper) Inaktiv-Menge. Inline gehalten, damit dieses
+ *  Hot-Path-Modul keine auslastung-Abhängigkeit bekommt. */
+function normTibKuerz(v: unknown): string {
+  if (typeof v !== 'string') return '';
+  return v.trim().normalize('NFC').toUpperCase();
+}
+
+/**
+ * Blendet im „alle"-Modus (kein aktiver Kürzel-Filter) die Anträge **inaktiver
+ * MAs** aus — anhand der Primär-Bearbeiter-Spalte `tib_kuerz`.
+ *
+ * No-op, wenn:
+ * - ein Kürzel-Filter aktiv ist (`bearbeiterFilterActive` → zeigt ohnehin nur
+ *   EINEN MA, die Inaktiv-Stufe wäre eine Tautologie),
+ * - inaktive eingeblendet werden sollen (`showInaktive`),
+ * - keine inaktiven Kürzel existieren (`inaktiveKuerzel.size === 0` — u.a. der
+ *   Fall außerhalb pl/dev, wo `useInaktiveKuerzelSet` ein leeres Set liefert).
+ *
+ * Anträge ohne `tib_kuerz` gehören keinem inaktiven MA und bleiben sichtbar.
+ */
+export function applyInaktiveExclusion(
+  antraege: AntragListItem[],
+  bearbeiterFilterActive: boolean,
+  inaktiveKuerzel: ReadonlySet<string>,
+  showInaktive: boolean,
+): AntragListItem[] {
+  if (bearbeiterFilterActive || showInaktive || inaktiveKuerzel.size === 0) return antraege;
+  return antraege.filter(a => {
+    const k = normTibKuerz((a as unknown as Record<string, unknown>).tib_kuerz);
+    return k === '' || !inaktiveKuerzel.has(k);
+  });
+}

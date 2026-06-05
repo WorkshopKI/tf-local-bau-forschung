@@ -11,12 +11,15 @@ import {
 import type { AntragGroup } from './antragGroups';
 import { isNetzwerkLead } from './netzwerk';
 import { XswSuffix } from './XswSuffix';
+import { MaKuerzelBadge } from './MaKuerzelBadge';
 
 interface Props {
   group: AntragGroup;
   selectedAktenzeichen: string | null;
   onOpenAntrag: (aktenzeichen: string) => void;
   onOpenVerbund: (verbundId: string) => void;
+  /** „alle"-Modus → MA-Kürzel je TV-Zeile anzeigen. */
+  showMa?: boolean;
   /** Kompakte Variante für den Split-View: kleinere Schrift. */
   narrow?: boolean;
   /** Unterdrückt die 3px-Primary-Bar links bei Verbund-Clustern. Wird von
@@ -36,6 +39,7 @@ export function AntragGroupCard({
   selectedAktenzeichen,
   onOpenAntrag,
   onOpenVerbund,
+  showMa = false,
   narrow = false,
   hideClusterAccent = false,
 }: Props): React.ReactElement {
@@ -151,6 +155,7 @@ export function AntragGroupCard({
               key={tv.aktenzeichen}
               tv={tv}
               showLine={isMultiTv}
+              showMa={showMa}
               selected={selectedAktenzeichen === tv.aktenzeichen}
               onClick={() => onOpenAntrag(tv.aktenzeichen)}
               narrow={narrow}
@@ -168,12 +173,14 @@ interface TvRowProps {
    *  Die 20px-Einrueckung wird *immer* angewendet, damit Einzelantrag und
    *  Verbund-TV horizontal an derselben Position starten. */
   showLine: boolean;
+  /** „alle"-Modus → MA-Kürzel (tib_kuerz) vor dem Status-Badge anzeigen. */
+  showMa: boolean;
   selected: boolean;
   onClick: () => void;
   narrow: boolean;
 }
 
-function TvRow({ tv, showLine, selected, onClick, narrow }: TvRowProps): React.ReactElement {
+function TvRow({ tv, showLine, showMa, selected, onClick, narrow }: TvRowProps): React.ReactElement {
   const antragsteller = strOrNull(tv.antragsteller);
   const titel = strOrNull(tv.titel) ?? tv.aktenzeichen;
   const status = strOrNull(tv.status) ?? '';
@@ -218,6 +225,7 @@ function TvRow({ tv, showLine, selected, onClick, narrow }: TvRowProps): React.R
             </span>
           ) : null}
           <span className="flex-1" />
+          {showMa ? <MaKuerzelBadge kuerzel={tv.tib_kuerz} /> : null}
           {status ? (
             <Badge variant={getStatusVariant(status)} className="min-w-[110px] justify-center whitespace-nowrap shrink-0">
               {getStatusLabel(status)}

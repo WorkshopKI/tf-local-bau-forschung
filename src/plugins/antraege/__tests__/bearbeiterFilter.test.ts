@@ -4,6 +4,8 @@ import {
   parseBearbeiterFilter,
   antragMatchesBearbeiter,
   applyBearbeiterFilter,
+  applyInaktiveExclusion,
+  isAlleMode,
   hasAnyKuerzelData,
 } from '../bearbeiterFilter';
 
@@ -250,5 +252,66 @@ describe('hasAnyKuerzelData', () => {
 
   it('detects mixed-case property keys', () => {
     expect(hasAnyKuerzelData([makeAntrag({ Tib_Kuerz: 'X' })], false)).toBe(true);
+  });
+});
+
+describe('isAlleMode', () => {
+  it('true for empty / whitespace / undefined', () => {
+    expect(isAlleMode(undefined)).toBe(true);
+    expect(isAlleMode('')).toBe(true);
+    expect(isAlleMode('   ')).toBe(true);
+  });
+
+  it('true for "alle" (case-insensitive)', () => {
+    expect(isAlleMode('alle')).toBe(true);
+    expect(isAlleMode('ALLE')).toBe(true);
+    expect(isAlleMode('  Alle ')).toBe(true);
+  });
+
+  it('false for a concrete Kürzel or Vertretungs-Liste', () => {
+    expect(isAlleMode('MUE')).toBe(false);
+    expect(isAlleMode('MUE,SCH')).toBe(false);
+  });
+});
+
+describe('applyInaktiveExclusion', () => {
+  const list: AntragListItem[] = [
+    makeAntrag({ aktenzeichen: '1', tib_kuerz: 'MUE' }), // aktiv
+    makeAntrag({ aktenzeichen: '2', tib_kuerz: 'EXM' }), // inaktiv
+    makeAntrag({ aktenzeichen: '3' }),                   // kein tib_kuerz
+  ];
+  const inaktiv: ReadonlySet<string> = new Set(['EXM']);
+
+  it('blendet Anträge inaktiver MAs im „alle"-Modus aus', () => {
+    const result = applyInaktiveExclusion(list, false, inaktiv, false);
+    expect(result.map(a => a.aktenzeichen)).toEqual(['1', '3']);
+  });
+
+  it('lässt alles durch, wenn Inaktive eingeblendet werden', () => {
+    expect(applyInaktiveExclusion(list, false, inaktiv, true)).toHaveLength(3);
+  });
+
+  it('lässt alles durch, wenn ein Kürzel-Filter aktiv ist (per-MA-Modus)', () => {
+    expect(applyInaktiveExclusion(list, true, inaktiv, false)).toHaveLength(3);
+  });
+
+  it('No-op bei leerer Inaktiv-Menge (z.B. außerhalb pl/dev)', () => {
+    expect(applyInaktiveExclusion(list, false, new Set(), false)).toHaveLength(3);
+  });
+
+  it('blendet einen Antrag ohne tib_kuerz nicht aus', () => {
+    expect(applyInaktiveExclusion([makeAntrag({ aktenzeichen: '3' })], false, inaktiv, false)).toHaveLength(1);
+  });
+
+  it('blendet einen aktiven MA nicht aus', () => {
+    expect(applyInaktiveExclusion([makeAntrag({ aktenzeichen: '1', tib_kuerz: 'MUE' })], false, inaktiv, false)).toHaveLength(1);
+  });
+
+  it('matcht trotz NFD-vs-NFC-Unterschied im tib_kuerz', () => {
+    const nfc = 'THÜ';           // NFC: TH + Ü (komponiert)
+    const nfd = 'THÜ';     // NFD: TH + U + combining diaeresis
+    const setNfc: ReadonlySet<string> = new Set([nfc]);
+    const antraege = [makeAntrag({ aktenzeichen: 'x', tib_kuerz: nfd })];
+    expect(applyInaktiveExclusion(antraege, false, setNfc, false)).toHaveLength(0);
   });
 });
