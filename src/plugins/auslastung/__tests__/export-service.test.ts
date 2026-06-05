@@ -214,6 +214,19 @@ describe('buildWorkbook', () => {
     expect(sheet['E2']?.v).toBe('MA01 · 90% · 10 TVs');    // zugewiesener MA (90h / 9 = 10 TVs frei)
     expect(sheet['G2']?.v).toBe('MA02 · 80% · 5 TVs');     // Option 1
   });
+
+  it('mappt den Status-Rohwert auf UI-Wording (freigegeben → zugewiesen, selbst → Übernahme-Wunsch)', () => {
+    const antraege = [
+      makeAntrag('A1', { verbund_titel: 'KI-Projekt', titel: 'TV1' }),   // freigegeben
+      makeAntrag('A2', { verbund_titel: 'Lasertech', titel: 'TV2' }),    // selbst
+    ];
+    const rows = buildExportRows({ data: makeData(), antraege });
+    const wb = buildWorkbook(rows, '2026-Q2');
+    const sheet = wb.Sheets[wb.SheetNames[0]!]!;
+    expect(sheet['F1']?.v).toBe('Status');
+    expect(sheet['F2']?.v).toBe('zugewiesen');        // A1 (freigegeben)
+    expect(sheet['F3']?.v).toBe('Übernahme-Wunsch');  // A2 (selbst)
+  });
 });
 
 describe('AnonymMap-Roundtrip', () => {

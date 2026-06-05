@@ -41,7 +41,7 @@ export function ZuweisungStreifen({
         style={{ background: 'var(--tf-success-bg)', color: 'var(--tf-success-text)' }}
       >
         <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: 'hsl(145,55%,42%)' }} aria-hidden />
-        freigegeben
+        zugewiesen
       </span>
       <span className="font-mono text-[12px] text-[var(--tf-text-tertiary)]">
         {stunden} h · Q {quartal}

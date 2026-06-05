@@ -228,7 +228,7 @@ export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook
       r.anzahlTV,
       // Zugewiesener MA im selben Format wie die Option-Spalten (Kürzel · Passung · TVs frei).
       formatMaCell(r.ma, r.score, r.restTVs),
-      r.status,
+      statusLabel(r.status),
       ...Array.from({ length: ALT_COUNT }, (_, i) => formatAlternative(r.alternativen[i])),
     ]),
   ];
@@ -245,6 +245,19 @@ export function buildWorkbook(rows: ExportRow[], quartal: string): XLSX.WorkBook
  *  Spalte (zugewiesener MA) und den „Option N"-Spalten (Alternativen). */
 function formatMaCell(name: string, kompetenz: number, tvsFrei: number): string {
   return `${name} · ${Math.round(kompetenz * 100)}% · ${tvsFrei} TVs`;
+}
+
+/** Status-Rohwert → benutzerfreundliches Wording (konsistent mit der UI: der
+ *  Filter-Chip + der Zuweisungs-Streifen nennen den freigegebenen Zustand
+ *  „zugewiesen", den Selbsteintrag „Übernahme-Wunsch"). Die internen Werte
+ *  (`freigegeben`/`selbst`) bleiben im Datenmodell — nur die Export-Anzeige
+ *  wird übersetzt. */
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'freigegeben': return 'zugewiesen';
+    case 'selbst': return 'Übernahme-Wunsch';
+    default: return status; // 'vorgeschlagen' u.a. unverändert
+  }
 }
 
 /** Eine Option-Zelle: `Kuerzel · 87% · 21 TVs` (leer wenn kein Kandidat). */
