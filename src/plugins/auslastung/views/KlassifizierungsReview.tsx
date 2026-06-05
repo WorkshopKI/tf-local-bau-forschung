@@ -32,6 +32,7 @@ import {
 } from '../services/verbund-aggregation';
 import { getCachedVerbundEmbeddings } from '../services/verbund-embedding';
 import { ensureVerbundEmbeddings, type CorpusSyncResult } from '../services/corpus-share-sync';
+import { useAuslastungCorpusSignal } from '../services/corpus-signal';
 import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket, type Klassifizierung } from '../types';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
@@ -117,8 +118,18 @@ export function KlassifizierungsReview(): React.ReactElement {
   // Treibt den Hinweis-Banner, wenn lokal keine Themen-Vektoren vorhanden sind
   // UND keine kompatiblen auf dem Datenspeicher geladen werden konnten.
   const [corpusSync, setCorpusSync] = useState<CorpusSyncResult | null>(null);
+  // v2.29.1: Korpus-Signal — bumpt, wenn ein externer Pfad (Start-Autoload oder
+  // „Vom Datenspeicher laden"/„Corpus aufbauen") die Embeddings in die IDB
+  // schreibt, WÄHREND diese View schon gemountet ist. Ohne Reload würde der
+  // Effekt sonst nicht erneut laden (Guard unten) → leere Vorschläge bis Reload.
+  const corpusVersion = useAuslastungCorpusSignal(s => s.version);
+  const loadedVersionRef = useRef(verbundEmbeddings !== null ? corpusVersion : -1);
   useEffect(() => {
-    if (verbundEmbeddings !== null) return;
+    // Reload bei Cold-Mount (kein Cache) ODER wenn sich der Korpus seit dem
+    // letzten Load geändert hat (corpusVersion-Bump). Warm-Remount ohne Änderung
+    // wird übersprungen (kein Loading-Flash) — die Map kommt synchron aus dem
+    // Modul-Cache (Initializer oben).
+    if (verbundEmbeddings !== null && loadedVersionRef.current === corpusVersion) return;
     let cancelled = false;
     setEmbeddingsLoading(true);
     // Auf einem neuen Rechner ist der Verbund-Korpus lokal leer → ensureVerbund-
@@ -129,14 +140,15 @@ export function KlassifizierungsReview(): React.ReactElement {
         if (cancelled) return;
         setVerbundEmbeddings(map);
         setCorpusSync(result);
+        loadedVersionRef.current = corpusVersion;
       })
       .catch(err => { console.warn('[KlassifizierungsReview] Verbund-Embedding-Load fehlgeschlagen:', err); })
       .finally(() => { if (!cancelled) setEmbeddingsLoading(false); });
     return () => { cancelled = true; };
     // verbundEmbeddings darf NICHT in der Dep-Liste stehen — sonst feuert der
-    // Effekt nochmal nach erfolgreichem setState. Die Guard oben reicht.
+    // Effekt nochmal nach erfolgreichem setState. Guard + corpusVersion reichen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storage]);
+  }, [storage, corpusVersion]);
 
   // Unmount/Plugin-Wechsel: einen noch ausstehenden Debounce-Write (Pill-Toggle)
   // sofort schreiben, damit kein Edit verloren geht. flushPersist ist No-op,

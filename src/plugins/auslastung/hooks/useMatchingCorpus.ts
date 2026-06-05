@@ -15,12 +15,13 @@
  * kein Index-Rebuild. Parallele Aufrufe fuer denselben Stand teilen sich einen
  * laufenden Load (`inflightRef`).
  */
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Antrag } from '@/core/services/csv/types';
 import type { StorageService } from '@/core/services/storage';
 import { loadAllEmbeddings } from '@/core/services/embedding-corpus';
 import { buildAntraegeIndexForMatching } from '../services/embedding-matcher';
 import { ensureAntragCorpus } from '../services/corpus-share-sync';
+import { useAuslastungCorpusSignal } from '../services/corpus-signal';
 
 export interface MatchingCorpus {
   corpusEmbeddings: Map<string, number[]>;
@@ -37,6 +38,17 @@ export function useMatchingCorpus(
 ): () => Promise<MatchingCorpus> {
   const cacheRef = useRef<{ key: Antrag[]; value: MatchingCorpus } | null>(null);
   const inflightRef = useRef<{ key: Antrag[]; promise: Promise<MatchingCorpus> } | null>(null);
+
+  // v2.29.1: Korpus-Signal — wird der per-Antrag-Korpus extern in die IDB
+  // geschrieben (Start-Autoload / „Vom Datenspeicher laden"), ändert sich die
+  // `antraege`-Referenz NICHT → der Cache-Key bliebe gleich und `loadCorpus`
+  // lieferte den (leeren) Stand von vor dem Download weiter, bis zum Browser-
+  // Reload. Bei jedem Bump den Cache verwerfen → nächster `loadCorpus` liest frisch.
+  const corpusVersion = useAuslastungCorpusSignal(s => s.version);
+  useEffect(() => {
+    cacheRef.current = null;
+    inflightRef.current = null;
+  }, [corpusVersion]);
 
   return useCallback(async (): Promise<MatchingCorpus> => {
     if (cacheRef.current && cacheRef.current.key === antraege) {

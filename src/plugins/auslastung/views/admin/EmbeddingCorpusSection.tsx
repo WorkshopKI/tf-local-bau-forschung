@@ -32,6 +32,7 @@ import {
   invalidateVerbundEmbeddingsCache,
 } from '../../services/verbund-embedding';
 import { uploadVerbundCorpusToShare, ensureVerbundCorpus } from '../../services/corpus-share-sync';
+import { bumpAuslastungCorpusSignal } from '../../services/corpus-signal';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -218,6 +219,10 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       // ab hier `mirrorUploading` ("Lade Korpus … hoch"), Header fällt auf den
       // (eben refreshten) Cache-Stand zurück.
       setPhaseProgress(null);
+      // v2.29.1: nach dem lokalen Build die Konsumenten-Views (Klassifizierung/
+      // Matching) re-lesen lassen — sonst zeigen sie den leeren Vor-Build-Stand
+      // bis zum Browser-Reload (cold-start-store-refresh-Klasse).
+      bumpAuslastungCorpusSignal();
 
       // Auto-Upload auf den Daten-Share. Soft-fail — lokaler Build bleibt
       // erfolgreich, nur die Share-Sync hat ggf. nicht geklappt.
@@ -284,6 +289,9 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       const r = await downloadMirror(storage);
       const v = await ensureVerbundCorpus(storage);
       await refresh();
+      // v2.29.1: Konsumenten-Views (Klassifizierung/Matching) re-lesen lassen,
+      // ohne Browser-Reload (cold-start-store-refresh-Klasse).
+      bumpAuslastungCorpusSignal();
       if (!r || r.count === 0) {
         setError('Es wurden keine per-Antrag-Vektoren vom Datenspeicher geladen — Manifest/Bin fehlt oder ist leer.');
       } else if (v !== 'downloaded') {

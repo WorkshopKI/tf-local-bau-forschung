@@ -30,6 +30,7 @@ import { countEmbeddings, checkCompat } from '@/core/services/embedding-corpus';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useEmbeddingCorpusMirror } from '@/core/hooks/useEmbeddingCorpusMirror';
 import { ensureVerbundCorpus } from '@/plugins/auslastung/services/corpus-share-sync';
+import { bumpAuslastungCorpusSignal } from '@/plugins/auslastung/services/corpus-signal';
 
 export function useAuslastungCorpusAutoload(): void {
   const storage = useStorage();
@@ -37,28 +38,43 @@ export function useAuslastungCorpusAutoload(): void {
   const attemptedRef = useRef(false);
 
   const run = useCallback(async () => {
+    let changed = false;
+
     // 1) Verbund-Korpus (Klassifizierung) — eigene Guards (Count + Inflight),
     //    kein Hash, keine Antraege noetig. Unabhaengig vom per-Antrag-Korpus.
-    void ensureVerbundCorpus(storage).catch(() => undefined);
+    try {
+      if ((await ensureVerbundCorpus(storage)) === 'downloaded') changed = true;
+    } catch { /* best-effort */ }
 
     // 2) per-Antrag-Korpus ("Themen-Vektoren") — nur wenn lokal leer
     //    (Cold-Start-Schutz: einen frisch gebauten lokalen Korpus nicht clobbern).
     try {
-      if ((await countEmbeddings(storage.idb)) > 0) return;
-      await useEmbeddingCorpusMirror.getState().loadManifest(storage);
-      const manifest = useEmbeddingCorpusMirror.getState().manifest;
-      if (!manifest) return; // Share hat (noch) keinen Korpus
-      const id = await getActiveModelId(storage.idb);
-      const dim = getModelById(id).dimensions;
-      // Modell-Bruch → inkompatible Vektoren nicht laden (Pitfall #19), Rebuild noetig.
-      if (checkCompat(manifest, id, dim).kind !== 'compatible') return;
-      // Bewusst OHNE aktenzeichenSetHash-Gate (User-Wahl v2.29): vorhandenen
-      // Share-Korpus laden, auch wenn er den lokalen Stand nicht exakt abdeckt —
-      // identisch zum manuellen Button "Vom Datenspeicher laden".
-      await useEmbeddingCorpusMirror.getState().downloadAndApply(storage);
+      if ((await countEmbeddings(storage.idb)) === 0) {
+        await useEmbeddingCorpusMirror.getState().loadManifest(storage);
+        const manifest = useEmbeddingCorpusMirror.getState().manifest;
+        if (manifest) {
+          const id = await getActiveModelId(storage.idb);
+          const dim = getModelById(id).dimensions;
+          // Modell-Bruch → inkompatible Vektoren nicht laden (Pitfall #19), Rebuild noetig.
+          if (checkCompat(manifest, id, dim).kind === 'compatible') {
+            // Bewusst OHNE aktenzeichenSetHash-Gate (User-Wahl v2.29): vorhandenen
+            // Share-Korpus laden, auch wenn er den lokalen Stand nicht exakt abdeckt —
+            // identisch zum manuellen Button "Vom Datenspeicher laden".
+            const r = await useEmbeddingCorpusMirror.getState().downloadAndApply(storage);
+            if (r && r.count > 0) changed = true;
+          }
+        }
+      }
     } catch (err) {
       console.warn('[corpus-autoload] Start-Download fehlgeschlagen:', err);
     }
+
+    // v2.29.1: Konsumenten (Klassifizierung/Matching) re-lesen lassen, falls der
+    // Download lief, WÄHREND das Auslastungs-Modul bereits offen ist — sonst
+    // bleiben sie auf leerem Mount-Stand bis zum Browser-Reload (cold-start-
+    // store-refresh-Klasse). Im Normalfall (Autoload auf Home, vor Navigation)
+    // ist noch kein Konsument gemountet → harmloser No-Op.
+    if (changed) bumpAuslastungCorpusSignal();
   }, [storage]);
 
   useEffect(() => {
