@@ -135,6 +135,25 @@ export function normLevelForUeber(matrix: KompetenzMatrix | undefined, ueber: st
 }
 
 /**
+ * Additiver Kompetenz-Score (0..1) einer Überkategorie: höchstes Level / 3
+ * (Experte (3) → 1.0, Grundkenntnis (1) → 0.33). Liefert `undefined`, wenn die
+ * Matrix für diese Überkat. KEINE Zelle hat — damit „keine Bewertung" im
+ * additiven 50/50-Blend (v2.31) NICHT als Signal (1.0) zählt, anders als
+ * `normLevelForUeber` (das für den multiplikativen Aspekt-Bonus neutral-1.0
+ * zurückgibt).
+ */
+export function matrixScoreForUeber(
+  matrix: KompetenzMatrix | undefined,
+  ueber: string,
+): number | undefined {
+  const cells = matrix?.[ueber as UeberkategorieId];
+  if (!cells) return undefined;
+  let max = 0;
+  for (const lvl of Object.values(cells)) if (lvl > max) max = lvl;
+  return max > 0 ? max / 3 : undefined;
+}
+
+/**
  * Level-gewichtete Unterkategorie-Tokens für den BM25-Profil-Doc: jedes
  * Unterkat.-Label wird `level`-fach eingefügt (Level 3 ⇒ 3×). Dadurch gewichtet
  * die BM25-Termfrequenz Experten-Kompetenzen höher. Leere Matrix → [].

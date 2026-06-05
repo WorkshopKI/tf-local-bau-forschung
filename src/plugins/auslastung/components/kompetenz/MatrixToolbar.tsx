@@ -1,18 +1,19 @@
 /**
- * MatrixToolbar (v2.16) — Lead + Aktionen über der Matrix.
+ * MatrixToolbar (v2.31) — Lead + Aktionen über der Matrix.
  *
  * Links die „Kompetenz-Vorbelegung"-Überschrift + Kurzbeschreibung, rechts
- * [XLSX hochladen] (öffnet den Dialog im View) + [Speichern] (committet den
- * geteilten Draft). Speichern + Dirty-Count + „✓ Gespeichert" lesen das
- * gemeinsame Modell, damit Zell-Edits und Toolbar synchron sind.
+ * [XLSX hochladen] (öffnet den Dialog im View) + Auto-Save-Status. Edits werden
+ * automatisch auf den Daten-Share geschrieben (kein Pflicht-Klick mehr); der
+ * Button „Jetzt speichern" erzwingt den sofortigen Commit. Status + Fehler lesen
+ * das gemeinsame Modell, damit Zell-Edits und Toolbar synchron sind.
  */
-import { Upload, Check, Info } from 'lucide-react';
+import { Upload, Check, Info, Loader2, AlertTriangle } from 'lucide-react';
 import type { KompetenzMatrixModel } from '../../hooks/useKompetenzMatrixModel';
 
 const INFO_TEXT =
   'Kompetenz-Level (1–3) je Unterkategorie, Antragstyp-Kontingent und Abschlag pro MA — als XLSX '
-  + 'hochladen oder (im Bearbeiten-Modus) direkt in der Tabelle pflegen. Haupt-/Nebenkategorie wird '
-  + 'live abgeleitet.';
+  + 'hochladen oder (im Bearbeiten-Modus) direkt in der Tabelle pflegen. Änderungen werden automatisch '
+  + 'gespeichert; Haupt-/Nebenkategorie wird live abgeleitet.';
 
 interface Props {
   model: KompetenzMatrixModel;
@@ -20,7 +21,7 @@ interface Props {
 }
 
 export function MatrixToolbar({ model, onOpenUpload }: Props): React.ReactElement {
-  const { save, dirtyCount, justSaved } = model;
+  const { saving, dirtyCount, justSaved, saveError, flushNow, clearSaveError } = model;
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="flex items-center gap-1.5">
@@ -37,14 +38,26 @@ export function MatrixToolbar({ model, onOpenUpload }: Props): React.ReactElemen
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        {justSaved && (
+        {saveError ? (
+          <button
+            type="button"
+            onClick={clearSaveError}
+            title={saveError}
+            className="flex items-center gap-1 text-[11.5px] text-[var(--tf-danger-text)] cursor-pointer max-w-[280px] truncate"
+          >
+            <AlertTriangle size={13} /> Nicht gespeichert
+          </button>
+        ) : saving ? (
+          <span className="flex items-center gap-1 text-[11.5px] text-[var(--tf-text-secondary)]">
+            <Loader2 size={13} className="animate-spin" /> Speichert…
+          </span>
+        ) : dirtyCount > 0 ? (
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">Auto-Save…</span>
+        ) : justSaved ? (
           <span className="flex items-center gap-1 text-[11.5px] text-[var(--tf-success-text)]">
             <Check size={13} /> Gespeichert
           </span>
-        )}
-        {dirtyCount > 0 && !justSaved && (
-          <span className="text-[11.5px] text-[var(--tf-warning-text)]">{dirtyCount} ungespeichert</span>
-        )}
+        ) : null}
         <button
           type="button"
           onClick={onOpenUpload}
@@ -55,12 +68,12 @@ export function MatrixToolbar({ model, onOpenUpload }: Props): React.ReactElemen
         </button>
         <button
           type="button"
-          onClick={() => save.run()}
-          disabled={save.busy || dirtyCount === 0}
+          onClick={flushNow}
+          disabled={saving || dirtyCount === 0}
           className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-40"
           style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
         >
-          {save.busy ? 'Speichere…' : 'Speichern'}
+          Jetzt speichern
         </button>
       </div>
     </div>

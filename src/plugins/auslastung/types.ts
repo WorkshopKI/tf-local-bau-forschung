@@ -91,7 +91,15 @@ export interface Klassifizierung {
 
 /** Globale Auslastungs-Config (PL-gepflegt). */
 export interface AuslastungConfig {
+  /** Standard-Stunden pro Teilvorhaben (Fallback). Wird benutzt, wenn fuer den
+   *  Antragstyp kein eigener Wert in `stundenProTVProTyp` gepflegt ist, sowie in
+   *  allen typ-uebergreifenden Aggregat-Anzeigen ("X TVs frei"). */
   stundenProTV: number;
+  /** Antragstyp-spezifische Stunden pro Teilvorhaben (FuE/DS/DL/NW). Ueber-
+   *  schreibt pro Typ den `stundenProTV`-Standard. Fehlender/0-Eintrag → Standard
+   *  greift (siehe `stundenProTVFor`). Optional/leer → voll abwaertskompatibel
+   *  (alle Typen nutzen den Standard wie vor v2.31). */
+  stundenProTVProTyp?: Partial<Record<AntragstypBucket, number>>;
   aktuellesQuartal: string;          // "2026-Q2"
   gewichtungKompetenz: number;       // 0..1
   gewichtungBalance: number;         // 0..1, in Praxis 1 - gewichtungKompetenz
@@ -131,9 +139,16 @@ export interface AuslastungConfig {
   aspektBonus: number;
 
   // ─── v2.15: PL-Kompetenz-Vorbelegung ────────────────────────────────
-  /** Gewicht des Kompetenz-Levels (0..1) im Matcher: skaliert den Kompetenz-
-   *  Score mit `(1-w) + w * normLevel(Primärkat.)`. 0 = Level ignoriert (altes
-   *  Verhalten), 1 = voll. Default 0.3. */
+  /** v2.31: Gewicht (0..1) der PL-Kompetenztabelle im 50/50-Blend mit der
+   *  Historie. Der Kompetenz-Score ist `(1-w)·Historie + w·Tabellen-Level` —
+   *  bei w=0.5 zählen beide gleich, die Tabelle kann einen MA also ANHEBEN
+   *  (nicht nur dämpfen). Ohne Tabellen-Eintrag für die Primärkat. zählt nur
+   *  die Historie. 0 = Tabelle ignoriert (nur Historie), 1 = nur Tabelle.
+   *  Default 0.5. */
+  kompetenzMatrixMatchGewicht?: number;
+  /** @deprecated v2.31 — ersetzt durch `kompetenzMatrixMatchGewicht` (additiver
+   *  50/50-Blend statt multiplikativer Dämpfer). Feld bleibt für die Rückwärts-
+   *  Last bestehender `auslastung.json`, wird von der Engine nicht mehr gelesen. */
   kompetenzLevelGewicht: number;
   /** Gewicht des Antragstyp-Kontingents (0..1) im Matcher: skaliert den
    *  finalScore mit `(1-w) + w * kontingentScore`. MAs mit erschöpftem Typ-
@@ -145,14 +160,12 @@ export interface AuslastungConfig {
    *  MAs bleiben im Notfall sichtbar). 0 = aus (altes rein additives Verhalten),
    *  1 = maximal. Default 0.6. */
   auslastungMalus?: number;
-  /** Schwelle für „wenig historische Anträge": MAs mit weniger als so vielen
-   *  bearbeiteten Anträgen bekommen — sofern eine Kompetenz-Matrix vorliegt —
-   *  ein erhöhtes Level-Gewicht (`kompetenzMatrixSparseGewicht`), weil ihr BM25-/
-   *  Embedding-Signal dünn ist. Default 5. */
+  /** @deprecated v2.31 — der Wenig-Historie-Boost ist obsolet, seit die Tabelle
+   *  additiv-parallel zur Historie zählt (`kompetenzMatrixMatchGewicht`). Feld
+   *  bleibt für die Rückwärts-Last bestehender `auslastung.json`. */
   kompetenzMatrixSparseSchwelle?: number;
-  /** Erhöhtes `kompetenzLevelGewicht` (0..1) für MAs unter der Sparse-Schwelle
-   *  mit Kompetenz-Matrix. Lässt die PL-Kompetenzbewertung dominieren statt der
-   *  dünnen Historie. Default 0.7. */
+  /** @deprecated v2.31 — siehe `kompetenzMatrixSparseSchwelle`. Wird von der
+   *  Engine nicht mehr gelesen. */
   kompetenzMatrixSparseGewicht?: number;
   /** Token-Multiplikator für PL-gesetzte manuelle Technologien
    *  (`technologienQuelle === 'pl'`) im BM25-Profil-Doc: jedes Tag wird so oft
@@ -186,6 +199,22 @@ export interface AuslastungConfig {
 export type AntragstypBucket = 'FuE' | 'DS' | 'DL' | 'NW';
 
 export const ALL_ANTRAGSTYP_BUCKETS: AntragstypBucket[] = ['FuE', 'DS', 'DL', 'NW'];
+
+/**
+ * Effektive Stunden pro Teilvorhaben fuer einen Antragstyp (v2.31). Liefert den
+ * typ-spezifischen Wert aus `config.stundenProTVProTyp[bucket]`, faellt sonst auf
+ * den globalen `config.stundenProTV`-Standard zurueck (und ultimativ auf 9). Ohne
+ * `bucket` (typ-uebergreifende Aggregat-Anzeigen) wird direkt der Standard
+ * benutzt. Pure — zentraler Aufloeser fuer alle Kapazitaets-/Matching-Pfade.
+ */
+export function stundenProTVFor(
+  config: Pick<AuslastungConfig, 'stundenProTV' | 'stundenProTVProTyp'>,
+  bucket?: AntragstypBucket | null,
+): number {
+  const perTyp = bucket ? config.stundenProTVProTyp?.[bucket] : undefined;
+  const v = typeof perTyp === 'number' && perTyp > 0 ? perTyp : config.stundenProTV;
+  return typeof v === 'number' && v > 0 ? v : 9;
+}
 
 /**
  * v2.6: Selbst-Profil eines MA, geschrieben in den persoenlichen Ordner
@@ -608,6 +637,7 @@ export const DEFAULT_ZUGANG_EMAIL_VORLAGE =
 
 export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   stundenProTV: 9,
+  stundenProTVProTyp: {},
   aktuellesQuartal: deriveCurrentQuartal(),
   gewichtungKompetenz: 0.7,
   gewichtungBalance: 0.3,
@@ -621,8 +651,9 @@ export const DEFAULT_AUSLASTUNG_CONFIG: AuslastungConfig = {
   durchschnittTVproAntrag: 2,
   quartalsEndeBonusTage: 21,
   aspektBonus: 0.10,
-  // v2.15: PL-Kompetenz-Vorbelegung
-  kompetenzLevelGewicht: 0.3,
+  // v2.15: PL-Kompetenz-Vorbelegung; v2.31: 50/50-Blend Historie ↔ Tabelle
+  kompetenzMatrixMatchGewicht: 0.5,
+  kompetenzLevelGewicht: 0.3, // @deprecated v2.31 (siehe kompetenzMatrixMatchGewicht)
   kontingentGewicht: 0.3,
   // Multiplikativer Kapazitäts-Malus (ausgelastete MAs deutlich abwerten)
   auslastungMalus: 0.6,

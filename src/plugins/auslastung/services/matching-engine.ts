@@ -28,6 +28,7 @@ import {
   CANONICAL_VERBUND_TITEL,
   FIELD_PROJEKTBESCHREIBUNG,
   FIELD_AST_TYP,
+  stundenProTVFor,
   type AstTyp,
 } from '../types';
 import { runBm25Matching, type Bm25Result } from './bm25-matcher';
@@ -35,7 +36,7 @@ import { runEmbeddingMatching, type EmbeddingMatchResult } from './embedding-mat
 import { kapazitaetsScore, tageImQuartal } from './kapazitaet';
 import { effektiveJahresStunden } from './kapazitaet-pro-typ';
 import { matchesAntragstyp } from './antragstyp-praeferenz';
-import { normLevelForUeber } from './kompetenz-derivation';
+import { normLevelForUeber, matrixScoreForUeber } from './kompetenz-derivation';
 import { computeKontingentVerbrauch, kontingentInfoFor, verbrauchFromAuslastung } from './kontingent';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import type { AnonymMap } from './anonym-map';
@@ -60,10 +61,10 @@ export interface MatchInput {
   /** Pro MA: AST-Name (normalisiert) → Count. Optional; wenn nicht gesetzt,
    *  laeuft das Matching ohne AST-Boost (Backwards-Kompat fuer Tests). */
   historischeAstByAnon?: Map<string, Map<string, number>>;
-  /** Pro MA: Gesamtzahl bearbeiteter historischer Antraege. Optional; treibt den
-   *  „wenig Historie → Kompetenz-Matrix staerker gewichten"-Boost. Fehlt die ganze
-   *  Map (Tests/Backwards-Kompat), greift der Boost NICHT (altes Verhalten). Ist
-   *  sie gesetzt, gilt ein fehlender MA-Eintrag als 0 Antraege. */
+  /** @deprecated v2.31 — der „wenig Historie → Kompetenz-Matrix staerker
+   *  gewichten"-Boost ist entfallen, seit die Tabelle additiv-parallel zur
+   *  Historie zaehlt (50/50-Blend, `kompetenzMatrixMatchGewicht`). Das Feld wird
+   *  von der Engine nicht mehr gelesen; Aufrufer duerfen es weiter mitgeben. */
   historischeAntraegeCountByAnon?: Map<string, number>;
   anonymMap: AnonymMap;
   /** Optional Stage-2: wenn null/leer, laeuft nur BM25. */
@@ -148,9 +149,7 @@ export function runMatching(input: MatchInput): MatchResult[] {
   }
 
   // 5)-7) Score + weicher Filter + Balance pro MA
-  const stundenProTV = config.stundenProTV ?? 9;
   const anzahlTV = input.anzahlTV ?? 1;
-  const benoetigt = stundenProTV * anzahlTV;
   // v2.4: Wenn der Aufrufer einen aggregierten Auslastungs-Index mitgibt,
   // nutzen wir den (fest + pending) — sonst Fallback auf Store-only-Logik.
   const quartalsVerbrauchByAnon = input.auslastungByAnon
@@ -159,18 +158,21 @@ export function runMatching(input: MatchInput): MatchResult[] {
   const restTageImQuartal = input.tageImQuartal ?? tageImQuartal(config.aktuellesQuartal);
   const aspektBonusPerMatch = config.aspektBonus ?? 0.10;
   const quartalsEndeBonusTage = config.quartalsEndeBonusTage ?? 21;
-  // v2.15: Kompetenz-Level-Faktor + Antragstyp-Kontingent.
-  const kompetenzLevelGewicht = config.kompetenzLevelGewicht ?? 0.3;
+  // v2.31: Kompetenz-Tabelle wird GLEICH gewichtet wie die Historie (50/50-Blend
+  // in der Score-Berechnung unten). Ersetzt den alten multiplikativen Level-Daempfer
+  // (kompetenzLevelGewicht) + den Wenig-Historie-Boost (kompetenzMatrixSparse*),
+  // der einen ≈0-Historie-Score multiplikativ nicht anheben konnte.
+  const kompetenzMatrixMatchGewicht = config.kompetenzMatrixMatchGewicht ?? 0.5;
   const kontingentGewicht = config.kontingentGewicht ?? 0.3;
   // Multiplikativer Kapazitäts-Malus: zieht ausgelastete MAs deutlich nach unten
   // (nicht nur additiv im gewichtungBalance-Term). 0 = aus (altes Verhalten).
   const auslastungMalus = config.auslastungMalus ?? 0.6;
-  // Wenig-Historie-Boost: MAs unter der Schwelle mit Kompetenz-Matrix bekommen
-  // ein erhoehtes Level-Gewicht (PL-Bewertung dominiert statt duenner Historie).
-  const sparseSchwelle = config.kompetenzMatrixSparseSchwelle ?? 5;
-  const sparseGewicht = config.kompetenzMatrixSparseGewicht ?? 0.7;
-  const histCountByAnon = input.historischeAntraegeCountByAnon;
   const antragBucket = getKategorieLabel((antrag as Record<string, unknown>).vb_phase);
+  // v2.31: Antragstyp-spezifische Stunden pro TV (Bucket bekannt → per-Typ-Faktor,
+  // z.B. DS 4,5 h statt 9 h). Ohne Override → Standard. Speist Stundenbedarf
+  // (kapazitaetsScore) UND die Pro-Typ-Kontingent-Deckelung.
+  const stundenProTVAntrag = stundenProTVFor(config, antragBucket);
+  const benoetigt = stundenProTVAntrag * anzahlTV;
   // v2.16: Verbrauch je Typ aus fest+pending (auslastungByAnon) — derselbe
   // Index wie das per-Typ-Kapazitätsmodell. Fallback (Tests/kein Index): nur
   // Store-Zuweisungen via computeKontingentVerbrauch.
@@ -213,25 +215,26 @@ export function runMatching(input: MatchInput): MatchResult[] {
       aspektBonusValue += aspektBonusPerMatch * normLevelForUeber(ma.kompetenzMatrix, a);
     }
 
-    // v2.15: Kompetenz-Level-Faktor auf die Primaerkategorie. Experte (Level 3)
-    // → Faktor 1.0, Grundkenntnis → gedaempft; ohne Matrix → 1.0 (unveraendert).
-    const primaerFaktor = normLevelForUeber(ma.kompetenzMatrix, primaer);
-    // Wenig-Historie-Boost: MAs mit < Schwelle hist. Antraegen UND vorhandener
-    // Matrix bekommen ein erhoehtes Level-Gewicht — die PL-Kompetenzbewertung
-    // soll dominieren, weil BM25/Embedding bei duenner Historie unzuverlaessig
-    // sind. Ohne Count-Map (Tests) oder ohne Matrix bleibt es beim Normalgewicht.
-    const sparse = histCountByAnon != null
-      && (histCountByAnon.get(anonId) ?? 0) < sparseSchwelle;
-    const wEff = sparse && ma.kompetenzMatrix ? sparseGewicht : kompetenzLevelGewicht;
-    const baseKompetenz = (alpha * bm25 + (1 - alpha) * emb + astBoost)
-      * ((1 - wEff) + wEff * primaerFaktor);
+    // v2.31: Historie-Signal (BM25 + Embedding aus aehnlichen Alt-Antraegen)
+    // und PL-Kompetenztabelle werden GLEICH gewichtet (50/50-Blend). Die Tabelle
+    // BOOSTET einen MA additiv-parallel (statt nur multiplikativ zu daempfen wie
+    // bis v2.15) — ein MA mit wenig aehnlicher Historie aber eingetragener
+    // Kompetenz in der Primaerkategorie rutscht so nach oben. Ohne Matrix-Eintrag
+    // fuer die Primaerkat. (matrixScore === undefined) zaehlt nur die Historie →
+    // keine Regression fuer MAs ohne Tabellen-Bewertung.
+    const histScore = clamp01(alpha * bm25 + (1 - alpha) * emb + astBoost);
+    const matrixScore = matrixScoreForUeber(ma.kompetenzMatrix, primaer);
+    const baseKompetenz = matrixScore === undefined
+      ? histScore
+      : (1 - kompetenzMatrixMatchGewicht) * histScore
+        + kompetenzMatrixMatchGewicht * matrixScore;
     const kompetenz = clamp01(baseKompetenz + aspektBonusValue);
     const balance = quartalsKap > 0 ? Math.max(0, rest) / quartalsKap : 0;
     const kapScore = kapazitaetsScore(rest, benoetigt, restTageImQuartal, quartalsEndeBonusTage);
 
     // v2.15: Antragstyp-Kontingent — weicher Malus bei erschoepftem Pro-Typ-
     // Kontingent (kein harter Filter). Ohne Kontingent → Score 1.0.
-    const kInfo = kontingentInfoFor(ma, antragBucket, kontingentVerbrauch.get(anonId), stundenProTV);
+    const kInfo = kontingentInfoFor(ma, antragBucket, kontingentVerbrauch.get(anonId), stundenProTVAntrag);
 
     // Balance + KapScore werden gemeinsam in die `gewichtungBalance`-Komponente
     // eingewogen (je zur Haelfte). Behaelt das alte Verhalten bei voller

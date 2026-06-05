@@ -29,6 +29,7 @@ import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAutoCollectTeamProfiles } from '../hooks/useAutoCollectTeamProfiles';
 import { useReconcileZuweisungen } from '../hooks/useReconcileZuweisungen';
 import { useAuslastungCrossTabSync } from '../hooks/useAuslastungCrossTabSync';
+import { useAuslastungShareWatcher } from '../hooks/useAuslastungShareWatcher';
 import { useAntraegeCacheSnapshotRefresh } from '../hooks/useAntraegeCache';
 import { AuslastungIndexProvider } from '../hooks/useAuslastungIndex';
 import { ModulLoadingBanner } from '../components/ModulLoadingBanner';
@@ -65,6 +66,11 @@ export function AuslastungView(): React.ReactElement {
   // lädt frisch vom Share nach, sobald dieser Tab schreibt (verhindert Lost-
   // Updates bei geteilter IDB + Datei-Handle).
   useAuslastungCrossTabSync();
+
+  // v2.31: Share-Watcher — andere PL-Rechner (eigene IDB/Handle) sehen
+  // Kompetenz-/Kapazitäts-Edits live: pollt das lastModified von
+  // `_intern/auslastung.json` und lädt bei fremden Writes nach.
+  useAuslastungShareWatcher();
 
   // v2.26: nach einem CSV-Refresh (neue Snapshot-Version in der IDB) die
   // Anträge ohne App-Reload nachladen — Klassifizierung bleibt manuell.

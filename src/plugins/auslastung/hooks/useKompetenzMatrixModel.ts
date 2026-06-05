@@ -1,10 +1,16 @@
 /**
  * useKompetenzMatrixModel (v2.16) — geteilter State der Kompetenz-Matrix.
  *
- * EIN Modell, das Toolbar (Speichern + Dirty-Count) und Tabelle (Zell-Edits)
- * teilen — im View erzeugt, an beide durchgereicht. Hält den lokalen Draft pro
- * MA; „Speichern" committet alle geänderten Zeilen in EINEM Store-Batch
- * (`applyKompetenzMatrixBatch` → ein setState + ein persist, Pitfall #16/#20).
+ * EIN Modell, das Toolbar (Auto-Save-Status) und Tabelle (Zell-Edits) teilen —
+ * im View erzeugt, an beide durchgereicht. Hält den lokalen Draft pro MA.
+ *
+ * v2.31: Auto-Save. Jeder Zell-Edit startet einen Debounce (`AUTOSAVE_DEBOUNCE_MS`);
+ * nach kurzer Idle-Zeit werden alle geänderten Zeilen in EINEM Store-Batch
+ * committet (`applyKompetenzMatrixBatch` → ein setState + ein persist → direkter
+ * `atomicWrite` auf `_intern/auslastung.json`, Pitfall #16/#20). Kein „Speichern"-
+ * Klick mehr nötig — andere PLs sehen die Änderung über den Share-Watcher live.
+ * `flushNow()` (Button „Jetzt speichern") committet sofort; beim Unmount werden
+ * noch offene Drafts nachgeschrieben, damit nichts verloren geht.
  *
  * Reine View-States: Sortierung, Hover (für Reveal-Bar + CSS-Highlight),
  * Kapazitäten-Toggle (localStorage), Inaktive-Toggle, „✓ Gespeichert"-Flash.
@@ -12,10 +18,10 @@
  * Zeilen-Springen während des Tippens; nach dem Speichern sortiert sich die
  * Liste neu.
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { useAuslastungData } from './useAuslastungData';
+import { useAuslastungData, type KompetenzMatrixUpdate } from './useAuslastungData';
 import {
   type AntragstypBucket,
   type AnonymerMitarbeiter,
@@ -26,6 +32,10 @@ import type { UeberkategorieId } from '../services/default-labels';
 
 const KAP_HIDDEN_KEY = 'komp_kaphidden';
 const SAVED_FLASH_MS = 2600;
+/** v2.31: Auto-Save — Edits werden nach dieser Idle-Zeit automatisch auf den
+ *  Daten-Share geschrieben (kein „Speichern"-Klick mehr nötig). Coalesct rasche
+ *  Zell-Klicks zu einem Batch-Write (Pitfall #16/#20). */
+const AUTOSAVE_DEBOUNCE_MS = 800;
 
 export interface Draft {
   matrix: KompetenzMatrix;
@@ -53,9 +63,17 @@ export interface KompetenzMatrixModel {
   cycleCell: (anonId: string, ueber: UeberkategorieId, label: string) => void;
   setKontingent: (anonId: string, bucket: AntragstypBucket, raw: string) => void;
   setAbschlag: (anonId: string, raw: string) => void;
+  /** Anzahl Zeilen mit noch nicht committeten Edits (wird gleich auto-gespeichert). */
   dirtyCount: number;
-  save: ReturnType<typeof useAsyncAction>;
+  /** Läuft gerade ein Commit (Auto-Save oder Flush)? */
+  saving: boolean;
+  /** Sofort-Commit ausstehender Edits (Button „Jetzt speichern"). */
+  flushNow: () => void;
+  /** Kurzes „✓ Gespeichert"-Feedback nach erfolgreichem Commit. */
   justSaved: boolean;
+  /** Fehler des letzten Saves (z.B. fehlendes Schreibrecht) — sonst null. */
+  saveError: string | null;
+  clearSaveError: () => void;
   sort: SortState;
   cycleSort: (col: SortCol) => void;
   hover: HoverState;
@@ -87,6 +105,16 @@ export function maToDraft(ma: AnonymerMitarbeiter): Draft {
 
 function nextLevel(cur: KompetenzLevel | undefined): KompetenzLevel | undefined {
   return cur === undefined ? 1 : cur === 3 ? undefined : ((cur + 1) as KompetenzLevel);
+}
+
+/** Baut aus dem Draft-Snapshot die Store-Updates (eine Zeile je geändertem MA). */
+function buildKompetenzUpdates(snapshot: Record<string, Draft>): KompetenzMatrixUpdate[] {
+  return Object.entries(snapshot).map(([anonId, d]) => ({
+    anonId,
+    kompetenzMatrix: Object.keys(d.matrix).length > 0 ? d.matrix : undefined,
+    jahresKapazitaetProTyp: Object.keys(d.kontingent).length > 0 ? d.kontingent : undefined,
+    abschlagProzent: d.abschlag,
+  }));
 }
 
 /** Sortwert einer Zeile für eine Kapazitäts-Spalte; `undefined` = leer → ans Ende.
@@ -124,6 +152,12 @@ export function useKompetenzMatrixModel(storage: StorageService): KompetenzMatri
     try { return localStorage.getItem(KAP_HIDDEN_KEY) === '1'; } catch { return false; }
   });
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Auto-Save (v2.31): Debounce-Timer + stets aktuelle Drafts/Run-Referenz, damit
+  // der Timer-Callback den NEUESTEN Stand committet (nicht den Render-Closure).
+  const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+  const runRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const allSorted = useMemo(
     () => Object.values(mitarbeiter).sort((a, b) => a.anonId.localeCompare(b.anonId)),
@@ -140,12 +174,22 @@ export function useKompetenzMatrixModel(storage: StorageService): KompetenzMatri
     [drafts],
   );
 
+  // Auto-Save-Debounce (re)starten — coalesct rasche Zell-Klicks zu einem Write.
+  const scheduleAutoCommit = useCallback((): void => {
+    if (autoTimer.current) clearTimeout(autoTimer.current);
+    autoTimer.current = setTimeout(() => {
+      autoTimer.current = null;
+      void runRef.current();
+    }, AUTOSAVE_DEBOUNCE_MS);
+  }, []);
+
   const update = useCallback((anonId: string, mutate: (d: Draft) => Draft): void => {
     setDrafts(prev => {
       const base = prev[anonId] ?? maToDraft(mitarbeiter[anonId]!);
       return { ...prev, [anonId]: mutate(base) };
     });
-  }, [mitarbeiter]);
+    scheduleAutoCommit();
+  }, [mitarbeiter, scheduleAutoCommit]);
 
   const cycleCell = useCallback((anonId: string, ueber: UeberkategorieId, label: string): void => {
     update(anonId, cur => {
@@ -193,19 +237,47 @@ export function useKompetenzMatrixModel(storage: StorageService): KompetenzMatri
 
   const clearHover = useCallback(() => setHover(null), []);
 
+  // Commit: liest den NEUESTEN Draft-Stand (draftsRef), schreibt in EINEM Batch
+  // (ein setState + ein persist → atomicWrite, Pitfall #16/#20). Aufgerufen vom
+  // Auto-Save-Timer, von flushNow() und beim Unmount.
   const save = useAsyncAction(async () => {
-    const updates = Object.entries(drafts).map(([anonId, d]) => ({
-      anonId,
-      kompetenzMatrix: Object.keys(d.matrix).length > 0 ? d.matrix : undefined,
-      jahresKapazitaetProTyp: Object.keys(d.kontingent).length > 0 ? d.kontingent : undefined,
-      abschlagProzent: d.abschlag,
-    }));
+    const snapshot = draftsRef.current;
+    const updates = buildKompetenzUpdates(snapshot);
+    if (updates.length === 0) return;
     await applyBatch(storage, updates); // KEIN schema — gehört dem Import-Dialog
-    setDrafts({}); // erst nach Resolve clearen (nicht optimistisch, Plan-Risiko #7)
+    // Nur die committeten Drafts entfernen, deren Referenz unverändert ist —
+    // Edits, die WÄHREND des await getippt wurden, bleiben als Draft erhalten
+    // (nächster Auto-Commit schreibt sie nach). Verhindert verlorene Eingaben.
+    setDrafts(prev => {
+      const next: Record<string, Draft> = {};
+      for (const [anonId, d] of Object.entries(prev)) {
+        if (snapshot[anonId] !== d) next[anonId] = d;
+      }
+      return next;
+    });
     setJustSaved(true);
     if (savedTimer.current) clearTimeout(savedTimer.current);
     savedTimer.current = setTimeout(() => setJustSaved(false), SAVED_FLASH_MS);
   });
+  runRef.current = save.run;
+
+  // Sofort-Commit (Button „Jetzt speichern") — Debounce abbrechen + jetzt schreiben.
+  const flushNow = useCallback((): void => {
+    if (autoTimer.current) { clearTimeout(autoTimer.current); autoTimer.current = null; }
+    void runRef.current();
+  }, []);
+
+  // Unmount: ausstehende Drafts nachschreiben (sonst Verlust beim Wegnavigieren
+  // innerhalb des Debounce-Fensters). Fire-and-forget — der Store lebt global.
+  useEffect(() => () => {
+    if (autoTimer.current) { clearTimeout(autoTimer.current); autoTimer.current = null; }
+    if (savedTimer.current) { clearTimeout(savedTimer.current); savedTimer.current = null; }
+    const pending = buildKompetenzUpdates(draftsRef.current);
+    if (pending.length > 0) {
+      void applyBatch(storage, pending).catch(err =>
+        console.warn('[kompetenz-matrix] Auto-Save beim Unmount fehlgeschlagen:', err));
+    }
+  }, [storage, applyBatch]);
 
   return {
     rows,
@@ -215,8 +287,11 @@ export function useKompetenzMatrixModel(storage: StorageService): KompetenzMatri
     setKontingent,
     setAbschlag,
     dirtyCount: Object.keys(drafts).length,
-    save,
+    saving: save.busy,
+    flushNow,
     justSaved,
+    saveError: save.error,
+    clearSaveError: save.clearError,
     sort,
     cycleSort,
     hover,

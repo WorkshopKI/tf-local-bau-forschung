@@ -45,7 +45,7 @@ describe('v2.15: Kompetenz-Level-Gewichtung', () => {
     expect(e.finalScore).toBeGreaterThan(a.finalScore);
   });
 
-  it('MA ohne Matrix bleibt unverändert (Faktor 1.0 = altes Verhalten)', () => {
+  it('MA ohne Matrix: nur Historie zählt (kein Tabellen-Anteil)', () => {
     const ohne = makeMa('MA01', 'IT', { manuelleTechnologien: ['Robotik'] });
     const res = runMatching({
       antrag: makeAntrag('A1', { verbund_titel: 'Robotik' } as Partial<Antrag>),
@@ -61,65 +61,48 @@ describe('v2.15: Kompetenz-Level-Gewichtung', () => {
   });
 });
 
-describe('Wenig-Historie → Kompetenz-Matrix staerker gewichtet', () => {
-  const baseInput = (ma: AnonymerMitarbeiter) => ({
-    antrag: makeAntrag('A1', { verbund_titel: 'Robotik Vorhaben' } as Partial<Antrag>),
+describe('v2.31: Tabelle gleich gewichtet wie Historie (50/50-Blend, boostet wenig-Historie-MAs)', () => {
+  const baseInput = (mitarbeiter: Record<string, AnonymerMitarbeiter>, titel: string) => ({
+    antrag: makeAntrag('A1', { verbund_titel: titel } as Partial<Antrag>),
     primaerKategorie: 'IT',
     config: makeConfig(),
-    mitarbeiter: { [ma.anonId]: ma },
-    zuweisungen: [],
-    historischeDeskriptorenByAnon: new Map(),
+    mitarbeiter,
+    zuweisungen: [] as Zuweisung[],
+    historischeDeskriptorenByAnon: new Map<string, string[]>(),
     anonymMap: buildAnonymMapForTests([]),
   });
 
-  it('Anfaenger mit Matrix + wenig Historie wird staerker gedaempft als ohne Count-Map', () => {
-    const anfaenger = makeMa('MA01', 'IT', { kompetenzMatrix: { IT: { Robotik: 1 } } });
-    const ohneCount = runMatching(baseInput(anfaenger));
-    const sparse = runMatching({
-      ...baseInput(anfaenger),
-      historischeAntraegeCountByAnon: new Map([['MA01', 0]]),
-    });
-    // Sparse-Boost erhoeht wEff → Level-1-Primaerfaktor (0.33) daempft mehr.
-    expect(sparse[0]!.kompetenzScore).toBeLessThan(ohneCount[0]!.kompetenzScore);
+  it('Tabellen-Kompetenz boostet einen MA ohne passende Historie (Kern-Anforderung)', () => {
+    // Antrag-Thema matcht KEINEN Profil-Token → Historie ≈ 0. Der MA mit Matrix
+    // hat in der Primaerkategorie Level 3 (matrixScore 1.0) → der 50/50-Blend hebt
+    // ihn auf ~0.5; der MA ohne Matrix bleibt bei ~0 (nur Historie).
+    const mitMatrix = makeMa('MA01', 'IT', { kompetenzMatrix: { IT: { Robotik: 3 } } });
+    const ohneMatrix = makeMa('MA02', 'IT', {});
+    const res = runMatching(baseInput({ MA01: mitMatrix, MA02: ohneMatrix }, 'Voellig anderes Thema'));
+    const m1 = res.find(r => r.anonId === 'MA01')!;
+    const m2 = res.find(r => r.anonId === 'MA02')!;
+    expect(m1.kompetenzScore).toBeGreaterThan(m2.kompetenzScore);
+    expect(m1.kompetenzScore).toBeCloseTo(0.5, 5); // 0.5·Historie(0) + 0.5·Tabelle(1.0)
+    expect(m2.kompetenzScore).toBeCloseTo(0, 5);
   });
 
-  it('MA ueber der Schwelle (genug Historie) bleibt beim Normalgewicht', () => {
-    const anfaenger = makeMa('MA01', 'IT', { kompetenzMatrix: { IT: { Robotik: 1 } } });
-    const ohneCount = runMatching(baseInput(anfaenger));
-    const reich = runMatching({
-      ...baseInput(anfaenger),
-      historischeAntraegeCountByAnon: new Map([['MA01', 10]]),
-    });
-    expect(reich[0]!.kompetenzScore).toBeCloseTo(ohneCount[0]!.kompetenzScore, 10);
-  });
-
-  it('MA ohne Matrix: Sparse-Boost wirkungslos (primaerFaktor 1.0)', () => {
-    const ohne = makeMa('MA01', 'IT', { manuelleTechnologien: ['Robotik'] });
-    const ohneCount = runMatching(baseInput(ohne));
-    const sparse = runMatching({
-      ...baseInput(ohne),
-      historischeAntraegeCountByAnon: new Map([['MA01', 0]]),
-    });
-    expect(sparse[0]!.kompetenzScore).toBeCloseTo(ohneCount[0]!.kompetenzScore, 10);
-  });
-
-  it('Experte vs Anfaenger: Score-Gap unter Sparse-Boost groesser als bei reicher Historie', () => {
+  it('Level graduiert den Boost: Experte (3) über Anfaenger (1) auch ganz ohne Historie', () => {
     const expert = makeMa('MA01', 'IT', { kompetenzMatrix: { IT: { Robotik: 3 } } });
     const anfaenger = makeMa('MA02', 'IT', { kompetenzMatrix: { IT: { Robotik: 1 } } });
-    const base = {
-      antrag: makeAntrag('A1', { verbund_titel: 'Robotik Vorhaben' } as Partial<Antrag>),
-      primaerKategorie: 'IT',
-      config: makeConfig(),
-      mitarbeiter: { MA01: expert, MA02: anfaenger },
-      zuweisungen: [],
-      historischeDeskriptorenByAnon: new Map(),
-      anonymMap: buildAnonymMapForTests([]),
-    };
-    const reich = runMatching({ ...base, historischeAntraegeCountByAnon: new Map([['MA01', 10], ['MA02', 10]]) });
-    const sparse = runMatching({ ...base, historischeAntraegeCountByAnon: new Map([['MA01', 0], ['MA02', 0]]) });
-    const gap = (rs: ReturnType<typeof runMatching>) =>
-      rs.find(r => r.anonId === 'MA01')!.kompetenzScore - rs.find(r => r.anonId === 'MA02')!.kompetenzScore;
-    expect(gap(sparse)).toBeGreaterThan(gap(reich));
+    const res = runMatching(baseInput({ MA01: expert, MA02: anfaenger }, 'Voellig anderes Thema'));
+    const e = res.find(r => r.anonId === 'MA01')!;
+    const a = res.find(r => r.anonId === 'MA02')!;
+    expect(e.kompetenzScore).toBeCloseTo(0.5, 5);       // 0.5·1.0
+    expect(a.kompetenzScore).toBeCloseTo(0.5 / 3, 5);   // 0.5·0.333
+    expect(e.kompetenzScore).toBeGreaterThan(a.kompetenzScore);
+  });
+
+  it('MA ohne Matrix: reiner Historie-Score, kein Tabellen-Anteil', () => {
+    // Passende Tech/Historie → BM25 matcht → Score > 0; fehlende Tabelle
+    // (matrixScore undefined) veraendert den Score nicht.
+    const ohne = makeMa('MA01', 'IT', { manuelleTechnologien: ['Robotik'] });
+    const res = runMatching(baseInput({ MA01: ohne }, 'Robotik Vorhaben'));
+    expect(res[0]!.kompetenzScore).toBeGreaterThan(0);
   });
 });
 
