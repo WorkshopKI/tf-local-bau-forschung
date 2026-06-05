@@ -23,6 +23,7 @@ import { SmbBanner } from '@/core/components/SmbBanner';
 import { OfflineBanner } from '@/core/OfflineBanner';
 import { NewSnapshotBanner } from '@/core/components/NewSnapshotBanner';
 import { useSnapshotWatcher } from '@/core/hooks/useSnapshotWatcher';
+import { useAuslastungCorpusAutoload } from '@/core/hooks/useAuslastungCorpusAutoload';
 import { CsvAutoRefreshBanner } from '@/plugins/csv-sources-kuration/components/CsvAutoRefreshBanner';
 import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -177,6 +178,11 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
   // einen neueren Datenbestand geschrieben hat. Banner wird im <main>-
   // Bereich gerendert. Im Demo-Build deaktiviert (kein Daten-Share).
   const snapshotWatcher = useSnapshotWatcher({ enabled: isDataShareEnabled() });
+
+  // v2.29: Auslastungs-Embedding-Korpus beim Start vom Daten-Share laden
+  // (Cold-Start-Selbstheilung), nicht erst beim Navigieren ins Modul. Self-gated
+  // auf isAuslastungEnabled() (pl + dev) + SMB-online.
+  useAuslastungCorpusAutoload();
 
   const goToPlugin = useCallback((pluginId: string) => {
     // Beim Wechsel zu Listen-Plugins: Detail-State in Stores clearen (Route-Param fehlt → Effekt clearet ohnehin, aber wir machen es hier explizit)
