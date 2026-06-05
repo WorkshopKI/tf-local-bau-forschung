@@ -29,6 +29,7 @@ import { readText } from '@/core/services/infrastructure/atomic-write';
 import { listProgramme } from '@/core/services/csv';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
+import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { ProgrammSnapshotManifest } from '@/core/services/csv/snapshot';
 
@@ -215,6 +216,9 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
           await refreshAntraegeStoreAfterSync(storage.idb, u.programmId, ['antraege']);
         }
       }
+      // Frisch synchronisierte Schemas → CSV-Auto-Refresh-Check re-triggern,
+      // damit der „CSV-Ordner verknüpfen"-Banner nach dem Sync erscheint.
+      bumpCsvSourcesSignal();
       if (mountedRef.current) {
         setAvailableUpdates([]);
         setDismissed(false);

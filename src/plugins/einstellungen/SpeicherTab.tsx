@@ -23,6 +23,7 @@ import {
   pickAndLinkCsvFolder,
 } from '@/plugins/csv-sources-kuration/csv-source-handle';
 import { listProgramme, listSchemas } from '@/core/services/csv';
+import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import type { CsvSchema } from '@/core/services/csv/types';
 
 export function SpeicherTab(): React.ReactElement {
@@ -135,6 +136,9 @@ export function SpeicherTab(): React.ReactElement {
       setCsvDirExists(!!handle);
       setCsvDirName(handle?.name ?? null);
       setCsvDirOnline(handle ? (await queryCsvSourceDirPermission(handle)) === 'granted' : false);
+      // Auto-Refresh-Banner re-prüfen lassen, sonst wirkt das Verknüpfen erst
+      // nach einem Browser-Reload (der Check läuft sonst nur 1x beim Mount).
+      bumpCsvSourcesSignal();
       if (res.unmatched.length > 0) {
         setError(`Ordner verknüpft. Für diese Quellen wurde keine passende Datei im Ordner gefunden: ${res.unmatched.join(', ')}.`);
       }

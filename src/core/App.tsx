@@ -26,6 +26,7 @@ import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/t
 import { listProgramme, ensureDefaultProgramm } from '@/core/services/csv';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
+import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { rematchOnSnapshotReload } from '@/phase2';
 import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
@@ -499,6 +500,10 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
           }
         }
       }
+      // Schemas können jetzt frisch in der IDB liegen → CSV-Auto-Refresh-Check
+      // re-triggern (sonst erscheint der „CSV-Ordner verknüpfen"-Banner nach
+      // Cold-Start nicht, weil der Erst-Check vor dem Sync lief).
+      if (!cancelled) bumpCsvSourcesSignal();
     })();
     return () => {
       cancelled = true;

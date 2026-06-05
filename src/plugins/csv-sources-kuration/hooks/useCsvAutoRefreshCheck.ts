@@ -36,6 +36,7 @@ import {
 } from '../csv-source-handle';
 import { loadSharedCsvFilenames } from '../csv-source-filenames';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
+import { useCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import {
   runAutoRefresh,
   BuildLockBusyError,
@@ -211,6 +212,20 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     checkedRef.current = true;
     void runCheck();
   }, [enabled, requireSession, session.isActive, smbStatus.status, runCheck]);
+
+  // Re-Check bei externem Signal: Snapshot-Sync (Schemas kamen erst nach dem
+  // Erst-Check in die IDB — Cold-Start) ODER Ordner-Verknüpfen in Einstellungen.
+  // Ohne das erscheint der „CSV-Ordner verknüpfen"-Banner nach „clear site data"
+  // nicht und das Verknüpfen wirkt erst nach Browser-Reload.
+  const sourcesSignal = useCsvSourcesSignal(s => s.version);
+  useEffect(() => {
+    if (sourcesSignal === 0) return; // 0 = noch kein Signal → Erst-Check oben
+    if (!enabled) return;
+    if (requireSession && !session.isActive) return;
+    if (smbStatus.status !== 'online') return;
+    checkedRef.current = true;
+    void runCheck();
+  }, [sourcesSignal, enabled, requireSession, session.isActive, smbStatus.status, runCheck]);
 
   const dismiss = useCallback(() => setDismissed(true), []);
   const clearReport = useCallback(() => {
