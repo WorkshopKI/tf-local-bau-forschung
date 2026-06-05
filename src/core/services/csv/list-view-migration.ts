@@ -67,7 +67,10 @@ export async function ensureListViewProjection(
  * die Home die alte/leere Projektion und bleibt bis zum nächsten App-Start
  * (= manueller Reload, der `ensureListViewProjection` neu laufen lässt) leer.
  */
-export async function rebuildAntraegeListView(idb: IDBStore): Promise<void> {
+export async function rebuildAntraegeListView(
+  idb: IDBStore,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
   const end = tfPerfStart('rebuildAntraegeListView');
   await clearAntraegeListView(idb);
   const programme = await listProgramme(idb);
@@ -77,6 +80,7 @@ export async function rebuildAntraegeListView(idb: IDBStore): Promise<void> {
     const fullList = await listAntraegeByProgramm(idb, p.id);
     for (let i = 0; i < fullList.length; i += CHUNK) {
       await putAntraegeListView(idb, fullList.slice(i, i + CHUNK).map(toAntragListItem));
+      onProgress?.(Math.min(i + CHUNK, fullList.length), fullList.length);
     }
     total += fullList.length;
   }

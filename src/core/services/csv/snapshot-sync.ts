@@ -7,11 +7,24 @@ import { MAX_WRITES_PER_TX } from './constants';
 import { rebuildAntraegeListView } from './list-view-migration';
 
 export interface SyncProgress {
-  phase: 'manifest' | 'store' | 'done';
+  phase: 'manifest' | 'store' | 'finalizing' | 'done';
   currentStore?: SnapshotStoreName;
   storesDone: number;
   storesTotal: number;
+  /**
+   * Monotone Gesamt-Fraktion 0..1 über ALLE Phasen (Manifest → Stores →
+   * List-View-Rebuild), inkl. Chunk-Fortschritt innerhalb großer Stores. Damit
+   * bewegt sich der Banner-Balken von Anfang an, statt erst nach dem großen
+   * antraege-Store (~4 s) zu springen.
+   */
+  fraction: number;
 }
+
+// Fortschritts-Budget der drei Phasen (Summe = 1.0). Der antraege-Store + der
+// abschließende List-View-Rebuild dominieren die Wall-Clock-Zeit.
+const PROG_MANIFEST = 0.05;
+const PROG_STORES = 0.65;
+const PROG_REBUILD = 0.30;
 
 export interface SyncResult {
   synced: boolean;
@@ -104,7 +117,7 @@ export async function syncProgrammSnapshot(
   }
 
   // Manifest lesen
-  onProgress?.({ phase: 'manifest', storesDone: 0, storesTotal: 0 });
+  onProgress?.({ phase: 'manifest', storesDone: 0, storesTotal: 0, fraction: 0 });
   let manifest: ProgrammSnapshotManifest;
   try {
     const manifestText = await readText(programmDir, 'manifest.json');
@@ -129,12 +142,19 @@ export async function syncProgrammSnapshot(
   const reloadedStores: SnapshotStoreName[] = [];
   let storesDone = 0;
   for (const storeKey of storeKeys) {
-    onProgress?.({
-      phase: 'store',
-      currentStore: storeKey,
-      storesDone,
-      storesTotal: storeKeys.length,
-    });
+    // Fortschritt inkl. Chunk-Fraktion innerhalb des aktuellen Stores: der Balken
+    // bewegt sich auch während des großen antraege-Stores (statt erst danach).
+    const reportStore = (storeFraction: number): void => {
+      const storesProg = storeKeys.length > 0 ? (storesDone + storeFraction) / storeKeys.length : 1;
+      onProgress?.({
+        phase: 'store',
+        currentStore: storeKey,
+        storesDone,
+        storesTotal: storeKeys.length,
+        fraction: PROG_MANIFEST + PROG_STORES * storesProg,
+      });
+    };
+    reportStore(0);
     const localHash = await idb.get<string>(SYNC_STORE_HASH_KEY(programmId, storeKey));
     const remoteHash = manifest.stores[storeKey].hash;
     if (localHash === remoteHash) {
@@ -160,7 +180,9 @@ export async function syncProgrammSnapshot(
       continue;
     }
 
-    await replaceStore(idb, STORE_TARGETS[storeKey], items);
+    await replaceStore(idb, STORE_TARGETS[storeKey], items, (done, total) => {
+      reportStore(total > 0 ? done / total : 1);
+    });
     await idb.set(SYNC_STORE_HASH_KEY(programmId, storeKey), remoteHash);
     reloadedStores.push(storeKey);
     storesDone++;
@@ -173,11 +195,19 @@ export async function syncProgrammSnapshot(
   // nächsten App-Start (= manueller Reload, der ensureListViewProjection neu
   // laufen lässt) leer. Nur nötig, wenn der ANTRAEGE-Store wirklich neu kam.
   if (reloadedStores.includes('antraege')) {
-    await rebuildAntraegeListView(idb);
+    await rebuildAntraegeListView(idb, (done, total) => {
+      const f = total > 0 ? done / total : 1;
+      onProgress?.({
+        phase: 'finalizing',
+        storesDone: storeKeys.length,
+        storesTotal: storeKeys.length,
+        fraction: PROG_MANIFEST + PROG_STORES + PROG_REBUILD * f,
+      });
+    });
   }
 
   await idb.set(SYNC_VERSION_KEY(programmId), manifest.snapshotVersion);
-  onProgress?.({ phase: 'done', storesDone, storesTotal: storeKeys.length });
+  onProgress?.({ phase: 'done', storesDone, storesTotal: storeKeys.length, fraction: 1 });
 
   return {
     synced: true,
@@ -191,7 +221,12 @@ export async function syncProgrammSnapshot(
  * clear() + chunked put, jeweils in eigener Transaction, weil Bulk-Inserts
  * mit 13k+ Items die TX-Lifetime ueberschreiten wuerden.
  */
-async function replaceStore(idb: IDBStore, storeName: CsvStoreName, items: unknown[]): Promise<void> {
+async function replaceStore(
+  idb: IDBStore,
+  storeName: CsvStoreName,
+  items: unknown[],
+  onChunk?: (done: number, total: number) => void,
+): Promise<void> {
   const db = idb.getDb();
 
   // 1. clear()
@@ -216,5 +251,6 @@ async function replaceStore(idb: IDBStore, storeName: CsvStoreName, items: unkno
       t.onerror = () => reject(t.error);
       t.onabort = () => reject(t.error);
     });
+    onChunk?.(Math.min(i + MAX_WRITES_PER_TX, items.length), items.length);
   }
 }

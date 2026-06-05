@@ -59,7 +59,10 @@ export function NewSnapshotBanner({ state }: Props): React.ReactElement | null {
       {state.applying ? (
         <span className="flex-1 flex flex-col gap-1">
           <span>Lade neuen Datenbestand…</span>
-          <ProgressBar value={state.progress ?? 0} />
+          {/* Kleiner Floor (~5%), damit der Balken sofort sichtbar startet —
+              die SMB-Verzeichnis-Navigation + der Manifest-Read am Anfang melden
+              noch keinen feinen Fortschritt. */}
+          <ProgressBar value={Math.max(state.progress ?? 0, 0.05)} />
         </span>
       ) : state.applyError ? (
         <span className="flex-1 inline-flex items-center gap-1.5">

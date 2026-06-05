@@ -191,8 +191,9 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
           force: true,
           onProgress: sp => {
             if (!mountedRef.current) return;
-            const within = sp.storesTotal > 0 ? sp.storesDone / sp.storesTotal : 0;
-            setProgress((i + within) / total);
+            // sp.fraction ist eine monotone 0..1-Fraktion über alle Phasen
+            // (Manifest → Stores inkl. Chunk-Fortschritt → List-View-Rebuild).
+            setProgress((i + sp.fraction) / total);
           },
         });
         if (r.synced) {
