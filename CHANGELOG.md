@@ -190,6 +190,17 @@ MINOR-Bump v2.38: In der **pl-Variante** (Projektleitung; auch dev) wird das Bea
 
 Identität läuft weiter über `useMeinKuerzel` (Pitfall #27); ProfilTab schreibt das Profilfeld (Convention-whitelisted). Additiv, keine Daten-/IDB-/SMB-Migration; nur ein neuer localStorage-Key. Wirksam in **pl + dev**; prod/kurator/demo unverändert (kein Dropdown / keine MA-Spalte / Home-„Kürzel setzen" wie bisher).
 
+### v2.39 — Tabellen-Ansicht: Spalten-Resize, Picker über der Tabelle, Filter-Pillen-UX (Juni 2026)
+
+MINOR-Bump v2.39: Vier UX-Verfeinerungen der Förderanträge-Tabellen-Ansicht (`viewMode === 'compact'`), nachdem die Header seit v2.37/v2.38 sortierbar sind:
+
+- **„Sortiert nach"-Pille im Compact-Modus ausgeblendet** ([QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx)) — redundant, weil jeder Header sortierbar ist. Der persistierte `sortByView` bleibt als Default-Reihenfolge wirksam; der Header-Klick (`useTableSort`) überschreibt ihn. List-/Karten-View behalten die Pille.
+- **Spalten horizontal resizable** ([AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)): `useColumnWidths('teamflow_antraege_table_col_widths', {})` verdrahtet, `columnWidths` + `onColumnWidthChange` an die `SortableTable` durchgereicht → die bereits vorhandenen Drag-Handles werden aktiv (Live-DOM-Mutation während Drag, Commit on mouseup → localStorage). Mit `fitContentWidth` wächst/schrumpft die Tabelle + scrollt horizontal. Persistenz-Muster wie im Suche-Plugin.
+- **„Spalten"-Picker über die Tabelle verlagert** (rechtsbündig, `flex justify-end` direkt über der `SortableTable`, [AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)) statt oben rechts in der Header-Leiste ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx) — Block + ungenutzte Imports entfernt). Zustand bleibt im globalen `useAntraegeColumnsStore`; MA-Spalte bleibt auto-verwaltet (nicht im Picker).
+- **Filter-Pillen bleiben gleichzeitig offen + nutzen die volle Breite** ([CollapsibleSeg.tsx](src/plugins/antraege/filter/CollapsibleSeg.tsx) + [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)): Der Outside-Mousedown-Handler schließt eine transient offene Pille nur noch bei einem echten Außen-Klick (Liste/Tabelle) — nicht mehr, wenn auf eine **andere** Pille geklickt wird (neues Marker-Attribut `data-collapsible-seg` + `target.closest(...)`-Guard). Der Toolbar-Wrapper ist `flex-1 min-w-0` → expandierte Pillen nutzen die volle Zeilenbreite statt neben den `ActiveFilterChips` gestaucht zu werden.
+
+Reiner UI/UX-Zusatz, keine Daten-/IDB-/SMB-Migration; nur ein neuer localStorage-Key (`teamflow_antraege_table_col_widths`). Sichtbar in allen Varianten mit Förderanträge-Plugin (dev/demo/prod/kurator/pl); der `CollapsibleSeg`-Fix wirkt in allen Views.
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*

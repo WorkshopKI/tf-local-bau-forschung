@@ -1,10 +1,12 @@
 /**
  * Sichtbare Spalten der Förderanträge-Tabellen-Ansicht ("compact"-View-Mode).
  *
- * Eigener Zustand-Store (kein direktes `useColumnVisibility`), weil der
- * "Spalten"-Picker im Header (`AntraegeHeader`) und die Tabelle in
- * `AntraegeMain` Geschwister sind und denselben State reaktiv teilen müssen —
- * zwei `useColumnVisibility`-Instanzen würden nur über Reload syncen.
+ * Eigener Zustand-Store (kein direktes `useColumnVisibility`), damit der
+ * "Spalten"-Picker und die Tabelle denselben State reaktiv teilen. Beide
+ * sitzen seit der UI-Verlagerung in `AntraegeTable` (Picker direkt über der
+ * Tabelle); der globale Store bleibt, weil andere Stellen (z.B. Export)
+ * dieselbe Sichtbarkeit lesen könnten und zwei Hook-Instanzen nur über
+ * Reload syncen würden.
  *
  * Persistenz: localStorage `teamflow_antraege_table_columns` (JSON-Array von
  * Spalten-Keys). Locked-Spalten werden bei Load + Toggle erzwungen. Muster

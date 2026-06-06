@@ -132,13 +132,18 @@ export function QuickfilterToolbar(): React.ReactElement {
         items={kategorieItems}
         onChange={onKategorieChange}
       />
-      <CollapsibleSeg
-        label="Sortiert nach"
-        value={currentSortLabel}
-        defaultValue={DEFAULT_SORT_LABEL}
-        items={SORT_OPTIONS.map(o => ({ label: o.label }))}
-        onChange={onSortChange}
-      />
+      {/* Tabellen-Ansicht: jeder Header ist sortierbar → "Sortiert nach"-Pille
+          dort ausblenden (redundant). Der persistierte Sort bleibt als
+          Default-Reihenfolge wirksam, der Header-Klick überschreibt ihn. */}
+      {viewMode === 'compact' ? null : (
+        <CollapsibleSeg
+          label="Sortiert nach"
+          value={currentSortLabel}
+          defaultValue={DEFAULT_SORT_LABEL}
+          items={SORT_OPTIONS.map(o => ({ label: o.label }))}
+          onChange={onSortChange}
+        />
+      )}
 
       {viewMode === 'compact' ? (
         <CollapsibleSeg

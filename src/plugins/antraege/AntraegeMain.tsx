@@ -182,7 +182,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
             wird. Bearbeiter-Pill sitzt im Header neben dem Titel. */}
         <div className={toolbarClass}>
           <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
               <QuickfilterToolbar />
             </div>
             {active.length > 0 ? (

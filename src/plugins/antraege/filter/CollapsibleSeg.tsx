@@ -62,7 +62,12 @@ export function CollapsibleSeg({
     if (!forceOpen || isFiltered) return;
     const onMouseDown = (e: MouseEvent): void => {
       const node = ref.current;
-      if (node && e.target instanceof Node && !node.contains(e.target)) {
+      if (!node || !(e.target instanceof Element)) return;
+      // Echter Außen-Klick (Liste/Tabelle) → transient offene Pille zuklappen.
+      // ABER nicht, wenn auf eine ANDERE Pille geklickt wird — sonst schließt
+      // das Öffnen einer zweiten Pille die erste. Mehrere Pillen dürfen
+      // gleichzeitig offen sein.
+      if (!node.contains(e.target) && !e.target.closest('[data-collapsible-seg]')) {
         setForceOpen(false);
       }
     };
@@ -72,7 +77,7 @@ export function CollapsibleSeg({
 
   if (!expanded) {
     return (
-      <div ref={ref} className="inline-flex">
+      <div ref={ref} data-collapsible-seg className="inline-flex">
         <button
           type="button"
           onClick={() => { setForceOpen(true); setManualClosed(false); }}
@@ -92,6 +97,7 @@ export function CollapsibleSeg({
   return (
     <div
       ref={ref}
+      data-collapsible-seg
       className="inline-flex items-center gap-2"
       style={{
         animation: 'seg-expand 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards',

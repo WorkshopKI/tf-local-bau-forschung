@@ -1,10 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, Filter, Loader2, Search } from 'lucide-react';
-import { useAntraegeStore, getEffectiveViewMode } from './store';
+import { useAntraegeStore } from './store';
 import { useFilterState } from './filter/useFilterState';
-import { ColumnPicker } from '@/components/data-table';
-import { ANTRAG_TABLE_COLUMNS } from './tableColumns';
-import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { VIEWS, viewCounts } from './views';
 import { menuLabel, isAuslastungEnabled } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
@@ -40,9 +37,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const filterCount = useFilterState(s => s.active.length);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
-  const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
-  const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
-  const toggleColumn = useAntraegeColumnsStore(s => s.toggleColumn);
   const { filtered, bearbeiterFilter } = useFilteredAntraege();
   const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
   const setShowInaktive = useShowInaktiveMasStore(s => s.setShowInaktive);
@@ -151,13 +145,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
                 ? <Loader2 size={13} className="animate-spin" />
                 : <Download size={13} />}
             </Button>
-            {viewMode === 'compact' ? (
-              <ColumnPicker
-                columns={ANTRAG_TABLE_COLUMNS}
-                visibleKeys={visibleColumns}
-                onToggleColumn={toggleColumn}
-              />
-            ) : null}
             <ViewModeToggle />
             <Button
               variant={filterOpen ? 'default' : 'outline'}
