@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Download, Filter, Loader2, Search } from 'lucide-react';
-import { useAntraegeStore } from './store';
+import { useAntraegeStore, getEffectiveViewMode } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { VIEWS, viewCounts } from './views';
 import { menuLabel, isAuslastungEnabled } from '@/config/feature-flags';
@@ -37,6 +37,11 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const filterCount = useFilterState(s => s.active.length);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
+  // Im Compact-Modus (Tabelle) sollen die Header-Icons mit dem Tabellen-Rand
+  // fluchten (kein pr-4); in List/Cards bleibt pr-4 für Bündigkeit mit den
+  // px-4-Status-Badges der Cards.
+  const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
+  const actionPr = viewMode === 'compact' ? '' : 'pr-4';
   const { filtered, bearbeiterFilter } = useFilteredAntraege();
   const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
   const setShowInaktive = useShowInaktiveMasStore(s => s.setShowInaktive);
@@ -79,14 +84,14 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
 
   return (
     <div
-      className="shrink-0 px-8 pt-4 pb-0"
+      className="shrink-0 pt-4 pb-0"
       style={{ borderBottom: '0.5px solid var(--tf-border)' }}
     >
-      {/* Inhalts-Wrapper mit gleicher max-Breite wie die Liste in AntraegeMain
-          (max-w-6xl), damit der Filter-Button rechts mit den Status-Badges
-          der AntragCards darunter fluchtet. Der äußere Container behält das
-          px-8 + Border, damit die Unterkanten-Border voll durchläuft. */}
-      <div className="max-w-6xl">
+      {/* Inhalts-Wrapper teilt EXAKT die Content-Box von Toolbar + Liste/Tabelle
+          (max-w-6xl px-8, Padding innen) — dadurch fluchten Header-Icons,
+          „Spalten"-Dropdown und Tabellen-Rand. Die Unterkanten-Border läuft
+          voll durch, weil sie auf dem äußeren (padding-freien) Container sitzt. */}
+      <div className="max-w-6xl px-8">
         {/* Title — Tabs zeigen Ansicht + Counts. Bearbeiter-Filter-Pill sitzt
             direkt neben dem Titel, damit der User immer sieht, dass der
             Kuerzel-Filter aktiv ist — auch wenn die Quickfilter-Toolbar
@@ -103,9 +108,10 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
           ) : null}
         </div>
 
-        {/* Toolbar: Tabs links, Suche + Filter rechts (ml-auto). pr-4 kompensiert
-            das px-4-Innenpadding der AntragCard, damit Filter-Button-Kante mit
-            der Status-Badge-Kante in der Liste darunter fluchtet. */}
+        {/* Toolbar: Tabs links, Suche + Filter rechts (ml-auto). pr-4 (nur
+            List/Cards) kompensiert das px-4-Innenpadding der AntragCard, damit
+            die Filter-Button-Kante mit der Status-Badge-Kante fluchtet; im
+            Compact-Modus kein pr → Icons treffen den Tabellen-Rand. */}
         <div className="flex items-end gap-4">
           <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">
             {VIEWS.map(v => {
@@ -131,7 +137,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
             })}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 pb-2 ml-auto pr-4">
+          <div className={`flex items-center gap-2 shrink-0 pb-2 ml-auto ${actionPr}`}>
             <Button
               variant="outline"
               size="sm"

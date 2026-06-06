@@ -201,6 +201,8 @@ MINOR-Bump v2.39: Vier UX-Verfeinerungen der Förderanträge-Tabellen-Ansicht (`
 
 Reiner UI/UX-Zusatz, keine Daten-/IDB-/SMB-Migration; nur ein neuer localStorage-Key (`teamflow_antraege_table_col_widths`). Sichtbar in allen Varianten mit Förderanträge-Plugin (dev/demo/prod/kurator/pl); der `CollapsibleSeg`-Fix wirkt in allen Views.
 
+**v2.39.1-Fix (Tabellen-Ausrichtung):** Der „Spalten"-Picker ist von der eigenen Zeile über der Tabelle in die **Filter-Toolbar-Zeile** gewandert (rechts, compact-only, [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx) — aus [AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx) entfernt). Außerdem fluchten jetzt Header-Icons (Download/Ansicht/Filter), „Spalten"-Dropdown und Tabellen-Rand auf **einem** rechten Rand: Root-Cause war, dass [AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx) `px-8` **außen** + `max-w-6xl` **innen** (+ `pr-4`) nutzte, während Toolbar + Content `max-w-6xl px-8` (Padding innen) verwenden. Fix: Header-Box auf dasselbe Schema (`max-w-6xl px-8`, Border bleibt auf dem padding-freien Outer voll durchlaufend), Toolbar-Zeile bekommt `max-w-6xl` (non-cards/non-narrow), und das `pr-4` der Icon-Zeile ist jetzt konditional (List/Cards behalten die Badge-Bündigkeit, Compact ohne `pr` trifft den Tabellen-Rand). Reine Layout-Ausrichtung, keine Logik-/Daten-Änderung.
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*

@@ -21,6 +21,9 @@ import { StatusSectionHeader } from './StatusSectionHeader';
 import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
 import { AntraegeTable } from './AntraegeTable';
 import { CardGrid } from './CardGrid';
+import { ColumnPicker } from '@/components/data-table';
+import { ANTRAG_TABLE_COLUMNS } from './tableColumns';
+import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungEnabled } from '@/config/feature-flags';
 import { Alert } from '@/components/ui/alert';
@@ -69,6 +72,10 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
   } = useAntraegeStore();
   const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
   const tableGrouping = useAntraegeStore(s => getEffectiveTableGroupingMode(s.activeView, s.tableGroupingByView));
+  // Spalten-Picker (nur Tabellen-Ansicht) sitzt in der Toolbar-Zeile rechts —
+  // teilt den State reaktiv mit der Tabelle über den globalen Store.
+  const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
+  const toggleColumn = useAntraegeColumnsStore(s => s.toggleColumn);
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
   const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
@@ -160,9 +167,14 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
     ? 'h-full flex'
     : 'flex-1 min-w-0 h-full flex';
 
-  // Toolbar nutzt volle Viewport-Breite — sonst wraped `Gruppiert:` bei
-  // aufgeklapptem Antragstyp obwohl rechts Platz waere.
-  const toolbarClass = narrow ? 'px-4 pt-3' : 'px-8 pt-3';
+  // Toolbar teilt dieselbe Content-Box wie die Liste/Tabelle (max-w-6xl px-8),
+  // damit das rechtsbündige „Spalten"-Dropdown (Compact) mit dem Tabellen-Rand
+  // fluchtet. Cards nutzen die volle Breite (wie der Card-Content); narrow px-4.
+  const toolbarClass = narrow
+    ? 'px-4 pt-3'
+    : viewMode === 'cards'
+      ? 'px-8 pt-3'
+      : 'px-8 pt-3 max-w-6xl';
   // Karten-View nutzt die volle Browserbreite, damit auf breiten Monitoren
   // alle Anträge mit wenig Scrollen sichtbar sind. List/Kompakt behalten
   // max-w-6xl als Lesbarkeits-Cap fuer die Listen-Zeilen (Zeilen werden
@@ -185,9 +197,21 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
             <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
               <QuickfilterToolbar />
             </div>
-            {active.length > 0 ? (
-              <div className="shrink-0 flex items-center justify-end gap-3 flex-wrap">
-                <ActiveFilterChips active={active} definitions={definitions} onRemove={clearFilter} />
+            {/* Rechtes Cluster: aktive Filter-Chips + (nur Tabelle) das
+                „Spalten"-Dropdown — äußerstes rechtes Element ⇒ rechtsbündig
+                mit dem Tabellen-Rand (Toolbar teilt die max-w-6xl-Box). */}
+            {active.length > 0 || viewMode === 'compact' ? (
+              <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
+                {active.length > 0 ? (
+                  <ActiveFilterChips active={active} definitions={definitions} onRemove={clearFilter} />
+                ) : null}
+                {viewMode === 'compact' ? (
+                  <ColumnPicker
+                    columns={ANTRAG_TABLE_COLUMNS}
+                    visibleKeys={visibleColumns}
+                    onToggleColumn={toggleColumn}
+                  />
+                ) : null}
               </div>
             ) : null}
           </div>

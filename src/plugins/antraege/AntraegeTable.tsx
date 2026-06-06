@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { SortableTable, useTableSort, compareValues, ColumnPicker, useColumnWidths } from '@/components/data-table';
+import { SortableTable, useTableSort, compareValues, useColumnWidths } from '@/components/data-table';
 import { ANTRAG_TABLE_COLUMNS, MA_COLUMN } from './tableColumns';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useAntraegeStore } from './store';
@@ -68,7 +68,6 @@ export function AntraegeTable({
   sentinelRef,
 }: Props): React.ReactElement {
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
-  const toggleColumn = useAntraegeColumnsStore(s => s.toggleColumn);
   const verbundById = useAntraegeStore(s => s.verbundById);
   // Persistierte Spalten-Pixelbreiten (Resize via Drag-Handles der SortableTable).
   const { widths, setWidth } = useColumnWidths('teamflow_antraege_table_col_widths', {});
@@ -130,16 +129,6 @@ export function AntraegeTable({
 
   return (
     <div className="flex flex-col">
-      {/* Spalten-Picker direkt über der Tabelle, rechtsbündig mit dem Tabellen-
-          Viewport. MA-Spalte ist auto-verwaltet → nicht im Picker (Quelle =
-          ANTRAG_TABLE_COLUMNS ohne MA_COLUMN). */}
-      <div className="mb-2 flex justify-end">
-        <ColumnPicker
-          columns={ANTRAG_TABLE_COLUMNS}
-          visibleKeys={visibleColumns}
-          onToggleColumn={toggleColumn}
-        />
-      </div>
       <SortableTable<AntragTableRow>
         rows={rows}
         columns={columns}
