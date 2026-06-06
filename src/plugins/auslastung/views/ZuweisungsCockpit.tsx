@@ -26,7 +26,8 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
-import { collectVerbundTHints, groupFreigegebeneByVerbund, hatDXtecDatum, hatDAdvDatum, istUnvollstaendig, istVollstaendigFuerTyp, istZuVerteilen, unvollstaendigGrund, verteilCutoffDatum, verbundKeyOf, type VollstaendigkeitsGate, type VerbundZuweisungRow } from '../services/verbund-aggregation';
+import { collectVerbundTHints, groupFreigegebeneByVerbund, hatGueltigesDatum, istUnvollstaendig, istVollstaendigFuerTyp, istZuVerteilen, unvollstaendigGrund, verteilCutoffDatum, verbundKeyOf, type VollstaendigkeitsGate, type VerbundZuweisungRow } from '../services/verbund-aggregation';
+import { useVollstaendigkeitsFelder } from '../hooks/useVollstaendigkeitsFelder';
 import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
   embedText,
@@ -328,14 +329,17 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
   const selectedRow = selectedAz ? verbundRows.find(r => r.leadAktenzeichen === selectedAz) : null;
 
+  // Vollstaendigkeits-Felder ueber das CSV-Schema aufloesen (D_XTEC/D_ADV koennen
+  // als Standard- ODER als Eigenes Feld gemappt sein).
+  const felder = useVollstaendigkeitsFelder();
   // Vollstaendigkeits-Gate (D_XTEC fuer FuE/DS, D_ADV fuer DL/NW): Markierung +
   // Zuweisungs-Sperre greifen pro Bucket nur, wenn die jeweilige Spalte irgendwo
   // befuellt ist (Transitions-Schutz, solange nicht gemappt).
-  const dxtecVerfuegbar = useMemo(() => cache.antraege.some(a => hatDXtecDatum(a)), [cache.antraege]);
-  const dadvVerfuegbar = useMemo(() => cache.antraege.some(a => hatDAdvDatum(a)), [cache.antraege]);
+  const dxtecVerfuegbar = useMemo(() => cache.antraege.some(a => hatGueltigesDatum(a, felder.xtecFeld)), [cache.antraege, felder.xtecFeld]);
+  const dadvVerfuegbar = useMemo(() => cache.antraege.some(a => hatGueltigesDatum(a, felder.advFeld)), [cache.antraege, felder.advFeld]);
   const gate = useMemo<VollstaendigkeitsGate>(
-    () => ({ dxtec: dxtecVerfuegbar, dadv: dadvVerfuegbar }),
-    [dxtecVerfuegbar, dadvVerfuegbar],
+    () => ({ dxtec: dxtecVerfuegbar, dadv: dadvVerfuegbar, xtecFeld: felder.xtecFeld, advFeld: felder.advFeld }),
+    [dxtecVerfuegbar, dadvVerfuegbar, felder.xtecFeld, felder.advFeld],
   );
   const antragByAz = useMemo(() => new Map(cache.antraege.map(a => [a.aktenzeichen, a])), [cache.antraege]);
 

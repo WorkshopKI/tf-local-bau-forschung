@@ -320,8 +320,8 @@ describe('groupFreigegebeneByVerbund', () => {
 
 describe('Vollständigkeit pro Antragstyp (D_XTEC / D_ADV)', () => {
   // vb_phase-Mapping: FuE=3, DS=5, DL=4, NW=1|2 (getKategorieLabel).
-  const GATE_BEIDE: VollstaendigkeitsGate = { dxtec: true, dadv: true };
-  const GATE_NUR_XTEC: VollstaendigkeitsGate = { dxtec: true, dadv: false };
+  const GATE_BEIDE: VollstaendigkeitsGate = { dxtec: true, dadv: true, xtecFeld: 'd_xtec', advFeld: 'd_adv' };
+  const GATE_NUR_XTEC: VollstaendigkeitsGate = { dxtec: true, dadv: false, xtecFeld: 'd_xtec', advFeld: 'd_adv' };
 
   it('hatDXtecDatum: nur ein GÜLTIGES Datum zählt (ISO + dt.); Platzhalter/unsichtbar/leer = false', () => {
     // Gültige Datumswerte → true (ISO wie vom Merger normalisiert, plus dt. Format).
@@ -354,6 +354,23 @@ describe('Vollständigkeit pro Antragstyp (D_XTEC / D_ADV)', () => {
     expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3, d_xtec: '00.00.0000' }), GATE_BEIDE)).toBe(false);
     // D_ADV gefuellt ist fuer FuE irrelevant → bleibt unvollstaendig.
     expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3, d_xtec: '​', d_adv: '2026-05-01' }), GATE_BEIDE)).toBe(false);
+  });
+
+  it('istVollstaendigFuerTyp liest das schema-aufgelöste Feld (D_XTEC als Eigenes Feld)', () => {
+    // Gemeldeter Real-Fall: D_XTEC ist als Eigenes Feld gemappt → Wert liegt unter
+    // `alle_antrage_in_c16_eingegeben`, nicht unter `d_xtec`. Das Gate traegt das
+    // aufgeloeste Feld; die Pruefung muss DORT lesen.
+    const gate: VollstaendigkeitsGate = {
+      dxtec: true, dadv: true,
+      xtecFeld: 'alle_antrage_in_c16_eingegeben', advFeld: 'antrag_in_c16_eingestellt',
+    };
+    // FuE: gueltiges Datum im Custom-Feld → vollstaendig.
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3, alle_antrage_in_c16_eingegeben: '2026-05-01' }), gate)).toBe(true);
+    // FuE: Custom-Feld leer, aber kanonisches d_xtec gesetzt → trotzdem UNVOLLSTAENDIG
+    //      (das aufgeloeste Feld ist maßgeblich, nicht d_xtec).
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3, d_xtec: '2026-05-01' }), gate)).toBe(false);
+    // DL: gueltiges Datum im D_ADV-Custom-Feld → vollstaendig.
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'D', vb_phase: 4, antrag_in_c16_eingestellt: '2026-05-01' }), gate)).toBe(true);
   });
 
   it('FuE/DS brauchen D_XTEC, DL/NW brauchen D_ADV (Gate beide aktiv)', () => {
@@ -406,7 +423,7 @@ describe('Vollständigkeit pro Antragstyp (D_XTEC / D_ADV)', () => {
   });
 
   it('VerbundView.vollstaendig: nur true, wenn ALLE TVs vollständig (every)', () => {
-    const gate: VollstaendigkeitsGate = { dxtec: true, dadv: false };
+    const gate: VollstaendigkeitsGate = { dxtec: true, dadv: false, xtecFeld: 'd_xtec', advFeld: 'd_adv' };
     // Verbund mit 2 FuE-TVs, nur einer hat D_XTEC → unvollständig.
     const antraege = [
       makeAntrag({ aktenzeichen: 'A1', vb_phase: 3, verbund_id: 'V1', d_xtec: '2026-05-01' }),

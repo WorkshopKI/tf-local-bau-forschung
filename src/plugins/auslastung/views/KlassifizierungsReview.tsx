@@ -26,12 +26,12 @@ import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import {
   buildVerbundClassificationViews,
-  hatDXtecDatum,
-  hatDAdvDatum,
+  hatGueltigesDatum,
   verteilCutoffDatum,
   type VollstaendigkeitsGate,
   type VerbundKlassifizierungsView,
 } from '../services/verbund-aggregation';
+import { useVollstaendigkeitsFelder } from '../hooks/useVollstaendigkeitsFelder';
 import { getCachedVerbundEmbeddings } from '../services/verbund-embedding';
 import { ensureVerbundEmbeddings, type CorpusSyncResult } from '../services/corpus-share-sync';
 import { useAuslastungCorpusSignal } from '../services/corpus-signal';
@@ -183,15 +183,19 @@ export function KlassifizierungsReview(): React.ReactElement {
     [config.ueberKategorien],
   );
 
+  // Vollstaendigkeits-Felder ueber das CSV-Schema aufloesen (D_XTEC/D_ADV koennen
+  // als Standard- ODER als Eigenes Feld gemappt sein → kein fest verdrahtetes
+  // `d_xtec`/`d_adv` mehr).
+  const felder = useVollstaendigkeitsFelder();
   // Vollstaendigkeits-Gate (D_XTEC fuer FuE/DS, D_ADV fuer DL/NW): Markierung +
   // Freigabe-Sperre greifen pro Bucket nur, wenn die jeweilige Spalte irgendwo
   // befuellt ist (Transitions-Schutz: solange nicht gemappt, hat kein Antrag
   // einen Wert → sonst waeren alle faelschlich unvollstaendig + gesperrt).
-  const dxtecVerfuegbar = useMemo(() => cache.antraege.some(a => hatDXtecDatum(a)), [cache.antraege]);
-  const dadvVerfuegbar = useMemo(() => cache.antraege.some(a => hatDAdvDatum(a)), [cache.antraege]);
+  const dxtecVerfuegbar = useMemo(() => cache.antraege.some(a => hatGueltigesDatum(a, felder.xtecFeld)), [cache.antraege, felder.xtecFeld]);
+  const dadvVerfuegbar = useMemo(() => cache.antraege.some(a => hatGueltigesDatum(a, felder.advFeld)), [cache.antraege, felder.advFeld]);
   const gate = useMemo<VollstaendigkeitsGate>(
-    () => ({ dxtec: dxtecVerfuegbar, dadv: dadvVerfuegbar }),
-    [dxtecVerfuegbar, dadvVerfuegbar],
+    () => ({ dxtec: dxtecVerfuegbar, dadv: dadvVerfuegbar, xtecFeld: felder.xtecFeld, advFeld: felder.advFeld }),
+    [dxtecVerfuegbar, dadvVerfuegbar, felder.xtecFeld, felder.advFeld],
   );
 
   // Verbund-Aggregation. Pool-Filterung + verbuende-Lookup passieren intern

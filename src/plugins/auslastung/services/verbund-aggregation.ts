@@ -145,32 +145,36 @@ export function hatBearbeiterKuerzel(antrag: Antrag): boolean {
 }
 
 /**
- * True, wenn der Antrag im Feld `d_xtec` (D_XTEC) ein GUELTIGES Datum traegt —
- * d.h. alle TVs des Verbundes sind eingegangen + erfasst. Maßgeblich fuer FuE
- * (vb_phase 3) + DS (vb_phase 5).
+ * True, wenn der Antrag im Feld `feldKey` ein GUELTIGES Datum traegt.
  *
  * WICHTIG: Es reicht NICHT, dass der String nicht-leer ist. Manche Quell-CSVs
  * tragen in „leeren" Datumszellen einen Platzhalter (`00.00.0000`, `0`, `.`)
  * oder ein unsichtbares Zeichen (z.B. U+200B), das `String.trim()` NICHT
  * entfernt. `coerceValue` laesst solche unparsebaren Werte als Rohstring stehen
  * (`parseGermanDate(s) ?? s`). Ein bloßer Laengen-Check wuerde sie faelschlich
- * als „gesetzt" werten → Antrag gilt als vollstaendig, obwohl die Zelle leer
- * aussieht. Deshalb pruefen wir gegen `parseGermanDate` (akzeptiert ISO + dt.
- * Format) — nur ein echtes Datum zaehlt als „gesetzt".
+ * als „gesetzt" werten. Deshalb pruefen wir gegen `parseGermanDate` (akzeptiert
+ * ISO + dt. Format) — nur ein echtes Datum zaehlt als „gesetzt".
+ *
+ * `feldKey` ist das ueber das CSV-Schema aufgeloeste Antrag-Feld (D_XTEC/D_ADV
+ * koennen als Standard- ODER als Eigenes Feld gemappt sein, siehe
+ * `vollstaendigkeit-felder.ts` + `VollstaendigkeitsGate`).
  */
-export function hatDXtecDatum(antrag: Antrag): boolean {
-  const v = (antrag as Record<string, unknown>)[CANONICAL_D_XTEC];
+export function hatGueltigesDatum(antrag: Antrag, feldKey: string): boolean {
+  const v = (antrag as Record<string, unknown>)[feldKey];
   return typeof v === 'string' && parseGermanDate(v) !== null;
 }
 
-/**
- * True, wenn der Antrag im Feld `d_adv` (D_ADV) ein GUELTIGES Datum traegt.
- * Pendant zu `hatDXtecDatum` fuer DL (vb_phase 4) + NW (vb_phase 1|2); gleiche
- * Platzhalter-/Leerwert-Robustheit (siehe dort).
- */
+/** Bequemlichkeits-Wrapper auf das kanonische `d_xtec`-Feld (Default-Mapping).
+ *  Maßgeblich fuer FuE (vb_phase 3) + DS (vb_phase 5). Fuer Custom-gemappte
+ *  Quellen das ueber das Schema aufgeloeste Feld via `hatGueltigesDatum` nutzen. */
+export function hatDXtecDatum(antrag: Antrag): boolean {
+  return hatGueltigesDatum(antrag, CANONICAL_D_XTEC);
+}
+
+/** Bequemlichkeits-Wrapper auf das kanonische `d_adv`-Feld (Default-Mapping).
+ *  Pendant zu `hatDXtecDatum` fuer DL (vb_phase 4) + NW (vb_phase 1|2). */
 export function hatDAdvDatum(antrag: Antrag): boolean {
-  const v = (antrag as Record<string, unknown>)[CANONICAL_D_ADV];
-  return typeof v === 'string' && parseGermanDate(v) !== null;
+  return hatGueltigesDatum(antrag, CANONICAL_D_ADV);
 }
 
 /**
@@ -183,11 +187,17 @@ export function hatDAdvDatum(antrag: Antrag): boolean {
 export interface VollstaendigkeitsGate {
   dxtec: boolean;
   dadv: boolean;
+  /** Ueber das CSV-Schema aufgeloestes Antrag-Feld fuer D_XTEC (Default `d_xtec`). */
+  xtecFeld: string;
+  /** Ueber das CSV-Schema aufgeloestes Antrag-Feld fuer D_ADV (Default `d_adv`). */
+  advFeld: string;
 }
 
 /** „Kein Gate" — beide Spalten gelten als nicht-befuellt → jeder Antrag ist
  *  vollstaendig (Default fuer Aufrufer ohne Gate, z.B. Tests). */
-export const NO_VOLLSTAENDIGKEITS_GATE: VollstaendigkeitsGate = { dxtec: false, dadv: false };
+export const NO_VOLLSTAENDIGKEITS_GATE: VollstaendigkeitsGate = {
+  dxtec: false, dadv: false, xtecFeld: CANONICAL_D_XTEC, advFeld: CANONICAL_D_ADV,
+};
 
 /**
  * True, wenn der Antrag fuer SEINEN Antragstyp als „vollstaendig im System
@@ -198,8 +208,8 @@ export const NO_VOLLSTAENDIGKEITS_GATE: VollstaendigkeitsGate = { dxtec: false, 
  */
 export function istVollstaendigFuerTyp(antrag: Antrag, gate: VollstaendigkeitsGate): boolean {
   const bucket = getKategorieLabel((antrag as Record<string, unknown>).vb_phase);
-  if (bucket === 'FuE' || bucket === 'DS') return !gate.dxtec || hatDXtecDatum(antrag);
-  if (bucket === 'DL' || bucket === 'NW') return !gate.dadv || hatDAdvDatum(antrag);
+  if (bucket === 'FuE' || bucket === 'DS') return !gate.dxtec || hatGueltigesDatum(antrag, gate.xtecFeld);
+  if (bucket === 'DL' || bucket === 'NW') return !gate.dadv || hatGueltigesDatum(antrag, gate.advFeld);
   return true;
 }
 
@@ -294,6 +304,8 @@ interface CachedClassificationViews {
   // Gate als Werte cachen (das Objekt ist ueber Re-Mounts nicht ref-stabil).
   gateDxtec: boolean;
   gateDadv: boolean;
+  gateXtecFeld: string;
+  gateAdvFeld: string;
   value: VerbundKlassifizierungsView[];
 }
 
@@ -334,7 +346,9 @@ export function buildVerbundClassificationViews(
       && cachedViews.stage2Aktiv === stage2Aktiv
       && cachedViews.verbuende === verbuende
       && cachedViews.gateDxtec === gate.dxtec
-      && cachedViews.gateDadv === gate.dadv) {
+      && cachedViews.gateDadv === gate.dadv
+      && cachedViews.gateXtecFeld === gate.xtecFeld
+      && cachedViews.gateAdvFeld === gate.advFeld) {
     return cachedViews.value;
   }
   const value = computeVerbundClassificationViews(
@@ -342,7 +356,7 @@ export function buildVerbundClassificationViews(
   );
   cachedViews = {
     antraege, cutoffDatum, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende,
-    gateDxtec: gate.dxtec, gateDadv: gate.dadv, value,
+    gateDxtec: gate.dxtec, gateDadv: gate.dadv, gateXtecFeld: gate.xtecFeld, gateAdvFeld: gate.advFeld, value,
   };
   return value;
 }
