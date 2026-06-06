@@ -133,7 +133,13 @@ export const MAX_SKIP_WARNINGS = 10;
 export const MAX_WRITES_PER_TX = 500;
 
 export const DEFAULT_PROGRAMM_ID = 'default-programm';
-export const DEFAULT_PROGRAMM_NAME = 'Standard-Programm';
+export const DEFAULT_PROGRAMM_NAME = 'ZIM';
+/**
+ * Platzhalter-Name aus Pre-„ZIM"-Installationen. `ensureDefaultProgramm` migriert
+ * bestehende Default-Records mit exakt diesem Namen automatisch auf
+ * DEFAULT_PROGRAMM_NAME (user-umbenannte Programme bleiben unangetastet).
+ */
+export const LEGACY_DEFAULT_PROGRAMM_NAME = 'Standard-Programm';
 export const DEFAULT_SMB_HANDLE_KEY = 'daten-share';
 
 // v1.9: Schemas liegen unter programm/schemas/, Imports unter programm/antraege/imports/.

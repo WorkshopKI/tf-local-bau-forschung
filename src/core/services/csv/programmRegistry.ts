@@ -1,5 +1,10 @@
 import type { IDBStore } from '../storage/idb-store';
-import { DEFAULT_PROGRAMM_ID, DEFAULT_PROGRAMM_NAME, DEFAULT_SMB_HANDLE_KEY } from './constants';
+import {
+  DEFAULT_PROGRAMM_ID,
+  DEFAULT_PROGRAMM_NAME,
+  DEFAULT_SMB_HANDLE_KEY,
+  LEGACY_DEFAULT_PROGRAMM_NAME,
+} from './constants';
 import {
   deleteProgrammRecord,
   deleteRowHashes,
@@ -20,7 +25,17 @@ import type { Programm } from './types';
 
 export async function ensureDefaultProgramm(idb: IDBStore): Promise<Programm> {
   const existing = await getProgramm(idb, DEFAULT_PROGRAMM_ID);
-  if (existing) return existing;
+  if (existing) {
+    // Self-Heal: Pre-„ZIM"-Installationen tragen noch den Platzhalter-Namen
+    // „Standard-Programm". Auf den aktuellen Default-Namen migrieren — Guard auf
+    // den exakten Legacy-Namen, damit user-umbenannte Programme unangetastet
+    // bleiben. Idempotent: feuert nach der Umbenennung nicht mehr.
+    if (existing.name === LEGACY_DEFAULT_PROGRAMM_NAME) {
+      existing.name = DEFAULT_PROGRAMM_NAME;
+      await putProgramm(idb, existing);
+    }
+    return existing;
+  }
   const programm: Programm = {
     id: DEFAULT_PROGRAMM_ID,
     name: DEFAULT_PROGRAMM_NAME,
