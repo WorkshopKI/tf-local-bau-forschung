@@ -41,7 +41,7 @@ function LinkRow({ source, onLink }: { source: PermissionNeededEntry; onLink: Pr
         </div>
         <Button
           size="sm"
-          variant="default"
+          variant="outline"
           onClick={() => { void link.run(); }}
           disabled={link.busy}
           className="shrink-0"
@@ -67,7 +67,7 @@ export function CsvSourceLinkDialog({ sources, onLink, onLinkFolder, onClose }: 
       className="max-w-[560px]"
       footer={
         <div className="flex w-full justify-end">
-          <Button size="sm" variant="default" onClick={onClose}>Schließen</Button>
+          <Button size="sm" variant="ghost" onClick={onClose}>Schließen</Button>
         </div>
       }
     >
