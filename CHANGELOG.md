@@ -215,6 +215,8 @@ MINOR-Bump v2.40: Die Auslastungs-Vollständigkeitsprüfung liest D_XTEC/D_ADV *
 
 Additiv, keine Daten-/IDB-/SMB-Migration. Wirksam in **pl + dev** (Auslastungs-Modul). Damit funktioniert „Unvollständig" + Warndreieck + Freigabe-/Zuweisungs-Sperre, ohne dass der Kurator D_XTEC/D_ADV zwingend als Standardfeld mappen muss.
 
+**v2.40.1 (Selbst-Diagnose gegen stumme Fehlkonfiguration):** Damit ein leeres Gate nicht mehr **lautlos** ins Leere läuft (die Klasse Bug, die zu v2.40 führte), zeigt der Klassifizieren-Tab jetzt einen Hinweis-Banner „**Vollständigkeits-Prüfung inaktiv**", wenn eine D_XTEC/D_ADV-Spalte im Schema gemappt ist (= gewollt), aber das aufgelöste Feld bei KEINEM Antrag des betroffenen Antragstyps ein gültiges Datum trägt → dann greifen „Unvollständig"/Warndreieck/Freigabe-Sperre nicht, und der Banner nennt das aufgelöste Feld + bittet ums Mapping-Prüfen ([KlassifizierungsReview.tsx](src/plugins/auslastung/views/KlassifizierungsReview.tsx)). Der Resolver liefert dazu `xtecGefunden`/`advGefunden` ([vollstaendigkeit-felder.ts](src/plugins/auslastung/services/vollstaendigkeit-felder.ts)). Zusätzlich als wiederkehrende Bug-Klasse #5 „Stumme Feature-Deaktivierung bei abweichendem CSV-Mapping" dokumentiert ([docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)) — Fix-Pattern: Feld schema-basiert auflösen statt fest verdrahten + Off-Zustand sichtbar machen.
+
 ## Ältere Releases (v2.0–v2.6.2)
 
 *Historie, chronologisch absteigend. Bei Konflikt mit einem neueren Block oben gilt der neuere.*

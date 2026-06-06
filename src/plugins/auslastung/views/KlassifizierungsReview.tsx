@@ -262,6 +262,24 @@ export function KlassifizierungsReview(): React.ReactElement {
     return { kategorie, antragstyp, total: verbundViews.length };
   }, [verbundViews]);
 
+  // Selbst-Diagnose gegen STUMME Fehlkonfiguration: eine D_XTEC/D_ADV-Spalte ist
+  // im Schema gemappt (Kurator WILL die Prüfung), aber das aufgelöste Feld trägt
+  // bei KEINEM Antrag ein gültiges Datum (Gate aus) → der „Unvollständig"-Filter,
+  // das Warndreieck und die Freigabe-Sperre tun nichts. Sichtbar machen statt
+  // still ins Leere laufen lassen (vgl. der v2.40-Bug: Custom-Mapping → d_xtec leer).
+  const vollstHinweise = useMemo(() => {
+    const msgs: string[] = [];
+    const fueDs = filterCounts.antragstyp.FuE + filterCounts.antragstyp.DS;
+    const dlNw = filterCounts.antragstyp.DL + filterCounts.antragstyp.NW;
+    if (fueDs > 0 && felder.xtecGefunden && !gate.dxtec) {
+      msgs.push(`FuE/DS: Spalte D_XTEC ist gemappt (Feld „${felder.xtecFeld}"), aber kein Antrag trägt dort ein gültiges Datum`);
+    }
+    if (dlNw > 0 && felder.advGefunden && !gate.dadv) {
+      msgs.push(`DL/NW: Spalte D_ADV ist gemappt (Feld „${felder.advFeld}"), aber kein Antrag trägt dort ein gültiges Datum`);
+    }
+    return msgs;
+  }, [filterCounts.antragstyp, felder, gate.dxtec, gate.dadv]);
+
   const filtered = useMemo(() => {
     return verbundViews.filter(v => {
       // Facetten: Kategorie (effektiv freigegeben ODER vorgeschlagen) + Antragstyp.
@@ -491,6 +509,21 @@ export function KlassifizierungsReview(): React.ReactElement {
               Danach steht der Korpus auch anderen Rechnern automatisch zur Verfügung.
             </>
           )}
+        </div>
+      )}
+      {vollstHinweise.length > 0 && (
+        <div
+          className="text-[11.5px] px-3 py-2 rounded"
+          style={{
+            background: 'var(--tf-warning-bg, #fef3c7)',
+            color: 'var(--tf-warning-text, #92400e)',
+            border: '0.5px solid var(--tf-warning-border, #fde68a)',
+          }}
+        >
+          <strong>Vollständigkeits-Prüfung inaktiv.</strong>{' '}
+          {vollstHinweise.join(' · ')}. Solange greifen „Unvollständig"-Filter, Warndreieck und
+          Freigabe-Sperre für die betroffenen Anträge nicht. Bitte das Spalten-Mapping der CSV-Quelle
+          prüfen (steht in D_XTEC/D_ADV ein Datum? ist die Spalte korrekt gemappt?).
         </div>
       )}
 

@@ -72,3 +72,15 @@ Vier Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an d
 **Fix-Pattern:** Neue Auslastungs-Caches IMMER „download-if-empty"/Mirror-fähig bauen (Vorbild: [corpus-share-sync.ts](../../src/plugins/auslastung/services/corpus-share-sync.ts)). Nie annehmen, dass IDB-State über Rechner „mitkommt". Bei „auf neuem Rechner geht X nicht": zuerst prüfen, ob X von maschine-lokalem IDB-State abhängt, der nicht aus dem Share rekonstruiert wird.
 
 **Querverweis:** Ein Embedding-**Modell-Wechsel** macht alle gespiegelten Korpora team-weit inkompatibel (CLAUDE.md Pitfall #19).
+
+## 5. Stumme Feature-Deaktivierung bei abweichendem CSV-Mapping
+
+**Symptom:** „Feature X (z.B. der „Unvollständig"-Filter / D_XTEC-Vollständigkeits-Sperre) tut nichts — keine Fehlermeldung, einfach leer." Tritt erst beim echten Kunden-Datensatz auf, nicht in Dev/Fixtures.
+
+**Root-Cause:** Code liest einen **fest verdrahteten kanonischen Feld-Key** (`antrag.d_xtec`) und nimmt an, dass die CSV-Spalte dorthin gemappt wurde. Der Kurator kann eine Spalte aber auch als **Eigenes Feld** mappen → der Wert landet unter einem anderen Key (z.B. `alle_antrage_in_c16_eingegeben`, aus der Spalten-Beschreibung abgeleitet). Das kanonische Feld bleibt leer → ein „ist irgendwo befüllt?"-Gate schaltet **still ab** → das Feature läuft ins Leere, ohne Fehler. (Konkreter Fall: v2.40 — D_XTEC/D_ADV als Eigene Felder gemappt → `d_xtec`/`d_adv` bei allen 13.953 Anträgen leer.)
+
+**Fix-Pattern (zwei Ebenen):**
+1. **Feld über das Schema auflösen, nicht fest verdrahten.** Den tatsächlichen Antrag-Feld-Key aus der `column_mapping` per **Spalten-CODE** ermitteln (`resolveFieldKey`: canonical → custom → lowercase), egal ob Standard- oder Eigenes Feld. Vorbild: [vollstaendigkeit-felder.ts](../../src/plugins/auslastung/services/vollstaendigkeit-felder.ts) + [useVollstaendigkeitsFelder.ts](../../src/plugins/auslastung/hooks/useVollstaendigkeitsFelder.ts). Fallback auf den kanonischen Default, wenn die Spalte fehlt.
+2. **Stummen Off-Zustand sichtbar machen.** Wenn ein Gate, das Daten erwartet, „aus" ist, obwohl die Quelle es gemappt hat → einen **UI-Hinweis** zeigen statt still nichts zu tun (Vorbild: „Vollständigkeits-Prüfung inaktiv"-Banner in [KlassifizierungsReview.tsx](../../src/plugins/auslastung/views/KlassifizierungsReview.tsx)). Die Faustregel: ein datengetriebenes Feature, das bei Fehlkonfiguration **leise** nichts tut, ist gefährlicher als eines, das laut warnt.
+
+**Warnsignal beim Entwickeln:** Sobald Code `antrag['<canonical_key>']` direkt liest UND daraus ein „ist-vorhanden"-Gate ableitet, prüfen: Was passiert, wenn der Kurator diese Spalte als Eigenes Feld (oder gar nicht) mappt? Greift dann ein sichtbarer Hinweis, oder verschwindet das Feature lautlos?

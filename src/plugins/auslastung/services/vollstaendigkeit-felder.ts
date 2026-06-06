@@ -19,11 +19,19 @@ export interface VollstaendigkeitsFelder {
   xtecFeld: string;
   /** Antrag-Feld-Key, in dem die D_ADV-Spalte landet (Default: `d_adv`). */
   advFeld: string;
+  /** True, wenn im Schema eine Spalte mit Code `D_XTEC` existiert (= der Kurator
+   *  hat sie gemappt → Vollständigkeits-Prüfung ist „gewollt"). False = Fallback
+   *  auf den kanonischen Default; treibt den Inaktiv-Hinweis im Klassifizieren-Tab. */
+  xtecGefunden: boolean;
+  /** Analog für die `D_ADV`-Spalte. */
+  advGefunden: boolean;
 }
 
 export const DEFAULT_VOLLSTAENDIGKEITS_FELDER: VollstaendigkeitsFelder = {
   xtecFeld: CANONICAL_D_XTEC,
   advFeld: CANONICAL_D_ADV,
+  xtecGefunden: false,
+  advGefunden: false,
 };
 
 /** Normalisierung für den Spalten-Code-Vergleich: lower + ohne `_`/`-`/Space
@@ -36,7 +44,7 @@ const normCode = (s: string): string => s.toLowerCase().replace(/[\s_-]/g, '');
  * `resolveFieldKey` (canonical → custom → `col.toLowerCase()`). Fallback bei
  * keinem Treffer: `fallback` (der kanonische Default).
  */
-function resolveFeld(schemas: readonly CsvSchema[], columnCode: string, fallback: string): string {
+function resolveFeld(schemas: readonly CsvSchema[], columnCode: string, fallback: string): { feld: string; gefunden: boolean } {
   const target = normCode(columnCode);
   const ordered = [...schemas].sort((a, b) => (b.is_master ? 1 : 0) - (a.is_master ? 1 : 0));
   for (const sc of ordered) {
@@ -46,21 +54,26 @@ function resolveFeld(schemas: readonly CsvSchema[], columnCode: string, fallback
       if (!entry || entry.ignore) continue;
       if (normCode(col) === target) {
         const feld = resolveFieldKey(col, entry);
-        if (feld) return feld;
+        if (feld) return { feld, gefunden: true };
       }
     }
   }
-  return fallback;
+  return { feld: fallback, gefunden: false };
 }
 
 /**
  * Löst die Antrag-Feld-Keys für D_XTEC + D_ADV aus den Programm-Schemas auf.
  * Greift kein Schema (oder keine passende Spalte) → kanonische Defaults
- * (`d_xtec`/`d_adv`) = bisheriges Verhalten für sauber gemappte Quellen.
+ * (`d_xtec`/`d_adv`) = bisheriges Verhalten für sauber gemappte Quellen, plus
+ * `*Gefunden: false` (treibt den Inaktiv-Hinweis).
  */
 export function resolveVollstaendigkeitsFelder(schemas: readonly CsvSchema[]): VollstaendigkeitsFelder {
+  const x = resolveFeld(schemas, 'D_XTEC', CANONICAL_D_XTEC);
+  const a = resolveFeld(schemas, 'D_ADV', CANONICAL_D_ADV);
   return {
-    xtecFeld: resolveFeld(schemas, 'D_XTEC', CANONICAL_D_XTEC),
-    advFeld: resolveFeld(schemas, 'D_ADV', CANONICAL_D_ADV),
+    xtecFeld: x.feld,
+    advFeld: a.feld,
+    xtecGefunden: x.gefunden,
+    advGefunden: a.gefunden,
   };
 }

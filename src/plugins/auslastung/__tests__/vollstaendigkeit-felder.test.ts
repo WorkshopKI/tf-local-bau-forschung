@@ -28,6 +28,8 @@ describe('resolveVollstaendigkeitsFelder', () => {
     expect(resolveVollstaendigkeitsFelder([s])).toEqual({
       xtecFeld: 'alle_antrage_in_c16_eingegeben',
       advFeld: 'antrag_in_c16_eingestellt',
+      xtecGefunden: true,
+      advGefunden: true,
     });
   });
 
@@ -36,21 +38,27 @@ describe('resolveVollstaendigkeitsFelder', () => {
       D_XTEC: { canonical: 'd_xtec', type: 'date' },
       D_ADV: { canonical: 'd_adv', type: 'date' },
     } });
-    expect(resolveVollstaendigkeitsFelder([s])).toEqual({ xtecFeld: 'd_xtec', advFeld: 'd_adv' });
+    expect(resolveVollstaendigkeitsFelder([s])).toEqual({
+      xtecFeld: 'd_xtec', advFeld: 'd_adv', xtecGefunden: true, advGefunden: true,
+    });
   });
 
-  it('Fallback auf d_xtec/d_adv, wenn keine D_XTEC/D_ADV-Spalte existiert', () => {
+  it('Fallback auf d_xtec/d_adv (+ *Gefunden=false), wenn keine D_XTEC/D_ADV-Spalte existiert', () => {
     const s = schema({ is_master: true, column_mapping: {
       D_AAE: { canonical: 'antragsdatum', type: 'date' },
     } });
-    expect(resolveVollstaendigkeitsFelder([s])).toEqual({ xtecFeld: 'd_xtec', advFeld: 'd_adv' });
+    expect(resolveVollstaendigkeitsFelder([s])).toEqual({
+      xtecFeld: 'd_xtec', advFeld: 'd_adv', xtecGefunden: false, advGefunden: false,
+    });
   });
 
-  it('ignore=true wird übersprungen → Fallback', () => {
+  it('ignore=true wird übersprungen → Fallback + nicht gefunden', () => {
     const s = schema({ is_master: true, column_mapping: {
       D_XTEC: { custom: 'x', ignore: true, type: 'date' },
     } });
-    expect(resolveVollstaendigkeitsFelder([s]).xtecFeld).toBe('d_xtec');
+    const r = resolveVollstaendigkeitsFelder([s]);
+    expect(r.xtecFeld).toBe('d_xtec');
+    expect(r.xtecGefunden).toBe(false);
   });
 
   it('Master-Schema gewinnt vor Secondary', () => {
@@ -70,7 +78,9 @@ describe('resolveVollstaendigkeitsFelder', () => {
     expect(resolveVollstaendigkeitsFelder([s]).xtecFeld).toBe('foo');
   });
 
-  it('leeres Schema-Array → kanonische Defaults', () => {
-    expect(resolveVollstaendigkeitsFelder([])).toEqual({ xtecFeld: 'd_xtec', advFeld: 'd_adv' });
+  it('leeres Schema-Array → kanonische Defaults + nicht gefunden', () => {
+    expect(resolveVollstaendigkeitsFelder([])).toEqual({
+      xtecFeld: 'd_xtec', advFeld: 'd_adv', xtecGefunden: false, advGefunden: false,
+    });
   });
 });
