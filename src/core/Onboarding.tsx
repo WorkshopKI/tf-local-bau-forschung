@@ -214,6 +214,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
             <div className="space-y-2">
               <Button
                 icon={FolderOpen}
+                variant={persConnected ? 'secondary' : 'primary'}
                 onClick={handlePickPers}
                 disabled={persBusy}
                 className="w-full"
