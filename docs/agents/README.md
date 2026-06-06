@@ -22,6 +22,7 @@ Kompakte Checklisten für häufige Erweiterungen, die jeweils mehrere synchronis
 | Re-Mount-Latenz eines Plugins optimieren | [optimize-remount-latency.md](optimize-remount-latency.md) |
 | App-Name / Untertitel / HTML-Filename ändern | [change-app-branding.md](change-app-branding.md) |
 | `file://`-Pitfalls (kompakte Quick-Reference) | [file-protocol-pitfalls.md](file-protocol-pitfalls.md) |
+| Welche(n) Build nach einem Patch bauen | [which-build-to-run.md](which-build-to-run.md) |
 | Design-Export aus Claude Design Tool portieren | [port-design-export.md](port-design-export.md) |
 
 ## Wann nicht aktualisieren

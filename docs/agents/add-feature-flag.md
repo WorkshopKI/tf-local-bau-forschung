@@ -12,9 +12,13 @@ Build-Time-Flag, der ein Feature/Plugin/Bereich an- oder abschaltet (z.B. `featu
 3. **`src/config/feature-flags.ts`** — Accessor-Funktion (`isXxxEnabled()`) ergänzen, damit Komponenten typsicher zugreifen.
 4. **`src/plugins.config.ts`** — falls der Flag ein Plugin gated, in `passesFeatureFlags()` die entsprechende ID-Filter-Bedingung ergänzen.
 
+## Welche Variante(n) bekommen den Flag `true`?
+
+Entscheidung über die Sichtbarkeits-**Matrix** in [CLAUDE.md → Build-Varianten](../../CLAUDE.md): In welchen Rollen soll das Feature erscheinen? Danach den Flag nur dort auf `true` setzen (Beispiele: `features.auslastung` nur in `pl`+`dev`; `features.kuratorMenus` nur in `kurator`+`dev`). Die so gewählte(n) Variante(n) anschließend bauen — siehe [which-build-to-run.md](which-build-to-run.md).
+
 ## Variant-Configs synchronisieren
 
-Alle Variant-Configs unter `configs/` müssen den neuen Flag explizit setzen, sonst schlägt `validateConfig()` fehl:
+Alle Variant-Configs unter `configs/` müssen den neuen Flag explizit setzen (`true` **oder** `false`), sonst schlägt `validateConfig()` fehl:
 
 - `configs/dev.config.json`
 - `configs/demo.config.json`

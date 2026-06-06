@@ -19,6 +19,9 @@
  *   - no-raw-async-onclick              → Pitfall #15, useAsyncAction-Hook.
  *   - no-raw-worker                     → Pitfall #5, Worker als
  *     `?worker&inline`-Import einbinden (file://-Kompat).
+ *   - no-hardcoded-datenshare-mode      → Pitfall #25, Daten-Share-Modus
+ *     ('read'/'readwrite') ausschliesslich via canWriteDatenShare() entscheiden,
+ *     nicht `isKurator ? 'readwrite' : 'read'` hart kodieren.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -318,6 +321,60 @@ describe('no-direct-bearbeiter-kuerzel (CLAUDE.md Pitfall #27)', () => {
         `(Session > Profilfeld, drop-in-kompatibel: string | undefined).\n` +
         `Pre-Login-Ausnahme (Code laeuft vor der MaLoginGate)? Zeile mit\n` +
         `'// allow-direct-kuerzel: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-hardcoded-datenshare-mode (CLAUDE.md Pitfall #25)', () => {
+  // Der Daten-Share-Grant-Modus ('read' vs 'readwrite') wird AUSSCHLIESSLICH
+  // ueber canWriteDatenShare(isKurator) entschieden (= isKurator ||
+  // features.datenShareSchreibrecht). Wer stattdessen `isKurator ? 'readwrite' :
+  // 'read'` hart kodiert, verpasst den datenShareSchreibrecht-Flag (pl/kurator)
+  // → silent NotAllowedError bzw. irrefuehrende Read-Only-Downgrade-Wall.
+  //
+  // Erlaubt ist die korrekte Form `canWriteDatenShare(...) ? 'readwrite' :
+  // 'read'` — solche Zeilen werden uebersprungen.
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+    `${sep}config${sep}feature-flags.ts`, // Definitions-Site von canWriteDatenShare
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  // Kommentar-Zeilen (Doku-Erwaehnungen des Anti-Patterns, z.B. StartupScreen
+  // JSDoc) sind keine echten Code-Pfade — ueberspringen.
+  const isComment = (l: string): boolean => {
+    const t = l.trim();
+    return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*');
+  };
+
+  // Ternary, der 'read'/'readwrite' in beiden Reihenfolgen liefert.
+  const pattern = /\?\s*['"](readwrite|read)['"]\s*:\s*['"](read|readwrite)['"]/;
+
+  it('kein hartkodiertes `isKurator ? \'readwrite\' : \'read\'` (canWriteDatenShare nutzen)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(
+        ...findInFile(
+          file,
+          l => !isComment(l) && !l.includes('canWriteDatenShare') && pattern.test(l),
+          'allow-hardcoded-datenshare-mode',
+        ),
+      );
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Hartkodierter Daten-Share-Modus verboten (CLAUDE.md Pitfall #25).\n` +
+        `Nutze canWriteDatenShare(isKurator) aus src/config/feature-flags.ts\n` +
+        `(= isKurator || features.datenShareSchreibrecht) statt\n` +
+        `'isKurator ? \\'readwrite\\' : \\'read\\''.\n` +
+        `Wenn die Zeile wirklich unabhaengig vom Flag ist, mit\n` +
+        `'// allow-hardcoded-datenshare-mode: <grund>' markieren.\n\n` +
+        `Treffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });

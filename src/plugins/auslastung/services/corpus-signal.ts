@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createSignalStore } from '@/core/lib/createSignalStore';
 
 /**
  * Globaler „Auslastungs-Embedding-Korpus hat sich geändert"-Tick (v2.29.1).
@@ -24,18 +24,15 @@ import { create } from 'zustand';
  * die den Download SELBST auslösen (Mount-Load), brauchen keinen Bump — sie
  * bekommen das Ergebnis direkt; der Bump deckt nur EXTERNE Mutationen ab (kein
  * Self-Trigger-Loop).
+ *
+ * Mechanik: generischer Signal-Store, siehe `@/core/lib/createSignalStore`.
  */
-interface AuslastungCorpusSignalState {
-  version: number;
-  bump: () => void;
-}
+const signal = createSignalStore();
 
-export const useAuslastungCorpusSignal = create<AuslastungCorpusSignalState>((set) => ({
-  version: 0,
-  bump: () => set(s => ({ version: s.version + 1 })),
-}));
+/** Zustand-Hook — in React via Selector lesen: `useAuslastungCorpusSignal(s => s.version)`. */
+export const useAuslastungCorpusSignal = signal.useSignal;
 
 /** Außerhalb von React (Services/Callbacks/Hooks) den Konsumenten-Reload anstoßen. */
 export function bumpAuslastungCorpusSignal(): void {
-  useAuslastungCorpusSignal.getState().bump();
+  signal.bump();
 }

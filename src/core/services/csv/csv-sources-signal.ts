@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createSignalStore } from '@/core/lib/createSignalStore';
 
 /**
  * Globaler „CSV-Quellen / -Schemas haben sich geändert"-Tick.
@@ -14,18 +14,15 @@ import { create } from 'zustand';
  * Bumper: Snapshot-Sync (neue/aktualisierte Schemas) + Ordner-Verknüpfen in
  * Einstellungen → Speicher. Konsument: `useCsvAutoRefreshCheck` läuft bei jeder
  * Version-Änderung erneut (`runCheck` ist idempotent — reiner IDB-Read).
+ *
+ * Mechanik: generischer Signal-Store, siehe `@/core/lib/createSignalStore`.
  */
-interface CsvSourcesSignalState {
-  version: number;
-  bump: () => void;
-}
+const signal = createSignalStore();
 
-export const useCsvSourcesSignal = create<CsvSourcesSignalState>((set) => ({
-  version: 0,
-  bump: () => set(s => ({ version: s.version + 1 })),
-}));
+/** Zustand-Hook — in React via Selector lesen: `useCsvSourcesSignal(s => s.version)`. */
+export const useCsvSourcesSignal = signal.useSignal;
 
 /** Außerhalb von React (Services/Callbacks) den Re-Check anstoßen. */
 export function bumpCsvSourcesSignal(): void {
-  useCsvSourcesSignal.getState().bump();
+  signal.bump();
 }
