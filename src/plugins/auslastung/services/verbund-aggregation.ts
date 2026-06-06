@@ -13,6 +13,7 @@
  */
 import type { Antrag, Verbund } from '@/core/services/csv/types';
 import { verbundAntragsdatum } from '@/core/services/csv/frist';
+import { parseGermanDate } from '@/core/services/csv/dateParse';
 import {
   CANONICAL_AKRONYM,
   CANONICAL_ANTRAGSDATUM,
@@ -144,23 +145,32 @@ export function hatBearbeiterKuerzel(antrag: Antrag): boolean {
 }
 
 /**
- * True, wenn der Antrag im Feld `d_xtec` (D_XTEC) ein Datum traegt — d.h. alle
- * TVs des Verbundes sind eingegangen + erfasst. Pures Vorhandensein eines
- * nicht-leeren Strings reicht (Date-Felder landen als ISO-String im Merger).
- * Maßgeblich fuer FuE (vb_phase 3) + DS (vb_phase 5).
+ * True, wenn der Antrag im Feld `d_xtec` (D_XTEC) ein GUELTIGES Datum traegt —
+ * d.h. alle TVs des Verbundes sind eingegangen + erfasst. Maßgeblich fuer FuE
+ * (vb_phase 3) + DS (vb_phase 5).
+ *
+ * WICHTIG: Es reicht NICHT, dass der String nicht-leer ist. Manche Quell-CSVs
+ * tragen in „leeren" Datumszellen einen Platzhalter (`00.00.0000`, `0`, `.`)
+ * oder ein unsichtbares Zeichen (z.B. U+200B), das `String.trim()` NICHT
+ * entfernt. `coerceValue` laesst solche unparsebaren Werte als Rohstring stehen
+ * (`parseGermanDate(s) ?? s`). Ein bloßer Laengen-Check wuerde sie faelschlich
+ * als „gesetzt" werten → Antrag gilt als vollstaendig, obwohl die Zelle leer
+ * aussieht. Deshalb pruefen wir gegen `parseGermanDate` (akzeptiert ISO + dt.
+ * Format) — nur ein echtes Datum zaehlt als „gesetzt".
  */
 export function hatDXtecDatum(antrag: Antrag): boolean {
   const v = (antrag as Record<string, unknown>)[CANONICAL_D_XTEC];
-  return typeof v === 'string' && v.trim().length > 0;
+  return typeof v === 'string' && parseGermanDate(v) !== null;
 }
 
 /**
- * True, wenn der Antrag im Feld `d_adv` (D_ADV) ein Datum traegt. Pendant zu
- * `hatDXtecDatum` fuer DL (vb_phase 4) + NW (vb_phase 1|2).
+ * True, wenn der Antrag im Feld `d_adv` (D_ADV) ein GUELTIGES Datum traegt.
+ * Pendant zu `hatDXtecDatum` fuer DL (vb_phase 4) + NW (vb_phase 1|2); gleiche
+ * Platzhalter-/Leerwert-Robustheit (siehe dort).
  */
 export function hatDAdvDatum(antrag: Antrag): boolean {
   const v = (antrag as Record<string, unknown>)[CANONICAL_D_ADV];
-  return typeof v === 'string' && v.trim().length > 0;
+  return typeof v === 'string' && parseGermanDate(v) !== null;
 }
 
 /**

@@ -323,17 +323,37 @@ describe('Vollständigkeit pro Antragstyp (D_XTEC / D_ADV)', () => {
   const GATE_BEIDE: VollstaendigkeitsGate = { dxtec: true, dadv: true };
   const GATE_NUR_XTEC: VollstaendigkeitsGate = { dxtec: true, dadv: false };
 
-  it('hatDXtecDatum: nicht-leerer String true, leer/whitespace/fehlend false', () => {
+  it('hatDXtecDatum: nur ein GÜLTIGES Datum zählt (ISO + dt.); Platzhalter/unsichtbar/leer = false', () => {
+    // Gültige Datumswerte → true (ISO wie vom Merger normalisiert, plus dt. Format).
     expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '2026-05-01' }))).toBe(true);
+    expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '25.05.2026' }))).toBe(true);
+    // Leer / Whitespace / fehlend → false.
     expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '   ' }))).toBe(false);
     expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '' }))).toBe(false);
     expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A' }))).toBe(false);
+    // Regression: „leer aussehende" Nicht-Datums-Werte → false (sonst fälschlich vollständig).
+    expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '​' }))).toBe(false); // zero-width space
+    expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '00.00.0000' }))).toBe(false);
+    expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '0' }))).toBe(false);
+    expect(hatDXtecDatum(makeAntrag({ aktenzeichen: 'A', d_xtec: '.' }))).toBe(false);
   });
 
-  it('hatDAdvDatum: nicht-leerer String true, leer/whitespace/fehlend false', () => {
+  it('hatDAdvDatum: nur ein GÜLTIGES Datum zählt; Platzhalter/unsichtbar/leer = false', () => {
     expect(hatDAdvDatum(makeAntrag({ aktenzeichen: 'A', d_adv: '2026-05-01' }))).toBe(true);
+    expect(hatDAdvDatum(makeAntrag({ aktenzeichen: 'A', d_adv: '25.05.2026' }))).toBe(true);
     expect(hatDAdvDatum(makeAntrag({ aktenzeichen: 'A', d_adv: '   ' }))).toBe(false);
     expect(hatDAdvDatum(makeAntrag({ aktenzeichen: 'A' }))).toBe(false);
+    expect(hatDAdvDatum(makeAntrag({ aktenzeichen: 'A', d_adv: '​' }))).toBe(false);
+    expect(hatDAdvDatum(makeAntrag({ aktenzeichen: 'A', d_adv: '00.00.0000' }))).toBe(false);
+  });
+
+  it('Regression: FuE mit „leer aussehendem" D_XTEC-Platzhalter gilt als UNVOLLSTÄNDIG', () => {
+    // Genau der gemeldete Bug: D_XTEC-Zelle sieht leer aus, traegt aber einen
+    // unsichtbaren/Platzhalter-Wert → darf NICHT als vollstaendig zaehlen.
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3, d_xtec: '​' }), GATE_BEIDE)).toBe(false);
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3, d_xtec: '00.00.0000' }), GATE_BEIDE)).toBe(false);
+    // D_ADV gefuellt ist fuer FuE irrelevant → bleibt unvollstaendig.
+    expect(istVollstaendigFuerTyp(makeAntrag({ aktenzeichen: 'F', vb_phase: 3, d_xtec: '​', d_adv: '2026-05-01' }), GATE_BEIDE)).toBe(false);
   });
 
   it('FuE/DS brauchen D_XTEC, DL/NW brauchen D_ADV (Gate beide aktiv)', () => {
