@@ -203,6 +203,19 @@ export async function importCsvSource(
       file_checksum: fileSha,
       last_imported_at: new Date().toISOString(),
       last_row_count: rows.length,
+      // Quelldatei-Baseline HIER stempeln — VOR saveSchema + writeProgrammSnapshot
+      // (unten), damit der Share-Snapshot den frischen lastModified traegt. Sonst
+      // lesen Snapshot-only-Konsumenten (pl-Build / jeder Rechner nach „clear site
+      // data") einen veralteten oder leeren `source_last_modified` und melden die
+      // Quelle bei JEDEM Cold-Start als „neue Daten" (Auto-Refresh-Fehlalarm,
+      // checkSourceForUpdate). Bisher wurde dieses Feld nur post-import in
+      // persistCsvSourceMeta/persistSourceMeta gesetzt — also in der LOKALEN IDB
+      // des Importeurs, NACH dem Snapshot-Write. `instanceof File`-Guard: der
+      // Recompute-/SMB-Reimport-Pfad uebergibt einen Blob ohne sinnvolle
+      // lastModified — dort die Original-Baseline NICHT ueberschreiben.
+      ...(csvBlob instanceof File
+        ? { source_file_name: csvBlob.name, source_last_modified: csvBlob.lastModified }
+        : {}),
     };
 
     // Letzte Cancel-Barriere vor IDB-Writes

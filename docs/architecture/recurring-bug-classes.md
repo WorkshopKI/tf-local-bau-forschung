@@ -1,6 +1,6 @@
 # Wiederkehrende Bug-Klassen
 
-Vier Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
+Sechs Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
 
 > Diese Datei ist die **Single Source of Truth** für diese Muster. CLAUDE.md → Decision-Tree und einige Pitfalls verweisen hierher.
 
@@ -84,3 +84,13 @@ Vier Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an d
 2. **Stummen Off-Zustand sichtbar machen.** Wenn ein Gate, das Daten erwartet, „aus" ist, obwohl die Quelle es gemappt hat → einen **UI-Hinweis** zeigen statt still nichts zu tun (Vorbild: „Vollständigkeits-Prüfung inaktiv"-Banner in [KlassifizierungsReview.tsx](../../src/plugins/auslastung/views/KlassifizierungsReview.tsx)). Die Faustregel: ein datengetriebenes Feature, das bei Fehlkonfiguration **leise** nichts tut, ist gefährlicher als eines, das laut warnt.
 
 **Warnsignal beim Entwickeln:** Sobald Code `antrag['<canonical_key>']` direkt liest UND daraus ein „ist-vorhanden"-Gate ableitet, prüfen: Was passiert, wenn der Kurator diese Spalte als Eigenes Feld (oder gar nicht) mappt? Greift dann ein sichtbarer Hinweis, oder verschwindet das Feature lautlos?
+
+## 6. Tracking-Baseline nach dem Snapshot geschrieben (Snapshot-only-Leser sehen veralteten Stand)
+
+**Symptom:** Auf Snapshot-only-Konsumenten (pl-Variante / nach „clear site data" / neuer Rechner) erscheint ein „hat sich geändert"-Banner (Auto-Refresh „CSV-Quelle hat neue Daten", „Neuer Datenbestand") bei **jedem** frischen Start, obwohl sich nichts geändert hat. Der schreibende Client (Kurator) sieht es **nie**. Klick auf „Aktualisieren" hilft nur bis zum nächsten clear-site-data.
+
+**Root-Cause:** Ein Feld, das als Vergleichs-Baseline einer „hat sich was geändert?"-Erkennung dient (z.B. `source_last_modified`, oder die `snapshot-version`/`store-hash`-Sync-Keys), wird **nach** dem Schreiben des team-geteilten Artefakts (Snapshot) persistiert — nur in die **lokale IDB** des Schreibers. Das publizierte Artefakt trägt damit den **vorherigen oder leeren** Baseline. Der Schreiber vergleicht gegen seine frische lokale IDB → kein Banner; jeder, der NUR aus dem Snapshot liest, liest den veralteten Baseline → Dauer-Fehlalarm (bei `undefined` unbedingt). Zweimal aufgetreten: `b353ac2` (Sync-Tracking-Keys nach `writeProgrammSnapshot` nicht gesetzt) und v2.40.3 (`source_last_modified` post-import via `persist*` statt vor dem Snapshot in `importCsvSource` gestempelt).
+
+**Fix-Pattern:** Die Baseline, die ein geteiltes Artefakt tragen muss, **vor** dem Schreiben des Artefakts in genau den Zustand stempeln, den das Artefakt serialisiert — nicht in einem nachgelagerten `persist*`-Schritt. Positiv-Vorbild im selben Code: `file_checksum` wird in [importer.ts](../../src/core/services/csv/importer.ts) korrekt auf `updatedSchema` **vor** `saveSchema`/`writeProgrammSnapshot` gesetzt; `source_last_modified` machte es falsch (Fix: gleiche Stelle, guarded `instanceof File`). Beim Bauen eines neuen „hat sich was geändert?"-Checks, dessen Baseline team-weit via Snapshot/Sidecar reist: sicherstellen, dass der Publish-Pfad die Baseline mit-publiziert (Test: Artefakt serialisieren, Baseline-Feld ≠ `undefined`/stale). Bestands-Heilung erfordert ein einmaliges Re-Publish durch einen Schreib-Client.
+
+**Kanonische Dateien:** [importer.ts](../../src/core/services/csv/importer.ts) (`updatedSchema`), [snapshot.ts](../../src/core/services/csv/snapshot.ts) + [snapshot-keys.ts](../../src/core/services/csv/snapshot-keys.ts) (Sync-Keys beim Publish setzen), [csv-source-handle.ts](../../src/plugins/csv-sources-kuration/csv-source-handle.ts) (`checkSourceForUpdate`).
