@@ -33,6 +33,10 @@ export interface VerbundColumnsContext {
   kategorien: UeberKategorie[];
   onToggleVerbund: (view: VerbundKlassifizierungsView, kategorieId: string, add: boolean) => void;
   onFreigebeVerbund: (view: VerbundKlassifizierungsView) => void;
+  /** Schema-aufgelöstes Antrag-Feld der erwarteten TV-Anzahl (T_XAT). */
+  erwarteteTvsFeld: string;
+  /** True, wenn eine T_XAT-Spalte im Schema existiert → „von Y erwarteten" anzeigbar. */
+  erwarteteTvsGefunden: boolean;
 }
 
 function topConfidenceScore(v: VerbundKlassifizierungsView): number {
@@ -64,8 +68,19 @@ function fkzRange(v: VerbundKlassifizierungsView): string {
   return `${first} – ${last}`;
 }
 
+/** Erwartete TV-Anzahl (T_XAT) eines Verbundes — pro TV gleich; wir nehmen den
+ *  ersten gültigen Wert (robust gegen einzelne Leerwerte). null = keine valide Zahl. */
+function readErwarteteTvs(v: VerbundKlassifizierungsView, feldKey: string): number | null {
+  for (const tv of v.tvs) {
+    const raw = (tv as Record<string, unknown>)[feldKey];
+    const n = typeof raw === 'number' ? raw : Number(typeof raw === 'string' ? raw.trim() : NaN);
+    if (Number.isFinite(n) && n > 0) return Math.round(n);
+  }
+  return null;
+}
+
 export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[] {
-  const { kategorien, onToggleVerbund, onFreigebeVerbund } = ctx;
+  const { kategorien, onToggleVerbund, onFreigebeVerbund, erwarteteTvsFeld, erwarteteTvsGefunden } = ctx;
 
   return [
     {
@@ -80,6 +95,13 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       render: v => {
         const unvollstaendig = !v.vollstaendig;
         const grund = unvollstaendig ? unvollstaendigGrund(leadAntrag(v)) : '';
+        const x = v.tvs.length;
+        // Bei unvollstaendigen Verbuenden die erwartete TV-Anzahl (T_XAT) mit
+        // anzeigen — „X von Y erwarteten" macht sichtbar, wie viele TVs noch
+        // fehlen. Auch bei X=1 (informativ). Nur wenn T_XAT gemappt + Wert da.
+        const erwartet = (unvollstaendig && erwarteteTvsGefunden)
+          ? readErwarteteTvs(v, erwarteteTvsFeld)
+          : null;
         return (
           <div className="font-mono text-[11.5px] leading-tight">
             <div className="flex items-center gap-1">
@@ -90,11 +112,15 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
               )}
               <span>{fkzRange(v)}</span>
             </div>
-            {v.tvs.length > 1 && (
+            {erwartet != null ? (
               <div className="text-[10px] text-[var(--tf-text-tertiary)] mt-0.5">
-                {v.tvs.length} TVs
+                {x} {x === 1 ? 'TV' : 'TVs'} (von {erwartet} erwarteten)
               </div>
-            )}
+            ) : x > 1 ? (
+              <div className="text-[10px] text-[var(--tf-text-tertiary)] mt-0.5">
+                {x} TVs
+              </div>
+            ) : null}
           </div>
         );
       },

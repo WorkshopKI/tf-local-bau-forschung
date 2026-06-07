@@ -28,8 +28,10 @@ describe('resolveVollstaendigkeitsFelder', () => {
     expect(resolveVollstaendigkeitsFelder([s])).toEqual({
       xtecFeld: 'alle_antrage_in_c16_eingegeben',
       advFeld: 'antrag_in_c16_eingestellt',
+      erwarteteTvsFeld: 'anz_erw_tv',
       xtecGefunden: true,
       advGefunden: true,
+      erwarteteTvsGefunden: false,
     });
   });
 
@@ -39,7 +41,8 @@ describe('resolveVollstaendigkeitsFelder', () => {
       D_ADV: { canonical: 'd_adv', type: 'date' },
     } });
     expect(resolveVollstaendigkeitsFelder([s])).toEqual({
-      xtecFeld: 'd_xtec', advFeld: 'd_adv', xtecGefunden: true, advGefunden: true,
+      xtecFeld: 'd_xtec', advFeld: 'd_adv', erwarteteTvsFeld: 'anz_erw_tv',
+      xtecGefunden: true, advGefunden: true, erwarteteTvsGefunden: false,
     });
   });
 
@@ -48,8 +51,30 @@ describe('resolveVollstaendigkeitsFelder', () => {
       D_AAE: { canonical: 'antragsdatum', type: 'date' },
     } });
     expect(resolveVollstaendigkeitsFelder([s])).toEqual({
-      xtecFeld: 'd_xtec', advFeld: 'd_adv', xtecGefunden: false, advGefunden: false,
+      xtecFeld: 'd_xtec', advFeld: 'd_adv', erwarteteTvsFeld: 'anz_erw_tv',
+      xtecGefunden: false, advGefunden: false, erwarteteTvsGefunden: false,
     });
+  });
+
+  it('löst T_XAT (erwartete TV-Anzahl) als Eigenes Feld auf; T_XAT+ matcht NICHT', () => {
+    const s = schema({ is_master: true, column_mapping: {
+      D_XTEC: { custom: 'alle_antrage_in_c16_eingegeben', type: 'date' },
+      D_ADV: { custom: 'antrag_in_c16_eingestellt', type: 'date' },
+      T_XAT: { custom: 'anz_erw_tv', type: 'number' },
+      'T_XAT+': { custom: 'anz_erw_tv_inkl_assoz', type: 'number' },
+    } });
+    const r = resolveVollstaendigkeitsFelder([s]);
+    expect(r.erwarteteTvsFeld).toBe('anz_erw_tv');
+    expect(r.erwarteteTvsGefunden).toBe(true);
+  });
+
+  it('nur T_XAT+ vorhanden → kein T_XAT-Treffer (Fallback, nicht gefunden)', () => {
+    const s = schema({ is_master: true, column_mapping: {
+      'T_XAT+': { custom: 'anz_erw_tv_inkl_assoz', type: 'number' },
+    } });
+    const r = resolveVollstaendigkeitsFelder([s]);
+    expect(r.erwarteteTvsFeld).toBe('anz_erw_tv');
+    expect(r.erwarteteTvsGefunden).toBe(false);
   });
 
   it('ignore=true wird übersprungen → Fallback + nicht gefunden', () => {
@@ -80,7 +105,8 @@ describe('resolveVollstaendigkeitsFelder', () => {
 
   it('leeres Schema-Array → kanonische Defaults + nicht gefunden', () => {
     expect(resolveVollstaendigkeitsFelder([])).toEqual({
-      xtecFeld: 'd_xtec', advFeld: 'd_adv', xtecGefunden: false, advGefunden: false,
+      xtecFeld: 'd_xtec', advFeld: 'd_adv', erwarteteTvsFeld: 'anz_erw_tv',
+      xtecGefunden: false, advGefunden: false, erwarteteTvsGefunden: false,
     });
   });
 });

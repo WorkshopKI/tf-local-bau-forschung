@@ -407,12 +407,14 @@ export function KlassifizierungsReview(): React.ReactElement {
       kategorien: config.ueberKategorien,
       onToggleVerbund: (v, id, add) => applyVerbundOverride(v, id, add),
       onFreigebeVerbund: v => void freigebeVerbund(v),
+      erwarteteTvsFeld: felder.erwarteteTvsFeld,
+      erwarteteTvsGefunden: felder.erwarteteTvsGefunden,
     }),
     // applyVerbundOverride + freigebeVerbund sind Closures über Hook-State,
-    // ueberKategorien ist der relevante Re-Build-Trigger. Die Vollstaendigkeit
-    // steckt jetzt pro Zeile in view.vollstaendig (kein Column-Rebuild noetig).
+    // ueberKategorien + das aufgeloeste T_XAT-Feld sind die relevanten Re-Build-
+    // Trigger. Die Vollstaendigkeit steckt pro Zeile in view.vollstaendig.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [config.ueberKategorien],
+    [config.ueberKategorien, felder.erwarteteTvsFeld, felder.erwarteteTvsGefunden],
   );
 
   const { visibleKeys, toggleColumn } = useColumnVisibility(
