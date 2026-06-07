@@ -272,9 +272,11 @@ function KuerzelEditor(): React.ReactElement {
     if (opt && !opt.aktiv) updateProfile({ bearbeiter_kuerzel: 'alle' });
   }, [showInaktive, options, current, updateProfile]);
 
-  // Fallback: kein Auslastungs-Modul (options === null) oder noch keine
-  // MA-Daten (leere kuerzel-map) → bestehendes Freitextfeld.
-  if (!options || options.length === 0) {
+  // Fallback NUR, wenn das Auslastungs-Modul aus ist (options === null →
+  // kurator/demo) → bestehendes Freitextfeld. In pl/dev (options ist ein Array,
+  // ggf. leer) IMMER der Dropdown — bei leerem Stand zeigt er nur „Alle", füllt
+  // sich aber automatisch, sobald Anträge geladen sind. Kein Freitext in pl/dev.
+  if (options === null) {
     return (
       <>
         <FieldLabel
