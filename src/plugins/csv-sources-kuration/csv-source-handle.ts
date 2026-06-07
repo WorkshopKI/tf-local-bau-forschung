@@ -20,6 +20,7 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { CsvSchema } from '@/core/services/csv/types';
 import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
 import { parseCsvPreview } from '@/core/services/csv';
+import { sha1Hex } from '@/core/services/csv/sha1';
 import { validateHeaders } from './services/csv-drift-check';
 import { saveSharedCsvFilenames } from './csv-source-filenames';
 // Keys in Core definiert (zentrale IDB-Key-Registry) — die Per-Datei-Handles
@@ -213,6 +214,52 @@ export type UpdateCheckResult =
   | { state: 'update_available'; lastModified: number; fileName: string; previousLastModified: number | null };
 
 /**
+ * Entscheidet `up_to_date` vs. `update_available` für eine aufgelöste Quelldatei.
+ * Zweistufig:
+ *
+ *  1. **Billig** (Metadaten, kein File-Read): `file.lastModified <= source_last_modified`
+ *     → `up_to_date`. Greift nur, wenn die Baseline überhaupt gesetzt ist.
+ *  2. **Sonst** (mtime neuer ODER Baseline fehlt): per **Inhalt** bestätigen.
+ *     `File.lastModified` ist NICHT portabel — die Baseline reist über den
+ *     Snapshot zu pl-Rechnern, wo die mtime der lokalen Datei-Kopie nicht zum
+ *     stempelnden (Kurator-)Rechner passt; auf einem frischen Snapshot ist sie
+ *     zudem oft `undefined`. `file_checksum` (SHA-1 der Rohbytes, im Snapshot
+ *     mitgeführt) IST portabel: stimmt der SHA der Live-Datei überein → byte-
+ *     gleich → `up_to_date` (kein Fehlalarm-Banner). Nur bei echtem Inhalts-
+ *     Unterschied (oder fehlendem `file_checksum`) → `update_available`.
+ *
+ * Der SHA-Read liest die ganze Datei, läuft aber nur wenn der billige Pfad nicht
+ * greift und nur einmal pro Background-Check (collectCandidates, `checkedRef`).
+ * Exportiert für den Unit-Test (kein IDB/Handle-Mock nötig).
+ */
+export async function decideSourceUpdateState(
+  file: File,
+  schema: CsvSchema,
+  fileName: string,
+): Promise<UpdateCheckResult> {
+  const recorded = schema.source_last_modified ?? null;
+  if (recorded != null && file.lastModified <= recorded) {
+    return { state: 'up_to_date', lastModified: file.lastModified, fileName };
+  }
+  // mtime sagt „vielleicht neuer" / keine Baseline → per Inhalt bestätigen.
+  if (schema.file_checksum) {
+    try {
+      if ((await sha1Hex(file)) === schema.file_checksum) {
+        return { state: 'up_to_date', lastModified: file.lastModified, fileName };
+      }
+    } catch {
+      /* Read/Hash-Fehler → konservativ als Update behandeln (Banner zeigen). */
+    }
+  }
+  return {
+    state: 'update_available',
+    lastModified: file.lastModified,
+    fileName,
+    previousLastModified: recorded,
+  };
+}
+
+/**
  * Silent-Check: schaut nur in `queryPermission`, ruft NIE `requestPermission`.
  * Geeignet für automatisches Polling beim Page-Mount. Ein Banner mit
  * "Aktualisieren"-Button erledigt das `requestPermission` später aus dem
@@ -248,16 +295,7 @@ export async function checkSourceForUpdate(
       if (fileMap[schema.id] !== resolved.fileName) {
         await setCsvDirFileMapEntries(idb, { [schema.id]: resolved.fileName });
       }
-      const recorded = schema.source_last_modified ?? null;
-      if (recorded != null && resolved.file.lastModified <= recorded) {
-        return { state: 'up_to_date', lastModified: resolved.file.lastModified, fileName: resolved.fileName };
-      }
-      return {
-        state: 'update_available',
-        lastModified: resolved.file.lastModified,
-        fileName: resolved.fileName,
-        previousLastModified: recorded,
-      };
+      return await decideSourceUpdateState(resolved.file, schema, resolved.fileName);
     }
     // Ordner verknüpft + granted, aber Datei nicht (mehr) drin → Per-Datei-Pfad.
   }
@@ -279,16 +317,7 @@ export async function checkSourceForUpdate(
   } catch (err) {
     return { state: 'file_missing', reason: (err as Error).message || 'Datei nicht erreichbar' };
   }
-  const recorded = schema.source_last_modified ?? null;
-  if (recorded != null && file.lastModified <= recorded) {
-    return { state: 'up_to_date', lastModified: file.lastModified, fileName: file.name };
-  }
-  return {
-    state: 'update_available',
-    lastModified: file.lastModified,
-    fileName: file.name,
-    previousLastModified: recorded,
-  };
+  return await decideSourceUpdateState(file, schema, file.name);
 }
 
 /**
