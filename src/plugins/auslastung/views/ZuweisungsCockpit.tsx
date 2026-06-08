@@ -20,7 +20,7 @@ import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { usePendingUebernahmeWuensche } from '../hooks/usePendingUebernahmeWuensche';
 import { useKlassifizierungenView } from '../hooks/useKlassifizierungen';
-import { runMatching } from '../services/matching-engine';
+import { runMatchingWithContext } from '../services/matching-engine';
 import { collectUebernahmeWuensche } from '../services/uebernahme-einsammeln';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
@@ -42,6 +42,7 @@ import {
   FIELD_PROJEKTBESCHREIBUNG,
   stundenProTVFor,
   type AntragstypBucket,
+  type AusgeschlossenerMa,
   type MatchResult,
   type Zuweisung,
 } from '../types';
@@ -49,6 +50,7 @@ import { KategoriePill } from '../components/KategoriePill';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { TechnologieTags } from '../components/TechnologieTags';
 import { VorschlagRow } from '../components/VorschlagRow';
+import { NichtVorgeschlagenListe } from '../components/NichtVorgeschlagenListe';
 import { ZuweisungStreifen } from '../components/ZuweisungStreifen';
 import { ManuellerMaPicker } from '../components/ManuellerMaPicker';
 import { buildManualMatch } from '../services/manual-match';
@@ -186,6 +188,9 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const [matches, setMatches] = useState<MatchResult[]>([]);
+  // v2.48: Nebenkompetenz-Vorschläge (eigener Block) + ausgeschlossene MAs (Grund-Liste).
+  const [nebenMatches, setNebenMatches] = useState<MatchResult[]>([]);
+  const [ausgeschlossen, setAusgeschlossen] = useState<AusgeschlossenerMa[]>([]);
   const [matchingRunning, setMatchingRunning] = useState(false);
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
   // v2.19: von der PL manuell hinzugefuegte MAs (anonIds) fuer den selektierten
@@ -448,6 +453,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
     if (!selected || !selectedView) {
       matchReqIdRef.current++; // laufende Berechnung invalidieren
       setMatches([]);
+      setNebenMatches([]);
+      setAusgeschlossen([]);
       setMatchingRunning(false);
       return;
     }
@@ -483,7 +490,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
         // korrekten benoetigtenStunden berechnet (Verbund mit 4 TVs = 36h).
         const verbundId = (selected as { verbund_id?: string }).verbund_id;
         const tvCount = getTVCount(cache.antraege, verbundId, selected.aktenzeichen);
-        const result = runMatching({
+        const result = runMatchingWithContext({
           antrag: selected,
           primaerKategorie,
           aspekte,
@@ -506,7 +513,11 @@ export function ZuweisungsCockpit(): React.ReactElement {
         // Stale-Guard: nur anwenden, wenn diese Selektion noch aktuell ist
         // (verhindert, dass ein langsamerer frueherer Lauf einen neueren
         // ueberschreibt, wenn der User schnell durchklickt).
-        if (matchReqIdRef.current === reqId) setMatches(result);
+        if (matchReqIdRef.current === reqId) {
+          setMatches(result.vorschlaege);
+          setNebenMatches(result.nebenkompetenz);
+          setAusgeschlossen(result.ausgeschlossen);
+        }
       } finally {
         if (matchReqIdRef.current === reqId) setMatchingRunning(false);
       }
@@ -898,6 +909,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
               klassifizierung={selectedView.klassifizierung}
               kategorien={config.ueberKategorien}
               matches={mergedMatches}
+              nebenMatches={nebenMatches}
+              ausgeschlossen={ausgeschlossen}
               matchingRunning={matchingRunning}
               zuweisungen={zuweisungen.filter(z => (selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen]).includes(z.antragId))}
               mitarbeiter={mitarbeiter}
@@ -921,7 +934,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
 }
 
 function DetailPanel({
-  antrag, akronym, verbundTitel, klassifizierung, kategorien, matches, matchingRunning,
+  antrag, akronym, verbundTitel, klassifizierung, kategorien, matches, nebenMatches, ausgeschlossen, matchingRunning,
   zuweisungen, mitarbeiter, pendingAnonIds, unvollstaendig, zuweisenGesperrt, tHints, restTVsByAnon,
   onZuweisen, onAblehnen, onAddManual, onRemoveManual, onUnassign, tageImQuartal,
 }: {
@@ -933,6 +946,11 @@ function DetailPanel({
   klassifizierung: import('../types').Klassifizierung;
   kategorien: import('../types').UeberKategorie[];
   matches: MatchResult[];
+  /** v2.48: MAs, die nur über eine Nebenkompetenz zur Primärkategorie passen
+   *  (eigener Block „Auch geeignet"). */
+  nebenMatches: MatchResult[];
+  /** v2.48: kategorie-relevante MAs, die NICHT vorgeschlagen werden (mit Grund). */
+  ausgeschlossen: AusgeschlossenerMa[];
   matchingRunning: boolean;
   zuweisungen: Zuweisung[];
   mitarbeiter: Record<string, import('../types').AnonymerMitarbeiter>;
@@ -1146,7 +1164,7 @@ function DetailPanel({
           {matchingRunning && <span className="text-[11px] text-[var(--tf-text-tertiary)]">Berechne…</span>}
           <ManuellerMaPicker
             mitarbeiter={mitarbeiter}
-            excludeAnonIds={new Set(matches.map(m => m.anonId))}
+            excludeAnonIds={new Set([...matches, ...nebenMatches].map(m => m.anonId))}
             resolveName={resolveName}
             restTVsByAnon={restTVsByAnon}
             onAdd={onAddManual}
@@ -1157,7 +1175,7 @@ function DetailPanel({
             ⚠ Kein klares Match — manuelle Prüfung empfohlen.
           </div>
         )}
-        {matches.length > 0 ? (
+        {matches.length > 0 && (
           <div className="rounded-[10px] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
             {matches.map(m => (
               <VorschlagRow
@@ -1172,13 +1190,44 @@ function DetailPanel({
               />
             ))}
           </div>
-        ) : (
-          !matchingRunning && (
-            <p className="text-[12px] text-[var(--tf-text-tertiary)] text-center py-4">
-              Keine passenden MAs gefunden — möglicherweise keine MAs in den Kategorien, alle abgemeldet oder Kapazität voll.
-            </p>
-          )
         )}
+
+        {/* v2.48: Nebenkompetenz — MAs, deren Primärkategorie hier nur Neben-
+            kategorie ist. Getrennter Block, niedrigere Priorität, gleich zuweisbar. */}
+        {nebenMatches.length > 0 && (
+          <div className="mt-3">
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
+                Auch geeignet · Nebenkompetenz
+              </span>
+              <span className="flex-1 h-[0.5px]" style={{ background: 'var(--tf-border)' }} />
+            </div>
+            <div className="rounded-[10px] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
+              {nebenMatches.map(m => (
+                <VorschlagRow
+                  key={m.anonId}
+                  match={m}
+                  variant="neben"
+                  isAssigned={assignedAnonIds.has(m.anonId)}
+                  antragstyp={getKategorieLabel((antrag as Record<string, unknown>).vb_phase)}
+                  zuweisenGesperrt={zuweisenGesperrt}
+                  onZuweisen={() => onZuweisen(m)}
+                  onAblehnen={() => onAblehnen(m)}
+                  tageImQuartal={tageImQuartal}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {matches.length === 0 && nebenMatches.length === 0 && !matchingRunning && (
+          <p className="text-[12px] text-[var(--tf-text-tertiary)] text-center py-4">
+            Keine passenden MAs gefunden — möglicherweise keine MAs in den Kategorien, alle abgemeldet oder Kapazität voll.
+          </p>
+        )}
+
+        {/* v2.48: nachvollziehbar machen, WARUM kategorie-relevante MAs fehlen. */}
+        <NichtVorgeschlagenListe ausgeschlossen={ausgeschlossen} resolveName={resolveName} />
       </div>
     </div>
   );

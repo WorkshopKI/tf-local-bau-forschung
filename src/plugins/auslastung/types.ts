@@ -527,6 +527,59 @@ export interface MatchResult {
    *  Kein Score; die Card zeigt nur die Kapazitaets-/Kontingent-Angaben + ein
    *  „Manuell"-Badge. */
   manuell?: boolean;
+
+  // ─── v2.48: Transparenz — Score-Aufschluesselung fuer das UI ─────────
+  /** Aufschluesselung des `kompetenzScore` in seine Beitraege (Historie vs.
+   *  Kompetenztabelle vs. Aspekt). Optional → manuelle Eintraege + Alt-Records
+   *  ohne Breakdown bleiben gueltig. Wird von `runMatchingWithContext` gefuellt. */
+  breakdown?: ScoreBreakdown;
+}
+
+/**
+ * Score-Aufschluesselung eines Vorschlags (v2.48) — macht transparent, wieviel
+ * die historischen Antraege (`histScore`) und wieviel die PL-Kompetenztabelle
+ * (`matrixScore`) zum `kompetenzScore` beitragen. Reine Anzeige-Daten; die
+ * Engine berechnet sie ohnehin (siehe `matching-engine.ts` 50/50-Blend).
+ */
+export interface ScoreBreakdown {
+  /** 'haupt' = MA-Hauptkategorie == Antrag-Primaer; 'neben' = nur Nebenkompetenz. */
+  matchKind: 'haupt' | 'neben';
+  /** Gewaehltes BM25/Embedding-Mischverhaeltnis: 1.0 = nur Wortlaut, 0.2 =
+   *  ueberwiegend semantisch, 0.5 = gemischt. */
+  alpha: number;
+  /** Historie-Signal: clamp01(alpha·bm25 + (1-alpha)·emb + astBoost). */
+  histScore: number;
+  /** Kompetenztabellen-Signal der Primaerkategorie (0..1) oder `null`, wenn
+   *  fuer diese Ueberkategorie keine Zelle gepflegt ist (zaehlt dann nicht). */
+  matrixScore: number | null;
+  /** 50/50-Blend-Gewicht der Tabelle (config.kompetenzMatrixMatchGewicht). */
+  matrixGewicht: number;
+}
+
+/** Grund, warum ein kategorie-relevanter MA NICHT vorgeschlagen wird (v2.48).
+ *  Macht die bisher stillen Engine-Ausschluesse im UI nachvollziehbar. */
+export type AusschlussGrund =
+  | 'antragstyp'        // bearbeitet diesen Antragstyp nicht (Praeferenz/Override)
+  | 'kein-onboarding'   // kein Onboarding abgeschlossen UND keine Historie
+  | 'abgemeldet'        // im aktuellen Quartal abgemeldet
+  | 'inaktiv'           // als ehemaliger Bearbeiter markiert (aktiv=false)
+  | 'rang';             // gescort, aber unterhalb des Top-N-Schnitts
+
+export interface AusgeschlossenerMa {
+  anonId: string;
+  grund: AusschlussGrund;
+  /** Hauptkategorie des MAs — Kontext fuer die Anzeige (z.B. „Hauptkategorie IT"). */
+  hauptKategorie?: string;
+  /** Nur bei grund==='rang': der erreichte kompetenzScore (0..1). */
+  kompetenzScore?: number;
+}
+
+/** Voller Matching-Kontext eines Antrags (v2.48) — Haupt-Vorschlaege, die
+ *  getrennt gezeigten Nebenkompetenz-MAs und die ausgeschlossenen MAs mit Grund. */
+export interface MatchKontext {
+  vorschlaege: MatchResult[];
+  nebenkompetenz: MatchResult[];
+  ausgeschlossen: AusgeschlossenerMa[];
 }
 
 // ───────────────────────────────────────────────────────────────────────────

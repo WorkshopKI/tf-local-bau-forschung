@@ -11,10 +11,12 @@
  *
  * Kapazitäts-/Kontingent-Logik 1:1 aus der früheren VorschlagCard übernommen.
  */
-import { Check } from 'lucide-react';
+import { useState } from 'react';
+import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import type { AntragstypBucket, MatchResult, UeberKategorie } from '../types';
 import { useDeAnonName } from './AnonymIdBadge';
 import { ConfidenceDot } from './ConfidenceDot';
+import { ScoreBreakdownPanel } from './ScoreBreakdownPanel';
 import { TechnologieTags } from './TechnologieTags';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 
@@ -33,6 +35,9 @@ interface Props {
   tageImQuartal?: number;
   /** Antragstyp dieses Antrags (für die Typ-Kontingent-Anzeige). */
   antragstyp?: AntragstypBucket | null;
+  /** v2.48: 'neben' → MA ist nur über eine Nebenkompetenz geeignet (eigener
+   *  Block „Auch geeignet"). Setzt einen dezenten Marker neben dem Kürzel. */
+  variant?: 'haupt' | 'neben';
 }
 
 /** Balkenfarbe nach Passung (README-Schwellen). */
@@ -44,8 +49,9 @@ function barColor(v: number): string {
 }
 
 export function VorschlagRow({
-  match, isAssigned, matchendeQueryTokens, onZuweisen, onAblehnen, disabled, zuweisenGesperrt, tageImQuartal, antragstyp,
+  match, isAssigned, matchendeQueryTokens, onZuweisen, onAblehnen, disabled, zuweisenGesperrt, tageImQuartal, antragstyp, variant = 'haupt',
 }: Props): React.ReactElement {
+  const [expanded, setExpanded] = useState(false);
   const score = Math.round(match.kompetenzScore * 100);
   const config = useAuslastungData(s => s.data.config);
   const stundenProTV = config.stundenProTV ?? 9;
@@ -98,9 +104,10 @@ export function VorschlagRow({
 
   return (
     <div
-      className="grid grid-cols-[minmax(0,1fr)_122px_156px_auto] gap-[18px] items-start px-3.5 py-2.5 border-t-[0.5px] border-[var(--tf-border)] first:border-t-0 hover:bg-[var(--tf-hover)]"
+      className="border-t-[0.5px] border-[var(--tf-border)] first:border-t-0"
       style={isAssigned ? { background: 'var(--tf-bg-secondary)' } : undefined}
     >
+    <div className="grid grid-cols-[minmax(0,1fr)_122px_156px_auto] gap-[18px] items-start px-3.5 py-2.5 hover:bg-[var(--tf-hover)]">
       {/* Spalte 1 — Kürzel (einmalig, plain) + Tech + Aspekt + ähnliche Projekte */}
       <div className="min-w-0">
         <div className="flex items-center gap-2">
@@ -110,6 +117,15 @@ export function VorschlagRow({
           >
             {realName ?? match.anonId}
           </span>
+          {variant === 'neben' && (
+            <span
+              className="text-[10px] text-[var(--tf-text-secondary)] px-1.5 py-0.5 rounded"
+              style={{ background: 'var(--tf-bg-secondary)' }}
+              title="Diese Überkategorie ist eine Nebenkompetenz dieses MAs (nicht die Hauptkategorie)."
+            >
+              Nebenkompetenz
+            </span>
+          )}
           {match.manuell && (
             <span
               className="text-[10px] uppercase tracking-wider text-[var(--tf-text-secondary)] px-1.5 py-0.5 rounded"
@@ -169,12 +185,20 @@ export function VorschlagRow({
             <div className="w-[60px] h-1 rounded-sm overflow-hidden" style={{ background: 'var(--tf-bg-secondary)' }}>
               <span className="block h-full rounded-sm" style={{ width: `${Math.max(score, 3)}%`, background: barColor(score) }} />
             </div>
-            <span
-              className="text-[9.5px] uppercase tracking-[0.05em] text-[var(--tf-text-tertiary)] cursor-help"
-              title="Fachliche Passung des/der MA zu diesem Antrag — abgeleitet aus ähnlichen früheren Anträgen, Stichwörtern und der Kompetenzmatrix. Kein Maß der persönlichen Kompetenz."
+            <button
+              type="button"
+              onClick={() => setExpanded(v => !v)}
+              aria-expanded={expanded}
+              className="inline-flex items-center gap-1 cursor-pointer group/passung"
+              title="Fachliche Passung des/der MA zu diesem Antrag — abgeleitet aus ähnlichen früheren Anträgen, Stichwörtern und der Kompetenzmatrix. Klicken für die Aufschlüsselung (Historie vs. Kompetenztabelle). Kein Maß der persönlichen Kompetenz."
             >
-              Passung
-            </span>
+              <span className="text-[9.5px] uppercase tracking-[0.05em] text-[var(--tf-text-tertiary)] group-hover/passung:text-[var(--tf-text-secondary)]">
+                Passung
+              </span>
+              {expanded
+                ? <ChevronUp size={11} className="text-[var(--tf-text-tertiary)]" aria-hidden />
+                : <ChevronDown size={11} className="text-[var(--tf-text-tertiary)]" aria-hidden />}
+            </button>
           </>
         )}
       </div>
@@ -215,6 +239,8 @@ export function VorschlagRow({
           </>
         )}
       </div>
+    </div>
+    {expanded && !match.manuell && <ScoreBreakdownPanel match={match} />}
     </div>
   );
 }
