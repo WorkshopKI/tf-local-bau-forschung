@@ -2,6 +2,10 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.54.1 — Spaltenfilter „Erstentscheidung": leere Einträge wählbar (Juni 2026)
+
+PATCH-Bump v2.54.1: Der Spaltenfilter der „Erstentscheidung"-Spalte zeigte nur die Jahre (2021–2026), aber keine Option für **Anträge ohne Erstentscheidung** — `deriveFilterCandidates` ([useColumnFilters.ts](src/components/data-table/useColumnFilters.ts)) überspringt leere Filterwerte (`if (v)`) als „kein Kandidat", und der `filterAccessor` der Spalte lieferte für datumslose Anträge `''`. Fix: der `filterAccessor` mappt leere/datumslose Werte jetzt auf den nicht-leeren Sentinel **„(leer)"** ([tableColumns.tsx](src/plugins/antraege/tableColumns.tsx) `yearOfOrEmpty`) — damit erscheint „(leer)" als wählbare Filter-Option und `applyColumnFilters` matcht die leeren Zeilen über denselben `filterAccessor`-Pfad zurück. Folgt dem bestehenden Sentinel-Muster (vgl. `'(kein)'` in [useColumnFilters.test.ts](src/components/data-table/__tests__/useColumnFilters.test.ts)); keine Änderung an der generischen Filter-Logik. Regressionstest [tableColumns-filter.test.ts](src/plugins/antraege/__tests__/tableColumns-filter.test.ts).
+
 ### v2.54 — Hinweis auf abgelehnte/zurückgezogene Vorgänger im Verbund-Detail (Juni 2026)
 
 MINOR-Bump v2.54: Wird ein Projekt nach Ablehnung/Rückzug erneut eingereicht, führt das Foyer-Quellsystem den überholten Vorgänger unter **demselben Kurznamen, aber geklammert** (`(SCULPT)` vs. aktiv `SCULPT`), mit TV-Status `abgelehnt/zurückgezogen`. Dass es einen solchen Vorgänger gibt, war bisher nur über eine gezielte Akronym-Suche sichtbar. Neu: ein Warn-Hinweis direkt im Verbund-Detail.

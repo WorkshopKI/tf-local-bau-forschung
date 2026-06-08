@@ -55,6 +55,18 @@ function yearOf(v: string | undefined): string {
   return de ? de[1]! : '';
 }
 
+/** Filter-Label für Zeilen ohne Wert. Ein nicht-leerer Sentinel macht „leere"
+ *  Einträge im Spaltenfilter wählbar — sonst überspringt `deriveFilterCandidates`
+ *  den leeren String als „kein Kandidat". `applyColumnFilters` matcht denselben
+ *  Sentinel zurück (gleicher `filterAccessor`-Pfad). */
+const FILTER_EMPTY_LABEL = '(leer)';
+
+/** Jahr fürs Datums-Spaltenfilter, leere/datumslose Zeilen als „(leer)"
+ *  wählbar (z.B. „Anträge ohne Erstentscheidung"). */
+function yearOfOrEmpty(v: string | undefined): string {
+  return yearOf(v) || FILTER_EMPTY_LABEL;
+}
+
 /** Absolutes Frist-Datum + Berechnungsbasis als Tooltip-Text — macht die
  *  Tage-Differenz (z.B. "-74d") nachvollziehbar. Phasen-bewusst (Pitfall #12). */
 function fristTooltip(
@@ -261,7 +273,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     defaultVisible: false,
     sortable: true,
     filterable: true,
-    filterAccessor: r => yearOf(r.erstentscheidung),
+    filterAccessor: r => yearOfOrEmpty(r.erstentscheidung),
     width: 148,
     wrap: false,
     accessor: r => strOrNull(r.erstentscheidung) ?? '',
