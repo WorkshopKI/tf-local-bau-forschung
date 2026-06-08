@@ -13,6 +13,7 @@ import {
   STATUS_LABELS,
 } from './constants';
 import { SponsorButton } from './SponsorButton';
+import { FeedbackScreenshots } from './FeedbackScreenshots';
 
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
 function getIcon(name: string): IconComponent {
@@ -67,6 +68,11 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
           )}
         </div>
       </div>
+
+      {/* Beigefügte Screenshots — Klick öffnet die Lightbox */}
+      {ticket.attachments && ticket.attachments.length > 0 && (
+        <FeedbackScreenshots attachments={ticket.attachments} compact />
+      )}
 
       {/* Sponsoring-Block (nur bei Features mit Aufwand) */}
       {isFeature && hasEffort && (

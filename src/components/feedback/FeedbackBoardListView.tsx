@@ -25,6 +25,7 @@ import {
   STATUS_COLORS,
   STATUS_LABELS,
 } from './constants';
+import { FeedbackScreenshots } from './FeedbackScreenshots';
 
 interface Props {
   tickets: FeedbackItem[];
@@ -121,6 +122,15 @@ function buildColumns(config: FeedbackConfig): SortableColumn<FeedbackItem>[] {
       filterAccessor: t => t.effort_estimate ?? '(keiner)',
       formatFilterLabel: v => (v === '(keiner)' ? v : (EFFORT_SHORT_LABELS[v as EffortEstimate] ?? v)),
       render: t => <span className="text-[11.5px] text-[var(--tf-text-secondary)]">{t.effort_estimate ? EFFORT_SHORT_LABELS[t.effort_estimate] : '—'}</span>,
+    },
+    {
+      key: 'bilder', label: 'Bilder', defaultVisible: true, sortable: true, width: 96, wrap: true,
+      // Sortwert = Anzahl Screenshots; Zelle rendert die kompakten Thumbnails
+      // (Klick = Lightbox) bzw. „—" wenn keine vorhanden.
+      accessor: t => t.attachments?.length ?? 0,
+      render: t => (t.attachments && t.attachments.length > 0
+        ? <FeedbackScreenshots attachments={t.attachments} compact />
+        : <span className="text-[11px] text-[var(--tf-text-tertiary)]">—</span>),
     },
   ];
 }
