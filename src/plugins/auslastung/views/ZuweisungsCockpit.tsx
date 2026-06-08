@@ -9,7 +9,7 @@
  *    Zuweisungs-Streifen am Kopf (Redesign v2.26).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Info, Undo2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Info, Undo2 } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
@@ -977,6 +977,8 @@ function DetailPanel({
   tageImQuartal: number;
 }): React.ReactElement {
   const resolveName = useDeAnonResolver();
+  // v2.48: Nebenkompetenz-Block standardmäßig eingeklappt (sekundäre Kandidaten).
+  const [nebenOpen, setNebenOpen] = useState(false);
   const akt = akronym || (antrag[CANONICAL_AKRONYM] as string | undefined);
   const vbTitel = verbundTitel || (antrag[CANONICAL_VERBUND_TITEL] as string | undefined);
   const tvTitel = antrag[CANONICAL_TITEL] as string | undefined;
@@ -1196,27 +1198,35 @@ function DetailPanel({
             kategorie ist. Getrennter Block, niedrigere Priorität, gleich zuweisbar. */}
         {nebenMatches.length > 0 && (
           <div className="mt-3">
-            <div className="flex items-center gap-2.5 mb-1.5">
-              <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
-                Auch geeignet · Nebenkompetenz
+            <button
+              type="button"
+              onClick={() => setNebenOpen(v => !v)}
+              aria-expanded={nebenOpen}
+              className="w-full flex items-center gap-2.5 mb-1.5 cursor-pointer group/neben"
+            >
+              <span className="inline-flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] group-hover/neben:text-[var(--tf-text-secondary)]">
+                {nebenOpen ? <ChevronDown size={12} aria-hidden /> : <ChevronRight size={12} aria-hidden />}
+                Auch geeignet · Nebenkompetenz ({nebenMatches.length})
               </span>
               <span className="flex-1 h-[0.5px]" style={{ background: 'var(--tf-border)' }} />
-            </div>
-            <div className="rounded-[10px] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
-              {nebenMatches.map(m => (
-                <VorschlagRow
-                  key={m.anonId}
-                  match={m}
-                  variant="neben"
-                  isAssigned={assignedAnonIds.has(m.anonId)}
-                  antragstyp={getKategorieLabel((antrag as Record<string, unknown>).vb_phase)}
-                  zuweisenGesperrt={zuweisenGesperrt}
-                  onZuweisen={() => onZuweisen(m)}
-                  onAblehnen={() => onAblehnen(m)}
-                  tageImQuartal={tageImQuartal}
-                />
-              ))}
-            </div>
+            </button>
+            {nebenOpen && (
+              <div className="rounded-[10px] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
+                {nebenMatches.map(m => (
+                  <VorschlagRow
+                    key={m.anonId}
+                    match={m}
+                    variant="neben"
+                    isAssigned={assignedAnonIds.has(m.anonId)}
+                    antragstyp={getKategorieLabel((antrag as Record<string, unknown>).vb_phase)}
+                    zuweisenGesperrt={zuweisenGesperrt}
+                    onZuweisen={() => onZuweisen(m)}
+                    onAblehnen={() => onAblehnen(m)}
+                    tageImQuartal={tageImQuartal}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
