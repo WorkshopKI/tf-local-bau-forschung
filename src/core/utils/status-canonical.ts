@@ -187,6 +187,17 @@ export function isAbgelehntStatus(raw: unknown): boolean {
   return getStatusCategory(raw) === 'abgelehnt';
 }
 
+/** True fuer final negativ ausgegangene Antraege: Foerderantrag
+ *  `abgelehnt/zurückgezogen` (in der Map als Kategorie `abgeschlossen` gefuehrt,
+ *  weil die Foerderantrag-Domain keinen separaten `abgelehnt`-Endzustand hat)
+ *  ODER Bauantrag `abgelehnt` (Kategorie `abgelehnt`). Praeziser als
+ *  `isClosedStatus` (das auch bewilligt + Schlussvermerk einschliesst) — fuer
+ *  „wurde dieses Projekt schon einmal abgelehnt/zurueckgezogen?". */
+export function isAbgelehntZurueckgezogenStatus(raw: unknown): boolean {
+  if (getStatusCategory(raw) === 'abgelehnt') return true; // Bauantrag-Domain
+  return normalize(raw) === 'abgelehnt/zurückgezogen';     // Foerderantrag-Domain
+}
+
 /** True, wenn final entschieden (bewilligt, abgelehnt, abgeschlossen). */
 export function isClosedStatus(raw: unknown): boolean {
   const c = getStatusCategory(raw);

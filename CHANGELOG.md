@@ -2,6 +2,16 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.54 — Hinweis auf abgelehnte/zurückgezogene Vorgänger im Verbund-Detail (Juni 2026)
+
+MINOR-Bump v2.54: Wird ein Projekt nach Ablehnung/Rückzug erneut eingereicht, führt das Foyer-Quellsystem den überholten Vorgänger unter **demselben Kurznamen, aber geklammert** (`(SCULPT)` vs. aktiv `SCULPT`), mit TV-Status `abgelehnt/zurückgezogen`. Dass es einen solchen Vorgänger gibt, war bisher nur über eine gezielte Akronym-Suche sichtbar. Neu: ein Warn-Hinweis direkt im Verbund-Detail.
+
+- **Banner** [AbgelehnteVorgaengerBanner.tsx](src/plugins/antraege/AbgelehnteVorgaengerBanner.tsx) unter dem Header von [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx): listet frühere abgelehnte/zurückgezogene Einreichungen desselben Kurznamens (pro Vorgänger-Verbund: TV-Anzahl, jüngste Erstentscheidung, Antragsteller); jede Zeile öffnet per Klick den abgelehnten Verbund.
+- **Match-Logik** [vorgaengerAntraege.ts](src/plugins/antraege/vorgaengerAntraege.ts): `normalizeAkronymForMatch` ignoriert umschließende Klammern + Groß/Klein + Whitespace (`(SCULPT)` == `SCULPT`); `findAbgelehnteVorgaenger` filtert die In-Memory-Slim-Liste (`useAntraegeStore.antraege`, aktuelles Programm) auf gleichen Kurznamen + Status abgelehnt/zurückgezogen, schließt den aktuellen Verbund/seine TVs aus und gruppiert pro Vorgänger-Verbund. Unit-Tests in [vorgaengerAntraege.test.ts](src/plugins/antraege/__tests__/vorgaengerAntraege.test.ts).
+- **Status-Helper** `isAbgelehntZurueckgezogenStatus` in [status-canonical.ts](src/core/utils/status-canonical.ts) — präziser als `isClosedStatus` (das auch bewilligt + Schlussvermerk einschließt); kein Literal-Vergleich außerhalb des Canonical-Moduls (Pitfall #12).
+
+Rein additiv, keine Migration, kein Daten-Backfill (Normalisierung passiert lesend im Konsumenten). Sichtbar überall, wo das Förderanträge-Detail rendert (prod/kurator/pl/dev). Scope: Vorgänger im selben Programm (Re-Einreichungen teilen das FKZ-Präfix); programm-übergreifende Vorgänger bewusst out of scope.
+
 ### v2.53 — Mapping-Editor: Spaltensuche + Gruppierung im Bearbeiten-Modus (Juni 2026)
 
 MINOR-Bump v2.53: Im Schema-Detail-Dialog ([CsvSchemaDetailDialog.tsx](src/plugins/csv-sources-kuration/CsvSchemaDetailDialog.tsx), öffnet per Klick auf eine CSV-Quelle) zeigte der **read-only**-Modus die Spalten in kollabierbaren `group_path`-Gruppen, der **Bearbeiten**-Modus dagegen nur eine flache Liste — ohne Suche. Bei breiten CSVs (50+ Spalten) war die gesuchte Spalte schwer zu finden.

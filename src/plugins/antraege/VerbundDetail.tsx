@@ -29,6 +29,9 @@ import {
   aktenzeichenFromPseudoVerbundId,
   buildPseudoVerbund,
 } from './pseudoVerbund';
+import { useAntraegeStore } from './store';
+import { findAbgelehnteVorgaenger } from './vorgaengerAntraege';
+import { AbgelehnteVorgaengerBanner } from './AbgelehnteVorgaengerBanner';
 
 interface Props {
   verbundId: string;
@@ -69,6 +72,8 @@ export function VerbundDetail({
   onOpenAntrag,
 }: Props): React.ReactElement {
   const storage = useStorage();
+  // In-Memory-Slim-Liste des Programms — Quelle für die Vorgänger-Suche.
+  const allAntraege = useAntraegeStore(s => s.antraege);
   const [verbund, setVerbund] = useState<Verbund | null>(null);
   const [antraege, setAntraege] = useState<Antrag[]>([]);
   const [history, setHistory] = useState<VerbundHistorieEntry[]>([]);
@@ -163,6 +168,20 @@ export function VerbundDetail({
 
   const historyCounts = useMemo<Record<string, number>>(() => ({}), []);
 
+  // Frühere abgelehnte/zurückgezogene Einreichungen desselben Kurznamens
+  // (klammer-tolerant). Hook läuft unbedingt (vor dem Early-Return), guardet
+  // intern auf fehlenden Verbund.
+  const vorgaenger = useMemo(() => {
+    if (!verbund) return [];
+    const rawAkronym = strOrNull(verbund.akronym) ?? strOrNull(antraege[0]?.akronym);
+    return findAbgelehnteVorgaenger({
+      currentVerbundId: verbund.verbund_id,
+      currentAkronym: rawAkronym,
+      currentAktenzeichen: new Set(antraege.map(a => a.aktenzeichen)),
+      antraege: allAntraege,
+    });
+  }, [verbund, antraege, allAntraege]);
+
   if (!verbund) {
     return (
       <PanelShell onClose={onClose}>
@@ -243,6 +262,12 @@ export function VerbundDetail({
           <div className="mt-1 text-[14px]"><XswSuffix value={leadXsw} /></div>
         ) : null}
       </div>
+
+      {/* VORGÄNGER-HINWEIS — frühere abgelehnte/zurückgezogene Einreichungen
+          desselben Kurznamens. Sitzt direkt unter dem Header (hohe Sichtbarkeit). */}
+      {vorgaenger.length > 0 ? (
+        <AbgelehnteVorgaengerBanner vorgaenger={vorgaenger} onOpenAntrag={onOpenAntrag} />
+      ) : null}
 
       {/* KURZBESCHREIBUNG — Verbund-Inhalt aus VB_INHALT. Sitzt ganz oben,
           damit der User die Projektidee sofort sieht ohne einen TV
