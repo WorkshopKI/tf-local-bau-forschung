@@ -56,10 +56,27 @@ function buildRequirement(ticket: FeedbackItem): string {
   return details ? `${summary}\n\n${details}` : summary;
 }
 
+/** Markdown-Block für beigefügte Screenshots (Referenzen + manueller-Anhang-Hinweis). */
+function buildScreenshotsBlock(ticket: FeedbackItem): string {
+  const atts = ticket.attachments;
+  if (!atts || atts.length === 0) return '';
+  const list = atts
+    .map(a => `- \`${a.filename}\`${a.caption ? ` — ${a.caption}` : ''}`)
+    .join('\n');
+  return `
+## Beigefügte Screenshots
+
+${list}
+
+> ⚠️ Die Bilddateien liegen real im Attachment-Verzeichnis (\`_intern/feedback/attachments/\`). Beim Einfügen dieses Prompts in den Coding-Agent bitte **manuell mit anhängen** — der Prompt-Text enthält sie nicht.
+`;
+}
+
 export function generateClaudeCodePrompt(ticket: FeedbackItem): string {
   const cls = ticket.llm_classification;
   const category = cls?.category ?? ticket.category;
   const requirement = buildRequirement(ticket);
+  const screenshotsBlock = buildScreenshotsBlock(ticket);
   const affectedArea = cls?.affectedArea || ticket.context.page;
   const relevantFiles = cls?.relevant_files;
 
@@ -85,7 +102,7 @@ Kategorie: **${category ? (CATEGORY_LABELS_DE[category] ?? category) : 'Unklassi
 ## Anforderung (aus Nutzerfeedback #${ticket.id})
 
 ${requirement}
-${ticket.user_confirmed ? '\n> ✅ Vom Nutzer bestätigt: "Ja, genau das meine ich"\n' : ''}
+${ticket.user_confirmed ? '\n> ✅ Vom Nutzer bestätigt: "Ja, genau das meine ich"\n' : ''}${screenshotsBlock}
 ## Automatisch erfasster Kontext
 
 - Route: \`${ctx.route}\`

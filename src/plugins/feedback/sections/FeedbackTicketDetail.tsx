@@ -18,6 +18,7 @@ import { isFeedbackDeleteEnabled } from '@/config/feature-flags';
 import { DEFAULT_FEEDBACK_CONFIG, EFFORT_LABELS } from '@/core/types/feedback';
 import type { EffortEstimate, FeedbackCategory, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { CATEGORY_COLORS, CATEGORY_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/components/feedback/constants';
+import { TicketScreenshots } from './TicketScreenshots';
 
 interface Props { ticket: FeedbackItem | null; onClose: () => void; onUpdated: () => void; }
 
@@ -168,6 +169,11 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
       </div>
       {ticket.llm_summary && ticket.llm_summary !== ticket.text && (
         <p className="text-[11.5px] text-[var(--tf-text-secondary)] italic">{ticket.llm_summary}</p>
+      )}
+
+      {/* Screenshots */}
+      {ticket.attachments && ticket.attachments.length > 0 && (
+        <TicketScreenshots attachments={ticket.attachments} />
       )}
 
       {/* Sponsoring-Block */}

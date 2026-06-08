@@ -1,27 +1,39 @@
 /**
- * Tests fuer feedbackOutboxCollect.ts (v2.22 — Auto-Einsammeln ohne Review).
+ * Tests fuer feedbackOutboxCollect.ts (v2.22 Auto-Einsammeln, v2.42 Auto-Loeschen).
  *
  * Mockt die FS-/Shared-IO-Abhaengigkeiten und prueft die Orchestrierung:
  *  - offene neue Eintraege werden importiert (Outbox-id als FeedbackItem-id),
  *  - bereits in Shared vorhandene id wird NICHT dupliziert,
  *  - nicht-pending Eintraege werden uebersprungen,
- *  - alle offenen Outbox-Eintraege werden auf 'approved' zurueckgeschrieben.
+ *  - category/structured/attachments werden durchgereicht,
+ *  - nach bestaetigtem Shared-Write wird am Ursprung GELOESCHT (Bytes-zuerst),
+ *  - schlaegt der Shared-Write fehl, wird NICHT geloescht (approved-Fallback).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/core/services/personal-storage', () => ({
   listOutboxItems: vi.fn(),
   writeOutboxStatus: vi.fn(async () => undefined),
+  deleteOutboxItem: vi.fn(async () => undefined),
 }));
+vi.mock('@/core/services/infrastructure/atomic-write', async (importActual) => {
+  const actual = await importActual<typeof import('@/core/services/infrastructure/atomic-write')>();
+  return { ...actual, readBinary: vi.fn(async () => new Uint8Array([1, 2, 3])) };
+});
 vi.mock('../feedbackSharedFile', async (importActual) => {
   const actual = await importActual<typeof import('../feedbackSharedFile')>();
-  return { ...actual, readSharedFile: vi.fn(), writeSharedFile: vi.fn(async () => true) };
+  return {
+    ...actual,
+    readSharedFile: vi.fn(),
+    writeSharedFile: vi.fn(async () => true),
+    writeSharedAttachment: vi.fn(async () => true),
+  };
 });
 vi.mock('../feedbackStorage', () => ({ emitFeedbackUpdated: vi.fn() }));
 
 import { autoCollectFeedbackOutboxes } from '../feedbackOutboxCollect';
-import { listOutboxItems, writeOutboxStatus } from '@/core/services/personal-storage';
-import { readSharedFile, writeSharedFile } from '../feedbackSharedFile';
+import { listOutboxItems, writeOutboxStatus, deleteOutboxItem } from '@/core/services/personal-storage';
+import { readSharedFile, writeSharedFile, writeSharedAttachment } from '../feedbackSharedFile';
 import type { StorageService } from '@/core/services/storage';
 import type { FeedbackItem } from '@/core/types/feedback';
 
@@ -57,9 +69,13 @@ function sharedItem(id: string): FeedbackItem {
 }
 
 describe('autoCollectFeedbackOutboxes', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(writeSharedFile).mockResolvedValue(true);
+    vi.mocked(writeSharedAttachment).mockResolvedValue(true);
+  });
 
-  it('importiert offene neue Eintraege, dedupt vorhandene, ueberspringt nicht-pending', async () => {
+  it('importiert neue Eintraege, dedupt vorhandene, ueberspringt nicht-pending, loescht am Ursprung', async () => {
     vi.mocked(readSharedFile).mockResolvedValue({ version: 1, updated_at: '', items: [sharedItem('B')] });
     vi.mocked(listOutboxItems).mockResolvedValue([
       ob('A', 'pending'), ob('B', 'pending'), ob('C', 'approved'),
@@ -73,24 +89,21 @@ describe('autoCollectFeedbackOutboxes', () => {
     expect(writeSharedFile).toHaveBeenCalledTimes(1);
     const written = vi.mocked(writeSharedFile).mock.calls[0]![1];
     expect(written.map(i => i.id).sort()).toEqual(['A', 'B']);
-    const a = written.find(i => i.id === 'A')!;
-    expect(a.kurator_status).toBe('neu');
-    expect(a.text).toBe('A');
 
-    // Outbox-Status: fuer beide offenen (A,B) auf 'approved', NICHT fuer C.
-    expect(writeOutboxStatus).toHaveBeenCalledTimes(2);
-    const statuses = vi.mocked(writeOutboxStatus).mock.calls.map(c => c[1]);
-    expect(statuses.map(s => s.id).sort()).toEqual(['A', 'B']);
-    expect(statuses.every(s => s.status === 'approved' && s.reviewer_kuerzel === 'KUR')).toBe(true);
+    // Auto-Loeschen: nach bestaetigtem Shared-Write werden BEIDE offenen (A,B)
+    // am Ursprung geloescht — NICHT nur 'approved' markiert.
+    expect(deleteOutboxItem).toHaveBeenCalledTimes(2);
+    expect(writeOutboxStatus).not.toHaveBeenCalled();
   });
 
-  it('reicht category + structured aus der Outbox ins FeedbackItem durch', async () => {
+  it('reicht category + structured + attachments durch und kopiert Bytes vor dem Loeschen', async () => {
     vi.mocked(readSharedFile).mockResolvedValue(null);
     vi.mocked(listOutboxItems).mockResolvedValue([
       {
         id: 'X', kuerzel: 'AAA', submitted_at: '2026-06-01T10:00:00.000Z',
         text: 'Was ist passiert?\nAbsturz', status: 'pending',
-        category: 'ux', structured: { pain: 'umständlich', better: 'Button' },
+        category: 'ux', structured: { pain: 'umständlich' },
+        attachments: [{ id: 'a1', filename: 'X-a1.png', mime: 'image/png', width: 800, height: 600, bytes: 99 }],
       },
     ] as never);
 
@@ -99,10 +112,30 @@ describe('autoCollectFeedbackOutboxes', () => {
     const written = vi.mocked(writeSharedFile).mock.calls[0]![1];
     const x = written.find(i => i.id === 'X')!;
     expect(x.category).toBe('ux');
-    expect(x.structured).toEqual({ pain: 'umständlich', better: 'Button' });
+    expect(x.structured).toEqual({ pain: 'umständlich' });
+    expect(x.attachments).toEqual([{ id: 'a1', filename: 'X-a1.png', mime: 'image/png', width: 800, height: 600, bytes: 99 }]);
+
+    // Bytes ins Shared kopiert + danach am Ursprung geloescht.
+    expect(writeSharedAttachment).toHaveBeenCalledWith(storage, 'X-a1.png', expect.anything());
+    expect(deleteOutboxItem).toHaveBeenCalledTimes(1);
+    expect(writeOutboxStatus).not.toHaveBeenCalled();
   });
 
-  it('ohne offene Eintraege: kein Shared-Write', async () => {
+  it('loescht NICHT, wenn der Shared-Write fehlschlaegt (approved-Fallback)', async () => {
+    vi.mocked(readSharedFile).mockResolvedValue(null);
+    vi.mocked(writeSharedFile).mockResolvedValue(false);
+    vi.mocked(listOutboxItems).mockResolvedValue([ob('A', 'pending')] as never);
+
+    await autoCollectFeedbackOutboxes(storage, rootWithOneUser(), 'KUR');
+
+    expect(deleteOutboxItem).not.toHaveBeenCalled();
+    expect(writeOutboxStatus).toHaveBeenCalledTimes(1);
+    const status = vi.mocked(writeOutboxStatus).mock.calls[0]![1];
+    expect(status.status).toBe('approved');
+    expect(status.reviewer_kuerzel).toBe('KUR');
+  });
+
+  it('ohne offene Eintraege: kein Shared-Write, kein Loeschen', async () => {
     vi.mocked(readSharedFile).mockResolvedValue(null);
     vi.mocked(listOutboxItems).mockResolvedValue([ob('C', 'approved')] as never);
 
@@ -111,5 +144,6 @@ describe('autoCollectFeedbackOutboxes', () => {
     expect(res).toEqual({ scanned: 0, imported: 0 });
     expect(writeSharedFile).not.toHaveBeenCalled();
     expect(writeOutboxStatus).not.toHaveBeenCalled();
+    expect(deleteOutboxItem).not.toHaveBeenCalled();
   });
 });

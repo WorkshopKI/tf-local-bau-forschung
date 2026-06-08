@@ -11,6 +11,7 @@
  */
 
 import type { UserProfile } from '@/core/types/config';
+import type { FeedbackAttachment } from '@/core/types/feedback';
 
 export interface FilterPreset {
   id: string;
@@ -54,6 +55,9 @@ export interface FeedbackOutboxItem {
   /** Strukturierte Formular-Felder (key → wert) aus dem Typ-Formular. Wird beim
    *  Kurator-Einsammeln ins FeedbackItem.structured übernommen (Quelle für promptGenerator). */
   structured?: Record<string, string>;
+  /** Beigefügte Screenshots (Referenz + Caption). Die Bilddateien liegen neben
+   *  der JSON in der Outbox und werden beim Einsammeln ins Shared kopiert. */
+  attachments?: FeedbackAttachment[];
   context?: unknown;
   status: 'pending' | 'approved' | 'rejected';
   reviewed_at?: string;

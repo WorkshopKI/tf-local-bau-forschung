@@ -1,6 +1,9 @@
 export { FeedbackButton } from './FeedbackButton';
 export { FeedbackPanel } from './FeedbackPanel';
 export { FeedbackInputStep, type FeedbackSubmitPayload } from './FeedbackInputStep';
+export { FeedbackScreenshotInput } from './FeedbackScreenshotInput';
+export { FeedbackAnnotator } from './FeedbackAnnotator';
+export * from './feedbackAttachments';
 export { FeedbackChatbot } from './FeedbackChatbot';
 export { FeedbackConfirmCard } from './FeedbackConfirmCard';
 export { FaqSuggestions } from './FaqSuggestions';

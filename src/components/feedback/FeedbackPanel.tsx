@@ -28,11 +28,13 @@ import { FeedbackChatbot } from './FeedbackChatbot';
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** true wenn per Shortcut (Strg+Alt+S) geöffnet → Screenshot-Paste-Fläche fokussieren. */
+  focusScreenshot?: boolean;
 }
 
 type View = 'input' | 'confirm' | 'chatbot' | 'my-feedback';
 
-export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | null {
+export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.ReactElement | null {
   const storage = useStorage();
   const { profile } = useProfile();
   const meinKuerzel = useMeinKuerzel();
@@ -100,7 +102,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
         writeToShared: canWriteShared,
         persHandle,
         kuerzel: meinKuerzel,
-      });
+      }, payload.attachments);
       setSubmittedItem(item);
       setView('confirm');
 
@@ -170,6 +172,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
             submitting={submitting}
             onSubmit={handleSubmit}
             onShowMyFeedback={() => setView('my-feedback')}
+            autoFocusScreenshot={focusScreenshot}
           />
         )}
 

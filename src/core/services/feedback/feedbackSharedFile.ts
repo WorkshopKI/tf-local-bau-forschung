@@ -17,11 +17,14 @@
  */
 
 import type { StorageService } from '@/core/services/storage';
-import { FEEDBACK_SHARED_FILE } from '@/core/types/feedback';
+import { FEEDBACK_DATA_DIR, FEEDBACK_SHARED_FILE } from '@/core/types/feedback';
 import type { FeedbackItem, FeedbackSponsor, SharedFeedbackFile } from '@/core/types/feedback';
-import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
+import { atomicWrite, readBinary, readText } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import { normalizeLegacyFields } from './feedbackStorage';
+
+/** Screenshot-Bilddateien liegen neben der feedback.json. */
+export const FEEDBACK_ATTACHMENTS_DIR = `${FEEDBACK_DATA_DIR}/attachments`;
 
 export async function readSharedFile(storage: StorageService): Promise<SharedFeedbackFile | null> {
   const handle = await getDatenShareHandle(storage.idb);
@@ -59,6 +62,38 @@ export async function writeSharedFile(
     console.error('[feedbackSharedFile] writeSharedFile failed:', err);
     return false;
   }
+}
+
+/**
+ * Schreibt eine Screenshot-Bilddatei ins Shared-Attachment-Verzeichnis
+ * (`_intern/feedback/attachments/`). Self-gated wie `writeSharedFile` (nur Rollen
+ * mit readwrite). `{ skipBackup: true }` — keine `.backup`-Byte-Verdopplung.
+ */
+export async function writeSharedAttachment(
+  storage: StorageService,
+  filename: string,
+  data: Blob | Uint8Array,
+): Promise<boolean> {
+  const handle = await getDatenShareHandle(storage.idb);
+  if (!handle) return false;
+  if ((await queryPermission(handle)) !== 'granted') return false;
+  try {
+    await atomicWrite(handle, `${FEEDBACK_ATTACHMENTS_DIR}/${filename}`, data, { skipBackup: true });
+    return true;
+  } catch (err) {
+    console.error('[feedbackSharedFile] writeSharedAttachment failed:', err);
+    return false;
+  }
+}
+
+/** Liest eine Screenshot-Bilddatei aus dem Shared-Attachment-Verzeichnis (Bytes oder null). */
+export async function readSharedAttachment(
+  storage: StorageService,
+  filename: string,
+): Promise<Uint8Array | null> {
+  const handle = await getDatenShareHandle(storage.idb);
+  if (!handle) return null;
+  return readBinary(handle, `${FEEDBACK_ATTACHMENTS_DIR}/${filename}`);
 }
 
 /** Summiert Punkte/Stunden einer Sponsor-Liste (für die *_total-Caches). */

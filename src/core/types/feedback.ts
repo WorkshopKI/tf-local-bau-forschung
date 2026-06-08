@@ -80,6 +80,24 @@ export interface LLMClassification {
 }
 
 /**
+ * Beigefügter (ggf. annotierter) Screenshot. Die Bilddatei liegt **separat** in
+ * der Outbox bzw. im Shared-Attachment-Verzeichnis — hier nur Referenz + Caption
+ * (kein base64, sonst bläht es die gemergte feedback.json auf). Quelle für den
+ * Screenshot-Abschnitt im promptGenerator.
+ */
+export interface FeedbackAttachment {
+  id: string;
+  /** Dateiname im Attachment-Verzeichnis, z.B. `${ticketId}-${attId}.png`. */
+  filename: string;
+  caption?: string;
+  mime: 'image/png' | 'image/jpeg';
+  width: number;
+  height: number;
+  /** Dateigröße in Bytes (für Übersicht / Größenwarnung). */
+  bytes: number;
+}
+
+/**
  * Discriminated Union für den Klassifikations-Status eines Tickets.
  *
  * `category` ist optional, weil die Auto-Klassifikation fire-and-forget läuft
@@ -104,6 +122,9 @@ export interface FeedbackItem {
   /** Strukturierte Formular-Felder pro Typ (key → wert). Optional: Alt-Tickets
    *  und Freitext-Lob/Frage haben das nicht. Quelle für promptGenerator. */
   structured?: Record<string, string>;
+  /** Beigefügte (annotierte) Screenshots — nur Referenz + Caption; Bilddateien
+   *  liegen separat (Outbox bzw. Shared-Attachment-Verzeichnis). */
+  attachments?: FeedbackAttachment[];
   stars?: number;
   text: string;
   context: FeedbackContext;

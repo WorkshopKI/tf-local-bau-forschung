@@ -61,3 +61,29 @@ describe('generateClaudeCodePrompt — structured', () => {
     expect(prompt).not.toContain('###');
   });
 });
+
+describe('generateClaudeCodePrompt — attachments', () => {
+  it('listet Screenshots (Dateiname + Caption) + Manuell-Anhängen-Hinweis, kein base64', () => {
+    const ticket = makeFeedback({
+      category: 'problem',
+      structured: { actual: 'Absturz' },
+      attachments: [
+        { id: 'a1', filename: 'fb1-a1.png', caption: 'Hier passiert es', mime: 'image/png', width: 800, height: 600, bytes: 1234 },
+        { id: 'a2', filename: 'fb1-a2.jpg', mime: 'image/jpeg', width: 800, height: 600, bytes: 2345 },
+      ],
+    });
+    const prompt = generateClaudeCodePrompt(ticket);
+    expect(prompt).toContain('Beigefügte Screenshots');
+    expect(prompt).toContain('`fb1-a1.png`');
+    expect(prompt).toContain('Hier passiert es');
+    expect(prompt).toContain('`fb1-a2.jpg`');
+    expect(prompt).toContain('manuell mit anhängen');
+    expect(prompt).not.toContain('base64');
+    expect(prompt).not.toContain('data:image');
+  });
+
+  it('ohne attachments kein Screenshot-Abschnitt', () => {
+    const prompt = generateClaudeCodePrompt(makeFeedback({ category: 'praise', text: 'gut' }));
+    expect(prompt).not.toContain('Beigefügte Screenshots');
+  });
+});

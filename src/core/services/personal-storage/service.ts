@@ -16,6 +16,7 @@ import { IDBStore } from '@/core/services/storage/idb-store';
 import {
   atomicWrite,
   readText,
+  removeFile,
   ensurePersoenlichFolders,
 } from '@/core/services/infrastructure';
 import {
@@ -140,9 +141,22 @@ function makeOutboxFilename(submittedAt: string, id: string): string {
 }
 
 /**
+ * Schreibt eine Screenshot-Bilddatei neben die Outbox-JSONs (eine Datei pro
+ * Anhang). `{ skipBackup: true }` — keine `.backup`-Verdopplung der Bytes.
+ */
+export async function writeFeedbackAttachment(
+  persHandle: FileSystemDirectoryHandle,
+  filename: string,
+  blob: Blob,
+): Promise<void> {
+  await atomicWrite(persHandle, `${PERSOENLICH_FEEDBACK_OUTBOX_DIR}/${filename}`, blob, { skipBackup: true });
+}
+
+/**
  * Schreibt ein Feedback-Item in die Outbox des Users. Eine Datei pro Item
  * (atomar). Aktualisiert zusaetzlich `meine-feedbacks.json` (Kopie aller
- * eigenen Feedbacks).
+ * eigenen Feedbacks). `attachmentBlobs` (optional) werden als separate
+ * Bilddateien neben die JSON geschrieben (Referenzen stehen in `item.attachments`).
  *
  * Wirft wenn der Handle nicht beschreibbar ist — Aufrufer muss
  * Permission-Status vorher pruefen.
@@ -151,6 +165,7 @@ export async function submitFeedback(
   persHandle: FileSystemDirectoryHandle,
   kuerzel: string,
   item: Omit<FeedbackOutboxItem, 'status'> & { status?: FeedbackOutboxItem['status'] },
+  attachmentBlobs?: Array<{ filename: string; blob: Blob }>,
 ): Promise<FeedbackOutboxItem> {
   await ensurePersoenlichFolders(persHandle);
   const full: FeedbackOutboxItem = {
@@ -161,6 +176,12 @@ export async function submitFeedback(
   const filename = makeOutboxFilename(full.submitted_at, full.id);
   const path = `${PERSOENLICH_FEEDBACK_OUTBOX_DIR}/${filename}`;
   await atomicWrite(persHandle, path, JSON.stringify(full, null, 2));
+
+  // Bilddateien neben die JSON schreiben (vor meine-feedbacks, damit ein
+  // partieller Fehler sichtbar wird statt eine halbe Referenz zu hinterlassen).
+  for (const att of attachmentBlobs ?? []) {
+    await writeFeedbackAttachment(persHandle, att.filename, att.blob);
+  }
 
   // meine-feedbacks.json fortschreiben
   const existing = await loadMyFeedback(persHandle);
@@ -230,4 +251,21 @@ export async function writeOutboxStatus(
   const filename = makeOutboxFilename(item.submitted_at, item.id);
   const path = `feedback/outbox/${filename}`;
   await atomicWrite(userTeamflowDir, path, JSON.stringify(item, null, 2));
+}
+
+/**
+ * Löscht ein Outbox-Item samt seiner Bilddateien am Ursprung (Kurator-Pfad,
+ * `userTeamflowDir` = `ZAH/`-Ordner des Users — Pfade `feedback/outbox/…` analog
+ * `writeOutboxStatus`). **Nur aufrufen, nachdem die Bytes sicher im Shared sind**
+ * (Aufrufer-Verantwortung — siehe autoCollectFeedbackOutboxes). Best-effort pro
+ * Datei (`removeFile` schluckt „nicht vorhanden").
+ */
+export async function deleteOutboxItem(
+  userTeamflowDir: FileSystemDirectoryHandle,
+  item: FeedbackOutboxItem,
+): Promise<void> {
+  for (const att of item.attachments ?? []) {
+    await removeFile(userTeamflowDir, `feedback/outbox/${att.filename}`);
+  }
+  await removeFile(userTeamflowDir, `feedback/outbox/${makeOutboxFilename(item.submitted_at, item.id)}`);
 }

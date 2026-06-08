@@ -13,6 +13,8 @@ import {
   type FeedbackTypeDef,
 } from './constants';
 import { FaqSuggestions } from './FaqSuggestions';
+import { FeedbackScreenshotInput } from './FeedbackScreenshotInput';
+import type { PendingAttachment } from './feedbackAttachments';
 
 export interface FeedbackSubmitPayload {
   category: FeedbackCategory;
@@ -22,6 +24,8 @@ export interface FeedbackSubmitPayload {
   text: string;
   /** LLM-Hint für die fire-and-forget-Verfeinerung (falls ein LLM läuft). */
   llmHint?: string;
+  /** Beigefügte (ggf. annotierte) Screenshots — Blobs, noch nicht persistiert. */
+  attachments?: PendingAttachment[];
 }
 
 interface Props {
@@ -33,6 +37,8 @@ interface Props {
   submitting: boolean;
   onSubmit: (payload: FeedbackSubmitPayload) => void;
   onShowMyFeedback: () => void;
+  /** true wenn das Panel per Shortcut (Strg+Alt+S) geöffnet wurde → Paste-Fläche fokussieren. */
+  autoFocusScreenshot?: boolean;
 }
 
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
@@ -43,9 +49,11 @@ function getIcon(name: string): IconComponent {
 }
 
 export function FeedbackInputStep(props: Props): React.ReactElement {
-  const { areaRef, setAreaRef, context, showContext, setShowContext, submitting, onSubmit, onShowMyFeedback } = props;
+  const { areaRef, setAreaRef, context, showContext, setShowContext, submitting, onSubmit, onShowMyFeedback, autoFocusScreenshot } = props;
   const [selectedType, setSelectedType] = useState<FeedbackTypeDef | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  // Screenshots sind typ-unabhängig → überleben einen Typ-Wechsel (kein Reset in changeType).
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const firstFieldRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
 
   const chooseType = (type: FeedbackTypeDef): void => {
@@ -111,6 +119,7 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
       structured: structured && Object.keys(structured).length > 0 ? structured : undefined,
       text: composeFeedbackText(selectedType, fieldValues),
       llmHint: selectedType.llmHint,
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
   };
 
@@ -160,6 +169,8 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
       ))}
 
       <FaqSuggestions input={composeFeedbackText(selectedType, fieldValues)} />
+
+      <FeedbackScreenshotInput attachments={attachments} onChange={setAttachments} autoFocus={autoFocusScreenshot} />
 
       <div className="flex flex-col gap-1">
         <label className="text-[11px] text-[var(--tf-text-tertiary)]">Bereich (optional)</label>

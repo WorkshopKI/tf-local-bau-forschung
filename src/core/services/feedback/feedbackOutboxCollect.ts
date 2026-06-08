@@ -20,12 +20,14 @@
 import type { StorageService } from '@/core/services/storage';
 import type { FeedbackCategory, FeedbackContext, FeedbackItem } from '@/core/types/feedback';
 import { PERSOENLICH_ZAH_DIR } from '@/core/services/infrastructure/types';
+import { readBinary } from '@/core/services/infrastructure/atomic-write';
 import {
+  deleteOutboxItem,
   listOutboxItems,
   writeOutboxStatus,
   type FeedbackOutboxItem,
 } from '@/core/services/personal-storage';
-import { readSharedFile, writeSharedFile, mergeItems } from './feedbackSharedFile';
+import { readSharedFile, writeSharedFile, writeSharedAttachment, mergeItems } from './feedbackSharedFile';
 import { emitFeedbackUpdated } from './feedbackStorage';
 import { readSponsorVotesFromDir, type SponsorVoteFile } from './feedbackSponsorOutbox';
 import { mergeSponsorVotesIntoItems } from './mergeSponsorVotes';
@@ -53,14 +55,38 @@ function toFeedbackItem(ob: FeedbackOutboxItem): FeedbackItem {
     created_at: ob.submitted_at,
     user_id: ob.kuerzel,
     user_display_name: ob.kuerzel,
-    // category + structured aus dem Typ-Formular durchreichen (sonst landet alles
-    // als "Unklassifiziert", obwohl der User den Typ explizit gewaehlt hat).
+    // category + structured + attachments aus dem Typ-Formular durchreichen (sonst
+    // landet alles als "Unklassifiziert" / ohne Screenshots, obwohl der User den
+    // Typ gewaehlt + Bilder angehaengt hat).
     category: ob.category as FeedbackCategory | undefined,
     structured: ob.structured,
+    attachments: ob.attachments,
     text: ob.text,
     context: (ob.context as FeedbackContext | undefined) ?? fallbackContext(ob),
     kurator_status: 'neu',
   };
+}
+
+/**
+ * Kopiert die Screenshot-Bytes eines Outbox-Items aus der User-Outbox ins
+ * Shared-Attachment-Verzeichnis. `teamflowHandle` = `ZAH/`-Ordner des Users →
+ * Pfade `feedback/outbox/<datei>` (analog writeOutboxStatus). Liefert `true` nur
+ * wenn ALLE Bilder erfolgreich kopiert wurden (sonst Item NICHT loeschbar).
+ */
+async function copyAttachmentsToShared(
+  storage: StorageService,
+  teamflowHandle: FileSystemDirectoryHandle,
+  item: FeedbackOutboxItem,
+): Promise<boolean> {
+  if (!item.attachments || item.attachments.length === 0) return true;
+  let ok = true;
+  for (const att of item.attachments) {
+    const bytes = await readBinary(teamflowHandle, `feedback/outbox/${att.filename}`);
+    if (!bytes) { ok = false; continue; } // Datei fehlt → Item nicht loeschen
+    const written = await writeSharedAttachment(storage, att.filename, bytes);
+    if (!written) ok = false;
+  }
+  return ok;
 }
 
 export async function autoCollectFeedbackOutboxes(
@@ -90,28 +116,48 @@ export async function autoCollectFeedbackOutboxes(
     }
   }
 
-  // 2. Neue Items (id noch nicht in Shared) batched in die zentrale Datei schreiben.
+  // 2. Screenshot-Bytes ins Shared kopieren (VOR dem feedback.json-Write — die
+  //    Bytes-zuerst-Invariante fuer das Auto-Loeschen). Pro Item merken, ob alle
+  //    Bilder sicher kopiert wurden.
+  const attachmentsCopied = new Map<string, boolean>();
+  for (const p of pending) {
+    attachmentsCopied.set(p.item.id, await copyAttachmentsToShared(storage, p.teamflowHandle, p.item));
+  }
+
+  // 3. Neue Items (id noch nicht in Shared) batched in die zentrale Datei schreiben.
   const newItems = pending
     .filter(p => !existingIds.has(p.item.id))
     .map(p => toFeedbackItem(p.item));
+  let sharedWriteOk = true;
   if (newItems.length > 0) {
     const merged = mergeItems(newItems, shared?.items ?? []);
-    await writeSharedFile(storage, merged);
+    sharedWriteOk = await writeSharedFile(storage, merged);
   }
 
-  // 3. ALLE offenen Outbox-Eintraege auf 'approved' setzen (Re-Import-Schutz),
-  //    best-effort pro Item.
+  // 4. Auto-Loeschen am Ursprung (User-Wahl) — strikte Reihenfolge: erst wenn die
+  //    Bytes (Bilder + feedback.json) sicher im Shared sind, dann loeschen. Sonst
+  //    'approved' markieren (Re-Import-Schutz, Bytes am Ursprung bleiben erhalten).
   const reviewedAt = new Date().toISOString();
   for (const p of pending) {
+    const isNew = !existingIds.has(p.item.id);
+    const itemInShared = isNew ? sharedWriteOk : true; // bereits-vorhandene sind per Definition drin
+    const attsOk = attachmentsCopied.get(p.item.id) ?? true;
+    const safeToDelete = itemInShared && attsOk;
     try {
-      await writeOutboxStatus(p.teamflowHandle, {
-        ...p.item,
-        status: 'approved',
-        reviewed_at: reviewedAt,
-        reviewer_kuerzel: reviewerKuerzel,
-      });
+      if (safeToDelete) {
+        await deleteOutboxItem(p.teamflowHandle, p.item);
+      } else {
+        await writeOutboxStatus(p.teamflowHandle, {
+          ...p.item,
+          status: 'approved',
+          reviewed_at: reviewedAt,
+          reviewer_kuerzel: reviewerKuerzel,
+        });
+      }
     } catch {
-      /* Writeback best-effort — id-Dedup faengt einen Re-Import naechste Session ab */
+      // Loeschen/Writeback best-effort — bei Fehler faengt der id-Dedup (Item bleibt
+      // pending) einen Re-Import naechste Session ab; Datenverlust ausgeschlossen,
+      // weil nur nach bestaetigtem Shared-Write geloescht wird.
     }
   }
 

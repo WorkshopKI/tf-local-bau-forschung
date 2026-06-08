@@ -21,6 +21,7 @@ import {
   FEEDBACK_SHARED_FILE,
 } from '@/core/types/feedback';
 import type {
+  FeedbackAttachment,
   FeedbackConfig,
   FeedbackFilters,
   FeedbackItem,
@@ -34,6 +35,7 @@ import {
 import {
   mergeItems,
   readSharedFile,
+  writeSharedAttachment,
   writeSharedFile,
 } from './feedbackSharedFile';
 import { isAuslastungFeedback } from './feedbackClassification';
@@ -67,14 +69,61 @@ export interface SubmitFeedbackRouting {
   kuerzel?: string;
 }
 
+/**
+ * Attachment-Eingabe für submitFeedback: Referenz-Felder + der noch nicht
+ * persistierte Blob. `filename` wird hier aus der finalen Ticket-id abgeleitet
+ * (`${ticketId}-${attId}.${ext}`); strukturell kompatibel zu `PendingAttachment`.
+ */
+export interface SubmitAttachment {
+  id: string;
+  blob: Blob;
+  caption?: string;
+  mime: 'image/png' | 'image/jpeg';
+  width: number;
+  height: number;
+  bytes: number;
+}
+
+function buildAttachmentRefs(
+  ticketId: string,
+  atts: readonly SubmitAttachment[],
+): { refs: FeedbackAttachment[]; blobs: Array<{ filename: string; blob: Blob }> } {
+  const refs: FeedbackAttachment[] = [];
+  const blobs: Array<{ filename: string; blob: Blob }> = [];
+  for (const a of atts) {
+    const ext = a.mime === 'image/png' ? 'png' : 'jpg';
+    const filename = `${ticketId}-${a.id}.${ext}`;
+    refs.push({
+      id: a.id,
+      filename,
+      caption: a.caption?.trim() ? a.caption.trim() : undefined,
+      mime: a.mime,
+      width: a.width,
+      height: a.height,
+      bytes: a.bytes,
+    });
+    blobs.push({ filename, blob: a.blob });
+  }
+  return { refs, blobs };
+}
+
 export async function submitFeedback(
   storage: StorageService,
   data: Omit<FeedbackItem, 'id' | 'kurator_status' | 'created_at'>,
   routing?: SubmitFeedbackRouting,
+  attachments?: SubmitAttachment[],
 ): Promise<FeedbackItem> {
+  const id = generateFeedbackId();
+  // Bilddatei-Namen aus der finalen Ticket-id ableiten; Blobs getrennt halten
+  // (FeedbackAttachment selbst trägt keinen Blob).
+  const { refs, blobs } = attachments && attachments.length > 0
+    ? buildAttachmentRefs(id, attachments)
+    : { refs: undefined as FeedbackAttachment[] | undefined, blobs: [] as Array<{ filename: string; blob: Blob }> };
+
   const item: FeedbackItem = {
     ...data,
-    id: generateFeedbackId(),
+    id,
+    ...(refs ? { attachments: refs } : {}),
     kurator_status: 'neu',
     created_at: new Date().toISOString(),
   };
@@ -96,12 +145,14 @@ export async function submitFeedback(
           kuerzel: routing.kuerzel ?? 'unbekannt',
           submitted_at: item.created_at,
           text: item.text,
-          // category + structured durchreichen, damit der per Typ-Wahl gesetzte
-          // Typ beim Kurator-Einsammeln (toFeedbackItem) erhalten bleibt.
+          // category + structured + attachments durchreichen, damit der per
+          // Typ-Wahl gesetzte Typ + die Screenshots beim Kurator-Einsammeln
+          // (toFeedbackItem) erhalten bleiben.
           category: item.category,
           structured: item.structured,
+          attachments: item.attachments,
           context: item.context,
-        });
+        }, blobs);
       } catch (err) {
         console.warn('[feedbackService] outbox write failed', err);
       }
@@ -110,8 +161,11 @@ export async function submitFeedback(
     return item;
   }
 
-  // Shared-Pfad (Kurator / PL / dev): re-read + merge + atomicWrite. writeSharedFile
-  // ist self-gated (no-op ohne readwrite), daher kein storage.fs-Check mehr nötig.
+  // Shared-Pfad (Kurator / PL / dev): Bilddateien neben die feedback.json schreiben
+  // (self-gated, no-op ohne readwrite), dann re-read + merge + atomicWrite.
+  for (const a of blobs) {
+    await writeSharedAttachment(storage, a.filename, a.blob);
+  }
   const shared = await readSharedFile(storage);
   const merged = shared ? mergeItems([item], shared.items) : [item];
   await writeSharedFile(storage, merged);
@@ -154,7 +208,7 @@ export async function updateFeedback(
   updates: Partial<Pick<
     FeedbackItem,
     'kurator_status' | 'kurator_notes' | 'kurator_priority' | 'generated_prompt'
-    | 'category' | 'structured'
+    | 'category' | 'structured' | 'attachments'
     | 'llm_summary' | 'llm_classification' | 'user_confirmed'
     | 'is_faq' | 'faq_answer' | 'faq_keywords' | 'faq_ask_count'
     | 'effort_estimate' | 'effort_hours'
