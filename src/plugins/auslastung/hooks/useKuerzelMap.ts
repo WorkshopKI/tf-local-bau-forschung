@@ -12,6 +12,7 @@
 import { create } from 'zustand';
 import type { StorageService } from '@/core/services/storage';
 import type { Antrag, AntragListItem } from '@/core/services/csv/types';
+import { isDatenShareReadable } from '@/core/services/infrastructure/smb-handle';
 import {
   loadKuerzelMap,
   saveKuerzelMap,
@@ -70,14 +71,25 @@ export const useKuerzelMap = create<KuerzelMapState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const f = await loadKuerzelMap(storage);
+      // v2.46.1: `loaded` (= Reload-Guard scharf) nur setzen, wenn der Daten-
+      // Share beim Laden wirklich lesbar war — analog useAuslastungData.load
+      // (v2.19.2). Der Plugin-onInit lädt VOR dem StartupScreen-Grant;
+      // loadKuerzelMap schluckt den Permission-Fehler still und liefert
+      // emptyKuerzelMap(). Ohne dieses Gate friert der Guard die leere Map fest
+      // → leere anonymMap → leere historischeDeskriptorenByAnon →
+      // matching-engine.ts:189 skippt jeden nicht-onboarded MA → „Keine
+      // passenden MAs gefunden", bis zum Browser-Reload (pl, Anträge zuweisen).
+      // shareReadable=false ⇒ loaded bleibt false ⇒ der Post-Grant-Mount
+      // (AuslastungView / useAntraegeCache) lädt die echte Map nach.
+      const shareReadable = await isDatenShareReadable(storage.idb);
       const current = get().file;
       // Ref-stable behalten wenn Inhalt identisch — sonst kaskadieren die 5
       // useMemos in useAntraegeCache (anonymMap, historischeAstByAnon, ...)
       // beim Initial-Mount mehrfach durch.
       if (isSameKuerzelContent(current, f)) {
-        set({ loaded: true, loading: false });
+        set({ loaded: shareReadable, loading: false });
       } else {
-        set({ file: f, loaded: true, loading: false });
+        set({ file: f, loaded: shareReadable, loading: false });
       }
     } catch (err) {
       set({ loading: false, error: err instanceof Error ? err.message : String(err) });

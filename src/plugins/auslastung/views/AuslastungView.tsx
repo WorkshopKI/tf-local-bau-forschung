@@ -26,6 +26,7 @@ import { Tabs } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAuslastungData } from '../hooks/useAuslastungData';
+import { useKuerzelMap } from '../hooks/useKuerzelMap';
 import { useAutoCollectTeamProfiles } from '../hooks/useAutoCollectTeamProfiles';
 import { useReconcileZuweisungen } from '../hooks/useReconcileZuweisungen';
 import { useAuslastungCrossTabSync } from '../hooks/useAuslastungCrossTabSync';
@@ -92,6 +93,12 @@ export function AuslastungView(): React.ReactElement {
 
   useEffect(() => {
     void load(storage);
+    // v2.46.1: kuerzel-map post-grant nachladen (symmetrisch zu auslastung.json).
+    // Der Plugin-onInit-Load lief evtl. VOR dem Share-Grant und blieb dank
+    // isDatenShareReadable-Gate auf loaded:false — dieser Mount-Aufruf (jetzt
+    // gegranteter Share) füllt die anonymMap, sonst skippt das Matching jeden
+    // nicht-onboarded MA (matching-engine.ts:189).
+    void useKuerzelMap.getState().load(storage);
   }, [load, storage]);
 
   // Einmalig nach erstem Load: Setup nicht abgeschlossen → Uebersicht-Tab.
