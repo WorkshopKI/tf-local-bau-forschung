@@ -44,6 +44,17 @@ function formatFrist(d: number | null): string {
   return `${d}d`;
 }
 
+/** Jahr aus ISO (YYYY-…) oder dd.mm.yyyy für den Datums-Spaltenfilter (analog
+ *  zum Jahr-Filter der Suche). Leerer/unparsbarer Wert → '' (wird von
+ *  `deriveFilterCandidates` als „kein Kandidat" übersprungen). */
+function yearOf(v: string | undefined): string {
+  const s = (v ?? '').trim();
+  const iso = /^(\d{4})-/.exec(s);
+  if (iso) return iso[1]!;
+  const de = /(\d{4})\s*$/.exec(s);
+  return de ? de[1]! : '';
+}
+
 /** Absolutes Frist-Datum + Berechnungsbasis als Tooltip-Text — macht die
  *  Tage-Differenz (z.B. "-74d") nachvollziehbar. Phasen-bewusst (Pitfall #12). */
 function fristTooltip(
@@ -117,6 +128,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Akronym',
     defaultVisible: true,
     sortable: true,
+    filterable: true,
     width: 130,
     wrap: false,
     accessor: r => strOrNull(r.akronym) ?? '',
@@ -130,6 +142,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Antragsteller',
     defaultVisible: true,
     sortable: true,
+    filterable: true,
     width: 260,
     wrap: false,
     accessor: r => strOrNull(r.antragsteller) ?? '',
@@ -143,6 +156,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Status',
     defaultVisible: true,
     sortable: true,
+    filterable: true,
     width: 140,
     wrap: false,
     accessor: r => {
@@ -192,6 +206,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Typ',
     defaultVisible: false,
     sortable: true,
+    filterable: true,
     width: 76,
     wrap: false,
     accessor: r => getKategorieLabel(r.vb_phase) ?? '',
@@ -205,6 +220,8 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Bewilligungsdatum',
     defaultVisible: false,
     sortable: true,
+    filterable: true,
+    filterAccessor: r => yearOf(r.bewilligung_datum),
     width: 148,
     wrap: false,
     accessor: r => strOrNull(r.bewilligung_datum) ?? '',
@@ -215,6 +232,8 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Antragseingang',
     defaultVisible: false,
     sortable: true,
+    filterable: true,
+    filterAccessor: r => yearOf(r.antragsdatum),
     width: 140,
     wrap: false,
     accessor: r => strOrNull(r.antragsdatum) ?? '',
@@ -225,6 +244,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Ort AST',
     defaultVisible: false,
     sortable: true,
+    filterable: true,
     width: 140,
     wrap: false,
     accessor: r => strOrNull(r.ort_ast) ?? '',
@@ -248,6 +268,8 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Laufzeitbeginn',
     defaultVisible: false,
     sortable: true,
+    filterable: true,
+    filterAccessor: r => yearOf(r.laufzeitbeginn),
     width: 132,
     wrap: false,
     accessor: r => strOrNull(r.laufzeitbeginn) ?? '',
@@ -258,6 +280,8 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Laufzeitende',
     defaultVisible: false,
     sortable: true,
+    filterable: true,
+    filterAccessor: r => yearOf(r.laufzeitende),
     width: 132,
     wrap: false,
     accessor: r => strOrNull(r.laufzeitende) ?? '',
@@ -268,6 +292,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Branche',
     defaultVisible: false,
     sortable: true,
+    filterable: true,
     width: 150,
     wrap: false,
     accessor: r => strOrNull(r.branche) ?? '',
@@ -278,6 +303,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Fördergeber',
     defaultVisible: false,
     sortable: true,
+    filterable: true,
     width: 150,
     wrap: false,
     accessor: r => strOrNull(r.foerdergeber) ?? '',
@@ -305,6 +331,7 @@ export const MA_COLUMN: SortableColumn<AntragTableRow> = {
   // ist nur Pflichtfeld des Typs und hier ohne Wirkung.
   defaultVisible: false,
   sortable: true,
+  filterable: true,
   width: 72,
   wrap: false,
   accessor: r => strOrNull(r.tib_kuerz) ?? '',

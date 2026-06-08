@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { SortableTable, useTableSort, compareValues, useColumnWidths } from '@/components/data-table';
+import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths } from '@/components/data-table';
 import { ANTRAG_TABLE_COLUMNS, MA_COLUMN } from './tableColumns';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useAntraegeStore } from './store';
@@ -81,17 +81,23 @@ export function AntraegeTable({
     return [base[0]!, MA_COLUMN, ...base.slice(1)];
   }, [visibleColumns, showMaColumn]);
 
+  // Spaltenkopf-Filter (Header-Dropdown, wie in der Suche). Kandidaten aus der
+  // EINGABE-Liste `filtered` (= Segment-/Sidebar-/Such-gefiltert) → view-scoped
+  // und stabil; angewandt VOR der Gruppierung, also pro Einzel-Antrag.
+  const { columnFilters, setColumnFilter, filterCandidates, filteredRows } =
+    useColumnFilters(filtered as AntragTableRow[], columns);
+
   // Basis-Zeilen je Gruppierungs-Modus (vor Header-Sort + Slice).
   const { allRows, sectionOf } = useMemo(() => {
     if (grouping === 'verbund') {
-      return { allRows: buildVerbundTableRows(filtered, verbundById), sectionOf: null };
+      return { allRows: buildVerbundTableRows(filteredRows, verbundById), sectionOf: null };
     }
     if (grouping === 'status') {
-      const built = buildStatusSectionRows(filtered);
+      const built = buildStatusSectionRows(filteredRows);
       return { allRows: built.rows, sectionOf: built.sectionOf };
     }
-    return { allRows: filtered as AntragTableRow[], sectionOf: null };
-  }, [grouping, filtered, verbundById]);
+    return { allRows: filteredRows, sectionOf: null };
+  }, [grouping, filteredRows, verbundById]);
 
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(allRows, columns);
 
@@ -144,6 +150,9 @@ export function AntraegeTable({
         fitContentWidth
         columnWidths={widths}
         onColumnWidthChange={setWidth}
+        columnFilters={columnFilters}
+        onColumnFilterChange={setColumnFilter}
+        filterCandidates={filterCandidates}
         {...sectionProps}
       />
       {hasMore ? (
