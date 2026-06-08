@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths } from '@/components/data-table';
-import { ANTRAG_TABLE_COLUMNS, MA_COLUMN } from './tableColumns';
+import { resolveAntragTableColumns } from './tableColumns';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useAntraegeStore } from './store';
 import {
@@ -74,18 +74,29 @@ export function AntraegeTable({
   // Registry-Reihenfolge beibehalten (nicht Toggle-Reihenfolge des Stores).
   // Im „alle"-Modus die MA-Spalte direkt nach der gelockten FKZ-Spalte
   // einblenden (auto-verwaltet, nicht im Spalten-Picker).
-  const columns = useMemo(() => {
-    const set = new Set(visibleColumns);
-    const base = ANTRAG_TABLE_COLUMNS.filter(c => set.has(c.key));
-    if (!showMaColumn || base.length === 0) return base;
-    return [base[0]!, MA_COLUMN, ...base.slice(1)];
-  }, [visibleColumns, showMaColumn]);
+  const columns = useMemo(
+    () => resolveAntragTableColumns(visibleColumns, showMaColumn),
+    [visibleColumns, showMaColumn],
+  );
+
+  // VB-Titel ist nicht in `AntragListItem` projiziert (Verbund-Level-Feld) → einmal
+  // aus `verbundById` an die Row anhängen. Überlebt alle drei Gruppierungs-Modi
+  // (Solo-/Lead-Spread in buildVerbundTableRows, Objekt-Durchreichung in
+  // buildStatusSectionRows) und versorgt sowohl die „VB Titel"-Spalte als auch den
+  // Spaltenkopf-Filter mit korrekten Werten.
+  const enriched = useMemo<AntragTableRow[]>(
+    () => filtered.map(a => {
+      const t = a.verbund_id ? verbundById.get(a.verbund_id)?.titel : undefined;
+      return t ? { ...a, verbund_titel: t } : a;
+    }),
+    [filtered, verbundById],
+  );
 
   // Spaltenkopf-Filter (Header-Dropdown, wie in der Suche). Kandidaten aus der
-  // EINGABE-Liste `filtered` (= Segment-/Sidebar-/Such-gefiltert) → view-scoped
+  // EINGABE-Liste `enriched` (= Segment-/Sidebar-/Such-gefiltert) → view-scoped
   // und stabil; angewandt VOR der Gruppierung, also pro Einzel-Antrag.
   const { columnFilters, setColumnFilter, filterCandidates, filteredRows } =
-    useColumnFilters(filtered as AntragTableRow[], columns);
+    useColumnFilters(enriched, columns);
 
   // Basis-Zeilen je Gruppierungs-Modus (vor Header-Sort + Slice).
   const { allRows, sectionOf } = useMemo(() => {

@@ -185,6 +185,12 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     // Leere Fristen ans Ende (asc) → große Zahl statt null. Verbund-Zeile:
     // dringendste Frist über alle TVs (kritischster TV), sonst per-TV.
     accessor: r => (r._verbund ? criticalFristAware(r._verbund.tvs) : daysUntilFristAware(r)) ?? Number.MAX_SAFE_INTEGER,
+    // Export darf nicht den Sortier-Sentinel (MAX_SAFE_INTEGER) schreiben →
+    // lesbarer Tage-Text ("+45d"/"-12d"/"heute"), leere Frist → leere Zelle.
+    exportValue: r => {
+      const d = r._verbund ? criticalFristAware(r._verbund.tvs) : daysUntilFristAware(r);
+      return d === null ? '' : formatFrist(d);
+    },
     render: r => {
       const d = r._verbund ? criticalFristAware(r._verbund.tvs) : daysUntilFristAware(r);
       if (d === null) return null;
@@ -200,6 +206,28 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
         </span>
       );
     },
+  },
+  {
+    key: 'titel',
+    label: 'TV Titel',
+    defaultVisible: false,
+    sortable: true,
+    width: 260,
+    wrap: false,
+    accessor: r => strOrNull(r.titel) ?? '',
+    render: r => textCell(strOrNull(r.titel)),
+  },
+  {
+    key: 'verbund_titel',
+    label: 'VB Titel',
+    defaultVisible: false,
+    sortable: true,
+    width: 280,
+    wrap: false,
+    // Verbund-Titel ist nicht in `AntragListItem` projiziert (Verbund-Level-Feld);
+    // `AntraegeTable` reichert die Row vorab aus `verbundById` an (siehe dort).
+    accessor: r => strOrNull(r.verbund_titel) ?? '',
+    render: r => textCell(strOrNull(r.verbund_titel)),
   },
   {
     key: 'vb_phase',
@@ -337,3 +365,20 @@ export const MA_COLUMN: SortableColumn<AntragTableRow> = {
   accessor: r => strOrNull(r.tib_kuerz) ?? '',
   render: r => <MaKuerzelBadge kuerzel={r.tib_kuerz} />,
 };
+
+/**
+ * Sichtbare Spalten in Registry-Reihenfolge auflösen — Single Source für Tabelle
+ * (`AntraegeTable`) UND XLSX-Export (`export-xlsx.ts`), damit der Export exakt die
+ * Spalten der Ansicht abbildet. Die MA-Spalte wird im „alle"-/Übersichtsmodus
+ * (`showMaColumn`) automatisch direkt nach der gelockten FKZ-Spalte eingeblendet
+ * (nicht Teil von ANTRAG_TABLE_COLUMNS, daher nicht im Picker).
+ */
+export function resolveAntragTableColumns(
+  visibleKeys: readonly string[],
+  showMaColumn: boolean,
+): SortableColumn<AntragTableRow>[] {
+  const set = new Set(visibleKeys);
+  const base = ANTRAG_TABLE_COLUMNS.filter(c => set.has(c.key));
+  if (!showMaColumn || base.length === 0) return base;
+  return [base[0]!, MA_COLUMN, ...base.slice(1)];
+}

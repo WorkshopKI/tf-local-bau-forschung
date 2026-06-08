@@ -40,4 +40,8 @@ export interface SortableColumn<T> {
   filterAccessor?: (row: T) => string;
   /** Anzeige-Mapper fuer die Filter-Dropdown-Werte. Default: Identitaet. */
   formatFilterLabel?: (value: string) => string;
+  /** Export-spezifischer Zellwert (XLSX/CSV). Default: `accessor(row)`. Noetig wenn
+   *  der Sort-`accessor` export-untauglich ist (z.B. ein Sentinel-Wert fuer leere
+   *  Felder, der in Excel als grosse Zahl erscheinen wuerde). */
+  exportValue?: (row: T) => string | number;
 }

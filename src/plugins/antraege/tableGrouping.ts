@@ -50,7 +50,13 @@ export interface VerbundRowMeta {
 /** Zeilen-Typ der Tabelle. Superset von `AntragListItem` — Solo-/Status-Zeilen
  *  lassen `_verbund` weg, daher in allen drei Modi (none/verbund/status)
  *  verwendbar. */
-export type AntragTableRow = AntragListItem & { _verbund?: VerbundRowMeta };
+export type AntragTableRow = AntragListItem & {
+  _verbund?: VerbundRowMeta;
+  /** Denormalisierter Verbund-Titel (aus `verbundById`) — fuer die „VB Titel"-
+   *  Spalte, da Verbund-Level-Felder nicht in `AntragListItem` projiziert sind.
+   *  Wird in `AntraegeTable` (Tabelle) bzw. im Export an die Row angehaengt. */
+  verbund_titel?: string;
+};
 
 /**
  * Verbund-Modus: pro Verbund eine Zeile. Multi-TV-Verbünde werden zu einer

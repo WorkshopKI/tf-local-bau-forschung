@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, Filter, Loader2, Search } from 'lucide-react';
 import { useAntraegeStore, getEffectiveViewMode } from './store';
+import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useFilterState } from './filter/useFilterState';
 import { VIEWS, viewCounts } from './views';
 import { menuLabel, isAuslastungEnabled } from '@/config/feature-flags';
@@ -47,16 +48,22 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const setShowInaktive = useShowInaktiveMasStore(s => s.setShowInaktive);
   const inaktiveKuerzel = useInaktiveKuerzelSet();
   const verbundById = useAntraegeStore(s => s.verbundById);
+  // Export folgt der Tabellen-Ansicht: dieselben sichtbaren Spalten (+ MA-Spalte
+  // im „alle"-/Übersichtsmodus, identisch zu AntraegeMain).
+  const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const [exportBusy, setExportBusy] = useState(false);
   const searchActive = search.trim().length > 0;
+  const showMaColumn = isAuslastungEnabled() && !bearbeiterFilter.active;
 
   const handleExport = async (): Promise<void> => {
     if (!activeProgrammId) return;
     setExportBusy(true);
     try {
-      await exportFilteredAntraegeXlsx(filtered, storage.idb, activeProgrammId, verbundById);
+      await exportFilteredAntraegeXlsx(
+        filtered, storage.idb, activeProgrammId, verbundById, visibleColumns, showMaColumn,
+      );
     } catch (err) {
       console.warn('[antraege-export] failed:', err);
     } finally {
