@@ -22,6 +22,13 @@ describe('buildSuggestionsFromColumnNames — Alias-Auflösung', () => {
     expect(canonicalFor('LFZ_TV_E')).toBe('laufzeitende');
   });
 
+  it('mappt D_AZ1_1 auf erstentscheidung (Datum der Erstentscheidung)', () => {
+    expect(canonicalFor('D_AZ1_1')).toBe('erstentscheidung');
+    // robust gegen Schreibvarianten (alle normalisieren auf "daz11")
+    expect(canonicalFor('d_az1_1')).toBe('erstentscheidung');
+    expect(canonicalFor('D_AZ1-1')).toBe('erstentscheidung');
+  });
+
   it('ist robust gegen Schreibvarianten (Lowercase / Leerzeichen)', () => {
     expect(canonicalFor('zuw mu fst')).toBe('foerdersumme');
   });

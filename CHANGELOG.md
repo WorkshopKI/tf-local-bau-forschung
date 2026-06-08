@@ -2,6 +2,15 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.50 — Erstentscheidung: Mapping-Regressionstest + Klarstellung Re-Import (Juni 2026)
+
+MINOR-Bump v2.50 (Nachzug zu v2.49): Beim Tester blieb die neue Spalte „Erstentscheidung" leer und das Standardfeld wurde im CSV-Wizard scheinbar nicht vorgeschlagen. Ursache ist **kein** Mapping-Defekt — die Name-/Alias-Auflösung ist korrekt (neuer Regressionstest [column-name-suggestions.test.ts](src/core/services/csv/__tests__/column-name-suggestions.test.ts): `buildSuggestionsFromColumnNames(['D_AZ1_1'])` → `erstentscheidung`, robust gegen Schreibvarianten). Die leere Spalte hat einen von zwei prozessualen Gründen:
+
+- **Re-Import einer bestehenden CSV-Quelle behält die zuvor gespeicherte Spalten-Zuordnung.** War `D_AZ1_1` bei früheren Imports als Custom-Feld/ignoriert hinterlegt, bleibt diese Entscheidung beim Re-Import bestehen; die Auto-Suggestion ist nur ein Hinweis und überschreibt eine gespeicherte Zuordnung **nicht**. Der Kurator muss `D_AZ1_1` in Step 2 des Wizards **einmalig explizit** dem Standardfeld „Erstentscheidung" zuweisen und dann **voll** (nicht „überspringen") re-importieren. Erst danach trägt der Merger das Feld in alle Anträge ein.
+- **Stale Build.** Parallel gebaute v2.49-Artefakte (Auslastungs-Arbeit ohne diese Spalte) tragen im Footer dieselbe Versionsnummer `v2.49`. Der sichtbar abweichende Footer `v2.50` macht eindeutig, dass die Erstentscheidung-Spalte enthalten ist.
+
+Kein Code-Verhalten am Mapping geändert; rein additiv (Test + Doku + Versions-Disambiguierung). Betrifft alle Varianten mit Förderanträge-Plugin.
+
 ### v2.49 — Spalte „Erstentscheidung" in der Förderanträge-Tabelle (Juni 2026)
 
 MINOR-Bump v2.49: Im Förderantrags-Workflow gibt es vor der finalen Entscheidung eine **vorläufige Erstentscheidung** (z.B. eine Ablehnung), gegen die noch Widerspruch eingelegt werden kann. Diese Information steht in der Master-CSV `9097_AnB_AitisiGPT.csv` in der Spalte **`D_AZ1_1`** (Datum der Erstentscheidung; leer = noch keine getroffen). Neu als optional einblendbare Tabellen-Spalte **„Erstentscheidung"** im „Spalten"-Picker der Förderanträge-Tabelle.
