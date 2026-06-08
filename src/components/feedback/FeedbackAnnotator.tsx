@@ -3,10 +3,10 @@
 // externe Render-Lib. Zeichen-Logik im Hook useAnnotationCanvas.
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Check, Pencil, Square, Type, Undo2, X } from 'lucide-react';
+import { ArrowUpRight, Check, Square, Type, Undo2, X } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import type { PendingAttachment } from './feedbackAttachments';
-import { useAnnotationCanvas, type AnnotationTool } from './useAnnotationCanvas';
+import { useAnnotationCanvas, ANNOTATION_COLORS, type AnnotationTool, type AnnotationTextSize } from './useAnnotationCanvas';
 
 interface Props {
   attachment: PendingAttachment;
@@ -18,8 +18,9 @@ const TOOLS: { id: AnnotationTool; icon: typeof ArrowUpRight; label: string }[] 
   { id: 'arrow', icon: ArrowUpRight, label: 'Pfeil' },
   { id: 'rect', icon: Square, label: 'Rechteck' },
   { id: 'text', icon: Type, label: 'Text' },
-  { id: 'pen', icon: Pencil, label: 'Stift' },
 ];
+
+const TEXT_SIZES: AnnotationTextSize[] = ['S', 'M', 'L'];
 
 export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): React.ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -83,6 +84,55 @@ export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): R
               </button>
             );
           })}
+
+          {/* Farbwahl (gilt für das nächste Shape jedes Werkzeugs) */}
+          <span className="mx-0.5 h-4 w-px bg-[var(--tf-border)]" aria-hidden="true" />
+          <div className="flex items-center gap-1" role="group" aria-label="Farbe">
+            {ANNOTATION_COLORS.map(c => {
+              const active = a.color === c.value;
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => a.setColor(c.value)}
+                  className="w-4 h-4 rounded-full cursor-pointer"
+                  style={{
+                    background: c.value,
+                    outline: active ? '2px solid var(--tf-text)' : '0.5px solid var(--tf-border)',
+                    outlineOffset: '1px',
+                  }}
+                  title={`Farbe ${c.label}`}
+                  aria-label={`Farbe ${c.label}`}
+                  aria-pressed={active}
+                />
+              );
+            })}
+          </div>
+
+          {/* Textgröße — nur im Text-Modus relevant */}
+          {a.tool === 'text' && (
+            <div className="flex items-center gap-0.5" role="group" aria-label="Textgröße">
+              {TEXT_SIZES.map(sz => {
+                const active = a.textSize === sz;
+                return (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => a.setTextSize(sz)}
+                    className={`w-5 h-5 rounded-full text-[10px] font-medium cursor-pointer transition-colors ${
+                      active ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+                    }`}
+                    style={active ? undefined : { border: '0.5px solid var(--tf-border)' }}
+                    title={`Textgröße ${sz}`}
+                    aria-pressed={active}
+                  >
+                    {sz}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           <button
             type="button"
             onClick={a.undo}

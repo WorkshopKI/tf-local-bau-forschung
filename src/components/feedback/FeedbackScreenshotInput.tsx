@@ -71,17 +71,16 @@ export function FeedbackScreenshotInput({ attachments, onChange, autoFocus }: Pr
         onPaste={handlePaste}
         rows={2}
         placeholder={busy ? 'Bild wird verarbeitet…' : 'Screenshot hier einfügen (Strg+V) — Win+Shift+S erstellt ihn'}
-        className="w-full resize-none px-2.5 py-2 text-[11.5px] bg-transparent text-[var(--tf-text-tertiary)] rounded-[var(--tf-radius)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] cursor-text"
-        style={{ border: '0.5px dashed var(--tf-border)' }}
+        className="w-full resize-none px-2.5 py-2.5 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:font-semibold placeholder:text-[var(--tf-text-secondary)] focus:border-[var(--tf-primary)] cursor-text"
+        style={{ border: '1px dashed var(--tf-border-hover)' }}
       />
 
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
-        className="inline-flex items-center gap-1.5 self-start px-2 py-1 rounded-full text-[11px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-        style={{ border: '0.5px solid var(--tf-border)' }}
+        className="inline-flex items-center gap-1 self-start px-1 py-0.5 text-[10px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] cursor-pointer"
       >
-        <ImagePlus size={12} /> Bild hochladen
+        <ImagePlus size={11} /> oder Bild hochladen
       </button>
       <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleFiles} className="hidden" />
 

@@ -3,7 +3,7 @@
 // Die Kategorie steht über die Typ-Wahl im Eingabe-Schritt deterministisch fest;
 // autoClassifyFeedback() verfeinert nur noch summary/details im Hintergrund.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, X } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -34,6 +34,22 @@ interface Props {
 
 type View = 'input' | 'confirm' | 'chatbot' | 'my-feedback';
 
+// Panel-Breite: per Drag-Handle am linken Rand resizable + in localStorage
+// persistiert (Pattern gespiegelt von AntraegeMain). Default seit v2.45 breiter
+// (war 420). Panel ist rechts verankert → nach links ziehen verbreitert.
+const PANEL_WIDTH_KEY = 'teamflow_feedback_panel_width';
+const PANEL_DEFAULT_WIDTH = 520;
+const PANEL_MIN_WIDTH = 360;
+const PANEL_MAX_WIDTH = 900;
+
+function loadPanelWidth(): number {
+  try {
+    const v = Number(localStorage.getItem(PANEL_WIDTH_KEY));
+    if (Number.isFinite(v) && v >= PANEL_MIN_WIDTH) return v;
+  } catch { /* ignore */ }
+  return PANEL_DEFAULT_WIDTH;
+}
+
 export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.ReactElement | null {
   const storage = useStorage();
   const { profile } = useProfile();
@@ -47,8 +63,38 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
   const [submitting, setSubmitting] = useState(false);
   const [submittedItem, setSubmittedItem] = useState<FeedbackItem | null>(null);
   const [context, setContext] = useState<FeedbackContext | null>(null);
+  const [panelWidth, setPanelWidth] = useState(loadPanelWidth);
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const activePluginName = enabledPlugins.find(p => p.id === activeId)?.name ?? activeId ?? 'Unbekannt';
+
+  const onResizeMouseDown = useCallback((e: React.MouseEvent): void => {
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startWidth: panelWidth };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const onMove = (ev: MouseEvent): void => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      // Rechts verankert: nach links ziehen (negativer Delta) verbreitert.
+      const delta = ev.clientX - drag.startX;
+      const dynMax = Math.min(PANEL_MAX_WIDTH, window.innerWidth - 32);
+      setPanelWidth(Math.min(dynMax, Math.max(PANEL_MIN_WIDTH, drag.startWidth - delta)));
+    };
+    const onUp = (): void => {
+      dragRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [panelWidth]);
+
+  useEffect(() => {
+    try { localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth)); } catch { /* ignore */ }
+  }, [panelWidth]);
 
   // ESC-Handler
   useEffect(() => {
@@ -128,11 +174,21 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
 
   return (
     <div
-      className="fixed bottom-20 right-4 z-40 w-[420px] max-w-[calc(100vw-2rem)] rounded-[12px] bg-[var(--tf-bg)] shadow-2xl flex flex-col overflow-hidden"
-      style={{ border: '0.5px solid var(--tf-border)', maxHeight: 'calc(100vh - 6rem)' }}
+      className="fixed bottom-20 right-4 z-40 max-w-[calc(100vw-2rem)] rounded-[12px] bg-[var(--tf-bg)] shadow-2xl flex flex-col overflow-hidden"
+      style={{ width: panelWidth, border: '0.5px solid var(--tf-border)', maxHeight: 'calc(100vh - 6rem)' }}
       role="dialog"
       aria-label="Feedback"
     >
+      {/* Resize-Handle am linken Rand (Panel ist rechts verankert → links ziehen verbreitert) */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Breite ändern"
+        onMouseDown={onResizeMouseDown}
+        className="absolute left-0 top-0 h-full w-[6px] cursor-col-resize hover:bg-[var(--tf-border-hover)] z-10"
+        style={{ touchAction: 'none' }}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
         <div className="flex items-center gap-2">

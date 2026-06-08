@@ -1,45 +1,54 @@
-// Zeichen-Logik für den Feedback-Annotator (v2.42). Vier Werkzeuge auf nativem
-// <canvas> 2D — Pfeil, Rechteck, Text, Stift. Shapes werden in-memory gehalten
-// und bei jeder Änderung neu gezeichnet; `burn()` rendert sie flach ins Bild.
-// Keine externe Lib (file://-Constraint).
+// Zeichen-Logik für den Feedback-Annotator (v2.42). Drei Werkzeuge auf nativem
+// <canvas> 2D — Pfeil, Rechteck, Text (Stift entfernt v2.45). Shapes werden
+// in-memory gehalten und bei jeder Änderung neu gezeichnet; `burn()` rendert sie
+// flach ins Bild. Farbe + Textgröße sind pro Shape wählbar (v2.45). Keine
+// externe Lib (file://-Constraint).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { canvasToBlob, type AttachmentMime } from './feedbackAttachments';
 
-export type AnnotationTool = 'arrow' | 'rect' | 'text' | 'pen';
+export type AnnotationTool = 'arrow' | 'rect' | 'text';
+
+/** Wählbare Textgrößen (relativ zur Bildbreite, damit die Annotation beim
+ *  späteren Vollbild-Ansehen proportional zum Seiteninhalt skaliert). „M" ist
+ *  bewusst nur etwas größer als der Fließtext der App — Default. */
+export type AnnotationTextSize = 'S' | 'M' | 'L';
+const TEXT_SIZE_DIVISOR: Record<AnnotationTextSize, number> = { S: 140, M: 105, L: 70 };
+
+/** Farbpalette für Annotationen — erste = Default (kräftiger Orange-Ton, bewusste
+ *  Ausnahme von monochrome-first). Mehrere Töne, damit der User verschiedene
+ *  Arten von Kommentaren unterscheiden kann. */
+export const ANNOTATION_COLORS: readonly { value: string; label: string }[] = [
+  { value: '#e4572e', label: 'Orange' },
+  { value: '#dc2626', label: 'Rot' },
+  { value: '#2563eb', label: 'Blau' },
+  { value: '#16a34a', label: 'Grün' },
+  { value: '#111827', label: 'Schwarz' },
+] as const;
+const DEFAULT_COLOR = ANNOTATION_COLORS[0]!.value;
 
 type Point = { x: number; y: number };
 export type Shape =
-  | { type: 'arrow'; x1: number; y1: number; x2: number; y2: number }
-  | { type: 'rect'; x: number; y: number; w: number; h: number }
-  | { type: 'pen'; points: Point[] }
-  | { type: 'text'; x: number; y: number; text: string };
-
-/** Kräftiger Annotations-Ton (bewusste Ausnahme von monochrome-first). */
-const ANNOTATION_COLOR = '#e4572e';
+  | { type: 'arrow'; x1: number; y1: number; x2: number; y2: number; color: string }
+  | { type: 'rect'; x: number; y: number; w: number; h: number; color: string }
+  | { type: 'text'; x: number; y: number; text: string; color: string; size: AnnotationTextSize };
 
 function lineWidthFor(canvas: HTMLCanvasElement): number {
   return Math.max(3, Math.round(canvas.width / 400));
 }
-function fontSizeFor(canvas: HTMLCanvasElement): number {
-  return Math.max(16, Math.round(canvas.width / 45));
+function fontSizeFor(canvas: HTMLCanvasElement, size: AnnotationTextSize): number {
+  return Math.max(12, Math.round(canvas.width / TEXT_SIZE_DIVISOR[size]));
 }
 
 function drawShape(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: Shape): void {
   const lw = lineWidthFor(canvas);
-  ctx.strokeStyle = ANNOTATION_COLOR;
-  ctx.fillStyle = ANNOTATION_COLOR;
+  ctx.strokeStyle = s.color;
+  ctx.fillStyle = s.color;
   ctx.lineWidth = lw;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   if (s.type === 'rect') {
     ctx.strokeRect(s.x, s.y, s.w, s.h);
-  } else if (s.type === 'pen') {
-    if (s.points.length < 2) return;
-    ctx.beginPath();
-    ctx.moveTo(s.points[0]!.x, s.points[0]!.y);
-    for (const p of s.points.slice(1)) ctx.lineTo(p.x, p.y);
-    ctx.stroke();
   } else if (s.type === 'arrow') {
     ctx.beginPath();
     ctx.moveTo(s.x1, s.y1);
@@ -54,7 +63,7 @@ function drawShape(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: 
     ctx.closePath();
     ctx.fill();
   } else {
-    ctx.font = `bold ${fontSizeFor(canvas)}px sans-serif`;
+    ctx.font = `bold ${fontSizeFor(canvas, s.size)}px sans-serif`;
     ctx.textBaseline = 'top';
     ctx.fillText(s.text, s.x, s.y);
   }
@@ -67,6 +76,8 @@ export function useAnnotationCanvas(
   bitmap: ImageBitmap | null,
 ) {
   const [tool, setTool] = useState<AnnotationTool>('arrow');
+  const [color, setColor] = useState<string>(DEFAULT_COLOR);
+  const [textSize, setTextSize] = useState<AnnotationTextSize>('M');
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [textDraft, setTextDraft] = useState<TextDraft | null>(null);
   const draftRef = useRef<Shape | null>(null);
@@ -109,11 +120,10 @@ export function useAnnotationCanvas(
       return;
     }
     drawingRef.current = true;
-    if (tool === 'arrow') draftRef.current = { type: 'arrow', x1: p.x, y1: p.y, x2: p.x, y2: p.y };
-    else if (tool === 'rect') draftRef.current = { type: 'rect', x: p.x, y: p.y, w: 0, h: 0 };
-    else draftRef.current = { type: 'pen', points: [p] };
+    if (tool === 'arrow') draftRef.current = { type: 'arrow', x1: p.x, y1: p.y, x2: p.x, y2: p.y, color };
+    else draftRef.current = { type: 'rect', x: p.x, y: p.y, w: 0, h: 0, color };
     redraw();
-  }, [bitmap, tool, toCanvasPoint, redraw]);
+  }, [bitmap, tool, color, toCanvasPoint, redraw]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!drawingRef.current || !draftRef.current) return;
@@ -121,7 +131,6 @@ export function useAnnotationCanvas(
     const d = draftRef.current;
     if (d.type === 'arrow') { d.x2 = p.x; d.y2 = p.y; }
     else if (d.type === 'rect') { d.w = p.x - d.x; d.h = p.y - d.y; }
-    else if (d.type === 'pen') d.points.push(p);
     redraw();
   }, [toCanvasPoint, redraw]);
 
@@ -133,8 +142,7 @@ export function useAnnotationCanvas(
     // Mini-Klicks (kein echtes Ziehen) verwerfen.
     const tiny =
       (d.type === 'arrow' && Math.hypot(d.x2 - d.x1, d.y2 - d.y1) < 4) ||
-      (d.type === 'rect' && Math.abs(d.w) < 4 && Math.abs(d.h) < 4) ||
-      (d.type === 'pen' && d.points.length < 2);
+      (d.type === 'rect' && Math.abs(d.w) < 4 && Math.abs(d.h) < 4);
     if (!tiny) setShapes(prev => [...prev, d]);
     else redraw();
   }, [redraw]);
@@ -142,11 +150,11 @@ export function useAnnotationCanvas(
   const commitText = useCallback(() => {
     setTextDraft(prev => {
       if (prev && prev.value.trim()) {
-        setShapes(s => [...s, { type: 'text', x: prev.x, y: prev.y, text: prev.value.trim() }]);
+        setShapes(s => [...s, { type: 'text', x: prev.x, y: prev.y, text: prev.value.trim(), color, size: textSize }]);
       }
       return null;
     });
-  }, []);
+  }, [color, textSize]);
 
   const undo = useCallback(() => setShapes(prev => prev.slice(0, -1)), []);
   const clear = useCallback(() => setShapes([]), []);
@@ -161,7 +169,8 @@ export function useAnnotationCanvas(
   }, [canvasRef, bitmap, redraw]);
 
   return {
-    tool, setTool, shapes, textDraft, setTextDraft,
+    tool, setTool, color, setColor, textSize, setTextSize,
+    shapes, textDraft, setTextDraft,
     onPointerDown, onPointerMove, onPointerUp,
     commitText, undo, clear, burn, hasShapes: shapes.length > 0,
   };

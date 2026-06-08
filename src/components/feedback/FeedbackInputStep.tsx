@@ -15,6 +15,13 @@ import {
 import { FaqSuggestions } from './FaqSuggestions';
 import { FeedbackScreenshotInput } from './FeedbackScreenshotInput';
 import type { PendingAttachment } from './feedbackAttachments';
+import { isBauantraegeEnabled } from '@/config/feature-flags';
+
+/** „Bauanträge" als Bereich nur dort anbieten, wo das Modul existiert (Demo-Build
+ *  mit features.bauantraege) — in prod/kurator/pl/dev gibt es den Bereich nicht. */
+const VISIBLE_AREAS = isBauantraegeEnabled()
+  ? TEAMFLOW_AREAS
+  : TEAMFLOW_AREAS.filter(a => a.ref !== 'bauantraege');
 
 export interface FeedbackSubmitPayload {
   category: FeedbackCategory;
@@ -181,7 +188,7 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
           style={{ border: '0.5px solid var(--tf-border)' }}
         >
           <option value="">— Auto-erkannt: {context.page} —</option>
-          {TEAMFLOW_AREAS.map(a => (
+          {VISIBLE_AREAS.map(a => (
             <option key={a.ref} value={a.ref}>{a.label}</option>
           ))}
         </select>
