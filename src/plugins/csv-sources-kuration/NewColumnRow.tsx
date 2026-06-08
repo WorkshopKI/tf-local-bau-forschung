@@ -22,23 +22,32 @@ interface Props {
   decision: PerColumnDecision;
   /** Canonical-Ziel doppelt belegt (bestehend oder unter den neuen Spalten). */
   conflict?: boolean;
+  /** Optionaler Beispielwert aus der CSV — hilft beim Re-Mapping zu entscheiden,
+   *  welches Standardfeld passt (z.B. Datum vs. Freitext). */
+  sampleHint?: string;
+  /** Mapping-Modus gesperrt (z.B. Join-Key-/Master-Pflichtspalte) — read-only. */
+  locked?: boolean;
   onChange: (patch: Partial<PerColumnDecision>) => void;
 }
 
 /**
- * Eine Zeile im `CsvAddColumnsDialog`: Spaltenname + Mapping-Entscheidung
- * (Standardfeld / Eigenes Feld / Ignorieren) — gleiche Semantik wie der
- * Wizard-Column-Step, aber kompakt für die wenigen neuen Spalten.
+ * Eine Zeile im `CsvAddColumnsDialog` / `RemapCsvColumnsDialog`: Spaltenname +
+ * Mapping-Entscheidung (Standardfeld / Eigenes Feld / Ignorieren) — gleiche
+ * Semantik wie der Wizard-Column-Step, aber kompakt.
  */
-export function NewColumnRow({ column, decision, conflict, onChange }: Props): React.ReactElement {
+export function NewColumnRow({ column, decision, conflict, sampleHint, locked, onChange }: Props): React.ReactElement {
   const mode = decision.mode;
   return (
     <div className="flex flex-wrap items-center gap-2 py-2 border-b-[0.5px] border-[var(--tf-border)]">
-      <div
-        className="min-w-[150px] max-w-[200px] flex-shrink-0 truncate font-mono text-[12px] text-[var(--tf-text)]"
-        title={column}
-      >
-        {column}
+      <div className="min-w-[150px] max-w-[200px] flex-shrink-0">
+        <div className="truncate font-mono text-[12px] text-[var(--tf-text)]" title={column}>
+          {column}
+        </div>
+        {sampleHint ? (
+          <div className="truncate text-[10.5px] text-[var(--tf-text-tertiary)]" title={sampleHint}>
+            z.B. {sampleHint}
+          </div>
+        ) : null}
       </div>
 
       <div className="flex gap-1">
@@ -46,12 +55,13 @@ export function NewColumnRow({ column, decision, conflict, onChange }: Props): R
           <button
             key={m.key}
             type="button"
+            disabled={locked}
             onClick={() => {
               if (m.key === 'canonical') onChange({ mode: 'canonical' });
               else if (m.key === 'custom') onChange({ mode: 'custom', custom: decision.custom ?? column.toLowerCase() });
               else onChange({ mode: 'ignore' });
             }}
-            className={mode === m.key ? PILL_ACTIVE : PILL_INACTIVE}
+            className={`${mode === m.key ? PILL_ACTIVE : PILL_INACTIVE}${locked ? ' opacity-50 cursor-not-allowed' : ''}`}
           >
             {m.label}
           </button>
@@ -61,6 +71,7 @@ export function NewColumnRow({ column, decision, conflict, onChange }: Props): R
       {mode === 'canonical' ? (
         <select
           value={decision.canonical ?? ''}
+          disabled={locked}
           onChange={e => {
             const key = e.target.value;
             const field = CANONICAL_FIELDS.find(f => f.key === key);

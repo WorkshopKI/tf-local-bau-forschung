@@ -2,6 +2,16 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.52 — Ein-Klick „Spalten neu mappen" für CSV-Quellen (Juni 2026)
+
+MINOR-Bump v2.52: Künftig werden laufend weitere CSV-Spalten zu Standardfeldern hochgestuft. Der bisherige Weg war Menü-Hopping (CSV neu wählen → Datei-Picker → Reimport-Review → „neue Spalten übernehmen" → Mapping → Import), und für eine bereits als Custom gemappte Spalte gab es gar keinen sauberen Editier-Pfad (`CsvSchemaDetailDialog` ist read-only). Neu: ein Button **„Spalten neu mappen"** pro CSV-Quelle ([CsvSourcesPage.tsx](src/plugins/csv-sources-kuration/CsvSourcesPage.tsx)).
+
+- **Neuer Dialog** [RemapCsvColumnsDialog.tsx](src/plugins/csv-sources-kuration/RemapCsvColumnsDialog.tsx): lädt die zuletzt importierte CSV vom Share via `loadCsvSourceFile` (**kein Datei-Picker**), zeigt **alle** Spalten mit ihrem aktuellen Mapping vorbefüllt (`decisionFromEntry`), Suchfeld + Kind-Filter (Alle/Standardfeld/Eigenes Feld/Ignoriert) + Sample-Wert pro Spalte. „Speichern & neu verarbeiten" baut das Mapping via neuer `rebuildMapping`-Funktion ([new-column-mapping.ts](src/plugins/csv-sources-kuration/services/new-column-mapping.ts)) komplett neu (erhält XLS-`label`/`group_path`/`required`), `saveSchema` + force-Re-Import (`encodingOverride: 'UTF-8'`) in einem Schritt — Fortschritt + Buckets via `Step4Progress`.
+- **Schutz:** Pflicht-Standardfelder (Join-Key; bei Master `aktenzeichen` + `unterprogramm_id`) sind im Editor gesperrt (read-only) und werden vor dem Speichern validiert — kein versehentliches Kaputt-Mappen der Identität.
+- **Reuse:** generalisiert den additiven `CsvAddColumnsDialog`; `NewColumnRow` bekam optionale `sampleHint`/`locked`-Props. Funktioniert end-to-end dank des v2.51-Row-Hash-Fixes (Mapping-Änderung → „N geändert").
+
+Rein additiv, keine Migration. kurator-only Plugin → sichtbar in `kurator` (nach Login) + `dev`. Unit-Tests für `rebuildMapping` + `decisionFromEntry` ([new-column-mapping.test.ts](src/plugins/csv-sources-kuration/services/__tests__/new-column-mapping.test.ts)).
+
 ### v2.51 — Re-Mapping einer CSV-Spalte propagiert beim Re-Import (Row-Hash-Fix) (Juni 2026)
 
 MINOR-Bump v2.51: Der eigentliche Grund, warum die Spalte „Erstentscheidung" (v2.49/2.50) leer blieb. Der Kurator hatte `D_AZ1_1` im Wizard korrekt von Custom auf das Standardfeld `erstentscheidung` umgestellt und voll re-importiert — der Import meldete aber **„0 geändert · 12087 unverändert"**, also kein einziger Antrag wurde neu gemerged, das Feld nie geschrieben.

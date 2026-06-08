@@ -92,3 +92,23 @@ export function applyDecisionToEntry(
   if (existing.required !== undefined) base.required = existing.required;
   return base;
 }
+
+/**
+ * Baut das KOMPLETTE `column_mapping` aus allen Spalten-Entscheidungen neu — für
+ * das „Spalten neu mappen"-Re-Mapping (`RemapCsvColumnsDialog`). Im Gegensatz zu
+ * `mergeNewColumns` (rein additiv) überschreibt diese Funktion auch BESTEHENDE
+ * Einträge, erhält dabei aber deren Label-XLS-Herkunft + `required` (via
+ * `applyDecisionToEntry`). Bestands-Einträge OHNE Decision (z.B. Spalte nicht
+ * mehr in der CSV) bleiben unangetastet erhalten.
+ */
+export function rebuildMapping(
+  existing: ColumnMapping,
+  decisions: Record<string, PerColumnDecision>,
+): ColumnMapping {
+  const next: ColumnMapping = { ...existing };
+  for (const [col, d] of Object.entries(decisions)) {
+    const prev = existing[col];
+    next[col] = prev ? applyDecisionToEntry(col, prev, d) : buildNewColumnEntry(col, d);
+  }
+  return next;
+}

@@ -1,7 +1,7 @@
 // TODO(refactor v2.4+): mischt Datei-Picker (FS-API), Schema-Liste, Wartungs-/Reset-Sektion und 4 Dialog-Orchestrierungen — entlang dieser Grenzen aufteilen (opportunistisch beim nächsten Anfassen).
 // Vorschlag: SourceList.tsx + SourceDetailPanel.tsx + SourceModals.tsx; Plugin-Page wird zum Layout-Container.
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Trash2, Sparkles } from 'lucide-react';
+import { RefreshCw, Trash2, Sparkles, Columns3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
@@ -21,6 +21,7 @@ import { SectionHeader } from '@/ui/SectionHeader';
 import { CsvSourceWizard } from './wizard/CsvSourceWizard';
 import { CsvSourceReimportDialog } from './CsvSourceReimportDialog';
 import { CsvAddColumnsDialog } from './CsvAddColumnsDialog';
+import { RemapCsvColumnsDialog } from './RemapCsvColumnsDialog';
 import { CsvSchemaDetailDialog } from './CsvSchemaDetailDialog';
 import {
   checkSourceForUpdate,
@@ -97,6 +98,7 @@ export function CsvSourcesPage(): React.ReactElement {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [reimportRequest, setReimportRequest] = useState<ReimportRequest | null>(null);
   const [addColumnsRequest, setAddColumnsRequest] = useState<AddColumnsRequest | null>(null);
+  const [remapSchema, setRemapSchema] = useState<CsvSchema | null>(null);
   const [detailSchema, setDetailSchema] = useState<CsvSchema | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -315,6 +317,19 @@ export function CsvSourcesPage(): React.ReactElement {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={e => { e.stopPropagation(); setRemapSchema(s); }}
+                      disabled={!session.isActive || !s.last_imported_at}
+                      title={
+                        s.last_imported_at
+                          ? 'Spalten der gespeicherten CSV neu zuordnen (z.B. Eigenes Feld → Standardfeld) — ohne Datei neu zu wählen'
+                          : 'Noch kein Import — zuerst „CSV neu wählen" nutzen'
+                      }
+                    >
+                      <Columns3 size={13} /> Spalten neu mappen
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={e => { e.stopPropagation(); void handleReselect(s); }}
                       disabled={!session.isActive}
                       title="Andere CSV-Datei wählen — z.B. wenn die Datei an einem neuen Ort liegt"
@@ -460,6 +475,14 @@ export function CsvSourcesPage(): React.ReactElement {
           sourceHandle={addColumnsRequest.sourceHandle}
           newColumns={addColumnsRequest.newColumns}
           onClose={() => setAddColumnsRequest(null)}
+          onCompleted={() => { void refresh(); }}
+        />
+      ) : null}
+
+      {remapSchema ? (
+        <RemapCsvColumnsDialog
+          schema={remapSchema}
+          onClose={() => setRemapSchema(null)}
           onCompleted={() => { void refresh(); }}
         />
       ) : null}

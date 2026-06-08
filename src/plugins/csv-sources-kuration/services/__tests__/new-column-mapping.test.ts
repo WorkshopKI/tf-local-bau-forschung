@@ -8,7 +8,12 @@
 import { describe, it, expect } from 'vitest';
 import type { ColumnMapping } from '@/core/services/csv/types';
 import type { PerColumnDecision } from '../../wizard/useCsvWizardState';
-import { buildNewColumnEntry, mergeNewColumns } from '../new-column-mapping';
+import {
+  buildNewColumnEntry,
+  mergeNewColumns,
+  rebuildMapping,
+  decisionFromEntry,
+} from '../new-column-mapping';
 
 const EXISTING: ColumnMapping = {
   AKZ: { canonical: 'aktenzeichen', type: 'string', trackHistory: false },
@@ -101,5 +106,90 @@ describe('mergeNewColumns', () => {
     const merged = mergeNewColumns(EXISTING, { X: { mode: 'ignore' } });
     expect(merged).not.toBe(EXISTING);
     expect(JSON.stringify(EXISTING)).toBe(before);
+  });
+});
+
+describe('rebuildMapping (Re-Mapping aller Spalten)', () => {
+  it('stuft ein Custom-Feld auf ein Standardfeld hoch und erhält Label/Gruppen-Pfad', () => {
+    // FOERDER_2024 war custom mit Label + group_path → wird auf canonical foerdersumme umgestellt.
+    const next = rebuildMapping(EXISTING, {
+      FOERDER_2024: { mode: 'canonical', canonical: 'foerdersumme', type: 'number' },
+    });
+    expect(next.FOERDER_2024).toEqual({
+      canonical: 'foerdersumme',
+      type: 'number',
+      trackHistory: false,
+      label: 'Fördersumme 2024',
+      group_path: ['Finanzen', '2024'],
+    });
+  });
+
+  it('überschreibt bestehende Einträge (anders als mergeNewColumns)', () => {
+    const next = rebuildMapping(EXISTING, {
+      EXPORT_TS: { mode: 'canonical', canonical: 'bewilligung_datum', type: 'date' },
+    });
+    expect(next.EXPORT_TS).toEqual({
+      canonical: 'bewilligung_datum',
+      type: 'date',
+      trackHistory: false,
+    });
+  });
+
+  it('erhält required beim Re-Mapping der Join-Key-Spalte', () => {
+    const withRequired: ColumnMapping = {
+      FKZ: { canonical: 'aktenzeichen', type: 'string', required: true },
+    };
+    const next = rebuildMapping(withRequired, {
+      FKZ: { mode: 'canonical', canonical: 'aktenzeichen', type: 'string' },
+    });
+    expect(next.FKZ?.required).toBe(true);
+  });
+
+  it('lässt Bestands-Einträge ohne Decision (Orphans) unangetastet', () => {
+    // Nur eine Spalte wird neu entschieden → die übrigen bleiben byte-genau.
+    const next = rebuildMapping(EXISTING, {
+      AKZ: { mode: 'canonical', canonical: 'aktenzeichen', type: 'string' },
+    });
+    expect(next.STATUS).toEqual(EXISTING.STATUS);
+    expect(next.FOERDER_2024).toEqual(EXISTING.FOERDER_2024);
+    expect(next.EXPORT_TS).toEqual(EXISTING.EXPORT_TS);
+  });
+
+  it('mappt neue Spalten ohne Bestand via buildNewColumnEntry', () => {
+    const next = rebuildMapping(EXISTING, {
+      D_AZ1_1: { mode: 'canonical', canonical: 'erstentscheidung', type: 'date' },
+    });
+    expect(next.D_AZ1_1).toEqual({ canonical: 'erstentscheidung', type: 'date', trackHistory: false });
+  });
+
+  it('mutiert das Eingabe-Mapping nicht', () => {
+    const before = JSON.stringify(EXISTING);
+    const next = rebuildMapping(EXISTING, { AKZ: { mode: 'ignore' } });
+    expect(next).not.toBe(EXISTING);
+    expect(JSON.stringify(EXISTING)).toBe(before);
+  });
+});
+
+describe('decisionFromEntry (Mapping → Editor-Decision)', () => {
+  it('roundtrip canonical', () => {
+    expect(decisionFromEntry({ canonical: 'status', type: 'string', trackHistory: true })).toEqual({
+      mode: 'canonical',
+      canonical: 'status',
+      type: 'string',
+      trackHistory: true,
+    });
+  });
+
+  it('roundtrip custom', () => {
+    expect(decisionFromEntry({ custom: 'foo', type: 'number' })).toEqual({
+      mode: 'custom',
+      custom: 'foo',
+      type: 'number',
+      trackHistory: undefined,
+    });
+  });
+
+  it('roundtrip ignore', () => {
+    expect(decisionFromEntry({ ignore: true })).toEqual({ mode: 'ignore' });
   });
 });
