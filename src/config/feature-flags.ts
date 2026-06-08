@@ -78,6 +78,16 @@ export function isDokumenteEnabled(): boolean { return features.dokumente; }
  *  pre-2.18-Configs ohne den Flag. */
 export function isFeedbackDeleteEnabled(): boolean { return features.feedbackDelete === true; }
 export function isAuslastungEnabled(): boolean { return features.auslastung === true; }
+/** v2.47: Lokaler Themenkorpus-Build erlaubt? Der Build laedt ein ~200-MB-
+ *  Embedding-Modell in den Main-Thread-RAM und kann in speicherarmen, geteilten
+ *  Umgebungen (Citrix, mehrere User pro Host) den Renderer per Out-of-Memory
+ *  crashen ("Aw, Snap"). In der Citrix-pl-Config auf false → die Build-Buttons
+ *  ("Corpus aufbauen"/"Inkrementell") sind ausgeblendet, nur "Vom Datenspeicher
+ *  laden" bleibt (= dokumentiertes "einer baut, alle laden"-Modell). Default
+ *  true (`!== false`: fehlender Flag = erlaubt, Backward-Kompat). */
+export function isEmbeddingCorpusBuildEnabled(): boolean {
+  return features.embeddingCorpusBuild !== false;
+}
 /** Homepage-Selbsteintragung + Banner. End-User-Feature, getrennt vom PL-
  *  Plugin (`auslastung`). Wer das Plugin aktiviert hat, will i.d.R. auch
  *  die Selbsteintragung — wenn der Flag fehlt, fallen wir auf `auslastung`

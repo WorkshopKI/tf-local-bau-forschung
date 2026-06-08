@@ -95,6 +95,11 @@ export interface TeamflowFeatures {
    *  `lastModified`-Stände; in Nicht-Kurator-Builds verknüpft ein schlanker
    *  Picker die Quelldatei. Braucht `datenShareSchreibrecht`. Nur dev + pl. */
   csvAutoRefresh: boolean;
+  /** v2.47: Lokaler Themenkorpus-Build erlaubt (Embedding-Modell ~200 MB im
+   *  Main-Thread-RAM). In geteilten Citrix-pl-Sitzungen (mehrere User/Host) auf
+   *  false → Build-Buttons ausgeblendet, nur Download. Default true (optional,
+   *  fehlt = erlaubt, kein requiredFlags-Eintrag). */
+  embeddingCorpusBuild?: boolean;
 }
 
 export interface TeamflowMenuLabels {

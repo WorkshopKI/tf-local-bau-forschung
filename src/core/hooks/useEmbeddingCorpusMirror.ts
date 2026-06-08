@@ -48,12 +48,17 @@ interface EmbeddingCorpusMirrorState {
   loadManifest: (storage: StorageService) => Promise<void>;
   /** Bin downloaden + in IDB cachen. Caller MUSS vorher Kompat pruefen. */
   downloadAndApply: (storage: StorageService) => Promise<{ count: number } | null>;
-  /** Aktuellen lokalen Cache auf Share hochladen. Mit Build-Lock. */
+  /** Aktuellen lokalen Cache auf Share hochladen. Mit Build-Lock.
+   *  `opts.skipLock`: Lock NICHT selbst akquirieren — der Caller hält ihn schon
+   *  (z.B. `EmbeddingCorpusSection.build()` lockt über den ganzen Build+Upload).
+   *  Ohne das würde der Re-Acquire den eigenen, noch aktiven Lock sehen und
+   *  fälschlich „Build läuft bereits" werfen. */
   uploadFromIdb: (
     storage: StorageService,
     modellId: string,
     dim: number,
     builderProfile?: string,
+    opts?: { skipLock?: boolean },
   ) => Promise<void>;
   /** Reset z.B. nach Modellwechsel — UI-Hint. */
   reset: () => void;
@@ -103,19 +108,22 @@ export const useEmbeddingCorpusMirror = create<EmbeddingCorpusMirrorState>((set,
     }
   },
 
-  uploadFromIdb: async (storage, modellId, dim, builderProfile) => {
+  uploadFromIdb: async (storage, modellId, dim, builderProfile, opts) => {
     if (get().uploading) return;
     set({ uploading: true, error: null });
     let lockAcquired = false;
+    const skipLock = opts?.skipLock === true;
     try {
-      const lockResult = await acquireBuildLock(storage.idb as IDBStore, LOCK_STUFE);
-      if (!lockResult.acquired) {
-        const ageMin = Math.round(lockResult.ageMinutes);
-        throw new Error(
-          `Build laeuft bereits (${lockResult.existing.kurator_name}, gestartet vor ${ageMin} min, Stufe "${lockResult.existing.stufe}"). Sync abgebrochen.`,
-        );
+      if (!skipLock) {
+        const lockResult = await acquireBuildLock(storage.idb as IDBStore, LOCK_STUFE);
+        if (!lockResult.acquired) {
+          const ageMin = Math.round(lockResult.ageMinutes);
+          throw new Error(
+            `Build laeuft bereits (${lockResult.existing.kurator_name}, gestartet vor ${ageMin} min, Stufe "${lockResult.existing.stufe}"). Sync abgebrochen.`,
+          );
+        }
+        lockAcquired = true;
       }
-      lockAcquired = true;
 
       const embs = await loadAllEmbeddings(storage.idb as IDBStore);
       if (embs.size === 0) {

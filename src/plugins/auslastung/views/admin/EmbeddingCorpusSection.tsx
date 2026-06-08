@@ -36,6 +36,8 @@ import { bumpAuslastungCorpusSignal } from '../../services/corpus-signal';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useProfile } from '@/core/hooks/useProfile';
+import { acquireBuildLock, releaseLock, heartbeat } from '@/core/services/infrastructure/build-lock';
+import { isEmbeddingCorpusBuildEnabled } from '@/config/feature-flags';
 
 interface Props {
   storage: StorageService;
@@ -52,6 +54,12 @@ const PHASE_LABELS: Record<BuildPhase, string> = {
   verbund: 'Verbund-Vektoren',
   centroids: 'Kategorie-Centroids berechnen…',
 };
+
+// v2.47: Build-Lock-Stufe für den lokalen Korpus-Build. Verhindert, dass mehrere
+// User im selben (Citrix-)Host gleichzeitig je ein ~200-MB-Embedding-Modell laden
+// und gemeinsam den Renderer-Speicher sprengen (Aw-Snap/OOM). Der anschließende
+// Upload (`uploadFromIdb`, skipLock) läuft unter demselben gehaltenen Lock weiter.
+const LOCK_STUFE_BUILD = 'auslastung-corpus-build';
 
 export function EmbeddingCorpusSection({ storage, antraege }: Props): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
@@ -163,15 +171,56 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
     && mirrorManifest.aktenzeichenSetHash !== aktenzeichenHash);
 
   async function build(incremental: boolean): Promise<void> {
+    // B (v2.47): Speicher-Warnung VOR dem schweren Build. Der Build lädt ein
+    // ~200-MB-Embedding-Modell in den RAM dieses Tabs; in geteilten Sitzungen
+    // (Citrix, mehrere User pro Host) kann der Tab dabei per Out-of-Memory
+    // abstürzen ("Aw, Snap").
+    if (!confirm(
+      'Der Korpus-Build lädt ein ~200-MB-Modell in den Arbeitsspeicher dieses Browser-Tabs '
+      + 'und läuft mehrere Minuten. In geteilten Sitzungen (z.B. Citrix mit mehreren Nutzern) '
+      + 'kann der Tab dabei abstürzen („Aw, Snap" / Out of Memory).\n\n'
+      + 'Nur starten, wenn sonst niemand baut und genügend RAM frei ist. Build jetzt starten?',
+    )) return;
+
     setError(null);
     setRunning(true);
-    abortRef.current = new AbortController();
+    // Lokale const fuer `signal` — nach dem `await acquireBuildLock` unten wuerde
+    // TS die Non-Null-Narrowing von `abortRef.current` (mutable Ref) verlieren.
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    // A (v2.47): Build-Lock VOR dem lokalen Build setzen (nicht erst beim Upload).
+    // Verhindert, dass zwei User im selben Host gleichzeitig je ein 200-MB-Modell
+    // laden → OOM. Fremder aktiver Lock → gar nicht erst bauen. Kein SMB/
+    // Schreibrecht (offline) → best-effort ohne Lock (lokaler Build bleibt
+    // möglich, es gibt dann ohnehin keinen Share zum Koordinieren).
+    let lockAcquired = false;
+    try {
+      const lock = await acquireBuildLock(storage.idb, LOCK_STUFE_BUILD);
+      if (!lock.acquired) {
+        const ageMin = Math.round(lock.ageMinutes);
+        setError(
+          `Build läuft bereits (${lock.existing.kurator_name}, gestartet vor ${ageMin} min). `
+          + 'Bitte warten oder „Vom Datenspeicher laden".',
+        );
+        setRunning(false);
+        abortRef.current = null;
+        return;
+      }
+      lockAcquired = true;
+    } catch (err) {
+      console.warn('[corpus-build] Build-Lock nicht verfügbar, baue best-effort ohne Lock:', err);
+    }
+
     try {
       await buildEmbeddingCorpus(storage.idb, antraege, {
         incremental,
         onProgress: p => setPhaseProgress({ phase: 'antrag', done: p.done, total: p.total, last: p.lastAntrag, etaSec: p.etaSec }),
-        signal: abortRef.current.signal,
+        signal: controller.signal,
       });
+      // v2.47: Heartbeat, damit der Lock während des (langen) Antrag-Laufs nicht
+      // veraltet (Stale-Schwelle 2h, voller Build kann ~47 min dauern).
+      if (lockAcquired) await heartbeat(storage.idb).catch(() => undefined);
       // Verbund-Embeddings (Stage-2-Klassifizierung) parallel mit aufbauen.
       // Klein im Vergleich zum Antrag-Korpus (typisch 1/3 der Verbund-Anzahl),
       // aber bei `incremental: false` ein voller zweiter Embedding-Lauf von
@@ -179,9 +228,10 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       // die Bar nach der per-Antrag-100% scheinbar ein, v2.21.2-Fix).
       await buildVerbundEmbeddingCorpus(storage.idb, antraege, {
         incremental,
-        signal: abortRef.current.signal,
+        signal: controller.signal,
         onProgress: p => setPhaseProgress({ phase: 'verbund', done: p.done, total: p.total, last: p.lastVerbundId, etaSec: p.etaSec }),
       });
+      if (lockAcquired) await heartbeat(storage.idb).catch(() => undefined);
       // v2.11: Cache invalidieren, damit nachfolgende loadAllVerbundEmbeddings-
       // Calls (auch in `KlassifizierungsReview`) die neu gebauten Vektoren
       // sehen — sonst wuerde der Module-Cache die alten Daten weiter liefern.
@@ -228,7 +278,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       // erfolgreich, nur die Share-Sync hat ggf. nicht geklappt.
       if (lokalModell) {
         try {
-          await uploadMirror(storage, lokalModell.id, lokalModell.dim, profile?.name);
+          await uploadMirror(storage, lokalModell.id, lokalModell.dim, profile?.name, { skipLock: true });
           // v2.19: Verbund-Embeddings separat mitspiegeln — der core-Mirror
           // (uploadMirror) deckt nur den per-Antrag-Korpus ab. Ohne das hätte
           // ein neuer Rechner keine Themen-Vektoren für die Klassifizierung
@@ -245,6 +295,8 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       setRunning(false);
       setPhaseProgress(null);
       abortRef.current = null;
+      // A (v2.47): Build-Lock freigeben — über den ganzen Build+Upload gehalten.
+      if (lockAcquired) await releaseLock(storage.idb).catch(() => undefined);
     }
   }
 
@@ -393,24 +445,32 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
                 Vom Datenspeicher laden (~{mirrorManifest.antraegeCount} Vektoren, ≈10 s)
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => void build(false)}
-              disabled={total === 0}
-              className="px-3 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-              style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-            >
-              Corpus aufbauen (~{Math.ceil(total * 0.2 / 60)} min)
-            </button>
-            <button
-              type="button"
-              onClick={() => void build(true)}
-              disabled={total === 0 || count >= total}
-              className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              Inkrementell
-            </button>
+            {/* C (v2.47): Build-Buttons nur wenn der lokale Build erlaubt ist.
+                In der Citrix-pl-Config ausgeblendet (embeddingCorpusBuild=false)
+                → der Build (200-MB-Modell im RAM) gehört auf einen ungeteilten
+                Rechner; Citrix-User nutzen nur "Vom Datenspeicher laden". */}
+            {isEmbeddingCorpusBuildEnabled() && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void build(false)}
+                  disabled={total === 0}
+                  className="px-3 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
+                  style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+                >
+                  Corpus aufbauen (~{Math.ceil(total * 0.2 / 60)} min)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void build(true)}
+                  disabled={total === 0 || count >= total}
+                  className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
+                  style={{ border: '0.5px solid var(--tf-border)' }}
+                >
+                  Inkrementell
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() => void clear()}

@@ -149,6 +149,10 @@ export const DEFAULT_CONFIG = {
      *  Braucht `datenShareSchreibrecht` zum Schreiben des Snapshots. Der Kurator-
      *  Banner läuft unabhängig weiter über `kuratorMenus`. */
     csvAutoRefresh: false,
+    /** v2.47: Lokaler Themenkorpus-Build erlaubt (Embedding-Modell ~200 MB im
+     *  RAM). In geteilten Citrix-pl-Sitzungen auf false → Build-Buttons aus,
+     *  nur Download. Optional (kein requiredFlags-Eintrag) — fehlt = erlaubt. */
+    embeddingCorpusBuild: true,
   },
 
   menuLabels: {
