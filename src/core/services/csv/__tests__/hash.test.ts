@@ -22,6 +22,17 @@ describe('canonicalRowHash', () => {
     expect(canonicalRowHash(row, before)).not.toBe(canonicalRowHash(row, after));
   });
 
+  it('ändert sich, wenn dieselbe Spalte auf ein anderes Zielfeld gemappt wird (custom → canonical)', () => {
+    // Regression Bug v2.50: D_AZ1_1 war als Custom-Feld gemappt, wurde auf das
+    // Standardfeld `erstentscheidung` umgestellt. Quellspalte + Wert unverändert →
+    // ohne Ziel-Feld im Hash bliebe die Zeile „unverändert" und der force-Re-Import
+    // würde das neue Standardfeld nie schreiben.
+    const row = { AZ: '16KN1', D_AZ1_1: '15.03.2026' };
+    const asCustom: ColumnMapping = { AZ: { canonical: 'aktenzeichen' }, D_AZ1_1: { custom: 'd_az1_1' } };
+    const asCanonical: ColumnMapping = { AZ: { canonical: 'aktenzeichen' }, D_AZ1_1: { canonical: 'erstentscheidung' } };
+    expect(canonicalRowHash(row, asCustom)).not.toBe(canonicalRowHash(row, asCanonical));
+  });
+
   it('gleiches Mapping + gleiche Zeile → gleicher Hash (deterministisch)', () => {
     const row = { AZ: '16KN1', X: 'y' };
     const m: ColumnMapping = { AZ: { canonical: 'aktenzeichen' }, X: { custom: 'x' } };

@@ -2,6 +2,16 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.51 — Re-Mapping einer CSV-Spalte propagiert beim Re-Import (Row-Hash-Fix) (Juni 2026)
+
+MINOR-Bump v2.51: Der eigentliche Grund, warum die Spalte „Erstentscheidung" (v2.49/2.50) leer blieb. Der Kurator hatte `D_AZ1_1` im Wizard korrekt von Custom auf das Standardfeld `erstentscheidung` umgestellt und voll re-importiert — der Import meldete aber **„0 geändert · 12087 unverändert"**, also kein einziger Antrag wurde neu gemerged, das Feld nie geschrieben.
+
+**Ursache:** `canonicalRowHash` ([hash.ts](src/core/services/csv/hash.ts)) bildete pro Zeile nur `Quellspalte=Wert` ab — **nicht** das Ziel-Feld der Zuordnung. Wird dieselbe Quellspalte (`D_AZ1_1`) bei unverändertem Wert von einem Custom-Feld auf ein Canonical-Feld umgehängt, blieb der Hash identisch → Row-Diff „unverändert" → `runMergeForDeltas` übersprungen (`hasDeltas=false`). Der `force`-Re-Import umgeht zwar den Datei-Checksum-Skip, aber der Row-Hash erkannte die Mapping-Änderung nicht (Doc-Kommentar behauptete fälschlich „Hash bezieht das Mapping ein" — galt nur für **hinzugefügte/entfernte** Spalten, nicht für **Ziel-Änderungen**).
+
+**Fix:** Der Hash bezieht jetzt den aufgelösten Ziel-Feldschlüssel mit ein (`col>targetField=value`, `targetField` = canonical > custom > lowercase). Ein Re-Mapping derselben Spalte ändert damit den Hash → der force-Re-Import erkennt die betroffenen Zeilen als „geändert" und merged neu. Regressionstest in [hash.test.ts](src/core/services/csv/__tests__/hash.test.ts) (custom→canonical-Umhängung muss den Hash ändern).
+
+**Einmaliger Effekt (selbstheilend, keine Migration, kein Datenverlust):** Weil sich das Hash-Format ändert, meldet der **nächste** Re-Import jeder CSV-Quelle alle Zeilen als „geändert" und merged einmalig komplett neu (13k-Recompute + Snapshot) — genau das macht hier die `erstentscheidung`-Werte sichtbar. Danach ist der Diff wieder stabil. **Roll-out für die leere Spalte:** kurator-Build v2.51 öffnen → `9097_AnB_AitisiGPT.csv` einmal re-importieren (Mapping ist bereits gespeichert, kein erneutes Zuordnen nötig) → jetzt zeigt der Dialog „12087 geändert", die Spalte „Erstentscheidung" füllt sich für Anträge mit Entscheidungs-Datum. Betrifft alle Varianten mit CSV-Import.
+
 ### v2.50 — Erstentscheidung: Mapping-Regressionstest + Klarstellung Re-Import (Juni 2026)
 
 MINOR-Bump v2.50 (Nachzug zu v2.49): Beim Tester blieb die neue Spalte „Erstentscheidung" leer und das Standardfeld wurde im CSV-Wizard scheinbar nicht vorgeschlagen. Ursache ist **kein** Mapping-Defekt — die Name-/Alias-Auflösung ist korrekt (neuer Regressionstest [column-name-suggestions.test.ts](src/core/services/csv/__tests__/column-name-suggestions.test.ts): `buildSuggestionsFromColumnNames(['D_AZ1_1'])` → `erstentscheidung`, robust gegen Schreibvarianten). Die leere Spalte hat einen von zwei prozessualen Gründen:

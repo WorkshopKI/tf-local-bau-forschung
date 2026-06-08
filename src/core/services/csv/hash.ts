@@ -1,5 +1,18 @@
 import { HASH_SEPARATOR } from './constants';
-import type { ColumnMapping } from './types';
+import type { ColumnMapping, ColumnMappingEntry } from './types';
+
+/**
+ * Ziel-Feldschlüssel einer Spalte (canonical > custom > lowercase Spaltenname).
+ * Spiegelt `resolveFieldKey()` aus `merger/helpers.ts` (dort die Single Source) —
+ * hier bewusst inline gehalten, damit `hash.ts` ein dependency-armes Leaf-Modul
+ * bleibt (kein Import aus dem Merger-Layer). `ignore` ist im Aufrufer bereits
+ * herausgefiltert.
+ */
+function targetFieldKey(col: string, entry: ColumnMappingEntry | undefined): string {
+  if (entry?.canonical) return entry.canonical;
+  if (entry?.custom) return entry.custom;
+  return col.toLowerCase();
+}
 
 // MurmurHash3 x86 32-bit, adapted from imurmurhash (public-domain reference implementation).
 // Returns an unsigned 32-bit integer as hex string.
@@ -55,6 +68,10 @@ export function murmurhash3(str: string, seed = 0): string {
 // Build the canonical hash input from a raw CSV row + mapping.
 // - Only non-ignored columns are included
 // - Column names sorted alphabetically
+// - Each part is `col>targetField=value` — der Ziel-Feldschlüssel (canonical/
+//   custom) gehört bewusst mit ins Hash: sonst ist ein Re-Mapping DERSELBEN
+//   Quellspalte (z.B. `D_AZ1_1` von custom auf canonical `erstentscheidung`)
+//   unsichtbar und der force-Re-Import erkennt 0 geänderte Zeilen (Bug v2.50).
 // - Values trimmed
 // - Separator `\u001f` so embedded whitespace never collides
 export function canonicalRowHash(
@@ -67,7 +84,8 @@ export function canonicalRowHash(
   const parts: string[] = [];
   for (const col of cols) {
     const v = (row[col] ?? '').trim();
-    parts.push(`${col}=${v}`);
+    const target = targetFieldKey(col, mapping[col]);
+    parts.push(`${col}>${target}=${v}`);
   }
   return murmurhash3(parts.join(HASH_SEPARATOR));
 }
