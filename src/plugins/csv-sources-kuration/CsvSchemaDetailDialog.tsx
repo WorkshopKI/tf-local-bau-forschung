@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
@@ -44,6 +45,7 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
   const [editing, setEditing] = useState(false);
   const [decisions, setDecisions] = useState<Record<string, PerColumnDecision>>({});
   const [savedHint, setSavedHint] = useState(false);
+  const [filterTerm, setFilterTerm] = useState('');
 
   const columnMapping = schema.column_mapping;
 
@@ -78,6 +80,33 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const toggleGroup = (key: string): void =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const searchActive = filterTerm.trim().length > 0;
+
+  // Such-Filter über CSV-Spaltenname, Label, Custom-Feldname und Standardfeld
+  // (Schlüssel + lesbares Label). Greift in beiden Modi; leere Gruppen fallen weg.
+  const filteredBuckets = useMemo(() => {
+    const term = filterTerm.trim().toLowerCase();
+    if (!term) return buckets;
+    const matches = (col: string): boolean => {
+      if (col.toLowerCase().includes(term)) return true;
+      const e = columnMapping[col];
+      if (e?.label && e.label.toLowerCase().includes(term)) return true;
+      if (e?.custom && e.custom.toLowerCase().includes(term)) return true;
+      if (e?.canonical) {
+        const c = String(e.canonical);
+        if (c.toLowerCase().includes(term) || getCanonicalLabel(c).toLowerCase().includes(term)) return true;
+      }
+      // Im Edit-Modus auch gegen die noch nicht gespeicherte Entscheidung matchen.
+      const d = decisions[col];
+      if (d?.custom && d.custom.toLowerCase().includes(term)) return true;
+      if (d?.canonical && (d.canonical.toLowerCase().includes(term) || getCanonicalLabel(d.canonical).toLowerCase().includes(term))) return true;
+      return false;
+    };
+    return buckets
+      .map(b => ({ ...b, columns: b.columns.filter(matches) }))
+      .filter(b => b.columns.length > 0);
+  }, [buckets, filterTerm, columnMapping, decisions]);
 
   const totals = useMemo(() => {
     let standard = 0;
@@ -139,6 +168,24 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
   const lastImported = schema.last_imported_at
     ? new Date(schema.last_imported_at).toLocaleString('de-DE')
     : '—';
+
+  const searchBox = (
+    <div className="relative mb-2">
+      <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)]" />
+      <Input
+        value={filterTerm}
+        onChange={e => setFilterTerm(e.target.value)}
+        placeholder="CSV-Spalte, Label oder Feldname suchen …"
+        className="h-8 pl-7 text-[12px]"
+      />
+    </div>
+  );
+
+  const noMatch = searchActive && filteredBuckets.length === 0 ? (
+    <div className="py-4 text-center text-[12px] text-[var(--tf-text-tertiary)]">
+      Keine Spalte passt zu „{filterTerm.trim()}".
+    </div>
+  ) : null;
 
   return (
     <Dialog
@@ -249,18 +296,18 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
                 die in der CSV zuletzt stehende Spalte.
               </div>
             ) : null}
-            <div className="rounded-md border-[0.5px] border-[var(--tf-border)] px-3 py-1 max-h-[50vh] overflow-y-auto">
-              {Object.keys(columnMapping).map(col => (
-                <NewColumnRow
-                  key={col}
-                  column={col}
-                  decision={decisions[col] ?? { mode: 'ignore' }}
-                  conflict={
-                    decisions[col]?.mode === 'canonical' &&
-                    !!decisions[col]?.canonical &&
-                    conflictCanonicals.has(decisions[col].canonical as string)
-                  }
-                  onChange={patch => updateDecision(col, patch)}
+            {searchBox}
+            <div className="max-h-[50vh] overflow-y-auto flex flex-col gap-2">
+              {noMatch ?? filteredBuckets.map(bucket => (
+                <EditBucketSection
+                  key={bucket.key}
+                  bucket={bucket}
+                  isGroupedView={hasGroups}
+                  collapsed={searchActive ? false : !!collapsed[bucket.key]}
+                  onToggle={() => toggleGroup(bucket.key)}
+                  decisions={decisions}
+                  conflictCanonicals={conflictCanonicals}
+                  onChange={updateDecision}
                 />
               ))}
             </div>
@@ -271,13 +318,14 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
               Mapping ({totals.total} Spalten — {totals.standard} Standard · {totals.custom} Eigen ·{' '}
               {totals.ignore} Ignore)
             </div>
+            {searchBox}
             <div className="flex flex-col gap-2">
-              {buckets.map(bucket => (
+              {noMatch ?? filteredBuckets.map(bucket => (
                 <BucketSection
                   key={bucket.key}
                   bucket={bucket}
                   isGroupedView={hasGroups}
-                  collapsed={!!collapsed[bucket.key]}
+                  collapsed={searchActive ? false : !!collapsed[bucket.key]}
                   onToggle={() => toggleGroup(bucket.key)}
                   columnMapping={columnMapping}
                 />
@@ -406,6 +454,79 @@ function BucketSection({
               })}
             </tbody>
           </table>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+interface EditBucketProps {
+  bucket: GroupBucket;
+  isGroupedView: boolean;
+  collapsed: boolean;
+  onToggle: () => void;
+  decisions: Record<string, PerColumnDecision>;
+  conflictCanonicals: Set<string>;
+  onChange: (col: string, patch: Partial<PerColumnDecision>) => void;
+}
+
+/** Edit-Pendant zu `BucketSection`: gleiche kollabierbare Gruppen-Köpfe (group_path),
+ *  aber editierbare `NewColumnRow`-Zeilen statt der read-only-Tabelle. Zähler aus
+ *  den noch nicht gespeicherten Entscheidungen, damit sie live mitlaufen. */
+function EditBucketSection({
+  bucket,
+  isGroupedView,
+  collapsed,
+  onToggle,
+  decisions,
+  conflictCanonicals,
+  onChange,
+}: EditBucketProps): React.ReactElement {
+  const counts = { standard: 0, custom: 0, ignore: 0 };
+  for (const col of bucket.columns) {
+    const m = decisions[col]?.mode ?? 'ignore';
+    if (m === 'canonical') counts.standard++;
+    else if (m === 'ignore') counts.ignore++;
+    else counts.custom++;
+  }
+  const counterParts: string[] = [];
+  if (counts.standard > 0) counterParts.push(`${counts.standard} Standard`);
+  if (counts.custom > 0) counterParts.push(`${counts.custom} Eigen`);
+  if (counts.ignore > 0) counterParts.push(`${counts.ignore} Ignore`);
+
+  return (
+    <div style={{ border: '0.5px solid var(--tf-border)', borderRadius: 8 }}>
+      {isGroupedView ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--tf-bg-secondary)]"
+          style={{ borderBottom: collapsed ? undefined : '0.5px solid var(--tf-border)' }}
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+          <span className="text-[12.5px] font-medium text-[var(--tf-text)]">{bucket.label}</span>
+          <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+            ({bucket.columns.length}
+            {counterParts.length > 0 ? ` — ${counterParts.join(' · ')}` : ''})
+          </span>
+        </button>
+      ) : null}
+
+      {!collapsed ? (
+        <div className="px-3 py-1">
+          {bucket.columns.map(col => (
+            <NewColumnRow
+              key={col}
+              column={col}
+              decision={decisions[col] ?? { mode: 'ignore' }}
+              conflict={
+                decisions[col]?.mode === 'canonical' &&
+                !!decisions[col]?.canonical &&
+                conflictCanonicals.has(decisions[col].canonical as string)
+              }
+              onChange={patch => onChange(col, patch)}
+            />
+          ))}
         </div>
       ) : null}
     </div>

@@ -2,6 +2,15 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.53 — Mapping-Editor: Spaltensuche + Gruppierung im Bearbeiten-Modus (Juni 2026)
+
+MINOR-Bump v2.53: Im Schema-Detail-Dialog ([CsvSchemaDetailDialog.tsx](src/plugins/csv-sources-kuration/CsvSchemaDetailDialog.tsx), öffnet per Klick auf eine CSV-Quelle) zeigte der **read-only**-Modus die Spalten in kollabierbaren `group_path`-Gruppen, der **Bearbeiten**-Modus dagegen nur eine flache Liste — ohne Suche. Bei breiten CSVs (50+ Spalten) war die gesuchte Spalte schwer zu finden.
+
+- **Spaltensuche in beiden Modi:** ein Suchfeld filtert nach CSV-Spaltenname, Label, Custom-Feldname und Standardfeld (Schlüssel + lesbares Label). Bei aktiver Suche werden alle Gruppen automatisch aufgeklappt; leere Gruppen fallen weg; „keine Treffer"-Hinweis.
+- **Gruppierung im Bearbeiten-Modus:** der Edit-Modus rendert dieselben kollabierbaren Gruppen-Köpfe wie read-only (neues `EditBucketSection`), nur mit editierbaren `NewColumnRow`-Zeilen statt der read-only-Tabelle; Live-Zähler (Standard/Eigen/Ignore) pro Gruppe aus den noch nicht gespeicherten Entscheidungen.
+
+Rein additiv, kein Datenmodell/Mapping-Verhalten geändert. kurator-only (kurator nach Login + dev).
+
 ### v2.52 — Ein-Klick „Spalten neu mappen" für CSV-Quellen (Juni 2026)
 
 MINOR-Bump v2.52: Künftig werden laufend weitere CSV-Spalten zu Standardfeldern hochgestuft. Der bisherige Weg war Menü-Hopping (CSV neu wählen → Datei-Picker → Reimport-Review → „neue Spalten übernehmen" → Mapping → Import), und für eine bereits als Custom gemappte Spalte gab es gar keinen sauberen Editier-Pfad (`CsvSchemaDetailDialog` ist read-only). Neu: ein Button **„Spalten neu mappen"** pro CSV-Quelle ([CsvSourcesPage.tsx](src/plugins/csv-sources-kuration/CsvSourcesPage.tsx)).
