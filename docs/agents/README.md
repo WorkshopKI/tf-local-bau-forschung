@@ -15,6 +15,7 @@ Kompakte Checklisten für häufige Erweiterungen, die jeweils mehrere synchronis
 | Neue Filter-Facet in der Filter-Sidebar | [add-filter-facet.md](add-filter-facet.md) |
 | Neue Stage in der Phase-2-Triage-Pipeline | [add-phase2-stage.md](add-phase2-stage.md) |
 | Neuer Feedback-Status (FeedbackStatus-Union) | [add-feedback-status.md](add-feedback-status.md) |
+| Neue Feedback-Kategorie (FeedbackCategory-Union) | [add-feedback-category.md](add-feedback-category.md) |
 | Neues Embedding-Modell registrieren | [add-embedding-model.md](add-embedding-model.md) |
 | Sidecar-Datei auf SMB-Daten-Share spiegeln | [add-sidecar-persistence.md](add-sidecar-persistence.md) |
 | Neues Build-Script / Prebuild-Hook anlegen | [add-build-script.md](add-build-script.md) |

@@ -6,11 +6,37 @@ import {
 import type { FeedbackConfig } from '@/core/types/feedback';
 import {
   getSponsoringProgress,
+  isSponsorableCategory,
   isSponsoringOpen,
 } from '../feedbackSponsoring';
 import { makeFeedback, makeSponsor } from './fixtures';
 
 const baseConfig: FeedbackConfig = { ...DEFAULT_FEEDBACK_CONFIG };
+
+describe('isSponsorableCategory', () => {
+  it('idea + ux sind sponsorbar', () => {
+    expect(isSponsorableCategory('idea')).toBe(true);
+    expect(isSponsorableCategory('ux')).toBe(true);
+  });
+
+  it('problem, praise, question, undefined sind nicht sponsorbar', () => {
+    expect(isSponsorableCategory('problem')).toBe(false);
+    expect(isSponsorableCategory('praise')).toBe(false);
+    expect(isSponsorableCategory('question')).toBe(false);
+    expect(isSponsorableCategory(undefined)).toBe(false);
+  });
+});
+
+describe('isSponsoringOpen — sponsorbare Kategorien', () => {
+  it('öffnet für UX-Tickets mit Aufwand + offenem Status (wie Features)', () => {
+    expect(isSponsoringOpen(makeFeedback({ category: 'ux', effort_estimate: 'M', kurator_status: 'neu' }))).toBe(true);
+    expect(isSponsoringOpen(makeFeedback({ category: 'idea', effort_estimate: 'M', kurator_status: 'geplant' }))).toBe(true);
+  });
+
+  it('bleibt zu für Bugs', () => {
+    expect(isSponsoringOpen(makeFeedback({ category: 'problem', effort_estimate: 'M', kurator_status: 'neu' }))).toBe(false);
+  });
+});
 
 describe('getSponsoringProgress', () => {
   it('leere Sponsoren → 0/0', () => {

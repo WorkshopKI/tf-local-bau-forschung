@@ -1,23 +1,65 @@
 // Erzeugt einen Claude-Code-Prompt aus einem Feedback-Ticket.
-// Nutzt llm_classification falls vorhanden, sonst Rohdaten.
+// Bevorzugt die strukturierten Formular-Felder (FeedbackItem.structured), fällt
+// auf llm_classification bzw. Rohtext zurück.
 
-import type { FeedbackItem } from '@/core/types/feedback';
+import type { FeedbackCategory, FeedbackItem } from '@/core/types/feedback';
 
 const CATEGORY_LABELS_DE: Record<string, string> = {
   praise: 'Lob',
   problem: 'Problem',
   idea: 'Feature-Wunsch',
+  ux: 'UX-Feedback',
   question: 'Frage',
   bug: 'Bug',
   feature: 'Feature-Wunsch',
-  ux: 'UX-Feedback',
 };
+
+/** Typspezifische Markdown-Abschnitte für FeedbackItem.structured (key → Überschrift). */
+const STRUCTURED_SECTIONS: Partial<Record<FeedbackCategory, Array<{ key: string; heading: string }>>> = {
+  problem: [
+    { key: 'steps', heading: 'Schritte zur Reproduktion' },
+    { key: 'actual', heading: 'Tatsächliches Verhalten' },
+    { key: 'expected', heading: 'Erwartetes Verhalten' },
+  ],
+  idea: [
+    { key: 'goal', heading: 'Ziel' },
+    { key: 'reason', heading: 'Begründung / Kontext' },
+    { key: 'idea', heading: 'Lösungsidee' },
+  ],
+  ux: [
+    { key: 'pain', heading: 'Aktuelles Problem' },
+    { key: 'better', heading: 'Gewünschte Verbesserung' },
+  ],
+};
+
+/**
+ * Baut den Inhalt des „## Anforderung"-Blocks. Mit `structured` entstehen
+ * typspezifische `###`-Abschnitte (nur nicht-leere Felder); eine ggf. vorhandene
+ * LLM-Summary wird als Einleitungssatz vorangestellt, ersetzt die Felder aber
+ * NICHT. Ohne `structured` greift das bisherige Verhalten (Summary/Details/Rohtext).
+ */
+function buildRequirement(ticket: FeedbackItem): string {
+  const cls = ticket.llm_classification;
+  const sections = ticket.category ? STRUCTURED_SECTIONS[ticket.category] : undefined;
+  if (ticket.structured && sections) {
+    const parts: string[] = [];
+    if (cls?.summary) parts.push(cls.summary);
+    for (const { key, heading } of sections) {
+      const val = ticket.structured[key]?.trim();
+      if (val) parts.push(`### ${heading}\n\n${val}`);
+    }
+    if (parts.length > 0) return parts.join('\n\n');
+  }
+  // Fallback: kein structured (oder Lob/Frage) → Summary/Details/Rohtext.
+  const summary = cls?.summary ?? ticket.text;
+  const details = cls?.details && cls.details !== summary ? cls.details : '';
+  return details ? `${summary}\n\n${details}` : summary;
+}
 
 export function generateClaudeCodePrompt(ticket: FeedbackItem): string {
   const cls = ticket.llm_classification;
   const category = cls?.category ?? ticket.category;
-  const summary = cls?.summary ?? ticket.text;
-  const details = cls?.details && cls.details !== summary ? cls.details : '';
+  const requirement = buildRequirement(ticket);
   const affectedArea = cls?.affectedArea || ticket.context.page;
   const relevantFiles = cls?.relevant_files;
 
@@ -42,9 +84,8 @@ Kategorie: **${category ? (CATEGORY_LABELS_DE[category] ?? category) : 'Unklassi
 
 ## Anforderung (aus Nutzerfeedback #${ticket.id})
 
-${summary}
-${details ? `\n${details}\n` : ''}
-${ticket.user_confirmed ? '> ✅ Vom Nutzer bestätigt: "Ja, genau das meine ich"\n' : ''}
+${requirement}
+${ticket.user_confirmed ? '\n> ✅ Vom Nutzer bestätigt: "Ja, genau das meine ich"\n' : ''}
 ## Automatisch erfasster Kontext
 
 - Route: \`${ctx.route}\`

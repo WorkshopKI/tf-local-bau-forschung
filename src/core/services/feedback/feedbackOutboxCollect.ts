@@ -18,7 +18,7 @@
  * v2.22) — der Kurator sortiert nachtraeglich via Archivieren/Ablehnen aus.
  */
 import type { StorageService } from '@/core/services/storage';
-import type { FeedbackContext, FeedbackItem } from '@/core/types/feedback';
+import type { FeedbackCategory, FeedbackContext, FeedbackItem } from '@/core/types/feedback';
 import { PERSOENLICH_ZAH_DIR } from '@/core/services/infrastructure/types';
 import {
   listOutboxItems,
@@ -53,6 +53,10 @@ function toFeedbackItem(ob: FeedbackOutboxItem): FeedbackItem {
     created_at: ob.submitted_at,
     user_id: ob.kuerzel,
     user_display_name: ob.kuerzel,
+    // category + structured aus dem Typ-Formular durchreichen (sonst landet alles
+    // als "Unklassifiziert", obwohl der User den Typ explizit gewaehlt hat).
+    category: ob.category as FeedbackCategory | undefined,
+    structured: ob.structured,
     text: ob.text,
     context: (ob.context as FeedbackContext | undefined) ?? fallbackContext(ob),
     kurator_status: 'neu',

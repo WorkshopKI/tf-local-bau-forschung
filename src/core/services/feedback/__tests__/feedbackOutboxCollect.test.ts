@@ -84,6 +84,24 @@ describe('autoCollectFeedbackOutboxes', () => {
     expect(statuses.every(s => s.status === 'approved' && s.reviewer_kuerzel === 'KUR')).toBe(true);
   });
 
+  it('reicht category + structured aus der Outbox ins FeedbackItem durch', async () => {
+    vi.mocked(readSharedFile).mockResolvedValue(null);
+    vi.mocked(listOutboxItems).mockResolvedValue([
+      {
+        id: 'X', kuerzel: 'AAA', submitted_at: '2026-06-01T10:00:00.000Z',
+        text: 'Was ist passiert?\nAbsturz', status: 'pending',
+        category: 'ux', structured: { pain: 'umständlich', better: 'Button' },
+      },
+    ] as never);
+
+    await autoCollectFeedbackOutboxes(storage, rootWithOneUser(), 'KUR');
+
+    const written = vi.mocked(writeSharedFile).mock.calls[0]![1];
+    const x = written.find(i => i.id === 'X')!;
+    expect(x.category).toBe('ux');
+    expect(x.structured).toEqual({ pain: 'umständlich', better: 'Button' });
+  });
+
   it('ohne offene Eintraege: kein Shared-Write', async () => {
     vi.mocked(readSharedFile).mockResolvedValue(null);
     vi.mocked(listOutboxItems).mockResolvedValue([ob('C', 'approved')] as never);

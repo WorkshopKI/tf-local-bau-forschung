@@ -35,6 +35,10 @@
   --tf-danger-bg: hsl(0, 70%, 95%);
   --tf-danger-text: hsl(0, 60%, 38%);
   --tf-danger-border: hsl(0, 60%, 80%);
+  /* Accent (Violett) — eigene Kategorie-Farbe für UX-Feedback, bewusst klar von
+     idea (--tf-info, Blau) unterscheidbar. */
+  --tf-accent-bg: hsl(265, 60%, 95%);
+  --tf-accent-text: hsl(265, 45%, 45%);
   /* Orange — Zwischenstufe zwischen warning (gelb) und danger (rot)
      für die Eingangs-Ampel auf AntragCards. */
   --tf-orange-text: hsl(20, 75%, 45%);
@@ -115,6 +119,9 @@
   --tf-danger-bg: hsl(0, 16%, 23%);
   --tf-danger-text: hsl(0, 28%, 68%);
   --tf-danger-border: hsl(0, 20%, 36%);
+  /* Accent (Violett) — Dark: Lightness flippt, Hue/Sat bleiben (vgl. semantische Farben). */
+  --tf-accent-bg: hsl(265, 22%, 25%);
+  --tf-accent-text: hsl(265, 35%, 72%);
   --tf-orange-text: hsl(20, 50%, 62%);
 
   /* Kompetenz-Matrix — Dark: Lightness flippt, Hue/Sat bleiben (warm-grey,

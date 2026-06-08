@@ -96,6 +96,10 @@ export async function submitFeedback(
           kuerzel: routing.kuerzel ?? 'unbekannt',
           submitted_at: item.created_at,
           text: item.text,
+          // category + structured durchreichen, damit der per Typ-Wahl gesetzte
+          // Typ beim Kurator-Einsammeln (toFeedbackItem) erhalten bleibt.
+          category: item.category,
+          structured: item.structured,
           context: item.context,
         });
       } catch (err) {
@@ -150,7 +154,7 @@ export async function updateFeedback(
   updates: Partial<Pick<
     FeedbackItem,
     'kurator_status' | 'kurator_notes' | 'kurator_priority' | 'generated_prompt'
-    | 'category'
+    | 'category' | 'structured'
     | 'llm_summary' | 'llm_classification' | 'user_confirmed'
     | 'is_faq' | 'faq_answer' | 'faq_keywords' | 'faq_ask_count'
     | 'effort_estimate' | 'effort_hours'

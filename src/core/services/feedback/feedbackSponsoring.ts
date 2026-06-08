@@ -14,6 +14,7 @@ import {
 } from '@/core/types/feedback';
 import type {
   EffortEstimate,
+  FeedbackCategory,
   FeedbackConfig,
   FeedbackItem,
   FeedbackSponsor,
@@ -76,9 +77,21 @@ export function getSponsoringProgress(
   };
 }
 
-/** Sponsoring ist nur für Feature-Ideen mit gesetztem Aufwand + offenem Status möglich. */
+/**
+ * Single Source of Truth: welche Kategorien sind sponsorbar (Aufwand schätzbar,
+ * Punkte setzbar)? Aktuell Features (`idea`) + UX-Verbesserungen (`ux`) — beide
+ * sind Arbeit am bestehenden System. Bugs/Lob/Fragen sind es nicht.
+ *
+ * Statt verstreuter `=== 'idea'`-Vergleiche überall diesen Helper nutzen, damit
+ * eine künftige sponsorbare Kategorie an EINER Stelle ergänzt wird.
+ */
+export function isSponsorableCategory(category: FeedbackCategory | undefined): boolean {
+  return category === 'idea' || category === 'ux';
+}
+
+/** Sponsoring ist nur für sponsorbare Kategorien mit gesetztem Aufwand + offenem Status möglich. */
 export function isSponsoringOpen(ticket: FeedbackItem): boolean {
-  if (ticket.category !== 'idea') return false;
+  if (!isSponsorableCategory(ticket.category)) return false;
   if (!ticket.effort_estimate) return false;
   return ticket.kurator_status === FEEDBACK_STATUS.neu || ticket.kurator_status === FEEDBACK_STATUS.geplant;
 }

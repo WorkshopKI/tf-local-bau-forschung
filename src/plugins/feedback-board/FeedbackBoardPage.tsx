@@ -14,6 +14,7 @@ import {
   getFeedbackList,
   getSponsoringProgress,
   isClassifiedAs,
+  isSponsorableCategory,
   loadFeedbackConfig,
   FEEDBACK_STATUS,
   istOffen,
@@ -33,10 +34,10 @@ const LABEL_TO_STATUS: Record<string, StatusFilter> = { Alle: 'all', Offen: 'ope
 
 // Kategorie wie im Kurator-Dashboard.
 const KAT_TO_LABEL: Record<FeedbackCategory | '', string> = {
-  '': 'Alle', problem: 'Bug', idea: 'Idee', praise: 'Lob', question: 'Frage',
+  '': 'Alle', problem: 'Bug', idea: 'Idee', ux: 'UX', praise: 'Lob', question: 'Frage',
 };
 const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
-  Alle: '', Bug: 'problem', Idee: 'idea', Lob: 'praise', Frage: 'question',
+  Alle: '', Bug: 'problem', Idee: 'idea', UX: 'ux', Lob: 'praise', Frage: 'question',
 };
 
 export function FeedbackBoardPage(): React.ReactElement {
@@ -94,7 +95,9 @@ export function FeedbackBoardPage(): React.ReactElement {
 
   // Helfer schließen Pending-Tickets (LLM noch nicht durch / fehlgeschlagen) aus.
   const isBug = isClassifiedAs('problem');
-  const isFeature = isClassifiedAs('idea');
+  // „Feature" im Board-Sinn = sponsorbar (idea + ux) — beide werden nach
+  // Sponsoring-Fortschritt sortiert und im Header als Features gezählt.
+  const isFeature = (t: FeedbackItem): boolean => isSponsorableCategory(t.category);
 
   // Nicht-archivierte Basis für Filter-Optionen + -Zähler.
   const base = useMemo(() => tickets.filter(t => !istArchiviert(t.kurator_status)), [tickets]);
@@ -114,6 +117,7 @@ export function FeedbackBoardPage(): React.ReactElement {
     { label: 'Alle', count: base.length },
     { label: 'Bug', count: base.filter(t => t.category === 'problem').length },
     { label: 'Idee', count: base.filter(t => t.category === 'idea').length },
+    { label: 'UX', count: base.filter(t => t.category === 'ux').length },
     { label: 'Lob', count: base.filter(t => t.category === 'praise').length },
     { label: 'Frage', count: base.filter(t => t.category === 'question').length },
   ], [base]);

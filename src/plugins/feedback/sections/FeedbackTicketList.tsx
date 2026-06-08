@@ -35,10 +35,10 @@ const LABEL_TO_STATUS: Record<string, FeedbackStatus | ''> = {
   Umgesetzt: 'umgesetzt', Abgelehnt: 'abgelehnt',
 };
 const KAT_TO_LABEL: Record<FeedbackCategory | '', string> = {
-  '': 'Alle', problem: 'Bug', idea: 'Idee', praise: 'Lob', question: 'Frage',
+  '': 'Alle', problem: 'Bug', idea: 'Idee', ux: 'UX', praise: 'Lob', question: 'Frage',
 };
 const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
-  Alle: '', Bug: 'problem', Idee: 'idea', Lob: 'praise', Frage: 'question',
+  Alle: '', Bug: 'problem', Idee: 'idea', UX: 'ux', Lob: 'praise', Frage: 'question',
 };
 
 export function FeedbackTicketList(props: Props): React.ReactElement {

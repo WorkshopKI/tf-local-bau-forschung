@@ -8,7 +8,7 @@
 // Spalten-Filter greifen ZUSÄTZLICH zu den Top-Chips (UND-kombiniert).
 
 import { useMemo } from 'react';
-import { getSponsoringProgress } from '@/core/services/feedback';
+import { getSponsoringProgress, isSponsorableCategory } from '@/core/services/feedback';
 import { EFFORT_HOURS } from '@/core/types/feedback';
 import type { EffortEstimate, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import {
@@ -98,10 +98,10 @@ function buildColumns(config: FeedbackConfig): SortableColumn<FeedbackItem>[] {
     },
     {
       key: 'sponsoring', label: 'Sponsoring', defaultVisible: true, sortable: true, width: 124, wrap: false,
-      // Nicht-Features / ohne Aufwand → -1, damit sie unter den bewerteten landen.
-      accessor: t => ((t.category === 'idea' && t.effort_estimate) ? getSponsoringProgress(t, config).percentage : -1),
+      // Nicht-sponsorbar / ohne Aufwand → -1, damit sie unter den bewerteten landen.
+      accessor: t => ((isSponsorableCategory(t.category) && t.effort_estimate) ? getSponsoringProgress(t, config).percentage : -1),
       render: t => {
-        const progress = (t.category === 'idea' && t.effort_estimate) ? getSponsoringProgress(t, config) : null;
+        const progress = (isSponsorableCategory(t.category) && t.effort_estimate) ? getSponsoringProgress(t, config) : null;
         return progress ? (
           <div className="flex items-center gap-1.5">
             <div className="flex-1 h-1.5 rounded-full bg-[var(--tf-bg-secondary)] overflow-hidden">

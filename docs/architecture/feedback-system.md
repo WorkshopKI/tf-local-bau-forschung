@@ -5,30 +5,36 @@ Integriertes User-Feedback + Admin-Dashboard + öffentliches Board mit Sponsorin
 ## User-Komponenten (`src/components/feedback/`)
 
 - `FeedbackButton.tsx` — globaler FAB (z-index 40, bottom-right). Wird in `Shell.tsx` gerendert (innerhalb NavigationContext) und ist während aktiver Tour ausgeblendet.
-- `FeedbackPanel.tsx` — 2-Step-Flow (Input → Bestätigung) + optional Chatbot. Panel öffnet direkt im Textfeld ("Was möchtest du uns mitteilen?"), keine Kategorie-Auswahl mehr. Unter dem Textarea drei Quick-Tag-Chips (aus `QUICK_TAGS` in `constants.ts`) die beim Klick einen Starter-Text vorfüllen und Cursor ans Ende setzen. Tags verschwinden nach Klick oder beim ersten Tippen. Bereich-Dropdown bleibt optional. Sterne-Rating entfernt. Bestätigungs-Step-Button heißt jetzt "Details ergänzen" (öffnet Chatbot mit Originaltext).
-- `FeedbackChatbot.tsx` — Multi-Turn-LLM-Dialog via `transport.submitConversation()`. Bei Streamlit-Transport: freundliche Meldung + Navigation zu Einstellungen. Überschreibt Auto-Klassifikation mit dialogbasierter Klassifikation + `user_confirmed: true`.
+- `FeedbackPanel.tsx` — 2-Step-Flow (Input → Bestätigung) + optional Chatbot. Der Eingabe-Schritt ist seit v2.41 in `FeedbackInputStep.tsx` ausgelagert (300-Zeilen-Regel). Bereich-Dropdown bleibt optional. Bestätigungs-Step-Button heißt "Details ergänzen" (öffnet Chatbot mit dem zusammengesetzten Text). `handleSubmit` bekommt vom InputStep ein `FeedbackSubmitPayload { category, structured?, text, llmHint? }` und setzt die Kategorie **deterministisch** aus der Typ-Wahl.
+- `FeedbackInputStep.tsx` (v2.41) — **typ-abhängiges Mini-Formular** statt einer leeren Textarea. Schritt 1: Typ-Wahl als Chip-Reihe (Bug/Feature/UX prominent, Frage/Lob dezenter, Icons via lucide). Schritt 2: die 2–3 typspezifischen Felder des gewählten Typs (`multiline`→textarea rows=3, sonst input) + „Typ ändern" + Bereich-Dropdown + App-Kontext-Block + `FaqSuggestions`. Genau **ein** Pflichtfeld pro Typ; Absenden disabled bis befüllt. Beim Submit baut `composeFeedbackText` den lesbaren Fließtext (`item.text`), die Feldwerte gehen als `structured` mit. Quelle ist `FEEDBACK_TYPES` in `constants.ts` — deterministisch, **kein LLM nötig** (wichtig, weil in prod fast nie ein LLM läuft).
+- `FeedbackChatbot.tsx` — Multi-Turn-LLM-Dialog via `transport.submitConversation()`. Bei Streamlit-Transport: freundliche Meldung + Navigation zu Einstellungen. Überschreibt Auto-Klassifikation mit dialogbasierter Klassifikation + `user_confirmed: true`. (Unverändert — optionaler Schärfen-Schritt, zweitrangig seit dem Typ-Formular.)
 - `FeedbackConfirmCard.tsx` — Yes/No auf LLM-generierte JSON-Summary.
-- `FaqSuggestions.tsx` — Inline FAQ-Vorschläge **immer** (debounced 500ms, Wort-Overlap ≥2, Stoppwörter ignoriert). Erscheint direkt nach dem Textarea (zwischen Textfeld und Quick-Tags).
-- `MyFeedbackList.tsx` — eigener Verlauf (gefiltert nach `user_id == profile.name`). Zeigt "Unklassifiziert" für Tickets ohne `category` (LLM-Call fehlgeschlagen oder noch nicht fertig).
-- `constants.ts` — `TEAMFLOW_AREAS`, Category/Status-Labels + Tailwind-Color-Maps, **`QUICK_TAGS`** (3 Chip-Vorlagen), **`LLM_CATEGORY_MAP`** (bug→problem, feature→idea, ux→idea, praise→praise, question→question).
+- `FaqSuggestions.tsx` — Inline FAQ-Vorschläge **immer** (debounced 500ms, Wort-Overlap ≥2, Stoppwörter ignoriert). Im InputStep mit dem zusammengesetzten Feldtext als Input.
+- `MyFeedbackList.tsx` — eigener Verlauf (gefiltert nach `user_id == profile.name`). Zeigt "Unklassifiziert" für Tickets ohne `category` (Alt-Tickets / LLM-Call fehlgeschlagen).
+- `constants.ts` — `TEAMFLOW_AREAS`, Category/Status-Labels + Tailwind-Color-Maps (inkl. `ux` → `--tf-accent-*`, violett), **`FEEDBACK_TYPES`** (Typ-Schema + Feldsätze) + `composeFeedbackText`, **`LLM_CATEGORY_MAP`** (bug→problem, feature→idea, **ux→ux**, praise→praise, question→question), **`QUICK_TAGS`** (`@deprecated` seit v2.41, durch `FEEDBACK_TYPES` ersetzt).
 
-## Auto-Klassifikation (fire-and-forget)
+## Typ-Formular + `structured` (v2.41, deterministisch)
 
-Nach Absenden im FeedbackPanel startet `autoClassifyFeedback(transport, text, context, area?)` einen Single-Turn-LLM-Call (`transport.submitMessage` mit kurzem `CLASSIFICATION_PROMPT`, `thinkingBudget: 'low'`). Bei Erfolg: `updateFeedback` setzt `llm_classification`, `llm_summary`, `category` (via `LLM_CATEGORY_MAP`). Bei Fehler/Streamlit: Ticket bleibt ohne Kategorie (Badge "Unklassifiziert"), kein Error-Toast. UI wartet nicht auf den Call — Bestätigungs-Step erscheint sofort.
+Der Eingabe-Flow ist **LLM-unabhängig**: der User wählt einen Typ (Bug/Feature/UX/Frage/Lob) und füllt 2–3 typspezifische Felder. Die Kategorie steht damit ohne LLM fest, die Feldwerte landen als `FeedbackItem.structured` (`Record<string,string>`, optional — Alt-Tickets + Ein-Feld-Typen Lob/Frage haben es nicht). `structured` ist die primäre Quelle für `generateClaudeCodePrompt` (Repro-Schritte beim Bug, Ziel+Begründung beim Feature). `item.text` bleibt parallel ein lesbarer Fließtext (Board/Liste/Suche rendern darauf).
+
+## Auto-Klassifikation (fire-and-forget, nur noch Verfeinerung)
+
+Nach Absenden startet `autoClassifyFeedback(transport, text, context, area?, hint?)` weiterhin einen Single-Turn-LLM-Call. **Seit v2.41 überschreibt der `.then()`-Block die `category` NICHT mehr** (die ist deterministisch aus der Typ-Wahl gesetzt) — er setzt nur noch `llm_classification` + `llm_summary`. Bei Fehler/Streamlit passiert schlicht nichts; die per Typ gewählte Kategorie bleibt. UI wartet nicht auf den Call.
 
 ## Service-Layer (`src/core/services/feedback/`)
 
 - `feedbackService.ts` — CRUD: localStorage primär (`teamflow_feedback_items`) + Shared-File-Sync (`_intern/feedback/feedback.json` im Datenverzeichnis, v1.9). Merge-by-id (User-Felder lokal, Kurator-Felder `kurator_status`/`kurator_priority`/`kurator_notes` shared-wins; `normalizeLegacyFields` mappt alte `admin_*`-Einträge beim Laden). FAQ-Helpers (`matchFaqEntries`, `createStandaloneFaq`, `bumpFaqAskCount`). `updateFeedback` Pick-Whitelist enthält `category` (damit Auto-Klassifikation das Feld nachträglich setzen kann).
 - `feedbackLlm.ts` — `loadSystemPrompt(storage)` liest `_intern/feedback/system-prompt.md` (Fallback `DEFAULT_SYSTEM_PROMPT`). `buildFeedbackSystemPrompt(template, context)` ersetzt `{{PAGE}}`/`{{ROUTE}}`/`{{DEVICE}}`/`{{VIEWPORT}}`/`{{LAST_ACTION}}`/`{{SESSION_MINUTES}}`/`{{ERRORS}}`. 3 Parser portiert verbatim aus Referenz: `parseFeedbackSummary`, `parseBotResponse`, `renderSimpleMarkdown`. `initSystemPromptFile(storage)` schreibt Default-Template ins Datenverzeichnis (Button im Kurator-Config-Panel). **`autoClassifyFeedback(transport, text, context, area?)`** + **`CLASSIFICATION_PROMPT`** (kurzer JSON-only-Prompt für stille Hintergrund-Klassifikation).
 - `feedbackContext.ts` — `captureFeedbackContext(activeId, activeName)` + Ring-Buffer für `window.onerror`/`unhandledrejection` (max 5).
-- `promptGenerator.ts` — `generateClaudeCodePrompt(ticket)` mit TeamFlow-Constraints-Block (file://, Single-File-Build, Tailwind v4, React 19, Zustand, lucide-react, Deutsche UI, CLAUDE.md primär).
+- `promptGenerator.ts` — `generateClaudeCodePrompt(ticket)` mit TeamFlow-Constraints-Block. **Bevorzugt `ticket.structured`** (v2.41): rendert typspezifische `###`-Abschnitte — Bug: Schritte zur Reproduktion / Tatsächliches / Erwartetes Verhalten; Feature: Ziel / Begründung / Lösungsidee; UX: Aktuelles Problem / Gewünschte Verbesserung (nur nicht-leere Felder). Eine vorhandene `llm_classification.summary` wird als Einleitung vorangestellt, ersetzt die Felder aber nicht. Ohne `structured` (Alt-Tickets, Lob/Frage) → Fallback auf summary/details/Rohtext.
+- `feedbackSponsoring.ts` — **`isSponsorableCategory(category)`** = `idea || ux` ist die Single Source of Truth, welche Kategorien sponsorbar sind (statt verstreuter `=== 'idea'`-Vergleiche). `isSponsoringOpen` und alle Board-/Kurator-Stellen routen darüber.
 
 ## Kurator-Plugin (`src/plugins/feedback/`, `id: 'feedback-kuration'`, `kuratorOnly: true`)
 
 - `FeedbackAdminPage.tsx` — 5 Tabs (Tickets / Inbox / FAQ / Sponsoring / Einstellungen) via `@/ui/Tabs`.
 - `sections/FeedbackTicketList.tsx` — Filter (Status/Kategorie/Bereich) als `CollapsibleSeg`-Dropdowns mit Live-Zählern (identisch zum öffentlichen Board, v2.21.4), Karten-Liste links.
-- `sections/FeedbackInboxTab.tsx` — sammelt die persönlichen Feedback-Outboxen der read-only-Enduser ein (User-Folders-Root → `<user>/ZAH/feedback/outbox/*.json`). **v2.22: Auto-Collect** — `useAutoCollectFeedback` ([hooks/useAutoCollectFeedback.ts](../../src/plugins/feedback/hooks/useAutoCollectFeedback.ts)) importiert beim Öffnen des Moduls alle offenen Outbox-Einträge **ohne Review** direkt in die zentrale `feedback.json` (Status „neu"; Service `autoCollectFeedbackOutboxes`, Outbox-id als FeedbackItem-id → idempotent). Der Inbox-Tab dient weiterhin dem einmaligen User-Wurzel-Connect (FSAPI-Geste) + manuellem Nachladen/Override.
-- `sections/FeedbackTicketDetail.tsx` — Status-Dropdown, Priority-Slider, **Aufwand-Dropdown (S/M/L/XL, nur für Ideen)**, **Sponsoring-Fortschritt-Block mit "Schwelle erreicht"-Hinweis**, Notizen, FAQ-Markierung + Antwort + Stichwörter, "Claude Code Prompt generieren" mit Copy + Download .md.
+- `sections/FeedbackInboxTab.tsx` — sammelt die persönlichen Feedback-Outboxen der read-only-Enduser ein (User-Folders-Root → `<user>/ZAH/feedback/outbox/*.json`). **v2.22: Auto-Collect** — `useAutoCollectFeedback` ([hooks/useAutoCollectFeedback.ts](../../src/plugins/feedback/hooks/useAutoCollectFeedback.ts)) importiert beim Öffnen des Moduls alle offenen Outbox-Einträge **ohne Review** direkt in die zentrale `feedback.json` (Status „neu"; Service `autoCollectFeedbackOutboxes`, Outbox-id als FeedbackItem-id → idempotent). Der Inbox-Tab dient weiterhin dem einmaligen User-Wurzel-Connect (FSAPI-Geste) + manuellem Nachladen/Override. **v2.41:** `submitToOutbox` (in `feedbackService.ts`) reicht jetzt `category` + `structured` mit, und `toFeedbackItem` mappt sie ins `FeedbackItem` — vorher gingen beide im prod-Pfad verloren (alles landete als „Unklassifiziert", obwohl der User den Typ gewählt hatte). `FeedbackOutboxItem` (`personal-storage/types.ts`) hat dafür `category?` (bestand) + `structured?` (neu).
+- `sections/FeedbackTicketDetail.tsx` — Status-Dropdown, Priority-Slider, **Aufwand-Dropdown (S/M/L/XL, für sponsorbare Kategorien = Ideen + UX)**, **Sponsoring-Fortschritt-Block mit "Schwelle erreicht"-Hinweis**, Notizen, FAQ-Markierung + Antwort + Stichwörter, "Claude Code Prompt generieren" mit Copy + Download .md.
 - `sections/FeedbackFaqTab.tsx` — Übersicht aller `is_faq===true` Items + manuell anlegen + bearbeiten + Markierung entfernen + löschen.
 - `sections/FeedbackSponsoringOverview.tsx` — Phase 3: Features-Ranking nach Progress, konfigurierbare Schwellen (S/M/L/XL + Hours-Faktor + Budget/Quartal), Budget-Statistik.
 - `sections/FeedbackConfigPanel.tsx` — Modell-Dropdown (Default `openai/gpt-oss-120b`), Max-Turns-Slider (2–12), System-Prompt-Pfad + Vorschau + "System-Prompt initialisieren"-Button (nur wenn Datei fehlt), Shared-File Status.
@@ -36,11 +42,10 @@ Nach Absenden im FeedbackPanel startet `autoClassifyFeedback(transport, text, co
 ## Öffentliches Board (Phase 3, `src/plugins/feedback-board/`, `id: 'feedback-board'`, KEIN kuratorOnly)
 
 - Sichtbar für alle User in Sidebar Tools-Gruppe (order: 75).
-- `FeedbackBoardPage.tsx` — Header mit BudgetBadge + Filter-Pills (Alle/Bugs/Features/Offen/Umgesetzt) + sortierte Card-Liste.
-- Zeigt nur Bugs (problem) + Features (idea); Fragen/Lob/archivierte ausgefiltert.
-- Sortierung: `in_bearbeitung` oben, dann Sponsoring-Progress desc (bei Features), dann `created_at` desc.
+- `FeedbackBoardPage.tsx` — Header mit BudgetBadge + Kategorie-/Status-/Bereich-Filter-Chips (Kategorie inkl. **UX**) + sortierte Card-Liste.
+- Sortierung: `in_bearbeitung` oben, dann Sponsoring-Progress desc (bei sponsorbaren = Ideen + UX), dann `created_at` desc. „Features"-Header-Zähler = `isSponsorableCategory` (Ideen + UX).
 - Bugs ohne Sponsoring-Balken (werden immer gefixt).
-- Features mit `effort_estimate` zeigen Balken + Sponsor-Buttons.
+- Sponsorbare Tickets (Ideen + UX) mit `effort_estimate` zeigen Balken + Sponsor-Buttons.
 
 ## Board-Komponenten (`src/components/feedback/`)
 
@@ -51,7 +56,7 @@ Nach Absenden im FeedbackPanel startet `autoClassifyFeedback(transport, text, co
 ## Sponsoring-Service (`src/core/services/feedback/`)
 
 - `budgetService.ts` — `getCurrentQuarter()`, `loadUserBudget(userId)` (auto-Reset bei Quartalswechsel), `spendPoints`, `refundPoints`, `checkQuarterReset` (beim App-Start).
-- `feedbackService.ts` erweitert: `sponsorTicket()` (Budget-Check + Doppel-Check + Merge-Write), `unsponsorTicket()` (Refund), `getSponsoringProgress(ticket, config)` (combined = points + hours × factor), `isSponsoringOpen(ticket)` (nur Ideen mit Aufwand + Status `neu`/`geplant`), `setEffortEstimate(storage, id, effort)`.
+- `feedbackService.ts` erweitert: `sponsorTicket()` (Budget-Check + Doppel-Check + Merge-Write), `unsponsorTicket()` (Refund), `getSponsoringProgress(ticket, config)` (combined = points + hours × factor), `isSponsoringOpen(ticket)` (sponsorbare Kategorien = Ideen + UX, mit Aufwand + Status `neu`/`geplant`), `setEffortEstimate(storage, id, effort)`.
 
 ## Sponsoring-Logik
 

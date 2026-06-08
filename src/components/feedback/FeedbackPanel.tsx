@@ -1,9 +1,10 @@
 // Feedback-Panel: 2-Step-Flow (Input → Bestätigung) + optional Chatbot + "Mein Feedback"-Tab.
 // Slide-in von rechts unten, Schließen via Escape oder X.
-// Kategorie-Klassifikation erfolgt stumm im Hintergrund via autoClassifyFeedback() nach Absenden.
+// Die Kategorie steht über die Typ-Wahl im Eingabe-Schritt deterministisch fest;
+// autoClassifyFeedback() verfeinert nur noch summary/details im Hintergrund.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronDown, ChevronRight, MessageSquare, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, Check, X } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -13,15 +14,14 @@ import { enabledPlugins } from '@/plugins.config';
 import {
   autoClassifyFeedback,
   captureFeedbackContext,
-  classifyByKeywords,
   submitFeedback,
   updateFeedback,
 } from '@/core/services/feedback';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { canWriteDatenShare } from '@/config/feature-flags';
 import type { FeedbackContext, FeedbackItem } from '@/core/types/feedback';
-import { LLM_CATEGORY_MAP, QUICK_TAGS, TEAMFLOW_AREAS, type QuickTag } from './constants';
-import { FaqSuggestions } from './FaqSuggestions';
+import { TEAMFLOW_AREAS } from './constants';
+import { FeedbackInputStep, type FeedbackSubmitPayload } from './FeedbackInputStep';
 import { MyFeedbackList } from './MyFeedbackList';
 import { FeedbackChatbot } from './FeedbackChatbot';
 
@@ -40,14 +40,11 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
   const bridge = useAIBridge();
 
   const [view, setView] = useState<View>('input');
-  const [text, setText] = useState('');
   const [areaRef, setAreaRef] = useState('');
   const [showContext, setShowContext] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submittedItem, setSubmittedItem] = useState<FeedbackItem | null>(null);
   const [context, setContext] = useState<FeedbackContext | null>(null);
-  const [quickTagsVisible, setQuickTagsVisible] = useState(true);
-  const [selectedHint, setSelectedHint] = useState<string | null>(null);
 
   const activePluginName = enabledPlugins.find(p => p.id === activeId)?.name ?? activeId ?? 'Unbekannt';
 
@@ -65,18 +62,15 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
   useEffect(() => {
     if (open) {
       setView('input');
-      setText('');
       setAreaRef('');
       setShowContext(false);
       setSubmittedItem(null);
-      setQuickTagsVisible(true);
-      setSelectedHint(null);
       setContext(captureFeedbackContext(activeId, activePluginName));
     }
   }, [open, activeId, activePluginName]);
 
-  const handleSubmit = useCallback(async () => {
-    if (!text.trim() || !context) return;
+  const handleSubmit = useCallback(async (payload: FeedbackSubmitPayload) => {
+    if (!payload.text.trim() || !context) return;
     setSubmitting(true);
     try {
       const userId = profile?.name ?? 'anonymous';
@@ -93,16 +87,13 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
       const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
       const canWriteShared = canWriteDatenShare(isKurator);
       const persHandle = canWriteShared ? null : await getPersoenlichHandle(storage.idb).catch(() => null);
-      // Sofort-Kategorie ohne LLM: Quick-Tag-Hint bevorzugt, sonst Schlüsselwort-
-      // Heuristik. So erscheint Feedback auch ohne laufendes LLM klassifiziert im
-      // Board; ein verfügbares LLM verfeinert anschließend via autoClassifyFeedback.
-      const hintCategory = selectedHint ? LLM_CATEGORY_MAP[selectedHint] : undefined;
-      const initialCategory = hintCategory ?? classifyByKeywords(text.trim());
+      // Kategorie steht deterministisch aus der Typ-Wahl fest (kein LLM nötig).
       const item = await submitFeedback(storage, {
         user_id: userId,
         user_display_name: profile?.name,
-        category: initialCategory,
-        text: text.trim(),
+        category: payload.category,
+        structured: payload.structured,
+        text: payload.text,
         context: fullContext,
       }, {
         isKurator,
@@ -113,16 +104,15 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
       setSubmittedItem(item);
       setView('confirm');
 
-      // Fire-and-forget Hintergrund-Klassifikation (blockiert UI nicht)
+      // Fire-and-forget Hintergrund-Verfeinerung (blockiert UI nicht). Überschreibt
+      // die per Typ-Wahl gesetzte category NICHT — nur summary/Klassifikations-Meta.
       const transport = bridge.getActiveTransport();
-      void autoClassifyFeedback(transport, text.trim(), fullContext, areaRef || undefined, selectedHint ?? undefined)
+      void autoClassifyFeedback(transport, payload.text, fullContext, areaRef || undefined, payload.llmHint)
         .then((classification) => {
           if (!classification) return;
-          const mappedCategory = LLM_CATEGORY_MAP[classification.category];
           return updateFeedback(storage, item.id, {
             llm_classification: classification,
             llm_summary: classification.summary,
-            ...(mappedCategory ? { category: mappedCategory } : {}),
           });
         });
     } catch (err) {
@@ -130,7 +120,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
     } finally {
       setSubmitting(false);
     }
-  }, [text, areaRef, context, profile, meinKuerzel, storage, bridge, selectedHint]);
+  }, [areaRef, context, profile, meinKuerzel, storage, bridge]);
 
   if (!open) return null;
 
@@ -171,18 +161,13 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
         {view === 'input' && context && (
-          <InputStep
-            text={text}
-            setText={setText}
+          <FeedbackInputStep
             areaRef={areaRef}
             setAreaRef={setAreaRef}
             context={context}
             showContext={showContext}
             setShowContext={setShowContext}
             submitting={submitting}
-            quickTagsVisible={quickTagsVisible}
-            setQuickTagsVisible={setQuickTagsVisible}
-            onSelectHint={setSelectedHint}
             onSubmit={handleSubmit}
             onShowMyFeedback={() => setView('my-feedback')}
           />
@@ -198,7 +183,7 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
         {view === 'chatbot' && submittedItem && context && (
           <FeedbackChatbot
             feedbackId={submittedItem.id}
-            initialText={text}
+            initialText={submittedItem.text}
             context={{ ...context, screenRef: areaRef || undefined }}
             onClose={onClose}
           />
@@ -222,140 +207,6 @@ export function FeedbackPanel({ open, onClose }: Props): React.ReactElement | nu
 }
 
 // ── Sub-Komponenten ──────────────────────────────────────────────────────────
-
-interface InputStepProps {
-  text: string;
-  setText: (v: string) => void;
-  areaRef: string;
-  setAreaRef: (v: string) => void;
-  context: FeedbackContext;
-  showContext: boolean;
-  setShowContext: (v: boolean) => void;
-  submitting: boolean;
-  quickTagsVisible: boolean;
-  setQuickTagsVisible: (v: boolean) => void;
-  onSelectHint: (hint: string) => void;
-  onSubmit: () => void;
-  onShowMyFeedback: () => void;
-}
-
-function InputStep(props: InputStepProps): React.ReactElement {
-  const {
-    text, setText, areaRef, setAreaRef, context,
-    showContext, setShowContext, submitting,
-    quickTagsVisible, setQuickTagsVisible,
-    onSelectHint, onSubmit, onShowMyFeedback,
-  } = props;
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const handleQuickTag = (tag: QuickTag): void => {
-    setText(tag.prefix);
-    onSelectHint(tag.hint);
-    setQuickTagsVisible(false);
-    // Focus + Cursor ans Ende
-    requestAnimationFrame(() => {
-      const el = textareaRef.current;
-      if (el) {
-        el.focus();
-        el.setSelectionRange(tag.prefix.length, tag.prefix.length);
-      }
-    });
-  };
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
-    setText(e.target.value);
-    if (quickTagsVisible && e.target.value.length > 0) {
-      setQuickTagsVisible(false);
-    }
-  };
-
-  const showQuickTags = quickTagsVisible && !text.trim();
-
-  return (
-    <div className="p-3.5 space-y-3">
-      <label className="text-[12.5px] text-[var(--tf-text-secondary)] block">
-        Was möchtest du uns mitteilen?
-      </label>
-
-      {showQuickTags && (
-        <div className="flex flex-row gap-1.5">
-          {QUICK_TAGS.map(tag => (
-            <button
-              key={tag.label}
-              type="button"
-              onClick={() => handleQuickTag(tag)}
-              className="px-2 py-1 rounded-full text-[11px] text-[var(--tf-text-secondary)] bg-transparent hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer transition-colors whitespace-nowrap"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              {tag.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <textarea
-        ref={textareaRef}
-        value={text}
-        onChange={handleTextChange}
-        placeholder="Schreib einfach los…"
-        rows={5}
-        className="w-full px-2.5 py-2 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none resize-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
-        style={{ border: '0.5px solid var(--tf-border)' }}
-      />
-
-      <FaqSuggestions input={text} />
-
-      <div className="flex flex-col gap-1">
-        <label className="text-[11px] text-[var(--tf-text-tertiary)]">Bereich (optional)</label>
-        <select
-          value={areaRef}
-          onChange={e => setAreaRef(e.target.value)}
-          className="px-2.5 py-1.5 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]"
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        >
-          <option value="">— Auto-erkannt: {context.page} —</option>
-          {TEAMFLOW_AREAS.map(a => (
-            <option key={a.ref} value={a.ref}>{a.label}</option>
-          ))}
-        </select>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setShowContext(!showContext)}
-        className="w-full inline-flex items-center gap-1 text-[11px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] cursor-pointer"
-      >
-        {showContext ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-        Auto: App-Kontext wird mitgesendet
-      </button>
-      {showContext && (
-        <div className="px-2.5 py-2 rounded text-[10.5px] text-[var(--tf-text-secondary)] bg-[var(--tf-bg-secondary)] space-y-0.5">
-          <div>Seite: {context.page}</div>
-          <div>Gerät: {context.device} · {context.viewport}</div>
-          <div>Session: {Math.round(context.sessionDuration / 60)} Min.</div>
-          {context.errors.length > 0 && <div>Fehler: {context.errors.length}</div>}
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={onSubmit}
-        disabled={!text.trim() || submitting}
-        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[var(--tf-radius)] text-[12.5px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-      >
-        {submitting ? 'Wird gesendet…' : 'Absenden'}
-      </button>
-
-      <button
-        type="button"
-        onClick={onShowMyFeedback}
-        className="w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-[var(--tf-radius)] text-[11.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-      >
-        <MessageSquare size={12} /> Mein Feedback ansehen
-      </button>
-    </div>
-  );
-}
 
 function ConfirmStep({ onChatbot, onDone }: { onChatbot: () => void; onDone: () => void }): React.ReactElement {
   return (

@@ -109,7 +109,7 @@ Cross-Cutting-Layers (IndexedDB + File-System-Access-API, Orama-Hybrid-Search mi
 
 Integriertes User-Feedback + Kurator-Dashboard + öffentliches Board mit Sponsoring (Phase 1+2+3 komplett). 4 Touchpoints: globaler FAB in `src/components/feedback/`, Service-Layer in `src/core/services/feedback/`, Kurator-Plugin `src/plugins/feedback/` (id `feedback-kuration`), öffentliches Board `src/plugins/feedback-board/` (id `feedback-board`).
 
-Detail (Datenmodell, Sponsoring-Logik, Komponenten-Liste): [docs/architecture/feedback-system.md](docs/architecture/feedback-system.md). Neue Status-Werte: [docs/agents/add-feedback-status.md](docs/agents/add-feedback-status.md).
+Detail (Datenmodell, Sponsoring-Logik, Komponenten-Liste): [docs/architecture/feedback-system.md](docs/architecture/feedback-system.md). Neue Status-Werte: [docs/agents/add-feedback-status.md](docs/agents/add-feedback-status.md). Neue Kategorie: [docs/agents/add-feedback-category.md](docs/agents/add-feedback-category.md) (nutzt den `isSponsorableCategory`-Helper statt verstreuter `=== 'idea'`-Vergleiche).
 
 ### CSV-Import-Wizard + Verbund-Aggregation
 

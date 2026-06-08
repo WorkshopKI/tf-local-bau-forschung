@@ -2,7 +2,7 @@
 // Badges inline in Titelzeile, vereinfachte Sponsor-Buttons, kein Sponsoren-Aufklapper.
 
 import * as Icons from 'lucide-react';
-import { getSponsoringProgress, isSponsoringOpen } from '@/core/services/feedback';
+import { getSponsoringProgress, isSponsorableCategory, isSponsoringOpen } from '@/core/services/feedback';
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import {
   CATEGORY_COLORS,
@@ -30,7 +30,8 @@ interface Props {
 export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.ReactElement {
   const Icon = getIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const summary = ticket.llm_summary || ticket.text || '–';
-  const isFeature = ticket.category === 'idea';
+  // Sponsorbar = Feature (idea) ODER UX — beide bekommen den Sponsoring-Block.
+  const isFeature = isSponsorableCategory(ticket.category);
   const isBug = ticket.category === 'problem';
   const hasEffort = !!ticket.effort_estimate;
   const progress = getSponsoringProgress(ticket, config);

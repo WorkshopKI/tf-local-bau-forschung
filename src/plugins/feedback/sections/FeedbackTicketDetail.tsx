@@ -6,6 +6,7 @@ import {
   deleteFeedback,
   generateClaudeCodePrompt,
   getSponsoringProgress,
+  isSponsorableCategory,
   loadFeedbackConfig,
   setEffortEstimate,
   updateFeedback,
@@ -122,8 +123,8 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
     );
   }
 
-  const showEffort = category === 'idea' || ticket.category === 'idea';
-  const progress = ticket.category === 'idea' && (ticket.sponsors?.length ?? 0) > 0 ? getSponsoringProgress(ticket, config) : null;
+  const showEffort = isSponsorableCategory(category || undefined) || isSponsorableCategory(ticket.category);
+  const progress = isSponsorableCategory(ticket.category) && (ticket.sponsors?.length ?? 0) > 0 ? getSponsoringProgress(ticket, config) : null;
 
   return (
     <div className="space-y-2.5">

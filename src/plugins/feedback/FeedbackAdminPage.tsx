@@ -76,6 +76,7 @@ export function FeedbackAdminPage(): React.ReactElement {
     { label: 'Alle', count: tickets.length },
     { label: 'Bug', count: tickets.filter(t => t.category === 'problem').length },
     { label: 'Idee', count: tickets.filter(t => t.category === 'idea').length },
+    { label: 'UX', count: tickets.filter(t => t.category === 'ux').length },
     { label: 'Lob', count: tickets.filter(t => t.category === 'praise').length },
     { label: 'Frage', count: tickets.filter(t => t.category === 'question').length },
   ], [tickets]);

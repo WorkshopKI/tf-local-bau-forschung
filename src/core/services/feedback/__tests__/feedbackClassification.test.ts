@@ -49,7 +49,7 @@ describe('isClassifiedFeedback', () => {
     const item = makeFeedback({ category: 'question' });
     if (isClassifiedFeedback(item)) {
       // category ist hier nicht mehr optional
-      const cat: 'praise' | 'problem' | 'idea' | 'question' = item.category;
+      const cat: 'praise' | 'problem' | 'idea' | 'ux' | 'question' = item.category;
       expect(cat).toBe('question');
     }
   });
@@ -127,6 +127,13 @@ describe('classifyByKeywords', () => {
     expect(classifyByKeywords('Ich wünsche mir einen Dark Mode')).toBe('idea');
     expect(classifyByKeywords('müll, nach alter sortieren')).toBe('idea');
     expect(classifyByKeywords('in der suche Filter für Antragstyp')).toBe('idea');
+  });
+
+  it('erkennt UX-Wünsche an Umständlich-Signalen — und vor idea', () => {
+    expect(classifyByKeywords('Das ist viel zu umständlich')).toBe('ux');
+    expect(classifyByKeywords('Die Maske ist unübersichtlich')).toBe('ux');
+    // UX schlägt idea: "umständlich" (ux) gewinnt gegen "sortieren" (idea)
+    expect(classifyByKeywords('umständlich zu sortieren')).toBe('ux');
   });
 
   it('erkennt Fragen an abschließendem ?', () => {

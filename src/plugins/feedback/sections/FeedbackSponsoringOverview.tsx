@@ -5,7 +5,7 @@ import { Check } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   getSponsoringProgress,
-  isClassifiedAs,
+  isSponsorableCategory,
   loadAllLocalBudgets,
   saveFeedbackConfig,
   istArchiviert,
@@ -27,9 +27,8 @@ export function FeedbackSponsoringOverview({ tickets, config, onConfigChanged }:
   const [saved, setSaved] = useState(false);
 
   const featuresRanked = useMemo(() => {
-    const isFeature = isClassifiedAs('idea');
     return tickets
-      .filter(t => isFeature(t) && t.effort_estimate && !istArchiviert(t.kurator_status))
+      .filter(t => isSponsorableCategory(t.category) && t.effort_estimate && !istArchiviert(t.kurator_status))
       .map(t => ({ ticket: t, progress: getSponsoringProgress(t, config) }))
       .sort((a, b) => b.progress.percentage - a.progress.percentage);
   }, [tickets, config]);

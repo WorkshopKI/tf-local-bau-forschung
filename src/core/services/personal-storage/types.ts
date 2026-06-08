@@ -51,6 +51,9 @@ export interface FeedbackOutboxItem {
   submitted_at: string;
   text: string;
   category?: string;
+  /** Strukturierte Formular-Felder (key → wert) aus dem Typ-Formular. Wird beim
+   *  Kurator-Einsammeln ins FeedbackItem.structured übernommen (Quelle für promptGenerator). */
+  structured?: Record<string, string>;
   context?: unknown;
   status: 'pending' | 'approved' | 'rejected';
   reviewed_at?: string;

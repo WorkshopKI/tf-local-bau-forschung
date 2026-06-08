@@ -1,7 +1,7 @@
 // Feedback-System Domain-Types (Phase 1 + 2: User-Feedback + Admin-Dashboard).
 // Forward-compatible mit Phase 3 Sponsoring (optionale Felder bleiben undefined).
 
-export type FeedbackCategory = 'praise' | 'problem' | 'idea' | 'question';
+export type FeedbackCategory = 'praise' | 'problem' | 'idea' | 'ux' | 'question';
 
 export type FeedbackStatus =
   | 'neu'
@@ -101,6 +101,9 @@ export interface FeedbackItem {
   user_display_name?: string;
   /** Optional: wird vom LLM per autoClassifyFeedback() gesetzt (kein User-Input mehr). */
   category?: FeedbackCategory;
+  /** Strukturierte Formular-Felder pro Typ (key → wert). Optional: Alt-Tickets
+   *  und Freitext-Lob/Frage haben das nicht. Quelle für promptGenerator. */
+  structured?: Record<string, string>;
   stars?: number;
   text: string;
   context: FeedbackContext;
