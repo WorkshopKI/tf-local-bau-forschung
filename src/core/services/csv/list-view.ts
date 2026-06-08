@@ -26,6 +26,7 @@ export function toAntragListItem(antrag: Antrag): AntragListItem {
   copyStringField(antrag, item, 't_xsw');
   copyStringField(antrag, item, 'frist_datum');
   copyStringField(antrag, item, 'bewilligung_datum');
+  copyStringField(antrag, item, 'erstentscheidung');
   copyStringField(antrag, item, 'antragsdatum');
   copyStringField(antrag, item, 'vn_eingang_datum');
   copyStringField(antrag, item, 'laufzeitbeginn');

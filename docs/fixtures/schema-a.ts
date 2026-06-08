@@ -38,6 +38,7 @@ export const SCHEMA_A_COLUMN_MAPPING: ColumnMapping = {
   // Datumsfelder
   D_AAE: { canonical: 'antragsdatum', type: 'date' },
   D_ABB: { canonical: 'bewilligung_datum', type: 'date' },
+  D_AZ1_1: { canonical: 'erstentscheidung', type: 'date' },
   // Bearbeiter (Master fuehrt die TiB/BiB-Zuordnung)
   TIB_KUERZ: { canonical: 'tib_kuerz', type: 'string' },
   BIB_KUERZ: { canonical: 'bib_kuerz', type: 'string' },

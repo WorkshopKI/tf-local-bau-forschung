@@ -9,6 +9,8 @@ export type CanonicalField =
   | 'unterprogramm_id'
   | 'bewilligung_datum'
   | 'antragsdatum'
+  // D_AZ1_1: Datum der vorläufigen Erstentscheidung (Ablehnung etc.), gegen die noch Widerspruch möglich ist.
+  | 'erstentscheidung'
   | 'frist_datum'
   | 'vn_eingang_datum'
   | 'foerdersumme'
@@ -221,6 +223,10 @@ export interface AntragListItem {
   // Sort + View-Predicates
   frist_datum?: string;
   bewilligung_datum?: string;
+  /** D_AZ1_1 = Datum der vorläufigen Erstentscheidung (z.B. Ablehnung). Leer,
+   *  solange noch keine Erstentscheidung getroffen wurde; gegen eine getroffene
+   *  Entscheidung kann noch Widerspruch eingelegt werden. */
+  erstentscheidung?: string;
   antragsdatum?: string;
   /** D_VBE = Eingang VN-Sach (Begleitphase). Basis fuer die VN-Frist
    *  (vn_eingang_datum + 6 Monate). Leer bis der Verwendungsnachweis im

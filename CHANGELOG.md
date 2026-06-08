@@ -2,6 +2,16 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.49 — Spalte „Erstentscheidung" in der Förderanträge-Tabelle (Juni 2026)
+
+MINOR-Bump v2.49: Im Förderantrags-Workflow gibt es vor der finalen Entscheidung eine **vorläufige Erstentscheidung** (z.B. eine Ablehnung), gegen die noch Widerspruch eingelegt werden kann. Diese Information steht in der Master-CSV `9097_AnB_AitisiGPT.csv` in der Spalte **`D_AZ1_1`** (Datum der Erstentscheidung; leer = noch keine getroffen). Neu als optional einblendbare Tabellen-Spalte **„Erstentscheidung"** im „Spalten"-Picker der Förderanträge-Tabelle.
+
+- **Neues kanonisches Standardfeld `erstentscheidung`** (`type: 'date'`, Antrag-Ebene) — modelliert exakt nach `bewilligung_datum`: `CanonicalField`-Union + `CANONICAL_FIELDS` ([constants.ts](src/core/services/csv/constants.ts)) + Name-Alias `d_az1_1` (Wizard-Auto-Suggestion beim Re-Import). Der CSV-Wizard bietet das Feld dadurch automatisch als Standard-Mapping-Slot an (kurator).
+- **Slim-Store-Projektion** nachgezogen (die Tabelle liest nur aus `AntragListItem`, nicht aus dem vollen `Antrag`): `AntragListItem`-Interface ([types.ts](src/core/services/csv/types.ts)), `LIST_VIEW_FIELDS`-Whitelist, `toAntragListItem()` ([list-view.ts](src/core/services/csv/list-view.ts)).
+- **Tabellen-Spalte** in `ANTRAG_TABLE_COLUMNS` ([tableColumns.tsx](src/plugins/antraege/tableColumns.tsx), `defaultVisible: false`, Jahr-Filter, Datums-Render) — Spalten-Picker, Persistenz-Store und XLSX-Export ziehen sie automatisch. Dev-Seed-Mapping in [schema-a.ts](docs/fixtures/schema-a.ts).
+
+**Additiv, keine Migration** (Feld optional; bestehende `AntragListItem`/`auslastung.json` unberührt). **Roll-out-Schritt (kein Code):** damit die Spalte in der Echt-Installation Daten zeigt, muss ein Kurator die reale `9097_AnB_AitisiGPT.csv` über den CSV-Wizard **neu importieren** und `D_AZ1_1` dem Standardfeld „Erstentscheidung" zuordnen (per Alias auto-vorgeschlagen). Betrifft alle Varianten mit Förderanträge-Plugin (dev/demo/prod/kurator/pl).
+
 ### v2.48 — Matching transparent: Nebenkompetenz-Block + Score-Aufschlüsselung + „Nicht vorgeschlagen"-Liste (Juni 2026)
 
 MINOR-Bump v2.48: Tester-Feedback aus der **pl-Variante** — das MA-Matching im Tab **Auslastung → Anträge zuweisen** sei „oft nicht nachvollziehbar" (ein MA mit Überkategorie DT + freier Kapazität wird nicht für einen DT-Antrag vorgeschlagen; unklar, wieviel Historie vs. Kompetenzmatrix zum Score beiträgt). Drei additive Maßnahmen, **keine Verhaltensänderung am bestehenden Haupt-Ranking** (bit-identisch):

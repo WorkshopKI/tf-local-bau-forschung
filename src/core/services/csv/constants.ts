@@ -20,6 +20,7 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
   { key: 'unterprogramm_id', type: 'string', label: 'Unterprogramm-ID', level: 'antrag' },
   { key: 'bewilligung_datum', type: 'date', label: 'Bewilligungsdatum', level: 'antrag' },
   { key: 'antragsdatum', type: 'date', label: 'Antragsdatum', level: 'antrag' },
+  { key: 'erstentscheidung', type: 'date', label: 'Erstentscheidung', level: 'antrag' },
   { key: 'frist_datum', type: 'date', label: 'Fristdatum', level: 'antrag' },
   { key: 'vn_eingang_datum', type: 'date', label: 'Eingang VN-Sach', level: 'antrag' },
   { key: 'foerdersumme', type: 'number', label: 'Fördersumme', level: 'antrag' },
@@ -58,6 +59,7 @@ export const CANONICAL_FIELD_KEYS = CANONICAL_FIELDS.map(f => f.key);
 export const CANONICAL_FIELD_NAME_ALIASES: Record<string, CanonicalField> = {
   d_aae: 'antragsdatum',
   d_abb: 'bewilligung_datum',
+  d_az1_1: 'erstentscheidung',
   d_vbe: 'vn_eingang_datum',
   org_afs: 'antragsteller',
   thema_ad: 'titel',
@@ -97,6 +99,7 @@ export const LIST_VIEW_FIELDS: readonly string[] = [
   // Sort + View-Predicates
   'frist_datum',
   'bewilligung_datum',
+  'erstentscheidung',
   'antragsdatum',
   'vn_eingang_datum',
   'laufzeitbeginn',

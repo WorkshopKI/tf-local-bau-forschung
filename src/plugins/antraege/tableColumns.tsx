@@ -256,6 +256,18 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     render: r => dateCell(strOrNull(r.bewilligung_datum)),
   },
   {
+    key: 'erstentscheidung',
+    label: 'Erstentscheidung',
+    defaultVisible: false,
+    sortable: true,
+    filterable: true,
+    filterAccessor: r => yearOf(r.erstentscheidung),
+    width: 148,
+    wrap: false,
+    accessor: r => strOrNull(r.erstentscheidung) ?? '',
+    render: r => dateCell(strOrNull(r.erstentscheidung)),
+  },
+  {
     key: 'antragsdatum',
     label: 'Antragseingang',
     defaultVisible: false,

@@ -30,6 +30,7 @@ describe('toAntragListItem', () => {
       branche: 'Bau',
       frist_datum: '2026-06-01',
       bewilligung_datum: '2025-11-01',
+      erstentscheidung: '2025-10-20',
       antragsdatum: '2025-09-15',
       foerdergeber: 'Bund',
       verbund_id: 'V42',
@@ -47,6 +48,7 @@ describe('toAntragListItem', () => {
     expect(it2.branche).toBe('Bau');
     expect(it2.frist_datum).toBe('2026-06-01');
     expect(it2.bewilligung_datum).toBe('2025-11-01');
+    expect(it2.erstentscheidung).toBe('2025-10-20');
     expect(it2.antragsdatum).toBe('2025-09-15');
     expect(it2.foerdergeber).toBe('Bund');
     expect(it2.verbund_id).toBe('V42');
