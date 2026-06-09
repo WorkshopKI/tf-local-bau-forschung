@@ -254,7 +254,11 @@ export function StartupScreen({
             </Button>
           </>
         ) : stepperPending ? (
-          <GuidedGrantSteps pending={stepperPending} onComplete={finishStartup} />
+          <GuidedGrantSteps
+            pending={stepperPending}
+            rescan={() => listPendingGrants(storage.idb, { isKurator })}
+            onComplete={finishStartup}
+          />
         ) : (
           <p className="text-[12.5px] text-[var(--tf-text-tertiary)] leading-relaxed">
             Berechtigungen werden geprüft…

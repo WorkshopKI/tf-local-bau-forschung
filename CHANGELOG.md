@@ -2,6 +2,18 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.59.2 — Stepper kollabiert bei moderner Sammel-Berechtigungs-Box (Juni 2026)
+
+PATCH-Bump v2.59.2: **Korrektur einer Einordnung aus v2.55.** Test in **Edge** zeigte eine konsolidierte Sammel-Box: ein `requestPermission()` bündelt ALLE zuvor gewährten Handles des Origins in EINE Box („Dateien des letzten Besuchs … anzeigen und bearbeiten"), mit der Option **„Bei jedem Besuch zulassen"** (persistente Permission → kein Re-Prompt nach Neustart). Das ist ein **browser-/kontextabhängiges** Chromium-Feature (persistente FSAPI-Permissions) — **in Chrome unter `file://` in der Praxis NICHT beobachtet** (getestet bis v149, ohne clear-site-data, auch am Folgetag kein Sammel-Dialog). Meine v2.55-Aussage „eine kombinierte Abfrage ist technisch unmöglich" war damit zu absolut: in manchen Browsern (Edge) geht es, in anderen (Chrome/`file://`) nicht — die App kann es nicht erzwingen.
+
+Folge: wo der Browser die Sammel-Box zeigt (Edge), war der 2. Stepper-Schritt überflüssig (die Box hatte beim 1. Klick schon alles gewährt). Fix macht den Stepper **adaptiv**:
+
+- **[GuidedGrantSteps.tsx](src/core/components/GuidedGrantSteps.tsx)** prüft nach jedem Grant per neuer `rescan`-Prop (non-invasives `listPendingGrants`) neu, markiert alle nun gewährten Slots als erledigt und schließt ab, sobald nichts mehr aussteht → **Edge** (Sammel-Box gewährt alles) **kollabiert auf EINEN Klick**; **Chrome** (keine Sammel-Box) bleibt Schritt-für-Schritt, ein Prompt je Ordner. Kernlogik als pure Funktion `resolveAfterGrant` ([guided-grant-progress.ts](src/core/components/guided-grant-progress.ts), Unit-Tests [guided-grant-progress.test.ts](src/core/components/__tests__/guided-grant-progress.test.ts)) — kein RTL/jsdom im Projekt.
+- **Hinweistext** angepasst (weg von „lässt sich nicht abschalten"): Tipp auf „Bei jedem Besuch zulassen" → künftig keine Abfrage mehr.
+- Doku korrigiert: [recurring-bug-classes.md §2](docs/architecture/recurring-bug-classes.md).
+
+Kein Eingriff in den v2.56.1-Warm-Start-Fix. **Dev reproduziert nicht** (Fixture-Blobs → Stepper-Scan leer); Echt-Test auf einem `file://`-Build (Edge: ein Klick + „Bei jedem Besuch zulassen"; klassisch: Schritt-für-Schritt).
+
 ### v2.56.1 — Warm-Start lud fälschlich im Offline-Modus (v2.55-Regression) (Juni 2026)
 
 PATCH-Bump v2.56.1: Regression aus dem v2.55-Guided-Grant-Stepper. Auf der pl-Variante lud die App nach **Tab-schließen + neu laden** (kein Browser-Neustart → FSAPI-Permissions in derselben Session noch gültig) direkt in den **Offline-Modus** — gelber Banner trotz erreichbarem Daten-Share; der ZAH-Berechtigungsdialog kam erst nach Klick auf „Verbindung herstellen".
@@ -22,6 +34,8 @@ MINOR-Bump v2.56: Der **Embedding-Korpus** der Auslastungs-Klassifizierung (Them
 Rein additiv, keine Migration, kein Schema-Change (optionaler Flag, kein `requiredFlags`-Eintrag). Caveat: der Korpus-Build schreibt weiterhin die Centroids nach `auslastung.json` (gewollt) — gleiche Zwei-Writer-Risikoklasse wie bei zwei PLs, minimiert durch den eingebundenen Share-Watcher + Build-Lock. **Dev reproduziert den kurator-Modus nicht** (Flag nur in kurator.config) — Echt-Test auf einem `file://`-kurator-Build.
 
 ### v2.55 — Geführter Berechtigungs-Freigabe-Flow beim Start (Guided-Grant-Stepper) (Juni 2026)
+
+> **Korrektur (v2.59.2):** Die unten getroffene Aussage „eine einzige kombinierte Browser-Abfrage ist technisch unmöglich" war zu absolut. **Edge** zeigt sehr wohl eine konsolidierte Sammel-Box + persistente Permissions; **Chrome (`file://`, bis v149) NICHT** — also browser-/kontextabhängig, nicht universell. Details in v2.59.2.
 
 MINOR-Bump v2.55: Auf einem neuen pl-Rechner verlangte Chrome am zweiten Tag drei separate Datei-Berechtigungen — Datenordner (readwrite), CSV-Quelle (read) und persönlicher Ordner (readwrite) —, die **chaotisch** kamen: der persönliche Ordner verhungerte im StartupScreen-Gesture (`refreshAllPermissions` fragt mehrere Handles sequenziell im selben Klick an, aber Chrome zeigt unter `file://` nur **einen** Prompt pro User-Gesture) und promptete deshalb zu einem zufälligen späteren Zeitpunkt. Eine einzige kombinierte Browser-Abfrage ist technisch unmöglich (ein Ordner pro Prompt, ein Prompt pro Klick, Freigaben verfallen je Browser-Neustart). Stattdessen: ein **geführter, vorhersehbarer Schritt-für-Schritt-Flow**.
 
