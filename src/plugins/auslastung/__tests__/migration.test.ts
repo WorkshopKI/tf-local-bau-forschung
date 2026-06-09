@@ -95,6 +95,49 @@ describe('normalizeMitarbeiterRecord — 1.17 Haupt/Neben-Migration', () => {
   });
 });
 
+describe('normalizeMitarbeiterRecord — Antragstyp-Vorbelegung Roundtrip', () => {
+  // Regression: vor v2.56.2 hat normalizeMitarbeiterRecord die beiden
+  // antragstyp-Felder NICHT durchgereicht → PL-Vorbelegung verschwand bei
+  // jedem Reload (Bug-Report PL-Tester).
+  function rawMa(extra: Record<string, unknown>): Record<string, unknown> {
+    return {
+      anonId: 'MA01',
+      jahresKapazitaet: 800,
+      abgemeldet: [],
+      manuelleTechnologien: [],
+      ausgeblendeteAutoTags: [],
+      hauptKategorie: 'IT',
+      nebenKategorien: [],
+      abschlagProzent: 0,
+      virtuelleProjekte: [],
+      onboardingAbgeschlossen: true,
+      aktiv: true,
+      ...extra,
+    };
+  }
+
+  it('erhaelt antragstypBevorzugt + antragstypUeberschreibung beim Laden', () => {
+    const out = normalizeMitarbeiterRecord({
+      MA01: rawMa({ antragstypBevorzugt: ['FuE'], antragstypUeberschreibung: ['DS'] }),
+    });
+    expect(out.MA01!.antragstypBevorzugt).toEqual(['FuE']);
+    expect(out.MA01!.antragstypUeberschreibung).toEqual(['DS']);
+  });
+
+  it('filtert ungueltige Bucket-Werte heraus', () => {
+    const out = normalizeMitarbeiterRecord({
+      MA01: rawMa({ antragstypBevorzugt: ['FuE', 'XX', 'DL'] }),
+    });
+    expect(out.MA01!.antragstypBevorzugt).toEqual(['FuE', 'DL']);
+  });
+
+  it('fehlende Felder → undefined (keine Vorbelegung)', () => {
+    const out = normalizeMitarbeiterRecord({ MA01: rawMa({}) });
+    expect(out.MA01!.antragstypBevorzugt).toBeUndefined();
+    expect(out.MA01!.antragstypUeberschreibung).toBeUndefined();
+  });
+});
+
 describe('normalizeKlassifizierungArray — 1.17 Primaer+Aspekte-Migration', () => {
   it('migriert vorgeschlageneKategorien → primaer + aspekte', () => {
     const raw = [{

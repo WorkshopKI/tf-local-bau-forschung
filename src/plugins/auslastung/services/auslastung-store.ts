@@ -15,11 +15,13 @@ import type { StorageService } from '@/core/services/storage';
 import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import {
+  ALL_ANTRAGSTYP_BUCKETS,
   AUSLASTUNG_JSON_PATH,
   AUSLASTUNG_JSON_PATH_LEGACY,
   DEFAULT_JAHRESKAPAZITAET,
   emptyAuslastungData,
   type AnonymerMitarbeiter,
+  type AntragstypBucket,
   type AspektVorschlag,
   type AuslastungData,
   type KategorieVorschlag,
@@ -27,6 +29,19 @@ import {
   type PrimaerVorschlag,
 } from '../types';
 import { normalizeKompetenzMatrix, normalizeKontingent } from './kompetenz-derivation';
+
+/**
+ * Validiert ein rohes antragstyp-Vorbelegungs-Array beim Laden.
+ * `undefined` (Feld fehlt) = keine Vorbelegung (Backwards-Kompat); sonst auf
+ * gueltige `AntragstypBucket`-Werte gefiltert. Muss in `normalizeMitarbeiter-
+ * Record` durchgereicht werden, sonst geht die PL-Vorbelegung bei jedem Reload
+ * verloren (v2.56.2-Fix).
+ */
+function normalizeAntragstypBuckets(raw: unknown): AntragstypBucket[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.filter((x): x is AntragstypBucket =>
+    (ALL_ANTRAGSTYP_BUCKETS as readonly string[]).includes(x));
+}
 
 async function readJsonAt(
   handle: FileSystemDirectoryHandle,
@@ -327,6 +342,10 @@ export function normalizeMitarbeiterRecord(
       technologienQuelle: m.technologienQuelle === 'pl' || m.technologienQuelle === 'ma'
         ? m.technologienQuelle
         : undefined,
+      // v2.2: Antragstyp-Praeferenzen — additive optionale Felder, beim Laden
+      // durchgereicht (sonst verschwindet die PL-Vorbelegung bei jedem Reload).
+      antragstypBevorzugt: normalizeAntragstypBuckets(m.antragstypBevorzugt),
+      antragstypUeberschreibung: normalizeAntragstypBuckets(m.antragstypUeberschreibung),
     };
   }
   return out;

@@ -102,6 +102,10 @@ export function mergeSelfProfile(
     // Leeres persoenliches Haupt nicht ueber einen vorhandenen (auto-abgeleiteten)
     // Store-Wert schreiben.
     hauptKategorie: self.hauptKategorie || base.hauptKategorie,
+    // Dito: leeres MA-antragstypBevorzugt laesst die PL-Vorbelegung stehen.
+    antragstypBevorzugt: self.antragstypBevorzugt?.length
+      ? self.antragstypBevorzugt
+      : base.antragstypBevorzugt,
     // MA pflegt seine Technologien selbst → Herkunft 'ma' (normales Gewicht;
     // hebt einen vorherigen PL-Boost auf).
     technologienQuelle: 'ma',
@@ -160,9 +164,20 @@ export function mergeProfilesIntoMitarbeiter(
     }
     const existed = next[mappedId] != null;
     const base = next[mappedId] ?? defaultMitarbeiter(mappedId);
+    const self = selfFields(p);
     // MA-Selbst-Profil ist autoritativ → Technologie-Herkunft auf 'ma' setzen
     // (hebt einen vorherigen PL-Boost auf, siehe bm25-matcher).
-    next[mappedId] = { ...base, ...selfFields(p), technologienQuelle: 'ma' };
+    next[mappedId] = {
+      ...base,
+      ...self,
+      // Leeres MA-antragstypBevorzugt = "nicht gesetzt" → PL-Vorbelegung
+      // erhalten (analog hauptKategorie). Ersetzt wird erst bei nicht-leerem
+      // MA-Wert ("Wird ersetzt, sobald der MA seine Antragstypen setzt").
+      antragstypBevorzugt: self.antragstypBevorzugt?.length
+        ? self.antragstypBevorzugt
+        : base.antragstypBevorzugt,
+      technologienQuelle: 'ma',
+    };
     (existed ? aktualisiert : neu).push(mappedId);
   }
 

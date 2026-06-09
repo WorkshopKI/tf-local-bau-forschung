@@ -153,6 +153,28 @@ describe('mergeProfilesIntoMitarbeiter', () => {
     expect(unzuordenbar).toEqual([]);
     expect(next.MA01!.hauptKategorie).toBe('DT');
   });
+
+  it('leeres MA-antragstypBevorzugt clobbert die PL-Vorbelegung NICHT', () => {
+    // "Wird ersetzt, sobald der MA seine Antragstypen SETZT" — leer = nicht
+    // gesetzt, darf die PL-Vorbelegung nicht loeschen (analog hauptKategorie).
+    const current = { MA01: makeMa({ anonId: 'MA01', antragstypBevorzugt: ['FuE'] }) };
+    const { next } = mergeProfilesIntoMitarbeiter(
+      current,
+      [makeProfil({ kuerzel: 'mue', antragstypBevorzugt: [] })],
+      anonMap([['MUE', 'MA01']]),
+    );
+    expect(next.MA01!.antragstypBevorzugt).toEqual(['FuE']);
+  });
+
+  it('gesetztes MA-antragstypBevorzugt ersetzt die PL-Vorbelegung', () => {
+    const current = { MA01: makeMa({ anonId: 'MA01', antragstypBevorzugt: ['FuE'] }) };
+    const { next } = mergeProfilesIntoMitarbeiter(
+      current,
+      [makeProfil({ kuerzel: 'mue', antragstypBevorzugt: ['DS'] })],
+      anonMap([['MUE', 'MA01']]),
+    );
+    expect(next.MA01!.antragstypBevorzugt).toEqual(['DS']);
+  });
 });
 
 describe('mergeSelfProfile', () => {
@@ -203,6 +225,12 @@ describe('mergeSelfProfile', () => {
     const store = makeMa({ anonId: 'MA01', hauptKategorie: 'IT' });
     const personal = makeProfil({ kuerzel: 'MUE', hauptKategorie: '' });
     expect(mergeSelfProfile(store, personal, 'MA01')!.hauptKategorie).toBe('IT');
+  });
+
+  it('leeres persoenliches antragstypBevorzugt faellt auf PL-Vorbelegung zurueck', () => {
+    const store = makeMa({ anonId: 'MA01', antragstypBevorzugt: ['FuE'] });
+    const personal = makeProfil({ kuerzel: 'MUE', antragstypBevorzugt: [] });
+    expect(mergeSelfProfile(store, personal, 'MA01')!.antragstypBevorzugt).toEqual(['FuE']);
   });
 
   it('weder Store noch persoenliches Profil → undefined', () => {
