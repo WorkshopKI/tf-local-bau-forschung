@@ -226,6 +226,12 @@ export function KlassifizierungsReview(): React.ReactElement {
   // (Erfolgs-Feedback), dann wird sie entfernt.
   const [justFreigegeben, setJustFreigegeben] = useState<Set<string>>(() => new Set());
   const freigabeTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Manuell korrigierte Verbünde im aktuellen Status-Filter angeheftet halten,
+  // damit Mehrfach-Korrekturen nicht nach dem ersten Pill-Klick verschwinden
+  // (methode→'manuell'/confidence→1.0 fällt sonst aus 'llm'/'review'-Filter).
+  // Kein Timer: bleibt bis zum nächsten Status-Filter-Wechsel.
+  const [editStickyVisible, setEditStickyVisible] = useState<Set<string>>(() => new Set());
   useEffect(() => {
     const timers = freigabeTimers.current;
     return () => { for (const t of timers.values()) clearTimeout(t); };
@@ -289,17 +295,18 @@ export function KlassifizierungsReview(): React.ReactElement {
       if (filter === 'unvollstaendig') return !v.vollstaendig;
       if (filter === 'freigegeben') return v.klassifizierung.status === 'freigegeben';
       if (filter === 'review') {
-        // Frisch freigegeben → noch in der Flash-Grace-Period sichtbar lassen.
-        if (justFreigegeben.has(v.verbundId)) return true;
+        // Frisch freigegeben ODER gerade von Hand korrigiert → angeheftet sichtbar
+        // lassen (sonst fällt der manuelle Edit per confidence→high sofort raus).
+        if (justFreigegeben.has(v.verbundId) || editStickyVisible.has(v.verbundId)) return true;
         return v.klassifizierung.status !== 'freigegeben' && v.confidence !== 'high';
       }
       if (filter === 'llm') {
-        if (justFreigegeben.has(v.verbundId)) return true;
+        if (justFreigegeben.has(v.verbundId) || editStickyVisible.has(v.verbundId)) return true;
         return istLlmVorschlag(v);
       }
       return true;
     });
-  }, [verbundViews, filter, justFreigegeben, kategorieFilter, antragstypFilter]);
+  }, [verbundViews, filter, justFreigegeben, editStickyVisible, kategorieFilter, antragstypFilter]);
 
   // Sammelt die Freigabe-Entries fuer alle TVs eines Verbundes (gleiche
   // Kategorien fuer alle TVs). Leeres Array, wenn kein Primaer-Vorschlag.
@@ -381,6 +388,9 @@ export function KlassifizierungsReview(): React.ReactElement {
     });
     upsertLocal(records);
     schedulePersist(storage, showSavedFlash);
+    // Zeile im aktuellen Status-Filter angeheftet halten (s. editStickyVisible),
+    // damit weitere Korrekturen am selben Verbund möglich bleiben.
+    setEditStickyVisible(prev => new Set(prev).add(view.verbundId));
   }
 
   // Pitfall #15: useAsyncAction statt hand-gerolltem void-onClick — faengt
@@ -586,7 +596,9 @@ export function KlassifizierungsReview(): React.ReactElement {
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => setFilter(f)}
+                // Filter-Wechsel (auch Re-Klick = Auffrischen) hebt das Anheften
+                // manuell korrigierter Zeilen auf → saubere Neu-Einsortierung.
+                onClick={() => { setFilter(f); setEditStickyVisible(new Set()); }}
                 className={`text-[12.5px] rounded-full cursor-pointer transition-colors whitespace-nowrap ${
                   active ? 'font-medium' : 'font-normal bg-[var(--tf-bg)] hover:bg-[var(--tf-hover)]'
                 }`}
