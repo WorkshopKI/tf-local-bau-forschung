@@ -153,6 +153,12 @@ export const DEFAULT_CONFIG = {
      *  RAM). In geteilten Citrix-pl-Sitzungen auf false → Build-Buttons aus,
      *  nur Download. Optional (kein requiredFlags-Eintrag) — fehlt = erlaubt. */
     embeddingCorpusBuild: true,
+    /** v2.56: Auslastungs-Modul auf reine Themen-Vektoren-Korpus-Pflege
+     *  beschränken (kurator-Variante). Modul ist aktiv (features.auslastung),
+     *  aber nur der schlanke Korpus-View erscheint — keine MA-Auslastung-/
+     *  Zuweisung-/Kompetenz-Tabs, keine MA-mutierenden Hooks. Default false
+     *  (optional, kein requiredFlags-Eintrag). */
+    auslastungNurKorpus: false,
   },
 
   menuLabels: {

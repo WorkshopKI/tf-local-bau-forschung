@@ -100,6 +100,10 @@ export interface TeamflowFeatures {
    *  false → Build-Buttons ausgeblendet, nur Download. Default true (optional,
    *  fehlt = erlaubt, kein requiredFlags-Eintrag). */
   embeddingCorpusBuild?: boolean;
+  /** v2.56: kurator-Variante — Auslastungs-Modul nur als Themen-Vektoren-
+   *  Korpus-Pflege (kein MA-Auslastung/Zuweisung). Schlanker View, MA-
+   *  mutierende Mount-Hooks bleiben aus. Optional, default false. */
+  auslastungNurKorpus?: boolean;
 }
 
 export interface TeamflowMenuLabels {

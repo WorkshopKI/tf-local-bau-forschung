@@ -88,6 +88,14 @@ export function isAuslastungEnabled(): boolean { return features.auslastung === 
 export function isEmbeddingCorpusBuildEnabled(): boolean {
   return features.embeddingCorpusBuild !== false;
 }
+/** v2.56: True wenn das Auslastungs-Modul auf reine Themen-Vektoren-Korpus-
+ *  Pflege beschränkt ist (kurator-Variante) — schlanker Korpus-View statt
+ *  voller PL-Tabs, MA-mutierende Mount-Hooks (reconcile/autoCollect) bleiben
+ *  aus. So kann der Kurator den Embedding-Katalog aktuell halten, ohne MA-
+ *  Auslastung zu sehen oder zuzuweisen. Default false. */
+export function isAuslastungNurKorpusEnabled(): boolean {
+  return features.auslastungNurKorpus === true;
+}
 /** Homepage-Selbsteintragung + Banner. End-User-Feature, getrennt vom PL-
  *  Plugin (`auslastung`). Wer das Plugin aktiviert hat, will i.d.R. auch
  *  die Selbsteintragung — wenn der Flag fehlt, fallen wir auf `auslastung`

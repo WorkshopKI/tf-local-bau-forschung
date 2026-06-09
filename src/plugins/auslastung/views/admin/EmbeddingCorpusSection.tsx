@@ -37,7 +37,7 @@ import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useProfile } from '@/core/hooks/useProfile';
 import { acquireBuildLock, releaseLock, heartbeat } from '@/core/services/infrastructure/build-lock';
-import { isEmbeddingCorpusBuildEnabled } from '@/config/feature-flags';
+import { isEmbeddingCorpusBuildEnabled, isDevContext } from '@/config/feature-flags';
 
 interface Props {
   storage: StorageService;
@@ -448,18 +448,26 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
             {/* C (v2.47): Build-Buttons nur wenn der lokale Build erlaubt ist.
                 In der Citrix-pl-Config ausgeblendet (embeddingCorpusBuild=false)
                 → der Build (200-MB-Modell im RAM) gehört auf einen ungeteilten
-                Rechner; Citrix-User nutzen nur "Vom Datenspeicher laden". */}
+                Rechner; Citrix-User nutzen nur "Vom Datenspeicher laden".
+                v2.56: Der Vollbuild (~47 min) bleibt zusätzlich dev-exklusiv
+                (`isDevContext`). „Inkrementell" steht damit auch im kurator-
+                Build (embeddingCorpusBuild default true, aber kein devContext)
+                zur Verfügung — der Kurator hält so den Themen-Katalog aktuell,
+                ohne den schweren Vollbuild auf einem Produktiv-Rechner. pl
+                bleibt unverändert (embeddingCorpusBuild=false → beide aus). */}
             {isEmbeddingCorpusBuildEnabled() && (
               <>
-                <button
-                  type="button"
-                  onClick={() => void build(false)}
-                  disabled={total === 0}
-                  className="px-3 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-                  style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-                >
-                  Corpus aufbauen (~{Math.ceil(total * 0.2 / 60)} min)
-                </button>
+                {isDevContext() && (
+                  <button
+                    type="button"
+                    onClick={() => void build(false)}
+                    disabled={total === 0}
+                    className="px-3 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
+                    style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+                  >
+                    Corpus aufbauen (~{Math.ceil(total * 0.2 / 60)} min)
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => void build(true)}

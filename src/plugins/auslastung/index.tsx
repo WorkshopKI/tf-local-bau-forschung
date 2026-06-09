@@ -13,17 +13,23 @@
  */
 import type { TeamFlowPlugin } from '@/core/types/plugin';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { isAuslastungNurKorpusEnabled } from '@/config/feature-flags';
 import { AuslastungView } from './views/AuslastungView';
 import { useAuslastungData } from './hooks/useAuslastungData';
 import { useKuerzelMap } from './hooks/useKuerzelMap';
 import { warmupAntraegeCache } from './hooks/useAntraegeCache';
 
+// v2.56: Im kurator-Korpus-Modus (auslastungNurKorpus) zeigt das Plugin nur die
+// Themen-Vektoren-Pflege — der Sidebar-Eintrag heißt dann nicht irreführend
+// „Auslastung", sondern „Themen-Vektoren".
+const nurKorpus = isAuslastungNurKorpusEnabled();
+
 export const auslastungPlugin: TeamFlowPlugin = {
   id: 'auslastung',
   route: '/auslastung',
   featureFlag: 'auslastung',
-  name: 'Auslastung',
-  icon: 'Users',
+  name: nurKorpus ? 'Themen-Vektoren' : 'Auslastung',
+  icon: nurKorpus ? 'Boxes' : 'Users',
   category: 'workflow',
   order: 25,
   component: AuslastungView,

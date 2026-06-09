@@ -196,7 +196,7 @@ Sichtbarkeits-Matrix (was steht in der Sidebar):
 | Home | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Förderanträge | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Bauanträge | ✓ | ✓ | – | – | – | – |
-| Auslastung | ✓ | – | – | – | – | ✓ |
+| Auslastung | ✓ | – | – | ○ | ○ | ✓ |
 | Dokumente | ✓ | ✓ | – | – | – | – |
 | Suche | ✓ | ✓ | – | ✓ | ✓ | ✓ |
 | Chat | ✓ | ✓ | – | – | – | – |
@@ -204,6 +204,8 @@ Sichtbarkeits-Matrix (was steht in der Sidebar):
 | Einstellungen | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Kurator-Toggle in Einstellungen | ✓ | – | – | ✓ | ✓ | – |
 | Kuration-Menüs (Suchindex, Programme, CSV, DMS, Filter, Feedback, Review) | ✓ | – | – | – | ✓ | – |
+
+○ = **Auslastung in kurator nur als „Themen-Vektoren"** (v2.56, `features.auslastungNurKorpus`): schlanker Korpus-Pflege-View zum Aktuell-Halten des Embedding-Katalogs — **kein** MA-Auslastung/Zuweisung/Kompetenzen, nur „Inkrementell" (kein Vollbuild, der bleibt dev-exklusiv). Sichtbar als Workflow-Plugin (unabhängig vom Kurator-Toggle).
 
 Die kurator-Variante ist der einzige Produktions-Build mit `features.kuratorMenus: true`. Sie kombiniert User-seitig einen schlanken Stack (Förderanträge + Einstellungen) mit allen Kuration-Plugins, die erst nach Aktivierung des Kurator-Toggles in den Einstellungen erscheinen.
 

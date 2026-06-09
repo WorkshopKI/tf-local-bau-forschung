@@ -31,6 +31,24 @@ Selbsteintragung-UX auf der Home:
 - Kapazitätszeile zeigt **Anträge** ("4 von 16 Anträgen frei in Q2-2026"), keine Stunden.
 - Banner-Hint „X neue Anträge in deinen Kategorien" via `useBenachrichtigung`-Hook + localStorage pro `anonId`.
 
+## kurator-Korpus-Modus (`auslastungNurKorpus`, v2.56)
+
+Damit der **Kurator** den Themen-Vektoren-Embedding-Katalog aktuell halten kann, ohne MA-Auslastung zu sehen oder zuzuweisen, läuft das Modul in der **kurator**-Variante in einem reduzierten Modus (`features.auslastungNurKorpus: true`, zusätzlich zu `auslastung: true`; Helper `isAuslastungNurKorpusEnabled()`).
+
+- **View-Dispatcher**: `AuslastungView` verzweigt build-time (Konstante → Rules-of-Hooks-sicher) zwischen `AuslastungFullView` (alle Tabs) und `AuslastungKorpusView`. Der schlanke `AuslastungKorpusView` rendert nur `EinstellungenView korpusOnly` → ausschließlich die `EmbeddingCorpusSection` (keine Kategorien/CSV-Import-Export/Konfiguration, kein MA-Kürzel-Export).
+- **Keine MA-Writes**: der schlanke View lässt die MA-mutierenden Mount-Hooks `useReconcileZuweisungen` + `useAutoCollectTeamProfiles` (beide schreiben `auslastung.json`) bewusst **aus**; nur read-only Frische-Hooks (`useAuslastungCrossTabSync`, `useAuslastungShareWatcher`, `useAntraegeCacheSnapshotRefresh`) laufen — letzterer schützt den Centroid-Write des Korpus-Builds vor dem Überschreiben fremder MA-Edits (Parallel-Varianten-Clobber, siehe Memory `parallel-file-variants-share-storage`).
+- **Sidebar-Eintrag** heißt im Korpus-Modus „Themen-Vektoren" (Icon `Boxes`) statt „Auslastung" ([index.tsx](../../src/plugins/auslastung/index.tsx)).
+
+Build-Matrix der Korpus-Buttons ([EmbeddingCorpusSection.tsx](../../src/plugins/auslastung/views/admin/EmbeddingCorpusSection.tsx)):
+
+| Variante | „Corpus aufbauen" (Vollbuild) | „Inkrementell" |
+| --- | --- | --- |
+| dev | ✓ (`isDevContext`) | ✓ |
+| kurator | – (kein devContext) | ✓ |
+| pl | – (`embeddingCorpusBuild:false`) | – |
+
+Der Vollbuild (~47 min, ~200-MB-Modell) bleibt dev-exklusiv; „Inkrementell" läuft denselben `build()`-Pfad, verarbeitet aber nur den Delta seit dem letzten Build. Der Korpus-Build schreibt die Centroids weiterhin nach `auslastung.json` (gewollt) + spiegelt den Korpus auf den Share — der Kurator braucht dasselbe aktive Embedding-Modell wie der Share-Korpus (Compat-Check warnt sonst, Pitfall #19).
+
 ## MA-Selbst-Profil über persönlichen Ordner (v2.6)
 
 Der „Meine Technologien"-Tab kann `auslastung.json` nicht direkt schreiben — Nicht-Kuratoren haben seit v2.0 nur `read` auf dem Daten-Share. Stattdessen:

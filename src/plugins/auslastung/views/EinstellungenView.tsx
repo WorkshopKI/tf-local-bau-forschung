@@ -11,6 +11,11 @@
  * Guard liegen dort) — eigene Guards sind daher nicht nötig. Die Sektionen
  * degradieren während des Antraege-Cache-Loads sauber (z.B. Corpus-Build mit
  * `total === 0` disabled), bis `useAntraegeCache` befüllt ist.
+ *
+ * v2.56: `korpusOnly` reduziert die View auf die Themen-Vektoren-Sektion —
+ * genutzt vom schlanken kurator-Korpus-View (AuslastungKorpusView). Kategorien,
+ * CSV-Import/Export (enthält MA-Kürzel-Export) und Konfiguration bleiben dann
+ * ausgeblendet; der Kurator soll nur den Embedding-Katalog aktuell halten.
  */
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
@@ -19,9 +24,17 @@ import { ImportExportSection } from './admin/ImportExportSection';
 import { KonfigurationSection } from './admin/KonfigurationSection';
 import { EmbeddingCorpusSection } from './admin/EmbeddingCorpusSection';
 
-export function EinstellungenView(): React.ReactElement {
+export function EinstellungenView({ korpusOnly = false }: { korpusOnly?: boolean }): React.ReactElement {
   const storage = useStorage();
   const cache = useAntraegeCache();
+
+  if (korpusOnly) {
+    return (
+      <div className="flex flex-col">
+        <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col">
