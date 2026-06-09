@@ -395,6 +395,10 @@ function PasteModal({ kategorien, onClose, onApply }: PasteModalProps): React.Re
           JSON-Array vom LLM hier einfügen (Markdown-Wrapper und Erläuterungs-Text werden toleriert).
         </p>
         <textarea
+          // Fokus direkt aufs Textfeld, damit der User das LLM-Ergebnis ohne
+          // vorherigen Klick einfuegen kann. PasteModal mountet pro Oeffnung
+          // frisch (conditional render), daher greift autoFocus zuverlaessig.
+          autoFocus
           value={text}
           onChange={e => setText(e.target.value)}
           rows={12}
