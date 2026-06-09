@@ -404,10 +404,14 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       label: 'Aktion',
       locked: true,
       defaultVisible: true,
-      sortable: false,
+      sortable: true,
       width: 130,
       wrap: false,
-      accessor: () => '',
+      // Sortierwert = Freigabe-Zustand: offen (0, „Freigeben"-Button) vor
+      // freigegeben (1, „✓ freigegeben"). Aufsteigend → To-do oben, gleiche
+      // Semantik wie die Default-Ordnung. Innerhalb einer Gruppe behält der
+      // stabile Sort die einkommende (Datum-)Reihenfolge.
+      accessor: v => (v.klassifizierung.status === 'freigegeben' ? 1 : 0),
       render: v => {
         const freigegeben = v.klassifizierung.status === 'freigegeben';
         if (freigegeben) return <span className="text-[11.5px] text-emerald-700">✓ freigegeben</span>;
