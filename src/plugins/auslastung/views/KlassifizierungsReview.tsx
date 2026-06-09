@@ -308,6 +308,20 @@ export function KlassifizierungsReview(): React.ReactElement {
     });
   }, [verbundViews, filter, justFreigegeben, editStickyVisible, kategorieFilter, antragstypFilter]);
 
+  // Default-Ordnung beim ersten Laden (kein expliziter Spalten-Sort): noch nicht
+  // freigegebene Verbuende oben, damit die PL sofort die offene To-do-Liste sieht
+  // (bevor verteilt werden kann). Innerhalb der Gruppe nach Antragsdatum absteigend
+  // (neueste zuerst). Wird an useTableSort mit defaultKey=null uebergeben → bei
+  // sortKey===null gibt der Hook genau diese Reihenfolge unveraendert zurueck;
+  // ein Spalten-Header-Klick uebersteuert wie gewohnt.
+  const defaultOrdered = useMemo(() => {
+    const prio = (v: VerbundKlassifizierungsView): number =>
+      v.klassifizierung.status === 'freigegeben' ? 1 : 0;
+    return [...filtered].sort((a, b) =>
+      prio(a) - prio(b)
+      || b.antragsdatum.localeCompare(a.antragsdatum)); // neueste zuerst
+  }, [filtered]);
+
   // Sammelt die Freigabe-Entries fuer alle TVs eines Verbundes (gleiche
   // Kategorien fuer alle TVs). Leeres Array, wenn kein Primaer-Vorschlag.
   function collectVerbundFreigaben(
@@ -451,9 +465,9 @@ export function KlassifizierungsReview(): React.ReactElement {
   );
 
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(
-    filtered,
+    defaultOrdered,
     allColumns,
-    'akronym',
+    null, // kein erzwungener Default-Spalten-Sort → defaultOrdered (To-do oben) gilt
     'asc',
   );
 
