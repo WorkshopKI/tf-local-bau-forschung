@@ -63,6 +63,20 @@ export function StartupScreen({
   const [scanFailed, setScanFailed] = useState(false);
   const scanStartedRef = useRef(false);
 
+  // ConnectionState non-invasiv setzen (kein Prompt) + weiter. Gemeinsamer
+  // Abschluss für Warm-Start (alle Handles granted) UND Stepper-Ende. WICHTIG:
+  // auch der Warm-Start MUSS applyRefreshResult fahren — sonst bleibt
+  // useConnectionState.mode auf INITIAL 'offline' (connection-status.ts) und der
+  // OfflineBanner erscheint beim Reload, obwohl der Daten-Share erreichbar ist.
+  const finishStartup = async (): Promise<void> => {
+    try {
+      applyRefreshResult(await queryAllPermissions(storage.idb, { isKurator }));
+    } catch {
+      /* best-effort — OfflineBanner kommuniziert ggf. den Zustand. */
+    }
+    onReady();
+  };
+
   useEffect(() => {
     if (needsInitialPick || needsDowngrade) return;
     if (scanStartedRef.current) return;
@@ -73,7 +87,7 @@ export function StartupScreen({
         const pending = await listPendingGrants(storage.idb, { isKurator });
         if (cancelled) return;
         if (pending.length === 0) {
-          onReady(); // Warm-Start: nichts anzufordern → direkt weiter, kein Klick.
+          await finishStartup(); // Warm-Start: nichts anzufordern → ConnectionState setzen + weiter.
           return;
         }
         setStepperPending(pending);
@@ -84,15 +98,6 @@ export function StartupScreen({
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsInitialPick, needsDowngrade]);
-
-  const handleStepperComplete = async (): Promise<void> => {
-    try {
-      applyRefreshResult(await queryAllPermissions(storage.idb, { isKurator }));
-    } catch {
-      /* best-effort — OfflineBanner kommuniziert ggf. den Zustand. */
-    }
-    onReady();
-  };
 
   const copyPath = async (): Promise<void> => {
     if (!fixedPath) return;
@@ -249,7 +254,7 @@ export function StartupScreen({
             </Button>
           </>
         ) : stepperPending ? (
-          <GuidedGrantSteps pending={stepperPending} onComplete={handleStepperComplete} />
+          <GuidedGrantSteps pending={stepperPending} onComplete={finishStartup} />
         ) : (
           <p className="text-[12.5px] text-[var(--tf-text-tertiary)] leading-relaxed">
             Berechtigungen werden geprüft…

@@ -2,6 +2,14 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.56.1 — Warm-Start lud fälschlich im Offline-Modus (v2.55-Regression) (Juni 2026)
+
+PATCH-Bump v2.56.1: Regression aus dem v2.55-Guided-Grant-Stepper. Auf der pl-Variante lud die App nach **Tab-schließen + neu laden** (kein Browser-Neustart → FSAPI-Permissions in derselben Session noch gültig) direkt in den **Offline-Modus** — gelber Banner trotz erreichbarem Daten-Share; der ZAH-Berechtigungsdialog kam erst nach Klick auf „Verbindung herstellen".
+
+Root-Cause: der **Warm-Start-Pfad** in [StartupScreen.tsx](src/core/StartupScreen.tsx) (`listPendingGrants` leer → alle Handles noch granted) rief `onReady()`, aber **nicht** `applyRefreshResult` → `useConnectionState.mode` blieb auf INITIAL `'offline'` ([connection-status.ts](src/core/services/connection-status.ts)) → [OfflineBanner](src/core/OfflineBanner.tsx) erschien. Vor v2.55 lief der Warm-Start über den „Starten"-Button (`refreshAllPermissions` + `applyRefreshResult`); das Auto-Skip verlor das State-Update, der Visibility-Probe rettet es nicht (feuert nur bei `visibilitychange`, nicht beim Reload).
+
+Fix: gemeinsamer Abschluss-Helfer `finishStartup` (`applyRefreshResult(await queryAllPermissions(...))` + `onReady()`) für **beide** Pfade — Warm-Start und Stepper-Ende. `queryAllPermissions` ist non-invasiv → kein Prompt; der Reload lädt jetzt direkt online (kein Banner, kein Klick). Browser-Neustart (Permissions verfallen) zeigt weiter den Stepper. Kein Eingriff in den `scanFailed`-Fallback (nutzt schon `applyRefreshResult`).
+
 ### v2.56 — Themen-Vektoren-Korpus inkrementell im kurator-Build pflegbar (Juni 2026)
 
 MINOR-Bump v2.56: Der **Embedding-Korpus** der Auslastungs-Klassifizierung (Themen-Vektoren) konnte bisher nur in **dev** und **pl** aktualisiert werden — das Auslastungs-Modul war in der **kurator**-Variante komplett aus (`auslastung:false`). Der Kurator soll den Katalog aber aktuell halten können (neue Anträge nachembedden), **ohne** MA-Auslastung zu sehen oder zuzuweisen. Neu: ein schlanker Korpus-only-Modus für den kurator-Build.
