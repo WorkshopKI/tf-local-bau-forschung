@@ -2,6 +2,14 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.59.5 — „Einsammeln"-Buttons fangen verfallene Mitarbeiter-Ordner-Berechtigung ab (Juni 2026)
+
+PATCH-Bump v2.59.5: Nachzug zu v2.59.4 — dieselbe Permission-Lapse-Klasse auf dem **User-Folders-Root** in den zwei button-getriggerten Auslastung-Flows. „Profile einsammeln" ([MaListSection.tsx](src/plugins/auslastung/views/uebersicht/MaListSection.tsx)) und „Übernahme-Wünsche einsammeln" ([ZuweisungsCockpit.tsx](src/plugins/auslastung/views/ZuweisungsCockpit.tsx)) lasen ein **bestehendes** Handle direkt mit `collectUserProfiles` / `collectUebernahmeWuensche`, **ohne** vorher `requestPermission` zu rufen. Ist die Read-Permission unter `file://` nach Neustart verfallen, wirft das Verzeichnis-Iterieren `NotAllowedError` → der rohe Fehler erschien statt einer Re-Abfrage (obwohl ein Klick-Gesture vorliegt, das prompten dürfte).
+
+Fix: im „Handle existiert"-Zweig zuerst `refreshUserFoldersRootPermission` (der v2.59.4-Helfer; queryPermission + bei Bedarf `requestPermission` im Gesture); bei `!== 'granted'` eine klare Fehlermeldung statt Crash. Der „Handle fehlt → Picker"-Zweig bleibt unverändert.
+
+**Bereits sicher (geprüft, nicht angefasst):** die Auto-Pfade `usePendingUebernahmeWuensche` (queryPermission-Guard + try/catch) und `useAutoCollectTeamProfiles` (collect in try/catch, still-skip). Rein additiv. **Dev reproduziert nicht** (keine echten Handles).
+
 ### v2.59.4 — Online-Tab: verfallene Berechtigung auf den Mitarbeiter-Ordner abfangen (Juni 2026)
 
 PATCH-Bump v2.59.4: Auf dem pl-Rechner zeigte der **Online**-Tab nach Browser-Neustart „Konnte den Online-Status nicht laden: The request is not allowed by the user agent or the platform in the current context" — ohne Berechtigungs-Abfrage. Gleiche Permission-Lapse-Klasse wie persönlich/CSV, jetzt auf dem **User-Folders-Root**: das Handle liegt in IDB, aber die Permission ist unter `file://` verfallen. `load` läuft beim Mount + alle 45 s **ohne User-Gesture** und ruft `collectHeartbeats`, dessen Verzeichnis-Iteration (`root.values()`, [collector.ts](src/core/services/presence/collector.ts)) bei nicht-granted Handle `NotAllowedError` wirft. Der Tab kannte nur „Handle fehlt → Verbinden-Button", aber keinen Re-Grant-Pfad für „Handle da, Permission verfallen".

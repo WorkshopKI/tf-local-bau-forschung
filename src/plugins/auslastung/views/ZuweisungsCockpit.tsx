@@ -15,6 +15,7 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
   getUserFoldersRootHandle,
   pickAndStoreUserFoldersRootHandle,
+  refreshUserFoldersRootPermission,
 } from '@/core/services/infrastructure/smb-handle';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
@@ -217,6 +218,15 @@ export function ZuweisungsCockpit(): React.ReactElement {
         throw new Error(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
       }
       root = res.handle;
+    } else {
+      // v2.59.5: bestehendes Handle re-granten — die Read-Permission kann unter
+      // file:// nach Browser-Neustart verfallen sein; collectUebernahmeWuensche
+      // würde dann beim Verzeichnis-Iterieren mit NotAllowedError werfen. Hier
+      // sind wir im Klick-Gesture → requestPermission darf prompten.
+      const perm = await refreshUserFoldersRootPermission(storage.idb);
+      if (perm !== 'granted') {
+        throw new Error('Zugriff auf den Ordner der Teammitglieder wurde nicht erteilt. Bitte erneut versuchen.');
+      }
     }
     const batch = await collectUebernahmeWuensche(root);
     const total = batch.reduce((n, p) => n + p.wuensche.length, 0);
