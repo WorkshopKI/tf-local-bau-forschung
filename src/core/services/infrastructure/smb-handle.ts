@@ -477,6 +477,46 @@ export async function clearUserFoldersRootHandle(idb: IDBStore): Promise<void> {
   await writeAll(idb, map);
 }
 
+/**
+ * Non-invasiver Permission-Status des User-Folders-Root-Handles (`queryPermission`
+ * read, KEIN Gesture). Für Auto-Load-/Timer-Pfade, die das Verzeichnis sonst
+ * blind iterieren würden (→ `NotAllowedError`, wenn die Permission unter
+ * `file://` nach Neustart verfallen ist). `'missing'` wenn kein Handle in IDB.
+ */
+export async function queryUserFoldersRootPermission(
+  idb: IDBStore,
+): Promise<PermStateOrMissing> {
+  const map = await readAll(idb);
+  const handle = map[SMB_HANDLE_USER_FOLDERS_ROOT];
+  if (!handle) return 'missing';
+  try {
+    return await (handle as FsDirHandle).queryPermission({ mode: 'read' });
+  } catch {
+    return 'denied';
+  }
+}
+
+/**
+ * Gibt das User-Folders-Root-Handle (read) frei. MUSS aus einem User-Gesture-
+ * Handler laufen → ein Prompt. Spiegel von `refreshCsvSourceDirPermission`:
+ * no-op't, wenn die Permission schon `granted` ist (kein Doppel-Prompt).
+ * `'missing'` wenn kein Handle in IDB.
+ */
+export async function refreshUserFoldersRootPermission(
+  idb: IDBStore,
+): Promise<PermStateOrMissing> {
+  const map = await readAll(idb);
+  const handle = map[SMB_HANDLE_USER_FOLDERS_ROOT];
+  if (!handle) return 'missing';
+  try {
+    const h = handle as FsDirHandle;
+    if ((await h.queryPermission({ mode: 'read' })) === 'granted') return 'granted';
+    return await h.requestPermission({ mode: 'read' });
+  } catch {
+    return 'denied';
+  }
+}
+
 /* --------------------------------------------------------------------------
  * v2.0: refreshAllPermissions — eine User-Gesture-Quelle, alle Handles
  * -------------------------------------------------------------------------- */

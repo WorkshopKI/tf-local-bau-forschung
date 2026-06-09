@@ -12,7 +12,12 @@ import { RefreshCw, FolderOpen } from 'lucide-react';
 import { Button, SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { getUserFoldersRootHandle, pickAndStoreUserFoldersRootHandle } from '@/core/services/infrastructure/smb-handle';
+import {
+  getUserFoldersRootHandle,
+  pickAndStoreUserFoldersRootHandle,
+  queryUserFoldersRootPermission,
+  refreshUserFoldersRootPermission,
+} from '@/core/services/infrastructure/smb-handle';
 import { collectHeartbeats, type OnlineUser } from '@/core/services/presence';
 import { formatRelativeTime } from '@/components/feedback';
 
@@ -22,6 +27,9 @@ export function OnlineTab(): React.ReactElement {
   const storage = useStorage();
   const [users, setUsers] = useState<OnlineUser[]>([]);
   const [rootMissing, setRootMissing] = useState(false);
+  // Handle in IDB, aber Permission unter file:// nach Neustart verfallen → Re-Grant
+  // im Klick-Gesture nötig (der Auto-Load darf nicht prompten).
+  const [needsRegrant, setNeedsRegrant] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   const applyList = useCallback((list: OnlineUser[]) => {
@@ -39,11 +47,51 @@ export function OnlineTab(): React.ReactElement {
     const root = await getUserFoldersRootHandle(storage.idb);
     if (!root) {
       setRootMissing(true);
+      setNeedsRegrant(false);
       setUsers([]);
       setLoaded(true);
       return;
     }
     setRootMissing(false);
+    // Permission kann unter file:// nach Neustart verfallen sein. Erst non-invasiv
+    // prüfen — sonst wirft schon das Verzeichnis-Iterieren in collectHeartbeats
+    // (kein Gesture hier → requestPermission unmöglich). Re-Grant via Button unten.
+    const perm = await queryUserFoldersRootPermission(storage.idb);
+    if (perm !== 'granted') {
+      setNeedsRegrant(true);
+      setUsers([]);
+      setLoaded(true);
+      return;
+    }
+    setNeedsRegrant(false);
+    try {
+      applyList(await collectHeartbeats(root));
+    } catch {
+      // Sicherheitsnetz: Permission zwischen Query und Iteration entzogen → kein
+      // roher Fehlerbanner, sondern Re-Grant anbieten.
+      setNeedsRegrant(true);
+      setUsers([]);
+      setLoaded(true);
+    }
+  });
+
+  // Re-Grant (Klick-Gesture): gibt das bestehende Handle erneut frei — kein
+  // erneutes Auswählen des Ordners nötig. Fällt bei denied/missing auf den
+  // Re-Pick-Pfad (rootMissing → connect) zurück.
+  const regrant = useAsyncAction(async () => {
+    const state = await refreshUserFoldersRootPermission(storage.idb);
+    if (state !== 'granted') {
+      setNeedsRegrant(false);
+      setRootMissing(true);
+      return;
+    }
+    const root = await getUserFoldersRootHandle(storage.idb);
+    if (!root) {
+      setNeedsRegrant(false);
+      setRootMissing(true);
+      return;
+    }
+    setNeedsRegrant(false);
     applyList(await collectHeartbeats(root));
   });
 
@@ -56,6 +104,7 @@ export function OnlineTab(): React.ReactElement {
       throw new Error(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
     }
     setRootMissing(false);
+    setNeedsRegrant(false);
     applyList(await collectHeartbeats(res.handle));
   });
 
@@ -91,6 +140,24 @@ export function OnlineTab(): React.ReactElement {
         </div>
       )}
 
+      {needsRegrant && loaded && (
+        <div className="rounded-[var(--tf-radius)] px-4 py-4 space-y-3"
+          style={{ border: '0.5px solid var(--tf-border)' }}>
+          <p className="text-[13px] text-[var(--tf-text-secondary)] max-w-prose">
+            Der Zugriff auf den Ordner der Teammitglieder muss nach dem Browser-Neustart
+            einmal erneut bestätigt werden (Sicherheitsvorgabe für lokale Apps). Nur
+            Lesezugriff.
+          </p>
+          {regrant.error && (
+            <p className="text-[12px] text-[var(--tf-danger-text)]">{regrant.error}</p>
+          )}
+          <Button variant="primary" size="sm" icon={FolderOpen} loading={regrant.busy}
+            onClick={() => regrant.run()}>
+            Erneut freigeben
+          </Button>
+        </div>
+      )}
+
       {rootMissing && loaded && (
         <div className="rounded-[var(--tf-radius)] px-4 py-4 space-y-3"
           style={{ border: '0.5px solid var(--tf-border)' }}>
@@ -112,7 +179,7 @@ export function OnlineTab(): React.ReactElement {
         </div>
       )}
 
-      {!rootMissing && loaded && users.length === 0 && (
+      {!rootMissing && !needsRegrant && loaded && users.length === 0 && (
         <div className="text-[13px] text-[var(--tf-text-secondary)] rounded-[var(--tf-radius)] px-3 py-3"
           style={{ border: '0.5px solid var(--tf-border)' }}>
           Aktuell ist niemand online.
