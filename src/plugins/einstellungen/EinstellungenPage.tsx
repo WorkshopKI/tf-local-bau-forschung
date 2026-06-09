@@ -11,7 +11,8 @@ import { AIProviderTab } from './AIProviderTab';
 import { SpeicherTab } from './SpeicherTab';
 import { DokumentenquellenTab } from './DokumentenquellenTab';
 import { MeineTechnologienTab } from './MeineTechnologienTab';
-import { isDevContext } from '@/config/feature-flags';
+import { OnlineTab } from './OnlineTab';
+import { isDevContext, isOnlineStatusTabEnabled } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
 
 const TABS: Array<{ id: string; label: string }> = [
@@ -27,6 +28,12 @@ const TABS: Array<{ id: string; label: string }> = [
 // LLM-Endpoint via `ki.localLlama.endpoint` in der Build-Config fix verdrahtet.
 if (isDevContext()) {
   TABS.push({ id: 'ai', label: 'KI-Assistent' });
+}
+// v2.59: „Online"-Tab nur in pl (+ dev) — zeigt zuletzt aktive Team-User aus den
+// eingesammelten Heartbeats. Andere Varianten schreiben Heartbeats, sehen den
+// Tab aber nicht.
+if (isOnlineStatusTabEnabled()) {
+  TABS.push({ id: 'online', label: 'Online' });
 }
 
 export function EinstellungenPage(): React.ReactElement {
@@ -111,6 +118,7 @@ export function EinstellungenPage(): React.ReactElement {
         {activeTab === 'tags' && <TagsTab />}
         {activeTab === 'tastatur' && <TastaturTab />}
         {activeTab === 'meine-technologien' && <MeineTechnologienTab />}
+        {activeTab === 'online' && <OnlineTab />}
       </div>
     </div>
   );

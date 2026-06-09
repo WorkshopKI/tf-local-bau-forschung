@@ -138,6 +138,16 @@ export const PERSOENLICH_AUSLASTUNG_PROFIL_FILE = 'ZAH/auslastung-profil.json';
  * User-Home-Root, daher in beiden Lese-Kontexten identisch nutzbar.
  */
 export const PERSOENLICH_AUSLASTUNG_UEBERNAHME_FILE = 'ZAH/auslastung-uebernahme.json';
+/**
+ * v2.59: Presence-Heartbeat fuer den PL-„Online"-Tab. Jeder Client schreibt,
+ * solange die App offen ist, periodisch sein Kuerzel/Name + Zeitstempel hierher
+ * (best-effort, `skipBackup` — verlusttolerant, Pitfall #23). Die PL sammelt
+ * alle Heartbeats ueber den User-Folders-Root ein und zeigt „zuletzt aktiv vor
+ * X Min". Relativ zum User-Home-Root, daher in beiden Lese-Kontexten (eigener
+ * Persoenlich-Handle + fremder User-Ordner) identisch nutzbar — analog
+ * PERSOENLICH_AUSLASTUNG_PROFIL_FILE.
+ */
+export const PERSOENLICH_ONLINE_STATUS_FILE = 'ZAH/online-status.json';
 
 /**
  * v2.0: IDB-Flag das die App beim Start anlegt, wenn ein bestehender Daten-

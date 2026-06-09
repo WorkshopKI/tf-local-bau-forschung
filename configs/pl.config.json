@@ -38,7 +38,8 @@
     "suche": true,
     "feedbackBoard": true,
     "csvAutoRefresh": true,
-    "embeddingCorpusBuild": false
+    "embeddingCorpusBuild": false,
+    "onlineStatusTab": true
   },
   "menuLabels": {
     "antraege": "Förderanträge"

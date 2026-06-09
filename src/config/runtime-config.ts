@@ -104,6 +104,13 @@ export interface TeamflowFeatures {
    *  Korpus-Pflege (kein MA-Auslastung/Zuweisung). Schlanker View, MA-
    *  mutierende Mount-Hooks bleiben aus. Optional, default false. */
   auslastungNurKorpus?: boolean;
+  /** v2.59: Hintergrund-Heartbeat-Writer (jede Variante). Schreibt periodisch
+   *  `ZAH/online-status.json` in den persoenlichen Ordner, solange die App offen
+   *  ist — Quelle fuer den PL-„Online"-Tab. Optional, default true (`!== false`). */
+  presenceHeartbeat?: boolean;
+  /** v2.59: „Online"-Tab in den Einstellungen — zeigt zuletzt aktive Team-User
+   *  aus den eingesammelten Heartbeats. Nur pl (+ dev). Optional, default false. */
+  onlineStatusTab?: boolean;
 }
 
 export interface TeamflowMenuLabels {

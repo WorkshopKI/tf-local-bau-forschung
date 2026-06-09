@@ -24,6 +24,7 @@ import { OfflineBanner } from '@/core/OfflineBanner';
 import { NewSnapshotBanner } from '@/core/components/NewSnapshotBanner';
 import { useSnapshotWatcher } from '@/core/hooks/useSnapshotWatcher';
 import { useAuslastungCorpusAutoload } from '@/core/hooks/useAuslastungCorpusAutoload';
+import { useHeartbeat } from '@/core/services/presence';
 import { CsvAutoRefreshBanner } from '@/plugins/csv-sources-kuration/components/CsvAutoRefreshBanner';
 import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -183,6 +184,11 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
   // (Cold-Start-Selbstheilung), nicht erst beim Navigieren ins Modul. Self-gated
   // auf isAuslastungEnabled() (pl + dev) + SMB-online.
   useAuslastungCorpusAutoload();
+
+  // v2.59: Presence-Heartbeat — schreibt periodisch `ZAH/online-status.json` in
+  // den persoenlichen Ordner (jede Variante, best-effort). Quelle fuer den
+  // PL-„Online"-Tab. Self-gated (Flag + persoenlicher Handle), NO-OP sonst.
+  useHeartbeat();
 
   const goToPlugin = useCallback((pluginId: string) => {
     // Beim Wechsel zu Listen-Plugins: Detail-State in Stores clearen (Route-Param fehlt → Effekt clearet ohnehin, aber wir machen es hier explizit)

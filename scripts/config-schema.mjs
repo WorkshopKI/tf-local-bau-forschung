@@ -159,6 +159,15 @@ export const DEFAULT_CONFIG = {
      *  Zuweisung-/Kompetenz-Tabs, keine MA-mutierenden Hooks. Default false
      *  (optional, kein requiredFlags-Eintrag). */
     auslastungNurKorpus: false,
+    /** v2.59: Hintergrund-Heartbeat-Writer (jede Variante). Schreibt periodisch
+     *  `ZAH/online-status.json` in den persoenlichen Ordner, solange die App
+     *  offen ist — Quelle fuer den PL-„Online"-Tab. Optional (kein
+     *  requiredFlags-Eintrag), default true → ueberall an. */
+    presenceHeartbeat: true,
+    /** v2.59: „Online"-Tab in den Einstellungen — zeigt zuletzt aktive Team-User
+     *  aus den eingesammelten Heartbeats. Nur pl (+ dev zum Testen). Optional,
+     *  default false. */
+    onlineStatusTab: false,
   },
 
   menuLabels: {

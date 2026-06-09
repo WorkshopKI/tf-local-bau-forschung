@@ -96,6 +96,18 @@ export function isEmbeddingCorpusBuildEnabled(): boolean {
 export function isAuslastungNurKorpusEnabled(): boolean {
   return features.auslastungNurKorpus === true;
 }
+/** v2.59: Hintergrund-Heartbeat-Writer aktiv? Schreibt `ZAH/online-status.json`
+ *  in den persoenlichen Ordner (jede Variante), solange die App offen ist —
+ *  Quelle fuer den PL-„Online"-Tab. Default true (`!== false`: fehlender Flag =
+ *  an, Backward-Kompat mit pre-2.59-Configs). */
+export function isPresenceHeartbeatEnabled(): boolean {
+  return features.presenceHeartbeat !== false;
+}
+/** v2.59: „Online"-Tab in den Einstellungen (PL sieht zuletzt aktive Team-User).
+ *  Nur pl + dev. Default false. */
+export function isOnlineStatusTabEnabled(): boolean {
+  return features.onlineStatusTab === true;
+}
 /** Homepage-Selbsteintragung + Banner. End-User-Feature, getrennt vom PL-
  *  Plugin (`auslastung`). Wer das Plugin aktiviert hat, will i.d.R. auch
  *  die Selbsteintragung — wenn der Flag fehlt, fallen wir auf `auslastung`

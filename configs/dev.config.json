@@ -39,7 +39,8 @@
     "suche": true,
     "feedbackBoard": true,
     "feedbackDelete": true,
-    "csvAutoRefresh": true
+    "csvAutoRefresh": true,
+    "onlineStatusTab": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",
