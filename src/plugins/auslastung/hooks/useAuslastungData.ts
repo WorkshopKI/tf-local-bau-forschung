@@ -326,7 +326,7 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       // Nur-Lese-Variante) ist die haeufigste stille Verlust-Ursache → klare
       // Meldung statt der kryptischen DOMException (sichtbar via Banner).
       const msg = err instanceof DOMException && err.name === 'NotAllowedError'
-        ? 'Kein Schreibrecht auf dem Daten-Share — die Änderung wurde NICHT gespeichert. Bitte andere TeamFlow-Tabs/-Varianten schließen und die Seite neu laden.'
+        ? 'Kein Schreibrecht auf dem Daten-Share — die Änderung wurde NICHT gespeichert. Bitte andere ZAH-Tabs/-Varianten schließen und die Seite neu laden.'
         : (err instanceof Error ? err.message : String(err));
       set({ saving: false, error: msg });
       throw err;

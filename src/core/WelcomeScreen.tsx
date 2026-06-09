@@ -163,7 +163,7 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50 overflow-y-auto">
       <div className="w-full max-w-[560px] mx-4 my-8 bg-[var(--tf-bg)] rounded-[16px] p-8" style={{ border: '0.5px solid var(--tf-border)' }}>
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-3">Willkommen bei TeamFlow</h1>
+        <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-3">Willkommen bei ZAH</h1>
         <p className="text-[13px] text-[var(--tf-text-secondary)] mb-6 leading-relaxed">
           {pathIsLocked
             ? 'Dieser Build ist auf einen festen Daten-Share konfiguriert. Verbinden Sie die App einmalig mit dem folgenden Ordner:'
@@ -209,8 +209,8 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
         <Dialog
           title="Datenspeicher einrichten"
           body={<p className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed">
-            Dieser Ordner ist leer oder enthält keine TeamFlow-Struktur. Möchten Sie hier einen
-            neuen TeamFlow-Datenspeicher einrichten? Die Struktur (<code>programm/</code>,{' '}
+            Dieser Ordner ist leer oder enthält keine ZAH-Struktur. Möchten Sie hier einen
+            neuen ZAH-Datenspeicher einrichten? Die Struktur (<code>programm/</code>,{' '}
             <code>backups/</code>, <code>_intern/</code>, <code>README.txt</code>) wird angelegt.
           </p>}
           confirmLabel="Einrichten"
@@ -221,9 +221,9 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
       )}
       {dialog.kind === 'legacy' && (
         <Dialog
-          title="Alte TeamFlow-Struktur erkannt"
+          title="Alte ZAH-Struktur erkannt"
           body={<div className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed space-y-3">
-            <p>Dieser Ordner scheint eine alte TeamFlow-Struktur (<code>programm-test/</code>) zu enthalten.
+            <p>Dieser Ordner scheint eine alte ZAH-Struktur (<code>programm-test/</code>) zu enthalten.
             Möchten Sie die Daten automatisch in die neue Struktur migrieren?</p>
             <div className="p-3 rounded-[var(--tf-radius)] bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)] border border-[var(--tf-warning-border)]">
               <p className="font-medium mb-1">⚠️ Achtung: Dokumente werden gelöscht</p>
@@ -244,7 +244,7 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
         <Dialog
           title="Falscher Ordner"
           body={<p className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed">
-            Sie haben einen Unterordner einer TeamFlow-Struktur gewählt. Bitte wählen Sie den
+            Sie haben einen Unterordner einer ZAH-Struktur gewählt. Bitte wählen Sie den
             übergeordneten Ordner (derjenige der <code>programm/</code>, <code>backups/</code> und{' '}
             <code>_intern/</code> enthält).
           </p>}

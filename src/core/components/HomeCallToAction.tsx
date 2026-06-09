@@ -64,7 +64,7 @@ export function HomeCallToAction({ idb, onConnected }: HomeCallToActionProps): R
       <div className="max-w-xl w-full text-center bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-8"
         style={{ border: '0.5px solid var(--tf-border)' }}>
         <FolderOpen size={40} className="mx-auto mb-4 text-[var(--tf-text-tertiary)]" />
-        <h1 className="text-[20px] font-medium text-[var(--tf-text)] mb-3">Willkommen bei TeamFlow</h1>
+        <h1 className="text-[20px] font-medium text-[var(--tf-text)] mb-3">Willkommen bei ZAH</h1>
         <p className="text-[13.5px] text-[var(--tf-text-secondary)] mb-6 leading-relaxed">
           Bevor es losgeht, verbinden Sie die App einmalig mit dem Datenspeicher.
           Diese Einmal-Aktion verbindet die App mit Ihren Antragsdaten.

@@ -183,7 +183,7 @@ export class IDBStore {
         // Ein anderer Tab haelt eine aeltere DB-Version offen und verhindert das Upgrade.
         // Ohne diesen Handler wuerde die Promise nie aufgeloest — App-Loader blieb haengen.
         reject(new Error(
-          'IndexedDB-Upgrade blockiert. Bitte alle anderen TeamFlow-Tabs schliessen und Seite neu laden.'
+          'IndexedDB-Upgrade blockiert. Bitte alle anderen ZAH-Tabs schliessen und Seite neu laden.'
         ));
       };
     });

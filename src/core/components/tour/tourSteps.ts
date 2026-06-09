@@ -20,7 +20,7 @@ export interface TourStep {
 const ALL_STEPS: TourStep[] = [
   {
     target: 'home-dashboard',
-    title: 'Willkommen bei TeamFlow',
+    title: 'Willkommen bei ZAH',
     description:
       'Dein Dashboard zeigt offene Vorgaenge, anstehende Fristen und den Status des KI-Assistenten auf einen Blick.',
     position: 'bottom',

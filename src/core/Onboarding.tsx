@@ -125,7 +125,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
       <div className="w-full max-w-[420px] mx-4 bg-[var(--tf-bg)] rounded-[16px] p-8" style={{ border: '0.5px solid var(--tf-border)' }}>
         {step === 0 && (
           <div className="space-y-6">
-            <h1 className="text-[20px] font-medium text-[var(--tf-text)] text-center">Willkommen bei TeamFlow</h1>
+            <h1 className="text-[20px] font-medium text-[var(--tf-text)] text-center">Willkommen bei ZAH</h1>
             <div className="space-y-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[13px] font-medium text-[var(--tf-text)]">Dein Name</label>
@@ -185,7 +185,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
                     className="mt-0.5 cursor-pointer accent-[var(--tf-primary)]"
                   />
                   <span className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug">
-                    Ich bin Kurator dieses TeamFlow-Projekts (zeigt zusätzliche Kuration-Bereiche an)
+                    Ich bin Kurator dieses ZAH-Projekts (zeigt zusätzliche Kuration-Bereiche an)
                   </span>
                 </label>
               )}

@@ -131,7 +131,7 @@ export function StartupScreen({
         className="w-full max-w-[520px] mx-4 bg-[var(--tf-bg)] rounded-[16px] p-8"
         style={{ border: '0.5px solid var(--tf-border)' }}
       >
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-2">TeamFlow</h1>
+        <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-2">ZAH</h1>
         <p className="text-[13px] text-[var(--tf-text-secondary)] mb-6">
           Angemeldet als: <span className="text-[var(--tf-text)]">{display}</span>
         </p>
