@@ -67,14 +67,16 @@ Zusätzlich zur fachlichen `hauptKategorie` (IT/DT/EU/LG/NM) pflegt jeder MA ein
 - `antragstypUeberschreibung?: AntragstypBucket[]` — vom PL gepflegt in der Mitarbeiter-Tabelle (UebersichtView, Spalte „Antragstypen"). Hat Vorrang. Leeres Array → MA-Präferenz greift wieder.
 
 Filter-Logik in `services/antragstyp-praeferenz.ts`:
-- `getEffectiveAntragstypen(ma): AntragstypBucket[] | null` — Override > Bevorzugt > null (= alle erlaubt, Backwards-Kompat für pre-v2.2-Daten).
-- `matchesAntragstyp(antrag, ma): boolean` — nutzt `getKategorieLabel(vb_phase)` aus `kategorieQuickfilter.ts` (Single Source of Truth), kein zweites Mapping. Irrläufer immer false bei expliziter Präferenz.
+- `getEffectiveAntragstypen(ma): AntragstypBucket[] | null` — 4-stufig (v2.60): Override > Bevorzugt > **aus Kontingent abgeleitet** > null (= alle erlaubt). Die Ableitung (`deriveAntragstypenFromKontingent`) nutzt `hatTypKapazitaet` und liefert alle Buckets mit `jahresKapazitaetProTyp > 0` — Annahme: wer Stunden für einen Typ gepflegt hat, bearbeitet ihn auch. **Read-time, nicht persistiert** → aktualisiert sich bei jedem Kompetenz-XLSX-Re-Upload. `null` (alle erlaubt) gilt nur noch für MAs ganz **ohne** Kontingent (Backwards-Kompat).
+- `getAntragstypHerkunft(ma)` — `'override' | 'bevorzugt' | 'abgeleitet' | 'keine'` für die UI-Label-Differenzierung („… (aus Kontingent)").
+- `matchesAntragstyp(antrag, ma): boolean` — nutzt `getKategorieLabel(vb_phase)` aus `kategorieQuickfilter.ts` (Single Source of Truth), kein zweites Mapping. Irrläufer (und Anträge ohne bestimmbaren Bucket) immer false, sobald ein effektiver Filter greift (explizit ODER abgeleitet).
 
 Wirkt in: `NeueAntraegeFuerDich` (Home-Selbsteintragung) + `matching-engine.ts` (Eligible-Pool VOR den teuren BM25/Embedding-Scores).
 
 UI-Konventionen:
 - MA-Profil zeigt ein Amber-Banner („Aktuell vom PL eingeschränkt") wenn `antragstypUeberschreibung` nicht leer ist. MA kann seine Präferenz weiter editieren, sie greift sobald PL den Override entfernt.
-- PL-Tabelle: kleines „PL"-Badge an der effektiven Pill-Liste signalisiert aktives Override; „Override entfernen"-Button setzt es auf `undefined` zurück.
+- PL-Tabelle: kleines „PL"-Badge an der effektiven Pill-Liste signalisiert aktives Override; „Override entfernen"-Button setzt es auf `undefined` zurück. Bei abgeleiteten Werten zeigt das Effektiv-Label ein „(aus Kontingent)"-Suffix.
+- MA-Edit (v2.60): sind keine expliziten Pills gesetzt und ist eine Ableitung vorhanden, erscheint unter den Pills eine Info-Zeile mit den abgeleiteten Buckets + Button „Übernehmen" (seedet die Pills, damit der PL sie explizit editieren/speichern kann).
 
 ## Klassifizierungs-Modell (1.17)
 

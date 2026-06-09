@@ -15,6 +15,10 @@ function makeAntrag(az: string, fields: Partial<Antrag> = {}): Antrag {
     programm_id: 'p1',
     _field_sources: {},
     _updated_at: new Date().toISOString(),
+    // Default-Antragstyp FuE (vb_phase=3) — passt zum FuE-Kontingent von
+    // `makeMa`, damit der v2.60-Antragstyp-Filter (abgeleitet aus dem Kontingent)
+    // diese auf andere Dimensionen fokussierten Fixtures nicht ausschliesst.
+    vb_phase: 3,
     ...fields,
   } as Antrag;
 }
@@ -396,7 +400,9 @@ describe('runMatching', () => {
       const m1: AnonymerMitarbeiter = {
         ...makeMa('MA01', ['IT'], 1600, ['KI']),
         hauptKategorie: 'IT',
-        // KEIN antragstypBevorzugt / antragstypUeberschreibung gesetzt
+        // KEIN antragstypBevorzugt / antragstypUeberschreibung — UND kein
+        // Typ-Kontingent → keine v2.60-Ableitung → echter "ohne Praeferenz"-Fall.
+        jahresKapazitaetProTyp: undefined,
       };
       for (const phase of [1, 2, 3, 4, 5]) {
         const res = runMatching({

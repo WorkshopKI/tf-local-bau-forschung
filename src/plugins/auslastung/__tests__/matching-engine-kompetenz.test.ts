@@ -11,7 +11,9 @@ import type { AnonymerMitarbeiter, AuslastungConfig, Zuweisung } from '../types'
 import { DEFAULT_AUSLASTUNG_CONFIG } from '../types';
 
 function makeAntrag(az: string, fields: Partial<Antrag> = {}): Antrag {
-  return { aktenzeichen: az, programm_id: 'p1', _field_sources: {}, _updated_at: '', ...fields } as Antrag;
+  // Default-Antragstyp FuE (vb_phase=3) — passt zum FuE-Kontingent der Fixtures,
+  // damit der v2.60-Antragstyp-Filter sie nicht ausschliesst (Override via fields).
+  return { aktenzeichen: az, programm_id: 'p1', _field_sources: {}, _updated_at: '', vb_phase: 3, ...fields } as Antrag;
 }
 
 function makeMa(anonId: string, haupt: string, extra: Partial<AnonymerMitarbeiter> = {}): AnonymerMitarbeiter {
@@ -109,10 +111,12 @@ describe('v2.31: Tabelle gleich gewichtet wie Historie (50/50-Blend, boostet wen
 describe('v2.15: Antragstyp-Kontingent', () => {
   it('MA mit erschöpftem FuE-Kontingent rutscht ab', () => {
     // MA01 hat ein FuE-Kontingent von 36 Std./Jahr (= 9 h/Quartal = 1 TV bei
-    // stundenProTV 9) das durch 1 TV bereits aufgebraucht ist. MA02 hat keine
-    // FuE-Stunden (kein FuE-Limit), aber DS-Kapazität → bleibt matchbar.
+    // stundenProTV 9) das durch 1 TV bereits aufgebraucht ist. MA02 hat ein
+    // reichliches FuE-Kontingent (800 Std./Jahr) → nicht erschöpft, rankt oben.
+    // (v2.60: beide MAs brauchen FuE-Stunden, sonst greift der abgeleitete
+    // Antragstyp-Filter und schliesst sie vom FuE-Antrag aus.)
     const gedeckelt = makeMa('MA01', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { FuE: 36 } });
-    const offen = makeMa('MA02', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { DS: 800 } });
+    const offen = makeMa('MA02', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { FuE: 800 } });
     const zuweisungen: Zuweisung[] = [
       { antragId: 'X', anonId: 'MA01', quartal: '2026-Q2', stunden: 9, status: 'freigegeben' }, // FuE
       { antragId: 'Y', anonId: 'MA02', quartal: '2026-Q2', stunden: 9, status: 'freigegeben' }, // DS
@@ -136,14 +140,18 @@ describe('v2.15: Antragstyp-Kontingent', () => {
     expect(m1.kontingentScore).toBe(0.5);
     expect(m1.kontingentRest).toBe(0);
     expect(m2.kontingentScore).toBe(1);
-    expect(m2.kontingentRest).toBeUndefined();
+    // v2.60: MA02 ist FuE-berechtigt mit reichlichem Kontingent → Rest > 0
+    // (vormals "kein FuE-Limit" → undefined, jetzt nicht mehr matchbar ohne FuE-Stunden).
+    expect(m2.kontingentRest).toBeGreaterThan(0);
     expect(m2.finalScore).toBeGreaterThan(m1.finalScore);
   });
 
   it('v2.16: Kontingent-Malus greift aus fest gebuchten CSV-Anträgen (auslastungByAnon)', () => {
     // FuE 36 Std./Jahr → 1 TV/Quartal (stundenProTV 9); 1 fest gebuchter FuE-TV → erschöpft.
+    // MA02 hat reichlich FuE-Kontingent → nicht erschöpft (v2.60: braucht FuE-Stunden,
+    // sonst schliesst der abgeleitete Antragstyp-Filter es vom FuE-Antrag aus).
     const gedeckelt = makeMa('MA01', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { FuE: 36 } });
-    const offen = makeMa('MA02', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { DS: 800 } });
+    const offen = makeMa('MA02', 'IT', { manuelleTechnologien: ['KI'], jahresKapazitaetProTyp: { FuE: 800 } });
     const bucket = (proTyp: Record<string, number>) => ({
       antraege: 0, tvs: 0, stunden: 0, aktenzeichenSet: new Set<string>(), verbuende: [],
       antraegeProTyp: proTyp, tvsProTyp: proTyp,

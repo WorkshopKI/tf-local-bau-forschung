@@ -7,6 +7,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  deriveAntragstypenFromKontingent,
+  getAntragstypHerkunft,
   getEffectiveAntragstypen,
   hasPlOverride,
   matchesAntragstyp,
@@ -129,6 +131,70 @@ describe('matchesAntragstyp', () => {
     expect(matchesAntragstyp(makeAntrag(undefined), mit)).toBe(false);
     const ohne = makeMa();
     expect(matchesAntragstyp(makeAntrag(undefined), ohne)).toBe(true);
+  });
+});
+
+describe('deriveAntragstypenFromKontingent (v2.60)', () => {
+  it('Buckets mit Stunden > 0 → abgeleitete Liste (in Bucket-Reihenfolge)', () => {
+    const ma = makeMa({ jahresKapazitaetProTyp: { FuE: 337, DS: 100 } });
+    expect(deriveAntragstypenFromKontingent(ma)).toEqual(['FuE', 'DS']);
+  });
+
+  it('kein Kontingent / undefined → null', () => {
+    expect(deriveAntragstypenFromKontingent(makeMa())).toBeNull();
+    expect(deriveAntragstypenFromKontingent(makeMa({ jahresKapazitaetProTyp: {} }))).toBeNull();
+  });
+
+  it('Null-/Negativ-Stunden zaehlen nicht als Kontingent', () => {
+    expect(deriveAntragstypenFromKontingent(makeMa({ jahresKapazitaetProTyp: { DL: 0 } }))).toBeNull();
+  });
+});
+
+describe('getEffectiveAntragstypen — Ableitung aus Kontingent (v2.60)', () => {
+  it('keine Vorbelegung, aber Kontingent → abgeleitete Typen gelten', () => {
+    const ma = makeMa({ jahresKapazitaetProTyp: { FuE: 300, NW: 50 } });
+    expect(getEffectiveAntragstypen(ma)).toEqual(['FuE', 'NW']);
+  });
+
+  it('explizite Vorbelegung schlaegt Kontingent', () => {
+    const ma = makeMa({ antragstypBevorzugt: ['DS'], jahresKapazitaetProTyp: { FuE: 300 } });
+    expect(getEffectiveAntragstypen(ma)).toEqual(['DS']);
+  });
+
+  it('Override schlaegt Vorbelegung UND Kontingent', () => {
+    const ma = makeMa({
+      antragstypUeberschreibung: ['DL'],
+      antragstypBevorzugt: ['DS'],
+      jahresKapazitaetProTyp: { FuE: 300 },
+    });
+    expect(getEffectiveAntragstypen(ma)).toEqual(['DL']);
+  });
+
+  it('weder Vorbelegung noch Kontingent → null (Backwards-Kompat)', () => {
+    expect(getEffectiveAntragstypen(makeMa())).toBeNull();
+  });
+});
+
+describe('matchesAntragstyp — abgeleiteter Filter (v2.60)', () => {
+  it('MA mit nur-FuE-Kontingent: FuE-Antrag true, DS-Antrag false', () => {
+    const ma = makeMa({ jahresKapazitaetProTyp: { FuE: 300 } });
+    expect(matchesAntragstyp(makeAntrag(3), ma)).toBe(true);   // FuE
+    expect(matchesAntragstyp(makeAntrag(5), ma)).toBe(false);  // DS — nicht im Kontingent
+  });
+
+  it('MA ohne Kontingent + ohne Praeferenz → weiterhin alle erlaubt', () => {
+    const ma = makeMa();
+    expect(matchesAntragstyp(makeAntrag(5), ma)).toBe(true);
+    expect(matchesAntragstyp(makeAntrag(9), ma)).toBe(true);
+  });
+});
+
+describe('getAntragstypHerkunft (v2.60)', () => {
+  it('override / bevorzugt / abgeleitet / keine', () => {
+    expect(getAntragstypHerkunft(makeMa({ antragstypUeberschreibung: ['FuE'] }))).toBe('override');
+    expect(getAntragstypHerkunft(makeMa({ antragstypBevorzugt: ['DS'] }))).toBe('bevorzugt');
+    expect(getAntragstypHerkunft(makeMa({ jahresKapazitaetProTyp: { FuE: 100 } }))).toBe('abgeleitet');
+    expect(getAntragstypHerkunft(makeMa())).toBe('keine');
   });
 });
 

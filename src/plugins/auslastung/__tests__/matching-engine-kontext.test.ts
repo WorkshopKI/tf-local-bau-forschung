@@ -17,6 +17,10 @@ function makeAntrag(az: string, fields: Partial<Antrag> = {}): Antrag {
     programm_id: 'p1',
     _field_sources: {},
     _updated_at: new Date().toISOString(),
+    // Default-Antragstyp FuE (vb_phase=3) — passt zum FuE-Kontingent von
+    // `makeMa`, damit der v2.60-Antragstyp-Filter diese Kontext-/Breakdown-
+    // Fixtures nicht ausschliesst (Override via fields moeglich).
+    vb_phase: 3,
     ...fields,
   } as Antrag;
 }

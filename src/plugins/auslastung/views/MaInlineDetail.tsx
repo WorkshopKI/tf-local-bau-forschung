@@ -22,7 +22,7 @@ import { KategoriePill } from '../components/KategoriePill';
 import { AutoTagToggleWand } from '../components/AutoTagToggleWand';
 import { TechChipInput } from '../components/TechChipInput';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket, type UeberKategorie } from '../types';
-import { hasPlOverride } from '../services/antragstyp-praeferenz';
+import { deriveAntragstypenFromKontingent, hasPlOverride } from '../services/antragstyp-praeferenz';
 import type { AuslastungVerbund, MaQuartalsAuslastung } from '../services/quartals-auslastung';
 import { computeKapazitaetProTyp } from '../services/kapazitaet-pro-typ';
 import type { MaAltlastBucket } from '../services/altlast';
@@ -418,6 +418,26 @@ function EditTab({ ma, removable, onSaved }: {
               — es hat im Matching Vorrang vor dieser Vorbelegung.
             </p>
           )}
+          {antragstypen.size === 0 && !hasPlOverride(ma) && (() => {
+            const abgeleitet = deriveAntragstypenFromKontingent(ma);
+            if (!abgeleitet) return null;
+            return (
+              <p className="text-[10.5px] leading-snug text-[var(--tf-text-tertiary)] flex flex-wrap items-center gap-1.5">
+                <span>
+                  Automatisch aus Stunden-Kontingent: <strong>{abgeleitet.join(', ')}</strong>
+                  {' '}— greift, solange keine Vorbelegung gesetzt ist.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAntragstypen(new Set(abgeleitet))}
+                  className="px-1.5 py-0.5 rounded cursor-pointer"
+                  style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
+                >
+                  Übernehmen
+                </button>
+              </p>
+            );
+          })()}
         </FormRow>
       </div>
 

@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket } from '../types';
-import { getEffectiveAntragstypen, hasPlOverride } from '../services/antragstyp-praeferenz';
+import { getAntragstypHerkunft, getEffectiveAntragstypen, hasPlOverride } from '../services/antragstyp-praeferenz';
 
 interface Props {
   ma: AnonymerMitarbeiter;
@@ -24,7 +24,9 @@ export function AntragstypOverrideCell({ ma, onSave }: Props): React.ReactElemen
   const overrideAktiv = hasPlOverride(ma);
   const bevorzugt = ma.antragstypBevorzugt ?? [];
 
-  const label = effective === null ? 'Alle' : effective.join(', ');
+  const label = effective === null
+    ? 'Alle'
+    : effective.join(', ') + (getAntragstypHerkunft(ma) === 'abgeleitet' ? ' (aus Kontingent)' : '');
   const [draft, setDraft] = useState<AntragstypBucket[]>(() => ma.antragstypUeberschreibung ?? []);
 
   const saveAction = useAsyncAction(async () => {
