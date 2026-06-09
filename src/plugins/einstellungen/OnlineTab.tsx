@@ -7,12 +7,12 @@
  * solange der Tab offen ist. Serverless: kein Echtzeit-Presence, sondern
  * „zuletzt aktiv vor X Min".
  */
-import { useEffect, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { RefreshCw, FolderOpen } from 'lucide-react';
 import { Button, SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { getUserFoldersRootHandle } from '@/core/services/infrastructure/smb-handle';
+import { getUserFoldersRootHandle, pickAndStoreUserFoldersRootHandle } from '@/core/services/infrastructure/smb-handle';
 import { collectHeartbeats, type OnlineUser } from '@/core/services/presence';
 import { formatRelativeTime } from '@/components/feedback';
 
@@ -24,6 +24,17 @@ export function OnlineTab(): React.ReactElement {
   const [rootMissing, setRootMissing] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
+  const applyList = useCallback((list: OnlineUser[]) => {
+    // Online zuerst, dann nach Aktualitaet absteigend.
+    list.sort((a, b) =>
+      Number(b.online) - Number(a.online) ||
+      Date.parse(b.lastActive) - Date.parse(a.lastActive));
+    setUsers(list);
+    setLoaded(true);
+  }, []);
+
+  // Auto-/Manuell-Refresh: liest NUR den bestehenden Handle — KEIN Picker (der
+  // FSAPI-Ordner-Dialog darf ausschliesslich aus einer echten Klick-Geste kommen).
   const load = useAsyncAction(async () => {
     const root = await getUserFoldersRootHandle(storage.idb);
     if (!root) {
@@ -33,13 +44,19 @@ export function OnlineTab(): React.ReactElement {
       return;
     }
     setRootMissing(false);
-    const list = await collectHeartbeats(root);
-    // Online zuerst, dann nach Aktualitaet absteigend.
-    list.sort((a, b) =>
-      Number(b.online) - Number(a.online) ||
-      Date.parse(b.lastActive) - Date.parse(a.lastActive));
-    setUsers(list);
-    setLoaded(true);
+    applyList(await collectHeartbeats(root));
+  });
+
+  // Erstverbindung: oeffnet den Ordner-Picker (nur im Klick-Gesture) und sammelt
+  // dann ein. Gespiegelt von MaListSection „Profile einsammeln".
+  const connect = useAsyncAction(async () => {
+    const res = await pickAndStoreUserFoldersRootHandle(storage.idb);
+    if (!res.ok) {
+      if (res.reason === 'aborted') return;
+      throw new Error(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
+    }
+    setRootMissing(false);
+    applyList(await collectHeartbeats(res.handle));
   });
 
   useEffect(() => {
@@ -75,11 +92,23 @@ export function OnlineTab(): React.ReactElement {
       )}
 
       {rootMissing && loaded && (
-        <div className="text-[13px] text-[var(--tf-text-secondary)] rounded-[var(--tf-radius)] px-3 py-3"
+        <div className="rounded-[var(--tf-radius)] px-4 py-4 space-y-3"
           style={{ border: '0.5px solid var(--tf-border)' }}>
-          Kein Zugriff auf die Benutzer-Ordner. Bitte unter{' '}
-          <span className="text-[var(--tf-text)]">Einstellungen → Speicher</span> den
-          Benutzer-Ordner-Root verbinden.
+          <p className="text-[13px] text-[var(--tf-text-secondary)] max-w-prose">
+            Noch nicht verbunden. Wähle den{' '}
+            <span className="text-[var(--tf-text)]">übergeordneten Ordner mit den
+            persönlichen Ordnern aller Teammitglieder</span> — das Verzeichnis, in dem
+            die Ordner der Kolleg:innen liegen. Daraus liest die App den Online-Status
+            (nur Lesezugriff, einmalig). Es ist derselbe Ordner wie für „Profile
+            einsammeln" im Auslastung-Modul.
+          </p>
+          {connect.error && (
+            <p className="text-[12px] text-[var(--tf-danger-text)]">{connect.error}</p>
+          )}
+          <Button variant="primary" size="sm" icon={FolderOpen} loading={connect.busy}
+            onClick={() => connect.run()}>
+            Benutzer-Ordner verbinden
+          </Button>
         </div>
       )}
 
