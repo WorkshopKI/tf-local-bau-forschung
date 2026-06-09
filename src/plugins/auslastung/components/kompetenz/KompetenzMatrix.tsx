@@ -139,7 +139,7 @@ export function KompetenzMatrix({ model, schema }: Props): React.ReactElement {
         <RevealBar hover={model.hover} farbeByUeber={farbeByUeber} />
         {highlight && <style dangerouslySetInnerHTML={{ __html: buildHoverCss(highlight) }} />}
         <div ref={wrapRef} className="km-wrap" onMouseOver={handleOver} onMouseLeave={handleLeave}>
-          <table className="km-table">
+          <table className="km-table" style={{ width: geometry.totalWidth }}>
             <colgroup>
               {geometry.cols.map(c => <col key={c.key} style={{ width: c.width }} />)}
             </colgroup>

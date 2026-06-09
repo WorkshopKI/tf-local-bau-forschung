@@ -16,12 +16,12 @@ import type { SortCol, SortState } from '../../hooks/useKompetenzMatrixModel';
 
 /** Display-Kürzung einzelner Band-Labels für die dichte Matrix — rein
  *  visuell, ändert NICHT den Überkategorie-Namen aus der Config (der wird in
- *  Matching/Klassifizierung/anderen Tabs voll gebraucht). NM hat nur EINE
- *  Unterkategorie; das volle "Naturwissenschaftliche Methoden" bläht die
- *  schmale Spalte sonst stark auf. */
-const BAND_LABEL_OVERRIDE: Partial<Record<string, string>> = {
-  NM: 'Naturw. Methoden',
-};
+ *  Matching/Klassifizierung/anderen Tabs voll gebraucht). Ein-Unterkategorie-
+ *  Gruppen (z.B. NM) zeigen unten gar kein Label-Text, nur den `gtag`-Chip —
+ *  das volle Label bläht die schmale Spalte sonst auf und würde ohnehin
+ *  abgeschnitten (voller Name bleibt in Reveal-Leiste + `title`). Der Override
+ *  bleibt für etwaige lange Mehr-Spalten-Labels nutzbar. */
+const BAND_LABEL_OVERRIDE: Partial<Record<string, string>> = {};
 
 interface Props {
   geometry: Geometry;
@@ -66,8 +66,9 @@ export function MatrixHeader({ geometry, farbeByUeber, sort, onSort }: Props): R
             style={katVars(farbeByUeber[g.ueberId])}
             colSpan={g.span}
             data-gi={g.ueberId}
+            title={g.label}
           >
-            <span className="km-gtag">{g.ueberId}</span>{BAND_LABEL_OVERRIDE[g.ueberId] ?? g.label}
+            <span className="km-gtag">{g.ueberId}</span>{g.span === 1 ? null : (BAND_LABEL_OVERRIDE[g.ueberId] ?? g.label)}
           </th>
         ))}
 
