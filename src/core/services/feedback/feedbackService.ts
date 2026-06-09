@@ -207,7 +207,7 @@ export async function updateFeedback(
   id: string,
   updates: Partial<Pick<
     FeedbackItem,
-    'kurator_status' | 'kurator_notes' | 'kurator_priority' | 'generated_prompt'
+    'kurator_status' | 'kurator_notes' | 'kurator_response' | 'kurator_priority' | 'generated_prompt'
     | 'category' | 'structured' | 'attachments'
     | 'llm_summary' | 'llm_classification' | 'user_confirmed'
     | 'is_faq' | 'faq_answer' | 'faq_keywords' | 'faq_ask_count'

@@ -1,7 +1,7 @@
 // Detail-Panel: Metadaten, Admin-Felder (2×2 Grid), FAQ, Claude-Code-Prompt.
 
 import { useEffect, useState } from 'react';
-import { Check, Copy, Download, FileText, Trash2, TrendingUp, Wand2, X } from 'lucide-react';
+import { Check, Copy, Download, FileText, MessageSquare, Trash2, TrendingUp, Wand2, X } from 'lucide-react';
 import {
   deleteFeedback,
   generateClaudeCodePrompt,
@@ -30,6 +30,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
   const [status, setStatus] = useState<FeedbackStatus>('neu');
   const [priority, setPriority] = useState(3);
   const [notes, setNotes] = useState('');
+  const [response, setResponse] = useState('');
   const [isFaq, setIsFaq] = useState(false);
   const [faqAnswer, setFaqAnswer] = useState('');
   const [faqKeywords, setFaqKeywords] = useState('');
@@ -62,6 +63,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
     setStatus(ticket.kurator_status);
     setPriority(ticket.kurator_priority ?? 3);
     setNotes(ticket.kurator_notes ?? '');
+    setResponse(ticket.kurator_response ?? '');
     setIsFaq(!!ticket.is_faq);
     setFaqAnswer(ticket.faq_answer ?? '');
     setFaqKeywords((ticket.faq_keywords ?? []).join(', '));
@@ -83,6 +85,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
       const keywords = faqKeywords.split(',').map(k => k.trim()).filter(Boolean);
       await updateFeedback(storage, ticket.id, {
         kurator_status: status, kurator_priority: priority, kurator_notes: notes || undefined,
+        kurator_response: response.trim() || undefined,
         generated_prompt: prompt || undefined, is_faq: isFaq,
         faq_answer: isFaq ? faqAnswer : undefined, faq_keywords: isFaq ? keywords : undefined,
         category: category || undefined,
@@ -223,10 +226,19 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
         ) : <div />}
       </div>
 
-      {/* Notizen */}
+      {/* Notizen (intern) */}
       <div>
-        <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] font-medium mb-0.5">Notizen</p>
+        <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] font-medium mb-0.5">Notizen <span className="normal-case tracking-normal text-[var(--tf-text-tertiary)]">(intern)</span></p>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Optional…" className={inputClass + ' resize-none'} style={inputStyle} />
+      </div>
+
+      {/* Öffentliche Antwort — für alle Nutzer auf dem Board sichtbar */}
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] font-medium mb-0.5 inline-flex items-center gap-1">
+          <MessageSquare size={11} className="text-[var(--tf-info-text)]" />
+          Öffentliche Antwort <span className="normal-case tracking-normal text-[var(--tf-text-tertiary)]">(für alle auf dem Board sichtbar)</span>
+        </p>
+        <textarea value={response} onChange={e => setResponse(e.target.value)} rows={2} placeholder="Antwort an alle Nutzer…" className={inputClass + ' resize-none'} style={inputStyle} />
       </div>
 
       {/* FAQ */}

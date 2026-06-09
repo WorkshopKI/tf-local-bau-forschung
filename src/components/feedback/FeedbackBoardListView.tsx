@@ -101,6 +101,17 @@ function buildColumns(config: FeedbackConfig): SortableColumn<FeedbackItem>[] {
       },
     },
     {
+      key: 'antwort', label: 'Antwort', defaultVisible: true, sortable: true, filterable: true, width: 220, wrap: true,
+      accessor: t => t.kurator_response?.trim() ?? '',
+      filterAccessor: t => (t.kurator_response?.trim() ? 'beantwortet' : '(offen)'),
+      render: t => {
+        const response = t.kurator_response?.trim();
+        return response
+          ? <span className="text-[11.5px] text-[var(--tf-text)] whitespace-pre-wrap">{response}</span>
+          : <span className="text-[11px] text-[var(--tf-text-tertiary)]">—</span>;
+      },
+    },
+    {
       key: 'status', label: 'Status', defaultVisible: true, sortable: true, filterable: true, width: 120, wrap: false,
       accessor: t => STATUS_LABELS[t.kurator_status],
       render: t => (

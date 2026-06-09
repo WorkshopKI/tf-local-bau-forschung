@@ -135,6 +135,9 @@ export interface FeedbackItem {
   kurator_status: FeedbackStatus;
   kurator_priority?: number;
   kurator_notes?: string;
+  /** Öffentliche Antwort des Kurators/devs — wird ALLEN Usern auf dem Board angezeigt
+   *  (im Gegensatz zu kurator_notes, das intern bzw. nur bei „abgelehnt" sichtbar ist). */
+  kurator_response?: string;
   /** @deprecated Legacy-Alias vor v1.9 — wird beim Laden auf kurator_status gemappt. */
   admin_status?: FeedbackStatus;
   /** @deprecated */ admin_priority?: number;

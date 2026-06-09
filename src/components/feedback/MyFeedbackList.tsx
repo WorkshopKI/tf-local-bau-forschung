@@ -66,6 +66,19 @@ export function MyFeedbackList(): React.ReactElement {
                     Hinweis: {item.kurator_notes}
                   </p>
                 )}
+                {item.kurator_response?.trim() && (
+                  <div
+                    className="mt-1.5 p-2 rounded-[var(--tf-radius)] bg-[var(--tf-info-bg)]"
+                    style={{ borderLeft: '2px solid var(--tf-info-text)' }}
+                  >
+                    <p className="text-[9.5px] uppercase tracking-[0.06em] font-medium text-[var(--tf-info-text)] mb-0.5">
+                      Antwort vom Team
+                    </p>
+                    <p className="text-[11px] text-[var(--tf-text)] whitespace-pre-wrap leading-snug">
+                      {item.kurator_response.trim()}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

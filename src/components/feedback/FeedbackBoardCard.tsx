@@ -1,7 +1,7 @@
 // Einzelne Ticket-Karte im öffentlichen Board (kompakte Variante).
 // Badges inline in Titelzeile, vereinfachte Sponsor-Buttons, kein Sponsoren-Aufklapper.
 
-import { User } from 'lucide-react';
+import { MessageSquare, User } from 'lucide-react';
 import { getSponsoringProgress, isSponsorableCategory, isSponsoringOpen } from '@/core/services/feedback';
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import {
@@ -26,6 +26,7 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
   const Icon = getLucideIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const summary = ticket.llm_summary || ticket.text || '–';
   const author = feedbackAuthorLabel(ticket);
+  const response = ticket.kurator_response?.trim();
   // Sponsorbar = Feature (idea) ODER UX — beide bekommen den Sponsoring-Block.
   const isFeature = isSponsorableCategory(ticket.category);
   const isBug = ticket.category === 'problem';
@@ -114,6 +115,22 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
         <p className="text-[11px] text-[var(--tf-text-tertiary)] italic">
           Aufwand-Schätzung ausstehend — Sponsoring noch nicht möglich.
         </p>
+      )}
+
+      {/* Öffentliche Antwort vom Team (vom Kurator/dev gepflegt, für alle sichtbar) */}
+      {response && (
+        <div
+          className="mt-1 p-2.5 rounded-[var(--tf-radius)] bg-[var(--tf-info-bg)]"
+          style={{ borderLeft: '2px solid var(--tf-info-text)' }}
+        >
+          <p className="flex items-center gap-1 mb-0.5 text-[10.5px] font-medium text-[var(--tf-info-text)]">
+            <MessageSquare size={11} className="shrink-0" />
+            Antwort vom Team
+          </p>
+          <p className="text-[12px] text-[var(--tf-text)] whitespace-pre-wrap leading-snug">
+            {response}
+          </p>
+        </div>
       )}
     </div>
   );
