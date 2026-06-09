@@ -39,13 +39,14 @@ Sechs Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an 
 **Fix-Pattern:**
 - Mehrere Dateien am selben Ort → **EIN `FileSystemDirectoryHandle`**; Directory-Permission **kaskadiert** auf `dirHandle.getFileHandle(name)` → ein Prompt deckt alle ab (Kaskade ist nicht rekursiv: Dateien müssen direkt im Ordner liegen).
 - Den Re-Grant in einen **zweiten, sauberen Gesture** legen, in dem der Daten-Share schon granted ist — auf der pl der AppPasswordGate-Login. Dort NUR das gewünschte Handle re-granten (dedizierte Funktion, z.B. `refreshCsvSourceDirPermission`), NICHT `refreshAllPermissions` (sonst stiehlt der persönlich-Handle den Slot).
+- **Generalisierung (v2.55): Guided-Grant-Stepper.** Wenn N verschiedene Roots (verschiedene Pfade, keine gemeinsame Kaskade) re-granted werden müssen, ist „eine Freigabe pro Klick" der robuste Weg: beim Mount non-invasiv `queryPermission` (kein Gesture) → `listPendingGrants` liefert die ungranted Handles → der StartupScreen rendert pro Handle EINEN Klick-Schritt ([GuidedGrantSteps.tsx](../../src/core/components/GuidedGrantSteps.tsx)). Jeder Klick = ein `requestPermission` = ein zuverlässiger Prompt. Sind alle granted → `onReady()` ohne Klick (Warm-Start). Reihenfolge/Modi exakt wie `refreshAllPermissions` (Pitfall #25: Mode nur über `canWriteDatenShare`).
 - **Perf:** Eine Datei in einem Dir-Handle per Inhalt finden (alle Dateien lesen+parsen) ist auf SMB teuer. schemaId→Dateiname **lokal persistieren** (eigener, nicht-synchronisierter IDB-Key — kein Schema-Feld, das der Snapshot überschreibt), danach nur `getFileHandle(name)`.
 
-**Bekannter Rest-Bug (offen):** `SMB_HANDLE_PERSOENLICH` hat auf der pl dieselbe Starvation (bisher ohne sichtbaren Schaden, da IDB-cached). Bei persönlich-Schreibfehlern nach Neustart: gleiche Klasse, gleiche Lösung.
+**Rest-Bug `SMB_HANDLE_PERSOENLICH` — behoben in v2.55:** Der persönliche Ordner verhungerte bis v2.54 im StartupScreen-Gesture (Daten-Share fraß den Slot) und promptete deshalb zu einem zufälligen späteren Zeitpunkt. Seit dem Guided-Grant-Stepper ist er ein eigener Klick-Schritt → eigener Gesture → zuverlässiger Prompt in fester Reihenfolge (Daten-Share → persönlich → CSV-Quelle). Die kurator-**Post-Login-Eskalation** (`refreshAllPermissions({isKurator:true})` im AppPasswordGate) hat dieselbe Multi-Prompt-Starvation für User-Folders-Root + DMS-Sources noch ungelöst (vorbestehend, nicht pl-relevant) — bei Bedarf denselben Stepper-Ansatz anwenden.
 
-**⚠️ Dev reproduziert das oft NICHT** — Dev seedet CSV-Quellen aus Fixture-Blobs (kein echtes Handle in IDB). Handle-Bugs nur auf einem echten `file://`-Build mit real verknüpften Handles testen.
+**⚠️ Dev reproduziert das oft NICHT** — Dev seedet CSV-Quellen aus Fixture-Blobs (kein echtes Handle in IDB → Stepper-Scan = leer → Auto-Skip). Handle-Bugs nur auf einem echten `file://`-Build mit real verknüpften Handles testen.
 
-**Kanonische Datei:** [smb-handle.ts](../../src/core/services/infrastructure/smb-handle.ts) (`refreshAllPermissions`), [AppPasswordGate.tsx](../../src/core/AppPasswordGate.tsx).
+**Kanonische Datei:** [smb-handle.ts](../../src/core/services/infrastructure/smb-handle.ts) (`refreshAllPermissions`, `listPendingGrants`, `queryAllPermissions`, `grantPending`), [GuidedGrantSteps.tsx](../../src/core/components/GuidedGrantSteps.tsx), [StartupScreen.tsx](../../src/core/StartupScreen.tsx), [AppPasswordGate.tsx](../../src/core/AppPasswordGate.tsx).
 
 ---
 

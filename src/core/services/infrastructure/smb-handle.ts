@@ -631,6 +631,157 @@ export async function refreshCsvSourceDirPermission(
   }
 }
 
+/* --------------------------------------------------------------------------
+ * v2.55: Guided-Grant-Stepper — eine Freigabe pro User-Gesture (file://)
+ *
+ * Unter file:// zeigt Chrome pro User-Gesture nur EINEN Permission-Prompt;
+ * `refreshAllPermissions` fragt mehrere Handles sequenziell im selben Klick an
+ * → nur der erste promptet, der Rest verhungert still (siehe
+ * docs/architecture/recurring-bug-classes.md §2). Der StartupScreen-Stepper
+ * gibt stattdessen pro Klick GENAU EIN Handle frei. Diese Helfer liefern die
+ * Liste der noch ausstehenden Grants (non-invasiv) und führen den Einzel-Grant
+ * aus.
+ * -------------------------------------------------------------------------- */
+
+export type PendingGrantSlot = 'daten-share' | 'persoenlich' | 'csv-source';
+
+/**
+ * Ein noch ausstehender Permission-Grant: Handle liegt in IDB, ist aber für
+ * seinen benötigten Mode noch nicht `granted`. Der Stepper rendert pro Eintrag
+ * genau einen Klick-Schritt.
+ */
+export interface PendingGrant {
+  slot: PendingGrantSlot;
+  handle: FsDirHandle;
+  mode: 'read' | 'readwrite';
+  /** Menschlich lesbares Label für den Stepper-Button (z.B. „Datenordner"). */
+  label: string;
+}
+
+async function isHandleGranted(
+  h: FileSystemDirectoryHandle | undefined,
+  mode: 'read' | 'readwrite',
+): Promise<boolean> {
+  if (!h) return false;
+  try {
+    return (await (h as FsDirHandle).queryPermission({ mode })) === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Non-invasiver Scan (nur `queryPermission`, kein Gesture): liefert die Handles,
+ * die in IDB liegen, aber für ihren benötigten Mode noch NICHT `granted` sind —
+ * als geordnete Klick-Schritte für den Guided-Stepper (Daten-Share → persönlich
+ * → CSV-Quelle).
+ *
+ * Mode-/Gate-Logik identisch zu `refreshAllPermissions` (Pitfall #25: Mode nur
+ * über `canWriteDatenShare`). Kurator-only-Slots (User-Folders-Root, DMS) sind
+ * bewusst NICHT enthalten — die laufen weiter über die Post-Login-Eskalation im
+ * AppPasswordGate (`isKurator` ist beim StartupScreen-Pre-Login false).
+ */
+export async function listPendingGrants(
+  idb: IDBStore,
+  opts: { isKurator: boolean },
+): Promise<PendingGrant[]> {
+  const map = await readAll(idb);
+  const pending: PendingGrant[] = [];
+
+  const datenShare = map[SMB_HANDLE_DATEN_SHARE] ?? map[SMB_HANDLE_LEGACY_TEST_PROGRAMM];
+  const dsMode: 'read' | 'readwrite' = canWriteDatenShare(opts.isKurator) ? 'readwrite' : 'read';
+  if (datenShare && !(await isHandleGranted(datenShare, dsMode))) {
+    pending.push({ slot: 'daten-share', handle: datenShare as FsDirHandle, mode: dsMode, label: 'Datenordner' });
+  }
+
+  const persoenlich = map[SMB_HANDLE_PERSOENLICH];
+  if (persoenlich && !(await isHandleGranted(persoenlich, 'readwrite'))) {
+    pending.push({ slot: 'persoenlich', handle: persoenlich as FsDirHandle, mode: 'readwrite', label: 'Persönlicher Ordner' });
+  }
+
+  if (isKuratorMenusEnabled() || isCsvAutoRefreshEnabled()) {
+    const csvDir = await idb.get<FileSystemDirectoryHandle>(CSV_SOURCE_DIR_HANDLE_IDB_KEY);
+    if (csvDir && !(await isHandleGranted(csvDir, 'read'))) {
+      pending.push({ slot: 'csv-source', handle: csvDir as FsDirHandle, mode: 'read', label: 'CSV-Quelle' });
+    }
+  }
+
+  return pending;
+}
+
+/**
+ * Gibt GENAU EIN Pending-Handle frei. MUSS aus einem User-Gesture-Handler
+ * laufen → genau ein Browser-Prompt. Best-effort: `'denied'` bei Fehler.
+ */
+export async function grantPending(grant: PendingGrant): Promise<PermState> {
+  try {
+    return await grant.handle.requestPermission({ mode: grant.mode });
+  } catch {
+    return 'denied';
+  }
+}
+
+/**
+ * Non-invasiver Spiegel von `refreshAllPermissions`: liest pro Slot nur
+ * `queryPermission` (kein User-Gesture) und liefert denselben
+ * `RefreshAllResult`. Gedacht, um nach dem Guided-Stepper den ConnectionState
+ * (`applyRefreshResult`) zu aktualisieren, ohne erneut zu prompten.
+ */
+export async function queryAllPermissions(
+  idb: IDBStore,
+  opts: { isKurator: boolean },
+): Promise<RefreshAllResult> {
+  const map = await readAll(idb);
+  const result: RefreshAllResult = {
+    datenShare: 'missing',
+    persoenlich: 'missing',
+    userFoldersRoot: 'missing',
+    dmsSources: {},
+  };
+
+  const datenShare = map[SMB_HANDLE_DATEN_SHARE] ?? map[SMB_HANDLE_LEGACY_TEST_PROGRAMM];
+  if (datenShare) {
+    const mode = canWriteDatenShare(opts.isKurator) ? 'readwrite' : 'read';
+    try {
+      result.datenShare = await (datenShare as FsDirHandle).queryPermission({ mode });
+    } catch {
+      result.datenShare = 'denied';
+    }
+  }
+
+  const persoenlich = map[SMB_HANDLE_PERSOENLICH];
+  if (persoenlich) {
+    try {
+      result.persoenlich = await (persoenlich as FsDirHandle).queryPermission({ mode: 'readwrite' });
+    } catch {
+      result.persoenlich = 'denied';
+    }
+  }
+
+  if (opts.isKurator) {
+    const userFolders = map[SMB_HANDLE_USER_FOLDERS_ROOT];
+    if (userFolders) {
+      try {
+        result.userFoldersRoot = await (userFolders as FsDirHandle).queryPermission({ mode: 'read' });
+      } catch {
+        result.userFoldersRoot = 'denied';
+      }
+    }
+
+    for (const key of Object.keys(map)) {
+      if (!key.startsWith(DMS_SOURCE_SLOT_PREFIX)) continue;
+      const sourceId = key.slice(DMS_SOURCE_SLOT_PREFIX.length);
+      try {
+        result.dmsSources[sourceId] = await (map[key] as FsDirHandle).queryPermission({ mode: 'read' });
+      } catch {
+        result.dmsSources[sourceId] = 'denied';
+      }
+    }
+  }
+
+  return result;
+}
+
 /**
  * v2.0 Migration-Check: Wenn ein Nicht-Kurator einen Daten-Share-Handle mit
  * `readwrite`-Mode in IDB hat, sollte er beim Start einen Re-Pick mit

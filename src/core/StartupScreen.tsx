@@ -10,14 +10,18 @@
  *  - Default: "Starten"-Button → refreshAllPermissions() in einer User-Gesture-Kette.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Check, ClipboardCopy, FolderOpen, ShieldCheck } from 'lucide-react';
 import { Button } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
+import { GuidedGrantSteps } from '@/core/components/GuidedGrantSteps';
 import {
   pickAndStoreDatenShareHandle,
   refreshAllPermissions,
+  listPendingGrants,
+  queryAllPermissions,
   type RefreshAllResult,
+  type PendingGrant,
 } from '@/core/services/infrastructure/smb-handle';
 import { connectDataShare } from '@/core/services/infrastructure/connect-data-share';
 import { useConnectionState } from '@/core/services/connection-status';
@@ -49,6 +53,46 @@ export function StartupScreen({
   const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
   const fixedPath = dataConfig.fixedDataSharePath;
   const expectedName = dataConfig.expectedFolderName;
+
+  // v2.55: Guided-Grant-Stepper für den Default-Zweig (kein Initial-Pick/
+  // Downgrade). Beim Mount non-invasiv prüfen, welche Handles noch eine
+  // Freigabe brauchen (listPendingGrants). Sind alle granted → sofort
+  // durchstarten (Warm-Start). Sonst Schritt-für-Schritt freigeben, ein
+  // Prompt pro Klick (file://-„ein-Prompt-pro-Gesture", recurring-bug §2).
+  const [stepperPending, setStepperPending] = useState<PendingGrant[] | null>(null);
+  const [scanFailed, setScanFailed] = useState(false);
+  const scanStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (needsInitialPick || needsDowngrade) return;
+    if (scanStartedRef.current) return;
+    scanStartedRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const pending = await listPendingGrants(storage.idb, { isKurator });
+        if (cancelled) return;
+        if (pending.length === 0) {
+          onReady(); // Warm-Start: nichts anzufordern → direkt weiter, kein Klick.
+          return;
+        }
+        setStepperPending(pending);
+      } catch {
+        if (!cancelled) setScanFailed(true); // Fallback auf den Legacy-„Starten"-Button.
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsInitialPick, needsDowngrade]);
+
+  const handleStepperComplete = async (): Promise<void> => {
+    try {
+      applyRefreshResult(await queryAllPermissions(storage.idb, { isKurator }));
+    } catch {
+      /* best-effort — OfflineBanner kommuniziert ggf. den Zustand. */
+    }
+    onReady();
+  };
 
   const copyPath = async (): Promise<void> => {
     if (!fixedPath) return;
@@ -192,7 +236,7 @@ export function StartupScreen({
               Datenordner neu verbinden
             </Button>
           </div>
-        ) : (
+        ) : scanFailed ? (
           <>
             <p className="text-[12.5px] text-[var(--tf-text-tertiary)] leading-relaxed mb-5">
               Beim Start kann der Browser einmalig nach Erlaubnis für den Datenordner
@@ -204,6 +248,12 @@ export function StartupScreen({
               Starten
             </Button>
           </>
+        ) : stepperPending ? (
+          <GuidedGrantSteps pending={stepperPending} onComplete={handleStepperComplete} />
+        ) : (
+          <p className="text-[12.5px] text-[var(--tf-text-tertiary)] leading-relaxed">
+            Berechtigungen werden geprüft…
+          </p>
         )}
 
         {error && (

@@ -50,12 +50,14 @@ export function AppPasswordGate({ onSuccess }: AppPasswordGateProps): React.Reac
       return;
     }
     setAppGateSession();
-    // v2.27 (pl): den sauberen Login-Gesture nutzen, um das CSV-Quellen-Ordner-
-    // Handle neu freizugeben. Der Daten-Share wurde im vorherigen StartupScreen-
-    // Gesture schon gewährt → hier ist der einzige Prompt-Slot frei für den
-    // Ordner-Prompt; ein Re-Grant deckt via Kaskade alle CSVs ab. BEWUSST nicht
-    // refreshAllPermissions — das würde den persoenlich-Handle (pl hat einen) vor
-    // dem Ordner prompten und den Slot stehlen (one-prompt-per-gesture).
+    // v2.55: Der CSV-Quellen-Ordner wird seit dem Guided-Grant-Stepper (siehe
+    // StartupScreen → GuidedGrantSteps) bereits VOR dem Login als eigener
+    // Klick-Schritt freigegeben. Dieser Aufruf bleibt als guarded Fallback —
+    // `refreshCsvSourceDirPermission` ist queryPermission-gated und no-op't,
+    // wenn der Stepper schon granted hat (kein Doppel-Prompt). Greift nur, wenn
+    // der CSV-Ordner erst NACH dem Startup-Scan verknüpft wurde. BEWUSST nicht
+    // refreshAllPermissions (das würde den persoenlich-Handle vor dem Ordner
+    // prompten und den Slot stehlen — one-prompt-per-gesture, recurring-bug §2).
     if (!isKuratorMenusEnabled() && isCsvAutoRefreshEnabled()) {
       try { await refreshCsvSourceDirPermission(storage.idb); } catch { /* best-effort */ }
     }
