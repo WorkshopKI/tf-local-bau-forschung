@@ -2,6 +2,15 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.61.2 — Passwort-Wall vor dem Berechtigungs-Stepper (pl/kurator) (Juni 2026)
+
+PATCH-Bump v2.61.2: Beim pl-Neustart kam die Passwort-Abfrage (AppPasswordGate) **nach** den Browser-Berechtigungs-Prompts (dem Guided-Stepper) — erst anmelden, dann Ordner freigeben ist die erwartete (und sicherere) Reihenfolge. Ursache: die Render-Reihenfolge war `Onboarding → Welcome → StartupScreen(Stepper) → AppPasswordGate → …`, und `decideAppGate()` lief erst NACH dem StartupScreen.
+
+- **[App.tsx](src/core/App.tsx):** `showAppGate` wird jetzt beim Init entschieden (pur: `runtimeConfig.auth.required` + `getAppGateSession()`), und der `AppPasswordGate`-Branch rendert **vor** Welcome/Startup (`Onboarding → AppGate → Welcome → Startup → MaGate → App`). `decideAppGate()` aus `handleStartupReady` entfernt (jetzt im Init). Der v2.27-Grund (CSV im sauberen Gate-Gesture nach dem Daten-Share) ist mit dem Guided-Stepper (ein Prompt pro Klick) hinfällig.
+- **[AppPasswordGate.tsx](src/core/AppPasswordGate.tsx):** pl-CSV-Re-Grant entfernt — der Login macht für pl keine Permission-Arbeit mehr; der nachgelagerte Stepper gibt Datenordner + persönlich + CSV frei. kurator-Eskalation (`is_kurator` + `activateSynthetic` + `refreshAllPermissions`) unverändert.
+
+Verhalten: **pl** = Passwort (kein Prompt) → Stepper (3 Ordner) → App. **kurator** = Passwort (Daten-Share-Prompt im Login-Gesture) → Stepper (persönlich, CSV); Nebeneffekt: der „nur lesend"-Downgrade-Pre-Login-Fall (Pitfall #25) entfällt, weil `is_kurator` beim Startup schon true ist. **prod** unverändert (Startup → MA-Login). **Dev reproduziert nur mit `auth.required`** — Echt-Test auf pl/kurator-`file://`-Build.
+
 ### v2.59.5 — „Einsammeln"-Buttons fangen verfallene Mitarbeiter-Ordner-Berechtigung ab (Juni 2026)
 
 PATCH-Bump v2.59.5: Nachzug zu v2.59.4 — dieselbe Permission-Lapse-Klasse auf dem **User-Folders-Root** in den zwei button-getriggerten Auslastung-Flows. „Profile einsammeln" ([MaListSection.tsx](src/plugins/auslastung/views/uebersicht/MaListSection.tsx)) und „Übernahme-Wünsche einsammeln" ([ZuweisungsCockpit.tsx](src/plugins/auslastung/views/ZuweisungsCockpit.tsx)) lasen ein **bestehendes** Handle direkt mit `collectUserProfiles` / `collectUebernahmeWuensche`, **ohne** vorher `requestPermission` zu rufen. Ist die Read-Permission unter `file://` nach Neustart verfallen, wirft das Verzeichnis-Iterieren `NotAllowedError` → der rohe Fehler erschien statt einer Re-Abfrage (obwohl ein Klick-Gesture vorliegt, das prompten dürfte).

@@ -113,6 +113,11 @@ function AppProviders({
                   await profileValue.reloadProfile();
                   setShowOnboarding(false);
                 }} />
+              ) : showAppGate ? (
+                // v2.61.2: Rollen-Passwort-Wall VOR dem StartupScreen/Stepper — erst
+                // anmelden, dann Ordner freigeben (keine Berechtigungs-Prompts vor
+                // der Auth-Wall). Der Stepper läuft nach erfolgreichem Login.
+                <AppPasswordGate onSuccess={() => setShowAppGate(false)} />
               ) : showWelcome ? (
                 <WelcomeScreen onComplete={() => setShowWelcome(false)} isKurator={isKurator} />
               ) : showStartup ? (
@@ -122,8 +127,6 @@ function AppProviders({
                   needsInitialPick={needsInitialPick}
                   onReady={onStartupReady}
                 />
-              ) : showAppGate ? (
-                <AppPasswordGate onSuccess={() => setShowAppGate(false)} />
               ) : showMaLoginGate ? (
                 <MaLoginGate onSuccess={() => setShowMaLoginGate(false)} />
               ) : (
@@ -367,6 +370,11 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         aiBridge.switchProvider(aiConfig);
       }
 
+      // v2.61.2: Rollen-Passwort-Wall (pl/kurator) bereits beim Init entscheiden,
+      // damit sie VOR dem StartupScreen/Stepper rendert (erst anmelden, dann Ordner
+      // freigeben). Pur — nur auth-Config + sessionStorage, keine Handle-Abhängigkeit.
+      setShowAppGate(runtimeConfig.auth?.required === true && !getAppGateSession());
+
       setReady(true);
       hideLoader();
     }).catch(err => {
@@ -385,16 +393,9 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
     });
   }, [storage, aiBridge, refreshHandleGate]);
 
-  // v2.16: Entscheidet NACH dem StartupScreen ueber die Rollen-Passwort-Wall
-  // (pl + kurator). Build-time eingebetteter Verifier (`runtimeConfig.auth`) —
-  // keine SMB-Abhaengigkeit, unbedingte Wall:
-  //  - kein auth.required → keine Wall.
-  //  - sessionStorage-Flag (Same-Tab seit Login) → keine Wall.
-  //  - sonst → Pflicht-Login-Wall (AppPasswordGate). Loest v2.10 decideKuratorGate ab.
-  const decideAppGate = useCallback((): void => {
-    if (runtimeConfig.auth?.required !== true) { setShowAppGate(false); return; }
-    setShowAppGate(!getAppGateSession());
-  }, []);
+  // v2.16/v2.61.2: Die Rollen-Passwort-Wall (pl + kurator, `runtimeConfig.auth`)
+  // wird jetzt beim Init entschieden (siehe oben) — sie rendert VOR dem
+  // StartupScreen/Stepper. Kein eigener decideAppGate-Schritt nach dem Startup mehr.
 
   // v2.11: Entscheidet NACH dem StartupScreen ueber die MA-Login-Wall (prod).
   //  - Flag aus → keine Wall.
@@ -412,9 +413,8 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
 
   const handleStartupReady = useCallback(async (): Promise<void> => {
     setShowStartup(false);
-    decideAppGate();
     await decideMaGate();
-  }, [decideAppGate, decideMaGate]);
+  }, [decideMaGate]);
 
   const handleOnboardingComplete = useCallback(async () => {
     setShowOnboarding(false);

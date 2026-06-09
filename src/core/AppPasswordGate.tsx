@@ -26,9 +26,9 @@ import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { verifyAppPassword } from '@/core/services/infrastructure/app-password';
 import { setAppGateSession } from '@/core/hooks/useAppGateSession';
-import { refreshAllPermissions, refreshCsvSourceDirPermission } from '@/core/services/infrastructure/smb-handle';
+import { refreshAllPermissions } from '@/core/services/infrastructure/smb-handle';
 import { useConnectionState } from '@/core/services/connection-status';
-import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
+import { isKuratorMenusEnabled } from '@/config/feature-flags';
 import { runtimeConfig } from '@/config/runtime-config';
 
 interface AppPasswordGateProps {
@@ -50,17 +50,10 @@ export function AppPasswordGate({ onSuccess }: AppPasswordGateProps): React.Reac
       return;
     }
     setAppGateSession();
-    // v2.55: Der CSV-Quellen-Ordner wird seit dem Guided-Grant-Stepper (siehe
-    // StartupScreen → GuidedGrantSteps) bereits VOR dem Login als eigener
-    // Klick-Schritt freigegeben. Dieser Aufruf bleibt als guarded Fallback —
-    // `refreshCsvSourceDirPermission` ist queryPermission-gated und no-op't,
-    // wenn der Stepper schon granted hat (kein Doppel-Prompt). Greift nur, wenn
-    // der CSV-Ordner erst NACH dem Startup-Scan verknüpft wurde. BEWUSST nicht
-    // refreshAllPermissions (das würde den persoenlich-Handle vor dem Ordner
-    // prompten und den Slot stehlen — one-prompt-per-gesture, recurring-bug §2).
-    if (!isKuratorMenusEnabled() && isCsvAutoRefreshEnabled()) {
-      try { await refreshCsvSourceDirPermission(storage.idb); } catch { /* best-effort */ }
-    }
+    // v2.61.2: Die Gate läuft jetzt VOR dem StartupScreen/Stepper. Für pl ist hier
+    // KEINE Permission-Arbeit mehr nötig — der nachgelagerte Guided-Stepper gibt
+    // Datenordner + persönlich + CSV-Quelle Schritt-für-Schritt frei (ein Prompt
+    // pro Klick). Der frühere pl-CSV-Re-Grant entfällt damit.
     // Kurator-Variante: volle Eskalation (wie der v2.10-KuratorLoginGate).
     if (isKuratorMenusEnabled()) {
       // Menue-Sichtbarkeit freischalten (Gate in ShellLayout liest profile.is_kurator).
