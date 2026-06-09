@@ -42,7 +42,9 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
       <div className="flex items-start gap-2">
         <Icon size={14} className="mt-0.5 text-[var(--tf-text-secondary)] shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-[13.5px] text-[var(--tf-text)] font-medium leading-snug">
+          {/* Mehrfeld-Feedback (Frage\nAntwort\n\n…) zeilenweise + normal setzen,
+              kurze Einzeiler (Lob/LLM-Summary) behalten den fetten Titel-Look. */}
+          <p className={`text-[13.5px] text-[var(--tf-text)] leading-snug ${summary.includes('\n') ? 'whitespace-pre-wrap' : 'font-medium'}`}>
             {summary}
           </p>
           {author && (

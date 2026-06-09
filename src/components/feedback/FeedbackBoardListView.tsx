@@ -87,7 +87,7 @@ function buildColumns(config: FeedbackConfig): SortableColumn<FeedbackItem>[] {
     {
       key: 'titel', label: 'Titel', defaultVisible: true, sortable: true, width: 360,
       accessor: t => t.llm_summary || t.text || '',
-      render: t => <span className="text-[var(--tf-text)]">{t.llm_summary || t.text || '–'}</span>,
+      render: t => <span className="text-[var(--tf-text)] whitespace-pre-wrap">{t.llm_summary || t.text || '–'}</span>,
     },
     {
       key: 'von', label: 'Von', defaultVisible: true, sortable: true, filterable: true, width: 120, wrap: false,
