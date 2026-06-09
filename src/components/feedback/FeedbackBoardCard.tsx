@@ -29,7 +29,6 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
   const response = ticket.kurator_response?.trim();
   // Sponsorbar = Feature (idea) ODER UX — beide bekommen den Sponsoring-Block.
   const isFeature = isSponsorableCategory(ticket.category);
-  const isBug = ticket.category === 'problem';
   const hasEffort = !!ticket.effort_estimate;
   const progress = getSponsoringProgress(ticket, config);
   const open = isSponsoringOpen(ticket);
@@ -101,13 +100,6 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
           {/* Kompakte Sponsoring-Buttons */}
           <SponsorButton ticket={ticket} config={config} open={open} onChanged={onChanged} compact />
         </div>
-      )}
-
-      {/* Bug: knapper Hinweis (nur für echte Bugs, nicht Lob/Frage/Unklassifiziert) */}
-      {isBug && (
-        <p className="text-[11px] text-[var(--tf-text-tertiary)] italic">
-          Bugs werden ohne Sponsoring bearbeitet.
-        </p>
       )}
 
       {/* Feature ohne Aufwand: Kurator muss noch schätzen */}
