@@ -39,7 +39,16 @@ export function MatrixHeader({ geometry, farbeByUeber, sort, onSort }: Props): R
     <thead>
       {/* ── Zeile 1: Bänder ── */}
       <tr>
-        <th className="km-h-ma km-sl" style={{ left: 0 }} rowSpan={2}>MA</th>
+        <th
+          className="km-h-ma km-sl km-sortable"
+          style={{ left: 0 }}
+          rowSpan={2}
+          data-sortdir={sort.col === 'MA' ? sort.dir : undefined}
+          onClick={() => onSort('MA')}
+          title="MA — Klick sortiert"
+        >
+          MA<span className="km-sarr" />
+        </th>
 
         {capCols.length > 0 && (
           <th className="km-h-kapband km-sl" style={{ left: COL_W.ma }} colSpan={capCols.length}>

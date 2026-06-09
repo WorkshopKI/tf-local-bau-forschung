@@ -76,7 +76,7 @@
   font-size: 10px;
   text-align: center;
 }
-.km-h-absch { padding: 0 4px; }
+.km-h-absch { padding: 0 4px; white-space: nowrap; } /* "Absch. %" + Sortier-Pfeil einzeilig */
 
 /* Kategorie-Band (Zeile 1) — Hue/Sat aus --kat-h/--kat-s, Lightness theme-skopiert. */
 .km-h-band {

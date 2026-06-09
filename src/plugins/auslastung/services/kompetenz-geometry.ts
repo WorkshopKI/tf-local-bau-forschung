@@ -16,10 +16,15 @@
 import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket, type KompetenzSchemaEntry } from '../types';
 import type { UeberkategorieId } from './default-labels';
 
-/** Spaltenbreiten (px) — verbindlich aus dem Handoff (`README.md` → Table structure).
- *  `compNarrow`: Ein-Unterkategorie-Gruppen (z.B. NM) brauchen keine volle
- *  Comp-Breite — eine schmale Spalte spart horizontal Platz. */
-export const COL_W = { ma: 46, kont: 54, absch: 62, comp: 48, compNarrow: 40, haupt: 86 } as const;
+/** Spaltenbreiten (px) — Basis aus dem Handoff (`README.md` → Table structure),
+ *  mit App-spezifischen Anpassungen:
+ *  - `maWide`: die Matrix zeigt anonId + Klartext-Kürzel (z.B. "MA04 ANKO"), wenn
+ *    De-Anonymisierung aktiv ist — der Handoff-Wert `ma:46` (nur anonId) schneidet
+ *    das Kürzel sonst ab. Anonymisiert (kein Kürzel) bleibt es bei `ma`.
+ *  - `absch`: 62 → 72, sonst bricht der sortierbare Header "Absch. %" + Pfeil um.
+ *  - `compNarrow`: Ein-Unterkategorie-Gruppen (z.B. NM) brauchen keine volle
+ *    Comp-Breite — eine schmale Spalte spart horizontal Platz. */
+export const COL_W = { ma: 46, maWide: 80, kont: 54, absch: 72, comp: 48, compNarrow: 40, haupt: 86 } as const;
 
 export type ColKind = 'ma' | 'cap' | 'absch' | 'comp' | 'haupt';
 
@@ -73,14 +78,16 @@ export interface Geometry {
  * = Schema-Reihenfolge (= XLSX-Reihenfolge). Pure + memoisierbar pro
  * `(schema-identity, kapHidden)`.
  */
-export function buildGeometry(schema: KompetenzSchemaEntry[], kapHidden: boolean): Geometry {
+export function buildGeometry(schema: KompetenzSchemaEntry[], kapHidden: boolean, deAnon = false): Geometry {
   const cols: ColMeta[] = [];
   const groups: GroupMeta[] = [];
 
   // ── Frozen-Left: MA ──────────────────────────────────────────────────────
+  // Breiter, wenn De-Anon aktiv ist (Zelle zeigt dann anonId + Kürzel).
+  const maWidth = deAnon ? COL_W.maWide : COL_W.ma;
   let left = 0;
-  cols.push({ key: 'ma', kind: 'ma', width: COL_W.ma, stickyLeft: left });
-  left += COL_W.ma;
+  cols.push({ key: 'ma', kind: 'ma', width: maWidth, stickyLeft: left });
+  left += maWidth;
 
   // ── Frozen-Left: Kapazität (optional) ────────────────────────────────────
   if (!kapHidden) {

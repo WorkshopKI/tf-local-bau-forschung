@@ -12,12 +12,12 @@ import type { AnonymerMitarbeiter, AntragstypBucket, KategorieFarbe } from '../.
 import type { UeberkategorieId } from '../../services/default-labels';
 import type { ColMeta } from '../../services/kompetenz-geometry';
 import { capCellBg } from '../../services/kompetenz-matrix-colors';
-import { maToDraft, type Draft, type SortCol } from '../../hooks/useKompetenzMatrixModel';
+import { maToDraft, type Draft, type CapSortCol } from '../../hooks/useKompetenzMatrixModel';
 import { LevelCell } from './LevelCell';
 import { CapCell } from './CapCell';
 import { HauptkatChip } from './HauptkatChip';
 
-export type ColMaxMap = Record<SortCol, number>;
+export type ColMaxMap = Record<CapSortCol, number>;
 
 interface Props {
   ma: AnonymerMitarbeiter;

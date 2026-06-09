@@ -43,7 +43,10 @@ export interface Draft {
   abschlag: number;
 }
 
-export type SortCol = AntragstypBucket | 'Ab';
+/** Numerische Sortier-/Heatmap-Spalten (Kapazität + Abschlag). */
+export type CapSortCol = AntragstypBucket | 'Ab';
+/** Alle sortierbaren Spalten — inkl. der textuellen MA-Spalte. */
+export type SortCol = CapSortCol | 'MA';
 export interface SortState {
   col: SortCol | null;
   dir: 'desc' | 'asc';
@@ -119,7 +122,7 @@ function buildKompetenzUpdates(snapshot: Record<string, Draft>): KompetenzMatrix
 
 /** Sortwert einer Zeile für eine Kapazitäts-Spalte; `undefined` = leer → ans Ende.
  *  Abschlag 0 gilt als „leer" (kein Abschlag). */
-function sortValue(ma: AnonymerMitarbeiter, col: SortCol): number | undefined {
+function sortValue(ma: AnonymerMitarbeiter, col: CapSortCol): number | undefined {
   if (col === 'Ab') return ma.abschlagProzent || undefined;
   return ma.jahresKapazitaetProTyp?.[col];
 }
@@ -127,6 +130,13 @@ function sortValue(ma: AnonymerMitarbeiter, col: SortCol): number | undefined {
 function sortRows(list: AnonymerMitarbeiter[], sort: SortState): AnonymerMitarbeiter[] {
   if (!sort.col) return list;
   const col = sort.col;
+  // MA-Spalte: alphanumerisch nach anonId (numeric → MA2 < MA10), kein Leer-Bucket.
+  if (col === 'MA') {
+    return [...list].sort((a, b) => {
+      const cmp = a.anonId.localeCompare(b.anonId, undefined, { numeric: true });
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+  }
   const withVal: AnonymerMitarbeiter[] = [];
   const empty: AnonymerMitarbeiter[] = [];
   for (const m of list) (sortValue(m, col) === undefined ? empty : withVal).push(m);

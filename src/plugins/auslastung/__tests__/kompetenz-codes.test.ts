@@ -75,4 +75,25 @@ describe('buildGeometry', () => {
     expect(g.groups).toHaveLength(0);
     expect(g.totalSubCols).toBe(0);
   });
+
+  it('keeps the MA column narrow when anonymised (default), widens it for de-anon', () => {
+    expect(buildGeometry(schema, false).cols[0]).toMatchObject({ kind: 'ma', width: COL_W.ma });
+    const g = buildGeometry(schema, false, true);
+    expect(g.cols[0]).toMatchObject({ kind: 'ma', width: COL_W.maWide, stickyLeft: 0 });
+    // sticky-left offsets accumulate from the wider MA column
+    const caps = g.cols.filter(c => c.kind === 'cap');
+    expect(caps.map(c => c.stickyLeft)).toEqual([
+      COL_W.maWide, COL_W.maWide + COL_W.kont, COL_W.maWide + 2 * COL_W.kont, COL_W.maWide + 3 * COL_W.kont,
+    ]);
+  });
+
+  it('uses the narrow comp width for single-subcategory groups (e.g. NM)', () => {
+    const g = buildGeometry([
+      { ueberId: 'IT', label: 'IT', subKategorien: ['A', 'B'] },
+      { ueberId: 'NM', label: 'Naturw. Methoden', subKategorien: ['Naturw.'] },
+    ], false);
+    const comp = g.cols.filter(c => c.kind === 'comp');
+    expect(comp.find(c => c.ueberId === 'IT')!.width).toBe(COL_W.comp);
+    expect(comp.find(c => c.ueberId === 'NM')!.width).toBe(COL_W.compNarrow);
+  });
 });

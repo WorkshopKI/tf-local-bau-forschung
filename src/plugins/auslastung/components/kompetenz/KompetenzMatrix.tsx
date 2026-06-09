@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
+import { isDeAnonymisierungEnabled } from '@/config/feature-flags';
 import { useDeAnonResolver } from '../AnonymIdBadge';
 import type { KompetenzSchemaEntry } from '../../types';
 import type { UeberkategorieId } from '../../services/default-labels';
@@ -30,7 +31,9 @@ export function KompetenzMatrix({ model, schema }: Props): React.ReactElement {
   const ueberKategorien = useAuslastungData(s => s.data.config.ueberKategorien);
   const resolver = useDeAnonResolver();
 
-  const geometry = useMemo(() => buildGeometry(schema, model.kapHidden), [schema, model.kapHidden]);
+  // De-Anon zeigt anonId + Kürzel in der MA-Spalte → breiter (Build-Konstante).
+  const deAnon = isDeAnonymisierungEnabled();
+  const geometry = useMemo(() => buildGeometry(schema, model.kapHidden, deAnon), [schema, model.kapHidden, deAnon]);
   const farbeByUeber = useMemo(() => buildFarbeByUeber(ueberKategorien), [ueberKategorien]);
 
   // Hover-Highlight per Event-Delegation: ein Handler an der `.km-wrap` liest die
