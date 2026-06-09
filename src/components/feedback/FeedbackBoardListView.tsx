@@ -25,6 +25,7 @@ import {
   STATUS_COLORS,
   STATUS_LABELS,
 } from './constants';
+import { feedbackAuthorLabel } from './feedbackUi';
 import { FeedbackScreenshots } from './FeedbackScreenshots';
 
 interface Props {
@@ -87,6 +88,17 @@ function buildColumns(config: FeedbackConfig): SortableColumn<FeedbackItem>[] {
       key: 'titel', label: 'Titel', defaultVisible: true, sortable: true, width: 360,
       accessor: t => t.llm_summary || t.text || '',
       render: t => <span className="text-[var(--tf-text)]">{t.llm_summary || t.text || '–'}</span>,
+    },
+    {
+      key: 'von', label: 'Von', defaultVisible: true, sortable: true, filterable: true, width: 120, wrap: false,
+      accessor: t => feedbackAuthorLabel(t) ?? '',
+      filterAccessor: t => feedbackAuthorLabel(t) ?? '(unbekannt)',
+      render: t => {
+        const author = feedbackAuthorLabel(t);
+        return author
+          ? <span className="text-[12px] text-[var(--tf-text-secondary)]">{author}</span>
+          : <span className="text-[11px] text-[var(--tf-text-tertiary)]">—</span>;
+      },
     },
     {
       key: 'status', label: 'Status', defaultVisible: true, sortable: true, filterable: true, width: 120, wrap: false,

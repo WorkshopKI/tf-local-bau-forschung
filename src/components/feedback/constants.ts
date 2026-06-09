@@ -28,6 +28,19 @@ export const CATEGORY_LABELS: Record<FeedbackCategory, string> = {
   question: 'Frage',
 };
 
+/**
+ * Anzeige-Reihenfolge der Kategorien für die gruppierte Board-Ansicht
+ * (Bug → Idee → UX → Lob → Frage). Unklassifizierte Tickets hängt die Page
+ * separat hinten an. Single Source of Truth für die Gruppen-Reihenfolge.
+ */
+export const CATEGORY_ORDER: readonly FeedbackCategory[] = [
+  'problem',
+  'idea',
+  'ux',
+  'praise',
+  'question',
+];
+
 export const CATEGORY_ICONS: Record<FeedbackCategory, string> = {
   praise: 'Sparkles',
   problem: 'Zap',

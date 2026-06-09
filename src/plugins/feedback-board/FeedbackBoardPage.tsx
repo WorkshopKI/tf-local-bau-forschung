@@ -6,8 +6,10 @@ import { LayoutGrid, List } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   BudgetBadge,
-  FeedbackBoardCard,
+  CATEGORY_ORDER,
   FeedbackBoardListView,
+  FeedbackCategoryGroup,
+  type CategoryGroupKey,
   SponsoringInfoBanner,
 } from '@/components/feedback';
 import {
@@ -39,6 +41,28 @@ const KAT_TO_LABEL: Record<FeedbackCategory | '', string> = {
 const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
   Alle: '', Bug: 'problem', Idee: 'idea', UX: 'ux', Lob: 'praise', Frage: 'question',
 };
+
+// Eingeklappte Kategorie-Gruppen (Card-Ansicht) überleben Reloads via localStorage.
+// Default leer = alles aufgeklappt. localStorage für simple UI-Flags lt. CLAUDE.md ok.
+const COLLAPSED_CATS_KEY = 'tf-feedback-board-collapsed-cats';
+
+function loadCollapsedCats(): Set<string> {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_CATS_KEY);
+    const arr: unknown = raw ? JSON.parse(raw) : null;
+    return Array.isArray(arr) ? new Set(arr.filter((x): x is string => typeof x === 'string')) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function persistCollapsedCats(set: Set<string>): void {
+  try {
+    localStorage.setItem(COLLAPSED_CATS_KEY, JSON.stringify([...set]));
+  } catch {
+    /* localStorage nicht verfügbar — Collapse-State ist nur Komfort, ignorieren */
+  }
+}
 
 export function FeedbackBoardPage(): React.ReactElement {
   const storage = useStorage();
@@ -162,6 +186,34 @@ export function FeedbackBoardPage(): React.ReactElement {
     sonstige: base.filter(t => !isBug(t) && !isFeature(t)).length,
   }), [base, isBug, isFeature]);
 
+  // Gruppierung der Card-Ansicht nach Kategorie/Typ (feste Reihenfolge,
+  // Unklassifiziert zuletzt). Reihenfolge innerhalb einer Gruppe = bereits
+  // sortiertes filteredSorted. Leere Gruppen entfallen.
+  const groups = useMemo(() => {
+    const order: CategoryGroupKey[] = [...CATEGORY_ORDER, 'unclassified'];
+    const buckets = new Map<CategoryGroupKey, FeedbackItem[]>();
+    for (const t of filteredSorted) {
+      const key: CategoryGroupKey = t.category ?? 'unclassified';
+      const arr = buckets.get(key);
+      if (arr) arr.push(t);
+      else buckets.set(key, [t]);
+    }
+    return order
+      .map(key => ({ key, items: buckets.get(key) ?? [] }))
+      .filter(g => g.items.length > 0);
+  }, [filteredSorted]);
+
+  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(() => loadCollapsedCats());
+  const toggleCat = useCallback((key: string) => {
+    setCollapsedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      persistCollapsedCats(next);
+      return next;
+    });
+  }, []);
+
   return (
     <div className="px-8 py-6">
       {/* Header */}
@@ -239,9 +291,17 @@ export function FeedbackBoardPage(): React.ReactElement {
         </p>
       )}
       {!loading && filteredSorted.length > 0 && viewMode === 'card' && (
-        <div className="space-y-3">
-          {filteredSorted.map(t => (
-            <FeedbackBoardCard key={t.id} ticket={t} config={config} onChanged={handleChanged} />
+        <div className="space-y-4">
+          {groups.map(g => (
+            <FeedbackCategoryGroup
+              key={g.key}
+              categoryKey={g.key}
+              items={g.items}
+              config={config}
+              collapsed={collapsedCats.has(g.key)}
+              onToggle={() => toggleCat(g.key)}
+              onChanged={handleChanged}
+            />
           ))}
         </div>
       )}

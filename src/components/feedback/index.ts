@@ -12,5 +12,7 @@ export { BudgetBadge } from './BudgetBadge';
 export { SponsorButton } from './SponsorButton';
 export { FeedbackBoardCard } from './FeedbackBoardCard';
 export { FeedbackBoardListView } from './FeedbackBoardListView';
+export { FeedbackCategoryGroup, type CategoryGroupKey } from './FeedbackCategoryGroup';
 export { SponsoringInfoBanner } from './SponsoringInfoBanner';
+export { formatRelativeTime, getLucideIcon, feedbackAuthorLabel } from './feedbackUi';
 export * from './constants';
