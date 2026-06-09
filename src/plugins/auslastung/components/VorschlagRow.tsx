@@ -107,7 +107,7 @@ export function VorschlagRow({
       className="border-t-[0.5px] border-[var(--tf-border)] first:border-t-0"
       style={isAssigned ? { background: 'var(--tf-bg-secondary)' } : undefined}
     >
-    <div className="grid grid-cols-[minmax(0,1fr)_122px_156px_auto] gap-[18px] items-start px-3.5 py-2.5 hover:bg-[var(--tf-hover)]">
+    <div className="grid grid-cols-[minmax(0,1fr)_84px_156px_auto] gap-[18px] items-start px-3.5 py-2.5 hover:bg-[var(--tf-hover)]">
       {/* Spalte 1 — Kürzel (einmalig, plain) + Tech + Aspekt + ähnliche Projekte */}
       <div className="min-w-0">
         <div className="flex items-center gap-2">
