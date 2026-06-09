@@ -18,7 +18,10 @@ function makeAntrag(az: string, fields: Partial<Antrag> = {}): Antrag {
 
 function makeMa(anonId: string, haupt: string, extra: Partial<AnonymerMitarbeiter> = {}): AnonymerMitarbeiter {
   return {
-    anonId, jahresKapazitaet: 1600, abgemeldet: [], manuelleTechnologien: [],
+    // v2.61: Default-FuE-Kontingent, sonst greift der 'keine-stunden'-Ausschluss
+    // (Tests hier fokussieren auf Kompetenz/Level, nicht auf Kapazität).
+    anonId, jahresKapazitaet: 1600, jahresKapazitaetProTyp: { FuE: 1600 },
+    abgemeldet: [], manuelleTechnologien: [],
     ausgeblendeteAutoTags: [], hauptKategorie: haupt, nebenKategorien: [], abschlagProzent: 0,
     virtuelleProjekte: [], onboardingAbgeschlossen: true, aktiv: true, ...extra,
   };

@@ -560,6 +560,7 @@ export interface ScoreBreakdown {
  *  Macht die bisher stillen Engine-Ausschluesse im UI nachvollziehbar. */
 export type AusschlussGrund =
   | 'antragstyp'        // bearbeitet diesen Antragstyp nicht (Praeferenz/Override)
+  | 'keine-stunden'     // kein Stunden-Kontingent gepflegt (jahresKapazitaetProTyp leer)
   | 'kein-onboarding'   // kein Onboarding abgeschlossen UND keine Historie
   | 'abgemeldet'        // im aktuellen Quartal abgemeldet
   | 'inaktiv'           // als ehemaliger Bearbeiter markiert (aktiv=false)

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   runMatching,
+  runMatchingWithContext,
   computeAlpha,
   computeVerbrauchByAnon,
 } from '../services/matching-engine';
@@ -396,13 +397,12 @@ describe('runMatching', () => {
       expect(resFue).toHaveLength(1);
     });
 
-    it('Backwards-Kompat: MA ohne Praeferenz bekommt alle Antraege', () => {
+    it('MA mit Kontingent über alle Typen bekommt jeden Antragstyp', () => {
       const m1: AnonymerMitarbeiter = {
         ...makeMa('MA01', ['IT'], 1600, ['KI']),
         hauptKategorie: 'IT',
-        // KEIN antragstypBevorzugt / antragstypUeberschreibung — UND kein
-        // Typ-Kontingent → keine v2.60-Ableitung → echter "ohne Praeferenz"-Fall.
-        jahresKapazitaetProTyp: undefined,
+        // Volle Typ-Abdeckung → Ableitung = alle 4 Buckets → jeder Antragstyp matched.
+        jahresKapazitaetProTyp: { FuE: 400, DS: 400, DL: 400, NW: 400 },
       };
       for (const phase of [1, 2, 3, 4, 5]) {
         const res = runMatching({
@@ -416,6 +416,29 @@ describe('runMatching', () => {
         });
         expect(res).toHaveLength(1);
       }
+    });
+
+    it('v2.61: MA ohne Stunden-Kontingent wird ausgeschlossen (keine-stunden)', () => {
+      const m1: AnonymerMitarbeiter = {
+        ...makeMa('MA01', ['IT'], 1600, ['KI']),
+        hauptKategorie: 'IT',
+        jahresKapazitaetProTyp: undefined, // keine Stunden → keine buchbare Ressource
+      };
+      const input = {
+        antrag: makeAntragMit(3),
+        primaerKategorie: 'IT',
+        config: makeConfig(),
+        mitarbeiter: { MA01: m1 },
+        zuweisungen: [],
+        historischeDeskriptorenByAnon: new Map([['MA01', ['ki']]]),
+        anonymMap: buildAnonymMapForTests([]),
+      };
+      expect(runMatching(input)).toEqual([]);
+      const ctx = runMatchingWithContext(input);
+      expect(ctx.vorschlaege).toEqual([]);
+      expect(ctx.ausgeschlossen).toContainEqual(
+        expect.objectContaining({ anonId: 'MA01', grund: 'keine-stunden' }),
+      );
     });
 
     it('Irrlaeufer (vb_phase=9) wird bei expliziter Praeferenz gefiltert', () => {

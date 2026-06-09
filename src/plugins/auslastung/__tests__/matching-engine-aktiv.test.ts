@@ -20,6 +20,7 @@ function makeAntrag(az: string, fields: Partial<Antrag> = {}): Antrag {
     programm_id: 'p1',
     _field_sources: {},
     _updated_at: new Date().toISOString(),
+    vb_phase: 3, // FuE — passt zum FuE-Kontingent von makeMa (v2.60-Filter)
     ...fields,
   } as Antrag;
 }
@@ -28,6 +29,7 @@ function makeMa(anonId: string, tech: string[], aktiv = true): AnonymerMitarbeit
   return {
     anonId,
     jahresKapazitaet: 1600,
+    jahresKapazitaetProTyp: { FuE: 1600 }, // v2.61: braucht Stunden, sonst Ausschluss 'keine-stunden'
     abgemeldet: [],
     manuelleTechnologien: tech,
     ausgeblendeteAutoTags: [],

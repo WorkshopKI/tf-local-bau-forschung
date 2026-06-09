@@ -71,6 +71,8 @@ Filter-Logik in `services/antragstyp-praeferenz.ts`:
 - `getAntragstypHerkunft(ma)` — `'override' | 'bevorzugt' | 'abgeleitet' | 'keine'` für die UI-Label-Differenzierung („… (aus Kontingent)").
 - `matchesAntragstyp(antrag, ma): boolean` — nutzt `getKategorieLabel(vb_phase)` aus `kategorieQuickfilter.ts` (Single Source of Truth), kein zweites Mapping. Irrläufer (und Anträge ohne bestimmbaren Bucket) immer false, sobald ein effektiver Filter greift (explizit ODER abgeleitet).
 
+**Stunden-Gate (v2.61):** Der Matcher (`runMatchingWithContext`) schliesst MAs ganz **ohne** Stunden-Kontingent (`effektiveJahresStunden(ma) <= 0`) hart aus — Grund `'keine-stunden'` in der „Nicht vorgeschlagen"-Liste. Wer keine Stunden gepflegt hat, ist keine buchbare Ressource und bekommt keinen Antrag. Abgrenzung zum weichen Kapazitätsmodell (v1.17): dort geht es um MAs **mit** Jahresstunden, die im Quartal ausgelastet sind (Malus, bleiben sichtbar) — das Stunden-Gate greift nur bei `0` gepflegten Jahresstunden. (Der Stufe-4-`null`-Zweig von `getEffectiveAntragstypen` ist im Matcher dadurch praktisch tot — er bleibt für Nicht-Matcher-Konsumenten/UI-Labels erhalten.)
+
 Wirkt in: `NeueAntraegeFuerDich` (Home-Selbsteintragung) + `matching-engine.ts` (Eligible-Pool VOR den teuren BM25/Embedding-Scores).
 
 UI-Konventionen:

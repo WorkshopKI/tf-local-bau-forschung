@@ -151,6 +151,14 @@ export function runMatchingWithContext(input: MatchInput): MatchKontext {
       ausgeschlossen.push({ anonId: ma.anonId, grund: 'inaktiv', hauptKategorie: ma.hauptKategorie });
       continue;
     }
+    // v2.61: Wer kein Stunden-Kontingent gepflegt hat (jahresKapazitaetProTyp
+    // leer → effektiveJahresStunden 0), ist keine buchbare Ressource → kein
+    // Antrag. Harter Ausschluss (anders als das weiche Modell für >0-aber-
+    // ausgelastete MAs); als Grund gelistet, damit die PL die Lücke sieht.
+    if (effektiveJahresStunden(ma) <= 0) {
+      ausgeschlossen.push({ anonId: ma.anonId, grund: 'keine-stunden', hauptKategorie: ma.hauptKategorie });
+      continue;
+    }
     // v2.2: Antragstyp-Praeferenz — MAs die diesen Antragstyp gar nicht
     // bearbeiten (FuE/DS/DL/NW) fallen raus.
     if (!matchesAntragstyp(antrag, ma)) {

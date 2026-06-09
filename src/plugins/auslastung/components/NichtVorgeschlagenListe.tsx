@@ -16,6 +16,7 @@ interface Props {
 
 const GRUND_TEXT: Record<AusschlussGrund, string> = {
   'antragstyp': 'bearbeitet diesen Antragstyp nicht',
+  'keine-stunden': 'keine Stunden gepflegt',
   'kein-onboarding': 'Onboarding/Historie fehlt',
   'abgemeldet': 'im Quartal abgemeldet',
   'inaktiv': 'als inaktiv markiert',
@@ -28,8 +29,9 @@ const GRUND_ORDER: Record<AusschlussGrund, number> = {
   'rang': 0,
   'antragstyp': 1,
   'kein-onboarding': 2,
-  'abgemeldet': 3,
-  'inaktiv': 4,
+  'keine-stunden': 3,
+  'abgemeldet': 4,
+  'inaktiv': 5,
 };
 
 function grundLabel(item: AusgeschlossenerMa): string {
