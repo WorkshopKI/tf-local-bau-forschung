@@ -12,7 +12,10 @@ import type { StorageService } from '@/core/services/storage';
 import { pipelineLog } from '@/core/services/search/pipeline-logger';
 
 interface SearchContextValue {
-  search: (query: string, filters?: { type?: string }) => Promise<void>;
+  /** Setzt `results` UND gibt sie zurück — Rückgabewert nutzen, wenn die
+   *  Ergebnisse direkt nach dem await gebraucht werden (React-State wäre
+   *  im selben Callback noch der alte Stand, z.B. Chat-RAG). */
+  search: (query: string, filters?: { type?: string }) => Promise<OramaSearchResult[]>;
   results: OramaSearchResult[];
   loading: boolean;
   vectorReady: boolean;
@@ -105,8 +108,8 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
     })();
   }, [storage]);
 
-  const search = useCallback(async (query: string, filters?: { type?: string }) => {
-    if (!query.trim()) { setResults([]); return; }
+  const search = useCallback(async (query: string, filters?: { type?: string }): Promise<OramaSearchResult[]> => {
+    if (!query.trim()) { setResults([]); return []; }
     setLoading(true);
     const t0 = performance.now();
     try {
@@ -135,7 +138,8 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
         stage2Results: reRankerActive ? r.length : undefined,
         totalTimeMs: Math.round(performance.now() - t0),
       });
-    } catch (err) { pipelineLog.warn('Suche', `Fehler: ${err}`); setResults([]); }
+      return r;
+    } catch (err) { pipelineLog.warn('Suche', `Fehler: ${err}`); setResults([]); return []; }
     finally { setLoading(false); }
   }, []);
 
