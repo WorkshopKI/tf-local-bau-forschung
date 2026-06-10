@@ -10,11 +10,10 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
-import type { Antrag } from '@/core/services/csv/types';
-import {
-  buildEmbeddingCorpus,
-  getEmbeddableAktenzeichen,
-} from '../../services/embedding-corpus';
+import type { AntragOderSlim } from '@/core/services/csv/types';
+import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { buildEmbeddingCorpus } from '../../services/embedding-corpus';
 import {
   clearEmbeddings,
   countEmbeddings,
@@ -41,7 +40,12 @@ import { isEmbeddingCorpusBuildEnabled, isDevContext } from '@/config/feature-fl
 
 interface Props {
   storage: StorageService;
-  antraege: Antrag[];
+  /** Slim-Projektion (v2.63) — nur fuer Counts/Anzeige. Builds laden die
+   *  vollen Records transient selbst (Texte liegen nicht mehr im Cache). */
+  antraege: ReadonlyArray<AntragOderSlim>;
+  /** Embeddable Aktenzeichen aus dem Stream-Pass — Hash-Vergleich gegen das
+   *  Share-Manifest (muss aus vollen Records stammen, Self-Heal-Integritaet). */
+  embeddableAz: readonly string[];
 }
 
 // Der Build läuft in mehreren Phasen. Vor v2.21.2 war nur die per-Antrag-Phase
@@ -61,7 +65,7 @@ const PHASE_LABELS: Record<BuildPhase, string> = {
 // Upload (`uploadFromIdb`, skipLock) läuft unter demselben gehaltenen Lock weiter.
 const LOCK_STUFE_BUILD = 'auslastung-corpus-build';
 
-export function EmbeddingCorpusSection({ storage, antraege }: Props): React.ReactElement {
+export function EmbeddingCorpusSection({ storage, antraege, embeddableAz }: Props): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
   const updateConfig = useAuslastungData(s => s.updateConfig);
@@ -134,10 +138,12 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
   useEffect(() => {
     if (antraege.length === 0) { setAktenzeichenHash(null); return; }
     let cancelled = false;
-    const list = getEmbeddableAktenzeichen(antraege);
-    void hashAktenzeichenSet(list).then(h => { if (!cancelled) setAktenzeichenHash(h); });
+    // v2.63: embeddable-Liste kommt vorberechnet aus dem Stream-Pass des
+    // Slim-Caches (volle Records noetig — Slim kann Embeddability nicht
+    // entscheiden, Titel/Beschreibungs-Felder fehlen dort).
+    void hashAktenzeichenSet([...embeddableAz]).then(h => { if (!cancelled) setAktenzeichenHash(h); });
     return () => { cancelled = true; };
-  }, [antraege]);
+  }, [antraege, embeddableAz]);
 
   // Auto-Download: lokal leer + Share-Manifest da + Modell-Kompat OK + Hash passt
   // → einmaliger Versuch, sonst sind Auto-Loops zu nervig.
@@ -213,7 +219,13 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
     }
 
     try {
-      await buildEmbeddingCorpus(storage.idb, antraege, {
+      // Volle Records NUR fuer den Build transient laden (v2.63 Slim-Cache:
+      // die Embedding-Texte liegen nicht mehr im RAM). Nach dem Build GC-frei.
+      const buildProgrammId = useActiveProgramm.getState().activeProgrammId;
+      const fullAntraege = buildProgrammId
+        ? await listAntraegeByProgramm(storage.idb, buildProgrammId)
+        : [];
+      await buildEmbeddingCorpus(storage.idb, fullAntraege, {
         incremental,
         onProgress: p => setPhaseProgress({ phase: 'antrag', done: p.done, total: p.total, last: p.lastAntrag, etaSec: p.etaSec }),
         signal: controller.signal,
@@ -226,7 +238,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
       // aber bei `incremental: false` ein voller zweiter Embedding-Lauf von
       // mehreren Minuten — daher MUSS der Fortschritt sichtbar sein (sonst friert
       // die Bar nach der per-Antrag-100% scheinbar ein, v2.21.2-Fix).
-      await buildVerbundEmbeddingCorpus(storage.idb, antraege, {
+      await buildVerbundEmbeddingCorpus(storage.idb, fullAntraege, {
         incremental,
         signal: controller.signal,
         onProgress: p => setPhaseProgress({ phase: 'verbund', done: p.done, total: p.total, last: p.lastVerbundId, etaSec: p.etaSec }),
@@ -247,7 +259,7 @@ export function EmbeddingCorpusSection({ storage, antraege }: Props): React.Reac
         klassifizierungen,
         verbundEmbs,
         config.ueberKategorien,
-        antraege,
+        fullAntraege,
       );
       const nextKats = config.ueberKategorien.map(k => ({
         ...k,

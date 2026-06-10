@@ -14,7 +14,7 @@
  * `virtuelleProjekte[]` mit confidence 0.3..1.0. Im Score wird similarity ×
  * confidence multipliziert (echte Projekte = 1.0, virtuelle weniger).
  */
-import type { Antrag } from '@/core/services/csv/types';
+import type { Antrag, AntragOderSlim } from '@/core/services/csv/types';
 import type {
   AehnlichesProjekt,
   AnonymerMitarbeiter,
@@ -155,7 +155,7 @@ function addToMa(
  * `runEmbeddingMatching.antraegeIndex` bauen.
  */
 export function buildAntraegeIndexForMatching(
-  antraege: Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
 ): Map<string, Pick<Antrag, 'aktenzeichen'> & { tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown; vb_phase?: unknown }> {
   const m = new Map<string, { aktenzeichen: string; tib_kuerz?: unknown; titel?: unknown; verbund_titel?: unknown; vb_phase?: unknown }>();
   for (const a of antraege) {

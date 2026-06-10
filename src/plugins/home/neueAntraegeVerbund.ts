@@ -11,7 +11,7 @@
  * `resolveVerbundMeta`) aus dem Auslastungs-Modul + `formatFkzRange` aus dem
  * Anträge-Plugin — keine eigene Gruppierungs-Semantik.
  */
-import type { Antrag, Verbund } from '@/core/services/csv/types';
+import type { AntragOderSlim, Verbund } from '@/core/services/csv/types';
 import { CANONICAL_TITEL, type Klassifizierung } from '@/plugins/auslastung/types';
 import {
   verbundKeyOf,
@@ -23,7 +23,7 @@ import { formatFkzRange } from '@/plugins/antraege/antragGroups';
  *  Früher inline in NeueAntraegeFuerDich.tsx — hierher gezogen, damit die
  *  Gruppierung testbar ist. */
 export interface OffenerAntrag {
-  antrag: Antrag;
+  antrag: AntragOderSlim;
   klassifizierung: Klassifizierung;
   daysLeft: number;
   /** T_XSW enthält das EIGENE Kürzel des Users → „mein alter Antrag" → nach oben. */
@@ -45,8 +45,8 @@ export interface VerbundEintrag {
   /** Claim-Ziel: erster (FKZ-kleinster) der für den User offenen TVs.
    *  `handleClaim` leitet daraus verbund_id + echte TV-Anzahl ab. */
   leadAktenzeichen: string;
-  /** Vollständiger Lead-Antrag — für XswSuffix + sonstige Antrag-Felder. */
-  leadAntrag: Antrag;
+  /** Lead-Antrag (Slim reicht — XswSuffix liest t_xsw) . */
+  leadAntrag: AntragOderSlim;
   akronym: string;
   verbundTitel: string;
   /** „16KN126325–126326" bzw. einzelnes FKZ. Über ALLE TVs des Verbundes. */
@@ -66,7 +66,7 @@ export interface VerbundEintrag {
   claimedAktenzeichen: string[];
 }
 
-function readTitel(a: Antrag): string {
+function readTitel(a: AntragOderSlim): string {
   const v = (a as Record<string, unknown>)[CANONICAL_TITEL];
   return typeof v === 'string' ? v : '';
 }
@@ -100,14 +100,14 @@ function byFkz(a: { aktenzeichen: string }, b: { aktenzeichen: string }): number
  */
 export function groupEintraegeByVerbund(
   eintraege: readonly OffenerAntrag[],
-  cacheAntraege: readonly Antrag[],
+  cacheAntraege: ReadonlyArray<AntragOderSlim>,
   verbuendeById: ReadonlyMap<string, Verbund>,
   claimedSet: ReadonlySet<string>,
   pendingSet: ReadonlySet<string> = new Set(),
   retractedSet: ReadonlySet<string> = new Set(),
 ): VerbundEintrag[] {
   // Alle TVs pro Verbund-Key (für fkzRange, tvCount, Tooltip). O(n) einmal.
-  const tvsByKey = new Map<string, Antrag[]>();
+  const tvsByKey = new Map<string, AntragOderSlim[]>();
   for (const a of cacheAntraege) {
     const key = verbundKeyOf(a);
     let b = tvsByKey.get(key);

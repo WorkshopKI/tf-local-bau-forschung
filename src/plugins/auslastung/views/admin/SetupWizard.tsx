@@ -18,17 +18,20 @@ import {
 import { KategoriePill } from '../../components/KategoriePill';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { syncMitarbeiterFromAntraege } from '../../services/profil-aggregator';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import type { AnonymMap } from '../../services/anonym-map';
 
 interface Props {
   storage: StorageService;
-  antraege: Antrag[];
+  antraege: ReadonlyArray<AntragOderSlim>;
+  /** Vorberechnete per-Anon-Profile aus dem Slim-Cache (v2.63) — der Wizard
+   *  braucht die vollen Records damit nicht mehr. */
+  profilesByAnon: Map<string, string[]>;
   anonymMap: AnonymMap;
   allDeskriptoren: Array<{ wert: string; count: number }>;
 }
 
-export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: Props): React.ReactElement {
+export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren, profilesByAnon }: Props): React.ReactElement {
   const data = useAuslastungData(s => s.data);
   const upsertKategorie = useAuslastungData(s => s.upsertKategorie);
   const removeKategorie = useAuslastungData(s => s.removeKategorie);
@@ -150,7 +153,7 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren }: P
         antraege,
         anonymMap,
         naechstenKategorien,
-        { overrideKategorien: true },
+        { overrideKategorien: true, profilesByAnon },
       );
 
       // 3) Single state-update + single persist. Damit kein Race im

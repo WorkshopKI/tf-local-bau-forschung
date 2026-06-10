@@ -14,8 +14,9 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
 import { useAuslastungData } from '../hooks/useAuslastungData';
-import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useDialogEsc } from './useDialogEsc';
 import {
   bewertungenToVirtuell,
@@ -58,7 +59,24 @@ export function KalibrierungsReport({ open, previews, onClose }: Props): React.R
   const data = useAuslastungData(s => s.data);
   const upsertErgebnis = useAuslastungData(s => s.upsertKalibrierungsErgebnis);
   const setOptimal = useAuslastungData(s => s.setOptimalConfidence);
-  const cache = useAntraegeCache();
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
+
+  // Volle Records transient beim Oeffnen laden (v2.63 Slim-Cache: die
+  // Kalibrierung braucht Deskriptoren/Texte) — beim Schliessen wieder frei.
+  const [fullAntraege, setFullAntraege] = useState<Antrag[]>([]);
+  useEffect(() => {
+    if (!open || !activeProgrammId) { setFullAntraege([]); return; }
+    let cancelled = false;
+    void listAntraegeByProgramm(storage.idb, activeProgrammId)
+      .then(list => {
+        if (cancelled) return;
+        setFullAntraege(list);
+        setScopeSize(prev => (prev > 0 ? prev : Math.min(80, list.length)));
+      })
+      .catch(err => console.warn('[kalibrierung] Antraege-Load fehlgeschlagen:', err));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, activeProgrammId, storage]);
 
   const allUnassigned = useMemo(() => {
     const zugewiesen = new Set(
@@ -66,8 +84,8 @@ export function KalibrierungsReport({ open, previews, onClose }: Props): React.R
         .filter(z => z.status === 'freigegeben' || z.status === 'selbst')
         .map(z => z.antragId),
     );
-    return cache.antraege.filter(a => !zugewiesen.has(a.aktenzeichen));
-  }, [cache.antraege, data.zuweisungen]);
+    return fullAntraege.filter(a => !zugewiesen.has(a.aktenzeichen));
+  }, [fullAntraege, data.zuweisungen]);
 
   const [scopeSize, setScopeSize] = useState<number>(Math.min(80, allUnassigned.length));
   const scope = useMemo(() => allUnassigned.slice(0, scopeSize), [allUnassigned, scopeSize]);
@@ -88,10 +106,10 @@ export function KalibrierungsReport({ open, previews, onClose }: Props): React.R
           if (!preview.existierterAnonId || !preview.effektivesKuerzel) continue;
           const kuerzel = normalizeKuerzel(preview.effektivesKuerzel);
           if (!kuerzel) continue;
-          const histAntraege = cache.antraege.filter(a =>
+          const histAntraege = fullAntraege.filter(a =>
             normalizeKuerzel((a as Record<string, unknown>)[CANONICAL_TIB_KUERZ]) === kuerzel,
           );
-          const histVirtuell = historicalAsVirtuell(cache.antraege, kuerzel);
+          const histVirtuell = historicalAsVirtuell(fullAntraege, kuerzel);
           const swipe = bewertungenToVirtuell(
             preview.bewertungen,
             data.kalibrierung?.optimaleConfidenceKannIch ?? 0.7,
@@ -124,7 +142,7 @@ export function KalibrierungsReport({ open, previews, onClose }: Props): React.R
         setRunning(false);
       }
     })();
-  }, [open, previews, scope, cache.antraege, data.kalibrierung, data.config.ueberKategorien]);
+  }, [open, previews, scope, fullAntraege, data.kalibrierung, data.config.ueberKategorien]);
 
   const aggregate = useMemo(() => {
     if (!results || results.length === 0) return null;

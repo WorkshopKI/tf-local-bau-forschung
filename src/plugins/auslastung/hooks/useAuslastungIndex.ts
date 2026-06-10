@@ -24,7 +24,7 @@
  * Index weiter selbst — passt, weil dort nur EIN MA betrachtet wird (User).
  */
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import { computeQuartalsAuslastung, type MaQuartalsAuslastung } from '../services/quartals-auslastung';
 import { computeAltlasten, type MaAltlastBucket } from '../services/altlast';
 import type { AntragstypBucket, Zuweisung } from '../types';
@@ -45,7 +45,7 @@ const AuslastungIndexCtx = createContext<AuslastungIndex | null>(null);
 // ─── Module-globaler Cache (ueberlebt Komponenten-Unmount) ─────────────────
 
 interface CachedIndex {
-  antraege: readonly Antrag[];
+  antraege: ReadonlyArray<AntragOderSlim>;
   zuweisungen: readonly Zuweisung[];
   toAnon: ReadonlyMap<string, string>;
   quartal: string;
@@ -62,7 +62,7 @@ let cachedIndex: CachedIndex | null = null;
  *  den Zustand-Stores). Sonst neu berechnen und cachen. Exportiert NUR fuer
  *  Tests — Konsumenten in der App nutzen `useAuslastungIndex`. */
 export function getOrComputeIndex(
-  antraege: readonly Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   zuweisungen: readonly Zuweisung[],
   toAnon: ReadonlyMap<string, string>,
   quartal: string,

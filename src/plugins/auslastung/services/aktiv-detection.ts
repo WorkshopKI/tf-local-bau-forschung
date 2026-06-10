@@ -8,7 +8,7 @@
  * Wird nur als Vorschlag verwendet — PL bestaetigt/korrigiert via Banner-
  * Aktionen ("Uebernehmen" / "Manuell" / "Spaeter") oder einzeln im Drawer.
  */
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter } from '../types';
 import { CANONICAL_TIB_KUERZ, CANONICAL_ANTRAGSDATUM } from '../types';
 import { normalizeKuerzel } from './anonym-map';
@@ -35,7 +35,7 @@ export interface AktivDetectionResult {
  * im Vorschlag (`vorschlag[anonId] = ma.aktiv`).
  */
 export function detectAktiveMAs(
-  antraege: Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   mitarbeiter: Record<string, AnonymerMitarbeiter>,
   anonymMap: AnonymMap,
   referenzJahr: number,

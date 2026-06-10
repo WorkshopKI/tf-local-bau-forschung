@@ -18,7 +18,7 @@
  * speisen die „zugewiesen"-Zelle), erscheinen aber nicht mehr als eigene Spalten.
  */
 import * as XLSX from 'xlsx';
-import type { Antrag, Verbund } from '@/core/services/csv/types';
+import type { AntragOderSlim, Verbund } from '@/core/services/csv/types';
 import {
   type AnonymerMitarbeiter,
   type AuslastungData,
@@ -57,7 +57,7 @@ export interface ExportRow {
 
 export interface BuildRowsInput {
   data: AuslastungData;
-  antraege: Antrag[];
+  antraege: ReadonlyArray<AntragOderSlim>;
   /** Optional: pro Antrag die Top-N-Vorschlaege (fuer noch nicht zugewiesene). */
   pendingMatches?: Map<string, MatchResult[]>;
   /** Pro zugewiesenem Verbund (Buchungs-Lead-Aktenzeichen) die vollstaendig
@@ -84,7 +84,7 @@ export function buildExportRows(input: BuildRowsInput): ExportRow[] {
   const { data, antraege, pendingMatches, matchesByLead, verbuendeById } = input;
   const quartal = input.quartal ?? data.config.aktuellesQuartal;
   const stundenProTV = data.config.stundenProTV && data.config.stundenProTV > 0 ? data.config.stundenProTV : 9;
-  const indexAz = new Map<string, Antrag>(antraege.map(a => [a.aktenzeichen, a]));
+  const indexAz = new Map<string, AntragOderSlim>(antraege.map(a => [a.aktenzeichen, a]));
   const rows: ExportRow[] = [];
 
   // 1) Zugewiesene Zuweisungen pro Verbund buendeln — EINE Zeile pro Verbund.
@@ -162,7 +162,7 @@ function restTVsFallback(
 }
 
 function toRow(
-  a: Antrag,
+  a: AntragOderSlim,
   anonId: string,
   fallbackScore: number,
   z: Zuweisung,

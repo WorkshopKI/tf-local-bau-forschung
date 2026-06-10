@@ -12,7 +12,11 @@
  * (Typ-Stunden) wird ausschließlich in der Kompetenz-Matrix gepflegt.
  */
 import { useState } from 'react';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
+import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
+import { useStorage } from '@/core/hooks/useStorage';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { downloadOnboardingHtml } from '../../services/onboarding-html-generator';
 import { useKuerzelExport } from '../../hooks/useKuerzelExport';
@@ -21,15 +25,27 @@ import { OnboardingImportDialog } from '../../components/OnboardingImportDialog'
 import { KalibrierungsReport } from '../../components/KalibrierungsReport';
 
 interface Props {
-  antraege: Antrag[];
+  /** Slim-Projektion (v2.63) — nur fuer den Leer-Check. Das Onboarding-HTML
+   *  laedt die vollen Records (Texte) transient beim Klick. */
+  antraege: ReadonlyArray<AntragOderSlim>;
 }
 
 export function ImportExportSection({ antraege }: Props): React.ReactElement {
+  const storage = useStorage();
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const data = useAuslastungData(s => s.data);
   const kategorien = data.config.ueberKategorien;
   const noKategorien = kategorien.length === 0;
   const noAntraege = antraege.length === 0;
   const kuerzelExport = useKuerzelExport();
+
+  // Onboarding-HTML braucht die vollen Records (Projekt-Texte) — transient
+  // beim Klick laden statt sie im Cache zu halten (v2.63 Slim-Cache).
+  const onboardingHtmlAction = useAsyncAction(async () => {
+    if (!activeProgrammId) return;
+    const fullAntraege = await listAntraegeByProgramm(storage.idb, activeProgrammId);
+    downloadOnboardingHtml({ antraege: fullAntraege, kategorien });
+  });
 
   // Onboarding-Antwort-Import (XLSX-Rueckmeldung vom MA).
   const [onboardingImportOpen, setOnboardingImportOpen] = useState(false);
@@ -49,13 +65,16 @@ export function ImportExportSection({ antraege }: Props): React.ReactElement {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => downloadOnboardingHtml({ antraege, kategorien })}
-              disabled={noKategorien || noAntraege}
+              onClick={() => { void onboardingHtmlAction.run(); }}
+              disabled={noKategorien || noAntraege || onboardingHtmlAction.busy}
               className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
               style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >
-              HTML generieren
+              {onboardingHtmlAction.busy ? 'Generiere…' : 'HTML generieren'}
             </button>
+            {onboardingHtmlAction.error && (
+              <span className="text-[11px] text-[var(--tf-danger-text)]">Fehler: {onboardingHtmlAction.error}</span>
+            )}
             <button
               type="button"
               onClick={() => setOnboardingImportOpen(true)}

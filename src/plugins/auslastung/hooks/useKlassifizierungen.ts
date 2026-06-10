@@ -12,14 +12,14 @@
  * paar Beispiele pro Kategorie seedan und Corpus-Build laufen lassen.
  */
 import { useMemo } from 'react';
-import type { Antrag } from '@/core/services/csv/types';
+import type { Antrag, AntragOderSlim } from '@/core/services/csv/types';
 import {
   klassifiziereAntrag,
 } from '../services/klassifizierung-engine';
 import type { Klassifizierung, UeberKategorie } from '../types';
 
 export interface KlassifizierungsView {
-  antrag: Antrag;
+  antrag: AntragOderSlim;
   klassifizierung: Klassifizierung;
   confidence: 'high' | 'medium' | 'low';
 }
@@ -72,7 +72,7 @@ function confidenceFor(kl: Klassifizierung): 'high' | 'medium' | 'low' {
  * Reihenfolge folgt `antraege` (wie das Live-Pendant).
  */
 export function buildPersistedKlassifizierungsView(
-  antraege: Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   persisted: Klassifizierung[],
 ): KlassifizierungsView[] {
   const persistedById = new Map(persisted.map(k => [k.antragId, k]));
@@ -87,7 +87,7 @@ export function buildPersistedKlassifizierungsView(
 
 /** Memoisierte Hook-Variante von `buildPersistedKlassifizierungsView`. */
 export function usePersistedKlassifizierungenView(
-  antraege: Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   persisted: Klassifizierung[],
 ): KlassifizierungsView[] {
   return useMemo(

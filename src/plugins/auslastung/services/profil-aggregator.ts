@@ -513,7 +513,9 @@ export interface SyncMitarbeiterResult {
 
 export function syncMitarbeiterFromAntraege(
   current: Record<string, AnonymerMitarbeiter>,
-  antraege: Antrag[],
+  // Union: mit `opts.profilesByAnon` wird `antraege` nicht gelesen (Slim ok);
+  // OHNE profilesByAnon MUESSEN volle Records uebergeben werden (Deskriptoren).
+  antraege: ReadonlyArray<AntragOderSlim>,
   map: AnonymMap,
   kategorien: UeberKategorie[],
   opts: SyncMitarbeiterOptions = {},
@@ -523,7 +525,7 @@ export function syncMitarbeiterFromAntraege(
   const hinzugefuegt: string[] = [];
   const aktualisiert: string[] = [];
 
-  const profiles = opts.profilesByAnon ?? aggregateMaProfilesByAnon(antraege, map);
+  const profiles = opts.profilesByAnon ?? aggregateMaProfilesByAnon(antraege as Antrag[], map);
   for (const [anonId, deskriptoren] of profiles.entries()) {
     const derivedKategorien = deriveKategorienForMa(deskriptoren, kategorien);
     const existing = result[anonId];

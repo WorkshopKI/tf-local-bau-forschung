@@ -23,7 +23,7 @@ import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle'
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { resolveAnonIdForUser } from '@/plugins/auslastung/services/anonym-map';
-import { aggregateMaProfile } from '@/plugins/auslastung/services/profil-aggregator';
+import { aggregateMaProfileFromLookup } from '@/plugins/auslastung/services/profil-aggregator';
 import {
   loadAuslastungProfil,
   writeAuslastungProfil,
@@ -131,8 +131,8 @@ export function MeineTechnologienTab(): React.ReactElement {
 
   const automatic = useMemo(() => {
     if (!meinKuerzel) return [];
-    return aggregateMaProfile(cache.antraege, meinKuerzel);
-  }, [cache.antraege, meinKuerzel]);
+    return aggregateMaProfileFromLookup(cache.antraege, cache.deskriptorenByAz, meinKuerzel);
+  }, [cache.antraege, cache.deskriptorenByAz, meinKuerzel]);
 
   // Auto-Save: dirtyRef wird NUR von User-Mutatoren gesetzt (nicht von der
   // Hydration), damit Laden/Browser-Wechsel keinen Save triggert.

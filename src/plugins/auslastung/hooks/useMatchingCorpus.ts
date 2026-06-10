@@ -16,7 +16,7 @@
  * laufenden Load (`inflightRef`).
  */
 import { useCallback, useRef } from 'react';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import type { StorageService } from '@/core/services/storage';
 import { loadAllEmbeddings } from '@/core/services/embedding-corpus';
 import { buildAntraegeIndexForMatching } from '../services/embedding-matcher';
@@ -28,16 +28,20 @@ export interface MatchingCorpus {
   antraegeIndex: ReturnType<typeof buildAntraegeIndexForMatching>;
 }
 
+/** Cache-Key-Typ: das ref-stabile Slim-Array aus dem Cache-Store (v2.63). */
+type AntragListItemArray = ReadonlyArray<AntragOderSlim>;
+
 /**
  * Liefert eine stabile `loadCorpus()`-Funktion, die den Korpus + Index einmal
  * pro `antraege`-Stand laedt/baut und danach aus dem Cache bedient.
  */
 export function useMatchingCorpus(
-  antraege: Antrag[],
+  antraege: AntragListItemArray,
+  embeddableAz: readonly string[],
   storage: StorageService,
 ): () => Promise<MatchingCorpus> {
-  const cacheRef = useRef<{ key: Antrag[]; value: MatchingCorpus } | null>(null);
-  const inflightRef = useRef<{ key: Antrag[]; promise: Promise<MatchingCorpus> } | null>(null);
+  const cacheRef = useRef<{ key: AntragListItemArray; value: MatchingCorpus } | null>(null);
+  const inflightRef = useRef<{ key: AntragListItemArray; promise: Promise<MatchingCorpus> } | null>(null);
 
   // v2.29.1/.2: Korpus-Signal — wird der per-Antrag-Korpus extern in die IDB
   // geschrieben (Start-Autoload / „Vom Datenspeicher laden" / „Corpus aufbauen"),
@@ -70,7 +74,7 @@ export function useMatchingCorpus(
       // lokal leer → vom Share laden (falls kompatibel + Antrags-Stand passt),
       // bevor er aus der IDB gelesen wird. Sonst lieferte das Matching ohne
       // Embedding-Anteil — Kompetenz wirkte „nicht verknüpft".
-      await ensureAntragCorpus(storage, antraege);
+      await ensureAntragCorpus(storage, embeddableAz);
       const corpusEmbeddings = await loadAllEmbeddings(storage.idb);
       const antraegeIndex = buildAntraegeIndexForMatching(antraege);
       const value: MatchingCorpus = { corpusEmbeddings, antraegeIndex };
@@ -84,5 +88,5 @@ export function useMatchingCorpus(
       // Nur den eigenen Inflight-Eintrag aufraeumen (ein neuerer darf bleiben).
       if (inflightRef.current?.promise === promise) inflightRef.current = null;
     }
-  }, [antraege, storage, corpusVersion]);
+  }, [antraege, embeddableAz, storage, corpusVersion]);
 }

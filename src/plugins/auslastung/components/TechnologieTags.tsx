@@ -1,6 +1,6 @@
 /** Tag-Liste mit optionalem Highlight matchender Tags. */
 interface Props {
-  tags: string[];
+  tags: readonly string[];
   highlight?: string[];
   /** Wieviele anzeigen, Rest als "+N" Hinweis. Default unbegrenzt. */
   max?: number;

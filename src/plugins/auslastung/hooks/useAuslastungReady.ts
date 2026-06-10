@@ -28,11 +28,13 @@ export interface AuslastungReady {
 }
 
 export function useAuslastungReady(): AuslastungReady {
-  const cacheLoading = useAntraegeCache().loading;
-  const cacheLoaded = useAntraegeCache().loaded;
+  const cache = useAntraegeCache();
   const auslastungLoaded = useAuslastungData(s => s.loaded);
 
-  const antraegeBusy = cacheLoading || !cacheLoaded;
+  // v2.63: zusaetzlich auf die Stream-Passage warten (aggregatesLoaded) —
+  // sonst laufen Matching/Klassifizierung kurz mit leeren historische*-Maps
+  // (Bug-Klasse v2.46.1: „Keine passenden MAs" direkt nach Cold-Start).
+  const antraegeBusy = cache.loading || !cache.loaded || !cache.aggregatesLoaded;
   const auslastungBusy = !auslastungLoaded;
 
   return {

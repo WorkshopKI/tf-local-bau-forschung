@@ -26,9 +26,8 @@ import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import {
   buildVerbundClassificationViews,
-  hatGueltigesDatum,
   verteilCutoffDatum,
-  type VollstaendigkeitsGate,
+  type VollstaendigkeitsGateAz,
   type VerbundKlassifizierungsView,
 } from '../services/verbund-aggregation';
 import { useVollstaendigkeitsFelder } from '../hooks/useVollstaendigkeitsFelder';
@@ -189,13 +188,14 @@ export function KlassifizierungsReview(): React.ReactElement {
   const felder = useVollstaendigkeitsFelder();
   // Vollstaendigkeits-Gate (D_XTEC fuer FuE/DS, D_ADV fuer DL/NW): Markierung +
   // Freigabe-Sperre greifen pro Bucket nur, wenn die jeweilige Spalte irgendwo
-  // befuellt ist (Transitions-Schutz: solange nicht gemappt, hat kein Antrag
-  // einen Wert → sonst waeren alle faelschlich unvollstaendig + gesperrt).
-  const dxtecVerfuegbar = useMemo(() => cache.antraege.some(a => hatGueltigesDatum(a, felder.xtecFeld)), [cache.antraege, felder.xtecFeld]);
-  const dadvVerfuegbar = useMemo(() => cache.antraege.some(a => hatGueltigesDatum(a, felder.advFeld)), [cache.antraege, felder.advFeld]);
-  const gate = useMemo<VollstaendigkeitsGate>(
-    () => ({ dxtec: dxtecVerfuegbar, dadv: dadvVerfuegbar, xtecFeld: felder.xtecFeld, advFeld: felder.advFeld }),
-    [dxtecVerfuegbar, dadvVerfuegbar, felder.xtecFeld, felder.advFeld],
+  // befuellt ist (Transitions-Schutz). v2.63 Slim-Cache: die Az-Sets kommen aus
+  // dem Stream-Pass, der die ueber das Schema AUFGELOESTEN Felder geprueft hat
+  // (custom-Mappings) — kein Scan ueber volle Records mehr.
+  const dxtecVerfuegbar = cache.xtecAzSet.size > 0;
+  const dadvVerfuegbar = cache.advAzSet.size > 0;
+  const gate = useMemo<VollstaendigkeitsGateAz>(
+    () => ({ dxtec: dxtecVerfuegbar, dadv: dadvVerfuegbar, xtecAzSet: cache.xtecAzSet, advAzSet: cache.advAzSet }),
+    [dxtecVerfuegbar, dadvVerfuegbar, cache.xtecAzSet, cache.advAzSet],
   );
 
   // Verbund-Aggregation. Pool-Filterung + verbuende-Lookup passieren intern
@@ -212,8 +212,10 @@ export function KlassifizierungsReview(): React.ReactElement {
       config.stage2Aktiv === true,
       cache.verbuende,
       gate,
+      cache.deskriptorenByAz,
+      cache.ztKlartexteByAz,
     ),
-    [cache.antraege, verteilCutoff, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv, cache.verbuende, gate],
+    [cache.antraege, verteilCutoff, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv, cache.verbuende, gate, cache.deskriptorenByAz, cache.ztKlartexteByAz],
   );
 
   const [filter, setFilter] = useState<ViewFilter>('alle');

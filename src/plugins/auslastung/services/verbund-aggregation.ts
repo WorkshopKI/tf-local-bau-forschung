@@ -28,7 +28,7 @@ import {
   type UeberKategorie,
   type Zuweisung,
 } from '../types';
-import { klassifiziereAntrag } from './klassifizierung-engine';
+import { klassifiziereAntragFromLookup } from './klassifizierung-engine';
 import { normalizeKuerzel } from './anonym-map';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
@@ -46,7 +46,7 @@ export interface VerbundKlassifizierungsView {
   akronym: string;
   verbundTitel: string;
   /** TVs in FKZ-Reihenfolge (alphanumerisch aufsteigend). */
-  tvs: Antrag[];
+  tvs: AntragOderSlim[];
   /** Maßgebliches Antragsdatum des Verbundes = zuletzt eingegangenes TV
    *  (max antragsdatum über alle TVs; ISO `YYYY-MM-DD`, leer wenn keins gesetzt).
    *  Header-Datum + Sortierung. Die TV-Sub-Rows zeigen ihr eigenes Datum. */
@@ -64,7 +64,7 @@ export interface VerbundKlassifizierungsView {
   vollstaendig: boolean;
 }
 
-function readString(antrag: Antrag, key: string): string {
+function readString(antrag: AntragOderSlim, key: string): string {
   const v = (antrag as Record<string, unknown>)[key];
   return typeof v === 'string' ? v : '';
 }
@@ -85,7 +85,7 @@ function istManuell(kl: Klassifizierung): boolean {
 
 /** Eindeutige Verbund-Key fuer Bucketing — `verbund_id` falls gesetzt,
  *  sonst Solo-ID = `aktenzeichen`. */
-export function verbundKeyOf(antrag: Antrag): string {
+export function verbundKeyOf(antrag: AntragOderSlim): string {
   const vid = readString(antrag, CANONICAL_VERBUND_ID);
   return vid.length > 0 ? vid : antrag.aktenzeichen;
 }
@@ -95,7 +95,7 @@ export function verbundKeyOf(antrag: Antrag): string {
  *  Klassifizierungs-Aggregation und der Zuweisungs-Gruppierung. */
 export function resolveVerbundMeta(
   verbund: Verbund | undefined,
-  rep: Antrag,
+  rep: AntragOderSlim,
 ): { akronym: string; verbundTitel: string } {
   const akronym = (verbund?.akronym && verbund.akronym.length > 0)
     ? verbund.akronym
@@ -140,7 +140,7 @@ const POOL_EXCLUDED_STATUS = new Set(['abgelehnt/zurückgezogen', 'irrläufer'])
  * Klassifizierungs-Pool (`istZuVerteilen`) und der Zuweisungs-Worklist
  * (bereits gekürzelte Anträge gehören in keine der beiden Listen).
  */
-export function hatBearbeiterKuerzel(antrag: Antrag): boolean {
+export function hatBearbeiterKuerzel(antrag: AntragOderSlim): boolean {
   return normalizeKuerzel((antrag as Record<string, unknown>)[CANONICAL_TIB_KUERZ]) !== null;
 }
 
@@ -264,11 +264,11 @@ export function istUnvollstaendigAz(
   antrag: AntragOderSlim,
   gate: VollstaendigkeitsGateAz,
 ): boolean {
-  return !istVollstaendigFuerTypAz(antrag, gate) && !hatBearbeiterKuerzel(antrag as Antrag);
+  return !istVollstaendigFuerTypAz(antrag, gate) && !hatBearbeiterKuerzel(antrag);
 }
 
 /** Bucket-abhaengiger Grund-Text fuer die Unvollstaendig-Markierung (Tooltip). */
-export function unvollstaendigGrund(antrag: Antrag): string {
+export function unvollstaendigGrund(antrag: AntragOderSlim): string {
   const bucket = getKategorieLabel((antrag as Record<string, unknown>).vb_phase);
   const spalte = bucket === 'DL' || bucket === 'NW' ? 'D_ADV' : 'D_XTEC';
   return `Antrag nicht vollständig - kein ${spalte} gesetzt`;
@@ -283,7 +283,7 @@ export const UNVOLLSTAENDIG_TOOLTIP = 'Antrag nicht vollständig - Verbund noch 
  * (reihenfolgestabil). T_HINT ist ein per-TV-Feld — eine Bemerkung auf einem
  * Nicht-Lead-TV soll in der Detail-/Tabellen-Ansicht trotzdem sichtbar sein.
  */
-export function collectVerbundTHints(tvs: readonly Antrag[]): string[] {
+export function collectVerbundTHints(tvs: ReadonlyArray<AntragOderSlim>): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const tv of tvs) {
@@ -322,7 +322,7 @@ export function verteilCutoffDatum(quartal: string, lookbackMonate: number): str
  * ausgeschlossenen Status. Geteilt von der Klassifizierungs-Liste UND der
  * Zuweisungs-Worklist — beide zeigen denselben Antrags-Pool.
  */
-export function istZuVerteilen(antrag: Antrag, cutoffDatum: string): boolean {
+export function istZuVerteilen(antrag: AntragOderSlim, cutoffDatum: string): boolean {
   const datum = (antrag as Record<string, unknown>)[CANONICAL_ANTRAGSDATUM];
   if (typeof datum !== 'string' || datum < cutoffDatum) return false;
   if (hatBearbeiterKuerzel(antrag)) return false;
@@ -336,19 +336,25 @@ export function istZuVerteilen(antrag: Antrag, cutoffDatum: string): boolean {
 // liefern useMemos in den Konsumenten-Komponenten frische Refs, der Cache
 // wuerde sonst nie greifen. Stattdessen filtert + baut die Funktion intern.
 
+// Stabile Default-Refs fuer die optionalen Lookup-Parameter — frische
+// Default-Instanzen pro Aufruf wuerden den Ref-Cache unten dauerhaft missen.
+const EMPTY_LOOKUP: ReadonlyMap<string, readonly string[]> = new Map();
+
 interface CachedClassificationViews {
-  antraege: readonly Antrag[];
+  antraege: ReadonlyArray<AntragOderSlim>;
   cutoffDatum: string | null;
   kategorien: readonly UeberKategorie[];
   persisted: readonly Klassifizierung[];
   verbundEmbeddings: ReadonlyMap<string, number[]> | undefined;
   stage2Aktiv: boolean;
   verbuende: readonly Verbund[];
-  // Gate als Werte cachen (das Objekt ist ueber Re-Mounts nicht ref-stabil).
+  // Gate als Werte/Refs cachen (das Objekt ist ueber Re-Mounts nicht ref-stabil).
   gateDxtec: boolean;
   gateDadv: boolean;
-  gateXtecFeld: string;
-  gateAdvFeld: string;
+  gateXtecAzSet: ReadonlySet<string>;
+  gateAdvAzSet: ReadonlySet<string>;
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]>;
+  ztKlartexteByAz: ReadonlyMap<string, readonly string[]>;
   value: VerbundKlassifizierungsView[];
 }
 
@@ -362,23 +368,29 @@ let cachedViews: CachedClassificationViews | null = null;
 // sie pro Verbund-Key. Der Cache wird verworfen, sobald sich eine der echten
 // Live-Deps (antraege/kategorien/embeddings/stage2Aktiv) ref-seitig aendert.
 interface LiveKlGeneration {
-  antraege: readonly Antrag[];
+  antraege: ReadonlyArray<AntragOderSlim>;
   kategorien: readonly UeberKategorie[];
   verbundEmbeddings: ReadonlyMap<string, number[]> | undefined;
   stage2Aktiv: boolean;
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]>;
+  ztKlartexteByAz: ReadonlyMap<string, readonly string[]>;
 }
 let liveGen: LiveKlGeneration | null = null;
 let liveKlCache = new Map<string, Klassifizierung>();
 
 export function buildVerbundClassificationViews(
-  antraege: readonly Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   cutoffDatum: string | null,
   kategorien: readonly UeberKategorie[],
   persisted: readonly Klassifizierung[],
   verbundEmbeddings: ReadonlyMap<string, number[]> | undefined,
   stage2Aktiv: boolean,
   verbuende: readonly Verbund[],
-  gate: VollstaendigkeitsGate = NO_VOLLSTAENDIGKEITS_GATE,
+  // v2.63 Slim-Cache: Az-Set-Gate (custom-Mappings im Stream aufgeloest) +
+  // vorberechnete Deskriptoren/ZT-Klartexte fuer die Live-Klassifizierung.
+  gate: VollstaendigkeitsGateAz = NO_VOLLSTAENDIGKEITS_GATE_AZ,
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]> = EMPTY_LOOKUP,
+  ztKlartexteByAz: ReadonlyMap<string, readonly string[]> = EMPTY_LOOKUP,
 ): VerbundKlassifizierungsView[] {
   if (cachedViews
       && cachedViews.antraege === antraege
@@ -390,16 +402,20 @@ export function buildVerbundClassificationViews(
       && cachedViews.verbuende === verbuende
       && cachedViews.gateDxtec === gate.dxtec
       && cachedViews.gateDadv === gate.dadv
-      && cachedViews.gateXtecFeld === gate.xtecFeld
-      && cachedViews.gateAdvFeld === gate.advFeld) {
+      && cachedViews.gateXtecAzSet === gate.xtecAzSet
+      && cachedViews.gateAdvAzSet === gate.advAzSet
+      && cachedViews.deskriptorenByAz === deskriptorenByAz
+      && cachedViews.ztKlartexteByAz === ztKlartexteByAz) {
     return cachedViews.value;
   }
   const value = computeVerbundClassificationViews(
     antraege, cutoffDatum, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende, gate,
+    deskriptorenByAz, ztKlartexteByAz,
   );
   cachedViews = {
     antraege, cutoffDatum, kategorien, persisted, verbundEmbeddings, stage2Aktiv, verbuende,
-    gateDxtec: gate.dxtec, gateDadv: gate.dadv, gateXtecFeld: gate.xtecFeld, gateAdvFeld: gate.advFeld, value,
+    gateDxtec: gate.dxtec, gateDadv: gate.dadv, gateXtecAzSet: gate.xtecAzSet, gateAdvAzSet: gate.advAzSet,
+    deskriptorenByAz, ztKlartexteByAz, value,
   };
   return value;
 }
@@ -414,14 +430,16 @@ export function invalidateVerbundClassificationCache(): void {
 }
 
 function computeVerbundClassificationViews(
-  antraege: readonly Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   cutoffDatum: string | null,
   kategorien: readonly UeberKategorie[],
   persisted: readonly Klassifizierung[],
   verbundEmbeddings: ReadonlyMap<string, number[]> | undefined,
   stage2Aktiv: boolean,
   verbuende: readonly Verbund[],
-  gate: VollstaendigkeitsGate,
+  gate: VollstaendigkeitsGateAz,
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]>,
+  ztKlartexteByAz: ReadonlyMap<string, readonly string[]>,
 ): VerbundKlassifizierungsView[] {
   // Live-Cache verwerfen, sobald sich eine echte Live-Dep-Ref geaendert hat.
   // (Eine reine `persisted`-Aenderung — der Pill-Klick-Fall — laesst diese
@@ -432,9 +450,11 @@ function computeVerbundClassificationViews(
     || liveGen.kategorien !== kategorien
     || liveGen.verbundEmbeddings !== verbundEmbeddings
     || liveGen.stage2Aktiv !== stage2Aktiv
+    || liveGen.deskriptorenByAz !== deskriptorenByAz
+    || liveGen.ztKlartexteByAz !== ztKlartexteByAz
   ) {
     liveKlCache = new Map();
-    liveGen = { antraege, kategorien, verbundEmbeddings, stage2Aktiv };
+    liveGen = { antraege, kategorien, verbundEmbeddings, stage2Aktiv, deskriptorenByAz, ztKlartexteByAz };
   }
 
   // 0) Pool filtern.
@@ -448,7 +468,7 @@ function computeVerbundClassificationViews(
 
   // 1) Bucket nach Verbund-Key, Reihenfolge der ersten Sichtung beibehalten.
   const persistedById = new Map(persisted.map(k => [k.antragId, k]));
-  const buckets = new Map<string, Antrag[]>();
+  const buckets = new Map<string, AntragOderSlim[]>();
   const order: string[] = [];
   for (const a of pool) {
     const key = verbundKeyOf(a);
@@ -496,8 +516,12 @@ function computeVerbundClassificationViews(
         kl = cached;
       } else {
         const queryEmbedding = verbundEmbeddings?.get(key);
-        const live = klassifiziereAntrag({
-          antrag: rep,
+        // v2.63: Lookup-Variante — Stage 0/1 aus den im Stream-Pass
+        // vorberechneten Listen (kein voller Record im Cache mehr).
+        const live = klassifiziereAntragFromLookup({
+          aktenzeichen: rep.aktenzeichen,
+          deskriptoren: deskriptorenByAz.get(rep.aktenzeichen) ?? [],
+          ztKlartexte: ztKlartexteByAz.get(rep.aktenzeichen) ?? [],
           kategorien: kategorien as UeberKategorie[],
           queryEmbedding,
           stage2Aktiv,
@@ -522,7 +546,7 @@ function computeVerbundClassificationViews(
       manuell: istManuell(kl),
       // Verbund freigebbar nur, wenn ALLE TVs fuer ihren Antragstyp vollstaendig
       // erfasst sind (Gate-/Transitions-bewusst).
-      vollstaendig: tvs.every(tv => istVollstaendigFuerTyp(tv, gate)),
+      vollstaendig: tvs.every(tv => istVollstaendigFuerTypAz(tv, gate)),
     });
   }
 

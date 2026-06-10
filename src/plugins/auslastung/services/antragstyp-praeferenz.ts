@@ -20,7 +20,7 @@
  * automatisch bei jedem Kompetenz-XLSX-Re-Upload. Die PL ueberschreibt sie, indem
  * sie explizit Pills setzt (→ 2) oder ein Override pflegt (→ 1).
  */
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket } from '../types';
 import { hatTypKapazitaet } from './kapazitaet-pro-typ';
@@ -79,7 +79,7 @@ export function getAntragstypHerkunft(ma: AnonymerMitarbeiter): AntragstypHerkun
  *    den allowed-Buckets sein. Irrlaeufer (vb_phase=9) → `getKategorieLabel`
  *    returnt `null` → kein Match.
  */
-export function matchesAntragstyp(antrag: Antrag, ma: AnonymerMitarbeiter): boolean {
+export function matchesAntragstyp(antrag: AntragOderSlim, ma: AnonymerMitarbeiter): boolean {
   const allowed = getEffectiveAntragstypen(ma);
   if (allowed === null) return true;
   const label = getKategorieLabel((antrag as Record<string, unknown>).vb_phase);

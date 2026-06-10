@@ -20,6 +20,7 @@ import {
   istVollstaendigFuerTyp,
   istZuVerteilen,
   type VollstaendigkeitsGate,
+  type VollstaendigkeitsGateAz,
 } from '../services/verbund-aggregation';
 import type { Klassifizierung } from '../types';
 import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
@@ -423,7 +424,8 @@ describe('Vollständigkeit pro Antragstyp (D_XTEC / D_ADV)', () => {
   });
 
   it('VerbundView.vollstaendig: nur true, wenn ALLE TVs vollständig (every)', () => {
-    const gate: VollstaendigkeitsGate = { dxtec: true, dadv: false, xtecFeld: 'd_xtec', advFeld: 'd_adv' };
+    // v2.63: View-Builder nutzt das Az-Set-Gate (Sets wie der Stream-Pass sie baut).
+    const gate: VollstaendigkeitsGateAz = { dxtec: true, dadv: false, xtecAzSet: new Set(['A1']), advAzSet: new Set() };
     // Verbund mit 2 FuE-TVs, nur einer hat D_XTEC → unvollständig.
     const antraege = [
       makeAntrag({ aktenzeichen: 'A1', vb_phase: 3, verbund_id: 'V1', d_xtec: '2026-05-01' }),
@@ -439,7 +441,8 @@ describe('Vollständigkeit pro Antragstyp (D_XTEC / D_ADV)', () => {
       makeAntrag({ aktenzeichen: 'B1', vb_phase: 3, verbund_id: 'V2', d_xtec: '2026-05-01' }),
       makeAntrag({ aktenzeichen: 'B2', vb_phase: 3, verbund_id: 'V2', d_xtec: '2026-05-02' }),
     ];
-    const views2 = buildVerbundClassificationViews(antraege2, null, [], [], undefined, false, [], gate);
+    const gate2: VollstaendigkeitsGateAz = { dxtec: true, dadv: false, xtecAzSet: new Set(['B1', 'B2']), advAzSet: new Set() };
+    const views2 = buildVerbundClassificationViews(antraege2, null, [], [], undefined, false, [], gate2);
     expect(views2[0]?.vollstaendig).toBe(true);
   });
 });

@@ -11,7 +11,7 @@
 import { type ReactNode } from 'react';
 import { AlertTriangle, StickyNote } from 'lucide-react';
 import type { SortableColumn } from '@/components/data-table';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import { KategoriePill } from '../components/KategoriePill';
 import { HoverTooltip } from '../components/HoverTooltip';
 import { ConfidenceDot } from '../components/ConfidenceDot';
@@ -26,7 +26,7 @@ import {
 } from '../types';
 
 export interface VerbundColumn extends SortableColumn<VerbundKlassifizierungsView> {
-  renderTV?: (tv: Antrag, parent: VerbundKlassifizierungsView) => ReactNode;
+  renderTV?: (tv: AntragOderSlim, parent: VerbundKlassifizierungsView) => ReactNode;
 }
 
 export interface VerbundColumnsContext {
@@ -48,16 +48,16 @@ function topVorschlagKey(v: VerbundKlassifizierungsView): string {
   return v.klassifizierung.vorgeschlagenePrimaer?.kategorieId ?? '';
 }
 
-function leadAntrag(v: VerbundKlassifizierungsView): Antrag {
+function leadAntrag(v: VerbundKlassifizierungsView): AntragOderSlim {
   return v.tvs[0]!;
 }
 
-function readString(a: Antrag, key: string): string {
+function readString(a: AntragOderSlim, key: string): string {
   const v = (a as Record<string, unknown>)[key];
   return typeof v === 'string' ? v : '';
 }
 
-function readBib(a: Antrag): string | null {
+function readBib(a: AntragOderSlim): string | null {
   return normalizeKuerzel((a as Record<string, unknown>)[CANONICAL_BIB_KUERZ]);
 }
 

@@ -13,7 +13,7 @@
  */
 import { Fragment, useCallback, useRef } from 'react';
 import { SortIcon, type SortDirection } from '@/components/data-table';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import type { VerbundKlassifizierungsView } from '../services/verbund-aggregation';
 import type { VerbundColumn } from './verbund-columns';
 
@@ -228,7 +228,7 @@ function VerbundHeaderRow({ view, columns, highlight = false }: VerbundHeaderRow
 }
 
 interface TVSubRowProps {
-  tv: Antrag;
+  tv: AntragOderSlim;
   parent: VerbundKlassifizierungsView;
   columns: VerbundColumn[];
 }

@@ -11,7 +11,6 @@ import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
 import { KategoriePill } from '../components/KategoriePill';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { TechnologieTags } from '../components/TechnologieTags';
-import { readAntragDeskriptoren } from '../services/profil-aggregator';
 import { normalizeKuerzel } from '../services/anonym-map';
 import {
   CANONICAL_AKRONYM,
@@ -24,6 +23,8 @@ import {
 
 export interface ClassifierColumnsContext {
   kategorien: UeberKategorie[];
+  /** Deskriptoren pro Aktenzeichen aus dem Slim-Cache-Stream-Pass (v2.63). */
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]>;
   onToggleKategorie: (view: KlassifizierungsView, kategorieId: string, add: boolean) => void;
   onBestaetigen: (view: KlassifizierungsView) => void;
 }
@@ -51,7 +52,7 @@ function readVbTitel(row: KlassifizierungsView): string {
 export function buildClassifierColumns(
   ctx: ClassifierColumnsContext,
 ): SortableColumn<KlassifizierungsView>[] {
-  const { kategorien, onToggleKategorie, onBestaetigen } = ctx;
+  const { kategorien, deskriptorenByAz, onToggleKategorie, onBestaetigen } = ctx;
 
   return [
     {
@@ -170,7 +171,7 @@ export function buildClassifierColumns(
       width: 180,
       wrap: true,
       accessor: () => '',
-      render: row => <TechnologieTags tags={readAntragDeskriptoren(row.antrag)} max={3} />,
+      render: row => <TechnologieTags tags={deskriptorenByAz.get(row.antrag.aktenzeichen) ?? []} max={3} />,
     },
     {
       key: 'vorschlag',

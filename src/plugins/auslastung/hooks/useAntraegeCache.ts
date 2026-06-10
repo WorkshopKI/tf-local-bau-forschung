@@ -3,21 +3,31 @@
  * "Meine Technologien".
  *
  * Architektur: Modul-globaler Zustand-Store + Hook-Wrapper, NICHT pro-Komponente
- * `useState`. So bezahlt nur der erste Konsument den IDB-Read (~1-2 s fuer
- * 5000 Antraege), alle nachfolgenden Konsumenten (z.B. Tab-Switches in den
- * Einstellungen) sehen die Daten sofort.
+ * `useState`. So bezahlt nur der erste Konsument den IDB-Read, alle
+ * nachfolgenden Konsumenten (z.B. Tab-Switches in den Einstellungen) sehen die
+ * Daten sofort.
  *
- * Anders als der `dokument-review`-Hook nutzen wir hier den vollen
- * `Antrag`-Record (nicht das Slim-AntragListItem), weil wir die
- * Deskriptoren-Spalten (`techn_1..5`, `branche..5`, `anwendung_1..2`) und
- * den Abstract (`projektbeschreibung_text`) brauchen.
+ * **v2.63 — Slim-Cache:** Der Cache haelt NICHT mehr die vollen ~13k
+ * `Antrag`-Records (~450 MB Heap, frueher der groesste Einzelposten des
+ * pl-RAM-Sockels), sondern:
+ *  1. die **Slim-Projektion** (`AntragListItem[]`, inkl. der v2-Felder t_hint/
+ *     d_xtec/d_adv/tib_mail/verbund_titel) — traegt Listen, Filter, Quartals-
+ *     Auslastung, Kuerzel-Sync;
+ *  2. **Stream-Artefakte** aus EINER Cursor-Passage ueber die vollen Records
+ *     (`forEachAntragByProgramm`, keine Array-Retention): `deskriptorenByAz`,
+ *     `ztKlartexteByAz` (Stage-0/1-Klassifizierung), `embeddableAz`
+ *     (Korpus-Hash MUSS aus vollen Records stammen — Self-Heal-Integritaet),
+ *     `xtecAzSet`/`advAzSet` (Vollstaendigkeits-Gate mit den ueber das
+ *     CSV-Schema AUFGELOESTEN Feldern — custom-Mappings!).
+ * Schwere Texte (`projektbeschreibung_text`) bleiben in der IDB und werden
+ * on-demand per `getAntrag`-Point-Read geholt (Cockpit-Detail, Export).
  *
  * v2.13: Aggregate (`anonymMap`, `verbuendeById`, `historische*ByAnon`,
- * `allDeskriptoren`) wandern aus den Component-useMemos in den Store. Damit
- * laufen die Single-Pass-Aggregationen ueber 5000+ Antraege genau einmal pro
- * Daten-Load — nicht pro Mount jedes Konsumenten (3 Tabs × 5 Aggregate).
- * Re-Mount nach Navigation findet die Werte ref-stable im Store, keine
- * Main-Thread-Blockade.
+ * `allDeskriptoren`) wohnen im Store — Single-Pass genau einmal pro
+ * Daten-Load, ref-stable ueber Re-Mounts. Seit v2.63 werden sie in-memory aus
+ * (Slim + deskriptorenByAz + kuerzelMap) abgeleitet — eine spaet ankommende
+ * kuerzel-map re-derived OHNE erneuten Stream (`aggregatesKey` nutzt den
+ * `streamToken` als Identitaet).
  *
  * Invalidierungs-Regeln:
  *  - Wechsel von `activeProgrammId` → Cache wird verworfen + neu geladen.
@@ -30,9 +40,15 @@ import { useCallback, useEffect } from 'react';
 import { create } from 'zustand';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { listAntraegeByProgramm, listVerbuendeByProgramm } from '@/core/services/csv/idb-csv';
+import {
+  forEachAntragByProgramm,
+  listAntraegeListViewByProgramm,
+  listSchemasByProgramm,
+  listVerbuendeByProgramm,
+} from '@/core/services/csv/idb-csv';
 import { SYNC_VERSION_KEY } from '@/core/services/csv/snapshot-keys';
-import type { Antrag, Verbund } from '@/core/services/csv/types';
+import { parseGermanDate } from '@/core/services/csv/dateParse';
+import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import type { StorageService } from '@/core/services/storage';
 import { type AnonymMap } from '../services/anonym-map';
 import { buildAnonymMapFromKuerzelMap, type KuerzelMapFile } from '../services/kuerzel-map';
@@ -40,33 +56,48 @@ import { useKuerzelMap } from './useKuerzelMap';
 import {
   aggregateAntragCountByAnon,
   aggregateAstByAnon,
-  aggregateMaProfilesByAnon,
-  collectAllDeskriptorenMitCount,
+  aggregateMaProfilesByAnonFromLookup,
+  collectAllDeskriptorenMitCountFromLookup,
+  readAntragDeskriptoren,
+  readTruthyZtKlartexte,
 } from '../services/profil-aggregator';
+import { isEmbeddableAntrag } from '../services/embedding-corpus';
+import {
+  resolveVollstaendigkeitsFelder,
+  DEFAULT_VOLLSTAENDIGKEITS_FELDER,
+} from '../services/vollstaendigkeit-felder';
 
-interface AntraegeCache {
-  antraege: Antrag[];
+export interface AntraegeCache {
+  /** Slim-Projektion (v2.63) — Listen/Filter/Aggregation. Volle Records bei
+   *  Bedarf per `getAntrag`-Point-Read. */
+  antraege: AntragListItem[];
   /** Raw-Array aus dem Store — ref-stable ueber Re-Mount (im Gegensatz zu
    *  `verbuendeById`, das durch useMemo geht). Konsumenten, die Closure-
    *  Caches keyen, nutzen DIESE Property. */
   verbuende: Verbund[];
-  /** Pro `verbund_id` das Verbund-Objekt aus dem `verbuende`-IDB-Store.
-   *  Wird benoetigt fuer den korrekten Verbund-Titel + Akronym in der UI +
-   *  im LLM-Klassifizierungs-Prompt (Verbund-Level-Felder werden vom
-   *  CSV-Merger separat gespeichert, nicht auf dem Antrag-Objekt). */
+  /** Pro `verbund_id` das Verbund-Objekt aus dem `verbuende`-IDB-Store. */
   verbuendeById: Map<string, Verbund>;
   loading: boolean;
   loaded: boolean;
+  /** True sobald die Stream-Passage (Deskriptoren/ZT/Embeddable/Gate-Sets)
+   *  fuer den aktuellen Stand durch ist. Matching/Klassifizierung erst dann
+   *  starten (sonst leere historische*-Maps, Bug-Klasse v2.46.1). */
+  aggregatesLoaded: boolean;
   error: string | null;
   anonymMap: AnonymMap;
   historischeDeskriptorenByAnon: Map<string, string[]>;
-  /** Pro anonId: AST-Name (lower+trim) → Anzahl bearbeiteter Antraege. Wird
-   *  im MA-Match-AST-Boost ausgewertet. */
+  /** Pro anonId: AST-Name (lower+trim) → Anzahl bearbeiteter Antraege. */
   historischeAstByAnon: Map<string, Map<string, number>>;
-  /** Pro anonId: Gesamtzahl bearbeiteter historischer Antraege. Wird im
-   *  Matcher genutzt, um „wenig Historie" zu erkennen (Kompetenz-Matrix-Boost). */
+  /** Pro anonId: Gesamtzahl bearbeiteter historischer Antraege. */
   historischeAntraegeCountByAnon: Map<string, number>;
   allDeskriptoren: Array<{ wert: string; count: number }>;
+  /** Stream-Artefakte (v2.63) — pro Aktenzeichen vorberechnete Daten aus den
+   *  vollen Records (siehe Header). */
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]>;
+  ztKlartexteByAz: ReadonlyMap<string, readonly string[]>;
+  embeddableAz: readonly string[];
+  xtecAzSet: ReadonlySet<string>;
+  advAzSet: ReadonlySet<string>;
   refresh: () => Promise<void>;
 }
 
@@ -78,12 +109,32 @@ const EMPTY_DESKR_BY_ANON: ReadonlyMap<string, string[]> = new Map();
 const EMPTY_AST_BY_ANON: ReadonlyMap<string, Map<string, number>> = new Map();
 const EMPTY_COUNT_BY_ANON: ReadonlyMap<string, number> = new Map();
 const EMPTY_DESKR_LIST: ReadonlyArray<{ wert: string; count: number }> = [];
+const EMPTY_BY_AZ: ReadonlyMap<string, readonly string[]> = new Map();
+const EMPTY_AZ_LIST: readonly string[] = [];
+const EMPTY_AZ_SET: ReadonlySet<string> = new Set();
 
-interface CacheStoreState {
-  antraege: Antrag[];
+interface StreamArtefakte {
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]>;
+  ztKlartexteByAz: ReadonlyMap<string, readonly string[]>;
+  embeddableAz: readonly string[];
+  xtecAzSet: ReadonlySet<string>;
+  advAzSet: ReadonlySet<string>;
+}
+
+const EMPTY_ARTEFAKTE: StreamArtefakte = {
+  deskriptorenByAz: EMPTY_BY_AZ,
+  ztKlartexteByAz: EMPTY_BY_AZ,
+  embeddableAz: EMPTY_AZ_LIST,
+  xtecAzSet: EMPTY_AZ_SET,
+  advAzSet: EMPTY_AZ_SET,
+};
+
+interface CacheStoreState extends StreamArtefakte {
+  antraege: AntragListItem[];
   verbuende: Verbund[];
   loading: boolean;
   loaded: boolean;
+  aggregatesLoaded: boolean;
   error: string | null;
   /** Programm-ID des aktuell gecachten States. null = nichts geladen. */
   cachedProgrammId: string | null;
@@ -98,6 +149,10 @@ interface CacheStoreState {
   allDeskriptoren: Array<{ wert: string; count: number }>;
   /** Key der zuletzt berechneten Aggregate. Null = noch nichts. */
   aggregatesKey: string | null;
+  /** Bumpt pro abgeschlossenem Stream — Identitaet des Antrags-Stands fuer
+   *  den aggregatesKey (Laenge allein erkennt einen Re-Import gleicher
+   *  Groesse nicht). */
+  streamToken: number;
   /** Snapshot-Version (`snapshot-version-<programmId>`), gegen die der Cache
    *  geladen wurde. Weicht die IDB-Version davon ab (CSV-Refresh / Cross-User-
    *  Snapshot-Pull), lädt der Cache neu — ohne App-Reload (v2.26.x). */
@@ -107,23 +162,27 @@ interface CacheStoreState {
   /** Externe Invalidierung (CSV-Re-Import, Antrag-Edit). */
   invalidate: () => void;
   /** Berechnet die Aggregate neu, wenn sich die Eingaben geaendert haben
-   *  (antraege-Ref, verbuende-Ref, kuerzelMapFile-Identity). No-op sonst. */
+   *  (streamToken, verbuende, kuerzelMapFile). No-op sonst. */
   ensureAggregates: () => void;
 }
 
 function buildAggregatesKey(
   programmId: string | null,
-  antraege: Antrag[],
+  streamToken: number,
+  antraege: AntragListItem[],
   verbuende: Verbund[],
   kuerzelMapFile: KuerzelMapFile,
 ): string {
-  // Ref-Identitaeten reichen als Cache-Key — Zustand-Stores aendern Refs nur
-  // bei echten Mutationen. updatedAt der kuerzel-map als Tiebreaker fuer den
-  // (seltenen) Fall, dass die Ref gleich bleibt aber der Inhalt drifted.
-  return `${programmId ?? '∅'}|${antraege.length}|${verbuende.length}|${kuerzelMapFile.entries.length}|${kuerzelMapFile.updatedAt}`;
+  return `${programmId ?? '∅'}|${streamToken}|${antraege.length}|${verbuende.length}|${kuerzelMapFile.entries.length}|${kuerzelMapFile.updatedAt}`;
 }
 
-function computeAggregates(antraege: Antrag[], verbuende: Verbund[], kuerzelMapFile: KuerzelMapFile): {
+/** Aggregate in-memory aus Slim + Stream-Artefakten ableiten (kein IDB). */
+function deriveAggregates(
+  antraege: AntragListItem[],
+  verbuende: Verbund[],
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]>,
+  kuerzelMapFile: KuerzelMapFile,
+): {
   anonymMap: AnonymMap;
   verbuendeById: Map<string, Verbund>;
   historischeDeskriptorenByAnon: Map<string, string[]>;
@@ -135,11 +194,58 @@ function computeAggregates(antraege: Antrag[], verbuende: Verbund[], kuerzelMapF
   return {
     anonymMap,
     verbuendeById: new Map(verbuende.map(v => [v.verbund_id, v])),
-    historischeDeskriptorenByAnon: aggregateMaProfilesByAnon(antraege, anonymMap),
+    historischeDeskriptorenByAnon: aggregateMaProfilesByAnonFromLookup(antraege, anonymMap, deskriptorenByAz),
     historischeAstByAnon: aggregateAstByAnon(antraege, anonymMap),
     historischeAntraegeCountByAnon: aggregateAntragCountByAnon(antraege, anonymMap),
-    allDeskriptoren: collectAllDeskriptorenMitCount(antraege),
+    allDeskriptoren: collectAllDeskriptorenMitCountFromLookup(deskriptorenByAz),
   };
+}
+
+/**
+ * EINE Cursor-Passage ueber die vollen Records des Programms — extrahiert alle
+ * Daten, die NUR dort stehen, ohne die Records zu behalten. `onRecord` ist
+ * synchron (TX-Abort-Gefahr bei await im Cursor); die Vollstaendigkeits-Felder
+ * sind deshalb VORHER aufgeloest. Strings werden interned (Cursor-Records
+ * liefern frische String-Instanzen — ohne Interning entstuenden zigtausend
+ * Duplikate der immergleichen Deskriptoren).
+ */
+async function streamArtefakte(
+  storage: StorageService,
+  programmId: string,
+): Promise<StreamArtefakte> {
+  const schemas = await listSchemasByProgramm(storage.idb, programmId).catch(() => []);
+  const felder = schemas.length > 0
+    ? resolveVollstaendigkeitsFelder(schemas)
+    : DEFAULT_VOLLSTAENDIGKEITS_FELDER;
+
+  const intern = new Map<string, string>();
+  const internStr = (s: string): string => {
+    const hit = intern.get(s);
+    if (hit !== undefined) return hit;
+    intern.set(s, s);
+    return s;
+  };
+
+  const deskriptorenByAz = new Map<string, readonly string[]>();
+  const ztKlartexteByAz = new Map<string, readonly string[]>();
+  const embeddableAz: string[] = [];
+  const xtecAzSet = new Set<string>();
+  const advAzSet = new Set<string>();
+
+  await forEachAntragByProgramm(storage.idb, programmId, a => {
+    const rec = a as Record<string, unknown>;
+    const desk = readAntragDeskriptoren(a);
+    if (desk.length > 0) deskriptorenByAz.set(a.aktenzeichen, desk.map(internStr));
+    const zt = readTruthyZtKlartexte(rec);
+    if (zt.length > 0) ztKlartexteByAz.set(a.aktenzeichen, zt);
+    if (isEmbeddableAntrag(a)) embeddableAz.push(a.aktenzeichen);
+    const xv = rec[felder.xtecFeld];
+    if (typeof xv === 'string' && parseGermanDate(xv) !== null) xtecAzSet.add(a.aktenzeichen);
+    const av = rec[felder.advFeld];
+    if (typeof av === 'string' && parseGermanDate(av) !== null) advAzSet.add(a.aktenzeichen);
+  });
+
+  return { deskriptorenByAz, ztKlartexteByAz, embeddableAz, xtecAzSet, advAzSet };
 }
 
 const useCacheStore = create<CacheStoreState>((set, get) => ({
@@ -147,6 +253,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
   verbuende: [],
   loading: false,
   loaded: false,
+  aggregatesLoaded: false,
   error: null,
   cachedProgrammId: null,
   refreshing: null,
@@ -156,7 +263,9 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
   historischeAstByAnon: EMPTY_AST_BY_ANON as Map<string, Map<string, number>>,
   historischeAntraegeCountByAnon: EMPTY_COUNT_BY_ANON as Map<string, number>,
   allDeskriptoren: EMPTY_DESKR_LIST as Array<{ wert: string; count: number }>,
+  ...EMPTY_ARTEFAKTE,
   aggregatesKey: null,
+  streamToken: 0,
   cachedSnapshotVersion: null,
   refresh: async (storage, programmId) => {
     const s = get();
@@ -172,6 +281,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
         antraege: [],
         verbuende: [],
         loaded: true,
+        aggregatesLoaded: true,
         error: null,
         cachedProgrammId: null,
         anonymMap: EMPTY_ANONYM_MAP,
@@ -180,6 +290,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
         historischeAstByAnon: EMPTY_AST_BY_ANON as Map<string, Map<string, number>>,
         historischeAntraegeCountByAnon: EMPTY_COUNT_BY_ANON as Map<string, number>,
         allDeskriptoren: EMPTY_DESKR_LIST as Array<{ wert: string; count: number }>,
+        ...EMPTY_ARTEFAKTE,
         aggregatesKey: null,
         cachedSnapshotVersion: null,
       });
@@ -188,70 +299,56 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
     const promise = (async () => {
       set({ loading: true, error: null });
       try {
-        // Always-on-Timing (v2.62.5): Warmup-Dauer sichtbar machen — der Load
-        // deserialisiert ~13k volle Records und ist der größte Einzelposten
-        // im Cold-Start (Citrix-Diagnose, Console statt build-stummem tfPerf).
+        // Always-on-Timing (v2.62.5): Warmup-Dauer sichtbar machen
+        // (Citrix-Diagnose, Console statt build-stummem tfPerf).
         const t0 = performance.now();
-        // Antraege + Verbuende parallel laden (gleiche IDB, verschiedene Stores).
-        // v2.26.x: Die Verbund-Embeddings werden hier NICHT mehr mitgeladen.
-        // Ihr Deserialisieren (~44 MB Vektoren) war mit Abstand der laengste Pol
-        // des Cold-Loads und blockierte den `ready`-Banner unnoetig — sie werden
-        // nur fuer die Klassifizierungs-Stage-2 gebraucht. Die eager-gemountete
-        // KlassifizierungsReview laedt sie selbst (ensureVerbundEmbeddings im
-        // useEffect, mit „Themen-Vektoren werden geladen …"-Hinweis). Damit ist
-        // das Modul deutlich frueher nutzbar; Stage 2 fuellt sich kurz danach.
-        const [allAntraege, allVerbuende] = await Promise.all([
-          listAntraegeByProgramm(storage.idb, programmId),
+        // Phase 1: Slim-Projektion + Verbuende parallel (kleine IDB-Reads) —
+        // Listen/Dashboards rendern sofort, ohne auf den Stream zu warten.
+        const [slimAntraege, allVerbuende] = await Promise.all([
+          listAntraegeListViewByProgramm(storage.idb, programmId),
           listVerbuendeByProgramm(storage.idb, programmId),
         ]);
-        console.info(`[auslastung] cache.refresh: ${allAntraege.length} Anträge (voll) in ${Math.round(performance.now() - t0)} ms`);
         // Snapshot-Version mitlesen, gegen die geladen wird — damit ein
         // späterer CSV-Refresh (neue Version in der IDB) erkannt wird.
         const snapshotVersion =
           (await storage.idb.get<string>(SYNC_VERSION_KEY(programmId)).catch(() => null)) ?? null;
-        // Aggregate sofort mitberechnen, falls die kuerzel-map schon
-        // geladen ist (B1-Pfad). Sonst bleiben sie auf den Default-Refs
-        // und ensureAggregates() rechnet sie nach, sobald die kuerzel-map
-        // im Hook-useEffect ankommt.
-        const kuerzelState = useKuerzelMap.getState();
-        const kuerzelMapFile = kuerzelState.loaded
-          ? kuerzelState.file
-          : null;
-        if (kuerzelMapFile) {
-          const agg = computeAggregates(allAntraege, allVerbuende, kuerzelMapFile);
-          set({
-            antraege: allAntraege,
-            verbuende: allVerbuende,
-            loaded: true,
-            loading: false,
-            error: null,
-            cachedProgrammId: programmId,
-            refreshing: null,
-            ...agg,
-            aggregatesKey: buildAggregatesKey(programmId, allAntraege, allVerbuende, kuerzelMapFile),
-            cachedSnapshotVersion: snapshotVersion,
-          });
-        } else {
-          set({
-            antraege: allAntraege,
-            verbuende: allVerbuende,
-            loaded: true,
-            loading: false,
-            error: null,
-            cachedProgrammId: programmId,
-            refreshing: null,
-            // Aggregate vorerst auf Default — werden durch ensureAggregates()
-            // im Hook-useEffect nachgerechnet, sobald die kuerzel-map da ist.
-            aggregatesKey: null,
-            cachedSnapshotVersion: snapshotVersion,
-          });
-        }
+        set({
+          antraege: slimAntraege,
+          verbuende: allVerbuende,
+          loaded: true,
+          loading: false,
+          aggregatesLoaded: false,
+          error: null,
+          cachedProgrammId: programmId,
+          cachedSnapshotVersion: snapshotVersion,
+          // Artefakte des VORHERIGEN Stands sofort verwerfen (Programm-Wechsel:
+          // sonst mischen sich bis zum Stream-Ende alte Deskriptoren mit neuen
+          // Slim-Records in ensureAggregates).
+          ...EMPTY_ARTEFAKTE,
+        });
+        console.info(`[auslastung] cache.refresh: ${slimAntraege.length} Anträge (slim) in ${Math.round(performance.now() - t0)} ms`);
+
+        // Phase 2: Stream-Passage ueber die vollen Records (Cursor, keine
+        // Retention) — Deskriptoren/ZT/Embeddable/Gate-Sets.
+        const tStream = performance.now();
+        const artefakte = await streamArtefakte(storage, programmId);
+        set(prev => ({
+          ...artefakte,
+          aggregatesLoaded: true,
+          streamToken: prev.streamToken + 1,
+        }));
+        console.info(`[auslastung] cache.stream: ${artefakte.deskriptorenByAz.size} Antraege mit Deskriptoren, ${artefakte.embeddableAz.length} embeddable in ${Math.round(performance.now() - tStream)} ms`);
+        // Aggregate ableiten (in-memory) — falls die kuerzel-map noch nicht
+        // da ist, holt ensureAggregates() das im Hook-useEffect nach.
+        get().ensureAggregates();
       } catch (err) {
         set({
           error: err instanceof Error ? err.message : String(err),
           loading: false,
           refreshing: null,
         });
+      } finally {
+        set({ refreshing: null });
       }
     })();
     set({ refreshing: promise });
@@ -262,6 +359,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
       antraege: [],
       verbuende: [],
       loaded: false,
+      aggregatesLoaded: false,
       cachedProgrammId: null,
       error: null,
       anonymMap: EMPTY_ANONYM_MAP,
@@ -270,6 +368,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
       historischeAstByAnon: EMPTY_AST_BY_ANON as Map<string, Map<string, number>>,
       historischeAntraegeCountByAnon: EMPTY_COUNT_BY_ANON as Map<string, number>,
       allDeskriptoren: EMPTY_DESKR_LIST as Array<{ wert: string; count: number }>,
+      ...EMPTY_ARTEFAKTE,
       aggregatesKey: null,
       cachedSnapshotVersion: null,
     });
@@ -280,9 +379,9 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
     const kuerzelState = useKuerzelMap.getState();
     if (!kuerzelState.loaded) return;
     const kuerzelMapFile = kuerzelState.file;
-    const nextKey = buildAggregatesKey(s.cachedProgrammId, s.antraege, s.verbuende, kuerzelMapFile);
+    const nextKey = buildAggregatesKey(s.cachedProgrammId, s.streamToken, s.antraege, s.verbuende, kuerzelMapFile);
     if (nextKey === s.aggregatesKey) return; // no-op
-    const agg = computeAggregates(s.antraege, s.verbuende, kuerzelMapFile);
+    const agg = deriveAggregates(s.antraege, s.verbuende, s.deskriptorenByAz, kuerzelMapFile);
     set({ ...agg, aggregatesKey: nextKey });
   },
 }));
@@ -291,6 +390,9 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
 export function invalidateAntraegeCache(): void {
   useCacheStore.getState().invalidate();
 }
+
+/** Test-only: direkter Store-Zugriff (die App geht ueber den Hook). */
+export const useCacheStoreForTests = useCacheStore;
 
 /** Externer Trigger fuer Antraege-Cache-Warmup, z.B. aus dem Auslastung-
  *  Plugin-onInit. Idempotent — nutzt den `refresh()`-Hit-Check intern. */
@@ -365,6 +467,7 @@ export function useAntraegeCache(): AntraegeCache {
   const verbuende = useCacheStore(s => s.verbuende);
   const loading = useCacheStore(s => s.loading);
   const loaded = useCacheStore(s => s.loaded);
+  const aggregatesLoaded = useCacheStore(s => s.aggregatesLoaded);
   const error = useCacheStore(s => s.error);
   const refreshAction = useCacheStore(s => s.refresh);
   const cachedProgrammId = useCacheStore(s => s.cachedProgrammId);
@@ -376,6 +479,11 @@ export function useAntraegeCache(): AntraegeCache {
   const historischeAstByAnon = useCacheStore(s => s.historischeAstByAnon);
   const historischeAntraegeCountByAnon = useCacheStore(s => s.historischeAntraegeCountByAnon);
   const allDeskriptoren = useCacheStore(s => s.allDeskriptoren);
+  const deskriptorenByAz = useCacheStore(s => s.deskriptorenByAz);
+  const ztKlartexteByAz = useCacheStore(s => s.ztKlartexteByAz);
+  const embeddableAz = useCacheStore(s => s.embeddableAz);
+  const xtecAzSet = useCacheStore(s => s.xtecAzSet);
+  const advAzSet = useCacheStore(s => s.advAzSet);
   const ensureAggregates = useCacheStore(s => s.ensureAggregates);
 
   const kuerzelMapFile = useKuerzelMap(s => s.file);
@@ -402,6 +510,7 @@ export function useAntraegeCache(): AntraegeCache {
 
   // Sync der Kuerzel-Map mit den geladenen Antraegen (Bootstrap falls leer,
   // sonst Append neuer Kuerzel). Idempotent — kein Write wenn nichts neu.
+  // Slim reicht: gelesen wird nur `tib_kuerz` (akzeptiert die Union).
   useEffect(() => {
     if (!loaded || !kuerzelMapLoaded || antraege.length === 0) return;
     void syncKuerzelMap(storage, antraege).catch(err => {
@@ -409,13 +518,12 @@ export function useAntraegeCache(): AntraegeCache {
     });
   }, [loaded, kuerzelMapLoaded, antraege, storage, syncKuerzelMap]);
 
-  // Aggregate-Trigger: rechnet nach, wenn antraege oder kuerzelMapFile sich
-  // aendern. Beim Re-Mount sind beide Refs stabil → ensureAggregates checked
-  // den Key und macht no-op. Nur bei echter Daten-Mutation laufen die
-  // Single-Pass-Aggregationen.
+  // Aggregate-Trigger: rechnet nach, wenn Stream-Stand oder kuerzelMapFile
+  // sich aendern. Beim Re-Mount sind die Refs stabil → ensureAggregates
+  // checked den Key und macht no-op.
   useEffect(() => {
     ensureAggregates();
-  }, [ensureAggregates, antraege, verbuende, kuerzelMapFile, loaded, kuerzelMapLoaded]);
+  }, [ensureAggregates, antraege, verbuende, kuerzelMapFile, loaded, kuerzelMapLoaded, aggregatesLoaded]);
 
   return {
     antraege,
@@ -423,12 +531,18 @@ export function useAntraegeCache(): AntraegeCache {
     verbuendeById,
     loading,
     loaded,
+    aggregatesLoaded,
     error,
     anonymMap,
     historischeDeskriptorenByAnon,
     historischeAstByAnon,
     historischeAntraegeCountByAnon,
     allDeskriptoren,
+    deskriptorenByAz,
+    ztKlartexteByAz,
+    embeddableAz,
+    xtecAzSet,
+    advAzSet,
     refresh,
   };
 }

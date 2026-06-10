@@ -15,8 +15,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Antrag } from '@/core/services/csv/types';
 import type { Klassifizierung, UeberKategorie } from '../types';
 
-const klassifiziereAntragSpy = vi.fn((input: { antrag: Antrag }): Klassifizierung => ({
-  antragId: input.antrag.aktenzeichen,
+// v2.63: der View-Builder ruft die Lookup-Variante (Slim-Cache) — der Spy
+// zaehlt deren Aufrufe; die Cache-Semantik (das Testziel) ist unveraendert.
+const klassifiziereAntragSpy = vi.fn((input: { aktenzeichen: string }): Klassifizierung => ({
+  antragId: input.aktenzeichen,
   vorgeschlagenePrimaer: { kategorieId: 'IT', confidence: 0.9, methode: 'embedding' },
   vorgeschlageneAspekte: [],
   freigegebenePrimaer: '',
@@ -25,7 +27,7 @@ const klassifiziereAntragSpy = vi.fn((input: { antrag: Antrag }): Klassifizierun
 }));
 
 vi.mock('../services/klassifizierung-engine', () => ({
-  klassifiziereAntrag: (input: unknown) => klassifiziereAntragSpy(input as { antrag: Antrag }),
+  klassifiziereAntragFromLookup: (input: unknown) => klassifiziereAntragSpy(input as { aktenzeichen: string }),
 }));
 
 import {

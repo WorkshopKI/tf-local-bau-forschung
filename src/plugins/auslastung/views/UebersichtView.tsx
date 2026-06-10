@@ -68,6 +68,7 @@ export function UebersichtView(): React.ReactElement {
         antraege={cache.antraege}
         anonymMap={cache.anonymMap}
         allDeskriptoren={cache.allDeskriptoren}
+        profilesByAnon={cache.historischeDeskriptorenByAnon}
       />
     );
   }

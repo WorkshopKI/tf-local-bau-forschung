@@ -23,7 +23,7 @@
  * Kuerzel "sieht", wandert der Antrag nach `fest`, der Pending-Marker
  * verschwindet automatisch.
  */
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { stundenProTVFor, type AntragstypBucket, type Zuweisung } from '../types';
 import { dateToQuartal } from './externe-zuweisungen';
@@ -83,7 +83,7 @@ export interface MaQuartalsAuslastung {
  *  muessen.
  */
 export function getTVCount(
-  antraege: readonly Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   verbundId: string | undefined | null,
   _fallbackAktenzeichen?: string,
 ): number {
@@ -117,7 +117,7 @@ interface GroupState {
   vbPhase?: unknown;
 }
 
-function readField(a: Antrag, key: string): string | undefined {
+function readField(a: AntragOderSlim, key: string): string | undefined {
   const v = (a as Record<string, unknown>)[key];
   return typeof v === 'string' ? v : undefined;
 }
@@ -127,7 +127,7 @@ function readField(a: Antrag, key: string): string | undefined {
  *  `Map.get(anonId) ?? leerer-Auslastung` arbeiten).
  */
 export function computeQuartalsAuslastung(
-  antraege: readonly Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   zuweisungen: readonly Zuweisung[],
   toAnon: ReadonlyMap<string, string>,
   quartal: string,
@@ -142,7 +142,7 @@ export function computeQuartalsAuslastung(
   const result = new Map<string, MaQuartalsAuslastung>();
 
   // Lookup fuer Pass 2 (pending): aktenzeichen → Antrag.
-  const antraegeByAktenzeichen = new Map<string, Antrag>();
+  const antraegeByAktenzeichen = new Map<string, AntragOderSlim>();
   for (const a of antraege) antraegeByAktenzeichen.set(a.aktenzeichen, a);
 
   // Hilfs-Map: pro (anonId, groupKey) sammeln wir die TVs, dann am Ende in

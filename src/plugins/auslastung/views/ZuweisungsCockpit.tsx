@@ -28,8 +28,7 @@ import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
 import { getTVCount } from '../services/quartals-auslastung';
-import { collectVerbundTHints, groupFreigegebeneByVerbund, hatGueltigesDatum, istUnvollstaendig, istVollstaendigFuerTyp, istZuVerteilen, unvollstaendigGrund, verteilCutoffDatum, verbundKeyOf, type VollstaendigkeitsGate, type VerbundZuweisungRow } from '../services/verbund-aggregation';
-import { useVollstaendigkeitsFelder } from '../hooks/useVollstaendigkeitsFelder';
+import { collectVerbundTHints, groupFreigegebeneByVerbund, istUnvollstaendigAz, istVollstaendigFuerTypAz, istZuVerteilen, unvollstaendigGrund, verteilCutoffDatum, verbundKeyOf, type VollstaendigkeitsGateAz, type VerbundZuweisungRow } from '../services/verbund-aggregation';
 import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
   embedText,
@@ -59,7 +58,6 @@ import { buildManualMatch } from '../services/manual-match';
 import { verbrauchFromAuslastung } from '../services/kontingent';
 import { computeKapazitaet, tageImQuartal as computeTageImQuartal } from '../services/kapazitaet';
 import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
-import { readAntragDeskriptoren } from '../services/profil-aggregator';
 import { useKuerzelExport } from '../hooks/useKuerzelExport';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
@@ -72,7 +70,7 @@ import {
   DEFAULT_ZUWEISUNG_SORT,
   type ZuweisungSortKey,
 } from '../services/zuweisung-sort';
-import type { Antrag } from '@/core/services/csv/types';
+import type { Antrag, AntragListItem } from '@/core/services/csv/types';
 
 type StatusFilter = 'offen' | 'selbst' | 'zugewiesen' | 'alle';
 
@@ -205,7 +203,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   // Perf: Embedding-Korpus + Antraege-Index einmal pro Daten-Stand cachen
   // (statt pro Klick neu laden/bauen). Plus pro-Antrag-Query-Embedding-Cache und
   // ein Request-Token gegen Out-of-Order-Ergebnisse bei schnellem Durchklicken.
-  const loadCorpus = useMatchingCorpus(cache.antraege, storage);
+  const loadCorpus = useMatchingCorpus(cache.antraege, cache.embeddableAz, storage);
   const queryEmbeddingCacheRef = useRef<Map<string, number[]>>(new Map());
   const matchReqIdRef = useRef(0);
 
@@ -286,7 +284,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const phaseByAz = useMemo(() => {
     const m = new Map<string, unknown>();
     for (const a of cache.antraege) {
-      m.set(a.aktenzeichen, (a as Record<string, unknown>).vb_phase);
+      m.set(a.aktenzeichen, a.vb_phase);
     }
     return m;
   }, [cache.antraege]);
@@ -362,17 +360,17 @@ export function ZuweisungsCockpit(): React.ReactElement {
       .catch(() => { if (selectedFullReqIdRef.current === reqId) setSelectedFull(null); });
   }, [selectedAz, storage]);
 
-  // Vollstaendigkeits-Felder ueber das CSV-Schema aufloesen (D_XTEC/D_ADV koennen
-  // als Standard- ODER als Eigenes Feld gemappt sein).
-  const felder = useVollstaendigkeitsFelder();
-  // Vollstaendigkeits-Gate (D_XTEC fuer FuE/DS, D_ADV fuer DL/NW): Markierung +
-  // Zuweisungs-Sperre greifen pro Bucket nur, wenn die jeweilige Spalte irgendwo
-  // befuellt ist (Transitions-Schutz, solange nicht gemappt).
-  const dxtecVerfuegbar = useMemo(() => cache.antraege.some(a => hatGueltigesDatum(a, felder.xtecFeld)), [cache.antraege, felder.xtecFeld]);
-  const dadvVerfuegbar = useMemo(() => cache.antraege.some(a => hatGueltigesDatum(a, felder.advFeld)), [cache.antraege, felder.advFeld]);
-  const gate = useMemo<VollstaendigkeitsGate>(
-    () => ({ dxtec: dxtecVerfuegbar, dadv: dadvVerfuegbar, xtecFeld: felder.xtecFeld, advFeld: felder.advFeld }),
-    [dxtecVerfuegbar, dadvVerfuegbar, felder.xtecFeld, felder.advFeld],
+  // Vollstaendigkeits-Gate (D_XTEC fuer FuE/DS, D_ADV fuer DL/NW): v2.63 — die
+  // Az-Sets kommen aus dem Slim-Cache-Stream-Pass (custom-gemappte Felder dort
+  // bereits aufgeloest), kein Scan ueber volle Records mehr.
+  const gate = useMemo<VollstaendigkeitsGateAz>(
+    () => ({
+      dxtec: cache.xtecAzSet.size > 0,
+      dadv: cache.advAzSet.size > 0,
+      xtecAzSet: cache.xtecAzSet,
+      advAzSet: cache.advAzSet,
+    }),
+    [cache.xtecAzSet, cache.advAzSet],
   );
   const antragByAz = useMemo(() => new Map(cache.antraege.map(a => [a.aktenzeichen, a])), [cache.antraege]);
 
@@ -381,7 +379,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const detailTHints = useMemo(() => {
     if (!selected) return [] as string[];
     const azs = selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen];
-    const tvs = azs.map(az => antragByAz.get(az)).filter((a): a is Antrag => !!a);
+    const tvs = azs.map(az => antragByAz.get(az)).filter((a): a is NonNullable<typeof a> => !!a);
     return collectVerbundTHints(tvs.length > 0 ? tvs : [selected]);
   }, [selected, selectedRow, antragByAz]);
 
@@ -392,9 +390,9 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const selectedVollstaendig = useMemo(() => {
     if (!selected) return true;
     const azs = selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen];
-    const tvs = azs.map(az => antragByAz.get(az)).filter((a): a is Antrag => !!a);
+    const tvs = azs.map(az => antragByAz.get(az)).filter((a): a is NonNullable<typeof a> => !!a);
     const list = tvs.length > 0 ? tvs : [selected];
-    return list.every(tv => istVollstaendigFuerTyp(tv, gate));
+    return list.every(tv => istVollstaendigFuerTypAz(tv, gate));
   }, [selected, selectedRow, antragByAz, gate]);
 
   // v2.19 — Manueller MA-Eintrag.
@@ -418,7 +416,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
     () => selected ? getTVCount(cache.antraege, (selected as { verbund_id?: string }).verbund_id, selected.aktenzeichen) : 1,
     [selected, cache.antraege],
   );
-  const selectedBucket = selected ? getKategorieLabel((selected as Record<string, unknown>).vb_phase) : null;
+  const selectedBucket = selected ? getKategorieLabel(selected.vb_phase) : null;
   const manualMatches = useMemo(() => {
     if (!selected) return [] as MatchResult[];
     const benoetigt = stundenProTVFor(config, selectedBucket) * selectedTvCount;
@@ -771,7 +769,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
             {!isInitialLoading && sorted.map(row => {
               const isSel = selectedAz === row.leadAktenzeichen;
               const rowLead = antragByAz.get(row.leadAktenzeichen);
-              const unvollstaendig = rowLead != null && istUnvollstaendig(rowLead, gate);
+              const unvollstaendig = rowLead != null && istUnvollstaendigAz(rowLead, gate);
               const unvollstaendigGrundText = unvollstaendig && rowLead ? unvollstaendigGrund(rowLead) : '';
               // 1.17: Primaer (gefuellt) vs Aspekte (outline) trennen.
               const primaerId = row.klassifizierung.freigegebenePrimaer;
@@ -941,6 +939,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
           ) : (
             <DetailPanel
               antrag={selectedFull ?? selected}
+              deskriptoren={cache.deskriptorenByAz.get(selected.aktenzeichen) ?? []}
               akronym={selectedRow?.akronym ?? ''}
               verbundTitel={selectedRow?.verbundTitel ?? ''}
               klassifizierung={selectedView.klassifizierung}
@@ -952,7 +951,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
               zuweisungen={zuweisungen.filter(z => (selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen]).includes(z.antragId))}
               mitarbeiter={mitarbeiter}
               pendingAnonIds={detailPendingAnonIds}
-              unvollstaendig={istUnvollstaendig(selected, gate)}
+              unvollstaendig={istUnvollstaendigAz(selected, gate)}
               zuweisenGesperrt={!selectedVollstaendig}
               tHints={detailTHints}
               restTVsByAnon={restTVsByAnon}
@@ -971,11 +970,15 @@ export function ZuweisungsCockpit(): React.ReactElement {
 }
 
 function DetailPanel({
-  antrag, akronym, verbundTitel, klassifizierung, kategorien, matches, nebenMatches, ausgeschlossen, matchingRunning,
+  antrag, deskriptoren, akronym, verbundTitel, klassifizierung, kategorien, matches, nebenMatches, ausgeschlossen, matchingRunning,
   zuweisungen, mitarbeiter, pendingAnonIds, unvollstaendig, zuweisenGesperrt, tHints, restTVsByAnon,
   onZuweisen, onAblehnen, onAddManual, onRemoveManual, onUnassign, tageImQuartal,
 }: {
-  antrag: Antrag;
+  /** Voller Record (Point-Read) — kurz nach Selektionswechsel kann hier der
+   *  Slim-Record stehen, bis der Point-Read ankommt (Summary dann kurz leer). */
+  antrag: Antrag | AntragListItem;
+  /** Deskriptoren des Antrags aus dem Slim-Cache-Stream-Pass (v2.63). */
+  deskriptoren: readonly string[];
   /** Verbund-Akronym/-Titel (aus dem verbuende-Store aufgeloest, siehe
    *  resolveVerbundMeta) — konsistent mit der linken Liste. */
   akronym: string;
@@ -1016,12 +1019,13 @@ function DetailPanel({
   const resolveName = useDeAnonResolver();
   // v2.48: Nebenkompetenz-Block standardmäßig eingeklappt (sekundäre Kandidaten).
   const [nebenOpen, setNebenOpen] = useState(false);
-  const akt = akronym || (antrag[CANONICAL_AKRONYM] as string | undefined);
-  const vbTitel = verbundTitel || (antrag[CANONICAL_VERBUND_TITEL] as string | undefined);
-  const tvTitel = antrag[CANONICAL_TITEL] as string | undefined;
-  const summary = antrag[FIELD_PROJEKTBESCHREIBUNG] as string | undefined;
-  const verbund_id = antrag[CANONICAL_VERBUND_ID] as string | undefined;
-  const desk = readAntragDeskriptoren(antrag);
+  const rec = antrag as unknown as Record<string, unknown>;
+  const akt = akronym || (rec[CANONICAL_AKRONYM] as string | undefined);
+  const vbTitel = verbundTitel || (rec[CANONICAL_VERBUND_TITEL] as string | undefined);
+  const tvTitel = rec[CANONICAL_TITEL] as string | undefined;
+  const summary = rec[FIELD_PROJEKTBESCHREIBUNG] as string | undefined;
+  const verbund_id = rec[CANONICAL_VERBUND_ID] as string | undefined;
+  const desk = deskriptoren;
   // 1.17: Primaer (gefuellt) + Aspekte (outline) trennen.
   const primaerKatId = klassifizierung.freigegebenePrimaer;
   const aspektKatIds = klassifizierung.freigegebeneAspekte;

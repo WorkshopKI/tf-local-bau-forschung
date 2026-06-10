@@ -17,7 +17,7 @@
  * Score → weniger neue Antraege → bleibt langsam). Convention-Test
  * `altlast-ranking-guard.test.ts` sichert das ab.
  */
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import { getStatusCategory } from '@/core/utils/status-canonical';
 import { dateToQuartal, previousTwoQuartals } from './externe-zuweisungen';
 import type { AuslastungVerbund } from './quartals-auslastung';
@@ -54,7 +54,7 @@ interface GroupState {
   status?: string;
 }
 
-function readField(a: Antrag, key: string): string | undefined {
+function readField(a: AntragOderSlim, key: string): string | undefined {
   const v = (a as Record<string, unknown>)[key];
   return typeof v === 'string' ? v : undefined;
 }
@@ -76,7 +76,7 @@ function isAltlastStatus(status: unknown): boolean {
  *  3. `status` ist einer der 5 "offen"-Status (Kategorie offen oder nachforderung)
  */
 export function computeAltlasten(
-  antraege: readonly Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   toAnon: ReadonlyMap<string, string>,
   aktuellesQuartal: string,
   stundenProTV: number,

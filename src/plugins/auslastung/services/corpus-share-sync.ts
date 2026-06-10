@@ -43,8 +43,6 @@ import {
   type EmbeddingCorpusManifest,
 } from '@/core/services/embedding-corpus';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
-import type { Antrag } from '@/core/services/csv/types';
-import { getEmbeddableAktenzeichen } from './embedding-corpus';
 import {
   loadAllVerbundEmbeddings,
   storeVerbundEmbedding,
@@ -198,14 +196,14 @@ export async function ensureVerbundEmbeddings(
 
 async function downloadAntragCorpusImpl(
   storage: StorageService,
-  antraege: Antrag[],
+  embeddableAz: readonly string[],
 ): Promise<CorpusSyncResult> {
   if ((await countEmbeddings(storage.idb)) > 0) return 'already-present';
   const manifest = await loadAntragManifest(storage);
   if (!manifest) return 'unavailable';
   const { id, dim } = await activeModel(storage);
   if (checkCompat(manifest, id, dim).kind !== 'compatible') return 'incompatible';
-  const hash = await hashAktenzeichenSet(getEmbeddableAktenzeichen(antraege));
+  const hash = await hashAktenzeichenSet([...embeddableAz]);
   if (manifest.aktenzeichenSetHash !== hash) return 'hash-mismatch';
   try {
     const bin = await loadAntragBin(storage, manifest.binBytes);
@@ -223,12 +221,15 @@ async function downloadAntragCorpusImpl(
  *  Antrags-Stand passt. Dedupe paralleler Aufrufe über einen Modul-Inflight. */
 export async function ensureAntragCorpus(
   storage: StorageService,
-  antraege: Antrag[],
+  /** Embeddable Aktenzeichen aus dem Slim-Cache-Stream-Pass (v2.63) — der
+   *  Hash-Vergleich gegen das Share-Manifest braucht exakt die Liste, die
+   *  `getEmbeddableAktenzeichen(volle Records)` liefern wuerde. */
+  embeddableAz: readonly string[],
 ): Promise<CorpusSyncResult> {
   if (antragInflight) return antragInflight;
   antragInflight = (async () => {
     try {
-      return await downloadAntragCorpusImpl(storage, antraege);
+      return await downloadAntragCorpusImpl(storage, embeddableAz);
     } finally {
       antragInflight = null;
     }

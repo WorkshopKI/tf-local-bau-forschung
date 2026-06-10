@@ -2,6 +2,17 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.63.0 — Auslastungs-Cache verschlankt: −~400 MB RAM, List-View-Projektion v2 (Juni 2026)
+
+MINOR-Bump v2.63.0 (Stufe 2 der Cold-Start-/RAM-Arbeit, nach v2.62.5): Der Auslastungs-Cache ([useAntraegeCache.ts](src/plugins/auslastung/hooks/useAntraegeCache.ts)) hielt ALLE ~13k **vollen** Antrag-Records (~450 MB Heap) dauerhaft im RAM — der größte Einzelposten des pl-Sockels (gemessen 1,7 GB nach frischem Load). Jetzt hält er nur noch:
+
+- die **Slim-Projektion** (`AntragListItem`, erweitert um `t_hint`, `d_xtec`, `d_adv`, `tib_mail`, `verbund_titel` — **List-View-Projektion v2** mit Versions-Marker; siehe Migrationsnotiz unten), und
+- **Stream-Artefakte** aus EINER Cursor-Passage über die vollen Records ohne Retention (`forEachAntragByProgramm`): `deskriptorenByAz`/`ztKlartexteByAz` (Stage-0/1-Klassifizierung als pure Lookup-Funktionen), `embeddableAz` (Korpus-Hash-Integrität fürs Share-Self-Heal), `xtecAzSet`/`advAzSet` (Vollständigkeits-Gate mit den über das CSV-Schema **aufgelösten** Feldern — custom-Mappings bleiben korrekt).
+
+Schwere Texte (`projektbeschreibung_text`) kommen on-demand per `getAntrag`-Point-Read (Cockpit-Detail/Matching, Kürzel-Export) bzw. transienten Voll-Loads (Korpus-Build, Onboarding-HTML, Kalibrierungs-Report). Aggregate werden in-memory aus Slim+Lookups abgeleitet — eine spät ankommende kuerzel-map re-derived ohne erneuten Stream. `useAuslastungReady` wartet zusätzlich auf die Stream-Passage (sonst liefe Matching kurz mit leeren historische*-Maps, Bug-Klasse v2.46.1). Äquivalenz alt↔neu maschinell abgesichert: [slim-aggregates-equivalence.test.ts](src/plugins/auslastung/__tests__/slim-aggregates-equivalence.test.ts), [antraege-cache-slim.test.ts](src/plugins/auslastung/__tests__/antraege-cache-slim.test.ts).
+
+**Migrationsnotiz:** Beim ersten Start nach dem Update läuft einmalig der List-View-Voll-Rebuild (`LIST_VIEW_PROJECTION_VERSION` 1→2, ~5 s bei 13k Anträgen, bestehende Boot-Statuszeile „Optimiere Anträge-Liste…"; crash-safe, Marker erst nach Erfolg). Kein Daten-Share-/Schema-Wechsel. Nebeneffekt-Fix: `ensureListViewProjection` lud bisher bei **jedem** Start alle 13k vollen Records nur für einen Längen-Vergleich — jetzt billiger Index-`count()`.
+
 ### v2.62.5 — Cold-Start entzerrt: Homepage-Anträge schneller sichtbar (Juni 2026)
 
 PATCH-Bump v2.62.5 (Stufe 1 der Cold-Start-Arbeit): Auf pl dauerte es nach frischem Browser-Load ~4 s bis die Anträge erschienen. Die Homepage wartet nur auf den **schlanken** List-View-Load — aber parallel liefen beim App-Start zwei schwere Konkurrenten um Main-Thread + IndexedDB:

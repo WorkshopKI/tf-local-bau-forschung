@@ -31,7 +31,7 @@ export function EinstellungenView({ korpusOnly = false }: { korpusOnly?: boolean
   if (korpusOnly) {
     return (
       <div className="flex flex-col">
-        <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} />
+        <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} embeddableAz={cache.embeddableAz} />
       </div>
     );
   }
@@ -44,7 +44,7 @@ export function EinstellungenView({ korpusOnly = false }: { korpusOnly?: boolean
       <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
       <KonfigurationSection storage={storage} />
       <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
-      <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} />
+      <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} embeddableAz={cache.embeddableAz} />
     </div>
   );
 }

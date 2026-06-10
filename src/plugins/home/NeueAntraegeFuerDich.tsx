@@ -37,7 +37,7 @@ import {
   computeQuartalsAuslastung,
   getTVCount,
 } from '@/plugins/auslastung/services/quartals-auslastung';
-import type { Antrag } from '@/core/services/csv/types';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import {
   groupEintraegeByVerbund,
   isClaimed,
@@ -90,7 +90,7 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
 
   // Antrag-Index fuer schnellen Lookup.
   const antraegeById = useMemo(() => {
-    const m = new Map<string, Antrag>();
+    const m = new Map<string, AntragOderSlim>();
     for (const a of cache.antraege) m.set(a.aktenzeichen, a);
     return m;
   }, [cache.antraege]);
