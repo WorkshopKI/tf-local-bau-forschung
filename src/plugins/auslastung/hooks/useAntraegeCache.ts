@@ -188,6 +188,10 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
     const promise = (async () => {
       set({ loading: true, error: null });
       try {
+        // Always-on-Timing (v2.62.5): Warmup-Dauer sichtbar machen — der Load
+        // deserialisiert ~13k volle Records und ist der größte Einzelposten
+        // im Cold-Start (Citrix-Diagnose, Console statt build-stummem tfPerf).
+        const t0 = performance.now();
         // Antraege + Verbuende parallel laden (gleiche IDB, verschiedene Stores).
         // v2.26.x: Die Verbund-Embeddings werden hier NICHT mehr mitgeladen.
         // Ihr Deserialisieren (~44 MB Vektoren) war mit Abstand der laengste Pol
@@ -200,6 +204,7 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
           listAntraegeByProgramm(storage.idb, programmId),
           listVerbuendeByProgramm(storage.idb, programmId),
         ]);
+        console.info(`[auslastung] cache.refresh: ${allAntraege.length} Anträge (voll) in ${Math.round(performance.now() - t0)} ms`);
         // Snapshot-Version mitlesen, gegen die geladen wird — damit ein
         // späterer CSV-Refresh (neue Version in der IDB) erkannt wird.
         const snapshotVersion =

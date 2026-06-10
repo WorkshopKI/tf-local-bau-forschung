@@ -293,10 +293,14 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     set({ loading: true });
     try {
       const tIdb = tfPerfStart('antraege.loadAll → IDB getAll (slim)');
+      // Always-on-Timing (v2.62.5): tfPerf ist in Builds stumm — unter file://
+      // ist die Console die einzige Spur, wo das Cold-Start-Budget hingeht.
+      const t0 = performance.now();
       const [antraege, verbuende] = await Promise.all([
         listAntraegeListViewByProgramm(idb, targetId),
         listVerbuendeByProgramm(idb, targetId),
       ]);
+      console.info(`[antraege] loadAll: ${antraege.length} Anträge (slim) in ${Math.round(performance.now() - t0)} ms`);
       tIdb(`antraege=${antraege.length} verbuende=${verbuende.length}`);
       const sample = antraege[0];
       if (sample) {

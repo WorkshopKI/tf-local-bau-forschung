@@ -2,6 +2,16 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.62.5 — Cold-Start entzerrt: Homepage-Anträge schneller sichtbar (Juni 2026)
+
+PATCH-Bump v2.62.5 (Stufe 1 der Cold-Start-Arbeit): Auf pl dauerte es nach frischem Browser-Load ~4 s bis die Anträge erschienen. Die Homepage wartet nur auf den **schlanken** List-View-Load — aber parallel liefen beim App-Start zwei schwere Konkurrenten um Main-Thread + IndexedDB:
+
+- **Auslastung-Warmup idle-deferred** ([auslastung/index.tsx](src/plugins/auslastung/index.tsx)): das Laden der ~13k **vollen** Antrag-Records (~450 MB deserialisieren) startet jetzt via `scheduleIdle` erst nach dem First-Paint statt sofort bei Plugin-`onInit`. Konsumenten unkritisch — `useAntraegeCache` triggert beim Mount ohnehin idempotent selbst.
+- **Startup-Snapshot-Sync idle-deferred** ([App.tsx](src/core/App.tsx)): der tägliche Sync (am ersten Start des Tages mehrere Sekunden Store-Reload) startet ebenfalls erst im Idle-Window — Semantik unverändert, nur außerhalb des First-Paint-Fensters.
+- **Always-on Timing-Logs** (`console.info`, tfPerf ist in Builds stumm): `loadAll`-Dauer (List-View), `cache.refresh`-Dauer (Voll-Records), `snapshot-sync`-Dauer pro Programm — der nächste Citrix-Lauf zeigt die Restverteilung des Budgets.
+
+Stufe 2 (Cache-Verschlankung, −~400 MB RAM) folgt separat als v2.63.0.
+
 ### v2.62.4 — Adaptive Embedding-Schwelle: Ähnlichkeitssuche liefert auf dem v2-Korpus wieder Treffer (Juni 2026)
 
 PATCH-Bump v2.62.4: Die v2.62.3-Diagnose lieferte den Beweis: pl-Echtdaten, Query „Bilderkennung" (Korpus 13.949, eindeutig relevante Anträge vorhanden) → **beste Cosine 0.437** — die starre 0.55-Schwelle (validiert auf dem alten v1-Korpus, nur Titel/Abstract) ließ auf dem v2-Korpus (lange Texte + Deskriptoren) bei kurzen Queries **keinen einzigen** Vector-Treffer durch; die Ähnlichkeitssuche wirkte tot.

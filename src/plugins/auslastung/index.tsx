@@ -14,6 +14,7 @@
 import type { TeamFlowPlugin } from '@/core/types/plugin';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { isAuslastungNurKorpusEnabled } from '@/config/feature-flags';
+import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { AuslastungView } from './views/AuslastungView';
 import { useAuslastungData } from './hooks/useAuslastungData';
 import { useKuerzelMap } from './hooks/useKuerzelMap';
@@ -41,17 +42,28 @@ export const auslastungPlugin: TeamFlowPlugin = {
       useKuerzelMap.getState().load(storage),
     ]);
     // Antraege-Cache-Warmup: braucht activeProgrammId, das von ShellLayout
-    // gesetzt wird. Wenn schon da → sofort triggern. Sonst Subscribe und
-    // einmalig beim ersten non-null Wert ausloesen.
+    // gesetzt wird. Wenn schon da → triggern. Sonst Subscribe und einmalig
+    // beim ersten non-null Wert ausloesen.
+    //
+    // v2.62.5: Warmup NICHT mehr sofort, sondern im Idle-Window nach dem
+    // First-Paint (scheduleIdle, Muster v2.61.5 Korpus-Autoload). Der Warmup
+    // deserialisiert ~13k volle Antrag-Records (~450 MB) und konkurrierte
+    // beim App-Start mit dem Homepage-List-View-Load um Main-Thread + IDB —
+    // messbar als „~4 s bis Antraege sichtbar" auf Citrix. Konsumenten sind
+    // unkritisch: useAntraegeCache triggert den Load beim Mount ohnehin
+    // selbst (idempotent, refresh()-Hit-Check), der Warmup ist nur Vorarbeit.
+    const scheduleWarmup = (programmId: string): void => {
+      scheduleIdle(() => { void warmupAntraegeCache(storage, programmId); });
+    };
     const id = useActiveProgramm.getState().activeProgrammId;
     if (id) {
-      void warmupAntraegeCache(storage, id);
+      scheduleWarmup(id);
       return;
     }
     const unsub = useActiveProgramm.subscribe((s) => {
       if (s.activeProgrammId) {
         unsub();
-        void warmupAntraegeCache(storage, s.activeProgrammId);
+        scheduleWarmup(s.activeProgrammId);
       }
     });
   },

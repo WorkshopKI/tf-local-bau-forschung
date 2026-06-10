@@ -24,6 +24,7 @@ import {
 } from '@/core/services/infrastructure/smb-handle';
 import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/types';
 import { listProgramme, ensureDefaultProgramm } from '@/core/services/csv';
+import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
@@ -458,7 +459,14 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   useEffect(() => {
     if (!ready || showOnboarding || showWelcome || showStartup || showAppGate || showMaLoginGate) return;
     let cancelled = false;
-    (async () => {
+    // v2.62.5: Sync-Start ins Idle-Window NACH dem First-Paint verschieben.
+    // Der Effekt feuerte bisher sofort bei App-ready — am ersten Start des
+    // Tages laeuft dann der Store-Reload (mehrere Sekunden IDB-Writes) genau
+    // parallel zum Homepage-List-View-Load und verlaengert „bis Antraege
+    // sichtbar" spuerbar (Citrix). Semantik unveraendert, nur spaeter.
+    const cancelIdle = scheduleIdle(() => {
+      if (cancelled) return;
+      void (async () => {
       const handle = await getDatenShareHandle(storage.idb);
       if (!handle) return;
       // v2.21.3: Cold-Start — auf einem frisch geleerten Rechner ist der
@@ -469,10 +477,12 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       const programme = await listProgramme(storage.idb);
       for (const p of programme) {
         if (cancelled) return;
+        const tSync = performance.now();
         const r = await syncProgrammSnapshot(storage.idb, handle, p.id).catch(err => {
           console.warn(`[snapshot-sync] ${p.id} fehlgeschlagen`, err);
           return { synced: false } as const;
         });
+        console.info(`[snapshot-sync] ${p.id}: synced=${r.synced} in ${Math.round(performance.now() - tSync)} ms`);
         if (!cancelled && r.synced && 'createdAt' in r && r.createdAt) {
           const stamp = new Date(r.createdAt).toLocaleString('de-DE', {
             day: '2-digit', month: '2-digit', year: 'numeric',
@@ -504,9 +514,11 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       // re-triggern (sonst erscheint der „CSV-Ordner verknüpfen"-Banner nach
       // Cold-Start nicht, weil der Erst-Check vor dem Sync lief).
       if (!cancelled) bumpCsvSourcesSignal();
-    })();
+      })();
+    });
     return () => {
       cancelled = true;
+      cancelIdle();
       if (syncToastTimerRef.current !== null) {
         window.clearTimeout(syncToastTimerRef.current);
         syncToastTimerRef.current = null;
