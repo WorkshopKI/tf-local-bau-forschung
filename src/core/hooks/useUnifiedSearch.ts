@@ -37,6 +37,7 @@ import {
   getProgrammCaches,
   getEmbeddings,
   STREAMING_CONSTS,
+  isSemanticSearchActive,
   type AntragSearchHit,
 } from '@/plugins/antraege/services/antraege-search-service';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
@@ -279,7 +280,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
           // Stage 2: Vector — Embedding berechnen, Cosine-Loop.
           setSearchPhase('vector');
           const semanticActive =
-            STREAMING_CONSTS.SEMANTIC_SOURCES_ENABLED
+            isSemanticSearchActive()
             && q.length >= STREAMING_CONSTS.MIN_QUERY_LEN_FOR_SEMANTIC;
 
           let queryVec: number[] | null = null;

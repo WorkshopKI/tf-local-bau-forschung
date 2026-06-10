@@ -23,29 +23,24 @@ import {
   clearAntraegeSearchCaches,
   invalidateEmbeddingsCache,
   autoBootstrapEmbeddingMirror,
+  isSemanticSearchActive,
 } from './services/antraege-search-service';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
-import { scheduleIdle } from '@/core/utils/scheduleIdle';
-import { features } from '@/config/feature-flags';
+import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 
 /** Re-export fuer Konsumenten die den Mirror-Status verarbeiten (Banner-UI). */
 export type { MirrorBootstrapStatus } from './services/antraege-search-service';
 
 const DEBOUNCE_MS = 500;
 
-/** Identisch zu `SEMANTIC_SOURCES_ENABLED` im Service — wir entscheiden hier
- *  ob die Idle-Stage-2 (Modell-Init + Korpus-Download) ueberhaupt anlaeuft. */
-const SEMANTIC_SOURCES_ENABLED =
-  features.volltextsuche === true
-  || features.auslastung === true
-  || features.dokumentenscan === true
-  || features.suche === true;
-
 export function useAntraegeHybridSearch(): void {
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const search = useAntraegeStore(s => s.search);
   const setHybridSearch = useAntraegeStore(s => s.setHybridSearch);
+  // v2.62: Opt-in-Schalter der Ähnlichkeitssuche. Als Hook abonniert, damit das
+  // Umschalten im Dropdown den Preload-Effekt sofort re-triggert.
+  const semanticEnabled = useSemanticSearchMode(s => s.enabled);
 
   // Caches bei Programm-Switch invalidieren.
   const prevProgrammRef = useRef<string | null>(null);
@@ -56,46 +51,45 @@ export function useAntraegeHybridSearch(): void {
     prevProgrammRef.current = activeProgrammId;
   }, [activeProgrammId]);
 
-  // Background-Preload.
+  // Background-Preload. Der Substring-Korpus laedt immer (billig, traegt die
+  // Default-Suche). Stage 2 (Modell-Init + Mirror-Bootstrap + Embedding-Map)
+  // laeuft seit v2.62 NUR nach Opt-in „Mit Ähnlichkeitssuche" — und dann sofort
+  // statt im Idle-Window: das Umschalten ist eine explizite User-Aktion, der
+  // Lade-Hinweis (downloadingCorpus-Banner) ueberbrueckt die Wartezeit.
   useEffect(() => {
     if (!activeProgrammId) return;
     let cancelled = false;
-    let cancelIdle: (() => void) | null = null;
     void (async () => {
       try {
         await getProgrammCaches(storage.idb, activeProgrammId);
         if (cancelled) return;
-        if (!SEMANTIC_SOURCES_ENABLED) return;
+        // Abonnierter Wert + zentrales Gate (Build-Flag): beides muss stehen.
+        if (!semanticEnabled || !isSemanticSearchActive()) return;
 
-        cancelIdle = scheduleIdle(() => {
-          if (cancelled) return;
-          ensureEmbeddingReady(storage.idb).catch(err => {
-            console.warn('[useAntraegeHybridSearch] preload embedding model failed:', err);
-          });
-          void (async () => {
-            try {
-              await autoBootstrapEmbeddingMirror(storage, status => {
-                if (cancelled) return;
-                if (status === 'downloading' || status === 'applying') {
-                  setHybridSearch({ downloadingCorpus: true });
-                } else {
-                  setHybridSearch({ downloadingCorpus: false });
-                }
-                console.info('[antraege-search] mirror bootstrap:', status);
-              });
-            } catch (err) {
-              if (!cancelled) setHybridSearch({ downloadingCorpus: false });
-              console.warn('[useAntraegeHybridSearch] mirror bootstrap failed:', err);
-            }
+        ensureEmbeddingReady(storage.idb).catch(err => {
+          console.warn('[useAntraegeHybridSearch] preload embedding model failed:', err);
+        });
+        try {
+          await autoBootstrapEmbeddingMirror(storage, status => {
             if (cancelled) return;
-            // Modul-Cache invalidieren falls der Bootstrap frische Vektoren
-            // in IDB geschrieben hat — sonst wuerde `getEmbeddings()` noch
-            // die alte (leere) Map cachen.
-            invalidateEmbeddingsCache();
-            getEmbeddings(storage.idb).catch(err => {
-              console.warn('[useAntraegeHybridSearch] preload embeddings failed:', err);
-            });
-          })();
+            if (status === 'downloading' || status === 'applying') {
+              setHybridSearch({ downloadingCorpus: true });
+            } else {
+              setHybridSearch({ downloadingCorpus: false });
+            }
+            console.info('[antraege-search] mirror bootstrap:', status);
+          });
+        } catch (err) {
+          if (!cancelled) setHybridSearch({ downloadingCorpus: false });
+          console.warn('[useAntraegeHybridSearch] mirror bootstrap failed:', err);
+        }
+        if (cancelled) return;
+        // Modul-Cache invalidieren falls der Bootstrap frische Vektoren
+        // in IDB geschrieben hat — sonst wuerde `getEmbeddings()` noch
+        // die alte (leere) Map cachen.
+        invalidateEmbeddingsCache();
+        getEmbeddings(storage.idb).catch(err => {
+          console.warn('[useAntraegeHybridSearch] preload embeddings failed:', err);
         });
       } catch (err) {
         if (cancelled) return;
@@ -104,9 +98,8 @@ export function useAntraegeHybridSearch(): void {
     })();
     return () => {
       cancelled = true;
-      cancelIdle?.();
     };
-  }, [activeProgrammId, storage, setHybridSearch]);
+  }, [activeProgrammId, storage, setHybridSearch, semanticEnabled]);
 
   // Suche auf Tipp-Eingabe.
   useEffect(() => {

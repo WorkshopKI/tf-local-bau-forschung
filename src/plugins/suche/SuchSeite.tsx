@@ -31,8 +31,10 @@ import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import {
   getProgrammCaches,
   getEmbeddings,
+  isSemanticSearchActive,
 } from '@/plugins/antraege/services/antraege-search-service';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
+import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 
 /** UI-Text fuer die Search-Phase-Badge. */
 const PHASE_LABELS: Record<SearchPhase, string | null> = {
@@ -76,6 +78,10 @@ export function SuchSeite(): React.ReactElement {
   const analyse = useAnalysePipeline();
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
+  // v2.62: Ähnlichkeitssuche ist opt-in (Session-Schalter, geteilt mit dem
+  // Förderanträge-Suchfeld). Default „Ohne" — Modell lädt erst nach Umschalten.
+  const semanticEnabled = useSemanticSearchMode(s => s.enabled);
+  const setSemanticEnabled = useSemanticSearchMode(s => s.setEnabled);
 
   const [query, setQuery] = useState('');
   // Such-Pipeline laeuft auf der ge-deferreden Query, damit das Input-Feld
@@ -117,21 +123,23 @@ export function SuchSeite(): React.ReactElement {
   const showBauantraege = isBauantraegeEnabled();
   const analyseActive = analyse.result !== null;
 
-  // Eager Preload beim Mount der Suche-Seite (Hintergrund, idle). Loadet
-  // Programm-Caches (Substring-Korpus ~1-1.5s) + Embedding-Modell (~2.5-4s) +
-  // Embedding-Korpus (~0.2-0.4s) — alles Module-Level-Singletons mit Promise-
-  // Dedup, sodass parallele Search-Calls dieselbe Promise reusen. Wenn der
-  // User getippt hat bevor diese fertig sind, awaitet die Pipeline auf
-  // dieselbe Promise (kein Doppel-Load).
+  // Eager Preload beim Mount der Suche-Seite (Hintergrund, idle). Der
+  // Substring-Korpus (~1-1.5s) laedt immer — er traegt die Default-Suche.
+  // Modell (~2.5-4s, ~0.5-1 GB WASM/GPU) + Embedding-Korpus laden seit v2.62
+  // NUR nach Opt-in „Mit Ähnlichkeitssuche" (Dropdown neben dem Suchfeld);
+  // das Umschalten re-triggert den Effekt und startet den Preload sofort.
+  // Alles Module-Level-Singletons mit Promise-Dedup, sodass parallele
+  // Search-Calls dieselbe Promise reusen.
   useEffect(() => {
     if (!activeProgrammId) return;
     const cancel = scheduleIdle(() => {
       void getProgrammCaches(storage.idb, activeProgrammId).catch(() => { /* best effort */ });
+      if (!semanticEnabled || !isSemanticSearchActive()) return;
       void ensureEmbeddingReady(storage.idb).catch(() => { /* best effort */ });
       void getEmbeddings(storage.idb).catch(() => { /* best effort */ });
     });
     return cancel;
-  }, [activeProgrammId, storage]);
+  }, [activeProgrammId, storage, semanticEnabled]);
 
   // Wenn ein Analyse-Ergebnis vorliegt, zeigen wir das statt der Live-Suche.
   const dataSource: UnifiedSearchResult[] = analyse.result?.results ?? searchResults;
@@ -384,6 +392,18 @@ export function SuchSeite(): React.ReactElement {
               />
             )}
           </div>
+          <select
+            value={semanticEnabled ? 'mit' : 'ohne'}
+            onChange={e => setSemanticEnabled(e.target.value === 'mit')}
+            aria-label="Ähnlichkeitssuche"
+            title={semanticEnabled
+              ? 'Ähnlichkeitssuche aktiv — semantische Treffer (Embedding-Modell geladen).'
+              : 'Nur Wortlaut-Treffer. „Mit Ähnlichkeitssuche" lädt das Embedding-Modell (~einmalig 5–10 s, deutlich mehr Arbeitsspeicher) und findet auch inhaltlich ähnliche Anträge.'}
+            className="h-10 shrink-0 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-2 text-[12.5px] text-[var(--tf-text)] cursor-pointer"
+          >
+            <option value="ohne">Ohne Ähnlichkeitssuche</option>
+            <option value="mit">Mit Ähnlichkeitssuche</option>
+          </select>
           <button
             type="button"
             onClick={startAnalyse}

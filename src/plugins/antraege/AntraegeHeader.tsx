@@ -15,6 +15,7 @@ import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import { exportFilteredAntraegeXlsx } from './services/export-xlsx';
 
 interface Props {
@@ -35,6 +36,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
   const hybridLoading = useAntraegeStore(s => s.hybridSearch.loading);
   const hybridUnavailable = useAntraegeStore(s => s.hybridSearch.unavailable);
   const downloadingCorpus = useAntraegeStore(s => s.hybridSearch.downloadingCorpus);
+  // v2.62: Ähnlichkeitssuche opt-in (Session-Schalter, geteilt mit der Suchseite).
+  const semanticEnabled = useSemanticSearchMode(s => s.enabled);
+  const setSemanticEnabled = useSemanticSearchMode(s => s.setEnabled);
   const filterCount = useFilterState(s => s.active.length);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
@@ -192,7 +196,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-7 pr-7 h-8 w-full text-[12.5px]"
-              title="Suche kombiniert Substring (Aktenzeichen/Akronym/Titel/Antragsteller/Verbund-Titel/Kurzbeschreibung), Embedding-Match aus dem Auslastungs-Korpus und DMS-Volltext-Treffer."
+              title={semanticEnabled
+                ? 'Suche kombiniert Substring (Aktenzeichen/Akronym/Titel/Antragsteller/Verbund-Titel/Kurzbeschreibung), Embedding-Match aus dem Auslastungs-Korpus und DMS-Volltext-Treffer.'
+                : 'Substring-Suche (Aktenzeichen/Akronym/Titel/Antragsteller/Verbund-Titel/Kurzbeschreibung). Für inhaltlich ähnliche Anträge rechts „Mit Ähnlichkeitssuche" wählen.'}
             />
             {hybridLoading ? (
               <Loader2
@@ -202,6 +208,18 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
               />
             ) : null}
           </div>
+          <select
+            value={semanticEnabled ? 'mit' : 'ohne'}
+            onChange={e => setSemanticEnabled(e.target.value === 'mit')}
+            aria-label="Ähnlichkeitssuche"
+            title={semanticEnabled
+              ? 'Ähnlichkeitssuche aktiv — semantische Treffer (Embedding-Modell geladen).'
+              : 'Nur Wortlaut-Treffer. „Mit Ähnlichkeitssuche" lädt das Embedding-Modell (~einmalig 5–10 s, deutlich mehr Arbeitsspeicher) und findet auch inhaltlich ähnliche Anträge.'}
+            className="h-8 shrink-0 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-2 text-[11.5px] text-[var(--tf-text)] cursor-pointer"
+          >
+            <option value="ohne">Ohne Ähnlichkeitssuche</option>
+            <option value="mit">Mit Ähnlichkeitssuche</option>
+          </select>
           {!bearbeiterFilter.active && isAuslastungEnabled() ? (
             <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none shrink-0 whitespace-nowrap">
               <input
@@ -233,7 +251,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
           <div className="mt-1 mb-2 text-[11.5px] text-[var(--tf-text-tertiary)] flex items-center gap-1.5">
             <Loader2 size={11} className="animate-spin" aria-hidden="true" />
             <span>
-              Semantische Suche wird im Hintergrund vorbereitet (Embedding-Korpus vom Daten-Share laden, ~5–15 s).
+              Ähnlichkeitssuche wird vorbereitet (Modell laden + Embedding-Korpus vom Daten-Share, einmalig ~5–15 s) — solange liefert die Suche Wortlaut-Treffer.
             </span>
           </div>
         ) : showEmbeddingBanner ? (

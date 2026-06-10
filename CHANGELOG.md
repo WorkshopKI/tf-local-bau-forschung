@@ -2,6 +2,17 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.62.0 — Ähnlichkeitssuche opt-in: Embedding-Modell lädt erst auf User-Wunsch (Juni 2026)
+
+MINOR-Bump v2.62.0: Folge-Maßnahme zur Citrix-RAM-Analyse (v2.61.5): Auch nach den OOM-Fixes belegte der pl-Tab im Steady-State viel Speicher, weil beim bloßen Öffnen von **Förderanträgen** bzw. der **Suchseite** ungefragt das Embedding-Modell (~200 MB Download, entpackt ~0,5–1 GB WASM/GPU) + die Embedding-Map im Idle vorgeladen wurden — auch wenn der User nur „schnell Metadaten checken" wollte.
+
+- **Neu: Dropdown „Ohne/Mit Ähnlichkeitssuche"** rechts neben dem Suchfeld in [AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx) und [SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx). **Standard „Ohne"**, ein geteilter Session-Schalter ([useSemanticSearchMode.ts](src/core/hooks/useSemanticSearchMode.ts), bewusst nicht persistiert — jede Sitzung startet neutral). Erst beim Umschalten auf „Mit" laden Modell + Embedding-Korpus (sofort, mit Lade-Hinweis; Suchen liefern solange Wortlaut-Treffer).
+- **Gates:** zentrales Laufzeit-Gate `isSemanticSearchActive()` ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)) = Build-Flag UND Opt-in; konsumiert von `searchAntraege` (früher Substring-only-Return, ohne irreführenden „Embedding fehlt"-Hinweis), [useUnifiedSearch.ts](src/core/hooks/useUnifiedSearch.ts) (Vector-Stage) und beiden Mount-Preloads ([useAntraegeHybridSearch.ts](src/plugins/antraege/useAntraegeHybridSearch.ts), SuchSeite). `STREAMING_CONSTS.SEMANTIC_SOURCES_ENABLED` entfällt.
+- **Verhaltens-Änderung (bewusst):** Ohne Opt-in findet die Suche nur noch Wortlaut-/Substring-Treffer; semantische „inhaltlich ähnlich"-Treffer erscheinen erst nach Umschalten. Betrifft pl/dev/demo/kurator (prod hatte nie semantische Suche). Tooltip am Suchfeld erklärt den Modus.
+- **Auslastungs-Modul unverändert:** dessen Stage-2-Matching lädt das Modell weiterhin selbst bei tatsächlicher Nutzung (Antrag-Auswahl im Zuweisen-Tab / Kürzel-Export) — wer Auslastung nicht öffnet, zahlt nichts.
+
+Erwarteter Effekt auf RAM-knappen Citrix-Sessions: Förderanträge-Besuch ohne Opt-in bleibt nahe am Home-Sockel (vorher +0,5–1 GB durch den Idle-Preload). Test: [useSemanticSearchMode.test.ts](src/core/hooks/__tests__/useSemanticSearchMode.test.ts) (Default-AUS-Garantie).
+
 ### v2.61.5 — Out-of-Memory unter Citrix: CSV-Aktualisieren + Cold-Start entlasten (Juni 2026)
 
 PATCH-Bump v2.61.5: Die **pl**-Variante crashte auf einem frischen, RAM-knappen **Citrix**-Renderer (~6 GB/User) mit Chrome „Oh nein! … Out of Memory" **beim Klick auf „CSV-Quellen aktualisieren"**; davor hing die Homepage nach dem Login („Seite reagiert nicht", erholt sich). Drei zusammenwirkende Ursachen behoben — Output/Verhalten identisch, kein Daten-Layout-/Schema-Wechsel.

@@ -37,6 +37,7 @@ import { hybridSearch, getOramaDB } from '@/core/services/search/orama-store';
 import type { StorageService } from '@/core/services/storage';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import { features } from '@/config/feature-flags';
+import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import {
   loadAntraegeTextCorpus,
   loadDmsFilenameToAkz,
@@ -52,6 +53,17 @@ const SEMANTIC_SOURCES_ENABLED =
   || features.auslastung === true
   || features.dokumentenscan === true
   || features.suche === true;
+
+/**
+ * Laufzeit-Gate der semantischen Quellen (v2.62): Build-Flag UND Session-Opt-in.
+ * Die Ähnlichkeitssuche ist opt-in — Standard „Ohne", der User schaltet sie
+ * über das Dropdown neben dem Suchfeld ein. Erst dann dürfen Modell-Init,
+ * Embedding-Map und Vector-/DMS-Stages laufen. Alle Konsumenten (searchAntraege,
+ * useUnifiedSearch, Preload-Hooks) routen durch diesen Helper.
+ */
+export function isSemanticSearchActive(): boolean {
+  return SEMANTIC_SOURCES_ENABLED && useSemanticSearchMode.getState().enabled;
+}
 
 /** Schwelle fuer Embedding-Treffer (Cosine, L2-normalisiert -> [-1, 1]).
  *  0.55 empirisch validiert (siehe useAntraegeHybridSearch-Doku). */
@@ -281,7 +293,10 @@ export async function searchAntraege(
     mergeHit(merged, { aktenzeichen: akz, score: 1.0, method: 'fulltext' });
   }
 
-  if (!SEMANTIC_SOURCES_ENABLED) {
+  // Ohne Opt-in enden wir nach der Substring-Quelle — bewusst auch ohne
+  // `unavailable`-Eintrag (kein irreführender „Embedding fehlt"-Hinweis,
+  // der User hat die Ähnlichkeitssuche schlicht nicht eingeschaltet).
+  if (!isSemanticSearchActive()) {
     return { hits: sortByScore(merged), unavailable };
   }
   if (query.length < MIN_QUERY_LEN_FOR_SEMANTIC) {
@@ -432,8 +447,9 @@ export function searchAntraegeDms(
 }
 
 /** Re-export der Streaming-Konstanten, damit Caller (z.B. useUnifiedSearch)
- *  konsistente Schwellen verwenden. */
+ *  konsistente Schwellen verwenden. Das frühere statische
+ *  `SEMANTIC_SOURCES_ENABLED` ist hier raus — Caller nutzen das Laufzeit-Gate
+ *  `isSemanticSearchActive()` (Build-Flag + Session-Opt-in, v2.62). */
 export const STREAMING_CONSTS = {
   MIN_QUERY_LEN_FOR_SEMANTIC,
-  SEMANTIC_SOURCES_ENABLED,
 } as const;
