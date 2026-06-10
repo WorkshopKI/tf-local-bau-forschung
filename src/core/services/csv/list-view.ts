@@ -39,6 +39,15 @@ export function toAntragListItem(antrag: Antrag): AntragListItem {
   copyStringField(antrag, item, 'bib_kuerz');
   copyStringField(antrag, item, 'ztp_kuerz');
   copyStringField(antrag, item, 'pfm_kuerz');
+  // Auslastungs-Modul (v2.63, Projektion v2): billige Skalare, damit der
+  // Auslastungs-Cache mit der Slim-Projektion auskommt. Bei Erweiterung hier
+  // IMMER LIST_VIEW_PROJECTION_VERSION (list-view-migration.ts) bumpen —
+  // sonst bekommen Bestandsinstallationen die neuen Felder nie.
+  copyStringField(antrag, item, 't_hint');
+  copyStringField(antrag, item, 'd_xtec');
+  copyStringField(antrag, item, 'd_adv');
+  copyStringField(antrag, item, 'tib_mail');
+  copyStringField(antrag, item, 'verbund_titel');
   copyNumberField(antrag, item, 'vb_phase');
   copyNumberField(antrag, item, 'foerdersumme');
   return item;

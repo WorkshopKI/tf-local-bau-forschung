@@ -116,6 +116,12 @@ export const LIST_VIEW_FIELDS: readonly string[] = [
   'bib_kuerz',
   'ztp_kuerz',
   'pfm_kuerz',
+  // Auslastungs-Modul (v2.63, Projektion v2 — siehe AntragListItem-Doku)
+  't_hint',
+  'd_xtec',
+  'd_adv',
+  'tib_mail',
+  'verbund_titel',
   // Meta
   '_updated_at',
 ];

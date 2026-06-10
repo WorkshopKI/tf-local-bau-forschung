@@ -15,7 +15,11 @@ import {
   listAntraegeListViewByProgramm,
 } from '../idb-csv';
 import { toAntragListItem } from '../list-view';
-import { rebuildAntraegeListView } from '../list-view-migration';
+import {
+  rebuildAntraegeListView,
+  ensureListViewProjection,
+  LIST_VIEW_PROJECTION_VERSION,
+} from '../list-view-migration';
 import type { Antrag, Programm } from '../types';
 
 beforeEach(async () => {
@@ -72,5 +76,60 @@ describe('rebuildAntraegeListView', () => {
 
     // STALE entfernt (clear), A aus dem ANTRAEGE-Store projiziert.
     expect((await listAntraegeListViewByProgramm(idb, PID)).map(i => i.aktenzeichen)).toEqual(['A']);
+  });
+});
+
+const VERSION_KEY = 'list-view-projection-version';
+
+describe('ensureListViewProjection — Projektion-Versions-Marker (v2.63)', () => {
+  it('Marker fehlt (Bestandsinstallation) → Voll-Rebuild inkl. neuer v2-Felder, Marker danach gesetzt', async () => {
+    const idb = await freshIdb();
+    await putProgramm(idb, makeProgramm(PID));
+    const full = { ...makeAntrag('16KN1', PID), t_hint: 'Hinweis', tib_mail: 'x@tib.de', d_xtec: '2026-01-01' } as Antrag;
+    await putAntraege(idb, [full]);
+    // v1-Projektion simulieren: List-View-Eintrag OHNE die neuen Felder,
+    // Count vollständig → der alte Count-Check hätte nichts getan.
+    const v1Item = toAntragListItem(full);
+    delete (v1Item as unknown as Record<string, unknown>).t_hint;
+    delete (v1Item as unknown as Record<string, unknown>).tib_mail;
+    delete (v1Item as unknown as Record<string, unknown>).d_xtec;
+    await putAntraegeListView(idb, [v1Item]);
+
+    await ensureListViewProjection(idb);
+
+    const lv = await listAntraegeListViewByProgramm(idb, PID);
+    expect(lv).toHaveLength(1);
+    expect(lv[0]?.t_hint).toBe('Hinweis');
+    expect(lv[0]?.tib_mail).toBe('x@tib.de');
+    expect(lv[0]?.d_xtec).toBe('2026-01-01');
+    expect(await idb.get<number>(VERSION_KEY)).toBe(LIST_VIEW_PROJECTION_VERSION);
+  });
+
+  it('Marker aktuell + Counts vollständig → No-op (kein Rebuild, Stale-Eintrag bleibt)', async () => {
+    const idb = await freshIdb();
+    await putProgramm(idb, makeProgramm(PID));
+    await putAntraege(idb, [makeAntrag('A', PID)]);
+    await idb.set(VERSION_KEY, LIST_VIEW_PROJECTION_VERSION);
+    // Indikator für "kein Rebuild": ein Stale-only-List-View-Eintrag würde
+    // bei einem Rebuild (clear) verschwinden, beim No-op bleibt er.
+    await putAntraegeListView(idb, [toAntragListItem(makeAntrag('A', PID)), toAntragListItem(makeAntrag('STALE', PID))]);
+
+    await ensureListViewProjection(idb);
+
+    const az = (await listAntraegeListViewByProgramm(idb, PID)).map(i => i.aktenzeichen).sort();
+    expect(az).toEqual(['A', 'STALE']);
+  });
+
+  it('Marker aktuell, List-View unvollständig → Backfill ohne Marker-Neuschreiben', async () => {
+    const idb = await freshIdb();
+    await putProgramm(idb, makeProgramm(PID));
+    await putAntraege(idb, [makeAntrag('A', PID), makeAntrag('B', PID)]);
+    await idb.set(VERSION_KEY, LIST_VIEW_PROJECTION_VERSION);
+    await putAntraegeListView(idb, [toAntragListItem(makeAntrag('A', PID))]); // B fehlt
+
+    await ensureListViewProjection(idb);
+
+    const az = (await listAntraegeListViewByProgramm(idb, PID)).map(i => i.aktenzeichen).sort();
+    expect(az).toEqual(['A', 'B']);
   });
 });

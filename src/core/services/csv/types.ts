@@ -250,6 +250,20 @@ export interface AntragListItem {
   bib_kuerz?: string;
   ztp_kuerz?: string;
   pfm_kuerz?: string;
+  // Auslastungs-Modul (v2.63, List-View-Projektion v2): billige Skalar-Felder,
+  // damit der Auslastungs-Cache mit der Slim-Projektion auskommt statt ~13k
+  // volle Records dauerhaft im RAM zu halten.
+  /** Bemerkung (CSV-Spalte T_HINT) — Verbund-Detail im Zuweisungs-Cockpit. */
+  t_hint?: string;
+  /** Vollständig erfasst (D_XTEC) — Vollständigkeits-Gate FuE/DS. */
+  d_xtec?: string;
+  /** Vollständig erfasst (D_ADV) — Vollständigkeits-Gate DL/NW. */
+  d_adv?: string;
+  /** Bearbeiter-TiB-E-Mail — Passwort-Verteilung (Zugang-Verwaltung). */
+  tib_mail?: string;
+  /** Verbund-Titel (nur Legacy-Records; neue Importe routen das Feld in den
+   *  VERBUENDE-Store — Konsumenten haben Fallback-Ketten via verbuendeById). */
+  verbund_titel?: string;
   // Meta
   _updated_at: string;
 }

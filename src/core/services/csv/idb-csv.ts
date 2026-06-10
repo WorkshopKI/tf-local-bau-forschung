@@ -198,6 +198,19 @@ export function forEachAntragByProgramm(
   return waitTx(t);
 }
 
+/** Billiger Index-Count auf dem vollen ANTRAEGE-Store — fuer den
+ *  List-View-Backfill-Check (kein Voll-Load nur fuer einen Laengen-Vergleich,
+ *  v2.63: bis dahin lud `ensureListViewProjection` bei JEDEM Start alle
+ *  13k vollen Records nur zum Zaehlen). */
+export async function countAntraegeByProgramm(
+  idb: IDBStore,
+  programmId: string,
+): Promise<number> {
+  const t = tx(idb, CSV_STORES.ANTRAEGE, 'readonly');
+  const idx = t.objectStore(CSV_STORES.ANTRAEGE).index('programm_id');
+  return req(idx.count(programmId));
+}
+
 export async function listAntraegeByVerbund(idb: IDBStore, verbundId: string): Promise<Antrag[]> {
   const t = tx(idb, CSV_STORES.ANTRAEGE, 'readonly');
   const idx = t.objectStore(CSV_STORES.ANTRAEGE).index('verbund_id');
