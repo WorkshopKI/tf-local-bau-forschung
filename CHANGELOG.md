@@ -2,6 +2,16 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.64.0 — dev-Variante: Hauptpasswort-Gate statt MA-Login-Wall (Juni 2026)
+
+MINOR-Bump v2.64.0: Die dev-Variante verhält sich beim Start jetzt wie pl — EIN Hauptpasswort ([AppPasswordGate](src/core/AppPasswordGate.tsx)) statt der persönlichen MA-Login-Wall. Reine Config-/Script-Änderung, kein UI-Code angefasst:
+
+- **[dev.config.json](configs/dev.config.json)**: `features.maLogin` `true → false` + `auth`-Block ergänzt (Salt+Verifier 1:1 aus [pl.config.json](configs/pl.config.json) gespiegelt → **gleiches Hauptpasswort wie pl**; die `role: 'pl'` im Verifier-Sentinel ist nur Verify-Anker, `verifyAppPassword` prüft sie nicht).
+- Damit erscheint im Profil automatisch der **Kürzel-Dropdown mit „Alle"-Option** + „Inaktive einblenden" (bestehender `KuerzelEditor` in [ProfilTab.tsx](src/plugins/einstellungen/ProfilTab.tsx), greift sobald `maLoginActive` false ist) statt des read-only „Angemeldet als". Beliebige MA-Kürzel + Übersichtsmodus wie in pl.
+- **Auto-Kurator bleibt**: dev hat `kuratorMenus: true`, das Gate eskaliert nach Passworteingabe wie in der kurator-Variante (`is_kurator=true` + Schreib-Session) — bewusst so gewählt (Entwickler-Komfort).
+- **[set-app-password.mjs](scripts/set-app-password.mjs)**: `dev` als erlaubte Variante ergänzt (`npm run set-password -- dev "…"`), falls dev später ein eigenes Passwort bekommen soll. Bis dahin gilt: pl-Passwort-Rotation ⇒ auth-Block erneut nach dev kopieren oder dev-Passwort separat setzen.
+- Unverändert: `DEFAULT_CONFIG` (`npm run dev`-Server bleibt ungated, MA-Login-Flow dort weiter entwickelbar/testbar), prod (MA-Login-Wall bleibt prod-Verhalten), AppPasswordGate-Code.
+
 ### v2.63.2 — Stream-Artefakte persistiert: 42-s-Lauf nur noch nach Daten-Änderung (Juni 2026)
 
 PATCH-Bump v2.63.2: Test-Feedback zu v2.63.1 — der Stream blieb bei **42 s** (`cache.stream … 42237 ms`). Damit war klar: Nicht die Roundtrips sind der Engpass (v2.63.1-Fix), sondern der **rohe IDB-Lese-Durchsatz** auf Citrix-/Roaming-Profil-Systemen (~12 MB/s gemessen via Slim-Load-Timing; ~500 MB volle Records ≈ 40 s — physikalische Untergrenze, egal ob Cursor oder Bulk).

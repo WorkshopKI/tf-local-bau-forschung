@@ -3,10 +3,15 @@
  * TeamFlow — Build-Time Rollen-Passwort-Tool (v2.16).
  *
  * Berechnet Salt + AES-GCM-Verifier fuer das Rollen-Passwort-Gate und schreibt
- * den `auth`-Block in die angegebene Variant-Config (pl | kurator).
+ * den `auth`-Block in die angegebene Variant-Config (pl | kurator | dev).
  *
  *   npm run set-password -- pl "Mein-Passwort"
  *   npm run set-password -- kurator "Mein-Passwort"
+ *   npm run set-password -- dev "Mein-Passwort"
+ *
+ * HINWEIS dev: Die dev-Config spiegelt aktuell Salt+Verifier der pl-Config
+ * (gleiches Hauptpasswort, v2.64). Bei pl-Passwort-Rotation entweder den
+ * auth-Block erneut nach dev kopieren oder hier ein eigenes dev-Passwort setzen.
  *
  * SICHERHEIT: Das Klartext-Passwort wird NIE in die Config geschrieben — nur
  * Salt (16 Random-Bytes) + Verifier (AES-GCM-verschluesselter JSON-Sentinel).
@@ -24,13 +29,13 @@ import { webcrypto } from 'node:crypto';
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const PBKDF2_ITERATIONS = 200_000;
-const ALLOWED = ['pl', 'kurator'];
+const ALLOWED = ['pl', 'kurator', 'dev'];
 
 const variant = process.argv[2];
 const password = process.argv[3];
 
 if (!variant || !ALLOWED.includes(variant) || !password) {
-  console.error('Usage: npm run set-password -- <pl|kurator> <passwort>');
+  console.error('Usage: npm run set-password -- <pl|kurator|dev> <passwort>');
   process.exit(1);
 }
 

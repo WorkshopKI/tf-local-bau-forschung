@@ -33,7 +33,7 @@
     "auslastungSelbstEintragung": true,
     "deAnonymisierung": true,
     "datenShareSchreibrecht": true,
-    "maLogin": true,
+    "maLogin": false,
     "maVerwaltungPasswort": true,
     "chat": true,
     "suche": true,
@@ -65,5 +65,11 @@
     "file_extensions": [".pdf", ".docx"],
     "max_depth": 20,
     "fkz_allowed_prefixes": ["16EP", "16KN", "16DS", "16DL"]
+  },
+  "auth": {
+    "required": true,
+    "hint": "Bei Fragen zum Zugang: Projektleitung.",
+    "salt": "NEJGDL5AQE5Pk1/auJWKmg==",
+    "verifier": "8zJuKh0MGo2TACVApCSNzjEgBcPlhHZZMsMKZyXLsR29MjdlYeuQ5RNQVb8hGNc="
   }
 }
