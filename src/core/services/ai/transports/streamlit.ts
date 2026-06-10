@@ -1,3 +1,5 @@
+import type { GenerationStats } from '../generation-stats';
+
 export interface ConversationMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -20,6 +22,24 @@ export interface SubmitMessageOptions {
   signal?: AbortSignal;
 }
 
+export interface StreamCallbacks {
+  /** Sichtbarer Antwort-Text, inkrementell. */
+  onDelta: (text: string) => void;
+  /** Reasoning-/Thinking-Text, inkrementell (reasoning_content | reasoning | <think>-Fallback). */
+  onReasoningDelta?: (text: string) => void;
+}
+
+export interface StreamResult {
+  /** Vollständiger (bei Abort: partieller) Antwort-Text. */
+  content: string;
+  /** Vollständiger Thinking-Text, falls das Modell Reasoning geliefert hat. */
+  reasoning?: string;
+  stats?: GenerationStats;
+  /** true: per AbortSignal gestoppt — Partial-Content, KEIN throw (sonst malt
+   *  useAsyncAction den absichtlichen Stop als Fehler in den Error-Banner). */
+  aborted: boolean;
+}
+
 export interface AITransport {
   name: string;
   ping(): Promise<boolean>;
@@ -27,6 +47,13 @@ export interface AITransport {
   /** Optional: Multi-Turn-Chat. Nur DirectLLMTransport implementiert das aktuell.
    *  Components nutzen Feature-Detection (`if (transport.submitConversation) ...`). */
   submitConversation?(messages: ConversationMessage[], options?: ConversationOptions): Promise<string>;
+  /** Optional: Streaming-Multi-Turn-Chat (SSE). Nur DirectLLMTransport.
+   *  Feature-Detection wie submitConversation. */
+  streamConversation?(
+    messages: ConversationMessage[],
+    callbacks: StreamCallbacks,
+    options?: ConversationOptions,
+  ): Promise<StreamResult>;
 }
 
 export class StreamlitBridgeTransport implements AITransport {
