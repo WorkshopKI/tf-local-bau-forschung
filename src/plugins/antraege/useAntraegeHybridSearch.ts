@@ -144,5 +144,8 @@ export function useAntraegeHybridSearch(): void {
       abort.abort();
       clearTimeout(timer);
     };
-  }, [search, activeProgrammId, storage, setHybridSearch]);
+    // semanticEnabled in den Deps: das Dropdown-Umschalten führt die laufende
+    // Suche neu aus (searchAntraege liest den Modus zur Laufzeit) — sonst
+    // blieben die angezeigten Treffer bis zur nächsten Eingabe Substring-only.
+  }, [search, activeProgrammId, storage, setHybridSearch, semanticEnabled]);
 }

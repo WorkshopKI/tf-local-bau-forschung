@@ -2,6 +2,10 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.62.1 — Dropdown-Umschalten führt die laufende Suche neu aus (Juni 2026)
+
+PATCH-Bump v2.62.1: Nachzug zu v2.62.0 — beide Such-Pipelines hingen nur an der Query, nicht am Ähnlichkeits-Modus. Folge: nach dem Umschalten auf „Mit Ähnlichkeitssuche" blieben die bereits angezeigten Treffer Substring-only („Stichwort"), bis der User die Query änderte. Fix: `semanticEnabled` in die Deps der Such-Effekte ([useUnifiedSearch.ts](src/core/hooks/useUnifiedSearch.ts) Hauptsuche, [useAntraegeHybridSearch.ts](src/plugins/antraege/useAntraegeHybridSearch.ts) Tipp-Suche) — das Umschalten re-triggert die Suche sofort; während das Modell noch lädt, wartet die Vector-Stage auf dieselbe Init-Promise (Phase-Badge „Embedding-Treffer…").
+
 ### v2.62.0 — Ähnlichkeitssuche opt-in: Embedding-Modell lädt erst auf User-Wunsch (Juni 2026)
 
 MINOR-Bump v2.62.0: Folge-Maßnahme zur Citrix-RAM-Analyse (v2.61.5): Auch nach den OOM-Fixes belegte der pl-Tab im Steady-State viel Speicher, weil beim bloßen Öffnen von **Förderanträgen** bzw. der **Suchseite** ungefragt das Embedding-Modell (~200 MB Download, entpackt ~0,5–1 GB WASM/GPU) + die Embedding-Map im Idle vorgeladen wurden — auch wenn der User nur „schnell Metadaten checken" wollte.

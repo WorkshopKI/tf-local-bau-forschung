@@ -22,6 +22,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from './useStorage';
 import { useActiveProgramm } from './useActiveProgramm';
 import { useSearch } from './useSearch';
+import { useSemanticSearchMode } from './useSemanticSearchMode';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { embedQueryCached } from '@/core/services/search/query-embedder';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
@@ -183,6 +184,10 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const programme = useActiveProgramm(s => s.programme);
   const { vectorReady, documentCount } = useSearch();
+  // v2.62.1: Opt-in-Modus der Ähnlichkeitssuche abonnieren, damit das
+  // Umschalten im Dropdown die LAUFENDE Suche neu ausführt — sonst bleiben
+  // die angezeigten Treffer Substring-only bis zur nächsten Query-Änderung.
+  const semanticEnabled = useSemanticSearchMode(s => s.enabled);
 
   const [results, setResults] = useState<UnifiedSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -279,8 +284,10 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
 
           // Stage 2: Vector — Embedding berechnen, Cosine-Loop.
           setSearchPhase('vector');
+          // Abonnierter Wert + zentrales Gate (Build-Flag): beides muss stehen.
           const semanticActive =
-            isSemanticSearchActive()
+            semanticEnabled
+            && isSemanticSearchActive()
             && q.length >= STREAMING_CONSTS.MIN_QUERY_LEN_FOR_SEMANTIC;
 
           let queryVec: number[] | null = null;
@@ -357,7 +364,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
       abort.abort();
       clearTimeout(timer);
     };
-  }, [query, activeProgrammId, storage, programmNameById]);
+  }, [query, activeProgrammId, storage, programmNameById, semanticEnabled]);
 
   const counts = useMemo<UnifiedSearchCounts>(() => {
     let antraege = 0;
