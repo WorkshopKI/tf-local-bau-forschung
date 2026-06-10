@@ -3,12 +3,11 @@ import {
   listProgramme,
   countAntraegeByProgramm,
   countAntraegeListViewByProgramm,
-  forEachAntragByProgramm,
+  forEachAntragChunkByProgramm,
   putAntraegeListView,
   clearAntraegeListView,
 } from './idb-csv';
 import { toAntragListItem } from './list-view';
-import type { AntragListItem } from './types';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 
 /**
@@ -32,26 +31,25 @@ export interface MigrationProgress {
 }
 
 /**
- * Projiziert ALLE Antraege eines Programms per Cursor-Stream in den Slim-Store.
- * Haelt nie die vollen Records als Array (nur die Slim-Items, ~0.5–1 KB/Stueck)
- * — der fruehere `listAntraegeByProgramm`-Pfad erzeugte hier den dokumentierten
- * ~470-MB-Array-Peak (volle 461-Feld-Records, OOM-Klasse v2.61.5).
- * Writes ausserhalb der Cursor-TX in 500er-Chunks (onRecord muss synchron
- * bleiben; eine readwrite-TX auf einen anderen Store wuerde den Cursor abbrechen).
+ * Projiziert ALLE Antraege eines Programms in den Slim-Store — per gechunkten
+ * Bulk-Reads (v2.63.1: `forEachAntragChunkByProgramm` statt per-Record-Cursor;
+ * der Cursor kostete pro Record einen IDB-Roundtrip, ~10+ s bei 14k). Haelt
+ * nie alle vollen Records gleichzeitig (Chunk-Peak ~18 MB statt ~470 MB,
+ * OOM-Klasse v2.61.5); pro gelesenem Chunk wird direkt projiziert + geschrieben.
  */
 async function projectProgrammStreamed(
   idb: IDBStore,
   programmId: string,
   onProgress?: (done: number, total: number) => void,
 ): Promise<number> {
-  const slim: AntragListItem[] = [];
-  await forEachAntragByProgramm(idb, programmId, a => { slim.push(toAntragListItem(a)); });
-  const CHUNK = 500;
-  for (let i = 0; i < slim.length; i += CHUNK) {
-    await putAntraegeListView(idb, slim.slice(i, i + CHUNK));
-    onProgress?.(Math.min(i + CHUNK, slim.length), slim.length);
-  }
-  return slim.length;
+  const total = await countAntraegeByProgramm(idb, programmId);
+  let done = 0;
+  await forEachAntragChunkByProgramm(idb, programmId, async records => {
+    await putAntraegeListView(idb, records.map(toAntragListItem));
+    done += records.length;
+    onProgress?.(done, total);
+  });
+  return done;
 }
 
 /**

@@ -41,7 +41,7 @@ import { create } from 'zustand';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import {
-  forEachAntragByProgramm,
+  forEachAntragChunkByProgramm,
   listAntraegeListViewByProgramm,
   listSchemasByProgramm,
   listVerbuendeByProgramm,
@@ -58,7 +58,7 @@ import {
   aggregateAstByAnon,
   aggregateMaProfilesByAnonFromLookup,
   collectAllDeskriptorenMitCountFromLookup,
-  readAntragDeskriptoren,
+  readAntragDeskriptorenMitZt,
   readTruthyZtKlartexte,
 } from '../services/profil-aggregator';
 import { isEmbeddableAntrag } from '../services/embedding-corpus';
@@ -202,12 +202,17 @@ function deriveAggregates(
 }
 
 /**
- * EINE Cursor-Passage ueber die vollen Records des Programms — extrahiert alle
- * Daten, die NUR dort stehen, ohne die Records zu behalten. `onRecord` ist
- * synchron (TX-Abort-Gefahr bei await im Cursor); die Vollstaendigkeits-Felder
- * sind deshalb VORHER aufgeloest. Strings werden interned (Cursor-Records
- * liefern frische String-Instanzen — ohne Interning entstuenden zigtausend
- * Duplikate der immergleichen Deskriptoren).
+ * EINE Passage ueber die vollen Records des Programms — extrahiert alle
+ * Daten, die NUR dort stehen, ohne die Records zu behalten.
+ *
+ * v2.63.1: gechunkte Bulk-Reads (`forEachAntragChunkByProgramm`) statt
+ * per-Record-Cursor — der Cursor kostete pro Record einen IDB-Roundtrip
+ * (~46 s bei 14k auf pl-Echtdaten), Bulk-getAll in 500er-Chunks liefert
+ * dieselben Records in Sekunden bei ~18 MB Peak pro Chunk. Zudem laeuft der
+ * teure ZT-Kandidaten-Scan (~600 Probes/Record) nur noch EINMAL pro Record
+ * (`readTruthyZtKlartexte` → `readAntragDeskriptorenMitZt`). Strings werden
+ * interned (frische Instanzen aus der Deserialisierung — ohne Interning
+ * entstuenden zigtausend Duplikate der immergleichen Deskriptoren).
  */
 async function streamArtefakte(
   storage: StorageService,
@@ -232,17 +237,19 @@ async function streamArtefakte(
   const xtecAzSet = new Set<string>();
   const advAzSet = new Set<string>();
 
-  await forEachAntragByProgramm(storage.idb, programmId, a => {
-    const rec = a as Record<string, unknown>;
-    const desk = readAntragDeskriptoren(a);
-    if (desk.length > 0) deskriptorenByAz.set(a.aktenzeichen, desk.map(internStr));
-    const zt = readTruthyZtKlartexte(rec);
-    if (zt.length > 0) ztKlartexteByAz.set(a.aktenzeichen, zt);
-    if (isEmbeddableAntrag(a)) embeddableAz.push(a.aktenzeichen);
-    const xv = rec[felder.xtecFeld];
-    if (typeof xv === 'string' && parseGermanDate(xv) !== null) xtecAzSet.add(a.aktenzeichen);
-    const av = rec[felder.advFeld];
-    if (typeof av === 'string' && parseGermanDate(av) !== null) advAzSet.add(a.aktenzeichen);
+  await forEachAntragChunkByProgramm(storage.idb, programmId, records => {
+    for (const a of records) {
+      const rec = a as Record<string, unknown>;
+      const zt = readTruthyZtKlartexte(rec);
+      if (zt.length > 0) ztKlartexteByAz.set(a.aktenzeichen, zt);
+      const desk = readAntragDeskriptorenMitZt(rec, zt);
+      if (desk.length > 0) deskriptorenByAz.set(a.aktenzeichen, desk.map(internStr));
+      if (isEmbeddableAntrag(a)) embeddableAz.push(a.aktenzeichen);
+      const xv = rec[felder.xtecFeld];
+      if (typeof xv === 'string' && parseGermanDate(xv) !== null) xtecAzSet.add(a.aktenzeichen);
+      const av = rec[felder.advFeld];
+      if (typeof av === 'string' && parseGermanDate(av) !== null) advAzSet.add(a.aktenzeichen);
+    }
   });
 
   return { deskriptorenByAz, ztKlartexteByAz, embeddableAz, xtecAzSet, advAzSet };

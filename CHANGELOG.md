@@ -2,6 +2,15 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.63.1 — Stream-Pass beschleunigt: gechunkte Bulk-Reads statt per-Record-Cursor (Juni 2026)
+
+PATCH-Bump v2.63.1: Test-Feedback zu v2.63.0 — die Hintergrund-Stream-Passage des Slim-Caches brauchte auf pl-Echtdaten **46 s** (Konsole: `cache.stream … in 46022 ms`). Zwei Ursachen: (1) der `forEachAntragByProgramm`-Cursor kostet pro Record einen IDB-Roundtrip (~14k Roundtrips), während Bulk-`getAll` dieselben Records in ~2 s deserialisiert; (2) der ZT-Kandidaten-Scan (~600 Property-Probes pro Antrag) lief doppelt (`readAntragDeskriptoren` + `readTruthyZtKlartexte`).
+
+- **Neu `forEachAntragChunkByProgramm`** ([idb-csv.ts](src/core/services/csv/idb-csv.ts)): Primary-Keys billig per `getAllKeys`, dann 500er-Chunks per `getAll(bound)` + `programm_id`-Filter — Bulk-Speed bei ~18 MB Chunk-Peak statt ~470 MB. Genutzt vom Cache-Stream ([useAntraegeCache.ts](src/plugins/auslastung/hooks/useAntraegeCache.ts)) UND vom einmaligen List-View-Rebuild ([list-view-migration.ts](src/core/services/csv/list-view-migration.ts)).
+- **Einmal-ZT-Scan**: `readAntragDeskriptorenMitZt(rec, ztKlartexte)` ([profil-aggregator.ts](src/plugins/auslastung/services/profil-aggregator.ts)) nutzt die bereits ermittelten Klartexte weiter — Äquivalenz maschinell abgesichert (slim-aggregates-equivalence.test.ts).
+
+Erwartung: Stream ~46 s → wenige Sekunden (Konsole `cache.stream`-Zeile zeigt es); damit ist auch das Auslastungs-Modul direkt nach App-Start ohne lange Skeleton-Phase nutzbar.
+
 ### v2.63.0 — Auslastungs-Cache verschlankt: −~400 MB RAM, List-View-Projektion v2 (Juni 2026)
 
 MINOR-Bump v2.63.0 (Stufe 2 der Cold-Start-/RAM-Arbeit, nach v2.62.5): Der Auslastungs-Cache ([useAntraegeCache.ts](src/plugins/auslastung/hooks/useAntraegeCache.ts)) hielt ALLE ~13k **vollen** Antrag-Records (~450 MB Heap) dauerhaft im RAM — der größte Einzelposten des pl-Sockels (gemessen 1,7 GB nach frischem Load). Jetzt hält er nur noch:

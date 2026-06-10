@@ -198,6 +198,43 @@ export function forEachAntragByProgramm(
   return waitTx(t);
 }
 
+/**
+ * Gechunkter Bulk-Read der vollen Antraege eines Programms (v2.63.1).
+ *
+ * `forEachAntragByProgramm` (Cursor) kostet pro Record einen IDB-Roundtrip —
+ * bei ~14k Records ~40+ s, waehrend EIN `getAll` dieselben Records in ~2 s
+ * deserialisiert (gemessen, pl-Echtdaten). Diese Variante kombiniert beides:
+ * Bulk-Speed bei beschraenktem Peak (chunkSize × ~36 KB statt ~470 MB).
+ *
+ * Mechanik: erst alle Primary-Keys (aktenzeichen) des Programms billig per
+ * `index.getAllKeys`, dann pro Chunk ein `store.getAll(bound(first, last))`.
+ * Der Bound-Range kann Records FREMDER Programme einschliessen (aktenzeichen
+ * ist global unique, andere Programme koennten interleaven) → Filter auf
+ * `programm_id`. `onChunk` darf async sein (jeder Chunk ist eine eigene TX).
+ * Reihenfolge: aktenzeichen aufsteigend (wie der Cursor).
+ */
+export async function forEachAntragChunkByProgramm(
+  idb: IDBStore,
+  programmId: string,
+  onChunk: (records: Antrag[]) => void | Promise<void>,
+  chunkSize = 500,
+): Promise<void> {
+  const tKeys = tx(idb, CSV_STORES.ANTRAEGE, 'readonly');
+  const keys = (await req(
+    tKeys.objectStore(CSV_STORES.ANTRAEGE).index('programm_id').getAllKeys(programmId),
+  )) as string[];
+  for (let i = 0; i < keys.length; i += chunkSize) {
+    const slice = keys.slice(i, i + chunkSize);
+    const first = slice[0]!;
+    const last = slice[slice.length - 1]!;
+    const t = tx(idb, CSV_STORES.ANTRAEGE, 'readonly');
+    const records = (await req(
+      t.objectStore(CSV_STORES.ANTRAEGE).getAll(IDBKeyRange.bound(first, last)),
+    )) as Antrag[];
+    await onChunk(records.filter(r => r.programm_id === programmId));
+  }
+}
+
 /** Billiger Index-Count auf dem vollen ANTRAEGE-Store — fuer den
  *  List-View-Backfill-Check (kein Voll-Load nur fuer einen Laengen-Vergleich,
  *  v2.63: bis dahin lud `ensureListViewProjection` bei JEDEM Start alle

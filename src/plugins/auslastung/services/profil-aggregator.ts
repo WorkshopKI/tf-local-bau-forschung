@@ -237,6 +237,30 @@ export function readAntragDeskriptoren(antrag: Antrag): string[] {
   return [...set];
 }
 
+/**
+ * Wie `readAntragDeskriptoren`, aber mit BEREITS ermittelten truthy
+ * ZT-Klartexten (v2.63.1, Stream-Pass-Performance): der ZT-Kandidaten-Scan
+ * (~600 Property-Probes pro Antrag) ist der teuerste Teil — der Stream-Pass
+ * ruft `readTruthyZtKlartexte` ohnehin fuer `ztKlartexteByAz` und reicht das
+ * Ergebnis hier weiter, statt denselben Scan doppelt zu laufen. Funktional
+ * identisch zu `readAntragDeskriptoren` (Aequivalenz-Test).
+ */
+export function readAntragDeskriptorenMitZt(
+  rec: Record<string, unknown>,
+  ztKlartexte: readonly string[],
+): string[] {
+  const set = new Set<string>();
+  for (const spalte of ALL_DESKRIPTOREN_SPALTEN) {
+    const norm = normalizeDeskriptor(rec[spalte]);
+    if (norm) set.add(norm);
+  }
+  for (const klartext of ztKlartexte) {
+    const norm = normalizeDeskriptor(klartext);
+    if (norm) set.add(norm);
+  }
+  return [...set];
+}
+
 /** Aggregiert alle Deskriptoren des Programms (fuer den Admin-Setup-Mapping). */
 export function collectAllDeskriptoren(antraege: Antrag[]): string[] {
   const counts = new Map<string, number>();

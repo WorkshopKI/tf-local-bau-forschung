@@ -19,6 +19,7 @@ import {
   collectAllDeskriptorenMitCount,
   collectAllDeskriptorenMitCountFromLookup,
   readAntragDeskriptoren,
+  readAntragDeskriptorenMitZt,
   readTruthyZtKlartexte,
 } from '../services/profil-aggregator';
 import {
@@ -91,6 +92,14 @@ describe('Slim-Aggregate-Äquivalenz (Lookup vs. volle Records)', () => {
   it('collectAllDeskriptorenMitCountFromLookup ≡ collectAllDeskriptorenMitCount', () => {
     expect(collectAllDeskriptorenMitCountFromLookup(DESKR_BY_AZ))
       .toEqual(collectAllDeskriptorenMitCount(ANTRAEGE));
+  });
+
+  it('readAntragDeskriptorenMitZt ≡ readAntragDeskriptoren (Einmal-ZT-Scan, v2.63.1)', () => {
+    for (const a of ANTRAEGE) {
+      const rec = a as Record<string, unknown>;
+      expect(readAntragDeskriptorenMitZt(rec, readTruthyZtKlartexte(rec)))
+        .toEqual(readAntragDeskriptoren(a));
+    }
   });
 
   it('matchZukunftstechnologienFromKlartexte ≡ matchZukunftstechnologien', () => {
