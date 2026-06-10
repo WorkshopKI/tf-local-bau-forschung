@@ -11,7 +11,7 @@
  * Solo-TVs (kein `verbund_id`) werden als 1er-Verbund behandelt, damit die
  * Liste eine einheitliche Render-Logik hat.
  */
-import type { Antrag, Verbund } from '@/core/services/csv/types';
+import type { Antrag, AntragOderSlim, Verbund } from '@/core/services/csv/types';
 import { verbundAntragsdatum } from '@/core/services/csv/frist';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
 import {
@@ -222,6 +222,49 @@ export function istVollstaendigFuerTyp(antrag: Antrag, gate: VollstaendigkeitsGa
  */
 export function istUnvollstaendig(antrag: Antrag, gate: VollstaendigkeitsGate): boolean {
   return !istVollstaendigFuerTyp(antrag, gate) && !hatBearbeiterKuerzel(antrag);
+}
+
+// ─── Az-Set-Gate (v2.63 Slim-Cache) ──────────────────────────────────────
+// Pendant zum feld-basierten VollstaendigkeitsGate, aber auf vorberechneten
+// Aktenzeichen-Sets: der Stream-Pass des Slim-Caches prueft pro Antrag das
+// ueber das CSV-Schema AUFGELOESTE D_XTEC-/D_ADV-Feld (custom-Mappings!) per
+// `parseGermanDate` und sammelt die Az mit gueltigem Datum. Slim-Records
+// tragen nur die kanonischen d_xtec/d_adv — ein reiner Feld-Check auf Slim
+// wuerde bei custom-gemappten Installationen still fail-open laufen.
+
+export interface VollstaendigkeitsGateAz {
+  /** Spalte ueberhaupt irgendwo befuellt? (Transitions-Schutz wie beim
+   *  feld-basierten Gate: leere Spalte → Gate inaktiv.) */
+  dxtec: boolean;
+  dadv: boolean;
+  /** Aktenzeichen mit gueltigem Datum im aufgeloesten D_XTEC-Feld. */
+  xtecAzSet: ReadonlySet<string>;
+  /** Aktenzeichen mit gueltigem Datum im aufgeloesten D_ADV-Feld. */
+  advAzSet: ReadonlySet<string>;
+}
+
+/** „Kein Gate" — beide Spalten gelten als nicht-befuellt → alles vollstaendig. */
+export const NO_VOLLSTAENDIGKEITS_GATE_AZ: VollstaendigkeitsGateAz = {
+  dxtec: false, dadv: false, xtecAzSet: new Set(), advAzSet: new Set(),
+};
+
+/** Set-basiertes Pendant zu `istVollstaendigFuerTyp` (Aequivalenz-Test). */
+export function istVollstaendigFuerTypAz(
+  antrag: AntragOderSlim,
+  gate: VollstaendigkeitsGateAz,
+): boolean {
+  const bucket = getKategorieLabel((antrag as Record<string, unknown>).vb_phase);
+  if (bucket === 'FuE' || bucket === 'DS') return !gate.dxtec || gate.xtecAzSet.has(antrag.aktenzeichen);
+  if (bucket === 'DL' || bucket === 'NW') return !gate.dadv || gate.advAzSet.has(antrag.aktenzeichen);
+  return true;
+}
+
+/** Set-basiertes Pendant zu `istUnvollstaendig`. */
+export function istUnvollstaendigAz(
+  antrag: AntragOderSlim,
+  gate: VollstaendigkeitsGateAz,
+): boolean {
+  return !istVollstaendigFuerTypAz(antrag, gate) && !hatBearbeiterKuerzel(antrag as Antrag);
 }
 
 /** Bucket-abhaengiger Grund-Text fuer die Unvollstaendig-Markierung (Tooltip). */

@@ -268,6 +268,16 @@ export interface AntragListItem {
   _updated_at: string;
 }
 
+/**
+ * Union fuer Funktionen, die sowohl mit vollen `Antrag`-Records als auch mit
+ * der Slim-Projektion arbeiten (v2.63 Auslastungs-Slim-Cache). Bewusst eine
+ * Union statt eines strukturellen Interfaces: `Antrag`s Index-Signatur macht
+ * die Typen wechselseitig nicht zuweisbar — die Union ist das etablierte
+ * Muster (vgl. kuerzel-map.ts / tib-mail.ts). Feld-Reads in Service-Bodies
+ * laufen ohnehin ueber `as Record<string, unknown>`-Casts.
+ */
+export type AntragOderSlim = Antrag | AntragListItem;
+
 export interface AntragHistorieEntry {
   id: string;
   aktenzeichen: string;

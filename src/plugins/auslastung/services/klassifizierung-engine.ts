@@ -27,7 +27,7 @@ import {
   type PrimaerVorschlag,
   type UeberKategorie,
 } from '../types';
-import { readAntragDeskriptoren, findTruthyZtField } from './profil-aggregator';
+import { readAntragDeskriptoren, readTruthyZtKlartexte } from './profil-aggregator';
 import { cosineSimilarity } from '@/core/services/embedding-corpus';
 import { ZUKUNFTSTECHNOLOGIE_FELDER } from './default-labels';
 
@@ -86,6 +86,56 @@ export function klassifiziereAntrag(input: KlassifizierungInput): Klassifizierun
 }
 
 /**
+ * Lookup-Variante (v2.63 Slim-Cache): klassifiziert auf Basis der im
+ * Stream-Pass vorberechneten Listen — KEIN voller Antrag-Record noetig.
+ * Stage 0 = `matchZukunftstechnologienFromKlartexte(ztKlartexte)`,
+ * Stage 1 = `matchDeskriptoren(deskriptoren)`, Stage 2 unveraendert
+ * (Embedding kommt ohnehin von aussen). Funktional identisch zu
+ * `klassifiziereAntrag` mit vollem Record (Aequivalenz-Test).
+ */
+export interface KlassifizierungLookupInput {
+  aktenzeichen: string;
+  /** `readAntragDeskriptoren(full)` aus dem Stream-Pass. */
+  deskriptoren: readonly string[];
+  /** `readTruthyZtKlartexte(full)` aus dem Stream-Pass. */
+  ztKlartexte: readonly string[];
+  kategorien: UeberKategorie[];
+  queryEmbedding?: number[];
+  schwellwert?: number;
+  stage2Aktiv?: boolean;
+}
+
+export function klassifiziereAntragFromLookup(input: KlassifizierungLookupInput): Klassifizierung {
+  const { aktenzeichen, kategorien } = input;
+  const schwellwert = input.schwellwert ?? 0.15;
+  const stage2Aktiv = input.stage2Aktiv ?? false;
+
+  const wrap = (vorschlaege: KategorieVorschlag[]): Klassifizierung => {
+    const { primaer, aspekte } = splitInPrimaerUndAspekte(vorschlaege);
+    return {
+      antragId: aktenzeichen,
+      vorgeschlagenePrimaer: primaer,
+      vorgeschlageneAspekte: aspekte,
+      freigegebenePrimaer: '',
+      freigegebeneAspekte: [],
+      status: 'vorgeschlagen',
+    };
+  };
+
+  const ztVorschlaege = matchZukunftstechnologienFromKlartexte(input.ztKlartexte, kategorien);
+  if (ztVorschlaege.length > 0) return wrap(ztVorschlaege);
+
+  const regelVorschlaege = matchDeskriptoren([...input.deskriptoren], kategorien);
+  if (regelVorschlaege.length > 0) return wrap(regelVorschlaege);
+
+  if (stage2Aktiv && input.queryEmbedding) {
+    return wrap(matchEmbeddings(input.queryEmbedding, kategorien, schwellwert));
+  }
+
+  return wrap([]);
+}
+
+/**
  * Splittet eine Vorschlagsliste in Primaer (Top-1) + Aspekte (Rest, als
  * AspektVorschlag ohne Methode). Confidence-Reihenfolge wird nicht
  * umsortiert — Caller stellt sicher dass die Liste bereits in der gewuenschten
@@ -121,22 +171,37 @@ export function matchZukunftstechnologien(
   antrag: Antrag,
   kategorien: UeberKategorie[],
 ): KategorieVorschlag[] {
+  // Pro ZT-Klartext (TV+VB dedupliziert) genau ein Match-Versuch ueber alle
+  // bekannten Slug-Kandidaten via readTruthyZtKlartexte — deckt sowohl
+  // Fixture-Schemas (zt_kuenstliche_intelligenz_ki_tv) als auch Wizard-
+  // Imports mit Label-XLS (kunstliche_intelligenz_ki) ab.
+  if (kategorien.length === 0) return [];
+  const klartexte = readTruthyZtKlartexte(antrag as Record<string, unknown>);
+  return matchZukunftstechnologienFromKlartexte(klartexte, kategorien);
+}
+
+/**
+ * Stage-0-Kern als pure Funktion der truthy ZT-Klartexte (v2.63 Slim-Cache):
+ * die teure Slug-Permutations-Aufloesung passiert vorab im Stream-Pass
+ * (`readTruthyZtKlartexte` auf dem vollen Record); hier nur noch das Mapping
+ * Klartext → Default-Ueberkategorie + Count/Sort. Funktional identisch zu
+ * `matchZukunftstechnologien` (Aequivalenz-Test).
+ */
+export function matchZukunftstechnologienFromKlartexte(
+  ztKlartexte: readonly string[],
+  kategorien: UeberKategorie[],
+): KategorieVorschlag[] {
   if (kategorien.length === 0) return [];
   const aktiveKategorien = new Set(kategorien.map(k => k.id));
+  const klartextSet = new Set(ztKlartexte);
   const treffer = new Map<string, number>();
-  const rec = antrag as Record<string, unknown>;
 
-  // Pro ZT-Klartext (TV+VB dedupliziert) genau ein Match-Versuch ueber alle
-  // bekannten Slug-Kandidaten via findTruthyZtField — deckt sowohl Fixture-
-  // Schemas (zt_kuenstliche_intelligenz_ki_tv) als auch Wizard-Imports mit
-  // Label-XLS (kunstliche_intelligenz_ki) ab. Vorher pro-Feld-Match haette
-  // bei Wizard-CSVs immer 0 Treffer ergeben.
   const seenKlartexte = new Set<string>();
   for (const zt of ZUKUNFTSTECHNOLOGIE_FELDER) {
     if (seenKlartexte.has(zt.klartext)) continue;
     seenKlartexte.add(zt.klartext);
     if (!aktiveKategorien.has(zt.defaultUeberKategorie)) continue;
-    if (findTruthyZtField(rec, zt.klartext)) {
+    if (klartextSet.has(zt.klartext)) {
       treffer.set(zt.defaultUeberKategorie, (treffer.get(zt.defaultUeberKategorie) ?? 0) + 1);
     }
   }

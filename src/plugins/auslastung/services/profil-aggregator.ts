@@ -12,7 +12,7 @@
  *  - `deriveKategorienForMa(deskriptoren, kategorien)`
  *      -> Liste der Ueberkategorien-IDs, in denen der MA gearbeitet hat
  */
-import type { Antrag } from '@/core/services/csv/types';
+import type { Antrag, AntragOderSlim } from '@/core/services/csv/types';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { ALL_DESKRIPTOREN_SPALTEN, CANONICAL_TIB_KUERZ, type UeberKategorie } from '../types';
 import { ZUKUNFTSTECHNOLOGIE_FELDER } from './default-labels';
@@ -29,8 +29,9 @@ export function istDlVbPhase(vbPhase: unknown): boolean {
   return getKategorieLabel(vbPhase) === 'DL';
 }
 
-/** Wie `istDlVbPhase`, aber liest die `vb_phase` direkt vom Antrag. */
-export function istDlAntrag(antrag: Antrag): boolean {
+/** Wie `istDlVbPhase`, aber liest die `vb_phase` direkt vom Antrag.
+ *  Akzeptiert auch die Slim-Projektion (`vb_phase` ist dort first-class). */
+export function istDlAntrag(antrag: AntragOderSlim): boolean {
   return istDlVbPhase((antrag as Record<string, unknown>).vb_phase);
 }
 
@@ -185,6 +186,23 @@ export function findTruthyZtField(rec: Record<string, unknown>, klartext: string
 }
 
 /**
+ * Alle truthy ZT-Klartexte eines Antrags (TV+VB dedupliziert, Original-
+ * Schreibweise wie in `ZUKUNFTSTECHNOLOGIE_FELDER`). Wird im Slim-Cache-
+ * Stream-Pass (v2.63) EINMAL pro Antrag aus dem vollen Record extrahiert —
+ * die teure Slug-Permutations-Aufloesung bleibt damit beim vollen Record;
+ * Konsumenten (Stage-0-Klassifizierung via
+ * `matchZukunftstechnologienFromKlartexte`) arbeiten danach rein auf der
+ * Klartext-Liste.
+ */
+export function readTruthyZtKlartexte(rec: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  for (const klartext of ZT_CANDIDATES_BY_KLARTEXT.keys()) {
+    if (findTruthyZtField(rec, klartext)) out.push(klartext);
+  }
+  return out;
+}
+
+/**
  * Liest alle Deskriptoren-Werte eines einzelnen Antrags (over alle Spalten, dedupliziert).
  *
  * Quellen:
@@ -302,7 +320,7 @@ export function aggregateMaProfilesByAnon(
  * (auch wenn ohne Treffer).
  */
 export function aggregateAstByAnon(
-  antraege: Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   map: AnonymMap,
 ): Map<string, Map<string, number>> {
   const collector = new Map<string, Map<string, number>>();
@@ -335,7 +353,7 @@ export function aggregateAstByAnon(
  * Antraege).
  */
 export function aggregateAntragCountByAnon(
-  antraege: Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   map: AnonymMap,
 ): Map<string, number> {
   const out = new Map<string, number>();
@@ -353,9 +371,79 @@ export function aggregateAntragCountByAnon(
   return out;
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Lookup-Varianten (v2.63 Slim-Cache): arbeiten auf einer im Stream-Pass
+// vorberechneten Map `aktenzeichen → deskriptoren` statt auf vollen Records.
+// Funktional identisch zu den Antrag-basierten Pendants (Aequivalenz-Tests:
+// slim-aggregates-equivalence.test.ts) — die Slim-Records liefern die
+// Filter-Felder (tib_kuerz, vb_phase, antragsteller), die Deskriptoren kommen
+// aus dem Lookup. WICHTIG: DL-Semantik der Pendants beibehalten —
+// `aggregateMaProfilesByAnon*` schliesst DL aus (nicht kompetenz-
+// repraesentativ), `aggregateMaProfile*` (MeineTechnologienTab) bewusst NICHT.
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Lookup-Pendant zu `aggregateMaProfilesByAnon` (DL-exklusiv). */
+export function aggregateMaProfilesByAnonFromLookup(
+  antraege: ReadonlyArray<AntragOderSlim>,
+  map: AnonymMap,
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]>,
+): Map<string, string[]> {
+  const collector = new Map<string, Set<string>>();
+  for (const anonId of map.toAnon.values()) {
+    collector.set(anonId, new Set());
+  }
+  for (const a of antraege) {
+    if (istDlAntrag(a)) continue;   // DL nicht kompetenz-repraesentativ
+    const raw = (a as Record<string, unknown>)[CANONICAL_TIB_KUERZ];
+    const k = normalizeKuerzel(raw);
+    if (!k) continue;
+    const anonId = map.toAnon.get(k);
+    if (!anonId) continue;
+    const set = collector.get(anonId)!;
+    for (const d of deskriptorenByAz.get(a.aktenzeichen) ?? []) set.add(d);
+  }
+  const out = new Map<string, string[]>();
+  for (const [anonId, set] of collector.entries()) {
+    out.set(anonId, [...set].sort((x, y) => x.localeCompare(y, 'de')));
+  }
+  return out;
+}
+
+/** Lookup-Pendant zu `aggregateMaProfile` (EIN Kuerzel; bewusst inkl. DL). */
+export function aggregateMaProfileFromLookup(
+  antraege: ReadonlyArray<AntragOderSlim>,
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]>,
+  kuerzel: string,
+): string[] {
+  const key = normalizeKuerzel(kuerzel);
+  if (!key) return [];
+  const set = new Set<string>();
+  for (const a of antraege) {
+    const tib = normalizeKuerzel((a as Record<string, unknown>)[CANONICAL_TIB_KUERZ]);
+    if (tib !== key) continue;
+    for (const d of deskriptorenByAz.get(a.aktenzeichen) ?? []) set.add(d);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, 'de'));
+}
+
+/** Lookup-Pendant zu `collectAllDeskriptorenMitCount` (inkl. DL, wie heute). */
+export function collectAllDeskriptorenMitCountFromLookup(
+  deskriptorenByAz: ReadonlyMap<string, readonly string[]>,
+): Array<{ wert: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const deskriptoren of deskriptorenByAz.values()) {
+    for (const d of deskriptoren) {
+      counts.set(d, (counts.get(d) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'de'))
+    .map(([wert, count]) => ({ wert, count }));
+}
+
 /** Sammelt die Aktenzeichen aller Antraege EINES MAs (per anonId). */
 export function aktenzeichenForAnon(
-  antraege: Antrag[],
+  antraege: ReadonlyArray<AntragOderSlim>,
   anonId: string,
   map: AnonymMap,
 ): string[] {
@@ -411,6 +499,10 @@ export interface SyncMitarbeiterOptions {
   defaultJahresKapazitaet?: number;
   /** Wenn true, ueberschreibt auch vorhandene Haupt-/Nebenkategorien. */
   overrideKategorien?: boolean;
+  /** Vorberechnete per-Anon-Profile (v2.63 Slim-Cache:
+   *  `cache.historischeDeskriptorenByAnon`) — spart die erneute Aggregation
+   *  ueber volle Records. Wenn gesetzt, wird `antraege` nicht gelesen. */
+  profilesByAnon?: Map<string, string[]>;
 }
 
 export interface SyncMitarbeiterResult {
@@ -431,7 +523,7 @@ export function syncMitarbeiterFromAntraege(
   const hinzugefuegt: string[] = [];
   const aktualisiert: string[] = [];
 
-  const profiles = aggregateMaProfilesByAnon(antraege, map);
+  const profiles = opts.profilesByAnon ?? aggregateMaProfilesByAnon(antraege, map);
   for (const [anonId, deskriptoren] of profiles.entries()) {
     const derivedKategorien = deriveKategorienForMa(deskriptoren, kategorien);
     const existing = result[anonId];
