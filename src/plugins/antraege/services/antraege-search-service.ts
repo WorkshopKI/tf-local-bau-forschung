@@ -5,7 +5,8 @@
  *  1. **Substring** auf VB-/TV-/Abstract-/Deskriptor-Volltext
  *     (synchron, Score = 1.0, method = 'fulltext')
  *  2. **Embedding-Cosine** gegen den Auslastungs-Korpus (768d)
- *     (asynchron, Score = cosine ≥ 0.55, method = 'vector')
+ *     (asynchron, Score = cosine, adaptive Schwelle Floor 0.35 + 90% der
+ *     besten Cosine — siehe EMBEDDING_SCORE_FLOOR, method = 'vector')
  *  3. **DMS-Index-Treffer** via Orama-`hybridSearch` mit `filenameToAkz`-Mapping
  *     (asynchron, Score = orama-Score 0..1, method = 'hybrid')
  *
@@ -65,9 +66,23 @@ export function isSemanticSearchActive(): boolean {
   return SEMANTIC_SOURCES_ENABLED && useSemanticSearchMode.getState().enabled;
 }
 
-/** Schwelle fuer Embedding-Treffer (Cosine, L2-normalisiert -> [-1, 1]).
- *  0.55 empirisch validiert (siehe useAntraegeHybridSearch-Doku). */
-const EMBEDDING_THRESHOLD = 0.55;
+/**
+ * Adaptive Schwelle fuer Embedding-Treffer (v2.62.4).
+ *
+ * Die fruehere starre 0.55-Schwelle stammte aus einer Validierung auf dem
+ * v1-Korpus (nur Titel/Abstract). Auf dem v2-Korpus (lange Texte inkl.
+ * Deskriptoren) staucht sich die Cosine-Skala fuer kurze Queries: Messung
+ * pl-Echtdaten, Query „Bilderkennung" (eindeutig relevante Treffer im
+ * Korpus) → beste Cosine 0.437 → 0 Treffer ueber 0.55, Aehnlichkeitssuche
+ * wirkte tot. Daher relativ zur besten Cosine des Laufs schneiden:
+ *  - `FLOOR` = absolute Untergrenze (Garbage-Schutz: liegt selbst die beste
+ *    Cosine darunter, ist die Query semantisch nicht im Korpus → 0 Treffer).
+ *  - `RELATIVE_CUTOFF` = behalte Treffer ≥ 90% der besten Cosine — adaptiert
+ *    sich an die Query-Laenge (kurze Query: Band z.B. 0.39–0.44; lange
+ *    Query: Band z.B. 0.63–0.70). `TOP_K` deckelt die Menge zusaetzlich.
+ */
+const EMBEDDING_SCORE_FLOOR = 0.35;
+const EMBEDDING_RELATIVE_CUTOFF = 0.9;
 const EMBEDDING_TOP_K = 50;
 const MIN_QUERY_LEN_FOR_SEMANTIC = 2;
 const COSINE_YIELD_INTERVAL = 2000;
@@ -239,20 +254,26 @@ function substringMatches(
   return out;
 }
 
+/** Effektiver Score-Cutoff fuer einen Lauf: nie unter dem absoluten Floor,
+ *  sonst relativ zur besten Cosine (adaptive Schwelle, s.o.). Pure — testbar. */
+export function computeEmbeddingCutoff(bestScore: number): number {
+  return Math.max(EMBEDDING_SCORE_FLOOR, bestScore * EMBEDDING_RELATIVE_CUTOFF);
+}
+
 async function topKEmbeddingMatches(
   queryVec: number[],
   embeddings: Map<string, number[]>,
   topK: number,
-  threshold: number,
   signal?: AbortSignal,
 ): Promise<Array<{ akz: string; score: number }>> {
-  const hits: Array<{ akz: string; score: number }> = [];
+  // Pass 1: Kandidaten ≥ Floor sammeln + beste Cosine tracken (der relative
+  // Cutoff ist erst NACH dem Scan bekannt). Kandidaten-Menge bleibt klein
+  // (nur ≥ Floor), kein zweiter Cosine-Pass noetig.
+  const candidates: Array<{ akz: string; score: number }> = [];
   let i = 0;
-  // Diagnose (v2.62.3): beste Cosine + Dim-Skips mitzählen. Bei 0 Treffern ist
-  // sonst nicht unterscheidbar, ob die Schwelle zu streng ist (best ≈ 0.5),
-  // die Vektorräume inkompatibel sind (best ≈ 0.1, z.B. lokaler Korpus mit
-  // altem Text-Schema) oder still Dimensions-fremde Vektoren übersprungen
-  // wurden. Unter file:// ist die Console die einzige Spur.
+  // Diagnose (v2.62.3): beste Cosine + Dim-Skips mitzählen — bei 0 Treffern
+  // unterscheidet das Schwelle-zu-streng / Vektorraum-inkompatibel /
+  // Dim-Mismatch. Unter file:// ist die Console die einzige Spur.
   let best = -Infinity;
   let bestAkz = '';
   let skippedDim = 0;
@@ -260,15 +281,17 @@ async function topKEmbeddingMatches(
     if (vec.length !== queryVec.length) { skippedDim++; continue; }
     const s = cosineSimilarity(queryVec, vec);
     if (s > best) { best = s; bestAkz = akz; }
-    if (s >= threshold) hits.push({ akz, score: s });
+    if (s >= EMBEDDING_SCORE_FLOOR) candidates.push({ akz, score: s });
     if (++i % COSINE_YIELD_INTERVAL === 0) {
       await new Promise(r => setTimeout(r, 0));
       if (signal?.aborted) return [];
     }
   }
+  const cutoff = computeEmbeddingCutoff(best);
+  const hits = candidates.filter(c => c.score >= cutoff);
   if (hits.length === 0) {
     console.info(
-      `[antraege-search] Vector: 0 Treffer ≥ ${threshold} — beste Cosine ${Number.isFinite(best) ? best.toFixed(3) : 'n/a'}`
+      `[antraege-search] Vector: 0 Treffer (Floor ${EMBEDDING_SCORE_FLOOR}) — beste Cosine ${Number.isFinite(best) ? best.toFixed(3) : 'n/a'}`
       + (bestAkz ? ` (${bestAkz})` : '')
       + (skippedDim > 0 ? `; ${skippedDim} Vektoren mit fremder Dimension übersprungen` : ''),
     );
@@ -353,7 +376,7 @@ export async function searchAntraege(
         if (!unavailable.includes('embedding')) unavailable.push('embedding');
       } else {
         const embHits = await topKEmbeddingMatches(
-          queryVec, embeddings, EMBEDDING_TOP_K, EMBEDDING_THRESHOLD, abortSignal,
+          queryVec, embeddings, EMBEDDING_TOP_K, abortSignal,
         );
         for (const h of embHits) {
           mergeHit(merged, { aktenzeichen: h.akz, score: h.score, method: 'vector' });
@@ -437,7 +460,7 @@ export async function searchAntraegeVector(
     );
     return [];
   }
-  return topKEmbeddingMatches(queryVec, embeddings, EMBEDDING_TOP_K, EMBEDDING_THRESHOLD, signal);
+  return topKEmbeddingMatches(queryVec, embeddings, EMBEDDING_TOP_K, signal);
 }
 
 /** Stage 3 (Antraege-Anteil): DMS-Index-Match → Antrag-Hits via filenameToAkz.
