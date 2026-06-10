@@ -73,6 +73,13 @@ export interface UnifiedSearchIndexInfo {
  *  + DMS-Antrags-Match werden ergaenzt; `done` → finaler Stand. */
 export type SearchPhase = 'idle' | 'substring' | 'vector' | 'orama' | 'done' | 'error';
 
+/** Diagnose der Ähnlichkeits-Stage (v2.62.2): Unter `file://` ist die Console
+ *  meist zu — stille Leerlauf-Pfade (Modell lädt nicht / Korpus lokal leer)
+ *  sahen für den User aus wie „Umschalten tut nichts". Der Status macht die
+ *  Ursache im UI anzeigbar. `null` = Stage lief nicht (Opt-in aus / Query zu
+ *  kurz / noch keine Suche), `ok` = Vector-Stage ist durchgelaufen. */
+export type SemanticStatus = 'ok' | 'model-failed' | 'corpus-empty' | null;
+
 export interface UseUnifiedSearchResult {
   results: UnifiedSearchResult[];
   loading: boolean;
@@ -82,6 +89,8 @@ export interface UseUnifiedSearchResult {
   vectorReady: boolean;
   /** Welche Pipeline-Stage gerade laeuft. Fuer Status-Badge im UI. */
   searchPhase: SearchPhase;
+  /** Warum die Ähnlichkeits-Stage ggf. keine Treffer liefern konnte. */
+  semanticStatus: SemanticStatus;
 }
 
 interface AntraegeListCache {
@@ -194,6 +203,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   const [error, setError] = useState<string | null>(null);
   const [antraegeGeladen, setAntraegeGeladen] = useState(0);
   const [searchPhase, setSearchPhase] = useState<SearchPhase>('idle');
+  const [semanticStatus, setSemanticStatus] = useState<SemanticStatus>(null);
 
   const programmNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -224,8 +234,10 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
       setLoading(false);
       setError(null);
       setSearchPhase('idle');
+      setSemanticStatus(null);
       return;
     }
+    setSemanticStatus(null);
 
     const abort = new AbortController();
     let cancelled = false;
@@ -290,14 +302,22 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
             && isSemanticSearchActive()
             && q.length >= STREAMING_CONSTS.MIN_QUERY_LEN_FOR_SEMANTIC;
 
+          // Diagnose-Logs hier bewusst via console.* (nicht pipelineLog — der
+          // ist in Builds stumm): unter file:// ist das die einzige Spur, warum
+          // die Ähnlichkeitssuche ggf. keine Treffer ergänzt (Pitfall #15-Klasse).
           let queryVec: number[] | null = null;
           if (semanticActive) {
             try {
               await ensureEmbeddingReady(storage.idb);
               if (isCancelled()) return;
               queryVec = await embedQueryIfReady(q, storage.idb);
+              if (queryVec === null && !isCancelled()) {
+                console.warn('[useUnifiedSearch] Ähnlichkeitssuche: Query-Embedding fehlgeschlagen (Modell nicht bereit / Embed-Fehler).');
+                setSemanticStatus('model-failed');
+              }
             } catch (err) {
               console.warn('[useUnifiedSearch] embedding init failed:', err);
+              if (!isCancelled()) setSemanticStatus('model-failed');
             }
             if (isCancelled()) return;
           }
@@ -307,13 +327,21 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
               const tStage2 = performance.now();
               const embeddings = await getEmbeddings(storage.idb);
               if (isCancelled()) return;
-              const vecHits = await searchAntraegeVector(queryVec, embeddings, abort.signal);
-              if (isCancelled()) return;
-              for (const h of vecHits) {
-                upsertAntrag({ aktenzeichen: h.akz, score: h.score, method: 'vector' }, byAkz);
+              if (embeddings.size === 0) {
+                console.warn('[useUnifiedSearch] Ähnlichkeitssuche: Embedding-Korpus lokal leer (IDB) — keine Vector-Treffer möglich. Korpus kommt vom Daten-Share (Auslastungs-Modul / Auto-Download).');
+                setSemanticStatus('corpus-empty');
+              } else {
+                const vecHits = await searchAntraegeVector(queryVec, embeddings, abort.signal);
+                if (isCancelled()) return;
+                for (const h of vecHits) {
+                  upsertAntrag({ aktenzeichen: h.akz, score: h.score, method: 'vector' }, byAkz);
+                }
+                setSemanticStatus('ok');
+                console.info(
+                  `[useUnifiedSearch] Ähnlichkeitssuche: ${vecHits.length} Vector-Treffer (Korpus ${embeddings.size}) in ${Math.round(performance.now() - tStage2)}ms`,
+                );
+                emit();
               }
-              pipelineLog.info('Suche', `Stage 2 (Vector): ${vecHits.length} Treffer in ${Math.round(performance.now() - tStage2)}ms`);
-              emit();
             } catch (err) {
               console.warn('[useUnifiedSearch] vector stage failed:', err);
             }
@@ -388,5 +416,6 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
     indexInfo: { textabschnitteImIndex: documentCount, antraegeGeladen },
     vectorReady,
     searchPhase,
+    semanticStatus,
   };
 }

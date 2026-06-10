@@ -2,6 +2,14 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.62.2 — Ähnlichkeitssuche: stille Leerlauf-Pfade sichtbar gemacht + Korpus-Bootstrap auf der Suchseite (Juni 2026)
+
+PATCH-Bump v2.62.2: Test-Feedback zu v2.62.1 — Vector-Phase lief an (Spinner), ergänzte aber keine Treffer, ohne erkennbaren Grund. Die Stage hatte drei **stille** Leerlauf-Pfade (Modell-Init-Fehler geschluckt, Query-Embedding-Fehler → `null`, leerer lokaler Embedding-Korpus → stumm `[]`), und `pipelineLog` ist in Builds deaktiviert (`import.meta.env.DEV`) — unter `file://` gab es also keinerlei Spur (Pitfall-#15-Klasse).
+
+- **[useUnifiedSearch.ts](src/core/hooks/useUnifiedSearch.ts):** neuer `semanticStatus` (`ok`/`model-failed`/`corpus-empty`) + always-on `console.info/warn`-Diagnose der Vector-Stage (Treffer-Anzahl + Korpus-Größe bzw. konkreter Fehlgrund).
+- **[SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx):** sichtbarer ⓘ-Hinweis unter dem Suchfeld, wenn die Ähnlichkeitssuche eingeschaltet ist aber wirkungslos (Korpus fehlt lokal / Modell lädt nicht) — statt kommentarlos identischer Ergebnisse. Zusätzlich läuft der **Embedding-Korpus-Bootstrap** (Auto-Download vom Daten-Share, `autoBootstrapEmbeddingMirror`) jetzt auch im Suchseiten-Preload — bisher nur auf der Förderanträge-Seite; ein Rechner mit leerem lokalen Korpus blieb auf der Suchseite dauerhaft ohne Vector-Treffer.
+- Hinweis zur Treffer-Anzeige: Anträge, die wörtlich UND semantisch matchen, behalten das Label „Stichwort" (Dedup per max-score, Substring=1.0). Semantik zeigt sich als **zusätzliche** Zeilen mit Score < 1.00 — sichtbar v.a. bei Queries, die nicht wörtlich vorkommen.
+
 ### v2.62.1 — Dropdown-Umschalten führt die laufende Suche neu aus (Juni 2026)
 
 PATCH-Bump v2.62.1: Nachzug zu v2.62.0 — beide Such-Pipelines hingen nur an der Query, nicht am Ähnlichkeits-Modus. Folge: nach dem Umschalten auf „Mit Ähnlichkeitssuche" blieben die bereits angezeigten Treffer Substring-only („Stichwort"), bis der User die Query änderte. Fix: `semanticEnabled` in die Deps der Such-Effekte ([useUnifiedSearch.ts](src/core/hooks/useUnifiedSearch.ts) Hauptsuche, [useAntraegeHybridSearch.ts](src/plugins/antraege/useAntraegeHybridSearch.ts) Tipp-Suche) — das Umschalten re-triggert die Suche sofort; während das Modell noch lädt, wartet die Vector-Stage auf dieselbe Init-Promise (Phase-Badge „Embedding-Treffer…").

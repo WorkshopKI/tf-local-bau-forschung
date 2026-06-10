@@ -32,6 +32,8 @@ import {
   getProgrammCaches,
   getEmbeddings,
   isSemanticSearchActive,
+  autoBootstrapEmbeddingMirror,
+  invalidateEmbeddingsCache,
 } from '@/plugins/antraege/services/antraege-search-service';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
@@ -110,7 +112,7 @@ export function SuchSeite(): React.ReactElement {
     });
   };
 
-  const { results: searchResults, loading, counts, indexInfo, vectorReady, searchPhase } = useUnifiedSearch(deferredQuery);
+  const { results: searchResults, loading, counts, indexInfo, vectorReady, searchPhase, semanticStatus } = useUnifiedSearch(deferredQuery);
   // Phase-Badge nicht synchron-flackern lassen: deferred, damit React beim
   // Stage-Wechsel keine Render-Stalls macht.
   const deferredPhase = useDeferredValue(searchPhase);
@@ -136,7 +138,22 @@ export function SuchSeite(): React.ReactElement {
       void getProgrammCaches(storage.idb, activeProgrammId).catch(() => { /* best effort */ });
       if (!semanticEnabled || !isSemanticSearchActive()) return;
       void ensureEmbeddingReady(storage.idb).catch(() => { /* best effort */ });
-      void getEmbeddings(storage.idb).catch(() => { /* best effort */ });
+      // v2.62.2: Korpus-Bootstrap auch hier (bisher nur im Förderanträge-
+      // Preload) — sonst bleibt die Vector-Stage auf einem Rechner mit leerem
+      // lokalen Embedding-Cache dauerhaft leer, wenn der User direkt auf die
+      // Suchseite geht. Best-effort; danach Modul-Cache invalidieren, damit
+      // getEmbeddings die frisch geschriebenen Vektoren sieht.
+      void (async () => {
+        try {
+          await autoBootstrapEmbeddingMirror(storage, status => {
+            console.info('[suche] embedding mirror bootstrap:', status);
+          });
+        } catch (err) {
+          console.warn('[suche] embedding mirror bootstrap fehlgeschlagen:', err);
+        }
+        invalidateEmbeddingsCache();
+        void getEmbeddings(storage.idb).catch(() => { /* best effort */ });
+      })();
     });
     return cancel;
   }, [activeProgrammId, storage, semanticEnabled]);
@@ -429,6 +446,16 @@ export function SuchSeite(): React.ReactElement {
             }}
           />
         </div>
+        {semanticEnabled && (semanticStatus === 'corpus-empty' || semanticStatus === 'model-failed') ? (
+          <div className="flex items-center gap-1.5 w-full max-w-4xl mt-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
+            <span aria-hidden="true">ⓘ</span>
+            <span>
+              {semanticStatus === 'corpus-empty'
+                ? 'Ähnlichkeitssuche ohne Wirkung: Auf diesem Rechner liegen keine Embedding-Vektoren (Korpus). Er wird beim Start automatisch vom Datenspeicher geladen, sofern dort vorhanden — sonst im Auslastungs-Modul „Vom Datenspeicher laden".'
+                : 'Ähnlichkeitssuche ohne Wirkung: Das Embedding-Modell konnte nicht geladen werden (Details in der Browser-Konsole, F12). Es werden nur Wortlaut-Treffer angezeigt.'}
+            </span>
+          </div>
+        ) : null}
         {showResults && (
           <div className="flex items-center gap-2 w-full max-w-4xl mt-2 text-[11px] text-[var(--tf-text-tertiary)]">
             <span>
