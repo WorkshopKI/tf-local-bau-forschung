@@ -16,7 +16,7 @@ import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
-import { menuLabel, isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant, isAuslastungEnabled } from '@/config/feature-flags';
+import { menuLabel, isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant, isAuslastungEnabled, hasDepartmentChoice } from '@/config/feature-flags';
 import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
@@ -178,7 +178,7 @@ export function HomePage(): React.ReactElement {
       <div data-tour="home-dashboard" className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
         <p className="text-[13px] text-[var(--tf-text-secondary)]">
-          {dept} · {data.stats.offen} offene Vorgänge · {data.fristenDieseWoche} Fristen diese Woche
+          {hasDepartmentChoice() ? `${dept} · ` : ''}{data.stats.offen} offene Vorgänge · {data.fristenDieseWoche} Fristen diese Woche
         </p>
       </div>
 

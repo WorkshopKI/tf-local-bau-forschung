@@ -10,6 +10,7 @@ import {
   isKuratorMenusEnabled,
   isAntraegeEnabled,
   isBauantraegeEnabled,
+  hasDepartmentChoice,
   isMaLoginEnabled,
   menuLabel,
 } from '@/config/feature-flags';
@@ -60,7 +61,7 @@ export function ProfilTab(): React.ReactElement {
   if (isAntraegeEnabled()) departmentOptions.push({ value: 'antraege', label: menuLabel('antraege', 'Förderanträge') });
   if (isBauantraegeEnabled()) departmentOptions.push({ value: 'bauantraege', label: menuLabel('bauantraege', 'Bauanträge') });
   if (departmentOptions.length >= 2) departmentOptions.push({ value: 'beide', label: 'Beide' });
-  const showDepartmentSelect = departmentOptions.length >= 2;
+  const showDepartmentSelect = hasDepartmentChoice();
 
   return (
     <div className="space-y-8">
