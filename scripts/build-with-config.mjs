@@ -132,6 +132,7 @@ function main() {
     'Dokumentenindex-aktualisieren-Gemma.bat',
     'Dokumentenindex-LAN-Server.bat',
     'Nemotron-Bench.bat',
+    'Chat-Server-Qwen.bat',
   ];
   const copiedBats = [];
 

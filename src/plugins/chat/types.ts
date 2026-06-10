@@ -48,4 +48,7 @@ export interface ConversationFull extends ConversationMeta {
 
 export interface ChatSettings {
   systemPrompt: string;
+  /** Reasoning-/Denkprozess-Phase des Modells (Qwen-Thinking). Default true;
+   *  aus = schnellere Antworten, aber weniger gründlich bei komplexen Prompts. */
+  thinkingEnabled?: boolean;
 }

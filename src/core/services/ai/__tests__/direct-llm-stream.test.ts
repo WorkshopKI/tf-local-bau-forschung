@@ -125,6 +125,30 @@ describe('DirectLLMTransport.streamConversation', () => {
     expect(bodies[0]?.stream_options).toBeUndefined();
     expect(bodies[1]?.stream).toBe(true);
     expect(bodies[1]?.stream_options).toEqual({ include_usage: true });
+    // cache_prompt: llama.cpp-Prefix-Cache-Feld nur an Nicht-OpenRouter-Endpoints
+    expect(bodies[0]?.cache_prompt).toBe(true);
+    expect(bodies[1]?.cache_prompt).toBeUndefined();
+  });
+
+  it('thinkingBudget none: chat_template_kwargs bei llama.cpp, reasoning.effort bei OpenRouter', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return sseResponse(['data: [DONE]\n\n']);
+    }));
+    const local = new DirectLLMTransport('http://localhost:8081', 'm');
+    await local.streamConversation!([{ role: 'user', content: 'a' }], { onDelta: () => {} }, { thinkingBudget: 'none' });
+    const or = new DirectLLMTransport('https://openrouter.ai/api/v1', 'm');
+    await or.streamConversation!([{ role: 'user', content: 'a' }], { onDelta: () => {} }, { thinkingBudget: 'none' });
+    // Toggle an (kein thinkingBudget) → Server-Default, keine Template-Kwargs
+    await local.streamConversation!([{ role: 'user', content: 'a' }], { onDelta: () => {} });
+
+    expect(bodies[0]?.chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(bodies[0]?.reasoning).toBeUndefined();
+    expect(bodies[1]?.chat_template_kwargs).toBeUndefined();
+    expect(bodies[1]?.reasoning).toEqual({ effort: 'none' });
+    expect(bodies[2]?.chat_template_kwargs).toBeUndefined();
+    expect(bodies[2]?.reasoning).toBeUndefined();
   });
 
   it('Abort: resolved mit aborted=true und Partial-Content statt zu werfen', async () => {

@@ -30,6 +30,7 @@ beforeEach(() => {
     activeId: null,
     activeMessages: [],
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
+    thinkingEnabled: true,
     loaded: false,
   });
 });
@@ -123,11 +124,26 @@ describe('useChatStore', () => {
     expect(useChatStore.getState().activeMessages[0]?.content).toBe('anfang fertig');
   });
 
-  it('setSystemPrompt persistiert in chat:settings', async () => {
+  it('setSystemPrompt persistiert in chat:settings (inkl. thinkingEnabled — kein Feld-Verlust)', async () => {
     const { storage, data } = makeFakeStorage();
     await useChatStore.getState().setSystemPrompt('Neu!', storage);
     expect(useChatStore.getState().systemPrompt).toBe('Neu!');
-    expect(data.get('chat:settings')).toEqual({ systemPrompt: 'Neu!' });
+    expect(data.get('chat:settings')).toEqual({ systemPrompt: 'Neu!', thinkingEnabled: true });
+  });
+
+  it('setThinkingEnabled persistiert und behält den systemPrompt im Settings-Record', async () => {
+    const { storage, data } = makeFakeStorage();
+    await useChatStore.getState().setSystemPrompt('Mein Prompt', storage);
+    await useChatStore.getState().setThinkingEnabled(false, storage);
+    expect(useChatStore.getState().thinkingEnabled).toBe(false);
+    expect(data.get('chat:settings')).toEqual({ systemPrompt: 'Mein Prompt', thinkingEnabled: false });
+
+    // loadAll liest den Toggle zurück; fehlendes Feld (Alt-Record) → Default true
+    await useChatStore.getState().loadAll(storage);
+    expect(useChatStore.getState().thinkingEnabled).toBe(false);
+    data.set('chat:settings', { systemPrompt: 'Alt' });
+    await useChatStore.getState().loadAll(storage);
+    expect(useChatStore.getState().thinkingEnabled).toBe(true);
   });
 
   it('persistActive coalesced parallele Aufrufe — finaler IDB-Stand = letzter State', async () => {

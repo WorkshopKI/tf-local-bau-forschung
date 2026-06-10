@@ -40,6 +40,28 @@ export class DirectLLMTransport implements AITransport {
     this.baseUrl = endpoint.replace(/\/v1\/?$/, '');
   }
 
+  /**
+   * llama.cpp-spezifische Body-Felder + Thinking-Steuerung. Endpoint-gated wie
+   * `stream_options` (ältere llama.cpp-Builds lehnen unbekannte Params ab,
+   * OpenRouter kennt die llama.cpp-Felder nicht):
+   * - `cache_prompt`: Prefix-Cache explizit aktivieren (Default true in aktuellen
+   *   Builds; sichert ältere ab) — Folge-Turns verarbeiten nur den neuen Suffix.
+   * - `thinkingBudget: 'none'` → `chat_template_kwargs.enable_thinking = false`
+   *   (Qwen-Template-Switch via --jinja); OpenRouter bekommt weiter `reasoning.effort`.
+   */
+  private applyLlamaCppFields(
+    body: Record<string, unknown>,
+    thinkingBudget?: 'none' | 'low' | 'medium' | 'high',
+  ): void {
+    const isOpenRouter = this.endpoint.includes('openrouter');
+    if (!isOpenRouter) body.cache_prompt = true;
+    if (thinkingBudget === 'none' && !isOpenRouter) {
+      body.chat_template_kwargs = { enable_thinking: false };
+    } else if (thinkingBudget) {
+      body.reasoning = { effort: thinkingBudget };
+    }
+  }
+
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (this.apiKey) headers['Authorization'] = `Bearer ${this.apiKey}`;
@@ -86,9 +108,7 @@ export class DirectLLMTransport implements AITransport {
 
     const body: Record<string, unknown> = { model: this.model, messages, max_tokens: 1500 };
 
-    if (options?.thinkingBudget) {
-      body.reasoning = { effort: options.thinkingBudget };
-    }
+    this.applyLlamaCppFields(body, options?.thinkingBudget);
     if (options?.responseFormat) {
       body.response_format = options.responseFormat;
     }
@@ -119,7 +139,7 @@ export class DirectLLMTransport implements AITransport {
       messages,
       max_tokens: options?.maxTokens ?? 1500,
     };
-    if (options?.thinkingBudget) body.reasoning = { effort: options.thinkingBudget };
+    this.applyLlamaCppFields(body, options?.thinkingBudget);
     if (options?.responseFormat) body.response_format = options.responseFormat;
 
     const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
@@ -150,7 +170,7 @@ export class DirectLLMTransport implements AITransport {
       max_tokens: options?.maxTokens ?? 1500,
       stream: true,
     };
-    if (options?.thinkingBudget) body.reasoning = { effort: options.thinkingBudget };
+    this.applyLlamaCppFields(body, options?.thinkingBudget);
     // stream_options nur bei OpenRouter — ältere llama.cpp-Builds lehnen unbekannte
     // Params ab; llama.cpp liefert `timings` ohnehin im Final-Chunk.
     if (this.endpoint.includes('openrouter')) body.stream_options = { include_usage: true };

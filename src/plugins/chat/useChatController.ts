@@ -125,10 +125,13 @@ export function useChatController(): ChatController {
     };
 
     try {
+      // Thinking-Toggle: aus → 'none' (DirectLLM übersetzt das für llama.cpp in
+      // chat_template_kwargs.enable_thinking=false); an → Server-Default (auto).
+      const thinkingBudget = useChatStore.getState().thinkingEnabled ? undefined : 'none' as const;
       const result = await transport.streamConversation!(apiMessages, {
         onDelta: t => { pendingContent += t; schedule(); },
         onReasoningDelta: t => { pendingThinking += t; schedule(); },
-      }, { maxTokens: CHAT_MAX_TOKENS, signal });
+      }, { maxTokens: CHAT_MAX_TOKENS, signal, ...(thinkingBudget ? { thinkingBudget } : {}) });
 
       flush();
       if (result.aborted && !result.content && !result.reasoning) {
@@ -195,6 +198,7 @@ export function useChatController(): ChatController {
           raw = await transport.submitConversation(apiMessages, {
             maxTokens: CHAT_MAX_TOKENS,
             signal: abort.signal,
+            ...(useChatStore.getState().thinkingEnabled ? {} : { thinkingBudget: 'none' as const }),
           });
         } catch (err) {
           if (abort.signal.aborted) return; // Stop ohne Streaming: nichts zu behalten

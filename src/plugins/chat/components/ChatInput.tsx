@@ -5,6 +5,7 @@ import type { DirectoryEntry } from '@/core/types/config';
 import type { ChatAttachment } from '../types';
 import { useAttachments } from '../attachments/useAttachments';
 import { SystemPromptPopover } from './SystemPromptPopover';
+import { ThinkingToggle } from './ThinkingToggle';
 
 const ACCEPT_EXTENSIONS = '.pdf,.docx,.md,.txt';
 
@@ -152,6 +153,7 @@ export function ChatInput({
           >
             <Sparkles size={16} />
           </button>
+          <ThinkingToggle />
           <SystemPromptPopover />
           <textarea
             value={input}

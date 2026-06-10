@@ -2,6 +2,16 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.66.0 — Chat-Server-Tuning: Qwen-Chat-Script, Thinking-Toggle, cache_prompt (Juni 2026)
+
+MINOR-Bump v2.66.0: Lokales Qwen 3.6 35B-A3B (Thinking) auf llama.cpp war im Chat träge — User-Log (RTX 3060 12 GB) zeigte 108 s Prompt-Processing für einen 39k-Token-Anhang-Turn plus 210 s Generierung bis ans 4096-Token-Limit (überwiegend Denkprozess). Ursache: Der einzige Qwen-Server-Launcher war fürs **Indexieren** getunt (Port 9091, Kontext 8192, 4 Threads, Reasoning off).
+
+- **Neues Script [Chat-Server-Qwen.bat](Chat-Server-Qwen.bat)** (chat-getunt, eigene `config-chat-qwen.json`, teilt Binary+GGUF mit den Indexier-Scripts): Port **9090** (App-Default „Intern API"), Kontext **49152** (App sendet bis ~40k Tokens: 24k-Zeichen-Historie + 60k-Zeichen-Anhänge), Threads **auto** (physische Kerne), KV **q8_0**, Reasoning **auto**, `--parallel 1`, **`-b 2048 -ub 2048`** (größter TTFT-Hebel bei CPU-MoE-Offload). In die Build-Kopier-Liste aufgenommen ([build-with-config.mjs](scripts/build-with-config.mjs)). Tuning-Guide inkl. `n_cpu_moe`-Tastanleitung + Erwartungswerten: **[docs/LLM_SERVER_SETUP.md](docs/LLM_SERVER_SETUP.md)**.
+- **Thinking-Toggle im Chat** (Gehirn-Icon in der Input-Leiste, [ThinkingToggle.tsx](src/plugins/chat/components/ThinkingToggle.tsx)): Denkprozess an/aus, persistiert in `chat:settings` (`thinkingEnabled`, Default an), wirkt ab der nächsten Nachricht. Aus → DirectLLM sendet `chat_template_kwargs: { enable_thinking: false }` (llama.cpp/`--jinja`-Template-Switch, gegen Server-README verifiziert); OpenRouter bekommt weiter `reasoning.effort`.
+- **`cache_prompt: true`** in allen DirectLLM-Bodies (neuer Helper `applyLlamaCppFields` in [direct-llm.ts](src/core/services/ai/transports/direct-llm.ts), endpoint-gated wie `stream_options`): Absicherung — aktuelle llama.cpp-Builds haben den Prefix-Cache default-an, ältere nicht. Folge-Turns im selben Gespräch verarbeiten damit nur den neuen Suffix statt Historie+Anhang komplett neu.
+
+Kein Migrationsschritt: `chat:settings` wird additiv erweitert, Indexier-Scripts unverändert.
+
 ### v2.65.0 — Chat-Ausbau: Streaming, Verlauf, Anhänge, Thinking, Stats (Juni 2026)
 
 MINOR-Bump v2.65.0: Das Chat-Plugin (dev+demo) wächst vom Single-Turn-MVP zum vollwertigen Chat. Aufgeteilt in 5 Commits (PR-1…5/5):

@@ -32,6 +32,8 @@ interface ChatState {
   /** Volle Messages NUR der aktiven Konversation. */
   activeMessages: ChatMessage[];
   systemPrompt: string;
+  /** Denkprozess-Phase (Qwen-Thinking) an/aus — wirkt ab der nächsten Nachricht. */
+  thinkingEnabled: boolean;
   loaded: boolean;
 
   loadAll: (storage: StorageService) => Promise<void>;
@@ -45,6 +47,13 @@ interface ChatState {
   removeMessage: (id: string) => void;
   persistActive: (storage: StorageService) => Promise<void>;
   setSystemPrompt: (prompt: string, storage: StorageService) => Promise<void>;
+  setThinkingEnabled: (enabled: boolean, storage: StorageService) => Promise<void>;
+}
+
+/** Settings-Record komplett schreiben — partielle Writes würden das jeweils
+ *  andere Feld aus `chat:settings` löschen. */
+async function persistSettings(storage: StorageService, settings: ChatSettings): Promise<void> {
+  await storage.idb.set(SETTINGS_KEY, settings);
 }
 
 // Coalescing-Lock: überlappender persist wird nicht verworfen (wie der harte
@@ -58,6 +67,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeId: null,
   activeMessages: [],
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
+  thinkingEnabled: true,
   loaded: false,
 
   loadAll: async (storage) => {
@@ -76,6 +86,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({
       conversations: metas,
       systemPrompt: settings?.systemPrompt?.trim() ? settings.systemPrompt : DEFAULT_SYSTEM_PROMPT,
+      thinkingEnabled: settings?.thinkingEnabled ?? true,
       loaded: true,
     });
   },
@@ -141,6 +152,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setSystemPrompt: async (prompt, storage) => {
     set({ systemPrompt: prompt });
-    await storage.idb.set(SETTINGS_KEY, { systemPrompt: prompt } satisfies ChatSettings);
+    await persistSettings(storage, { systemPrompt: prompt, thinkingEnabled: get().thinkingEnabled });
+  },
+
+  setThinkingEnabled: async (enabled, storage) => {
+    set({ thinkingEnabled: enabled });
+    await persistSettings(storage, { systemPrompt: get().systemPrompt, thinkingEnabled: enabled });
   },
 }));
