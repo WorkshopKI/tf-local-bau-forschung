@@ -82,6 +82,23 @@ describe('useAntraegeCache — Slim + Stream-Artefakte (v2.63)', () => {
     expect(state.advAzSet.has('A2')).toBe(true);    // dt. Datumsformat zählt
   });
 
+  it('zweiter Refresh nutzt den persistierten Artefakt-Cache statt die Voll-Records zu lesen (v2.63.2)', async () => {
+    const storage = await setup();
+    await warmupAntraegeCache(storage, PID);
+    expect(readStore().deskriptorenByAz.get('A1')).toContain('bildverarbeitung');
+
+    // Voll-Records aendern OHNE die Frische-Anker zu bewegen (gleiche
+    // Snapshot-Version, gleicher Slim-Count): der Artefakt-Cache greift →
+    // die alten Deskriptoren bleiben = Beweis, dass NICHT neu gestreamt wurde.
+    await putAntraege(storage.idb, [
+      antrag('A1', { titel: 'KI-Projekt', techn_1: 'Quantencomputing', vb_phase: 3 }),
+    ]);
+    invalidateAntraegeCache();
+    await warmupAntraegeCache(storage, PID);
+    expect(readStore().deskriptorenByAz.get('A1')).toContain('bildverarbeitung');
+    expect(readStore().deskriptorenByAz.get('A1')).not.toContain('quantencomputing');
+  });
+
   it('invalidate setzt Slim + Artefakte zurück', async () => {
     const storage = await setup();
     await warmupAntraegeCache(storage, PID);

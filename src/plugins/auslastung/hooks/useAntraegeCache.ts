@@ -202,27 +202,38 @@ function deriveAggregates(
 }
 
 /**
- * EINE Passage ueber die vollen Records des Programms — extrahiert alle
- * Daten, die NUR dort stehen, ohne die Records zu behalten.
- *
- * v2.63.1: gechunkte Bulk-Reads (`forEachAntragChunkByProgramm`) statt
- * per-Record-Cursor — der Cursor kostete pro Record einen IDB-Roundtrip
- * (~46 s bei 14k auf pl-Echtdaten), Bulk-getAll in 500er-Chunks liefert
- * dieselben Records in Sekunden bei ~18 MB Peak pro Chunk. Zudem laeuft der
- * teure ZT-Kandidaten-Scan (~600 Probes/Record) nur noch EINMAL pro Record
- * (`readTruthyZtKlartexte` → `readAntragDeskriptorenMitZt`). Strings werden
- * interned (frische Instanzen aus der Deserialisierung — ohne Interning
- * entstuenden zigtausend Duplikate der immergleichen Deskriptoren).
+ * Schema-Version der PERSISTIERTEN Stream-Artefakte (v2.63.2). Bumpen, wenn
+ * sich die Extraktion inhaltlich aendert (Deskriptoren-/ZT-/Embeddable-/
+ * Gate-Logik) — sonst liefert der Artefakt-Cache veraltete Strukturen.
  */
-async function streamArtefakte(
+const STREAM_ARTEFAKTE_VERSION = 1;
+const streamArtefakteKey = (programmId: string): string => `auslastung-stream-artefakte-${programmId}`;
+
+/** IDB-Serialisierungsform der Stream-Artefakte (Maps/Sets als Arrays). */
+interface PersistedArtefakte {
+  version: number;
+  /** Frische-Anker: Snapshot-Version + Slim-Count + aufgeloeste Gate-Felder.
+   *  Dieselbe Frische-Semantik wie der Cache selbst (cachedSnapshotVersion). */
+  snapshotVersion: string | null;
+  antraegeCount: number;
+  felderKey: string;
+  deskriptorenByAz: Array<[string, string[]]>;
+  ztKlartexteByAz: Array<[string, string[]]>;
+  embeddableAz: string[];
+  xtecAz: string[];
+  advAz: string[];
+}
+
+/**
+ * EINE Passage ueber die vollen Records des Programms — extrahiert alle
+ * Daten, die NUR dort stehen, ohne die Records zu behalten. Gechunkte
+ * Bulk-Reads (v2.63.1) + Einmal-ZT-Scan; Strings interned.
+ */
+async function computeArtefakteStreamed(
   storage: StorageService,
   programmId: string,
+  felder: { xtecFeld: string; advFeld: string },
 ): Promise<StreamArtefakte> {
-  const schemas = await listSchemasByProgramm(storage.idb, programmId).catch(() => []);
-  const felder = schemas.length > 0
-    ? resolveVollstaendigkeitsFelder(schemas)
-    : DEFAULT_VOLLSTAENDIGKEITS_FELDER;
-
   const intern = new Map<string, string>();
   const internStr = (s: string): string => {
     const hit = intern.get(s);
@@ -253,6 +264,69 @@ async function streamArtefakte(
   });
 
   return { deskriptorenByAz, ztKlartexteByAz, embeddableAz, xtecAzSet, advAzSet };
+}
+
+/**
+ * Stream-Artefakte laden — bevorzugt aus dem PERSISTIERTEN Artefakt-Cache
+ * (v2.63.2): Auf Systemen mit langsamer IDB (Citrix/Roaming-Profile, gemessen
+ * ~12 MB/s) dauert das Lesen aller ~500 MB vollen Records ~40 s — egal ob
+ * Cursor oder Bulk. Die Artefakte selbst sind aber klein (~2–5 MB) und
+ * aendern sich nur mit den Daten. Daher: einmal rechnen, in der IDB
+ * persistieren (Frische-Anker = Snapshot-Version + Count + Gate-Felder),
+ * jede weitere Sitzung laedt sie in Sekundenbruchteilen. Neu gerechnet wird
+ * nur nach CSV-Refresh/Snapshot-Sync (Versions-Wechsel) oder Schema-Bump.
+ * Maschinen-lokal + jederzeit aus den vollen Records rebuildbar (Bug-Klasse
+ * „Embedding-Caches sind machine-lokal" beachtet).
+ */
+async function loadOrComputeArtefakte(
+  storage: StorageService,
+  programmId: string,
+  snapshotVersion: string | null,
+  antraegeCount: number,
+): Promise<{ artefakte: StreamArtefakte; quelle: 'cache' | 'stream' }> {
+  const schemas = await listSchemasByProgramm(storage.idb, programmId).catch(() => []);
+  const felder = schemas.length > 0
+    ? resolveVollstaendigkeitsFelder(schemas)
+    : DEFAULT_VOLLSTAENDIGKEITS_FELDER;
+  const felderKey = `${felder.xtecFeld}|${felder.advFeld}`;
+  const key = streamArtefakteKey(programmId);
+
+  const cached = await storage.idb.get<PersistedArtefakte>(key).catch(() => null);
+  if (
+    cached
+    && cached.version === STREAM_ARTEFAKTE_VERSION
+    && cached.snapshotVersion === snapshotVersion
+    && cached.antraegeCount === antraegeCount
+    && cached.felderKey === felderKey
+  ) {
+    return {
+      quelle: 'cache',
+      artefakte: {
+        deskriptorenByAz: new Map(cached.deskriptorenByAz),
+        ztKlartexteByAz: new Map(cached.ztKlartexteByAz),
+        embeddableAz: cached.embeddableAz,
+        xtecAzSet: new Set(cached.xtecAz),
+        advAzSet: new Set(cached.advAz),
+      },
+    };
+  }
+
+  const artefakte = await computeArtefakteStreamed(storage, programmId, felder);
+  const toPersist: PersistedArtefakte = {
+    version: STREAM_ARTEFAKTE_VERSION,
+    snapshotVersion,
+    antraegeCount,
+    felderKey,
+    deskriptorenByAz: [...artefakte.deskriptorenByAz.entries()].map(([k, v]) => [k, [...v]]),
+    ztKlartexteByAz: [...artefakte.ztKlartexteByAz.entries()].map(([k, v]) => [k, [...v]]),
+    embeddableAz: [...artefakte.embeddableAz],
+    xtecAz: [...artefakte.xtecAzSet],
+    advAz: [...artefakte.advAzSet],
+  };
+  await storage.idb.set(key, toPersist).catch(err => {
+    console.warn('[useAntraegeCache] Artefakt-Cache-Write fehlgeschlagen (best-effort):', err);
+  });
+  return { quelle: 'stream', artefakte };
 }
 
 const useCacheStore = create<CacheStoreState>((set, get) => ({
@@ -335,16 +409,19 @@ const useCacheStore = create<CacheStoreState>((set, get) => ({
         });
         console.info(`[auslastung] cache.refresh: ${slimAntraege.length} Anträge (slim) in ${Math.round(performance.now() - t0)} ms`);
 
-        // Phase 2: Stream-Passage ueber die vollen Records (Cursor, keine
-        // Retention) — Deskriptoren/ZT/Embeddable/Gate-Sets.
+        // Phase 2: Stream-Artefakte — bevorzugt aus dem persistierten
+        // Artefakt-Cache (v2.63.2), sonst eine Passage ueber die vollen
+        // Records (keine Retention) — Deskriptoren/ZT/Embeddable/Gate-Sets.
         const tStream = performance.now();
-        const artefakte = await streamArtefakte(storage, programmId);
+        const { artefakte, quelle } = await loadOrComputeArtefakte(
+          storage, programmId, snapshotVersion, slimAntraege.length,
+        );
         set(prev => ({
           ...artefakte,
           aggregatesLoaded: true,
           streamToken: prev.streamToken + 1,
         }));
-        console.info(`[auslastung] cache.stream: ${artefakte.deskriptorenByAz.size} Antraege mit Deskriptoren, ${artefakte.embeddableAz.length} embeddable in ${Math.round(performance.now() - tStream)} ms`);
+        console.info(`[auslastung] cache.stream: ${artefakte.deskriptorenByAz.size} Antraege mit Deskriptoren, ${artefakte.embeddableAz.length} embeddable in ${Math.round(performance.now() - tStream)} ms (Quelle: ${quelle === 'cache' ? 'Artefakt-Cache' : 'Voll-Records'})`);
         // Aggregate ableiten (in-memory) — falls die kuerzel-map noch nicht
         // da ist, holt ensureAggregates() das im Hook-useEffect nach.
         get().ensureAggregates();

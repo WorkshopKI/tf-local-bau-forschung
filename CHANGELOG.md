@@ -2,6 +2,12 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.63.2 — Stream-Artefakte persistiert: 42-s-Lauf nur noch nach Daten-Änderung (Juni 2026)
+
+PATCH-Bump v2.63.2: Test-Feedback zu v2.63.1 — der Stream blieb bei **42 s** (`cache.stream … 42237 ms`). Damit war klar: Nicht die Roundtrips sind der Engpass (v2.63.1-Fix), sondern der **rohe IDB-Lese-Durchsatz** auf Citrix-/Roaming-Profil-Systemen (~12 MB/s gemessen via Slim-Load-Timing; ~500 MB volle Records ≈ 40 s — physikalische Untergrenze, egal ob Cursor oder Bulk).
+
+Lösung ([useAntraegeCache.ts](src/plugins/auslastung/hooks/useAntraegeCache.ts)): Die Stream-Artefakte (klein, ~2–5 MB) werden **in der IDB persistiert** (`auslastung-stream-artefakte-<programmId>`, Frische-Anker = Snapshot-Version + Slim-Count + aufgelöste Gate-Felder + Schema-Version `STREAM_ARTEFAKTE_VERSION`). Erster Lauf nach einer Daten-Änderung rechnet einmal (~40 s, Hintergrund); **jede weitere Sitzung lädt die Artefakte in Sekundenbruchteilen**. Konsole zeigt die Quelle: `cache.stream: … (Quelle: Artefakt-Cache | Voll-Records)`. Maschinen-lokal + jederzeit rebuildbar (Bug-Klasse „Embedding-Caches sind machine-lokal" beachtet). Beweis-Test in [antraege-cache-slim.test.ts](src/plugins/auslastung/__tests__/antraege-cache-slim.test.ts) (zweiter Refresh liest NICHT erneut die Voll-Records).
+
 ### v2.63.1 — Stream-Pass beschleunigt: gechunkte Bulk-Reads statt per-Record-Cursor (Juni 2026)
 
 PATCH-Bump v2.63.1: Test-Feedback zu v2.63.0 — die Hintergrund-Stream-Passage des Slim-Caches brauchte auf pl-Echtdaten **46 s** (Konsole: `cache.stream … in 46022 ms`). Zwei Ursachen: (1) der `forEachAntragByProgramm`-Cursor kostet pro Record einen IDB-Roundtrip (~14k Roundtrips), während Bulk-`getAll` dieselben Records in ~2 s deserialisiert; (2) der ZT-Kandidaten-Scan (~600 Property-Probes pro Antrag) lief doppelt (`readAntragDeskriptoren` + `readTruthyZtKlartexte`).
