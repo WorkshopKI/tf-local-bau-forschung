@@ -2,6 +2,21 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.65.0 — Chat-Ausbau: Streaming, Verlauf, Anhänge, Thinking, Stats (Juni 2026)
+
+MINOR-Bump v2.65.0: Das Chat-Plugin (dev+demo) wächst vom Single-Turn-MVP zum vollwertigen Chat. Aufgeteilt in 5 Commits (PR-1…5/5):
+
+- **Multi-Turn-Gedächtnis**: Der Verlauf geht jetzt komplett ans LLM ([conversation-context.ts](src/plugins/chat/conversation-context.ts), Cap 24k Zeichen / 20 Messages) — vorher wurde jede Nachricht einzeln gesendet. Konfigurierbarer System-Prompt (Zahnrad-Popover, `chat:settings`).
+- **Konversations-Liste + Persistenz**: ChatGPT-artige Sidebar, Verläufe in IndexedDB (`chat:conv:{id}`, [store.ts](src/plugins/chat/store.ts) mit Coalescing-Persist-Lock nach Pitfall #16/#20; Persist nur bei User-Send + Finalize, nie pro Token).
+- **Token-Streaming**: `AITransport.streamConversation` (optional, Feature-Detection) + SSE-Parser/[Think-Tag-Splitter](src/core/services/ai/thinking-parser.ts) in [direct-llm.ts](src/core/services/ai/transports/direct-llm.ts). Abort resolved `{aborted:true}` statt zu werfen (useAsyncAction-Banner-Falle). Fallback-Ladder: streamen → submitConversation → submitMessage (Streamlit bleibt funktionsfähig). UI-Flush gedrosselt (80 ms) gegen marked-Re-Parse-Jank.
+- **Thinking-Anzeige**: `reasoning_content` (llama.cpp `--reasoning-format`) / `reasoning` (OpenRouter) / inline `<think>`-Fallback → einklappbarer „Denkprozess"-Block. Thinking wird gespeichert, aber nie re-gesendet. Presets für Gemma 4 (31B / 26B-A4B) + Qwen 3.6 (27B / 35B-A3B, Thinking) in [AIProviderTab.tsx](src/plugins/einstellungen/AIProviderTab.tsx).
+- **Stats-Zeile**: `42,3 tok/s · 256 Tokens · Prompt: 1.024 Tokens (0,8 s)` aus llama.cpp-`timings` (Final-Chunk) bzw. `usage`+Wall-Clock ([generation-stats.ts](src/core/services/ai/generation-stats.ts)); `stream_options` wird nur an OpenRouter gesendet (ältere llama.cpp-Builds lehnen unbekannte Params ab).
+- **Anhänge**: PDF/DOCX/MD/TXT via vorhandenem `DocConverter`; `.doc` wird VOR der Konvertierung abgelehnt (Als-docx-speichern-Hinweis); Kürzung 30k Zeichen/Datei, 60k/Nachricht; Attachment-Text nur im API-Payload, Anzeige als Pills.
+- **Bedienung**: Stop-Button (Partial bleibt + Badge „Abgebrochen"), Regenerieren, Copy-Button (rohes Markdown), Layout `max-w-2xl` → `max-w-4xl mx-auto` mit Assistant-Antworten in voller Breite.
+- Nebeneffekt-Fix: `useSearch().search` gibt die Ergebnisse jetzt zurück — der Chat-RAG-Pfad las vorher veralteten React-State (Stale-Closure).
+
+Kein Migrationsschritt: neue IDB-Keys (`chat:*`) entstehen lazy, bestehende Daten unberührt.
+
 ### v2.64.0 — dev-Variante: Hauptpasswort-Gate statt MA-Login-Wall (Juni 2026)
 
 MINOR-Bump v2.64.0: Die dev-Variante verhält sich beim Start jetzt wie pl — EIN Hauptpasswort ([AppPasswordGate](src/core/AppPasswordGate.tsx)) statt der persönlichen MA-Login-Wall. Reine Config-/Script-Änderung, kein UI-Code angefasst:

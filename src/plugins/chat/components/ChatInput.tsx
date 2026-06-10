@@ -4,6 +4,7 @@ import { Badge, Button } from '@/ui';
 import type { DirectoryEntry } from '@/core/types/config';
 import type { ChatAttachment } from '../types';
 import { useAttachments } from '../attachments/useAttachments';
+import { SystemPromptPopover } from './SystemPromptPopover';
 
 const ACCEPT_EXTENSIONS = '.pdf,.docx,.md,.txt';
 
@@ -151,6 +152,7 @@ export function ChatInput({
           >
             <Sparkles size={16} />
           </button>
+          <SystemPromptPopover />
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}

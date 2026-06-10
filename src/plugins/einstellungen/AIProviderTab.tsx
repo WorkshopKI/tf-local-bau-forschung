@@ -31,6 +31,10 @@ const PROVIDERS = ALL_PROVIDERS.filter(p => p.type !== 'openrouter' || isOpenRou
 const COMMON_MODELS = [
   { value: 'openai/gpt-oss-120b', label: 'gpt-oss-120b (Empfohlen)' },
   { value: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 120B (Gratis)' },
+  { value: 'google/gemma-4-31b-it', label: 'Gemma 4 31B' },
+  { value: 'google/gemma-4-26b-a4b-it', label: 'Gemma 4 26B A4B (MoE)' },
+  { value: 'qwen/qwen3.6-27b', label: 'Qwen 3.6 27B (Thinking)' },
+  { value: 'qwen/qwen3.6-35b-a3b', label: 'Qwen 3.6 35B A3B (Thinking)' },
   { value: 'custom', label: 'Eigenes Modell...' },
 ];
 
