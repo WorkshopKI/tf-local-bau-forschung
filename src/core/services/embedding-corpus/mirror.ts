@@ -220,10 +220,15 @@ export async function loadBin(
     );
     return null;
   }
-  // Defensive Kopie: neue ArrayBuffer-Instanz losgeloest vom moeglicherweise
-  // groesseren underlying buffer (SharedArrayBuffer-Edge-Cases mit `bytes.buffer`
-  // umgehen wir gleich mit). 42 MB Copy ist im Promille-Bereich vs 10 sec
-  // Download.
+  // `readBinary` liefert eine frische, isolierte Uint8Array
+  // (`new Uint8Array(await file.arrayBuffer())`) → der underlying ArrayBuffer ist
+  // exakt diese Bytes (byteOffset 0, keine View ueber einen groesseren Buffer).
+  // In dem Fall die Defensivkopie ueberspringen — spart auf RAM-knappem Citrix
+  // 40 MB Peak (v2.61.5). Nur falls (wider Erwarten) eine Teil-View ankommt,
+  // sicherheitshalber kopieren.
+  if (bytes.byteOffset === 0 && bytes.buffer.byteLength === bytes.byteLength) {
+    return bytes.buffer as ArrayBuffer;
+  }
   const out = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(out).set(bytes);
   return out;
@@ -269,4 +274,45 @@ export async function applyCorpusToIdb(
     }
   }
   onProgress?.(done, total);
+}
+
+/**
+ * Streamendes Pendant zu `parseCorpus` + `applyCorpusToIdb` (v2.61.5,
+ * Cold-Start-Memory-Fix): iteriert direkt ueber die Float32Array-View der Bin
+ * und schreibt jedes Embedding einzeln in den IDB — OHNE die vollstaendige
+ * ~80-MB-`Map<string, number[]>` als Zwischenstand zu materialisieren. Jeder
+ * Vektor ist nur als kurzlebiges 768er-`number[]` im RAM (sofort GC-faehig).
+ * Yield alle 100 Eintraege haelt den Main-Thread responsiv (file://: der
+ * Korpus wird im Main-Thread verarbeitet, Pitfall #8). Returnt die Anzahl
+ * geschriebener Embeddings. Funktional identisch zum 2-Schritt-Pfad — getestet
+ * in `embedding-corpus-mirror.test.ts`.
+ */
+export async function applyCorpusStreamed(
+  idb: IDBStore,
+  manifest: EmbeddingCorpusManifest,
+  bin: ArrayBuffer,
+  onProgress?: (done: number, total: number) => void,
+): Promise<number> {
+  if (manifest.binBytes !== bin.byteLength) {
+    throw new Error(
+      `applyCorpusStreamed: Bin-Groesse passt nicht zum Manifest (erwartet ${manifest.binBytes}, geladen ${bin.byteLength}).`,
+    );
+  }
+  if (manifest.binFormat !== 'f32-stream') {
+    throw new Error(`applyCorpusStreamed: unbekanntes binFormat "${manifest.binFormat}".`);
+  }
+  const view = new Float32Array(bin);
+  const total = manifest.antraegeCount;
+  const dim = manifest.dim;
+  for (let i = 0; i < total; i++) {
+    const az = manifest.aktenzeichen[i]!;
+    const vec = Array.from(view.subarray(i * dim, (i + 1) * dim));
+    await storeEmbedding(idb, az, vec);
+    if ((i + 1) % 100 === 0) {
+      onProgress?.(i + 1, total);
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  onProgress?.(total, total);
+  return total;
 }

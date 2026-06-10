@@ -1,6 +1,6 @@
 import type { IDBStore } from '../storage/idb-store';
 import { logAudit } from '../infrastructure/audit-log';
-import { acquireBuildLock, forceLock, releaseLock } from '../infrastructure/build-lock';
+import { acquireBuildLock, forceLock, releaseLock, heartbeat, HEARTBEAT_INTERVAL_MS } from '../infrastructure/build-lock';
 import { getSmbHandle } from '../infrastructure/smb-handle';
 import { readKuratorName } from '../infrastructure/kurator-config';
 import { writeProgrammSnapshot } from './snapshot';
@@ -16,7 +16,7 @@ import {
   putRowHashes,
 } from './idb-csv';
 import {
-  loadAllSchemasWithRows,
+  loadScopedSchemasWithRows,
   recomputeMultipleBatched,
 } from './merger';
 import {
@@ -24,6 +24,7 @@ import {
   getActiveUnterprogrammCodes,
   recomputeUnterprogrammStats,
 } from './unterprogrammRegistry';
+import { logMem } from '../../utils/log-mem';
 import type { CsvEncoding, CsvSchema, ImportResult } from './types';
 
 export interface ImportProgress {
@@ -96,6 +97,16 @@ export async function importCsvSource(
     await forceLock(idb, BUILD_LOCK_STUFE, { programm_id: schema.programm_id });
   }
 
+  // Heartbeat-Timer: hält den Lock während des (langen) Imports frisch, damit
+  // ein parallel laufender Import nicht durch die kurze csv-import-Stale-Schwelle
+  // (3 Min) fälschlich als abgestürzt übernommen wird. Stürzt DIESER Tab ab,
+  // stoppt der Heartbeat → der Lock altert und gibt sich nach ~3 Min selbst frei
+  // (Crash-Recovery, v2.61.5). Best-effort: Heartbeat-Fehler dürfen den Import
+  // nicht abbrechen.
+  const heartbeatTimer = setInterval(() => {
+    void heartbeat(idb).catch(() => undefined);
+  }, HEARTBEAT_INTERVAL_MS);
+
   try {
     // SHA-1 der Datei berechnen
     const fileSha = await sha1Hex(csvBlob);
@@ -117,7 +128,7 @@ export async function importCsvSource(
     const effectiveEncoding = opts.encodingOverride ?? schema.encoding;
     opts.signal?.throwIfAborted();
     opts.onProgress?.({ phase: 'parsing', done: 0, total: csvBlob.size });
-    const { rows } = await parseCsvAllStreamed(csvBlob, {
+    let { rows } = await parseCsvAllStreamed(csvBlob, {
       encoding: effectiveEncoding,
       separator: schema.separator,
       onProgress: (bytes, totalBytes) => {
@@ -229,6 +240,13 @@ export async function importCsvSource(
     const hasDeltas =
       newJoinValues.length > 0 || changedJoinValues.length > 0 || removedJoinValues.length > 0;
 
+    // Speicher freigeben (v2.61.5 OOM-Fix): die geparsten Rows dieser Quelle
+    // werden ab hier nicht mehr gebraucht (Diff fertig, rowCount + Schema
+    // gestempelt). Der Merge liest die Quelle ohnehin frisch vom Share
+    // (loadScopedSchemasWithRows) → kein Datenverlust, aber eine volle
+    // Quell-Kopie weniger gleichzeitig im RAM neben dem Merge-Cache.
+    rows = [];
+
     // Merge für alle betroffenen Antraege (IDB-Writes pro Antrag)
     if (hasDeltas) {
       opts.onProgress?.({ phase: 'merging', done: 0, total: 0 });
@@ -287,7 +305,7 @@ export async function importCsvSource(
     }
 
     result.durationMs = Date.now() - started;
-    opts.onProgress?.({ phase: 'done', done: rows.length, total: rows.length });
+    opts.onProgress?.({ phase: 'done', done: result.rowCount, total: result.rowCount });
     await logAudit(idb, {
       action: 'csv_import',
       details: {
@@ -313,6 +331,7 @@ export async function importCsvSource(
     }
     return result;
   } finally {
+    clearInterval(heartbeatTimer);
     await releaseLock(idb).catch(() => undefined);
   }
 }
@@ -335,7 +354,6 @@ interface MergeArgs {
 
 async function runMergeForDeltas(args: MergeArgs): Promise<void> {
   const { idb, schema, newJoinValues, changedJoinValues, removedJoinValues, onProgress } = args;
-  const cache = await loadAllSchemasWithRows(idb, schema.programm_id);
   const touchedAz = new Set<string>();
   let removedAz: string[] = [];
 
@@ -354,10 +372,19 @@ async function runMergeForDeltas(args: MergeArgs): Promise<void> {
     }
   }
 
+  // Delta-skopiert laden (v2.61.5 OOM-Fix): nur die CSV-Rows, die zur
+  // Neuberechnung der touchedAz noetig sind — NICHT mehr alle Quellen des
+  // Programms komplett (das war der Citrix-OOM-Treiber). Reihenfolge bewusst
+  // NACH der touchedAz-Ermittlung.
+  logMem(`merge:start (touched=${touchedAz.size}, removed=${removedAz.length})`);
+  const cache = await loadScopedSchemasWithRows(idb, schema.programm_id, touchedAz);
+  logMem(`merge:scoped-loaded (schemas=${cache.length})`);
+
   await recomputeMultipleBatched(
     idb,
     schema.programm_id,
     { touchedAz: [...touchedAz], removedAz, schemasCache: cache },
     onProgress,
   );
+  logMem('merge:done');
 }

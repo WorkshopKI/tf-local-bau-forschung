@@ -22,6 +22,9 @@ vi.mock('../../infrastructure/build-lock', () => ({
   releaseLock: vi.fn(async () => undefined),
   readBuildLock: vi.fn(async () => null),
   isStale: vi.fn(() => false),
+  // v2.61.5: Importer hält den Lock jetzt per Heartbeat frisch.
+  heartbeat: vi.fn(async () => undefined),
+  HEARTBEAT_INTERVAL_MS: 15_000,
 }));
 
 import { IDBStore } from '../../storage/idb-store';

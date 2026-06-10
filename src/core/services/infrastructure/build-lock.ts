@@ -16,6 +16,36 @@ import { readKuratorName } from './kurator-config';
 
 export const STALE_HEARTBEAT_MS = 2 * 60 * 60 * 1000;
 
+/**
+ * Stufen-spezifische Stale-Schwelle für die CSV-Import-Stufe (v2.61.5).
+ *
+ * Hintergrund: Der CSV-Import (`stufe = 'csv-import'`, siehe
+ * `BUILD_LOCK_STUFE` in `csv/constants.ts`) hält den Lock über parse → diff →
+ * merge → snapshot. Stürzt der Tab dabei ab (z.B. Citrix-OOM), läuft das
+ * `finally { releaseLock }` im Importer nie → der Lock bleibt auf dem Share
+ * liegen und blockierte bisher das ganze Team bis zur 2h-Default-Schwelle.
+ *
+ * Der Importer schreibt jetzt alle `HEARTBEAT_INTERVAL_MS` einen Heartbeat
+ * (siehe importer.ts). Damit ist ein AKTIVER Import immer frisch und ein
+ * abgestürzter räumt sich nach dieser kurzen Schwelle selbst ab — passend zur
+ * Banner-Aussage „in 2-3 Min erneut versuchen". Die lange Default-Schwelle
+ * bleibt für andere Stufen (v.a. den ~46-min-Embedding-Build) erhalten.
+ */
+export const CSV_IMPORT_STALE_HEARTBEAT_MS = 3 * 60 * 1000;
+
+/** Heartbeat-Intervall für lang laufende, gelockte Operationen (Importer). */
+export const HEARTBEAT_INTERVAL_MS = 15 * 1000;
+
+/** CSV-Import-Stufenname — muss mit `BUILD_LOCK_STUFE` in `csv/constants.ts`
+ *  übereinstimmen (Infrastructure-Layer importiert bewusst NICHT aus dem
+ *  höheren csv-Service → der Wire-String wird hier gespiegelt). */
+const CSV_IMPORT_STUFE = 'csv-import';
+
+/** Stale-Schwelle abhängig von der Lock-Stufe. */
+export function staleThresholdForStufe(stufe: string): number {
+  return stufe === CSV_IMPORT_STUFE ? CSV_IMPORT_STALE_HEARTBEAT_MS : STALE_HEARTBEAT_MS;
+}
+
 export async function readBuildLock(idb: IDBStore): Promise<BuildLock | null> {
   const parent = await getSmbHandle(idb);
   if (!parent) return null;
@@ -37,7 +67,7 @@ function ageMinutes(iso: string): number {
 }
 
 export function isStale(lock: BuildLock): boolean {
-  return ageMinutes(lock.heartbeat) * 60_000 > STALE_HEARTBEAT_MS;
+  return ageMinutes(lock.heartbeat) * 60_000 > staleThresholdForStufe(lock.stufe);
 }
 
 function hostname(): string {

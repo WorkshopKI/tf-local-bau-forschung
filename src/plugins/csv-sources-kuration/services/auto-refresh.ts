@@ -76,6 +76,13 @@ export interface RefreshProgress {
 export interface RunAutoRefreshOptions {
   onProgress?: (p: RefreshProgress) => void;
   kuratorName?: string;
+  /**
+   * Übergeht die Lock-Prüfung und übernimmt einen bestehenden (Fremd-)Lock per
+   * `forceLock`. Wird vom „Trotzdem aktualisieren"-Button im Banner gesetzt
+   * (v2.61.5), wenn ein abgestürzter Import einen Lock hinterlassen hat. Im
+   * Normalfall (`false`) bricht ein Fremd-Lock den Lauf mit `BuildLockBusyError` ab.
+   */
+  force?: boolean;
 }
 
 /**
@@ -145,7 +152,9 @@ export async function runAutoRefresh(
   const report: RefreshReport = { processed: [], drift: [], errors: [] };
   if (candidates.length === 0) return report;
 
-  await probeLock(idb, opts.kuratorName);
+  // force = User-„Trotzdem aktualisieren": Lock-Probe überspringen, der
+  // Importer übernimmt den Lock unten per onLockConflict → 'force'.
+  if (!opts.force) await probeLock(idb, opts.kuratorName);
 
   await logAudit(idb, {
     action: 'csv_auto_refresh_started',
@@ -192,7 +201,7 @@ export async function runAutoRefresh(
     opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'importing' });
     try {
       const result = await importCsvSource(idb, schemaId, file, {
-        onLockConflict: async () => 'abort',
+        onLockConflict: async () => (opts.force ? 'force' : 'abort'),
       });
 
       opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'persisting' });

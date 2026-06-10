@@ -48,6 +48,7 @@ export {
   loadBin,
   saveCorpusToShare,
   applyCorpusToIdb,
+  applyCorpusStreamed,
 } from './mirror';
 
 export type { EmbeddingCorpusManifest, CompatStatus } from './mirror';

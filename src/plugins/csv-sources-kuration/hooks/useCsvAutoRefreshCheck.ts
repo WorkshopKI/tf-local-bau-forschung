@@ -79,6 +79,9 @@ export interface AutoRefreshCheckState {
   clearReport: () => void;
   /** Refresh starten. Returnt true, wenn erfolgreich abgeschlossen. */
   runRefresh: () => Promise<void>;
+  /** Refresh erzwingen — übernimmt einen bestehenden (ggf. abgestürzten) Lock
+   *  per forceLock. Für den „Trotzdem aktualisieren"-Button im Lock-Konflikt. */
+  forceRefresh: () => Promise<void>;
   /** Eine Quelle ohne Handle (oder mit abgelaufener Permission) mit einer
    *  lokalen Datei verknüpfen — öffnet den Datei-Picker (User-Gesture nötig).
    *  Wirft bei Datei-Mismatch; bei Abbruch passiert nichts. */
@@ -237,7 +240,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     setDismissed(true);
   }, []);
 
-  const runRefresh = useCallback(async () => {
+  const doRefresh = useCallback(async (force: boolean) => {
     if (refreshing) return;
     if (candidates.length === 0) return;
     setRefreshing(true);
@@ -251,6 +254,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
       const identity = session.kuratorName ?? runtimeConfig.build.label;
       const r = await runAutoRefresh(storage.idb, candidates, {
         kuratorName: identity,
+        force,
         onProgress: p => {
           if (mountedRef.current) setRefreshProgress(p);
         },
@@ -289,6 +293,9 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
       }
     }
   }, [candidates, refreshing, session.kuratorName, storage.idb]);
+
+  const runRefresh = useCallback(() => doRefresh(false), [doRefresh]);
+  const forceRefresh = useCallback(() => doRefresh(true), [doRefresh]);
 
   const linkSource = useCallback(async (schemaId: string) => {
     const schema = await loadSchema(storage.idb, schemaId);
@@ -332,6 +339,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     dismiss,
     clearReport,
     runRefresh,
+    forceRefresh,
     linkSource,
     linkFolder,
   };

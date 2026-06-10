@@ -82,6 +82,15 @@ export function useAuslastungCorpusAutoload(): void {
     if (smbStatus.status !== 'online') return;
     if (attemptedRef.current) return;
     attemptedRef.current = true; // Latch vor run() → kein Doppel-Fire (StrictMode)
-    void run();
+    // Cold-Start entlasten (v2.61.5): Download + (synchrones) Parsen des ~40-MB-
+    // Korpus erst nach dem First-Paint im Leerlauf starten. Sonst kann die
+    // Parse-Phase parallel zum Homepage-Aufbau den Main-Thread blockieren
+    // („Seite reagiert nicht" auf RAM-knappem Citrix). requestIdleCallback ist
+    // unter file:// in Chrome/Edge verfuegbar; Fallback setTimeout.
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => { void run(); }, { timeout: 3000 });
+    } else {
+      window.setTimeout(() => { void run(); }, 1500);
+    }
   }, [smbStatus.status, run]);
 }

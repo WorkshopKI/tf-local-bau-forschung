@@ -23,8 +23,7 @@ import {
   loadBin,
   saveCorpusToShare,
   serializeCorpus,
-  parseCorpus,
-  applyCorpusToIdb,
+  applyCorpusStreamed,
   type EmbeddingCorpusManifest,
 } from '@/core/services/embedding-corpus';
 import {
@@ -32,6 +31,7 @@ import {
   heartbeat,
   releaseLock,
 } from '@/core/services/infrastructure/build-lock';
+import { logMem } from '@/core/utils/log-mem';
 
 const LOCK_STUFE = 'auslastung-corpus';
 
@@ -90,18 +90,22 @@ export const useEmbeddingCorpusMirror = create<EmbeddingCorpusMirrorState>((set,
     if (get().downloading) return null;
     set({ downloading: true, downloadProgress: { done: 0, total: m.antraegeCount }, error: null });
     try {
+      logMem(`corpus:download-start (count=${m.antraegeCount})`);
       const bin = await loadBin(storage, m.binBytes);
       if (!bin) {
         throw new Error('Bin-Datei konnte nicht vom Share geladen werden oder ist korrupt.');
       }
-      const embs = parseCorpus(m, bin);
-      await applyCorpusToIdb(
+      // Streamend anwenden statt parseCorpus → 80-MB-Map → applyCorpusToIdb:
+      // spart die Zwischen-Map und yieldet periodisch (Cold-Start-Memory, v2.61.5).
+      const count = await applyCorpusStreamed(
         storage.idb as IDBStore,
-        embs,
+        m,
+        bin,
         (done, total) => set({ downloadProgress: { done, total } }),
       );
+      logMem(`corpus:applied (count=${count})`);
       set({ downloading: false, downloadProgress: null });
-      return { count: embs.size };
+      return { count };
     } catch (err) {
       set({ downloading: false, downloadProgress: null, error: err instanceof Error ? err.message : String(err) });
       throw err;

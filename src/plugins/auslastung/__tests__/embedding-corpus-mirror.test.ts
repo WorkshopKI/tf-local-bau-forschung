@@ -8,13 +8,18 @@
  *  - parseCorpus wirft bei korruptem Bin (binBytes != tatsaechliche Bytes).
  */
 import { describe, it, expect } from 'vitest';
+import 'fake-indexeddb/auto';
 import {
   serializeCorpus,
   parseCorpus,
+  applyCorpusStreamed,
+  applyCorpusToIdb,
+  loadAllEmbeddings,
   hashAktenzeichenSet,
   checkCompat,
   type EmbeddingCorpusManifest,
 } from '@/core/services/embedding-corpus';
+import { IDBStore } from '@/core/services/storage/idb-store';
 
 function makeVec(dim: number, fill: number): number[] {
   return Array.from({ length: dim }, (_, i) => fill + i * 0.01);
@@ -112,6 +117,63 @@ describe('serializeCorpus + parseCorpus Round-Trip', () => {
     };
     const bin = new ArrayBuffer(16);
     expect(() => parseCorpus(manifest, bin)).toThrow(/binFormat/i);
+  });
+});
+
+describe('applyCorpusStreamed (Cold-Start-Memory-Fix v2.61.5)', () => {
+  async function freshIdb(): Promise<IDBStore> {
+    const { IDBFactory } = await import('fake-indexeddb');
+    (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
+    const s = new IDBStore();
+    await s.open();
+    return s;
+  }
+
+  it('schreibt dieselben Vektoren wie parseCorpus + applyCorpusToIdb', async () => {
+    const embs = new Map<string, number[]>([
+      ['A1', makeVec(4, 0.1)],
+      ['A2', makeVec(4, 0.2)],
+      ['A3', makeVec(4, 0.3)],
+    ]);
+    const { manifest, bin } = await serializeCorpus(embs, 'm', 4);
+
+    // Referenz-Pfad: parseCorpus → applyCorpusToIdb
+    const idbRef = await freshIdb();
+    await applyCorpusToIdb(idbRef, parseCorpus(manifest, bin));
+    const ref = await loadAllEmbeddings(idbRef);
+
+    // Streaming-Pfad
+    const idbStream = await freshIdb();
+    const count = await applyCorpusStreamed(idbStream, manifest, bin);
+    const streamed = await loadAllEmbeddings(idbStream);
+
+    expect(count).toBe(3);
+    expect(streamed.size).toBe(ref.size);
+    for (const [az, vec] of ref) {
+      expect(streamed.get(az)).toEqual(vec);
+    }
+  });
+
+  it('meldet Fortschritt und schreibt alle Eintraege (>100 → Yield-Pfad)', async () => {
+    const embs = new Map<string, number[]>();
+    for (let i = 0; i < 250; i++) embs.set(`A${String(i).padStart(3, '0')}`, makeVec(4, i));
+    const { manifest, bin } = await serializeCorpus(embs, 'm', 4);
+    const idb = await freshIdb();
+    const seen: number[] = [];
+    const count = await applyCorpusStreamed(idb, manifest, bin, (done) => seen.push(done));
+    expect(count).toBe(250);
+    expect((await loadAllEmbeddings(idb)).size).toBe(250);
+    expect(seen[seen.length - 1]).toBe(250); // finaler Progress = total
+  });
+
+  it('wirft bei korrupter Bin-Groesse (wie parseCorpus)', async () => {
+    const manifest: EmbeddingCorpusManifest = {
+      version: 1, modellId: 'm', dim: 4, antraegeCount: 2,
+      builtAt: '2026-01-01T00:00:00.000Z', aktenzeichenSetHash: 'abc',
+      aktenzeichen: ['A1', 'A2'], binFormat: 'f32-stream', binBytes: 32,
+    };
+    const idb = await freshIdb();
+    await expect(applyCorpusStreamed(idb, manifest, new ArrayBuffer(16))).rejects.toThrow(/Bin-Groesse/i);
   });
 });
 

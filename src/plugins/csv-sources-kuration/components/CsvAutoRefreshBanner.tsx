@@ -169,6 +169,30 @@ export function CsvAutoRefreshBanner(): React.ReactElement | null {
           </button>
         ) : null}
 
+        {state.lockConflict && !state.refreshing && state.candidates.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              const lc = state.lockConflict;
+              if (!lc) return;
+              const ok = window.confirm(
+                `„${lc.blockingKurator}" hält den Aktualisierungs-Lock (seit ${Math.round(lc.ageMinutes)} Min).\n\n` +
+                `Falls dort nichts mehr läuft (z.B. nach einem abgestürzten Tab), kannst du den Lock übernehmen. ` +
+                `Läuft dort jedoch ein echter Import parallel, drohen Daten-Konflikte.\n\nTrotzdem jetzt aktualisieren?`,
+              );
+              if (ok) { void state.forceRefresh(); }
+            }}
+            className="shrink-0 px-2.5 py-1 rounded text-[11.5px] cursor-pointer"
+            style={{
+              background: 'var(--tf-primary)',
+              color: 'white',
+              border: '0.5px solid var(--tf-primary)',
+            }}
+          >
+            Trotzdem aktualisieren
+          </button>
+        ) : null}
+
         {hasReport && reportHasDrift ? (
           <button
             type="button"

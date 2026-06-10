@@ -13,7 +13,7 @@
  */
 
 export type { SchemaWithRows } from './loader';
-export { discoverAktenzeichen, loadAllSchemasWithRows } from './loader';
+export { discoverAktenzeichen, loadAllSchemasWithRows, loadScopedSchemasWithRows } from './loader';
 export {
   recomputeAntrag,
   recomputeMultiple,
