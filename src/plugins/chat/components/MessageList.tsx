@@ -9,15 +9,20 @@ interface MessageListProps {
   busy: boolean;
   error: string | null;
   onRetry: () => void;
+  onRegenerate: () => void;
   providerName: string;
 }
 
-export function MessageList({ messages, busy, error, onRetry, providerName }: MessageListProps): React.ReactElement {
+export function MessageList({ messages, busy, error, onRetry, onRegenerate, providerName }: MessageListProps): React.ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
   }, [messages, busy]);
+
+  // Bounce-Dots nur solange noch nichts Sichtbares streamt
+  const last = messages[messages.length - 1];
+  const streamVisible = last?.role === 'assistant' && Boolean(last.content || last.thinking);
 
   return (
     <div ref={scrollRef} className="flex-1 overflow-y-auto p-6">
@@ -29,10 +34,16 @@ export function MessageList({ messages, busy, error, onRetry, providerName }: Me
         </div>
       )}
       <div className="max-w-4xl mx-auto space-y-4">
-        {messages.map(msg => (
-          <MessageBubble key={msg.id} message={msg} />
+        {messages.map((msg, i) => (
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            isLast={i === messages.length - 1}
+            busy={busy}
+            onRegenerate={onRegenerate}
+          />
         ))}
-        {busy && (
+        {busy && !streamVisible && (
           <div className="flex justify-start">
             <div className="px-4 py-3">
               <span className="inline-flex gap-1">

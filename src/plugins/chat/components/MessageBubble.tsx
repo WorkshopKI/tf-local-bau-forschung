@@ -1,14 +1,24 @@
 import { memo } from 'react';
-import { FileText } from 'lucide-react';
-import { MarkdownRenderer } from '@/ui';
+import { FileText, RefreshCw } from 'lucide-react';
+import { Badge, MarkdownRenderer } from '@/ui';
 import type { ChatMessage } from '../types';
+import { formatStats, statsSourceLabel } from '../format-stats';
+import { ThinkingBlock } from './ThinkingBlock';
+import { CopyButton } from './CopyButton';
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  /** Letzte Message im Verlauf — nur dort gibt es Regenerieren. */
+  isLast: boolean;
+  /** Generierung läuft (für die letzte Bubble: Aktionen ausblenden). */
+  busy: boolean;
+  onRegenerate: () => void;
 }
 
 /** Eine Chat-Nachricht. React.memo: beim Streaming re-rendert nur die wachsende Bubble. */
-export const MessageBubble = memo(function MessageBubble({ message }: MessageBubbleProps): React.ReactElement {
+export const MessageBubble = memo(function MessageBubble({
+  message, isLast, busy, onRegenerate,
+}: MessageBubbleProps): React.ReactElement {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -34,9 +44,25 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
     );
   }
 
+  const streaming = busy && isLast;
+  const statsLine = message.stats ? formatStats(message.stats) : '';
+
   return (
     <div className="text-[13.5px] text-[var(--tf-text)]">
+      {message.thinking && (
+        <ThinkingBlock thinking={message.thinking} autoOpen={!message.content} />
+      )}
       <MarkdownRenderer content={message.content} />
+      {message.aborted && (
+        <div className="mt-1.5">
+          <Badge variant="default">Abgebrochen</Badge>
+        </div>
+      )}
+      {message.error && (
+        <p className="mt-1.5 text-[11.5px] text-[var(--tf-danger-text)]">
+          Generierung abgebrochen: {message.error}
+        </p>
+      )}
       {message.ragSources && message.ragSources.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {message.ragSources.map((src, i) => (
@@ -44,6 +70,28 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
               {src}
             </span>
           ))}
+        </div>
+      )}
+      {!streaming && (
+        <div className="mt-1.5 flex items-center gap-1">
+          {message.content && <CopyButton text={message.content} />}
+          {isLast && !busy && (
+            <button
+              onClick={onRegenerate}
+              title="Antwort neu generieren"
+              className="p-1.5 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] rounded-[var(--tf-radius)] cursor-pointer"
+            >
+              <RefreshCw size={13} />
+            </button>
+          )}
+          {statsLine && message.stats && (
+            <span
+              className="ml-1 text-[11px] text-[var(--tf-text-tertiary)]"
+              title={statsSourceLabel(message.stats.source)}
+            >
+              {statsLine}
+            </span>
+          )}
         </div>
       )}
     </div>

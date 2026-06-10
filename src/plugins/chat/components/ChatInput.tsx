@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { FolderOpen, Send, Sparkles, X } from 'lucide-react';
+import { FolderOpen, Send, Sparkles, Square, X } from 'lucide-react';
 import { Badge, Button } from '@/ui';
 import type { DirectoryEntry } from '@/core/types/config';
 
 interface ChatInputProps {
   onSend: (text: string) => Promise<void>;
+  /** Laufende Generierung abbrechen (sync, AbortController). */
+  onStop: () => void;
   busy: boolean;
   docDirs: DirectoryEntry[];
   selectedDirs: DirectoryEntry[];
@@ -16,7 +18,7 @@ interface ChatInputProps {
 }
 
 export function ChatInput({
-  onSend, busy, docDirs, selectedDirs, toggleDir, useRAG, setUseRAG, vectorReady, providerName,
+  onSend, onStop, busy, docDirs, selectedDirs, toggleDir, useRAG, setUseRAG, vectorReady, providerName,
 }: ChatInputProps): React.ReactElement {
   const [input, setInput] = useState('');
   const [showDirPicker, setShowDirPicker] = useState(false);
@@ -100,7 +102,11 @@ export function ChatInput({
             className="flex-1 px-4 py-3 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none resize-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
             style={{ border: '0.5px solid var(--tf-border)' }}
           />
-          <Button icon={Send} disabled={!input.trim() || busy} onClick={submit} />
+          {busy ? (
+            <Button icon={Square} variant="secondary" onClick={onStop} title="Generierung stoppen" />
+          ) : (
+            <Button icon={Send} disabled={!input.trim()} onClick={submit} />
+          )}
         </div>
         <div className="mt-2">
           <Badge variant="default">via {providerName}</Badge>

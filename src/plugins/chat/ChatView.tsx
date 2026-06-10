@@ -48,10 +48,12 @@ export function ChatView(): React.ReactElement {
           busy={controller.busy}
           error={controller.error}
           onRetry={() => { void controller.retry(); }}
+          onRegenerate={() => { void controller.regenerate(); }}
           providerName={controller.providerName}
         />
         <ChatInput
           onSend={controller.send}
+          onStop={controller.stop}
           busy={controller.busy}
           docDirs={docDirs}
           selectedDirs={controller.selectedDirs}
