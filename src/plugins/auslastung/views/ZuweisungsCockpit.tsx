@@ -20,7 +20,8 @@ import {
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { usePendingUebernahmeWuensche } from '../hooks/usePendingUebernahmeWuensche';
-import { useKlassifizierungenView } from '../hooks/useKlassifizierungen';
+import { usePersistedKlassifizierungenView } from '../hooks/useKlassifizierungen';
+import { getAntrag } from '@/core/services/csv/idb-csv';
 import { runMatchingWithContext } from '../services/matching-engine';
 import { collectUebernahmeWuensche } from '../services/uebernahme-einsammeln';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
@@ -172,7 +173,10 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const resolveName = useDeAnonResolver();
   const { ready } = useAuslastungReady();
   const isInitialLoading = !ready;
-  const view = useKlassifizierungenView(cache.antraege, config.ueberKategorien, klassifizierungen);
+  // v2.63: persisted-only — das Cockpit konsumiert nur freigegebene (= immer
+  // persistierte) Klassifizierungen; die fruehere Live-Klassifizierung aller
+  // unklassifizierten Antraege war hier reine CPU-Verschwendung.
+  const view = usePersistedKlassifizierungenView(cache.antraege, klassifizierungen);
 
   const [kategorieFilter, setKategorieFilter] = useState<string>('');
   const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>('');
@@ -344,6 +348,20 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
   const selectedRow = selectedAz ? verbundRows.find(r => r.leadAktenzeichen === selectedAz) : null;
 
+  // v2.63: voller Record des selektierten Antrags per Point-Read. Der Cache
+  // haelt kuenftig nur die Slim-Projektion — Projektbeschreibung (Embedding-
+  // Query, Detail-Summary) + Deskriptoren kommen fuer GENAU EINEN Antrag aus
+  // der IDB (~ms). Request-Token gegen Out-of-Order beim schnellen Durchklicken.
+  const [selectedFull, setSelectedFull] = useState<Antrag | null>(null);
+  const selectedFullReqIdRef = useRef(0);
+  useEffect(() => {
+    const reqId = ++selectedFullReqIdRef.current;
+    if (!selectedAz) { setSelectedFull(null); return; }
+    void getAntrag(storage.idb, selectedAz)
+      .then(full => { if (selectedFullReqIdRef.current === reqId) setSelectedFull(full); })
+      .catch(() => { if (selectedFullReqIdRef.current === reqId) setSelectedFull(null); });
+  }, [selectedAz, storage]);
+
   // Vollstaendigkeits-Felder ueber das CSV-Schema aufloesen (D_XTEC/D_ADV koennen
   // als Standard- ODER als Eigenes Feld gemappt sein).
   const felder = useVollstaendigkeitsFelder();
@@ -468,6 +486,15 @@ export function ZuweisungsCockpit(): React.ReactElement {
       setMatchingRunning(false);
       return;
     }
+    // Voller Record laedt noch (Point-Read, ~ms) — Spinner an, der Effekt
+    // laeuft erneut sobald selectedFull ankommt. NIE mit dem Slim-Record
+    // matchen (Projektbeschreibung/AST-Typ wuerden fehlen → stilles
+    // Qualitaets-Downgrade von Stage 1/2).
+    if (!selectedFull || selectedFull.aktenzeichen !== selected.aktenzeichen) {
+      matchReqIdRef.current++;
+      setMatchingRunning(true);
+      return;
+    }
     const reqId = ++matchReqIdRef.current;
     void (async () => {
       setMatchingRunning(true);
@@ -486,9 +513,9 @@ export function ZuweisungsCockpit(): React.ReactElement {
           } else {
             await ensureEmbeddingReady(storage.idb);
             const text = [
-              selected[CANONICAL_VERBUND_TITEL],
-              selected[CANONICAL_TITEL],
-              selected[FIELD_PROJEKTBESCHREIBUNG],
+              selectedFull[CANONICAL_VERBUND_TITEL],
+              selectedFull[CANONICAL_TITEL],
+              selectedFull[FIELD_PROJEKTBESCHREIBUNG],
             ].filter(s => typeof s === 'string').join(' ');
             queryEmbedding = await embedText(text, 'query');
             queryEmbeddingCacheRef.current.set(selected.aktenzeichen, queryEmbedding);
@@ -501,7 +528,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
         const verbundId = (selected as { verbund_id?: string }).verbund_id;
         const tvCount = getTVCount(cache.antraege, verbundId, selected.aktenzeichen);
         const result = runMatchingWithContext({
-          antrag: selected,
+          antrag: selectedFull,
           primaerKategorie,
           aspekte,
           config,
@@ -532,7 +559,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
         if (matchReqIdRef.current === reqId) setMatchingRunning(false);
       }
     })();
-  }, [selectedAz, selected, selectedView, config, mitarbeiter, zuweisungen, cache.antraege, cache.historischeDeskriptorenByAnon, cache.historischeAntraegeCountByAnon, cache.anonymMap, storage, auslastungByAnon, loadCorpus]);
+  }, [selectedAz, selected, selectedView, selectedFull, config, mitarbeiter, zuweisungen, cache.antraege, cache.historischeDeskriptorenByAnon, cache.historischeAntraegeCountByAnon, cache.anonymMap, storage, auslastungByAnon, loadCorpus]);
 
   async function zuweisen(match: MatchResult): Promise<void> {
     if (!selected) return;
@@ -913,7 +940,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
             </div>
           ) : (
             <DetailPanel
-              antrag={selected}
+              antrag={selectedFull ?? selected}
               akronym={selectedRow?.akronym ?? ''}
               verbundTitel={selectedRow?.verbundTitel ?? ''}
               klassifizierung={selectedView.klassifizierung}

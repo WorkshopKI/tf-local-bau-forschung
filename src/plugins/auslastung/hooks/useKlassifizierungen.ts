@@ -62,6 +62,40 @@ function confidenceFor(kl: Klassifizierung): 'high' | 'medium' | 'low' {
   return 'low';
 }
 
+/**
+ * Persisted-only-Variante (v2.63 Slim-Cache): baut Views NUR fuer Antraege
+ * mit persistierter Klassifizierung — KEINE Live-Klassifizierung (Stage 0/1
+ * Deskriptor-Reads) ueber den ganzen Pool. Das Zuweisungs-Cockpit konsumiert
+ * ausschliesslich `status === 'freigegeben'`-Zeilen, die immer persistiert
+ * sind — die Live-Klassifizierung aller unklassifizierten Antraege war dort
+ * reine CPU-Verschwendung und der letzte Grund, volle Records zu brauchen.
+ * Reihenfolge folgt `antraege` (wie das Live-Pendant).
+ */
+export function buildPersistedKlassifizierungsView(
+  antraege: Antrag[],
+  persisted: Klassifizierung[],
+): KlassifizierungsView[] {
+  const persistedById = new Map(persisted.map(k => [k.antragId, k]));
+  const out: KlassifizierungsView[] = [];
+  for (const a of antraege) {
+    const kl = persistedById.get(a.aktenzeichen);
+    if (!kl) continue;
+    out.push({ antrag: a, klassifizierung: kl, confidence: confidenceFor(kl) });
+  }
+  return out;
+}
+
+/** Memoisierte Hook-Variante von `buildPersistedKlassifizierungsView`. */
+export function usePersistedKlassifizierungenView(
+  antraege: Antrag[],
+  persisted: Klassifizierung[],
+): KlassifizierungsView[] {
+  return useMemo(
+    () => buildPersistedKlassifizierungsView(antraege, persisted),
+    [antraege, persisted],
+  );
+}
+
 /** Hook-Variante mit Memoisierung. */
 export function useKlassifizierungenView(
   antraege: Antrag[],

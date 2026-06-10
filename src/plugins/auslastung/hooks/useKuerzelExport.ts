@@ -16,6 +16,7 @@
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { embedText, ensureEmbeddingReady } from '@/core/services/embedding-corpus';
+import { getAntrag } from '@/core/services/csv/idb-csv';
 import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';
 import { useAuslastungIndex } from './useAuslastungIndex';
@@ -46,7 +47,6 @@ export function useKuerzelExport(): UseAsyncActionResult<[]> {
       verbuendeById: cache.verbuendeById,
     });
 
-    const indexAz = new Map(cache.antraege.map(a => [a.aktenzeichen, a]));
     const klByAntrag = new Map(data.klassifizierungen.map(k => [k.antragId, k]));
 
     // 2) Korpus + Embedding-Modell (nur bei Stage 2) einmal vorbereiten.
@@ -59,7 +59,11 @@ export function useKuerzelExport(): UseAsyncActionResult<[]> {
     // 3) Pro Verbund matchen → vollstaendig gescorte Kandidaten (topN gross).
     const matchesByLead = new Map<string, MatchResult[]>();
     for (const row of baseRows) {
-      const lead = indexAz.get(row.aktenzeichen);
+      // Voller Record per Point-Read (v2.63 Slim-Cache): die Projektbeschreibung
+      // fuer Embedding-Text + Matching liegt nicht mehr im Cache. Der Export ist
+      // ohnehin eine sekundenlange Async-Action — N Point-Reads (eine pro
+      // zugewiesenem Verbund) sind vernachlaessigbar.
+      const lead = await getAntrag(storage.idb, row.aktenzeichen);
       if (!lead) continue;
       const kl = klByAntrag.get(row.aktenzeichen);
       let queryEmbedding: number[] | undefined;
