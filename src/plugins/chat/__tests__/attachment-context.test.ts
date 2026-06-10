@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildAttachmentContext, truncateAttachmentMarkdown, MAX_ATTACHMENT_CHARS } from '../attachments/attachment-context';
+import {
+  buildAttachmentContext,
+  truncateAttachmentMarkdown,
+  validateChatFile,
+  MAX_ATTACHMENT_CHARS,
+} from '../attachments/attachment-context';
 import type { ChatAttachment } from '../types';
 
 function att(filename: string, markdown: string): ChatAttachment {
@@ -25,6 +30,27 @@ describe('buildAttachmentContext', () => {
     const ctx = buildAttachmentContext([att('a.md', 'A'), att('b.md', 'B')]);
     expect(ctx).toContain('Dokument 1: a.md');
     expect(ctx).toContain('Dokument 2: b.md');
+  });
+});
+
+describe('validateChatFile', () => {
+  it('akzeptiert pdf/docx/md/txt (case-insensitive)', () => {
+    expect(validateChatFile('a.pdf')).toEqual({ ok: true, format: 'pdf' });
+    expect(validateChatFile('B.DOCX')).toEqual({ ok: true, format: 'docx' });
+    expect(validateChatFile('notiz.md')).toEqual({ ok: true, format: 'md' });
+    expect(validateChatFile('log.txt')).toEqual({ ok: true, format: 'txt' });
+  });
+
+  it('.doc bekommt die Als-docx-speichern-Fehlermeldung', () => {
+    const r = validateChatFile('alt.doc');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('.docx');
+  });
+
+  it('unbekannte Endung → generische Fehlermeldung mit erlaubten Formaten', () => {
+    const r = validateChatFile('bild.png');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('PDF');
   });
 });
 
