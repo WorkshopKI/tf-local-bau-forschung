@@ -248,14 +248,30 @@ async function topKEmbeddingMatches(
 ): Promise<Array<{ akz: string; score: number }>> {
   const hits: Array<{ akz: string; score: number }> = [];
   let i = 0;
+  // Diagnose (v2.62.3): beste Cosine + Dim-Skips mitzählen. Bei 0 Treffern ist
+  // sonst nicht unterscheidbar, ob die Schwelle zu streng ist (best ≈ 0.5),
+  // die Vektorräume inkompatibel sind (best ≈ 0.1, z.B. lokaler Korpus mit
+  // altem Text-Schema) oder still Dimensions-fremde Vektoren übersprungen
+  // wurden. Unter file:// ist die Console die einzige Spur.
+  let best = -Infinity;
+  let bestAkz = '';
+  let skippedDim = 0;
   for (const [akz, vec] of embeddings.entries()) {
-    if (vec.length !== queryVec.length) continue;
+    if (vec.length !== queryVec.length) { skippedDim++; continue; }
     const s = cosineSimilarity(queryVec, vec);
+    if (s > best) { best = s; bestAkz = akz; }
     if (s >= threshold) hits.push({ akz, score: s });
     if (++i % COSINE_YIELD_INTERVAL === 0) {
       await new Promise(r => setTimeout(r, 0));
       if (signal?.aborted) return [];
     }
+  }
+  if (hits.length === 0) {
+    console.info(
+      `[antraege-search] Vector: 0 Treffer ≥ ${threshold} — beste Cosine ${Number.isFinite(best) ? best.toFixed(3) : 'n/a'}`
+      + (bestAkz ? ` (${bestAkz})` : '')
+      + (skippedDim > 0 ? `; ${skippedDim} Vektoren mit fremder Dimension übersprungen` : ''),
+    );
   }
   hits.sort((a, b) => b.score - a.score);
   return hits.slice(0, topK);

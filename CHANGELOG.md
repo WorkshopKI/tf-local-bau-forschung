@@ -2,6 +2,10 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.62.3 — Vector-Diagnose: beste Cosine + Dim-Skips bei 0 Treffern loggen (Juni 2026)
+
+PATCH-Bump v2.62.3: Test-Feedback zu v2.62.2 — Korpus vorhanden (13.949 Vektoren), Modell lief, aber 0 Vector-Treffer über der 0.55-Schwelle. `topKEmbeddingMatches` ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)) loggt im 0-Treffer-Fall jetzt die **beste gefundene Cosine** (+ Aktenzeichen) und die Anzahl still übersprungener Dimensions-fremder Vektoren. Die eine Zahl unterscheidet die drei Hypothesen: ~0.5 = Schwelle zu streng, ~0.1 = Vektorraum inkompatibel (lokaler Korpus mit altem Modell/Text-Schema → Rebuild/Re-Download), 0+Skips = Dim-Mismatch.
+
 ### v2.62.2 — Ähnlichkeitssuche: stille Leerlauf-Pfade sichtbar gemacht + Korpus-Bootstrap auf der Suchseite (Juni 2026)
 
 PATCH-Bump v2.62.2: Test-Feedback zu v2.62.1 — Vector-Phase lief an (Spinner), ergänzte aber keine Treffer, ohne erkennbaren Grund. Die Stage hatte drei **stille** Leerlauf-Pfade (Modell-Init-Fehler geschluckt, Query-Embedding-Fehler → `null`, leerer lokaler Embedding-Korpus → stumm `[]`), und `pipelineLog` ist in Builds deaktiviert (`import.meta.env.DEV`) — unter `file://` gab es also keinerlei Spur (Pitfall-#15-Klasse).
