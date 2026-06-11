@@ -2,6 +2,19 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.67.0 — Chat-Reskin: RAG-Gutachter-Oberfläche (Design-Handoff) (Juni 2026)
+
+MINOR-Bump v2.67.0: Umsetzung des hi-fi Design-Handoffs aus `_design/handoff/chat` — die Chat-Seite wird zur RAG-Gutachter-Oberfläche. Rein additiv, keine Migration (neue optionale `chat:conv:*`-/`chat:settings`-Felder entstehen lazy). 5 Commits (Reskin PR-1…5/5):
+
+- **Styling**: Co-located [chat.css](src/plugins/chat/chat.css) (Port aus dem Handoff, alle Regeln unter `.chat-app` gescopt, `--tf-*`-Tokens, Composer fest „floating", Gesprächsbreite 920px) — nach Vorbild [kompetenz-matrix.css](src/plugins/auslastung/components/kompetenz/kompetenz-matrix.css). `data-theme="dark"` + `prefers-reduced-motion` berücksichtigt.
+- **Verlauf-Sidebar** (`.side2`): Suchfeld + Compose-Icon, Quick-Filter (Alle/Anträge/Angeheftet mit Count), Datums-Gruppen (Angeheftet/Heute/Letzte 7 Tage/Älter, [conversation-groups.ts](src/plugins/chat/conversation-groups.ts)), FKZ-Unterzeile, Pin-Toggle, Inline-Rename (friert Auto-Titel via `titleCustom` ein), Kontextmenü (Anheften/Umbenennen/Als-MD-kopieren/FKZ-lösen/Löschen).
+- **Schwebender Composer** + Empty-State: „+"-Menü (Dateien, Werkzeuge: Archiv-Suche/Denkprozess/System-Prompt, Verzeichnis-Kontext), Paperclip, Archiv-Suche-Pill, Send↔Stop, Drag&Drop, Anhang-Pills; 4 Vorschlags-Chips.
+- **RAG-Quellen** (real, soweit Daten da): strukturierte `ChatSource` aus Orama-Treffern (Titel, Relevanz %, Methode, generiertes Snippet mit «»-Highlight via [snippet.ts](src/plugins/chat/services/snippet.ts), FKZ aus Dateiname via [fkz-extractor](src/phase2/matcher/fkz-extractor.ts)). Quellen-Chips + „Verwendeter Kontext"-Aufklapper + Slide-over-[SourcePanel](src/plugins/chat/components/SourcePanel.tsx) mit „Antrag öffnen"-Deeplink (`useNavigation`). Inline-`[n]`-Zitate via Post-Pass auf dem marked-HTML ([citations.ts](src/plugins/chat/services/citations.ts), Tabellen/Code/Links bleiben erhalten) — Modell wird zum Zitieren angewiesen, UI bleibt ohne `[n]` sauber. Konversation wird automatisch mit dem dominanten FKZ verknüpft.
+- **Nachrichten**: Denkprozess-Reconcile (Spinnerzeile „Sucht im Archiv …" bis Output, dann einklappbarer Reasoning-Block), Aktionsleiste (Copy/Regenerieren/Daumen hoch-runter lokal + Stats-Zeile).
+- **Reuse**: bestehende Streaming-/Multi-Turn-/Anhang-/Stats-Logik (v2.65) unverändert; `sanitizeHtml` aus [MarkdownRenderer](src/ui/MarkdownRenderer.tsx) exportiert.
+
+49 neue Unit-Tests (snippet/rag-sources/citations/conversation-groups/store-reskin). Weggelassen (bewusst, kein Backend): Assistenten-Auswahl, Teilen/Mehr-Menü, Diktier-Mikro.
+
 ### v2.66.0 — Chat-Server-Tuning: Qwen-Chat-Script, Thinking-Toggle, cache_prompt (Juni 2026)
 
 MINOR-Bump v2.66.0: Lokales Qwen 3.6 35B-A3B (Thinking) auf llama.cpp war im Chat träge — User-Log (RTX 3060 12 GB) zeigte 108 s Prompt-Processing für einen 39k-Token-Anhang-Turn plus 210 s Generierung bis ans 4096-Token-Limit (überwiegend Denkprozess). Ursache: Der einzige Qwen-Server-Launcher war fürs **Indexieren** getunt (Port 9091, Kontext 8192, 4 Threads, Reasoning off).
