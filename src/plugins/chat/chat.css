@@ -51,12 +51,17 @@
 
 /* ---------- Verlauf-Sidebar (.side2) ---------- */
 .chat-app .side2 {
-  width: 264px; flex-shrink: 0; display: flex; flex-direction: column;
+  position: relative;
+  width: var(--side2-w, 264px); flex-shrink: 0; display: flex; flex-direction: column;
   background: var(--tf-bg-sidebar);
   border-right: var(--tf-border-thin) solid var(--tf-border);
   transition: width var(--tf-duration-med) var(--tf-ease), opacity 120ms; overflow: hidden;
 }
 .chat-app.rail-collapsed .side2 { width: 0; border-right: 0; opacity: 0; pointer-events: none; }
+/* Horizontaler Resize-Griff an der rechten Kante der Verlauf-Sidebar */
+.chat-app .side2-resize { position: absolute; top: 0; right: 0; width: 5px; height: 100%; z-index: 6; cursor: ew-resize; touch-action: none; }
+.chat-app .side2-resize:hover { background: var(--tf-border-hover); }
+.chat-app.rail-collapsed .side2-resize { display: none; }
 .chat-app .side2-pad { padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
 .chat-app .side2-search { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: var(--tf-border-thin) solid var(--tf-border); border-radius: var(--tf-radius); background: var(--tf-bg); color: var(--tf-text-tertiary); }
 .chat-app .side2-search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font: var(--tf-text-sm)/1 var(--tf-font-sans); color: var(--tf-text); }
@@ -80,9 +85,9 @@
 .chat-app .side2-group.first { padding-top: 9px; }
 .chat-app .side2-empty { padding: 18px 10px; color: var(--tf-text-tertiary); font-size: var(--tf-text-sm); }
 
-.chat-app .conv2 { position: relative; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--tf-radius); color: var(--tf-text-secondary); font-size: var(--tf-text-base); min-height: 34px; cursor: default; }
+.chat-app .conv2 { position: relative; display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: var(--tf-radius); color: var(--tf-text-secondary); font-size: var(--tf-text-sm); min-height: 28px; cursor: default; }
 .chat-app .conv2 .c2body { flex: 1; min-width: 0; }
-.chat-app .conv2 .c2t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
+.chat-app .conv2 .c2t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.35; }
 .chat-app .conv2 .c2sub { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
 .chat-app .conv2 .c2sub svg { color: var(--tf-text-tertiary); flex-shrink: 0; }
 .chat-app .conv2 .c2fkz { font: 10px/1 var(--tf-font-mono); color: var(--tf-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -131,6 +136,10 @@
 .chat-app .msg { display: flex; flex-direction: column; }
 .chat-app .msg.user { align-items: flex-end; }
 .chat-app .bubble { max-width: 84%; padding: 10px 15px; border-radius: 18px; background: var(--tf-bg-secondary); border: var(--tf-border-thin) solid var(--tf-border); color: var(--tf-text); font-size: var(--tf-text-md); line-height: 1.5; border-bottom-right-radius: 6px; white-space: pre-wrap; }
+/* Lange Eingaben standardmäßig auf ~6 Zeilen eingeklappt */
+.chat-app .bubble.clamped { display: -webkit-box; -webkit-line-clamp: 6; line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.chat-app .msg-more { margin-top: 4px; padding: 0; border: 0; background: transparent; color: var(--tf-text-secondary); font-size: var(--tf-text-sm); cursor: default; }
+.chat-app .msg-more:hover { color: var(--tf-text); text-decoration: underline; }
 .chat-app .msg-edit { opacity: 0; display: flex; gap: 2px; margin-top: 6px; transition: opacity 120ms; }
 .chat-app .msg.user:hover .msg-edit { opacity: 1; }
 .chat-app .msg-atts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; justify-content: flex-end; }

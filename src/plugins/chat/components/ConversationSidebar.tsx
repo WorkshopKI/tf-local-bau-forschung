@@ -11,6 +11,16 @@ const FILTERS: Array<[ConversationFilter, string]> = [
   ['all', 'Alle'], ['antrag', 'Anträge'], ['pinned', 'Angeheftet'],
 ];
 
+const SIDEBAR_MIN = 200, SIDEBAR_MAX = 560, SIDEBAR_DEFAULT = 264;
+const SIDEBAR_KEY = 'tf-chat-sidebar-w';
+const clampW = (v: number): number => Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, v));
+function readSidebarWidth(): number {
+  try {
+    const v = Number.parseInt(localStorage.getItem(SIDEBAR_KEY) ?? '', 10);
+    return Number.isFinite(v) ? clampW(v) : SIDEBAR_DEFAULT;
+  } catch { return SIDEBAR_DEFAULT; }
+}
+
 export function ConversationSidebar(): React.ReactElement {
   const storage = useStorage();
   const conversations = useChatStore(s => s.conversations);
@@ -21,7 +31,25 @@ export function ConversationSidebar(): React.ReactElement {
   const [menuId, setMenuId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameVal, setRenameVal] = useState('');
+  const [width, setWidth] = useState(readSidebarWidth);
+  const [resizing, setResizing] = useState(false);
   const renameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { try { localStorage.setItem(SIDEBAR_KEY, String(width)); } catch { /* ignore */ } }, [width]);
+
+  const onResize = (e: React.PointerEvent): void => {
+    e.preventDefault();
+    setResizing(true);
+    const start = { x: e.clientX, w: width };
+    const move = (ev: PointerEvent): void => setWidth(clampW(start.w + (ev.clientX - start.x)));
+    const up = (): void => {
+      setResizing(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
 
   const selectAction = useAsyncAction((id: string) => useChatStore.getState().select(id, storage));
   const deleteAction = useAsyncAction((id: string) => useChatStore.getState().deleteConversation(id, storage));
@@ -49,7 +77,11 @@ export function ConversationSidebar(): React.ReactElement {
   };
 
   return (
-    <div className="side2">
+    <div
+      className="side2"
+      style={{ ['--side2-w' as string]: `${width}px`, ...(resizing ? { transition: 'none' } : {}) } as React.CSSProperties}
+    >
+      <div className="side2-resize" title="Breite ändern" onPointerDown={onResize} />
       <div className="side2-pad">
         <div className="side2-row">
           <div className="side2-search">
@@ -102,7 +134,7 @@ export function ConversationSidebar(): React.ReactElement {
                   onClick={() => selectAction.run(c.id)}
                 >
                   <div className="c2body">
-                    <div className="c2t">{c.title}</div>
+                    <div className="c2t" title={c.title}>{c.title}</div>
                     {c.fkz && (
                       <div className="c2sub">
                         <FileText size={11} />

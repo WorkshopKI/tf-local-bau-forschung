@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, Brain, Check, File as FileIcon, FileText, Folder, Loader2, Paperclip, Plus, Search, SlidersHorizontal, Sparkles, Square, X } from 'lucide-react';
+import { ArrowUp, Brain, Check, File as FileIcon, FileText, Folder, Loader2, Plus, Search, SlidersHorizontal, Sparkles, Square, X } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { DirectoryEntry } from '@/core/types/config';
@@ -156,9 +156,6 @@ export function Composer({
             <SystemPromptPopover open={sysOpen} onClose={() => setSysOpen(false)} />
           </div>
 
-          <button className="tool-btn" title="Datei anhängen" onClick={() => fileRef.current?.click()}>
-            <Paperclip size={17} />
-          </button>
           <button className={`tool-pill${useRAG && vectorReady ? ' on' : ''}`} onClick={() => setUseRAG(w => !w)}
             title={useRAG ? 'Archiv-Suche aktiv' : 'Archiv-Suche aus'}>
             <Search size={15} />Archiv-Suche

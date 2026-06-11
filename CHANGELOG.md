@@ -2,6 +2,16 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.67.4 — Chat: einklappbare Eingaben, resizable Sidebar, dichtere Liste, Composer-Aufräumen (Juni 2026)
+
+PATCH-Bump v2.67.4 — UX-Feinschliff am Chat:
+
+- **Lange Eingaben einklappbar** ([UserMessage](src/plugins/chat/components/UserMessage.tsx)): User-Nachrichten > 360 Zeichen / > 6 Zeilen werden per `-webkit-line-clamp` auf ~6 Zeilen gekürzt, Umschalter „Mehr anzeigen" / „Weniger anzeigen".
+- **Verlauf-Sidebar horizontal resizable** ([ConversationSidebar](src/plugins/chat/components/ConversationSidebar.tsx)): Griff an der rechten Kante (`ew-resize`), Breite 200–560 px, in `localStorage` (`tf-chat-sidebar-w`) persistiert. Umsetzung über `--side2-w`-Custom-Property, damit der Rail-Collapse (`width:0`) per Spezifität weiter greift.
+- **Dichtere Konversations-Liste**: kleinere Schrift (`--tf-text-sm`) + geringere Zeilenhöhe (min 28 px) → mehr Chats sichtbar; `title`-Tooltip mit vollem Namen bei abgeschnittenem Titel.
+- **Composer aufgeräumt**: separater Büroklammer-Button entfernt (Datei-Anhängen liegt im „+"-Menü „Dateien hinzufügen"; Drag&Drop bleibt).
+- **System-Prompt-Resize ohne künstliche Kappung**: Obergrenze jetzt = sichtbarer Bildschirm (aus der Popover-Position berechnet) statt fixer 760×560 px.
+
 ### v2.67.3 — Chat: System-Prompt-Popover mit echten Edge-Resize-Handles (Juni 2026)
 
 PATCH-Bump v2.67.3: Der Corner-Griff aus v2.67.2 ließ sich schlecht nach oben ziehen. Ersetzt durch **zwei Standard-Kanten-Handles** ([SystemPromptPopover](src/plugins/chat/components/SystemPromptPopover.tsx)): obere Kante (`ns-resize`) ändert die Höhe (wächst nach oben, da bottom-anchored), rechte Kante (`ew-resize`) die Breite. Total-Delta-Drag (kein Drift), Handles liegen im 6px-Padding-Rand → keine Klick-Kollision mit Tabs/X. Clamp 320–760 × 120–560 px.
