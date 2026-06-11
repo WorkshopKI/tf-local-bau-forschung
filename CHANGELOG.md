@@ -2,6 +2,10 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.71.1 — Kurzfassung: VB-Cap von 24k auf 100k Zeichen angehoben (Juni 2026)
+
+PATCH-Bump v2.71.1 — der VB-Abschneide-Cap vor dem LLM-Call (`VB_CHAR_CAP` in [run-skill.ts](src/core/services/skills/run-skill.ts)) war mit 24.000 Zeichen (~4–5 Seiten) viel zu konservativ: bei längeren Vorhabensbeschreibungen sah das LLM den Schluss nie, die Kurzfassung verpasste Aspekte (UI-Hinweis „VB für die Analyse gekürzt"). Cap auf **100.000 Zeichen** angehoben — dimensioniert fürs kleinste produktiv genutzte Kontextfenster (lokales LLM ~50k Tokens: ~33k Tokens VB + ~2k Output + Overhead bleibt mit Headroom darunter; Cloud 128k ist Superset). Eine vollständige ZIM-Verbund-VB (~25 Seiten ≈ 75k Zeichen) geht jetzt komplett durch; `vbGekuerzt` greift nur noch bei echten Ausreißern. Der Cap bleibt als sichtbarer Guard erhalten (Entfernen würde stillen serverseitigen Context-Shift statt eines ehrlichen Hinweises bedeuten).
+
 ### v2.71.0 — Kurzfassung: Vorfassungen vergleichen & zurückholen (Juni 2026)
 
 MINOR-Bump v2.71.0 — bisher überschrieb jeder Klick auf „Neu" / „Kürzer" / „Länger" in der Kurzfassung-Review die aktuelle Fassung ersatzlos (in State **und** IndexedDB); die vorige war weg. Jetzt wird vor jeder Re-Generierung die noch aktive Fassung als Schnappschuss aufbewahrt — der Bearbeiter kann frühere Fassungen vergleichen und per „Diese Fassung übernehmen" wieder zur aktiven machen (deckt „evtl. war die alte doch ok" ab).

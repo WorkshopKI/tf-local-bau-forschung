@@ -18,8 +18,18 @@ import {
 import { parseSkillOutput } from './parse';
 import type { ParsedSkillOutput } from './types';
 
-/** VB-Markdown wird vor dem Senden auf diese Zeichenzahl gekappt (am Absatzende). */
-export const VB_CHAR_CAP = 24_000;
+/**
+ * VB-Markdown wird vor dem Senden auf diese Zeichenzahl gekappt (am Absatzende).
+ * Dimensioniert für das kleinste produktiv genutzte Kontextfenster (lokales LLM
+ * ~50k Tokens): 100k Zeichen ≈ 30–33k Tokens VB + ~2k Output (`maxTokens`) +
+ * System-/Template-/Vorgaben-Overhead (+ bei Re-Lauf vorheriger Text) → bleibt
+ * mit Headroom unter 50k; Cloud (128k) ist ein Superset. Eine vollständige
+ * ZIM-Verbund-VB (~25 Seiten ≈ 75k Zeichen) passt damit komplett ins LLM →
+ * `vbGekuerzt` (UI-Hinweis) greift nur noch bei echten Ausreißern.
+ * Größer machen erst, wenn das kleinste Zielmodell ein größeres Fenster hat
+ * (sonst still serverseitiger Context-Shift statt sichtbarem Hinweis).
+ */
+export const VB_CHAR_CAP = 100_000;
 const DEFAULT_MAX_TOKENS = 2048;
 
 export interface SkillRunInput {
