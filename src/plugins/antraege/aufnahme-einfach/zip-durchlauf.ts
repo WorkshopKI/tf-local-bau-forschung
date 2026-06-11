@@ -47,7 +47,9 @@ export async function zipDurchlauf(input: Blob): Promise<ZipDurchlaufErgebnis> {
     const check = pruefeEndung(name);
     if (!check.ok) { res.abgelehnt.push({ name, grund: check.grund }); continue; }
     const bytes = await entry.async('uint8array');
-    res.dateien.push({ name, file: new File([bytes], name) });
+    // Frische Kopie → Uint8Array<ArrayBuffer> (BlobPart-kompatibel; jszip liefert
+    // den weiteren ArrayBufferLike-Typ, der SharedArrayBuffer einschließt).
+    res.dateien.push({ name, file: new File([new Uint8Array(bytes)], name) });
   }
   return res;
 }

@@ -36,6 +36,7 @@ import { AbgelehnteVorgaengerBanner } from './AbgelehnteVorgaengerBanner';
 import { KurzfassungSection } from './kurzfassung/KurzfassungSection';
 import { GutachtenSection } from './gutachten/GutachtenSection';
 import type { KurzfassungContext } from './kurzfassung/types';
+import { buildKurzfassungContext } from './kurzfassung/context-builder';
 import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 
 interface Props {
@@ -266,20 +267,12 @@ export function VerbundDetail({
   // Förderkennzeichen = Verbund-ID (bzw. echtes Az bei Solo/pseudo). knownIds =
   // Verbund-ID + alle TV-Aktenzeichen (alle gelten in der Aufnahmefläche als
   // zugehörig — VB wird oft je TV mit eigenem FKZ eingereicht).
-  const kurzfassungCtx: KurzfassungContext = {
-    key: headerId,
-    akronym,
-    titel,
-    antragsteller,
-    foerderkennzeichen: headerId,
-    knownIds: [headerId, ...antraege.map(a => a.aktenzeichen)],
-    teilvorhaben: antraege.map((tv, idx) => ({
-      nr: idx + 1,
-      aktenzeichen: tv.aktenzeichen,
-      titel: strOrNull(tv.titel),
-      antragsteller: strOrNull(tv.antragsteller),
-    })),
-  };
+  // Lead-first sortierte TVs + Verbund → KurzfassungContext (eine Quelle, von
+  // Einzellauf UND Batch genutzt). `verbund.verbund_id` als letzter Akronym-
+  // Fallback hält die Ausgabe byte-identisch zum bisherigen Inline-Aufbau.
+  const kurzfassungCtx: KurzfassungContext = buildKurzfassungContext(
+    verbund, antraege, headerId, verbund.verbund_id,
+  );
 
   return (
     <PanelShell onClose={onClose}>

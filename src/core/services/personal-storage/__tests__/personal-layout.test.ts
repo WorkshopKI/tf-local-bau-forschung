@@ -22,6 +22,10 @@ describe('personal-layout', () => {
     expect(mdFilename('te/st.pdf')).toBe('te_st.md');
   });
 
+  it('dokumentMdPath kombiniert Ordner + mdFilename', () => {
+    expect(dokumentMdPath('16EP001234', 'VB.pdf')).toBe('ZAH/antraege/16EP001234/dokumente/VB.md');
+  });
+
   it('gutachtenMdPath: {stepId}-{slug}.md', () => {
     expect(gutachtenMdPath('16EP001234', 'A', 'kurzfassung')).toBe(
       'ZAH/antraege/16EP001234/gutachten/A-kurzfassung.md');

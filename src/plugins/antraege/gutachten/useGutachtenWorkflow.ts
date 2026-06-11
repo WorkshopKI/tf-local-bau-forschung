@@ -25,7 +25,7 @@ import {
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { loadSkillTweak, saveSkillTweak, deleteSkillTweak, type SkillTweak } from '@/core/services/skill-tweaks';
 import type { DocumentFull } from '@/plugins/dokumente/store';
-import { findVorhabensbeschreibung } from '../kurzfassung/vbDokument';
+import { resolveVb, type VbAufloesung } from '../kurzfassung/vbDokument';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
 import { ZIM_EP_WORKFLOW } from './workflow-definition';
@@ -104,7 +104,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const key = ctx.key;
 
   const [run, setRun] = useState<WorkflowRun | null>(null);
-  const [vbDokument, setVbDokument] = useState<DocumentFull | null>(null);
+  // VB-Auflösung: IDB-Index (Vorrang) ODER persönlicher Ordner (Teil A, Fallback).
+  const [vb, setVb] = useState<VbAufloesung | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,18 +123,18 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     (async () => {
       setLoading(true);
       const now = new Date().toISOString();
-      const [r, vb, loaded] = await Promise.all([
+      const [r, vbRes, loaded] = await Promise.all([
         loadOrMigrateWorkflowRun(storage.idb, key, now),
-        findVorhabensbeschreibung(storage.idb, key),
+        resolveVb(storage.idb, ctx),
         loadSkillRegistry(storage),
       ]);
       if (cancelled) return;
       setSkillMap(buildSkillMap(loaded.file));
       setRun(r);
-      setVbDokument(vb);
+      setVb(vbRes);
       setLoading(false);
       // LLM-Probe nur, wenn Generierung relevant ist (VB da, aktiver Schritt nicht freigegeben).
-      if (vb && r.schritte[r.aktiverSchritt]?.status !== 'freigegeben') {
+      if (vbRes && r.schritte[r.aktiverSchritt]?.status !== 'freigegeben') {
         try { if (!cancelled) setLlmAvailable(await bridge.getActiveTransport().ping()); }
         catch { if (!cancelled) setLlmAvailable(false); }
       }
@@ -160,7 +161,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
 
   const runGeneration = async (stepId: StepId, modifier?: SkillModifierKey): Promise<void> => {
     const sc = skillMap.get(stepId);
-    if (!vbDokument || busy || !run || !sc) return;
+    if (!vb || busy || !run || !sc) return;
     setBusy(true);
     setError(null);
     const abort = new AbortController();
@@ -175,7 +176,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       const prevText = run.schritte[stepId]?.finalerText;
       const result = await runSkill(transport, sc.skill, sc.regeln, {
         stammdaten: buildStammdaten(ctx),
-        vbMarkdown: vbDokument.markdown,
+        vbMarkdown: vb.markdown,
         vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, ZIM_EP_WORKFLOW),
         ...(tweakWirksam ? { tweak } : {}),
         ...(modifier ? { modifier } : {}),
@@ -224,9 +225,9 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   };
 
   const refreshVb = async (): Promise<void> => {
-    const vb = await findVorhabensbeschreibung(storage.idb, key);
-    setVbDokument(vb);
-    if (vb && llmAvailable === null) {
+    const vbRes = await resolveVb(storage.idb, ctx);
+    setVb(vbRes);
+    if (vbRes && llmAvailable === null) {
       try { setLlmAvailable(await bridge.getActiveTransport().ping()); }
       catch { setLlmAvailable(false); }
     }
@@ -256,8 +257,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
 
   return {
     run,
-    vbDokument,
-    vbVorhanden: vbDokument !== null,
+    vbDokument: vb?.dokument ?? null,
+    vbVorhanden: vb !== null,
     loading,
     busy,
     error,
