@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -90,20 +90,29 @@ export function VerbundDetail({
 
   const isPseudo = isPseudoVerbundId(verbundId);
 
-  // Default-Expansion: pseudo → automatisch der einzige TV; sonst initialer
-  // Prop-Wert (kann null/undefined sein). Wird im useEffect unten synchron
-  // gehalten, sodass Prop-Aenderungen den State updaten.
-  const [expandedTvAz, setExpandedTvAz] = useState<string | null>(() => {
-    if (isPseudo) return aktenzeichenFromPseudoVerbundId(verbundId);
-    return initialExpandedTvAz ?? null;
-  });
+  // Default-Expansion: pseudo → automatisch der einzige TV (sonst waere die
+  // Detailseite leer, weil die Stammdaten bei pseudo erst im TV-EckdatenCard
+  // stecken). Echter Verbund → beim ERSTAUFRUF alle TVs collapsed (mehr
+  // Uebersicht beim ersten Blick); der gezielt angeklickte TV
+  // (`initialExpandedTvAz`) wird nicht vorab aufgeklappt.
+  const [expandedTvAz, setExpandedTvAz] = useState<string | null>(() =>
+    isPseudo ? aktenzeichenFromPseudoVerbundId(verbundId) : null,
+  );
+  // Merkt den zuletzt gezeigten Verbund, um „Erstaufruf eines Verbundes"
+  // (collapsed) von „Navigation IM selben Verbund" (Prop honorieren) zu trennen.
+  const lastVerbundIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isPseudo) {
       setExpandedTvAz(aktenzeichenFromPseudoVerbundId(verbundId));
-    } else {
-      setExpandedTvAz(initialExpandedTvAz ?? null);
+      lastVerbundIdRef.current = verbundId;
+      return;
     }
+    const isErstaufruf = lastVerbundIdRef.current !== verbundId;
+    lastVerbundIdRef.current = verbundId;
+    // Erstaufruf dieses Verbundes → alle TVs collapsed; spaetere Navigation im
+    // selben Verbund expandiert den angeklickten TV.
+    setExpandedTvAz(isErstaufruf ? null : initialExpandedTvAz ?? null);
   }, [verbundId, initialExpandedTvAz, isPseudo]);
 
   useEffect(() => {

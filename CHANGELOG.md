@@ -2,6 +2,14 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.69.2 — Verbund-Detail: TVs beim Erstaufruf eingeklappt (Juni 2026)
+
+PATCH-Bump v2.69.2 — beim ersten Öffnen einer Verbund-Detailseite sind jetzt alle Teilvorhaben **eingeklappt** ([VerbundDetail](src/plugins/antraege/VerbundDetail.tsx)) — mehr Übersicht beim ersten Blick (Stammdaten, Status, TV-Liste, Kurzfassung), statt direkt in einem aufgeklappten TV zu landen.
+
+- Echter Verbund: beim Erstaufruf wird kein TV vorab expandiert (auch nicht der gezielt angeklickte `initialExpandedTvAz`). Ein TV öffnet sich erst per Klick.
+- Navigation **im selben Verbund** (Prop-Wechsel ohne Verbund-Wechsel) expandiert den angesteuerten TV weiterhin — getrennt über `lastVerbundIdRef` (Erstaufruf vs. In-Verbund-Navigation).
+- Pseudo-/Solo-Verbund unverändert: dessen einziger TV bleibt aufgeklappt (sonst wäre die Seite leer, da die Stammdaten dort im TV-EckdatenCard liegen).
+
 ### v2.69.1 — Antrag-Detail: Unterprogramm-Name statt -Nummer anzeigen (Juni 2026)
 
 PATCH-Bump v2.69.1 — in der Detail-Ansicht zeigt das Feld „Unterprogramm" jetzt den sprechenden Namen (z.B. „ZIM FuE-Projekte 2025") statt der nackten Nummer („138"). Betrifft die Verbund-Stammdaten ([VerbundDetail](src/plugins/antraege/VerbundDetail.tsx)) und die TV-Eckdaten ([EckdatenCard](src/plugins/antraege/EckdatenCard.tsx) / [eckdatenConfig](src/plugins/antraege/eckdatenConfig.ts)).
