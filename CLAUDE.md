@@ -199,7 +199,7 @@ Sichtbarkeits-Matrix (was steht in der Sidebar):
 | Auslastung | ✓ | – | – | ○ | ○ | ✓ |
 | Dokumente | ✓ | ✓ | – | – | – | – |
 | Suche | ✓ | ✓ | – | ✓ | ✓ | ✓ |
-| Chat | ✓ | ✓ | – | – | – | – |
+| Chat | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Feedback Übersicht | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Einstellungen | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Kurator-Toggle in Einstellungen | ✓ | – | – | ✓ | ✓ | – |

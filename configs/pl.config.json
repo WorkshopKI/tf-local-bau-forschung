@@ -34,7 +34,7 @@
     "datenShareSchreibrecht": true,
     "maLogin": false,
     "maVerwaltungPasswort": true,
-    "chat": false,
+    "chat": true,
     "suche": true,
     "feedbackBoard": true,
     "csvAutoRefresh": true,
