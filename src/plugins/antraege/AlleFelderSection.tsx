@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import type { CsvSchema } from '@/core/services/csv/types';
 import { type DisplayGroup, type DisplayRow } from './buildDisplayRows';
@@ -30,6 +30,18 @@ export function AlleFelderSection({
 }: Props): React.ReactElement {
   const [mode, setMode] = useState<Mode>('with_values');
   const [search, setSearch] = useState('');
+  // Einklappbar (default zu) — bei 120–300 Feldern sonst endloses Scrollen bis zu
+  // den darunterliegenden Sektionen. Wahl pro Browser persistiert.
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem('teamflow_antrag_allefelder_open') === '1'; } catch { return false; }
+  });
+  const toggleOpen = (): void => {
+    setOpen(prev => {
+      const next = !prev;
+      try { localStorage.setItem('teamflow_antrag_allefelder_open', next ? '1' : '0'); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const allRows = useMemo(() => groups.flatMap(g => g.rows), [groups]);
   const totalCount = allRows.length;
@@ -56,12 +68,21 @@ export function AlleFelderSection({
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
-        <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Alle Felder</h3>
+        <button type="button" onClick={toggleOpen} aria-expanded={open} className="flex items-center gap-1.5 cursor-pointer">
+          <ChevronRight
+            size={13}
+            className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          />
+          <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Alle Felder</h3>
+        </button>
         <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
           {totalCount.toLocaleString('de-DE')} Felder gesamt · {withValuesCount.toLocaleString('de-DE')} mit Werten
         </span>
       </div>
 
+      {!open ? null : (
+      <>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <button
           type="button"
@@ -137,6 +158,8 @@ export function AlleFelderSection({
             </div>
           ))}
         </div>
+      )}
+      </>
       )}
     </div>
   );

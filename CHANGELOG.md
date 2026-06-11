@@ -2,6 +2,10 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.68.1 — Antrag-Detail: „Alle Felder" einklappbar (Juni 2026)
+
+PATCH-Bump v2.68.1: Die Feldliste im Antrag-Detail ([AlleFelderSection](src/plugins/antraege/AlleFelderSection.tsx)) ist jetzt per Chevron **einklappbar** (Default eingeklappt, Wahl pro Browser persistiert in `teamflow_antrag_allefelder_open`). Bei 120–300 Feldern war das Detail-Panel sonst sehr lang; eingeklappt sind die darunterliegenden Sektionen (Netzwerk, Dokumente, **Kurzfassung-Testballon**) ohne langes Scrollen erreichbar. Die Kopfzeile zeigt weiter „N Felder gesamt · M mit Werten".
+
 ### v2.68.0 — Gutachten-Testballon: Kurzfassung-Skill (Dokumenten-Aufnahme → Skill → Review → DOCX-Vorlage) (Juni 2026)
 
 MINOR-Bump v2.68.0 — erster „Mini-Agent": Auf der Förderantrags-Detailseite erstellt ein Gutachter KI-gestützt die **Kurzfassung** eines ZIM-Gutachtens. Kompletter Durchstich, hinter Feature-Flag `gutachtenKurzfassung` (**nur dev**; demo/prod/kurator/pl = false). Additiv, keine Migration. Leitprinzip: Bausteine 1/3/4 funktionieren **ohne LLM**, nur die Generierung (Baustein 2) degradiert mit klarer Meldung, wenn kein Transport erreichbar ist.
