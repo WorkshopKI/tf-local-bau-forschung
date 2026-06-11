@@ -30,6 +30,7 @@ import {
   buildPseudoVerbund,
 } from './pseudoVerbund';
 import { useAntraegeStore } from './store';
+import { useUnterprogrammLabels } from './useUnterprogrammLabels';
 import { findAbgelehnteVorgaenger } from './vorgaengerAntraege';
 import { AbgelehnteVorgaengerBanner } from './AbgelehnteVorgaengerBanner';
 import { KurzfassungSection } from './kurzfassung/KurzfassungSection';
@@ -83,6 +84,9 @@ export function VerbundDetail({
   const [schemas, setSchemas] = useState<CsvSchema[]>([]);
   const [sourceNames, setSourceNames] = useState<Record<string, string>>({});
   const [historyField, setHistoryField] = useState<string | null>(null);
+  // Unterprogramm-Labels (Code → Name) fuer die Stammdaten-Anzeige — statt der
+  // nackten Nummer den sprechenden Namen. Hook vor dem fruehen Return halten.
+  const unterprogrammLabels = useUnterprogrammLabels(antraege[0]?.programm_id ?? null);
 
   const isPseudo = isPseudoVerbundId(verbundId);
 
@@ -205,7 +209,11 @@ export function VerbundDetail({
   // Verbund hat keine Custom-Felder → T_XSW vom Lead-TV ziehen (Verbund≈Lead).
   const leadXsw = readXsw(lead);
   const antragsteller = strOrNull(lead?.antragsteller);
-  const unterprogramm = lead?.unterprogramm_id ?? null;
+  // Unterprogramm: Label statt Nummer (Fallback Nummer, falls kein Label bekannt).
+  const unterprogrammCode = strOrNull(lead?.unterprogramm_id);
+  const unterprogramm = unterprogrammCode
+    ? unterprogrammLabels.get(unterprogrammCode) ?? unterprogrammCode
+    : null;
   // Maßgebliches Antragsdatum des Verbundes = zuletzt eingegangenes TV (max über
   // alle TVs), nicht das des Lead-TV — vorher kann der Verbund nicht bearbeitet
   // werden. Bei Solo (1 TV) identisch zum TV-Datum.

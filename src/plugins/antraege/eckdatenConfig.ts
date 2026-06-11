@@ -74,6 +74,13 @@ export interface FieldDisplay {
   mono: boolean;
 }
 
+export interface FieldDisplayOpts {
+  /** Code→Name-Map der Unterprogramme — wenn gesetzt, zeigt das Feld
+   *  `unterprogramm_id` den sprechenden Namen statt der nackten Nummer
+   *  (Fallback: Nummer, falls kein Label bekannt). */
+  unterprogrammLabels?: ReadonlyMap<string, string>;
+}
+
 function formatGermanDate(iso: string): string {
   if (/^\d{4}-\d{2}-\d{2}/.test(iso)) {
     const d = new Date(iso);
@@ -92,18 +99,31 @@ function rawValueFor(field: string, antrag: Antrag): unknown {
 }
 
 /** Liefert {label, value, mono} fuer ein Feld auf einem Antrag, oder null wenn kein Wert vorhanden. */
-export function getFieldDisplayInfo(field: string, antrag: Antrag): FieldDisplay | null {
+export function getFieldDisplayInfo(field: string, antrag: Antrag, opts?: FieldDisplayOpts): FieldDisplay | null {
   const raw = rawValueFor(field, antrag);
   if (raw === null || raw === undefined || raw === '') return null;
 
   const label = getFieldLabel(field);
-  const mono = MONO_FIELDS.has(field);
+  let mono = MONO_FIELDS.has(field);
 
   let value: string;
   if (field === 'vb_phase') {
     const label = getVbPhaseLabel(raw);
     if (label === null) return null;
     value = label;
+  } else if (field === 'unterprogramm_id') {
+    // Statt der Unterprogramm-Nummer den sprechenden Namen zeigen (z.B.
+    // "138" → "ZIM FuE-Projekte 2025"). Ohne bekanntes Label bleibt die
+    // Nummer stehen (dann weiterhin Mono, sonst Klartext-Label).
+    const code = typeof raw === 'string' ? raw.trim() : String(raw).trim();
+    if (code === '') return null;
+    const name = opts?.unterprogrammLabels?.get(code);
+    if (name) {
+      value = name;
+      mono = false;
+    } else {
+      value = code;
+    }
   } else if (field === 'foerdersumme' && typeof raw === 'number' && raw > 0) {
     value = raw.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   } else if (field.endsWith('_datum') && typeof raw === 'string') {

@@ -8,6 +8,7 @@ import {
   getFieldDisplayInfo,
   type FieldDisplay,
 } from './eckdatenConfig';
+import { useUnterprogrammLabels } from './useUnterprogrammLabels';
 
 interface Props {
   antrag: Antrag;
@@ -25,6 +26,7 @@ function strOrNull(v: unknown): string | null {
 export function EckdatenCard({ antrag }: Props): React.ReactElement {
   const [fields, setFields] = useState<string[]>(loadEckdatenFields);
   const [editorOpen, setEditorOpen] = useState(false);
+  const unterprogrammLabels = useUnterprogrammLabels(antrag.programm_id);
 
   const name = strOrNull(antrag.antragsteller);
   const branche = strOrNull(antrag.branche);
@@ -34,7 +36,7 @@ export function EckdatenCard({ antrag }: Props): React.ReactElement {
     : branche ?? foerdergeber;
 
   const cells: FieldDisplay[] = fields
-    .map(f => getFieldDisplayInfo(f, antrag))
+    .map(f => getFieldDisplayInfo(f, antrag, { unterprogrammLabels }))
     .filter((c): c is FieldDisplay => c !== null);
 
   const handleSave = (next: string[]): void => {

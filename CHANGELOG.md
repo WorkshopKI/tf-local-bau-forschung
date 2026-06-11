@@ -2,6 +2,14 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.69.1 — Antrag-Detail: Unterprogramm-Name statt -Nummer anzeigen (Juni 2026)
+
+PATCH-Bump v2.69.1 — in der Detail-Ansicht zeigt das Feld „Unterprogramm" jetzt den sprechenden Namen (z.B. „ZIM FuE-Projekte 2025") statt der nackten Nummer („138"). Betrifft die Verbund-Stammdaten ([VerbundDetail](src/plugins/antraege/VerbundDetail.tsx)) und die TV-Eckdaten ([EckdatenCard](src/plugins/antraege/EckdatenCard.tsx) / [eckdatenConfig](src/plugins/antraege/eckdatenConfig.ts)).
+
+- Neuer Hook [`useUnterprogrammLabels`](src/plugins/antraege/useUnterprogrammLabels.ts) liefert die Code→Name-Map der Unterprogramme eines Programms aus IDB (`listUnterprogramme`), mit Modul-Cache pro Programm (jede TV-EckdatenCard löst sonst denselben IDB-Read aus).
+- Fallback: ist zu einem Code kein Label registriert (z.B. Unterprogramme nicht importiert), bleibt die Nummer stehen.
+- `getFieldDisplayInfo(field, antrag, opts)` um `opts.unterprogrammLabels` erweitert; bei aufgelöstem Label entfällt die Mono-Schrift (Klartext-Name statt ID-Optik).
+
 ### v2.69.0 — Skill-Registry v1: Skills & Qualitätsregeln als Kurator-Daten mit Tuning-Schleife (Juni 2026)
 
 MINOR-Bump v2.69.0 — der Gutachten-Testballon wird vom hartcodierten Prompt+Check zur **Kurator-pflegbaren Registry**. Skills (Prompt-Vorlage, Modifikatoren, Slots) und parametrisierte Qualitätsregeln (Zeichen-/Satz-Limits, verbotene Muster, …) leben jetzt als Daten in `_intern/skills/registry.json`; jede Regel erzeugt aus **einer Quelle** sowohl den Prompt-Hinweis (KI zielt darauf) als auch den Check (System prüft es) — keine Drift. Neue Kurationsseite „Skill-Verwaltung" + Sandbox-Testlauf am echten Antrag (Mockups: `_design/handoff/skill-verwaltung/`).
