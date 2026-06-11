@@ -26,7 +26,13 @@ import type { DirectoryEntry } from '@/core/types/config';
 import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
 import { useChatStore } from './store';
 import { buildApiMessages } from './conversation-context';
-import type { ChatAttachment, ChatMessage } from './types';
+import { buildChatSources, dominantFkz } from './services/rag-sources';
+import type { ChatAttachment, ChatMessage, ChatSource } from './types';
+
+/** Anweisung an das Modell, die nummerierten Quellen inline zu zitieren. */
+const CITATION_HINT =
+  '\n\nZitiere die genutzten Quellen inline im Format [n] (z. B. [1] oder [2, 3]), '
+  + 'passend zur Nummerierung der obigen Quellen-Liste.';
 
 /** Chat braucht Luft für lange Antworten — bewusst über dem Transport-Default (1500). */
 export const CHAT_MAX_TOKENS = 4096;
@@ -93,7 +99,7 @@ export function useChatController(): ChatController {
   const runStreaming = useCallback(async (
     transport: AITransport,
     apiMessages: ConversationMessage[],
-    ragSources: string[],
+    sources: ChatSource[],
     signal: AbortSignal,
   ): Promise<void> => {
     const assistantId = uuid();
@@ -102,7 +108,7 @@ export function useChatController(): ChatController {
       role: 'assistant',
       content: '',
       createdAt: new Date().toISOString(),
-      ...(ragSources.length > 0 ? { ragSources } : {}),
+      ...(sources.length > 0 ? { sources } : {}),
     });
 
     let pendingContent = '';
@@ -162,6 +168,16 @@ export function useChatController(): ChatController {
     await useChatStore.getState().persistActive(storage);
   }, [storage]);
 
+  /** Konversation automatisch mit dem dominanten Antrag-FKZ verknüpfen (einmalig,
+   *  nur wenn noch keiner gesetzt ist — befüllt den „Anträge"-Filter). */
+  const maybeLinkFkz = useCallback(async (sources: ChatSource[]): Promise<void> => {
+    const fkz = dominantFkz(sources);
+    if (!fkz) return;
+    const st = useChatStore.getState();
+    const conv = st.conversations.find(c => c.id === st.activeId);
+    if (st.activeId && conv && !conv.fkz) await st.setConversationFkz(st.activeId, fkz, storage);
+  }, [storage]);
+
   /** Generiert die Assistant-Antwort für den AKTUELLEN Verlauf (letzte Message = User). */
   const generateAssistant = useCallback(async (): Promise<void> => {
     const { activeMessages, systemPrompt } = useChatStore.getState();
@@ -170,13 +186,13 @@ export function useChatController(): ChatController {
 
     // Kontext nur für den aktuellen Turn (wird nicht historisch re-gesendet)
     let extraContext = await loadContextFromDirs();
-    let ragSources: string[] = [];
+    let sources: ChatSource[] = [];
     if (useRAG && vectorReady) {
       const results = await ragSearch(lastUser.content);
       if (results.length > 0) {
         const chunks = searchResultsToRAGChunks(results);
-        extraContext += buildRAGContextString(chunks);
-        ragSources = chunks.slice(0, 5).map(c => c.source);
+        extraContext += buildRAGContextString(chunks) + CITATION_HINT;
+        sources = buildChatSources(results.slice(0, 5), lastUser.content);
       }
     }
 
@@ -187,7 +203,8 @@ export function useChatController(): ChatController {
 
     try {
       if (typeof transport.streamConversation === 'function') {
-        await runStreaming(transport, apiMessages, ragSources, abort.signal);
+        await runStreaming(transport, apiMessages, sources, abort.signal);
+        await maybeLinkFkz(sources);
         return;
       }
 
@@ -219,14 +236,15 @@ export function useChatController(): ChatController {
         createdAt: new Date().toISOString(),
         ...(thinking ? { thinking } : {}),
         stats,
-        ...(ragSources.length > 0 ? { ragSources } : {}),
+        ...(sources.length > 0 ? { sources } : {}),
       };
       useChatStore.getState().appendMessage(assistantMsg);
       await useChatStore.getState().persistActive(storage);
+      await maybeLinkFkz(sources);
     } finally {
       abortRef.current = null;
     }
-  }, [bridge, loadContextFromDirs, ragSearch, runStreaming, storage, useRAG, vectorReady]);
+  }, [bridge, loadContextFromDirs, maybeLinkFkz, ragSearch, runStreaming, storage, useRAG, vectorReady]);
 
   const sendAction = useAsyncAction(
     useCallback(async (text: string, attachments?: ChatAttachment[]): Promise<void> => {

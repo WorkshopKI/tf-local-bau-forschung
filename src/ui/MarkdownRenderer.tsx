@@ -5,7 +5,7 @@ interface MarkdownRendererProps {
   content: string;
 }
 
-function sanitizeHtml(html: string): string {
+export function sanitizeHtml(html: string): string {
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/on\w+="[^"]*"/gi, '')

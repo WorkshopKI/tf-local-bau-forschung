@@ -2,20 +2,17 @@
  * Shell des Chat-Plugins (Design-Handoff): 3 Spalten — Verlauf-Sidebar,
  * Conversation (Header + Thread + Composer) und optionales Quellen-Panel.
  * Logik liegt in useChatController (Senden/Kontext) + useChatStore (Persistenz).
- *
- * Hinweis: Der Thread (MessageList) wird im folgenden Reskin-Schritt durch die
- * neue Nachrichten-/Zitate-Darstellung ersetzt; Composer + Empty-State sind hier
- * bereits final.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useChatStore } from './store';
 import { useChatController } from './useChatController';
 import { ConversationSidebar } from './components/ConversationSidebar';
 import { ConversationHeader } from './components/ConversationHeader';
-import { MessageList } from './components/MessageList';
+import { MessageList, type ActivePanel } from './components/MessageList';
 import { Composer } from './components/Composer';
 import { EmptyState } from './components/EmptyState';
+import { SourcePanel } from './components/SourcePanel';
 import './chat.css';
 
 export function ChatView(): React.ReactElement {
@@ -26,9 +23,26 @@ export function ChatView(): React.ReactElement {
   const controller = useChatController();
   const docDirs = storage.getDocDirectories();
   const [railCollapsed, setRailCollapsed] = useState(false);
+  const [activePanel, setActivePanel] = useState<ActivePanel | null>(null);
 
   const activeTitle = conversations.find(c => c.id === activeId)?.title ?? 'Neue Unterhaltung';
   const empty = activeMessages.length === 0 && !controller.busy;
+
+  // Quellen-Panel beim Konversationswechsel schließen
+  useEffect(() => { setActivePanel(null); }, [activeId]);
+
+  const activeSrc = useMemo(() => {
+    if (!activePanel) return null;
+    const m = activeMessages.find(x => x.id === activePanel.mid);
+    return m?.sources?.find(s => s.n === activePanel.n) ?? null;
+  }, [activePanel, activeMessages]);
+
+  const onCite = (mid: string, n: number): void => {
+    setActivePanel(prev => (prev && prev.mid === mid && prev.n === n ? null : { mid, n }));
+  };
+  const onFeedback = (mid: string, fb: 'up' | 'down'): void => {
+    void useChatStore.getState().setMessageFeedback(mid, fb, storage);
+  };
 
   const composerProps = {
     onSend: controller.send,
@@ -70,9 +84,11 @@ export function ChatView(): React.ReactElement {
               messages={activeMessages}
               busy={controller.busy}
               error={controller.error}
+              activePanel={activePanel}
+              onCite={onCite}
               onRetry={() => { void controller.retry(); }}
               onRegenerate={() => { void controller.regenerate(); }}
-              providerName={controller.providerName}
+              onFeedback={onFeedback}
             />
             <div className="composer-wrap">
               <Composer {...composerProps} />
@@ -80,6 +96,7 @@ export function ChatView(): React.ReactElement {
           </>
         )}
       </div>
+      {activeSrc && <SourcePanel src={activeSrc} onClose={() => setActivePanel(null)} />}
     </div>
   );
 }

@@ -1,69 +1,58 @@
 import { useEffect, useRef } from 'react';
-import { MessageSquare, RefreshCw } from 'lucide-react';
-import { Badge, Button } from '@/ui';
+import { RefreshCw } from 'lucide-react';
 import type { ChatMessage } from '../types';
-import { MessageBubble } from './MessageBubble';
+import { UserMessage } from './UserMessage';
+import { AssistantMessage } from './AssistantMessage';
+
+export interface ActivePanel { mid: string; n: number; }
 
 interface MessageListProps {
   messages: ChatMessage[];
   busy: boolean;
   error: string | null;
+  activePanel: ActivePanel | null;
+  onCite: (mid: string, n: number) => void;
   onRetry: () => void;
   onRegenerate: () => void;
-  providerName: string;
+  onFeedback: (mid: string, fb: 'up' | 'down') => void;
 }
 
-export function MessageList({ messages, busy, error, onRetry, onRegenerate, providerName }: MessageListProps): React.ReactElement {
+/** Thread-Spalte: scrollbarer Verlauf mit User-/Assistant-Nachrichten. */
+export function MessageList({
+  messages, busy, error, activePanel, onCite, onRetry, onRegenerate, onFeedback,
+}: MessageListProps): React.ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages, busy]);
 
-  // Bounce-Dots nur solange noch nichts Sichtbares streamt
-  const last = messages[messages.length - 1];
-  const streamVisible = last?.role === 'assistant' && Boolean(last.content || last.thinking);
-
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto p-6">
-      {messages.length === 0 && !busy && (
-        <div className="flex flex-col items-center justify-center h-full text-center gap-2">
-          <MessageSquare size={40} className="text-[var(--tf-text-tertiary)] mb-2" />
-          <p className="text-[var(--tf-text-secondary)]">Wie kann ich helfen?</p>
-          <Badge variant="default">via {providerName}</Badge>
-        </div>
-      )}
-      <div className="max-w-4xl mx-auto space-y-4">
-        {messages.map((msg, i) => (
-          <MessageBubble
-            key={msg.id}
-            message={msg}
-            isLast={i === messages.length - 1}
-            busy={busy}
-            onRegenerate={onRegenerate}
-          />
+    <div ref={scrollRef} className="convo-scroll scroll">
+      <div className="thread">
+        {messages.map((m, i) => (
+          m.role === 'user'
+            ? <UserMessage key={m.id} m={m} />
+            : (
+              <AssistantMessage
+                key={m.id}
+                m={m}
+                isLast={i === messages.length - 1}
+                busy={busy}
+                activeN={activePanel && activePanel.mid === m.id ? activePanel.n : null}
+                onCite={n => onCite(m.id, n)}
+                onRegenerate={onRegenerate}
+                onFeedback={fb => onFeedback(m.id, fb)}
+              />
+            )
         ))}
-        {busy && !streamVisible && (
-          <div className="flex justify-start">
-            <div className="px-4 py-3">
-              <span className="inline-flex gap-1">
-                <span className="w-1.5 h-1.5 bg-[var(--tf-text-tertiary)] rounded-full animate-bounce" />
-                <span className="w-1.5 h-1.5 bg-[var(--tf-text-tertiary)] rounded-full animate-bounce [animation-delay:0.1s]" />
-                <span className="w-1.5 h-1.5 bg-[var(--tf-text-tertiary)] rounded-full animate-bounce [animation-delay:0.2s]" />
-              </span>
-            </div>
-          </div>
-        )}
         {error && (
-          <div className="flex justify-start">
-            <div className="bg-[var(--tf-danger-bg)] px-4 py-3 rounded-[var(--tf-radius-lg)] text-[13px]" style={{ border: '0.5px solid var(--tf-danger-border)' }}>
-              <p className="text-[var(--tf-danger-text)] mb-2">{error}</p>
-              <Button variant="ghost" icon={RefreshCw} size="sm" onClick={() => onRetry()}>
-                Erneut versuchen
-              </Button>
-            </div>
+          <div className="chat-error">
+            {error}
+            <button onClick={() => onRetry()}><RefreshCw size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Erneut versuchen</button>
           </div>
         )}
+        <div className="thread-end" />
       </div>
     </div>
   );

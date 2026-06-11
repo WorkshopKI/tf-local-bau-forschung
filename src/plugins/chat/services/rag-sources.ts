@@ -17,6 +17,20 @@ function fkzFromSource(sourcePath: string): string | undefined {
   return hit && isValidFkz(hit.fkz) ? hit.fkz : undefined;
 }
 
+/** Häufigster FKZ unter den Quellen (für die Auto-Verknüpfung Konversation↔Antrag). */
+export function dominantFkz(sources: ChatSource[]): string | undefined {
+  const counts = new Map<string, number>();
+  for (const s of sources) {
+    if (s.antragFkz) counts.set(s.antragFkz, (counts.get(s.antragFkz) ?? 0) + 1);
+  }
+  let best: string | undefined;
+  let bestN = 0;
+  for (const [fkz, n] of counts) {
+    if (n > bestN) { best = fkz; bestN = n; }
+  }
+  return best;
+}
+
 export function buildChatSources(results: OramaSearchResult[], query: string): ChatSource[] {
   return results.map((r, i) => {
     const { snippet, contextLine } = buildSnippet(r.text, query);

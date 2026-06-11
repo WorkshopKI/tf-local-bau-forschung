@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildChatSources } from '../services/rag-sources';
+import { buildChatSources, dominantFkz } from '../services/rag-sources';
 import type { OramaSearchResult } from '@/core/services/search/orama-store';
 
 function res(overrides: Partial<OramaSearchResult> = {}): OramaSearchResult {
@@ -56,5 +56,17 @@ describe('buildChatSources', () => {
 
   it('leeres Input → leeres Array', () => {
     expect(buildChatSources([], 'x')).toEqual([]);
+  });
+});
+
+describe('dominantFkz', () => {
+  const src = (antragFkz?: string): ReturnType<typeof buildChatSources>[number] =>
+    ({ n: 1, title: 't', sourcePath: 'p', relevance: 50, method: 'hybrid', type: 'dokument', contextLine: '', snippet: '', ...(antragFkz ? { antragFkz } : {}) });
+
+  it('liefert den häufigsten FKZ', () => {
+    expect(dominantFkz([src('16KN065210'), src('16KN065210'), src('16EP000111')])).toBe('16KN065210');
+  });
+  it('undefined, wenn keine Quelle einen FKZ hat', () => {
+    expect(dominantFkz([src(), src()])).toBeUndefined();
   });
 });

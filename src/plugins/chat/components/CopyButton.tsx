@@ -5,10 +5,12 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 interface CopyButtonProps {
   /** Roh-Markdown der Antwort. */
   text: string;
+  size?: number;
+  title?: string;
 }
 
-/** Kopiert die Antwort in die Zwischenablage; kurzes Check-Feedback. */
-export function CopyButton({ text }: CopyButtonProps): React.ReactElement {
+/** Kopiert Text in die Zwischenablage (.act-Stil); kurzes Check-Feedback. */
+export function CopyButton({ text, size = 15, title = 'Kopieren' }: CopyButtonProps): React.ReactElement {
   const [copied, setCopied] = useState(false);
   const copy = useAsyncAction(async () => {
     await navigator.clipboard.writeText(text);
@@ -17,12 +19,8 @@ export function CopyButton({ text }: CopyButtonProps): React.ReactElement {
   });
 
   return (
-    <button
-      onClick={() => copy.run()}
-      title={copy.error ? `Kopieren fehlgeschlagen: ${copy.error}` : 'In Zwischenablage kopieren'}
-      className="p-1.5 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] rounded-[var(--tf-radius)] cursor-pointer"
-    >
-      {copied ? <Check size={13} className="text-[var(--tf-success-text)]" /> : <Copy size={13} />}
+    <button className="act" title={copy.error ? `Kopieren fehlgeschlagen: ${copy.error}` : title} onClick={() => copy.run()}>
+      {copied ? <Check size={size} /> : <Copy size={size} />}
     </button>
   );
 }
