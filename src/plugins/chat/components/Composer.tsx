@@ -10,6 +10,16 @@ import { SystemPromptPopover } from './SystemPromptPopover';
 
 const ACCEPT_EXTENSIONS = '.pdf,.docx,.md,.txt';
 
+/**
+ * Footer-Label für den aktiven LLM-Backend. Erlaubt sind nur das interne
+ * GPT-OSS 120B (Streamlit-Bridge) und — in der dev-Variante — ein lokaler
+ * LLM-Server. Cloud/OpenRouter-Namen werden NICHT angezeigt (in Prod ohnehin
+ * per validateConfig gesperrt).
+ */
+function providerLabel(name: string): string {
+  return /llama|local|lokal/i.test(name) ? 'lokaler LLM-Server' : 'internes GPT-OSS 120B';
+}
+
 export interface ComposerProps {
   onSend: (text: string, attachments?: ChatAttachment[]) => Promise<void>;
   onStop: () => void;
@@ -167,7 +177,7 @@ export function Composer({
       </div>
 
       <div className="composer-foot">
-        <span className="foot-chip"><span className="foot-dot" />via {providerName}</span>
+        <span className="foot-chip"><span className="foot-dot" />via {providerLabel(providerName)}</span>
         <span>Antworten basieren auf dem Antrags-Archiv und können Fehler enthalten.</span>
       </div>
     </div>

@@ -2,6 +2,15 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.67.2 — Chat: System-Prompt-Popover (schließbar/resizable/Vorschau) + Provider-Label (Juni 2026)
+
+PATCH-Bump v2.67.2 — Verbesserungen am [SystemPromptPopover](src/plugins/chat/components/SystemPromptPopover.tsx) + Composer-Footer:
+
+- **Schließbar ohne Speichern**: expliziter X-Button + `Escape` + Außenklick verwerfen den Entwurf (vorher nur „Speichern").
+- **Resizable**: Griff oben-rechts (`⤢`, `ne-resize`) zieht das Popover **nach rechts** (Breite) und **nach oben** (Höhe) — Pointer-Drag mit Clamp (320–760 × 120–560 px); das Popover ist bottom-anchored, daher wächst Höhe nach oben.
+- **Edit/Vorschau-Umschalter**: „Vorschau" rendert den Prompt als Markdown (marked + `sanitizeHtml`, `.ans`-Styling), damit man Struktur/Formatierung sieht.
+- **Footer-Label** ([Composer](src/plugins/chat/components/Composer.tsx)): „via Cloud API" entfernt. Neu `providerLabel()` → **„internes GPT-OSS 120B"** (Streamlit-Bridge) bzw. **„lokaler LLM-Server"** (dev, lokaler llama.cpp/localhost). Cloud/OpenRouter-Namen werden nicht mehr angezeigt (in Prod ohnehin per `validateConfig` gesperrt).
+
 ### v2.67.1 — Chat-Reskin-Fix: fehlende Design-Tokens (Juni 2026)
 
 PATCH-Bump v2.67.1: Der Chat-Reskin (v2.67.0) sah nicht wie das Handoff aus — kein Padding, keine Card-Borders, kein Floating-Shadow am Composer, falsche Schriftgrößen, ungerundete Pills, voll-breite statt kontrollierter Lese-Spalte.
