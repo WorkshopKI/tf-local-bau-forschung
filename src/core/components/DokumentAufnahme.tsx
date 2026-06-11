@@ -2,15 +2,16 @@
  * Wiederverwendbare Dokumenten-Aufnahmefläche (Gutachten-Durchstich, Baustein 1).
  * Funktioniert vollständig ohne LLM.
  *
- * Pro Datei: FKZ aus dem Dateinamen (extractFkz, WIEDERVERWENDET) → Typ-Wahl per
- * Pills → Pipeline Converter → Dokumente-Store → Such-Index mit `tags:[relationTag, typ]`.
- * Die Zuordnung läuft ausschließlich über die Tag-Relation (kein Schreiben in den
- * CSV-`Antrag`-Record). `relationTag` ist i.d.R. die Verbund-ID.
+ * Pro Datei: Kennung aus dem Dateinamen (Verbund-ID ODER ein TV-FKZ, siehe
+ * dokumentAufnahmeFkz) → Typ-Wahl per Pills → Pipeline Converter →
+ * Dokumente-Store → Such-Index mit `tags:[relationTag, typ]`. Die Zuordnung läuft
+ * ausschließlich über die Tag-Relation (kein Schreiben in den CSV-`Antrag`-Record);
+ * `relationTag` ist die Verbund-ID.
  *
- * Drei FKZ-Fälle gemäß Mockup `mockup-dokument-aufnahme.html`:
- *  (a) FKZ gehört zu einem TV des Verbundes → direkt aufnehmen
- *  (b) FKZ erkannt, anderer Verbund          → Warnung + „Trotzdem dort ablegen" / „Verwerfen"
- *  (c) kein FKZ im Dateinamen                → Warnung + manuelle Zuordnung (isValidFkz)
+ * Zwei Fälle:
+ *  - `match`: Dateiname enthält eine bekannte Kennung des Verbundes → direkt aufnehmen.
+ *  - `ambig`: nicht eindeutig zuzuordnen → der Bearbeiter ordnet per Klick zu
+ *    („Diesem Verbund zuordnen") oder verwirft.
  */
 import { useState } from 'react';
 import { FileText, Loader2, Check } from 'lucide-react';
@@ -18,7 +19,6 @@ import { FileDropZone } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { DocConverter } from '@/core/services/converter';
-import { isValidFkz } from '@/phase2/matcher/fkz-extractor';
 import { uuid } from '@/core/services/id-generator';
 import type { AntragDokumentTyp } from '@/core/services/csv/types';
 import { useDokumenteStore } from '@/plugins/dokumente/store';
@@ -39,9 +39,9 @@ interface IntakeItem {
   localId: string;
   file: File;
   detectedFkz: string | null;
+  matchedId: string | null;
   fkzCase: FkzCase;
   typ: AntragDokumentTyp;
-  manualFkz: string;
   status: ItemStatus;
   docId?: string;
   error?: string;
@@ -49,16 +49,16 @@ interface IntakeItem {
 
 interface Props {
   /** Tag für die Verbund-Relation — wird an jedes aufgenommene Dokument gehängt
-   *  (z.B. die Verbund-ID). Über diesen Tag findet die Kurzfassung-Sektion die VB. */
+   *  (die Verbund-ID). Über diesen Tag findet die Kurzfassung-Sektion die VB. */
   relationTag: string;
-  /** Akzeptierte FKZs (Aktenzeichen aller TVs des Verbundes) für die
-   *  „gehört hierher?"-Erkennung. Leer = jedes erkannte FKZ gilt. */
-  knownFkz: string[];
+  /** Bekannte Kennungen des Verbundes (Verbund-ID + alle TV-Aktenzeichen) für die
+   *  „gehört hierher?"-Erkennung. Leer = alles wird als zugehörig akzeptiert. */
+  knownIds: string[];
   /** Callback nach erfolgreicher Aufnahme (z.B. zum Aktualisieren des VB-Status). */
   onIngested?: (typ: AntragDokumentTyp) => void;
 }
 
-export function DokumentAufnahme({ relationTag, knownFkz, onIngested }: Props): React.ReactElement {
+export function DokumentAufnahme({ relationTag, knownIds, onIngested }: Props): React.ReactElement {
   const storage = useStorage();
   const { indexDocument } = useSearch();
   const add = useDokumenteStore(s => s.add);
@@ -99,19 +99,18 @@ export function DokumentAufnahme({ relationTag, knownFkz, onIngested }: Props): 
 
   const handleFiles = (files: File[]): void => {
     for (const file of files) {
-      const { detectedFkz: detected, fkzCase } = classifyFkz(file.name, knownFkz);
-
+      const { detectedFkz, matchedId, fkzCase } = classifyFkz(file.name, knownIds);
       const item: IntakeItem = {
         localId: uuid(),
         file,
-        detectedFkz: detected,
+        detectedFkz,
+        matchedId,
         fkzCase,
         typ: 'vorhabensbeschreibung',
-        manualFkz: knownFkz[0] ?? '',
         status: 'wartet',
       };
       setItems(prev => [...prev, item]);
-      // Fall (a): direkt aufnehmen. (b)/(c) warten auf User-Aktion.
+      // Eindeutig → direkt aufnehmen. Sonst wartet die Zeile auf die Zuordnung.
       if (fkzCase === 'match') void ingest(item, item.typ);
     }
   };
@@ -134,7 +133,7 @@ export function DokumentAufnahme({ relationTag, knownFkz, onIngested }: Props): 
           oder <span className="text-[var(--tf-primary)]">Datei auswählen</span>
         </p>
         <p className="text-[11px] text-[var(--tf-text-tertiary)] mt-2">
-          Das Förderkennzeichen wird aus dem Dateinamen erkannt.
+          Das Förderkennzeichen (Verbund oder Teilvorhaben) wird aus dem Dateinamen erkannt — sonst manuell zuordnen.
         </p>
       </FileDropZone>
 
@@ -143,12 +142,8 @@ export function DokumentAufnahme({ relationTag, knownFkz, onIngested }: Props): 
           key={item.localId}
           item={item}
           onSetTyp={setTyp}
-          onConfirmOther={() => void ingest(item, item.typ)}
+          onAssign={() => void ingest(item, item.typ)}
           onDiscard={() => patch(item.localId, { status: 'verworfen' })}
-          onManualChange={v => patch(item.localId, { manualFkz: v.toUpperCase() })}
-          onConfirmManual={() => {
-            if (isValidFkz(item.manualFkz)) void ingest(item, item.typ);
-          }}
         />
       ))}
     </div>
@@ -158,14 +153,14 @@ export function DokumentAufnahme({ relationTag, knownFkz, onIngested }: Props): 
 interface RowProps {
   item: IntakeItem;
   onSetTyp: (item: IntakeItem, typ: AntragDokumentTyp) => void;
-  onConfirmOther: () => void;
+  onAssign: () => void;
   onDiscard: () => void;
-  onManualChange: (value: string) => void;
-  onConfirmManual: () => void;
 }
 
-function IntakeRow({ item, onSetTyp, onConfirmOther, onDiscard, onManualChange, onConfirmManual }: RowProps): React.ReactElement {
-  const showPills = item.fkzCase === 'match' || item.status === 'konvertiert' || item.status === 'indexiert';
+function IntakeRow({ item, onSetTyp, onAssign, onDiscard }: RowProps): React.ReactElement {
+  const assigned = item.status === 'konvertiert' || item.status === 'indexiert';
+  const showPills = item.fkzCase === 'match' || assigned;
+
   return (
     <div className="flex items-start gap-3 py-3 border-t-[0.5px] border-[var(--tf-border)]">
       <FileText size={14} className="text-[var(--tf-text-tertiary)] shrink-0 mt-1" />
@@ -175,15 +170,17 @@ function IntakeRow({ item, onSetTyp, onConfirmOther, onDiscard, onManualChange, 
         </div>
 
         <div className="flex items-center gap-2 flex-wrap mt-1.5">
-          {item.fkzCase === 'match' && item.detectedFkz && (
-            <Chip tone="success">FKZ erkannt: {item.detectedFkz}</Chip>
-          )}
-          {item.fkzCase === 'other' && (
-            <Chip tone="warning">FKZ {item.detectedFkz} gehört zu einem anderen Verbund</Chip>
-          )}
-          {item.fkzCase === 'none' && (
-            <Chip tone="warning">Kein FKZ im Dateinamen</Chip>
-          )}
+          {item.fkzCase === 'match' ? (
+            <Chip tone="success">
+              {item.detectedFkz ? `FKZ erkannt: ${item.detectedFkz}` : `Zugeordnet: ${item.matchedId}`}
+            </Chip>
+          ) : !assigned ? (
+            <Chip tone="warning">
+              {item.detectedFkz
+                ? `FKZ ${item.detectedFkz} — nicht eindeutig diesem Verbund zugeordnet`
+                : 'Kein Förderkennzeichen im Dateinamen erkannt'}
+            </Chip>
+          ) : null}
 
           {showPills && (
             <div className="inline-flex gap-1.5 flex-wrap">
@@ -206,31 +203,11 @@ function IntakeRow({ item, onSetTyp, onConfirmOther, onDiscard, onManualChange, 
           )}
         </div>
 
-        {/* Fall (c): manuelle FKZ-Zuordnung */}
-        {item.fkzCase === 'none' && item.status === 'wartet' && (
-          <div className="flex items-center gap-2 mt-2">
-            <input
-              value={item.manualFkz}
-              onChange={e => onManualChange(e.target.value)}
-              placeholder="z. B. 16EP034512"
-              className="px-2.5 py-1 text-[12px] font-mono rounded-[8px] border-[0.5px] border-[var(--tf-border-hover)] bg-transparent text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)] w-[150px]"
-            />
-            <button
-              type="button"
-              disabled={!isValidFkz(item.manualFkz)}
-              onClick={onConfirmManual}
-              className="text-[11.5px] text-[var(--tf-primary)] disabled:text-[var(--tf-text-tertiary)] hover:underline disabled:no-underline"
-            >
-              Manuell zuordnen
-            </button>
-          </div>
-        )}
-
-        {/* Fall (b): anderer Antrag */}
-        {item.fkzCase === 'other' && item.status === 'wartet' && (
+        {/* Uneindeutig → Bearbeiter ordnet zu */}
+        {item.fkzCase === 'ambig' && item.status === 'wartet' && (
           <div className="flex items-center gap-3.5 mt-2">
-            <button type="button" onClick={onConfirmOther} className="text-[11.5px] text-[var(--tf-primary)] hover:underline">
-              Trotzdem dort ablegen
+            <button type="button" onClick={onAssign} className="text-[11.5px] text-[var(--tf-primary)] hover:underline">
+              Diesem Verbund zuordnen
             </button>
             <button type="button" onClick={onDiscard} className="text-[11.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]">
               Verwerfen

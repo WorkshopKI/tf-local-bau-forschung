@@ -2,6 +2,15 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.68.3 — Gutachten-Aufnahme: Verbund- & TV-FKZ akzeptieren, sonst manuelle Zuordnung (Juni 2026)
+
+PATCH-Bump v2.68.3 — die Dokumenten-Aufnahme der Kurzfassung ([DokumentAufnahme](src/core/components/DokumentAufnahme.tsx)) erkennt jetzt **Verbund-FKZ UND alle TV-FKZ** als zugehörig:
+
+- **Substring-Match** auf dem normalisierten Dateinamen gegen die bekannten Kennungen (Verbund-ID + alle TV-Aktenzeichen) — fängt auch Verbund-IDs wie `ZEP…`, die der 16XX-FKZ-Extraktor nicht kennt.
+- Ist der Dateiname **nicht eindeutig** zuzuordnen, ordnet der Bearbeiter per Klick zu („**Diesem Verbund zuordnen**") statt ein FKZ zu tippen (Prinzip „lieber entscheiden lassen als falsch raten").
+- Hintergrund: dieselbe Projektbeschreibung wird oft je TV mit eigenem FKZ eingereicht (alles derselbe Verbund); TV-spezifische Dateien (z.B. Nachlieferungen) tragen das TV-FKZ.
+- `classifyFkz(filename, knownIds[])` liefert `match` / `ambig`; `KurzfassungContext.knownIds` = Verbund-ID + TV-Aktenzeichen. Dev-only Testballon.
+
 ### v2.68.2 — Gutachten-Kurzfassung auf Verbund-Ebene (statt pro Teilvorhaben) (Juni 2026)
 
 PATCH-Bump v2.68.2 — fachliche Korrektur: Ein Gutachten / eine Kurzfassung wird pro **Verbund** erstellt (die Vorhabensbeschreibung existiert nur einmal pro Verbund), nicht pro Teilvorhaben. Im Gutachten werden TV-Infos (Titel, Antragsteller) aufgelistet.

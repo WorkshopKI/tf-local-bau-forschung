@@ -1,40 +1,37 @@
 /**
- * Pure FKZ-Zuordnungslogik der Dokumenten-Aufnahmefläche (testbar ohne React).
- * Nutzt den bestehenden FKZ-Extraktor (kein eigener Regex).
+ * Pure Zuordnungslogik der Dokumenten-Aufnahmefläche (testbar ohne React).
  *
- * Die Aufnahme läuft auf Verbund-Ebene: ein Dokument „gehört hierher", wenn das
- * im Dateinamen erkannte FKZ zu IRGENDEINEM Teilvorhaben des Verbundes gehört
- * (`knownFkz`). Ist die Liste leer (ungebundener Modus), gilt jedes erkannte FKZ.
+ * Die Aufnahme läuft auf Verbund-Ebene. Bekannte Kennungen (`knownIds`) sind die
+ * Verbund-ID UND die Aktenzeichen aller Teilvorhaben — alle zählen als zugehörig
+ * (manchmal reichen mehrere TVs dieselbe Projektbeschreibung ein, jeweils mit dem
+ * eigenen TV-FKZ; auch der Verbund-FKZ kommt im Dateinamen vor).
+ *
+ * Erkennung per Substring-Match auf dem normalisierten Dateinamen — das fängt auch
+ * Verbund-IDs (z.B. `ZEP…`), die der 16XX-FKZ-Extraktor nicht kennt. Ist der
+ * Dateiname nicht eindeutig zuordenbar, ordnet der Bearbeiter manuell zu
+ * (Prinzip „lieber Bearbeiter entscheiden lassen als falsch raten").
  */
 import { extractFkz } from '@/phase2/matcher/fkz-extractor';
 
-export type FkzCase = 'match' | 'other' | 'none';
+export type FkzCase = 'match' | 'ambig';
 
 export interface FkzClassification {
-  /** FKZ aus dem Dateinamen (kanonisch) oder null. */
+  /** FKZ laut 16XX-Extraktor (nur zur Anzeige; null wenn keiner erkannt). */
   detectedFkz: string | null;
-  /**
-   * - `match`: kein gebundener Kontext ODER Datei-FKZ ∈ knownFkz → aufnehmen
-   * - `other`: FKZ erkannt, gehört aber zu keinem TV des Verbundes → Warnung
-   * - `none`:  kein FKZ im Dateinamen → manuelle Zuordnung
-   */
+  /** Welche bekannte Kennung (Verbund-ID / TV-Az) im Dateinamen steckt, oder null. */
+  matchedId: string | null;
+  /** `match` = eindeutig diesem Verbund zuzuordnen; `ambig` = Bearbeiter entscheidet. */
   fkzCase: FkzCase;
 }
 
-export function normFkz(s: string): string {
-  return s.toUpperCase().replace(/\s+/g, '');
+/** Normalisiert für den Substring-Vergleich (Großschreibung, ohne Trenner). */
+export function normId(s: string): string {
+  return s.toUpperCase().replace(/[\s_.\-/]+/g, '');
 }
 
-/** Kanonisiert ein Aktenzeichen zu seiner FKZ-Form (Förderantrag-Az == FKZ). */
-export function resolveFkz(aktenzeichen: string): string {
-  return extractFkz(aktenzeichen)?.fkz ?? normFkz(aktenzeichen);
-}
-
-export function classifyFkz(filename: string, knownFkz: string[]): FkzClassification {
+export function classifyFkz(filename: string, knownIds: string[]): FkzClassification {
   const detectedFkz = extractFkz(filename)?.fkz ?? null;
-  let fkzCase: FkzCase;
-  if (!detectedFkz) fkzCase = 'none';
-  else if (knownFkz.length === 0 || knownFkz.includes(detectedFkz)) fkzCase = 'match';
-  else fkzCase = 'other';
-  return { detectedFkz, fkzCase };
+  const haystack = normId(filename);
+  const matchedId = knownIds.find(id => id.trim().length > 0 && haystack.includes(normId(id))) ?? null;
+  return { detectedFkz, matchedId, fkzCase: matchedId ? 'match' : 'ambig' };
 }

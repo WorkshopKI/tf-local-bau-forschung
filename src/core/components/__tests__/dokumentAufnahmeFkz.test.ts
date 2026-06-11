@@ -1,37 +1,43 @@
 import { describe, it, expect } from 'vitest';
-import { classifyFkz, resolveFkz } from '../dokumentAufnahmeFkz';
+import { classifyFkz, normId } from '../dokumentAufnahmeFkz';
 
-describe('classifyFkz — FKZ-Zuordnung der Aufnahmefläche (Verbund-Ebene)', () => {
-  // Verbund mit zwei Teilvorhaben.
-  const KNOWN = ['16EP034512', '16EP034513'];
+describe('classifyFkz — Verbund-Zuordnung der Aufnahmefläche', () => {
+  // Bekannte Kennungen eines Verbundes: Verbund-ID + zwei TV-Aktenzeichen.
+  const KNOWN = ['ZEP260092', '16EP260092', '16EP260093'];
 
-  it('(a) FKZ im Dateinamen gehört zu einem TV des Verbundes → match', () => {
-    const r = classifyFkz('16EP034512_Vorhabensbeschreibung_v3.pdf', KNOWN);
-    expect(r.detectedFkz).toBe('16EP034512');
+  it('TV-FKZ im Dateinamen → match', () => {
+    const r = classifyFkz('16EP260092_Vorhabensbeschreibung_v3.pdf', KNOWN);
+    expect(r.matchedId).toBe('16EP260092');
+    expect(r.detectedFkz).toBe('16EP260092');
     expect(r.fkzCase).toBe('match');
   });
 
-  it('(a) auch ein anderes TV-FKZ desselben Verbundes zählt als match', () => {
-    expect(classifyFkz('16EP034513_VB.pdf', KNOWN).fkzCase).toBe('match');
+  it('Verbund-FKZ (ZEP…, vom 16XX-Extraktor NICHT erkannt) → trotzdem match', () => {
+    const r = classifyFkz('ZEP260092_Projektbeschreibung.pdf', KNOWN);
+    expect(r.matchedId).toBe('ZEP260092');
+    expect(r.detectedFkz).toBeNull(); // ZEP ist kein 16XX-Präfix
+    expect(r.fkzCase).toBe('match');
   });
 
-  it('(b) FKZ erkannt, gehört zu keinem TV des Verbundes → other', () => {
+  it('anderes TV-FKZ desselben Verbundes (z.B. Nachlieferung) → match', () => {
+    expect(classifyFkz('16EP260093_Nachlieferung.pdf', KNOWN).fkzCase).toBe('match');
+  });
+
+  it('fremdes FKZ → ambig (Bearbeiter ordnet zu)', () => {
     const r = classifyFkz('16KN065210_Stellungnahme.pdf', KNOWN);
+    expect(r.matchedId).toBeNull();
     expect(r.detectedFkz).toBe('16KN065210');
-    expect(r.fkzCase).toBe('other');
+    expect(r.fkzCase).toBe('ambig');
   });
 
-  it('(c) kein FKZ im Dateinamen → none', () => {
-    const r = classifyFkz('Vorhabensbeschreibung_final.pdf', KNOWN);
+  it('keine erkennbare Kennung → ambig', () => {
+    const r = classifyFkz('Projektbeschreibung_final.pdf', KNOWN);
+    expect(r.matchedId).toBeNull();
     expect(r.detectedFkz).toBeNull();
-    expect(r.fkzCase).toBe('none');
+    expect(r.fkzCase).toBe('ambig');
   });
 
-  it('ungebundener Modus (leere Liste): jedes erkannte FKZ gilt als match', () => {
-    expect(classifyFkz('16DS112233_doc.pdf', []).fkzCase).toBe('match');
-  });
-
-  it('resolveFkz kanonisiert ein Aktenzeichen zur FKZ-Form', () => {
-    expect(resolveFkz('16EP034512')).toBe('16EP034512');
+  it('normId ignoriert Trennzeichen beim Vergleich', () => {
+    expect(normId('16EP_260092 v3')).toBe('16EP260092V3');
   });
 });

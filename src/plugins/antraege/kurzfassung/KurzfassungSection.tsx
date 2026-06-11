@@ -121,7 +121,7 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
             Für die Kurzfassung wird die Vorhabensbeschreibung (VB) des Verbundes benötigt. Legen Sie sie hier ab —
             das Förderkennzeichen wird aus dem Dateinamen erkannt.
           </p>
-          <DokumentAufnahme relationTag={ctx.key} knownFkz={ctx.fkzList} onIngested={ctrl.refreshVb} />
+          <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={ctrl.refreshVb} />
         </div>
       )}
     </div>

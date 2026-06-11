@@ -34,7 +34,6 @@ import { findAbgelehnteVorgaenger } from './vorgaengerAntraege';
 import { AbgelehnteVorgaengerBanner } from './AbgelehnteVorgaengerBanner';
 import { KurzfassungSection } from './kurzfassung/KurzfassungSection';
 import type { KurzfassungContext } from './kurzfassung/types';
-import { resolveFkz } from '@/core/components/dokumentAufnahmeFkz';
 import { isGutachtenKurzfassungEnabled } from '@/config/feature-flags';
 
 interface Props {
@@ -246,15 +245,16 @@ export function VerbundDetail({
   const headerId = isPseudo ? aktenzeichenFromPseudoVerbundId(verbundId) : verbund.verbund_id;
 
   // Gutachten/Kurzfassung läuft auf Verbund-Ebene (eine VB pro Verbund). Key +
-  // Förderkennzeichen = Verbund-ID (bzw. echtes Az bei Solo/pseudo). fkzList =
-  // alle TV-Aktenzeichen (für die FKZ-Erkennung in der Aufnahmefläche).
+  // Förderkennzeichen = Verbund-ID (bzw. echtes Az bei Solo/pseudo). knownIds =
+  // Verbund-ID + alle TV-Aktenzeichen (alle gelten in der Aufnahmefläche als
+  // zugehörig — VB wird oft je TV mit eigenem FKZ eingereicht).
   const kurzfassungCtx: KurzfassungContext = {
     key: headerId,
     akronym,
     titel,
     antragsteller,
     foerderkennzeichen: headerId,
-    fkzList: antraege.map(a => resolveFkz(a.aktenzeichen)),
+    knownIds: [headerId, ...antraege.map(a => a.aktenzeichen)],
     teilvorhaben: antraege.map((tv, idx) => ({
       nr: idx + 1,
       aktenzeichen: tv.aktenzeichen,

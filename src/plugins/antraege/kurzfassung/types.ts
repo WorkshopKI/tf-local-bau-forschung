@@ -46,7 +46,8 @@ export interface KurzfassungContext {
   antragsteller: string | null;
   /** Verbund-Förderkennzeichen (für die DOCX-Feld-Zuordnung). */
   foerderkennzeichen: string;
-  /** Aktenzeichen aller TVs (FKZ-Erkennung in der Aufnahmefläche). */
-  fkzList: string[];
+  /** Bekannte Kennungen für die FKZ-Erkennung in der Aufnahmefläche:
+   *  Verbund-ID + Aktenzeichen aller TVs (alle gelten als zugehörig). */
+  knownIds: string[];
   teilvorhaben: KurzfassungTeilvorhaben[];
 }
