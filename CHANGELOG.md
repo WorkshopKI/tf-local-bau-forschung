@@ -2,6 +2,14 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.67.1 — Chat-Reskin-Fix: fehlende Design-Tokens (Juni 2026)
+
+PATCH-Bump v2.67.1: Der Chat-Reskin (v2.67.0) sah nicht wie das Handoff aus — kein Padding, keine Card-Borders, kein Floating-Shadow am Composer, falsche Schriftgrößen, ungerundete Pills, voll-breite statt kontrollierter Lese-Spalte.
+
+**Ursache:** [chat.css](src/plugins/chat/chat.css) wurde 1:1 aus dem Handoff portiert und nutzt eine Token-Ebene (Spacing-/Type-Skala, `--tf-radius-pill`, `--tf-shadow-dialog`, `--tf-border-thin`, `--tf-weight-*`, `--tf-font-*`, Motion), die das Handoff-`colors_and_type.css` zwar definierte (Kommentar „Source: src/theme.css"), die aber **nie in der echten [theme.css](src/theme.css) existierte** — diese liefert nur Farb-Tokens + `--tf-radius/-lg/-sidebar-w`. Ein undefiniertes `var()` ohne Fallback macht die **gesamte** Deklaration ungültig → `font:`-Shorthands, `border: var(--tf-border-thin)…`, `box-shadow`, alle `padding/gap` fielen aus.
+
+**Fix:** Die fehlenden Tokens lokal auf `.chat-app` gescopt definiert (Werte aus dem Handoff) — kein Leak in andere Plugins, Farb-Tokens (inkl. Dark) erben weiter aus theme.css. Reine CSS-Ergänzung, kein TS/Logik-Touch.
+
 ### v2.67.0 — Chat-Reskin: RAG-Gutachter-Oberfläche (Design-Handoff) (Juni 2026)
 
 MINOR-Bump v2.67.0: Umsetzung des hi-fi Design-Handoffs aus `_design/handoff/chat` — die Chat-Seite wird zur RAG-Gutachter-Oberfläche. Rein additiv, keine Migration (neue optionale `chat:conv:*`-/`chat:settings`-Felder entstehen lazy). 5 Commits (Reskin PR-1…5/5):
