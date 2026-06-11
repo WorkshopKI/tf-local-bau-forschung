@@ -3,9 +3,9 @@
  * Conversation (Header + Thread + Composer) und optionales Quellen-Panel.
  * Logik liegt in useChatController (Senden/Kontext) + useChatStore (Persistenz).
  *
- * Hinweis: Thread + Composer werden in den folgenden Reskin-Schritten ersetzt;
- * hier interimsweise noch MessageList/ChatInput, damit der Chat funktionsfähig
- * bleibt.
+ * Hinweis: Der Thread (MessageList) wird im folgenden Reskin-Schritt durch die
+ * neue Nachrichten-/Zitate-Darstellung ersetzt; Composer + Empty-State sind hier
+ * bereits final.
  */
 import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -14,7 +14,8 @@ import { useChatController } from './useChatController';
 import { ConversationSidebar } from './components/ConversationSidebar';
 import { ConversationHeader } from './components/ConversationHeader';
 import { MessageList } from './components/MessageList';
-import { ChatInput } from './components/ChatInput';
+import { Composer } from './components/Composer';
+import { EmptyState } from './components/EmptyState';
 import './chat.css';
 
 export function ChatView(): React.ReactElement {
@@ -27,6 +28,20 @@ export function ChatView(): React.ReactElement {
   const [railCollapsed, setRailCollapsed] = useState(false);
 
   const activeTitle = conversations.find(c => c.id === activeId)?.title ?? 'Neue Unterhaltung';
+  const empty = activeMessages.length === 0 && !controller.busy;
+
+  const composerProps = {
+    onSend: controller.send,
+    onStop: controller.stop,
+    busy: controller.busy,
+    providerName: controller.providerName,
+    useRAG: controller.useRAG,
+    setUseRAG: controller.setUseRAG,
+    vectorReady: controller.vectorReady,
+    docDirs,
+    selectedDirs: controller.selectedDirs,
+    toggleDir: controller.toggleDir,
+  };
 
   // Init: Metas + Settings laden, letzte Unterhaltung reaktivieren
   const initRef = useRef(false);
@@ -47,26 +62,23 @@ export function ChatView(): React.ReactElement {
       <ConversationSidebar />
       <div className="convo">
         <ConversationHeader title={activeTitle} onToggleRail={() => setRailCollapsed(c => !c)} />
-        <MessageList
-          messages={activeMessages}
-          busy={controller.busy}
-          error={controller.error}
-          onRetry={() => { void controller.retry(); }}
-          onRegenerate={() => { void controller.regenerate(); }}
-          providerName={controller.providerName}
-        />
-        <ChatInput
-          onSend={controller.send}
-          onStop={controller.stop}
-          busy={controller.busy}
-          docDirs={docDirs}
-          selectedDirs={controller.selectedDirs}
-          toggleDir={controller.toggleDir}
-          useRAG={controller.useRAG}
-          setUseRAG={controller.setUseRAG}
-          vectorReady={controller.vectorReady}
-          providerName={controller.providerName}
-        />
+        {empty ? (
+          <EmptyState {...composerProps} onSuggestion={text => { void controller.send(text); }} />
+        ) : (
+          <>
+            <MessageList
+              messages={activeMessages}
+              busy={controller.busy}
+              error={controller.error}
+              onRetry={() => { void controller.retry(); }}
+              onRegenerate={() => { void controller.regenerate(); }}
+              providerName={controller.providerName}
+            />
+            <div className="composer-wrap">
+              <Composer {...composerProps} />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
