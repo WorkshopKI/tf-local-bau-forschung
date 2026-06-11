@@ -114,7 +114,10 @@
     // Gutachten-Testballon: KI-gestützte Kurzfassung-Sektion auf der Förder-
     // antrags-Detailseite (Dokumenten-Aufnahme → Skill → Review/Freigabe →
     // DOCX-Vorlage). Erster „Mini-Agent". Optional, fehlt = aus. Nur dev (Testballon).
-    "gutachtenKurzfassung": false
+    "gutachtenKurzfassung": false,
+    // Gutachten-Workflow A–G: deterministischer Workflow-Runner über Registry-Skills
+    // (löst die Kurzfassung-Sektion ab). Optional, fehlt = aus. Nur dev.
+    "gutachtenWorkflow": false
   },
 
   // Pro Variant überschreibbare Sidebar-Labels für Bereichs-Menüs.

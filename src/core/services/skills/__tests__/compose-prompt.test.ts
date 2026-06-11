@@ -112,3 +112,21 @@ describe('composeSkillPrompt', () => {
     expect(out).toContain(vorgaben);
   });
 });
+
+describe('composeSkillPrompt — {{vorherigeAbschnitte}}-Slot (Gutachten-Workflow)', () => {
+  it('A bleibt byte-identisch: kein Platzhalter im Template → vorherigeAbschnitte wirkungslos', () => {
+    const base = compose(baseInput);
+    const mitSlot = compose({ ...baseInput, vorherigeAbschnitte: 'XXX-VORHERIGE-ABSCHNITTE' });
+    expect(mitSlot).toBe(base);
+    expect(mitSlot).not.toContain('XXX-VORHERIGE-ABSCHNITTE');
+  });
+
+  it('Template MIT Platzhalter wird gefüllt (bzw. leer, wenn nicht gesetzt)', () => {
+    const skill = { ...SEED_SKILL, promptTemplate: 'Kontext:\n{{vorherigeAbschnitte}}\nEnde.' };
+    const gefuellt = composeSkillPrompt(skill, [], { ...baseInput, vorherigeAbschnitte: 'ABSCHNITT-A-TEXT' }, VB);
+    expect(gefuellt).toContain('ABSCHNITT-A-TEXT');
+    const leer = composeSkillPrompt(skill, [], baseInput, VB);
+    expect(leer).toContain('Kontext:\n\nEnde.');
+    expect(leer).not.toContain('{{vorherigeAbschnitte}}');
+  });
+});

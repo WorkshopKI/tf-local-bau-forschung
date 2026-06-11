@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { processDocumentXml } from '../fill-template';
+import type { AbschnittEinfuegung } from '../types';
 import type { Antrag } from '@/core/services/csv/types';
 
 const antrag: Antrag = {
@@ -12,6 +13,8 @@ const antrag: Antrag = {
 };
 
 const FINAL = 'Das Vorhaben überwacht Prozesse.\n\nEs funktioniert dezentral.';
+/** Ein-Abschnitt-Helfer (Kurzfassung A) für die Feld-/Anker-Basistests. */
+const A_ONLY: AbschnittEinfuegung[] = [{ id: 'A', anker: 'Kurzfassung der Projektbeschreibung', finalerText: FINAL }];
 
 function p(inner: string): string {
   return `<w:document><w:body>${inner}</w:body></w:document>`;
@@ -20,7 +23,7 @@ function p(inner: string): string {
 describe('processDocumentXml — Platzhalter-Ersetzung', () => {
   it('ersetzt einen Platzhalter in einem einzelnen Run (roh-&)', () => {
     const xml = p('<w:p><w:r><w:t>&F:VMS AD FKZ&</w:t></w:r></w:p>');
-    const r = processDocumentXml(xml, antrag, FINAL);
+    const r = processDocumentXml(xml, antrag, A_ONLY);
     expect(r.xml).toContain('>16EP034512<');
     expect(r.xml).not.toContain('VMS AD FKZ');
     expect(r.mappedFields.find(f => f.code === 'VMS AD FKZ')?.value).toBe('16EP034512');
@@ -28,7 +31,7 @@ describe('processDocumentXml — Platzhalter-Ersetzung', () => {
 
   it('ersetzt einen Platzhalter in &amp;-Schreibweise (echte Word-XML-Form)', () => {
     const xml = p('<w:p><w:r><w:t>&amp;F:VMS AD FKZ&amp;</w:t></w:r></w:p>');
-    const r = processDocumentXml(xml, antrag, FINAL);
+    const r = processDocumentXml(xml, antrag, A_ONLY);
     expect(r.xml).toContain('>16EP034512<');
   });
 
@@ -36,7 +39,7 @@ describe('processDocumentXml — Platzhalter-Ersetzung', () => {
     const xml = p(
       '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>&F:VMS </w:t></w:r><w:r><w:t>VB Projekt&</w:t></w:r></w:p>',
     );
-    const r = processDocumentXml(xml, antrag, FINAL);
+    const r = processDocumentXml(xml, antrag, A_ONLY);
     // Wert escaped im ersten Run, Platzhalter-Reste weg
     expect(r.xml).toContain('Adaptive Prozess&lt;überwachung&gt; &amp; mehr');
     expect(r.xml).not.toContain('VB Projekt&');
@@ -46,25 +49,26 @@ describe('processDocumentXml — Platzhalter-Ersetzung', () => {
 
   it('escapt XML-Sonderzeichen im Ersatzwert (&, <, >)', () => {
     const xml = p('<w:p><w:r><w:t>&F:VMS VB Projekt&</w:t></w:r></w:p>');
-    const r = processDocumentXml(xml, antrag, FINAL);
+    const r = processDocumentXml(xml, antrag, A_ONLY);
     expect(r.xml).toContain('Adaptive Prozess&lt;überwachung&gt; &amp; mehr');
     expect(r.xml).not.toContain('<überwachung>');
   });
 
   it('lässt unbekannte Codes unverändert und meldet sie als nicht befüllbar', () => {
     const xml = p('<w:p><w:r><w:t>&F:DMS.V.900000120001&</w:t></w:r></w:p>');
-    const r = processDocumentXml(xml, antrag, FINAL);
+    const r = processDocumentXml(xml, antrag, A_ONLY);
     expect(r.xml).toContain('DMS.V.900000120001'); // unverändert
     expect(r.unfilledCodes).toContain('DMS.V.900000120001');
     expect(r.mappedFields.find(f => f.code === 'DMS.V.900000120001')?.befuellbar).toBe(false);
   });
 });
 
-describe('processDocumentXml — Anker-Einfügung', () => {
+describe('processDocumentXml — Anker-Einfügung (ein Abschnitt)', () => {
   it('fügt die Kurzfassung direkt nach dem Anker-Absatz ein', () => {
     const xml = p('<w:p><w:r><w:t>Kurzfassung der Projektbeschreibung</w:t></w:r></w:p>');
-    const r = processDocumentXml(xml, antrag, FINAL);
-    expect(r.anchorFound).toBe(true);
+    const r = processDocumentXml(xml, antrag, A_ONLY);
+    expect(r.sections[0]!.anchorFound).toBe(true);
+    expect(r.eingefuegteAnzahl).toBe(1);
     expect(r.xml).toContain('Das Vorhaben überwacht Prozesse.');
     expect(r.xml).toContain('Es funktioniert dezentral.');
     // Reihenfolge: Anker zuerst, dann eingefügter Text
@@ -75,14 +79,59 @@ describe('processDocumentXml — Anker-Einfügung', () => {
     const xml = p(
       '<w:p><w:r><w:t>Kurzfassung der  </w:t></w:r><w:r><w:t>Projektbeschreibung</w:t></w:r></w:p>',
     );
-    const r = processDocumentXml(xml, antrag, FINAL);
-    expect(r.anchorFound).toBe(true);
+    const r = processDocumentXml(xml, antrag, A_ONLY);
+    expect(r.sections[0]!.anchorFound).toBe(true);
   });
 
   it('lässt die Vorlage ohne Anker unangetastet (anchorFound=false)', () => {
     const xml = p('<w:p><w:r><w:t>Ein anderer Absatz.</w:t></w:r></w:p>');
-    const r = processDocumentXml(xml, antrag, FINAL);
-    expect(r.anchorFound).toBe(false);
+    const r = processDocumentXml(xml, antrag, A_ONLY);
+    expect(r.sections[0]!.anchorFound).toBe(false);
+    expect(r.eingefuegteAnzahl).toBe(0);
     expect(r.xml).not.toContain('Das Vorhaben überwacht Prozesse.');
+  });
+});
+
+describe('processDocumentXml — Mehrfach-Anker', () => {
+  /** Vorlage mit Anker B vor A (Dokumentreihenfolge ≠ A–G). */
+  const docBvorA = p(
+    '<w:p><w:r><w:t>Innovationsgehalt, Chancen und Risiken</w:t></w:r></w:p>'
+    + '<w:p><w:r><w:t>Marktchancen</w:t></w:r></w:p>'
+    + '<w:p><w:r><w:t>Kurzfassung der Projektbeschreibung</w:t></w:r></w:p>',
+  );
+  const sections: AbschnittEinfuegung[] = [
+    { id: 'A', anker: 'Kurzfassung der Projektbeschreibung', finalerText: 'TEXT-A.' },
+    { id: 'B', anker: 'Innovationsgehalt, Chancen und Risiken', finalerText: 'TEXT-B.' },
+    { id: 'D', anker: 'Marktchancen', finalerText: 'TEXT-D.' },
+  ];
+
+  it('fügt jeden Abschnitt an SEINEM Anker ein — dokument-reihenfolge-unabhängig', () => {
+    const r = processDocumentXml(docBvorA, antrag, sections);
+    expect(r.eingefuegteAnzahl).toBe(3);
+    // Jeder Text steht direkt nach seinem Anker:
+    expect(r.xml.indexOf('Innovationsgehalt, Chancen und Risiken')).toBeLessThan(r.xml.indexOf('TEXT-B.'));
+    expect(r.xml.indexOf('Marktchancen')).toBeLessThan(r.xml.indexOf('TEXT-D.'));
+    expect(r.xml.indexOf('Kurzfassung der Projektbeschreibung')).toBeLessThan(r.xml.indexOf('TEXT-A.'));
+    // B-Text steht VOR A-Text (Dokumentreihenfolge B→D→A), nicht in A–G-Reihenfolge:
+    expect(r.xml.indexOf('TEXT-B.')).toBeLessThan(r.xml.indexOf('TEXT-A.'));
+  });
+
+  it('überspringt einen fehlenden Anker, fügt die übrigen ein', () => {
+    const mitFehlend: AbschnittEinfuegung[] = [
+      ...sections,
+      { id: 'G', anker: 'Gibt es nicht in der Vorlage', finalerText: 'TEXT-G.' },
+    ];
+    const r = processDocumentXml(docBvorA, antrag, mitFehlend);
+    expect(r.eingefuegteAnzahl).toBe(3);
+    expect(r.sections.find(s => s.id === 'G')!.anchorFound).toBe(false);
+    expect(r.xml).not.toContain('TEXT-G.');
+  });
+
+  it('Teil-Freigabe: nur die übergebenen Abschnitte werden eingefügt', () => {
+    const r = processDocumentXml(docBvorA, antrag, [sections[1]!]); // nur B
+    expect(r.eingefuegteAnzahl).toBe(1);
+    expect(r.xml).toContain('TEXT-B.');
+    expect(r.xml).not.toContain('TEXT-A.');
+    expect(r.xml).not.toContain('TEXT-D.');
   });
 });

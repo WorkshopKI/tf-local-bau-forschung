@@ -64,6 +64,15 @@ function countWords(text: string): number {
   return text.split(/\s+/).filter(w => w.length > 0).length;
 }
 
+/**
+ * Zählt Absätze (durch Doppel-Zeilenumbruch getrennt, leere ignoriert).
+ * Bewusst dieselbe Split-Semantik wie `buildAnchorParagraphs` (fill-template.ts),
+ * damit der `absatz_min`-Check zur tatsächlich erzeugten DOCX-Struktur passt.
+ */
+function countAbsaetze(text: string): number {
+  return text.split(/\n{2,}/).filter(p => p.trim().length > 0).length;
+}
+
 const LIST_MARKER = /^\s*(?:[-*•]\s|\d+[.)]\s)/;
 
 /* -------------------------------------------------------------------------- */
@@ -244,6 +253,21 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       };
     },
     hint: () => 'Der finale Text ist Fließtext ohne Aufzählungen.',
+  },
+
+  absatz_min: {
+    check: (text, params) => {
+      const min = numParam(params, 'min', 1);
+      // Absatz-Trennung identisch zu `buildAnchorParagraphs` (fill-template.ts):
+      // Doppel-Zeilenumbruch trennt Absätze — so stimmt der Check mit dem DOCX-Ergebnis überein.
+      const count = countAbsaetze(text);
+      return {
+        ok: count >= min,
+        label: `Absätze ${count} (min ${min})`,
+        ...(count < min ? { detail: `Nur ${count} ${count === 1 ? 'Absatz' : 'Absätze'} — mindestens ${min} erforderlich.` } : {}),
+      };
+    },
+    hint: params => `Gliedere den finalen Text in mindestens ${numParam(params, 'min', 1)} Absätze.`,
   },
 };
 

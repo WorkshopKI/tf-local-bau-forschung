@@ -49,6 +49,12 @@ export interface SkillRunInput {
   stammdaten: string;
   /** Markdown der Vorhabensbeschreibung (wird ggf. gekürzt). */
   vbMarkdown: string;
+  /**
+   * Bereits freigegebene frühere Abschnitte (Gutachten-Workflow B–G) als Block
+   * für den `{{vorherigeAbschnitte}}`-Slot. Fehlt er / Template ohne Platzhalter
+   * → keine Wirkung (A-Prompt byte-identisch). Siehe gutachten/context-provider.ts.
+   */
+  vorherigeAbschnitte?: string;
   /** Bei Re-Invocation: Modifier-Instruktion anhängen. */
   modifier?: SkillModifierKey;
   /** Bei Re-Invocation: vorheriger finaler Text als Überarbeitungs-Referenz. */
@@ -115,7 +121,11 @@ export function composeSkillPrompt(
   input: SkillRunInput,
   vb: string,
 ): string {
-  let content = fillSlot(fillSlot(skill.promptTemplate, 'stammdaten', input.stammdaten), 'vbMarkdown', vb);
+  let content = fillSlot(
+    fillSlot(fillSlot(skill.promptTemplate, 'stammdaten', input.stammdaten), 'vbMarkdown', vb),
+    'vorherigeAbschnitte',
+    input.vorherigeAbschnitte ?? '',
+  );
   if (input.tweak?.aktiv) {
     const tweakBlock = buildTweakBlock(input.tweak.stilHinweise, input.tweak.beispielFormulierungen);
     if (tweakBlock) content += `\n\n${tweakBlock}`;

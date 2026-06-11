@@ -19,9 +19,7 @@
  */
 import type { Antrag } from '@/core/services/csv/types';
 import { resolveField } from './field-mapping';
-import type { FillResult, MappedField } from './types';
-
-const ANKER_TEXT = 'Kurzfassung der Projektbeschreibung';
+import type { AbschnittEinfuegung, AbschnittStatus, FillResult, MappedField } from './types';
 
 /** `<w:t ...>inner</w:t>` — Gruppen: openTag, inner, closeTag. */
 const T_RE = /(<w:t\b[^>]*>)([\s\S]*?)(<\/w:t>)/g;
@@ -122,14 +120,39 @@ export interface ProcessResult {
   xml: string;
   mappedFields: MappedField[];
   unfilledCodes: string[];
-  anchorFound: boolean;
+  /** Status je übergebenem (freigegebenem) Abschnitt. */
+  sections: AbschnittStatus[];
+  eingefuegteAnzahl: number;
+}
+
+/** Sucht den Anker-Absatz; gibt die Einfüge-Position (nach dem Absatz) oder -1. */
+function findInsertPos(xml: string, anker: string): number {
+  const needle = normalizeWs(anker);
+  const paraRe = new RegExp(P_RE.source, 'g');
+  let m: RegExpExecArray | null;
+  while ((m = paraRe.exec(xml)) !== null) {
+    if (normalizeWs(paragraphPlainText(m[0])).includes(needle)) {
+      return m.index + m[0].length;
+    }
+  }
+  return -1;
 }
 
 /**
  * Pure Kern-Transformation auf dem `document.xml`-String (ohne ZIP-I/O) — der
  * vollständig getestete Teil. `fillTemplate` legt nur die jszip-Hülle drumherum.
+ *
+ * Phase 1: Platzhalter-Felder ersetzen (abschnitts-unabhängig). Phase 2: jeden
+ * übergebenen (= freigegebenen) Abschnitt an SEINEM Anker einfügen — pro Abschnitt
+ * wird FRISCH gescannt (Offsets verschieben sich nach jedem Splice), daher
+ * reihenfolge-stabil und unabhängig davon, in welcher Reihenfolge die Anker im
+ * Dokument stehen. Nicht gefundener Anker → übersprungen (anchorFound=false).
  */
-export function processDocumentXml(xml: string, antrag: Antrag, finalerText: string): ProcessResult {
+export function processDocumentXml(
+  xml: string,
+  antrag: Antrag,
+  sections: AbschnittEinfuegung[],
+): ProcessResult {
   const mapped = new Map<string, MappedField>();
   const unfilled = new Set<string>();
   const collect: Collector = (code, placeholder) => {
@@ -144,29 +167,24 @@ export function processDocumentXml(xml: string, antrag: Antrag, finalerText: str
   // 1) Platzhalter pro Absatz ersetzen.
   let result = xml.replace(P_RE, para => processParagraph(para, collect));
 
-  // 2) Anker suchen + Kurzfassung direkt nach dem Anker-Absatz einfügen.
-  let anchorFound = false;
-  const anchorNeedle = normalizeWs(ANKER_TEXT);
-  const paraRe = new RegExp(P_RE.source, 'g');
-  let m: RegExpExecArray | null;
-  let insertPos = -1;
-  while ((m = paraRe.exec(result)) !== null) {
-    if (normalizeWs(paragraphPlainText(m[0])).includes(anchorNeedle)) {
-      insertPos = m.index + m[0].length;
-      anchorFound = true;
-      break;
+  // 2) Je Abschnitt: Anker frisch suchen + Text direkt danach einfügen.
+  const statuses: AbschnittStatus[] = [];
+  for (const sec of sections) {
+    const insertPos = findInsertPos(result, sec.anker);
+    const found = insertPos >= 0;
+    if (found) {
+      const inserted = buildAnchorParagraphs(sec.finalerText);
+      result = result.slice(0, insertPos) + inserted + result.slice(insertPos);
     }
-  }
-  if (anchorFound && insertPos >= 0) {
-    const inserted = buildAnchorParagraphs(finalerText);
-    result = result.slice(0, insertPos) + inserted + result.slice(insertPos);
+    statuses.push({ id: sec.id, anker: sec.anker, anchorFound: found, eingefuegt: found });
   }
 
   return {
     xml: result,
     mappedFields: [...mapped.values()],
     unfilledCodes: [...unfilled],
-    anchorFound,
+    sections: statuses,
+    eingefuegteAnzahl: statuses.filter(s => s.eingefuegt).length,
   };
 }
 
@@ -182,7 +200,7 @@ export interface FillOptions {
 export async function fillTemplate(
   input: Blob | ArrayBuffer | Uint8Array,
   antrag: Antrag,
-  finalerText: string,
+  sections: AbschnittEinfuegung[],
   opts: FillOptions = {},
 ): Promise<FillResult> {
   const { default: JSZip } = await import('jszip');
@@ -191,28 +209,22 @@ export async function fillTemplate(
   if (!docFile) throw new Error('Vorlage enthält keine word/document.xml (kein gültiges DOCX).');
 
   const xml = await docFile.async('string');
-  const processed = processDocumentXml(xml, antrag, finalerText);
+  const processed = processDocumentXml(xml, antrag, sections);
   const filename = `Gutachten_EP_${antrag.aktenzeichen}.docx`;
 
-  if (opts.dryRun) {
-    return {
-      mappedFields: processed.mappedFields,
-      unfilledCodes: processed.unfilledCodes,
-      anchorFound: processed.anchorFound,
-      filename,
-    };
-  }
+  const base = {
+    mappedFields: processed.mappedFields,
+    unfilledCodes: processed.unfilledCodes,
+    sections: processed.sections,
+    eingefuegteAnzahl: processed.eingefuegteAnzahl,
+    filename,
+  };
+  if (opts.dryRun) return base;
 
   zip.file('word/document.xml', processed.xml);
   const blob = await zip.generateAsync({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
-  return {
-    mappedFields: processed.mappedFields,
-    unfilledCodes: processed.unfilledCodes,
-    anchorFound: processed.anchorFound,
-    blob,
-    filename,
-  };
+  return { ...base, blob };
 }

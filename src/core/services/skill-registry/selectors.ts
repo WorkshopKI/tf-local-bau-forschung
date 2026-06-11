@@ -67,6 +67,8 @@ export function describeRegelParams(regel: QualitaetsRegel): string {
     }
     case 'keine_aufzaehlungen':
       return 'im finalen Text';
+    case 'absatz_min':
+      return `≥ ${num(p, 'min') ?? '—'} Absätze`;
     default:
       return 'unbekannter Typ';
   }

@@ -7,11 +7,29 @@
  * zurück in den aktiven Slot (die bisher aktive wandert in den Verlauf — es
  * geht nichts verloren).
  */
-import type { SkillModifierKey } from '@/core/services/skills';
-import type { KurzfassungRecord, KurzfassungVersion } from './types';
+import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
+import type { KurzfassungVersion } from './types';
 
 /** Maximale Anzahl aufbewahrter Vorfassungen (älteste fliegt beim Überlauf raus). */
 export const MAX_VERLAUF = 5;
+
+/**
+ * Gemeinsame Inhalts-Form für die Verlaufs-Helfer. Sowohl `KurzfassungRecord`
+ * (Schritt A, alter Pfad) als auch `StepRun` (Gutachten-Workflow A–G) erfüllen
+ * sie — so bleibt EINE Verlaufs-Implementierung (kein Duplikat im Runner).
+ */
+export interface VerlaufContent {
+  finalerText: string;
+  quellenanalyse: string;
+  entwurf: string;
+  checks: CheckResult[];
+  erstellt_am: string;
+  modell: string;
+  modifier?: SkillModifierKey;
+  vbGekuerzt?: boolean;
+  warnung?: string;
+  verlauf?: KurzfassungVersion[];
+}
 
 const MODIFIER_LABEL: Record<SkillModifierKey, string> = {
   neu: 'Neu generiert',
@@ -25,7 +43,7 @@ export function versionLabel(v: { modifier?: SkillModifierKey }): string {
 }
 
 /** Schnappschuss der aktuellen Fassung eines Records für den Verlauf. */
-export function snapshotOf(record: KurzfassungRecord): KurzfassungVersion {
+export function snapshotOf(record: VerlaufContent): KurzfassungVersion {
   return {
     finalerText: record.finalerText,
     quellenanalyse: record.quellenanalyse,
@@ -43,7 +61,7 @@ export function snapshotOf(record: KurzfassungRecord): KurzfassungVersion {
  * Verlauf für die NÄCHSTE Generierung: die noch aktive Fassung als Snapshot
  * anhängen, auf MAX_VERLAUF kappen. `prev === null` (Erstlauf) → leerer Verlauf.
  */
-export function appendVerlauf(prev: KurzfassungRecord | null): KurzfassungVersion[] {
+export function appendVerlauf(prev: VerlaufContent | null): KurzfassungVersion[] {
   if (!prev) return [];
   return [...(prev.verlauf ?? []), snapshotOf(prev)].slice(-MAX_VERLAUF);
 }
@@ -51,9 +69,10 @@ export function appendVerlauf(prev: KurzfassungRecord | null): KurzfassungVersio
 /**
  * Eine Vorversion zur aktiven Fassung machen: die gewählte wird aktiv, die
  * bisher aktive wandert in den Verlauf (Swap), Status zurück auf `'entwurf'`.
- * Out-of-range-Index → Record unverändert.
+ * Out-of-range-Index → Record unverändert. Generisch über die Inhalts-Form,
+ * damit derselbe Swap für `KurzfassungRecord` (A) und `StepRun` (A–G) gilt.
  */
-export function restoreVersion(record: KurzfassungRecord, index: number): KurzfassungRecord {
+export function restoreVersion<T extends VerlaufContent>(record: T, index: number): T {
   const verlauf = record.verlauf ?? [];
   const chosen = verlauf[index];
   if (!chosen) return record;
@@ -72,7 +91,7 @@ export function restoreVersion(record: KurzfassungRecord, index: number): Kurzfa
     ...(chosen.modifier ? { modifier: chosen.modifier } : { modifier: undefined }),
     ...(chosen.vbGekuerzt ? { vbGekuerzt: chosen.vbGekuerzt } : { vbGekuerzt: undefined }),
     ...(chosen.warnung ? { warnung: chosen.warnung } : { warnung: undefined }),
-  };
+  } as T;
 }
 
 /** Datums-Formatierung (de-DE, Tag.Monat.Jahr) — gemeinsam genutzt von Review + Verlauf. */

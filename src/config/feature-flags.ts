@@ -162,6 +162,11 @@ export function isMaVerwaltungPasswortEnabled(): boolean {
 export function isGutachtenKurzfassungEnabled(): boolean {
   return features.gutachtenKurzfassung === true;
 }
+/** Gutachten-Workflow A–G (deterministischer Runner über Registry-Skills) — löst
+ *  die Kurzfassung-Sektion ab. Nur dev. Default false (`=== true`). */
+export function isGutachtenWorkflowEnabled(): boolean {
+  return features.gutachtenWorkflow === true;
+}
 /** Skill-Verwaltung (Kurator-pflegbare Skill-/Regel-Registry). Sichtbar dev +
  *  kurator + pl. Default false. */
 export function isSkillVerwaltungEnabled(): boolean {

@@ -12,12 +12,19 @@ import {
   getVorlagenHandle, pickVorlagenVerzeichnis, ensureReadPermission, listVorlagen, readVorlage,
   fillTemplate, saveGutachtenDocx,
   type VorlageEintrag, type FillResult, type SaveResult,
+  type AbschnittEinfuegung, type AbschnittAnzeige,
 } from '@/core/services/gutachten-vorlagen';
 
 interface Props {
   open: boolean;
   antrag: Antrag;
-  finalerText: string;
+  /** Freigegebene Abschnitte (mit Anker + Text), die eingefügt werden. */
+  sections: AbschnittEinfuegung[];
+  /**
+   * Optionale Voll-Liste A–G für den „Abschnitte"-Block (Gutachten-Workflow).
+   * Fehlt sie, zeigt der Dialog die Kurzfassung-Einzelansicht (Back-Compat).
+   */
+  abschnitte?: AbschnittAnzeige[];
   onClose: () => void;
 }
 
@@ -34,7 +41,7 @@ function formatDate(ms: number): string {
   }
 }
 
-export function VorlageDialog({ open, antrag, finalerText, onClose }: Props): React.ReactElement | null {
+export function VorlageDialog({ open, antrag, sections, abschnitte, onClose }: Props): React.ReactElement | null {
   const storage = useStorage();
   const [handle, setHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -57,7 +64,7 @@ export function VorlageDialog({ open, antrag, finalerText, onClose }: Props): Re
     setBusy(true); setError(null);
     try {
       const buf = await readVorlage(h, name);
-      setDryRun(await fillTemplate(buf, antrag, finalerText, { dryRun: true }));
+      setDryRun(await fillTemplate(buf, antrag, sections, { dryRun: true }));
     } catch (e) { setError(errMsg(e)); } finally { setBusy(false); }
   }
 
@@ -100,7 +107,7 @@ export function VorlageDialog({ open, antrag, finalerText, onClose }: Props): Re
     setBusy(true); setError(null);
     try {
       const buf = await readVorlage(handle, selected);
-      const res = await fillTemplate(buf, antrag, finalerText, {});
+      const res = await fillTemplate(buf, antrag, sections, {});
       if (!res.blob) throw new Error('Vorlage konnte nicht erzeugt werden.');
       const saved = await saveGutachtenDocx(storage.idb, res.blob, res.filename);
       setErstellt({ ...saved, filename: res.filename });
@@ -204,11 +211,40 @@ export function VorlageDialog({ open, antrag, finalerText, onClose }: Props): Re
             </div>
           )}
 
-          {/* Anker-Status */}
-          {dryRun && (
+          {/* Anker-Status: Abschnitte-Tabelle (Workflow) ODER Kurzfassung-Einzelansicht */}
+          {dryRun && abschnitte ? (
+            <div>
+              <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-2">Abschnitte</div>
+              <div className="flex flex-col">
+                {abschnitte.map((a, i) => {
+                  const st = dryRun.sections.find(s => s.id === a.id);
+                  const eingefuegt = a.freigegeben && !!st?.anchorFound;
+                  const ankerFehlt = a.freigegeben && !st?.anchorFound;
+                  return (
+                    <div key={a.id} className={`flex items-start gap-3.5 py-2.5 ${i > 0 ? 'border-t-[0.5px] border-[var(--tf-border)]' : ''}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] text-[var(--tf-text)]">{a.id} — {a.label}</div>
+                        <div className="mt-0.5 font-mono text-[11px] text-[var(--tf-text-tertiary)]">nach „{a.anker}"</div>
+                      </div>
+                      <span className="text-[12px] whitespace-nowrap shrink-0 leading-[1.6]">
+                        {eingefuegt
+                          ? <span className="text-[var(--tf-success-text)]">wird eingefügt ✓</span>
+                          : ankerFehlt
+                            ? <span className="text-[var(--tf-warning-text)]">Anker nicht gefunden — wird übersprungen</span>
+                            : <span className="text-[var(--tf-text-tertiary)]">übersprungen — nicht freigegeben</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3.5 text-[12px] text-[var(--tf-text-secondary)]">
+                {dryRun.eingefuegteAnzahl} von {abschnitte.length} Abschnitten werden eingefügt.
+              </div>
+            </div>
+          ) : dryRun && (
             <div>
               <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-2">Kurzfassung</div>
-              {dryRun.anchorFound ? (
+              {dryRun.sections[0]?.anchorFound ? (
                 <div className="flex items-baseline gap-2 text-[13px] text-[var(--tf-text)]">
                   <span className="text-[var(--tf-success-text)]">✓</span>
                   <span>Kurzfassung → wird nach „Kurzfassung der Projektbeschreibung" eingefügt</span>

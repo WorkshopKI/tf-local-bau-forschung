@@ -100,6 +100,23 @@ describe('runRegelChecks — pro Regel-Typ', () => {
     expect(runRegelChecks('Fließtext ohne Liste.', [regel('keine_aufzaehlungen', {})])[0]!.level).toBe('ok');
     expect(runRegelChecks('Ziele:\n- Punkt eins', [regel('keine_aufzaehlungen', {})])[0]!.level).toBe('fehler');
   });
+
+  it('absatz_min: zählt durch Doppel-Zeilenumbruch getrennte Absätze', () => {
+    const vier = 'Erster Absatz.\n\nZweiter Absatz.\n\nDritter Absatz.\n\nVierter Absatz.';
+    expect(runRegelChecks(vier, [regel('absatz_min', { min: 4 })])[0]!.level).toBe('ok');
+    expect(runRegelChecks(vier, [regel('absatz_min', { min: 4 })])[0]!.label).toBe('Absätze 4 (min 4)');
+  });
+
+  it('absatz_min: fehler bei zu wenigen Absätzen, einzelne Zeilenumbrüche trennen nicht', () => {
+    const zwei = 'Absatz eins\nmit Zeilenumbruch.\n\nAbsatz zwei.';
+    expect(runRegelChecks(zwei, [regel('absatz_min', { min: 4 })])[0]!.level).toBe('fehler');
+    expect(runRegelChecks('Nur ein Absatz.', [regel('absatz_min', { min: 1 })])[0]!.level).toBe('ok');
+    expect(runRegelChecks('', [regel('absatz_min', { min: 1 })])[0]!.level).toBe('fehler');
+  });
+
+  it('absatz_min: hint nennt die Mindestzahl', () => {
+    expect(buildPromptHinweis(regel('absatz_min', { min: 4 }))).toContain('mindestens 4 Absätze');
+  });
 });
 
 describe('runRegelChecks — Aktiv/Schweregrad/Unbekannt', () => {

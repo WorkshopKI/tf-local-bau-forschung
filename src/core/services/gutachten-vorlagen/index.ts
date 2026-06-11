@@ -1,6 +1,7 @@
 /** Gutachten-Vorlagen-Service (DOCX-Füller + Verzeichnis-Quelle) — Barrel. */
 export * from './types';
 export { FIELD_MAPPING, resolveField } from './field-mapping';
+export { ANKER_EP, ankerFuer, vorlagenTypFuerDatei, type VorlagenTyp } from './anchor-mapping';
 export { processDocumentXml, fillTemplate } from './fill-template';
 export type { ProcessResult, FillOptions } from './fill-template';
 export {

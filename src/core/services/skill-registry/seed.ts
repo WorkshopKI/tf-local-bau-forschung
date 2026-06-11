@@ -13,7 +13,7 @@
  * formalen Vorgaben kommen zusätzlich aus den Regeln (siehe `buildPromptVorgaben`),
  * damit das Gutachter-Verhalten gleich bleibt.
  */
-import type { QualitaetsRegel, SkillRecord, SkillRegistryFile } from './types';
+import type { QualitaetsRegel, SkillModifierKey, SkillRecord, SkillRegistryFile } from './types';
 
 /** Fester Seed-Zeitstempel — deterministisch (kein `new Date()` zur Seed-Zeit). */
 const SEED_TS = '2026-06-11T00:00:00.000Z';
@@ -113,10 +113,240 @@ export const SEED_SKILL: SkillRecord = {
   geaendert_am: SEED_TS,
 };
 
+/* -------------------------------------------------------------------------- */
+/* Abschnitte B–G des Gutachten-Workflows (additiv zum Kurzfassung-Seed A)      */
+/* -------------------------------------------------------------------------- */
+
+/** System-Rolle der Abschnitts-Skills B–G (allgemeiner als der A-Prompt). */
+const SEED_SYSTEM_PROMPT_ABSCHNITT =
+  'Du bist ein erfahrener Textassistent für ZIM-Gutachten. Du erstellst streng '
+  + 'quellenbasierte Abschnitte eines ZIM-Gutachtens aus der Vorhabensbeschreibung. '
+  + 'Antworte ausschließlich auf Deutsch und halte dich exakt an das vorgegebene Ausgabeformat.';
+
+/** Re-Invocation-Instruktionen für die Abschnitte B–G (für alle gleich). */
+const ABSCHNITT_MODIFIERS: Record<SkillModifierKey, string> = {
+  neu: 'Erstelle eine **vollständig neue** Variante dieses Abschnitts mit anderer Formulierung und '
+    + 'anderer Schwerpunktsetzung — gleiche Faktenbasis, gleicher Kontrakt.',
+  kuerzer: 'Kürze diesen Abschnitt spürbar. Streiche Redundanzen und Nebenaspekte; behalte die '
+    + 'Kernaussagen und die geforderte Struktur.',
+  laenger: 'Erweitere diesen Abschnitt systematisch um etwa 50 % (Ziellänge), indem du zusätzliche '
+    + 'im Antrag genannte Details — Teilschritte, Wechselwirkungen, Datenflüsse — aufnimmst. Erfinde '
+    + 'nichts; nutze ausschließlich Inhalte der VB.',
+};
+
+/** Deklarierte Slots der Abschnitts-Skills (inkl. {{vorherigeAbschnitte}}). */
+const ABSCHNITT_SLOTS = ['stammdaten', 'vbMarkdown', 'vorherigeAbschnitte'];
+
+/** Pflicht-Anfang für Abschnitt G (Check + Prompt nutzen denselben String). */
+const G_PFLICHT_ANFANG =
+  'Das Vorhaben wird sehr positive Auswirkungen auf das FuE-Potenzial und Know-how der '
+  + 'Antragsteller haben. Im Unternehmen wird die Technologiekompetenz im Bereich';
+
+/** Baut ein Abschnitts-Template (gemeinsame Hülle, abschnittsspezifischer Kontrakt). */
+function abschnittTemplate(opts: {
+  name: string;
+  aufgabe: string;
+  formatRegeln: string[];
+  finalText: string;
+}): string {
+  const extra = opts.formatRegeln.map(r => `- ${r}`).join('\n');
+  return `Erstelle den Abschnitt **${opts.name}** eines ZIM-Gutachtens aus der folgenden Vorhabensbeschreibung (VB).
+
+## Stammdaten des Antrags
+{{stammdaten}}
+
+## Vorhabensbeschreibung (Quelle)
+{{vbMarkdown}}
+
+## Bereits freigegebene frühere Abschnitte (Konsistenz-Referenz — Terminologie und keine Widersprüche)
+{{vorherigeAbschnitte}}
+
+## Aufgabe & Kontrakt
+${opts.aufgabe}
+
+Regeln:
+- **Streng quellenbasiert:** Nutze ausschließlich Inhalte der VB. Erfinde nichts.
+- Fehlende Angaben kennzeichne wörtlich mit „[Im Antrag nicht genannt]".
+- **Aktiver Stil:** Formuliere „Das Vorhaben…" statt „Der Antragsteller plant…". Keine Arbeitspaket-Verweise („AP1").
+${extra}
+
+## Ausgabeformat (genau diese zwei Abschnitte, jeweils mit der ###-Überschrift)
+### Quellenanalyse
+Gruppierte wörtliche Kurz-Zitate aus der VB, die du als Beleg nutzt — je mit knapper Fundstellen-Angabe.
+
+### Finaler Text
+${opts.finalText}`;
+}
+
+/** Regel-Seeds der Abschnitte B–G (nur maschinell prüfbare Kontrakte). */
+export const SEED_REGELN_BG: QualitaetsRegel[] = [
+  // B
+  regel('seed-b-wortanzahl', 'Wortanzahl', 'wortanzahl', { min: 750 }, 'fehler'),
+  regel('seed-b-absatz-min', 'Absätze', 'absatz_min', { min: 4 }, 'fehler'),
+  regel('seed-b-keine-aufzaehlungen', 'Keine Aufzählungen', 'keine_aufzaehlungen', {}, 'fehler'),
+  // C
+  regel('seed-c-wortanzahl', 'Wortanzahl', 'wortanzahl', { min: 300, max: 350 }, 'fehler'),
+  // D
+  regel('seed-d-wortanzahl', 'Wortanzahl', 'wortanzahl', { min: 300, max: 350 }, 'fehler'),
+  regel('seed-d-keine-aufzaehlungen', 'Keine Aufzählungen', 'keine_aufzaehlungen', {}, 'fehler'),
+  // G
+  regel('seed-g-pflicht-anfang', 'Pflicht-Anfang', 'pflicht_anfang', { text: G_PFLICHT_ANFANG }, 'fehler'),
+];
+
+/** Die Abschnitts-Skills B–G (Schritt A = SEED_SKILL bleibt unverändert). */
+export const SEED_SKILLS_BG: SkillRecord[] = [
+  {
+    id: 'gutachten-ausgangslage',
+    name: 'Hintergrund, Stand der Technik, Lösungsweg (B)',
+    beschreibung: 'Abschnitt B des ZIM-Gutachtens: Hintergrund, Stand der Technik und Lösungsweg.',
+    version: 1,
+    promptTemplate: abschnittTemplate({
+      name: 'Hintergrund, Stand der Technik, Lösungsweg',
+      aufgabe:
+        'Stelle Hintergrund, Stand der Technik und Lösungsweg des Vorhabens in drei gedanklichen Teilen dar:\n'
+        + '1. **Hintergrund / Ausgangssituation** (Richtwert ≥ 150 Wörter): Problem, Bedarf, Motivation.\n'
+        + '2. **Stand der Technik** (Richtwert ≥ 150 Wörter): bestehende Ansätze/Lösungen und ihre Grenzen.\n'
+        + '3. **Lösungsweg** (Richtwert ≥ 450 Wörter): der im Antrag beschriebene Lösungsansatz in einigen '
+        + 'Absätzen — KEINE mehrseitige, ins Detail gehende Darstellung des Lösungswegs.',
+      formatRegeln: [
+        'Gliedere den finalen Text in **mindestens vier Absätze**.',
+        '**Fließtext** — keine Aufzählungen, keine Zwischenüberschriften.',
+        'Gesamtumfang **mindestens 750 Wörter**.',
+      ],
+      finalText:
+        'Der finale Fließtext (mindestens 750 Wörter, mindestens vier Absätze): Hintergrund, Stand der '
+        + 'Technik und Lösungsweg in dieser Reihenfolge, ohne Aufzählungen.',
+    }),
+    systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
+    maxTokens: 4096,
+    modifiers: ABSCHNITT_MODIFIERS,
+    regelIds: ['seed-b-wortanzahl', 'seed-b-absatz-min', 'seed-b-keine-aufzaehlungen', 'seed-passiv-stil'],
+    slots: ABSCHNITT_SLOTS,
+    geaendert_am: SEED_TS,
+  },
+  {
+    id: 'gutachten-risiken',
+    name: 'Technische Risiken (C)',
+    beschreibung: 'Abschnitt C des ZIM-Gutachtens: technische Risiken des Vorhabens.',
+    version: 1,
+    promptTemplate: abschnittTemplate({
+      name: 'Technische Risiken',
+      aufgabe:
+        'Beschreibe die technischen Risiken des Vorhabens. Nenne ausschließlich Risiken, die im Antrag '
+        + 'explizit benannt sind. Stelle je Risiko einen kurzen Kurztitel voran und erläutere es in 2–3 Sätzen.',
+      formatRegeln: [
+        'Format je Risiko: „**Kurztitel:** 2–3 Sätze" (Kurztitel fett, danach Fließtext — KEINE Spiegelstrich-Liste).',
+        'Gesamtumfang **300–350 Wörter**.',
+      ],
+      finalText:
+        'Der finale Text (300–350 Wörter): je technisches Risiko ein fett gesetzter Kurztitel, gefolgt '
+        + 'von 2–3 erläuternden Sätzen.',
+    }),
+    systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
+    maxTokens: 2048,
+    modifiers: ABSCHNITT_MODIFIERS,
+    regelIds: ['seed-c-wortanzahl', 'seed-passiv-stil'],
+    slots: ABSCHNITT_SLOTS,
+    geaendert_am: SEED_TS,
+  },
+  {
+    id: 'gutachten-markt',
+    name: 'Markt (D)',
+    beschreibung: 'Abschnitt D des ZIM-Gutachtens: Markt für die Projektergebnisse.',
+    version: 1,
+    promptTemplate: abschnittTemplate({
+      name: 'Markt',
+      aufgabe:
+        'Stelle den Markt für die Projektergebnisse dar — ausschließlich auf Basis der Antragsinhalte: '
+        + 'anvisierte Märkte und Kundengruppen, Marktgröße/Marktanteile, ggf. Stückpreise/Stückzahlen sowie '
+        + 'den Wettbewerbsvergleich.',
+      formatRegeln: [
+        '**Fließtext** — keine Aufzählungen.',
+        'Gesamtumfang **300–350 Wörter**.',
+      ],
+      finalText:
+        'Der finale Fließtext (300–350 Wörter) zum Markt — nur Antragsinhalte, keine externen Marktkenntnisse.',
+    }),
+    systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
+    maxTokens: 2048,
+    modifiers: ABSCHNITT_MODIFIERS,
+    regelIds: ['seed-d-wortanzahl', 'seed-d-keine-aufzaehlungen', 'seed-passiv-stil'],
+    slots: ABSCHNITT_SLOTS,
+    geaendert_am: SEED_TS,
+  },
+  {
+    id: 'gutachten-unternehmen',
+    name: 'Unternehmensgegenstand (E)',
+    beschreibung: 'Abschnitt E des ZIM-Gutachtens: Unternehmensgegenstand der Partner.',
+    version: 1,
+    promptTemplate: abschnittTemplate({
+      name: 'Unternehmensgegenstand',
+      aufgabe:
+        'Beschreibe den Unternehmensgegenstand der antragstellenden Partner — je Partner 2–3 Sätze. Nutze '
+        + 'ausschließlich die Angaben aus dem Antrag (keine externen Unternehmenskenntnisse, keine '
+        + 'Entwicklungshistorie).',
+      formatRegeln: ['**Fließtext**, je Partner 2–3 Sätze.'],
+      finalText: 'Der finale Text: je antragstellendem Partner 2–3 Sätze zum Unternehmensgegenstand.',
+    }),
+    systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
+    maxTokens: 2048,
+    modifiers: ABSCHNITT_MODIFIERS,
+    regelIds: [],
+    slots: ABSCHNITT_SLOTS,
+    geaendert_am: SEED_TS,
+  },
+  {
+    id: 'gutachten-verwertung',
+    name: 'Ergebnisverwertung (F)',
+    beschreibung: 'Abschnitt F des ZIM-Gutachtens: Ergebnisverwertung und Einfluss auf das Unternehmen.',
+    version: 1,
+    promptTemplate: abschnittTemplate({
+      name: 'Ergebnisverwertung',
+      aufgabe:
+        'Beschreibe die Ergebnisverwertung und den erwarteten Einfluss auf die Entwicklung des Unternehmens '
+        + '— je Firma 3 Sätze. Orientiere dich am Muster: „Bei erfolgreichem Abschluss erwartet das Unternehmen '
+        + 'Umsatz- und Mitarbeiterzuwächse durch …" (ohne konkrete Stückpreise/Stückzahlen).',
+      formatRegeln: ['**Fließtext**, je Firma 3 Sätze.'],
+      finalText: 'Der finale Text: je Firma 3 Sätze zur Ergebnisverwertung nach dem genannten Muster.',
+    }),
+    systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
+    maxTokens: 2048,
+    modifiers: ABSCHNITT_MODIFIERS,
+    regelIds: [],
+    slots: ABSCHNITT_SLOTS,
+    geaendert_am: SEED_TS,
+  },
+  {
+    id: 'gutachten-kompetenz',
+    name: 'Technologiekompetenz (G)',
+    beschreibung: 'Abschnitt G des ZIM-Gutachtens: Auswirkungen auf die Technologiekompetenz.',
+    version: 1,
+    promptTemplate: abschnittTemplate({
+      name: 'Technologiekompetenz',
+      aufgabe:
+        'Beschreibe die Auswirkungen des FuE-Projektes auf die Technologiekompetenz der Antragsteller. '
+        + 'Beginne mit dem vorgegebenen Pflicht-Satz und führe ihn fort, indem du das konkrete Technologiefeld '
+        + 'und den Kompetenzgewinn aus dem Antrag benennst.',
+      formatRegeln: [
+        `Beginne den finalen Text **exakt** mit: „${G_PFLICHT_ANFANG} …" und führe den Satz fort.`,
+      ],
+      finalText:
+        'Der finale Fließtext, der mit dem Pflicht-Satz beginnt und den Kompetenzgewinn (Technologiefeld aus '
+        + 'dem Antrag) beschreibt.',
+    }),
+    systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
+    maxTokens: 2048,
+    modifiers: ABSCHNITT_MODIFIERS,
+    regelIds: ['seed-g-pflicht-anfang', 'seed-passiv-stil'],
+    slots: ABSCHNITT_SLOTS,
+    geaendert_am: SEED_TS,
+  },
+];
+
 /** Vollständiger Seed-Registry-Stand (Startbestand / Read-only-Fallback). */
 export const SEED_REGISTRY: SkillRegistryFile = {
   version: 1,
   updated_at: SEED_TS,
-  skills: [SEED_SKILL],
-  regeln: SEED_REGELN,
+  skills: [SEED_SKILL, ...SEED_SKILLS_BG],
+  regeln: [...SEED_REGELN, ...SEED_REGELN_BG],
 };

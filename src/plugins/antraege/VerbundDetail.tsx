@@ -34,8 +34,9 @@ import { useUnterprogrammLabels } from './useUnterprogrammLabels';
 import { findAbgelehnteVorgaenger } from './vorgaengerAntraege';
 import { AbgelehnteVorgaengerBanner } from './AbgelehnteVorgaengerBanner';
 import { KurzfassungSection } from './kurzfassung/KurzfassungSection';
+import { GutachtenSection } from './gutachten/GutachtenSection';
 import type { KurzfassungContext } from './kurzfassung/types';
-import { isGutachtenKurzfassungEnabled } from '@/config/feature-flags';
+import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 
 interface Props {
   verbundId: string;
@@ -458,9 +459,15 @@ export function VerbundDetail({
         ) : null
       )}
 
-      {/* KURZFASSUNG (Gutachten) — Verbund-Ebene, oberhalb der Felder-Liste.
-          Hinter Feature-Flag (nur dev). */}
-      {isGutachtenKurzfassungEnabled() ? (
+      {/* GUTACHTEN — Verbund-Ebene, oberhalb der Felder-Liste (nur dev). Der
+          Workflow A–G (gutachtenWorkflow) loest die Kurzfassung-Sektion ab;
+          else-if-Praezedenz, damit in dev (beide Flags true) nur EINE Sektion
+          mountet. */}
+      {isGutachtenWorkflowEnabled() ? (
+        <div className="mt-6 pt-6" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <GutachtenSection ctx={kurzfassungCtx} />
+        </div>
+      ) : isGutachtenKurzfassungEnabled() ? (
         <div className="mt-6 pt-6" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <KurzfassungSection ctx={kurzfassungCtx} />
         </div>

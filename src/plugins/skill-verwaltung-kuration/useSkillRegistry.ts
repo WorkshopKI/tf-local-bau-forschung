@@ -25,6 +25,8 @@ export interface SkillRegistryController {
   loading: boolean;
   /** Darf der aktuelle Nutzer Änderungen speichern? */
   canEdit: boolean;
+  /** Durch den additiven Seed-Merge ergänzte IDs (Kurator-Hinweis), sonst null. */
+  ergaenzt: { skills: string[]; regeln: string[] } | null;
   /** Persistiert einen kompletten neuen Stand (ein Write). Wirft bei Fehler. */
   persist: (next: SkillRegistryFile) => Promise<void>;
 }
@@ -38,6 +40,7 @@ export function useSkillRegistry(): SkillRegistryController {
   const [source, setSource] = useState<'share' | 'cache' | 'seed'>('seed');
   const [stale, setStale] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [ergaenzt, setErgaenzt] = useState<{ skills: string[]; regeln: string[] } | null>(null);
   const seededRef = useRef(false);
 
   const persist = useCallback(async (next: SkillRegistryFile): Promise<void> => {
@@ -57,15 +60,21 @@ export function useSkillRegistry(): SkillRegistryController {
       setLoading(true);
       const loaded = await loadSkillRegistry(storage);
       if (cancelled) return;
+      setErgaenzt(loaded.ergaenzt ?? null);
       // Seed-on-open: noch keine Registry vorhanden + Schreibrecht → Startbestand
-      // einmalig persistieren (writeSkillRegistry self-gated auf Permission).
-      if (loaded.source === 'seed' && canEdit && !seededRef.current) {
+      // einmalig persistieren. Außerdem: hat der additive Merge fehlende Seeds
+      // (B–G) in eine kuratierte Share-Registry ergänzt, den ergänzten Stand
+      // zurückschreiben (writeSkillRegistry self-gated auf Permission).
+      const mussSeeden = loaded.source === 'seed';
+      const mussErgaenzungSichern = loaded.source === 'share' && !!loaded.ergaenzt;
+      if ((mussSeeden || mussErgaenzungSichern) && canEdit && !seededRef.current) {
         seededRef.current = true;
-        const ok = await writeSkillRegistry(storage, SEED_REGISTRY);
+        const next = mussSeeden ? SEED_REGISTRY : loaded.file;
+        const ok = await writeSkillRegistry(storage, next);
         if (cancelled) return;
         if (ok) {
           await logAudit(storage.idb, { action: 'skill_registry_updated', user: session.kuratorName ?? 'PL' });
-          setFile(SEED_REGISTRY);
+          setFile(next);
           setSource('share');
           setStale(false);
           setLoading(false);
@@ -80,5 +89,5 @@ export function useSkillRegistry(): SkillRegistryController {
     return () => { cancelled = true; };
   }, [storage, canEdit, session.kuratorName]);
 
-  return { file, source, stale, loading, canEdit, persist };
+  return { file, source, stale, loading, canEdit, ergaenzt, persist };
 }

@@ -19,12 +19,16 @@ export {
   SEED_REGISTRY,
   SEED_SKILL,
   SEED_REGELN,
+  SEED_SKILLS_BG,
+  SEED_REGELN_BG,
   KURZFASSUNG_SKILL_ID,
 } from './seed';
 export {
   SKILL_REGISTRY_PATH,
   SKILL_REGISTRY_CACHE_KEY,
   normalizeRegistryFile,
+  mergeMissingSeeds,
+  type SeedMergeResult,
   readSkillRegistry,
   writeSkillRegistry,
   cacheSkillRegistry,

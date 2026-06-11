@@ -41,6 +41,7 @@
     "feedbackBoard": true,
     "csvAutoRefresh": false,
     "gutachtenKurzfassung": false,
+    "gutachtenWorkflow": false,
     "skillVerwaltung": true
   },
   "menuLabels": {

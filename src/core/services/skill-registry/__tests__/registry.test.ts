@@ -73,13 +73,17 @@ describe('Selektoren', () => {
 });
 
 describe('Seed', () => {
-  it('enthält den Kurzfassung-Skill + 5 Regeln, die zusammenpassen', () => {
-    expect(SEED_REGISTRY.skills).toHaveLength(1);
-    expect(SEED_REGISTRY.regeln).toHaveLength(5);
-    const skill = SEED_REGISTRY.skills[0]!;
-    // Jede regelId existiert in der Regel-Bibliothek
-    for (const id of skill.regelIds) {
-      expect(SEED_REGISTRY.regeln.find(r => r.id === id)).toBeDefined();
+  it('enthält die Gutachten-Skills A–G + zusammenpassende Regeln', () => {
+    // A (Kurzfassung) + B–G = 7 Skills; 5 A-Regeln + 7 B–G-Regeln = 12 Regeln.
+    expect(SEED_REGISTRY.skills).toHaveLength(7);
+    expect(SEED_REGISTRY.regeln).toHaveLength(12);
+    const skill = SEED_REGISTRY.skills[0]!; // A = Kurzfassung
+    expect(skill.id).toBe('gutachten-kurzfassung');
+    // Jede regelId JEDES Skills existiert in der Regel-Bibliothek:
+    for (const s of SEED_REGISTRY.skills) {
+      for (const id of s.regelIds) {
+        expect(SEED_REGISTRY.regeln.find(r => r.id === id)).toBeDefined();
+      }
     }
     expect(skill.systemPrompt).toBeTruthy();
     expect(skill.slots).toContain('vbMarkdown');

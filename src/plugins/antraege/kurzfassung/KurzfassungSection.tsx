@@ -15,6 +15,7 @@ import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
 import { shouldShowVersionHint } from '@/core/services/skill-tweaks';
+import { ANKER_EP } from '@/core/services/gutachten-vorlagen';
 import type { Antrag } from '@/core/services/csv/types';
 import { useKurzfassung } from './useKurzfassung';
 import { ReviewCard } from './ReviewCard';
@@ -122,7 +123,7 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
           <VorlageDialog
             open={dialogOpen}
             antrag={mappingAntrag}
-            finalerText={record.finalerText}
+            sections={[{ id: 'A', anker: ANKER_EP.A, finalerText: record.finalerText }]}
             onClose={() => setDialogOpen(false)}
           />
         </>

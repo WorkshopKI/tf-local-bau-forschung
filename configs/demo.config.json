@@ -43,6 +43,7 @@
     "feedbackDelete": false,
     "csvAutoRefresh": false,
     "gutachtenKurzfassung": false,
+    "gutachtenWorkflow": false,
     "skillVerwaltung": false
   },
   "menuLabels": {

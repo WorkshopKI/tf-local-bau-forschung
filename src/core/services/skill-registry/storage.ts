@@ -106,6 +106,46 @@ export function normalizeRegistryFile(raw: unknown): SkillRegistryFile | null {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Additiver Seed-Merge (ergänzt fehlende Skills/Regeln, überschreibt NIE)      */
+/* -------------------------------------------------------------------------- */
+
+export interface SeedMergeResult {
+  file: SkillRegistryFile;
+  /** IDs der durch den Seed ergänzten Skills (für den Kurator-Hinweis). */
+  ergaenzteSkills: string[];
+  /** IDs der durch den Seed ergänzten Regeln. */
+  ergaenzteRegeln: string[];
+}
+
+/**
+ * Ergänzt eine geladene (kuratierte) Registry um Seed-Skills/-Regeln, deren `id`
+ * fehlt — kuratierte Einträge werden NIE überschrieben. Idempotent (zweiter Lauf
+ * ergänzt nichts mehr). So wachsen neue Abschnitte (B–G) additiv in Bestands-
+ * Installationen hinein, ohne die Kuration zu verlieren.
+ */
+export function mergeMissingSeeds(
+  loaded: SkillRegistryFile,
+  seed: SkillRegistryFile = SEED_REGISTRY,
+): SeedMergeResult {
+  const skillIds = new Set(loaded.skills.map(s => s.id));
+  const regelIds = new Set(loaded.regeln.map(r => r.id));
+  const fehlendeSkills = seed.skills.filter(s => !skillIds.has(s.id));
+  const fehlendeRegeln = seed.regeln.filter(r => !regelIds.has(r.id));
+  if (fehlendeSkills.length === 0 && fehlendeRegeln.length === 0) {
+    return { file: loaded, ergaenzteSkills: [], ergaenzteRegeln: [] };
+  }
+  return {
+    file: {
+      ...loaded,
+      skills: [...loaded.skills, ...fehlendeSkills],
+      regeln: [...loaded.regeln, ...fehlendeRegeln],
+    },
+    ergaenzteSkills: fehlendeSkills.map(s => s.id),
+    ergaenzteRegeln: fehlendeRegeln.map(r => r.id),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Share-IO + IDB-Cache                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -158,20 +198,37 @@ export interface LoadedRegistry {
   source: 'share' | 'cache' | 'seed';
   /** True, wenn der Stand aus dem IDB-Cache stammt (Share nicht erreichbar). */
   stale: boolean;
+  /**
+   * Durch den additiven Seed-Merge ergänzte IDs (leer, wenn nichts ergänzt
+   * wurde). Bei `source === 'share'` + Schreibrecht sollte der Aufrufer den
+   * ergänzten Stand zurückschreiben und den Kurator informieren.
+   */
+  ergaenzt?: { skills: string[]; regeln: string[] };
 }
 
 /**
  * Lädt die Registry: Share → bei Treffer cachen; sonst IDB-Cache (stale);
- * sonst der In-Memory-Seed (read-only, „noch nicht kuratiert"). Der Aufrufer
- * persistiert den Seed nur bei `source === 'seed'` und Schreibrecht.
+ * sonst der In-Memory-Seed (read-only, „noch nicht kuratiert"). Auf dem Share-/
+ * Cache-Pfad werden fehlende Seed-Skills/-Regeln additiv ergänzt (B–G in Bestands-
+ * Installationen). Der Aufrufer persistiert den Seed bei `source === 'seed'` ODER
+ * bei nicht-leerem `ergaenzt` (jeweils mit Schreibrecht).
  */
 export async function loadSkillRegistry(storage: StorageService): Promise<LoadedRegistry> {
   const share = await readSkillRegistry(storage);
   if (share) {
-    await cacheSkillRegistry(storage.idb, share);
-    return { file: share, source: 'share', stale: false };
+    const merged = mergeMissingSeeds(share);
+    await cacheSkillRegistry(storage.idb, merged.file);
+    return { file: merged.file, source: 'share', stale: false, ...ergaenztInfo(merged) };
   }
   const cached = await readCachedSkillRegistry(storage.idb);
-  if (cached) return { file: cached, source: 'cache', stale: true };
+  if (cached) {
+    const merged = mergeMissingSeeds(cached);
+    return { file: merged.file, source: 'cache', stale: true, ...ergaenztInfo(merged) };
+  }
   return { file: SEED_REGISTRY, source: 'seed', stale: false };
+}
+
+function ergaenztInfo(merged: SeedMergeResult): Pick<LoadedRegistry, 'ergaenzt'> {
+  if (merged.ergaenzteSkills.length === 0 && merged.ergaenzteRegeln.length === 0) return {};
+  return { ergaenzt: { skills: merged.ergaenzteSkills, regeln: merged.ergaenzteRegeln } };
 }

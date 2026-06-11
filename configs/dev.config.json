@@ -42,6 +42,7 @@
     "csvAutoRefresh": true,
     "onlineStatusTab": true,
     "gutachtenKurzfassung": true,
+    "gutachtenWorkflow": true,
     "skillVerwaltung": true
   },
   "menuLabels": {

@@ -41,6 +41,7 @@
     "embeddingCorpusBuild": false,
     "onlineStatusTab": true,
     "gutachtenKurzfassung": false,
+    "gutachtenWorkflow": false,
     "skillVerwaltung": true
   },
   "menuLabels": {

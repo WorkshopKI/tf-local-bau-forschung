@@ -115,6 +115,9 @@ export interface TeamflowFeatures {
    *  antrags-Detailseite (Dokumenten-Aufnahme → Skill → Review → DOCX-Vorlage).
    *  Erster „Mini-Agent". Nur dev (Testballon). Optional, default false. */
   gutachtenKurzfassung?: boolean;
+  /** Gutachten-Workflow A–G: deterministischer Workflow-Runner ueber Registry-
+   *  Skills (loest die Kurzfassung-Sektion ab). Nur dev. Optional, default false. */
+  gutachtenWorkflow?: boolean;
   /** Skill-Verwaltung: Kurator-pflegbare Skill-/Regel-Registry + Sandbox-Testlauf.
    *  Sichtbar dev + kurator + pl. Optional, default false. */
   skillVerwaltung?: boolean;
