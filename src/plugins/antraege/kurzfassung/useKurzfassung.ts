@@ -1,7 +1,8 @@
 /**
- * Orchestriert die Kurzfassung-Sektion: lädt VB-Status + persistierten Record,
- * prüft LLM-Verfügbarkeit, fährt Generierung/Modifier/Prüfung/Freigabe und
- * persistiert nach jedem Statuswechsel (nie während der Generierung).
+ * Orchestriert die Kurzfassung-Sektion auf **Verbund-Ebene**: lädt VB-Status +
+ * persistierten Record, prüft LLM-Verfügbarkeit, fährt Generierung/Modifier/
+ * Prüfung/Freigabe und persistiert nach jedem Statuswechsel (nie während der
+ * Generierung).
  *
  * Alle Aktionen sind self-catching (Pitfall #15): Fehler landen im `error`-State
  * (→ Banner), nicht in einer verschluckten Promise-Rejection.
@@ -10,12 +11,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kurzfassungSkill, runSkill, type SkillModifierKey } from '@/core/services/skills';
-import type { Antrag } from '@/core/services/csv/types';
 import type { DocumentFull } from '@/plugins/dokumente/store';
-import { resolveAntragFkz } from '@/core/components/dokumentAufnahmeFkz';
 import { findVorhabensbeschreibung } from './vbDokument';
 import { getKurzfassung, putKurzfassung, deleteKurzfassung } from './kurzfassung-store';
-import type { KurzfassungRecord } from './types';
+import type { KurzfassungContext, KurzfassungRecord } from './types';
 
 export interface KurzfassungController {
   record: KurzfassungRecord | null;
@@ -36,21 +35,27 @@ export interface KurzfassungController {
   clearError: () => void;
 }
 
-function buildStammdaten(antrag: Antrag): string {
+function buildStammdaten(ctx: KurzfassungContext): string {
   const nn = '[Im Antrag nicht genannt]';
-  return [
-    `- Förderkennzeichen: ${antrag.aktenzeichen}`,
-    `- Titel: ${antrag.titel ?? nn}`,
-    `- Akronym: ${antrag.akronym ?? nn}`,
-    `- Antragsteller: ${antrag.antragsteller ?? nn}`,
-  ].join('\n');
+  const lines = [
+    `- Förderkennzeichen (Verbund): ${ctx.foerderkennzeichen}`,
+    `- Akronym: ${ctx.akronym}`,
+    `- Verbund-Titel: ${ctx.titel ?? nn}`,
+    `- Konsortialführer: ${ctx.antragsteller ?? nn}`,
+  ];
+  if (ctx.teilvorhaben.length > 0) {
+    lines.push(`- Teilvorhaben (${ctx.teilvorhaben.length}):`);
+    for (const tv of ctx.teilvorhaben) {
+      lines.push(`  - TV ${tv.nr} (${tv.aktenzeichen}, ${tv.antragsteller ?? nn}): ${tv.titel ?? nn}`);
+    }
+  }
+  return lines.join('\n');
 }
 
-export function useKurzfassung(antrag: Antrag): KurzfassungController {
+export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
   const storage = useStorage();
   const bridge = useAIBridge();
-  const az = antrag.aktenzeichen;
-  const fkz = resolveAntragFkz(az) ?? az;
+  const key = ctx.key;
 
   const [record, setRecord] = useState<KurzfassungRecord | null>(null);
   const [vbDokument, setVbDokument] = useState<DocumentFull | null>(null);
@@ -65,8 +70,8 @@ export function useKurzfassung(antrag: Antrag): KurzfassungController {
     (async () => {
       setLoading(true);
       const [rec, vb] = await Promise.all([
-        getKurzfassung(storage.idb, az),
-        findVorhabensbeschreibung(storage.idb, fkz),
+        getKurzfassung(storage.idb, key),
+        findVorhabensbeschreibung(storage.idb, key),
       ]);
       if (cancelled) return;
       setRecord(rec);
@@ -81,7 +86,7 @@ export function useKurzfassung(antrag: Antrag): KurzfassungController {
       }
     })();
     return () => { cancelled = true; };
-  }, [az, fkz, storage.idb, bridge]);
+  }, [key, storage.idb, bridge]);
 
   const runGeneration = async (modifier?: SkillModifierKey): Promise<void> => {
     if (!vbDokument || busy) return;
@@ -98,14 +103,14 @@ export function useKurzfassung(antrag: Antrag): KurzfassungController {
         return;
       }
       const result = await runSkill(transport, kurzfassungSkill, {
-        stammdaten: buildStammdaten(antrag),
+        stammdaten: buildStammdaten(ctx),
         vbMarkdown: vbDokument.markdown,
         ...(modifier ? { modifier } : {}),
         ...(modifier && record ? { vorherigerText: record.finalerText } : {}),
         signal: abort.signal,
       });
       const rec: KurzfassungRecord = {
-        aktenzeichen: az,
+        key,
         quellenanalyse: result.parsed.quellenanalyse,
         entwurf: result.parsed.entwurf,
         finalerText: result.parsed.finalerText,
@@ -152,14 +157,14 @@ export function useKurzfassung(antrag: Antrag): KurzfassungController {
   const verwerfen = async (): Promise<void> => {
     try {
       setRecord(null);
-      await deleteKurzfassung(storage.idb, az);
+      await deleteKurzfassung(storage.idb, key);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
   };
 
   const refreshVb = async (): Promise<void> => {
-    const vb = await findVorhabensbeschreibung(storage.idb, fkz);
+    const vb = await findVorhabensbeschreibung(storage.idb, key);
     setVbDokument(vb);
     if (vb && llmAvailable === null) {
       try { setLlmAvailable(await bridge.getActiveTransport().ping()); }

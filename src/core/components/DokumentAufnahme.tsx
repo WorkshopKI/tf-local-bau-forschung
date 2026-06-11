@@ -3,14 +3,14 @@
  * Funktioniert vollständig ohne LLM.
  *
  * Pro Datei: FKZ aus dem Dateinamen (extractFkz, WIEDERVERWENDET) → Typ-Wahl per
- * Pills → Pipeline Converter → Dokumente-Store → Such-Index mit `tags:[fkz, typ]`.
- * Die Antrag-Zuordnung läuft ausschließlich über die FKZ-Tag-Relation (kein
- * Schreiben in den CSV-`Antrag`-Record).
+ * Pills → Pipeline Converter → Dokumente-Store → Such-Index mit `tags:[relationTag, typ]`.
+ * Die Zuordnung läuft ausschließlich über die Tag-Relation (kein Schreiben in den
+ * CSV-`Antrag`-Record). `relationTag` ist i.d.R. die Verbund-ID.
  *
  * Drei FKZ-Fälle gemäß Mockup `mockup-dokument-aufnahme.html`:
- *  (a) FKZ = aktueller Antrag        → direkt aufnehmen
- *  (b) FKZ erkannt, anderer Antrag   → Warnung + „Trotzdem dort ablegen" / „Verwerfen"
- *  (c) kein FKZ im Dateinamen        → Warnung + manuelle Zuordnung (isValidFkz)
+ *  (a) FKZ gehört zu einem TV des Verbundes → direkt aufnehmen
+ *  (b) FKZ erkannt, anderer Verbund          → Warnung + „Trotzdem dort ablegen" / „Verwerfen"
+ *  (c) kein FKZ im Dateinamen                → Warnung + manuelle Zuordnung (isValidFkz)
  */
 import { useState } from 'react';
 import { FileText, Loader2, Check } from 'lucide-react';
@@ -22,7 +22,7 @@ import { isValidFkz } from '@/phase2/matcher/fkz-extractor';
 import { uuid } from '@/core/services/id-generator';
 import type { AntragDokumentTyp } from '@/core/services/csv/types';
 import { useDokumenteStore } from '@/plugins/dokumente/store';
-import { classifyFkz, resolveAntragFkz, type FkzCase } from './dokumentAufnahmeFkz';
+import { classifyFkz, type FkzCase } from './dokumentAufnahmeFkz';
 
 const converter = new DocConverter();
 
@@ -48,31 +48,32 @@ interface IntakeItem {
 }
 
 interface Props {
-  /** FKZ/Aktenzeichen des aktuellen Antrags (gebundener Modus auf der Detailseite). */
-  antragAz?: string;
+  /** Tag für die Verbund-Relation — wird an jedes aufgenommene Dokument gehängt
+   *  (z.B. die Verbund-ID). Über diesen Tag findet die Kurzfassung-Sektion die VB. */
+  relationTag: string;
+  /** Akzeptierte FKZs (Aktenzeichen aller TVs des Verbundes) für die
+   *  „gehört hierher?"-Erkennung. Leer = jedes erkannte FKZ gilt. */
+  knownFkz: string[];
   /** Callback nach erfolgreicher Aufnahme (z.B. zum Aktualisieren des VB-Status). */
-  onIngested?: (typ: AntragDokumentTyp, fkz: string) => void;
+  onIngested?: (typ: AntragDokumentTyp) => void;
 }
 
-export function DokumentAufnahme({ antragAz, onIngested }: Props): React.ReactElement {
+export function DokumentAufnahme({ relationTag, knownFkz, onIngested }: Props): React.ReactElement {
   const storage = useStorage();
   const { indexDocument } = useSearch();
   const add = useDokumenteStore(s => s.add);
   const updateTags = useDokumenteStore(s => s.updateTags);
   const [items, setItems] = useState<IntakeItem[]>([]);
 
-  /** FKZ des aktuellen Antrags (Förderantrag-Aktenzeichen == FKZ). */
-  const antragFkz = resolveAntragFkz(antragAz);
-
   const patch = (localId: string, p: Partial<IntakeItem>): void =>
     setItems(prev => prev.map(it => (it.localId === localId ? { ...it, ...p } : it)));
 
   /** Konvertieren → Dokumente-Store → Such-Index. Self-catching (Pitfall #15). */
-  const ingest = async (item: IntakeItem, fkz: string, typ: AntragDokumentTyp): Promise<void> => {
+  const ingest = async (item: IntakeItem, typ: AntragDokumentTyp): Promise<void> => {
     patch(item.localId, { status: 'konvertiert', error: undefined });
     try {
       const converted = await converter.convert(item.file);
-      const tags = [fkz, typ].filter(Boolean);
+      const tags = [relationTag, typ].filter(Boolean);
       const docId = await add({
         filename: converted.filename,
         format: converted.format,
@@ -90,7 +91,7 @@ export function DokumentAufnahme({ antragAz, onIngested }: Props): React.ReactEl
         type: 'dokument',
       });
       patch(item.localId, { status: 'indexiert', docId, typ });
-      onIngested?.(typ, fkz);
+      onIngested?.(typ);
     } catch (err) {
       patch(item.localId, { status: 'fehler', error: err instanceof Error ? err.message : String(err) });
     }
@@ -98,7 +99,7 @@ export function DokumentAufnahme({ antragAz, onIngested }: Props): React.ReactEl
 
   const handleFiles = (files: File[]): void => {
     for (const file of files) {
-      const { detectedFkz: detected, fkzCase } = classifyFkz(file.name, antragAz);
+      const { detectedFkz: detected, fkzCase } = classifyFkz(file.name, knownFkz);
 
       const item: IntakeItem = {
         localId: uuid(),
@@ -106,12 +107,12 @@ export function DokumentAufnahme({ antragAz, onIngested }: Props): React.ReactEl
         detectedFkz: detected,
         fkzCase,
         typ: 'vorhabensbeschreibung',
-        manualFkz: antragFkz ?? '',
+        manualFkz: knownFkz[0] ?? '',
         status: 'wartet',
       };
       setItems(prev => [...prev, item]);
       // Fall (a): direkt aufnehmen. (b)/(c) warten auf User-Aktion.
-      if (fkzCase === 'match') void ingest(item, antragFkz ?? detected!, item.typ);
+      if (fkzCase === 'match') void ingest(item, item.typ);
     }
   };
 
@@ -119,8 +120,7 @@ export function DokumentAufnahme({ antragAz, onIngested }: Props): React.ReactEl
   const setTyp = (item: IntakeItem, typ: AntragDokumentTyp): void => {
     patch(item.localId, { typ });
     if (item.docId) {
-      const fkz = antragFkz ?? item.detectedFkz ?? '';
-      void updateTags(item.docId, [fkz, typ].filter(Boolean), storage).catch(() => { /* re-tag best-effort */ });
+      void updateTags(item.docId, [relationTag, typ].filter(Boolean), storage).catch(() => { /* re-tag best-effort */ });
     }
   };
 
@@ -143,11 +143,11 @@ export function DokumentAufnahme({ antragAz, onIngested }: Props): React.ReactEl
           key={item.localId}
           item={item}
           onSetTyp={setTyp}
-          onConfirmOther={() => void ingest(item, antragFkz ?? item.detectedFkz!, item.typ)}
+          onConfirmOther={() => void ingest(item, item.typ)}
           onDiscard={() => patch(item.localId, { status: 'verworfen' })}
           onManualChange={v => patch(item.localId, { manualFkz: v.toUpperCase() })}
           onConfirmManual={() => {
-            if (isValidFkz(item.manualFkz)) void ingest(item, item.manualFkz, item.typ);
+            if (isValidFkz(item.manualFkz)) void ingest(item, item.typ);
           }}
         />
       ))}
@@ -179,7 +179,7 @@ function IntakeRow({ item, onSetTyp, onConfirmOther, onDiscard, onManualChange, 
             <Chip tone="success">FKZ erkannt: {item.detectedFkz}</Chip>
           )}
           {item.fkzCase === 'other' && (
-            <Chip tone="warning">FKZ {item.detectedFkz} gehört zu einem anderen Antrag</Chip>
+            <Chip tone="warning">FKZ {item.detectedFkz} gehört zu einem anderen Verbund</Chip>
           )}
           {item.fkzCase === 'none' && (
             <Chip tone="warning">Kein FKZ im Dateinamen</Chip>

@@ -12,16 +12,16 @@
 import type { IDBStore } from '@/core/services/storage';
 import type { KurzfassungRecord } from './types';
 
-const keyFor = (aktenzeichen: string): string => `gutachten-kurzfassung:${aktenzeichen}`;
+const keyFor = (key: string): string => `gutachten-kurzfassung:${key}`;
 
-export async function getKurzfassung(idb: IDBStore, aktenzeichen: string): Promise<KurzfassungRecord | null> {
-  return idb.get<KurzfassungRecord>(keyFor(aktenzeichen));
+export async function getKurzfassung(idb: IDBStore, key: string): Promise<KurzfassungRecord | null> {
+  return idb.get<KurzfassungRecord>(keyFor(key));
 }
 
 export async function putKurzfassung(idb: IDBStore, record: KurzfassungRecord): Promise<void> {
-  await idb.set(keyFor(record.aktenzeichen), record);
+  await idb.set(keyFor(record.key), record);
 }
 
-export async function deleteKurzfassung(idb: IDBStore, aktenzeichen: string): Promise<void> {
-  await idb.delete(keyFor(aktenzeichen));
+export async function deleteKurzfassung(idb: IDBStore, key: string): Promise<void> {
+  await idb.delete(keyFor(key));
 }

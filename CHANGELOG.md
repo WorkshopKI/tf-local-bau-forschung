@@ -2,6 +2,16 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.68.2 — Gutachten-Kurzfassung auf Verbund-Ebene (statt pro Teilvorhaben) (Juni 2026)
+
+PATCH-Bump v2.68.2 — fachliche Korrektur: Ein Gutachten / eine Kurzfassung wird pro **Verbund** erstellt (die Vorhabensbeschreibung existiert nur einmal pro Verbund), nicht pro Teilvorhaben. Im Gutachten werden TV-Infos (Titel, Antragsteller) aufgelistet.
+
+- Die Sektion „Kurzfassung (Gutachten)" sitzt jetzt in [VerbundDetail](src/plugins/antraege/VerbundDetail.tsx) **oberhalb der Felder-Liste** (vorher ganz unten in `TvDetailBlock`, pro TV).
+- Persistenz + VB-Relation laufen über die **Verbund-ID** (bzw. das Aktenzeichen bei Solo-/Pseudo-Verbünden); `KurzfassungRecord.key` statt `aktenzeichen`.
+- [`DokumentAufnahme`](src/core/components/DokumentAufnahme.tsx) generalisiert: `relationTag` (Verbund-ID) + `knownFkz` (Aktenzeichen aller TVs) — eine VB „gehört hierher", wenn ihr Datei-FKZ zu irgendeinem TV des Verbundes passt.
+- Skill-Stammdaten enthalten Verbund-FKZ + Akronym + Titel + Konsortialführer + die TV-Liste; die DOCX-Feld-Zuordnung nutzt Verbund-FKZ/-Titel/-Konsortialführer.
+- Dev-only Testballon (`gutachtenKurzfassung`) — keine Migration (es existieren noch keine produktiven Records).
+
 ### v2.68.1 — Antrag-Detail: „Alle Felder" einklappbar (Juni 2026)
 
 PATCH-Bump v2.68.1: Die Feldliste im Antrag-Detail ([AlleFelderSection](src/plugins/antraege/AlleFelderSection.tsx)) ist jetzt per Chevron **einklappbar** (Default eingeklappt, Wahl pro Browser persistiert in `teamflow_antrag_allefelder_open`). Bei 120–300 Feldern war das Detail-Panel sonst sehr lang; eingeklappt sind die darunterliegenden Sektionen (Netzwerk, Dokumente, **Kurzfassung-Testballon**) ohne langes Scrollen erreichbar. Die Kopfzeile zeigt weiter „N Felder gesamt · M mit Werten".

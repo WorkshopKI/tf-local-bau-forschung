@@ -1,6 +1,7 @@
 /**
- * Kurzfassung-Sektion auf der Antragsdetailseite (hinter Feature-Flag
- * `gutachtenKurzfassung`). Orchestriert die drei Zustände:
+ * Kurzfassung-Sektion auf der **Verbund**-Detailseite (hinter Feature-Flag
+ * `gutachtenKurzfassung`). Ein Gutachten/eine Kurzfassung pro Verbund. Drei
+ * Zustände:
  *  - „VB fehlt"     → Hinweis + eingebettete Dokumenten-Aufnahmefläche
  *  - „VB vorhanden" → Button „Kurzfassung erstellen"
  *  - Review         → ReviewCard (Entwurf/Freigegeben)
@@ -8,21 +9,33 @@
  * Funktioniert ohne LLM: Aufnahme + ein bereits freigegebener Stand + der
  * Vorlagen-Dialog bleiben nutzbar; nur die Generierung degradiert.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import type { Antrag } from '@/core/services/csv/types';
 import { useKurzfassung } from './useKurzfassung';
 import { ReviewCard } from './ReviewCard';
 import { VorlageDialog } from './VorlageDialog';
+import type { KurzfassungContext } from './types';
 
 const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed';
 
-export function KurzfassungSection({ antrag }: { antrag: Antrag }): React.ReactElement {
-  const ctrl = useKurzfassung(antrag);
+export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
+  const ctrl = useKurzfassung(ctx);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { record } = ctrl;
   const freigegeben = record?.status === 'freigegeben';
+
+  // Synthetischer „Antrag" als Feld-Quelle für den DOCX-Füller: das Gutachten
+  // läuft auf Verbund-Ebene → Verbund-FKZ/Titel/Konsortialführer.
+  const mappingAntrag = useMemo<Antrag>(() => ({
+    aktenzeichen: ctx.foerderkennzeichen,
+    programm_id: '',
+    ...(ctx.titel ? { titel: ctx.titel } : {}),
+    ...(ctx.antragsteller ? { antragsteller: ctx.antragsteller } : {}),
+    _field_sources: {},
+    _updated_at: '',
+  }), [ctx.foerderkennzeichen, ctx.titel, ctx.antragsteller]);
 
   return (
     <div>
@@ -68,7 +81,7 @@ export function KurzfassungSection({ antrag }: { antrag: Antrag }): React.ReactE
           />
           <VorlageDialog
             open={dialogOpen}
-            antrag={antrag}
+            antrag={mappingAntrag}
             finalerText={record.finalerText}
             onClose={() => setDialogOpen(false)}
           />
@@ -105,10 +118,10 @@ export function KurzfassungSection({ antrag }: { antrag: Antrag }): React.ReactE
       ) : (
         <div className="py-2">
           <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">
-            Für die Kurzfassung wird die Vorhabensbeschreibung (VB) benötigt. Legen Sie sie hier ab —
+            Für die Kurzfassung wird die Vorhabensbeschreibung (VB) des Verbundes benötigt. Legen Sie sie hier ab —
             das Förderkennzeichen wird aus dem Dateinamen erkannt.
           </p>
-          <DokumentAufnahme antragAz={antrag.aktenzeichen} onIngested={ctrl.refreshVb} />
+          <DokumentAufnahme relationTag={ctx.key} knownFkz={ctx.fkzList} onIngested={ctrl.refreshVb} />
         </div>
       )}
     </div>

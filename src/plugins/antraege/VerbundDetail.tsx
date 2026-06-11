@@ -32,6 +32,10 @@ import {
 import { useAntraegeStore } from './store';
 import { findAbgelehnteVorgaenger } from './vorgaengerAntraege';
 import { AbgelehnteVorgaengerBanner } from './AbgelehnteVorgaengerBanner';
+import { KurzfassungSection } from './kurzfassung/KurzfassungSection';
+import type { KurzfassungContext } from './kurzfassung/types';
+import { resolveFkz } from '@/core/components/dokumentAufnahmeFkz';
+import { isGutachtenKurzfassungEnabled } from '@/config/feature-flags';
 
 interface Props {
   verbundId: string;
@@ -241,6 +245,24 @@ export function VerbundDetail({
   // __pseudo__-Synthetik.
   const headerId = isPseudo ? aktenzeichenFromPseudoVerbundId(verbundId) : verbund.verbund_id;
 
+  // Gutachten/Kurzfassung läuft auf Verbund-Ebene (eine VB pro Verbund). Key +
+  // Förderkennzeichen = Verbund-ID (bzw. echtes Az bei Solo/pseudo). fkzList =
+  // alle TV-Aktenzeichen (für die FKZ-Erkennung in der Aufnahmefläche).
+  const kurzfassungCtx: KurzfassungContext = {
+    key: headerId,
+    akronym,
+    titel,
+    antragsteller,
+    foerderkennzeichen: headerId,
+    fkzList: antraege.map(a => resolveFkz(a.aktenzeichen)),
+    teilvorhaben: antraege.map((tv, idx) => ({
+      nr: idx + 1,
+      aktenzeichen: tv.aktenzeichen,
+      titel: strOrNull(tv.titel),
+      antragsteller: strOrNull(tv.antragsteller),
+    })),
+  };
+
   return (
     <PanelShell onClose={onClose}>
       {/* Header-Block: Status-Pill, Akronym, Untertitel */}
@@ -418,6 +440,14 @@ export function VerbundDetail({
           </div>
         ) : null
       )}
+
+      {/* KURZFASSUNG (Gutachten) — Verbund-Ebene, oberhalb der Felder-Liste.
+          Hinter Feature-Flag (nur dev). */}
+      {isGutachtenKurzfassungEnabled() ? (
+        <div className="mt-6 pt-6" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <KurzfassungSection ctx={kurzfassungCtx} />
+        </div>
+      ) : null}
 
       {/* ALLE FELDER (Verbund-Aggregat) — nur fuer echte Verbuende. Bei pseudo
           waere das ein Duplikat von TvDetailBlock.AlleFelderSection. */}
