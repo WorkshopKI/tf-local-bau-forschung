@@ -2,6 +2,12 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.68.4 — Förderanträge-Header: „Auch außerhalb meiner Anträge suchen" eine Zeile höher (Juni 2026)
+
+PATCH-Bump v2.68.4 — die Checkbox „Auch außerhalb meiner Anträge suchen" ([AntraegeHeader](src/plugins/antraege/AntraegeHeader.tsx)) sitzt jetzt in der Such-Zeile (rechts neben dem Ähnlichkeits-Select) statt in einer eigenen Zeile darunter — spart vertikalen Platz.
+
+- Belegt denselben Slot wie die „inaktive MAs"-Checkbox; beide schließen sich gegenseitig aus (`inaktive MAs` nur ohne Bearbeiter-Filter, „außerhalb" nur **mit** aktivem Bearbeiter-Filter + aktiver Suche), daher kein Layout-Konflikt.
+
 ### v2.68.3 — Gutachten-Aufnahme: Verbund- & TV-FKZ akzeptieren, sonst manuelle Zuordnung (Juni 2026)
 
 PATCH-Bump v2.68.3 — die Dokumenten-Aufnahme der Kurzfassung ([DokumentAufnahme](src/core/components/DokumentAufnahme.tsx)) erkennt jetzt **Verbund-FKZ UND alle TV-FKZ** als zugehörig:

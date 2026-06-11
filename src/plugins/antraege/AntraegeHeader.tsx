@@ -231,11 +231,11 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
               inaktive MAs
             </label>
           ) : null}
-        </div>
-
-        {showIgnoreBearbeiterToggle ? (
-          <div className="mt-1.5 mb-1 flex justify-end pr-4">
-            <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none">
+          {/* Im Suchzeilen-Slot (rechts neben dem Ähnlichkeits-Select) — exklusiv
+              zur „inaktive MAs"-Checkbox (die nur ohne Bearbeiter-Filter erscheint),
+              spart so die eigene Zeile darunter. */}
+          {showIgnoreBearbeiterToggle ? (
+            <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none shrink-0 whitespace-nowrap">
               <input
                 type="checkbox"
                 checked={searchIgnoreBearbeiter}
@@ -244,8 +244,8 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
               />
               Auch außerhalb meiner Anträge suchen
             </label>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
 
         {downloadingCorpus ? (
           <div className="mt-1 mb-2 text-[11.5px] text-[var(--tf-text-tertiary)] flex items-center gap-1.5">
