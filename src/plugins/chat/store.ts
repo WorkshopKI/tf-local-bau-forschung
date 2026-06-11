@@ -48,6 +48,28 @@ interface ChatState {
   persistActive: (storage: StorageService) => Promise<void>;
   setSystemPrompt: (prompt: string, storage: StorageService) => Promise<void>;
   setThinkingEnabled: (enabled: boolean, storage: StorageService) => Promise<void>;
+  /** Anheften umschalten (auch für nicht-aktive Konversationen). */
+  togglePin: (id: string, storage: StorageService) => Promise<void>;
+  /** Manuell umbenennen (friert den Titel gegen Auto-Ableitung ein). */
+  renameConversation: (id: string, title: string, storage: StorageService) => Promise<void>;
+  /** FKZ verknüpfen/entfernen (Konversation↔Antrag). */
+  setConversationFkz: (id: string, fkz: string | undefined, storage: StorageService) => Promise<void>;
+  /** Daumen-Feedback einer Message der aktiven Konversation umschalten. */
+  setMessageFeedback: (msgId: string, fb: 'up' | 'down', storage: StorageService) => Promise<void>;
+}
+
+/** Meta-Felder einer (ggf. nicht-aktiven) Konversation patchen: Voll-Record aus
+ *  IDB laden, Feld ändern, zurückschreiben, Meta im State aktualisieren. */
+async function patchConversationRecord(
+  id: string,
+  patch: Partial<ConversationMeta>,
+  storage: StorageService,
+  set: (fn: (s: ChatState) => Partial<ChatState>) => void,
+): Promise<void> {
+  const rec = await storage.idb.get<ConversationFull>(`${CONV_PREFIX}${id}`);
+  if (!rec) return;
+  await storage.idb.set(`${CONV_PREFIX}${id}`, { ...rec, ...patch });
+  set(s => ({ conversations: s.conversations.map(c => (c.id === id ? { ...c, ...patch } : c)) }));
 }
 
 /** Settings-Record komplett schreiben — partielle Writes würden das jeweils
@@ -79,6 +101,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       metas.push({
         id: rec.id, title: rec.title, createdAt: rec.createdAt,
         updatedAt: rec.updatedAt, messageCount: rec.messageCount,
+        ...(rec.pinned ? { pinned: true } : {}),
+        ...(rec.fkz ? { fkz: rec.fkz } : {}),
+        ...(rec.titleCustom ? { titleCustom: true } : {}),
       });
     }
     metas.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -132,10 +157,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const now = new Date().toISOString();
       const meta: ConversationMeta = {
         id: activeId,
-        title: deriveTitle(activeMessages),
+        // Manuell gesetzte Titel nicht überschreiben (titleCustom).
+        title: existing?.titleCustom ? existing.title : deriveTitle(activeMessages),
         createdAt: existing?.createdAt ?? activeMessages[0]?.createdAt ?? now,
         updatedAt: now,
         messageCount: activeMessages.length,
+        // Sidebar-Meta-Felder über das Speichern hinweg erhalten.
+        ...(existing?.pinned ? { pinned: true } : {}),
+        ...(existing?.fkz ? { fkz: existing.fkz } : {}),
+        ...(existing?.titleCustom ? { titleCustom: true } : {}),
       };
       const record: ConversationFull = { ...meta, messages: activeMessages };
       await storage.idb.set(`${CONV_PREFIX}${activeId}`, record);
@@ -158,5 +188,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setThinkingEnabled: async (enabled, storage) => {
     set({ thinkingEnabled: enabled });
     await persistSettings(storage, { systemPrompt: get().systemPrompt, thinkingEnabled: enabled });
+  },
+
+  togglePin: async (id, storage) => {
+    const current = get().conversations.find(c => c.id === id);
+    await patchConversationRecord(id, { pinned: !current?.pinned }, storage, set);
+  },
+
+  renameConversation: async (id, title, storage) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    await patchConversationRecord(id, { title: trimmed, titleCustom: true }, storage, set);
+  },
+
+  setConversationFkz: async (id, fkz, storage) => {
+    await patchConversationRecord(id, { fkz }, storage, set);
+  },
+
+  setMessageFeedback: async (msgId, fb, storage) => {
+    const cur = get().activeMessages.find(m => m.id === msgId);
+    if (!cur) return;
+    get().updateMessage(msgId, { feedback: cur.feedback === fb ? undefined : fb });
+    await get().persistActive(storage);
   },
 }));

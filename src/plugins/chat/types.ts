@@ -13,6 +13,29 @@ export interface ChatAttachment {
   pages?: number;
 }
 
+/**
+ * Strukturierte RAG-Quelle, pro Assistant-Antwort gespeichert. Treibt die
+ * Quellen-Chips, das „Verwendeter Kontext"-Panel, die Inline-[n]-Zitate und
+ * das Slide-over-Quellen-Panel. Abgeleitet aus OramaSearchResult.
+ */
+export interface ChatSource {
+  /** 1-basiert; mappt auf das [n]-Zitat im Antworttext. */
+  n: number;
+  title: string;
+  /** Dateiname/Quellpfad (OramaSearchResult.source). */
+  sourcePath: string;
+  /** 0..100, aus score abgeleitet. */
+  relevance: number;
+  method: string;
+  type: string;
+  /** Einzeilige, ellipsierte Kurzfassung (Kontext-Liste). */
+  contextLine: string;
+  /** Längeres Exzerpt mit «term»-Highlights (Quellen-Panel). */
+  snippet: string;
+  /** Falls aus sourcePath parsebar → „Antrag öffnen"-Deeplink. */
+  antragFkz?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -29,8 +52,12 @@ export interface ChatMessage {
   aborted?: boolean;
   /** Generierung mid-stream gescheitert, Partial behalten. */
   error?: string;
-  /** RAG-Quellen-Chips. */
+  /** Nur Assistant: strukturierte RAG-Quellen. */
+  sources?: ChatSource[];
+  /** RAG-Quellen-Chips (Legacy/Abwärtskompat; neue Antworten nutzen `sources`). */
   ragSources?: string[];
+  /** Lokales Daumen-Feedback (kein Backend-Submit). */
+  feedback?: 'up' | 'down';
 }
 
 export interface ConversationMeta {
@@ -40,6 +67,12 @@ export interface ConversationMeta {
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  /** Angeheftet — sortiert in eigene Gruppe. */
+  pinned?: boolean;
+  /** Verknüpftes Förderkennzeichen (Konversation↔Antrag), treibt „Anträge"-Filter + FKZ-Unterzeile. */
+  fkz?: string;
+  /** Manuell umbenannt → persistActive überschreibt den Titel nicht mehr automatisch. */
+  titleCustom?: boolean;
 }
 
 export interface ConversationFull extends ConversationMeta {
