@@ -1,63 +1,160 @@
-import { Plus, Trash2 } from 'lucide-react';
-import { Button } from '@/ui';
+import { useEffect, useRef, useState } from 'react';
+import { Download, FileText, MoreHorizontal, Pencil, Pin, Search, SquarePen, Trash2 } from 'lucide-react';
+import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import type { ConversationMeta } from '../types';
+import { useChatStore } from '../store';
+import { groupConversations, type ConversationFilter } from '../conversation-groups';
+import { conversationToMarkdown } from '../services/conversation-markdown';
+import type { ConversationFull, ConversationMeta } from '../types';
 
-interface ConversationSidebarProps {
-  conversations: ConversationMeta[];
-  activeId: string | null;
-  onSelect: (id: string) => Promise<void>;
-  onNew: () => void;
-  onDelete: (id: string) => Promise<void>;
-}
+const FILTERS: Array<[ConversationFilter, string]> = [
+  ['all', 'Alle'], ['antrag', 'Anträge'], ['pinned', 'Angeheftet'],
+];
 
-export function ConversationSidebar({
-  conversations, activeId, onSelect, onNew, onDelete,
-}: ConversationSidebarProps): React.ReactElement {
-  const selectAction = useAsyncAction(onSelect);
-  const deleteAction = useAsyncAction(onDelete);
+export function ConversationSidebar(): React.ReactElement {
+  const storage = useStorage();
+  const conversations = useChatStore(s => s.conversations);
+  const activeId = useChatStore(s => s.activeId);
+
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<ConversationFilter>('all');
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameVal, setRenameVal] = useState('');
+  const renameRef = useRef<HTMLInputElement>(null);
+
+  const selectAction = useAsyncAction((id: string) => useChatStore.getState().select(id, storage));
+  const deleteAction = useAsyncAction((id: string) => useChatStore.getState().deleteConversation(id, storage));
+  const copyMdAction = useAsyncAction(async (id: string) => {
+    const rec = await storage.idb.get<ConversationFull>(`chat:conv:${id}`);
+    if (rec) await navigator.clipboard.writeText(conversationToMarkdown(rec));
+  });
+
+  useEffect(() => {
+    if (renamingId && renameRef.current) { renameRef.current.focus(); renameRef.current.select(); }
+  }, [renamingId]);
+  useEffect(() => {
+    if (!menuId) return;
+    const close = (): void => setMenuId(null);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [menuId]);
+
+  const { sections, counts } = groupConversations(conversations, { filter, query, now: Date.now() });
+
+  const startRename = (c: ConversationMeta): void => { setMenuId(null); setRenameVal(c.title); setRenamingId(c.id); };
+  const commitRename = (): void => {
+    if (renamingId) void useChatStore.getState().renameConversation(renamingId, renameVal, storage);
+    setRenamingId(null);
+  };
 
   return (
-    <div className="w-60 shrink-0 flex flex-col" style={{ borderRight: '0.5px solid var(--tf-border)' }}>
-      <div className="p-3">
-        <Button variant="secondary" size="sm" icon={Plus} className="w-full justify-center" onClick={onNew}>
-          Neuer Chat
-        </Button>
+    <div className="side2">
+      <div className="side2-pad">
+        <div className="side2-row">
+          <div className="side2-search">
+            <Search size={14} />
+            <input
+              placeholder="Unterhaltungen durchsuchen"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+            />
+          </div>
+          <button className="side2-compose" title="Neuer Chat" onClick={() => useChatStore.getState().newConversation()}>
+            <SquarePen size={16} />
+          </button>
+        </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
-        {conversations.length === 0 && (
-          <p className="px-2 py-1 text-[12px] text-[var(--tf-text-tertiary)]">
-            Noch keine Unterhaltungen
-          </p>
-        )}
-        {conversations.map(conv => (
-          <div
-            key={conv.id}
-            className={`group flex items-center gap-1 rounded-[var(--tf-radius)] ${
-              conv.id === activeId ? 'bg-[var(--tf-bg-secondary)]' : 'hover:bg-[var(--tf-hover)]'
-            }`}
-          >
-            <button
-              onClick={() => selectAction.run(conv.id)}
-              className="flex-1 min-w-0 text-left px-2 py-2 text-[13px] text-[var(--tf-text)] truncate cursor-pointer"
-              title={conv.title}
-            >
-              {conv.title}
-            </button>
-            <button
-              onClick={() => deleteAction.run(conv.id)}
-              className="shrink-0 p-1.5 mr-1 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] opacity-0 group-hover:opacity-100 cursor-pointer"
-              title="Unterhaltung löschen"
-            >
-              <Trash2 size={13} />
-            </button>
+
+      <div className="side2-filter">
+        {FILTERS.map(([id, label]) => (
+          <button key={id} className={`sf-chip${filter === id ? ' on' : ''}`} onClick={() => setFilter(id)}>
+            {label}<span className="sf-n">{counts[id]}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="side2-list scroll">
+        {sections.length === 0 && <div className="side2-empty">Keine Unterhaltungen.</div>}
+        {sections.map((g, gi) => (
+          <div key={g.name}>
+            <div className={`side2-group${gi === 0 ? ' first' : ''}`}>{g.name}</div>
+            {g.items.map(c => (
+              c.id === renamingId ? (
+                <div key={c.id} className="conv2">
+                  <div className="c2rename">
+                    <input
+                      ref={renameRef}
+                      value={renameVal}
+                      onChange={e => setRenameVal(e.target.value)}
+                      onBlur={commitRename}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') commitRename();
+                        if (e.key === 'Escape') setRenamingId(null);
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div
+                  key={c.id}
+                  className={`conv2${c.id === activeId ? ' active' : ''}${c.pinned ? ' pinned' : ''}`}
+                  onClick={() => selectAction.run(c.id)}
+                >
+                  <div className="c2body">
+                    <div className="c2t">{c.title}</div>
+                    {c.fkz && (
+                      <div className="c2sub">
+                        <FileText size={11} />
+                        <span className="c2fkz">{c.fkz}</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className="c2pin"><Pin size={13} /></span>
+                  <div className="c2acts">
+                    <button
+                      className={`c2act${c.pinned ? ' on' : ''}`}
+                      title={c.pinned ? 'Lösen' : 'Anheften'}
+                      onClick={e => { e.stopPropagation(); void useChatStore.getState().togglePin(c.id, storage); }}
+                    >
+                      <Pin size={14} />
+                    </button>
+                    <button
+                      className="c2act"
+                      title="Mehr"
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); setMenuId(menuId === c.id ? null : c.id); }}
+                    >
+                      <MoreHorizontal size={15} />
+                    </button>
+                  </div>
+                  {menuId === c.id && (
+                    <div className="c2menu" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+                      <button className="c2mi" onClick={() => { void useChatStore.getState().togglePin(c.id, storage); setMenuId(null); }}>
+                        <Pin size={15} />{c.pinned ? 'Lösen' : 'Anheften'}
+                      </button>
+                      <button className="c2mi" onClick={() => startRename(c)}>
+                        <Pencil size={15} />Umbenennen
+                      </button>
+                      <button className="c2mi" onClick={() => { copyMdAction.run(c.id); setMenuId(null); }}>
+                        <Download size={15} />Als Markdown kopieren
+                      </button>
+                      {c.fkz && (
+                        <button className="c2mi" onClick={() => { void useChatStore.getState().setConversationFkz(c.id, undefined, storage); setMenuId(null); }}>
+                          <FileText size={15} />Antrag-Verknüpfung lösen
+                        </button>
+                      )}
+                      <div className="c2msep" />
+                      <button className="c2mi danger" onClick={() => { deleteAction.run(c.id); setMenuId(null); }}>
+                        <Trash2 size={15} />Löschen
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            ))}
           </div>
         ))}
-        {(selectAction.error ?? deleteAction.error) && (
-          <p className="px-2 py-1 text-[11px] text-[var(--tf-danger-text)]">
-            {selectAction.error ?? deleteAction.error}
-          </p>
-        )}
       </div>
     </div>
   );

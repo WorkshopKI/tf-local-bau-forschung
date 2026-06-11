@@ -1,15 +1,21 @@
 /**
- * Layout-Shell des Chat-Plugins: Konversations-Sidebar links, Message-Liste +
- * Input rechts. Logik liegt in useChatController (Senden/Kontext) und
- * useChatStore (Persistenz) — diese Datei verdrahtet nur.
+ * Shell des Chat-Plugins (Design-Handoff): 3 Spalten — Verlauf-Sidebar,
+ * Conversation (Header + Thread + Composer) und optionales Quellen-Panel.
+ * Logik liegt in useChatController (Senden/Kontext) + useChatStore (Persistenz).
+ *
+ * Hinweis: Thread + Composer werden in den folgenden Reskin-Schritten ersetzt;
+ * hier interimsweise noch MessageList/ChatInput, damit der Chat funktionsfähig
+ * bleibt.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useChatStore } from './store';
 import { useChatController } from './useChatController';
 import { ConversationSidebar } from './components/ConversationSidebar';
+import { ConversationHeader } from './components/ConversationHeader';
 import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
+import './chat.css';
 
 export function ChatView(): React.ReactElement {
   const storage = useStorage();
@@ -18,6 +24,9 @@ export function ChatView(): React.ReactElement {
   const activeMessages = useChatStore(s => s.activeMessages);
   const controller = useChatController();
   const docDirs = storage.getDocDirectories();
+  const [railCollapsed, setRailCollapsed] = useState(false);
+
+  const activeTitle = conversations.find(c => c.id === activeId)?.title ?? 'Neue Unterhaltung';
 
   // Init: Metas + Settings laden, letzte Unterhaltung reaktivieren
   const initRef = useRef(false);
@@ -34,15 +43,10 @@ export function ChatView(): React.ReactElement {
   }, [storage]);
 
   return (
-    <div className="flex h-full">
-      <ConversationSidebar
-        conversations={conversations}
-        activeId={activeId}
-        onSelect={id => useChatStore.getState().select(id, storage)}
-        onNew={() => useChatStore.getState().newConversation()}
-        onDelete={id => useChatStore.getState().deleteConversation(id, storage)}
-      />
-      <div className="flex flex-col flex-1 min-w-0">
+    <div className={`chat-app${railCollapsed ? ' rail-collapsed' : ''}`}>
+      <ConversationSidebar />
+      <div className="convo">
+        <ConversationHeader title={activeTitle} onToggleRail={() => setRailCollapsed(c => !c)} />
         <MessageList
           messages={activeMessages}
           busy={controller.busy}
