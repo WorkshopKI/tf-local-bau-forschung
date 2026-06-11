@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { StorageService } from '@/core/services/storage';
 import { uuid } from '@/core/services/id-generator';
+import type { ConversionReport } from '@/core/services/converter';
 
 export interface DocumentMeta {
   id: string;
@@ -11,6 +12,8 @@ export interface DocumentMeta {
   pages?: number;
   vorgangId?: string;
   source?: string;        // 'upload' | 'filesystem' | 'seed'
+  /** Konvertierungs-Report (optional; alte Docs vor v2.70 haben kein Feld). */
+  conversion?: ConversionReport;
 }
 
 // Volles Dokument mit Markdown — nur beim Öffnen laden

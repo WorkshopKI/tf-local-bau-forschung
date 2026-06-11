@@ -18,10 +18,11 @@ import { FileText, Loader2, Check } from 'lucide-react';
 import { FileDropZone } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
-import { DocConverter } from '@/core/services/converter';
+import { DocConverter, maxConversionLevel, type ConvertedDoc } from '@/core/services/converter';
 import { uuid } from '@/core/services/id-generator';
 import type { AntragDokumentTyp } from '@/core/services/csv/types';
 import { useDokumenteStore } from '@/plugins/dokumente/store';
+import { KonvertierungReviewDialog } from './KonvertierungReviewDialog';
 import { classifyFkz, type FkzCase } from './dokumentAufnahmeFkz';
 
 const converter = new DocConverter();
@@ -45,6 +46,8 @@ interface IntakeItem {
   status: ItemStatus;
   docId?: string;
   error?: string;
+  /** Konvertierungsergebnis (Markdown + Report) für die „prüfen"-Vorschau. */
+  converted?: ConvertedDoc;
 }
 
 interface Props {
@@ -81,6 +84,7 @@ export function DokumentAufnahme({ relationTag, knownIds, onIngested }: Props): 
         tags,
         pages: converted.pages,
         source: 'upload',
+        conversion: converted.report,
       }, storage);
       indexDocument({
         id: docId,
@@ -90,7 +94,7 @@ export function DokumentAufnahme({ relationTag, knownIds, onIngested }: Props): 
         tags,
         type: 'dokument',
       });
-      patch(item.localId, { status: 'indexiert', docId, typ });
+      patch(item.localId, { status: 'indexiert', docId, typ, converted });
       onIngested?.(typ);
     } catch (err) {
       patch(item.localId, { status: 'fehler', error: err instanceof Error ? err.message : String(err) });
@@ -160,6 +164,8 @@ interface RowProps {
 function IntakeRow({ item, onSetTyp, onAssign, onDiscard }: RowProps): React.ReactElement {
   const assigned = item.status === 'konvertiert' || item.status === 'indexiert';
   const showPills = item.fkzCase === 'match' || assigned;
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const lvl = item.converted ? maxConversionLevel(item.converted.report) : null;
 
   return (
     <div className="flex items-start gap-3 py-3 border-t-[0.5px] border-[var(--tf-border)]">
@@ -218,6 +224,16 @@ function IntakeRow({ item, onSetTyp, onAssign, onDiscard }: RowProps): React.Rea
         {item.status === 'fehler' && item.error && (
           <div className="text-[11px] text-[var(--tf-danger-text)] mt-1.5">Fehler: {item.error}</div>
         )}
+
+        {item.status === 'indexiert' && item.converted && (
+          <div className="mt-1.5 flex items-center gap-2 flex-wrap text-[11.5px]">
+            <button type="button" onClick={() => setReviewOpen(true)} className="text-[var(--tf-primary)] hover:underline">
+              Konvertierung prüfen
+            </button>
+            {lvl === 'warnung' && <span className="text-[var(--tf-warning-text)]">⚠ mögliche Konvertierungsprobleme</span>}
+            {lvl === 'hinweis' && <span className="text-[var(--tf-text-tertiary)]">Hinweise zur Konvertierung</span>}
+          </div>
+        )}
       </div>
 
       {/* Status rechts */}
@@ -225,6 +241,18 @@ function IntakeRow({ item, onSetTyp, onAssign, onDiscard }: RowProps): React.Rea
         {item.status === 'konvertiert' && (<><Loader2 size={12} className="animate-spin" />Konvertiere…</>)}
         {item.status === 'indexiert' && (<><Check size={12} className="text-[var(--tf-success-text)]" />Indexiert</>)}
       </div>
+
+      {item.converted && (
+        <KonvertierungReviewDialog
+          open={reviewOpen}
+          filename={item.converted.filename}
+          format={item.converted.format}
+          pages={item.converted.pages}
+          markdown={item.converted.markdown}
+          report={item.converted.report}
+          onClose={() => setReviewOpen(false)}
+        />
+      )}
     </div>
   );
 }

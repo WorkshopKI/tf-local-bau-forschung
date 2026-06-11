@@ -12,6 +12,8 @@
 import { useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
+import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
+import { maxConversionLevel } from '@/core/services/converter';
 import type { Antrag } from '@/core/services/csv/types';
 import { useKurzfassung } from './useKurzfassung';
 import { ReviewCard } from './ReviewCard';
@@ -23,8 +25,13 @@ const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] tex
 export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useKurzfassung(ctx);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [ersetzen, setErsetzen] = useState(false);
   const { record } = ctrl;
   const freigegeben = record?.status === 'freigegeben';
+  const vbDok = ctrl.vbDokument;
+  const vbLvl = maxConversionLevel(vbDok?.conversion);
+  const vbWarnung = vbDok?.conversion?.warnings.find(w => w.level === 'warnung')?.message ?? '';
 
   // Synthetischer „Antrag" als Feld-Quelle für den DOCX-Füller: das Gutachten
   // läuft auf Verbund-Ebene → Verbund-FKZ/Titel/Konsortialführer.
@@ -87,34 +94,69 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
           />
         </>
       ) : ctrl.vbVorhanden ? (
-        <div className="py-2">
-          <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">
-            Vorhabensbeschreibung erkannt. Die Kurzfassung wird KI-gestützt daraus erstellt.
-          </p>
-          {ctrl.busy ? (
-            <div className="flex items-center gap-3 text-[13px] text-[var(--tf-text-secondary)]">
-              <Loader2 size={14} className="animate-spin" />
-              Erstelle Kurzfassung…
-              <button type="button" className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]" onClick={ctrl.stop}>Stopp</button>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={BTN_PRIMARY}
-                disabled={ctrl.llmAvailable === false}
-                onClick={ctrl.generate}
-              >
-                Kurzfassung erstellen
-              </button>
-              {ctrl.llmAvailable === false && (
-                <div className="mt-2 text-[11.5px] text-[var(--tf-warning-text)]">
-                  KI nicht erreichbar — Generierung derzeit nicht möglich.
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        ersetzen ? (
+          <div className="py-2">
+            <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">
+              Neue Vorhabensbeschreibung hochladen — die neueste ersetzt die bisherige für die Kurzfassung.
+            </p>
+            <DokumentAufnahme
+              relationTag={ctx.key}
+              knownIds={ctx.knownIds}
+              onIngested={() => { ctrl.refreshVb(); setErsetzen(false); }}
+            />
+            <button type="button" onClick={() => setErsetzen(false)} className="mt-2 text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]">
+              Abbrechen
+            </button>
+          </div>
+        ) : (
+          <div className="py-2">
+            <p className="text-[13px] text-[var(--tf-text-secondary)] mb-2">
+              Vorhabensbeschreibung erkannt. Die Kurzfassung wird KI-gestützt daraus erstellt.
+            </p>
+            {vbDok && (
+              <div className="mb-3 flex items-center gap-2 flex-wrap text-[11.5px] text-[var(--tf-text-tertiary)]">
+                <span className="font-mono truncate max-w-[260px]" title={vbDok.filename}>{vbDok.filename}</span>
+                <span>·</span>
+                <button type="button" onClick={() => setReviewOpen(true)} className="text-[var(--tf-primary)] hover:underline">Konvertierung prüfen</button>
+                <span>·</span>
+                <button type="button" onClick={() => setErsetzen(true)} className="hover:text-[var(--tf-text-secondary)]">VB ersetzen</button>
+              </div>
+            )}
+            {vbLvl === 'warnung' && (
+              <div className="mb-3 rounded-[8px] px-3 py-2 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)]">
+                ⚠ Bei der Konvertierung gab es ein Problem — bitte „Konvertierung prüfen"{vbWarnung ? `: ${vbWarnung}` : '.'}
+              </div>
+            )}
+            {vbLvl === 'hinweis' && (
+              <div className="mb-3 text-[11.5px] text-[var(--tf-warning-text)]">
+                Hinweise zur Konvertierung vorhanden — siehe „Konvertierung prüfen".
+              </div>
+            )}
+            {ctrl.busy ? (
+              <div className="flex items-center gap-3 text-[13px] text-[var(--tf-text-secondary)]">
+                <Loader2 size={14} className="animate-spin" />
+                Erstelle Kurzfassung…
+                <button type="button" className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]" onClick={ctrl.stop}>Stopp</button>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={BTN_PRIMARY}
+                  disabled={ctrl.llmAvailable === false}
+                  onClick={ctrl.generate}
+                >
+                  Kurzfassung erstellen
+                </button>
+                {ctrl.llmAvailable === false && (
+                  <div className="mt-2 text-[11.5px] text-[var(--tf-warning-text)]">
+                    KI nicht erreichbar — Generierung derzeit nicht möglich.
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )
       ) : (
         <div className="py-2">
           <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">
@@ -123,6 +165,18 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
           </p>
           <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={ctrl.refreshVb} />
         </div>
+      )}
+
+      {vbDok && (
+        <KonvertierungReviewDialog
+          open={reviewOpen}
+          filename={vbDok.filename}
+          format={vbDok.format}
+          pages={vbDok.pages}
+          markdown={vbDok.markdown}
+          report={vbDok.conversion}
+          onClose={() => setReviewOpen(false)}
+        />
       )}
     </div>
   );

@@ -3,6 +3,10 @@ import TurndownService from 'turndown';
 import { tables } from 'turndown-plugin-gfm';
 import * as pdfjsLib from 'pdfjs-dist';
 import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline';
+import { buildConversionReport, type ConversionReport } from './conversion-report';
+
+export type { ConversionReport, ConversionWarning, ConversionLevel } from './conversion-report';
+export { maxConversionLevel } from './conversion-report';
 
 // pdfjs-Worker als Blob-URL — einmalig beim Modul-Load, funktioniert unter file://
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,6 +47,8 @@ export interface ConvertedDoc {
   filename: string;
   format: string;
   pages?: number;
+  /** Konvertierungs-Qualität (Zeichen, Tabellen/Bilder, Warnungen). */
+  report: ConversionReport;
 }
 
 function makeFrontmatter(filename: string, format: string, extra?: Record<string, unknown>): string {
@@ -86,22 +92,28 @@ export class DocConverter {
     let html = '';
     const warnings: string[] = [];
     let pages: number | undefined;
+    let report: ConversionReport;
 
     if (format === 'pdf') {
       const result = await convertPdf(arrayBuffer);
       markdown = makeFrontmatter(file.name, 'pdf', { pages: result.pages }) + result.text;
       pages = result.pages;
+      report = buildConversionReport({ format, text: result.text, pages: result.pages });
     } else if (format === 'docx') {
       const result = await mammoth.convertToHtml({ arrayBuffer });
       html = result.value;
-      markdown = turndown.turndown(html);
-      warnings.push(...result.messages.map(m => m.message));
-      markdown = makeFrontmatter(file.name, format) + markdown;
+      const body = turndown.turndown(html);
+      const mammothMessages = result.messages.map(m => m.message);
+      warnings.push(...mammothMessages);
+      markdown = makeFrontmatter(file.name, format) + body;
+      report = buildConversionReport({ format, text: body, html, mammothMessages });
     } else {
-      markdown = makeFrontmatter(file.name, format) + new TextDecoder().decode(arrayBuffer);
+      const text = new TextDecoder().decode(arrayBuffer);
+      markdown = makeFrontmatter(file.name, format) + text;
+      report = buildConversionReport({ format, text });
     }
 
-    return { markdown, html, warnings, filename: file.name, format, pages };
+    return { markdown, html, warnings, filename: file.name, format, pages, report };
   }
 
   // Kein Worker mehr — destroy() bleibt für API-Kompatibilität

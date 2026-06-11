@@ -2,6 +2,14 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.70.0 — Dokumenten-Aufnahme: Konvertierung prüfen + Warnung bei Konvertierungsproblemen (Juni 2026)
+
+MINOR-Bump v2.70.0 — beim Ablegen einer docx/pdf für die Kurzfassung wird die Datei intern nach Markdown konvertiert (pdfjs für PDF-Text, mammoth+turndown für DOCX). Bisher war das eine Black Box: mammoth-Warnungen wurden verworfen, gescannte/textlose PDFs unbemerkt, Tabellen/Grafiken kommentarlos verloren. Da die KI **nur den extrahierten Text** sieht, erfährt der Bearbeiter jetzt von Konvertierungsproblemen und kann den konvertierten Text prüfen — bei Bedarf extern korrigieren (z. B. PDF → OCR/DOCX) und neu hochladen.
+
+- **Konvertierungs-Report** ([conversion-report.ts](src/core/services/converter/conversion-report.ts), reine + getestete Funktion): `charCount`, `tableCount`, `imageCount` + deutsche Warnungen. Erkennt gescanntes PDF (0 Zeichen) bzw. bildbasiertes PDF (Ø < 80 Zeichen/Seite) als **Warnung**; Tabellen/Bilder + mammoth-Messages als **Hinweis** (dedupliziert, Cap 5). Wird am Dokument persistiert (`DocumentMeta.conversion`, optional → rückwärtskompatibel).
+- **Review-Dialog** ([KonvertierungReviewDialog](src/core/components/KonvertierungReviewDialog.tsx)): zeigt die Warnungen + das tatsächlich extrahierte Markdown (via `MarkdownRenderer`, Frontmatter entfernt).
+- **Anzeige**: Im „VB vorhanden"-Zustand der Kurzfassung-Sektion ([KurzfassungSection](src/plugins/antraege/kurzfassung/KurzfassungSection.tsx)) Dateiname + Warn-Banner (bei Problemen) + „Konvertierung prüfen" + „VB ersetzen" (neuestes VB-Dokument gewinnt). Zusätzlich „Konvertierung prüfen"-Link in der Aufnahme-Zeile ([DokumentAufnahme](src/core/components/DokumentAufnahme.tsx)).
+
 ### v2.69.2 — Verbund-Detail: TVs beim Erstaufruf eingeklappt (Juni 2026)
 
 PATCH-Bump v2.69.2 — beim ersten Öffnen einer Verbund-Detailseite sind jetzt alle Teilvorhaben **eingeklappt** ([VerbundDetail](src/plugins/antraege/VerbundDetail.tsx)) — mehr Übersicht beim ersten Blick (Stammdaten, Status, TV-Liste, Kurzfassung), statt direkt in einem aufgeklappten TV zu landen.
