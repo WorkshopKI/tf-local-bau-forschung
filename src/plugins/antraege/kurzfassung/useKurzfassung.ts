@@ -25,6 +25,7 @@ import {
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { findVorhabensbeschreibung } from './vbDokument';
 import { getKurzfassung, putKurzfassung, deleteKurzfassung } from './kurzfassung-store';
+import { appendVerlauf, restoreVersion } from './kurzfassung-verlauf';
 import type { KurzfassungContext, KurzfassungRecord } from './types';
 
 export interface KurzfassungController {
@@ -41,6 +42,8 @@ export interface KurzfassungController {
   pruefen: () => void;
   freigeben: () => void;
   verwerfen: () => void;
+  /** Eine Vorfassung (Index in `record.verlauf`) wieder zur aktiven Fassung machen. */
+  uebernehmen: (index: number) => void;
   refreshVb: () => void;
   stop: () => void;
   clearError: () => void;
@@ -140,6 +143,9 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         skillId: skillCtx.skill.id,
         skillVersion: skillCtx.skill.version,
         vbGekuerzt: result.vbGekuerzt,
+        // Die noch aktive Fassung wandert vor dem Überschreiben in den Verlauf.
+        verlauf: appendVerlauf(record),
+        ...(modifier ? { modifier } : {}),
         ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
       };
       setRecord(rec);
@@ -184,6 +190,18 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
     }
   };
 
+  const uebernehmen = async (index: number): Promise<void> => {
+    if (!record) return;
+    try {
+      const rec = restoreVersion(record, index);
+      if (rec === record) return; // Out-of-range — nichts zu tun
+      setRecord(rec);
+      await putKurzfassung(storage.idb, rec);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const refreshVb = async (): Promise<void> => {
     const vb = await findVorhabensbeschreibung(storage.idb, key);
     setVbDokument(vb);
@@ -206,6 +224,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
     pruefen: () => { void pruefen(); },
     freigeben: () => { void freigeben(); },
     verwerfen: () => { void verwerfen(); },
+    uebernehmen: (i) => { void uebernehmen(i); },
     refreshVb: () => { void refreshVb(); },
     stop: () => abortRef.current?.abort(),
     clearError: () => setError(null),

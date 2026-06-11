@@ -2,6 +2,15 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.71.0 — Kurzfassung: Vorfassungen vergleichen & zurückholen (Juni 2026)
+
+MINOR-Bump v2.71.0 — bisher überschrieb jeder Klick auf „Neu" / „Kürzer" / „Länger" in der Kurzfassung-Review die aktuelle Fassung ersatzlos (in State **und** IndexedDB); die vorige war weg. Jetzt wird vor jeder Re-Generierung die noch aktive Fassung als Schnappschuss aufbewahrt — der Bearbeiter kann frühere Fassungen vergleichen und per „Diese Fassung übernehmen" wieder zur aktiven machen (deckt „evtl. war die alte doch ok" ab).
+
+- **Datenmodell** ([types.ts](src/plugins/antraege/kurzfassung/types.ts)): neues `KurzfassungVersion`-Interface + optionale Felder `verlauf?` (bounded, älteste zuerst) und `modifier?` auf `KurzfassungRecord`. Additiv & optional → alte Records ohne `verlauf` laden weiter. **Kein** neuer Object-Store/Version-Bump — der Verlauf lebt im selben `kv`-Record `gutachten-kurzfassung:<key>` (Pitfall #29, `file://`-`onblocked`-Vermeidung).
+- **Reine Helfer** ([kurzfassung-verlauf.ts](src/plugins/antraege/kurzfassung/kurzfassung-verlauf.ts), getestet): `appendVerlauf` (Snapshot anhängen, Cap `MAX_VERLAUF = 5`), `restoreVersion` (Swap: gewählte Vorfassung wird aktiv, bisher aktive wandert in den Verlauf — nichts geht verloren; Status zurück auf `entwurf`), `snapshotOf`, `versionLabel`, `formatDate`.
+- **Hook** ([useKurzfassung.ts](src/plugins/antraege/kurzfassung/useKurzfassung.ts)): Generierung schreibt `verlauf`/`modifier`; neue self-catching Action `uebernehmen(index)`.
+- **UI** ([VersionVerlauf.tsx](src/plugins/antraege/kurzfassung/VersionVerlauf.tsx)): aufklappbarer „Vorfassungen (N)"-Block unter der aktuellen Fassung — je Fassung Modifier-Label, Datum, Satz-/Zeichenzahl (direkter Vergleich), Prüf-Ergebnis, Volltext + „Diese Fassung übernehmen". Eingebunden in [ReviewCard](src/plugins/antraege/kurzfassung/ReviewCard.tsx).
+
 ### v2.70.0 — Dokumenten-Aufnahme: Konvertierung prüfen + Warnung bei Konvertierungsproblemen (Juni 2026)
 
 MINOR-Bump v2.70.0 — beim Ablegen einer docx/pdf für die Kurzfassung wird die Datei intern nach Markdown konvertiert (pdfjs für PDF-Text, mammoth+turndown für DOCX). Bisher war das eine Black Box: mammoth-Warnungen wurden verworfen, gescannte/textlose PDFs unbemerkt, Tabellen/Grafiken kommentarlos verloren. Da die KI **nur den extrahierten Text** sieht, erfährt der Bearbeiter jetzt von Konvertierungsproblemen und kann den konvertierten Text prüfen — bei Bedarf extern korrigieren (z. B. PDF → OCR/DOCX) und neu hochladen.

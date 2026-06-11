@@ -1,7 +1,25 @@
 /** Persistierter Zustand eines Kurzfassung-Skill-Laufs (pro Verbund). */
-import type { CheckResult } from '@/core/services/skills';
+import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
 
 export type KurzfassungStatus = 'entwurf' | 'freigegeben';
+
+/**
+ * Schnappschuss einer früheren Fassung (für den Versionsvergleich + Rückgriff).
+ * Wird im `verlauf`-Array des Records geführt — kein eigener Object-Store
+ * (siehe kurzfassung-store.ts: bewusst kein Version-Bump unter `file://`).
+ */
+export interface KurzfassungVersion {
+  finalerText: string;
+  quellenanalyse: string;
+  entwurf: string;
+  checks: CheckResult[];
+  erstellt_am: string;
+  modell: string;
+  /** Modifier, der zu DIESER Fassung führte (undefined = Erstfassung). */
+  modifier?: SkillModifierKey;
+  vbGekuerzt?: boolean;
+  warnung?: string;
+}
 
 export interface KurzfassungRecord {
   /** Verbund-Key (= IDB-Key-Suffix + VB-Relations-Tag). */
@@ -24,6 +42,10 @@ export interface KurzfassungRecord {
   vbGekuerzt?: boolean;
   /** Parser-Warnung (z.B. Ausgabe ohne saubere Abschnitte). */
   warnung?: string;
+  /** Modifier, der zur AKTUELLEN Fassung führte (für die Verlaufs-Anzeige). */
+  modifier?: SkillModifierKey;
+  /** Frühere Fassungen (älteste zuerst), gekappt auf MAX_VERLAUF — Vergleich/Rückgriff. */
+  verlauf?: KurzfassungVersion[];
 }
 
 export interface KurzfassungTeilvorhaben {

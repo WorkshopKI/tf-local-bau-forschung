@@ -85,6 +85,7 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
             onVerwerfen={ctrl.verwerfen}
             onStop={ctrl.stop}
             onCreateVorlage={() => setDialogOpen(true)}
+            onUebernehmen={ctrl.uebernehmen}
           />
           <VorlageDialog
             open={dialogOpen}

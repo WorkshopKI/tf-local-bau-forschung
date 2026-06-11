@@ -8,6 +8,8 @@ import { Loader2 } from 'lucide-react';
 import { CollapsibleSection, MarkdownRenderer } from '@/ui';
 import { splitSentences, type SkillModifierKey } from '@/core/services/skills';
 import { CheckList } from './CheckList';
+import { VersionVerlauf } from './VersionVerlauf';
+import { formatDate } from './kurzfassung-verlauf';
 import type { KurzfassungRecord } from './types';
 
 interface Props {
@@ -20,21 +22,14 @@ interface Props {
   onVerwerfen: () => void;
   onStop: () => void;
   onCreateVorlage: () => void;
+  onUebernehmen: (index: number) => void;
 }
 
 const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed';
 const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed';
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch {
-    return iso;
-  }
-}
-
 export function ReviewCard({
-  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage,
+  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage, onUebernehmen,
 }: Props): React.ReactElement {
   const freigegeben = record.status === 'freigegeben';
   const satzanzahl = splitSentences(record.finalerText).length;
@@ -67,6 +62,9 @@ export function ReviewCard({
           {record.vbGekuerzt ? ' · VB für die Analyse gekürzt' : ''}
         </div>
       </div>
+
+      {/* Versionsverlauf (Vorfassungen vergleichen & zurückholen) */}
+      <VersionVerlauf versions={record.verlauf ?? []} busy={busy} onUebernehmen={onUebernehmen} />
 
       {/* Prüf-Ergebnis */}
       {record.checks.length > 0 && (
