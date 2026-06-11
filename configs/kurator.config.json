@@ -39,7 +39,8 @@
     "chat": true,
     "suche": true,
     "feedbackBoard": true,
-    "csvAutoRefresh": false
+    "csvAutoRefresh": false,
+    "gutachtenKurzfassung": false
   },
   "menuLabels": {
     "antraege": "Förderanträge"

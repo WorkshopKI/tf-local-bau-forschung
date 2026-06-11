@@ -50,7 +50,8 @@ interface DokumenteState {
   viewingFullDoc: boolean;
 
   loadAll: (storage: StorageService) => Promise<void>;
-  add: (doc: Omit<DocumentFull, 'id' | 'created'>, storage: StorageService) => Promise<void>;
+  /** Speichert ein Dokument und gibt die generierte Doc-ID zurück (für späteres Re-Tagging). */
+  add: (doc: Omit<DocumentFull, 'id' | 'created'>, storage: StorageService) => Promise<string>;
   remove: (id: string, storage: StorageService) => Promise<void>;
   updateTags: (id: string, tags: string[], storage: StorageService) => Promise<void>;
   setSelectedId: (id: string | null) => void;
@@ -108,6 +109,7 @@ export const useDokumenteStore = create<DokumenteState>((set, get) => ({
       vorgangId: doc.vorgangId, source: doc.source,
     };
     set({ documents: [meta, ...get().documents] });
+    return doc.id;
   },
 
   remove: async (id, storage) => {

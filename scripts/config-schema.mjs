@@ -168,6 +168,11 @@ export const DEFAULT_CONFIG = {
      *  aus den eingesammelten Heartbeats. Nur pl (+ dev zum Testen). Optional,
      *  default false. */
     onlineStatusTab: false,
+    /** Gutachten-Testballon: KI-gestuetzte Kurzfassung auf der Foerderantrags-
+     *  Detailseite (Dokumenten-Aufnahme → Skill → Review/Freigabe → DOCX-Vorlage).
+     *  Erster „Mini-Agent" — nur dev (Testballon). Optional, default false
+     *  (kein requiredFlags-Eintrag). */
+    gutachtenKurzfassung: true,
   },
 
   menuLabels: {

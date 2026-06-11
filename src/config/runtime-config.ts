@@ -111,6 +111,10 @@ export interface TeamflowFeatures {
   /** v2.59: „Online"-Tab in den Einstellungen — zeigt zuletzt aktive Team-User
    *  aus den eingesammelten Heartbeats. Nur pl (+ dev). Optional, default false. */
   onlineStatusTab?: boolean;
+  /** Gutachten-Testballon: KI-gestuetzte Kurzfassung-Sektion auf der Foerder-
+   *  antrags-Detailseite (Dokumenten-Aufnahme → Skill → Review → DOCX-Vorlage).
+   *  Erster „Mini-Agent". Nur dev (Testballon). Optional, default false. */
+  gutachtenKurzfassung?: boolean;
 }
 
 export interface TeamflowMenuLabels {

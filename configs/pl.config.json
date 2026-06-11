@@ -39,7 +39,8 @@
     "feedbackBoard": true,
     "csvAutoRefresh": true,
     "embeddingCorpusBuild": false,
-    "onlineStatusTab": true
+    "onlineStatusTab": true,
+    "gutachtenKurzfassung": false
   },
   "menuLabels": {
     "antraege": "Förderanträge"

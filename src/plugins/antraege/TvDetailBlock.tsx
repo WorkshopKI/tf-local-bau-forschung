@@ -9,6 +9,8 @@ import { NetzwerkMitgliederSection } from './NetzwerkMitgliederSection';
 import { EckdatenCard } from './EckdatenCard';
 import { KlassifikationPills } from './KlassifikationPills';
 import { AlleFelderSection } from './AlleFelderSection';
+import { KurzfassungSection } from './kurzfassung/KurzfassungSection';
+import { isGutachtenKurzfassungEnabled } from '@/config/feature-flags';
 
 interface Props {
   aktenzeichen: string;
@@ -113,6 +115,12 @@ export function TvDetailBlock({ aktenzeichen, onOpenAntrag }: Props): React.Reac
       <SectionDivider>
         <AntragDokumenteSection aktenzeichen={aktenzeichen} variant="sonstige" />
       </SectionDivider>
+
+      {isGutachtenKurzfassungEnabled() && (
+        <SectionDivider>
+          <KurzfassungSection antrag={antrag} />
+        </SectionDivider>
+      )}
 
       <FieldHistoryModal aktenzeichen={aktenzeichen} feld={historyField} onClose={() => setHistoryField(null)} />
     </>

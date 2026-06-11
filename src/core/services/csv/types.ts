@@ -69,6 +69,12 @@ export type AntragDokumentTyp =
   | 'nachforderung'
   | 'gutachten'
   | 'verwendungsnachweis'
+  // Gutachten-Durchstich (additiv, rückwärtskompatibel): Typen der Dokumenten-
+  // Aufnahmefläche. Werte sind reine Tag-Strings — keine Migration bestehender
+  // Records nötig.
+  | 'vorhabensbeschreibung'
+  | 'teilvorhabensbeschreibung'
+  | 'stellungnahme'
   | 'sonstiges';
 
 export interface AntragDokumentRef {

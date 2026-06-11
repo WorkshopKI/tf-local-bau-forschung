@@ -156,6 +156,12 @@ export function isMaLoginEnabled(): boolean {
 export function isMaVerwaltungPasswortEnabled(): boolean {
   return features.maVerwaltungPasswort === true;
 }
+/** Gutachten-Testballon: KI-gestützte Kurzfassung auf der Förderantrags-
+ *  Detailseite (erster „Mini-Agent" — Dokumenten-Aufnahme → Skill → Review →
+ *  DOCX-Vorlage). Nur dev. Default false (`=== true`, Backward-Kompat). */
+export function isGutachtenKurzfassungEnabled(): boolean {
+  return features.gutachtenKurzfassung === true;
+}
 export function isChatEnabled(): boolean { return features.chat; }
 export function isSucheEnabled(): boolean { return features.suche; }
 export function isFeedbackBoardEnabled(): boolean { return features.feedbackBoard; }

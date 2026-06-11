@@ -110,7 +110,11 @@
     // Kurator-Menüs. Der Kurator-Banner läuft unabhängig über kuratorMenus —
     // dieser Flag schaltet ihn zusätzlich in Nicht-Kurator-Builds frei (pl).
     // Braucht datenShareSchreibrecht zum Schreiben des Snapshots. Nur dev + pl.
-    "csvAutoRefresh": false
+    "csvAutoRefresh": false,
+    // Gutachten-Testballon: KI-gestützte Kurzfassung-Sektion auf der Förder-
+    // antrags-Detailseite (Dokumenten-Aufnahme → Skill → Review/Freigabe →
+    // DOCX-Vorlage). Erster „Mini-Agent". Optional, fehlt = aus. Nur dev (Testballon).
+    "gutachtenKurzfassung": false
   },
 
   // Pro Variant überschreibbare Sidebar-Labels für Bereichs-Menüs.

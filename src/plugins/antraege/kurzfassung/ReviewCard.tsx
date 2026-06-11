@@ -1,0 +1,116 @@
+/**
+ * Review-Body der Kurzfassung (ohne eigenen Kopf — Titel/Badge/Transport sitzen
+ * in der `KurzfassungSection`). Layout nach `mockup-kurzfassung-review.html`:
+ * aufklappbare Quellenanalyse, finaler Fließtext + Meta, Prüf-Checkliste,
+ * Aktionsleiste. Im freigegebenen Zustand: nur „Gutachten-Vorlage erstellen".
+ */
+import { Loader2 } from 'lucide-react';
+import { CollapsibleSection, MarkdownRenderer } from '@/ui';
+import { splitSentences, type SkillModifierKey } from '@/core/services/skills';
+import { CheckList } from './CheckList';
+import type { KurzfassungRecord } from './types';
+
+interface Props {
+  record: KurzfassungRecord;
+  busy: boolean;
+  llmAvailable: boolean | null;
+  onModify: (modifier: SkillModifierKey) => void;
+  onPruefen: () => void;
+  onFreigeben: () => void;
+  onVerwerfen: () => void;
+  onStop: () => void;
+  onCreateVorlage: () => void;
+}
+
+const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed';
+const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed';
+
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch {
+    return iso;
+  }
+}
+
+export function ReviewCard({
+  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage,
+}: Props): React.ReactElement {
+  const freigegeben = record.status === 'freigegeben';
+  const satzanzahl = splitSentences(record.finalerText).length;
+  const genDisabled = busy || llmAvailable === false;
+
+  return (
+    <div className="mt-3">
+      {record.warnung && (
+        <div className="mb-3 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
+          {record.warnung}
+        </div>
+      )}
+
+      {/* Quellenanalyse (aufklappbar, im Entwurf offen) */}
+      {record.quellenanalyse && (
+        <CollapsibleSection label="Quellenanalyse" defaultOpen={!freigegeben}>
+          <div className="pb-3">
+            <MarkdownRenderer content={record.quellenanalyse} />
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Finaler Text */}
+      <div className="mt-4">
+        {record.finalerText.split(/\n{2,}/).map((p, i) => (
+          <p key={i} className="text-[13.5px] leading-[1.7] text-[var(--tf-text)] mb-2">{p}</p>
+        ))}
+        <div className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
+          {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(record.freigegeben_am ?? record.erstellt_am)}` : `generiert am ${formatDate(record.erstellt_am)}`}
+          {record.vbGekuerzt ? ' · VB für die Analyse gekürzt' : ''}
+        </div>
+      </div>
+
+      {/* Prüf-Ergebnis */}
+      {record.checks.length > 0 && (
+        <div className="mt-5">
+          <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-2.5">Prüf-Ergebnis</div>
+          <CheckList checks={record.checks} />
+        </div>
+      )}
+
+      {/* Aktionsleiste */}
+      <div className="mt-6 pt-4 border-t-[0.5px] border-[var(--tf-border)]">
+        {freigegeben ? (
+          <button type="button" className={BTN_PRIMARY} onClick={onCreateVorlage}>
+            Gutachten-Vorlage erstellen
+          </button>
+        ) : busy ? (
+          <div className="flex items-center gap-3 text-[13px] text-[var(--tf-text-secondary)]">
+            <Loader2 size={14} className="animate-spin" />
+            Generiere…
+            <button type="button" className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]" onClick={onStop}>
+              Stopp
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button type="button" className={BTN_PRIMARY} onClick={onFreigeben}>Freigeben</button>
+              <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
+              <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
+              <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
+              <button type="button" className={BTN_SECONDARY} onClick={onPruefen}>Prüfen</button>
+              <span className="flex-1" />
+              <button type="button" className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]" onClick={onVerwerfen}>
+                Verwerfen
+              </button>
+            </div>
+            {llmAvailable === false && (
+              <div className="mt-2 text-[11.5px] text-[var(--tf-warning-text)]">
+                KI nicht erreichbar — Neu/Kürzer/Länger derzeit nicht möglich.
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

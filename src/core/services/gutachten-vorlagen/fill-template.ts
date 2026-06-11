@@ -1,0 +1,218 @@
+/**
+ * DOCX-Vorlagen-Füller (Gutachten-Durchstich, Baustein 4). Verarbeitet
+ * `word/document.xml` als String — kein DOM, keine XML-Library (file://-tauglich,
+ * keine neue Dependency außer dem vorhandenen jszip).
+ *
+ * Kernproblem „Run-Splitting": Platzhalter wie `&F:VMS VB Projekt&` können durch
+ * Word-Formatierung über mehrere `<w:r>`/`<w:t>`-Runs zersplittert sein. Lösung:
+ * pro Absatz (`<w:p>`) die `<w:t>`-Texte konkatenieren, Platzhalter dort suchen,
+ * den Ersatzwert in den ERSTEN beteiligten Run injizieren und alle Platzhalter-
+ * Zeichen (über alle beteiligten Runs) entfernen — `<w:rPr>` bleibt unangetastet.
+ *
+ * Word speichert `&` in XML als `&amp;`; der Matcher akzeptiert beide
+ * Delimiter-Formen und arbeitet auf dem konkatenierten Text, ist also robust
+ * gegen Splits an beliebiger Stelle (auch innerhalb von `&amp;`).
+ *
+ * STOPP-Bedingung (CLAUDE.md): trägt die String-Manipulation im Einzelfall nicht
+ * (Anker in Tabelle/Textbox), wird der Anker ausgelassen (anchorFound=false) und
+ * die Vorlage trotzdem erstellt — KEIN Ausweichen auf DOM/Library.
+ */
+import type { Antrag } from '@/core/services/csv/types';
+import { resolveField } from './field-mapping';
+import type { FillResult, MappedField } from './types';
+
+const ANKER_TEXT = 'Kurzfassung der Projektbeschreibung';
+
+/** `<w:t ...>inner</w:t>` — Gruppen: openTag, inner, closeTag. */
+const T_RE = /(<w:t\b[^>]*>)([\s\S]*?)(<\/w:t>)/g;
+/** `<w:p ...>…</w:p>` — ein Absatz (WordML-Absätze schachteln nicht). */
+const P_RE = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+/** Platzhalter mit `&`- ODER `&amp;`-Delimitern; Code enthält kein `&`. */
+const PLACEHOLDER_RE = /(?:&amp;|&)[FC]:([^&]+?)(?:&amp;|&)/g;
+
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function normalizeWs(s: string): string {
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+/** Konkatenierter Klartext aller `<w:t>` eines Absatzes (roh, ohne Entity-Decode). */
+function paragraphPlainText(paragraph: string): string {
+  return [...paragraph.matchAll(T_RE)].map(m => m[2]).join('');
+}
+
+interface Collector {
+  (code: string, placeholder: string): string | null;
+}
+
+/**
+ * Ersetzt Platzhalter in EINEM Absatz unter Beachtung des Run-Splittings.
+ * `collect` liefert den Ersatzwert (null = unbekannt → unverändert lassen) und
+ * sammelt nebenbei die Mapping-Infos.
+ */
+function processParagraph(paragraph: string, collect: Collector): string {
+  const runs = [...paragraph.matchAll(T_RE)].map(m => ({
+    open: m[1]!, inner: m[2]!, close: m[3]!, index: m.index!, full: m[0],
+  }));
+  if (runs.length === 0) return paragraph;
+
+  // Konkatenierter Text + Run-Grenzen (globale Offsets in C).
+  let C = '';
+  const bounds: Array<[number, number]> = [];
+  for (const r of runs) { bounds.push([C.length, C.length + r.inner.length]); C += r.inner; }
+
+  // Platzhalter im konkatenierten Text finden (collect läuft für JEDEN Treffer,
+  // auch unbefüllbare → die werden gemeldet, aber nicht ersetzt).
+  const reps: Array<{ start: number; end: number; value: string }> = [];
+  const re = new RegExp(PLACEHOLDER_RE.source, 'g');
+  let pm: RegExpExecArray | null;
+  while ((pm = re.exec(C)) !== null) {
+    const code = pm[1]!.trim();
+    const value = collect(code, pm[0]);
+    if (value !== null) reps.push({ start: pm.index, end: pm.index + pm[0].length, value: escapeXml(value) });
+  }
+  if (reps.length === 0) return paragraph;
+
+  // Platzhalter-Zeichen entfernen, Wert am Match-Start injizieren.
+  const drop = new Array<boolean>(C.length).fill(false);
+  const inject = new Map<number, string>();
+  for (const rep of reps) {
+    for (let k = rep.start; k < rep.end; k++) drop[k] = true;
+    inject.set(rep.start, rep.value);
+  }
+  const newInners = runs.map((_, i) => {
+    const [gs, ge] = bounds[i]!;
+    let s = '';
+    for (let k = gs; k < ge; k++) {
+      const v = inject.get(k);
+      if (v !== undefined) s += v;
+      if (!drop[k]) s += C[k];
+    }
+    return s;
+  });
+
+  // Absatz rekonstruieren (nur die `<w:t>`-Inhalte tauschen).
+  let out = '';
+  let cursor = 0;
+  runs.forEach((r, i) => {
+    out += paragraph.slice(cursor, r.index) + r.open + newInners[i] + r.close;
+    cursor = r.index + r.full.length;
+  });
+  out += paragraph.slice(cursor);
+  return out;
+}
+
+/** Baut WordML-Absätze (ein `<w:p>` je Textabsatz, ohne `<w:rPr>`). */
+function buildAnchorParagraphs(finalerText: string): string {
+  return finalerText
+    .split(/\n{2,}/)
+    .map(p => p.trim())
+    .filter(p => p.length > 0)
+    .map(p => `<w:p><w:r><w:t xml:space="preserve">${escapeXml(p)}</w:t></w:r></w:p>`)
+    .join('');
+}
+
+export interface ProcessResult {
+  xml: string;
+  mappedFields: MappedField[];
+  unfilledCodes: string[];
+  anchorFound: boolean;
+}
+
+/**
+ * Pure Kern-Transformation auf dem `document.xml`-String (ohne ZIP-I/O) — der
+ * vollständig getestete Teil. `fillTemplate` legt nur die jszip-Hülle drumherum.
+ */
+export function processDocumentXml(xml: string, antrag: Antrag, finalerText: string): ProcessResult {
+  const mapped = new Map<string, MappedField>();
+  const unfilled = new Set<string>();
+  const collect: Collector = (code, placeholder) => {
+    const value = resolveField(code, antrag);
+    if (!mapped.has(code)) {
+      mapped.set(code, { code, placeholder, value, befuellbar: value !== null });
+    }
+    if (value === null) unfilled.add(code);
+    return value;
+  };
+
+  // 1) Platzhalter pro Absatz ersetzen.
+  let result = xml.replace(P_RE, para => processParagraph(para, collect));
+
+  // 2) Anker suchen + Kurzfassung direkt nach dem Anker-Absatz einfügen.
+  let anchorFound = false;
+  const anchorNeedle = normalizeWs(ANKER_TEXT);
+  const paraRe = new RegExp(P_RE.source, 'g');
+  let m: RegExpExecArray | null;
+  let insertPos = -1;
+  while ((m = paraRe.exec(result)) !== null) {
+    if (normalizeWs(paragraphPlainText(m[0])).includes(anchorNeedle)) {
+      insertPos = m.index + m[0].length;
+      anchorFound = true;
+      break;
+    }
+  }
+  if (anchorFound && insertPos >= 0) {
+    const inserted = buildAnchorParagraphs(finalerText);
+    result = result.slice(0, insertPos) + inserted + result.slice(insertPos);
+  }
+
+  return {
+    xml: result,
+    mappedFields: [...mapped.values()],
+    unfilledCodes: [...unfilled],
+    anchorFound,
+  };
+}
+
+export interface FillOptions {
+  /** Nur analysieren (Mapping-/Anker-Vorschau), kein Blob erzeugen. */
+  dryRun?: boolean;
+}
+
+/**
+ * Öffnet die DOCX (ZIP), füllt `word/document.xml` und gibt das Ergebnis-Blob
+ * zurück. Im Dry-Run-Modus nur die Analyse (für die Dialog-Vorschau).
+ */
+export async function fillTemplate(
+  input: Blob | ArrayBuffer | Uint8Array,
+  antrag: Antrag,
+  finalerText: string,
+  opts: FillOptions = {},
+): Promise<FillResult> {
+  const { default: JSZip } = await import('jszip');
+  const zip = await JSZip.loadAsync(input);
+  const docFile = zip.file('word/document.xml');
+  if (!docFile) throw new Error('Vorlage enthält keine word/document.xml (kein gültiges DOCX).');
+
+  const xml = await docFile.async('string');
+  const processed = processDocumentXml(xml, antrag, finalerText);
+  const filename = `Gutachten_EP_${antrag.aktenzeichen}.docx`;
+
+  if (opts.dryRun) {
+    return {
+      mappedFields: processed.mappedFields,
+      unfilledCodes: processed.unfilledCodes,
+      anchorFound: processed.anchorFound,
+      filename,
+    };
+  }
+
+  zip.file('word/document.xml', processed.xml);
+  const blob = await zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  });
+  return {
+    mappedFields: processed.mappedFields,
+    unfilledCodes: processed.unfilledCodes,
+    anchorFound: processed.anchorFound,
+    blob,
+    filename,
+  };
+}
