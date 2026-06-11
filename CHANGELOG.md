@@ -2,6 +2,15 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.68.5 — Förderanträge-Tabelle: TIB-Spalte (Bearbeiter-Kürzel) im Spalten-Picker wählbar (Juni 2026)
+
+PATCH-Bump v2.68.5 — die MA-/Bearbeiter-Spalte (`tib_kuerz`) ist jetzt regulär über den „Spalten"-Picker der Tabellen-Ansicht wählbar ([tableColumns](src/plugins/antraege/tableColumns.tsx) + [AntraegeMain](src/plugins/antraege/AntraegeMain.tsx)). Use-Case: bei aktivem Bearbeiter-Filter + „Auch außerhalb meiner Anträge suchen" sieht der User jetzt, von welchem TIB ein fremder Antrag stammt.
+
+- Spalte (Label **„TIB"**, key `tib_kuerz`) sitzt in der Registry direkt nach FKZ → erscheint im Picker als zweiter Eintrag und in der Tabelle als zweite Spalte. Default aus.
+- `resolveAntragTableColumns` auf Set-Union vereinfacht: im „alle"-/Übersichtsmodus (`showMaColumn`) wird die Spalte weiterhin automatisch erzwungen, ohne Duplikat falls sie zugleich im Picker gewählt ist.
+- Im „alle"-Modus (Spalte ohnehin erzwungen) wird der Eintrag aus dem Picker ausgeblendet, damit keine wirkungslose Checkbox entsteht; in „meine Anträge" bleibt sie wählbar.
+- Vorher rendered-Header-Label dieser Spalte war „MA" → jetzt einheitlich „TIB" (eine Spaltendefinition für Auto-Show + Picker).
+
 ### v2.68.4 — Förderanträge-Header: „Auch außerhalb meiner Anträge suchen" eine Zeile höher (Juni 2026)
 
 PATCH-Bump v2.68.4 — die Checkbox „Auch außerhalb meiner Anträge suchen" ([AntraegeHeader](src/plugins/antraege/AntraegeHeader.tsx)) sitzt jetzt in der Such-Zeile (rechts neben dem Ähnlichkeits-Select) statt in einer eigenen Zeile darunter — spart vertikalen Platz.

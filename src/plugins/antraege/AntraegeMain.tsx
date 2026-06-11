@@ -22,7 +22,7 @@ import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
 import { AntraegeTable } from './AntraegeTable';
 import { CardGrid } from './CardGrid';
 import { ColumnPicker } from '@/components/data-table';
-import { ANTRAG_TABLE_COLUMNS } from './tableColumns';
+import { ANTRAG_TABLE_COLUMNS, MA_COLUMN_KEY } from './tableColumns';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungEnabled } from '@/config/feature-flags';
@@ -83,6 +83,14 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
   // Im „alle"-/Übersichtsmodus (pl/dev) wird je Antrag das MA-Kürzel angezeigt,
   // damit sichtbar ist, welcher Bearbeiter zuständig ist.
   const showMa = isAuslastungEnabled() && !bearbeiterFilter.active;
+  // MA-Spalte (TIB-Kürzel) ist regulär im Picker wählbar — AUSSER im „alle"-/
+  // Übersichtsmodus, wo sie ohnehin erzwungen wird (showMa): dort raus aus dem
+  // Picker, damit keine wirkungslose Checkbox erscheint. In „meine Anträge"
+  // bleibt sie wählbar (Use-Case: „auch außerhalb meiner Anträge suchen").
+  const pickerColumns = useMemo(
+    () => (showMa ? ANTRAG_TABLE_COLUMNS.filter(c => c.key !== MA_COLUMN_KEY) : ANTRAG_TABLE_COLUMNS),
+    [showMa],
+  );
   const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
   const [narrowWidth, setNarrowWidth] = useState(loadNarrowWidth);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -207,7 +215,7 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
                 ) : null}
                 {viewMode === 'compact' ? (
                   <ColumnPicker
-                    columns={ANTRAG_TABLE_COLUMNS}
+                    columns={pickerColumns}
                     visibleKeys={visibleColumns}
                     onToggleColumn={toggleColumn}
                   />

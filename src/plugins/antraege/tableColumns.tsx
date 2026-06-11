@@ -93,6 +93,12 @@ function dateCell(v: string | null): ReactNode {
   return v ? <span className="font-mono text-[11.5px] text-[var(--tf-text)]">{v}</span> : null;
 }
 
+/** Key der MA-Spalte (TIB-Bearbeiter-Kürzel) — Konstante für die Auto-Show im
+ *  „alle"-/Übersichtsmodus (`resolveAntragTableColumns`) + die Picker-Ausblendung
+ *  in genau diesem Modus (`AntraegeMain`, sonst stünde im Picker eine Checkbox,
+ *  deren Toggle ohne Wirkung bliebe, weil die Spalte dort erzwungen wird). */
+export const MA_COLUMN_KEY = 'tib_kuerz';
+
 export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'aktenzeichen',
@@ -134,6 +140,22 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
         </span>
       );
     },
+  },
+  {
+    // Bearbeiter-Kürzel (TIB) — regulär im Spalten-Picker wählbar (off by
+    // default). Zeigt je Antrag, von welchem TIB er stammt; v.a. nützlich bei
+    // „Auch außerhalb meiner Anträge suchen" (Bearbeiter-Filter aktiv →
+    // Auto-Show aus, aber fremde TIBs in der Trefferliste). Im „alle"-/
+    // Übersichtsmodus zusätzlich automatisch erzwungen (showMaColumn).
+    key: MA_COLUMN_KEY,
+    label: 'TIB',
+    defaultVisible: false,
+    sortable: true,
+    filterable: true,
+    width: 72,
+    wrap: false,
+    accessor: r => strOrNull(r.tib_kuerz) ?? '',
+    render: r => <MaKuerzelBadge kuerzel={r.tib_kuerz} />,
   },
   {
     key: 'akronym',
@@ -370,39 +392,19 @@ export const LOCKED_COLUMN_KEYS: string[] =
   ANTRAG_TABLE_COLUMNS.filter(c => c.locked === true).map(c => c.key);
 
 /**
- * „MA"-Spalte (TIB-Bearbeiter-Kürzel). Bewusst NICHT Teil von
- * `ANTRAG_TABLE_COLUMNS` → der Spalten-Picker listet sie nicht; sie wird von
- * `AntraegeTable` automatisch eingeblendet, sobald der „alle"-/Übersichtsmodus
- * aktiv ist (`showMaColumn`). Für die Verbund-Sammelzeile zeigt sie das Kürzel
- * des Lead-TVs.
- */
-export const MA_COLUMN: SortableColumn<AntragTableRow> = {
-  key: 'tib_kuerz',
-  label: 'MA',
-  // Nicht im Spalten-Picker (steht nicht in ANTRAG_TABLE_COLUMNS); `defaultVisible`
-  // ist nur Pflichtfeld des Typs und hier ohne Wirkung.
-  defaultVisible: false,
-  sortable: true,
-  filterable: true,
-  width: 72,
-  wrap: false,
-  accessor: r => strOrNull(r.tib_kuerz) ?? '',
-  render: r => <MaKuerzelBadge kuerzel={r.tib_kuerz} />,
-};
-
-/**
  * Sichtbare Spalten in Registry-Reihenfolge auflösen — Single Source für Tabelle
  * (`AntraegeTable`) UND XLSX-Export (`export-xlsx.ts`), damit der Export exakt die
- * Spalten der Ansicht abbildet. Die MA-Spalte wird im „alle"-/Übersichtsmodus
- * (`showMaColumn`) automatisch direkt nach der gelockten FKZ-Spalte eingeblendet
- * (nicht Teil von ANTRAG_TABLE_COLUMNS, daher nicht im Picker).
+ * Spalten der Ansicht abbildet. Die MA-Spalte (TIB-Kürzel) ist regulär im Picker
+ * wählbar; im „alle"-/Übersichtsmodus (`showMaColumn`) wird sie zusätzlich
+ * automatisch erzwungen (auch ohne Picker-Auswahl) und erscheint dank Registry-
+ * Reihenfolge direkt nach der gelockten FKZ-Spalte. Set-Union → kein Duplikat,
+ * falls die Spalte ohnehin schon im Picker gewählt ist.
  */
 export function resolveAntragTableColumns(
   visibleKeys: readonly string[],
   showMaColumn: boolean,
 ): SortableColumn<AntragTableRow>[] {
-  const set = new Set(visibleKeys);
-  const base = ANTRAG_TABLE_COLUMNS.filter(c => set.has(c.key));
-  if (!showMaColumn || base.length === 0) return base;
-  return [base[0]!, MA_COLUMN, ...base.slice(1)];
+  const keys = new Set(visibleKeys);
+  if (showMaColumn) keys.add(MA_COLUMN_KEY);
+  return ANTRAG_TABLE_COLUMNS.filter(c => keys.has(c.key));
 }
