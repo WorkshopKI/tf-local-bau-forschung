@@ -2,6 +2,10 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.67.3 — Chat: System-Prompt-Popover mit echten Edge-Resize-Handles (Juni 2026)
+
+PATCH-Bump v2.67.3: Der Corner-Griff aus v2.67.2 ließ sich schlecht nach oben ziehen. Ersetzt durch **zwei Standard-Kanten-Handles** ([SystemPromptPopover](src/plugins/chat/components/SystemPromptPopover.tsx)): obere Kante (`ns-resize`) ändert die Höhe (wächst nach oben, da bottom-anchored), rechte Kante (`ew-resize`) die Breite. Total-Delta-Drag (kein Drift), Handles liegen im 6px-Padding-Rand → keine Klick-Kollision mit Tabs/X. Clamp 320–760 × 120–560 px.
+
 ### v2.67.2 — Chat: System-Prompt-Popover (schließbar/resizable/Vorschau) + Provider-Label (Juni 2026)
 
 PATCH-Bump v2.67.2 — Verbesserungen am [SystemPromptPopover](src/plugins/chat/components/SystemPromptPopover.tsx) + Composer-Footer:

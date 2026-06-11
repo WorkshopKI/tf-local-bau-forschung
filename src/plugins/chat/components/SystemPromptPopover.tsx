@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { marked } from 'marked';
-import { Maximize2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { sanitizeHtml } from '@/ui/MarkdownRenderer';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -48,14 +48,15 @@ export function SystemPromptPopover({ open, onClose }: SystemPromptPopoverProps)
     [mode, value],
   );
 
-  // Resize-Griff oben-rechts: nach rechts = breiter, nach oben = höher
-  const onGripDown = (e: React.PointerEvent): void => {
+  // Edge-Resize: rechte Kante = Breite (nach rechts), obere Kante = Höhe (nach
+  // oben, da das Popover bottom-anchored ist). Total-Delta von start → kein Drift.
+  const startResize = (axis: 'w' | 'h') => (e: React.PointerEvent): void => {
     e.preventDefault();
     const start = { x: e.clientX, y: e.clientY, w: size.w, h: size.h };
-    const move = (ev: PointerEvent): void => setSize({
-      w: clamp(start.w + (ev.clientX - start.x), MIN_W, MAX_W),
-      h: clamp(start.h - (ev.clientY - start.y), MIN_H, MAX_H),
-    });
+    const move = (ev: PointerEvent): void => setSize(s => ({
+      w: axis === 'w' ? clamp(start.w + (ev.clientX - start.x), MIN_W, MAX_W) : s.w,
+      h: axis === 'h' ? clamp(start.h - (ev.clientY - start.y), MIN_H, MAX_H) : s.h,
+    }));
     const up = (): void => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
@@ -68,15 +69,15 @@ export function SystemPromptPopover({ open, onClose }: SystemPromptPopoverProps)
 
   return (
     <div className="pop sysprompt-pop" style={{ bottom: 46, left: 0, width: size.w }} onMouseDown={e => e.stopPropagation()}>
+      {/* Edge-Drag-Handles: obere Kante (Höhe) + rechte Kante (Breite) */}
+      <div className="sp-resize sp-resize-t" title="Höhe ändern (oben ziehen)" onPointerDown={startResize('h')} />
+      <div className="sp-resize sp-resize-r" title="Breite ändern (rechts ziehen)" onPointerDown={startResize('w')} />
       <div className="sp-head">
         <span className="sp-title">System-Prompt</span>
         <div className="sp-tabs">
           <button className={`sp-tab${mode === 'edit' ? ' on' : ''}`} onClick={() => setMode('edit')}>Bearbeiten</button>
           <button className={`sp-tab${mode === 'preview' ? ' on' : ''}`} onClick={() => setMode('preview')}>Vorschau</button>
         </div>
-        <button className="sp-grip" title="Größe ändern (nach rechts / oben ziehen)" onPointerDown={onGripDown}>
-          <Maximize2 size={12} />
-        </button>
         <button className="sp-x" title="Schließen (ohne Speichern)" onClick={onClose}><X size={15} /></button>
       </div>
 

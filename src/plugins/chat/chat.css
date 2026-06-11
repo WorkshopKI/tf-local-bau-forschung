@@ -261,8 +261,10 @@
 
 /* System-Prompt-Popover (schließbar, Edit/Vorschau, resizable) */
 .chat-app .sysprompt-pop { padding: 6px; }
-.chat-app .sp-grip { display: grid; place-items: center; width: 24px; height: 24px; border: 0; background: transparent; border-radius: 6px; color: var(--tf-text-tertiary); cursor: ne-resize; touch-action: none; }
-.chat-app .sp-grip:hover { background: var(--tf-hover); color: var(--tf-text-secondary); }
+.chat-app .sp-resize { position: absolute; z-index: 2; touch-action: none; }
+.chat-app .sp-resize:hover { background: var(--tf-primary-light); }
+.chat-app .sp-resize-t { top: 0; left: 10px; right: 10px; height: 7px; border-radius: 12px 12px 0 0; cursor: ns-resize; }
+.chat-app .sp-resize-r { top: 10px; bottom: 10px; right: 0; width: 7px; border-radius: 0 12px 12px 0; cursor: ew-resize; }
 .chat-app .sp-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px 8px; }
 .chat-app .sp-title { flex: 1; font: var(--tf-weight-medium) 10px/1 var(--tf-font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--tf-text-tertiary); }
 .chat-app .sp-tabs { display: flex; gap: 2px; }
