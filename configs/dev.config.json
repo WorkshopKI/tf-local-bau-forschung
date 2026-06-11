@@ -41,7 +41,8 @@
     "feedbackDelete": true,
     "csvAutoRefresh": true,
     "onlineStatusTab": true,
-    "gutachtenKurzfassung": true
+    "gutachtenKurzfassung": true,
+    "skillVerwaltung": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",

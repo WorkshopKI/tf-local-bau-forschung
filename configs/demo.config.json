@@ -42,7 +42,8 @@
     "feedbackBoard": true,
     "feedbackDelete": false,
     "csvAutoRefresh": false,
-    "gutachtenKurzfassung": false
+    "gutachtenKurzfassung": false,
+    "skillVerwaltung": false
   },
   "menuLabels": {
     "antraege": "Förderanträge",

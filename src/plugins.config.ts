@@ -17,6 +17,7 @@ import { csvSourcesAdminPlugin } from '@/plugins/csv-sources-kuration';
 import { filterAdminPlugin } from '@/plugins/filter-kuration';
 import { dokumentenquellenKurationPlugin } from '@/plugins/dokumentenquellen-kuration';
 import { dokumentReviewPlugin } from '@/plugins/dokument-review';
+import { skillVerwaltungPlugin } from '@/plugins/skill-verwaltung-kuration';
 import { features } from '@/config/feature-flags';
 
 const allPlugins: TeamFlowPlugin[] = [
@@ -28,6 +29,7 @@ const allPlugins: TeamFlowPlugin[] = [
   suchePlugin,
   chatPlugin,
   feedbackBoardPlugin,
+  skillVerwaltungPlugin,
   einstellungenPlugin,
   adminPlugin,
   programmeAdminPlugin,

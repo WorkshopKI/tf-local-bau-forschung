@@ -10,7 +10,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
-import { kurzfassungSkill, runSkill, type SkillModifierKey } from '@/core/services/skills';
+import { runSkill, type SkillModifierKey } from '@/core/services/skills';
+import {
+  loadSkillRegistry,
+  getSkillById,
+  resolveRegeln,
+  runRegelChecks,
+  KURZFASSUNG_SKILL_ID,
+  SEED_SKILL,
+  SEED_REGELN,
+  type QualitaetsRegel,
+  type SkillRecord,
+} from '@/core/services/skill-registry';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { findVorhabensbeschreibung } from './vbDokument';
 import { getKurzfassung, putKurzfassung, deleteKurzfassung } from './kurzfassung-store';
@@ -63,17 +74,25 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
+  const [skillCtx, setSkillCtx] = useState<{ skill: SkillRecord; regeln: QualitaetsRegel[] } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const [rec, vb] = await Promise.all([
+      const [rec, vb, loaded] = await Promise.all([
         getKurzfassung(storage.idb, key),
         findVorhabensbeschreibung(storage.idb, key),
+        loadSkillRegistry(storage),
       ]);
       if (cancelled) return;
+      // Skill aus der Registry (Cache-Pfad). Fehlt er (noch nicht kuratiert /
+      // gelöscht), Fallback auf den eingebauten Seed.
+      const found = getSkillById(loaded.file, KURZFASSUNG_SKILL_ID);
+      setSkillCtx(found
+        ? { skill: found, regeln: resolveRegeln(loaded.file, found) }
+        : { skill: SEED_SKILL, regeln: SEED_REGELN });
       setRecord(rec);
       setVbDokument(vb);
       setLoading(false);
@@ -89,7 +108,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
   }, [key, storage.idb, bridge]);
 
   const runGeneration = async (modifier?: SkillModifierKey): Promise<void> => {
-    if (!vbDokument || busy) return;
+    if (!vbDokument || busy || !skillCtx) return;
     setBusy(true);
     setError(null);
     const abort = new AbortController();
@@ -102,7 +121,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         setError('KI nicht erreichbar — Generierung derzeit nicht möglich.');
         return;
       }
-      const result = await runSkill(transport, kurzfassungSkill, {
+      const result = await runSkill(transport, skillCtx.skill, skillCtx.regeln, {
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vbDokument.markdown,
         ...(modifier ? { modifier } : {}),
@@ -114,10 +133,12 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         quellenanalyse: result.parsed.quellenanalyse,
         entwurf: result.parsed.entwurf,
         finalerText: result.parsed.finalerText,
-        checks: kurzfassungSkill.runChecks(result.parsed.finalerText),
+        checks: runRegelChecks(result.parsed.finalerText, skillCtx.regeln),
         status: 'entwurf',
         erstellt_am: new Date().toISOString(),
         modell: transport.name,
+        skillId: skillCtx.skill.id,
+        skillVersion: skillCtx.skill.version,
         vbGekuerzt: result.vbGekuerzt,
         ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
       };
@@ -133,9 +154,9 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
   };
 
   const pruefen = async (): Promise<void> => {
-    if (!record) return;
+    if (!record || !skillCtx) return;
     try {
-      const rec: KurzfassungRecord = { ...record, checks: kurzfassungSkill.runChecks(record.finalerText) };
+      const rec: KurzfassungRecord = { ...record, checks: runRegelChecks(record.finalerText, skillCtx.regeln) };
       setRecord(rec);
       await putKurzfassung(storage.idb, rec);
     } catch (err) {

@@ -18,6 +18,7 @@ export type PluginFeatureKey =
   | 'devInfraPanel'
   | 'feedback'
   | 'feedbackBoard'
+  | 'skillVerwaltung'
   | 'suche'
   | 'volltextsuche';
 

@@ -1,16 +1,26 @@
 /**
- * Transport-agnostischer Skill-Runner. Baut aus einer `SkillDefinition` + Eingaben
- * die Messages, fährt die bestehende Transport-Ladder (nicht-streamend genügt für
- * den Durchstich) und gibt die geparste Ausgabe zurück.
+ * Transport-agnostischer Skill-Runner. Baut aus einem `SkillRecord` (Registry-
+ * Daten) + den zugeordneten Qualitätsregeln + Eingaben die Messages, fährt die
+ * bestehende Transport-Ladder (nicht-streamend genügt) und gibt die geparste
+ * Ausgabe zurück.
  *
- * Bewusst KEINE modell-spezifische Sonderlogik — Modell-Overrides kommen erst mit
- * der Registry. Abbruch via `AbortSignal` (durchgereicht an den Transport).
+ * Die Regel-Hinweise werden via `buildPromptVorgaben` an den Prompt angehängt —
+ * dieselbe Quelle, die auch die Checks erzeugt (keine Drift). Modell-Overrides
+ * sind weiterhin v2; hier KEINE modell-spezifische Sonderlogik.
  */
 import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
-import type { ParsedSkillOutput, SkillDefinition, SkillModifierKey } from './types';
+import {
+  buildPromptVorgaben,
+  type QualitaetsRegel,
+  type SkillModifierKey,
+  type SkillRecord,
+} from '@/core/services/skill-registry';
+import { parseSkillOutput } from './parse';
+import type { ParsedSkillOutput } from './types';
 
 /** VB-Markdown wird vor dem Senden auf diese Zeichenzahl gekappt (am Absatzende). */
 export const VB_CHAR_CAP = 24_000;
+const DEFAULT_MAX_TOKENS = 2048;
 
 export interface SkillRunInput {
   /** Stammdaten-Block (aktenzeichen, titel, akronym, antragsteller). */
@@ -40,46 +50,60 @@ export function capVbMarkdown(md: string, cap = VB_CHAR_CAP): { text: string; ge
   return { text: `${cut.trimEnd()}\n\n…`, gekuerzt: true };
 }
 
-function buildUserContent(skill: SkillDefinition, input: SkillRunInput, vb: string): string {
-  let content = skill.promptTemplate
-    .replace('{{stammdaten}}', input.stammdaten)
-    .replace('{{vbMarkdown}}', vb);
+/** Ersetzt alle Vorkommen eines `{{slot}}`-Platzhalters (kein $-Sonderhandling). */
+function fillSlot(template: string, slot: string, value: string): string {
+  return template.split(`{{${slot}}}`).join(value);
+}
+
+function buildUserContent(
+  skill: SkillRecord,
+  regeln: QualitaetsRegel[],
+  input: SkillRunInput,
+  vb: string,
+): string {
+  let content = fillSlot(fillSlot(skill.promptTemplate, 'stammdaten', input.stammdaten), 'vbMarkdown', vb);
+  const vorgaben = buildPromptVorgaben(regeln);
+  if (vorgaben) content += `\n\n${vorgaben}`;
   if (input.vorherigerText) {
     content += `\n\n## Bisheriger finaler Text (zur Überarbeitung)\n${input.vorherigerText}`;
   }
   if (input.modifier) {
-    content += `\n\n## Zusätzliche Anweisung\n${skill.modifiers[input.modifier]}`;
+    const mod = skill.modifiers[input.modifier];
+    if (mod) content += `\n\n## Zusätzliche Anweisung\n${mod}`;
   }
   return content;
 }
 
 export async function runSkill(
   transport: AITransport,
-  skill: SkillDefinition,
+  skill: SkillRecord,
+  regeln: QualitaetsRegel[],
   input: SkillRunInput,
 ): Promise<SkillRunResult> {
   const { text: vb, gekuerzt } = capVbMarkdown(input.vbMarkdown);
-  const userContent = buildUserContent(skill, input, vb);
+  const userContent = buildUserContent(skill, regeln, input, vb);
+  const systemPrompt = skill.systemPrompt ?? '';
+  const maxTokens = skill.maxTokens ?? DEFAULT_MAX_TOKENS;
 
   let raw: string;
   if (typeof transport.submitConversation === 'function') {
     const messages: ConversationMessage[] = [
-      { role: 'system', content: skill.systemPrompt },
+      ...(systemPrompt ? [{ role: 'system', content: systemPrompt } as ConversationMessage] : []),
       { role: 'user', content: userContent },
     ];
     raw = await transport.submitConversation(messages, {
-      maxTokens: skill.maxTokens,
+      maxTokens,
       thinkingBudget: 'none',
       ...(input.signal ? { signal: input.signal } : {}),
     });
   } else {
     // Streamlit-Bridge: Single-Turn — System-Rolle als Prefix in die Message.
     raw = await transport.submitMessage(
-      `${skill.systemPrompt}\n\n${userContent}`,
-      skill.systemPrompt,
+      systemPrompt ? `${systemPrompt}\n\n${userContent}` : userContent,
+      systemPrompt || undefined,
       input.signal ? { signal: input.signal } : undefined,
     );
   }
 
-  return { raw, parsed: skill.parse(raw), vbGekuerzt: gekuerzt };
+  return { raw, parsed: parseSkillOutput(raw), vbGekuerzt: gekuerzt };
 }

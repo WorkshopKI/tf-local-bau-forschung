@@ -40,7 +40,8 @@
     "csvAutoRefresh": true,
     "embeddingCorpusBuild": false,
     "onlineStatusTab": true,
-    "gutachtenKurzfassung": false
+    "gutachtenKurzfassung": false,
+    "skillVerwaltung": true
   },
   "menuLabels": {
     "antraege": "Förderanträge"

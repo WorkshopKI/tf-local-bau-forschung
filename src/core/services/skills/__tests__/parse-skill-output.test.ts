@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSkillOutput } from '../kurzfassung-skill';
+import { parseSkillOutput } from '../parse';
 
 describe('parseSkillOutput', () => {
   it('zerlegt alle drei Abschnitte', () => {

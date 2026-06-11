@@ -162,6 +162,23 @@ export function isMaVerwaltungPasswortEnabled(): boolean {
 export function isGutachtenKurzfassungEnabled(): boolean {
   return features.gutachtenKurzfassung === true;
 }
+/** Skill-Verwaltung (Kurator-pflegbare Skill-/Regel-Registry). Sichtbar dev +
+ *  kurator + pl. Default false. */
+export function isSkillVerwaltungEnabled(): boolean {
+  return features.skillVerwaltung === true;
+}
+/**
+ * Darf der aktuelle Build/Nutzer die Skill-Registry SCHREIBEN? Komponiert aus
+ * bestehenden Primitiven — KEIN neues Auth-Muster:
+ *  - pl-Build (Schreibrecht auf dem Share, aber ohne Kurator-Login) editiert
+ *    direkt: `datenShareSchreibrecht && !kuratorMenus` identifiziert pl eindeutig.
+ *  - sonst (kurator/dev): nur mit aktiver Kurator-Session; prod/demo read-only.
+ * Physischer Guard bleibt `queryPermission` in `writeSkillRegistry`.
+ */
+export function canEditSkillRegistry(sessionActive: boolean): boolean {
+  if (isDatenShareWritable() && !isKuratorMenusEnabled()) return true;
+  return sessionActive;
+}
 export function isChatEnabled(): boolean { return features.chat; }
 export function isSucheEnabled(): boolean { return features.suche; }
 export function isFeedbackBoardEnabled(): boolean { return features.feedbackBoard; }

@@ -22,6 +22,7 @@ Alle geteilten Daten und Config-Dateien liegen im **Daten-Share** (separater SMB
 - `_intern/scan-manifest.json` — Phase 2: JSONL-Spiegel des `phase2_scan_manifest`-IDB-Stores (optional, Caller-getriggert)
 - `_intern/dms-index-filtered.csv` — Phase 2: gefilterte DMS-CSV (Output von `scripts/filter-dms-csv.mjs`)
 - `_intern/aktenplan-mapping.json` — Phase 2: optionales Override des Aktenplanzuordnung→doc_type Mappings
+- `_intern/skills/registry.json` — (v2.69) Skill-Verwaltung: Kurator-pflegbare Skills + Qualitätsregeln (gemeinsam, „zusammen Geändertes zusammen speichern"). Schema `{ version:1, updated_at, skills[], regeln[] }`. Idempotent-overwrite via `atomicWrite` (mit Backup), Schreiben self-gated auf `queryPermission` (Kurator/PL/dev). IDB-Cache unter Key `skill-registry:cache` im generischen `kv`-Store — KEIN eigener Object-Store/Version-Bump (würde unter `file://` mit parallel offenen Varianten `onblocked` triggern, vgl. `kurzfassung-store.ts`).
 
 ## `_intern/auslastung*` — Auslastungs-Modul
 

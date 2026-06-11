@@ -2,6 +2,16 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.69.0 — Skill-Registry v1: Skills & Qualitätsregeln als Kurator-Daten mit Tuning-Schleife (Juni 2026)
+
+MINOR-Bump v2.69.0 — der Gutachten-Testballon wird vom hartcodierten Prompt+Check zur **Kurator-pflegbaren Registry**. Skills (Prompt-Vorlage, Modifikatoren, Slots) und parametrisierte Qualitätsregeln (Zeichen-/Satz-Limits, verbotene Muster, …) leben jetzt als Daten in `_intern/skills/registry.json`; jede Regel erzeugt aus **einer Quelle** sowohl den Prompt-Hinweis (KI zielt darauf) als auch den Check (System prüft es) — keine Drift. Neue Kurationsseite „Skill-Verwaltung" + Sandbox-Testlauf am echten Antrag (Mockups: `_design/handoff/skill-verwaltung/`).
+
+- **Neuer Service** [src/core/services/skill-registry/](src/core/services/skill-registry/): Datenmodell (`SkillRecord`, `QualitaetsRegel`, vorwärts-kompatibel — unbekannte Regel-Typen werden behalten, nicht verworfen), deklarative Check-Engine (`runRegelChecks` + `buildPromptVorgaben`, gemeinsame `splitSentences`-Heuristik), Seed (aus dem Testballon abgeleitet) und Share-IO (`atomicWrite`/`readText` + IDB-Cache, Muster `feedbackSharedFile.ts`).
+- **Neues Plugin** `skill-verwaltung-kuration` (Flag `skillVerwaltung`, `category: 'tools'`): Tabs Skills / Qualitätsregeln, Skill-Editor (live „Formale Vorgaben" aus den Regeln), Regel-Bibliothek mit Inline-Editor + „verwendet in", Sandbox-Testlauf. Sichtbar in **dev + kurator + pl**.
+- **Schreib-Berechtigung** über neuen Helper `canEditSkillRegistry()` ([feature-flags.ts](src/config/feature-flags.ts)) — komponiert aus bestehenden Primitiven (kein neues Auth-Muster): pl editiert via `datenShareSchreibrecht`, kurator/dev via aktiver Kurator-Session; prod/demo read-only.
+- **Migration**: `skills/checks.ts` + `kurzfassung-skill.ts` entfernt; der Kurzfassung-Skill ist jetzt der Seed, `run-skill.ts` ist registry-getrieben. Die Kurzfassungs-Sektion lädt den Skill aus der Registry (Cache→Seed-Fallback) — Verhalten für den Gutachter unverändert. Persistierte Läufe tragen optional `skillId`/`skillVersion` (alte Läufe laden unverändert).
+- **Seed-on-open**: beim ersten Öffnen mit Schreibrecht wird der Startbestand (Kurzfassung-Skill + 5 Default-Regeln, inkl. der Praxis-Befunde `zeichen_max 1000` + `satzlaenge_max 25`) auf den Share persistiert.
+
 ### v2.68.5 — Förderanträge-Tabelle: TIB-Spalte (Bearbeiter-Kürzel) im Spalten-Picker wählbar (Juni 2026)
 
 PATCH-Bump v2.68.5 — die MA-/Bearbeiter-Spalte (`tib_kuerz`) ist jetzt regulär über den „Spalten"-Picker der Tabellen-Ansicht wählbar ([tableColumns](src/plugins/antraege/tableColumns.tsx) + [AntraegeMain](src/plugins/antraege/AntraegeMain.tsx)). Use-Case: bei aktivem Bearbeiter-Filter + „Auch außerhalb meiner Anträge suchen" sieht der User jetzt, von welchem TIB ein fremder Antrag stammt.

@@ -17,6 +17,9 @@ export interface KurzfassungRecord {
   freigegeben_am?: string;
   /** Transport-/Provider-Name zum Zeitpunkt der Generierung. */
   modell: string;
+  /** Skill-Registry-Herkunft (optional; alte Läufe ohne diese Felder bleiben ladbar). */
+  skillId?: string;
+  skillVersion?: number;
   /** Gesetzt, wenn die VB für den Prompt gekürzt wurde. */
   vbGekuerzt?: boolean;
   /** Parser-Warnung (z.B. Ausgabe ohne saubere Abschnitte). */

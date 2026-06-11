@@ -173,6 +173,11 @@ export const DEFAULT_CONFIG = {
      *  Erster „Mini-Agent" — nur dev (Testballon). Optional, default false
      *  (kein requiredFlags-Eintrag). */
     gutachtenKurzfassung: true,
+    /** Skill-Verwaltung: Kurator-pflegbare Skill-/Regel-Registry mit Sandbox-
+     *  Testlauf. Sichtbar in dev + kurator + pl (Schreiben in pl über
+     *  `datenShareSchreibrecht`, sonst Kurator-Session). Optional, default false
+     *  (kein requiredFlags-Eintrag). */
+    skillVerwaltung: true,
   },
 
   menuLabels: {

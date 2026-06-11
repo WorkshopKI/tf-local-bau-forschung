@@ -1,0 +1,144 @@
+import { describe, it, expect } from 'vitest';
+import {
+  splitSentences,
+  runRegelChecks,
+  buildPromptVorgaben,
+  buildPromptHinweis,
+} from '../check-engine';
+import type { QualitaetsRegel, Schweregrad } from '../types';
+
+/** 9-Satz-Kurzfassung (entspricht dem Mockup), „Der Antragsteller plant" in Satz 4. */
+const NEUN_SAETZE =
+  'Das Vorhaben adressiert die kontinuierliche Überwachung industrieller Fertigungsprozesse durch ein adaptives Sensornetzwerk. '
+  + 'Ziel ist die frühzeitige Erkennung von Prozessabweichungen, um Ausschuss und ungeplante Stillstände zu reduzieren. '
+  + 'Hierzu kombiniert das Vorhaben kostengünstige MEMS-Sensoren mit einer eingebetteten Auswerteeinheit. '
+  + 'Der Antragsteller plant, ein selbstkalibrierendes Verfahren zu entwickeln. '
+  + 'Ein wesentlicher Innovationsschritt liegt in der Verknüpfung lokaler Anomalieerkennung mit maschinellem Lernen. '
+  + 'Die Auswertung erfolgt vollständig dezentral, sodass keine sensiblen Produktionsdaten das Werksnetz verlassen. '
+  + 'Im Projektverlauf sollen Labormuster aufgebaut und an einer Referenzanlage erprobt werden. '
+  + 'Die angestrebte Erkennungsgenauigkeit liegt bei über 95 Prozent. '
+  + 'Angaben zur geplanten Markteinführung sind [Im Antrag nicht genannt].';
+
+function regel(
+  typ: string,
+  params: Record<string, unknown>,
+  opts: { schweregrad?: Schweregrad; aktiv?: boolean; id?: string } = {},
+): QualitaetsRegel {
+  return {
+    id: opts.id ?? `r-${typ}`,
+    name: typ,
+    typ,
+    params,
+    schweregrad: opts.schweregrad ?? 'fehler',
+    aktiv: opts.aktiv ?? true,
+    erstellt_am: 't',
+    geaendert_am: 't',
+  };
+}
+
+describe('splitSentences — Abkürzungen sind kein Satzende', () => {
+  it('zählt „z. B." nicht als Satzgrenze', () => {
+    expect(splitSentences('Das Modul nutzt z. B. MEMS-Sensoren. Es ist robust.')).toHaveLength(2);
+  });
+  it('zählt „z.B." (ohne Leerraum) nicht als Satzgrenze', () => {
+    expect(splitSentences('Das Modul nutzt z.B. MEMS-Sensoren. Es ist robust.')).toHaveLength(2);
+  });
+  it('zählt „ca.", „bzw.", „d. h." nicht als Satzgrenze', () => {
+    expect(splitSentences('Es werden ca. 50 Einheiten bzw. Module geprüft, d. h. alle Varianten. Fertig.')).toHaveLength(2);
+  });
+  it('erkennt echte Satzgrenzen mit ! und ?', () => {
+    expect(splitSentences('Funktioniert das? Ja, sehr gut! Wirklich.')).toHaveLength(3);
+  });
+  it('zählt 9 Sätze in der Beispiel-Kurzfassung', () => {
+    expect(splitSentences(NEUN_SAETZE)).toHaveLength(9);
+  });
+});
+
+describe('runRegelChecks — pro Regel-Typ', () => {
+  it('zeichen_max: ok unter Limit, Schweregrad bei Überschreitung', () => {
+    expect(runRegelChecks('kurz', [regel('zeichen_max', { max: 10 })])[0]!.level).toBe('ok');
+    const fail = runRegelChecks('x'.repeat(20), [regel('zeichen_max', { max: 10, })])[0]!;
+    expect(fail.level).toBe('fehler');
+    expect(fail.regelId).toBe('r-zeichen_max');
+  });
+
+  it('wortanzahl: prüft min/max', () => {
+    expect(runRegelChecks('ein zwei drei', [regel('wortanzahl', { min: 3, max: 5 })])[0]!.level).toBe('ok');
+    expect(runRegelChecks('ein', [regel('wortanzahl', { min: 3, max: 5 })])[0]!.level).toBe('fehler');
+  });
+
+  it('satzanzahl: ok bei 9 (8–12), fehler außerhalb', () => {
+    expect(runRegelChecks(NEUN_SAETZE, [regel('satzanzahl', { min: 8, max: 12 })])[0]!.level).toBe('ok');
+    expect(runRegelChecks('Ein Satz.', [regel('satzanzahl', { min: 8, max: 12 })])[0]!.level).toBe('fehler');
+  });
+
+  it('satzlaenge_max: meldet zu lange Sätze mit Schweregrad', () => {
+    const lang = 'Dies ist ein bewusst sehr ausführlich formulierter Satz mit deutlich mehr als fünf Wörtern.';
+    const r = runRegelChecks(lang, [regel('satzlaenge_max', { maxWoerter: 5 }, { schweregrad: 'hinweis' })])[0]!;
+    expect(r.level).toBe('hinweis');
+    expect(runRegelChecks('Kurz und knapp.', [regel('satzlaenge_max', { maxWoerter: 5 })])[0]!.level).toBe('ok');
+  });
+
+  it('verbotenes_muster: erkennt Regex- und Literal-Muster mit Satz-Nr.', () => {
+    const r = runRegelChecks(NEUN_SAETZE, [
+      regel('verbotenes_muster', { muster: ['Der Antragsteller plant', '\\bAP\\s?\\d+'], istRegex: true }, { schweregrad: 'hinweis' }),
+    ])[0]!;
+    expect(r.level).toBe('hinweis');
+    expect(r.detail).toContain('Satz 4');
+    const lit = runRegelChecks('Das ist klar verboten.', [
+      regel('verbotenes_muster', { muster: ['verboten'], istRegex: false })],
+    )[0]!;
+    expect(lit.level).toBe('fehler');
+  });
+
+  it('pflicht_anfang: prüft exakten Textbeginn', () => {
+    expect(runRegelChecks('Das Vorhaben wirkt.', [regel('pflicht_anfang', { text: 'Das Vorhaben' })])[0]!.level).toBe('ok');
+    expect(runRegelChecks('Etwas anderes.', [regel('pflicht_anfang', { text: 'Das Vorhaben' })])[0]!.level).toBe('fehler');
+  });
+
+  it('keine_aufzaehlungen: erkennt Listen-Marker', () => {
+    expect(runRegelChecks('Fließtext ohne Liste.', [regel('keine_aufzaehlungen', {})])[0]!.level).toBe('ok');
+    expect(runRegelChecks('Ziele:\n- Punkt eins', [regel('keine_aufzaehlungen', {})])[0]!.level).toBe('fehler');
+  });
+});
+
+describe('runRegelChecks — Aktiv/Schweregrad/Unbekannt', () => {
+  it('überspringt deaktivierte Regeln', () => {
+    const results = runRegelChecks('Ein Satz.', [regel('satzanzahl', { min: 8, max: 12 }, { aktiv: false })]);
+    expect(results).toHaveLength(0);
+  });
+
+  it('überspringt unbekannte Typen (behält sie aber im Datensatz)', () => {
+    const results = runRegelChecks('egal', [regel('zukunfts_typ', { irgendwas: 1 })]);
+    expect(results).toHaveLength(0);
+  });
+
+  it('mappt Schweregrad nur im Fehlerfall (ok bleibt ok)', () => {
+    const okRes = runRegelChecks('kurz', [regel('zeichen_max', { max: 100 }, { schweregrad: 'hinweis' })])[0]!;
+    expect(okRes.level).toBe('ok');
+  });
+});
+
+describe('buildPromptVorgaben / buildPromptHinweis', () => {
+  it('listet nur aktive, bekannte Regeln unter „Formale Vorgaben"', () => {
+    const block = buildPromptVorgaben([
+      regel('satzanzahl', { min: 8, max: 12 }),
+      regel('zeichen_max', { max: 1000 }),
+      regel('keine_aufzaehlungen', {}, { aktiv: false }),
+      regel('zukunfts_typ', {}),
+    ]);
+    expect(block).toContain('## Formale Vorgaben');
+    expect(block).toContain('Schreibe 8 bis 12 Sätze.');
+    expect(block).toContain('maximal 1000 Zeichen');
+    expect(block).not.toContain('Aufzählungen');
+  });
+
+  it('liefert Leerstring ohne aktive bekannte Regeln', () => {
+    expect(buildPromptVorgaben([regel('keine_aufzaehlungen', {}, { aktiv: false })])).toBe('');
+  });
+
+  it('buildPromptHinweis: null für unbekannte Typen', () => {
+    expect(buildPromptHinweis(regel('zukunfts_typ', {}))).toBeNull();
+    expect(buildPromptHinweis(regel('satzanzahl', { min: 8, max: 12 }))).toContain('8 bis 12');
+  });
+});
