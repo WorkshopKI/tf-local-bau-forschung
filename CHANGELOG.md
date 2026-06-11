@@ -2,6 +2,18 @@
 
 Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only — nie umnummerieren oder löschen**; Überholtes mit „abgelöst durch …" markieren statt entfernen. Bump-Regeln (MAJOR/MINOR/PATCH): [CLAUDE.md → Versionierung](CLAUDE.md). Aktuelle Architektur + Constraints: [CLAUDE.md](CLAUDE.md). Wiederkehrende Bug-Klassen: [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
+### v2.68.0 — Gutachten-Testballon: Kurzfassung-Skill (Dokumenten-Aufnahme → Skill → Review → DOCX-Vorlage) (Juni 2026)
+
+MINOR-Bump v2.68.0 — erster „Mini-Agent": Auf der Förderantrags-Detailseite erstellt ein Gutachter KI-gestützt die **Kurzfassung** eines ZIM-Gutachtens. Kompletter Durchstich, hinter Feature-Flag `gutachtenKurzfassung` (**nur dev**; demo/prod/kurator/pl = false). Additiv, keine Migration. Leitprinzip: Bausteine 1/3/4 funktionieren **ohne LLM**, nur die Generierung (Baustein 2) degradiert mit klarer Meldung, wenn kein Transport erreichbar ist.
+
+- **Skill als Datenstruktur** (registry-ready, „static data over logic"): [src/core/services/skills/](src/core/services/skills/) — `SkillDefinition` + Prompt-Template (ZIM-Kontrakt, drei `###`-Ausgabeteile), `parseSkillOutput` (tolerant), deterministische Checks ([checks.ts](src/core/services/skills/checks.ts): Satzanzahl 8–12, keine Aufzählungen, Passiv-Hinweis — kein LLM), transport-agnostischer Runner ([run-skill.ts](src/core/services/skills/run-skill.ts): Ladder `submitConversation?` → `submitMessage`, non-streaming, Abort, VB-Cap 24k).
+- **Wiederverwendbare Dokumenten-Aufnahmefläche** ([DokumentAufnahme.tsx](src/core/components/DokumentAufnahme.tsx)): Drag&Drop (PDF/DOCX), FKZ aus Dateiname (`extractFkz`, wiederverwendet), drei Fälle (match / anderer Antrag / kein FKZ → manuelle Zuordnung), Typ-Pills. Pipeline Converter → Dokumente-Store → Such-Index mit `tags:[fkz, typ]`. **Antrag-Zuordnung rein über die FKZ-Tag-Relation — kein Schreiben in den CSV-`Antrag`-Record.**
+- **Review-/Freigabe-UI** ([src/plugins/antraege/kurzfassung/](src/plugins/antraege/kurzfassung/)): Zustände „VB fehlt" (eingebettete Aufnahme) / „VB vorhanden" / Review (Quellenanalyse, finaler Text, Prüf-Checkliste, Aktionen Freigeben/Neu/Kürzer/Länger/Prüfen). In [TvDetailBlock](src/plugins/antraege/TvDetailBlock.tsx) gegated eingebunden.
+- **DOCX-Vorlagen-Füller** ([src/core/services/gutachten-vorlagen/](src/core/services/gutachten-vorlagen/)): `jszip` auf `word/document.xml`-String — Run-Splitting (Platzhalter über `<w:r>`-Grenzen, `&F:…&` / `&amp;F:…&amp;`), statische Feld-Mapping-Tabelle, Anker-Einfügung („Kurzfassung der Projektbeschreibung", whitespace-tolerant; fehlt der Anker → Vorlage trotzdem erstellbar), Dry-Run für die Dialog-Vorschau. Nur-lesende Verzeichnis-Quelle (eigener IDB-Slot, NICHT in `dms-sources`), Ablage in `ZAH/gutachten/` (Download-Fallback). **Keine neue Dependency.**
+- **Persistenz** via `kv`-Präfix-Key `gutachten-kurzfassung:<aktenzeichen>` (wie `doc:*`) — bewusst **kein** dedizierter Object-Store/`version`-Bump (vermeidet das `file://`-`onblocked`-Upgrade-Risiko bei parallel offenen Varianten).
+- `AntragDokumentTyp` additiv um `vorhabensbeschreibung` / `teilvorhabensbeschreibung` / `stellungnahme` erweitert (rückwärtskompatibel); `useDokumenteStore.add()` liefert jetzt die Doc-ID zurück.
+- 33 neue Vitest-Tests (checks inkl. Abkürzungen, Parser, FKZ-Zuordnung, fill-template Run-Splitting+Escaping); tsc clean, gesamte Suite grün.
+
 ### v2.67.4 — Chat: einklappbare Eingaben, resizable Sidebar, dichtere Liste, Composer-Aufräumen (Juni 2026)
 
 PATCH-Bump v2.67.4 — UX-Feinschliff am Chat:
