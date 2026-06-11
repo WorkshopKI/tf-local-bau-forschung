@@ -21,6 +21,7 @@ src/
 │   │   ├── SimilarCases.tsx     <- AI-powered similar case suggestions
 │   │   ├── VerlaufTab.tsx       <- Workflow history timeline
 │   │   ├── VorgangDokumenteTab.tsx <- Document viewer per Vorgang
+│   │   ├── DokumentAufnahme.tsx <- v2.68: wiederverwendbare Dokumenten-Aufnahmefläche (Drag&Drop + FKZ-Relation, Verbund-Ebene) + dokumentAufnahmeFkz.ts (pure classifyFkz)
 │   │   └── tour/
 │   │       ├── TourOverlay.tsx  <- Spotlight-Overlay für Onboarding-Tour (clip-path, Retry, Auto-Nav)
 │   │       └── tourSteps.ts     <- 5 Tour-Schritte mit data-tour Targets + navigateTo
@@ -71,6 +72,8 @@ src/
 │   │   │       └── test-cases.ts
 │   │   ├── converter/
 │   │   │   └── index.ts         <- PDF + DOCX to Markdown
+│   │   ├── skills/              <- v2.68: Gutachten-Skill als Datenstruktur (kurzfassung-skill + parseSkillOutput + checks + transport-agnostischer run-skill) — Registry-ready
+│   │   ├── gutachten-vorlagen/  <- v2.68: DOCX-Vorlagen-Füller (fill-template Run-Splitting + Anker + Dry-Run, field-mapping, vorlagen-quelle Handle, save-docx)
 │   │   ├── export/
 │   │   │   ├── docx-export.ts   <- DOCX generation
 │   │   │   └── docx-templates.ts
@@ -137,6 +140,7 @@ src/
 │   # Nutzer-Plugins (category 'workflow' / 'tools')
 │   ├── home/                    <- Dashboard (id='home')
 │   ├── antraege/                <- Förderanträge-Liste + Detail (id='antraege', generische Ansicht über CSV-Schema; seit v1.14 konsolidiert inkl. ehem. Forschungs-Fixtures + optionaler AntragDokumentRef[])
+│   │   └── kurzfassung/         <- v2.68: Gutachten-Kurzfassung-Sektion auf Verbund-Ebene (KurzfassungSection/ReviewCard/CheckList/VorlageDialog + useKurzfassung + kv-Store, features.gutachtenKurzfassung)
 │   ├── auslastung/              <- Auslastungs-Modul (id='auslastung', features.auslastung-gegated, Tabs Klassifizierung/Zuweisung/Übersicht + Kompetenzen (v2.15), Anonymisierung MA01..MAxx, dreistufiges Matching, Standalone-Onboarding-HTML-Generator)
 │   │   ├── views/KompetenzMatrixView.tsx <- v2.15: PL-Kompetenz-Tab (XLSX-Upload + editierbares Grid)
 │   │   ├── components/kompetenz/    <- v2.15: zerlegte Matrix-Grid-Komponenten (KompetenzMatrix + MatrixRow/Header/Toolbar/Controls/LevelCell/CapCell)
