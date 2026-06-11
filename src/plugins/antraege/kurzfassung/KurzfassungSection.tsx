@@ -10,13 +10,15 @@
  * Vorlagen-Dialog bleiben nutzbar; nur die Generierung degradiert.
  */
 import { useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, SlidersHorizontal, X } from 'lucide-react';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
+import { shouldShowVersionHint } from '@/core/services/skill-tweaks';
 import type { Antrag } from '@/core/services/csv/types';
 import { useKurzfassung } from './useKurzfassung';
 import { ReviewCard } from './ReviewCard';
+import { TweakEditor } from './TweakEditor';
 import { VorlageDialog } from './VorlageDialog';
 import type { KurzfassungContext } from './types';
 
@@ -27,11 +29,16 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [ersetzen, setErsetzen] = useState(false);
-  const { record } = ctrl;
+  const [tweakOpen, setTweakOpen] = useState(false);
+  const { record, tweak, skill } = ctrl;
   const freigegeben = record?.status === 'freigegeben';
   const vbDok = ctrl.vbDokument;
   const vbLvl = maxConversionLevel(vbDok?.conversion);
   const vbWarnung = vbDok?.conversion?.warnings.find(w => w.level === 'warnung')?.message ?? '';
+
+  // User-Tweaks v2: Chip nur wenn Tweak aktiv UND nicht leer; Versions-Hinweis bei Skill-Update.
+  const tweakEffektiv = !!(tweak?.aktiv && (tweak.stilHinweise.trim() || tweak.beispielFormulierungen.trim()));
+  const zeigeVersionHinweis = !!skill && shouldShowVersionHint(tweak, skill.version);
 
   // Synthetischer „Antrag" als Feld-Quelle für den DOCX-Füller: das Gutachten
   // läuft auf Verbund-Ebene → Verbund-FKZ/Titel/Konsortialführer.
@@ -56,6 +63,12 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
             <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">Entwurf — nicht freigegeben</span>
           )
         )}
+        {tweakEffektiv && (
+          <span className="inline-flex items-center gap-1.5 text-[10.5px] px-2 py-1 rounded-full border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text-secondary)] whitespace-nowrap">
+            <SlidersHorizontal size={11} className="text-[var(--tf-text-tertiary)]" />
+            persönlicher Stil
+          </span>
+        )}
         <span className="flex-1" />
         {record && (
           <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--tf-text-tertiary)] whitespace-nowrap">
@@ -64,6 +77,24 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
           </span>
         )}
       </div>
+
+      {/* Versions-Hinweis (neutral, NICHT warnfarben) bei Kurator-Update des Skills */}
+      {zeigeVersionHinweis && skill && tweak && (
+        <div className="mt-2 mb-1 flex items-center gap-2.5 rounded-[8px] px-3 py-2 bg-[var(--tf-bg-secondary)] border-[0.5px] border-[var(--tf-border)]">
+          <span className="text-[12px] leading-[1.5] text-[var(--tf-text-secondary)]">
+            Der Skill wurde vom Kurator aktualisiert (<span className="font-mono text-[var(--tf-text)]">v{tweak.angelegtFuerSkillVersion} → v{skill.version}</span>). Ihr persönlicher Stil bleibt aktiv — kurz prüfen?
+          </span>
+          <button type="button" onClick={() => setTweakOpen(true)} className="text-[12px] text-[var(--tf-primary)] hover:underline whitespace-nowrap">Ansehen</button>
+          <button
+            type="button"
+            onClick={ctrl.dismissVersionHint}
+            aria-label="Hinweis schließen"
+            className="flex-shrink-0 w-[22px] h-[22px] inline-flex items-center justify-center rounded-[5px] text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text-secondary)]"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
 
       {ctrl.error && (
         <div className="my-2 rounded-[8px] px-3 py-2 text-[12px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)]">
@@ -86,6 +117,7 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
             onStop={ctrl.stop}
             onCreateVorlage={() => setDialogOpen(true)}
             onUebernehmen={ctrl.uebernehmen}
+            onOpenTweak={() => setTweakOpen(true)}
           />
           <VorlageDialog
             open={dialogOpen}
@@ -177,6 +209,17 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
           markdown={vbDok.markdown}
           report={vbDok.conversion}
           onClose={() => setReviewOpen(false)}
+        />
+      )}
+
+      {tweakOpen && skill && (
+        <TweakEditor
+          skillVersion={skill.version}
+          regeln={ctrl.regeln}
+          tweak={tweak}
+          onClose={() => setTweakOpen(false)}
+          onSave={ctrl.saveTweak}
+          onRemove={ctrl.removeTweak}
         />
       )}
     </div>

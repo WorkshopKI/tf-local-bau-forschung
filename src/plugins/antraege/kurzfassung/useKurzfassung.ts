@@ -22,11 +22,20 @@ import {
   type QualitaetsRegel,
   type SkillRecord,
 } from '@/core/services/skill-registry';
+import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
+import { loadSkillTweak, saveSkillTweak, deleteSkillTweak, type SkillTweak } from '@/core/services/skill-tweaks';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { findVorhabensbeschreibung } from './vbDokument';
 import { getKurzfassung, putKurzfassung, deleteKurzfassung } from './kurzfassung-store';
 import { appendVerlauf, restoreVersion } from './kurzfassung-verlauf';
 import type { KurzfassungContext, KurzfassungRecord } from './types';
+
+/** Eingaben des Tweak-Editors (User-Tweaks v2) beim Speichern. */
+export interface TweakEingabe {
+  stilHinweise: string;
+  beispielFormulierungen: string;
+  aktiv: boolean;
+}
 
 export interface KurzfassungController {
   record: KurzfassungRecord | null;
@@ -37,6 +46,12 @@ export interface KurzfassungController {
   error: string | null;
   /** null = noch nicht geprüft. */
   llmAvailable: boolean | null;
+  /** Aufgelöster Skill (Registry-Cache oder Seed-Fallback) — für Version + Tweak-Editor. */
+  skill: SkillRecord | null;
+  /** Zugeordnete Qualitätsregeln — für die „So wird es der KI mitgegeben"-Vorschau. */
+  regeln: QualitaetsRegel[];
+  /** Persönlicher Tweak des Nutzers für diesen Skill (User-Tweaks v2), lokal. */
+  tweak: SkillTweak | null;
   generate: () => void;
   modify: (modifier: SkillModifierKey) => void;
   pruefen: () => void;
@@ -47,6 +62,12 @@ export interface KurzfassungController {
   refreshVb: () => void;
   stop: () => void;
   clearError: () => void;
+  /** Tweak speichern (setzt `angelegtFuerSkillVersion` = aktuelle Skill-Version). Wirft bei Fehler. */
+  saveTweak: (eingabe: TweakEingabe) => Promise<void>;
+  /** Tweak entfernen. Wirft bei Fehler. */
+  removeTweak: () => Promise<void>;
+  /** Versions-Hinweis für die aktuelle Skill-Version wegklicken (Close-X). */
+  dismissVersionHint: () => void;
 }
 
 function buildStammdaten(ctx: KurzfassungContext): string {
@@ -78,6 +99,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
   const [error, setError] = useState<string | null>(null);
   const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
   const [skillCtx, setSkillCtx] = useState<{ skill: SkillRecord; regeln: QualitaetsRegel[] } | null>(null);
+  const [tweak, setTweak] = useState<SkillTweak | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -93,11 +115,19 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
       // Skill aus der Registry (Cache-Pfad). Fehlt er (noch nicht kuratiert /
       // gelöscht), Fallback auf den eingebauten Seed.
       const found = getSkillById(loaded.file, KURZFASSUNG_SKILL_ID);
+      const skill = found ?? SEED_SKILL;
       setSkillCtx(found
         ? { skill: found, regeln: resolveRegeln(loaded.file, found) }
         : { skill: SEED_SKILL, regeln: SEED_REGELN });
       setRecord(rec);
       setVbDokument(vb);
+      // Persönlicher Tweak (User-Tweaks v2): IDB-Cache → ggf. persönl. Ordner (LWW).
+      // getPersoenlichHandle liest nur den gespeicherten Handle (kein Prompt); ohne
+      // Ordner/Permission liefert loadSkillTweak den IDB-Cache (in dev: null).
+      const persHandle = await getPersoenlichHandle(storage.idb).catch(() => null);
+      const loadedTweak = await loadSkillTweak(storage.idb, persHandle, skill.id).catch(() => null);
+      if (cancelled) return;
+      setTweak(loadedTweak);
       setLoading(false);
       // LLM-Probe nur, wenn Generierung relevant ist (VB da, noch nicht freigegeben).
       // DirectLLM.ping = billiger /v1/models-Fetch; aktive Streamlit-Bridge würde
@@ -124,9 +154,13 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         setError('KI nicht erreichbar — Generierung derzeit nicht möglich.');
         return;
       }
+      // Tweak nur einspeisen, wenn aktiv UND nicht leer — dann ist auch `mitTweak`
+      // korrekt (composeSkillPrompt würde sonst keinen Block emittieren).
+      const tweakWirksam = !!(tweak?.aktiv && (tweak.stilHinweise.trim() || tweak.beispielFormulierungen.trim()));
       const result = await runSkill(transport, skillCtx.skill, skillCtx.regeln, {
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vbDokument.markdown,
+        ...(tweakWirksam ? { tweak } : {}),
         ...(modifier ? { modifier } : {}),
         ...(modifier && record ? { vorherigerText: record.finalerText } : {}),
         signal: abort.signal,
@@ -146,6 +180,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         // Die noch aktive Fassung wandert vor dem Überschreiben in den Verlauf.
         verlauf: appendVerlauf(record),
         ...(modifier ? { modifier } : {}),
+        ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tweak!.geaendert_am } : {}),
         ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
       };
       setRecord(rec);
@@ -211,6 +246,42 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
     }
   };
 
+  // --- User-Tweaks v2: persönliche Stil-Schicht (lokal, IDB + best-effort Spiegel) ---
+
+  const saveTweak = async (eingabe: TweakEingabe): Promise<void> => {
+    if (!skillCtx) return;
+    const next: SkillTweak = {
+      skillId: skillCtx.skill.id,
+      angelegtFuerSkillVersion: skillCtx.skill.version,
+      aktiv: eingabe.aktiv,
+      stilHinweise: eingabe.stilHinweise,
+      beispielFormulierungen: eingabe.beispielFormulierungen,
+      geaendert_am: new Date().toISOString(),
+    };
+    const persHandle = await getPersoenlichHandle(storage.idb).catch(() => null);
+    await saveSkillTweak(storage.idb, persHandle, next);
+    setTweak(next);
+  };
+
+  const removeTweak = async (): Promise<void> => {
+    if (!skillCtx) return;
+    const persHandle = await getPersoenlichHandle(storage.idb).catch(() => null);
+    await deleteSkillTweak(storage.idb, persHandle, skillCtx.skill.id);
+    setTweak(null);
+  };
+
+  const dismissVersionHint = async (): Promise<void> => {
+    if (!skillCtx || !tweak) return;
+    try {
+      const next: SkillTweak = { ...tweak, hinweisAusgeblendetFuerVersion: skillCtx.skill.version };
+      const persHandle = await getPersoenlichHandle(storage.idb).catch(() => null);
+      await saveSkillTweak(storage.idb, persHandle, next);
+      setTweak(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   return {
     record,
     vbDokument,
@@ -219,6 +290,9 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
     busy,
     error,
     llmAvailable,
+    skill: skillCtx?.skill ?? null,
+    regeln: skillCtx?.regeln ?? [],
+    tweak,
     generate: () => { void runGeneration(); },
     modify: (m) => { void runGeneration(m); },
     pruefen: () => { void pruefen(); },
@@ -228,5 +302,8 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
     refreshVb: () => { void refreshVb(); },
     stop: () => abortRef.current?.abort(),
     clearError: () => setError(null),
+    saveTweak,
+    removeTweak,
+    dismissVersionHint: () => { void dismissVersionHint(); },
   };
 }

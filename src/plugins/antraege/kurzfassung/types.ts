@@ -46,6 +46,10 @@ export interface KurzfassungRecord {
   modifier?: SkillModifierKey;
   /** Frühere Fassungen (älteste zuerst), gekappt auf MAX_VERLAUF — Vergleich/Rückgriff. */
   verlauf?: KurzfassungVersion[];
+  /** True, wenn dieser Lauf mit aktivem, nicht-leerem persönlichem Tweak generiert wurde (User-Tweaks v2). */
+  mitTweak?: boolean;
+  /** Stand des Tweaks (`geaendert_am`) zum Zeitpunkt der Generierung — Nachvollziehbarkeit. */
+  tweakGeaendertAm?: string;
 }
 
 export interface KurzfassungTeilvorhaben {

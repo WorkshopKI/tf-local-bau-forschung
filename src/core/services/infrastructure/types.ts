@@ -148,6 +148,15 @@ export const PERSOENLICH_AUSLASTUNG_UEBERNAHME_FILE = 'ZAH/auslastung-uebernahme
  * PERSOENLICH_AUSLASTUNG_PROFIL_FILE.
  */
 export const PERSOENLICH_ONLINE_STATUS_FILE = 'ZAH/online-status.json';
+/**
+ * User-Tweaks v2: persönliche Stil-Schicht für Skills (eigene Stil-Hinweise +
+ * Beispiel-Formulierungen pro `skillId`). Anders als die übrigen ZAH-Dateien
+ * wird diese NIE eingesammelt — Tweaks sind rein privat (kein Team-Aspekt, keine
+ * Kurator-Sicht). Best-effort-Spiegel des IDB-Cache (`skill-tweaks:<skillId>`),
+ * damit der Tweak dem Nutzer über Rechner/Sessions folgt + IDB-Verlust übersteht
+ * (Last-Writer-Wins über `geaendert_am`). Format: `{ version, tweaks: Record<skillId, SkillTweak> }`.
+ */
+export const PERSOENLICH_SKILL_TWEAKS_FILE = 'ZAH/skill-tweaks.json';
 
 /**
  * v2.0: IDB-Flag das die App beim Start anlegt, wenn ein bestehender Daten-

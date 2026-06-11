@@ -32,6 +32,18 @@ import type { ParsedSkillOutput } from './types';
 export const VB_CHAR_CAP = 100_000;
 const DEFAULT_MAX_TOKENS = 2048;
 
+/**
+ * Persönliche Stil-Schicht des Bearbeiters (User-Tweaks v2) — minimale, vom
+ * Store-Record entkoppelte Form. `SkillTweak` erfüllt sie strukturell. Der Block
+ * wird NUR bei `aktiv` + nicht-leeren Feldern emittiert und steht im Prompt VOR
+ * den „Formalen Vorgaben" → die Kurator-Regeln behalten (Recency) Vorrang.
+ */
+export interface SkillTweakPromptInput {
+  aktiv: boolean;
+  stilHinweise: string;
+  beispielFormulierungen: string;
+}
+
 export interface SkillRunInput {
   /** Stammdaten-Block (aktenzeichen, titel, akronym, antragsteller). */
   stammdaten: string;
@@ -41,6 +53,8 @@ export interface SkillRunInput {
   modifier?: SkillModifierKey;
   /** Bei Re-Invocation: vorheriger finaler Text als Überarbeitungs-Referenz. */
   vorherigerText?: string;
+  /** Optionaler persönlicher Tweak (User-Tweaks v2). Fehlt er, ist die Ausgabe identisch zum tweaklosen Lauf. */
+  tweak?: SkillTweakPromptInput;
   signal?: AbortSignal;
 }
 
@@ -65,13 +79,47 @@ function fillSlot(template: string, slot: string, value: string): string {
   return template.split(`{{${slot}}}`).join(value);
 }
 
-function buildUserContent(
+/**
+ * Baut den klar delimitierten Tweak-Block (User-Tweaks v2). Gibt `''` zurück,
+ * wenn beide Felder leer sind. Keine Interpolation/Logik im Tweak-Text — die
+ * Inhalte werden 1:1 mit kurzen Labels eingesetzt. Wird sowohl von
+ * `composeSkillPrompt` als auch von der Editor-Vorschau genutzt (eine Quelle).
+ */
+export function buildTweakBlock(stilHinweise: string, beispielFormulierungen: string): string {
+  const stil = stilHinweise.trim();
+  const bsp = beispielFormulierungen.trim();
+  if (!stil && !bsp) return '';
+  const lines = ['## Persönliche Stil-Präferenzen des Bearbeiters (heben die formalen Vorgaben nicht auf)'];
+  if (stil) lines.push(`Stil: ${stil}`);
+  if (bsp) {
+    lines.push('Beispiel-Formulierungen:');
+    lines.push(bsp);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * EINZIGE Prompt-Kompositionsstelle (vormals `buildUserContent`). Feste, nicht
+ * konfigurierbare Rangfolge:
+ *   (1) gefülltes Kurator-Template
+ *   (2) persönlicher Tweak-Block — nur bei `tweak.aktiv` + nicht-leer
+ *   (3) „Formale Vorgaben" (aus `buildPromptVorgaben`) — bewusst ZULETZT vor den
+ *       Re-Invocation-Blöcken, damit die Kurator-Regeln Instruktions-Vorrang behalten
+ *   (+) Re-Invocation: vorheriger Text + Modifier
+ * Reine Funktion (getestet). Ohne (oder mit inaktivem/leerem) Tweak ist die
+ * Ausgabe byte-identisch zum tweaklosen Lauf.
+ */
+export function composeSkillPrompt(
   skill: SkillRecord,
   regeln: QualitaetsRegel[],
   input: SkillRunInput,
   vb: string,
 ): string {
   let content = fillSlot(fillSlot(skill.promptTemplate, 'stammdaten', input.stammdaten), 'vbMarkdown', vb);
+  if (input.tweak?.aktiv) {
+    const tweakBlock = buildTweakBlock(input.tweak.stilHinweise, input.tweak.beispielFormulierungen);
+    if (tweakBlock) content += `\n\n${tweakBlock}`;
+  }
   const vorgaben = buildPromptVorgaben(regeln);
   if (vorgaben) content += `\n\n${vorgaben}`;
   if (input.vorherigerText) {
@@ -91,7 +139,7 @@ export async function runSkill(
   input: SkillRunInput,
 ): Promise<SkillRunResult> {
   const { text: vb, gekuerzt } = capVbMarkdown(input.vbMarkdown);
-  const userContent = buildUserContent(skill, regeln, input, vb);
+  const userContent = composeSkillPrompt(skill, regeln, input, vb);
   const systemPrompt = skill.systemPrompt ?? '';
   const maxTokens = skill.maxTokens ?? DEFAULT_MAX_TOKENS;
 

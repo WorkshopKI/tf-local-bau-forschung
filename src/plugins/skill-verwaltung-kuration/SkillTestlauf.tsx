@@ -124,10 +124,11 @@ export function SkillTestlauf({ skill, regeln, hinweis, onClose }: SkillTestlauf
   return (
     <div className="fixed inset-0 z-50 flex justify-center items-start overflow-auto py-12" style={{ background: 'rgba(0,0,0,0.4)' }}>
       <div className="relative bg-[var(--tf-bg)] rounded-[16px] w-[660px] max-w-[94%] p-6" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.12)' }}>
-        <div className="flex items-center gap-2.5 mb-4">
+        <div className="flex items-center gap-2.5 mb-1">
           <h2 className="text-[16px] font-medium m-0">Testlauf: {skill.name}</h2>
           {hinweis && <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]">{hinweis}</span>}
         </div>
+        <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-4">Testlauf ohne persönliche Stil-Anpassungen — geprüft wird der kuratierte Stand.</p>
 
         {/* Antrag wählen */}
         <SectionHeader>Antrag wählen</SectionHeader>

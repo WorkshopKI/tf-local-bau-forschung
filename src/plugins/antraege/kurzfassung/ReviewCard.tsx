@@ -4,7 +4,7 @@
  * aufklappbare Quellenanalyse, finaler Fließtext + Meta, Prüf-Checkliste,
  * Aktionsleiste. Im freigegebenen Zustand: nur „Gutachten-Vorlage erstellen".
  */
-import { Loader2 } from 'lucide-react';
+import { Loader2, SlidersHorizontal } from 'lucide-react';
 import { CollapsibleSection, MarkdownRenderer } from '@/ui';
 import { splitSentences, type SkillModifierKey } from '@/core/services/skills';
 import { CheckList } from './CheckList';
@@ -23,13 +23,16 @@ interface Props {
   onStop: () => void;
   onCreateVorlage: () => void;
   onUebernehmen: (index: number) => void;
+  /** Öffnet den Tweak-Editor (User-Tweaks v2) — Einstieg in der Aktionsleiste. */
+  onOpenTweak: () => void;
 }
 
 const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed';
 const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed';
+const TWEAK_LINK = 'inline-flex items-center gap-1 text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]';
 
 export function ReviewCard({
-  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage, onUebernehmen,
+  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage, onUebernehmen, onOpenTweak,
 }: Props): React.ReactElement {
   const freigegeben = record.status === 'freigegeben';
   const satzanzahl = splitSentences(record.finalerText).length;
@@ -60,6 +63,7 @@ export function ReviewCard({
         <div className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
           {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(record.freigegeben_am ?? record.erstellt_am)}` : `generiert am ${formatDate(record.erstellt_am)}`}
           {record.vbGekuerzt ? ' · VB für die Analyse gekürzt' : ''}
+          {record.mitTweak ? ' · mit persönlichem Stil' : ''}
         </div>
       </div>
 
@@ -77,9 +81,16 @@ export function ReviewCard({
       {/* Aktionsleiste */}
       <div className="mt-6 pt-4 border-t-[0.5px] border-[var(--tf-border)]">
         {freigegeben ? (
-          <button type="button" className={BTN_PRIMARY} onClick={onCreateVorlage}>
-            Gutachten-Vorlage erstellen
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" className={BTN_PRIMARY} onClick={onCreateVorlage}>
+              Gutachten-Vorlage erstellen
+            </button>
+            <span className="flex-1" />
+            <button type="button" className={TWEAK_LINK} onClick={onOpenTweak}>
+              <SlidersHorizontal size={13} />
+              Persönlicher Stil
+            </button>
+          </div>
         ) : busy ? (
           <div className="flex items-center gap-3 text-[13px] text-[var(--tf-text-secondary)]">
             <Loader2 size={14} className="animate-spin" />
@@ -97,6 +108,10 @@ export function ReviewCard({
               <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
               <button type="button" className={BTN_SECONDARY} onClick={onPruefen}>Prüfen</button>
               <span className="flex-1" />
+              <button type="button" className={TWEAK_LINK} onClick={onOpenTweak}>
+                <SlidersHorizontal size={13} />
+                Persönlicher Stil
+              </button>
               <button type="button" className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]" onClick={onVerwerfen}>
                 Verwerfen
               </button>
