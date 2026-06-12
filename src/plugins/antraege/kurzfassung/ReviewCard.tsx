@@ -9,6 +9,7 @@ import { CollapsibleSection, MarkdownRenderer } from '@/ui';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import { CheckList } from './CheckList';
 import { VersionVerlauf } from './VersionVerlauf';
+import { ThinkingToggle } from './ThinkingToggle';
 import { formatDate } from './kurzfassung-verlauf';
 import type { KurzfassungRecord } from './types';
 
@@ -25,6 +26,9 @@ interface Props {
   onUebernehmen: (index: number) => void;
   /** Öffnet den Tweak-Editor (User-Tweaks v2) — Einstieg in der Aktionsleiste. */
   onOpenTweak: () => void;
+  /** Pro-Generierung-Schalter „Thinking" (Default aus der Einstellung, hier übersteuerbar). */
+  thinkingEnabled: boolean;
+  onToggleThinking: (enabled: boolean) => void;
 }
 
 const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed';
@@ -32,7 +36,7 @@ const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border
 const TWEAK_LINK = 'inline-flex items-center gap-1 text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]';
 
 export function ReviewCard({
-  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage, onUebernehmen, onOpenTweak,
+  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage, onUebernehmen, onOpenTweak, thinkingEnabled, onToggleThinking,
 }: Props): React.ReactElement {
   const freigegeben = record.status === 'freigegeben';
   const satzanzahl = splitSentences(record.finalerText).length;
@@ -72,8 +76,8 @@ export function ReviewCard({
         </div>
       </div>
 
-      {/* Denkprozess (Reasoning/Thinking) — nur wenn das Modell welchen lieferte */}
-      {record.denkprozess && (
+      {/* Denkprozess (Reasoning/Thinking) — aufklappbar, wenn das Modell welchen lieferte */}
+      {record.denkprozess ? (
         <div className="mt-4">
           <CollapsibleSection label="Denkprozess" defaultOpen={false}>
             <div className="pb-2 text-[12.5px] leading-[1.6] text-[var(--tf-text-secondary)] whitespace-pre-wrap max-h-[360px] overflow-auto">
@@ -81,7 +85,11 @@ export function ReviewCard({
             </div>
           </CollapsibleSection>
         </div>
-      )}
+      ) : record.denkprozessAngefordert ? (
+        <div className="mt-3 text-[11.5px] text-[var(--tf-text-tertiary)]">
+          Thinking war aktiv, aber das Modell hat keinen separaten Denkprozess geliefert — möglicherweise unterstützt das genutzte Modell / der Server kein Reasoning.
+        </div>
+      ) : null}
 
       {/* Versionsverlauf (Vorfassungen vergleichen & zurückholen) */}
       <VersionVerlauf
@@ -128,6 +136,7 @@ export function ReviewCard({
               <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
               <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
               <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
+              <ThinkingToggle enabled={thinkingEnabled} onChange={onToggleThinking} disabled={busy} />
               <button type="button" className={BTN_SECONDARY} onClick={onPruefen}>Prüfen</button>
               <span className="flex-1" />
               <button type="button" className={TWEAK_LINK} onClick={onOpenTweak}>

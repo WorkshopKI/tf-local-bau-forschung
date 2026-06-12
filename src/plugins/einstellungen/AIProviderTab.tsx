@@ -155,10 +155,12 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
           onCheckedChange={v => { setThinkingEnabled(v); setLlmThinkingEnabled(v); }}
         />
         <div className="flex flex-col gap-1">
-          <label className="text-[13px] font-medium text-[var(--tf-text)]">Thinking nutzen</label>
+          <label className="text-[13px] font-medium text-[var(--tf-text)]">Thinking nutzen (Standard)</label>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
             Lässt das LLM vor der Antwort „nachdenken" (Reasoning). Liefert oft bessere Ergebnisse,
             macht die Generierung aber langsamer. Der Denkprozess wird pro Fassung aufklappbar angezeigt.
+            Dies ist die <strong>Voreinstellung</strong> — direkt bei jeder Generierung („Neu" / „Kürzer" / „Länger")
+            lässt sich Thinking per Schalter ein- oder ausschalten.
           </p>
         </div>
       </div>

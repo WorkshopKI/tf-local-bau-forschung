@@ -21,6 +21,7 @@ import { ANKER_EP } from '@/core/services/gutachten-vorlagen';
 import type { Antrag } from '@/core/services/csv/types';
 import { useKurzfassung } from './useKurzfassung';
 import { ReviewCard } from './ReviewCard';
+import { ThinkingToggle } from './ThinkingToggle';
 import { TweakEditor } from './TweakEditor';
 import { VorlageDialog } from './VorlageDialog';
 import type { KurzfassungContext } from './types';
@@ -121,6 +122,8 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
             onCreateVorlage={() => setDialogOpen(true)}
             onUebernehmen={ctrl.uebernehmen}
             onOpenTweak={() => setTweakOpen(true)}
+            thinkingEnabled={ctrl.thinkingEnabled}
+            onToggleThinking={ctrl.setThinkingEnabled}
           />
           <VorlageDialog
             open={dialogOpen}
@@ -181,14 +184,17 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
               </div>
             ) : (
               <>
-                <button
-                  type="button"
-                  className={BTN_PRIMARY}
-                  disabled={ctrl.llmAvailable === false}
-                  onClick={ctrl.generate}
-                >
-                  Kurzfassung erstellen
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    className={BTN_PRIMARY}
+                    disabled={ctrl.llmAvailable === false}
+                    onClick={ctrl.generate}
+                  >
+                    Kurzfassung erstellen
+                  </button>
+                  <ThinkingToggle enabled={ctrl.thinkingEnabled} onChange={ctrl.setThinkingEnabled} disabled={ctrl.busy} />
+                </div>
                 {ctrl.llmAvailable === false && (
                   <div className="mt-2 text-[11.5px] text-[var(--tf-warning-text)]">
                     KI nicht erreichbar — Generierung derzeit nicht möglich.

@@ -54,6 +54,8 @@ export interface KurzfassungRecord {
   tweakGeaendertAm?: string;
   /** Reasoning-/Thinking-Text der aktuellen Fassung, falls Thinking aktiv war (aufklappbarer „Denkprozess"). */
   denkprozess?: string;
+  /** True, wenn dieser Lauf MIT aktivem Thinking generiert wurde — für den Hinweis, falls das Modell keinen Denkprozess lieferte. */
+  denkprozessAngefordert?: boolean;
 }
 
 export interface KurzfassungTeilvorhaben {

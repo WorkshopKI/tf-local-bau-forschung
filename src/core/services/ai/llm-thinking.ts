@@ -29,7 +29,12 @@ export function setLlmThinkingEnabled(enabled: boolean): void {
   localStorage.setItem(LLM_THINKING_ENABLED_KEY, enabled ? '1' : '0');
 }
 
-/** Abgeleitetes Reasoning-Budget aus dem Schalter (eine Quelle für die Ableitung). */
+/** Reasoning-Budget aus einem (ggf. pro-Generierung übersteuerten) Schalter-Zustand. */
+export function budgetForThinking(enabled: boolean): ThinkingBudget {
+  return enabled ? THINKING_ON_BUDGET : 'none';
+}
+
+/** Abgeleitetes Reasoning-Budget aus der gespeicherten Standard-Einstellung. */
 export function getLlmThinkingBudget(): ThinkingBudget {
-  return getLlmThinkingEnabled() ? THINKING_ON_BUDGET : 'none';
+  return budgetForThinking(getLlmThinkingEnabled());
 }
