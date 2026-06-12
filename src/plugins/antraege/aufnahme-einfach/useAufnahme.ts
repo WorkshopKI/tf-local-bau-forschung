@@ -65,17 +65,21 @@ export function useAufnahme(): UseAufnahme {
     const neueItems: IntakeFile[] = [];
     const neueMeldungen: string[] = [];
     for (const f of files) {
-      if (f.name.toLowerCase().endsWith('.zip')) {
-        const zipname = f.name.replace(/\.zip$/i, '');
-        bundlesRef.current.set(zipname, f);
-        const erg = await zipDurchlauf(f);
-        for (const d of erg.dateien) neueItems.push(toIntake(d, zipname));
-        for (const u of erg.uebersprungen) neueMeldungen.push(`Übersprungen: ${u}`);
-        for (const a of erg.abgelehnt) neueMeldungen.push(`Abgelehnt: ${a.name} — ${a.grund}`);
-      } else {
-        const erg = loseDatei(f);
-        for (const d of erg.dateien) neueItems.push(toIntake(d));
-        for (const a of erg.abgelehnt) neueMeldungen.push(`Abgelehnt: ${a.name} — ${a.grund}`);
+      try {
+        if (f.name.toLowerCase().endsWith('.zip')) {
+          const zipname = f.name.replace(/\.zip$/i, '');
+          bundlesRef.current.set(zipname, f);
+          const erg = await zipDurchlauf(f);
+          for (const d of erg.dateien) neueItems.push(toIntake(d, zipname));
+          for (const u of erg.uebersprungen) neueMeldungen.push(`Übersprungen: ${u}`);
+          for (const a of erg.abgelehnt) neueMeldungen.push(`Abgelehnt: ${a.name} — ${a.grund}`);
+        } else {
+          const erg = loseDatei(f);
+          for (const d of erg.dateien) neueItems.push(toIntake(d));
+          for (const a of erg.abgelehnt) neueMeldungen.push(`Abgelehnt: ${a.name} — ${a.grund}`);
+        }
+      } catch (err) {
+        neueMeldungen.push(`Fehler beim Lesen von ${f.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
     setItems(prev => [...prev, ...neueItems]);

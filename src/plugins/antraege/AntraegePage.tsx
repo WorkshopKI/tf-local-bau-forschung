@@ -8,6 +8,8 @@ import { FilterSidebar } from './filter/FilterSidebar';
 import { useAntraegeStore } from './store';
 import { useAntraegeHybridSearch } from './useAntraegeHybridSearch';
 import { pseudoVerbundIdFor } from './pseudoVerbund';
+import { AufnahmeOverlay } from './aufnahme-einfach';
+import { isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 
 const FILTER_OPEN_KEY = 'teamflow_antraege_filter_open';
 const FILTER_WIDTH_KEY = 'teamflow_antraege_filter_width';
@@ -162,6 +164,9 @@ export function AntraegePage(): React.ReactElement {
         search={search}
         onSearchChange={setSearch}
       />
+
+      {/* Einfache ZIP-Aufnahme (Overlay, flag-gated) — Button sitzt im Header. */}
+      {isGutachtenWorkflowEnabled() && <AufnahmeOverlay />}
     </div>
   );
 }

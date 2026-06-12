@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Download, Filter, Loader2, Search } from 'lucide-react';
+import { Download, Filter, FileUp, Loader2, Search } from 'lucide-react';
 import { useAntraegeStore, getEffectiveViewMode } from './store';
+import { useAufnahmeUiStore } from './aufnahme-einfach';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useFilterState } from './filter/useFilterState';
 import { VIEWS, viewCounts } from './views';
-import { menuLabel, isAuslastungEnabled } from '@/config/feature-flags';
+import { menuLabel, isAuslastungEnabled, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFilteredAntraege, hasExplicitVbPhaseFilter } from './useFilteredAntraege';
@@ -149,6 +150,19 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
           </div>
 
           <div className={`flex items-center gap-2 shrink-0 pb-2 ml-auto ${actionPr}`}>
+            {isGutachtenWorkflowEnabled() && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => useAufnahmeUiStore.getState().toggle()}
+                aria-label="Dokumente aufnehmen"
+                title="Antragsdokumente (ZIP) aufnehmen"
+                className="h-8 gap-1.5 px-2.5"
+              >
+                <FileUp size={13} />
+                <span className="text-[12px]">Aufnehmen</span>
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
