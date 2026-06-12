@@ -37,8 +37,11 @@ import {
   isKuratorMenusEnabled,
   isCsvAutoRefreshEnabled,
   isDataShareEnabled,
+  isGutachtenWorkflowEnabled,
+  isGutachtenKurzfassungEnabled,
   menuLabel,
 } from '@/config/feature-flags';
+import { backupGutachtenStateToPersonal } from '@/core/services/personal-storage/gutachten-backup';
 import { BuildInfo } from '@/core/components/BuildInfo';
 import { useAutoSmbRefresh } from '@/dev-fixtures/useAutoSmbRefresh';
 
@@ -219,6 +222,16 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
       await initActiveProgramm(storage.idb, profile);
     })();
     return () => { smbStatus.stopPolling(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // v2.78.1: Einmaliger Catch-up-Sweep — spiegelt vorhandenen Gutachten-/
+  // Workflow-Stand aus der IDB in den persönlichen Ordner, damit auch VOR dem
+  // Mirror-Feature (oder offline) erzeugte Records browser-wechsel-fest werden.
+  // Self-gated (Flag + Handle + Permission), best-effort, non-blocking.
+  useEffect(() => {
+    if (!isGutachtenWorkflowEnabled() && !isGutachtenKurzfassungEnabled()) return;
+    void backupGutachtenStateToPersonal(storage.idb).catch(() => undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
