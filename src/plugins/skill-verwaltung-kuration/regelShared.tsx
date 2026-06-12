@@ -11,10 +11,14 @@ export const TYP_LABEL: Record<string, string> = {
   wortanzahl: 'Wortanzahl',
   satzanzahl: 'Satzanzahl',
   satzlaenge_max: 'Satzlänge',
+  absatz_min: 'Absätze',
   verbotenes_muster: 'Verbotenes Muster',
   pflicht_anfang: 'Pflicht-Anfang',
   keine_aufzaehlungen: 'Keine Aufzählungen',
 };
+
+/** Stabile Reihenfolge der Regel-Typen (Sektions-Reihenfolge bei „Gruppiert: Typ"). */
+export const REGEL_TYP_ORDER: string[] = Object.keys(TYP_LABEL);
 
 export const ADD_TYPEN = Object.keys(TYP_LABEL);
 
@@ -23,6 +27,7 @@ const DEFAULT_PARAMS: Record<string, Record<string, unknown>> = {
   wortanzahl: {},
   satzanzahl: { min: 8, max: 12 },
   satzlaenge_max: { maxWoerter: 25 },
+  absatz_min: { min: 1 },
   verbotenes_muster: { muster: [], istRegex: false },
   pflicht_anfang: { text: '' },
   keine_aufzaehlungen: {},

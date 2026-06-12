@@ -70,6 +70,9 @@ export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete
         {draft.typ === 'satzlaenge_max' && (
           <div><label className={FIELD_LABEL}>Max Wörter / Satz</label><input className={NUM} disabled={ro} value={num(draft.params, 'maxWoerter')} onChange={e => setNumParam('maxWoerter', e.target.value)} /></div>
         )}
+        {draft.typ === 'absatz_min' && (
+          <div><label className={FIELD_LABEL}>Min Absätze</label><input className={NUM} disabled={ro} value={num(draft.params, 'min')} onChange={e => setNumParam('min', e.target.value)} /></div>
+        )}
         {draft.typ === 'pflicht_anfang' && (
           <div className="flex-1 min-w-[260px]">
             <label className={FIELD_LABEL}>Pflicht-Anfang (Text)</label>
