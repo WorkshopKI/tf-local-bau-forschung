@@ -70,7 +70,13 @@ export function SectionReviewCard({
         </div>
       </div>
 
-      <VersionVerlauf versions={run.verlauf ?? []} busy={busy} onUebernehmen={onUebernehmen} />
+      <VersionVerlauf
+        versions={run.verlauf ?? []}
+        aktuellerText={run.finalerText}
+        aktuellErstelltAm={run.erstellt_am}
+        busy={busy}
+        onUebernehmen={onUebernehmen}
+      />
 
       {run.checks.length > 0 && (
         <div className="mt-5">

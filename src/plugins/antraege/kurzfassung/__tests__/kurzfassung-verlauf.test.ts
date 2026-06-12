@@ -37,10 +37,14 @@ describe('snapshotOf', () => {
     expect('warnung' in snap).toBe(false);
   });
   it('übernimmt optionale Felder wenn gesetzt', () => {
-    const snap = snapshotOf(makeRecord({ modifier: 'kuerzer', vbGekuerzt: true, warnung: 'W' }));
+    const snap = snapshotOf(makeRecord({ modifier: 'kuerzer', vbGekuerzt: true, warnung: 'W', denkprozess: 'Erst überlege ich…' }));
     expect(snap.modifier).toBe('kuerzer');
     expect(snap.vbGekuerzt).toBe(true);
     expect(snap.warnung).toBe('W');
+    expect(snap.denkprozess).toBe('Erst überlege ich…');
+  });
+  it('lässt denkprozess weg, wenn nicht gesetzt', () => {
+    expect('denkprozess' in snapshotOf(makeRecord())).toBe(false);
   });
 });
 
@@ -90,10 +94,21 @@ describe('restoreVersion', () => {
   });
 
   it('löscht optionale Felder, wenn die gewählte Fassung sie nicht hat', () => {
-    const v0 = snapshotOf(makeRecord({ finalerText: 'alt-0' })); // ohne warnung/vbGekuerzt
-    const record = makeRecord({ finalerText: 'aktuell', warnung: 'W', vbGekuerzt: true, verlauf: [v0] });
+    const v0 = snapshotOf(makeRecord({ finalerText: 'alt-0' })); // ohne warnung/vbGekuerzt/denkprozess
+    const record = makeRecord({ finalerText: 'aktuell', warnung: 'W', vbGekuerzt: true, denkprozess: 'D', verlauf: [v0] });
     const restored = restoreVersion(record, 0);
     expect(restored.warnung).toBeUndefined();
     expect(restored.vbGekuerzt).toBeUndefined();
+    expect(restored.denkprozess).toBeUndefined();
+  });
+
+  it('behält den denkprozess der zurückgeholten Fassung', () => {
+    const v0 = snapshotOf(makeRecord({ finalerText: 'alt-0', denkprozess: 'Gedanke v0' }));
+    const record = makeRecord({ finalerText: 'aktuell', denkprozess: 'Gedanke aktuell', verlauf: [v0] });
+    const restored = restoreVersion(record, 0);
+    expect(restored.denkprozess).toBe('Gedanke v0');
+    // die bisher aktive Fassung (inkl. ihres Denkprozesses) wandert in den Verlauf
+    const verlauf = restored.verlauf ?? [];
+    expect(verlauf[verlauf.length - 1]?.denkprozess).toBe('Gedanke aktuell');
   });
 });

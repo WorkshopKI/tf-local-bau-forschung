@@ -12,6 +12,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { runSkill, type SkillModifierKey } from '@/core/services/skills';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { getLlmThinkingBudget } from '@/core/services/ai/llm-thinking';
 import {
   loadSkillRegistry,
   getSkillById,
@@ -162,6 +163,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vbDokument.markdown,
         vbCharCap: getVbCharCap(),
+        thinkingBudget: getLlmThinkingBudget(),
         ...(tweakWirksam ? { tweak } : {}),
         ...(modifier ? { modifier } : {}),
         ...(modifier && record ? { vorherigerText: record.finalerText } : {}),
@@ -184,6 +186,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         ...(modifier ? { modifier } : {}),
         ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tweak!.geaendert_am } : {}),
         ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
+        ...(result.thinking ? { denkprozess: result.thinking } : {}),
       };
       setRecord(rec);
       await putKurzfassung(storage.idb, rec); // Persist NACH der Generierung

@@ -72,8 +72,25 @@ export function ReviewCard({
         </div>
       </div>
 
+      {/* Denkprozess (Reasoning/Thinking) — nur wenn das Modell welchen lieferte */}
+      {record.denkprozess && (
+        <div className="mt-4">
+          <CollapsibleSection label="Denkprozess" defaultOpen={false}>
+            <div className="pb-2 text-[12.5px] leading-[1.6] text-[var(--tf-text-secondary)] whitespace-pre-wrap max-h-[360px] overflow-auto">
+              {record.denkprozess}
+            </div>
+          </CollapsibleSection>
+        </div>
+      )}
+
       {/* Versionsverlauf (Vorfassungen vergleichen & zurückholen) */}
-      <VersionVerlauf versions={record.verlauf ?? []} busy={busy} onUebernehmen={onUebernehmen} />
+      <VersionVerlauf
+        versions={record.verlauf ?? []}
+        aktuellerText={record.finalerText}
+        aktuellErstelltAm={record.erstellt_am}
+        busy={busy}
+        onUebernehmen={onUebernehmen}
+      />
 
       {/* Prüf-Ergebnis */}
       {record.checks.length > 0 && (

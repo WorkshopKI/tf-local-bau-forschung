@@ -19,6 +19,8 @@ export interface KurzfassungVersion {
   modifier?: SkillModifierKey;
   vbGekuerzt?: boolean;
   warnung?: string;
+  /** Reasoning-/Thinking-Text dieses Laufs, falls Thinking aktiv war (sonst undefined). */
+  denkprozess?: string;
 }
 
 export interface KurzfassungRecord {
@@ -50,6 +52,8 @@ export interface KurzfassungRecord {
   mitTweak?: boolean;
   /** Stand des Tweaks (`geaendert_am`) zum Zeitpunkt der Generierung — Nachvollziehbarkeit. */
   tweakGeaendertAm?: string;
+  /** Reasoning-/Thinking-Text der aktuellen Fassung, falls Thinking aktiv war (aufklappbarer „Denkprozess"). */
+  denkprozess?: string;
 }
 
 export interface KurzfassungTeilvorhaben {

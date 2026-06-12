@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button, Badge, SectionHeader } from '@/ui';
+import { Switch } from '@/components/ui/switch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
@@ -8,6 +9,7 @@ import {
   getLlmContextTokens, setLlmContextTokens, computeVbCharCap,
   MIN_LLM_CONTEXT_TOKENS, MAX_LLM_CONTEXT_TOKENS,
 } from '@/core/services/ai/llm-context';
+import { getLlmThinkingEnabled, setLlmThinkingEnabled } from '@/core/services/ai/llm-thinking';
 import type { AIProviderConfig } from '@/core/types/config';
 import { isOpenRouterEnabled, isDevContext } from '@/config/feature-flags';
 
@@ -58,6 +60,7 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
   const [customModel, setCustomModel] = useState('');
   const [contextTokens, setContextTokens] = useState(getLlmContextTokens());
   const [contextInput, setContextInput] = useState(String(getLlmContextTokens()));
+  const [thinkingEnabled, setThinkingEnabled] = useState(getLlmThinkingEnabled());
 
   // Hilfetext live aus der Eingabe ableiten (nicht erst nach Commit) — so passt
   // der angezeigte Zeichen-Cap immer zum gerade eingetippten Token-Wert.
@@ -141,6 +144,23 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
           abgeleitet — aktuell <strong>~{computeVbCharCap(liveContextTokens).toLocaleString('de-DE')} Zeichen</strong>.
           Längere Vorhabensbeschreibungen werden vor der Analyse gekürzt.
         </p>
+      </div>
+
+      {/* Reasoning/Thinking — immer sichtbar (steuert die KI-Skill-Generierung,
+          z.B. die Gutachten-Kurzfassung). Wirkt nur bei Modellen mit Reasoning. */}
+      <SectionHeader label="Reasoning / Thinking" />
+      <div className="flex items-start gap-3 max-w-sm">
+        <Switch
+          checked={thinkingEnabled}
+          onCheckedChange={v => { setThinkingEnabled(v); setLlmThinkingEnabled(v); }}
+        />
+        <div className="flex flex-col gap-1">
+          <label className="text-[13px] font-medium text-[var(--tf-text)]">Thinking nutzen</label>
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            Lässt das LLM vor der Antwort „nachdenken" (Reasoning). Liefert oft bessere Ergebnisse,
+            macht die Generierung aber langsamer. Der Denkprozess wird pro Fassung aufklappbar angezeigt.
+          </p>
+        </div>
       </div>
 
       {/* Provider-Switcher nur im Entwickler-Kontext — in Produktiv-Varianten ist

@@ -28,6 +28,7 @@ export interface VerlaufContent {
   modifier?: SkillModifierKey;
   vbGekuerzt?: boolean;
   warnung?: string;
+  denkprozess?: string;
   verlauf?: KurzfassungVersion[];
 }
 
@@ -54,6 +55,7 @@ export function snapshotOf(record: VerlaufContent): KurzfassungVersion {
     ...(record.modifier ? { modifier: record.modifier } : {}),
     ...(record.vbGekuerzt ? { vbGekuerzt: record.vbGekuerzt } : {}),
     ...(record.warnung ? { warnung: record.warnung } : {}),
+    ...(record.denkprozess ? { denkprozess: record.denkprozess } : {}),
   };
 }
 
@@ -91,6 +93,7 @@ export function restoreVersion<T extends VerlaufContent>(record: T, index: numbe
     ...(chosen.modifier ? { modifier: chosen.modifier } : { modifier: undefined }),
     ...(chosen.vbGekuerzt ? { vbGekuerzt: chosen.vbGekuerzt } : { vbGekuerzt: undefined }),
     ...(chosen.warnung ? { warnung: chosen.warnung } : { warnung: undefined }),
+    ...(chosen.denkprozess ? { denkprozess: chosen.denkprozess } : { denkprozess: undefined }),
   } as T;
 }
 

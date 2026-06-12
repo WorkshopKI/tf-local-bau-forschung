@@ -9,6 +9,7 @@
  * sind weiterhin v2; hier KEINE modell-spezifische Sonderlogik.
  */
 import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
+import { extractThinking } from '@/core/services/ai/thinking-parser';
 import {
   buildPromptVorgaben,
   type QualitaetsRegel,
@@ -17,6 +18,9 @@ import {
 } from '@/core/services/skill-registry';
 import { parseSkillOutput } from './parse';
 import type { ParsedSkillOutput } from './types';
+
+/** Reasoning-/Thinking-Budget (durchgereicht an die Transport-Ladder). */
+export type ThinkingBudget = 'none' | 'low' | 'medium' | 'high';
 
 /**
  * Statischer **Fallback**-Cap für `capVbMarkdown` (direkte/Test-Aufrufe). Zur
@@ -71,6 +75,13 @@ export interface SkillRunInput {
   tweak?: SkillTweakPromptInput;
   /** VB-Zeichen-Cap aus der LLM-Kontextlänge (`getVbCharCap()`). Fehlt er → statischer `VB_CHAR_CAP`. */
   vbCharCap?: number;
+  /**
+   * Reasoning-/Thinking-Budget (`getLlmThinkingBudget()`, Einstellungen →
+   * KI-Assistent). Fehlt es → `'none'` (Verhalten byte-identisch zu vorher).
+   * Bei `!== 'none'` fährt der Runner den Streaming-Pfad und erfasst den
+   * Denkprozess (`SkillRunResult.thinking`).
+   */
+  thinkingBudget?: ThinkingBudget;
   signal?: AbortSignal;
 }
 
@@ -79,6 +90,8 @@ export interface SkillRunResult {
   parsed: ParsedSkillOutput;
   /** True, wenn die VB für den Prompt gekürzt wurde (im UI vermerken). */
   vbGekuerzt: boolean;
+  /** Erfasster Reasoning-/Thinking-Text, falls das Modell welchen lieferte. */
+  thinking?: string;
 }
 
 /** Kürzt zu langes VB-Markdown am letzten Absatzumbruch vor dem Cap. */
@@ -162,18 +175,37 @@ export async function runSkill(
   const userContent = composeSkillPrompt(skill, regeln, input, vb);
   const systemPrompt = skill.systemPrompt ?? '';
   const maxTokens = skill.maxTokens ?? DEFAULT_MAX_TOKENS;
+  const budget: ThinkingBudget = input.thinkingBudget ?? 'none';
 
   let raw: string;
+  let thinking: string | undefined;
   if (typeof transport.submitConversation === 'function') {
     const messages: ConversationMessage[] = [
       ...(systemPrompt ? [{ role: 'system', content: systemPrompt } as ConversationMessage] : []),
       { role: 'user', content: userContent },
     ];
-    raw = await transport.submitConversation(messages, {
-      maxTokens,
-      thinkingBudget: 'none',
-      ...(input.signal ? { signal: input.signal } : {}),
-    });
+    if (budget !== 'none' && typeof transport.streamConversation === 'function') {
+      // Thinking aktiv: Streaming-Pfad — er trennt Reasoning robust (Feld
+      // reasoning_content|reasoning UND <think>-Fallback). Wir streamen nur, um
+      // den Denkprozess zu ERFASSEN (kein Live-UI nötig) → no-op onDelta.
+      const r = await transport.streamConversation(messages, { onDelta: () => {} }, {
+        maxTokens,
+        thinkingBudget: budget,
+        ...(input.signal ? { signal: input.signal } : {}),
+      });
+      // streamConversation wirft bei Abbruch NICHT, sondern liefert aborted:true
+      // (Partial-Content). Damit der Caller den bewussten Stop wie beim
+      // submitConversation-Pfad als Abort behandelt (kein Teil-Record): werfen.
+      if (r.aborted) throw new DOMException('Aborted', 'AbortError');
+      raw = r.content;
+      thinking = r.reasoning;
+    } else {
+      raw = await transport.submitConversation(messages, {
+        maxTokens,
+        thinkingBudget: budget,
+        ...(input.signal ? { signal: input.signal } : {}),
+      });
+    }
   } else {
     // Streamlit-Bridge: Single-Turn — System-Rolle als Prefix in die Message.
     raw = await transport.submitMessage(
@@ -183,5 +215,13 @@ export async function runSkill(
     );
   }
 
-  return { raw, parsed: parseSkillOutput(raw), vbGekuerzt: gekuerzt };
+  // Fallback: Thinking war angefordert, kam aber (mangels Streaming) inline als
+  // <think>…</think> im Content → abtrennen, damit es nicht im Fließtext landet.
+  if (budget !== 'none' && !thinking) {
+    const ext = extractThinking(raw);
+    raw = ext.content;
+    thinking = ext.thinking;
+  }
+
+  return { raw, parsed: parseSkillOutput(raw), vbGekuerzt: gekuerzt, ...(thinking ? { thinking } : {}) };
 }
