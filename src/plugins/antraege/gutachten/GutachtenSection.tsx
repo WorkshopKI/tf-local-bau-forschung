@@ -10,6 +10,8 @@ import { Loader2 } from 'lucide-react';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
+import { vbUeberschreitetCap, VB_KUERZEN_HINWEIS } from '@/core/services/skills';
+import { getVbCharCap, getLlmContextTokens } from '@/core/services/ai/llm-context';
 import type { Antrag } from '@/core/services/csv/types';
 import {
   ankerFuer, type AbschnittEinfuegung, type AbschnittAnzeige,
@@ -114,6 +116,12 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
               <span>·</span>
               <button type="button" onClick={() => setErsetzen(true)} className="hover:text-[var(--tf-text-secondary)]">VB ersetzen</button>
               {vbLvl === 'warnung' && <span className="text-[var(--tf-warning-text)]">⚠ mögliche Konvertierungsprobleme{vbWarnung ? `: ${vbWarnung}` : ''}</span>}
+            </div>
+          )}
+
+          {vbDok && vbUeberschreitetCap(vbDok.markdown, getVbCharCap()) && (
+            <div className="mb-4 rounded-[8px] px-3 py-2 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)]">
+              ⚠ Die VB ist sehr lang ({vbDok.markdown.length.toLocaleString('de-DE')} Zeichen, Limit ~{getVbCharCap().toLocaleString('de-DE')} aus {getLlmContextTokens().toLocaleString('de-DE')} Tokens Kontext) und würde für die Analyse gekürzt. {VB_KUERZEN_HINWEIS}
             </div>
           )}
 

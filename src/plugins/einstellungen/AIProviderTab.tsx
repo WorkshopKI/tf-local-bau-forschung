@@ -4,8 +4,12 @@ import { Button, Badge, SectionHeader } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
+import {
+  getLlmContextTokens, setLlmContextTokens, computeVbCharCap,
+  MIN_LLM_CONTEXT_TOKENS, MAX_LLM_CONTEXT_TOKENS,
+} from '@/core/services/ai/llm-context';
 import type { AIProviderConfig } from '@/core/types/config';
-import { isOpenRouterEnabled } from '@/config/feature-flags';
+import { isOpenRouterEnabled, isDevContext } from '@/config/feature-flags';
 
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
@@ -52,6 +56,22 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
   const [testing, setTesting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [customModel, setCustomModel] = useState('');
+  const [contextTokens, setContextTokens] = useState(getLlmContextTokens());
+  const [contextInput, setContextInput] = useState(String(getLlmContextTokens()));
+
+  // Commit beim Verlassen des Feldes: parsen, clampen, persistieren (kein
+  // Clampen mitten im Tippen). Ungültig → auf den letzten gültigen Wert zurück.
+  const commitContextTokens = (): void => {
+    const n = parseInt(contextInput, 10);
+    if (Number.isFinite(n)) {
+      const clamped = Math.min(Math.max(n, MIN_LLM_CONTEXT_TOKENS), MAX_LLM_CONTEXT_TOKENS);
+      setLlmContextTokens(clamped);
+      setContextTokens(clamped);
+      setContextInput(String(clamped));
+    } else {
+      setContextInput(String(contextTokens));
+    }
+  };
 
   const isCustomModel = !COMMON_MODELS.some(m => m.value === aiConfig.model) && aiConfig.model !== '';
   const showModelDropdown = aiConfig.type === 'openrouter' || aiConfig.type === 'cloud';
@@ -94,6 +114,34 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
 
   return (
     <div className="space-y-5">
+      {/* LLM-Kontextlänge — immer sichtbar (auch in pl, wo der Endpoint build-fix ist).
+          Daraus wird der VB-Schwellwert abgeleitet: zu lange VBs werden vor dem
+          Senden gekürzt; der Nutzer meldet hier das echte Kontextfenster. */}
+      <SectionHeader label="LLM-Kontextlänge" />
+      <div className="flex flex-col gap-1.5 max-w-sm">
+        <label className="text-[13px] font-medium text-[var(--tf-text)]">Kontextfenster (Tokens)</label>
+        <input
+          type="number"
+          min={MIN_LLM_CONTEXT_TOKENS}
+          max={MAX_LLM_CONTEXT_TOKENS}
+          step={1024}
+          value={contextInput}
+          onChange={e => setContextInput(e.target.value)}
+          onBlur={commitContextTokens}
+          className={inputClass}
+          style={inputStyle}
+        />
+        <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+          Wie viele Tokens kann das genutzte LLM verarbeiten? Daraus wird die maximale VB-Länge
+          abgeleitet — aktuell <strong>~{computeVbCharCap(contextTokens).toLocaleString('de-DE')} Zeichen</strong>.
+          Längere Vorhabensbeschreibungen werden vor der Analyse gekürzt.
+        </p>
+      </div>
+
+      {/* Provider-Switcher nur im Entwickler-Kontext — in Produktiv-Varianten ist
+          der Endpoint via Build-Config fix verdrahtet. */}
+      {isDevContext() && (
+      <>
       {/* Provider-Auswahl als 2x2 Grid */}
       <SectionHeader label="Provider" />
       <div className="grid grid-cols-2 gap-2">
@@ -176,6 +224,8 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
         <Button onClick={handleSave}>Speichern & Aktivieren</Button>
         {saved && <Badge variant="success">Provider aktiviert</Badge>}
       </div>
+      </>
+      )}
     </div>
   );
 }

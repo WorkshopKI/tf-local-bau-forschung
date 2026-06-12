@@ -7,7 +7,7 @@
  */
 import { Loader2, SlidersHorizontal } from 'lucide-react';
 import { CollapsibleSection, MarkdownRenderer } from '@/ui';
-import { splitSentences, type SkillModifierKey } from '@/core/services/skills';
+import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import { CheckList } from '../kurzfassung/CheckList';
 import { VersionVerlauf } from '../kurzfassung/VersionVerlauf';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
@@ -46,6 +46,12 @@ export function SectionReviewCard({
         </div>
       )}
 
+      {run.vbGekuerzt && (
+        <div className="mb-3 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
+          ⚠ Die Vorhabensbeschreibung war zu lang fürs LLM-Kontextfenster und wurde für die Analyse gekürzt — der Schluss floss nicht in diesen Abschnitt ein. {VB_KUERZEN_HINWEIS}
+        </div>
+      )}
+
       {run.quellenanalyse && (
         <CollapsibleSection label="Quellenanalyse" defaultOpen={!freigegeben}>
           <div className="pb-3">
@@ -60,7 +66,6 @@ export function SectionReviewCard({
         ))}
         <div className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
           {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(run.freigegeben_am ?? run.erstellt_am)}` : `generiert am ${formatDate(run.erstellt_am)}`}
-          {run.vbGekuerzt ? ' · VB für die Analyse gekürzt' : ''}
           {run.mitTweak ? ' · mit persönlichem Stil' : ''}
         </div>
       </div>

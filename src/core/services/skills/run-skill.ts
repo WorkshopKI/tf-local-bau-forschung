@@ -19,18 +19,26 @@ import { parseSkillOutput } from './parse';
 import type { ParsedSkillOutput } from './types';
 
 /**
- * VB-Markdown wird vor dem Senden auf diese Zeichenzahl gekappt (am Absatzende).
- * Dimensioniert für das kleinste produktiv genutzte Kontextfenster (lokales LLM
- * ~50k Tokens): 100k Zeichen ≈ 30–33k Tokens VB + ~2k Output (`maxTokens`) +
- * System-/Template-/Vorgaben-Overhead (+ bei Re-Lauf vorheriger Text) → bleibt
- * mit Headroom unter 50k; Cloud (128k) ist ein Superset. Eine vollständige
- * ZIM-Verbund-VB (~25 Seiten ≈ 75k Zeichen) passt damit komplett ins LLM →
- * `vbGekuerzt` (UI-Hinweis) greift nur noch bei echten Ausreißern.
- * Größer machen erst, wenn das kleinste Zielmodell ein größeres Fenster hat
- * (sonst still serverseitiger Context-Shift statt sichtbarem Hinweis).
+ * Statischer **Fallback**-Cap für `capVbMarkdown` (direkte/Test-Aufrufe). Zur
+ * Laufzeit liefert `getVbCharCap()` ([llm-context.ts]) den aus der vom Nutzer
+ * gemeldeten LLM-Kontextlänge (Einstellungen → KI-Assistent) abgeleiteten Wert;
+ * die Aufrufer reichen ihn über `SkillRunInput.vbCharCap` durch. Der Default
+ * hier entspricht ~`DEFAULT_LLM_CONTEXT_TOKENS` (32k) → ~86k Zeichen.
  */
-export const VB_CHAR_CAP = 100_000;
+export const VB_CHAR_CAP = 86_000;
 const DEFAULT_MAX_TOKENS = 2048;
+
+/**
+ * Handlungsempfehlung, wenn die VB den Cap überschreitet (Inhalt fehlt dem LLM).
+ * Einmalige Quelle für alle UI-Stellen (Kurzfassung + Gutachten-Workflow).
+ */
+export const VB_KUERZEN_HINWEIS =
+  'Entfernen Sie unwichtige Abschnitte (z. B. Anhänge, Literaturverzeichnis, ausführliche Tabellen) direkt im Original-Dokument, laden Sie die gekürzte VB über „VB ersetzen" neu hoch und generieren Sie erneut. Falls Ihr LLM ein größeres Kontextfenster verarbeiten kann, erhöhen Sie es in Einstellungen → KI-Assistent.';
+
+/** True, wenn das VB-Markdown den Cap überschreitet (würde gekürzt) — für den proaktiven UI-Check. */
+export function vbUeberschreitetCap(md: string, cap: number): boolean {
+  return md.length > cap;
+}
 
 /**
  * Persönliche Stil-Schicht des Bearbeiters (User-Tweaks v2) — minimale, vom
@@ -61,6 +69,8 @@ export interface SkillRunInput {
   vorherigerText?: string;
   /** Optionaler persönlicher Tweak (User-Tweaks v2). Fehlt er, ist die Ausgabe identisch zum tweaklosen Lauf. */
   tweak?: SkillTweakPromptInput;
+  /** VB-Zeichen-Cap aus der LLM-Kontextlänge (`getVbCharCap()`). Fehlt er → statischer `VB_CHAR_CAP`. */
+  vbCharCap?: number;
   signal?: AbortSignal;
 }
 
@@ -148,7 +158,7 @@ export async function runSkill(
   regeln: QualitaetsRegel[],
   input: SkillRunInput,
 ): Promise<SkillRunResult> {
-  const { text: vb, gekuerzt } = capVbMarkdown(input.vbMarkdown);
+  const { text: vb, gekuerzt } = capVbMarkdown(input.vbMarkdown, input.vbCharCap);
   const userContent = composeSkillPrompt(skill, regeln, input, vb);
   const systemPrompt = skill.systemPrompt ?? '';
   const maxTokens = skill.maxTokens ?? DEFAULT_MAX_TOKENS;

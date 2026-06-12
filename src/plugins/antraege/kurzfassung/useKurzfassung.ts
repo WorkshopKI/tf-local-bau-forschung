@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { runSkill, type SkillModifierKey } from '@/core/services/skills';
+import { getVbCharCap } from '@/core/services/ai/llm-context';
 import {
   loadSkillRegistry,
   getSkillById,
@@ -160,6 +161,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
       const result = await runSkill(transport, skillCtx.skill, skillCtx.regeln, {
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vbDokument.markdown,
+        vbCharCap: getVbCharCap(),
         ...(tweakWirksam ? { tweak } : {}),
         ...(modifier ? { modifier } : {}),
         ...(modifier && record ? { vorherigerText: record.finalerText } : {}),

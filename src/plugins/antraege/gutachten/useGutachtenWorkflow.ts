@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { runSkill, type SkillModifierKey } from '@/core/services/skills';
+import { getVbCharCap } from '@/core/services/ai/llm-context';
 import {
   loadSkillRegistry,
   runRegelChecks,
@@ -143,6 +144,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       const result = await runSkill(transport, sc.skill, sc.regeln, {
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vb.markdown,
+        vbCharCap: getVbCharCap(),
         vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, ZIM_EP_WORKFLOW),
         ...(tweakWirksam ? { tweak } : {}),
         ...(modifier ? { modifier } : {}),
