@@ -31,6 +31,14 @@ export type ThinkingBudget = 'none' | 'low' | 'medium' | 'high';
  */
 export const VB_CHAR_CAP = 86_000;
 const DEFAULT_MAX_TOKENS = 2048;
+/**
+ * Zusätzliches Output-Token-Budget, wenn Thinking aktiv ist. `max_tokens` deckelt
+ * Reasoning UND Antwort GEMEINSAM — ohne Aufschlag frisst der Denkprozess das
+ * ganze Budget und die eigentliche Antwort wird abgeschnitten (leerer finaler
+ * Text, „Antwort ohne erwartete Abschnitte"). Der Aufschlag schafft Platz für
+ * den (oft langen) Reasoning-Block; das Kontextfenster (≥32k) trägt das locker.
+ */
+const THINKING_OUTPUT_HEADROOM = 8192;
 
 /**
  * Handlungsempfehlung, wenn die VB den Cap überschreitet (Inhalt fehlt dem LLM).
@@ -174,8 +182,10 @@ export async function runSkill(
   const { text: vb, gekuerzt } = capVbMarkdown(input.vbMarkdown, input.vbCharCap);
   const userContent = composeSkillPrompt(skill, regeln, input, vb);
   const systemPrompt = skill.systemPrompt ?? '';
-  const maxTokens = skill.maxTokens ?? DEFAULT_MAX_TOKENS;
   const budget: ThinkingBudget = input.thinkingBudget ?? 'none';
+  // Bei aktivem Thinking Platz für den Reasoning-Block aufschlagen, sonst frisst
+  // er das gemeinsame max_tokens-Budget und die Antwort wird leer abgeschnitten.
+  const maxTokens = (skill.maxTokens ?? DEFAULT_MAX_TOKENS) + (budget !== 'none' ? THINKING_OUTPUT_HEADROOM : 0);
 
   let raw: string;
   let thinking: string | undefined;
