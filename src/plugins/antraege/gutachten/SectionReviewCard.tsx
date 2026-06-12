@@ -8,9 +8,10 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { CollapsibleSection, MarkdownRenderer } from '@/ui';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
+import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { CheckList } from '../kurzfassung/CheckList';
 import { VersionVerlauf } from '../kurzfassung/VersionVerlauf';
-import { ThinkingToggle } from '../kurzfassung/ThinkingToggle';
+import { ThinkingControl } from '../kurzfassung/ThinkingControl';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
 import type { StepRun } from './types';
@@ -27,9 +28,9 @@ interface Props {
   onUebernehmen: (index: number) => void;
   onErneutOeffnen: () => void;
   onOpenTweak: () => void;
-  /** Pro-Generierung-Schalter „Thinking" (Default aus der Einstellung, hier übersteuerbar). */
-  thinkingEnabled: boolean;
-  onToggleThinking: (enabled: boolean) => void;
+  /** Thinking-/Reasoning-Budget für die nächste Generierung (Default aus der Einstellung, hier übersteuerbar). */
+  thinkingBudget: ThinkingBudget;
+  onSetThinkingBudget: (budget: ThinkingBudget) => void;
   /** Live-Streaming-Vorschau während `busy`. */
   streamContent: string;
   streamThinking: string;
@@ -40,7 +41,7 @@ const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border
 const TWEAK_LINK = 'inline-flex items-center gap-1 text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]';
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, thinkingEnabled, onToggleThinking, streamContent, streamThinking,
+  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
@@ -127,7 +128,7 @@ export function SectionReviewCard({
               <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
               <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
               <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
-              <ThinkingToggle enabled={thinkingEnabled} onChange={onToggleThinking} disabled={busy} />
+              <ThinkingControl budget={thinkingBudget} onChange={onSetThinkingBudget} disabled={busy} />
               <button type="button" className={BTN_SECONDARY} onClick={onPruefen}>Prüfen</button>
               <span className="flex-1" />
               <button type="button" className={TWEAK_LINK} onClick={onOpenTweak}>

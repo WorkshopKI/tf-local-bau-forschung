@@ -17,7 +17,7 @@ import {
 } from '@/core/services/gutachten-vorlagen';
 import { VorlageDialog } from '../kurzfassung/VorlageDialog';
 import { TweakEditor } from '../kurzfassung/TweakEditor';
-import { ThinkingToggle } from '../kurzfassung/ThinkingToggle';
+import { ThinkingControl } from '../kurzfassung/ThinkingControl';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useGutachtenWorkflow } from './useGutachtenWorkflow';
@@ -236,7 +236,7 @@ function ActiveAbschnitt({
               <button type="button" className={BTN_PRIMARY} disabled={ctrl.llmAvailable === false} onClick={() => ctrl.generate(id)}>
                 {def.label} generieren
               </button>
-              <ThinkingToggle enabled={ctrl.thinkingEnabled} onChange={ctrl.setThinkingEnabled} disabled={ctrl.busy} />
+              <ThinkingControl budget={ctrl.thinkingBudget} onChange={ctrl.setThinkingBudget} disabled={ctrl.busy} />
             </div>
             {ctrl.llmAvailable === false && (
               <div className="mt-2 text-[11.5px] text-[var(--tf-warning-text)]">KI nicht erreichbar — Generierung derzeit nicht möglich.</div>
@@ -256,8 +256,8 @@ function ActiveAbschnitt({
           onUebernehmen={(i) => ctrl.uebernehmenStep(id, i)}
           onErneutOeffnen={() => ctrl.erneutOeffnenStep(id)}
           onOpenTweak={onOpenTweak}
-          thinkingEnabled={ctrl.thinkingEnabled}
-          onToggleThinking={ctrl.setThinkingEnabled}
+          thinkingBudget={ctrl.thinkingBudget}
+          onSetThinkingBudget={ctrl.setThinkingBudget}
           streamContent={ctrl.streamContent}
           streamThinking={ctrl.streamThinking}
         />

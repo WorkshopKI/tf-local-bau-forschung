@@ -12,7 +12,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { runSkill, type SkillModifierKey } from '@/core/services/skills';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
-import { getLlmThinkingEnabled, budgetForThinking } from '@/core/services/ai/llm-thinking';
+import { getLlmThinkingEnabled, budgetForThinking, type ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import {
   loadSkillRegistry,
   getSkillById,
@@ -49,10 +49,10 @@ export interface KurzfassungController {
   error: string | null;
   /** null = noch nicht geprüft. */
   llmAvailable: boolean | null;
-  /** Pro-Generierung-Schalter „Thinking" (Default aus der Einstellung; übersteuerbar). */
-  thinkingEnabled: boolean;
-  /** Den Thinking-Schalter für die NÄCHSTE Generierung setzen (nicht persistiert). */
-  setThinkingEnabled: (enabled: boolean) => void;
+  /** Thinking-/Reasoning-Budget für die NÄCHSTE Generierung (Default aus der Einstellung; übersteuerbar). */
+  thinkingBudget: ThinkingBudget;
+  /** Das Thinking-Budget für die NÄCHSTE Generierung setzen (nicht persistiert). */
+  setThinkingBudget: (budget: ThinkingBudget) => void;
   /** Live-Streaming-Vorschau während `busy` (rohe Antwort + Denkprozess). */
   streamContent: string;
   streamThinking: string;
@@ -110,9 +110,9 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
   const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
   const [skillCtx, setSkillCtx] = useState<{ skill: SkillRecord; regeln: QualitaetsRegel[] } | null>(null);
   const [tweak, setTweak] = useState<SkillTweak | null>(null);
-  // Pro-Generierung-Schalter: Default = gespeicherte Einstellung, dann lokal
-  // übersteuerbar (z.B. „Neu" mit Thinking für eine bessere Fassung). Nicht persistiert.
-  const [thinkingEnabled, setThinkingEnabled] = useState(getLlmThinkingEnabled());
+  // Pro-Generierung-Budget: Default aus der gespeicherten Einstellung (an → 'medium'),
+  // dann lokal übersteuerbar (z.B. „Neu" mit mehr Reasoning). Nicht persistiert.
+  const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>(budgetForThinking(getLlmThinkingEnabled()));
   const stream = useStreamingBuffer();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -176,7 +176,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vbDokument.markdown,
         vbCharCap: getVbCharCap(),
-        thinkingBudget: budgetForThinking(thinkingEnabled),
+        thinkingBudget,
         onContentDelta: stream.onContentDelta,
         onThinkingDelta: stream.onThinkingDelta,
         ...(tweakWirksam ? { tweak } : {}),
@@ -202,7 +202,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tweak!.geaendert_am } : {}),
         ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
         ...(result.thinking ? { denkprozess: result.thinking } : {}),
-        ...(thinkingEnabled ? { denkprozessAngefordert: true } : {}),
+        ...(thinkingBudget !== 'none' ? { denkprozessAngefordert: true } : {}),
       };
       setRecord(rec);
       await putKurzfassung(storage.idb, rec); // Persist NACH der Generierung
@@ -311,8 +311,8 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
     busy,
     error,
     llmAvailable,
-    thinkingEnabled,
-    setThinkingEnabled,
+    thinkingBudget,
+    setThinkingBudget,
     streamContent: stream.content,
     streamThinking: stream.thinking,
     skill: skillCtx?.skill ?? null,

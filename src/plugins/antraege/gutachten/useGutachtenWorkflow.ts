@@ -13,7 +13,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { runSkill, type SkillModifierKey } from '@/core/services/skills';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
-import { getLlmThinkingEnabled, budgetForThinking } from '@/core/services/ai/llm-thinking';
+import { getLlmThinkingEnabled, budgetForThinking, type ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import {
   loadSkillRegistry,
   runRegelChecks,
@@ -46,9 +46,9 @@ export interface GutachtenWorkflowController {
   busy: boolean;
   error: string | null;
   llmAvailable: boolean | null;
-  /** Pro-Generierung-Schalter „Thinking" (Default aus der Einstellung; übersteuerbar, nicht persistiert). */
-  thinkingEnabled: boolean;
-  setThinkingEnabled: (enabled: boolean) => void;
+  /** Thinking-/Reasoning-Budget für die NÄCHSTE Generierung (Default aus der Einstellung; übersteuerbar, nicht persistiert). */
+  thinkingBudget: ThinkingBudget;
+  setThinkingBudget: (budget: ThinkingBudget) => void;
   /** Live-Streaming-Vorschau während `busy` (rohe Antwort + Denkprozess). */
   streamContent: string;
   streamThinking: string;
@@ -87,8 +87,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
   const [skillMap, setSkillMap] = useState<Map<StepId, SkillCtx>>(new Map());
   const [tweak, setTweak] = useState<SkillTweak | null>(null);
-  // Pro-Generierung-Schalter: Default = gespeicherte Einstellung, dann lokal übersteuerbar. Nicht persistiert.
-  const [thinkingEnabled, setThinkingEnabled] = useState(getLlmThinkingEnabled());
+  // Pro-Generierung-Budget: Default aus der Einstellung (an → 'medium'), lokal übersteuerbar. Nicht persistiert.
+  const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>(budgetForThinking(getLlmThinkingEnabled()));
   const stream = useStreamingBuffer();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -157,7 +157,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vb.markdown,
         vbCharCap: getVbCharCap(),
-        thinkingBudget: budgetForThinking(thinkingEnabled),
+        thinkingBudget,
         onContentDelta: stream.onContentDelta,
         onThinkingDelta: stream.onThinkingDelta,
         vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, ZIM_EP_WORKFLOW),
@@ -179,7 +179,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         ...(modifier ? { modifier } : {}),
         ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tweak!.geaendert_am } : {}),
         ...(result.thinking ? { denkprozess: result.thinking } : {}),
-        ...(thinkingEnabled ? { denkprozessAngefordert: true } : {}),
+        ...(thinkingBudget !== 'none' ? { denkprozessAngefordert: true } : {}),
       };
       await persist(applyGeneration(run, stepId, gen, new Date().toISOString()));
     } catch (err) {
@@ -248,8 +248,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     busy,
     error,
     llmAvailable,
-    thinkingEnabled,
-    setThinkingEnabled,
+    thinkingBudget,
+    setThinkingBudget,
     streamContent: stream.content,
     streamThinking: stream.thinking,
     aktiverSchritt,
