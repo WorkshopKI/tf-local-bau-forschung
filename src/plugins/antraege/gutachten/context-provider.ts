@@ -23,25 +23,37 @@ function cutAtParagraph(text: string, cap: number): string {
 }
 
 /**
- * Baut den `{{vorherigeAbschnitte}}`-Block: alle freigegebenen Schritte VOR
- * `currentStep` in A–G-Reihenfolge, je „### Abschnitt {ID} — {Label}" + (gekürzter)
- * finaler Text. Nicht-freigegebene/leere Schritte werden ausgelassen (nur
- * freigegebene Inhalte sind verbindlich). Leerstring, wenn keiner — so bleibt
+ * Baut den `{{vorherigeAbschnitte}}`-Block: die Schritte VOR `currentStep` in
+ * A–G-Reihenfolge, je „### Abschnitt {ID} — {Label}" + (gekürzter) finaler Text.
+ * Leere Schritte werden immer ausgelassen. Leerstring, wenn keiner — so bleibt
  * Schritt A (keiner davor) byte-identisch zum bisherigen Kurzfassung-Prompt.
+ *
+ * `quelle` (5. Param, Default `'freigegeben'`):
+ *  - `'freigegeben'` (Einzellauf): nur freigegebene Abschnitte, KEIN Marker →
+ *    byte-identisch zum bisherigen Verhalten.
+ *  - `'entwurf'` (Batch): zusätzlich Entwürfe; diese tragen den „(Entwurf)"-Marker
+ *    in der Überschrift, freigegebene bleiben markerlos. Einzige bewusste
+ *    Batch-Abweichung (mangels Freigaben im selben Lauf).
  */
 export function buildVorherigeAbschnitte(
   run: WorkflowRun,
   currentStep: StepId,
   defs: readonly WorkflowStepDef[],
   capPerSection = 2000,
+  quelle: 'freigegeben' | 'entwurf' = 'freigegeben',
 ): string {
   const idx = STEP_ORDER.indexOf(currentStep);
   const bloecke: string[] = [];
   for (const id of STEP_ORDER.slice(0, idx)) {
     const step = run.schritte[id];
-    if (step?.status !== 'freigegeben') continue;
+    if (!step) continue;
+    const akzeptiert = quelle === 'freigegeben'
+      ? step.status === 'freigegeben'
+      : step.status === 'freigegeben' || step.status === 'entwurf';
+    if (!akzeptiert) continue;
     const label = defs.find(d => d.id === id)?.label ?? id;
-    bloecke.push(`### Abschnitt ${id} — ${label}\n${cutAtParagraph(step.finalerText, capPerSection)}`);
+    const marker = step.status === 'entwurf' ? ' (Entwurf)' : '';
+    bloecke.push(`### Abschnitt ${id} — ${label}${marker}\n${cutAtParagraph(step.finalerText, capPerSection)}`);
   }
   return bloecke.join('\n\n');
 }

@@ -55,4 +55,29 @@ describe('buildVorherigeAbschnitte', () => {
     expect(block.length).toBeLessThan(lang.length);
     expect(block.endsWith('…')).toBe(true);
   });
+
+  it('quelle=freigegeben (Default) lässt Entwürfe weg → byte-identisch zum Einzellauf', () => {
+    const run = runABfreigegebenCentwurf();
+    const implizit = buildVorherigeAbschnitte(run, 'D', ZIM_EP_WORKFLOW);
+    const explizit = buildVorherigeAbschnitte(run, 'D', ZIM_EP_WORKFLOW, 2000, 'freigegeben');
+    expect(implizit).toBe(explizit);
+    expect(implizit).not.toContain('Risiken-Entwurf'); // C (Entwurf) bleibt draußen
+  });
+
+  it('quelle=entwurf nimmt Entwürfe MIT „(Entwurf)"-Marker; Freigegebene ohne Marker', () => {
+    const run = runABfreigegebenCentwurf();
+    const block = buildVorherigeAbschnitte(run, 'D', ZIM_EP_WORKFLOW, 2000, 'entwurf');
+    // A + B sind freigegeben → kein Marker
+    expect(block).toContain('### Abschnitt A — Kurzfassung\n');
+    expect(block).not.toContain('Kurzfassung (Entwurf)');
+    // C ist Entwurf → jetzt enthalten, mit Marker
+    expect(block).toContain('Risiken-Entwurf');
+    expect(block).toMatch(/### Abschnitt C — Technische Risiken \(Entwurf\)/);
+  });
+
+  it('leere Schritte bleiben außen vor (auch bei quelle=entwurf)', () => {
+    const run = runABfreigegebenCentwurf();
+    // E ist leer → für G nicht enthalten
+    expect(buildVorherigeAbschnitte(run, 'G', ZIM_EP_WORKFLOW, 2000, 'entwurf')).not.toContain('Abschnitt E');
+  });
 });
