@@ -123,13 +123,14 @@ export function SkillTestlauf({ skill, regeln, hinweis, onClose }: SkillTestlauf
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center items-start overflow-auto py-12" style={{ background: 'rgba(0,0,0,0.4)' }}>
-      <div className="relative bg-[var(--tf-bg)] rounded-[16px] w-[660px] max-w-[94%] p-6" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.12)' }}>
+      <div className="relative bg-[var(--tf-bg)] rounded-[16px] w-[660px] max-w-[94%] max-h-[85vh] flex flex-col p-6 overflow-hidden" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.12)' }}>
         <div className="flex items-center gap-2.5 mb-1">
           <h2 className="text-[16px] font-medium m-0">Testlauf: {skill.name}</h2>
           {hinweis && <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]">{hinweis}</span>}
         </div>
         <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-4">Testlauf ohne persönliche Stil-Anpassungen — geprüft wird der kuratierte Stand.</p>
 
+        <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6">
         {/* Antrag wählen */}
         <SectionHeader>Antrag wählen</SectionHeader>
         <input
@@ -195,9 +196,10 @@ export function SkillTestlauf({ skill, regeln, hinweis, onClose }: SkillTestlauf
             </div>
           </div>
         )}
+        </div>
 
         {/* Fußzeile */}
-        <div className="mt-6 pt-4 border-t-[0.5px] border-[var(--tf-border)] flex items-center gap-2.5">
+        <div className="mt-6 pt-4 border-t-[0.5px] border-[var(--tf-border)] flex items-center gap-2.5 shrink-0">
           <span className="flex-1 text-[11.5px] text-[var(--tf-text-tertiary)]">Testläufe verändern keine Arbeitsstände.</span>
           <button
             disabled={!selected || busy}

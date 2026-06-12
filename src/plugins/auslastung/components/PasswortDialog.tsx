@@ -70,7 +70,7 @@ export function PasswortDialog({
       style={{ background: 'rgba(0,0,0,0.35)' }}
     >
       <div
-        className="w-[420px] rounded-[12px] p-5 flex flex-col gap-3"
+        className="w-[420px] max-h-[90vh] overflow-y-auto rounded-[12px] p-5 flex flex-col gap-3"
         style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}
         onClick={e => e.stopPropagation()}
       >

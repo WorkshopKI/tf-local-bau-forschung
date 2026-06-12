@@ -49,16 +49,18 @@ export function AufnahmeOverlay({ batch }: { batch: UseBatchJob }): React.ReactE
       style={{ background: 'rgba(0,0,0,0.4)' }}
       onMouseDown={e => { if (e.target === e.currentTarget) schliessen(); }}
     >
-      <div className="relative w-full max-w-3xl mx-4 rounded-2xl bg-[var(--tf-bg)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+      <div className="relative w-full max-w-3xl mx-4 rounded-2xl bg-[var(--tf-bg)] shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex flex-col max-h-[85vh] overflow-hidden">
         <button
           type="button"
           onClick={schliessen}
           aria-label="Schließen"
-          className="absolute top-4 right-4 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]"
+          className="absolute top-4 right-4 z-10 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]"
         >
           <X size={18} />
         </button>
-        {inhalt}
+        <div className="overflow-y-auto p-6">
+          {inhalt}
+        </div>
       </div>
     </div>
   );
