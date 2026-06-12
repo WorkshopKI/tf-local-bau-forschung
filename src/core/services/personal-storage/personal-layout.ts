@@ -30,6 +30,14 @@ export const gutachtenDir = (fkz: string): string => `${antragDir(fkz)}/gutachte
 export const gutachtenMdPath = (fkz: string, stepId: string, slug: string): string =>
   `${gutachtenDir(fkz)}/${sanitizeSegment(stepId)}-${sanitizeSegment(slug)}.md`;
 
+// State-Spiegel (Browser-Wechsel-Durabilität): die Workflow-/Kurzfassung-Records
+// liegen als JSON neben den Batch-`.md`-Spiegeln im Gutachten-Ordner; der EINE
+// aktive Batch-Job ist ein Singleton auf Wurzel-Ebene. `key` = Store-Key
+// (= Verbund-/Aktenzeichen), symmetrisch zu Schreiben + Hydrieren.
+export const workflowRunPath = (key: string): string => `${gutachtenDir(key)}/workflow-run.json`;
+export const kurzfassungPath = (key: string): string => `${gutachtenDir(key)}/kurzfassung.json`;
+export const batchJobPath = (): string => `${BASE}/gutachten-batch-job.json`;
+
 export const EINGANG_DIR = `${BASE}/eingang`;
 export const eingangZipPath = (zipname: string): string => `${EINGANG_DIR}/${sanitizeSegment(zipname)}.zip`;
 export const eingangManifestPath = (zipname: string): string =>

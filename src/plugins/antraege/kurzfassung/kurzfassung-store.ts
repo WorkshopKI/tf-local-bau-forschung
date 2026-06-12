@@ -10,18 +10,33 @@
  * während der Generierung (Pitfall #16/#20-Geist).
  */
 import type { IDBStore } from '@/core/services/storage';
+import { kurzfassungPath } from '@/core/services/personal-storage/personal-layout';
+import {
+  mirrorJsonToPersonal, hydrateJsonFromPersonal, removePersonalMirror,
+} from '@/core/services/personal-storage/state-mirror';
 import type { KurzfassungRecord } from './types';
 
 const keyFor = (key: string): string => `gutachten-kurzfassung:${key}`;
 
+// IDB ist Primary; JSON-Spiegel im persönlichen Ordner macht den Stand browser-
+// wechsel-fest (Mirror beim Put, Hydrate bei IDB-Miss). Best-effort.
 export async function getKurzfassung(idb: IDBStore, key: string): Promise<KurzfassungRecord | null> {
-  return idb.get<KurzfassungRecord>(keyFor(key));
+  const fromIdb = await idb.get<KurzfassungRecord>(keyFor(key));
+  if (fromIdb) return fromIdb;
+  const fromDisk = await hydrateJsonFromPersonal<KurzfassungRecord>(idb, kurzfassungPath(key));
+  if (fromDisk) {
+    await idb.set(keyFor(key), fromDisk);
+    return fromDisk;
+  }
+  return null;
 }
 
 export async function putKurzfassung(idb: IDBStore, record: KurzfassungRecord): Promise<void> {
   await idb.set(keyFor(record.key), record);
+  await mirrorJsonToPersonal(idb, kurzfassungPath(record.key), record);
 }
 
 export async function deleteKurzfassung(idb: IDBStore, key: string): Promise<void> {
   await idb.delete(keyFor(key));
+  await removePersonalMirror(idb, kurzfassungPath(key));
 }
