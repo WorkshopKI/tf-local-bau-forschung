@@ -47,6 +47,10 @@ export interface StepRun {
   verlauf?: KurzfassungVersion[];
   mitTweak?: boolean;
   tweakGeaendertAm?: string;
+  /** Reasoning-/Thinking-Text dieses Laufs, falls Thinking aktiv war (aufklappbarer „Denkprozess"). */
+  denkprozess?: string;
+  /** True, wenn dieser Lauf MIT aktivem Thinking generiert wurde — für den Hinweis, falls kein Denkprozess kam. */
+  denkprozessAngefordert?: boolean;
   /**
    * Hash des finalen Textes zum Zeitpunkt DIESER Freigabe. Treibt den dezenten
    * „frühere Abschnitte geändert"-Hinweis nach „Erneut öffnen" — Seam für die

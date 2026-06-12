@@ -31,6 +31,8 @@ export function buildRunFromKurzfassung(record: KurzfassungRecord, now: string):
     ...(record.verlauf ? { verlauf: record.verlauf } : {}),
     ...(record.mitTweak ? { mitTweak: record.mitTweak } : {}),
     ...(record.tweakGeaendertAm ? { tweakGeaendertAm: record.tweakGeaendertAm } : {}),
+    ...(record.denkprozess ? { denkprozess: record.denkprozess } : {}),
+    ...(record.denkprozessAngefordert ? { denkprozessAngefordert: record.denkprozessAngefordert } : {}),
     ...(istFrei ? { freigabeHash: hashText(record.finalerText) } : {}),
   };
   return {

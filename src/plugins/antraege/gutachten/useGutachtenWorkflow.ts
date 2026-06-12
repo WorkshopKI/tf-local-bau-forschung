@@ -13,6 +13,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { runSkill, type SkillModifierKey } from '@/core/services/skills';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { getLlmThinkingEnabled, budgetForThinking } from '@/core/services/ai/llm-thinking';
 import {
   loadSkillRegistry,
   runRegelChecks,
@@ -44,6 +45,9 @@ export interface GutachtenWorkflowController {
   busy: boolean;
   error: string | null;
   llmAvailable: boolean | null;
+  /** Pro-Generierung-Schalter „Thinking" (Default aus der Einstellung; übersteuerbar, nicht persistiert). */
+  thinkingEnabled: boolean;
+  setThinkingEnabled: (enabled: boolean) => void;
   aktiverSchritt: StepId;
   /** Skill des AKTIVEN Schritts (Version + Tweak-Editor). */
   activeSkill: SkillRecord | null;
@@ -79,6 +83,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
   const [skillMap, setSkillMap] = useState<Map<StepId, SkillCtx>>(new Map());
   const [tweak, setTweak] = useState<SkillTweak | null>(null);
+  // Pro-Generierung-Schalter: Default = gespeicherte Einstellung, dann lokal übersteuerbar. Nicht persistiert.
+  const [thinkingEnabled, setThinkingEnabled] = useState(getLlmThinkingEnabled());
   const abortRef = useRef<AbortController | null>(null);
 
   const aktiverSchritt = run?.aktiverSchritt ?? 'A';
@@ -145,6 +151,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vb.markdown,
         vbCharCap: getVbCharCap(),
+        thinkingBudget: budgetForThinking(thinkingEnabled),
         vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, ZIM_EP_WORKFLOW),
         ...(tweakWirksam ? { tweak } : {}),
         ...(modifier ? { modifier } : {}),
@@ -163,6 +170,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
         ...(modifier ? { modifier } : {}),
         ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tweak!.geaendert_am } : {}),
+        ...(result.thinking ? { denkprozess: result.thinking } : {}),
+        ...(thinkingEnabled ? { denkprozessAngefordert: true } : {}),
       };
       await persist(applyGeneration(run, stepId, gen, new Date().toISOString()));
     } catch (err) {
@@ -231,6 +240,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     busy,
     error,
     llmAvailable,
+    thinkingEnabled,
+    setThinkingEnabled,
     aktiverSchritt,
     activeSkill: activeCtx?.skill ?? null,
     regeln: activeCtx?.regeln ?? [],

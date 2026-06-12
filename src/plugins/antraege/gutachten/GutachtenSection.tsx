@@ -18,6 +18,7 @@ import {
 } from '@/core/services/gutachten-vorlagen';
 import { VorlageDialog } from '../kurzfassung/VorlageDialog';
 import { TweakEditor } from '../kurzfassung/TweakEditor';
+import { ThinkingToggle } from '../kurzfassung/ThinkingToggle';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useGutachtenWorkflow } from './useGutachtenWorkflow';
 import { AbschnittStepper } from './AbschnittStepper';
@@ -235,9 +236,12 @@ function ActiveAbschnitt({
         ) : (
           <div className="mt-3">
             <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">Dieser Abschnitt wird KI-gestützt aus der Vorhabensbeschreibung erstellt.</p>
-            <button type="button" className={BTN_PRIMARY} disabled={ctrl.llmAvailable === false} onClick={() => ctrl.generate(id)}>
-              {def.label} generieren
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button type="button" className={BTN_PRIMARY} disabled={ctrl.llmAvailable === false} onClick={() => ctrl.generate(id)}>
+                {def.label} generieren
+              </button>
+              <ThinkingToggle enabled={ctrl.thinkingEnabled} onChange={ctrl.setThinkingEnabled} disabled={ctrl.busy} />
+            </div>
             {ctrl.llmAvailable === false && (
               <div className="mt-2 text-[11.5px] text-[var(--tf-warning-text)]">KI nicht erreichbar — Generierung derzeit nicht möglich.</div>
             )}
@@ -256,6 +260,8 @@ function ActiveAbschnitt({
           onUebernehmen={(i) => ctrl.uebernehmenStep(id, i)}
           onErneutOeffnen={() => ctrl.erneutOeffnenStep(id)}
           onOpenTweak={onOpenTweak}
+          thinkingEnabled={ctrl.thinkingEnabled}
+          onToggleThinking={ctrl.setThinkingEnabled}
         />
       )}
     </div>

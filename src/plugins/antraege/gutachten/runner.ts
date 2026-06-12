@@ -60,6 +60,8 @@ export interface GenerationInput {
   modifier?: SkillModifierKey;
   mitTweak?: boolean;
   tweakGeaendertAm?: string;
+  denkprozess?: string;
+  denkprozessAngefordert?: boolean;
 }
 
 function touch(run: WorkflowRun, now: string): WorkflowRun {
@@ -97,6 +99,8 @@ export function applyGeneration(
     ...(gen.modifier ? { modifier: gen.modifier } : {}),
     ...(gen.mitTweak ? { mitTweak: gen.mitTweak } : {}),
     ...(gen.tweakGeaendertAm ? { tweakGeaendertAm: gen.tweakGeaendertAm } : {}),
+    ...(gen.denkprozess ? { denkprozess: gen.denkprozess } : {}),
+    ...(gen.denkprozessAngefordert ? { denkprozessAngefordert: gen.denkprozessAngefordert } : {}),
   };
   return setStep(run, stepId, step, now);
 }
