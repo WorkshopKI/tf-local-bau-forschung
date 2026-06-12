@@ -671,6 +671,22 @@ Wann Tabs statt Sections: wenn die Bereiche zu lang/komplex sind und gleichzeiti
 
 Referenz: [src/plugins/auslastung/views/AuslastungAdmin.tsx](src/plugins/auslastung/views/AuslastungAdmin.tsx)
 
+### Listen-/Tabellen-Seite — Förderanträge als Referenz-Muster
+
+**Pflicht-Check bei jedem neuen UI-Element und jeder neuen Seite:** Bevor eine Liste, Tabelle, Übersicht oder ein neues Seiten-Layout gebaut wird, IMMER zuerst prüfen, ob die **Förderanträge-Ansicht** ([src/plugins/antraege/](src/plugins/antraege/)) als Vorlage passt. Ziel ist eine konsistente Darstellung über die ganze App — der User soll dieselbe Bedien-Logik wiedererkennen, egal in welchem Bereich er eine Liste sieht. Eine eigene Sonderlösung nur dann, wenn das Förderanträge-Muster nachweislich nicht passt.
+
+Das Muster besteht aus wiederverwendbaren Bausteinen:
+- **Vollbreiter Header mit Unterkanten-Border**: Titel (22px/500), darunter **Unterstrich-Tabs** mit Count (siehe „Tabs" in Kapitel 5).
+- **Toolbar**: Suchleiste (Substring) + **Ansichts-Umschalter Liste/Tabelle/Karten** + Aktions-Button(s) rechts (`ml-auto`).
+- **Dichte Tabelle** über die generischen Bausteine aus [src/components/data-table/](src/components/data-table/): `SortableTable` + `ColumnPicker` + `useTableSort`/`useColumnVisibility`/`useColumnWidths` (eigener localStorage-Key pro Seite). Status-/Mengen-Werte als `Badge`-Pille.
+- View-Modus per Seite in localStorage persistiert (eigener Key).
+
+**„Weglassen, was keinen Sinn macht":** Nicht blind kopieren — nur die Teile übernehmen, die der konkrete Datentyp braucht. Beispiel: die Skill-Verwaltung ([src/plugins/skill-verwaltung-kuration/](src/plugins/skill-verwaltung-kuration/)) hat das Muster für beide Tabs übernommen, aber semantische Suche, Quickfilter-Pillen, XLSX-Export und Status-Gruppierung weggelassen (für ~7 Einträge sinnlos).
+
+**Wann NICHT dieses Muster:** reine Lese-/Formular-Seiten (Einstellungen, Detail-Ansichten, Dashboards) → Lese-Layout (Kapitel 4). Das Förderanträge-Muster ist für **Daten-Layouts** (Listen, Tabellen, viele Einträge).
+
+Referenz-Adopter: [src/plugins/antraege/](src/plugins/antraege/) (Original), [src/plugins/skill-verwaltung-kuration/](src/plugins/skill-verwaltung-kuration/) (Skills + Qualitätsregeln).
+
 ---
 
 ## 7. Micro-Interactions & Transitions
@@ -780,6 +796,7 @@ Wenn Daten anonymisiert angezeigt werden (Datenschutz-Kontext, z.B. MA-IDs MA01-
 
 Bevor eine neue UI-Komponente committed wird, prüfe:
 
+- [ ] Neue Seite/Liste/Tabelle: geprüft, ob das **Förderanträge-Muster** (Unterstrich-Tabs + Suche + Ansichts-Umschalter + `data-table`-Tabelle) als konsistente Darstellung passt (Kapitel 6)
 - [ ] Nutzt shadcn/ui wo möglich (Button, Select, Tabs, etc.)
 - [ ] Nutzt ausschließlich CSS Custom Properties für Farben
 - [ ] Keine hartcodierten Hex-Werte
