@@ -1,6 +1,6 @@
 # Wiederkehrende Bug-Klassen
 
-Sechs Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
+Sieben Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-/Modal-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
 
 > Diese Datei ist die **Single Source of Truth** für diese Muster. CLAUDE.md → Decision-Tree und einige Pitfalls verweisen hierher.
 
@@ -102,3 +102,17 @@ Sechs Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an 
 **Leitsatz (robuster als Re-Publish):** Reist eine „hat-sich-geändert?"-Baseline über ein geteiltes Artefakt, vergleiche per **portablem Inhalt** (Hash), nicht per maschinen-lokaler **mtime** (`File.lastModified` ist pro Datei-Kopie/Rechner verschieden, der Inhalts-Hash nicht). v2.40.5: `checkSourceForUpdate` ([csv-source-handle.ts](../../src/plugins/csv-sources-kuration/csv-source-handle.ts)) nutzt mtime nur noch als billigen Fast-Path und bestätigt sonst per `file_checksum` (im Snapshot) — damit ist gar kein Re-Publish mehr nötig, der Off-by-one-Snapshot heilt sich beim nächsten Check selbst.
 
 **Kanonische Dateien:** [importer.ts](../../src/core/services/csv/importer.ts) (`updatedSchema`), [snapshot.ts](../../src/core/services/csv/snapshot.ts) + [snapshot-keys.ts](../../src/core/services/csv/snapshot-keys.ts) (Sync-Keys beim Publish setzen), [csv-source-handle.ts](../../src/plugins/csv-sources-kuration/csv-source-handle.ts) (`checkSourceForUpdate`).
+
+## 7. Custom-Modal ohne Höhen-Cap (zu hoch / nicht scrollbar)
+
+**Symptom:** Ein Modal-Fenster ist bei langem Inhalt (viele Listenzeilen, Platzhalter-/Mapping-Tabellen) zu hoch, passt nicht auf den Schirm und ist **nicht scrollbar** — oberer/unterer Rand inkl. Aktionsbuttons abgeschnitten. Tritt erst mit echten Daten auf (in Dev/Fixtures sind die Listen kurz).
+
+**Root-Cause:** Eine **eigene** (custom) Modal-Hülle (`fixed inset-0`-Overlay + zentrierte Karte) ohne `max-height` an der **Karte**. Sie verlässt sich darauf, dass der **äußere Overlay** scrollt (`overflow-y-auto` am Backdrop). Das greift aber nicht zuverlässig: `position: fixed` kann durch einen transformierten / `overflow:hidden`-Vorfahren auf einen kleineren Containing-Block bezogen werden → der Overlay-Scroll läuft ins Leere. Zudem fehlt ein fixer Kopf/Fuß, sodass Titel + Buttons wegscrollen. Zweimal+ aufgetreten: erst beim shared Vorlage-Dialog, dann bei `AufnahmeOverlay` („Dokumente aufnehmen"), `SkillTestlauf`, `PasswortDialog`.
+
+**Fix-Pattern:**
+1. **Bevorzugt KEINE eigene Hülle bauen.** Neue Modals über den shared [`@/ui/Dialog`](../../src/ui/Dialog.tsx) (`size`-Prop `md`/`lg`) ODER den shadcn [`@/components/ui/dialog`](../../src/components/ui/dialog.tsx) rendern — beide bringen `max-h` + scrollenden Body + fixen Kopf/Fuß bereits mit.
+2. **Wenn doch custom** (eigene Breite/mehrphasige Struktur nötig): Karte = `… flex flex-col max-h-[85vh] overflow-hidden`; **ein** Kind = der Body mit `flex-1 min-h-0 overflow-y-auto`; Kopf und Fuß als `shrink-0`-Geschwister bleiben fix. **vh-basiert** (nicht `%`/`vh` am Overlay) → robust, auch wenn ein Vorfahren `position:fixed` bricht. Referenz-Pattern: [KonvertierungReviewDialog.tsx:33,55](../../src/core/components/KonvertierungReviewDialog.tsx).
+
+**Warnsignal beim Entwickeln:** Sobald Code `fixed inset-0` + eine Karten-`<div>` **ohne** `max-h`/`max-height` schreibt (oder den Scroll nur am Overlay-Backdrop hat), fehlt der Cap — der äußere Scroll ist KEIN verlässlicher Ersatz für eine interne, vh-gedeckelte Scroll-Region.
+
+**Kanonische Dateien:** [Dialog.tsx](../../src/ui/Dialog.tsx) (shared, `size`-Prop), [dialog.tsx](../../src/components/ui/dialog.tsx) (shadcn), [KonvertierungReviewDialog.tsx](../../src/core/components/KonvertierungReviewDialog.tsx) (custom-Referenz), [AufnahmeOverlay.tsx](../../src/plugins/antraege/aufnahme-einfach/AufnahmeOverlay.tsx).
