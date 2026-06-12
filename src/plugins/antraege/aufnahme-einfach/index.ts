@@ -1,2 +1,2 @@
-export { AufnahmeOverlay } from './AufnahmeOverlay';
+export { AufnahmeHost } from './AufnahmeHost';
 export { useAufnahmeUiStore } from './useAufnahmeUiStore';

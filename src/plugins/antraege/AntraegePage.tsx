@@ -8,7 +8,7 @@ import { FilterSidebar } from './filter/FilterSidebar';
 import { useAntraegeStore } from './store';
 import { useAntraegeHybridSearch } from './useAntraegeHybridSearch';
 import { pseudoVerbundIdFor } from './pseudoVerbund';
-import { AufnahmeOverlay } from './aufnahme-einfach';
+import { AufnahmeHost } from './aufnahme-einfach';
 import { isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 
 const FILTER_OPEN_KEY = 'teamflow_antraege_filter_open';
@@ -165,8 +165,9 @@ export function AntraegePage(): React.ReactElement {
         onSearchChange={setSearch}
       />
 
-      {/* Einfache ZIP-Aufnahme (Overlay, flag-gated) — Button sitzt im Header. */}
-      {isGutachtenWorkflowEnabled() && <AufnahmeOverlay />}
+      {/* Aufnahme (Teil A) + Batch-Generierung (Teil B), flag-gated. Der Host ist
+          immer gemountet (Job überlebt Overlay-Open/Close); Button sitzt im Header. */}
+      {isGutachtenWorkflowEnabled() && <AufnahmeHost />}
     </div>
   );
 }

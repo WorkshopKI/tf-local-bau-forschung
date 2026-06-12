@@ -14,14 +14,11 @@ import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { runSkill, type SkillModifierKey } from '@/core/services/skills';
 import {
   loadSkillRegistry,
-  getSkillById,
-  resolveRegeln,
   runRegelChecks,
-  SEED_REGISTRY,
   type QualitaetsRegel,
   type SkillRecord,
-  type SkillRegistryFile,
 } from '@/core/services/skill-registry';
+import { buildStammdaten, buildSkillMap, type SkillCtx } from './skill-context';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { loadSkillTweak, saveSkillTweak, deleteSkillTweak, type SkillTweak } from '@/core/services/skill-tweaks';
 import type { DocumentFull } from '@/plugins/dokumente/store';
@@ -37,37 +34,6 @@ import {
   type GenerationInput,
 } from './runner';
 import type { StepId, WorkflowRun } from './types';
-
-interface SkillCtx { skill: SkillRecord; regeln: QualitaetsRegel[]; }
-
-function buildStammdaten(ctx: KurzfassungContext): string {
-  const nn = '[Im Antrag nicht genannt]';
-  const lines = [
-    `- Förderkennzeichen (Verbund): ${ctx.foerderkennzeichen}`,
-    `- Akronym: ${ctx.akronym}`,
-    `- Verbund-Titel: ${ctx.titel ?? nn}`,
-    `- Konsortialführer: ${ctx.antragsteller ?? nn}`,
-  ];
-  if (ctx.teilvorhaben.length > 0) {
-    lines.push(`- Teilvorhaben (${ctx.teilvorhaben.length}):`);
-    for (const tv of ctx.teilvorhaben) {
-      lines.push(`  - TV ${tv.nr} (${tv.aktenzeichen}, ${tv.antragsteller ?? nn}): ${tv.titel ?? nn}`);
-    }
-  }
-  return lines.join('\n');
-}
-
-/** Skill + Regeln je Schritt aus der geladenen Registry (Fallback: Seed). */
-function buildSkillMap(file: SkillRegistryFile): Map<StepId, SkillCtx> {
-  const map = new Map<StepId, SkillCtx>();
-  for (const def of ZIM_EP_WORKFLOW) {
-    const found = getSkillById(file, def.skillId);
-    if (found) { map.set(def.id, { skill: found, regeln: resolveRegeln(file, found) }); continue; }
-    const seed = getSkillById(SEED_REGISTRY, def.skillId);
-    if (seed) map.set(def.id, { skill: seed, regeln: resolveRegeln(SEED_REGISTRY, seed) });
-  }
-  return map;
-}
 
 export interface GutachtenWorkflowController {
   run: WorkflowRun | null;

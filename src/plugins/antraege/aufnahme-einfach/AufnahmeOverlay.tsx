@@ -1,23 +1,47 @@
 /**
- * Overlay-Hülle der einfachen Aufnahme. Hält die `useAufnahme`-Instanz (Zustand
- * überlebt den Phasenwechsel) und schaltet zwischen Aufnahme- und Abschluss-
- * Panel. Der Batch-Einstieg (Teil B) wird über `AbschlussPanel.onBatchStart`
- * verdrahtet.
+ * Overlay-Hülle für Aufnahme (Teil A) UND Batch-Generierung (Teil B). Hält die
+ * `useAufnahme`-Instanz; der Batch-Job (`batch`) lebt eine Ebene höher
+ * (AufnahmeHost) und überlebt das Schließen des Overlays. Phasen: Aufnahme →
+ * Abschluss → Start-Dialog → Monitor (Monitor hat Vorrang, sobald ein Job läuft).
  */
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useAufnahmeUiStore } from './useAufnahmeUiStore';
 import { useAufnahme } from './useAufnahme';
 import { AufnahmePanel } from './AufnahmePanel';
 import { AbschlussPanel } from './AbschlussPanel';
+import { StartDialog, BatchMonitor, type UseBatchJob } from '../gutachten-batch';
 
-export function AufnahmeOverlay(): React.ReactElement | null {
-  const open = useAufnahmeUiStore(s => s.open);
+export function AufnahmeOverlay({ batch }: { batch: UseBatchJob }): React.ReactElement {
   const close = useAufnahmeUiStore(s => s.close);
+  const navigate = useNavigate();
   const a = useAufnahme();
-
-  if (!open) return null;
+  const [phase, setPhase] = useState<'aufnahme' | 'start'>('aufnahme');
+  const [batchFkz, setBatchFkz] = useState<string[]>([]);
 
   const schliessen = (): void => { a.reset(); close(); };
+  const openAntrag = (fkz: string): void => { close(); navigate(`/antraege/${encodeURIComponent(fkz)}`); };
+
+  const inhalt = phase === 'start' ? (
+    <StartDialog
+      batch={batch}
+      fkzListe={batchFkz}
+      onStarted={() => setPhase('aufnahme')}
+      onAbbrechen={() => setPhase('aufnahme')}
+    />
+  ) : batch.job ? (
+    <BatchMonitor batch={batch} onClose={schliessen} onOpenAntrag={openAntrag} />
+  ) : a.abschluss ? (
+    <AbschlussPanel
+      info={a.abschluss}
+      onNeu={a.reset}
+      onClose={schliessen}
+      onBatchStart={fkz => { setBatchFkz(fkz); setPhase('start'); }}
+    />
+  ) : (
+    <AufnahmePanel a={a} />
+  );
 
   return (
     <div
@@ -34,10 +58,7 @@ export function AufnahmeOverlay(): React.ReactElement | null {
         >
           <X size={18} />
         </button>
-
-        {a.abschluss
-          ? <AbschlussPanel info={a.abschluss} onNeu={a.reset} onClose={schliessen} />
-          : <AufnahmePanel a={a} />}
+        {inhalt}
       </div>
     </div>
   );
