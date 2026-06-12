@@ -10,7 +10,7 @@
  * Vorlagen-Dialog bleiben nutzbar; nur die Generierung degradiert.
  */
 import { useMemo, useState } from 'react';
-import { Loader2, SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
@@ -22,6 +22,7 @@ import type { Antrag } from '@/core/services/csv/types';
 import { useKurzfassung } from './useKurzfassung';
 import { ReviewCard } from './ReviewCard';
 import { ThinkingToggle } from './ThinkingToggle';
+import { StreamingVorschau } from './StreamingVorschau';
 import { TweakEditor } from './TweakEditor';
 import { VorlageDialog } from './VorlageDialog';
 import type { KurzfassungContext } from './types';
@@ -124,6 +125,8 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
             onOpenTweak={() => setTweakOpen(true)}
             thinkingEnabled={ctrl.thinkingEnabled}
             onToggleThinking={ctrl.setThinkingEnabled}
+            streamContent={ctrl.streamContent}
+            streamThinking={ctrl.streamThinking}
           />
           <VorlageDialog
             open={dialogOpen}
@@ -177,11 +180,7 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
               </div>
             )}
             {ctrl.busy ? (
-              <div className="flex items-center gap-3 text-[13px] text-[var(--tf-text-secondary)]">
-                <Loader2 size={14} className="animate-spin" />
-                Erstelle Kurzfassung…
-                <button type="button" className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]" onClick={ctrl.stop}>Stopp</button>
-              </div>
+              <StreamingVorschau thinking={ctrl.streamThinking} content={ctrl.streamContent} onStop={ctrl.stop} />
             ) : (
               <>
                 <div className="flex items-center gap-2 flex-wrap">

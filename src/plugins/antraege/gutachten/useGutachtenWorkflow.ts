@@ -25,6 +25,7 @@ import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle'
 import { loadSkillTweak, saveSkillTweak, deleteSkillTweak, type SkillTweak } from '@/core/services/skill-tweaks';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { resolveVb, type VbAufloesung } from '../kurzfassung/vbDokument';
+import { useStreamingBuffer } from '../kurzfassung/useStreamingBuffer';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
 import { ZIM_EP_WORKFLOW } from './workflow-definition';
@@ -48,6 +49,9 @@ export interface GutachtenWorkflowController {
   /** Pro-Generierung-Schalter „Thinking" (Default aus der Einstellung; übersteuerbar, nicht persistiert). */
   thinkingEnabled: boolean;
   setThinkingEnabled: (enabled: boolean) => void;
+  /** Live-Streaming-Vorschau während `busy` (rohe Antwort + Denkprozess). */
+  streamContent: string;
+  streamThinking: string;
   aktiverSchritt: StepId;
   /** Skill des AKTIVEN Schritts (Version + Tweak-Editor). */
   activeSkill: SkillRecord | null;
@@ -85,6 +89,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [tweak, setTweak] = useState<SkillTweak | null>(null);
   // Pro-Generierung-Schalter: Default = gespeicherte Einstellung, dann lokal übersteuerbar. Nicht persistiert.
   const [thinkingEnabled, setThinkingEnabled] = useState(getLlmThinkingEnabled());
+  const stream = useStreamingBuffer();
   const abortRef = useRef<AbortController | null>(null);
 
   const aktiverSchritt = run?.aktiverSchritt ?? 'A';
@@ -137,6 +142,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     if (!vb || busy || !run || !sc) return;
     setBusy(true);
     setError(null);
+    stream.reset();
     const abort = new AbortController();
     abortRef.current = abort;
     try {
@@ -152,6 +158,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         vbMarkdown: vb.markdown,
         vbCharCap: getVbCharCap(),
         thinkingBudget: budgetForThinking(thinkingEnabled),
+        onContentDelta: stream.onContentDelta,
+        onThinkingDelta: stream.onThinkingDelta,
         vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, ZIM_EP_WORKFLOW),
         ...(tweakWirksam ? { tweak } : {}),
         ...(modifier ? { modifier } : {}),
@@ -242,6 +250,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     llmAvailable,
     thinkingEnabled,
     setThinkingEnabled,
+    streamContent: stream.content,
+    streamThinking: stream.thinking,
     aktiverSchritt,
     activeSkill: activeCtx?.skill ?? null,
     regeln: activeCtx?.regeln ?? [],

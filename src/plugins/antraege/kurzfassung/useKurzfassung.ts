@@ -28,6 +28,7 @@ import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle'
 import { loadSkillTweak, saveSkillTweak, deleteSkillTweak, type SkillTweak } from '@/core/services/skill-tweaks';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { findVorhabensbeschreibung } from './vbDokument';
+import { useStreamingBuffer } from './useStreamingBuffer';
 import { getKurzfassung, putKurzfassung, deleteKurzfassung } from './kurzfassung-store';
 import { appendVerlauf, restoreVersion } from './kurzfassung-verlauf';
 import type { KurzfassungContext, KurzfassungRecord } from './types';
@@ -52,6 +53,9 @@ export interface KurzfassungController {
   thinkingEnabled: boolean;
   /** Den Thinking-Schalter für die NÄCHSTE Generierung setzen (nicht persistiert). */
   setThinkingEnabled: (enabled: boolean) => void;
+  /** Live-Streaming-Vorschau während `busy` (rohe Antwort + Denkprozess). */
+  streamContent: string;
+  streamThinking: string;
   /** Aufgelöster Skill (Registry-Cache oder Seed-Fallback) — für Version + Tweak-Editor. */
   skill: SkillRecord | null;
   /** Zugeordnete Qualitätsregeln — für die „So wird es der KI mitgegeben"-Vorschau. */
@@ -109,6 +113,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
   // Pro-Generierung-Schalter: Default = gespeicherte Einstellung, dann lokal
   // übersteuerbar (z.B. „Neu" mit Thinking für eine bessere Fassung). Nicht persistiert.
   const [thinkingEnabled, setThinkingEnabled] = useState(getLlmThinkingEnabled());
+  const stream = useStreamingBuffer();
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -153,6 +158,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
     if (!vbDokument || busy || !skillCtx) return;
     setBusy(true);
     setError(null);
+    stream.reset();
     const abort = new AbortController();
     abortRef.current = abort;
     try {
@@ -171,6 +177,8 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         vbMarkdown: vbDokument.markdown,
         vbCharCap: getVbCharCap(),
         thinkingBudget: budgetForThinking(thinkingEnabled),
+        onContentDelta: stream.onContentDelta,
+        onThinkingDelta: stream.onThinkingDelta,
         ...(tweakWirksam ? { tweak } : {}),
         ...(modifier ? { modifier } : {}),
         ...(modifier && record ? { vorherigerText: record.finalerText } : {}),
@@ -305,6 +313,8 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
     llmAvailable,
     thinkingEnabled,
     setThinkingEnabled,
+    streamContent: stream.content,
+    streamThinking: stream.thinking,
     skill: skillCtx?.skill ?? null,
     regeln: skillCtx?.regeln ?? [],
     tweak,

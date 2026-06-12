@@ -90,6 +90,15 @@ export interface SkillRunInput {
    * Denkprozess (`SkillRunResult.thinking`).
    */
   thinkingBudget?: ThinkingBudget;
+  /**
+   * Live-Streaming-Callbacks für die UI-Vorschau („mitlesen, während das LLM
+   * arbeitet"). Ist mind. einer gesetzt UND der Transport kann streamen, fährt
+   * der Runner den Streaming-Pfad und meldet Antwort- bzw. Reasoning-Deltas
+   * inkrementell. Das Endergebnis (`raw`/`thinking`) ist identisch zum
+   * Nicht-Streaming-Pfad.
+   */
+  onContentDelta?: (text: string) => void;
+  onThinkingDelta?: (text: string) => void;
   signal?: AbortSignal;
 }
 
@@ -189,16 +198,21 @@ export async function runSkill(
 
   let raw: string;
   let thinking: string | undefined;
+  // Streamen, sobald (a) der Transport es kann UND (b) Thinking aktiv ist ODER
+  // die UI Live-Deltas möchte (Vorschau zum Mitlesen). Der Streaming-Pfad trennt
+  // Reasoning robust (Feld reasoning_content|reasoning UND <think>-Fallback).
+  const wantsStream = typeof transport.streamConversation === 'function'
+    && (budget !== 'none' || !!input.onContentDelta || !!input.onThinkingDelta);
   if (typeof transport.submitConversation === 'function') {
     const messages: ConversationMessage[] = [
       ...(systemPrompt ? [{ role: 'system', content: systemPrompt } as ConversationMessage] : []),
       { role: 'user', content: userContent },
     ];
-    if (budget !== 'none' && typeof transport.streamConversation === 'function') {
-      // Thinking aktiv: Streaming-Pfad — er trennt Reasoning robust (Feld
-      // reasoning_content|reasoning UND <think>-Fallback). Wir streamen nur, um
-      // den Denkprozess zu ERFASSEN (kein Live-UI nötig) → no-op onDelta.
-      const r = await transport.streamConversation(messages, { onDelta: () => {} }, {
+    if (wantsStream && transport.streamConversation) {
+      const r = await transport.streamConversation(messages, {
+        onDelta: (t) => input.onContentDelta?.(t),
+        onReasoningDelta: (t) => input.onThinkingDelta?.(t),
+      }, {
         maxTokens,
         thinkingBudget: budget,
         ...(input.signal ? { signal: input.signal } : {}),

@@ -4,12 +4,13 @@
  * aufklappbare Quellenanalyse, finaler Fließtext + Meta, Prüf-Checkliste,
  * Aktionsleiste. Im freigegebenen Zustand: nur „Gutachten-Vorlage erstellen".
  */
-import { Loader2, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { CollapsibleSection, MarkdownRenderer } from '@/ui';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import { CheckList } from './CheckList';
 import { VersionVerlauf } from './VersionVerlauf';
 import { ThinkingToggle } from './ThinkingToggle';
+import { StreamingVorschau } from './StreamingVorschau';
 import { formatDate } from './kurzfassung-verlauf';
 import type { KurzfassungRecord } from './types';
 
@@ -29,6 +30,9 @@ interface Props {
   /** Pro-Generierung-Schalter „Thinking" (Default aus der Einstellung, hier übersteuerbar). */
   thinkingEnabled: boolean;
   onToggleThinking: (enabled: boolean) => void;
+  /** Live-Streaming-Vorschau während `busy`. */
+  streamContent: string;
+  streamThinking: string;
 }
 
 const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed';
@@ -36,7 +40,7 @@ const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border
 const TWEAK_LINK = 'inline-flex items-center gap-1 text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]';
 
 export function ReviewCard({
-  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage, onUebernehmen, onOpenTweak, thinkingEnabled, onToggleThinking,
+  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage, onUebernehmen, onOpenTweak, thinkingEnabled, onToggleThinking, streamContent, streamThinking,
 }: Props): React.ReactElement {
   const freigegeben = record.status === 'freigegeben';
   const satzanzahl = splitSentences(record.finalerText).length;
@@ -122,13 +126,7 @@ export function ReviewCard({
             </button>
           </div>
         ) : busy ? (
-          <div className="flex items-center gap-3 text-[13px] text-[var(--tf-text-secondary)]">
-            <Loader2 size={14} className="animate-spin" />
-            Generiere…
-            <button type="button" className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]" onClick={onStop}>
-              Stopp
-            </button>
-          </div>
+          <StreamingVorschau thinking={streamThinking} content={streamContent} onStop={onStop} />
         ) : (
           <>
             <div className="flex items-center gap-2 flex-wrap">

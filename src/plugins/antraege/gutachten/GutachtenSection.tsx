@@ -6,7 +6,6 @@
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
 import { useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
@@ -19,6 +18,7 @@ import {
 import { VorlageDialog } from '../kurzfassung/VorlageDialog';
 import { TweakEditor } from '../kurzfassung/TweakEditor';
 import { ThinkingToggle } from '../kurzfassung/ThinkingToggle';
+import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useGutachtenWorkflow } from './useGutachtenWorkflow';
 import { AbschnittStepper } from './AbschnittStepper';
@@ -228,11 +228,7 @@ function ActiveAbschnitt({
 
       {!step ? (
         ctrl.busy ? (
-          <div className="mt-3 flex items-center gap-3 text-[13px] text-[var(--tf-text-secondary)]">
-            <Loader2 size={14} className="animate-spin" />
-            Generiere…
-            <button type="button" className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]" onClick={ctrl.stop}>Stopp</button>
-          </div>
+          <StreamingVorschau thinking={ctrl.streamThinking} content={ctrl.streamContent} onStop={ctrl.stop} />
         ) : (
           <div className="mt-3">
             <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">Dieser Abschnitt wird KI-gestützt aus der Vorhabensbeschreibung erstellt.</p>
@@ -262,6 +258,8 @@ function ActiveAbschnitt({
           onOpenTweak={onOpenTweak}
           thinkingEnabled={ctrl.thinkingEnabled}
           onToggleThinking={ctrl.setThinkingEnabled}
+          streamContent={ctrl.streamContent}
+          streamThinking={ctrl.streamThinking}
         />
       )}
     </div>
