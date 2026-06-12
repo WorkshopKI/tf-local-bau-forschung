@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Dialog } from '@/ui';
+import { Dialog, CollapsibleSection } from '@/ui';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { Antrag } from '@/core/services/csv/types';
 import {
@@ -128,7 +128,7 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onClose }: P
     );
 
   return (
-    <Dialog open={open} onClose={onClose} title="Gutachten-Vorlage ausfüllen" footer={footer}>
+    <Dialog open={open} onClose={onClose} title="Gutachten-Vorlage ausfüllen" footer={footer} size="lg">
       {error && (
         <div className="mb-3 rounded-[8px] px-3 py-2 text-[12px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)]">{error}</div>
       )}
@@ -183,13 +183,19 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onClose }: P
             )}
           </div>
 
-          {/* Feld-Mapping-Status */}
+          {/* Feld-Mapping-Status — einklappbar (lange DMS-Platzhalter-Liste); Zähler im Kopf */}
           {dryRun && (
-            <div>
-              <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-2">Feld-Zuordnung</div>
-              {dryRun.mappedFields.length === 0 ? (
+            dryRun.mappedFields.length === 0 ? (
+              <div>
+                <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-2">Feld-Zuordnung</div>
                 <p className="text-[12px] text-[var(--tf-text-tertiary)]">Keine Platzhalter in dieser Vorlage gefunden.</p>
-              ) : (
+              </div>
+            ) : (
+              <CollapsibleSection
+                label="Feld-Zuordnung"
+                subtitle={`${dryRun.mappedFields.filter(f => f.befuellbar).length} von ${dryRun.mappedFields.length} befüllbar`}
+                defaultOpen={false}
+              >
                 <table className="w-full border-collapse">
                   <tbody>
                     {dryRun.mappedFields.map((f, i) => (
@@ -207,8 +213,8 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onClose }: P
                     ))}
                   </tbody>
                 </table>
-              )}
-            </div>
+              </CollapsibleSection>
+            )
           )}
 
           {/* Anker-Status: Abschnitte-Tabelle (Workflow) ODER Kurzfassung-Einzelansicht */}
