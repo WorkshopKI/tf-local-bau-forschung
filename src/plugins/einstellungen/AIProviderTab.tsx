@@ -59,6 +59,11 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
   const [contextTokens, setContextTokens] = useState(getLlmContextTokens());
   const [contextInput, setContextInput] = useState(String(getLlmContextTokens()));
 
+  // Hilfetext live aus der Eingabe ableiten (nicht erst nach Commit) — so passt
+  // der angezeigte Zeichen-Cap immer zum gerade eingetippten Token-Wert.
+  const parsedContext = parseInt(contextInput, 10);
+  const liveContextTokens = Number.isFinite(parsedContext) ? parsedContext : contextTokens;
+
   // Commit beim Verlassen des Feldes: parsen, clampen, persistieren (kein
   // Clampen mitten im Tippen). Ungültig → auf den letzten gültigen Wert zurück.
   const commitContextTokens = (): void => {
@@ -133,7 +138,7 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
         />
         <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
           Wie viele Tokens kann das genutzte LLM verarbeiten? Daraus wird die maximale VB-Länge
-          abgeleitet — aktuell <strong>~{computeVbCharCap(contextTokens).toLocaleString('de-DE')} Zeichen</strong>.
+          abgeleitet — aktuell <strong>~{computeVbCharCap(liveContextTokens).toLocaleString('de-DE')} Zeichen</strong>.
           Längere Vorhabensbeschreibungen werden vor der Analyse gekürzt.
         </p>
       </div>

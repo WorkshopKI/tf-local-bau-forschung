@@ -14,8 +14,8 @@
 
 const LLM_CONTEXT_TOKENS_KEY = 'teamflow_llm_context_tokens';
 
-/** Sicherer Default, falls ungesetzt (gängige lokale Kontextgröße). */
-export const DEFAULT_LLM_CONTEXT_TOKENS = 32_768;
+/** Default-Voreinstellung, falls ungesetzt (typische lokale Server-Konfiguration). */
+export const DEFAULT_LLM_CONTEXT_TOKENS = 62_000;
 export const MIN_LLM_CONTEXT_TOKENS = 2_048;
 export const MAX_LLM_CONTEXT_TOKENS = 1_000_000;
 
