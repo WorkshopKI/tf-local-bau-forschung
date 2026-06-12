@@ -40,8 +40,8 @@
     "csvAutoRefresh": true,
     "embeddingCorpusBuild": false,
     "onlineStatusTab": true,
-    "gutachtenKurzfassung": false,
-    "gutachtenWorkflow": false,
+    "gutachtenKurzfassung": true,
+    "gutachtenWorkflow": true,
     "skillVerwaltung": true
   },
   "menuLabels": {
