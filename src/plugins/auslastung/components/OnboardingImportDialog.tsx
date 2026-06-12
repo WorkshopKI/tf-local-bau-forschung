@@ -90,7 +90,7 @@ export function OnboardingImportDialog({ open, onClose, onCalibrate }: Props): R
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4" // allow-raw-modal: legacy — bei nächster Anfassung auf Dialog migrieren
       style={{ background: 'rgba(0,0,0,0.35)' }}
     >
       <div

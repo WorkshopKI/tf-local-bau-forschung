@@ -66,7 +66,8 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps): R
   let itemIndex = 0;
 
   return (
-    <div className="fixed inset-0 z-50" onClick={onClose}>
+    <div className="fixed inset-0 z-50" onClick={onClose} // allow-raw-modal: Command-Palette, eigene Interaktionsmechanik
+    >
       <div className="absolute inset-0 bg-black/20" />
       <div className="flex justify-center pt-[15vh]" onClick={e => e.stopPropagation()}>
         <div className="w-full max-w-lg bg-[var(--tf-bg)] rounded-[var(--tf-radius-lg)] overflow-hidden"

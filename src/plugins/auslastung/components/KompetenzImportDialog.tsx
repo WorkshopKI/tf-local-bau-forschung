@@ -69,7 +69,8 @@ export function KompetenzImportDialog({ open, anonymMap, onClose }: Props): Reac
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }} // allow-raw-modal: legacy — bei nächster Anfassung auf Dialog migrieren
+    >
       <div
         className="w-[680px] max-h-[82vh] rounded-[16px] p-5 flex flex-col gap-3 overflow-hidden"
         style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)' }}

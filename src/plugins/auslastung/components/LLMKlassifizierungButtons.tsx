@@ -371,7 +371,7 @@ function PasteModal({ kategorien, onClose, onApply }: PasteModalProps): React.Re
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center p-6"
+      className="fixed inset-0 z-50 flex items-start justify-center p-6" // allow-raw-modal: legacy — bei nächster Anfassung auf Dialog migrieren
       style={{ background: 'rgba(0,0,0,0.4)' }}
       onClick={onClose}
     >

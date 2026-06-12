@@ -206,7 +206,7 @@ export function StateInspectorPanel(): React.ReactElement {
 
       {openStore && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/40"
+          className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/40" // allow-raw-modal: legacy — bei nächster Anfassung auf Dialog migrieren
           onClick={() => setOpenStore(null)}
         >
           <div

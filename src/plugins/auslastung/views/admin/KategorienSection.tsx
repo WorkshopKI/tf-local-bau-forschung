@@ -135,7 +135,7 @@ function KategorieDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh]" // allow-raw-modal: legacy — bei nächster Anfassung auf Dialog migrieren
       style={{ background: 'rgba(0,0,0,0.3)' }}
     >
       <div

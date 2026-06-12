@@ -3,6 +3,20 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+/** Karten-Breite. `md` (Default) = heutiger Wert; groessere Stufen fuer inhaltsreiche Dialoge. */
+const SIZE_CLASS: Record<NonNullable<DialogProps["size"]>, string> = {
+  sm: "max-w-[400px]",
+  md: "max-w-[480px]",
+  lg: "max-w-2xl",
+  xl: "max-w-4xl",
+}
+
+/** Vertikale Ausrichtung im Overlay. `center` (Default) = heutiges Verhalten; `top` fuer Dialoge mit stark schwankender Hoehe. */
+const ALIGN_CLASS: Record<NonNullable<DialogProps["align"]>, string> = {
+  center: "items-center",
+  top: "items-start pt-[8vh]",
+}
+
 interface DialogProps {
   open: boolean
   onClose: () => void
@@ -19,6 +33,14 @@ interface DialogProps {
    * bleiben unabhaengig wirksam.
    */
   dismissOnOverlayClick?: boolean
+  /** Karten-Breite. Default `md` (= heutiger Wert, keine Regression). */
+  size?: "sm" | "md" | "lg" | "xl"
+  /**
+   * Vertikale Ausrichtung. Default `center` (heutiges `items-center`).
+   * `top` rendert `items-start pt-[8vh]` fuer inhaltsreiche Dialoge, deren
+   * Hoehe stark schwankt. Hoehen-Cap + interner Scroll gelten unveraendert.
+   */
+  align?: "center" | "top"
 }
 
 function Dialog({
@@ -30,6 +52,8 @@ function Dialog({
   footer,
   className,
   dismissOnOverlayClick = true,
+  size = "md",
+  align = "center",
 }: DialogProps) {
   React.useEffect(() => {
     if (!open) return
@@ -46,7 +70,8 @@ function Dialog({
     <div
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4",
+        "fixed inset-0 z-[80] flex justify-center bg-black/40 p-4",
+        ALIGN_CLASS[align],
         dismissOnOverlayClick ? null : "cursor-default",
       )}
       onClick={dismissOnOverlayClick ? onClose : undefined}
@@ -56,7 +81,8 @@ function Dialog({
       <div
         data-slot="dialog"
         className={cn(
-          "flex w-full max-w-[480px] max-h-[calc(100vh-2rem)] flex-col rounded-2xl bg-[var(--tf-bg)] shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
+          "flex w-full max-h-[calc(100vh-2rem)] flex-col rounded-2xl bg-[var(--tf-bg)] shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
+          SIZE_CLASS[size],
           className,
         )}
         style={{ border: "0.5px solid var(--tf-border)" }}

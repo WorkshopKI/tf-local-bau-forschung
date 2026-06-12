@@ -161,7 +161,8 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50 overflow-y-auto">
+    <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50 overflow-y-auto" // allow-raw-modal: Vollbild-Zustand, kein Modal
+    >
       <div className="w-full max-w-[560px] mx-4 my-8 bg-[var(--tf-bg)] rounded-[16px] p-8" style={{ border: '0.5px solid var(--tf-border)' }}>
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-3">Willkommen bei ZAH</h1>
         <p className="text-[13px] text-[var(--tf-text-secondary)] mb-6 leading-relaxed">
@@ -282,7 +283,8 @@ interface DialogProps {
 
 function Dialog(props: DialogProps): React.ReactElement {
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-[60]">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-[60]" // allow-raw-modal: legacy — bei nächster Anfassung auf Dialog migrieren
+    >
       <div className="w-full max-w-[480px] mx-4 bg-[var(--tf-bg)] rounded-[16px] p-6" style={{ border: '0.5px solid var(--tf-border)' }}>
         <h2 className="text-[16px] font-medium text-[var(--tf-text)] mb-3">{props.title}</h2>
         <div className="mb-5">{props.body}</div>

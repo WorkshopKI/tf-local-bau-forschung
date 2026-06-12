@@ -62,7 +62,7 @@ export function PasswortAnzeigeDialog({ eintraege, onClose }: Props): React.Reac
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4" // allow-raw-modal: legacy — bei nächster Anfassung auf Dialog migrieren
       style={{ background: 'rgba(0,0,0,0.4)' }}
       onClick={onClose}
     >

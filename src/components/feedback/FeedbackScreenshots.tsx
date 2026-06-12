@@ -75,7 +75,8 @@ export function FeedbackScreenshots({ attachments, compact = false }: Props): Re
       </div>
 
       {lightbox && urls[lightbox.id] && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setLightbox(null)} role="dialog" aria-label="Screenshot-Vollansicht">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setLightbox(null)} role="dialog" aria-label="Screenshot-Vollansicht" // allow-raw-modal: Lightbox, eigene Interaktionsmechanik
+        >
           <button type="button" onClick={() => setLightbox(null)} className="absolute top-4 right-4 p-1.5 rounded-full bg-[var(--tf-bg)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer" style={{ border: '0.5px solid var(--tf-border)' }} aria-label="Schließen">
             <X size={16} />
           </button>

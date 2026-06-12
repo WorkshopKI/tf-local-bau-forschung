@@ -403,6 +403,8 @@ Das gibt dem User sofortige Orientierung ohne Tab-Wechsel. Sparsam einsetzen —
 }
 ```
 
+Kanonischer Modal-Pfad: `Dialog` aus [`@/components/ui/dialog`](src/components/ui/dialog.tsx) — bringt Höhen-Cap + internen Scroll mit. Props: `size` (`sm`=400 / `md`=480 Default / `lg`=2xl / `xl`=4xl) und `align` (`center` Default / `top` = `items-start pt-[8vh]` für inhaltsreiche Dialoge). Eigene `fixed inset-0`-Hüllen sind per Convention-Test `no-raw-modal` verboten (s. recurring-bug-classes Klasse 7).
+
 ### Listen-Item
 Für Vorgänge, Dokumente, Artefakte — die häufigste Komponente:
 ```css

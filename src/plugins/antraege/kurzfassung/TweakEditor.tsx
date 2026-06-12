@@ -43,7 +43,8 @@ export function TweakEditor({ skillVersion, regeln, tweak, onClose, onSave, onRe
   const remove = useAsyncAction(async () => { await onRemove(); }, { onSuccess: onClose });
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-label="Persönlicher Stil — Gutachten-Kurzfassung">
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-label="Persönlicher Stil — Gutachten-Kurzfassung" // allow-raw-modal: Drawer-Pattern (rechtsbündig)
+    >
       <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.38)' }} onClick={onClose} />
       <aside
         className="relative h-full w-[520px] max-w-[94%] bg-[var(--tf-bg)] border-l-[0.5px] border-[var(--tf-border)] flex flex-col"

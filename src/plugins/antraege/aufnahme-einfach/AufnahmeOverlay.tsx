@@ -45,7 +45,7 @@ export function AufnahmeOverlay({ batch }: { batch: UseBatchJob }): React.ReactE
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-10"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-10" // allow-raw-modal: Multi-Phasen-Wizard-Host (phasenabhängige Überschrift, kein statischer Dialog-Titel) — Klasse-7-Custom-Referenz
       style={{ background: 'rgba(0,0,0,0.4)' }}
       onMouseDown={e => { if (e.target === e.currentTarget) schliessen(); }}
     >

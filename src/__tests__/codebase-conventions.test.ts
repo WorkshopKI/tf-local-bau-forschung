@@ -22,6 +22,9 @@
  *   - no-hardcoded-datenshare-mode      → Pitfall #25, Daten-Share-Modus
  *     ('read'/'readwrite') ausschliesslich via canWriteDatenShare() entscheiden,
  *     nicht `isKurator ? 'readwrite' : 'read'` hart kodieren.
+ *   - no-raw-modal                      → recurring-bug-classes Klasse 7, Modals
+ *     ueber den Dialog aus @/components/ui/dialog rendern (Hoehen-Cap + Scroll
+ *     eingebaut) statt per Hand `fixed inset-0`.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -375,6 +378,45 @@ describe('no-hardcoded-datenshare-mode (CLAUDE.md Pitfall #25)', () => {
         `Wenn die Zeile wirklich unabhaengig vom Flag ist, mit\n` +
         `'// allow-hardcoded-datenshare-mode: <grund>' markieren.\n\n` +
         `Treffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-raw-modal (recurring-bug-classes Klasse 7)', () => {
+  // Hand-gerollte Modal-Huellen (`fixed inset-0`-Overlay + zentrierte Karte)
+  // ohne Hoehen-Cap an der Karte sind bei langem Inhalt nicht scrollbar
+  // (Kopf/Fuss + Buttons abgeschnitten) — die Bug-Klasse ist mehrfach neu
+  // entstanden. Kanonischer Modal-Pfad ist der Dialog aus
+  // @/components/ui/dialog (Hoehen-Cap + interner Scroll + fixer Kopf/Fuss
+  // bereits eingebaut). String-Match `fixed inset-0` genuegt (wie no-raw-worker).
+  //
+  // Datei-Ausnahmen per Pfad: die beiden Dialog-Komponenten SIND der
+  // Mechanismus und duerfen `fixed inset-0` nutzen.
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+    `${sep}components${sep}ui${sep}dialog.tsx`, // kanonischer Dialog (shadcn)
+    `${sep}ui${sep}Dialog.tsx`,                 // Alt-Dialog (wird in P1b zum Adapter)
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  it('kein hand-gerolltes `fixed inset-0`-Modal (Dialog aus @/components/ui/dialog nutzen)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(...findInFile(file, l => l.includes('fixed inset-0'), 'allow-raw-modal'));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Hand-gerolltes Modal verboten (recurring-bug-classes Klasse 7).\n` +
+        `Nutze den Dialog aus @/components/ui/dialog — Hoehen-Cap (max-h) +\n` +
+        `interner Scroll + fixer Kopf/Fuss sind dort eingebaut.\n` +
+        `Vollbild-Zustaende (StartupScreen, Login-Gates, Onboarding) und\n` +
+        `Spezial-Overlays/Drawer (Tour, Command-Palette, Filter-Drawer) per\n` +
+        `'// allow-raw-modal: <grund>' inline whitelisten.\n\nTreffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });

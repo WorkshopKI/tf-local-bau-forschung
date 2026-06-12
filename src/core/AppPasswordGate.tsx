@@ -77,7 +77,8 @@ export function AppPasswordGate({ onSuccess }: AppPasswordGateProps): React.Reac
   const hint = runtimeConfig.auth?.hint;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50">
+    <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50" // allow-raw-modal: Vollbild-Zustand, kein Modal
+    >
       <div
         className="w-full max-w-[420px] mx-4 bg-[var(--tf-bg)] rounded-[16px] p-8"
         style={{ border: '0.5px solid var(--tf-border)' }}

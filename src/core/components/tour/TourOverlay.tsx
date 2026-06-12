@@ -196,7 +196,7 @@ export function TourOverlay({
     <>
       {/* Dark overlay with spotlight hole via clip-path */}
       <div
-        className="fixed inset-0 transition-all duration-300"
+        className="fixed inset-0 transition-all duration-300" // allow-raw-modal: Spotlight-Overlay, eigene Interaktionsmechanik
         style={{
           zIndex: 100,
           backgroundColor: 'rgba(0, 0, 0, 0.5)',

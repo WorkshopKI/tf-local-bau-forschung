@@ -35,7 +35,7 @@ export function FilterDrawer({ open, onClose, antraege, search, onSearchChange }
       <div
         role="presentation"
         onClick={onClose}
-        className="fixed inset-0 z-40 bg-black/20"
+        className="fixed inset-0 z-40 bg-black/20" // allow-raw-modal: Drawer-Pattern (rechtsbündig)
       />
       {/* Drawer Panel */}
       <aside

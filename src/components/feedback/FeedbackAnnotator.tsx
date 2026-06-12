@@ -60,7 +60,8 @@ export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): R
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-label="Screenshot annotieren">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-label="Screenshot annotieren" // allow-raw-modal: Annotier-Canvas-Vollfläche, eigene Interaktionsmechanik
+    >
       <div
         className="flex flex-col gap-2 rounded-[12px] bg-[var(--tf-bg)] p-3 shadow-2xl max-w-[92vw] max-h-[92vh]"
         style={{ border: '0.5px solid var(--tf-border)' }}

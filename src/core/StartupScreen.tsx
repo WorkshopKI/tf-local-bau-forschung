@@ -175,7 +175,8 @@ export function StartupScreen({
     : 'Unbekannt';
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50">
+    <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50" // allow-raw-modal: Vollbild-Zustand, kein Modal
+    >
       <div
         className="w-full max-w-[520px] mx-4 bg-[var(--tf-bg)] rounded-[16px] p-8"
         style={{ border: '0.5px solid var(--tf-border)' }}
