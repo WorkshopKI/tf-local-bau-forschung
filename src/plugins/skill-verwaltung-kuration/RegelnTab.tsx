@@ -14,6 +14,7 @@ import {
   compareValues,
 } from '@/components/data-table';
 import { CollapsibleSeg } from '@/plugins/antraege/filter/CollapsibleSeg';
+import { ListItem } from '@/components/ui/ListItem';
 import { TYP_LABEL, SevPill, Switch } from './regelShared';
 import { buildRegelColumns } from './regelTableColumns';
 import { useRegelColumnFilters } from './useRegelColumnFilters';
@@ -115,22 +116,29 @@ export function RegelnTab({
         {filtered.map((r, i) => {
           const used = skillsUsingRegel(file, r.id);
           return (
-            <div
+            <ListItem
               key={r.id}
+              layout="inline"
+              last={i === filtered.length - 1}
               onClick={() => onEdit(r)}
-              className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[var(--tf-bg-secondary)] ${i > 0 ? 'border-t-[0.5px] border-[var(--tf-border)]' : ''}`}
-            >
-              <span className="text-[13.5px] font-medium text-[var(--tf-text)] whitespace-nowrap">{r.name}</span>
-              <TypPill typ={r.typ} />
-              <span className="text-[12px] text-[var(--tf-text-tertiary)] truncate flex-1 min-w-0">{describeRegelParams(r)}</span>
-              <SevPill s={r.schweregrad} />
-              <span className="text-[11.5px] text-[var(--tf-text-tertiary)] whitespace-nowrap max-w-[160px] truncate">
-                {used.length ? used.join(', ') : '—'}
-              </span>
-              <span className="inline-flex shrink-0" onClick={e => e.stopPropagation()}>
-                <Switch on={r.aktiv} disabled={!canEdit || busy} onClick={() => onToggleAktiv(r)} />
-              </span>
-            </div>
+              titleClassName="flex items-center gap-3 shrink-0"
+              title={(
+                <>
+                  <span className="text-[13.5px] font-medium text-[var(--tf-text)] whitespace-nowrap">{r.name}</span>
+                  <TypPill typ={r.typ} />
+                </>
+              )}
+              subtitle={describeRegelParams(r)}
+              meta={(
+                <span className="flex items-center gap-3">
+                  <SevPill s={r.schweregrad} />
+                  <span className="text-[11.5px] text-[var(--tf-text-tertiary)] whitespace-nowrap max-w-[160px] truncate">
+                    {used.length ? used.join(', ') : '—'}
+                  </span>
+                </span>
+              )}
+              actions={<Switch on={r.aktiv} disabled={!canEdit || busy} onClick={() => onToggleAktiv(r)} />}
+            />
           );
         })}
       </div>

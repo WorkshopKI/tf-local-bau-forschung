@@ -3,11 +3,11 @@
  * Baut auf der generischen `SortableColumn`/`SortableTable` auf — dieselbe
  * Optik wie die Förderanträge-Tabelle.
  */
-import type { ReactNode } from 'react';
 import { Play, Copy, Trash2 } from 'lucide-react';
 import type { SortableColumn } from '@/components/data-table';
 import type { SkillRecord } from '@/core/services/skills';
 import { Badge } from '@/components/ui/badge';
+import { RowAction } from '@/components/ui/RowAction';
 import { formatDate } from './registryFormat';
 
 export interface SkillColumnActions {
@@ -15,28 +15,6 @@ export interface SkillColumnActions {
   onTestlauf: (s: SkillRecord) => void;
   onDuplicate: (s: SkillRecord) => void;
   onDelete: (s: SkillRecord) => void;
-}
-
-/** Aktions-Icon in der Tabellen-Zeile. `stopPropagation`, damit der Zeilen-Klick
- *  (= Bearbeiten) nicht zusätzlich feuert. */
-function RowActionButton({
-  title, onClick, danger, children,
-}: { title: string; onClick: () => void; danger?: boolean; children: ReactNode }): React.ReactElement {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      onClick={e => { e.stopPropagation(); onClick(); }}
-      className={`p-1 rounded hover:bg-[var(--tf-hover)] ${
-        danger
-          ? 'text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)]'
-          : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
-      }`}
-    >
-      {children}
-    </button>
-  );
 }
 
 export function buildSkillColumns(actions: SkillColumnActions): SortableColumn<SkillRecord>[] {
@@ -73,12 +51,12 @@ export function buildSkillColumns(actions: SkillColumnActions): SortableColumn<S
       accessor: () => '',
       render: s => (
         <div className="flex items-center gap-0.5">
-          <RowActionButton title="Testlauf" onClick={() => actions.onTestlauf(s)}><Play size={14} /></RowActionButton>
+          <RowAction title="Testlauf" onClick={() => actions.onTestlauf(s)}><Play size={14} /></RowAction>
           {actions.canEdit && (
-            <RowActionButton title="Duplizieren" onClick={() => actions.onDuplicate(s)}><Copy size={14} /></RowActionButton>
+            <RowAction title="Duplizieren" onClick={() => actions.onDuplicate(s)}><Copy size={14} /></RowAction>
           )}
           {actions.canEdit && (
-            <RowActionButton title="Löschen" danger onClick={() => actions.onDelete(s)}><Trash2 size={14} /></RowActionButton>
+            <RowAction title="Löschen" danger onClick={() => actions.onDelete(s)}><Trash2 size={14} /></RowAction>
           )}
         </div>
       ),

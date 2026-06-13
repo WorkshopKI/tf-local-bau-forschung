@@ -13,6 +13,7 @@ export { FileDropZone } from '@/components/ui/FileDropZone';
 export { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 export { SectionHeader } from '@/components/ui/SectionHeader';
 export { ListItem } from '@/components/ui/ListItem';
+export { RowAction } from '@/components/ui/RowAction';
 export { TagInput } from '@/components/ui/TagInput';
 export { Field } from '@/components/ui/Field';
 export { CollapsibleSection } from '@/components/ui/CollapsibleSection';

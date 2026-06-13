@@ -408,17 +408,31 @@ Das gibt dem User sofortige Orientierung ohne Tab-Wechsel. Sparsam einsetzen —
 Kanonischer Modal-Pfad: `Dialog` aus [`@/components/ui/dialog`](src/components/ui/dialog.tsx) — bringt Höhen-Cap + internen Scroll mit. Props: `size` (`sm`=400 / `md`=480 Default / `lg`=2xl / `xl`=4xl) und `align` (`center` Default / `top` = `items-start pt-[8vh]` für inhaltsreiche Dialoge). Eigene `fixed inset-0`-Hüllen sind per Convention-Test `no-raw-modal` verboten (s. recurring-bug-classes Klasse 7).
 
 ### Listen-Item
-Für Vorgänge, Dokumente, Artefakte — die häufigste Komponente:
-```css
-.list-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 0.5px solid var(--tf-border);
-}
-.list-item:last-child { border-bottom: none; }
+Für Vorgänge, Dokumente, Artefakte — die häufigste Komponente. **Kanonische Komponente: [`ListItem`](src/components/ui/ListItem.tsx). Listenzeilen nie per Hand bauen — `ListItem` deckt stacked und inline ab.** Zwei Layouts:
+
+- **`layout="stacked"`** (Default): Titel über Subtitle, `meta` rechts — die klassische zweizeilige Zeile (Einstellungen, „Meine Anträge", Verzeichnis-Listen). Default-Rendering, keine Pflicht-Props außer `title`.
+- **`layout="inline"`**: Titel und Subtitle **nebeneinander** in einer Zeile (Titel `whitespace-nowrap`, Subtitle `truncate flex-1`) — für einzeilige Daten-Zeilen mit Aktions-Buttons in einem gerundeten Listen-Container (Skill-/Regel-Liste). Bringt das passende Zeilen-Chrome mit (`px-4 py-2.5`, Hover-Background).
+
+```tsx
+<div className="rounded-[12px] border-[0.5px] border-[var(--tf-border)] overflow-hidden">
+  {items.map((it, i) => (
+    <ListItem
+      key={it.id}
+      layout="inline"
+      last={i === items.length - 1}
+      onClick={() => onEdit(it)}
+      title={it.name}
+      subtitle={it.beschreibung}
+      meta={<span className="text-[11.5px] text-[var(--tf-text-tertiary)] whitespace-nowrap">v3 · 2 Regeln</span>}
+      actions={<RowAction title="Löschen" danger onClick={…}><Trash2 size={14} /></RowAction>}
+    />
+  ))}
+</div>
 ```
+
+- **`actions`-Slot**: rechtsbündig **nach** `meta`; Klicks darin lösen die Zeilen-`onClick` **nicht** aus (Stop-Propagation eingebaut). Die einzelnen Icon-Buttons sind [`RowAction`](src/components/ui/RowAction.tsx) (`title`, optional `danger`) — ebenfalls nicht per Hand bauen.
+- **`last`** steuert den Trenner (untere `0.5px`-Border außer letzter Zeile) — für beide Layouts; intern weiterhin `flex items-center` + `border-bottom`.
+
 Listen-Items sind einfache Zeilen. KEINE Cards-in-Listen (zu schwer).
 
 ### Callout / Highlight-Bar

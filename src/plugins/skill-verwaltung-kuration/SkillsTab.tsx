@@ -8,6 +8,8 @@ import {
   useColumnVisibility,
   useColumnWidths,
 } from '@/components/data-table';
+import { ListItem } from '@/components/ui/ListItem';
+import { RowAction } from '@/components/ui/RowAction';
 import { formatDate, promptAnriss } from './registryFormat';
 import { buildSkillColumns } from './skillTableColumns';
 import type { RegistryViewMode } from './RegistryViewModeToggle';
@@ -63,23 +65,27 @@ export function SkillsTab({
     return (
       <div className="rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] overflow-hidden">
         {filtered.map((skill, i) => (
-          <div
+          <ListItem
             key={skill.id}
+            layout="inline"
+            last={i === filtered.length - 1}
             onClick={() => onEdit(skill)}
-            className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[var(--tf-bg-secondary)] ${i > 0 ? 'border-t-[0.5px] border-[var(--tf-border)]' : ''}`}
-          >
-            <span className="text-[13.5px] font-medium text-[var(--tf-text)] whitespace-nowrap">{skill.name}</span>
-            <span className="text-[12px] text-[var(--tf-text-tertiary)] truncate flex-1 min-w-0">{skill.beschreibung}</span>
-            <span className="text-[11.5px] text-[var(--tf-text-tertiary)] whitespace-nowrap">
-              v{skill.version}<span className="px-1">·</span>{formatDate(skill.geaendert_am)}<span className="px-1">·</span>
-              {skill.regelIds.length} {skill.regelIds.length === 1 ? 'Regel' : 'Regeln'}
-            </span>
-            <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
-              <RowAction title="Testlauf" onClick={() => onTestlauf(skill)}><Play size={14} /></RowAction>
-              {canEdit && <RowAction title="Duplizieren" onClick={() => onDuplicate(skill)}><Copy size={14} /></RowAction>}
-              {canEdit && <RowAction title="Löschen" danger onClick={() => onDelete(skill)}><Trash2 size={14} /></RowAction>}
-            </div>
-          </div>
+            title={skill.name}
+            subtitle={skill.beschreibung}
+            meta={(
+              <span className="text-[11.5px] text-[var(--tf-text-tertiary)] whitespace-nowrap">
+                v{skill.version}<span className="px-1">·</span>{formatDate(skill.geaendert_am)}<span className="px-1">·</span>
+                {skill.regelIds.length} {skill.regelIds.length === 1 ? 'Regel' : 'Regeln'}
+              </span>
+            )}
+            actions={(
+              <div className="flex items-center gap-0.5">
+                <RowAction title="Testlauf" onClick={() => onTestlauf(skill)}><Play size={14} /></RowAction>
+                {canEdit && <RowAction title="Duplizieren" onClick={() => onDuplicate(skill)}><Copy size={14} /></RowAction>}
+                {canEdit && <RowAction title="Löschen" danger onClick={() => onDelete(skill)}><Trash2 size={14} /></RowAction>}
+              </div>
+            )}
+          />
         ))}
       </div>
     );
@@ -128,26 +134,6 @@ export function SkillsTab({
         </div>
       ))}
     </div>
-  );
-}
-
-function RowAction({
-  title, onClick, danger, children,
-}: { title: string; onClick: () => void; danger?: boolean; children: React.ReactNode }): React.ReactElement {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      onClick={onClick}
-      className={`p-1 rounded hover:bg-[var(--tf-hover)] ${
-        danger
-          ? 'text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)]'
-          : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
