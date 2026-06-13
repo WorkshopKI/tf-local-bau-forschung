@@ -9,7 +9,7 @@ Entscheidungs-Cheatsheet nach dem Patchen. Die Sichtbarkeits-**Matrix** (welches
 | **Immer** (jeder nicht-triviale Patch) | `npm run build:devprod` (dev + prod) |
 | **zusätzlich** `src/plugins/auslastung/**` oder Auslastungs-/PL-Code (Matching, Kompetenz, Korpus, Zuweisung) | `npm run build:pl` |
 | **zusätzlich** kurator-only-Code (Kuration-Plugins, `kuratorOnly`-UI, Kurator-Session/-Gate) | `npm run build:kurator` |
-| `demo` / alle Varianten | nur auf ausdrückliche Anfrage (`build:demo` / `build:all`) |
+| alle Varianten | nur auf ausdrückliche Anfrage (`build:all`) |
 
 **Warum „zusätzlich"?** Das Auslastungs-Modul ist nur in **pl + dev** sichtbar (`features.auslastung`), die Kuration-Menüs nur in **kurator + dev** (`features.kuratorMenus`). Eine Auslastungs-/Kurator-Änderung wird im prod-Build gar nicht kompiliert/gerendert → ein grüner `build:prod` beweist dort nichts. Darum die rollen-passende Variante mitbauen.
 

@@ -9,7 +9,7 @@ import { compareValues, DATA_TABLE_COLLATOR } from '@/components/data-table';
 import { getKategorieLabel, type KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import type { CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 
-export type SuchePillFilterId = '' | 'antrag' | 'dokument' | 'bauantrag';
+export type SuchePillFilterId = '' | 'antrag' | 'dokument';
 
 /** Backwards-Kompat: alter Name. */
 export const SUCHE_COLLATOR = DATA_TABLE_COLLATOR;
@@ -19,22 +19,18 @@ export function matchesPillFilter(r: UnifiedSearchResult, filter: SuchePillFilte
   if (filter === '') return true;
   if (filter === 'antrag') return r.type === 'antrag';
   if (filter === 'dokument') return r.type === 'dokument';
-  if (filter === 'bauantrag') return r.type === 'dokument' && r.dokumentTyp === 'bauantrag';
   return true;
 }
 
 export function countResultsByType(rs: ReadonlyArray<UnifiedSearchResult>): {
-  antraege: number; dokumente: number; bauantraege: number;
+  antraege: number; dokumente: number;
 } {
-  let antraege = 0, dokumente = 0, bauantraege = 0;
+  let antraege = 0, dokumente = 0;
   for (const r of rs) {
     if (r.type === 'antrag') antraege++;
-    else {
-      dokumente++;
-      if (r.dokumentTyp === 'bauantrag') bauantraege++;
-    }
+    else dokumente++;
   }
-  return { antraege, dokumente, bauantraege };
+  return { antraege, dokumente };
 }
 
 const SUCHE_ANTRAGSTYP_ORDER: KategorieLabel[] = ['Alle', 'FuE', 'DS', 'DL', 'NW'];

@@ -2,7 +2,6 @@ import { IDBStore } from './idb-store';
 import { FileServerStore } from './fs-store';
 import { SyncService } from '@/core/services/sync/sync-service';
 import { getVariantDbName } from '@/config/runtime-config';
-import type { Vorgang } from '@/core/types/vorgang';
 import type { DirectoryEntry } from '@/core/types/config';
 import type { FsDirHandle } from '@/core/services/infrastructure/smb-handle';
 
@@ -197,36 +196,6 @@ export class StorageService {
     await this.idb.set('directories', entries);
   }
 
-  async saveVorgang(vorgang: Vorgang): Promise<void> {
-    vorgang.modified = new Date().toISOString();
-    await this.idb.set(`vorgang:${vorgang.id}`, vorgang);
-    if (this.fs) {
-      const dir = 'antraege/bauantraege';
-      await this.syncService.enqueue({ id: crypto.randomUUID(), type: 'write', path: `${dir}/${vorgang.id}/meta.json`, data: vorgang, timestamp: vorgang.modified, retries: 0 });
-    }
-  }
-
-  async loadVorgang(id: string): Promise<Vorgang | null> {
-    return this.idb.get<Vorgang>(`vorgang:${id}`);
-  }
-
-  async listVorgaenge(type?: 'bauantrag'): Promise<Vorgang[]> {
-    const keys = await this.idb.keys('vorgang:');
-    // Parallel statt sequenziell: bei N Vorgaengen war der bisherige
-    // for-await-Loop O(N × Roundtrip) — bei 24 Vorgaengen real ~3 s.
-    // Promise.all bricht das auf einen einzigen IDB-Round (alle Reads
-    // teilen sich die Transaktion) → ~150 ms.
-    const all = await Promise.all(keys.map(k => this.idb.get<Vorgang>(k)));
-    const results: Vorgang[] = [];
-    for (const v of all) {
-      if (v && (!type || v.type === type)) results.push(v);
-    }
-    return results;
-  }
-
-  async deleteVorgang(id: string): Promise<void> {
-    await this.idb.delete(`vorgang:${id}`);
-  }
 }
 
 export { IDBStore } from './idb-store';

@@ -7,9 +7,15 @@ export type VorgangStatus =
   | 'abgelehnt'
   | 'archiviert';
 
+/**
+ * Generische „Vorgang"-Shape für die Home-Dashboard-Aggregation. Ursprünglich
+ * das Datenmodell der (entfernten) Bauantrag-Demo-Domäne; seit dem Entfernen
+ * der Domäne (v2.88) nur noch das Projektions-Shape, auf das Förderanträge im
+ * Home-Dashboard abgebildet werden (siehe `AntragVorgang` in
+ * `plugins/home/dashboardAggregate.ts`). Kein eigenständiger IDB-Store mehr.
+ */
 export interface Vorgang {
   id: string;
-  type: 'bauantrag';
   title: string;
   status: VorgangStatus;
   priority: 'niedrig' | 'normal' | 'hoch' | 'dringend';
@@ -19,15 +25,4 @@ export interface Vorgang {
   deadline?: string;
   tags: string[];
   notes: string;
-}
-
-export interface Artifact {
-  id: string;
-  type: 'nachforderung' | 'gutachten' | 'email' | 'pruefbericht' | 'bewilligung';
-  filename: string;
-  content: string;
-  created: string;
-  author: string;
-  tags: string[];
-  vorgangId: string;
 }

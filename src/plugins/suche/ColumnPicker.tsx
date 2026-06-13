@@ -13,7 +13,7 @@ import { useSucheStore } from './store';
 export interface ColumnPickerProps {
   /** Aktiver Typ-Filter aus den Pills — beeinflusst nur das visuelle
    *  Greying-out, NICHT die Verfuegbarkeit der Spalten. */
-  typeFilter: '' | 'antrag' | 'dokument' | 'bauantrag';
+  typeFilter: '' | 'antrag' | 'dokument';
 }
 
 export function ColumnPicker({ typeFilter }: ColumnPickerProps): React.ReactElement {

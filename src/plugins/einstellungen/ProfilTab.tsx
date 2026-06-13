@@ -8,13 +8,8 @@ import { useKuerzelFilterOptions } from '@/plugins/auslastung/hooks/useKuerzelFi
 import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasStore';
 import {
   isKuratorMenusEnabled,
-  isAntraegeEnabled,
-  isBauantraegeEnabled,
-  hasDepartmentChoice,
   isMaLoginEnabled,
-  menuLabel,
 } from '@/config/feature-flags';
-import type { UserProfile } from '@/core/types/config';
 import {
   SettingsRow,
   SettingsRowGroup,
@@ -52,17 +47,6 @@ export function ProfilTab(): React.ReactElement {
     ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : '??';
 
-  const departmentLabel =
-    profile.department === 'antraege' ? menuLabel('antraege', 'Förderanträge')
-      : profile.department === 'bauantraege' ? menuLabel('bauantraege', 'Bauanträge')
-      : 'Beide';
-
-  const departmentOptions: Array<{ value: UserProfile['department']; label: string }> = [];
-  if (isAntraegeEnabled()) departmentOptions.push({ value: 'antraege', label: menuLabel('antraege', 'Förderanträge') });
-  if (isBauantraegeEnabled()) departmentOptions.push({ value: 'bauantraege', label: menuLabel('bauantraege', 'Bauanträge') });
-  if (departmentOptions.length >= 2) departmentOptions.push({ value: 'beide', label: 'Beide' });
-  const showDepartmentSelect = hasDepartmentChoice();
-
   return (
     <div className="space-y-8">
       {/* Section 1 — Account */}
@@ -72,24 +56,6 @@ export function ProfilTab(): React.ReactElement {
           <SettingsRowGroup>
             <Avatar initials={initials} />
             <NameEditor name={profile.name} onSave={n => updateProfile({ name: n })} />
-          </SettingsRowGroup>
-          <SettingsRowSeparator />
-          <SettingsRowGroup>
-            {showDepartmentSelect ? (
-              <select
-                value={profile.department}
-                onChange={e => updateProfile({ department: e.target.value as UserProfile['department'] })}
-                className={SELECT_CLASS}
-                style={FIELD_BORDER}
-                aria-label="Abteilung"
-              >
-                {departmentOptions.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            ) : (
-              <span className="text-[13px] text-[var(--tf-text-secondary)]">{departmentLabel}</span>
-            )}
           </SettingsRowGroup>
         </SettingsRow>
       </section>

@@ -26,7 +26,6 @@
     "devInfraPanel": false,
     "devFixtures": false,
     "antraege": true,
-    "bauantraege": false,
     "dokumente": false,
     "auslastung": true,
     "auslastungNurKorpus": true,

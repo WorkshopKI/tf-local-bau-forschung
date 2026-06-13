@@ -20,7 +20,7 @@ export const scanConfig = runtimeConfig.scan ?? {
   fkz_allowed_prefixes: [],
 };
 
-export function menuLabel(key: 'antraege' | 'bauantraege' | 'dokumente', fallback: string): string {
+export function menuLabel(key: 'antraege' | 'dokumente', fallback: string): string {
   const v = menuLabels[key];
   return (typeof v === 'string' && v.trim()) ? v : fallback;
 }
@@ -65,15 +65,7 @@ export function isDevFixturesEnabled(): boolean {
 }
 
 export function isAntraegeEnabled(): boolean { return features.antraege; }
-export function isBauantraegeEnabled(): boolean { return features.bauantraege; }
 export function isDokumenteEnabled(): boolean { return features.dokumente; }
-/** True wenn der User real zwischen Abteilungen wählen kann — d.h. beide Bereiche
- *  (Förder- + Bauanträge) sind aktiv. Heute nur in der demo-Variante. Steuert den
- *  Abteilungs-Dropdown in den Einstellungen UND das Abteilungs-Segment im Home-
- *  Subtitle; ohne echte Wahl ist „Beide Abteilungen" irreführender Füll-Text. */
-export function hasDepartmentChoice(): boolean {
-  return isAntraegeEnabled() && isBauantraegeEnabled();
-}
 /** Dev-only: Löschen von Feedback-Tickets im Kurator-Dashboard (nach Bestätigung).
  *  Destruktiv — nur im dev-Build true. `=== true` für Backward-Kompat mit
  *  pre-2.18-Configs ohne den Flag. */

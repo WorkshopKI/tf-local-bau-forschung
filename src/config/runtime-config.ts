@@ -45,7 +45,6 @@ export interface TeamflowFeatures {
   devInfraPanel: boolean;
   devFixtures: boolean;
   antraege: boolean;
-  bauantraege: boolean;
   dokumente: boolean;
   /** Plugin "Auslastung" — automatische Kategorisierung + MA-Zuweisung (PL-Tool). */
   auslastung: boolean;
@@ -112,7 +111,6 @@ export interface TeamflowFeatures {
 
 export interface TeamflowMenuLabels {
   antraege?: string;
-  bauantraege?: string;
   dokumente?: string;
 }
 
@@ -171,7 +169,7 @@ export interface TeamflowScanConfig {
 
 export interface TeamflowConfig {
   configVersion: number;
-  variant: 'development' | 'demo' | 'production' | 'custom';
+  variant: 'development' | 'production' | 'custom';
   build: TeamflowBuildInfo;
   data: TeamflowDataConfig;
   /** v2.0 — optional, Build-Layer fuellt mit Defaults wenn weggelassen. */

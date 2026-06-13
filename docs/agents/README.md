@@ -59,4 +59,4 @@ npm run build:dev      # Single-File-Build erfolgreich
 
 Verifikation per Doppelklick auf die gebaute HTML unter `dist-single/` (z.B. `zah.html`, abhängig von `build.outputFilename` in der dev-Config) in Chrome/Edge — keine Console-Errors.
 
-`build:demo`, `build:prod`, `build:kurator` und `build:pl` **nicht** routinemäßig mit-bauen — nur bei strukturellen Änderungen an Variant-Configs. Siehe `CLAUDE.md` → Build-Varianten.
+`build:prod`, `build:kurator` und `build:pl` **nicht** routinemäßig mit-bauen — nur bei strukturellen Änderungen an Variant-Configs. Siehe `CLAUDE.md` → Build-Varianten.

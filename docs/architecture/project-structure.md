@@ -17,10 +17,6 @@ src/
 │   ├── MaLoginGate.tsx          <- v2.11: MA-Login-Wall (Kürzel aus Passwort, prod + dev)
 │   ├── KuratorLoginGate.tsx     <- @deprecated v2.16 (abgelöst durch AppPasswordGate); bleibt für KuratorSessionPanel-Referenz
 │   ├── components/
-│   │   ├── ArtefakteTab.tsx     <- Shared artifact management (both departments)
-│   │   ├── SimilarCases.tsx     <- AI-powered similar case suggestions
-│   │   ├── VerlaufTab.tsx       <- Workflow history timeline
-│   │   ├── VorgangDokumenteTab.tsx <- Document viewer per Vorgang
 │   │   ├── DokumentAufnahme.tsx <- v2.68: wiederverwendbare Dokumenten-Aufnahmefläche (Drag&Drop + FKZ-Relation, Verbund-Ebene) + dokumentAufnahmeFkz.ts (pure classifyFkz)
 │   │   └── tour/
 │   │       ├── TourOverlay.tsx  <- Spotlight-Overlay für Onboarding-Tour (clip-path, Retry, Auto-Nav)
@@ -44,7 +40,6 @@ src/
 │   ├── services/
 │   │   ├── ai/
 │   │   │   ├── bridge.ts        <- AIBridge orchestrator
-│   │   │   ├── prompts.ts       <- Chat prompt templates
 │   │   │   ├── rag-context.ts   <- RAG context builder
 │   │   │   └── transports/      <- DirectLLM, Streamlit
 │   │   ├── search/
@@ -74,25 +69,16 @@ src/
 │   │   │   └── index.ts         <- PDF + DOCX to Markdown
 │   │   ├── skills/              <- v2.68: Gutachten-Skill als Datenstruktur (kurzfassung-skill + parseSkillOutput + checks + transport-agnostischer run-skill) — Registry-ready
 │   │   ├── gutachten-vorlagen/  <- v2.68: DOCX-Vorlagen-Füller (fill-template Run-Splitting + Anker + Dry-Run, field-mapping, vorlagen-quelle Handle, save-docx)
-│   │   ├── export/
-│   │   │   ├── docx-export.ts   <- DOCX generation
-│   │   │   └── docx-templates.ts
-│   │   ├── seed/                <- Demo/test data generators
+│   │   ├── seed/                <- Förder-Fixture-Loader (fixture-loader.ts; Bauantrag-/Dokumente-/Artefakt-Demo-Seeds entfernt v2.88)
 │   │   ├── storage/
 │   │   │   ├── index.ts         <- StorageService facade
 │   │   │   ├── idb-store.ts     <- IndexedDB wrapper
 │   │   │   └── fs-store.ts      <- File System Access API wrapper
 │   │   ├── sync/                <- File server sync queue
 │   │   ├── versioning/          <- Document version management
-│   │   ├── workflow/
-│   │   │   ├── engine.ts        <- Status transitions
-│   │   │   ├── history.ts       <- Workflow history
-│   │   │   └── deadlines.ts     <- Deadline calculations
 │   │   ├── review/              <- Document review service
-│   │   ├── artifacts.ts         <- Artifact CRUD
 │   │   ├── keyboard.ts          <- Shortcut registry
 │   │   ├── tags.ts              <- Tag operations
-│   │   └── templates.ts         <- Document templates
 │   │   ├── feedback/            <- Feedback-System Service-Layer
 │   │   │   ├── feedbackService.ts   <- CRUD + Shared-File-Sync + FAQ + Sponsoring (sponsorTicket/unsponsorTicket/getSponsoringProgress)
 │   │   │   ├── feedbackLlm.ts       <- System-Prompt-Loader + Parser + DEFAULT_SYSTEM_PROMPT
@@ -116,7 +102,7 @@ src/
 │   │   │   ├── types.ts             <- AuditEntry, BuildLock, BackupEntry, SessionMeta, KuratorConfigPlain, ZugangsEintrag/-File, FolderValidationResult, Pfad-Konstanten
 │   │   │   └── index.ts             <- Barrel-Export
 │   ├── types/
-│   │   ├── vorgang.ts           <- Vorgang + Artifact types
+│   │   ├── vorgang.ts           <- Vorgang + VorgangStatus (Home-Dashboard-Shape; Bauantrag-Domäne entfernt v2.88)
 │   │   ├── config.ts            <- UserProfile (is_kurator + Legacy is_admin), AIProviderConfig
 │   │   ├── plugin.ts            <- TeamFlowPlugin interface (kuratorOnly + Legacy adminOnly, category 'kuration')
 │   │   ├── feedback.ts          <- FeedbackItem (kurator_status/_priority/_notes + Legacy admin_*), FeedbackCategory, FeedbackStatus, ChatMsg, etc.
@@ -145,7 +131,6 @@ src/
 │   │   ├── views/KompetenzMatrixView.tsx <- v2.15: PL-Kompetenz-Tab (XLSX-Upload + editierbares Grid)
 │   │   ├── components/kompetenz/    <- v2.15: zerlegte Matrix-Grid-Komponenten (KompetenzMatrix + MatrixRow/Header/Toolbar/Controls/LevelCell/CapCell)
 │   │   └── services/             <- v2.85: 6 kohäsive Submodule (matching/ klassifizierung/ kapazitaet/ identitaet/ onboarding/ verbund/) je mit index.ts-Barrel + Root-Querschnitt (auslastung-store, cross-tab, export-service, default-labels, tib-mail)
-│   ├── bauantraege/             <- Bauanträge-Workflow (id='bauantraege', Vorgang-Typ bauantrag — nur in dev/demo-Variants sichtbar)
 │   ├── dokumente/               <- Dokumenten-Browser (id='dokumente', Phase-2-Platzhalter)
 │   ├── suche/                   <- Hybrid-Suche-UI (id='suche', Orama + Vector)
 │   ├── chat/                    <- AI-Chat (id='chat')

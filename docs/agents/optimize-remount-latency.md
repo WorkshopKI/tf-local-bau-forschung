@@ -10,7 +10,7 @@ Symptome:
 - Initial-Mount ist (gefühlt) schneller weil dort ein Spinner/Countdown sichtbar ist, beim Re-Mount fehlt das.
 - DevTools-Performance-Profile zeigt 1–3 s synchronen Main-Thread-Block kurz nach dem Mount.
 
-Nicht passt es bei: echten Daten-Loads (IDB-Read selbst ist langsam → andere Strategie), bei Plugins mit Custom-Route-Handler (`bauantraege`, `antraege` — die haben Keep-Alive).
+Nicht passt es bei: echten Daten-Loads (IDB-Read selbst ist langsam → andere Strategie), bei Plugins mit Custom-Route-Handler (`antraege` — hat Keep-Alive).
 
 ## Hebel C — Aggregate aus Component-`useMemo` in den Zustand-Store
 

@@ -1,7 +1,6 @@
 import type { TeamFlowPlugin } from '@/core/types/plugin';
 import { homePlugin } from '@/plugins/home';
 import { einstellungenPlugin } from '@/plugins/einstellungen';
-import { bauantraegePlugin } from '@/plugins/bauantraege';
 import { dokumentePlugin } from '@/plugins/dokumente/index';
 import { chatPlugin } from '@/plugins/chat';
 import { suchePlugin } from '@/plugins/suche';
@@ -23,7 +22,6 @@ import { features } from '@/config/feature-flags';
 const allPlugins: TeamFlowPlugin[] = [
   homePlugin,
   antraegePlugin,
-  bauantraegePlugin,
   auslastungPlugin,
   dokumentePlugin,
   suchePlugin,
@@ -58,13 +56,13 @@ export const PLUGIN_ROUTES: Record<string, string> = Object.fromEntries(
 
 /**
  * Plugin-IDs mit "einfacher" Route (keine eigene Sub-Routen-Struktur wie
- * `bauantraege/:id` oder `antraege/verbund/:verbundId`). Diese werden im
- * Router als simple `{ path, element }`-Children registriert.
+ * `antraege/verbund/:verbundId`). Diese werden im Router als simple
+ * `{ path, element }`-Children registriert.
  *
- * Plugins MIT Custom-Route-Handlern (home, bauantraege, antraege) werden
- * im Router explizit verdrahtet und sind hier ausgenommen.
+ * Plugins MIT Custom-Route-Handlern (home, antraege) werden im Router
+ * explizit verdrahtet und sind hier ausgenommen.
  */
-const PLUGINS_WITH_CUSTOM_ROUTE = new Set(['home', 'bauantraege', 'antraege']);
+const PLUGINS_WITH_CUSTOM_ROUTE = new Set(['home', 'antraege']);
 export const FLAT_ROUTE_PLUGIN_IDS: string[] = allPlugins
   .filter(p => !PLUGINS_WITH_CUSTOM_ROUTE.has(p.id))
   .map(p => p.id);

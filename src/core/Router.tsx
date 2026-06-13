@@ -15,7 +15,6 @@ import { NavigationContext } from '@/core/hooks/useNavigation';
 import type { NavigationParams } from '@/core/hooks/useNavigation';
 import { legacyRedirectTarget, pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { FLAT_ROUTE_PLUGIN_IDS } from '@/plugins.config';
-import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 
 /**
@@ -32,7 +31,6 @@ function NavigationBridge({ children }: { children: React.ReactNode }): React.Re
     () => ({
       navigate: (pluginId: string, params?: NavigationParams) => {
         if (params?.selectedId) {
-          if (pluginId === 'bauantraege') useBauantraegeStore.getState().setSelectedId(params.selectedId);
           if (pluginId === 'antraege') useAntraegeStore.getState().setSelectedAktenzeichen(params.selectedId);
           const base = pluginIdToRoute(pluginId);
           navigate(`${base}/${encodeURIComponent(params.selectedId)}`);
@@ -46,16 +44,6 @@ function NavigationBridge({ children }: { children: React.ReactNode }): React.Re
   );
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;
-}
-
-function BauantraegeRoute({ plugin }: { plugin: TeamFlowPlugin }): React.ReactElement {
-  const { id } = useParams<{ id: string }>();
-  const setSelectedId = useBauantraegeStore(s => s.setSelectedId);
-  useEffect(() => {
-    setSelectedId(id ?? null);
-  }, [id, setSelectedId]);
-  const Component = plugin.component;
-  return <Component />;
 }
 
 function AntraegeRoute({ plugin }: { plugin: TeamFlowPlugin }): React.ReactElement {
@@ -78,10 +66,10 @@ function VerbundRoute({ plugin }: { plugin: TeamFlowPlugin }): React.ReactElemen
   return <Component />;
 }
 
-function RootLayout({ plugins, department }: { plugins: TeamFlowPlugin[]; department: 'antraege' | 'bauantraege' | 'beide' }): React.ReactElement {
+function RootLayout({ plugins }: { plugins: TeamFlowPlugin[] }): React.ReactElement {
   return (
     <NavigationBridge>
-      <ShellLayout plugins={plugins} department={department}>
+      <ShellLayout plugins={plugins}>
         <Outlet />
       </ShellLayout>
     </NavigationBridge>
@@ -94,7 +82,6 @@ function stripLeadingSlash(route: string): string {
 
 export function buildRouter(
   plugins: TeamFlowPlugin[],
-  department: 'antraege' | 'bauantraege' | 'beide',
 ): ReturnType<typeof createHashRouter> {
   const byId = new Map(plugins.map(p => [p.id, p]));
   const children: RouteObject[] = [];
@@ -104,8 +91,8 @@ export function buildRouter(
 
   // Einfache Plugins ohne Detail-Routen — die Liste wird aus den Plugin-
   // Definitionen abgeleitet (`src/plugins.config.ts: FLAT_ROUTE_PLUGIN_IDS`),
-  // Plugins mit Custom-Route-Handlern (home, bauantraege, antraege) sind dort
-  // ausgenommen und werden unten explizit registriert.
+  // Plugins mit Custom-Route-Handlern (home, antraege) sind dort ausgenommen
+  // und werden unten explizit registriert.
   for (const id of FLAT_ROUTE_PLUGIN_IDS) {
     const plugin = byId.get(id);
     if (!plugin) continue;
@@ -123,11 +110,6 @@ export function buildRouter(
     },
   });
 
-  const bauantraege = byId.get('bauantraege');
-  if (bauantraege) {
-    children.push({ path: 'bauantraege', element: <BauantraegeRoute plugin={bauantraege} /> });
-    children.push({ path: 'bauantraege/:id', element: <BauantraegeRoute plugin={bauantraege} /> });
-  }
   const antraege = byId.get('antraege');
   if (antraege) {
     children.push({ path: 'antraege', element: <AntraegeRoute plugin={antraege} /> });
@@ -143,7 +125,7 @@ export function buildRouter(
   return createHashRouter([
     {
       path: '/',
-      element: <RootLayout plugins={plugins} department={department} />,
+      element: <RootLayout plugins={plugins} />,
       children,
     },
   ]);
@@ -151,11 +133,9 @@ export function buildRouter(
 
 export function AppRouter({
   plugins,
-  department,
 }: {
   plugins: TeamFlowPlugin[];
-  department: 'antraege' | 'bauantraege' | 'beide';
 }): React.ReactElement {
-  const router = useMemo(() => buildRouter(plugins, department), [plugins, department]);
+  const router = useMemo(() => buildRouter(plugins), [plugins]);
   return <RouterProvider router={router} />;
 }

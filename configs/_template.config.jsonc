@@ -9,7 +9,7 @@
 
 {
   "configVersion": 2,
-  "variant": "custom", // "development" | "demo" | "production" | "custom"
+  "variant": "custom", // "development" | "production" | "custom"
 
   "build": {
     // Anzeige-Label in Sidebar und Header
@@ -28,7 +28,7 @@
     //
     // v2.0.2: Default kommt aus configs/_shared.json — dort wird der org-weite
     // Pfad zentral gepflegt. Hier nur eintragen wenn diese Variante einen
-    // ANDEREN Pfad braucht (z.B. demo.config.json setzt explizit `null`, um
+    // ANDEREN Pfad braucht (z.B. eine Variante, die explizit `null` setzt, um
     // den shared-Default zu deaktivieren).
     "fixedDataSharePath": null,
     // v2.0: erwarteter Ordner-Name beim Daten-Share-Picker.
@@ -37,9 +37,9 @@
     "expectedFolderName": null,
     // User darf den Pfad im Welcome-Screen selbst auswählen
     "allowUserToChangePath": true,
-    // Lokaler tmp-Ordner erlaubt, falls kein SMB verfügbar (nur DEV/Demo sinnvoll)
+    // Lokaler tmp-Ordner erlaubt, falls kein SMB verfügbar (nur DEV sinnvoll)
     "allowLocalFallback": false,
-    // Synthetische Test-CSVs ins Bundle einlegen (nur für Demo/Dev-Build)
+    // Förder-Fixture-CSVs beim ersten Start automatisch laden (nur DEV-Build)
     "demoDataBundled": false
   },
 
@@ -64,28 +64,21 @@
     "volltextsuche": true,     // Such-Route + Index-Kuration
     "devInfraPanel": true,     // Dev-Infra-Test-Plugin sichtbar
     // ACHTUNG: Nur in variant=development erlaubt. Schema-Validierung bricht
-    // den Build ab, wenn devFixtures=true + variant=demo|production.
+    // den Build ab, wenn devFixtures=true + variant=production.
     // Fixtures enthalten destruktive Operationen (resetAll) + sensible Defaults.
     "devFixtures": false,
 
     // Bereichs-Menüs:
     //
-    // - antraege: Das zentrale Menü. In der Real-Variante (Forschungsförderung)
-    //   typischerweise aktiv. Dort Label auf "Förderanträge" setzen. Enthält
-    //   seit v1.14 auch die konsolidierten Forschungsvorgänge (das separate
-    //   `forschung`-Plugin wurde entfernt, Fixtures sind in den Antrags-Seed
-    //   migriert).
-    //
-    // - bauantraege: Showcase-Bereich mit synthetischen Bauantragsdaten.
-    //   Für Demo-Zwecke oder wenn eine Behörde mit Bauanträgen arbeitet.
-    //   In Real-Variante (Forschungsförderung) deaktiviert.
+    // - antraege: Das zentrale (und einzige) Bereichs-Menü — Förderanträge.
+    //   Enthält seit v1.14 auch die konsolidierten Forschungsvorgänge (das
+    //   separate `forschung`-Plugin wurde entfernt, Fixtures sind in den
+    //   Antrags-Seed migriert).
     //
     // - dokumente: Platzhalter für Phase 2 (Dokumentenscan). Default deaktiviert.
     //
-    // Validation: mindestens eines aus (antraege | bauantraege)
-    // muss true sein, sonst bricht der Build ab.
+    // Validation: features.antraege muss true sein, sonst bricht der Build ab.
     "antraege": true,
-    "bauantraege": false,
     "dokumente": false,
     // Auslastung-Modul: automatische Kategorisierung + MA-Zuweisung. Default
     // false; in dev.config aktivieren um das Plugin auszuprobieren.
@@ -121,17 +114,16 @@
   },
 
   // Pro Variant überschreibbare Sidebar-Labels für Bereichs-Menüs.
-  // Fehlende Keys fallen auf die Default-Labels ("Förderanträge", "Bauanträge",
-  // "Dokumente") zurück. Für Demo-Varianten kann `antraege` z.B. auf "Anträge"
-  // gesetzt werden, wenn der Begriff "Förderanträge" zu fachspezifisch ist.
+  // Fehlende Keys fallen auf die Default-Labels ("Förderanträge", "Dokumente")
+  // zurück. `antraege` kann z.B. auf "Anträge" gesetzt werden, wenn der Begriff
+  // "Förderanträge" zu fachspezifisch ist.
   "menuLabels": {
     "antraege": "Förderanträge",
-    "bauantraege": "Bauanträge",
     "dokumente": "Dokumente"
   },
 
   // Optional. Nur relevant wenn features.devFixtures=true.
-  // Wird in demo/production ignoriert.
+  // Wird in production ignoriert.
   "dev": {
     "defaultKuratorName": "Dev",
     "defaultKuratorPassword": "dev",

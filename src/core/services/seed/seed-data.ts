@@ -4,16 +4,12 @@ import { getActiveModelId, getModelById } from '@/core/services/search/model-reg
 import { ensureDefaultProgramm } from '@/core/services/csv';
 import { listAntraegeByProgramm, deleteAntrag } from '@/core/services/csv/idb-csv';
 import { removeSchema } from '@/core/services/csv/schemaRegistry';
-import { bauantraegeData } from './bauantraege-data';
-import { artefakteData } from './artefakte-data';
 import { LEGACY_PRE_V2_AKTENZEICHEN } from './foerderantraege-data';
 import { FIXTURE_SCHEMA_IDS, seedFromFixtureCsvs } from './fixture-loader';
-import { isBauantraegeEnabled } from '@/config/feature-flags';
 
 export interface SeedResult {
-  vorgaenge: number;
-  dokumente: number;
-  artefakte: number;
+  /** Anzahl der aus den Förder-Fixture-CSVs importierten Anträge. */
+  antraege: number;
 }
 
 /**
@@ -31,9 +27,7 @@ export async function seedTestData(
   onProgress?: (current: number, total: number) => void,
 ): Promise<SeedResult> {
   const isSeeded = await storage.idb.get<boolean>(SEED_COMPLETE_FLAG);
-  if (isSeeded) return { vorgaenge: 0, dokumente: 0, artefakte: 0 };
-
-  const { allDokumente } = await import('./dokumente-data');
+  if (isSeeded) return { antraege: 0 };
 
   const modelId = await getActiveModelId(storage.idb);
   const model = getModelById(modelId);
@@ -41,31 +35,9 @@ export async function seedTestData(
 
   const emptyVec = new Array(model.dimensions).fill(0) as number[];
 
-  // Bauantraege — save + index. Nur in Builds mit aktivem `features.bauantraege`
-  // (heute: demo-Variante). Andere Varianten haben kein Bauantraege-Plugin und
-  // brauchen die 24 synthetischen Vorgaenge auch nicht in IDB.
-  const seedBauantraege = isBauantraegeEnabled();
-  const bauantraegeCount = seedBauantraege ? bauantraegeData.length : 0;
-  // Total wird zwei Stages spaeter um die importierten Foerderantraege ergaenzt;
-  // hier ein konservativer Initialwert fuer den Progress-Balken.
-  const baseTotal = bauantraegeCount + allDokumente.length + artefakteData.length;
-  let current = 0;
-
-  if (seedBauantraege) {
-    for (const v of bauantraegeData) {
-      await storage.saveVorgang(v);
-      insertDoc({
-        id: v.id, text: `${v.title} ${v.notes} ${v.tags.join(' ')}`,
-        title: v.title, source: v.id, tags: v.tags.join(','),
-        type: 'bauantrag', embedding: emptyVec,
-      });
-      onProgress?.(++current, baseTotal);
-    }
-  }
-
-  // Foerderantraege — kommen jetzt aus echten anonymisierten CSVs in
-  // docs/fixtures/. Wenn die CSVs lokal fehlen (frischer Klon), liefert der
-  // Loader 0 Antraege und der Seed laeuft graceful weiter.
+  // Foerderantraege — kommen aus echten anonymisierten CSVs in docs/fixtures/.
+  // Wenn die CSVs lokal fehlen (frischer Klon), liefert der Loader 0 Antraege
+  // und der Seed laeuft graceful weiter.
   //
   // Gate: nur seeden, wenn das Default-Programm leer ist. So vermischen sich
   // die Fixture-„Muster TV Titel"-Antraege nicht mit User-importierten echten
@@ -83,8 +55,8 @@ export async function seedTestData(
     fixtureResult = await seedFromFixtureCsvs(storage, programm.id);
   }
   const importedAntraege = await listAntraegeByProgramm(storage.idb, programm.id);
-  const total = baseTotal + importedAntraege.length;
 
+  let current = 0;
   for (const a of importedAntraege) {
     const tags = Array.isArray(a.tags) ? (a.tags as string[]) : [];
     const notes = typeof a.notes === 'string' ? a.notes : '';
@@ -97,22 +69,7 @@ export async function seedTestData(
       type: 'antrag',
       embedding: emptyVec,
     });
-    onProgress?.(++current, total);
-  }
-
-  for (const doc of allDokumente) {
-    await storage.idb.set(`doc:${doc.id}`, doc);
-    insertDoc({
-      id: doc.id, text: doc.markdown, title: doc.filename,
-      source: doc.filename, tags: doc.tags.join(','),
-      type: 'dokument', embedding: emptyVec,
-    });
-    onProgress?.(++current, total);
-  }
-
-  for (const art of artefakteData) {
-    await storage.idb.set(`artifact:${art.id}`, art);
-    onProgress?.(++current, total);
+    onProgress?.(++current, importedAntraege.length);
   }
 
   await saveOramaToDB(storage.idb);
@@ -125,11 +82,7 @@ export async function seedTestData(
     );
   }
 
-  return {
-    vorgaenge: bauantraegeData.length + importedAntraege.length,
-    dokumente: allDokumente.length,
-    artefakte: artefakteData.length,
-  };
+  return { antraege: importedAntraege.length };
 }
 
 export async function clearSeedData(storage: StorageService): Promise<void> {

@@ -7,7 +7,6 @@ import { Badge } from '@/ui';
 import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { isBauantraegeEnabled } from '@/config/feature-flags';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import { SEARCH_COLUMNS, buildDynamicColumns, getColumnByKey, getColumnFilterValue, type SearchColumn } from './columns';
 import { useSucheStore } from './store';
@@ -122,7 +121,6 @@ export function SuchSeite(): React.ReactElement {
   // User getippt hat aber deferredQuery noch nicht durch (Initialer
   // useDeferredValue-Delay vor T=DEBOUNCE_MS — sonst stumme Phase).
   const showSpinner = loading || (queryNotEmpty && deferredPhase !== 'done' && deferredPhase !== 'error');
-  const showBauantraege = isBauantraegeEnabled();
   const analyseActive = analyse.result !== null;
 
   // Eager Preload beim Mount der Suche-Seite (Hintergrund, idle). Der
@@ -235,9 +233,8 @@ export function SuchSeite(): React.ReactElement {
       { id: 'antrag', label: 'Foerderantraege', count: pillCounts.antraege },
       { id: 'dokument', label: 'Dokumente', count: pillCounts.dokumente },
     ];
-    if (showBauantraege) base.push({ id: 'bauantrag', label: 'Bauantraege', count: pillCounts.bauantraege });
     return base;
-  }, [dataSource, showBauantraege]);
+  }, [dataSource]);
 
   const pillFiltered = useMemo(
     () => dataSource.filter(r => matchesPillFilter(r, typeFilter)),
@@ -246,7 +243,7 @@ export function SuchSeite(): React.ReactElement {
 
   // Antragstyp ist ein Foerderantrag-Konzept (vb_phase → FuE/DS/DL/NW). Counts
   // ueber die gesamte Treffer-Liste (stabil). Sichtbar/aktiv nur fuer die
-  // Antrag-Pills ('' = Alle, 'antrag') — bei Dokument-/Bauantrag-Pills waere er
+  // Antrag-Pills ('' = Alle, 'antrag') — bei der Dokument-Pill waere er
   // irrelevant und wuerde die Liste leeren, daher dort nicht angewandt.
   const antragstypItems = useMemo(() => getSucheAntragstypItems(dataSource), [dataSource]);
   const antragstypApplicable = typeFilter === '' || typeFilter === 'antrag';

@@ -82,7 +82,6 @@ export interface AggregateOptions {
    *  Liste anzuhaengen. Wenn nicht uebergeben, bleibt `verbund_titel`
    *  undefined und das UI faellt auf den TV-Titel zurueck. */
   verbundById?: Map<string, Verbund>;
-  includeBauantraege: boolean;
   includeAntraege: boolean;
   /** Erlaubt Tests mit einem fixen Heute-Datum. Default `Date.now()`. */
   nowMs?: number;
@@ -152,7 +151,6 @@ function antragToVorgangLike(
     : undefined;
   return {
     id: a.aktenzeichen,
-    type: 'bauantrag',
     title: a.titel ?? a.aktenzeichen,
     status: (a.status as Vorgang['status']) ?? 'neu',
     priority: 'normal',
@@ -193,7 +191,6 @@ function tallyStatus(status: string | undefined, stats: MutableStats): boolean {
 }
 
 export function computeDashboardAggregate(
-  bauantraege: readonly Vorgang[],
   antraege: readonly AntragListItem[],
   bearbeiterMode: BearbeiterFilterMode,
   options: AggregateOptions,
@@ -205,18 +202,6 @@ export function computeDashboardAggregate(
   let anyKuerzelSeen = false;
   const offeneVorgaenge: Vorgang[] = [];
   const fristKandidaten: Array<Vorgang & { daysLeft: number }> = [];
-
-  if (options.includeBauantraege) {
-    for (const v of bauantraege) {
-      stats.total++;
-      const isClosed = tallyStatus(v.status as string, stats);
-      if (isClosed) continue;
-      stats.offen++;
-      offeneVorgaenge.push(v);
-      const dl = daysUntil(v.deadline, nowMs);
-      if (dl !== null) fristKandidaten.push({ ...v, daysLeft: dl });
-    }
-  }
 
   // Alle TVs pro verbund_id (ueber den GESAMTEN Antrags-Bestand, inkl. nicht
   // offener) — Basis fuer die Verbund-Frist (max antragsdatum = zuletzt
@@ -235,7 +220,7 @@ export function computeDashboardAggregate(
   // Pro Verbund nur EIN Frist-Kandidat: alle TVs eines Verbundes teilen jetzt
   // dieselbe (vom letzten TV abgeleitete) Frist — ohne Dedupe wuerde ein Verbund
   // in `fristenDieseWoche`/`dringend` mehrfach gezaehlt. Solo-Antraege bleiben
-  // einzeln. Bauantraege (oben) haben kein Verbund-Konzept.
+  // einzeln.
   const seenFristVerbund = new Set<string>();
   const offeneAntraege: AntragVorgang[] = [];
   if (options.includeAntraege) {

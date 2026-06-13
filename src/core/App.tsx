@@ -50,7 +50,6 @@ function AppProviders({
   needsDowngrade,
   needsInitialPick,
   initialProfile,
-  department,
   seedToast, setSeedToast,
   syncToast, setSyncToast,
 }: {
@@ -72,7 +71,6 @@ function AppProviders({
   needsDowngrade: boolean;
   needsInitialPick: boolean;
   initialProfile: UserProfile | null;
-  department: UserProfile['department'];
   seedToast: string | null;
   setSeedToast: (v: string | null) => void;
   syncToast: string | null;
@@ -84,7 +82,6 @@ function AppProviders({
   const tourValue = useTour(TOUR_STEPS.length);
   const [quarterToast, setQuarterToast] = useState<string | null>(null);
 
-  const activeDepartment = profileValue.profile?.department ?? department;
   const profileName = profileValue.profile?.name;
   const isKurator = profileValue.profile?.is_kurator === true || profileValue.profile?.is_admin === true || initialProfile?.is_kurator === true || initialProfile?.is_admin === true;
 
@@ -131,7 +128,7 @@ function AppProviders({
               ) : showMaLoginGate ? (
                 <MaLoginGate onSuccess={() => setShowMaLoginGate(false)} />
               ) : (
-                <AppRouter plugins={enabledPlugins} department={activeDepartment} />
+                <AppRouter plugins={enabledPlugins} />
               )}
               {quarterToast && (
                 <div
@@ -221,7 +218,6 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const [needsDowngrade, setNeedsDowngrade] = useState(false);
   const [needsInitialPick, setNeedsInitialPick] = useState(false);
   const [initialProfile, setInitialProfile] = useState<UserProfile | null>(null);
-  const [department, setDepartment] = useState<UserProfile['department']>('beide');
   const [seedToast, setSeedToast] = useState<string | null>(null);
   const [syncToast, setSyncToast] = useState<string | null>(null);
   // v2.16: Rollen-Passwort-Wall (pl + kurator, runtimeConfig.auth). Loest die
@@ -356,7 +352,6 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         if (profile) {
           applyThemeColor(profile.theme.hue);
           setDarkMode(profile.theme.dark);
-          setDepartment(profile.department);
           setInitialProfile(profile);
         }
         setShowOnboarding(false);
@@ -434,17 +429,17 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   }, [refreshHandleGate, storage]);
 
   // Demo-Daten-Auto-Seed: Wenn data.demoDataBundled aktiv ist und die IDB
-  // noch keinen `seed-complete`-Marker trägt, lädt seedTestData() synthetische
-  // Vorgänge/Dokumente/Artefakte. seedTestData() ist idempotent — zweiter Aufruf
-  // liefert Nullen und es erscheint kein Toast.
+  // noch keinen `seed-complete`-Marker trägt, lädt seedTestData() die
+  // Förderanträge aus den anonymisierten Fixture-CSVs (docs/fixtures/).
+  // seedTestData() ist idempotent — zweiter Aufruf liefert 0 und kein Toast.
   useEffect(() => {
     if (!ready || showOnboarding || showWelcome || showStartup || showAppGate || showMaLoginGate || !isDemoDataBundled()) return;
     let cancelled = false;
     (async () => {
       const result = await seedTestData(storage);
       if (cancelled) return;
-      if (result.vorgaenge > 0 || result.dokumente > 0 || result.artefakte > 0) {
-        setSeedToast(`Demo-Daten geladen (${result.vorgaenge} Vorgänge, ${result.dokumente} Dokumente, ${result.artefakte} Artefakte)`);
+      if (result.antraege > 0) {
+        setSeedToast(`Demo-Daten geladen (${result.antraege} Förderanträge)`);
         setTimeout(() => setSeedToast(null), 5000);
       }
     })();
@@ -547,7 +542,6 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       needsDowngrade={needsDowngrade}
       needsInitialPick={needsInitialPick}
       initialProfile={initialProfile}
-      department={department}
       seedToast={seedToast}
       setSeedToast={setSeedToast}
       syncToast={syncToast}

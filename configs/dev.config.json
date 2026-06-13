@@ -26,7 +26,6 @@
     "devInfraPanel": true,
     "devFixtures": true,
     "antraege": true,
-    "bauantraege": false,
     "dokumente": true,
     "auslastung": true,
     "auslastungSelbstEintragung": true,
@@ -44,7 +43,6 @@
   },
   "menuLabels": {
     "antraege": "Förderanträge",
-    "bauantraege": "Bauanträge",
     "dokumente": "Dokumente"
   },
   "dev": {

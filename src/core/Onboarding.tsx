@@ -5,11 +5,8 @@ import { PRESET_COLORS, applyThemeColor } from '@/components/ui/theme';
 import type { UserProfile } from '@/core/types/config';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
-  isAntraegeEnabled,
-  isBauantraegeEnabled,
   isKuratorMenusEnabled,
   isMaLoginEnabled,
-  menuLabel,
 } from '@/config/feature-flags';
 import { runtimeConfig } from '@/config/runtime-config';
 import {
@@ -39,15 +36,6 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
-  // Wenn beide Bereiche aktiv sind (z.B. Demo-Variante): „beide". Wenn nur
-  // einer aktiv ist: dieser. `'bauantraege'` als Fallback nur wenn antraege
-  // wirklich aus ist — historisch ein Edge-Case der seit der Konsolidierung
-  // (May 2026) faktisch nicht mehr vorkommt.
-  const defaultDept: UserProfile['department'] =
-    isAntraegeEnabled() && isBauantraegeEnabled() ? 'beide'
-    : isBauantraegeEnabled() ? 'bauantraege'
-    : 'antraege';
-  const [department, setDepartment] = useState<UserProfile['department']>(defaultDept);
   const [kuerzel, setKuerzel] = useState('');
   const [isKurator, setIsKurator] = useState(false);
   const [selectedHue, setSelectedHue] = useState(221);
@@ -95,7 +83,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
   const handleFinish = async (): Promise<void> => {
     const finalProfile: UserProfile = {
       name: name.trim(),
-      department,
+      department: 'antraege',
       theme: { hue: selectedHue, dark: false },
       is_kurator: isKurator,
       ...(kuerzel ? { bearbeiter_kuerzel: kuerzel } : {}),
@@ -149,16 +137,6 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
                     2–6 Großbuchstaben. Wird im Bearbeiter-Filter und in eingereichten
                     Feedback-Tickets verwendet. Kann später in den Einstellungen geändert werden.
                   </p>
-                </div>
-              )}
-              {isAntraegeEnabled() && isBauantraegeEnabled() && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[13px] font-medium text-[var(--tf-text)]">Abteilung</label>
-                  <select value={department} onChange={e => setDepartment(e.target.value as UserProfile['department'])} className={inputClass} style={inputStyle}>
-                    <option value="antraege">{menuLabel('antraege', 'Förderanträge')}</option>
-                    <option value="bauantraege">{menuLabel('bauantraege', 'Bauanträge')}</option>
-                    <option value="beide">Beide</option>
-                  </select>
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
@@ -258,9 +236,6 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
             <h1 className="text-[20px] font-medium text-[var(--tf-text)]">Alles eingerichtet</h1>
             <div className="text-[13px] text-[var(--tf-text-secondary)] space-y-1.5">
               <p><span className="text-[var(--tf-text-tertiary)]">Name:</span> {name}{kuerzel && ` (${kuerzel})`}</p>
-              {isAntraegeEnabled() && isBauantraegeEnabled() && (
-                <p><span className="text-[var(--tf-text-tertiary)]">Abteilung:</span> {department === 'bauantraege' ? menuLabel('bauantraege', 'Bauanträge') : department === 'antraege' ? menuLabel('antraege', 'Förderanträge') : 'Beide'}</p>
-              )}
               <div className="flex items-center justify-center gap-2">
                 <span className="text-[var(--tf-text-tertiary)]">Farbe:</span>
                 <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: `hsl(${selectedHue}, ${selectedSat}, ${selectedLit})` }} />

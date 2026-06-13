@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as Icons from 'lucide-react';
 import type { TeamFlowPlugin } from '@/core/types/plugin';
-import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { keyboardService } from '@/core/services/keyboard';
 import { CommandPalette } from '@/components/ui/CommandPalette';
 import type { CommandItem } from '@/components/ui/CommandPalette';
@@ -31,8 +30,6 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { runtimeConfig } from '@/config/runtime-config';
 import {
-  isAntraegeEnabled,
-  isBauantraegeEnabled,
   isFeedbackEnabled,
   isKuratorMenusEnabled,
   isCsvAutoRefreshEnabled,
@@ -47,7 +44,6 @@ import { useAutoSmbRefresh } from '@/dev-fixtures/useAutoSmbRefresh';
 
 interface ShellLayoutProps {
   plugins: TeamFlowPlugin[];
-  department?: 'antraege' | 'bauantraege' | 'beide';
   children: React.ReactNode;
 }
 
@@ -87,13 +83,12 @@ function getIcon(name: string): IconComponent {
 function displayName(plugin: TeamFlowPlugin): string {
   switch (plugin.id) {
     case 'antraege':    return menuLabel('antraege', plugin.name);
-    case 'bauantraege': return menuLabel('bauantraege', plugin.name);
     case 'dokumente':   return menuLabel('dokumente', plugin.name);
     default:            return plugin.name;
   }
 }
 
-export function ShellLayout({ plugins, department = 'beide', children }: ShellLayoutProps): React.ReactElement {
+export function ShellLayout({ plugins, children }: ShellLayoutProps): React.ReactElement {
   const { profile } = useProfile();
   // Runtime-Gate: Kurator-Modus nur aktiv wenn Profil *und* Build-Flag stimmen.
   // Build-Time-Filter in `plugins.config.ts:45` entfernt `category: 'kuration'`
@@ -104,24 +99,13 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Department-Filter nur greifen wenn BEIDE Bereiche im Build aktiv sind.
-  // Bauantraege sind synthetisch und nur in der demo-Variante an — wenn das
-  // Flag aus ist, ignorieren wir ein eventuell altes `department: 'bauantraege'`-
-  // Profil (sonst wuerde der User in dev/prod faelschlich kein Antraege-Plugin
-  // sehen). Plugin-Existenz selbst ist schon ueber `features.bauantraege` in
-  // `plugins.config.ts` zur Build-Zeit gegated.
-  const bothDepartmentsActive = isAntraegeEnabled() && isBauantraegeEnabled();
   const visiblePlugins = useMemo(() => {
     return plugins.filter(p => {
       const kuratorOnly = p.kuratorOnly ?? p.adminOnly;
       if (kuratorOnly && !isKurator) return false;
-      if (bothDepartmentsActive) {
-        if (department === 'antraege' && p.id === 'bauantraege') return false;
-        if (department === 'bauantraege' && p.id === 'antraege') return false;
-      }
       return true;
     });
-  }, [plugins, department, isKurator, bothDepartmentsActive]);
+  }, [plugins, isKurator]);
 
   const activeId = routeToPluginId(location.pathname) ?? 'home';
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(loadSidebarMode);
@@ -194,8 +178,8 @@ export function ShellLayout({ plugins, department = 'beide', children }: ShellLa
   useHeartbeat();
 
   const goToPlugin = useCallback((pluginId: string) => {
-    // Beim Wechsel zu Listen-Plugins: Detail-State in Stores clearen (Route-Param fehlt → Effekt clearet ohnehin, aber wir machen es hier explizit)
-    if (pluginId === 'bauantraege') useBauantraegeStore.getState().setSelectedId(null);
+    // Beim Wechsel zu einem Listen-Plugin clearet der jeweilige Route-Param-
+    // Effekt (fehlender Param → null) den Detail-State im Store automatisch.
     navigate(pluginIdToRoute(pluginId));
   }, [navigate]);
 

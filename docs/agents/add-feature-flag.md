@@ -21,7 +21,6 @@ Entscheidung über die Sichtbarkeits-**Matrix** in [CLAUDE.md → Build-Variante
 Alle Variant-Configs unter `configs/` müssen den neuen Flag explizit setzen (`true` **oder** `false`), sonst schlägt `validateConfig()` fehl:
 
 - `configs/dev.config.json`
-- `configs/demo.config.json`
 - `configs/prod.config.json`
 - `configs/kurator.config.json`
 - `configs/pl.config.json`

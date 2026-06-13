@@ -14,8 +14,8 @@ export const CONFIG_SCHEMA_VERSION = 2;
  * Listen wie `scan.file_extensions` sonst stillschweigend wachsen wuerden.
  *
  * **Null-Semantik**: `undefined` im Override bedeutet "nicht angegeben → Basis
- * behalten". `null` ist ein expliziter Override-Wert (z.B. demo.config.json
- * setzt `fixedDataSharePath: null` um den shared-Default zu deaktivieren).
+ * behalten". `null` ist ein expliziter Override-Wert (eine Variante kann z.B.
+ * `fixedDataSharePath: null` setzen, um den shared-Default zu deaktivieren).
  *
  * Wird von `build-with-config.mjs` (mergt `_shared.json` + Variant-Config) und
  * `vite.config.ts` (mergt `_shared.json` + DEFAULT_CONFIG fuer den Dev-Server)
@@ -90,12 +90,9 @@ export const DEFAULT_CONFIG = {
     volltextsuche: true,
     devInfraPanel: true,
     devFixtures: true,
-    // Bereichs-Menüs: mindestens eines der beiden (antraege/bauantraege) muss aktiv sein.
-    // Bauantraege sind synthetische Demo-Daten — nur die `demo`-Variante aktiviert
-    // sie. In dev/prod/kurator/pl bleibt das Flag aus, damit weder das Plugin,
-    // noch die Department-Auswahl, noch die Seeds erscheinen.
+    // Bereichs-Menü: `antraege` (Förderanträge) ist der einzige Bereich und muss
+    // aktiv sein. `dokumente` ist ein Phase-2-Platzhalter.
     antraege: true,
-    bauantraege: false,
     dokumente: false,
     auslastung: false,
     /** Selbsteintragungs-Sektion + Banner auf der Homepage. Im Gegensatz zu
@@ -174,7 +171,6 @@ export const DEFAULT_CONFIG = {
 
   menuLabels: {
     antraege: 'Förderanträge',
-    bauantraege: 'Bauanträge',
     dokumente: 'Dokumente',
   },
 
@@ -235,7 +231,7 @@ export function validateConfig(config) {
     );
   }
 
-  const allowedVariants = ['development', 'demo', 'production', 'custom'];
+  const allowedVariants = ['development', 'production', 'custom'];
   if (!allowedVariants.includes(config.variant)) {
     errors.push(
       `variant muss einer von ${allowedVariants.join(', ')} sein, ist "${config.variant}"`,
@@ -305,7 +301,7 @@ export function validateConfig(config) {
   const features = config.features ?? {};
   const requiredFlags = [
     'kuratorMenus', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
-    'antraege', 'bauantraege', 'dokumente', 'auslastung', 'auslastungSelbstEintragung',
+    'antraege', 'dokumente', 'auslastung', 'auslastungSelbstEintragung',
     'deAnonymisierung', 'datenShareSchreibrecht',
     'maLogin', 'maVerwaltungPasswort',
     'suche',
@@ -324,13 +320,10 @@ export function validateConfig(config) {
     );
   }
 
-  // Mindestens ein Bereichs-Menü muss aktiv sein (antraege | bauantraege).
-  // `dokumente` zählt nicht — reiner Phase-2-Platzhalter.
-  const anyAreaMenuActive = !!(features.antraege || features.bauantraege);
-  if (!anyAreaMenuActive) {
-    errors.push(
-      'Mindestens eines der Bereichs-Menüs muss aktiv sein (features.antraege oder features.bauantraege).',
-    );
+  // Das Bereichs-Menü `antraege` (Förderanträge) ist der einzige Bereich und
+  // muss aktiv sein. `dokumente` zählt nicht — reiner Phase-2-Platzhalter.
+  if (!features.antraege) {
+    errors.push('features.antraege muss aktiv sein (einziges Bereichs-Menü).');
   }
 
   // menuLabels: für jedes aktive Bereichs-Menü muss ein nicht-leerer Label-String gesetzt sein.
@@ -338,7 +331,7 @@ export function validateConfig(config) {
   if (typeof menuLabels !== 'object' || Array.isArray(menuLabels)) {
     errors.push('menuLabels muss Objekt sein');
   } else {
-    const labelKeys = ['antraege', 'bauantraege', 'dokumente'];
+    const labelKeys = ['antraege', 'dokumente'];
     for (const key of labelKeys) {
       const flagActive = features[key] === true;
       const label = menuLabels[key];
@@ -364,13 +357,6 @@ export function validateConfig(config) {
       'Fixtures enthalten destruktive Operationen (resetAll, programmatischer Import) und sensible Defaults.',
     );
   }
-  if (features.devFixtures === true && config.variant === 'demo') {
-    errors.push(
-      'KRITISCH: features.devFixtures darf nicht in variant=demo aktiv sein. ' +
-      'Fixtures enthalten destruktive Operationen und sensible Defaults.',
-    );
-  }
-
   const dev = config.dev ?? null;
   if (dev !== null) {
     if (typeof dev !== 'object') {
@@ -410,8 +396,7 @@ export function validateConfig(config) {
   if (openrouter.enabled && data.fixedDataSharePath && config.variant === 'production') {
     errors.push(
       'KRITISCH: OpenRouter aktiv + fester Daten-Pfad + variant=production. ' +
-      'Echte Daten würden an Cloud-API gesendet. Entweder OpenRouter ausschalten ' +
-      'oder variant=demo setzen (synthetische Daten-Annahme).',
+      'Echte Daten würden an Cloud-API gesendet. OpenRouter in dieser Variante ausschalten.',
     );
   }
 

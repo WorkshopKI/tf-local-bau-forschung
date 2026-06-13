@@ -58,9 +58,6 @@ export interface UnifiedSearchCounts {
   total: number;
   antraege: number;
   dokumente: number;
-  /** Bauantrag-Treffer aus dem Orama-Index (Subset von `dokumente`); fuer den
-   *  Demo-Pill „Bauantraege". 0 in Prod. */
-  bauantraege: number;
 }
 
 export interface UnifiedSearchIndexInfo {
@@ -397,15 +394,11 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   const counts = useMemo<UnifiedSearchCounts>(() => {
     let antraege = 0;
     let dokumente = 0;
-    let bauantraege = 0;
     for (const r of results) {
       if (r.type === 'antrag') antraege++;
-      else {
-        dokumente++;
-        if (r.dokumentTyp === 'bauantrag') bauantraege++;
-      }
+      else dokumente++;
     }
-    return { total: results.length, antraege, dokumente, bauantraege };
+    return { total: results.length, antraege, dokumente };
   }, [results]);
 
   return {

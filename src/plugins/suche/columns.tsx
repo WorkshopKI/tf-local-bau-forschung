@@ -161,10 +161,9 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     key: 'type', label: 'Typ', width: 60, defaultVisible: true,
     sortable: true, filterable: true, appliesTo: 'both',
     // Accessor liefert exakt das Label, das TypeBadge anzeigt — damit
-    // Filter-Dropdown / Sort konsistent zur Zell-Pill sind. Dokument-
-    // interne Orama-Subtypen ('antrag', 'bauantrag') werden bewusst
-    // nicht durchgereicht; die Typ-Spalte unterscheidet ausschliesslich
-    // entlang der UnifiedSearchResult.type-Achse.
+    // Filter-Dropdown / Sort konsistent zur Zell-Pill sind. Die Typ-Spalte
+    // unterscheidet ausschliesslich entlang der UnifiedSearchResult.type-Achse
+    // ('antrag' / 'dokument'), nicht entlang Dokument-interner Subtypen.
     accessor: r => r.type === 'antrag'
       ? (getKategorieLabel(r.vbPhase) ?? 'Antrag')
       : 'Dok',

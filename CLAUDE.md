@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-TeamFlow Local is a serverless browser app for collaborative task management with AI integration, deployed exclusively via file server (`file://` protocol). Two departments (building permits / research grants) manage workflows, generate artifacts, and use AI-powered search — all without IT infrastructure.
+TeamFlow Local is a serverless browser app for collaborative task management with AI integration, deployed exclusively via file server (`file://` protocol). A research-grants team manages funding applications (Förderanträge), plans capacity, classifies documents, and uses AI-powered hybrid search — all without IT infrastructure.
 
 **Read `DESIGN_GUIDE.md` for visual design rules before making any UI changes.**
 
@@ -125,9 +125,9 @@ Auf der **Verbund**-Detailseite ([VerbundDetail.tsx](src/plugins/antraege/Verbun
 
 Detail (4 Bausteine, Datenfluss, Skill-Struktur, Run-Splitting im DOCX-Füller, Persistenz-Keys, Generalisierungs-Notizen): [docs/architecture/gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
 
-### Legacy: Vorgang-Infrastruktur
+### Legacy: Vorgang-Typ
 
-`src/core/types/vorgang.ts`, `src/core/components/SimilarCases.tsx`, `src/core/components/VorgangDokumenteTab.tsx`, `src/core/hooks/useVorgangDetail.ts` — Überbleibsel des alten Vorgang-zentrierten Datenmodells. Wird nur noch vom Bauanträge-Plugin (`src/plugins/bauantraege/`) genutzt, das laut Sichtbarkeits-Matrix nur in `dev`- und `demo`-Variants in der Sidebar erscheint (in `prod`/`kurator`/`pl` toter Pfad). **Neue Features verwenden das `Antrag`-Interface aus dem CSV-Schema (`src/core/types/csv/types.ts`), nicht `Vorgang`. Patches für `prod`/`kurator`/`pl` brauchen Vorgang-Code nicht anzufassen.**
+`src/core/types/vorgang.ts` (`Vorgang` + `VorgangStatus`) — Überbleibsel des alten Vorgang-zentrierten Datenmodells. Die zugehörige Bauantrag-Demo-Domäne (Plugin, Seed, Workflow-/Artefakt-Stack) wurde mit **v2.88 entfernt**; übrig bleibt der `Vorgang`-Typ als reines Projektions-Shape für die **Home-Dashboard**-Aggregation (`AntragVorgang = Vorgang & {…}` in [dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts)) — kein eigener IDB-Store mehr. **Neue Features verwenden das `Antrag`-Interface aus dem CSV-Schema (`src/core/types/csv/types.ts`), nicht `Vorgang`.**
 
 ### Referenz-App
 
@@ -170,7 +170,6 @@ Historische Referenz-Implementierung lag unter `_reference/lernapp/` — seit de
 TeamFlow wird pro Einsatz-Kontext als eigene Variante gebaut. Configs liegen unter `configs/`:
 
 - `configs/dev.config.json` — Developer-Build, alle Features + OpenRouter aktiv
-- `configs/demo.config.json` — Showcase-Build, mehrere Bereichs-Plugins + Suche/Chat/Board, kein Kurator
 - `configs/prod.config.json` — Produktion (End-User), nur Home + Förderanträge + Einstellungen, kein Kurator-Login
 - `configs/kurator.config.json` — Produktion (Kurator-Rolle), Standard-Sidebar wie prod + Kuration-Menüs nach Login
 - `configs/pl.config.json` — Produktion (Projektleitung), Home + Förderanträge + Auslastung + Einstellungen, kein Kurator-Login
@@ -179,19 +178,18 @@ TeamFlow wird pro Einsatz-Kontext als eigene Variante gebaut. Configs liegen unt
 
 Sichtbarkeits-Matrix (was steht in der Sidebar):
 
-| Plugin | dev | demo | prod | kurator (vor Login) | kurator (nach Login) | pl |
-| --- | --- | --- | --- | --- | --- | --- |
-| Home | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Förderanträge | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Bauanträge | ✓ | ✓ | – | – | – | – |
-| Auslastung | ✓ | – | – | ○ | ○ | ✓ |
-| Dokumente | ✓ | ✓ | – | – | – | – |
-| Suche | ✓ | ✓ | – | ✓ | ✓ | ✓ |
-| Chat | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Feedback Übersicht | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Einstellungen | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Kurator-Toggle in Einstellungen | ✓ | – | – | ✓ | ✓ | – |
-| Kuration-Menüs (Suchindex, Programme, CSV, DMS, Filter, Feedback, Review) | ✓ | – | – | – | ✓ | – |
+| Plugin | dev | prod | kurator (vor Login) | kurator (nach Login) | pl |
+| --- | --- | --- | --- | --- | --- |
+| Home | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Förderanträge | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Auslastung | ✓ | – | ○ | ○ | ✓ |
+| Dokumente | ✓ | – | – | – | – |
+| Suche | ✓ | – | ✓ | ✓ | ✓ |
+| Chat | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Feedback Übersicht | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Einstellungen | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Kurator-Toggle in Einstellungen | ✓ | – | ✓ | ✓ | – |
+| Kuration-Menüs (Suchindex, Programme, CSV, DMS, Filter, Feedback, Review) | ✓ | – | – | ✓ | – |
 
 ○ = **Auslastung in kurator nur als „Themen-Vektoren"** (v2.56, `features.auslastungNurKorpus`): schlanker Korpus-Pflege-View zum Aktuell-Halten des Embedding-Katalogs — **kein** MA-Auslastung/Zuweisung/Kompetenzen, nur „Inkrementell" (kein Vollbuild, der bleibt dev-exklusiv). Sichtbar als Workflow-Plugin (unabhängig vom Kurator-Toggle).
 
@@ -201,7 +199,6 @@ Build-Kommandos:
 
 ```bash
 npm run build:dev       # → dist-single/dev/zah-dev.html
-npm run build:demo      # → dist-single/demo/zah-demo.html
 npm run build:prod      # → dist-single/zah-prod.html
 npm run build:kurator   # → dist-single/zah-kurator.html
 npm run build:pl        # → dist-single/zah-pl.html

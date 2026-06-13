@@ -16,7 +16,6 @@ Spalten-Mapping-Definitionen, keine Daten.
 Wenn das Repo frisch geklont wird und die CSVs fehlen:
 - App startet trotzdem, Foerderantraege-Seed bleibt einfach leer
 - Unit-Tests, die die Fixtures brauchen, werden via `describe.skip` uebersprungen
-- Bauantraege-Seeds + Dokumente-Seeds + Artefakte-Seeds laufen unveraendert
 
 ## Erwartete Dateien
 

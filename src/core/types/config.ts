@@ -1,6 +1,12 @@
 export interface UserProfile {
   name: string;
-  department: 'antraege' | 'bauantraege' | 'beide';
+  /**
+   * Abteilung. Seit v2.88 (Entfernen der Bauantrag-Demo-Domäne) gibt es nur
+   * noch den Förderanträge-Bereich → effektiv konstant `'antraege'`. Feld
+   * bleibt für Persistenz-Kompatibilität: alte IDB-Profile mit `'beide'`/
+   * `'bauantraege'` sind inert (werden nirgends mehr ausgewertet).
+   */
+  department: 'antraege';
   theme: {
     hue: number;
     dark: boolean;

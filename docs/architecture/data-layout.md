@@ -7,7 +7,7 @@ Alle geteilten Daten und Config-Dateien liegen im **Daten-Share** (separater SMB
 ## `programm/` — domänenspezifische Daten
 
 - `programm/antraege/imports/` — rohe CSV-Importe (ersetzt v1.8-Pfad `csv-sources/`)
-- `programm/antraege/bauantraege/` — Vorgang-Artefakte Bauanträge (ersetzt `vorgaenge/bauantrag`). Seit v1.14 entfällt `programm/antraege/forschung/`; Förderanträge leben im IDB-Store ANTRAEGE (CSV-Import-Schema), Artefakte werden dort (noch) nicht auf dem Share abgelegt.
+- Förderanträge liegen im IDB-Store ANTRAEGE (CSV-Import-Schema), nicht als Dateien unter `programm/antraege/`.
 - `programm/schemas/` — Column-Mapping-JSONs (ersetzt `csv-schemas/`)
 - `programm/index/` — Orama-Snapshots + `index-meta.json`
 
@@ -39,7 +39,7 @@ Alle geteilten Daten und Config-Dateien liegen im **Daten-Share** (separater SMB
 
 ## Browser-IndexedDB (machine-lokaler Cache, pro Variante getrennt)
 
-Die IndexedDB ist der **maschine-lokale Cache** im Browser (nicht auf dem Share). Seit v2.87 ist der DB-Name **pro Build-Variante** suffigiert: `teamflow-<outputFilename>` — also `teamflow-zah-prod`, `teamflow-zah-kurator`, `teamflow-zah-pl`, `teamflow-zah-demo`, `teamflow-zah-dev` (Dev-Server: `teamflow-dev`). Abgeleitet via `getVariantDbName()` / `deriveVariantDbName()` in [runtime-config.ts](../../src/config/runtime-config.ts), reingereicht in den `IDBStore`-Konstruktor ([idb-store.ts](../../src/core/services/storage/idb-store.ts)).
+Die IndexedDB ist der **maschine-lokale Cache** im Browser (nicht auf dem Share). Seit v2.87 ist der DB-Name **pro Build-Variante** suffigiert: `teamflow-<outputFilename>` — also `teamflow-zah-prod`, `teamflow-zah-kurator`, `teamflow-zah-pl`, `teamflow-zah-dev` (Dev-Server: `teamflow-dev`). Abgeleitet via `getVariantDbName()` / `deriveVariantDbName()` in [runtime-config.ts](../../src/config/runtime-config.ts), reingereicht in den `IDBStore`-Konstruktor ([idb-store.ts](../../src/core/services/storage/idb-store.ts)).
 
 Hintergrund: Unter `file://` teilen alle Varianten denselben Origin; ein konstanter Name `teamflow` ließ prod/kurator/pl in **dieselbe** DB schreiben (Bug-Klasse 1/3, Datenverlust beim Varianten-Wechsel). Eine frisch suffigierte Variant-DB startet **leer** und lädt beim Erststart per normalem Snapshot-Sync aus dem Daten-Share (kein Migrations-/Kopier-Code; Share = Source of Truth). Eine alte `teamflow`-DB aus Pre-v2.87-Nutzung bleibt verwaist liegen (harmlos, manuell via DevTools löschbar).
 

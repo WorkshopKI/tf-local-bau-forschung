@@ -10,7 +10,6 @@ import type { StorageService } from '@/core/services/storage';
 export type PluginFeatureKey =
   | 'antraege'
   | 'auslastung'
-  | 'bauantraege'
   | 'dokumente'
   | 'dokumentenscan'
   | 'devFixtures'

@@ -14,7 +14,7 @@ export function SeedContent({ storage, seeded, seeding, seedProgress, setSeeded,
   return (
     <div className="space-y-3">
       <p className="text-[12px] text-[var(--tf-text-secondary)]">
-        Erzeugt 40 Vorgaenge, 60 Dokumente und 10 Artefakte mit realistischem Inhalt.
+        Lädt die Förderanträge aus den anonymisierten Fixture-CSVs (docs/fixtures/).
       </p>
       {seedProgress && <p className="text-[12px] text-[var(--tf-text-secondary)]">{seedProgress}</p>}
       <div className="flex gap-3">
@@ -23,7 +23,7 @@ export function SeedContent({ storage, seeded, seeding, seedProgress, setSeeded,
             setSeeding(true); setSeedProgress('Erzeuge...');
             try {
               const r = await seedTestData(storage, (c, t) => setSeedProgress(`Erzeuge... (${c}/${t})`));
-              setSeedProgress(`${r.vorgaenge} Vorgaenge, ${r.dokumente} Dokumente, ${r.artefakte} Artefakte`);
+              setSeedProgress(`${r.antraege} Förderanträge`);
               setSeeded(true); storage.idb.keys('doc:').then(k => setDocCount(k.length));
             } catch (err) { setSeedProgress(`Fehler: ${err}`); }
             finally { setSeeding(false); }

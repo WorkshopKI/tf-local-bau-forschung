@@ -1,5 +1,4 @@
 import { useDeferredValue, useMemo } from 'react';
-import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -33,8 +32,7 @@ export interface DashboardData {
   /** Alle offenen eigenen Förderanträge, sortiert nach Frist asc, dann
    *  vb_phase asc. UI schneidet selbst ab (Default 5 via
    *  `profile.home_meine_antraege_count`, "+10 mehr"-Button erweitert
-   *  in-page). Leer wenn `department === 'bauantraege'` oder kein Antrag
-   *  gefunden. */
+   *  in-page). Leer wenn kein Antrag gefunden. */
   meineAntraege: AntragVorgang[];
   stats: DashboardStats;
   /** Kürzel-Filter im Profil aktiv (≠ leer / "alle"). */
@@ -45,8 +43,7 @@ export interface DashboardData {
   bearbeiterTokens: string[];
 }
 
-export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide' = 'beide'): DashboardData {
-  const bauantraegeRaw = useBauantraegeStore(s => s.bauantraege);
+export function useDashboardData(): DashboardData {
   const antraegeRaw = useAntraegeStore(s => s.antraege);
   const verbundByIdRaw = useAntraegeStore(s => s.verbundById);
   const { profile } = useProfile();
@@ -56,13 +53,10 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
   const inaktiveKuerzel = useInaktiveKuerzelSet();
   const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
 
-  // useDeferredValue puffert die kaskadierenden Store-Updates beim
-  // Home-Mount: zuerst landet `antraege` im Store, kurz darauf
-  // `bauantraege` (Promise.all in HomePage). Ohne Deferral lief das
-  // useMemo dazwischen 2-3x; mit Deferral berechnet React die Memo erst
-  // wenn beide Werte stabilisiert sind und mit niedriger Prioritaet.
+  // useDeferredValue puffert die kaskadierenden Store-Updates beim Home-Mount
+  // (Antraege landen asynchron im Store) und berechnet die Memo mit niedriger
+  // Prioritaet, sobald sich der Wert stabilisiert hat.
   const antraege = useDeferredValue(antraegeRaw);
-  const bauantraege = useDeferredValue(bauantraegeRaw);
   const verbundById = useDeferredValue(verbundByIdRaw);
 
   return useMemo(() => {
@@ -71,18 +65,12 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       meinKuerzel,
       profile?.bearbeiter_inkl_begleitung,
     );
-    const includeBauantraege = department !== 'antraege';
-    const includeAntraege = department !== 'bauantraege';
-
     // Im „alle"-Modus die Förderanträge inaktiver MAs ausblenden (pl/dev),
-    // konsistent zur Förderanträge-Liste. Bauanträge haben keinen MA-Bezug.
-    const antraegeFiltered = includeAntraege
-      ? applyInaktiveExclusion(antraege, bearbeiterMode.active, inaktiveKuerzel, showInaktive)
-      : antraege;
+    // konsistent zur Förderanträge-Liste.
+    const antraegeFiltered = applyInaktiveExclusion(antraege, bearbeiterMode.active, inaktiveKuerzel, showInaktive);
 
-    const agg = computeDashboardAggregate(bauantraege, antraegeFiltered, bearbeiterMode, {
-      includeBauantraege,
-      includeAntraege,
+    const agg = computeDashboardAggregate(antraegeFiltered, bearbeiterMode, {
+      includeAntraege: true,
       verbundById,
     });
 
@@ -93,7 +81,6 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
     // kann KUERZ "fehlen".
     const bearbeiterKuerzelMissing =
       bearbeiterMode.active
-      && includeAntraege
       && antraege.length > 0
       && !agg.anyKuerzelSeen;
 
@@ -110,7 +97,7 @@ export function useDashboardData(department: 'antraege' | 'bauantraege' | 'beide
       bearbeiterKuerzelMissing,
       bearbeiterTokens: bearbeiterMode.tokens,
     };
-    end(`antraege=${antraege.length} bauantraege=${bauantraege.length} → total=${agg.stats.total} offen=${agg.stats.offen}`);
+    end(`antraege=${antraege.length} → total=${agg.stats.total} offen=${agg.stats.offen}`);
     return result;
-  }, [bauantraege, antraege, verbundById, department, meinKuerzel, profile?.bearbeiter_inkl_begleitung, inaktiveKuerzel, showInaktive]);
+  }, [antraege, verbundById, meinKuerzel, profile?.bearbeiter_inkl_begleitung, inaktiveKuerzel, showInaktive]);
 }

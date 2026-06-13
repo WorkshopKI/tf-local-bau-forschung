@@ -63,7 +63,8 @@ export interface UnifiedSearchResult {
 
   // ----- Dokument-spezifisch (nur wenn type === 'dokument') -----
   dateiname?: string;
-  /** Orama-Index `type`-Feld (z.B. 'dokument', 'bauantrag'). */
+  /** DMS-Dokumenttyp aus der Metadaten-Klassifizierung (z.B. 'Gutachten',
+   *  'Stellungnahme'). */
   dokumentTyp?: string;
   /** Aktenzeichen des zugehoerigen Antrags, sofern aus Phase-2-Manifest
    *  bekannt. */

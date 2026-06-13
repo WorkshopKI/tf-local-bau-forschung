@@ -69,8 +69,8 @@ function formatDaysShort(deadline: string | undefined): FristLabel | null {
  * des Profils zeigt — gruppiert nach VB-Phase (badge prominent als Icon).
  *
  * Sichtbarkeit:
- * - Wird durch HomePage nur eingebunden, wenn `department !== 'bauantraege'`
- *   und der Bearbeiter-Filter aktiv ist und mindestens ein Antrag matched.
+ * - Wird durch HomePage nur eingebunden, wenn der Bearbeiter-Filter aktiv ist
+ *   und mindestens ein Antrag matched.
  */
 export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens, alleMode = false }: Props): React.ReactElement | null {
   const { navigate } = useNavigation();

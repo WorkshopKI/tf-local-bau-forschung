@@ -112,7 +112,7 @@ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-seri
 ### Skala
 | Rolle | Größe | Gewicht | Farbe | Verwendung |
 |---|---|---|---|---|
-| Page Title | 22px | 500 | --tf-text | Seitentitel ("Bauanträge") |
+| Page Title | 22px | 500 | --tf-text | Seitentitel ("Förderanträge") |
 | Section Header | 10.5px | 500, uppercase, 0.08em tracking | --tf-text-tertiary | "AKTUELLE VORGÄNGE", "LETZTE ARTEFAKTE" |
 | Card Title | 14px | 500 | --tf-text | Titel in Cards und Listen |
 | Body | 13.5px | 400 | --tf-text-secondary | Beschreibungen, Content |
@@ -618,10 +618,10 @@ Für die Kompetenz-Matrix (Auslastung) gelten Sonderregeln gegenüber dem sonst 
 └─────────────────────────────────┘ └──────────────────┘
 ```
 
-### Listen-Seite (Bauanträge, Dokumente)
+### Listen-Seite (Förderanträge, Dokumente)
 ```
 ┌─ Header ─────────────────────────────────────────────┐
-│ Bauanträge                             [+ Neuer Antrag]│
+│ Förderanträge                            [⚙ Spalten]  │
 └──────────────────────────────────────────────────────┘
 
 ┌─ Filter ─────────────────────────────────────────────┐
@@ -633,16 +633,16 @@ Für die Kompetenz-Matrix (Auslastung) gelten Sonderregeln gegenüber dem sonst 
   List-Item  ────────────────────────────  Badge  Meta
 ```
 
-### Detail-Seite (Vorgang)
+### Detail-Seite (Antrag / Verbund)
 ```
-  ← Alle Bauanträge
+  ← Alle Förderanträge
 
 ┌─ Header ─────────────────────────────────────────────┐
-│ Neubau EFH, Musterstraße 12          [Status ▾] [···]│
-│ BA-2026-003 · Erstellt 15.01.2026                    │
+│ Sensorik 4.0 — Verbundvorhaben       [Status ▾] [···]│
+│ 16KN123456 · Eingang 15.01.2026                      │
 └──────────────────────────────────────────────────────┘
 
-  Übersicht | Dokumente | Artefakte | Notizen
+  Übersicht | Teilvorhaben | Dokumente | Notizen
   ─────────────────────────────────────────────
 
   (Tab-Inhalt, volle Breite)
@@ -765,7 +765,7 @@ Warm-grau mit leichtem Gelbstich — wie Papier bei Lampenlicht. Nicht kalt, nic
 
 ### Navigation
 - Sidebar ist die einzige Navigation — keine verschachtelten Menüs
-- "Zurück"-Links als Text ("← Alle Bauanträge"), nicht als Icon-Button
+- "Zurück"-Links als Text ("← Alle Förderanträge"), nicht als Icon-Button
 - Aktive Seite in Sidebar immer sichtbar hervorgehoben
 - Breadcrumbs nur wenn 2+ Ebenen tief
 
@@ -779,7 +779,7 @@ Warm-grau mit leichtem Gelbstich — wie Papier bei Lampenlicht. Nicht kalt, nic
 - Erfolg: Kurzer Text "Gespeichert ✓" der nach 3s verschwindet
 - Fehler: Inline am Element, rot, persistent bis gefixt
 - Loading: Dezenter Spinner oder "Laden..." Text, kein Skeleton
-- Leer: Freundlicher Text + eine Aktion ("Noch keine Bauanträge. Erstelle den ersten →")
+- Leer: Freundlicher Text + eine Aktion ("Noch keine Förderanträge erfasst → CSV importieren")
 - **Async-Operations** (Save, Upload, Setup-Finish): IMMER sichtbarer Loading-State (Button-Text „Speichere…") UND Error-Banner bei Fehler. Errors aus `try/catch` ins UI rendern (siehe Inline-Error-Banner in Kapitel 5) — nicht nur in die Console: unter `file://` ist die Console oft nicht offen, der User sieht sonst nichts
 
 ### Anonymisierung

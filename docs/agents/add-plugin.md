@@ -36,7 +36,7 @@ automatisch generiert.
    `PluginFeatureKey` ergaenzen — sonst TS-Error.
 
 4. **Custom-Route-Handler (selten)**: wenn das Plugin Sub-Routen mit
-   Parametern braucht (`bauantraege/:id`, `antraege/verbund/:verbundId`),
+   Parametern braucht (`antraege/verbund/:verbundId`, `antraege/:aktenzeichen`),
    im Router (`src/core/Router.tsx`) explizit verdrahten und die Plugin-ID
    in `PLUGINS_WITH_CUSTOM_ROUTE` (siehe `src/plugins.config.ts`) eintragen
    — sonst kollidiert die generierte Flat-Route mit den Detail-Routen.

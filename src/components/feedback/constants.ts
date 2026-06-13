@@ -9,7 +9,6 @@ export interface TeamflowArea {
 
 export const TEAMFLOW_AREAS: readonly TeamflowArea[] = [
   { ref: 'dashboard', label: 'Dashboard / Home' },
-  { ref: 'bauantraege', label: 'Bauanträge' },
   { ref: 'antraege', label: 'Förderanträge' },
   { ref: 'dokumente', label: 'Dokumente' },
   { ref: 'dokumentendetail', label: 'Dokumentendetail / Metadaten' },

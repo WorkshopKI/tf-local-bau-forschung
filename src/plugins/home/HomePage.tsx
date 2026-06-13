@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, AlertTriangle, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Badge, SectionHeader, ListItem, Button } from '@/ui';
+import { Button } from '@/ui';
 import { Alert } from '@/components/ui/alert';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useTourContext } from '@/core/hooks/useTour';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
-import { useBauantraegeStore } from '@/plugins/bauantraege/store';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
@@ -16,9 +15,7 @@ import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
-import { menuLabel, isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant, isAuslastungEnabled, hasDepartmentChoice } from '@/config/feature-flags';
-import { getStatusVariant, getStatusLabel } from '@/core/utils/status-mappings';
-import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
+import { isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant, isAuslastungEnabled } from '@/config/feature-flags';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
@@ -26,15 +23,13 @@ import { tfPerfStart } from '@/core/utils/tfPerf';
 export function HomePage(): React.ReactElement {
   const storage = useStorage();
   const { navigate } = useNavigation();
-  const loadBau = useBauantraegeStore(s => s.loadAll);
   const loadAntraege = useAntraegeStore(s => s.loadAll);
   const { profile } = useProfile();
   const tour = useTourContext();
   const [hasHandle, setHasHandle] = useState<boolean | null>(null);
-  // Verhindert den "Noch keine Vorgaenge"-Flash, bevor die beiden Stores
-  // (Bauantraege + Antraege) beim ersten Mount async befuellt sind.
-  // Wird nur einmal gesetzt — Programm-Switches loesen kein Reset aus, damit
-  // beim Wechsel kein Skeleton aufblitzt.
+  // Verhindert den "Noch keine Vorgaenge"-Flash, bevor der Antraege-Store
+  // beim ersten Mount async befuellt ist. Wird nur einmal gesetzt — Programm-
+  // Switches loesen kein Reset aus, damit beim Wechsel kein Skeleton aufblitzt.
   const [firstLoadDone, setFirstLoadDone] = useState(false);
 
   useEffect(() => {
@@ -48,40 +43,26 @@ export function HomePage(): React.ReactElement {
 
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   useEffect(() => {
-    // Race-Gate: ProfileProvider startet mit profile=null und befuellt
-    // ihn erst nach einem useEffect-Tick aus IDB. Wenn HomePage in dem
-    // Fenster mountet, war department auf 'beide' (Fallback) und
-    // loadBau lief unnoetig — selbst bei einem 'antraege'-Profil. Wir
-    // warten daher, bis profile != null ist, und nehmen dann anhand des
-    // tatsaechlichen department-Werts die richtigen Loads auf.
+    // Race-Gate: ProfileProvider startet mit profile=null und befuellt ihn
+    // erst nach einem useEffect-Tick aus IDB. Wir warten daher, bis
+    // profile != null ist, bevor wir die Foerderantraege laden.
     if (profile === null) return;
-    const department = profile.department ?? 'beide';
     let cancelled = false;
-    const end = tfPerfStart('HomePage mount: loadBau+loadAntraege');
-    const tasks: Promise<void>[] = [];
-    if (department !== 'antraege') tasks.push(loadBau(storage));
-    if (department !== 'bauantraege') {
-      tasks.push(loadAntraege(storage.idb, activeProgrammId ?? undefined));
-    }
-    void Promise.all(tasks).then(() => {
+    const end = tfPerfStart('HomePage mount: loadAntraege');
+    void loadAntraege(storage.idb, activeProgrammId ?? undefined).then(() => {
       if (!cancelled) {
         setFirstLoadDone(true);
         end();
       }
     });
     return () => { cancelled = true; };
-  }, [storage, loadBau, loadAntraege, activeProgrammId, profile]);
+  }, [storage, loadAntraege, activeProgrammId, profile]);
 
   // useDashboardData filtert NICHT explizit auf activeProgrammId — der
   // useAntraegeStore.antraege-State enthält nach loadAll(idb, programmId)
   // bereits nur die Anträge des aktiven Programms.
-  const data = useDashboardData(profile?.department);
+  const data = useDashboardData();
   const name = profile?.name ?? '';
-  const antraegeLabel = menuLabel('antraege', 'Anträge');
-  const bauantraegeLabel = menuLabel('bauantraege', 'Bauanträge');
-  const dept = profile?.department === 'antraege' ? antraegeLabel
-    : profile?.department === 'bauantraege' ? bauantraegeLabel
-    : 'Beide Abteilungen';
 
   // Auto-Start der Tour beim ersten Besuch (nur wenn Daten vorhanden)
   const tourHasCompleted = tour.hasCompleted;
@@ -166,8 +147,8 @@ export function HomePage(): React.ReactElement {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-2">{data.greeting}{name ? `, ${name}` : ''}</h1>
-        <p className="text-[14px] text-[var(--tf-text-secondary)] mb-6">Noch keine Vorgänge angelegt</p>
-        <Button variant="secondary" icon={ArrowRight} onClick={() => navigate('bauantraege')}>Ersten Antrag erstellen</Button>
+        <p className="text-[14px] text-[var(--tf-text-secondary)] mb-6">Noch keine Förderanträge erfasst</p>
+        <Button variant="secondary" icon={ArrowRight} onClick={() => navigate('antraege')}>Förderanträge öffnen</Button>
       </div>
     );
   }
@@ -178,7 +159,7 @@ export function HomePage(): React.ReactElement {
       <div data-tour="home-dashboard" className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
         <p className="text-[13px] text-[var(--tf-text-secondary)]">
-          {hasDepartmentChoice() ? `${dept} · ` : ''}{data.stats.offen} offene Vorgänge · {data.fristenDieseWoche} Fristen diese Woche
+          {data.stats.offen} offene Vorgänge · {data.fristenDieseWoche} Fristen diese Woche
         </p>
       </div>
 
@@ -194,51 +175,8 @@ export function HomePage(): React.ReactElement {
         {/* Main */}
         <div data-tour="document-list" className="min-w-0">
           {(() => {
-            // Bauanträge-Department behält den bisherigen "Aktuelle Vorgänge"-Render.
-            // Förderanträge-Pfad ('antraege' / 'beide') zeigt ausschließlich "Meine
-            // Anträge" — inkl. Onboarding-Karte (kein Kürzel) und Empty-State
-            // (Kürzel aktiv aber 0 Treffer).
-            if (profile?.department === 'bauantraege') {
-              if (data.letzteAenderungen.length === 0) return null;
-              return (
-                <>
-                  <SectionHeader
-                    label="Aktuelle Vorgänge"
-                    action={
-                      <button
-                        onClick={() => navigate('bauantraege')}
-                        className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-                      >
-                        Alle →
-                      </button>
-                    }
-                  />
-                  {data.letzteAenderungen.map((v, i) => {
-                    const isAntrag = (v as { _isAntrag?: boolean })._isAntrag === true;
-                    const vbPhase = isAntrag ? (v as { vb_phase?: number }).vb_phase : undefined;
-                    const phaseLabel = getVbPhaseLabel(vbPhase);
-                    return (
-                      <ListItem
-                        key={v.id}
-                        iconBare
-                        icon={
-                          phaseLabel ? (
-                            <Badge variant={getVbPhaseVariant(vbPhase)}>{phaseLabel}</Badge>
-                          ) : (
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--tf-text-tertiary)] opacity-40" />
-                          )
-                        }
-                        title={v.title}
-                        subtitle={v.id}
-                        meta={<Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>}
-                        onClick={() => navigate(isAntrag ? 'antraege' : 'bauantraege', { selectedId: v.id })}
-                        last={i === data.letzteAenderungen.length - 1}
-                      />
-                    );
-                  })}
-                </>
-              );
-            }
+            // Förderanträge-Pfad: zeigt „Meine Anträge" — inkl. Onboarding-Karte
+            // (kein Kürzel) und Empty-State (Kürzel aktiv aber 0 Treffer).
 
             // „alle"-Modus = kein aktiver Kürzel-Filter. In pl/dev zeigt Home
             // dann die Übersicht aller (aktiven) MAs (mit MA-Kürzel je Zeile)
@@ -307,15 +245,15 @@ export function HomePage(): React.ReactElement {
               (1.17 ersetzt den frueheren Tab "Selbsteintragung"). Nur sichtbar
               wenn features.auslastung aktiv ist und der User Foerderantraege
               im Profil hat. */}
-          {profile?.department !== 'bauantraege' && isAuslastungSelbstEintragungEnabled() && (
+          {isAuslastungSelbstEintragungEnabled() && (
             <NeueAntraegeFuerDich />
           )}
         </div>
 
         {/* Sidebar cards */}
         <div className="space-y-4">
-          {/* Antragseingang-Ampel — nur wenn Förderanträge im Profil sichtbar */}
-          {profile?.department !== 'bauantraege' ? <EingangAmpelCard /> : null}
+          {/* Antragseingang-Ampel */}
+          <EingangAmpelCard />
 
           {/* AI Status */}
           <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
