@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MasterDetailLayout } from '@/components/master-detail';
 import {
   resolveRegeln,
   skillsUsingRegel,
@@ -118,10 +119,18 @@ export function SkillVerwaltungPage(): React.ReactElement {
     }).then(() => setEditingRegel(null));
   };
 
-  // — Skill-Editor-Vollbild —
+  // — Detail-Slot (Editor) fürs Master-Detail-Split — die frühere Vollseiten-
+  //   Ersetzung der Liste ist seit v2.91 durch das Split-Layout abgelöst. Der
+  //   Editor wird rechts neben der Liste gerendert; `closeEditor` (Back/Escape)
+  //   räumt die Selektion. Editor-Inhalt bringt eigenen Scroll mit (Detail-Pane
+  //   des Shells ist overflow-hidden). —
+  const hasDetail = !!(editingSkill || editingRegel);
+  const closeEditor = (): void => { setEditingSkill(null); setEditingRegel(null); };
+
+  let detail: React.ReactNode;
   if (editingSkill) {
-    return (
-      <>
+    detail = (
+      <div className="h-full overflow-y-auto">
         <div className="px-8 py-9">
           <SkillEditor
             file={file}
@@ -129,23 +138,19 @@ export function SkillVerwaltungPage(): React.ReactElement {
             isNew={editingSkill.isNew}
             canEdit={reg.canEdit}
             persist={reg.persist}
-            onBack={() => setEditingSkill(null)}
-            onManageRegeln={() => { setEditingSkill(null); changeTab('regeln'); }}
+            onBack={closeEditor}
+            onManageRegeln={() => { closeEditor(); changeTab('regeln'); }}
             onTestlauf={(skill, regeln, hinweis) => setTestlauf({ skill, regeln, hinweis })}
           />
         </div>
-        {testlaufModal}
-      </>
+      </div>
     );
-  }
-
-  // — Regel-Editor-Vollbild (inkl. Typ-Picker für „neu") —
-  if (editingRegel) {
+  } else if (editingRegel) {
     const { regel, isNew } = editingRegel;
-    return (
-      <>
+    detail = (
+      <div className="h-full overflow-y-auto">
         <div className="px-8 py-9 max-w-[900px]">
-          <button onClick={() => setEditingRegel(null)} className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4">← Skill-Verwaltung</button>
+          <button onClick={closeEditor} className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4">← Skill-Verwaltung</button>
           {regel === null
             ? <RegelTypPicker onPick={typ => setEditingRegel({ regel: blankRegel(typ), isNew: true })} />
             : (
@@ -154,13 +159,12 @@ export function SkillVerwaltungPage(): React.ReactElement {
                 canEdit={reg.canEdit}
                 busy={save.busy}
                 onSave={saveRegel}
-                onCancel={() => setEditingRegel(null)}
+                onCancel={closeEditor}
                 onDelete={isNew ? undefined : () => deleteRegel(regel)}
               />
             )}
         </div>
-        {testlaufModal}
-      </>
+      </div>
     );
   }
 
@@ -174,7 +178,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
   };
 
   return (
-    <>
+    <div className="flex flex-col h-full min-h-[calc(100vh-60px)] overflow-hidden">
       {/* Header — volle Breite mit Unterkanten-Border, Inhalts-Box max-w-6xl px-8 */}
       <div className="shrink-0 pt-4 pb-0" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
         <div className="max-w-6xl px-8">
@@ -231,8 +235,13 @@ export function SkillVerwaltungPage(): React.ReactElement {
         </div>
       </div>
 
-      {/* Inhalt */}
-      <div className="max-w-6xl px-8 py-6">
+      {/* Inhalt — Master (Liste) links, Detail (Editor) rechts via Split-Shell */}
+      <MasterDetailLayout
+        listWidthKey="teamflow_skillreg_narrow_width"
+        onCloseDetail={closeEditor}
+        detail={detail}
+        list={(
+          <div className={hasDetail ? 'px-4 py-6' : 'max-w-6xl px-8 py-6'}>
         {!reg.canEdit && (
           <div className="mb-4 text-[12.5px] text-[var(--tf-text-secondary)] rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-3.5 py-2.5">
             Kurator-Modus nicht aktiv — Skills und Regeln sind nur lesbar. Sandbox-Testläufe sind möglich.
@@ -271,9 +280,11 @@ export function SkillVerwaltungPage(): React.ReactElement {
               onToggleAktiv={toggleAktiv}
             />
           )}
-      </div>
+          </div>
+        )}
+      />
       {testlaufModal}
-    </>
+    </div>
   );
 }
 

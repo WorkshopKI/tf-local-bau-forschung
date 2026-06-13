@@ -522,18 +522,25 @@ if (!shown) return null;
 Dezente Warning-Farbe (nicht Primary — das wäre zu laut), max. 2 Sätze, ein Dismiss-Button. Einmal dismissed → nie wieder zeigen.
 
 ### Split-View (Liste + Detail)
-Zwei-Spalten-Layout für Admin-Bereiche wo der User Items auswählt und bearbeitet:
+**Kanonisches Shell: [`MasterDetailLayout`](src/components/master-detail/MasterDetailLayout.tsx) (`@/components/master-detail`). Tabellenartige Seiten nie ein eigenes Split-/Resize-Layout bauen.** Verbindliches Detail-Paradigma: Liste links, Detail/Editor rechts — kein Vollseiten-Ersatz der Liste.
 
 ```tsx
-<div className="grid grid-cols-2 gap-4">
-  <div>{/* Liste links */}</div>
-  <div>{/* Detail rechts, oder Empty-State */}</div>
+<div className="flex flex-col h-full min-h-[calc(100vh-60px)] overflow-hidden">
+  <Header className="shrink-0" />          {/* Titel/Tabs/Toolbar bleiben sichtbar */}
+  <MasterDetailLayout
+    list={<…data-table / ListItem-Liste…>}
+    detail={selectedId ? <…Editor…> : undefined}
+    onCloseDetail={() => setSelectedId(null)}
+    listWidthKey="teamflow_<feature>_narrow_width"
+  />
 </div>
 ```
 
-- Standard: 50/50 Grid (`grid-cols-2`)
-- Bei langen Titeln in der Liste: 50/50 statt 40/60, damit Titel nicht truncaten
-- Empty-State rechts wenn nichts ausgewählt: zentrierter Text "← Item auswählen" in tertiary color
+- **Kein Detail offen**: Liste füllt die volle Breite. **Detail offen**: Liste schrumpft auf eine resizable Sidebar (Drag-Handle, Breite in localStorage persistiert), Detail-Panel rechts behält `detailMinWidth` (Default 300; Liste `narrowMinWidth` 320, Start 460).
+- **Datenagnostisch** — Resize, Breiten-Persistenz und Escape-Schließen sind eingebaut; KEIN Filter-/Such-/Domänen-Wissen im Shell.
+- **Selektion** = reiner In-Page-React-State (kein Router-Pfad pro Item). Detail-Inhalt bringt eigenes Scrollen mit (`h-full overflow-y-auto`), das Shell-Detail-Pane ist `overflow-hidden`.
+- **Master** = generische Tabelle aus `src/components/data-table/` (`SortableTable` …) oder `ListItem`-Liste; Zeilen-Klick öffnet das Detail.
+- Referenz des Musters: **Förderanträge** ([AntraegePage.tsx](src/plugins/antraege/AntraegePage.tsx)) — gewachsen, bewusst nicht extrahiert. Kanonischer Konsument: **Skill-Verwaltung** ([SkillVerwaltungPage.tsx](src/plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx)). Schritt-für-Schritt: [docs/agents/add-table-detail-page.md](docs/agents/add-table-detail-page.md).
 
 ### Drag&Drop-Upload-Zone
 Für XLSX/CSV/JSON-Imports. Dashed Border als Drop-Target, hover-/dragging-State mit Primary-Border, IMMER mit File-Picker-Button als Fallback (manche User wissen nicht dass Drop möglich ist).
