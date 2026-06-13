@@ -191,3 +191,26 @@ export const runtimeConfig: TeamflowConfig = __TEAMFLOW_CONFIG__;
 export const buildTime: string = __TEAMFLOW_BUILD_TIME__;
 export const gitHash: string = __TEAMFLOW_GIT_HASH__;
 export const appVersion: string = __TEAMFLOW_APP_VERSION__;
+
+const DB_NAME_BASE = 'teamflow';
+
+/**
+ * Variantenspezifischer IndexedDB-Name (pure, testbar).
+ *
+ * Unter `file://` teilen alle Build-Varianten denselben Origin — ein konstanter
+ * DB-Name liess prod/kurator/pl in DIESELBE IndexedDB schreiben (Bug-Klasse 1/3,
+ * Datenverlust beim Varianten-Wechsel). Der Name wird deshalb aus dem pro Variante
+ * eindeutigen `build.outputFilename` suffigiert.
+ *
+ * NIE der nackte `'teamflow'`: der Dev-Server (DEFAULT_CONFIG.outputFilename ===
+ * 'teamflow') und ein fehlender/leerer Wert mappen auf den stabilen `'teamflow-dev'`.
+ */
+export function deriveVariantDbName(outputFilename: string | undefined): string {
+  const suffix = outputFilename && outputFilename !== DB_NAME_BASE ? outputFilename : 'dev';
+  return `${DB_NAME_BASE}-${suffix}`;
+}
+
+/** Laufzeit-Wrapper: leitet den IDB-Namen aus der aktiven Variant-Config ab. */
+export function getVariantDbName(): string {
+  return deriveVariantDbName(runtimeConfig.build.outputFilename);
+}

@@ -36,5 +36,5 @@ Wenn neue strukturierte Daten persistiert werden müssen (kein Key-Value im `kv`
 ## Verifikation
 
 - `npx tsc --noEmit`
-- Im Browser: Bestehende DB löschen (DevTools → Application → IndexedDB → `teamflow` löschen) → App neu laden → Schema-Migration läuft komplett durch
+- Im Browser: Bestehende DB löschen (DevTools → Application → IndexedDB → die Variant-DB löschen — im Dev-Build `teamflow-dev`, allgemein `teamflow-<outputFilename>`) → App neu laden → Schema-Migration läuft komplett durch
 - Falls Multi-Tab-Risiko: zweiten Tab öffnen während Upgrade → `onblocked`-Pfad zeigt Fehler-Toast statt zu hängen

@@ -48,6 +48,7 @@ Folgende Pfade NICHT lesen oder referenzieren beim Arbeiten am Code:
 - **NO RELATIVE FETCH**: `fetch('./data.json')` fails under `file://` — all data via IndexedDB or File System Access API
 - **NO SERVICE WORKERS**: Not available under `file://`
 - **NO localStorage FOR LARGE DATA**: IndexedDB preferred for structured/large data (works under `file://`). localStorage OK for simple flags (e.g., `teamflow_tour_completed`, feedback items, user preferences)
+- **IDB PRO BUILD-VARIANTE GETRENNT** (v2.87): Der IndexedDB-Name ist pro Variante suffigiert — `teamflow-<outputFilename>` (z.B. `teamflow-zah-prod` / `teamflow-zah-pl`), abgeleitet via `getVariantDbName()` in `src/config/runtime-config.ts`. Unter `file://` teilen sonst alle Varianten denselben Origin und damit **dieselbe** DB (Datenverlust beim Varianten-Wechsel, Bug-Klasse 1/3). Varianten-Wechsel auf einem Rechner: die neue Variant-DB startet **leer** und lädt frisch aus dem Daten-Share (kein geteilter IDB-Zustand, **keine** Migration — Share = Source of Truth, IDB = Cache). Hinweis: localStorage + die Share-Dateien bleiben origin-/share-weit geteilt — die „nicht zwei Varianten gleichzeitig schreibend offen"-Regel gilt für Share-Writes weiter.
 - **VERTRAUENS-MODELL**: Alle User haben AD-seitig SMB read+write auf den Daten-Share. Schutz erfolgt **clientseitig** — Schreib-Aktionen sind hinter dem Kurator-Passwort gated, normale User haben keine Write-Pfade im Code. Backups schützen gegen Versehens-Schäden; Böswilligkeit wird nicht präventiert (Single-Team-Trust-Modell).
 
 ## Tech Stack

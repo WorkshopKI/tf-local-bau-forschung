@@ -1,6 +1,7 @@
 import { IDBStore } from './idb-store';
 import { FileServerStore } from './fs-store';
 import { SyncService } from '@/core/services/sync/sync-service';
+import { getVariantDbName } from '@/config/runtime-config';
 import type { Vorgang } from '@/core/types/vorgang';
 import type { DirectoryEntry } from '@/core/types/config';
 import type { FsDirHandle } from '@/core/services/infrastructure/smb-handle';
@@ -11,7 +12,9 @@ interface ConnectedDirectory {
 }
 
 export class StorageService {
-  readonly idb = new IDBStore();
+  // Variante-getrennte IndexedDB (`teamflow-<outputFilename>`): verhindert, dass
+  // prod/kurator/pl unter demselben `file://`-Origin in EINE geteilte DB schreiben.
+  readonly idb = new IDBStore(getVariantDbName());
   private _directories = new Map<string, ConnectedDirectory>();
   readonly syncService: SyncService;
 

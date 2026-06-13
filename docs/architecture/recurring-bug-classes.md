@@ -59,15 +59,19 @@ Sieben Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an
 
 ## 3. Parallele `file://`-Varianten teilen Storage
 
-**Symptom:** Datenverlust/Interferenz, wenn mehrere Builds (`zah-pl.html`, `zah-prod.html`, `zah-kurator.html`, dev) gleichzeitig als Tabs offen sind. Konkret (Juni 2026): pl+prod+kurator parallel, Shift+Reload auf pl → `auslastung.json` von 263 KB auf 7 KB überschrieben.
+**Symptom (historisch):** Datenverlust/Interferenz, wenn mehrere Builds (`zah-pl.html`, `zah-prod.html`, `zah-kurator.html`, dev) gleichzeitig als Tabs offen waren. Konkret (Juni 2026): pl+prod+kurator parallel, Shift+Reload auf pl → `auslastung.json` von 263 KB auf 7 KB überschrieben.
 
-**Root-Cause:** Unter `file://` teilen sich in Chrome ALLE Builds **denselben Origin** → **eine** IndexedDB (DB-Name konstant `teamflow`), **einen** SMB-Handle, **ein** Downgrade-Flag.
-- **Downgrade-Flag-Vergiftung:** Nur-Lese-Rollen (prod / kurator-vor-Login) setzen das geteilte `needs-handle-downgrade`-Flag; ein pl-Tab stufte sich grundlos auf `read` herunter → stille `NotAllowedError`-Writes. (Entschärft: Schreib-Rollen ignorieren das Flag und löschen ein fremd-gesetztes, siehe Pitfall #25.)
-- **atomicWrite-Race:** während `rename→.backup / write .tmp / rename→Ziel` existiert die Zieldatei kurz nicht; liest ein anderer Tab genau dann → „leer" → Cold-Start-Clobber (Klasse 1, gefährliche Variante).
+**Strukturelle Wurzel — die geteilte IndexedDB — ist seit v2.87 behoben.** Unter `file://` teilen alle Builds zwar weiterhin **denselben Origin**, aber der **IDB-Name ist jetzt pro Variante suffigiert** (`teamflow-<outputFilename>` via `getVariantDbName()`, siehe [data-layout.md](data-layout.md)). Damit hat jede Variante ihre **eigene** DB — der frühere „eine geteilte `teamflow`-DB für alle"-Zustand existiert nicht mehr. Konsequenzen:
+- **Downgrade-Flag-Vergiftung — strukturell ausgeschlossen.** Das `needs-handle-downgrade`-Flag ist ein IDB-Key; per-Variante-DB heißt: prod kann pl/kurator nicht mehr vergiften. (Der `writeRole`-Guard in `App.tsx` bleibt als Defense-in-Depth, Pitfall #25.)
+- **Shared-IDB-Clobber (antraege/kv) — weg.** Ein Varianten-**Wechsel** (sequenziell: eine schließen, andere öffnen) ist jetzt sicher; die neue Variant-DB startet leer und lädt frisch aus dem Share (= wie der tägliche Refresh).
 
-**Operative Regel (an Nutzer kommunizieren):** Nicht mehrere Varianten gleichzeitig aus `file://` öffnen — eine Variante pro Browser zur Zeit, oder getrennte Browser-Profile. Cross-Tab-Koordination ist nicht möglich (BroadcastChannel unter `file://` verboten, Last-Write-Wins ohne Lock). Zwei **pl**-Tabs sind nur fürs Auslastungs-Modul via localStorage-Ping abgesichert ([cross-tab.ts](../../src/plugins/auslastung/services/cross-tab.ts)).
+**Residual — was NICHT pro Variante getrennt ist (gilt nur bei GLEICHZEITIG offenen Varianten):**
+- **Share-Dateien + atomicWrite-Race:** Der SMB-Share + persönliche Ordner sind physisch dieselben Dateien für alle Varianten. Während `rename→.backup / write .tmp / rename→Ziel` existiert die Zieldatei kurz nicht; lesen zwei *gleichzeitig schreibende* Varianten-Tabs genau dann → „leer" → Cold-Start-Clobber (Klasse 1). Die IDB-Trennung adressiert das **nicht**.
+- **localStorage** (origin-weit) bleibt geteilt — betrifft aber nur kleine UI-Flags/Prefs (kein Datenverlust-Vektor).
 
-**Beim Bauen:** Neue Stores, die auf den Share schreiben, sind bei parallel offenen Varianten ungeschützt — Cross-Variant-Sync gibt es nur fürs Auslastungs-Modul. Schreibfehler sichtbar machen statt still schlucken.
+**Operative Regel (entschärft):** Varianten-**Wechsel** auf einem Rechner ist unkritisch. Nur **nicht zwei Varianten gleichzeitig offen lassen, die beide auf dieselben Share-Dateien schreiben** (z.B. pl + kurator parallel mit Auslastungs-Writes). Cross-Tab-Koordination über Varianten gibt es nicht (BroadcastChannel unter `file://` verboten, Last-Write-Wins ohne Lock). Zwei **pl**-Tabs sind nur fürs Auslastungs-Modul via localStorage-Ping abgesichert ([cross-tab.ts](../../src/plugins/auslastung/services/cross-tab.ts)).
+
+**Beim Bauen:** Neue Stores, die auf den **Share** schreiben, sind bei parallel offenen Varianten weiterhin ungeschützt — Cross-Variant-Sync gibt es nur fürs Auslastungs-Modul. Schreibfehler sichtbar machen statt still schlucken.
 
 ---
 

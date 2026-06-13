@@ -36,9 +36,20 @@ export type CsvStoreName =
 
 export class IDBStore {
   private db: IDBDatabase | null = null;
-  private readonly dbName = 'teamflow';
+  private readonly dbName: string;
   private readonly storeName = 'kv';
   private readonly version = 8;
+
+  /**
+   * @param dbName Variantenspezifischer DB-Name (`teamflow-<outputFilename>`).
+   *   Produktiv von `storage/index.ts` via `getVariantDbName()` reingereicht —
+   *   so bleibt diese Klasse konfig-frei. Der Default `'teamflow-test'` greift nur
+   *   in Tests (`new IDBStore()` mit fake-indexeddb); er ist bewusst NICHT der
+   *   nackte `'teamflow'`, damit Tests nie auf eine echte Varianten-DB zeigen.
+   */
+  constructor(dbName: string = 'teamflow-test') {
+    this.dbName = dbName;
+  }
 
   async open(): Promise<void> {
     if (this.db) return;

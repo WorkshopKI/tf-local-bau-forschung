@@ -272,14 +272,15 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
     // v2.0: StartupScreen anzeigen, damit Permissions in einem User-Gesture-
     // Handler aktualisiert werden koennen.
     //
-    // Das Downgrade-Flag ist rollen-spezifisch, liegt aber in der unter `file://`
-    // GETEILTEN IndexedDB (alle Varianten = ein `teamflow`-Store, gleicher
-    // Origin). Nur die Nur-Lese-Variante (prod) setzt es; ohne
-    // die `writeRole`-Guard wuerde ein parallel offener pl-/kurator-Tab das fremde Flag
-    // befolgen und sich grundlos auf `read` herunterstufen → stille
-    // NotAllowedError-Writes, Datenverlust (Juni-2026-Vorfall). Schreib-Rollen
-    // ignorieren das Flag und raeumen ein fremd-gesetztes weg (Pitfall #25:
-    // Mode-Entscheidung ausschliesslich ueber canWriteDatenShare).
+    // Das Downgrade-Flag ist rollen-spezifisch und liegt in der IndexedDB. Seit
+    // v2.87 ist die IDB pro Build-Variante getrennt (`teamflow-<outputFilename>`),
+    // sodass das fruehere Cross-Varianten-Szenario strukturell ausgeschlossen ist:
+    // prod setzte das Flag in der unter `file://` GETEILTEN `teamflow`-DB, ein
+    // parallel offener pl-/kurator-Tab befolgte es und stufte sich grundlos auf
+    // `read` herunter → stille NotAllowedError-Writes, Datenverlust
+    // (Juni-2026-Vorfall). Der `writeRole`-Guard bleibt als Defense-in-Depth:
+    // Schreib-Rollen ignorieren ein gesetztes Flag und raeumen ein fremd-gesetztes
+    // weg (Pitfall #25: Mode-Entscheidung ausschliesslich ueber canWriteDatenShare).
     const writeRole = canWriteDatenShare(isKurator);
     const downgradeFlag = await storage.idb.get<boolean>(NEEDS_HANDLE_DOWNGRADE_IDB_KEY);
     const liveDowngrade = writeRole

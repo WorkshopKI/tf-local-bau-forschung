@@ -37,6 +37,12 @@ Alle geteilten Daten und Config-Dateien liegen im **Daten-Share** (separater SMB
 - `backups/YYYY-MM-DD/` — Wöchentliche Snapshots (Rolling 4 Gen., Daten-Share-Root)
 - `README.txt` — Orientierungs-Text (von der App beim Setup angelegt)
 
+## Browser-IndexedDB (machine-lokaler Cache, pro Variante getrennt)
+
+Die IndexedDB ist der **maschine-lokale Cache** im Browser (nicht auf dem Share). Seit v2.87 ist der DB-Name **pro Build-Variante** suffigiert: `teamflow-<outputFilename>` — also `teamflow-zah-prod`, `teamflow-zah-kurator`, `teamflow-zah-pl`, `teamflow-zah-demo`, `teamflow-zah-dev` (Dev-Server: `teamflow-dev`). Abgeleitet via `getVariantDbName()` / `deriveVariantDbName()` in [runtime-config.ts](../../src/config/runtime-config.ts), reingereicht in den `IDBStore`-Konstruktor ([idb-store.ts](../../src/core/services/storage/idb-store.ts)).
+
+Hintergrund: Unter `file://` teilen alle Varianten denselben Origin; ein konstanter Name `teamflow` ließ prod/kurator/pl in **dieselbe** DB schreiben (Bug-Klasse 1/3, Datenverlust beim Varianten-Wechsel). Eine frisch suffigierte Variant-DB startet **leer** und lädt beim Erststart per normalem Snapshot-Sync aus dem Daten-Share (kein Migrations-/Kopier-Code; Share = Source of Truth). Eine alte `teamflow`-DB aus Pre-v2.87-Nutzung bleibt verwaist liegen (harmlos, manuell via DevTools löschbar).
+
 ## Externe Handles
 
 - Phase 2: separater Dokumentenquelle-Handle (`smb-handles.dokumentenquelle`) für die Scan-Source — wird via `pickAndStoreDokumentenquelleHandle()` gesetzt; Scanner traversiert von dort über `runtimeConfig.scan.sub_roots`. Seit v1.15 multi-source via `smb-handles.dms-source-${id}`.
