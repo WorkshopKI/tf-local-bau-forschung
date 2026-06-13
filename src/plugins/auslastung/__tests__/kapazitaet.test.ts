@@ -16,7 +16,7 @@ import {
   EMPTY_AUSLASTUNG,
   type MaQuartalsAuslastung,
   type MaQuartalsBucket,
-} from '../services/quartals-auslastung';
+} from '../services/kapazitaet';
 import { DEFAULT_AUSLASTUNG_CONFIG, type AnonymerMitarbeiter } from '../types';
 
 function makeMa(overrides: Partial<AnonymerMitarbeiter> = {}): AnonymerMitarbeiter {

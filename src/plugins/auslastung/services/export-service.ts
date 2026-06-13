@@ -25,9 +25,9 @@ import {
   type MatchResult,
   type Zuweisung,
 } from '../types';
-import type { AnonymMap } from './anonym-map';
-import { resolveVerbundMeta, verbundKeyOf, pickVerbundZuweisung } from './verbund-aggregation';
-import { effektiveJahresStunden } from './kapazitaet-pro-typ';
+import type { AnonymMap } from './identitaet/anonym-map';
+import { resolveVerbundMeta, verbundKeyOf, pickVerbundZuweisung } from './verbund/verbund-aggregation';
+import { effektiveJahresStunden } from './kapazitaet/kapazitaet-pro-typ';
 
 /** Anzahl der „weitere moegliche Bearbeiter"-Spalten. */
 const ALT_COUNT = 5;

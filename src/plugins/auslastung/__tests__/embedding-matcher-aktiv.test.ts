@@ -7,7 +7,7 @@
  * Aggregation skipt inaktive Bearbeiter.
  */
 import { describe, it, expect } from 'vitest';
-import { runEmbeddingMatching } from '../services/embedding-matcher';
+import { runEmbeddingMatching } from '../services/matching';
 import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter } from '../types';

@@ -10,8 +10,8 @@
 import { memo, useMemo } from 'react';
 import type { AnonymerMitarbeiter, AntragstypBucket, KategorieFarbe } from '../../types';
 import type { UeberkategorieId } from '../../services/default-labels';
-import type { ColMeta } from '../../services/kompetenz-geometry';
-import { capCellBg } from '../../services/kompetenz-matrix-colors';
+import type { ColMeta } from '../../services/klassifizierung';
+import { capCellBg } from '../../services/klassifizierung';
 import { maToDraft, type Draft, type CapSortCol } from '../../hooks/useKompetenzMatrixModel';
 import { LevelCell } from './LevelCell';
 import { CapCell } from './CapCell';

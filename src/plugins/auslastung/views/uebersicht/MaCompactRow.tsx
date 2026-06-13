@@ -14,10 +14,10 @@
 import { memo } from 'react';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import type { AnonymerMitarbeiter, UeberKategorie } from '../../types';
-import type { MaQuartalsAuslastung } from '../../services/quartals-auslastung';
-import type { MaAltlastBucket } from '../../services/altlast';
+import type { MaQuartalsAuslastung } from '../../services/kapazitaet';
+import type { MaAltlastBucket } from '../../services/kapazitaet';
 import type { KapazitaetsView } from '../../services/kapazitaet';
-import type { KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
+import type { KapazitaetProTypView } from '../../services/kapazitaet';
 import { dotColor } from './kategorie-colors';
 import { TypKapazitaetBars } from './TypKapazitaetBars';
 import { GesamtauslastungBar } from './GesamtauslastungBar';

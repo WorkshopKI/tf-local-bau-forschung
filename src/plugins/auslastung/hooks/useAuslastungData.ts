@@ -32,12 +32,12 @@ import {
   type PersoenlichesAuslastungProfil,
   type PersoenlicheUebernahmeWuensche,
 } from '../types';
-import { nextFreeAnonId, type AnonymMap } from '../services/anonym-map';
-import { mergeProfilesIntoMitarbeiter } from '../services/profil-einsammeln';
+import { nextFreeAnonId, type AnonymMap } from '../services/identitaet';
+import { mergeProfilesIntoMitarbeiter } from '../services/onboarding';
 import { pingAuslastungWrite } from '../services/cross-tab';
-import { mergeWuenscheIntoZuweisungen } from '../services/uebernahme-einsammeln';
-import { pickVerbundZuweisung } from '../services/verbund-aggregation';
-import { deriveHauptNeben } from '../services/kompetenz-derivation';
+import { mergeWuenscheIntoZuweisungen } from '../services/onboarding';
+import { pickVerbundZuweisung } from '../services/verbund';
+import { deriveHauptNeben } from '../services/klassifizierung';
 
 /** Eine Kompetenz-Mutation (PL-XLSX-Import oder Matrix-Editor). Felder, die
  *  `undefined` bleiben, lassen den Bestand unverändert; ein gesetztes Feld

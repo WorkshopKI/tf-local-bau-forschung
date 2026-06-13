@@ -15,9 +15,9 @@ import type { AntragOderSlim } from '@/core/services/csv/types';
 import { KategoriePill } from '../components/KategoriePill';
 import { HoverTooltip } from '../components/HoverTooltip';
 import { ConfidenceDot } from '../components/ConfidenceDot';
-import { normalizeKuerzel } from '../services/anonym-map';
-import type { VerbundKlassifizierungsView } from '../services/verbund-aggregation';
-import { collectVerbundTHints, unvollstaendigGrund } from '../services/verbund-aggregation';
+import { normalizeKuerzel } from '../services/identitaet';
+import type { VerbundKlassifizierungsView } from '../services/verbund';
+import { collectVerbundTHints, unvollstaendigGrund } from '../services/verbund';
 import {
   CANONICAL_BIB_KUERZ,
   CANONICAL_ANTRAGSDATUM,

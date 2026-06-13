@@ -3,7 +3,7 @@ import {
   tokenize,
   buildMaDocument,
   runBm25Matching,
-} from '../services/bm25-matcher';
+} from '../services/matching';
 import type { AnonymerMitarbeiter } from '../types';
 
 function makeMa(anonId: string, kategorien: string[], tech: string[] = []): AnonymerMitarbeiter {

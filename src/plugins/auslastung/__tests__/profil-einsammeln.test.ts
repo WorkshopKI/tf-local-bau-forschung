@@ -11,8 +11,8 @@ import {
   collectUserProfiles,
   mergeProfilesIntoMitarbeiter,
   mergeSelfProfile,
-} from '../services/profil-einsammeln';
-import type { AnonymMap } from '../services/anonym-map';
+} from '../services/onboarding';
+import type { AnonymMap } from '../services/identitaet';
 import type { AnonymerMitarbeiter, PersoenlichesAuslastungProfil } from '../types';
 
 function anonMap(pairs: Array<[string, string]>): AnonymMap {

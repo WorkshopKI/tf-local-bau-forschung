@@ -21,21 +21,21 @@ import {
   readAntragDeskriptoren,
   readAntragDeskriptorenMitZt,
   readTruthyZtKlartexte,
-} from '../services/profil-aggregator';
+} from '../services/identitaet';
 import {
   klassifiziereAntrag,
   klassifiziereAntragFromLookup,
   matchZukunftstechnologien,
   matchZukunftstechnologienFromKlartexte,
-} from '../services/klassifizierung-engine';
+} from '../services/klassifizierung';
 import {
   istVollstaendigFuerTyp,
   istVollstaendigFuerTypAz,
   type VollstaendigkeitsGate,
   type VollstaendigkeitsGateAz,
-} from '../services/verbund-aggregation';
+} from '../services/verbund';
 import type { UeberKategorie } from '../types';
-import { normalizeKuerzel } from '../services/anonym-map';
+import { normalizeKuerzel } from '../services/identitaet';
 import { buildAnonymMapForTests } from './test-helpers';
 
 function antrag(az: string, fields: Record<string, unknown>): Antrag {

@@ -11,7 +11,7 @@ import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
 import { KategoriePill } from '../components/KategoriePill';
 import { ConfidenceDot } from '../components/ConfidenceDot';
 import { TechnologieTags } from '../components/TechnologieTags';
-import { normalizeKuerzel } from '../services/anonym-map';
+import { normalizeKuerzel } from '../services/identitaet';
 import {
   CANONICAL_AKRONYM,
   CANONICAL_VERBUND_TITEL,

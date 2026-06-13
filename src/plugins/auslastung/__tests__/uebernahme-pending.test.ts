@@ -3,8 +3,8 @@
  * `antragId → anonIds[]` für die „vorgemerkt"-Markierung im Cockpit (v2.9).
  */
 import { describe, it, expect } from 'vitest';
-import { buildPendingByAntrag } from '../services/uebernahme-einsammeln';
-import { resolveAnonIdForUser } from '../services/anonym-map';
+import { buildPendingByAntrag } from '../services/onboarding';
+import { resolveAnonIdForUser } from '../services/identitaet';
 import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { PersoenlicheUebernahmeWuensche } from '../types';

@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
-import { applyOnboardingImport, parseOnboardingXlsx, type OnboardingPreview } from '../services/onboarding-import';
+import { applyOnboardingImport, parseOnboardingXlsx, type OnboardingPreview } from '../services/onboarding';
 import { AnonymIdBadge, useDeAnonResolver } from './AnonymIdBadge';
 import { KategoriePill } from './KategoriePill';
 import { useDialogEsc } from './useDialogEsc';

@@ -23,12 +23,12 @@ import {
   parseClipboardResponse,
   type LLMVerbund,
   type LLMKlassifizierungEintrag,
-} from '../services/llm-klassifizierung';
+} from '../services/klassifizierung';
 import {
   type Klassifizierung,
   type UeberKategorie,
 } from '../types';
-import type { VerbundKlassifizierungsView } from '../services/verbund-aggregation';
+import type { VerbundKlassifizierungsView } from '../services/verbund';
 
 interface Props {
   /** Verbund-Views aus `buildVerbundClassificationViews` — der Hook liefert

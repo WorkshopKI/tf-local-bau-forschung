@@ -22,13 +22,13 @@ import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { usePendingUebernahmeWuensche } from '../hooks/usePendingUebernahmeWuensche';
 import { usePersistedKlassifizierungenView } from '../hooks/useKlassifizierungen';
 import { getAntrag } from '@/core/services/csv/idb-csv';
-import { runMatchingWithContext } from '../services/matching-engine';
-import { collectUebernahmeWuensche } from '../services/uebernahme-einsammeln';
+import { runMatchingWithContext } from '../services/matching';
+import { collectUebernahmeWuensche } from '../services/onboarding';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
-import { getTVCount } from '../services/quartals-auslastung';
-import { collectVerbundTHints, groupFreigegebeneByVerbund, istUnvollstaendigAz, istVollstaendigFuerTypAz, istZuVerteilen, unvollstaendigGrund, verteilCutoffDatum, verbundKeyOf, type VollstaendigkeitsGateAz, type VerbundZuweisungRow } from '../services/verbund-aggregation';
+import { getTVCount } from '../services/kapazitaet';
+import { collectVerbundTHints, groupFreigegebeneByVerbund, istUnvollstaendigAz, istVollstaendigFuerTypAz, istZuVerteilen, unvollstaendigGrund, verteilCutoffDatum, verbundKeyOf, type VollstaendigkeitsGateAz, type VerbundZuweisungRow } from '../services/verbund';
 import { useMatchingCorpus, type MatchingCorpus } from '../hooks/useMatchingCorpus';
 import {
   embedText,
@@ -54,8 +54,8 @@ import { VorschlagRow } from '../components/VorschlagRow';
 import { NichtVorgeschlagenListe } from '../components/NichtVorgeschlagenListe';
 import { ZuweisungStreifen } from '../components/ZuweisungStreifen';
 import { ManuellerMaPicker } from '../components/ManuellerMaPicker';
-import { buildManualMatch } from '../services/manual-match';
-import { verbrauchFromAuslastung } from '../services/kontingent';
+import { buildManualMatch } from '../services/matching';
+import { verbrauchFromAuslastung } from '../services/matching';
 import { computeKapazitaet, tageImQuartal as computeTageImQuartal } from '../services/kapazitaet';
 import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
 import { useKuerzelExport } from '../hooks/useKuerzelExport';
@@ -69,7 +69,7 @@ import {
   SORT_CHIP_DISPLAY,
   DEFAULT_ZUWEISUNG_SORT,
   type ZuweisungSortKey,
-} from '../services/zuweisung-sort';
+} from '../services/matching';
 import type { Antrag, AntragListItem } from '@/core/services/csv/types';
 
 type StatusFilter = 'offen' | 'selbst' | 'zugewiesen' | 'alle';

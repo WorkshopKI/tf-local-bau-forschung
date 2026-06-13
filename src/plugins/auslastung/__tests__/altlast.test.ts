@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { Antrag } from '@/core/services/csv/types';
-import { computeAltlasten, EMPTY_ALTLAST } from '../services/altlast';
+import { computeAltlasten, EMPTY_ALTLAST } from '../services/kapazitaet';
 
 /** Test-Helper: nimmt `status` als plain string und castet im Output auf
  *  AntragStatusRaw (branded type, siehe CLAUDE.md Pitfall #12). Erlaubt

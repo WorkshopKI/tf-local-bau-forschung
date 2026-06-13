@@ -28,7 +28,7 @@ import {
   type Klassifizierung,
   type PrimaerVorschlag,
 } from '../types';
-import { normalizeKompetenzMatrix, normalizeKontingent } from './kompetenz-derivation';
+import { normalizeKompetenzMatrix, normalizeKontingent } from './klassifizierung/kompetenz-derivation';
 
 /**
  * Validiert ein rohes antragstyp-Vorbelegungs-Array beim Laden.

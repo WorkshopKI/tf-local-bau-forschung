@@ -13,8 +13,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const loadKuerzelMapSpy = vi.fn();
-vi.mock('../services/kuerzel-map', async (importActual) => {
-  const actual = await importActual<typeof import('../services/kuerzel-map')>();
+vi.mock('../services/identitaet', async (importActual) => {
+  const actual = await importActual<typeof import('../services/identitaet')>();
   return { ...actual, loadKuerzelMap: () => loadKuerzelMapSpy() };
 });
 
@@ -24,7 +24,7 @@ vi.mock('@/core/services/infrastructure/smb-handle', () => ({
 }));
 
 import { useKuerzelMap } from '../hooks/useKuerzelMap';
-import { emptyKuerzelMap, type KuerzelMapFile } from '../services/kuerzel-map';
+import { emptyKuerzelMap, type KuerzelMapFile } from '../services/identitaet';
 
 const fakeStorage = { idb: {} } as never;
 

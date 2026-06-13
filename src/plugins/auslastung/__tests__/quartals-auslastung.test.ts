@@ -13,7 +13,7 @@ import {
   computeQuartalsAuslastung,
   getTVCount,
   EMPTY_AUSLASTUNG,
-} from '../services/quartals-auslastung';
+} from '../services/kapazitaet';
 import type { Zuweisung } from '../types';
 
 function makeAntrag(overrides: Partial<Antrag> & Pick<Antrag, 'aktenzeichen'>): Antrag {

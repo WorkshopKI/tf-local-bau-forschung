@@ -6,7 +6,7 @@ import {
   matchZukunftstechnologien,
   computeKategorieCentroids,
   splitInPrimaerUndAspekte,
-} from '../services/klassifizierung-engine';
+} from '../services/klassifizierung';
 import type { Antrag } from '@/core/services/csv/types';
 import { DEFAULT_UEBERKATEGORIEN, type UeberKategorie, type Klassifizierung } from '../types';
 

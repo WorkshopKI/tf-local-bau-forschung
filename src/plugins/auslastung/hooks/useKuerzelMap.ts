@@ -21,8 +21,8 @@ import {
   buildAnonymMapFromKuerzelMap,
   emptyKuerzelMap,
   type KuerzelMapFile,
-} from '../services/kuerzel-map';
-import type { AnonymMap } from '../services/anonym-map';
+} from '../services/identitaet';
+import type { AnonymMap } from '../services/identitaet';
 
 /** True, wenn die Sidecar-Inhalte fachlich identisch sind (gleiche Anzahl +
  *  gleiche Kuerzel/anonId in Reihenfolge). `updatedAt` ist absichtlich nicht

@@ -17,7 +17,7 @@ import {
   normalizeKuerzelMap,
   emptyKuerzelMap,
   type KuerzelMapFile,
-} from '../services/kuerzel-map';
+} from '../services/identitaet';
 import type { Antrag } from '@/core/services/csv/types';
 
 function makeAntrag(az: string, tib?: string): Antrag {

@@ -12,7 +12,7 @@ import {
   getEffectiveAntragstypen,
   hasPlOverride,
   matchesAntragstyp,
-} from '../services/antragstyp-praeferenz';
+} from '../services/kapazitaet';
 import type { AnonymerMitarbeiter, AntragstypBucket } from '../types';
 import type { Antrag } from '@/core/services/csv/types';
 

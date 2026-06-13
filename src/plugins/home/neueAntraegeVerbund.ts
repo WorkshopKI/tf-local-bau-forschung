@@ -16,7 +16,7 @@ import { CANONICAL_TITEL, type Klassifizierung } from '@/plugins/auslastung/type
 import {
   verbundKeyOf,
   resolveVerbundMeta,
-} from '@/plugins/auslastung/services/verbund-aggregation';
+} from '@/plugins/auslastung/services/verbund';
 import { formatFkzRange } from '@/plugins/antraege/antragGroups';
 
 /** Ein offener (freigegebener, für den User passender) Teilvorhaben-Eintrag.

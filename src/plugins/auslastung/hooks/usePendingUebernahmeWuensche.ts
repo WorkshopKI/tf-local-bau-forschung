@@ -15,8 +15,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getUserFoldersRootHandle } from '@/core/services/infrastructure/smb-handle';
-import { collectUebernahmeWuensche, buildPendingByAntrag } from '../services/uebernahme-einsammeln';
-import type { AnonymMap } from '../services/anonym-map';
+import { collectUebernahmeWuensche, buildPendingByAntrag } from '../services/onboarding';
+import type { AnonymMap } from '../services/identitaet';
 
 const EMPTY: ReadonlyMap<string, string[]> = new Map();
 

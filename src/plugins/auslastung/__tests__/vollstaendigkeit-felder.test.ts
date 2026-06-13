@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { CsvSchema } from '@/core/services/csv/types';
-import { resolveVollstaendigkeitsFelder } from '../services/vollstaendigkeit-felder';
+import { resolveVollstaendigkeitsFelder } from '../services/klassifizierung';
 
 function schema(over: Partial<CsvSchema> & { column_mapping: CsvSchema['column_mapping'] }): CsvSchema {
   return {

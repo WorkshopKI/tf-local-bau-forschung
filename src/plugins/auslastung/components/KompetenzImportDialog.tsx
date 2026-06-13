@@ -10,12 +10,12 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useDialogEsc } from './useDialogEsc';
 import { useAuslastungData } from '../hooks/useAuslastungData';
-import type { AnonymMap } from '../services/anonym-map';
+import type { AnonymMap } from '../services/identitaet';
 import {
   applyKompetenzImport,
   parseKompetenzXlsx,
   type KompetenzImportPreview,
-} from '../services/kompetenz-import';
+} from '../services/onboarding';
 
 interface Props {
   open: boolean;

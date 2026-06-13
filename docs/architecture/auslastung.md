@@ -53,9 +53,9 @@ Der Vollbuild (~47 min, ~200-MB-Modell) bleibt dev-exklusiv; „Inkrementell" l�
 
 Der „Meine Technologien"-Tab kann `auslastung.json` nicht direkt schreiben — Nicht-Kuratoren haben seit v2.0 nur `read` auf dem Daten-Share. Stattdessen:
 
-- **User schreibt** sein Selbst-Profil (`manuelleTechnologien`, `ausgeblendeteAutoTags`, `hauptKategorie`, `nebenKategorien`, `antragstypBevorzugt`) nach `ZAH/auslastung-profil.json` im eigenen Ordner — `writeAuslastungProfil` in [services/persoenliches-profil.ts](../../src/plugins/auslastung/services/persoenliches-profil.ts) (+ IDB-Cache für Cross-Browser/Offline).
+- **User schreibt** sein Selbst-Profil (`manuelleTechnologien`, `ausgeblendeteAutoTags`, `hauptKategorie`, `nebenKategorien`, `antragstypBevorzugt`) nach `ZAH/auslastung-profil.json` im eigenen Ordner — `writeAuslastungProfil` in [services/persoenliches-profil.ts](../../src/plugins/auslastung/services/identitaet/persoenliches-profil.ts) (+ IDB-Cache für Cross-Browser/Offline).
 - **Tab hydratisiert** beim Mount via `loadAuslastungProfil` (persönlicher Ordner → IDB-Cache, LWW über `updatedAt`) und priorisiert das gegenüber dem `auslastung.json`-Record.
-- **PL sammelt ein**: Button „Team-Profile einsammeln" in der Übersicht ([MaListSection.tsx](../../src/plugins/auslastung/views/uebersicht/MaListSection.tsx)) → `collectUserProfiles` (User-Folders-Root, Iterations-Muster wie FeedbackInboxTab) → `mergeProfilesIntoMitarbeiter` ([services/profil-einsammeln.ts](../../src/plugins/auslastung/services/profil-einsammeln.ts)) → Store-Action `applyAggregatedProfiles` (EIN setState + EIN persist). Merge mappt `kuerzel → anonId` (NFC), überschreibt nur die MA-pflegbaren Felder und lässt PL-only-Felder (`jahresKapazitaet`, `abschlagProzent`, `aktiv`, `abgemeldet`, `antragstypUeberschreibung`) unangetastet; unbekannte Kürzel legen neue MAs an.
+- **PL sammelt ein**: Button „Team-Profile einsammeln" in der Übersicht ([MaListSection.tsx](../../src/plugins/auslastung/views/uebersicht/MaListSection.tsx)) → `collectUserProfiles` (User-Folders-Root, Iterations-Muster wie FeedbackInboxTab) → `mergeProfilesIntoMitarbeiter` ([services/profil-einsammeln.ts](../../src/plugins/auslastung/services/onboarding/profil-einsammeln.ts)) → Store-Action `applyAggregatedProfiles` (EIN setState + EIN persist). Merge mappt `kuerzel → anonId` (NFC), überschreibt nur die MA-pflegbaren Felder und lässt PL-only-Felder (`jahresKapazitaet`, `abschlagProzent`, `aktiv`, `abgemeldet`, `antragstypUeberschreibung`) unangetastet; unbekannte Kürzel legen neue MAs an.
 
 Siehe CLAUDE.md Pitfall #24 + [v2-handle-architektur.md](v2-handle-architektur.md).
 
@@ -120,14 +120,26 @@ Additive optionale Felder am `AnonymerMitarbeiter` (bestehende `auslastung.json`
 
 Sowie am `config`: `kompetenzSchema` (Spalten-Schema aus dem XLSX-Header) + `kompetenzLevelGewicht` / `kontingentGewicht`.
 
-- **Parser** [kompetenz-import.ts](../../src/plugins/auslastung/services/kompetenz-import.ts): liest das Merge-Header-Layout (Zeile 1 = Überkat-Merges, Zeile 2 = Unterkat-Labels), löst `TIB_KUERZ → anonId` via Kürzel-Map (NFC-normalisiert, Pitfall #22); unbekannte Kürzel → warnen + überspringen (keine Phantom-MAs).
-- **Ableitung** [kompetenz-derivation.ts](../../src/plugins/auslastung/services/kompetenz-derivation.ts) (reine Funktionen): `deriveHauptNeben`, `kompetenzTokens`, `normLevelForUeber`.
+- **Parser** [kompetenz-import.ts](../../src/plugins/auslastung/services/onboarding/kompetenz-import.ts): liest das Merge-Header-Layout (Zeile 1 = Überkat-Merges, Zeile 2 = Unterkat-Labels), löst `TIB_KUERZ → anonId` via Kürzel-Map (NFC-normalisiert, Pitfall #22); unbekannte Kürzel → warnen + überspringen (keine Phantom-MAs).
+- **Ableitung** [kompetenz-derivation.ts](../../src/plugins/auslastung/services/klassifizierung/kompetenz-derivation.ts) (reine Funktionen): `deriveHauptNeben`, `kompetenzTokens`, `normLevelForUeber`.
 - **Merge = Überschreiben** über die Batch-Store-Action `applyKompetenzMatrixBatch` (EIN setState + EIN persist, Pitfall #16/#20): leitet Haupt-/Nebenkategorie aus der Matrix ab und setzt `onboardingAbgeschlossen` (Matcher-Gate).
-- **Matcher-Integration**: das BM25-Profil-Doc bekommt level-gewichtete Unterkat.-Tokens (Level 3 = Token 3×); die Engine skaliert den Kompetenz-Score mit dem Überkat.-Level der Primärkategorie und deckelt weich per Antragstyp-Kontingent ([kontingent.ts](../../src/plugins/auslastung/services/kontingent.ts)).
+- **Matcher-Integration**: das BM25-Profil-Doc bekommt level-gewichtete Unterkat.-Tokens (Level 3 = Token 3×); die Engine skaliert den Kompetenz-Score mit dem Überkat.-Level der Primärkategorie und deckelt weich per Antragstyp-Kontingent ([kontingent.ts](../../src/plugins/auslastung/services/matching/kontingent.ts)).
 
 UI: [KompetenzMatrixView](../../src/plugins/auslastung/views/KompetenzMatrixView.tsx) + [KompetenzImportDialog](../../src/plugins/auslastung/components/KompetenzImportDialog.tsx) + die in `src/plugins/auslastung/components/kompetenz/` zerlegte Grid-Komponente ([KompetenzMatrix.tsx](../../src/plugins/auslastung/components/kompetenz/KompetenzMatrix.tsx) + `MatrixRow`/`MatrixHeader`/`MatrixToolbar`/`MatrixControls`/`LevelCell`/`CapCell`). Datenschutz: das Grid zeigt anonIds; echte Kürzel nur in Varianten mit Flag `deAnonymisierung` (pl/dev — seit v2.17 ohne separates De-Anon-Passwort).
 
 ## Engine-Layer (`src/plugins/auslastung/services/`)
+
+**Submodul-Struktur (Phase A, v2.85):** Die Service-Dateien sind in kohäsive Submodule mit je einem `index.ts`-Barrel gegliedert (reiner Re-Export, keine Verhaltensänderung). Deep-Importe von außen laufen über den Submodul-Index `@/plugins/auslastung/services/<submodul>` (oder das Top-Barrel `@/plugins/auslastung/services`):
+
+- `matching/` — matching-engine, bm25-matcher, embedding-matcher, embedding-corpus, verbund-embedding, corpus-signal, corpus-share-sync, manual-match, zuweisung-sort, kontingent
+- `klassifizierung/` — klassifizierung-engine, llm-klassifizierung, kompetenz-codes/-derivation/-geometry/-matrix-colors, vollstaendigkeit-felder
+- `kapazitaet/` — kapazitaet, kapazitaet-pro-typ, quartals-auslastung, statistik, aktiv-detection, altlast, antragstyp-praeferenz
+- `identitaet/` — anonym-map, kuerzel-map, persoenliches-profil, profil-aggregator
+- `onboarding/` — onboarding-html-generator/-import/-kalibrierung, kompetenz-import, profil-einsammeln, uebernahme-einsammeln, uebernahme-wuensche
+- `verbund/` — verbund-aggregation, externe-zuweisungen
+- **Root** (Querschnitt/Store, bleiben oben): auslastung-store, cross-tab, export-service, default-labels (generiert), tib-mail
+
+Service-interne Cross-Submodul-Importe nutzen **direkte** Pfade (`../<submodul>/<datei>`), nicht das Barrel (Graph ist azyklisch). Tests, die ein konkretes Modul mocken/spyen (`vi.mock`), müssen den **konkreten** Submodul-Pfad treffen, nicht den Barrel.
 
 - `klassifizierung-engine.ts` — dreistufig: **Stage 0** (Boolean-Match auf ZT-Spalten der CSV `"Künstliche"`, `"Gesundes L"`, `"Energie/Re"`, ... → direkt der Default-Überkategorie zugeordnet, höchste Confidence), **Stage 1** (Regel-Mapping aus PL-konfigurierten Deskriptoren-Listen, Multi-Label wenn 2 Kategorien matchen), **Stage 2** (Embedding-Centroid-Match, optional via `config.stage2Aktiv`).
 - `bm25-matcher.ts` — Mini-BM25 für MA-Profile mit deutschen Stoppwörtern.
@@ -200,8 +212,8 @@ Der `useAuslastungData`-Store hat einen `if (saving) return;`-Lock im `persist`.
 
 ### Pitfall #18 — AnonymMap kommt aus der append-only kuerzel-map
 
-Die Sidecar-Datei `_intern/auslastung-kuerzel-map.json` ist append-only: einmal vergebene anonIds bleiben stabil, neue Kürzel hängen hinten an (kein Identitäts-Drift bei alphabetischer Mitten-Insertion). Code-Konsumenten lesen `cache.anonymMap` aus [useAntraegeCache.ts](../../src/plugins/auslastung/hooks/useAntraegeCache.ts) bzw. nutzen [`useKuerzelMap`](../../src/plugins/auslastung/hooks/useKuerzelMap.ts) + [`buildAnonymMapFromKuerzelMap`](../../src/plugins/auslastung/services/kuerzel-map.ts). Unit-Tests: `buildAnonymMapForTests(antraege)` (derselbe Code-Pfad wie Prod). Schreib-Profil: append-only (Pitfall #23).
+Die Sidecar-Datei `_intern/auslastung-kuerzel-map.json` ist append-only: einmal vergebene anonIds bleiben stabil, neue Kürzel hängen hinten an (kein Identitäts-Drift bei alphabetischer Mitten-Insertion). Code-Konsumenten lesen `cache.anonymMap` aus [useAntraegeCache.ts](../../src/plugins/auslastung/hooks/useAntraegeCache.ts) bzw. nutzen [`useKuerzelMap`](../../src/plugins/auslastung/hooks/useKuerzelMap.ts) + [`buildAnonymMapFromKuerzelMap`](../../src/plugins/auslastung/services/identitaet/kuerzel-map.ts). Unit-Tests: `buildAnonymMapForTests(antraege)` (derselbe Code-Pfad wie Prod). Schreib-Profil: append-only (Pitfall #23).
 
 ### Pitfall #22 — Unicode-Kürzel (THÜ/BIB/ZTP) immer NFC-normalisieren
 
-Umlaut-Kürzel kommen in IDB/JSON je nach Browser/OS in NFC oder NFD an. Wer Kürzel in der `kuerzel-map` speichert oder daraus liest, muss `s.normalize('NFC')` durchlaufen (`bootstrapKuerzelMap()` in [kuerzel-map.ts](../../src/plugins/auslastung/services/kuerzel-map.ts)), sonst silent-mismatch in `findAnonId(kuerzel)` und doppelter `anonId`-Eintrag für „THÜ" (NFC) vs „THÜ" (NFD). Tritt v.a. bei manuellen Imports aus Excel oder beim Onboarding-XLSX-Upload auf.
+Umlaut-Kürzel kommen in IDB/JSON je nach Browser/OS in NFC oder NFD an. Wer Kürzel in der `kuerzel-map` speichert oder daraus liest, muss `s.normalize('NFC')` durchlaufen (`bootstrapKuerzelMap()` in [kuerzel-map.ts](../../src/plugins/auslastung/services/identitaet/kuerzel-map.ts)), sonst silent-mismatch in `findAnonId(kuerzel)` und doppelter `anonId`-Eintrag für „THÜ" (NFC) vs „THÜ" (NFD). Tritt v.a. bei manuellen Imports aus Excel oder beim Onboarding-XLSX-Upload auf.

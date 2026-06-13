@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { deriveCode } from '../services/kompetenz-codes';
-import { buildGeometry, COL_W } from '../services/kompetenz-geometry';
+import { deriveCode } from '../services/klassifizierung';
+import { buildGeometry, COL_W } from '../services/klassifizierung';
 import type { KompetenzSchemaEntry } from '../types';
 
 describe('deriveCode', () => {

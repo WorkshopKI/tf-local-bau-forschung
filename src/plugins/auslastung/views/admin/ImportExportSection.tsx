@@ -18,9 +18,9 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
-import { downloadOnboardingHtml } from '../../services/onboarding-html-generator';
+import { downloadOnboardingHtml } from '../../services/onboarding';
 import { useKuerzelExport } from '../../hooks/useKuerzelExport';
-import type { OnboardingPreview } from '../../services/onboarding-import';
+import type { OnboardingPreview } from '../../services/onboarding';
 import { OnboardingImportDialog } from '../../components/OnboardingImportDialog';
 import { KalibrierungsReport } from '../../components/KalibrierungsReport';
 

@@ -22,13 +22,13 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
-import { resolveAnonIdForUser } from '@/plugins/auslastung/services/anonym-map';
-import { aggregateMaProfileFromLookup } from '@/plugins/auslastung/services/profil-aggregator';
+import { resolveAnonIdForUser } from '@/plugins/auslastung/services/identitaet';
+import { aggregateMaProfileFromLookup } from '@/plugins/auslastung/services/identitaet';
 import {
   loadAuslastungProfil,
   writeAuslastungProfil,
-} from '@/plugins/auslastung/services/persoenliches-profil';
-import { hasPlOverride } from '@/plugins/auslastung/services/antragstyp-praeferenz';
+} from '@/plugins/auslastung/services/identitaet';
+import { hasPlOverride } from '@/plugins/auslastung/services/kapazitaet';
 import type { PersoenlichesAuslastungProfil } from '@/plugins/auslastung/types';
 import { KategoriePill } from '@/plugins/auslastung/components/KategoriePill';
 import { AutoTagToggleWand } from '@/plugins/auslastung/components/AutoTagToggleWand';

@@ -23,7 +23,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';
 import { useAuslastungReady } from './useAuslastungReady';
-import { verbundKeyOf, hatBearbeiterKuerzel } from '../services/verbund-aggregation';
+import { verbundKeyOf, hatBearbeiterKuerzel } from '../services/verbund';
 
 /** Einmal pro App-Session (überlebt Plugin-/Tab-Wechsel-Remounts). */
 let reconcileDone = false;

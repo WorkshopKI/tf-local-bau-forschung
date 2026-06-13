@@ -7,7 +7,7 @@
  */
 import type { Antrag, AntragListItem } from '@/core/services/csv/types';
 import { CANONICAL_TIB_KUERZ, CANONICAL_TIB_MAIL } from '../types';
-import { normalizeKuerzel } from './anonym-map';
+import { normalizeKuerzel } from './identitaet/anonym-map';
 
 /**
  * Baut eine Map `normalisiertes Kuerzel → E-Mail` aus den Antraegen. Scannt

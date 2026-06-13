@@ -26,14 +26,14 @@ const klassifiziereAntragSpy = vi.fn((input: { aktenzeichen: string }): Klassifi
   status: 'vorgeschlagen',
 }));
 
-vi.mock('../services/klassifizierung-engine', () => ({
+vi.mock('../services/klassifizierung/klassifizierung-engine', () => ({
   klassifiziereAntragFromLookup: (input: unknown) => klassifiziereAntragSpy(input as { aktenzeichen: string }),
 }));
 
 import {
   buildVerbundClassificationViews,
   invalidateVerbundClassificationCache,
-} from '../services/verbund-aggregation';
+} from '../services/verbund';
 
 function makeAntrag(aktenzeichen: string, verbund_id?: string): Antrag {
   return {

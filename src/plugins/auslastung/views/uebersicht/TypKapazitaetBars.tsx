@@ -12,7 +12,7 @@
  * Unlimited-Slots (kein Kontingent) zeigen nur den Count, keine Bar.
  */
 import { memo } from 'react';
-import type { KapazitaetProTypView, TypSlot } from '../../services/kapazitaet-pro-typ';
+import type { KapazitaetProTypView, TypSlot } from '../../services/kapazitaet';
 
 interface Props {
   view: KapazitaetProTypView;

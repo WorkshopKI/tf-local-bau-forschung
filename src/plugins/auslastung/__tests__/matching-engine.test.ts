@@ -4,7 +4,7 @@ import {
   runMatchingWithContext,
   computeAlpha,
   computeVerbrauchByAnon,
-} from '../services/matching-engine';
+} from '../services/matching';
 import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter, AuslastungConfig, Zuweisung } from '../types';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeKontingentVerbrauch, kontingentInfoFor } from '../services/kontingent';
+import { computeKontingentVerbrauch, kontingentInfoFor } from '../services/matching';
 import type { AnonymerMitarbeiter, AntragstypBucket, Zuweisung } from '../types';
 
 function maMit(kontingent: Partial<Record<AntragstypBucket, number>>): AnonymerMitarbeiter {

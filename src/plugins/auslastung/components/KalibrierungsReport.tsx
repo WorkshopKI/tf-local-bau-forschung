@@ -29,10 +29,10 @@ import {
   ranks,
   type GridCell,
   type SingleCalibration,
-} from '../services/onboarding-kalibrierung';
+} from '../services/onboarding';
 import { CANONICAL_TIB_KUERZ, CANONICAL_VERBUND_TITEL, type KalibrierungsErgebnis } from '../types';
-import type { OnboardingPreview } from '../services/onboarding-import';
-import { normalizeKuerzel } from '../services/anonym-map';
+import type { OnboardingPreview } from '../services/onboarding';
+import { normalizeKuerzel } from '../services/identitaet';
 import { AnonymIdBadge, useDeAnonName, useDeAnonResolver } from './AnonymIdBadge';
 import type { Antrag } from '@/core/services/csv/types';
 

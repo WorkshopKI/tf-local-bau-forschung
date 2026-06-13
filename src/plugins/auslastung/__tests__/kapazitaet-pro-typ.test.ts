@@ -4,8 +4,8 @@ import {
   quartalsKontingentProTyp,
   quartalsTVsProTyp,
   effektiveJahresStunden,
-} from '../services/kapazitaet-pro-typ';
-import type { MaQuartalsAuslastung, MaQuartalsBucket } from '../services/quartals-auslastung';
+} from '../services/kapazitaet';
+import type { MaQuartalsAuslastung, MaQuartalsBucket } from '../services/kapazitaet';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket } from '../types';
 
 const STD = 9; // stundenProTV

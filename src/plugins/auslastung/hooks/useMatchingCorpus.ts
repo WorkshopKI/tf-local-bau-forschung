@@ -19,9 +19,9 @@ import { useCallback, useRef } from 'react';
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import type { StorageService } from '@/core/services/storage';
 import { loadAllEmbeddings } from '@/core/services/embedding-corpus';
-import { buildAntraegeIndexForMatching } from '../services/embedding-matcher';
-import { ensureAntragCorpus } from '../services/corpus-share-sync';
-import { useAuslastungCorpusSignal } from '../services/corpus-signal';
+import { buildAntraegeIndexForMatching } from '../services/matching';
+import { ensureAntragCorpus } from '../services/matching';
+import { useAuslastungCorpusSignal } from '../services/matching';
 
 export interface MatchingCorpus {
   corpusEmbeddings: Map<string, number[]>;

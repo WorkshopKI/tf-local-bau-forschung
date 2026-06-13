@@ -10,8 +10,8 @@ import { describe, it, expect } from 'vitest';
 import {
   collectUebernahmeWuensche,
   mergeWuenscheIntoZuweisungen,
-} from '../services/uebernahme-einsammeln';
-import type { AnonymMap } from '../services/anonym-map';
+} from '../services/onboarding';
+import type { AnonymMap } from '../services/identitaet';
 import type {
   PersoenlicheUebernahmeWuensche,
   UebernahmeWunsch,

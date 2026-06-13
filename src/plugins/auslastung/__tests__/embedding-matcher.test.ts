@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runEmbeddingMatching } from '../services/embedding-matcher';
+import { runEmbeddingMatching } from '../services/matching';
 import { buildAnonymMapForTests } from './test-helpers';
 import { cosineSimilarity } from '@/core/services/embedding-corpus';
 import type { Antrag } from '@/core/services/csv/types';

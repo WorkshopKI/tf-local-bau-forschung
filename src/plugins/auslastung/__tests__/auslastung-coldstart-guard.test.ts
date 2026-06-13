@@ -23,7 +23,7 @@ vi.mock('../services/auslastung-store', () => ({
 
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { emptyAuslastungData, type PersoenlichesAuslastungProfil } from '../types';
-import type { AnonymMap } from '../services/anonym-map';
+import type { AnonymMap } from '../services/identitaet';
 
 const fakeStorage = {} as never;
 

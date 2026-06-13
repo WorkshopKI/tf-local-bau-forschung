@@ -604,7 +604,7 @@ describe('no-hardcoded-canonical-field (recurring-bug-classes Klasse 5)', () => 
         `(recurring-bug-classes Klasse 5). D_XTEC/D_ADV koennen als Eigenes Feld gemappt\n` +
         `sein → der kanonische Key bleibt leer, das Feature schaltet still ab. Loese das\n` +
         `Feld ueber das CSV-Schema auf (resolveFieldKey, Spalten-CODE → tatsaechlicher Key;\n` +
-        `Vorbild: src/plugins/auslastung/services/vollstaendigkeit-felder.ts).\n` +
+        `Vorbild: src/plugins/auslastung/services/klassifizierung/vollstaendigkeit-felder.ts).\n` +
         `Echte Ausnahme (Default-Mapping-Wrapper o.ae.): '// allow-canonical-field: <grund>'.\n\n` +
         `Treffer:\n${fmt(findings)}`;
       expect.fail(msg);

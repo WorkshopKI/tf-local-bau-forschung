@@ -17,7 +17,7 @@ import {
   parseClipboardResponse,
   parseLLMResponse,
   type LLMVerbund,
-} from '../services/llm-klassifizierung';
+} from '../services/klassifizierung';
 import type { UeberKategorie } from '../types';
 import type { AIBridge } from '@/core/services/ai/bridge';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';

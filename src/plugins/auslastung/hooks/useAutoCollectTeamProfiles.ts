@@ -19,7 +19,7 @@ import { getUserFoldersRootHandle } from '@/core/services/infrastructure/smb-han
 import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';
 import { useAuslastungReady } from './useAuslastungReady';
-import { collectUserProfiles } from '../services/profil-einsammeln';
+import { collectUserProfiles } from '../services/onboarding';
 
 /** Einmal pro App-Session (überlebt Plugin-/Tab-Wechsel-Remounts). */
 let autoCollectDone = false;

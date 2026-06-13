@@ -1,6 +1,6 @@
 # Project Structure
 
-*Last reviewed: 2026-06-04 (v2.18)*
+*Last reviewed: 2026-06-13 (v2.85)*
 
 ```
 src/
@@ -144,7 +144,7 @@ src/
 │   ├── auslastung/              <- Auslastungs-Modul (id='auslastung', features.auslastung-gegated, Tabs Klassifizierung/Zuweisung/Übersicht + Kompetenzen (v2.15), Anonymisierung MA01..MAxx, dreistufiges Matching, Standalone-Onboarding-HTML-Generator)
 │   │   ├── views/KompetenzMatrixView.tsx <- v2.15: PL-Kompetenz-Tab (XLSX-Upload + editierbares Grid)
 │   │   ├── components/kompetenz/    <- v2.15: zerlegte Matrix-Grid-Komponenten (KompetenzMatrix + MatrixRow/Header/Toolbar/Controls/LevelCell/CapCell)
-│   │   └── services/kompetenz-*.ts  <- v2.15: import (XLSX-Parser) + derivation + geometry + codes + matrix-colors
+│   │   └── services/             <- v2.85: 6 kohäsive Submodule (matching/ klassifizierung/ kapazitaet/ identitaet/ onboarding/ verbund/) je mit index.ts-Barrel + Root-Querschnitt (auslastung-store, cross-tab, export-service, default-labels, tib-mail)
 │   ├── bauantraege/             <- Bauanträge-Workflow (id='bauantraege', Vorgang-Typ bauantrag — nur in dev/demo-Variants sichtbar)
 │   ├── dokumente/               <- Dokumenten-Browser (id='dokumente', Phase-2-Platzhalter)
 │   ├── suche/                   <- Hybrid-Suche-UI (id='suche', Orama + Vector)

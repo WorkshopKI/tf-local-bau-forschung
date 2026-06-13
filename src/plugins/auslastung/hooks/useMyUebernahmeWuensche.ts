@@ -27,7 +27,7 @@ import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle'
 import {
   loadUebernahmeWuensche,
   writeUebernahmeWuensche,
-} from '../services/uebernahme-wuensche';
+} from '../services/onboarding';
 import { PERSOENLICH_AUSLASTUNG_RETRACTED_IDB_KEY } from '../types';
 import type {
   PersoenlicheUebernahmeWuensche,

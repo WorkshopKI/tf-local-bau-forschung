@@ -25,8 +25,8 @@ import { isAuslastungEnabled } from '@/config/feature-flags';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useKuerzelMap } from './useKuerzelMap';
 import { useAuslastungData } from './useAuslastungData';
-import { normalizeKuerzel } from '../services/anonym-map';
-import { buildAnonymMapFromKuerzelMap } from '../services/kuerzel-map';
+import { normalizeKuerzel } from '../services/identitaet';
+import { buildAnonymMapFromKuerzelMap } from '../services/identitaet';
 import { CANONICAL_TIB_KUERZ } from '../types';
 
 export interface KuerzelOption {

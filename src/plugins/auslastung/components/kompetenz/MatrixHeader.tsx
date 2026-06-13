@@ -8,10 +8,10 @@
  * (`katVars`) + theme-skopierte Lightness → Dark automatisch.
  */
 import type { KategorieFarbe } from '../../types';
-import type { Geometry } from '../../services/kompetenz-geometry';
-import { COL_W } from '../../services/kompetenz-geometry';
-import { katVars } from '../../services/kompetenz-matrix-colors';
-import { deriveCode } from '../../services/kompetenz-codes';
+import type { Geometry } from '../../services/klassifizierung';
+import { COL_W } from '../../services/klassifizierung';
+import { katVars } from '../../services/klassifizierung';
+import { deriveCode } from '../../services/klassifizierung';
 import type { SortCol, SortState } from '../../hooks/useKompetenzMatrixModel';
 
 /** Display-Kürzung einzelner Band-Labels für die dichte Matrix — rein

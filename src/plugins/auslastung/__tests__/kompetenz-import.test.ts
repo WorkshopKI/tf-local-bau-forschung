@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
-import { parseKompetenzXlsx } from '../services/kompetenz-import';
+import { parseKompetenzXlsx } from '../services/onboarding';
 import { emptyAuslastungData, CANONICAL_TIB_KUERZ } from '../types';
 import type { Antrag } from '@/core/services/csv/types';
 import { buildAnonymMapForTests } from './test-helpers';

@@ -17,7 +17,7 @@ import {
   aggregateAstByAnon,
   istDlAntrag,
   istDlVbPhase,
-} from '../services/profil-aggregator';
+} from '../services/identitaet';
 import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 

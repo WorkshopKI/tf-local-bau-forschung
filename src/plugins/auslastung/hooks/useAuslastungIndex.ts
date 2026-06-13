@@ -25,8 +25,8 @@
  */
 import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
 import type { AntragOderSlim } from '@/core/services/csv/types';
-import { computeQuartalsAuslastung, type MaQuartalsAuslastung } from '../services/quartals-auslastung';
-import { computeAltlasten, type MaAltlastBucket } from '../services/altlast';
+import { computeQuartalsAuslastung, type MaQuartalsAuslastung } from '../services/kapazitaet';
+import { computeAltlasten, type MaAltlastBucket } from '../services/kapazitaet';
 import type { AntragstypBucket, Zuweisung } from '../types';
 import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';

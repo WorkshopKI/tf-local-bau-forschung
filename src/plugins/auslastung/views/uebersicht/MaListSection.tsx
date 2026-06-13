@@ -22,16 +22,16 @@ import {
   refreshUserFoldersRootPermission,
 } from '@/core/services/infrastructure/smb-handle';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
-import { collectUserProfiles } from '../../services/profil-einsammeln';
+import { collectUserProfiles } from '../../services/onboarding';
 import type { useAntraegeCache } from '../../hooks/useAntraegeCache';
 import { useDeAnonResolver } from '../../components/AnonymIdBadge';
-import { detectAktiveMAs, shouldShowAktivVorschlag } from '../../services/aktiv-detection';
+import { detectAktiveMAs, shouldShowAktivVorschlag } from '../../services/kapazitaet';
 import { AktivVorschlagBanner } from '../admin/AktivVorschlagBanner';
-import { EMPTY_AUSLASTUNG } from '../../services/quartals-auslastung';
+import { EMPTY_AUSLASTUNG } from '../../services/kapazitaet';
 import { useAuslastungIndex } from '../../hooks/useAuslastungIndex';
 import { useAuslastungReady } from '../../hooks/useAuslastungReady';
 import { computeKapazitaet, type KapazitaetsView } from '../../services/kapazitaet';
-import { computeKapazitaetProTyp, hatTypKapazitaet, type KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
+import { computeKapazitaetProTyp, hatTypKapazitaet, type KapazitaetProTypView } from '../../services/kapazitaet';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket } from '../../types';
 import { MaInlineDetail } from '../MaInlineDetail';
 import { ChevronRight } from 'lucide-react';

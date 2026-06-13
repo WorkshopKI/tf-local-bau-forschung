@@ -21,7 +21,7 @@ import {
   istZuVerteilen,
   type VollstaendigkeitsGate,
   type VollstaendigkeitsGateAz,
-} from '../services/verbund-aggregation';
+} from '../services/verbund';
 import type { Klassifizierung } from '../types';
 import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
 

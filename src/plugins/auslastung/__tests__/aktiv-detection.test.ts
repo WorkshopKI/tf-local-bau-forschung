@@ -2,7 +2,7 @@
  * Aktiv-Detection-Heuristik: "MA hat Antrag im Referenz-Jahr → aktiv".
  */
 import { describe, it, expect } from 'vitest';
-import { detectAktiveMAs, shouldShowAktivVorschlag } from '../services/aktiv-detection';
+import { detectAktiveMAs, shouldShowAktivVorschlag } from '../services/kapazitaet';
 import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter } from '../types';

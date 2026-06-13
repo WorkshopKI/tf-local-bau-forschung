@@ -14,7 +14,7 @@
  * Pure Funktionen → unit-testbar (siehe `__tests__/xsw.test.ts`). Die JSX-
  * Komponente liegt in `XswSuffix.tsx`.
  */
-import { normalizeKuerzel } from '@/plugins/auslastung/services/anonym-map';
+import { normalizeKuerzel } from '@/plugins/auslastung/services/identitaet';
 
 /** Rot + fett — einzige Style-Quelle für den T_XSW-Suffix. Token aus theme.css. */
 export const XSW_SUFFIX_CLASS = 'text-[var(--tf-danger-text)] font-bold';

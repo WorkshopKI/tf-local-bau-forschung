@@ -7,8 +7,8 @@
  * eine deprecated/parallele Funktion.
  */
 import type { Antrag, AntragListItem } from '@/core/services/csv/types';
-import { bootstrapKuerzelMap, buildAnonymMapFromKuerzelMap } from '../services/kuerzel-map';
-import type { AnonymMap } from '../services/anonym-map';
+import { bootstrapKuerzelMap, buildAnonymMapFromKuerzelMap } from '../services/identitaet';
+import type { AnonymMap } from '../services/identitaet';
 
 export function buildAnonymMapForTests(
   antraege: Array<Antrag | AntragListItem>,

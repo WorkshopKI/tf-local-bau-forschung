@@ -13,7 +13,7 @@ import type { StorageService } from '@/core/services/storage';
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { buildEmbeddingCorpus } from '../../services/embedding-corpus';
+import { buildEmbeddingCorpus } from '../../services/matching';
 import {
   clearEmbeddings,
   countEmbeddings,
@@ -23,15 +23,15 @@ import {
   CORPUS_BUILD_VERSION,
 } from '@/core/services/embedding-corpus';
 import { useEmbeddingCorpusMirror } from '@/core/hooks/useEmbeddingCorpusMirror';
-import { computeKategorieCentroidsFromVerbund } from '../../services/klassifizierung-engine';
+import { computeKategorieCentroidsFromVerbund } from '../../services/klassifizierung';
 import {
   buildVerbundEmbeddingCorpus,
   loadAllVerbundEmbeddings,
   clearVerbundEmbeddings,
   invalidateVerbundEmbeddingsCache,
-} from '../../services/verbund-embedding';
-import { uploadVerbundCorpusToShare, ensureVerbundCorpus } from '../../services/corpus-share-sync';
-import { bumpAuslastungCorpusSignal } from '../../services/corpus-signal';
+} from '../../services/matching';
+import { uploadVerbundCorpusToShare, ensureVerbundCorpus } from '../../services/matching';
+import { bumpAuslastungCorpusSignal } from '../../services/matching';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useProfile } from '@/core/hooks/useProfile';

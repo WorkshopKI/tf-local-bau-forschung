@@ -32,11 +32,11 @@ import { useBenachrichtigung } from '@/plugins/auslastung/hooks/useBenachrichtig
 import { useMyAuslastungProfil } from '@/plugins/auslastung/hooks/useMyAuslastungProfil';
 import { useMyUebernahmeWuensche } from '@/plugins/auslastung/hooks/useMyUebernahmeWuensche';
 import { computeKapazitaet } from '@/plugins/auslastung/services/kapazitaet';
-import { matchesAntragstyp } from '@/plugins/auslastung/services/antragstyp-praeferenz';
+import { matchesAntragstyp } from '@/plugins/auslastung/services/kapazitaet';
 import {
   computeQuartalsAuslastung,
   getTVCount,
-} from '@/plugins/auslastung/services/quartals-auslastung';
+} from '@/plugins/auslastung/services/kapazitaet';
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import {
   groupEintraegeByVerbund,

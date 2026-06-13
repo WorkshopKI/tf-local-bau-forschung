@@ -17,7 +17,7 @@
 import { Info } from 'lucide-react';
 import { getStatusLabel } from '@/core/utils/status-mappings';
 import { formatGermanDate } from '@/core/services/csv';
-import type { MaAltlastBucket } from '../services/altlast';
+import type { MaAltlastBucket } from '../services/kapazitaet';
 
 const HINT =
   'Noch offene Anträge aus den letzten 2 Quartalen — rein informativ, fließen nicht in die Kapazität ein.';

@@ -10,7 +10,7 @@ import {
   hatBearbeiterKuerzel,
   istZuVerteilen,
   verteilCutoffDatum,
-} from '../services/verbund-aggregation';
+} from '../services/verbund';
 import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
 import type { Antrag } from '@/core/services/csv/types';
 import type { Klassifizierung } from '../types';

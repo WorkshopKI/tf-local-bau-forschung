@@ -8,14 +8,14 @@
  *  4. Kategorien-Verteilung
  */
 import { describe, it, expect } from 'vitest';
-import { computeQuartalsStatistik, tageVergangenImQuartal } from '../services/statistik';
+import { computeQuartalsStatistik, tageVergangenImQuartal } from '../services/kapazitaet';
 import {
   DEFAULT_AUSLASTUNG_CONFIG,
   type AnonymerMitarbeiter,
   type AuslastungConfig,
   type UeberKategorie,
 } from '../types';
-import type { MaQuartalsAuslastung, MaQuartalsBucket } from '../services/quartals-auslastung';
+import type { MaQuartalsAuslastung, MaQuartalsBucket } from '../services/kapazitaet';
 
 function makeMa(overrides: Partial<AnonymerMitarbeiter> = {}): AnonymerMitarbeiter {
   return {

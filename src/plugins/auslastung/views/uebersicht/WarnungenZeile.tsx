@@ -12,7 +12,7 @@
 import { useMemo } from 'react';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { useAuslastungIndex } from '../../hooks/useAuslastungIndex';
-import { computeQuartalsStatistik } from '../../services/statistik';
+import { computeQuartalsStatistik } from '../../services/kapazitaet';
 import { InlineCapsHeader } from './InlineCapsHeader';
 import { WarnungChip } from './WarnungChip';
 

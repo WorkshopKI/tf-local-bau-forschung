@@ -15,7 +15,7 @@ import {
   getCachedVerbundEmbeddings,
   loadAllVerbundEmbeddings,
   invalidateVerbundEmbeddingsCache,
-} from '../services/verbund-embedding';
+} from '../services/matching';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 
 function makeMockIdb(data: Record<string, number[]>): IDBStore & { entriesCalls: number } {

@@ -14,7 +14,7 @@
 import { Fragment, useCallback, useRef } from 'react';
 import { SortIcon, type SortDirection } from '@/components/data-table';
 import type { AntragOderSlim } from '@/core/services/csv/types';
-import type { VerbundKlassifizierungsView } from '../services/verbund-aggregation';
+import type { VerbundKlassifizierungsView } from '../services/verbund';
 import type { VerbundColumn } from './verbund-columns';
 
 const DEFAULT_MIN_COLUMN_WIDTH = 60;

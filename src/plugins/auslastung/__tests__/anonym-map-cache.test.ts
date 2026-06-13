@@ -12,7 +12,7 @@ import {
   buildAnonymMapFromKuerzelMap,
   invalidateAnonymMapCache,
   type KuerzelMapFile,
-} from '../services/kuerzel-map';
+} from '../services/identitaet';
 
 function makeFile(entries: Array<{ kuerzel: string; anonId: string }>): KuerzelMapFile {
   return {

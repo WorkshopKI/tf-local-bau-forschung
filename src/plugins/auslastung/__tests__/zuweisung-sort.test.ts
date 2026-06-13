@@ -12,8 +12,8 @@ import {
   nextSortKeyForClick,
   DEFAULT_ZUWEISUNG_SORT,
   type ZuweisungSortKey,
-} from '../services/zuweisung-sort';
-import type { VerbundZuweisungRow } from '../services/verbund-aggregation';
+} from '../services/matching';
+import type { VerbundZuweisungRow } from '../services/verbund';
 import type { Klassifizierung } from '../types';
 
 function makeRow(

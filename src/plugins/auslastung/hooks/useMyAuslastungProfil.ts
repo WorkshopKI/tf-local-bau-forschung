@@ -17,9 +17,9 @@ import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';
-import { resolveAnonIdForUser } from '../services/anonym-map';
-import { loadAuslastungProfil } from '../services/persoenliches-profil';
-import { mergeSelfProfile } from '../services/profil-einsammeln';
+import { resolveAnonIdForUser } from '../services/identitaet';
+import { loadAuslastungProfil } from '../services/identitaet';
+import { mergeSelfProfile } from '../services/onboarding';
 import type { AnonymerMitarbeiter, PersoenlichesAuslastungProfil } from '../types';
 
 export interface MyAuslastungProfil {

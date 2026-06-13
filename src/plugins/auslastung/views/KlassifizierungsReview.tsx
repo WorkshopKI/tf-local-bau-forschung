@@ -29,11 +29,11 @@ import {
   verteilCutoffDatum,
   type VollstaendigkeitsGateAz,
   type VerbundKlassifizierungsView,
-} from '../services/verbund-aggregation';
+} from '../services/verbund';
 import { useVollstaendigkeitsFelder } from '../hooks/useVollstaendigkeitsFelder';
-import { getCachedVerbundEmbeddings } from '../services/verbund-embedding';
-import { ensureVerbundEmbeddings, type CorpusSyncResult } from '../services/corpus-share-sync';
-import { useAuslastungCorpusSignal } from '../services/corpus-signal';
+import { getCachedVerbundEmbeddings } from '../services/matching';
+import { ensureVerbundEmbeddings, type CorpusSyncResult } from '../services/matching';
+import { useAuslastungCorpusSignal } from '../services/matching';
 import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket, type Klassifizierung } from '../types';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';

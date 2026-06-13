@@ -21,8 +21,8 @@ import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';
 import { useAuslastungIndex } from './useAuslastungIndex';
 import { useMatchingCorpus, type MatchingCorpus } from './useMatchingCorpus';
-import { runMatching } from '../services/matching-engine';
-import { getTVCount } from '../services/quartals-auslastung';
+import { runMatching } from '../services/matching';
+import { getTVCount } from '../services/kapazitaet';
 import { buildExportRows, exportDeAnonymizedXlsx } from '../services/export-service';
 import {
   CANONICAL_TITEL,

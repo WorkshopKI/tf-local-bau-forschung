@@ -15,7 +15,7 @@ import { useMemo } from 'react';
 import type { Antrag, AntragOderSlim } from '@/core/services/csv/types';
 import {
   klassifiziereAntrag,
-} from '../services/klassifizierung-engine';
+} from '../services/klassifizierung';
 import type { Klassifizierung, UeberKategorie } from '../types';
 
 export interface KlassifizierungsView {

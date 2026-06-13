@@ -9,11 +9,11 @@
 import { Fragment } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { AnonymerMitarbeiter, UeberKategorie } from '../../types';
-import type { MaQuartalsAuslastung } from '../../services/quartals-auslastung';
-import { EMPTY_AUSLASTUNG } from '../../services/quartals-auslastung';
-import type { MaAltlastBucket } from '../../services/altlast';
+import type { MaQuartalsAuslastung } from '../../services/kapazitaet';
+import { EMPTY_AUSLASTUNG } from '../../services/kapazitaet';
+import type { MaAltlastBucket } from '../../services/kapazitaet';
 import type { KapazitaetsView } from '../../services/kapazitaet';
-import type { KapazitaetProTypView } from '../../services/kapazitaet-pro-typ';
+import type { KapazitaetProTypView } from '../../services/kapazitaet';
 import { MaCompactRow } from './MaCompactRow';
 
 export type SortColumn = 'ma' | 'auslastung' | 'belegt' | 'frei' | 'fest' | 'altlast' | 'kategorie' | 'status';

@@ -6,7 +6,7 @@ import {
   normalizeKompetenzMatrix,
   normalizeKontingent,
   ueberScore,
-} from '../services/kompetenz-derivation';
+} from '../services/klassifizierung';
 import type { KompetenzMatrix } from '../types';
 
 const AAT: KompetenzMatrix = {

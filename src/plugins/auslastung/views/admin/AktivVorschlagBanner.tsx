@@ -7,7 +7,7 @@
  * "Uebernehmen" gedrueckt wurde (was naturgemaess >=1 MA auf inaktiv setzt
  * und die Bedingung damit dauerhaft erfuellt).
  */
-import type { AktivDetectionResult } from '../../services/aktiv-detection';
+import type { AktivDetectionResult } from '../../services/kapazitaet';
 
 interface Props {
   detection: AktivDetectionResult;

@@ -6,7 +6,7 @@
  * Nebenkategorien in Tertiärfarbe. Leere Matrix → „—".
  */
 import type { KategorieFarbe, KompetenzMatrix } from '../../types';
-import { deriveHauptNeben } from '../../services/kompetenz-derivation';
+import { deriveHauptNeben } from '../../services/klassifizierung';
 import { dotColor } from '../../views/uebersicht/kategorie-colors';
 
 interface Props {

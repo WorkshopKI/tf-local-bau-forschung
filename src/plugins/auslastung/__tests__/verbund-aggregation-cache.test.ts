@@ -14,7 +14,7 @@ import type { Antrag, Verbund } from '@/core/services/csv/types';
 import {
   buildVerbundClassificationViews,
   invalidateVerbundClassificationCache,
-} from '../services/verbund-aggregation';
+} from '../services/verbund';
 import type { Klassifizierung, UeberKategorie } from '../types';
 
 // `status` als plain string nehmen + via `as Antrag` casten — vermeidet

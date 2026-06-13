@@ -50,8 +50,8 @@ import { SYNC_VERSION_KEY } from '@/core/services/csv/snapshot-keys';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import type { StorageService } from '@/core/services/storage';
-import { type AnonymMap } from '../services/anonym-map';
-import { buildAnonymMapFromKuerzelMap, type KuerzelMapFile } from '../services/kuerzel-map';
+import { type AnonymMap } from '../services/identitaet';
+import { buildAnonymMapFromKuerzelMap, type KuerzelMapFile } from '../services/identitaet';
 import { useKuerzelMap } from './useKuerzelMap';
 import {
   aggregateAntragCountByAnon,
@@ -60,12 +60,12 @@ import {
   collectAllDeskriptorenMitCountFromLookup,
   readAntragDeskriptorenMitZt,
   readTruthyZtKlartexte,
-} from '../services/profil-aggregator';
-import { isEmbeddableAntrag } from '../services/embedding-corpus';
+} from '../services/identitaet';
+import { isEmbeddableAntrag } from '../services/matching';
 import {
   resolveVollstaendigkeitsFelder,
   DEFAULT_VOLLSTAENDIGKEITS_FELDER,
-} from '../services/vollstaendigkeit-felder';
+} from '../services/klassifizierung';
 
 export interface AntraegeCache {
   /** Slim-Projektion (v2.63) — Listen/Filter/Aggregation. Volle Records bei

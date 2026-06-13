@@ -12,7 +12,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { isSameKuerzelContent } from '../hooks/useKuerzelMap';
-import type { KuerzelMapFile } from '../services/kuerzel-map';
+import type { KuerzelMapFile } from '../services/identitaet';
 
 function makeFile(kuerzel: string[]): KuerzelMapFile {
   return {

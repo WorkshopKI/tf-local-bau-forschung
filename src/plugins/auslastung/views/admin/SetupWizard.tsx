@@ -17,9 +17,9 @@ import {
 } from '../../types';
 import { KategoriePill } from '../../components/KategoriePill';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
-import { syncMitarbeiterFromAntraege } from '../../services/profil-aggregator';
+import { syncMitarbeiterFromAntraege } from '../../services/identitaet';
 import type { AntragOderSlim } from '@/core/services/csv/types';
-import type { AnonymMap } from '../../services/anonym-map';
+import type { AnonymMap } from '../../services/identitaet';
 
 interface Props {
   storage: StorageService;

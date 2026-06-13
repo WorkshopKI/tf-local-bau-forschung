@@ -5,7 +5,7 @@
  * abgedeckt; hier zusätzlich ein expliziter Parität-Check.
  */
 import { describe, it, expect } from 'vitest';
-import { runMatching, runMatchingWithContext } from '../services/matching-engine';
+import { runMatching, runMatchingWithContext } from '../services/matching';
 import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter, AuslastungConfig, KompetenzMatrix } from '../types';

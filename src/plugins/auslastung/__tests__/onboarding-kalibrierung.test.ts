@@ -9,7 +9,7 @@ import {
   klassifizierungsAccuracy,
   aggregateGridResults,
   explainDeviation,
-} from '../services/onboarding-kalibrierung';
+} from '../services/onboarding';
 import type { Antrag } from '@/core/services/csv/types';
 import type { OnboardingBewertungEintrag, UeberKategorie } from '../types';
 

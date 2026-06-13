@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket } from '../types';
-import { getAntragstypHerkunft, getEffectiveAntragstypen, hasPlOverride } from '../services/antragstyp-praeferenz';
+import { getAntragstypHerkunft, getEffectiveAntragstypen, hasPlOverride } from '../services/kapazitaet';
 
 interface Props {
   ma: AnonymerMitarbeiter;

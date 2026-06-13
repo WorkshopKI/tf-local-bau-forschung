@@ -16,7 +16,7 @@ import {
   resolveVollstaendigkeitsFelder,
   DEFAULT_VOLLSTAENDIGKEITS_FELDER,
   type VollstaendigkeitsFelder,
-} from '../services/vollstaendigkeit-felder';
+} from '../services/klassifizierung';
 
 const felderCache = new Map<string, VollstaendigkeitsFelder>();
 

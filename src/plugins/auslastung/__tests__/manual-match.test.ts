@@ -4,7 +4,7 @@
  * Kontingent-Angaben (gleiche Helfer wie die Engine).
  */
 import { describe, it, expect } from 'vitest';
-import { buildManualMatch } from '../services/manual-match';
+import { buildManualMatch } from '../services/matching';
 import type { AnonymerMitarbeiter, AuslastungConfig } from '../types';
 
 function makeMa(overrides: Partial<AnonymerMitarbeiter> = {}): AnonymerMitarbeiter {

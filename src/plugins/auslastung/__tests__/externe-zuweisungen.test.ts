@@ -6,7 +6,7 @@
  * in `quartals-auslastung.ts` zusammengefasst (siehe dortige Tests).
  */
 import { describe, it, expect } from 'vitest';
-import { dateToQuartal, previousTwoQuartals } from '../services/externe-zuweisungen';
+import { dateToQuartal, previousTwoQuartals } from '../services/verbund';
 
 describe('dateToQuartal', () => {
   it('ISO-Date "YYYY-MM-DD" → Quartal', () => {

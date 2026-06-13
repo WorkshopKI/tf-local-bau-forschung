@@ -22,7 +22,7 @@
  */
 import type { Antrag } from '@/core/services/csv/types';
 import { ZUKUNFTSTECHNOLOGIE_FELDER } from '@/plugins/auslastung/services/default-labels';
-import { readAntragDeskriptoren } from '@/plugins/auslastung/services/profil-aggregator';
+import { readAntragDeskriptoren } from '@/plugins/auslastung/services/identitaet';
 
 /** Heuristisch erkannte „wahr"-Varianten in Foyer-CSV-Exporten. */
 function isTruthyFlag(v: unknown): boolean {

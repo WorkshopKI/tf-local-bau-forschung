@@ -29,8 +29,8 @@ import { isAuslastungEnabled } from '@/config/feature-flags';
 import { countEmbeddings, checkCompat } from '@/core/services/embedding-corpus';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useEmbeddingCorpusMirror } from '@/core/hooks/useEmbeddingCorpusMirror';
-import { ensureVerbundCorpus } from '@/plugins/auslastung/services/corpus-share-sync';
-import { bumpAuslastungCorpusSignal } from '@/plugins/auslastung/services/corpus-signal';
+import { ensureVerbundCorpus } from '@/plugins/auslastung/services/matching';
+import { bumpAuslastungCorpusSignal } from '@/plugins/auslastung/services/matching';
 
 export function useAuslastungCorpusAutoload(): void {
   const storage = useStorage();

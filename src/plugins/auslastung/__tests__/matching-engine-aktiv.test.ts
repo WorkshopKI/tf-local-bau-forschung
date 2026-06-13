@@ -8,7 +8,7 @@
  *  3. Mix aktiv/inaktiv → nur aktive landen im Top-N.
  */
 import { describe, it, expect } from 'vitest';
-import { runMatching } from '../services/matching-engine';
+import { runMatching } from '../services/matching';
 import { buildAnonymMapForTests } from './test-helpers';
 import type { Antrag } from '@/core/services/csv/types';
 import type { AnonymerMitarbeiter, AuslastungConfig } from '../types';
