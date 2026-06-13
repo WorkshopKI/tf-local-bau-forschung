@@ -66,7 +66,7 @@ export function buildSkillColumns(actions: SkillColumnActions): SortableColumn<S
     {
       key: 'regeln', label: 'Regeln', defaultVisible: true, sortable: true, width: 110, wrap: false,
       accessor: s => s.regelIds.length,
-      render: s => <Badge variant="secondary">{s.regelIds.length} {s.regelIds.length === 1 ? 'Regel' : 'Regeln'}</Badge>,
+      render: s => <Badge variant="default">{s.regelIds.length} {s.regelIds.length === 1 ? 'Regel' : 'Regeln'}</Badge>,
     },
     {
       key: 'aktionen', label: '', defaultVisible: true, locked: true, sortable: false, width: 124, wrap: false,

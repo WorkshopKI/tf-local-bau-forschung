@@ -195,6 +195,8 @@ Rechte Sidebar-Cards nur auf Übersichtsseiten. Detail-Seiten nutzen volle Breit
 ### UI-Library: shadcn/ui + lucide-react
 TeamFlow nutzt **shadcn/ui** (Radix-basiert, Nova-Preset) für Standard-Komponenten. Alle UI-Primitives wie `Button`, `Select`, `Tabs`, `Slider`, `Badge`, `Switch`, `Card`, `Textarea` liegen in `src/components/ui/`. Icons kommen aus **lucide-react**.
 
+**Eine UI-Bibliothek (P1b):** `src/components/ui/` ist die einzige Heimat — genau **eine Implementierung pro Primitive**. `@/ui` ist seit P1b nur ein **Kompatibilitäts-Shim** (Re-Export); in neuem Code direkt `@/components/ui/*` importieren. Der `Button` versteht zusätzlich die TF-Aliase `variant="primary|secondary|danger"`, `size="md"` sowie `loading`/`icon`. Maschinell erzwungen durch den Convention-Test `no-new-tf-ui-files` (keine neuen Dateien in `src/ui/`).
+
 **Grundregeln:**
 - Fehlende shadcn-Komponenten per `npx shadcn@latest add <n>` nachinstallieren
 - shadcn-Komponenten sind bereits auf das Theme-System abgestimmt (CSS Custom Properties)

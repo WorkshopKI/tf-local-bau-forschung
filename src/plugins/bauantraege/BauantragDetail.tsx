@@ -1,8 +1,8 @@
 import { ArrowLeft, Pencil, Trash2, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Badge, Tabs, Dialog } from '@/ui';
-import { StatusSelect } from '@/ui/StatusSelect';
-import { MarkdownEditor } from '@/ui/MarkdownEditor';
+import { StatusSelect } from '@/components/ui/StatusSelect';
+import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
 import { VorgangDokumenteTab } from '@/core/components/VorgangDokumenteTab';
 import { VerlaufTab } from '@/core/components/VerlaufTab';
 import { SimilarCases } from '@/core/components/SimilarCases';

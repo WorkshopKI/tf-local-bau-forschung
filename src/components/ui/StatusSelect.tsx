@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Dialog, Button } from './index';
+import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { getAvailableTransitions } from '@/core/services/workflow/engine';
 
 interface StatusSelectProps {

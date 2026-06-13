@@ -14,7 +14,7 @@
 
 import { Download, X, AlertTriangle } from 'lucide-react';
 import type { SnapshotWatcherState } from '@/core/hooks/useSnapshotWatcher';
-import { ProgressBar } from '@/ui/ProgressBar';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 
 interface Props {
   state: SnapshotWatcherState;

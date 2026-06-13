@@ -25,6 +25,8 @@
  *   - no-raw-modal                      → recurring-bug-classes Klasse 7, Modals
  *     ueber den Dialog aus @/components/ui/dialog rendern (Hoehen-Cap + Scroll
  *     eingebaut) statt per Hand `fixed inset-0`.
+ *   - no-new-tf-ui-files                → P1b, src/ui/ ist nur noch Re-Export-Shim;
+ *     neue UI-Komponenten gehoeren nach src/components/ui/.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -417,6 +419,33 @@ describe('no-raw-modal (recurring-bug-classes Klasse 7)', () => {
         `Vollbild-Zustaende (StartupScreen, Login-Gates, Onboarding) und\n` +
         `Spezial-Overlays/Drawer (Tour, Command-Palette, Filter-Drawer) per\n` +
         `'// allow-raw-modal: <grund>' inline whitelisten.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-new-tf-ui-files (P1b: src/ui/ ist nur noch Re-Export-Shim)', () => {
+  // Es gibt genau EINE UI-Bibliothek: src/components/ui/. src/ui/ ist seit P1b
+  // ein reiner Re-Export-Shim (Kompatibilitaet fuer die ~70 Barrel-Importe) und
+  // darf KEINE neuen Implementierungen mehr aufnehmen. Erlaubt sind nur der
+  // Barrel (index.ts), der Dialog-Adapter (Dialog.tsx) und der vorerst behaltene
+  // TF-Select (Select.tsx — STOPP #2: Radix-Compound-API in ProgrammSwitcher
+  // nicht durch die native TF-Select-API abbildbar).
+  const ALLOWED = new Set(['index.ts', 'Dialog.tsx', 'Select.tsx']);
+
+  it('keine neuen Dateien in src/ui/ ausser Shim/Adapter (nach src/components/ui/ verschieben)', () => {
+    const dir = join(ROOT, 'ui');
+    const offenders = readdirSync(dir).filter(
+      entry => statSync(join(dir, entry)).isFile() && !ALLOWED.has(entry),
+    );
+
+    if (offenders.length > 0) {
+      const msg =
+        `Neue Datei(en) in src/ui/ gefunden (P1b: src/ui/ ist nur Re-Export-Shim).\n` +
+        `UI-Komponenten gehoeren nach src/components/ui/; der Barrel src/ui/index.ts\n` +
+        `re-exportiert sie (Direkt-Importe: @/components/ui/<Datei>).\n` +
+        `Erlaubt in src/ui/: ${[...ALLOWED].join(', ')}.\n\n` +
+        `Treffer:\n${offenders.map(o => `  src/ui/${o}`).join('\n')}`;
       expect.fail(msg);
     }
   });

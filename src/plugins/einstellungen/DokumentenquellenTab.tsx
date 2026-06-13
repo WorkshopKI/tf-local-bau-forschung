@@ -9,7 +9,7 @@
  */
 import { Lock, FolderTree } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SectionHeader } from '@/ui/SectionHeader';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 
 export function DokumentenquellenTab(): React.ReactElement {
   return (

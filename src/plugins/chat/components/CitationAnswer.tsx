@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { marked } from 'marked';
-import { sanitizeHtml } from '@/ui/MarkdownRenderer';
+import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
 import { renderCitations } from '../services/citations';
 
 interface CitationAnswerProps {

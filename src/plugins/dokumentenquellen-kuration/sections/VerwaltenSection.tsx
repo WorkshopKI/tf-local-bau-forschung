@@ -19,7 +19,7 @@ import {
   type DmsSourceEntry,
   type DmsSourceHandleStatus,
 } from '@/core/services/dms-sources';
-import { SectionHeader } from '@/ui/SectionHeader';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SourceFormDialog, type SourceFormMode } from '../components/SourceFormDialog';
 
 const STATUS_LABEL: Record<DmsSourceHandleStatus, { text: string; tone: 'ok' | 'warn' | 'danger' }> = {

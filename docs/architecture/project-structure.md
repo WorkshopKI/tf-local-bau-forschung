@@ -192,7 +192,7 @@ src/
 │   │   └── index.ts
 │   └── dev-state-inspector/     <- DEV-State-Viewer (id='dev-state-inspector', Fixture-Sibling)
 ├── components/
-│   ├── ui/                      <- shadcn/ui Komponenten (Button, Card, Select, Tabs, Label, Collapsible, etc.)
+│   ├── ui/                      <- EINZIGE UI-Bibliothek: shadcn-Primitives + TF-Komponenten (Button, Card, Badge, Tabs, Dialog, SectionHeader, MarkdownRenderer, theme.ts, …)
 │   └── feedback/                <- Globales Feedback-System (FAB + Panel + Chatbot + ConfirmCard + FAQ + MyFeedbackList + Board-Cards)
 │       ├── FeedbackButton.tsx
 │       ├── FeedbackPanel.tsx
@@ -205,7 +205,7 @@ src/
 │       ├── BudgetBadge.tsx       <- Phase 3: X/Y Punkte (Q.) mit Ampelfarbe
 │       ├── constants.ts
 │       └── index.ts
-├── ui/                          <- App-spezifische shared components (legacy, ggf. nach components/ui/ migrieren)
+├── ui/                          <- Re-Export-Shim (Kompatibilität, P1b), keine Implementierungen (außer Dialog-Adapter + vorerst TF-Select); re-exportiert aus components/ui/
 ├── plugins.config.ts            <- Build-time plugin selection
 └── main.tsx
 ```

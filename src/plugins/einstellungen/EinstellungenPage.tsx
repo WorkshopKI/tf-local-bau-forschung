@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Check, Sun, Moon } from 'lucide-react';
 import { Tabs, Badge, SectionHeader } from '@/ui';
-import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/ui/theme';
+import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/components/ui/theme';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { ProfilTab } from './ProfilTab';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, ArrowRight, FolderOpen, FolderHeart } from 'lucide-react';
 import { Button } from '@/ui';
-import { PRESET_COLORS, applyThemeColor } from '@/ui/theme';
+import { PRESET_COLORS, applyThemeColor } from '@/components/ui/theme';
 import type { UserProfile } from '@/core/types/config';
 import { useStorage } from '@/core/hooks/useStorage';
 import {

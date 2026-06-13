@@ -10,7 +10,7 @@ import { createProgramm, deleteProgramm, ensureDefaultProgramm, renameProgramm }
 import { listAntraegeByProgramm, listProgramme } from '@/core/services/csv/idb-csv';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import type { Programm } from '@/core/services/csv/types';
-import { SectionHeader } from '@/ui/SectionHeader';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { UnterprogrammeSection } from './unterprogramme/UnterprogrammeSection';
 
 export function ProgrammeAdminPage(): React.ReactElement {

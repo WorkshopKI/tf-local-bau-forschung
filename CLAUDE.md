@@ -55,7 +55,7 @@ Folgende Pfade NICHT lesen oder referenzieren beim Arbeiten am Code:
 - **Framework**: React 19 + ReactDOM + TypeScript
 - **Build**: Vite + `vite-plugin-singlefile` + `@vitejs/plugin-react`
 - **Styling**: Tailwind CSS v4 via `@tailwindcss/vite` — utility classes + CSS custom properties for theming
-- **UI Components**: shadcn/ui (Radix, Nova-Preset) — `src/components/ui/`. Fehlende Komponenten per `npx shadcn@latest add <name>` nachinstallieren
+- **UI Components**: shadcn/ui (Radix, Nova-Preset) — `src/components/ui/` ist die **einzige** UI-Bibliothek (eine Implementierung pro Primitive). `@/ui` ist seit P1b nur noch ein Re-Export-Shim (Kompatibilität); neuer Code importiert direkt `@/components/ui/*`. Fehlende Komponenten per `npx shadcn@latest add <name>` nachinstallieren
 - **State**: Zustand (persisted to IndexedDB)
 - **Search**: Orama (BM25 + Vector Hybrid), Transformers.js v4 (EmbeddingGemma 300M), WebGPU/WASM
 - **AI Chat**: DirectLLM transport (OpenRouter / local llama.cpp) + Streamlit bridge

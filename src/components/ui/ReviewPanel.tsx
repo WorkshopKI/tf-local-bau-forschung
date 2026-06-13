@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, MessageSquare, Check, RotateCcw } from 'lucide-react';
-import { Button } from './Button';
+import { Button } from '@/components/ui/button';
 import { reviewService } from '@/core/services/review/review-service';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { ReviewSession, ReviewComment } from '@/core/types/review';

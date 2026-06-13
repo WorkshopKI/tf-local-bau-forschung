@@ -16,7 +16,7 @@ import { ProfileContext, useProfileProvider } from '@/core/hooks/useProfile';
 import { TourContext, useTour } from '@/core/hooks/useTour';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { ErrorBoundary } from '@/core/ErrorBoundary';
-import { applyThemeColor, setDarkMode } from '@/ui/theme';
+import { applyThemeColor, setDarkMode } from '@/components/ui/theme';
 import { checkQuarterReset, loadFeedbackConfig } from '@/core/services/feedback';
 import {
   getDatenShareHandle,

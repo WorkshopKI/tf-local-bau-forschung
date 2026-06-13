@@ -9,7 +9,7 @@
  * View-Switch + Inaktive-Checkbox + „+MA hinzufügen" am rechten Rand.
  */
 import { LayoutGrid, Menu, Plus } from 'lucide-react';
-import { SegmentedToggle } from '@/ui/SegmentedToggle';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket, type UeberKategorie } from '../../types';
 

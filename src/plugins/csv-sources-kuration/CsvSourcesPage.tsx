@@ -17,7 +17,7 @@ import {
 import type { CsvSchema } from '@/core/services/csv/types';
 import type { ClearAntragDataResult } from '@/core/services/csv';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
-import { SectionHeader } from '@/ui/SectionHeader';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { CsvSourceWizard } from './wizard/CsvSourceWizard';
 import { CsvSourceReimportDialog } from './CsvSourceReimportDialog';
 import { CsvAddColumnsDialog } from './CsvAddColumnsDialog';

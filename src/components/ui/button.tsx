@@ -1,6 +1,7 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { Slot } from "radix-ui"
+import { Loader2, type LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -41,26 +42,67 @@ const buttonVariants = cva(
   }
 )
 
+// TF-Kompatibilitaets-Aliase (P1b): die ehemaligen src/ui/Button-Varianten/-Groessen
+// werden VOR dem cva-Aufruf auf die kanonischen shadcn-Keys gemappt — so bleiben
+// alle ~44 TF-Call-Sites unveraendert lauffaehig. Achtung: TF-`secondary` ist
+// transparent+Border = shadcn-`outline` (NICHT shadcn-`secondary`).
+type CanonicalVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>
+type CanonicalSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>
+
+const VARIANT_ALIAS: Record<string, CanonicalVariant> = {
+  primary: "default",
+  danger: "destructive",
+  secondary: "outline",
+}
+const SIZE_ALIAS: Record<string, CanonicalSize> = {
+  md: "default",
+}
+
+type ButtonProps = Omit<React.ComponentProps<"button">, never> & {
+  asChild?: boolean
+  /** Akzeptiert kanonische shadcn-Varianten + TF-Aliase `primary`/`danger`. */
+  variant?: CanonicalVariant | "primary" | "danger"
+  /** Akzeptiert kanonische shadcn-Groessen + TF-Alias `md`. */
+  size?: CanonicalSize | "md"
+  /** TF-Kompat: Spinner ersetzt das Icon und erzwingt `disabled`. */
+  loading?: boolean
+  /** TF-Kompat: fuehrendes Lucide-Icon vor den Children. */
+  icon?: LucideIcon
+}
+
 function Button({
   className,
   variant = "default",
   size = "default",
   asChild = false,
+  loading = false,
+  icon: Icon,
+  disabled,
+  children,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
+}: ButtonProps) {
+  const resolvedVariant = VARIANT_ALIAS[variant] ?? (variant as CanonicalVariant)
+  const resolvedSize = SIZE_ALIAS[size] ?? (size as CanonicalSize)
   const Comp = asChild ? Slot.Root : "button"
 
   return (
     <Comp
       data-slot="button"
-      data-variant={variant}
-      data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
+      data-variant={resolvedVariant}
+      data-size={resolvedSize}
+      disabled={disabled || loading}
+      className={cn(buttonVariants({ variant: resolvedVariant, size: resolvedSize, className }))}
       {...props}
-    />
+    >
+      {asChild ? (
+        children
+      ) : (
+        <>
+          {loading ? <Loader2 className="animate-spin" /> : Icon ? <Icon /> : null}
+          {children}
+        </>
+      )}
+    </Comp>
   )
 }
 

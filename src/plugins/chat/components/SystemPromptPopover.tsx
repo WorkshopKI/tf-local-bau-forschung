@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
 import { X } from 'lucide-react';
-import { sanitizeHtml } from '@/ui/MarkdownRenderer';
+import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useChatStore } from '../store';

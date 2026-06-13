@@ -26,7 +26,7 @@ import {
   type BulkScanStats,
 } from '@/phase2';
 import { scanConfig } from '@/config/feature-flags';
-import { SectionHeader } from '@/ui/SectionHeader';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { runBulkTriageForSources } from '../services/bulk-run';
 
 export interface AktivierenIndexierenSectionProps {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Copy, Trash2, Sparkles, RefreshCw, Download } from 'lucide-react';
 import { Button, Badge, SectionHeader, ListItem, MarkdownRenderer } from '@/ui';
-import { MarkdownEditorWithPreview } from '@/ui/MarkdownEditorWithPreview';
+import { MarkdownEditorWithPreview } from '@/components/ui/MarkdownEditorWithPreview';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { ArtifactService } from '@/core/services/artifacts';
