@@ -611,3 +611,82 @@ describe('no-hardcoded-canonical-field (recurring-bug-classes Klasse 5)', () => 
     }
   });
 });
+
+describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
+  // Diese Kennzahlen halten den nach P1-P6 + Skill-Dach (v2.89) erreichten
+  // Struktur-Zustand fest. Schwellen mit BEWUSSTEM Puffer ueber dem Ist-Wert: sie
+  // sollen schleichende Verdopplung/Wildwuchs fangen, NICHT jeden Feature-Zuwachs.
+  // Schlaegt eine Assertion fehl, ist die erste Frage „ist der Zuwachs gewollt?" —
+  // wenn ja, die Konstante hier bewusst anheben (und im CHANGELOG vermerken). Das
+  // ist eine Drift-Warnung, kein Verbot.
+  const MAX_FEATURE_FLAGS = 27;    // Ist 23 (+4 Reserve)
+  const MAX_SERVICE_DIRS = 18;     // Ist 18 nach Skill-Konsolidierung (keine Reserve: „drei Ordner fuer ein Feature" soll auffallen)
+  const MAX_FILE_LOC = 1500;       // Ist ~1219 (ZuweisungsCockpit.tsx), ~20 % Reserve
+  const MAX_UI_SHIM_IMPORTS = 64;  // Ist 64 — der @/ui-Re-Export-Shim (P1b) darf nur SINKEN
+
+  const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
+    `${was}: Ist-Wert ${ist} ueberschreitet die Baseline-Schwelle ${schwelle}.\n` +
+    `${hinweis}\n` +
+    `Schwelle bewusst anheben, wenn der Zuwachs gewollt ist — dieser Test ist eine ` +
+    `Drift-Warnung, kein Verbot (Konstante oben im health-baseline-Block).`;
+
+  it(`Anzahl features.*-Flags <= ${MAX_FEATURE_FLAGS}`, () => {
+    const src = readFileSync(join(ROOT, 'config', 'feature-flags.ts'), 'utf-8');
+    const flags = new Set<string>();
+    for (const m of src.matchAll(/\bfeatures\.([A-Za-z][A-Za-z0-9_]*)/g)) flags.add(m[1]!);
+    if (flags.size > MAX_FEATURE_FLAGS) {
+      expect.fail(drift(
+        'features.*-Flags (distinkt in src/config/feature-flags.ts)',
+        flags.size, MAX_FEATURE_FLAGS,
+        `Gefunden: ${[...flags].sort().join(', ')}.\n` +
+        `Jedes neue Flag vergroessert die Build-Varianten-Matrix — pruefe, ob ein ` +
+        `bestehendes Flag wiederverwendbar ist.`,
+      ));
+    }
+  });
+
+  it(`Top-Level-Verzeichnisse unter src/core/services/ <= ${MAX_SERVICE_DIRS}`, () => {
+    const base = join(ROOT, 'core', 'services');
+    const dirs = readdirSync(base).filter(e => statSync(join(base, e)).isDirectory());
+    if (dirs.length > MAX_SERVICE_DIRS) {
+      expect.fail(drift(
+        'Service-Verzeichnisse unter src/core/services/',
+        dirs.length, MAX_SERVICE_DIRS,
+        `Gefunden: ${dirs.sort().join(', ')}.\n` +
+        `Gehoeren mehrere Ordner zur selben Domaene (vgl. v2.89 skills/{run,registry,` +
+        `tweaks})? Dann unter ein Dach mit Submodulen + Barrel buendeln.`,
+      ));
+    }
+  });
+
+  it(`Groesste Einzeldatei unter src/ <= ${MAX_FILE_LOC} LOC`, () => {
+    let maxLoc = 0;
+    let maxFile = '';
+    for (const file of ALL_TS_FILES) {
+      const loc = readFileSync(file, 'utf-8').split(/\r?\n/).length;
+      if (loc > maxLoc) { maxLoc = loc; maxFile = relPath(file); }
+    }
+    if (maxLoc > MAX_FILE_LOC) {
+      expect.fail(drift(
+        'Groesste src/-Datei (LOC)',
+        maxLoc, MAX_FILE_LOC,
+        `Datei: ${maxFile}. Vermischt sie mehrere Verantwortlichkeiten (CLAUDE.md ` +
+        `„Kohaesion vor Zeilenzahl")? Ist sie kohaerent (Daten-/State-Maschine), ` +
+        `Schwelle anheben.`,
+      ));
+    }
+  });
+
+  it(`@/ui-Shim-Importe (P1b) <= ${MAX_UI_SHIM_IMPORTS} (darf nur sinken)`, () => {
+    const re = /from\s+['"]@\/ui['"]/;
+    const files = ALL_TS_FILES.filter(f => re.test(readFileSync(f, 'utf-8')));
+    if (files.length > MAX_UI_SHIM_IMPORTS) {
+      expect.fail(drift(
+        '@/ui-Shim-Importe',
+        files.length, MAX_UI_SHIM_IMPORTS,
+        `Der @/ui-Re-Export-Shim (P1b) laeuft aus — neue UI-Importe ueber ` +
+        `@/components/ui/*. Diese Schwelle darf nur gesenkt werden, nie erhoeht.`,
+      ));
+    }
+  });
+});
