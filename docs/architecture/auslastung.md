@@ -183,3 +183,25 @@ Mapped alle 22 ZT-TV-Spalten (`'Digitale W'`, `'Künstliche'`, ...) UND 22 ZT-VB
 
 - Bestehende Bearbeiter-Filter-Logik im `antraege`-Plugin (das nutzt `bearbeiter_kuerzel` aus dem Profil mit Mehrfach-Kürzel + Begleitungs-Spalten — andere Domain).
 - Embedding-Modell-Init: Plugin nutzt den Singleton `embeddingService` aus dem Such-Stack, lädt kein eigenes Modell.
+
+---
+
+## CLAUDE.md-Pitfalls (Detail)
+
+Detail-Heimat der Auslastungs-Store/Matching/Anonymisierungs-Pitfalls. Die Mechanismen sind in den Abschnitten oben beschrieben; hier die normativen Kurzregeln.
+
+### Pitfall #16 / #20 — Multi-Step-Store-Mutationen: EIN `setState` + EIN `persist`
+
+Der `useAuslastungData`-Store hat einen `if (saving) return;`-Lock im `persist`. Mehrere parallele `persist`-Aufrufe (z.B. wenn jede `upsertX`-Action ihren eigenen persist triggert) fallen raus → inkonsistenter Save. Jede zusammengehörende Mutationsserie (Import + Klassifizierung + Zuweisung, Setup-Wizard-Abschluss) muss alle Mutationen in EINEM finalen `setState({...})`-Call sammeln, gefolgt von EINEM `await persist(storage)`. #20 ist die Verallgemeinerung von #16; gilt auch für andere Stores mit Save-Lock-Pattern (z.B. `feedbackService`-Sync). In der Git-History sichtbar als wiederkehrende „doppelte Zeilen"-Fixes. Vorbilder oben: `applyAggregatedProfiles`, `applyKompetenzMatrixBatch`.
+
+### Pitfall #17 — AnonymMap nutzt ausschließlich `tib_kuerz`
+
+`bootstrapKuerzelMap()` filtert hart auf das `tib_kuerz`-Feld (nicht BIB/ZTP/PFM). Ehemalige Bearbeiter (TIBs, die im aktuellen Programm nicht mehr aktiv sind) werden bewusst mitgezählt — ihre historischen Anträge liefern beim Embedding-Match wertvolle Kompetenz-Referenzen für neue MAs mit ähnlichem Hintergrund. Wer das filtern möchte („nur aktive MAs"), muss eine separate Schicht oberhalb der AnonymMap einziehen (Aktiv-Flag, siehe Abschnitt oben).
+
+### Pitfall #18 — AnonymMap kommt aus der append-only kuerzel-map
+
+Die Sidecar-Datei `_intern/auslastung-kuerzel-map.json` ist append-only: einmal vergebene anonIds bleiben stabil, neue Kürzel hängen hinten an (kein Identitäts-Drift bei alphabetischer Mitten-Insertion). Code-Konsumenten lesen `cache.anonymMap` aus [useAntraegeCache.ts](../../src/plugins/auslastung/hooks/useAntraegeCache.ts) bzw. nutzen [`useKuerzelMap`](../../src/plugins/auslastung/hooks/useKuerzelMap.ts) + [`buildAnonymMapFromKuerzelMap`](../../src/plugins/auslastung/services/kuerzel-map.ts). Unit-Tests: `buildAnonymMapForTests(antraege)` (derselbe Code-Pfad wie Prod). Schreib-Profil: append-only (Pitfall #23).
+
+### Pitfall #22 — Unicode-Kürzel (THÜ/BIB/ZTP) immer NFC-normalisieren
+
+Umlaut-Kürzel kommen in IDB/JSON je nach Browser/OS in NFC oder NFD an. Wer Kürzel in der `kuerzel-map` speichert oder daraus liest, muss `s.normalize('NFC')` durchlaufen (`bootstrapKuerzelMap()` in [kuerzel-map.ts](../../src/plugins/auslastung/services/kuerzel-map.ts)), sonst silent-mismatch in `findAnonId(kuerzel)` und doppelter `anonId`-Eintrag für „THÜ" (NFC) vs „THÜ" (NFD). Tritt v.a. bei manuellen Imports aus Excel oder beim Onboarding-XLSX-Upload auf.

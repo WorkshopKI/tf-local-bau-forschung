@@ -109,3 +109,11 @@ Nach Absenden startet `autoClassifyFeedback(transport, text, context, area?, hin
 - Budget (`teamflow_user_budget_v1_{userId}`) liegt in localStorage pro Gerät — User bekommt bei Browserwechsel neues 10-Punkte-Budget (Doppel-Sponsoring-Vektor theoretisch möglich, bei 5-15 User aber kein reales Problem)
 - Budget-Statistik im Kurator-Tab nur dieser Browser (für team-weite Stats müsste Shared-Storage ergänzt werden — out of scope)
 - `FeedbackItem.category` ist **optional** (`category?: FeedbackCategory`) — Tickets ohne LLM-Klassifikation (Streamlit-Transport, LLM-Fehler, ungültige Modell-Config) erscheinen als "Unklassifiziert". Kurator-Dashboard + MyFeedbackList + Board-Cards zeigen Fallback-Badge "Unklassifiziert" bei undefined.
+
+---
+
+## CLAUDE.md-Pitfalls (Detail)
+
+### Pitfall #21 — Feedback-Status nicht als String-Literal vergleichen
+
+`[test: no-direct-feedback-status-compare]` — Analog Pitfall #12 (Antrag-Status), aber für die Feedback-Domain. `if (item.kurator_status === 'geplant')` ist refactor-fragil (Tippfehler, IDE-Rename-Lücke, Status-Rename übersieht Stellen). Für **Vergleiche** die Konstante `FEEDBACK_STATUS` bzw. die Prädikate `istOffen` / `istUmgesetzt` / `istArchiviert` aus [src/core/services/feedback/feedback-status.ts](../../src/core/services/feedback/feedback-status.ts) nutzen (für **Rendering** weiterhin `STATUS_LABELS` / `STATUS_COLORS` aus [src/components/feedback/constants.ts](../../src/components/feedback/constants.ts)). Die beiden Status-Domänen (Vorgang vs. Feedback) sind bewusst getrennt (Pitfall #9): Feedback-Status hat eigene Werte (`neu`, `geplant`, `in_bearbeitung`, `umgesetzt`, `abgelehnt`, `archiviert`) und eigene Maps. Beim Hinzufügen eines neuen Status: Cheatsheet [docs/agents/add-feedback-status.md](../agents/add-feedback-status.md). **Maschinell erzwungen** durch den Convention-Test `no-direct-feedback-status-compare` in [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts) (Inline-Ausnahme: `// allow-feedback-status-literal: <grund>`).

@@ -132,7 +132,9 @@ export async function seedFromFixtureCsvs(
     await saveSchema(storage.idb, schema);
 
     const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
-    await importCsvSource(storage.idb, schema.id, blob, {});
+    // Seed laeuft bei App-Init VOR dem ersten Store-loadAll (recurring-bug-classes
+    // Klasse 1) — es gibt noch keinen In-Memory-Store zum Refreshen.
+    await importCsvSource(storage.idb, schema.id, blob, {}); // allow-import-no-refresh: Seed laeuft vor dem ersten Store-loadAll
     imported++;
   }
 

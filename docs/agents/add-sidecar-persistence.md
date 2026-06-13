@@ -91,3 +91,20 @@ Beispiel: [`hashAktenzeichenSet()` in embedding-corpus-mirror.ts](../../src/plug
   2. IDB-Cache löschen (Dev-Tools) → App-Reload → Sidecar wird vom Share geladen, kein neuer Build
   3. Mismatch simulieren (lokales Modell wechseln, dann laden) → blockierende UI-Meldung erscheint, kein Crash
 - Audit-Log prüfen: `_intern/audit-log.jsonl` enthält `*_uploaded` / `*_downloaded` Events
+
+---
+
+## CLAUDE.md-Pitfalls (Detail)
+
+### Pitfall #10 — Infrastructure-Writes über `atomicWrite()` / `appendToFile()`
+
+Direkter `FileSystemWritableFileStream` umgeht die `.tmp`+Rename+`.backup`-Rotation und kann bei Crash korrumpieren. Alle Infrastructure-Writes (Phase 1a) müssen `atomicWrite()` / `appendToFile()` verwenden — Detail im Abschnitt „Schreiben via `atomicWrite()`" oben. **Dokumentierte Ausnahme**: [src/phase2/triage/run-log.ts](../../src/phase2/triage/run-log.ts) schreibt bewusst per `createWritable({ keepExistingData: true })` direkt (O(n)-Append wäre bei 13k+ Anträgen prohibitiv; Risk-Profil per Run-spezifischer JSONL akzeptabel, siehe Datei-Kommentar).
+
+### Pitfall #23 — Sidecar-Schreib-Profil bewusst wählen
+
+Drei Profile (kombiniert mit #10), je nach Datei-Charakter:
+- **Idempotent-overwrite** (Standard, Single-Source-of-Truth): `atomicWrite()` mit Backup-Rotation. Beispiel: `_intern/auslastung.json`, `_intern/feedback/feedback.json`.
+- **Append-only** (immutable History, Order matters): `appendToFile()` ohne Rotation, mit `version`-Feld im Schema. Beispiel: `_intern/audit-log.jsonl`, `_intern/auslastung-kuerzel-map.json` (Pitfall #18 erzwingt diese Append-Semantik).
+- **Atomic ohne Backup** (große Binär-Files, Recovery via Re-Build): `atomicWrite(..., { skipBackup: true })`. Beispiel: `_intern/auslastung-embedding-corpus.bin` (~40 MB; Backup-Rotation würde die Share-Quota fluten).
+
+Entscheidung beim Anlegen einer neuen Sidecar als Header-Kommentar in der Datei festhalten.

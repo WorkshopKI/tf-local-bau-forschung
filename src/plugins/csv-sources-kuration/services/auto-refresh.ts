@@ -200,7 +200,9 @@ export async function runAutoRefresh(
 
     opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'importing' });
     try {
-      const result = await importCsvSource(idb, schemaId, file, {
+      // Store-Refresh erfolgt gebuendelt im aufrufenden Hook useCsvAutoRefreshCheck
+      // nach Abschluss der N-Quellen-Pipeline — ein Refresh pro Quelle waere redundant.
+      const result = await importCsvSource(idb, schemaId, file, { // allow-import-no-refresh: Refresh erfolgt gebuendelt im Caller-Hook useCsvAutoRefreshCheck
         onLockConflict: async () => (opts.force ? 'force' : 'abort'),
       });
 

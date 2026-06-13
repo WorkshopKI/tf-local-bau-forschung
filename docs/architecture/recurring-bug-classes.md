@@ -22,6 +22,8 @@ Sieben Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an
 - **Wer `ANTRAEGE` schreibt, MUSS `ANTRAEGE_LIST_VIEW` mitziehen** (der CSV-Merger tut das; `replaceStore` im Snapshot-Sync musste explizit `rebuildAntraegeListView` ergänzen).
 - **Konsument hält eigenen `useState`/Ref-Cache statt Zustand-Store?** Dann braucht er ein explizites Re-Read-Signal: einen [Signal-Store](../../src/core/lib/createSignalStore.ts) (`createSignalStore()`), den der Writer bumpt. Beispiel: `bumpAuslastungCorpusSignal()` nach Korpus-IDB-Mutation ([corpus-signal.ts](../../src/plugins/auslastung/services/corpus-signal.ts)). **Nur EXTERNE Mutationen bumpen** — wer den Write selbst auslöst und das Ergebnis direkt erhält, bumpt nicht (sonst Self-Trigger-Loop).
 
+**Maschinell erzwungen** durch die Convention-Tests `import-requires-store-refresh` (jede `importCsvSource(`-Datei referenziert `refreshAntraegeStoreAfterSync`) und `antraege-write-requires-listview-rebuild` (jede `replaceStore(`-Datei referenziert `rebuildAntraegeListView`) in [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts) (Ausnahme: `// allow-import-no-refresh:` bzw. `// allow-antraege-write-no-listview: <grund>`).
+
 **⚠️ Gefährliche Variante (echter Datenverlust, nicht nur leere Anzeige):** Ein transienter Leer-Read (Datei gerade im `atomicWrite`-`.tmp`-Rename-Fenster eines parallel offenen Tabs) setzt `loaded=true` mit 0 Datensätzen → ein Auto-Persist-Effekt **schreibt die leere Basis zurück** und überschreibt die volle Datei. → Auto-Persist-Effekte (Auto-Collect, Reconcile) **gegen `setupAbgeschlossen` / nicht-leere Basis gaten** — nie auf eine un-eingerichtete Basis schreiben. Verwandt: Klasse 3.
 
 **Beim Debuggen „IDB hat Daten, Store leer":** IMMER prüfen — liest die UI denselben Store, der geschrieben wurde, oder eine Projektion/Index/lokalen Cache? Und: kann ein leerer/transienter Load jemals persistiert werden?
@@ -90,6 +92,8 @@ Sieben Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an
 2. **Stummen Off-Zustand sichtbar machen.** Wenn ein Gate, das Daten erwartet, „aus" ist, obwohl die Quelle es gemappt hat → einen **UI-Hinweis** zeigen statt still nichts zu tun (Vorbild: „Vollständigkeits-Prüfung inaktiv"-Banner in [KlassifizierungsReview.tsx](../../src/plugins/auslastung/views/KlassifizierungsReview.tsx)). Die Faustregel: ein datengetriebenes Feature, das bei Fehlkonfiguration **leise** nichts tut, ist gefährlicher als eines, das laut warnt.
 
 **Warnsignal beim Entwickeln:** Sobald Code `antrag['<canonical_key>']` direkt liest UND daraus ein „ist-vorhanden"-Gate ableitet, prüfen: Was passiert, wenn der Kurator diese Spalte als Eigenes Feld (oder gar nicht) mappt? Greift dann ein sichtbarer Hinweis, oder verschwindet das Feature lautlos?
+
+**Maschinell erzwungen** durch den Convention-Test `no-hardcoded-canonical-field` in [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts): direkter `.d_xtec`/`.d_adv`-Lesezugriff ausserhalb des Resolver-Moduls ([vollstaendigkeit-felder.ts](../../src/plugins/auslastung/services/vollstaendigkeit-felder.ts)) ist verboten (Ausnahme: `// allow-canonical-field: <grund>`).
 
 ## 6. Tracking-Baseline nach dem Snapshot geschrieben (Snapshot-only-Leser sehen veralteten Stand)
 

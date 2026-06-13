@@ -105,3 +105,11 @@ Der Original-Skill gehört dem Kurator; der Nutzer (Gutachter) ergänzt einen **
 - `src/core/components/__tests__/dokumentAufnahmeFkz.test.ts` — FKZ-Zuordnung (Verbund-/TV-FKZ-Match, `ZEP…`-Fall, ambig).
 - `src/core/services/gutachten-vorlagen/__tests__/fill-template.test.ts` — Run-Splitting, `&amp;`-Form, XML-Escaping, Anker vorhanden/fehlend.
 - Lokale Test-Vorlage (DOCX mit Platzhaltern + Anker, dev-only Helfer): `_design/handoff/gutachten-kurzfassung/make-test-vorlage.mjs`.
+
+---
+
+## CLAUDE.md-Pitfalls (Detail)
+
+### Pitfall #29 — Verbund-Ebene, Relation über `kv`-Tag — kein CSV-Write
+
+Ein Gutachten / eine Kurzfassung gilt pro **Verbund** (die Vorhabensbeschreibung existiert nur einmal pro Verbund), NICHT pro Teilvorhaben: die Sektion sitzt in [VerbundDetail.tsx](../../src/plugins/antraege/VerbundDetail.tsx), nicht in `TvDetailBlock`. Persistenz-Key **und** VB-Relations-Tag = die **Verbund-ID** (`verbund.verbund_id`; bei Solo/pseudo das echte Aktenzeichen). Aufgenommene Dokumente werden über eine **Tag-Relation** im Dokumente-Store zugeordnet (`doc:*` mit `tags:[<verbund-key>, <typ>]`) — **niemals** in `Antrag.dokumente` (CSV-Record) schreiben: prod-User sind read-only (`NotAllowedError`, vgl. Pitfall #24) und es verletzt die `_field_sources`-Disziplin. Der Kurzfassung-Record liegt im generischen `kv`-Store unter `gutachten-kurzfassung:<key>` — bewusst **kein** dedizierter Object-Store + `version`-Bump (vermeidet das `file://`-`onblocked`-Upgrade bei parallel offenen Varianten, vgl. [recurring-bug-classes.md](recurring-bug-classes.md)). Die FKZ-Erkennung der Aufnahmefläche akzeptiert Verbund-FKZ UND alle TV-FKZ (`knownIds`, Substring-Match — fängt auch `ZEP…`-Verbund-IDs); uneindeutig → der Bearbeiter ordnet manuell zu. Detail in den Abschnitten oben.

@@ -27,6 +27,12 @@
  *     eingebaut) statt per Hand `fixed inset-0`.
  *   - no-new-tf-ui-files                → P1b, src/ui/ ist nur noch Re-Export-Shim;
  *     neue UI-Komponenten gehoeren nach src/components/ui/.
+ *   - import-requires-store-refresh     → recurring-bug-classes Klasse 1, jede
+ *     importCsvSource(-Datei referenziert refreshAntraegeStoreAfterSync.
+ *   - antraege-write-requires-listview-rebuild → recurring-bug-classes Klasse 1,
+ *     jede replaceStore(-Datei referenziert rebuildAntraegeListView.
+ *   - no-hardcoded-canonical-field      → recurring-bug-classes Klasse 5, kein
+ *     direkter .d_xtec/.d_adv-Zugriff; Feld via resolveFieldKey aufloesen.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -81,6 +87,42 @@ function findInFile(
 
 function fmt(findings: Finding[]): string {
   return findings.map(f => `  ${f.file}:${f.line}\n    ${f.text}`).join('\n');
+}
+
+/**
+ * Dateiweiter Check (fuer Regeln, die nicht zeilen-lokal entscheidbar sind):
+ * Eine Datei verstoesst, wenn sie irgendwo eine `trigger`-Zeile enthaelt (z.B.
+ * einen bestimmten Funktionsaufruf), aber NIRGENDWO `requiredRef` referenziert.
+ * Markierte Trigger-Zeilen (`marker`) werden uebersprungen; enthaelt die Datei
+ * `requiredRef` an beliebiger Stelle, gilt sie als konform. Pro Datei max. ein
+ * Treffer (die erste unmarkierte Trigger-Zeile genuegt als Beleg).
+ */
+function findFilesViolating(
+  trigger: (line: string) => boolean,
+  requiredRef: string,
+  marker: string,
+  isAllowed: (file: string) => boolean,
+): Finding[] {
+  const out: Finding[] = [];
+  for (const file of ALL_TS_FILES) {
+    if (isAllowed(file)) continue;
+    const content = readFileSync(file, 'utf-8');
+    if (content.includes(requiredRef)) continue;
+    const lines = content.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      if (line.includes(marker)) continue;
+      // Kommentar-Zeilen (JSDoc-Erwaehnungen wie `importCsvSource()`) sind keine
+      // echten Aufrufe — ueberspringen, sonst False-Positives in der Doku.
+      const t = line.trim();
+      if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) continue;
+      if (trigger(line)) {
+        out.push({ file: relPath(file), line: i + 1, text: line.trim() });
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 describe('no-direct-status-compare (CLAUDE.md Pitfall #12)', () => {
@@ -446,6 +488,125 @@ describe('no-new-tf-ui-files (P1b: src/ui/ ist nur noch Re-Export-Shim)', () => 
         `re-exportiert sie (Direkt-Importe: @/components/ui/<Datei>).\n` +
         `Erlaubt in src/ui/: ${[...ALLOWED].join(', ')}.\n\n` +
         `Treffer:\n${offenders.map(o => `  src/ui/${o}`).join('\n')}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('import-requires-store-refresh (recurring-bug-classes Klasse 1)', () => {
+  // Jede Datei, die importCsvSource( aufruft, MUSS refreshAntraegeStoreAfterSync
+  // referenzieren — sonst bleibt der In-Memory-Antraege-Store nach dem Import
+  // stale, bis der User manuell neu laedt (Cold-Start-Store-Refresh, Klasse 1,
+  // docs/architecture/recurring-bug-classes.md). Legitime Ausnahmen per Inline-
+  // Marker `// allow-import-no-refresh: <grund>` (Seed laeuft vor dem ersten
+  // Store-Load; Refresh erfolgt gebuendelt im Caller; dev-only Fixture-Import).
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+    `${sep}importer.ts`,         // Definitions-Site von importCsvSource
+    `${sep}snapshot-refresh.ts`, // Definitions-Site des Refresh-Helpers
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  it('jede importCsvSource(-Datei referenziert refreshAntraegeStoreAfterSync', () => {
+    const findings = findFilesViolating(
+      l => l.includes('importCsvSource('),
+      'refreshAntraegeStoreAfterSync',
+      'allow-import-no-refresh',
+      isAllowed,
+    );
+    if (findings.length > 0) {
+      const msg =
+        `importCsvSource(-Aufruf ohne refreshAntraegeStoreAfterSync (recurring-bug-classes\n` +
+        `Klasse 1: Cold-Start-Store-Refresh). Nach dem Import den In-Memory-Store neu laden:\n` +
+        `  await refreshAntraegeStoreAfterSync(idb, programmId, ['antraege','verbuende'] as const);\n` +
+        `Laeuft der Import nachweislich vor dem ersten Store-Load oder refresht der Caller,\n` +
+        `Zeile mit '// allow-import-no-refresh: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('antraege-write-requires-listview-rebuild (recurring-bug-classes Klasse 1)', () => {
+  // Die Voll-Ersetzung des ANTRAEGE-Stores laeuft ueber die replaceStore(-Primitive
+  // (clear + chunked put). Wer sie nutzt, MUSS danach rebuildAntraegeListView rufen —
+  // sonst liest die Home die stale/leere Slim-Projektion ANTRAEGE_LIST_VIEW (Klasse 1,
+  // Mechanismus 4). Bewusst ENG auf replaceStore( gefasst: ein breiteres
+  // CSV_STORES.ANTRAEGE-Pattern wuerde legitime Einzel-Writes (idb-csv.ts) treffen
+  // und den parametrisierten snapshot-sync-Aufruf verfehlen → Whitelist-Rauschen.
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  it('jede replaceStore(-Datei referenziert rebuildAntraegeListView', () => {
+    const findings = findFilesViolating(
+      l => l.includes('replaceStore('),
+      'rebuildAntraegeListView',
+      'allow-antraege-write-no-listview',
+      isAllowed,
+    );
+    if (findings.length > 0) {
+      const msg =
+        `replaceStore(-Aufruf ohne rebuildAntraegeListView (recurring-bug-classes\n` +
+        `Klasse 1, Mechanismus 4). Eine Voll-Ersetzung des ANTRAEGE-Stores muss die\n` +
+        `Slim-Projektion ANTRAEGE_LIST_VIEW mitziehen:\n` +
+        `  await rebuildAntraegeListView(idb);\n` +
+        `Sonst bleibt Home/Listen leer bis zum naechsten App-Start. Echte Ausnahme:\n` +
+        `'// allow-antraege-write-no-listview: <grund>'.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-hardcoded-canonical-field (recurring-bug-classes Klasse 5)', () => {
+  // Direkter Lesezugriff auf mapping-abhaengige kanonische Keys verboten: D_XTEC/
+  // D_ADV koennen vom Kurator als Standard- ODER als Eigenes Feld gemappt werden
+  // (recurring-bug-classes Klasse 5, v2.40-Bug). Statt `antrag.d_xtec` das ueber
+  // das CSV-Schema aufgeloeste Feld nutzen (resolveFieldKey /
+  // resolveVollstaendigkeitsFelder, vollstaendigkeit-felder.ts). Verbotene Muster
+  // bewusst minimal (analog no-direct-status-compare) — die Liste waechst nur,
+  // wenn Klasse 5 erneut zuschlaegt.
+  const FORBIDDEN = ['.d_xtec', "['d_xtec']", '.d_adv', "['d_adv']"];
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+    `${sep}vollstaendigkeit-felder.ts`,    // Resolver-Modul selbst
+    `${sep}useVollstaendigkeitsFelder.ts`, // Resolver-Hook
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  // Kommentar-Zeilen (Doku-Erwaehnungen von `.d_xtec`) sind keine Lesezugriffe.
+  const isComment = (l: string): boolean => {
+    const t = l.trim();
+    return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*');
+  };
+
+  it('kein hartkodierter Lesezugriff auf .d_xtec / .d_adv (resolveFieldKey nutzen)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(
+        ...findInFile(
+          file,
+          l => !isComment(l) && FORBIDDEN.some(p => l.includes(p)),
+          'allow-canonical-field',
+        ),
+      );
+    }
+    if (findings.length > 0) {
+      const msg =
+        `Hartkodierter Zugriff auf ein mapping-abhaengiges kanonisches Feld verboten\n` +
+        `(recurring-bug-classes Klasse 5). D_XTEC/D_ADV koennen als Eigenes Feld gemappt\n` +
+        `sein → der kanonische Key bleibt leer, das Feature schaltet still ab. Loese das\n` +
+        `Feld ueber das CSV-Schema auf (resolveFieldKey, Spalten-CODE → tatsaechlicher Key;\n` +
+        `Vorbild: src/plugins/auslastung/services/vollstaendigkeit-felder.ts).\n` +
+        `Echte Ausnahme (Default-Mapping-Wrapper o.ae.): '// allow-canonical-field: <grund>'.\n\n` +
+        `Treffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });

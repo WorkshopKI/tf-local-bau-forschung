@@ -310,8 +310,8 @@ Das macht visuell klar welche Pills zu welcher Dimension gehören. Labels sind k
 
 **Wann Dropdown statt Pills:** Wenn >6 Optionen oder Optionen dynamisch aus den Daten kommen (z.B. User-Filter bei 30+ Nutzern).
 
-### Toggleable Pill (farbcodiert)
-Variante einer Pill mit aktiv/inaktiv-Zustand, oft in Multi-Select-Listen (z.B. Kategorie-Zuordnung). Unterschied zu Filter-Pills: nicht schwarz/weiß, sondern semantische Farbe (eine Pill pro Kategorie).
+### Toggleable Pill (farbcodiert) — CLAUDE.md Pitfall #14
+Variante einer Pill mit aktiv/inaktiv-Zustand, oft in Multi-Select-Listen (z.B. Kategorie-Zuordnung). Unterschied zu Filter-Pills: nicht schwarz/weiß, sondern semantische Farbe (eine Pill pro Kategorie). Dies ist die Detail-Heimat von CLAUDE.md Pitfall #14 (konstante Pill-Breite + kein `opacity-40`).
 
 ```tsx
 // active=true: voller Farbcode + Häkchen

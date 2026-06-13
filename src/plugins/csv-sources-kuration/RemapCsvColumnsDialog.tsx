@@ -15,6 +15,7 @@ import {
 } from '@/core/services/csv';
 import { getCanonicalLabel } from '@/core/services/csv/constants';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
+import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import type { CsvSchema, ImportResult } from '@/core/services/csv/types';
 import { Step4Progress } from './wizard/Step4Progress';
 import { guessDecision, type PerColumnDecision } from './wizard/useCsvWizardState';
@@ -208,6 +209,10 @@ export function RemapCsvColumnsDialog({ schema, onClose, onCompleted }: Props): 
         onLockConflict: confirmLockConflict,
       });
       setResult(r);
+      // Cold-Start-Store-Refresh (recurring-bug-classes Klasse 1): nach dem
+      // Re-Import den In-Memory-Antraege-Store neu laden, sonst zeigt die Home
+      // die neu gemappten Daten erst nach manuellem Reload (wie CsvSourceReimportDialog).
+      await refreshAntraegeStoreAfterSync(storage.idb, schema.programm_id, ['antraege', 'verbuende'] as const);
       onCompleted();
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') setCancelled(true);

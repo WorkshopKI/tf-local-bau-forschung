@@ -88,3 +88,11 @@ Reference-Anwendungen (in stabilen Plugins, als Vorbild):
 
 - `npm run typecheck` grün
 - Manueller Smoke: in einem migrierten Dialog absichtlich Fehler erzeugen (z.B. ungültigen Input absenden oder offline trennen) → Error-Banner sichtbar, Button bleibt disabled während `busy`. Im Erfolgsfall normales Verhalten.
+
+---
+
+## CLAUDE.md-Pitfalls (Detail)
+
+### Pitfall #15 — Async-UI-Aktionen: `useAsyncAction` ist Standard
+
+`[test: no-raw-async-onclick]` — `try/finally` ohne `catch` + `onClick={() => void asyncFn()}` schluckt Promise-Rejections silent; unter `file://` ist die Browser-Console oft nicht offen, der User sieht nichts. Pflicht für neuen Code: `useAsyncAction(fn)` aus [src/core/hooks/useAsyncAction.ts](../../src/core/hooks/useAsyncAction.ts) (liefert `{ run, busy, error, clearError }`, fängt Rejections + schützt vor Doppelklick) — Detail in den Abschnitten oben. Hand-gerolltes `try/catch` + Error-Banner bleibt für Edge-Cases zulässig (z.B. Inline-Validierung vor dem Async-Call). **Maschinell erzwungen** durch `no-raw-async-onclick` (File-Whitelist für ~30 Legacy-Files; Inline-Ausnahme `// allow-raw-async-onclick: <grund>`).

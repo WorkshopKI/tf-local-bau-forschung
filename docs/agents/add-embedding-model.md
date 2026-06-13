@@ -47,3 +47,11 @@ Wenn ein Modell aus `EMBEDDING_MODELS` gelöscht werden soll, aber Nutzer es ber
 - `npm run build:devprod` — der Build darf nicht durch ungültige Modell-Configs brechen (keine harten Asserts, aber `getActiveModelId` fällt sonst auf DEFAULT).
 - Manueller Smoke: dev-Build öffnen, Kuration → Suchindex → Modell-Dropdown — neuer Eintrag sichtbar, Beschreibung wird im UI gerendert.
 - Wenn das Modell aktiviert werden soll: Kurator-UI Modell-Wechsel-Dialog testen (zeigt die drei Konsequenzen), dann Index neu bauen.
+
+---
+
+## CLAUDE.md-Pitfalls (Detail)
+
+### Pitfall #19 — Embedding-Modell-Wechsel ist team-weiter Bruch
+
+Wenn ein Kurator das Embedding-Modell via [ActionCardModels.tsx](../../src/plugins/kurator/actions/ActionCardModels.tsx) wechselt, werden ALLE bestehenden Embedding-Caches strukturell inkompatibel: der lokale Suchindex muss neu gebaut werden, der gespiegelte Auslastungs-Stage-2-Korpus auf SMB (`_intern/auslastung-embedding-corpus.bin`) ist für alle anderen Teammitglieder unbrauchbar bis er von einem PL mit dem neuen Modell neu gebaut wird (~46 min), und die Kategorie-Centroids in `auslastung.json` sind falsch dimensioniert. Die UI zeigt vor dem Wechsel einen Confirm-Dialog mit allen drei Konsequenzen — Wechsel nicht leichtfertig durchführen. Das *Hinzufügen* eines Modells (ohne Aktivierung) ist in den Abschnitten oben beschrieben.

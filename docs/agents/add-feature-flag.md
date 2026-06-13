@@ -41,3 +41,11 @@ Alle Variant-Configs unter `configs/` müssen den neuen Flag explizit setzen (`t
 - `npx tsc --noEmit` — Typ-Lücke in Variant-Configs sichtbar (alle drei Variant-Configs aktualisieren)
 - `npm run build:dev` — Dev-Build mit dem neuen Flag baut
 - Bei Plugin-Gating: `VITE_PLUGINS=…` zur Sicherheit nicht setzen, dann Sidebar-Sichtbarkeit prüfen
+
+---
+
+## CLAUDE.md-Pitfalls (Detail)
+
+### Pitfall #11 — Neue optionale Features hinter ein Flag
+
+Wenn ein Feature optional sein soll: in `scripts/config-schema.mjs` eine Flag ergänzen (DEFAULT_CONFIG + `requiredFlags` + ggf. `validateConfig()`-Regeln), in `src/config/feature-flags.ts` einen Helfer, und die betroffenen Stellen (Plugin-Filter, Komponenten-Rendering) damit gaten — siehe „Touch-Points" oben. OpenRouter in Prod-Builds wird zusätzlich in `validateConfig()` verboten.

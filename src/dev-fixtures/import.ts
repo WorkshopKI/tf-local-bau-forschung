@@ -113,5 +113,7 @@ export async function importTestCsv(idb: IDBStore, key: FixtureKey): Promise<Imp
   await ensureDevUnterprogramme(idb, schema, csvText);
 
   const blob = testCorpusBlob(entry);
-  return importCsvSource(idb, schema.id, blob, {});
+  // dev-only Fixture-Import (features.devFixtures); der Store-Refresh obliegt dem
+  // aufrufenden Dev-Panel (recurring-bug-classes Klasse 1).
+  return importCsvSource(idb, schema.id, blob, {}); // allow-import-no-refresh: dev-only; Refresh im Dev-Panel
 }

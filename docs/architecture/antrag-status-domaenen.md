@@ -56,3 +56,15 @@ Zwischenstand-Doku (Mai 2026 kurzzeitig, dann revidiert): Toggle steuerte NUR KU
 ## Test-Fixtures
 
 Tests in [src/plugins/antraege/__tests__/](../../src/plugins/antraege/__tests__/) laufen mit zwei handgeschriebenen Fixture-Sätzen (`seed-antraege.ts` Bauantrag, `real-csv-antraege.ts` Förderantrag) plus den echten Real-Fixture-CSVs (`realCsvImport.test.ts`) — wenn ein Test mit Bauantrag-Fixture passt aber mit Förderantrag-Fixture failt, ist genau das ein Domain-Mismatch-Bug.
+
+---
+
+## CLAUDE.md-Pitfalls (Detail)
+
+### Pitfall #9 — Status-Mappings sind domain-getrennt
+
+`src/core/utils/status-mappings.ts` ist NUR für Vorgang-Status (Bauantrag/Förderantrag: `neu`, `in_pruefung`, `genehmigt`, …). Feedback-Status (`neu`, `geplant`, `in_bearbeitung`, `umgesetzt`, `abgelehnt`, `archiviert`) hat seine eigenen Maps in `src/components/feedback/constants.ts` — bewusst getrennt, weil andere Semantik (siehe [feedback-system.md](feedback-system.md) Pitfall #21). Beim Hinzufügen neuer Status-Werte: Vorgang-Status zentral (`status-mappings.ts` + `status-canonical.ts` + `statusGroups.ts`), Feedback-Status in der Feedback-Domain.
+
+### Pitfall #12 — Antrag-Status: zwei Domänen, eine Kategorie
+
+`[test: no-direct-status-compare]` — Die gesamte Datei oben ist die Detail-Heimat. Kernregel: `Antrag.status` / `AntragListItem.status` / `Verbund.status` (`AntragStatusRaw = string & { __brand }`) nie gegen ein Literal vergleichen (`status === 'bewilligt'`) — Kategorie-Helper aus [status-canonical.ts](../../src/core/utils/status-canonical.ts) nutzen (`isOpenStatus`, `isBewilligtStatus`, `isBegleitungStatus`, `isClosedStatus`, `getStatusCategory`). **Maschinell erzwungen** durch `no-direct-status-compare` (Inline-Ausnahme: `// allow-status-literal: <grund>`).
