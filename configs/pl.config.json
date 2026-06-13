@@ -19,7 +19,6 @@
   },
   "features": {
     "kuratorMenus": false,
-    "requireKuratorLogin": false,
     "feedback": true,
     "dokumentenscan": false,
     "volltextsuche": false,
@@ -34,9 +33,7 @@
     "datenShareSchreibrecht": true,
     "maLogin": false,
     "maVerwaltungPasswort": true,
-    "chat": true,
     "suche": true,
-    "feedbackBoard": true,
     "csvAutoRefresh": true,
     "embeddingCorpusBuild": false,
     "onlineStatusTab": true,

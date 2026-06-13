@@ -22,7 +22,6 @@
   },
   "features": {
     "kuratorMenus": false,
-    "requireKuratorLogin": false,
     "feedback": true,
     "dokumentenscan": false,
     "volltextsuche": true,
@@ -37,9 +36,7 @@
     "datenShareSchreibrecht": false,
     "maLogin": false,
     "maVerwaltungPasswort": false,
-    "chat": true,
     "suche": true,
-    "feedbackBoard": true,
     "feedbackDelete": false,
     "csvAutoRefresh": false,
     "gutachtenKurzfassung": false,

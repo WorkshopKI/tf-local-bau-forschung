@@ -39,11 +39,6 @@ export interface TeamflowPersonalFolderConfig {
 
 export interface TeamflowFeatures {
   kuratorMenus: boolean;
-  /** v2.10: Erzwingt beim App-Start eine Kurator-Login-Wall (Passwort). Nach
-   *  erfolgreichem Login werden `is_kurator` (Menüs) + Schreib-Session
-   *  freigeschaltet. Nur in der kurator-Variante true — dev hat zwar ebenfalls
-   *  `kuratorMenus`, aber keine Wall (Auto-Kurator via Fixtures). */
-  requireKuratorLogin: boolean;
   feedback: boolean;
   dokumentenscan: boolean;
   volltextsuche: boolean;
@@ -78,12 +73,8 @@ export interface TeamflowFeatures {
    *  Eintrag in die Zugangsdatei. Braucht `datenShareSchreibrecht` +
    *  `deAnonymisierung`. Nur pl (+ dev zum Testen). */
   maVerwaltungPasswort: boolean;
-  /** User-Plugin "Chat" (AI-Chat). Build-Time-Gate, unabhängig von KI-Backend-Config. */
-  chat: boolean;
   /** User-Plugin "Suche" (Hybrid-Suche). Trennt sich von `volltextsuche` (das gated den Suchindex-Kurator). */
   suche: boolean;
-  /** User-Plugin "Feedback-Board". Trennt sich von `feedback` (das gated die Feedback-Kuration). */
-  feedbackBoard: boolean;
   /** Dev-only: Kurator-Dashboard darf Feedback-Tickets löschen (nach Bestätigung).
    *  Destruktiv (entfernt aus localStorage + geteilter feedback.json) — daher
    *  optional + default false (fehlt = aus), nur im dev-Build true. Optional
@@ -104,10 +95,6 @@ export interface TeamflowFeatures {
    *  Korpus-Pflege (kein MA-Auslastung/Zuweisung). Schlanker View, MA-
    *  mutierende Mount-Hooks bleiben aus. Optional, default false. */
   auslastungNurKorpus?: boolean;
-  /** v2.59: Hintergrund-Heartbeat-Writer (jede Variante). Schreibt periodisch
-   *  `ZAH/online-status.json` in den persoenlichen Ordner, solange die App offen
-   *  ist — Quelle fuer den PL-„Online"-Tab. Optional, default true (`!== false`). */
-  presenceHeartbeat?: boolean;
   /** v2.59: „Online"-Tab in den Einstellungen — zeigt zuletzt aktive Team-User
    *  aus den eingesammelten Heartbeats. Nur pl (+ dev). Optional, default false. */
   onlineStatusTab?: boolean;

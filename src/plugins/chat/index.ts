@@ -4,7 +4,6 @@ import { ChatView } from './ChatView';
 export const chatPlugin: TeamFlowPlugin = {
   id: 'chat',
   route: '/chat',
-  featureFlag: 'chat',
   name: 'Chat',
   icon: 'MessageSquare',
   category: 'tools',

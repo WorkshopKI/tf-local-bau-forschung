@@ -29,12 +29,6 @@ export function isKuratorMenusEnabled(): boolean {
   return features.kuratorMenus;
 }
 
-// Hinweis: der frühere Helper `isKuratorLoginRequired()` (v2.10) wurde entfernt —
-// abgelöst durch `isAppGateRequired()` (v2.16). Das Legacy-Flag
-// `features.requireKuratorLogin` bleibt nur für die Deprecation-Warnung in
-// `validateConfig()` (scripts/config-schema.mjs) erhalten, hat aber keinen
-// Runtime-Konsumenten mehr.
-
 /** v2.16: True wenn der Build eine Rollen-Passwort-Wall beim Start erzwingt
  *  (pl + kurator). Build-time Verifier in `runtimeConfig.auth`. Siehe
  *  AppPasswordGate + app-password.ts. */
@@ -102,13 +96,6 @@ export function isEmbeddingCorpusBuildEnabled(): boolean {
  *  Auslastung zu sehen oder zuzuweisen. Default false. */
 export function isAuslastungNurKorpusEnabled(): boolean {
   return features.auslastungNurKorpus === true;
-}
-/** v2.59: Hintergrund-Heartbeat-Writer aktiv? Schreibt `ZAH/online-status.json`
- *  in den persoenlichen Ordner (jede Variante), solange die App offen ist —
- *  Quelle fuer den PL-„Online"-Tab. Default true (`!== false`: fehlender Flag =
- *  an, Backward-Kompat mit pre-2.59-Configs). */
-export function isPresenceHeartbeatEnabled(): boolean {
-  return features.presenceHeartbeat !== false;
 }
 /** v2.59: „Online"-Tab in den Einstellungen (PL sieht zuletzt aktive Team-User).
  *  Nur pl + dev. Default false. */
@@ -190,9 +177,7 @@ export function canEditSkillRegistry(sessionActive: boolean): boolean {
   if (isDatenShareWritable() && !isKuratorMenusEnabled()) return true;
   return sessionActive;
 }
-export function isChatEnabled(): boolean { return features.chat; }
 export function isSucheEnabled(): boolean { return features.suche; }
-export function isFeedbackBoardEnabled(): boolean { return features.feedbackBoard; }
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über
  *  `isKuratorMenusEnabled()` — dieser Flag ist eine *zusätzliche* Bedingung für

@@ -11,13 +11,11 @@ export type PluginFeatureKey =
   | 'antraege'
   | 'auslastung'
   | 'bauantraege'
-  | 'chat'
   | 'dokumente'
   | 'dokumentenscan'
   | 'devFixtures'
   | 'devInfraPanel'
   | 'feedback'
-  | 'feedbackBoard'
   | 'skillVerwaltung'
   | 'suche'
   | 'volltextsuche';

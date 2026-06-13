@@ -7,7 +7,7 @@
  * Folgeschritt). `KuratorSessionPanel` nutzt weiterhin kurator-config.ts
  * (setup/changePassword/Logout) fuer die optionale In-App-Session.
  *
- * Vollbild-Pflicht-Login fuer die kurator-Variante (`features.requireKuratorLogin`).
+ * Vollbild-Pflicht-Login fuer die kurator-Variante (Legacy v2.10, vor dem AppPasswordGate).
  * Wird im Startup-Flow von App.tsx NACH dem StartupScreen (Daten-Share-Permission
  * steht) und VOR dem AppRouter gerendert, wenn ein Kurator konfiguriert ist
  * (`isKuratorConfigured`) aber keine gueltige Session rehydriert wurde.

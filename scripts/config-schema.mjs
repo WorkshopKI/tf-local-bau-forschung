@@ -85,10 +85,6 @@ export const DEFAULT_CONFIG = {
 
   features: {
     kuratorMenus: true,
-    /** v2.10: Erzwingt beim App-Start einen Kurator-Login (Passwort-Wall) und
-     *  schaltet danach is_kurator (Menüs) + Schreib-Session frei. Nur in der
-     *  kurator-Variante true. dev bleibt false (Auto-Kurator via Fixtures). */
-    requireKuratorLogin: false,
     feedback: true,
     dokumentenscan: false,
     volltextsuche: true,
@@ -130,14 +126,11 @@ export const DEFAULT_CONFIG = {
      *  und schreibt den Eintrag in `_intern/auslastung-zugang.enc`. Braucht
      *  `datenShareSchreibrecht` + `deAnonymisierung`. Nur pl (+ dev zum Testen). */
     maVerwaltungPasswort: true,
-    // User-Plugin-Gates: getrennt von den Master-Flags volltextsuche/feedback,
-    // damit Varianten den Kurator-Index/Feedback-Verwaltung freischalten können,
-    // ohne dass das User-Suche-Plugin oder das User-Feedback-Board in der
-    // Sidebar erscheint (vgl. kurator-Variante: Kuration nach Login, aber
-    // Standard-Sidebar bleibt schmal).
-    chat: true,
+    // User-Plugin-Gate "suche": getrennt vom Master-Flag volltextsuche (das den
+    // Suchindex-Kurator gated), damit Varianten den Kurator-Index freischalten
+    // können, ohne dass das User-Suche-Plugin in der Sidebar erscheint
+    // (vgl. kurator-Variante: Kuration nach Login, Standard-Sidebar bleibt schmal).
     suche: true,
-    feedbackBoard: true,
     /** Dev-only: Löschen von Feedback-Tickets im Kurator-Dashboard (nach
      *  Bestätigung). Destruktiv — default false, nur dev true. */
     feedbackDelete: true,
@@ -159,11 +152,6 @@ export const DEFAULT_CONFIG = {
      *  Zuweisung-/Kompetenz-Tabs, keine MA-mutierenden Hooks. Default false
      *  (optional, kein requiredFlags-Eintrag). */
     auslastungNurKorpus: false,
-    /** v2.59: Hintergrund-Heartbeat-Writer (jede Variante). Schreibt periodisch
-     *  `ZAH/online-status.json` in den persoenlichen Ordner, solange die App
-     *  offen ist — Quelle fuer den PL-„Online"-Tab. Optional (kein
-     *  requiredFlags-Eintrag), default true → ueberall an. */
-    presenceHeartbeat: true,
     /** v2.59: „Online"-Tab in den Einstellungen — zeigt zuletzt aktive Team-User
      *  aus den eingesammelten Heartbeats. Nur pl (+ dev zum Testen). Optional,
      *  default false. */
@@ -316,11 +304,11 @@ export function validateConfig(config) {
 
   const features = config.features ?? {};
   const requiredFlags = [
-    'kuratorMenus', 'requireKuratorLogin', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
+    'kuratorMenus', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
     'antraege', 'bauantraege', 'dokumente', 'auslastung', 'auslastungSelbstEintragung',
     'deAnonymisierung', 'datenShareSchreibrecht',
     'maLogin', 'maVerwaltungPasswort',
-    'chat', 'suche', 'feedbackBoard',
+    'suche',
     'csvAutoRefresh',
   ];
   for (const k of requiredFlags) {
@@ -462,15 +450,6 @@ export function validateConfig(config) {
       'features.csvAutoRefresh=true ohne datenShareSchreibrecht (und ohne kuratorMenus): das Aktualisieren kann den Snapshot nicht schreiben (NotAllowedError).',
     );
   }
-  // v2.11: maLogin (MA-Login-Wall) und requireKuratorLogin (Kurator-Wall) würden
-  // beide eine Startup-Login-Wall erzwingen — der Kurator-Gate gewinnt (App.tsx),
-  // die MA-Wall käme nie. In der Praxis schließen sich die Varianten aus.
-  if (features.maLogin === true && features.requireKuratorLogin === true) {
-    warnings.push(
-      'features.maLogin und features.requireKuratorLogin gleichzeitig true: nur die Kurator-Login-Wall greift, die MA-Login-Wall wird übersprungen.',
-    );
-  }
-
   // v2.16: Build-Time Rollen-Passwort-Gate (auth-Block) strukturell prüfen.
   const auth = config.auth ?? null;
   if (auth !== null) {
@@ -498,14 +477,6 @@ export function validateConfig(config) {
         errors.push('auth.hint muss string oder weggelassen sein');
       }
     }
-  }
-
-  // v2.16: requireKuratorLogin ist durch das build-time auth-Gate abgelöst.
-  if (features.requireKuratorLogin === true && auth?.required !== true) {
-    warnings.push(
-      'features.requireKuratorLogin=true ohne auth.required: das alte SMB-basierte Kurator-Gate (v2.10) greift, nicht das neue build-time Gate. ' +
-      'Auf das auth-Gate migrieren: `npm run set-password -- kurator <pw>` + requireKuratorLogin=false.',
-    );
   }
 
   // Phase-2-Scan-Config strukturell prüfen

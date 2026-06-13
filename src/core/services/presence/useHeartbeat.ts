@@ -16,7 +16,6 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
-import { isPresenceHeartbeatEnabled } from '@/config/feature-flags';
 import { runtimeConfig, appVersion } from '@/config/runtime-config';
 import { getOrCreateDeviceId } from './device-id';
 import { writeHeartbeat } from './writer';
@@ -31,7 +30,6 @@ export function useHeartbeat(): void {
   const name = profile?.name;
 
   useEffect(() => {
-    if (!isPresenceHeartbeatEnabled()) return;
     let cancelled = false;
 
     const tick = async (): Promise<void> => {
