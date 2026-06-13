@@ -123,6 +123,8 @@ Auf der **Verbund**-Detailseite ([VerbundDetail.tsx](src/plugins/antraege/Verbun
 
 **Leitprinzip**: LLM ist optional — Aufnahme ([src/core/components/DokumentAufnahme.tsx](src/core/components/DokumentAufnahme.tsx)), Review eines vorhandenen Stands und der DOCX-Füller ([src/core/services/gutachten-vorlagen/](src/core/services/gutachten-vorlagen/)) laufen ohne LLM; nur die Generierung (Skill, [src/core/services/skills/](src/core/services/skills/)) braucht die Transport-Ladder und degradiert mit klarer Meldung. **Ebene = Verbund** (eine VB pro Verbund); Persistenz + VB-Relation laufen über die Verbund-ID als `kv`-Präfix-Key/Tag (`gutachten-kurzfassung:<key>`, `doc:*`-Tags), **kein** Schreiben in den CSV-`Antrag`-Record (Pitfall #29).
 
+**Skill-Service-Struktur** (v2.89): `src/core/services/skills/` ist ein Dach mit drei kohäsiven Submodulen — `run/` (Ausführung/Parsing), `registry/` (Skill-/Regel-Datenmodell, Check-Engine, Seed, Storage), `tweaks/` (private User-Tweaks). Import immer über das Dach-Barrel `@/core/services/skills`; `splitSentences`/`CheckResult`/`SkillModifierKey` haben dort genau **eine** Heimat (in `registry/`).
+
 Detail (4 Bausteine, Datenfluss, Skill-Struktur, Run-Splitting im DOCX-Füller, Persistenz-Keys, Generalisierungs-Notizen): [docs/architecture/gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
 
 ### Legacy: Vorgang-Typ

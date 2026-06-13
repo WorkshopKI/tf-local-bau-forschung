@@ -14,10 +14,8 @@ import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { uuid } from '@/core/services/id-generator';
 import { getAntrag, getVerbund, listAntraegeByVerbund } from '@/core/services/csv/idb-csv';
 import type { Antrag } from '@/core/services/csv/types';
-import { runSkill } from '@/core/services/skills';
-import { loadSkillRegistry, runRegelChecks } from '@/core/services/skill-registry';
+import { runSkill, loadSkillRegistry, runRegelChecks, loadSkillTweak } from '@/core/services/skills';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
-import { loadSkillTweak } from '@/core/services/skill-tweaks';
 import {
   runBatch, berechneMengen, putBatchJob, getBatchJob, deleteBatchJob, spiegeleAbschnitt,
   type BatchDeps, type AbschnittErgebnis, type BatchJob, type BatchAbschnitte, type Mengen, type MengenKandidat,

@@ -1,7 +1,7 @@
 /**
  * Skill-RUNTIME-Typen (transport-facing). Das Skill-Datenmodell selbst
- * (`SkillRecord`, `QualitaetsRegel`, `SkillModifierKey`) lebt jetzt in der
- * Skill-Registry (`@/core/services/skill-registry`); hier bleibt nur die
+ * (`SkillRecord`, `QualitaetsRegel`, `SkillModifierKey`) lebt jetzt im
+ * Registry-Submodul (`@/core/services/skills`); hier bleibt nur die
  * geparste Ausgabe-Struktur.
  */
 

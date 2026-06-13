@@ -4,7 +4,7 @@ import {
   skillsUsingRegel,
   type QualitaetsRegel,
   type SkillRegistryFile,
-} from '@/core/services/skill-registry';
+} from '@/core/services/skills';
 import {
   SortableTable,
   ColumnPicker,

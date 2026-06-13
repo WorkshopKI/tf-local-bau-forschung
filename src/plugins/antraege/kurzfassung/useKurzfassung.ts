@@ -10,10 +10,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
-import { runSkill, type SkillModifierKey } from '@/core/services/skills';
-import { getVbCharCap } from '@/core/services/ai/llm-context';
-import { getLlmThinkingEnabled, budgetForThinking, type ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import {
+  runSkill,
   loadSkillRegistry,
   getSkillById,
   resolveRegeln,
@@ -21,11 +19,17 @@ import {
   KURZFASSUNG_SKILL_ID,
   SEED_SKILL,
   SEED_REGELN,
+  loadSkillTweak,
+  saveSkillTweak,
+  deleteSkillTweak,
+  type SkillModifierKey,
   type QualitaetsRegel,
   type SkillRecord,
-} from '@/core/services/skill-registry';
+  type SkillTweak,
+} from '@/core/services/skills';
+import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { getLlmThinkingEnabled, budgetForThinking, type ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
-import { loadSkillTweak, saveSkillTweak, deleteSkillTweak, type SkillTweak } from '@/core/services/skill-tweaks';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { findVorhabensbeschreibung } from './vbDokument';
 import { useStreamingBuffer } from './useStreamingBuffer';

@@ -8,7 +8,7 @@ import {
   type SkillModifierKey,
   type SkillRecord,
   type SkillRegistryFile,
-} from '@/core/services/skill-registry';
+} from '@/core/services/skills';
 
 const SLOT_EXPL: Record<string, string> = {
   stammdaten: 'FKZ, Firmenname, Akronym und Antragstyp aus den TeamFlow-Stammdaten.',

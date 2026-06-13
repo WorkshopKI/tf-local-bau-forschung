@@ -8,7 +8,7 @@
  * dann in mehreren Sektionen (eigener `_rowKey` je (Regel, Skill)). Regeln ohne
  * Skill-Zuordnung landen in „Ohne Zuordnung".
  */
-import type { QualitaetsRegel, SkillRegistryFile } from '@/core/services/skill-registry';
+import type { QualitaetsRegel, SkillRegistryFile } from '@/core/services/skills';
 import { TYP_LABEL, REGEL_TYP_ORDER } from './regelShared';
 
 export type RegelGroupingMode = 'none' | 'typ' | 'schweregrad' | 'skill' | 'aktiv';

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Play, Copy, Trash2 } from 'lucide-react';
-import type { SkillRecord, SkillRegistryFile } from '@/core/services/skill-registry';
+import type { SkillRecord, SkillRegistryFile } from '@/core/services/skills';
 import {
   SortableTable,
   ColumnPicker,

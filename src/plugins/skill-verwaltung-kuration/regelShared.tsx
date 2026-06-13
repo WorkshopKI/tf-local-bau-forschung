@@ -4,7 +4,7 @@
  * Typ-Picker). Bewusst in ein eigenes Modul gehoben, um Zirkular-Imports
  * zwischen Tab, Spalten und Page zu vermeiden.
  */
-import type { QualitaetsRegel, Schweregrad } from '@/core/services/skill-registry';
+import type { QualitaetsRegel, Schweregrad } from '@/core/services/skills';
 
 export const TYP_LABEL: Record<string, string> = {
   zeichen_max: 'Zeichen max',

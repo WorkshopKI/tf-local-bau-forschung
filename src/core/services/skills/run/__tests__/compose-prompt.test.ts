@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { composeSkillPrompt, buildTweakBlock, type SkillRunInput } from '../run-skill';
-import { SEED_SKILL, SEED_REGELN, buildPromptVorgaben } from '@/core/services/skill-registry';
+import { SEED_SKILL, SEED_REGELN, buildPromptVorgaben } from '@/core/services/skills';
 
 const VB = 'VB-MARKDOWN-INHALT';
 const baseInput: SkillRunInput = { stammdaten: 'STAMMDATEN-BLOCK', vbMarkdown: VB };

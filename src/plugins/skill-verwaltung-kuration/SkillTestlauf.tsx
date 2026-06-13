@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
-import { runSkill } from '@/core/services/skills';
 import {
+  runSkill,
   runRegelChecks,
   splitSentences,
   type CheckResult,
   type QualitaetsRegel,
   type SkillRecord,
-} from '@/core/services/skill-registry';
+} from '@/core/services/skills';
 import { findVorhabensbeschreibung } from '@/plugins/antraege/kurzfassung/vbDokument';
 import { listAllAntraegeListView } from '@/core/services/csv/idb-csv';
 import type { IDBStore } from '@/core/services/storage/idb-store';

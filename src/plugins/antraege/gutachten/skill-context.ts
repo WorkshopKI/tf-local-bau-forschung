@@ -6,7 +6,7 @@
 import {
   getSkillById, resolveRegeln, SEED_REGISTRY,
   type QualitaetsRegel, type SkillRecord, type SkillRegistryFile,
-} from '@/core/services/skill-registry';
+} from '@/core/services/skills';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { ZIM_EP_WORKFLOW } from './workflow-definition';
 import type { StepId } from './types';

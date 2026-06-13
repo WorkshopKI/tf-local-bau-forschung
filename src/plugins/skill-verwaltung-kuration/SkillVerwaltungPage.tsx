@@ -9,7 +9,7 @@ import {
   type QualitaetsRegel,
   type SkillRecord,
   type SkillRegistryFile,
-} from '@/core/services/skill-registry';
+} from '@/core/services/skills';
 import { useSkillRegistry } from './useSkillRegistry';
 import { SkillsTab } from './SkillsTab';
 import { RegelnTab } from './RegelnTab';

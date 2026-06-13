@@ -15,7 +15,7 @@ import {
   skillsUsingRegel,
   type QualitaetsRegel,
   type SkillRegistryFile,
-} from '@/core/services/skill-registry';
+} from '@/core/services/skills';
 import { TYP_LABEL, SevPill, Switch } from './regelShared';
 import type { RegelRow } from './regelGrouping';
 

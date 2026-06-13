@@ -11,7 +11,7 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { DATA_TABLE_COLLATOR } from '@/components/data-table';
-import { skillsUsingRegel, type QualitaetsRegel, type SkillRegistryFile } from '@/core/services/skill-registry';
+import { skillsUsingRegel, type QualitaetsRegel, type SkillRegistryFile } from '@/core/services/skills';
 import { TYP_LABEL } from './regelShared';
 
 const typLabel = (r: QualitaetsRegel): string => TYP_LABEL[r.typ] ?? 'Unbekannter Typ';

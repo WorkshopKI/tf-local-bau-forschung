@@ -15,7 +15,7 @@ import {
   type QualitaetsRegel,
   type SkillModifierKey,
   type SkillRecord,
-} from '@/core/services/skill-registry';
+} from '../registry';
 import { parseSkillOutput } from './parse';
 import type { ParsedSkillOutput } from './types';
 

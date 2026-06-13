@@ -10,9 +10,7 @@
  */
 import { useMemo, useState } from 'react';
 import { X, ChevronDown } from 'lucide-react';
-import { buildTweakBlock } from '@/core/services/skills';
-import { buildPromptVorgaben, type QualitaetsRegel } from '@/core/services/skill-registry';
-import { TWEAK_FELD_MAX, type SkillTweak } from '@/core/services/skill-tweaks';
+import { buildTweakBlock, buildPromptVorgaben, TWEAK_FELD_MAX, type QualitaetsRegel, type SkillTweak } from '@/core/services/skills';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import type { TweakEingabe } from './useKurzfassung';
 

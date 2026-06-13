@@ -6,7 +6,7 @@
 import type { ReactNode } from 'react';
 import { Play, Copy, Trash2 } from 'lucide-react';
 import type { SortableColumn } from '@/components/data-table';
-import type { SkillRecord } from '@/core/services/skill-registry';
+import type { SkillRecord } from '@/core/services/skills';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from './registryFormat';
 

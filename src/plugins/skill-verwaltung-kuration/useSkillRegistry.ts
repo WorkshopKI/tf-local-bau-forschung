@@ -16,7 +16,7 @@ import {
   writeSkillRegistry,
   SEED_REGISTRY,
   type SkillRegistryFile,
-} from '@/core/services/skill-registry';
+} from '@/core/services/skills';
 
 export interface SkillRegistryController {
   file: SkillRegistryFile | null;
