@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Copy, Check } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -20,7 +20,7 @@ interface StreamlitBridgeSectionProps {
 
 /**
  * In-App-Installer für die Streamlit-Bridge: Streamlit-URL konfigurieren,
- * Bookmarklet in die Lesezeichenleiste ziehen/kopieren, Verbindung testen.
+ * Bookmarklet in die Lesezeichenleiste ziehen, Verbindung testen.
  * Der Transport (`StreamlitBridgeTransport`) öffnet die URL im Tab
  * `teamflow-streamlit`; das Bookmarklet aktiviert dort die postMessage-Bridge.
  */
@@ -29,7 +29,6 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
   const aiBridge = useAIBridge();
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [saved, setSaved] = useState(false);
-  const [copied, setCopied] = useState(false);
   const linkRef = useRef<HTMLAnchorElement>(null);
 
   const url = (aiConfig.endpoint || 'https://gpt.vdivde-it.de/').trim();
@@ -56,12 +55,6 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
     const ok = await new StreamlitBridgeTransport(url).ping();
     setTestResult(ok ? 'success' : 'error');
     setTimeout(() => setTestResult(null), 5000);
-  });
-
-  const copy = useAsyncAction(async () => {
-    await navigator.clipboard.writeText(BRIDGE_BOOKMARKLET);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
   });
 
   const openTab = (): void => {
@@ -119,17 +112,12 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
         >
           Interne KI
         </a>
-        <Button variant="secondary" onClick={() => copy.run()} disabled={copy.busy}>
-          {copied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
-          Code kopieren
-        </Button>
       </div>
-      {copy.error && <p className="text-[12px] text-[var(--tf-error)]">Kopieren fehlgeschlagen: {copy.error}</p>}
 
       {/* Anleitung */}
       <ol className="text-[12px] text-[var(--tf-text-secondary)] list-decimal pl-5 space-y-1 max-w-2xl">
         <li>Adresse der internen KI eintragen und <strong>Speichern &amp; Aktivieren</strong>.</li>
-        <li>Den Button <strong>„Interne KI"</strong> in die Lesezeichenleiste ziehen — oder <strong>Code kopieren</strong> und ein Lesezeichen manuell anlegen (Code als Adresse einfügen).</li>
+        <li>Den Button <strong>„Interne KI"</strong> in die Lesezeichenleiste ziehen.</li>
         <li><strong>Interne KI öffnen</strong> klicken.</li>
         <li>Im Tab der internen KI das Lesezeichen anklicken — oben rechts erscheint ein grünes Badge „Interne KI".</li>
         <li>Zurück hier: <strong>Verbindung testen</strong> → „Verbunden". Danach läuft der KI-Chat über die Verbindung.</li>

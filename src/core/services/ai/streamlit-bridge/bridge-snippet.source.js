@@ -68,14 +68,24 @@
     ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true }));
   }
 
-  // Status-Badge (oben rechts) — bewusst klein, kein GUI-Overlay.
+  // Status-Badge (oben rechts) — bewusst klein, kein GUI-Overlay. Toene aus dem
+  // TeamFlow-Design-System (badge.tsx / theme.css): weiche Pastell-Flaeche +
+  // dunkler Text gleicher Tonart, kein greller Vollton. Werte als Literale, weil
+  // die fremde KI-Seite die CSS-Variablen (var(--tf-*)) nicht kennt.
+  var TONES = {
+    ready:   { bg: 'hsl(145, 60%, 94%)', fg: 'hsl(145, 60%, 30%)' }, // success
+    working: { bg: 'hsl(38, 90%, 93%)',  fg: 'hsl(38, 70%, 30%)' },  // warning
+    error:   { bg: 'hsl(0, 70%, 95%)',   fg: 'hsl(0, 60%, 38%)' },   // danger
+  };
   var badge = document.createElement('div');
   badge.id = 'tf-bridge-badge';
-  badge.style.cssText = 'position:fixed;top:8px;right:8px;z-index:99999;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:bold;color:#fff;background:#22c55e;font-family:sans-serif;';
+  badge.style.cssText = 'position:fixed;top:8px;right:8px;z-index:99999;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;background:' + TONES.ready.bg + ';color:' + TONES.ready.fg + ';';
   badge.textContent = 'Interne KI';
   document.body.appendChild(badge);
-  function setBadge(color, text) {
-    badge.style.background = color;
+  function setBadge(tone, text) {
+    var t = TONES[tone] || TONES.ready;
+    badge.style.background = t.bg;
+    badge.style.color = t.fg;
     badge.textContent = text || 'Interne KI';
   }
 
@@ -84,19 +94,19 @@
     if (!data || !data.type) return;
 
     if (data.type === 'tf-ping') {
-      setBadge('#22c55e', 'Verbunden');
+      setBadge('ready', 'Verbunden');
       event.source.postMessage({ type: 'tf-pong' }, '*');
       return;
     }
 
     if (data.type === 'tf-request') {
-      setBadge('#eab308', 'Arbeitet…');
+      setBadge('working', 'Arbeitet…');
       var id = data.id;
       var message = String(data.message || '');
 
       var ta = q1(SEL.textarea);
       if (!ta) {
-        setBadge('#ef4444', 'Fehler');
+        setBadge('error', 'Fehler');
         event.source.postMessage({ type: 'tf-response', id: id, result: 'Eingabefeld der internen KI nicht gefunden' }, '*');
         return;
       }
@@ -126,7 +136,7 @@
                 if (txt === last) { stable++; } else { stable = 0; last = txt; }
                 if (stable >= needStable) {
                   clearInterval(iv);
-                  setBadge('#22c55e', 'Verbunden');
+                  setBadge('ready', 'Verbunden');
                   event.source.postMessage({ type: 'tf-response', id: id, result: txt }, '*');
                   return;
                 }
@@ -135,7 +145,7 @@
           }
           if (attempts >= maxAttempts) {
             clearInterval(iv);
-            setBadge('#ef4444', 'Zeitüberschreitung');
+            setBadge('error', 'Zeitüberschreitung');
             event.source.postMessage({ type: 'tf-response', id: id, result: 'Zeitüberschreitung: Keine Antwort von der internen KI' }, '*');
           }
         }, 500);
