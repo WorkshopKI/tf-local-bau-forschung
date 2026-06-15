@@ -3,7 +3,7 @@
  * Pipeline-Code selbst ist React-frei — hier nur das State-Wiring.
  *
  * WICHTIG: KEIN Auto-`ping()` beim Mount! Streamlit-Bridge oeffnet im `ping()`
- * automatisch ein neues Browser-Fenster (`http://localhost:8501/`) — das wuerde
+ * automatisch ein neues Browser-Fenster (die konfigurierte Streamlit-URL) — das wuerde
  * jeden Mount der Suche-Seite zum „pop-up" machen, auch wenn der User die
  * KI-Analyse gar nicht nutzen will. Verfuegbarkeit wird **lazy** beim ersten
  * Klick auf „Mit KI analysieren" geprueft.

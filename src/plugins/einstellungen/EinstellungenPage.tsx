@@ -42,7 +42,7 @@ export function EinstellungenPage(): React.ReactElement {
   const { profile, updateProfile } = useProfile();
   const [activeTab, setActiveTab] = useState('profil');
   const [dark, setDark] = useState(isDarkMode());
-  const [aiConfig, setAiConfig] = useState<AIProviderConfig>({ type: 'streamlit', endpoint: 'http://localhost:8501', model: '', apiKey: '' });
+  const [aiConfig, setAiConfig] = useState<AIProviderConfig>({ type: 'streamlit', endpoint: 'https://gpt.vdivde-it.de/', model: '', apiKey: '' });
 
   useEffect(() => {
     storage.idb.get<AIProviderConfig>('ai-provider').then(c => { if (c) setAiConfig(c); });

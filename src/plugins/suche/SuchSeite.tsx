@@ -352,7 +352,7 @@ export function SuchSeite(): React.ReactElement {
   // Button ist optimistisch enabled (sobald Query nicht leer ist). Die echte
   // Provider-Pruefung passiert lazy in `analyse.start()` — beim Mount der
   // Suche-Seite KEIN `ping()`, damit die Streamlit-Bridge nicht ihr
-  // localhost:8501-Fenster automatisch oeffnet.
+  // Fenster (konfigurierte Streamlit-URL) automatisch oeffnet.
   const aiButtonDisabled = !query.trim() || analyse.running;
   const aiButtonTooltip = `Mit KI analysieren (Provider: ${analyse.providerName})`;
 

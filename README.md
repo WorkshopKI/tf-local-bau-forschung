@@ -21,7 +21,7 @@ npm run build:single # Single-File Build → dist-single/index.html
 Zugang zu einem internen LLM ohne API über eine Streamlit-Chat-App im parallelen Tab.
 Einrichtung in der App unter **Einstellungen → KI-Assistent → Streamlit Bridge**:
 
-1. Streamlit Chat-App starten und ihre URL (z.B. `http://localhost:8501`) eintragen, **Speichern & Aktivieren**
+1. Streamlit Chat-App starten und ihre URL (Standard `https://gpt.vdivde-it.de/`; lokaler Test z.B. `http://localhost:8501`) eintragen, **Speichern & Aktivieren**
 2. Das Bookmarklet **„TF Streamlit Bridge"** in die Lesezeichenleiste ziehen (oder **Code kopieren** → Lesezeichen manuell anlegen)
 3. **Streamlit-Tab öffnen**, dort das Lesezeichen anklicken — grünes „TF Connected"-Badge erscheint
 4. **Verbindung testen** → danach läuft der KI-Chat über die Bridge

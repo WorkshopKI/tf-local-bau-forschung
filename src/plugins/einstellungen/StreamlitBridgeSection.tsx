@@ -32,7 +32,7 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
   const [copied, setCopied] = useState(false);
   const linkRef = useRef<HTMLAnchorElement>(null);
 
-  const url = (aiConfig.endpoint || 'http://localhost:8501').trim();
+  const url = (aiConfig.endpoint || 'https://gpt.vdivde-it.de/').trim();
 
   // React sanitisiert `javascript:`-hrefs (Warnung). Bookmarklet-URL daher
   // imperativ via setAttribute setzen — landet zuverlässig im DOM zum Ziehen.
@@ -84,7 +84,7 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
         <input
           value={aiConfig.endpoint}
           onChange={e => setAiConfig({ ...aiConfig, endpoint: e.target.value })}
-          placeholder="http://localhost:8501"
+          placeholder="https://gpt.vdivde-it.de/"
           className={inputClass}
           style={inputStyle}
         />

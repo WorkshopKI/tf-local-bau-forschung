@@ -65,7 +65,7 @@ export class StreamlitBridgeTransport implements AITransport {
     timeout: ReturnType<typeof setTimeout>;
   }>();
 
-  constructor(private streamlitUrl = 'http://localhost:8501') {
+  constructor(private streamlitUrl = 'https://gpt.vdivde-it.de/') {
     window.addEventListener('message', (event) => {
       // Origin gegen die KONFIGURIERTE Streamlit-URL pinnen — nicht hart auf
       // 'localhost', da das interne gpt-oss ggf. unter Servername/IP läuft.

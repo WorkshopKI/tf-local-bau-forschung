@@ -28,7 +28,7 @@ const ALL_PROVIDERS: Array<{
   { type: 'cloud', label: 'Cloud API', description: 'OpenAI, Azure, kompatible APIs',
     defaultEndpoint: '', defaultModel: '' },
   { type: 'streamlit', label: 'Streamlit Bridge', description: 'Verbindung ueber Streamlit-App',
-    defaultEndpoint: 'http://localhost:8501', defaultModel: '' },
+    defaultEndpoint: 'https://gpt.vdivde-it.de/', defaultModel: '' },
 ];
 
 // In Builds ohne OpenRouter-Freigabe wird die Option komplett ausgeblendet,
