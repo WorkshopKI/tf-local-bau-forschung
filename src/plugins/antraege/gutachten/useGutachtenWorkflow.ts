@@ -175,7 +175,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         entwurf: result.parsed.entwurf,
         finalerText: result.parsed.finalerText,
         checks: runRegelChecks(result.parsed.finalerText, sc.regeln),
-        modell: transport.name,
+        modell: transport.displayName ?? transport.name,
         skillId: sc.skill.id,
         skillVersion: sc.skill.version,
         vbGekuerzt: result.vbGekuerzt,

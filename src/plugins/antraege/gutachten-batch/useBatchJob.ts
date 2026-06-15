@@ -149,7 +149,7 @@ export function useBatchJob(): UseBatchJob {
       entwurf: result.parsed.entwurf,
       finalerText: result.parsed.finalerText,
       checks,
-      modell: transport.name,
+      modell: transport.displayName ?? transport.name,
       skillId: sc.skill.id,
       skillVersion: sc.skill.version,
       vbGekuerzt: result.vbGekuerzt,

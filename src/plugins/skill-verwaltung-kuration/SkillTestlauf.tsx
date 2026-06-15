@@ -112,7 +112,7 @@ export function SkillTestlauf({ skill, regeln, hinweis, onClose }: SkillTestlauf
         saetze: splitSentences(finalerText).length,
         zeichen: finalerText.length,
         dauerS: Math.max(1, Math.round((Date.now() - start) / 1000)),
-        modell: transport.name,
+        modell: transport.displayName ?? transport.name,
         checks: runRegelChecks(finalerText, regeln),
       });
     } catch (err) {

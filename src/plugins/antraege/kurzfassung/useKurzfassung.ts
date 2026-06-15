@@ -196,7 +196,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         checks: runRegelChecks(result.parsed.finalerText, skillCtx.regeln),
         status: 'entwurf',
         erstellt_am: new Date().toISOString(),
-        modell: transport.name,
+        modell: transport.displayName ?? transport.name,
         skillId: skillCtx.skill.id,
         skillVersion: skillCtx.skill.version,
         vbGekuerzt: result.vbGekuerzt,
