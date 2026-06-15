@@ -6,7 +6,6 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { StreamlitBridgeTransport } from '@/core/services/ai/transports/streamlit';
 import { BRIDGE_BOOKMARKLET } from '@/core/services/ai/streamlit-bridge/snippet';
 import type { AIProviderConfig } from '@/core/types/config';
 
@@ -49,17 +48,20 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
 
   const test = useAsyncAction(async () => {
     setTestResult(null);
-    // Frischer Transport mit der aktuell eingetippten URL — testet die ECHTE
-    // Bridge (tf-ping → tf-pong), nicht DirectLLM. ensureConnection() nutzt den
-    // benannten Tab wieder, falls schon offen.
-    const ok = await new StreamlitBridgeTransport(url).ping();
+    // PERSISTENTEN Streamlit-Transport nutzen (nicht neu anlegen) — er hält das
+    // per `tf-bridge-ready`-Announce gecapturte Fenster-Handle → pingt den echten
+    // Bookmarklet-Tab (tf-ping → tf-pong), ohne ihn per window.open neu zu laden.
+    // `url` synchronisiert die Origin-Prüfung.
+    const ok = await aiBridge.getStreamlitTransport(url).ping();
     setTestResult(ok ? 'success' : 'error');
     setTimeout(() => setTestResult(null), 5000);
   });
 
   const openTab = (): void => {
-    // Synchron im Click → kein Popup-Blocker. Gleicher Fenstername wie der
-    // Transport, damit beide denselben einen Tab teilen.
+    // Transport-URL synchronisieren (Origin-Prüfung greift sonst nicht, wenn die
+    // URL noch nicht gespeichert wurde), dann SYNCHRON öffnen → kein Popup-Blocker.
+    // Gleicher Fenstername wie der Transport, damit beide denselben Tab teilen.
+    aiBridge.getStreamlitTransport(url);
     window.open(url, 'teamflow-streamlit');
   };
 
@@ -93,8 +95,8 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
         <Button variant="secondary" onClick={() => test.run()} disabled={test.busy || !url}>
           {test.busy ? 'Teste…' : 'Verbindung testen'}
         </Button>
-        {testResult === 'success' && <Badge variant="success">Verbunden</Badge>}
-        {testResult === 'error' && <Badge variant="error">Nicht erreichbar</Badge>}
+        {testResult === 'success' && <Badge variant="success">Interne KI erreichbar</Badge>}
+        {testResult === 'error' && <Badge variant="error">Interne KI nicht erreichbar</Badge>}
       </div>
       {save.error && <p className="text-[12px] text-[var(--tf-error)]">Fehler: {save.error}</p>}
       {test.error && <p className="text-[12px] text-[var(--tf-error)]">Fehler: {test.error}</p>}
@@ -117,10 +119,10 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
       {/* Anleitung */}
       <ol className="text-[12px] text-[var(--tf-text-secondary)] list-decimal pl-5 space-y-1 max-w-2xl">
         <li>Adresse der internen KI eintragen und <strong>Speichern &amp; Aktivieren</strong>.</li>
-        <li>Den Button <strong>„Interne KI"</strong> in die Lesezeichenleiste ziehen.</li>
-        <li><strong>Interne KI öffnen</strong> klicken.</li>
-        <li>Im Tab der internen KI das Lesezeichen anklicken — oben rechts erscheint ein grünes Badge „Interne KI".</li>
-        <li>Zurück hier: <strong>Verbindung testen</strong> → „Verbunden". Danach läuft der KI-Chat über die Verbindung.</li>
+        <li>Den Button <strong>„Interne KI"</strong> einmalig in die Lesezeichenleiste ziehen.</li>
+        <li><strong>Interne KI öffnen</strong> klicken (der Tab muss <em>aus der App</em> geöffnet werden).</li>
+        <li>Im Tab der internen KI das Lesezeichen anklicken — oben rechts erscheinen ein grünes Badge und der Button <strong>„ZAH-App testen"</strong> (zeigt „ZAH App erreichbar").</li>
+        <li>Zurück hier: <strong>Verbindung testen</strong> → „Interne KI erreichbar". Danach läuft der KI-Chat über die Verbindung.</li>
       </ol>
       <p className="text-[11.5px] text-[var(--tf-text-tertiary)] max-w-2xl">
         Hinweis: Das Lesezeichen muss pro KI-Tab einmal angeklickt werden (nach jedem Neuladen erneut).

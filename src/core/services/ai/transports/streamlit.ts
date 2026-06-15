@@ -80,14 +80,31 @@ export class StreamlitBridgeTransport implements AITransport {
       const allowed = this.allowedOrigin();
       if (allowed && event.origin !== allowed) return;
       const data = event.data as Record<string, unknown>;
-      if (data?.type === 'tf-pong') {
+      const type = data?.type;
+      if (type !== 'tf-pong' && type !== 'tf-response' && type !== 'tf-bridge-ready' && type !== 'tf-app-ping') return;
+
+      // Lebendes Fenster-Handle aus der eingehenden Nachricht übernehmen — das
+      // EXAKTE Tab, in dem das Bookmarklet läuft. Robuster als `window.open`
+      // (das einen schon offenen, benannten Tab neu laden und damit das injizierte
+      // Bookmarklet löschen würde). Quelle: das `tf-bridge-ready`-Announce des
+      // Bookmarklets beim Aktivieren.
+      if (event.source) this.streamlitWindow = event.source as Window;
+
+      if (type === 'tf-app-ping') {
+        // Gegenrichtung: das Bookmarklet prüft, ob es UNSER App-Fenster erreicht.
+        (event.source as Window | null)?.postMessage({ type: 'tf-app-pong' }, '*');
+        return;
+      }
+      if (type === 'tf-pong') {
         const p = this.pending.get('ping');
         if (p) { clearTimeout(p.timeout); p.resolve('pong'); this.pending.delete('ping'); }
+        return;
       }
-      if (data?.type === 'tf-response' && typeof data.id === 'string') {
+      if (type === 'tf-response' && typeof data.id === 'string') {
         const p = this.pending.get(data.id);
         if (p) { clearTimeout(p.timeout); p.resolve(data.result as string); this.pending.delete(data.id); }
       }
+      // tf-bridge-ready: nur das Handle übernehmen (oben bereits geschehen).
     });
   }
 

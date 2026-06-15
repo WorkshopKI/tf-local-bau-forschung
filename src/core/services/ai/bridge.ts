@@ -52,6 +52,24 @@ export class AIBridge {
     return transport;
   }
 
+  /** Den PERSISTENTEN Streamlit-Transport holen (nicht den aktiven) — für den
+   *  Verbindungstest + „Interne KI öffnen". Wichtig: nur diese eine Instanz lebt
+   *  seit App-Start und hat über ihren `message`-Listener das Fenster-Handle aus
+   *  dem `tf-bridge-ready`-Announce des Bookmarklets übernommen. Ein frisch
+   *  angelegter Transport hätte das Handle NICHT → würde per `window.open` den
+   *  KI-Tab neu laden und das Bookmarklet löschen. `url` synchronisiert die
+   *  Origin-Prüfung; ändert activeType NICHT. */
+  getStreamlitTransport(url?: string): StreamlitBridgeTransport {
+    const existing = this.transports.get('streamlit');
+    if (existing instanceof StreamlitBridgeTransport) {
+      if (url) existing.updateUrl(url);
+      return existing;
+    }
+    const created = new StreamlitBridgeTransport(url);
+    this.transports.set('streamlit', created);
+    return created;
+  }
+
   /** Endnutzer-tauglicher Anzeige-Name des aktiven Providers (Tooltips,
    *  Status-Dialoge). Nutzt `displayName`, fällt auf den Logik-`name` zurück. */
   getActiveProviderName(): string {

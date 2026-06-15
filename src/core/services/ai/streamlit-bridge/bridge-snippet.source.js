@@ -89,6 +89,41 @@
     badge.textContent = text || 'Interne KI';
   }
 
+  // Kleiner Test-Button (Gegenrichtung): prueft, ob das oeffnende App-Fenster
+  // (window.opener) erreichbar ist → Nutzer sieht im KI-Tab „ZAH App erreichbar".
+  var testBtn = document.createElement('button');
+  testBtn.id = 'tf-bridge-test';
+  testBtn.textContent = 'ZAH-App testen';
+  testBtn.style.cssText = 'position:fixed;top:36px;right:8px;z-index:99999;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;border:1px solid ' + TONES.ready.fg + ';background:#fff;color:' + TONES.ready.fg + ';cursor:pointer;';
+  document.body.appendChild(testBtn);
+  testBtn.addEventListener('click', function () {
+    if (!window.opener) { testBtn.textContent = 'Kein App-Fenster'; return; }
+    testBtn.textContent = 'Teste…';
+    var done = false;
+    function onPong(e) {
+      if (e.data && e.data.type === 'tf-app-pong') {
+        done = true;
+        testBtn.textContent = 'ZAH App erreichbar';
+        window.removeEventListener('message', onPong);
+      }
+    }
+    window.addEventListener('message', onPong);
+    window.opener.postMessage({ type: 'tf-app-ping' }, '*');
+    setTimeout(function () {
+      if (!done) { testBtn.textContent = 'ZAH App nicht erreichbar'; window.removeEventListener('message', onPong); }
+    }, 3000);
+  });
+
+  // Beim Aktivieren dem oeffnenden App-Fenster Bescheid geben → die App
+  // uebernimmt das Fenster-Handle (event.source) und kann zuverlaessig pingen,
+  // ohne den Tab per window.open neu zu laden. Kein opener (manuell geoeffnet
+  // oder COOP) → klarer Hinweis.
+  if (window.opener) {
+    try { window.opener.postMessage({ type: 'tf-bridge-ready' }, '*'); } catch (e) { /* ignore */ }
+  } else {
+    setBadge('error', 'Tab aus der App öffnen');
+  }
+
   window.addEventListener('message', function (event) {
     var data = event.data;
     if (!data || !data.type) return;

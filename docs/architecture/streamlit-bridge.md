@@ -21,11 +21,16 @@ Streamlit → App:   { type: 'tf-pong' }
 
 App  → Streamlit:  { type: 'tf-request', id, message }
 Streamlit → App:   { type: 'tf-response', id, result }
+
+Streamlit → App:   { type: 'tf-bridge-ready' }            (Announce beim Aktivieren)
+Streamlit → App:   { type: 'tf-app-ping' }  → App: { type: 'tf-app-pong' }   (Gegenrichtungs-Test)
 ```
 
 - Korrelation über `id` (`Map<id, {resolve, reject, timeout}>`). Ping-Timeout 5 s, Response-Timeout 60 s.
 - Abort: das pending-Promise wird verworfen, der Streamlit-Run läuft serverseitig fertig (das UI reagiert sofort).
 - **Origin-Pinning**: der Transport akzeptiert nur Nachrichten von der konfigurierten Streamlit-URL-Origin (`new URL(streamlitUrl).origin`), nicht hart `localhost` — interne Hosts laufen ggf. unter Servername/IP. Unparsebare URL → akzeptierend (Single-Team-Trust).
+- **Fenster-Handle aus `event.source`**: der Transport übernimmt bei jeder eingehenden `tf-*`-Nachricht `event.source` als `streamlitWindow` — das exakte Tab, in dem das Bookmarklet läuft. Das Bookmarklet sendet beim Aktivieren `tf-bridge-ready` an `window.opener` und löst das Capturing aus. So muss `window.open` den Tab **nicht** erneut öffnen (das würde ihn neu laden und das injizierte Bookmarklet löschen). **Voraussetzung:** der KI-Tab wird **aus der App** geöffnet („Interne KI öffnen") und die `window.opener`-Beziehung besteht (kein `Cross-Origin-Opener-Policy: same-origin` auf der KI-Seite — sonst ist gar keine Tab-zu-Tab-Kommunikation möglich).
+- **Bidirektionaler Test**: links (App) „Verbindung testen" → `tf-ping`/`tf-pong` → „Interne KI erreichbar"; rechts (KI-Tab) Button „ZAH-App testen" → `tf-app-ping`/`tf-app-pong` → „ZAH App erreichbar". Der Test nutzt den **persistenten** Transport (`AIBridge.getStreamlitTransport()`), nicht einen Wegwerf — nur der hält das gecapturte Handle.
 
 ## Black-Box-DOM-Scrape (Streamlit-Seite)
 
@@ -35,7 +40,7 @@ Die Streamlit-App gehört uns nicht und kann nicht geändert werden → das Book
 - **Baseline**-Nachrichtenzahl vor dem Senden; es wird auf neue Nachrichten gewartet.
 - Nur die **Assistant**-Nachricht wird gelesen (User-Echo via `img[alt*="user"]` ausgeschlossen, und Kandidat übersprungen, dessen Text == gesendete Nachricht).
 - **Stabilitäts-Gate**: Inhalt muss N×500 ms unverändert bleiben (Streaming fertig), bevor zurückgegeben wird.
-- Kleines Status-Badge (Connected / Working / Timeout / Error), `window.__teamflowBridge`-Guard gegen Doppel-Installation.
+- Kleines Status-Badge (Interne KI / Verbunden / Arbeitet… / Zeitüberschreitung / Fehler) + Button „ZAH-App testen"; bei fehlendem `window.opener` Hinweis „Tab aus der App öffnen". `window.__teamflowBridge`-Guard gegen Doppel-Installation.
 
 ## Aktivierung (Nutzer-Flow)
 
