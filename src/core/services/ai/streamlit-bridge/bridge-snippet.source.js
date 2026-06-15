@@ -74,7 +74,7 @@
     var tag = el.tagName;
     if (tag === 'BUTTON' || tag === 'SVG' || tag === 'STYLE' || tag === 'SCRIPT') return true;
     var tid = el.getAttribute && el.getAttribute('data-testid');
-    if (tid && /avatar|toolbar|copy|tooltip/i.test(tid)) return true;
+    if (tid && /avatar|toolbar|copy|tooltip|headeraction/i.test(tid)) return true;
     var al = el.getAttribute && el.getAttribute('aria-label');
     if (al && /copy|kopieren/i.test(al)) return true;
     return false;
@@ -92,8 +92,12 @@
       else if (t === 'CODE') { out += '`' + (c.textContent || '') + '`'; }
       else if (t === 'A') {
         var href = c.getAttribute('href') || '';
-        var label = inlineMd(c).trim() || href;
-        out += href ? '[' + label + '](' + href + ')' : label;
+        var label = inlineMd(c).trim();
+        // In-Page-Anker (Streamlit-Heading-Links `#slug`) sind Navigation, kein
+        // Inhalt → nur (oft leeres) Label, NIE die href als Text (sonst leakt
+        // der Slug `#was-ist-...` in die Antwort).
+        if (href && href.charAt(0) !== '#' && label) { out += '[' + label + '](' + href + ')'; }
+        else { out += label; }
       } else { out += inlineMd(c); } // span/div transparent
     }
     return out;
@@ -121,7 +125,9 @@
     for (var i = 0; i < listEl.children.length; i++) {
       var li = listEl.children[i];
       if (li.tagName !== 'LI') continue;
-      var indent = new Array(depth * 2 + 1).join(' ');
+      // 3 Spaces/Ebene: ein verschachteltes Item muss ≥ Marker-Breite eingerückt
+      // sein (unter „1. " = Spalte 3), sonst bricht marked die Liste → „1." überall.
+      var indent = new Array(depth * 3 + 1).join(' ');
       var marker = ordered ? (idx++ + '. ') : '- ';
       var inline = '', nested = [];
       for (var j = 0; j < li.childNodes.length; j++) {
