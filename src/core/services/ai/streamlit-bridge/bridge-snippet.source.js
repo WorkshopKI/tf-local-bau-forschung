@@ -72,11 +72,11 @@
   var badge = document.createElement('div');
   badge.id = 'tf-bridge-badge';
   badge.style.cssText = 'position:fixed;top:8px;right:8px;z-index:99999;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:bold;color:#fff;background:#22c55e;font-family:sans-serif;';
-  badge.textContent = 'TF Bridge';
+  badge.textContent = 'Interne KI';
   document.body.appendChild(badge);
   function setBadge(color, text) {
     badge.style.background = color;
-    badge.textContent = text || 'TF Bridge';
+    badge.textContent = text || 'Interne KI';
   }
 
   window.addEventListener('message', function (event) {
@@ -84,20 +84,20 @@
     if (!data || !data.type) return;
 
     if (data.type === 'tf-ping') {
-      setBadge('#22c55e', 'TF Connected');
+      setBadge('#22c55e', 'Verbunden');
       event.source.postMessage({ type: 'tf-pong' }, '*');
       return;
     }
 
     if (data.type === 'tf-request') {
-      setBadge('#eab308', 'TF Working…');
+      setBadge('#eab308', 'Arbeitet…');
       var id = data.id;
       var message = String(data.message || '');
 
       var ta = q1(SEL.textarea);
       if (!ta) {
-        setBadge('#ef4444', 'TF Error');
-        event.source.postMessage({ type: 'tf-response', id: id, result: 'Streamlit Chat-Input nicht gefunden' }, '*');
+        setBadge('#ef4444', 'Fehler');
+        event.source.postMessage({ type: 'tf-response', id: id, result: 'Eingabefeld der internen KI nicht gefunden' }, '*');
         return;
       }
 
@@ -126,7 +126,7 @@
                 if (txt === last) { stable++; } else { stable = 0; last = txt; }
                 if (stable >= needStable) {
                   clearInterval(iv);
-                  setBadge('#22c55e', 'TF Connected');
+                  setBadge('#22c55e', 'Verbunden');
                   event.source.postMessage({ type: 'tf-response', id: id, result: txt }, '*');
                   return;
                 }
@@ -135,8 +135,8 @@
           }
           if (attempts >= maxAttempts) {
             clearInterval(iv);
-            setBadge('#ef4444', 'TF Timeout');
-            event.source.postMessage({ type: 'tf-response', id: id, result: 'Timeout: Keine Antwort von Streamlit' }, '*');
+            setBadge('#ef4444', 'Zeitüberschreitung');
+            event.source.postMessage({ type: 'tf-response', id: id, result: 'Zeitüberschreitung: Keine Antwort von der internen KI' }, '*');
           }
         }, 500);
       }, 200);

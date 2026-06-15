@@ -72,15 +72,15 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
 
   return (
     <div className="space-y-4">
-      <SectionHeader label="Streamlit Bridge" />
+      <SectionHeader label="Interne KI" />
       <p className="text-[11.5px] text-[var(--tf-text-tertiary)] max-w-2xl">
-        Zugang zum internen LLM über eine Streamlit-Chat-App in einem parallelen Tab — für Modelle ohne API.
-        Diese App öffnet den Tab und tauscht Daten per Bridge aus; das Bookmarklet aktiviert die Bridge im Streamlit-Tab.
+        Zugang zur internen KI über einen parallelen Browser-Tab. Diese App öffnet den Tab und tauscht
+        die Daten aus; das Lesezeichen aktiviert die Verbindung im Tab der internen KI.
       </p>
 
       {/* URL + Speichern */}
       <div className="flex flex-col gap-1.5 max-w-sm">
-        <label className="text-[13px] font-medium text-[var(--tf-text)]">Streamlit-URL</label>
+        <label className="text-[13px] font-medium text-[var(--tf-text)]">Adresse der internen KI</label>
         <input
           value={aiConfig.endpoint}
           onChange={e => setAiConfig({ ...aiConfig, endpoint: e.target.value })}
@@ -95,7 +95,7 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
         </Button>
         {saved && <Badge variant="success">Aktiviert</Badge>}
         <Button variant="secondary" onClick={openTab} disabled={!url}>
-          <ExternalLink size={14} className="mr-1.5" />Streamlit-Tab öffnen
+          <ExternalLink size={14} className="mr-1.5" />Interne KI öffnen
         </Button>
         <Button variant="secondary" onClick={() => test.run()} disabled={test.busy || !url}>
           {test.busy ? 'Teste…' : 'Verbindung testen'}
@@ -107,7 +107,7 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
       {test.error && <p className="text-[12px] text-[var(--tf-error)]">Fehler: {test.error}</p>}
 
       {/* Bookmarklet */}
-      <SectionHeader label="Bookmarklet installieren" />
+      <SectionHeader label="Lesezeichen installieren" />
       <div className="flex items-center gap-3 flex-wrap">
         {/* eslint-disable-next-line jsx-a11y/anchor-is-valid -- href wird imperativ gesetzt (javascript:-Bookmarklet) */}
         <a
@@ -117,7 +117,7 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
           className="inline-flex items-center px-4 py-2 text-[13px] font-medium text-white bg-[var(--tf-primary)] rounded-[var(--tf-radius)] cursor-grab select-none"
           title="In die Lesezeichenleiste ziehen"
         >
-          TF Streamlit Bridge
+          Interne KI
         </a>
         <Button variant="secondary" onClick={() => copy.run()} disabled={copy.busy}>
           {copied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
@@ -128,14 +128,14 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
 
       {/* Anleitung */}
       <ol className="text-[12px] text-[var(--tf-text-secondary)] list-decimal pl-5 space-y-1 max-w-2xl">
-        <li>Streamlit-URL eintragen und <strong>Speichern &amp; Aktivieren</strong>.</li>
-        <li>Den Button <strong>„TF Streamlit Bridge"</strong> in die Lesezeichenleiste ziehen — oder <strong>Code kopieren</strong> und ein Lesezeichen manuell anlegen (Code als Adresse einfügen).</li>
-        <li><strong>Streamlit-Tab öffnen</strong> klicken.</li>
-        <li>Im Streamlit-Tab das Lesezeichen anklicken — es erscheint oben rechts ein grünes Badge „TF Connected".</li>
-        <li>Zurück hier: <strong>Verbindung testen</strong> → „Verbunden". Danach läuft der KI-Chat über die Bridge.</li>
+        <li>Adresse der internen KI eintragen und <strong>Speichern &amp; Aktivieren</strong>.</li>
+        <li>Den Button <strong>„Interne KI"</strong> in die Lesezeichenleiste ziehen — oder <strong>Code kopieren</strong> und ein Lesezeichen manuell anlegen (Code als Adresse einfügen).</li>
+        <li><strong>Interne KI öffnen</strong> klicken.</li>
+        <li>Im Tab der internen KI das Lesezeichen anklicken — oben rechts erscheint ein grünes Badge „Interne KI".</li>
+        <li>Zurück hier: <strong>Verbindung testen</strong> → „Verbunden". Danach läuft der KI-Chat über die Verbindung.</li>
       </ol>
       <p className="text-[11.5px] text-[var(--tf-text-tertiary)] max-w-2xl">
-        Hinweis: Das Lesezeichen muss pro Streamlit-Tab einmal angeklickt werden (nach jedem Neuladen erneut).
+        Hinweis: Das Lesezeichen muss pro KI-Tab einmal angeklickt werden (nach jedem Neuladen erneut).
       </p>
     </div>
   );
