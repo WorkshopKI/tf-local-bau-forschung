@@ -5,7 +5,7 @@ interface ConversationHeaderProps {
   onToggleRail: () => void;
 }
 
-/** Kopfzeile der Conversation-Spalte: Sidebar-Toggle, Titel, „Archiv-RAG"-Badge. */
+/** Kopfzeile der Conversation-Spalte: Sidebar-Toggle, Titel. */
 export function ConversationHeader({ title, onToggleRail }: ConversationHeaderProps): React.ReactElement {
   return (
     <div className="convo-head">
@@ -14,7 +14,6 @@ export function ConversationHeader({ title, onToggleRail }: ConversationHeaderPr
       </button>
       <div className="head-left">
         <span className="convo-title">{title}</span>
-        <span className="assistant-badge">Archiv-RAG</span>
       </div>
       <div className="head-spacer" />
     </div>

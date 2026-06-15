@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, Brain, Check, File as FileIcon, FileText, Folder, Loader2, Plus, Search, SlidersHorizontal, Sparkles, Square, X } from 'lucide-react';
+import { ArrowUp, Brain, Check, File as FileIcon, FileText, Folder, Loader2, Plus, SlidersHorizontal, Sparkles, Square, X } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { DirectoryEntry } from '@/core/types/config';
@@ -35,7 +35,7 @@ export interface ComposerProps {
 }
 
 export function Composer({
-  onSend, onStop, busy, providerName, useRAG, setUseRAG, vectorReady,
+  onSend, onStop, busy, providerName, useRAG, setUseRAG,
   docDirs, selectedDirs, toggleDir, autoFocus,
 }: ComposerProps): React.ReactElement {
   const storage = useStorage();
@@ -155,11 +155,6 @@ export function Composer({
             )}
             <SystemPromptPopover open={sysOpen} onClose={() => setSysOpen(false)} />
           </div>
-
-          <button className={`tool-pill${useRAG && vectorReady ? ' on' : ''}`} onClick={() => setUseRAG(w => !w)}
-            title={useRAG ? 'Archiv-Suche aktiv' : 'Archiv-Suche aus'}>
-            <Search size={15} />Archiv-Suche
-          </button>
 
           <div className="composer-spacer" />
 
