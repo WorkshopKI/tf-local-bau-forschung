@@ -52,7 +52,10 @@ export class AIBridge {
     return transport;
   }
 
+  /** Endnutzer-tauglicher Anzeige-Name des aktiven Providers (Tooltips,
+   *  Status-Dialoge). Nutzt `displayName`, fällt auf den Logik-`name` zurück. */
   getActiveProviderName(): string {
-    return this.getActiveTransport().name;
+    const t = this.getActiveTransport();
+    return t.displayName ?? t.name;
   }
 }

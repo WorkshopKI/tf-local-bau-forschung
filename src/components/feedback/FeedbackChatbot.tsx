@@ -122,7 +122,7 @@ export function FeedbackChatbot({ feedbackId, initialText, context, onClose }: P
           Der Chatbot benötigt einen OpenRouter- oder lokalen LLM-Provider.
         </p>
         <p className="text-[12px] text-[var(--tf-text-secondary)]">
-          Aktuell ist <span className="font-medium">{transport.name}</span> aktiv.
+          Aktuell ist <span className="font-medium">{transport.displayName ?? transport.name}</span> aktiv.
         </p>
         <button
           type="button"

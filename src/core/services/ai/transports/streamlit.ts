@@ -41,7 +41,13 @@ export interface StreamResult {
 }
 
 export interface AITransport {
+  /** Interner Logik-Name (für Capability-/Domain-Checks, z.B.
+   *  `transport.name === 'Streamlit'`). NICHT für die Anzeige verwenden. */
   name: string;
+  /** Endnutzer-tauglicher Anzeige-Name (Tooltips, Status-Texte). Fällt auf
+   *  `name` zurück, wenn nicht gesetzt. Vom Logik-Namen entkoppelt, damit das
+   *  Wording geändert werden kann, ohne Vergleiche zu brechen. */
+  displayName?: string;
   ping(): Promise<boolean>;
   submitMessage(message: string, systemPrompt?: string, options?: SubmitMessageOptions): Promise<string>;
   /** Optional: Multi-Turn-Chat. Nur DirectLLMTransport implementiert das aktuell.
@@ -58,6 +64,7 @@ export interface AITransport {
 
 export class StreamlitBridgeTransport implements AITransport {
   name = 'Streamlit';
+  displayName = 'Interne KI';
   private streamlitWindow: Window | null = null;
   private pending = new Map<string, {
     resolve: (value: string) => void;

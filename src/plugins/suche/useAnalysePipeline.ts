@@ -72,7 +72,7 @@ export function useAnalysePipeline(): UseAnalysePipeline {
         // der User explizit „Mit KI analysieren" geklickt hat.
         const reachable = await transport.ping().catch(() => false);
         if (!reachable) {
-          setError(`KI-Provider „${transport.name}" nicht erreichbar. Konfiguration in den Einstellungen pruefen.`);
+          setError(`KI-Provider „${transport.displayName ?? transport.name}" nicht erreichbar. Konfiguration in den Einstellungen pruefen.`);
           setRunning(false);
           setProgress(null);
           return;
@@ -121,7 +121,7 @@ export function useAnalysePipeline(): UseAnalysePipeline {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   return {
-    providerName: transport.name,
+    providerName: transport.displayName ?? transport.name,
     running,
     progress,
     result,

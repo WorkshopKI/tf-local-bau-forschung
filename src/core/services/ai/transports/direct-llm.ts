@@ -24,6 +24,7 @@ function isAbortError(err: unknown): boolean {
 
 export class DirectLLMTransport implements AITransport {
   name: string;
+  displayName: string;
 
   private baseUrl: string;
 
@@ -35,6 +36,9 @@ export class DirectLLMTransport implements AITransport {
     if (endpoint.includes('localhost')) this.name = 'llama.cpp';
     else if (endpoint.includes('openrouter')) this.name = 'OpenRouter';
     else this.name = 'Cloud API';
+    // DirectLLM-Namen sind nur in dev-Kontexten sichtbar — technischer Name
+    // taugt als Anzeige-Name.
+    this.displayName = this.name;
 
     // Normalize: strip trailing /v1 if present — we add it ourselves
     this.baseUrl = endpoint.replace(/\/v1\/?$/, '');
