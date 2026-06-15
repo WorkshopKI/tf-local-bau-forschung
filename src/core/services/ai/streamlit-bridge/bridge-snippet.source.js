@@ -237,11 +237,17 @@
     working: { bg: 'hsl(38, 90%, 93%)',  fg: 'hsl(38, 70%, 30%)' },  // warning
     error:   { bg: 'hsl(0, 70%, 95%)',   fg: 'hsl(0, 60%, 38%)' },   // danger
   };
+  // Fixierte Leiste oben rechts: Badge + Test-Button in EINER Zeile.
+  var bar = document.createElement('div');
+  bar.id = 'tf-bridge-bar';
+  bar.style.cssText = 'position:fixed;top:8px;right:8px;z-index:99999;display:flex;gap:6px;align-items:center;';
+  document.body.appendChild(bar);
+
   var badge = document.createElement('div');
   badge.id = 'tf-bridge-badge';
-  badge.style.cssText = 'position:fixed;top:8px;right:8px;z-index:99999;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;background:' + TONES.ready.bg + ';color:' + TONES.ready.fg + ';';
+  badge.style.cssText = 'padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;background:' + TONES.ready.bg + ';color:' + TONES.ready.fg + ';';
   badge.textContent = 'Interne KI';
-  document.body.appendChild(badge);
+  bar.appendChild(badge);
   function setBadge(tone, text) {
     var t = TONES[tone] || TONES.ready;
     badge.style.background = t.bg;
@@ -254,8 +260,8 @@
   var testBtn = document.createElement('button');
   testBtn.id = 'tf-bridge-test';
   testBtn.textContent = 'ZAH-App testen';
-  testBtn.style.cssText = 'position:fixed;top:36px;right:8px;z-index:99999;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;border:1px solid ' + TONES.ready.fg + ';background:#fff;color:' + TONES.ready.fg + ';cursor:pointer;';
-  document.body.appendChild(testBtn);
+  testBtn.style.cssText = 'padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;border:1px solid ' + TONES.ready.fg + ';background:#fff;color:' + TONES.ready.fg + ';cursor:pointer;';
+  bar.appendChild(testBtn);
   testBtn.addEventListener('click', function () {
     if (!window.opener) { testBtn.textContent = 'Kein App-Fenster'; return; }
     testBtn.textContent = 'Teste…';
