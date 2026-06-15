@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, Brain, Check, File as FileIcon, FileText, Folder, Loader2, Plus, SlidersHorizontal, Sparkles, Square, X } from 'lucide-react';
+import { ArrowUp, Brain, Check, File as FileIcon, FileText, Folder, Loader2, Plus, Search, SlidersHorizontal, Sparkles, Square, X } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { DirectoryEntry } from '@/core/types/config';
@@ -131,7 +131,7 @@ export function Composer({
                 <div className="pop-sep" />
                 <div className="pop-label">Werkzeuge</div>
                 <button className="pop-item" onClick={() => { setUseRAG(w => !w); setMenu(false); }}>
-                  <Sparkles size={16} />Archiv-Suche{useRAG && <Check size={15} className="pop-check" />}
+                  <Sparkles size={16} />Antragsarchiv Suche{useRAG && <Check size={15} className="pop-check" />}
                 </button>
                 <button className="pop-item" onClick={() => { toggleThinking.run(); setMenu(false); }}>
                   <Brain size={16} />Denkprozess{thinkingEnabled && <Check size={15} className="pop-check" />}
@@ -156,6 +156,14 @@ export function Composer({
             <SystemPromptPopover open={sysOpen} onClose={() => setSysOpen(false)} />
           </div>
 
+          {/* Pille nur sichtbar, wenn die Antragsarchiv-Suche aktiv ist (Default aus). */}
+          {useRAG && (
+            <button className="tool-pill on" onClick={() => setUseRAG(w => !w)}
+              title="Antragsarchiv-Suche aktiv — klicken zum Ausschalten">
+              <Search size={15} />Antragsarchiv Suche
+            </button>
+          )}
+
           <div className="composer-spacer" />
 
           {busy ? (
@@ -170,7 +178,7 @@ export function Composer({
 
       <div className="composer-foot">
         <span className="foot-chip"><span className="foot-dot" />via {providerLabel(providerName)}</span>
-        <span>Antworten basieren auf dem Antrags-Archiv und können Fehler enthalten.</span>
+        <span>{useRAG ? 'Antworten basieren auf dem Antragsarchiv und können Fehler enthalten.' : 'Antworten können Fehler enthalten.'}</span>
       </div>
     </div>
   );
