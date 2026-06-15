@@ -3,9 +3,11 @@
 // nicht kontrollieren — unter file:// koennen wir kein JS in den fremden Tab
 // injizieren, das Bookmarklet ist der vom Nutzer autorisierte Weg).
 // Spricht via postMessage mit dem StreamlitBridgeTransport unserer App:
-//   tf-ping   -> tf-pong
-//   tf-request {id, message} -> tf-response {id, result}
-// Antwort wird per DOM-Scrape aus der Chat-UI geholt (siehe Haertung unten).
+//   tf-ping     -> tf-pong
+//   tf-app-ping <- (App antwortet tf-app-pong; Gegenrichtungs-Test)
+//   tf-request {id, message} -> tf-stream {id, content}* -> tf-response {id, result, reasoning?}
+// Antwort wird per DOM-Scrape als MARKDOWN aus der Chat-UI geholt (htmlToMd),
+// live gestreamt und erst finalisiert, wenn das Streamlit-Skript idle ist.
 (function () {
   if (window.__teamflowBridge) return;
   window.__teamflowBridge = true;
@@ -29,6 +31,8 @@
       '[data-testid="stMarkdownContainer"]',
       '.stMarkdown',
     ],
+    appRoot: ['[data-testid="stAppViewContainer"]', 'section.main', '.main'],
+    running: ['[data-testid="stStatusWidget"]', 'button[data-testid="stChatInputStopButton"]'],
   };
 
   function q1(list) {
@@ -48,13 +52,6 @@
   function isUser(m) {
     return !!m.querySelector('img[alt*="user"]');
   }
-  function contentOf(m) {
-    for (var i = 0; i < SEL.content.length; i++) {
-      var c = m.querySelector(SEL.content[i]);
-      if (c) return (c.textContent || '').trim();
-    }
-    return (m.textContent || '').trim();
-  }
   function setValue(ta, val) {
     // React/Streamlit hoert auf den nativen value-Setter + input-Event.
     var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
@@ -68,10 +65,167 @@
     ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true }));
   }
 
-  // Status-Badge (oben rechts) — bewusst klein, kein GUI-Overlay. Toene aus dem
-  // TeamFlow-Design-System (badge.tsx / theme.css): weiche Pastell-Flaeche +
-  // dunkler Text gleicher Tonart, kein greller Vollton. Werte als Literale, weil
-  // die fremde KI-Seite die CSS-Variablen (var(--tf-*)) nicht kennt.
+  // ── HTML → Markdown ──────────────────────────────────────────────────────
+  // textContent wuerde Tabellen/Listen zu Fliesstext flachdruecken. Wir wandeln
+  // die gerenderte Antwort zurueck in Markdown — der TeamFlow-Chat rendert es
+  // wieder via marked (gfm:true) inkl. echter Tabellen.
+  function isNoise(el) {
+    if (!el || el.nodeType !== 1) return false;
+    var tag = el.tagName;
+    if (tag === 'BUTTON' || tag === 'SVG' || tag === 'STYLE' || tag === 'SCRIPT') return true;
+    var tid = el.getAttribute && el.getAttribute('data-testid');
+    if (tid && /avatar|toolbar|copy|tooltip/i.test(tid)) return true;
+    var al = el.getAttribute && el.getAttribute('aria-label');
+    if (al && /copy|kopieren/i.test(al)) return true;
+    return false;
+  }
+  function inlineMd(node) {
+    var out = '';
+    for (var i = 0; i < node.childNodes.length; i++) {
+      var c = node.childNodes[i];
+      if (c.nodeType === 3) { out += c.nodeValue.replace(/\s+/g, ' '); continue; }
+      if (c.nodeType !== 1 || isNoise(c)) continue;
+      var t = c.tagName;
+      if (t === 'BR') { out += '  \n'; }
+      else if (t === 'STRONG' || t === 'B') { out += '**' + inlineMd(c).trim() + '**'; }
+      else if (t === 'EM' || t === 'I') { out += '*' + inlineMd(c).trim() + '*'; }
+      else if (t === 'CODE') { out += '`' + (c.textContent || '') + '`'; }
+      else if (t === 'A') {
+        var href = c.getAttribute('href') || '';
+        var label = inlineMd(c).trim() || href;
+        out += href ? '[' + label + '](' + href + ')' : label;
+      } else { out += inlineMd(c); } // span/div transparent
+    }
+    return out;
+  }
+  function tableMd(tableEl) {
+    var rows = [], trs = tableEl.querySelectorAll('tr');
+    for (var r = 0; r < trs.length; r++) {
+      var cells = trs[r].querySelectorAll('th,td');
+      if (!cells.length) continue;
+      var line = [];
+      for (var c = 0; c < cells.length; c++) {
+        line.push(inlineMd(cells[c]).trim().replace(/\|/g, '\\|').replace(/\n/g, ' '));
+      }
+      rows.push('| ' + line.join(' | ') + ' |');
+    }
+    if (!rows.length) return '';
+    var firstTr = tableEl.querySelector('tr');
+    var cols = firstTr ? firstTr.querySelectorAll('th,td').length : 0;
+    var sep = '|' + new Array(cols + 1).join(' --- |');
+    rows.splice(1, 0, sep); // GFM-Separator nach der Kopfzeile
+    return rows.join('\n');
+  }
+  function listMd(listEl, ordered, depth) {
+    var out = [], idx = 1;
+    for (var i = 0; i < listEl.children.length; i++) {
+      var li = listEl.children[i];
+      if (li.tagName !== 'LI') continue;
+      var indent = new Array(depth * 2 + 1).join(' ');
+      var marker = ordered ? (idx++ + '. ') : '- ';
+      var inline = '', nested = [];
+      for (var j = 0; j < li.childNodes.length; j++) {
+        var ch = li.childNodes[j];
+        if (ch.nodeType === 1 && (ch.tagName === 'UL' || ch.tagName === 'OL')) {
+          nested.push(listMd(ch, ch.tagName === 'OL', depth + 1));
+        } else if (ch.nodeType === 3) { inline += ch.nodeValue.replace(/\s+/g, ' '); }
+        else if (ch.nodeType === 1 && !isNoise(ch)) { inline += inlineMd(ch); }
+      }
+      out.push(indent + marker + inline.trim());
+      for (var n = 0; n < nested.length; n++) out.push(nested[n]);
+    }
+    return out.join('\n');
+  }
+  function htmlToMd(root) {
+    var blocks = [];
+    function walk(node) {
+      for (var i = 0; i < node.childNodes.length; i++) {
+        var el = node.childNodes[i];
+        if (el.nodeType === 3) {
+          var txt = el.nodeValue.replace(/\s+/g, ' ').trim();
+          if (txt) blocks.push(txt);
+          continue;
+        }
+        if (el.nodeType !== 1 || isNoise(el)) continue;
+        var t = el.tagName;
+        if (/^H[1-6]$/.test(t)) {
+          blocks.push(new Array(+t[1] + 1).join('#') + ' ' + inlineMd(el).trim());
+        } else if (t === 'P') {
+          var p = inlineMd(el).trim(); if (p) blocks.push(p);
+        } else if (t === 'PRE') {
+          var codeEl = el.querySelector('code');
+          var code = (codeEl ? codeEl.textContent : el.textContent) || '';
+          blocks.push('```\n' + code.replace(/\n+$/, '') + '\n```');
+        } else if (t === 'UL' || t === 'OL') {
+          var lm = listMd(el, t === 'OL', 0); if (lm) blocks.push(lm);
+        } else if (t === 'TABLE') {
+          var tm = tableMd(el); if (tm) blocks.push(tm);
+        } else if (t === 'BLOCKQUOTE') {
+          blocks.push(inlineMd(el).trim().split('\n').map(function (l) { return '> ' + l; }).join('\n'));
+        } else if (t === 'BR') { /* block-level: skip */ }
+        else { walk(el); } // div/section/span-Wrapper rekursiv
+      }
+    }
+    walk(root);
+    return blocks.join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+  function contentOf(m) {
+    for (var i = 0; i < SEL.content.length; i++) {
+      var c = m.querySelector(SEL.content[i]);
+      if (c) return htmlToMd(c);
+    }
+    return htmlToMd(m);
+  }
+
+  // ── Thinking auslesen (best-effort) ───────────────────────────────────────
+  // AitisiGPT zeigt das Reasoning als Info-Icon NACH der Antwort (Hover-Tooltip).
+  // Wir versuchen den Streamlit-Tooltip auszulesen; klappt es nicht → kein
+  // Thinking (Antwort bleibt unberuehrt). cb(reasoningMarkdownOrEmpty).
+  function extractThinking(msgEl, cb) {
+    if (!msgEl) { cb(''); return; }
+    var target = msgEl.querySelector('[data-testid="stTooltipHoverTarget"]');
+    if (!target && msgEl.parentElement) {
+      target = msgEl.parentElement.querySelector('[data-testid="stTooltipHoverTarget"]');
+    }
+    if (!target) { cb(''); return; }
+    ['pointerover', 'pointerenter', 'mouseenter', 'mouseover'].forEach(function (t) {
+      try { target.dispatchEvent(new MouseEvent(t, { bubbles: true })); } catch (e) { /* ignore */ }
+    });
+    setTimeout(function () {
+      var tip = document.querySelector('[data-testid="stTooltipContent"]')
+        || document.querySelector('[data-baseweb="tooltip"]')
+        || document.querySelector('[role="tooltip"]');
+      var txt = tip ? htmlToMd(tip).trim() : '';
+      ['pointerout', 'pointerleave', 'mouseleave', 'mouseout'].forEach(function (t) {
+        try { target.dispatchEvent(new MouseEvent(t, { bubbles: true })); } catch (e) { /* ignore */ }
+      });
+      cb(txt);
+    }, 250);
+  }
+
+  // ── Lauf-Status + DOM-Aktivitaet ──────────────────────────────────────────
+  // „Fertig" = Streamlit-Skript idle. Pausen mitten im Streamen (AitisiGPT
+  // pausiert ~2s) duerfen NICHT als fertig gelten — daher zwei Signale:
+  //   isRunning()     — sichtbarer Lauf-Indikator (deckt serverseitige Pausen)
+  //   lastDomActivity — jede DOM-Mutation im App-Container (Token-Zaehler,
+  //                     streamender Text, Thinking) haelt „aktiv".
+  function isRunning() {
+    for (var i = 0; i < SEL.running.length; i++) {
+      var el = document.querySelector(SEL.running[i]);
+      if (el && el.offsetParent !== null) return true;
+    }
+    return false;
+  }
+  var lastDomActivity = Date.now();
+  try {
+    var appRoot = q1(SEL.appRoot) || document.body;
+    new MutationObserver(function () { lastDomActivity = Date.now(); })
+      .observe(appRoot, { childList: true, subtree: true, characterData: true });
+  } catch (e) { /* ignore */ }
+
+  // ── Status-Badge (oben rechts) ────────────────────────────────────────────
+  // Toene aus dem TeamFlow-Design-System (badge.tsx / theme.css). Werte als
+  // Literale, weil die fremde KI-Seite die CSS-Variablen nicht kennt.
   var TONES = {
     ready:   { bg: 'hsl(145, 60%, 94%)', fg: 'hsl(145, 60%, 30%)' }, // success
     working: { bg: 'hsl(38, 90%, 93%)',  fg: 'hsl(38, 70%, 30%)' },  // warning
@@ -124,6 +278,67 @@
     setBadge('error', 'Tab aus der App öffnen');
   }
 
+  // ── Anfrage-Engine: einfuegen → absenden → live streamen → finalisieren ────
+  function runRequest(source, id, message) {
+    setBadge('working', 'Arbeitet…');
+    var ta = q1(SEL.textarea);
+    if (!ta) {
+      setBadge('error', 'Fehler');
+      source.postMessage({ type: 'tf-response', id: id, result: 'Eingabefeld der internen KI nicht gefunden' }, '*');
+      return;
+    }
+    setValue(ta, message);
+
+    setTimeout(function () {
+      submit(ta);
+      var POLL_MS = 400, MAX_MS = 180000, SETTLE_MS = 2500;
+      var started = Date.now(), lastMd = '', finished = false;
+
+      function lastAssistant() {
+        var msgs = qa(SEL.msg), cand = null;
+        for (var i = msgs.length - 1; i >= 0; i--) {
+          if (!isUser(msgs[i])) { cand = msgs[i]; break; } // User-Echo ueberspringen
+        }
+        return cand;
+      }
+
+      var iv = setInterval(function () {
+        if (finished) return;
+        var cand = lastAssistant();
+        var md = cand ? contentOf(cand) : '';
+        if (md && md !== message && md !== lastMd) {
+          lastMd = md;
+          lastDomActivity = Date.now();
+          source.postMessage({ type: 'tf-stream', id: id, content: md }, '*'); // live
+        }
+        if (isRunning()) lastDomActivity = Date.now();
+
+        var idle = Date.now() - lastDomActivity;
+        // Finalisieren erst, wenn Antwort vorhanden, nichts mehr laeuft und
+        // ~SETTLE_MS keine Aktivitaet mehr. Bei leerer Antwort (Thinking-Phase
+        // vor dem ersten Token) NIE finalisieren.
+        if (lastMd && !isRunning() && idle >= SETTLE_MS) {
+          finished = true;
+          clearInterval(iv);
+          setBadge('ready', 'Verbunden');
+          extractThinking(cand, function (reasoning) {
+            var msg = { type: 'tf-response', id: id, result: lastMd };
+            if (reasoning) msg.reasoning = reasoning;
+            source.postMessage(msg, '*');
+          });
+          return;
+        }
+        if (Date.now() - started >= MAX_MS) {
+          finished = true;
+          clearInterval(iv);
+          setBadge(lastMd ? 'ready' : 'error', lastMd ? 'Verbunden' : 'Zeitüberschreitung');
+          source.postMessage({ type: 'tf-response', id: id,
+            result: lastMd || 'Zeitüberschreitung: Keine Antwort von der internen KI' }, '*');
+        }
+      }, POLL_MS);
+    }, 200);
+  }
+
   window.addEventListener('message', function (event) {
     var data = event.data;
     if (!data || !data.type) return;
@@ -133,58 +348,9 @@
       event.source.postMessage({ type: 'tf-pong' }, '*');
       return;
     }
-
     if (data.type === 'tf-request') {
-      setBadge('working', 'Arbeitet…');
-      var id = data.id;
-      var message = String(data.message || '');
-
-      var ta = q1(SEL.textarea);
-      if (!ta) {
-        setBadge('error', 'Fehler');
-        event.source.postMessage({ type: 'tf-response', id: id, result: 'Eingabefeld der internen KI nicht gefunden' }, '*');
-        return;
-      }
-
-      var baseline = qa(SEL.msg).length;
-      setValue(ta, message);
-
-      setTimeout(function () {
-        submit(ta);
-        var attempts = 0;
-        var maxAttempts = 240; // 240 * 500ms = 120s
-        var last = '';
-        var stable = 0;
-        var needStable = 3; // ~1.5s unveraendert = Streaming fertig
-        var iv = setInterval(function () {
-          attempts++;
-          var msgs = qa(SEL.msg);
-          if (msgs.length > baseline) {
-            // Letzte ASSISTENT-Nachricht (User-Echo ueberspringen).
-            var cand = null;
-            for (var i = msgs.length - 1; i >= 0; i--) {
-              if (!isUser(msgs[i])) { cand = msgs[i]; break; }
-            }
-            if (cand) {
-              var txt = contentOf(cand);
-              if (txt && txt !== message) {
-                if (txt === last) { stable++; } else { stable = 0; last = txt; }
-                if (stable >= needStable) {
-                  clearInterval(iv);
-                  setBadge('ready', 'Verbunden');
-                  event.source.postMessage({ type: 'tf-response', id: id, result: txt }, '*');
-                  return;
-                }
-              }
-            }
-          }
-          if (attempts >= maxAttempts) {
-            clearInterval(iv);
-            setBadge('error', 'Zeitüberschreitung');
-            event.source.postMessage({ type: 'tf-response', id: id, result: 'Zeitüberschreitung: Keine Antwort von der internen KI' }, '*');
-          }
-        }, 500);
-      }, 200);
+      runRequest(event.source, data.id, String(data.message || ''));
+      return;
     }
   });
 })();

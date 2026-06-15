@@ -71,6 +71,15 @@ export class StreamlitBridgeTransport implements AITransport {
     reject: (error: Error) => void;
     timeout: ReturnType<typeof setTimeout>;
   }>();
+  /** Aktive Streaming-Anfragen (streamConversation). Getrennt von `pending`,
+   *  da hier inkrementell `onDelta` läuft und auf `StreamResult` aufgelöst wird. */
+  private streams = new Map<string, {
+    prev: string;
+    onDelta: (text: string) => void;
+    onReasoningDelta?: (text: string) => void;
+    resolve: (r: StreamResult) => void;
+    cleanup: () => void;
+  }>();
 
   constructor(private streamlitUrl = 'https://gpt.vdivde-it.de/') {
     window.addEventListener('message', (event) => {
@@ -81,7 +90,8 @@ export class StreamlitBridgeTransport implements AITransport {
       if (allowed && event.origin !== allowed) return;
       const data = event.data as Record<string, unknown>;
       const type = data?.type;
-      if (type !== 'tf-pong' && type !== 'tf-response' && type !== 'tf-bridge-ready' && type !== 'tf-app-ping') return;
+      if (type !== 'tf-pong' && type !== 'tf-response' && type !== 'tf-stream'
+        && type !== 'tf-bridge-ready' && type !== 'tf-app-ping') return;
 
       // Lebendes Fenster-Handle aus der eingehenden Nachricht übernehmen — das
       // EXAKTE Tab, in dem das Bookmarklet läuft. Robuster als `window.open`
@@ -100,7 +110,32 @@ export class StreamlitBridgeTransport implements AITransport {
         if (p) { clearTimeout(p.timeout); p.resolve('pong'); this.pending.delete('ping'); }
         return;
       }
+      if (type === 'tf-stream' && typeof data.id === 'string') {
+        // Inkrementeller Voll-Snapshot des bisherigen Antwort-Markdowns →
+        // Delta-Suffix emittieren (nur bei sauberem Append; Reformat ignoriert,
+        // der finale `tf-response` korrigiert via StreamResult.content).
+        const s = this.streams.get(data.id);
+        if (s) {
+          const content = String(data.content ?? '');
+          if (content.startsWith(s.prev)) {
+            const suffix = content.slice(s.prev.length);
+            if (suffix) s.onDelta(suffix);
+          }
+          s.prev = content;
+        }
+        return;
+      }
       if (type === 'tf-response' && typeof data.id === 'string') {
+        // Erst Streaming-Anfragen (StreamResult), dann Single-Shot (string).
+        const s = this.streams.get(data.id);
+        if (s) {
+          s.cleanup();
+          this.streams.delete(data.id);
+          const reasoning = typeof data.reasoning === 'string' ? data.reasoning : '';
+          if (reasoning) s.onReasoningDelta?.(reasoning);
+          s.resolve({ content: String(data.result ?? s.prev), aborted: false, ...(reasoning ? { reasoning } : {}) });
+          return;
+        }
         const p = this.pending.get(data.id);
         if (p) { clearTimeout(p.timeout); p.resolve(data.result as string); this.pending.delete(data.id); }
       }
@@ -154,7 +189,9 @@ export class StreamlitBridgeTransport implements AITransport {
     await this.ensureConnection();
     const id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => { this.pending.delete(id); reject(new Error('Response timeout')); }, 60000);
+      // 200s — das Bookmarklet sammelt streamende Antworten bis ~180s (lange
+      // Generierung / Thinking / Last); 60s würde lange Antworten abschneiden.
+      const timeout = setTimeout(() => { this.pending.delete(id); reject(new Error('Response timeout')); }, 200000);
       this.pending.set(id, { resolve, reject, timeout });
       // Abort-Listener: cleanup pending + reject. Der Streamlit-Backend-Run
       // laeuft serverseitig fertig, aber der Caller bekommt sofort den
@@ -166,6 +203,61 @@ export class StreamlitBridgeTransport implements AITransport {
         this.pending.delete(id);
         reject(new DOMException('Aborted', 'AbortError'));
       };
+      options?.signal?.addEventListener('abort', onAbort, { once: true });
+      this.streamlitWindow?.postMessage({ type: 'tf-request', id, message }, '*');
+    });
+  }
+
+  /** Streaming-Variante: der Chat ([useChatController] runStreaming) bevorzugt
+   *  diese Methode per Feature-Detection. Das Bookmarklet streamt den
+   *  Antwort-Markdown via `tf-stream` (Voll-Snapshots) und finalisiert mit
+   *  `tf-response {result, reasoning?}`, sobald das Streamlit-Skript idle ist.
+   *  Streamlit ist single-turn: letzte User-Message, System-Prompt als Prefix. */
+  async streamConversation(
+    messages: ConversationMessage[],
+    callbacks: StreamCallbacks,
+    options?: ConversationOptions,
+  ): Promise<StreamResult> {
+    const lastUser = [...messages].reverse().find(m => m.role === 'user');
+    const system = messages.find(m => m.role === 'system');
+    const userText = lastUser?.content ?? '';
+    const message = system?.content ? `${system.content}\n\n${userText}` : userText;
+
+    if (options?.signal?.aborted) return { content: '', aborted: true };
+
+    await this.ensureConnection();
+    const id = `stream-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    return new Promise<StreamResult>((resolve) => {
+      // Safety-Cap über dem Bookmarklet-Hard-Cap (180s) — greift nur, wenn das
+      // Bookmarklet gar nicht antwortet (Tab zu): liefert den Partial.
+      const timeout = setTimeout(() => {
+        const s = this.streams.get(id);
+        if (!s) return;
+        s.cleanup();
+        this.streams.delete(id);
+        resolve({ content: s.prev, aborted: false });
+      }, 200000);
+
+      const onAbort = (): void => {
+        const s = this.streams.get(id);
+        if (!s) return;
+        s.cleanup();
+        this.streams.delete(id);
+        resolve({ content: s.prev, aborted: true }); // kein throw (mirror DirectLLM)
+      };
+      const cleanup = (): void => {
+        clearTimeout(timeout);
+        options?.signal?.removeEventListener('abort', onAbort);
+      };
+
+      this.streams.set(id, {
+        prev: '',
+        onDelta: callbacks.onDelta,
+        ...(callbacks.onReasoningDelta ? { onReasoningDelta: callbacks.onReasoningDelta } : {}),
+        resolve,
+        cleanup,
+      });
       options?.signal?.addEventListener('abort', onAbort, { once: true });
       this.streamlitWindow?.postMessage({ type: 'tf-request', id, message }, '*');
     });
