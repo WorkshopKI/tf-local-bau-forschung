@@ -65,7 +65,8 @@ export function useChatController(): ChatController {
   const storage = useStorage();
   const { search: ragSearch, vectorReady } = useSearch();
   const [selectedDirs, setSelectedDirs] = useState<DirectoryEntry[]>([]);
-  const [useRAG, setUseRAG] = useState(true);
+  // Archiv-Suche (RAG) standardmäßig AUS — per „+"-Werkzeuge-Menü einschaltbar.
+  const [useRAG, setUseRAG] = useState(false);
 
   const toggleDir = useCallback((dir: DirectoryEntry): void => {
     setSelectedDirs(prev =>
