@@ -157,6 +157,12 @@ export function isLlmKontextSettingEnabled(): boolean {
 export function isSkillVerwaltungEnabled(): boolean {
   return features.skillVerwaltung === true;
 }
+/** In-App Streamlit-Bridge-Installer im KI-Assistent-Tab (Streamlit-URL +
+ *  Bookmarklet + Verbindungstest). Zugang zum internen gpt-oss ohne API.
+ *  Sichtbar in dev + prod + kurator + pl. Default false. */
+export function isStreamlitBridgeEnabled(): boolean {
+  return features.streamlitBridge === true;
+}
 /**
  * Darf der aktuelle Build/Nutzer die Skill-Registry SCHREIBEN? Komponiert aus
  * bestehenden Primitiven — KEIN neues Auth-Muster:

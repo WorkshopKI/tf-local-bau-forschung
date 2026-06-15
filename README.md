@@ -18,12 +18,16 @@ npm run build:single # Single-File Build → dist-single/index.html
 
 ## AI-Setup (Streamlit Bridge)
 
-1. Streamlit Chat-App unter `http://localhost:8501` starten
-2. `public/bridge.js` als Bookmarklet im Browser installieren
-3. Bookmarklet auf dem Streamlit-Tab klicken — grünes "TF Bridge" Badge erscheint
-4. In TeamFlow Chat-Plugin Nachrichten senden
+Zugang zu einem internen LLM ohne API über eine Streamlit-Chat-App im parallelen Tab.
+Einrichtung in der App unter **Einstellungen → KI-Assistent → Streamlit Bridge**:
 
-Alternativ: llama.cpp oder Cloud API unter Einstellungen > AI-Provider konfigurieren.
+1. Streamlit Chat-App starten und ihre URL (z.B. `http://localhost:8501`) eintragen, **Speichern & Aktivieren**
+2. Das Bookmarklet **„TF Streamlit Bridge"** in die Lesezeichenleiste ziehen (oder **Code kopieren** → Lesezeichen manuell anlegen)
+3. **Streamlit-Tab öffnen**, dort das Lesezeichen anklicken — grünes „TF Connected"-Badge erscheint
+4. **Verbindung testen** → danach läuft der KI-Chat über die Bridge
+
+Detail: [docs/architecture/streamlit-bridge.md](docs/architecture/streamlit-bridge.md).
+Alternativ: llama.cpp oder Cloud API unter Einstellungen → KI-Assistent (nur Dev-Build).
 
 ## Architektur
 

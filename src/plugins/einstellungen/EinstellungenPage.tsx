@@ -12,7 +12,7 @@ import { SpeicherTab } from './SpeicherTab';
 import { DokumentenquellenTab } from './DokumentenquellenTab';
 import { MeineTechnologienTab } from './MeineTechnologienTab';
 import { OnlineTab } from './OnlineTab';
-import { isDevContext, isOnlineStatusTabEnabled, isLlmKontextSettingEnabled } from '@/config/feature-flags';
+import { isDevContext, isOnlineStatusTabEnabled, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
 
 const TABS: Array<{ id: string; label: string }> = [
@@ -27,7 +27,7 @@ const TABS: Array<{ id: string; label: string }> = [
 // KI-Assistent-Tab: im Entwickler-Kontext (voller Provider-Switcher) ODER wo die
 // LLM-Skill-Generierung läuft (dev + pl) — dort nur das Kontextlänge-Feld, da der
 // LLM-Endpoint via `ki.localLlama.endpoint` in der Build-Config fix verdrahtet ist.
-if (isDevContext() || isLlmKontextSettingEnabled()) {
+if (isDevContext() || isLlmKontextSettingEnabled() || isStreamlitBridgeEnabled()) {
   TABS.push({ id: 'ai', label: 'KI-Assistent' });
 }
 // v2.59: „Online"-Tab nur in pl (+ dev) — zeigt zuletzt aktive Team-User aus den

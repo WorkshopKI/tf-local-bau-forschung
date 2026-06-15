@@ -67,7 +67,11 @@ export class StreamlitBridgeTransport implements AITransport {
 
   constructor(private streamlitUrl = 'http://localhost:8501') {
     window.addEventListener('message', (event) => {
-      if (!event.origin.includes('localhost')) return;
+      // Origin gegen die KONFIGURIERTE Streamlit-URL pinnen — nicht hart auf
+      // 'localhost', da das interne gpt-oss ggf. unter Servername/IP läuft.
+      // Unparsebare URL → akzeptieren (Single-Team-Trust-Modell, lokal/intern).
+      const allowed = this.allowedOrigin();
+      if (allowed && event.origin !== allowed) return;
       const data = event.data as Record<string, unknown>;
       if (data?.type === 'tf-pong') {
         const p = this.pending.get('ping');
@@ -78,6 +82,22 @@ export class StreamlitBridgeTransport implements AITransport {
         if (p) { clearTimeout(p.timeout); p.resolve(data.result as string); this.pending.delete(data.id); }
       }
     });
+  }
+
+  private allowedOrigin(): string | null {
+    try { return new URL(this.streamlitUrl).origin; } catch { return null; }
+  }
+
+  /** Streamlit-URL ändern, OHNE den globalen `message`-Listener neu zu
+   *  registrieren (sonst Listener-Leak bei jedem Settings-Save). Das gecachte
+   *  Fenster wird verworfen → nächster `ensureConnection()` öffnet die neue URL.
+   *  Wird von `AIBridge.switchProvider()` genutzt, um den EINEN Transport
+   *  wiederzuverwenden statt neu anzulegen. */
+  updateUrl(url: string): void {
+    if (url && url !== this.streamlitUrl) {
+      this.streamlitUrl = url;
+      this.streamlitWindow = null;
+    }
   }
 
   async ensureConnection(): Promise<void> {

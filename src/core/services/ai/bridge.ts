@@ -27,7 +27,14 @@ export class AIBridge {
     }
     this.activeType = config.type;
     if (config.type === 'streamlit') {
-      if (!this.transports.has('streamlit')) {
+      // Update-or-create: vorhandenen Transport per updateUrl() wiederverwenden
+      // (sonst greift die geänderte URL aus den Einstellungen nie — der
+      // Konstruktor legt immer schon einen mit Default-URL an —, und ein
+      // Neu-Anlegen würde den globalen `message`-Listener leaken).
+      const existing = this.transports.get('streamlit');
+      if (existing instanceof StreamlitBridgeTransport) {
+        existing.updateUrl(config.endpoint);
+      } else {
         this.transports.set('streamlit', new StreamlitBridgeTransport(config.endpoint));
       }
     } else {

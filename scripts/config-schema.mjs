@@ -167,6 +167,12 @@ export const DEFAULT_CONFIG = {
      *  `datenShareSchreibrecht`, sonst Kurator-Session). Optional, default false
      *  (kein requiredFlags-Eintrag). */
     skillVerwaltung: true,
+    /** In-App „Streamlit Bridge"-Installer im KI-Assistent-Tab: Streamlit-URL
+     *  konfigurieren, Bookmarklet in die Lesezeichenleiste ziehen, Verbindung
+     *  (tf-ping → tf-pong) testen. Zugang zum internen gpt-oss ohne API.
+     *  Sichtbar in dev + prod + kurator + pl. Optional, default false
+     *  (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
+    streamlitBridge: true,
   },
 
   menuLabels: {

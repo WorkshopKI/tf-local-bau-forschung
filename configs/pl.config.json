@@ -38,7 +38,8 @@
     "onlineStatusTab": true,
     "gutachtenKurzfassung": true,
     "gutachtenWorkflow": true,
-    "skillVerwaltung": true
+    "skillVerwaltung": true,
+    "streamlitBridge": true
   },
   "menuLabels": {
     "antraege": "Förderanträge"

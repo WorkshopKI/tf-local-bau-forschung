@@ -361,9 +361,11 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         setShowOnboarding(true);
       }
 
-      // Load AI provider config
+      // Load AI provider config. Auch fuer 'streamlit' anwenden, damit die in
+      // den Einstellungen gespeicherte Streamlit-URL beim Start wirksam wird
+      // (switchProvider nutzt updateUrl() → kein Listener-Leak).
       const aiConfig = await storage.idb.get<AIProviderConfig>('ai-provider');
-      if (aiConfig && aiConfig.type !== 'streamlit' && aiConfig.endpoint) {
+      if (aiConfig && aiConfig.endpoint) {
         aiBridge.switchProvider(aiConfig);
       }
 

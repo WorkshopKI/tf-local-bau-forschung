@@ -11,7 +11,8 @@ import {
 } from '@/core/services/ai/llm-context';
 import { getLlmThinkingEnabled, setLlmThinkingEnabled } from '@/core/services/ai/llm-thinking';
 import type { AIProviderConfig } from '@/core/types/config';
-import { isOpenRouterEnabled, isDevContext } from '@/config/feature-flags';
+import { isOpenRouterEnabled, isDevContext, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled } from '@/config/feature-flags';
+import { StreamlitBridgeSection } from './StreamlitBridgeSection';
 
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
@@ -122,9 +123,12 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
 
   return (
     <div className="space-y-5">
-      {/* LLM-Kontextlänge — immer sichtbar (auch in pl, wo der Endpoint build-fix ist).
-          Daraus wird der VB-Schwellwert abgeleitet: zu lange VBs werden vor dem
-          Senden gekürzt; der Nutzer meldet hier das echte Kontextfenster. */}
+      {/* LLM-Kontextlänge + Reasoning/Thinking — nur wo die LLM-Skill-Generierung
+          läuft (dev + pl, via isLlmKontextSettingEnabled). Sonst (prod/kurator, wo
+          der Tab nur wegen der Streamlit-Bridge erscheint) ausgeblendet. Daraus wird
+          der VB-Schwellwert abgeleitet: zu lange VBs werden vor dem Senden gekürzt. */}
+      {isLlmKontextSettingEnabled() && (
+      <>
       <SectionHeader label="LLM-Kontextlänge" />
       <div className="flex flex-col gap-1.5 max-w-sm">
         <label className="text-[13px] font-medium text-[var(--tf-text)]">Kontextfenster (Tokens)</label>
@@ -146,8 +150,8 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
         </p>
       </div>
 
-      {/* Reasoning/Thinking — immer sichtbar (steuert die KI-Skill-Generierung,
-          z.B. die Gutachten-Kurzfassung). Wirkt nur bei Modellen mit Reasoning. */}
+      {/* Reasoning/Thinking — steuert die KI-Skill-Generierung (z.B. die
+          Gutachten-Kurzfassung). Wirkt nur bei Modellen mit Reasoning. */}
       <SectionHeader label="Reasoning / Thinking" />
       <div className="flex items-start gap-3 max-w-sm">
         <Switch
@@ -164,6 +168,14 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
           </p>
         </div>
       </div>
+      </>
+      )}
+
+      {/* Streamlit-Bridge-Installer — sichtbar dev + prod + kurator + pl.
+          Eigene Save/Ping-Logik, unabhängig vom dev-only Provider-Switcher. */}
+      {isStreamlitBridgeEnabled() && (
+        <StreamlitBridgeSection aiConfig={aiConfig} setAiConfig={setAiConfig} />
+      )}
 
       {/* Provider-Switcher nur im Entwickler-Kontext — in Produktiv-Varianten ist
           der Endpoint via Build-Config fix verdrahtet. */}

@@ -38,7 +38,8 @@
     "csvAutoRefresh": false,
     "gutachtenKurzfassung": false,
     "gutachtenWorkflow": false,
-    "skillVerwaltung": true
+    "skillVerwaltung": true,
+    "streamlitBridge": true
   },
   "menuLabels": {
     "antraege": "Förderanträge"

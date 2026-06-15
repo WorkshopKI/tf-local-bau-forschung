@@ -110,7 +110,12 @@
     "gutachtenKurzfassung": false,
     // Gutachten-Workflow A–G: deterministischer Workflow-Runner über Registry-Skills
     // (löst die Kurzfassung-Sektion ab). Optional, fehlt = aus. Nur dev.
-    "gutachtenWorkflow": false
+    "gutachtenWorkflow": false,
+    // In-App „Streamlit Bridge"-Installer im KI-Assistent-Tab: Streamlit-URL
+    // konfigurieren, Bookmarklet in die Lesezeichenleiste ziehen, Verbindung
+    // (tf-ping → tf-pong) testen. Zugang zum internen gpt-oss ohne API.
+    // Endkunden-tauglich. Optional, fehlt = aus. Sichtbar dev + prod + kurator + pl.
+    "streamlitBridge": false
   },
 
   // Pro Variant überschreibbare Sidebar-Labels für Bereichs-Menüs.

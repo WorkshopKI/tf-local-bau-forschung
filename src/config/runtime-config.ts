@@ -107,6 +107,10 @@ export interface TeamflowFeatures {
   /** Skill-Verwaltung: Kurator-pflegbare Skill-/Regel-Registry + Sandbox-Testlauf.
    *  Sichtbar dev + kurator + pl. Optional, default false. */
   skillVerwaltung?: boolean;
+  /** In-App „Streamlit Bridge"-Installer (KI-Assistent-Tab): Streamlit-URL +
+   *  Bookmarklet + tf-ping-Test. Zugang zum internen gpt-oss ohne API.
+   *  Sichtbar dev + prod + kurator + pl. Optional, default false. */
+  streamlitBridge?: boolean;
 }
 
 export interface TeamflowMenuLabels {
