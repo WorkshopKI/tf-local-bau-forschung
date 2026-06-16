@@ -23,13 +23,11 @@ import {
   needsDatenShareDowngrade,
 } from '@/core/services/infrastructure/smb-handle';
 import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/types';
-import { listProgramme, ensureDefaultProgramm } from '@/core/services/csv';
+import { listProgramme } from '@/core/services/csv';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
-import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
-import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
-import { rematchOnSnapshotReload } from '@/phase2';
+import { runDataUpdate, type DataUpdatePhase, type DataUpdateResult } from '@/plugins/csv-sources-kuration/services/data-update';
 import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
 import { runtimeConfig } from '@/config/runtime-config';
 import { isDemoDataBundled, dataConfig, isMaLoginEnabled, canWriteDatenShare } from '@/config/feature-flags';
@@ -39,6 +37,32 @@ import { seedTestData } from '@/core/services/seed/seed-data';
 import { useConnectionState } from '@/core/services/connection-status';
 import { useVisibilityPermissionProbe } from '@/core/hooks/useVisibilityPermissionProbe';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
+
+/** Stabiles, phasen-basiertes Toast-Label fürs Start-Daten-Update (ohne
+ *  Fraction, damit es pro Phase nur einmal wechselt — kein Re-Render-Sturm). */
+function phaseToastLabel(p: DataUpdatePhase): string {
+  switch (p.phase) {
+    case 'snapshot':   return 'Datenbestand wird aktualisiert…';
+    case 'csv-check':  return 'Neue CSV-Exporte werden geprüft…';
+    case 'csv-import': return p.label ? `CSV-Import: ${p.label}…` : 'CSV-Daten werden importiert…';
+  }
+}
+
+/** Abschluss-Toast: Snapshot-Stand bevorzugt, sonst CSV-Import-Hinweis; null =
+ *  nichts aktualisiert (Toast wird dann ausgeblendet). */
+function completionToast(r: DataUpdateResult): string | null {
+  const info = r.snapshotInfo[0];
+  if (info) {
+    const stamp = new Date(info.createdAt).toLocaleString('de-DE', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    return `${info.programmName}: Antragsdaten aktualisiert (Stand: ${stamp})`;
+  }
+  if (r.csvReport && r.csvReport.processed.some(p => !p.skipped)) {
+    return 'Antragsdaten aus CSV aktualisiert';
+  }
+  return null;
+}
 
 function AppProviders({
   storage, aiBridge,
@@ -465,53 +489,38 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
     const cancelIdle = scheduleIdle(() => {
       if (cancelled) return;
       void (async () => {
-      const handle = await getDatenShareHandle(storage.idb);
-      if (!handle) return;
-      // v2.21.3: Cold-Start — auf einem frisch geleerten Rechner ist der
-      // programme-Store noch leer (Default-Programm wird sonst erst lazy beim
-      // ersten loadAll angelegt). Ohne dieses ensure liefe der Sync ins Leere
-      // und der erste Datenbestand käme erst nach manuellem Reload. Idempotent.
-      await ensureDefaultProgramm(storage.idb);
-      const programme = await listProgramme(storage.idb);
-      for (const p of programme) {
-        if (cancelled) return;
-        const tSync = performance.now();
-        const r = await syncProgrammSnapshot(storage.idb, handle, p.id).catch(err => {
-          console.warn(`[snapshot-sync] ${p.id} fehlgeschlagen`, err);
-          return { synced: false } as const;
+        const handle = await getDatenShareHandle(storage.idb);
+        if (!handle) return;
+        // EIN orchestrierter Pfad (v2.95): Datenbestand (Snapshot, je Programm)
+        // → Export-CSV (Check + Auto-Import, nur pl/kurator). Reihenfolge,
+        // force-Throttle-Bypass, Cold-Start-ensureDefaultProgramm, Store-Reload,
+        // Phase-2-Rematch, Build-Lock-Handling + das Per-Phasen-Timing
+        // (`[data-update]`-Konsolenzeile) stecken alle in runDataUpdate.
+        let lastLabel: string | null = null;
+        const r = await runDataUpdate(storage.idb, handle, {
+          signal: { get cancelled() { return cancelled; } },
+          onPhase: p => {
+            if (cancelled) return;
+            const label = phaseToastLabel(p);
+            if (label !== lastLabel) { lastLabel = label; setSyncToast(label); }
+          },
         });
-        console.info(`[snapshot-sync] ${p.id}: synced=${r.synced} in ${Math.round(performance.now() - tSync)} ms`);
-        if (!cancelled && r.synced && 'createdAt' in r && r.createdAt) {
-          const stamp = new Date(r.createdAt).toLocaleString('de-DE', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit',
-          });
-          setSyncToast(`${p.name}: Antragsdaten aktualisiert (Stand: ${stamp})`);
-          if (syncToastTimerRef.current !== null) {
-            window.clearTimeout(syncToastTimerRef.current);
-          }
+        if (cancelled) return;
+        const finalMsg = completionToast(r);
+        if (finalMsg) {
+          setSyncToast(finalMsg);
+          if (syncToastTimerRef.current !== null) window.clearTimeout(syncToastTimerRef.current);
           syncToastTimerRef.current = window.setTimeout(() => {
             syncToastTimerRef.current = null;
             if (!cancelled) setSyncToast(null);
           }, 6000);
-          const reloaded = 'reloadedStores' in r ? (r.reloadedStores ?? []) : [];
-          // In-Memory-Antraege-Store neu laden, damit die Homepage/Listen die
-          // frisch synchronisierten Daten ohne Browser-Reload zeigen.
-          await refreshAntraegeStoreAfterSync(storage.idb, p.id, reloaded);
-          // Phase-2 Pending-Antrag Re-Match: wenn akronym_index oder antraege
-          // neu geladen wurden, ist der Holding-Bucket evtl. abräumbar.
-          if (reloaded.includes('akronym_index') || reloaded.includes('antraege')) {
-            await rematchOnSnapshotReload(storage.idb, p.id).catch(err => {
-              console.warn(`[phase2/pending-rematch] ${p.id} fehlgeschlagen`, err);
-              return { resolved: 0, remaining: 0 };
-            });
-          }
+        } else {
+          // Nichts Neues — laufenden Fortschritts-Toast wieder ausblenden.
+          setSyncToast(null);
         }
-      }
-      // Schemas können jetzt frisch in der IDB liegen → CSV-Auto-Refresh-Check
-      // re-triggern (sonst erscheint der „CSV-Ordner verknüpfen"-Banner nach
-      // Cold-Start nicht, weil der Erst-Check vor dem Sync lief).
-      if (!cancelled) bumpCsvSourcesSignal();
+        // Schemas/Quellen können jetzt frisch in der IDB liegen → Banner-Check
+        // re-triggern (zeigt verbleibende unverknüpfte Quellen / Drift).
+        if (!cancelled) bumpCsvSourcesSignal();
       })();
     });
     return () => {

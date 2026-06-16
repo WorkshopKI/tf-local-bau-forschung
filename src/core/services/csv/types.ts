@@ -328,6 +328,19 @@ export interface AkronymIndexEntry {
 
 export type ImportBucket = 'new' | 'changed' | 'unchanged' | 'removed';
 
+/**
+ * Per-Phasen-Wall-Clock eines CSV-Imports (ms) — beantwortet „wo geht die Zeit
+ * drauf" im CSV-Pfad: CSV-Parse (parse) vs. Row-Hash-Diff (hashDiff) vs.
+ * Multi-CSV-Merge inkl. IDB-Writes (merge) vs. Snapshot-Write auf den Share
+ * (snapshotWrite, SMB-I/O). Wird vom Daten-Update-Orchestrator aggregiert.
+ */
+export interface ImportTimings {
+  parseMs: number;
+  hashDiffMs: number;
+  mergeMs: number;
+  snapshotWriteMs: number;
+}
+
 export interface ImportResult {
   skipped: boolean;
   buckets: Record<ImportBucket, number>;
@@ -336,6 +349,8 @@ export interface ImportResult {
   skippedJoinValues?: string[];
   skippedInactiveUnterprogramm?: number;
   deletedByDeaktivierung?: Record<string, number>; // code → anzahl gelöschter Anträge
+  /** Per-Phasen-Timing (parse/hashDiff/merge/snapshotWrite). */
+  importTimings?: ImportTimings;
 }
 
 export interface ParsedRow {

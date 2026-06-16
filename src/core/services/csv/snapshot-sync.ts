@@ -26,12 +26,29 @@ const PROG_MANIFEST = 0.05;
 const PROG_STORES = 0.65;
 const PROG_REBUILD = 0.30;
 
+/**
+ * Per-Phasen-Wall-Clock einer Snapshot-Sync — beantwortet „wo geht die Zeit
+ * drauf": SMB-Netzwerk-I/O (manifestRead + smbRead) vs. JSON-Parse (parse) vs.
+ * IDB-Integration (idbWrite + listViewRebuild). Werte sind Summen über alle
+ * Stores des Programms (ms). Wird vom Daten-Update-Orchestrator in die
+ * `[data-update]`-Zeile aggregiert.
+ */
+export interface SnapshotTimings {
+  manifestReadMs: number;
+  smbReadMs: number;
+  parseMs: number;
+  idbWriteMs: number;
+  listViewRebuildMs: number;
+}
+
 export interface SyncResult {
   synced: boolean;
   snapshotVersion?: string;
   createdAt?: string;
   /** Welche Stores wirklich neu geladen wurden (Hash-Mismatch). */
   reloadedStores?: SnapshotStoreName[];
+  /** Per-Phasen-Timing (nur gesetzt, sobald das Manifest gelesen wurde). */
+  timings?: SnapshotTimings;
 }
 
 /** YYYY-MM-DD im lokalen Zeit-Sinne (User-orientiert). */
@@ -116,15 +133,21 @@ export async function syncProgrammSnapshot(
     return { synced: false };
   }
 
+  const timings: SnapshotTimings = {
+    manifestReadMs: 0, smbReadMs: 0, parseMs: 0, idbWriteMs: 0, listViewRebuildMs: 0,
+  };
+
   // Manifest lesen
   onProgress?.({ phase: 'manifest', storesDone: 0, storesTotal: 0, fraction: 0 });
   let manifest: ProgrammSnapshotManifest;
   try {
+    const tManifest = performance.now();
     const manifestText = await readText(programmDir, 'manifest.json');
-    if (!manifestText) return { synced: false };
+    timings.manifestReadMs = performance.now() - tManifest;
+    if (!manifestText) return { synced: false, timings };
     manifest = JSON.parse(manifestText) as ProgrammSnapshotManifest;
   } catch {
-    return { synced: false };
+    return { synced: false, timings };
   }
 
   // Manifest erfolgreich gelesen — JETZT den Day-Marker setzen. Damit blockiert
@@ -134,7 +157,7 @@ export async function syncProgrammSnapshot(
   // Idempotenz-Check
   const lastSyncedVersion = await idb.get<string>(SYNC_VERSION_KEY(programmId));
   if (lastSyncedVersion === manifest.snapshotVersion) {
-    return { synced: false };
+    return { synced: false, timings };
   }
 
   // Pro Store: Hash-Check + bei Mismatch laden
@@ -162,7 +185,9 @@ export async function syncProgrammSnapshot(
       continue;
     }
 
+    const tRead = performance.now();
     const jsonl = await readText(programmDir, STORE_FILES[storeKey]);
+    timings.smbReadMs += performance.now() - tRead;
     if (jsonl === null) {
       console.warn(`[snapshot-sync] ${storeKey} fehlt im Snapshot, skip`);
       storesDone++;
@@ -170,19 +195,23 @@ export async function syncProgrammSnapshot(
     }
     let items: unknown[];
     try {
+      const tParse = performance.now();
       items = jsonl
         .split('\n')
         .filter(line => line.trim().length > 0)
         .map(line => JSON.parse(line) as unknown);
+      timings.parseMs += performance.now() - tParse;
     } catch (parseErr) {
       console.warn(`[snapshot-sync] ${storeKey}: malformed JSONL, skip store`, parseErr);
       storesDone++;
       continue;
     }
 
+    const tWrite = performance.now();
     await replaceStore(idb, STORE_TARGETS[storeKey], items, (done, total) => {
       reportStore(total > 0 ? done / total : 1);
     });
+    timings.idbWriteMs += performance.now() - tWrite;
     await idb.set(SYNC_STORE_HASH_KEY(programmId, storeKey), remoteHash);
     reloadedStores.push(storeKey);
     storesDone++;
@@ -195,6 +224,7 @@ export async function syncProgrammSnapshot(
   // nächsten App-Start (= manueller Reload, der ensureListViewProjection neu
   // laufen lässt) leer. Nur nötig, wenn der ANTRAEGE-Store wirklich neu kam.
   if (reloadedStores.includes('antraege')) {
+    const tRebuild = performance.now();
     await rebuildAntraegeListView(idb, (done, total) => {
       const f = total > 0 ? done / total : 1;
       onProgress?.({
@@ -204,6 +234,7 @@ export async function syncProgrammSnapshot(
         fraction: PROG_MANIFEST + PROG_STORES + PROG_REBUILD * f,
       });
     });
+    timings.listViewRebuildMs = performance.now() - tRebuild;
   }
 
   await idb.set(SYNC_VERSION_KEY(programmId), manifest.snapshotVersion);
@@ -214,6 +245,7 @@ export async function syncProgrammSnapshot(
     snapshotVersion: manifest.snapshotVersion,
     createdAt: manifest.createdAt,
     reloadedStores,
+    timings,
   };
 }
 

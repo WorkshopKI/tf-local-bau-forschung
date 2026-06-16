@@ -24,6 +24,7 @@ import {
 } from '@/plugins/csv-sources-kuration/csv-source-handle';
 import { listProgramme, listSchemas } from '@/core/services/csv';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
+import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
 import type { CsvSchema } from '@/core/services/csv/types';
 
 export function SpeicherTab(): React.ReactElement {
@@ -47,6 +48,10 @@ export function SpeicherTab(): React.ReactElement {
   const [dsHandleExists, setDsHandleExists] = useState(false);
   const [dsFolderName, setDsFolderName] = useState<string | null>(null);
   const [dsBusy, setDsBusy] = useState(false);
+
+  // Manuelle Datenaktualisierung (Orchestrator: Snapshot → CSV-Auto-Import).
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState<string | null>(null);
 
   // v2.27: CSV-Quellen-Ordner — EIN Handle für alle CSV-Quelldateien (pl + kurator).
   const showCsvFolder = isCsvAutoRefreshEnabled() || isKuratorMenusEnabled();
@@ -191,6 +196,31 @@ export function SpeicherTab(): React.ReactElement {
     }
   };
 
+  // Manueller Aufruf DESSELBEN Orchestrator-Pfads wie beim Start: Datenbestand
+  // (Snapshot) prüfen+laden, dann verknüpfte Export-CSVs prüfen+importieren.
+  const handleRunDataUpdate = async (): Promise<void> => {
+    setError('');
+    setUpdateMsg(null);
+    setUpdateBusy(true);
+    try {
+      const handle = await getDatenShareHandle(storage.idb);
+      if (!handle) {
+        setError('Datenordner nicht verbunden.');
+        return;
+      }
+      const r = await runDataUpdate(storage.idb, handle, {});
+      bumpCsvSourcesSignal();
+      const parts: string[] = [];
+      if (r.snapshotSynced) parts.push('Datenbestand aktualisiert');
+      const imported = r.csvReport?.processed.filter(p => !p.skipped).length ?? 0;
+      if (imported > 0) parts.push(`${imported} CSV-Quelle(n) importiert`);
+      if (r.lockBusy) parts.push(`CSV-Import übersprungen — ${r.lockBusy.blockingKurator} aktualisiert gerade`);
+      setUpdateMsg(parts.length > 0 ? parts.join(' · ') : 'Bereits aktuell.');
+    } finally {
+      setUpdateBusy(false);
+    }
+  };
+
   const handleDisconnectDatenShare = async (): Promise<void> => {
     if (!window.confirm('Datenordner trennen? Ohne verbundenen Datenordner laufen Anträge, Suche und Synchronisierung nicht. Die Auswahl muss anschließend neu getroffen werden.')) {
       return;
@@ -302,6 +332,29 @@ export function SpeicherTab(): React.ReactElement {
           )}
         </div>
       </div>
+
+      {dsHandleExists && (
+        <>
+          <SectionHeader label="Datenaktualisierung" />
+          <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
+            Prüft den Datenbestand und – sofern verknüpfte CSV-Exporte neuer sind –
+            importiert diese sofort. Läuft sonst automatisch beim Start.
+          </p>
+          <div className="flex items-center justify-between gap-3 mt-1">
+            <p className="min-w-0 text-[12px] text-[var(--tf-text-secondary)] truncate">
+              {updateMsg ?? ' '}
+            </p>
+            <Button
+              variant="secondary"
+              icon={RefreshCw}
+              onClick={handleRunDataUpdate}
+              disabled={updateBusy || !dsConnected}
+            >
+              {updateBusy ? 'Aktualisiere…' : 'Jetzt aktualisieren'}
+            </Button>
+          </div>
+        </>
+      )}
 
       <SectionHeader label="Persönlicher Ordner" />
       <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">

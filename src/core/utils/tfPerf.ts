@@ -1,10 +1,25 @@
 import { runtimeConfig } from '@/config/runtime-config';
 
+/** Opt-in-Flag: in JEDER Variante (auch production = pl/kurator) `[tf-perf]`-
+ *  Marker einschalten. Einmal in der Console setzen + App neu laden:
+ *  `localStorage.teamflow_perf='1'`. Gedacht für Performance-Messung der
+ *  Start-Datenaktualisierung direkt im `file://`-Build gegen den echten Share
+ *  (der Dev-Server hat kein SMB-Onboarding). */
+function perfFlagSet(): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem('teamflow_perf') === '1';
+  } catch {
+    return false;
+  }
+}
+
 /** Aktiv in der development-Variante (build:dev) UND im vite dev server
- *  (variant 'custom' aus DEFAULT_CONFIG). In prod/demo no-op —
- *  Marker werden vom Bundler nicht entfernt, sind aber praktisch kostenlos.
- *  Console mit `[tf-perf]` filtern, um die Zahlen zu sehen. */
-const ENABLED = runtimeConfig.variant === 'development' || runtimeConfig.variant === 'custom';
+ *  (variant 'custom' aus DEFAULT_CONFIG) ODER wenn das `teamflow_perf`-
+ *  localStorage-Flag gesetzt ist (pl/kurator-Messung). In prod/demo sonst
+ *  no-op — Marker werden vom Bundler nicht entfernt, sind aber praktisch
+ *  kostenlos. Console mit `[tf-perf]` filtern, um die Zahlen zu sehen. */
+const ENABLED = runtimeConfig.variant === 'development' || runtimeConfig.variant === 'custom'
+  || perfFlagSet();
 
 /**
  * Startet eine Messung und gibt eine end()-Callback zurück. Der Callback

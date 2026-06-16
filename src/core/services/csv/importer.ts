@@ -76,12 +76,14 @@ export async function importCsvSource(
   opts: ImportOptions = {},
 ): Promise<ImportResult> {
   const started = Date.now();
+  const timings = { parseMs: 0, hashDiffMs: 0, mergeMs: 0, snapshotWriteMs: 0 };
   const result: ImportResult = {
     skipped: false,
     buckets: { new: 0, changed: 0, unchanged: 0, removed: 0 },
     durationMs: 0,
     rowCount: 0,
     skippedJoinValues: [],
+    importTimings: timings,
   };
 
   const schema = await loadSchema(idb, schemaId);
@@ -128,6 +130,7 @@ export async function importCsvSource(
     const effectiveEncoding = opts.encodingOverride ?? schema.encoding;
     opts.signal?.throwIfAborted();
     opts.onProgress?.({ phase: 'parsing', done: 0, total: csvBlob.size });
+    const tParse = performance.now();
     let { rows } = await parseCsvAllStreamed(csvBlob, {
       encoding: effectiveEncoding,
       separator: schema.separator,
@@ -135,6 +138,7 @@ export async function importCsvSource(
         opts.onProgress?.({ phase: 'parsing', done: bytes, total: totalBytes });
       },
     });
+    timings.parseMs = performance.now() - tParse;
     result.rowCount = rows.length;
 
     // Persist CSV to SMB (für Merge beim nächsten Recompute + für Backup).
@@ -147,6 +151,7 @@ export async function importCsvSource(
     await saveCsvSourceFile(idb, schemaId, utf8Blob);
 
     // Row-Diff
+    const tDiff = performance.now();
     opts.onProgress?.({ phase: 'diffing', done: 0, total: rows.length });
     const joinCol = findJoinColumn(schema);
     if (!joinCol) throw new Error(`Schema ${schemaId}: join_key-Spalte nicht im Mapping`);
@@ -207,6 +212,7 @@ export async function importCsvSource(
     }
     result.buckets.removed = removedJoinValues.length;
     result.skippedJoinValues = skippedWarnings;
+    timings.hashDiffMs = performance.now() - tDiff;
 
     // updatedSchema in-memory bauen (Cancel-Barriere bereits passiert)
     const updatedSchema: CsvSchema = {
@@ -250,6 +256,7 @@ export async function importCsvSource(
     // Merge für alle betroffenen Antraege (IDB-Writes pro Antrag)
     if (hasDeltas) {
       opts.onProgress?.({ phase: 'merging', done: 0, total: 0 });
+      const tMerge = performance.now();
       await runMergeForDeltas({
         idb,
         schema: updatedSchema,
@@ -259,6 +266,7 @@ export async function importCsvSource(
         onProgress: (done, total) =>
           opts.onProgress?.({ phase: 'merging', done, total }),
       });
+      timings.mergeMs = performance.now() - tMerge;
     }
 
     // Hashes + Schema NACH erfolgreichem Merge persistieren — Cancel zwischen
@@ -287,7 +295,9 @@ export async function importCsvSource(
       if (handle) {
         opts.onProgress?.({ phase: 'finalizing', done: 2, total: 4, stage: 'Snapshot in Daten-Share schreiben (kann einige Sekunden dauern)' });
         const kuratorName = (await readKuratorName(idb).catch(() => null)) ?? 'unbekannt';
+        const tSnap = performance.now();
         await writeProgrammSnapshot(idb, handle, schema.programm_id, kuratorName);
+        timings.snapshotWriteMs = performance.now() - tSnap;
         opts.onProgress?.({ phase: 'finalizing', done: 3, total: 4, stage: 'Audit-Log' });
         // Audit-Write selbst defensiv — sonst landet ein erfolgreicher Snapshot
         // mit einem fehlgeschlagenen Audit faelschlich im snapshot_failed-catch.

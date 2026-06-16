@@ -29,16 +29,92 @@ import {
   loadSchema,
   saveSchema,
   parseCsvPreview,
+  listSchemas,
+  listProgramme,
 } from '@/core/services/csv';
 import type { CsvSchema } from '@/core/services/csv/types';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { readBuildLock, isStale } from '@/core/services/infrastructure/build-lock';
-import { loadFileFromStoredHandle, setCsvSourceHandle } from '../csv-source-handle';
+import {
+  loadFileFromStoredHandle,
+  setCsvSourceHandle,
+  checkSourceForUpdate,
+  getCsvSourceDirHandle,
+  getCsvDirFileMap,
+  setCsvDirFileMapEntries,
+  type UpdateCheckResult,
+} from '../csv-source-handle';
+import { loadSharedCsvFilenames } from '../csv-source-filenames';
 import { validateHeaders, hasDrift, type HeaderValidation } from './csv-drift-check';
 
 export interface RefreshCandidate {
   schemaId: string;
   schema: CsvSchema;
+}
+
+export interface PermissionNeededEntry {
+  schemaId: string;
+  schemaName: string;
+}
+
+export interface CollectResult {
+  /** Quellen mit neuerem lastModified, bereit zum Auto-Update. */
+  candidates: RefreshCandidate[];
+  /** Quellen, deren Handle/Permission vom User neu erteilt werden muss. */
+  permissionNeeded: PermissionNeededEntry[];
+  /** Quellen ohne gespeichertes Datei-Handle (z.B. pl-Build: Schemas per
+   *  Snapshot, aber nie eine Datei gepickt). */
+  unlinked: PermissionNeededEntry[];
+}
+
+/**
+ * Sammelt über alle Programme + Schemas hinweg, welche CSV-Quellen ein neueres
+ * `lastModified` haben (`candidates`), welche eine neue Permission/Handle
+ * brauchen (`permissionNeeded`) und welche noch gar nicht verknüpft sind
+ * (`unlinked`). React-frei, damit sowohl der Banner-Hook
+ * (`useCsvAutoRefreshCheck`) als auch der Start-Orchestrator (`runDataUpdate`)
+ * denselben Pfad nutzen.
+ */
+export async function collectCandidates(idb: IDBStore): Promise<CollectResult> {
+  const programme = await listProgramme(idb);
+  const all: CsvSchema[] = [];
+  for (const p of programme) {
+    const s = await listSchemas(idb, p.id);
+    all.push(...s);
+  }
+
+  // v2.28: lokale Filemap aus der geteilten Zuordnung (Daten-Ordner) seeden,
+  // bevor wir prüfen — so löst ein frisch verknüpfter CSV-Ordner direkt per
+  // Dateiname auf (kein teurer Header-Scan), auch auf einem neuen PL-Rechner.
+  // Lokale Einträge (eigener Scan/Heal) haben Vorrang und werden NICHT überschrieben.
+  try {
+    const dir = await getCsvSourceDirHandle(idb);
+    if (dir) {
+      const [shared, local] = await Promise.all([loadSharedCsvFilenames(idb), getCsvDirFileMap(idb)]);
+      const toSeed: Record<string, string> = {};
+      for (const [sid, fn] of Object.entries(shared)) {
+        if (!local[sid]) toSeed[sid] = fn;
+      }
+      if (Object.keys(toSeed).length > 0) await setCsvDirFileMapEntries(idb, toSeed);
+    }
+  } catch {
+    /* best-effort — ein Seed-Fehler darf den Check nicht blockieren */
+  }
+
+  const candidates: RefreshCandidate[] = [];
+  const permissionNeeded: PermissionNeededEntry[] = [];
+  const unlinked: PermissionNeededEntry[] = [];
+  for (const schema of all) {
+    const r: UpdateCheckResult = await checkSourceForUpdate(idb, schema);
+    if (r.state === 'update_available') {
+      candidates.push({ schemaId: schema.id, schema });
+    } else if (r.state === 'permission_required') {
+      permissionNeeded.push({ schemaId: schema.id, schemaName: schema.csv_source_name });
+    } else if (r.state === 'no_handle') {
+      unlinked.push({ schemaId: schema.id, schemaName: schema.csv_source_name });
+    }
+  }
+  return { candidates, permissionNeeded, unlinked };
 }
 
 export interface DriftEntry {
@@ -64,6 +140,9 @@ export interface RefreshReport {
   processed: ProcessedEntry[];
   drift: DriftEntry[];
   errors: ErrorEntry[];
+  /** Aufsummiertes Per-Phasen-Timing über alle importierten Quellen (ms) —
+   *  fürs Performance-Logging des Daten-Update-Orchestrators. */
+  importTimings: { parseMs: number; hashDiffMs: number; mergeMs: number; snapshotWriteMs: number };
 }
 
 export interface RefreshProgress {
@@ -149,7 +228,10 @@ export async function runAutoRefresh(
   candidates: RefreshCandidate[],
   opts: RunAutoRefreshOptions = {},
 ): Promise<RefreshReport> {
-  const report: RefreshReport = { processed: [], drift: [], errors: [] };
+  const report: RefreshReport = {
+    processed: [], drift: [], errors: [],
+    importTimings: { parseMs: 0, hashDiffMs: 0, mergeMs: 0, snapshotWriteMs: 0 },
+  };
   if (candidates.length === 0) return report;
 
   // force = User-„Trotzdem aktualisieren": Lock-Probe überspringen, der
@@ -208,6 +290,13 @@ export async function runAutoRefresh(
 
       opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'persisting' });
       await persistSourceMeta(idb, schemaId, file, handle, opts.kuratorName);
+
+      if (result.importTimings) {
+        report.importTimings.parseMs += result.importTimings.parseMs;
+        report.importTimings.hashDiffMs += result.importTimings.hashDiffMs;
+        report.importTimings.mergeMs += result.importTimings.mergeMs;
+        report.importTimings.snapshotWriteMs += result.importTimings.snapshotWriteMs;
+      }
 
       report.processed.push({
         schemaId,

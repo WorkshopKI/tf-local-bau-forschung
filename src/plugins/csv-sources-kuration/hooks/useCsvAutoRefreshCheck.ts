@@ -23,32 +23,25 @@ import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
 import { runtimeConfig } from '@/config/runtime-config';
-import { listSchemas, listProgramme, loadSchema } from '@/core/services/csv';
+import { loadSchema } from '@/core/services/csv';
 import type { CsvSchema } from '@/core/services/csv/types';
 import {
-  checkSourceForUpdate,
   pickAndLinkCsvSource,
   pickAndLinkCsvFolder,
-  getCsvSourceDirHandle,
-  getCsvDirFileMap,
-  setCsvDirFileMapEntries,
-  type UpdateCheckResult,
 } from '../csv-source-handle';
-import { loadSharedCsvFilenames } from '../csv-source-filenames';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { useCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import {
   runAutoRefresh,
+  collectCandidates,
   BuildLockBusyError,
   type RefreshCandidate,
   type RefreshReport,
   type RefreshProgress,
+  type PermissionNeededEntry,
 } from '../services/auto-refresh';
 
-export interface PermissionNeededEntry {
-  schemaId: string;
-  schemaName: string;
-}
+export type { PermissionNeededEntry };
 
 export interface AutoRefreshCheckState {
   /** Quellen mit neuerem lastModified, bereit zum Auto-Update. */
@@ -91,56 +84,6 @@ export interface AutoRefreshCheckState {
    *  Ordner-Handle wird beim Start mit EINEM Prompt re-granted (Kaskade), statt
    *  pro Datei. Wirft, wenn keine Datei passt; bei Abbruch passiert nichts. */
   linkFolder: () => Promise<void>;
-}
-
-interface CollectResult {
-  candidates: RefreshCandidate[];
-  permissionNeeded: PermissionNeededEntry[];
-  unlinked: PermissionNeededEntry[];
-}
-
-async function collectCandidates(
-  idb: ReturnType<typeof useStorage>['idb'],
-): Promise<CollectResult> {
-  const programme = await listProgramme(idb);
-  const all: CsvSchema[] = [];
-  for (const p of programme) {
-    const s = await listSchemas(idb, p.id);
-    all.push(...s);
-  }
-
-  // v2.28: lokale Filemap aus der geteilten Zuordnung (Daten-Ordner) seeden,
-  // bevor wir prüfen — so löst ein frisch verknüpfter CSV-Ordner direkt per
-  // Dateiname auf (kein teurer Header-Scan), auch auf einem neuen PL-Rechner.
-  // Lokale Einträge (eigener Scan/Heal) haben Vorrang und werden NICHT überschrieben.
-  try {
-    const dir = await getCsvSourceDirHandle(idb);
-    if (dir) {
-      const [shared, local] = await Promise.all([loadSharedCsvFilenames(idb), getCsvDirFileMap(idb)]);
-      const toSeed: Record<string, string> = {};
-      for (const [sid, fn] of Object.entries(shared)) {
-        if (!local[sid]) toSeed[sid] = fn;
-      }
-      if (Object.keys(toSeed).length > 0) await setCsvDirFileMapEntries(idb, toSeed);
-    }
-  } catch {
-    /* best-effort — ein Seed-Fehler darf den Check nicht blockieren */
-  }
-
-  const candidates: RefreshCandidate[] = [];
-  const permissionNeeded: PermissionNeededEntry[] = [];
-  const unlinked: PermissionNeededEntry[] = [];
-  for (const schema of all) {
-    const r: UpdateCheckResult = await checkSourceForUpdate(idb, schema);
-    if (r.state === 'update_available') {
-      candidates.push({ schemaId: schema.id, schema });
-    } else if (r.state === 'permission_required') {
-      permissionNeeded.push({ schemaId: schema.id, schemaName: schema.csv_source_name });
-    } else if (r.state === 'no_handle') {
-      unlinked.push({ schemaId: schema.id, schemaName: schema.csv_source_name });
-    }
-  }
-  return { candidates, permissionNeeded, unlinked };
 }
 
 export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
