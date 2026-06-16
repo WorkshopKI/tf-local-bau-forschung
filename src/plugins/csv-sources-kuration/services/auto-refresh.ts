@@ -34,7 +34,18 @@ import {
 } from '@/core/services/csv';
 import type { CsvSchema } from '@/core/services/csv/types';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
-import { readBuildLock, isStale } from '@/core/services/infrastructure/build-lock';
+import {
+  readBuildLock,
+  isStale,
+  acquireBuildLock,
+  forceLock,
+  releaseLock,
+  heartbeat,
+  HEARTBEAT_INTERVAL_MS,
+} from '@/core/services/infrastructure/build-lock';
+import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
+import { writeProgrammSnapshot } from '@/core/services/csv/snapshot';
+import { BUILD_LOCK_STUFE } from '@/core/services/csv/constants';
 import {
   loadFileFromStoredHandle,
   setCsvSourceHandle,
@@ -234,6 +245,10 @@ export async function runAutoRefresh(
   };
   if (candidates.length === 0) return report;
 
+  // Programme, deren Snapshot nach dem Batch EINMAL geschrieben werden muss
+  // (statt pro importierter Quelle, v2.96.2).
+  const programmeToPublish = new Set<string>();
+
   // force = User-„Trotzdem aktualisieren": Lock-Probe überspringen, der
   // Importer übernimmt den Lock unten per onLockConflict → 'force'.
   if (!opts.force) await probeLock(idb, opts.kuratorName);
@@ -286,6 +301,10 @@ export async function runAutoRefresh(
       // nach Abschluss der N-Quellen-Pipeline — ein Refresh pro Quelle waere redundant.
       const result = await importCsvSource(idb, schemaId, file, { // allow-import-no-refresh: Refresh erfolgt gebuendelt im Caller-Hook useCsvAutoRefreshCheck
         onLockConflict: async () => (opts.force ? 'force' : 'abort'),
+        // Snapshot-Write bündeln: bei N Quellen schreibt sonst jede den vollen
+        // Snapshot (~25 s, touched-unabhängig). Wir publizieren EINMAL nach dem
+        // Batch (siehe unten).
+        deferSnapshotWrite: true,
       });
 
       opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'persisting' });
@@ -297,6 +316,11 @@ export async function runAutoRefresh(
         report.importTimings.mergeMs += result.importTimings.mergeMs;
         report.importTimings.snapshotWriteMs += result.importTimings.snapshotWriteMs;
       }
+
+      // Programm zum Publizieren vormerken, wenn dieser Import echte Deltas hatte
+      // (sonst ist der vorhandene Snapshot bereits aktuell).
+      const hadDeltas = result.buckets.new + result.buckets.changed + result.buckets.removed > 0;
+      if (hadDeltas) programmeToPublish.add(schema.programm_id);
 
       report.processed.push({
         schemaId,
@@ -332,6 +356,47 @@ export async function runAutoRefresh(
         );
       }
       report.errors.push({ schemaId, schemaName: name, message: msg });
+    }
+  }
+
+  // Gebündelter Snapshot-Write: EINMAL pro betroffenem Programm statt pro Quelle
+  // (v2.96.2). Unter Build-Lock, mit Heartbeat (ein Write kann ~25 s dauern).
+  if (programmeToPublish.size > 0) {
+    const handle = await getSmbHandle(idb);
+    if (handle) {
+      const tSnap = Date.now();
+      // Lock holen — die Einzel-Importe hatten ihn je gehalten+freigegeben, hier
+      // sollte er frei sein. Falls nicht (Fremd-Schreiber im Mikro-Fenster):
+      // übernehmen, weil WIR die frisch gemergten Daten besitzen und publizieren
+      // müssen (sonst bliebe der Merge lokal, da source_last_modified schon
+      // gestempelt ist → kein Re-Import). Single-Team-Trust-Modell.
+      const lockRes = await acquireBuildLock(idb, BUILD_LOCK_STUFE, {});
+      if (!lockRes.acquired) {
+        await forceLock(idb, BUILD_LOCK_STUFE, {});
+        await logAudit(idb, {
+          action: 'csv_auto_refresh_snapshot_force',
+          user: opts.kuratorName,
+          details: { blocking_kurator: lockRes.existing.kurator_name },
+        });
+      }
+      const hb = setInterval(() => void heartbeat(idb).catch(() => undefined), HEARTBEAT_INTERVAL_MS);
+      try {
+        const identity = opts.kuratorName ?? 'unbekannt';
+        for (const pid of programmeToPublish) {
+          await writeProgrammSnapshot(idb, handle, pid, identity);
+          await logAudit(idb, { action: 'snapshot_written', details: { programmId: pid, source: 'csv_auto_refresh_batch' } }).catch(() => undefined);
+        }
+      } catch (e) {
+        await logAudit(idb, {
+          action: 'snapshot_failed',
+          details: { error: (e as Error).message, source: 'csv_auto_refresh_batch' },
+        }).catch(() => undefined);
+        console.warn('[csv-auto-refresh] Snapshot-Batch-Write fehlgeschlagen:', e);
+      } finally {
+        clearInterval(hb);
+        await releaseLock(idb).catch(() => undefined);
+      }
+      report.importTimings.snapshotWriteMs += Date.now() - tSnap;
     }
   }
 

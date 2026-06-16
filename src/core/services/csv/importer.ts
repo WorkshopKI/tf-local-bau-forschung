@@ -59,6 +59,15 @@ export interface ImportOptions {
    * als „hat sich die Datei geaendert?"-Optimierung korrekt.
    */
   force?: boolean;
+  /**
+   * Überspringt den Snapshot-Write ans Daten-Share. Wird vom Batch-Caller
+   * (`runAutoRefresh`) gesetzt: bei N gleichzeitig importierten Quellen schreibt
+   * sonst JEDE den vollen Snapshot (~14k Records + SHA-256, touched-unabhängig,
+   * ~25 s/Stück, Messung v2.96). Stattdessen schreibt der Caller den Snapshot
+   * EINMAL nach dem Batch. Der lokale Antrag-/Hash-Stand wird trotzdem voll
+   * gemerged — nur das Publizieren auf den Share wird gebündelt.
+   */
+  deferSnapshotWrite?: boolean;
 }
 
 /**
@@ -290,7 +299,7 @@ export async function importCsvSource(
     // 10-20 s dauern, daher hier eine eigene 'finalizing'-Sub-Stage damit der
     // User nicht im "100%-Stillstand" haengt. Ohne Deltas ist der Antraege-Stand
     // unveraendert → der vorhandene Snapshot ist bereits aktuell, Write entfaellt.
-    if (hasDeltas) try {
+    if (hasDeltas && !opts.deferSnapshotWrite) try {
       const handle = await getSmbHandle(idb);
       if (handle) {
         opts.onProgress?.({ phase: 'finalizing', done: 2, total: 4, stage: 'Snapshot in Daten-Share schreiben (kann einige Sekunden dauern)' });
