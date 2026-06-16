@@ -4,7 +4,15 @@ import { readText } from '../infrastructure/atomic-write';
 import type { ProgrammSnapshotManifest, SnapshotStoreName } from './snapshot';
 import { SYNC_VERSION_KEY, SYNC_STORE_HASH_KEY, SYNC_LAST_CHECK_DAY_KEY } from './snapshot-keys';
 import { MAX_WRITES_PER_TX } from './constants';
-import { rebuildAntraegeListView } from './list-view-migration';
+import { rebuildAntraegeListView, isListViewProjectionCurrent } from './list-view-migration';
+import {
+  diffAntraegeLines,
+  buildAntraegeHashes,
+  applyAntraegeDiff,
+  applyListViewDiff,
+  SNAPSHOT_RECORD_HASHES_KEY,
+  type AntraegeDiff,
+} from './incremental-antraege';
 
 export interface SyncProgress {
   phase: 'manifest' | 'store' | 'finalizing' | 'done';
@@ -163,6 +171,9 @@ export async function syncProgrammSnapshot(
   // Pro Store: Hash-Check + bei Mismatch laden
   const storeKeys = Object.keys(manifest.stores) as SnapshotStoreName[];
   const reloadedStores: SnapshotStoreName[] = [];
+  // Inkrementeller antraege-Diff (falls dieser Pfad lief) — steuert unten, ob
+  // die List-View inkrementell gepflegt oder voll neu gebaut wird.
+  let antraegeDiff: AntraegeDiff | null = null;
   let storesDone = 0;
   for (const storeKey of storeKeys) {
     // Fortschritt inkl. Chunk-Fraktion innerhalb des aktuellen Stores: der Balken
@@ -193,13 +204,63 @@ export async function syncProgrammSnapshot(
       storesDone++;
       continue;
     }
+    // Rohe, nicht-leere Zeilen — der antraege-Pfad braucht sie unparsed (Hash je
+    // Zeile fuer den inkrementellen Diff); die uebrigen Stores parsen direkt.
+    const rawLines = jsonl.split('\n').filter(line => line.trim().length > 0);
+
+    if (storeKey === 'antraege') {
+      // Grosser Store: inkrementell schreiben, wenn eine Per-Record-Hash-Map
+      // vorliegt — nur geaenderte Records put + entfernte delete statt clear +
+      // rewrite aller ~14k (Messung v2.95: spart den ~18-s-Voll-Write, da ein
+      // neuer Snapshot meist nur wenige Records aendert). Cold-Start / keine Map
+      // → Voll-Replace + Map aufbauen.
+      const tWork = performance.now();
+      const storedHashes = await idb.get<Record<string, string>>(SNAPSHOT_RECORD_HASHES_KEY(programmId));
+      if (storedHashes && Object.keys(storedHashes).length > 0) {
+        let diff: AntraegeDiff;
+        try {
+          diff = diffAntraegeLines(rawLines, storedHashes);
+        } catch (parseErr) {
+          console.warn(`[snapshot-sync] antraege: malformed JSONL, skip store`, parseErr);
+          storesDone++;
+          continue;
+        }
+        timings.parseMs += performance.now() - tWork;
+        const tWrite = performance.now();
+        await applyAntraegeDiff(idb, diff);
+        timings.idbWriteMs += performance.now() - tWrite;
+        await idb.set(SNAPSHOT_RECORD_HASHES_KEY(programmId), diff.newHashes);
+        antraegeDiff = diff;
+        console.info(`[snapshot-sync] antraege inkrementell: changed=${diff.changed.length} removed=${diff.removedKeys.length} unchanged=${diff.unchanged}`);
+      } else {
+        let items: unknown[];
+        try {
+          items = rawLines.map(line => JSON.parse(line) as unknown);
+        } catch (parseErr) {
+          console.warn(`[snapshot-sync] antraege: malformed JSONL, skip store`, parseErr);
+          storesDone++;
+          continue;
+        }
+        timings.parseMs += performance.now() - tWork;
+        const tWrite = performance.now();
+        await replaceStore(idb, STORE_TARGETS.antraege, items, (done, total) => {
+          reportStore(total > 0 ? done / total : 1);
+        });
+        timings.idbWriteMs += performance.now() - tWrite;
+        await idb.set(SNAPSHOT_RECORD_HASHES_KEY(programmId), buildAntraegeHashes(rawLines));
+        antraegeDiff = null; // Voll-Replace → List-View Voll-Rebuild unten
+      }
+      await idb.set(SYNC_STORE_HASH_KEY(programmId, storeKey), remoteHash);
+      reloadedStores.push(storeKey);
+      storesDone++;
+      continue;
+    }
+
+    // Uebrige (kleine) Stores: unveraendert Voll-Replace.
     let items: unknown[];
     try {
       const tParse = performance.now();
-      items = jsonl
-        .split('\n')
-        .filter(line => line.trim().length > 0)
-        .map(line => JSON.parse(line) as unknown);
+      items = rawLines.map(line => JSON.parse(line) as unknown);
       timings.parseMs += performance.now() - tParse;
     } catch (parseErr) {
       console.warn(`[snapshot-sync] ${storeKey}: malformed JSONL, skip store`, parseErr);
@@ -225,15 +286,25 @@ export async function syncProgrammSnapshot(
   // laufen lässt) leer. Nur nötig, wenn der ANTRAEGE-Store wirklich neu kam.
   if (reloadedStores.includes('antraege')) {
     const tRebuild = performance.now();
-    await rebuildAntraegeListView(idb, (done, total) => {
-      const f = total > 0 ? done / total : 1;
-      onProgress?.({
-        phase: 'finalizing',
-        storesDone: storeKeys.length,
-        storesTotal: storeKeys.length,
-        fraction: PROG_MANIFEST + PROG_STORES + PROG_REBUILD * f,
+    if (antraegeDiff && await isListViewProjectionCurrent(idb)) {
+      // Inkrementell: nur geaenderte Records projizieren + entfernte loeschen —
+      // kein Voll-Re-Read+Reprojektion der ~14k (Messung v2.95: ~5 s). Nur sicher,
+      // wenn die Projektion bereits auf aktueller Schema-Version liegt.
+      await applyListViewDiff(idb, antraegeDiff);
+      onProgress?.({ phase: 'finalizing', storesDone: storeKeys.length, storesTotal: storeKeys.length, fraction: 1 });
+    } else {
+      // Voll-Rebuild: nach Voll-Replace (Cold-Start) ODER bei Schema-Mismatch der
+      // Projektion (kompletter Neuaufbau zwingend).
+      await rebuildAntraegeListView(idb, (done, total) => {
+        const f = total > 0 ? done / total : 1;
+        onProgress?.({
+          phase: 'finalizing',
+          storesDone: storeKeys.length,
+          storesTotal: storeKeys.length,
+          fraction: PROG_MANIFEST + PROG_STORES + PROG_REBUILD * f,
+        });
       });
-    });
+    }
     timings.listViewRebuildMs = performance.now() - tRebuild;
   }
 

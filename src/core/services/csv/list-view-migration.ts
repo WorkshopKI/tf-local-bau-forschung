@@ -21,6 +21,18 @@ import { tfPerfStart } from '@/core/utils/tfPerf';
 export const LIST_VIEW_PROJECTION_VERSION = 2;
 const LIST_VIEW_VERSION_KEY = 'list-view-projection-version';
 
+/**
+ * Liegt die Slim-Projektion auf der aktuellen Schema-Version? Nur dann darf ein
+ * Snapshot-Sync die List-View INKREMENTELL (nur geänderte Records) pflegen —
+ * sonst mischte er neue mit alt-projizierten Feldern. Bei Mismatch ist ein
+ * Voll-Rebuild nötig (den `ensureListViewProjection` beim App-Start ohnehin
+ * fährt, bevor der Sync-Orchestrator läuft).
+ */
+export async function isListViewProjectionCurrent(idb: IDBStore): Promise<boolean> {
+  const marker = (await idb.get<number>(LIST_VIEW_VERSION_KEY).catch(() => null)) ?? null;
+  return marker === LIST_VIEW_PROJECTION_VERSION;
+}
+
 export interface MigrationProgress {
   /** Programm aktuell in Bearbeitung. */
   programmId: string;

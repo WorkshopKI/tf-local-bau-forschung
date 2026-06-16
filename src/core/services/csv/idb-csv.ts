@@ -162,6 +162,18 @@ export async function deleteAntrag(idb: IDBStore, az: string): Promise<void> {
   return waitTx(t);
 }
 
+/** Löscht Antraege per aktenzeichen-Key (chunked) — für inkrementelle
+ *  Snapshot-Syncs: Records, die im neuen Snapshot nicht mehr vorkommen. */
+export async function deleteAntraegeByKeys(idb: IDBStore, keys: string[]): Promise<void> {
+  for (let i = 0; i < keys.length; i += MAX_WRITES_PER_TX) {
+    const chunk = keys.slice(i, i + MAX_WRITES_PER_TX);
+    const t = tx(idb, CSV_STORES.ANTRAEGE, 'readwrite');
+    const s = t.objectStore(CSV_STORES.ANTRAEGE);
+    for (const k of chunk) s.delete(k);
+    await waitTx(t);
+  }
+}
+
 export async function listAntraegeByProgramm(idb: IDBStore, programmId: string): Promise<Antrag[]> {
   const t = tx(idb, CSV_STORES.ANTRAEGE, 'readonly');
   const idx = t.objectStore(CSV_STORES.ANTRAEGE).index('programm_id');
@@ -310,6 +322,18 @@ export async function deleteAntraegeListViewByAktenzeichen(
   const t = tx(idb, CSV_STORES.ANTRAEGE_LIST_VIEW, 'readwrite');
   t.objectStore(CSV_STORES.ANTRAEGE_LIST_VIEW).delete(az);
   return waitTx(t);
+}
+
+/** Löscht List-View-Einträge per aktenzeichen-Key (chunked) — Pendant zu
+ *  deleteAntraegeByKeys für die inkrementelle Slim-Projektion. */
+export async function deleteAntraegeListViewByKeys(idb: IDBStore, keys: string[]): Promise<void> {
+  for (let i = 0; i < keys.length; i += MAX_WRITES_PER_TX) {
+    const chunk = keys.slice(i, i + MAX_WRITES_PER_TX);
+    const t = tx(idb, CSV_STORES.ANTRAEGE_LIST_VIEW, 'readwrite');
+    const s = t.objectStore(CSV_STORES.ANTRAEGE_LIST_VIEW);
+    for (const k of chunk) s.delete(k);
+    await waitTx(t);
+  }
 }
 
 export async function countAntraegeListViewByProgramm(
