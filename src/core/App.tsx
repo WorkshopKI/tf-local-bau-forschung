@@ -27,6 +27,7 @@ import { listProgramme } from '@/core/services/csv';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
+import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { runDataUpdate, type DataUpdatePhase, type DataUpdateResult } from '@/plugins/csv-sources-kuration/services/data-update';
 import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
 import { runtimeConfig } from '@/config/runtime-config';
@@ -490,37 +491,55 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       if (cancelled) return;
       void (async () => {
         const handle = await getDatenShareHandle(storage.idb);
-        if (!handle) return;
+        if (!handle) {
+          // Kein Daten-Share → kein Start-Pass; Watcher darf trotzdem arbeiten.
+          useStartupDataStatus.getState().setPhase('done');
+          return;
+        }
         // EIN orchestrierter Pfad (v2.95): Datenbestand (Snapshot, je Programm)
         // → Export-CSV (Check + Auto-Import, nur pl/kurator). Reihenfolge,
         // force-Throttle-Bypass, Cold-Start-ensureDefaultProgramm, Store-Reload,
         // Phase-2-Rematch, Build-Lock-Handling + das Per-Phasen-Timing
         // (`[data-update]`-Konsolenzeile) stecken alle in runDataUpdate.
+        // `running` markiert den Pass, damit der Snapshot-Watcher nicht parallel
+        // seinen „Jetzt laden"-Banner für genau diesen Snapshot zeigt.
+        useStartupDataStatus.getState().setPhase('running');
         let lastLabel: string | null = null;
-        const r = await runDataUpdate(storage.idb, handle, {
-          signal: { get cancelled() { return cancelled; } },
-          onPhase: p => {
-            if (cancelled) return;
-            const label = phaseToastLabel(p);
-            if (label !== lastLabel) { lastLabel = label; setSyncToast(label); }
-          },
-        });
-        if (cancelled) return;
-        const finalMsg = completionToast(r);
-        if (finalMsg) {
-          setSyncToast(finalMsg);
-          if (syncToastTimerRef.current !== null) window.clearTimeout(syncToastTimerRef.current);
-          syncToastTimerRef.current = window.setTimeout(() => {
-            syncToastTimerRef.current = null;
-            if (!cancelled) setSyncToast(null);
-          }, 6000);
-        } else {
-          // Nichts Neues — laufenden Fortschritts-Toast wieder ausblenden.
-          setSyncToast(null);
+        try {
+          const r = await runDataUpdate(storage.idb, handle, {
+            signal: { get cancelled() { return cancelled; } },
+            onPhase: p => {
+              if (cancelled) return;
+              const label = phaseToastLabel(p);
+              if (label !== lastLabel) { lastLabel = label; setSyncToast(label); }
+            },
+          });
+          if (cancelled) return;
+          const finalMsg = completionToast(r);
+          if (finalMsg) {
+            setSyncToast(finalMsg);
+            if (syncToastTimerRef.current !== null) window.clearTimeout(syncToastTimerRef.current);
+            syncToastTimerRef.current = window.setTimeout(() => {
+              syncToastTimerRef.current = null;
+              if (!cancelled) setSyncToast(null);
+            }, 6000);
+          } else {
+            // Nichts Neues — laufenden Fortschritts-Toast wieder ausblenden.
+            setSyncToast(null);
+          }
+        } finally {
+          // Pass abgeschlossen → Watcher darf (ab jetzt) Banner für ECHTE,
+          // erst danach geschriebene Fremd-Snapshots zeigen. Bei einem
+          // gecancelten Re-Run (Gate-Übergang) NICHT auf 'done' flippen — der
+          // frische, nicht-gecancelte Lauf setzt es; sonst stünde der Watcher
+          // kurz auf 'done' während der eigentliche Sync noch läuft.
+          if (!cancelled) {
+            useStartupDataStatus.getState().setPhase('done');
+            // Schemas/Quellen können jetzt frisch in der IDB liegen → Banner-
+            // Check re-triggern (zeigt verbleibende unverknüpfte Quellen / Drift).
+            bumpCsvSourcesSignal();
+          }
         }
-        // Schemas/Quellen können jetzt frisch in der IDB liegen → Banner-Check
-        // re-triggern (zeigt verbleibende unverknüpfte Quellen / Drift).
-        if (!cancelled) bumpCsvSourcesSignal();
       })();
     });
     return () => {

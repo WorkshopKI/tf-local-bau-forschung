@@ -30,6 +30,7 @@ import { listProgramme } from '@/core/services/csv';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
+import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { ProgrammSnapshotManifest } from '@/core/services/csv/snapshot';
 
@@ -112,7 +113,16 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
     return () => { mountedRef.current = false; };
   }, []);
 
+  // Solange der Start-Datenaktualisierungs-Pass (App.tsx runDataUpdate) läuft
+  // bzw. noch nicht abgeschlossen ist, KEINEN Banner zeigen: der Orchestrator
+  // lädt denselben Snapshot bereits automatisch (Toast). Sonst erschienen Banner
+  // + Toast gleichzeitig. Nach 'done' gleicht der Orchestrator den Stand an →
+  // der Check findet keinen Unterschied (oder zeigt den Banner als Recovery,
+  // falls der Start-Sync nicht durchkam).
+  const startupPhase = useStartupDataStatus(s => s.phase);
+
   const check = useCallback(async (): Promise<void> => {
+    if (useStartupDataStatus.getState().phase !== 'done') return;
     const handle = await getDatenShareHandle(storage.idb);
     if (!handle) return;
     const programme = await listProgramme(storage.idb);
@@ -172,6 +182,17 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
       if (timer !== null) window.clearTimeout(timer);
     };
   }, [enabled, smbStatus.status, check]);
+
+  // Sobald der Start-Pass 'done' ist, einmal nachprüfen: hat der Orchestrator
+  // alles geladen, findet der Check keinen Unterschied (kein Banner); kam er
+  // nicht durch, erscheint der Banner jetzt erst (Recovery). Der vor 'done'
+  // gefeuerte Initial-Check (5 s) hat oben früh returnt.
+  useEffect(() => {
+    if (!enabled) return;
+    if (smbStatus.status !== 'online') return;
+    if (startupPhase !== 'done') return;
+    void check();
+  }, [enabled, smbStatus.status, startupPhase, check]);
 
   const dismiss = useCallback(() => setDismissed(true), []);
 
