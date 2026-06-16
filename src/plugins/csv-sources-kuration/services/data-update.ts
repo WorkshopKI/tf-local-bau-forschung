@@ -213,7 +213,10 @@ export async function runDataUpdate(
             onProgress: rp => onPhase?.({
               phase: 'csv-import',
               fraction: rp.total > 0 ? rp.index / rp.total : 0,
-              label: rp.schemaName,
+              // Quelle + Zähler (2/3), damit der Toast Fortschritt zeigt — der
+              // Einzel-Import (Merge + Snapshot-Write) kann je Quelle Sekunden
+              // dauern.
+              label: rp.total > 1 ? `${rp.schemaName} (${rp.index + 1}/${rp.total})` : rp.schemaName,
             }),
           });
           result.csvReport = report;

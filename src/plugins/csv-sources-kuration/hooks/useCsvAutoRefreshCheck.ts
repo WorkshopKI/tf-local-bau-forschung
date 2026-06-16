@@ -31,6 +31,7 @@ import {
 } from '../csv-source-handle';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { useCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
+import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import {
   runAutoRefresh,
   collectCandidates,
@@ -149,15 +150,24 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     }
   }, [requireSession, session.isActive]);
 
+  // Solange der Start-Datenaktualisierungs-Pass (App.tsx runDataUpdate) noch
+  // nicht 'done' ist, NICHT prüfen: der Orchestrator importiert die neuen CSVs
+  // bereits automatisch (Toast). Sonst zeigte der Banner „X CSV-Quellen haben
+  // neue Daten — Jetzt aktualisieren" parallel zum laufenden Auto-Import. Nach
+  // 'done' bumpt App.tsx das Quellen-Signal → Re-Check zeigt nur, was wirklich
+  // übrig ist (unverknüpfte Quellen / Drift). Mirror der Watcher-Logik (v2.95.1).
+  const startupPhase = useStartupDataStatus(s => s.phase);
+
   // Background-Check sobald alle Vorbedingungen erfuellt sind.
   useEffect(() => {
+    if (startupPhase !== 'done') return;
     if (!enabled) return;
     if (requireSession && !session.isActive) return;
     if (smbStatus.status !== 'online') return;
     if (checkedRef.current) return;
     checkedRef.current = true;
     void runCheck();
-  }, [enabled, requireSession, session.isActive, smbStatus.status, runCheck]);
+  }, [startupPhase, enabled, requireSession, session.isActive, smbStatus.status, runCheck]);
 
   // Re-Check bei externem Signal: Snapshot-Sync (Schemas kamen erst nach dem
   // Erst-Check in die IDB — Cold-Start) ODER Ordner-Verknüpfen in Einstellungen.
@@ -166,12 +176,13 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
   const sourcesSignal = useCsvSourcesSignal(s => s.version);
   useEffect(() => {
     if (sourcesSignal === 0) return; // 0 = noch kein Signal → Erst-Check oben
+    if (startupPhase !== 'done') return; // Start-Pass läuft → kein paralleler Check
     if (!enabled) return;
     if (requireSession && !session.isActive) return;
     if (smbStatus.status !== 'online') return;
     checkedRef.current = true;
     void runCheck();
-  }, [sourcesSignal, enabled, requireSession, session.isActive, smbStatus.status, runCheck]);
+  }, [sourcesSignal, startupPhase, enabled, requireSession, session.isActive, smbStatus.status, runCheck]);
 
   const dismiss = useCallback(() => setDismissed(true), []);
   const clearReport = useCallback(() => {

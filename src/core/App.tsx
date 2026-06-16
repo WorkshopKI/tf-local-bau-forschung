@@ -76,7 +76,7 @@ function AppProviders({
   needsInitialPick,
   initialProfile,
   seedToast, setSeedToast,
-  syncToast, setSyncToast,
+  syncToast, setSyncToast, syncBusy,
 }: {
   storage: StorageService;
   aiBridge: AIBridge;
@@ -100,6 +100,8 @@ function AppProviders({
   setSeedToast: (v: string | null) => void;
   syncToast: string | null;
   setSyncToast: (v: string | null) => void;
+  /** true während der Start-Datenaktualisierung läuft → Spinner statt 📥. */
+  syncBusy: boolean;
 }): React.ReactElement {
   const searchValue = useSearchProvider(storage);
   const tagValue = useTagProvider(storage);
@@ -202,7 +204,14 @@ function AppProviders({
                   role="status"
                 >
                   <div className="flex items-start gap-2">
-                    <span>📥</span>
+                    {syncBusy ? (
+                      <span
+                        className="mt-0.5 inline-block w-3.5 h-3.5 rounded-full border-2 border-[var(--tf-border)] border-t-[var(--tf-primary)] animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <span>📥</span>
+                    )}
                     <div className="flex-1">{syncToast}</div>
                     <button
                       type="button"
@@ -245,6 +254,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const [initialProfile, setInitialProfile] = useState<UserProfile | null>(null);
   const [seedToast, setSeedToast] = useState<string | null>(null);
   const [syncToast, setSyncToast] = useState<string | null>(null);
+  const [syncBusy, setSyncBusy] = useState(false);
   // v2.16: Rollen-Passwort-Wall (pl + kurator, runtimeConfig.auth). Loest die
   // v2.10-Kurator-Wall ab — vereinheitlicht ueber AppPasswordGate.
   const [showAppGate, setShowAppGate] = useState(false);
@@ -504,6 +514,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         // `running` markiert den Pass, damit der Snapshot-Watcher nicht parallel
         // seinen „Jetzt laden"-Banner für genau diesen Snapshot zeigt.
         useStartupDataStatus.getState().setPhase('running');
+        setSyncBusy(true);
         let lastLabel: string | null = null;
         try {
           const r = await runDataUpdate(storage.idb, handle, {
@@ -528,6 +539,8 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
             setSyncToast(null);
           }
         } finally {
+          // Spinner aus, sobald der Pass endet (Erfolg, „nichts Neues" oder Abbruch).
+          setSyncBusy(false);
           // Pass abgeschlossen → Watcher darf (ab jetzt) Banner für ECHTE,
           // erst danach geschriebene Fremd-Snapshots zeigen. Bei einem
           // gecancelten Re-Run (Gate-Übergang) NICHT auf 'done' flippen — der
@@ -576,6 +589,7 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       setSeedToast={setSeedToast}
       syncToast={syncToast}
       setSyncToast={setSyncToast}
+      syncBusy={syncBusy}
     />
   );
 }
