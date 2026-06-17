@@ -46,6 +46,7 @@ function phaseToastLabel(p: DataUpdatePhase): string {
     case 'snapshot':   return 'Datenbestand wird aktualisiert…';
     case 'csv-check':  return 'Neue CSV-Exporte werden geprüft…';
     case 'csv-import': return p.label ? `CSV-Import: ${p.label}…` : 'CSV-Daten werden importiert…';
+    case 'publishing': return 'Daten lokal aktuell — Datenbestand wird für das Team veröffentlicht…';
   }
 }
 

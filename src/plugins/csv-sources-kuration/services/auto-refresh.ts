@@ -160,12 +160,20 @@ export interface RefreshProgress {
   index: number;
   total: number;
   schemaName: string;
-  phase: 'reading' | 'validating' | 'importing' | 'persisting';
+  phase: 'reading' | 'validating' | 'importing' | 'persisting' | 'publishing';
 }
 
 export interface RunAutoRefreshOptions {
   onProgress?: (p: RefreshProgress) => void;
   kuratorName?: string;
+  /**
+   * Nach allen Merges, ABER vor dem (sekundenlangen) gebündelten Snapshot-Write
+   * aufgerufen — mit den Programm-IDs, die echte Deltas hatten. Der Caller
+   * aktualisiert hier den In-Memory-Store, sodass der lokale User die neuen
+   * Anträge sofort sieht und nicht auf das Publizieren für die anderen Rechner
+   * wartet (v2.96.3). Best-effort: Fehler dürfen den Publish nicht verhindern.
+   */
+  onAfterMerge?: (programmIds: string[]) => Promise<void>;
   /**
    * Übergeht die Lock-Prüfung und übernimmt einen bestehenden (Fremd-)Lock per
    * `forceLock`. Wird vom „Trotzdem aktualisieren"-Button im Banner gesetzt
@@ -359,9 +367,18 @@ export async function runAutoRefresh(
     }
   }
 
+  // Lokalen Store JETZT aktualisieren (nach allen Merges, vor dem ~25-s-Publish):
+  // der lokale User sieht die neuen Anträge sofort, statt auf das Publizieren für
+  // die anderen Rechner zu warten (v2.96.3). Best-effort.
+  if (programmeToPublish.size > 0 && opts.onAfterMerge) {
+    await opts.onAfterMerge([...programmeToPublish]).catch(err =>
+      console.warn('[csv-auto-refresh] onAfterMerge fehlgeschlagen', err));
+  }
+
   // Gebündelter Snapshot-Write: EINMAL pro betroffenem Programm statt pro Quelle
   // (v2.96.2). Unter Build-Lock, mit Heartbeat (ein Write kann ~25 s dauern).
   if (programmeToPublish.size > 0) {
+    opts.onProgress?.({ index: 0, total: programmeToPublish.size, schemaName: 'Datenbestand', phase: 'publishing' });
     const handle = await getSmbHandle(idb);
     if (handle) {
       const tSnap = Date.now();

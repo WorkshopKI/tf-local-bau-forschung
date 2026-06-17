@@ -19,7 +19,7 @@
  */
 
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import { ensureDefaultProgramm, listProgramme, loadSchema } from '@/core/services/csv';
+import { ensureDefaultProgramm, listProgramme } from '@/core/services/csv';
 import { syncProgrammSnapshot, type SnapshotTimings } from '@/core/services/csv/snapshot-sync';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { rematchOnSnapshotReload } from '@/phase2';
@@ -31,7 +31,7 @@ import { runAutoRefresh, collectCandidates, BuildLockBusyError, type RefreshRepo
 const LAST_TIMING_KEY = 'teamflow_last_data_update_timing';
 
 export interface DataUpdatePhase {
-  phase: 'snapshot' | 'csv-check' | 'csv-import';
+  phase: 'snapshot' | 'csv-check' | 'csv-import' | 'publishing';
   /** 0..1 innerhalb der Phase. */
   fraction: number;
   /** Optionales Label (Programm-/Quellen-Name). */
@@ -210,27 +210,25 @@ export async function runDataUpdate(
         try {
           const report = await runAutoRefresh(idb, collected.candidates, {
             kuratorName: identity,
-            onProgress: rp => onPhase?.({
-              phase: 'csv-import',
-              fraction: rp.total > 0 ? rp.index / rp.total : 0,
-              // Quelle + Zähler (2/3), damit der Toast Fortschritt zeigt — der
-              // Einzel-Import (Merge + Snapshot-Write) kann je Quelle Sekunden
-              // dauern.
-              label: rp.total > 1 ? `${rp.schemaName} (${rp.index + 1}/${rp.total})` : rp.schemaName,
-            }),
+            // Nach den Merges, VOR dem Publish: In-Memory-Store je betroffenem
+            // Programm nachladen → der lokale User sieht die neuen Anträge sofort
+            // (importCsvSource schreibt nur IDB; der Store hat 5-Min-TTL-Skip).
+            onAfterMerge: async programmIds => {
+              for (const pid of programmIds) {
+                await refreshAntraegeStoreAfterSync(idb, pid, ['antraege', 'verbuende'] as const);
+              }
+            },
+            onProgress: rp => onPhase?.(rp.phase === 'publishing'
+              ? { phase: 'publishing', fraction: 1 }
+              : {
+                  phase: 'csv-import',
+                  fraction: rp.total > 0 ? rp.index / rp.total : 0,
+                  // Quelle + Zähler (2/3), damit der Toast Fortschritt zeigt — der
+                  // Einzel-Import (Merge) kann je Quelle Sekunden dauern.
+                  label: rp.total > 1 ? `${rp.schemaName} (${rp.index + 1}/${rp.total})` : rp.schemaName,
+                }),
           });
           result.csvReport = report;
-
-          // In-Memory-Store je betroffenem Programm nachladen (importCsvSource
-          // schreibt nur IDB; der Store hat 5-Min-TTL-Skip).
-          const reloadProgrammIds = new Set<string>();
-          for (const proc of report.processed) {
-            const schema = await loadSchema(idb, proc.schemaId);
-            if (schema) reloadProgrammIds.add(schema.programm_id);
-          }
-          for (const pid of reloadProgrammIds) {
-            await refreshAntraegeStoreAfterSync(idb, pid, ['antraege', 'verbuende'] as const);
-          }
         } catch (err) {
           if (err instanceof BuildLockBusyError) {
             // Paralleler Schreiber gewinnt — kein Fehler. Dieser Client hat den

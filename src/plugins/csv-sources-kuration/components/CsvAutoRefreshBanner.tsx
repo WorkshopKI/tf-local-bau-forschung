@@ -33,6 +33,7 @@ const PHASE_LABEL: Record<RefreshProgress['phase'], string> = {
   validating: 'prüfe',
   importing: 'importiere',
   persisting: 'speichere',
+  publishing: 'veröffentliche',
 };
 
 /**
@@ -45,6 +46,7 @@ const PHASE_FRACTION: Record<RefreshProgress['phase'], number> = {
   validating: 0.3,
   importing: 0.6,
   persisting: 0.85,
+  publishing: 0.95,
 };
 
 function refreshFraction(p: RefreshProgress): number {
