@@ -1,9 +1,17 @@
 import type { IDBStore } from '../storage/idb-store';
 import { CSV_STORES, type CsvStoreName } from '../storage/idb-store';
 import { readText } from '../infrastructure/atomic-write';
-import type { ProgrammSnapshotManifest, SnapshotStoreName } from './snapshot';
-import { SYNC_VERSION_KEY, SYNC_STORE_HASH_KEY, SYNC_LAST_CHECK_DAY_KEY } from './snapshot-keys';
+import type { ProgrammSnapshotManifest, SnapshotStoreName, SnapshotDeltaBlock } from './snapshot';
+import {
+  SYNC_VERSION_KEY,
+  SYNC_STORE_HASH_KEY,
+  SYNC_LAST_CHECK_DAY_KEY,
+  SYNC_DELTA_SEQ_KEY,
+  SYNC_BASE_VERSION_KEY,
+} from './snapshot-keys';
 import { MAX_WRITES_PER_TX } from './constants';
+import { murmurhash3 } from './hash';
+import type { Antrag } from './types';
 import { isDatenShareWritable } from '@/config/feature-flags';
 import { rebuildAntraegeListView, isListViewProjectionCurrent } from './list-view-migration';
 import {
@@ -175,6 +183,13 @@ export async function syncProgrammSnapshot(
   // Inkrementeller antraege-Diff (falls dieser Pfad lief) — steuert unten, ob
   // die List-View inkrementell gepflegt oder voll neu gebaut wird.
   let antraegeDiff: AntraegeDiff | null = null;
+  // v2-Delta-Snapshot: antraege wird per Basis + Deltas statt Voll-Datei gesynct.
+  const deltaBlock: SnapshotDeltaBlock | null =
+    manifest.version === 2 && manifest.delta && manifest.delta.deltaStores.includes('antraege')
+      ? manifest.delta : null;
+  // Wenn der Delta-Pfad antraege (inkl. List-View) komplett behandelt hat, darf
+  // der Voll-List-View-Block unten ihn NICHT noch einmal anfassen.
+  let antraegeHandledByDelta = false;
   let storesDone = 0;
   for (const storeKey of storeKeys) {
     // Fortschritt inkl. Chunk-Fraktion innerhalb des aktuellen Stores: der Balken
@@ -196,6 +211,16 @@ export async function syncProgrammSnapshot(
     // sonst umsonst. Writer (pl/kurator/dev) laden es wie bisher.
     if (storeKey === 'csv_row_hashes' && !isDatenShareWritable()) {
       storesDone++;
+      continue;
+    }
+    // v2-Delta-Pfad für antraege: NICHT über den Per-Store-Hash-Skip — die Basis
+    // kann unverändert sein (Hash matched), während neue Deltas anzuwenden sind.
+    if (storeKey === 'antraege' && deltaBlock) {
+      const r = await syncAntraegeViaDelta(idb, programmDir, manifest, deltaBlock, programmId, timings);
+      if (r.reloaded) reloadedStores.push('antraege');
+      antraegeHandledByDelta = true;
+      storesDone++;
+      reportStore(1);
       continue;
     }
     const localHash = await idb.get<string>(SYNC_STORE_HASH_KEY(programmId, storeKey));
@@ -293,7 +318,7 @@ export async function syncProgrammSnapshot(
   // werden — sonst liest die Home die leere/stale Projektion und bleibt bis zum
   // nächsten App-Start (= manueller Reload, der ensureListViewProjection neu
   // laufen lässt) leer. Nur nötig, wenn der ANTRAEGE-Store wirklich neu kam.
-  if (reloadedStores.includes('antraege')) {
+  if (reloadedStores.includes('antraege') && !antraegeHandledByDelta) {
     const tRebuild = performance.now();
     if (antraegeDiff && await isListViewProjectionCurrent(idb)) {
       // Inkrementell: nur geaenderte Records projizieren + entfernte loeschen —
@@ -327,6 +352,137 @@ export async function syncProgrammSnapshot(
     reloadedStores,
     timings,
   };
+}
+
+/**
+ * v2-Delta-Sync des antraege-Stores: lädt die Voll-Basis nur bei
+ * Generation-Wechsel (Compaction) / Cold-Start / Seq-Lücke, sonst werden nur die
+ * noch nicht angewandten Delta-Dateien (seq > lokalem Cursor) gelesen. Pflegt
+ * Store, List-View, Record-Hash-Map und Sync-Cursor konsistent.
+ *
+ * Crash-Sicherheit pro Delta: erst Record-Hash-Map persistieren, dann den
+ * Seq-Cursor — ein Crash dazwischen lässt den Seq zurück (Delta wird beim
+ * nächsten Sync idempotent neu angewandt, put-by-key), nie voraus.
+ */
+async function syncAntraegeViaDelta(
+  idb: IDBStore,
+  programmDir: FileSystemDirectoryHandle,
+  manifest: ProgrammSnapshotManifest,
+  delta: SnapshotDeltaBlock,
+  programmId: string,
+  timings: SnapshotTimings,
+): Promise<{ reloaded: boolean }> {
+  const deltas = [...delta.deltas].sort((a, b) => a.seq - b.seq);
+  const lastSeq = deltas.length > 0 ? deltas[deltas.length - 1]!.seq : 0;
+  const firstSeq = deltas.length > 0 ? deltas[0]!.seq : 0;
+
+  const localBase = await idb.get<string>(SYNC_BASE_VERSION_KEY(programmId));
+  let localSeq = (await idb.get<number>(SYNC_DELTA_SEQ_KEY(programmId))) ?? 0;
+  const storedHashes = await idb.get<Record<string, string>>(SNAPSHOT_RECORD_HASHES_KEY(programmId));
+
+  // Voll-Basis nötig? Generation-Wechsel (Compaction), kein/leerer Hash-State
+  // (Cold-Start), Seq-Lücke (Deltas gepruned) oder Seq voraus (Korruption).
+  const needFullBase =
+    localBase !== delta.baseVersion
+    || !storedHashes || Object.keys(storedHashes).length === 0
+    || (deltas.length > 0 && localSeq < firstSeq - 1)
+    || localSeq > lastSeq;
+
+  const hashes: Record<string, string> = { ...(storedHashes ?? {}) };
+  let reloaded = false;
+  let baseReloaded = false;
+
+  if (needFullBase) {
+    const tRead = performance.now();
+    const jsonl = await readText(programmDir, STORE_FILES.antraege);
+    timings.smbReadMs += performance.now() - tRead;
+    if (jsonl === null) {
+      console.warn('[snapshot-sync] antraege-Basis fehlt im v2-Snapshot, skip');
+      return { reloaded: false };
+    }
+    const rawLines = jsonl.split('\n').filter(l => l.trim().length > 0);
+    let items: unknown[];
+    try {
+      const tParse = performance.now();
+      items = rawLines.map(line => JSON.parse(line) as unknown);
+      timings.parseMs += performance.now() - tParse;
+    } catch (parseErr) {
+      console.warn('[snapshot-sync] antraege-Basis: malformed JSONL, skip', parseErr);
+      return { reloaded: false };
+    }
+    const tWrite = performance.now();
+    await replaceStore(idb, STORE_TARGETS.antraege, items);
+    timings.idbWriteMs += performance.now() - tWrite;
+    const baseHashes = buildAntraegeHashes(rawLines);
+    Object.assign(hashes, baseHashes);
+    // Bei Compaction können Keys verschwinden — Map sauber neu setzen.
+    for (const k of Object.keys(hashes)) if (!(k in baseHashes)) delete hashes[k];
+    await idb.set(SNAPSHOT_RECORD_HASHES_KEY(programmId), { ...hashes });
+    await idb.set(SYNC_STORE_HASH_KEY(programmId, 'antraege'), manifest.stores.antraege.hash);
+    await idb.set(SYNC_BASE_VERSION_KEY(programmId), delta.baseVersion);
+    localSeq = 0;
+    await idb.set(SYNC_DELTA_SEQ_KEY(programmId), 0);
+    reloaded = true;
+    baseReloaded = true;
+  }
+
+  // Nur Deltas mit seq > lokalem Cursor anwenden (Konsument lädt nur diese Dateien).
+  const lvCurrent = !baseReloaded && await isListViewProjectionCurrent(idb);
+  const pending = deltas.filter(d => d.seq > localSeq);
+  for (const d of pending) {
+    const entry = d.stores.antraege;
+    if (!entry) { await idb.set(SYNC_DELTA_SEQ_KEY(programmId), d.seq); continue; }
+
+    const tRead = performance.now();
+    const changedText = await readText(programmDir, entry.changedFile);
+    let removedKeys = entry.removedKeys ?? [];
+    if (entry.removedFile) {
+      const remText = await readText(programmDir, entry.removedFile);
+      removedKeys = remText ? remText.split('\n').map(s => s.trim()).filter(Boolean) : [];
+    }
+    timings.smbReadMs += performance.now() - tRead;
+
+    const changedLines = (changedText ?? '').split('\n').filter(l => l.trim().length > 0);
+    let changed: Antrag[];
+    try {
+      const tParse = performance.now();
+      changed = changedLines.map(line => JSON.parse(line) as Antrag);
+      timings.parseMs += performance.now() - tParse;
+    } catch (parseErr) {
+      console.warn(`[snapshot-sync] antraege.delta.${d.seq}: malformed JSONL → Voll-Basis beim nächsten Sync`, parseErr);
+      await idb.delete(SNAPSHOT_RECORD_HASHES_KEY(programmId)); // erzwingt Voll-Basis
+      return { reloaded };
+    }
+
+    for (let i = 0; i < changed.length; i++) {
+      const key = typeof changed[i]!.aktenzeichen === 'string' ? changed[i]!.aktenzeichen : '';
+      if (key) hashes[key] = murmurhash3(changedLines[i]!);
+    }
+    for (const k of removedKeys) delete hashes[k];
+
+    const diff: AntraegeDiff = { changed, removedKeys, newHashes: hashes, unchanged: 0 };
+    const tWrite = performance.now();
+    await applyAntraegeDiff(idb, diff);
+    if (lvCurrent) await applyListViewDiff(idb, diff);
+    timings.idbWriteMs += performance.now() - tWrite;
+
+    await idb.set(SNAPSHOT_RECORD_HASHES_KEY(programmId), { ...hashes });
+    await idb.set(SYNC_DELTA_SEQ_KEY(programmId), d.seq);
+    reloaded = true;
+  }
+
+  // Nach Voll-Basis-Reload die List-View komplett neu projizieren (Basis + bereits
+  // angewandte Deltas sind im Store → ein Rebuild deckt alles ab).
+  if (baseReloaded) {
+    const tRebuild = performance.now();
+    await rebuildAntraegeListView(idb);
+    timings.listViewRebuildMs += performance.now() - tRebuild;
+  }
+
+  if (reloaded) {
+    console.info(`[snapshot-sync] antraege delta: base=${baseReloaded} applied=${pending.length} (seq→${lastSeq})`);
+  }
+  return { reloaded };
 }
 
 /**

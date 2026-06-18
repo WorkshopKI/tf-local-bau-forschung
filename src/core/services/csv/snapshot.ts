@@ -27,13 +27,49 @@ const SNAPSHOT_FILES = {
 
 export type SnapshotStoreName = keyof typeof SNAPSHOT_FILES;
 
+/** Ein einzelnes Delta (v2): geänderte/neue Records + entfernte Keys je Store. */
+export interface SnapshotDeltaStoreEntry {
+  /** JSONL-Datei mit den geänderten/neuen Records (gleiches Record-Shape wie Basis). */
+  changedFile: string;
+  /** Entfernte Keys inline (kleine Mengen). Größere → `removedFile`. */
+  removedKeys?: string[];
+  removedFile?: string;
+  /** SHA-256 der changedFile-Bytes (Integritäts-/Idempotenz-Check). */
+  hash: string;
+  count: number;
+}
+
+export interface SnapshotDeltaEntry {
+  seq: number;
+  createdAt: string;
+  createdBy: string;
+  stores: Partial<Record<SnapshotStoreName, SnapshotDeltaStoreEntry>>;
+}
+
+/** v2-Delta-Block: Basis + geordnete Deltas. Alte (v1-)Leser ignorieren ihn und
+ *  lesen die vollen `stores`-Dateien (Basis) → valide, ggf. leicht veraltet. */
+export interface SnapshotDeltaBlock {
+  /** Generation der Basis-Dateien; ändert sich nur bei Compaction/Rebase. */
+  baseVersion: string;
+  /** Welche Stores per Delta gepflegt werden (aktuell nur `antraege`). */
+  deltaStores: SnapshotStoreName[];
+  /** Geordnete, lückenlose Deltas (seq ab 1), die NACH der Basis gelten. */
+  deltas: SnapshotDeltaEntry[];
+  /** Summe der Delta-Bytes seit der Basis (Compaction-Heuristik). */
+  cumulativeBytes: number;
+}
+
 export interface ProgrammSnapshotManifest {
-  version: 1;
+  version: 1 | 2;
   snapshotVersion: string;
   programmId: string;
   createdAt: string;
   createdBy: string;
+  /** Voll-Stand jedes Stores. Für deltaisierte Stores = **Basis**-Datei (Hash =
+   *  Basis-Hash) → alte Leser bekommen stets eine valide Basis. */
   stores: Record<SnapshotStoreName, { count: number; hash: string }>;
+  /** v2: Delta-Block. Fehlt bei v1-Snapshots (voller Schreibpfad). */
+  delta?: SnapshotDeltaBlock;
 }
 
 async function sha256Hex(text: string): Promise<string> {

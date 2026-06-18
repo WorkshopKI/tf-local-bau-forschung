@@ -21,3 +21,13 @@ export const SYNC_STORE_HASH_KEY = (programmId: string, store: SnapshotStoreName
 /** Day-Throttle-Marker (YYYY-MM-DD) des 1x/Tag-Sync je Programm. */
 export const SYNC_LAST_CHECK_DAY_KEY = (programmId: string): string =>
   `snapshot-last-check-day-${programmId}`;
+
+/** Zuletzt angewandte Delta-Sequenz je Programm (Delta-Snapshots v2.97). */
+export const SYNC_DELTA_SEQ_KEY = (programmId: string): string =>
+  `snapshot-delta-seq-${programmId}`;
+
+/** Basis-Generation, auf der der lokale Stand beruht (Compaction-Marker). Bei
+ *  Abweichung von `manifest.delta.baseVersion` muss die Voll-Basis neu geladen
+ *  werden, bevor Deltas angewandt werden. */
+export const SYNC_BASE_VERSION_KEY = (programmId: string): string =>
+  `snapshot-base-version-${programmId}`;
