@@ -26,6 +26,10 @@ import { SNAPSHOT_RECORD_HASHES_KEY } from './incremental-antraege';
 const MAX_DELTAS = 14;
 /** Removals oberhalb dieser Größe → eigene Datei statt inline im Manifest. */
 const REMOVED_INLINE_MAX = 500;
+/** Absolute Untergrenze für den „Change-Set zu groß → Voll-Write"-Fallback:
+ *  erst ab so vielen geänderten Records lohnt der gestreamte Voll-Write ggü.
+ *  dem Delta (kleine Programme bleiben immer Delta). */
+const DELTA_FULL_FALLBACK_MIN = 2000;
 
 const SNAPSHOT_FILES = {
   antraege: 'antraege.jsonl',
@@ -299,8 +303,10 @@ async function removeStaleDeltaFiles(programmDir: FileSystemDirectoryHandle): Pr
  * `antraege.delta.<seq>.jsonl` kommt hinzu.
  *
  * Fällt auf einen Voll-Write (mit v2-Basis) zurück, wenn kein kompatibles
- * v2-Manifest existiert ODER eine Compaction fällig ist (≥ MAX_DELTAS Deltas /
- * Delta-Bytes > Basis). Hält denselben Build-Lock wie der Aufrufer.
+ * v2-Manifest existiert, eine Compaction fällig ist (≥ MAX_DELTAS Deltas) ODER
+ * das Change-Set groß ist (> 50 % der Basis-Records → Delta ≈ Voll-Datei, und
+ * der gestreamte Voll-Write ist dann schneller als 14k Einzel-Gets). Hält
+ * denselben Build-Lock wie der Aufrufer.
  */
 export async function writeProgrammSnapshotDelta(
   idb: IDBStore,
@@ -320,10 +326,16 @@ export async function writeProgrammSnapshotDelta(
   const baseStoreEntry = existing?.stores?.antraege;
   const compatV2 = existing?.version === 2 && !!existing.delta
     && existing.delta.deltaStores.includes('antraege') && !!baseStoreEntry;
-  const baseBytes = 0; // (Basis-Bytes nicht separat getrackt) → nur Delta-Anzahl als Heuristik
+  // Bei einem GROSSEN Change-Set ist ein Delta ≈ die volle Datei — und
+  // `getAntraegeByKeys` (Einzel-Gets) wäre langsamer als der gestreamte
+  // Voll-Write. Dann lieber Compaction (Voll-Basis + Deltas weg). Schwelle:
+  // > 50 % der Basis UND absolut > DELTA_FULL_FALLBACK_MIN (kleine Datensätze
+  // bleiben immer Delta — dort ist auch ein „großes" Delta billig).
+  const baseCount = baseStoreEntry?.count ?? 0;
+  const tooManyChanges = change.touchedAz.length > Math.max(DELTA_FULL_FALLBACK_MIN, baseCount * 0.5);
   const needCompaction = !compatV2
     || (existing!.delta!.deltas.length >= MAX_DELTAS)
-    || (baseBytes > 0 && existing!.delta!.cumulativeBytes > baseBytes);
+    || tooManyChanges;
 
   if (needCompaction) {
     const r = await writeProgrammSnapshot(idb, smbHandle, programmId, createdBy, { emitDeltaBase: true });
