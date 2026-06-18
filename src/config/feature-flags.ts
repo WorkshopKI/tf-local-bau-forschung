@@ -185,6 +185,13 @@ export function isCsvAutoRefreshEnabled(): boolean {
   return features.csvAutoRefresh === true;
 }
 
+/** v2.97: Delta-Snapshots SCHREIBEN (nur Writer-Builds: pl + kurator + dev).
+ *  Der Leser versteht Deltas immer — dieser Flag steuert nur das Schreiben.
+ *  `=== true`: fehlt der Flag (alte Configs) → voller v1-Write wie bisher. */
+export function isDeltaSnapshotWriteEnabled(): boolean {
+  return features.deltaSnapshotWrite === true;
+}
+
 /**
  * True nur im Entwickler-Kontext: `npm run build:dev` (variant=development) und
  * `npm run dev` (variant=custom, DEFAULT_CONFIG). Production-Varianten

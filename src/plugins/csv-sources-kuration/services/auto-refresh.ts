@@ -44,7 +44,8 @@ import {
   HEARTBEAT_INTERVAL_MS,
 } from '@/core/services/infrastructure/build-lock';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
-import { writeProgrammSnapshot } from '@/core/services/csv/snapshot';
+import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from '@/core/services/csv/snapshot';
+import { isDeltaSnapshotWriteEnabled } from '@/config/feature-flags';
 import { BUILD_LOCK_STUFE } from '@/core/services/csv/constants';
 import {
   loadFileFromStoredHandle,
@@ -256,6 +257,9 @@ export async function runAutoRefresh(
   // Programme, deren Snapshot nach dem Batch EINMAL geschrieben werden muss
   // (statt pro importierter Quelle, v2.96.2).
   const programmeToPublish = new Set<string>();
+  // Pro Programm: Vereinigung der geänderten/entfernten Aktenzeichen über alle
+  // importierten Quellen — Basis für EINEN Delta-Snapshot-Write (v2.97).
+  const changeByProgramm = new Map<string, { touched: Set<string>; removed: Set<string> }>();
 
   // force = User-„Trotzdem aktualisieren": Lock-Probe überspringen, der
   // Importer übernimmt den Lock unten per onLockConflict → 'force'.
@@ -326,9 +330,16 @@ export async function runAutoRefresh(
       }
 
       // Programm zum Publizieren vormerken, wenn dieser Import echte Deltas hatte
-      // (sonst ist der vorhandene Snapshot bereits aktuell).
+      // (sonst ist der vorhandene Snapshot bereits aktuell). Geänderte/entfernte
+      // Aktenzeichen je Programm sammeln (für den gebündelten Delta-Write).
       const hadDeltas = result.buckets.new + result.buckets.changed + result.buckets.removed > 0;
-      if (hadDeltas) programmeToPublish.add(schema.programm_id);
+      if (hadDeltas) {
+        programmeToPublish.add(schema.programm_id);
+        const acc = changeByProgramm.get(schema.programm_id) ?? { touched: new Set<string>(), removed: new Set<string>() };
+        for (const k of result.changedAktenzeichen ?? []) acc.touched.add(k);
+        for (const k of result.removedAktenzeichen ?? []) acc.removed.add(k);
+        changeByProgramm.set(schema.programm_id, acc);
+      }
 
       report.processed.push({
         schemaId,
@@ -399,9 +410,16 @@ export async function runAutoRefresh(
       const hb = setInterval(() => void heartbeat(idb).catch(() => undefined), HEARTBEAT_INTERVAL_MS);
       try {
         const identity = opts.kuratorName ?? 'unbekannt';
+        const deltaMode = isDeltaSnapshotWriteEnabled();
         for (const pid of programmeToPublish) {
-          await writeProgrammSnapshot(idb, handle, pid, identity);
-          await logAudit(idb, { action: 'snapshot_written', details: { programmId: pid, source: 'csv_auto_refresh_batch' } }).catch(() => undefined);
+          if (deltaMode) {
+            const acc = changeByProgramm.get(pid) ?? { touched: new Set<string>(), removed: new Set<string>() };
+            const r = await writeProgrammSnapshotDelta(idb, handle, pid, identity, { touchedAz: [...acc.touched], removedAz: [...acc.removed] });
+            await logAudit(idb, { action: 'snapshot_written', details: { programmId: pid, source: 'csv_auto_refresh_batch', mode: r.mode } }).catch(() => undefined);
+          } else {
+            await writeProgrammSnapshot(idb, handle, pid, identity);
+            await logAudit(idb, { action: 'snapshot_written', details: { programmId: pid, source: 'csv_auto_refresh_batch' } }).catch(() => undefined);
+          }
         }
       } catch (e) {
         await logAudit(idb, {

@@ -173,6 +173,11 @@ export const DEFAULT_CONFIG = {
      *  Sichtbar in dev + prod + kurator + pl. Optional, default false
      *  (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     streamlitBridge: true,
+    /** v2.97: Delta-Snapshots SCHREIBEN (nur geänderte antraege-Records
+     *  publizieren). Default false (DEFAULT/dev-Server + Tests bleiben auf dem
+     *  vollen v1-Write); in pl/kurator-Configs auf true. Der Leser versteht
+     *  Deltas immer. Optional, kein requiredFlags-Eintrag. */
+    deltaSnapshotWrite: false,
   },
 
   menuLabels: {

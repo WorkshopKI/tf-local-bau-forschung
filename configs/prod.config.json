@@ -38,7 +38,8 @@
     "gutachtenKurzfassung": false,
     "gutachtenWorkflow": false,
     "skillVerwaltung": false,
-    "streamlitBridge": true
+    "streamlitBridge": true,
+    "deltaSnapshotWrite": false
   },
   "menuLabels": {
     "antraege": "Förderanträge"

@@ -111,6 +111,12 @@ export interface TeamflowFeatures {
    *  Bookmarklet + tf-ping-Test. Zugang zum internen gpt-oss ohne API.
    *  Sichtbar dev + prod + kurator + pl. Optional, default false. */
   streamlitBridge?: boolean;
+  /** v2.97: Delta-Snapshots SCHREIBEN — der Writer publiziert nur geänderte
+   *  antraege-Records (`antraege.delta.<seq>.jsonl`) statt der vollen Datei.
+   *  Braucht `datenShareSchreibrecht`; nur pl + kurator (+ dev). Der LESER
+   *  versteht Deltas immer (kein Flag). Optional, default false. ERST aktivieren,
+   *  wenn der Delta-Leser (v2.97) flächig ausgerollt ist (2-Phasen-Rollout). */
+  deltaSnapshotWrite?: boolean;
 }
 
 export interface TeamflowMenuLabels {

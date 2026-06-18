@@ -115,7 +115,14 @@
     // konfigurieren, Bookmarklet in die Lesezeichenleiste ziehen, Verbindung
     // (tf-ping → tf-pong) testen. Zugang zum internen gpt-oss ohne API.
     // Endkunden-tauglich. Optional, fehlt = aus. Sichtbar dev + prod + kurator + pl.
-    "streamlitBridge": false
+    "streamlitBridge": false,
+    // v2.97: Delta-Snapshots SCHREIBEN — nur geänderte antraege-Records
+    // publizieren (antraege.delta.<seq>.jsonl) statt der vollen Datei. Spart dem
+    // Writer den ~25-s-Voll-Write + jedem Konsumenten den Voll-Download. Braucht
+    // datenShareSchreibrecht; nur pl + kurator (+ dev). Der LESER versteht Deltas
+    // immer (kein Flag). Optional, fehlt = aus (voller v1-Write). ERST aktivieren,
+    // wenn der Delta-Leser flächig ausgerollt ist (2-Phasen-Rollout).
+    "deltaSnapshotWrite": false
   },
 
   // Pro Variant überschreibbare Sidebar-Labels für Bereichs-Menüs.

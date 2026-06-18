@@ -1,7 +1,8 @@
 import type { IDBStore } from '../storage/idb-store';
-import { atomicWrite, atomicWriteStream } from '../infrastructure/atomic-write';
+import { atomicWrite, atomicWriteStream, readText } from '../infrastructure/atomic-write';
 import {
   forEachAntragByProgramm,
+  getAntraegeByKeys,
   listAntragHistorieByProgramm,
   listVerbundsByProgramm,
   listVerbundHistorieByProgramm,
@@ -11,7 +12,20 @@ import {
   listUnterprogrammeByProgramm,
   getProgramm,
 } from './idb-csv';
-import { SYNC_VERSION_KEY, SYNC_STORE_HASH_KEY } from './snapshot-keys';
+import { murmurhash3 } from './hash';
+import {
+  SYNC_VERSION_KEY,
+  SYNC_STORE_HASH_KEY,
+  SYNC_DELTA_SEQ_KEY,
+  SYNC_BASE_VERSION_KEY,
+} from './snapshot-keys';
+import { SNAPSHOT_RECORD_HASHES_KEY } from './incremental-antraege';
+
+/** Delta-Compaction: nach so vielen Deltas (oder wenn die Delta-Bytes die Basis
+ *  übersteigen) wird wieder eine volle Basis geschrieben + Deltas gelöscht. */
+const MAX_DELTAS = 14;
+/** Removals oberhalb dieser Größe → eigene Datei statt inline im Manifest. */
+const REMOVED_INLINE_MAX = 500;
 
 const SNAPSHOT_FILES = {
   antraege: 'antraege.jsonl',
@@ -106,6 +120,69 @@ function toJsonl<T>(items: readonly T[], sortKey: (item: T) => string): string {
   return sorted.map(it => JSON.stringify(it)).join('\n') + (sorted.length > 0 ? '\n' : '');
 }
 
+async function navigateSnapshotDir(
+  smbHandle: FileSystemDirectoryHandle,
+  programmId: string,
+  create: boolean,
+): Promise<FileSystemDirectoryHandle> {
+  const programm = await smbHandle.getDirectoryHandle('programm', { create });
+  const antraegeDir = await programm.getDirectoryHandle('antraege', { create });
+  const snapshotDir = await antraegeDir.getDirectoryHandle('snapshot', { create });
+  return snapshotDir.getDirectoryHandle(programmId, { create });
+}
+
+type SmallStoreData = Partial<Record<SnapshotStoreName, { jsonl: string; count: number }>>;
+
+/** Serialisiert alle Stores AUSSER antraege (klein) zu JSONL + Counts. */
+async function loadSmallStoreData(idb: IDBStore, programmId: string): Promise<SmallStoreData> {
+  const programmObj = await getProgramm(idb, programmId);
+  if (!programmObj) throw new Error(`Programm ${programmId} nicht in IDB`);
+  const antragHistorie = await listAntragHistorieByProgramm(idb, programmId);
+  const verbuende = await listVerbundsByProgramm(idb, programmId);
+  const verbundHistorie = await listVerbundHistorieByProgramm(idb, programmId);
+  const akronymIndex = await listAkronymIndexByProgramm(idb, programmId);
+  const csvSchemas = await listSchemasByProgramm(idb, programmId);
+  const csvRowHashes = await listRowHashesBySchemas(idb, csvSchemas.map(s => s.id));
+  const unterprogramme = await listUnterprogrammeByProgramm(idb, programmId);
+  return {
+    antrag_historie:  { jsonl: toJsonl(antragHistorie,  h => h.id),                   count: antragHistorie.length },
+    verbuende:        { jsonl: toJsonl(verbuende,       v => v.verbund_id),           count: verbuende.length },
+    verbund_historie: { jsonl: toJsonl(verbundHistorie, h => h.id),                   count: verbundHistorie.length },
+    akronym_index:    { jsonl: toJsonl(akronymIndex,    e => `${e.programm_id}:${e.akronym}`), count: akronymIndex.length },
+    csv_row_hashes:   { jsonl: toJsonl(csvRowHashes,    h => `${h.csv_schema_id}:${h.join_value}`), count: csvRowHashes.length },
+    programme:        { jsonl: toJsonl([programmObj],   p => p.id),                   count: 1 },
+    unterprogramme:   { jsonl: toJsonl(unterprogramme,  u => u.id),                   count: unterprogramme.length },
+    csv_schemas:      { jsonl: toJsonl(csvSchemas,      s => s.id),                   count: csvSchemas.length },
+  };
+}
+
+/** Schreibt die kleinen Stores (alle außer antraege) voll + liefert Manifest-
+ *  Einträge. Von Voll-Write UND Delta-Write genutzt (im Delta-Fall bleibt die
+ *  antraege-Basis unangetastet, nur diese kleinen Stores werden neu geschrieben). */
+async function writeSmallStores(
+  programmDir: FileSystemDirectoryHandle,
+  smallData: SmallStoreData,
+): Promise<{ stores: Partial<Record<SnapshotStoreName, { count: number; hash: string }>>; written: SnapshotStoreName[] }> {
+  const stores: Partial<Record<SnapshotStoreName, { count: number; hash: string }>> = {};
+  const written: SnapshotStoreName[] = [];
+  for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
+    if (key === 'antraege') continue;
+    const d = smallData[key]!;
+    stores[key] = { count: d.count, hash: await sha256Hex(d.jsonl) };
+    await atomicWrite(programmDir, SNAPSHOT_FILES[key], d.jsonl, { skipBackup: true });
+    written.push(key);
+  }
+  return { stores, written };
+}
+
+export interface WriteSnapshotOptions {
+  /** v2-Basis schreiben: Manifest bekommt einen leeren `delta`-Block
+   *  (`baseVersion = snapshotVersion`, `deltas: []`) und die lokalen
+   *  Delta-Cursor (Basis-Version + seq 0 + Record-Hash-Map) werden gesetzt.
+   *  Vom Delta-Schreiber für Bootstrap/Compaction genutzt. */
+  emitDeltaBase?: boolean;
+}
+
 /**
  * Schreibt einen vollstaendigen Snapshot des Programms ins Daten-Share.
  * Manifest wird als letztes geschrieben (atomarer Marker).
@@ -117,46 +194,27 @@ export async function writeProgrammSnapshot(
   smbHandle: FileSystemDirectoryHandle,
   programmId: string,
   createdBy: string,
+  opts: WriteSnapshotOptions = {},
 ): Promise<{ snapshotVersion: string; manifest: ProgrammSnapshotManifest }> {
-  const programm = await smbHandle.getDirectoryHandle('programm', { create: true });
-  const antraegeDir = await programm.getDirectoryHandle('antraege', { create: true });
-  const snapshotDir = await antraegeDir.getDirectoryHandle('snapshot', { create: true });
-  const programmDir = await snapshotDir.getDirectoryHandle(programmId, { create: true });
-
-  const programmObj = await getProgramm(idb, programmId);
-  if (!programmObj) throw new Error(`Programm ${programmId} nicht in IDB`);
-
-  // Alle Stores AUSSER antraege laden + serialisieren — diese sind klein.
-  // antraege (13k × ~36 KB volle Records = ~470 MB als Array) wird getrennt per
-  // Cursor gestreamt, damit nie alle Records gleichzeitig im RAM liegen (OOM-Fix).
-  const antragHistorie = await listAntragHistorieByProgramm(idb, programmId);
-  const verbuende = await listVerbundsByProgramm(idb, programmId);
-  const verbundHistorie = await listVerbundHistorieByProgramm(idb, programmId);
-  const akronymIndex = await listAkronymIndexByProgramm(idb, programmId);
-  const csvSchemas = await listSchemasByProgramm(idb, programmId);
-  const csvRowHashes = await listRowHashesBySchemas(idb, csvSchemas.map(s => s.id));
-  const unterprogramme = await listUnterprogrammeByProgramm(idb, programmId);
-
-  const smallData: Partial<Record<SnapshotStoreName, { jsonl: string; count: number }>> = {
-    antrag_historie:  { jsonl: toJsonl(antragHistorie,  h => h.id),                   count: antragHistorie.length },
-    verbuende:        { jsonl: toJsonl(verbuende,       v => v.verbund_id),           count: verbuende.length },
-    verbund_historie: { jsonl: toJsonl(verbundHistorie, h => h.id),                   count: verbundHistorie.length },
-    akronym_index:    { jsonl: toJsonl(akronymIndex,    e => `${e.programm_id}:${e.akronym}`), count: akronymIndex.length },
-    csv_row_hashes:   { jsonl: toJsonl(csvRowHashes,    h => `${h.csv_schema_id}:${h.join_value}`), count: csvRowHashes.length },
-    programme:        { jsonl: toJsonl([programmObj],   p => p.id),                   count: 1 },
-    unterprogramme:   { jsonl: toJsonl(unterprogramme,  u => u.id),                   count: unterprogramme.length },
-    csv_schemas:      { jsonl: toJsonl(csvSchemas,      s => s.id),                   count: csvSchemas.length },
-  };
+  const programmDir = await navigateSnapshotDir(smbHandle, programmId, true);
+  const smallData = await loadSmallStoreData(idb, programmId);
 
   const stores: ProgrammSnapshotManifest['stores'] = {} as ProgrammSnapshotManifest['stores'];
   const written: SnapshotStoreName[] = [];
+  // Record-Hash-Map (aktenzeichen→murmur(line)) nur bauen, wenn als Delta-Basis
+  // gebraucht — sonst spart der Voll-Write den 14k-Murmur-Durchlauf.
+  const recordHashes: Record<string, string> = {};
   try {
     // 1) antraege per Cursor gestreamt: jeder Record wird sofort serialisiert
     //    (volles Objekt danach GC-frei). Output byte-identisch zu toJsonl —
     //    Cursor liefert nach aktenzeichen aufsteigend = derselbe Sort.
     {
       let lines: string[] = [];
-      await forEachAntragByProgramm(idb, programmId, a => { lines.push(JSON.stringify(a)); });
+      await forEachAntragByProgramm(idb, programmId, a => {
+        const line = JSON.stringify(a);
+        lines.push(line);
+        if (opts.emitDeltaBase) recordHashes[String(a.aktenzeichen)] = murmurhash3(line);
+      });
       const count = lines.length;
       const enc = new TextEncoder();
       const byteChunks: Uint8Array[] = [];
@@ -174,13 +232,9 @@ export async function writeProgrammSnapshot(
     }
 
     // 2) Restliche (kleine) Stores klassisch: Hash + atomicWrite.
-    for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
-      if (key === 'antraege') continue;
-      const d = smallData[key]!;
-      stores[key] = { count: d.count, hash: await sha256Hex(d.jsonl) };
-      await atomicWrite(programmDir, SNAPSHOT_FILES[key], d.jsonl, { skipBackup: true });
-      written.push(key);
-    }
+    const small = await writeSmallStores(programmDir, smallData);
+    Object.assign(stores, small.stores);
+    written.push(...small.written);
   } catch (writeErr) {
     // Best-effort cleanup: bereits geschriebene JSONL-Files entfernen, damit kein
     // halb-konsistenter Snapshot stehen bleibt. Fehler beim Cleanup werden
@@ -194,26 +248,158 @@ export async function writeProgrammSnapshot(
 
   const snapshotVersion = new Date().toISOString();
   const manifest: ProgrammSnapshotManifest = {
-    version: 1,
+    version: opts.emitDeltaBase ? 2 : 1,
     snapshotVersion,
     programmId,
     createdAt: snapshotVersion,
     createdBy,
     stores,
+    ...(opts.emitDeltaBase
+      ? { delta: { baseVersion: snapshotVersion, deltaStores: ['antraege'], deltas: [], cumulativeBytes: 0 } }
+      : {}),
   };
+  // Bei Compaction können alte Delta-Dateien zurückbleiben — beste-effort weg.
+  if (opts.emitDeltaBase) await removeStaleDeltaFiles(programmDir);
   await atomicWrite(programmDir, 'manifest.json', JSON.stringify(manifest, null, 2), { skipBackup: true });
 
-  // Lokales Sync-Tracking sofort auf den veroeffentlichten Stand setzen: der
-  // schreibende Client (Kurator) hat exakt diese Daten bereits lokal. Ohne das
-  // meldet useSnapshotWatcher den EIGENEN Snapshot als „neuer Datenbestand"
-  // (Bug: Banner bei jedem Neustart, weil der auf 1x/Tag gedrosselte Startup-
-  // Sync das Tracking am selben Tag nicht mehr nachzieht). Store-Hashes gleich
-  // mitsetzen, damit ein spaeterer (force-)Sync die Stores nicht unnoetig neu
-  // laedt. snapshotVersion + stores stammen aus genau diesen lokalen Daten.
+  // Lokales Sync-Tracking sofort auf den veroeffentlichten Stand setzen (siehe
+  // useSnapshotWatcher-Hinweis: sonst meldet der Schreiber seinen eigenen
+  // Snapshot als „neu"). Store-Hashes + (bei Delta-Basis) Cursor mitsetzen.
   await idb.set(SYNC_VERSION_KEY(programmId), snapshotVersion);
   for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
     await idb.set(SYNC_STORE_HASH_KEY(programmId, key), stores[key].hash);
   }
+  if (opts.emitDeltaBase) {
+    await idb.set(SYNC_BASE_VERSION_KEY(programmId), snapshotVersion);
+    await idb.set(SYNC_DELTA_SEQ_KEY(programmId), 0);
+    await idb.set(SNAPSHOT_RECORD_HASHES_KEY(programmId), recordHashes);
+  }
 
   return { snapshotVersion, manifest };
+}
+
+/** Entfernt zurückgebliebene `antraege.delta.*`-Dateien (Compaction/Bootstrap). */
+async function removeStaleDeltaFiles(programmDir: FileSystemDirectoryHandle): Promise<void> {
+  const dir = programmDir as unknown as { keys?: () => AsyncIterable<string> };
+  if (typeof dir.keys !== 'function') return; // Mock/alte Umgebung ohne keys()
+  try {
+    const names: string[] = [];
+    for await (const name of dir.keys()) {
+      if (name.startsWith('antraege.delta.')) names.push(name);
+    }
+    for (const name of names) await programmDir.removeEntry(name).catch(() => undefined);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Schreibt ein **Delta** (nur geänderte/entfernte antraege-Records) statt des
+ * vollen Snapshots — der Writer-Win (≈25 s → Sekunden) bei kleinen Tages-Deltas.
+ * Die kleinen Stores (verbuende, akronym_index, csv_schemas, …) werden weiter
+ * voll geschrieben (klein); die antraege-Basis bleibt unangetastet, ein
+ * `antraege.delta.<seq>.jsonl` kommt hinzu.
+ *
+ * Fällt auf einen Voll-Write (mit v2-Basis) zurück, wenn kein kompatibles
+ * v2-Manifest existiert ODER eine Compaction fällig ist (≥ MAX_DELTAS Deltas /
+ * Delta-Bytes > Basis). Hält denselben Build-Lock wie der Aufrufer.
+ */
+export async function writeProgrammSnapshotDelta(
+  idb: IDBStore,
+  smbHandle: FileSystemDirectoryHandle,
+  programmId: string,
+  createdBy: string,
+  change: { touchedAz: readonly string[]; removedAz: readonly string[] },
+): Promise<{ mode: 'delta' | 'full'; snapshotVersion: string }> {
+  const programmDir = await navigateSnapshotDir(smbHandle, programmId, true);
+
+  let existing: ProgrammSnapshotManifest | null = null;
+  try {
+    const t = await readText(programmDir, 'manifest.json');
+    if (t) existing = JSON.parse(t) as ProgrammSnapshotManifest;
+  } catch { existing = null; }
+
+  const baseStoreEntry = existing?.stores?.antraege;
+  const compatV2 = existing?.version === 2 && !!existing.delta
+    && existing.delta.deltaStores.includes('antraege') && !!baseStoreEntry;
+  const baseBytes = 0; // (Basis-Bytes nicht separat getrackt) → nur Delta-Anzahl als Heuristik
+  const needCompaction = !compatV2
+    || (existing!.delta!.deltas.length >= MAX_DELTAS)
+    || (baseBytes > 0 && existing!.delta!.cumulativeBytes > baseBytes);
+
+  if (needCompaction) {
+    const r = await writeProgrammSnapshot(idb, smbHandle, programmId, createdBy, { emitDeltaBase: true });
+    return { mode: 'full', snapshotVersion: r.snapshotVersion };
+  }
+
+  const delta = existing!.delta!;
+  const nextSeq = (delta.deltas.length ? delta.deltas[delta.deltas.length - 1]!.seq : 0) + 1;
+
+  // Removals = entfernt UND nicht (von einer anderen Quelle) wieder berührt.
+  const touchedSet = new Set(change.touchedAz);
+  const removedKeys = [...new Set(change.removedAz)].filter(k => !touchedSet.has(k));
+
+  // Nur die geänderten Records keyed laden (kein 14k-Cursor) + stabil sortieren.
+  const changedRecords = await getAntraegeByKeys(idb, [...touchedSet]);
+  changedRecords.sort((a, b) => (a.aktenzeichen < b.aktenzeichen ? -1 : a.aktenzeichen > b.aktenzeichen ? 1 : 0));
+  const changedLines = changedRecords.map(a => JSON.stringify(a));
+  const changedJsonl = changedLines.join('\n') + (changedLines.length ? '\n' : '');
+  const changedFile = `antraege.delta.${nextSeq}.jsonl`;
+
+  // Kleine Stores voll neu schreiben (ändern sich beim Import: schemas/verbuende/…).
+  const smallData = await loadSmallStoreData(idb, programmId);
+  const { stores: smallStores } = await writeSmallStores(programmDir, smallData);
+
+  await atomicWrite(programmDir, changedFile, changedJsonl, { skipBackup: true });
+  let removedKeysField: string[] | undefined = removedKeys;
+  let removedFileField: string | undefined;
+  if (removedKeys.length > REMOVED_INLINE_MAX) {
+    removedFileField = `antraege.delta.${nextSeq}.removed.txt`;
+    await atomicWrite(programmDir, removedFileField, removedKeys.join('\n') + '\n', { skipBackup: true });
+    removedKeysField = undefined;
+  }
+
+  const snapshotVersion = new Date().toISOString();
+  const entry: SnapshotDeltaEntry = {
+    seq: nextSeq,
+    createdAt: snapshotVersion,
+    createdBy,
+    stores: {
+      antraege: {
+        changedFile,
+        removedKeys: removedKeysField,
+        removedFile: removedFileField,
+        hash: await sha256Hex(changedJsonl),
+        count: changedRecords.length,
+      },
+    },
+  };
+  const manifest: ProgrammSnapshotManifest = {
+    ...existing!,
+    version: 2,
+    snapshotVersion,
+    createdAt: snapshotVersion,
+    createdBy,
+    // antraege-Basis bleibt; kleine Stores frisch.
+    stores: { ...existing!.stores, ...smallStores },
+    delta: {
+      ...delta,
+      deltas: [...delta.deltas, entry],
+      cumulativeBytes: delta.cumulativeBytes + changedJsonl.length,
+    },
+  };
+  await atomicWrite(programmDir, 'manifest.json', JSON.stringify(manifest, null, 2), { skipBackup: true });
+
+  // Lokale Cursor + Hash-Map nachziehen, damit der Schreiber sein eigenes Delta
+  // nicht re-sync't und der Watcher keinen Fehlalarm gibt.
+  await idb.set(SYNC_VERSION_KEY(programmId), snapshotVersion);
+  await idb.set(SYNC_BASE_VERSION_KEY(programmId), delta.baseVersion);
+  for (const [key, v] of Object.entries(smallStores)) {
+    await idb.set(SYNC_STORE_HASH_KEY(programmId, key as SnapshotStoreName), v.hash);
+  }
+  const hashes = (await idb.get<Record<string, string>>(SNAPSHOT_RECORD_HASHES_KEY(programmId))) ?? {};
+  for (let i = 0; i < changedRecords.length; i++) hashes[changedRecords[i]!.aktenzeichen] = murmurhash3(changedLines[i]!);
+  for (const k of removedKeys) delete hashes[k];
+  await idb.set(SNAPSHOT_RECORD_HASHES_KEY(programmId), hashes);
+  await idb.set(SYNC_DELTA_SEQ_KEY(programmId), nextSeq);
+
+  return { mode: 'delta', snapshotVersion };
 }

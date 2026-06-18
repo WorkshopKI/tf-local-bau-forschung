@@ -351,6 +351,11 @@ export interface ImportResult {
   deletedByDeaktivierung?: Record<string, number>; // code → anzahl gelöschter Anträge
   /** Per-Phasen-Timing (parse/hashDiff/merge/snapshotWrite). */
   importTimings?: ImportTimings;
+  /** Aktenzeichen, die der Merge neu/geändert hat (für den Delta-Snapshot-Write,
+   *  v2.97). Leer wenn kein Merge lief (skip/keine Deltas). */
+  changedAktenzeichen?: string[];
+  /** Aktenzeichen, die der Merge entfernt hat. */
+  removedAktenzeichen?: string[];
 }
 
 export interface ParsedRow {

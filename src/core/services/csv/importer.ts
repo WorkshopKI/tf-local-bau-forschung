@@ -3,7 +3,8 @@ import { logAudit } from '../infrastructure/audit-log';
 import { acquireBuildLock, forceLock, releaseLock, heartbeat, HEARTBEAT_INTERVAL_MS } from '../infrastructure/build-lock';
 import { getSmbHandle } from '../infrastructure/smb-handle';
 import { readKuratorName } from '../infrastructure/kurator-config';
-import { writeProgrammSnapshot } from './snapshot';
+import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from './snapshot';
+import { isDeltaSnapshotWriteEnabled } from '@/config/feature-flags';
 import { BUILD_LOCK_STUFE, MAX_SKIP_WARNINGS } from './constants';
 import { canonicalRowHash } from './hash';
 import { sha1Hex } from './sha1';
@@ -263,10 +264,12 @@ export async function importCsvSource(
     rows = [];
 
     // Merge für alle betroffenen Antraege (IDB-Writes pro Antrag)
+    let mergeTouched: string[] = [];
+    let mergeRemoved: string[] = [];
     if (hasDeltas) {
       opts.onProgress?.({ phase: 'merging', done: 0, total: 0 });
       const tMerge = performance.now();
-      await runMergeForDeltas({
+      const mr = await runMergeForDeltas({
         idb,
         schema: updatedSchema,
         newJoinValues,
@@ -275,8 +278,14 @@ export async function importCsvSource(
         onProgress: (done, total) =>
           opts.onProgress?.({ phase: 'merging', done, total }),
       });
+      mergeTouched = mr.touchedAz;
+      mergeRemoved = mr.removedAz;
       timings.mergeMs = performance.now() - tMerge;
     }
+    // Geänderte/entfernte Antrag-Keys nach oben reichen — der Batch-Caller
+    // (runAutoRefresh) sammelt sie für EINEN Delta-Snapshot-Write (v2.97).
+    result.changedAktenzeichen = mergeTouched;
+    result.removedAktenzeichen = mergeRemoved;
 
     // Hashes + Schema NACH erfolgreichem Merge persistieren — Cancel zwischen
     // Diff und Merge hat dann nichts in IDB hinterlassen.
@@ -305,7 +314,11 @@ export async function importCsvSource(
         opts.onProgress?.({ phase: 'finalizing', done: 2, total: 4, stage: 'Snapshot in Daten-Share schreiben (kann einige Sekunden dauern)' });
         const kuratorName = (await readKuratorName(idb).catch(() => null)) ?? 'unbekannt';
         const tSnap = performance.now();
-        await writeProgrammSnapshot(idb, handle, schema.programm_id, kuratorName);
+        if (isDeltaSnapshotWriteEnabled()) {
+          await writeProgrammSnapshotDelta(idb, handle, schema.programm_id, kuratorName, { touchedAz: mergeTouched, removedAz: mergeRemoved });
+        } else {
+          await writeProgrammSnapshot(idb, handle, schema.programm_id, kuratorName);
+        }
         timings.snapshotWriteMs = performance.now() - tSnap;
         opts.onProgress?.({ phase: 'finalizing', done: 3, total: 4, stage: 'Audit-Log' });
         // Audit-Write selbst defensiv — sonst landet ein erfolgreicher Snapshot
@@ -371,7 +384,7 @@ interface MergeArgs {
   onProgress?: (done: number, total: number) => void;
 }
 
-async function runMergeForDeltas(args: MergeArgs): Promise<void> {
+async function runMergeForDeltas(args: MergeArgs): Promise<{ touchedAz: string[]; removedAz: string[] }> {
   const { idb, schema, newJoinValues, changedJoinValues, removedJoinValues, onProgress } = args;
   const touchedAz = new Set<string>();
   let removedAz: string[] = [];
@@ -406,4 +419,5 @@ async function runMergeForDeltas(args: MergeArgs): Promise<void> {
     onProgress,
   );
   logMem('merge:done');
+  return { touchedAz: [...touchedAz], removedAz };
 }

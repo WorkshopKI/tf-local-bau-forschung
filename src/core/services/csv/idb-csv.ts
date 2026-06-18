@@ -174,6 +174,17 @@ export async function deleteAntraegeByKeys(idb: IDBStore, keys: string[]): Promi
   }
 }
 
+/** Liest Antraege per aktenzeichen-Key (keyed Multi-Get in EINER Transaction) —
+ *  für den Delta-Snapshot-Schreiber: nur die geänderten Records, ohne den
+ *  14k-Voll-Cursor. Nicht (mehr) vorhandene Keys werden übersprungen. */
+export async function getAntraegeByKeys(idb: IDBStore, keys: string[]): Promise<Antrag[]> {
+  if (keys.length === 0) return [];
+  const t = tx(idb, CSV_STORES.ANTRAEGE, 'readonly');
+  const s = t.objectStore(CSV_STORES.ANTRAEGE);
+  const results = await Promise.all(keys.map(k => req<Antrag | undefined>(s.get(k))));
+  return results.filter((a): a is Antrag => a != null);
+}
+
 export async function listAntraegeByProgramm(idb: IDBStore, programmId: string): Promise<Antrag[]> {
   const t = tx(idb, CSV_STORES.ANTRAEGE, 'readonly');
   const idx = t.objectStore(CSV_STORES.ANTRAEGE).index('programm_id');
