@@ -21,6 +21,7 @@ import type { CsvSchema } from '@/core/services/csv/types';
 import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
 import { parseCsvPreview } from '@/core/services/csv';
 import { sha1Hex } from '@/core/services/csv/sha1';
+import { isFixtureSchemaId } from '@/core/services/seed/fixture-ids';
 import { validateHeaders } from './services/csv-drift-check';
 import { saveSharedCsvFilenames } from './csv-source-filenames';
 // Keys in Core definiert (zentrale IDB-Key-Registry) — die Per-Datei-Handles
@@ -208,6 +209,8 @@ export async function resolveFileViaDir(
 
 export type UpdateCheckResult =
   | { state: 'no_handle' }
+  /** Dev-Seed-Fixture (docs/fixtures) — keine externe Quelle, nie ein Auto-Update-Kandidat. */
+  | { state: 'local_fixture' }
   | { state: 'permission_required'; handle: FileSystemFileHandle | null; fileName: string }
   | { state: 'file_missing'; reason: string }
   | { state: 'up_to_date'; lastModified: number; fileName: string }
@@ -269,6 +272,13 @@ export async function checkSourceForUpdate(
   idb: IDBStore,
   schema: CsvSchema,
 ): Promise<UpdateCheckResult> {
+  // Dev-Seed-Fixtures (fixture-real-*) haben keine externe Quelldatei — sie
+  // werden aus gebündelten Blobs eingespielt. Ohne diesen Early-Return koppelt
+  // der Header-Fallback in `resolveFileViaDir` sie an eine zufällig passende
+  // echte Share-CSV (z.B. die 65-MB-9052-Datei) und bietet an, das 14-Zeilen-
+  // Sample mit ~42k Echt-Zeilen zu überschreiben. Nie ein Update-Kandidat.
+  if (isFixtureSchemaId(schema.id)) return { state: 'local_fixture' };
+
   // v2.27: bevorzugt das verknüpfte Ordner-Handle (Permission kaskadiert auf
   // alle CSVs → ein Re-Grant deckt alle ab). Per-Datei-Handle bleibt Fallback.
   const dirHandle = await getCsvSourceDirHandle(idb);

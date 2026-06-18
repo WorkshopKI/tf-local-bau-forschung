@@ -303,7 +303,9 @@ export function CsvSourcesPage(): React.ReactElement {
                       title={
                         hasUpdate && update.state === 'update_available'
                           ? `Neuere Version vom ${new Date(update.lastModified).toLocaleString('de-DE')} importieren`
-                          : update?.state === 'no_handle'
+                          : update?.state === 'local_fixture'
+                            ? 'Dev-Test-Fixture (docs/fixtures) — keine externe Quelle zum Aktualisieren'
+                            : update?.state === 'no_handle'
                             ? "Noch keine Quelldatei registriert — einmal 'CSV neu wählen' nutzen, damit Auto-Update aktiv wird"
                             : update?.state === 'permission_required'
                               ? "Datei-Zugriff nicht erlaubt — 'CSV neu wählen' nutzen, um die Quelldatei neu zuzuweisen"
