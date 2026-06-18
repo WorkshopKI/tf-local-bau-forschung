@@ -224,6 +224,20 @@ export async function importCsvSource(
     result.skippedJoinValues = skippedWarnings;
     timings.hashDiffMs = performance.now() - tDiff;
 
+    // Frühwarnung CSV-Format-Drift: wenn fast ALLE Zeilen als „geändert" gelten,
+    // hat sich meist nicht der Inhalt, sondern das Export-FORMAT geändert
+    // (Encoding, Zahlen-/Datumsformatierung, z.B. via Excel-Roundtrip). Der
+    // Import ist dann korrekt, aber unnötig teuer (Voll-Merge + Voll-Write).
+    const changedRows = result.buckets.new + result.buckets.changed;
+    if (rows.length > 200 && changedRows > rows.length * 0.8) {
+      const pct = Math.round((changedRows / rows.length) * 100);
+      console.warn(`[csv-import] möglicher CSV-Format-Drift: ${changedRows}/${rows.length} Zeilen (${pct}%) als geändert erkannt — Encoding/Zahlen-/Datumsformat des Exports prüfen (nicht über Excel speichern).`);
+      await logAudit(idb, {
+        action: 'csv_import_format_drift_warning',
+        details: { schemaId, schemaName: schema.csv_source_name, changedRows, totalRows: rows.length, pct },
+      }).catch(() => undefined);
+    }
+
     // updatedSchema in-memory bauen (Cancel-Barriere bereits passiert)
     const updatedSchema: CsvSchema = {
       ...schema,
