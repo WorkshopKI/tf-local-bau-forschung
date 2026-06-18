@@ -33,14 +33,18 @@ describe('deriveUserChangelogFromDev', () => {
   it('gruppiert Patches unter ihrer Minor (## vX.Y), ohne Patch-Nummern', () => {
     expect(out).toContain('## v2.98');
     expect(out).toContain('## v2.97');
-    // Patch-Versionen tauchen NICHT als eigene Einträge auf (Anforderung x.yy statt x.yy.zz)
     expect(out).not.toContain('v2.98.1');
     expect(out).not.toContain('v2.98.0');
   });
 
-  it('nimmt beide Patch-Titel einer Minor als Bullets auf', () => {
-    expect(out).toContain('- Delta-Write: Voll-Write-Fallback');
-    expect(out).toContain('- Delta-Snapshots: Schreiber aktiv');
+  it('bündelt nach Kategorie in ### Untersektionen (MINOR→Feature, PATCH→Fix)', () => {
+    expect(out).toContain('### Neu & Verbesserungen');
+    expect(out).toContain('### Fehlerbehebungen');
+    // MINOR-Bump landet unter Feature, PATCH-Bump unter Fix
+    const featureIdx = out.indexOf('- Delta-Snapshots: Schreiber aktiv');
+    const fixIdx = out.indexOf('- Delta-Write: Voll-Write-Fallback');
+    expect(featureIdx).toBeGreaterThan(out.indexOf('### Neu & Verbesserungen'));
+    expect(fixIdx).toBeGreaterThan(out.indexOf('### Fehlerbehebungen'));
   });
 
   it('entfernt Inline-Links, Backticks und die Datums-Klammer aus Titeln', () => {
@@ -56,7 +60,7 @@ describe('deriveUserChangelogFromDev', () => {
   });
 });
 
-describe('parseUserChangelog', () => {
+describe('parseUserChangelog — Struktur + Kategorien', () => {
   it('gruppiert nach Major und sortiert Major + Minor absteigend', () => {
     const md = ['## v2.97', '- a', '', '## v2.98', '- b', '', '## v3.0', '- c'].join('\n');
     const groups = parseUserChangelog(md);
@@ -65,20 +69,32 @@ describe('parseUserChangelog', () => {
     expect(major2.label).toBe('Version 2');
     expect(major2.minors.map((m) => m.minor)).toEqual([98, 97]);
     expect(major2.minors[0]!.label).toBe('v2.98');
-    expect(major2.minors[0]!.bodyMarkdown).toBe('- b');
   });
 
-  it('behält `###`-Untersektionen im Body (splittet nur an ## vX.Y)', () => {
+  it('leitet die Kategorie aus ### Untersektionen ab', () => {
     const md = ['## v2.98', '### Neu', '- x', '### Bugfixes', '- y'].join('\n');
     const [maj] = parseUserChangelog(md);
-    expect(maj!.minors[0]!.bodyMarkdown).toContain('### Neu');
-    expect(maj!.minors[0]!.bodyMarkdown).toContain('### Bugfixes');
+    const changes = maj!.minors[0]!.changes;
+    expect(changes).toEqual([
+      { text: 'x', category: 'feature' },
+      { text: 'y', category: 'fix' },
+    ]);
   });
 
-  it('Round-Trip: abgeleitete Markdown ist wieder parsebar', () => {
+  it('klassifiziert Bullets ohne Untersektion per Keyword', () => {
+    const md = ['## v2.50', '- Fix für Absturz beim Start', '- Neue Tab-Ansicht'].join('\n');
+    const [maj] = parseUserChangelog(md);
+    const changes = maj!.minors[0]!.changes;
+    expect(changes[0]).toEqual({ text: 'Fix für Absturz beim Start', category: 'fix' });
+    expect(changes[1]).toEqual({ text: 'Neue Tab-Ansicht', category: 'feature' });
+  });
+
+  it('Round-Trip: abgeleitete Markdown ist wieder parsebar inkl. Kategorien', () => {
     const groups = parseUserChangelog(deriveUserChangelogFromDev(DEV_SAMPLE, { major: 2 }));
     expect(groups).toHaveLength(1);
-    expect(groups[0]!.minors.map((m) => m.minor)).toEqual([98, 97]);
+    const v298 = groups[0]!.minors.find((m) => m.minor === 98)!;
+    expect(v298.changes).toContainEqual({ text: 'Delta-Snapshots: Schreiber aktiv', category: 'feature' });
+    expect(v298.changes).toContainEqual({ text: 'Delta-Write: Voll-Write-Fallback', category: 'fix' });
   });
 });
 

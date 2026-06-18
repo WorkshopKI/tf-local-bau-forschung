@@ -2,7 +2,9 @@
  * Nutzer-Changelog-Modal — geöffnet per Klick auf die Versionsnummer in der
  * Sidebar (BuildInfo). Zeigt „Was ist neu?" gruppiert nach Hauptnummer (Major)
  * als ausklappbare Über-Überschrift (aktuelle Major auf, frühere zu) und darunter
- * die Minor-Versionen `x.yy` als ausklappbare Abschnitte mit Markdown-Details.
+ * die Minor-Versionen `x.yy` als ausklappbare Abschnitte. Jede Änderung trägt eine
+ * Kategorie (Neu & geändert / Bugfix); ein Filter oben blendet nur die jeweils
+ * gewünschte Kategorie ein.
  *
  * Inhalt: bevorzugt die geglättete `changelog-user.md`, sonst aus der
  * entwickler-orientierten CHANGELOG.md (+ Archiv) abgeleitet (siehe deriveChangelog).
@@ -10,25 +12,44 @@
  * Pitfall #1/#2 — kein Runtime-fetch).
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { marked } from 'marked';
 // Markdown-Quellen werden zur Build-Zeit als String eingebettet (?raw).
 import devChangelogRaw from '../../../../CHANGELOG.md?raw';
 import archivChangelogRaw from '../../../../docs/CHANGELOG-ARCHIV.md?raw';
 import userChangelogRaw from './changelog-user.md?raw';
 import { Dialog } from '@/components/ui/dialog';
-import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { MarkdownRenderer, sanitizeHtml } from '@/components/ui/MarkdownRenderer';
+import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { appVersion } from '@/config/runtime-config';
 import { isDevContext } from '@/config/feature-flags';
-import { getChangelogMarkdown, parseUserChangelog } from './deriveChangelog';
+import { getChangelogMarkdown, parseUserChangelog, type ChangeCategory } from './deriveChangelog';
 import { ChangelogPolishPanel } from './ChangelogPolishPanel';
+
+type FilterKey = 'all' | ChangeCategory;
+
+const CATEGORY_ORDER: ChangeCategory[] = ['feature', 'fix'];
+
+const CATEGORY_META: Record<ChangeCategory, { label: string; badge: 'success' | 'warning' }> = {
+  feature: { label: 'Neu & Verbesserungen', badge: 'success' },
+  fix: { label: 'Fehlerbehebungen', badge: 'warning' },
+};
 
 const TRIGGER_BASE =
   'flex w-full items-center justify-between gap-2 rounded-[var(--tf-radius)] px-3 text-left ' +
   'transition-colors hover:bg-[var(--tf-hover)] [&[data-state=open]>svg]:rotate-180';
 
+/** Einzeiliger Änderungstext mit leichtem Inline-Markdown (z.B. **fett**). */
+function ChangeText({ text }: { text: string }): React.ReactElement {
+  const html = useMemo(() => sanitizeHtml(marked.parseInline(text, { async: false }) as string), [text]);
+  return <span dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
+  const [filter, setFilter] = useState<FilterKey>('all');
+
   const currentMajor = useMemo(() => {
     const n = Number.parseInt(appVersion.split('.')[0] ?? '', 10);
     return Number.isFinite(n) ? n : 0;
@@ -41,7 +62,51 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
 
   const majors = useMemo(() => parseUserChangelog(markdown), [markdown]);
 
+  const counts = useMemo(() => {
+    let feature = 0;
+    let fix = 0;
+    for (const maj of majors) {
+      for (const min of maj.minors) {
+        for (const c of min.changes) {
+          if (c.category === 'fix') fix += 1;
+          else feature += 1;
+        }
+      }
+    }
+    return { all: feature + fix, feature, fix };
+  }, [majors]);
+
   if (!open) return null;
+
+  const matches = (cat: ChangeCategory): boolean => filter === 'all' || filter === cat;
+
+  const filters: { key: FilterKey; label: string; count: number; activeClass: string }[] = [
+    { key: 'all', label: 'Alle', count: counts.all, activeClass: 'bg-[var(--tf-text)] text-[var(--tf-bg)]' },
+    {
+      key: 'feature',
+      label: CATEGORY_META.feature.label,
+      count: counts.feature,
+      activeClass: 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]',
+    },
+    {
+      key: 'fix',
+      label: 'Bugfixes',
+      count: counts.fix,
+      activeClass: 'bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]',
+    },
+  ];
+
+  // Sichtbare Majors/Minors für den aktiven Filter vorab bestimmen (leere ausblenden).
+  const visibleMajors = majors
+    .map((maj) => ({
+      ...maj,
+      minors: maj.minors.filter(
+        (min) =>
+          min.changes.some((c) => matches(c.category)) ||
+          (filter === 'all' && min.changes.length === 0 && min.bodyMarkdown.length > 0),
+      ),
+    }))
+    .filter((maj) => maj.minors.length > 0);
 
   return (
     <Dialog
@@ -52,13 +117,29 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
       size="lg"
       align="center"
     >
-      {majors.length === 0 ? (
+      {/* Kategorie-Filter (klebt am oberen Rand des scrollbaren Inhalts) */}
+      <div className="sticky top-0 z-10 -mx-6 mb-3 flex items-center gap-1 border-b border-[var(--tf-border)] bg-[var(--tf-bg)] px-6 pb-2 pt-1">
+        {filters.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+              filter === f.key ? f.activeClass : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+            }`}
+          >
+            {f.label} <span className="opacity-60">{f.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {visibleMajors.length === 0 ? (
         <p className="py-6 text-sm text-[var(--tf-text-secondary)]">
-          Für diese Version liegen noch keine aufbereiteten Änderungshinweise vor.
+          Keine Einträge in dieser Kategorie.
         </p>
       ) : (
         <div className="space-y-3 pb-2">
-          {majors.map((maj) => (
+          {visibleMajors.map((maj) => (
             <Collapsible
               key={maj.major}
               defaultOpen={maj.major === currentMajor}
@@ -80,7 +161,28 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
                       <ChevronDown size={15} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="px-3 pb-3 pt-1">
-                      <MarkdownRenderer content={min.bodyMarkdown} />
+                      {min.changes.length === 0 ? (
+                        <MarkdownRenderer content={min.bodyMarkdown} />
+                      ) : (
+                        CATEGORY_ORDER.filter(matches).map((cat) => {
+                          const items = min.changes.filter((c) => c.category === cat);
+                          if (items.length === 0) return null;
+                          return (
+                            <div key={cat} className="mb-2.5 last:mb-0">
+                              <Badge variant={CATEGORY_META[cat].badge} className="mb-1.5 text-[10px]">
+                                {CATEGORY_META[cat].label}
+                              </Badge>
+                              <ul className="list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-[var(--tf-text)]">
+                                {items.map((c, i) => (
+                                  <li key={i}>
+                                    <ChangeText text={c.text} />
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          );
+                        })
+                      )}
                     </CollapsibleContent>
                   </Collapsible>
                 ))}
