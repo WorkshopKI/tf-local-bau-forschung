@@ -4,6 +4,7 @@ import { readText } from '../infrastructure/atomic-write';
 import type { ProgrammSnapshotManifest, SnapshotStoreName } from './snapshot';
 import { SYNC_VERSION_KEY, SYNC_STORE_HASH_KEY, SYNC_LAST_CHECK_DAY_KEY } from './snapshot-keys';
 import { MAX_WRITES_PER_TX } from './constants';
+import { isDatenShareWritable } from '@/config/feature-flags';
 import { rebuildAntraegeListView, isListViewProjectionCurrent } from './list-view-migration';
 import {
   diffAntraegeLines,
@@ -189,6 +190,14 @@ export async function syncProgrammSnapshot(
       });
     };
     reportStore(0);
+    // csv_row_hashes braucht nur ein Writer-Build (Import-Diff in importer.ts);
+    // read-only prod-Konsumenten lesen es nie zurück. Den Download (~14k Zeilen)
+    // dort sparen — größter Teil der Konsumenten-Flotte (30×) lädt es täglich
+    // sonst umsonst. Writer (pl/kurator/dev) laden es wie bisher.
+    if (storeKey === 'csv_row_hashes' && !isDatenShareWritable()) {
+      storesDone++;
+      continue;
+    }
     const localHash = await idb.get<string>(SYNC_STORE_HASH_KEY(programmId, storeKey));
     const remoteHash = manifest.stores[storeKey].hash;
     if (localHash === remoteHash) {
