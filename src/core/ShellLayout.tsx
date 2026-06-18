@@ -21,6 +21,7 @@ import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { SmbBanner } from '@/core/components/SmbBanner';
 import { OfflineBanner } from '@/core/OfflineBanner';
 import { NewSnapshotBanner } from '@/core/components/NewSnapshotBanner';
+import { StartupDataUpdateBanner } from '@/core/components/StartupDataUpdateBanner';
 import { useSnapshotWatcher } from '@/core/hooks/useSnapshotWatcher';
 import { useAuslastungCorpusAutoload } from '@/core/hooks/useAuslastungCorpusAutoload';
 import { useHeartbeat } from '@/core/services/presence';
@@ -399,6 +400,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
           {isDataShareEnabled() && (
             <SmbBanner status={smbStatus.status} lastCheck={smbStatus.lastCheck} idb={storage.idb} />
           )}
+          {isDataShareEnabled() && <StartupDataUpdateBanner />}
           {(isKuratorMenusEnabled() || isCsvAutoRefreshEnabled()) && <CsvAutoRefreshBanner />}
           {isDataShareEnabled() && <NewSnapshotBanner state={snapshotWatcher} />}
           <div className="flex-1 overflow-y-auto relative">

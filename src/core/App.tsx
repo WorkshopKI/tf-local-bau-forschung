@@ -39,8 +39,9 @@ import { useConnectionState } from '@/core/services/connection-status';
 import { useVisibilityPermissionProbe } from '@/core/hooks/useVisibilityPermissionProbe';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
 
-/** Stabiles, phasen-basiertes Toast-Label fürs Start-Daten-Update (ohne
- *  Fraction, damit es pro Phase nur einmal wechselt — kein Re-Render-Sturm). */
+/** Stabiles, phasen-basiertes Label fürs Start-Daten-Update. Die Fraction kommt
+ *  separat aus `p.fraction` in den Fortschrittsbalken (im onPhase-Callback
+ *  gedrosselt in den Store geschrieben — kein Re-Render-Sturm). */
 function phaseToastLabel(p: DataUpdatePhase): string {
   switch (p.phase) {
     case 'snapshot':   return 'Datenbestand wird aktualisiert…';
@@ -77,7 +78,7 @@ function AppProviders({
   needsInitialPick,
   initialProfile,
   seedToast, setSeedToast,
-  syncToast, setSyncToast, syncBusy,
+  syncToast, setSyncToast,
 }: {
   storage: StorageService;
   aiBridge: AIBridge;
@@ -101,8 +102,6 @@ function AppProviders({
   setSeedToast: (v: string | null) => void;
   syncToast: string | null;
   setSyncToast: (v: string | null) => void;
-  /** true während der Start-Datenaktualisierung läuft → Spinner statt 📥. */
-  syncBusy: boolean;
 }): React.ReactElement {
   const searchValue = useSearchProvider(storage);
   const tagValue = useTagProvider(storage);
@@ -205,14 +204,7 @@ function AppProviders({
                   role="status"
                 >
                   <div className="flex items-start gap-2">
-                    {syncBusy ? (
-                      <span
-                        className="mt-0.5 inline-block w-3.5 h-3.5 rounded-full border-2 border-[var(--tf-border)] border-t-[var(--tf-primary)] animate-spin"
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <span>📥</span>
-                    )}
+                    <span>📥</span>
                     <div className="flex-1">{syncToast}</div>
                     <button
                       type="button"
@@ -255,7 +247,6 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const [initialProfile, setInitialProfile] = useState<UserProfile | null>(null);
   const [seedToast, setSeedToast] = useState<string | null>(null);
   const [syncToast, setSyncToast] = useState<string | null>(null);
-  const [syncBusy, setSyncBusy] = useState(false);
   // v2.16: Rollen-Passwort-Wall (pl + kurator, runtimeConfig.auth). Loest die
   // v2.10-Kurator-Wall ab — vereinheitlicht ueber AppPasswordGate.
   const [showAppGate, setShowAppGate] = useState(false);
@@ -515,15 +506,23 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         // `running` markiert den Pass, damit der Snapshot-Watcher nicht parallel
         // seinen „Jetzt laden"-Banner für genau diesen Snapshot zeigt.
         useStartupDataStatus.getState().setPhase('running');
-        setSyncBusy(true);
         let lastLabel: string | null = null;
+        let lastPct = -1;
         try {
           const r = await runDataUpdate(storage.idb, handle, {
             signal: { get cancelled() { return cancelled; } },
             onPhase: p => {
               if (cancelled) return;
               const label = phaseToastLabel(p);
-              if (label !== lastLabel) { lastLabel = label; setSyncToast(label); }
+              const pct = Math.round(p.fraction * 100);
+              // Gedrosselt: nur bei Label- ODER Prozent-Wechsel in den Store
+              // schreiben → der Fortschritts-Banner re-rendert max. ~100×/Phase
+              // statt bei jedem feinkörnigen fraction-Tick.
+              if (label !== lastLabel || pct !== lastPct) {
+                lastLabel = label;
+                lastPct = pct;
+                useStartupDataStatus.getState().setProgress({ label, fraction: p.fraction });
+              }
             },
           });
           if (cancelled) return;
@@ -540,8 +539,9 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
             setSyncToast(null);
           }
         } finally {
-          // Spinner aus, sobald der Pass endet (Erfolg, „nichts Neues" oder Abbruch).
-          setSyncBusy(false);
+          // Fortschritts-Banner ausblenden, sobald der Pass endet (Erfolg,
+          // „nichts Neues" oder Abbruch).
+          useStartupDataStatus.getState().setProgress(null);
           // Pass abgeschlossen → Watcher darf (ab jetzt) Banner für ECHTE,
           // erst danach geschriebene Fremd-Snapshots zeigen. Bei einem
           // gecancelten Re-Run (Gate-Übergang) NICHT auf 'done' flippen — der
@@ -590,7 +590,6 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       setSeedToast={setSeedToast}
       syncToast={syncToast}
       setSyncToast={setSyncToast}
-      syncBusy={syncBusy}
     />
   );
 }

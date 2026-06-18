@@ -20,12 +20,29 @@ import { create } from 'zustand';
  */
 export type StartupDataPhase = 'idle' | 'running' | 'done';
 
+/**
+ * Laufender Fortschritt des Start-Passes für die Banner-Anzeige im ShellLayout
+ * ([StartupDataUpdateBanner]). `null` = kein Pass aktiv → Banner blendet aus.
+ * `label` ist das phasen-basierte Toast-/Banner-Label, `fraction` der Anteil
+ * 0..1 innerhalb der aktuellen Phase. Getrennt von `phase` (Watcher-Koordination),
+ * damit Selektor-Konsumenten von `s => s.phase` nicht bei jedem Fortschritts-Tick
+ * re-rendern.
+ */
+export interface StartupDataProgress {
+  label: string;
+  fraction: number;
+}
+
 interface StartupDataStatusState {
   phase: StartupDataPhase;
   setPhase: (p: StartupDataPhase) => void;
+  progress: StartupDataProgress | null;
+  setProgress: (p: StartupDataProgress | null) => void;
 }
 
 export const useStartupDataStatus = create<StartupDataStatusState>((set) => ({
   phase: 'idle',
   setPhase: (phase) => set({ phase }),
+  progress: null,
+  setProgress: (progress) => set({ progress }),
 }));
