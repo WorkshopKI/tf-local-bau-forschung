@@ -10,17 +10,21 @@ import {
   type QualitaetsRegel,
   type SkillRecord,
   type SkillRegistryFile,
+  type WorkflowStep,
 } from '@/core/services/skills';
 import { useSkillRegistry } from './useSkillRegistry';
 import { SkillsTab } from './SkillsTab';
 import { RegelnTab } from './RegelnTab';
+import { WorkflowsTab } from './WorkflowsTab';
 import { SkillEditor } from './SkillEditor';
 import { RegelEditor } from './RegelEditor';
+import { WorkflowEditor } from './WorkflowEditor';
 import { SkillTestlauf } from './SkillTestlauf';
 import { RegistryViewModeToggle, type RegistryViewMode } from './RegistryViewModeToggle';
 import { blankRegel, upsertRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
+import { blankStep, getWorkflowDef, upsertStep, withWorkflowSteps } from './workflowShared';
 
-type TabId = 'skills' | 'regeln';
+type TabId = 'skills' | 'regeln' | 'workflows';
 
 const VIEW_MODE_KEY = 'teamflow_skillreg_view_mode';
 const VIEW_MODES: RegistryViewMode[] = ['list', 'table', 'cards'];
@@ -41,14 +45,14 @@ function blankSkill(): SkillRecord {
 }
 
 function loadViewModes(): Record<TabId, RegistryViewMode> {
-  const fallback: Record<TabId, RegistryViewMode> = { skills: 'table', regeln: 'table' };
+  const fallback: Record<TabId, RegistryViewMode> = { skills: 'table', regeln: 'table', workflows: 'list' };
   try {
     const raw = localStorage.getItem(VIEW_MODE_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<Record<TabId, unknown>>;
     const pick = (v: unknown, def: RegistryViewMode): RegistryViewMode =>
       typeof v === 'string' && (VIEW_MODES as string[]).includes(v) ? (v as RegistryViewMode) : def;
-    return { skills: pick(parsed.skills, 'table'), regeln: pick(parsed.regeln, 'table') };
+    return { skills: pick(parsed.skills, 'table'), regeln: pick(parsed.regeln, 'table'), workflows: 'list' };
   } catch {
     return fallback;
   }
@@ -63,6 +67,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const [viewModes, setViewModes] = useState<Record<TabId, RegistryViewMode>>(loadViewModes);
   const [editingSkill, setEditingSkill] = useState<{ skill: SkillRecord; isNew: boolean } | null>(null);
   const [editingRegel, setEditingRegel] = useState<{ regel: QualitaetsRegel | null; isNew: boolean } | null>(null);
+  const [editingStep, setEditingStep] = useState<{ step: WorkflowStep; isNew: boolean } | null>(null);
   const [testlauf, setTestlauf] = useState<Testlauf | null>(null);
   const save = useAsyncAction(async (next: SkillRegistryFile) => { await reg.persist(next); });
 
@@ -119,13 +124,26 @@ export function SkillVerwaltungPage(): React.ReactElement {
     }).then(() => setEditingRegel(null));
   };
 
+  // — Workflow-Schritt-Aktionen (eine WorkflowDef in v1; Version-Bump pro Persist) —
+  const saveStep = async (step: WorkflowStep): Promise<void> => {
+    const steps = upsertStep(getWorkflowDef(file).steps, step);
+    await reg.persist(withWorkflowSteps(file, steps));
+  };
+  const changeSteps = (steps: WorkflowStep[]): void => {
+    void save.run(withWorkflowSteps(file, steps));
+  };
+  const deleteStep = (step: WorkflowStep): void => {
+    void save.run(withWorkflowSteps(file, getWorkflowDef(file).steps.filter(s => s.id !== step.id)))
+      .then(() => setEditingStep(null));
+  };
+
   // — Detail-Slot (Editor) fürs Master-Detail-Split — die frühere Vollseiten-
   //   Ersetzung der Liste ist seit v2.91 durch das Split-Layout abgelöst. Der
   //   Editor wird rechts neben der Liste gerendert; `closeEditor` (Back/Escape)
   //   räumt die Selektion. Editor-Inhalt bringt eigenen Scroll mit (Detail-Pane
   //   des Shells ist overflow-hidden). —
-  const hasDetail = !!(editingSkill || editingRegel);
-  const closeEditor = (): void => { setEditingSkill(null); setEditingRegel(null); };
+  const hasDetail = !!(editingSkill || editingRegel || editingStep);
+  const closeEditor = (): void => { setEditingSkill(null); setEditingRegel(null); setEditingStep(null); };
 
   let detail: React.ReactNode;
   if (editingSkill) {
@@ -166,15 +184,32 @@ export function SkillVerwaltungPage(): React.ReactElement {
         </div>
       </div>
     );
+  } else if (editingStep) {
+    detail = (
+      <div className="h-full overflow-y-auto">
+        <div className="px-8 py-9">
+          <WorkflowEditor
+            file={file}
+            step={editingStep.step}
+            isNew={editingStep.isNew}
+            canEdit={reg.canEdit}
+            onSave={saveStep}
+            onBack={closeEditor}
+            onDelete={editingStep.isNew ? undefined : () => deleteStep(editingStep.step)}
+          />
+        </div>
+      </div>
+    );
   }
 
-  const addLabel = tab === 'skills' ? '+ Neuer Skill' : '+ Neue Regel';
+  const addLabel = tab === 'skills' ? '+ Neuer Skill' : tab === 'regeln' ? '+ Neue Regel' : '+ Neuer Schritt';
   const searchPlaceholder = tab === 'skills'
     ? 'Skills durchsuchen (Name, Beschreibung, Prompt)'
     : 'Regeln durchsuchen (Name, Typ, Parameter)';
   const addAction = (): void => {
     if (tab === 'skills') setEditingSkill({ skill: blankSkill(), isNew: true });
-    else setEditingRegel({ regel: null, isNew: true });
+    else if (tab === 'regeln') setEditingRegel({ regel: null, isNew: true });
+    else setEditingStep({ step: blankStep(), isNew: true });
   };
 
   return (
@@ -190,7 +225,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
           {/* Unterstrich-Tabs links, Aktionen rechts */}
           <div className="flex items-end gap-4">
             <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">
-              {([['skills', 'Skills', file.skills.length], ['regeln', 'Qualitätsregeln', file.regeln.length]] as const).map(([id, label, count]) => {
+              {([['skills', 'Skills', file.skills.length], ['regeln', 'Qualitätsregeln', file.regeln.length], ['workflows', 'Workflows', getWorkflowDef(file).steps.length]] as const).map(([id, label, count]) => {
                 const isActive = tab === id;
                 return (
                   <button
@@ -211,7 +246,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
             </div>
 
             <div className="flex items-center gap-2 shrink-0 pb-2 ml-auto">
-              <RegistryViewModeToggle value={viewMode} onChange={setViewMode} />
+              {tab !== 'workflows' && <RegistryViewModeToggle value={viewMode} onChange={setViewMode} />}
               {reg.canEdit && (
                 <Button variant="outline" size="sm" onClick={addAction} className="h-8 whitespace-nowrap">
                   {addLabel}
@@ -220,18 +255,20 @@ export function SkillVerwaltungPage(): React.ReactElement {
             </div>
           </div>
 
-          {/* Suche */}
-          <div className="mt-2 pb-3 flex items-center gap-3">
-            <div className="relative flex-1 min-w-0 max-w-[640px]">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none" />
-              <Input
-                placeholder={searchPlaceholder}
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-7 h-8 w-full text-[12.5px]"
-              />
+          {/* Suche (für Skills/Regeln; der Workflow hat wenige, geordnete Schritte) */}
+          {tab !== 'workflows' && (
+            <div className="mt-2 pb-3 flex items-center gap-3">
+              <div className="relative flex-1 min-w-0 max-w-[640px]">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none" />
+                <Input
+                  placeholder={searchPlaceholder}
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="pl-7 h-8 w-full text-[12.5px]"
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -256,30 +293,35 @@ export function SkillVerwaltungPage(): React.ReactElement {
           <div className="rounded p-2.5 text-[12px] mb-4" style={{ background: 'var(--tf-danger-bg)', color: 'var(--tf-danger-text)' }}>⚠ {save.error}</div>
         )}
 
-        {tab === 'skills'
-          ? (
-            <SkillsTab
-              file={file}
-              canEdit={reg.canEdit}
-              search={search}
-              viewMode={viewMode}
-              onEdit={skill => setEditingSkill({ skill, isNew: false })}
-              onTestlauf={openTestlaufForSaved}
-              onDuplicate={duplicateSkill}
-              onDelete={removeSkill}
-            />
-          )
-          : (
-            <RegelnTab
-              file={file}
-              canEdit={reg.canEdit}
-              busy={save.busy}
-              search={search}
-              viewMode={viewMode}
-              onEdit={regel => setEditingRegel({ regel, isNew: false })}
-              onToggleAktiv={toggleAktiv}
-            />
-          )}
+        {tab === 'skills' ? (
+          <SkillsTab
+            file={file}
+            canEdit={reg.canEdit}
+            search={search}
+            viewMode={viewMode}
+            onEdit={skill => setEditingSkill({ skill, isNew: false })}
+            onTestlauf={openTestlaufForSaved}
+            onDuplicate={duplicateSkill}
+            onDelete={removeSkill}
+          />
+        ) : tab === 'regeln' ? (
+          <RegelnTab
+            file={file}
+            canEdit={reg.canEdit}
+            busy={save.busy}
+            search={search}
+            viewMode={viewMode}
+            onEdit={regel => setEditingRegel({ regel, isNew: false })}
+            onToggleAktiv={toggleAktiv}
+          />
+        ) : (
+          <WorkflowsTab
+            file={file}
+            canEdit={reg.canEdit}
+            onEditStep={step => setEditingStep({ step, isNew: false })}
+            onChangeSteps={changeSteps}
+          />
+        )}
           </div>
         )}
       />
