@@ -25,5 +25,5 @@
     }
   },
   "include": ["src", "vite-env.d.ts", "docs/fixtures/schema-*.ts"],
-  "exclude": ["src/core/services/eval-fixtures/cli.ts"]
+  "exclude": ["src/core/services/eval-fixtures/cli.ts", "src/core/services/skill-eval/cli.ts"]
 }
