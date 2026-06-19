@@ -77,11 +77,21 @@ export function WorkflowsTab({ file, canEdit, onEditStep, onChangeSteps }: Workf
                   <span className="flex items-center gap-2">
                     <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-[5px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">{step.kurz || '—'}</span>
                     <span className="text-[var(--tf-text)]">{step.label}</span>
+                    {step.rolle === 'llm_qs' && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)] whitespace-nowrap">KI-QS</span>
+                    )}
                   </span>
                 )}
                 subtitle={skillLabel}
-                meta={step.gateExpr && step.gateExpr !== 'immer' ? (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)] whitespace-nowrap">Gate: Teilvorhaben</span>
+                meta={(step.rolle !== 'llm_qs' && step.autoRetry) || (step.gateExpr && step.gateExpr !== 'immer') ? (
+                  <span className="flex items-center gap-1.5">
+                    {step.rolle !== 'llm_qs' && step.autoRetry && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)] whitespace-nowrap">Auto-Retry ×{step.maxRetries ?? 2}</span>
+                    )}
+                    {step.gateExpr && step.gateExpr !== 'immer' && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)] whitespace-nowrap">Gate: Teilvorhaben</span>
+                    )}
+                  </span>
                 ) : undefined}
                 actions={canEdit ? (
                   <div className="flex items-center gap-0.5">
