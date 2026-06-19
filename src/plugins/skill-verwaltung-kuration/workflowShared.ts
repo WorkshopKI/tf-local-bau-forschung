@@ -4,7 +4,7 @@
  * Persistenz läuft über `useSkillRegistry.persist` (self-gated).
  */
 import {
-  ZIM_EP_DEF, type SkillRegistryFile, type WorkflowDef, type WorkflowStep,
+  ZIM_EP_DEF, computeStepNumbers, type SkillRegistryFile, type WorkflowDef, type WorkflowStep,
 } from '@/core/services/skills';
 
 /** Die in v1 einzige kuratierbare WorkflowDef aus der Registry; Fallback Seed `ZIM_EP_DEF`. */
@@ -41,8 +41,11 @@ export function upsertStep(steps: readonly WorkflowStep[], step: WorkflowStep): 
  * Datei), wird sie aus dem Seed abgeleitet angelegt.
  */
 export function withWorkflowSteps(file: SkillRegistryFile, steps: WorkflowStep[]): SkillRegistryFile {
+  // Anzeige-Nummern (5 / 5a) aus der Hierarchie ableiten + mitpersistieren.
+  const nummern = computeStepNumbers(steps);
+  const nummeriert = steps.map(s => ({ ...s, nr: nummern.get(s.id) ?? s.nr }));
   const current = getWorkflowDef(file);
-  const updated: WorkflowDef = { ...current, version: current.version + 1, steps };
+  const updated: WorkflowDef = { ...current, version: current.version + 1, steps: nummeriert };
   const others = (file.workflows ?? []).filter(w => w.id !== updated.id);
   return { ...file, workflows: [...others, updated] };
 }

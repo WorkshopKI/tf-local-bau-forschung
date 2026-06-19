@@ -22,7 +22,12 @@ interface WorkflowEditorProps {
 
 export function WorkflowEditor({ file, step, isNew, canEdit, onSave, onDelete, onBack }: WorkflowEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<WorkflowStep>(step);
-  const nextVersion = getWorkflowDef(file).version + 1;
+  const def = getWorkflowDef(file);
+  const nextVersion = def.version + 1;
+  // Genau eine Ebene: gültige Parents sind Top-Level-Schritte (außer dem Schritt
+  // selbst). Hat der Schritt eigene Unterschritte, kann er selbst kein Kind werden.
+  const hatKinder = def.steps.some(s => s.parentStepId === draft.id);
+  const parentOptions = def.steps.filter(s => s.id !== draft.id && !s.parentStepId);
   const ro = !canEdit;
   const inputCls = 'w-full rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-transparent outline-none focus:border-[var(--tf-primary)] disabled:opacity-70 px-[11px] py-2 text-[13px] text-[var(--tf-text)]';
 
@@ -83,6 +88,23 @@ export function WorkflowEditor({ file, step, isNew, canEdit, onSave, onDelete, o
           >
             {GATE_OPTIONS.map(g => <option key={g} value={g}>{GATE_LABEL[g]}</option>)}
           </select>
+        </Field>
+
+        <Field label="Unterschritt von (optional — genau eine Ebene)">
+          <select
+            value={draft.parentStepId ?? ''}
+            disabled={ro || hatKinder}
+            onChange={e => setDraft(d => ({ ...d, parentStepId: e.target.value || undefined }))}
+            className={`${inputCls} max-w-[360px]`}
+          >
+            <option value="">— eigenständiger Schritt (Top-Level) —</option>
+            {parentOptions.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+          </select>
+          {hatKinder && (
+            <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-1.5">
+              Dieser Schritt hat eigene Unterschritte und kann daher nicht selbst zum Unterschritt werden (nur eine Ebene).
+            </p>
+          )}
         </Field>
 
         {save.error && (

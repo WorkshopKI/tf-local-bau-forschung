@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeRegistryFile, mergeMissingSeeds } from '../storage';
-import { evalGate } from '../workflow-steps';
+import { evalGate, flattenStepsTopological, computeStepNumbers } from '../workflow-steps';
 import { SEED_REGISTRY, SEED_WORKFLOWS } from '../seed';
-import type { SkillRegistryFile } from '../types';
+import type { SkillRegistryFile, WorkflowStep } from '../types';
+
+const step = (id: string, parentStepId?: string): WorkflowStep => ({
+  id, nr: '', kurz: id, label: id, skillId: '', gateExpr: 'immer', ...(parentStepId ? { parentStepId } : {}),
+});
 
 describe('normalizeRegistryFile — workflows (tolerantes Lesen + Tiefe-Klemmung)', () => {
   it('defaultet fehlende workflows auf []', () => {
@@ -82,6 +86,44 @@ describe('mergeMissingSeeds — workflows additiv', () => {
 
   it('No-op auf der vollständigen Seed-Registry', () => {
     expect(mergeMissingSeeds(SEED_REGISTRY).ergaenzteWorkflows).toHaveLength(0);
+  });
+});
+
+describe('flattenStepsTopological — eine Ebene, Parent vor Kindern', () => {
+  it('ist Identität für eine flache Liste (zim-ep-Fall)', () => {
+    const flat = [step('A'), step('B'), step('C')];
+    expect(flattenStepsTopological(flat).map(s => s.id)).toEqual(['A', 'B', 'C']);
+  });
+  it('zieht verstreute Kinder unter ihren Parent (Top-Level-Reihenfolge bleibt)', () => {
+    const steps = [step('1'), step('1a', '1'), step('2'), step('1b', '1')];
+    expect(flattenStepsTopological(steps).map(s => s.id)).toEqual(['1', '1a', '1b', '2']);
+  });
+  it('behandelt Tiefe-2-/dangling-Parents als Top-Level (keine zweite Ebene)', () => {
+    const steps = [step('1'), step('1a', '1'), step('x', '1a'), step('y', 'ghost')];
+    expect(flattenStepsTopological(steps).map(s => s.id)).toEqual(['1', '1a', 'x', 'y']);
+  });
+  it('enthält jeden Schritt genau einmal', () => {
+    const steps = [step('1'), step('1a', '1'), step('2'), step('2a', '2'), step('3')];
+    const out = flattenStepsTopological(steps).map(s => s.id).sort();
+    expect(out).toEqual(['1', '1a', '2', '2a', '3'].sort());
+  });
+});
+
+describe('computeStepNumbers — 5 / 5a / 5b aus der Hierarchie', () => {
+  it('nummeriert Top-Level 1..n und Kinder Na/Nb relativ zum Parent', () => {
+    const steps = [step('A'), step('B'), step('B1', 'B'), step('B2', 'B'), step('C')];
+    const m = computeStepNumbers(steps);
+    expect(m.get('A')).toBe('1');
+    expect(m.get('B')).toBe('2');
+    expect(m.get('B1')).toBe('2a');
+    expect(m.get('B2')).toBe('2b');
+    expect(m.get('C')).toBe('3');
+  });
+  it('setzt den Kinder-Buchstaben pro Parent zurück', () => {
+    const steps = [step('X'), step('Xa', 'X'), step('Y'), step('Ya', 'Y')];
+    const m = computeStepNumbers(steps);
+    expect(m.get('Xa')).toBe('1a');
+    expect(m.get('Ya')).toBe('2a');
   });
 });
 

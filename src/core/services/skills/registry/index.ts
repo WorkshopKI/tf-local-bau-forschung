@@ -25,7 +25,12 @@ export {
   ZIM_EP_DEF,
   KURZFASSUNG_SKILL_ID,
 } from './seed';
-export { evalGate, type GateContext } from './workflow-steps';
+export {
+  evalGate,
+  flattenStepsTopological,
+  computeStepNumbers,
+  type GateContext,
+} from './workflow-steps';
 export {
   SKILL_REGISTRY_PATH,
   SKILL_REGISTRY_CACHE_KEY,

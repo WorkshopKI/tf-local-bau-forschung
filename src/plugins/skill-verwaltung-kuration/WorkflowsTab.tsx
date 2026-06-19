@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronUp, ChevronDown, GripVertical, Trash2 } from 'lucide-react';
-import type { SkillRegistryFile, WorkflowStep } from '@/core/services/skills';
+import { computeStepNumbers, type SkillRegistryFile, type WorkflowStep } from '@/core/services/skills';
 import { ListItem } from '@/components/ui/ListItem';
 import { RowAction } from '@/components/ui/RowAction';
 import { getWorkflowDef, reorderSteps } from './workflowShared';
@@ -16,6 +16,7 @@ interface WorkflowsTabProps {
 export function WorkflowsTab({ file, canEdit, onEditStep, onChangeSteps }: WorkflowsTabProps): React.ReactElement {
   const def = getWorkflowDef(file);
   const steps = def.steps;
+  const nummern = computeStepNumbers(steps);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   const move = (from: number, to: number): void => {
@@ -68,7 +69,7 @@ export function WorkflowsTab({ file, canEdit, onEditStep, onChangeSteps }: Workf
                 icon={(
                   <span className={`flex items-center gap-1.5 text-[var(--tf-text-tertiary)] ${istSub ? 'pl-4' : ''}`}>
                     {canEdit && <GripVertical size={14} className="cursor-grab" />}
-                    <span className="font-mono text-[12px] w-5 text-right">{step.nr || i + 1}</span>
+                    <span className="font-mono text-[12px] w-6 text-right">{nummern.get(step.id) ?? i + 1}</span>
                   </span>
                 )}
                 iconBare
