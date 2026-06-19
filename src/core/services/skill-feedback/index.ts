@@ -8,3 +8,6 @@
 export * from './types';
 export * from './guard';
 export * from './identity';
+export * from './layout';
+export * from './cache';
+export * from './write';
