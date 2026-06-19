@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeRegistryFile } from '../storage';
-import { appendHistorie, diffSkillVersions, MAX_HISTORIE } from '../versioning';
-import type { SkillRecord } from '../types';
+import { appendHistorie, rollbackSkill, diffSkillVersions, MAX_HISTORIE } from '../versioning';
+import type { SkillRecord, SkillVersionSnapshot } from '../types';
 
 function skill(partial: Partial<SkillRecord> = {}): SkillRecord {
   return {
@@ -67,6 +67,30 @@ describe('appendHistorie — voranstellen + kappen', () => {
     }
     expect(s.historie).toHaveLength(MAX_HISTORIE);
     expect(s.historie![0]!.version).toBe(MAX_HISTORIE + 8);
+  });
+});
+
+describe('rollbackSkill — alten Stand als neue Version', () => {
+  it('übernimmt Snapshot-Inhalt, bumpt Version, stellt Historien-Eintrag voran', () => {
+    const aktuell = skill({
+      version: 5,
+      promptTemplate: 'aktuell',
+      regelIds: ['rX'],
+      historie: [
+        { version: 5, promptTemplate: 'aktuell', regelIds: ['rX'], modifiers: { neu: '', kuerzer: '', laenger: '' }, geaendert_am: 't5' },
+        { version: 2, promptTemplate: 'alt', regelIds: ['r1', 'r2'], modifiers: { neu: 'm', kuerzer: '', laenger: '' }, geaendert_am: 't2' },
+      ],
+    });
+    const ziel: SkillVersionSnapshot = aktuell.historie![1]!;
+    const next = rollbackSkill(aktuell, ziel, '2026-06-19T00:00:00.000Z', { userId: 'kw' });
+    expect(next.version).toBe(6);
+    expect(next.promptTemplate).toBe('alt');
+    expect(next.regelIds).toEqual(['r1', 'r2']);
+    expect(next.modifiers.neu).toBe('m');
+    // Kopf = neue Version mit Default-Begründung
+    expect(next.historie![0]).toMatchObject({ version: 6, userId: 'kw', begruendung: 'Rollback auf v2' });
+    // Tail enthält die bisherige Historie
+    expect(next.historie!.map(h => h.version)).toEqual([6, 5, 2]);
   });
 });
 

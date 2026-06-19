@@ -43,6 +43,7 @@ export {
 export {
   MAX_HISTORIE,
   appendHistorie,
+  rollbackSkill,
   diffSkillVersions,
   type DiffZeile,
   type DiffZeilenTyp,

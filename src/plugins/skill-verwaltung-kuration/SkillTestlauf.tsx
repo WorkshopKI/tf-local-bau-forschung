@@ -1,5 +1,11 @@
+/**
+ * Sandbox-Testlauf eines Skills — als EINBETTBARES Panel (kein Modal). Wird im
+ * Detail-Split NEBEN dem Editor gerendert (A4), damit man Skill bearbeiten und
+ * Wirkung sofort daneben prüfen kann. Testläufe verändern keine Arbeitsstände
+ * und laufen ohne persönliche Stil-Tweaks (kuratierter Stand).
+ */
 import { useEffect, useMemo, useState } from 'react';
-import { Dialog } from '@/components/ui/dialog';
+import { X } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import {
@@ -48,7 +54,7 @@ interface RunResult {
   checks: CheckResult[];
 }
 
-interface SkillTestlaufProps {
+interface SkillTestlaufPanelProps {
   skill: SkillRecord;
   regeln: QualitaetsRegel[];
   /** Zusatz hinter dem Titel, z.B. „v3, ungespeicherte Änderungen". */
@@ -56,7 +62,7 @@ interface SkillTestlaufProps {
   onClose: () => void;
 }
 
-export function SkillTestlauf({ skill, regeln, hinweis, onClose }: SkillTestlaufProps): React.ReactElement {
+export function SkillTestlaufPanel({ skill, regeln, hinweis, onClose }: SkillTestlaufPanelProps): React.ReactElement {
   const storage = useStorage();
   const bridge = useAIBridge();
 
@@ -70,7 +76,7 @@ export function SkillTestlauf({ skill, regeln, hinweis, onClose }: SkillTestlauf
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const [list, vb] = await Promise.all([listAllAntraegeListView(storage.idb), loadFkzWithVb(storage.idb)]);
       if (cancelled) return;
       setAntraege(list);
@@ -123,33 +129,30 @@ export function SkillTestlauf({ skill, regeln, hinweis, onClose }: SkillTestlauf
   };
 
   return (
-    <Dialog
-      open
-      onClose={onClose}
-      size="lg"
-      align="top"
-      title={
-        <span className="inline-flex items-center gap-2.5">
-          Testlauf: {skill.name}
-          {hinweis && <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]">{hinweis}</span>}
-        </span>
-      }
-      description="Testlauf ohne persönliche Stil-Anpassungen — geprüft wird der kuratierte Stand."
-      footer={
-        <>
-          <span className="flex-1 text-[11.5px] text-[var(--tf-text-tertiary)]">Testläufe verändern keine Arbeitsstände.</span>
-          <button
-            disabled={!selected || busy}
-            onClick={() => { void run(); }}
-            className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-50"
-          >
-            {busy ? 'Läuft…' : result ? 'Erneut ausführen' : 'Ausführen'}
-          </button>
-          <button onClick={onClose} className="text-[13px] px-4 py-2 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">Schließen</button>
-        </>
-      }
-    >
-        {/* Antrag wählen */}
+    <div className="rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] flex flex-col">
+      {/* Kopf */}
+      <div className="flex items-start gap-2.5 px-5 py-4 border-b-[0.5px] border-[var(--tf-border)]">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[14px] font-medium text-[var(--tf-text)]">Testlauf: {skill.name}</span>
+            {hinweis && <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]">{hinweis}</span>}
+          </div>
+          <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
+            Ohne persönliche Stil-Anpassungen — geprüft wird der kuratierte Stand.
+          </div>
+        </div>
+        <span className="flex-1" />
+        <button
+          onClick={onClose}
+          title="Testlauf schließen"
+          className="shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-[7px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)]"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      {/* Körper */}
+      <div className="px-5 py-4">
         <SectionHeader>Antrag wählen</SectionHeader>
         <input
           value={query}
@@ -172,12 +175,12 @@ export function SkillTestlauf({ skill, regeln, hinweis, onClose }: SkillTestlauf
                   {isSel && <span className="absolute inset-[3px] rounded-full bg-[var(--tf-primary)]" />}
                 </span>
                 <span className={`font-mono text-[13px] ${hasVb ? 'text-[var(--tf-text)]' : 'text-[var(--tf-text-tertiary)]'}`}>{a.aktenzeichen}</span>
-                <span className={`text-[13px] ${hasVb ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text-tertiary)]'}`}>
+                <span className={`text-[13px] truncate ${hasVb ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text-tertiary)]'}`}>
                   · {a.akronym ?? '—'}{a.antragsteller ? ` · ${a.antragsteller}` : ''}
                 </span>
                 <span className="flex-1" />
                 {hasVb
-                  ? <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-success-bg)] text-[var(--tf-success-text)] whitespace-nowrap">VB vorhanden ✓</span>
+                  ? <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-success-bg)] text-[var(--tf-success-text)] whitespace-nowrap">VB ✓</span>
                   : <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)] whitespace-nowrap">keine VB</span>}
               </button>
             );
@@ -189,7 +192,6 @@ export function SkillTestlauf({ skill, regeln, hinweis, onClose }: SkillTestlauf
           <div className="rounded p-2.5 text-[12px] mt-3" style={{ background: 'var(--tf-danger-bg)', color: 'var(--tf-danger-text)' }}>⚠ {error}</div>
         )}
 
-        {/* Ergebnis */}
         {result && (
           <div className="mt-5">
             <SectionHeader>Ergebnis</SectionHeader>
@@ -214,7 +216,20 @@ export function SkillTestlauf({ skill, regeln, hinweis, onClose }: SkillTestlauf
             </div>
           </div>
         )}
-    </Dialog>
+      </div>
+
+      {/* Fuß */}
+      <div className="flex items-center gap-2.5 px-5 py-3 border-t-[0.5px] border-[var(--tf-border)]">
+        <span className="flex-1 text-[11.5px] text-[var(--tf-text-tertiary)]">Testläufe verändern keine Arbeitsstände.</span>
+        <button
+          disabled={!selected || busy}
+          onClick={() => { void run(); }}
+          className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-50"
+        >
+          {busy ? 'Läuft…' : result ? 'Erneut ausführen' : 'Ausführen'}
+        </button>
+      </div>
+    </div>
   );
 }
 

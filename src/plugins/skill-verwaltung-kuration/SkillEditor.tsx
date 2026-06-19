@@ -1,22 +1,30 @@
 import { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import {
   appendHistorie,
+  rollbackSkill,
   buildPromptVorgaben,
   resolveRegeln,
   describeRegelParams,
   type QualitaetsRegel,
+  type Reifegrad,
   type SkillModifierKey,
   type SkillRecord,
   type SkillRegistryFile,
+  type SkillVersionSnapshot,
 } from '@/core/services/skills';
+import { suggestReifegrad, type SkillAggregat, type SkillAggregatMap } from '@/core/services/skill-feedback';
+import { SkillVersionen } from './SkillVersionen';
 
 const SLOT_EXPL: Record<string, string> = {
   stammdaten: 'FKZ, Firmenname, Akronym und Antragstyp aus den TeamFlow-Stammdaten.',
   vbMarkdown: 'Volltext der Vorhabensbeschreibung (Markdown) aus dem DMS.',
 };
 const MOD_LABEL: Record<SkillModifierKey, string> = { neu: 'Neu', kuerzer: 'Kürzer', laenger: 'Länger' };
+const REIFEGRAD_LABEL: Record<Reifegrad, string> = { entwurf: 'Entwurf', erprobt: 'Erprobt', empfohlen: 'Empfohlen' };
+const LEER_AGG: SkillAggregat = { nutzung: 0, up: 0, down: 0, letzteNutzung: null, kommentare: [] };
 
 function upsertSkill(skills: SkillRecord[], s: SkillRecord): SkillRecord[] {
   const i = skills.findIndex(x => x.id === s.id);
@@ -31,26 +39,37 @@ interface SkillEditorProps {
   skill: SkillRecord;
   isNew: boolean;
   canEdit: boolean;
+  /** S1-Aggregat (für den beratenden Reifegrad-Vorschlag); `null` solange ladend. */
+  agg: SkillAggregatMap | null;
   persist: (next: SkillRegistryFile) => Promise<void>;
   onBack: () => void;
   onManageRegeln: () => void;
   onTestlauf: (skill: SkillRecord, regeln: QualitaetsRegel[], hinweis: string) => void;
 }
 
-export function SkillEditor({ file, skill, isNew, canEdit, persist, onBack, onManageRegeln, onTestlauf }: SkillEditorProps): React.ReactElement {
+export function SkillEditor({ file, skill, isNew, canEdit, agg, persist, onBack, onManageRegeln, onTestlauf }: SkillEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<SkillRecord>(skill);
   const [begruendung, setBegruendung] = useState('');
+  const [view, setView] = useState<'bearbeiten' | 'versionen'>('bearbeiten');
   const meinKuerzel = useMeinKuerzel();
   const nextVersion = isNew ? draft.version : skill.version + 1;
   const dirty = JSON.stringify(draft) !== JSON.stringify(skill);
 
   const assignedRegeln = resolveRegeln(file, draft);
   const vorgaben = buildPromptVorgaben(assignedRegeln);
+  const reifegrad: Reifegrad = draft.reifegrad ?? 'entwurf';
+  const reifegradVorschlag = suggestReifegrad(agg?.get(skill.id) ?? LEER_AGG, reifegrad);
+  const historieCount = skill.historie?.length ?? 0;
 
   const save = useAsyncAction(async () => {
     const base: SkillRecord = { ...draft, version: nextVersion, geaendert_am: new Date().toISOString() };
     const updated: SkillRecord = { ...base, historie: appendHistorie(base, { userId: meinKuerzel, begruendung }) };
     await persist({ ...file, skills: upsertSkill(file.skills, updated) });
+  }, { onSuccess: onBack });
+
+  const rollback = useAsyncAction(async (snap: SkillVersionSnapshot) => {
+    const next = rollbackSkill(skill, snap, new Date().toISOString(), { userId: meinKuerzel });
+    await persist({ ...file, skills: upsertSkill(file.skills, next) });
   }, { onSuccess: onBack });
 
   const toggleRegel = (id: string): void =>
@@ -76,9 +95,31 @@ export function SkillEditor({ file, skill, isNew, canEdit, persist, onBack, onMa
         disabled={ro}
         placeholder="Kurzbeschreibung…"
         onChange={e => setDraft(d => ({ ...d, beschreibung: e.target.value }))}
-        className="text-[12px] text-[var(--tf-text-tertiary)] bg-transparent outline-none mt-1.5 mb-6 w-full"
+        className="text-[12px] text-[var(--tf-text-tertiary)] bg-transparent outline-none mt-1.5 mb-4 w-full"
       />
 
+      {/* Reiter: Bearbeiten | Versionen */}
+      <div className="flex items-end gap-5 mb-5 border-b-[0.5px] border-[var(--tf-border)]">
+        {([['bearbeiten', 'Bearbeiten'], ['versionen', `Versionen (${historieCount})`]] as const).map(([v, label]) => {
+          const active = view === v;
+          return (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={`pb-2.5 text-[13.5px] whitespace-nowrap transition-colors ${
+                active
+                  ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
+                  : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {view === 'bearbeiten' && (
       <div className="rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] p-[24px]">
         {/* Prompt-Vorlage */}
         <Section>Prompt-Vorlage</Section>
@@ -151,6 +192,39 @@ export function SkillEditor({ file, skill, isNew, canEdit, persist, onBack, onMa
           <button onClick={onManageRegeln} className="text-[12.5px] text-[var(--tf-primary)] hover:underline mt-3.5">Regeln verwalten →</button>
         </div>
 
+        {/* Reifegrad (Kurator setzt; S1-Vorschlag beratend) */}
+        <div className="mt-7">
+          <Section>Reifegrad</Section>
+          {canEdit ? (
+            <div className="flex items-center gap-3 flex-wrap">
+              <select
+                value={reifegrad}
+                onChange={e => setDraft(d => ({ ...d, reifegrad: e.target.value as Reifegrad }))}
+                className="text-[12.5px] rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-transparent px-2.5 py-1.5 text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)]"
+              >
+                {(['entwurf', 'erprobt', 'empfohlen'] as Reifegrad[]).map(r => (
+                  <option key={r} value={r}>{REIFEGRAD_LABEL[r]}</option>
+                ))}
+              </select>
+              {reifegradVorschlag && (
+                <button
+                  type="button"
+                  onClick={() => setDraft(d => ({ ...d, reifegrad: reifegradVorschlag }))}
+                  className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-primary)] hover:underline"
+                >
+                  <Sparkles size={12} />
+                  Vorschlag: {REIFEGRAD_LABEL[reifegradVorschlag]} übernehmen
+                </button>
+              )}
+            </div>
+          ) : (
+            <span className="text-[12.5px] text-[var(--tf-text-secondary)]">{REIFEGRAD_LABEL[reifegrad]}</span>
+          )}
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-2">
+            Vom Kurator gesetzt — der Vorschlag ist beratend (aus Nutzung/Feedback) und wird nie automatisch übernommen.
+          </p>
+        </div>
+
         {canEdit && (
           <div className="mt-7">
             <Section>Begründung (optional)</Section>
@@ -188,6 +262,16 @@ export function SkillEditor({ file, skill, isNew, canEdit, persist, onBack, onMa
           <button onClick={onBack} className="text-[13px] px-4 py-2 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">Abbrechen</button>
         </div>
       </div>
+      )}
+
+      {view === 'versionen' && (
+        <div className="rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] p-[24px]">
+          <SkillVersionen skill={skill} canEdit={canEdit} onRollback={snap => { void rollback.run(snap); }} />
+          {rollback.error && (
+            <div className="rounded p-2.5 text-[12px] mt-4" style={{ background: 'var(--tf-danger-bg)', color: 'var(--tf-danger-text)' }}>⚠ {rollback.error}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

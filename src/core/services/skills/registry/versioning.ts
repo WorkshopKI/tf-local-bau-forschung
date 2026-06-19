@@ -49,6 +49,35 @@ export function appendHistorie(
   return [snapshotOf(rec, opts), ...tail].slice(0, MAX_HISTORIE);
 }
 
+/**
+ * Rollback: holt den Inhalt eines alten Snapshots als NEUE Version zurück (kein
+ * In-Place-Reset). Template/Regeln/Modifier werden aus dem Snapshot übernommen,
+ * die Version inkrementiert und ein frischer Historien-Eintrag vorangestellt
+ * (Default-Begründung „Rollback auf vN"). Rein — `now` wird hereingereicht.
+ */
+export function rollbackSkill(
+  skill: SkillRecord,
+  snapshot: SkillVersionSnapshot,
+  now: string,
+  opts: { userId?: string; begruendung?: string } = {},
+): SkillRecord {
+  const base: SkillRecord = {
+    ...skill,
+    version: skill.version + 1,
+    promptTemplate: snapshot.promptTemplate,
+    regelIds: [...snapshot.regelIds],
+    modifiers: { ...snapshot.modifiers },
+    geaendert_am: now,
+  };
+  return {
+    ...base,
+    historie: appendHistorie(base, {
+      userId: opts.userId,
+      begruendung: opts.begruendung?.trim() || `Rollback auf v${snapshot.version}`,
+    }),
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Diff (Template-Zeilen + Regel-Mengen + Modifier-Keys)                       */
 /* -------------------------------------------------------------------------- */

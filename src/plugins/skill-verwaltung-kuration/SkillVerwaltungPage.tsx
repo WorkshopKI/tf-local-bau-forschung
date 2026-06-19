@@ -20,7 +20,7 @@ import { WorkflowsTab } from './WorkflowsTab';
 import { SkillEditor } from './SkillEditor';
 import { RegelEditor } from './RegelEditor';
 import { WorkflowEditor } from './WorkflowEditor';
-import { SkillTestlauf } from './SkillTestlauf';
+import { SkillTestlaufPanel } from './SkillTestlauf';
 import { RegistryViewModeToggle, type RegistryViewMode } from './RegistryViewModeToggle';
 import { blankRegel, upsertRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
 import { blankStep, getWorkflowDef, upsertStep, withWorkflowSteps } from './workflowShared';
@@ -89,13 +89,13 @@ export function SkillVerwaltungPage(): React.ReactElement {
 
   const changeTab = (id: TabId): void => { setTab(id); setSearch(''); };
 
-  const testlaufModal = testlauf && (
-    <SkillTestlauf skill={testlauf.skill} regeln={testlauf.regeln} hinweis={testlauf.hinweis} onClose={() => setTestlauf(null)} />
-  );
-
   // — Skill-Aktionen —
-  const openTestlaufForSaved = (skill: SkillRecord): void =>
+  // Testlauf aus Liste/Karte öffnet den Skill im Editor + den Testlauf-Panel
+  // daneben (Detail-Split, kein Modal).
+  const openTestlaufForSaved = (skill: SkillRecord): void => {
+    setEditingSkill({ skill, isNew: false });
     setTestlauf({ skill, regeln: resolveRegeln(file, skill), hinweis: `v${skill.version}` });
+  };
   const duplicateSkill = (skill: SkillRecord): void => {
     const now = new Date().toISOString();
     const copy: SkillRecord = { ...skill, id: crypto.randomUUID(), name: `${skill.name} (Kopie)`, version: 1, geaendert_am: now };
@@ -145,23 +145,36 @@ export function SkillVerwaltungPage(): React.ReactElement {
   //   räumt die Selektion. Editor-Inhalt bringt eigenen Scroll mit (Detail-Pane
   //   des Shells ist overflow-hidden). —
   const hasDetail = !!(editingSkill || editingRegel || editingStep);
-  const closeEditor = (): void => { setEditingSkill(null); setEditingRegel(null); setEditingStep(null); };
+  const closeEditor = (): void => { setEditingSkill(null); setEditingRegel(null); setEditingStep(null); setTestlauf(null); };
 
   let detail: React.ReactNode;
   if (editingSkill) {
     detail = (
       <div className="h-full overflow-y-auto">
-        <div className="px-8 py-9">
-          <SkillEditor
-            file={file}
-            skill={editingSkill.skill}
-            isNew={editingSkill.isNew}
-            canEdit={reg.canEdit}
-            persist={reg.persist}
-            onBack={closeEditor}
-            onManageRegeln={() => { closeEditor(); changeTab('regeln'); }}
-            onTestlauf={(skill, regeln, hinweis) => setTestlauf({ skill, regeln, hinweis })}
-          />
+        <div className="px-8 py-9 flex flex-col xl:flex-row gap-8 items-start">
+          <div className="flex-1 min-w-0 w-full">
+            <SkillEditor
+              file={file}
+              skill={editingSkill.skill}
+              isNew={editingSkill.isNew}
+              canEdit={reg.canEdit}
+              agg={agg}
+              persist={reg.persist}
+              onBack={closeEditor}
+              onManageRegeln={() => { closeEditor(); changeTab('regeln'); }}
+              onTestlauf={(skill, regeln, hinweis) => setTestlauf({ skill, regeln, hinweis })}
+            />
+          </div>
+          {testlauf && (
+            <div className="flex-1 min-w-0 w-full xl:max-w-[560px]">
+              <SkillTestlaufPanel
+                skill={testlauf.skill}
+                regeln={testlauf.regeln}
+                hinweis={testlauf.hinweis}
+                onClose={() => setTestlauf(null)}
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -328,7 +341,6 @@ export function SkillVerwaltungPage(): React.ReactElement {
           </div>
         )}
       />
-      {testlaufModal}
     </div>
   );
 }
