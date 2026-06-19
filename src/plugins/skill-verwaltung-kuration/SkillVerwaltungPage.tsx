@@ -13,6 +13,7 @@ import {
   type WorkflowStep,
 } from '@/core/services/skills';
 import { useSkillRegistry } from './useSkillRegistry';
+import { useSkillAggregat } from './useSkillAggregat';
 import { SkillsTab } from './SkillsTab';
 import { RegelnTab } from './RegelnTab';
 import { WorkflowsTab } from './WorkflowsTab';
@@ -62,6 +63,7 @@ interface Testlauf { skill: SkillRecord; regeln: QualitaetsRegel[]; hinweis: str
 
 export function SkillVerwaltungPage(): React.ReactElement {
   const reg = useSkillRegistry();
+  const agg = useSkillAggregat();
   const [tab, setTab] = useState<TabId>('skills');
   const [search, setSearch] = useState('');
   const [viewModes, setViewModes] = useState<Record<TabId, RegistryViewMode>>(loadViewModes);
@@ -299,6 +301,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
             canEdit={reg.canEdit}
             search={search}
             viewMode={viewMode}
+            agg={agg}
             onEdit={skill => setEditingSkill({ skill, isNew: false })}
             onTestlauf={openTestlaufForSaved}
             onDuplicate={duplicateSkill}
