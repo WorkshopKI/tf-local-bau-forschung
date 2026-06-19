@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import {
+  appendHistorie,
   buildPromptVorgaben,
   resolveRegeln,
   describeRegelParams,
@@ -37,6 +39,8 @@ interface SkillEditorProps {
 
 export function SkillEditor({ file, skill, isNew, canEdit, persist, onBack, onManageRegeln, onTestlauf }: SkillEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<SkillRecord>(skill);
+  const [begruendung, setBegruendung] = useState('');
+  const meinKuerzel = useMeinKuerzel();
   const nextVersion = isNew ? draft.version : skill.version + 1;
   const dirty = JSON.stringify(draft) !== JSON.stringify(skill);
 
@@ -44,7 +48,8 @@ export function SkillEditor({ file, skill, isNew, canEdit, persist, onBack, onMa
   const vorgaben = buildPromptVorgaben(assignedRegeln);
 
   const save = useAsyncAction(async () => {
-    const updated: SkillRecord = { ...draft, version: nextVersion, geaendert_am: new Date().toISOString() };
+    const base: SkillRecord = { ...draft, version: nextVersion, geaendert_am: new Date().toISOString() };
+    const updated: SkillRecord = { ...base, historie: appendHistorie(base, { userId: meinKuerzel, begruendung }) };
     await persist({ ...file, skills: upsertSkill(file.skills, updated) });
   }, { onSuccess: onBack });
 
@@ -145,6 +150,18 @@ export function SkillEditor({ file, skill, isNew, canEdit, persist, onBack, onMa
           </div>
           <button onClick={onManageRegeln} className="text-[12.5px] text-[var(--tf-primary)] hover:underline mt-3.5">Regeln verwalten →</button>
         </div>
+
+        {canEdit && (
+          <div className="mt-7">
+            <Section>Begründung (optional)</Section>
+            <input
+              value={begruendung}
+              placeholder="Was wurde geändert und warum? — landet in der Versions-Historie."
+              onChange={e => setBegruendung(e.target.value)}
+              className={`${inputCls} px-[11px] py-2 text-[12.5px] text-[var(--tf-text-secondary)]`}
+            />
+          </div>
+        )}
 
         {save.error && (
           <div className="rounded p-2.5 text-[12px] mt-5" style={{ background: 'var(--tf-danger-bg)', color: 'var(--tf-danger-text)' }}>⚠ {save.error}</div>

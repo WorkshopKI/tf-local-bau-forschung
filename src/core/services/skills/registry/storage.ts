@@ -16,9 +16,10 @@ import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-wri
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import type {
   GateExpr, QualitaetsRegel, Reifegrad, Schweregrad, SkillModifierKey, SkillRecord, SkillRegistryFile,
-  WorkflowDef, WorkflowStep, WorkflowStepRolle,
+  SkillVersionSnapshot, WorkflowDef, WorkflowStep, WorkflowStepRolle,
 } from './types';
 import { normalizeStepRolle } from './workflow-steps';
+import { MAX_HISTORIE } from './versioning';
 import { SEED_REGISTRY } from './seed';
 
 export const SKILL_REGISTRY_PATH = '_intern/skills/registry.json';
@@ -77,6 +78,43 @@ function normalizeModifiers(raw: unknown): Record<SkillModifierKey, string> {
   };
 }
 
+function normalizeSnapshot(raw: unknown): SkillVersionSnapshot | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const s = raw as Record<string, unknown>;
+  const snap: SkillVersionSnapshot = {
+    version: asNumber(s.version, 1),
+    promptTemplate: asString(s.promptTemplate),
+    regelIds: asStringArray(s.regelIds),
+    modifiers: normalizeModifiers(s.modifiers),
+    geaendert_am: asString(s.geaendert_am, SEED_REGISTRY.updated_at),
+  };
+  if (typeof s.userId === 'string' && s.userId) snap.userId = s.userId;
+  if (typeof s.begruendung === 'string' && s.begruendung) snap.begruendung = s.begruendung;
+  return snap;
+}
+
+/**
+ * Versions-Historie tolerant lesen + auf `MAX_HISTORIE` kappen. Fehlt/leer →
+ * genau ein Baseline-Eintrag aus dem aktuellen Stand (verlustfreie Migration;
+ * hält die Invariante `historie[0]` ≙ Record auch für Alt-Records).
+ */
+function normalizeHistorie(raw: unknown, current: SkillRecord): SkillVersionSnapshot[] {
+  if (Array.isArray(raw)) {
+    const entries = raw
+      .map(normalizeSnapshot)
+      .filter((e): e is SkillVersionSnapshot => e !== null)
+      .slice(0, MAX_HISTORIE);
+    if (entries.length > 0) return entries;
+  }
+  return [{
+    version: current.version,
+    promptTemplate: current.promptTemplate,
+    regelIds: [...current.regelIds],
+    modifiers: { ...current.modifiers },
+    geaendert_am: current.geaendert_am,
+  }];
+}
+
 function normalizeSkill(raw: unknown): SkillRecord | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const s = raw as Record<string, unknown>;
@@ -94,6 +132,7 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
     geaendert_am: asString(s.geaendert_am, SEED_REGISTRY.updated_at),
     reifegrad: asReifegrad(s.reifegrad),
   };
+  skill.historie = normalizeHistorie(s.historie, skill);
   if (typeof s.systemPrompt === 'string') skill.systemPrompt = s.systemPrompt;
   if (typeof s.maxTokens === 'number' && Number.isFinite(s.maxTokens)) skill.maxTokens = s.maxTokens;
   return skill;

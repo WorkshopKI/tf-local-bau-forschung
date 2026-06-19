@@ -39,6 +39,14 @@ export {
   type GateContext,
 } from './workflow-steps';
 export {
+  MAX_HISTORIE,
+  appendHistorie,
+  diffSkillVersions,
+  type DiffZeile,
+  type DiffZeilenTyp,
+  type SkillVersionsDiff,
+} from './versioning';
+export {
   SKILL_REGISTRY_PATH,
   SKILL_REGISTRY_CACHE_KEY,
   normalizeRegistryFile,

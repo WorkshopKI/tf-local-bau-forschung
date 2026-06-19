@@ -66,6 +66,26 @@ export interface QualitaetsRegel {
 }
 
 /**
+ * Ein gekappter Snapshot eines Skill-Standes VOR einer Änderung (Versions-
+ * Historie, additiv). Bewusst schlank — nur die kuratierbaren Inhalte, die ein
+ * Diff/Rollback braucht; kein Volltext-Doppel des Records. Wird beim Speichern
+ * vorangestellt und auf `MAX_HISTORIE` gekappt (siehe `versioning.ts`).
+ */
+export interface SkillVersionSnapshot {
+  /** Versionsnummer dieses (alten) Standes. */
+  version: number;
+  promptTemplate: string;
+  regelIds: string[];
+  modifiers: Record<SkillModifierKey, string>;
+  /** Zeitstempel, zu dem dieser Stand galt (`geaendert_am` des alten Records). */
+  geaendert_am: string;
+  /** Wer die nachfolgende Änderung vorgenommen hat (S1-`getUserId`, optional). */
+  userId?: string;
+  /** Optionale Kurator-Begründung der nachfolgenden Änderung. */
+  begruendung?: string;
+}
+
+/**
  * Ein benannter KI-Arbeitsschritt. Reine Daten — die Laufzeit-Funktionen
  * (`parse`, Checks, Prompt-Vorgaben) kommen aus dem Skills-Service bzw. der
  * Check-Engine, NICHT aus dem Record.
@@ -91,6 +111,12 @@ export interface SkillRecord {
    * sondern in den Pro-Nutzer-Dateien des `skill-feedback`-Substrats.
    */
   reifegrad?: Reifegrad;
+  /**
+   * Bounded Versions-Historie (additiv, neueste zuerst, max `MAX_HISTORIE`).
+   * Fehlt in Alt-Records → `normalize` defaultet einen Eintrag aus dem aktuellen
+   * Stand (verlustfreie Migration). Pflege ausschließlich über `appendHistorie`.
+   */
+  historie?: SkillVersionSnapshot[];
   /** Optional (aus dem Seed; in v1 nicht UI-editierbar) — System-Rolle fürs LLM. */
   systemPrompt?: string;
   /** Optional — Token-Limit fürs LLM (Default im Runner). */
