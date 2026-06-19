@@ -277,6 +277,7 @@ function ActiveAbschnitt({
           onQs={ctrl.qsFor(id) ? () => ctrl.runQs(id) : undefined}
           provenance={{ skillName: ctrl.activeSkill?.name ?? step.skillId ?? '—', regelCount: ctrl.regeln.length }}
           onOpenSkill={openSkill}
+          onFeedback={(rating, notiz) => ctrl.sendFeedback(id, rating, notiz)}
           thinkingBudget={ctrl.thinkingBudget}
           onSetThinkingBudget={ctrl.setThinkingBudget}
           streamContent={ctrl.streamContent}

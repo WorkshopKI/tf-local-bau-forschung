@@ -11,6 +11,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { appendFeedback, getUserId, resolveInstallId, type Rating } from '@/core/services/skill-feedback';
 import {
   runSkill,
   loadSkillRegistry,
@@ -89,11 +91,14 @@ export interface GutachtenWorkflowController {
   clearError: () => void;
   saveTweak: (eingabe: TweakEingabe) => Promise<void>;
   removeTweak: () => Promise<void>;
+  /** Ein-Klick-Feedback zu einem Abschnitt → S1-Substrat (DSGVO-Guard, nicht blockierend). */
+  sendFeedback: (stepId: StepId, rating: Rating, notiz?: string) => void;
 }
 
 export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflowController {
   const storage = useStorage();
   const bridge = useAIBridge();
+  const meinKuerzel = useMeinKuerzel();
   const key = ctx.key;
 
   const [run, setRun] = useState<WorkflowRun | null>(null);
@@ -350,6 +355,29 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     setTweak(null);
   };
 
+  /**
+   * Ein-Klick-Feedback zum erzeugenden Skill eines Abschnitts → S1. Läuft durch
+   * den DSGVO-Guard (nur skillId/Version/Rating/kurze Notiz/Identität — NIE
+   * generierter Text/VB/FKZ). Nicht blockierend: Schreibfehler werden geschluckt.
+   */
+  const sendFeedback = async (stepId: StepId, rating: Rating, notiz?: string): Promise<void> => {
+    const step = run?.schritte[stepId];
+    if (!step?.skillId) return;
+    try {
+      const userId = getUserId(meinKuerzel, await resolveInstallId(storage.idb));
+      await appendFeedback(storage, {
+        skillId: step.skillId,
+        skillVersion: step.skillVersion ?? 0,
+        rating,
+        ts: new Date().toISOString(),
+        userId,
+        ...(notiz ? { notiz } : {}),
+      });
+    } catch {
+      // stiller S1-Fallback — Feedback ist nicht blockierend
+    }
+  };
+
   return {
     run,
     vbDokument: vb?.dokument ?? null,
@@ -383,5 +411,6 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     clearError: () => setError(null),
     saveTweak,
     removeTweak,
+    sendFeedback: (id, rating, notiz) => { void sendFeedback(id, rating, notiz); },
   };
 }

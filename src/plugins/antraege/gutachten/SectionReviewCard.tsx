@@ -5,7 +5,8 @@
  * Prüf-Ergebnis und die Aktionsleiste (Freigeben/Neu/Kürzer/Länger/Prüfen).
  * Im freigegebenen Zustand: nur „Erneut öffnen" (Export liegt im Sektionskopf).
  */
-import { SlidersHorizontal } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { SlidersHorizontal, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { CollapsibleSection, MarkdownRenderer } from '@/ui';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
@@ -35,6 +36,8 @@ interface Props {
   provenance?: { skillName: string; regelCount: number };
   /** Öffnet den erzeugenden Skill in der Skill-Verwaltung (Provenienz-Link). */
   onOpenSkill?: () => void;
+  /** Ein-Klick-Feedback zum Entwurf (→ S1). Fehlt → Feedback-Zeile entfällt. */
+  onFeedback?: (rating: 'up' | 'down', notiz?: string) => void;
   /** Thinking-/Reasoning-Budget für die nächste Generierung (Default aus der Einstellung, hier übersteuerbar). */
   thinkingBudget: ThinkingBudget;
   onSetThinkingBudget: (budget: ThinkingBudget) => void;
@@ -48,11 +51,20 @@ const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border
 const TWEAK_LINK = 'inline-flex items-center gap-1 text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]';
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
+  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
   const genDisabled = busy || llmAvailable === false;
+
+  // Ein-Klick-Feedback: ein Votum je Abschnittsversion (Reset bei neuer Generierung).
+  const [fbDone, setFbDone] = useState(false);
+  const [fbNote, setFbNote] = useState('');
+  useEffect(() => { setFbDone(false); setFbNote(''); }, [run.erstellt_am, run.skillVersion]);
+  const submitFeedback = (rating: 'up' | 'down'): void => {
+    onFeedback?.(rating, fbNote.trim() || undefined);
+    setFbDone(true);
+  };
 
   return (
     <div className="mt-3">
@@ -149,6 +161,41 @@ export function SectionReviewCard({
               </div>
               <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2.5">Qualitative Einschätzung der KI — ändert den Text nicht.</div>
               <QsHinweisList befunde={run.qsHinweise!} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {onFeedback && !busy && (
+        <div className="mt-5 pt-4 border-t-[0.5px] border-[var(--tf-border)]">
+          {fbDone ? (
+            <div className="text-[11.5px] text-[var(--tf-text-tertiary)]">Danke — Rückmeldung gespeichert.</div>
+          ) : (
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="text-[12px] text-[var(--tf-text-secondary)]">War der Entwurf gut?</span>
+              <button
+                type="button"
+                title="Gut"
+                onClick={() => submitFeedback('up')}
+                className="w-7 h-7 inline-flex items-center justify-center rounded-[7px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)]"
+              >
+                <ThumbsUp size={13} />
+              </button>
+              <button
+                type="button"
+                title="Nicht gut"
+                onClick={() => submitFeedback('down')}
+                className="w-7 h-7 inline-flex items-center justify-center rounded-[7px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)]"
+              >
+                <ThumbsDown size={13} />
+              </button>
+              <input
+                value={fbNote}
+                onChange={e => setFbNote(e.target.value)}
+                placeholder="optionale Notiz (kein Antragsbezug)"
+                maxLength={140}
+                className="flex-1 min-w-[180px] text-[12px] px-2.5 py-1.5 rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-transparent outline-none focus:border-[var(--tf-primary)]"
+              />
             </div>
           )}
         </div>
