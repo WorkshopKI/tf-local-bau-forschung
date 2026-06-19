@@ -33,6 +33,18 @@ export const STEP_ORDER: readonly StepId[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 export type StepStatus = 'leer' | 'entwurf' | 'freigegeben';
 
 /**
+ * Ein beratender LLM-QS-Befund zu EINER Dimension (Erdung/Kohärenz/…). Bewusst
+ * getrennt von `CheckResult` (mechanische Checks): QS ist qualitativ + beratend,
+ * `'unklar'` deckt nicht-parsebare Modell-Ausgabe ab (kein Throw, kein Overwrite).
+ */
+export interface QsBefund {
+  dimension: string;
+  bewertung: 'ok' | 'hinweis' | 'unklar';
+  /** Konkreter Befund / Belegstelle (1–2 Sätze). */
+  text: string;
+}
+
+/**
  * Persistierter Stand EINES Abschnitts. Inhalts-Felder spiegeln den
  * `KurzfassungRecord` (ohne `key`) — die Migration kopiert A feldweise.
  */
@@ -68,6 +80,12 @@ export interface StepRun {
    * präzise Versionierung später. Nur gesetzt, solange `status === 'freigegeben'`.
    */
   freigabeHash?: string;
+  /**
+   * Beratende LLM-QS-Befunde (additiv, KEIN Schema-Bump). Getrennt von `checks`:
+   * der QS-Schritt schreibt sie an den BEWERTETEN Generierungs-Schritt; sie ändern
+   * weder Status noch Text (Auto-Overwrite ausgeschlossen).
+   */
+  qsHinweise?: QsBefund[];
 }
 
 /**

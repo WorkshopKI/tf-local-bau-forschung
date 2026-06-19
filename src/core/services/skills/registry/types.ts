@@ -93,6 +93,14 @@ export interface SkillRecord {
 export type GateExpr = 'immer' | 'hat_teilvorhaben';
 
 /**
+ * Rolle eines Schritts. `'generierung'` (Default) erzeugt einen Abschnitt;
+ * `'llm_qs'` bewertet einen Generierungs-Abschnitt qualitativ und liefert
+ * BERATENDE Befunde (überschreibt nie den Text). Erweiterbar — Leser tolerieren
+ * Unbekanntes (→ `'generierung'`).
+ */
+export type WorkflowStepRolle = 'generierung' | 'llm_qs';
+
+/**
  * Ein kuratierbarer Workflow-Schritt. Flach gehalten — Hierarchie ausschließlich
  * über `parentStepId` mit GENAU einer Ebene (die Engine lehnt Tiefe >1 ab). Die
  * Laufzeit-Funktionen (Generierung, Checks) kommen aus dem zugeordneten Skill,
@@ -108,7 +116,7 @@ export interface WorkflowStep {
   label: string;
   /** Kurzlabel für den Stepper-Pill. */
   kurz: string;
-  /** Skill-Registry-ID, die diesen Schritt generiert. */
+  /** Skill-Registry-ID, die diesen Schritt generiert (bzw. bei `llm_qs` bewertet). */
   skillId: string;
   /** Schlüssel für die DOCX-Anker-Tabelle. Fehlt/ungültig → Export überspringt den Schritt. */
   ankerKey?: string;
@@ -116,6 +124,14 @@ export interface WorkflowStep {
   gateExpr?: GateExpr;
   /** SEAM (in v1 ungenutzt): abschnittsbezogene Retrieval-Queries. */
   retrievalQueries?: string[];
+  /** Rolle des Schritts (default `'generierung'`; fehlt → Generierung). */
+  rolle?: WorkflowStepRolle;
+  /** Nur bei `rolle === 'llm_qs'`: ID des bewerteten Generierungs-Schritts. */
+  qsZielStepId?: string;
+  /** Nur bei `rolle === 'generierung'`: beschränkter Auto-Retry nach Fehl-Checks (opt-in). */
+  autoRetry?: boolean;
+  /** Harte Versuchs-Obergrenze des Auto-Retry (`normalizeStepRolle` klemmt auf `[0..3]`, Default 2). */
+  maxRetries?: number;
 }
 
 /**

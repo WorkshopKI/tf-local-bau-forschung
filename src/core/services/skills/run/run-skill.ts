@@ -81,6 +81,13 @@ export interface SkillRunInput {
   vorherigerText?: string;
   /** Optionaler persönlicher Tweak (User-Tweaks v2). Fehlt er, ist die Ausgabe identisch zum tweaklosen Lauf. */
   tweak?: SkillTweakPromptInput;
+  /**
+   * LLM-QS: zu bewertender Abschnittstext für den `{{zielText}}`-Slot. Fehlt der
+   * Platzhalter im Template → keine Wirkung (Bestands-Skills byte-identisch).
+   */
+  zielText?: string;
+  /** LLM-QS: Zweck/Überschrift des bewerteten Abschnitts für den `{{abschnittszweck}}`-Slot. */
+  abschnittszweck?: string;
   /** VB-Zeichen-Cap aus der LLM-Kontextlänge (`getVbCharCap()`). Fehlt er → statischer `VB_CHAR_CAP`. */
   vbCharCap?: number;
   /**
@@ -166,6 +173,10 @@ export function composeSkillPrompt(
     'vorherigeAbschnitte',
     input.vorherigeAbschnitte ?? '',
   );
+  // LLM-QS-Slots — No-op, wenn die Platzhalter im Template fehlen (alle Bestands-
+  // Skills bleiben byte-identisch; nur der `qs-basis`-Skill nutzt sie).
+  content = fillSlot(content, 'zielText', input.zielText ?? '');
+  content = fillSlot(content, 'abschnittszweck', input.abschnittszweck ?? '');
   if (input.tweak?.aktiv) {
     const tweakBlock = buildTweakBlock(input.tweak.stilHinweise, input.tweak.beispielFormulierungen);
     if (tweakBlock) content += `\n\n${tweakBlock}`;

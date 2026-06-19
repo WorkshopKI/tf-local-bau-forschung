@@ -16,8 +16,9 @@ import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-wri
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import type {
   GateExpr, QualitaetsRegel, Schweregrad, SkillModifierKey, SkillRecord, SkillRegistryFile,
-  WorkflowDef, WorkflowStep,
+  WorkflowDef, WorkflowStep, WorkflowStepRolle,
 } from './types';
+import { normalizeStepRolle } from './workflow-steps';
 import { SEED_REGISTRY } from './seed';
 
 export const SKILL_REGISTRY_PATH = '_intern/skills/registry.json';
@@ -98,6 +99,10 @@ function normalizeGateExpr(v: unknown): GateExpr {
   return v === 'hat_teilvorhaben' ? 'hat_teilvorhaben' : 'immer';
 }
 
+function normalizeRolle(v: unknown): WorkflowStepRolle {
+  return v === 'llm_qs' ? 'llm_qs' : 'generierung';
+}
+
 function normalizeWorkflowStep(raw: unknown): WorkflowStep | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const s = raw as Record<string, unknown>;
@@ -115,7 +120,13 @@ function normalizeWorkflowStep(raw: unknown): WorkflowStep | null {
   if (typeof s.ankerKey === 'string' && s.ankerKey) step.ankerKey = s.ankerKey;
   const rq = asStringArray(s.retrievalQueries);
   if (rq.length > 0) step.retrievalQueries = rq;
-  return step;
+  // Rolle + Auto-Retry tolerant lesen; `normalizeStepRolle` setzt Defaults/Klemmung
+  // und entfernt rollen-fremde Felder (eine Quelle für die Invarianten).
+  step.rolle = normalizeRolle(s.rolle);
+  if (typeof s.qsZielStepId === 'string' && s.qsZielStepId) step.qsZielStepId = s.qsZielStepId;
+  if (typeof s.autoRetry === 'boolean') step.autoRetry = s.autoRetry;
+  if (typeof s.maxRetries === 'number' && Number.isFinite(s.maxRetries)) step.maxRetries = s.maxRetries;
+  return normalizeStepRolle(step);
 }
 
 /**

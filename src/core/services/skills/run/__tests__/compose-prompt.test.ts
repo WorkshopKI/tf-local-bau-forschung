@@ -130,3 +130,24 @@ describe('composeSkillPrompt — {{vorherigeAbschnitte}}-Slot (Gutachten-Workflo
     expect(leer).not.toContain('{{vorherigeAbschnitte}}');
   });
 });
+
+describe('composeSkillPrompt — LLM-QS-Slots {{zielText}} / {{abschnittszweck}}', () => {
+  it('Bestands-Skill bleibt byte-identisch: kein Platzhalter → zielText/abschnittszweck wirkungslos', () => {
+    const base = compose(baseInput);
+    const mitSlots = compose({ ...baseInput, zielText: 'XXX-ZIELTEXT', abschnittszweck: 'XXX-ZWECK' });
+    expect(mitSlots).toBe(base);
+    expect(mitSlots).not.toContain('XXX-ZIELTEXT');
+    expect(mitSlots).not.toContain('XXX-ZWECK');
+  });
+
+  it('QS-Template mit Platzhaltern wird gefüllt (bzw. leer, wenn nicht gesetzt)', () => {
+    const skill = { ...SEED_SKILL, promptTemplate: 'Zweck: {{abschnittszweck}}\nText: {{zielText}}\nEnde.' };
+    const gefuellt = composeSkillPrompt(skill, [], { ...baseInput, zielText: 'ABSCHNITT-X', abschnittszweck: 'Markt' }, VB);
+    expect(gefuellt).toContain('Zweck: Markt');
+    expect(gefuellt).toContain('Text: ABSCHNITT-X');
+    const leer = composeSkillPrompt(skill, [], baseInput, VB);
+    expect(leer).toContain('Zweck: \nText: \nEnde.');
+    expect(leer).not.toContain('{{zielText}}');
+    expect(leer).not.toContain('{{abschnittszweck}}');
+  });
+});

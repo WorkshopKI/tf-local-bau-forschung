@@ -73,10 +73,11 @@ describe('Selektoren', () => {
 });
 
 describe('Seed', () => {
-  it('enthält die Gutachten-Skills A–G + zusammenpassende Regeln', () => {
-    // A (Kurzfassung) + B–G = 7 Skills; 5 A-Regeln + 7 B–G-Regeln = 12 Regeln.
-    expect(SEED_REGISTRY.skills).toHaveLength(7);
+  it('enthält die Gutachten-Skills A–G + QS-Basis + zusammenpassende Regeln', () => {
+    // A (Kurzfassung) + B–G = 7 Skills + qs-basis = 8; 5 A-Regeln + 7 B–G-Regeln = 12 Regeln (QS hat keine).
+    expect(SEED_REGISTRY.skills).toHaveLength(8);
     expect(SEED_REGISTRY.regeln).toHaveLength(12);
+    expect(getSkillById(SEED_REGISTRY, 'qs-basis')!.regelIds).toEqual([]);
     const skill = SEED_REGISTRY.skills[0]!; // A = Kurzfassung
     expect(skill.id).toBe('gutachten-kurzfassung');
     // Jede regelId JEDES Skills existiert in der Regel-Bibliothek:

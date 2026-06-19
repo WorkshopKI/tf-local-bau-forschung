@@ -3,6 +3,7 @@ export * from './types';
 export {
   type CheckLevel,
   type CheckResult,
+  type CheckRichtung,
   splitSentences,
   runRegelChecks,
   buildPromptHinweis,
@@ -21,14 +22,20 @@ export {
   SEED_REGELN,
   SEED_SKILLS_BG,
   SEED_REGELN_BG,
+  SEED_QS_SKILL,
   SEED_WORKFLOWS,
   ZIM_EP_DEF,
   KURZFASSUNG_SKILL_ID,
+  QS_BASIS_SKILL_ID,
 } from './seed';
 export {
   evalGate,
   flattenStepsTopological,
   computeStepNumbers,
+  normalizeStepRolle,
+  clampMaxRetries,
+  MAX_AUTO_RETRIES,
+  DEFAULT_MAX_RETRIES,
   type GateContext,
 } from './workflow-steps';
 export {

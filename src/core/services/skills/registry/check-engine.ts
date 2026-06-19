@@ -15,6 +15,14 @@ import { KNOWN_REGEL_TYPEN, type QualitaetsRegel, type RegelTyp } from './types'
 
 export type CheckLevel = 'ok' | 'hinweis' | 'fehler';
 
+/**
+ * Richtung eines Größen-Verstoßes — die Engine kennt sie (sie berechnet zu-viel/
+ * zu-wenig ohnehin) und exponiert sie als EINE Quelle für den beschränkten
+ * Auto-Retry (`chooseRetryModifier`), damit der keinen Detail-String parsen muss.
+ * Nur bei Größen-Regeln (`zeichen_max`/`wortanzahl`/`satzanzahl`) gesetzt.
+ */
+export type CheckRichtung = 'zu_lang' | 'zu_kurz';
+
 export interface CheckResult {
   /** Stabiler Schlüssel (für Keys/Tests) — entspricht der Regel-ID. */
   id: string;
@@ -24,6 +32,8 @@ export interface CheckResult {
   detail?: string;
   /** ID der erzeugenden Qualitätsregel (neu ggü. dem Testballon-CheckResult). */
   regelId?: string;
+  /** Richtung eines Größen-Verstoßes (nur bei Größen-Regeln, nur wenn `level !== 'ok'`). */
+  richtung?: CheckRichtung;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -112,6 +122,8 @@ interface CheckOutcome {
   ok: boolean;
   label: string;
   detail?: string;
+  /** Richtung des Verstoßes (nur Größen-Regeln) — propagiert in `CheckResult.richtung`. */
+  richtung?: CheckRichtung;
 }
 
 interface RegelHandler {
@@ -139,7 +151,7 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       return {
         ok: len <= max,
         label: `Zeichen ${len} / max ${max}`,
-        ...(len > max ? { detail: `${len - max} Zeichen über dem Limit — kürzen.` } : {}),
+        ...(len > max ? { detail: `${len - max} Zeichen über dem Limit — kürzen.`, richtung: 'zu_lang' } : {}),
       };
     },
     hint: params => `Begrenze den finalen Text auf maximal ${numParam(params, 'max', 1000)} Zeichen inklusive Leerzeichen.`,
@@ -156,7 +168,11 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       return {
         ok: !tooFew && !tooMany,
         label: `Wortanzahl ${count} (${range})`,
-        ...(tooFew ? { detail: 'Zu wenige Wörter — erweitern.' } : tooMany ? { detail: 'Zu viele Wörter — kürzen.' } : {}),
+        ...(tooFew
+          ? { detail: 'Zu wenige Wörter — erweitern.', richtung: 'zu_kurz' }
+          : tooMany
+            ? { detail: 'Zu viele Wörter — kürzen.', richtung: 'zu_lang' }
+            : {}),
       };
     },
     hint: params => {
@@ -178,7 +194,11 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       return {
         ok,
         label: `Satzanzahl ${count} (${min}–${max})`,
-        ...(ok ? {} : { detail: count < min ? 'Zu kurz — erweitern.' : 'Zu lang — kürzen.' }),
+        ...(ok
+          ? {}
+          : count < min
+            ? { detail: 'Zu kurz — erweitern.', richtung: 'zu_kurz' }
+            : { detail: 'Zu lang — kürzen.', richtung: 'zu_lang' }),
       };
     },
     hint: params => `Schreibe ${numParam(params, 'min', 8)} bis ${numParam(params, 'max', 12)} Sätze.`,
@@ -295,6 +315,7 @@ export function runRegelChecks(finalerText: string, regeln: QualitaetsRegel[]): 
       level: outcome.ok ? 'ok' : regel.schweregrad,
       label: outcome.label,
       ...(outcome.detail ? { detail: outcome.detail } : {}),
+      ...(outcome.richtung && !outcome.ok ? { richtung: outcome.richtung } : {}),
     });
   }
   return results;

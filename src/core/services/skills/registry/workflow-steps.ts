@@ -15,6 +15,45 @@ export interface GateContext {
   teilvorhaben: readonly unknown[];
 }
 
+/* -------------------------------------------------------------------------- */
+/* Rolle + Auto-Retry: Defaults, Klemmung, abhängige Felder (reine Funktion)    */
+/* -------------------------------------------------------------------------- */
+
+/** Harte Obergrenze des beschränkten Auto-Retry (Decke). */
+export const MAX_AUTO_RETRIES = 3;
+/** Default-Versuchszahl, wenn Auto-Retry aktiv ist, aber keine Zahl gesetzt wurde. */
+export const DEFAULT_MAX_RETRIES = 2;
+
+/** Klemmt `maxRetries` auf `[0..MAX_AUTO_RETRIES]`; fehlend/ungültig → Default 2. */
+export function clampMaxRetries(n: number | undefined): number {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return DEFAULT_MAX_RETRIES;
+  return Math.max(0, Math.min(MAX_AUTO_RETRIES, Math.round(n)));
+}
+
+/**
+ * Normalisiert Rolle + die davon abhängigen Felder eines Schritts (rein, typ→typ).
+ * Hält die Invarianten EINMAL fest (eine Quelle für Laden + Speichern):
+ *  - `rolle` default `'generierung'` → wird weggelassen (additiv, kein Daten-Drift).
+ *  - `'llm_qs'`: behält `qsZielStepId`; `autoRetry`/`maxRetries` entfallen.
+ *  - `'generierung'`: `qsZielStepId` entfällt; `autoRetry`/`maxRetries` nur bei `autoRetry`,
+ *    `maxRetries` dann auf `[0..3]` geklemmt.
+ */
+export function normalizeStepRolle(step: WorkflowStep): WorkflowStep {
+  const base: WorkflowStep = { ...step };
+  delete base.rolle;
+  delete base.qsZielStepId;
+  delete base.autoRetry;
+  delete base.maxRetries;
+  if (step.rolle === 'llm_qs') {
+    base.rolle = 'llm_qs';
+    if (step.qsZielStepId) base.qsZielStepId = step.qsZielStepId;
+  } else if (step.autoRetry) {
+    base.autoRetry = true;
+    base.maxRetries = clampMaxRetries(step.maxRetries);
+  }
+  return base;
+}
+
 /**
  * Wertet ein deklaratives Anwendbarkeits-Gate aus. `'hat_teilvorhaben'` ⇒ es gibt
  * mindestens ein Teilvorhaben; alles andere (inkl. `undefined` / unbekannte Werte)

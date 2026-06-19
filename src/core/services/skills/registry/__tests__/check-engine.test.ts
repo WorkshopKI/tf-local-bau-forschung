@@ -119,6 +119,29 @@ describe('runRegelChecks — pro Regel-Typ', () => {
   });
 });
 
+describe('runRegelChecks — richtung (Auto-Retry-Signal, eine Quelle)', () => {
+  it('zeichen_max über Limit ⇒ zu_lang; ok ⇒ keine richtung', () => {
+    expect(runRegelChecks('x'.repeat(20), [regel('zeichen_max', { max: 10 })])[0]!.richtung).toBe('zu_lang');
+    expect(runRegelChecks('kurz', [regel('zeichen_max', { max: 10 })])[0]!.richtung).toBeUndefined();
+  });
+
+  it('wortanzahl: zu wenig ⇒ zu_kurz, zu viel ⇒ zu_lang', () => {
+    expect(runRegelChecks('ein', [regel('wortanzahl', { min: 3, max: 5 })])[0]!.richtung).toBe('zu_kurz');
+    expect(runRegelChecks('ein zwei drei vier fünf sechs', [regel('wortanzahl', { min: 3, max: 5 })])[0]!.richtung).toBe('zu_lang');
+  });
+
+  it('satzanzahl: zu kurz ⇒ zu_kurz, zu lang ⇒ zu_lang', () => {
+    expect(runRegelChecks('Ein Satz.', [regel('satzanzahl', { min: 8, max: 12 })])[0]!.richtung).toBe('zu_kurz');
+    expect(runRegelChecks(NEUN_SAETZE, [regel('satzanzahl', { min: 1, max: 3 })])[0]!.richtung).toBe('zu_lang');
+  });
+
+  it('Nicht-Größen-Regeln tragen keine richtung (→ Auto-Retry „neu")', () => {
+    const r = runRegelChecks('Ziele:\n- Punkt eins', [regel('keine_aufzaehlungen', {})])[0]!;
+    expect(r.level).toBe('fehler');
+    expect(r.richtung).toBeUndefined();
+  });
+});
+
 describe('runRegelChecks — Aktiv/Schweregrad/Unbekannt', () => {
   it('überspringt deaktivierte Regeln', () => {
     const results = runRegelChecks('Ein Satz.', [regel('satzanzahl', { min: 8, max: 12 }, { aktiv: false })]);

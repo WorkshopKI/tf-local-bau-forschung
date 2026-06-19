@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeRegistryFile, mergeMissingSeeds } from '../storage';
-import { evalGate, flattenStepsTopological, computeStepNumbers } from '../workflow-steps';
+import {
+  evalGate, flattenStepsTopological, computeStepNumbers,
+  normalizeStepRolle, clampMaxRetries, MAX_AUTO_RETRIES, DEFAULT_MAX_RETRIES,
+} from '../workflow-steps';
 import { SEED_REGISTRY, SEED_WORKFLOWS } from '../seed';
 import type { SkillRegistryFile, WorkflowStep } from '../types';
 
@@ -62,6 +65,84 @@ describe('normalizeRegistryFile — workflows (tolerantes Lesen + Tiefe-Klemmung
     expect(byId('C').parentStepId).toBeUndefined();
     expect(byId('D').parentStepId).toBeUndefined();
     expect(byId('E').parentStepId).toBeUndefined();
+  });
+});
+
+describe('clampMaxRetries — harte Decke [0..3]', () => {
+  it('fehlend/ungültig → Default 2', () => {
+    expect(clampMaxRetries(undefined)).toBe(DEFAULT_MAX_RETRIES);
+    expect(clampMaxRetries(NaN)).toBe(DEFAULT_MAX_RETRIES);
+  });
+  it('klemmt nach oben/unten und rundet', () => {
+    expect(clampMaxRetries(-5)).toBe(0);
+    expect(clampMaxRetries(99)).toBe(MAX_AUTO_RETRIES);
+    expect(clampMaxRetries(2.6)).toBe(3);
+    expect(clampMaxRetries(0)).toBe(0);
+  });
+});
+
+describe('normalizeStepRolle — Rolle/Retry-Invarianten (eine Quelle)', () => {
+  const base = (extra: Partial<WorkflowStep>): WorkflowStep => ({
+    id: 'A', nr: 'A', kurz: 'A', label: 'A', skillId: 's', gateExpr: 'immer', ...extra,
+  });
+
+  it('generierung (Default) lässt Rolle/QS/Retry weg', () => {
+    const out = normalizeStepRolle(base({}));
+    expect(out.rolle).toBeUndefined();
+    expect(out.qsZielStepId).toBeUndefined();
+    expect(out.autoRetry).toBeUndefined();
+    expect(out.maxRetries).toBeUndefined();
+  });
+
+  it('generierung + autoRetry: maxRetries geklemmt, qsZielStepId entfernt', () => {
+    const out = normalizeStepRolle(base({ autoRetry: true, maxRetries: 99, qsZielStepId: 'B' }));
+    expect(out.autoRetry).toBe(true);
+    expect(out.maxRetries).toBe(MAX_AUTO_RETRIES);
+    expect(out.qsZielStepId).toBeUndefined();
+  });
+
+  it('generierung ohne autoRetry: maxRetries wird verworfen', () => {
+    const out = normalizeStepRolle(base({ maxRetries: 3 }));
+    expect(out.autoRetry).toBeUndefined();
+    expect(out.maxRetries).toBeUndefined();
+  });
+
+  it('llm_qs: behält qsZielStepId, entfernt autoRetry/maxRetries', () => {
+    const out = normalizeStepRolle(base({ rolle: 'llm_qs', qsZielStepId: 'B', autoRetry: true, maxRetries: 2 }));
+    expect(out.rolle).toBe('llm_qs');
+    expect(out.qsZielStepId).toBe('B');
+    expect(out.autoRetry).toBeUndefined();
+    expect(out.maxRetries).toBeUndefined();
+  });
+
+  it('bewahrt unveränderte Basisfelder', () => {
+    const out = normalizeStepRolle(base({ ankerKey: 'A', parentStepId: 'X' }));
+    expect(out.ankerKey).toBe('A');
+    expect(out.parentStepId).toBe('X');
+  });
+});
+
+describe('normalizeRegistryFile — Rolle/Retry tolerant lesen', () => {
+  it('liest rolle/qsZielStepId und klemmt maxRetries beim Laden', () => {
+    const file = normalizeRegistryFile({
+      version: 1, skills: [], regeln: [],
+      workflows: [{
+        id: 'w',
+        steps: [
+          { id: 'A', autoRetry: true, maxRetries: 9 },
+          { id: 'Q', rolle: 'llm_qs', qsZielStepId: 'A', autoRetry: true },
+          { id: 'B', rolle: 'unbekannt' },
+        ],
+      }],
+    })!;
+    const steps = file.workflows![0]!.steps;
+    const byId = (id: string) => steps.find(s => s.id === id)!;
+    expect(byId('A').autoRetry).toBe(true);
+    expect(byId('A').maxRetries).toBe(MAX_AUTO_RETRIES);
+    expect(byId('Q').rolle).toBe('llm_qs');
+    expect(byId('Q').qsZielStepId).toBe('A');
+    expect(byId('Q').autoRetry).toBeUndefined();
+    expect(byId('B').rolle).toBeUndefined(); // unbekannte Rolle → generierung (weggelassen)
   });
 });
 
