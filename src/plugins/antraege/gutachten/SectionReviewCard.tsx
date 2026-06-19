@@ -129,18 +129,28 @@ export function SectionReviewCard({
         onUebernehmen={onUebernehmen}
       />
 
-      {run.checks.length > 0 && (
-        <div className="mt-5">
-          <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-2.5">Prüf-Ergebnis</div>
-          <CheckList checks={run.checks} />
-        </div>
-      )}
-
-      {(run.qsHinweise?.length ?? 0) > 0 && (
-        <div className="mt-5">
-          <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-1">KI-Qualitätshinweis (beratend)</div>
-          <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2.5">Qualitative Einschätzung der KI — getrennt von den Prüf-Ergebnissen, ändert den Text nicht.</div>
-          <QsHinweisList befunde={run.qsHinweise!} />
+      {/* Getrennte Qualitätsbereiche: links deterministische Prüfung, rechts
+          beratende KI-QS. Die QS-Spalte entfällt sauber, wenn keine Hinweise
+          vorliegen (z.B. KI nicht erreichbar). */}
+      {(run.checks.length > 0 || (run.qsHinweise?.length ?? 0) > 0) && (
+        <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
+          {run.checks.length > 0 && (
+            <div>
+              <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-2.5">
+                Prüfung · {run.checks.length} {run.checks.length === 1 ? 'Regel' : 'Regeln'}
+              </div>
+              <CheckList checks={run.checks} />
+            </div>
+          )}
+          {(run.qsHinweise?.length ?? 0) > 0 && (
+            <div>
+              <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-1">
+                KI-Qualitätshinweis · beratend
+              </div>
+              <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2.5">Qualitative Einschätzung der KI — ändert den Text nicht.</div>
+              <QsHinweisList befunde={run.qsHinweise!} />
+            </div>
+          )}
         </div>
       )}
 
