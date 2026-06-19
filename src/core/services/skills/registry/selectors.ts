@@ -3,10 +3,39 @@
  * Genutzt von der Skill-Verwaltung (UI), dem Antragsdetail-Consumer und Tests.
  */
 import { KNOWN_REGEL_TYPEN, type QualitaetsRegel, type SkillRecord, type SkillRegistryFile } from './types';
+import { SEED_WORKFLOWS } from './seed';
 
 /** Skill per ID (oder `undefined`). */
 export function getSkillById(file: SkillRegistryFile, id: string): SkillRecord | undefined {
   return file.skills.find(s => s.id === id);
+}
+
+/** Eine Fundstelle eines Skills in einem Workflow („verwendet in"). */
+export interface SkillWorkflowFundstelle {
+  workflowId: string;
+  stepId: string;
+  /** Anzeige-Nummer des Schritts (`"A"`, `"5a"`). */
+  nr: string;
+  label: string;
+}
+
+/**
+ * Alle Workflow-Schritte, die einen bestimmten Skill verwenden („verwendet in",
+ * Spiegel zu `skillsUsingRegel`). Liest `file.workflows`; ist dort (noch) keine
+ * Definition kuratiert, greift der Seed-Workflow als Fallback (P1-weiche
+ * Abhängigkeit). Rein — kein IO, kein React.
+ */
+export function workflowStepsUsingSkill(file: SkillRegistryFile, skillId: string): SkillWorkflowFundstelle[] {
+  const workflows = file.workflows && file.workflows.length > 0 ? file.workflows : SEED_WORKFLOWS;
+  const treffer: SkillWorkflowFundstelle[] = [];
+  for (const wf of workflows) {
+    for (const step of wf.steps) {
+      if (step.skillId === skillId) {
+        treffer.push({ workflowId: wf.id, stepId: step.id, nr: step.nr, label: step.label });
+      }
+    }
+  }
+  return treffer;
 }
 
 /**

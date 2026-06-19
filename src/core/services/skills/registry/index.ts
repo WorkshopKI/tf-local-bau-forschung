@@ -13,8 +13,10 @@ export {
   getSkillById,
   resolveRegeln,
   skillsUsingRegel,
+  workflowStepsUsingSkill,
   isKnownRegelTyp,
   describeRegelParams,
+  type SkillWorkflowFundstelle,
 } from './selectors';
 export {
   SEED_REGISTRY,

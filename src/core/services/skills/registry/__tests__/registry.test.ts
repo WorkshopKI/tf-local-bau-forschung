@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeRegistryFile } from '../storage';
-import { getSkillById, resolveRegeln, skillsUsingRegel, describeRegelParams } from '../selectors';
+import { getSkillById, resolveRegeln, skillsUsingRegel, workflowStepsUsingSkill, describeRegelParams } from '../selectors';
 import { SEED_REGISTRY, SEED_SKILL, KURZFASSUNG_SKILL_ID } from '../seed';
 import { runRegelChecks } from '../check-engine';
-import type { QualitaetsRegel } from '../types';
+import type { QualitaetsRegel, SkillRegistryFile } from '../types';
 
 describe('normalizeRegistryFile — tolerantes Lesen', () => {
   it('akzeptiert eine gültige Datei und behält bekannte + unbekannte Typen', () => {
@@ -60,6 +60,37 @@ describe('Selektoren', () => {
   it('skillsUsingRegel berechnet „verwendet in"', () => {
     expect(skillsUsingRegel(SEED_REGISTRY, 'seed-satzanzahl')).toEqual([SEED_SKILL.name]);
     expect(skillsUsingRegel(SEED_REGISTRY, 'unbenutzt')).toEqual([]);
+  });
+
+  it('workflowStepsUsingSkill findet Schritte über file.workflows', () => {
+    const treffer = workflowStepsUsingSkill(SEED_REGISTRY, KURZFASSUNG_SKILL_ID);
+    expect(treffer).toHaveLength(1);
+    expect(treffer[0]).toMatchObject({ workflowId: 'zim-ep', stepId: 'A', nr: 'A' });
+  });
+
+  it('workflowStepsUsingSkill: Mehrfachnutzung in einem Workflow', () => {
+    const file: SkillRegistryFile = {
+      version: 1,
+      updated_at: 't',
+      skills: [],
+      regeln: [],
+      workflows: [{
+        id: 'wf1', name: 'WF', version: 1, steps: [
+          { id: 's1', nr: '1', kurz: '1', label: 'Eins', skillId: 'shared' },
+          { id: 's2', nr: '2', kurz: '2', label: 'Zwei', skillId: 'andere' },
+          { id: 's3', nr: '3', kurz: '3', label: 'Drei', skillId: 'shared' },
+        ],
+      }],
+    };
+    expect(workflowStepsUsingSkill(file, 'shared').map(t => t.stepId)).toEqual(['s1', 's3']);
+    expect(workflowStepsUsingSkill(file, 'gibt-es-nicht')).toEqual([]);
+  });
+
+  it('workflowStepsUsingSkill: Seed-Fallback wenn keine Workflows kuratiert', () => {
+    const ohne: SkillRegistryFile = { version: 1, updated_at: 't', skills: [], regeln: [], workflows: [] };
+    const treffer = workflowStepsUsingSkill(ohne, KURZFASSUNG_SKILL_ID);
+    expect(treffer).toHaveLength(1);
+    expect(treffer[0]!.workflowId).toBe('zim-ep');
   });
 
   it('describeRegelParams liefert Kurzformen', () => {
