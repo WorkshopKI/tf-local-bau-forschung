@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { Button } from '@/components/ui/button';
@@ -71,7 +71,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const [tab, setTab] = useState<TabId>('skills');
   const [search, setSearch] = useState('');
   const [viewModes, setViewModes] = useState<Record<TabId, RegistryViewMode>>(loadViewModes);
-  const [editingSkill, setEditingSkill] = useState<{ skill: SkillRecord; isNew: boolean } | null>(null);
+  const [editingSkill, setEditingSkill] = useState<{ skill: SkillRecord; isNew: boolean; initialView?: 'bearbeiten' | 'versionen' } | null>(null);
   const [editingRegel, setEditingRegel] = useState<{ regel: QualitaetsRegel | null; isNew: boolean } | null>(null);
   const [editingStep, setEditingStep] = useState<{ step: WorkflowStep; isNew: boolean } | null>(null);
   const [testlauf, setTestlauf] = useState<Testlauf | null>(null);
@@ -81,6 +81,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
   // Deep-Link (Provenienz aus dem Gutachten-Flow): `/kuration/skill-verwaltung/<skillId>`
   // öffnet den passenden Skill-Editor, sobald die Registry geladen ist.
   const { skillId: routeSkillId } = useParams<{ skillId?: string }>();
+  const [searchParams] = useSearchParams();
   const deepLinkRef = useRef<string | null>(null);
   useEffect(() => {
     if (!routeSkillId || !reg.file) return;
@@ -88,10 +89,11 @@ export function SkillVerwaltungPage(): React.ReactElement {
     const skill = reg.file.skills.find(s => s.id === routeSkillId);
     if (skill) {
       deepLinkRef.current = routeSkillId;
+      const initialView = searchParams.get('view') === 'versionen' ? 'versionen' : 'bearbeiten';
       setTab('skills');
-      setEditingSkill({ skill, isNew: false });
+      setEditingSkill({ skill, isNew: false, initialView });
     }
-  }, [routeSkillId, reg.file]);
+  }, [routeSkillId, reg.file, searchParams]);
 
   if (reg.loading || !reg.file) {
     return <div className="px-8 py-10 text-[13.5px] text-[var(--tf-text-secondary)]">Laden…</div>;
@@ -185,6 +187,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
               isNew={editingSkill.isNew}
               canEdit={reg.canEdit}
               agg={agg}
+              initialView={editingSkill.initialView}
               persist={reg.persist}
               onBack={closeEditor}
               onManageRegeln={() => { closeEditor(); changeTab('regeln'); }}

@@ -36,6 +36,8 @@ interface Props {
   provenance?: { skillName: string; regelCount: number };
   /** Öffnet den erzeugenden Skill in der Skill-Verwaltung (Provenienz-Link). */
   onOpenSkill?: () => void;
+  /** Öffnet die Versions-Historie des Skills (Versions-Transparenz, A1). */
+  onOpenSkillVersion?: () => void;
   /** Ein-Klick-Feedback zum Entwurf (→ S1). Fehlt → Feedback-Zeile entfällt. */
   onFeedback?: (rating: 'up' | 'down', notiz?: string) => void;
   /** Thinking-/Reasoning-Budget für die nächste Generierung (Default aus der Einstellung, hier übersteuerbar). */
@@ -51,7 +53,7 @@ const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border
 const TWEAK_LINK = 'inline-flex items-center gap-1 text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]';
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
+  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onOpenSkillVersion, onFeedback, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
@@ -100,11 +102,19 @@ export function SectionReviewCard({
           <div className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
             erzeugt mit{' '}
             {onOpenSkill ? (
-              <button type="button" onClick={onOpenSkill} className="text-[var(--tf-primary)] hover:underline">
-                {provenance.skillName}{run.skillVersion != null ? ` v${run.skillVersion}` : ''}
-              </button>
+              <button type="button" onClick={onOpenSkill} className="text-[var(--tf-primary)] hover:underline">{provenance.skillName}</button>
             ) : (
-              <span className="text-[var(--tf-text-secondary)]">{provenance.skillName}{run.skillVersion != null ? ` v${run.skillVersion}` : ''}</span>
+              <span className="text-[var(--tf-text-secondary)]">{provenance.skillName}</span>
+            )}
+            {run.skillVersion != null && (
+              <>
+                {' '}
+                {onOpenSkillVersion ? (
+                  <button type="button" onClick={onOpenSkillVersion} title="Versions-Historie öffnen" className="text-[var(--tf-primary)] hover:underline">v{run.skillVersion}</button>
+                ) : (
+                  <span className="text-[var(--tf-text-secondary)]">v{run.skillVersion}</span>
+                )}
+              </>
             )}
             {run.modell ? ` · ${run.modell}` : ''} ·{' '}
             {onOpenSkill ? (
@@ -220,9 +230,12 @@ export function SectionReviewCard({
           <>
             <div className="flex items-center gap-2 flex-wrap">
               <button type="button" className={BTN_PRIMARY} onClick={onFreigeben}>Freigeben</button>
-              <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
-              <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
-              <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
+              <span className="inline-flex items-center gap-2">
+                <span className="text-[11px] text-[var(--tf-text-tertiary)]">Anpassen:</span>
+                <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
+                <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
+                <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
+              </span>
               <ThinkingControl budget={thinkingBudget} onChange={onSetThinkingBudget} disabled={busy} />
               <button type="button" className={BTN_SECONDARY} onClick={onPruefen}>Prüfen</button>
               {onQs && (

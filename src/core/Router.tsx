@@ -33,7 +33,8 @@ function NavigationBridge({ children }: { children: React.ReactNode }): React.Re
         if (params?.selectedId) {
           if (pluginId === 'antraege') useAntraegeStore.getState().setSelectedAktenzeichen(params.selectedId);
           const base = pluginIdToRoute(pluginId);
-          navigate(`${base}/${encodeURIComponent(params.selectedId)}`);
+          const query = params.view ? `?view=${encodeURIComponent(params.view)}` : '';
+          navigate(`${base}/${encodeURIComponent(params.selectedId)}${query}`);
           return;
         }
         navigate(pluginIdToRoute(pluginId));

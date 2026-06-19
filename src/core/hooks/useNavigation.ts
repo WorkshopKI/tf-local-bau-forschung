@@ -2,6 +2,8 @@ import { createContext, useContext } from 'react';
 
 export interface NavigationParams {
   selectedId?: string;
+  /** Optionaler Unter-View des Ziels (z.B. `'versionen'` für den Skill-Editor-Reiter). */
+  view?: string;
 }
 
 interface NavigationContextValue {

@@ -216,6 +216,9 @@ function ActiveAbschnitt({
   const openSkill = skillId
     ? () => navigate('skill-verwaltung-kuration', { selectedId: skillId })
     : undefined;
+  const openSkillVersion = skillId
+    ? () => navigate('skill-verwaltung-kuration', { selectedId: skillId, view: 'versionen' })
+    : undefined;
 
   return (
     <div className="my-2 rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] px-6 py-5">
@@ -277,6 +280,7 @@ function ActiveAbschnitt({
           onQs={ctrl.qsFor(id) ? () => ctrl.runQs(id) : undefined}
           provenance={{ skillName: ctrl.activeSkill?.name ?? step.skillId ?? '—', regelCount: ctrl.regeln.length }}
           onOpenSkill={openSkill}
+          onOpenSkillVersion={openSkillVersion}
           onFeedback={(rating, notiz) => ctrl.sendFeedback(id, rating, notiz)}
           thinkingBudget={ctrl.thinkingBudget}
           onSetThinkingBudget={ctrl.setThinkingBudget}

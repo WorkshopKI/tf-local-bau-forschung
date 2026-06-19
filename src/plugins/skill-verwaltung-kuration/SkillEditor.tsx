@@ -41,16 +41,18 @@ interface SkillEditorProps {
   canEdit: boolean;
   /** S1-Aggregat (für den beratenden Reifegrad-Vorschlag); `null` solange ladend. */
   agg: SkillAggregatMap | null;
+  /** Start-Reiter (Deep-Link aus dem Gutachten-Flow: `'versionen'`). Default `'bearbeiten'`. */
+  initialView?: 'bearbeiten' | 'versionen';
   persist: (next: SkillRegistryFile) => Promise<void>;
   onBack: () => void;
   onManageRegeln: () => void;
   onTestlauf: (skill: SkillRecord, regeln: QualitaetsRegel[], hinweis: string) => void;
 }
 
-export function SkillEditor({ file, skill, isNew, canEdit, agg, persist, onBack, onManageRegeln, onTestlauf }: SkillEditorProps): React.ReactElement {
+export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, persist, onBack, onManageRegeln, onTestlauf }: SkillEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<SkillRecord>(skill);
   const [begruendung, setBegruendung] = useState('');
-  const [view, setView] = useState<'bearbeiten' | 'versionen'>('bearbeiten');
+  const [view, setView] = useState<'bearbeiten' | 'versionen'>(initialView ?? 'bearbeiten');
   const meinKuerzel = useMeinKuerzel();
   const nextVersion = isNew ? draft.version : skill.version + 1;
   const dirty = JSON.stringify(draft) !== JSON.stringify(skill);
