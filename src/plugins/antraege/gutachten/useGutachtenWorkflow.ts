@@ -8,7 +8,7 @@
  *
  * Alle Aktionen sind self-catching (Pitfall #15): Fehler → `error`-State (Banner).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import {
@@ -22,6 +22,7 @@ import {
   type QualitaetsRegel,
   type SkillRecord,
   type SkillTweak,
+  type WorkflowStep,
 } from '@/core/services/skills';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { getLlmThinkingEnabled, budgetForThinking, type ThinkingBudget } from '@/core/services/ai/llm-thinking';
@@ -32,12 +33,13 @@ import { resolveVb, type VbAufloesung } from '../kurzfassung/vbDokument';
 import { useStreamingBuffer } from '../kurzfassung/useStreamingBuffer';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
-import { ZIM_EP_WORKFLOW } from './workflow-definition';
+import { resolveActiveWorkflow } from './active-workflow';
 import { buildVorherigeAbschnitte } from './context-provider';
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { putWorkflowRun } from './workflow-store';
 import {
   applyGeneration, applyPruefen, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
+  firstNonFreigegeben,
   type GenerationInput,
 } from './runner';
 import type { StepId, WorkflowRun } from './types';
@@ -56,6 +58,8 @@ export interface GutachtenWorkflowController {
   /** Live-Streaming-Vorschau während `busy` (rohe Antwort + Denkprozess). */
   streamContent: string;
   streamThinking: string;
+  /** Geordnete Schritte des aktiven Workflows (aus der Registry, Fallback Seed). */
+  steps: WorkflowStep[];
   aktiverSchritt: StepId;
   /** Skill des AKTIVEN Schritts (Version + Tweak-Editor). */
   activeSkill: SkillRecord | null;
@@ -90,13 +94,20 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [error, setError] = useState<string | null>(null);
   const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
   const [skillMap, setSkillMap] = useState<Map<StepId, SkillCtx>>(new Map());
+  const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [tweak, setTweak] = useState<SkillTweak | null>(null);
   // Pro-Generierung-Budget: Default aus der Einstellung (an → 'medium'), lokal übersteuerbar. Nicht persistiert.
   const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>(budgetForThinking(getLlmThinkingEnabled()));
   const stream = useStreamingBuffer();
   const abortRef = useRef<AbortController | null>(null);
 
-  const aktiverSchritt = run?.aktiverSchritt ?? 'A';
+  const order = useMemo(() => steps.map(s => s.id), [steps]);
+  // Defensiver Guard: zeigt ein persistierter `aktiverSchritt` auf einen Schritt,
+  // den die (umkuratierte) Def nicht mehr kennt, auf den ersten offenen zurückfallen.
+  const rawAktiv = run?.aktiverSchritt ?? (steps[0]?.id ?? 'A');
+  const aktiverSchritt = (run && steps.length > 0 && !steps.some(s => s.id === rawAktiv))
+    ? firstNonFreigegeben(run, order)
+    : rawAktiv;
   const activeCtx = skillMap.get(aktiverSchritt) ?? null;
   const activeSkillId = activeCtx?.skill.id;
 
@@ -112,6 +123,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       ]);
       if (cancelled) return;
       setSkillMap(buildSkillMap(loaded.file));
+      setSteps(resolveActiveWorkflow(loaded.file));
       setRun(r);
       setVb(vbRes);
       setLoading(false);
@@ -164,7 +176,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         thinkingBudget,
         onContentDelta: stream.onContentDelta,
         onThinkingDelta: stream.onThinkingDelta,
-        vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, ZIM_EP_WORKFLOW),
+        vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, steps),
         ...(tweakWirksam ? { tweak } : {}),
         ...(modifier ? { modifier } : {}),
         ...(modifier && prevText ? { vorherigerText: prevText } : {}),
@@ -256,6 +268,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     setThinkingBudget,
     streamContent: stream.content,
     streamThinking: stream.thinking,
+    steps,
     aktiverSchritt,
     activeSkill: activeCtx?.skill ?? null,
     regeln: activeCtx?.regeln ?? [],
@@ -263,7 +276,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     generate: (id) => { void runGeneration(id); },
     modify: (id, m) => { void runGeneration(id, m); },
     pruefen: (id) => { void pruefenStep(id); },
-    freigebenStep: (id) => { void reduce((r, now) => freigeben(r, id, now)); },
+    freigebenStep: (id) => { void reduce((r, now) => freigeben(r, id, now, order)); },
     erneutOeffnenStep: (id) => { void reduce((r, now) => erneutOeffnen(r, id, now)); },
     weiterschaltenStep: (id) => { void reduce((r, now) => weiterschalten(r, id, now)); },
     verwerfenStep: (id) => { void reduce((r, now) => verwerfen(r, id, now)); },

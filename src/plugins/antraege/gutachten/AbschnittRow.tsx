@@ -3,7 +3,7 @@
  * Zeile (leer). Der AKTIVE Schritt wird NICHT hier, sondern als geöffnete Karte
  * im Sektions-Container gerendert.
  */
-import type { WorkflowStepDef } from './workflow-definition';
+import type { WorkflowStep } from '@/core/services/skills';
 import type { StepRun } from './types';
 
 function wordCount(text: string): number {
@@ -11,7 +11,7 @@ function wordCount(text: string): number {
 }
 
 interface Props {
-  def: WorkflowStepDef;
+  def: WorkflowStep;
   step?: StepRun;
   /** Dezenter Konsistenz-Hinweis (ein früherer Abschnitt ist wieder in Arbeit). */
   konsistenzHinweis?: boolean;

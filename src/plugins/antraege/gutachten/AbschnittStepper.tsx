@@ -4,19 +4,21 @@
  * gefüllter Pill, aktiv = medium + Primary-Unterstreichung (kein bunter Kreis),
  * offen = tertiary. `›`-Trenner. Klick auf einen Schritt mit Inhalt fokussiert ihn.
  */
-import { ZIM_EP_WORKFLOW } from './workflow-definition';
+import type { WorkflowStep } from '@/core/services/skills';
 import type { StepId, WorkflowRun } from './types';
 
 export function AbschnittStepper(
-  { run, onJump }: { run: WorkflowRun; onJump: (id: StepId) => void },
+  { run, steps, onJump }: { run: WorkflowRun; steps: WorkflowStep[]; onJump: (id: StepId) => void },
 ): React.ReactElement {
   return (
     <div className="flex items-center gap-1.5 flex-wrap pb-6">
-      {ZIM_EP_WORKFLOW.map((def, i) => {
+      {steps.map((def, i) => {
         const status = run.schritte[def.id]?.status ?? 'leer';
         const isActive = def.id === run.aktiverSchritt;
         const freigegeben = status === 'freigegeben';
         const klickbar = !isActive && status !== 'leer';
+        // Unterschritt (Phase 5): leicht eingerückt, damit die eine Ebene sichtbar ist.
+        const isSub = !!def.parentStepId;
 
         let cls = 'px-2.5 py-1 rounded-full text-[12px] whitespace-nowrap';
         if (isActive) {
@@ -28,7 +30,7 @@ export function AbschnittStepper(
         }
 
         return (
-          <div key={def.id} className="flex items-center gap-1.5">
+          <div key={def.id} className={`flex items-center gap-1.5${isSub ? ' ml-1.5' : ''}`}>
             {klickbar ? (
               <button type="button" className={`${cls} hover:opacity-80`} onClick={() => onJump(def.id)} title={def.label}>
                 {def.kurz}{freigegeben && <span className="ml-1 text-[11px] text-[var(--tf-text-tertiary)]">✓</span>}
@@ -36,7 +38,7 @@ export function AbschnittStepper(
             ) : (
               <span className={cls} title={def.label}>{def.kurz}</span>
             )}
-            {i < ZIM_EP_WORKFLOW.length - 1 && <span className="text-[var(--tf-text-tertiary)] text-[10px]">›</span>}
+            {i < steps.length - 1 && <span className="text-[var(--tf-text-tertiary)] text-[10px]">›</span>}
           </div>
         );
       })}

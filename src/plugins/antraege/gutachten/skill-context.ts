@@ -8,7 +8,7 @@ import {
   type QualitaetsRegel, type SkillRecord, type SkillRegistryFile,
 } from '@/core/services/skills';
 import type { KurzfassungContext } from '../kurzfassung/types';
-import { ZIM_EP_WORKFLOW } from './workflow-definition';
+import { resolveActiveWorkflow } from './active-workflow';
 import type { StepId } from './types';
 
 export interface SkillCtx {
@@ -33,14 +33,14 @@ export function buildStammdaten(ctx: KurzfassungContext): string {
   return lines.join('\n');
 }
 
-/** Skill + Regeln je Schritt aus der geladenen Registry (Fallback: Seed). */
+/** Skill + Regeln je Schritt der aktiven WorkflowDef aus der Registry (Fallback: Seed). */
 export function buildSkillMap(file: SkillRegistryFile): Map<StepId, SkillCtx> {
   const map = new Map<StepId, SkillCtx>();
-  for (const def of ZIM_EP_WORKFLOW) {
-    const found = getSkillById(file, def.skillId);
-    if (found) { map.set(def.id, { skill: found, regeln: resolveRegeln(file, found) }); continue; }
-    const seed = getSkillById(SEED_REGISTRY, def.skillId);
-    if (seed) map.set(def.id, { skill: seed, regeln: resolveRegeln(SEED_REGISTRY, seed) });
+  for (const step of resolveActiveWorkflow(file)) {
+    const found = getSkillById(file, step.skillId);
+    if (found) { map.set(step.id, { skill: found, regeln: resolveRegeln(file, found) }); continue; }
+    const seed = getSkillById(SEED_REGISTRY, step.skillId);
+    if (seed) map.set(step.id, { skill: seed, regeln: resolveRegeln(SEED_REGISTRY, seed) });
   }
   return map;
 }

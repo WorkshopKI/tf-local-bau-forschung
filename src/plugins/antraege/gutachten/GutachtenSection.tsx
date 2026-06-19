@@ -25,8 +25,8 @@ import { AbschnittStepper } from './AbschnittStepper';
 import { SectionReviewCard } from './SectionReviewCard';
 import { AbschnittRow } from './AbschnittRow';
 import { ResumeLine } from './ResumeLine';
-import { ZIM_EP_WORKFLOW } from './workflow-definition';
 import { fruehereInArbeit } from './runner';
+import type { WorkflowStep } from '@/core/services/skills';
 import type { WorkflowRun } from './types';
 
 const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2';
@@ -38,12 +38,13 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   const [ersetzen, setErsetzen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
 
-  const { run, vbDokument: vbDok } = ctrl;
+  const { run, vbDokument: vbDok, steps } = ctrl;
+  const order = steps.map(s => s.id);
   const vbLvl = maxConversionLevel(vbDok?.conversion);
   const vbWarnung = vbDok?.conversion?.warnings.find(w => w.level === 'warnung')?.message ?? '';
   const tweakEffektiv = !!(ctrl.tweak?.aktiv && (ctrl.tweak.stilHinweise.trim() || ctrl.tweak.beispielFormulierungen.trim()));
 
-  const freigegebenCount = run ? ZIM_EP_WORKFLOW.filter(d => run.schritte[d.id]?.status === 'freigegeben').length : 0;
+  const freigegebenCount = run ? steps.filter(d => run.schritte[d.id]?.status === 'freigegeben').length : 0;
 
   // Synthetischer „Antrag" als Feld-Quelle für den DOCX-Füller (Verbund-Ebene).
   const mappingAntrag = useMemo<Antrag>(() => ({
@@ -58,14 +59,14 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   // Export: freigegebene Abschnitte (mit gültigem Anker + Text) + Anzeige-Liste.
   // Schritte ohne gültigen DOCX-Anker (z.B. Unterschritte) werden sauber übersprungen.
   const exportSections: AbschnittEinfuegung[] = run
-    ? ZIM_EP_WORKFLOW.flatMap(d => {
+    ? steps.flatMap(d => {
         const s = run.schritte[d.id];
         return s?.status === 'freigegeben' && ankerKeyGueltig(d.ankerKey)
           ? [{ id: d.ankerKey, anker: ankerFuer('EP', d.ankerKey), finalerText: s.finalerText }]
           : [];
       })
     : [];
-  const abschnitteAnzeige: AbschnittAnzeige[] = ZIM_EP_WORKFLOW.flatMap(d =>
+  const abschnitteAnzeige: AbschnittAnzeige[] = steps.flatMap(d =>
     ankerKeyGueltig(d.ankerKey)
       ? [{
           id: d.ankerKey,
@@ -81,7 +82,7 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
       {/* Sektionskopf */}
       <div className="flex items-center gap-3.5 mb-4">
         <span className="text-[16px] font-medium text-[var(--tf-text)]">Gutachten</span>
-        {run && <span className="text-[12px] text-[var(--tf-text-tertiary)]">{freigegebenCount} von 7 Abschnitten freigegeben</span>}
+        {run && <span className="text-[12px] text-[var(--tf-text-tertiary)]">{freigegebenCount} von {steps.length} Abschnitten freigegeben</span>}
         <span className="flex-1" />
         <button type="button" className={BTN_PRIMARY} disabled={freigegebenCount === 0} onClick={() => setDialogOpen(true)}>
           In Vorlage exportieren
@@ -133,15 +134,15 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
 
           {/* Wiederaufnahme-Zeile (wenn aktiver Schritt in Arbeit) */}
           {run.schritte[run.aktiverSchritt]?.status === 'entwurf' && (
-            <ResumeLine run={run} onWeiter={ctrl.weiterschaltenStep} />
+            <ResumeLine run={run} steps={steps} onWeiter={ctrl.weiterschaltenStep} />
           )}
 
-          <AbschnittStepper run={run} onJump={ctrl.weiterschaltenStep} />
+          <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
 
-          {ZIM_EP_WORKFLOW.map(def => {
+          {steps.map(def => {
             const step = run.schritte[def.id];
             const isActive = def.id === run.aktiverSchritt;
-            if (isActive) return <ActiveAbschnitt key={def.id} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />;
+            if (isActive) return <ActiveAbschnitt key={def.id} def={def} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />;
             if (step) {
               const freigegeben = step.status === 'freigegeben';
               return (
@@ -149,7 +150,7 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
                   key={def.id}
                   def={def}
                   step={step}
-                  konsistenzHinweis={freigegeben && fruehereInArbeit(run, def.id)}
+                  konsistenzHinweis={freigegeben && fruehereInArbeit(run, def.id, order)}
                   oeffnenLabel={freigegeben ? 'Erneut öffnen' : 'Öffnen'}
                   onOeffnen={() => (freigegeben ? ctrl.erneutOeffnenStep(def.id) : ctrl.weiterschaltenStep(def.id))}
                 />
@@ -198,15 +199,15 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
 
 /** Der aktive Abschnitt als geöffnete Karte (Kopf + Generieren-Prompt ODER Review). */
 function ActiveAbschnitt({
-  run, ctrl, tweakEffektiv, onOpenTweak,
+  def, run, ctrl, tweakEffektiv, onOpenTweak,
 }: {
+  def: WorkflowStep;
   run: WorkflowRun;
   ctrl: ReturnType<typeof useGutachtenWorkflow>;
   tweakEffektiv: boolean;
   onOpenTweak: () => void;
 }): React.ReactElement {
-  const id = run.aktiverSchritt;
-  const def = ZIM_EP_WORKFLOW.find(d => d.id === id)!;
+  const id = def.id;
   const step = run.schritte[id];
   const status = step?.status ?? 'leer';
 

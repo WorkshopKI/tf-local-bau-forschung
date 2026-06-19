@@ -14,7 +14,9 @@ import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { uuid } from '@/core/services/id-generator';
 import { getAntrag, getVerbund, listAntraegeByVerbund } from '@/core/services/csv/idb-csv';
 import type { Antrag } from '@/core/services/csv/types';
-import { runSkill, loadSkillRegistry, runRegelChecks, loadSkillTweak } from '@/core/services/skills';
+import {
+  runSkill, loadSkillRegistry, runRegelChecks, loadSkillTweak, ZIM_EP_DEF, type WorkflowStep,
+} from '@/core/services/skills';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import {
   runBatch, berechneMengen, putBatchJob, getBatchJob, deleteBatchJob, spiegeleAbschnitt,
@@ -25,11 +27,11 @@ import { resolveVb } from '../kurzfassung/vbDokument';
 import { isNetzwerkLead } from '../netzwerk';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { buildStammdaten, buildSkillMap, type SkillCtx } from '../gutachten/skill-context';
-import { ZIM_EP_WORKFLOW } from '../gutachten/workflow-definition';
+import { resolveActiveWorkflow } from '../gutachten/active-workflow';
 import { buildVorherigeAbschnitte } from '../gutachten/context-provider';
 import { getWorkflowRun, putWorkflowRun } from '../gutachten/workflow-store';
 import { emptyRun, applyGeneration, type GenerationInput } from '../gutachten/runner';
-import { STEP_ORDER, type StepId } from '../gutachten/types';
+import type { StepId } from '../gutachten/types';
 
 const leadFirstCmp = (x: Antrag, y: Antrag): number => {
   const xL = isNetzwerkLead(x);
@@ -64,6 +66,8 @@ export function useBatchJob(): UseBatchJob {
   const [hatFortsetzbaren, setHatFortsetzbaren] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const skillMapRef = useRef<Map<StepId, SkillCtx>>(new Map());
+  /** Geordnete Schritte der aktiven WorkflowDef (Fallback: Seed). */
+  const stepsRef = useRef<WorkflowStep[]>(ZIM_EP_DEF.steps);
   const persHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   /** true = der nächste Abort ist eine PAUSE (nicht Abbruch). */
@@ -81,6 +85,7 @@ export function useBatchJob(): UseBatchJob {
       ]);
       if (cancelled) return;
       skillMapRef.current = buildSkillMap(loaded.file);
+      stepsRef.current = resolveActiveWorkflow(loaded.file);
       persHandleRef.current = persHandle;
       if (vorhandenerJob && (vorhandenerJob.jobStatus === 'laeuft' || vorhandenerJob.jobStatus === 'pausiert')) {
         setJob(vorhandenerJob);
@@ -139,7 +144,7 @@ export function useBatchJob(): UseBatchJob {
     const result = await runSkill(transport, sc.skill, sc.regeln, {
       stammdaten: buildStammdaten(ctx),
       vbMarkdown: vb.markdown,
-      vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, ZIM_EP_WORKFLOW, 2000, 'entwurf'),
+      vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, stepsRef.current, 2000, 'entwurf'),
       ...(tweakWirksam ? { tweak } : {}),
       signal,
     });
@@ -170,6 +175,7 @@ export function useBatchJob(): UseBatchJob {
     const deps: BatchDeps = {
       transportVerfuegbar: async () => { try { return await bridge.getActiveTransport().ping(); } catch { return false; } },
       erzeugeAbschnitt,
+      order: stepsRef.current.map(s => s.id),
       persistJob: async j => { await putBatchJob(idb, j); },
       onUpdate: j => setJob(j),
       signal: ac.signal,
@@ -197,6 +203,7 @@ export function useBatchJob(): UseBatchJob {
       const res = await ladeContextFromFkz(fkz);
       if (res && !byKey.has(res.ctx.key)) byKey.set(res.ctx.key, res);
     }
+    const order = stepsRef.current.map(s => s.id);
     const kandidaten: MengenKandidat[] = [];
     const staende: Record<string, Partial<Record<StepId, string>>> = {};
     for (const { ctx, mirrorFkz } of byKey.values()) {
@@ -205,11 +212,11 @@ export function useBatchJob(): UseBatchJob {
       const run = await getWorkflowRun(idb, ctx.key);
       if (run) {
         const s: Partial<Record<StepId, string>> = {};
-        for (const id of STEP_ORDER) { const st = run.schritte[id]?.status; if (st) s[id] = st; }
+        for (const id of order) { const st = run.schritte[id]?.status; if (st) s[id] = st; }
         staende[ctx.key] = s;
       }
     }
-    const mengen = berechneMengen(kandidaten, abschnitte, staende);
+    const mengen = berechneMengen(kandidaten, abschnitte, staende, order);
     let verfuegbar = false;
     let name = '';
     try {
