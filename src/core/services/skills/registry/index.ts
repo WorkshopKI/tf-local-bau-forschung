@@ -21,8 +21,11 @@ export {
   SEED_REGELN,
   SEED_SKILLS_BG,
   SEED_REGELN_BG,
+  SEED_WORKFLOWS,
+  ZIM_EP_DEF,
   KURZFASSUNG_SKILL_ID,
 } from './seed';
+export { evalGate, type GateContext } from './workflow-steps';
 export {
   SKILL_REGISTRY_PATH,
   SKILL_REGISTRY_CACHE_KEY,

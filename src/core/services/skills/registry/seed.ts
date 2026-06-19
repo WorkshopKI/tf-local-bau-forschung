@@ -13,7 +13,9 @@
  * formalen Vorgaben kommen zusätzlich aus den Regeln (siehe `buildPromptVorgaben`),
  * damit das Gutachter-Verhalten gleich bleibt.
  */
-import type { QualitaetsRegel, SkillModifierKey, SkillRecord, SkillRegistryFile } from './types';
+import type {
+  QualitaetsRegel, SkillModifierKey, SkillRecord, SkillRegistryFile, WorkflowDef, WorkflowStep,
+} from './types';
 
 /** Fester Seed-Zeitstempel — deterministisch (kein `new Date()` zur Seed-Zeit). */
 const SEED_TS = '2026-06-11T00:00:00.000Z';
@@ -343,10 +345,47 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
   },
 ];
 
+/* -------------------------------------------------------------------------- */
+/* Workflow-Definition „zim-ep" — geordnete Schritte A–G als kuratierbare Daten */
+/* -------------------------------------------------------------------------- */
+
+/** Baut einen ZIM-EP-Seed-Schritt (id == nr == kurz == ankerKey == Buchstabe). */
+function epStep(id: string, label: string, skillId: string, retrievalQueries?: string[]): WorkflowStep {
+  return {
+    id, nr: id, kurz: id, label, skillId, ankerKey: id, gateExpr: 'immer',
+    ...(retrievalQueries ? { retrievalQueries } : {}),
+  };
+}
+
+/**
+ * Seed-Workflow „zim-ep" — spiegelt die bisher hart verdrahtete `ZIM_EP_WORKFLOW`
+ * (Reihenfolge / Skills / Anker; alle Gates `'immer'`, da A–G keine Gate-Funktion
+ * trugen). Quelle der Wahrheit für die Laufzeit, solange keine kuratierte
+ * `WorkflowDef` vorliegt. Ein Cross-Layer-Test (`gutachten/__tests__`) sichert die
+ * Deckungsgleichheit mit `ZIM_EP_WORKFLOW` gegen Drift.
+ */
+export const ZIM_EP_DEF: WorkflowDef = {
+  id: 'zim-ep',
+  name: 'ZIM-EP-Gutachten',
+  version: 1,
+  steps: [
+    epStep('A', 'Kurzfassung', 'gutachten-kurzfassung'),
+    epStep('B', 'Hintergrund, Stand der Technik, Lösungsweg', 'gutachten-ausgangslage'),
+    epStep('C', 'Technische Risiken', 'gutachten-risiken', ['technische Risiken Herausforderungen']),
+    epStep('D', 'Markt', 'gutachten-markt', ['Markt Zielgruppen Stückpreis Wettbewerb']),
+    epStep('E', 'Unternehmensgegenstand', 'gutachten-unternehmen'),
+    epStep('F', 'Ergebnisverwertung', 'gutachten-verwertung', ['Verwertung Umsatz Markteinführung']),
+    epStep('G', 'Technologiekompetenz', 'gutachten-kompetenz'),
+  ],
+};
+
+export const SEED_WORKFLOWS: WorkflowDef[] = [ZIM_EP_DEF];
+
 /** Vollständiger Seed-Registry-Stand (Startbestand / Read-only-Fallback). */
 export const SEED_REGISTRY: SkillRegistryFile = {
   version: 1,
   updated_at: SEED_TS,
   skills: [SEED_SKILL, ...SEED_SKILLS_BG],
   regeln: [...SEED_REGELN, ...SEED_REGELN_BG],
+  workflows: SEED_WORKFLOWS,
 };

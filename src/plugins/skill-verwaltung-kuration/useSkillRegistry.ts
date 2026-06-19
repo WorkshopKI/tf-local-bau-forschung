@@ -26,7 +26,7 @@ export interface SkillRegistryController {
   /** Darf der aktuelle Nutzer Änderungen speichern? */
   canEdit: boolean;
   /** Durch den additiven Seed-Merge ergänzte IDs (Kurator-Hinweis), sonst null. */
-  ergaenzt: { skills: string[]; regeln: string[] } | null;
+  ergaenzt: { skills: string[]; regeln: string[]; workflows: string[] } | null;
   /** Persistiert einen kompletten neuen Stand (ein Write). Wirft bei Fehler. */
   persist: (next: SkillRegistryFile) => Promise<void>;
 }
@@ -40,7 +40,7 @@ export function useSkillRegistry(): SkillRegistryController {
   const [source, setSource] = useState<'share' | 'cache' | 'seed'>('seed');
   const [stale, setStale] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [ergaenzt, setErgaenzt] = useState<{ skills: string[]; regeln: string[] } | null>(null);
+  const [ergaenzt, setErgaenzt] = useState<{ skills: string[]; regeln: string[]; workflows: string[] } | null>(null);
   const seededRef = useRef(false);
 
   const persist = useCallback(async (next: SkillRegistryFile): Promise<void> => {

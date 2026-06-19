@@ -81,10 +81,63 @@ export interface SkillRecord {
   maxTokens?: number;
 }
 
-/** Inhalt der gemeinsamen `_intern/skills/registry.json` (Skills + Regeln). */
+/* -------------------------------------------------------------------------- */
+/* Kuratierbare Workflow-Definitionen (geordnete Schritt-Sequenz, additiv)      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Deklaratives Anwendbarkeits-Gate eines Schritts. Erweiterbar — Leser tolerieren
+ * Unbekanntes (→ `'immer'`). Die Logik liegt im reinen `evalGate`-Resolver, NICHT
+ * im Datensatz (keine Funktionen/`eval()` im JSON).
+ */
+export type GateExpr = 'immer' | 'hat_teilvorhaben';
+
+/**
+ * Ein kuratierbarer Workflow-Schritt. Flach gehalten — Hierarchie ausschließlich
+ * über `parentStepId` mit GENAU einer Ebene (die Engine lehnt Tiefe >1 ab). Die
+ * Laufzeit-Funktionen (Generierung, Checks) kommen aus dem zugeordneten Skill,
+ * nicht aus diesem Record.
+ */
+export interface WorkflowStep {
+  /** Stabile ID (z.B. `"A"` / `"5"` / `"5a"`). Persistenz-Key in `WorkflowRun.schritte`. */
+  id: string;
+  /** Anzeige-Nummer (`"5"`, `"5a"`) — aus der Hierarchie berechnet (`computeStepNumbers`). */
+  nr: string;
+  /** GENAU eine Ebene: darf nur auf einen Schritt OHNE eigenen `parentStepId` zeigen. */
+  parentStepId?: string;
+  label: string;
+  /** Kurzlabel für den Stepper-Pill. */
+  kurz: string;
+  /** Skill-Registry-ID, die diesen Schritt generiert. */
+  skillId: string;
+  /** Schlüssel für die DOCX-Anker-Tabelle. Fehlt/ungültig → Export überspringt den Schritt. */
+  ankerKey?: string;
+  /** Anwendbarkeits-Gate (default `'immer'`). */
+  gateExpr?: GateExpr;
+  /** SEAM (in v1 ungenutzt): abschnittsbezogene Retrieval-Queries. */
+  retrievalQueries?: string[];
+}
+
+/**
+ * Eine benannte, geordnete Workflow-Definition (z.B. `zim-ep`). `steps` ist FLACH;
+ * Hierarchie nur über `WorkflowStep.parentStepId`.
+ */
+export interface WorkflowDef {
+  id: string;
+  name: string;
+  /** Wird bei jedem Speichern inkrementiert (leichtgewichtig, wie Skills). */
+  version: number;
+  steps: WorkflowStep[];
+  /** Draft-vs-Live (Phase 6; fehlt → als aktiv behandeln). */
+  aktiv?: boolean;
+}
+
+/** Inhalt der gemeinsamen `_intern/skills/registry.json` (Skills + Regeln + Workflows). */
 export interface SkillRegistryFile {
   version: 1;
   updated_at: string;
   skills: SkillRecord[];
   regeln: QualitaetsRegel[];
+  /** Kuratierbare Workflow-Definitionen. Fehlt in Alt-Dateien → `normalize` defaultet `[]`. */
+  workflows?: WorkflowDef[];
 }

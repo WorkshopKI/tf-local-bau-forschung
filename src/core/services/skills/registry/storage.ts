@@ -14,7 +14,10 @@ import type { StorageService } from '@/core/services/storage';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
-import type { QualitaetsRegel, Schweregrad, SkillModifierKey, SkillRecord, SkillRegistryFile } from './types';
+import type {
+  GateExpr, QualitaetsRegel, Schweregrad, SkillModifierKey, SkillRecord, SkillRegistryFile,
+  WorkflowDef, WorkflowStep,
+} from './types';
 import { SEED_REGISTRY } from './seed';
 
 export const SKILL_REGISTRY_PATH = '_intern/skills/registry.json';
@@ -91,6 +94,71 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
   return skill;
 }
 
+function normalizeGateExpr(v: unknown): GateExpr {
+  return v === 'hat_teilvorhaben' ? 'hat_teilvorhaben' : 'immer';
+}
+
+function normalizeWorkflowStep(raw: unknown): WorkflowStep | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const s = raw as Record<string, unknown>;
+  const id = asString(s.id);
+  if (!id) return null;
+  const step: WorkflowStep = {
+    id,
+    nr: asString(s.nr, id),
+    label: asString(s.label, id),
+    kurz: asString(s.kurz, id),
+    skillId: asString(s.skillId),
+    gateExpr: normalizeGateExpr(s.gateExpr),
+  };
+  if (typeof s.parentStepId === 'string' && s.parentStepId) step.parentStepId = s.parentStepId;
+  if (typeof s.ankerKey === 'string' && s.ankerKey) step.ankerKey = s.ankerKey;
+  const rq = asStringArray(s.retrievalQueries);
+  if (rq.length > 0) step.retrievalQueries = rq;
+  return step;
+}
+
+/**
+ * Normalisiert eine Workflow-Def: Schritte tolerant lesen, dann `parentStepId`
+ * auf GENAU eine Ebene klemmen. Ein Parent-Verweis wird entfernt (Schritt wird
+ * Top-Level), wenn er auf sich selbst zeigt, ins Leere zeigt ODER auf einen
+ * Schritt zeigt, der SELBST einen Parent hat (Tiefe >1). So kann nie ein „5a1"
+ * entstehen — weder beim Speichern noch beim defensiven Laden.
+ */
+function normalizeWorkflowDef(raw: unknown): WorkflowDef | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const d = raw as Record<string, unknown>;
+  const id = asString(d.id);
+  if (!id) return null;
+  const steps = Array.isArray(d.steps)
+    ? d.steps.map(normalizeWorkflowStep).filter((s): s is WorkflowStep => s !== null)
+    : [];
+  const ids = new Set(steps.map(s => s.id));
+  const hatParent = new Set(steps.filter(s => s.parentStepId).map(s => s.id));
+  const clamped = steps.map((s): WorkflowStep => {
+    const p = s.parentStepId;
+    if (p && (p === s.id || !ids.has(p) || hatParent.has(p))) {
+      const { parentStepId: _drop, ...rest } = s;
+      return rest;
+    }
+    return s;
+  });
+  const def: WorkflowDef = {
+    id,
+    name: asString(d.name, id),
+    version: asNumber(d.version, 1),
+    steps: clamped,
+  };
+  if (typeof d.aktiv === 'boolean') def.aktiv = d.aktiv;
+  return def;
+}
+
+function normalizeWorkflows(raw: unknown): WorkflowDef[] {
+  return Array.isArray(raw)
+    ? raw.map(normalizeWorkflowDef).filter((d): d is WorkflowDef => d !== null)
+    : [];
+}
+
 /** Validiert + normalisiert einen rohen Datei-Inhalt; `null` bei Strukturfehler. */
 export function normalizeRegistryFile(raw: unknown): SkillRegistryFile | null {
   if (typeof raw !== 'object' || raw === null) return null;
@@ -102,6 +170,7 @@ export function normalizeRegistryFile(raw: unknown): SkillRegistryFile | null {
     updated_at: asString(f.updated_at, SEED_REGISTRY.updated_at),
     skills: f.skills.map(normalizeSkill).filter((s): s is SkillRecord => s !== null),
     regeln: f.regeln.map(normalizeRegel).filter((r): r is QualitaetsRegel => r !== null),
+    workflows: normalizeWorkflows(f.workflows),
   };
 }
 
@@ -115,6 +184,8 @@ export interface SeedMergeResult {
   ergaenzteSkills: string[];
   /** IDs der durch den Seed ergänzten Regeln. */
   ergaenzteRegeln: string[];
+  /** IDs der durch den Seed ergänzten Workflow-Definitionen. */
+  ergaenzteWorkflows: string[];
 }
 
 /**
@@ -129,19 +200,24 @@ export function mergeMissingSeeds(
 ): SeedMergeResult {
   const skillIds = new Set(loaded.skills.map(s => s.id));
   const regelIds = new Set(loaded.regeln.map(r => r.id));
+  const loadedWorkflows = loaded.workflows ?? [];
+  const workflowIds = new Set(loadedWorkflows.map(w => w.id));
   const fehlendeSkills = seed.skills.filter(s => !skillIds.has(s.id));
   const fehlendeRegeln = seed.regeln.filter(r => !regelIds.has(r.id));
-  if (fehlendeSkills.length === 0 && fehlendeRegeln.length === 0) {
-    return { file: loaded, ergaenzteSkills: [], ergaenzteRegeln: [] };
+  const fehlendeWorkflows = (seed.workflows ?? []).filter(w => !workflowIds.has(w.id));
+  if (fehlendeSkills.length === 0 && fehlendeRegeln.length === 0 && fehlendeWorkflows.length === 0) {
+    return { file: loaded, ergaenzteSkills: [], ergaenzteRegeln: [], ergaenzteWorkflows: [] };
   }
   return {
     file: {
       ...loaded,
       skills: [...loaded.skills, ...fehlendeSkills],
       regeln: [...loaded.regeln, ...fehlendeRegeln],
+      workflows: [...loadedWorkflows, ...fehlendeWorkflows],
     },
     ergaenzteSkills: fehlendeSkills.map(s => s.id),
     ergaenzteRegeln: fehlendeRegeln.map(r => r.id),
+    ergaenzteWorkflows: fehlendeWorkflows.map(w => w.id),
   };
 }
 
@@ -203,7 +279,7 @@ export interface LoadedRegistry {
    * wurde). Bei `source === 'share'` + Schreibrecht sollte der Aufrufer den
    * ergänzten Stand zurückschreiben und den Kurator informieren.
    */
-  ergaenzt?: { skills: string[]; regeln: string[] };
+  ergaenzt?: { skills: string[]; regeln: string[]; workflows: string[] };
 }
 
 /**
@@ -229,6 +305,16 @@ export async function loadSkillRegistry(storage: StorageService): Promise<Loaded
 }
 
 function ergaenztInfo(merged: SeedMergeResult): Pick<LoadedRegistry, 'ergaenzt'> {
-  if (merged.ergaenzteSkills.length === 0 && merged.ergaenzteRegeln.length === 0) return {};
-  return { ergaenzt: { skills: merged.ergaenzteSkills, regeln: merged.ergaenzteRegeln } };
+  if (
+    merged.ergaenzteSkills.length === 0
+    && merged.ergaenzteRegeln.length === 0
+    && merged.ergaenzteWorkflows.length === 0
+  ) return {};
+  return {
+    ergaenzt: {
+      skills: merged.ergaenzteSkills,
+      regeln: merged.ergaenzteRegeln,
+      workflows: merged.ergaenzteWorkflows,
+    },
+  };
 }
