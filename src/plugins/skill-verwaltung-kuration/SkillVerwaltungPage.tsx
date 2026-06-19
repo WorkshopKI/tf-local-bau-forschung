@@ -7,14 +7,17 @@ import { MasterDetailLayout } from '@/components/master-detail';
 import {
   resolveRegeln,
   skillsUsingRegel,
+  exportSkillBundle,
   type QualitaetsRegel,
   type SkillRecord,
   type SkillRegistryFile,
   type WorkflowStep,
 } from '@/core/services/skills';
+import { downloadAsFile } from '@/core/services/search/eval/eval-export';
 import { useSkillRegistry } from './useSkillRegistry';
 import { useSkillAggregat } from './useSkillAggregat';
 import { SkillsTab } from './SkillsTab';
+import { SkillImportDialog } from './SkillImportDialog';
 import { RegelnTab } from './RegelnTab';
 import { WorkflowsTab } from './WorkflowsTab';
 import { SkillEditor } from './SkillEditor';
@@ -71,6 +74,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const [editingRegel, setEditingRegel] = useState<{ regel: QualitaetsRegel | null; isNew: boolean } | null>(null);
   const [editingStep, setEditingStep] = useState<{ step: WorkflowStep; isNew: boolean } | null>(null);
   const [testlauf, setTestlauf] = useState<Testlauf | null>(null);
+  const [importing, setImporting] = useState(false);
   const save = useAsyncAction(async (next: SkillRegistryFile) => { await reg.persist(next); });
 
   if (reg.loading || !reg.file) {
@@ -104,6 +108,12 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const removeSkill = (skill: SkillRecord): void => {
     if (!window.confirm(`Skill „${skill.name}" wirklich löschen?`)) return;
     void save.run({ ...file, skills: file.skills.filter(s => s.id !== skill.id) });
+  };
+  const exportSkill = (skill: SkillRecord): void => {
+    const bundle = exportSkillBundle(file, skill.id);
+    if (!bundle) return;
+    const slug = skill.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'skill';
+    downloadAsFile(JSON.stringify(bundle, null, 2), `skill-${slug}.json`, 'application/json');
   };
 
   // — Regel-Aktionen —
@@ -262,6 +272,11 @@ export function SkillVerwaltungPage(): React.ReactElement {
 
             <div className="flex items-center gap-2 shrink-0 pb-2 ml-auto">
               {tab !== 'workflows' && <RegistryViewModeToggle value={viewMode} onChange={setViewMode} />}
+              {tab === 'skills' && reg.canEdit && (
+                <Button variant="outline" size="sm" onClick={() => setImporting(true)} className="h-8 whitespace-nowrap">
+                  Importieren
+                </Button>
+              )}
               {reg.canEdit && (
                 <Button variant="outline" size="sm" onClick={addAction} className="h-8 whitespace-nowrap">
                   {addLabel}
@@ -319,6 +334,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
             onTestlauf={openTestlaufForSaved}
             onDuplicate={duplicateSkill}
             onDelete={removeSkill}
+            onExport={exportSkill}
           />
         ) : tab === 'regeln' ? (
           <RegelnTab
@@ -341,6 +357,13 @@ export function SkillVerwaltungPage(): React.ReactElement {
           </div>
         )}
       />
+      {importing && (
+        <SkillImportDialog
+          file={file}
+          persist={reg.persist}
+          onClose={() => setImporting(false)}
+        />
+      )}
     </div>
   );
 }

@@ -62,3 +62,11 @@ export {
   loadSkillRegistry,
   type LoadedRegistry,
 } from './storage';
+export {
+  SKILL_BUNDLE_KIND,
+  exportSkillBundle,
+  parseSkillBundle,
+  importSkillBundle,
+  type SkillBundleJson,
+  type ImportSkillBundleResult,
+} from './skill-bundle';

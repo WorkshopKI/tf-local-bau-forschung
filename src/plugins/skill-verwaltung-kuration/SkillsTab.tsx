@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Play, Copy, Trash2, ThumbsUp, ThumbsDown, MessageSquare, Sparkles } from 'lucide-react';
+import { Play, Copy, Trash2, Download, ThumbsUp, ThumbsDown, MessageSquare, Sparkles } from 'lucide-react';
 import {
   workflowStepsUsingSkill,
   type Reifegrad,
@@ -36,6 +36,7 @@ interface SkillsTabProps {
   onTestlauf: (skill: SkillRecord) => void;
   onDuplicate: (skill: SkillRecord) => void;
   onDelete: (skill: SkillRecord) => void;
+  onExport: (skill: SkillRecord) => void;
 }
 
 const REIFEGRAD_LABEL: Record<Reifegrad, string> = { entwurf: 'Entwurf', erprobt: 'Erprobt', empfohlen: 'Empfohlen' };
@@ -88,7 +89,7 @@ function SkillSignals({ a, reifegrad }: { a: SkillAggregat; reifegrad: Reifegrad
 }
 
 export function SkillsTab({
-  file, canEdit, search, viewMode, agg, onEdit, onTestlauf, onDuplicate, onDelete,
+  file, canEdit, search, viewMode, agg, onEdit, onTestlauf, onDuplicate, onDelete, onExport,
 }: SkillsTabProps): React.ReactElement {
   const [facets, setFacets] = useState<SkillFacets>(DEFAULT_FACETS);
   const [sortKey, setSortKey] = useState<SkillSortKey>('datum');
@@ -167,6 +168,7 @@ export function SkillsTab({
               actions={(
                 <div className="flex items-center gap-0.5">
                   <RowAction title="Testlauf" onClick={() => onTestlauf(skill)}><Play size={14} /></RowAction>
+                  <RowAction title="Als Bündel exportieren" onClick={() => onExport(skill)}><Download size={14} /></RowAction>
                   {canEdit && <RowAction title="Duplizieren" onClick={() => onDuplicate(skill)}><Copy size={14} /></RowAction>}
                   {canEdit && <RowAction title="Löschen" danger onClick={() => onDelete(skill)}><Trash2 size={14} /></RowAction>}
                 </div>
@@ -187,6 +189,7 @@ export function SkillsTab({
               onTestlauf={onTestlauf}
               onDuplicate={onDuplicate}
               onDelete={onDelete}
+              onExport={onExport}
             />
           ))}
         </div>
@@ -263,9 +266,10 @@ interface SkillCardProps {
   onTestlauf: (skill: SkillRecord) => void;
   onDuplicate: (skill: SkillRecord) => void;
   onDelete: (skill: SkillRecord) => void;
+  onExport: (skill: SkillRecord) => void;
 }
 
-function SkillCard({ file, skill, a, canEdit, onEdit, onTestlauf, onDuplicate, onDelete }: SkillCardProps): React.ReactElement {
+function SkillCard({ file, skill, a, canEdit, onEdit, onTestlauf, onDuplicate, onDelete, onExport }: SkillCardProps): React.ReactElement {
   const fundstellen = useMemo(() => workflowStepsUsingSkill(file, skill.id), [file, skill.id]);
   const verwendetIn = fundstellen.map(f => `${f.nr} · ${f.label}`).join(', ');
   return (
@@ -302,6 +306,10 @@ function SkillCard({ file, skill, a, canEdit, onEdit, onTestlauf, onDuplicate, o
         <span className="text-[var(--tf-text-tertiary)] text-[12px]">·</span>
         <button onClick={() => onTestlauf(skill)} className="text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
           Testlauf
+        </button>
+        <span className="text-[var(--tf-text-tertiary)] text-[12px]">·</span>
+        <button onClick={() => onExport(skill)} className="text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
+          Export
         </button>
         {canEdit && (
           <>
