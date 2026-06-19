@@ -15,7 +15,7 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import type {
-  GateExpr, QualitaetsRegel, Schweregrad, SkillModifierKey, SkillRecord, SkillRegistryFile,
+  GateExpr, QualitaetsRegel, Reifegrad, Schweregrad, SkillModifierKey, SkillRecord, SkillRegistryFile,
   WorkflowDef, WorkflowStep, WorkflowStepRolle,
 } from './types';
 import { normalizeStepRolle } from './workflow-steps';
@@ -42,6 +42,9 @@ function asStringArray(v: unknown): string[] {
 }
 function asSchweregrad(v: unknown): Schweregrad {
   return v === 'fehler' ? 'fehler' : 'hinweis';
+}
+function asReifegrad(v: unknown): Reifegrad {
+  return v === 'erprobt' || v === 'empfohlen' ? v : 'entwurf';
 }
 
 function normalizeRegel(raw: unknown): QualitaetsRegel | null {
@@ -89,6 +92,7 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
     regelIds: asStringArray(s.regelIds),
     slots: asStringArray(s.slots),
     geaendert_am: asString(s.geaendert_am, SEED_REGISTRY.updated_at),
+    reifegrad: asReifegrad(s.reifegrad),
   };
   if (typeof s.systemPrompt === 'string') skill.systemPrompt = s.systemPrompt;
   if (typeof s.maxTokens === 'number' && Number.isFinite(s.maxTokens)) skill.maxTokens = s.maxTokens;

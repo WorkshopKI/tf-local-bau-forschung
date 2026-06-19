@@ -40,6 +40,15 @@ export const KNOWN_REGEL_TYPEN: ReadonlySet<string> = new Set<RegelTyp>([
 export type Schweregrad = 'fehler' | 'hinweis';
 
 /**
+ * Kuratierter Reifegrad eines Skills (vom Kurator gesetzt, NICHT automatisch).
+ * `'entwurf'` = Default/neu, `'erprobt'` = im Team genutzt, `'empfohlen'` = Standard.
+ * Das Skill-Feedback-Substrat liefert dazu nur einen BERATENDEN Vorschlag
+ * (`suggestReifegrad`), das Setzen bleibt ein Kurator-Registry-Write. Erweiterbar —
+ * Leser tolerieren Unbekanntes (→ `'entwurf'`, siehe `normalizeSkill`).
+ */
+export type Reifegrad = 'entwurf' | 'erprobt' | 'empfohlen';
+
+/**
  * Parametrisierte Qualitätsregel. `typ` entscheidet, wie `params` interpretiert
  * werden (siehe `check-engine.ts`). Eine Regel erzeugt zugleich einen Prompt-
  * Hinweis (KI zielt darauf) UND einen Check (System prüft es) — eine Quelle.
@@ -75,6 +84,13 @@ export interface SkillRecord {
   /** Deklarierte Kontext-Slots (v1: `stammdaten`, `vbMarkdown`). */
   slots: string[];
   geaendert_am: string;
+  /**
+   * Kuratierter Reifegrad (additiv, fehlt in Alt-Records → `normalize` defaultet
+   * `'entwurf'`). Vom Kurator gesetzt; das Feedback-Substrat liefert nur einen
+   * beratenden Vorschlag. Roh-Signale (Nutzung/Feedback) liegen NICHT hier,
+   * sondern in den Pro-Nutzer-Dateien des `skill-feedback`-Substrats.
+   */
+  reifegrad?: Reifegrad;
   /** Optional (aus dem Seed; in v1 nicht UI-editierbar) — System-Rolle fürs LLM. */
   systemPrompt?: string;
   /** Optional — Token-Limit fürs LLM (Default im Runner). */

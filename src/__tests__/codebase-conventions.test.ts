@@ -620,7 +620,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // wenn ja, die Konstante hier bewusst anheben (und im CHANGELOG vermerken). Das
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 27;    // Ist 23 (+4 Reserve)
-  const MAX_SERVICE_DIRS = 20;     // Ist 20 (+ skill-eval Eval-Harness, konsumiert eval-fixtures; bewusst eigene Domaene; davor 19 nach eval-fixtures Dev-Tool)
+  const MAX_SERVICE_DIRS = 21;     // Ist 21 (+ skill-feedback File-first Substrat S1: spannt skills+personal-storage+infrastructure, Fundament für S2/S3 — bewusst eigene Domaene; davor 20 nach skill-eval)
   const MAX_FILE_LOC = 1500;       // Ist ~1219 (ZuweisungsCockpit.tsx), ~20 % Reserve
   const MAX_UI_SHIM_IMPORTS = 64;  // Ist 64 — der @/ui-Re-Export-Shim (P1b) darf nur SINKEN
 
