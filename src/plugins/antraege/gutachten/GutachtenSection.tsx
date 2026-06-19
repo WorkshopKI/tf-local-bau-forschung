@@ -232,6 +232,12 @@ function ActiveAbschnitt({
         <div className="mb-1 text-[10.5px] text-[var(--tf-text-tertiary)]">persönlicher Stil aktiv</div>
       )}
 
+      {ctrl.retryNote && (
+        <div className="mt-2 mb-1 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
+          {ctrl.retryNote}
+        </div>
+      )}
+
       {!step ? (
         ctrl.busy ? (
           <StreamingVorschau thinking={ctrl.streamThinking} content={ctrl.streamContent} onStop={ctrl.stop} />

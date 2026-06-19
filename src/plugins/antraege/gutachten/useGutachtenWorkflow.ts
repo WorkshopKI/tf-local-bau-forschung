@@ -18,6 +18,8 @@ import {
   loadSkillTweak,
   saveSkillTweak,
   deleteSkillTweak,
+  clampMaxRetries,
+  type CheckResult,
   type SkillModifierKey,
   type QualitaetsRegel,
   type SkillRecord,
@@ -43,6 +45,7 @@ import {
   type GenerationInput,
 } from './runner';
 import { parseQsBefunde } from './qs';
+import { chooseRetryModifier } from './retry-policy';
 import type { StepId, WorkflowRun } from './types';
 
 export interface GutachtenWorkflowController {
@@ -52,6 +55,8 @@ export interface GutachtenWorkflowController {
   loading: boolean;
   busy: boolean;
   error: string | null;
+  /** Neutraler Vermerk nach erschöpftem Auto-Retry („nach N Versuchen weiterhin Fehler"). */
+  retryNote: string | null;
   llmAvailable: boolean | null;
   /** Thinking-/Reasoning-Budget für die NÄCHSTE Generierung (Default aus der Einstellung; übersteuerbar, nicht persistiert). */
   thinkingBudget: ThinkingBudget;
@@ -97,6 +102,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryNote, setRetryNote] = useState<string | null>(null);
   const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
   const [skillMap, setSkillMap] = useState<Map<StepId, SkillCtx>>(new Map());
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
@@ -166,11 +172,17 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     await putWorkflowRun(storage.idb, next);
   };
 
-  const runGeneration = async (stepId: StepId, modifier?: SkillModifierKey): Promise<void> => {
+  /**
+   * Eine Generierung (optional mit Modifier). Liefert die berechneten Checks zurück
+   * (für den Auto-Retry-Orchestrator), `null` bei Bail/Transport-weg/Abbruch/Fehler
+   * — dann beendet der Orchestrator den Loop sofort (STOPP).
+   */
+  const runGeneration = async (stepId: StepId, modifier?: SkillModifierKey): Promise<CheckResult[] | null> => {
     const sc = skillMap.get(stepId);
-    if (!vb || busy || !run || !sc) return;
+    if (!vb || busy || !run || !sc) return null;
     setBusy(true);
     setError(null);
+    setRetryNote(null);
     stream.reset();
     const abort = new AbortController();
     abortRef.current = abort;
@@ -178,7 +190,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       const transport = bridge.getActiveTransport();
       const ok = await transport.ping();
       setLlmAvailable(ok);
-      if (!ok) { setError('KI nicht erreichbar — Generierung derzeit nicht möglich.'); return; }
+      if (!ok) { setError('KI nicht erreichbar — Generierung derzeit nicht möglich.'); return null; }
       const tweakWirksam = !!(tweak?.aktiv && tweak.skillId === sc.skill.id
         && (tweak.stilHinweise.trim() || tweak.beispielFormulierungen.trim()));
       const prevText = run.schritte[stepId]?.finalerText;
@@ -195,11 +207,12 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         ...(modifier && prevText ? { vorherigerText: prevText } : {}),
         signal: abort.signal,
       });
+      const checks = runRegelChecks(result.parsed.finalerText, sc.regeln);
       const gen: GenerationInput = {
         quellenanalyse: result.parsed.quellenanalyse,
         entwurf: result.parsed.entwurf,
         finalerText: result.parsed.finalerText,
-        checks: runRegelChecks(result.parsed.finalerText, sc.regeln),
+        checks,
         modell: transport.displayName ?? transport.name,
         skillId: sc.skill.id,
         skillVersion: sc.skill.version,
@@ -211,12 +224,38 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         ...(thinkingBudget !== 'none' ? { denkprozessAngefordert: true } : {}),
       };
       await persist(applyGeneration(run, stepId, gen, new Date().toISOString()));
+      return checks;
     } catch (err) {
-      if (abort.signal.aborted) return;
+      if (abort.signal.aborted) return null;
       setError(err instanceof Error ? err.message : String(err));
+      return null;
     } finally {
       abortRef.current = null;
       setBusy(false);
+    }
+  };
+
+  /**
+   * Generierung mit beschränktem Auto-Retry (opt-in pro Schritt). Generieren →
+   * deterministisch prüfen → bei `fehler` und Versuch < N automatisch mit passendem
+   * Modifier neu generieren. Harte Decke N (`maxRetries`, geklemmt). Transport weg /
+   * Abbruch ⇒ `runGeneration` liefert `null` ⇒ Loop endet sofort. Nach N STOPP mit
+   * Vermerk. KEINE LLM-Entscheidung über den Ablauf — reiner Reducer-Loop mit Zähler.
+   */
+  const runGenerateMitRetry = async (stepId: StepId): Promise<void> => {
+    const step = steps.find(s => s.id === stepId);
+    const max = step?.autoRetry ? clampMaxRetries(step.maxRetries) : 0;
+    let checks = await runGeneration(stepId);
+    let attempt = 0;
+    while (checks && attempt < max) {
+      const mod = chooseRetryModifier(checks);
+      if (!mod) return; // nur ok/hinweis → fertig
+      attempt += 1;
+      checks = await runGeneration(stepId, mod);
+    }
+    // Decke erreicht und weiterhin retry-würdige Fehler → neutraler Vermerk (kein roter Error).
+    if (checks && attempt > 0 && chooseRetryModifier(checks)) {
+      setRetryNote(`Nach ${attempt} ${attempt === 1 ? 'automatischen Versuch' : 'automatischen Versuchen'} weiterhin Fehler — bitte prüfen.`);
     }
   };
 
@@ -318,6 +357,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     loading,
     busy,
     error,
+    retryNote,
     llmAvailable,
     thinkingBudget,
     setThinkingBudget,
@@ -328,7 +368,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     activeSkill: activeCtx?.skill ?? null,
     regeln: activeCtx?.regeln ?? [],
     tweak,
-    generate: (id) => { void runGeneration(id); },
+    generate: (id) => { void runGenerateMitRetry(id); },
     modify: (id, m) => { void runGeneration(id, m); },
     pruefen: (id) => { void pruefenStep(id); },
     qsFor: (id) => qsZiele.get(id) ?? null,
