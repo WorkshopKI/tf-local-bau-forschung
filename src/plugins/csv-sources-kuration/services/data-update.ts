@@ -26,6 +26,7 @@ import { rematchOnSnapshotReload } from '@/phase2';
 import { readKuratorName } from '@/core/services/infrastructure/kurator-config';
 import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
 import { runtimeConfig } from '@/config/runtime-config';
+import { invalidateAggregateCache } from '@/core/services/skill-feedback/cache';
 import { runAutoRefresh, collectCandidates, BuildLockBusyError, type RefreshReport } from './auto-refresh';
 
 const LAST_TIMING_KEY = 'teamflow_last_data_update_timing';
@@ -242,6 +243,11 @@ export async function runDataUpdate(
       }
       onPhase?.({ phase: 'csv-import', fraction: 1 });
     }
+
+    // Skill-Feedback-Aggregat invalidieren: nach dem Share-Sync können neue
+    // Signal-Dateien anderer Nutzer auf der Share liegen → der nächste
+    // readAggregate rechnet frisch (best-effort, kippt den Update nie).
+    await invalidateAggregateCache(idb);
 
     result.totalMs = performance.now() - tTotal;
     logTiming(result, snapAgg, { checkMs: csvCheckMs, enabled: csvEnabled });

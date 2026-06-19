@@ -14,3 +14,4 @@ export * from './write';
 export * from './aggregate';
 export * from './read';
 export * from './maturity';
+export * from './export';

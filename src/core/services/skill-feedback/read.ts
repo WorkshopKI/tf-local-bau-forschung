@@ -68,6 +68,18 @@ export async function collectAllEvents(storage: StorageService): Promise<SkillSi
   return events;
 }
 
+/**
+ * Sammelt NUR die persönlich abgelegten Events (Degradationsfall). Grundlage des
+ * Export-Bündels zum manuellen Kurator-Merge (`exportFeedback`).
+ */
+export async function collectPersonalEvents(storage: StorageService): Promise<SkillSignalEvent[]> {
+  const pers = await getPersoenlichHandle(storage.idb);
+  if (!pers) return [];
+  const events: SkillSignalEvent[] = [];
+  for (const kind of KINDS) events.push(...(await readDirEvents(pers, personalSignalDir(kind))));
+  return events;
+}
+
 async function cacheAggregate(idb: IDBStore, map: SkillAggregatMap): Promise<void> {
   try {
     await idb.set(AGGREGATE_CACHE_KEY, Object.fromEntries(map));
