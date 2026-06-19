@@ -1,11 +1,13 @@
 /**
- * Statische Workflow-Definition „ZIM-EP" — geordnete Abschnitte A–G. Dies ist
- * die „Registry" WELCHER Schritte existieren (Reihenfolge, Skill-Zuordnung,
- * Anker); WIE ein Schritt generiert, steckt in der Skill-Registry.
+ * Statische Referenz-Definition „ZIM-EP" — geordnete Abschnitte A–G.
  *
- * Bewusst hart verdrahtet (keine generische Workflow-Kurations-UI — spätere
- * Phase). Die Form ist aber so geschnitten, dass weitere Definitionen (KN, VB …)
- * als weitere Konstanten dieses Typs ergänzt werden können.
+ * Seit v2.101 ist der Workflow **kuratierbare Daten** (Registry-`WorkflowDef`,
+ * Seed `ZIM_EP_DEF` in `core/services/skills/registry/seed.ts`); die Laufzeit liest
+ * die Schritte über `resolveActiveWorkflow` aus der geladenen Registry. Diese
+ * Konstante bleibt als **Seed-Quelle/Referenz** und als Drift-Anker: ein Cross-
+ * Layer-Test (`__tests__/zim-ep-seed.test.ts`) sichert, dass `ZIM_EP_DEF` sie exakt
+ * spiegelt. UI/Hook importieren sie NICHT mehr direkt (nur noch der Disk-Spiegel
+ * der Batch-Generierung + Tests).
  */
 import type { KurzfassungContext } from '../kurzfassung/types';
 import type { StepId } from './types';
