@@ -262,6 +262,7 @@ function ActiveAbschnitt({
           onUebernehmen={(i) => ctrl.uebernehmenStep(id, i)}
           onErneutOeffnen={() => ctrl.erneutOeffnenStep(id)}
           onOpenTweak={onOpenTweak}
+          onQs={ctrl.qsFor(id) ? () => ctrl.runQs(id) : undefined}
           thinkingBudget={ctrl.thinkingBudget}
           onSetThinkingBudget={ctrl.setThinkingBudget}
           streamContent={ctrl.streamContent}

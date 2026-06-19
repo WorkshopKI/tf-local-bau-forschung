@@ -10,6 +10,7 @@ import { CollapsibleSection, MarkdownRenderer } from '@/ui';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { CheckList } from '../kurzfassung/CheckList';
+import { QsHinweisList } from './QsHinweisList';
 import { VersionVerlauf } from '../kurzfassung/VersionVerlauf';
 import { ThinkingControl } from '../kurzfassung/ThinkingControl';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
@@ -28,6 +29,8 @@ interface Props {
   onUebernehmen: (index: number) => void;
   onErneutOeffnen: () => void;
   onOpenTweak: () => void;
+  /** Beratende KI-QS über diesen Abschnitt fahren — fehlt, wenn kein QS-Schritt ihn adressiert. */
+  onQs?: () => void;
   /** Thinking-/Reasoning-Budget für die nächste Generierung (Default aus der Einstellung, hier übersteuerbar). */
   thinkingBudget: ThinkingBudget;
   onSetThinkingBudget: (budget: ThinkingBudget) => void;
@@ -41,7 +44,7 @@ const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border
 const TWEAK_LINK = 'inline-flex items-center gap-1 text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]';
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
+  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
@@ -109,10 +112,21 @@ export function SectionReviewCard({
         </div>
       )}
 
+      {(run.qsHinweise?.length ?? 0) > 0 && (
+        <div className="mt-5">
+          <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-1">KI-Qualitätshinweis (beratend)</div>
+          <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2.5">Qualitative Einschätzung der KI — getrennt von den Prüf-Ergebnissen, ändert den Text nicht.</div>
+          <QsHinweisList befunde={run.qsHinweise!} />
+        </div>
+      )}
+
       <div className="mt-6 pt-4 border-t-[0.5px] border-[var(--tf-border)]">
         {freigegeben ? (
           <div className="flex items-center gap-2">
             <button type="button" className={BTN_SECONDARY} onClick={onErneutOeffnen}>Erneut öffnen</button>
+            {onQs && (
+              <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
+            )}
             <span className="flex-1" />
             <button type="button" className={TWEAK_LINK} onClick={onOpenTweak}>
               <SlidersHorizontal size={13} />
@@ -130,6 +144,9 @@ export function SectionReviewCard({
               <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
               <ThinkingControl budget={thinkingBudget} onChange={onSetThinkingBudget} disabled={busy} />
               <button type="button" className={BTN_SECONDARY} onClick={onPruefen}>Prüfen</button>
+              {onQs && (
+                <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
+              )}
               <span className="flex-1" />
               <button type="button" className={TWEAK_LINK} onClick={onOpenTweak}>
                 <SlidersHorizontal size={13} />

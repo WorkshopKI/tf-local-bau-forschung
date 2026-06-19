@@ -38,10 +38,11 @@ import { buildVorherigeAbschnitte } from './context-provider';
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { putWorkflowRun } from './workflow-store';
 import {
-  applyGeneration, applyPruefen, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
+  applyGeneration, applyPruefen, applyQsHinweise, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
   firstNonFreigegeben,
   type GenerationInput,
 } from './runner';
+import { parseQsBefunde } from './qs';
 import type { StepId, WorkflowRun } from './types';
 
 export interface GutachtenWorkflowController {
@@ -58,7 +59,7 @@ export interface GutachtenWorkflowController {
   /** Live-Streaming-Vorschau während `busy` (rohe Antwort + Denkprozess). */
   streamContent: string;
   streamThinking: string;
-  /** Geordnete Schritte des aktiven Workflows (aus der Registry, Fallback Seed). */
+  /** Geordnete GENERIERUNGS-Schritte des aktiven Workflows (llm_qs-Schritte sind herausgefiltert). */
   steps: WorkflowStep[];
   aktiverSchritt: StepId;
   /** Skill des AKTIVEN Schritts (Version + Tweak-Editor). */
@@ -69,6 +70,10 @@ export interface GutachtenWorkflowController {
   generate: (stepId: StepId) => void;
   modify: (stepId: StepId, modifier: SkillModifierKey) => void;
   pruefen: (stepId: StepId) => void;
+  /** Liefert den `llm_qs`-Schritt, der diesen Generierungs-Schritt bewertet (oder null). */
+  qsFor: (stepId: StepId) => WorkflowStep | null;
+  /** Beratende LLM-QS über den Zielabschnitt fahren (Befunde an den Ziel-Schritt). */
+  runQs: (stepId: StepId) => void;
   freigebenStep: (stepId: StepId) => void;
   erneutOeffnenStep: (stepId: StepId) => void;
   weiterschaltenStep: (stepId: StepId) => void;
@@ -95,6 +100,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
   const [skillMap, setSkillMap] = useState<Map<StepId, SkillCtx>>(new Map());
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
+  // QS-Konfiguration: Ziel-Generierungs-Schritt-ID → der bewertende llm_qs-Schritt.
+  const [qsZiele, setQsZiele] = useState<Map<StepId, WorkflowStep>>(new Map());
   const [tweak, setTweak] = useState<SkillTweak | null>(null);
   // Pro-Generierung-Budget: Default aus der Einstellung (an → 'medium'), lokal übersteuerbar. Nicht persistiert.
   const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>(budgetForThinking(getLlmThinkingEnabled()));
@@ -123,7 +130,13 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       ]);
       if (cancelled) return;
       setSkillMap(buildSkillMap(loaded.file));
-      setSteps(resolveActiveWorkflow(loaded.file));
+      // llm_qs-Schritte aus der Generierungs-Schrittfolge filtern (reine Konfiguration —
+      // stören firstNonFreigegeben/freigeben/Stepper nicht) und nach Ziel-Schritt indexieren.
+      const allSteps = resolveActiveWorkflow(loaded.file);
+      setSteps(allSteps.filter(s => s.rolle !== 'llm_qs'));
+      const ziele = new Map<StepId, WorkflowStep>();
+      for (const s of allSteps) if (s.rolle === 'llm_qs' && s.qsZielStepId) ziele.set(s.qsZielStepId, s);
+      setQsZiele(ziele);
       setRun(r);
       setVb(vbRes);
       setLoading(false);
@@ -225,6 +238,48 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     await reduce((r, now) => applyPruefen(r, stepId, runRegelChecks(step.finalerText, sc.regeln), now));
   };
 
+  /**
+   * Beratende LLM-QS über den FINALEN Text eines Generierungs-Schritts. Nutzt
+   * denselben (internen) Transport + Runner wie die Generierung; die Befunde landen
+   * via `applyQsHinweise` am Ziel-Schritt (kein Text-Overwrite). Transport weg → STOPP.
+   */
+  const runQs = async (zielStepId: StepId): Promise<void> => {
+    const qsStep = qsZiele.get(zielStepId);
+    const qsCtx = qsStep ? skillMap.get(qsStep.id) : undefined;
+    const zielStep = run?.schritte[zielStepId];
+    if (!vb || busy || !run || !qsStep || !qsCtx || !zielStep || !zielStep.finalerText.trim()) return;
+    setBusy(true);
+    setError(null);
+    stream.reset();
+    const abort = new AbortController();
+    abortRef.current = abort;
+    try {
+      const transport = bridge.getActiveTransport();
+      const ok = await transport.ping();
+      setLlmAvailable(ok);
+      if (!ok) { setError('KI nicht erreichbar — QS derzeit nicht möglich.'); return; }
+      const zielDef = steps.find(s => s.id === zielStepId);
+      const result = await runSkill(transport, qsCtx.skill, qsCtx.regeln, {
+        stammdaten: buildStammdaten(ctx),
+        vbMarkdown: vb.markdown,
+        vbCharCap: getVbCharCap(),
+        thinkingBudget,
+        onContentDelta: stream.onContentDelta,
+        onThinkingDelta: stream.onThinkingDelta,
+        zielText: zielStep.finalerText,
+        abschnittszweck: zielDef?.label ?? zielStepId,
+        signal: abort.signal,
+      });
+      await persist(applyQsHinweise(run, zielStepId, parseQsBefunde(result.raw), new Date().toISOString()));
+    } catch (err) {
+      if (abort.signal.aborted) return;
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      abortRef.current = null;
+      setBusy(false);
+    }
+  };
+
   const refreshVb = async (): Promise<void> => {
     const vbRes = await resolveVb(storage.idb, ctx);
     setVb(vbRes);
@@ -276,6 +331,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     generate: (id) => { void runGeneration(id); },
     modify: (id, m) => { void runGeneration(id, m); },
     pruefen: (id) => { void pruefenStep(id); },
+    qsFor: (id) => qsZiele.get(id) ?? null,
+    runQs: (id) => { void runQs(id); },
     freigebenStep: (id) => { void reduce((r, now) => freigeben(r, id, now, order)); },
     erneutOeffnenStep: (id) => { void reduce((r, now) => erneutOeffnen(r, id, now)); },
     weiterschaltenStep: (id) => { void reduce((r, now) => weiterschalten(r, id, now)); },
