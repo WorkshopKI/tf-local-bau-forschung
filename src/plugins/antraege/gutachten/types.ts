@@ -12,10 +12,21 @@
 import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
 import type { KurzfassungVersion } from '../kurzfassung/types';
 
-/** Abschnitts-IDs des ZIM-EP-Gutachtens. */
-export type StepId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
+/**
+ * Schritt-ID eines Gutachten-Workflows. Seit der Kuratierbarkeit (Phase 2) eine
+ * offene `string`-Union — die konkreten IDs (`'A'..'G'`, später `'5a'` …) kommen
+ * aus der aktiven `WorkflowDef`, nicht mehr aus einer geschlossenen Code-Union.
+ * Der Alias bleibt für Lesbarkeit/Intent erhalten. Persistierte `WorkflowRun`s mit
+ * `'A'..'G'`-Keys bleiben gültig (reine Typ-Weitung, kein Schema-Bump).
+ */
+export type StepId = string;
 
-/** Reihenfolge der Abschnitte (Single Source of Truth für Sortierung/Iteration). */
+/**
+ * Default-Reihenfolge der ZIM-EP-Abschnitte. Seit Phase 2 NICHT mehr autoritativ:
+ * die Laufzeit reicht die geordnete Schrittliste der aktiven `WorkflowDef` als
+ * Parameter herein; `STEP_ORDER` dient nur noch als abgeleiteter Default (deckungs-
+ * gleich mit dem `zim-ep`-Seed, abgesichert per Cross-Layer-Test).
+ */
 export const STEP_ORDER: readonly StepId[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
 /** Status eines Abschnitts. `'leer'` = noch nie generiert. */

@@ -3,7 +3,7 @@
  * sequenziell. Persistiert im generischen `kv`-Store (siehe batch-store.ts) —
  * kein dedizierter Object-Store/Version-Bump (Pitfall #29).
  */
-import type { StepId } from '@/plugins/antraege/gutachten/types';
+import { STEP_ORDER, type StepId } from '@/plugins/antraege/gutachten/types';
 
 export type BatchAbschnitte = 'nur_a' | 'a_bis_g';
 export type EintragStatus = 'wartet' | 'in_arbeit' | 'fertig' | 'fehler' | 'uebersprungen';
@@ -34,7 +34,12 @@ export interface BatchJob {
   schemaVersion: 1;
 }
 
-/** Welche StepIds ein Job generiert. */
-export function gewuenschteSchritte(a: BatchAbschnitte): StepId[] {
-  return a === 'nur_a' ? ['A'] : ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+/**
+ * Welche StepIds ein Job generiert. `order` = geordnete Schritt-IDs der aktiven
+ * `WorkflowDef` (Default `STEP_ORDER` = zim-ep). `'nur_a'` = nur der erste Schritt,
+ * `'a_bis_g'` = alle Schritte der Reihe (inkl. späterer Unterschritte).
+ */
+export function gewuenschteSchritte(a: BatchAbschnitte, order: readonly StepId[] = STEP_ORDER): StepId[] {
+  if (a === 'nur_a') return order.length > 0 ? [order[0]!] : [];
+  return [...order];
 }

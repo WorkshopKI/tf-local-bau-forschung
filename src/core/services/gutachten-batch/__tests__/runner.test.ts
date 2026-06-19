@@ -110,4 +110,27 @@ describe('runBatch', () => {
     expect(erzeuge).toHaveBeenCalledTimes(7);
     expect(job.eintraege[0]!.checkKurz).toBe('7× erzeugt ✓ (2 Hinweise G)');
   });
+
+  it('deps.order steuert die generierten Schritte (Reihenfolge datengetrieben)', async () => {
+    const steps: string[] = [];
+    const erzeuge = vi.fn(async ({ stepId }: ErzeugeArgs): Promise<AbschnittErgebnis> => {
+      steps.push(stepId);
+      return { erzeugt: true, uebersprungen: false, hinweise: 0 };
+    });
+    const { deps: d } = deps({ erzeuge });
+    // Nur 3 Schritte in abweichender Reihenfolge statt der Default-7.
+    await runBatch(makeJob(['V1'], 'a_bis_g'), { ...d, order: ['B', 'A', 'C'] });
+    expect(steps).toEqual(['B', 'A', 'C']);
+  });
+
+  it('nur_a mit deps.order generiert nur den ERSTEN Schritt der Order', async () => {
+    const steps: string[] = [];
+    const erzeuge = vi.fn(async ({ stepId }: ErzeugeArgs): Promise<AbschnittErgebnis> => {
+      steps.push(stepId);
+      return { erzeugt: true, uebersprungen: false, hinweise: 0 };
+    });
+    const { deps: d } = deps({ erzeuge });
+    await runBatch(makeJob(['V1'], 'nur_a'), { ...d, order: ['B', 'A', 'C'] });
+    expect(steps).toEqual(['B']);
+  });
 });

@@ -33,6 +33,11 @@ export interface BatchDeps {
   /** Interner Transport erreichbar? (Default real: `bridge.getActiveTransport().ping()`). */
   transportVerfuegbar: () => Promise<boolean>;
   /**
+   * Geordnete Schritt-IDs der aktiven `WorkflowDef`. Optional — fehlt sie, greift
+   * der `gewuenschteSchritte`-Default (`STEP_ORDER` = zim-ep).
+   */
+  order?: readonly StepId[];
+  /**
    * Erzeugt EINEN Abschnitt (resolve skill/vb, runSkill, Checks, applyGeneration,
    * putWorkflowRun, Disk-Spiegel). WIRFT bei LLM-/Transport-/Kontext-Fehler;
    * gibt `uebersprungen` zurück, wenn der Abschnitt schon einen Stand hat.
@@ -51,7 +56,7 @@ function checkKurz(erzeugt: number, hinweise: number, letzterStep: StepId | null
 
 export async function runBatch(start: BatchJob, deps: BatchDeps): Promise<BatchJob> {
   let job = setJobStatus(start, 'laeuft');
-  const schritte = gewuenschteSchritte(job.abschnitte);
+  const schritte = gewuenschteSchritte(job.abschnitte, deps.order);
 
   const commit = async (next: BatchJob): Promise<void> => {
     job = next;

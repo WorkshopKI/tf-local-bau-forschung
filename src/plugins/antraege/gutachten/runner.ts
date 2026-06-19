@@ -21,22 +21,28 @@ export function emptyRun(aktenzeichen: string, now: string): WorkflowRun {
   };
 }
 
-/** Erster Schritt in A–G-Reihenfolge, der NICHT freigegeben ist (sonst der letzte). */
-export function firstNonFreigegeben(run: WorkflowRun): StepId {
-  for (const id of STEP_ORDER) {
+/**
+ * Erster Schritt in Workflow-Reihenfolge, der NICHT freigegeben ist (sonst der
+ * letzte). `order` = geordnete Schritt-IDs der aktiven `WorkflowDef`; Default
+ * `STEP_ORDER` (zim-ep) hält Bestands-Aufrufer + Tests verhaltensgleich.
+ */
+export function firstNonFreigegeben(run: WorkflowRun, order: readonly StepId[] = STEP_ORDER): StepId {
+  for (const id of order) {
     if (run.schritte[id]?.status !== 'freigegeben') return id;
   }
-  return STEP_ORDER[STEP_ORDER.length - 1]!;
+  return order[order.length - 1]!;
 }
 
 /**
- * True, wenn ein FRÜHERER Abschnitt (vor `stepId`) gerade in `entwurf` ist —
- * treibt den dezenten „frühere Abschnitte geändert"-Hinweis auf späteren
+ * True, wenn ein FRÜHERER Abschnitt (vor `stepId` in `order`) gerade in `entwurf`
+ * ist — treibt den dezenten „frühere Abschnitte geändert"-Hinweis auf späteren
  * freigegebenen Abschnitten nach „Erneut öffnen". Reine Funktion von `run`.
  */
-export function fruehereInArbeit(run: WorkflowRun, stepId: StepId): boolean {
-  const idx = STEP_ORDER.indexOf(stepId);
-  return STEP_ORDER.slice(0, idx).some(id => run.schritte[id]?.status === 'entwurf');
+export function fruehereInArbeit(
+  run: WorkflowRun, stepId: StepId, order: readonly StepId[] = STEP_ORDER,
+): boolean {
+  const idx = order.indexOf(stepId);
+  return order.slice(0, idx).some(id => run.schritte[id]?.status === 'entwurf');
 }
 
 /** Deterministischer, kollisions-toleranter Hash (djb2) — für `freigabeHash`. */
@@ -122,7 +128,9 @@ export function applyPruefen(
  * (über den finalen Text). Danach `aktiverSchritt = firstNonFreigegeben`.
  * No-op, wenn der Schritt leer ist.
  */
-export function freigeben(run: WorkflowRun, stepId: StepId, now: string): WorkflowRun {
+export function freigeben(
+  run: WorkflowRun, stepId: StepId, now: string, order: readonly StepId[] = STEP_ORDER,
+): WorkflowRun {
   const step = run.schritte[stepId];
   if (!step) return run;
   const freigegeben: StepRun = {
@@ -132,7 +140,7 @@ export function freigeben(run: WorkflowRun, stepId: StepId, now: string): Workfl
     freigabeHash: hashText(step.finalerText),
   };
   const next = setStep(run, stepId, freigegeben, now);
-  return { ...next, aktiverSchritt: firstNonFreigegeben(next) };
+  return { ...next, aktiverSchritt: firstNonFreigegeben(next, order) };
 }
 
 /**

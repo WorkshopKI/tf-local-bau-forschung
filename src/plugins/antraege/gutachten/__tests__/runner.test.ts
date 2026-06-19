@@ -12,6 +12,7 @@ import {
   uebernehmen,
   type GenerationInput,
 } from '../runner';
+import { ZIM_EP_DEF } from '@/core/services/skills';
 import type { WorkflowRun } from '../types';
 
 const NOW = '2026-06-11T10:00:00.000Z';
@@ -148,6 +149,35 @@ describe('weiterschalten / verwerfen / uebernehmen', () => {
     expect(run.schritte.A?.status).toBe('entwurf');
     expect(run.schritte.A?.freigegeben_am).toBeUndefined();
     expect(run.aktiverSchritt).toBe('A');
+  });
+});
+
+describe('Reihenfolge als Datenparameter (Seed-Def == STEP_ORDER, aber Order steuert)', () => {
+  const epOrder = ZIM_EP_DEF.steps.map(s => s.id); // ['A'..'G']
+
+  it('explizite zim-ep-Seed-Order ist verhaltensgleich zum STEP_ORDER-Default', () => {
+    const run = runMitABCfreigegeben(); // A,B,C freigegeben; D entwurf
+    expect(firstNonFreigegeben(run, epOrder)).toBe(firstNonFreigegeben(run));
+    expect(firstNonFreigegeben(run, epOrder)).toBe('D');
+    expect(fruehereInArbeit(erneutOeffnen(run, 'B', LATER), 'C', epOrder))
+      .toBe(fruehereInArbeit(erneutOeffnen(run, 'B', LATER), 'C'));
+  });
+
+  it('freigeben rückt mit expliziter Seed-Order identisch vor', () => {
+    const run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text A'), NOW);
+    expect(freigeben(run, 'A', NOW, epOrder).aktiverSchritt)
+      .toBe(freigeben(run, 'A', NOW).aktiverSchritt);
+    expect(freigeben(run, 'A', NOW, epOrder).aktiverSchritt).toBe('B');
+  });
+
+  it('eine ABWEICHENDE Reihenfolge ändert das Vorrücken (Order ist autoritativ)', () => {
+    // Custom-Order B→A→C: nach Freigabe von B ist der erste offene Schritt A.
+    const run = applyGeneration(emptyRun('AZ', NOW), 'B', gen('Text B'), NOW);
+    expect(freigeben(run, 'B', NOW, ['B', 'A', 'C']).aktiverSchritt).toBe('A');
+    // Und fruehereInArbeit folgt der Custom-Order: in [B,A] ist B (entwurf) VOR A.
+    const r2 = applyGeneration(emptyRun('AZ', NOW), 'B', gen('Entwurf B'), NOW);
+    expect(fruehereInArbeit(r2, 'A', ['B', 'A', 'C'])).toBe(true);
+    expect(fruehereInArbeit(r2, 'A', ['A', 'B', 'C'])).toBe(false); // Default-Order: B liegt nach A
   });
 });
 

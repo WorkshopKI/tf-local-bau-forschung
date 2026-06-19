@@ -10,8 +10,10 @@
  * filtern) → ein „Relevante Passagen"-Block würde hier ansetzen, sobald `tags`
  * ein filterbares Feld ist (Reindex). Für v1 genügen die Slots unten.
  */
-import type { WorkflowStepDef } from './workflow-definition';
-import { STEP_ORDER, type StepId, type WorkflowRun } from './types';
+import type { StepId, WorkflowRun } from './types';
+
+/** Minimal-Shape eines Schritts für die Reihenfolge-/Label-Auflösung (Def-agnostisch). */
+interface StepLike { id: StepId; label: string }
 
 /** Kürzt einen Abschnitts-Text am letzten Absatzumbruch vor dem Cap. */
 function cutAtParagraph(text: string, cap: number): string {
@@ -38,13 +40,16 @@ function cutAtParagraph(text: string, cap: number): string {
 export function buildVorherigeAbschnitte(
   run: WorkflowRun,
   currentStep: StepId,
-  defs: readonly WorkflowStepDef[],
+  defs: readonly StepLike[],
   capPerSection = 2000,
   quelle: 'freigegeben' | 'entwurf' = 'freigegeben',
 ): string {
-  const idx = STEP_ORDER.indexOf(currentStep);
+  // Reihenfolge kommt aus der übergebenen Schrittliste (aktive WorkflowDef),
+  // NICHT mehr aus einer Code-Konstante.
+  const order = defs.map(d => d.id);
+  const idx = order.indexOf(currentStep);
   const bloecke: string[] = [];
-  for (const id of STEP_ORDER.slice(0, idx)) {
+  for (const id of order.slice(0, idx)) {
     const step = run.schritte[id];
     if (!step) continue;
     const akzeptiert = quelle === 'freigegeben'

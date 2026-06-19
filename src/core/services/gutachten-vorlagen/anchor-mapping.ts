@@ -41,6 +41,20 @@ export function ankerFuer(typ: VorlagenTyp, id: AbschnittId): string {
   return ANKER_BY_TYP[typ][id];
 }
 
+/** Gültige DOCX-Anker-Schlüssel (= geschlossene `AbschnittId`-Union A–G). */
+const ANKER_IDS: ReadonlySet<string> = new Set(Object.keys(ANKER_EP));
+
+/**
+ * Type-Guard: trägt ein (kuratierbarer, daher offener) `WorkflowStep.ankerKey`
+ * einen GÜLTIGEN DOCX-Anker (A–G)? Schritte ohne/ungültigen Anker — z.B. neue
+ * Unterschritte (5a) — werden vom Export sauber übersprungen, statt zu werfen.
+ * Die `AbschnittId`-Union bleibt bewusst geschlossen (nur die ausgelieferten
+ * EP-Anker); diese Funktion ist die Brücke zur offenen `StepId`-Welt.
+ */
+export function ankerKeyGueltig(key: string | undefined): key is AbschnittId {
+  return key !== undefined && ANKER_IDS.has(key);
+}
+
 /**
  * Vorlagen-Typ aus dem Dateinamen ableiten. v1 unterstützt nur EP; andere
  * Namen werden defensiv als EP behandelt (Anker, die nicht passen, werden vom

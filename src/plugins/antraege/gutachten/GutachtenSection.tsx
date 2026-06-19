@@ -13,7 +13,7 @@ import { vbUeberschreitetCap, VB_KUERZEN_HINWEIS } from '@/core/services/skills'
 import { getVbCharCap, getLlmContextTokens } from '@/core/services/ai/llm-context';
 import type { Antrag } from '@/core/services/csv/types';
 import {
-  ankerFuer, type AbschnittEinfuegung, type AbschnittAnzeige,
+  ankerFuer, ankerKeyGueltig, type AbschnittEinfuegung, type AbschnittAnzeige,
 } from '@/core/services/gutachten-vorlagen';
 import { VorlageDialog } from '../kurzfassung/VorlageDialog';
 import { TweakEditor } from '../kurzfassung/TweakEditor';
@@ -55,21 +55,26 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
     _updated_at: '',
   }), [ctx.foerderkennzeichen, ctx.titel, ctx.antragsteller]);
 
-  // Export: freigegebene Abschnitte (mit Anker + Text) + Anzeige-Liste A–G.
+  // Export: freigegebene Abschnitte (mit gültigem Anker + Text) + Anzeige-Liste.
+  // Schritte ohne gültigen DOCX-Anker (z.B. Unterschritte) werden sauber übersprungen.
   const exportSections: AbschnittEinfuegung[] = run
     ? ZIM_EP_WORKFLOW.flatMap(d => {
         const s = run.schritte[d.id];
-        return s?.status === 'freigegeben'
-          ? [{ id: d.id, anker: ankerFuer('EP', d.ankerKey), finalerText: s.finalerText }]
+        return s?.status === 'freigegeben' && ankerKeyGueltig(d.ankerKey)
+          ? [{ id: d.ankerKey, anker: ankerFuer('EP', d.ankerKey), finalerText: s.finalerText }]
           : [];
       })
     : [];
-  const abschnitteAnzeige: AbschnittAnzeige[] = ZIM_EP_WORKFLOW.map(d => ({
-    id: d.id,
-    label: d.label,
-    anker: ankerFuer('EP', d.ankerKey),
-    freigegeben: run?.schritte[d.id]?.status === 'freigegeben',
-  }));
+  const abschnitteAnzeige: AbschnittAnzeige[] = ZIM_EP_WORKFLOW.flatMap(d =>
+    ankerKeyGueltig(d.ankerKey)
+      ? [{
+          id: d.ankerKey,
+          label: d.label,
+          anker: ankerFuer('EP', d.ankerKey),
+          freigegeben: run?.schritte[d.id]?.status === 'freigegeben',
+        }]
+      : [],
+  );
 
   return (
     <div>

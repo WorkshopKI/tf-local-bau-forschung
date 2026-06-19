@@ -25,13 +25,18 @@ export interface Mengen {
 
 const ent = (k: MengenKandidat): MengenEintrag => ({ aktenzeichen: k.aktenzeichen, fkz: k.fkz, titel: k.titel });
 
-/** `vorhandeneStaende[aktenzeichen]` = StepId→Status der bereits persistierten Schritte. */
+/**
+ * `vorhandeneStaende[aktenzeichen]` = StepId→Status der bereits persistierten
+ * Schritte. `order` (optional) = geordnete Schritt-IDs der aktiven `WorkflowDef`;
+ * fehlt sie, greift der `gewuenschteSchritte`-Default (`STEP_ORDER` = zim-ep).
+ */
 export function berechneMengen(
   kandidaten: MengenKandidat[],
   abschnitte: BatchAbschnitte,
   vorhandeneStaende: Record<string, Partial<Record<StepId, string>>>,
+  order?: readonly StepId[],
 ): Mengen {
-  const gewuenscht = gewuenschteSchritte(abschnitte);
+  const gewuenscht = gewuenschteSchritte(abschnitte, order);
   const m: Mengen = { bereit: [], ohneVb: [], bereitsStand: [] };
   for (const k of kandidaten) {
     if (!k.hatVb) { m.ohneVb.push(ent(k)); continue; }
