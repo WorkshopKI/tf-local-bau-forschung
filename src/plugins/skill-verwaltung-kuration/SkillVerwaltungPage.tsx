@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,21 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const [testlauf, setTestlauf] = useState<Testlauf | null>(null);
   const [importing, setImporting] = useState(false);
   const save = useAsyncAction(async (next: SkillRegistryFile) => { await reg.persist(next); });
+
+  // Deep-Link (Provenienz aus dem Gutachten-Flow): `/kuration/skill-verwaltung/<skillId>`
+  // öffnet den passenden Skill-Editor, sobald die Registry geladen ist.
+  const { skillId: routeSkillId } = useParams<{ skillId?: string }>();
+  const deepLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!routeSkillId || !reg.file) return;
+    if (deepLinkRef.current === routeSkillId) return;
+    const skill = reg.file.skills.find(s => s.id === routeSkillId);
+    if (skill) {
+      deepLinkRef.current = routeSkillId;
+      setTab('skills');
+      setEditingSkill({ skill, isNew: false });
+    }
+  }, [routeSkillId, reg.file]);
 
   if (reg.loading || !reg.file) {
     return <div className="px-8 py-10 text-[13.5px] text-[var(--tf-text-secondary)]">Laden…</div>;

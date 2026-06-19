@@ -6,6 +6,7 @@
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
 import { useMemo, useState } from 'react';
+import { useNavigation } from '@/core/hooks/useNavigation';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
@@ -210,6 +211,11 @@ function ActiveAbschnitt({
   const id = def.id;
   const step = run.schritte[id];
   const status = step?.status ?? 'leer';
+  const { navigate } = useNavigation();
+  const skillId = step?.skillId;
+  const openSkill = skillId
+    ? () => navigate('skill-verwaltung-kuration', { selectedId: skillId })
+    : undefined;
 
   return (
     <div className="my-2 rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] px-6 py-5">
@@ -269,6 +275,8 @@ function ActiveAbschnitt({
           onErneutOeffnen={() => ctrl.erneutOeffnenStep(id)}
           onOpenTweak={onOpenTweak}
           onQs={ctrl.qsFor(id) ? () => ctrl.runQs(id) : undefined}
+          provenance={{ skillName: ctrl.activeSkill?.name ?? step.skillId ?? '—', regelCount: ctrl.regeln.length }}
+          onOpenSkill={openSkill}
           thinkingBudget={ctrl.thinkingBudget}
           onSetThinkingBudget={ctrl.setThinkingBudget}
           streamContent={ctrl.streamContent}

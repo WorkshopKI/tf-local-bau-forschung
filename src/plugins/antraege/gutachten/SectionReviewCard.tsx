@@ -31,6 +31,10 @@ interface Props {
   onOpenTweak: () => void;
   /** Beratende KI-QS über diesen Abschnitt fahren — fehlt, wenn kein QS-Schritt ihn adressiert. */
   onQs?: () => void;
+  /** Provenienz: Name des erzeugenden Skills + Anzahl zugeordneter Regeln. */
+  provenance?: { skillName: string; regelCount: number };
+  /** Öffnet den erzeugenden Skill in der Skill-Verwaltung (Provenienz-Link). */
+  onOpenSkill?: () => void;
   /** Thinking-/Reasoning-Budget für die nächste Generierung (Default aus der Einstellung, hier übersteuerbar). */
   thinkingBudget: ThinkingBudget;
   onSetThinkingBudget: (budget: ThinkingBudget) => void;
@@ -44,7 +48,7 @@ const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border
 const TWEAK_LINK = 'inline-flex items-center gap-1 text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]';
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
+  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
@@ -80,6 +84,26 @@ export function SectionReviewCard({
           {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(run.freigegeben_am ?? run.erstellt_am)}` : `generiert am ${formatDate(run.erstellt_am)}`}
           {run.mitTweak ? ' · mit persönlichem Stil' : ''}
         </div>
+        {provenance && (
+          <div className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
+            erzeugt mit{' '}
+            {onOpenSkill ? (
+              <button type="button" onClick={onOpenSkill} className="text-[var(--tf-primary)] hover:underline">
+                {provenance.skillName}{run.skillVersion != null ? ` v${run.skillVersion}` : ''}
+              </button>
+            ) : (
+              <span className="text-[var(--tf-text-secondary)]">{provenance.skillName}{run.skillVersion != null ? ` v${run.skillVersion}` : ''}</span>
+            )}
+            {run.modell ? ` · ${run.modell}` : ''} ·{' '}
+            {onOpenSkill ? (
+              <button type="button" onClick={onOpenSkill} className="text-[var(--tf-primary)] hover:underline">
+                prüft {provenance.regelCount} {provenance.regelCount === 1 ? 'Regel' : 'Regeln'}
+              </button>
+            ) : (
+              <span>prüft {provenance.regelCount} {provenance.regelCount === 1 ? 'Regel' : 'Regeln'}</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Denkprozess (Reasoning/Thinking) — aufklappbar, wenn das Modell welchen lieferte */}

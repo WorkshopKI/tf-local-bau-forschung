@@ -117,6 +117,15 @@ export function buildRouter(
     children.push({ path: 'antraege/:aktenzeichen', element: <AntraegeRoute plugin={antraege} /> });
   }
 
+  // Deep-Link auf einen einzelnen Skill (Provenienz-Affordanz aus dem Gutachten-
+  // Flow). Die flache Route ist bereits oben registriert; diese Variante trägt
+  // die Skill-ID als Pfad-Segment — die Seite liest sie via `useParams`.
+  const skillVerwaltung = byId.get('skill-verwaltung-kuration');
+  if (skillVerwaltung) {
+    const Component = skillVerwaltung.component;
+    children.push({ path: `${stripLeadingSlash(pluginIdToRoute('skill-verwaltung-kuration'))}/:skillId`, element: <Component /> });
+  }
+
   // Fallback: unbekannte Routen (inkl. via Feature-Flag deaktivierte Bereiche)
   // leiten auf Home. Verhindert dass Bookmarks auf deaktivierte Features
   // leere Seiten zeigen.
