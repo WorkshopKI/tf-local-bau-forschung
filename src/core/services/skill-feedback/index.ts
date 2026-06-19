@@ -13,3 +13,4 @@ export * from './cache';
 export * from './write';
 export * from './aggregate';
 export * from './read';
+export * from './maturity';
