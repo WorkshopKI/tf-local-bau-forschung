@@ -7,7 +7,7 @@
  */
 import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
 import { appendVerlauf, restoreVersion } from '../kurzfassung/kurzfassung-verlauf';
-import { STEP_ORDER, type StepId, type StepRun, type WorkflowRun } from './types';
+import { STEP_ORDER, type QsBefund, type StepId, type StepRun, type WorkflowRun } from './types';
 
 /** Leerer Run für einen Verbund (vor der ersten Generierung / Migration). */
 export function emptyRun(aktenzeichen: string, now: string): WorkflowRun {
@@ -121,6 +121,22 @@ export function applyPruefen(
   const step = run.schritte[stepId];
   if (!step) return run;
   return setStep(run, stepId, { ...step, checks }, now);
+}
+
+/**
+ * Beratende LLM-QS-Befunde am BEWERTETEN Schritt setzen (Aktion „KI-QS prüfen").
+ * KEIN Status-Wechsel, kein Text-Overwrite — getrennt von den mechanischen Checks.
+ * No-op, wenn der Schritt leer ist (man kann nur einen generierten Abschnitt bewerten).
+ */
+export function applyQsHinweise(
+  run: WorkflowRun,
+  stepId: StepId,
+  befunde: QsBefund[],
+  now: string,
+): WorkflowRun {
+  const step = run.schritte[stepId];
+  if (!step) return run;
+  return setStep(run, stepId, { ...step, qsHinweise: befunde }, now);
 }
 
 /**

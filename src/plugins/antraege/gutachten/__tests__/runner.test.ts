@@ -5,6 +5,7 @@ import {
   fruehereInArbeit,
   applyGeneration,
   applyPruefen,
+  applyQsHinweise,
   freigeben,
   erneutOeffnen,
   weiterschalten,
@@ -13,7 +14,7 @@ import {
   type GenerationInput,
 } from '../runner';
 import { ZIM_EP_DEF } from '@/core/services/skills';
-import type { WorkflowRun } from '../types';
+import type { QsBefund, WorkflowRun } from '../types';
 
 const NOW = '2026-06-11T10:00:00.000Z';
 const LATER = '2026-06-12T10:00:00.000Z';
@@ -73,6 +74,40 @@ describe('applyPruefen', () => {
   it('no-op bei leerem Schritt', () => {
     const run = applyPruefen(emptyRun('AZ', NOW), 'B', [{ id: 'r', level: 'ok', label: 'L' }], NOW);
     expect(run.schritte.B).toBeUndefined();
+  });
+});
+
+describe('applyQsHinweise', () => {
+  const befund = (dimension: string, bewertung: QsBefund['bewertung']): QsBefund => ({ dimension, bewertung, text: 't' });
+
+  it('setzt beratende Befunde am Schritt, ohne Status/Text zu ändern', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text A', { checks: [{ id: 'r', level: 'ok', label: 'L' }] }), NOW);
+    run = applyQsHinweise(run, 'A', [befund('Erdung in der VB', 'hinweis')], LATER);
+    expect(run.schritte.A?.qsHinweise).toHaveLength(1);
+    expect(run.schritte.A?.qsHinweise?.[0]?.bewertung).toBe('hinweis');
+    expect(run.schritte.A?.status).toBe('entwurf');   // kein Status-Wechsel
+    expect(run.schritte.A?.finalerText).toBe('Text A'); // kein Overwrite
+    expect(run.schritte.A?.checks).toHaveLength(1);      // checks unberührt
+  });
+
+  it('überschreibt vorhandene Befunde', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text A'), NOW);
+    run = applyQsHinweise(run, 'A', [befund('Ton', 'hinweis')], NOW);
+    run = applyQsHinweise(run, 'A', [befund('Ton', 'ok'), befund('Kohärenz', 'ok')], LATER);
+    expect(run.schritte.A?.qsHinweise).toHaveLength(2);
+    expect(run.schritte.A?.qsHinweise?.[0]?.bewertung).toBe('ok');
+  });
+
+  it('no-op bei leerem Schritt (man bewertet nur Generiertes)', () => {
+    const run0 = emptyRun('AZ', NOW);
+    expect(applyQsHinweise(run0, 'B', [befund('Ton', 'ok')], NOW)).toBe(run0);
+  });
+
+  it('lässt das Eingabe-Objekt unangetastet (Immutabilität)', () => {
+    const run0 = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text A'), NOW);
+    const run1 = applyQsHinweise(run0, 'A', [befund('Ton', 'ok')], LATER);
+    expect(run1).not.toBe(run0);
+    expect(run0.schritte.A?.qsHinweise).toBeUndefined();
   });
 });
 
