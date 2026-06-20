@@ -121,6 +121,16 @@ export interface SkillRecord {
   systemPrompt?: string;
   /** Optional — Token-Limit fürs LLM (Default im Runner). */
   maxTokens?: number;
+  /**
+   * Optionaler Override für die DSGVO-Transport-Policy (additiv). **Ableitung
+   * schlägt Flag**: referenziert `promptTemplate` einen Inhalts-Slot
+   * (`{{vbMarkdown}}`/`{{stammdaten}}`/`{{zielText}}`/`{{vorherigeAbschnitte}}`),
+   * ist der Skill intern-pflichtig — egal was dieser Flag sagt. Nur ein
+   * inhaltsfreies Template kann hiermit explizit als inhalts-tragend markiert
+   * werden. Fehlt der Flag, gilt fail-safe `true`. Siehe
+   * `src/core/services/ai/transport-policy.ts`.
+   */
+  enthaeltDokumentInhalte?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
