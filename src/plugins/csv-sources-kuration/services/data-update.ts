@@ -19,7 +19,7 @@
  */
 
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import { ensureDefaultProgramm, listProgramme } from '@/core/services/csv';
+import { ensureDefaultProgramm, listProgramme, healMissingVerbuende } from '@/core/services/csv';
 import { syncProgrammSnapshot, type SnapshotTimings } from '@/core/services/csv/snapshot-sync';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { rematchOnSnapshotReload } from '@/phase2';
@@ -190,6 +190,14 @@ export async function runDataUpdate(
           result.snapshotInfo.push({ programmName: p.name, createdAt: r.createdAt });
         }
       }
+
+      // Self-Heal des abgeleiteten verbuende-Caches — UNABHÄNGIG von r.synced,
+      // weil ein leerer/gestrandeter Cache gerade dann bestehen bleibt, wenn der
+      // Sync idempotent übersprungen wurde (sonst zeigt jede Verbund-Detailseite
+      // „nicht gefunden"). Billig, wenn der Cache schon vorhanden ist.
+      await healMissingVerbuende(idb, p.id).catch(err =>
+        console.warn(`[data-update] verbuende self-heal ${p.id} fehlgeschlagen`, err),
+      );
     }
     onPhase?.({ phase: 'snapshot', fraction: 1 });
 

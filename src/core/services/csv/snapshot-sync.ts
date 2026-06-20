@@ -180,6 +180,13 @@ export async function syncProgrammSnapshot(
   // Pro Store: Hash-Check + bei Mismatch laden
   const storeKeys = Object.keys(manifest.stores) as SnapshotStoreName[];
   const reloadedStores: SnapshotStoreName[] = [];
+  // Gesetzt, wenn ein Store wegen Read-/Parse-Fehler NICHT integriert werden
+  // konnte. Dann darf SYNC_VERSION unten NICHT committet werden — sonst
+  // überspringt der nächste (idempotente) Sync den fehlenden Store dauerhaft
+  // (Strand-Bug: ein leerer Store, z.B. verbuende, der nie nachgeladen wird →
+  // „Verbund nicht gefunden"). Intentionale Skips (csv_row_hashes in prod,
+  // Hash-Match) setzen das NICHT.
+  let incompleteLoad = false;
   // Inkrementeller antraege-Diff (falls dieser Pfad lief) — steuert unten, ob
   // die List-View inkrementell gepflegt oder voll neu gebaut wird.
   let antraegeDiff: AntraegeDiff | null = null;
@@ -235,6 +242,7 @@ export async function syncProgrammSnapshot(
     timings.smbReadMs += performance.now() - tRead;
     if (jsonl === null) {
       console.warn(`[snapshot-sync] ${storeKey} fehlt im Snapshot, skip`);
+      incompleteLoad = true;
       storesDone++;
       continue;
     }
@@ -256,6 +264,7 @@ export async function syncProgrammSnapshot(
           diff = diffAntraegeLines(rawLines, storedHashes);
         } catch (parseErr) {
           console.warn(`[snapshot-sync] antraege: malformed JSONL, skip store`, parseErr);
+          incompleteLoad = true;
           storesDone++;
           continue;
         }
@@ -272,6 +281,7 @@ export async function syncProgrammSnapshot(
           items = rawLines.map(line => JSON.parse(line) as unknown);
         } catch (parseErr) {
           console.warn(`[snapshot-sync] antraege: malformed JSONL, skip store`, parseErr);
+          incompleteLoad = true;
           storesDone++;
           continue;
         }
@@ -298,6 +308,7 @@ export async function syncProgrammSnapshot(
       timings.parseMs += performance.now() - tParse;
     } catch (parseErr) {
       console.warn(`[snapshot-sync] ${storeKey}: malformed JSONL, skip store`, parseErr);
+      incompleteLoad = true;
       storesDone++;
       continue;
     }
@@ -342,7 +353,12 @@ export async function syncProgrammSnapshot(
     timings.listViewRebuildMs = performance.now() - tRebuild;
   }
 
-  await idb.set(SYNC_VERSION_KEY(programmId), manifest.snapshotVersion);
+  // Version nur festschreiben, wenn ALLE Stores integriert wurden. Bei einem
+  // Read-/Parse-Fehler offen lassen, damit der nächste Sync den fehlenden Store
+  // nachlädt (statt ihn idempotent dauerhaft zu überspringen).
+  if (!incompleteLoad) {
+    await idb.set(SYNC_VERSION_KEY(programmId), manifest.snapshotVersion);
+  }
   onProgress?.({ phase: 'done', storesDone, storesTotal: storeKeys.length, fraction: 1 });
 
   return {

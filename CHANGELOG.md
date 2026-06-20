@@ -5,6 +5,32 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.103.1 — Bugfix: „Verbund nicht gefunden" auf der Förderanträge-Detailseite (Juni 2026)
+
+PATCH-Bump — Bugfix. Auf manchen Installationen zeigte die Verbund-Detailseite für **jeden** Verbund
+„Verbund &lt;ID&gt; nicht gefunden", obwohl die Liste die Teilvorhaben (TVs) korrekt anzeigte. Ursache:
+der `verbuende`-Object-Store (ein **abgeleiteter Aggregat-Cache** der Anträge, gruppiert nach
+`verbund_id`) war leer, und der version-/hash-idempotente Snapshot-Sync lud ihn nicht nach (leere/
+veraltete `verbuende.jsonl` auf dem Share **oder** ein durch einen transienten Read-Fail gestrandeter
+lokaler Store). Die Anträge selbst (Source of Truth) waren da — nur der Cache fehlte.
+
+- **Detailseite degradiert sauber** ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)):
+  fehlt der Cache-Record, sind aber die TVs da, baut die View den Verbund-Header aus den TVs
+  (neuer Helfer `buildVerbundFromTeilantraege`, [pseudoVerbund.ts](src/plugins/antraege/pseudoVerbund.ts))
+  statt „nicht gefunden". Status/Akronym/Titel haben die Lead-TV-Fallbacks ohnehin.
+- **Cache heilt sich selbst** (neuer Service `healMissingVerbuende`,
+  [verbuende-rebuild.ts](src/core/services/csv/verbuende-rebuild.ts)): beim Start-Datenupdate
+  ([data-update.ts](src/plugins/csv-sources-kuration/services/data-update.ts)) werden fehlende
+  Verbund-Records aus der Slim-List-View rekonstruiert — **unabhängig** von `r.synced`, weil der leere
+  Cache gerade beim idempotent übersprungenen Sync bestehen bleibt. Billig, wenn der Cache da ist
+  (nur ein `verbuende`-Index-Read); vorhandene (kuratierte) Records bleiben unangetastet.
+- **Stranding verhindert** ([snapshot-sync.ts](src/core/services/csv/snapshot-sync.ts)): `SYNC_VERSION`
+  wird nicht mehr festgeschrieben, wenn ein Store wegen Read-/Parse-Fehler nicht integriert werden
+  konnte → der nächste Sync lädt den fehlenden Store nach, statt ihn idempotent dauerhaft zu überspringen.
+- Sichtbar in **allen** Varianten (Förderanträge ist überall vorhanden). Tests:
+  [verbuende-rebuild.test.ts](src/core/services/csv/__tests__/verbuende-rebuild.test.ts) +
+  [pseudoVerbund.test.ts](src/plugins/antraege/__tests__/pseudoVerbund.test.ts).
+
 ### v2.103.0 — DSGVO-Transport-Policy: dokument-tragende KI-Läufe code-seitig intern erzwungen (Juni 2026)
 
 MINOR-Bump — eine zentrale, **fail-safe** Transport-Policy zieht die harte Regel **„Dokumentinhalte nie an externe APIs"** aus dem reinen Build-Flag in den Code: dokument-tragende Läufe (Generierung **und** LLM-QS, Batch, Metadaten-Extraktion) können nicht mehr auf einem externen Transport landen. **Ehrliche Einordnung:** ändert das **Prod-Verhalten nicht** (OpenRouter dort via `isOpenRouterEnabled()` ohnehin aus) — der Wert ist **Defense-in-Depth** (zweite Verteidigungslinie unterhalb des Build-Flags, mit Convention-Test gegen Regression) und schaltet später einen In-App-Judge über reale Daten (intern-only) frei. **Additiv**, kein Schema-Bump.

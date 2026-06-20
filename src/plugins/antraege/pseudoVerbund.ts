@@ -34,3 +34,27 @@ export function buildPseudoVerbund(antrag: Antrag): Verbund {
     _updated_at: antrag._updated_at,
   };
 }
+
+/** Baut einen ECHTEN Verbund-Header aus seinen Teilanträgen, wenn der
+ *  abgeleitete `verbuende`-Cache-Record fehlt (leerer/veralteter Store —
+ *  Bug-Klasse Cold-Start-Refresh). `antraege` ist die Source of Truth, der
+ *  `verbuende`-Store nur ein Aggregat-Cache. So endet `VerbundDetail` nie auf
+ *  „nicht gefunden", solange die TVs vorhanden sind. `status` bleibt bewusst
+ *  offen — die Detailseite leitet ihn ohnehin via `dominantStatus` aus allen
+ *  TVs ab. `antraege` MUSS nicht-leer sein (Aufrufer prüft das). */
+export function buildVerbundFromTeilantraege(verbundId: string, antraege: Antrag[]): Verbund {
+  const lead = antraege[0];
+  const verbundTitel = antraege
+    .map(a => (typeof a.verbund_titel === 'string' ? a.verbund_titel : ''))
+    .find(t => t.length > 0);
+  return {
+    verbund_id: verbundId,
+    programm_id: lead?.programm_id ?? '',
+    akronym: typeof lead?.akronym === 'string' ? lead.akronym : undefined,
+    titel: verbundTitel ?? (typeof lead?.titel === 'string' ? lead.titel : undefined),
+    status: undefined,
+    teilantrags_ids: antraege.map(a => a.aktenzeichen),
+    _field_sources: lead?._field_sources,
+    _updated_at: lead?._updated_at,
+  };
+}

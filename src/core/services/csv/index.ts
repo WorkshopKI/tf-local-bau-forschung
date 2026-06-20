@@ -63,6 +63,7 @@ export {
 export type { BatchedRecomputeArgs } from './merger';
 export { importCsvSource } from './importer';
 export type { ImportOptions, ImportProgress } from './importer';
+export { healMissingVerbuende } from './verbuende-rebuild';
 
 export type {
   FilterDefinition,

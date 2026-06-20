@@ -28,6 +28,7 @@ import {
   isPseudoVerbundId,
   aktenzeichenFromPseudoVerbundId,
   buildPseudoVerbund,
+  buildVerbundFromTeilantraege,
 } from './pseudoVerbund';
 import { useAntraegeStore } from './store';
 import { useUnterprogrammLabels } from './useUnterprogrammLabels';
@@ -168,7 +169,6 @@ export function VerbundDetail({
       const a = await listAntraegeByVerbund(storage.idb, verbundId);
       const h = await getVerbundHistoryByVerbund(storage.idb, verbundId);
       if (cancelled) return;
-      setVerbund(v);
       // Lead-First-Sort: Netzwerk-Lead-TVs (Suffix 01/02 + vb_phase 1/2) zuerst,
       // dann nach Aktenzeichen aufsteigend.
       const sorted = [...a].sort((x, y) => {
@@ -177,6 +177,17 @@ export function VerbundDetail({
         if (xLead !== yLead) return xLead ? -1 : 1;
         return x.aktenzeichen.localeCompare(y.aktenzeichen);
       });
+      // Der `verbuende`-Store ist nur ein abgeleiteter Aggregat-Cache der
+      // Anträge. Fehlt der Cache-Record (leerer/veralteter Store, Bug-Klasse
+      // Cold-Start-Refresh), die TVs sind aber da → Header aus den TVs
+      // synthetisieren statt „nicht gefunden". `dominantStatus`/Lead-Fallbacks
+      // weiter unten füllen Status/Akronym/Titel.
+      if (!v && sorted.length > 0) {
+        console.warn(
+          `[verbund-detail] verbuende-Cache-Record für ${verbundId} fehlt — Header aus ${sorted.length} TV(s) abgeleitet (Cache leer/veraltet)`,
+        );
+      }
+      setVerbund(v ?? (sorted.length > 0 ? buildVerbundFromTeilantraege(verbundId, sorted) : null));
       setAntraege(sorted);
       setHistory(h.sort((x, y) => y.geaendert_am.localeCompare(x.geaendert_am)));
       await loadSchemasFor(sorted);
