@@ -3,6 +3,7 @@ import {
   classifyProvider,
   erlaubteTransportKlassen,
   skillEnthaeltDokumentInhalte,
+  templateReferenziertInhaltsSlot,
 } from '../transport-policy';
 
 describe('classifyProvider', () => {
@@ -76,5 +77,17 @@ describe('skillEnthaeltDokumentInhalte', () => {
       promptTemplate: 'Tu etwas Allgemeines.',
       enthaeltDokumentInhalte: true,
     })).toBe(true);
+  });
+});
+
+describe('templateReferenziertInhaltsSlot', () => {
+  it('Inhalts-Slot vorhanden → true', () => {
+    expect(templateReferenziertInhaltsSlot('x {{vbMarkdown}} y')).toBe(true);
+    expect(templateReferenziertInhaltsSlot('{{zielText}}')).toBe(true);
+  });
+
+  it('kein Inhalts-Slot → false', () => {
+    expect(templateReferenziertInhaltsSlot('Schreibe einen Witz.')).toBe(false);
+    expect(templateReferenziertInhaltsSlot('{{abschnittszweck}}')).toBe(false);
   });
 });

@@ -16,6 +16,7 @@ import {
   type SkillVersionSnapshot,
 } from '@/core/services/skills';
 import { suggestReifegrad, type SkillAggregat, type SkillAggregatMap } from '@/core/services/skill-feedback';
+import { skillEnthaeltDokumentInhalte, templateReferenziertInhaltsSlot } from '@/core/services/ai/transport-policy';
 import { SkillVersionen } from './SkillVersionen';
 
 const SLOT_EXPL: Record<string, string> = {
@@ -62,6 +63,9 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
   const reifegrad: Reifegrad = draft.reifegrad ?? 'entwurf';
   const reifegradVorschlag = suggestReifegrad(agg?.get(skill.id) ?? LEER_AGG, reifegrad);
   const historieCount = skill.historie?.length ?? 0;
+  // DSGVO-Transport-Policy: abgeleitete Klassifizierung (Ableitung schlägt Flag).
+  const slotErzwingtIntern = templateReferenziertInhaltsSlot(draft.promptTemplate);
+  const inhaltsTragend = skillEnthaeltDokumentInhalte(draft);
 
   const save = useAsyncAction(async () => {
     const base: SkillRecord = { ...draft, version: nextVersion, geaendert_am: new Date().toISOString() };
@@ -91,6 +95,16 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
           className="text-[20px] font-medium text-[var(--tf-text)] bg-transparent outline-none border-b border-transparent focus:border-[var(--tf-border-hover)] disabled:opacity-100"
         />
         <span className="text-[11px] px-2 py-0.5 rounded-[99px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">v{skill.version}</span>
+        <span
+          title="DSGVO-Transport-Policy: dokument-tragende Skills laufen ausschließlich über die interne KI. Abgeleitet aus den Inhalts-Slots des Templates (die Ableitung schlägt jeden Override)."
+          className={`text-[11px] px-2 py-0.5 rounded-[99px] ${
+            inhaltsTragend
+              ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
+              : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]'
+          }`}
+        >
+          {inhaltsTragend ? 'Dokumentinhalte → nur intern' : 'inhaltsfrei → extern möglich'}
+        </span>
       </div>
       <input
         value={draft.beschreibung}
@@ -139,6 +153,28 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
               <span className="text-[11px] leading-[1.45] text-[var(--tf-text-tertiary)]">{SLOT_EXPL[slot] ?? 'Kontext-Slot.'}</span>
             </div>
           ))}
+        </div>
+
+        {/* DSGVO-Transport-Policy: abgeleitete Klassifizierung + optionaler Override */}
+        <div className="mt-4 rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-[14px] py-3">
+          <div className="text-[11.5px] leading-[1.5] text-[var(--tf-text-secondary)]">
+            {slotErzwingtIntern
+              ? 'Das Template referenziert einen Inhalts-Slot → der Skill verarbeitet Dokumentinhalte und läuft ausschließlich über die interne KI (DSGVO-Transport-Policy). Die Ableitung schlägt jeden Override.'
+              : 'Das Template referenziert keinen Inhalts-Slot. Fail-safe-Standard: als inhalts-tragend behandeln (nur interne KI). Nur als inhaltsfrei markieren, wenn sicher kein Dokumentinhalt verarbeitet wird — dann ist auch ein externer Provider erlaubt.'}
+          </div>
+          <label className="mt-2.5 flex items-center gap-2 text-[12px] text-[var(--tf-text)]">
+            <input
+              type="checkbox"
+              disabled={ro || slotErzwingtIntern}
+              checked={inhaltsTragend}
+              onChange={e => setDraft(d => ({ ...d, enthaeltDokumentInhalte: e.target.checked }))}
+              className="accent-[var(--tf-primary)] disabled:opacity-60"
+            />
+            <span className={slotErzwingtIntern ? 'opacity-60' : ''}>Verarbeitet Dokumentinhalte (nur interne KI)</span>
+          </label>
+          {slotErzwingtIntern && (
+            <div className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">Override deaktiviert — durch Inhalts-Slot im Template erzwungen.</div>
+          )}
         </div>
 
         {/* Formale Vorgaben (automatisch) */}

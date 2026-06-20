@@ -49,6 +49,16 @@ export function erlaubteTransportKlassen(p: { enthaeltDokumentInhalte: boolean }
 const INHALTS_SLOTS = ['vbMarkdown', 'stammdaten', 'zielText', 'vorherigeAbschnitte'];
 
 /**
+ * Referenziert das Template einen Inhalts-Slot? Basis der Ableitung — ist sie
+ * `true`, ist der Skill intern-pflichtig und ein expliziter Flag wirkungslos
+ * (die Ableitung schlägt den Flag). Die UI nutzt das, um den Override als inert
+ * zu kennzeichnen, wenn ein Slot das Verdikt erzwingt.
+ */
+export function templateReferenziertInhaltsSlot(promptTemplate: string): boolean {
+  return INHALTS_SLOTS.some(s => promptTemplate.includes('{{' + s + '}}'));
+}
+
+/**
  * Ist ein Skill dokument-tragend? **Ableitung schlägt Flag**: referenziert das
  * Template einen Inhalts-Slot, ist die Antwort `true` — unabhängig vom expliziten
  * `enthaeltDokumentInhalte`. Nur ohne Inhalts-Slot greift der Flag; fehlt er,
@@ -57,7 +67,6 @@ const INHALTS_SLOTS = ['vbMarkdown', 'stammdaten', 'zielText', 'vorherigeAbschni
 export function skillEnthaeltDokumentInhalte(
   skill: { promptTemplate: string; enthaeltDokumentInhalte?: boolean },
 ): boolean {
-  const abgeleitet = INHALTS_SLOTS.some(s => skill.promptTemplate.includes('{{' + s + '}}'));
-  if (abgeleitet) return true;                    // Ableitung schlägt Flag
-  return skill.enthaeltDokumentInhalte ?? true;   // fail-safe Default
+  if (templateReferenziertInhaltsSlot(skill.promptTemplate)) return true;  // Ableitung schlägt Flag
+  return skill.enthaeltDokumentInhalte ?? true;                            // fail-safe Default
 }
