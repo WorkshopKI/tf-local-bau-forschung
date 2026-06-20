@@ -5,6 +5,35 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.103.2 — Bugfix: Verbund-Detailseite öffnete ungefragt den KI-Tab (Juni 2026)
+
+PATCH-Bump — Bugfix. Klickte man einen Verbund an, der **bereits LLM-generierte Abschnitte**
+(Gutachten-Kurzfassung) hat, öffnete sich neben der Detailansicht ein **zweiter Browser-Tab** auf die
+interne KI-URL (`https://gpt.vdivde-it.de/`). Ursache: die **Verfügbarkeits-Probe** beim Mount der
+Detailseite (`bridge.getActiveTransport().ping()`, ausgelöst wenn eine Vorhabensbeschreibung existiert
+und der Stand nicht `freigegeben` ist) rief auf der **aktiven Streamlit-Bridge** `ensureConnection()`
+→ **bedingungslos** `window.open(...)`. Ein rein lesender Check hatte damit den Seiteneffekt, einen Tab
+zu öffnen.
+
+- **Passiver Ping** ([streamlit.ts](src/core/services/ai/transports/streamlit.ts)): `ping()` bekommt
+  einen optionalen Schalter `PingOptions { openIfNeeded?: boolean }` (Default `true` =
+  bestehendes Verhalten). Bei `openIfNeeded: false` pingt die Streamlit-Bridge nur ein **bereits
+  offenes** Fenster und öffnet selbst keins → ohne lebendes Handle sofort `false` (statt 5-s-Timeout +
+  Leertab). `DirectLLM.ping(_opts?)` ignoriert die Option (kein Fenster-Seiteneffekt);
+  `AIBridge.pingActive(opts?)` reicht sie durch.
+- **Mount-/Refresh-Proben passiv** ([useKurzfassung.ts](src/plugins/antraege/kurzfassung/useKurzfassung.ts),
+  [useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)): die vier
+  Lade-/`refreshVb`-Proben nutzen `ping({ openIfNeeded: false })`. Der End-Zustand bleibt identisch
+  (Bridge nicht verbunden → `llmAvailable = false` → Generieren-Button disabled), nur **ohne** den
+  ungefragten Tab. Explizite Nutzer-Gesten (Generieren/QS-Pre-Flight, Verbindungstest in den
+  Einstellungen, SkillTestlauf, Chat, Suche, Batch) öffnen den Tab unverändert (Default `true`).
+- **Erzwingung**: neuer Test [streamlit-ping.test.ts](src/core/services/ai/__tests__/streamlit-ping.test.ts)
+  (passiver Ping ohne Fenster → `false` **und** kein `window.open`; aktiver Ping → `window.open`).
+  Convention-Test `no-raw-active-transport` bleibt grün (`.ping(`-Zeilen sind ausgenommen). Das
+  Feature ist dev-only (`gutachtenKurzfassung`/`gutachtenWorkflow`), der Transport-Fix wirkt global.
+  Wiederkehrende Bug-Klasse dokumentiert in
+  [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
+
 ### v2.103.1 — Bugfix: „Verbund nicht gefunden" auf der Förderanträge-Detailseite (Juni 2026)
 
 PATCH-Bump — Bugfix. Auf manchen Installationen zeigte die Verbund-Detailseite für **jeden** Verbund

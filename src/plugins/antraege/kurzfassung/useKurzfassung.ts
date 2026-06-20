@@ -148,10 +148,12 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
       setTweak(loadedTweak);
       setLoading(false);
       // LLM-Probe nur, wenn Generierung relevant ist (VB da, noch nicht freigegeben).
-      // DirectLLM.ping = billiger /v1/models-Fetch; aktive Streamlit-Bridge würde
-      // ihr Fenster öffnen (Edge-Case, in den llama.cpp-Konfigs irrelevant).
+      // PASSIV (`openIfNeeded: false`): pingt nur eine bereits offene Streamlit-Bridge
+      // und öffnet NIE selbst einen Tab — sonst macht das bloße Öffnen der Verbund-
+      // Detailseite ungefragt den KI-Tab auf (Bug). Ohne lebendes Fenster → false
+      // (= Button disabled), genau wie der bisherige Ping-Timeout, nur ohne Leertab.
       if (vb && (!rec || rec.status !== 'freigegeben')) {
-        try { if (!cancelled) setLlmAvailable(await bridge.getActiveTransport().ping()); }
+        try { if (!cancelled) setLlmAvailable(await bridge.getActiveTransport().ping({ openIfNeeded: false })); }
         catch { if (!cancelled) setLlmAvailable(false); }
       }
     })();
@@ -266,7 +268,8 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
     const vb = await findVorhabensbeschreibung(storage.idb, key);
     setVbDokument(vb);
     if (vb && llmAvailable === null) {
-      try { setLlmAvailable(await bridge.getActiveTransport().ping()); }
+      // Passiv — wie die Mount-Probe (kein ungefragter KI-Tab beim VB-Refresh).
+      try { setLlmAvailable(await bridge.getActiveTransport().ping({ openIfNeeded: false })); }
       catch { setLlmAvailable(false); }
     }
   };

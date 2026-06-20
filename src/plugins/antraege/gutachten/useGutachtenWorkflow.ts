@@ -152,8 +152,11 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       setVb(vbRes);
       setLoading(false);
       // LLM-Probe nur, wenn Generierung relevant ist (VB da, aktiver Schritt nicht freigegeben).
+      // PASSIV (`openIfNeeded: false`): öffnet beim Mount keinen KI-Tab (sonst poppt das
+      // Öffnen der Verbund-Detailseite ungefragt die Bridge auf, Bug). Pingt nur ein
+      // bereits offenes Bridge-Fenster; sonst false (= Button disabled), wie der bisherige Timeout.
       if (vbRes && r.schritte[r.aktiverSchritt]?.status !== 'freigegeben') {
-        try { if (!cancelled) setLlmAvailable(await bridge.getActiveTransport().ping()); }
+        try { if (!cancelled) setLlmAvailable(await bridge.getActiveTransport().ping({ openIfNeeded: false })); }
         catch { if (!cancelled) setLlmAvailable(false); }
       }
     })();
@@ -328,7 +331,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const vbRes = await resolveVb(storage.idb, ctx);
     setVb(vbRes);
     if (vbRes && llmAvailable === null) {
-      try { setLlmAvailable(await bridge.getActiveTransport().ping()); }
+      // Passiv — wie die Mount-Probe (kein ungefragter KI-Tab beim VB-Refresh).
+      try { setLlmAvailable(await bridge.getActiveTransport().ping({ openIfNeeded: false })); }
       catch { setLlmAvailable(false); }
     }
   };

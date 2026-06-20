@@ -40,6 +40,16 @@ export interface StreamResult {
   aborted: boolean;
 }
 
+export interface PingOptions {
+  /** Streamlit-Bridge: bei FEHLENDEM Fenster-Handle KEIN `window.open` auslösen
+   *  (rein passiver Verfügbarkeits-Check — pingt nur ein bereits offenes Fenster,
+   *  sonst sofort `false`). Default `true` = altes Verhalten (Fenster bei Bedarf
+   *  öffnen). Mount-/Refresh-Proben setzen `false`, damit das Öffnen der Detail-
+   *  seite nicht ungefragt den KI-Tab aufmacht. DirectLLM ignoriert die Option
+   *  (sein `/v1/models`-Fetch hat keinen Fenster-Seiteneffekt). */
+  openIfNeeded?: boolean;
+}
+
 export interface AITransport {
   /** Interner Logik-Name (für Capability-/Domain-Checks, z.B.
    *  `transport.name === 'Streamlit'`). NICHT für die Anzeige verwenden. */
@@ -48,7 +58,7 @@ export interface AITransport {
    *  `name` zurück, wenn nicht gesetzt. Vom Logik-Namen entkoppelt, damit das
    *  Wording geändert werden kann, ohne Vergleiche zu brechen. */
   displayName?: string;
-  ping(): Promise<boolean>;
+  ping(opts?: PingOptions): Promise<boolean>;
   submitMessage(message: string, systemPrompt?: string, options?: SubmitMessageOptions): Promise<string>;
   /** Optional: Multi-Turn-Chat. Nur DirectLLMTransport implementiert das aktuell.
    *  Components nutzen Feature-Detection (`if (transport.submitConversation) ...`). */
@@ -165,9 +175,17 @@ export class StreamlitBridgeTransport implements AITransport {
     }
   }
 
-  async ping(): Promise<boolean> {
+  async ping(opts?: PingOptions): Promise<boolean> {
     try {
-      await this.ensureConnection();
+      const openIfNeeded = opts?.openIfNeeded ?? true;
+      if (openIfNeeded) {
+        await this.ensureConnection();
+      } else if (!this.streamlitWindow || this.streamlitWindow.closed) {
+        // Passiver Check: kein lebendes Bridge-Fenster → nicht erreichbar, OHNE
+        // einen Tab zu öffnen (sonst poppt das bloße Öffnen der Verbund-Detail-
+        // seite ungefragt den KI-Tab auf).
+        return false;
+      }
       return await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => { this.pending.delete('ping'); reject(new Error('Ping timeout')); }, 5000);
         this.pending.set('ping', { resolve: () => resolve(true), reject, timeout });

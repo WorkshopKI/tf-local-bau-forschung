@@ -1,4 +1,4 @@
-import type { AITransport } from './transports/streamlit';
+import type { AITransport, PingOptions } from './transports/streamlit';
 import { StreamlitBridgeTransport } from './transports/streamlit';
 import { DirectLLMTransport } from './transports/direct-llm';
 import type { AIProviderConfig } from '@/core/types/config';
@@ -92,9 +92,10 @@ export class AIBridge {
   }
 
   /** Verfügbarkeits-Check auf dem aktiven Transport (sauberer als rohes
-   *  `getActiveTransport().ping()` — trägt keinen Inhalt, Convention-konform). */
-  pingActive(): Promise<boolean> {
-    return this.getActiveTransport().ping();
+   *  `getActiveTransport().ping()` — trägt keinen Inhalt, Convention-konform).
+   *  `opts.openIfNeeded: false` → passiver Check (öffnet kein Bridge-Fenster). */
+  pingActive(opts?: PingOptions): Promise<boolean> {
+    return this.getActiveTransport().ping(opts);
   }
 
   /** Den PERSISTENTEN Streamlit-Transport holen (nicht den aktiven) — für den

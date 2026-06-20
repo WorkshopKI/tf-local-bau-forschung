@@ -2,6 +2,7 @@ import type {
   AITransport,
   ConversationMessage,
   ConversationOptions,
+  PingOptions,
   StreamCallbacks,
   StreamResult,
 } from './streamlit';
@@ -76,7 +77,10 @@ export class DirectLLMTransport implements AITransport {
     return headers;
   }
 
-  async ping(): Promise<boolean> {
+  // `_opts` nur für Signatur-Kompatibilität mit `AITransport.ping` — der
+  // `/v1/models`-Fetch hat keinen Fenster-Seiteneffekt, `openIfNeeded` ist hier
+  // bedeutungslos.
+  async ping(_opts?: PingOptions): Promise<boolean> {
     try {
       const res = await fetch(`${this.baseUrl}/v1/models`, { headers: this.getHeaders() });
       return res.ok;

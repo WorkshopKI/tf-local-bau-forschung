@@ -1,6 +1,6 @@
 # Wiederkehrende Bug-Klassen
 
-Sieben Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-/Modal-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
+Acht Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-/Modal-/Transport-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
 
 > Diese Datei ist die **Single Source of Truth** für diese Muster. CLAUDE.md → Decision-Tree und einige Pitfalls verweisen hierher.
 
@@ -124,3 +124,17 @@ Sieben Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an
 **Warnsignal beim Entwickeln:** Sobald Code `fixed inset-0` + eine Karten-`<div>` **ohne** `max-h`/`max-height` schreibt (oder den Scroll nur am Overlay-Backdrop hat), fehlt der Cap — der äußere Scroll ist KEIN verlässlicher Ersatz für eine interne, vh-gedeckelte Scroll-Region.
 
 **Kanonische Dateien:** [Dialog.tsx](../../src/ui/Dialog.tsx) (shared, `size`-Prop), [dialog.tsx](../../src/components/ui/dialog.tsx) (shadcn), [KonvertierungReviewDialog.tsx](../../src/core/components/KonvertierungReviewDialog.tsx) (custom-Referenz), [AufnahmeOverlay.tsx](../../src/plugins/antraege/aufnahme-einfach/AufnahmeOverlay.tsx).
+
+## 8. Verfügbarkeits-Ping darf die Streamlit-Bridge nicht öffnen
+
+**Symptom:** Beim bloßen **Öffnen** einer Seite (z.B. Verbund-Detailseite mit generierten Abschnitten) poppt ungefragt ein zweiter Browser-Tab auf die interne KI-URL (`https://gpt.vdivde-it.de/`) auf. Der User hat nichts „generieren" geklickt. (v2.103.2)
+
+**Root-Cause:** Ein rein **lesender** Verfügbarkeits-Check (`bridge.getActiveTransport().ping()` / `pingActive()`) hat einen **Fenster-Seiteneffekt**: `StreamlitBridgeTransport.ping()` ruft `ensureConnection()`, und das macht `window.open(...)`, wenn kein Bridge-Fenster-Handle existiert. Auf llama.cpp/DirectLLM fällt das nicht auf (Ping = `/v1/models`-Fetch, kein Fenster) — aber der **Default-Transport ist die Streamlit-Bridge**. Eine Mount-/Init-Probe, die „nur mal schauen, ob die KI da ist" will, öffnet so einen Tab.
+
+**Fix-Pattern:** `ping(opts?: PingOptions)` mit `openIfNeeded` (Default `true` = altes Verhalten). **Mount-/Init-/Refresh-Proben** rufen `ping({ openIfNeeded: false })` → **passiv**: pingt nur ein bereits offenes Fenster, öffnet selbst keins, liefert ohne lebendes Handle sofort `false`. Nur **explizite Nutzer-Gesten, die die KI wirklich nutzen** (Generieren/QS-Pre-Flight, Verbindungstest in den Einstellungen, SkillTestlauf), dürfen den Tab öffnen (Default `true`). Faustregel: **Ein automatischer „ist X erreichbar?"-Check beim Rendern/Laden darf nie eine sichtbare Fenster-/Tab-Aktion auslösen** — diese gehört an eine Nutzer-Geste.
+
+**Warnsignal beim Entwickeln:** Ein `useEffect`/Init-Pfad, der `ping()`/`pingActive()` ohne `{ openIfNeeded: false }` aufruft. Prüfen: Was, wenn der aktive Transport die Streamlit-Bridge ist und noch kein Fenster offen? → passiv pingen.
+
+**Maschinell erzwungen:** [streamlit-ping.test.ts](../../src/core/services/ai/__tests__/streamlit-ping.test.ts) (passiver Ping ohne Fenster → `false` UND kein `window.open`; aktiver Ping → `window.open`).
+
+**Kanonische Dateien:** [streamlit.ts](../../src/core/services/ai/transports/streamlit.ts) (`PingOptions`, `ping`, `ensureConnection`), [bridge.ts](../../src/core/services/ai/bridge.ts) (`pingActive`), [useKurzfassung.ts](../../src/plugins/antraege/kurzfassung/useKurzfassung.ts) + [useGutachtenWorkflow.ts](../../src/plugins/antraege/gutachten/useGutachtenWorkflow.ts) (passive Mount-/Refresh-Proben).
