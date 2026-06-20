@@ -3,10 +3,18 @@ import { StreamlitBridgeTransport } from './transports/streamlit';
 import { DirectLLMTransport } from './transports/direct-llm';
 import type { AIProviderConfig } from '@/core/types/config';
 import { isOpenRouterEnabled } from '@/config/feature-flags';
+import type { TransportKlasse } from './transport-policy';
+import { classifyProvider, erlaubteTransportKlassen, skillEnthaeltDokumentInhalte } from './transport-policy';
 
 export class AIBridge {
   private transports = new Map<string, AITransport>();
   private activeType = 'streamlit';
+  /**
+   * Klasse des aktiven Providers (intern/extern) — von `switchProvider` aus dem
+   * Config abgeleitet. Default `intern` (Streamlit beim App-Start). Erzwingt die
+   * DSGVO-Transport-Policy in `getTransportForSkillRun`.
+   */
+  private activeKlasse: TransportKlasse = 'intern';
 
   constructor() {
     this.transports.set('streamlit', new StreamlitBridgeTransport());
@@ -26,6 +34,7 @@ export class AIBridge {
       return;
     }
     this.activeType = config.type;
+    this.activeKlasse = classifyProvider(config);
     if (config.type === 'streamlit') {
       // Update-or-create: vorhandenen Transport per updateUrl() wiederverwenden
       // (sonst greift die geänderte URL aus den Einstellungen nie — der
@@ -50,6 +59,42 @@ export class AIBridge {
     const transport = this.transports.get(this.activeType);
     if (!transport) throw new Error(`No transport for ${this.activeType}`);
     return transport;
+  }
+
+  /** Klasse des aktiven Providers (intern/extern) — für UI-Hinweise + Tests. */
+  getActiveKlasse(): TransportKlasse {
+    return this.activeKlasse;
+  }
+
+  /**
+   * Transport für einen dokument-tragenden Skill-Lauf — die **gegatete** Wahl.
+   * Erzwingt die DSGVO-Transport-Policy: verarbeitet der Skill Dokumentinhalte
+   * (Ableitung schlägt Flag, siehe `transport-policy.ts`), darf der aktive
+   * Transport nur `intern` sein — sonst **wirft** diese Methode statt den Inhalt
+   * an einen externen Provider zu schicken. Inhaltsfreie Skills laufen überall.
+   *
+   * Param strukturell (kein `SkillRecord`-Import → kein Zyklus ai↔skills).
+   */
+  getTransportForSkillRun(
+    skill: { promptTemplate: string; enthaeltDokumentInhalte?: boolean },
+  ): AITransport {
+    const erlaubt = erlaubteTransportKlassen({
+      enthaeltDokumentInhalte: skillEnthaeltDokumentInhalte(skill),
+    });
+    if (!erlaubt.includes(this.activeKlasse)) {
+      throw new Error(
+        'DSGVO-Transport-Policy: Dieser Skill verarbeitet Dokumentinhalte und darf nur über '
+        + `einen internen Transport laufen — aktiver Provider „${this.getActiveProviderName()}" `
+        + 'ist extern. Bitte auf die interne KI wechseln.',
+      );
+    }
+    return this.getActiveTransport();
+  }
+
+  /** Verfügbarkeits-Check auf dem aktiven Transport (sauberer als rohes
+   *  `getActiveTransport().ping()` — trägt keinen Inhalt, Convention-konform). */
+  pingActive(): Promise<boolean> {
+    return this.getActiveTransport().ping();
   }
 
   /** Den PERSISTENTEN Streamlit-Transport holen (nicht den aktiven) — für den
