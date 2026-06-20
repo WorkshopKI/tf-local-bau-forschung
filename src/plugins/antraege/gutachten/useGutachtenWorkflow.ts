@@ -192,7 +192,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const abort = new AbortController();
     abortRef.current = abort;
     try {
-      const transport = bridge.getActiveTransport();
+      const transport = bridge.getTransportForSkillRun(sc.skill);
       const ok = await transport.ping();
       setLlmAvailable(ok);
       if (!ok) { setError('KI nicht erreichbar — Generierung derzeit nicht möglich.'); return null; }
@@ -298,7 +298,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const abort = new AbortController();
     abortRef.current = abort;
     try {
-      const transport = bridge.getActiveTransport();
+      const transport = bridge.getTransportForSkillRun(qsCtx.skill);
       const ok = await transport.ping();
       setLlmAvailable(ok);
       if (!ok) { setError('KI nicht erreichbar — QS derzeit nicht möglich.'); return; }

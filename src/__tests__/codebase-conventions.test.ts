@@ -33,6 +33,10 @@
  *     jede replaceStore(-Datei referenziert rebuildAntraegeListView.
  *   - no-hardcoded-canonical-field      → recurring-bug-classes Klasse 5, kein
  *     direkter .d_xtec/.d_adv-Zugriff; Feld via resolveFieldKey aufloesen.
+ *   - no-raw-active-transport           → Pitfall #30 (DSGVO-Transport-Policy),
+ *     dokument-tragende Skill-Laeufe (Gutachten/Batch) ueber
+ *     bridge.getTransportForSkillRun(skill) statt rohem getActiveTransport();
+ *     Verfuegbarkeitschecks (.ping()) ausgenommen / bridge.pingActive().
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -607,6 +611,57 @@ describe('no-hardcoded-canonical-field (recurring-bug-classes Klasse 5)', () => 
         `Vorbild: src/plugins/auslastung/services/klassifizierung/vollstaendigkeit-felder.ts).\n` +
         `Echte Ausnahme (Default-Mapping-Wrapper o.ae.): '// allow-canonical-field: <grund>'.\n\n` +
         `Treffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-raw-active-transport (CLAUDE.md Pitfall #30, DSGVO-Transport-Policy)', () => {
+  // Dokument-tragende Skill-Laeufe (Generierung, QS, Batch) duerfen den Transport
+  // NICHT roh ueber bridge.getActiveTransport() ziehen — sonst kann Dokumentinhalt
+  // auf einem externen Provider landen. Stattdessen die gegatete Wahl
+  // bridge.getTransportForSkillRun(skill) (erzwingt intern fuer inhalts-tragende
+  // Skills, src/core/services/ai/transport-policy.ts). Reine Verfuegbarkeitschecks
+  // tragen keinen Inhalt: Zeilen mit `.ping(` auf derselben Stelle sind ausgenommen
+  // (oder bridge.pingActive() nutzen).
+  //
+  // Scope: die Gutachten-/Batch-Domaene, wo der inhalts-tragende Aufruf sitzt.
+  // Bewusst inkl. des Batch-PLUGIN-Ordners (gutachten-batch/) — dort liegt der
+  // eigentliche getActiveTransport()-Aufruf (useBatchJob), nicht nur in gutachten/.
+  const SCOPE_FRAGMENTS = [
+    `${sep}plugins${sep}antraege${sep}gutachten${sep}`,
+    `${sep}plugins${sep}antraege${sep}gutachten-batch${sep}`,
+    `${sep}core${sep}services${sep}gutachten-batch${sep}`,
+  ];
+  const isInScope = (file: string): boolean =>
+    SCOPE_FRAGMENTS.some(frag => file.includes(frag))
+    && !file.includes(`${sep}__tests__${sep}`) && !file.endsWith('.test.ts');
+
+  // Kommentar-Zeilen (JSDoc-Erwaehnungen von getActiveTransport()) sind keine Aufrufe.
+  const isComment = (l: string): boolean => {
+    const t = l.trim();
+    return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*');
+  };
+
+  it('kein rohes bridge.getActiveTransport() fuer Inhalts-Laeufe (getTransportForSkillRun / pingActive nutzen)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!isInScope(file)) continue;
+      findings.push(...findInFile(
+        file,
+        l => !isComment(l) && l.includes('getActiveTransport(') && !l.includes('.ping('),
+        'allow-raw-active-transport',
+      ));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Rohes bridge.getActiveTransport() in der Gutachten-/Batch-Domaene verboten\n` +
+        `(CLAUDE.md Pitfall #30, DSGVO-Transport-Policy). Dokument-tragende Laeufe ueber\n` +
+        `bridge.getTransportForSkillRun(skill) fuehren — erzwingt einen internen Transport\n` +
+        `fuer inhalts-tragende Skills. Reine Verfuegbarkeitschecks: bridge.pingActive()\n` +
+        `(oder eine Zeile, die auf derselben Stelle .ping() aufruft). Echte Ausnahme:\n` +
+        `'// allow-raw-active-transport: <grund>'.\n\nTreffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });

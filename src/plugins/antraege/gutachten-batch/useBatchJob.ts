@@ -5,8 +5,10 @@
  * zweiter Prompt-Pfad — nur mit `quelle:'entwurf'` + batch-lokalem Disk-Spiegel),
  * fährt den `runBatch`-Runner und persistiert/resümiert den Job.
  *
- * Transport ausschließlich über `bridge.getActiveTransport()` (wie der Einzellauf
- * — keine eigene Transportwahl). Alle Aktionen self-catching (Pitfall #15).
+ * Transport für die Generierung über die gegatete Wahl
+ * `bridge.getTransportForSkillRun(skill)` (wie der Einzellauf — DSGVO-Transport-
+ * Policy, Pitfall #30); reine Verfügbarkeitschecks über `bridge.pingActive()`.
+ * Alle Aktionen self-catching (Pitfall #15).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -137,7 +139,7 @@ export function useBatchJob(): UseBatchJob {
     const vb = await resolveVb(idb, ctx);
     if (!vb) throw new Error(`Keine Vorhabensbeschreibung für ${ctx.key}`);
 
-    const transport = bridge.getActiveTransport();
+    const transport = bridge.getTransportForSkillRun(sc.skill);
     const persHandle = persHandleRef.current;
     const tweak = await loadSkillTweak(idb, persHandle, sc.skill.id).catch(() => null);
     const tweakWirksam = !!(tweak?.aktiv && (tweak.stilHinweise.trim() || tweak.beispielFormulierungen.trim()));
@@ -173,7 +175,7 @@ export function useBatchJob(): UseBatchJob {
     pauseRef.current = false;
     setHatFortsetzbaren(false);
     const deps: BatchDeps = {
-      transportVerfuegbar: async () => { try { return await bridge.getActiveTransport().ping(); } catch { return false; } },
+      transportVerfuegbar: async () => { try { return await bridge.pingActive(); } catch { return false; } },
       erzeugeAbschnitt,
       order: stepsRef.current.map(s => s.id),
       persistJob: async j => { await putBatchJob(idb, j); },
@@ -220,9 +222,8 @@ export function useBatchJob(): UseBatchJob {
     let verfuegbar = false;
     let name = '';
     try {
-      const t = bridge.getActiveTransport();
       name = bridge.getActiveProviderName();
-      verfuegbar = await t.ping();
+      verfuegbar = await bridge.pingActive();
     } catch { verfuegbar = false; }
     return { mengen, transport: { verfuegbar, name } };
   }, [idb, bridge, ladeContextFromFkz]);

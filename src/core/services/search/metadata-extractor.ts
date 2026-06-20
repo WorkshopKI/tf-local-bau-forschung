@@ -5,6 +5,7 @@
  */
 
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
+import { classifyProvider } from '@/core/services/ai/transport-policy';
 import type { AIProviderConfig } from '@/core/types/config';
 import { METADATA_SYSTEM_PROMPT, METADATA_RESPONSE_FORMAT, buildExtractionPrompt } from './metadata-prompts';
 import { browserLLM, checkWebGPU } from './browser-llm';
@@ -195,6 +196,17 @@ export async function initMetadataLLM(
     const isLocal = endpoint.includes('localhost') || endpoint.includes('127.0.0.1');
     if (modelCfg.needsApiKey && !apiKey) {
       onProgress?.('Kein API Key — Einstellungen > KI-Assistent'); return false;
+    }
+    // DSGVO-Transport-Policy (sekundär): die Metadaten-Extraktion sendet
+    // Dokumentinhalt ans Modell — nur über einen internen Transport zulässig.
+    // Klassifiziert der Endpoint extern (OpenRouter)? → nicht initialisieren,
+    // extractMetadata fällt auf FALLBACK_METADATA zurück. Prod unverändert
+    // (OpenRouter via isOpenRouterEnabled() ohnehin aus → nie extern). Siehe
+    // src/core/services/ai/transport-policy.ts.
+    if (classifyProvider({ type: modelId, endpoint }) === 'extern') {
+      console.warn('[MetadataLLM] Externer Transport (OpenRouter) für Dokument-Metadaten blockiert (DSGVO-Transport-Policy) — interne KI nutzen.');
+      onProgress?.('Externer Transport (OpenRouter) für Metadaten gesperrt — interne KI nutzen');
+      return false;
     }
     llmState.transport = new DirectLLMTransport(endpoint, modelCfg.openRouterId, apiKey);
     const ok = await llmState.transport.ping();
