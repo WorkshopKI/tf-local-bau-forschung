@@ -129,4 +129,25 @@ describe('aggregate', () => {
     expect(cell.n).toBe(0);
     expect(cell.judge.fachliche_korrektheit).toBe(3);
   });
+
+  it('Kontext-Achse: voll und relevant landen in GETRENNTEN Zellen', () => {
+    const m = aggregate(
+      [
+        { ...run('A', 'm1', ['ok', 'ok']), kontext: 'voll' },
+        { ...run('A', 'm1', ['fehler']), kontext: 'relevant' },
+      ],
+      [],
+    );
+    expect(m.kontexte).toEqual(['voll', 'relevant']);
+    expect(cellAt(m, 'A', 'm1', 'voll')!.checkOkRate).toBe(1);
+    expect(cellAt(m, 'A', 'm1', 'relevant')!.checkFehlerRate).toBe(1);
+    // Default-Lookup zielt auf 'voll'.
+    expect(cellAt(m, 'A', 'm1')).toBe(cellAt(m, 'A', 'm1', 'voll'));
+  });
+
+  it('fehlende Kontext-Markierung (Alt-Zeile) → als „voll" gruppiert', () => {
+    const m = aggregate([run('A', 'm1', ['ok'])], []); // run() setzt kein kontext
+    expect(m.kontexte).toEqual(['voll']);
+    expect(cellAt(m, 'A', 'm1', 'voll')!.n).toBe(1);
+  });
 });

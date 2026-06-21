@@ -35,6 +35,12 @@ describe('comboKey / JSONL', () => {
     expect(comboKey('f.md', 'm1', 'A')).toBe('f.md m1 A');
   });
 
+  it('kontext-Achse: „voll" hängt KEIN Suffix an (Alt-Resume bleibt gültig), „relevant" disambiguiert', () => {
+    expect(comboKey('f.md', 'm1', 'A', 'voll')).toBe('f.md m1 A');
+    expect(comboKey('f.md', 'm1', 'A', 'relevant')).toBe('f.md m1 A relevant');
+    expect(comboKey('f.md', 'm1', 'A', 'voll')).not.toBe(comboKey('f.md', 'm1', 'A', 'relevant'));
+  });
+
   it('serialize/parse JSONL round-trip, tolerant gegen kaputte Zeilen', () => {
     const a = { x: 1 };
     const b = { x: 2 };
@@ -65,6 +71,17 @@ describe('buildCombos', () => {
     );
     expect(combos.every(c => c.fixture.vbFile === 'ep.md')).toBe(true);
     expect(skippedKN.map(f => f.vbFile)).toEqual(['kn.md']);
+  });
+
+  it('kontext=both verdoppelt die Kombinationen je Abschnitt; Resume-Keys disjunkt', () => {
+    const { combos } = buildCombos([fixture('a.md', 'EP')], [m1], sections, ['voll', 'relevant']);
+    expect(combos).toHaveLength(1 * 1 * 2 * 2); // fixture × modell × abschnitt × kontext
+    expect(combos.filter(c => c.kontext === 'voll')).toHaveLength(2);
+    expect(combos.filter(c => c.kontext === 'relevant')).toHaveLength(2);
+    const keys = combos.map(keyOfCombo);
+    expect(new Set(keys).size).toBe(keys.length); // alle eindeutig
+    expect(keys).toContain('a.md m1 A');
+    expect(keys).toContain('a.md m1 A relevant');
   });
 });
 

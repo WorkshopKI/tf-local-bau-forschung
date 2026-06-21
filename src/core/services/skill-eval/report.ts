@@ -28,7 +28,7 @@ function numCell(value: number | null): string {
 }
 
 const CSV_HEADER = [
-  'abschnitt', 'modell', 'n', 'laeufe_mit_fehler',
+  'abschnitt', 'modell', 'kontext', 'n', 'laeufe_mit_fehler',
   'check_ok_rate', 'check_hinweis_rate', 'check_fehler_rate',
   'judge_fachliche_korrektheit', 'judge_vollstaendigkeit', 'judge_sprachqualitaet',
   'judge_regeltreue', 'judge_gesamt', 'judge_n',
@@ -40,6 +40,7 @@ export function toCsv(matrix: EvalMatrix): string {
     rows.push([
       csvCell(c.abschnitt),
       csvCell(c.modellId),
+      csvCell(c.kontext),
       String(c.n),
       String(c.laeufeMitFehler),
       numCell(c.checkOkRate),
@@ -76,23 +77,37 @@ function score(value: number | null): string {
 }
 
 /** Bis zu `max` finale-Text-Auszüge der Zelle (für die Beispiel-Ausgaben). */
-function sampleOutputs(results: EvalRunResult[], abschnitt: StepId, modellId: string, max = 2): string[] {
+function sampleOutputs(results: EvalRunResult[], cell: MatrixCell, max = 2): string[] {
   return results
-    .filter(r => r.abschnitt === abschnitt && r.modellId === modellId && r.parsed?.finalerText)
+    .filter(r => r.abschnitt === cell.abschnitt && r.modellId === cell.modellId
+      && (r.kontext ?? 'voll') === cell.kontext && r.parsed?.finalerText)
     .slice(0, max)
     .map(r => r.parsed!.finalerText);
 }
 
-function cellSummaryHtml(cell: MatrixCell | undefined): string {
-  if (!cell) return '<td class="empty">–</td>';
+/** Metriken EINER (Kontext-)Zelle (ohne `<td>`-Hülle). */
+function cellMetricsHtml(cell: MatrixCell, withLabel: boolean): string {
   const okClass = cell.checkOkRate === null ? '' : cell.checkOkRate >= 0.8 ? 'good' : cell.checkOkRate >= 0.5 ? 'warn' : 'bad';
   return (
-    `<td>` +
+    (withLabel ? `<div class="kontext-label">${escapeHtml(cell.kontext)}</div>` : '') +
     `<div class="metric ${okClass}">Checks ok: <b>${pct(cell.checkOkRate)}</b></div>` +
     `<div class="metric">Judge ⌀: <b>${score(cell.judge.gesamt)}</b></div>` +
-    `<div class="muted">n=${cell.n}${cell.laeufeMitFehler > 0 ? `, ${cell.laeufeMitFehler}× Fehler` : ''}</div>` +
-    `</td>`
+    `<div class="muted">n=${cell.n}${cell.laeufeMitFehler > 0 ? `, ${cell.laeufeMitFehler}× Fehler` : ''}</div>`
   );
+}
+
+/**
+ * Eine Tabellen-Zelle für (Abschnitt × Modell): zeigt — falls beide vorhanden —
+ * `voll` und `relevant` UNTEREINANDER (A/B-Vergleich), sonst nur die eine Variante.
+ */
+function cellSummaryHtml(matrix: EvalMatrix, abschnitt: StepId, modellId: string): string {
+  const withLabel = matrix.kontexte.length > 1;
+  const blocks = matrix.kontexte
+    .map(k => cellAt(matrix, abschnitt, modellId, k))
+    .filter((c): c is MatrixCell => c !== undefined)
+    .map(c => cellMetricsHtml(c, withLabel));
+  if (blocks.length === 0) return '<td class="empty">–</td>';
+  return `<td>${blocks.join('<hr class="kontext-sep">')}</td>`;
 }
 
 function detailsHtml(matrix: EvalMatrix, results: EvalRunResult[]): string {
@@ -104,13 +119,14 @@ function detailsHtml(matrix: EvalMatrix, results: EvalRunResult[]): string {
     const verbesserungen = cell.promptVerbesserungen.length === 0
       ? '<p class="muted">keine Vorschläge</p>'
       : `<ul>${cell.promptVerbesserungen.map(v => `<li>${escapeHtml(v)}</li>`).join('')}</ul>`;
-    const samples = sampleOutputs(results, cell.abschnitt, cell.modellId);
+    const samples = sampleOutputs(results, cell);
     const samplesHtml = samples.length === 0
       ? '<p class="muted">keine Ausgaben</p>'
       : samples.map(s => `<pre>${escapeHtml(s.length > 1200 ? `${s.slice(0, 1200)}…` : s)}</pre>`).join('');
+    const kontextTag = matrix.kontexte.length > 1 ? ` · <span class="kontext-label">${escapeHtml(cell.kontext)}</span>` : '';
     blocks.push(
       `<details>` +
-      `<summary>Abschnitt ${escapeHtml(cell.abschnitt)} · ${escapeHtml(cell.modellId)} ` +
+      `<summary>Abschnitt ${escapeHtml(cell.abschnitt)} · ${escapeHtml(cell.modellId)}${kontextTag} ` +
       `<span class="muted">(n=${cell.n}, Judge n=${cell.judgeN})</span></summary>` +
       `<div class="detail-body">` +
       `<div class="cols">` +
@@ -130,7 +146,7 @@ function detailsHtml(matrix: EvalMatrix, results: EvalRunResult[]): string {
 export function toHtml(matrix: EvalMatrix, results: EvalRunResult[]): string {
   const head = matrix.modelle.map(m => `<th>${escapeHtml(m)}</th>`).join('');
   const body = matrix.abschnitte.map(ab => {
-    const cells = matrix.modelle.map(m => cellSummaryHtml(cellAt(matrix, ab, m))).join('');
+    const cells = matrix.modelle.map(m => cellSummaryHtml(matrix, ab, m)).join('');
     return `<tr><th class="rowhead">${escapeHtml(ab)}</th>${cells}</tr>`;
   }).join('');
 
@@ -166,6 +182,8 @@ td.empty { color:var(--fg3); text-align:center; }
 .metric.good b { color:var(--success); }
 .metric.warn b { color:var(--warning); }
 .metric.bad b { color:var(--danger); }
+.kontext-label { display:inline-block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--fg2); background:var(--bg2); border-radius:4px; padding:1px 5px; margin-bottom:2px; }
+hr.kontext-sep { border:0; border-top:1px dashed var(--border); margin:6px 0; }
 details { background:white; border:1px solid var(--border); border-radius:8px; margin:8px 0; padding:4px 12px; }
 summary { cursor:pointer; font-weight:500; padding:6px 0; }
 .detail-body { padding:8px 0 12px; }
@@ -178,10 +196,10 @@ pre { background:var(--bg2); border:1px solid var(--border); border-radius:6px; 
 <body>
 <div class="container">
 <h1>Skill-Eval-Report</h1>
-<p class="muted">${results.length} Läufe · ${matrix.modelle.length} Modell(e) · ${matrix.abschnitte.length} Abschnitt(e)</p>
+<p class="muted">${results.length} Läufe · ${matrix.modelle.length} Modell(e) · ${matrix.abschnitte.length} Abschnitt(e) · Kontext: ${matrix.kontexte.join(' + ') || '–'}</p>
 ${empty}
 <h2>Skill × Modell-Matrix</h2>
-<p class="muted">„Checks ok" = Anteil bestandener deterministischer Checks · „Judge ⌀" = Gesamt-Mittel der LLM-Bewertung (1–5).</p>
+<p class="muted">„Checks ok" = Anteil bestandener deterministischer Checks · „Judge ⌀" = Gesamt-Mittel der LLM-Bewertung (1–5).${matrix.kontexte.length > 1 ? ' Je Zelle: <b>voll</b> vs. <b>relevant</b> (A/B).' : ''}</p>
 <table>
 <thead><tr><th class="rowhead">A–G</th>${head}</tr></thead>
 <tbody>${body}</tbody>

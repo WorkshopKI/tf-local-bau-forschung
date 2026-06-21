@@ -29,9 +29,9 @@ describe('toCsv', () => {
   it('Header + eine Zeile je Zelle', () => {
     const csv = toCsv(aggregate([run('A', 'm1', 'text')], []));
     const lines = csv.trimEnd().split('\n');
-    expect(lines[0]).toContain('abschnitt;modell;n');
+    expect(lines[0]).toContain('abschnitt;modell;kontext;n');
     expect(lines).toHaveLength(2);
-    expect(lines[1]).toMatch(/^A;m1;1;/);
+    expect(lines[1]).toMatch(/^A;m1;voll;1;/);
   });
 
   it('Quoting bei `;` im Wert', () => {
@@ -51,6 +51,17 @@ describe('toCsv', () => {
     expect(csv).not.toContain('null');
     // judge_gesamt-Spalte ist leer:
     expect(csv.trimEnd().split('\n')[1]!.split(';').slice(-2, -1)[0]).toBe('');
+  });
+
+  it('kontext=both: je Zelle eine voll- und eine relevant-Zeile mit Kontext-Spalte', () => {
+    const csv = toCsv(aggregate(
+      [{ ...run('A', 'm1', 'voller text'), kontext: 'voll' }, { ...run('A', 'm1', 'kurz'), kontext: 'relevant' }],
+      [],
+    ));
+    const lines = csv.trimEnd().split('\n');
+    expect(lines).toHaveLength(3); // Header + 2 Zeilen
+    expect(lines.some(l => /^A;m1;voll;/.test(l))).toBe(true);
+    expect(lines.some(l => /^A;m1;relevant;/.test(l))).toBe(true);
   });
 });
 
@@ -81,6 +92,23 @@ describe('toHtml', () => {
   it('leere Matrix → Hinweis, kein Crash', () => {
     const html = toHtml(aggregate([], []), []);
     expect(html).toContain('leere Matrix');
+  });
+
+  it('kontext=both: Matrix zeigt voll und relevant nebeneinander (Labels in der Zelle)', () => {
+    const results = [
+      { ...run('A', 'm1', 'voll-text'), kontext: 'voll' as const },
+      { ...run('A', 'm1', 'rel-text'), kontext: 'relevant' as const },
+    ];
+    const html = toHtml(aggregate(results, []), results);
+    expect(html).toContain('class="kontext-label"');
+    expect(html).toContain('>voll<');
+    expect(html).toContain('>relevant<');
+  });
+
+  it('single-kontext: keine Kontext-Labels in der Matrix (unverändertes Bild)', () => {
+    const results = [run('A', 'm1', 'text')];
+    const html = toHtml(aggregate(results, []), results);
+    expect(html).not.toContain('class="kontext-label"');
   });
 });
 

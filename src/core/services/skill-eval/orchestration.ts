@@ -7,24 +7,30 @@
  */
 import type { StepId } from '@/plugins/antraege/gutachten/types';
 import type { SectionDef } from './registry-load';
-import type { EvalModelConfig, Fixture } from './types';
+import type { EvalKontext, EvalModelConfig, Fixture } from './types';
 
-/** Eine auszuführende Einheit: ein Fixture × ein Modell × ein Abschnitt. */
+/** Eine auszuführende Einheit: ein Fixture × ein Modell × ein Abschnitt × eine Kontext-Variante. */
 export interface Combo {
   fixture: Fixture;
   modell: EvalModelConfig;
   abschnitt: StepId;
   skillId: string;
+  kontext: EvalKontext;
 }
 
-/** Stabiler Resume-Schlüssel `(vbFile × modell × abschnitt)`. */
-export function comboKey(vbFile: string, modellId: string, abschnitt: StepId): string {
-  return `${vbFile} ${modellId} ${abschnitt}`;
+/**
+ * Stabiler Resume-Schlüssel `(vbFile × modell × abschnitt [× kontext])`. `'voll'`
+ * hängt KEIN Suffix an → Alt-Ergebnisdateien (ohne Kontext-Achse) bleiben
+ * resumebar; nur `'relevant'` wird per Suffix disambiguiert.
+ */
+export function comboKey(vbFile: string, modellId: string, abschnitt: StepId, kontext: EvalKontext = 'voll'): string {
+  const base = `${vbFile} ${modellId} ${abschnitt}`;
+  return kontext === 'voll' ? base : `${base} ${kontext}`;
 }
 
 /** Schlüssel einer Kombination (für Pending-Filter + Persistenz-Lookup). */
 export function keyOfCombo(c: Combo): string {
-  return comboKey(c.fixture.vbFile, c.modell.id, c.abschnitt);
+  return comboKey(c.fixture.vbFile, c.modell.id, c.abschnitt, c.kontext);
 }
 
 /** Serialisiert ein Objekt als JSONL-Zeile (inkl. abschließendem `\n`). */
@@ -63,6 +69,7 @@ export function buildCombos(
   fixtures: Fixture[],
   modelle: EvalModelConfig[],
   sections: SectionDef[],
+  kontexte: EvalKontext[] = ['voll'],
 ): { combos: Combo[]; skippedKN: Fixture[] } {
   const skippedKN = fixtures.filter(f => f.antragstyp === 'KN');
   const epFixtures = fixtures.filter(f => f.antragstyp !== 'KN');
@@ -70,7 +77,9 @@ export function buildCombos(
   for (const fixture of epFixtures) {
     for (const modell of modelle) {
       for (const section of sections) {
-        combos.push({ fixture, modell, abschnitt: section.abschnitt, skillId: section.skillId });
+        for (const kontext of kontexte) {
+          combos.push({ fixture, modell, abschnitt: section.abschnitt, skillId: section.skillId, kontext });
+        }
       }
     }
   }

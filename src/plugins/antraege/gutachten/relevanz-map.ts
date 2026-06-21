@@ -226,6 +226,26 @@ export async function runRelevanzMap(
 }
 
 /**
+ * Berechnet die Relevanz-Map frisch (OHNE Cache) über den injizierten Transport.
+ * Jeder Fehlerpfad (Lauf/Parse) → leere Map (kein Throw). Für den Node-Eval-Harness
+ * (kein IDB) und als Kern von `getOrComputeRelevanzMap`.
+ */
+export async function computeRelevanzMap(
+  transport: AITransport,
+  relevanzSkill: SkillRecord,
+  vbMarkdown: string,
+  abschnitte: RelevanzAbschnitt[],
+): Promise<RelevanzMapResult> {
+  const headings = parseVbHeadings(vbMarkdown);
+  try {
+    const raw = await runRelevanzMap(transport, relevanzSkill, headings, vbMarkdown, abschnitte);
+    return { headings, map: parseRelevanzMap(raw, headings.map(h => h.id)) };
+  } catch {
+    return { headings, map: {} };
+  }
+}
+
+/**
  * Liefert die (gecachte oder frisch berechnete) Relevanz-Map für einen Antrag.
  * Cache-Hit nur bei passendem VB-Hash; bei Miss EIN interner LLM-Lauf, Ergebnis
  * im `kv`-Store abgelegt (nur nicht-leere Maps — eine leere Map ist meist ein
@@ -242,21 +262,15 @@ export async function getOrComputeRelevanzMap(
 ): Promise<RelevanzMapResult> {
   const vbHash = hashText(vbMarkdown);
   const cacheKey = relevanzMapCacheKey(antragKey, vbHash);
-  const headings = parseVbHeadings(vbMarkdown);
   try {
     const cached = await idb.get<{ vbHash: string; map: RelevanzMap }>(cacheKey);
-    if (cached && cached.vbHash === vbHash && cached.map) return { headings, map: cached.map };
+    if (cached && cached.vbHash === vbHash && cached.map) return { headings: parseVbHeadings(vbMarkdown), map: cached.map };
   } catch {
     // Cache-Lesefehler ignorieren → frisch berechnen.
   }
-  try {
-    const raw = await runRelevanzMap(transport, relevanzSkill, headings, vbMarkdown, abschnitte);
-    const map = parseRelevanzMap(raw, headings.map(h => h.id));
-    if (Object.keys(map).length > 0) {
-      try { await idb.set(cacheKey, { vbHash, map }); } catch { /* Cache-Schreibfehler nicht eskalieren */ }
-    }
-    return { headings, map };
-  } catch {
-    return { headings, map: {} };
+  const result = await computeRelevanzMap(transport, relevanzSkill, vbMarkdown, abschnitte);
+  if (Object.keys(result.map).length > 0) {
+    try { await idb.set(cacheKey, { vbHash, map: result.map }); } catch { /* Cache-Schreibfehler nicht eskalieren */ }
   }
+  return result;
 }

@@ -8,7 +8,13 @@
  * leere Eingabe → leere Matrix (kein Crash).
  */
 import { STEP_ORDER, type StepId } from '@/plugins/antraege/gutachten/types';
-import { JUDGE_DIMENSIONS, type JudgeDimension, type EvalRunResult, type JudgeResult } from './types';
+import { JUDGE_DIMENSIONS, type EvalKontext, type JudgeDimension, type EvalRunResult, type JudgeResult } from './types';
+
+/** Kontext-Reihenfolge im Report: `voll` vor `relevant`. */
+const KONTEXT_ORDER: EvalKontext[] = ['voll', 'relevant'];
+const kontextRank = (k: EvalKontext): number => KONTEXT_ORDER.indexOf(k);
+/** Normalisiert eine (evtl. fehlende) Kontext-Markierung → `'voll'`. */
+const kontextOf = (k: EvalKontext | undefined): EvalKontext => (k === 'relevant' ? 'relevant' : 'voll');
 
 export interface CheckSummen {
   ok: number;
@@ -29,6 +35,8 @@ export interface JudgeMittel {
 export interface MatrixCell {
   abschnitt: StepId;
   modellId: string;
+  /** Kontext-Variante der Zelle (`voll` / `relevant`). */
+  kontext: EvalKontext;
   /** Anzahl Läufe in der Zelle (inkl. fehlgeschlagener). */
   n: number;
   /** Läufe mit Transport-/Skill-Fehler (kein Output, keine Checks). */
@@ -51,6 +59,8 @@ export interface EvalMatrix {
   modelle: string[];
   /** Vorhandene Abschnitte in A–G-Reihenfolge (Zeilen der Matrix). */
   abschnitte: StepId[];
+  /** Vorhandene Kontext-Varianten (`voll` vor `relevant`); meist nur `['voll']`. */
+  kontexte: EvalKontext[];
 }
 
 function mean(xs: number[]): number | null {
@@ -69,12 +79,13 @@ function dimMean(valid: JudgeResult[], dim: JudgeDimension): number | null {
 interface CellGroup {
   abschnitt: StepId;
   modellId: string;
+  kontext: EvalKontext;
   runs: EvalRunResult[];
   judges: JudgeResult[];
 }
 
 function buildCell(group: CellGroup): MatrixCell {
-  const { abschnitt, modellId, runs, judges } = group;
+  const { abschnitt, modellId, kontext, runs, judges } = group;
   let ok = 0;
   let hinweis = 0;
   let fehler = 0;
@@ -98,6 +109,7 @@ function buildCell(group: CellGroup): MatrixCell {
   return {
     abschnitt,
     modellId,
+    kontext,
     n: runs.length,
     laeufeMitFehler: runs.filter(r => r.fehler).length,
     checkOkRate: rate(ok),
@@ -112,37 +124,41 @@ function buildCell(group: CellGroup): MatrixCell {
   };
 }
 
-const cellKey = (abschnitt: StepId, modellId: string): string => `${abschnitt}::${modellId}`;
+const cellKey = (abschnitt: StepId, modellId: string, kontext: EvalKontext): string => `${abschnitt}::${modellId}::${kontext}`;
 
 export function aggregate(results: EvalRunResult[], judges: JudgeResult[]): EvalMatrix {
   const groups = new Map<string, CellGroup>();
-  const ensure = (abschnitt: StepId, modellId: string): CellGroup => {
-    const k = cellKey(abschnitt, modellId);
+  const ensure = (abschnitt: StepId, modellId: string, kontext: EvalKontext): CellGroup => {
+    const k = cellKey(abschnitt, modellId, kontext);
     let g = groups.get(k);
     if (!g) {
-      g = { abschnitt, modellId, runs: [], judges: [] };
+      g = { abschnitt, modellId, kontext, runs: [], judges: [] };
       groups.set(k, g);
     }
     return g;
   };
 
-  for (const r of results) ensure(r.abschnitt, r.modellId).runs.push(r);
-  for (const j of judges) ensure(j.abschnitt, j.modellId).judges.push(j);
+  for (const r of results) ensure(r.abschnitt, r.modellId, kontextOf(r.kontext)).runs.push(r);
+  for (const j of judges) ensure(j.abschnitt, j.modellId, kontextOf(j.kontext)).judges.push(j);
 
   const cells = [...groups.values()].map(buildCell);
 
   const sectionRank = (s: StepId): number => STEP_ORDER.indexOf(s);
-  cells.sort((a, b) => sectionRank(a.abschnitt) - sectionRank(b.abschnitt) || a.modellId.localeCompare(b.modellId));
+  cells.sort((a, b) =>
+    sectionRank(a.abschnitt) - sectionRank(b.abschnitt)
+    || a.modellId.localeCompare(b.modellId)
+    || kontextRank(a.kontext) - kontextRank(b.kontext));
 
   const modelle = [...new Set(cells.map(c => c.modellId))].sort((a, b) => a.localeCompare(b));
   const abschnitte = STEP_ORDER.filter(s => cells.some(c => c.abschnitt === s));
+  const kontexte = KONTEXT_ORDER.filter(k => cells.some(c => c.kontext === k));
 
-  return { cells, modelle, abschnitte };
+  return { cells, modelle, abschnitte, kontexte };
 }
 
-/** Lookup einer Zelle (für Report-Tabellen). */
-export function cellAt(matrix: EvalMatrix, abschnitt: StepId, modellId: string): MatrixCell | undefined {
-  return matrix.cells.find(c => c.abschnitt === abschnitt && c.modellId === modellId);
+/** Lookup einer Zelle (für Report-Tabellen). Default-Kontext `'voll'`. */
+export function cellAt(matrix: EvalMatrix, abschnitt: StepId, modellId: string, kontext: EvalKontext = 'voll'): MatrixCell | undefined {
+  return matrix.cells.find(c => c.abschnitt === abschnitt && c.modellId === modellId && c.kontext === kontext);
 }
 
 // JUDGE_DIMENSIONS hier re-exportiert, damit der Report die Spalten-Reihenfolge

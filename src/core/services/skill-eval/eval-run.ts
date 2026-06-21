@@ -15,16 +15,26 @@ import { buildStammdaten } from '@/plugins/antraege/gutachten/skill-context';
 import { stepDef } from '@/plugins/antraege/gutachten/workflow-definition';
 import type { StepId } from '@/plugins/antraege/gutachten/types';
 import { resolveSkill } from './registry-load';
-import type { EvalRunResult, Fixture } from './types';
+import type { EvalKontext, EvalRunResult, Fixture } from './types';
 
 /** Millisekunden seit `start`, gerundet. */
 function elapsed(start: number): number {
   return Math.round(performance.now() - start);
 }
 
+/** Optionen für `runOneSection` — Kontext-Variante + (im `relevant`-Modus) der VB-Auszug. */
+export interface RunSectionOpts {
+  /** A/B-Kontext-Variante (default `'voll'`). Nur als Tag im Ergebnis. */
+  kontext?: EvalKontext;
+  /** Ersetzt `fixture.vbMarkdown` im Prompt (im `relevant`-Modus der Relevanz-Auszug). */
+  vbMarkdown?: string;
+}
+
 /**
  * Führt einen Abschnitt eines Fixtures durch den Skill und prüft die Ausgabe.
  * Wirft NICHT — jeder Fehlerpfad liefert ein `EvalRunResult` mit `fehler`.
+ * `opts.vbMarkdown` ersetzt den VB im Prompt (Relevanz-Auszug); `opts.kontext`
+ * taggt die Zeile (A/B-Achse).
  */
 export async function runOneSection(
   transport: AITransport,
@@ -32,10 +42,12 @@ export async function runOneSection(
   abschnitt: StepId,
   registry: SkillRegistryFile,
   modellId: string,
+  opts: RunSectionOpts = {},
 ): Promise<EvalRunResult> {
   const start = performance.now();
   const skillId = stepDef(abschnitt).skillId;
-  const base = { vbFile: fixture.vbFile, modellId, abschnitt, skillId } as const;
+  const kontext: EvalKontext = opts.kontext ?? 'voll';
+  const base = { vbFile: fixture.vbFile, modellId, abschnitt, skillId, kontext } as const;
 
   const resolved = resolveSkill(registry, skillId);
   if (!resolved) {
@@ -52,7 +64,7 @@ export async function runOneSection(
   try {
     const input: SkillRunInput = {
       stammdaten: buildStammdaten(fixture.context),
-      vbMarkdown: fixture.vbMarkdown,
+      vbMarkdown: opts.vbMarkdown ?? fixture.vbMarkdown,
     };
     const result = await runSkill(transport, resolved.skill, resolved.regeln, input);
     const checks = runRegelChecks(result.parsed.finalerText, resolved.regeln);

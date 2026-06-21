@@ -258,6 +258,18 @@ function ActiveAbschnitt({
                 {def.label} generieren
               </button>
               <ThinkingControl budget={ctrl.thinkingBudget} onChange={ctrl.setThinkingBudget} disabled={ctrl.busy} />
+              {ctrl.kontextRelevant && (
+                <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none" title="Ignoriert die Relevanz-Map und übergibt die vollständige Vorhabensbeschreibung.">
+                  <input
+                    type="checkbox"
+                    className="accent-[var(--tf-primary)]"
+                    checked={ctrl.forceFullContext}
+                    disabled={ctrl.busy}
+                    onChange={(e) => ctrl.setForceFullContext(e.target.checked)}
+                  />
+                  Vollständigen Kontext erzwingen
+                </label>
+              )}
             </div>
             {ctrl.llmAvailable === false && (
               <div className="mt-2 text-[11.5px] text-[var(--tf-warning-text)]">KI nicht erreichbar — Generierung derzeit nicht möglich.</div>

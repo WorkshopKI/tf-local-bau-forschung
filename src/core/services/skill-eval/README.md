@@ -39,6 +39,9 @@ OPENROUTER_API_KEY=sk-... npm run eval:skills -- --fixtures ./fixtures.json --mo
 
 # Nur Abschnitte A+D, erste 5 Fixtures, 4 parallel:
 npm run eval:skills -- --fixtures ./fixtures.json --models ./models.json --sections A,D --limit 5 --concurrency 4
+
+# A/B: voller VB vs. Relevanz-Auszug nebeneinander (Spalten je Zelle „voll" + „relevant"):
+npm run eval:skills -- --fixtures ./fixtures.json --models ./models.json --kontext both
 ```
 
 ### Flags
@@ -55,6 +58,13 @@ npm run eval:skills -- --fixtures ./fixtures.json --models ./models.json --secti
 | `--concurrency N` | `1` | Parallele Läufe (s. Hinweis unten). |
 | `--no-judge` | — | Judge abschalten (Judge-Spalten bleiben leer). |
 | `--dry-run` | — | Stub-Transport (kein Netz) — verifiziert die Pipeline offline. |
+| `--kontext voll\|relevant\|both` | `voll` | VB-Kontext-Variante. `relevant` = nur der per **Relevanz-Map** ausgewählte VB-Auszug; `both` fährt je Skill×Abschnitt **beide** und stellt sie im Report gegenüber. |
+
+### Kontext-A/B (`--kontext`)
+
+Misst, ob das Füttern nur der **relevanten** VB-Sektionen (statt des vollen VB) die Abschnitts-Qualität hält oder verbessert. `both` erzeugt je Zelle eine `voll`- und eine `relevant`-Zeile (CSV-Spalte `kontext`; HTML zeigt sie untereinander). Den Auszug liefert die [Relevanz-Map](../../../plugins/antraege/gutachten/relevanz-map.ts): die Map wird **einmal pro Fixture** über das **erste** Modell berechnet (identischer Auszug für alle Modelle = fairer Vergleich) und je Abschnitt zusammengesetzt; ist der Auszug leer (z. B. im Dry-Run mit Stub-Transport) → Volltext-Fallback. Der Judge erdet immer gegen den **vollen** VB (Quelle der Wahrheit).
+
+> **Vor dem Umschalten:** Einen Workflow-Schritt erst dann produktiv auf `kontextBedarf: 'relevant'` stellen, wenn `--kontext both` für diesen Abschnitt **keine Regression** zeigt (Judge-Scores + Check-Pass-Raten ≥ `voll`). Default bleibt `voll`.
 
 ### Config-Schema
 
@@ -76,7 +86,7 @@ npm run eval:skills -- --fixtures ./fixtures.json --models ./models.json --secti
 
 ## Resume
 
-Jedes Ergebnis wird **sofort** als JSONL-Zeile nach `<out>/results.jsonl` (bzw. `judge.jsonl`) angehängt. Beim Start liest die CLI die vorhandenen Zeilen und **überspringt erledigte** `(vbFile × modell × abschnitt)`-Kombinationen — der (riesige) reale Lauf ist so crash-sicher fortsetzbar. **Fehlgeschlagene** Läufe gelten NICHT als erledigt und werden bei einem erneuten Aufruf erneut versucht. `matrix.*` + `report.html` werden bei jedem Lauf aus dem vollständigen Stand neu erzeugt.
+Jedes Ergebnis wird **sofort** als JSONL-Zeile nach `<out>/results.jsonl` (bzw. `judge.jsonl`) angehängt. Beim Start liest die CLI die vorhandenen Zeilen und **überspringt erledigte** `(vbFile × modell × abschnitt × kontext)`-Kombinationen — der (riesige) reale Lauf ist so crash-sicher fortsetzbar. Der Kontext `voll` hängt **kein** Suffix an den Resume-Schlüssel → Alt-Ergebnisdateien (vor der Kontext-Achse) bleiben gültig. **Fehlgeschlagene** Läufe gelten NICHT als erledigt und werden bei einem erneuten Aufruf erneut versucht. `matrix.*` + `report.html` werden bei jedem Lauf aus dem vollständigen Stand neu erzeugt.
 
 Ein unerreichbarer Endpunkt führt zu **sauberem Abbruch** mit Resume-Hinweis (kein endloses Retry).
 

@@ -66,6 +66,11 @@ export interface GutachtenWorkflowController {
   /** Thinking-/Reasoning-Budget für die NÄCHSTE Generierung (Default aus der Einstellung; übersteuerbar, nicht persistiert). */
   thinkingBudget: ThinkingBudget;
   setThinkingBudget: (budget: ThinkingBudget) => void;
+  /** True, wenn der aktive Schritt `kontextBedarf: 'relevant'` trägt (Relevanz-Map greift — Override sinnvoll). */
+  kontextRelevant: boolean;
+  /** Pro-Lauf-Override „vollständigen Kontext erzwingen" → ignoriert die Relevanz-Map, nutzt den vollen VB. */
+  forceFullContext: boolean;
+  setForceFullContext: (v: boolean) => void;
   /** Live-Streaming-Vorschau während `busy` (rohe Antwort + Denkprozess). */
   streamContent: string;
   streamThinking: string;
@@ -121,6 +126,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [relevanzSkill, setRelevanzSkill] = useState<SkillRecord>(SEED_RELEVANZ_MAP_SKILL);
   // Pro-Generierung-Budget: Default aus der Einstellung (an → 'medium'), lokal übersteuerbar. Nicht persistiert.
   const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>(budgetForThinking(getLlmThinkingEnabled()));
+  // Pro-Lauf-Override: vollständigen VB-Kontext erzwingen (Relevanz-Map ignorieren). Nicht persistiert.
+  const [forceFullContext, setForceFullContext] = useState(false);
   const stream = useStreamingBuffer();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -213,7 +220,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       // still zu Volltext — kein `vbRelevant` → der Skill nutzt {{vbMarkdown}} wie bisher.
       let vbRelevant: string | undefined;
       const stepDef = steps.find(s => s.id === stepId);
-      if (stepDef?.kontextBedarf === 'relevant' && vbBrauchtRelevanzMap(vb.markdown)) {
+      if (!forceFullContext && stepDef?.kontextBedarf === 'relevant' && vbBrauchtRelevanzMap(vb.markdown)) {
         try {
           const abschnitte: RelevanzAbschnitt[] = steps.map(s => ({ id: s.id, label: s.label }));
           const relevanz = await getOrComputeRelevanzMap(storage.idb, transport, relevanzSkill, key, vb.markdown, abschnitte);
@@ -415,6 +422,9 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     llmAvailable,
     thinkingBudget,
     setThinkingBudget,
+    kontextRelevant: steps.find(s => s.id === aktiverSchritt)?.kontextBedarf === 'relevant',
+    forceFullContext,
+    setForceFullContext,
     streamContent: stream.content,
     streamThinking: stream.thinking,
     steps,

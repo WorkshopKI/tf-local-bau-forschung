@@ -105,6 +105,24 @@ describe('runOneSection', () => {
     expect(res.checks.find(c => c.regelId === 'r-max')?.level).toBe('ok');
   });
 
+  it('Default-Kontext ist „voll" (Tag im Ergebnis)', async () => {
+    const { transport } = captureStub('### Finaler Text\nKurz.');
+    const res = await runOneSection(transport, makeFixture(), 'A', makeRegistry({ max: 100 }), 'm');
+    expect(res.kontext).toBe('voll');
+  });
+
+  it('kontext=relevant: opts.vbMarkdown ersetzt den VB im Prompt + taggt die Zeile', async () => {
+    const { transport, calls } = captureStub('### Finaler Text\nKurz.');
+    const res = await runOneSection(transport, makeFixture(), 'A', makeRegistry({ max: 100 }), 'm', {
+      kontext: 'relevant',
+      vbMarkdown: 'NUR-DER-RELEVANTE-AUSZUG',
+    });
+    expect(res.kontext).toBe('relevant');
+    const prompt = calls[0]![0]!.content;
+    expect(prompt).toContain('NUR-DER-RELEVANTE-AUSZUG');
+    expect(prompt).not.toContain('Wir entwickeln etwas Neues.'); // voller VB nicht im Prompt
+  });
+
   it('Transport-Fehler landet in `fehler` (kein Throw nach oben)', async () => {
     const res = await runOneSection(throwingStub('llama-server weg'), makeFixture(), 'A', makeRegistry(), 'm');
     expect(res.fehler).toContain('llama-server weg');

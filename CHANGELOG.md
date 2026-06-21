@@ -5,6 +5,35 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.105.0 — Relevanz-Map: kuratierter VB-Kontext statt Volltext (Juni 2026)
+
+MINOR-Bump — additive Infrastruktur für den Gutachten-Workflow (kein Migrationsschritt, kein
+Schema-Bump, kein neuer Object-Store). Bisher kippte **jeder** Skill-Aufruf den **vollen**
+`{{vbMarkdown}}` (30–60 Seiten Vorhabensbeschreibung, nur zeichen-gecappt) in den Prompt — die
+Seiten konkurrieren mit der eigentlichen Aufgabe um die Attention. Neu: **ein interner LLM-Lauf**
+(P0-konform intern) wählt **antragsweit** je Gutachten-Abschnitt die **relevanten** VB-Sektionen aus
+— **wortgetreu, per Heading verankert** (Auswählen, nicht Zusammenfassen). Das Bestandsverhalten
+bleibt **byte-identisch**: Default überall `kontextBedarf: 'voll'`; der `relevant`-Pfad ist verdrahtet,
+aber das Umschalten der Schritte ist eine spätere eval-gestützte Kurator-Entscheidung.
+
+- **Relevanz-Map-Kern** (neu: [relevanz-map.ts](src/plugins/antraege/gutachten/relevanz-map.ts)):
+  `parseVbHeadings` (H2/H3 + Intro-Span), `buildRelevanzPrompt`, tolerantes `parseRelevanzMap`
+  (Heading-IDs, kein erzwungenes JSON), wortgetreues `assembleVbRelevant` (per Span, Dokument-
+  reihenfolge, Budget), `computeRelevanzMap`/`getOrComputeRelevanzMap` (IDB-`kv`-Cache per VB-Hash).
+- **Seed-Skill `relevanz-map`** ([seed.ts](src/core/services/skills/registry/seed.ts), additiv via
+  `mergeMissingSeeds`): intern-pflichtig (`{{vbMarkdown}}` → DSGVO-Transport-Policy, Pitfall #30).
+- **Kontext-Vertrag** `WorkflowStep.kontextBedarf` (`voll`/`relevant`/`nur_zieltext`/`kein`, Default
+  `voll` via `normalizeStepRolle`); neuer Slot `{{vbRelevant}}` im Skill-Runner (No-op ohne Platz-
+  halter → Bestands-Skills byte-identisch) und in `INHALTS_SLOTS` (P0). `runGeneration` zieht für
+  `relevant`-Schritte über einer Größen-Schwelle die gecachte Map und reicht den Auszug durch —
+  **jeder Fehlerpfad degradiert still zu Volltext**.
+- **Override** „Vollständigen Kontext erzwingen" (pro Lauf) in den Generierungs-Controls
+  ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)).
+- **Eval-A/B** `--kontext voll|relevant|both` ([skill-eval](src/core/services/skill-eval/README.md)):
+  stellt voller VB vs. Relevanz-Auszug je Skill×Abschnitt gegenüber (Judge-Scores + Check-Pass-Raten).
+  Gate vor jedem Default-Wechsel.
+- Hinter Feature-Flag `gutachtenKurzfassung` (nur dev). Reine Logik/Daten, Bundle nicht messbar gewachsen.
+
 ### v2.104.0 — Skill-Verwaltung: freier Editor-Wechsel + Nachfrage bei ungespeicherten Änderungen (Juni 2026)
 
 MINOR-Bump — UX-Verbesserung + Bugfix in der **Skill-Verwaltung** (Master-Detail mit den Tabs Skills,

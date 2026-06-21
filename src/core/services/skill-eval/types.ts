@@ -31,12 +31,22 @@ export interface EvalModelConfig {
 /** Fabrik, die pro Modell einen Transport baut — injizierbar für Tests. */
 export type TransportFactory = (modell: EvalModelConfig) => AITransport;
 
-/** Ergebnis eines einzelnen `(fixture × modell × abschnitt)`-Laufs. */
+/**
+ * Kontext-Variante eines Laufs (A/B-Achse, `--kontext`):
+ *  - `'voll'`: voller VB im Prompt (Bestandsverhalten).
+ *  - `'relevant'`: nur die per Relevanz-Map ausgewählten VB-Sektionen.
+ * Fehlt das Feld in einer alten JSONL-Zeile → als `'voll'` behandelt.
+ */
+export type EvalKontext = 'voll' | 'relevant';
+
+/** Ergebnis eines einzelnen `(fixture × modell × abschnitt × kontext)`-Laufs. */
 export interface EvalRunResult {
   vbFile: string;
   modellId: string;
   abschnitt: StepId;
   skillId: string;
+  /** Kontext-Variante (fehlt in Alt-Zeilen → `'voll'`). */
+  kontext?: EvalKontext;
   /** Roh-Antwort des LLM (leer bei Fehler). */
   raw: string;
   /** Geparste Ausgabe (`null` bei Fehler / fehlendem Skill). */
@@ -66,6 +76,8 @@ export interface JudgeResult extends JudgeScores {
   vbFile: string;
   modellId: string;
   abschnitt: StepId;
+  /** Kontext-Variante des bewerteten Laufs (fehlt in Alt-Zeilen → `'voll'`). */
+  kontext?: EvalKontext;
 }
 
 /** Bekannte Judge-Subscore-Dimensionen (Reihenfolge = Report-Spalten). */
