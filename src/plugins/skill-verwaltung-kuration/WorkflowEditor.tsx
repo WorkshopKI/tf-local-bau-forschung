@@ -5,6 +5,7 @@ import {
   type GateExpr, type SkillRegistryFile, type WorkflowStep, type WorkflowStepRolle,
 } from '@/core/services/skills';
 import { getWorkflowDef } from './workflowShared';
+import { useReportGuardState, type EditorGuardState } from './editorGuard';
 
 const GATE_LABEL: Record<GateExpr, string> = {
   immer: 'Immer anwendbar',
@@ -27,9 +28,11 @@ interface WorkflowEditorProps {
   onSave: (step: WorkflowStep) => Promise<void>;
   onDelete?: () => void;
   onBack: () => void;
+  /** Meldet `{ dirty, save }` an den Leave-Guard der Skill-Verwaltung. */
+  onGuardStateChange?: (state: EditorGuardState | null) => void;
 }
 
-export function WorkflowEditor({ file, step, isNew, canEdit, onSave, onDelete, onBack }: WorkflowEditorProps): React.ReactElement {
+export function WorkflowEditor({ file, step, isNew, canEdit, onSave, onDelete, onBack, onGuardStateChange }: WorkflowEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<WorkflowStep>(step);
   const def = getWorkflowDef(file);
   const nextVersion = def.version + 1;
@@ -45,7 +48,13 @@ export function WorkflowEditor({ file, step, isNew, canEdit, onSave, onDelete, o
   const zielOptionen = def.steps.filter(s => (s.rolle ?? 'generierung') !== 'llm_qs' && s.id !== draft.id);
 
   // Auf EINER Quelle normalisieren (Defaults/Klemmung, rollen-fremde Felder entfernen).
-  const save = useAsyncAction(async () => { await onSave(normalizeStepRolle(draft)); }, { onSuccess: onBack });
+  // doSave = reiner Persist-Teil (ohne onBack) — wird vom In-Editor-Button (mit Schließen)
+  // UND vom Leave-Guard (ohne Schließen) genutzt.
+  const doSave = (): Promise<void> => onSave(normalizeStepRolle(draft));
+  const save = useAsyncAction(doSave, { onSuccess: onBack });
+
+  const dirty = JSON.stringify(draft) !== JSON.stringify(step);
+  useReportGuardState(onGuardStateChange, dirty, doSave);
 
   const skillBekannt = draft.skillId === '' || file.skills.some(s => s.id === draft.skillId);
 

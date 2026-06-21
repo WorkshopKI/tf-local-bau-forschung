@@ -18,6 +18,7 @@ import {
 import { suggestReifegrad, type SkillAggregat, type SkillAggregatMap } from '@/core/services/skill-feedback';
 import { skillEnthaeltDokumentInhalte, templateReferenziertInhaltsSlot } from '@/core/services/ai/transport-policy';
 import { SkillVersionen } from './SkillVersionen';
+import { useReportGuardState, type EditorGuardState } from './editorGuard';
 
 const SLOT_EXPL: Record<string, string> = {
   stammdaten: 'FKZ, Firmenname, Akronym und Antragstyp aus den TeamFlow-Stammdaten.',
@@ -48,9 +49,11 @@ interface SkillEditorProps {
   onBack: () => void;
   onManageRegeln: () => void;
   onTestlauf: (skill: SkillRecord, regeln: QualitaetsRegel[], hinweis: string) => void;
+  /** Meldet `{ dirty, save }` an den Leave-Guard der Skill-Verwaltung. */
+  onGuardStateChange?: (state: EditorGuardState | null) => void;
 }
 
-export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, persist, onBack, onManageRegeln, onTestlauf }: SkillEditorProps): React.ReactElement {
+export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, persist, onBack, onManageRegeln, onTestlauf, onGuardStateChange }: SkillEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<SkillRecord>(skill);
   const [begruendung, setBegruendung] = useState('');
   const [view, setView] = useState<'bearbeiten' | 'versionen'>(initialView ?? 'bearbeiten');
@@ -67,11 +70,16 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
   const slotErzwingtIntern = templateReferenziertInhaltsSlot(draft.promptTemplate);
   const inhaltsTragend = skillEnthaeltDokumentInhalte(draft);
 
-  const save = useAsyncAction(async () => {
+  // doSave = reiner Persist-Teil (Version-Bump + Historie, OHNE onBack) — wird vom
+  // In-Editor-Button (mit Schließen) UND vom Leave-Guard (ohne Schließen) genutzt.
+  const doSave = async (): Promise<void> => {
     const base: SkillRecord = { ...draft, version: nextVersion, geaendert_am: new Date().toISOString() };
     const updated: SkillRecord = { ...base, historie: appendHistorie(base, { userId: meinKuerzel, begruendung }) };
     await persist({ ...file, skills: upsertSkill(file.skills, updated) });
-  }, { onSuccess: onBack });
+  };
+  const save = useAsyncAction(doSave, { onSuccess: onBack });
+
+  useReportGuardState(onGuardStateChange, dirty, doSave);
 
   const rollback = useAsyncAction(async (snap: SkillVersionSnapshot) => {
     const next = rollbackSkill(skill, snap, new Date().toISOString(), { userId: meinKuerzel });

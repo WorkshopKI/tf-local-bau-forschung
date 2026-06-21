@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { buildPromptHinweis, type QualitaetsRegel, type Schweregrad } from '@/core/services/skills';
+import { useReportGuardState, type EditorGuardState } from './editorGuard';
 
 const NUM = 'font-mono text-[13px] w-[100px] px-2.5 py-2 rounded-[8px] border-[0.5px] border-[var(--tf-border-hover)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)] disabled:opacity-70';
 const FIELD_LABEL = 'block text-[10.5px] font-medium uppercase tracking-[0.06em] text-[var(--tf-text-tertiary)] mb-2';
@@ -18,14 +19,25 @@ interface RegelEditorProps {
   onCancel: () => void;
   /** Wenn gesetzt (bestehende Regel), wird ein „Löschen" angeboten. */
   onDelete?: () => void;
+  /** Persistiert den Entwurf OHNE zu schließen (für die Leave-Guard-Nachfrage). Wirft bei Fehler. */
+  onPersist: (regel: QualitaetsRegel) => Promise<void>;
+  /** Meldet `{ dirty, save }` an den Leave-Guard der Skill-Verwaltung. */
+  onGuardStateChange?: (state: EditorGuardState | null) => void;
 }
 
 /** Editor einer Regel: Parameterfelder je Typ + Live-Vorschau des Hinweises.
  *  Wird als Vollbild-Ansicht der Skill-Verwaltung gerendert (Zurück-Button +
  *  Container liefert die Page). */
-export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete }: RegelEditorProps): React.ReactElement {
+export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete, onPersist, onGuardStateChange }: RegelEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<QualitaetsRegel>(initial);
   const ro = !canEdit;
+
+  const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+  useReportGuardState(
+    onGuardStateChange,
+    dirty,
+    () => onPersist({ ...draft, geaendert_am: new Date().toISOString() }),
+  );
 
   const setParam = (key: string, value: unknown): void =>
     setDraft(d => ({ ...d, params: { ...d.params, [key]: value } }));

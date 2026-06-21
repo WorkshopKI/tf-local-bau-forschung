@@ -28,6 +28,8 @@ import { SkillTestlaufPanel } from './SkillTestlauf';
 import { RegistryViewModeToggle, type RegistryViewMode } from './RegistryViewModeToggle';
 import { blankRegel, upsertRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
 import { blankStep, getWorkflowDef, upsertStep, withWorkflowSteps } from './workflowShared';
+import { useEditorLeaveGuard } from './editorGuard';
+import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 
 type TabId = 'skills' | 'regeln' | 'workflows';
 
@@ -77,6 +79,9 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const [testlauf, setTestlauf] = useState<Testlauf | null>(null);
   const [importing, setImporting] = useState(false);
   const save = useAsyncAction(async (next: SkillRegistryFile) => { await reg.persist(next); });
+  // Leave-Guard: jede Aktion, die den offenen Editor verlässt, läuft durch
+  // `guard.guardLeave`; bei ungespeicherten Änderungen erscheint die Nachfrage.
+  const guard = useEditorLeaveGuard();
 
   // Deep-Link (Provenienz aus dem Gutachten-Flow): `/kuration/skill-verwaltung/<skillId>`
   // öffnet den passenden Skill-Editor, sobald die Registry geladen ist.
@@ -115,8 +120,10 @@ export function SkillVerwaltungPage(): React.ReactElement {
   // Testlauf aus Liste/Karte öffnet den Skill im Editor + den Testlauf-Panel
   // daneben (Detail-Split, kein Modal).
   const openTestlaufForSaved = (skill: SkillRecord): void => {
-    setEditingSkill({ skill, isNew: false });
-    setTestlauf({ skill, regeln: resolveRegeln(file, skill), hinweis: `v${skill.version}` });
+    guard.guardLeave(() => {
+      setEditingSkill({ skill, isNew: false });
+      setTestlauf({ skill, regeln: resolveRegeln(file, skill), hinweis: `v${skill.version}` });
+    });
   };
   const duplicateSkill = (skill: SkillRecord): void => {
     const now = new Date().toISOString();
@@ -141,6 +148,9 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const saveRegel = (r: QualitaetsRegel): void => {
     void save.run({ ...file, regeln: upsertRegel(file.regeln, r) }).then(() => setEditingRegel(null));
   };
+  // Roher Persist (wirft bei Fehler, schließt NICHT) — für die Leave-Guard-Nachfrage.
+  const persistRegel = (r: QualitaetsRegel): Promise<void> =>
+    reg.persist({ ...file, regeln: upsertRegel(file.regeln, r) });
   const deleteRegel = (r: QualitaetsRegel): void => {
     const used = skillsUsingRegel(file, r.id);
     const msg = used.length > 0
@@ -173,7 +183,11 @@ export function SkillVerwaltungPage(): React.ReactElement {
   //   räumt die Selektion. Editor-Inhalt bringt eigenen Scroll mit (Detail-Pane
   //   des Shells ist overflow-hidden). —
   const hasDetail = !!(editingSkill || editingRegel || editingStep);
+  // closeEditor = roh (für interne Post-Aktions-Schließungen nach erfolgreichem
+  // Persist/Delete — dann ist nichts mehr dirty). requestClose = nutzer-initiiertes
+  // Verlassen (Zurück/Escape) → durch die Leave-Guard-Nachfrage.
   const closeEditor = (): void => { setEditingSkill(null); setEditingRegel(null); setEditingStep(null); setTestlauf(null); };
+  const requestClose = (): void => guard.guardLeave(closeEditor);
 
   let detail: React.ReactNode;
   if (editingSkill) {
@@ -182,6 +196,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
         <div className="px-8 py-9 flex flex-col xl:flex-row gap-8 items-start">
           <div className="flex-1 min-w-0 w-full">
             <SkillEditor
+              key={editingSkill.skill.id}
               file={file}
               skill={editingSkill.skill}
               isNew={editingSkill.isNew}
@@ -189,8 +204,9 @@ export function SkillVerwaltungPage(): React.ReactElement {
               agg={agg}
               initialView={editingSkill.initialView}
               persist={reg.persist}
-              onBack={closeEditor}
-              onManageRegeln={() => { closeEditor(); changeTab('regeln'); }}
+              onBack={requestClose}
+              onGuardStateChange={guard.reportState}
+              onManageRegeln={() => guard.guardLeave(() => { closeEditor(); changeTab('regeln'); })}
               onTestlauf={(skill, regeln, hinweis) => setTestlauf({ skill, regeln, hinweis })}
             />
           </div>
@@ -212,17 +228,20 @@ export function SkillVerwaltungPage(): React.ReactElement {
     detail = (
       <div className="h-full overflow-y-auto">
         <div className="px-8 py-9 max-w-[900px]">
-          <button onClick={closeEditor} className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4">← Skill-Verwaltung</button>
+          <button onClick={requestClose} className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4">← Skill-Verwaltung</button>
           {regel === null
             ? <RegelTypPicker onPick={typ => setEditingRegel({ regel: blankRegel(typ), isNew: true })} />
             : (
               <RegelEditor
+                key={regel.id}
                 initial={regel}
                 canEdit={reg.canEdit}
                 busy={save.busy}
                 onSave={saveRegel}
-                onCancel={closeEditor}
+                onCancel={requestClose}
                 onDelete={isNew ? undefined : () => deleteRegel(regel)}
+                onPersist={persistRegel}
+                onGuardStateChange={guard.reportState}
               />
             )}
         </div>
@@ -233,12 +252,14 @@ export function SkillVerwaltungPage(): React.ReactElement {
       <div className="h-full overflow-y-auto">
         <div className="px-8 py-9">
           <WorkflowEditor
+            key={editingStep.step.id}
             file={file}
             step={editingStep.step}
             isNew={editingStep.isNew}
             canEdit={reg.canEdit}
             onSave={saveStep}
-            onBack={closeEditor}
+            onBack={requestClose}
+            onGuardStateChange={guard.reportState}
             onDelete={editingStep.isNew ? undefined : () => deleteStep(editingStep.step)}
           />
         </div>
@@ -251,9 +272,11 @@ export function SkillVerwaltungPage(): React.ReactElement {
     ? 'Skills durchsuchen (Name, Beschreibung, Prompt)'
     : 'Regeln durchsuchen (Name, Typ, Parameter)';
   const addAction = (): void => {
-    if (tab === 'skills') setEditingSkill({ skill: blankSkill(), isNew: true });
-    else if (tab === 'regeln') setEditingRegel({ regel: null, isNew: true });
-    else setEditingStep({ step: blankStep(), isNew: true });
+    guard.guardLeave(() => {
+      if (tab === 'skills') setEditingSkill({ skill: blankSkill(), isNew: true });
+      else if (tab === 'regeln') setEditingRegel({ regel: null, isNew: true });
+      else setEditingStep({ step: blankStep(), isNew: true });
+    });
   };
 
   return (
@@ -276,7 +299,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
                     key={id}
                     type="button"
                     aria-current={isActive ? 'page' : undefined}
-                    onClick={() => changeTab(id)}
+                    onClick={() => guard.guardLeave(() => changeTab(id))}
                     className={`pb-2.5 text-[14px] whitespace-nowrap cursor-pointer transition-colors ${
                       isActive
                         ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
@@ -324,7 +347,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
       {/* Inhalt — Master (Liste) links, Detail (Editor) rechts via Split-Shell */}
       <MasterDetailLayout
         listWidthKey="teamflow_skillreg_narrow_width"
-        onCloseDetail={closeEditor}
+        onCloseDetail={requestClose}
         detail={detail}
         list={(
           <div className={hasDetail ? 'px-4 py-6' : 'max-w-6xl px-8 py-6'}>
@@ -349,7 +372,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
             search={search}
             viewMode={viewMode}
             agg={agg}
-            onEdit={skill => setEditingSkill({ skill, isNew: false })}
+            onEdit={skill => guard.guardLeave(() => setEditingSkill({ skill, isNew: false }))}
             onTestlauf={openTestlaufForSaved}
             onDuplicate={duplicateSkill}
             onDelete={removeSkill}
@@ -362,14 +385,14 @@ export function SkillVerwaltungPage(): React.ReactElement {
             busy={save.busy}
             search={search}
             viewMode={viewMode}
-            onEdit={regel => setEditingRegel({ regel, isNew: false })}
+            onEdit={regel => guard.guardLeave(() => setEditingRegel({ regel, isNew: false }))}
             onToggleAktiv={toggleAktiv}
           />
         ) : (
           <WorkflowsTab
             file={file}
             canEdit={reg.canEdit}
-            onEditStep={step => setEditingStep({ step, isNew: false })}
+            onEditStep={step => guard.guardLeave(() => setEditingStep({ step, isNew: false }))}
             onChangeSteps={changeSteps}
           />
         )}
@@ -383,6 +406,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
           onClose={() => setImporting(false)}
         />
       )}
+      <UnsavedChangesDialog {...guard.dialog} />
     </div>
   );
 }

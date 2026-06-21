@@ -5,6 +5,32 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.104.0 — Skill-Verwaltung: freier Editor-Wechsel + Nachfrage bei ungespeicherten Änderungen (Juni 2026)
+
+MINOR-Bump — UX-Verbesserung + Bugfix in der **Skill-Verwaltung** (Master-Detail mit den Tabs Skills,
+Qualitätsregeln, Workflows). Bisher ließ sich bei offenem Editor **keine** andere Listenzeile
+auswählen: ein Klick aktualisierte zwar den Parent-State, aber der Editor zeigte weiter den alten
+Entwurf (`useState(initial)` re-seedet nicht ohne Remount) — erst „Speichern" schloss ihn. Jetzt
+verhält es sich wie bei den Anträgen: **immer frei wechselbar**, mit **Nachfrage**, wenn der Editor
+ungespeicherte Änderungen hat.
+
+- **Remount beim Wechsel** ([SkillVerwaltungPage.tsx](src/plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx)):
+  `key` an jedem Editor (Regel/Skill/Workflow) → eine neue Auswahl seedet den Entwurf frisch und wird
+  sofort angezeigt.
+- **Zentraler Leave-Guard** (neu: [editorGuard.ts](src/plugins/skill-verwaltung-kuration/editorGuard.ts),
+  [UnsavedChangesDialog.tsx](src/plugins/skill-verwaltung-kuration/UnsavedChangesDialog.tsx)): jeder
+  Editor meldet uniform `{ dirty, save }`; **alle** Verlassen-Aktionen (andere Zeile wählen, „+ Neu",
+  Tab-Wechsel, Zurück/Escape) laufen durch `guardLeave`. Bei ungespeicherten Änderungen erscheint die
+  Nachfrage **Speichern / Verwerfen / Abbrechen** (gestylter Dialog). „Speichern" persistiert über
+  denselben Pfad wie der In-Editor-Button (inkl. Version-Bump/Historie beim Skill) und wechselt dann.
+- **Editoren** ([RegelEditor](src/plugins/skill-verwaltung-kuration/RegelEditor.tsx),
+  [SkillEditor](src/plugins/skill-verwaltung-kuration/SkillEditor.tsx),
+  [WorkflowEditor](src/plugins/skill-verwaltung-kuration/WorkflowEditor.tsx)): `dirty`-Erkennung +
+  Reporting via `useReportGuardState`; persist-only `doSave`-Closure (kein Schließen). In-Editor-
+  „Speichern"/„Abbrechen" unverändert. Im Nur-Lese-Modus (Kurator aus) nie dirty → Wechsel immer sofort.
+- Additiv, keine Daten-/Schema-Migration. Sichtbar in dev + kurator (nach Login). Typecheck + Suite
+  (2119 Tests) grün; keine React-Testinfrastruktur im Projekt → Interaktion manuell verifiziert.
+
 ### v2.103.2 — Bugfix: Verbund-Detailseite öffnete ungefragt den KI-Tab (Juni 2026)
 
 PATCH-Bump — Bugfix. Klickte man einen Verbund an, der **bereits LLM-generierte Abschnitte**
