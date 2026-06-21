@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildVorherigeAbschnitte } from '../context-provider';
+import { buildVorherigeAbschnitte, buildVbRelevant } from '../context-provider';
 import { ZIM_EP_WORKFLOW } from '../workflow-definition';
 import { emptyRun, applyGeneration, freigeben } from '../runner';
+import { parseVbHeadings, type RelevanzMapResult } from '../relevanz-map';
 import type { WorkflowRun } from '../types';
 
 const NOW = '2026-06-11T10:00:00.000Z';
@@ -79,5 +80,20 @@ describe('buildVorherigeAbschnitte', () => {
     const run = runABfreigegebenCentwurf();
     // E ist leer → für G nicht enthalten
     expect(buildVorherigeAbschnitte(run, 'G', ZIM_EP_WORKFLOW, 2000, 'entwurf')).not.toContain('Abschnitt E');
+  });
+});
+
+describe('buildVbRelevant', () => {
+  const VB = '## Eins\nEins-Body\n\n## Zwei\nZwei-Body\n\n## Drei\nDrei-Body';
+  const relevanz = (map: Record<string, string[]>): RelevanzMapResult => ({ headings: parseVbHeadings(VB), map });
+
+  it('setzt die getaggten Sektionen wortgetreu in Dokumentreihenfolge zusammen', () => {
+    const out = buildVbRelevant(relevanz({ B: ['h2', 'h0'] }), VB, 'B', 10_000);
+    expect(out).toBe('## Eins\nEins-Body\n\n## Drei\nDrei-Body');
+  });
+
+  it('Abschnitt nicht in der Map → Leerstring (Caller fällt auf Volltext zurück)', () => {
+    expect(buildVbRelevant(relevanz({ B: ['h0'] }), VB, 'C', 10_000)).toBe('');
+    expect(buildVbRelevant(relevanz({}), VB, 'B', 10_000)).toBe('');
   });
 });

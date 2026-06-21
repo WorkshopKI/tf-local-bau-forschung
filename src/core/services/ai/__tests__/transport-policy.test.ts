@@ -65,6 +65,13 @@ describe('skillEnthaeltDokumentInhalte', () => {
     expect(skillEnthaeltDokumentInhalte({ promptTemplate: 'Kontext:\n{{vorherigeAbschnitte}}' })).toBe(true);
   });
 
+  it('Ableitung schlägt Flag: {{vbRelevant}} (Relevanz-Map) bleibt true trotz Flag=false', () => {
+    expect(skillEnthaeltDokumentInhalte({
+      promptTemplate: 'Nutze nur:\n{{vbRelevant}}',
+      enthaeltDokumentInhalte: false,
+    })).toBe(true);
+  });
+
   it('inhaltsfreies Template mit explizitem Flag=false → false (extern erlaubt)', () => {
     expect(skillEnthaeltDokumentInhalte({
       promptTemplate: 'Generiere eine zufällige Begrüßung.',
@@ -84,6 +91,7 @@ describe('templateReferenziertInhaltsSlot', () => {
   it('Inhalts-Slot vorhanden → true', () => {
     expect(templateReferenziertInhaltsSlot('x {{vbMarkdown}} y')).toBe(true);
     expect(templateReferenziertInhaltsSlot('{{zielText}}')).toBe(true);
+    expect(templateReferenziertInhaltsSlot('{{vbRelevant}}')).toBe(true);
   });
 
   it('kein Inhalts-Slot → false', () => {

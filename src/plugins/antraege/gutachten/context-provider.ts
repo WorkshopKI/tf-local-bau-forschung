@@ -1,16 +1,18 @@
 /**
  * Kontext-Slots für die Abschnitts-Skills B–G. `stammdaten` + `vbMarkdown`
  * laufen unverändert über den bestehenden Skill-Runner (Cap + Kürzungsvermerk).
- * NEU: `vorherigeAbschnitte` — die bereits FREIGEGEBENEN Abschnitte vor dem
- * aktuellen, als Konsistenz-Referenz (Terminologie, keine Widersprüche).
+ * `vorherigeAbschnitte` — die bereits FREIGEGEBENEN Abschnitte vor dem aktuellen,
+ * als Konsistenz-Referenz (Terminologie, keine Widersprüche).
  *
- * SEAM Schritt 4 (abschnittsbezogenes Retrieval) ist bewusst NICHT verdrahtet:
- * ein sauberer Pro-FKZ-Tag-Filter ist auf dem aktuellen Orama-Schema nicht
- * möglich (tags = komma-gejointer String; `where` kann nicht containment-
- * filtern) → ein „Relevante Passagen"-Block würde hier ansetzen, sobald `tags`
- * ein filterbares Feld ist (Reindex). Für v1 genügen die Slots unten.
+ * Abschnittsbezogenes Retrieval (vormals „SEAM Schritt 4") ist jetzt über die
+ * **Relevanz-Map** verdrahtet (`buildVbRelevant`, [relevanz-map.ts]): ein interner
+ * LLM-Lauf taggt antragsweit jede VB-Sektion mit den Gutachten-Teilen, für die sie
+ * relevant ist; `buildVbRelevant` setzt daraus den **wortgetreuen** `{{vbRelevant}}`-
+ * Block zusammen. Greift nur, wenn ein Schritt `kontextBedarf: 'relevant'` trägt —
+ * Seed bleibt `'voll'` (byte-identisch), das Umschalten ist eine Kurator-/Eval-Entscheidung.
  */
 import type { StepId, WorkflowRun } from './types';
+import { assembleVbRelevant, type RelevanzMapResult } from './relevanz-map';
 
 /** Minimal-Shape eines Schritts für die Reihenfolge-/Label-Auflösung (Def-agnostisch). */
 interface StepLike { id: StepId; label: string }
@@ -61,4 +63,20 @@ export function buildVorherigeAbschnitte(
     bloecke.push(`### Abschnitt ${id} — ${label}${marker}\n${cutAtParagraph(step.finalerText, capPerSection)}`);
   }
   return bloecke.join('\n\n');
+}
+
+/**
+ * Baut den `{{vbRelevant}}`-Block für einen Schritt aus der (gecachten) Relevanz-Map:
+ * die für `abschnittId` getaggten VB-Sektionen wortgetreu, in Dokumentreihenfolge,
+ * bis `budgetChars`. Kennt die Map den Abschnitt nicht (oder ist sie leer), kommt
+ * ein Leerstring zurück → der Caller fällt auf den vollen `{{vbMarkdown}}` zurück.
+ * Dünne Hülle um `assembleVbRelevant` — hält die Kontext-Assemblierung an einer Stelle.
+ */
+export function buildVbRelevant(
+  relevanz: RelevanzMapResult,
+  vbMarkdown: string,
+  abschnittId: StepId,
+  budgetChars: number,
+): string {
+  return assembleVbRelevant(relevanz.map, relevanz.headings, vbMarkdown, abschnittId, budgetChars);
 }

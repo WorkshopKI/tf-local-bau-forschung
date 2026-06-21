@@ -124,7 +124,7 @@ export interface SkillRecord {
   /**
    * Optionaler Override für die DSGVO-Transport-Policy (additiv). **Ableitung
    * schlägt Flag**: referenziert `promptTemplate` einen Inhalts-Slot
-   * (`{{vbMarkdown}}`/`{{stammdaten}}`/`{{zielText}}`/`{{vorherigeAbschnitte}}`),
+   * (`{{vbMarkdown}}`/`{{stammdaten}}`/`{{zielText}}`/`{{vorherigeAbschnitte}}`/`{{vbRelevant}}`),
    * ist der Skill intern-pflichtig — egal was dieser Flag sagt. Nur ein
    * inhaltsfreies Template kann hiermit explizit als inhalts-tragend markiert
    * werden. Fehlt der Flag, gilt fail-safe `true`. Siehe
@@ -153,6 +153,17 @@ export type GateExpr = 'immer' | 'hat_teilvorhaben';
 export type WorkflowStepRolle = 'generierung' | 'llm_qs';
 
 /**
+ * Wie viel VB-Kontext ein Schritt braucht (Relevanz-Map):
+ *  - `'voll'` (Default): voller `{{vbMarkdown}}` wie bisher — byte-identisch.
+ *  - `'relevant'`: nur die per Relevanz-Map ausgewählten VB-Sektionen
+ *    (`{{vbRelevant}}`); fehlt/leer die Map oder ist die VB klein → Volltext-Fallback.
+ *  - `'nur_zieltext'`: kein VB (nutzt `{{zielText}}`, z. B. reine QS).
+ *  - `'kein'`: kein Antragskontext.
+ * Erweiterbar — Leser tolerieren Unbekanntes (→ `'voll'`, siehe `normalizeStepRolle`).
+ */
+export type KontextBedarf = 'voll' | 'relevant' | 'nur_zieltext' | 'kein';
+
+/**
  * Ein kuratierbarer Workflow-Schritt. Flach gehalten — Hierarchie ausschließlich
  * über `parentStepId` mit GENAU einer Ebene (die Engine lehnt Tiefe >1 ab). Die
  * Laufzeit-Funktionen (Generierung, Checks) kommen aus dem zugeordneten Skill,
@@ -176,6 +187,8 @@ export interface WorkflowStep {
   gateExpr?: GateExpr;
   /** SEAM (in v1 ungenutzt): abschnittsbezogene Retrieval-Queries. */
   retrievalQueries?: string[];
+  /** VB-Kontext-Bedarf (default `'voll'`; fehlt/`'voll'` → weggelassen, kein Daten-Drift). */
+  kontextBedarf?: KontextBedarf;
   /** Rolle des Schritts (default `'generierung'`; fehlt → Generierung). */
   rolle?: WorkflowStepRolle;
   /** Nur bei `rolle === 'llm_qs'`: ID des bewerteten Generierungs-Schritts. */

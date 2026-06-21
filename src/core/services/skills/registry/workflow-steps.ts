@@ -51,6 +51,11 @@ export function normalizeStepRolle(step: WorkflowStep): WorkflowStep {
     base.autoRetry = true;
     base.maxRetries = clampMaxRetries(step.maxRetries);
   }
+  // kontextBedarf: nur die nicht-default Werte behalten; `'voll'`/Unbekanntes → weglassen.
+  delete base.kontextBedarf;
+  if (step.kontextBedarf === 'relevant' || step.kontextBedarf === 'nur_zieltext' || step.kontextBedarf === 'kein') {
+    base.kontextBedarf = step.kontextBedarf;
+  }
   return base;
 }
 

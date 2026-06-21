@@ -75,6 +75,12 @@ export interface SkillRunInput {
    * → keine Wirkung (A-Prompt byte-identisch). Siehe gutachten/context-provider.ts.
    */
   vorherigeAbschnitte?: string;
+  /**
+   * Relevanz-Map: wortgetreu ausgewählte VB-Sektionen für den `{{vbRelevant}}`-Slot
+   * (kuratierter Kontext statt Volltext). Fehlt er / Template ohne Platzhalter →
+   * keine Wirkung (Bestands-Skills byte-identisch). Siehe gutachten/relevanz-map.ts.
+   */
+  vbRelevant?: string;
   /** Bei Re-Invocation: Modifier-Instruktion anhängen. */
   modifier?: SkillModifierKey;
   /** Bei Re-Invocation: vorheriger finaler Text als Überarbeitungs-Referenz. */
@@ -177,6 +183,9 @@ export function composeSkillPrompt(
   // Skills bleiben byte-identisch; nur der `qs-basis`-Skill nutzt sie).
   content = fillSlot(content, 'zielText', input.zielText ?? '');
   content = fillSlot(content, 'abschnittszweck', input.abschnittszweck ?? '');
+  // Relevanz-Map-Slot — No-op, wenn der Platzhalter fehlt (Seed-Templates nutzen
+  // {{vbMarkdown}}; auf {{vbRelevant}} umzustellen ist eine spätere Kurator-Entscheidung).
+  content = fillSlot(content, 'vbRelevant', input.vbRelevant ?? '');
   if (input.tweak?.aktiv) {
     const tweakBlock = buildTweakBlock(input.tweak.stilHinweise, input.tweak.beispielFormulierungen);
     if (tweakBlock) content += `\n\n${tweakBlock}`;

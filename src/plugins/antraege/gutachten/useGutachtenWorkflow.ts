@@ -21,6 +21,8 @@ import {
   saveSkillTweak,
   deleteSkillTweak,
   clampMaxRetries,
+  RELEVANZ_MAP_SKILL_ID,
+  SEED_RELEVANZ_MAP_SKILL,
   type CheckResult,
   type SkillModifierKey,
   type QualitaetsRegel,
@@ -38,7 +40,8 @@ import { useStreamingBuffer } from '../kurzfassung/useStreamingBuffer';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
 import { resolveActiveWorkflow } from './active-workflow';
-import { buildVorherigeAbschnitte } from './context-provider';
+import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
+import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { putWorkflowRun } from './workflow-store';
 import {
@@ -114,6 +117,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   // QS-Konfiguration: Ziel-Generierungs-Schritt-ID → der bewertende llm_qs-Schritt.
   const [qsZiele, setQsZiele] = useState<Map<StepId, WorkflowStep>>(new Map());
   const [tweak, setTweak] = useState<SkillTweak | null>(null);
+  // Relevanz-Map-Skill aus der geladenen Registry (Kurator-pflegbar), Seed als Fallback.
+  const [relevanzSkill, setRelevanzSkill] = useState<SkillRecord>(SEED_RELEVANZ_MAP_SKILL);
   // Pro-Generierung-Budget: Default aus der Einstellung (an → 'medium'), lokal übersteuerbar. Nicht persistiert.
   const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>(budgetForThinking(getLlmThinkingEnabled()));
   const stream = useStreamingBuffer();
@@ -141,6 +146,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       ]);
       if (cancelled) return;
       setSkillMap(buildSkillMap(loaded.file));
+      setRelevanzSkill(loaded.file.skills.find(s => s.id === RELEVANZ_MAP_SKILL_ID) ?? SEED_RELEVANZ_MAP_SKILL);
       // llm_qs-Schritte aus der Generierungs-Schrittfolge filtern (reine Konfiguration —
       // stören firstNonFreigegeben/freigeben/Stepper nicht) und nach Ziel-Schritt indexieren.
       const allSteps = resolveActiveWorkflow(loaded.file);
@@ -202,6 +208,21 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       const tweakWirksam = !!(tweak?.aktiv && tweak.skillId === sc.skill.id
         && (tweak.stilHinweise.trim() || tweak.beispielFormulierungen.trim()));
       const prevText = run.schritte[stepId]?.finalerText;
+      // Relevanz-Map: nur wenn der Schritt `kontextBedarf: 'relevant'` trägt UND die
+      // VB groß genug ist. JEDER Fehlerpfad (Map leer / Lauf gescheitert) degradiert
+      // still zu Volltext — kein `vbRelevant` → der Skill nutzt {{vbMarkdown}} wie bisher.
+      let vbRelevant: string | undefined;
+      const stepDef = steps.find(s => s.id === stepId);
+      if (stepDef?.kontextBedarf === 'relevant' && vbBrauchtRelevanzMap(vb.markdown)) {
+        try {
+          const abschnitte: RelevanzAbschnitt[] = steps.map(s => ({ id: s.id, label: s.label }));
+          const relevanz = await getOrComputeRelevanzMap(storage.idb, transport, relevanzSkill, key, vb.markdown, abschnitte);
+          const block = buildVbRelevant(relevanz, vb.markdown, stepId, getVbCharCap());
+          if (block) vbRelevant = block;
+        } catch {
+          // Relevanz-Lauf gescheitert → Volltext-Fallback (nie scheitern).
+        }
+      }
       const result = await runSkill(transport, sc.skill, sc.regeln, {
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vb.markdown,
@@ -210,6 +231,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         onContentDelta: stream.onContentDelta,
         onThinkingDelta: stream.onThinkingDelta,
         vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, steps),
+        ...(vbRelevant ? { vbRelevant } : {}),
         ...(tweakWirksam ? { tweak } : {}),
         ...(modifier ? { modifier } : {}),
         ...(modifier && prevText ? { vorherigerText: prevText } : {}),

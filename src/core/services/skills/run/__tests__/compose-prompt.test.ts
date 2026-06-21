@@ -131,6 +131,24 @@ describe('composeSkillPrompt — {{vorherigeAbschnitte}}-Slot (Gutachten-Workflo
   });
 });
 
+describe('composeSkillPrompt — Relevanz-Map-Slot {{vbRelevant}}', () => {
+  it('Bestands-Skill bleibt byte-identisch: kein Platzhalter → vbRelevant wirkungslos', () => {
+    const base = compose(baseInput);
+    const mitSlot = compose({ ...baseInput, vbRelevant: 'XXX-RELEVANTE-SEKTIONEN' });
+    expect(mitSlot).toBe(base);
+    expect(mitSlot).not.toContain('XXX-RELEVANTE-SEKTIONEN');
+  });
+
+  it('Template MIT Platzhalter wird gefüllt (bzw. leer, wenn nicht gesetzt)', () => {
+    const skill = { ...SEED_SKILL, promptTemplate: 'Relevant:\n{{vbRelevant}}\nEnde.' };
+    const gefuellt = composeSkillPrompt(skill, [], { ...baseInput, vbRelevant: 'NUR-DIE-RELEVANTEN' }, VB);
+    expect(gefuellt).toContain('NUR-DIE-RELEVANTEN');
+    const leer = composeSkillPrompt(skill, [], baseInput, VB);
+    expect(leer).toContain('Relevant:\n\nEnde.');
+    expect(leer).not.toContain('{{vbRelevant}}');
+  });
+});
+
 describe('composeSkillPrompt — LLM-QS-Slots {{zielText}} / {{abschnittszweck}}', () => {
   it('Bestands-Skill bleibt byte-identisch: kein Platzhalter → zielText/abschnittszweck wirkungslos', () => {
     const base = compose(baseInput);

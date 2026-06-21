@@ -44,9 +44,11 @@ export function erlaubteTransportKlassen(p: { enthaeltDokumentInhalte: boolean }
 /**
  * Slots, deren Befüllung Dokument-/Antragsinhalte ins Prompt trägt. Referenziert
  * ein Skill-Template einen davon, ist der Lauf inhalts-tragend (intern-pflichtig).
- * `zielText` (LLM-QS) + `vorherigeAbschnitte` (Vorkontext) zählen mit.
+ * `zielText` (LLM-QS) + `vorherigeAbschnitte` (Vorkontext) + `vbRelevant`
+ * (Relevanz-Map-Auszug) zählen mit — sonst gälte ein nur-`{{vbRelevant}}`-Skill
+ * fälschlich als inhaltsfrei und dürfte extern laufen (DSGVO-Leck).
  */
-const INHALTS_SLOTS = ['vbMarkdown', 'stammdaten', 'zielText', 'vorherigeAbschnitte'];
+const INHALTS_SLOTS = ['vbMarkdown', 'stammdaten', 'zielText', 'vorherigeAbschnitte', 'vbRelevant'];
 
 /**
  * Referenziert das Template einen Inhalts-Slot? Basis der Ableitung — ist sie

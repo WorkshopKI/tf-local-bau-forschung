@@ -120,6 +120,22 @@ describe('normalizeStepRolle — Rolle/Retry-Invarianten (eine Quelle)', () => {
     expect(out.ankerKey).toBe('A');
     expect(out.parentStepId).toBe('X');
   });
+
+  it('kontextBedarf: Default `voll` wird weggelassen (kein Daten-Drift)', () => {
+    expect(normalizeStepRolle(base({})).kontextBedarf).toBeUndefined();
+    expect(normalizeStepRolle(base({ kontextBedarf: 'voll' })).kontextBedarf).toBeUndefined();
+  });
+
+  it('kontextBedarf: nicht-default Werte bleiben erhalten', () => {
+    expect(normalizeStepRolle(base({ kontextBedarf: 'relevant' })).kontextBedarf).toBe('relevant');
+    expect(normalizeStepRolle(base({ kontextBedarf: 'nur_zieltext' })).kontextBedarf).toBe('nur_zieltext');
+    expect(normalizeStepRolle(base({ kontextBedarf: 'kein' })).kontextBedarf).toBe('kein');
+  });
+
+  it('kontextBedarf: unbekannter Wert → weggelassen (= voll)', () => {
+    // @ts-expect-error bewusst ungültiger Wert (Vorwärts-Kompatibilität)
+    expect(normalizeStepRolle(base({ kontextBedarf: 'irgendwas' })).kontextBedarf).toBeUndefined();
+  });
 });
 
 describe('normalizeRegistryFile — Rolle/Retry tolerant lesen', () => {
