@@ -75,3 +75,14 @@ export {
   type SkillBundleJson,
   type ImportSkillBundleResult,
 } from './skill-bundle';
+export {
+  NF_BAUSTEINE,
+  NF_BAUSTEIN_IDS,
+  extractPlatzhalter,
+  nfBausteineByScope,
+  getNfBaustein,
+  type NfBaustein,
+  type NfPlatzhalter,
+  type NfScope,
+  type PlatzhalterTyp,
+} from './nf-bausteine.seed';
