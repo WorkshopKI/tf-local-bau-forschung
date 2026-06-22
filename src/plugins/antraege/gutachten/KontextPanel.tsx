@@ -18,6 +18,8 @@ import { Quote, ChevronRight } from 'lucide-react';
 import { CollapsibleSection, MarkdownRenderer } from '@/ui';
 import { CheckList } from '../kurzfassung/CheckList';
 import { QsHinweisList } from './QsHinweisList';
+import { AmpelGruppe } from './AmpelGruppe';
+import { groupChecksByKategorie } from './checkGruppen';
 import type { StepRun } from './types';
 
 interface Props {
@@ -72,7 +74,20 @@ export function KontextPanel({ step, provenance, variant, onCollapse, onResizeSt
             Prüfung · {step.checks.length} {step.checks.length === 1 ? 'Regel' : 'Regeln'}
             {offen > 0 && <span className="g-ctx-fail">{offen} offen</span>}
           </div>
-          <CheckList checks={step.checks} />
+          <div className="flex flex-col">
+            {groupChecksByKategorie(step.checks).map(g => (
+              <AmpelGruppe
+                key={g.kategorie}
+                label={g.label}
+                level={g.worst}
+                summary={g.summary}
+                count={g.checks.length}
+                defaultOpen={g.worst !== 'ok'}
+              >
+                <CheckList checks={g.checks} />
+              </AmpelGruppe>
+            ))}
+          </div>
         </div>
       )}
 
