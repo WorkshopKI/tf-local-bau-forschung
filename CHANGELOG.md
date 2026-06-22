@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.112.1 — Thinking-Schalter kompakt (An/Aus) (Juni 2026)
+
+PATCH-Bump — UI-Tweak am Thinking-Control ([ThinkingControl.tsx](src/plugins/antraege/kurzfassung/ThinkingControl.tsx),
+geteilt von Gutachten + Kurzfassung). Kein Schema-/Persistenz-Change.
+
+- Vom 3-stufigen Dropdown (Aus/Niedrig/Standard, mit Brain-Icon) auf einen **kompakten An/Aus-Toggle**
+  (`role="switch"`, kein Icon, platzsparend). „An" setzt das kanonische Standard-Budget
+  (`'medium'` = `THINKING_ON_BUDGET`), „Aus" = `'none'`; jeder Wert ≠ 'none' gilt als aktiv.
+- `ThinkingBudget` (`'none' | 'low' | 'medium' | 'high'`) **unverändert** — nur die UI-Auswahl
+  wurde reduziert; die Transport-Ladder/Skill-Logik bleibt gleich.
+
 ### v2.112.0 — Gutachten-Detailansicht: Docked-Rail-Layout (Handoff `workflow-stepper-neu`) (Juni 2026)
 
 MINOR-Bump — **größerer UI-Refactor** der Gutachten-Werkstatt (Verbund-Detailseite, Feature-Flag
