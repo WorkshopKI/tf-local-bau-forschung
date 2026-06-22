@@ -124,8 +124,6 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
 
   return (
     <div className="gutachten-werkstatt">
-      <AntragKontextKarte ctx={ctx} />
-
       {/* Fortschritt + Aktionen */}
       <div className="g-progress">
         <div className="g-progress-l">
@@ -277,25 +275,6 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
           onRemove={ctrl.removeTweak}
         />
       )}
-    </div>
-  );
-}
-
-/** Verbund-Kontextkarte oben (Konsortialführer · Verbund-FKZ · Titel). */
-function AntragKontextKarte({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
-  const tvCount = ctx.teilvorhaben.length;
-  return (
-    <div className="g-antrag">
-      {tvCount > 0 && <span className="g-tv">{tvCount} TV</span>}
-      <div className="g-antrag-main">
-        <div className="g-antrag-top">
-          <span className="g-org">{ctx.antragsteller ?? ctx.akronym}</span>
-          <span className="g-meta">Verbund · {ctx.foerderkennzeichen}</span>
-        </div>
-        {(ctx.akronym || ctx.titel) && (
-          <div className="g-antrag-titel"><b>{ctx.akronym}</b>{ctx.titel ? ` / ${ctx.titel}` : ''}</div>
-        )}
-      </div>
     </div>
   );
 }
