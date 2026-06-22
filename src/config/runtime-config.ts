@@ -104,6 +104,9 @@ export interface TeamflowFeatures {
   /** Gutachten-Workflow A–G: deterministischer Workflow-Runner ueber Registry-
    *  Skills (loest die Kurzfassung-Sektion ab). Nur dev. Optional, default false. */
   gutachtenWorkflow?: boolean;
+  /** NF-Nachforderungen (Artefakt-Engine): Pro-TV-NF-Entwuerfe auf der Verbund-
+   *  Detailseite. Nur dev (Testballon). Optional, default false. */
+  nfNachforderungen?: boolean;
   /** Skill-Verwaltung: Kurator-pflegbare Skill-/Regel-Registry + Sandbox-Testlauf.
    *  Sichtbar dev + kurator + pl. Optional, default false. */
   skillVerwaltung?: boolean;

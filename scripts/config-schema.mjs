@@ -162,6 +162,10 @@ export const DEFAULT_CONFIG = {
      *  Skills (loest die Kurzfassung-Sektion ab). Nur dev. Optional, default false
      *  (kein requiredFlags-Eintrag). */
     gutachtenWorkflow: true,
+    /** NF-Nachforderungen (Artefakt-Engine): Pro-TV-NF-Entwürfe auf der Verbund-
+     *  Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf). Nur
+     *  dev (Testballon). Optional, default false (kein requiredFlags-Eintrag). */
+    nfNachforderungen: true,
     /** Skill-Verwaltung: Kurator-pflegbare Skill-/Regel-Registry mit Sandbox-
      *  Testlauf. Sichtbar in dev + kurator + pl (Schreiben in pl über
      *  `datenShareSchreibrecht`, sonst Kurator-Session). Optional, default false

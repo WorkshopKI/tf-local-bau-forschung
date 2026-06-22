@@ -36,9 +36,10 @@ import { findAbgelehnteVorgaenger } from './vorgaengerAntraege';
 import { AbgelehnteVorgaengerBanner } from './AbgelehnteVorgaengerBanner';
 import { KurzfassungSection } from './kurzfassung/KurzfassungSection';
 import { GutachtenSection } from './gutachten/GutachtenSection';
+import { NachforderungenSection } from './nachforderungen/NachforderungenSection';
 import type { KurzfassungContext } from './kurzfassung/types';
 import { buildKurzfassungContext } from './kurzfassung/context-builder';
-import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
+import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled } from '@/config/feature-flags';
 
 interface Props {
   verbundId: string;
@@ -476,6 +477,14 @@ export function VerbundDetail({
           <KurzfassungSection ctx={kurzfassungCtx} />
         </div>
       ) : null}
+
+      {/* NACHFORDERUNGEN — Verbund-Ebene, eigener Artefakt-Typ (nur dev). Eigene
+          Sektion (kein else-if zur Gutachten-Sektion): NF ist ein anderes Artefakt. */}
+      {isNfNachforderungenEnabled() && (
+        <div className="mt-6 pt-6" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <NachforderungenSection ctx={kurzfassungCtx} />
+        </div>
+      )}
 
       {/* ALLE FELDER (Verbund-Aggregat) — nur fuer echte Verbuende. Bei pseudo
           waere das ein Duplikat von TvDetailBlock.AlleFelderSection. */}

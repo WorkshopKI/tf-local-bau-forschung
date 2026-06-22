@@ -12,6 +12,7 @@
  * aber NICHT verworfen — die Persistenz behält sie (Vorwärts-Kompatibilität).
  */
 import { KNOWN_REGEL_TYPEN, type QualitaetsRegel, type RegelTyp } from './types';
+import { extractPlatzhalter } from './nf-bausteine.seed';
 
 export type CheckLevel = 'ok' | 'hinweis' | 'fehler';
 
@@ -288,6 +289,25 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       };
     },
     hint: params => `Gliedere den finalen Text in mindestens ${numParam(params, 'min', 1)} Absätze.`,
+  },
+
+  // NF-administrativ: im finalen Text dürfen KEINE ungefüllten Platzhalter mehr
+  // stehen (…/{…}/{a / b}/x €). Nutzt denselben Extraktor wie der Baustein-Katalog
+  // (eine Quelle, kein Drift). Das ist das harte Tor „kein ungefüllter Platzhalter".
+  nf_keine_platzhalter_reste: {
+    check: (text) => {
+      const reste = extractPlatzhalter(text);
+      return {
+        ok: reste.length === 0,
+        label: reste.length === 0
+          ? 'Alle Platzhalter gefüllt'
+          : `${reste.length} ungefüllte(r) Platzhalter`,
+        ...(reste.length > 0
+          ? { detail: `z.B. „${reste[0]!.roh}" — füllen bzw. Alternative wählen.` }
+          : {}),
+      };
+    },
+    hint: () => 'Fülle alle Platzhalter (…, {…}, {a / b}, x €) aus — im finalen Text bleiben keine Reste.',
   },
 };
 

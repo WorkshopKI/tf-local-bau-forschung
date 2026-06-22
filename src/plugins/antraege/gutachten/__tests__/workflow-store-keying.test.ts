@@ -51,6 +51,14 @@ describe('workflow-store — Run-Keying je (Typ, Scope)', () => {
     expect((await getWorkflowRun(idb, 'X', 'nf'))?.aktiverSchritt).toBe('B');
   });
 
+  it('Pro-TV-NF: jedes Teilvorhaben wird unter eigenem nf-Key gehalten', async () => {
+    const { idb } = fakeIdb();
+    await putWorkflowRun(idb, run('16EP01-TV1', 'NF'), 'nf');
+    await putWorkflowRun(idb, run('16EP01-TV2', 'NF'), 'nf');
+    expect((await getWorkflowRun(idb, '16EP01-TV1', 'nf'))?.aktenzeichen).toBe('16EP01-TV1');
+    expect((await getWorkflowRun(idb, '16EP01-TV2', 'nf'))?.aktenzeichen).toBe('16EP01-TV2');
+  });
+
   it('NF liest NICHT den GA-Alt-Key (Migration nur für ga)', async () => {
     const { idb, map } = fakeIdb();
     map.set('gutachten-workflow:Y', run('Y', 'G'));

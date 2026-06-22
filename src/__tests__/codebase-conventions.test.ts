@@ -632,6 +632,7 @@ describe('no-raw-active-transport (CLAUDE.md Pitfall #30, DSGVO-Transport-Policy
     `${sep}plugins${sep}antraege${sep}gutachten${sep}`,
     `${sep}plugins${sep}antraege${sep}gutachten-batch${sep}`,
     `${sep}core${sep}services${sep}gutachten-batch${sep}`,
+    `${sep}plugins${sep}antraege${sep}nachforderungen${sep}`,
   ];
   const isInScope = (file: string): boolean =>
     SCOPE_FRAGMENTS.some(frag => file.includes(frag))

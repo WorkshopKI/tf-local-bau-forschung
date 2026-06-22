@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { SEED_NF_SKILL, NF_DEF, NF_SKILL_ID } from '../nf-skill.seed';
-import { SEED_SKILL } from '../seed';
+import { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF, NF_SKILL_ID } from '../nf-skill.seed';
+import { SEED_SKILL, SEED_REGISTRY } from '../seed';
+import { qsRegelnFuerArtefakt, pruefartOf } from '../selectors';
 import { composeSkillPrompt, type SkillRunInput } from '../../run/run-skill';
 import { skillEnthaeltDokumentInhalte } from '@/core/services/ai/transport-policy';
 
@@ -44,6 +45,22 @@ describe('NF-WorkflowDef — Draft auf TV-Ebene', () => {
     expect(NF_DEF.ebene).toBe('tv');
     expect(NF_DEF.aktiv).toBe(false);
     expect(NF_DEF.steps.map(s => s.skillId)).toContain(NF_SKILL_ID);
+  });
+});
+
+describe('NF-QS-Regelsatz — Auswahl je artefaktTyp', () => {
+  it('qsRegelnFuerArtefakt wählt den NF-Satz für artefaktTyp nf (administrativ/textlich/fachlich)', () => {
+    const nfRegeln = qsRegelnFuerArtefakt(SEED_REGISTRY, 'nf');
+    expect(nfRegeln.map(r => r.id).sort()).toEqual([...SEED_NF_REGELN.map(r => r.id)].sort());
+    const pruefarten = new Set(nfRegeln.map(r => pruefartOf(r)));
+    expect(pruefarten).toEqual(new Set(['administrativ', 'textlich', 'fachlich']));
+  });
+
+  it('für ga wird der GA-QS-Satz gewählt — disjunkt vom NF-Satz', () => {
+    const gaRegeln = qsRegelnFuerArtefakt(SEED_REGISTRY, 'ga');
+    expect(gaRegeln.length).toBeGreaterThan(0);
+    const gaIds = new Set(gaRegeln.map(r => r.id));
+    expect(SEED_NF_REGELN.every(r => !gaIds.has(r.id))).toBe(true); // NF-Satz disjunkt
   });
 });
 

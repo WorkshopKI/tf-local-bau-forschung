@@ -38,6 +38,7 @@
     "onlineStatusTab": true,
     "gutachtenKurzfassung": true,
     "gutachtenWorkflow": true,
+    "nfNachforderungen": false,
     "skillVerwaltung": true,
     "streamlitBridge": true,
     "deltaSnapshotWrite": true

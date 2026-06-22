@@ -5,6 +5,46 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.108.0 — Artefakt-Engine: Substrat + NF-Nachforderungen + GA-QS (Juni 2026)
+
+MINOR-Bump — additiv, **kein** neuer Object-Store, **GA byte-identisch**. Die Gutachten-Maschine wird
+zum generischen **Artefakt-Substrat** verallgemeinert; darauf entsteht **NF (ZIM-Nachforderungen)** als
+erstes neues Artefakt *mit Inhalt* plus der **GA-QS-Regelsatz**. Eine Achse „Artefakt-Typ" trennt sich
+von der amtlichen Status-Wirbelsäule. Alles Code-Seed (reproduzierbar, additiv via `mergeMissingSeeds`),
+dev-only hinter Flag. Detail: [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md).
+
+- **Substrat** ([types.ts](src/core/services/skills/registry/types.ts)): `WorkflowDef.artefaktTyp`
+  (`'ga'`-Default) + `WorkflowDef.ebene` (`'verbund'`-Default), `QualitaetsRegel.pruefart`
+  (`'textlich'`-Default) — additiv, normalize-tolerant, Default-Resolver `artefaktTypOf`/`ebeneOf`/`pruefartOf`.
+- **Run-Keying je (Typ, Scope)** ([workflow-store.ts](src/plugins/antraege/gutachten/workflow-store.ts)):
+  `workflow-run:<typ>:<scopeId>`; GA-Bestands-Runs unter dem Alt-Key `gutachten-workflow:<az>` bleiben
+  lesbar (Alt-Key-Fallback + lazy Promotion) — **verlustfreie Migration, GA byte-identisch**. Personal-
+  Mirror je Typ disjunkt (`ga`→`gutachten/`, `nf`→`nachforderungen/`); der Backup-Sweep
+  ([gutachten-backup.ts](src/core/services/personal-storage/gutachten-backup.ts)) spiegelt beide Key-Formen.
+- **Vorlage als Ground-Truth + Audit** ([fill-template.ts](src/core/services/gutachten-vorlagen/fill-template.ts)):
+  Vorlage frisch gelesen + SHA-256-Stempel (`FillResult.hash` → `WorkflowRun.vorlageRef`); `fillTemplate`
+  auf generische `ArtefaktBlock[]` geweitet; Dateiname je Typ (`opts.dateiPrefix`, Default `Gutachten_EP`);
+  fehlende/kaputte Vorlage → `FillResult.fehler` statt Throw.
+- **NF-Baustein-Katalog** ([nf-bausteine.seed.ts](src/core/services/skills/registry/nf-bausteine.seed.ts)):
+  72 Bausteine **wortgetreu** aus dem kuratierten NF-Prompt (G/T1–T3); Scope aus dem ID-Präfix, Platzhalter
+  (`fill`/`choose`/`optional`/`wert`) deterministisch via `extractPlatzhalter` abgeleitet.
+- **NF-Skill + WorkflowDef** ([nf-skill.seed.ts](src/core/services/skills/registry/nf-skill.seed.ts)):
+  Auswahl/Füll-Skill (Lücke → Baustein → Platzhalter **wortgetreu** füllen; keine Befehls-/Freigabe-Schicht),
+  `WorkflowDef` `zim-nf` (`artefaktTyp:'nf'`, `ebene:'tv'`, **Draft** `aktiv:false`). Neue Inhalts-Slots
+  `{{nfBausteine}}`/`{{tvKontext}}`/`{{verbundKontext}}` in `INHALTS_SLOTS` (intern-pflichtig, Pitfall #30).
+- **NF-QS + Verbund-Merge + Pro-TV-Ausgabe** ([nachforderungen/](src/plugins/antraege/nachforderungen/)):
+  QS-Regelsatz mit `pruefart` (administrativ: kein ungefüllter Platzhalter passiert das Tor; textlich;
+  fachlich/LLM-QS). G-Bausteine **einmal** am Verbund gefüllt, wortgleich in **jede** TV-NF; T-Bausteine je
+  TV. Pro TV: DOCX (generische Füllung) + **E-Mail-Entwurf** (mailto). **Entwurf ≠ Entscheidung** — es wird
+  nichts versendet. Schlanke Sektion hinter Feature-Flag `nfNachforderungen` (**nur dev**).
+- **GA-QS aus QS v2** ([ga-qs.seed.ts](src/core/services/skills/registry/ga-qs.seed.ts)): die 5 Prüfabschnitte
+  als `QualitaetsRegel` mit `pruefart`, gebunden an `artefaktTyp='ga'` (`qsRegelnFuerArtefakt`); die
+  Abschnittszuordnung A–G ↔ tatsächliche Gutachten-Überschriften übernommen (keine Phantom-Lücken).
+  GA-Skill-Abgleich gegen das GA-Referenz-Prompt: 3-teilige B-Struktur + 750-Wörter-Selbstprüfung + L=+50%-
+  Modifier bestätigt vorhanden, **Stilbeispiele** in A/C/G additiv ergänzt — GA-Verhalten unverändert.
+- Migration: rein additiv. Bestands-GA-Runs werden beim ersten Öffnen vom Alt-Key auf den neuen Key
+  promotet (kein Datenverlust). NF-Seeds bleiben Draft (nicht scharf). Bundle nicht messbar gewachsen.
+
 ### v2.107.0 — Gutachten-Detail: einklappbare Liste + vertikale Abschnitts-Nav (Juni 2026)
 
 MINOR-Bump — reine UI/UX auf Bestand (kein Schema-Bump, kein neuer Object-Store). Zwei

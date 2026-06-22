@@ -12,12 +12,37 @@
  * Template dupliziert. `{{tvKontext}}`/`{{verbundKontext}}` tragen die VB-Analyse
  * (dokument-tragend → intern, Pitfall #30). Seed als **Draft** (`aktiv:false`).
  */
-import type { SkillModifierKey, SkillRecord, WorkflowDef } from './types';
+import type { Pruefart, QualitaetsRegel, SkillModifierKey, SkillRecord, WorkflowDef } from './types';
 
 const SEED_TS = '2026-06-22T00:00:00.000Z';
 
 /** Skill-ID des NF-Auswahl/Füll-Skills. */
 export const NF_SKILL_ID = 'nf-auswahl-fuellung';
+
+/** NF-Regel mit explizit gesetzter `pruefart`. */
+function nfRegel(
+  id: string, name: string, typ: string, params: Record<string, unknown>,
+  schweregrad: 'fehler' | 'hinweis', pruefart: Pruefart,
+): QualitaetsRegel {
+  return { id, name, typ, params, schweregrad, pruefart, aktiv: true, erstellt_am: SEED_TS, geaendert_am: SEED_TS };
+}
+
+/**
+ * NF-QS-Regelsatz (gebunden an `artefaktTyp='nf'` über die NF-Skill-`regelIds`):
+ *  - **administrativ**: keine ungefüllten Platzhalter im finalen Text (hartes Tor).
+ *  - **textlich**: keine Befehls-/Meta-Reste der Konversations-Schicht.
+ *  - **fachlich**: „passt der Baustein zur Lücke?" — LLM-QS (Typ der Engine bewusst
+ *    unbekannt → deterministisch übersprungen, beratend via LLM-QS-Pfad).
+ */
+export const SEED_NF_REGELN: QualitaetsRegel[] = [
+  nfRegel('nf-keine-platzhalter', 'Keine Platzhalter-Reste', 'nf_keine_platzhalter_reste', {}, 'fehler', 'administrativ'),
+  nfRegel(
+    'nf-keine-meta', 'Keine Befehls-/Meta-Reste', 'verbotenes_muster',
+    { muster: ['W=Weiter', 'Freigabe abwarten', 'NACHFORDERUNGEN_NACH_KATEGORIE', 'DOKUMENTENERKENNUNG'] },
+    'hinweis', 'textlich',
+  ),
+  nfRegel('nf-baustein-passung', 'Baustein-Passung (LLM-QS)', 'nf_baustein_passung', {}, 'hinweis', 'fachlich'),
+];
 
 const NF_SYSTEM_PROMPT =
   'Du bist ein erfahrener Sachbearbeiter für ZIM-Forschungsanträge und erstellst '
@@ -82,7 +107,7 @@ export const SEED_NF_SKILL: SkillRecord = {
   systemPrompt: NF_SYSTEM_PROMPT,
   maxTokens: 3072,
   modifiers: NF_MODIFIERS,
-  regelIds: [],
+  regelIds: SEED_NF_REGELN.map(r => r.id),
   slots: ['stammdaten', 'verbundKontext', 'tvKontext', 'nfBausteine'],
   geaendert_am: SEED_TS,
 };

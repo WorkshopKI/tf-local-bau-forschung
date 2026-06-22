@@ -111,6 +111,10 @@
     // Gutachten-Workflow A–G: deterministischer Workflow-Runner über Registry-Skills
     // (löst die Kurzfassung-Sektion ab). Optional, fehlt = aus. Nur dev.
     "gutachtenWorkflow": false,
+    // NF-Nachforderungen (Artefakt-Engine): Pro-TV-NF-Entwürfe auf der Verbund-
+    // Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf).
+    // Optional, fehlt = aus. Nur dev (Testballon).
+    "nfNachforderungen": false,
     // In-App „Streamlit Bridge"-Installer im KI-Assistent-Tab: Streamlit-URL
     // konfigurieren, Bookmarklet in die Lesezeichenleiste ziehen, Verbindung
     // (tf-ping → tf-pong) testen. Zugang zum internen gpt-oss ohne API.

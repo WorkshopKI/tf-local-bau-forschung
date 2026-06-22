@@ -12,14 +12,14 @@ import {
   getVorlagenHandle, pickVorlagenVerzeichnis, ensureReadPermission, listVorlagen, readVorlage,
   fillTemplate, saveGutachtenDocx,
   type VorlageEintrag, type FillResult, type SaveResult,
-  type AbschnittEinfuegung, type AbschnittAnzeige,
+  type ArtefaktBlock, type AbschnittAnzeige,
 } from '@/core/services/gutachten-vorlagen';
 
 interface Props {
   open: boolean;
   antrag: Antrag;
-  /** Freigegebene Abschnitte (mit Anker + Text), die eingefügt werden. */
-  sections: AbschnittEinfuegung[];
+  /** Freigegebene Blöcke (mit Anker + Text), die eingefügt werden (GA-Abschnitte oder NF). */
+  sections: ArtefaktBlock[];
   /**
    * Optionale Voll-Liste A–G für den „Abschnitte"-Block (Gutachten-Workflow).
    * Fehlt sie, zeigt der Dialog die Kurzfassung-Einzelansicht (Back-Compat).
@@ -31,6 +31,8 @@ interface Props {
    * stempeln kann. Fehlt er, ist das Verhalten unverändert (Kurzfassung).
    */
   onErstellt?: (info: { pfad: string; hash?: string }) => void;
+  /** Dateinamen-Präfix je Artefakt-Typ (Artefakt-Engine). Default `Gutachten_EP`. */
+  dateiPrefix?: string;
   onClose: () => void;
 }
 
@@ -47,7 +49,7 @@ function formatDate(ms: number): string {
   }
 }
 
-export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, onClose }: Props): React.ReactElement | null {
+export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, dateiPrefix, onClose }: Props): React.ReactElement | null {
   const storage = useStorage();
   const [handle, setHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -70,7 +72,7 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, 
     setBusy(true); setError(null);
     try {
       const buf = await readVorlage(h, name);
-      setDryRun(await fillTemplate(buf, antrag, sections, { dryRun: true }));
+      setDryRun(await fillTemplate(buf, antrag, sections, { dryRun: true, ...(dateiPrefix ? { dateiPrefix } : {}) }));
     } catch (e) { setError(errMsg(e)); } finally { setBusy(false); }
   }
 
@@ -113,7 +115,7 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, 
     setBusy(true); setError(null);
     try {
       const buf = await readVorlage(handle, selected);
-      const res = await fillTemplate(buf, antrag, sections, {});
+      const res = await fillTemplate(buf, antrag, sections, { ...(dateiPrefix ? { dateiPrefix } : {}) });
       if (res.fehler) { setError(res.fehler); return; }
       if (!res.blob) throw new Error('Vorlage konnte nicht erzeugt werden.');
       const saved = await saveGutachtenDocx(storage.idb, res.blob, res.filename);

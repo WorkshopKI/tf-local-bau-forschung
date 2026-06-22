@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { mergeMissingSeeds } from '../storage';
 import { SEED_REGISTRY, SEED_SKILL, SEED_REGELN, SEED_SKILLS_BG, SEED_REGELN_BG, QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID } from '../seed';
-import { NF_SKILL_ID } from '../nf-skill.seed';
+import { NF_SKILL_ID, SEED_NF_REGELN } from '../nf-skill.seed';
+import { GA_QS_REGELN } from '../ga-qs.seed';
 import { getSkillById, resolveRegeln } from '../selectors';
 import type { SkillRegistryFile } from '../types';
 
@@ -30,7 +31,9 @@ describe('mergeMissingSeeds — additiv, nie überschreibend', () => {
     expect(getSkillById(merged.file, RELEVANZ_MAP_SKILL_ID)).toBeDefined();
     expect(merged.ergaenzteSkills).toEqual([...SEED_SKILLS_BG.map(s => s.id), QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID, NF_SKILL_ID]);
     expect(merged.file.regeln.find(r => r.id === 'seed-b-absatz-min')).toBeDefined();
-    expect(merged.ergaenzteRegeln).toEqual(SEED_REGELN_BG.map(r => r.id));
+    expect(merged.ergaenzteRegeln).toEqual([
+      ...SEED_REGELN_BG.map(r => r.id), ...SEED_NF_REGELN.map(r => r.id), ...GA_QS_REGELN.map(r => r.id),
+    ]);
   });
 
   it('ist idempotent (zweiter Lauf ergänzt nichts, gibt Identität zurück)', () => {

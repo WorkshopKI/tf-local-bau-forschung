@@ -37,6 +37,7 @@
     "csvAutoRefresh": false,
     "gutachtenKurzfassung": false,
     "gutachtenWorkflow": false,
+    "nfNachforderungen": false,
     "skillVerwaltung": false,
     "streamlitBridge": true,
     "deltaSnapshotWrite": false

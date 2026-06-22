@@ -146,11 +146,17 @@ export function isGutachtenKurzfassungEnabled(): boolean {
 export function isGutachtenWorkflowEnabled(): boolean {
   return features.gutachtenWorkflow === true;
 }
+/** NF-Nachforderungen (Artefakt-Engine): Pro-TV-NF-Entwürfe auf der Verbund-
+ *  Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf). Nur dev
+ *  (Testballon). Default false (`=== true`, Backward-Kompat). */
+export function isNfNachforderungenEnabled(): boolean {
+  return features.nfNachforderungen === true;
+}
 /** LLM-Kontextlänge-Einstellung (KI-Assistent-Tab) sichtbar machen, wo die
  *  LLM-Skill-Generierung läuft — Kurzfassung ODER Gutachten-Workflow (dev + pl).
  *  Aus dem Wert wird der VB-Schwellwert abgeleitet ([llm-context.ts]). */
 export function isLlmKontextSettingEnabled(): boolean {
-  return isGutachtenKurzfassungEnabled() || isGutachtenWorkflowEnabled();
+  return isGutachtenKurzfassungEnabled() || isGutachtenWorkflowEnabled() || isNfNachforderungenEnabled();
 }
 /** Skill-Verwaltung (Kurator-pflegbare Skill-/Regel-Registry). Sichtbar dev +
  *  kurator + pl. Default false. */

@@ -16,7 +16,8 @@
 import type {
   QualitaetsRegel, SkillModifierKey, SkillRecord, SkillRegistryFile, WorkflowDef, WorkflowStep,
 } from './types';
-import { SEED_NF_SKILL, NF_DEF } from './nf-skill.seed';
+import { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF } from './nf-skill.seed';
+import { GA_QS_REGELN } from './ga-qs.seed';
 
 /** Fester Seed-Zeitstempel — deterministisch (kein `new Date()` zur Seed-Zeit). */
 const SEED_TS = '2026-06-11T00:00:00.000Z';
@@ -56,7 +57,10 @@ Gruppierte wörtliche Kurz-Zitate aus der VB, die du als Beleg nutzt — je mit 
 Ein erster, noch ungeschliffener Entwurf der Kurzfassung.
 
 ### Finaler Text
-Der finale, geschliffene Fließtext der Kurzfassung (ca. 10 Sätze, KEIN Listenformat).`;
+Der finale, geschliffene Fließtext der Kurzfassung (ca. 10 Sätze, KEIN Listenformat).
+
+## Stilbeispiel (nur Schreibstil — Inhalt stammt aus einem anderen Antrag, NICHT übernehmen)
+Das Vorhaben beschreibt die Entwicklung eines Bio-Inkjet-Drucksystems, das durch eine begleitende Diagnose-App individuelle Hautpflegeprodukte direkt auf die Haut des Nutzers aufbringt. Das System kombiniert Mikrofluidik, biokompatible Tinten und präzise Düsentechnologie, um Tintentröpfchen im Mikrometer-Bereich exakt zu positionieren.`;
 
 /** Skill-ID des Kurzfassung-Skills — Konstante für Lookups (Antragsdetail). */
 export const KURZFASSUNG_SKILL_ID = 'gutachten-kurzfassung';
@@ -151,8 +155,13 @@ function abschnittTemplate(opts: {
   aufgabe: string;
   formatRegeln: string[];
   finalText: string;
+  /** Optionales Stilbeispiel (nur Schreibstil; wird klar markiert angehängt). */
+  stilbeispiel?: string;
 }): string {
   const extra = opts.formatRegeln.map(r => `- ${r}`).join('\n');
+  const stil = opts.stilbeispiel
+    ? `\n\n## Stilbeispiel (nur Schreibstil — Inhalt stammt aus einem anderen Antrag, NICHT übernehmen)\n${opts.stilbeispiel}`
+    : '';
   return `Erstelle den Abschnitt **${opts.name}** eines ZIM-Gutachtens aus der folgenden Vorhabensbeschreibung (VB).
 
 ## Stammdaten des Antrags
@@ -178,7 +187,7 @@ ${extra}
 Gruppierte wörtliche Kurz-Zitate aus der VB, die du als Beleg nutzt — je mit knapper Fundstellen-Angabe.
 
 ### Finaler Text
-${opts.finalText}`;
+${opts.finalText}${stil}`;
 }
 
 /** Regel-Seeds der Abschnitte B–G (nur maschinell prüfbare Kontrakte). */
@@ -244,6 +253,10 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
       finalText:
         'Der finale Text (300–350 Wörter): je technisches Risiko ein fett gesetzter Kurztitel, gefolgt '
         + 'von 2–3 erläuternden Sätzen.',
+      stilbeispiel:
+        'Im Vorhaben werden mehrere technische Risiken explizit benannt. Die Feinabstimmung der '
+        + 'Drucktechnologie stellt eine Kernherausforderung dar, weil die Druckkopftechnologie hochpräzise '
+        + 'mechanische Komponenten erfordert.',
     }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
@@ -336,6 +349,11 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
       finalText:
         'Der finale Fließtext, der mit dem Pflicht-Satz beginnt und den Kompetenzgewinn (Technologiefeld aus '
         + 'dem Antrag) beschreibt.',
+      stilbeispiel:
+        'Das Vorhaben wird sehr positive Auswirkungen auf das FuE-Potenzial und Know-how der Antragsteller '
+        + 'haben. Im Unternehmen wird die Technologiekompetenz im Bereich hochpräziser Bio-Inkjet-'
+        + 'Drucktechnologie, integrierter Echtzeit-Hautanalyse-Sensorik und adaptiver Formulierungsmethoden '
+        + 'deutlich erweitert.',
     }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
@@ -492,6 +510,6 @@ export const SEED_REGISTRY: SkillRegistryFile = {
   version: 1,
   updated_at: SEED_TS,
   skills: [SEED_SKILL, ...SEED_SKILLS_BG, SEED_QS_SKILL, SEED_RELEVANZ_MAP_SKILL, SEED_NF_SKILL],
-  regeln: [...SEED_REGELN, ...SEED_REGELN_BG],
+  regeln: [...SEED_REGELN, ...SEED_REGELN_BG, ...SEED_NF_REGELN, ...GA_QS_REGELN],
   workflows: SEED_WORKFLOWS,
 };

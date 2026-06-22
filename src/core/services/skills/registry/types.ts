@@ -22,7 +22,8 @@ export type RegelTyp =
   | 'verbotenes_muster'
   | 'pflicht_anfang'
   | 'keine_aufzaehlungen'
-  | 'absatz_min';
+  | 'absatz_min'
+  | 'nf_keine_platzhalter_reste';
 
 /** Set für O(1)-Lookup, ob ein (string-)Typ bekannt ist. */
 export const KNOWN_REGEL_TYPEN: ReadonlySet<string> = new Set<RegelTyp>([
@@ -34,6 +35,7 @@ export const KNOWN_REGEL_TYPEN: ReadonlySet<string> = new Set<RegelTyp>([
   'pflicht_anfang',
   'keine_aufzaehlungen',
   'absatz_min',
+  'nf_keine_platzhalter_reste',
 ]);
 
 /** Schweregrad eines Regel-Verstoßes. */

@@ -7,6 +7,7 @@ import {
   type SkillRegistryFile, type WorkflowDef, type WorkflowEbene,
 } from './types';
 import { SEED_WORKFLOWS } from './seed';
+import { GA_QS_REGEL_IDS } from './ga-qs.seed';
 
 /* -------------------------------------------------------------------------- */
 /* Artefakt-Engine: Default-Resolver (eine Quelle für die dokumentierten        */
@@ -119,7 +120,39 @@ export function describeRegelParams(regel: QualitaetsRegel): string {
       return 'im finalen Text';
     case 'absatz_min':
       return `≥ ${num(p, 'min') ?? '—'} Absätze`;
+    case 'nf_keine_platzhalter_reste':
+      return 'keine Platzhalter-Reste';
+    case 'nf_baustein_passung':
+      return 'Baustein-Passung (LLM-QS)';
+    case 'ga_qs_vollstaendigkeit':
+      return 'Vollständigkeit A–G';
+    case 'ga_qs_quellenabgleich':
+      return 'Quellenabgleich (LLM-QS)';
+    case 'ga_qs_konsistenz':
+      return 'Konsistenz (LLM-QS)';
+    case 'ga_qs_finales_review':
+      return 'Finales Review';
     default:
       return 'unbekannter Typ';
   }
+}
+
+/**
+ * QS-Regelsatz eines Artefakt-Typs (Artefakt-Engine): die Regeln, die über die
+ * Skills der `WorkflowDef` dieses Typs gebunden sind. So wählt die QS den richtigen
+ * Satz je `artefaktTyp` (NF-Regeln für `'nf'`, GA-Regeln für `'ga'`) — die Bindung
+ * läuft über den Workflow, nicht über verstreute Literale. Fehlt eine kuratierte
+ * Def, greift der Seed-Workflow als Fallback.
+ */
+export function qsRegelnFuerArtefakt(file: SkillRegistryFile, typ: ArtefaktTyp): QualitaetsRegel[] {
+  // GA: dedizierter QS-Dimensionssatz aus QS v2 (gebunden per ID, nicht über die
+  // generativen Skill-Regeln — die bleiben Generierungs-Vorgaben).
+  if (typ === 'ga') return file.regeln.filter(r => GA_QS_REGEL_IDS.has(r.id));
+  // Sonst (NF …): die QS-Regeln sind die `regelIds` der Skills des Artefakt-Workflows.
+  const workflows = file.workflows && file.workflows.length > 0 ? file.workflows : SEED_WORKFLOWS;
+  const wf = workflows.find(w => artefaktTypOf(w) === typ);
+  if (!wf) return [];
+  const skillIds = new Set(wf.steps.map(s => s.skillId));
+  const regelIds = new Set(file.skills.filter(s => skillIds.has(s.id)).flatMap(s => s.regelIds));
+  return file.regeln.filter(r => regelIds.has(r.id));
 }
