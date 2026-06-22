@@ -56,21 +56,21 @@ describe('workflow-store: Browser-Wechsel-Durabilität', () => {
     // Spiegel liegt physisch im persönlichen Ordner:
     expect(await hydrateJsonFromPersonal<WorkflowRun>(idb, workflowRunPath('FKZ-1'))).not.toBeNull();
 
-    // „Browser-Wechsel": IDB-Eintrag weg (Handle/Disk bleiben).
-    kv.delete('gutachten-workflow:FKZ-1');
-    expect(kv.has('gutachten-workflow:FKZ-1')).toBe(false);
+    // „Browser-Wechsel": IDB-Eintrag weg (Handle/Disk bleiben). Key je (Typ, Scope).
+    kv.delete('workflow-run:ga:FKZ-1');
+    expect(kv.has('workflow-run:ga:FKZ-1')).toBe(false);
 
     const restored = await getWorkflowRun(idb, 'FKZ-1');
     expect(restored?.aktenzeichen).toBe('FKZ-1');
     // IDB wurde re-seeded:
-    expect(kv.get('gutachten-workflow:FKZ-1')).toBeTruthy();
+    expect(kv.get('workflow-run:ga:FKZ-1')).toBeTruthy();
   });
 
   it('delete entfernt IDB UND Disk-Spiegel (kein Re-Hydrate)', async () => {
     const { idb, kv } = fakeIdb(memRoot());
     await putWorkflowRun(idb, makeRun('FKZ-2'));
     await deleteWorkflowRun(idb, 'FKZ-2');
-    kv.delete('gutachten-workflow:FKZ-2'); // IDB sicher leer
+    kv.delete('workflow-run:ga:FKZ-2'); // IDB sicher leer
     expect(await getWorkflowRun(idb, 'FKZ-2')).toBeNull();
   });
 });

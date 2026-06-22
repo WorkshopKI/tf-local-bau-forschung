@@ -34,6 +34,17 @@ describe('backupGutachtenStateToPersonal', () => {
     expect(await hydrateJsonFromPersonal(idb, kurzfassungPath('FKZ-1'))).toMatchObject({ key: 'FKZ-1' });
   });
 
+  it('spiegelt Runs unter dem neuen Key workflow-run:<typ>:<scope> (ga + nf, disjunkte Pfade)', async () => {
+    const { idb, kv } = fakeIdb(memRoot());
+    kv.set('workflow-run:ga:FKZ-1', { aktenzeichen: 'FKZ-1', geaendert_am: '2026-06-22T10:00:00.000Z' });
+    kv.set('workflow-run:nf:FKZ-1', { aktenzeichen: 'FKZ-1', geaendert_am: '2026-06-22T11:00:00.000Z' });
+
+    expect(await backupGutachtenStateToPersonal(idb)).toBe(2);
+    // GA + NF mit gleicher scopeId → disjunkte Disk-Pfade.
+    expect(await hydrateJsonFromPersonal(idb, workflowRunPath('FKZ-1', 'ga'))).toMatchObject({ aktenzeichen: 'FKZ-1' });
+    expect(await hydrateJsonFromPersonal(idb, workflowRunPath('FKZ-1', 'nf'))).toMatchObject({ aktenzeichen: 'FKZ-1' });
+  });
+
   it('idempotent: zweiter Lauf schreibt nichts (Disk aktuell)', async () => {
     const { idb, kv } = fakeIdb(memRoot());
     kv.set('gutachten-workflow:FKZ-1', { aktenzeichen: 'FKZ-1', geaendert_am: '2026-06-12T10:00:00.000Z' });

@@ -34,7 +34,16 @@ export const gutachtenMdPath = (fkz: string, stepId: string, slug: string): stri
 // liegen als JSON neben den Batch-`.md`-Spiegeln im Gutachten-Ordner; der EINE
 // aktive Batch-Job ist ein Singleton auf Wurzel-Ebene. `key` = Store-Key
 // (= Verbund-/Aktenzeichen), symmetrisch zu Schreiben + Hydrieren.
-export const workflowRunPath = (key: string): string => `${gutachtenDir(key)}/workflow-run.json`;
+//
+// Artefakt-Engine: der Pfad ist je Artefakt-Typ disjunkt. `'ga'` behält den
+// historischen `…/gutachten/workflow-run.json` (byte-identisch, keine Migration
+// nötig); neue Typen (z.B. `'nf'`) bekommen einen eigenen Unterordner, damit
+// GA- und NF-Runs mit gleicher scopeId nicht kollidieren.
+const ARTEFAKT_UNTERORDNER: Record<string, string> = { ga: 'gutachten', nf: 'nachforderungen' };
+export const workflowRunPath = (key: string, typ = 'ga'): string => {
+  const sub = ARTEFAKT_UNTERORDNER[typ] ?? sanitizeSegment(typ);
+  return `${antragDir(key)}/${sub}/workflow-run.json`;
+};
 export const kurzfassungPath = (key: string): string => `${gutachtenDir(key)}/kurzfassung.json`;
 export const batchJobPath = (): string => `${BASE}/gutachten-batch-job.json`;
 

@@ -2,8 +2,29 @@
  * Reine Selektoren über einer geladenen Registry — kein IO, kein React.
  * Genutzt von der Skill-Verwaltung (UI), dem Antragsdetail-Consumer und Tests.
  */
-import { KNOWN_REGEL_TYPEN, type QualitaetsRegel, type SkillRecord, type SkillRegistryFile } from './types';
+import {
+  KNOWN_REGEL_TYPEN, type ArtefaktTyp, type Pruefart, type QualitaetsRegel, type SkillRecord,
+  type SkillRegistryFile, type WorkflowDef, type WorkflowEbene,
+} from './types';
 import { SEED_WORKFLOWS } from './seed';
+
+/* -------------------------------------------------------------------------- */
+/* Artefakt-Engine: Default-Resolver (eine Quelle für die dokumentierten        */
+/* Defaults — Normalisierung lässt die Felder bei Alt-Records bewusst weg).     */
+/* -------------------------------------------------------------------------- */
+
+/** Artefakt-Typ einer Workflow-Def (fehlt → `'ga'`, GA byte-identisch). */
+export function artefaktTypOf(def: WorkflowDef): ArtefaktTyp {
+  return def.artefaktTyp ?? 'ga';
+}
+/** Ebene einer Workflow-Def (fehlt → `'verbund'`). */
+export function ebeneOf(def: WorkflowDef): WorkflowEbene {
+  return def.ebene ?? 'verbund';
+}
+/** Prüfart einer Qualitätsregel (fehlt → `'textlich'`, deterministisch). */
+export function pruefartOf(regel: QualitaetsRegel): Pruefart {
+  return regel.pruefart ?? 'textlich';
+}
 
 /** Skill per ID (oder `undefined`). */
 export function getSkillById(file: SkillRegistryFile, id: string): SkillRecord | undefined {

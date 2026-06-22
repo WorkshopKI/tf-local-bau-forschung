@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeRegistryFile } from '../storage';
-import { getSkillById, resolveRegeln, skillsUsingRegel, workflowStepsUsingSkill, describeRegelParams } from '../selectors';
-import { SEED_REGISTRY, SEED_SKILL, KURZFASSUNG_SKILL_ID } from '../seed';
+import {
+  getSkillById, resolveRegeln, skillsUsingRegel, workflowStepsUsingSkill, describeRegelParams,
+  artefaktTypOf, ebeneOf, pruefartOf,
+} from '../selectors';
+import { SEED_REGISTRY, SEED_SKILL, KURZFASSUNG_SKILL_ID, ZIM_EP_DEF } from '../seed';
 import { runRegelChecks } from '../check-engine';
 import type { QualitaetsRegel, SkillRegistryFile } from '../types';
 
@@ -100,6 +103,49 @@ describe('Selektoren', () => {
     expect(describeRegelParams(r('zeichen_max', { max: 1000 }))).toBe('max 1000 Zeichen');
     expect(describeRegelParams(r('satzanzahl', { min: 8, max: 12 }))).toBe('8–12 Sätze');
     expect(describeRegelParams(r('zukunfts_typ', {}))).toBe('unbekannter Typ');
+  });
+});
+
+describe('Artefakt-Engine — additive Felder + Default-Resolver', () => {
+  it('liest pruefart/artefaktTyp/ebene bei gültigen Werten, defaultet via Resolver bei fehlenden', () => {
+    const file = normalizeRegistryFile({
+      version: 1,
+      skills: [{ id: 's1' }],
+      regeln: [
+        { id: 'r-fach', typ: 'zeichen_max', pruefart: 'fachlich' },
+        { id: 'r-default', typ: 'zeichen_max' },
+        { id: 'r-mist', typ: 'zeichen_max', pruefart: 'quatsch' }, // ungültig → weggelassen
+      ],
+      workflows: [
+        { id: 'nf', name: 'NF', version: 1, steps: [], artefaktTyp: 'nf', ebene: 'tv' },
+        { id: 'ga', name: 'GA', version: 1, steps: [] }, // ohne Felder
+        { id: 'bad', name: 'B', version: 1, steps: [], artefaktTyp: 'xx', ebene: 'yy' }, // ungültig
+      ],
+    })!;
+    // Regeln: gültige pruefart bleibt, fehlende/ungültige sind feld-frei
+    expect(file.regeln.find(r => r.id === 'r-fach')!.pruefart).toBe('fachlich');
+    expect(file.regeln.find(r => r.id === 'r-default')!.pruefart).toBeUndefined();
+    expect(file.regeln.find(r => r.id === 'r-mist')!.pruefart).toBeUndefined();
+    expect(pruefartOf(file.regeln.find(r => r.id === 'r-default')!)).toBe('textlich');
+    // Workflows: gültige Typ/Ebene bleiben, fehlende/ungültige feld-frei
+    const nf = file.workflows!.find(w => w.id === 'nf')!;
+    expect(nf.artefaktTyp).toBe('nf');
+    expect(nf.ebene).toBe('tv');
+    const ga = file.workflows!.find(w => w.id === 'ga')!;
+    expect(ga.artefaktTyp).toBeUndefined();
+    expect(ga.ebene).toBeUndefined();
+    expect(artefaktTypOf(ga)).toBe('ga');
+    expect(ebeneOf(ga)).toBe('verbund');
+    const bad = file.workflows!.find(w => w.id === 'bad')!;
+    expect(bad.artefaktTyp).toBeUndefined();
+    expect(bad.ebene).toBeUndefined();
+  });
+
+  it('GA-Seed (ZIM_EP_DEF) trägt keine Artefakt-Felder → defaultet auf ga/verbund (byte-identisch)', () => {
+    expect(ZIM_EP_DEF.artefaktTyp).toBeUndefined();
+    expect(ZIM_EP_DEF.ebene).toBeUndefined();
+    expect(artefaktTypOf(ZIM_EP_DEF)).toBe('ga');
+    expect(ebeneOf(ZIM_EP_DEF)).toBe('verbund');
   });
 });
 

@@ -16,6 +16,9 @@ export {
   workflowStepsUsingSkill,
   isKnownRegelTyp,
   describeRegelParams,
+  artefaktTypOf,
+  ebeneOf,
+  pruefartOf,
   type SkillWorkflowFundstelle,
 } from './selectors';
 export {

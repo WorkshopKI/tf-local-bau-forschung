@@ -17,7 +17,12 @@ import type { IDBStore } from '@/core/services/storage';
 import { workflowRunPath, kurzfassungPath, batchJobPath } from './personal-layout';
 import { isNewer } from './sync';
 
-const WF_PREFIX = 'gutachten-workflow:';
+// Artefakt-Engine: Runs liegen unter `workflow-run:<typ>:<scopeId>`. Pre-Engine
+// GA-Runs (noch nicht auf den neuen Key promotet) lagen unter dem Alt-Prefix
+// `gutachten-workflow:<az>` — beide werden gespiegelt (doppelter Treffer auf
+// denselben Disk-Pfad ist durch `needsMirror` no-op).
+const RUN_PREFIX = 'workflow-run:';
+const LEGACY_WF_PREFIX = 'gutachten-workflow:';
 const KF_PREFIX = 'gutachten-kurzfassung:';
 const BATCH_KEY = 'gutachten-batch:aktiv';
 
@@ -58,8 +63,16 @@ export async function backupGutachtenStateToPersonal(idb: IDBStore): Promise<num
     const perm = await queryReadwrite(handle);
     if (perm && perm !== 'granted') return 0;
 
-    for (const [key, value] of await idb.entries(WF_PREFIX)) {
-      const path = workflowRunPath(key.slice(WF_PREFIX.length));
+    for (const [key, value] of await idb.entries(RUN_PREFIX)) {
+      const rest = key.slice(RUN_PREFIX.length); // `<typ>:<scopeId>`
+      const sep = rest.indexOf(':');
+      if (sep < 0) continue;
+      const path = workflowRunPath(rest.slice(sep + 1), rest.slice(0, sep));
+      if (await needsMirror(handle, path, value)) { await atomicWrite(handle, path, json(value)); count++; }
+    }
+    // Pre-Engine GA-Runs, die noch nicht auf den neuen Key promotet wurden.
+    for (const [key, value] of await idb.entries(LEGACY_WF_PREFIX)) {
+      const path = workflowRunPath(key.slice(LEGACY_WF_PREFIX.length), 'ga');
       if (await needsMirror(handle, path, value)) { await atomicWrite(handle, path, json(value)); count++; }
     }
     for (const [key, value] of await idb.entries(KF_PREFIX)) {

@@ -6,8 +6,10 @@
  * So generalisiert A sauber, ohne den per-Record-Store wieder einzuführen.
  *
  * Persistenz: ein Objekt im generischen `kv`-Store unter
- * `gutachten-workflow:<aktenzeichen>` (siehe workflow-store.ts) — bewusst KEIN
- * dedizierter Object-Store/Version-Bump (recurring-bug-classes.md §3 / Pitfall #29).
+ * `workflow-run:<typ>:<scopeId>` (Artefakt-Engine; GA = `workflow-run:ga:<az>`,
+ * mit Alt-Key-Fallback auf `gutachten-workflow:<az>` — siehe workflow-store.ts) —
+ * bewusst KEIN dedizierter Object-Store/Version-Bump (recurring-bug-classes.md §3 /
+ * Pitfall #29).
  */
 import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
 import type { KurzfassungVersion } from '../kurzfassung/types';

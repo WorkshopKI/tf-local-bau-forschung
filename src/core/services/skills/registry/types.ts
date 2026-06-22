@@ -40,6 +40,19 @@ export const KNOWN_REGEL_TYPEN: ReadonlySet<string> = new Set<RegelTyp>([
 export type Schweregrad = 'fehler' | 'hinweis';
 
 /**
+ * Prüfart einer Qualitätsregel (Artefakt-Engine, additiv). Trennt, WIE eine Regel
+ * ausgeführt wird:
+ *  - `'textlich'` (Default): deterministischer Check-Engine-Lauf (Zeichen/Wörter/
+ *    Sätze/Muster) — byte-identisch zum Bestandsverhalten.
+ *  - `'fachlich'`: qualitativer LLM-QS-Lauf (Quellenabgleich, Halluzination,
+ *    Konsistenz) — liefert BERATENDE Befunde, überschreibt nie den Text.
+ *  - `'administrativ'`: struktureller Vollständigkeits-/Platzhalter-Check
+ *    (alle Abschnitte/Platzhalter vorhanden).
+ * Erweiterbar — Leser tolerieren Unbekanntes (→ `'textlich'`, siehe `normalize`).
+ */
+export type Pruefart = 'textlich' | 'fachlich' | 'administrativ';
+
+/**
  * Kuratierter Reifegrad eines Skills (vom Kurator gesetzt, NICHT automatisch).
  * `'entwurf'` = Default/neu, `'erprobt'` = im Team genutzt, `'empfohlen'` = Standard.
  * Das Skill-Feedback-Substrat liefert dazu nur einen BERATENDEN Vorschlag
@@ -63,6 +76,12 @@ export interface QualitaetsRegel {
   aktiv: boolean;
   erstellt_am: string;
   geaendert_am: string;
+  /**
+   * Prüfart (additiv, Artefakt-Engine). Fehlt in Alt-Records → `normalize`
+   * defaultet `'textlich'` (byte-identisch). Steuert, über welchen Pfad die
+   * Regel ausgewertet wird (deterministisch / LLM-QS / strukturell).
+   */
+  pruefart?: Pruefart;
 }
 
 /**
@@ -200,6 +219,22 @@ export interface WorkflowStep {
 }
 
 /**
+ * Artefakt-Typ einer Workflow-Definition (Artefakt-Engine, additiv). Trennt die
+ * Artefakt-Achse von der amtlichen Status-Wirbelsäule: `'ga'` = ZIM-Gutachten
+ * (Default, byte-identisch), `'nf'` = ZIM-Nachforderungen, `'abl'`/`'rne'` für
+ * spätere Artefakte (noch nicht implementiert). Erweiterbar — Leser tolerieren
+ * Unbekanntes (→ `'ga'`, siehe `normalize`).
+ */
+export type ArtefaktTyp = 'ga' | 'nf' | 'abl' | 'rne';
+
+/**
+ * Ebene, auf der ein Artefakt erzeugt wird: `'verbund'` (Default, ein Lauf pro
+ * Verbund — GA) oder `'tv'` (ein Lauf pro Teilvorhaben — NF). Erweiterbar — Leser
+ * tolerieren Unbekanntes (→ `'verbund'`).
+ */
+export type WorkflowEbene = 'verbund' | 'tv';
+
+/**
  * Eine benannte, geordnete Workflow-Definition (z.B. `zim-ep`). `steps` ist FLACH;
  * Hierarchie nur über `WorkflowStep.parentStepId`.
  */
@@ -211,6 +246,14 @@ export interface WorkflowDef {
   steps: WorkflowStep[];
   /** Draft-vs-Live (Phase 6; fehlt → als aktiv behandeln). */
   aktiv?: boolean;
+  /**
+   * Artefakt-Typ (additiv, Artefakt-Engine). Fehlt in Alt-Defs → `normalize`
+   * defaultet `'ga'` (GA byte-identisch). Treibt Run-Keying, Vorlagen-/Dateiname
+   * und QS-Regel-Auswahl.
+   */
+  artefaktTyp?: ArtefaktTyp;
+  /** Ebene (additiv). Fehlt → `'verbund'` (GA). NF = `'tv'`. */
+  ebene?: WorkflowEbene;
 }
 
 /** Inhalt der gemeinsamen `_intern/skills/registry.json` (Skills + Regeln + Workflows). */

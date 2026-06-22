@@ -15,8 +15,9 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import type {
-  GateExpr, QualitaetsRegel, Reifegrad, Schweregrad, SkillModifierKey, SkillRecord, SkillRegistryFile,
-  SkillVersionSnapshot, WorkflowDef, WorkflowStep, WorkflowStepRolle,
+  ArtefaktTyp, GateExpr, Pruefart, QualitaetsRegel, Reifegrad, Schweregrad, SkillModifierKey,
+  SkillRecord, SkillRegistryFile, SkillVersionSnapshot, WorkflowDef, WorkflowEbene, WorkflowStep,
+  WorkflowStepRolle,
 } from './types';
 import { normalizeStepRolle } from './workflow-steps';
 import { MAX_HISTORIE } from './versioning';
@@ -47,6 +48,18 @@ function asSchweregrad(v: unknown): Schweregrad {
 function asReifegrad(v: unknown): Reifegrad {
   return v === 'erprobt' || v === 'empfohlen' ? v : 'entwurf';
 }
+/** Gültige `Pruefart` oder `null` (additiv: nur bei explizitem, gültigem Wert setzen → kein Daten-Drift). */
+function asPruefart(v: unknown): Pruefart | null {
+  return v === 'textlich' || v === 'fachlich' || v === 'administrativ' ? v : null;
+}
+/** Gültiger `ArtefaktTyp` oder `null` (nur bei explizitem Wert setzen → GA bleibt feld-frei/byte-identisch). */
+function asArtefaktTyp(v: unknown): ArtefaktTyp | null {
+  return v === 'ga' || v === 'nf' || v === 'abl' || v === 'rne' ? v : null;
+}
+/** Gültige `WorkflowEbene` oder `null` (nur bei explizitem Wert setzen). */
+function asWorkflowEbene(v: unknown): WorkflowEbene | null {
+  return v === 'verbund' || v === 'tv' ? v : null;
+}
 
 function normalizeRegel(raw: unknown): QualitaetsRegel | null {
   if (typeof raw !== 'object' || raw === null) return null;
@@ -54,7 +67,7 @@ function normalizeRegel(raw: unknown): QualitaetsRegel | null {
   const id = asString(r.id);
   if (!id) return null;
   const ts = asString(r.geaendert_am) || asString(r.erstellt_am) || SEED_REGISTRY.updated_at;
-  return {
+  const regel: QualitaetsRegel = {
     id,
     name: asString(r.name, id),
     typ: asString(r.typ),
@@ -64,6 +77,9 @@ function normalizeRegel(raw: unknown): QualitaetsRegel | null {
     erstellt_am: asString(r.erstellt_am, ts),
     geaendert_am: asString(r.geaendert_am, ts),
   };
+  const pruefart = asPruefart(r.pruefart);
+  if (pruefart) regel.pruefart = pruefart;
+  return regel;
 }
 
 const EMPTY_MODIFIERS: Record<SkillModifierKey, string> = { neu: '', kuerzer: '', laenger: '' };
@@ -205,6 +221,10 @@ function normalizeWorkflowDef(raw: unknown): WorkflowDef | null {
     steps: clamped,
   };
   if (typeof d.aktiv === 'boolean') def.aktiv = d.aktiv;
+  const artefaktTyp = asArtefaktTyp(d.artefaktTyp);
+  if (artefaktTyp) def.artefaktTyp = artefaktTyp;
+  const ebene = asWorkflowEbene(d.ebene);
+  if (ebene) def.ebene = ebene;
   return def;
 }
 
