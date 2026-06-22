@@ -7,7 +7,7 @@
  * (horizontaler Stepper, Panel als Block). Funktioniert ohne LLM (freigegebene
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, Check, Pencil, ChevronLeft } from 'lucide-react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -39,6 +39,21 @@ import './gutachten.css';
 /** Container-Mindestbreite für das 3-spaltige Werkstatt-Grid; darunter einspaltig. */
 const WERK_MIN_WIDTH = 1040;
 
+// Resize-Breiten der Rail/des Kontext-Panels als UI-Pref persistieren (localStorage —
+// file://-tauglich, laut CLAUDE.md für einfache UI-Prefs erlaubt; vgl. useCollapsedSection).
+const RAIL_W_KEY = 'teamflow_gutachten_rail_w';
+const CTX_W_KEY = 'teamflow_gutachten_ctx_w';
+function readPersistedWidth(key: string, fallback: number, min: number, max: number): number {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw == null) return fallback;
+    const n = Number(raw);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useGutachtenWorkflow(ctx);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -47,10 +62,19 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   const [tweakOpen, setTweakOpen] = useState(false);
   // Kontext-Panel ein-/ausgeklappt (Werkstatt; persistiert nur im Session-State).
   const [ctxOpen, setCtxOpen] = useState(true);
-  // Breiten von Rail (links) + Kontext-Panel (rechts), je per Ziehleiste anpassbar (Session-State).
-  const [railWidth, setRailWidth] = useState(248);
-  const [ctxWidth, setCtxWidth] = useState(340);
+  // Breiten von Rail (links) + Kontext-Panel (rechts), je per Ziehleiste anpassbar.
+  // Initial aus localStorage (persistiert über Reload), Default 248/340.
+  const [railWidth, setRailWidth] = useState(() => readPersistedWidth(RAIL_W_KEY, 248, 180, 360));
+  const [ctxWidth, setCtxWidth] = useState(() => readPersistedWidth(CTX_W_KEY, 340, 280, 620));
   const [resizing, setResizing] = useState(false);
+  // Persistieren erst, wenn das Ziehen beendet ist (kein localStorage-Write pro Frame).
+  useEffect(() => {
+    if (resizing) return;
+    try {
+      window.localStorage.setItem(RAIL_W_KEY, String(railWidth));
+      window.localStorage.setItem(CTX_W_KEY, String(ctxWidth));
+    } catch { /* localStorage nicht verfügbar — ignorieren */ }
+  }, [resizing, railWidth, ctxWidth]);
 
   // Container-Breite messen → 3-spaltiges Grid (breit) vs. einspaltig (schmal).
   // Default groß: bis zur ersten Messung breit rendern (kein Flackern).
