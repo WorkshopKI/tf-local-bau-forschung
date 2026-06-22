@@ -5,6 +5,34 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.107.0 — Gutachten-Detail: einklappbare Liste + vertikale Abschnitts-Nav (Juni 2026)
+
+MINOR-Bump — reine UI/UX auf Bestand (kein Schema-Bump, kein neuer Object-Store). Zwei
+Verbesserungen im Förderanträge-Detail (Gutachten-Workspace): mehr Platz fürs Detail und der
+Workflow-Stand auf einen Blick — statt sieben Buchstaben deuten zu müssen.
+
+- **Antrags-Liste einklappbar** ([AntraegePage.tsx](src/plugins/antraege/AntraegePage.tsx) +
+  [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)): bei offenem Detail klappt ein Chevron
+  in der Toolbar die Liste ganz ein; eine schmale „Anträge einblenden"-Leiste am Rand blendet sie
+  wieder ein, das Detail nutzt den frei werdenden Platz. Zustand persistiert (localStorage), additiv
+  neben der bestehenden Listenbreite. Pure-Helper [listCollapse.ts](src/plugins/antraege/listCollapse.ts)
+  (env-node-getestet). Die Förderanträge-Seite nutzt bewusst **kein** `MasterDetailLayout` (eigener
+  3-Pane-Split mit Filter) — der Collapse liegt daher direkt im Antraege-Split.
+- **Vertikale Abschnitts-Navigation** (neu: [AbschnittNav.tsx](src/plugins/antraege/gutachten/AbschnittNav.tsx),
+  auf `ListItem`): ersetzt die horizontalen A–G-Buchstaben-Tabs durch eine benannte Liste —
+  Buchstaben-Badge + voller Name + Statussymbol (freigegeben ✓ / in Arbeit / offen), der aktive grün
+  hervorgehoben (`aria-current`). Status **rein aus `StepRun.status`** (Pure-Helper `stepNavDescriptor`).
+  Klick springt über `weiterschaltenStep` (auch leere Abschnitte → öffnet den Generieren-Prompt).
+- **Zweispaltiger Body** ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)):
+  links die Nav, rechts der **unveränderte** aktive Abschnitt (`ActiveAbschnitt`/`SectionReviewCard`).
+  Die bisherigen Vorschau-Zeilen der übrigen Abschnitte entfallen — ihr Stand ist am Nav-Status ablesbar.
+- **Responsiv + Tastatur** ([nav-layout.ts](src/plugins/antraege/gutachten/nav-layout.ts)): unter einer
+  Breitenschwelle (ResizeObserver) fällt die Nav auf den kompakten horizontalen `AbschnittStepper`
+  (Bestand) zurück; ↑/↓ wechselt Abschnitte, der aktive scrollt in den Blick, Fokusring.
+- `ListItem` um additive optionale Props `active`/`activeClassName` erweitert (Defaults unverändert).
+- Die amtliche Phasen-Leiste (Precheck/NF/Gutachten/QS) wurde **nicht** angefasst. Hinter Feature-Flag
+  `gutachtenWorkflow` (nur dev). Reine UI, Bundle nicht messbar gewachsen.
+
 ### v2.106.0 — Gutachten-Workflow: „Alle Abschnitte als Entwurf erstellen" (Juni 2026)
 
 MINOR-Bump — additive UX im Gutachten-Workflow A–G (kein Schema-Bump, kein neuer Object-Store).

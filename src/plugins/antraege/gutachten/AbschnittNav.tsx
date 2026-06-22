@@ -7,9 +7,11 @@
  * leere Abschnitte sind klickbar (öffnet den Generieren-Prompt rechts).
  * Auf `ListItem` aufgebaut.
  */
+import { useEffect, useRef } from 'react';
 import { Check, Pencil, Circle } from 'lucide-react';
 import { ListItem } from '@/components/ui/ListItem';
 import type { WorkflowStep } from '@/core/services/skills';
+import { nextStepId } from './nav-layout';
 import type { StepId, StepStatus, WorkflowRun } from './types';
 
 /** Anzeige-Ableitung eines Abschnitts-Status (pur, testbar). */
@@ -39,8 +41,30 @@ const ICON_BY_KEY = { check: Check, pencil: Pencil, circle: Circle } as const;
 export function AbschnittNav(
   { run, steps, onJump }: { run: WorkflowRun; steps: WorkflowStep[]; onJump: (id: StepId) => void },
 ): React.ReactElement {
+  const activeRef = useRef<HTMLDivElement | null>(null);
+
+  // Aktiven Eintrag in den sichtbaren Bereich scrollen (z.B. nach Tastatur-Sprung).
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [run.aktiverSchritt]);
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLElement>): void => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      onJump(nextStepId(steps, run.aktiverSchritt, 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      onJump(nextStepId(steps, run.aktiverSchritt, -1));
+    }
+  };
+
   return (
-    <nav aria-label="Abschnitte" className="flex flex-col">
+    <nav
+      aria-label="Abschnitte"
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      className="flex flex-col rounded-[8px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]"
+    >
       {steps.map(def => {
         const status: StepStatus = run.schritte[def.id]?.status ?? 'leer';
         const isActive = def.id === run.aktiverSchritt;
@@ -70,7 +94,7 @@ export function AbschnittNav(
         );
 
         return (
-          <div key={def.id} className={def.parentStepId ? 'pl-3' : ''}>
+          <div key={def.id} ref={isActive ? activeRef : undefined} className={def.parentStepId ? 'pl-3' : ''}>
             <ListItem
               layout="inline"
               icon={badge}

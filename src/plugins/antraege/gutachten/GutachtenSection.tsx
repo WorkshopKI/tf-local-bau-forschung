@@ -5,7 +5,7 @@
  * Review-Karte, wartende Abschnitte inert. Funktioniert ohne LLM (freigegebene
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
@@ -23,6 +23,8 @@ import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useGutachtenWorkflow } from './useGutachtenWorkflow';
 import { AbschnittNav } from './AbschnittNav';
+import { AbschnittStepper } from './AbschnittStepper';
+import { navLayout } from './nav-layout';
 import { SectionReviewCard } from './SectionReviewCard';
 import { ResumeLine } from './ResumeLine';
 import { leereSchritte } from './runner';
@@ -38,6 +40,21 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   const [reviewOpen, setReviewOpen] = useState(false);
   const [ersetzen, setErsetzen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
+
+  // Container-Breite messen → vertikale Nav (breit) vs. kompakter Stepper (schmal).
+  // Default groß: bis zur ersten Messung vertikal rendern (kein Flackern).
+  const [bodyWidth, setBodyWidth] = useState(9999);
+  const roRef = useRef<ResizeObserver | null>(null);
+  const measureRef = useCallback((el: HTMLDivElement | null): void => {
+    roRef.current?.disconnect();
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width;
+      if (typeof w === 'number') setBodyWidth(w);
+    });
+    ro.observe(el);
+    roRef.current = ro;
+  }, []);
 
   const { run, vbDokument: vbDok, steps } = ctrl;
   const order = steps.map(s => s.id);
@@ -165,17 +182,29 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
             <ResumeLine run={run} steps={steps} onWeiter={ctrl.weiterschaltenStep} />
           )}
 
-          {/* Zweispaltig: links die vertikale Abschnitts-Nav, rechts der aktive
-              Abschnitt (unveränderte Review-/Generieren-Karte). */}
-          <div className="flex gap-6 items-start">
-            <div className="shrink-0 w-[240px]">
-              <AbschnittNav run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
-            </div>
-            <div className="flex-1 min-w-0">
-              {activeDef && (
-                <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />
-              )}
-            </div>
+          {/* Breit: zweispaltig (vertikale Nav | aktiver Abschnitt). Schmal:
+              einspaltig mit kompaktem horizontalem Stepper oben. Inhalt rechts
+              identisch (unveränderte Review-/Generieren-Karte). */}
+          <div ref={measureRef}>
+            {navLayout(bodyWidth) === 'vertikal' ? (
+              <div className="flex gap-6 items-start">
+                <div className="shrink-0 w-[240px]">
+                  <AbschnittNav run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  {activeDef && (
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
+                {activeDef && (
+                  <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />
+                )}
+              </>
+            )}
           </div>
         </>
       )}
