@@ -142,7 +142,7 @@ type SmallStoreData = Partial<Record<SnapshotStoreName, { jsonl: string; count: 
 
 /** Distinkte, nicht-leere `verbund_id` über die List-View eines Programms —
  *  die Quelle-of-Truth-Sicht (Anträge), gegen die der abgeleitete verbuende-
- *  Cache beim Serialisieren abgeglichen wird (Diagnose + Invariant-Guard). */
+ *  Cache beim Serialisieren abgeglichen wird (Invariant-Guard). */
 async function distinctVerbundIdsFromAntraege(idb: IDBStore, programmId: string): Promise<Set<string>> {
   const items = await listAntraegeListViewByProgramm(idb, programmId);
   const out = new Set<string>();
@@ -150,6 +150,18 @@ async function distinctVerbundIdsFromAntraege(idb: IDBStore, programmId: string)
     if (typeof it.verbund_id === 'string' && it.verbund_id.length > 0) out.add(it.verbund_id);
   }
   return out;
+}
+
+/** Kern der Snapshot-Invariante: welche von den Anträgen referenzierten
+ *  `verbund_id` fehlen im serialisierten verbuende-Cache? Leeres Array =
+ *  Invariante erfüllt (jeder Verbund der Anträge ist serialisiert). Rein +
+ *  exportiert für den Regressionstest. */
+export function findMissingVerbuende(
+  distinctFromAntraege: Iterable<string>,
+  serialized: Iterable<string>,
+): string[] {
+  const have = new Set(serialized);
+  return [...new Set(distinctFromAntraege)].filter(v => !have.has(v)).sort();
 }
 
 /** Serialisiert alle Stores AUSSER antraege (klein) zu JSONL + Counts. */
@@ -169,14 +181,14 @@ async function loadSmallStoreData(idb: IDBStore, programmId: string): Promise<Sm
   await healMissingVerbuende(idb, programmId);
   const verbuende = await listVerbundsByProgramm(idb, programmId);
 
-  // Diagnose: der verbuende-Store ist ein abgeleiteter Cache, hier serialisiert
-  // über den programm_id-Index. Fehlt/mis-filed ein Record, fällt er still raus
-  // (Bug: unvollständige verbuende.jsonl, z.B. „ZKN110630"). Gegen die Quelle
-  // (distinkte verbund_id über die Anträge des Programms) gegenchecken und die
-  // Lücke klassifizieren (absent vs. mis-filed unter falscher programm_id).
+  // Invariant-Guard: nach dem Heal MUSS jeder von den Anträgen referenzierte
+  // Verbund serialisiert sein. Bleibt dennoch eine Lücke, ist sie nicht mehr
+  // „nur" ein stiller Cache-Drift, sondern eine tiefere Divergenz (z.B.
+  // List-View-Projektion ≠ Heal-Quelle) → im Dev lautstark fehlschlagen
+  // (statt eine lückenhafte verbuende.jsonl zu veröffentlichen), zur Laufzeit
+  // laut loggen (Write nicht blockieren, der Heal hat den Großteil gedeckt).
   const distinctVids = await distinctVerbundIdsFromAntraege(idb, programmId);
-  const haveVids = new Set(verbuende.map(v => v.verbund_id));
-  const missing = [...distinctVids].filter(vid => !haveVids.has(vid));
+  const missing = findMissingVerbuende(distinctVids, verbuende.map(v => v.verbund_id));
   if (missing.length > 0) {
     const classified = await Promise.all(missing.slice(0, 10).map(async vid => {
       const rec = await getVerbund(idb, vid);
@@ -185,11 +197,12 @@ async function loadSmallStoreData(idb: IDBStore, programmId: string): Promise<Sm
         ? `${vid}=present-but-index-miss(programm_id="${rec.programm_id}")`
         : `${vid}=mis-filed(programm_id="${rec.programm_id}")`;
     }));
-    console.warn(
-      `[snapshot-diag] Programm ${programmId}: ${verbuende.length} Verbünde serialisiert, ` +
-      `aber ${distinctVids.size} distinkte verbund_id in Anträgen — ${missing.length} fehlen. ` +
-      `Beispiele: ${classified.join(', ')}`,
-    );
+    const msg =
+      `[snapshot-verbuende] Invariante verletzt — Programm ${programmId}: ` +
+      `${verbuende.length} Verbünde serialisiert, aber ${distinctVids.size} distinkte ` +
+      `verbund_id in Anträgen; ${missing.length} fehlen NACH Heal. Beispiele: ${classified.join(', ')}`;
+    if (import.meta.env.DEV) throw new Error(msg);
+    console.error(msg);
   }
 
   const verbundHistorie = await listVerbundHistorieByProgramm(idb, programmId);
