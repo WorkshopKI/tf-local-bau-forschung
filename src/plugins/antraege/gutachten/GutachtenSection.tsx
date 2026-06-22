@@ -22,11 +22,10 @@ import { ThinkingControl } from '../kurzfassung/ThinkingControl';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useGutachtenWorkflow } from './useGutachtenWorkflow';
-import { AbschnittStepper } from './AbschnittStepper';
+import { AbschnittNav } from './AbschnittNav';
 import { SectionReviewCard } from './SectionReviewCard';
-import { AbschnittRow } from './AbschnittRow';
 import { ResumeLine } from './ResumeLine';
-import { fruehereInArbeit, leereSchritte } from './runner';
+import { leereSchritte } from './runner';
 import type { WorkflowStep } from '@/core/services/skills';
 import type { WorkflowRun } from './types';
 
@@ -49,6 +48,9 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   const freigegebenCount = run ? steps.filter(d => run.schritte[d.id]?.status === 'freigegeben').length : 0;
   // Gibt es noch fehlende (leere) Abschnitte? → „Alle Abschnitte erstellen" anbieten.
   const hatLeere = run ? leereSchritte(run, order).length > 0 : false;
+  // Der rechts dargestellte aktive Abschnitt (Controller garantiert eine
+  // gültige aktiverSchritt-ID; Fallback auf den ersten Step defensiv).
+  const activeDef = run ? (steps.find(d => d.id === run.aktiverSchritt) ?? steps[0]) : undefined;
 
   // Synthetischer „Antrag" als Feld-Quelle für den DOCX-Füller (Verbund-Ebene).
   const mappingAntrag = useMemo<Antrag>(() => ({
@@ -163,27 +165,18 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
             <ResumeLine run={run} steps={steps} onWeiter={ctrl.weiterschaltenStep} />
           )}
 
-          <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
-
-          {steps.map(def => {
-            const step = run.schritte[def.id];
-            const isActive = def.id === run.aktiverSchritt;
-            if (isActive) return <ActiveAbschnitt key={def.id} def={def} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />;
-            if (step) {
-              const freigegeben = step.status === 'freigegeben';
-              return (
-                <AbschnittRow
-                  key={def.id}
-                  def={def}
-                  step={step}
-                  konsistenzHinweis={freigegeben && fruehereInArbeit(run, def.id, order)}
-                  oeffnenLabel={freigegeben ? 'Erneut öffnen' : 'Öffnen'}
-                  onOeffnen={() => (freigegeben ? ctrl.erneutOeffnenStep(def.id) : ctrl.weiterschaltenStep(def.id))}
-                />
-              );
-            }
-            return <AbschnittRow key={def.id} def={def} wartetAufLabel={run.aktiverSchritt} />;
-          })}
+          {/* Zweispaltig: links die vertikale Abschnitts-Nav, rechts der aktive
+              Abschnitt (unveränderte Review-/Generieren-Karte). */}
+          <div className="flex gap-6 items-start">
+            <div className="shrink-0 w-[240px]">
+              <AbschnittNav run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
+            </div>
+            <div className="flex-1 min-w-0">
+              {activeDef && (
+                <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />
+              )}
+            </div>
+          </div>
         </>
       )}
 

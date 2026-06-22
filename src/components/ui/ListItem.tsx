@@ -29,6 +29,13 @@ interface ListItemProps {
   actions?: React.ReactNode;
   onClick?: () => void;
   last?: boolean;
+  /** Markiert die Zeile als aktiv/ausgewählt: setzt `aria-current` und das
+   *  Selektions-Styling (`activeClassName` oder der neutrale Default-Tint). Für
+   *  Nav-/Auswahl-Listen (z.B. Abschnitts-Navigation) statt reiner Tabellen. */
+  active?: boolean;
+  /** Tailwind-Klassen für den aktiven Zustand (überschreibt den Default-Tint).
+   *  Nur wirksam mit `active`. Z.B. ein farbiger Links-Akzent via inset-Shadow. */
+  activeClassName?: string;
 }
 
 const DEFAULT_TITLE_CLASS = 'text-[13.5px] text-[var(--tf-text)] truncate';
@@ -48,6 +55,8 @@ export function ListItem({
   actions,
   onClick,
   last,
+  active = false,
+  activeClassName,
 }: ListItemProps): React.ReactElement {
   const isInline = layout === 'inline';
   const titleClass = titleClassName ?? (isInline ? INLINE_TITLE_CLASS : DEFAULT_TITLE_CLASS);
@@ -56,12 +65,14 @@ export function ListItem({
   const hover = onClick
     ? (isInline ? 'cursor-pointer hover:bg-[var(--tf-bg-secondary)]' : 'cursor-pointer hover:opacity-70')
     : '';
+  const activeCls = active ? (activeClassName ?? 'bg-[var(--tf-bg-secondary)]') : '';
 
   return (
     <div
-      className={`flex items-center gap-3 ${pad} ${hover}`}
+      className={`flex items-center gap-3 ${pad} ${hover} ${activeCls}`}
       style={!last ? { borderBottom: '0.5px solid var(--tf-border)' } : undefined}
       onClick={onClick}
+      aria-current={active ? 'true' : undefined}
     >
       {icon && (
         iconBare ? (
