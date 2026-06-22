@@ -78,10 +78,17 @@ export function SectionReviewCard({
   // Ein-Klick-Feedback: ein Votum je Abschnittsversion (Reset bei neuer Generierung).
   const [fbDone, setFbDone] = useState(false);
   const [fbNote, setFbNote] = useState('');
-  useEffect(() => { setFbDone(false); setFbNote(''); }, [run.erstellt_am, run.skillVersion]);
+  // 👎 öffnet erst das Notizfeld (Slide-in, V4); gesendet wird bei Enter/Blur/2. Klick.
+  const [downActive, setDownActive] = useState(false);
+  useEffect(() => { setFbDone(false); setFbNote(''); setDownActive(false); }, [run.erstellt_am, run.skillVersion]);
   const submitFeedback = (rating: 'up' | 'down'): void => {
+    if (fbDone) return; // ein Votum je Version — Doppel-Trigger (Blur + Klick) abfangen
     onFeedback?.(rating, fbNote.trim() || undefined);
     setFbDone(true);
+  };
+  const onDownClick = (): void => {
+    if (!downActive) { setDownActive(true); return; } // erst Notizfeld zeigen, dann bestätigen
+    submitFeedback('down');
   };
 
   return (
@@ -167,49 +174,50 @@ export function SectionReviewCard({
         </div>
       ) : freigegeben ? (
         <div className="g-actionbar">
-          <div className="g-ab-row">
+          <div className="g-ab-row compact">
             <span className="g-freigabe-tag"><Check className="g-vi" /> Freigegeben</span>
             <button type="button" className="g-btn sm" onClick={onErneutOeffnen}><Undo2 size={14} /> Erneut öffnen</button>
             {onQs && (
               <button type="button" className="g-btn sm" disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
             )}
             <span className="g-ab-spacer" />
-            <button type="button" className="g-btn ghost sm" onClick={onOpenTweak}><SlidersHorizontal size={14} /> Persönlicher Stil</button>
+            <button type="button" className="g-vbtn" title="Einstellungen Persönlicher Stil" aria-label="Persönlicher Stil" onClick={onOpenTweak}><SlidersHorizontal className="g-vi" /></button>
           </div>
         </div>
       ) : (
         <div className="g-actionbar">
-          {/* Zeile 1: Bearbeiten · Entwurf gut? · Persönlicher Stil */}
-          <div className="g-ab-row">
-            <button type="button" className="g-btn ghost sm" onClick={startEdit}><Pencil size={14} /> Bearbeiten</button>
-            {onFeedback ? (
-              <div className="g-vote">
-                {fbDone ? (
-                  <span className="g-fb-done">Danke — Rückmeldung gespeichert.</span>
-                ) : (
-                  <>
-                    <span className="g-vote-q">Entwurf gut?</span>
-                    <button type="button" className="g-vbtn" title="Gut" onClick={() => submitFeedback('up')}><ThumbsUp className="g-vi" /></button>
-                    <button type="button" className="g-vbtn" title="Nicht gut" onClick={() => submitFeedback('down')}><ThumbsDown className="g-vi" /></button>
+          {/* Hauptzeile (V4 kompakt): Bearbeiten · 👍/👎 (+Notiz bei 👎) · Stil · CTA rechts */}
+          <div className="g-ab-row compact">
+            <button type="button" className="g-vbtn" title="Bearbeiten" aria-label="Bearbeiten" onClick={startEdit}><Pencil className="g-vi" /></button>
+            {onFeedback && (
+              fbDone ? (
+                <span className="g-fb-done">Danke — Rückmeldung gespeichert.</span>
+              ) : (
+                <>
+                  <button type="button" className="g-vbtn" title="Entwurf gut" aria-label="Entwurf gut" onClick={() => submitFeedback('up')}><ThumbsUp className="g-vi" /></button>
+                  <button type="button" className={`g-vbtn${downActive ? ' down' : ''}`} title="Entwurf nicht gut" aria-label="Entwurf nicht gut" onClick={onDownClick}><ThumbsDown className="g-vi" /></button>
+                  {downActive && (
                     <input
-                      className="g-noteinput"
+                      className="g-noteinput g-noteinput-ctx"
                       value={fbNote}
                       onChange={e => setFbNote(e.target.value)}
-                      placeholder="Notiz (kein Antragsbezug)"
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitFeedback('down'); } }}
+                      onBlur={() => submitFeedback('down')}
+                      placeholder="Was stört dich am Entwurf? (kein Antragsbezug)"
                       maxLength={140}
+                      autoFocus
                     />
-                  </>
-                )}
-              </div>
-            ) : (
-              <span className="g-ab-spacer" />
+                  )}
+                </>
+              )
             )}
-            <button type="button" className="g-btn ghost sm" onClick={onOpenTweak}><SlidersHorizontal size={14} /> Persönlicher Stil</button>
+            <button type="button" className="g-vbtn" title="Einstellungen Persönlicher Stil" aria-label="Persönlicher Stil" onClick={onOpenTweak}><SlidersHorizontal className="g-vi" /></button>
+            <span className="g-ab-spacer" />
+            <button type="button" className="g-btn primary" onClick={onFreigeben}>Freigeben &amp; weiter <ArrowRight size={14} /></button>
           </div>
 
-          {/* Zeile 2: Freigeben & weiter · Anpassen · Prüfen · Verwerfen */}
-          <div className="g-ab-row">
-            <button type="button" className="g-btn primary" onClick={onFreigeben}>Freigeben &amp; weiter <ArrowRight size={14} /></button>
+          {/* Zweitzeile (dezent): Anpassen · Prüfen · QS · Verwerfen */}
+          <div className="g-ab-row secondary">
             <span className="g-ab-anpassen">
               <span className="g-ab-anpassen-lbl">Anpassen</span>
               <button type="button" className="g-btn sm" disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>

@@ -5,6 +5,30 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.112.0 — Gutachten-Detailansicht: Docked-Rail-Layout (Handoff `workflow-stepper-neu`) (Juni 2026)
+
+MINOR-Bump — **größerer UI-Refactor** der Gutachten-Werkstatt (Verbund-Detailseite, Feature-Flag
+`gutachtenWorkflow`, dev). Additiv: keine Daten-/Schema-/Persistenz-Änderung, keine Migration. Port der
+optimierten Design-Variante aus `_design/handoff/workflow-stepper-neu/` (Werkstatt · Stepper d160 ·
+Aktionsleiste V4 · Grün gedämpft). `npm run check`/`build:devprod` grün.
+
+- **Docked Rail**: die Abschnitts-Rail ist jetzt an die Entwurf-Karte **angedockt** (gemeinsamer
+  abgerundeter Rahmen, kein Gap) statt separater Spalte — neuer `.g-docked`-Flex-Container in
+  [GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx); Grid zweispaltig
+  (Docked-Einheit · Panel). Rail grau (`--tf-bg-secondary`), aktiver Schritt hebt sich weiß ab,
+  Default-Breite 190px (Range 150–320), Ziehleiste (`.g-resize-handle`) liegt zwischen Rail und Karte.
+  Rail-Steps sticky (`.g-rail-inner`) → bleiben beim Scrollen langer Karten sichtbar.
+- **Rail-Feinschliff** ([AbschnittNav.tsx](src/plugins/antraege/gutachten/AbschnittNav.tsx)): Label nur der
+  Titel (kein „X — "-Präfix; Buchstabe steckt im Badge); freigegebenes Badge = grüner Kreis **mit Buchstabe**
+  (kein Häkchen-Ersatz) + kleines ✓ rechts vom Label.
+- **Grün gedämpft**: `--g-green` `hsl(145,60%,33%)` → `hsl(145,30%,33%)` (entsättigt, passt zur Primärfarbe).
+- **Aktionsleiste V4** ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)): kompakte
+  Icon-Hauptzeile (Bearbeiten / 👍 / 👎 / Stil) + CTA „Freigeben & weiter →" rechts; Notizfeld erscheint
+  kontextuell bei 👎 (Slide-in). Die Generier-Steuerungen (Neu/Kürzer/Länger/Prüfen/KI-QS/Verwerfen/Thinking)
+  bleiben **vollständig** als dezente Zweitzeile — keine Funktionalität entfernt.
+- **Unverändert**: schmaler Einspalten-Fallback (horizontaler Stepper + Block-Panel), Kontext-Panel
+  (einklappbar/resizebar), Inline-Editor, Streaming, Export, Ein-Votum-je-Version-Semantik.
+
 ### v2.111.0 — Konsolidierung: auslastung entzerrt, `@/ui`-Shim retired, Artefakt-Achse dokumentiert (Juni 2026)
 
 MINOR-Bump — **verhaltenserhaltendes** Aufräumen (kein Feature-/UI-/Schema-/Persistenz-Change), additive

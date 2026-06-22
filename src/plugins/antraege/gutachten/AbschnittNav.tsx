@@ -1,10 +1,17 @@
 /**
  * Vertikale Abschnitts-Rail des Werkstatt-Layouts (Design-Handoff
- * `workflow-mit-bearbeiten`, `.g-rail`): sticky Stepper mit Verbindungslinie,
- * 28px-Buchstaben-Badge in drei Zuständen (Entwurf/Aktiv/Freigegeben) + Häkchen
- * rechts bei Freigabe. Status rein aus `StepRun.status`; Klick fokussiert den
- * Abschnitt über `onJump` (= `weiterschaltenStep`), auch leere (öffnet den
+ * `workflow-stepper-neu`, „Docked Rail" `.g-rail.docked`): an die Entwurf-Karte
+ * angedockt (gemeinsamer Rahmen, kein Gap), grauer Grund, aktiver Schritt hebt sich
+ * weiß ab. Steps + Verbindungslinie liegen sticky im `.g-rail-inner` und scrollen
+ * bei langen Karten mit. 28px-Buchstaben-Badge in drei Zuständen (Entwurf/Aktiv/
+ * Freigegeben — Badge zeigt IMMER den Buchstaben, freigegeben = grüner Kreis) +
+ * kleines Häkchen rechts vom Titel-Label bei Freigabe. Label nur der Titel (der
+ * Buchstabe steckt im Badge). Status rein aus `StepRun.status`; Klick fokussiert
+ * den Abschnitt über `onJump` (= `weiterschaltenStep`), auch leere (öffnet den
  * Generieren-Prompt). Tastatur: ↑/↓ springt zwischen Abschnitten.
+ *
+ * Die Breite kommt als `railWidth` (inline), die Ziehleiste rendert der Container
+ * (`GutachtenSection`) als Flex-Kind zwischen Rail und Karte.
  *
  * Styles in `gutachten.css` (gescopt unter `.gutachten-werkstatt`).
  */
@@ -37,12 +44,12 @@ export function stepNavDescriptor(status: StepStatus): StepNavDescriptor {
 }
 
 export function AbschnittNav(
-  { run, steps, onJump, onResizeStart }: {
+  { run, steps, onJump, railWidth }: {
     run: WorkflowRun;
     steps: WorkflowStep[];
     onJump: (id: StepId) => void;
-    /** Pointer-Down auf der rechten Ziehleiste (Rail-Breite anpassen). Fehlt → keine Leiste. */
-    onResizeStart?: (e: React.PointerEvent) => void;
+    /** Breite der angedockten Rail (px) — vom Container per Ziehleiste gesteuert. */
+    railWidth: number;
   },
 ): React.ReactElement {
   const activeRef = useRef<HTMLButtonElement | null>(null);
@@ -64,49 +71,42 @@ export function AbschnittNav(
 
   return (
     <aside
-      className="g-rail sticky"
+      className="g-rail docked"
+      style={{ width: railWidth }}
       aria-label="Abschnitte"
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
-      <div className="g-rail-line" />
-      {onResizeStart && (
-        <div
-          className="g-rail-resize"
-          onPointerDown={onResizeStart}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Abschnittsliste-Breite anpassen"
-          title="Breite ziehen"
-        />
-      )}
-      {steps.map(def => {
-        const status: StepStatus = run.schritte[def.id]?.status ?? 'leer';
-        const isActive = def.id === run.aktiverSchritt;
-        const freigegeben = status === 'freigegeben';
-        const desc = stepNavDescriptor(status);
-        const badgeCls = freigegeben ? ' freigegeben' : isActive ? ' active' : '';
+      <div className="g-rail-inner">
+        <div className="g-rail-line" />
+        {steps.map(def => {
+          const status: StepStatus = run.schritte[def.id]?.status ?? 'leer';
+          const isActive = def.id === run.aktiverSchritt;
+          const freigegeben = status === 'freigegeben';
+          const desc = stepNavDescriptor(status);
+          const badgeCls = freigegeben ? ' freigegeben' : isActive ? ' active' : '';
 
-        return (
-          <button
-            key={def.id}
-            ref={isActive ? activeRef : undefined}
-            type="button"
-            className={`g-step${isActive ? ' active' : ''}${def.parentStepId ? ' sub' : ''}`}
-            onClick={() => onJump(def.id)}
-            aria-current={isActive ? 'step' : undefined}
-            title={`${def.kurz} — ${def.label} (${desc.statusLabel})`}
-          >
-            <span className={`g-step-badge${badgeCls}`}>
-              {freigegeben ? <Check className="g-sbi" aria-label="freigegeben" /> : def.kurz}
-            </span>
-            <span className="g-step-txt">
-              <span className="g-step-title">{def.kurz} — {def.label}</span>
-            </span>
-            {freigegeben && <span className="g-step-done"><Check className="g-sdi" /></span>}
-          </button>
-        );
-      })}
+          return (
+            <button
+              key={def.id}
+              ref={isActive ? activeRef : undefined}
+              type="button"
+              className={`g-step${isActive ? ' active' : ''}${def.parentStepId ? ' sub' : ''}`}
+              onClick={() => onJump(def.id)}
+              aria-current={isActive ? 'step' : undefined}
+              title={`${def.kurz} — ${def.label} (${desc.statusLabel})`}
+            >
+              {/* Badge zeigt immer den Buchstaben; freigegeben = grüner Kreis (kein Häkchen-Ersatz). */}
+              <span className={`g-step-badge${badgeCls}`}>{def.kurz}</span>
+              {/* Label nur der Titel (Buchstabe steckt im Badge). */}
+              <span className="g-step-txt">
+                <span className="g-step-title">{def.label}</span>
+              </span>
+              {freigegeben && <span className="g-step-done"><Check className="g-sdi" aria-label="freigegeben" /></span>}
+            </button>
+          );
+        })}
+      </div>
     </aside>
   );
 }

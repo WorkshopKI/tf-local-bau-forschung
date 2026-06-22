@@ -63,8 +63,9 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   // Kontext-Panel ein-/ausgeklappt (Werkstatt; persistiert nur im Session-State).
   const [ctxOpen, setCtxOpen] = useState(true);
   // Breiten von Rail (links) + Kontext-Panel (rechts), je per Ziehleiste anpassbar.
-  // Initial aus localStorage (persistiert über Reload), Default 248/340.
-  const [railWidth, setRailWidth] = useState(() => readPersistedWidth(RAIL_W_KEY, 248, 180, 360));
+  // Initial aus localStorage (persistiert über Reload), Default 190/340 (Handoff
+  // `workflow-stepper-neu`: angedockte Rail ~190px). Bestehende Werte werden geklemmt.
+  const [railWidth, setRailWidth] = useState(() => readPersistedWidth(RAIL_W_KEY, 190, 150, 320));
   const [ctxWidth, setCtxWidth] = useState(() => readPersistedWidth(CTX_W_KEY, 340, 280, 620));
   const [resizing, setResizing] = useState(false);
   // Persistieren erst, wenn das Ziehen beendet ist (kein localStorage-Write pro Frame).
@@ -111,16 +112,15 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   // Panel nur zeigen, wenn der aktive Abschnitt einen Stand hat (sonst nichts zum Gegenlesen).
   const showPanel = !!activeStep;
   // `resizing` (eine Flag für beide Ziehleisten) schaltet die Grid-Transition ab → 1:1-Tracking.
-  const gridClass = solo
-    ? 'g-werk solo'
-    : `g-werk${!showPanel ? ' no-ctx' : ctxOpen ? '' : ' ctx-closed'}${resizing ? ' resizing' : ''}`;
-  // Rail- + Panel-Breite treiben das Grid (inline) in allen mehrspaltigen Fällen.
+  const gridClass = solo ? 'g-werk solo' : `g-werk${resizing ? ' resizing' : ''}`;
+  // Zweispaltig: [Docked-Einheit Rail+Karte] · [Panel]. Die Rail-Breite steckt in der
+  // Docked-Einheit (inline an der Rail), das Grid steuert nur die Panel-Spalte.
   const gridStyle: React.CSSProperties | undefined = solo
     ? undefined
     : {
         gridTemplateColumns: showPanel
-          ? `${railWidth}px minmax(0,1fr) ${ctxOpen ? `${ctxWidth}px` : '42px'}`
-          : `${railWidth}px minmax(0,1fr)`,
+          ? `minmax(0,1fr) ${ctxOpen ? `${ctxWidth}px` : '42px'}`
+          : 'minmax(0,1fr)',
       };
   // Gemeinsamer Drag-Helfer; `compute(dx)` setzt die jeweilige Breite (window-Listener bis pointerup).
   const beginResize = (e: React.PointerEvent, compute: (dx: number) => void): void => {
@@ -142,10 +142,10 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
     const maxW = Math.max(360, Math.min(620, bodyWidth - railWidth - 360 - 48));
     beginResize(e, dx => setCtxWidth(Math.min(maxW, Math.max(280, startW - dx))));
   };
-  // Linke Rail: nach rechts ziehen = breiter.
+  // Linke Rail: nach rechts ziehen = breiter (angedockt, Labels brauchen ≳150px).
   const startRailResize = (e: React.PointerEvent): void => {
     const startW = railWidth;
-    beginResize(e, dx => setRailWidth(Math.min(360, Math.max(180, startW + dx))));
+    beginResize(e, dx => setRailWidth(Math.min(320, Math.max(150, startW + dx))));
   };
   const panelProvenance = activeStep
     ? { skillName: ctrl.activeSkill?.name ?? activeStep.skillId ?? '—', ...(activeStep.skillVersion != null ? { version: activeStep.skillVersion } : {}) }
@@ -273,12 +273,29 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
 
           <div ref={measureRef}>
             <div className={gridClass} style={gridStyle}>
-              {solo
-                ? <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
-                : <AbschnittNav run={run} steps={steps} onJump={ctrl.weiterschaltenStep} onResizeStart={startRailResize} />}
-
-              {activeDef && (
-                <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />
+              {solo ? (
+                <>
+                  <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
+                  {activeDef && (
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />
+                  )}
+                </>
+              ) : (
+                /* Docked-Einheit: Rail + Ziehleiste + Karte teilen einen Rahmen (Grid-Spalte 1). */
+                <div className="g-docked">
+                  <AbschnittNav run={run} steps={steps} onJump={ctrl.weiterschaltenStep} railWidth={railWidth} />
+                  <div
+                    className="g-resize-handle"
+                    onPointerDown={startRailResize}
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Abschnittsliste-Breite anpassen"
+                    title="Breite ziehen"
+                  />
+                  {activeDef && (
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} docked />
+                  )}
+                </div>
               )}
 
               {/* Kontext-Panel rechts (breit) bzw. als Block (schmal) */}
@@ -341,13 +358,15 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
 
 /** Der aktive Abschnitt als Werkstatt-Karte (Kopf + Generieren-Prompt ODER Review). */
 function ActiveAbschnitt({
-  def, run, ctrl, tweakEffektiv, onOpenTweak,
+  def, run, ctrl, tweakEffektiv, onOpenTweak, docked = false,
 }: {
   def: WorkflowStep;
   run: WorkflowRun;
   ctrl: ReturnType<typeof useGutachtenWorkflow>;
   tweakEffektiv: boolean;
   onOpenTweak: () => void;
+  /** Mehrspaltig: Karte ohne eigenen Rahmen, Teil der Docked-Einheit (`.g-card.docked`). */
+  docked?: boolean;
 }): React.ReactElement {
   const id = def.id;
   const step = run.schritte[id];
@@ -362,7 +381,7 @@ function ActiveAbschnitt({
   return (
     // key = Abschnitts-ID: bei Abschnittswechsel remountet die Karte → Fade-in spielt
     // erneut und der lokale Bearbeiten-Zustand (Editor) wird sauber zurückgesetzt.
-    <section className="g-card werk" key={id}>
+    <section className={`g-card werk${docked ? ' docked' : ''}`} key={id}>
       <div className="g-card-head">
         <h2 className="g-card-title">{def.id} — {def.label}</h2>
         {status === 'freigegeben' ? (
