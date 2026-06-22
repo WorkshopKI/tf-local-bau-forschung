@@ -35,6 +35,7 @@ export {
   QS_BASIS_SKILL_ID,
   RELEVANZ_MAP_SKILL_ID,
 } from './seed';
+export { SEED_NF_SKILL, NF_DEF, NF_SKILL_ID } from './nf-skill.seed';
 export {
   evalGate,
   flattenStepsTopological,

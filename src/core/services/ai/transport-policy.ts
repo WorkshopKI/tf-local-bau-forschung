@@ -47,8 +47,14 @@ export function erlaubteTransportKlassen(p: { enthaeltDokumentInhalte: boolean }
  * `zielText` (LLM-QS) + `vorherigeAbschnitte` (Vorkontext) + `vbRelevant`
  * (Relevanz-Map-Auszug) zählen mit — sonst gälte ein nur-`{{vbRelevant}}`-Skill
  * fälschlich als inhaltsfrei und dürfte extern laufen (DSGVO-Leck).
+ * `tvKontext` + `verbundKontext` (NF: TV-/Verbund-VB-Analyse) zählen ebenfalls mit;
+ * `nfBausteine` (kuratierter Katalog) ist kein Dokumentinhalt, wird aber fail-safe
+ * mitgezählt, da NF-Läufe ohnehin intern-pflichtig sind (Pitfall #30).
  */
-const INHALTS_SLOTS = ['vbMarkdown', 'stammdaten', 'zielText', 'vorherigeAbschnitte', 'vbRelevant'];
+const INHALTS_SLOTS = [
+  'vbMarkdown', 'stammdaten', 'zielText', 'vorherigeAbschnitte', 'vbRelevant',
+  'tvKontext', 'verbundKontext', 'nfBausteine',
+];
 
 /**
  * Referenziert das Template einen Inhalts-Slot? Basis der Ableitung — ist sie

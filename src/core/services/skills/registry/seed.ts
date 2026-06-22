@@ -16,6 +16,7 @@
 import type {
   QualitaetsRegel, SkillModifierKey, SkillRecord, SkillRegistryFile, WorkflowDef, WorkflowStep,
 } from './types';
+import { SEED_NF_SKILL, NF_DEF } from './nf-skill.seed';
 
 /** Fester Seed-Zeitstempel — deterministisch (kein `new Date()` zur Seed-Zeit). */
 const SEED_TS = '2026-06-11T00:00:00.000Z';
@@ -484,13 +485,13 @@ export const ZIM_EP_DEF: WorkflowDef = {
   ],
 };
 
-export const SEED_WORKFLOWS: WorkflowDef[] = [ZIM_EP_DEF];
+export const SEED_WORKFLOWS: WorkflowDef[] = [ZIM_EP_DEF, NF_DEF];
 
 /** Vollständiger Seed-Registry-Stand (Startbestand / Read-only-Fallback). */
 export const SEED_REGISTRY: SkillRegistryFile = {
   version: 1,
   updated_at: SEED_TS,
-  skills: [SEED_SKILL, ...SEED_SKILLS_BG, SEED_QS_SKILL, SEED_RELEVANZ_MAP_SKILL],
+  skills: [SEED_SKILL, ...SEED_SKILLS_BG, SEED_QS_SKILL, SEED_RELEVANZ_MAP_SKILL, SEED_NF_SKILL],
   regeln: [...SEED_REGELN, ...SEED_REGELN_BG],
   workflows: SEED_WORKFLOWS,
 };

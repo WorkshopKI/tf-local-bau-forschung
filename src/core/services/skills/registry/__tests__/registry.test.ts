@@ -151,8 +151,9 @@ describe('Artefakt-Engine — additive Felder + Default-Resolver', () => {
 
 describe('Seed', () => {
   it('enthält die Gutachten-Skills A–G + QS-Basis + zusammenpassende Regeln', () => {
-    // A (Kurzfassung) + B–G = 7 Skills + qs-basis + relevanz-map = 9; 5 A-Regeln + 7 B–G-Regeln = 12 Regeln (QS + Relevanz-Map haben keine).
-    expect(SEED_REGISTRY.skills).toHaveLength(9);
+    // A (Kurzfassung) + B–G = 7 Skills + qs-basis + relevanz-map + nf-auswahl-fuellung = 10;
+    // 5 A-Regeln + 7 B–G-Regeln = 12 Regeln (QS + Relevanz-Map + NF-Skill haben keine).
+    expect(SEED_REGISTRY.skills).toHaveLength(10);
     expect(SEED_REGISTRY.regeln).toHaveLength(12);
     expect(getSkillById(SEED_REGISTRY, 'qs-basis')!.regelIds).toEqual([]);
     const skill = SEED_REGISTRY.skills[0]!; // A = Kurzfassung

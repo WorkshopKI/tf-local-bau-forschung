@@ -94,6 +94,21 @@ export interface SkillRunInput {
   zielText?: string;
   /** LLM-QS: Zweck/Überschrift des bewerteten Abschnitts für den `{{abschnittszweck}}`-Slot. */
   abschnittszweck?: string;
+  /**
+   * NF: der wortgetreue Baustein-Katalog (relevante Bausteine, formatiert) für den
+   * `{{nfBausteine}}`-Slot. Fehlt der Platzhalter im Template → keine Wirkung.
+   */
+  nfBausteine?: string;
+  /**
+   * NF: Quellanalyse/Kontext des Teilvorhabens für den `{{tvKontext}}`-Slot
+   * (dokument-tragend → intern). Fehlt der Platzhalter → keine Wirkung.
+   */
+  tvKontext?: string;
+  /**
+   * NF: Verbund-/Gesamtvorhaben-Kontext für den `{{verbundKontext}}`-Slot
+   * (dokument-tragend → intern). Fehlt der Platzhalter → keine Wirkung.
+   */
+  verbundKontext?: string;
   /** VB-Zeichen-Cap aus der LLM-Kontextlänge (`getVbCharCap()`). Fehlt er → statischer `VB_CHAR_CAP`. */
   vbCharCap?: number;
   /**
@@ -186,6 +201,11 @@ export function composeSkillPrompt(
   // Relevanz-Map-Slot — No-op, wenn der Platzhalter fehlt (Seed-Templates nutzen
   // {{vbMarkdown}}; auf {{vbRelevant}} umzustellen ist eine spätere Kurator-Entscheidung).
   content = fillSlot(content, 'vbRelevant', input.vbRelevant ?? '');
+  // NF-Slots — No-op, wenn die Platzhalter fehlen (nur der NF-Skill nutzt sie;
+  // alle Bestands-Skills bleiben byte-identisch).
+  content = fillSlot(content, 'nfBausteine', input.nfBausteine ?? '');
+  content = fillSlot(content, 'tvKontext', input.tvKontext ?? '');
+  content = fillSlot(content, 'verbundKontext', input.verbundKontext ?? '');
   if (input.tweak?.aktiv) {
     const tweakBlock = buildTweakBlock(input.tweak.stilHinweise, input.tweak.beispielFormulierungen);
     if (tweakBlock) content += `\n\n${tweakBlock}`;

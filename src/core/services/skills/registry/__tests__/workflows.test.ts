@@ -169,10 +169,10 @@ describe('mergeMissingSeeds — workflows additiv', () => {
     // bewusst KEIN workflows-Feld (Bestands-Installation vor dieser Version)
   });
 
-  it('ergänzt fehlendes zim-ep aus dem Seed', () => {
+  it('ergänzt fehlende Seed-Workflows (zim-ep + zim-nf)', () => {
     const merged = mergeMissingSeeds(curatedNoWf());
     expect(merged.ergaenzteWorkflows).toEqual(SEED_WORKFLOWS.map(w => w.id));
-    expect(merged.file.workflows!.map(w => w.id)).toEqual(['zim-ep']);
+    expect(merged.file.workflows!.map(w => w.id)).toEqual(['zim-ep', 'zim-nf']);
   });
 
   it('ist idempotent (zweiter Lauf ergänzt keine Workflows)', () => {
