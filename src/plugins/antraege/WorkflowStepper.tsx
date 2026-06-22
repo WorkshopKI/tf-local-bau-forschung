@@ -13,6 +13,7 @@
  *   bewilligt / genehmigt            -> 3 Bewilligung    (success)
  *   abgeschlossen / archiviert       -> 4 Schluss        (default)
  */
+import { useState } from 'react';
 import { getStatusVariant, type BadgeVariant } from '@/core/utils/status-mappings';
 
 const STEPS = ['Eingang', 'Vollständigkeit', 'Fachprüfung', 'Bewilligung', 'Schluss'] as const;
@@ -48,15 +49,44 @@ function activeClassFor(variant: BadgeVariant): string {
 
 interface Props {
   status: string;
+  /**
+   * Eingeklappt-Modus (Kompakt-Layout): Default zeigt nur das Status-Badge
+   * „● <Step>, Schritt n/5" + „Alle Schritte ↓"; aufgeklappt der volle Pills-
+   * Stepper + „↑ einklappen". Ohne den Prop unverändert (immer Pills).
+   */
+  collapsible?: boolean;
 }
 
-export function WorkflowStepper({ status }: Props): React.ReactElement {
+export function WorkflowStepper({ status, collapsible = false }: Props): React.ReactElement {
   const activeStep = STATUS_TO_STEP[status] ?? 0;
   const variant = getStatusVariant(status);
   const activeClass = activeClassFor(variant);
+  const [open, setOpen] = useState(!collapsible);
+
+  const toggle = (label: string, onClick: () => void): React.ReactElement => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] whitespace-nowrap"
+    >
+      {label}
+    </button>
+  );
+
+  if (collapsible && !open) {
+    return (
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <span className={`inline-flex items-center gap-1.5 h-[26px] px-3 rounded-full text-[12px] font-medium whitespace-nowrap ${activeClass}`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" aria-hidden="true" />
+          {STEPS[activeStep]}, Schritt {activeStep + 1} / {STEPS.length}
+        </span>
+        {toggle('Alle Schritte ↓', () => setOpen(true))}
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {STEPS.map((label, i) => {
         const isActive = i === activeStep;
         const isPast = i < activeStep;
@@ -79,6 +109,7 @@ export function WorkflowStepper({ status }: Props): React.ReactElement {
           </div>
         );
       })}
+      {collapsible && toggle('↑ einklappen', () => setOpen(false))}
     </div>
   );
 }

@@ -5,6 +5,32 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.110.0 — Verbund-Detailseite „Kompakt"-Layout (Juni 2026)
+
+MINOR-Bump — reine Layout-/Darstellungs-Optimierung der Verbund-/Antrag-Detailseite
+([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)), **kein** Daten-/Schema-/Persistenz-Change,
+alle Funktionen bleiben (TV-Aufklappen, Historie, Pseudo-Verbund, `onOpenAntrag`, Gutachten/NF). Umsetzung
+des Handoffs `_design/handoff/workflow-stammdaten/` (Variante B „Kompakt"; Variante C „Tabbed" bewusst
+nicht). Ziel: ~20 Zeilen Höhe sparen → Gutachten/Nachforderungen ohne langes Scrollen erreichbar. Reine
+Tailwind-Übersetzung (kein scoped CSS). Betrifft **Produktion** (prod/kurator/pl), nicht hinter dev-Flag.
+
+- **Kompakter Header**: Akronym + Status-Badge + FKZ in **einer** Zeile (statt Badge-Zeile über dem Titel),
+  Untertitel darunter.
+- **Warnung „Früher abgelehnt"** ([AbgelehnteVorgaengerBanner.tsx](src/plugins/antraege/AbgelehnteVorgaengerBanner.tsx)):
+  3- → **1-zeilig**, Klick öffnet die volle (anklickbare) Vorgänger-Liste, Kopf klappt wieder ein.
+- **Sticky Sprung-Navigation**: Anker-Leiste (Beschreibung/Stammdaten/Workflow/Teilvorhaben/↓ Gutachten/
+  ↓ Nachforderungen), **dynamisch** nur für vorhandene Sektionen (Pseudo/Flags). Klebt im
+  PanelShell-Scrollcontainer unter der Close-Bar (`top-[34px]`); Klick scrollt per `scrollIntoView`
+  (Container-agnostisch, Sektionen tragen `scroll-mt-[80px]`) — nicht `window.scrollTo` wie der Prototyp.
+- **Kurzbeschreibung**: auf 3 Zeilen geklemmt (`line-clamp-3`) + „↓ Volltext lesen"-Toggle (erst ab >220 Zeichen).
+- **Stammdaten**: inline **4-Spalten** (`grid-cols-[auto_1fr_auto_1fr]`, Label vor Wert, Ellipsis + Tooltip)
+  statt gestapeltem 2×3-Raster (`KeyVal` → `StammCell`-Fragment).
+- **Status & Workflow** ([WorkflowStepper.tsx](src/plugins/antraege/WorkflowStepper.tsx)): neuer optionaler
+  `collapsible`-Modus (Default eingeklappt) — Status-Badge „● Eingang, Schritt 1/5" + „Alle Schritte ↓";
+  Step-Logik unverändert in der Komponente.
+- **Teilvorhaben**: 3- → **2-zeilig** (Titel-/XSW-Zeile entfällt in der Liste; bleibt im aufgeklappten
+  `TvDetailBlock`), Aufklapp-Verhalten + Status-Badge unverändert.
+
 ### v2.109.0 — Gutachten-Workflow „Werkstatt"-Layout + Inline-Bearbeiten (Juni 2026)
 
 MINOR-Bump — additiv, **kein** Object-Store/Schema-Bump (alte `WorkflowRun`s laden unverändert). Der

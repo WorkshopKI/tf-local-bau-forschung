@@ -88,6 +88,9 @@ export function VerbundDetail({
   const [schemas, setSchemas] = useState<CsvSchema[]>([]);
   const [sourceNames, setSourceNames] = useState<Record<string, string>>({});
   const [historyField, setHistoryField] = useState<string | null>(null);
+  // Kompakt-Layout (v2.110): Kurzbeschreibung-Expand + aktiver Sprung-Nav-Eintrag.
+  const [kbOpen, setKbOpen] = useState(false);
+  const [activeJump, setActiveJump] = useState<string | null>(null);
   // Unterprogramm-Labels (Code → Name) fuer die Stammdaten-Anzeige — statt der
   // nackten Nummer den sprechenden Namen. Hook vor dem fruehen Return halten.
   const unterprogrammLabels = useUnterprogrammLabels(antraege[0]?.programm_id ?? null);
@@ -286,11 +289,28 @@ export function VerbundDetail({
     verbund, antraege, headerId, verbund.verbund_id,
   );
 
+  // Sprung-Navigation (Kompakt): nur Anker für tatsächlich gerenderte Sektionen
+  // (Pseudo-Verbund hat keine Stammdaten/TV; Gutachten/NF nur bei aktivem Flag).
+  const gutachtenSichtbar = isGutachtenWorkflowEnabled() || isGutachtenKurzfassungEnabled();
+  const jumpItems = ([
+    vorhabenInhalt ? { id: 'kurz', label: 'Beschreibung' } : null,
+    !isPseudo ? { id: 'stamm', label: 'Stammdaten' } : null,
+    stepperStatus ? { id: 'workflow', label: 'Workflow' } : null,
+    !isPseudo ? { id: 'tv', label: 'Teilvorhaben' } : null,
+    gutachtenSichtbar ? { id: 'gutachten', label: '↓ Gutachten' } : null,
+    isNfNachforderungenEnabled() ? { id: 'nf', label: '↓ Nachforderungen' } : null,
+  ].filter(Boolean)) as { id: string; label: string }[];
+  const jump = (id: string): void => {
+    setActiveJump(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <PanelShell onClose={onClose}>
-      {/* Header-Block: Status-Pill, Akronym, Untertitel */}
-      <div className="mb-5">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
+      {/* Header-Block (Kompakt): Akronym + Status-Badge + FKZ inline, Untertitel darunter. */}
+      <div className="mb-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <h1 className="text-[20px] font-medium text-[var(--tf-text)] leading-tight tracking-[-0.01em]">{akronym}</h1>
           {displayStatus ? (
             <Badge variant={getStatusVariant(displayStatus)}>
               {getStatusLabel(displayStatus)}
@@ -298,35 +318,71 @@ export function VerbundDetail({
           ) : null}
           <span className="text-[12px] text-[var(--tf-text-tertiary)] font-mono">{headerId}</span>
         </div>
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">{akronym}</h1>
         {titel ? (
-          <div className="mt-1 text-[14px] text-[var(--tf-text-secondary)]">
+          <div className="mt-2.5 text-[12.5px] leading-[1.5] text-[var(--tf-text-secondary)]">
             {titel}<XswSuffix value={leadXsw} />
           </div>
         ) : leadXsw ? (
-          <div className="mt-1 text-[14px]"><XswSuffix value={leadXsw} /></div>
+          <div className="mt-2.5 text-[12.5px]"><XswSuffix value={leadXsw} /></div>
         ) : null}
       </div>
 
       {/* VORGÄNGER-HINWEIS — frühere abgelehnte/zurückgezogene Einreichungen
-          desselben Kurznamens. Sitzt direkt unter dem Header (hohe Sichtbarkeit). */}
+          desselben Kurznamens. Kompakt 1-zeilig, Klick öffnet die Vollansicht. */}
       {vorgaenger.length > 0 ? (
         <AbgelehnteVorgaengerBanner vorgaenger={vorgaenger} onOpenAntrag={onOpenAntrag} />
+      ) : null}
+
+      {/* SPRUNG-NAVIGATION (sticky) — schneller Sprung zu Gutachten/Nachforderungen
+          ohne langes Scrollen. Klebt im PanelShell-Scrollcontainer unter der
+          Close-Bar (top-[34px]); scrollt per scrollIntoView (Container-agnostisch,
+          Sektionen tragen scroll-mt-[80px]). */}
+      {jumpItems.length >= 2 ? (
+        <div
+          className="sticky top-[34px] z-20 -mx-6 mb-4 px-4 flex items-stretch overflow-x-auto"
+          style={{ background: 'var(--tf-bg)', borderBottom: '0.5px solid var(--tf-border)' }}
+        >
+          {jumpItems.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => jump(item.id)}
+              className={`px-2.5 py-2.5 text-[12.5px] whitespace-nowrap border-b-2 -mb-px transition-colors ${
+                activeJump === item.id
+                  ? 'text-[var(--tf-primary)] border-[var(--tf-primary)] font-medium'
+                  : 'text-[var(--tf-text-secondary)] border-transparent hover:text-[var(--tf-primary)]'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       ) : null}
 
       {/* KURZBESCHREIBUNG — Verbund-Inhalt aus VB_INHALT. Sitzt ganz oben,
           damit der User die Projektidee sofort sieht ohne einen TV
           aufklappen zu muessen. */}
       {vorhabenInhalt ? (
-        <div className="mb-6">
+        <div id="kurz" className="mb-4 scroll-mt-[80px]">
           <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
             Kurzbeschreibung
           </h3>
           <div
-            className="rounded-[var(--tf-radius)] p-4 text-[13px] leading-relaxed text-[var(--tf-text)] whitespace-pre-wrap"
+            className="rounded-[var(--tf-radius)] p-4"
             style={{ background: 'var(--tf-bg-secondary)' }}
           >
-            {vorhabenInhalt}
+            <p className={`m-0 text-[13px] leading-relaxed text-[var(--tf-text)] whitespace-pre-wrap${vorhabenInhalt.length > 220 && !kbOpen ? ' line-clamp-3' : ''}`}>
+              {vorhabenInhalt}
+            </p>
+            {vorhabenInhalt.length > 220 ? (
+              <button
+                type="button"
+                onClick={() => setKbOpen(o => !o)}
+                className="mt-1.5 text-[12px] text-[var(--tf-primary)] hover:opacity-80"
+              >
+                {kbOpen ? '↑ Weniger' : '↓ Volltext lesen'}
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -336,25 +392,21 @@ export function VerbundDetail({
           rendert; doppelte Anzeige vermeiden. */}
       {!isPseudo ? (
         <div
-          className="rounded-[var(--tf-radius)] p-4 mb-6"
+          id="stamm"
+          className="rounded-[var(--tf-radius)] p-4 mb-4 scroll-mt-[80px]"
           style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
         >
           <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-3">
             Stammdaten
           </h3>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-            <KeyVal label="Antragsteller" value={antragsteller ?? '—'} />
-            <KeyVal label="Unterprogramm" value={unterprogramm ?? '—'} />
-            <KeyVal
-              label="Antragsdatum"
-              value={antragsdatum ? formatGermanDate(antragsdatum) : '—'}
-            />
-            <KeyVal label="Zuwendung" value={zuwendungPlaceholder} />
-            <KeyVal label="Förderkennzeichen" value={verbund.verbund_id} mono />
-            <KeyVal
-              label="Verbund"
-              value={`${antraege.length} ${antraege.length === 1 ? 'Teilvorhaben' : 'Teilvorhaben'}`}
-            />
+          {/* Inline 4-Spalten (Label vor Wert) — kompakter als gestapelt. */}
+          <div className="grid grid-cols-[auto_1fr_auto_1fr] gap-x-3.5 gap-y-1.5 items-baseline">
+            <StammCell k="Antragsteller" v={antragsteller ?? '—'} />
+            <StammCell k="Unterprogramm" v={unterprogramm ?? '—'} />
+            <StammCell k="Antragsdatum" v={antragsdatum ? formatGermanDate(antragsdatum) : '—'} />
+            <StammCell k="Zuwendung" v={zuwendungPlaceholder} />
+            <StammCell k="Förderkennzeichen" v={verbund.verbund_id} mono />
+            <StammCell k="Verbund" v={`${antraege.length} Teilvorhaben`} />
           </div>
         </div>
       ) : null}
@@ -362,18 +414,18 @@ export function VerbundDetail({
       {/* STATUS & WORKFLOW — immer sichtbar (wenn ein Status vorhanden ist).
           Inhalt wechselt zwischen Verbund- und expandiertem TV-Status. */}
       {stepperStatus ? (
-        <div className="mb-6">
+        <div id="workflow" className="mb-4 scroll-mt-[80px]">
           <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
             {stepperHeading}
           </h3>
-          <WorkflowStepper status={stepperStatus} />
+          <WorkflowStepper status={stepperStatus} collapsible />
         </div>
       ) : null}
 
       {/* TEILVORHABEN — bei echtem Verbund: expandable Rows mit Inline-Detail.
           Bei Pseudo: einziger TV wird direkt darunter (ohne Liste) gerendert. */}
       {!isPseudo ? (
-        <div className="mb-6">
+        <div id="tv" className="mb-4 scroll-mt-[80px]">
           <div className="flex items-center gap-2 mb-3">
             <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
               Teilvorhaben
@@ -384,8 +436,6 @@ export function VerbundDetail({
           <div className="flex flex-col gap-1.5">
             {antraege.map((tv, idx) => {
               const tvAntragsteller = strOrNull(tv.antragsteller) ?? '—';
-              const tvTitel = strOrNull(tv.titel);
-              const tvXsw = readXsw(tv);
               const tvStatus = strOrNull(tv.status);
               const rolle = tvRolle(tv, idx, antraege);
               const isExpanded = expandedTvAz === tv.aktenzeichen;
@@ -418,16 +468,6 @@ export function VerbundDetail({
                           {rolle} · <span className="font-mono">{tv.aktenzeichen}</span>
                           {' '}· Zuwendung: {zuwendungPlaceholder}
                         </div>
-                        {tvTitel || tvXsw ? (
-                          <div className="flex items-baseline gap-1 mt-0.5 min-w-0">
-                            {tvTitel ? (
-                              <span className="text-[11.5px] text-[var(--tf-text-secondary)] truncate" title={tvTitel}>
-                                {tvTitel}
-                              </span>
-                            ) : null}
-                            <XswSuffix value={tvXsw} className="shrink-0 max-w-[55%] truncate text-[11.5px]" />
-                          </div>
-                        ) : null}
                       </div>
                       {tvStatus ? (
                         <Badge
@@ -469,11 +509,11 @@ export function VerbundDetail({
           else-if-Praezedenz, damit in dev (beide Flags true) nur EINE Sektion
           mountet. */}
       {isGutachtenWorkflowEnabled() ? (
-        <div className="mt-6 pt-6" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <div id="gutachten" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <GutachtenSection ctx={kurzfassungCtx} />
         </div>
       ) : isGutachtenKurzfassungEnabled() ? (
-        <div className="mt-6 pt-6" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <div id="gutachten" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <KurzfassungSection ctx={kurzfassungCtx} />
         </div>
       ) : null}
@@ -481,7 +521,7 @@ export function VerbundDetail({
       {/* NACHFORDERUNGEN — Verbund-Ebene, eigener Artefakt-Typ (nur dev). Eigene
           Sektion (kein else-if zur Gutachten-Sektion): NF ist ein anderes Artefakt. */}
       {isNfNachforderungenEnabled() && (
-        <div className="mt-6 pt-6" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <NachforderungenSection ctx={kurzfassungCtx} />
         </div>
       )}
@@ -554,22 +594,23 @@ export function VerbundDetail({
   );
 }
 
-interface KeyValProps {
-  label: string;
-  value: string;
+interface StammCellProps {
+  k: string;
+  v: string;
   mono?: boolean;
 }
 
-function KeyVal({ label, value, mono = false }: KeyValProps): React.ReactElement {
+/**
+ * Eine Stammdaten-Zelle als ZWEI Grid-Items (Label + Wert) — bewusst ein Fragment,
+ * damit beide direkt im `grid-cols-[auto_1fr_auto_1fr]`-Raster landen (inline-Label
+ * vor dem Wert, Kompakt-Layout). Lange Werte ellipsen mit `title`-Tooltip.
+ */
+function StammCell({ k, v, mono = false }: StammCellProps): React.ReactElement {
   return (
-    <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-0.5">
-        {label}
-      </div>
-      <div className={`text-[12.5px] text-[var(--tf-text)] truncate ${mono ? 'font-mono' : ''}`} title={value}>
-        {value}
-      </div>
-    </div>
+    <>
+      <span className="text-[12px] leading-[1.5] text-[var(--tf-text-tertiary)] whitespace-nowrap">{k}</span>
+      <span className={`text-[12.5px] leading-[1.5] text-[var(--tf-text)] truncate ${mono ? 'font-mono' : ''}`} title={v}>{v}</span>
+    </>
   );
 }
 
