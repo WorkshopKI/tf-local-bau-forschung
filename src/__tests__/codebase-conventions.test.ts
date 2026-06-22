@@ -677,7 +677,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 27;    // Ist 23 (+4 Reserve)
   const MAX_SERVICE_DIRS = 21;     // Ist 21 (+ skill-feedback File-first Substrat S1: spannt skills+personal-storage+infrastructure, Fundament für S2/S3 — bewusst eigene Domaene; davor 20 nach skill-eval)
-  const MAX_FILE_LOC = 1500;       // Ist ~1219 (ZuweisungsCockpit.tsx), ~20 % Reserve
+  const MAX_FILE_LOC = 980;        // Ist 846 (smb-handle.ts); ZuweisungsCockpit.tsx von 1285 → 687 zerlegt (v2.111), ~15 % Reserve
   const MAX_UI_SHIM_IMPORTS = 64;  // Ist 64 — der @/ui-Re-Export-Shim (P1b) darf nur SINKEN
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
