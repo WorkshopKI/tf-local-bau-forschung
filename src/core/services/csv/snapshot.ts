@@ -10,6 +10,8 @@ import {
   listRowHashesBySchemas,
   listSchemasByProgramm,
   listUnterprogrammeByProgramm,
+  listAntraegeListViewByProgramm,
+  getVerbund,
   getProgramm,
 } from './idb-csv';
 import { murmurhash3 } from './hash';
@@ -137,12 +139,48 @@ async function navigateSnapshotDir(
 
 type SmallStoreData = Partial<Record<SnapshotStoreName, { jsonl: string; count: number }>>;
 
+/** Distinkte, nicht-leere `verbund_id` über die List-View eines Programms —
+ *  die Quelle-of-Truth-Sicht (Anträge), gegen die der abgeleitete verbuende-
+ *  Cache beim Serialisieren abgeglichen wird (Diagnose + Invariant-Guard). */
+async function distinctVerbundIdsFromAntraege(idb: IDBStore, programmId: string): Promise<Set<string>> {
+  const items = await listAntraegeListViewByProgramm(idb, programmId);
+  const out = new Set<string>();
+  for (const it of items) {
+    if (typeof it.verbund_id === 'string' && it.verbund_id.length > 0) out.add(it.verbund_id);
+  }
+  return out;
+}
+
 /** Serialisiert alle Stores AUSSER antraege (klein) zu JSONL + Counts. */
 async function loadSmallStoreData(idb: IDBStore, programmId: string): Promise<SmallStoreData> {
   const programmObj = await getProgramm(idb, programmId);
   if (!programmObj) throw new Error(`Programm ${programmId} nicht in IDB`);
   const antragHistorie = await listAntragHistorieByProgramm(idb, programmId);
   const verbuende = await listVerbundsByProgramm(idb, programmId);
+
+  // Diagnose: der verbuende-Store ist ein abgeleiteter Cache, hier serialisiert
+  // über den programm_id-Index. Fehlt/mis-filed ein Record, fällt er still raus
+  // (Bug: unvollständige verbuende.jsonl, z.B. „ZKN110630"). Gegen die Quelle
+  // (distinkte verbund_id über die Anträge des Programms) gegenchecken und die
+  // Lücke klassifizieren (absent vs. mis-filed unter falscher programm_id).
+  const distinctVids = await distinctVerbundIdsFromAntraege(idb, programmId);
+  const haveVids = new Set(verbuende.map(v => v.verbund_id));
+  const missing = [...distinctVids].filter(vid => !haveVids.has(vid));
+  if (missing.length > 0) {
+    const classified = await Promise.all(missing.slice(0, 10).map(async vid => {
+      const rec = await getVerbund(idb, vid);
+      if (!rec) return `${vid}=absent`;
+      return rec.programm_id === programmId
+        ? `${vid}=present-but-index-miss(programm_id="${rec.programm_id}")`
+        : `${vid}=mis-filed(programm_id="${rec.programm_id}")`;
+    }));
+    console.warn(
+      `[snapshot-diag] Programm ${programmId}: ${verbuende.length} Verbünde serialisiert, ` +
+      `aber ${distinctVids.size} distinkte verbund_id in Anträgen — ${missing.length} fehlen. ` +
+      `Beispiele: ${classified.join(', ')}`,
+    );
+  }
+
   const verbundHistorie = await listVerbundHistorieByProgramm(idb, programmId);
   const akronymIndex = await listAkronymIndexByProgramm(idb, programmId);
   const csvSchemas = await listSchemasByProgramm(idb, programmId);
