@@ -15,7 +15,7 @@
  * `checks`, der Denkprozess das echte Reasoning.
  */
 import { Quote, ChevronRight } from 'lucide-react';
-import { CollapsibleSection } from '@/ui';
+import { CollapsibleSection, MarkdownRenderer } from '@/ui';
 import { CheckList } from '../kurzfassung/CheckList';
 import { QsHinweisList } from './QsHinweisList';
 import type { StepRun } from './types';
@@ -49,7 +49,7 @@ export function KontextPanel({ step, provenance, variant, onCollapse }: Props): 
           <div className="g-ctx-cap">Antragsbezug</div>
           <div className="g-quotecard">
             <Quote className="g-qci" />
-            <p>{step.quellenanalyse}</p>
+            <div className="g-quote-md"><MarkdownRenderer content={step.quellenanalyse} /></div>
           </div>
         </div>
       )}

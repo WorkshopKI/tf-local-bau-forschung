@@ -165,6 +165,10 @@
 .gutachten-werkstatt .g-quotecard { position: relative; background: var(--tf-bg); border: .5px solid var(--tf-border); border-radius: 9px; padding: 12px 13px 12px 36px; }
 .gutachten-werkstatt .g-qci { position: absolute; left: 12px; top: 12px; width: 16px; height: 16px; color: var(--tf-primary); opacity: .55; }
 .gutachten-werkstatt .g-quotecard p { margin: 0; font: 13px/1.6 var(--tf-font-sans); color: var(--tf-text-secondary); text-wrap: pretty; }
+/* Quellenanalyse als Markdown im Zitat-Kasten — dezent (Quelle, nicht Fließtext). */
+.gutachten-werkstatt .g-quote-md { font: 13px/1.6 var(--tf-font-sans); color: var(--tf-text-secondary); }
+.gutachten-werkstatt .g-quote-md > :first-child { margin-top: 0; }
+.gutachten-werkstatt .g-quote-md > :last-child { margin-bottom: 0; }
 .gutachten-werkstatt .g-ctx-text { margin: 0; font: 12.5px/1.6 var(--tf-font-sans); color: var(--tf-text-secondary); text-wrap: pretty; white-space: pre-wrap; }
 .gutachten-werkstatt .g-ctx-foot { border-top: .5px solid var(--tf-border); padding-top: 12px; }
 
