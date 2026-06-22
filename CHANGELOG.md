@@ -5,6 +5,28 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.110.1 — Vollständige `verbuende.jsonl` an der Quelle (Juni 2026)
+
+PATCH-Bump — Korrektheits-Bugfix, **kein** Schema-/Snapshot-Format-Change, kein neuer Object-Store. Die
+veröffentlichte `verbuende.jsonl` war **unvollständig** (bestätigt: `verbund_id` „ZKN110630" fehlte, obwohl
+Teilanträge mit dieser ID existierten); der UI-Self-Heal in [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)
+maskierte das nur in der Detailansicht, andere Konsumenten (Home-Dashboard, Historie) bekamen lückenhafte Daten.
+
+- **Ursache**: Der Snapshot-**Schreib**pfad ([snapshot.ts](src/core/services/csv/snapshot.ts) `loadSmallStoreData`,
+  genutzt von Voll- **und** Delta-Write) serialisierte die Verbünde aus dem abgeleiteten Cache über den
+  `programm_id`-Index, **ohne** ihn vorher gegen die Quelle (Anträge) abzugleichen. `healMissingVerbuende`
+  lief bisher nur im End-User-**Lese**pfad ([data-update.ts](src/plugins/csv-sources-kuration/services/data-update.ts)),
+  nie vor einem Kurator/PL-**Write** → der Writer publizierte die Lücke seines eigenen Caches. Zusätzlich
+  setzte der Merge-Update-Pfad die `programm_id` nie neu, sodass mis-filed Records dauerhaft aus dem
+  Index-Query fielen.
+- **Fix an der Quelle**: `loadSmallStoreData` ruft `healMissingVerbuende` **vor** dem Serialisieren (ein
+  Choke-Point für beide Write-Pfade) → die veröffentlichte Datei ist vollständig, egal ob der Writer-Cache
+  fehlende oder mis-filed Records hatte. Merge-Update-Pfade ([single.ts](src/core/services/csv/merger/single.ts),
+  [batched.ts](src/core/services/csv/merger/batched.ts)) heilen den `programm_id`-Drift am Bestands-Record.
+- **Invariant-Guard**: nach dem Heal prüft `loadSmallStoreData`, dass jeder von den Anträgen referenzierte
+  Verbund serialisiert ist — Restlücke = tiefere Divergenz: Dev wirft (statt lückenhaft zu publizieren),
+  Laufzeit loggt `console.error`. Regressionstests: absent + mis-filed → vollständige Datei, Guard wirft im Dev.
+
 ### v2.110.0 — Verbund-Detailseite „Kompakt"-Layout (Juni 2026)
 
 MINOR-Bump — reine Layout-/Darstellungs-Optimierung der Verbund-/Antrag-Detailseite
