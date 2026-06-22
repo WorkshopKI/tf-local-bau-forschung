@@ -37,6 +37,9 @@
  *     dokument-tragende Skill-Laeufe (Gutachten/Batch) ueber
  *     bridge.getTransportForSkillRun(skill) statt rohem getActiveTransport();
  *     Verfuegbarkeitschecks (.ping()) ausgenommen / bridge.pingActive().
+ *   - no-hardcoded-kategorie-mapping    → Artefakt-Achse, Kategorie-Einzelquelle:
+ *     der typ→kategorie-Map-Identifier TYP_ZU_KATEGORIE nur in kategorien.ts;
+ *     Regel-Kategorie sonst immer ueber effektiveKategorie() ableiten.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -663,6 +666,42 @@ describe('no-raw-active-transport (CLAUDE.md Pitfall #30, DSGVO-Transport-Policy
         `fuer inhalts-tragende Skills. Reine Verfuegbarkeitschecks: bridge.pingActive()\n` +
         `(oder eine Zeile, die auf derselben Stelle .ping() aufruft). Echte Ausnahme:\n` +
         `'// allow-raw-active-transport: <grund>'.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-hardcoded-kategorie-mapping (Artefakt-Achse: Kategorie-Einzelquelle)', () => {
+  // Die Regel-„Art" (Kategorie) wird aus EINER Quelle abgeleitet: effektiveKategorie()
+  // + die private TYP_ZU_KATEGORIE-Map in src/core/services/skills/registry/kategorien.ts
+  // (Reihenfolge: explizite kategorie > typ-Map > pruefart-Fallback > 'sonstige'). Ein
+  // zweites typ→kategorie-Mapping (Copy-Paste der Map) anderswo divergiert lautlos,
+  // sobald ein Typ dazukommt. Minimal-Guard (analog no-direct-status-compare): der
+  // Map-Identifier TYP_ZU_KATEGORIE darf NUR in kategorien.ts vorkommen; Kategorie
+  // sonst immer ueber effektiveKategorie() ableiten. Liste waechst nur, wenn die
+  // Klasse erneut zuschlaegt.
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+    `${sep}skills${sep}registry${sep}kategorien.ts`, // Einzelquelle der Map
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  it('kein zweites typ→kategorie-Mapping (TYP_ZU_KATEGORIE nur in kategorien.ts; sonst effektiveKategorie())', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(...findInFile(file, l => l.includes('TYP_ZU_KATEGORIE'), 'allow-kategorie-mapping'));
+    }
+    if (findings.length > 0) {
+      const msg =
+        `Hartkodiertes typ→kategorie-Mapping ausserhalb kategorien.ts verboten\n` +
+        `(Artefakt-Achse, Kategorie-Einzelquelle). Eine Regel-Kategorie wird aus EINER\n` +
+        `Quelle abgeleitet: effektiveKategorie() (explizite kategorie > typ-Map >\n` +
+        `pruefart-Fallback) in src/core/services/skills/registry/kategorien.ts. Statt die\n` +
+        `Map zu kopieren: effektiveKategorie(regel) aufrufen. Echte Ausnahme:\n` +
+        `'// allow-kategorie-mapping: <grund>'.\n\nTreffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });

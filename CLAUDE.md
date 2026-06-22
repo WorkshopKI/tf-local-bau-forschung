@@ -131,6 +131,18 @@ Auf der **Verbund**-Detailseite ([VerbundDetail.tsx](src/plugins/antraege/Verbun
 
 Detail (4 Bausteine, Datenfluss, Skill-Struktur, Run-Splitting im DOCX-Füller, Persistenz-Keys, Generalisierungs-Notizen): [docs/architecture/gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
 
+### Artefakt-Engine (Substrat: `artefaktTyp` / `ebene` / `pruefart`)
+
+Generisches Substrat hinter Gutachten + Nachforderungen — eine **Artefakt-Achse orthogonal** zum amtlichen Antrags-Status. Typen in [src/core/services/skills/registry/types.ts](src/core/services/skills/registry/types.ts):
+
+- **`ArtefaktTyp`** (`'ga' | 'nf' | 'abl' | 'rne'`) + **`WorkflowEbene`** (`'verbund' | 'tv'`). Ein `WorkflowRun` ist **je (Typ, Scope)** gekeyt — `workflow-run:<typ>:<scopeId>` im `kv`-Store ([workflow-store.ts](src/plugins/antraege/gutachten/workflow-store.ts)); alte GA-Keys werden beim Lesen lazy promotet. Personal-Spiegel disjunkt per `ARTEFAKT_UNTERORDNER` (GA→`gutachten/`, NF→`nachforderungen/`).
+- **`pruefart`** (`'textlich'` = deterministische Check-Engine | `'fachlich'` = LLM-QS | `'administrativ'` = Struktur-/Platzhalter-Vollständigkeit).
+- **Kategorie-Modell** (Einzelquelle [kategorien.ts](src/core/services/skills/registry/kategorien.ts)): `effektiveKategorie()` reconciled die Regel-„Art" aus **explizite `kategorie` > `typ`-Map (`TYP_ZU_KATEGORIE`) > `pruefart`-Fallback > `'sonstige'`** — der Default wird NIE in die Registry-Daten geschrieben. Kein zweites typ→kategorie-Mapping (Pitfall #31).
+- **Zwei Achsen**: amtlicher Status (`Antrag.status`/`Verbund.status`, Pitfall #12) vs. Artefakte (orthogonal — ein Verbund trägt GA + NF unabhängig vom Status).
+- **„Bausteine = kuratierte App-Daten"**: die NF-Textbausteine ([nf-bausteine.seed.ts](src/core/services/skills/registry/nf-bausteine.seed.ts)) sind Source of Truth (nicht aus Word extrahiert), Platzhalter deterministisch; ihr Text wird **wortgetreu** verwendet — der Skill-Pfad formuliert nie um (Pitfall #34).
+
+Detail (Run-Keying, generische DOCX-Füllung, NF-QS, GA-QS): [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md).
+
 ### Legacy: Vorgang-Typ
 
 `src/core/types/vorgang.ts` (`Vorgang` + `VorgangStatus`) — Überbleibsel des alten Vorgang-zentrierten Datenmodells. Die zugehörige Bauantrag-Demo-Domäne (Plugin, Seed, Workflow-/Artefakt-Stack) wurde mit **v2.88 entfernt**; übrig bleibt der `Vorgang`-Typ als reines Projektions-Shape für die **Home-Dashboard**-Aggregation (`AntragVorgang = Vorgang & {…}` in [dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts)) — kein eigener IDB-Store mehr. **Neue Features verwenden das `Antrag`-Interface aus dem CSV-Schema (`src/core/types/csv/types.ts`), nicht `Vorgang`.**
@@ -262,7 +274,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 
 > **Hinweis zur Nummerierung**: append-only. Niemals umnummerieren — Querverweise (in Code-Kommentaren, anderen Docs, Commit-Messages) werden sonst ungültig. Wer einen Pitfall für überholt hält, markiert ihn mit *„(überholt seit vX.Y, siehe …)"* statt ihn zu löschen.
 >
-> **Maschinell erzwungen**: Pitfalls mit `[test: …]` fängt [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts) (Vitest, Inline-Ausnahme `// allow-<rule>: <grund>`). Aktuelle Convention-Tests: `no-direct-status-compare` (#12), `no-direct-feedback-status-compare` (#21), `no-direct-bearbeiter-kuerzel` (#27), `no-hardcoded-datenshare-mode` (#25), `no-raw-async-onclick` (#15), `no-raw-worker` (#5), `no-raw-modal` (Klasse 7) + `no-new-tf-ui-files` (P1a/P1b) + `no-raw-active-transport` (#30) sowie die Klasse-1/-5-Checks `import-requires-store-refresh`, `antraege-write-requires-listview-rebuild` und `no-hardcoded-canonical-field`. **Wiederkehrende, NICHT-nummerierte Bug-Klassen** (Cold-Start-Store-Refresh, FSAPI-One-Prompt-per-Gesture, Parallel-Varianten-Storage, machine-lokale Embedding-Caches) stehen separat in [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
+> **Maschinell erzwungen**: Pitfalls mit `[test: …]` fängt [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts) (Vitest, Inline-Ausnahme `// allow-<rule>: <grund>`). Aktuelle Convention-Tests: `no-direct-status-compare` (#12), `no-direct-feedback-status-compare` (#21), `no-direct-bearbeiter-kuerzel` (#27), `no-hardcoded-datenshare-mode` (#25), `no-raw-async-onclick` (#15), `no-raw-worker` (#5), `no-raw-modal` (Klasse 7) + `no-new-tf-ui-files` (P1a/P1b) + `no-raw-active-transport` (#30) + `no-hardcoded-kategorie-mapping` (#31) sowie die Klasse-1/-5-Checks `import-requires-store-refresh`, `antraege-write-requires-listview-rebuild` und `no-hardcoded-canonical-field`. **Wiederkehrende, NICHT-nummerierte Bug-Klassen** (Cold-Start-Store-Refresh, FSAPI-One-Prompt-per-Gesture, Parallel-Varianten-Storage, machine-lokale Embedding-Caches) stehen separat in [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
 **Index nach Thema** (Sprung-Hilfe — die Pitfalls selbst stehen darunter in Nummern-Reihenfolge):
 
@@ -277,6 +289,8 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 - **Seeds**: #13 Förderantrag-Seeds aus CSV
 - **Gutachten-Kurzfassung (Testballon)**: #29 Verbund-Ebene + kv-Tag-Relation
 - **DSGVO-Transport-Policy**: #30 dokument-tragende Läufe nur intern (`getTransportForSkillRun`)
+- **Artefakt-Achse (Substrat artefaktTyp/ebene/pruefart)**: #31 Kategorie-Einzelquelle (`effektiveKategorie`), #33 Vorlage frisch + Audit-Hash, #34 NF-Baustein wortgetreu
+- **Snapshot-/Store-Konsistenz**: #32 Snapshot = Voll-Store (verbuende heilen) ≠ Slim-List-View
 
 1. **Don't use `import()` for lazy loading** — dynamic imports break under `file://` in single-file builds
 2. **Don't use `fetch()` for local assets** — everything must be inlined or from IndexedDB/FSAPI
@@ -308,3 +322,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 28. **Rollen-Passwort (`auth`-Block) per `npm run set-password` in den Build erzeugen, nie `salt`/`verifier` von Hand; Passwort ändern = Rebuild.** → [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md)
 29. **Gutachten-Kurzfassung gilt pro Verbund; Persistenz im `kv`-Store (`gutachten-kurzfassung:<key>`) + Doc-Tag-Relation, kein CSV-Write.** → [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md)
 30. **Dokument-tragende Skill-Läufe (Generierung/QS/Batch) nur über `bridge.getTransportForSkillRun(skill)`, nie rohes `getActiveTransport()`; Klassifizierung fail-safe (Default intern), Ableitung schlägt Flag.** `[test: no-raw-active-transport]` → [transport-policy.md](docs/architecture/transport-policy.md)
+31. **Regel-Kategorie immer über `effektiveKategorie()` ableiten (explizite `kategorie` > `typ`-Map > `pruefart`-Fallback) — kein zweites typ→kategorie-Mapping; `TYP_ZU_KATEGORIE` lebt nur in `kategorien.ts`.** `[test: no-hardcoded-kategorie-mapping]` → [artefakt-engine.md](docs/architecture/artefakt-engine.md)
+32. **Snapshot serialisiert den VOLL-Store ≠ Slim-`ANTRAEGE_LIST_VIEW`-Projektion; vor dem Schreiben `verbuende` heilen (`healMissingVerbuende`, heal-before-serialize), beim Voll-Write die List-View mitziehen.** → [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)
+33. **DOCX-Vorlage je Run FRISCH lesen (nie gecacht) + SHA-256 in `WorkflowRun.vorlageRef` stempeln (Audit/Reproduzierbarkeit); fehlende/kaputte Vorlage → `FillResult.fehler` statt throw.** → [artefakt-engine.md](docs/architecture/artefakt-engine.md)
+34. **NF-Bausteine sind kuratierte App-Daten und werden wortgetreu verwendet — der Skill-Pfad (Template/System-Prompt/Modifier) formuliert den Baustein-Text nie um, füllt nur Platzhalter.** `[test: nf-skill.test.ts]` → [artefakt-engine.md](docs/architecture/artefakt-engine.md)

@@ -5,6 +5,28 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.111.0 — Konsolidierung: auslastung entzerrt, `@/ui`-Shim retired, Artefakt-Achse dokumentiert (Juni 2026)
+
+MINOR-Bump — **verhaltenserhaltendes** Aufräumen (kein Feature-/UI-/Schema-/Persistenz-Change), additive
+Convention-Tests + Doku. Drei Phasen, je `npm run check` grün + eigener Commit; Schranken nur gesenkt, nie erhöht.
+
+- **auslastung entzerrt**: [ZuweisungsCockpit.tsx](src/plugins/auslastung/views/ZuweisungsCockpit.tsx) von **1285 → 687 LOC**
+  zerlegt — `cockpit-helpers.ts`, `DetailPanel.tsx`, `VerbundListe.tsx`, `FilterToolbar.tsx` ausgelagert (rein
+  prop-getrieben, Verhalten identisch). Die Matching-`useEffect`-Orchestrierung (`matchReqIdRef`-Stale-Guard) blieb
+  bewusst im Cockpit (HIGH-risk State-Kopplung — STOPP-Signal). Drift-Guard `MAX_FILE_LOC` 1500 → 980 (neuer globaler
+  Ist 846 = `smb-handle.ts`).
+- **Legacy + `@/ui`-Shim abgeräumt**: tote `@deprecated`-Symbole entfernt (`recomputeAntragCounts` inkl. Barrel,
+  `QuickTag`/`QUICK_TAGS`, orphan `KuratorLoginGate.tsx`); 63 `@/ui`-Barrel-Importe mechanisch auf `@/components/ui/*`
+  migriert (Dialog/Select bleiben Adapter via `@/ui/Dialog|Select`-Subpfad). Drift-Guard `MAX_UI_SHIM_IMPORTS` 64 → 0
+  (Barrel-Sunset). **KEEP** (echte Live-/Migrations-Pfade, entgegen Erst-Inventar): `getSmbHandle` (20+ Nutzer),
+  `clearSmbHandle`, `is_admin`/`adminOnly`/`admin_status`-Familie, `pickAndStoreParentHandle`/`…Dokumentenquelle…`,
+  `zeitraum_bis`, `LEGACY_PRE_V2_AKTENZEICHEN` (live in `seed-data.ts`); `LEGACY_CSV_*`/`LEGACY_FEEDBACK_*`-Konstanten
+  konservativ belassen.
+- **Doku + Guards**: [CLAUDE.md](CLAUDE.md) um die **Artefakt-Achse** ergänzt (`artefaktTyp`/`ebene`/`pruefart`,
+  Kategorie-Modell via `effektiveKategorie`, Zwei-Achsen-Status, „Bausteine = kuratierte App-Daten"); neue Pitfalls
+  **#31–#34**; neue Convention-Tests `no-hardcoded-kategorie-mapping` (Kategorie-Einzelquelle) + NF-Wortgetreu-Guard
+  (System-Prompt + Modifier) in [nf-skill.test.ts](src/core/services/skills/registry/__tests__/nf-skill.test.ts).
+
 ### v2.110.1 — Vollständige `verbuende.jsonl` an der Quelle (Juni 2026)
 
 PATCH-Bump — Korrektheits-Bugfix, **kein** Schema-/Snapshot-Format-Change, kein neuer Object-Store. Die

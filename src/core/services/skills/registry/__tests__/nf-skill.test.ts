@@ -26,6 +26,18 @@ describe('NF-Skill — Auswahl/Füllung', () => {
     expect(t).toContain('[Im Antrag nicht genannt]'); // quellenbasiert
   });
 
+  it('System-Prompt + alle Re-Invocation-Modifier wahren den Wortgetreu-Kontrakt', () => {
+    // NF-Bausteine sind kuratierte App-Daten und werden WORTGETREU verwendet — der
+    // Skill-Pfad darf den Rechtstext nie umschreiben. Das gilt auch für die
+    // Re-Invocation-Modifier (neu/kürzer/länger), wo Rephrasing am ehesten einsickert.
+    expect(SEED_NF_SKILL.systemPrompt ?? '').toContain('WORTGETREU');
+    const mods = Object.values(SEED_NF_SKILL.modifiers ?? {});
+    expect(mods.length).toBeGreaterThan(0);
+    for (const m of mods) {
+      expect(m).toMatch(/wortgetreu|Keine eigenen Formulierungen|nur zusätzliche Katalog-Bausteine/i);
+    }
+  });
+
   it('trägt KEINE Konversations-/Befehls-/Freigabe-Schicht (liefert der Runner)', () => {
     const t = SEED_NF_SKILL.promptTemplate;
     expect(t).not.toContain('W=Weiter');
