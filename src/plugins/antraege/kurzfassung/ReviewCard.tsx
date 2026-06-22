@@ -71,11 +71,11 @@ export function ReviewCard({
         </CollapsibleSection>
       )}
 
-      {/* Finaler Text */}
+      {/* Finaler Text — bewusst Markdown (Skill-Format, z.B. „**Kurztitel:** …") wie die Quellenanalyse rendern. */}
       <div className="mt-4">
-        {record.finalerText.split(/\n{2,}/).map((p, i) => (
-          <p key={i} className="text-[13.5px] leading-[1.7] text-[var(--tf-text)] mb-2">{p}</p>
-        ))}
+        <div className="text-[13.5px] leading-[1.7] text-[var(--tf-text)]">
+          <MarkdownRenderer content={record.finalerText} />
+        </div>
         <div className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
           {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(record.freigegeben_am ?? record.erstellt_am)}` : `generiert am ${formatDate(record.erstellt_am)}`}
           {record.mitTweak ? ' · mit persönlichem Stil' : ''}

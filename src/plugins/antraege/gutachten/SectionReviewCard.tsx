@@ -13,6 +13,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check } from 'lucide-react';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
@@ -130,8 +131,10 @@ export function SectionReviewCard({
           )}
         </div>
       ) : (
+        // Der finale Text ist bewusst Markdown (Skill-Format z.B. „**Kurztitel:** …",
+        // seed.ts) — wie die Quellenanalyse über den MarkdownRenderer darstellen.
         <div className="g-body">
-          {run.finalerText.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}
+          <MarkdownRenderer content={run.finalerText} />
         </div>
       )}
 

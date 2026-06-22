@@ -5,6 +5,20 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.112.2 — Generierten Text als Markdown rendern (Juni 2026)
+
+PATCH-Bump — Anzeige-Fix in den Review-Karten ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)
++ [ReviewCard.tsx](src/plugins/antraege/kurzfassung/ReviewCard.tsx)). Kein Schema-/Persistenz-Change.
+
+- Der finale Text wurde bisher als roher Plain-Text (`split(/\n{2,}/)`) gezeigt, sodass die vom Skill
+  **bewusst erzeugten** Markdown-Auszeichnungen (z.B. „**Kurztitel:** …" laut [seed.ts](src/core/services/skills/registry/seed.ts))
+  als literale `**` erschienen — anders als die Quellenanalyse, die längst über den `MarkdownRenderer` läuft.
+  Jetzt rendern beide Review-Karten den Text via `MarkdownRenderer` (Bearbeiten-Modus bleibt Plain-Text-Editor
+  = Markdown-Quelle).
+- **Offen/bewusst NICHT enthalten**: Der DOCX-Export ([fill-template.ts](src/core/services/gutachten-vorlagen/fill-template.ts)
+  `buildAnchorParagraphs`) fügt `finalerText` weiterhin verbatim ein → im Word-Dokument stehen die `**` noch
+  literal. Markdown→WordML (Fett-Runs) ist ein separater, größerer Eingriff in den getesteten Export-Pfad.
+
 ### v2.112.1 — Thinking-Schalter kompakt (An/Aus) (Juni 2026)
 
 PATCH-Bump — UI-Tweak am Thinking-Control ([ThinkingControl.tsx](src/plugins/antraege/kurzfassung/ThinkingControl.tsx),
