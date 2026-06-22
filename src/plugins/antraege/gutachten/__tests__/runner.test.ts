@@ -3,6 +3,7 @@ import {
   emptyRun,
   firstNonFreigegeben,
   fruehereInArbeit,
+  leereSchritte,
   applyGeneration,
   applyPruefen,
   applyQsHinweise,
@@ -108,6 +109,35 @@ describe('applyQsHinweise', () => {
     const run1 = applyQsHinweise(run0, 'A', [befund('Ton', 'ok')], LATER);
     expect(run1).not.toBe(run0);
     expect(run0.schritte.A?.qsHinweise).toBeUndefined();
+  });
+});
+
+describe('leereSchritte (Bulk „Alle Abschnitte erstellen" — nur fehlende)', () => {
+  it('liefert die noch fehlenden Abschnitte in Order-Reihenfolge', () => {
+    // A+B+C freigegeben, D entwurf → fehlend: E, F, G.
+    expect(leereSchritte(runMitABCfreigegeben())).toEqual(['E', 'F', 'G']);
+  });
+
+  it('alle leer → alle Abschnitte', () => {
+    expect(leereSchritte(emptyRun('AZ', NOW))).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G']);
+  });
+
+  it('nichts fehlend → leere Liste (Button bleibt aus)', () => {
+    let run = emptyRun('AZ', NOW);
+    for (const id of ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const) run = applyGeneration(run, id, gen(`T${id}`), NOW);
+    expect(leereSchritte(run)).toEqual([]);
+  });
+
+  it('Entwürfe + Freigaben gelten als vorhanden (werden NICHT erneut erzeugt)', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text A'), NOW); // A entwurf
+    run = applyGeneration(run, 'B', gen('Text B'), NOW);
+    run = freigeben(run, 'B', NOW); // B freigegeben
+    expect(leereSchritte(run)).toEqual(['C', 'D', 'E', 'F', 'G']);
+  });
+
+  it('folgt einer abweichenden Order (autoritativ)', () => {
+    const run = applyGeneration(emptyRun('AZ', NOW), 'B', gen('Text B'), NOW); // nur B vorhanden
+    expect(leereSchritte(run, ['B', 'A', 'C'])).toEqual(['A', 'C']);
   });
 });
 

@@ -5,6 +5,32 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.106.0 — Gutachten-Workflow: „Alle Abschnitte als Entwurf erstellen" (Juni 2026)
+
+MINOR-Bump — additive UX im Gutachten-Workflow A–G (kein Schema-Bump, kein neuer Object-Store).
+Bisher lief der Workflow strikt abschnittsweise (generieren → prüfen → freigeben → „Weiter bei …");
+wer **einmal alles als Rohentwurf** wollte, musste zwischendurch freigeben, weil der Einzellauf nur
+**freigegebene** Vorabschnitte als Kontext durchreicht. Neu: **ein Klick** erzeugt alle noch
+**fehlenden** Abschnitte nacheinander als **Entwurf** — ohne Zwischen-Freigabe; jeder neue Entwurf
+bekommt die vorherigen Abschnitte (auch Entwürfe) als Kontext.
+
+- **Bulk-Aktion `generiereAlle`** in [useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts):
+  Generierungs-Kern in `generateInto(base, stepId, …)` extrahiert (arbeitet auf einem **übergebenen**
+  Run → kein stale Closure; B sieht A's frischen Entwurf). Schleife über die fehlenden Abschnitte,
+  `quelle:'entwurf'` für `buildVorherigeAbschnitte`, Run lokal durchgereicht, **Persist pro Abschnitt**
+  (Pitfall #16/#20). `runGeneration` (Einzellauf + Auto-Retry) nutzt denselben Kern — Verhalten
+  unverändert.
+- **Umfang „nur fehlende"** (reine Auswahl `leereSchritte` in [runner.ts](src/plugins/antraege/gutachten/runner.ts)):
+  bestehende Entwürfe **und** Freigaben bleiben unangetastet und dienen als Kontext → **idempotent
+  fortsetzbar** (Transport weg → erneut klicken macht weiter). Single-pass (kein Auto-Retry im Bulk,
+  wie der Batch-Pfad); STOPP bei Transport-weg/Abbruch/Fehler, fertige Entwürfe bleiben persistiert.
+- **UI** ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)): Sekundär-Button
+  „Alle Abschnitte erstellen" im Sektionskopf (nur wenn fehlende Abschnitte da sind), wird während des
+  Laufs zu „Stopp" + Fortschrittszeile; der aktive Abschnitt zeigt den Live-Stream und „läuft" sichtbar
+  durch A→G. Pro Abschnitt der zum jeweiligen Skill gehörende persönliche Tweak.
+- **DSGVO/Transport** unverändert pro Abschnitt über `getTransportForSkillRun` (Pitfall #30).
+- Hinter Feature-Flag `gutachtenWorkflow` (nur dev). Reine Logik/UI, Bundle nicht messbar gewachsen.
+
 ### v2.105.0 — Relevanz-Map: kuratierter VB-Kontext statt Volltext (Juni 2026)
 
 MINOR-Bump — additive Infrastruktur für den Gutachten-Workflow (kein Migrationsschritt, kein

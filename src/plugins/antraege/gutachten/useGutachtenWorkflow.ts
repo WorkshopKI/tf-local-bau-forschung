@@ -46,7 +46,7 @@ import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { putWorkflowRun } from './workflow-store';
 import {
   applyGeneration, applyPruefen, applyQsHinweise, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
-  firstNonFreigegeben,
+  firstNonFreigegeben, leereSchritte,
   type GenerationInput,
 } from './runner';
 import { parseQsBefunde } from './qs';
@@ -59,6 +59,8 @@ export interface GutachtenWorkflowController {
   vbVorhanden: boolean;
   loading: boolean;
   busy: boolean;
+  /** Läuft gerade der Bulk-Lauf „Alle Abschnitte erstellen"? (Button → Stopp + Fortschritt.) */
+  bulkRunning: boolean;
   error: string | null;
   /** Neutraler Vermerk nach erschöpftem Auto-Retry („nach N Versuchen weiterhin Fehler"). */
   retryNote: string | null;
@@ -83,6 +85,8 @@ export interface GutachtenWorkflowController {
   regeln: QualitaetsRegel[];
   tweak: SkillTweak | null;
   generate: (stepId: StepId) => void;
+  /** Alle noch fehlenden Abschnitte nacheinander als Entwurf erzeugen (ohne Zwischen-Freigabe). */
+  alleGenerieren: () => void;
   modify: (stepId: StepId, modifier: SkillModifierKey) => void;
   pruefen: (stepId: StepId) => void;
   /** Liefert den `llm_qs`-Schritt, der diesen Generierungs-Schritt bewertet (oder null). */
@@ -128,6 +132,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>(budgetForThinking(getLlmThinkingEnabled()));
   // Pro-Lauf-Override: vollständigen VB-Kontext erzwingen (Relevanz-Map ignorieren). Nicht persistiert.
   const [forceFullContext, setForceFullContext] = useState(false);
+  // Läuft gerade der Bulk-Lauf „Alle Abschnitte erstellen"? (Button → Stopp + Fortschrittszeile.)
+  const [bulkRunning, setBulkRunning] = useState(false);
   const stream = useStreamingBuffer();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -194,80 +200,146 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   };
 
   /**
+   * Generierungs-Kern für EINEN Abschnitt — gegen einen ÜBERGEBENEN `base`-Run
+   * (kein Closure-`run`, damit der Bulk-Lauf den frischen Stand durchreichen kann).
+   * Liefert `{ next, checks }` oder `null` (Transport nicht erreichbar → `error`
+   * gesetzt). Wirft bei echten Fehlern/Abbruch — der jeweilige Orchestrator
+   * (`runGeneration` / `generiereAlle`) fängt das und besitzt busy/abort/persist.
+   * Der Tweak wird ÜBERGEBEN (nicht aus der Closure), damit der Bulk-Lauf pro
+   * Schritt den zum jeweiligen Skill gehörenden Tweak nutzen kann.
+   */
+  const generateInto = async (
+    base: WorkflowRun,
+    stepId: StepId,
+    o: { modifier?: SkillModifierKey; quelle: 'freigegeben' | 'entwurf'; tweak: SkillTweak | null; signal: AbortSignal },
+  ): Promise<{ next: WorkflowRun; checks: CheckResult[] } | null> => {
+    const sc = skillMap.get(stepId);
+    if (!sc || !vb) return null;
+    stream.reset();
+    const transport = bridge.getTransportForSkillRun(sc.skill);
+    const ok = await transport.ping();
+    setLlmAvailable(ok);
+    if (!ok) { setError('KI nicht erreichbar — Generierung derzeit nicht möglich.'); return null; }
+    const tw = o.tweak;
+    const tweakWirksam = !!(tw?.aktiv && tw.skillId === sc.skill.id
+      && (tw.stilHinweise.trim() || tw.beispielFormulierungen.trim()));
+    const prevText = base.schritte[stepId]?.finalerText;
+    // Relevanz-Map: nur wenn der Schritt `kontextBedarf: 'relevant'` trägt UND die
+    // VB groß genug ist. JEDER Fehlerpfad (Map leer / Lauf gescheitert) degradiert
+    // still zu Volltext — kein `vbRelevant` → der Skill nutzt {{vbMarkdown}} wie bisher.
+    let vbRelevant: string | undefined;
+    const stepDef = steps.find(s => s.id === stepId);
+    if (!forceFullContext && stepDef?.kontextBedarf === 'relevant' && vbBrauchtRelevanzMap(vb.markdown)) {
+      try {
+        const abschnitte: RelevanzAbschnitt[] = steps.map(s => ({ id: s.id, label: s.label }));
+        const relevanz = await getOrComputeRelevanzMap(storage.idb, transport, relevanzSkill, key, vb.markdown, abschnitte);
+        const block = buildVbRelevant(relevanz, vb.markdown, stepId, getVbCharCap());
+        if (block) vbRelevant = block;
+      } catch {
+        // Relevanz-Lauf gescheitert → Volltext-Fallback (nie scheitern).
+      }
+    }
+    const result = await runSkill(transport, sc.skill, sc.regeln, {
+      stammdaten: buildStammdaten(ctx),
+      vbMarkdown: vb.markdown,
+      vbCharCap: getVbCharCap(),
+      thinkingBudget,
+      onContentDelta: stream.onContentDelta,
+      onThinkingDelta: stream.onThinkingDelta,
+      vorherigeAbschnitte: buildVorherigeAbschnitte(base, stepId, steps, 2000, o.quelle),
+      ...(vbRelevant ? { vbRelevant } : {}),
+      ...(tweakWirksam ? { tweak: tw } : {}),
+      ...(o.modifier ? { modifier: o.modifier } : {}),
+      ...(o.modifier && prevText ? { vorherigerText: prevText } : {}),
+      signal: o.signal,
+    });
+    const checks = runRegelChecks(result.parsed.finalerText, sc.regeln);
+    const gen: GenerationInput = {
+      quellenanalyse: result.parsed.quellenanalyse,
+      entwurf: result.parsed.entwurf,
+      finalerText: result.parsed.finalerText,
+      checks,
+      modell: transport.displayName ?? transport.name,
+      skillId: sc.skill.id,
+      skillVersion: sc.skill.version,
+      vbGekuerzt: result.vbGekuerzt,
+      ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
+      ...(o.modifier ? { modifier: o.modifier } : {}),
+      ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tw!.geaendert_am } : {}),
+      ...(result.thinking ? { denkprozess: result.thinking } : {}),
+      ...(thinkingBudget !== 'none' ? { denkprozessAngefordert: true } : {}),
+    };
+    return { next: applyGeneration(base, stepId, gen, new Date().toISOString()), checks };
+  };
+
+  /**
    * Eine Generierung (optional mit Modifier). Liefert die berechneten Checks zurück
    * (für den Auto-Retry-Orchestrator), `null` bei Bail/Transport-weg/Abbruch/Fehler
    * — dann beendet der Orchestrator den Loop sofort (STOPP).
    */
   const runGeneration = async (stepId: StepId, modifier?: SkillModifierKey): Promise<CheckResult[] | null> => {
-    const sc = skillMap.get(stepId);
-    if (!vb || busy || !run || !sc) return null;
+    if (!vb || busy || !run || !skillMap.get(stepId)) return null;
     setBusy(true);
     setError(null);
     setRetryNote(null);
-    stream.reset();
     const abort = new AbortController();
     abortRef.current = abort;
     try {
-      const transport = bridge.getTransportForSkillRun(sc.skill);
-      const ok = await transport.ping();
-      setLlmAvailable(ok);
-      if (!ok) { setError('KI nicht erreichbar — Generierung derzeit nicht möglich.'); return null; }
-      const tweakWirksam = !!(tweak?.aktiv && tweak.skillId === sc.skill.id
-        && (tweak.stilHinweise.trim() || tweak.beispielFormulierungen.trim()));
-      const prevText = run.schritte[stepId]?.finalerText;
-      // Relevanz-Map: nur wenn der Schritt `kontextBedarf: 'relevant'` trägt UND die
-      // VB groß genug ist. JEDER Fehlerpfad (Map leer / Lauf gescheitert) degradiert
-      // still zu Volltext — kein `vbRelevant` → der Skill nutzt {{vbMarkdown}} wie bisher.
-      let vbRelevant: string | undefined;
-      const stepDef = steps.find(s => s.id === stepId);
-      if (!forceFullContext && stepDef?.kontextBedarf === 'relevant' && vbBrauchtRelevanzMap(vb.markdown)) {
-        try {
-          const abschnitte: RelevanzAbschnitt[] = steps.map(s => ({ id: s.id, label: s.label }));
-          const relevanz = await getOrComputeRelevanzMap(storage.idb, transport, relevanzSkill, key, vb.markdown, abschnitte);
-          const block = buildVbRelevant(relevanz, vb.markdown, stepId, getVbCharCap());
-          if (block) vbRelevant = block;
-        } catch {
-          // Relevanz-Lauf gescheitert → Volltext-Fallback (nie scheitern).
-        }
-      }
-      const result = await runSkill(transport, sc.skill, sc.regeln, {
-        stammdaten: buildStammdaten(ctx),
-        vbMarkdown: vb.markdown,
-        vbCharCap: getVbCharCap(),
-        thinkingBudget,
-        onContentDelta: stream.onContentDelta,
-        onThinkingDelta: stream.onThinkingDelta,
-        vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, steps),
-        ...(vbRelevant ? { vbRelevant } : {}),
-        ...(tweakWirksam ? { tweak } : {}),
-        ...(modifier ? { modifier } : {}),
-        ...(modifier && prevText ? { vorherigerText: prevText } : {}),
-        signal: abort.signal,
-      });
-      const checks = runRegelChecks(result.parsed.finalerText, sc.regeln);
-      const gen: GenerationInput = {
-        quellenanalyse: result.parsed.quellenanalyse,
-        entwurf: result.parsed.entwurf,
-        finalerText: result.parsed.finalerText,
-        checks,
-        modell: transport.displayName ?? transport.name,
-        skillId: sc.skill.id,
-        skillVersion: sc.skill.version,
-        vbGekuerzt: result.vbGekuerzt,
-        ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
-        ...(modifier ? { modifier } : {}),
-        ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tweak!.geaendert_am } : {}),
-        ...(result.thinking ? { denkprozess: result.thinking } : {}),
-        ...(thinkingBudget !== 'none' ? { denkprozessAngefordert: true } : {}),
-      };
-      await persist(applyGeneration(run, stepId, gen, new Date().toISOString()));
-      return checks;
+      const res = await generateInto(run, stepId, { quelle: 'freigegeben', tweak, signal: abort.signal, ...(modifier ? { modifier } : {}) });
+      if (!res) return null;
+      await persist(res.next);
+      return res.checks;
     } catch (err) {
       if (abort.signal.aborted) return null;
       setError(err instanceof Error ? err.message : String(err));
       return null;
     } finally {
       abortRef.current = null;
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Bulk „Alle Abschnitte als Entwurf erstellen": generiert die noch FEHLENDEN
+   * Abschnitte (Umfang „nur fehlende" — Entwürfe + Freigaben bleiben unangetastet
+   * und dienen als Kontext) nacheinander als Entwurf — KEINE Zwischen-Freigabe
+   * nötig. Jeder neue Entwurf bekommt die vorherigen Abschnitte (auch Entwürfe,
+   * `quelle:'entwurf'`) als Kontext; der `run` wird LOKAL durchgereicht (kein stale
+   * Closure → B sieht A's frischen Entwurf). Single-pass (KEIN Auto-Retry). STOPP
+   * bei Transport-weg/Abbruch/Fehler — fertige Entwürfe bleiben persistiert
+   * (idempotent fortsetzbar). Persist pro Abschnitt (Pitfall #16/#20).
+   */
+  const generiereAlle = async (): Promise<void> => {
+    if (!vb || busy || !run) return;
+    const offen = leereSchritte(run, steps.map(s => s.id));
+    if (offen.length === 0) return;
+    setBusy(true);
+    setBulkRunning(true);
+    setError(null);
+    setRetryNote(null);
+    const abort = new AbortController();
+    abortRef.current = abort;
+    const persHandle = await getPersoenlichHandle(storage.idb).catch(() => null);
+    try {
+      let current = run;
+      for (const stepId of offen) {
+        if (abort.signal.aborted) break;
+        if (!skillMap.get(stepId)) continue;
+        // Fokus auf den gerade laufenden Abschnitt → Live-Stream im aktiven Card.
+        // Nur State (kein eigener Write); der Entwurf-Persist unten nimmt den Fokus mit.
+        current = weiterschalten(current, stepId, new Date().toISOString());
+        setRun(current);
+        const stepTweak = await loadSkillTweak(storage.idb, persHandle, skillMap.get(stepId)!.skill.id).catch(() => null);
+        const res = await generateInto(current, stepId, { quelle: 'entwurf', tweak: stepTweak, signal: abort.signal });
+        if (!res) break; // Transport weg (error gesetzt) → STOPP, fertige Entwürfe bleiben
+        current = res.next;
+        await persist(current);
+      }
+    } catch (err) {
+      if (!abort.signal.aborted) setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      abortRef.current = null;
+      setBulkRunning(false);
       setBusy(false);
     }
   };
@@ -417,6 +489,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     vbVorhanden: vb !== null,
     loading,
     busy,
+    bulkRunning,
     error,
     retryNote,
     llmAvailable,
@@ -433,6 +506,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     regeln: activeCtx?.regeln ?? [],
     tweak,
     generate: (id) => { void runGenerateMitRetry(id); },
+    alleGenerieren: () => { void generiereAlle(); },
     modify: (id, m) => { void runGeneration(id, m); },
     pruefen: (id) => { void pruefenStep(id); },
     qsFor: (id) => qsZiele.get(id) ?? null,

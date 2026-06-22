@@ -34,6 +34,19 @@ export function firstNonFreigegeben(run: WorkflowRun, order: readonly StepId[] =
 }
 
 /**
+ * Abschnitte ohne Eintrag (bzw. Status `'leer'`) in `order`-Reihenfolge — die
+ * „noch fehlenden". Auswahl-Quelle für den Bulk-Lauf „Alle Abschnitte erstellen"
+ * (Umfang „nur fehlende": Entwürfe + Freigaben bleiben unangetastet). Reine
+ * Funktion von `run`.
+ */
+export function leereSchritte(run: WorkflowRun, order: readonly StepId[] = STEP_ORDER): StepId[] {
+  return order.filter(id => {
+    const s = run.schritte[id]?.status;
+    return !s || s === 'leer';
+  });
+}
+
+/**
  * True, wenn ein FRÜHERER Abschnitt (vor `stepId` in `order`) gerade in `entwurf`
  * ist — treibt den dezenten „frühere Abschnitte geändert"-Hinweis auf späteren
  * freigegebenen Abschnitten nach „Erneut öffnen". Reine Funktion von `run`.

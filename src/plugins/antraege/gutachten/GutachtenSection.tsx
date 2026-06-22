@@ -26,11 +26,12 @@ import { AbschnittStepper } from './AbschnittStepper';
 import { SectionReviewCard } from './SectionReviewCard';
 import { AbschnittRow } from './AbschnittRow';
 import { ResumeLine } from './ResumeLine';
-import { fruehereInArbeit } from './runner';
+import { fruehereInArbeit, leereSchritte } from './runner';
 import type { WorkflowStep } from '@/core/services/skills';
 import type { WorkflowRun } from './types';
 
 const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2';
+const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text)] bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2';
 
 export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useGutachtenWorkflow(ctx);
@@ -46,6 +47,8 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   const tweakEffektiv = !!(ctrl.tweak?.aktiv && (ctrl.tweak.stilHinweise.trim() || ctrl.tweak.beispielFormulierungen.trim()));
 
   const freigegebenCount = run ? steps.filter(d => run.schritte[d.id]?.status === 'freigegeben').length : 0;
+  // Gibt es noch fehlende (leere) Abschnitte? → „Alle Abschnitte erstellen" anbieten.
+  const hatLeere = run ? leereSchritte(run, order).length > 0 : false;
 
   // Synthetischer „Antrag" als Feld-Quelle für den DOCX-Füller (Verbund-Ebene).
   const mappingAntrag = useMemo<Antrag>(() => ({
@@ -85,11 +88,33 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
         <span className="text-[16px] font-medium text-[var(--tf-text)]">Gutachten</span>
         {run && <span className="text-[12px] text-[var(--tf-text-tertiary)]">{freigegebenCount} von {steps.length} Abschnitten freigegeben</span>}
         <span className="flex-1" />
+        {ctrl.vbVorhanden && run && (hatLeere || ctrl.bulkRunning) && (
+          ctrl.bulkRunning ? (
+            <button type="button" className={BTN_SECONDARY} onClick={ctrl.stop}>Stopp</button>
+          ) : (
+            <button
+              type="button"
+              className={BTN_SECONDARY}
+              disabled={ctrl.busy || ctrl.llmAvailable === false}
+              onClick={ctrl.alleGenerieren}
+              title="Erzeugt alle noch fehlenden Abschnitte nacheinander als Entwurf — ohne Zwischen-Freigabe."
+            >
+              Alle Abschnitte erstellen
+            </button>
+          )
+        )}
         <button type="button" className={BTN_PRIMARY} disabled={freigegebenCount === 0} onClick={() => setDialogOpen(true)}>
           In Vorlage exportieren
           {freigegebenCount > 0 && <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/15">{freigegebenCount} Abschnitte</span>}
         </button>
       </div>
+
+      {ctrl.bulkRunning && (
+        <div className="mb-3 flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]">
+          <span className="w-3 h-3 rounded-full border-[1.5px] border-[var(--tf-text-tertiary)] border-t-transparent animate-spin" />
+          Erstelle Entwürfe — Abschnitt {ctrl.aktiverSchritt}…
+        </div>
+      )}
 
       {ctrl.error && (
         <div className="my-2 rounded-[8px] px-3 py-2 text-[12px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)]">{ctrl.error}</div>
