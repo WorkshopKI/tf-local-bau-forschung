@@ -46,7 +46,7 @@ import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { putWorkflowRun } from './workflow-store';
 import {
   applyGeneration, applyPruefen, applyQsHinweise, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
-  firstNonFreigegeben, leereSchritte,
+  firstNonFreigegeben, leereSchritte, setVorlageRef,
   type GenerationInput,
 } from './runner';
 import { parseQsBefunde } from './qs';
@@ -105,6 +105,8 @@ export interface GutachtenWorkflowController {
   removeTweak: () => Promise<void>;
   /** Ein-Klick-Feedback zu einem Abschnitt → S1-Substrat (DSGVO-Guard, nicht blockierend). */
   sendFeedback: (stepId: StepId, rating: Rating, notiz?: string) => void;
+  /** Audit-Stempel der zuletzt zum Export genutzten Vorlage setzen (Artefakt-Engine). */
+  stampVorlage: (info: { pfad: string; hash?: string }) => void;
 }
 
 export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflowController {
@@ -522,5 +524,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     saveTweak,
     removeTweak,
     sendFeedback: (id, rating, notiz) => { void sendFeedback(id, rating, notiz); },
+    stampVorlage: (info) => {
+      void reduce((r, now) => setVorlageRef(r, { pfad: info.pfad, hash: info.hash ?? '', gelesenAm: now }, now));
+    },
   };
 }

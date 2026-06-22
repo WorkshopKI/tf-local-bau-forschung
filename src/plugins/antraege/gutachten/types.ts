@@ -91,6 +91,20 @@ export interface StepRun {
 }
 
 /**
+ * Audit-Referenz auf die zuletzt zum Befüllen genutzte Vorlage (Artefakt-Engine,
+ * additiv). Beim Erstellen des Artefakts gestempelt — macht reproduzierbar, gegen
+ * WELCHE Vorlage (Pfad + Inhalts-Hash) das Dokument erzeugt wurde.
+ */
+export interface VorlageRef {
+  /** Dateiname der Vorlage im Vorlagenverzeichnis. */
+  pfad: string;
+  /** SHA-256-Hex der gelesenen Vorlagen-Bytes. */
+  hash: string;
+  /** ISO-Zeitstempel des Lesens/Stempelns. */
+  gelesenAm: string;
+}
+
+/**
  * Gesamtstand des Gutachtens für einen Verbund. `schritte` ist dünn besetzt:
  * fehlt eine ID, war der Abschnitt nie in Arbeit (UI-Status `'leer'`).
  */
@@ -104,5 +118,10 @@ export interface WorkflowRun {
   geaendert_am: string;
   /** Provenance: true, sobald ein Alt-Kurzfassungs-Lauf als A übernommen wurde. */
   ausKurzfassungUebernommen?: boolean;
+  /**
+   * Audit-Stempel der zuletzt verwendeten Vorlage (additiv; fehlt, solange kein
+   * Artefakt erzeugt wurde). Kein Schema-Bump.
+   */
+  vorlageRef?: VorlageRef;
   schemaVersion: 1;
 }

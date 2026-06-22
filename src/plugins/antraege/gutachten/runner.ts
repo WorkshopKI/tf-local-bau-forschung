@@ -7,7 +7,9 @@
  */
 import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
 import { appendVerlauf, restoreVersion } from '../kurzfassung/kurzfassung-verlauf';
-import { STEP_ORDER, type QsBefund, type StepId, type StepRun, type WorkflowRun } from './types';
+import {
+  STEP_ORDER, type QsBefund, type StepId, type StepRun, type VorlageRef, type WorkflowRun,
+} from './types';
 
 /** Leerer Run für einen Verbund (vor der ersten Generierung / Migration). */
 export function emptyRun(aktenzeichen: string, now: string): WorkflowRun {
@@ -150,6 +152,14 @@ export function applyQsHinweise(
   const step = run.schritte[stepId];
   if (!step) return run;
   return setStep(run, stepId, { ...step, qsHinweise: befunde }, now);
+}
+
+/**
+ * Audit-Stempel der zuletzt zum Befüllen genutzten Vorlage setzen (Artefakt-
+ * Engine). Reiner Run-Übergang, kein Schritt-Bezug.
+ */
+export function setVorlageRef(run: WorkflowRun, ref: VorlageRef, now: string): WorkflowRun {
+  return { ...run, vorlageRef: ref, geaendert_am: now };
 }
 
 /**

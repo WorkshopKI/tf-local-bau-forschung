@@ -22,21 +22,32 @@ export interface MappedField {
 /** Abschnitts-ID eines ZIM-Gutachtens (deckungsgleich mit dem Workflow-`StepId`). */
 export type AbschnittId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
 
-/** Ein einzufügender (freigegebener) Abschnitt: ID + Anker-Überschrift + Text. */
-export interface AbschnittEinfuegung {
-  id: AbschnittId;
+/**
+ * Generischer Einfüge-Block (Artefakt-Engine): ein Abschnitt (GA) ODER ein
+ * Baustein (NF). `id` ist bewusst OFFEN (Abschnitts-ID `'A'..'G'`, Baustein-ID
+ * `'G1.1'` …); der Füller nutzt nur `anker` (Such-Überschrift) + `finalerText`
+ * und meldet die `id` im Status zurück.
+ */
+export interface ArtefaktBlock {
+  id: string;
   /** Anker-Überschriftentext in der Vorlage (whitespace-tolerant gesucht). */
   anker: string;
   finalerText: string;
 }
 
-/** Status eines übergebenen Abschnitts nach dem Füllen (für den Dialog). */
-export interface AbschnittStatus {
+/** Ein einzufügender (freigegebener) GA-Abschnitt — verengt `ArtefaktBlock.id` auf A–G. */
+export interface AbschnittEinfuegung extends ArtefaktBlock {
   id: AbschnittId;
+}
+
+/** Status eines übergebenen Blocks nach dem Füllen (für den Dialog). */
+export interface AbschnittStatus {
+  /** Block-ID (`'A'..'G'` ODER eine Baustein-ID) — offen wie `ArtefaktBlock.id`. */
+  id: string;
   anker: string;
   /** Anker-Überschrift in der Vorlage gefunden? */
   anchorFound: boolean;
-  /** Tatsächlich eingefügt (== anchorFound für übergebene, freigegebene Abschnitte). */
+  /** Tatsächlich eingefügt (== anchorFound für übergebene, freigegebene Blöcke). */
   eingefuegt: boolean;
 }
 
@@ -61,4 +72,15 @@ export interface FillResult {
   blob?: Blob;
   /** Vorgeschlagener Ausgabe-Dateiname. */
   filename: string;
+  /**
+   * SHA-256-Hex der gelesenen Vorlagen-Bytes (Artefakt-Engine: Audit/Reproduzier-
+   * barkeit, stempelt `WorkflowRun.vorlageRef.hash`). Fehlt im Fehlerfall.
+   */
+  hash?: string;
+  /**
+   * Gesetzt, wenn die Vorlage nicht lesbar/kein gültiges DOCX war. Dann ist kein
+   * `blob`/`hash` gesetzt und es wurde NICHT geworfen — der Aufrufer zeigt die
+   * Meldung und degradiert sauber.
+   */
+  fehler?: string;
 }

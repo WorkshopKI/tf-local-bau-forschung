@@ -25,6 +25,12 @@ interface Props {
    * Fehlt sie, zeigt der Dialog die Kurzfassung-Einzelansicht (Back-Compat).
    */
   abschnitte?: AbschnittAnzeige[];
+  /**
+   * Optionaler Audit-Callback nach erfolgreichem Erstellen (Artefakt-Engine):
+   * liefert den Vorlagen-Pfad + Inhalts-Hash, damit der Aufrufer `vorlageRef`
+   * stempeln kann. Fehlt er, ist das Verhalten unverändert (Kurzfassung).
+   */
+  onErstellt?: (info: { pfad: string; hash?: string }) => void;
   onClose: () => void;
 }
 
@@ -41,7 +47,7 @@ function formatDate(ms: number): string {
   }
 }
 
-export function VorlageDialog({ open, antrag, sections, abschnitte, onClose }: Props): React.ReactElement | null {
+export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, onClose }: Props): React.ReactElement | null {
   const storage = useStorage();
   const [handle, setHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -108,9 +114,11 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onClose }: P
     try {
       const buf = await readVorlage(handle, selected);
       const res = await fillTemplate(buf, antrag, sections, {});
+      if (res.fehler) { setError(res.fehler); return; }
       if (!res.blob) throw new Error('Vorlage konnte nicht erzeugt werden.');
       const saved = await saveGutachtenDocx(storage.idb, res.blob, res.filename);
       setErstellt({ ...saved, filename: res.filename });
+      onErstellt?.({ pfad: selected, hash: res.hash });
     } catch (e) { setError(errMsg(e)); } finally { setBusy(false); }
   }
 

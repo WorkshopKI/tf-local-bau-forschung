@@ -215,6 +215,7 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
           antrag={mappingAntrag}
           sections={exportSections}
           abschnitte={abschnitteAnzeige}
+          onErstellt={(info) => ctrl.stampVorlage(info)}
           onClose={() => setDialogOpen(false)}
         />
       )}

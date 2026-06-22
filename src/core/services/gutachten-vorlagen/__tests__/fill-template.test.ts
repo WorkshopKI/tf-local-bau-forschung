@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { processDocumentXml } from '../fill-template';
-import type { AbschnittEinfuegung } from '../types';
+import JSZip from 'jszip';
+import { processDocumentXml, fillTemplate } from '../fill-template';
+import type { AbschnittEinfuegung, ArtefaktBlock } from '../types';
 import type { Antrag } from '@/core/services/csv/types';
 
 const antrag: Antrag = {
@@ -133,5 +134,57 @@ describe('processDocumentXml — Mehrfach-Anker', () => {
     expect(r.xml).toContain('TEXT-B.');
     expect(r.xml).not.toContain('TEXT-A.');
     expect(r.xml).not.toContain('TEXT-D.');
+  });
+});
+
+describe('processDocumentXml — generische ArtefaktBlöcke (offene id)', () => {
+  it('fügt einen Block mit Nicht-A–G-id (Baustein-ID) am Anker ein und meldet die id zurück', () => {
+    const xml = p('<w:p><w:r><w:t>Nachforderungen</w:t></w:r></w:p>');
+    const block: ArtefaktBlock[] = [{ id: 'G1.1', anker: 'Nachforderungen', finalerText: 'Baustein-Text.' }];
+    const r = processDocumentXml(xml, antrag, block);
+    expect(r.sections[0]!.id).toBe('G1.1');
+    expect(r.eingefuegteAnzahl).toBe(1);
+    expect(r.xml).toContain('Baustein-Text.');
+  });
+});
+
+describe('fillTemplate — Audit-Hash + Dateiname je Typ + graceful', () => {
+  async function makeDocx(documentXml: string): Promise<ArrayBuffer> {
+    const zip = new JSZip();
+    zip.file('word/document.xml', documentXml);
+    return zip.generateAsync({ type: 'arraybuffer' });
+  }
+  const A_DOC = '<w:document><w:body><w:p><w:r><w:t>Kurzfassung der Projektbeschreibung</w:t></w:r></w:p></w:body></w:document>';
+
+  it('stempelt einen deterministischen SHA-256-Hash (64 Hex, gleiche Bytes → gleicher Hash)', async () => {
+    const buf = await makeDocx(A_DOC);
+    const r1 = await fillTemplate(buf, antrag, A_ONLY, { dryRun: true });
+    const r2 = await fillTemplate(buf, antrag, A_ONLY, { dryRun: true });
+    expect(r1.hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(r1.hash).toBe(r2.hash);
+    expect(r1.fehler).toBeUndefined();
+  });
+
+  it('Dateiname richtet sich nach dem Präfix (Default Gutachten_EP, NF eigener Präfix)', async () => {
+    const buf = await makeDocx(A_DOC);
+    expect((await fillTemplate(buf, antrag, A_ONLY, { dryRun: true })).filename)
+      .toBe('Gutachten_EP_16EP034512.docx');
+    expect((await fillTemplate(buf, antrag, A_ONLY, { dryRun: true, dateiPrefix: 'ZIM-Nachforderung' })).filename)
+      .toBe('ZIM-Nachforderung_16EP034512.docx');
+  });
+
+  it('fehlende word/document.xml → fehler statt Throw (kein Blob)', async () => {
+    const zip = new JSZip();
+    zip.file('something-else.xml', '<x/>');
+    const buf = await zip.generateAsync({ type: 'arraybuffer' });
+    const r = await fillTemplate(buf, antrag, A_ONLY, {});
+    expect(r.fehler).toContain('word/document.xml');
+    expect(r.blob).toBeUndefined();
+  });
+
+  it('kaputte Eingabe (kein ZIP) → fehler statt Throw', async () => {
+    const r = await fillTemplate(new Uint8Array([1, 2, 3, 4]), antrag, A_ONLY, {});
+    expect(r.fehler).toBeTruthy();
+    expect(r.blob).toBeUndefined();
   });
 });

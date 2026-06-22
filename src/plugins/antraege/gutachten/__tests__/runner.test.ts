@@ -12,6 +12,7 @@ import {
   weiterschalten,
   verwerfen,
   uebernehmen,
+  setVorlageRef,
   type GenerationInput,
 } from '../runner';
 import { ZIM_EP_DEF } from '@/core/services/skills';
@@ -37,6 +38,16 @@ function runMitABCfreigegeben(): WorkflowRun {
   run = applyGeneration(run, 'D', gen('Text D'), NOW);
   return run;
 }
+
+describe('setVorlageRef', () => {
+  it('stempelt den Vorlagen-Audit-Ref und aktualisiert geaendert_am', () => {
+    const run = emptyRun('AZ', NOW);
+    const next = setVorlageRef(run, { pfad: 'Gutachten_EP.docx', hash: 'abc123', gelesenAm: LATER }, LATER);
+    expect(next.vorlageRef).toEqual({ pfad: 'Gutachten_EP.docx', hash: 'abc123', gelesenAm: LATER });
+    expect(next.geaendert_am).toBe(LATER);
+    expect(run.vorlageRef).toBeUndefined(); // Original unverändert (immutabel)
+  });
+});
 
 describe('emptyRun', () => {
   it('startet bei A mit leeren Schritten', () => {

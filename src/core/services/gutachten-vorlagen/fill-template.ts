@@ -19,7 +19,7 @@
  */
 import type { Antrag } from '@/core/services/csv/types';
 import { resolveField } from './field-mapping';
-import type { AbschnittEinfuegung, AbschnittStatus, FillResult, MappedField } from './types';
+import type { ArtefaktBlock, AbschnittStatus, FillResult, MappedField } from './types';
 
 /** `<w:t ...>inner</w:t>` — Gruppen: openTag, inner, closeTag. */
 const T_RE = /(<w:t\b[^>]*>)([\s\S]*?)(<\/w:t>)/g;
@@ -151,7 +151,7 @@ function findInsertPos(xml: string, anker: string): number {
 export function processDocumentXml(
   xml: string,
   antrag: Antrag,
-  sections: AbschnittEinfuegung[],
+  sections: ArtefaktBlock[],
 ): ProcessResult {
   const mapped = new Map<string, MappedField>();
   const unfilled = new Set<string>();
@@ -191,40 +191,73 @@ export function processDocumentXml(
 export interface FillOptions {
   /** Nur analysieren (Mapping-/Anker-Vorschau), kein Blob erzeugen. */
   dryRun?: boolean;
+  /**
+   * Dateinamen-Präfix je Artefakt-Typ (Artefakt-Engine). Default `'Gutachten_EP'`
+   * → `Gutachten_EP_<az>.docx` (GA byte-identisch). NF z.B. `'ZIM-Nachforderung'`.
+   */
+  dateiPrefix?: string;
+}
+
+/** Normalisiert die Eingabe auf einen `ArrayBuffer` (für `crypto.subtle.digest`). */
+async function toArrayBuffer(input: Blob | ArrayBuffer | Uint8Array): Promise<ArrayBuffer> {
+  if (input instanceof Uint8Array) {
+    return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength) as ArrayBuffer;
+  }
+  if (input instanceof ArrayBuffer) return input;
+  return input.arrayBuffer(); // Blob
+}
+
+/** SHA-256-Hex der Eingabe-Bytes (`crypto.subtle` — sicherer Kontext unter file://, Pitfall #6). */
+async function sha256Hex(input: Blob | ArrayBuffer | Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', await toArrayBuffer(input));
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
  * Öffnet die DOCX (ZIP), füllt `word/document.xml` und gibt das Ergebnis-Blob
  * zurück. Im Dry-Run-Modus nur die Analyse (für die Dialog-Vorschau).
+ *
+ * Die Vorlage wird stets FRISCH übergeben (nie gecacht) und mit einem SHA-256-
+ * Stempel (`hash`) versehen (Audit/Reproduzierbarkeit). Eine fehlende/kaputte
+ * Vorlage WIRFT NICHT, sondern liefert ein `FillResult` mit `fehler` (kein Blob).
  */
 export async function fillTemplate(
   input: Blob | ArrayBuffer | Uint8Array,
   antrag: Antrag,
-  sections: AbschnittEinfuegung[],
+  sections: ArtefaktBlock[],
   opts: FillOptions = {},
 ): Promise<FillResult> {
-  const { default: JSZip } = await import('jszip');
-  const zip = await JSZip.loadAsync(input);
-  const docFile = zip.file('word/document.xml');
-  if (!docFile) throw new Error('Vorlage enthält keine word/document.xml (kein gültiges DOCX).');
+  const filename = `${opts.dateiPrefix ?? 'Gutachten_EP'}_${antrag.aktenzeichen}.docx`;
+  const fehlerResult = (fehler: string): FillResult =>
+    ({ mappedFields: [], unfilledCodes: [], sections: [], eingefuegteAnzahl: 0, filename, fehler });
 
-  const xml = await docFile.async('string');
-  const processed = processDocumentXml(xml, antrag, sections);
-  const filename = `Gutachten_EP_${antrag.aktenzeichen}.docx`;
+  try {
+    const { default: JSZip } = await import('jszip');
+    const zip = await JSZip.loadAsync(input);
+    const docFile = zip.file('word/document.xml');
+    if (!docFile) return fehlerResult('Vorlage enthält keine word/document.xml (kein gültiges DOCX).');
 
-  const base = {
-    mappedFields: processed.mappedFields,
-    unfilledCodes: processed.unfilledCodes,
-    sections: processed.sections,
-    eingefuegteAnzahl: processed.eingefuegteAnzahl,
-    filename,
-  };
-  if (opts.dryRun) return base;
+    const hash = await sha256Hex(input);
+    const xml = await docFile.async('string');
+    const processed = processDocumentXml(xml, antrag, sections);
 
-  zip.file('word/document.xml', processed.xml);
-  const blob = await zip.generateAsync({
-    type: 'blob',
-    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  });
-  return { ...base, blob };
+    const base = {
+      mappedFields: processed.mappedFields,
+      unfilledCodes: processed.unfilledCodes,
+      sections: processed.sections,
+      eingefuegteAnzahl: processed.eingefuegteAnzahl,
+      filename,
+      hash,
+    };
+    if (opts.dryRun) return base;
+
+    zip.file('word/document.xml', processed.xml);
+    const blob = await zip.generateAsync({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    return { ...base, blob };
+  } catch {
+    return fehlerResult('Vorlage konnte nicht gelesen werden (kein gültiges DOCX/ZIP).');
+  }
 }
