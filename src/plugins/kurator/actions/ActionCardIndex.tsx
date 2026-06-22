@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { Database, RefreshCw, AlertCircle, Square, CheckCircle2, XCircle, FolderOpen, Trash2, Pencil, FolderPlus } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { BatchIndexer } from '@/core/services/search/batch-indexer';
 import type { IndexStatus, PipelineConfig } from '@/core/services/search/batch-indexer';

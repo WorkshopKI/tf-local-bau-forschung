@@ -3,7 +3,7 @@
  * „Konvertieren & ablegen" (sequenziell, mit Fortschritt + Abbrechen) → Bestand.
  */
 import { Loader2, Upload } from 'lucide-react';
-import { FileDropZone } from '@/ui';
+import { FileDropZone } from '@/components/ui/FileDropZone';
 import { AufnahmeZeile } from './AufnahmeZeile';
 import { BestandsBlock } from './BestandsBlock';
 import type { UseAufnahme } from './useAufnahme';

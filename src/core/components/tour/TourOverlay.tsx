@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import type { TourStep } from './tourSteps';
 

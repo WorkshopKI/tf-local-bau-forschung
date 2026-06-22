@@ -15,7 +15,7 @@
  */
 import { useState } from 'react';
 import { FileText, Loader2, Check } from 'lucide-react';
-import { FileDropZone } from '@/ui';
+import { FileDropZone } from '@/components/ui/FileDropZone';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { DocConverter, maxConversionLevel, type ConvertedDoc } from '@/core/services/converter';

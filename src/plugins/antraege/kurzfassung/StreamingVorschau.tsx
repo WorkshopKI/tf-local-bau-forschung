@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
-import { CollapsibleSection } from '@/ui';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 
 interface Props {
   /** Streamender Reasoning-Text (leer, wenn Thinking aus / kein Reasoning). */

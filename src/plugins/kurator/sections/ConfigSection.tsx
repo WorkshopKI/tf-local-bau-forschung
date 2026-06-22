@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { clearMetadataCache } from '@/core/services/search/metadata-extractor';
 import { seedTestData, clearSeedData } from '@/core/services/seed/seed-data';

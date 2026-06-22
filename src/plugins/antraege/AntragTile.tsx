@@ -1,4 +1,4 @@
-import { Badge } from '@/ui';
+import { Badge } from '@/components/ui/badge';
 import type { AntragGroup } from './antragGroups';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { AMPEL_COLOR, AMPEL_TOOLTIP } from './eingangAmpel';

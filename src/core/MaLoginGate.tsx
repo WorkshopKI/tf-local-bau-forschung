@@ -14,7 +14,7 @@
  */
 import { useState } from 'react';
 import { LogIn, KeyRound, Check, ArrowRight } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';

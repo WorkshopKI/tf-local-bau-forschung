@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Save, RotateCcw } from 'lucide-react';
-import { Button, Badge, Dialog } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Dialog } from '@/ui/Dialog';
 import { DiffView } from './DiffView';
 import { versionService } from '@/core/services/versioning/version-service';
 import { useStorage } from '@/core/hooks/useStorage';

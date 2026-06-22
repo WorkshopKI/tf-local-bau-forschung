@@ -1,4 +1,4 @@
-import { Badge } from '@/ui';
+import { Badge } from '@/components/ui/badge';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';

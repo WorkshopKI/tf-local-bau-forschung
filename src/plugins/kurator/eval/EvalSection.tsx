@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { FlaskConical } from 'lucide-react';
-import { Button, ProgressBar, Select } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Select } from '@/ui/Select';
 import { useStorage } from '@/core/hooks/useStorage';
 import { loadOramaFromDB, getDocCount } from '@/core/services/search/orama-store';
 import { embeddingService } from '@/core/services/search/embedding-service';

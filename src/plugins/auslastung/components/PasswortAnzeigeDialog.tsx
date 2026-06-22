@@ -12,7 +12,7 @@
  */
 import { useMemo, useState } from 'react';
 import { KeyRound, Copy, Check, X, Mail } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { buildKuerzelMailMap, buildMailtoUrl } from '../services/tib-mail';

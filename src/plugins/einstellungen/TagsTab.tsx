@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
-import { Button, Badge, SectionHeader, ListItem } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { ListItem } from '@/components/ui/ListItem';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useTags } from '@/core/hooks/useTags';
 

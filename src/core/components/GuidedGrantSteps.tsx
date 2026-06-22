@@ -22,7 +22,7 @@
 
 import { useState } from 'react';
 import { ArrowRight, Check, AlertTriangle } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { grantPending, type PendingGrant } from '@/core/services/infrastructure/smb-handle';
 import { resolveAfterGrant, type GrantOutcome } from './guided-grant-progress';

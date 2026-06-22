@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Download, ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
-import { Button, CollapsibleSection, ProgressBar, Tooltip } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Tooltip } from '@/components/ui/Tooltip';
 import type { EvalReport, TestCaseResult } from '@/core/services/search/eval/eval-types';
 import { evalToMarkdown, evalToJSON, downloadAsFile } from '@/core/services/search/eval/eval-export';
 

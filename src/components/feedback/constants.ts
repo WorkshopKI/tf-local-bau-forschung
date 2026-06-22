@@ -92,27 +92,6 @@ export const LLM_CATEGORY_MAP: Record<string, FeedbackCategory> = {
   question: 'question',
 };
 
-/**
- * @deprecated Seit v2.41 ersetzt durch das typ-abhängige Mini-Formular
- * (`FEEDBACK_TYPES` + `FeedbackInputStep`). Bleibt vorerst für eventuelle
- * Alt-Consumer erhalten — nicht für neuen Code verwenden.
- *
- * Quick-Tags unter dem Feedback-Textfeld: Klick füllt Textarea vor + gibt Hint an Auto-Klassifikation.
- */
-export interface QuickTag {
-  label: string;
-  prefix: string;
-  /** Hint für autoClassifyFeedback — entspricht LLM-Kategorien (bug/feature/ux/praise/question). */
-  hint: 'bug' | 'feature' | 'praise';
-}
-
-/** @deprecated siehe {@link QuickTag} — ersetzt durch {@link FEEDBACK_TYPES}. */
-export const QUICK_TAGS: readonly QuickTag[] = [
-  { label: 'Etwas funktioniert nicht', prefix: 'Etwas funktioniert nicht: ', hint: 'bug' },
-  { label: 'Ich wünsche mir…', prefix: 'Ich wünsche mir ', hint: 'feature' },
-  { label: 'Finde ich gut!', prefix: 'Ich finde gut, dass ', hint: 'praise' },
-] as const;
-
 // ── Typ-Schema für das strukturierte Feedback-Formular (v2.41) ────────────────
 // Deterministisch + LLM-unabhängig: der User wählt einen Typ und füllt 2–3
 // typspezifische Felder. Die Kategorie steht damit ohne LLM fest; die Felder

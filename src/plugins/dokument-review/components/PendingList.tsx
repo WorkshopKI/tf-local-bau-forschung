@@ -13,7 +13,7 @@ import {
   type ManifestEntry,
   type PendingAntragEntry,
 } from '@/phase2';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import type { Antrag } from '@/core/services/csv/types';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useDokumentReviewStore } from '../store';

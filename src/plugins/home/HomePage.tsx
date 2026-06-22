@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, AlertTriangle, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useNavigation } from '@/core/hooks/useNavigation';

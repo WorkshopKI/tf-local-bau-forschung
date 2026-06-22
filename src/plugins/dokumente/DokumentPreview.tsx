@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Trash2 } from 'lucide-react';
-import { Button, MarkdownRenderer, TagInput } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { TagInput } from '@/components/ui/TagInput';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useTags } from '@/core/hooks/useTags';
 import { useDokumenteStore } from './store';

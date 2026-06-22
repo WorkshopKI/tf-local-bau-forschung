@@ -22,7 +22,7 @@
  * laufen genau einmal pro Tab pro App-Session statt bei jedem Wechsel.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Tabs } from '@/ui';
+import { Tabs } from '@/components/ui/tabs';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAuslastungData } from '../hooks/useAuslastungData';

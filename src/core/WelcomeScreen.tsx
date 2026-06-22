@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from 'react';
 import { ArrowRight, Check, ClipboardCopy, FolderOpen } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   ensureFolderStructure,

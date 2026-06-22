@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Check, Sun, Moon } from 'lucide-react';
-import { Tabs, Badge, SectionHeader } from '@/ui';
+import { Tabs } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/components/ui/theme';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';

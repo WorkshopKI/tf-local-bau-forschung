@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Pin, MoreHorizontal, Eye, ArrowRight, FileText, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { TagInput } from '@/ui';
+import { TagInput } from '@/components/ui/TagInput';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useTags } from '@/core/hooks/useTags';
 import { useDokumenteStore } from './store';

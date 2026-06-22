@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Database, Trash2 } from 'lucide-react';
-import { Button, Badge, ProgressBar } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { IndexStatus } from '@/core/services/search/batch-indexer';
 import { seedTestData, clearSeedData } from '@/core/services/seed/seed-data';

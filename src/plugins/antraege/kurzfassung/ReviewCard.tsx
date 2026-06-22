@@ -5,7 +5,8 @@
  * Aktionsleiste. Im freigegebenen Zustand: nur „Gutachten-Vorlage erstellen".
  */
 import { SlidersHorizontal } from 'lucide-react';
-import { CollapsibleSection, MarkdownRenderer } from '@/ui';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { CheckList } from './CheckList';

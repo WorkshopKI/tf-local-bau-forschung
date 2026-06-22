@@ -5,7 +5,8 @@
  */
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Dialog, CollapsibleSection } from '@/ui';
+import { Dialog } from '@/ui/Dialog';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { Antrag } from '@/core/services/csv/types';
 import {

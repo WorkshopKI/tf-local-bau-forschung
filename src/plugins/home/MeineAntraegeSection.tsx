@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Badge, SectionHeader, ListItem } from '@/ui';
+import { Badge } from '@/components/ui/badge';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { ListItem } from '@/components/ui/ListItem';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useAntraegeStore } from '@/plugins/antraege/store';

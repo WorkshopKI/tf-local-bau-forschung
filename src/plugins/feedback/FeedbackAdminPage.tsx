@@ -1,7 +1,7 @@
 // Kurator-Hub für Feedback: 4 Tabs (Tickets / FAQ / Sponsoring / Einstellungen).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Tabs } from '@/ui';
+import { Tabs } from '@/components/ui/tabs';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getFeedbackList, loadFeedbackConfig } from '@/core/services/feedback';
 import { FEEDBACK_STATUS } from '@/core/services/feedback/feedback-status';

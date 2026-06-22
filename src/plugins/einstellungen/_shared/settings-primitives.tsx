@@ -3,7 +3,7 @@
  * Technologien, …). Inline-Row-Layout aus dem Design-Handoff
  * `_design/handoff/einstellungen-*` ("Variante-B-Stil").
  */
-import { Tooltip } from '@/ui';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 export function SettingsRow({
   children,

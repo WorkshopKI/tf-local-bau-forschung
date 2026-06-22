@@ -20,7 +20,7 @@
  * ("4 von 16 Antraegen frei in Q2-2026").
  */
 import { useEffect, useMemo, useState } from 'react';
-import { SectionHeader } from '@/ui';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';

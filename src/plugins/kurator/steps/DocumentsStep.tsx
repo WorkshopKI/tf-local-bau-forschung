@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AlertCircle, Download, RefreshCw } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 
 interface DocumentsStepProps {

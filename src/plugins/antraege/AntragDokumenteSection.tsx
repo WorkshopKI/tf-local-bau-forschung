@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink, FileText, FileType2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { CollapsibleSection } from '@/ui';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getDmsSourceHandle } from '@/core/services/infrastructure/smb-handle';
 import { DEFAULT_DMS_SOURCE_ID } from '@/core/services/dms-sources';

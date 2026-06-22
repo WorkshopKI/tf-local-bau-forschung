@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, ChevronDown, ChevronRight } from 'lucide-react';
-import { Badge } from '@/ui';
+import { Badge } from '@/components/ui/badge';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   getAntrag,

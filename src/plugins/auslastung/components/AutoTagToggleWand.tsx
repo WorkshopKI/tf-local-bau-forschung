@@ -12,7 +12,7 @@
  * Service-Tab UND die PL-Bearbeiten-Maske (`MaInlineDetail.tsx`) dieselbe Wand
  * nutzen.
  */
-import { Tooltip } from '@/ui';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 const LONG_TAG_THRESHOLD = 38;
 

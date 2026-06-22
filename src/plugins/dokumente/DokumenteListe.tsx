@@ -2,7 +2,8 @@
 // Vorschlag: DocumentTable.tsx + DocumentFilters.tsx als Sub-Komponenten.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, Search, Upload, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Pin } from 'lucide-react';
-import { Button, FileDropZone } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { FileDropZone } from '@/components/ui/FileDropZone';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { DocConverter } from '@/core/services/converter';

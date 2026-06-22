@@ -140,9 +140,6 @@ export async function recomputeUnterprogrammStats(idb: IDBStore, programmId: str
   }
 }
 
-/** @deprecated Use {@link recomputeUnterprogrammStats}. */
-export const recomputeAntragCounts = recomputeUnterprogrammStats;
-
 /**
  * Findet die CSV-Spalte, die auf `unterprogramm_id` gemappt wurde.
  */

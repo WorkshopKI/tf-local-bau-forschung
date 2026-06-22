@@ -13,7 +13,7 @@ import {
   type DocType,
   type ManifestEntry,
 } from '@/phase2';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import type { Antrag } from '@/core/services/csv/types';
 import { useDokumentReviewStore } from '../store';
 import { applyFilters } from '../filtering';

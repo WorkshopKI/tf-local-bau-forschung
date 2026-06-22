@@ -10,7 +10,7 @@
  */
 import { memo, type ReactNode } from 'react';
 import { FileText } from 'lucide-react';
-import { Badge } from '@/ui';
+import { Badge } from '@/components/ui/badge';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { SortableColumn } from '@/components/data-table';
 import { getStatusCategoryColor } from '@/plugins/antraege/groupAggregates';

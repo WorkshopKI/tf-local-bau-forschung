@@ -3,7 +3,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, MessageCircle, Search, Sparkles } from 'lucide-react';
-import { Badge } from '@/ui';
+import { Badge } from '@/components/ui/badge';
 import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';

@@ -15,7 +15,8 @@
  * `checks`, der Denkprozess das echte Reasoning.
  */
 import { Quote, ChevronRight } from 'lucide-react';
-import { CollapsibleSection, MarkdownRenderer } from '@/ui';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { CheckList } from '../kurzfassung/CheckList';
 import { QsHinweisList } from './QsHinweisList';
 import { AmpelGruppe } from './AmpelGruppe';

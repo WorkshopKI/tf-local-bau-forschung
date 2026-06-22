@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { FlaskConical, Square, Trash2, RefreshCw } from 'lucide-react';
-import { Button, Badge, ProgressBar } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   METADATA_LLM_MODELS, initMetadataLLM, extractMetadata, disposeMetadataLLM,

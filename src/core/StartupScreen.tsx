@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Check, ClipboardCopy, FolderOpen, ShieldCheck } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { GuidedGrantSteps } from '@/core/components/GuidedGrantSteps';
 import {

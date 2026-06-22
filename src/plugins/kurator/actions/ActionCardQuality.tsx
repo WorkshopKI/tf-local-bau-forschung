@@ -1,5 +1,5 @@
 import { FlaskConical, Search } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button } from '@/components/ui/button';
 import { ActionCard } from './ActionCard';
 
 interface ActionCardQualityProps {

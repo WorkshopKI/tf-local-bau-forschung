@@ -47,7 +47,6 @@ export {
   listUnterprogramme,
   saveUnterprogramm,
   getActiveUnterprogrammCodes,
-  recomputeAntragCounts,
   recomputeUnterprogrammStats,
   findUnterprogrammColumn,
   logUnterprogrammChange,

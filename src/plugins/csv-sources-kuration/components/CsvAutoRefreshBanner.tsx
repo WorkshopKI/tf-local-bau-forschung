@@ -24,7 +24,7 @@ import { CsvAutoRefreshDriftDialog } from './CsvAutoRefreshDriftDialog';
 import { CsvSourceLinkDialog } from './CsvSourceLinkDialog';
 import { isCsvAutoRefreshEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
 import { pluginIdToRoute } from '@/core/routes';
-import { ProgressBar } from '@/ui';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import type { RefreshProgress } from '../services/auto-refresh';
 
 /** Kurzes Verb je Pipeline-Phase fuer das Banner. */

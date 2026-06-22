@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen, RefreshCw, FolderInput } from 'lucide-react';
-import { Button, Badge, SectionHeader, ListItem } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { ListItem } from '@/components/ui/ListItem';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import type { DirectoryEntry } from '@/core/types/config';

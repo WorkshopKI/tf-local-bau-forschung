@@ -7,7 +7,8 @@
  * kein Verlauf vorhanden ist.
  */
 import { useMemo, useState } from 'react';
-import { CollapsibleSection, Tabs } from '@/ui';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { Tabs } from '@/components/ui/tabs';
 import { splitSentences } from '@/core/services/skills';
 import { CheckList } from './CheckList';
 import { versionLabel, formatDate } from './kurzfassung-verlauf';

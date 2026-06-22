@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Trash2, FileText, Database, Pencil, Check, FolderPlus } from 'lucide-react';
-import { Button, Badge, ListItem, Select } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ListItem } from '@/components/ui/ListItem';
+import { Select } from '@/ui/Select';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { DirectoryEntry } from '@/core/types/config';
 

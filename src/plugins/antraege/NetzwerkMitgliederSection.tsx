@@ -9,7 +9,8 @@
  * RAM-Snapshot des aktiven Programms aus `useAntraegeStore`).
  */
 import { useMemo } from 'react';
-import { CollapsibleSection, Badge } from '@/ui';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { Badge } from '@/components/ui/badge';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { useAntraegeStore } from './store';

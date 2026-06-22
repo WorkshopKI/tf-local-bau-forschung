@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Plug, Settings } from 'lucide-react';
-import { Button, Dialog, SectionHeader } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { Dialog } from '@/ui/Dialog';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useNavigation } from '@/core/hooks/useNavigation';

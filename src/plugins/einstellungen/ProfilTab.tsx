@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, Minus, Plus } from 'lucide-react';
-import { SectionHeader } from '@/ui';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Switch } from '@/components/ui/switch';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';

@@ -12,7 +12,7 @@
  * Ampel, Frist) — keine String-Literal-Status-Vergleiche (Pitfall #12).
  */
 import type { ReactNode } from 'react';
-import { Badge } from '@/ui';
+import { Badge } from '@/components/ui/badge';
 import type { SortableColumn } from '@/components/data-table';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';

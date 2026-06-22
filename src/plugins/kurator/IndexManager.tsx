@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Tabs } from '@/ui';
+import { Tabs } from '@/components/ui/tabs';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';

@@ -5,7 +5,7 @@
  * Grafiken oder ein gescanntes (textloses) PDF und kann extern korrigieren.
  */
 import { Dialog } from '@/components/ui/dialog';
-import { MarkdownRenderer } from '@/ui';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { parseMarkdown } from '@/plugins/dokumente/markdownMeta';
 import type { ConversionReport, ConversionWarning } from '@/core/services/converter';
 

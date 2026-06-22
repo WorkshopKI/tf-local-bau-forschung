@@ -10,7 +10,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FolderOpen, Check, X, RefreshCcw, Inbox, MessageSquare, Coins } from 'lucide-react';
-import { Button, SectionHeader } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   getUserFoldersRootHandle,

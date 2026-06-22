@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Select } from '@/ui';
+import { Select } from '@/ui/Select';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   EMBEDDING_MODELS, setActiveModelId,

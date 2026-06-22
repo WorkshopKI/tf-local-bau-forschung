@@ -9,7 +9,8 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, FolderOpen } from 'lucide-react';
-import { Button, SectionHeader } from '@/ui';
+import { Button } from '@/components/ui/button';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {

@@ -1,4 +1,5 @@
-import { SectionHeader, ListItem } from '@/ui';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { ListItem } from '@/components/ui/ListItem';
 import { keyboardService } from '@/core/services/keyboard';
 
 export function TastaturTab(): React.ReactElement {
