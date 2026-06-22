@@ -5,6 +5,35 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.109.0 — Gutachten-Workflow „Werkstatt"-Layout + Inline-Bearbeiten (Juni 2026)
+
+MINOR-Bump — additiv, **kein** Object-Store/Schema-Bump (alte `WorkflowRun`s laden unverändert). Der
+Gutachten-Review-Workflow (dev-only, Flag `gutachtenWorkflow`) bekommt das mit dem Claude-Design-Tool
+überarbeitete **„Werkstatt"-Layout** (Handoff `_design/handoff/workflow-mit-bearbeiten/`) und eine neue
+**Inline-Bearbeitung** des Entwurfstexts. Styling als co-located gescopte CSS (`.gutachten-werkstatt`,
+Konvention `chat.css`/`kompetenz-matrix.css`).
+
+- **3-Spalten-Werkstatt** ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx) +
+  [gutachten.css](src/plugins/antraege/gutachten/gutachten.css)): Verbund-Kontextkarte + Fortschrittsleiste
+  oben, dann Stepper-Rail (`.g-rail`, [AbschnittNav.tsx](src/plugins/antraege/gutachten/AbschnittNav.tsx)) ·
+  Entwurf-Karte · einklappbares „Quelle & Prüfung"-Panel ([KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx),
+  Antragsbezug = `quellenanalyse`, Prüfung = `checks`, Denkprozess, Provenance). Schmaler Container →
+  einspaltiger Fallback (gemessene Container-Breite, kein `@media`). Fehlende `--tf-*`-Tokens lokal auf den
+  Scope-Root definiert (Token-Falle: `font:`/`box-shadow:` würden sonst lautlos ausfallen).
+- **Inline-Bearbeiten** ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)):
+  „Bearbeiten" → Plain-Text-Editor (Übernehmen/Abbrechen, `⌘/Strg+Enter` / `Esc`), „bearbeitet"-Badge mit
+  „Zurücksetzen". `StepRun.originalText` snapshottet den generierten Text (additiv); reine Reducer
+  `applyBearbeitung`/`applyZuruecksetzen` ([runner.ts](src/plugins/antraege/gutachten/runner.ts)), Checks
+  laufen nach Save deterministisch neu (`runRegelChecks`), Export übernimmt den editierten Text automatisch.
+  Persist über `reduce` (ein `setState` + ein `persist`, Pitfall #16/#20), Save via `useAsyncAction` (#15).
+- **Persönlicher-Stil-Dialog** ([TweakEditor.tsx](src/plugins/antraege/kurzfassung/TweakEditor.tsx)): vom
+  Slide-Over auf den kanonischen, zentrierten `Dialog` umgebaut (560px) — Master-Toggle, Preset-Chips,
+  visuelle „So wird kombiniert"-Schichtung (Kurator-Lock) + „Technische Ansicht"-Toggle. Tweak-Logik
+  (Rangfolge, Persistenz, `buildTweakBlock`/`buildPromptVorgaben`) unverändert; auch der Kurzfassung-Pfad
+  nutzt den neuen Dialog.
+- **Bewusst nicht umgesetzt** (Prototyp-Fiktion ohne Backing): Inline-Beleg-Popover im Fließtext
+  (kein strukturiertes Claim→Quelle-Substrat) und die „Belege als Fußnoten"-Export-Option.
+
 ### v2.108.0 — Artefakt-Engine: Substrat + NF-Nachforderungen + GA-QS (Juni 2026)
 
 MINOR-Bump — additiv, **kein** neuer Object-Store, **GA byte-identisch**. Die Gutachten-Maschine wird

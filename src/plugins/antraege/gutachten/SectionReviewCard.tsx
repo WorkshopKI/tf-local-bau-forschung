@@ -1,17 +1,21 @@
 /**
- * Review-Body EINES Abschnitts (generalisiert aus der Kurzfassung-`ReviewCard`,
- * kein Duplikat der Logik). Kopf/Badge/Transport + Export sitzen im Sektions-
- * Container; diese Karte zeigt Quellenanalyse, finalen Text + Meta, Verlauf,
- * Prüf-Ergebnis und die Aktionsleiste (Freigeben/Neu/Kürzer/Länger/Prüfen).
- * Im freigegebenen Zustand: nur „Erneut öffnen" (Export liegt im Sektionskopf).
+ * Review-Body EINES Abschnitts im Werkstatt-Layout (Design-Handoff
+ * `workflow-mit-bearbeiten`). Kopf (Titel/Status/„bearbeitet"-Badge/Modell) +
+ * Karten-Rahmen sitzen im Container (`ActiveAbschnitt` in `GutachtenSection`),
+ * Quelle/Prüfung/Denkprozess im rechten `KontextPanel`. Diese Karte zeigt den
+ * finalen Text (mit **Inline-Bearbeitung**), die Meta-Zeile, den Versions-Verlauf
+ * und die zweizeilige Aktionsleiste.
+ *
+ * Inline-Bearbeitung als Plain-Text (passt zu Markdown-Render + DOCX-Füller +
+ * deterministischen Checks); `onBearbeiten` persistiert + rechnet die Checks neu.
+ *
+ * Styles in `gutachten.css` (gescopt unter `.gutachten-werkstatt`).
  */
-import { useEffect, useState } from 'react';
-import { SlidersHorizontal, ThumbsUp, ThumbsDown } from 'lucide-react';
-import { CollapsibleSection, MarkdownRenderer } from '@/ui';
+import { useEffect, useRef, useState } from 'react';
+import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check } from 'lucide-react';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
-import { CheckList } from '../kurzfassung/CheckList';
-import { QsHinweisList } from './QsHinweisList';
 import { VersionVerlauf } from '../kurzfassung/VersionVerlauf';
 import { ThinkingControl } from '../kurzfassung/ThinkingControl';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
@@ -23,6 +27,8 @@ interface Props {
   busy: boolean;
   llmAvailable: boolean | null;
   onModify: (modifier: SkillModifierKey) => void;
+  /** Manuelle Inline-Bearbeitung übernehmen (Plain-Text; Hook persistiert + prüft neu). */
+  onBearbeiten: (text: string) => Promise<void>;
   onPruefen: () => void;
   onFreigeben: () => void;
   onVerwerfen: () => void;
@@ -36,8 +42,6 @@ interface Props {
   provenance?: { skillName: string; regelCount: number };
   /** Öffnet den erzeugenden Skill in der Skill-Verwaltung (Provenienz-Link). */
   onOpenSkill?: () => void;
-  /** Öffnet die Versions-Historie des Skills (Versions-Transparenz, A1). */
-  onOpenSkillVersion?: () => void;
   /** Ein-Klick-Feedback zum Entwurf (→ S1). Fehlt → Feedback-Zeile entfällt. */
   onFeedback?: (rating: 'up' | 'down', notiz?: string) => void;
   /** Thinking-/Reasoning-Budget für die nächste Generierung (Default aus der Einstellung, hier übersteuerbar). */
@@ -48,16 +52,28 @@ interface Props {
   streamThinking: string;
 }
 
-const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed';
-const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed';
-const TWEAK_LINK = 'inline-flex items-center gap-1 text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]';
-
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onOpenSkillVersion, onFeedback, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
+  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
   const genDisabled = busy || llmAvailable === false;
+
+  // Inline-Bearbeitung (Plain-Text). `draft` lokal; Übernehmen persistiert via Hook.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const save = useAsyncAction(
+    async (text: string) => { await onBearbeiten(text); },
+    { onSuccess: () => setEditing(false) },
+  );
+  const startEdit = (): void => { setDraft(run.finalerText); setEditing(true); };
+  const cancelEdit = (): void => { setEditing(false); save.clearError(); };
+  useEffect(() => { if (editing) taRef.current?.focus(); }, [editing]);
+  const onEditKey = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void save.run(draft); }
+  };
 
   // Ein-Klick-Feedback: ein Votum je Abschnittsversion (Reset bei neuer Generierung).
   const [fbDone, setFbDone] = useState(false);
@@ -69,79 +85,72 @@ export function SectionReviewCard({
   };
 
   return (
-    <div className="mt-3">
+    <>
       {run.warnung && (
         <div className="mb-3 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
           {run.warnung}
         </div>
       )}
-
       {run.vbGekuerzt && (
         <div className="mb-3 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
           ⚠ Die Vorhabensbeschreibung war zu lang fürs LLM-Kontextfenster und wurde für die Analyse gekürzt — der Schluss floss nicht in diesen Abschnitt ein. {VB_KUERZEN_HINWEIS}
         </div>
       )}
 
-      {run.quellenanalyse && (
-        <CollapsibleSection label="Quellenanalyse" defaultOpen={!freigegeben}>
-          <div className="pb-3">
-            <MarkdownRenderer content={run.quellenanalyse} />
+      {/* Entwurf / Inline-Editor */}
+      {editing ? (
+        <div className="g-edit">
+          <div className="g-edit-bar">
+            <Pencil className="g-ebi" />
+            <span>Entwurf bearbeiten</span>
+            <span className="g-ab-spacer" />
+            <button type="button" className="g-btn ghost sm" onClick={cancelEdit}>Abbrechen</button>
+            <button type="button" className="g-btn primary sm" disabled={save.busy} onClick={() => save.run(draft)}>
+              {save.busy ? 'Übernehmen…' : 'Übernehmen'}
+            </button>
           </div>
-        </CollapsibleSection>
+          <textarea
+            ref={taRef}
+            className="g-editable"
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={onEditKey}
+            aria-label="Entwurfstext bearbeiten"
+          />
+          <div className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">⌘/Strg + Enter übernimmt · Esc bricht ab</div>
+          {save.error && (
+            <div className="mt-2 text-[12px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)] rounded-[8px] px-3 py-2">{save.error}</div>
+          )}
+        </div>
+      ) : (
+        <div className="g-body">
+          {run.finalerText.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}
+        </div>
       )}
 
-      <div className="mt-4">
-        {run.finalerText.split(/\n{2,}/).map((p, i) => (
-          <p key={i} className="text-[13.5px] leading-[1.7] text-[var(--tf-text)] mb-2">{p}</p>
-        ))}
-        <div className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
-          {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(run.freigegeben_am ?? run.erstellt_am)}` : `generiert am ${formatDate(run.erstellt_am)}`}
+      {/* Meta-Zeile */}
+      <div className="g-metaline">
+        <span>
+          {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(run.freigegeben_am ?? run.erstellt_am)}` : 'Entwurf'}
           {run.mitTweak ? ' · mit persönlichem Stil' : ''}
-        </div>
+        </span>
         {provenance && (
-          <div className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
-            erzeugt mit{' '}
-            {onOpenSkill ? (
-              <button type="button" onClick={onOpenSkill} className="text-[var(--tf-primary)] hover:underline">{provenance.skillName}</button>
-            ) : (
-              <span className="text-[var(--tf-text-secondary)]">{provenance.skillName}</span>
-            )}
-            {run.skillVersion != null && (
-              <>
-                {' '}
-                {onOpenSkillVersion ? (
-                  <button type="button" onClick={onOpenSkillVersion} title="Versions-Historie öffnen" className="text-[var(--tf-primary)] hover:underline">v{run.skillVersion}</button>
-                ) : (
-                  <span className="text-[var(--tf-text-secondary)]">v{run.skillVersion}</span>
-                )}
-              </>
-            )}
-            {run.modell ? ` · ${run.modell}` : ''} ·{' '}
-            {onOpenSkill ? (
-              <button type="button" onClick={onOpenSkill} className="text-[var(--tf-primary)] hover:underline">
-                prüft {provenance.regelCount} {provenance.regelCount === 1 ? 'Regel' : 'Regeln'}
-              </button>
-            ) : (
-              <span>prüft {provenance.regelCount} {provenance.regelCount === 1 ? 'Regel' : 'Regeln'}</span>
-            )}
-          </div>
+          <>
+            <span className="g-dotsep">·</span>
+            <span>
+              erzeugt mit{' '}
+              {onOpenSkill ? (
+                <button type="button" className="g-ver" onClick={onOpenSkill}>
+                  {provenance.skillName}{run.skillVersion != null ? ` v${run.skillVersion}` : ''}
+                </button>
+              ) : (
+                <span>{provenance.skillName}{run.skillVersion != null ? ` v${run.skillVersion}` : ''}</span>
+              )}
+              {run.modell ? ` · ${run.modell}` : ''} · prüft {provenance.regelCount} {provenance.regelCount === 1 ? 'Regel' : 'Regeln'}
+            </span>
+          </>
         )}
       </div>
-
-      {/* Denkprozess (Reasoning/Thinking) — aufklappbar, wenn das Modell welchen lieferte */}
-      {run.denkprozess ? (
-        <div className="mt-4">
-          <CollapsibleSection label="Denkprozess" defaultOpen={false}>
-            <div className="pb-2 text-[12.5px] leading-[1.6] text-[var(--tf-text-secondary)] whitespace-pre-wrap max-h-[360px] overflow-auto">
-              {run.denkprozess}
-            </div>
-          </CollapsibleSection>
-        </div>
-      ) : run.denkprozessAngefordert ? (
-        <div className="mt-3 text-[11.5px] text-[var(--tf-text-tertiary)]">
-          Thinking war aktiv, aber das Modell hat keinen separaten Denkprozess geliefert — möglicherweise unterstützt das genutzte Modell / der Server kein Reasoning.
-        </div>
-      ) : null}
 
       <VersionVerlauf
         versions={run.verlauf ?? []}
@@ -151,113 +160,77 @@ export function SectionReviewCard({
         onUebernehmen={onUebernehmen}
       />
 
-      {/* Getrennte Qualitätsbereiche: links deterministische Prüfung, rechts
-          beratende KI-QS. Die QS-Spalte entfällt sauber, wenn keine Hinweise
-          vorliegen (z.B. KI nicht erreichbar). */}
-      {(run.checks.length > 0 || (run.qsHinweise?.length ?? 0) > 0) && (
-        <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
-          {run.checks.length > 0 && (
-            <div>
-              <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-2.5">
-                Prüfung · {run.checks.length} {run.checks.length === 1 ? 'Regel' : 'Regeln'}
-              </div>
-              <CheckList checks={run.checks} />
-            </div>
-          )}
-          {(run.qsHinweise?.length ?? 0) > 0 && (
-            <div>
-              <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-1">
-                KI-Qualitätshinweis · beratend
-              </div>
-              <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2.5">Qualitative Einschätzung der KI — ändert den Text nicht.</div>
-              <QsHinweisList befunde={run.qsHinweise!} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {onFeedback && !busy && (
-        <div className="mt-5 pt-4 border-t-[0.5px] border-[var(--tf-border)]">
-          {fbDone ? (
-            <div className="text-[11.5px] text-[var(--tf-text-tertiary)]">Danke — Rückmeldung gespeichert.</div>
-          ) : (
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="text-[12px] text-[var(--tf-text-secondary)]">War der Entwurf gut?</span>
-              <button
-                type="button"
-                title="Gut"
-                onClick={() => submitFeedback('up')}
-                className="w-7 h-7 inline-flex items-center justify-center rounded-[7px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)]"
-              >
-                <ThumbsUp size={13} />
-              </button>
-              <button
-                type="button"
-                title="Nicht gut"
-                onClick={() => submitFeedback('down')}
-                className="w-7 h-7 inline-flex items-center justify-center rounded-[7px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)]"
-              >
-                <ThumbsDown size={13} />
-              </button>
-              <input
-                value={fbNote}
-                onChange={e => setFbNote(e.target.value)}
-                placeholder="optionale Notiz (kein Antragsbezug)"
-                maxLength={140}
-                className="flex-1 min-w-[180px] text-[12px] px-2.5 py-1.5 rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-transparent outline-none focus:border-[var(--tf-primary)]"
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="mt-6 pt-4 border-t-[0.5px] border-[var(--tf-border)]">
-        {freigegeben ? (
-          <div className="flex items-center gap-2">
-            <button type="button" className={BTN_SECONDARY} onClick={onErneutOeffnen}>Erneut öffnen</button>
-            {onQs && (
-              <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
-            )}
-            <span className="flex-1" />
-            <button type="button" className={TWEAK_LINK} onClick={onOpenTweak}>
-              <SlidersHorizontal size={13} />
-              Persönlicher Stil
-            </button>
-          </div>
-        ) : busy ? (
+      {/* Aktionsleiste */}
+      {busy ? (
+        <div className="g-actionbar">
           <StreamingVorschau thinking={streamThinking} content={streamContent} onStop={onStop} />
-        ) : (
-          <>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button type="button" className={BTN_PRIMARY} onClick={onFreigeben}>Freigeben</button>
-              <span className="inline-flex items-center gap-2">
-                <span className="text-[11px] text-[var(--tf-text-tertiary)]">Anpassen:</span>
-                <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
-                <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
-                <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
-              </span>
-              <ThinkingControl budget={thinkingBudget} onChange={onSetThinkingBudget} disabled={busy} />
-              <button type="button" className={BTN_SECONDARY} onClick={onPruefen}>Prüfen</button>
-              {onQs && (
-                <button type="button" className={BTN_SECONDARY} disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
-              )}
-              <span className="flex-1" />
-              <button type="button" className={TWEAK_LINK} onClick={onOpenTweak}>
-                <SlidersHorizontal size={13} />
-                Persönlicher Stil
-              </button>
-              <button type="button" className="text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]" onClick={onVerwerfen}>
-                Verwerfen
-              </button>
-            </div>
-            {llmAvailable === false && (
-              <div className="mt-2 text-[11.5px] text-[var(--tf-warning-text)]">
-                KI nicht erreichbar — Neu/Kürzer/Länger derzeit nicht möglich.
-              </div>
+        </div>
+      ) : freigegeben ? (
+        <div className="g-actionbar">
+          <div className="g-ab-row">
+            <span className="g-freigabe-tag"><Check className="g-vi" /> Freigegeben</span>
+            <button type="button" className="g-btn sm" onClick={onErneutOeffnen}><Undo2 size={14} /> Erneut öffnen</button>
+            {onQs && (
+              <button type="button" className="g-btn sm" disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
             )}
-          </>
-        )}
-      </div>
-    </div>
+            <span className="g-ab-spacer" />
+            <button type="button" className="g-btn ghost sm" onClick={onOpenTweak}><SlidersHorizontal size={14} /> Persönlicher Stil</button>
+          </div>
+        </div>
+      ) : (
+        <div className="g-actionbar">
+          {/* Zeile 1: Bearbeiten · Entwurf gut? · Persönlicher Stil */}
+          <div className="g-ab-row">
+            <button type="button" className="g-btn ghost sm" onClick={startEdit}><Pencil size={14} /> Bearbeiten</button>
+            {onFeedback ? (
+              <div className="g-vote">
+                {fbDone ? (
+                  <span className="g-fb-done">Danke — Rückmeldung gespeichert.</span>
+                ) : (
+                  <>
+                    <span className="g-vote-q">Entwurf gut?</span>
+                    <button type="button" className="g-vbtn" title="Gut" onClick={() => submitFeedback('up')}><ThumbsUp className="g-vi" /></button>
+                    <button type="button" className="g-vbtn" title="Nicht gut" onClick={() => submitFeedback('down')}><ThumbsDown className="g-vi" /></button>
+                    <input
+                      className="g-noteinput"
+                      value={fbNote}
+                      onChange={e => setFbNote(e.target.value)}
+                      placeholder="Notiz (kein Antragsbezug)"
+                      maxLength={140}
+                    />
+                  </>
+                )}
+              </div>
+            ) : (
+              <span className="g-ab-spacer" />
+            )}
+            <button type="button" className="g-btn ghost sm" onClick={onOpenTweak}><SlidersHorizontal size={14} /> Persönlicher Stil</button>
+          </div>
+
+          {/* Zeile 2: Freigeben & weiter · Anpassen · Prüfen · Verwerfen */}
+          <div className="g-ab-row">
+            <button type="button" className="g-btn primary" onClick={onFreigeben}>Freigeben &amp; weiter <ArrowRight size={14} /></button>
+            <span className="g-ab-anpassen">
+              <span className="g-ab-anpassen-lbl">Anpassen</span>
+              <button type="button" className="g-btn sm" disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
+              <button type="button" className="g-btn sm" disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
+              <button type="button" className="g-btn sm" disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
+            </span>
+            <ThinkingControl budget={thinkingBudget} onChange={onSetThinkingBudget} disabled={busy} />
+            <button type="button" className="g-btn sm" onClick={onPruefen}>Prüfen</button>
+            {onQs && (
+              <button type="button" className="g-btn sm" disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
+            )}
+            <span className="g-ab-spacer" />
+            <button type="button" className="g-btn ghost sm" onClick={onVerwerfen}>Verwerfen</button>
+          </div>
+          {llmAvailable === false && (
+            <div className="text-[11.5px] text-[var(--tf-warning-text)]">
+              KI nicht erreichbar — Neu/Kürzer/Länger derzeit nicht möglich.
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }

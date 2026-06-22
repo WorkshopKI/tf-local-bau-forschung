@@ -1,0 +1,173 @@
+/**
+ * Gutachten-Workflow „Werkstatt"-Layout — Design-Handoff-Port aus
+ * `_design/handoff/workflow-mit-bearbeiten/gutachten.css` (finale Variante
+ * „Werkstatt": Stepper-Rail links · Entwurf-Karte Mitte · Quelle-&-Prüfung-Panel
+ * rechts). Nur die In-Page-Klassen — die Dialoge (Stil / Export) bauen mit dem
+ * kanonischen `Dialog` + Tailwind, daher hier KEINE `.g-dialog*`/`.g-overlay`.
+ *
+ * Alles unter `.gutachten-werkstatt` gescopt (analog `chat.css` `.chat-app`),
+ * damit die kurzen `.g-*`-Klassen nicht global lecken.
+ *
+ * FALLE (design-handoff-styling): die Handoff-CSS nutzt `--tf-*`-Tokens, die die
+ * echte `src/theme.css` NICHT hat (`--tf-font-*`, `--tf-weight-*`,
+ * `--tf-shadow-dialog`, `--tf-duration-*`, `--tf-ease`). Hier lokal auf den
+ * Scope-Root definiert, sonst fielen `font:`/`box-shadow:`/`transition:` lautlos
+ * aus. Farb-/bg-Tokens kommen aus theme.css und flippen dort automatisch in Dark;
+ * nur `--g-green`/`--g-amber` + Schatten brauchen einen eigenen Dark-Override.
+ */
+.gutachten-werkstatt {
+  --tf-font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --tf-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --tf-weight-regular: 400;
+  --tf-weight-medium: 500;
+  --tf-shadow-dialog: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --tf-duration-fast: 150ms;
+  --tf-duration-med: 200ms;
+  --tf-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --g-green: hsl(145, 60%, 33%);
+  --g-amber: hsl(38, 70%, 38%);
+}
+
+[data-theme="dark"] .gutachten-werkstatt {
+  --g-green: hsl(145, 32%, 52%);
+  --g-amber: hsl(38, 40%, 60%);
+  --tf-shadow-dialog: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes gutachten-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Antrag-Kontextkarte ---------- */
+.gutachten-werkstatt .g-antrag { display: flex; gap: 14px; align-items: flex-start; padding: 13px 15px; border: .5px solid var(--tf-border); border-radius: 10px; background: var(--tf-bg-secondary); }
+.gutachten-werkstatt .g-tv { font: var(--tf-weight-medium) 11px/1 var(--tf-font-mono); color: var(--tf-text-tertiary); border: .5px solid var(--tf-border-hover); border-radius: 6px; padding: 5px 7px; flex-shrink: 0; white-space: nowrap; }
+.gutachten-werkstatt .g-antrag-main { min-width: 0; }
+.gutachten-werkstatt .g-antrag-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.gutachten-werkstatt .g-org { font: var(--tf-weight-medium) 14px/1.3 var(--tf-font-sans); color: var(--tf-text); }
+.gutachten-werkstatt .g-meta { font: 11.5px/1.3 var(--tf-font-mono); color: var(--tf-text-tertiary); }
+.gutachten-werkstatt .g-antrag-titel { font: 12.5px/1.5 var(--tf-font-sans); color: var(--tf-text-secondary); margin-top: 5px; text-wrap: pretty; }
+.gutachten-werkstatt .g-antrag-titel b { color: var(--tf-text); font-weight: var(--tf-weight-medium); }
+
+/* ---------- Fortschritt + Export ---------- */
+.gutachten-werkstatt .g-progress { display: flex; align-items: center; gap: 18px; margin: 22px 2px 18px; flex-wrap: wrap; }
+.gutachten-werkstatt .g-progress-l { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.gutachten-werkstatt .g-gtitle { font: var(--tf-weight-medium) 16px/1 var(--tf-font-sans); color: var(--tf-text); }
+.gutachten-werkstatt .g-pcount { font: 12px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); }
+
+/* ---------- Buttons ---------- */
+.gutachten-werkstatt .g-btn { height: 32px; padding: 0 14px; border-radius: 8px; font: var(--tf-weight-medium) 12.5px/1 var(--tf-font-sans); cursor: pointer; display: inline-flex; align-items: center; gap: 7px; border: .5px solid var(--tf-border-hover); background: var(--tf-bg); color: var(--tf-text); white-space: nowrap; transition: background var(--tf-duration-fast), opacity var(--tf-duration-fast); }
+.gutachten-werkstatt .g-btn:hover { background: var(--tf-hover); }
+.gutachten-werkstatt .g-btn:disabled { opacity: .4; cursor: not-allowed; }
+.gutachten-werkstatt .g-btn.primary { background: var(--tf-primary); color: #fff; border-color: var(--tf-primary); }
+.gutachten-werkstatt .g-btn.primary:hover { opacity: .9; background: var(--tf-primary); }
+.gutachten-werkstatt .g-btn.ghost { border-color: transparent; color: var(--tf-text-secondary); }
+.gutachten-werkstatt .g-btn.ghost:hover { background: var(--tf-hover); color: var(--tf-text); }
+.gutachten-werkstatt .g-btn.sm { height: 28px; padding: 0 11px; font-size: 12px; }
+.gutachten-werkstatt .g-btn.export { margin-left: auto; background: var(--tf-primary); color: #fff; border-color: var(--tf-primary); height: 34px; }
+.gutachten-werkstatt .g-btn.export:hover { opacity: .9; background: var(--tf-primary); }
+.gutachten-werkstatt .g-btn.export:disabled { opacity: .4; }
+.gutachten-werkstatt .g-exbadge { font: var(--tf-weight-regular) 11px/1 var(--tf-font-mono); background: rgba(255, 255, 255, .16); padding: 4px 7px; border-radius: 99px; }
+.gutachten-werkstatt .g-btn.export.ready { box-shadow: 0 0 0 3px var(--tf-success-bg); }
+
+/* ---------- Werkstatt-Grid ---------- */
+.gutachten-werkstatt .g-werk { display: grid; grid-template-columns: 248px minmax(0, 1fr) 340px; gap: 24px; align-items: start; transition: grid-template-columns var(--tf-duration-med) var(--tf-ease); }
+.gutachten-werkstatt .g-werk.ctx-closed { grid-template-columns: 248px minmax(0, 1fr) 42px; }
+/* Kein Kontext-Panel (aktiver Abschnitt noch leer → Generieren-Prompt, nichts zum Gegenlesen). */
+.gutachten-werkstatt .g-werk.no-ctx { grid-template-columns: 248px minmax(0, 1fr); }
+/* Einspaltiger Fallback (schmaler Container): Rail + Karte gestapelt, Panel als Block. */
+.gutachten-werkstatt .g-werk.solo { display: block; }
+
+/* ---------- Stepper-Rail ---------- */
+.gutachten-werkstatt .g-rail { position: relative; padding: 4px 0; }
+.gutachten-werkstatt .g-rail.sticky { position: sticky; top: 14px; align-self: start; }
+.gutachten-werkstatt .g-rail-line { position: absolute; left: 24px; top: 24px; bottom: 24px; width: 1.5px; transform: translateX(-50%); background: var(--tf-border); }
+.gutachten-werkstatt .g-step { position: relative; display: flex; align-items: center; gap: 11px; width: 100%; background: transparent; border: 0; padding: 7px 10px; border-radius: 9px; cursor: pointer; text-align: left; }
+.gutachten-werkstatt .g-step:hover { background: var(--tf-hover); }
+.gutachten-werkstatt .g-step.active { background: var(--tf-primary-light); }
+.gutachten-werkstatt .g-step.sub { padding-left: 22px; }
+.gutachten-werkstatt .g-step-badge { position: relative; z-index: 1; width: 28px; height: 28px; flex-shrink: 0; border-radius: 99px; display: flex; align-items: center; justify-content: center; font: var(--tf-weight-medium) 12px/1 var(--tf-font-sans); background: var(--tf-bg); border: 1.5px solid var(--tf-border-hover); color: var(--tf-text-secondary); }
+.gutachten-werkstatt .g-step-badge.active { border-color: var(--tf-primary); color: var(--tf-primary); }
+.gutachten-werkstatt .g-step-badge.freigegeben { background: var(--g-green); border-color: var(--g-green); color: #fff; }
+.gutachten-werkstatt .g-sbi { width: 14px; height: 14px; }
+.gutachten-werkstatt .g-step-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.gutachten-werkstatt .g-step-title { font: 13px/1.25 var(--tf-font-sans); color: var(--tf-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gutachten-werkstatt .g-step.active .g-step-title { font-weight: var(--tf-weight-medium); }
+.gutachten-werkstatt .g-step-done { margin-left: auto; color: var(--g-green); display: flex; }
+.gutachten-werkstatt .g-sdi { width: 15px; height: 15px; }
+
+/* ---------- Entwurf-Karte ---------- */
+.gutachten-werkstatt .g-card { border: .5px solid var(--tf-border); border-radius: 12px; background: var(--tf-bg); padding: 20px 24px 16px; animation: gutachten-fade var(--tf-duration-med) var(--tf-ease); }
+.gutachten-werkstatt .g-card-head { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; flex-wrap: wrap; }
+.gutachten-werkstatt .g-card-title { font: var(--tf-weight-medium) 17px/1.3 var(--tf-font-sans); color: var(--tf-text); margin: 0; letter-spacing: -.01em; }
+.gutachten-werkstatt .g-model { display: inline-flex; align-items: center; gap: 6px; font: 11.5px/1 var(--tf-font-mono); color: var(--tf-text-tertiary); }
+.gutachten-werkstatt .g-mdot { width: 7px; height: 7px; border-radius: 99px; background: var(--g-green); flex-shrink: 0; }
+
+.gutachten-werkstatt .g-pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 10px; border-radius: 99px; font: var(--tf-weight-medium) 11px/1 var(--tf-font-sans); }
+.gutachten-werkstatt .g-pill.ok { background: var(--tf-success-bg); color: var(--tf-success-text); }
+.gutachten-werkstatt .g-pill.draft { background: var(--tf-bg-secondary); color: var(--tf-text-tertiary); border: .5px solid var(--tf-border); }
+.gutachten-werkstatt .g-pi { width: 12px; height: 12px; }
+
+/* ---------- Entwurfstext ---------- */
+.gutachten-werkstatt .g-body { font: var(--tf-weight-regular) 14px/1.72 var(--tf-font-sans); color: var(--tf-text); margin: 14px 0; text-wrap: pretty; }
+.gutachten-werkstatt .g-body p { margin: 0 0 .7em; }
+.gutachten-werkstatt .g-body p:last-child { margin-bottom: 0; }
+
+/* ---------- Meta-Zeile ---------- */
+.gutachten-werkstatt .g-metaline { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font: 11.5px/1.5 var(--tf-font-sans); color: var(--tf-text-tertiary); margin: 6px 0 4px; }
+.gutachten-werkstatt .g-dotsep { color: var(--tf-border-hover); }
+.gutachten-werkstatt .g-ver { color: var(--tf-primary); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: .5px; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
+.gutachten-werkstatt .g-ver:hover { text-decoration-thickness: 1px; }
+
+/* ---------- Inline-Bearbeitung ---------- */
+.gutachten-werkstatt .g-edit { margin: 14px 0; }
+.gutachten-werkstatt .g-edit-bar { display: flex; align-items: center; gap: 8px; padding: 8px 11px; background: var(--tf-primary-light); border-radius: 9px 9px 0 0; font: var(--tf-weight-medium) 12px/1 var(--tf-font-sans); color: var(--tf-primary); }
+.gutachten-werkstatt .g-ebi { width: 14px; height: 14px; flex-shrink: 0; }
+.gutachten-werkstatt .g-editable { display: block; width: 100%; resize: vertical; border: 1.5px solid var(--tf-primary); border-top: 0; border-radius: 0 0 9px 9px; padding: 13px 15px; margin: 0; outline: none; background: var(--tf-bg); min-height: 160px; font: var(--tf-weight-regular) 14px/1.72 var(--tf-font-sans); color: var(--tf-text); }
+.gutachten-werkstatt .g-editable:focus { box-shadow: 0 0 0 3px var(--tf-primary-light); }
+.gutachten-werkstatt .g-edited-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 4px 0 9px; border-radius: 99px; background: var(--tf-warning-bg); color: var(--tf-warning-text); font: var(--tf-weight-medium) 11px/1 var(--tf-font-sans); }
+.gutachten-werkstatt .g-edited-badge svg { width: 11px; height: 11px; }
+.gutachten-werkstatt .g-edited-restore { height: 18px; padding: 0 8px; border-radius: 99px; border: 0; background: rgba(0, 0, 0, .08); color: inherit; font: var(--tf-weight-medium) 10.5px/1 var(--tf-font-sans); cursor: pointer; }
+.gutachten-werkstatt .g-edited-restore:hover { background: rgba(0, 0, 0, .15); }
+[data-theme="dark"] .gutachten-werkstatt .g-edited-restore { background: rgba(200, 195, 180, .12); }
+[data-theme="dark"] .gutachten-werkstatt .g-edited-restore:hover { background: rgba(200, 195, 180, .2); }
+
+/* ---------- Aktionsleiste ---------- */
+.gutachten-werkstatt .g-actionbar { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: .5px solid var(--tf-border); }
+.gutachten-werkstatt .g-ab-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.gutachten-werkstatt .g-ab-anpassen { display: inline-flex; align-items: center; gap: 6px; }
+.gutachten-werkstatt .g-ab-anpassen-lbl { font: 11px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); }
+.gutachten-werkstatt .g-vote { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 240px; }
+.gutachten-werkstatt .g-vote-q { font: 12px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); white-space: nowrap; }
+.gutachten-werkstatt .g-vbtn { width: 30px; height: 30px; border-radius: 8px; border: .5px solid var(--tf-border-hover); background: var(--tf-bg); color: var(--tf-text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.gutachten-werkstatt .g-vbtn:hover { background: var(--tf-hover); }
+.gutachten-werkstatt .g-vbtn.up { background: var(--tf-success-bg); color: var(--tf-success-text); border-color: transparent; }
+.gutachten-werkstatt .g-vbtn.down { background: var(--tf-danger-bg); color: var(--tf-danger-text); border-color: transparent; }
+.gutachten-werkstatt .g-vi { width: 15px; height: 15px; }
+.gutachten-werkstatt .g-noteinput { flex: 1; min-width: 120px; height: 30px; border: .5px solid var(--tf-border); border-radius: 8px; padding: 0 11px; font: 12.5px/1 var(--tf-font-sans); color: var(--tf-text); background: var(--tf-bg); }
+.gutachten-werkstatt .g-noteinput:focus { outline: none; border-color: var(--tf-border-hover); }
+.gutachten-werkstatt .g-noteinput::placeholder { color: var(--tf-text-tertiary); }
+.gutachten-werkstatt .g-fb-done { font: 11.5px/1.4 var(--tf-font-sans); color: var(--tf-text-tertiary); }
+.gutachten-werkstatt .g-freigabe-tag { display: inline-flex; align-items: center; gap: 6px; font: var(--tf-weight-medium) 12.5px/1 var(--tf-font-sans); color: var(--tf-success-text); }
+.gutachten-werkstatt .g-ab-spacer { flex: 1; }
+
+/* ---------- Kontext-Panel (rechte Spalte / Block) ---------- */
+.gutachten-werkstatt .g-context { position: sticky; top: 14px; border: .5px solid var(--tf-border); border-radius: 12px; background: var(--tf-bg-secondary); padding: 16px 17px; display: flex; flex-direction: column; gap: 16px; }
+.gutachten-werkstatt .g-context.block { position: static; margin-top: 18px; }
+.gutachten-werkstatt .g-ctx-head { display: flex; align-items: center; font: var(--tf-weight-medium) 13px/1 var(--tf-font-sans); color: var(--tf-text); }
+.gutachten-werkstatt .g-ctx-collapse { margin-left: auto; width: 26px; height: 26px; border: 0; background: transparent; color: var(--tf-text-tertiary); border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.gutachten-werkstatt .g-ctx-collapse:hover { background: var(--tf-hover); color: var(--tf-text); }
+.gutachten-werkstatt .g-ctx-reopen { position: sticky; top: 14px; align-self: stretch; min-height: 220px; width: 42px; border: .5px solid var(--tf-border); border-radius: 12px; background: var(--tf-bg-secondary); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px 0; color: var(--tf-text-secondary); }
+.gutachten-werkstatt .g-ctx-reopen:hover { background: var(--tf-hover); color: var(--tf-text); }
+.gutachten-werkstatt .g-ctx-reopen-lbl { writing-mode: vertical-rl; transform: rotate(180deg); font: var(--tf-weight-medium) 11.5px/1 var(--tf-font-sans); letter-spacing: .04em; white-space: nowrap; }
+.gutachten-werkstatt .g-ctx-cap { font: var(--tf-weight-medium) 10px/1 var(--tf-font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--tf-text-tertiary); margin-bottom: 8px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.gutachten-werkstatt .g-ctx-fail { color: var(--tf-warning-text); background: var(--tf-warning-bg); padding: 3px 7px; border-radius: 99px; letter-spacing: 0; text-transform: none; }
+.gutachten-werkstatt .g-quotecard { position: relative; background: var(--tf-bg); border: .5px solid var(--tf-border); border-radius: 9px; padding: 12px 13px 12px 36px; }
+.gutachten-werkstatt .g-qci { position: absolute; left: 12px; top: 12px; width: 16px; height: 16px; color: var(--tf-primary); opacity: .55; }
+.gutachten-werkstatt .g-quotecard p { margin: 0; font: 13px/1.6 var(--tf-font-sans); color: var(--tf-text-secondary); text-wrap: pretty; }
+.gutachten-werkstatt .g-ctx-text { margin: 0; font: 12.5px/1.6 var(--tf-font-sans); color: var(--tf-text-secondary); text-wrap: pretty; white-space: pre-wrap; }
+.gutachten-werkstatt .g-ctx-foot { border-top: .5px solid var(--tf-border); padding-top: 12px; }
+
+/* Einspaltiger Fallback wird über die gemessene Container-Breite (JS) gesteuert
+   (`.g-werk.solo`), NICHT per @media — die Sektion ist eingebettet, die
+   Viewport-Breite ist nicht ihre Inhaltsbreite (vgl. nav-layout.ts). */

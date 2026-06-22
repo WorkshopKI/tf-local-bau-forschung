@@ -54,6 +54,14 @@ export interface StepRun {
   quellenanalyse: string;
   entwurf: string;
   finalerText: string;
+  /**
+   * Vom Bearbeiter manuell editierter `finalerText` ersetzt den generierten; dieses
+   * Feld hält den ursprünglich GENERIERTEN Text als Snapshot beim ersten Edit
+   * (für „Zurücksetzen"). Gesetzt ⇔ der Abschnitt wurde manuell bearbeitet → treibt
+   * das „bearbeitet"-Badge. Additiv (alte Records ohne Feld bleiben ladbar); eine
+   * Re-Generierung baut einen frischen `StepRun` ohne dieses Feld (Edit verfällt).
+   */
+  originalText?: string;
   checks: CheckResult[];
   status: StepStatus;
   /** ISO-Zeitstempel der (letzten) Generierung. */

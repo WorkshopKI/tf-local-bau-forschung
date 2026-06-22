@@ -1,15 +1,15 @@
 /**
- * Vertikale Abschnitts-Navigation (ersetzt den horizontalen `AbschnittStepper`
- * im breiten Layout). Pro Abschnitt: Buchstaben-Badge + voller Name + Status-
- * Symbol — Status rein aus `StepRun.status` (`leer`→offen, `entwurf`→in Arbeit,
- * `freigegeben`→✓). Der aktive Abschnitt ist grün hervorgehoben (`aria-current`).
- * Klick fokussiert den Abschnitt über `onJump` (= `weiterschaltenStep`); auch
- * leere Abschnitte sind klickbar (öffnet den Generieren-Prompt rechts).
- * Auf `ListItem` aufgebaut.
+ * Vertikale Abschnitts-Rail des Werkstatt-Layouts (Design-Handoff
+ * `workflow-mit-bearbeiten`, `.g-rail`): sticky Stepper mit Verbindungslinie,
+ * 28px-Buchstaben-Badge in drei Zuständen (Entwurf/Aktiv/Freigegeben) + Häkchen
+ * rechts bei Freigabe. Status rein aus `StepRun.status`; Klick fokussiert den
+ * Abschnitt über `onJump` (= `weiterschaltenStep`), auch leere (öffnet den
+ * Generieren-Prompt). Tastatur: ↑/↓ springt zwischen Abschnitten.
+ *
+ * Styles in `gutachten.css` (gescopt unter `.gutachten-werkstatt`).
  */
 import { useEffect, useRef } from 'react';
-import { Check, Pencil, Circle } from 'lucide-react';
-import { ListItem } from '@/components/ui/ListItem';
+import { Check } from 'lucide-react';
 import type { WorkflowStep } from '@/core/services/skills';
 import { nextStepId } from './nav-layout';
 import type { StepId, StepStatus, WorkflowRun } from './types';
@@ -36,12 +36,10 @@ export function stepNavDescriptor(status: StepStatus): StepNavDescriptor {
   }
 }
 
-const ICON_BY_KEY = { check: Check, pencil: Pencil, circle: Circle } as const;
-
 export function AbschnittNav(
   { run, steps, onJump }: { run: WorkflowRun; steps: WorkflowStep[]; onJump: (id: StepId) => void },
 ): React.ReactElement {
-  const activeRef = useRef<HTMLDivElement | null>(null);
+  const activeRef = useRef<HTMLButtonElement | null>(null);
 
   // Aktiven Eintrag in den sichtbaren Bereich scrollen (z.B. nach Tastatur-Sprung).
   useEffect(() => {
@@ -59,58 +57,40 @@ export function AbschnittNav(
   };
 
   return (
-    <nav
+    <aside
+      className="g-rail sticky"
       aria-label="Abschnitte"
       tabIndex={0}
       onKeyDown={onKeyDown}
-      className="flex flex-col rounded-[8px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]"
     >
+      <div className="g-rail-line" />
       {steps.map(def => {
         const status: StepStatus = run.schritte[def.id]?.status ?? 'leer';
         const isActive = def.id === run.aktiverSchritt;
+        const freigegeben = status === 'freigegeben';
         const desc = stepNavDescriptor(status);
-        const StatusIcon = ICON_BY_KEY[desc.icon];
-        const gruen = isActive || status === 'freigegeben';
-
-        const badge = (
-          <span
-            className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-medium ${
-              gruen
-                ? 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]'
-                : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]'
-            }`}
-          >
-            {def.kurz}
-          </span>
-        );
-        const iconColor =
-          desc.tone === 'success'
-            ? 'text-[var(--tf-success-text)]'
-            : isActive
-              ? 'text-[var(--tf-success-text)]'
-              : 'text-[var(--tf-text-tertiary)]';
-        const meta = (
-          <StatusIcon size={15} className={iconColor} aria-label={desc.statusLabel} />
-        );
+        const badgeCls = freigegeben ? ' freigegeben' : isActive ? ' active' : '';
 
         return (
-          <div key={def.id} ref={isActive ? activeRef : undefined} className={def.parentStepId ? 'pl-3' : ''}>
-            <ListItem
-              layout="inline"
-              icon={badge}
-              iconBare
-              title={`${def.kurz} — ${def.label}`}
-              titleClassName={`text-[13px] truncate flex-1 min-w-0 ${isActive ? 'font-medium text-[var(--tf-text)]' : 'text-[var(--tf-text-secondary)]'}`}
-              subtitleClassName="hidden"
-              meta={meta}
-              onClick={() => onJump(def.id)}
-              active={isActive}
-              activeClassName="bg-[var(--tf-success-bg)] shadow-[inset_3px_0_0_var(--tf-success-text)]"
-              last
-            />
-          </div>
+          <button
+            key={def.id}
+            ref={isActive ? activeRef : undefined}
+            type="button"
+            className={`g-step${isActive ? ' active' : ''}${def.parentStepId ? ' sub' : ''}`}
+            onClick={() => onJump(def.id)}
+            aria-current={isActive ? 'step' : undefined}
+            title={`${def.kurz} — ${def.label} (${desc.statusLabel})`}
+          >
+            <span className={`g-step-badge${badgeCls}`}>
+              {freigegeben ? <Check className="g-sbi" aria-label="freigegeben" /> : def.kurz}
+            </span>
+            <span className="g-step-txt">
+              <span className="g-step-title">{def.kurz} — {def.label}</span>
+            </span>
+            {freigegeben && <span className="g-step-done"><Check className="g-sdi" /></span>}
+          </button>
         );
       })}
-    </nav>
+    </aside>
   );
 }

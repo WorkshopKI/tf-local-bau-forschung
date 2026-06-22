@@ -126,6 +126,52 @@ export function applyGeneration(
   return setStep(run, stepId, step, now);
 }
 
+/**
+ * Manuelle Inline-Bearbeitung des finalen Textes (Aktion „Bearbeiten → Übernehmen").
+ * Kein Status-Wechsel, KEIN Verlaufs-Eintrag (das ist keine Re-Generierung). Beim
+ * ERSTEN Edit wird der generierte Text als `originalText`-Snapshot festgehalten
+ * (für „Zurücksetzen"); editiert der Nutzer wieder auf genau diesen Stand zurück,
+ * verfällt der Snapshot (Badge weg). `checks` werden vom Hook über dem neuen Text
+ * frisch gerechnet und hereingereicht (reine Funktion bleibt LLM-/IO-frei).
+ * No-op, wenn der Schritt leer ist.
+ */
+export function applyBearbeitung(
+  run: WorkflowRun,
+  stepId: StepId,
+  text: string,
+  checks: CheckResult[],
+  now: string,
+): WorkflowRun {
+  const step = run.schritte[stepId];
+  if (!step) return run;
+  const original = step.originalText ?? step.finalerText;
+  const zurueckAufOriginal = text === original;
+  const next: StepRun = {
+    ...step,
+    finalerText: text,
+    checks,
+    originalText: zurueckAufOriginal ? undefined : original,
+  };
+  return setStep(run, stepId, next, now);
+}
+
+/**
+ * Manuelle Bearbeitung verwerfen (Aktion „Zurücksetzen" am bearbeitet-Badge):
+ * stellt den gespeicherten `originalText` wieder her, löscht den Snapshot. `checks`
+ * (über dem Originaltext) reicht der Hook herein. No-op ohne Snapshot.
+ */
+export function applyZuruecksetzen(
+  run: WorkflowRun,
+  stepId: StepId,
+  checks: CheckResult[],
+  now: string,
+): WorkflowRun {
+  const step = run.schritte[stepId];
+  if (!step || step.originalText == null) return run;
+  const next: StepRun = { ...step, finalerText: step.originalText, originalText: undefined, checks };
+  return setStep(run, stepId, next, now);
+}
+
 /** Checks eines Schritts neu setzen (Aktion „Prüfen"). No-op, wenn Schritt leer. */
 export function applyPruefen(
   run: WorkflowRun,

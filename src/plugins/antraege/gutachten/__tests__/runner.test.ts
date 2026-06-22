@@ -5,6 +5,8 @@ import {
   fruehereInArbeit,
   leereSchritte,
   applyGeneration,
+  applyBearbeitung,
+  applyZuruecksetzen,
   applyPruefen,
   applyQsHinweise,
   freigeben,
@@ -86,6 +88,60 @@ describe('applyPruefen', () => {
   it('no-op bei leerem Schritt', () => {
     const run = applyPruefen(emptyRun('AZ', NOW), 'B', [{ id: 'r', level: 'ok', label: 'L' }], NOW);
     expect(run.schritte.B).toBeUndefined();
+  });
+});
+
+describe('applyBearbeitung', () => {
+  const chk = [{ id: 'r', level: 'ok' as const, label: 'L' }];
+
+  it('setzt den editierten Text + Checks, snapshottet den Originaltext, ohne Status/Verlauf', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Generiert', { checks: [{ id: 'x', level: 'fehler', label: 'L' }] }), NOW);
+    run = applyBearbeitung(run, 'A', 'Editiert', chk, LATER);
+    expect(run.schritte.A?.finalerText).toBe('Editiert');
+    expect(run.schritte.A?.originalText).toBe('Generiert'); // Snapshot des generierten Texts
+    expect(run.schritte.A?.checks).toEqual(chk);            // frisch übernommen
+    expect(run.schritte.A?.status).toBe('entwurf');         // kein Status-Wechsel
+    expect(run.schritte.A?.verlauf).toEqual([]);            // kein Verlaufs-Eintrag
+    expect(run.geaendert_am).toBe(LATER);
+  });
+
+  it('behält den ersten Snapshot über mehrere Edits', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Generiert'), NOW);
+    run = applyBearbeitung(run, 'A', 'Edit 1', chk, LATER);
+    run = applyBearbeitung(run, 'A', 'Edit 2', chk, LATER);
+    expect(run.schritte.A?.finalerText).toBe('Edit 2');
+    expect(run.schritte.A?.originalText).toBe('Generiert'); // unverändert, nicht „Edit 1"
+  });
+
+  it('verwirft den Snapshot, wenn der Nutzer auf den Originaltext zurück-editiert', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Generiert'), NOW);
+    run = applyBearbeitung(run, 'A', 'Editiert', chk, LATER);
+    run = applyBearbeitung(run, 'A', 'Generiert', chk, LATER);
+    expect(run.schritte.A?.finalerText).toBe('Generiert');
+    expect(run.schritte.A?.originalText).toBeUndefined();   // Badge verschwindet
+  });
+
+  it('no-op bei leerem Schritt', () => {
+    const run = applyBearbeitung(emptyRun('AZ', NOW), 'B', 'x', chk, NOW);
+    expect(run.schritte.B).toBeUndefined();
+  });
+});
+
+describe('applyZuruecksetzen', () => {
+  const chk = [{ id: 'r', level: 'ok' as const, label: 'L' }];
+
+  it('stellt den Originaltext wieder her und löscht den Snapshot', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Generiert'), NOW);
+    run = applyBearbeitung(run, 'A', 'Editiert', chk, LATER);
+    run = applyZuruecksetzen(run, 'A', chk, LATER);
+    expect(run.schritte.A?.finalerText).toBe('Generiert');
+    expect(run.schritte.A?.originalText).toBeUndefined();
+  });
+
+  it('no-op ohne Snapshot (nie bearbeitet)', () => {
+    const run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Generiert'), NOW);
+    const same = applyZuruecksetzen(run, 'A', chk, LATER);
+    expect(same).toBe(run); // unverändert
   });
 });
 

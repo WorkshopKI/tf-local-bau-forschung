@@ -1,21 +1,25 @@
 /**
- * Tweak-Editor (User-Tweaks v2) — Slide-Over rechts, nach
- * `_design/handoff/persoenlicher-stil/mockup-tweak-editor.html`.
+ * Tweak-Editor (User-Tweaks v2) — zentrierter Dialog nach Design-Handoff
+ * `workflow-mit-bearbeiten` (Stil-Modal): Master-Toggle, Preset-Chips, zwei
+ * Freitextfelder, visuelle „So wird kombiniert"-Schichtung (Ihr Stil → gesperrte
+ * Kurator-Vorgaben) und eine ausklappbare „Technische Ansicht" (Roh-Prompt).
  *
- * Der Nutzer ergänzt den Skill um eine persönliche Stil-Schicht (Stil-Hinweise +
- * eigene Beispiel-Formulierungen). Die schreibgeschützte Vorschau „So wird es
- * der KI mitgegeben" zeigt NUR die Schichtung — den eigenen Tweak-Block (live)
- * + die ausgegrauten formalen Vorgaben des Kurators — NICHT den vollen
- * Kurator-Prompt. Die Rangfolge (Tweak VOR Vorgaben) ist fix.
+ * Der Nutzer ergänzt den Skill um eine persönliche Stil-Schicht; die formalen
+ * Vorgaben des Kurators bleiben unverändert wirksam und werden weiter geprüft.
+ * Die Rangfolge (Tweak VOR Vorgaben) ist fix; Quelle der Vorschau ist
+ * `buildTweakBlock` + `buildPromptVorgaben` (eine Quelle, keine Drift).
  */
 import { useMemo, useState } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { Lock, ArrowDown } from 'lucide-react';
+import { Dialog } from '@/components/ui/dialog';
 import { buildTweakBlock, buildPromptVorgaben, TWEAK_FELD_MAX, type QualitaetsRegel, type SkillTweak } from '@/core/services/skills';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import type { TweakEingabe } from './useKurzfassung';
 
 interface Props {
   skillVersion: number;
+  /** Abschnitts-Label für den Kopf-Pill (z.B. „C — Technische Risiken"). Optional. */
+  sektionLabel?: string;
   regeln: QualitaetsRegel[];
   tweak: SkillTweak | null;
   onClose: () => void;
@@ -23,16 +27,18 @@ interface Props {
   onRemove: () => Promise<void>;
 }
 
-const TA = 'w-full resize-none block text-[13px] leading-[1.6] text-[var(--tf-text)] bg-transparent border-[0.5px] border-[var(--tf-border)] rounded-[8px] px-3 py-2.5 outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
+const TA = 'w-full resize-none block text-[13px] leading-[1.6] text-[var(--tf-text)] bg-transparent border-[0.5px] border-[var(--tf-border)] rounded-[9px] px-3 py-2.5 outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
+const PRESETS = ['Sachlich & zurückhaltend', 'Keine Superlative', 'Mehr Konjunktiv', 'Kürzere Sätze'];
 
-export function TweakEditor({ skillVersion, regeln, tweak, onClose, onSave, onRemove }: Props): React.ReactElement {
+export function TweakEditor({ skillVersion, sektionLabel, regeln, tweak, onClose, onSave, onRemove }: Props): React.ReactElement {
   const [stilHinweise, setStilHinweise] = useState(tweak?.stilHinweise ?? '');
   const [beispiele, setBeispiele] = useState(tweak?.beispielFormulierungen ?? '');
   const [aktiv, setAktiv] = useState(tweak?.aktiv ?? true);
-  const [previewOpen, setPreviewOpen] = useState(true);
+  const [techOpen, setTechOpen] = useState(false);
 
   const tweakBlock = useMemo(() => buildTweakBlock(stilHinweise, beispiele), [stilHinweise, beispiele]);
   const vorgaben = useMemo(() => buildPromptVorgaben(regeln), [regeln]);
+  const hatAngaben = aktiv && (stilHinweise.trim().length > 0 || beispiele.trim().length > 0);
 
   const save = useAsyncAction(
     async () => { await onSave({ stilHinweise, beispielFormulierungen: beispiele, aktiv }); },
@@ -40,157 +46,177 @@ export function TweakEditor({ skillVersion, regeln, tweak, onClose, onSave, onRe
   );
   const remove = useAsyncAction(async () => { await onRemove(); }, { onSuccess: onClose });
 
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-label="Persönlicher Stil — Gutachten-Kurzfassung" // allow-raw-modal: Drawer-Pattern (rechtsbündig)
-    >
-      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.38)' }} onClick={onClose} />
-      <aside
-        className="relative h-full w-[520px] max-w-[94%] bg-[var(--tf-bg)] border-l-[0.5px] border-[var(--tf-border)] flex flex-col"
-        style={{ boxShadow: '-8px 0 30px rgba(0,0,0,0.12)' }}
+  // Preset-Chip → Punkt-getrennt in die Stil-Hinweise einfügen (Logik aus dem Handoff-Prototyp).
+  const addPreset = (t: string): void => {
+    setStilHinweise(h => (!h.trim() ? `${t}.` : `${h.replace(/\s*$/, '').replace(/\.?$/, '. ')}${t}.`));
+  };
+
+  const techRaw = [
+    aktiv && tweakBlock ? tweakBlock : '# Persönlicher Stil (optional)\n— keine Angaben —',
+    `# Formale Vorgaben des Kurators (unveränderlich, werden geprüft)\n${vorgaben || '— keine aktiven Qualitätsregeln —'}`,
+  ].join('\n\n');
+
+  const title = (
+    <span className="flex items-center gap-2.5 flex-wrap">
+      Persönlicher Stil
+      {sektionLabel && (
+        <span className="h-[22px] inline-flex items-center px-2.5 rounded-full bg-[var(--tf-bg-secondary)] border-[0.5px] border-[var(--tf-border)] text-[11.5px] font-medium text-[var(--tf-text-secondary)]">
+          {sektionLabel}
+        </span>
+      )}
+    </span>
+  );
+
+  const footer = (
+    <>
+      <span className="mr-auto text-[11px] font-mono text-[var(--tf-text-tertiary)]">Skill-Version {skillVersion} · gespeichert lokal</span>
+      {tweak && (
+        <button
+          type="button"
+          onClick={() => remove.run()}
+          disabled={save.busy || remove.busy}
+          className="text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] disabled:opacity-50 mr-1"
+        >
+          {remove.busy ? 'Entfernen…' : 'Entfernen'}
+        </button>
+      )}
+      <button type="button" onClick={onClose} className="text-[13px] px-4 py-2 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
+        Abbrechen
+      </button>
+      <button
+        type="button"
+        onClick={() => save.run()}
+        disabled={save.busy || remove.busy}
+        className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-50"
       >
-        {/* Kopf */}
-        <div className="px-[26px] pt-[22px] pb-[18px] border-b-[0.5px] border-[var(--tf-border)]">
-          <div className="flex items-start gap-3">
-            <h2 className="text-[16px] font-medium leading-[1.35] m-0 tracking-[-0.005em]">Persönlicher Stil — Gutachten-Kurzfassung</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Schließen"
-              className="ml-auto flex-shrink-0 w-[26px] h-[26px] inline-flex items-center justify-center rounded-[6px] text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)]"
-            >
-              <X size={15} />
-            </button>
-          </div>
-          <p className="text-[13px] leading-[1.5] text-[var(--tf-text-secondary)] mt-2 mb-0">
-            Ihre persönliche Ergänzung zum Skill. Die formalen Vorgaben des Kurators gelten weiterhin.
-          </p>
-        </div>
+        {save.busy ? 'Speichern…' : 'Speichern'}
+      </button>
+    </>
+  );
 
-        {/* Körper (scrollbar) */}
-        <div className="flex-1 overflow-y-auto px-[26px] py-[22px]">
-          {/* Stil-Hinweise */}
-          <div>
-            <label htmlFor="tweak-stil" className="block text-[13px] font-medium text-[var(--tf-text)] mb-1.5">Stil-Hinweise</label>
-            <textarea
-              id="tweak-stil"
-              rows={5}
-              maxLength={TWEAK_FELD_MAX}
-              className={TA}
-              value={stilHinweise}
-              onChange={e => setStilHinweise(e.target.value)}
-              placeholder="z. B. Sachlich und zurückhaltend formulieren. Keine Superlative aus dem Antrag übernehmen."
-            />
-            <Counter value={stilHinweise} />
-          </div>
+  return (
+    <Dialog open onClose={onClose} title={title} footer={footer} size="lg" className="max-w-[560px]" dismissOnOverlayClick={false}>
+      {/* Master-Toggle */}
+      <div className="flex items-start gap-3 px-3.5 py-3.5 bg-[var(--tf-bg-secondary)] rounded-[10px]">
+        <Switch on={aktiv} onChange={setAktiv} label="Persönlichen Stil verwenden" />
+        <span className="flex flex-col gap-1">
+          <b className="text-[13.5px] font-medium leading-[1.3] text-[var(--tf-text)]">Persönlichen Stil verwenden</b>
+          <span className="text-[12.5px] leading-[1.5] text-[var(--tf-text-tertiary)]">Ergänzt den Skill. Die formalen Vorgaben des Kurators bleiben aktiv und werden weiterhin geprüft.</span>
+        </span>
+      </div>
 
-          {/* Eigene Beispiel-Formulierungen */}
-          <div className="mt-[22px]">
-            <label htmlFor="tweak-bsp" className="block text-[13px] font-medium text-[var(--tf-text)] mb-1.5">Eigene Beispiel-Formulierungen</label>
-            <p className="text-[11.5px] leading-[1.45] text-[var(--tf-text-tertiary)] mt-0 mb-2">
-              Typische eigene Textbausteine, z. B. Satzanfänge. Werden der KI als Stil-Beispiele mitgegeben, nicht wörtlich übernommen.
-            </p>
-            <textarea
-              id="tweak-bsp"
-              rows={6}
-              maxLength={TWEAK_FELD_MAX}
-              className={TA}
-              value={beispiele}
-              onChange={e => setBeispiele(e.target.value)}
-              placeholder={'z. B. „Eine wesentliche Herausforderung des Vorhabens besteht …"'}
-            />
-            <Counter value={beispiele} />
-          </div>
-
-          {/* So wird es der KI mitgegeben (schreibgeschützt) */}
-          <div className="mt-[26px]">
-            <button
-              type="button"
-              onClick={() => setPreviewOpen(o => !o)}
-              className="flex items-center gap-2 py-1 select-none"
-            >
-              <ChevronDown size={12} className={`text-[var(--tf-text-tertiary)] transition-transform ${previewOpen ? '' : '-rotate-90'}`} />
-              <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">So wird es der KI mitgegeben</span>
-            </button>
-            {previewOpen && (
-              <>
-                <p className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] mt-2 mb-2.5">
-                  Ihre Angaben werden als eigener Abschnitt <em>vor</em> den formalen Vorgaben des Kurators eingefügt — diese bleiben unverändert wirksam und werden weiterhin geprüft.
-                </p>
-                <div className="bg-[var(--tf-bg-secondary)] border-[0.5px] border-[var(--tf-border)] rounded-[10px] px-4 py-3.5 font-mono text-[12px] leading-[1.7]">
-                  {tweakBlock ? (
-                    <div className="border-l-2 border-[var(--tf-primary)] pl-3 whitespace-pre-wrap text-[var(--tf-text)]">{tweakBlock}</div>
-                  ) : (
-                    <div className="border-l-2 border-[var(--tf-border)] pl-3 text-[var(--tf-text-tertiary)] italic">noch keine Stil-Angaben</div>
-                  )}
-                  <div className="mt-3.5 text-[var(--tf-text-tertiary)]"># danach — vom Kurator vorgegeben, unveränderlich:</div>
-                  <div className="mt-2 border-l-2 border-[var(--tf-border)] pl-3 whitespace-pre-wrap text-[var(--tf-text-tertiary)]">
-                    {vorgaben || '## Formale Vorgaben\n(keine aktiven Qualitätsregeln)'}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Aktiv-Toggle */}
-          <div className="flex items-center gap-3 mt-7 pt-5 border-t-[0.5px] border-[var(--tf-border)]">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={aktiv}
-              onClick={() => setAktiv(a => !a)}
-              className={`relative inline-block w-8 h-[18px] rounded-full flex-shrink-0 ${aktiv ? 'bg-[var(--tf-text)]' : 'bg-[var(--tf-border-hover)]'}`}
-            >
-              <span className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-[var(--tf-bg)] transition-[left] ${aktiv ? 'left-4' : 'left-0.5'}`} />
-            </button>
-            <span className="text-[13px] text-[var(--tf-text)]">Persönlichen Stil verwenden</span>
-          </div>
-
-          {(save.error || remove.error) && (
-            <div className="mt-3 rounded-[8px] px-3 py-2 text-[12px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)]">
-              {save.error ?? remove.error}
-            </div>
-          )}
-        </div>
-
-        {/* Fußleiste */}
-        <div className="px-[26px] py-4 border-t-[0.5px] border-[var(--tf-border)]">
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => save.run()}
-              disabled={save.busy || remove.busy}
-              className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-50"
-            >
-              {save.busy ? 'Speichern…' : 'Speichern'}
-            </button>
-            <button type="button" onClick={onClose} className="text-[13px] px-4 py-2 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
-              Abbrechen
-            </button>
-            <span className="flex-1" />
-            {tweak && (
+      {/* Felder */}
+      <div className={`flex flex-col gap-[18px] mt-[18px] transition-opacity ${aktiv ? '' : 'opacity-40 pointer-events-none'}`}>
+        <div>
+          <div className="text-[13px] font-medium text-[var(--tf-text)] mb-1.5">Tonalität &amp; Hinweise</div>
+          <div className="flex gap-1.5 flex-wrap mb-2">
+            {PRESETS.map(t => (
               <button
+                key={t}
                 type="button"
-                onClick={() => remove.run()}
-                disabled={save.busy || remove.busy}
-                className="text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] disabled:opacity-50"
+                disabled={!aktiv}
+                onClick={() => addPreset(t)}
+                className="h-[26px] px-2.5 rounded-full border-[0.5px] border-[var(--tf-border-hover)] bg-[var(--tf-bg)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-primary-light)] hover:text-[var(--tf-primary)] hover:border-transparent disabled:opacity-60"
               >
-                {remove.busy ? 'Entfernen…' : 'Entfernen'}
+                + {t}
               </button>
-            )}
+            ))}
           </div>
-          <div className="mt-3 text-[11px] text-[var(--tf-text-tertiary)]">
-            Angelegt für <span className="font-mono">Skill-Version {skillVersion}</span> · gespeichert lokal
-          </div>
+          <textarea
+            rows={4}
+            maxLength={TWEAK_FELD_MAX}
+            disabled={!aktiv}
+            className={TA}
+            value={stilHinweise}
+            onChange={e => setStilHinweise(e.target.value)}
+            placeholder="z. B. sachlich und zurückhaltend formulieren, keine Superlative aus dem Antrag übernehmen."
+          />
+          <Counter value={stilHinweise} />
         </div>
-      </aside>
-    </div>
+
+        <div>
+          <div className="text-[13px] font-medium text-[var(--tf-text)] mb-1">Eigene Beispiel-Formulierungen</div>
+          <p className="text-[12px] leading-[1.45] text-[var(--tf-text-tertiary)] mt-0 mb-2">
+            Typische Satzanfänge oder Textbausteine. Werden der KI als Stil-Beispiel mitgegeben, nicht wörtlich übernommen.
+          </p>
+          <textarea
+            rows={4}
+            maxLength={TWEAK_FELD_MAX}
+            disabled={!aktiv}
+            className={TA}
+            value={beispiele}
+            onChange={e => setBeispiele(e.target.value)}
+            placeholder={'z. B. „Eine wesentliche Herausforderung des Vorhabens besteht …"'}
+          />
+          <Counter value={beispiele} />
+        </div>
+      </div>
+
+      {/* So wird kombiniert */}
+      <div className="mt-[18px] pt-[15px] border-t-[0.5px] border-[var(--tf-border)]">
+        <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-3">So wird kombiniert</div>
+
+        <div className="flex items-center gap-3 px-3.5 py-3 rounded-[10px] bg-[var(--tf-primary-light)]">
+          <span className="w-6 h-6 flex-shrink-0 rounded-full bg-[var(--tf-bg)] inline-flex items-center justify-center text-[12px] font-medium text-[var(--tf-text)]">1</span>
+          <span className="flex flex-col gap-0.5">
+            <b className="text-[13px] font-medium leading-[1.3] text-[var(--tf-text)]">Ihr persönlicher Stil</b>
+            <span className="text-[11.5px] leading-[1.3] text-[var(--tf-text-tertiary)]">{hatAngaben ? 'Ihre Hinweise & Beispiele' : 'noch keine Angaben'}</span>
+          </span>
+        </div>
+
+        <div className="flex justify-center text-[var(--tf-text-tertiary)] py-1"><ArrowDown size={16} /></div>
+
+        <div className="flex items-center gap-3 px-3.5 py-3 rounded-[10px] bg-[var(--tf-bg-secondary)]">
+          <span className="w-6 h-6 flex-shrink-0 rounded-full bg-[var(--tf-text)] text-[var(--tf-bg)] inline-flex items-center justify-center">
+            <Lock size={12} />
+          </span>
+          <span className="flex flex-col gap-0.5">
+            <b className="text-[13px] font-medium leading-[1.3] text-[var(--tf-text)]">Formale Vorgaben des Kurators</b>
+            <span className="text-[11.5px] leading-[1.3] text-[var(--tf-text-tertiary)]">unveränderlich · wird geprüft</span>
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setTechOpen(o => !o)}
+          className="mt-3 text-[12px] text-[var(--tf-primary)] underline underline-offset-2 hover:opacity-80"
+        >
+          {techOpen ? 'Technische Ansicht ausblenden' : 'Technische Ansicht anzeigen'}
+        </button>
+        {techOpen && (
+          <pre className="mt-2.5 p-3 bg-[var(--tf-bg-secondary)] border-[0.5px] border-[var(--tf-border)] rounded-[9px] font-mono text-[11.5px] leading-[1.6] text-[var(--tf-text-secondary)] whitespace-pre-wrap">{techRaw}</pre>
+        )}
+      </div>
+
+      {(save.error || remove.error) && (
+        <div className="mt-3 rounded-[8px] px-3 py-2 text-[12px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)]">
+          {save.error ?? remove.error}
+        </div>
+      )}
+    </Dialog>
+  );
+}
+
+/** Toggle-Switch (38×22) — grün bei „an", Knopf gleitet nach rechts. */
+function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }): React.ReactElement {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={() => onChange(!on)}
+      className={`relative flex-shrink-0 w-[38px] h-[22px] rounded-full transition-colors ${on ? 'bg-[var(--tf-success-text)]' : 'bg-[var(--tf-border-hover)]'}`}
+    >
+      <span className={`absolute top-0.5 w-[18px] h-[18px] rounded-full bg-white shadow transition-[left] ${on ? 'left-[18px]' : 'left-0.5'}`} />
+    </button>
   );
 }
 
 function Counter({ value }: { value: string }): React.ReactElement {
   const atMax = value.length >= TWEAK_FELD_MAX;
   return (
-    <div className={`mt-1 text-right text-[11px] ${atMax ? 'text-[var(--tf-warning-text)]' : 'text-[var(--tf-text-tertiary)]'}`}>
+    <div className={`mt-1 text-right text-[11px] font-mono ${atMax ? 'text-[var(--tf-warning-text)]' : 'text-[var(--tf-text-tertiary)]'}`}>
       {value.length.toLocaleString('de-DE')} / {TWEAK_FELD_MAX.toLocaleString('de-DE')}
     </div>
   );

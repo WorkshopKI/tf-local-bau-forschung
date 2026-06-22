@@ -1,12 +1,16 @@
 /**
  * Gutachten-Sektion auf der Verbund-Detailseite (Feature-Flag `gutachtenWorkflow`):
- * der vollständige Workflow A–G. Kopf mit Fortschritt + Export, Abschnitts-Stepper,
- * freigegebene Abschnitte als zugeklappte Zeilen, der aktive Abschnitt als geöffnete
- * Review-Karte, wartende Abschnitte inert. Funktioniert ohne LLM (freigegebene
+ * der vollständige Workflow A–G im „Werkstatt"-Layout (Design-Handoff
+ * `workflow-mit-bearbeiten`) — Antrag-Kontextkarte + Fortschrittsleiste oben, dann
+ * 3-spaltiges Grid: Stepper-Rail · aktive Entwurf-Karte · einklappbares
+ * „Quelle & Prüfung"-Panel. Schmaler Container → einspaltiger Fallback
+ * (horizontaler Stepper, Panel als Block). Funktioniert ohne LLM (freigegebene
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { FileText, Check, Pencil, ChevronLeft } from 'lucide-react';
 import { useNavigation } from '@/core/hooks/useNavigation';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
@@ -24,15 +28,16 @@ import type { KurzfassungContext } from '../kurzfassung/types';
 import { useGutachtenWorkflow } from './useGutachtenWorkflow';
 import { AbschnittNav } from './AbschnittNav';
 import { AbschnittStepper } from './AbschnittStepper';
-import { navLayout } from './nav-layout';
 import { SectionReviewCard } from './SectionReviewCard';
+import { KontextPanel } from './KontextPanel';
 import { ResumeLine } from './ResumeLine';
 import { leereSchritte } from './runner';
 import type { WorkflowStep } from '@/core/services/skills';
 import type { WorkflowRun } from './types';
+import './gutachten.css';
 
-const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2';
-const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text)] bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2';
+/** Container-Mindestbreite für das 3-spaltige Werkstatt-Grid; darunter einspaltig. */
+const WERK_MIN_WIDTH = 1040;
 
 export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useGutachtenWorkflow(ctx);
@@ -40,9 +45,11 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   const [reviewOpen, setReviewOpen] = useState(false);
   const [ersetzen, setErsetzen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
+  // Kontext-Panel ein-/ausgeklappt (Werkstatt; persistiert nur im Session-State).
+  const [ctxOpen, setCtxOpen] = useState(true);
 
-  // Container-Breite messen → vertikale Nav (breit) vs. kompakter Stepper (schmal).
-  // Default groß: bis zur ersten Messung vertikal rendern (kein Flackern).
+  // Container-Breite messen → 3-spaltiges Grid (breit) vs. einspaltig (schmal).
+  // Default groß: bis zur ersten Messung breit rendern (kein Flackern).
   const [bodyWidth, setBodyWidth] = useState(9999);
   const roRef = useRef<ResizeObserver | null>(null);
   const measureRef = useCallback((el: HTMLDivElement | null): void => {
@@ -63,11 +70,26 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   const tweakEffektiv = !!(ctrl.tweak?.aktiv && (ctrl.tweak.stilHinweise.trim() || ctrl.tweak.beispielFormulierungen.trim()));
 
   const freigegebenCount = run ? steps.filter(d => run.schritte[d.id]?.status === 'freigegeben').length : 0;
+  const alleFreigegeben = run ? steps.length > 0 && freigegebenCount === steps.length : false;
   // Gibt es noch fehlende (leere) Abschnitte? → „Alle Abschnitte erstellen" anbieten.
   const hatLeere = run ? leereSchritte(run, order).length > 0 : false;
   // Der rechts dargestellte aktive Abschnitt (Controller garantiert eine
   // gültige aktiverSchritt-ID; Fallback auf den ersten Step defensiv).
   const activeDef = run ? (steps.find(d => d.id === run.aktiverSchritt) ?? steps[0]) : undefined;
+  const activeStep = run && activeDef ? run.schritte[activeDef.id] : undefined;
+
+  // Layout-Entscheidung: einspaltig unterhalb der Schwelle.
+  const solo = bodyWidth < WERK_MIN_WIDTH;
+  // Panel nur zeigen, wenn der aktive Abschnitt einen Stand hat (sonst nichts zum Gegenlesen).
+  const showPanel = !!activeStep;
+  const gridClass = solo
+    ? 'g-werk solo'
+    : !showPanel
+      ? 'g-werk no-ctx'
+      : ctxOpen ? 'g-werk' : 'g-werk ctx-closed';
+  const panelProvenance = activeStep
+    ? { skillName: ctrl.activeSkill?.name ?? activeStep.skillId ?? '—', ...(activeStep.skillVersion != null ? { version: activeStep.skillVersion } : {}) }
+    : undefined;
 
   // Synthetischer „Antrag" als Feld-Quelle für den DOCX-Füller (Verbund-Ebene).
   const mappingAntrag = useMemo<Antrag>(() => ({
@@ -101,19 +123,22 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   );
 
   return (
-    <div>
-      {/* Sektionskopf */}
-      <div className="flex items-center gap-3.5 mb-4">
-        <span className="text-[16px] font-medium text-[var(--tf-text)]">Gutachten</span>
-        {run && <span className="text-[12px] text-[var(--tf-text-tertiary)]">{freigegebenCount} von {steps.length} Abschnitten freigegeben</span>}
-        <span className="flex-1" />
+    <div className="gutachten-werkstatt">
+      <AntragKontextKarte ctx={ctx} />
+
+      {/* Fortschritt + Aktionen */}
+      <div className="g-progress">
+        <div className="g-progress-l">
+          <span className="g-gtitle">Gutachten</span>
+          {run && <span className="g-pcount">{freigegebenCount} von {steps.length} Abschnitten freigegeben</span>}
+        </div>
         {ctrl.vbVorhanden && run && (hatLeere || ctrl.bulkRunning) && (
           ctrl.bulkRunning ? (
-            <button type="button" className={BTN_SECONDARY} onClick={ctrl.stop}>Stopp</button>
+            <button type="button" className="g-btn" onClick={ctrl.stop}>Stopp</button>
           ) : (
             <button
               type="button"
-              className={BTN_SECONDARY}
+              className="g-btn"
               disabled={ctrl.busy || ctrl.llmAvailable === false}
               onClick={ctrl.alleGenerieren}
               title="Erzeugt alle noch fehlenden Abschnitte nacheinander als Entwurf — ohne Zwischen-Freigabe."
@@ -122,9 +147,15 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
             </button>
           )
         )}
-        <button type="button" className={BTN_PRIMARY} disabled={freigegebenCount === 0} onClick={() => setDialogOpen(true)}>
+        <button
+          type="button"
+          className={`g-btn export${alleFreigegeben ? ' ready' : ''}`}
+          disabled={freigegebenCount === 0}
+          onClick={() => setDialogOpen(true)}
+        >
+          <FileText size={15} />
           In Vorlage exportieren
-          {freigegebenCount > 0 && <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/15">{freigegebenCount} Abschnitte</span>}
+          {freigegebenCount > 0 && <span className="g-exbadge">{freigegebenCount} Abschnitte</span>}
         </button>
       </div>
 
@@ -182,29 +213,32 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
             <ResumeLine run={run} steps={steps} onWeiter={ctrl.weiterschaltenStep} />
           )}
 
-          {/* Breit: zweispaltig (vertikale Nav | aktiver Abschnitt). Schmal:
-              einspaltig mit kompaktem horizontalem Stepper oben. Inhalt rechts
-              identisch (unveränderte Review-/Generieren-Karte). */}
           <div ref={measureRef}>
-            {navLayout(bodyWidth) === 'vertikal' ? (
-              <div className="flex gap-6 items-start">
-                <div className="shrink-0 w-[240px]">
-                  <AbschnittNav run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />
-                  )}
-                </div>
-              </div>
-            ) : (
-              <>
-                <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
-                {activeDef && (
-                  <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />
-                )}
-              </>
-            )}
+            <div className={gridClass}>
+              {solo
+                ? <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
+                : <AbschnittNav run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />}
+
+              {activeDef && (
+                <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />
+              )}
+
+              {/* Kontext-Panel rechts (breit) bzw. als Block (schmal) */}
+              {!solo && showPanel && activeStep && (
+                ctxOpen ? (
+                  <KontextPanel step={activeStep} provenance={panelProvenance} variant="side" onCollapse={() => setCtxOpen(false)} />
+                ) : (
+                  <button type="button" className="g-ctx-reopen" onClick={() => setCtxOpen(true)} title="Quelle & Prüfung einblenden">
+                    <ChevronLeft size={16} />
+                    <span className="g-ctx-reopen-lbl">Quelle &amp; Prüfung</span>
+                  </button>
+                )
+              )}
+
+              {solo && showPanel && activeStep && (
+                <KontextPanel step={activeStep} provenance={panelProvenance} variant="block" />
+              )}
+            </div>
           </div>
         </>
       )}
@@ -232,9 +266,10 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
         />
       )}
 
-      {tweakOpen && ctrl.activeSkill && (
+      {tweakOpen && ctrl.activeSkill && activeDef && (
         <TweakEditor
           skillVersion={ctrl.activeSkill.version}
+          sektionLabel={`${activeDef.id} — ${activeDef.label}`}
           regeln={ctrl.regeln}
           tweak={ctrl.tweak}
           onClose={() => setTweakOpen(false)}
@@ -246,7 +281,26 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   );
 }
 
-/** Der aktive Abschnitt als geöffnete Karte (Kopf + Generieren-Prompt ODER Review). */
+/** Verbund-Kontextkarte oben (Konsortialführer · Verbund-FKZ · Titel). */
+function AntragKontextKarte({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
+  const tvCount = ctx.teilvorhaben.length;
+  return (
+    <div className="g-antrag">
+      {tvCount > 0 && <span className="g-tv">{tvCount} TV</span>}
+      <div className="g-antrag-main">
+        <div className="g-antrag-top">
+          <span className="g-org">{ctx.antragsteller ?? ctx.akronym}</span>
+          <span className="g-meta">Verbund · {ctx.foerderkennzeichen}</span>
+        </div>
+        {(ctx.akronym || ctx.titel) && (
+          <div className="g-antrag-titel"><b>{ctx.akronym}</b>{ctx.titel ? ` / ${ctx.titel}` : ''}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Der aktive Abschnitt als Werkstatt-Karte (Kopf + Generieren-Prompt ODER Review). */
 function ActiveAbschnitt({
   def, run, ctrl, tweakEffektiv, onOpenTweak,
 }: {
@@ -264,30 +318,39 @@ function ActiveAbschnitt({
   const openSkill = skillId
     ? () => navigate('skill-verwaltung-kuration', { selectedId: skillId })
     : undefined;
-  const openSkillVersion = skillId
-    ? () => navigate('skill-verwaltung-kuration', { selectedId: skillId, view: 'versionen' })
-    : undefined;
+  const reset = useAsyncAction(async () => { await ctrl.zuruecksetzenStep(id); });
 
   return (
-    <div className="my-2 rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] px-6 py-5">
-      <div className="flex items-center gap-3 mb-1">
-        <span className="text-[14px] font-medium text-[var(--tf-text)]">{def.id} — {def.label}</span>
+    // key = Abschnitts-ID: bei Abschnittswechsel remountet die Karte → Fade-in spielt
+    // erneut und der lokale Bearbeiten-Zustand (Editor) wird sauber zurückgesetzt.
+    <section className="g-card werk" key={id}>
+      <div className="g-card-head">
+        <h2 className="g-card-title">{def.id} — {def.label}</h2>
         {status === 'freigegeben' ? (
-          <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]">✓ Freigegeben</span>
+          <span className="g-pill ok"><Check className="g-pi" /> Freigegeben</span>
         ) : status === 'entwurf' ? (
-          <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">Entwurf — nicht freigegeben</span>
+          <span className="g-pill draft">Entwurf</span>
         ) : null}
-        <span className="flex-1" />
-        {step && (
-          <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--tf-text-tertiary)] whitespace-nowrap">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'hsl(145,60%,42%)' }} />
-            {step.modell} · lokal
+        {step?.originalText != null && (
+          <span className="g-edited-badge">
+            <Pencil /> bearbeitet
+            <button
+              type="button"
+              className="g-edited-restore"
+              disabled={reset.busy}
+              onClick={() => reset.run()}
+              title="Ursprünglich generierten Text wiederherstellen"
+            >
+              Zurücksetzen
+            </button>
           </span>
         )}
+        {tweakEffektiv && <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">persönlicher Stil aktiv</span>}
+        <span className="g-ab-spacer" />
+        {step && (
+          <span className="g-model"><span className="g-mdot" />{step.modell} · lokal</span>
+        )}
       </div>
-      {tweakEffektiv && (
-        <div className="mb-1 text-[10.5px] text-[var(--tf-text-tertiary)]">persönlicher Stil aktiv</div>
-      )}
 
       {ctrl.retryNote && (
         <div className="mt-2 mb-1 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
@@ -302,7 +365,7 @@ function ActiveAbschnitt({
           <div className="mt-3">
             <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">Dieser Abschnitt wird KI-gestützt aus der Vorhabensbeschreibung erstellt.</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <button type="button" className={BTN_PRIMARY} disabled={ctrl.llmAvailable === false} onClick={() => ctrl.generate(id)}>
+              <button type="button" className="g-btn primary" disabled={ctrl.llmAvailable === false} onClick={() => ctrl.generate(id)}>
                 {def.label} generieren
               </button>
               <ThinkingControl budget={ctrl.thinkingBudget} onChange={ctrl.setThinkingBudget} disabled={ctrl.busy} />
@@ -330,6 +393,7 @@ function ActiveAbschnitt({
           busy={ctrl.busy}
           llmAvailable={ctrl.llmAvailable}
           onModify={(m) => ctrl.modify(id, m)}
+          onBearbeiten={(text) => ctrl.bearbeitenStep(id, text)}
           onPruefen={() => ctrl.pruefen(id)}
           onFreigeben={() => ctrl.freigebenStep(id)}
           onVerwerfen={() => ctrl.verwerfenStep(id)}
@@ -340,7 +404,6 @@ function ActiveAbschnitt({
           onQs={ctrl.qsFor(id) ? () => ctrl.runQs(id) : undefined}
           provenance={{ skillName: ctrl.activeSkill?.name ?? step.skillId ?? '—', regelCount: ctrl.regeln.length }}
           onOpenSkill={openSkill}
-          onOpenSkillVersion={openSkillVersion}
           onFeedback={(rating, notiz) => ctrl.sendFeedback(id, rating, notiz)}
           thinkingBudget={ctrl.thinkingBudget}
           onSetThinkingBudget={ctrl.setThinkingBudget}
@@ -348,6 +411,6 @@ function ActiveAbschnitt({
           streamThinking={ctrl.streamThinking}
         />
       )}
-    </div>
+    </section>
   );
 }

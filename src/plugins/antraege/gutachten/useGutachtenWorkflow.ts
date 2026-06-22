@@ -45,7 +45,7 @@ import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt }
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { putWorkflowRun } from './workflow-store';
 import {
-  applyGeneration, applyPruefen, applyQsHinweise, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
+  applyGeneration, applyBearbeitung, applyZuruecksetzen, applyPruefen, applyQsHinweise, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
   firstNonFreigegeben, leereSchritte, setVorlageRef,
   type GenerationInput,
 } from './runner';
@@ -88,6 +88,10 @@ export interface GutachtenWorkflowController {
   /** Alle noch fehlenden Abschnitte nacheinander als Entwurf erzeugen (ohne Zwischen-Freigabe). */
   alleGenerieren: () => void;
   modify: (stepId: StepId, modifier: SkillModifierKey) => void;
+  /** Manuelle Inline-Bearbeitung des finalen Textes übernehmen (Checks neu, ein persist). Awaitable für `useAsyncAction`. */
+  bearbeitenStep: (stepId: StepId, text: string) => Promise<void>;
+  /** Manuelle Bearbeitung verwerfen → ursprünglich generierten Text wiederherstellen. */
+  zuruecksetzenStep: (stepId: StepId) => Promise<void>;
   pruefen: (stepId: StepId) => void;
   /** Liefert den `llm_qs`-Schritt, der diesen Generierungs-Schritt bewertet (oder null). */
   qsFor: (stepId: StepId) => WorkflowStep | null;
@@ -389,6 +393,29 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   };
 
   /**
+   * Manuelle Inline-Bearbeitung des finalen Textes übernehmen. Plain-Text (passt zu
+   * Markdown-Render + DOCX-Füller); die deterministischen Checks werden über dem
+   * neuen Text frisch gerechnet, damit Prüf-Ergebnis + Text konsistent bleiben.
+   * Ein `setState` + ein `persist` (Pitfall #16/#20) über `reduce`; awaitable, damit
+   * die Karte `useAsyncAction` (Pitfall #15) nutzen kann.
+   */
+  const bearbeitenStep = async (stepId: StepId, text: string): Promise<void> => {
+    const sc = skillMap.get(stepId);
+    if (!run || !sc) return;
+    const checks = runRegelChecks(text, sc.regeln);
+    await reduce((r, now) => applyBearbeitung(r, stepId, text, checks, now));
+  };
+
+  /** Manuelle Bearbeitung verwerfen → ursprünglich generierten Text wiederherstellen (Checks neu). */
+  const zuruecksetzenStep = async (stepId: StepId): Promise<void> => {
+    const sc = skillMap.get(stepId);
+    const step = run?.schritte[stepId];
+    if (!run || !sc || step?.originalText == null) return;
+    const checks = runRegelChecks(step.originalText, sc.regeln);
+    await reduce((r, now) => applyZuruecksetzen(r, stepId, checks, now));
+  };
+
+  /**
    * Beratende LLM-QS über den FINALEN Text eines Generierungs-Schritts. Nutzt
    * denselben (internen) Transport + Runner wie die Generierung; die Befunde landen
    * via `applyQsHinweise` am Ziel-Schritt (kein Text-Overwrite). Transport weg → STOPP.
@@ -510,6 +537,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     generate: (id) => { void runGenerateMitRetry(id); },
     alleGenerieren: () => { void generiereAlle(); },
     modify: (id, m) => { void runGeneration(id, m); },
+    bearbeitenStep,
+    zuruecksetzenStep,
     pruefen: (id) => { void pruefenStep(id); },
     qsFor: (id) => qsZiele.get(id) ?? null,
     runQs: (id) => { void runQs(id); },
