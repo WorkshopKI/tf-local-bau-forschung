@@ -16,8 +16,8 @@ Konvention `chat.css`/`kompetenz-matrix.css`).
 - **3-Spalten-Werkstatt** ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx) +
   [gutachten.css](src/plugins/antraege/gutachten/gutachten.css)): Fortschrittsleiste mit Export oben
   (die TV-/Verbund-Kontextkarte des Handoffs entfällt — `VerbundDetail` zeigt den Verbund-Kontext bereits
-  darüber), dann Stepper-Rail (`.g-rail`, [AbschnittNav.tsx](src/plugins/antraege/gutachten/AbschnittNav.tsx)) ·
-  Entwurf-Karte · ein-/ausklappbares + per Ziehleiste breiten-verstellbares „Quelle & Prüfung"-Panel ([KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx),
+  darüber), dann **breiten-verstellbare** Stepper-Rail (`.g-rail`, [AbschnittNav.tsx](src/plugins/antraege/gutachten/AbschnittNav.tsx)) ·
+  Entwurf-Karte · ein-/ausklappbares + **breiten-verstellbares** „Quelle & Prüfung"-Panel ([KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx),
   Antragsbezug = `quellenanalyse`, Prüfung = `checks`, Denkprozess, Provenance). Schmaler Container →
   einspaltiger Fallback (gemessene Container-Breite, kein `@media`). Fehlende `--tf-*`-Tokens lokal auf den
   Scope-Root definiert (Token-Falle: `font:`/`box-shadow:` würden sonst lautlos ausfallen).

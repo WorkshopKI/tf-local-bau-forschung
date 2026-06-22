@@ -74,6 +74,11 @@
 .gutachten-werkstatt .g-rail { position: relative; padding: 4px 0; }
 .gutachten-werkstatt .g-rail.sticky { position: sticky; top: 14px; align-self: start; }
 .gutachten-werkstatt .g-rail-line { position: absolute; left: 24px; top: 24px; bottom: 24px; width: 1.5px; transform: translateX(-50%); background: var(--tf-border); }
+/* Ziehleiste an der rechten Rail-Kante (liegt im Grid-Gap zur Entwurf-Karte). */
+.gutachten-werkstatt .g-rail-resize { position: absolute; right: -16px; top: 0; bottom: 0; width: 16px; cursor: ew-resize; z-index: 6; touch-action: none; }
+.gutachten-werkstatt .g-rail-resize::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); border-radius: 99px; background: transparent; transition: background var(--tf-duration-fast); }
+.gutachten-werkstatt .g-rail-resize:hover::after,
+.gutachten-werkstatt .g-werk.resizing .g-rail-resize::after { background: var(--tf-primary); }
 .gutachten-werkstatt .g-step { position: relative; display: flex; align-items: center; gap: 11px; width: 100%; background: transparent; border: 0; padding: 7px 10px; border-radius: 9px; cursor: pointer; text-align: left; }
 .gutachten-werkstatt .g-step:hover { background: var(--tf-hover); }
 .gutachten-werkstatt .g-step.active { background: var(--tf-primary-light); }

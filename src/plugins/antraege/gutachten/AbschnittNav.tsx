@@ -37,7 +37,13 @@ export function stepNavDescriptor(status: StepStatus): StepNavDescriptor {
 }
 
 export function AbschnittNav(
-  { run, steps, onJump }: { run: WorkflowRun; steps: WorkflowStep[]; onJump: (id: StepId) => void },
+  { run, steps, onJump, onResizeStart }: {
+    run: WorkflowRun;
+    steps: WorkflowStep[];
+    onJump: (id: StepId) => void;
+    /** Pointer-Down auf der rechten Ziehleiste (Rail-Breite anpassen). Fehlt → keine Leiste. */
+    onResizeStart?: (e: React.PointerEvent) => void;
+  },
 ): React.ReactElement {
   const activeRef = useRef<HTMLButtonElement | null>(null);
 
@@ -64,6 +70,16 @@ export function AbschnittNav(
       onKeyDown={onKeyDown}
     >
       <div className="g-rail-line" />
+      {onResizeStart && (
+        <div
+          className="g-rail-resize"
+          onPointerDown={onResizeStart}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Abschnittsliste-Breite anpassen"
+          title="Breite ziehen"
+        />
+      )}
       {steps.map(def => {
         const status: StepStatus = run.schritte[def.id]?.status ?? 'leer';
         const isActive = def.id === run.aktiverSchritt;
