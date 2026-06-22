@@ -223,6 +223,10 @@ export async function recomputeAntrag(
         _updated_at: nowIso,
       });
     } else {
+      // programm_id-Drift heilen: ein mis-filed Record (leere/falsche
+      // programm_id) fiele sonst dauerhaft aus dem Snapshot-Index-Query
+      // (listVerbundsByProgramm) → unvollständige verbuende.jsonl.
+      if (vb.programm_id !== programmId) vb.programm_id = programmId;
       if (!vb.teilantrags_ids.includes(aktenzeichen)) vb.teilantrags_ids.push(aktenzeichen);
       if (!vb.akronym && newAkronym) vb.akronym = newAkronym;
       // VB-Titel: explizites Mapping wins, sonst Erstbelegung mit TV-Titel

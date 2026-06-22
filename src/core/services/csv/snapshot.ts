@@ -15,6 +15,7 @@ import {
   getProgramm,
 } from './idb-csv';
 import { murmurhash3 } from './hash';
+import { healMissingVerbuende } from './verbuende-rebuild';
 import {
   SYNC_VERSION_KEY,
   SYNC_STORE_HASH_KEY,
@@ -156,6 +157,16 @@ async function loadSmallStoreData(idb: IDBStore, programmId: string): Promise<Sm
   const programmObj = await getProgramm(idb, programmId);
   if (!programmObj) throw new Error(`Programm ${programmId} nicht in IDB`);
   const antragHistorie = await listAntragHistorieByProgramm(idb, programmId);
+
+  // Fix an der Quelle: der verbuende-Store ist ein abgeleiteter Cache. Vor dem
+  // Serialisieren gegen die Quelle (Anträge) heilen, damit die veröffentlichte
+  // verbuende.jsonl vollständig ist — egal ob der Writer-Cache lückenhaft
+  // (fehlende Records) oder mis-filed (falsche programm_id) ist. `s.put` in
+  // healMissingVerbuende überschreibt mis-filed Records per verbund_id-Key mit
+  // korrekter programm_id, sodass der Index-Query unten sie findet. Billig,
+  // wenn der Cache vollständig ist (Index-Read + früher Abbruch). EIN
+  // Choke-Point für Voll- UND Delta-Write (beide via loadSmallStoreData).
+  await healMissingVerbuende(idb, programmId);
   const verbuende = await listVerbundsByProgramm(idb, programmId);
 
   // Diagnose: der verbuende-Store ist ein abgeleiteter Cache, hier serialisiert

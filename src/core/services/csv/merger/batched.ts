@@ -385,6 +385,10 @@ function recomputeAntragIntoBatch(
       };
     } else {
       next = { ...vb };
+      // programm_id-Drift heilen: ein mis-filed Record (leere/falsche
+      // programm_id) fiele sonst dauerhaft aus dem Snapshot-Index-Query
+      // (listVerbundsByProgramm) → unvollständige verbuende.jsonl.
+      if (next.programm_id !== programmId) next.programm_id = programmId;
       if (!next.teilantrags_ids.includes(aktenzeichen)) {
         next.teilantrags_ids = [...next.teilantrags_ids, aktenzeichen];
       }
