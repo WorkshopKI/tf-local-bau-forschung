@@ -79,6 +79,10 @@ function normalizeRegel(raw: unknown): QualitaetsRegel | null {
   };
   const pruefart = asPruefart(r.pruefart);
   if (pruefart) regel.pruefart = pruefart;
+  // Explizite Kurator-Kategorie tolerant durchlassen (nur nicht-leerer String);
+  // der abgeleitete Default bleibt Laufzeit-Logik, wird NIE in die Daten geschrieben.
+  const kategorie = asString(r.kategorie).trim();
+  if (kategorie) regel.kategorie = kategorie;
   return regel;
 }
 

@@ -13,6 +13,7 @@
  */
 import { KNOWN_REGEL_TYPEN, type QualitaetsRegel, type RegelTyp } from './types';
 import { extractPlatzhalter } from './nf-bausteine.seed';
+import { effektiveKategorie } from './kategorien';
 
 export type CheckLevel = 'ok' | 'hinweis' | 'fehler';
 
@@ -35,6 +36,11 @@ export interface CheckResult {
   regelId?: string;
   /** Richtung eines Größen-Verstoßes (nur bei Größen-Regeln, nur wenn `level !== 'ok'`). */
   richtung?: CheckRichtung;
+  /**
+   * Effektive Kategorie der erzeugenden Regel (additiv) — beim Lauf gestempelt,
+   * damit das UI nach Art gruppieren kann, OHNE je Check die Registry abzufragen.
+   */
+  kategorie?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -334,6 +340,7 @@ export function runRegelChecks(finalerText: string, regeln: QualitaetsRegel[]): 
       regelId: regel.id,
       level: outcome.ok ? 'ok' : regel.schweregrad,
       label: outcome.label,
+      kategorie: effektiveKategorie(regel),
       ...(outcome.detail ? { detail: outcome.detail } : {}),
       ...(outcome.richtung && !outcome.ok ? { richtung: outcome.richtung } : {}),
     });

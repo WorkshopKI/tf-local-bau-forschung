@@ -10,6 +10,13 @@ export {
   buildPromptVorgaben,
 } from './check-engine';
 export {
+  effektiveKategorie,
+  KATEGORIE_LABEL,
+  KATEGORIE_ORDER,
+  worstLevel,
+  type AmpelLevel,
+} from './kategorien';
+export {
   getSkillById,
   resolveRegeln,
   skillsUsingRegel,

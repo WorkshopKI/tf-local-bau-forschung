@@ -84,6 +84,13 @@ export interface QualitaetsRegel {
    * Regel ausgewertet wird (deterministisch / LLM-QS / strukturell).
    */
   pruefart?: Pruefart;
+  /**
+   * Explizit gesetzte „Art"/Kategorie (additiv, Kurator-override). Fehlt → die
+   * Kategorie wird zur Laufzeit aus `typ`+`pruefart` abgeleitet
+   * (`effektiveKategorie`, siehe `kategorien.ts`). Der abgeleitete Default wird
+   * NIE in die Daten geschrieben — nur ein explizit gesetzter Wert persistiert.
+   */
+  kategorie?: string;
 }
 
 /**
