@@ -27,7 +27,7 @@ import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungEnabled } from '@/config/feature-flags';
 import { Alert } from '@/components/ui/alert';
-import { AlertTriangle, Settings } from 'lucide-react';
+import { AlertTriangle, Settings, PanelLeftClose } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ROW_PAGE = 60;
@@ -49,6 +49,10 @@ interface Props {
   /** Wenn ein Detail-Panel offen ist, schrumpft die Liste auf eine
    *  resizable Sidebar. Header ist bereits außerhalb (in AntraegePage). */
   narrow?: boolean;
+  /** Im Detail-Modus gesetzt: blendet einen Chevron-Button zum Einklappen
+   *  der Liste in die Toolbar-Zeile ein. AntraegePage zeigt dann die
+   *  „Anträge einblenden"-Leiste. */
+  onCollapse?: () => void;
 }
 
 function loadNarrowWidth(): number {
@@ -59,7 +63,7 @@ function loadNarrowWidth(): number {
   return NARROW_DEFAULT_WIDTH;
 }
 
-export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
+export function AntraegeMain({ narrow = false, onCollapse }: Props): React.ReactElement {
   const storage = useStorage();
   const navigate = useNavigate();
   const {
@@ -203,6 +207,17 @@ export function AntraegeMain({ narrow = false }: Props): React.ReactElement {
         <div className={toolbarClass}>
           <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+              {onCollapse && (
+                <button
+                  type="button"
+                  onClick={onCollapse}
+                  aria-label="Liste einklappen"
+                  title="Liste einklappen"
+                  className="shrink-0 -ml-1 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)] transition-colors cursor-pointer"
+                >
+                  <PanelLeftClose size={16} />
+                </button>
+              )}
               <QuickfilterToolbar />
             </div>
             {/* Rechtes Cluster: aktive Filter-Chips + (nur Tabelle) das

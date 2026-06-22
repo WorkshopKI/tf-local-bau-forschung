@@ -10,6 +10,13 @@ import { useAntraegeHybridSearch } from './useAntraegeHybridSearch';
 import { pseudoVerbundIdFor } from './pseudoVerbund';
 import { AufnahmeHost } from './aufnahme-einfach';
 import { isGutachtenWorkflowEnabled } from '@/config/feature-flags';
+import {
+  ANTRAEGE_LIST_COLLAPSED_KEY,
+  parseCollapsedFlag,
+  serializeCollapsedFlag,
+  shouldShowList,
+} from './listCollapse';
+import { PanelLeftOpen } from 'lucide-react';
 
 const FILTER_OPEN_KEY = 'teamflow_antraege_filter_open';
 const FILTER_WIDTH_KEY = 'teamflow_antraege_filter_width';
@@ -34,6 +41,13 @@ function loadFilterWidth(): number {
   return FILTER_DEFAULT_WIDTH;
 }
 
+function loadListCollapsed(): boolean {
+  try {
+    return parseCollapsedFlag(localStorage.getItem(ANTRAEGE_LIST_COLLAPSED_KEY));
+  } catch { /* ignore */ }
+  return false;
+}
+
 export function AntraegePage(): React.ReactElement {
   const navigate = useNavigate();
   const selectedAz = useAntraegeStore(s => s.selectedAktenzeichen);
@@ -48,7 +62,15 @@ export function AntraegePage(): React.ReactElement {
   const hasDetail = !!(selectedAz || selectedVb);
   const [filterOpen, setFilterOpen] = useState(loadFilterOpen);
   const [filterWidth, setFilterWidth] = useState(loadFilterWidth);
+  // Einklapp-Zustand der Antrags-Liste (nur im Detail-Modus wirksam) — additiv
+  // neben der persistierten Listenbreite (AntraegeMain `narrowWidth`).
+  const [listCollapsed, setListCollapsed] = useState(loadListCollapsed);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const setCollapsed = (next: boolean): void => {
+    setListCollapsed(next);
+    try { localStorage.setItem(ANTRAEGE_LIST_COLLAPSED_KEY, serializeCollapsedFlag(next)); } catch { /* ignore */ }
+  };
 
   const onResizeMouseDown = useCallback((e: React.MouseEvent): void => {
     dragRef.current = { startX: e.clientX, startWidth: filterWidth };
@@ -117,7 +139,25 @@ export function AntraegePage(): React.ReactElement {
       <AntraegeHeader filterOpen={filterOpen} onToggleFilter={toggleFilter} />
 
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        <AntraegeMain narrow={hasDetail} />
+        {shouldShowList(hasDetail, listCollapsed) ? (
+          <AntraegeMain narrow={hasDetail} onCollapse={hasDetail ? () => setCollapsed(true) : undefined} />
+        ) : (
+          // Eingeklappt (nur im Detail-Modus): schmale Leiste zum Wiedereinblenden.
+          // Das Detail-Panel daneben (flex-1) nimmt den frei werdenden Platz.
+          <button
+            type="button"
+            onClick={() => setCollapsed(false)}
+            aria-label="Anträge einblenden"
+            title="Anträge einblenden"
+            className="shrink-0 w-8 h-full flex flex-col items-center gap-3 py-3 cursor-pointer bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] transition-colors"
+            style={{ borderRight: '0.5px solid var(--tf-border)' }}
+          >
+            <PanelLeftOpen size={16} className="text-[var(--tf-text-tertiary)]" />
+            <span className="text-[11px] text-[var(--tf-text-secondary)] tracking-wide [writing-mode:vertical-rl] rotate-180">
+              Anträge einblenden
+            </span>
+          </button>
+        )}
         {detailProps ? (
           <VerbundDetail
             verbundId={detailProps.verbundId}
