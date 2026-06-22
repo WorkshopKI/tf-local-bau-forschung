@@ -106,13 +106,38 @@ function processParagraph(paragraph: string, collect: Collector): string {
   return out;
 }
 
-/** Baut WordML-Absätze (ein `<w:p>` je Textabsatz, ohne `<w:rPr>`). */
+/**
+ * Inline-`**fett**` (das einzige vom Skill erzeugte Inline-Markdown — seed.ts,
+ * z.B. „**Kurztitel:** …") → WordML-Runs: Fett-Segmente bekommen
+ * `<w:rPr><w:b/></w:rPr>`, normaler Text bleibt run-identisch zu vorher (kein
+ * `<w:rPr>`). Unbalancierte `**` bleiben literaler Text (kein Inhaltsverlust).
+ * `xml:space="preserve"` hält die Leerzeichen an den Segment-Grenzen (z.B. das
+ * Space direkt nach „**Kurztitel:**"). Anderes Inline-Markdown (`*kursiv*`, Code)
+ * erzeugt der Skill nicht und wird bewusst NICHT behandelt — es bliebe literal.
+ */
+function inlineMarkdownToRuns(paragraph: string): string {
+  const run = (text: string, bold: boolean): string =>
+    `<w:r>${bold ? '<w:rPr><w:b/></w:rPr>' : ''}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`;
+  let out = '';
+  let last = 0;
+  const re = /\*\*(.+?)\*\*/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(paragraph)) !== null) {
+    if (m.index > last) out += run(paragraph.slice(last, m.index), false);
+    out += run(m[1]!, true);
+    last = m.index + m[0].length;
+  }
+  if (last < paragraph.length) out += run(paragraph.slice(last), false);
+  return out || run(paragraph, false);
+}
+
+/** Baut WordML-Absätze (ein `<w:p>` je Textabsatz) mit Inline-Fett-Runs. */
 function buildAnchorParagraphs(finalerText: string): string {
   return finalerText
     .split(/\n{2,}/)
     .map(p => p.trim())
     .filter(p => p.length > 0)
-    .map(p => `<w:p><w:r><w:t xml:space="preserve">${escapeXml(p)}</w:t></w:r></w:p>`)
+    .map(p => `<w:p>${inlineMarkdownToRuns(p)}</w:p>`)
     .join('');
 }
 

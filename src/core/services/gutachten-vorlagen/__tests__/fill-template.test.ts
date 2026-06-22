@@ -76,6 +76,28 @@ describe('processDocumentXml — Anker-Einfügung (ein Abschnitt)', () => {
     expect(r.xml.indexOf('Projektbeschreibung')).toBeLessThan(r.xml.indexOf('Das Vorhaben überwacht'));
   });
 
+  it('rendert **fett**-Markdown als echte WordML-Fett-Runs (Skill-Format „**Kurztitel:**")', () => {
+    const xml = p('<w:p><w:r><w:t>Kurzfassung der Projektbeschreibung</w:t></w:r></w:p>');
+    const sec: AbschnittEinfuegung[] = [{
+      id: 'A', anker: 'Kurzfassung der Projektbeschreibung',
+      finalerText: '**Tracking-Genauigkeit:** Das Vorhaben überwacht Prozesse.',
+    }];
+    const r = processDocumentXml(xml, antrag, sec);
+    // Fett-Segment als eigener Run mit <w:b/>; der Doppelstern selbst ist weg.
+    expect(r.xml).toContain('<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Tracking-Genauigkeit:</w:t></w:r>');
+    // Rest-Text als normaler Run (kein <w:rPr>), führendes Leerzeichen erhalten.
+    expect(r.xml).toContain('<w:r><w:t xml:space="preserve"> Das Vorhaben überwacht Prozesse.</w:t></w:r>');
+    expect(r.xml).not.toContain('**');
+  });
+
+  it('unbalancierte ** bleiben literaler Text (kein Inhaltsverlust)', () => {
+    const xml = p('<w:p><w:r><w:t>Kurzfassung der Projektbeschreibung</w:t></w:r></w:p>');
+    const sec: AbschnittEinfuegung[] = [{ id: 'A', anker: 'Kurzfassung der Projektbeschreibung', finalerText: 'Ein **offener Stern ohne Ende.' }];
+    const r = processDocumentXml(xml, antrag, sec);
+    expect(r.xml).toContain('Ein **offener Stern ohne Ende.');
+    expect(r.xml).not.toContain('<w:b/>');
+  });
+
   it('findet den Anker auch über Run-Grenzen + zusätzliche Whitespaces hinweg', () => {
     const xml = p(
       '<w:p><w:r><w:t>Kurzfassung der  </w:t></w:r><w:r><w:t>Projektbeschreibung</w:t></w:r></w:p>',

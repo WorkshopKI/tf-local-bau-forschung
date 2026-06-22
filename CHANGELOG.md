@@ -5,6 +5,20 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.112.3 — DOCX-Export: `**fett**` als echte Word-Fett-Runs (Juni 2026)
+
+PATCH-Bump — schließt den in v2.112.2 offen gelassenen Punkt: „es ist jetzt richtig". Kein Schema-/
+Persistenz-Change. Betroffen: [fill-template.ts](src/core/services/gutachten-vorlagen/fill-template.ts).
+
+- Der Vorlagen-Füller fügte `finalerText` bisher verbatim ein → die vom Skill erzeugten
+  `**Kurztitel:**`-Auszeichnungen standen literal im Word-Dokument. Neuer Helfer `inlineMarkdownToRuns`
+  wandelt `**fett**` in echte WordML-Fett-Runs (`<w:rPr><w:b/></w:rPr>`); normaler Text bleibt
+  run-identisch (kein `<w:rPr>`), `xml:space="preserve"` erhält die Leerzeichen an den Segment-Grenzen.
+- **Bewusst minimal** (CLAUDE.md-STOPP-Pfad): nur `**fett**` (das einzige Skill-Inline-Markdown laut
+  [seed.ts](src/core/services/skills/registry/seed.ts)); unbalancierte `**` bleiben literaler Text (kein
+  Inhaltsverlust); `*kursiv*`/Code werden nicht behandelt. Zwei neue Tests in
+  [fill-template.test.ts](src/core/services/gutachten-vorlagen/__tests__/fill-template.test.ts).
+
 ### v2.112.2 — Generierten Text als Markdown rendern (Juni 2026)
 
 PATCH-Bump — Anzeige-Fix in den Review-Karten ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)
