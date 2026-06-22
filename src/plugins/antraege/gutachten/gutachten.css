@@ -67,6 +67,8 @@
 .gutachten-werkstatt .g-werk.no-ctx { grid-template-columns: 248px minmax(0, 1fr); }
 /* Einspaltiger Fallback (schmaler Container): Rail + Karte gestapelt, Panel als Block. */
 .gutachten-werkstatt .g-werk.solo { display: block; }
+/* Während des Ziehens: keine Grid-Transition (1:1-Tracking) + globaler Resize-Cursor. */
+.gutachten-werkstatt .g-werk.resizing { transition: none; cursor: ew-resize; user-select: none; }
 
 /* ---------- Stepper-Rail ---------- */
 .gutachten-werkstatt .g-rail { position: relative; padding: 4px 0; }
@@ -144,6 +146,11 @@
 /* ---------- Kontext-Panel (rechte Spalte / Block) ---------- */
 .gutachten-werkstatt .g-context { position: sticky; top: 14px; border: .5px solid var(--tf-border); border-radius: 12px; background: var(--tf-bg-secondary); padding: 16px 17px; display: flex; flex-direction: column; gap: 16px; }
 .gutachten-werkstatt .g-context.block { position: static; margin-top: 18px; }
+/* Ziehleiste an der linken Panel-Kante (liegt im 24px-Grid-Gap). */
+.gutachten-werkstatt .g-ctx-resize { position: absolute; left: -16px; top: 0; bottom: 0; width: 16px; cursor: ew-resize; z-index: 5; touch-action: none; }
+.gutachten-werkstatt .g-ctx-resize::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); border-radius: 99px; background: transparent; transition: background var(--tf-duration-fast); }
+.gutachten-werkstatt .g-ctx-resize:hover::after,
+.gutachten-werkstatt .g-werk.resizing .g-ctx-resize::after { background: var(--tf-primary); }
 .gutachten-werkstatt .g-ctx-head { display: flex; align-items: center; font: var(--tf-weight-medium) 13px/1 var(--tf-font-sans); color: var(--tf-text); }
 .gutachten-werkstatt .g-ctx-collapse { margin-left: auto; width: 26px; height: 26px; border: 0; background: transparent; color: var(--tf-text-tertiary); border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .gutachten-werkstatt .g-ctx-collapse:hover { background: var(--tf-hover); color: var(--tf-text); }

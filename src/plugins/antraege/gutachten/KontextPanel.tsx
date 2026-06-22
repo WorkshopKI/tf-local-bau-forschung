@@ -27,14 +27,26 @@ interface Props {
   variant: 'side' | 'block';
   /** Nur `variant="side"`: Panel einklappen (Container rendert dann den Reopen-Streifen). */
   onCollapse?: () => void;
+  /** Nur `variant="side"`: Pointer-Down auf der linken Ziehleiste (Breite anpassen). */
+  onResizeStart?: (e: React.PointerEvent) => void;
 }
 
-export function KontextPanel({ step, provenance, variant, onCollapse }: Props): React.ReactElement {
+export function KontextPanel({ step, provenance, variant, onCollapse, onResizeStart }: Props): React.ReactElement {
   const offen = step.checks.filter(c => c.level !== 'ok').length;
   const qs = step.qsHinweise ?? [];
 
   return (
     <aside className={`g-context${variant === 'block' ? ' block' : ''}`}>
+      {variant === 'side' && onResizeStart && (
+        <div
+          className="g-ctx-resize"
+          onPointerDown={onResizeStart}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Panel-Breite anpassen"
+          title="Breite ziehen"
+        />
+      )}
       <div className="g-ctx-head">
         <span>Quelle &amp; Prüfung</span>
         {variant === 'side' && onCollapse && (

@@ -47,6 +47,9 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   const [tweakOpen, setTweakOpen] = useState(false);
   // Kontext-Panel ein-/ausgeklappt (Werkstatt; persistiert nur im Session-State).
   const [ctxOpen, setCtxOpen] = useState(true);
+  // Breite des Kontext-Panels (px), per Ziehleiste anpassbar (Session-State).
+  const [ctxWidth, setCtxWidth] = useState(340);
+  const [resizing, setResizing] = useState(false);
 
   // Container-Breite messen → 3-spaltiges Grid (breit) vs. einspaltig (schmal).
   // Default groß: bis zur ersten Messung breit rendern (kein Flackern).
@@ -86,7 +89,25 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
     ? 'g-werk solo'
     : !showPanel
       ? 'g-werk no-ctx'
-      : ctxOpen ? 'g-werk' : 'g-werk ctx-closed';
+      : ctxOpen ? `g-werk${resizing ? ' resizing' : ''}` : 'g-werk ctx-closed';
+  // Panel-Breite per Ziehleiste anpassen. Obergrenze hält die Entwurf-Karte ≳ 360px breit.
+  const startResize = (e: React.PointerEvent): void => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = ctxWidth;
+    const maxW = Math.max(360, Math.min(620, bodyWidth - 248 - 360 - 48));
+    setResizing(true);
+    const onMove = (ev: PointerEvent): void => {
+      setCtxWidth(Math.min(maxW, Math.max(280, startW - (ev.clientX - startX))));
+    };
+    const onUp = (): void => {
+      setResizing(false);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
   const panelProvenance = activeStep
     ? { skillName: ctrl.activeSkill?.name ?? activeStep.skillId ?? '—', ...(activeStep.skillVersion != null ? { version: activeStep.skillVersion } : {}) }
     : undefined;
@@ -212,7 +233,10 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
           )}
 
           <div ref={measureRef}>
-            <div className={gridClass}>
+            <div
+              className={gridClass}
+              style={!solo && showPanel && ctxOpen ? { gridTemplateColumns: `248px minmax(0,1fr) ${ctxWidth}px` } : undefined}
+            >
               {solo
                 ? <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
                 : <AbschnittNav run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />}
@@ -224,7 +248,7 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
               {/* Kontext-Panel rechts (breit) bzw. als Block (schmal) */}
               {!solo && showPanel && activeStep && (
                 ctxOpen ? (
-                  <KontextPanel step={activeStep} provenance={panelProvenance} variant="side" onCollapse={() => setCtxOpen(false)} />
+                  <KontextPanel step={activeStep} provenance={panelProvenance} variant="side" onCollapse={() => setCtxOpen(false)} onResizeStart={startResize} />
                 ) : (
                   <button type="button" className="g-ctx-reopen" onClick={() => setCtxOpen(true)} title="Quelle & Prüfung einblenden">
                     <ChevronLeft size={16} />
