@@ -12,9 +12,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { DATA_TABLE_COLLATOR } from '@/components/data-table';
 import { skillsUsingRegel, type QualitaetsRegel, type SkillRegistryFile } from '@/core/services/skills';
-import { TYP_LABEL } from './regelShared';
+import { typLabel, kategorieLabel } from './regelShared';
 
-const typLabel = (r: QualitaetsRegel): string => TYP_LABEL[r.typ] ?? 'Unbekannter Typ';
 const sevLabel = (r: QualitaetsRegel): string => (r.schweregrad === 'fehler' ? 'Fehler' : 'Hinweis');
 const aktivLabel = (r: QualitaetsRegel): string => (r.aktiv ? 'Aktiv' : 'Inaktiv');
 
@@ -41,17 +40,19 @@ export function useRegelColumnFilters(
 
   const filterCandidates = useMemo(() => {
     const typ = new Set<string>();
+    const kat = new Set<string>();
     const sev = new Set<string>();
     const akt = new Set<string>();
     const vw = new Set<string>();
     for (const r of rules) {
       typ.add(typLabel(r));
+      kat.add(kategorieLabel(r));
       sev.add(sevLabel(r));
       akt.add(aktivLabel(r));
       for (const name of skillsUsingRegel(file, r.id)) vw.add(name);
     }
     const sorted = (s: Set<string>): string[] => Array.from(s).sort(DATA_TABLE_COLLATOR.compare);
-    return { typ: sorted(typ), schweregrad: sorted(sev), aktiv: sorted(akt), verwendet: sorted(vw) };
+    return { typ: sorted(typ), kategorie: sorted(kat), schweregrad: sorted(sev), aktiv: sorted(akt), verwendet: sorted(vw) };
   }, [rules, file]);
 
   const filteredRules = useMemo(() => {
@@ -59,6 +60,7 @@ export function useRegelColumnFilters(
     if (active.length === 0) return rules;
     return rules.filter(r => active.every(([key, set]) => {
       if (key === 'typ') return set.has(typLabel(r));
+      if (key === 'kategorie') return set.has(kategorieLabel(r));
       if (key === 'schweregrad') return set.has(sevLabel(r));
       if (key === 'aktiv') return set.has(aktivLabel(r));
       if (key === 'verwendet') return skillsUsingRegel(file, r.id).some(n => set.has(n));

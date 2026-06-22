@@ -20,6 +20,7 @@ import { CheckList } from '../kurzfassung/CheckList';
 import { QsHinweisList } from './QsHinweisList';
 import { AmpelGruppe } from './AmpelGruppe';
 import { groupChecksByKategorie } from './checkGruppen';
+import { qsRollup } from './qs';
 import type { StepRun } from './types';
 
 interface Props {
@@ -36,6 +37,7 @@ interface Props {
 export function KontextPanel({ step, provenance, variant, onCollapse, onResizeStart }: Props): React.ReactElement {
   const offen = step.checks.filter(c => c.level !== 'ok').length;
   const qs = step.qsHinweise ?? [];
+  const qsR = qs.length > 0 ? qsRollup(qs) : null;
 
   return (
     <aside className={`g-context${variant === 'block' ? ' block' : ''}`}>
@@ -91,10 +93,18 @@ export function KontextPanel({ step, provenance, variant, onCollapse, onResizeSt
         </div>
       )}
 
-      {qs.length > 0 && (
+      {qs.length > 0 && qsR && (
         <div className="g-ctx-block">
           <div className="g-ctx-cap">KI-Qualitätshinweis · beratend</div>
-          <QsHinweisList befunde={qs} />
+          <AmpelGruppe
+            label="Befunde"
+            level={qsR.level}
+            summary={qsR.summary}
+            count={qs.length}
+            defaultOpen={qsR.level !== 'ok'}
+          >
+            <QsHinweisList befunde={qs} />
+          </AmpelGruppe>
         </div>
       )}
 

@@ -4,7 +4,7 @@
  * Typ-Picker). Bewusst in ein eigenes Modul gehoben, um Zirkular-Imports
  * zwischen Tab, Spalten und Page zu vermeiden.
  */
-import type { QualitaetsRegel, Schweregrad } from '@/core/services/skills';
+import { effektiveKategorie, KATEGORIE_LABEL, type QualitaetsRegel, type Schweregrad } from '@/core/services/skills';
 
 export const TYP_LABEL: Record<string, string> = {
   zeichen_max: 'Zeichen max',
@@ -16,6 +16,28 @@ export const TYP_LABEL: Record<string, string> = {
   pflicht_anfang: 'Pflicht-Anfang',
   keine_aufzaehlungen: 'Keine Aufzählungen',
 };
+
+/** Lesbare Labels der Prüfart (für QS-Regeln ohne deterministischen `typ`). */
+export const PRUEFART_LABEL: Record<string, string> = {
+  textlich: 'Textlich',
+  fachlich: 'Fachlich',
+  administrativ: 'Administrativ',
+};
+
+/**
+ * Anzeige-Label für die Typ-Spalte. Bekannter `typ` → sein Label; sonst (z.B.
+ * `pruefart`-getriebene QS-Regeln) das `pruefart`-Label statt „unbekannter Typ";
+ * erst wenn beides fehlt, „unbekannter Typ".
+ */
+export function typLabel(r: QualitaetsRegel): string {
+  return TYP_LABEL[r.typ] ?? (r.pruefart ? PRUEFART_LABEL[r.pruefart] : undefined) ?? 'unbekannter Typ';
+}
+
+/** Anzeige-Label der effektiven Kategorie („Art") einer Regel. */
+export function kategorieLabel(r: QualitaetsRegel): string {
+  const k = effektiveKategorie(r);
+  return KATEGORIE_LABEL[k] ?? k;
+}
 
 /** Stabile Reihenfolge der Regel-Typen (Sektions-Reihenfolge bei „Gruppiert: Typ"). */
 export const REGEL_TYP_ORDER: string[] = Object.keys(TYP_LABEL);

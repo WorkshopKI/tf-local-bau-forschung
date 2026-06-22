@@ -1,6 +1,15 @@
 import { useState } from 'react';
-import { buildPromptHinweis, type QualitaetsRegel, type Schweregrad } from '@/core/services/skills';
+import {
+  buildPromptHinweis,
+  effektiveKategorie,
+  KATEGORIE_LABEL,
+  type QualitaetsRegel,
+  type Schweregrad,
+} from '@/core/services/skills';
 import { useReportGuardState, type EditorGuardState } from './editorGuard';
+
+/** Bekannte Kategorie-Keys für den Setzer (ohne „sonstige" — das ist der Auffang-Default). */
+const KATEGORIE_KEYS = Object.keys(KATEGORIE_LABEL).filter(k => k !== 'sonstige');
 
 const NUM = 'font-mono text-[13px] w-[100px] px-2.5 py-2 rounded-[8px] border-[0.5px] border-[var(--tf-border-hover)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)] disabled:opacity-70';
 const FIELD_LABEL = 'block text-[10.5px] font-medium uppercase tracking-[0.06em] text-[var(--tf-text-tertiary)] mb-2';
@@ -96,6 +105,31 @@ export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete
             />
           </div>
         )}
+
+        <div>
+          <label className={FIELD_LABEL}>Art (Kategorie)</label>
+          <input
+            list="regel-kategorie-optionen"
+            value={draft.kategorie ?? ''}
+            disabled={ro}
+            placeholder={`${KATEGORIE_LABEL[effektiveKategorie({ typ: draft.typ, pruefart: draft.pruefart })] ?? 'abgeleitet'} (abgeleitet)`}
+            onChange={e => {
+              const v = e.target.value.trim();
+              setDraft(d => {
+                const next = { ...d };
+                if (v) next.kategorie = v;
+                else delete next.kategorie;
+                return next;
+              });
+            }}
+            className="text-[13px] w-[180px] px-2.5 py-2 rounded-[8px] border-[0.5px] border-[var(--tf-border-hover)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)] disabled:opacity-70"
+          />
+          <datalist id="regel-kategorie-optionen">
+            {KATEGORIE_KEYS.map(k => (
+              <option key={k} value={k}>{KATEGORIE_LABEL[k]}</option>
+            ))}
+          </datalist>
+        </div>
 
         <div>
           <label className={FIELD_LABEL}>Schweregrad</label>

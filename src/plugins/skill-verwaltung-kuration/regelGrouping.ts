@@ -8,14 +8,15 @@
  * dann in mehreren Sektionen (eigener `_rowKey` je (Regel, Skill)). Regeln ohne
  * Skill-Zuordnung landen in „Ohne Zuordnung".
  */
-import type { QualitaetsRegel, SkillRegistryFile } from '@/core/services/skills';
-import { TYP_LABEL, REGEL_TYP_ORDER } from './regelShared';
+import { KATEGORIE_LABEL, KATEGORIE_ORDER, type QualitaetsRegel, type SkillRegistryFile } from '@/core/services/skills';
+import { TYP_LABEL, REGEL_TYP_ORDER, typLabel, kategorieLabel } from './regelShared';
 
-export type RegelGroupingMode = 'none' | 'typ' | 'schweregrad' | 'skill' | 'aktiv';
+export type RegelGroupingMode = 'none' | 'typ' | 'kategorie' | 'schweregrad' | 'skill' | 'aktiv';
 
 export const REGEL_GROUPING_OPTIONS: { mode: RegelGroupingMode; label: string }[] = [
   { mode: 'none', label: 'Keine' },
   { mode: 'typ', label: 'Typ' },
+  { mode: 'kategorie', label: 'Art' },
   { mode: 'schweregrad', label: 'Schweregrad' },
   { mode: 'skill', label: 'Skill' },
   { mode: 'aktiv', label: 'Aktiv' },
@@ -85,17 +86,20 @@ export function buildRegelSectionRows(
     return { rows, sectionOf: r => r._section ?? OHNE_ZUORDNUNG };
   }
 
-  // 1:1-Gruppierungen (typ / schweregrad / aktiv): bucketn + in Sektions-Reihenfolge ausgeben.
+  // 1:1-Gruppierungen (typ / kategorie / schweregrad / aktiv): bucketn + in Sektions-Reihenfolge ausgeben.
   const sectionLabel = (r: QualitaetsRegel): string => {
-    if (mode === 'typ') return TYP_LABEL[r.typ] ?? 'Unbekannter Typ';
+    if (mode === 'typ') return typLabel(r);
+    if (mode === 'kategorie') return kategorieLabel(r);
     if (mode === 'schweregrad') return r.schweregrad === 'fehler' ? 'Fehler' : 'Hinweis';
     return r.aktiv ? 'Aktiv' : 'Inaktiv';
   };
   const order = mode === 'typ'
     ? REGEL_TYP_ORDER.map(t => TYP_LABEL[t]!)
-    : mode === 'schweregrad'
-      ? ['Fehler', 'Hinweis']
-      : ['Aktiv', 'Inaktiv'];
+    : mode === 'kategorie'
+      ? KATEGORIE_ORDER.map(k => KATEGORIE_LABEL[k]!)
+      : mode === 'schweregrad'
+        ? ['Fehler', 'Hinweis']
+        : ['Aktiv', 'Inaktiv'];
 
   const buckets = new Map<string, RegelRow[]>();
   for (const r of rules) {

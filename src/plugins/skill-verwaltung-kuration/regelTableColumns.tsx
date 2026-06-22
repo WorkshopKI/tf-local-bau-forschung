@@ -16,7 +16,7 @@ import {
   type QualitaetsRegel,
   type SkillRegistryFile,
 } from '@/core/services/skills';
-import { TYP_LABEL, SevPill, Switch } from './regelShared';
+import { SevPill, Switch, typLabel, kategorieLabel } from './regelShared';
 import type { RegelRow } from './regelGrouping';
 
 export interface RegelColumnActions {
@@ -37,10 +37,19 @@ export function buildRegelColumns(
     },
     {
       key: 'typ', label: 'Typ', defaultVisible: true, sortable: true, filterable: true, width: 150, wrap: false,
-      accessor: row => TYP_LABEL[row.regel.typ] ?? row.regel.typ,
+      accessor: row => typLabel(row.regel),
       render: row => (
         <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
-          {TYP_LABEL[row.regel.typ] ?? 'unbekannter Typ'}
+          {typLabel(row.regel)}
+        </span>
+      ),
+    },
+    {
+      key: 'kategorie', label: 'Art', defaultVisible: true, sortable: true, filterable: true, width: 150, wrap: false,
+      accessor: row => kategorieLabel(row.regel),
+      render: row => (
+        <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
+          {kategorieLabel(row.regel)}
         </span>
       ),
     },

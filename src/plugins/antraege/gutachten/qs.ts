@@ -7,10 +7,37 @@
  * llama.cpp-Grammar-Sampler greift ohnehin nicht). `QsBefund` lebt in der
  * Gutachten-Domäne (sie hängt vom Skills-Service ab, nicht umgekehrt).
  */
+import { worstLevel, type AmpelLevel } from '@/core/services/skills';
 import type { QsBefund } from './types';
 
 /** Kanonische QS-Dimensionen (Anzeige-Reihenfolge; der Parser toleriert beliebige Überschriften). */
 export const QS_DIMENSIONEN = ['Erdung in der VB', 'Kohärenz', 'Vollständigkeit', 'Ton'] as const;
+
+/**
+ * QS-Befund-Bewertung → Ampel-Stufe. QS ist BERATEND und nie `'fehler'`;
+ * `'unklar'` (nicht-parsebare Modell-Ausgabe) zählt als Hinweis, damit der Block
+ * sichtbar (aufgeklappt) bleibt.
+ */
+export function qsBefundLevel(bewertung: QsBefund['bewertung']): AmpelLevel {
+  return bewertung === 'ok' ? 'ok' : 'hinweis';
+}
+
+export interface QsRollup {
+  level: AmpelLevel;
+  summary: string;
+}
+
+/** Roll-up über alle Befunde für den einklappbaren QS-Ampel-Kopf. */
+export function qsRollup(befunde: QsBefund[]): QsRollup {
+  const level = worstLevel(befunde.map(b => qsBefundLevel(b.bewertung)));
+  const hinweise = befunde.filter(b => b.bewertung === 'hinweis').length;
+  const unklar = befunde.filter(b => b.bewertung === 'unklar').length;
+  let summary: string;
+  if (hinweise > 0) summary = hinweise === 1 ? '1 Hinweis' : `${hinweise} Hinweise`;
+  else if (unklar > 0) summary = unklar === 1 ? '1 unklar' : `${unklar} unklar`;
+  else summary = 'alles ok';
+  return { level, summary };
+}
 
 /** Maximale Länge eines einzelnen Befund-Textes (defensive Kappung). */
 const MAX_BEFUND_TEXT = 600;
