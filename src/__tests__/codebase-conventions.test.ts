@@ -40,6 +40,9 @@
  *   - no-hardcoded-kategorie-mapping    → Artefakt-Achse, Kategorie-Einzelquelle:
  *     der typ→kategorie-Map-Identifier TYP_ZU_KATEGORIE nur in kategorien.ts;
  *     Regel-Kategorie sonst immer ueber effektiveKategorie() ableiten.
+ *   - gutachten-entwurf-kein-plain-textarea → Gutachten-Entwurf nutzt den
+ *     Live-Preview-Editor (MarkdownEditor + markdownLivePreview), kein rohes
+ *     <textarea> (Buffer bleibt rohes Markdown = Ground-Truth, kein Roundtrip).
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -783,5 +786,26 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
         `@/components/ui/*. Diese Schwelle darf nur gesenkt werden, nie erhoeht.`,
       ));
     }
+  });
+});
+
+describe('gutachten-entwurf-kein-plain-textarea (Live-Preview statt <textarea>)', () => {
+  // Der Gutachten-Entwurfs-Editor muss der Live-Preview-Editor bleiben (MarkdownEditor +
+  // markdownLivePreview) und nicht auf ein nacktes <textarea> zurueckfallen. Sicher als
+  // Single-File-Check: das Feedback-Notizfeld in der Datei ist ein <input> — es gibt sonst
+  // kein <textarea>.
+  const FILE = join(ROOT, 'plugins', 'antraege', 'gutachten', 'SectionReviewCard.tsx');
+
+  it('SectionReviewCard nutzt markdownLivePreview und kein rohes <textarea>', () => {
+    const content = readFileSync(FILE, 'utf-8');
+    expect(
+      content.includes('markdownLivePreview'),
+      'SectionReviewCard.tsx muss markdownLivePreview importieren/verwenden.',
+    ).toBe(true);
+    expect(
+      content.includes('<textarea'),
+      'Gutachten-Entwurf darf keinen rohen <textarea>-Editor nutzen — MarkdownEditor + ' +
+      'markdownLivePreview (Live-Preview-Source) verwenden. Buffer bleibt rohes Markdown.',
+    ).toBe(false);
   });
 });

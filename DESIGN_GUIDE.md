@@ -352,6 +352,9 @@ Kein Box-Shadow. Kein Hover-Effekt auf Cards (außer sie sind klickbar → dann 
 .input.error { border-color: var(--tf-danger-border); }
 ```
 
+### Markdown-Editor (Live-Preview)
+Markdown-Bearbeitung läuft als **Live-Preview-Source**: CodeMirror (`MarkdownEditor` + `markdownLivePreview()`) rendert fett/kursiv/Headings inline und versteckt die Marker (`**`/`*`/`#`) auf inaktiven Zeilen — auf der Cursor-Zeile bleiben sie sichtbar/editierbar. Der **Buffer bleibt rohes Markdown = Ground-Truth** (kein WYSIWYG, kein Serialize-Roundtrip). Das im Editor gespiegelte Anzeige-Subset ist `MarkdownRenderer` (marked) — wer dort Tags ergänzt, zieht das Live-Preview-Theme in [src/components/ui/markdownLivePreview.ts](src/components/ui/markdownLivePreview.ts) nach. Speichern liest immer den **Live-Doc-Wert** (`view.state.doc`), nicht den 300 ms debounced React-State. Referenz: [src/plugins/antraege/gutachten/SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx) (`frame="none"`, gescoptes `.cm-editor`-Styling in `gutachten.css`).
+
 ### Slider + Inline-Value
 Range-Slider zeigen den aktuellen Wert direkt im Label oben rechts, nicht erst nach Drag-Ende. Bei abhängigen Werten (z.B. Balance = 1 - Kompetenz) erscheint der Folgewert dezent unter dem Slider als Hint.
 
