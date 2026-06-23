@@ -8,8 +8,9 @@
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Check, Pencil, ChevronLeft } from 'lucide-react';
+import { FileText, Check, Pencil, ChevronLeft, AlertTriangle } from 'lucide-react';
 import { useNavigation } from '@/core/hooks/useNavigation';
+import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
@@ -398,6 +399,15 @@ function ActiveAbschnitt({
   const step = run.schritte[id];
   const status = step?.status ?? 'leer';
   const { navigate } = useNavigation();
+  // Transport-Anzeige nur bei EXTERNER KI (DSGVO-Klasse, nicht der mehrdeutige modell-Name) —
+  // intern (Default) = kein Hinweis. Defensiv, falls noch kein Transport aktiv ist.
+  const bridge = useAIBridge();
+  let externActive = false;
+  let providerName = '';
+  try {
+    externActive = bridge.getActiveKlasse() === 'extern';
+    if (externActive) providerName = bridge.getActiveProviderName();
+  } catch { /* kein aktiver Transport → kein Hinweis */ }
   const skillId = step?.skillId;
   const openSkill = skillId
     ? () => navigate('skill-verwaltung-kuration', { selectedId: skillId })
@@ -431,8 +441,9 @@ function ActiveAbschnitt({
         )}
         {tweakEffektiv && <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">persönlicher Stil aktiv</span>}
         <span className="g-ab-spacer" />
-        {step && (
-          <span className="g-model"><span className="g-mdot" />{step.modell} · lokal</span>
+        {/* Nur bei externer KI ein fett sichtbarer Warnhinweis; interne KI (Default) zeigt nichts. */}
+        {externActive && (
+          <span className="g-extern-warn"><AlertTriangle size={13} /> Externe KI: {providerName}</span>
         )}
       </div>
 

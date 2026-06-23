@@ -12,7 +12,7 @@
  * Styles in `gutachten.css` (gescopt unter `.gutachten-werkstatt`).
  */
 import { useEffect, useRef, useState } from 'react';
-import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check } from 'lucide-react';
+import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check, Info } from 'lucide-react';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -138,29 +138,49 @@ export function SectionReviewCard({
         </div>
       )}
 
-      {/* Meta-Zeile */}
+      {/* Meta-Zeile — schlank: Satzzahl/Status + Regel-Anzahl; Provenienz (Skill) hinter dem Info-Icon. */}
       <div className="g-metaline">
         <span>
           {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(run.freigegeben_am ?? run.erstellt_am)}` : 'Entwurf'}
           {run.mitTweak ? ' · mit persönlichem Stil' : ''}
+          {provenance ? ` · prüft ${provenance.regelCount} ${provenance.regelCount === 1 ? 'Regel' : 'Regeln'}` : ''}
         </span>
-        {provenance && (
-          <>
-            <span className="g-dotsep">·</span>
-            <span>
-              erzeugt mit{' '}
-              {onOpenSkill ? (
-                <button type="button" className="g-ver" onClick={onOpenSkill}>
-                  {provenance.skillName}{run.skillVersion != null ? ` v${run.skillVersion}` : ''}
-                </button>
-              ) : (
-                <span>{provenance.skillName}{run.skillVersion != null ? ` v${run.skillVersion}` : ''}</span>
-              )}
-              {run.modell ? ` · ${run.modell}` : ''} · prüft {provenance.regelCount} {provenance.regelCount === 1 ? 'Regel' : 'Regeln'}
-            </span>
-          </>
-        )}
+        {provenance && (() => {
+          const prov = `erzeugt mit ${provenance.skillName}${run.skillVersion != null ? ` v${run.skillVersion}` : ''}`;
+          return onOpenSkill ? (
+            <button type="button" className="g-meta-info" onClick={onOpenSkill} title={prov} aria-label={`${prov} — Skill öffnen`}>
+              <Info size={13} />
+            </button>
+          ) : (
+            <span className="g-meta-info" title={prov} aria-label={prov}><Info size={13} /></span>
+          );
+        })()}
       </div>
+
+      {/* Anpassen direkt am Text (dezent): Neu/Kürzer/Länger · Thinking · Prüfen · KI-QS.
+          Nur im bearbeitbaren Zustand (Entwurf, nicht generierend). */}
+      {!busy && !freigegeben && (
+        <>
+          <div className="g-refine-row">
+            <span className="g-ab-anpassen">
+              <span className="g-ab-anpassen-lbl">Anpassen</span>
+              <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
+              <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
+              <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
+            </span>
+            <ThinkingControl budget={thinkingBudget} onChange={onSetThinkingBudget} disabled={busy} />
+            <button type="button" className="g-btn ghost sm" onClick={onPruefen}>Prüfen</button>
+            {onQs && (
+              <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
+            )}
+          </div>
+          {llmAvailable === false && (
+            <div className="mb-1 text-[11.5px] text-[var(--tf-warning-text)]">
+              KI nicht erreichbar — Neu/Kürzer/Länger derzeit nicht möglich.
+            </div>
+          )}
+        </>
+      )}
 
       <VersionVerlauf
         versions={run.verlauf ?? []}
@@ -189,7 +209,8 @@ export function SectionReviewCard({
         </div>
       ) : (
         <div className="g-actionbar">
-          {/* Hauptzeile (V4 kompakt): Bearbeiten · 👍/👎 (+Notiz bei 👎) · Stil · CTA rechts */}
+          {/* Eine kompakte Entscheidungs-Zeile: Bearbeiten · 👍/👎 (+Notiz) · Stil · Verwerfen · CTA.
+              Die Anpassen/Prüfen-Tools sitzen dezent oben direkt am Text (g-refine-row). */}
           <div className="g-ab-row compact">
             <button type="button" className="g-vbtn" title="Bearbeiten" aria-label="Bearbeiten" onClick={startEdit}><Pencil className="g-vi" /></button>
             {onFeedback && (
@@ -216,30 +237,9 @@ export function SectionReviewCard({
             )}
             <button type="button" className="g-vbtn" title="Einstellungen Persönlicher Stil" aria-label="Persönlicher Stil" onClick={onOpenTweak}><SlidersHorizontal className="g-vi" /></button>
             <span className="g-ab-spacer" />
+            <button type="button" className="g-btn ghost sm" onClick={onVerwerfen}>Verwerfen</button>
             <button type="button" className="g-btn primary" onClick={onFreigeben}>Freigeben &amp; weiter <ArrowRight size={14} /></button>
           </div>
-
-          {/* Zweitzeile (dezent): Anpassen · Prüfen · QS · Verwerfen */}
-          <div className="g-ab-row secondary">
-            <span className="g-ab-anpassen">
-              <span className="g-ab-anpassen-lbl">Anpassen</span>
-              <button type="button" className="g-btn sm" disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
-              <button type="button" className="g-btn sm" disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
-              <button type="button" className="g-btn sm" disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
-            </span>
-            <ThinkingControl budget={thinkingBudget} onChange={onSetThinkingBudget} disabled={busy} />
-            <button type="button" className="g-btn sm" onClick={onPruefen}>Prüfen</button>
-            {onQs && (
-              <button type="button" className="g-btn sm" disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
-            )}
-            <span className="g-ab-spacer" />
-            <button type="button" className="g-btn ghost sm" onClick={onVerwerfen}>Verwerfen</button>
-          </div>
-          {llmAvailable === false && (
-            <div className="text-[11.5px] text-[var(--tf-warning-text)]">
-              KI nicht erreichbar — Neu/Kürzer/Länger derzeit nicht möglich.
-            </div>
-          )}
         </div>
       )}
     </>

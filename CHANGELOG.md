@@ -5,6 +5,27 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.114.0 — Gutachten-Detailansicht verschlankt (Juni 2026)
+
+MINOR-Bump — UI-Refactor der Gutachten-Werkstatt-Karte + kleiner DSGVO-Warnhinweis. Kein Schema-/
+Persistenz-Change.
+
+- **Transport-Anzeige oben rechts entrümpelt** ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)):
+  das dauerhafte „<Modell> · lokal" (`g-model`) ist weg. Stattdessen erscheint **nur bei externer KI**
+  ein fetter Warn-Pill „⚠ Externe KI: <Provider>". Signal = authoritative DSGVO-Klasse
+  (`bridge.getActiveKlasse() === 'extern'`, `getActiveProviderName()`), NICHT der mehrdeutige
+  `modell`-Name (LAN-„Cloud API" = intern). Dokument-tragende Gutachten-Skills sind per
+  Transport-Policy ohnehin intern erzwungen (Pitfall #30) → der Hinweis feuert im Normalbetrieb nicht.
+- **Meta-Zeile schlanker** ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)):
+  „15 Sätze · Entwurf [· mit persönlichem Stil] · prüft N Regeln" + Info-Icon. Die Provenienz
+  („erzeugt mit <Skill> v<n>") steckt jetzt im Tooltip des Info-Icons (klickbar → öffnet den Skill,
+  wenn verfügbar); der Transport-Name („Cloud API") ist ganz entfernt.
+- **Anpassen-Tools direkt am Text** (dezente `g-refine-row` zwischen Meta-Zeile und „Vorfassungen",
+  nur im Entwurf-Zustand): Neu/Kürzer/Länger · Thinking · Prüfen · KI-QS als Ghost-Buttons. Die untere
+  Aktionsleiste reduziert sich auf eine Zeile: Bearbeiten/👍/👎/Stil … Verwerfen … „Freigeben & weiter".
+- Neue scoped CSS-Klassen `.g-extern-warn`, `.g-meta-info`, `.g-refine-row`. Busy-/Freigegeben-Zweig,
+  Inline-Editor, einklappbare Rail unverändert. Scope: Gutachten-Ansicht (Kurzfassung-`ReviewCard` unberührt).
+
 ### v2.113.0 — Abschnitts-Rail einklappbar (nur Kreise) (Juni 2026)
 
 MINOR-Bump — neues UI-Feature in der Gutachten-Werkstatt. Kein Schema-Change; neuer localStorage-Pref-Key.

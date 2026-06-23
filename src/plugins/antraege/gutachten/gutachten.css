@@ -123,6 +123,9 @@
 .gutachten-werkstatt .g-card-title { font: var(--tf-weight-medium) 17px/1.3 var(--tf-font-sans); color: var(--tf-text); margin: 0; letter-spacing: -.01em; }
 .gutachten-werkstatt .g-model { display: inline-flex; align-items: center; gap: 6px; font: 11.5px/1 var(--tf-font-mono); color: var(--tf-text-tertiary); }
 .gutachten-werkstatt .g-mdot { width: 7px; height: 7px; border-radius: 99px; background: var(--g-green); flex-shrink: 0; }
+/* Warnhinweis oben rechts — NUR bei externer KI (DSGVO), fett & gut sichtbar. */
+.gutachten-werkstatt .g-extern-warn { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 99px; font: var(--tf-weight-medium) 11.5px/1 var(--tf-font-sans); color: var(--tf-warning-text); background: var(--tf-warning-bg); white-space: nowrap; }
+.gutachten-werkstatt .g-extern-warn svg { flex-shrink: 0; }
 
 .gutachten-werkstatt .g-pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 10px; border-radius: 99px; font: var(--tf-weight-medium) 11px/1 var(--tf-font-sans); }
 .gutachten-werkstatt .g-pill.ok { background: var(--tf-success-bg); color: var(--tf-success-text); }
@@ -139,6 +142,9 @@
 .gutachten-werkstatt .g-dotsep { color: var(--tf-border-hover); }
 .gutachten-werkstatt .g-ver { color: var(--tf-primary); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: .5px; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
 .gutachten-werkstatt .g-ver:hover { text-decoration-thickness: 1px; }
+/* Info-Icon der Meta-Zeile — Provenienz („erzeugt mit …") als Tooltip, optional Skill-Link. */
+.gutachten-werkstatt .g-meta-info { display: inline-flex; align-items: center; justify-content: center; padding: 2px; border: 0; background: none; color: var(--tf-text-tertiary); border-radius: 4px; cursor: pointer; }
+.gutachten-werkstatt .g-meta-info:hover { color: var(--tf-primary); background: var(--tf-hover); }
 
 /* ---------- Inline-Bearbeitung ---------- */
 .gutachten-werkstatt .g-edit { margin: 14px 0; }
@@ -161,6 +167,8 @@
 /* Dezente Zweitzeile: Generier-Steuerungen ruhiger, etwas dichter. */
 .gutachten-werkstatt .g-ab-row.secondary { gap: 8px; }
 .gutachten-werkstatt .g-ab-anpassen { display: inline-flex; align-items: center; gap: 6px; }
+/* Anpassen/Prüfen direkt am Text — dezente Zeile zwischen Meta-Zeile und „Vorfassungen". */
+.gutachten-werkstatt .g-refine-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 2px 0 12px; }
 .gutachten-werkstatt .g-ab-anpassen-lbl { font: 11px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); }
 .gutachten-werkstatt .g-vote { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 240px; }
 .gutachten-werkstatt .g-vote-q { font: 12px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); white-space: nowrap; }
