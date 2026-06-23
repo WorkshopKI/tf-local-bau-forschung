@@ -191,27 +191,30 @@ TeamFlow wird pro Einsatz-Kontext als eigene Variante gebaut. Configs liegen unt
 - `configs/prod.config.json` — Produktion (End-User), nur Home + Förderanträge + Einstellungen, kein Kurator-Login
 - `configs/kurator.config.json` — Produktion (Kurator-Rolle), Standard-Sidebar wie prod + Kuration-Menüs nach Login
 - `configs/pl.config.json` — Produktion (Projektleitung), Home + Förderanträge + Auslastung + Einstellungen, kein Kurator-Login
+- `configs/as.config.json` (v2.115) — Produktion (AS-Rolle), **wie pl, aber ohne Auslastungs-Modul** (`features.auslastung` + `auslastungSelbstEintragung` + `deAnonymisierung` + `maVerwaltungPasswort` auf false); eigenes Zugangspasswort
 - `configs/_template.config.jsonc` — kommentierte Referenz (nicht direkt bauen)
 - `configs/_shared.json` (v2.0.2) — **Org-weite invariante Defaults** (aktuell: `data.fixedDataSharePath` + `data.expectedFolderName`). `build-with-config.mjs` + `vite.config.ts` mergen diese Datei mit der Variant-Config via `deepMerge` aus [scripts/config-schema.mjs](scripts/config-schema.mjs).
 
 Sichtbarkeits-Matrix (was steht in der Sidebar):
 
-| Plugin | dev | prod | kurator (vor Login) | kurator (nach Login) | pl |
-| --- | --- | --- | --- | --- | --- |
-| Home | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Förderanträge | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Auslastung | ✓ | – | ○ | ○ | ✓ |
-| Dokumente | ✓ | – | – | – | – |
-| Suche | ✓ | – | ✓ | ✓ | ✓ |
-| Chat | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Feedback Übersicht | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Einstellungen | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Kurator-Toggle in Einstellungen | ✓ | – | ✓ | ✓ | – |
-| Kuration-Menüs (Suchindex, Programme, CSV, DMS, Filter, Feedback, Review) | ✓ | – | – | ✓ | – |
+| Plugin | dev | prod | kurator (vor Login) | kurator (nach Login) | pl | as |
+| --- | --- | --- | --- | --- | --- | --- |
+| Home | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Förderanträge | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Auslastung | ✓ | – | ○ | ○ | ✓ | – |
+| Dokumente | ✓ | – | – | – | – | – |
+| Suche | ✓ | – | ✓ | ✓ | ✓ | ✓ |
+| Chat | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Feedback Übersicht | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Einstellungen | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Kurator-Toggle in Einstellungen | ✓ | – | ✓ | ✓ | – | – |
+| Kuration-Menüs (Suchindex, Programme, CSV, DMS, Filter, Feedback, Review) | ✓ | – | – | ✓ | – | – |
 
 ○ = **Auslastung in kurator nur als „Themen-Vektoren"** (v2.56, `features.auslastungNurKorpus`): schlanker Korpus-Pflege-View zum Aktuell-Halten des Embedding-Katalogs — **kein** MA-Auslastung/Zuweisung/Kompetenzen, nur „Inkrementell" (kein Vollbuild, der bleibt dev-exklusiv). Sichtbar als Workflow-Plugin (unabhängig vom Kurator-Toggle).
 
 Die kurator-Variante ist der einzige Produktions-Build mit `features.kuratorMenus: true`. Sie kombiniert User-seitig einen schlanken Stack (Förderanträge + Einstellungen) mit allen Kuration-Plugins, die erst nach Aktivierung des Kurator-Toggles in den Einstellungen erscheinen.
+
+Die **as**-Variante ist eine Kopie von **pl** ohne die Auslastungs-Domäne — gleicher Schreib-Build (`datenShareSchreibrecht: true`, Gutachten/Skills, CSV-Auto-Refresh, Passwort-Gate), aber `features.auslastung` + `auslastungSelbstEintragung` (Startseiten-Selbsteintragung) auf `false`; die nur im Modul wirksamen Flags `deAnonymisierung` + `maVerwaltungPasswort` ebenfalls `false`. Eigenes Zugangspasswort (`npm run set-password -- as "<pw>"`).
 
 Build-Kommandos:
 
@@ -220,6 +223,7 @@ npm run build:dev       # → dist-single/dev/zah-dev.html
 npm run build:prod      # → dist-single/zah-prod.html
 npm run build:kurator   # → dist-single/zah-kurator.html
 npm run build:pl        # → dist-single/zah-pl.html
+npm run build:as        # → dist-single/zah-as.html (wie pl, ohne Auslastung)
 npm run build:variant -- --config configs/<datei>.config.json   # beliebige Variante
 npm run config-ui       # HTML-Konfigurator auf http://localhost:5174
 ```

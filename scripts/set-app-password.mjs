@@ -8,6 +8,7 @@
  *   npm run set-password -- pl "Mein-Passwort"
  *   npm run set-password -- kurator "Mein-Passwort"
  *   npm run set-password -- dev "Mein-Passwort"
+ *   npm run set-password -- as "Mein-Passwort"
  *
  * HINWEIS dev: Die dev-Config spiegelt aktuell Salt+Verifier der pl-Config
  * (gleiches Hauptpasswort, v2.64). Bei pl-Passwort-Rotation entweder den
@@ -29,13 +30,13 @@ import { webcrypto } from 'node:crypto';
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const PBKDF2_ITERATIONS = 200_000;
-const ALLOWED = ['pl', 'kurator', 'dev'];
+const ALLOWED = ['pl', 'kurator', 'dev', 'as'];
 
 const variant = process.argv[2];
 const password = process.argv[3];
 
 if (!variant || !ALLOWED.includes(variant) || !password) {
-  console.error('Usage: npm run set-password -- <pl|kurator|dev> <passwort>');
+  console.error('Usage: npm run set-password -- <pl|kurator|dev|as> <passwort>');
   process.exit(1);
 }
 

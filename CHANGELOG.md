@@ -5,6 +5,23 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.115.0 — Neue Build-Variante „as" (wie pl, ohne Auslastung) (Juni 2026)
+
+MINOR-Bump — additive neue Produktions-Variante, kein Code-Change (rein config-getrieben).
+
+- **`configs/as.config.json`** (NEU): Kopie von [configs/pl.config.json](configs/pl.config.json) mit
+  `build.outputFilename: "zah-as"`, `label: "ZAH AS"`, `browserTabTitle: "ZAH as"`. Auslastungs-Domäne
+  abgeschaltet: `features.auslastung` + `auslastungSelbstEintragung` (Startseiten-Selbsteintragung) +
+  `deAnonymisierung` + `maVerwaltungPasswort` auf `false`. Alle übrigen pl-Werte unverändert (Schreib-Build
+  `datenShareSchreibrecht: true`, Gutachten/Skills, CSV-Auto-Refresh, `onlineStatusTab`). Eigene IndexedDB
+  `teamflow-zah-as` (automatisch via `deriveVariantDbName`).
+- **Eigenes Zugangspasswort** statt des pl-Passworts: `scripts/set-app-password.mjs` akzeptiert jetzt
+  `as` (`ALLOWED`), Runtime ([app-password.ts](src/core/services/infrastructure/app-password.ts)) prüft
+  ohnehin nur `sentinel.v === 1`, nicht die `role`. Gesetzt via `npm run set-password -- as "<pw>"`.
+- **Build-Scripts**: `npm run build:as` (+ `prebuild:as`); `build:all` zieht die as-Variante mit.
+- Keine Auslastungs-Sichtbarkeit: Plugin, Sidebar, Routing, MA-Spalte, Korpus-Autoload und die
+  Startseiten-Selbsteintragung sind aus — rein flag-gesteuert, kein TS/TSX angefasst.
+
 ### v2.114.1 — Wording „Anpassen:" (Juni 2026)
 
 PATCH-Bump — Text-Korrektur: Label der Refine-Zeile von „Anpassen" → „Anpassen:" (Doppelpunkt, da es
