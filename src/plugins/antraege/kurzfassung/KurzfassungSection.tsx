@@ -10,7 +10,8 @@
  * Vorlagen-Dialog bleiben nutzbar; nur die Generierung degradiert.
  */
 import { useMemo, useState } from 'react';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronRight } from 'lucide-react';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
@@ -30,6 +31,9 @@ const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] tex
 
 export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useKurzfassung(ctx);
+  // Einklappbar (persistiert, Default offen); Body via CSS verstecken statt
+  // unmounten, damit ein offener Review-/Stream-Stand erhalten bleibt.
+  const [open, toggleOpen] = useCollapsedSection('verbund_kurzfassung_collapsed');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [ersetzen, setErsetzen] = useState(false);
@@ -59,7 +63,14 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
     <div>
       {/* Kopf: Titel + Status-Badge + Transport-Anzeige */}
       <div className="flex items-center gap-3 mb-1">
-        <span className="text-[14px] font-medium text-[var(--tf-text)]">Kurzfassung (Gutachten)</span>
+        <button type="button" onClick={toggleOpen} aria-expanded={open} className="flex items-center gap-1.5 cursor-pointer">
+          <ChevronRight
+            size={13}
+            className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          />
+          <span className="text-[14px] font-medium text-[var(--tf-text)]">Kurzfassung (Gutachten)</span>
+        </button>
         {record && (
           freigegeben ? (
             <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]">✓ Freigegeben</span>
@@ -82,6 +93,7 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
         )}
       </div>
 
+      <div className={open ? undefined : 'hidden'}>
       {/* Versions-Hinweis (neutral, NICHT warnfarben) bei Kurator-Update des Skills */}
       {zeigeVersionHinweis && skill && tweak && (
         <div className="mt-2 mb-1 flex items-center gap-2.5 rounded-[8px] px-3 py-2 bg-[var(--tf-bg-secondary)] border-[0.5px] border-[var(--tf-border)]">
@@ -211,6 +223,8 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
           <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={ctrl.refreshVb} />
         </div>
       )}
+
+      </div>
 
       {vbDok && (
         <KonvertierungReviewDialog

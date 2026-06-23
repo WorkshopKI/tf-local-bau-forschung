@@ -8,8 +8,9 @@
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Check, Pencil, ChevronLeft, AlertTriangle } from 'lucide-react';
+import { FileText, Check, Pencil, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { useNavigation } from '@/core/hooks/useNavigation';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
@@ -68,6 +69,10 @@ function readPersistedFlag(key: string, fallback: boolean): boolean {
 
 export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useGutachtenWorkflow(ctx);
+  // Einklappbar (persistiert, Default offen): beim Texten anderer Artefakte
+  // (NF/Kurzfassung) wegklappbar. Body via CSS verstecken statt unmounten —
+  // der aktive Markdown-Editor (SectionReviewCard) behält so seinen Buffer.
+  const [open, toggleOpen] = useCollapsedSection('verbund_gutachten_collapsed');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [ersetzen, setErsetzen] = useState(false);
@@ -203,10 +208,21 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
     <div className="gutachten-werkstatt">
       {/* Fortschritt + Aktionen */}
       <div className="g-progress">
-        <div className="g-progress-l">
+        <button
+          type="button"
+          className="g-progress-l"
+          onClick={toggleOpen}
+          aria-expanded={open}
+          style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', font: 'inherit', textAlign: 'left' }}
+        >
+          <ChevronRight
+            size={15}
+            className="transition-transform duration-200 shrink-0"
+            style={{ color: 'var(--tf-text-tertiary)', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          />
           <span className="g-gtitle">Gutachten</span>
           {run && <span className="g-pcount">{freigegebenCount} von {steps.length} Abschnitten freigegeben</span>}
-        </div>
+        </button>
         {ctrl.vbVorhanden && run && (hatLeere || ctrl.bulkRunning) && (
           ctrl.bulkRunning ? (
             <button type="button" className="g-btn" onClick={ctrl.stop}>Stopp</button>
@@ -234,6 +250,8 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
         </button>
       </div>
 
+      {/* Body via CSS verstecken (nicht unmounten) — erhält Editor-Buffer. */}
+      <div className={open ? undefined : 'hidden'}>
       {ctrl.bulkRunning && (
         <div className="mb-3 flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]">
           <span className="w-3 h-3 rounded-full border-[1.5px] border-[var(--tf-text-tertiary)] border-t-transparent animate-spin" />
@@ -344,6 +362,7 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
           </div>
         </>
       )}
+      </div>
 
       {run && (
         <VorlageDialog

@@ -5,6 +5,26 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.117.0 — Verbund-Detailseite: einklappbare Abschnitte (Juni 2026)
+
+MINOR-Bump — die wesentlichen Abschnitte der Verbund-Detailseite ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx))
+sind jetzt einzeln ein-/ausklappbar, damit beim Texten der Artefakte (Gutachten/NF/…) gezielt Platz
+freigeräumt werden kann. Reine UI-Erweiterung, kein Datenmodell-/Schema-Change.
+
+- **Neuer „Antragsdaten"-Sammelblock**: Stammdaten + Status/Workflow + Teilvorhaben liegen unter einer
+  gemeinsamen, einklappbaren Überschrift (nur echte Verbünde; bei pseudo unverändert). Die Kurzbeschreibung
+  bleibt darüber sichtbar.
+- **Gutachten / Kurzfassung / Nachforderungen / Verbund-Historie** ebenfalls einzeln einklappbar — das
+  Header-Toggle-Muster der bestehenden „Alle Felder"-Sektion ([AlleFelderSection.tsx](src/plugins/antraege/AlleFelderSection.tsx)),
+  Chevron + Titel als Button. Artefakt-Sektionen verstecken ihren Body via CSS (`hidden`) statt zu unmounten,
+  damit ein offener Markdown-Editor/Stand seinen Buffer behält; Aktions-Buttons (Erzeugen/Export) bleiben im
+  eingeklappten Header erreichbar.
+- **Unabhängige Schalter**, jeder Zustand pro Browser persistiert ([useCollapsedSection](src/core/hooks/useCollapsedSection.ts),
+  Keys `verbund_*_collapsed`), Default überall offen (heutiges Bild). Kein Akkordeon.
+- **Sprung-Nav-Kopplung**: ist der Antragsdaten-Block eingeklappt, klappt ein Klick auf „Stammdaten"/„Workflow"/
+  „Teilvorhaben" ihn zuerst auf und scrollt dann (die `id` von Gutachten/NF sitzt auf dem äußeren Wrapper und
+  bleibt erreichbar). **Alle Felder** war bereits einklappbar und bleibt unverändert.
+
 ### v2.116.0 — Markdown-Live-Preview-Inline-Editor (Gutachten-Abschnitte) (Juni 2026)
 
 MINOR-Bump — neuer Editor für die Abschnitts-Bearbeitung in der Gutachten-Werkstatt; reiner UI-Tausch,

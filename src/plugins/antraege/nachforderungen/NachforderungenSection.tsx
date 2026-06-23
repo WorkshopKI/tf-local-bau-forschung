@@ -8,6 +8,8 @@
  * Entwurf ≠ Entscheidung: es wird NICHTS versendet — der Mensch öffnet/prüft/sendet.
  */
 import { useMemo, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import type { Antrag } from '@/core/services/csv/types';
 import { VorlageDialog } from '../kurzfassung/VorlageDialog';
@@ -19,6 +21,9 @@ const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border
 
 export function NachforderungenSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useNachforderungen(ctx);
+  // Einklappbar (persistiert, Default offen); Body via CSS verstecken statt
+  // unmounten, damit der NF-Stand/offene Dialoge erhalten bleiben.
+  const [open, toggleOpen] = useCollapsedSection('verbund_nf_collapsed');
   const [dialogTv, setDialogTv] = useState<NfEntwurf | null>(null);
 
   const dialogAntrag = useMemo<Antrag | null>(() => {
@@ -36,7 +41,14 @@ export function NachforderungenSection({ ctx }: { ctx: KurzfassungContext }): Re
   return (
     <div>
       <div className="flex items-center gap-3.5 mb-4">
-        <span className="text-[16px] font-medium text-[var(--tf-text)]">Nachforderungen</span>
+        <button type="button" onClick={toggleOpen} aria-expanded={open} className="flex items-center gap-1.5 cursor-pointer">
+          <ChevronRight
+            size={15}
+            className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          />
+          <span className="text-[16px] font-medium text-[var(--tf-text)]">Nachforderungen</span>
+        </button>
         {ctrl.entwuerfe.length > 0 && (
           <span className="text-[12px] text-[var(--tf-text-tertiary)]">{ctrl.entwuerfe.length} Entwürfe</span>
         )}
@@ -58,6 +70,7 @@ export function NachforderungenSection({ ctx }: { ctx: KurzfassungContext }): Re
         )}
       </div>
 
+      <div className={open ? undefined : 'hidden'}>
       {ctrl.busy && (
         <div className="mb-3 flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]">
           <span className="w-3 h-3 rounded-full border-[1.5px] border-[var(--tf-text-tertiary)] border-t-transparent animate-spin" />
@@ -91,6 +104,8 @@ export function NachforderungenSection({ ctx }: { ctx: KurzfassungContext }): Re
           ))}
         </div>
       )}
+
+      </div>
 
       {dialogTv && dialogAntrag && (
         <VorlageDialog

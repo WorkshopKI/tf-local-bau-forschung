@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import {
   getAntrag,
   getVerbund,
@@ -91,6 +92,11 @@ export function VerbundDetail({
   // Kompakt-Layout (v2.110): Kurzbeschreibung-Expand + aktiver Sprung-Nav-Eintrag.
   const [kbOpen, setKbOpen] = useState(false);
   const [activeJump, setActiveJump] = useState<string | null>(null);
+  // Einklappbare Abschnitte (persistiert, Default offen): die „Antragsdaten"
+  // (Stammdaten + Workflow + Teilvorhaben) und die Verbund-Historie. Erlaubt es,
+  // beim Texten (Gutachten/NF) gezielt Platz freizuräumen.
+  const [antragsdatenOpen, toggleAntragsdaten] = useCollapsedSection('verbund_antragsdaten_collapsed');
+  const [historieOpen, toggleHistorie] = useCollapsedSection('verbund_historie_collapsed');
   // Unterprogramm-Labels (Code → Name) fuer die Stammdaten-Anzeige — statt der
   // nackten Nummer den sprechenden Namen. Hook vor dem fruehen Return halten.
   const unterprogrammLabels = useUnterprogrammLabels(antraege[0]?.programm_id ?? null);
@@ -302,8 +308,27 @@ export function VerbundDetail({
   ].filter(Boolean)) as { id: string; label: string }[];
   const jump = (id: string): void => {
     setActiveJump(id);
+    // stamm/workflow/tv liegen im konditional gerenderten Antragsdaten-Body —
+    // bei eingeklapptem Block erst aufklappen, dann nach dem Render scrollen
+    // (gutachten/nf brauchen das nicht: deren id sitzt auf dem äußeren Wrapper).
+    if ((id === 'stamm' || id === 'workflow' || id === 'tv') && !antragsdatenOpen) {
+      toggleAntragsdaten();
+      setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+      return;
+    }
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  // STATUS & WORKFLOW — einmal definiert, da sowohl im Antragsdaten-Sammelblock
+  // (echter Verbund) als auch im Pseudo-Zweig gerendert.
+  const workflowBlock = stepperStatus ? (
+    <div id="workflow" className="mb-4 scroll-mt-[80px]">
+      <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
+        {stepperHeading}
+      </h3>
+      <WorkflowStepper status={stepperStatus} collapsible />
+    </div>
+  ) : null;
 
   return (
     <PanelShell onClose={onClose}>
@@ -387,121 +412,137 @@ export function VerbundDetail({
         </div>
       ) : null}
 
-      {/* STAMMDATEN — nur fuer echte Verbuende. Bei pseudo (Standalone) sind
-          die Stammdaten identisch zu EckdatenCard, das spaeter im TvDetailBlock
-          rendert; doppelte Anzeige vermeiden. */}
+      {/* ANTRAGSDATEN — einklappbarer Sammel-Block (Stammdaten + Workflow +
+          Teilvorhaben). Nur echte Verbuende; bei pseudo (Standalone) stecken die
+          Stammdaten im TvDetailBlock (doppelte Anzeige vermeiden). Beim Texten
+          (Gutachten/NF) laesst sich der Block wegklappen — mehr Platz fuer die
+          Artefakt-Abschnitte. */}
       {!isPseudo ? (
-        <div
-          id="stamm"
-          className="rounded-[var(--tf-radius)] p-4 mb-4 scroll-mt-[80px]"
-          style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
-        >
-          <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-3">
-            Stammdaten
-          </h3>
-          {/* Inline 4-Spalten (Label vor Wert) — kompakter als gestapelt. */}
-          <div className="grid grid-cols-[auto_1fr_auto_1fr] gap-x-3.5 gap-y-1.5 items-baseline">
-            <StammCell k="Antragsteller" v={antragsteller ?? '—'} />
-            <StammCell k="Unterprogramm" v={unterprogramm ?? '—'} />
-            <StammCell k="Antragsdatum" v={antragsdatum ? formatGermanDate(antragsdatum) : '—'} />
-            <StammCell k="Zuwendung" v={zuwendungPlaceholder} />
-            <StammCell k="Förderkennzeichen" v={verbund.verbund_id} mono />
-            <StammCell k="Verbund" v={`${antraege.length} Teilvorhaben`} />
-          </div>
-        </div>
-      ) : null}
-
-      {/* STATUS & WORKFLOW — immer sichtbar (wenn ein Status vorhanden ist).
-          Inhalt wechselt zwischen Verbund- und expandiertem TV-Status. */}
-      {stepperStatus ? (
-        <div id="workflow" className="mb-4 scroll-mt-[80px]">
-          <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
-            {stepperHeading}
-          </h3>
-          <WorkflowStepper status={stepperStatus} collapsible />
-        </div>
-      ) : null}
-
-      {/* TEILVORHABEN — bei echtem Verbund: expandable Rows mit Inline-Detail.
-          Bei Pseudo: einziger TV wird direkt darunter (ohne Liste) gerendert. */}
-      {!isPseudo ? (
-        <div id="tv" className="mb-4 scroll-mt-[80px]">
-          <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
-              Teilvorhaben
-            </h3>
-            <span className="text-[11px] text-[var(--tf-text-tertiary)]">·</span>
-            <span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">{antraege.length}</span>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            {antraege.map((tv, idx) => {
-              const tvAntragsteller = strOrNull(tv.antragsteller) ?? '—';
-              const tvStatus = strOrNull(tv.status);
-              const rolle = tvRolle(tv, idx, antraege);
-              const isExpanded = expandedTvAz === tv.aktenzeichen;
-              return (
-                <div key={tv.aktenzeichen}>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedTvAz(isExpanded ? null : tv.aktenzeichen)}
-                    aria-expanded={isExpanded}
-                    className={`w-full text-left rounded-[var(--tf-radius)] px-3 py-2 transition-colors ${
-                      isExpanded
-                        ? 'bg-[var(--tf-primary)]/5'
-                        : 'hover:bg-[var(--tf-bg-secondary)]'
-                    }`}
-                    style={{
-                      border: '0.5px solid var(--tf-border)',
-                      borderLeftWidth: isExpanded ? '2px' : '0.5px',
-                      borderLeftColor: isExpanded ? 'var(--tf-primary)' : 'var(--tf-border)',
-                    }}
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="shrink-0 text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] tabular-nums w-8 pt-0.5">
-                        TV {idx + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-medium text-[var(--tf-text)] truncate" title={tvAntragsteller}>
-                          {tvAntragsteller}
-                        </div>
-                        <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
-                          {rolle} · <span className="font-mono">{tv.aktenzeichen}</span>
-                          {' '}· Zuwendung: {zuwendungPlaceholder}
-                        </div>
-                      </div>
-                      {tvStatus ? (
-                        <Badge
-                          variant={getStatusVariant(tvStatus)}
-                          className="shrink-0 min-w-[100px] justify-center whitespace-nowrap"
-                        >
-                          {getStatusLabel(tvStatus)}
-                        </Badge>
-                      ) : null}
-                      <span className="shrink-0 text-[var(--tf-text-tertiary)] pt-0.5">
-                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                      </span>
-                    </div>
-                  </button>
-                  {isExpanded ? (
-                    <div
-                      className="mt-3 mb-3 ml-3 pl-4 pb-2"
-                      style={{ borderLeft: '2px solid var(--tf-primary)' }}
-                    >
-                      <TvDetailBlock aktenzeichen={tv.aktenzeichen} onOpenAntrag={onOpenAntrag} />
-                    </div>
-                  ) : null}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={toggleAntragsdaten}
+            aria-expanded={antragsdatenOpen}
+            className="flex items-center gap-1.5 w-full text-left mb-2"
+          >
+            <ChevronRight
+              size={13}
+              className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+              style={{ transform: antragsdatenOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            />
+            <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Antragsdaten</h3>
+            <span className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)] truncate pl-2">
+              {antragsteller ? `${antragsteller} · ` : ''}{antraege.length} Teilvorhaben
+            </span>
+          </button>
+          {antragsdatenOpen ? (
+            <>
+              {/* STAMMDATEN — Inline 4-Spalten (Label vor Wert), kompakter als gestapelt. */}
+              <div
+                id="stamm"
+                className="rounded-[var(--tf-radius)] p-4 mb-4 scroll-mt-[80px]"
+                style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
+              >
+                <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-3">
+                  Stammdaten
+                </h3>
+                <div className="grid grid-cols-[auto_1fr_auto_1fr] gap-x-3.5 gap-y-1.5 items-baseline">
+                  <StammCell k="Antragsteller" v={antragsteller ?? '—'} />
+                  <StammCell k="Unterprogramm" v={unterprogramm ?? '—'} />
+                  <StammCell k="Antragsdatum" v={antragsdatum ? formatGermanDate(antragsdatum) : '—'} />
+                  <StammCell k="Zuwendung" v={zuwendungPlaceholder} />
+                  <StammCell k="Förderkennzeichen" v={verbund.verbund_id} mono />
+                  <StammCell k="Verbund" v={`${antraege.length} Teilvorhaben`} />
                 </div>
-              );
-            })}
-          </div>
+              </div>
+
+              {/* STATUS & WORKFLOW */}
+              {workflowBlock}
+
+              {/* TEILVORHABEN — expandable Rows mit Inline-Detail. */}
+              <div id="tv" className="mb-4 scroll-mt-[80px]">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
+                    Teilvorhaben
+                  </h3>
+                  <span className="text-[11px] text-[var(--tf-text-tertiary)]">·</span>
+                  <span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">{antraege.length}</span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {antraege.map((tv, idx) => {
+                    const tvAntragsteller = strOrNull(tv.antragsteller) ?? '—';
+                    const tvStatus = strOrNull(tv.status);
+                    const rolle = tvRolle(tv, idx, antraege);
+                    const isExpanded = expandedTvAz === tv.aktenzeichen;
+                    return (
+                      <div key={tv.aktenzeichen}>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedTvAz(isExpanded ? null : tv.aktenzeichen)}
+                          aria-expanded={isExpanded}
+                          className={`w-full text-left rounded-[var(--tf-radius)] px-3 py-2 transition-colors ${
+                            isExpanded
+                              ? 'bg-[var(--tf-primary)]/5'
+                              : 'hover:bg-[var(--tf-bg-secondary)]'
+                          }`}
+                          style={{
+                            border: '0.5px solid var(--tf-border)',
+                            borderLeftWidth: isExpanded ? '2px' : '0.5px',
+                            borderLeftColor: isExpanded ? 'var(--tf-primary)' : 'var(--tf-border)',
+                          }}
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="shrink-0 text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] tabular-nums w-8 pt-0.5">
+                              TV {idx + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[13px] font-medium text-[var(--tf-text)] truncate" title={tvAntragsteller}>
+                                {tvAntragsteller}
+                              </div>
+                              <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
+                                {rolle} · <span className="font-mono">{tv.aktenzeichen}</span>
+                                {' '}· Zuwendung: {zuwendungPlaceholder}
+                              </div>
+                            </div>
+                            {tvStatus ? (
+                              <Badge
+                                variant={getStatusVariant(tvStatus)}
+                                className="shrink-0 min-w-[100px] justify-center whitespace-nowrap"
+                              >
+                                {getStatusLabel(tvStatus)}
+                              </Badge>
+                            ) : null}
+                            <span className="shrink-0 text-[var(--tf-text-tertiary)] pt-0.5">
+                              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </span>
+                          </div>
+                        </button>
+                        {isExpanded ? (
+                          <div
+                            className="mt-3 mb-3 ml-3 pl-4 pb-2"
+                            style={{ borderLeft: '2px solid var(--tf-primary)' }}
+                          >
+                            <TvDetailBlock aktenzeichen={tv.aktenzeichen} onOpenAntrag={onOpenAntrag} />
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
       ) : (
-        // Pseudo-Verbund: TV-Detail direkt (kein Liste, kein Toggle).
-        expandedTvAz ? (
-          <div className="mb-6">
-            <TvDetailBlock aktenzeichen={expandedTvAz} onOpenAntrag={onOpenAntrag} />
-          </div>
-        ) : null
+        // Pseudo-Verbund: Workflow + TV-Detail direkt (kein Sammel-Block, keine Liste).
+        <>
+          {workflowBlock}
+          {expandedTvAz ? (
+            <div className="mb-6">
+              <TvDetailBlock aktenzeichen={expandedTvAz} onOpenAntrag={onOpenAntrag} />
+            </div>
+          ) : null}
+        </>
       )}
 
       {/* GUTACHTEN — Verbund-Ebene, oberhalb der Felder-Liste (nur dev). Der
@@ -543,10 +584,26 @@ export function VerbundDetail({
       {/* Verbund-Historie — nur fuer echte Verbuende (pseudo hat keine). */}
       {!isPseudo ? (
         <div className="mt-6 pt-6" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
-            Verbund-Historie
-          </h2>
-          {history.length === 0 ? (
+          <button
+            type="button"
+            onClick={toggleHistorie}
+            aria-expanded={historieOpen}
+            className="flex items-center gap-1.5 w-full text-left mb-2"
+          >
+            <ChevronRight
+              size={13}
+              className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+              style={{ transform: historieOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            />
+            <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--tf-text-tertiary)]">
+              Verbund-Historie
+            </h2>
+            {history.length > 0 ? (
+              <span className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)] tabular-nums pl-2">{history.length}</span>
+            ) : null}
+          </button>
+          {historieOpen ? (
+            history.length === 0 ? (
             <div className="text-[12.5px] text-[var(--tf-text-tertiary)] italic">
               Noch keine Verbund-Änderungen erfasst.
             </div>
@@ -578,7 +635,8 @@ export function VerbundDetail({
                 </div>
               ))}
             </div>
-          )}
+          )
+          ) : null}
         </div>
       ) : null}
 
