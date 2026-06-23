@@ -88,12 +88,23 @@
 .gutachten-werkstatt .g-rail.docked { position: relative; flex-shrink: 0; background: var(--tf-bg-secondary); border-right: .5px solid var(--tf-border); border-radius: 12px 0 0 12px; }
 /* Steps + Verbindungslinie sticky am oberen Rand — bleibt beim Scrollen langer Karten sichtbar. */
 .gutachten-werkstatt .g-rail-inner { position: sticky; top: 14px; padding: 8px 0; }
+/* Ein-/Ausklapp-Toggle oben (ausgeklappt rechtsbündig, eingeklappt zentriert). */
+.gutachten-werkstatt .g-rail-toggle-row { display: flex; justify-content: flex-end; padding: 0 6px 2px; }
+.gutachten-werkstatt .g-rail.docked.collapsed .g-rail-toggle-row { justify-content: center; padding: 0 0 2px; }
+.gutachten-werkstatt .g-rail-toggle { width: 24px; height: 24px; flex-shrink: 0; border: 0; background: transparent; color: var(--tf-text-tertiary); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.gutachten-werkstatt .g-rail-toggle:hover { background: var(--tf-hover); color: var(--tf-text); }
+/* Steps-Wrapper = Bezugsrahmen der Verbindungslinie (unabhängig vom Toggle darüber). */
+.gutachten-werkstatt .g-rail-steps { position: relative; }
 .gutachten-werkstatt .g-rail-line { position: absolute; left: 24px; top: 24px; bottom: 24px; width: 1.5px; transform: translateX(-50%); background: var(--tf-border); }
 .gutachten-werkstatt .g-step { position: relative; display: flex; align-items: center; gap: 11px; width: 100%; background: transparent; border: 0; padding: 9px 10px; border-radius: 0; cursor: pointer; text-align: left; }
 .gutachten-werkstatt .g-step:hover { background: var(--tf-hover); }
 /* Aktiv: hebt sich weiß vom Rail-Grau ab (statt Primary-Tint im separaten Rail). */
 .gutachten-werkstatt .g-step.active { background: var(--tf-bg); }
 .gutachten-werkstatt .g-step.sub { padding-left: 22px; }
+/* Eingeklappt: nur die Kreise — Step zentriert, Verbindungslinie auf Kreismitte (56px → 28px). */
+.gutachten-werkstatt .g-rail.docked.collapsed .g-step { justify-content: center; gap: 0; padding-left: 4px; padding-right: 4px; }
+.gutachten-werkstatt .g-rail.docked.collapsed .g-step.sub { padding-left: 4px; }
+.gutachten-werkstatt .g-rail.docked.collapsed .g-rail-line { left: 28px; }
 .gutachten-werkstatt .g-step-badge { position: relative; z-index: 1; width: 28px; height: 28px; flex-shrink: 0; border-radius: 99px; display: flex; align-items: center; justify-content: center; font: var(--tf-weight-medium) 12px/1 var(--tf-font-sans); background: var(--tf-bg); border: 1.5px solid var(--tf-border-hover); color: var(--tf-text-secondary); }
 .gutachten-werkstatt .g-step-badge.active { border-color: var(--tf-primary); color: var(--tf-primary); }
 .gutachten-werkstatt .g-step-badge.freigegeben { background: var(--g-green); border-color: var(--g-green); color: #fff; }

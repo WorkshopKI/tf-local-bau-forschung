@@ -43,12 +43,23 @@ const WERK_MIN_WIDTH = 1040;
 // file://-tauglich, laut CLAUDE.md für einfache UI-Prefs erlaubt; vgl. useCollapsedSection).
 const RAIL_W_KEY = 'teamflow_gutachten_rail_w';
 const CTX_W_KEY = 'teamflow_gutachten_ctx_w';
+const RAIL_COLLAPSED_KEY = 'teamflow_gutachten_rail_collapsed';
+/** Breite der eingeklappten Rail (nur Kreise, kein Label) — analog Handoff-Icons-Modus. */
+const RAIL_COLLAPSED_W = 56;
 function readPersistedWidth(key: string, fallback: number, min: number, max: number): number {
   try {
     const raw = window.localStorage.getItem(key);
     if (raw == null) return fallback;
     const n = Number(raw);
     return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function readPersistedFlag(key: string, fallback: boolean): boolean {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw == null ? fallback : raw === '1';
   } catch {
     return fallback;
   }
@@ -67,6 +78,11 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   // `workflow-stepper-neu`: angedockte Rail ~190px). Bestehende Werte werden geklemmt.
   const [railWidth, setRailWidth] = useState(() => readPersistedWidth(RAIL_W_KEY, 190, 150, 320));
   const [ctxWidth, setCtxWidth] = useState(() => readPersistedWidth(CTX_W_KEY, 340, 280, 620));
+  // Rail eingeklappt = nur Kreis-Badges (horizontal platzsparend), per Toggle, persistiert.
+  const [railCollapsed, setRailCollapsed] = useState(() => readPersistedFlag(RAIL_COLLAPSED_KEY, false));
+  useEffect(() => {
+    try { window.localStorage.setItem(RAIL_COLLAPSED_KEY, railCollapsed ? '1' : '0'); } catch { /* ignorieren */ }
+  }, [railCollapsed]);
   const [resizing, setResizing] = useState(false);
   // Persistieren erst, wenn das Ziehen beendet ist (kein localStorage-Write pro Frame).
   useEffect(() => {
@@ -283,15 +299,25 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
               ) : (
                 /* Docked-Einheit: Rail + Ziehleiste + Karte teilen einen Rahmen (Grid-Spalte 1). */
                 <div className="g-docked">
-                  <AbschnittNav run={run} steps={steps} onJump={ctrl.weiterschaltenStep} railWidth={railWidth} />
-                  <div
-                    className="g-resize-handle"
-                    onPointerDown={startRailResize}
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label="Abschnittsliste-Breite anpassen"
-                    title="Breite ziehen"
+                  <AbschnittNav
+                    run={run}
+                    steps={steps}
+                    onJump={ctrl.weiterschaltenStep}
+                    railWidth={railCollapsed ? RAIL_COLLAPSED_W : railWidth}
+                    collapsed={railCollapsed}
+                    onToggleCollapse={() => setRailCollapsed(c => !c)}
                   />
+                  {/* Ziehleiste nur sinnvoll, wenn ausgeklappt (eingeklappt = feste Kreis-Breite). */}
+                  {!railCollapsed && (
+                    <div
+                      className="g-resize-handle"
+                      onPointerDown={startRailResize}
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="Abschnittsliste-Breite anpassen"
+                      title="Breite ziehen"
+                    />
+                  )}
                   {activeDef && (
                     <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} docked />
                   )}

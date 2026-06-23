@@ -5,6 +5,20 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.113.0 — Abschnitts-Rail einklappbar (nur Kreise) (Juni 2026)
+
+MINOR-Bump — neues UI-Feature in der Gutachten-Werkstatt. Kein Schema-Change; neuer localStorage-Pref-Key.
+
+- Die vertikale Abschnitts-Rail ([AbschnittNav.tsx](src/plugins/antraege/gutachten/AbschnittNav.tsx)) lässt
+  sich per Toggle (Chevron oben) **einklappen**: dann nur die Kreis-Badges (56px, Titel als Tooltip) —
+  horizontal platzsparend, wenn der Nutzer mehr Breite für Entwurf/Panel will. Ausgeklappt wie gehabt
+  (Titel + ✓, ziehbare Breite).
+- Eingeklappt fixiert der Container ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx))
+  die Rail-Breite und blendet die Ziehleiste aus; ausgeklappte Breite bleibt erhalten. Der Zustand wird
+  persistiert (`teamflow_gutachten_rail_collapsed`).
+- Die Verbindungslinie sitzt jetzt in einem eigenen Steps-Wrapper (Bezug = Kreise, unabhängig vom Toggle);
+  eingeklappt zentriert auf Kreismitte. Tastatur (↑/↓) + aktiver/freigegebener Badge-Zustand unverändert.
+
 ### v2.112.3 — DOCX-Export: `**fett**` als echte Word-Fett-Runs (Juni 2026)
 
 PATCH-Bump — schließt den in v2.112.2 offen gelassenen Punkt: „es ist jetzt richtig". Kein Schema-/

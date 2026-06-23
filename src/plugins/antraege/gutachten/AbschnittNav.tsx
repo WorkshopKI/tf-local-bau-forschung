@@ -10,13 +10,17 @@
  * den Abschnitt über `onJump` (= `weiterschaltenStep`), auch leere (öffnet den
  * Generieren-Prompt). Tastatur: ↑/↓ springt zwischen Abschnitten.
  *
+ * Ein Toggle oben klappt die Rail ein (`collapsed`): dann nur die Kreis-Badges
+ * (56px, Titel als Tooltip) — horizontal platzsparend; der Container fixiert die
+ * Breite und blendet die Ziehleiste aus.
+ *
  * Die Breite kommt als `railWidth` (inline), die Ziehleiste rendert der Container
  * (`GutachtenSection`) als Flex-Kind zwischen Rail und Karte.
  *
  * Styles in `gutachten.css` (gescopt unter `.gutachten-werkstatt`).
  */
 import { useEffect, useRef } from 'react';
-import { Check } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { WorkflowStep } from '@/core/services/skills';
 import { nextStepId } from './nav-layout';
 import type { StepId, StepStatus, WorkflowRun } from './types';
@@ -44,12 +48,16 @@ export function stepNavDescriptor(status: StepStatus): StepNavDescriptor {
 }
 
 export function AbschnittNav(
-  { run, steps, onJump, railWidth }: {
+  { run, steps, onJump, railWidth, collapsed, onToggleCollapse }: {
     run: WorkflowRun;
     steps: WorkflowStep[];
     onJump: (id: StepId) => void;
     /** Breite der angedockten Rail (px) — vom Container per Ziehleiste gesteuert. */
     railWidth: number;
+    /** Eingeklappt = nur Kreis-Badges (keine Titel/Häkchen), horizontal platzsparend. */
+    collapsed: boolean;
+    /** Ein-/Ausklappen umschalten (Toggle oben in der Rail). */
+    onToggleCollapse: () => void;
   },
 ): React.ReactElement {
   const activeRef = useRef<HTMLButtonElement | null>(null);
@@ -71,41 +79,61 @@ export function AbschnittNav(
 
   return (
     <aside
-      className="g-rail docked"
+      className={`g-rail docked${collapsed ? ' collapsed' : ''}`}
       style={{ width: railWidth }}
       aria-label="Abschnitte"
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
       <div className="g-rail-inner">
-        <div className="g-rail-line" />
-        {steps.map(def => {
-          const status: StepStatus = run.schritte[def.id]?.status ?? 'leer';
-          const isActive = def.id === run.aktiverSchritt;
-          const freigegeben = status === 'freigegeben';
-          const desc = stepNavDescriptor(status);
-          const badgeCls = freigegeben ? ' freigegeben' : isActive ? ' active' : '';
+        {/* Ein-/Ausklapp-Toggle: eingeklappt zeigt die Rail nur die Kreise (platzsparend). */}
+        <div className="g-rail-toggle-row">
+          <button
+            type="button"
+            className="g-rail-toggle"
+            onClick={onToggleCollapse}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? 'Abschnittsliste ausklappen' : 'Abschnittsliste einklappen'}
+            title={collapsed ? 'Abschnittsliste ausklappen' : 'Abschnittsliste einklappen — nur Kreise'}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+        </div>
+        {/* Steps-Wrapper trägt die Verbindungslinie (relativ zu den Kreisen, nicht zum Toggle). */}
+        <div className="g-rail-steps">
+          <div className="g-rail-line" />
+          {steps.map(def => {
+            const status: StepStatus = run.schritte[def.id]?.status ?? 'leer';
+            const isActive = def.id === run.aktiverSchritt;
+            const freigegeben = status === 'freigegeben';
+            const desc = stepNavDescriptor(status);
+            const badgeCls = freigegeben ? ' freigegeben' : isActive ? ' active' : '';
 
-          return (
-            <button
-              key={def.id}
-              ref={isActive ? activeRef : undefined}
-              type="button"
-              className={`g-step${isActive ? ' active' : ''}${def.parentStepId ? ' sub' : ''}`}
-              onClick={() => onJump(def.id)}
-              aria-current={isActive ? 'step' : undefined}
-              title={`${def.kurz} — ${def.label} (${desc.statusLabel})`}
-            >
-              {/* Badge zeigt immer den Buchstaben; freigegeben = grüner Kreis (kein Häkchen-Ersatz). */}
-              <span className={`g-step-badge${badgeCls}`}>{def.kurz}</span>
-              {/* Label nur der Titel (Buchstabe steckt im Badge). */}
-              <span className="g-step-txt">
-                <span className="g-step-title">{def.label}</span>
-              </span>
-              {freigegeben && <span className="g-step-done"><Check className="g-sdi" aria-label="freigegeben" /></span>}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={def.id}
+                ref={isActive ? activeRef : undefined}
+                type="button"
+                className={`g-step${isActive ? ' active' : ''}${def.parentStepId ? ' sub' : ''}`}
+                onClick={() => onJump(def.id)}
+                aria-current={isActive ? 'step' : undefined}
+                title={`${def.kurz} — ${def.label} (${desc.statusLabel})`}
+              >
+                {/* Badge zeigt immer den Buchstaben; freigegeben = grüner Kreis (kein Häkchen-Ersatz). */}
+                <span className={`g-step-badge${badgeCls}`}>{def.kurz}</span>
+                {/* Eingeklappt: nur der Kreis (Titel als Tooltip). Ausgeklappt: Titel + ✓ bei Freigabe. */}
+                {!collapsed && (
+                  <>
+                    <span className="g-step-txt">
+                      <span className="g-step-title">{def.label}</span>
+                    </span>
+                    {freigegeben && <span className="g-step-done"><Check className="g-sdi" aria-label="freigegeben" /></span>}
+                  </>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </aside>
   );
