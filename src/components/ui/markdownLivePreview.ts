@@ -38,14 +38,17 @@ export interface LivePreviewRanges {
 
 /**
  * Walk the markdown syntax tree over the given scan ranges and produce the styling + conceal
- * decoration ranges. Pure: depends only on `state` (doc + selection + syntax tree).
+ * decoration ranges. Pure: depends only on `state` (doc + selection + syntax tree) and `focused`.
  *
  * Markers inside the "active band" — the line(s) touched by the primary selection — are NOT
  * concealed (so they remain visible and editable); their container's styling mark stays active.
+ * When `focused` is false (editor freshly opened / clicked away), NOTHING is revealed → the
+ * editor shows a fully rendered, clean preview that matches the read view.
  */
 export function computeLivePreviewRanges(
   state: EditorState,
   scan: readonly { from: number; to: number }[],
+  focused = true,
 ): LivePreviewRanges {
   const marks: Range<Decoration>[] = [];
   const replaces: Range<Decoration>[] = [];
@@ -55,7 +58,9 @@ export function computeLivePreviewRanges(
   const sel = state.selection.main;
   const bandFrom = doc.lineAt(sel.from).from;
   const bandTo = doc.lineAt(sel.to).to;
-  const inBand = (from: number, to: number): boolean => to > bandFrom && from < bandTo;
+  // Marker auf der aktiven (Cursor-)Zeile bleiben sichtbar — aber NUR solange der Editor
+  // fokussiert ist; unfokussiert wird alles versteckt (saubere Vorschau).
+  const inBand = (from: number, to: number): boolean => focused && to > bandFrom && from < bandTo;
 
   for (const { from, to } of scan) {
     tree.iterate({
@@ -104,7 +109,8 @@ class LivePreviewPlugin {
 
   update(u: ViewUpdate): void {
     // `selectionSet` is mandatory — without it the conceal would not re-toggle with the cursor.
-    if (u.docChanged || u.selectionSet || u.viewportChanged) {
+    // `focusChanged` toggles between clean-preview (blurred) and reveal-active-line (focused).
+    if (u.docChanged || u.selectionSet || u.viewportChanged || u.focusChanged) {
       const built = this.build(u.view);
       this.decorations = built.decorations;
       this.hidden = built.hidden;
@@ -112,7 +118,7 @@ class LivePreviewPlugin {
   }
 
   private build(view: EditorView): { decorations: DecorationSet; hidden: DecorationSet } {
-    const { marks, replaces } = computeLivePreviewRanges(view.state, view.visibleRanges);
+    const { marks, replaces } = computeLivePreviewRanges(view.state, view.visibleRanges, view.hasFocus);
     return {
       // `true` => sort: mark (container) and replace (marker) ranges overlap and arrive unsorted,
       // so RangeSetBuilder would throw "Ranges must be added sorted".

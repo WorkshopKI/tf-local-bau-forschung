@@ -5,6 +5,30 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.116.0 — Markdown-Live-Preview-Inline-Editor (Gutachten-Abschnitte) (Juni 2026)
+
+MINOR-Bump — neuer Editor für die Abschnitts-Bearbeitung in der Gutachten-Werkstatt; reiner UI-Tausch,
+kein Datenmodell-/Schema-Change (Buffer bleibt rohes Markdown = Ground-Truth, kein Roundtrip).
+
+- **Live-Preview statt Plain-Textarea** ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)):
+  Der Entwurfs-Editor ist jetzt CodeMirror + neue Extension [markdownLivePreview.ts](src/components/ui/markdownLivePreview.ts)
+  über dem vorhandenen `@codemirror/lang-markdown`. Fett/Kursiv/Headings werden inline gerendert, die
+  Marker (`**`/`*`/`#`) via `Decoration.replace` versteckt. Conceal-Logik in der pure
+  `computeLivePreviewRanges` (node-testbar, kein `EditorView`); `EditorView.atomicRanges` lässt Pfeiltasten
+  sauber über versteckte Marker springen.
+- **Fokus-gesteuertes Einblenden**: Marker erscheinen nur auf der **Cursor-Zeile und nur bei Editor-Fokus**;
+  unfokussiert (frisch geöffnet / weggeklickt) ist die Vorschau vollständig clean. Kein Autofokus — der
+  Editor geht als gerenderte Vorschau auf, Marker erscheinen erst beim Klick in eine Zeile.
+- **Save vom Live-Doc**: ⌘/Strg+Enter (Keymap, `Prec.highest`, Ref-Pattern gegen Stale-Closures) und der
+  „Übernehmen"-Button lesen `view.state.doc` — der 300-ms-Debounce in `MarkdownEditor` verschluckt so keinen
+  letzten Tastendruck mehr.
+- **MarkdownEditor** um drei rückwärtskompatible optionale Props erweitert: `autoFocus`, `frame`
+  (`'none'` = ohne eigenen Rahmen) und `onCreateEditor` (View-Ref). `MarkdownEditorWithPreview` (Split-Pane)
+  bleibt unverändert.
+- **CodeMirror-Deps** `@codemirror/view`/`state`/`language` exakt gepinnt (genau eine CM-Instanz).
+- **Convention-Guard** `gutachten-entwurf-kein-plain-textarea` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts))
+  schützt gegen Rückfall auf ein rohes `<textarea>`.
+
 ### v2.115.0 — Neue Build-Variante „as" (wie pl, ohne Auslastung) (Juni 2026)
 
 MINOR-Bump — additive neue Produktions-Variante, kein Code-Change (rein config-getrieben).

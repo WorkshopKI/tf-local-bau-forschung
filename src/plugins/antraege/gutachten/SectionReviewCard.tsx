@@ -130,10 +130,11 @@ export function SectionReviewCard({
               {save.busy ? 'Übernehmen…' : 'Übernehmen'}
             </button>
           </div>
+          {/* Kein autoFocus: der Editor geht als saubere, gerenderte Vorschau auf; erst beim Klick
+              in eine Zeile (Fokus) werden dort die Marker zum Editieren eingeblendet. */}
           <MarkdownEditor
             value={draft}
             onChange={setDraft}
-            autoFocus
             frame="none"
             className="g-edit-cm"
             minHeight="160px"

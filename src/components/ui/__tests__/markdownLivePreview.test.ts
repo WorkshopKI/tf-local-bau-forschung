@@ -54,4 +54,12 @@ describe('computeLivePreviewRanges', () => {
     // HeaderMark [14,16) extended +1 to swallow the gap space => [14,17)
     expect(replaces.map(r => [r.from, r.to])).toContainEqual([HEADING_START, HEADING_START + 3]);
   });
+
+  it('(d) conceals ALL markers when the editor is NOT focused (clean preview), even on the cursor line', () => {
+    const state = makeState(DOC, 4); // cursor inside "**bold**" — but unfocused
+    const { replaces } = computeLivePreviewRanges(state, wholeDoc(state), false);
+    const spans = replaces.map(r => [r.from, r.to]);
+    expect(spans).toContainEqual([0, 2]); // ** hidden despite cursor on this line (not focused)
+    expect(spans).toContainEqual([6, 8]);
+  });
 });
