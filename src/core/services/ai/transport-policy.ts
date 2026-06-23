@@ -50,10 +50,12 @@ export function erlaubteTransportKlassen(p: { enthaeltDokumentInhalte: boolean }
  * `tvKontext` + `verbundKontext` (NF: TV-/Verbund-VB-Analyse) zählen ebenfalls mit;
  * `nfBausteine` (kuratierter Katalog) ist kein Dokumentinhalt, wird aber fail-safe
  * mitgezählt, da NF-Läufe ohnehin intern-pflichtig sind (Pitfall #30).
+ * `entwurf` (Lektor-Zweitpass) trägt den VB-abgeleiteten Entwurfstext → ein Skill
+ * mit content-tragendem `lektorPromptTemplate` ist intern-pflichtig.
  */
 const INHALTS_SLOTS = [
   'vbMarkdown', 'stammdaten', 'zielText', 'vorherigeAbschnitte', 'vbRelevant',
-  'tvKontext', 'verbundKontext', 'nfBausteine',
+  'tvKontext', 'verbundKontext', 'nfBausteine', 'entwurf',
 ];
 
 /**
@@ -68,13 +70,17 @@ export function templateReferenziertInhaltsSlot(promptTemplate: string): boolean
 
 /**
  * Ist ein Skill dokument-tragend? **Ableitung schlägt Flag**: referenziert das
- * Template einen Inhalts-Slot, ist die Antwort `true` — unabhängig vom expliziten
- * `enthaeltDokumentInhalte`. Nur ohne Inhalts-Slot greift der Flag; fehlt er,
- * gilt der fail-safe Default `true` (lieber unnötig intern als versehentlich extern).
+ * `promptTemplate` ODER das `lektorPromptTemplate` einen Inhalts-Slot, ist die
+ * Antwort `true` — unabhängig vom expliziten `enthaeltDokumentInhalte`. Nur ohne
+ * Inhalts-Slot greift der Flag; fehlt er, gilt der fail-safe Default `true` (lieber
+ * unnötig intern als versehentlich extern). Der Lektor-Pass wird mitgeprüft, damit
+ * ein Skill mit content-freiem `promptTemplate`, aber content-tragendem
+ * `lektorPromptTemplate` (`{{entwurf}}`) NICHT als extern-erlaubt durchrutscht.
  */
 export function skillEnthaeltDokumentInhalte(
-  skill: { promptTemplate: string; enthaeltDokumentInhalte?: boolean },
+  skill: { promptTemplate: string; lektorPromptTemplate?: string; enthaeltDokumentInhalte?: boolean },
 ): boolean {
   if (templateReferenziertInhaltsSlot(skill.promptTemplate)) return true;  // Ableitung schlägt Flag
+  if (skill.lektorPromptTemplate && templateReferenziertInhaltsSlot(skill.lektorPromptTemplate)) return true;
   return skill.enthaeltDokumentInhalte ?? true;                            // fail-safe Default
 }

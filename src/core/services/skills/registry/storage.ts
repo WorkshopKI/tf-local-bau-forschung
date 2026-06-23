@@ -155,6 +155,7 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
   skill.historie = normalizeHistorie(s.historie, skill);
   if (typeof s.systemPrompt === 'string') skill.systemPrompt = s.systemPrompt;
   if (typeof s.maxTokens === 'number' && Number.isFinite(s.maxTokens)) skill.maxTokens = s.maxTokens;
+  if (typeof s.lektorPromptTemplate === 'string') skill.lektorPromptTemplate = s.lektorPromptTemplate;
   if (typeof s.enthaeltDokumentInhalte === 'boolean') skill.enthaeltDokumentInhalte = s.enthaeltDokumentInhalte;
   return skill;
 }

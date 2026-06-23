@@ -76,7 +76,7 @@ export class AIBridge {
    * Param strukturell (kein `SkillRecord`-Import → kein Zyklus ai↔skills).
    */
   getTransportForSkillRun(
-    skill: { promptTemplate: string; enthaeltDokumentInhalte?: boolean },
+    skill: { promptTemplate: string; lektorPromptTemplate?: string; enthaeltDokumentInhalte?: boolean },
   ): AITransport {
     const erlaubt = erlaubteTransportKlassen({
       enthaeltDokumentInhalte: skillEnthaeltDokumentInhalte(skill),

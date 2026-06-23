@@ -85,6 +85,14 @@ describe('skillEnthaeltDokumentInhalte', () => {
       enthaeltDokumentInhalte: true,
     })).toBe(true);
   });
+
+  it('Ableitung schlägt Flag: content-freies promptTemplate, aber {{entwurf}} im lektorPromptTemplate → true trotz Flag=false', () => {
+    expect(skillEnthaeltDokumentInhalte({
+      promptTemplate: 'Generiere eine zufällige Begrüßung.',
+      lektorPromptTemplate: 'Überarbeite:\n{{entwurf}}',
+      enthaeltDokumentInhalte: false,
+    })).toBe(true);
+  });
 });
 
 describe('templateReferenziertInhaltsSlot', () => {

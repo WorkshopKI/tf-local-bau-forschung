@@ -137,6 +137,12 @@ export interface SkillRunResult {
   vbGekuerzt: boolean;
   /** Erfasster Reasoning-/Thinking-Text, falls das Modell welchen lieferte. */
   thinking?: string;
+  /**
+   * Nur gesetzt, wenn ein Lektor-Zweitpass lief (`skill.lektorPromptTemplate`):
+   * der `finalerText` VOR der Lektor-Überarbeitung. `parsed.finalerText` ist dann
+   * das Lektor-Ergebnis. Erlaubt Eval/UI ein Vorher/Nachher.
+   */
+  entwurfVorLektor?: string;
 }
 
 /** Kürzt zu langes VB-Markdown am letzten Absatzumbruch vor dem Cap. */
@@ -287,5 +293,40 @@ export async function runSkill(
     thinking = ext.thinking;
   }
 
-  return { raw, parsed: parseSkillOutput(raw), vbGekuerzt: gekuerzt, ...(thinking ? { thinking } : {}) };
+  let parsed = parseSkillOutput(raw);
+  let entwurfVorLektor: string | undefined;
+  // Optionaler Lektor-Zweitpass (opt-in): überarbeitet den finalen Entwurf rein
+  // sprachlich/formal über DENSELBEN Transport (non-streaming), gleiches
+  // maxTokens/budget-Schema. Der Lektor sieht NUR den Entwurf (Slot {{entwurf}}),
+  // nicht den VB — kein erneutes Einspeisen von Dokumentinhalt.
+  if (skill.lektorPromptTemplate?.trim()) {
+    entwurfVorLektor = parsed.finalerText;
+    const lektorContent = fillSlot(skill.lektorPromptTemplate, 'entwurf', entwurfVorLektor);
+    let lektorRaw: string;
+    if (typeof transport.submitConversation === 'function') {
+      lektorRaw = await transport.submitConversation(
+        [{ role: 'user', content: lektorContent } as ConversationMessage],
+        { maxTokens, thinkingBudget: budget, ...(input.signal ? { signal: input.signal } : {}) },
+      );
+    } else {
+      lektorRaw = await transport.submitMessage(
+        lektorContent,
+        undefined,
+        input.signal ? { signal: input.signal } : undefined,
+      );
+    }
+    // Inline-<think> abtrennen (analog oben), falls non-streaming mit aktivem Budget.
+    if (budget !== 'none') lektorRaw = extractThinking(lektorRaw).content;
+    const lektorText = parseSkillOutput(lektorRaw).finalerText;
+    // Leeres Lektor-Ergebnis (z. B. Truncation) → Entwurf behalten statt Leertext.
+    if (lektorText.trim()) parsed = { ...parsed, finalerText: lektorText };
+  }
+
+  return {
+    raw,
+    parsed,
+    vbGekuerzt: gekuerzt,
+    ...(thinking ? { thinking } : {}),
+    ...(entwurfVorLektor !== undefined ? { entwurfVorLektor } : {}),
+  };
 }

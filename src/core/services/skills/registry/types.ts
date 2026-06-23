@@ -150,6 +150,15 @@ export interface SkillRecord {
   /** Optional — Token-Limit fürs LLM (Default im Runner). */
   maxTokens?: number;
   /**
+   * Optionaler Lektor-Zweitpass (additiv, opt-in). Ist das Feld gesetzt, fährt
+   * `runSkill` nach dem Inhalts-Call einen zweiten LLM-Call (gleicher Transport),
+   * der den `finalerText`-Entwurf rein sprachlich/formal überarbeitet. Template mit
+   * **nur** dem `{{entwurf}}`-Slot (kein VB). Fehlt das Feld → kein zweiter Call →
+   * exakt heutiges Verhalten. DSGVO: der `{{entwurf}}`-Slot zählt als inhalts-tragend
+   * (siehe `src/core/services/ai/transport-policy.ts`).
+   */
+  lektorPromptTemplate?: string;
+  /**
    * Optionaler Override für die DSGVO-Transport-Policy (additiv). **Ableitung
    * schlägt Flag**: referenziert `promptTemplate` einen Inhalts-Slot
    * (`{{vbMarkdown}}`/`{{stammdaten}}`/`{{zielText}}`/`{{vorherigeAbschnitte}}`/`{{vbRelevant}}`),
