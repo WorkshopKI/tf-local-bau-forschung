@@ -299,7 +299,10 @@ export async function runSkill(
   // sprachlich/formal über DENSELBEN Transport (non-streaming), gleiches
   // maxTokens/budget-Schema. Der Lektor sieht NUR den Entwurf (Slot {{entwurf}}),
   // nicht den VB — kein erneutes Einspeisen von Dokumentinhalt.
-  if (skill.lektorPromptTemplate?.trim()) {
+  // Empty-Entwurf-Guard: bei leerem finalerText (z. B. Empty-Completion des
+  // Inhalts-Calls) den Lektor überspringen — sonst macht er aus dem leeren
+  // {{entwurf}} eine „Bitte fügen Sie den Entwurf ein"-Meldung im Gutachten.
+  if (skill.lektorPromptTemplate?.trim() && parsed.finalerText.trim()) {
     entwurfVorLektor = parsed.finalerText;
     const lektorContent = fillSlot(skill.lektorPromptTemplate, 'entwurf', entwurfVorLektor);
     let lektorRaw: string;
