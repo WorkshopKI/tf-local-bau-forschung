@@ -65,6 +65,11 @@ export async function runOneSection(
     const input: SkillRunInput = {
       stammdaten: buildStammdaten(fixture.context),
       vbMarkdown: opts.vbMarkdown ?? fixture.vbMarkdown,
+      // Reasoning-Modelle (gpt-oss = default medium) brauchen den +8192-Headroom in run-skill,
+      // sonst frisst das Reasoning das gemeinsame max_tokens-Budget und der Antworttext
+      // wird mitten im Satz abgeschnitten. Der Wert wird vom NodeOpenAITransport ignoriert
+      // (nur maxTokens zaehlt); er triggert hier ausschliesslich den Headroom.
+      thinkingBudget: 'medium',
     };
     const result = await runSkill(transport, resolved.skill, resolved.regeln, input);
     const checks = runRegelChecks(result.parsed.finalerText, resolved.regeln);
