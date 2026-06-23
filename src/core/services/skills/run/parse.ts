@@ -11,7 +11,11 @@ import type { ParsedSkillOutput } from './types';
  * Ausgabe wird alles als `finalerText` behandelt und eine Warnung gesetzt.
  */
 export function parseSkillOutput(raw: string): ParsedSkillOutput {
-  const headingRe = /^#{1,6}[ \t]*(Quellenanalyse|Entwurf|Finaler[ \t]+Text)\b.*$/gim;
+  // Marker-pflichtig (mind. ein `#` oder `*`), aber tolerant: führende/zusätzliche
+  // Fett-Marker (`**### Finaler Text**`), beliebige Hash-Tiefe, Whitespace, optionaler
+  // Doppelpunkt. Prosa ohne führenden Marker matcht NICHT (sonst würde z. B. „Der Entwurf
+  // des Systems…" fälschlich als Überschrift erkannt).
+  const headingRe = /^[ \t]*(?:#{1,6}|\*{1,3})[ \t#*]*(Quellenanalyse|Entwurf|Finaler[ \t]+Text)\b.*$/gim;
   const matches = [...raw.matchAll(headingRe)];
 
   if (matches.length === 0) {
@@ -38,12 +42,19 @@ export function parseSkillOutput(raw: string): ParsedSkillOutput {
   }
 
   const hatFinal = typeof sections.finalerText === 'string' && sections.finalerText.length > 0;
+  const hatEntwurf = typeof sections.entwurf === 'string' && sections.entwurf.length > 0;
+  // Sicherer Fallback: die Quellenanalyse (Zitat-Block) darf NIE als finalerText
+  // durchgehen. Reihenfolge: finaler Text > Entwurf > leer (Parse-Fehler mit Warnung).
   return {
     quellenanalyse: sections.quellenanalyse ?? '',
     entwurf: sections.entwurf ?? '',
-    finalerText: hatFinal
-      ? sections.finalerText!
-      : (sections.entwurf ?? sections.quellenanalyse ?? raw.trim()),
-    ...(hatFinal ? {} : { warnung: 'Kein „Finaler Text"-Abschnitt erkannt — Entwurf/Quellenanalyse als Ersatz verwendet.' }),
+    finalerText: hatFinal ? sections.finalerText! : (hatEntwurf ? sections.entwurf! : ''),
+    ...(hatFinal
+      ? {}
+      : {
+          warnung: hatEntwurf
+            ? 'Kein „Finaler Text"-Abschnitt erkannt — Entwurf als Ersatz verwendet.'
+            : 'Kein „Finaler Text"-/„Entwurf"-Abschnitt erkannt — bitte erneut generieren.',
+        }),
   };
 }

@@ -50,4 +50,48 @@ describe('parseSkillOutput', () => {
     expect(out.quellenanalyse).toBe('Q.');
     expect(out.finalerText).toBe('Das Vorhaben wirkt.');
   });
+
+  it('zerlegt fett-umschlossene Überschriften (**### Finaler Text**)', () => {
+    const raw = [
+      '**### Quellenanalyse**',
+      '„ZITAT-MARKER aus der VB.“ (2.1)',
+      '',
+      '**### Entwurf**',
+      'Roher Entwurf.',
+      '',
+      '**### Finaler Text**',
+      'Das Vorhaben wirkt dezentral.',
+    ].join('\n');
+    const out = parseSkillOutput(raw);
+    expect(out.quellenanalyse).toContain('ZITAT-MARKER');
+    expect(out.entwurf).toBe('Roher Entwurf.');
+    expect(out.finalerText).toBe('Das Vorhaben wirkt dezentral.');
+    expect(out.warnung).toBeUndefined();
+  });
+
+  it('toleriert #### + Doppelpunkt, Fett ohne Hashes und Einrückung', () => {
+    const raw = '#### Quellenanalyse:\nQ.\n\n  **Finaler Text**\nDer finale Satz.';
+    const out = parseSkillOutput(raw);
+    expect(out.quellenanalyse).toBe('Q.');
+    expect(out.finalerText).toBe('Der finale Satz.');
+    expect(out.warnung).toBeUndefined();
+  });
+
+  it('erkennt Prosa ohne führenden Marker NICHT als Überschrift', () => {
+    const raw = 'Der Entwurf des Systems ist robust. Der Finaler Text folgt im Antrag.';
+    const out = parseSkillOutput(raw);
+    // kein Gerüst → alles als finalerText (matches.length === 0)
+    expect(out.finalerText).toBe(raw);
+    expect(out.warnung).toBeDefined();
+  });
+
+  it('liefert bei erkennbarem Gerüst NIE die Quellenanalyse als finalerText (Regression)', () => {
+    // Fett-umschlossenes Gerüst, kein „Finaler Text"/„Entwurf" → Fallback darf den
+    // Zitat-Block NICHT durchreichen.
+    const raw = '**### Quellenanalyse**\n„GEHEIMES-ZITAT“ (1.1)\nMehr Zitate hier.';
+    const out = parseSkillOutput(raw);
+    expect(out.finalerText).not.toContain('GEHEIMES-ZITAT');
+    expect(out.finalerText).toBe('');
+    expect(out.warnung).toBeDefined();
+  });
 });
