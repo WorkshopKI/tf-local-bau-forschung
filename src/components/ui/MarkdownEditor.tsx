@@ -14,6 +14,12 @@ interface MarkdownEditorProps {
   maxHeight?: string;
   className?: string;
   extensions?: Extension[];
+  /** Fokussiert den Editor beim Mounten (z.B. beim Wechsel in den Edit-Modus). */
+  autoFocus?: boolean;
+  /** `'none'` rendert ohne eigenen Rahmen/Radius — der Call-Site stylt den `.cm-editor` selbst. */
+  frame?: 'default' | 'none';
+  /** Greift den EditorView ab (z.B. um beim Speichern den Live-Doc-Wert zu lesen). */
+  onCreateEditor?: (view: EditorView) => void;
 }
 
 const baseTheme = EditorView.theme({
@@ -29,7 +35,8 @@ const baseTheme = EditorView.theme({
 });
 
 export function MarkdownEditor({
-  value, onChange, placeholder, readOnly, minHeight = '200px', maxHeight, className = '', extensions: extraExtensions = [],
+  value, onChange, placeholder, readOnly, minHeight = '200px', maxHeight, className = '',
+  extensions: extraExtensions = [], autoFocus = false, frame = 'default', onCreateEditor,
 }: MarkdownEditorProps): React.ReactElement {
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -38,14 +45,18 @@ export function MarkdownEditor({
     timerRef.current = setTimeout(() => onChange(val), 300);
   }, [onChange]);
 
+  const framed = frame === 'default';
+
   return (
-    <div className={`rounded-[var(--tf-radius)] overflow-hidden ${className}`}
-      style={{ border: '0.5px solid var(--tf-border)', minHeight, maxHeight, overflow: maxHeight ? 'auto' : undefined }}>
+    <div className={framed ? `rounded-[var(--tf-radius)] overflow-hidden ${className}` : className}
+      style={{ border: framed ? '0.5px solid var(--tf-border)' : undefined, minHeight, maxHeight, overflow: maxHeight ? 'auto' : undefined }}>
       <CodeMirror
         value={value}
         onChange={handleChange}
         placeholder={placeholder}
         readOnly={readOnly}
+        autoFocus={autoFocus}
+        onCreateEditor={onCreateEditor}
         basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: true }}
         extensions={[
           markdown({ base: markdownLanguage, codeLanguages: languages }),

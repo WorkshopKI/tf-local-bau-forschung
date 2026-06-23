@@ -150,8 +150,12 @@
 .gutachten-werkstatt .g-edit { margin: 14px 0; }
 .gutachten-werkstatt .g-edit-bar { display: flex; align-items: center; gap: 8px; padding: 8px 11px; background: var(--tf-primary-light); border-radius: 9px 9px 0 0; font: var(--tf-weight-medium) 12px/1 var(--tf-font-sans); color: var(--tf-primary); }
 .gutachten-werkstatt .g-ebi { width: 14px; height: 14px; flex-shrink: 0; }
-.gutachten-werkstatt .g-editable { display: block; width: 100%; resize: vertical; border: 1.5px solid var(--tf-primary); border-top: 0; border-radius: 0 0 9px 9px; padding: 13px 15px; margin: 0; outline: none; background: var(--tf-bg); min-height: 160px; font: var(--tf-weight-regular) 14px/1.72 var(--tf-font-sans); color: var(--tf-text); }
-.gutachten-werkstatt .g-editable:focus { box-shadow: 0 0 0 3px var(--tf-primary-light); }
+/* Live-Preview-Editor (CodeMirror) dockt optisch an die g-edit-bar an — wie zuvor .g-editable.
+   MarkdownEditor läuft mit frame="none"; Rahmen/Radius/Font hier auf den .cm-editor übertragen. */
+.gutachten-werkstatt .g-edit .cm-editor { border: 1.5px solid var(--tf-primary); border-top: 0; border-radius: 0 0 9px 9px; background: var(--tf-bg); min-height: 160px; }
+.gutachten-werkstatt .g-edit .cm-editor.cm-focused { box-shadow: 0 0 0 3px var(--tf-primary-light); outline: none; }
+.gutachten-werkstatt .g-edit .cm-content { font: var(--tf-weight-regular) 14px/1.72 var(--tf-font-sans); padding: 13px 0; color: var(--tf-text); }
+.gutachten-werkstatt .g-edit .cm-line { padding: 0 15px; }
 .gutachten-werkstatt .g-edited-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 4px 0 9px; border-radius: 99px; background: var(--tf-warning-bg); color: var(--tf-warning-text); font: var(--tf-weight-medium) 11px/1 var(--tf-font-sans); }
 .gutachten-werkstatt .g-edited-badge svg { width: 11px; height: 11px; }
 .gutachten-werkstatt .g-edited-restore { height: 18px; padding: 0 8px; border-radius: 99px; border: 0; background: rgba(0, 0, 0, .08); color: inherit; font: var(--tf-weight-medium) 10.5px/1 var(--tf-font-sans); cursor: pointer; }

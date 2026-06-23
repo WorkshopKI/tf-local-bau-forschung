@@ -11,9 +11,13 @@
  *
  * Styles in `gutachten.css` (gescopt unter `.gutachten-werkstatt`).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check, Info } from 'lucide-react';
+import { keymap, type EditorView } from '@codemirror/view';
+import { Prec } from '@codemirror/state';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
+import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
@@ -60,21 +64,30 @@ export function SectionReviewCard({
   const satzanzahl = splitSentences(run.finalerText).length;
   const genDisabled = busy || llmAvailable === false;
 
-  // Inline-Bearbeitung (Plain-Text). `draft` lokal; Übernehmen persistiert via Hook.
+  // Inline-Bearbeitung (Live-Preview-Markdown). `draft` lokal; Übernehmen persistiert via Hook.
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
-  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const viewRef = useRef<EditorView | null>(null);
   const save = useAsyncAction(
     async (text: string) => { await onBearbeiten(text); },
     { onSuccess: () => setEditing(false) },
   );
   const startEdit = (): void => { setDraft(run.finalerText); setEditing(true); };
   const cancelEdit = (): void => { setEditing(false); save.clearError(); };
-  useEffect(() => { if (editing) taRef.current?.focus(); }, [editing]);
-  const onEditKey = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void save.run(draft); }
-  };
+
+  // Save liest den LIVE-Doc-Wert: MarkdownEditor.onChange ist 300ms debounced, der letzte
+  // Anschlag ginge sonst verloren. Keymap einmal bauen, Handler via Ref aktuell halten
+  // (kein Stale-Closure) — Mod-Enter übernimmt, Esc bricht ab.
+  const handlersRef = useRef<{ save: (text: string) => void; cancel: () => void }>({ save: () => {}, cancel: () => {} });
+  handlersRef.current.save = (text: string): void => { void save.run(text); };
+  handlersRef.current.cancel = cancelEdit;
+  const editExtensions = useMemo(() => {
+    const km = Prec.highest(keymap.of([
+      { key: 'Mod-Enter', run: (v: EditorView) => { handlersRef.current.save(v.state.doc.toString()); return true; } },
+      { key: 'Escape', run: () => { handlersRef.current.cancel(); return true; } },
+    ]));
+    return [markdownLivePreview(), km];
+  }, []);
 
   // Ein-Klick-Feedback: ein Votum je Abschnittsversion (Reset bei neuer Generierung).
   const [fbDone, setFbDone] = useState(false);
@@ -113,17 +126,19 @@ export function SectionReviewCard({
             <span>Entwurf bearbeiten</span>
             <span className="g-ab-spacer" />
             <button type="button" className="g-btn ghost sm" onClick={cancelEdit}>Abbrechen</button>
-            <button type="button" className="g-btn primary sm" disabled={save.busy} onClick={() => save.run(draft)}>
+            <button type="button" className="g-btn primary sm" disabled={save.busy} onClick={() => save.run(viewRef.current?.state.doc.toString() ?? draft)}>
               {save.busy ? 'Übernehmen…' : 'Übernehmen'}
             </button>
           </div>
-          <textarea
-            ref={taRef}
-            className="g-editable"
+          <MarkdownEditor
             value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={onEditKey}
-            aria-label="Entwurfstext bearbeiten"
+            onChange={setDraft}
+            autoFocus
+            frame="none"
+            className="g-edit-cm"
+            minHeight="160px"
+            extensions={editExtensions}
+            onCreateEditor={v => { viewRef.current = v; }}
           />
           <div className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">⌘/Strg + Enter übernimmt · Esc bricht ab</div>
           {save.error && (
