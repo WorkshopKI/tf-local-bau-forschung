@@ -426,11 +426,11 @@ export function VerbundDetail({
             className="flex items-center gap-1.5 w-full text-left mb-2"
           >
             <ChevronRight
-              size={13}
+              size={15}
               className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
               style={{ transform: antragsdatenOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
             />
-            <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Antragsdaten</h3>
+            <h3 className="text-[16px] font-medium text-[var(--tf-text)]">Antragsdaten</h3>
             <span className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)] truncate pl-2">
               {antragsteller ? `${antragsteller} · ` : ''}{antraege.length} Teilvorhaben
             </span>
@@ -591,11 +591,11 @@ export function VerbundDetail({
             className="flex items-center gap-1.5 w-full text-left mb-2"
           >
             <ChevronRight
-              size={13}
+              size={15}
               className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
               style={{ transform: historieOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
             />
-            <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--tf-text-tertiary)]">
+            <h2 className="text-[16px] font-medium text-[var(--tf-text)]">
               Verbund-Historie
             </h2>
             {history.length > 0 ? (

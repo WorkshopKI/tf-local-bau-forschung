@@ -63,6 +63,7 @@ export function VerbundAlleFelder({
       sourceNames={sourceNames}
       historyCounts={historyCounts}
       onOpenHistory={onOpenHistory}
+      headerVariant="section"
     />
   );
 }

@@ -42,7 +42,7 @@
 }
 
 /* ---------- Fortschritt + Export ---------- */
-.gutachten-werkstatt .g-progress { display: flex; align-items: center; gap: 18px; margin: 0 2px 18px; flex-wrap: wrap; }
+.gutachten-werkstatt .g-progress { display: flex; align-items: center; gap: 18px; margin: 0 0 18px; flex-wrap: wrap; }
 .gutachten-werkstatt .g-progress-l { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .gutachten-werkstatt .g-gtitle { font: var(--tf-weight-medium) 16px/1 var(--tf-font-sans); color: var(--tf-text); }
 .gutachten-werkstatt .g-pcount { font: 12px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); }

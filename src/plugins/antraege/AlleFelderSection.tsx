@@ -12,6 +12,10 @@ interface Props {
   sourceNames: Record<string, string>;
   historyCounts: Record<string, number>;
   onOpenHistory: (field: string) => void;
+  /** Header-Darstellung: 'compact' (11px uppercase, Default — z.B. im TV-Detail
+   *  zwischen anderen Sub-Sektionen) oder 'section' (16px medium, wie die
+   *  Top-Level-Abschnitte der Verbund-Detailseite). */
+  headerVariant?: 'compact' | 'section';
 }
 
 function isEmptyRow(r: DisplayRow): boolean {
@@ -27,6 +31,7 @@ export function AlleFelderSection({
   groups,
   historyCounts,
   onOpenHistory,
+  headerVariant = 'compact',
 }: Props): React.ReactElement {
   const [mode, setMode] = useState<Mode>('with_values');
   const [search, setSearch] = useState('');
@@ -70,11 +75,13 @@ export function AlleFelderSection({
       <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
         <button type="button" onClick={toggleOpen} aria-expanded={open} className="flex items-center gap-1.5 cursor-pointer">
           <ChevronRight
-            size={13}
+            size={headerVariant === 'section' ? 15 : 13}
             className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
             style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
           />
-          <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">Alle Felder</h3>
+          <h3 className={headerVariant === 'section'
+            ? 'text-[16px] font-medium text-[var(--tf-text)]'
+            : 'text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]'}>Alle Felder</h3>
         </button>
         <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
           {totalCount.toLocaleString('de-DE')} Felder gesamt · {withValuesCount.toLocaleString('de-DE')} mit Werten

@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.117.1 — Verbund-Detail: Abschnitts-Überschriften vereinheitlicht (Juni 2026)
+
+PATCH — die Klapp-Überschriften der Verbund-Detailseite sind jetzt einheitlich im Nachforderungen-Stil
+(16px medium, Title-Case, Chevron 15, linksbündig bei x=0) statt teils kleiner Großbuchstaben.
+
+- **Antragsdaten** + **Verbund-Historie** ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)): 11px-Uppercase → 16px medium.
+- **Alle Felder**: neuer optionaler Prop `headerVariant` an [AlleFelderSection.tsx](src/plugins/antraege/AlleFelderSection.tsx); die Verbund-Aggregat-Ansicht ([VerbundAlleFelder.tsx](src/plugins/antraege/VerbundAlleFelder.tsx)) nutzt `'section'` (16px), die TV-Detail-Nutzung bleibt auf `'compact'` (11px) — dort sitzt sie zwischen kleineren Sub-Sektionen.
+- **Gutachten**: linke Einrückung der Fortschrittsleiste (`.g-progress` `margin 0 2px` → `0 0`) auf x=0 wie Nachforderungen.
+
 ### v2.117.0 — Verbund-Detailseite: einklappbare Abschnitte (Juni 2026)
 
 MINOR-Bump — die wesentlichen Abschnitte der Verbund-Detailseite ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx))
