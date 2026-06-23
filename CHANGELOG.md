@@ -5,6 +5,11 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.114.1 — Wording „Anpassen:" (Juni 2026)
+
+PATCH-Bump — Text-Korrektur: Label der Refine-Zeile von „Anpassen" → „Anpassen:" (Doppelpunkt, da es
+die nachfolgenden Buttons einleitet), [SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx).
+
 ### v2.114.0 — Gutachten-Detailansicht verschlankt (Juni 2026)
 
 MINOR-Bump — UI-Refactor der Gutachten-Werkstatt-Karte + kleiner DSGVO-Warnhinweis. Kein Schema-/

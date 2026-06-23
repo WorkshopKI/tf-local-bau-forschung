@@ -163,7 +163,7 @@ export function SectionReviewCard({
         <>
           <div className="g-refine-row">
             <span className="g-ab-anpassen">
-              <span className="g-ab-anpassen-lbl">Anpassen</span>
+              <span className="g-ab-anpassen-lbl">Anpassen:</span>
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
