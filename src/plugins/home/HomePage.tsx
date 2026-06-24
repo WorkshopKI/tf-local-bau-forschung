@@ -15,7 +15,7 @@ import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
-import { isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant, isAuslastungEnabled } from '@/config/feature-flags';
+import { isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant, isKuerzelDropdownEnabled } from '@/config/feature-flags';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
@@ -178,14 +178,15 @@ export function HomePage(): React.ReactElement {
             // Förderanträge-Pfad: zeigt „Meine Anträge" — inkl. Onboarding-Karte
             // (kein Kürzel) und Empty-State (Kürzel aktiv aber 0 Treffer).
 
-            // „alle"-Modus = kein aktiver Kürzel-Filter. In pl/dev zeigt Home
-            // dann die Übersicht aller (aktiven) MAs (mit MA-Kürzel je Zeile)
-            // statt des „Kürzel setzen"-Hinweises. Die übrigen Varianten (prod
-            // via MA-Login, kurator/demo ohne Auslastungs-Modul) behalten den
-            // Hinweis.
+            // „alle"-Modus = kein aktiver Kürzel-Filter. Überall, wo der Kürzel-
+            // Dropdown aktiv ist (pl/dev/kurator via Auslastungs-Modul, AS via
+            // `kuerzelDropdown`-Flag), ist „Alle" eine bewusste Auswahl → Home
+            // zeigt die Übersicht aller (aktiven) MAs (mit MA-Kürzel je Zeile)
+            // statt des „Kürzel setzen"-Hinweises. Varianten OHNE Dropdown (prod
+            // via MA-Login/Freitext, leeres Kürzel) behalten den Hinweis.
             const alleMode = !data.bearbeiterFilterActive;
 
-            if (alleMode && !isAuslastungEnabled()) {
+            if (alleMode && !isKuerzelDropdownEnabled()) {
               return (
                 <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-5">
                   <div className="flex items-start gap-3">

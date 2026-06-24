@@ -5,6 +5,23 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.124.2 — AS-Home: „Alle"-Auswahl zeigt Übersicht statt Kürzel-Hinweis (Juni 2026)
+
+PATCH — Folge-Fix zu v2.124.0 (AS-Kürzel-Dropdown). Wählt der AS-User im Profil „**Alle**", zeigt die
+**Home**-Seite jetzt — wie PL — die Liste **„ALLE ANTRÄGE"** (offene Anträge aller MAs, MA-Kürzel je
+Zeile) statt der Hinweis-Karte „Ihr Bearbeiter-Kürzel ist noch nicht gesetzt".
+
+- **Ursache**: die `alleMode`-Hinweis-Karte ([HomePage.tsx](src/plugins/home/HomePage.tsx)) war an
+  `!isAuslastungEnabled()` gekoppelt → AS (auslastung aus) traf den Hinweis, obwohl „Alle" eine
+  bewusste Auswahl ist.
+- **Fix**: Gate auf `!isKuerzelDropdownEnabled()` (Helper aus v2.124.0). Der Hinweis bleibt nur in
+  Varianten **ohne** Dropdown (prod); wo der Dropdown existiert (AS via Flag, pl/dev/kurator via
+  auslastung-Fallback), erscheint die Übersicht. Der AS-Pfad läuft gefahrlos durch: Inaktiv-Exklusion
+  ist ohne Auslastungs-Modul ein No-op, [MaKuerzelBadge](src/plugins/antraege/MaKuerzelBadge.tsx)
+  rendert das rohe `tib_kuerz`.
+
+Additiv/Bugfix — keine Migration, keine Config-Änderung.
+
 ### v2.124.1 — Streamlit-Bridge: Chat-Auto-Reset vor „Mit KI analysieren" (Juni 2026)
 
 PATCH — der Such-„Mit KI analysieren"-Lauf setzt den internen Streamlit-Chat jetzt
