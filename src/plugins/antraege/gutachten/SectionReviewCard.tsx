@@ -146,6 +146,18 @@ export function SectionReviewCard({
             <div className="mt-2 text-[12px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)] rounded-[8px] px-3 py-2">{save.error}</div>
           )}
         </div>
+      ) : run.teile?.length ? (
+        // Strukturierte Teile (opt-in): jeder Teil als Block mit kleinem Inline-Badge
+        // (Label aus der Skill-Deklaration). RENDER-ONLY — `run.finalerText` (Quelle
+        // für Bearbeiten/Transfer/DOCX) trägt das Badge NIE.
+        <div className="g-body">
+          {run.teile.map((teil, i) => (
+            <div key={`${teil.key}-${i}`} className="g-teil">
+              <span className="g-teil-badge">{teil.label}</span>
+              <MarkdownRenderer content={teil.text} />
+            </div>
+          ))}
+        </div>
       ) : (
         // Der finale Text ist bewusst Markdown (Skill-Format z.B. „**Kurztitel:** …",
         // seed.ts) — wie die Quellenanalyse über den MarkdownRenderer darstellen.

@@ -128,6 +128,13 @@
 .gutachten-werkstatt .g-body p { margin: 0 0 .7em; }
 .gutachten-werkstatt .g-body p:last-child { margin-bottom: 0; }
 
+/* Strukturierte Teile (teilStruktur) — ein Block je Teil mit render-only Inline-Badge.
+   Der Badge steht NIE im finalerText (Transfer/DOCX-Quelle); zwischen den Teilen bleiben
+   die Absätze, die der \n\n-Join in finalerText ohnehin erzeugt. */
+.gutachten-werkstatt .g-teil { margin: 0 0 16px; }
+.gutachten-werkstatt .g-teil:last-child { margin-bottom: 0; }
+.gutachten-werkstatt .g-teil-badge { display: inline-flex; align-items: center; height: 20px; margin-bottom: 5px; padding: 0 9px; border-radius: 99px; background: var(--tf-bg-secondary); color: var(--tf-text-tertiary); border: .5px solid var(--tf-border); font: var(--tf-weight-medium) 10.5px/1 var(--tf-font-sans); }
+
 /* ---------- Meta-Zeile ---------- */
 .gutachten-werkstatt .g-metaline { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font: 11.5px/1.5 var(--tf-font-sans); color: var(--tf-text-tertiary); margin: 6px 0 4px; }
 .gutachten-werkstatt .g-dotsep { color: var(--tf-border-hover); }
