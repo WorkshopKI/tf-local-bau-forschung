@@ -11,7 +11,7 @@
  * verwenden ausschließlich vorhandene Helfer wieder (Status-Label, Eingangs-
  * Ampel, Frist) — keine String-Literal-Status-Vergleiche (Pitfall #12).
  */
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import type { SortableColumn } from '@/components/data-table';
 import type { AntragListItem } from '@/core/services/csv/types';
@@ -99,6 +99,48 @@ function dateCell(v: string | null): ReactNode {
  *  in genau diesem Modus (`AntraegeMain`, sonst stünde im Picker eine Checkbox,
  *  deren Toggle ohne Wirkung bliebe, weil die Spalte dort erzwungen wird). */
 export const MA_COLUMN_KEY = 'tib_kuerz';
+
+type BadgeVariant = ComponentProps<typeof Badge>['variant'];
+
+/**
+ * Factory für eine „Datums-Status"-Spalte (FB Status / PreCheck Status): Badge
+ * mit dem Spalten-Label (aus der Projektion), Tooltip = Datum (DD.MM.YYYY).
+ * Sortierung nach Datum (ISO; leer ans Ende, '' sortiert wie bei den übrigen
+ * Datums-Spalten vorne), Filter nach Label. Off by default (einblendbar).
+ * Tooltip via Wrapper-`<span>`, da `Badge` kein `title` durchreicht.
+ */
+function statusDatumColumn(opts: {
+  key: string;
+  label: string;
+  variant: BadgeVariant;
+  getLabel: (r: AntragTableRow) => string | undefined;
+  getDatum: (r: AntragTableRow) => string | undefined;
+}): SortableColumn<AntragTableRow> {
+  const { key, label, variant, getLabel, getDatum } = opts;
+  return {
+    key,
+    label,
+    defaultVisible: false,
+    sortable: true,
+    filterable: true,
+    filterAccessor: r => strOrNull(getLabel(r)) ?? FILTER_EMPTY_LABEL,
+    width: 150,
+    wrap: false,
+    accessor: r => strOrNull(getDatum(r)) ?? '',
+    render: r => {
+      const lbl = strOrNull(getLabel(r));
+      if (!lbl) return null;
+      const datum = strOrNull(getDatum(r));
+      return (
+        <span className="inline-flex max-w-full" title={datum ? formatGermanDate(datum) : undefined}>
+          <Badge variant={variant} className="max-w-full justify-center truncate text-[10.5px]">
+            {lbl}
+          </Badge>
+        </span>
+      );
+    },
+  };
+}
 
 export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
@@ -210,36 +252,24 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
       ) : null;
     },
   },
-  {
-    // FB Status: jüngstes gültiges Datum über mehrere Legacy-Spalten
-    // (fb_status_label/_datum werden bei der List-View-Projektion berechnet,
-    // siehe fb-status-felder.ts). Badge = Label der Gewinner-Spalte, Tooltip =
-    // Datum (DD.MM.YYYY). Off by default (einblendbar via Spalten-Picker).
+  // Datums-Status-Spalten (FB Status / PreCheck Status): jüngstes gültiges Datum
+  // über mehrere Legacy-Spalten — die *_status_label/_datum-Felder werden bei der
+  // List-View-Projektion berechnet (siehe status-datum-gruppen.ts). Off by default
+  // (einblendbar via Spalten-Picker).
+  statusDatumColumn({
     key: 'fb_status',
     label: 'FB Status',
-    defaultVisible: false,
-    sortable: true,
-    filterable: true,
-    filterAccessor: r => strOrNull(r.fb_status_label) ?? FILTER_EMPTY_LABEL,
-    width: 150,
-    wrap: false,
-    // Sortierung nach Datum (ISO) — leere ans Ende (asc): '' sortiert vor
-    // Werten, daher konsistent mit den übrigen Datums-Spalten.
-    accessor: r => strOrNull(r.fb_status_datum) ?? '',
-    render: r => {
-      const label = strOrNull(r.fb_status_label);
-      if (!label) return null;
-      const datum = strOrNull(r.fb_status_datum);
-      // Tooltip via Wrapper-<span> — `Badge` reicht kein `title` durch.
-      return (
-        <span className="inline-flex max-w-full" title={datum ? formatGermanDate(datum) : undefined}>
-          <Badge variant="info" className="max-w-full justify-center truncate text-[10.5px]">
-            {label}
-          </Badge>
-        </span>
-      );
-    },
-  },
+    variant: 'info',
+    getLabel: r => r.fb_status_label,
+    getDatum: r => r.fb_status_datum,
+  }),
+  statusDatumColumn({
+    key: 'precheck_status',
+    label: 'PreCheck Status',
+    variant: 'default',
+    getLabel: r => r.precheck_status_label,
+    getDatum: r => r.precheck_status_datum,
+  }),
   {
     key: 'frist',
     label: 'Frist',

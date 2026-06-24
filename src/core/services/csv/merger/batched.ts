@@ -33,7 +33,7 @@ import type {
 } from '../types';
 import { asAntragStatusRaw } from '../types';
 import { toAntragListItem } from '../list-view';
-import { resolveFbStatusFelder, type FbStatusFeld } from '../fb-status-felder';
+import { resolveStatusDatumGruppen, type ResolvedStatusDatumGruppe } from '../status-datum-gruppen';
 import type { AntragListItem } from '../types';
 import { applyFristDatumFallback, coerceValue, findJoinColumn, resolveFieldKey } from './helpers';
 import { loadAllSchemasWithRows, type SchemaWithRows } from './loader';
@@ -55,9 +55,9 @@ interface RecomputeBatch {
 
 interface RecomputeCaches {
   schemas: SchemaWithRows[];
-  /** FB-Status-Spalten, einmal pro Programm aus den Schemas aufgelöst (für die
-   *  Slim-Projektion `toAntragListItem`). */
-  fbFelder: FbStatusFeld[];
+  /** Datums-Status-Gruppen, einmal pro Programm aus den Schemas aufgelöst (für
+   *  die Slim-Projektion `toAntragListItem`). */
+  statusGruppen: ResolvedStatusDatumGruppe[];
   /** Pro Schema-ID: pre-indexed Map joinValue → matching rows. Macht aus dem
    *  ehemaligen findMatchingRows() (Linear-Scan ueber alle Rows) ein
    *  O(1)-Lookup. Bei 13k Antraegen × 5 Schemas spart das ~850M Vergleiche
@@ -128,7 +128,7 @@ async function loadRecomputeCaches(
   }
   return {
     schemas,
-    fbFelder: resolveFbStatusFelder(schemas.map(s => s.schema)),
+    statusGruppen: resolveStatusDatumGruppen(schemas.map(s => s.schema)),
     rowIndices,
     antraegeByAz: new Map(antraege.map(a => [a.aktenzeichen, a])),
     verbuendeById: new Map(verbuende.map(v => [v.verbund_id, v])),
@@ -284,7 +284,7 @@ function recomputeAntragIntoBatch(
   // konsistent bleiben.
   batch.antraegeUpsert.set(aktenzeichen, merged);
   batch.antraegeDelete.delete(aktenzeichen);
-  batch.listViewUpsert.set(aktenzeichen, toAntragListItem(merged, caches.fbFelder));
+  batch.listViewUpsert.set(aktenzeichen, toAntragListItem(merged, caches.statusGruppen));
   batch.listViewDelete.delete(aktenzeichen);
   caches.antraegeByAz.set(aktenzeichen, merged);
 

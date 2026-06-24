@@ -5,6 +5,29 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.123.0 — Einblendbare Spalte „PreCheck Status" + Generalisierung der Datums-Status-Spalten (Juni 2026)
+
+MINOR — zweite einblendbare Tabellen-Spalte „PreCheck Status" (analog „FB Status", v2.121.0):
+jüngstes gültiges Datum über mehrere PreCheck-relevante Legacy-Spalten → Label der Gewinner-Spalte
+als **grauer** Badge (FB Status bleibt blau, dadurch unterscheidbar), Tooltip = Datum (`DD.MM.YYYY`).
+
+- **Quell-Spalten** (Tie-Break = Reihenfolge): `D_PC+`, `D_PC?`, `D_PC-`, `D_XPC+`, `D_XPC?`,
+  `D_XPC-`, `D_PCQ`, `D_PCAN`, `D_PCAL`. (`D_XPC+`/`D_XPC-` sind bewusst auch in der FB-Gruppe —
+  die Gruppen sind unabhängig.)
+- **Generalisierung statt Copy-Paste**: die FB-Pipeline aus v2.121.0 wurde zu einer
+  **Gruppen-Registry** verallgemeinert — `fb-status-felder.ts` → [status-datum-gruppen.ts](src/core/services/csv/status-datum-gruppen.ts)
+  mit `STATUS_DATUM_GRUPPEN` (FB + PreCheck), generischem `resolveStatusDatumFelder(schemas, codes)` +
+  `computeStatusDatum`. FB-Verhalten + Slim-Keys (`fb_status_*`) unverändert. Eine neue Gruppe braucht
+  künftig nur einen Registry-Eintrag + zwei Slim-Felder + eine `statusDatumColumn(...)`.
+- **Mapping-robust**: Codes werden über die Schema-`column_mapping` aufgelöst (Standard/Custom,
+  recurring-bug-classes #5); `?`/`+` bleiben im Code-Vergleich erhalten, `-` wird gestrippt →
+  `D_PC+`/`D_PC?`/`D_PC-` kollidieren nicht. Badge-Label = `ColumnMappingEntry.label`, Fallback Code.
+- **Slim-Projektion**: neue Felder `precheck_status_label`/`_datum` in `AntragListItem`;
+  `LIST_VIEW_PROJECTION_VERSION` **3 → 4** → Auto-Reprojekt aus den vorhandenen Voll-Records beim
+  ersten Start (**kein CSV-Re-Import nötig**). Spalte sortier- (Datum) + filterbar (Label), default aus.
+
+Additiv — **keine User-Aktion**. Voraussetzung für sichtbare Werte: die Spalten müssen in der CSV-Quelle gemappt sein.
+
 ### v2.122.0 — Suche „Mit KI analysieren": Begründung-Spalte statt Tabellen-Overwrite (Juni 2026)
 
 MINOR — „Mit KI analysieren" auf der Suchseite annotiert jetzt die **bestehenden** BM25-/

@@ -15,7 +15,7 @@ import type { Antrag } from './types';
 import { isDatenShareWritable } from '@/config/feature-flags';
 import { rebuildAntraegeListView, isListViewProjectionCurrent } from './list-view-migration';
 import { listSchemasByProgramm } from './idb-csv';
-import { resolveFbStatusFelder } from './fb-status-felder';
+import { resolveStatusDatumGruppen } from './status-datum-gruppen';
 import {
   diffAntraegeLines,
   buildAntraegeHashes,
@@ -337,8 +337,8 @@ export async function syncProgrammSnapshot(
       // Inkrementell: nur geaenderte Records projizieren + entfernte loeschen —
       // kein Voll-Re-Read+Reprojektion der ~14k (Messung v2.95: ~5 s). Nur sicher,
       // wenn die Projektion bereits auf aktueller Schema-Version liegt.
-      const fbFelder = resolveFbStatusFelder(await listSchemasByProgramm(idb, programmId));
-      await applyListViewDiff(idb, antraegeDiff, fbFelder);
+      const gruppen = resolveStatusDatumGruppen(await listSchemasByProgramm(idb, programmId));
+      await applyListViewDiff(idb, antraegeDiff, gruppen);
       onProgress?.({ phase: 'finalizing', storesDone: storeKeys.length, storesTotal: storeKeys.length, fraction: 1 });
     } else {
       // Voll-Rebuild: nach Voll-Replace (Cold-Start) ODER bei Schema-Mismatch der
@@ -483,8 +483,8 @@ async function syncAntraegeViaDelta(
     const tWrite = performance.now();
     await applyAntraegeDiff(idb, diff);
     if (lvCurrent) {
-      const fbFelder = resolveFbStatusFelder(await listSchemasByProgramm(idb, programmId));
-      await applyListViewDiff(idb, diff, fbFelder);
+      const gruppen = resolveStatusDatumGruppen(await listSchemasByProgramm(idb, programmId));
+      await applyListViewDiff(idb, diff, gruppen);
     }
     timings.idbWriteMs += performance.now() - tWrite;
 
