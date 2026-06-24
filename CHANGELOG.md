@@ -5,6 +5,36 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.122.0 — Suche „Mit KI analysieren": Begründung-Spalte statt Tabellen-Overwrite (Juni 2026)
+
+MINOR — „Mit KI analysieren" auf der Suchseite annotiert jetzt die **bestehenden** BM25-/
+Ähnlichkeits-Treffer, statt sie durch ein eigenes Retrieval zu **ersetzen**. Gleiche Zeilen,
+**genau** die vom User gewählten Spalten — plus **eine** zusätzliche Spalte **„Begründung"**
+(1–2 Sätze pro Treffer: warum er für die Anfrage relevant ist). Das frühere Verhalten (LLM-
+gewählte, oft leere dynamische Spalten + Überschreiben der Tabelle) ist abgelöst.
+
+- **Overlay statt Replace**: Pipeline ([analyse/pipeline.ts](src/plugins/suche/analyse/pipeline.ts))
+  ist einstufig; sie liefert eine `begruendungById`-Map, die SuchSeite per `r.id` über
+  `searchResults` legt ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx)). Neue Stufe
+  [analyse/stages/begruendung.ts](src/plugins/suche/analyse/stages/begruendung.ts) baut die
+  LLM-Blöcke direkt aus `UnifiedSearchResult` (kein IDB-Reload). Die Spalte füllt sich
+  **progressiv** pro Batch; die Tabelle bleibt sichtbar (kein blockierender Stepper).
+- **Editierbarer Prompt**: vor dem Lauf öffnet ein Dialog
+  ([AnalysePromptDialog.tsx](src/plugins/suche/AnalysePromptDialog.tsx)) den editierbaren
+  Anweisungstext + eine read-only **Voll-Vorschau** des assemblierten Prompts. Frage,
+  JSON-Vertrag und Trefferliste werden fest umrahmt (Edits brechen das Parsing nicht); letzte
+  Anweisung in localStorage (`teamflow_suche_analyse_prompt`), Reset auf Default.
+- **Umfang**: nur die aktuell angezeigten Treffer, **Top 50 nach Score** (Hinweis im Dialog,
+  falls mehr); Begründung gilt für **alle** Zeilen (Anträge **und** Dokumente).
+- **Spalte „Begründung"** ([columns.tsx](src/plugins/suche/columns.tsx)) erscheint nur nach einer
+  Analyse, ist im Export (CSV/XLSX/Clipboard) automatisch enthalten und lässt sich per
+  „Begründungen entfernen" wieder ausblenden (Treffer bleiben).
+- Transport unverändert `getActiveTransport()` (Prod ohnehin intern — `validateConfig` verbietet
+  OpenRouter bei festem Daten-Share). Entfernt: alte 5-Stufen-Pipeline (query-understanding,
+  retrieval, batch-extraction, merge, validation) + dynamische Spalten + Stepper/ValidationBanner.
+
+Additiv aus User-Sicht — **keine User-Aktion**, keine bestehenden Daten/Configs geändert.
+
 ### v2.121.0 — Einblendbare Spalte „FB Status" (Förderanträge-Tabelle) (Juni 2026)
 
 MINOR — neue, standardmäßig ausgeblendete Tabellen-Spalte „FB Status" (via Spalten-Picker

@@ -307,53 +307,27 @@ export function getColumnByKey(key: string): SearchColumn | undefined {
   return SEARCH_COLUMNS.find(c => c.key === key);
 }
 
-// ---------- Dynamische Spalten (KI-Analyse, Prompt 03) ----------------------
+// ---------- Begründung-Spalte (KI-Analyse) ----------------------------------
 
-const DYNAMIC_PREFIX = 'extra:';
+/** Schlüssel der KI-Begründung-Spalte. Wird NICHT über den Spalten-Picker
+ *  getoggelt, sondern von SuchSeite nur dann an `visibleColumnDefs` angehängt,
+ *  wenn eine KI-Analyse lief. */
+export const BEGRUENDUNG_COLUMN_KEY = 'begruendung';
 
-function prettyLabel(key: string): string {
-  return key
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase())
-    .replace(/\bFkz\b/i, 'FKZ');
-}
-
-/** Baut dynamische Spalten fuer LLM-extrahierte Felder (z.B. `foerderzweck`).
- *  Die Spalten lesen aus `r.extraFields[key]`. Reihenfolge entspricht der
- *  uebergebenen Key-Liste (= `gewuenschteSpalten` aus Stufe 1). */
-export function buildDynamicColumns(keys: ReadonlyArray<string>): SearchColumn[] {
-  return keys
-    .filter(k => typeof k === 'string' && k.trim().length > 0)
-    .filter(k => !SEARCH_COLUMNS.some(c => c.key === k)) // Duplikate mit statischen Spalten vermeiden
-    .map(k => {
-      const accessor = (r: UnifiedSearchResult): string | number => {
-        const v = r.extraFields?.[k];
-        if (v === null || v === undefined) return '';
-        return v;
-      };
-      return {
-        key: `${DYNAMIC_PREFIX}${k}`,
-        label: prettyLabel(k),
-        width: 160,
-        defaultVisible: true,
-        sortable: true,
-        filterable: true,
-        appliesTo: 'antrag',
-        accessor,
-        render: (r: UnifiedSearchResult) => {
-          const v = r.extraFields?.[k];
-          if (v === null || v === undefined || v === '') return null;
-          const text = String(v);
-          return (
-            <span className="text-[12px] text-[var(--tf-text)] truncate block" title={text}>
-              {text}
-            </span>
-          );
-        },
-      } satisfies SearchColumn;
-    });
-}
-
-export function isDynamicColumnKey(key: string): boolean {
-  return key.startsWith(DYNAMIC_PREFIX);
-}
+/** Die EINE zusätzliche Spalte nach „Mit KI analysieren": per-Treffer-
+ *  Begründung, warum der Treffer für die Anfrage relevant ist. Liest aus
+ *  `r.begruendung` (Overlay über die bestehenden Treffer). */
+export const BEGRUENDUNG_COLUMN: SearchColumn = {
+  key: BEGRUENDUNG_COLUMN_KEY,
+  label: 'Begründung',
+  width: 340,
+  defaultVisible: false,
+  sortable: false,
+  filterable: false,
+  appliesTo: 'both',
+  wrap: true,
+  accessor: r => safeString(r.begruendung),
+  render: r => r.begruendung
+    ? <span className="text-[12px] text-[var(--tf-text)] whitespace-normal" title={r.begruendung}>{r.begruendung}</span>
+    : <span className="text-[12px] text-[var(--tf-text-tertiary)]">…</span>,
+};

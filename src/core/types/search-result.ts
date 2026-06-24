@@ -72,9 +72,10 @@ export interface UnifiedSearchResult {
   /** Programm-Name des zugehoerigen Antrags, falls aufloesbar. */
   zugehoerigesProgramm?: string;
 
-  // ----- KI-Analyse-spezifisch (Prompt 03) -----
-  /** Dynamisch vom LLM extrahierte Felder (z.B. `foerderzweck`, `foerderhoehe`,
-   *  `laufzeit`). Nur gesetzt wenn dieses Ergebnis aus der Analyse-Pipeline
-   *  kommt, nicht aus der normalen Hybrid-Suche. */
-  extraFields?: Record<string, string | number | null>;
+  // ----- KI-Analyse-spezifisch -----
+  /** LLM-Begründung, warum dieser Treffer für die Such-/Analysefrage relevant
+   *  ist (1–2 Sätze). Wird NICHT von der Hybrid-Suche gesetzt, sondern nur als
+   *  Overlay nach „Mit KI analysieren" über die bestehenden Treffer gelegt
+   *  (`begruendungById` aus der Analyse-Pipeline). */
+  begruendung?: string;
 }

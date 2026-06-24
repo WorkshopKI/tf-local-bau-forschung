@@ -12,9 +12,11 @@ import {
   LOCKED_COLUMN_KEYS,
 } from './columns';
 import { pushRecentSearch, MAX_RECENT_SEARCHES } from './suchseite-utils';
+import { DEFAULT_BEGRUENDUNG_INSTRUCTION } from './analyse/stages/begruendung';
 
 const VISIBLE_COLUMNS_KEY = 'teamflow_suche_visible_columns';
 const RECENT_SEARCHES_KEY = 'teamflow_suche_recent_queries';
+const ANALYSE_PROMPT_KEY = 'teamflow_suche_analyse_prompt';
 
 const VALID_KEYS: ReadonlySet<string> = new Set(SEARCH_COLUMNS.map(c => c.key));
 
@@ -58,6 +60,18 @@ function saveRecentSearches(list: string[]): void {
   try { localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(list)); } catch { /* ignore */ }
 }
 
+function loadAnalysePrompt(): string {
+  try {
+    const raw = localStorage.getItem(ANALYSE_PROMPT_KEY);
+    if (typeof raw === 'string' && raw.trim().length > 0) return raw;
+  } catch { /* ignore */ }
+  return DEFAULT_BEGRUENDUNG_INSTRUCTION;
+}
+
+function saveAnalysePrompt(s: string): void {
+  try { localStorage.setItem(ANALYSE_PROMPT_KEY, s); } catch { /* ignore */ }
+}
+
 interface SucheState {
   visibleColumns: string[];
   setVisibleColumns: (keys: string[]) => void;
@@ -67,6 +81,9 @@ interface SucheState {
   addRecentSearch: (q: string) => void;
   removeRecentSearch: (q: string) => void;
   clearRecentSearches: () => void;
+  /** Editierbarer Anweisungstext für „Mit KI analysieren" (Begründung). */
+  analysePrompt: string;
+  setAnalysePrompt: (s: string) => void;
 }
 
 export const useSucheStore = create<SucheState>((set, get) => ({
@@ -111,5 +128,12 @@ export const useSucheStore = create<SucheState>((set, get) => ({
   clearRecentSearches: () => {
     saveRecentSearches([]);
     set({ recentSearches: [] });
+  },
+
+  analysePrompt: loadAnalysePrompt(),
+
+  setAnalysePrompt: (s: string) => {
+    saveAnalysePrompt(s);
+    set({ analysePrompt: s });
   },
 }));

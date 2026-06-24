@@ -8,15 +8,14 @@ import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearc
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
-import { SEARCH_COLUMNS, buildDynamicColumns, getColumnByKey, getColumnFilterValue, type SearchColumn } from './columns';
+import { SEARCH_COLUMNS, BEGRUENDUNG_COLUMN, getColumnByKey, getColumnFilterValue, type SearchColumn } from './columns';
 import { useSucheStore } from './store';
 import { ColumnPicker } from './ColumnPicker';
 import { SearchDownloadMenu } from './SearchDownloadMenu';
 import { SearchResultsTable } from './SearchResultsTable';
 import { exportCSV, exportClipboard, exportXLSX } from './export';
 import { useAnalysePipeline } from './useAnalysePipeline';
-import { AnalysePipelineView } from './AnalysePipelineView';
-import { ValidationBanner } from './ValidationBanner';
+import { AnalysePromptDialog } from './AnalysePromptDialog';
 import {
   matchesPillFilter, compareValues, countResultsByType, SUCHE_COLLATOR,
   getSucheAntragstypItems, matchesSucheAntragstyp, filterRecentSearches,
@@ -52,6 +51,8 @@ type FilterId = SuchePillFilterId;
 const DEFAULT_SORT_KEY = 'score';
 const COLUMN_WIDTHS_KEY = 'teamflow_suche_column_widths';
 const MIN_COLUMN_WIDTH = 60;
+/** Obergrenze der Treffer, die „Mit KI analysieren" begründet (Kosten/Tempo). */
+const ANALYSE_MAX_RESULTS = 50;
 
 function loadColumnWidths(): Record<string, number> {
   try {
@@ -76,6 +77,8 @@ export function SuchSeite(): React.ReactElement {
   const addRecentSearch = useSucheStore(s => s.addRecentSearch);
   const removeRecentSearch = useSucheStore(s => s.removeRecentSearch);
   const clearRecentSearches = useSucheStore(s => s.clearRecentSearches);
+  const analysePrompt = useSucheStore(s => s.analysePrompt);
+  const setAnalysePrompt = useSucheStore(s => s.setAnalysePrompt);
   const analyse = useAnalysePipeline();
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
@@ -101,6 +104,7 @@ export function SuchSeite(): React.ReactElement {
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => loadColumnWidths());
   const [toast, setToast] = useState<string | null>(null);
+  const [promptDialogOpen, setPromptDialogOpen] = useState(false);
 
   const handleColumnWidthChange = (key: string, width: number): void => {
     const clamped = Math.max(MIN_COLUMN_WIDTH, Math.round(width));
@@ -121,7 +125,10 @@ export function SuchSeite(): React.ReactElement {
   // User getippt hat aber deferredQuery noch nicht durch (Initialer
   // useDeferredValue-Delay vor T=DEBOUNCE_MS — sonst stumme Phase).
   const showSpinner = loading || (queryNotEmpty && deferredPhase !== 'done' && deferredPhase !== 'error');
-  const analyseActive = analyse.result !== null;
+  // „aktiv" = es gibt ein Begründung-Overlay (läuft gerade ODER fertig) → die
+  // Begründung-Spalte ist dann eingeblendet.
+  const analyseActive = analyse.begruendungById !== null;
+  const analyseDone = analyse.result !== null && !analyse.running;
 
   // Eager Preload beim Mount der Suche-Seite (Hintergrund, idle). Der
   // Substring-Korpus (~1-1.5s) laedt immer — er traegt die Default-Suche.
@@ -156,11 +163,15 @@ export function SuchSeite(): React.ReactElement {
     return cancel;
   }, [activeProgrammId, storage, semanticEnabled]);
 
-  // Wenn ein Analyse-Ergebnis vorliegt, zeigen wir das statt der Live-Suche.
-  const dataSource: UnifiedSearchResult[] = analyse.result?.results ?? searchResults;
-  const dynamicColumns = useMemo(
-    () => analyse.result ? buildDynamicColumns(analyse.result.dynamicColumnKeys) : [],
-    [analyse.result],
+  // KI-Analyse ERSETZT die Suchtreffer nicht — sie legt nur eine Begründung
+  // (per `id`) über die bestehenden Treffer. Gleiche Zeilen, gleiche Spalten,
+  // plus EINE zusätzliche Spalte „Begründung".
+  const begruendungById = analyse.begruendungById;
+  const dataSource = useMemo<UnifiedSearchResult[]>(
+    () => begruendungById
+      ? searchResults.map(r => (r.id in begruendungById ? { ...r, begruendung: begruendungById[r.id] } : r))
+      : searchResults,
+    [searchResults, begruendungById],
   );
 
   const handleQueryChange = (next: string): void => {
@@ -252,7 +263,7 @@ export function SuchSeite(): React.ReactElement {
     return pillFiltered.filter(r => matchesSucheAntragstyp(r, antragstypFilter));
   }, [pillFiltered, antragstypFilter, antragstypApplicable]);
 
-  const allColumns = useMemo(() => [...SEARCH_COLUMNS, ...dynamicColumns], [dynamicColumns]);
+  const allColumns = SEARCH_COLUMNS;
 
   // Per-Result-Spalten-Cache fuer Filter-Werte. Erste Aggregation ueber 1000
   // Treffer × 14 Spalten = 14.000 Accessor-Calls; jede Folge-Aggregation
@@ -311,12 +322,19 @@ export function SuchSeite(): React.ReactElement {
     return copy;
   }, [columnFiltered, sortKey, sortDirection, allColumns]);
 
+  // Treffer, die die KI begründet: Top-N nach Score aus den aktuell
+  // angezeigten Treffern.
+  const analyseResults = useMemo(
+    () => [...sorted].sort((a, b) => b.score - a.score).slice(0, ANALYSE_MAX_RESULTS),
+    [sorted],
+  );
+
   const visibleColumnDefs = useMemo<SearchColumn[]>(() => {
     const visibleSet = new Set(visibleColumns);
     const staticCols = SEARCH_COLUMNS.filter(c => visibleSet.has(c.key));
-    // Dynamische Spalten sind in der aktiven Analyse immer sichtbar.
-    return [...staticCols, ...dynamicColumns];
-  }, [visibleColumns, dynamicColumns]);
+    // Nach „Mit KI analysieren": genau EINE zusätzliche Spalte „Begründung".
+    return analyseActive ? [...staticCols, BEGRUENDUNG_COLUMN] : staticCols;
+  }, [visibleColumns, analyseActive]);
 
   useEffect(() => {
     if (!toast) return;
@@ -342,26 +360,36 @@ export function SuchSeite(): React.ReactElement {
     if (r.type === 'antrag' && r.fkz) navigate(`/antraege/${encodeURIComponent(r.fkz)}`);
   }
 
-  const startAnalyse = (): void => {
+  const openAnalysePrompt = (): void => {
     const q = query.trim();
-    if (!q || analyse.running) return;
+    if (!q || analyse.running || sorted.length === 0) return;
+    setPromptDialogOpen(true);
+  };
+
+  const confirmAnalyse = (): void => {
+    const q = query.trim();
+    if (!q || analyseResults.length === 0) return;
+    setPromptDialogOpen(false);
     addRecentSearch(q);
-    analyse.start(q);
+    analyse.start(q, analyseResults, analysePrompt);
   };
 
   // Button ist optimistisch enabled (sobald Query nicht leer ist). Die echte
   // Provider-Pruefung passiert lazy in `analyse.start()` — beim Mount der
   // Suche-Seite KEIN `ping()`, damit die Streamlit-Bridge nicht ihr
   // Fenster (konfigurierte Streamlit-URL) automatisch oeffnet.
-  const aiButtonDisabled = !query.trim() || analyse.running;
+  const aiButtonDisabled = !query.trim() || analyse.running || sorted.length === 0;
   const aiButtonTooltip = `Mit KI analysieren (Provider: ${analyse.providerName})`;
 
   const noQuery = !query.trim();
-  const showStepper = analyse.running && analyse.progress;
-  // Streaming: Tabelle zeigen sobald Stage 1 Treffer emittet hat, auch wenn
-  // Stage 2/3 noch laufen. Die Phase-Badge oben signalisiert „kommt noch".
-  const showResults = !showStepper && !noQuery && sorted.length > 0;
-  const validation = analyse.result?.validation ?? null;
+  // Tabelle bleibt während der KI-Analyse sichtbar — die Begründung-Spalte
+  // füllt sich progressiv (kein blockierender Stepper).
+  const showResults = !noQuery && sorted.length > 0;
+  const analyseProgressLabel = analyse.running
+    ? (analyse.progress?.totalBatches
+        ? `KI erstellt Begründungen… Batch ${analyse.progress.currentBatch ?? 0}/${analyse.progress.totalBatches}`
+        : 'KI erstellt Begründungen…')
+    : null;
 
   return (
     <div className="px-8 pt-4 pb-6">
@@ -420,7 +448,7 @@ export function SuchSeite(): React.ReactElement {
           </select>
           <button
             type="button"
-            onClick={startAnalyse}
+            onClick={openAnalysePrompt}
             disabled={aiButtonDisabled}
             title={aiButtonTooltip}
             className="flex items-center gap-1.5 h-10 px-3 text-[13px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
@@ -497,14 +525,24 @@ export function SuchSeite(): React.ReactElement {
               {phaseLabel}
             </span>
           )}
-          {analyseActive && (
+          {analyse.running && (
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] text-[var(--tf-text-secondary)] rounded-full" style={{ border: '0.5px solid var(--tf-border)' }}>
+              <Loader2 size={11} className="animate-spin" />
+              {analyseProgressLabel}
+              <button type="button" onClick={analyse.cancel} className="ml-1 underline hover:text-[var(--tf-text)]">
+                Abbrechen
+              </button>
+            </span>
+          )}
+          {analyseDone && (
             <button
               type="button"
-              onClick={() => { analyse.reset(); setQuery(''); }}
+              onClick={() => analyse.reset()}
               className="px-3 py-1 text-[12px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)]"
               style={{ border: '0.5px solid var(--tf-border)' }}
+              title="Entfernt die KI-Begründung-Spalte; Treffer bleiben erhalten"
             >
-              Neue Analyse
+              Begründungen entfernen
             </button>
           )}
           <div className="ml-auto flex items-center gap-2">
@@ -530,7 +568,12 @@ export function SuchSeite(): React.ReactElement {
         </div>
       )}
 
-      {validation && <ValidationBanner validation={validation} />}
+      {analyseDone && analyse.result && analyse.result.warnings.length > 0 && (
+        <div className="mb-3 px-3 py-2 text-[12px] text-[var(--tf-text)] rounded"
+          style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
+          {analyse.result.warnings.join(' · ')}
+        </div>
+      )}
 
       {toast && (
         <div role="status" className="mb-3 px-3 py-2 text-[12px] text-[var(--tf-text)] rounded"
@@ -539,15 +582,14 @@ export function SuchSeite(): React.ReactElement {
         </div>
       )}
 
-      {showStepper && analyse.progress && <AnalysePipelineView progress={analyse.progress} onCancel={analyse.cancel} />}
-      {!showStepper && loading && sorted.length === 0 && (
+      {loading && sorted.length === 0 && (
         <div className="flex items-center justify-center gap-2 py-6 text-[13px] text-[var(--tf-text-secondary)]">
           <Loader2 size={14} className="animate-spin" />
           <span>Suche laeuft{phaseLabel ? ` · ${phaseLabel}` : '…'}</span>
         </div>
       )}
 
-      {!showStepper && noQuery && !loading && (
+      {noQuery && !loading && (
         <div className="text-center py-16">
           <Search size={40} className="text-[var(--tf-text-tertiary)] mx-auto mb-4" />
           <p className="text-[var(--tf-text-tertiary)]">
@@ -557,7 +599,7 @@ export function SuchSeite(): React.ReactElement {
         </div>
       )}
 
-      {!showStepper && !noQuery && !loading && !showSpinner && sorted.length === 0 && !analyseActive && (
+      {!noQuery && !loading && !showSpinner && sorted.length === 0 && (
         <div className="text-center py-16">
           <p className="text-[var(--tf-text-secondary)]">Keine Ergebnisse fuer &quot;{query}&quot;</p>
         </div>
@@ -581,6 +623,18 @@ export function SuchSeite(): React.ReactElement {
 
       {/* searchResults-Counts (top-line via useUnifiedSearch) bleiben verfuegbar im Hover/Debug */}
       <span className="sr-only">{`unified-search: total=${counts.total} antraege=${counts.antraege} dokumente=${counts.dokumente}`}</span>
+
+      <AnalysePromptDialog
+        open={promptDialogOpen}
+        query={query.trim()}
+        results={analyseResults}
+        totalCount={sorted.length}
+        instruction={analysePrompt}
+        onInstructionChange={setAnalysePrompt}
+        providerName={analyse.providerName}
+        onConfirm={confirmAnalyse}
+        onCancel={() => setPromptDialogOpen(false)}
+      />
     </div>
   );
 }

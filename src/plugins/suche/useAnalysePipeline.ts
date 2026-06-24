@@ -1,17 +1,17 @@
 /**
- * React-Hook der die KI-Analyse-Pipeline kapselt: State + Start/Cancel-API.
- * Pipeline-Code selbst ist React-frei — hier nur das State-Wiring.
+ * React-Hook der die KI-Analyse (Begründung-Overlay) kapselt: State +
+ * Start/Cancel-API. Pipeline-Code selbst ist React-frei — hier nur das
+ * State-Wiring.
  *
- * WICHTIG: KEIN Auto-`ping()` beim Mount! Streamlit-Bridge oeffnet im `ping()`
- * automatisch ein neues Browser-Fenster (die konfigurierte Streamlit-URL) — das wuerde
- * jeden Mount der Suche-Seite zum „pop-up" machen, auch wenn der User die
- * KI-Analyse gar nicht nutzen will. Verfuegbarkeit wird **lazy** beim ersten
- * Klick auf „Mit KI analysieren" geprueft.
+ * WICHTIG: KEIN Auto-`ping()` beim Mount! Streamlit-Bridge öffnet im `ping()`
+ * automatisch ein neues Browser-Fenster (die konfigurierte Streamlit-URL) — das
+ * würde jeden Mount der Suche-Seite zum „pop-up" machen, auch wenn der User die
+ * KI-Analyse gar nicht nutzen will. Verfügbarkeit wird **lazy** beim ersten
+ * Klick auf „Analyse starten" geprüft.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
-import { useStorage } from '@/core/hooks/useStorage';
-import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import type { UnifiedSearchResult } from '@/core/types/search-result';
 import {
   runAnalysisPipeline,
   STAGE_LABELS,
@@ -24,8 +24,10 @@ export interface UseAnalysePipeline {
   running: boolean;
   progress: PipelineProgress | null;
   result: PipelineResult | null;
+  /** Live-Map `id` → Begründung (füllt sich progressiv während des Laufs). */
+  begruendungById: Record<string, string> | null;
   error: string | null;
-  start: (question: string) => void;
+  start: (question: string, results: ReadonlyArray<UnifiedSearchResult>, promptOverride: string) => void;
   cancel: () => void;
   reset: () => void;
 }
@@ -33,65 +35,58 @@ export interface UseAnalysePipeline {
 const INITIAL_PROGRESS: PipelineProgress = {
   stage: 'idle',
   stageLabel: STAGE_LABELS['idle'],
-  stageProgress: 0,
   overallProgress: 0,
-  stageDurations: {},
 };
 
 export function useAnalysePipeline(): UseAnalysePipeline {
   const bridge = useAIBridge();
-  const storage = useStorage();
-  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
-  const programme = useActiveProgramm(s => s.programme);
 
   const transport = bridge.getActiveTransport();
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<PipelineProgress | null>(null);
   const [result, setResult] = useState<PipelineResult | null>(null);
+  const [begruendungById, setBegruendungById] = useState<Record<string, string> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
 
-  const start = useCallback((question: string) => {
-    if (!activeProgrammId || running) return;
+  const start = useCallback((question: string, results: ReadonlyArray<UnifiedSearchResult>, promptOverride: string) => {
+    if (running || results.length === 0) return;
     abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setRunning(true);
     setError(null);
     setResult(null);
-    setProgress({ ...INITIAL_PROGRESS, stage: 'query-understanding', stageLabel: STAGE_LABELS['query-understanding'] });
+    setBegruendungById({}); // leer, aber non-null → Spalte erscheint sofort
+    setProgress({ ...INITIAL_PROGRESS, stage: 'begruendung', stageLabel: STAGE_LABELS['begruendung'] });
 
     void (async () => {
       try {
-        // Verfuegbarkeitspruefung erst HIER (lazy), nicht beim Hook-Mount —
-        // sonst oeffnet die Streamlit-Bridge beim oeffnen der Suche-Seite
-        // automatisch ihr Fenster. `ping()` kann selbst Side-Effects haben
-        // (Streamlit-Bridge oeffnet hier window.open) — das ist okay, weil
-        // der User explizit „Mit KI analysieren" geklickt hat.
+        // Verfügbarkeitsprüfung erst HIER (lazy) — `ping()` kann Side-Effects
+        // haben (Streamlit-Bridge öffnet window.open); okay, weil der User
+        // explizit „Analyse starten" geklickt hat.
         const reachable = await transport.ping().catch(() => false);
         if (!reachable) {
-          setError(`KI-Provider „${transport.displayName ?? transport.name}" nicht erreichbar. Konfiguration in den Einstellungen pruefen.`);
+          setError(`KI-Provider „${transport.displayName ?? transport.name}" nicht erreichbar. Konfiguration in den Einstellungen prüfen.`);
           setRunning(false);
           setProgress(null);
+          setBegruendungById(null);
           return;
         }
 
         const res = await runAnalysisPipeline({
           question,
+          results,
+          promptOverride,
           transport,
-          idb: storage.idb,
-          programmId: activeProgrammId,
-          programme,
           signal: ctrl.signal,
-          onProgress: (p) => {
-            // Wenn die State-Setter im selben Tick mehrfach kommen,
-            // koennen sie kollabieren — React batched. Das ist okay.
-            setProgress(p);
-          },
+          onProgress: setProgress,
+          onPartial: (map) => setBegruendungById(map),
         });
         setResult(res);
+        setBegruendungById(res.begruendungById);
         setRunning(false);
       } catch (err) {
         const e = err as Error;
@@ -103,7 +98,7 @@ export function useAnalysePipeline(): UseAnalysePipeline {
         setRunning(false);
       }
     })();
-  }, [activeProgrammId, running, transport, storage, programme]);
+  }, [running, transport]);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
@@ -114,6 +109,7 @@ export function useAnalysePipeline(): UseAnalysePipeline {
     setRunning(false);
     setProgress(null);
     setResult(null);
+    setBegruendungById(null);
     setError(null);
   }, []);
 
@@ -125,6 +121,7 @@ export function useAnalysePipeline(): UseAnalysePipeline {
     running,
     progress,
     result,
+    begruendungById,
     error,
     start,
     cancel,
