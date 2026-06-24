@@ -27,6 +27,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Auslastungs-Modul (Klassifizierung + Matching) | [docs/architecture/auslastung.md](docs/architecture/auslastung.md) |
 | Gutachten-Kurzfassung-Testballon (Skill + Aufnahme + DOCX-Füller) | [docs/architecture/gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md) |
 | Artefakt-Engine (Substrat artefaktTyp/ebene/pruefart, Run-Keying, generische Füllung) + NF-Nachforderungen + GA-QS | [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md) |
+| Skill-Eval-GUI (dev): Abschnitt A–G gegen fiktive Fixtures + externer Judge | [Skill-Eval-GUI (dev)](#skill-eval-gui-dev) (CLAUDE.md) |
 | Streamlit-Bridge (Bookmarklet-Installer + postMessage-Transport zum internen LLM) | [docs/architecture/streamlit-bridge.md](docs/architecture/streamlit-bridge.md) |
 | KI-Transport / DSGVO (dokument-tragende Läufe intern halten) | Pitfall #30 + [docs/architecture/transport-policy.md](docs/architecture/transport-policy.md) |
 | Feedback-System (FAB + Board + Sponsoring) | [docs/architecture/feedback-system.md](docs/architecture/feedback-system.md) |
@@ -142,6 +143,14 @@ Generisches Substrat hinter Gutachten + Nachforderungen — eine **Artefakt-Achs
 - **„Bausteine = kuratierte App-Daten"**: die NF-Textbausteine ([nf-bausteine.seed.ts](src/core/services/skills/registry/nf-bausteine.seed.ts)) sind Source of Truth (nicht aus Word extrahiert), Platzhalter deterministisch; ihr Text wird **wortgetreu** verwendet — der Skill-Pfad formuliert nie um (Pitfall #34).
 
 Detail (Run-Keying, generische DOCX-Füllung, NF-QS, GA-QS): [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md).
+
+### Skill-Eval-GUI (dev)
+
+In-App-Panel zur Evaluation eines Gutachten-Abschnitts (A–G) gegen 1–25 **fiktive** VB-Fixtures — die Browser-Schwester der Node-CLI ([src/core/services/skill-eval/cli.ts](src/core/services/skill-eval/cli.ts)). Verortung: Komponente [SkillEvalPanel.tsx](src/plugins/skill-verwaltung-kuration/SkillEvalPanel.tsx) als dev-only **Eval-Tab** in der Skill-Verwaltung (gegated `isDevFixturesEnabled()`; Judge-Teile zusätzlich `isOpenRouterEnabled()`); Orchestrierung [eval-batch.ts](src/core/services/skill-eval/eval-batch.ts) (`runEvalBatch`).
+
+- **Reuse, kein Fork**: `runOneSection` / `runJudge` / `aggregate` / `resolveSkill` werden **unverändert** wiederverwendet — so bleiben In-App-Zahlen byte-vergleichbar mit der CLI (gleicher Judge-Prompt, gleiche 1–5-Skala, gleiches Aggregat). Generierung über den aktiven Bridge-Transport (intern, **sequenziell** — Streamlit = ein postMessage-Fenster); Judge über einen **separaten** `DirectLLMTransport` aus der dev-eval-eigenen IDB-Config `dev-eval-judge` (NICHT der aktive `ai-provider` — beim Streamlit-Gen-Provider gäbe es keinen OpenRouter-Key).
+- **DSGVO-Guard**: Fixtures kommen ausschließlich aus dem gebündelten, gebrandeten Asset ([fixtures/bundle.ts](src/core/services/skill-eval/fixtures/bundle.ts) → `loadEvalFixtures`/`isFromEvalBundle`); `runEvalBatch` asserted die Provenienz **vor** dem ersten Judge-Call. Der `?raw`-Import liegt nur im Literal-Guard (`__TEAMFLOW_DEV_FIXTURES__ && features.devFixtures`) → der ~2-MB-Fixture-String fällt aus dem prod-Bundle (verifiziert per `build:prod`-Grep; erzwungen per Convention-Test `eval-gui-fictional-only`).
+- **Abgrenzung**: [SkillTestlaufPanel](src/plugins/skill-verwaltung-kuration/SkillTestlauf.tsx) testet gegen **echte** Anträge (`listAllAntraegeListView`, `findVorhabensbeschreibung`, `doc:*`), **ohne** Judge. Die Eval-GUI darf diesen Real-Daten-Pfad nicht anfassen.
 
 ### Legacy: Vorgang-Typ
 
@@ -278,7 +287,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 
 > **Hinweis zur Nummerierung**: append-only. Niemals umnummerieren — Querverweise (in Code-Kommentaren, anderen Docs, Commit-Messages) werden sonst ungültig. Wer einen Pitfall für überholt hält, markiert ihn mit *„(überholt seit vX.Y, siehe …)"* statt ihn zu löschen.
 >
-> **Maschinell erzwungen**: Pitfalls mit `[test: …]` fängt [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts) (Vitest, Inline-Ausnahme `// allow-<rule>: <grund>`). Aktuelle Convention-Tests: `no-direct-status-compare` (#12), `no-direct-feedback-status-compare` (#21), `no-direct-bearbeiter-kuerzel` (#27), `no-hardcoded-datenshare-mode` (#25), `no-raw-async-onclick` (#15), `no-raw-worker` (#5), `no-raw-modal` (Klasse 7) + `no-new-tf-ui-files` (P1a/P1b) + `no-raw-active-transport` (#30) + `no-hardcoded-kategorie-mapping` (#31) sowie die Klasse-1/-5-Checks `import-requires-store-refresh`, `antraege-write-requires-listview-rebuild` und `no-hardcoded-canonical-field`. **Wiederkehrende, NICHT-nummerierte Bug-Klassen** (Cold-Start-Store-Refresh, FSAPI-One-Prompt-per-Gesture, Parallel-Varianten-Storage, machine-lokale Embedding-Caches) stehen separat in [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
+> **Maschinell erzwungen**: Pitfalls mit `[test: …]` fängt [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts) (Vitest, Inline-Ausnahme `// allow-<rule>: <grund>`). Aktuelle Convention-Tests: `no-direct-status-compare` (#12), `no-direct-feedback-status-compare` (#21), `no-direct-bearbeiter-kuerzel` (#27), `no-hardcoded-datenshare-mode` (#25), `no-raw-async-onclick` (#15), `no-raw-worker` (#5), `no-raw-modal` (Klasse 7) + `no-new-tf-ui-files` (P1a/P1b) + `no-raw-active-transport` (#30) + `no-hardcoded-kategorie-mapping` (#31) + `eval-gui-fictional-only` (Skill-Eval-GUI dev) sowie die Klasse-1/-5-Checks `import-requires-store-refresh`, `antraege-write-requires-listview-rebuild` und `no-hardcoded-canonical-field`. **Wiederkehrende, NICHT-nummerierte Bug-Klassen** (Cold-Start-Store-Refresh, FSAPI-One-Prompt-per-Gesture, Parallel-Varianten-Storage, machine-lokale Embedding-Caches) stehen separat in [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
 **Index nach Thema** (Sprung-Hilfe — die Pitfalls selbst stehen darunter in Nummern-Reihenfolge):
 

@@ -43,6 +43,10 @@
  *   - gutachten-entwurf-kein-plain-textarea → Gutachten-Entwurf nutzt den
  *     Live-Preview-Editor (MarkdownEditor + markdownLivePreview), kein rohes
  *     <textarea> (Buffer bleibt rohes Markdown = Ground-Truth, kein Roundtrip).
+ *   - eval-gui-fictional-only            → Skill-Eval-GUI (dev): SkillEvalPanel +
+ *     runEvalBatch importieren KEINE Real-Antrag-Pfade (listAllAntraegeListView,
+ *     findVorhabensbeschreibung, doc:-Scan) — Fixtures nur via loadEvalFixtures();
+ *     Scoring nur ueber das geteilte runJudge/aggregate (kein dup. Judge-Call).
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -807,5 +811,67 @@ describe('gutachten-entwurf-kein-plain-textarea (Live-Preview statt <textarea>)'
       'Gutachten-Entwurf darf keinen rohen <textarea>-Editor nutzen — MarkdownEditor + ' +
       'markdownLivePreview (Live-Preview-Source) verwenden. Buffer bleibt rohes Markdown.',
     ).toBe(false);
+  });
+});
+
+describe('eval-gui-fictional-only (Skill-Eval-GUI dev: nur fiktive Fixtures)', () => {
+  // DSGVO-Hardlock: die dev-Eval-GUI (SkillEvalPanel + runEvalBatch) darf NIE einen
+  // realen Antrag in einen (externen) Judge-Call bringen. Konkret: kein Import/Aufruf
+  // der Real-Antrag-Datenpfade; Fixtures ausschliesslich aus dem gebrandeten Bundle
+  // (loadEvalFixtures). Abgrenzung: SkillTestlaufPanel (real, ohne Judge) ist bewusst
+  // NICHT in diesem Scope. Scoring laeuft NUR ueber die geteilte Engine
+  // (runJudge/aggregate aus skill-eval/) — kein nachgebauter Judge-Call.
+  const EVAL_GUI_SUFFIXES = [
+    'plugins/skill-verwaltung-kuration/SkillEvalPanel.tsx',
+    'core/services/skill-eval/eval-batch.ts',
+  ];
+  const isEvalGui = (file: string): boolean => {
+    const rel = relPath(file);
+    return EVAL_GUI_SUFFIXES.some(s => rel.endsWith(s));
+  };
+  const isComment = (l: string): boolean => {
+    const t = l.trim();
+    return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*');
+  };
+  const FORBIDDEN = ['listAllAntraegeListView', 'findVorhabensbeschreibung', "entries('doc:", 'entries("doc:'];
+
+  it('keine Real-Antrag-Pfade in der Eval-GUI', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!isEvalGui(file)) continue;
+      findings.push(...findInFile(
+        file,
+        l => !isComment(l) && FORBIDDEN.some(p => l.includes(p)),
+        'allow-eval-gui-real-antrag',
+      ));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Real-Antrag-Pfade in der dev-Eval-GUI verboten (DSGVO: der externe Judge darf nur\n` +
+        `fiktive Fixtures sehen). Fixtures ausschliesslich ueber loadEvalFixtures() beziehen.\n` +
+        `Echte Ausnahme: '// allow-eval-gui-real-antrag: <grund>'.\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+
+  it('Eval-GUI nutzt die geteilte Engine (kein dupliziertes Judge/Aggregat-Scoring)', () => {
+    const batch = ALL_TS_FILES.find(f => relPath(f).endsWith('core/services/skill-eval/eval-batch.ts'));
+    expect(batch, 'eval-batch.ts nicht gefunden').toBeTruthy();
+    const src = readFileSync(batch!, 'utf-8');
+    // Delegation an die geteilten Engine-Funktionen → CLI-vergleichbare Zahlen.
+    expect(src, 'runEvalBatch muss runJudge() wiederverwenden').toContain('runJudge(');
+    expect(src, 'runEvalBatch muss aggregate() wiederverwenden').toContain('aggregate(');
+    // Kein nachgebauter Judge-Call: response_format/json_object lebt nur in judge.ts.
+    const guiFindings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!isEvalGui(file)) continue;
+      guiFindings.push(...findInFile(file, l => !isComment(l) && l.includes('json_object'), 'allow-eval-gui-real-antrag'));
+    }
+    if (guiFindings.length > 0) {
+      expect.fail(
+        `Die Eval-GUI baut den Judge-Call nach (json_object) statt runJudge() zu nutzen.\n` +
+        `Scoring NUR ueber runJudge/aggregate aus skill-eval/.\n\nTreffer:\n${fmt(guiFindings)}`,
+      );
+    }
   });
 });
