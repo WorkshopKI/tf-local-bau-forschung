@@ -52,7 +52,7 @@ async function setup(): Promise<StorageService> {
     antrag('A2', { vb_phase: 4, d_adv: '15.02.2026' }),
   ];
   await putAntraege(idb, antraege);
-  await putAntraegeListView(idb, antraege.map(toAntragListItem));
+  await putAntraegeListView(idb, antraege.map(a => toAntragListItem(a)));
   return { idb } as StorageService;
 }
 

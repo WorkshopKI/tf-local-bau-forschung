@@ -5,6 +5,32 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.121.0 — Einblendbare Spalte „FB Status" (Förderanträge-Tabelle) (Juni 2026)
+
+MINOR — neue, standardmäßig ausgeblendete Tabellen-Spalte „FB Status" (via Spalten-Picker
+einblendbar). Sie schaut pro Antrag (TV) über mehrere Legacy-Datums-Spalten, die im
+Altsystem ein FB setzt, ermittelt das **jüngste gültige Datum** und zeigt das **Label der
+Gewinner-Spalte** als Badge; der **Tooltip** trägt das Datum (`DD.MM.YYYY`). Kein gültiges
+Datum → leere Zelle.
+
+- **Quell-Spalten** (Tie-Break = Reihenfolge): `D_XPC+`, `D_XPC-`, `D_ALS`, `D_ALU`,
+  `D_XALF`, `D_AT4`, `D_XKS`, `D_ART`, `D_ABLT`, `D_ÄT`, `D_ZBT` —
+  [fb-status-felder.ts](src/core/services/csv/fb-status-felder.ts).
+- **Mapping-robust**: die Spalten-Codes werden über die Schema-`column_mapping` aufgelöst
+  (Standard- ODER Custom-Mapping, vgl. recurring-bug-classes #5 / `resolveVollstaendigkeitsFelder`).
+  Badge-Label = `ColumnMappingEntry.label` (Label-XLS), Fallback = roher Code. Spalten, die
+  nicht gemappt sind, fehlen schlicht → werden ignoriert.
+- **Slim-Projektion**: Ergebnis (Label + ISO-Datum) wird einmalig bei der List-View-Projektion
+  berechnet und als `fb_status_label`/`fb_status_datum` in `AntragListItem` gehalten
+  ([list-view.ts](src/core/services/csv/list-view.ts), alle Merge-/Delta-/Snapshot-Projektionspfade
+  reichen die aufgelösten Felder durch). `LIST_VIEW_PROJECTION_VERSION` **2 → 3** → beim ersten
+  Start nach dem Update reprojiziert die List-View automatisch aus den vorhandenen Voll-Records
+  (~5 s bei 13k, **kein CSV-Re-Import nötig**).
+- Spalte ist sortierbar (nach Datum) + filterbar (nach Label). Voraussetzung für sichtbare
+  Werte: die Spalten müssen in der CSV-Quelle gemappt sein.
+
+Additiv — **keine User-Aktion**, keine bestehenden Daten/Configs geändert.
+
 ### v2.120.1 — Tab-Zähler konsistent zur Liste (Begleitphase) (Juni 2026)
 
 PATCH — die Tab-Zähler („Offen 1.054", „Alle …") zählten **mehr** Anträge als die Liste darunter

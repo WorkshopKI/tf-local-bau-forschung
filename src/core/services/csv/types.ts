@@ -270,6 +270,14 @@ export interface AntragListItem {
   /** Verbund-Titel (nur Legacy-Records; neue Importe routen das Feld in den
    *  VERBUENDE-Store — Konsumenten haben Fallback-Ketten via verbuendeById). */
   verbund_titel?: string;
+  // FB-Status (List-View-Projektion v3): abgeleitet aus mehreren Legacy-Datums-
+  // spalten (FB_STATUS_CODES, fb-status-felder.ts). Das Label der Spalte mit dem
+  // jüngsten gültigen Datum + dieses Datum (ISO) — speist die einblendbare
+  // Tabellen-Spalte „FB Status".
+  /** Label der Spalte mit dem jüngsten FB-Status-Datum (Badge-Text). */
+  fb_status_label?: string;
+  /** Das jüngste FB-Status-Datum (ISO YYYY-MM-DD) — Tooltip + Sortierung. */
+  fb_status_datum?: string;
   // Meta
   _updated_at: string;
 }

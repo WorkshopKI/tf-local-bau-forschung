@@ -25,6 +25,7 @@ import type { IDBStore } from '../storage/idb-store';
 import type { Antrag } from './types';
 import { murmurhash3 } from './hash';
 import { toAntragListItem } from './list-view';
+import type { FbStatusFeld } from './fb-status-felder';
 import {
   putAntraege,
   deleteAntraegeByKeys,
@@ -93,10 +94,17 @@ export async function applyAntraegeDiff(idb: IDBStore, diff: AntraegeDiff): Prom
 
 /** Inkrementelle Pflege der Slim-Projektion: geänderte projizieren + put,
  *  entfernte aus der List-View löschen. Nur aufrufen, wenn die Projektion
- *  bereits auf aktueller Schema-Version liegt (sonst Voll-Rebuild). */
-export async function applyListViewDiff(idb: IDBStore, diff: AntraegeDiff): Promise<void> {
+ *  bereits auf aktueller Schema-Version liegt (sonst Voll-Rebuild).
+ *  `fbFelder` (pro Programm aufgelöst) speist den FB-Status in die Projektion —
+ *  ohne den Param verlören geänderte Records ihr FB-Status-Badge bis zum
+ *  nächsten Voll-Rebuild. */
+export async function applyListViewDiff(
+  idb: IDBStore,
+  diff: AntraegeDiff,
+  fbFelder?: readonly FbStatusFeld[],
+): Promise<void> {
   if (diff.changed.length > 0) {
-    await putAntraegeListView(idb, diff.changed.map(toAntragListItem));
+    await putAntraegeListView(idb, diff.changed.map(a => toAntragListItem(a, fbFelder)));
   }
   if (diff.removedKeys.length > 0) {
     await deleteAntraegeListViewByKeys(idb, diff.removedKeys);

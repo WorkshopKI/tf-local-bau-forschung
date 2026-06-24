@@ -1,4 +1,5 @@
 import type { Antrag, AntragListItem } from './types';
+import { computeFbStatus, type FbStatusFeld } from './fb-status-felder';
 
 /**
  * Projiziert einen vollen `Antrag` auf das schmale `AntragListItem`.
@@ -11,8 +12,15 @@ import type { Antrag, AntragListItem } from './types';
  *
  * Sicherheits-Coercion: nicht-string-Werte werden NICHT geschrieben —
  * der Slim-Type erwartet `string | undefined`.
+ *
+ * `fbFelder` (optional): die pro Programm aufgelösten FB-Status-Spalten
+ * (siehe `fb-status-felder.ts`). Wenn gesetzt, werden `fb_status_label` +
+ * `fb_status_datum` aus dem jüngsten gültigen Datum berechnet. Ohne den Param
+ * bleiben die Felder leer (Tests / Alt-Caller) — bewusst `Array.isArray`-gegated,
+ * damit ein versehentliches `.map(toAntragListItem)` (Index als 2. Arg) nichts
+ * setzt statt zu crashen.
  */
-export function toAntragListItem(antrag: Antrag): AntragListItem {
+export function toAntragListItem(antrag: Antrag, fbFelder?: readonly FbStatusFeld[]): AntragListItem {
   const item: AntragListItem = {
     aktenzeichen: antrag.aktenzeichen,
     programm_id: antrag.programm_id,
@@ -50,6 +58,16 @@ export function toAntragListItem(antrag: Antrag): AntragListItem {
   copyStringField(antrag, item, 'verbund_titel');
   copyNumberField(antrag, item, 'vb_phase');
   copyNumberField(antrag, item, 'foerdersumme');
+  // FB-Status (Projektion v3): jüngstes gültiges Datum über die aufgelösten
+  // Legacy-Spalten → Label + Datum. Nur wenn der Aufrufer die Felder aufgelöst
+  // durchreicht (Schema-abhängig, pro Programm).
+  if (Array.isArray(fbFelder) && fbFelder.length > 0) {
+    const fb = computeFbStatus(antrag as unknown as Record<string, unknown>, fbFelder);
+    if (fb) {
+      item.fb_status_label = fb.label;
+      item.fb_status_datum = fb.datum;
+    }
+  }
   return item;
 }
 

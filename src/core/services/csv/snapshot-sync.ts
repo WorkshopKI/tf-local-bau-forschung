@@ -14,6 +14,8 @@ import { murmurhash3 } from './hash';
 import type { Antrag } from './types';
 import { isDatenShareWritable } from '@/config/feature-flags';
 import { rebuildAntraegeListView, isListViewProjectionCurrent } from './list-view-migration';
+import { listSchemasByProgramm } from './idb-csv';
+import { resolveFbStatusFelder } from './fb-status-felder';
 import {
   diffAntraegeLines,
   buildAntraegeHashes,
@@ -335,7 +337,8 @@ export async function syncProgrammSnapshot(
       // Inkrementell: nur geaenderte Records projizieren + entfernte loeschen —
       // kein Voll-Re-Read+Reprojektion der ~14k (Messung v2.95: ~5 s). Nur sicher,
       // wenn die Projektion bereits auf aktueller Schema-Version liegt.
-      await applyListViewDiff(idb, antraegeDiff);
+      const fbFelder = resolveFbStatusFelder(await listSchemasByProgramm(idb, programmId));
+      await applyListViewDiff(idb, antraegeDiff, fbFelder);
       onProgress?.({ phase: 'finalizing', storesDone: storeKeys.length, storesTotal: storeKeys.length, fraction: 1 });
     } else {
       // Voll-Rebuild: nach Voll-Replace (Cold-Start) ODER bei Schema-Mismatch der
@@ -479,7 +482,10 @@ async function syncAntraegeViaDelta(
     const diff: AntraegeDiff = { changed, removedKeys, newHashes: hashes, unchanged: 0 };
     const tWrite = performance.now();
     await applyAntraegeDiff(idb, diff);
-    if (lvCurrent) await applyListViewDiff(idb, diff);
+    if (lvCurrent) {
+      const fbFelder = resolveFbStatusFelder(await listSchemasByProgramm(idb, programmId));
+      await applyListViewDiff(idb, diff, fbFelder);
+    }
     timings.idbWriteMs += performance.now() - tWrite;
 
     await idb.set(SNAPSHOT_RECORD_HASHES_KEY(programmId), { ...hashes });

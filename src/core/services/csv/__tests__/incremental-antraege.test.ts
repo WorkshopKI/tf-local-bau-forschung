@@ -69,7 +69,7 @@ describe('applyAntraegeDiff + applyListViewDiff', () => {
 
     const initial = [az(1, 'a'), az(2, 'b'), az(3, 'c')];
     await putAntraege(idb, initial);
-    await putAntraegeListView(idb, initial.map(toAntragListItem));
+    await putAntraegeListView(idb, initial.map(a => toAntragListItem(a)));
     const stored = buildAntraegeHashes(initial.map(line));
 
     // AZ2 geändert, AZ3 entfernt, AZ4 neu, AZ1 unverändert

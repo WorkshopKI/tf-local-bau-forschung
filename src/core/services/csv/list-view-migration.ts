@@ -1,6 +1,7 @@
 import type { IDBStore } from '../storage/idb-store';
 import {
   listProgramme,
+  listSchemasByProgramm,
   countAntraegeByProgramm,
   countAntraegeListViewByProgramm,
   forEachAntragChunkByProgramm,
@@ -8,17 +9,19 @@ import {
   clearAntraegeListView,
 } from './idb-csv';
 import { toAntragListItem } from './list-view';
+import { resolveFbStatusFelder } from './fb-status-felder';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 
 /**
  * Schema-Version der List-View-Projektion. Bumpen, wenn `toAntragListItem`
  * neue Felder projiziert (v2: + t_hint, d_xtec, d_adv, tib_mail,
- * verbund_titel fuer den Auslastungs-Slim-Cache, v2.63) — der Count-basierte
- * Backfill-Check unten erkennt Feld-Aenderungen NICHT, nur fehlende Records.
- * Marker-Mismatch → einmaliger Voll-Rebuild beim ersten Start nach dem
- * Update (~5 s bei 13k, bestehende Boot-Statuszeile).
+ * verbund_titel fuer den Auslastungs-Slim-Cache, v2.63; v3: + fb_status_label,
+ * fb_status_datum, v2.121) — der Count-basierte Backfill-Check unten erkennt
+ * Feld-Aenderungen NICHT, nur fehlende Records. Marker-Mismatch → einmaliger
+ * Voll-Rebuild beim ersten Start nach dem Update (~5 s bei 13k, bestehende
+ * Boot-Statuszeile).
  */
-export const LIST_VIEW_PROJECTION_VERSION = 2;
+export const LIST_VIEW_PROJECTION_VERSION = 3;
 const LIST_VIEW_VERSION_KEY = 'list-view-projection-version';
 
 /**
@@ -55,9 +58,12 @@ async function projectProgrammStreamed(
   onProgress?: (done: number, total: number) => void,
 ): Promise<number> {
   const total = await countAntraegeByProgramm(idb, programmId);
+  // FB-Status-Spalten einmal pro Programm aus dem Schema auflösen (Custom-/
+  // Standard-Mapping-robust), dann je Record berechnen.
+  const fbFelder = resolveFbStatusFelder(await listSchemasByProgramm(idb, programmId));
   let done = 0;
   await forEachAntragChunkByProgramm(idb, programmId, async records => {
-    await putAntraegeListView(idb, records.map(toAntragListItem));
+    await putAntraegeListView(idb, records.map(r => toAntragListItem(r, fbFelder)));
     done += records.length;
     onProgress?.(done, total);
   });

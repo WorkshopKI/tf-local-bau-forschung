@@ -25,6 +25,7 @@ import {
   putVerbund,
 } from '../idb-csv';
 import { toAntragListItem } from '../list-view';
+import { resolveFbStatusFelder } from '../fb-status-felder';
 import type {
   Antrag,
   AntragHistorieEntry,
@@ -50,6 +51,7 @@ export async function recomputeAntrag(
   schemasCache?: SchemaWithRows[],
 ): Promise<void> {
   const schemas = schemasCache ?? (await loadAllSchemasWithRows(idb, programmId));
+  const fbFelder = resolveFbStatusFelder(schemas.map(s => s.schema));
   const existing = await getAntrag(idb, aktenzeichen);
 
   const merged: Antrag = {
@@ -135,7 +137,7 @@ export async function recomputeAntrag(
   }
 
   await putAntraege(idb, [merged]);
-  await putAntraegeListView(idb, [toAntragListItem(merged)]);
+  await putAntraegeListView(idb, [toAntragListItem(merged, fbFelder)]);
   if (history.length > 0) await appendHistory(idb, history);
 
   // Akronym-Index aktualisieren (bei geändertem Akronym: altes Entry säubern)

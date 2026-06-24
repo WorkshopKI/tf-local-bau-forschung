@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import type { SortableColumn } from '@/components/data-table';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
+import { formatGermanDate } from '@/core/services/csv/dateParse';
 import { daysUntilFristAware, computeFristDatum } from '@/core/services/csv/frist';
 import { isBegleitungStatus } from '@/core/utils/status-canonical';
 import { getKategorieLabel } from './filter/kategorieQuickfilter';
@@ -207,6 +208,36 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
           {getStatusLabel(s)}
         </Badge>
       ) : null;
+    },
+  },
+  {
+    // FB Status: jüngstes gültiges Datum über mehrere Legacy-Spalten
+    // (fb_status_label/_datum werden bei der List-View-Projektion berechnet,
+    // siehe fb-status-felder.ts). Badge = Label der Gewinner-Spalte, Tooltip =
+    // Datum (DD.MM.YYYY). Off by default (einblendbar via Spalten-Picker).
+    key: 'fb_status',
+    label: 'FB Status',
+    defaultVisible: false,
+    sortable: true,
+    filterable: true,
+    filterAccessor: r => strOrNull(r.fb_status_label) ?? FILTER_EMPTY_LABEL,
+    width: 150,
+    wrap: false,
+    // Sortierung nach Datum (ISO) — leere ans Ende (asc): '' sortiert vor
+    // Werten, daher konsistent mit den übrigen Datums-Spalten.
+    accessor: r => strOrNull(r.fb_status_datum) ?? '',
+    render: r => {
+      const label = strOrNull(r.fb_status_label);
+      if (!label) return null;
+      const datum = strOrNull(r.fb_status_datum);
+      // Tooltip via Wrapper-<span> — `Badge` reicht kein `title` durch.
+      return (
+        <span className="inline-flex max-w-full" title={datum ? formatGermanDate(datum) : undefined}>
+          <Badge variant="info" className="max-w-full justify-center truncate text-[10.5px]">
+            {label}
+          </Badge>
+        </span>
+      );
     },
   },
   {

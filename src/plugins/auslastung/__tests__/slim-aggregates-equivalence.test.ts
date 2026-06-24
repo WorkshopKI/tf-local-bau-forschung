@@ -60,7 +60,7 @@ const ANTRAEGE: Antrag[] = [
   antrag('A6', { tib_kuerz: 'thü', vb_phase: 2 }),                                            // leere Deskriptoren
 ];
 
-const SLIM = ANTRAEGE.map(toAntragListItem);
+const SLIM = ANTRAEGE.map(a => toAntragListItem(a));
 const DESKR_BY_AZ = new Map(ANTRAEGE.map(a => [a.aktenzeichen, readAntragDeskriptoren(a)] as const));
 const ZT_BY_AZ = new Map(ANTRAEGE.map(a => [a.aktenzeichen, readTruthyZtKlartexte(a as Record<string, unknown>)] as const));
 

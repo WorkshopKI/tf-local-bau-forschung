@@ -122,6 +122,9 @@ export const LIST_VIEW_FIELDS: readonly string[] = [
   'd_adv',
   'tib_mail',
   'verbund_titel',
+  // FB-Status (Projektion v3) — abgeleitete Felder, siehe fb-status-felder.ts
+  'fb_status_label',
+  'fb_status_datum',
   // Meta
   '_updated_at',
 ];
