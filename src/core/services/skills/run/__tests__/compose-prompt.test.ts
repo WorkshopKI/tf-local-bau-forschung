@@ -169,3 +169,33 @@ describe('composeSkillPrompt — LLM-QS-Slots {{zielText}} / {{abschnittszweck}}
     expect(leer).not.toContain('{{abschnittszweck}}');
   });
 });
+
+describe('composeSkillPrompt — strukturierte Ausgabe (teilStruktur)', () => {
+  const STRUKTUR_HEADING = '## Ausgabe des „Finaler Text"-Blocks (strukturiert)';
+
+  it('ohne teilStruktur: kein Struktur-Block (byte-identisch zu heute)', () => {
+    expect(compose(baseInput)).not.toContain(STRUKTUR_HEADING);
+  });
+
+  it('mit teilStruktur: hängt den autoritativen JSON-Override-Block mit allen Keys an', () => {
+    const skill = {
+      ...SEED_SKILL,
+      teilStruktur: [{ key: 'hintergrund', label: 'Hintergrund' }, { key: 'loesungsweg', label: 'Lösungsweg' }],
+      teilJoin: '\n\n' as const,
+    };
+    const out = composeSkillPrompt(skill, SEED_REGELN, baseInput, VB);
+    expect(out).toContain(STRUKTUR_HEADING);
+    // Beispiel-Array nennt GENAU die deklarierten Keys.
+    expect(out).toContain('{"key":"hintergrund","text":"…"}');
+    expect(out).toContain('{"key":"loesungsweg","text":"…"}');
+    // Labels als Inhalts-Hinweis (Mapping), nicht im JSON-Beispiel.
+    expect(out).toContain('`hintergrund`: Hintergrund');
+    // Der Struktur-Block steht NACH den formalen Vorgaben (Instruktions-Vorrang).
+    expect(out.indexOf(STRUKTUR_HEADING)).toBeGreaterThan(out.indexOf(VORGABEN_HEADING));
+  });
+
+  it('leere teilStruktur-Liste ist No-op (kein Block)', () => {
+    const skill = { ...SEED_SKILL, teilStruktur: [] };
+    expect(composeSkillPrompt(skill, SEED_REGELN, baseInput, VB)).not.toContain(STRUKTUR_HEADING);
+  });
+});
