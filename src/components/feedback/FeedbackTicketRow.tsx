@@ -5,6 +5,7 @@
 
 import type { FeedbackItem } from '@/core/types/feedback';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from './constants';
+import { formatShortDate } from './feedbackUi';
 
 interface Props {
   ticket: FeedbackItem;
@@ -14,7 +15,7 @@ interface Props {
 
 export function FeedbackTicketRow({ ticket, selected, onSelect }: Props): React.ReactElement {
   const summary = ticket.llm_summary || ticket.text || '–';
-  const date = new Date(ticket.created_at).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric', year: '2-digit' });
+  const date = formatShortDate(ticket.created_at);
   const area = ticket.context?.page;
   const user = ticket.user_display_name || ticket.user_id;
 

@@ -6,7 +6,7 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { getMyFeedback, FEEDBACK_STATUS } from '@/core/services/feedback';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { CATEGORY_ICONS, CATEGORY_LABELS, STATUS_COLORS, STATUS_LABELS } from './constants';
-import { formatRelativeTime, getLucideIcon } from './feedbackUi';
+import { formatShortDate, getLucideIcon } from './feedbackUi';
 
 export function MyFeedbackList(): React.ReactElement {
   const storage = useStorage();
@@ -55,7 +55,7 @@ export function MyFeedbackList(): React.ReactElement {
                 <p className="text-[12.5px] text-[var(--tf-text)] leading-snug line-clamp-2">{summary}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
-                    {item.category ? CATEGORY_LABELS[item.category] : 'Unklassifiziert'} · {formatRelativeTime(item.created_at)}
+                    {item.category ? CATEGORY_LABELS[item.category] : 'Unklassifiziert'} · {formatShortDate(item.created_at)}
                   </span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${STATUS_COLORS[item.kurator_status]}`}>
                     {STATUS_LABELS[item.kurator_status]}

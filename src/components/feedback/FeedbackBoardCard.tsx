@@ -12,7 +12,7 @@ import {
   STATUS_COLORS,
   STATUS_LABELS,
 } from './constants';
-import { feedbackAuthorLabel, formatRelativeTime, getLucideIcon } from './feedbackUi';
+import { feedbackAuthorLabel, formatShortDate, getLucideIcon } from './feedbackUi';
 import { SponsorButton } from './SponsorButton';
 import { FeedbackScreenshots } from './FeedbackScreenshots';
 
@@ -50,7 +50,7 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
           {author && (
             <p className="flex items-center gap-1 mt-0.5 text-[11px] text-[var(--tf-text-tertiary)]">
               <User size={11} className="shrink-0" />
-              <span className="truncate">von {author} · {formatRelativeTime(ticket.created_at)}</span>
+              <span className="truncate">von {author} · {formatShortDate(ticket.created_at)}</span>
             </p>
           )}
         </div>

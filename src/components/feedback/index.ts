@@ -17,5 +17,5 @@ export { FeedbackBoardList } from './FeedbackBoardList';
 export { FeedbackBoardDetail } from './FeedbackBoardDetail';
 export { FeedbackCategoryGroup, type CategoryGroupKey } from './FeedbackCategoryGroup';
 export { SponsoringInfoBanner } from './SponsoringInfoBanner';
-export { formatRelativeTime, getLucideIcon, feedbackAuthorLabel } from './feedbackUi';
+export { formatRelativeTime, formatShortDate, getLucideIcon, feedbackAuthorLabel } from './feedbackUi';
 export * from './constants';

@@ -13,6 +13,13 @@ export function getLucideIcon(name: string): IconComponent {
   return Icons.HelpCircle;
 }
 
+/** Kompaktes absolutes Datum mit Jahr (Tag.Monat.Jahr 2-stellig, z.B. „8.6.26").
+ *  Geteilte Quelle für alle Feedback-Listen/-Karten/-Detail — eindeutig als
+ *  Datum lesbar (statt „8.6", das wie eine Version wirkt). */
+export function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric', year: '2-digit' });
+}
+
 /** Relative deutsche Zeitangabe („gerade eben", „vor 3 Std.", „gestern", …). */
 export function formatRelativeTime(iso: string): string {
   const date = new Date(iso);
