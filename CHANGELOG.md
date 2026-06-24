@@ -5,6 +5,25 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.120.1 — Tab-Zähler konsistent zur Liste (Begleitphase) (Juni 2026)
+
+PATCH — die Tab-Zähler („Offen 1.054", „Alle …") zählten **mehr** Anträge als die Liste darunter
+tatsächlich zeigte (z.B. „Offen 1.054" → nur 874 Zeilen). Ursache: `viewCounts`/`viewCount`
+([views.ts](src/plugins/antraege/views.ts)) wendeten den **Begleitphasen-Filter nicht** an, den das
+Listenrendering ([useFilteredAntraege.ts](src/plugins/antraege/useFilteredAntraege.ts) →
+`filterByBegleitungPhase`) standardmäßig anlegt. Da `isOpenStatus` die Begleitphase (VN-/ZB-Stati)
+**einschließt** ([status-canonical.ts](src/core/utils/status-canonical.ts)), wurden offene
+Begleit-Anträge mitgezählt, aber aus der Liste ausgeblendet — die Differenz wurde mit der neuen
+Trefferzahl (v2.120.0) sichtbar.
+
+- Beide Count-Funktionen überspringen jetzt VN-/ZB-Stati, wenn der Profil-Toggle „inkl. Begleitung"
+  aus ist (`bearbeiter.includeBegleitung`) — exakt wie die Liste. Wirkt auf die Header-Tabs **und**
+  die `QuickViewChips`. Ohne `bearbeiter`-Mode (Tests/Edge) bleibt das Verhalten unverändert.
+- Regressions-Tests in [views.test.ts](src/plugins/antraege/__tests__/views.test.ts) pinnen das
+  Ein-/Ausblenden je `includeBegleitung`.
+
+Reine Korrektur (Tab-Zahl = sichtbare Liste) — **kein Migrationsbedarf**.
+
 ### v2.120.0 — Trefferzahl nach Filterung in der Förderanträge-Liste (Juni 2026)
 
 MINOR — die Förderanträge-Liste zeigte bisher nur die Tab-Gesamtzahlen oben (z.B. „Offen 1.054");

@@ -106,6 +106,11 @@ export function getView(key: ViewKey): AntragView {
  * `useFilteredAntraege`. Header-Aufrufer geben `applyVbPhasePreFilter=false`,
  * wenn in der Sidebar ein expliziter `vb_phase`-Filter aktiv ist (dann sollen
  * Irrlaeufer wieder sichtbar werden).
+ *
+ * Begleitphase (VN-/ZB-Stati) wird — konsistent zur Liste — ausgeblendet, wenn
+ * der Profil-Toggle „inkl. Begleitung" aus ist (`bearbeiter.includeBegleitung`).
+ * Ohne `bearbeiter`-Mode wird NICHT begleit-gefiltert (Default true) → die
+ * Counts entsprechen dann dem reinen View-Predicate (Test-/Edge-Verhalten).
  */
 export function viewCount(
   key: ViewKey,
@@ -114,9 +119,11 @@ export function viewCount(
   applyVbPhasePreFilter: boolean = true,
 ): number {
   const v = getView(key);
+  const includeBegleitung = bearbeiter?.includeBegleitung ?? true;
   let n = 0;
   for (const a of antraege) {
     if (applyVbPhasePreFilter && isIrrlaeufer(a.vb_phase)) continue;
+    if (!includeBegleitung && isBegleitungStatus(a.status)) continue;
     if (!v.predicate(a)) continue;
     if (bearbeiter && !antragMatchesBearbeiter(a, bearbeiter)) continue;
     n++;
@@ -133,6 +140,10 @@ export function viewCount(
  *
  * Verhalten ist 1:1 aequivalent zu `VIEWS.map(v => viewCount(v.key, ...))` —
  * jeder Eintrag im Ergebnis-Record entspricht dem gleichnamigen View-Predicate.
+ * Inkl. des Begleitphasen-Filters (siehe `viewCount`): bei `includeBegleitung=
+ * false` werden VN-/ZB-Stati universell uebersprungen, damit die Tab-Counts mit
+ * der gerenderten Liste (`useFilteredAntraege` → `filterByBegleitungPhase`)
+ * uebereinstimmen.
  */
 export function viewCounts(
   antraege: AntragListItem[],
@@ -148,8 +159,10 @@ export function viewCounts(
     alle: 0,
   };
   const currentYear = getCurrentYear();
+  const includeBegleitung = bearbeiter?.includeBegleitung ?? true;
   for (const a of antraege) {
     if (applyVbPhasePreFilter && isIrrlaeufer(a.vb_phase)) continue;
+    if (!includeBegleitung && isBegleitungStatus(a.status)) continue;
     if (bearbeiter && !antragMatchesBearbeiter(a, bearbeiter)) continue;
 
     counts.alle++;
