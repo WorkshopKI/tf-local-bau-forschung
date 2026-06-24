@@ -4,7 +4,7 @@ import {
   isFlagGroupPath,
   isBoolishGroup,
   isFlagGroup,
-  leafSubgroup,
+  flagBucket,
   fieldType,
   isLooseFlagRow,
   flagValueIsYes,
@@ -67,15 +67,26 @@ describe('isBoolishGroup / isFlagGroup (inhaltsbasiert)', () => {
     expect(isBoolishGroup(rows)).toBe(false);
     expect(isFlagGroup({ path: ['Finanzen'], label: 'Finanzen', rows })).toBe(false);
   });
-  it('ein einzelnes Y/N-Feld ist noch kein Cluster (≥2 befüllte nötig)', () => {
-    expect(isBoolishGroup([row({ field: 'x', rawValue: 'N' })])).toBe(false);
+  it('ein einzelnes Y/N-Feld wird gefaltet (Schwelle ≥1)', () => {
+    expect(isBoolishGroup([row({ field: 'x', rawValue: 'N' })])).toBe(true);
+  });
+  it('Finanz-Nullen (Zahlen/„0") sind NICHT boolish', () => {
+    expect(isBoolishGroup([row({ field: 'a', rawValue: '0' }), row({ field: 'b', rawValue: '0' })])).toBe(false);
+    expect(isBoolishGroup([row({ field: 'a', rawValue: 'N' }), row({ field: 'b', rawValue: '0' })])).toBe(false);
   });
 });
 
-describe('leafSubgroup', () => {
-  it('nimmt den Blattnamen des group_path (sonst Label)', () => {
-    expect(leafSubgroup({ path: ['Zukunftstechnologien (TV-Ebene)', 'Digitale Wirtschaft'], label: 'x', rows: [] })).toBe('Digitale Wirtschaft');
-    expect(leafSubgroup({ path: [], label: 'Weitere Felder', rows: [] })).toBe('Weitere Felder');
+describe('flagBucket (kuratierte 4-Bucket-Taxonomie)', () => {
+  it('mappt jede Flag-Familie in ihren Mockup-Bucket', () => {
+    expect(flagBucket({ path: ['Zukunftstechnologien (TV-Ebene)', 'Digitale Wirtschaft'], label: 'KI' })).toBe('Zukunftstechnologien (TV-/VB-Ebene)');
+    expect(flagBucket({ path: ['Handwerk / Start-Up'], label: 'Handwerk / Installation (nur FuE)' })).toBe('Handwerk / Start-Up');
+    expect(flagBucket({ path: ['Deskriptorenformular ÖA für FuE (TV-Ebene)'], label: 'Ausgewählt vom PT' })).toBe('Deskriptorenformular ÖA für FuE');
+    expect(flagBucket({ path: ['Öffentlichkeitswirkung'], label: 'Projektinhalt mit sehr guter Öffentlichkeitswirkung (FuE)' })).toBe('Sonstige Kennzeichen');
+    expect(flagBucket({ path: ['Referent'], label: 'besonders repräsentativer Geschäftsführer/Netzwerkmanager (NW)' })).toBe('Sonstige Kennzeichen');
+  });
+  it('fällt auf den bereinigten Top-Level-group_path zurück, wenn kein Keyword greift', () => {
+    expect(flagBucket({ path: ['Spezialkennzeichen TV-Ebene'], label: 'x' })).toBe('Spezialkennzeichen');
+    expect(flagBucket({ path: [], label: 'y' })).toBe('Sonstige Kennzeichen');
   });
 });
 
@@ -129,11 +140,23 @@ describe('assembleFlagCluster', () => {
     expect(out[0]!.yesCount).toBe(1);
   });
 
-  it('hält mehrere Unterbereiche in Eingabe-Reihenfolge getrennt', () => {
+  it('sortiert Unterbereiche in kanonischer Bucket-Reihenfolge', () => {
     const out = assembleFlagCluster([
-      { row: row({ field: 'a_tv', label: 'A', rawValue: 'N' }), subgroup: 'Zukunftstechnologien' },
       { row: row({ field: 'b_tv', label: 'B', rawValue: 'N' }), subgroup: 'Handwerk / Start-Up' },
+      { row: row({ field: 's_vb', label: 'S', rawValue: 'N' }), subgroup: 'Sonstige Kennzeichen' },
+      { row: row({ field: 'a_tv', label: 'A', rawValue: 'N' }), subgroup: 'Zukunftstechnologien (TV-/VB-Ebene)' },
     ]);
-    expect(out.map(s => s.name)).toEqual(['Zukunftstechnologien', 'Handwerk / Start-Up']);
+    expect(out.map(s => s.name)).toEqual([
+      'Zukunftstechnologien (TV-/VB-Ebene)', 'Handwerk / Start-Up', 'Sonstige Kennzeichen',
+    ]);
+  });
+
+  it('reinigt „TV-Ebene"/„VB-Ebene" aus Deskriptor-Labels (echte Schemas)', () => {
+    const out = assembleFlagCluster([
+      { row: row({ field: 'add_tv', label: 'Additive Fertigung / 3D-Druck TV-Ebene', rawValue: 'N' }), subgroup: 'Zukunftstechnologien (TV-/VB-Ebene)' },
+      { row: row({ field: 'add_vb', label: 'Additive Fertigung / 3D-Druck VB-Ebene', rawValue: 'N' }), subgroup: 'Zukunftstechnologien (TV-/VB-Ebene)' },
+    ]);
+    expect(out[0]!.total).toBe(1); // TV+VB über das gereinigte Label gemerged
+    expect(out[0]!.descriptors[0]!.label).toBe('Additive Fertigung / 3D-Druck');
   });
 });

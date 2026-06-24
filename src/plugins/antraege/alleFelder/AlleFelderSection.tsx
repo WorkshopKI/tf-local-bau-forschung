@@ -8,7 +8,7 @@ import {
   assembleFlagCluster,
   isFlagGroup,
   isLooseFlagRow,
-  leafSubgroup,
+  flagBucket,
   looseFlagSubgroup,
   type FlagSubgroup,
 } from './flags';
@@ -84,12 +84,12 @@ export function AlleFelderSection({
       // Flag-Cluster: group_path-Keyword ODER reiner Boolean-Inhalt (robust gegen
       // echte Schemas, die Y/N als String + verschachtelte group_paths liefern).
       if (isFlagGroup(g)) {
-        const sub = leafSubgroup(g);
+        const sub = flagBucket(g);
         for (const r of g.rows) flagRows.push({ row: r, subgroup: sub });
         continue;
       }
       // Loose-Flags in Nicht-Flag-Gruppen (Fixtures: zt_ in „Weitere Felder").
-      const groupSub = g.path.length > 0 ? g.path[g.path.length - 1]! : null;
+      const groupSub = g.path.length > 0 ? flagBucket(g) : null;
       const keep: DisplayRow[] = [];
       for (const r of g.rows) {
         if (isLooseFlagRow(r, schemas)) flagRows.push({ row: r, subgroup: groupSub ?? looseFlagSubgroup(r) });

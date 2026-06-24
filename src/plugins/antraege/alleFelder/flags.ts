@@ -37,17 +37,18 @@ export function isFlagGroupPath(path: string[]): boolean {
   });
 }
 
-const BOOLISH_TOKENS = new Set(['y', 'n', 'j', 'ja', 'nein', 'yes', 'no', 'true', 'false', '0', '1', 'x']);
+const BOOLISH_TOKENS = new Set(['y', 'n', 'j', 'ja', 'nein', 'yes', 'no', 'true', 'false', 'x']);
 
 function isEmptyRaw(raw: unknown): boolean {
   if (raw === null || raw === undefined) return true;
   return typeof raw === 'string' && raw.trim() === '';
 }
 
-/** `true`, wenn der Rohwert ein reiner Boolean-Token ist (tolerant gegen „Y / N"-Merge). */
+/** `true`, wenn der Rohwert ein reiner Boolean-Token ist (tolerant gegen „Y / N"-Merge).
+ *  Zahlen werden bewusst NICHT als boolish gewertet — sonst kippen Finanz-Nullen
+ *  (`Auszahlungen 0`) in den Flag-Cluster. */
 function isBoolishRaw(raw: unknown): boolean {
   if (raw === true || raw === false) return true;
-  if (typeof raw === 'number') return raw === 0 || raw === 1;
   if (typeof raw !== 'string') return false;
   const tokens = raw.split('/').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
   return tokens.length > 0 && tokens.every(t => BOOLISH_TOKENS.has(t));
@@ -55,14 +56,15 @@ function isBoolishRaw(raw: unknown): boolean {
 
 /**
  * Inhaltsbasierte Flag-Erkennung: eine Gruppe ist ein Flag-Cluster, wenn ALLE
- * ihre befüllten Werte reine Boolean-Tokens sind (≥2 befüllte). Robust gegen
+ * ihre befüllten Werte reine Boolean-Tokens sind (≥1 befüllt). Robust gegen
  * fehlende/abweichende `group_path`-Labels UND gegen string-statt-boolean
  * gemappte Y/N-Spalten — genau der Grund, warum die reine Pfad-/Typ-Erkennung am
- * echten Datenbestand 0 Flags fand.
+ * echten Datenbestand 0 Flags fand. Schwelle ≥1 (nicht ≥2), damit auch einzelne
+ * Y/N-Felder (`Öffentlichkeitswirkung`, `Referent`) in den Cluster wandern.
  */
 export function isBoolishGroup(rows: DisplayRow[]): boolean {
   const nonEmpty = rows.filter(r => !isEmptyRaw(r.rawValue));
-  return nonEmpty.length >= 2 && nonEmpty.every(r => isBoolishRaw(r.rawValue));
+  return nonEmpty.length >= 1 && nonEmpty.every(r => isBoolishRaw(r.rawValue));
 }
 
 /** Gesamt-Entscheid für eine Gruppe: group_path-Keyword ODER boolean-Inhalt. */
@@ -70,9 +72,36 @@ export function isFlagGroup(group: DisplayGroup): boolean {
   return isFlagGroupPath(group.path) || isBoolishGroup(group.rows);
 }
 
-/** Unterbereichs-Name eines Flag-Gruppen-Eintrags = Blattname des group_path (sonst Label). */
-export function leafSubgroup(group: DisplayGroup): string {
-  return group.path.length > 0 ? group.path[group.path.length - 1]! : group.label;
+/** Kanonische Reihenfolge der 4 Cluster-Buckets (wie im Handoff-Mockup). */
+const BUCKET_ORDER = [
+  'Zukunftstechnologien (TV-/VB-Ebene)',
+  'Handwerk / Start-Up',
+  'Deskriptorenformular ÖA für FuE',
+  'Sonstige Kennzeichen',
+];
+
+/**
+ * Kuratierte 4-Bucket-Taxonomie des Technologie-Kennzeichen-Clusters (Handoff-
+ * Mockup): jede Flag-Gruppe wird per Keyword (normalisiert, über group_path +
+ * Label) in einen der 4 Buckets gemappt. **Specific-first**; greift kein Keyword,
+ * fällt es auf den bereinigten Top-Level-`group_path` (sonst „Sonstige
+ * Kennzeichen"). Kuratierte App-Daten — bei neuen Deskriptor-Familien erweitern.
+ */
+const FLAG_BUCKETS: { name: string; keywords: string[] }[] = [
+  { name: 'Handwerk / Start-Up', keywords: ['handwerk', 'startup'] },
+  { name: 'Deskriptorenformular ÖA für FuE', keywords: ['deskriptorenformular'] },
+  { name: 'Sonstige Kennzeichen', keywords: ['öffentlichkeitswirk', 'oeffentlichkeitswirk', 'repräsentativ', 'repraesentativ', 'geschäftsführer', 'geschaeftsfuehrer', 'netzwerkmanager'] },
+  { name: 'Zukunftstechnologien (TV-/VB-Ebene)', keywords: ['zukunftstechnolog', 'zukunftsfelder'] },
+];
+
+/** Mappt eine Flag-Gruppe in einen der 4 kuratierten Cluster-Buckets. */
+export function flagBucket(group: { path: string[]; label: string }): string {
+  const hay = normLabel([...group.path, group.label].join(' '));
+  for (const b of FLAG_BUCKETS) {
+    if (b.keywords.some(k => hay.includes(normLabel(k)))) return b.name;
+  }
+  const top = group.path[0];
+  return (top && cleanFlagLabel(top)) || 'Sonstige Kennzeichen';
 }
 
 /**
@@ -120,12 +149,20 @@ function flagBaseKey(field: string): string {
   return field.replace(/_(tv|vb)(_\d+)?$/i, '').replace(/_\d+$/, '');
 }
 
-/** Bereinigt ein Flag-Label fürs Display: streicht TV-/VB-Ebenen-Suffixe + `Zt`-Präfix der Slug-Prettifizierung. */
+/**
+ * Bereinigt ein Flag-Label fürs Display: streicht ALLE „TV-Ebene"/„VB-Ebene"-
+ * Marker (mit/ohne Klammer/Slash, auch die Kombi „TV-Ebene / VB-Ebene") + den
+ * `Zt`-Präfix der Fixture-Slug-Prettifizierung, dann Tidy. So mergen TV-/VB-
+ * Varianten über das gereinigte Label.
+ */
 function cleanFlagLabel(label: string): string {
   return label
-    .replace(/\s*\((?:TV|VB)[^)]*\)\s*$/i, '')
-    .replace(/\s+(?:TV|VB)\b\s*$/i, '')
+    .replace(/[\s(/]*\b(?:TV|VB)\s*-?\s*Ebene\b\)?/gi, ' ')
+    .replace(/\s+(?:TV|VB)$/i, '')  // nacktes „ Tv"/„ Vb" am Ende (Fixture-Slug-Prettifizierung)
     .replace(/^Zt\s+/i, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s*\/\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
     .trim();
 }
 
@@ -177,7 +214,11 @@ export function assembleFlagCluster(flagRows: TaggedFlagRow[]): FlagSubgroup[] {
     }
   }
 
-  return order.map(name => {
+  const orderIndex = (name: string): number => {
+    const i = BUCKET_ORDER.indexOf(name);
+    return i === -1 ? BUCKET_ORDER.length : i;
+  };
+  const subgroups = order.map(name => {
     const descriptors = [...bySub.get(name)!.values()].sort((a, b) => a.label.localeCompare(b.label, 'de'));
     return {
       name,
@@ -186,9 +227,12 @@ export function assembleFlagCluster(flagRows: TaggedFlagRow[]): FlagSubgroup[] {
       yesCount: descriptors.filter(d => d.isYes).length,
     };
   });
+  // Kanonische Bucket-Reihenfolge (Array.sort ist stabil: gleicher Index behält Einfügereihenfolge).
+  subgroups.sort((a, b) => orderIndex(a.name) - orderIndex(b.name));
+  return subgroups;
 }
 
-/** Unterbereichs-Name für eine Loose-Flag-Row (kein `group_path` vorhanden, Fixture-Pfad). */
+/** Bucket für eine Loose-Flag-Row (kein `group_path`, Fixture-Pfad) — kanonische Bucket-Namen. */
 export function looseFlagSubgroup(row: DisplayRow): string {
-  return row.field.startsWith('zt_') ? 'Zukunftstechnologien' : 'Sonstige Kennzeichen';
+  return row.field.startsWith('zt_') ? 'Zukunftstechnologien (TV-/VB-Ebene)' : 'Sonstige Kennzeichen';
 }
