@@ -5,6 +5,32 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.118.0 — „Alle Felder"-Optimierung (Glance + Partner-Tabelle + Flag-Cluster) (Juni 2026)
+
+MINOR-Bump — die „Alle Felder"-Sektion der Antrag/Verbund-Detailseite ist nach dem Claude-Design-Handoff
+(`_design/handoff/antrag-detail-alle-felder`) neu gestaltet. Reine UI-/Ableitungs-Erweiterung, kein
+Datenmodell-/Schema-Change; neuer kohäsiver Unterordner [src/plugins/antraege/alleFelder/](src/plugins/antraege/alleFelder/).
+
+- **Auf einen Blick (Glance)**: kuratiertes 8-Fakten-Raster ([VerbundGlance.tsx](src/plugins/antraege/alleFelder/VerbundGlance.tsx) +
+  [glanceFacts.ts](src/plugins/antraege/alleFelder/glanceFacts.ts)) ersetzt den bisherigen Stammdaten-Block in
+  [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx).
+- **Verbundpartner-Tabelle**: eine Zeile pro Teilvorhaben statt `Wert / Wert / Wert`-Slash-Suppe
+  ([VerbundPartnerTabelle.tsx](src/plugins/antraege/alleFelder/VerbundPartnerTabelle.tsx) +
+  [partnerRows.ts](src/plugins/antraege/alleFelder/partnerRows.ts), AST-bevorzugt + AFS-Fallback,
+  Koordinator-Kante, Summenzeile); die interaktive Teilvorhaben-Liste bleibt.
+- **Technologie-Kennzeichen konsolidiert**: ~49 Booleans → ein Akkordeon-Cluster
+  ([FlagCluster.tsx](src/plugins/antraege/alleFelder/FlagCluster.tsx) + [flags.ts](src/plugins/antraege/alleFelder/flags.ts)).
+  Erkennung **dual**: `group_path` der echten SMB-Schemas ODER boolean-Typ/`zt_`-Präfix für die Fixtures
+  (die kein `group_path` setzen); TV-/VB-Varianten gemerged (Y, wenn eine Ebene/ein TV Y trägt).
+- **Relevant/Mit-Werten/Alle-Tabs + Sticky-Sprung-Index + Akkordeon-Gruppen**
+  ([AlleFelderSection.tsx](src/plugins/antraege/alleFelder/AlleFelderSection.tsx), bleibt gemeinsames Bauteil
+  für Verbund + TV; `headerVariant` aus v2.117.1 beibehalten).
+- **Kuratierte Duplikat-/Roh-Klassifikation** ([felderKuration.ts](src/plugins/antraege/alleFelder/felderKuration.ts))
+  für den Relevant-Filter — Seed aus Handoff-Labels + Fixture-Keys, vom Team erweiterbar
+  (Bausteine = kuratierte App-Daten).
+- `buildDisplayRows` + `AlleFelderSection` nach `alleFelder/` verschoben (gleiche API; Importer nachgezogen).
+  28 neue Unit-Tests (classifyField/flags/glanceFacts/partnerRows/format).
+
 ### v2.117.1 — Verbund-Detail: Abschnitts-Überschriften vereinheitlicht (Juni 2026)
 
 PATCH — die Klapp-Überschriften der Verbund-Detailseite sind jetzt einheitlich im Nachforderungen-Stil

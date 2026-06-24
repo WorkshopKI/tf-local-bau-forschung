@@ -126,6 +126,7 @@ src/
 │   # Nutzer-Plugins (category 'workflow' / 'tools')
 │   ├── home/                    <- Dashboard (id='home')
 │   ├── antraege/                <- Förderanträge-Liste + Detail (id='antraege', generische Ansicht über CSV-Schema; seit v1.14 konsolidiert inkl. ehem. Forschungs-Fixtures + optionaler AntragDokumentRef[])
+│   │   ├── alleFelder/          <- v2.118: „Alle Felder"-Optimierung (Glance + Verbundpartner-Tabelle + konsolidierter Technologie-Kennzeichen-Cluster + Relevant-Filter; buildDisplayRows + AlleFelderSection + felderKuration/flags/glanceFacts/partnerRows)
 │   │   └── kurzfassung/         <- v2.68: Gutachten-Kurzfassung-Sektion auf Verbund-Ebene (KurzfassungSection/ReviewCard/CheckList/VorlageDialog + useKurzfassung + kv-Store, features.gutachtenKurzfassung)
 │   ├── auslastung/              <- Auslastungs-Modul (id='auslastung', features.auslastung-gegated, Tabs Klassifizierung/Zuweisung/Übersicht + Kompetenzen (v2.15), Anonymisierung MA01..MAxx, dreistufiges Matching, Standalone-Onboarding-HTML-Generator)
 │   │   ├── views/KompetenzMatrixView.tsx <- v2.15: PL-Kompetenz-Tab (XLSX-Upload + editierbares Grid)
