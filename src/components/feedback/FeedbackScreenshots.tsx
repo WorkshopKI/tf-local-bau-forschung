@@ -44,7 +44,14 @@ export function FeedbackScreenshots({ attachments, compact = false }: Props): Re
 
   if (attachments.length === 0) return null;
 
-  const thumb = compact ? 'w-[68px] h-[44px]' : 'w-[120px] h-[78px]';
+  // Compact (Card/Liste): kleine, gecroppte Thumbnails. Non-compact (Detail-
+  // Panel/Kurator-Detail): großes Vorschaubild, das auf die Panel-Breite skaliert
+  // und das GANZE Bild zeigt (object-contain) — Inhalt ohne Klick erkennbar.
+  const wrapCls = compact ? '' : 'w-full max-w-[440px]';
+  const imgCls = compact
+    ? 'w-[68px] h-[44px] object-cover'
+    : 'w-full h-auto max-h-[360px] object-contain bg-[var(--tf-bg-secondary)]';
+  const boxCls = compact ? 'w-[68px] h-[44px]' : 'w-full h-[200px]';
 
   return (
     <div>
@@ -55,17 +62,17 @@ export function FeedbackScreenshots({ attachments, compact = false }: Props): Re
       )}
       <div className="flex flex-wrap gap-2">
         {attachments.map(att => (
-          <div key={att.id} className={`flex flex-col gap-1 ${compact ? '' : 'w-[120px]'}`}>
+          <div key={att.id} className={`flex flex-col gap-1 ${wrapCls}`}>
             {urls[att.id] ? (
               <img
                 src={urls[att.id]}
                 alt={att.caption || 'Screenshot'}
                 onClick={() => setLightbox(att)}
-                className={`${thumb} object-cover rounded-[var(--tf-radius)] cursor-zoom-in`}
+                className={`${imgCls} rounded-[var(--tf-radius)] cursor-zoom-in`}
                 style={{ border: '0.5px solid var(--tf-border)' }}
               />
             ) : (
-              <div className={`${thumb} rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] flex items-center justify-center text-[10px] text-[var(--tf-text-tertiary)]`} style={{ border: '0.5px solid var(--tf-border)' }}>
+              <div className={`${boxCls} rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] flex items-center justify-center text-[10px] text-[var(--tf-text-tertiary)]`} style={{ border: '0.5px solid var(--tf-border)' }}>
                 Lädt…
               </div>
             )}
