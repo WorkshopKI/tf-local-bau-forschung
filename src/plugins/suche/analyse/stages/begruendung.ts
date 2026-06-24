@@ -25,10 +25,16 @@ import defaultInstructionRaw from '../prompts/begruendung.md?raw';
 export const DEFAULT_BEGRUENDUNG_INSTRUCTION = defaultInstructionRaw.trim();
 
 const TARGET_BATCH_CHARS = 120_000; // Input-Budget pro Batch (~34K Tokens)
-const MAX_ITEMS_PER_BATCH = 20;     // Output-Budget: hält die JSON-Antwort klein
+const MAX_ITEMS_PER_BATCH = 20;     // Output-Budget: hält die Antwort klein
 const MAX_SNIPPET_CHARS = 600;      // pro Treffer harte Obergrenze
 const CHARS_PER_TOKEN = 3.5;
 const MAX_TOKENS = 8_000;           // Output-Headroom inkl. evtl. Reasoning
+
+/** Marker für das (quote-sichere) Ausgabeformat. Bewusst KEIN JSON: das Modell
+ *  zitiert in der Begründung gerne Begriffe ("Normung und Standardisierung"),
+ *  was unescapte Quotes in JSON-Strings erzeugt und `JSON.parse` zerlegt. Ein
+ *  zeilenbasiertes Marker-Format ist immun gegen Quotes/Sonderzeichen. */
+const MARKER = '@@@';
 
 export interface BegruendungResult {
   begruendungById: Record<string, string>;
@@ -73,9 +79,15 @@ export function assembleBegruendungPrompt(query: string, instruction: string, bl
     instruction.trim(),
     ``,
     `# Ausgabeformat (verbindlich)`,
-    `Antworte AUSSCHLIESSLICH mit einem JSON-Array — ein Objekt pro Treffer, keine Markdown-Fences, kein Fließtext drumherum:`,
-    `[{ "id": "<exakt die id des Treffers>", "begruendung": "<2–3 Sätze>" }]`,
-    `Gib für jeden der unten gelisteten Treffer genau ein Objekt zurück und verwende die id unverändert.`,
+    `Gib für JEDEN unten gelisteten Treffer GENAU einen Block aus: zuerst eine eigene Zeile mit dem Marker ${MARKER} und der unveränderten id, danach in den Folgezeilen die Begründung (2–3 Sätze). KEIN JSON, keine Aufzählung, keine Maskierung von Anführungszeichen nötig. Nichts vor dem ersten Marker, nichts nach dem letzten Block.`,
+    ``,
+    `Format pro Treffer:`,
+    `${MARKER} <id>`,
+    `<Begründung in 2–3 Sätzen, Anführungszeichen erlaubt>`,
+    ``,
+    `Beispiel:`,
+    `${MARKER} 16KN000000`,
+    `Der Antrag entwickelt einen "Prozessstandard" und ist daher für die Anfrage relevant.`,
     ``,
     `# Treffer`,
     block,
@@ -110,18 +122,44 @@ function makeBatches(results: ReadonlyArray<UnifiedSearchResult>): UnifiedSearch
   return batches;
 }
 
-function parseBegruendungResponse(raw: string): Record<string, string> | null {
-  const parsed = parseLLMJson<unknown>(raw);
-  if (!Array.isArray(parsed)) return null;
+/** Parst die LLM-Antwort. Primär das quote-sichere Marker-Format
+ *  (`@@@ <id>` + Folgezeilen); Fallback auf ein valides JSON-Array
+ *  `[{id, begruendung}]`, falls das Modell doch JSON liefert. Liefert `null`,
+ *  wenn nichts Verwertbares drinsteht (→ Batch gilt als gescheitert). */
+export function parseBegruendungResponse(raw: string): Record<string, string> | null {
   const out: Record<string, string> = {};
-  for (const item of parsed) {
-    if (!item || typeof item !== 'object') continue;
-    const rec = item as Record<string, unknown>;
-    const id = typeof rec.id === 'string' ? rec.id : null;
-    const begruendung = typeof rec.begruendung === 'string' ? rec.begruendung.trim() : '';
-    if (id && begruendung) out[id] = begruendung;
+  const text = raw.replace(/```[a-zA-Z]*\n?/g, '').replace(/```/g, '');
+  const lines = text.split(/\r?\n/);
+  const markerRe = new RegExp(`^\\s*${MARKER}\\s*(\\S+)\\s*$`);
+  let curId: string | null = null;
+  let buf: string[] = [];
+  const flush = (): void => {
+    if (curId) {
+      const t = buf.join('\n').trim();
+      if (t) out[curId] = t;
+    }
+    buf = [];
+  };
+  for (const line of lines) {
+    const m = markerRe.exec(line);
+    if (m) { flush(); curId = m[1]!; }
+    else if (curId !== null) { buf.push(line); }
   }
-  return out;
+  flush();
+  if (Object.keys(out).length > 0) return out;
+
+  // Fallback: valides JSON-Array (falls das Modell die Marker ignoriert hat).
+  const parsed = parseLLMJson<unknown>(text);
+  if (Array.isArray(parsed)) {
+    for (const item of parsed) {
+      if (!item || typeof item !== 'object') continue;
+      const rec = item as Record<string, unknown>;
+      const id = typeof rec.id === 'string' ? rec.id : null;
+      const begruendung = typeof rec.begruendung === 'string' ? rec.begruendung.trim() : '';
+      if (id && begruendung) out[id] = begruendung;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 export async function stageBegruendung(opts: {
@@ -152,7 +190,8 @@ export async function stageBegruendung(opts: {
     let parsed: Record<string, string> | null = null;
     let raw: string | null = null;
     try {
-      raw = await callLLM(transport, prompt, query, { signal, jsonMode: true, maxTokens: MAX_TOKENS, timeoutMs: 120_000 });
+      // Kein jsonMode: das Marker-Format ist bewusst KEIN JSON (quote-sicher).
+      raw = await callLLM(transport, prompt, query, { signal, maxTokens: MAX_TOKENS, timeoutMs: 120_000 });
       parsed = parseBegruendungResponse(raw);
     } catch (err) {
       if (err instanceof LLMAbortError) throw err;
@@ -162,8 +201,8 @@ export async function stageBegruendung(opts: {
       // 1× Retry mit explizitem Format-Hinweis.
       try {
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-        const retryUser = `${query}\n\nAchtung: liefere NUR ein JSON-Array [{ "id", "begruendung" }], keine Markdown-Fences, kein Erklärungstext.`;
-        raw = await callLLM(transport, prompt, retryUser, { signal, jsonMode: true, maxTokens: MAX_TOKENS, timeoutMs: 120_000 });
+        const retryUser = `${query}\n\nWICHTIG: Halte dich exakt an das Format — pro Treffer eine Zeile „${MARKER} <id>" und darunter die Begründung. Kein JSON, keine Markdown-Fences.`;
+        raw = await callLLM(transport, prompt, retryUser, { signal, maxTokens: MAX_TOKENS, timeoutMs: 120_000 });
         parsed = parseBegruendungResponse(raw);
       } catch (err) {
         if (err instanceof LLMAbortError) throw err;
