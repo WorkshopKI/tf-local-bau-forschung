@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   normLabel,
   isFlagGroupPath,
+  isBoolishGroup,
+  isFlagGroup,
+  leafSubgroup,
   fieldType,
   isLooseFlagRow,
   flagValueIsYes,
@@ -42,6 +45,37 @@ describe('isFlagGroupPath', () => {
   it('nicht-Flag-Gruppen + leerer Pfad sind false', () => {
     expect(isFlagGroupPath(['Finanzen'])).toBe(false);
     expect(isFlagGroupPath([])).toBe(false);
+  });
+  it('matcht echte Schemas mit Ebenen-Suffix (includes, nicht exakt)', () => {
+    expect(isFlagGroupPath(['Zukunftstechnologien (TV-Ebene)', 'Digitale Wirtschaft'])).toBe(true);
+    expect(isFlagGroupPath(['Technologie-Kennzeichen (VB-Ebene)'])).toBe(true);
+  });
+});
+
+describe('isBoolishGroup / isFlagGroup (inhaltsbasiert)', () => {
+  it('erkennt eine Gruppe mit reinen Y/N-Werten als Flags — auch ohne Flag-Label/-Typ', () => {
+    const rows = [
+      row({ field: 'a', rawValue: 'N' }),
+      row({ field: 'b', rawValue: 'Y' }),
+      row({ field: 'c', rawValue: 'N / N' }),
+    ];
+    expect(isBoolishGroup(rows)).toBe(true);
+    expect(isFlagGroup({ path: ['Handwerk / Start-Up'], label: 'Handwerk / Start-Up', rows })).toBe(true);
+  });
+  it('lässt normale Gruppen (Text/Zahlen/Daten) in Ruhe', () => {
+    const rows = [row({ field: 'akronym', rawValue: 'OptiTool' }), row({ field: 'kosten', rawValue: '280000' })];
+    expect(isBoolishGroup(rows)).toBe(false);
+    expect(isFlagGroup({ path: ['Finanzen'], label: 'Finanzen', rows })).toBe(false);
+  });
+  it('ein einzelnes Y/N-Feld ist noch kein Cluster (≥2 befüllte nötig)', () => {
+    expect(isBoolishGroup([row({ field: 'x', rawValue: 'N' })])).toBe(false);
+  });
+});
+
+describe('leafSubgroup', () => {
+  it('nimmt den Blattnamen des group_path (sonst Label)', () => {
+    expect(leafSubgroup({ path: ['Zukunftstechnologien (TV-Ebene)', 'Digitale Wirtschaft'], label: 'x', rows: [] })).toBe('Digitale Wirtschaft');
+    expect(leafSubgroup({ path: [], label: 'Weitere Felder', rows: [] })).toBe('Weitere Felder');
   });
 });
 

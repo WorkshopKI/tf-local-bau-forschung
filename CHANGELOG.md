@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.118.1 — „Alle Felder": Flag-Cluster am echten Datenbestand + Zeilen-Layout (Juni 2026)
+
+PATCH — der Technologie-Kennzeichen-Cluster wurde an echten SMB-Daten **gar nicht** gebündelt
+(„bündelt 0 Technologie-Kennzeichen"), weil die Erkennung nur exakte `group_path`-Top-Labels
+bzw. `boolean`-Feldtypen prüfte. Echte Schemas verschachteln die Flags aber unter
+`Zukunftstechnologien (TV-Ebene) › <Kategorie>` mit **string**-`Y`/`N`-Werten → beide Pfade verfehlten.
+
+- **Inhaltsbasierte Erkennung** ([flags.ts](src/plugins/antraege/alleFelder/flags.ts)): `isFlagGroup` =
+  `group_path`-Keyword (jetzt `includes` statt exakt, fängt Ebenen-Suffixe) **ODER** `isBoolishGroup`
+  (alle befüllten Werte reine Y/N-Tokens, ≥2). Unterbereich = `group_path`-Blattname (`leafSubgroup`).
+- **Zeilen-Layout** ([felder.css](src/plugins/antraege/alleFelder/felder.css)): Label-Spalte gedeckelt
+  (`minmax(180px,340px) 1fr`) statt `1fr 1.5fr` — auf breiten Detail-Panels klaffte sonst eine große Lücke
+  zwischen Label und Wert.
+- +5 Unit-Tests (`isBoolishGroup`/`isFlagGroup`/`leafSubgroup` + Suffix-`group_path`).
+
 ### v2.118.0 — „Alle Felder"-Optimierung (Glance + Partner-Tabelle + Flag-Cluster) (Juni 2026)
 
 MINOR-Bump — die „Alle Felder"-Sektion der Antrag/Verbund-Detailseite ist nach dem Claude-Design-Handoff

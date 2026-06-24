@@ -6,8 +6,9 @@ import { type DisplayGroup, type DisplayRow } from './buildDisplayRows';
 import { classifyField, adminBadgeLabel } from './felderKuration';
 import {
   assembleFlagCluster,
-  isFlagGroupPath,
+  isFlagGroup,
   isLooseFlagRow,
+  leafSubgroup,
   looseFlagSubgroup,
   type FlagSubgroup,
 } from './flags';
@@ -80,13 +81,14 @@ export function AlleFelderSection({
     const flagRows: { row: DisplayRow; subgroup: string }[] = [];
     let other = -1;
     for (const g of groups) {
-      if (isFlagGroupPath(g.path)) {
-        const sub = g.path[1] ?? g.path[0]!;
+      // Flag-Cluster: group_path-Keyword ODER reiner Boolean-Inhalt (robust gegen
+      // echte Schemas, die Y/N als String + verschachtelte group_paths liefern).
+      if (isFlagGroup(g)) {
+        const sub = leafSubgroup(g);
         for (const r of g.rows) flagRows.push({ row: r, subgroup: sub });
         continue;
       }
-      // Subgroup für Loose-Flags: vorhandener group_path-Blattname (echte Schemas,
-      // deren Top-Label nicht im Flag-Root-Set steht) sonst der Key-Präfix-Fallback.
+      // Loose-Flags in Nicht-Flag-Gruppen (Fixtures: zt_ in „Weitere Felder").
       const groupSub = g.path.length > 0 ? g.path[g.path.length - 1]! : null;
       const keep: DisplayRow[] = [];
       for (const r of g.rows) {

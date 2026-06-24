@@ -16,7 +16,7 @@
  * TV- und VB-Ebene desselben Deskriptors (z.B. `…_tv` + `…_vb`, gleiches Label)
  * werden zu EINEM Eintrag gemerged (`isYes` = ODER beider Spalten).
  */
-import type { DisplayRow } from './buildDisplayRows';
+import type { DisplayRow, DisplayGroup } from './buildDisplayRows';
 import type { CsvSchema, FieldType } from '@/core/services/csv/types';
 
 /** Normalisiert ein Label/Key für robustes Matching (lowercase, nur a–z/0–9/Umlaut). */
@@ -24,16 +24,55 @@ export function normLabel(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
 }
 
-/** Top-Level-`group_path`-Labels (normalisiert), die einen Flag-Cluster markieren. */
-const FLAG_ROOT_LABELS = new Set<string>([
-  normLabel('Technologie-Kennzeichen'),
-  normLabel('Technologiekennzeichen'),
-  normLabel('Zukunftstechnologien'),
-]);
+/** Keyword-Fragmente (normalisiert), die in IRGENDEINER group_path-Ebene einen
+ *  Technologie-Kennzeichen-Cluster markieren. Bewusst `includes` statt exakt:
+ *  echte Schemas hängen Ebenen-Suffixe an („Zukunftstechnologien (TV-Ebene)"). */
+const FLAG_ROOT_KEYWORDS = ['zukunftstechnolog', 'technologiekennzeichen'];
 
-/** `true`, wenn der Gruppen-Pfad (group_path) ein Technologie-Kennzeichen-Cluster ist. */
+/** `true`, wenn der group_path (irgendeine Ebene) ein Technologie-Kennzeichen-Cluster ist. */
 export function isFlagGroupPath(path: string[]): boolean {
-  return path.length > 0 && FLAG_ROOT_LABELS.has(normLabel(path[0]!));
+  return path.some(p => {
+    const n = normLabel(p);
+    return FLAG_ROOT_KEYWORDS.some(k => n.includes(k));
+  });
+}
+
+const BOOLISH_TOKENS = new Set(['y', 'n', 'j', 'ja', 'nein', 'yes', 'no', 'true', 'false', '0', '1', 'x']);
+
+function isEmptyRaw(raw: unknown): boolean {
+  if (raw === null || raw === undefined) return true;
+  return typeof raw === 'string' && raw.trim() === '';
+}
+
+/** `true`, wenn der Rohwert ein reiner Boolean-Token ist (tolerant gegen „Y / N"-Merge). */
+function isBoolishRaw(raw: unknown): boolean {
+  if (raw === true || raw === false) return true;
+  if (typeof raw === 'number') return raw === 0 || raw === 1;
+  if (typeof raw !== 'string') return false;
+  const tokens = raw.split('/').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+  return tokens.length > 0 && tokens.every(t => BOOLISH_TOKENS.has(t));
+}
+
+/**
+ * Inhaltsbasierte Flag-Erkennung: eine Gruppe ist ein Flag-Cluster, wenn ALLE
+ * ihre befüllten Werte reine Boolean-Tokens sind (≥2 befüllte). Robust gegen
+ * fehlende/abweichende `group_path`-Labels UND gegen string-statt-boolean
+ * gemappte Y/N-Spalten — genau der Grund, warum die reine Pfad-/Typ-Erkennung am
+ * echten Datenbestand 0 Flags fand.
+ */
+export function isBoolishGroup(rows: DisplayRow[]): boolean {
+  const nonEmpty = rows.filter(r => !isEmptyRaw(r.rawValue));
+  return nonEmpty.length >= 2 && nonEmpty.every(r => isBoolishRaw(r.rawValue));
+}
+
+/** Gesamt-Entscheid für eine Gruppe: group_path-Keyword ODER boolean-Inhalt. */
+export function isFlagGroup(group: DisplayGroup): boolean {
+  return isFlagGroupPath(group.path) || isBoolishGroup(group.rows);
+}
+
+/** Unterbereichs-Name eines Flag-Gruppen-Eintrags = Blattname des group_path (sonst Label). */
+export function leafSubgroup(group: DisplayGroup): string {
+  return group.path.length > 0 ? group.path[group.path.length - 1]! : group.label;
 }
 
 /**
