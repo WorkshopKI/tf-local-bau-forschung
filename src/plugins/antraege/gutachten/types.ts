@@ -11,7 +11,7 @@
  * bewusst KEIN dedizierter Object-Store/Version-Bump (recurring-bug-classes.md §3 /
  * Pitfall #29).
  */
-import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
+import type { CheckResult, SkillModifierKey, TeilFeld } from '@/core/services/skills';
 import type { KurzfassungVersion } from '../kurzfassung/types';
 
 /**
@@ -54,6 +54,14 @@ export interface StepRun {
   quellenanalyse: string;
   entwurf: string;
   finalerText: string;
+  /**
+   * Opt-in (additiv): strukturierte Teilfelder, falls der Skill `teilStruktur`
+   * deklariert UND das Modell parsebares JSON lieferte. Render-only (Badges in der
+   * UI) — `finalerText` (Teile verbunden) bleibt die flache Quelle der Wahrheit für
+   * DOCX/Checks/Judge/Freigabe-Hash. Ein manueller Edit verwirft `teile` (der
+   * editierte `finalerText` ist dann maßgeblich).
+   */
+  teile?: TeilFeld[];
   /**
    * Vom Bearbeiter manuell editierter `finalerText` ersetzt den generierten; dieses
    * Feld hält den ursprünglich GENERIERTEN Text als Snapshot beim ersten Edit

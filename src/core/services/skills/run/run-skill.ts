@@ -15,6 +15,7 @@ import {
   type QualitaetsRegel,
   type SkillModifierKey,
   type SkillRecord,
+  type TeilDeklaration,
 } from '../registry';
 import { parseSkillOutput } from './parse';
 import type { ParsedSkillOutput } from './types';
@@ -179,6 +180,29 @@ export function buildTweakBlock(stilHinweise: string, beispielFormulierungen: st
 }
 
 /**
+ * Autoritativer Override-Block für die strukturierte Ausgabe des `### Finaler
+ * Text`-Blocks. Deklariert dem Modell GENAU die erlaubten Keys (Reihenfolge +
+ * Inhalt aus `teilStruktur`); der Parser verwirft alles, was nicht passt. Die
+ * Labels sind reine Inhalts-Hinweise — sie landen nie im JSON-`text` (das Badge
+ * ist render-only).
+ */
+function buildTeilStrukturInstruktion(teile: TeilDeklaration[]): string {
+  const beispiel = teile.map(t => `{"key":"${t.key}","text":"…"}`).join(', ');
+  const mapping = teile.map(t => `- \`${t.key}\`: ${t.label}`).join('\n');
+  return [
+    '## Ausgabe des „Finaler Text"-Blocks (strukturiert)',
+    'Gib im Abschnitt `### Finaler Text` NICHT direkt Fließtext aus, sondern AUSSCHLIESSLICH '
+      + 'ein JSON-Array mit GENAU diesen Schlüsseln — in dieser Reihenfolge, NUR diese Schlüssel, '
+      + 'jeder `text` als zusammenhängender Fließtext (kein Markdown, keine Aufzählungszeichen, '
+      + 'keine Überschriften, kein Label im Text):',
+    `[${beispiel}]`,
+    'Schlüssel → Inhalt des jeweiligen `text`:',
+    mapping,
+    'Die Abschnitte `### Quellenanalyse` und (falls vorhanden) `### Entwurf` bleiben unverändert Fließtext.',
+  ].join('\n');
+}
+
+/**
  * EINZIGE Prompt-Kompositionsstelle (vormals `buildUserContent`). Feste, nicht
  * konfigurierbare Rangfolge:
  *   (1) gefülltes Kurator-Template
@@ -218,6 +242,14 @@ export function composeSkillPrompt(
   }
   const vorgaben = buildPromptVorgaben(regeln);
   if (vorgaben) content += `\n\n${vorgaben}`;
+  // Opt-in: strukturierte Ausgabe des „Finaler Text"-Blocks (additiv, nur bei
+  // teilStruktur). Autoritativer Override-Block NACH den formalen Vorgaben — die
+  // Prosa-Instruktion im Template bleibt für Quellenanalyse/Entwurf gültig, der
+  // Finaler-Text-Block wird hier auf JSON umgelenkt. Ohne teilStruktur: No-op
+  // (Ausgabe byte-identisch zum heutigen Lauf).
+  if (skill.teilStruktur && skill.teilStruktur.length > 0) {
+    content += `\n\n${buildTeilStrukturInstruktion(skill.teilStruktur)}`;
+  }
   if (input.vorherigerText) {
     content += `\n\n## Bisheriger finaler Text (zur Überarbeitung)\n${input.vorherigerText}`;
   }

@@ -113,6 +113,20 @@ export interface SkillVersionSnapshot {
   begruendung?: string;
 }
 
+/** Join-Strategie der Teilfelder eines strukturierten `finalerText`. */
+export type TeilJoin = '\n\n' | '\n' | ' ';
+
+/** Deklaration EINES Teilfelds (Key zum Befüllen + Anzeige-Label fürs Badge). */
+export interface TeilDeklaration {
+  key: string;
+  label: string;
+}
+
+/** Ein gefülltes Teilfeld: Deklaration + vom LLM gelieferter Text. */
+export interface TeilFeld extends TeilDeklaration {
+  text: string;
+}
+
 /**
  * Ein benannter KI-Arbeitsschritt. Reine Daten — die Laufzeit-Funktionen
  * (`parse`, Checks, Prompt-Vorgaben) kommen aus dem Skills-Service bzw. der
@@ -168,6 +182,19 @@ export interface SkillRecord {
    * `src/core/services/ai/transport-policy.ts`.
    */
   enthaeltDokumentInhalte?: boolean;
+  /**
+   * Opt-in (additiv): deklarierte Teilfelder für strukturierte Ausgabe des
+   * `### Finaler Text`-Blocks. Ist das Feld gesetzt, instruiert `composeSkillPrompt`
+   * das LLM, diesen Block als JSON-Array `[{key,text}]` zu liefern, und
+   * `parseSkillOutput` mappt die Teile (Reihenfolge + Labels aus DIESER Deklaration)
+   * auf `ParsedSkillOutput.teile`. `finalerText` bleibt die flache Quelle der
+   * Wahrheit (Teile per `teilJoin` verbunden, ohne Badge). Fehlt das Feld oder
+   * liefert das Modell kein JSON → exakt heutiges Verhalten (Prosa-finalerText).
+   * Badges sind render-only. Siehe CLAUDE.md „Strukturierte Skill-Ausgabe".
+   */
+  teilStruktur?: TeilDeklaration[];
+  /** Join-String der Teile zum flachen `finalerText` (Default `'\n\n'`). */
+  teilJoin?: TeilJoin;
 }
 
 /* -------------------------------------------------------------------------- */

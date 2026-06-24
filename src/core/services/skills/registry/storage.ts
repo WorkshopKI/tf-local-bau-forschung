@@ -16,8 +16,8 @@ import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-wri
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import type {
   ArtefaktTyp, GateExpr, Pruefart, QualitaetsRegel, Reifegrad, Schweregrad, SkillModifierKey,
-  SkillRecord, SkillRegistryFile, SkillVersionSnapshot, WorkflowDef, WorkflowEbene, WorkflowStep,
-  WorkflowStepRolle,
+  SkillRecord, SkillRegistryFile, SkillVersionSnapshot, TeilDeklaration, TeilJoin, WorkflowDef,
+  WorkflowEbene, WorkflowStep, WorkflowStepRolle,
 } from './types';
 import { normalizeStepRolle } from './workflow-steps';
 import { MAX_HISTORIE } from './versioning';
@@ -157,7 +157,29 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
   if (typeof s.maxTokens === 'number' && Number.isFinite(s.maxTokens)) skill.maxTokens = s.maxTokens;
   if (typeof s.lektorPromptTemplate === 'string') skill.lektorPromptTemplate = s.lektorPromptTemplate;
   if (typeof s.enthaeltDokumentInhalte === 'boolean') skill.enthaeltDokumentInhalte = s.enthaeltDokumentInhalte;
+  // Strukturierte Ausgabe (opt-in): teilStruktur/teilJoin EXPLIZIT übernehmen —
+  // normalizeSkill baut das Objekt feldweise neu, sonst gingen die Felder beim
+  // Laden (inkl. CLI-`--registry`-Pilot) lautlos verloren.
+  const teilStruktur = normalizeTeilStruktur(s.teilStruktur);
+  if (teilStruktur) skill.teilStruktur = teilStruktur;
+  if (s.teilJoin === '\n\n' || s.teilJoin === '\n' || s.teilJoin === ' ') {
+    skill.teilJoin = s.teilJoin as TeilJoin;
+  }
   return skill;
+}
+
+/** Tolerantes Lesen der `teilStruktur` — nur Einträge mit nicht-leerem key+label. */
+function normalizeTeilStruktur(raw: unknown): TeilDeklaration[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: TeilDeklaration[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'object' || item === null) continue;
+    const o = item as Record<string, unknown>;
+    const key = asString(o.key);
+    const label = asString(o.label);
+    if (key && label) out.push({ key, label });
+  }
+  return out.length > 0 ? out : null;
 }
 
 function normalizeGateExpr(v: unknown): GateExpr {
