@@ -325,7 +325,7 @@ export async function runSkill(
     thinking = ext.thinking;
   }
 
-  let parsed = parseSkillOutput(raw);
+  let parsed = parseSkillOutput(raw, skill.teilStruktur, skill.teilJoin);
   let entwurfVorLektor: string | undefined;
   // Optionaler Lektor-Zweitpass (opt-in): überarbeitet den finalen Entwurf rein
   // sprachlich/formal über DENSELBEN Transport (non-streaming), gleiches
@@ -354,7 +354,9 @@ export async function runSkill(
     if (budget !== 'none') lektorRaw = extractThinking(lektorRaw).content;
     const lektorText = parseSkillOutput(lektorRaw).finalerText;
     // Leeres Lektor-Ergebnis (z. B. Truncation) → Entwurf behalten statt Leertext.
-    if (lektorText.trim()) parsed = { ...parsed, finalerText: lektorText };
+    // Der Lektor schreibt den (flachen) finalerText neu → strukturierte `teile`
+    // würden divergieren (Invariante „finalerText = teile joined") → verwerfen.
+    if (lektorText.trim()) parsed = { ...parsed, finalerText: lektorText, teile: undefined };
   }
 
   return {

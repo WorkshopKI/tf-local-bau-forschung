@@ -152,6 +152,9 @@ export function applyBearbeitung(
   const next: StepRun = {
     ...step,
     finalerText: text,
+    // Manueller Edit ist autoritativ → strukturierte `teile` (= generierter Stand)
+    // würden divergieren; verwerfen, damit die Vorschau den editierten Flachtext zeigt.
+    teile: undefined,
     checks,
     originalText: zurueckAufOriginal ? undefined : original,
   };

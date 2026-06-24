@@ -264,6 +264,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       quellenanalyse: result.parsed.quellenanalyse,
       entwurf: result.parsed.entwurf,
       finalerText: result.parsed.finalerText,
+      ...(result.parsed.teile?.length ? { teile: result.parsed.teile } : {}),
       checks,
       modell: transport.displayName ?? transport.name,
       skillId: sc.skill.id,

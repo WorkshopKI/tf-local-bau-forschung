@@ -95,3 +95,70 @@ describe('parseSkillOutput', () => {
     expect(out.warnung).toBeDefined();
   });
 });
+
+describe('parseSkillOutput — strukturierte Teile (teilStruktur)', () => {
+  const STRUKTUR = [
+    { key: 'hintergrund', label: 'Hintergrund' },
+    { key: 'stand_der_technik', label: 'Stand der Technik' },
+    { key: 'loesungsweg', label: 'Lösungsweg' },
+  ];
+  const finalerJson = (objs: string) => `### Quellenanalyse\nZitat. (VB 1)\n\n### Finaler Text\n${objs}`;
+
+  it('mappt JSON-Teile in deklarierter Reihenfolge auf teile[] + joint finalerText', () => {
+    const raw = finalerJson('[{"key":"hintergrund","text":"H-Text."},{"key":"stand_der_technik","text":"S-Text."},{"key":"loesungsweg","text":"L-Text."}]');
+    const out = parseSkillOutput(raw, STRUKTUR, '\n\n');
+    expect(out.teile).toHaveLength(3);
+    expect(out.teile!.map(t => t.key)).toEqual(['hintergrund', 'stand_der_technik', 'loesungsweg']);
+    // Label kommt aus der Deklaration (nie aus dem Modell-Output).
+    expect(out.teile![0]).toEqual({ key: 'hintergrund', label: 'Hintergrund', text: 'H-Text.' });
+    // finalerText = Teile per teilJoin verbunden, OHNE Badge/Label.
+    expect(out.finalerText).toBe('H-Text.\n\nS-Text.\n\nL-Text.');
+    expect(out.finalerText).not.toContain('Hintergrund');
+  });
+
+  it('respektiert die Deklarations-Reihenfolge auch bei vertauschter Modell-Reihenfolge', () => {
+    const raw = finalerJson('[{"key":"loesungsweg","text":"L."},{"key":"hintergrund","text":"H."},{"key":"stand_der_technik","text":"S."}]');
+    const out = parseSkillOutput(raw, STRUKTUR);
+    expect(out.teile!.map(t => t.text)).toEqual(['H.', 'S.', 'L.']);
+  });
+
+  it('verwirft unbekannte Keys, lässt fehlende aus', () => {
+    const raw = finalerJson('[{"key":"hintergrund","text":"H."},{"key":"erfunden","text":"X."}]');
+    const out = parseSkillOutput(raw, STRUKTUR);
+    expect(out.teile!.map(t => t.key)).toEqual(['hintergrund']);
+    expect(out.finalerText).toBe('H.');
+  });
+
+  it('Truncation: angeschnittenes letztes Teil-Objekt verworfen, vordere überleben', () => {
+    const raw = finalerJson('[{"key":"hintergrund","text":"H."},{"key":"stand_der_technik","text":"S."},{"key":"loesungsweg","text":"abge');
+    const out = parseSkillOutput(raw, STRUKTUR);
+    expect(out.teile!.map(t => t.key)).toEqual(['hintergrund', 'stand_der_technik']);
+  });
+
+  it('weicher teilJoin (\\n) für Fließtext-Skills', () => {
+    const raw = finalerJson('[{"key":"hintergrund","text":"Satz eins."},{"key":"stand_der_technik","text":"Satz zwei."}]');
+    const out = parseSkillOutput(raw, STRUKTUR, '\n');
+    expect(out.finalerText).toBe('Satz eins.\nSatz zwei.');
+  });
+
+  it('Plain-Text-Fallback: Modell liefert Prosa statt JSON → heutiges Verhalten, teile undefiniert', () => {
+    const raw = '### Finaler Text\nDas Vorhaben überwacht Prozesse dezentral und energieautark.';
+    const out = parseSkillOutput(raw, STRUKTUR, '\n\n');
+    expect(out.teile).toBeUndefined();
+    expect(out.finalerText).toBe('Das Vorhaben überwacht Prozesse dezentral und energieautark.');
+  });
+
+  it('ohne teilStruktur: byte-identisch (kein teile-Feld, JSON bleibt roher finalerText)', () => {
+    const json = '[{"key":"hintergrund","text":"H."}]';
+    const raw = finalerJson(json);
+    const out = parseSkillOutput(raw);
+    expect(out.teile).toBeUndefined();
+    expect(out.finalerText).toBe(json);
+  });
+
+  it('toleriert ```json-Fence um das Teile-Array', () => {
+    const raw = '### Finaler Text\n```json\n[{"key":"hintergrund","text":"H."}]\n```';
+    const out = parseSkillOutput(raw, STRUKTUR);
+    expect(out.teile!.map(t => t.text)).toEqual(['H.']);
+  });
+});
