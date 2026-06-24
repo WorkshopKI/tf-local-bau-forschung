@@ -25,13 +25,15 @@ import { SkillEditor } from './SkillEditor';
 import { RegelEditor } from './RegelEditor';
 import { WorkflowEditor } from './WorkflowEditor';
 import { SkillTestlaufPanel } from './SkillTestlauf';
+import { SkillEvalPanel } from './SkillEvalPanel';
+import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { RegistryViewModeToggle, type RegistryViewMode } from './RegistryViewModeToggle';
 import { blankRegel, upsertRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
 import { blankStep, getWorkflowDef, upsertStep, withWorkflowSteps } from './workflowShared';
 import { useEditorLeaveGuard } from './editorGuard';
 import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 
-type TabId = 'skills' | 'regeln' | 'workflows';
+type TabId = 'skills' | 'regeln' | 'workflows' | 'eval';
 
 const VIEW_MODE_KEY = 'teamflow_skillreg_view_mode';
 const VIEW_MODES: RegistryViewMode[] = ['list', 'table', 'cards'];
@@ -52,14 +54,14 @@ function blankSkill(): SkillRecord {
 }
 
 function loadViewModes(): Record<TabId, RegistryViewMode> {
-  const fallback: Record<TabId, RegistryViewMode> = { skills: 'table', regeln: 'table', workflows: 'list' };
+  const fallback: Record<TabId, RegistryViewMode> = { skills: 'table', regeln: 'table', workflows: 'list', eval: 'list' };
   try {
     const raw = localStorage.getItem(VIEW_MODE_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<Record<TabId, unknown>>;
     const pick = (v: unknown, def: RegistryViewMode): RegistryViewMode =>
       typeof v === 'string' && (VIEW_MODES as string[]).includes(v) ? (v as RegistryViewMode) : def;
-    return { skills: pick(parsed.skills, 'table'), regeln: pick(parsed.regeln, 'table'), workflows: 'list' };
+    return { skills: pick(parsed.skills, 'table'), regeln: pick(parsed.regeln, 'table'), workflows: 'list', eval: 'list' };
   } catch {
     return fallback;
   }
@@ -267,6 +269,15 @@ export function SkillVerwaltungPage(): React.ReactElement {
     );
   }
 
+  // Eval-Tab nur im dev-Build (features.devFixtures) — fiktive Skill-Eval-GUI.
+  const tabDefs: Array<[TabId, string, number | null]> = [
+    ['skills', 'Skills', file.skills.length],
+    ['regeln', 'Qualitätsregeln', file.regeln.length],
+    ['workflows', 'Workflows', getWorkflowDef(file).steps.length],
+  ];
+  if (isDevFixturesEnabled()) tabDefs.push(['eval', 'Skill-Eval', null]);
+
+  const showSearch = tab === 'skills' || tab === 'regeln';
   const addLabel = tab === 'skills' ? '+ Neuer Skill' : tab === 'regeln' ? '+ Neue Regel' : '+ Neuer Schritt';
   const searchPlaceholder = tab === 'skills'
     ? 'Skills durchsuchen (Name, Beschreibung, Prompt)'
@@ -292,7 +303,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
           {/* Unterstrich-Tabs links, Aktionen rechts */}
           <div className="flex items-end gap-4">
             <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">
-              {([['skills', 'Skills', file.skills.length], ['regeln', 'Qualitätsregeln', file.regeln.length], ['workflows', 'Workflows', getWorkflowDef(file).steps.length]] as const).map(([id, label, count]) => {
+              {tabDefs.map(([id, label, count]) => {
                 const isActive = tab === id;
                 return (
                   <button
@@ -306,20 +317,20 @@ export function SkillVerwaltungPage(): React.ReactElement {
                         : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
                     }`}
                   >
-                    {label} <span className="text-[12px] text-[var(--tf-text-tertiary)]">{count}</span>
+                    {label}{count != null && <span className="text-[12px] text-[var(--tf-text-tertiary)]"> {count}</span>}
                   </button>
                 );
               })}
             </div>
 
             <div className="flex items-center gap-2 shrink-0 pb-2 ml-auto">
-              {tab !== 'workflows' && <RegistryViewModeToggle value={viewMode} onChange={setViewMode} />}
+              {showSearch && <RegistryViewModeToggle value={viewMode} onChange={setViewMode} />}
               {tab === 'skills' && reg.canEdit && (
                 <Button variant="outline" size="sm" onClick={() => setImporting(true)} className="h-8 whitespace-nowrap">
                   Importieren
                 </Button>
               )}
-              {reg.canEdit && (
+              {tab !== 'eval' && reg.canEdit && (
                 <Button variant="outline" size="sm" onClick={addAction} className="h-8 whitespace-nowrap">
                   {addLabel}
                 </Button>
@@ -327,8 +338,8 @@ export function SkillVerwaltungPage(): React.ReactElement {
             </div>
           </div>
 
-          {/* Suche (für Skills/Regeln; der Workflow hat wenige, geordnete Schritte) */}
-          {tab !== 'workflows' && (
+          {/* Suche (für Skills/Regeln; Workflow + Eval haben keine Listen-Suche) */}
+          {showSearch && (
             <div className="mt-2 pb-3 flex items-center gap-3">
               <div className="relative flex-1 min-w-0 max-w-[640px]">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none" />
@@ -365,7 +376,9 @@ export function SkillVerwaltungPage(): React.ReactElement {
           <div className="rounded p-2.5 text-[12px] mb-4" style={{ background: 'var(--tf-danger-bg)', color: 'var(--tf-danger-text)' }}>⚠ {save.error}</div>
         )}
 
-        {tab === 'skills' ? (
+        {tab === 'eval' ? (
+          <SkillEvalPanel registry={file} />
+        ) : tab === 'skills' ? (
           <SkillsTab
             file={file}
             canEdit={reg.canEdit}
