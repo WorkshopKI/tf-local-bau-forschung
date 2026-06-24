@@ -96,6 +96,9 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     [showMa],
   );
   const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
+  // Tabellen-Ansicht meldet ihre spaltengefilterte TV-Anzahl hierher; List/
+  // Karten haben keine Spaltenfilter und nutzen direkt `filtered.length`.
+  const [tableFilteredCount, setTableFilteredCount] = useState<number | null>(null);
   const [narrowWidth, setNarrowWidth] = useState(loadNarrowWidth);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -197,6 +200,14 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
       ? 'px-8 pb-6'
       : 'px-8 pb-6 max-w-6xl';
 
+  // Trefferzahl nach Filterung — immer auf TV-Ebene. In der Tabellen-Ansicht
+  // zählt der spaltengefilterte Wert (Fallback `filtered.length` für das eine
+  // Frame nach (Re-)Mount, bevor die Tabelle ihren ersten Wert meldet); in
+  // List/Karten gibt es keine Spaltenfilter → `filtered.length`.
+  const displayCount = viewMode === 'compact'
+    ? (tableFilteredCount ?? filtered.length)
+    : filtered.length;
+
   return (
     <div className={containerClass} style={containerStyle}>
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
@@ -220,11 +231,20 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               )}
               <QuickfilterToolbar />
             </div>
-            {/* Rechtes Cluster: aktive Filter-Chips + (nur Tabelle) das
-                „Spalten"-Dropdown — äußerstes rechtes Element ⇒ rechtsbündig
-                mit dem Tabellen-Rand (Toolbar teilt die max-w-6xl-Box). */}
-            {active.length > 0 || viewMode === 'compact' ? (
+            {/* Rechtes Cluster: Trefferzahl + aktive Filter-Chips + (nur
+                Tabelle) das „Spalten"-Dropdown — äußerstes rechtes Element ⇒
+                rechtsbündig mit dem Tabellen-Rand (Toolbar teilt die
+                max-w-6xl-Box). */}
+            {displayCount > 0 || active.length > 0 || viewMode === 'compact' ? (
               <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
+                {displayCount > 0 ? (
+                  <span
+                    className="text-[12px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap"
+                    title="Anzahl Teilvorhaben nach Filterung"
+                  >
+                    {displayCount.toLocaleString('de-DE')} {displayCount === 1 ? 'Antrag' : 'Anträge'}
+                  </span>
+                ) : null}
                 {active.length > 0 ? (
                   <ActiveFilterChips active={active} definitions={definitions} onRemove={clearFilter} />
                 ) : null}
@@ -287,6 +307,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}
               sentinelRef={sentinelRef}
+              onFilteredCountChange={setTableFilteredCount}
             />
           ) : viewMode === 'cards' ? (
             <CardGrid

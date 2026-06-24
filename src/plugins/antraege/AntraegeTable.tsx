@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths } from '@/components/data-table';
 import { resolveAntragTableColumns } from './tableColumns';
@@ -22,6 +22,10 @@ interface Props {
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
+  /** Meldet die spaltengefilterte TV-Anzahl (vor Gruppierungs-Kollabierung)
+   *  an die Toolbar in AntraegeMain — Quelle für die Trefferzahl-Anzeige in
+   *  der Tabellen-Ansicht (List/Karten nutzen direkt `filtered.length`). */
+  onFilteredCountChange?: (n: number) => void;
 }
 
 /** Band-Header für `Gruppiert: Status` in der Tabelle — gleiche Optik wie
@@ -66,6 +70,7 @@ export function AntraegeTable({
   onOpenAntrag,
   onOpenVerbund,
   sentinelRef,
+  onFilteredCountChange,
 }: Props): React.ReactElement {
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const verbundById = useAntraegeStore(s => s.verbundById);
@@ -97,6 +102,13 @@ export function AntraegeTable({
   // und stabil; angewandt VOR der Gruppierung, also pro Einzel-Antrag.
   const { columnFilters, setColumnFilter, filterCandidates, filteredRows } =
     useColumnFilters(enriched, columns);
+
+  // Spaltengefilterte TV-Anzahl an die Toolbar melden (vor der Gruppierungs-
+  // Kollabierung → TV-Level, nicht Verbund-Zeilen). Effekt statt direktem
+  // Aufruf, weil setState eines Eltern-Elements im Render verboten ist.
+  useEffect(() => {
+    onFilteredCountChange?.(filteredRows.length);
+  }, [filteredRows.length, onFilteredCountChange]);
 
   // Basis-Zeilen je Gruppierungs-Modus (vor Header-Sort + Slice).
   const { allRows, sectionOf } = useMemo(() => {
