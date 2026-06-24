@@ -14,7 +14,7 @@ interface Props {
 
 export function FeedbackTicketRow({ ticket, selected, onSelect }: Props): React.ReactElement {
   const summary = ticket.llm_summary || ticket.text || '–';
-  const date = new Date(ticket.created_at).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' });
+  const date = new Date(ticket.created_at).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric', year: '2-digit' });
   const area = ticket.context?.page;
   const user = ticket.user_display_name || ticket.user_id;
 
