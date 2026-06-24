@@ -15,13 +15,16 @@
  * (neu, nur in Anträgen) gelten als aktiv. Sortierung: aktiv zuerst, dann
  * alphabetisch.
  *
- * Rückgabe `null` NUR wenn das Auslastungs-Modul aus ist (`features.auslastung`
- * false → kurator/demo) → der Caller (`ProfilTab`) zeigt das Freitextfeld. In
- * pl/dev nie `null` (auch leer = `[]`), damit der Dropdown zuverlässig
- * erscheint. Klartext-Kürzel sind unbedenklich, weil pl/dev `deAnonymisierung` haben.
+ * Rückgabe `null` NUR wenn der Dropdown aus ist (`isKuerzelDropdownEnabled()`
+ * false — weder Auslastungs-Modul noch das `kuerzelDropdown`-Flag → prod/demo)
+ * → der Caller (`ProfilTab`) zeigt das Freitextfeld. Sonst nie `null` (auch leer
+ * = `[]`), damit der Dropdown zuverlässig erscheint. Klartext-Kürzel sind
+ * unbedenklich — sie stehen ohnehin in der Förderanträge-Tabelle. Ohne
+ * Auslastungs-Daten (AS: kein kuerzel-map-/`mitarbeiter`-Sync) defaulten alle
+ * Kürzel auf `aktiv: true`, der Dropdown speist sich aus `antraege`.
  */
 import { useMemo } from 'react';
-import { isAuslastungEnabled } from '@/config/feature-flags';
+import { isKuerzelDropdownEnabled } from '@/config/feature-flags';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useKuerzelMap } from './useKuerzelMap';
 import { useAuslastungData } from './useAuslastungData';
@@ -37,7 +40,7 @@ export interface KuerzelOption {
 }
 
 export function useKuerzelFilterOptions(): KuerzelOption[] | null {
-  const enabled = isAuslastungEnabled();
+  const enabled = isKuerzelDropdownEnabled();
   const antraege = useAntraegeStore(s => s.antraege);
   const file = useKuerzelMap(s => s.file);
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);

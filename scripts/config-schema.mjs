@@ -153,6 +153,12 @@ export const DEFAULT_CONFIG = {
      *  aus den eingesammelten Heartbeats. Nur pl (+ dev zum Testen). Optional,
      *  default false. */
     onlineStatusTab: false,
+    /** Kürzel-Auswahl als Dropdown (statt Freitext) im Einstellungs-Profil, ohne
+     *  das volle Auslastungs-Modul. Für Varianten wie AS, die den Bearbeiter-
+     *  Filter wie PL haben sollen (auslastung aus). Fällt auf `auslastung` zurück
+     *  → pl/dev/kurator unverändert. Optional, default false (kein requiredFlags-
+     *  Eintrag → fehlt = aus, Backward-Kompat). */
+    kuerzelDropdown: false,
     /** Gutachten-Testballon: KI-gestuetzte Kurzfassung auf der Foerderantrags-
      *  Detailseite (Dokumenten-Aufnahme → Skill → Review/Freigabe → DOCX-Vorlage).
      *  Erster „Mini-Agent" — nur dev (Testballon). Optional, default false

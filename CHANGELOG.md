@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.124.0 — AS-Variante: Kürzel-Auswahl als Dropdown in den Einstellungen (Juni 2026)
+
+MINOR — die **AS**-Variante zeigt im Profil (Einstellungen → Bearbeiter-Filter) jetzt — wie PL —
+eine **Auswahlliste** („Alle" + jedes TIB-Kürzel) statt des Freitextfelds.
+
+- **Neues optionales Flag** `kuerzelDropdown` (default false; nur AS = true) entkoppelt den Dropdown
+  vom Auslastungs-Modul. Helper [isKuerzelDropdownEnabled()](src/config/feature-flags.ts) fällt auf
+  `auslastung` zurück → **pl/dev/kurator unverändert**, prod bleibt Freitext.
+- [useKuerzelFilterOptions](src/plugins/auslastung/hooks/useKuerzelFilterOptions.ts) gated nun auf den
+  neuen Helper; Datenquelle ist die in AS vorhandene distinct-`tib_kuerz`-Liste aus den Anträgen
+  (kein Auslastungs-Daten-Sync nötig — alle Kürzel `aktiv`).
+- In AS ist die Checkbox „Inaktive einblenden" ausgeblendet (keine Aktiv/Inaktiv-Daten ohne das Modul).
+
+Additiv, opt-in pro Variante — **keine User-Aktion**, keine Migration.
+
 ### v2.123.0 — Einblendbare Spalte „PreCheck Status" + Generalisierung der Datums-Status-Spalten (Juni 2026)
 
 MINOR — zweite einblendbare Tabellen-Spalte „PreCheck Status" (analog „FB Status", v2.121.0):

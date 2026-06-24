@@ -9,6 +9,7 @@ import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasSt
 import {
   isKuratorMenusEnabled,
   isMaLoginEnabled,
+  isAuslastungEnabled,
 } from '@/config/feature-flags';
 import {
   SettingsRow,
@@ -289,15 +290,20 @@ function KuerzelEditor(): React.ReactElement {
           <option key={o.kuerzel} value={o.kuerzel}>{o.kuerzel}</option>
         ))}
       </select>
-      <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer select-none ml-1">
-        <input
-          type="checkbox"
-          checked={showInaktive}
-          onChange={e => setShowInaktive(e.target.checked)}
-          className="accent-[var(--tf-primary)] cursor-pointer"
-        />
-        Inaktive einblenden
-      </label>
+      {/* „Inaktive einblenden" braucht Aktiv/Inaktiv-Daten aus dem Auslastungs-
+          Modul. Ohne dieses Modul (z.B. AS-Variante: Dropdown via kuerzelDropdown,
+          aber kein MA-Sync) gibt es keine inaktiven MAs — Checkbox ausblenden. */}
+      {isAuslastungEnabled() && (
+        <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer select-none ml-1">
+          <input
+            type="checkbox"
+            checked={showInaktive}
+            onChange={e => setShowInaktive(e.target.checked)}
+            className="accent-[var(--tf-primary)] cursor-pointer"
+          />
+          Inaktive einblenden
+        </label>
+      )}
     </>
   );
 }

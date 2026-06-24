@@ -71,6 +71,12 @@ export function isDokumenteEnabled(): boolean { return features.dokumente; }
  *  pre-2.18-Configs ohne den Flag. */
 export function isFeedbackDeleteEnabled(): boolean { return features.feedbackDelete === true; }
 export function isAuslastungEnabled(): boolean { return features.auslastung === true; }
+/** Kürzel-Auswahl als Dropdown (statt Freitext) im Einstellungs-Profil, ohne das
+ *  volle Auslastungs-Modul. Für AS (auslastung aus, aber Bearbeiter-Filter wie
+ *  PL). Fällt auf `auslastung` zurück → pl/dev/kurator unverändert. */
+export function isKuerzelDropdownEnabled(): boolean {
+  return features.kuerzelDropdown === true || isAuslastungEnabled();
+}
 /** v2.47: Lokaler Themenkorpus-Build erlaubt? Der Build laedt ein ~200-MB-
  *  Embedding-Modell in den Main-Thread-RAM und kann in speicherarmen, geteilten
  *  Umgebungen (Citrix, mehrere User pro Host) den Renderer per Out-of-Memory

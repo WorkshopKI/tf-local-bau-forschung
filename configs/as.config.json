@@ -27,6 +27,7 @@
     "antraege": true,
     "dokumente": false,
     "auslastung": false,
+    "kuerzelDropdown": true,
     "auslastungSelbstEintragung": false,
     "deAnonymisierung": false,
     "datenShareSchreibrecht": true,

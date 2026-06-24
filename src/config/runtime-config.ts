@@ -97,6 +97,11 @@ export interface TeamflowFeatures {
   /** v2.59: „Online"-Tab in den Einstellungen — zeigt zuletzt aktive Team-User
    *  aus den eingesammelten Heartbeats. Nur pl (+ dev). Optional, default false. */
   onlineStatusTab?: boolean;
+  /** Kürzel-Auswahl als Dropdown (statt Freitext) im Einstellungs-Profil, OHNE
+   *  das volle Auslastungs-Modul — für Varianten wie AS, die den Bearbeiter-
+   *  Filter wie PL haben sollen (auslastung aus). Fällt auf `auslastung` zurück,
+   *  pl/dev/kurator bleiben unverändert. Optional, default false. */
+  kuerzelDropdown?: boolean;
   /** Gutachten-Testballon: KI-gestuetzte Kurzfassung-Sektion auf der Foerder-
    *  antrags-Detailseite (Dokumenten-Aufnahme → Skill → Review → DOCX-Vorlage).
    *  Erster „Mini-Agent". Nur dev (Testballon). Optional, default false. */
