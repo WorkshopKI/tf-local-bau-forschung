@@ -5,6 +5,31 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.124.1 — Streamlit-Bridge: Chat-Auto-Reset vor „Mit KI analysieren" (Juni 2026)
+
+PATCH — der Such-„Mit KI analysieren"-Lauf setzt den internen Streamlit-Chat jetzt
+automatisch zurück, bevor er die Begründungen generiert. Vorher schleppte ein alter
+Chat-Verlauf (von einer früheren Frage) als Störkontext mit und verfälschte die
+Begründungen — man musste manuell „Neuer Chat" klicken.
+
+- **Protokoll** (`tf-reset` → `tf-reset-done {found}`): `AITransport.resetChat?()` (optional,
+  nur die Streamlit-Bridge implementiert es) lässt das Bookmarklet den „Neuer Chat"/
+  „Zurücksetzen"-Button der KI-Seite klicken — Strategie wie im alten ZIM-Bookmarklet:
+  erst Reset-Symbol (⟳/↻/🔄), dann Reset-Text (zurücksetzen/reset/clear/neu starten/neuer
+  chat), die eigene Bridge-Leiste ausgenommen. Best-effort (Timeout 6 s, kein `window.open`).
+  Dateien: [bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js),
+  [streamlit.ts](src/core/services/ai/transports/streamlit.ts).
+- **Timing** ([begruendung.ts](src/plugins/suche/analyse/stages/begruendung.ts)): einmal vor dem
+  ersten Batch + **adaptiv** vor Folge-Batches, wenn der seit dem letzten Reset akkumulierte
+  Kontext ~30K Token übersteigt (schützt das ~50K-Fenster der internen KI). Im Normalfall
+  (≤3 Batches, ~20K) greift nur der eine Reset am Anfang.
+- DirectLLM/OpenRouter brauchen keinen Reset (stateless API) → `resetChat` dort nicht
+  implementiert; der Lauf degradiert sauber (kein Abbruch bei fehlendem/fehlgeschlagenem Reset).
+
+⚠️ **Bookmarklet einmal neu installieren** (neu ins Lesezeichen ziehen / aktivieren), sonst
+greift der Reset nicht. Da der Streamlit-Chat eine geteilte Session ist, löscht ein
+Analyse-Lauf den dort offenen Chat-Verlauf.
+
 ### v2.124.0 — AS-Variante: Kürzel-Auswahl als Dropdown in den Einstellungen (Juni 2026)
 
 MINOR — die **AS**-Variante zeigt im Profil (Einstellungen → Bearbeiter-Filter) jetzt — wie PL —

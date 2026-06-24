@@ -29,6 +29,11 @@ const MAX_ITEMS_PER_BATCH = 20;     // Output-Budget: hält die Antwort klein
 const MAX_SNIPPET_CHARS = 600;      // pro Treffer harte Obergrenze
 const CHARS_PER_TOKEN = 3.5;
 const MAX_TOKENS = 8_000;           // Output-Headroom inkl. evtl. Reasoning
+/** Adaptiver Reset: vor einem Folge-Batch den Chat zurücksetzen, sobald der seit
+ *  dem letzten Reset akkumulierte Streamlit-Kontext diese Schwelle übersteigt —
+ *  schützt das ~50K-Fenster der internen KI. Im Normalfall (≤3 Batches, ~20K)
+ *  greift nur der eine Reset am Anfang. */
+const CONTEXT_RESET_THRESHOLD_TOKENS = 30_000;
 
 /** Marker für das (quote-sichere) Ausgabeformat. Bewusst KEIN JSON: das Modell
  *  zitiert in der Begründung gerne Begriffe ("Normung und Standardisierung"),
@@ -229,6 +234,13 @@ export function parseBegruendungResponse(raw: string, ids?: ReadonlyArray<string
   return Object.keys(out).length > 0 ? out : null;
 }
 
+/** Best-effort Chat-Reset (frischer Kontext) — Fehlschlag/fehlende Unterstützung
+ *  bricht den Lauf NICHT ab. Nur die Streamlit-Bridge implementiert `resetChat`. */
+async function safeReset(transport: AITransport): Promise<void> {
+  try { await transport.resetChat?.(); }
+  catch (err) { console.warn('[stage-begruendung] Chat-Reset fehlgeschlagen:', err); }
+}
+
 export async function stageBegruendung(opts: {
   transport: AITransport;
   query: string;
@@ -246,14 +258,26 @@ export async function stageBegruendung(opts: {
   const begruendungById: Record<string, string> = {};
   let failedBatches = 0;
   let tokensUsedEstimate = 0;
+  // Seit dem letzten Reset im Streamlit-Chat akkumulierter Kontext (Token-Schätz).
+  let contextTokens = 0;
+
+  // Frischer Chat vor dem ersten Batch — kein Verlauf von vorher als Kontext.
+  await safeReset(transport);
 
   for (let i = 0; i < batches.length; i++) {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+    // Adaptiv: vor einem Folge-Batch resetten, wenn der akkumulierte Kontext die
+    // Schwelle übersteigt (Schutz des 50K-Fensters). Setzt den Zähler zurück.
+    if (i > 0 && contextTokens >= CONTEXT_RESET_THRESHOLD_TOKENS) {
+      await safeReset(transport);
+      contextTokens = 0;
+    }
     onBatchProgress(i + 1, batches.length);
     const batch = batches[i]!;
     const batchIds = batch.map(b => b.id);
     const prompt = assembleBegruendungPrompt(query, instruction, buildResultBlock(batch));
-    tokensUsedEstimate += prompt.length / CHARS_PER_TOKEN;
+    const promptTokens = prompt.length / CHARS_PER_TOKEN;
+    tokensUsedEstimate += promptTokens;
 
     let parsed: Record<string, string> | null = null;
     let raw: string | null = null;
@@ -277,9 +301,13 @@ export async function stageBegruendung(opts: {
         console.warn(`[stage-begruendung] Batch ${i + 1} Retry gescheitert:`, err);
       }
     }
+    // Streamlit-Chat-Kontext akkumulieren (Prompt + Antwort dieses Turns) für
+    // die Schwellen-Entscheidung des nächsten Batches.
+    const responseTokens = raw ? raw.length / CHARS_PER_TOKEN : 0;
+    contextTokens += promptTokens + responseTokens;
     if (parsed) {
       Object.assign(begruendungById, parsed);
-      if (raw) tokensUsedEstimate += raw.length / CHARS_PER_TOKEN;
+      if (raw) tokensUsedEstimate += responseTokens;
       onPartial?.({ ...begruendungById });
     } else {
       failedBatches++;

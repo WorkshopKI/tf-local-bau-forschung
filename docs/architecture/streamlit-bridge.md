@@ -22,9 +22,14 @@ Streamlit → App:   { type: 'tf-pong' }
 App  → Streamlit:  { type: 'tf-request', id, message }
 Streamlit → App:   { type: 'tf-response', id, result }
 
+App  → Streamlit:  { type: 'tf-reset', id }
+Streamlit → App:   { type: 'tf-reset-done', id, found }   (Chat-Reset, s.u.)
+
 Streamlit → App:   { type: 'tf-bridge-ready' }            (Announce beim Aktivieren)
 Streamlit → App:   { type: 'tf-app-ping' }  → App: { type: 'tf-app-pong' }   (Gegenrichtungs-Test)
 ```
+
+- **Chat-Reset** (`tf-reset` → `tf-reset-done`): `transport.resetChat()` (optionales `AITransport`-Feld, nur Streamlit) lässt das Bookmarklet den „Neuer Chat"/„Zurücksetzen"-Button der Streamlit-App klicken — Strategie wie im alten ZIM-Bookmarklet: erst Reset-**Symbol** (⟳/↻/🔄), dann Reset-**Text** (zurücksetzen/reset/clear/neu starten/neuer chat), die eigene Bridge-Leiste (`#tf-bridge-bar`) ausgenommen. Best-effort (Timeout 6 s, kein `window.open` — das würde das Bookmarklet löschen). Genutzt vom Such-„Mit KI analysieren"-Lauf: **einmal vor dem ersten Batch** + adaptiv vor Folge-Batches, wenn der akkumulierte Kontext ~30K Token übersteigt (begruendung.ts). Da der Streamlit-Chat eine geteilte Session ist, löscht ein Analyse-Lauf den dort offenen Chat-Verlauf. **Bookmarklet-Änderung ⇒ einmal neu installieren.**
 
 - Korrelation über `id` (`Map<id, {resolve, reject, timeout}>`). Ping-Timeout 5 s, Response-Timeout 60 s.
 - Abort: das pending-Promise wird verworfen, der Streamlit-Run läuft serverseitig fertig (das UI reagiert sofort).

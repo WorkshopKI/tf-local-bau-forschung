@@ -351,6 +351,33 @@
     }, 200);
   }
 
+  // ── Chat-Reset (frischer Kontext) ─────────────────────────────────────────
+  // Klickt den „Neuer Chat"/„Zurücksetzen"-Button der Streamlit-App, damit ein
+  // KI-Lauf nicht den alten Chat-Verlauf als Kontext mitschleppt. Strategie wie
+  // im alten ZIM-Bookmarklet: erst Reset-Symbol, dann Reset-Text. Die EIGENE
+  // Bridge-Leiste (#tf-bridge-bar) wird ausgeschlossen, damit wir nicht unseren
+  // „ZAH-App testen"-Button klicken. Best-effort: liefert found=true/false.
+  function resetChat() {
+    var bar = document.getElementById('tf-bridge-bar');
+    var allBtns = document.querySelectorAll('button');
+    // Strategie 1: Button mit Reset-Symbol.
+    for (var i = 0; i < allBtns.length; i++) {
+      if (bar && bar.contains(allBtns[i])) continue;
+      var t = (allBtns[i].textContent || '').trim();
+      if (t === '⟳' || t === '↻' || t === '🔄') { allBtns[i].click(); return true; }
+    }
+    // Strategie 2: Button mit Reset-Text.
+    var texts = ['zurücksetzen', 'reset', 'clear', 'neu starten', 'neuer chat', 'new chat'];
+    for (var k = 0; k < allBtns.length; k++) {
+      if (bar && bar.contains(allBtns[k])) continue;
+      var lt = (allBtns[k].textContent || '').toLowerCase();
+      for (var j = 0; j < texts.length; j++) {
+        if (lt.indexOf(texts[j]) !== -1) { allBtns[k].click(); return true; }
+      }
+    }
+    return false;
+  }
+
   window.addEventListener('message', function (event) {
     var data = event.data;
     if (!data || !data.type) return;
@@ -358,6 +385,16 @@
     if (data.type === 'tf-ping') {
       setBadge('ready', 'Verbunden');
       event.source.postMessage({ type: 'tf-pong' }, '*');
+      return;
+    }
+    if (data.type === 'tf-reset') {
+      var found = false;
+      try { found = resetChat(); } catch (e) { found = false; }
+      setBadge(found ? 'ready' : 'working', found ? 'Chat zurückgesetzt' : 'Kein Reset-Button');
+      // Kurz auf den Streamlit-Rerun warten, dann bestätigen.
+      setTimeout(function () {
+        event.source.postMessage({ type: 'tf-reset-done', id: data.id, found: found }, '*');
+      }, 500);
       return;
     }
     if (data.type === 'tf-request') {

@@ -60,6 +60,12 @@ export interface AITransport {
   displayName?: string;
   ping(opts?: PingOptions): Promise<boolean>;
   submitMessage(message: string, systemPrompt?: string, options?: SubmitMessageOptions): Promise<string>;
+  /** Optional: setzt den Chat-Verlauf des Transports zurück (frischer Kontext).
+   *  Nur die Streamlit-Bridge implementiert das (klickt den „Neuer Chat"-Button
+   *  via Bookmarklet); stateless-API-Transports (DirectLLM) brauchen es nicht.
+   *  Best-effort — resolved `true`, wenn ein Reset-Button gefunden+geklickt
+   *  wurde, sonst `false` (auch bei Timeout / fehlendem Fenster). */
+  resetChat?(): Promise<boolean>;
   /** Optional: Multi-Turn-Chat. Nur DirectLLMTransport implementiert das aktuell.
    *  Components nutzen Feature-Detection (`if (transport.submitConversation) ...`). */
   submitConversation?(messages: ConversationMessage[], options?: ConversationOptions): Promise<string>;
@@ -101,7 +107,7 @@ export class StreamlitBridgeTransport implements AITransport {
       const data = event.data as Record<string, unknown>;
       const type = data?.type;
       if (type !== 'tf-pong' && type !== 'tf-response' && type !== 'tf-stream'
-        && type !== 'tf-bridge-ready' && type !== 'tf-app-ping') return;
+        && type !== 'tf-bridge-ready' && type !== 'tf-app-ping' && type !== 'tf-reset-done') return;
 
       // Lebendes Fenster-Handle aus der eingehenden Nachricht übernehmen — das
       // EXAKTE Tab, in dem das Bookmarklet läuft. Robuster als `window.open`
@@ -118,6 +124,11 @@ export class StreamlitBridgeTransport implements AITransport {
       if (type === 'tf-pong') {
         const p = this.pending.get('ping');
         if (p) { clearTimeout(p.timeout); p.resolve('pong'); this.pending.delete('ping'); }
+        return;
+      }
+      if (type === 'tf-reset-done' && typeof data.id === 'string') {
+        const p = this.pending.get(data.id);
+        if (p) { clearTimeout(p.timeout); p.resolve(data.found ? 'true' : 'false'); this.pending.delete(data.id); }
         return;
       }
       if (type === 'tf-stream' && typeof data.id === 'string') {
@@ -223,6 +234,24 @@ export class StreamlitBridgeTransport implements AITransport {
       };
       options?.signal?.addEventListener('abort', onAbort, { once: true });
       this.streamlitWindow?.postMessage({ type: 'tf-request', id, message }, '*');
+    });
+  }
+
+  /** Setzt den Streamlit-Chat zurück (frischer Kontext): schickt `tf-reset`, das
+   *  Bookmarklet klickt den „Neuer Chat"/„Zurücksetzen"-Button und antwortet mit
+   *  `tf-reset-done {found}`. KEIN `window.open` (das würde das Bookmarklet
+   *  löschen) — ohne lebendes Bridge-Fenster sofort `false`. Timeout 6 s. */
+  async resetChat(): Promise<boolean> {
+    if (!this.streamlitWindow || this.streamlitWindow.closed) return false;
+    const id = `reset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return new Promise<boolean>((resolve) => {
+      const timeout = setTimeout(() => { this.pending.delete(id); resolve(false); }, 6000);
+      this.pending.set(id, {
+        resolve: (v: string) => resolve(v === 'true'),
+        reject: () => resolve(false),
+        timeout,
+      });
+      this.streamlitWindow?.postMessage({ type: 'tf-reset', id }, '*');
     });
   }
 
