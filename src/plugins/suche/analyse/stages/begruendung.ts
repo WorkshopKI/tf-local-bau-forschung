@@ -74,7 +74,7 @@ export function assembleBegruendungPrompt(query: string, instruction: string, bl
     ``,
     `# Ausgabeformat (verbindlich)`,
     `Antworte AUSSCHLIESSLICH mit einem JSON-Array — ein Objekt pro Treffer, keine Markdown-Fences, kein Fließtext drumherum:`,
-    `[{ "id": "<exakt die id des Treffers>", "begruendung": "<1–2 Sätze>" }]`,
+    `[{ "id": "<exakt die id des Treffers>", "begruendung": "<2–3 Sätze>" }]`,
     `Gib für jeden der unten gelisteten Treffer genau ein Objekt zurück und verwende die id unverändert.`,
     ``,
     `# Treffer`,

@@ -74,7 +74,7 @@ export interface UnifiedSearchResult {
 
   // ----- KI-Analyse-spezifisch -----
   /** LLM-Begründung, warum dieser Treffer für die Such-/Analysefrage relevant
-   *  ist (1–2 Sätze). Wird NICHT von der Hybrid-Suche gesetzt, sondern nur als
+   *  ist (2–3 Sätze). Wird NICHT von der Hybrid-Suche gesetzt, sondern nur als
    *  Overlay nach „Mit KI analysieren" über die bestehenden Treffer gelegt
    *  (`begruendungById` aus der Analyse-Pipeline). */
   begruendung?: string;

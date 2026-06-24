@@ -10,7 +10,7 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 MINOR — „Mit KI analysieren" auf der Suchseite annotiert jetzt die **bestehenden** BM25-/
 Ähnlichkeits-Treffer, statt sie durch ein eigenes Retrieval zu **ersetzen**. Gleiche Zeilen,
 **genau** die vom User gewählten Spalten — plus **eine** zusätzliche Spalte **„Begründung"**
-(1–2 Sätze pro Treffer: warum er für die Anfrage relevant ist). Das frühere Verhalten (LLM-
+(2–3 Sätze pro Treffer: warum er für die Anfrage relevant ist). Das frühere Verhalten (LLM-
 gewählte, oft leere dynamische Spalten + Überschreiben der Tabelle) ist abgelöst.
 
 - **Overlay statt Replace**: Pipeline ([analyse/pipeline.ts](src/plugins/suche/analyse/pipeline.ts))
