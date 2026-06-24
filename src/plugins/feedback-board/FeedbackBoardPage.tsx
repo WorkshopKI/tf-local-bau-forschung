@@ -1,12 +1,17 @@
 // Öffentliches Feedback-Board: Bugs + Features mit Sponsoring-Fortschritt.
-// Card- und Listen-Ansicht, Filter-Chips (CollapsibleSeg wie Förderanträge), Sponsoring-Info-Banner.
+// Drei Ansichten: Split (Liste + Detail, wie das Kurator-Dashboard, Default),
+// gruppierte Karten, Sortier-Tabelle. Filter-Chips (CollapsibleSeg wie
+// Förderanträge) + Sponsoring-Info-Banner gelten für alle Ansichten.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LayoutGrid, List } from 'lucide-react';
+import { Columns2, LayoutGrid, List } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
+import { MasterDetailLayout } from '@/components/master-detail';
 import {
   BudgetBadge,
   CATEGORY_ORDER,
+  FeedbackBoardDetail,
+  FeedbackBoardList,
   FeedbackBoardListView,
   FeedbackCategoryGroup,
   type CategoryGroupKey,
@@ -27,7 +32,7 @@ import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filt
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 
-type ViewMode = 'card' | 'list';
+type ViewMode = 'split' | 'card' | 'list';
 type StatusFilter = 'all' | 'open' | 'done';
 
 // Status als Gruppen (wie bisher auf dem Board): „Offen" = neu/geplant/in_bearbeitung.
@@ -45,6 +50,8 @@ const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
 // Eingeklappte Kategorie-Gruppen (Card-Ansicht) überleben Reloads via localStorage.
 // Default leer = alles aufgeklappt. localStorage für simple UI-Flags lt. CLAUDE.md ok.
 const COLLAPSED_CATS_KEY = 'tf-feedback-board-collapsed-cats';
+// Zuletzt gewählte Ansicht überlebt Reloads; Default = Split (Erstansicht).
+const VIEW_MODE_KEY = 'tf-feedback-board-view-mode';
 
 function loadCollapsedCats(): Set<string> {
   try {
@@ -64,6 +71,14 @@ function persistCollapsedCats(set: Set<string>): void {
   }
 }
 
+function loadViewMode(): ViewMode {
+  try {
+    const raw = localStorage.getItem(VIEW_MODE_KEY);
+    if (raw === 'split' || raw === 'card' || raw === 'list') return raw;
+  } catch { /* ignore */ }
+  return 'split';
+}
+
 export function FeedbackBoardPage(): React.ReactElement {
   const storage = useStorage();
   const [tickets, setTickets] = useState<FeedbackItem[]>([]);
@@ -72,9 +87,15 @@ export function FeedbackBoardPage(): React.ReactElement {
   const [filterKategorie, setFilterKategorie] = useState<FeedbackCategory | ''>('');
   // Bereich = context.page-Label (CollapsibleSeg ist label-basiert). '' = Alle.
   const [filterArea, setFilterArea] = useState<string>('');
-  const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const changeViewMode = useCallback((mode: ViewMode): void => {
+    setViewMode(mode);
+    try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch { /* ignore */ }
+  }, []);
 
   // silent: kein Loading-Spinner (für Hintergrund-Re-Reads bei Tab-Fokus —
   // verhindert „Lade…"-Flackern bei jedem Tab-Wechsel).
@@ -180,6 +201,13 @@ export function FeedbackBoardPage(): React.ReactElement {
     });
   }, [base, filterStatus, filterKategorie, filterArea, config, isFeature]);
 
+  // Aktuell gewähltes Ticket (nur wenn es im gefilterten Set liegt — Filterwechsel
+  // oder Löschen schließt das Detail automatisch).
+  const selectedTicket = useMemo(
+    () => filteredSorted.find(t => t.id === selectedId),
+    [filteredSorted, selectedId],
+  );
+
   const counts = useMemo(() => ({
     bugs: base.filter(isBug).length,
     features: base.filter(isFeature).length,
@@ -214,99 +242,126 @@ export function FeedbackBoardPage(): React.ReactElement {
     });
   }, []);
 
+  const emptyHint = (
+    <p className="text-[12.5px] text-[var(--tf-text-tertiary)] text-center py-12">
+      Keine Einträge. Nutze den Feedback-Button unten rechts um Ideen oder Bugs zu melden.
+    </p>
+  );
+  const loadingHint = <p className="text-[12.5px] text-[var(--tf-text-tertiary)] text-center py-8">Lade…</p>;
+
   return (
-    <div className="px-8 py-6">
-      {/* Header */}
-      <div className="flex items-baseline justify-between flex-wrap gap-3 mb-4">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Feedback Übersicht</h1>
-          <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
-            {counts.bugs} {counts.bugs === 1 ? 'Bug' : 'Bugs'} · {counts.features} Features
-            {counts.sonstige > 0 && ` · ${counts.sonstige} Sonstige`}
-          </p>
+    <div className="flex flex-col h-full min-h-[calc(100vh-60px)] overflow-hidden">
+      {/* Header (gilt für alle Ansichten) */}
+      <div className="shrink-0 px-8 pt-6">
+        <div className="flex items-baseline justify-between flex-wrap gap-3 mb-4">
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Feedback Übersicht</h1>
+            <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
+              {counts.bugs} {counts.bugs === 1 ? 'Bug' : 'Bugs'} · {counts.features} Features
+              {counts.sonstige > 0 && ` · ${counts.sonstige} Sonstige`}
+            </p>
+          </div>
+          <BudgetBadge refreshKey={refreshKey} />
         </div>
-        <BudgetBadge refreshKey={refreshKey} />
-      </div>
 
-      {/* Info-Banner */}
-      <SponsoringInfoBanner />
+        <SponsoringInfoBanner />
 
-      {/* Filter-Chips (CollapsibleSeg, wie Förderanträge) + View-Toggle */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-4">
-        <CollapsibleSeg
-          label="Status"
-          value={STATUS_TO_LABEL[filterStatus]}
-          items={statusItems}
-          onChange={l => setFilterStatus(LABEL_TO_STATUS[l] ?? 'all')}
-        />
-        <CollapsibleSeg
-          label="Kategorie"
-          value={KAT_TO_LABEL[filterKategorie]}
-          items={kategorieItems}
-          onChange={l => setFilterKategorie(LABEL_TO_KAT[l] ?? '')}
-        />
-        {bereichItems.length > 1 && (
+        {/* Filter-Chips (CollapsibleSeg, wie Förderanträge) + View-Toggle */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-4">
           <CollapsibleSeg
-            label="Bereich"
-            value={filterArea || 'Alle'}
-            items={bereichItems}
-            onChange={l => setFilterArea(l === 'Alle' ? '' : l)}
-            startCollapsed
+            label="Status"
+            value={STATUS_TO_LABEL[filterStatus]}
+            items={statusItems}
+            onChange={l => setFilterStatus(LABEL_TO_STATUS[l] ?? 'all')}
           />
-        )}
+          <CollapsibleSeg
+            label="Kategorie"
+            value={KAT_TO_LABEL[filterKategorie]}
+            items={kategorieItems}
+            onChange={l => setFilterKategorie(LABEL_TO_KAT[l] ?? '')}
+          />
+          {bereichItems.length > 1 && (
+            <CollapsibleSeg
+              label="Bereich"
+              value={filterArea || 'Alle'}
+              items={bereichItems}
+              onChange={l => setFilterArea(l === 'Alle' ? '' : l)}
+              startCollapsed
+            />
+          )}
 
-        <div className="flex-1" />
+          <div className="flex-1" />
 
-        <button
-          type="button"
-          onClick={() => setViewMode('card')}
-          className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-            viewMode === 'card'
-              ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
-              : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
-          }`}
-          title="Kartenansicht"
-        >
-          <LayoutGrid size={15} />
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode('list')}
-          className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-            viewMode === 'list'
-              ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
-              : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
-          }`}
-          title="Listenansicht"
-        >
-          <List size={15} />
-        </button>
+          {([
+            ['split', Columns2, 'Split-Ansicht (Liste + Detail)'],
+            ['card', LayoutGrid, 'Kartenansicht'],
+            ['list', List, 'Listenansicht'],
+          ] as const).map(([mode, Icon, title]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => changeViewMode(mode)}
+              className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
+                viewMode === mode
+                  ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
+                  : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
+              }`}
+              title={title}
+            >
+              <Icon size={15} />
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Content */}
-      {loading && <p className="text-[12.5px] text-[var(--tf-text-tertiary)] text-center py-8">Lade…</p>}
-      {!loading && filteredSorted.length === 0 && (
-        <p className="text-[12.5px] text-[var(--tf-text-tertiary)] text-center py-12">
-          Keine Einträge. Nutze den Feedback-Button unten rechts um Ideen oder Bugs zu melden.
-        </p>
-      )}
-      {!loading && filteredSorted.length > 0 && viewMode === 'card' && (
-        <div className="space-y-4">
-          {groups.map(g => (
-            <FeedbackCategoryGroup
-              key={g.key}
-              categoryKey={g.key}
-              items={g.items}
+      {viewMode === 'split' ? (
+        <MasterDetailLayout
+          listWidthKey="teamflow_feedback_board_narrow_width"
+          onCloseDetail={() => setSelectedId(undefined)}
+          detail={selectedTicket ? (
+            <FeedbackBoardDetail
+              ticket={selectedTicket}
               config={config}
-              collapsed={collapsedCats.has(g.key)}
-              onToggle={() => toggleCat(g.key)}
+              onClose={() => setSelectedId(undefined)}
               onChanged={handleChanged}
             />
-          ))}
+          ) : undefined}
+          list={(
+            <div className={selectedTicket ? 'px-2 py-2' : 'px-8 py-2'}>
+              {loading ? loadingHint : filteredSorted.length === 0 ? emptyHint : (
+                <FeedbackBoardList
+                  tickets={filteredSorted}
+                  selectedId={selectedId}
+                  onSelect={t => setSelectedId(t.id)}
+                />
+              )}
+            </div>
+          )}
+        />
+      ) : (
+        <div className="flex-1 min-h-0 overflow-y-auto px-8 pb-6">
+          {loading && loadingHint}
+          {!loading && filteredSorted.length === 0 && emptyHint}
+          {!loading && filteredSorted.length > 0 && viewMode === 'card' && (
+            <div className="space-y-4">
+              {groups.map(g => (
+                <FeedbackCategoryGroup
+                  key={g.key}
+                  categoryKey={g.key}
+                  items={g.items}
+                  config={config}
+                  collapsed={collapsedCats.has(g.key)}
+                  onToggle={() => toggleCat(g.key)}
+                  onChanged={handleChanged}
+                />
+              ))}
+            </div>
+          )}
+          {!loading && filteredSorted.length > 0 && viewMode === 'list' && (
+            <FeedbackBoardListView tickets={filteredSorted} config={config} />
+          )}
         </div>
-      )}
-      {!loading && filteredSorted.length > 0 && viewMode === 'list' && (
-        <FeedbackBoardListView tickets={filteredSorted} config={config} />
       )}
     </div>
   );
