@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.120.0 — Trefferzahl nach Filterung in der Förderanträge-Liste (Juni 2026)
+
+MINOR — die Förderanträge-Liste zeigte bisher nur die Tab-Gesamtzahlen oben (z.B. „Offen 1.054");
+nach dem Filtern (Suche, Status/Antragstyp-Chips, Tabellen-Spaltenkopf-Filter) gab es **keine
+Rückmeldung**, wie viele Datensätze übrig bleiben. Neu: eine dezente Trefferzahl in der Toolbar-Zeile
+(z.B. „1.054 Anträge"), sichtbar in allen drei Ansichten, **immer auf TV-Ebene** gezählt.
+
+- **Alle Filterstufen einbezogen**: List/Karten nutzen `filtered.length`
+  ([useFilteredAntraege.ts](src/plugins/antraege/useFilteredAntraege.ts)); die Tabelle meldet ihren
+  spaltengefilterten `filteredRows.length` per Callback-Prop `onFilteredCountChange` an die Toolbar
+  ([AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx) → [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)),
+  damit auch die Spaltenkopf-Filter (Status-Dropdown etc.) die Zahl bewegen.
+- **TV-Ebene stabil**: der Count nimmt die Pre-Collapse-Länge — Gruppierung nach Verbund kollabiert
+  nur die Darstellung, nicht die Zählung. Stil + Platzierung gespiegelt von der Suchseite
+  („X Ergebnisse"). Leer-Fall zeigt weiter nur die bestehende „Keine Anträge"-Meldung.
+
+Rein additiv — **kein Migrationsbedarf**, keine Daten/Config-Änderung.
+
 ### v2.119.0 — Globaler `--tf-*`-Token-Vertrag in theme.css + Convention-Guard (Juni 2026)
 
 MINOR-Bump — die in [v2.67.1](docs/CHANGELOG-ARCHIV.md) dokumentierte „nackt"-Falle ist jetzt **strukturell**
