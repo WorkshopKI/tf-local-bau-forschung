@@ -10,9 +10,7 @@ import {
   getVerbundHistoryByVerbund,
   loadSchema,
   listSchemas,
-  formatGermanDate,
 } from '@/core/services/csv';
-import { verbundAntragsdatum } from '@/core/services/csv/frist';
 import { getCanonicalLabel } from '@/core/services/csv/constants';
 import type { Antrag, Verbund, VerbundHistorieEntry, CsvSchema } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
@@ -20,6 +18,7 @@ import { dominantStatus } from './groupAggregates';
 import { isNetzwerkLead } from './netzwerk';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { VerbundAlleFelder } from './VerbundAlleFelder';
+import { VerbundGlance, VerbundPartnerTabelle } from './alleFelder';
 import { WorkflowStepper } from './WorkflowStepper';
 import { TvDetailBlock } from './TvDetailBlock';
 import { findFieldValue } from './fieldLookup';
@@ -246,10 +245,6 @@ export function VerbundDetail({
   const unterprogramm = unterprogrammCode
     ? unterprogrammLabels.get(unterprogrammCode) ?? unterprogrammCode
     : null;
-  // Maßgebliches Antragsdatum des Verbundes = zuletzt eingegangenes TV (max über
-  // alle TVs), nicht das des Lead-TV — vorher kann der Verbund nicht bearbeitet
-  // werden. Bei Solo (1 TV) identisch zum TV-Datum.
-  const antragsdatum = verbundAntragsdatum(antraege);
   // Zuwendung-CSV-Spalten folgen spaeter; bis dahin Placeholder. Verbund-
   // Aggregat soll Summe ueber alle TVs werden, pro TV der einzelne Wert.
   const zuwendungPlaceholder = 'wird noch ergänzt';
@@ -437,23 +432,15 @@ export function VerbundDetail({
           </button>
           {antragsdatenOpen ? (
             <>
-              {/* STAMMDATEN — Inline 4-Spalten (Label vor Wert), kompakter als gestapelt. */}
-              <div
-                id="stamm"
-                className="rounded-[var(--tf-radius)] p-4 mb-4 scroll-mt-[80px]"
-                style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}
-              >
-                <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-3">
-                  Stammdaten
-                </h3>
-                <div className="grid grid-cols-[auto_1fr_auto_1fr] gap-x-3.5 gap-y-1.5 items-baseline">
-                  <StammCell k="Antragsteller" v={antragsteller ?? '—'} />
-                  <StammCell k="Unterprogramm" v={unterprogramm ?? '—'} />
-                  <StammCell k="Antragsdatum" v={antragsdatum ? formatGermanDate(antragsdatum) : '—'} />
-                  <StammCell k="Zuwendung" v={zuwendungPlaceholder} />
-                  <StammCell k="Förderkennzeichen" v={verbund.verbund_id} mono />
-                  <StammCell k="Verbund" v={`${antraege.length} Teilvorhaben`} />
-                </div>
+              {/* AUF EINEN BLICK (Glance) — kuratiertes Fakten-Raster, ersetzt den
+                  bisherigen Stammdaten-Block. id="stamm" bleibt als Sprung-Anker. */}
+              <div id="stamm" className="mb-4 scroll-mt-[80px]">
+                <VerbundGlance tvs={antraege} verbundId={verbund.verbund_id} unterprogramm={unterprogramm} />
+              </div>
+
+              {/* VERBUNDPARTNER — eine Zeile pro TV statt der Slash-Suppe. */}
+              <div className="mb-4">
+                <VerbundPartnerTabelle tvs={antraege} />
               </div>
 
               {/* STATUS & WORKFLOW */}
@@ -649,26 +636,6 @@ export function VerbundDetail({
         />
       ) : null}
     </PanelShell>
-  );
-}
-
-interface StammCellProps {
-  k: string;
-  v: string;
-  mono?: boolean;
-}
-
-/**
- * Eine Stammdaten-Zelle als ZWEI Grid-Items (Label + Wert) — bewusst ein Fragment,
- * damit beide direkt im `grid-cols-[auto_1fr_auto_1fr]`-Raster landen (inline-Label
- * vor dem Wert, Kompakt-Layout). Lange Werte ellipsen mit `title`-Tooltip.
- */
-function StammCell({ k, v, mono = false }: StammCellProps): React.ReactElement {
-  return (
-    <>
-      <span className="text-[12px] leading-[1.5] text-[var(--tf-text-tertiary)] whitespace-nowrap">{k}</span>
-      <span className={`text-[12.5px] leading-[1.5] text-[var(--tf-text)] truncate ${mono ? 'font-mono' : ''}`} title={v}>{v}</span>
-    </>
   );
 }
 

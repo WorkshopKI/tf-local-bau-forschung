@@ -6,7 +6,7 @@
  * Schema-Mapping ("Künstliche Intelligenz (KI)") muss bevorzugt werden.
  */
 import { describe, it, expect } from 'vitest';
-import { buildDisplayRows } from '../buildDisplayRows';
+import { buildDisplayRows } from '../alleFelder/buildDisplayRows';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
 
 function makeAntrag(fields: Partial<Antrag> & Record<string, unknown>): Antrag {

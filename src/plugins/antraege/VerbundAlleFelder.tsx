@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
-import { buildDisplayRows, groupDisplayRows, type DisplayGroup } from './buildDisplayRows';
-import { AlleFelderSection } from './AlleFelderSection';
+import { buildDisplayRows, groupDisplayRows, type DisplayGroup, AlleFelderSection } from './alleFelder';
 
 interface Props {
   tvs: Antrag[];

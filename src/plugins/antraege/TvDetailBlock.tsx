@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getAntrag, getHistoryByAz, loadSchema, listSchemas } from '@/core/services/csv';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
-import { buildDisplayRows, groupDisplayRows, type DisplayGroup } from './buildDisplayRows';
+import { buildDisplayRows, groupDisplayRows, type DisplayGroup, AlleFelderSection } from './alleFelder';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { AntragDokumenteSection } from './AntragDokumenteSection';
 import { NetzwerkMitgliederSection } from './NetzwerkMitgliederSection';
 import { EckdatenCard } from './EckdatenCard';
 import { KlassifikationPills } from './KlassifikationPills';
-import { AlleFelderSection } from './AlleFelderSection';
 
 interface Props {
   aktenzeichen: string;
