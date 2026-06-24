@@ -122,15 +122,15 @@ function makeBatches(results: ReadonlyArray<UnifiedSearchResult>): UnifiedSearch
   return batches;
 }
 
-/** Parst die LLM-Antwort. Primär das quote-sichere Marker-Format
- *  (`@@@ <id>` + Folgezeilen); Fallback auf ein valides JSON-Array
- *  `[{id, begruendung}]`, falls das Modell doch JSON liefert. Liefert `null`,
- *  wenn nichts Verwertbares drinsteht (→ Batch gilt als gescheitert). */
-export function parseBegruendungResponse(raw: string): Record<string, string> | null {
+function stripFences(raw: string): string {
+  return raw.replace(/```[a-zA-Z]*\n?/g, '').replace(/```/g, '');
+}
+
+/** Lenientes Marker-Format: `@@@ <id>` (id = erstes Token) + Rest der Zeile und
+ *  Folgezeilen bis zum nächsten Marker. */
+function parseMarkers(text: string): Record<string, string> {
   const out: Record<string, string> = {};
-  const text = raw.replace(/```[a-zA-Z]*\n?/g, '').replace(/```/g, '');
-  const lines = text.split(/\r?\n/);
-  const markerRe = new RegExp(`^\\s*${MARKER}\\s*(\\S+)\\s*$`);
+  const markerRe = new RegExp(`^\\s*${MARKER}\\s*(\\S+)[ \\t]*(.*)$`);
   let curId: string | null = null;
   let buf: string[] = [];
   const flush = (): void => {
@@ -140,15 +140,82 @@ export function parseBegruendungResponse(raw: string): Record<string, string> | 
     }
     buf = [];
   };
-  for (const line of lines) {
+  for (const line of text.split(/\r?\n/)) {
     const m = markerRe.exec(line);
-    if (m) { flush(); curId = m[1]!; }
+    if (m) { flush(); curId = m[1]!; if (m[2]) buf.push(m[2]); }
     else if (curId !== null) { buf.push(line); }
   }
   flush();
-  if (Object.keys(out).length > 0) return out;
+  return out;
+}
 
-  // Fallback: valides JSON-Array (falls das Modell die Marker ignoriert hat).
+/** Säubert einen Roh-Chunk zwischen zwei ids zur reinen Begründung. Robust
+ *  gegen JSON-Drumherum (`", "begruendung": "…" }, { "id": "`) UND unescapte
+ *  Quotes im Text — der Wert endet strukturell am letzten `"` vor `}`/`,`/`]`. */
+function cleanChunk(chunk: string): string {
+  let s = chunk;
+  const b = s.search(/begr[uü]end/i);
+  if (b >= 0) {
+    s = s.slice(b).replace(/^begr[uü]endung["'\s]*:?["'\s]*/i, '');
+  } else {
+    s = s.replace(/^["'\s:>}\],\-–—|=]+/, '');
+  }
+  // Ende: letztes `"`/`'`, das (ggf. mit Whitespace) ein JSON-Terminator-Zeichen
+  // einleitet — innere Quotes sind von Wortzeichen gefolgt, nicht von } , ].
+  const terms = [...s.matchAll(/["']\s*(?=[}\],])/g)];
+  if (terms.length > 0) {
+    const last = terms[terms.length - 1]!;
+    s = s.slice(0, last.index);
+  }
+  return s.replace(/^["'\s]+/, '').replace(/["'\s,}\]]+$/, '').trim();
+}
+
+/** Anker-basiert: nutzt die BEKANNTEN ids (wir haben sie geschickt) und schneidet
+ *  den Text zwischen ihnen heraus. Format-agnostisch — funktioniert für JSON mit
+ *  kaputten Quotes, Marker und Freitext. */
+function parseByIds(raw: string, ids: ReadonlyArray<string>): Record<string, string> {
+  const found: Array<{ id: string; start: number; end: number }> = [];
+  let from = 0;
+  for (const id of ids) {
+    const idx = raw.indexOf(id, from);
+    if (idx >= 0) { found.push({ id, start: idx, end: idx + id.length }); from = idx + id.length; }
+  }
+  // ids, die in der erwarteten Reihenfolge nicht gefunden wurden, global nachschlagen.
+  for (const id of ids) {
+    if (found.some(f => f.id === id)) continue;
+    const idx = raw.indexOf(id);
+    if (idx >= 0) found.push({ id, start: idx, end: idx + id.length });
+  }
+  found.sort((a, b) => a.start - b.start);
+  const out: Record<string, string> = {};
+  for (let i = 0; i < found.length; i++) {
+    const sliceEnd = i + 1 < found.length ? found[i + 1]!.start : raw.length;
+    const cleaned = cleanChunk(raw.slice(found[i]!.end, sliceEnd));
+    if (cleaned) out[found[i]!.id] = cleaned;
+  }
+  return out;
+}
+
+/**
+ * Parst die LLM-Antwort in `{ id → begruendung }`. Mehrstufig, bewusst tolerant
+ * (das Modell zitiert gern Begriffe → unescapte Quotes sprengen striktes JSON):
+ *  1. Marker-Format (`@@@ <id>`),
+ *  2. Anker an den bekannten `ids` (immun gegen kaputtes JSON / Quotes),
+ *  3. valides JSON-Array `[{id, begruendung}]`.
+ * Liefert `null`, wenn nichts Verwertbares drinsteht (→ Batch gilt als gescheitert).
+ */
+export function parseBegruendungResponse(raw: string, ids?: ReadonlyArray<string>): Record<string, string> | null {
+  const text = stripFences(raw);
+
+  const byMarker = parseMarkers(text);
+  if (Object.keys(byMarker).length > 0) return byMarker;
+
+  if (ids && ids.length > 0) {
+    const byId = parseByIds(text, ids);
+    if (Object.keys(byId).length > 0) return byId;
+  }
+
+  const out: Record<string, string> = {};
   const parsed = parseLLMJson<unknown>(text);
   if (Array.isArray(parsed)) {
     for (const item of parsed) {
@@ -184,6 +251,7 @@ export async function stageBegruendung(opts: {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
     onBatchProgress(i + 1, batches.length);
     const batch = batches[i]!;
+    const batchIds = batch.map(b => b.id);
     const prompt = assembleBegruendungPrompt(query, instruction, buildResultBlock(batch));
     tokensUsedEstimate += prompt.length / CHARS_PER_TOKEN;
 
@@ -192,7 +260,7 @@ export async function stageBegruendung(opts: {
     try {
       // Kein jsonMode: das Marker-Format ist bewusst KEIN JSON (quote-sicher).
       raw = await callLLM(transport, prompt, query, { signal, maxTokens: MAX_TOKENS, timeoutMs: 120_000 });
-      parsed = parseBegruendungResponse(raw);
+      parsed = parseBegruendungResponse(raw, batchIds);
     } catch (err) {
       if (err instanceof LLMAbortError) throw err;
       console.warn(`[stage-begruendung] Batch ${i + 1} Call gescheitert:`, err);
@@ -203,7 +271,7 @@ export async function stageBegruendung(opts: {
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
         const retryUser = `${query}\n\nWICHTIG: Halte dich exakt an das Format — pro Treffer eine Zeile „${MARKER} <id>" und darunter die Begründung. Kein JSON, keine Markdown-Fences.`;
         raw = await callLLM(transport, prompt, retryUser, { signal, maxTokens: MAX_TOKENS, timeoutMs: 120_000 });
-        parsed = parseBegruendungResponse(raw);
+        parsed = parseBegruendungResponse(raw, batchIds);
       } catch (err) {
         if (err instanceof LLMAbortError) throw err;
         console.warn(`[stage-begruendung] Batch ${i + 1} Retry gescheitert:`, err);

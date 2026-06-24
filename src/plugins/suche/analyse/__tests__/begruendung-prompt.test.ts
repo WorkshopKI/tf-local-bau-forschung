@@ -94,4 +94,19 @@ describe('parseBegruendungResponse', () => {
   it('returns null when nothing usable is present', () => {
     expect(parseBegruendungResponse('Ich kann das nicht beantworten.')).toBeNull();
   });
+
+  it('id-anchored: extracts from JSON with UNESCAPED quotes (the real-world failure)', () => {
+    // Genau die Form, die im echten Lauf die Spalte leer ließ: das Modell
+    // liefert JSON, aber die Begründungen enthalten unescapte Anführungszeichen
+    // → JSON.parse scheitert. Über die bekannten ids trotzdem extrahierbar.
+    const raw = `[ { "id": "16DS260491", "begruendung": "Der Antrag ist für die Suche nach "Normung und Standardisierung" nicht relevant." }, { "id": "16KN101128", "begruendung": "Im Titel steht ein "Prozessstandard zur Sicherung der Befundqualität". Damit hochrelevant." }, { "id": "16KN086101", "begruendung": "Der Titel adressiert direkt die Normung." } ]`;
+    const ids = ['16DS260491', '16KN101128', '16KN086101'];
+    const out = parseBegruendungResponse(raw, ids);
+    expect(out).not.toBeNull();
+    expect(Object.keys(out!)).toHaveLength(3);
+    expect(out!['16DS260491']).toBe('Der Antrag ist für die Suche nach "Normung und Standardisierung" nicht relevant.');
+    expect(out!['16KN101128']).toContain('"Prozessstandard zur Sicherung der Befundqualität"');
+    expect(out!['16KN101128']).toContain('hochrelevant');
+    expect(out!['16KN086101']).toBe('Der Titel adressiert direkt die Normung.');
+  });
 });
