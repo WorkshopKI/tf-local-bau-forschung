@@ -6,7 +6,25 @@
  *
  * Bewusst NICHT portiert: das Prototyp-Chrome (`.af-wrap`, `.af-top`, `.af-seg`
  * Heute/Optimiert-Umschalter, `.af-flat-*` „Heute"-Ansicht) — Header/Status hat die
- * App-Detailseite schon, „Heute" wird nicht ausgeliefert. */
+ * App-Detailseite schon, „Heute" wird nicht ausgeliefert.
+ *
+ * FALLE (design-handoff-styling): die Handoff-CSS nutzt `--tf-*`-Tokens, die die echte
+ * `src/theme.css` NICHT hat (`--tf-border-thin`, `--tf-font-sans/-mono`, `--tf-weight-medium`,
+ * `--tf-duration-fast`, `--tf-ease`). Ein undefiniertes `var()` ohne Fallback macht die GANZE
+ * Deklaration ungültig → Rahmen/Trennlinien/Fonts/Transition fielen lautlos aus (Karten wirkten
+ * „nackt"). Daher hier — analog `gutachten.css` (.gutachten-werkstatt) + `chat.css` (.chat-app) —
+ * lokal auf die `.af-*`-Scope-Roots definiert. Farb-/bg-Tokens kommen aus `theme.css` und flippen
+ * dort selbst in Dark → kein lokaler Dark-Override nötig. */
+.af-glance,
+.af-card,
+.af-section {
+  --tf-border-thin: 0.5px;
+  --tf-font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --tf-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --tf-weight-medium: 500;
+  --tf-duration-fast: 150ms;
+  --tf-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
 
 /* ---------- Auf einen Blick (Glance) ---------- */
 .af-glance { background:var(--tf-bg-secondary); border:var(--tf-border-thin) solid var(--tf-border); border-radius:var(--tf-radius-lg); padding:16px 18px; }

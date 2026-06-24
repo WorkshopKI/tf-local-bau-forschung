@@ -56,6 +56,12 @@ interface Props {
   onOpenAntrag: (aktenzeichen: string) => void;
 }
 
+/** Lesebreite-Cap für die Tabellen-/Lese-Sektionen (Header, Glance, Partner,
+ *  Teilvorhaben, „Alle Felder", Historie). LINKSBÜNDIG (kein `mx-auto`) → gleiche
+ *  linke Flucht wie die vollbreiten Texten-Werkstätten (Gutachten/NF). Cap-Wert =
+ *  Handoff-Breite (`_design/handoff/alle-felder/felder.css` `.af-wrap`). */
+const READ_COL = 'max-w-[1180px]';
+
 function strOrNull(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
@@ -328,7 +334,7 @@ export function VerbundDetail({
   return (
     <PanelShell onClose={onClose}>
       {/* Header-Block (Kompakt): Akronym + Status-Badge + FKZ inline, Untertitel darunter. */}
-      <div className="mb-3">
+      <div className={`mb-3 ${READ_COL}`}>
         <div className="flex items-center gap-2.5 flex-wrap">
           <h1 className="text-[20px] font-medium text-[var(--tf-text)] leading-tight tracking-[-0.01em]">{akronym}</h1>
           {displayStatus ? (
@@ -350,7 +356,9 @@ export function VerbundDetail({
       {/* VORGÄNGER-HINWEIS — frühere abgelehnte/zurückgezogene Einreichungen
           desselben Kurznamens. Kompakt 1-zeilig, Klick öffnet die Vollansicht. */}
       {vorgaenger.length > 0 ? (
-        <AbgelehnteVorgaengerBanner vorgaenger={vorgaenger} onOpenAntrag={onOpenAntrag} />
+        <div className={READ_COL}>
+          <AbgelehnteVorgaengerBanner vorgaenger={vorgaenger} onOpenAntrag={onOpenAntrag} />
+        </div>
       ) : null}
 
       {/* SPRUNG-NAVIGATION (sticky) — schneller Sprung zu Gutachten/Nachforderungen
@@ -383,7 +391,7 @@ export function VerbundDetail({
           damit der User die Projektidee sofort sieht ohne einen TV
           aufklappen zu muessen. */}
       {vorhabenInhalt ? (
-        <div id="kurz" className="mb-4 scroll-mt-[80px]">
+        <div id="kurz" className={`mb-4 scroll-mt-[80px] ${READ_COL}`}>
           <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
             Kurzbeschreibung
           </h3>
@@ -413,7 +421,7 @@ export function VerbundDetail({
           (Gutachten/NF) laesst sich der Block wegklappen — mehr Platz fuer die
           Artefakt-Abschnitte. */}
       {!isPseudo ? (
-        <div className="mb-4">
+        <div className={`mb-4 ${READ_COL}`}>
           <button
             type="button"
             onClick={toggleAntragsdaten}
@@ -522,14 +530,14 @@ export function VerbundDetail({
         </div>
       ) : (
         // Pseudo-Verbund: Workflow + TV-Detail direkt (kein Sammel-Block, keine Liste).
-        <>
+        <div className={READ_COL}>
           {workflowBlock}
           {expandedTvAz ? (
             <div className="mb-6">
               <TvDetailBlock aktenzeichen={expandedTvAz} onOpenAntrag={onOpenAntrag} />
             </div>
           ) : null}
-        </>
+        </div>
       )}
 
       {/* GUTACHTEN — Verbund-Ebene, oberhalb der Felder-Liste (nur dev). Der
@@ -557,7 +565,7 @@ export function VerbundDetail({
       {/* ALLE FELDER (Verbund-Aggregat) — nur fuer echte Verbuende. Bei pseudo
           waere das ein Duplikat von TvDetailBlock.AlleFelderSection. */}
       {!isPseudo && antraege.length > 0 ? (
-        <div className="mt-6 pt-6" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <div className={`mt-6 pt-6 ${READ_COL}`} style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <VerbundAlleFelder
             tvs={antraege}
             schemas={schemas}
@@ -570,7 +578,7 @@ export function VerbundDetail({
 
       {/* Verbund-Historie — nur fuer echte Verbuende (pseudo hat keine). */}
       {!isPseudo ? (
-        <div className="mt-6 pt-6" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <div className={`mt-6 pt-6 ${READ_COL}`} style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <button
             type="button"
             onClick={toggleHistorie}
@@ -652,7 +660,7 @@ function PanelShell({ onClose, children }: { onClose: () => void; children: Reac
           <X size={18} />
         </button>
       </div>
-      <div className="px-6 pb-8 max-w-[1180px] mx-auto">{children}</div>
+      <div className="px-6 pb-8">{children}</div>
     </div>
   );
 }

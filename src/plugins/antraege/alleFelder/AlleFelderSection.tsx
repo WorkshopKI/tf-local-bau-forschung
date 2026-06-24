@@ -155,7 +155,10 @@ export function AlleFelderSection({
   };
 
   return (
-    <div>
+    // `af-section` = Scope-Root: definiert die in `src/theme.css` fehlenden
+    // `--tf-*`-Tokens (Border/Font/Weight/Motion) lokal — sonst fielen alle
+    // border/font/transition-Deklarationen lautlos aus (design-handoff-styling-FALLE).
+    <div className="af-section">
       <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
         <h3 className={headerVariant === 'section'
           ? 'text-[16px] font-medium text-[var(--tf-text)]'

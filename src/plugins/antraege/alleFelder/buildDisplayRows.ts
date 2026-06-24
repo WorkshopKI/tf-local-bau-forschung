@@ -2,6 +2,7 @@ import { CANONICAL_FIELD_KEYS, getCanonicalLabel } from '@/core/services/csv/con
 import { formatGermanDate } from '@/core/services/csv';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
 import { getVbPhaseLabel } from '@/core/utils/vb-phase-mappings';
+import { kuratierteGruppe, GRUPPEN_ORDER } from './felderGruppen';
 
 export interface DisplayRow {
   field: string;
@@ -59,14 +60,18 @@ export function buildDisplayRows(antrag: Antrag, schemas: CsvSchema[] = []): Dis
 }
 
 /**
- * Gruppiert die flache DisplayRow-Liste nach group_path aus den beteiligten CSV-Schemas.
+ * Gruppiert die flache DisplayRow-Liste in Lesegruppen.
  *
- * Regeln:
- * - Pro Feld wird die dominante Source ermittelt: Master > höchste Priority > erste Source mit group_path
- * - Felder ohne group_path landen in Gruppe "Weitere Felder" (path: [])
- * - Reihenfolge der Gruppen: erste Gruppe = erste Feld-Vorkommen; "Weitere Felder" immer am Ende
- * - Wenn keine Source group_path liefert, kommt nur eine einzige Gruppe zurück (path: []); der Consumer
- *   soll dann die flache Ansicht ohne Gruppen-Header rendern
+ * Regeln (Vorrang absteigend):
+ * - **Stufe 0 — kuratierte Gruppe** (`kuratierteGruppe`, Handoff-SOLL): liegt für ein Feld eine
+ *   kuratierte Ziel-Gruppe vor (Vorhabensinformation/Finanzen/Termine/Nachforderung/Klassifikation
+ *   & Deskriptoren), gewinnt sie über den Schema-`group_path`. Flag-Felder (`zt_*`) sind dort
+ *   bewusst ausgespart und fallen durch (der Flag-Cluster hebt sie später aus jeder Gruppe).
+ * - **Stufe 1 — Schema-`group_path`**: dominante Source (Master > höchste Priority > erste Source
+ *   mit group_path).
+ * - Felder ohne beides landen in Gruppe "Weitere Felder" (path: []).
+ * - Reihenfolge: kuratierte Gruppen zuerst in `GRUPPEN_ORDER` (SOLL), dann übrige group_path-Gruppen
+ *   in Vorkommens-Reihenfolge, "Weitere Felder" immer am Ende.
  */
 export function groupDisplayRows(rows: DisplayRow[], schemas: CsvSchema[]): DisplayGroup[] {
   if (rows.length === 0) return [];
@@ -99,7 +104,9 @@ export function groupDisplayRows(rows: DisplayRow[], schemas: CsvSchema[]): Disp
   const buckets = new Map<string, DisplayGroup>();
 
   for (const row of rows) {
-    const path = resolveGroupPath(row);
+    // Stufe 0: kuratierte SOLL-Gruppe gewinnt über den Schema-group_path.
+    const kuratiert = kuratierteGruppe(row);
+    const path = kuratiert ? [kuratiert] : resolveGroupPath(row);
     const key = path.length === 0 ? '__other__' : path.join(' › ');
     const label = path.length === 0 ? OTHER_LABEL : key;
     if (!buckets.has(key)) {
@@ -109,7 +116,15 @@ export function groupDisplayRows(rows: DisplayRow[], schemas: CsvSchema[]): Disp
     buckets.get(key)!.rows.push(row);
   }
 
+  // Reihenfolge: kuratierte Gruppen zuerst (GRUPPEN_ORDER), dann übrige group_path-Gruppen in
+  // Vorkommens-Reihenfolge (Array.sort ist stabil → gleicher Rang behält Einfügereihenfolge),
+  // "Weitere Felder" zuletzt.
+  const rank = (label: string): number => {
+    const i = GRUPPEN_ORDER.indexOf(label);
+    return i === -1 ? GRUPPEN_ORDER.length : i;
+  };
   const withoutOther = order.filter(k => k !== '__other__').map(k => buckets.get(k)!);
+  withoutOther.sort((a, b) => rank(a.label) - rank(b.label));
   const other = buckets.get('__other__');
   return other ? [...withoutOther, other] : withoutOther;
 }
