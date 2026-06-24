@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.118.2 — Gutachten-Überschrift linksbündig zum Titeltext (Juni 2026)
+
+PATCH — Nachzügler zur Überschriften-Vereinheitlichung (v2.117.1): Bei „Gutachten" fluchtete zwar der
+Chevron, der **Titeltext** stand aber ~6px weiter rechts als bei Antragsdaten/Nachforderungen (12px
+Chevron↔Titel-Gap in `.g-progress-l` statt 6px). Gap auf 6px reduziert (wie `gap-1.5` der übrigen
+Klapp-Header), den größeren Titel↔Zähler-Abstand per `margin-left` an `.g-pcount` erhalten
+([gutachten.css](src/plugins/antraege/gutachten/gutachten.css)).
+
 ### v2.118.1 — „Alle Felder": Flag-Cluster am echten Datenbestand + Zeilen-Layout (Juni 2026)
 
 PATCH — der Technologie-Kennzeichen-Cluster wurde an echten SMB-Daten **gar nicht** gebündelt

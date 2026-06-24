@@ -43,9 +43,11 @@
 
 /* ---------- Fortschritt + Export ---------- */
 .gutachten-werkstatt .g-progress { display: flex; align-items: center; gap: 18px; margin: 0 0 18px; flex-wrap: wrap; }
-.gutachten-werkstatt .g-progress-l { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* gap 6px = Chevron↔Titel-Abstand wie die übrigen Klapp-Header (gap-1.5);
+   der größere Titel↔Zähler-Abstand wird per margin-left an .g-pcount gehalten. */
+.gutachten-werkstatt .g-progress-l { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .gutachten-werkstatt .g-gtitle { font: var(--tf-weight-medium) 16px/1 var(--tf-font-sans); color: var(--tf-text); }
-.gutachten-werkstatt .g-pcount { font: 12px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); }
+.gutachten-werkstatt .g-pcount { font: 12px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); margin-left: 6px; }
 
 /* ---------- Buttons ---------- */
 .gutachten-werkstatt .g-btn { height: 32px; padding: 0 14px; border-radius: 8px; font: var(--tf-weight-medium) 12.5px/1 var(--tf-font-sans); cursor: pointer; display: inline-flex; align-items: center; gap: 7px; border: .5px solid var(--tf-border-hover); background: var(--tf-bg); color: var(--tf-text); white-space: nowrap; transition: background var(--tf-duration-fast), opacity var(--tf-duration-fast); }
