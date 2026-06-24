@@ -8,22 +8,12 @@
  * Alles unter `.gutachten-werkstatt` gescopt (analog `chat.css` `.chat-app`),
  * damit die kurzen `.g-*`-Klassen nicht global lecken.
  *
- * FALLE (design-handoff-styling): die Handoff-CSS nutzt `--tf-*`-Tokens, die die
- * echte `src/theme.css` NICHT hat (`--tf-font-*`, `--tf-weight-*`,
- * `--tf-shadow-dialog`, `--tf-duration-*`, `--tf-ease`). Hier lokal auf den
- * Scope-Root definiert, sonst fielen `font:`/`box-shadow:`/`transition:` lautlos
- * aus. Farb-/bg-Tokens kommen aus theme.css und flippen dort automatisch in Dark;
- * nur `--g-green`/`--g-amber` + Schatten brauchen einen eigenen Dark-Override.
+ * Die Skala-/Motion-/Font-/Shadow-`--tf-*`-Tokens kommen seit v2.119 global aus
+ * `src/theme.css` (Design-Handoff-Token-Vertrag, inkl. Dark-`--tf-shadow-dialog`).
+ * Lokal bleiben nur die gutachten-eigenen `--g-green`/`--g-amber` (mit Dark-
+ * Override); die Farb-/bg-Tokens flippen über die theme.css-Kaskade.
  */
 .gutachten-werkstatt {
-  --tf-font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --tf-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  --tf-weight-regular: 400;
-  --tf-weight-medium: 500;
-  --tf-shadow-dialog: 0 8px 30px rgba(0, 0, 0, 0.12);
-  --tf-duration-fast: 150ms;
-  --tf-duration-med: 200ms;
-  --tf-ease: cubic-bezier(0.4, 0, 0.2, 1);
   /* Grün gedämpft (Handoff `workflow-stepper-neu`, „Grün gedämpft"): entsättigt,
      passt zur Primärfarbe — statt der kräftigen Success-Familie (60%). */
   --g-green: hsl(145, 30%, 33%);
@@ -33,7 +23,6 @@
 [data-theme="dark"] .gutachten-werkstatt {
   --g-green: hsl(145, 32%, 52%);
   --g-amber: hsl(38, 40%, 60%);
-  --tf-shadow-dialog: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes gutachten-fade {

@@ -98,8 +98,8 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
         {testResult === 'success' && <Badge variant="success">Interne KI erreichbar</Badge>}
         {testResult === 'error' && <Badge variant="error">Interne KI nicht erreichbar</Badge>}
       </div>
-      {save.error && <p className="text-[12px] text-[var(--tf-error)]">Fehler: {save.error}</p>}
-      {test.error && <p className="text-[12px] text-[var(--tf-error)]">Fehler: {test.error}</p>}
+      {save.error && <p className="text-[12px] text-[var(--tf-danger-text)]">Fehler: {save.error}</p>}
+      {test.error && <p className="text-[12px] text-[var(--tf-danger-text)]">Fehler: {test.error}</p>}
 
       {/* Bookmarklet */}
       <SectionHeader label="Lesezeichen installieren" />

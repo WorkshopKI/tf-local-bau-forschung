@@ -64,6 +64,67 @@
   --kat-band-l: 96%;
   --kat-code-bg-l: 95%;
   --kat-text-l: 34%;
+
+  /* ════════════════════════════════════════════════════════════════════════
+     Design-Handoff-Token-Vertrag (v2.119) — Skala + Soft/Border-Familie.
+     Diese Tokens lebten vorher nur als lokale Lückenfüller in chat.css/
+     gutachten.css/felder.css → "nackt"-Falle v2.67.1: ein undefiniertes var()
+     OHNE Fallback macht die GANZE Deklaration ungültig (border/font/radius/
+     transition fallen aus). Jetzt einmal kanonisch global; der Vitest-Guard
+     `theme-token-contract` macht eine erneute Ohne-Fallback-Lücke zum Build-
+     Fehler. Werte aus chat.css (kanonisch) — font-sans aber MIT Geist (theme.css
+     importiert Geist global; die chat.css-Variante ohne Geist war der Ausreißer).
+     ════════════════════════════════════════════════════════════════════════ */
+
+  /* ── Typo-Skala ── */
+  --tf-font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --tf-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --tf-weight-regular: 400;
+  --tf-weight-medium: 500;
+  --tf-text-xs: 10.5px;
+  --tf-text-xxs: 11px;
+  --tf-text-sm: 12px;
+  --tf-text-base: 13px;
+  --tf-text-md: 13.5px;
+  --tf-text-lg: 14px;
+  --tf-text-xl: 16px;
+  --tf-text-2xl: 22px;
+  --tf-tracking-caps: 0.08em;
+
+  /* ── Spacing-Skala (DESIGN_GUIDE §4) ── */
+  --tf-space-xs: 4px;
+  --tf-space-sm: 8px;
+  --tf-space-md: 12px;
+  --tf-space-lg: 16px;
+  --tf-space-xl: 24px;
+  --tf-space-2xl: 32px;
+  --tf-space-3xl: 40px;
+
+  /* ── Radius / Border / Motion / Shadow (geometrisch konstant → kein Dark-Block) ── */
+  --tf-radius-sm: 6px;
+  --tf-radius-pill: 99px;
+  --tf-radius-dialog: 16px;
+  --tf-border-thin: 0.5px;
+  --tf-duration-fast: 150ms;
+  --tf-duration-med: 200ms;
+  --tf-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --tf-shadow-dialog: 0 8px 30px rgba(0, 0, 0, 0.12);
+
+  /* ── Border-Glieder (Parität zu --tf-danger-border) ── */
+  --tf-info-border: hsl(210, 60%, 80%);
+  --tf-success-border: hsl(145, 45%, 78%);
+  --tf-warning-border: hsl(38, 70%, 78%);
+
+  /* ── Soft-Hintergründe (gedämpfter als -bg; Design-Tool-Palette) ── */
+  --tf-primary-soft: hsl(var(--tf-primary-h), var(--tf-primary-s), 96%);
+  --tf-info-soft: hsl(210, 70%, 96%);
+  --tf-success-soft: hsl(145, 55%, 96%);
+  --tf-warning-soft: hsl(38, 85%, 95%);
+  --tf-danger-soft: hsl(0, 65%, 96%);
+
+  /* ── shadcn-Konvention: Text/Icon auf primärer Fläche ── */
+  --tf-primary-foreground: #ffffff;
+
   /* shadcn-Tokens auf die TF-Tokens gemappt (P1b): eine Farb-Quelle, und sie
      flippen automatisch über die --tf-*-Kaskade unter [data-theme="dark"]
      (kein eigener Dark-Block nötig — der alte .dark-Block war toter Code, da
@@ -145,6 +206,20 @@
   --kat-band-l: 22%;
   --kat-code-bg-l: 24%;
   --kat-text-l: 70%;
+
+  /* ── Design-Handoff-Token-Vertrag (v2.119) — Dark: nur die theme-abhängigen
+     Werte überschreiben. Die Skala-Tokens (Typo/Spacing/Radius/Motion) sind
+     geometrisch konstant und kaskadieren aus :root. ── */
+  --tf-shadow-dialog: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --tf-info-border: hsl(210, 20%, 38%);
+  --tf-success-border: hsl(145, 18%, 36%);
+  --tf-warning-border: hsl(40, 22%, 38%);
+  --tf-primary-soft: hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.3), 20%);
+  --tf-info-soft: hsl(210, 18%, 20%);
+  --tf-success-soft: hsl(145, 15%, 18%);
+  --tf-warning-soft: hsl(40, 20%, 19%);
+  --tf-danger-soft: hsl(0, 16%, 21%);
+  --tf-primary-foreground: var(--tf-bg);
 }
 
 body {

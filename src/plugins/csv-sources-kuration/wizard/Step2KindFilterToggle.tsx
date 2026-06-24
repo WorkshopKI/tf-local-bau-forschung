@@ -32,7 +32,7 @@ export function Step2KindFilterToggle({ value, onChange }: Props): React.ReactEl
             className="px-2 py-1 text-[11.5px] transition"
             style={{
               background: active ? 'var(--tf-primary)' : 'transparent',
-              color: active ? 'var(--tf-primary-foreground, white)' : 'var(--tf-text-secondary)',
+              color: active ? 'var(--tf-primary-foreground)' : 'var(--tf-text-secondary)',
               borderLeft: i === 0 ? undefined : '0.5px solid var(--tf-border)',
             }}
           >

@@ -224,7 +224,7 @@ export function CsvAddColumnsDialog({
     >
       {phase === 'reviewing' ? (
         <div>
-          <div className="flex items-center gap-2 rounded-lg border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-subtle)] px-3 py-2 mb-4">
+          <div className="flex items-center gap-2 rounded-lg border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-3 py-2 mb-4">
             <FileText size={15} className="flex-shrink-0 text-[var(--tf-text-secondary)]" />
             <div className="min-w-0">
               <div className="truncate text-[12.5px] font-medium text-[var(--tf-text)]">{file.name}</div>

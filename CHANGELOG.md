@@ -5,6 +5,31 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.119.0 — Globaler `--tf-*`-Token-Vertrag in theme.css + Convention-Guard (Juni 2026)
+
+MINOR-Bump — die in [v2.67.1](docs/CHANGELOG-ARCHIV.md) dokumentierte „nackt"-Falle ist jetzt **strukturell**
+gelöst statt pro Datei geflickt. Das Design-Tool erzeugt eine Skala-basierte Token-Sprache (Typo/Spacing/Radius/
+Motion/Soft-Farben), die [src/theme.css](src/theme.css) nie mitbrachte; ein undefiniertes `var()` ohne Fallback
+macht die **gesamte** CSS-Deklaration ungültig → Komponenten rendern „nackt". Bis hierher lebten die fehlenden
+Tokens als lokale Lückenfüller in **drei** Dateien (`chat.css`, `gutachten.css`, `felder.css`) und divergierten
+sogar (`--tf-font-sans` mal mit, mal ohne Geist → je Plugin eine andere Schrift).
+
+- **Kanonisch global**: alle Skala-Tokens (`--tf-text-*`, `--tf-space-*`, `--tf-weight-*`, `--tf-font-*`,
+  `--tf-tracking-caps`, `--tf-radius-sm/-pill/-dialog`, `--tf-border-thin`, `--tf-duration-*`, `--tf-ease`,
+  `--tf-shadow-dialog`), die fehlenden Border-Glieder (`--tf-info/-success/-warning-border`), die Soft-Familie
+  (`--tf-primary/-info/-success/-warning/-danger-soft`) und `--tf-primary-foreground` einmal in `theme.css`
+  (Light + `[data-theme="dark"]`) definiert. Lokale Duplikate in chat/gutachten/felder.css entfernt; die
+  font-sans-Divergenz beseitigt (Geist global).
+- **Alias-/Tippfehler-Namen** im Code auf die kanonischen Tokens umbenannt: `--tf-error-bg/-text`/`--tf-error` →
+  `--tf-danger-bg/-text`, `--tf-danger` (suffixlos, inkl. Hex-Fallback) → `--tf-danger-text`, `--tf-bg-subtle` →
+  `--tf-bg-secondary` (kein neuer Alias-Token — die Doppelnamen werden so nicht zementiert).
+- **Guard**: neuer Convention-Test `theme-token-contract` in
+  [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts) scannt CSS **und** TSX/TS (auslastung
+  nutzt die Tokens inline im `.tsx`). Ein `var(--tf-…)` ohne Fallback auf ein global undefiniertes Token ist ab
+  jetzt ein **Build-Fehler** (`npm run check` rot), mit-Fallback nur eine Warnung. Ausnahme: `// allow-tf-token: <grund>`.
+
+Rein additiv + Umbenennungen — **kein Migrationsbedarf**, kein bestehender Token-Wert geändert.
+
 ### v2.118.2 — Gutachten-Überschrift linksbündig zum Titeltext (Juni 2026)
 
 PATCH — Nachzügler zur Überschriften-Vereinheitlichung (v2.117.1): Bei „Gutachten" fluchtete zwar der

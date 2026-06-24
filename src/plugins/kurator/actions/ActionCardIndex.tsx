@@ -190,10 +190,10 @@ export function ActionCardIndex({
         </div>
       )}
       {error && !running && (
-        <div className="p-3 bg-[var(--tf-error-bg)] rounded-[var(--tf-radius)] space-y-2">
+        <div className="p-3 bg-[var(--tf-danger-bg)] rounded-[var(--tf-radius)] space-y-2">
           <div className="flex items-center gap-2">
-            <XCircle size={14} className="text-[var(--tf-error-text)]" />
-            <p className="text-[12px] text-[var(--tf-error-text)]">{error}</p>
+            <XCircle size={14} className="text-[var(--tf-danger-text)]" />
+            <p className="text-[12px] text-[var(--tf-danger-text)]">{error}</p>
           </div>
           <Button variant="secondary" size="sm" onClick={() => runIndex(true)}>Erneut versuchen</Button>
         </div>

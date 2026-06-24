@@ -104,7 +104,7 @@ export function ChangelogPolishPanel({ currentMarkdown }: { currentMarkdown: str
       </div>
 
       {polish.error && (
-        <div className="mt-2 text-[12px] text-[var(--tf-danger,#dc2626)]">Fehler: {polish.error}</div>
+        <div className="mt-2 text-[12px] text-[var(--tf-danger-text)]">Fehler: {polish.error}</div>
       )}
 
       {draft != null && (
@@ -125,7 +125,7 @@ export function ChangelogPolishPanel({ currentMarkdown }: { currentMarkdown: str
             </Button>
           </div>
           {save.error && (
-            <div className="text-[12px] text-[var(--tf-danger,#dc2626)]">Fehler: {save.error}</div>
+            <div className="text-[12px] text-[var(--tf-danger-text)]">Fehler: {save.error}</div>
           )}
         </div>
       )}

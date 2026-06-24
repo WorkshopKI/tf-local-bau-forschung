@@ -202,8 +202,8 @@ export function MetadataSmokeTest(): React.ReactElement | null {
       )}
 
       {phase === 'error' && (
-        <div className="p-3 bg-[var(--tf-error-bg)] rounded-[var(--tf-radius)] space-y-2">
-          <p className="text-[12px] text-[var(--tf-error-text)]">{errorMsg}</p>
+        <div className="p-3 bg-[var(--tf-danger-bg)] rounded-[var(--tf-radius)] space-y-2">
+          <p className="text-[12px] text-[var(--tf-danger-text)]">{errorMsg}</p>
           <Button variant="secondary" size="sm" onClick={() => setPhase('idle')}>Zurück</Button>
         </div>
       )}

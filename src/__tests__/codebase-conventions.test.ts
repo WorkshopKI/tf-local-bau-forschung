@@ -47,6 +47,11 @@
  *     runEvalBatch importieren KEINE Real-Antrag-Pfade (listAllAntraegeListView,
  *     findVorhabensbeschreibung, doc:-Scan) — Fixtures nur via loadEvalFixtures();
  *     Scoring nur ueber das geteilte runJudge/aggregate (kein dup. Judge-Call).
+ *   - theme-token-contract              → Design-Handoff-Token-Vertrag (v2.119):
+ *     jedes via var(--tf-…) OHNE Fallback in CSS/TSX/TS referenzierte Token MUSS
+ *     global in src/theme.css definiert sein, sonst die "nackt"-Falle v2.67.1 (ein
+ *     undefiniertes var() macht die GANZE CSS-Deklaration ungueltig). Mit-Fallback-
+ *     Nutzung undefinierter Tokens nur Warnung. Ausnahme '// allow-tf-token: <grund>'.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -69,6 +74,25 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 const ALL_TS_FILES = walk(ROOT);
+
+// Wie walk(), aber fuer .css — der theme-token-contract-Guard muss auch CSS
+// scannen (chat/gutachten/felder nutzen die Tokens dort). ALL_TS_FILES bleibt
+// bewusst unberuehrt, damit die uebrigen Guards unveraendert nur .ts/.tsx scopen.
+function walkCss(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const p = join(dir, entry);
+    const s = statSync(p);
+    if (s.isDirectory()) {
+      if (entry === 'node_modules' || entry === 'dist' || entry === '.vite') continue;
+      walkCss(p, out);
+    } else if (s.isFile() && entry.endsWith('.css')) {
+      out.push(p);
+    }
+  }
+  return out;
+}
+
+const ALL_SOURCE_FILES = [...ALL_TS_FILES, ...walkCss(ROOT)];
 
 interface Finding {
   file: string;
@@ -871,6 +895,75 @@ describe('eval-gui-fictional-only (Skill-Eval-GUI dev: nur fiktive Fixtures)', (
       expect.fail(
         `Die Eval-GUI baut den Judge-Call nach (json_object) statt runJudge() zu nutzen.\n` +
         `Scoring NUR ueber runJudge/aggregate aus skill-eval/.\n\nTreffer:\n${fmt(guiFindings)}`,
+      );
+    }
+  });
+});
+
+describe('theme-token-contract (CLAUDE.md Doku-Konvention #4; v2.67.1-"nackt"-Falle)', () => {
+  // Bewusst lokale (nicht-globale) Tokens — leer starten. Eintrag NUR mit Grund,
+  // wenn ein Token absichtlich plugin-lokal via inline-style gesetzt + gelesen wird.
+  const LOCAL_TOKEN_ALLOWLIST = new Set<string>();
+
+  // Global in src/theme.css definierte --tf-*-Tokens (Light + Dark) einsammeln.
+  function readGlobalTfTokens(): Set<string> {
+    const themeCss = ALL_SOURCE_FILES.find(f => relPath(f) === 'src/theme.css');
+    expect(themeCss, 'src/theme.css nicht gefunden').toBeTruthy();
+    const defined = new Set<string>();
+    for (const line of readFileSync(themeCss!, 'utf-8').split(/\r?\n/)) {
+      const m = line.match(/^\s*(--tf-[a-z0-9-]+)\s*:/);
+      if (m) defined.add(m[1]!);
+    }
+    return defined;
+  }
+
+  it('kein var(--tf-…) OHNE Fallback referenziert ein global undefiniertes Token', () => {
+    const defined = readGlobalTfTokens();
+    expect(defined.size, 'theme.css definiert verdaechtig wenige --tf-Tokens').toBeGreaterThan(30);
+
+    const errors: Finding[] = [];    // ohne Fallback + undefiniert → die "nackt"-Falle
+    const warnings: Finding[] = [];  // mit Fallback + undefiniert → tolerierter Drift
+    // var(--tf-x)   → Gruppe 2 ')'  = kein Fallback
+    // var(--tf-x,…) → Gruppe 2 ','  = Fallback vorhanden
+    const VAR_RE = /var\(\s*(--tf-[a-z0-9-]+)\s*([,)])/g;
+
+    for (const file of ALL_SOURCE_FILES) {
+      const rel = relPath(file);
+      if (rel === 'src/theme.css') continue;       // Definitions-Quelle, nicht Nutzer
+      if (rel.includes('/__tests__/')) continue;    // Test-Strings sind keine echte Nutzung
+      const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        if (line.includes('allow-tf-token')) continue;
+        VAR_RE.lastIndex = 0;
+        let m: RegExpExecArray | null;
+        while ((m = VAR_RE.exec(line)) !== null) {
+          const token = m[1]!;
+          const hasFallback = m[2] === ',';
+          if (defined.has(token) || LOCAL_TOKEN_ALLOWLIST.has(token)) continue;
+          const finding: Finding = { file: rel, line: i + 1, text: `${token}  →  ${line.trim()}` };
+          (hasFallback ? warnings : errors).push(finding);
+        }
+      }
+    }
+
+    if (warnings.length > 0) {
+      console.warn(
+        `[theme-token-contract] ${warnings.length} var(--tf-…)-Nutzung(en) mit Fallback ` +
+        `referenzieren ein global undefiniertes Token (toleriert — Fallback verhindert die\n` +
+        `"nackt"-Falle —, aber Drift-Risiko: besser in src/theme.css aufnehmen):\n${fmt(warnings)}`,
+      );
+    }
+
+    if (errors.length > 0) {
+      expect.fail(
+        `Undefiniertes --tf-*-Token OHNE Fallback referenziert (v2.67.1-"nackt"-Falle:\n` +
+        `ein undefiniertes var() macht die GANZE CSS-Deklaration ungueltig → Komponente\n` +
+        `rendert ohne border/font/radius/transition).\n` +
+        `Fix: Token global in src/theme.css definieren (Light + [data-theme="dark"]) oder\n` +
+        `einen Fallback angeben. Bewusste lokale Ausnahme: Zeile mit\n` +
+        `'// allow-tf-token: <grund>' markieren (oder LOCAL_TOKEN_ALLOWLIST ergaenzen).\n` +
+        `\nTreffer (${errors.length}):\n${fmt(errors)}`,
       );
     }
   });

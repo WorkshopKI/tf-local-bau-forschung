@@ -179,13 +179,13 @@ export function Step1Metadata({ api, existingMasterId, existingSchemas = [], onU
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-[var(--tf-border)] bg-[var(--tf-bg-subtle)] px-4 py-5 text-[13px] font-medium text-[var(--tf-text)] transition hover:border-[var(--tf-text-tertiary)] hover:bg-[var(--tf-bg-secondary)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-4 py-5 text-[13px] font-medium text-[var(--tf-text)] transition hover:border-[var(--tf-text-tertiary)] hover:bg-[var(--tf-bg-secondary)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Upload size={16} />
             <span>CSV-Datei vom Rechner auswählen…</span>
           </button>
         ) : (
-          <div className="flex items-center justify-between gap-3 rounded-lg border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-subtle)] px-3 py-2">
+          <div className="flex items-center justify-between gap-3 rounded-lg border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-3 py-2">
             <div className="flex min-w-0 items-center gap-2">
               <FileText size={15} className="flex-shrink-0 text-[var(--tf-text-secondary)]" />
               <div className="min-w-0">
@@ -242,7 +242,7 @@ export function Step1Metadata({ api, existingMasterId, existingSchemas = [], onU
         ) : null}
 
         {state.preview ? (
-          <div className="mt-3 rounded border border-[var(--tf-border)] p-2.5 bg-[var(--tf-bg-subtle)]">
+          <div className="mt-3 rounded border border-[var(--tf-border)] p-2.5 bg-[var(--tf-bg-secondary)]">
             <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1.5">Dateiformat</div>
             {state.detectedEncoding && state.detectedSeparator ? (
               <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-2">

@@ -110,8 +110,8 @@ export function EvalSection({ chunkCount, modelId }: EvalSectionProps): React.Re
         )}
 
         {error && !running && (
-          <div className="p-3 bg-[var(--tf-error-bg)] rounded-[var(--tf-radius)]">
-            <p className="text-[12px] text-[var(--tf-error-text)]">{error}</p>
+          <div className="p-3 bg-[var(--tf-danger-bg)] rounded-[var(--tf-radius)]">
+            <p className="text-[12px] text-[var(--tf-danger-text)]">{error}</p>
           </div>
         )}
 

@@ -156,6 +156,12 @@ Das zentrale typografische Element der App. Kleine Uppercase-Labels mit horizont
 | 2xl | 32px | Zwischen Hauptbereichen |
 | 3xl | 40px | Page-Padding |
 
+### Design-Handoff-Token-Vertrag (global in `theme.css`)
+
+Die **vollständige** Skala- und Farbfamilie der Design-Handoffs lebt seit v2.119 **einmal** global in [src/theme.css](src/theme.css) (Light + `[data-theme="dark"]`) — Typo (`--tf-text-*`, `--tf-font-*`, `--tf-weight-*`, `--tf-tracking-caps`), Spacing (`--tf-space-xs…-3xl`, Tabelle oben), Radius/Motion (`--tf-radius-sm/-pill/-dialog`, `--tf-border-thin`, `--tf-duration-*`, `--tf-ease`, `--tf-shadow-dialog`) sowie die Farbglieder `--tf-{info,success,warning}-border` und `--tf-{primary,info,success,warning,danger}-soft`.
+
+**Kein lokaler `--tf-*`-Lückenfüller mehr** in Plugin-CSS. Ein `var(--tf-…)` **ohne Fallback** auf ein global nicht definiertes Token ist die „nackt"-Falle (v2.67.1) — das undefinierte `var()` macht die **ganze** Deklaration ungültig (border/font/radius/transition fallen aus). Der Convention-Guard `theme-token-contract` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)) erzwingt das als **Build-Fehler** (`npm run check` rot; CSS **und** TSX/TS werden gescannt, da z.B. Auslastung Tokens inline im `.tsx` nutzt). Neue Tokens daher immer zuerst in `theme.css` anlegen (Light + Dark) — nicht lokal scopen. Bewusste Ausnahme: Zeile mit `// allow-tf-token: <grund>`.
+
 ### Grundregel
 Lieber zu viel Whitespace als zu wenig. Die App soll "atmen".
 
