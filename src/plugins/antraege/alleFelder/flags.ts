@@ -90,7 +90,7 @@ const BUCKET_ORDER = [
 const FLAG_BUCKETS: { name: string; keywords: string[] }[] = [
   { name: 'Handwerk / Start-Up', keywords: ['handwerk', 'startup'] },
   { name: 'Deskriptorenformular ÖA für FuE', keywords: ['deskriptorenformular'] },
-  { name: 'Sonstige Kennzeichen', keywords: ['öffentlichkeitswirk', 'oeffentlichkeitswirk', 'repräsentativ', 'repraesentativ', 'geschäftsführer', 'geschaeftsfuehrer', 'netzwerkmanager'] },
+  { name: 'Sonstige Kennzeichen', keywords: ['öffentlichkeitswirk', 'oeffentlichkeitswirk', 'repräsentativ', 'repraesentativ', 'geschäftsführer', 'geschaeftsfuehrer', 'netzwerkmanager', 'referent', 'sonstigekennzeichen'] },
   { name: 'Zukunftstechnologien (TV-/VB-Ebene)', keywords: ['zukunftstechnolog', 'zukunftsfelder'] },
 ];
 

@@ -652,7 +652,7 @@ function PanelShell({ onClose, children }: { onClose: () => void; children: Reac
           <X size={18} />
         </button>
       </div>
-      <div className="px-6 pb-8">{children}</div>
+      <div className="px-6 pb-8 max-w-[1180px] mx-auto">{children}</div>
     </div>
   );
 }

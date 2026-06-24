@@ -62,7 +62,7 @@
 .af-caret.open { transform:rotate(90deg); }
 .af-grp-body { padding:0 16px 6px; }
 
-.af-row { display:grid; grid-template-columns:minmax(180px,340px) 1fr; gap:16px 24px; align-items:start; padding:9px 0; border-top:var(--tf-border-thin) solid var(--tf-border); font-size:12.5px; }
+.af-row { display:grid; grid-template-columns:minmax(180px,1fr) 1.5fr; gap:16px; align-items:start; padding:9px 0; border-top:var(--tf-border-thin) solid var(--tf-border); font-size:12.5px; }
 .af-row:first-child { border-top:0; }
 .af-k { color:var(--tf-text-secondary); }
 .af-v { color:var(--tf-text); word-break:break-word; }

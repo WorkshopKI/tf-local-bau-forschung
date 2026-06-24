@@ -84,6 +84,12 @@ describe('flagBucket (kuratierte 4-Bucket-Taxonomie)', () => {
     expect(flagBucket({ path: ['Öffentlichkeitswirkung'], label: 'Projektinhalt mit sehr guter Öffentlichkeitswirkung (FuE)' })).toBe('Sonstige Kennzeichen');
     expect(flagBucket({ path: ['Referent'], label: 'besonders repräsentativer Geschäftsführer/Netzwerkmanager (NW)' })).toBe('Sonstige Kennzeichen');
   });
+  it('faltet die Stray-Gruppen per GRUPPEN-Label (nicht Deskriptor-Text) in „Sonstige Kennzeichen"', () => {
+    // flagBucket sieht nur group_path + group.label — am echten Bestand heißt die
+    // Gruppe „Referent › Referent" (Deskriptor-Text mit Geschäftsführer/… steckt in den Rows).
+    expect(flagBucket({ path: ['Referent', 'Referent'], label: 'Referent › Referent' })).toBe('Sonstige Kennzeichen');
+    expect(flagBucket({ path: ['Sonstige Kennzeichen'], label: 'Sonstige Kennzeichen' })).toBe('Sonstige Kennzeichen');
+  });
   it('fällt auf den bereinigten Top-Level-group_path zurück, wenn kein Keyword greift', () => {
     expect(flagBucket({ path: ['Spezialkennzeichen TV-Ebene'], label: 'x' })).toBe('Spezialkennzeichen');
     expect(flagBucket({ path: [], label: 'y' })).toBe('Sonstige Kennzeichen');
