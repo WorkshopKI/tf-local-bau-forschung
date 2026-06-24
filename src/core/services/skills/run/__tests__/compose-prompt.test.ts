@@ -174,7 +174,10 @@ describe('composeSkillPrompt — strukturierte Ausgabe (teilStruktur)', () => {
   const STRUKTUR_HEADING = '## Ausgabe des „Finaler Text"-Blocks (strukturiert)';
 
   it('ohne teilStruktur: kein Struktur-Block (byte-identisch zu heute)', () => {
-    expect(compose(baseInput)).not.toContain(STRUKTUR_HEADING);
+    // SEED_SKILL trägt seit der A-Aktivierung selbst teilStruktur → für diesen
+    // Pfad explizit strippen.
+    const ohne = { ...SEED_SKILL, teilStruktur: undefined };
+    expect(composeSkillPrompt(ohne, SEED_REGELN, baseInput, VB)).not.toContain(STRUKTUR_HEADING);
   });
 
   it('mit teilStruktur: hängt den autoritativen JSON-Override-Block mit allen Keys an', () => {

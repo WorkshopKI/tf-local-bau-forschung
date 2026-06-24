@@ -117,6 +117,19 @@ export const SEED_SKILL: SkillRecord = {
   },
   regelIds: SEED_REGELN.map(r => r.id),
   slots: ['stammdaten', 'vbMarkdown'],
+  // Strukturierte Ausgabe (Mess-Gate 2026-06 für A bestätigt: 5/5 robustes Parsen,
+  // flüssiger ~10-Satz-Block unter teilJoin '\n', keine deterministische Regression).
+  // B bewusst NICHT strukturiert (Absatz-Regel-Konflikt). Der `### Finaler Text`-Block
+  // wird als JSON-Array dieser Keys geliefert; finalerText bleibt die flache Quelle der
+  // Wahrheit (Teile per '\n' verbunden), Badges sind render-only.
+  teilStruktur: [
+    { key: 'ausgangsproblem', label: 'Ausgangsproblem' },
+    { key: 'projektziel', label: 'Projektziel' },
+    { key: 'technischer_ansatz', label: 'Technischer Ansatz' },
+    { key: 'erwartetes_ergebnis', label: 'Erwartetes Ergebnis' },
+    { key: 'anwendungsbereich', label: 'Anwendungsbereich' },
+  ],
+  teilJoin: '\n',
   geaendert_am: SEED_TS,
 };
 
