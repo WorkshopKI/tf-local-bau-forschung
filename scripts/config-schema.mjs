@@ -168,6 +168,9 @@ export const DEFAULT_CONFIG = {
      *  Skills (loest die Kurzfassung-Sektion ab). Nur dev. Optional, default false
      *  (kein requiredFlags-Eintrag). */
     gutachtenWorkflow: true,
+    /** Workflow-Entwürfe sichtbar + ausführbar (freigabe:'entwurf'). Nur dev.
+     *  Optional, default false (kein requiredFlags-Eintrag). */
+    workflowEntwuerfe: true,
     /** NF-Nachforderungen (Artefakt-Engine): Pro-TV-NF-Entwürfe auf der Verbund-
      *  Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf). Nur
      *  dev (Testballon). Optional, default false (kein requiredFlags-Eintrag). */

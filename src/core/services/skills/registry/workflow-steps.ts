@@ -4,7 +4,7 @@
  * keine Funktions-Strings im JSON). In Phase 5 kommen `computeStepNumbers` /
  * `flattenStepsTopological` dazu.
  */
-import type { GateExpr, WorkflowStep } from './types';
+import type { GateExpr, WorkflowDef, WorkflowStep } from './types';
 
 /**
  * Minimaler Kontext für die Gate-Auswertung — bewusst STRUKTURELL typisiert (kein
@@ -101,6 +101,20 @@ export function flattenStepsTopological(steps: readonly WorkflowStep[]): Workflo
     for (const s of steps) if (istKind(s) && s.parentStepId === top.id) result.push(s);
   }
   return result;
+}
+
+/**
+ * REINE Freigabe-Gate-Funktion (kein `runtimeConfig`-Import — der Flag kommt als
+ * Arg, Ableitung nur am Aufrufer via `erlaubeWorkflowEntwuerfe`). Ein Workflow ist
+ * verfügbar, wenn er NICHT im Entwurf ist ODER Entwürfe erlaubt sind. Fehlt
+ * `freigabe` (Alt-Def), gilt er als verfügbar (fail-safe — `normalize` setzt sonst
+ * `'freigegeben'`).
+ */
+export function istWorkflowVerfuegbar(
+  def: Pick<WorkflowDef, 'freigabe'>,
+  { erlaubeEntwuerfe }: { erlaubeEntwuerfe: boolean },
+): boolean {
+  return def.freigabe !== 'entwurf' || erlaubeEntwuerfe;
 }
 
 /**

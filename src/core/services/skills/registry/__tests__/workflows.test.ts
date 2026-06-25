@@ -3,6 +3,7 @@ import { normalizeRegistryFile, mergeMissingSeeds } from '../storage';
 import {
   evalGate, flattenStepsTopological, computeStepNumbers,
   normalizeStepRolle, clampMaxRetries, MAX_AUTO_RETRIES, DEFAULT_MAX_RETRIES,
+  istWorkflowVerfuegbar,
 } from '../workflow-steps';
 import { SEED_REGISTRY, SEED_WORKFLOWS } from '../seed';
 import type { SkillRegistryFile, WorkflowStep } from '../types';
@@ -65,6 +66,40 @@ describe('normalizeRegistryFile — workflows (tolerantes Lesen + Tiefe-Klemmung
     expect(byId('C').parentStepId).toBeUndefined();
     expect(byId('D').parentStepId).toBeUndefined();
     expect(byId('E').parentStepId).toBeUndefined();
+  });
+});
+
+describe('normalizeWorkflowDef — freigabe (fail-safe) + precheck-Typ', () => {
+  it('fehlende freigabe → freigegeben (Bestand bleibt überall verfügbar)', () => {
+    const file = normalizeRegistryFile({ version: 1, skills: [], regeln: [], workflows: [{ id: 'w', steps: [] }] })!;
+    expect(file.workflows![0]!.freigabe).toBe('freigegeben');
+  });
+  it('ungültige freigabe → freigegeben; gültige bleibt', () => {
+    const file = normalizeRegistryFile({
+      version: 1, skills: [], regeln: [],
+      workflows: [{ id: 'a', steps: [], freigabe: 'quatsch' }, { id: 'b', steps: [], freigabe: 'entwurf' }],
+    })!;
+    expect(file.workflows!.find(w => w.id === 'a')!.freigabe).toBe('freigegeben');
+    expect(file.workflows!.find(w => w.id === 'b')!.freigabe).toBe('entwurf');
+  });
+  it('artefaktTyp precheck wird übernommen, unbekanntes weggelassen (→ ga)', () => {
+    const file = normalizeRegistryFile({
+      version: 1, skills: [], regeln: [],
+      workflows: [{ id: 'p', steps: [], artefaktTyp: 'precheck' }, { id: 'u', steps: [], artefaktTyp: 'unbekannt' }],
+    })!;
+    expect(file.workflows!.find(w => w.id === 'p')!.artefaktTyp).toBe('precheck');
+    expect(file.workflows!.find(w => w.id === 'u')!.artefaktTyp).toBeUndefined();
+  });
+});
+
+describe('istWorkflowVerfuegbar — reines Freigabe-Gate', () => {
+  it('Entwurf nur mit erlaubeEntwuerfe=true', () => {
+    expect(istWorkflowVerfuegbar({ freigabe: 'entwurf' }, { erlaubeEntwuerfe: true })).toBe(true);
+    expect(istWorkflowVerfuegbar({ freigabe: 'entwurf' }, { erlaubeEntwuerfe: false })).toBe(false);
+  });
+  it('freigegeben/fehlend immer verfügbar (fail-safe)', () => {
+    expect(istWorkflowVerfuegbar({ freigabe: 'freigegeben' }, { erlaubeEntwuerfe: false })).toBe(true);
+    expect(istWorkflowVerfuegbar({}, { erlaubeEntwuerfe: false })).toBe(true);
   });
 });
 

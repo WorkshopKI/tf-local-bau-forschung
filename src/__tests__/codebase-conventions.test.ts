@@ -745,7 +745,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // Schlaegt eine Assertion fehl, ist die erste Frage „ist der Zuwachs gewollt?" —
   // wenn ja, die Konstante hier bewusst anheben (und im CHANGELOG vermerken). Das
   // ist eine Drift-Warnung, kein Verbot.
-  const MAX_FEATURE_FLAGS = 28;    // Ist 28; +1 'anfragen' (Modul Anfragen, v2.127)
+  const MAX_FEATURE_FLAGS = 29;    // Ist 29; +1 'workflowEntwuerfe' (Workflow-Verwaltung dev-Freigabe, v2.133)
   const MAX_SERVICE_DIRS = 22;     // Ist 22 (+ msg: .msg-Parser fuers Anfragen-Modul, v2.x); davor 21 (skill-feedback File-first Substrat S1)
   const MAX_FILE_LOC = 1040;       // Ist 1034 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.

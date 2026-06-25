@@ -39,6 +39,7 @@
     "onlineStatusTab": true,
     "gutachtenKurzfassung": true,
     "gutachtenWorkflow": true,
+    "workflowEntwuerfe": true,
     "nfNachforderungen": true,
     "skillVerwaltung": true,
     "anfragen": true,

@@ -109,6 +109,12 @@ export interface TeamflowFeatures {
   /** Gutachten-Workflow A–G: deterministischer Workflow-Runner ueber Registry-
    *  Skills (loest die Kurzfassung-Sektion ab). Nur dev. Optional, default false. */
   gutachtenWorkflow?: boolean;
+  /** Workflow-Entwuerfe sichtbar + ausfuehrbar: in dev werden WorkflowDefs mit
+   *  `freigabe:'entwurf'` angezeigt und zur Laufzeit gewaehlt; pl/prod/as/kurator
+   *  sehen nur `'freigegeben'`. Die `registry.json` ist geteilt (global), daher
+   *  trennt dieses Flag die Variant-Sichtbarkeit von `aktiv`. Nur dev. Optional,
+   *  default false (fehlt → ueber `variant==='development'` abgeleitet). */
+  workflowEntwuerfe?: boolean;
   /** NF-Nachforderungen (Artefakt-Engine): Pro-TV-NF-Entwuerfe auf der Verbund-
    *  Detailseite. Nur dev (Testballon). Optional, default false. */
   nfNachforderungen?: boolean;

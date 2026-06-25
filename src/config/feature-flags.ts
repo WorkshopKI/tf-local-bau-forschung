@@ -158,6 +158,14 @@ export function isGutachtenWorkflowEnabled(): boolean {
 export function isNfNachforderungenEnabled(): boolean {
   return features.nfNachforderungen === true;
 }
+/** Aufrufer-seitige Ableitung: dürfen Workflow-Entwürfe (`freigabe:'entwurf'`)
+ *  sichtbar/ausführbar sein? Explizites Flag gewinnt; fehlt es, gilt es in
+ *  `development`-Builds als an (dev sieht Entwürfe, prod-artige Configs nicht).
+ *  EINE Quelle für die Gate-Ableitung (die reine `istWorkflowVerfuegbar`
+ *  bekommt das Ergebnis als Arg — kein `runtimeConfig` in der Gate-Logik). */
+export function erlaubeWorkflowEntwuerfe(): boolean {
+  return features.workflowEntwuerfe ?? (runtimeConfig.variant === 'development');
+}
 /** LLM-Kontextlänge-Einstellung (KI-Assistent-Tab) sichtbar machen, wo die
  *  LLM-Skill-Generierung läuft — Kurzfassung ODER Gutachten-Workflow (dev + pl).
  *  Aus dem Wert wird der VB-Schwellwert abgeleitet ([llm-context.ts]). */

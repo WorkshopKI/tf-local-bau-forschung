@@ -58,6 +58,7 @@ export {
   flattenStepsTopological,
   computeStepNumbers,
   normalizeStepRolle,
+  istWorkflowVerfuegbar,
   clampMaxRetries,
   MAX_AUTO_RETRIES,
   DEFAULT_MAX_RETRIES,

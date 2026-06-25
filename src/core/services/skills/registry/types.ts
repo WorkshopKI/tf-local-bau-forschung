@@ -276,10 +276,11 @@ export interface WorkflowStep {
  * Artefakt-Typ einer Workflow-Definition (Artefakt-Engine, additiv). Trennt die
  * Artefakt-Achse von der amtlichen Status-Wirbelsäule: `'ga'` = ZIM-Gutachten
  * (Default, byte-identisch), `'nf'` = ZIM-Nachforderungen, `'abl'`/`'rne'` für
- * spätere Artefakte (noch nicht implementiert). Erweiterbar — Leser tolerieren
- * Unbekanntes (→ `'ga'`, siehe `normalize`).
+ * spätere Artefakte (noch nicht implementiert), `'precheck'` = Verständnis-
+ * Artefakt der Vorhabenbeschreibung (in-App gerendert, kein DOCX). Erweiterbar —
+ * Leser tolerieren Unbekanntes (→ `'ga'`, siehe `normalize`).
  */
-export type ArtefaktTyp = 'ga' | 'nf' | 'abl' | 'rne';
+export type ArtefaktTyp = 'ga' | 'nf' | 'abl' | 'rne' | 'precheck';
 
 /**
  * Ebene, auf der ein Artefakt erzeugt wird: `'verbund'` (Default, ein Lauf pro
@@ -308,7 +309,19 @@ export interface WorkflowDef {
   artefaktTyp?: ArtefaktTyp;
   /** Ebene (additiv). Fehlt → `'verbund'` (GA). NF = `'tv'`. */
   ebene?: WorkflowEbene;
+  /**
+   * Lebenszyklus-Achse (additiv), getrennt von `aktiv` (globaler An/Aus-Schalter):
+   * `'entwurf'` = nur in dev sichtbar/ausführbar, `'freigegeben'` = überall.
+   * Fehlt in Alt-Defs → `normalize` defaultet `'freigegeben'` (fail-safe — zim-ep
+   * und jeder Bestands-Workflow bleibt in allen Varianten verfügbar). Die
+   * Variant-Sichtbarkeit ergibt sich aus `freigabe` + `features.workflowEntwuerfe`
+   * (siehe `istWorkflowVerfuegbar`), NICHT aus `aktiv`.
+   */
+  freigabe?: WorkflowFreigabe;
 }
+
+/** Lebenszyklus-Stand einer Workflow-Definition (gleiches Vokabular wie Abschnitts-Stände). */
+export type WorkflowFreigabe = 'entwurf' | 'freigegeben';
 
 /** Inhalt der gemeinsamen `_intern/skills/registry.json` (Skills + Regeln + Workflows). */
 export interface SkillRegistryFile {

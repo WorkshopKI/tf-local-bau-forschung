@@ -173,16 +173,19 @@ export function SkillVerwaltungPage(): React.ReactElement {
     }).then(() => setEditingRegel(null));
   };
 
-  // — Workflow-Schritt-Aktionen (eine WorkflowDef in v1; Version-Bump pro Persist) —
+  // — Workflow-Schritt-Aktionen (Ziel-Def per id; Version-Bump pro Persist) —
+  // Phase 1: noch die Default-Def (zim-ep); Phase 2 ersetzt durch `selectedWorkflowId`.
   const saveStep = async (step: WorkflowStep): Promise<void> => {
-    const steps = upsertStep(getWorkflowDef(file).steps, step);
-    await reg.persist(withWorkflowSteps(file, steps));
+    const def = getWorkflowDef(file);
+    const steps = upsertStep(def.steps, step);
+    await reg.persist(withWorkflowSteps(file, def.id, steps));
   };
   const changeSteps = (steps: WorkflowStep[]): void => {
-    void save.run(withWorkflowSteps(file, steps));
+    void save.run(withWorkflowSteps(file, getWorkflowDef(file).id, steps));
   };
   const deleteStep = (step: WorkflowStep): void => {
-    void save.run(withWorkflowSteps(file, getWorkflowDef(file).steps.filter(s => s.id !== step.id)))
+    const def = getWorkflowDef(file);
+    void save.run(withWorkflowSteps(file, def.id, def.steps.filter(s => s.id !== step.id)))
       .then(() => setEditingStep(null));
   };
 

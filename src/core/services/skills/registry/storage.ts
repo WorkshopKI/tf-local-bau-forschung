@@ -17,7 +17,7 @@ import { getDatenShareHandle, queryPermission } from '@/core/services/infrastruc
 import type {
   ArtefaktTyp, GateExpr, Pruefart, QualitaetsRegel, Reifegrad, Schweregrad, SkillModifierKey,
   SkillRecord, SkillRegistryFile, SkillVersionSnapshot, TeilDeklaration, TeilJoin, WorkflowDef,
-  WorkflowEbene, WorkflowStep, WorkflowStepRolle,
+  WorkflowEbene, WorkflowFreigabe, WorkflowStep, WorkflowStepRolle,
 } from './types';
 import { normalizeStepRolle } from './workflow-steps';
 import { MAX_HISTORIE } from './versioning';
@@ -54,11 +54,15 @@ function asPruefart(v: unknown): Pruefart | null {
 }
 /** Gültiger `ArtefaktTyp` oder `null` (nur bei explizitem Wert setzen → GA bleibt feld-frei/byte-identisch). */
 function asArtefaktTyp(v: unknown): ArtefaktTyp | null {
-  return v === 'ga' || v === 'nf' || v === 'abl' || v === 'rne' ? v : null;
+  return v === 'ga' || v === 'nf' || v === 'abl' || v === 'rne' || v === 'precheck' ? v : null;
 }
 /** Gültige `WorkflowEbene` oder `null` (nur bei explizitem Wert setzen). */
 function asWorkflowEbene(v: unknown): WorkflowEbene | null {
   return v === 'verbund' || v === 'tv' ? v : null;
+}
+/** Gültige `WorkflowFreigabe` oder `null` (fehlt → Aufrufer defaultet `'freigegeben'`, fail-safe). */
+function asWorkflowFreigabe(v: unknown): WorkflowFreigabe | null {
+  return v === 'entwurf' || v === 'freigegeben' ? v : null;
 }
 
 function normalizeRegel(raw: unknown): QualitaetsRegel | null {
@@ -256,6 +260,9 @@ function normalizeWorkflowDef(raw: unknown): WorkflowDef | null {
   if (artefaktTyp) def.artefaktTyp = artefaktTyp;
   const ebene = asWorkflowEbene(d.ebene);
   if (ebene) def.ebene = ebene;
+  // Lebenszyklus IMMER setzen (fail-safe): fehlt/ungültig → 'freigegeben', damit
+  // zim-ep/nf + jeder Bestands-Workflow in allen Varianten verfügbar bleibt.
+  def.freigabe = asWorkflowFreigabe(d.freigabe) ?? 'freigegeben';
   return def;
 }
 
