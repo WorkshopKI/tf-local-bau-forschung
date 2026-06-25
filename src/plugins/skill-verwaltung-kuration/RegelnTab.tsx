@@ -11,6 +11,7 @@ import {
   useTableSort,
   useColumnVisibility,
   useColumnWidths,
+  type SortableColumn,
 } from '@/components/data-table';
 import { CollapsibleSeg } from '@/plugins/antraege/filter/CollapsibleSeg';
 import { ListItem } from '@/components/ui/ListItem';
@@ -63,6 +64,14 @@ export function RegelnTab({
   const { values, setValue, resetAll, anyActive, candidates, filtered: visible } =
     useRegelFilters(searched, file);
 
+  // Spalten-Definition + Sichtbarkeit hier (statt in der Tabelle), damit der
+  // „Spalten"-Picker in derselben Zeile wie die Filter-Pillen sitzt.
+  const columns = useMemo(
+    () => buildRegelColumns(file, { canEdit, busy, onToggleAktiv }),
+    [file, canEdit, busy, onToggleAktiv],
+  );
+  const { visibleKeys, toggleColumn } = useColumnVisibility('teamflow_regeln_table_columns', columns);
+
   const intro = (
     <p className="text-[13.5px] leading-[1.55] text-[var(--tf-text-secondary)] m-0 mb-4 max-w-[720px]">
       Jede Regel kodiert eine Erfahrung — sie wird automatisch geprüft und der KI als Vorgabe mitgegeben.
@@ -110,6 +119,9 @@ export function RegelnTab({
             Zurücksetzen
           </button>
         )}
+        {viewMode === 'table' && (
+          <ColumnPicker columns={columns} visibleKeys={visibleKeys} onToggleColumn={toggleColumn} />
+        )}
       </div>
     </div>
   );
@@ -120,12 +132,10 @@ export function RegelnTab({
   } else if (viewMode === 'table') {
     body = (
       <RegelnTableView
-        file={file}
         regeln={visible}
-        canEdit={canEdit}
-        busy={busy}
+        columns={columns}
+        visibleKeys={visibleKeys}
         onEdit={onEdit}
-        onToggleAktiv={onToggleAktiv}
       />
     );
   } else if (viewMode === 'list') {
@@ -199,22 +209,15 @@ export function RegelnTab({
 }
 
 interface TableViewProps {
-  file: SkillRegistryFile;
   regeln: QualitaetsRegel[];
-  canEdit: boolean;
-  busy: boolean;
+  columns: SortableColumn<RegelRow>[];
+  visibleKeys: string[];
   onEdit: (regel: QualitaetsRegel) => void;
-  onToggleAktiv: (regel: QualitaetsRegel) => void;
 }
 
 function RegelnTableView({
-  file, regeln, canEdit, busy, onEdit, onToggleAktiv,
+  regeln, columns, visibleKeys, onEdit,
 }: TableViewProps): React.ReactElement {
-  const columns = useMemo(
-    () => buildRegelColumns(file, { canEdit, busy, onToggleAktiv }),
-    [file, canEdit, busy, onToggleAktiv],
-  );
-  const { visibleKeys, toggleColumn } = useColumnVisibility('teamflow_regeln_table_columns', columns);
   const { widths, setWidth } = useColumnWidths('teamflow_regeln_table_col_widths', {});
   const visibleColumns = useMemo(
     () => columns.filter(c => visibleKeys.includes(c.key)),
@@ -225,22 +228,17 @@ function RegelnTableView({
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(rows, visibleColumns);
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex items-center justify-end">
-        <ColumnPicker columns={columns} visibleKeys={visibleKeys} onToggleColumn={toggleColumn} />
-      </div>
-      <SortableTable<RegelRow>
-        rows={sortedRows}
-        columns={visibleColumns}
-        sortKey={sortKey}
-        sortDirection={sortDirection}
-        onSort={toggleSort}
-        rowKey={r => r._rowKey}
-        onRowClick={r => onEdit(r.regel)}
-        emptyContent="Keine Regeln."
-        columnWidths={widths}
-        onColumnWidthChange={setWidth}
-      />
-    </div>
+    <SortableTable<RegelRow>
+      rows={sortedRows}
+      columns={visibleColumns}
+      sortKey={sortKey}
+      sortDirection={sortDirection}
+      onSort={toggleSort}
+      rowKey={r => r._rowKey}
+      onRowClick={r => onEdit(r.regel)}
+      emptyContent="Keine Regeln."
+      columnWidths={widths}
+      onColumnWidthChange={setWidth}
+    />
   );
 }

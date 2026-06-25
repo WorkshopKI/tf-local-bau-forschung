@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.130.1 — Qualitätsregeln: „Spalten"-Picker in die Filter-Zeile (Juni 2026)
+
+PATCH — der „Spalten"-Umschalter der Tabellen-Ansicht ([RegelnTab.tsx](src/plugins/skill-verwaltung-kuration/RegelnTab.tsx))
+saß in einer eigenen Zeile unter den Filter-Pillen. Spalten-Definition + Sichtbarkeit (`buildRegelColumns` +
+`useColumnVisibility`) sind jetzt in `RegelnTab` hochgezogen; der `ColumnPicker` rendert im rechten Cluster
+der Filter-Leiste (neben Treffer-Zähler/„Zurücksetzen", nur im Tabellen-Modus). `RegelnTableView` bekommt
+`columns`/`visibleKeys` als Props — die separate Zeile entfällt. Reine Layout-Änderung.
+
 ### v2.130.0 — Qualitätsregeln: Gruppierung → Facetten-Filter-Leiste (Juni 2026)
 
 MINOR — die **Qualitätsregeln**-Liste in der Skill-Verwaltung ([RegelnTab.tsx](src/plugins/skill-verwaltung-kuration/RegelnTab.tsx))
