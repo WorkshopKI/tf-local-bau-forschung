@@ -5,8 +5,9 @@
  */
 import { X } from 'lucide-react';
 import type { Anfrage } from './types';
-import { STATUS_LABEL, STATUS_REIHENFOLGE, statusIndex } from './status';
+import { STATUS_LABEL, STATUS_REIHENFOLGE, statusErreicht, statusIndex } from './status';
 import { AnfrageAnonymisierung } from './AnfrageAnonymisierung';
+import { RueckimportFinalisierung } from './RueckimportFinalisierung';
 
 interface Props {
   anfrage: Anfrage;
@@ -93,6 +94,10 @@ export function AnfrageDetail({ anfrage, onClose }: Props): React.ReactElement {
       </section>
 
       <AnfrageAnonymisierung anfrage={anfrage} />
+
+      {statusErreicht(anfrage.status, 'export_freigegeben') && (
+        <RueckimportFinalisierung anfrage={anfrage} />
+      )}
     </div>
   );
 }
