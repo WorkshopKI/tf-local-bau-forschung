@@ -76,6 +76,35 @@ describe('runAnonymisierung — interner Thinking-Block', () => {
   });
 });
 
+describe('runAnonymisierung — Retry bei früh-finalisierter Teil-Antwort', () => {
+  // Reproduziert den „Starte…"-Bug: das Bookmarklet finalisiert unter Last zu früh
+  // mit einem kurzen Partial; ein frischer Versuch liefert das echte JSON.
+  function fakeBridgeSeq(antworten: string[]): AIBridge {
+    let i = 0;
+    const transport = {
+      name: 'Streamlit',
+      ping: async () => true,
+      submitMessage: async () => antworten[Math.min(i++, antworten.length - 1)]!,
+    };
+    return { getTransportForSkillRun: () => transport } as unknown as AIBridge;
+  }
+
+  const ECHT = '{"anonymisiert":"Hallo [PERSON_1]","mapping":[{"platzhalter":"[PERSON_1]","original":"Dr. Schmidt","typ":"person"}]}';
+
+  it('1. Versuch „Starte…", 2. Versuch echtes JSON → löst mit dem geparsten Ergebnis auf', async () => {
+    const bridge = fakeBridgeSeq(['Starte…', ECHT]);
+    const r = await runAnonymisierung(bridge, ANFRAGE_ANONYMISIEREN_SKILL, 'Text', { pauseMs: 0 });
+    expect(r.anonymisiertMd).toBe('Hallo [PERSON_1]');
+  });
+
+  it('alle Versuche „Starte…" → wirft mit Snippet im Fehler', async () => {
+    const bridge = fakeBridgeSeq(['Starte…', 'Starte…', 'Starte…']);
+    await expect(
+      runAnonymisierung(bridge, ANFRAGE_ANONYMISIEREN_SKILL, 'Text', { versuche: 3, pauseMs: 0 }),
+    ).rejects.toThrow(/Starte/);
+  });
+});
+
 describe('Anonymisierungs-Skill — Invarianten', () => {
   it('startet ZWINGEND aktiv: false (ungeprüft, geteilte registry.json)', () => {
     expect(ANFRAGE_ANONYMISIEREN_SKILL.aktiv).toBe(false);

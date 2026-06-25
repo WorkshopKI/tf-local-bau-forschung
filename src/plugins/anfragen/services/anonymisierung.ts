@@ -111,30 +111,59 @@ export function istAnonymisiererAktiv(skill: SkillRecord | null | undefined): bo
   return !!skill && skill.aktiv !== false;
 }
 
+const RETRY_PAUSE_MS = 700;
+const warte = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+export interface RunAnonymisierungOptions {
+  /** Max. Versuche (Default 3). */
+  versuche?: number;
+  /** Pause zwischen Versuchen in ms (Default 700; Tests: 0). */
+  pauseMs?: number;
+}
+
 /**
  * Führt die Anonymisierung über die INTERNE Bridge aus. `getTransportForSkillRun`
  * wirft bei externem Transport (DSGVO-Hardlock); der Originaltext erreicht nie ein
  * externes Modell.
+ *
+ * Bounded Retry: die Streamlit-Bridge finalisiert die Antwort unter Last
+ * gelegentlich ZU FRÜH mit einer kurzen Teil-Antwort („Starte…"), bevor das JSON
+ * kommt (das Bookmarklet schließt nach `SETTLE_MS` DOM-Idle, der die Thinking-Pause
+ * überschreitet). Dann findet `parseAnonymisierung` kein `{anonymisiert}` und wirft.
+ * Ein frischer Versuch = ein neuer `tf-request` = neue Generierung → liefert quasi
+ * sicher die volle Antwort. Persistenz/Side-Effects erst nach Erfolg in der UI.
  */
 export async function runAnonymisierung(
   bridge: AIBridge,
   skill: SkillRecord,
   originalMd: string,
+  opts?: RunAnonymisierungOptions,
 ): Promise<AnonymisierungErgebnis> {
   const transport = bridge.getTransportForSkillRun(skill);
   const ok = await transport.ping();
   if (!ok) throw new Error('Interne KI nicht erreichbar — Anonymisierung derzeit nicht möglich.');
-  const result = await runSkill(transport, skill, [], {
-    stammdaten: '',
-    vbMarkdown: '',
-    zielText: originalMd,
-    // Die interne KI denkt IMMER (Reasoning an); im non-streaming Streamlit-Pfad
-    // kommt der Reasoning-Block inline als <think>…</think> im Content. runSkill
-    // strippt ihn nur bei thinkingBudget !== 'none' (extractThinking) — sonst greift
-    // der Parser eine Klammer/ein Format-Beispiel aus dem Reasoning. Wert ist für die
-    // Streamlit-Bridge nicht transportrelevant (wird nicht gesendet), aktiviert aber
-    // die Bereinigung.
-    thinkingBudget: 'medium',
-  });
-  return parseAnonymisierung(result.raw);
+  const maxVersuche = Math.max(1, opts?.versuche ?? 3);
+  const pauseMs = opts?.pauseMs ?? RETRY_PAUSE_MS;
+  let letzterFehler: unknown;
+  for (let versuch = 0; versuch < maxVersuche; versuch++) {
+    const result = await runSkill(transport, skill, [], {
+      stammdaten: '',
+      vbMarkdown: '',
+      zielText: originalMd,
+      // Die interne KI denkt IMMER (Reasoning an); im non-streaming Streamlit-Pfad
+      // kommt der Reasoning-Block inline als <think>…</think> im Content. runSkill
+      // strippt ihn nur bei thinkingBudget !== 'none' (extractThinking) — sonst greift
+      // der Parser eine Klammer/ein Format-Beispiel aus dem Reasoning. Wert ist für die
+      // Streamlit-Bridge nicht transportrelevant (wird nicht gesendet), aktiviert aber
+      // die Bereinigung.
+      thinkingBudget: 'medium',
+    });
+    try {
+      return parseAnonymisierung(result.raw);
+    } catch (err) {
+      letzterFehler = err;
+      if (versuch < maxVersuche - 1) await warte(pauseMs);
+    }
+  }
+  throw letzterFehler instanceof Error ? letzterFehler : new Error(String(letzterFehler));
 }

@@ -340,7 +340,12 @@
 
     setTimeout(function () {
       submit(ta);
-      var POLL_MS = 400, MAX_MS = 180000, SETTLE_MS = 2500;
+      // SETTLE_MS = Idle-Fenster vor dem Finalisieren. Grosszuegig (5 s), damit
+      // Thinking-Modelle (Reasoning immer an) eine Denk-Pause zwischen erstem Token
+      // und der eigentlichen Antwort ueberleben — sonst finalisiert die Bridge zu
+      // frueh mit einem kurzen Partial (z. B. "Starte…"). MIN_LEN: solange die
+      // Antwort verdaechtig kurz ist, ein doppelt so langes Fenster verlangen.
+      var POLL_MS = 400, MAX_MS = 180000, SETTLE_MS = 5000, MIN_LEN = 40;
       var started = Date.now(), lastMd = '', finished = false;
 
       function lastAssistant() {
@@ -363,10 +368,13 @@
         if (isRunning()) lastDomActivity = Date.now();
 
         var idle = Date.now() - lastDomActivity;
-        // Finalisieren erst, wenn Antwort vorhanden, nichts mehr laeuft und
-        // ~SETTLE_MS keine Aktivitaet mehr. Bei leerer Antwort (Thinking-Phase
-        // vor dem ersten Token) NIE finalisieren.
-        if (lastMd && !isRunning() && idle >= SETTLE_MS) {
+        // Finalisieren erst, wenn Antwort vorhanden, nichts mehr laeuft und genug
+        // Idle-Zeit verstrich. Bei leerer Antwort (Thinking-Phase vor dem ersten
+        // Token) NIE finalisieren. Kurz-Inhalt-Schutz: ein verdaechtig kurzes
+        // lastMd (z. B. "Starte…") bekommt das doppelte Fenster, damit das echte
+        // (laengere) Resultat nach einer Denk-Pause noch nachkommen kann.
+        var settle = lastMd.length < MIN_LEN ? SETTLE_MS * 2 : SETTLE_MS;
+        if (lastMd && !isRunning() && idle >= settle) {
           finished = true;
           clearInterval(iv);
           setBadge('ready', 'Verbunden');
