@@ -80,7 +80,7 @@ export function SyncStatusIndicator(): React.ReactElement {
         aria-label={triggerTooltip}
         className="flex items-center justify-center p-1.5 rounded-[var(--tf-radius)] cursor-pointer hover:bg-[var(--tf-hover)] shrink-0">
         <Database
-          size={17}
+          size={14}
           className={status.syncing
             ? 'text-[var(--tf-warning-text)] animate-pulse'
             : datenShareAvailable

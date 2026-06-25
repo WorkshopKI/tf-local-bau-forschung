@@ -16,7 +16,7 @@ und waren kaum klickbar.
   / Database), eng gruppiert und rechts ausgerichtet — beide klickbar (Dialog wie bisher).
 - **Punkt + „Verbunden"-Text entfernt** (kein Platz in schmaler Sidebar); der Status
   steckt in der **Icon-Farbe** (grün = verbunden, rot = getrennt/offline, gelb-pulsierend =
-  Sync läuft) + Tooltip. Icons **größer** (12/13 → 17 px).
+  Sync läuft) + Tooltip. Icons **etwas größer + gleich groß** (12/13 → 14/14 px).
 
 Betrifft `SyncStatusIndicator.tsx`, `BridgeStatusIndicator.tsx`, `ShellLayout.tsx`. Keine Migration.
 
