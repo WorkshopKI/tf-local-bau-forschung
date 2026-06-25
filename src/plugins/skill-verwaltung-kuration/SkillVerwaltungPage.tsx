@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, Info } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { MasterDetailLayout } from '@/components/master-detail';
 import {
   resolveRegeln,
@@ -37,6 +38,12 @@ type TabId = 'skills' | 'regeln' | 'workflows' | 'eval';
 
 const VIEW_MODE_KEY = 'teamflow_skillreg_view_mode';
 const VIEW_MODES: RegistryViewMode[] = ['list', 'table', 'cards'];
+
+/** Kurz-Hilfe je Tab — als Info-Icon neben der Suchleiste statt als Intro-Absatz
+ *  (spart vertikalen Platz, der Nutzer sieht die Tabelle sofort). */
+const TAB_HELP: Partial<Record<TabId, string>> = {
+  regeln: 'Jede Regel kodiert eine Erfahrung — sie wird automatisch geprüft und der KI als Vorgabe mitgegeben.',
+};
 
 function blankSkill(): SkillRecord {
   const now = new Date().toISOString();
@@ -340,7 +347,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
 
           {/* Suche (für Skills/Regeln; Workflow + Eval haben keine Listen-Suche) */}
           {showSearch && (
-            <div className="mt-2 pb-3 flex items-center gap-3">
+            <div className="mt-2 pb-3 flex items-center gap-2">
               <div className="relative flex-1 min-w-0 max-w-[640px]">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none" />
                 <Input
@@ -350,6 +357,17 @@ export function SkillVerwaltungPage(): React.ReactElement {
                   className="pl-7 h-8 w-full text-[12.5px]"
                 />
               </div>
+              {TAB_HELP[tab] && (
+                <Tooltip text={TAB_HELP[tab]!}>
+                  <button
+                    type="button"
+                    aria-label="Info"
+                    className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] transition-colors cursor-help"
+                  >
+                    <Info size={15} />
+                  </button>
+                </Tooltip>
+              )}
             </div>
           )}
         </div>

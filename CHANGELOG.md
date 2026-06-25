@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.131.5 — Qualitätsregeln: Intro-Text hinter Info-Icon (vertikaler Platz) (Juni 2026)
+
+PATCH — der Intro-Absatz „Jede Regel kodiert eine Erfahrung …" kostete vor der Tabelle eine ganze Zeile.
+Jetzt hinter einem **Info-Icon in der Suchleisten-Zeile** ([SkillVerwaltungPage.tsx](src/plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx),
+`TAB_HELP` + `Tooltip`) versteckt; der `<p>`-Absatz in [RegelnTab.tsx](src/plugins/skill-verwaltung-kuration/RegelnTab.tsx)
+ist entfernt. Der Nutzer sieht die Tabelle sofort, die Erklärung bleibt per Hover/Fokus abrufbar.
+
 ### v2.131.4 — Regel-Filter: Typ-Facette entfernt (Overlap mit Kategorie/Prüfart) (Juni 2026)
 
 PATCH — die Kategorie („Art") wird per `effektiveKategorie()` aus `typ` + `pruefart` abgeleitet

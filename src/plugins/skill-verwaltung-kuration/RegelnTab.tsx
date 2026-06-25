@@ -76,18 +76,9 @@ export function RegelnTab({
   );
   const { visibleKeys, toggleColumn } = useColumnVisibility('teamflow_regeln_table_columns', columns);
 
-  const intro = (
-    <p className="text-[13.5px] leading-[1.55] text-[var(--tf-text-secondary)] m-0 mb-4 max-w-[720px]">
-      Jede Regel kodiert eine Erfahrung — sie wird automatisch geprüft und der KI als Vorgabe mitgegeben.
-    </p>
-  );
-
   if (file.regeln.length === 0) {
     return (
-      <div>
-        {intro}
-        <p className="text-[13.5px] text-[var(--tf-text-secondary)] py-2">Noch keine Regeln. Lege die erste an →</p>
-      </div>
+      <p className="text-[13.5px] text-[var(--tf-text-secondary)] py-2">Noch keine Regeln. Lege die erste an →</p>
     );
   }
 
@@ -215,7 +206,7 @@ export function RegelnTab({
     );
   }
 
-  return <div>{intro}{toolbar}{body}</div>;
+  return <div>{toolbar}{body}</div>;
 }
 
 interface TableViewProps {
