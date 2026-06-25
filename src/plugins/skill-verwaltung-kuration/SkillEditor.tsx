@@ -185,6 +185,24 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
           )}
         </div>
 
+        {/* Aktivierungs-Gate: Skill freischalten/sperren (z.B. nach bestandener Eval). */}
+        <div className="mt-4 rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-[14px] py-3">
+          <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)]">
+            <input
+              type="checkbox"
+              disabled={ro}
+              checked={draft.aktiv !== false}
+              onChange={e => setDraft(d => ({ ...d, aktiv: e.target.checked }))}
+              className="accent-[var(--tf-primary)] disabled:opacity-60"
+            />
+            <span>Skill aktiv (freigeschaltet)</span>
+          </label>
+          <div className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
+            Deaktiviert (Häkchen aus): Module, die das Gate respektieren (z.&nbsp;B. „Anfragen"), führen den Skill nicht aus.
+            Standard: aktiv. Ein neuer, ungeprüfter Skill startet bewusst deaktiviert, bis seine Eval besteht.
+          </div>
+        </div>
+
         {/* Formale Vorgaben (automatisch) */}
         <div className="mt-7">
           <Section>Formale Vorgaben (automatisch)</Section>

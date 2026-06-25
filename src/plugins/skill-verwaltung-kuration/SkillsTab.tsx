@@ -64,6 +64,15 @@ function ReifegradBadge({ r }: { r: Reifegrad }): React.ReactElement {
   return <span className={`text-[10.5px] px-1.5 py-0.5 rounded-[5px] whitespace-nowrap ${REIFEGRAD_STYLE[r]}`}>{REIFEGRAD_LABEL[r]}</span>;
 }
 
+/** Sichtbarer Hinweis, dass ein Skill deaktiviert ist (Module mit Gate führen ihn nicht aus). */
+function InaktivBadge(): React.ReactElement {
+  return (
+    <span className="text-[10.5px] px-1.5 py-0.5 rounded-[5px] whitespace-nowrap bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]">
+      inaktiv
+    </span>
+  );
+}
+
 /** Kompakte S1-Signal-Zeile (Nutzung, 👍/👎, Kommentare) + dezenter Reifegrad-Vorschlag. */
 function SkillSignals({ a, reifegrad }: { a: SkillAggregat; reifegrad: Reifegrad }): React.ReactElement {
   const vorschlag = suggestReifegrad(a, reifegrad);
@@ -154,6 +163,7 @@ export function SkillsTab({
                 <>
                   <span className="text-[13.5px] font-medium text-[var(--tf-text)] whitespace-nowrap">{skill.name}</span>
                   <ReifegradBadge r={reifegradOf(skill)} />
+                  {skill.aktiv === false && <InaktivBadge />}
                 </>
               )}
               subtitle={skill.beschreibung}
@@ -277,6 +287,7 @@ function SkillCard({ file, skill, a, canEdit, onEdit, onTestlauf, onDuplicate, o
       <div className="flex items-center gap-2.5 flex-wrap">
         <h2 className="text-[15px] font-medium text-[var(--tf-text)] m-0">{skill.name}</h2>
         <ReifegradBadge r={reifegradOf(skill)} />
+        {skill.aktiv === false && <InaktivBadge />}
         {fundstellen.length > 0 && (
           <span className="text-[10.5px] px-1.5 py-0.5 rounded-[5px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] whitespace-nowrap">
             Abschnitt {fundstellen[0]!.nr}
