@@ -8,6 +8,12 @@ export {
   runRegelChecks,
   buildPromptHinweis,
   buildPromptVorgaben,
+  eingabeModusOf,
+  kompiliereGruppe,
+  erkennungsEintraege,
+  type EingabeModus,
+  type SynonymGruppe,
+  type ErkennungsEintrag,
 } from './check-engine';
 export {
   effektiveKategorie,

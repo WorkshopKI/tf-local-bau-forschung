@@ -7,6 +7,7 @@ import {
   type Schweregrad,
 } from '@/core/services/skills';
 import { useReportGuardState, type EditorGuardState } from './editorGuard';
+import { MusterErkennungEditor } from './MusterErkennungEditor';
 
 /** Bekannte Kategorie-Keys für den Setzer (ohne „sonstige" — das ist der Auffang-Default). */
 const KATEGORIE_KEYS = Object.keys(KATEGORIE_LABEL).filter(k => k !== 'sonstige');
@@ -50,6 +51,8 @@ export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete
 
   const setParam = (key: string, value: unknown): void =>
     setDraft(d => ({ ...d, params: { ...d.params, [key]: value } }));
+  const setParams = (patch: Record<string, unknown>): void =>
+    setDraft(d => ({ ...d, params: { ...d.params, ...patch } }));
   const setNumParam = (key: string, raw: string): void => {
     const n = parseInt(raw, 10);
     setParam(key, Number.isFinite(n) ? n : undefined);
@@ -150,20 +153,7 @@ export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete
       </div>
 
       {draft.typ === 'verbotenes_muster' && (
-        <div className="mt-5">
-          <label className={FIELD_LABEL}>Muster (ein Eintrag pro Zeile)</label>
-          <textarea
-            rows={3}
-            disabled={ro}
-            value={(Array.isArray(draft.params.muster) ? (draft.params.muster as string[]) : []).join('\n')}
-            onChange={e => setParam('muster', e.target.value.split('\n').map(s => s.trim()).filter(Boolean))}
-            className="w-full font-mono text-[12.5px] px-2.5 py-2 rounded-[8px] border-[0.5px] border-[var(--tf-border-hover)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)] disabled:opacity-70"
-          />
-          <label className="mt-2 inline-flex items-center gap-2 text-[12.5px] text-[var(--tf-text-secondary)] cursor-pointer">
-            <input type="checkbox" disabled={ro} checked={draft.params.istRegex === true} onChange={e => setParam('istRegex', e.target.checked)} />
-            Muster sind reguläre Ausdrücke
-          </label>
-        </div>
+        <MusterErkennungEditor params={draft.params} setParam={setParam} setParams={setParams} disabled={ro} />
       )}
 
       <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-[18px] mb-2">
