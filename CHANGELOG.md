@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.128.0 — Changelog-Modal: „Alle aufklappen"-Umschalter (Juni 2026)
+
+MINOR — neben den 10er-Paketen (v2.127) gibt es in der Filterleiste des Changelog-Modals jetzt
+wieder einen Umschalter **„Alle aufklappen" / „Alle zuklappen"**: ein Klick öffnet alle Pakete und
+Versions-Karten auf einmal (bzw. klappt zurück auf den kompakten Default — erste 3 offen, Rest zu).
+Steckt in den Collapsible-Keys → der Umschalter mountet sauber neu (Radix `defaultOpen` greift nur
+beim Mount); bleibt über Filter-/Zeit-Wechsel erhalten.
+
+Additiv — keine Migration, keine Config-Änderung.
+
 ### v2.127.0 — Changelog-Modal: 10er-Pakete + frei größenveränderbar (Juni 2026)
 
 MINOR — das Changelog-Modal ist bei vielen Versionen handlicher:

@@ -107,6 +107,9 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
   const storage = useStorage();
   const [filter, setFilter] = useState<FilterKey>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilterKey>('all');
+  // „Alle aufklappen": überschreibt die Default-Offen-Logik (erste 3 + Pakete zu) und öffnet
+  // alles. Steckt in den Collapsible-Keys → Toggle mountet neu (Radix `defaultOpen` ist mount-only).
+  const [expandAll, setExpandAll] = useState(false);
   // Beim Öffnen den geglätteten Changelog vom Daten-Share laden (Vorrang vor der
   // eingebetteten/abgeleiteten Fassung); null = keiner/offline → Fallback greift.
   const [shareMd, setShareMd] = useState<string | null>(null);
@@ -212,7 +215,7 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
       resizeStorageKey="teamflow_changelog_dialog_size"
     >
       {/* Kategorie-Filter (klebt am oberen Rand des scrollbaren Inhalts) */}
-      <div className="sticky top-0 z-10 -mx-6 mb-3 flex items-center gap-1 border-b border-[var(--tf-border)] bg-[var(--tf-bg)] px-6 pb-2 pt-1">
+      <div className="sticky top-0 z-10 -mx-6 mb-3 flex flex-wrap items-center gap-1 border-b border-[var(--tf-border)] bg-[var(--tf-bg)] px-6 pb-2 pt-1">
         {filters.map((f) => (
           <button
             key={f.key}
@@ -225,19 +228,33 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
             {f.label} <span className="opacity-60">{f.count}</span>
           </button>
         ))}
-        {/* Zeit-Filter (orthogonal zur Kategorie) — rechtsbündig abgesetzt. */}
-        <button
-          type="button"
-          onClick={() => setTimeFilter((t) => (t === 'month' ? 'all' : 'month'))}
-          aria-pressed={timeFilter === 'month'}
-          className={`ml-auto rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-            timeFilter === 'month'
-              ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
-              : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-          }`}
-        >
-          Letzter Monat
-        </button>
+        {/* Rechte Gruppe: Aufklapp-Steuerung + Zeit-Filter (orthogonal zur Kategorie). */}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setExpandAll((v) => !v)}
+            aria-pressed={expandAll}
+            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+              expandAll
+                ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
+                : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+            }`}
+          >
+            {expandAll ? 'Alle zuklappen' : 'Alle aufklappen'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTimeFilter((t) => (t === 'month' ? 'all' : 'month'))}
+            aria-pressed={timeFilter === 'month'}
+            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+              timeFilter === 'month'
+                ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
+                : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+            }`}
+          >
+            Letzter Monat
+          </button>
+        </div>
       </div>
 
       {visibleMajors.length === 0 ? (
@@ -248,8 +265,10 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
         <div className="space-y-3 pb-2">
           {visibleMajors.map((maj) => (
             <Collapsible
-              key={maj.major}
-              defaultOpen={maj.major === currentMajor}
+              // expandAll im Key → Toggle mountet die ganze Hauptnummer neu, alle Kinder
+              // übernehmen ihr neues defaultOpen.
+              key={`${expandAll}-${maj.major}`}
+              defaultOpen={expandAll || maj.major === currentMajor}
               className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]"
             >
               <CollapsibleTrigger className={`${TRIGGER_BASE} py-3`}>
@@ -272,13 +291,14 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
                         <MinorCard
                           key={`${filter}-${timeFilter}-${min.minor}`}
                           min={min}
-                          defaultOpen={maj.major === currentMajor && idx < 3}
+                          defaultOpen={expandAll || (maj.major === currentMajor && idx < 3)}
                           matches={matches}
                         />
                       ))}
                       {buckets.map((bucket) => (
                         <Collapsible
                           key={`${filter}-${timeFilter}-${bucket.key}`}
+                          defaultOpen={expandAll}
                           className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]"
                         >
                           <CollapsibleTrigger className={`${TRIGGER_BASE} py-2`}>
@@ -290,7 +310,7 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
                           </CollapsibleTrigger>
                           <CollapsibleContent className="space-y-1.5 px-2 pb-2 pt-1">
                             {bucket.minors.map((min) => (
-                              <MinorCard key={min.minor} min={min} defaultOpen={false} matches={matches} />
+                              <MinorCard key={min.minor} min={min} defaultOpen={expandAll} matches={matches} />
                             ))}
                           </CollapsibleContent>
                         </Collapsible>
