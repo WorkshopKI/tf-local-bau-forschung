@@ -384,10 +384,13 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
             </button>
             {sidebarMode === 'expanded' && (
               <>
-                <div className="flex-1 min-w-0">
+                {/* Zwei farbige Status-Icons nebeneinander: KI (links) + Datenbestand
+                    (rechts). ml-auto schiebt die Gruppe nach rechts, gap-0.5 hält sie
+                    eng beieinander (klickbar, auch in schmaler Sidebar). */}
+                <div className="ml-auto flex items-center gap-0.5">
+                  <BridgeStatusIndicator />
                   <SyncStatusIndicator />
                 </div>
-                <BridgeStatusIndicator />
                 <BuildInfo />
               </>
             )}

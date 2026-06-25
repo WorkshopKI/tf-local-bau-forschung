@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.135.1 — Sidebar-Status: zwei kompakte Farb-Icons (Juni 2026)
+
+PATCH — Feinschliff der Fußzeilen-Statusanzeige (aus v2.135.0). In der oft schmal
+eingestellten Sidebar war die Mischung aus Datenbank-Icon + farbigem Punkt + Text
+„Verbunden" + KI-Icon zu breit; der Punkt/das KI-Icon rutschten an den rechten Rand
+und waren kaum klickbar.
+
+- Jetzt **zwei farbige Icons nebeneinander** (links **KI** / Bot, rechts **Datenbestand**
+  / Database), eng gruppiert und rechts ausgerichtet — beide klickbar (Dialog wie bisher).
+- **Punkt + „Verbunden"-Text entfernt** (kein Platz in schmaler Sidebar); der Status
+  steckt in der **Icon-Farbe** (grün = verbunden, rot = getrennt/offline, gelb-pulsierend =
+  Sync läuft) + Tooltip. Icons **größer** (12/13 → 17 px).
+
+Betrifft `SyncStatusIndicator.tsx`, `BridgeStatusIndicator.tsx`, `ShellLayout.tsx`. Keine Migration.
+
 ### v2.135.0 — Live-Verbindungsstatus der internen KI (Juni 2026)
 
 MINOR — die Verbindung zur internen KI (Streamlit-Bridge) wird jetzt **automatisch erkannt und überall

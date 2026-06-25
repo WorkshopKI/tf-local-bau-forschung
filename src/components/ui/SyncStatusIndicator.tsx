@@ -73,12 +73,20 @@ export function SyncStatusIndicator(): React.ReactElement {
 
   return (
     <>
+      {/* Icon-only (grün/rot) — Datenbestand. Kein Punkt/Text: in schmaler Sidebar
+          kein Platz; Status steckt in Icon-Farbe + Tooltip. Detail per Klick. */}
       <button onClick={() => setShowDetail(true)}
         title={triggerTooltip}
-        className="flex items-center gap-2 px-3 py-2 w-full text-left cursor-pointer hover:bg-[var(--tf-hover)] rounded-[var(--tf-radius)]">
-        <Database size={12} className={`shrink-0 ${datenShareAvailable ? 'text-[var(--tf-success-text)]' : 'text-[var(--tf-text-tertiary)]'}`} />
-        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
-        <span className="text-[11px] text-[var(--tf-text-tertiary)] truncate">{label}</span>
+        aria-label={triggerTooltip}
+        className="flex items-center justify-center p-1.5 rounded-[var(--tf-radius)] cursor-pointer hover:bg-[var(--tf-hover)] shrink-0">
+        <Database
+          size={17}
+          className={status.syncing
+            ? 'text-[var(--tf-warning-text)] animate-pulse'
+            : datenShareAvailable
+              ? 'text-[var(--tf-success-text)]'
+              : 'text-[var(--tf-danger-text)]'}
+        />
       </button>
 
       <Dialog open={showDetail} onClose={() => setShowDetail(false)} title="Synchronisierung">
