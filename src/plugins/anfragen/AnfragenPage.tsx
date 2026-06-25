@@ -5,11 +5,13 @@
  */
 import { useEffect } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
+import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { MasterDetailLayout } from '@/components/master-detail';
 import { useAnfragenStore } from './store';
 import { AnfrageAufnahme } from './AnfrageAufnahme';
 import { AnfrageListe } from './AnfrageListe';
 import { AnfrageDetail } from './AnfrageDetail';
+import { AnfrageRecallEval } from './AnfrageRecallEval';
 
 export function AnfragenPage(): React.ReactElement {
   const storage = useStorage();
@@ -37,6 +39,7 @@ export function AnfragenPage(): React.ReactElement {
           </p>
         </div>
         <AnfrageAufnahme />
+        {isDevFixturesEnabled() && <AnfrageRecallEval />}
       </div>
 
       <MasterDetailLayout
