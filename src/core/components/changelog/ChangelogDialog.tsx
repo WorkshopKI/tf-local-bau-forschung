@@ -12,7 +12,7 @@
  * Pitfall #1/#2 — kein Runtime-fetch).
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { marked } from 'marked';
 // Markdown-Quellen werden zur Build-Zeit als String eingebettet (?raw).
@@ -25,7 +25,9 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { appVersion } from '@/config/runtime-config';
 import { isDevContext } from '@/config/feature-flags';
+import { useStorage } from '@/core/hooks/useStorage';
 import { getChangelogMarkdown, parseUserChangelog, type ChangeCategory } from './deriveChangelog';
+import { readUserChangelogFromShare } from './changelogShare';
 import { ChangelogPolishPanel } from './ChangelogPolishPanel';
 
 type FilterKey = 'all' | ChangeCategory;
@@ -42,6 +44,9 @@ const TRIGGER_BASE =
   'flex w-full items-center justify-between gap-2 rounded-[var(--tf-radius)] px-3 text-left ' +
   'transition-colors hover:bg-[var(--tf-hover)] [&[data-state=open]>svg]:rotate-180';
 
+/** Entwickler-CHANGELOG + Archiv, zur Build-Zeit eingebettet (stabil → memo-tauglich). */
+const DEV_COMBINED = `${devChangelogRaw}\n${archivChangelogRaw}`;
+
 /** Einzeiliger Änderungstext mit leichtem Inline-Markdown (z.B. **fett**). */
 function ChangeText({ text }: { text: string }): React.ReactElement {
   const html = useMemo(() => sanitizeHtml(marked.parseInline(text, { async: false }) as string), [text]);
@@ -49,8 +54,23 @@ function ChangeText({ text }: { text: string }): React.ReactElement {
 }
 
 export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
+  const storage = useStorage();
   const [filter, setFilter] = useState<FilterKey>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilterKey>('all');
+  // Beim Öffnen den geglätteten Changelog vom Daten-Share laden (Vorrang vor der
+  // eingebetteten/abgeleiteten Fassung); null = keiner/offline → Fallback greift.
+  const [shareMd, setShareMd] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void readUserChangelogFromShare(storage.idb).then((md) => {
+      if (!cancelled) setShareMd(md);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, storage]);
 
   const currentMajor = useMemo(() => {
     const n = Number.parseInt(appVersion.split('.')[0] ?? '', 10);
@@ -63,10 +83,18 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
     return now.getFullYear() * 12 + now.getMonth();
   }, []);
 
-  const markdown = useMemo(
-    () => getChangelogMarkdown(`${devChangelogRaw}\n${archivChangelogRaw}`, userChangelogRaw, currentMajor),
+  // Aus CHANGELOG.md abgeleitete „Build-Wahrheit" aller Versionen — Quelle fürs Glätten.
+  const derivedMarkdown = useMemo(
+    () => getChangelogMarkdown(DEV_COMBINED, '', currentMajor),
     [currentMajor],
   );
+  // Eingebettete Fassung (committed changelog-user.md, sonst abgeleitet) als Build-Fallback.
+  const embeddedMarkdown = useMemo(
+    () => getChangelogMarkdown(DEV_COMBINED, userChangelogRaw, currentMajor),
+    [currentMajor],
+  );
+  // Anzeige: Share-Stand (Laufzeit) hat Vorrang, sonst eingebettet/abgeleitet.
+  const markdown = shareMd ?? embeddedMarkdown;
 
   const majors = useMemo(() => parseUserChangelog(markdown), [markdown]);
 
@@ -223,7 +251,13 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
         </div>
       )}
 
-      {isDevContext() && <ChangelogPolishPanel currentMarkdown={markdown} />}
+      {isDevContext() && (
+        <ChangelogPolishPanel
+          sourceMarkdown={derivedMarkdown}
+          shareMarkdown={shareMd ?? ''}
+          onSaved={(merged) => setShareMd(merged)}
+        />
+      )}
     </Dialog>
   );
 }

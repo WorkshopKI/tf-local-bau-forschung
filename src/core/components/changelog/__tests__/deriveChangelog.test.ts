@@ -4,6 +4,9 @@ import {
   parseUserChangelog,
   getChangelogMarkdown,
   hasUserChangelogContent,
+  splitMinorSections,
+  selectNewMinorSections,
+  mergeChangelog,
 } from '../deriveChangelog';
 
 const DEV_SAMPLE = `# Changelog — TeamFlow Local App
@@ -139,5 +142,48 @@ describe('getChangelogMarkdown / hasUserChangelogContent', () => {
     const result = getChangelogMarkdown(DEV_SAMPLE, COMMENT_ONLY, 2);
     expect(result).toBe(deriveUserChangelogFromDev(DEV_SAMPLE, { major: 2 }));
     expect(result).toContain('## v2.98');
+  });
+});
+
+describe('inkrementelles Glätten — splitMinorSections / selectNewMinorSections / mergeChangelog', () => {
+  const SOURCE = ['## v2.126 — 2026-07', '- c neu', '', '## v2.125 — 2026-06', '- b', '', '## v2.124 — 2026-06', '- a'].join('\n');
+
+  it('splitMinorSections zerlegt je Version inkl. Header + Datums-Suffix', () => {
+    const secs = splitMinorSections(SOURCE);
+    expect(secs.map((s) => s.key)).toEqual(['2.126', '2.125', '2.124']);
+    expect(secs[0]!.text).toBe('## v2.126 — 2026-07\n- c neu');
+    expect(secs[2]!.text).toBe('## v2.124 — 2026-06\n- a');
+  });
+
+  it('splitMinorSections verwirft Vorwort vor dem ersten Header', () => {
+    const secs = splitMinorSections('# Titel\n\nVorwort.\n\n## v2.5\n- x');
+    expect(secs).toHaveLength(1);
+    expect(secs[0]!.text).toBe('## v2.5\n- x');
+  });
+
+  it('selectNewMinorSections liefert nur Versionen, die im Share-File fehlen', () => {
+    const existing = ['## v2.124 — 2026-06', '- a (geglättet)'].join('\n');
+    const neu = selectNewMinorSections(SOURCE, existing);
+    expect(neu.map((s) => s.key)).toEqual(['2.126', '2.125']);
+  });
+
+  it('selectNewMinorSections: leeres Share-File → alle Versionen sind neu (Erstlauf)', () => {
+    expect(selectNewMinorSections(SOURCE, '').map((s) => s.key)).toEqual(['2.126', '2.125', '2.124']);
+  });
+
+  it('mergeChangelog setzt Frisches oben drauf, dedupliziert und sortiert absteigend', () => {
+    const existing = ['## v2.124 — 2026-06', '- a (alt)'].join('\n');
+    const polishedNew = ['## v2.126 — 2026-07', '- c (neu)', '', '## v2.125 — 2026-06', '- b (neu)'].join('\n');
+    const merged = mergeChangelog(polishedNew, existing);
+    expect(splitMinorSections(merged).map((s) => s.key)).toEqual(['2.126', '2.125', '2.124']);
+    expect(merged).toContain('- a (alt)');
+    expect(merged).toContain('- c (neu)');
+  });
+
+  it('mergeChangelog: frische Fassung gewinnt bei Versions-Konflikt', () => {
+    const merged = mergeChangelog('## v2.124 — 2026-06\n- neu', '## v2.124 — 2026-06\n- alt');
+    expect(splitMinorSections(merged)).toHaveLength(1);
+    expect(merged).toContain('- neu');
+    expect(merged).not.toContain('- alt');
   });
 });

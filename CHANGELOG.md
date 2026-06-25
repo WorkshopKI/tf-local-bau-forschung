@@ -5,6 +5,30 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.126.0 — Changelog „Mit KI glätten" inkrementell + auf den Daten-Share (Juni 2026)
+
+MINOR — das Entwickler-Werkzeug „Mit KI glätten" im Changelog-Modal
+([ChangelogPolishPanel.tsx](src/core/components/changelog/ChangelogPolishPanel.tsx)) speichert das
+geglättete Ergebnis jetzt auf den **Daten-Share** statt per Datei-Picker in die Quelldatei — alle
+Build-Varianten (prod/pl/as/kurator) lesen den nutzerfreundlichen Changelog damit **zur Laufzeit**,
+ohne Rebuild.
+
+- **Speicherort** `_intern/changelog-user.md` (neuer Store
+  [changelogShare.ts](src/core/components/changelog/changelogShare.ts): `atomicWrite` + Audit-Log,
+  Lesen best-effort mit Fallback). Lesepfad-Priorität im Modal: Share → eingebettete
+  `changelog-user.md` → aus CHANGELOG.md abgeleitet.
+- **Inkrementell**: „Mit KI glätten" verarbeitet nur die Versionen, die noch **nicht** im
+  Share-Changelog stehen, und merged das Ergebnis über den Bestand (reine Helfer
+  `splitMinorSections` / `selectNewMinorSections` / `mergeChangelog` in
+  [deriveChangelog.ts](src/core/components/changelog/deriveChangelog.ts), unit-getestet). Erstlauf
+  glättet alles; Schalter „Alle neu glätten" erzwingt einen Komplettlauf.
+- **Review bleibt**: der gemergte Stand erscheint editierbar im Textfeld, „Auf Share speichern"
+  schreibt ihn und aktualisiert die Modal-Anzeige sofort. Gating unverändert (`isDevContext()`).
+- Der `## vX.Y — JJJJ-MM`-Datums-Suffix bleibt beim Glätten erhalten (Prompt-Regel) → der
+  „Letzter Monat"-Filter (v2.125) funktioniert auch auf dem Share-Changelog.
+
+Additiv — keine Migration: ohne Share-Datei verhält sich das Modal wie bisher (eingebettet/abgeleitet).
+
 ### v2.125.0 — Changelog-Modal: erste 3 Karten offen, kompakter, Filter „Letzter Monat" (Juni 2026)
 
 MINOR — das „Änderungen & Updates"-Modal (Klick auf die Versionsnummer in der Sidebar) wurde

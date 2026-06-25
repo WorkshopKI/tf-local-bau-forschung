@@ -275,3 +275,62 @@ export function parseUserChangelog(md: string): ChangelogMajor[] {
     }))
     .sort((a, b) => b.major - a.major);
 }
+
+/** Ein roher Markdown-Abschnitt je `## vX.Y`-Version (für das inkrementelle Glätten). */
+export interface MinorSection {
+  major: number;
+  minor: number;
+  /** Stabiler Schlüssel `major.minor` (z.B. `2.124`). */
+  key: string;
+  /** Roher Markdown-Abschnitt inkl. `## vX.Y`-Header — Datums-Suffix (` — YYYY-MM`) bleibt erhalten. */
+  text: string;
+}
+
+/**
+ * Zerlegt kanonische Changelog-Markdown in Abschnitte je `## vX.Y` (Header-Zeile + Body bis
+ * zum nächsten Header). Zeilen vor dem ersten Header (Vorwort) werden verworfen. Reihenfolge
+ * der Quelle bleibt erhalten.
+ */
+export function splitMinorSections(md: string): MinorSection[] {
+  interface Acc { major: number; minor: number; lines: string[] }
+  const acc: Acc[] = [];
+  let current: Acc | null = null;
+  for (const line of md.split('\n')) {
+    const h = USER_HEADER_RE.exec(line.trim());
+    if (h) {
+      current = { major: Number(h[1]), minor: Number(h[2]), lines: [line] };
+      acc.push(current);
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+  return acc.map((s) => ({
+    major: s.major,
+    minor: s.minor,
+    key: `${s.major}.${s.minor}`,
+    text: s.lines.join('\n').trim(),
+  }));
+}
+
+/**
+ * Wählt aus `sourceMd` (volle Build-Wahrheit, aus CHANGELOG.md abgeleitet) genau die
+ * `## vX.Y`-Abschnitte, die in `existingMd` (bereits geglätteter Share-Changelog) NOCH NICHT
+ * vorkommen — die Eingabe fürs inkrementelle Glätten. Quell-Reihenfolge (neueste zuerst) bleibt.
+ */
+export function selectNewMinorSections(sourceMd: string, existingMd: string): MinorSection[] {
+  const existing = new Set(splitMinorSections(existingMd).map((s) => s.key));
+  return splitMinorSections(sourceMd).filter((s) => !existing.has(s.key));
+}
+
+/**
+ * Mischt frisch geglättete Abschnitte (`polishedNewMd`) über den bestehenden Share-Changelog
+ * (`existingMd`). Dedupliziert nach `major.minor` (frische Fassung gewinnt) und gibt absteigend
+ * sortiert zurück (neueste zuerst) — robust gegen Reihenfolge/Doppelung der Eingaben.
+ */
+export function mergeChangelog(polishedNewMd: string, existingMd: string): string {
+  const byKey = new Map<string, MinorSection>();
+  for (const s of splitMinorSections(existingMd)) byKey.set(s.key, s);
+  for (const s of splitMinorSections(polishedNewMd)) byKey.set(s.key, s); // frische überschreiben
+  const sorted = [...byKey.values()].sort((a, b) => b.major - a.major || b.minor - a.minor);
+  return sorted.map((s) => s.text).join('\n\n') + (sorted.length ? '\n' : '');
+}

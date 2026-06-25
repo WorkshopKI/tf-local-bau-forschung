@@ -1,21 +1,26 @@
 /**
  * Entwickler-Werkzeug im Changelog-Modal: „Mit KI glätten".
  *
- * Schickt den aktuell angezeigten (aus CHANGELOG.md abgeleiteten oder bereits
- * geglätteten) Changelog an die interne KI und lässt ihn in nutzerfreundliche
- * Sprache umschreiben. Das Ergebnis kann der Entwickler im Textfeld nachbearbeiten
- * und via File System Access API in `src/core/components/changelog/changelog-user.md`
- * zurückschreiben — danach committen, dann sehen alle Build-Varianten den Text.
+ * Schickt die noch NICHT geglätteten Versionen (aus CHANGELOG.md abgeleitet) an die
+ * interne KI und lässt sie in nutzerfreundliche Sprache umschreiben. Standard ist
+ * INKREMENTELL: es werden nur die Versionen geglättet, die noch nicht im geglätteten
+ * Share-Changelog (`_intern/changelog-user.md`) stehen; das Ergebnis wird über den
+ * bestehenden Stand gemerged. Der Entwickler kann den gemergten Stand nachbearbeiten
+ * und ihn dann auf den Daten-Share schreiben — danach sehen ihn ALLE Build-Varianten
+ * zur Laufzeit, ohne Rebuild.
  *
  * Wird ausschließlich im Entwickler-Build gerendert (siehe ChangelogDialog,
  * `isDevContext()`), daher ist `useAIBridge()` hier sicher (Provider ist Vorfahr).
  */
 
 import { useState } from 'react';
-import { Sparkles, Save } from 'lucide-react';
+import { Sparkles, UploadCloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useStorage } from '@/core/hooks/useStorage';
+import { selectNewMinorSections, mergeChangelog } from './deriveChangelog';
+import { writeUserChangelogToShare } from './changelogShare';
 
 const SYSTEM_PROMPT =
   'Du bist technischer Redakteur. Du schreibst Changelog-Einträge für Endnutzer ' +
@@ -25,7 +30,9 @@ const SYSTEM_PROMPT =
 
 const USER_INSTRUCTIONS =
   'Formuliere den folgenden Changelog nutzerfreundlich um. Regeln:\n' +
-  '- Behalte die `## vX.Y`-Überschriften exakt bei (gleiche Nummern, gleiche Reihenfolge).\n' +
+  '- Behalte die `## vX.Y`-Überschriften exakt bei — gleiche Nummern, gleiche ' +
+  'Reihenfolge UND den optionalen Datums-Suffix ` — JJJJ-MM` unverändert (er steuert ' +
+  'einen Zeit-Filter).\n' +
   '- Fasse je Version die Punkte zu kurzen, verständlichen Sätzen zusammen; ' +
   'gruppiere bei Bedarf in `### Neu`, `### Verbesserungen`, `### Bugfixes`.\n' +
   '- Keine Datei-/Funktionsnamen, keine internen Begriffe (Snapshot, IndexedDB, Merge, ' +
@@ -40,13 +47,36 @@ function stripCodeFence(s: string): string {
   return m ? (m[1] ?? '').trim() : t;
 }
 
-export function ChangelogPolishPanel({ currentMarkdown }: { currentMarkdown: string }): React.ReactElement {
+export function ChangelogPolishPanel({
+  sourceMarkdown,
+  shareMarkdown,
+  onSaved,
+}: {
+  /** Volle Build-Wahrheit (aus CHANGELOG.md abgeleitet) — Quelle aller Versionen. */
+  sourceMarkdown: string;
+  /** Aktuell auf dem Share liegender, bereits geglätteter Changelog ('' wenn keiner). */
+  shareMarkdown: string;
+  /** Nach erfolgreichem Speichern aufgerufen — aktualisiert die Modal-Anzeige sofort. */
+  onSaved: (merged: string) => void;
+}): React.ReactElement {
   const bridge = useAIBridge();
+  const storage = useStorage();
   const [draft, setDraft] = useState<string | null>(null);
+  const [polishAll, setPolishAll] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
 
   const polish = useAsyncAction(async () => {
+    setNote(null);
+    // Inkrementell gegen den Share-Stand; „Alle neu glätten" ignoriert ihn (existing = '').
+    const existing = polishAll ? '' : shareMarkdown;
+    const newSections = selectNewMinorSections(sourceMarkdown, existing);
+    if (newSections.length === 0) {
+      setDraft(null);
+      setNote('Alles aktuell — keine neuen Versionen zu glätten.');
+      return;
+    }
+    const userMessage = USER_INSTRUCTIONS + newSections.map((s) => s.text).join('\n\n');
     const transport = bridge.getActiveTransport();
-    const userMessage = USER_INSTRUCTIONS + currentMarkdown;
     let out: string;
     if (typeof transport.submitConversation === 'function') {
       out = await transport.submitConversation(
@@ -54,41 +84,24 @@ export function ChangelogPolishPanel({ currentMarkdown }: { currentMarkdown: str
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userMessage },
         ],
-        // Output-Headroom: der ganze v2.x-Changelog kann lang werden; Thinking aus,
-        // damit der Denkprozess nicht das Token-Budget der Antwort frisst.
+        // Output-Headroom: nur die neuen Versionen, Thinking aus (kein Token-Budget-Klau).
         { maxTokens: 16000, thinkingBudget: 'none' },
       );
     } else {
       out = await transport.submitMessage(userMessage, SYSTEM_PROMPT, { thinkingBudget: 'none' });
     }
-    setDraft(stripCodeFence(out));
+    const merged = mergeChangelog(stripCodeFence(out), existing);
+    setDraft(merged);
+    setNote(`${newSections.length} neue Version${newSections.length === 1 ? '' : 'en'} geglättet — prüfen und speichern.`);
   });
 
   const save = useAsyncAction(async () => {
     if (draft == null) return;
-    const win = window as unknown as {
-      showSaveFilePicker?: (options?: {
-        suggestedName?: string;
-        types?: { description?: string; accept: Record<string, string[]> }[];
-      }) => Promise<FileSystemFileHandle>;
-    };
-    if (!win.showSaveFilePicker) {
-      throw new Error('File System Access API nicht verfügbar in diesem Browser.');
-    }
-    let handle: FileSystemFileHandle;
-    try {
-      handle = await win.showSaveFilePicker({
-        suggestedName: 'changelog-user.md',
-        types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }],
-      });
-    } catch (err) {
-      // Abbruch im Datei-Dialog ist kein Fehler.
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      throw err;
-    }
-    const writable = await handle.createWritable();
-    await writable.write(draft.endsWith('\n') ? draft : draft + '\n');
-    await writable.close();
+    const merged = draft.trim();
+    await writeUserChangelogToShare(storage.idb, merged);
+    onSaved(merged);
+    setDraft(null);
+    setNote('Auf den Daten-Share gespeichert — für alle Varianten sichtbar.');
   });
 
   return (
@@ -97,12 +110,24 @@ export function ChangelogPolishPanel({ currentMarkdown }: { currentMarkdown: str
         <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--tf-text-tertiary)]">
           Entwickler · Nutzer-Changelog pflegen
         </span>
-        <Button size="sm" variant="outline" onClick={() => polish.run()} disabled={polish.busy}>
-          <Sparkles size={13} className="mr-1.5" />
-          {polish.busy ? 'Glätte…' : 'Mit KI glätten'}
-        </Button>
+        <div className="flex items-center gap-3">
+          <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--tf-text-secondary)]">
+            <input
+              type="checkbox"
+              checked={polishAll}
+              onChange={(e) => setPolishAll(e.target.checked)}
+              className="accent-[var(--tf-primary)]"
+            />
+            Alle neu glätten
+          </label>
+          <Button size="sm" variant="outline" onClick={() => polish.run()} disabled={polish.busy}>
+            <Sparkles size={13} className="mr-1.5" />
+            {polish.busy ? 'Glätte…' : 'Mit KI glätten'}
+          </Button>
+        </div>
       </div>
 
+      {note && <div className="mt-2 text-[12px] text-[var(--tf-text-secondary)]">{note}</div>}
       {polish.error && (
         <div className="mt-2 text-[12px] text-[var(--tf-danger-text)]">Fehler: {polish.error}</div>
       )}
@@ -117,11 +142,12 @@ export function ChangelogPolishPanel({ currentMarkdown }: { currentMarkdown: str
           />
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-              Speichern → <code>src/core/components/changelog/changelog-user.md</code> wählen, dann committen.
+              Speichern schreibt <code>_intern/changelog-user.md</code> auf den Daten-Share — alle
+              Varianten lesen das zur Laufzeit (kein Rebuild).
             </span>
             <Button size="sm" variant="default" onClick={() => save.run()} disabled={save.busy}>
-              <Save size={13} className="mr-1.5" />
-              {save.busy ? 'Speichere…' : 'In Datei speichern'}
+              <UploadCloud size={13} className="mr-1.5" />
+              {save.busy ? 'Speichere…' : 'Auf Share speichern'}
             </Button>
           </div>
           {save.error && (
