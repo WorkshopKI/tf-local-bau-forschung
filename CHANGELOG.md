@@ -5,6 +5,28 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.134.0 — Gutachten: Workflow-Auswahl im Antrag (dev-Test) (Juni 2026)
+
+MINOR — Folgeschnitt zu v2.133.0: In **dev** kann man im Antrag auswählen, **welchen** GA-Workflow der
+Gutachten-Stepper fährt, um einen frisch gebauten **Entwurf**-Workflow an einem echten Antrag testweise
+durchzuspielen. Greift **nur** wenn Entwürfe erlaubt sind **und** es >1 wählbaren Workflow gibt — sonst
+kein Dropdown, **GA byte-identisch** (prod/pl/as unverändert). Bewusst klein: kein neues Run-Keying, keine
+Output-Typen, kein zweiter Skill-/Generierungs-Pfad.
+
+- **Eine Erkennungs-/Auflösungs-Quelle** ([active-workflow.ts](src/plugins/antraege/gutachten/active-workflow.ts)):
+  `resolveWorkflowSteps` nimmt optional `opts.workflowId` — eine explizite, gültige + verfügbare Wahl
+  gewinnt über den Tie-Break, sonst byte-identisch. Kandidaten-Prädikat `istWorkflowKandidat` als EINE
+  Quelle; neue reine `verfuegbareWorkflows(file, typ, {erlaubeEntwuerfe})` fürs Dropdown.
+- `buildSkillMap` ([skill-context.ts](src/plugins/antraege/gutachten/skill-context.ts)) nimmt optional
+  `{ artefaktTyp, workflowId }` und nutzt **denselben** Auflöser (ohne Opts byte-identisch → `useBatchJob`
+  unberührt).
+- **Dropdown** ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts) +
+  [GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)): lokaler `testWorkflowId`-State
+  (resettet pro Reload), Lade-Effekt speist `{ workflowId }` ein und lädt bei Wechsel Run/Steps/SkillMap neu;
+  das `select` „Workflow (dev-Test)" erscheint nur bei `erlaubeWorkflowEntwuerfe() && >1` Workflow.
+- Bekannte Vereinfachung: Run-Keying bleibt `(artefaktTyp, scope)` — zwei GA-Workflows teilen den Run;
+  abweichende Schritt-IDs starten leer (gewolltes Test-Verhalten). Per-Workflow-Keying erst, wenn nötig.
+
 ### v2.133.1 — Streamlit-Bridge: Status-Leiste über der neuen Tab-Leiste sichtbar (Juni 2026)
 
 PATCH — auf der geänderten internen-KI-Seite (`gpt.vdivde-it.de`, jetzt volle-Breite-Tab-Leiste mit
