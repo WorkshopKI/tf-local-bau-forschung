@@ -79,3 +79,57 @@ describe('runSkill Lektor-Zweitpass', () => {
     expect(res.entwurfVorLektor).toBe('Echt.');
   });
 });
+
+describe('runSkill Streaming-Gate (Thinking erzwingt KEIN Streaming)', () => {
+  function plainSkill(): SkillRecord {
+    return {
+      id: 's', name: 's', beschreibung: '', version: 1,
+      promptTemplate: 'VB:\n{{vbMarkdown}}',
+      modifiers: { neu: '', kuerzer: '', laenger: '' },
+      regelIds: [], slots: ['vbMarkdown'], geaendert_am: '2026-01-01T00:00:00.000Z',
+    };
+  }
+
+  /** Transport, der BEIDE Pfade beherrscht und protokolliert, welcher lief. */
+  function dualTransport(): { transport: AITransport; calls: { conv: number; stream: number } } {
+    const calls = { conv: 0, stream: 0 };
+    const transport: AITransport = {
+      name: 'dual',
+      ping: async () => true,
+      submitMessage: async () => 'MSG',
+      submitConversation: async () => { calls.conv++; return 'KONVERSATION'; },
+      streamConversation: async (_messages, callbacks) => {
+        calls.stream++;
+        callbacks.onDelta('STREAM');
+        return { content: 'STREAM', aborted: false };
+      },
+    };
+    return { transport, calls };
+  }
+
+  // Kern-Regression: thinkingBudget !== 'none' OHNE Delta-Consumer darf NICHT mehr
+  // streamen (sonst hängt der DirectLLM/llama.cpp-Stream-Loop ohne Timeout). Es
+  // muss der robuste non-streaming-Pfad (submitConversation → res.json()) laufen.
+  it('thinkingBudget ohne Delta-Consumer → non-streaming (submitConversation)', async () => {
+    const { transport, calls } = dualTransport();
+    const res = await runSkill(transport, plainSkill(), [], {
+      stammdaten: '', vbMarkdown: 'x', thinkingBudget: 'medium',
+    });
+    expect(calls.conv).toBe(1);
+    expect(calls.stream).toBe(0);
+    expect(res.parsed.finalerText).toBe('KONVERSATION');
+  });
+
+  it('mit onContentDelta → streaming (streamConversation, Live-Vorschau)', async () => {
+    const { transport, calls } = dualTransport();
+    const deltas: string[] = [];
+    const res = await runSkill(transport, plainSkill(), [], {
+      stammdaten: '', vbMarkdown: 'x', thinkingBudget: 'medium',
+      onContentDelta: (t) => deltas.push(t),
+    });
+    expect(calls.stream).toBe(1);
+    expect(calls.conv).toBe(0);
+    expect(deltas).toEqual(['STREAM']);
+    expect(res.parsed.finalerText).toBe('STREAM');
+  });
+});

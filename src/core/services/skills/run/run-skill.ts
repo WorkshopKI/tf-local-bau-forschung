@@ -115,8 +115,10 @@ export interface SkillRunInput {
   /**
    * Reasoning-/Thinking-Budget (`getLlmThinkingBudget()`, Einstellungen →
    * KI-Assistent). Fehlt es → `'none'` (Verhalten byte-identisch zu vorher).
-   * Bei `!== 'none'` fährt der Runner den Streaming-Pfad und erfasst den
-   * Denkprozess (`SkillRunResult.thinking`).
+   * Bei `!== 'none'` wird Reasoning angefordert (`reasoning.effort`) und der
+   * inline-`<think>`-Block aus dem Content getrennt (`extractThinking`). Der
+   * Streaming-Pfad wird dadurch NICHT mehr ausgelöst — dafür braucht es einen
+   * Delta-Consumer (`onContentDelta`/`onThinkingDelta`, s. u.).
    */
   thinkingBudget?: ThinkingBudget;
   /**
@@ -276,11 +278,19 @@ export async function runSkill(
 
   let raw: string;
   let thinking: string | undefined;
-  // Streamen, sobald (a) der Transport es kann UND (b) Thinking aktiv ist ODER
-  // die UI Live-Deltas möchte (Vorschau zum Mitlesen). Der Streaming-Pfad trennt
-  // Reasoning robust (Feld reasoning_content|reasoning UND <think>-Fallback).
+  // Streamen NUR, wenn (a) der Transport es kann UND (b) jemand die Deltas
+  // konsumiert (UI-Live-Vorschau zum Mitlesen). Thinking allein triggert KEIN
+  // Streaming mehr: der Streaming-Loop (DirectLLM/llama.cpp) terminiert nur über
+  // `[DONE]`/Verbindungsschluss und HAT KEINEN TIMEOUT — liefert der Server nach
+  // Generierungsende kein erkanntes Abschluss-Signal, hängt das Promise ewig.
+  // Nicht-interaktive Läufe (Anonymisieren, Glätten, NF, Eval, Batch, Testlauf)
+  // haben keinen Delta-Consumer → sie fahren den robusten non-streaming-Pfad
+  // (`submitConversation` → `res.json()`, gebundene Completion wie die
+  // Auslastungs-Klassifizierung). Reasoning + `<think>`-Bereinigung bleiben
+  // erhalten (Body sendet weiter `reasoning.effort`; `extractThinking` unten
+  // greift bei `budget !== 'none'`).
   const wantsStream = typeof transport.streamConversation === 'function'
-    && (budget !== 'none' || !!input.onContentDelta || !!input.onThinkingDelta);
+    && (!!input.onContentDelta || !!input.onThinkingDelta);
   if (typeof transport.submitConversation === 'function') {
     const messages: ConversationMessage[] = [
       ...(systemPrompt ? [{ role: 'system', content: systemPrompt } as ConversationMessage] : []),

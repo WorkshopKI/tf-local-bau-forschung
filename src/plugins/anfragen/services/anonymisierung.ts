@@ -154,12 +154,12 @@ export async function runAnonymisierung(
       stammdaten: '',
       vbMarkdown: '',
       zielText: originalMd,
-      // Die interne KI denkt IMMER (Reasoning an); im non-streaming Streamlit-Pfad
-      // kommt der Reasoning-Block inline als <think>…</think> im Content. runSkill
-      // strippt ihn nur bei thinkingBudget !== 'none' (extractThinking) — sonst greift
-      // der Parser eine Klammer/ein Format-Beispiel aus dem Reasoning. Wert ist für die
-      // Streamlit-Bridge nicht transportrelevant (wird nicht gesendet), aktiviert aber
-      // die Bereinigung.
+      // Die interne KI denkt IMMER (Reasoning an); der Reasoning-Block kommt inline
+      // als <think>…</think> im Content. runSkill strippt ihn nur bei thinkingBudget
+      // !== 'none' (extractThinking) — sonst greift der Parser eine Klammer/ein
+      // Format-Beispiel aus dem Reasoning. Wir übergeben den Wert NUR, um diese
+      // Bereinigung zu aktivieren; Streaming löst er NICHT aus (kein Delta-Consumer →
+      // runSkill fährt den robusten non-streaming-Pfad, s. run-skill.ts wantsStream).
       thinkingBudget: 'medium',
     });
     try {

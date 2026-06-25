@@ -5,6 +5,28 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.135.2 — Fix: „Anfragen → Anonymisieren" hängt mit lokalem llama.cpp nie endet (Juni 2026)
+
+PATCH — der Anonymisieren-Schritt (Modul Anfragen) blieb mit dem lokalen llama.cpp/qwen-
+Server ewig im Spinner, obwohl der Server seine Tokens längst generiert hatte. Ursache:
+`runSkill` fuhr immer dann den **Streaming-Pfad** (`streamConversation`), wenn Thinking
+aktiv war (`thinkingBudget !== 'none'`) — auch ohne Live-Vorschau-Consumer. Der
+DirectLLM-Stream-Loop terminiert aber nur über `[DONE]`/Verbindungsschluss und hat
+**keinen Timeout**; liefert der Server kein erkanntes Abschluss-Signal, settlet das
+Promise nie. Der gut funktionierende Auslastungs-Klassifizierungs-Batch nutzt dagegen den
+non-streaming-Pfad (`submitMessage` → `res.json()`, gebundene Completion).
+
+- **Fix:** `runSkill` streamt jetzt **nur noch, wenn ein Delta-Consumer existiert**
+  (`onContentDelta`/`onThinkingDelta`). Thinking allein triggert kein Streaming mehr.
+- **Wirkung:** Anonymisieren + Glätten (kein Consumer) laufen über den robusten
+  non-streaming-Pfad — dieselbe Completion wie die Klassifizierung. Reasoning +
+  `<think>`-Bereinigung bleiben erhalten. Interaktive Flows (Gutachten/Kurzfassung,
+  Live-Vorschau mit Callbacks) streamen unverändert weiter.
+
+Betrifft `src/core/services/skills/run/run-skill.ts` (+ präzisierte Kommentare in
+`anonymisierung.ts`/`finalisierung.ts`, Regressions-Test in `run-skill.test.ts`).
+Keine Migration.
+
 ### v2.135.1 — Sidebar-Status: zwei kompakte Farb-Icons (Juni 2026)
 
 PATCH — Feinschliff der Fußzeilen-Statusanzeige (aus v2.135.0). In der oft schmal
