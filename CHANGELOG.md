@@ -5,6 +5,32 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.129.0 — Modul „Anfragen": E-Mail-Kurzanfrage → anonymisierte ZIM-Antwort (Juni 2026)
+
+MINOR — neues **dev-only** Plugin „Anfragen" (Flag `features.anfragen`, nur dev). Ein Förderreferent nimmt
+eine Outlook-`.msg`-Kurzanfrage auf (body-only), lässt sie per **interner** KI anonymisieren (+ lokale
+Mapping-Tabelle), exportiert die anonyme Version guard-gated in die Zwischenablage fürs externe
+ZIM-Dashboard, importiert die anonyme Antwort zurück und setzt die Originaldaten **deterministisch**
+wieder ein → mail-fertige Antwort (Clipboard/`mailto`).
+
+- **`.msg`-Parser** ([src/core/services/msg/parse-msg.ts](src/core/services/msg/parse-msg.ts)): body-only über
+  das bereits gebündelte `cfb` + nativen `TextDecoder` — bewusst **kein** `msgreader` (dessen
+  `iconv-lite`/`Buffer`-Abhängigkeit läuft unter `file://` nicht polyfill-frei). Plain-Text > HTML > RTF
+  (degradiert). Anhänge werden nur gezählt, nie verarbeitet.
+- **Anonymisierungs-Skill** `anfrage-anonymisieren` in der geteilten `registry.json` — startet ZWINGEND
+  **`aktiv: false`** (neues additives `SkillRecord.aktiv`-Gate); Originaltext über `{{zielText}}` → interner
+  Transport erzwungen. Freischaltung ist ein manueller Schritt nach dem Recall-Gate.
+- **Export-Guard** ([export-guard.ts](src/plugins/anfragen/services/export-guard.ts)): deterministischer
+  Mapping-Gegenscan + Pattern-Scan (E-Mail/FKZ/IBAN/X.500-DN/Hostname/Telefon) bei JEDEM Kopieren; Export
+  disabled solange nicht sicher. Convention-Guards: `anfrage-no-mapping-in-transport`,
+  `anfrage-export-only-via-guard`.
+- **Persistenz** im `kv`-Store (`anfrage:<id>`), kein neuer IDB-Object-Store/Version-Bump. `mapping`/
+  `originalMd` (sensibelste Strukturen) verlassen den Rechner nie.
+- **Recall-Gate** (Phase 9): fiktive Fixtures (alle `PiiTyp`) + Recall-Scoring + dev-Eval-Panel.
+
+Dev-only — `anfragen: false` in prod/pl/kurator/as, keine Migration. Neue Dependency `cfb` (browser-safe,
+schon transitiv via `xlsx`).
+
 ### v2.128.1 — Dev-Build: Skill-Bearbeitung ohne Kurator-Session (Juni 2026)
 
 PATCH — im **dev**-Build (`build:dev` + `npm run dev`) ist die Skill-/Regel-Registry jetzt **direkt
