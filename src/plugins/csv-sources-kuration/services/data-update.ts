@@ -23,9 +23,8 @@ import { ensureDefaultProgramm, listProgramme, healMissingVerbuende } from '@/co
 import { syncProgrammSnapshot, type SnapshotTimings } from '@/core/services/csv/snapshot-sync';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { rematchOnSnapshotReload } from '@/phase2';
-import { readKuratorName } from '@/core/services/infrastructure/kurator-config';
+import { resolveSnapshotAuthor } from '@/core/services/infrastructure/update-author';
 import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
-import { runtimeConfig } from '@/config/runtime-config';
 import { invalidateAggregateCache } from '@/core/services/skill-feedback/cache';
 import { runAutoRefresh, collectCandidates, BuildLockBusyError, type RefreshReport } from './auto-refresh';
 
@@ -213,9 +212,12 @@ export async function runDataUpdate(
       onPhase?.({ phase: 'csv-check', fraction: 1 });
 
       if (collected && collected.candidates.length > 0 && !signal?.cancelled) {
-        // Audit-/Lock-Identität: Kurator-Name wenn vorhanden, sonst Build-Label
-        // (z.B. „ZAH PL") — konsistent mit der Banner-Identität (v2.16).
-        const identity = (await readKuratorName(idb).catch(() => null)) ?? runtimeConfig.build.label;
+        // Urheber-Identität fürs Snapshot-`createdBy` (Anzeige „… von X"):
+        // Kurator-Name → echtes Profil-Kürzel → Nachname (persönl. Ordner) →
+        // Build-Label → „unbekannt". In pl/as ist das Kürzel meist „alle" und es
+        // gibt keinen Kurator-Namen → ohne den Nachname-Fallback sähe niemand,
+        // WER aktualisiert hat (resolveSnapshotAuthor).
+        const identity = await resolveSnapshotAuthor(idb);
         try {
           const report = await runAutoRefresh(idb, collected.candidates, {
             kuratorName: identity,

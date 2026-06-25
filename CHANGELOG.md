@@ -5,6 +5,30 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.124.3 — Datenaktualisierung: Nachname statt „unbekannt" / „ZAH PL" als Urheber (Juni 2026)
+
+PATCH — der bei einer Datenaktualisierung geschriebene Snapshot stempelt jetzt einen
+**menschlich identifizierbaren Urheber** ins `createdBy` (Anzeige im
+[NewSnapshotBanner](src/core/components/NewSnapshotBanner.tsx) als „Neuer Datenbestand … von **X**").
+
+- **Ursache**: in den Varianten pl/as ist das Profil-Kürzel fast immer „**alle**" (Übersichts-Modus)
+  und es gibt keinen Kurator-Namen → die Attribution fiel auf das generische Build-Label („ZAH PL")
+  oder — im direkten Einzel-Import — auf den Literal-String „**unbekannt**". Niemand sah, **wer**
+  aktualisiert hat.
+- **Fix**: neuer gemeinsamer Resolver
+  [resolveSnapshotAuthor](src/core/services/infrastructure/update-author.ts) mit Präzedenz
+  Kurator-Name → echtes Profil-Kürzel (nicht „alle"/leer) → **Nachname** (= Name des persönlichen
+  Ordners, `getPersoenlichHandle().name`) → Build-Label → „unbekannt". Verwendet an allen drei
+  Schreibstellen ([data-update.ts](src/plugins/csv-sources-kuration/services/data-update.ts),
+  [importer.ts](src/core/services/csv/importer.ts),
+  [useCsvAutoRefreshCheck.ts](src/plugins/csv-sources-kuration/hooks/useCsvAutoRefreshCheck.ts)).
+- **Pitfall #27**: der Resolver liest `profile.bearbeiter_kuerzel` direkt aus der IDB (Service-Pfad,
+  `useMeinKuerzel()` ist ein Hook) — markiert per `// allow-direct-kuerzel`; läuft nur in
+  pl/kurator/as **ohne** MA-Login, wo der Hook ohnehin das Profilfeld liefert.
+
+Additiv/Bugfix — **keine Migration**: bereits auf dem Share liegende Snapshots mit
+`createdBy:"unbekannt"` behalten ihren Wert; erst der nächste Schreibvorgang stempelt den Nachnamen.
+
 ### v2.124.2 — AS-Home: „Alle"-Auswahl zeigt Übersicht statt Kürzel-Hinweis (Juni 2026)
 
 PATCH — Folge-Fix zu v2.124.0 (AS-Kürzel-Dropdown). Wählt der AS-User im Profil „**Alle**", zeigt die

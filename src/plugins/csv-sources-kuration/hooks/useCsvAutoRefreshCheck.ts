@@ -22,7 +22,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
-import { runtimeConfig } from '@/config/runtime-config';
+import { resolveSnapshotAuthor } from '@/core/services/infrastructure/update-author';
 import { loadSchema } from '@/core/services/csv';
 import type { CsvSchema } from '@/core/services/csv/types';
 import {
@@ -202,10 +202,12 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     setLockConflict(null);
     setRefreshProgress(null);
     try {
-      // Audit-/Lock-Identität: Kurator-Name wenn vorhanden, sonst das Build-Label
-      // (z.B. „ZAH PL") — konsistent mit der v2.16-Audit-Identität bei Shared-
-      // Passwort-Rollen (Build-Label statt Person).
-      const identity = session.kuratorName ?? runtimeConfig.build.label;
+      // Urheber-Identität fürs Snapshot-`createdBy` (Anzeige „… von X"):
+      // Kurator-Name → echtes Profil-Kürzel → Nachname (persönl. Ordner) →
+      // Build-Label → „unbekannt". Ein echter Kurator-Name wird weiterhin in
+      // Schritt 1 von resolveSnapshotAuthor (readKuratorName) abgedeckt; in pl/as
+      // (Kürzel „alle", kein Kurator-Name) greift der Nachname statt „ZAH PL".
+      const identity = await resolveSnapshotAuthor(storage.idb);
       const r = await runAutoRefresh(storage.idb, candidates, {
         kuratorName: identity,
         force,
@@ -242,7 +244,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
         setRefreshProgress(null);
       }
     }
-  }, [candidates, refreshing, session.kuratorName, storage.idb]);
+  }, [candidates, refreshing, storage.idb]);
 
   const runRefresh = useCallback(() => doRefresh(false), [doRefresh]);
   const forceRefresh = useCallback(() => doRefresh(true), [doRefresh]);
