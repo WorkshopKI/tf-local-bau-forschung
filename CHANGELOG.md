@@ -5,6 +5,33 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.133.0 — Workflow-Verwaltung: alle Workflows pflegen + variantenbewusste dev-Freigabe (Juni 2026)
+
+MINOR — der Workflows-Tab der Skill-Verwaltung zeigte bisher genau **einen** fest verdrahteten Workflow
+(`zim-ep`). Jetzt verwaltet er **alle** Workflows (Gutachten, NF, …) und bekommt ein **variantenbewusstes
+Freigabe-Modell**: in **dev** Entwürfe bauen + ausführen, per **Freigabe** in pl/prod/as/kurator verfügbar
+machen. Additiv (`params`/Feld-Defaults, kein Schema-Bump, kein neuer Object-Store/Transport); **GA
+byte-identisch**.
+
+- **Freigabe-Achse** ([types.ts](src/core/services/skills/registry/types.ts), [storage.ts](src/core/services/skills/registry/storage.ts)):
+  `WorkflowDef.freigabe?: 'entwurf'|'freigegeben'` (normalize defaultet fehlend → `'freigegeben'`, fail-safe —
+  zim-ep/nf bleiben überall verfügbar). Getrennt von `aktiv` (globaler An/Aus, geteilte `registry.json`).
+  Neuer Artefakt-Typ `'precheck'`.
+- **Flag** `features.workflowEntwuerfe` ([runtime-config.ts](src/config/runtime-config.ts), nur dev `true`) +
+  Ableitung `erlaubeWorkflowEntwuerfe()` ([feature-flags.ts](src/config/feature-flags.ts)); reine Gate-Funktion
+  `istWorkflowVerfuegbar` ([workflow-steps.ts](src/core/services/skills/registry/workflow-steps.ts), kein
+  `runtimeConfig`-Import).
+- **Kuration** ([SkillVerwaltungPage.tsx](src/plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx) +
+  neue Komponenten `WorkflowSwitcher`/`WorkflowMetaEditor`): Switcher über alle Workflows (Typ-Badge +
+  Status), Anlegen (`blankWorkflow` → Entwurf), Metadaten (Name/Typ/Ebene/Aktiv), Freigeben/Zurückstellen,
+  Löschen (eigene) bzw. Deaktivieren (Seeds, Remerge-Schutz). Tab-Zähler = Anzahl Workflows.
+- **Laufzeit** ([active-workflow.ts](src/plugins/antraege/gutachten/active-workflow.ts)): neue reine
+  `resolveWorkflowSteps(file, artefaktTyp, {erlaubeEntwuerfe})` (Tie-Break freigegeben-vor-Entwurf, dann
+  Version; ga-Fallback `ZIM_EP_DEF`). `resolveActiveWorkflow` bleibt dünner GA-Wrapper — alle drei
+  GA-Aufrufer (inkl. `useBatchJob`) unberührt; dev sieht/fährt Entwürfe, andere Varianten nur Freigegebenes.
+- Abgrenzung: PreCheck-**Laufzeit** (Einstiegspunkt im Antrag, Workflow-Auswahl-UI je Typ, PreCheck-Outputs)
+  ist bewusst der nächste Schnitt (Prompt B), nicht Teil dieser Version.
+
 ### v2.132.1 — Streamlit-Bridge: „Prompt-Vorlagen"-Spalte automatisch ausblenden (Juni 2026)
 
 PATCH — das Bridge-Bookmarklet blendet beim Aktivieren die rechte **„Prompt-Vorlagen"**-Spalte der
