@@ -26,7 +26,13 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { appVersion } from '@/config/runtime-config';
 import { isDevContext } from '@/config/feature-flags';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getChangelogMarkdown, parseUserChangelog, type ChangeCategory } from './deriveChangelog';
+import {
+  getChangelogMarkdown,
+  parseUserChangelog,
+  bucketizeMinors,
+  type ChangeCategory,
+  type ChangelogMinor,
+} from './deriveChangelog';
 import { readUserChangelogFromShare } from './changelogShare';
 import { ChangelogPolishPanel } from './ChangelogPolishPanel';
 
@@ -51,6 +57,50 @@ const DEV_COMBINED = `${devChangelogRaw}\n${archivChangelogRaw}`;
 function ChangeText({ text }: { text: string }): React.ReactElement {
   const html = useMemo(() => sanitizeHtml(marked.parseInline(text, { async: false }) as string), [text]);
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+/** Eine einzelne (auf-/zuklappbare) Minor-Versions-Karte — einzeln oder innerhalb eines 10er-Pakets. */
+function MinorCard({
+  min,
+  defaultOpen,
+  matches,
+}: {
+  min: ChangelogMinor;
+  defaultOpen: boolean;
+  matches: (cat: ChangeCategory) => boolean;
+}): React.ReactElement {
+  return (
+    <Collapsible defaultOpen={defaultOpen} className="rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)]">
+      <CollapsibleTrigger className={`${TRIGGER_BASE} py-2`}>
+        <span className="text-[13px] font-medium text-[var(--tf-text)]">{min.label}</span>
+        <ChevronDown size={15} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-3 pb-3 pt-1">
+        {min.changes.length === 0 ? (
+          <MarkdownRenderer content={min.bodyMarkdown} />
+        ) : (
+          CATEGORY_ORDER.filter(matches).map((cat) => {
+            const items = min.changes.filter((c) => c.category === cat);
+            if (items.length === 0) return null;
+            return (
+              <div key={cat} className="mb-2.5 last:mb-0">
+                <Badge variant={CATEGORY_META[cat].badge} className="mb-1.5 text-[10px]">
+                  {CATEGORY_META[cat].label}
+                </Badge>
+                <ul className="list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-[var(--tf-text)]">
+                  {items.map((c, i) => (
+                    <li key={i}>
+                      <ChangeText text={c.text} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
@@ -158,7 +208,8 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
       description="Was sich in den letzten Versionen getan hat — neueste zuerst."
       size="lg"
       align="center"
-      className="max-h-[80vh]"
+      resizable
+      resizeStorageKey="teamflow_changelog_dialog_size"
     >
       {/* Kategorie-Filter (klebt am oberen Rand des scrollbaren Inhalts) */}
       <div className="sticky top-0 z-10 -mx-6 mb-3 flex items-center gap-1 border-b border-[var(--tf-border)] bg-[var(--tf-bg)] px-6 pb-2 pt-1">
@@ -206,45 +257,47 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
                 <ChevronDown size={18} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-1.5 px-2 pb-2">
-                {maj.minors.map((min, idx) => (
-                  <Collapsible
-                    // Filter im Key → bei Tab-/Zeit-Wechsel neu mounten, damit die ersten 3
-                    // SICHTBAREN Karten der jeweiligen Ansicht wieder offen sind (Radix
-                    // `defaultOpen` greift nur beim Mount).
-                    key={`${filter}-${timeFilter}-${min.minor}`}
-                    defaultOpen={maj.major === currentMajor && idx < 3}
-                    className="rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)]"
-                  >
-                    <CollapsibleTrigger className={`${TRIGGER_BASE} py-2`}>
-                      <span className="text-[13px] font-medium text-[var(--tf-text)]">{min.label}</span>
-                      <ChevronDown size={15} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="px-3 pb-3 pt-1">
-                      {min.changes.length === 0 ? (
-                        <MarkdownRenderer content={min.bodyMarkdown} />
-                      ) : (
-                        CATEGORY_ORDER.filter(matches).map((cat) => {
-                          const items = min.changes.filter((c) => c.category === cat);
-                          if (items.length === 0) return null;
-                          return (
-                            <div key={cat} className="mb-2.5 last:mb-0">
-                              <Badge variant={CATEGORY_META[cat].badge} className="mb-1.5 text-[10px]">
-                                {CATEGORY_META[cat].label}
-                              </Badge>
-                              <ul className="list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-[var(--tf-text)]">
-                                {items.map((c, i) => (
-                                  <li key={i}>
-                                    <ChangeText text={c.text} />
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          );
-                        })
-                      )}
-                    </CollapsibleContent>
-                  </Collapsible>
-                ))}
+                {(() => {
+                  // Aktuelle Hauptnummer: erste 3 sichtbare Versionen einzeln (offen), Rest in
+                  // 10er-Pakete; ältere Hauptnummern komplett in Pakete. Filter im Key → bei
+                  // Tab-/Zeit-Wechsel neu mounten (Radix `defaultOpen` greift nur beim Mount).
+                  const { loose, buckets } = bucketizeMinors(
+                    maj.minors,
+                    maj.major === currentMajor ? 3 : 0,
+                    maj.major,
+                  );
+                  return (
+                    <>
+                      {loose.map((min, idx) => (
+                        <MinorCard
+                          key={`${filter}-${timeFilter}-${min.minor}`}
+                          min={min}
+                          defaultOpen={maj.major === currentMajor && idx < 3}
+                          matches={matches}
+                        />
+                      ))}
+                      {buckets.map((bucket) => (
+                        <Collapsible
+                          key={`${filter}-${timeFilter}-${bucket.key}`}
+                          className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]"
+                        >
+                          <CollapsibleTrigger className={`${TRIGGER_BASE} py-2`}>
+                            <span className="text-[13px] font-medium text-[var(--tf-text-secondary)]">
+                              {bucket.label}
+                              <span className="ml-1.5 text-[var(--tf-text-tertiary)]">· {bucket.minors.length}</span>
+                            </span>
+                            <ChevronDown size={15} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="space-y-1.5 px-2 pb-2 pt-1">
+                            {bucket.minors.map((min) => (
+                              <MinorCard key={min.minor} min={min} defaultOpen={false} matches={matches} />
+                            ))}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ))}
+                    </>
+                  );
+                })()}
               </CollapsibleContent>
             </Collapsible>
           ))}

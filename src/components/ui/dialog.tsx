@@ -11,6 +11,33 @@ const SIZE_CLASS: Record<NonNullable<DialogProps["size"]>, string> = {
   xl: "max-w-4xl",
 }
 
+/** Default-Startbreite (px) pro Groesse fuer den resizable-Modus (entspricht den max-w-Klassen). */
+const SIZE_PX: Record<NonNullable<DialogProps["size"]>, number> = {
+  sm: 400,
+  md: 480,
+  lg: 672,
+  xl: 896,
+}
+
+interface SavedSize {
+  w: number
+  h: number
+}
+
+/** Gemerkte Dialog-Groesse aus localStorage lesen (oder null). */
+function readSavedSize(key?: string): SavedSize | null {
+  if (!key || typeof localStorage === "undefined") return null
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    const p = JSON.parse(raw) as Partial<SavedSize>
+    if (typeof p?.w === "number" && typeof p?.h === "number") return { w: p.w, h: p.h }
+  } catch {
+    /* defekter Eintrag → Default */
+  }
+  return null
+}
+
 /** Vertikale Ausrichtung im Overlay. `center` (Default) = heutiges Verhalten; `top` fuer Dialoge mit stark schwankender Hoehe. */
 const ALIGN_CLASS: Record<NonNullable<DialogProps["align"]>, string> = {
   center: "items-center",
@@ -36,6 +63,17 @@ interface DialogProps {
   /** Karten-Breite. Default `md` (= heutiger Wert, keine Regression). */
   size?: "sm" | "md" | "lg" | "xl"
   /**
+   * Macht die Karte per Maus frei groessenveraenderbar (natives CSS `resize`, Ecke unten
+   * rechts). Default `false` (keine Regression). Ersetzt im aktivierten Fall die Breiten-/
+   * Hoehen-Klassen durch Inline-Werte (Grenzen ~360x280 bis 95vw/95vh).
+   */
+  resizable?: boolean
+  /**
+   * localStorage-Schluessel, unter dem die zuletzt gewaehlte Groesse gemerkt und beim
+   * naechsten Oeffnen wiederhergestellt wird (nur wirksam mit `resizable`).
+   */
+  resizeStorageKey?: string
+  /**
    * Vertikale Ausrichtung. Default `center` (heutiges `items-center`).
    * `top` rendert `items-start pt-[8vh]` fuer inhaltsreiche Dialoge, deren
    * Hoehe stark schwankt. Hoehen-Cap + interner Scroll gelten unveraendert.
@@ -54,7 +92,11 @@ function Dialog({
   dismissOnOverlayClick = true,
   size = "md",
   align = "center",
+  resizable = false,
+  resizeStorageKey,
 }: DialogProps) {
+  const cardRef = React.useRef<HTMLDivElement>(null)
+
   React.useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent): void => {
@@ -63,6 +105,42 @@ function Dialog({
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [open, onClose])
+
+  // Resizable-Modus: Start-Groesse aus localStorage (sonst Default), Inline-Style steuert
+  // Breite/Hoehe + Grenzen; die Breiten-/max-h-Klassen entfallen, damit sie nicht klemmen.
+  const resizeStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    if (!resizable) return undefined
+    const saved = readSavedSize(resizeStorageKey)
+    const vh = typeof window !== "undefined" ? window.innerHeight : 800
+    return {
+      width: saved?.w ?? SIZE_PX[size],
+      height: saved?.h ?? Math.round(Math.min(vh * 0.8, vh - 32)),
+      minWidth: 360,
+      minHeight: 280,
+      maxWidth: "95vw",
+      maxHeight: "95vh",
+      resize: "both",
+      overflow: "hidden",
+    }
+    // `open` mitgefuehrt: bei jedem Oeffnen die gemerkte Groesse frisch lesen.
+  }, [resizable, resizeStorageKey, size, open])
+
+  // Gewaehlte Groesse beim Resizen merken.
+  React.useEffect(() => {
+    if (!open || !resizable || !resizeStorageKey) return
+    const el = cardRef.current
+    if (!el || typeof ResizeObserver === "undefined") return
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect()
+      try {
+        localStorage.setItem(resizeStorageKey, JSON.stringify({ w: Math.round(r.width), h: Math.round(r.height) }))
+      } catch {
+        /* localStorage voll/blockiert → Groesse wird nicht gemerkt */
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [open, resizable, resizeStorageKey])
 
   if (!open) return null
 
@@ -79,13 +157,15 @@ function Dialog({
       aria-modal="true"
     >
       <div
+        ref={cardRef}
         data-slot="dialog"
         className={cn(
-          "flex w-full max-h-[calc(100vh-2rem)] flex-col rounded-2xl bg-[var(--tf-bg)] shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
-          SIZE_CLASS[size],
+          "flex flex-col rounded-2xl bg-[var(--tf-bg)] shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
+          // Im resizable-Modus steuert der Inline-Style Breite/Hoehe; sonst die Klassen.
+          resizable ? null : cn("w-full max-h-[calc(100vh-2rem)]", SIZE_CLASS[size]),
           className,
         )}
-        style={{ border: "0.5px solid var(--tf-border)" }}
+        style={{ border: "0.5px solid var(--tf-border)", ...resizeStyle }}
         onClick={e => e.stopPropagation()}
       >
         {title ? (

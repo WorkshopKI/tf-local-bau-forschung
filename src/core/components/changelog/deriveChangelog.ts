@@ -334,3 +334,57 @@ export function mergeChangelog(polishedNewMd: string, existingMd: string): strin
   const sorted = [...byKey.values()].sort((a, b) => b.major - a.major || b.minor - a.minor);
   return sorted.map((s) => s.text).join('\n\n') + (sorted.length ? '\n' : '');
 }
+
+/** Ein 10er-Paket gebündelter Minor-Versionen (z.B. `v2.110 – v2.119`) für die Modal-Anzeige. */
+export interface MinorBucket {
+  /** Stabiler Schlüssel `major-decade`, z.B. `2-110`. */
+  key: string;
+  major: number;
+  /** Dekaden-Start `floor(minor/10)*10`, z.B. 110. */
+  decade: number;
+  /** Niedrigste bzw. höchste enthaltene Minor-Nummer. */
+  low: number;
+  high: number;
+  /** Anzeige-Label, z.B. `v2.110 – v2.119` (bei nur einer Version `v2.110`). */
+  label: string;
+  /** Enthaltene Minors, absteigend (neueste zuerst). */
+  minors: ChangelogMinor[];
+}
+
+/**
+ * Teilt die (absteigend sortierten) Minors EINER Hauptnummer in `loose` (die ersten
+ * `looseCount`, einzeln dargestellt) und `buckets` (alle weiteren, gebündelt in 10er-Pakete
+ * nach Versionsnummer). Pakete absteigend nach Dekade, innen absteigend — verkürzt die
+ * lange Scroll-Liste.
+ */
+export function bucketizeMinors(
+  minors: ChangelogMinor[],
+  looseCount: number,
+  major: number,
+): { loose: ChangelogMinor[]; buckets: MinorBucket[] } {
+  const n = Math.max(0, looseCount);
+  const loose = minors.slice(0, n);
+  const byDecade = new Map<number, ChangelogMinor[]>();
+  for (const m of minors.slice(n)) {
+    const decade = Math.floor(m.minor / 10) * 10;
+    if (!byDecade.has(decade)) byDecade.set(decade, []);
+    byDecade.get(decade)!.push(m);
+  }
+  const buckets: MinorBucket[] = [...byDecade.entries()]
+    .map(([decade, ms]) => {
+      const sorted = ms.slice().sort((a, b) => b.minor - a.minor);
+      const high = sorted[0]!.minor;
+      const low = sorted[sorted.length - 1]!.minor;
+      return {
+        key: `${major}-${decade}`,
+        major,
+        decade,
+        low,
+        high,
+        label: low === high ? `v${major}.${low}` : `v${major}.${low} – v${major}.${high}`,
+        minors: sorted,
+      };
+    })
+    .sort((a, b) => b.decade - a.decade);
+  return { loose, buckets };
+}

@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.127.0 — Changelog-Modal: 10er-Pakete + frei größenveränderbar (Juni 2026)
+
+MINOR — das Changelog-Modal ist bei vielen Versionen handlicher:
+
+- **10er-Pakete**: pro Hauptnummer bleiben die obersten 3 (sichtbaren) Versionen einzeln und
+  aufgeklappt; alle weiteren werden in zugeklappte 10er-Pakete nach Versionsnummer gebündelt
+  (`v2.110 – v2.119 · N`) — die lange Scroll-Liste wird deutlich kürzer. Filter (Kategorie /
+  „Letzter Monat") greift zuerst; leere Pakete entfallen, Pakete klappen bei Filterwechsel zu.
+  Reine Funktion `bucketizeMinors` ([deriveChangelog.ts](src/core/components/changelog/deriveChangelog.ts),
+  unit-getestet); die Versions-Karte ist als `MinorCard` ausgelagert.
+- **Größenveränderbar**: das Modal lässt sich an der unteren rechten Ecke frei vergrößern; die
+  gewählte Größe wird in `localStorage` (`teamflow_changelog_dialog_size`) gemerkt und beim
+  nächsten Öffnen wiederhergestellt. Umgesetzt als opt-in `resizable`/`resizeStorageKey` an der
+  geteilten [Dialog](src/components/ui/dialog.tsx)-Komponente (natives CSS `resize`, Grenzen
+  ~360×280 bis 95vw×95vh); alle anderen Dialoge unverändert.
+
+Additiv — keine Migration, keine Config-Änderung.
+
 ### v2.126.0 — Changelog „Mit KI glätten" inkrementell + auf den Daten-Share (Juni 2026)
 
 MINOR — das Entwickler-Werkzeug „Mit KI glätten" im Changelog-Modal

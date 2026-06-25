@@ -7,7 +7,9 @@ import {
   splitMinorSections,
   selectNewMinorSections,
   mergeChangelog,
+  bucketizeMinors,
 } from '../deriveChangelog';
+import type { ChangelogMinor } from '../deriveChangelog';
 
 const DEV_SAMPLE = `# Changelog — TeamFlow Local App
 
@@ -185,5 +187,40 @@ describe('inkrementelles Glätten — splitMinorSections / selectNewMinorSection
     expect(splitMinorSections(merged)).toHaveLength(1);
     expect(merged).toContain('- neu');
     expect(merged).not.toContain('- alt');
+  });
+});
+
+describe('bucketizeMinors — 10er-Pakete', () => {
+  const mk = (minor: number): ChangelogMinor => ({ minor, label: `v2.${minor}`, changes: [], bodyMarkdown: '' });
+  // Absteigend sortiert, wie aus parseUserChangelog.
+  const MINORS = [126, 125, 124, 123, 122, 121, 120, 119, 118, 6].map(mk);
+
+  it('hält die ersten `looseCount` einzeln, bündelt den Rest in 10er-Dekaden', () => {
+    const { loose, buckets } = bucketizeMinors(MINORS, 3, 2);
+    expect(loose.map((m) => m.minor)).toEqual([126, 125, 124]);
+    // Rest: 123–120 (Dekade 120), 119–118 (Dekade 110), 6 (Dekade 0) — absteigend nach Dekade.
+    expect(buckets.map((b) => b.decade)).toEqual([120, 110, 0]);
+    expect(buckets[0]!.minors.map((m) => m.minor)).toEqual([123, 122, 121, 120]);
+    expect(buckets[0]!.label).toBe('v2.120 – v2.123');
+    expect(buckets[0]!.key).toBe('2-120');
+  });
+
+  it('Einzel-Version im Paket → Label ohne Bereich', () => {
+    const { buckets } = bucketizeMinors(MINORS, 3, 2);
+    const solo = buckets.find((b) => b.decade === 0)!;
+    expect(solo.minors.map((m) => m.minor)).toEqual([6]);
+    expect(solo.label).toBe('v2.6');
+  });
+
+  it('looseCount 0 → alles in Pakete (z.B. ältere Hauptnummern)', () => {
+    const { loose, buckets } = bucketizeMinors([mk(15), mk(14), mk(3)], 0, 2);
+    expect(loose).toEqual([]);
+    expect(buckets.map((b) => b.decade)).toEqual([10, 0]);
+  });
+
+  it('weniger Minors als looseCount → keine Pakete', () => {
+    const { loose, buckets } = bucketizeMinors([mk(126), mk(125)], 3, 2);
+    expect(loose.map((m) => m.minor)).toEqual([126, 125]);
+    expect(buckets).toEqual([]);
   });
 });
