@@ -248,6 +248,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
               initialView={editingSkill.initialView}
               persist={reg.persist}
               onBack={requestClose}
+              onSaved={closeEditor}
               onGuardStateChange={guard.reportState}
               onManageRegeln={() => guard.guardLeave(() => { closeEditor(); changeTab('regeln'); })}
               onTestlauf={(skill, regeln, hinweis) => setTestlauf({ skill, regeln, hinweis })}
@@ -303,6 +304,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
             canEdit={reg.canEdit}
             onSave={saveStep}
             onBack={requestClose}
+            onSaved={closeEditor}
             onGuardStateChange={guard.reportState}
             onDelete={editingStep.isNew ? undefined : () => deleteStep(editingStep.step)}
           />

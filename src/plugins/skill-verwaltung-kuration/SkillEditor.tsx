@@ -46,14 +46,17 @@ interface SkillEditorProps {
   /** Start-Reiter (Deep-Link aus dem Gutachten-Flow: `'versionen'`). Default `'bearbeiten'`. */
   initialView?: 'bearbeiten' | 'versionen';
   persist: (next: SkillRegistryFile) => Promise<void>;
+  /** Nutzer-initiiertes Verlassen (Zurück-Link) — läuft durch die Leave-Guard-Nachfrage. */
   onBack: () => void;
+  /** Schließt nach erfolgreichem In-Editor-Persist (Speichern/Rollback) — OHNE Guard, da bereits gespeichert. */
+  onSaved: () => void;
   onManageRegeln: () => void;
   onTestlauf: (skill: SkillRecord, regeln: QualitaetsRegel[], hinweis: string) => void;
   /** Meldet `{ dirty, save }` an den Leave-Guard der Skill-Verwaltung. */
   onGuardStateChange?: (state: EditorGuardState | null) => void;
 }
 
-export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, persist, onBack, onManageRegeln, onTestlauf, onGuardStateChange }: SkillEditorProps): React.ReactElement {
+export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, persist, onBack, onSaved, onManageRegeln, onTestlauf, onGuardStateChange }: SkillEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<SkillRecord>(skill);
   const [begruendung, setBegruendung] = useState('');
   const [view, setView] = useState<'bearbeiten' | 'versionen'>(initialView ?? 'bearbeiten');
@@ -77,14 +80,14 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
     const updated: SkillRecord = { ...base, historie: appendHistorie(base, { userId: meinKuerzel, begruendung }) };
     await persist({ ...file, skills: upsertSkill(file.skills, updated) });
   };
-  const save = useAsyncAction(doSave, { onSuccess: onBack });
+  const save = useAsyncAction(doSave, { onSuccess: onSaved });
 
   useReportGuardState(onGuardStateChange, dirty, doSave);
 
   const rollback = useAsyncAction(async (snap: SkillVersionSnapshot) => {
     const next = rollbackSkill(skill, snap, new Date().toISOString(), { userId: meinKuerzel });
     await persist({ ...file, skills: upsertSkill(file.skills, next) });
-  }, { onSuccess: onBack });
+  }, { onSuccess: onSaved });
 
   const toggleRegel = (id: string): void =>
     setDraft(d => ({ ...d, regelIds: d.regelIds.includes(id) ? d.regelIds.filter(x => x !== id) : [...d.regelIds, id] }));

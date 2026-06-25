@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.134.2 — Skill-Verwaltung: „Speichern" fragt nicht mehr fälschlich nach (Juni 2026)
+
+PATCH — der Editor-interne **„Speichern"**-Button (Skill-Editor + Workflow-Schritt-Editor) löste nach
+erfolgreichem Speichern die Leave-Guard-Nachfrage **„Ungespeicherte Änderungen — speichern, bevor Sie
+wechseln?"** aus, statt einfach zu schließen.
+
+- **Ursache:** Beide Editoren verdrahteten den Speichern-Erfolg (`useAsyncAction(doSave, { onSuccess })`)
+  mit dem **guarded** `onBack` (`requestClose → guardLeave`). Der Guard sah den Editor weiterhin als
+  `dirty` (`editStateRef` lädt erst nach dem Render-Commit nach; zudem bleibt `dirty` strukturell `true`,
+  weil `doSave` `version+1`/`geaendert_am`/`historie` schreibt, die der `draft` nicht trägt, und der
+  `skill`-Prop nach dem Persist nie aktualisiert wird) → Nachfrage trotz gerade erfolgtem Speichern.
+- **Fix:** eigener, **ungeguardeter** Close-Callback `onSaved` (= `closeEditor`) für den Speichern-/
+  Rollback-Erfolg; Zurück-Link/„Abbrechen" bleiben auf dem guarded `onBack`. Damit verhält sich der
+  Skill-/Workflow-Editor wie der bereits korrekte `RegelEditor` (Save schließt direkt). Nachfrage erscheint
+  nur noch beim Verlassen **ohne** Speichern.
+
+Betrifft `SkillEditor.tsx`, `WorkflowEditor.tsx`, `SkillVerwaltungPage.tsx` (Kuration). Keine Migration.
+
 ### v2.134.1 — Anfragen: Anonymisierung robust gegen Eigenheiten der internen KI (Juni 2026)
 
 PATCH — zwei Fixes am Anonymisierer des Moduls „Anfragen" (dev), der an Eigenheiten der internen KI

@@ -29,12 +29,15 @@ interface WorkflowEditorProps {
   /** Persistiert den (ge-upserteten) Schritt; der Aufrufer bumpt die Def-Version. */
   onSave: (step: WorkflowStep) => Promise<void>;
   onDelete?: () => void;
+  /** Nutzer-initiiertes Verlassen (Zurück/Abbrechen) — läuft durch die Leave-Guard-Nachfrage. */
   onBack: () => void;
+  /** Schließt nach erfolgreichem In-Editor-Persist (Speichern) — OHNE Guard, da bereits gespeichert. */
+  onSaved: () => void;
   /** Meldet `{ dirty, save }` an den Leave-Guard der Skill-Verwaltung. */
   onGuardStateChange?: (state: EditorGuardState | null) => void;
 }
 
-export function WorkflowEditor({ file, workflowId, step, isNew, canEdit, onSave, onDelete, onBack, onGuardStateChange }: WorkflowEditorProps): React.ReactElement {
+export function WorkflowEditor({ file, workflowId, step, isNew, canEdit, onSave, onDelete, onBack, onSaved, onGuardStateChange }: WorkflowEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<WorkflowStep>(step);
   const def = getWorkflowById(file, workflowId) ?? getWorkflowDef(file);
   const nextVersion = def.version + 1;
@@ -53,7 +56,7 @@ export function WorkflowEditor({ file, workflowId, step, isNew, canEdit, onSave,
   // doSave = reiner Persist-Teil (ohne onBack) — wird vom In-Editor-Button (mit Schließen)
   // UND vom Leave-Guard (ohne Schließen) genutzt.
   const doSave = (): Promise<void> => onSave(normalizeStepRolle(draft));
-  const save = useAsyncAction(doSave, { onSuccess: onBack });
+  const save = useAsyncAction(doSave, { onSuccess: onSaved });
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(step);
   useReportGuardState(onGuardStateChange, dirty, doSave);
