@@ -18,6 +18,7 @@ import type {
 } from './types';
 import { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF } from './nf-skill.seed';
 import { GA_QS_REGELN } from './ga-qs.seed';
+import { ANFRAGE_ANONYMISIEREN_SKILL } from './anfrage-anonymisieren.seed';
 
 /** Fester Seed-Zeitstempel — deterministisch (kein `new Date()` zur Seed-Zeit). */
 const SEED_TS = '2026-06-11T00:00:00.000Z';
@@ -522,7 +523,10 @@ export const SEED_WORKFLOWS: WorkflowDef[] = [ZIM_EP_DEF, NF_DEF];
 export const SEED_REGISTRY: SkillRegistryFile = {
   version: 1,
   updated_at: SEED_TS,
-  skills: [SEED_SKILL, ...SEED_SKILLS_BG, SEED_QS_SKILL, SEED_RELEVANZ_MAP_SKILL, SEED_NF_SKILL],
+  skills: [
+    SEED_SKILL, ...SEED_SKILLS_BG, SEED_QS_SKILL, SEED_RELEVANZ_MAP_SKILL, SEED_NF_SKILL,
+    ANFRAGE_ANONYMISIEREN_SKILL,
+  ],
   regeln: [...SEED_REGELN, ...SEED_REGELN_BG, ...SEED_NF_REGELN, ...GA_QS_REGELN],
   workflows: SEED_WORKFLOWS,
 };

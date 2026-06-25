@@ -6,6 +6,7 @@
 import { X } from 'lucide-react';
 import type { Anfrage } from './types';
 import { STATUS_LABEL, STATUS_REIHENFOLGE, statusIndex } from './status';
+import { AnfrageAnonymisierung } from './AnfrageAnonymisierung';
 
 interface Props {
   anfrage: Anfrage;
@@ -90,6 +91,8 @@ export function AnfrageDetail({ anfrage, onClose }: Props): React.ReactElement {
           {anfrage.originalMd || <span className="text-[var(--tf-text-tertiary)]">— kein Text —</span>}
         </div>
       </section>
+
+      <AnfrageAnonymisierung anfrage={anfrage} />
     </div>
   );
 }

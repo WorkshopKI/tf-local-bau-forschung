@@ -195,6 +195,15 @@ export interface SkillRecord {
   teilStruktur?: TeilDeklaration[];
   /** Join-String der Teile zum flachen `finalerText` (Default `'\n\n'`). */
   teilJoin?: TeilJoin;
+  /**
+   * Opt-in Aktivierungs-Gate (additiv). Skills in der geteilten `registry.json`
+   * sind über alle Build-Varianten sofort live — ein neuer, noch ungeprüfter Skill
+   * (z.B. der Anfragen-Anonymisierer) startet daher mit `aktiv: false` und wird erst
+   * nach bestandenem Eval-/Recall-Gate manuell freigeschaltet. **Fehlt das Feld
+   * (`undefined`) gilt der Skill als aktiv** — Bestands-Skills bleiben unverändert
+   * live. Konsumenten, die das Gate respektieren müssen, prüfen `aktiv === false`.
+   */
+  aktiv?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */

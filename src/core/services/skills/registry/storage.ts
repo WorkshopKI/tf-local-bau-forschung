@@ -165,6 +165,10 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
   if (s.teilJoin === '\n\n' || s.teilJoin === '\n' || s.teilJoin === ' ') {
     skill.teilJoin = s.teilJoin as TeilJoin;
   }
+  // Aktivierungs-Gate (additiv): EXPLIZIT übernehmen — sonst ginge `aktiv: false`
+  // beim Laden verloren und ein ungeprüfter Skill (Anfragen-Anonymisierer) wäre
+  // ungewollt live. Fehlt das Feld → undefined → gilt als aktiv (Bestands-Skills).
+  if (typeof s.aktiv === 'boolean') skill.aktiv = s.aktiv;
   return skill;
 }
 
