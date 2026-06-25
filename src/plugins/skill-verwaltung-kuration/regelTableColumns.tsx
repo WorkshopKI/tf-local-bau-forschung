@@ -1,13 +1,12 @@
 /**
  * Spalten-Definitionen für die Qualitätsregeln-Tabellen-Ansicht.
  * Spiegelt die Skills-Tabelle (gleiche `SortableTable`-Optik). Operiert auf
- * `RegelRow` (Wrapper um die Regel — erlaubt Skill-Duplikate bei „Gruppiert:
- * Skill"). Die Aktiv-Zelle trägt einen interaktiven Toggle — `stopPropagation`,
- * damit der Zeilen-Klick (= Bearbeiten) nicht zusätzlich feuert.
+ * `RegelRow` (dünner Wrapper um die Regel — eigener `_rowKey`). Die Aktiv-Zelle
+ * trägt einen interaktiven Toggle — `stopPropagation`, damit der Zeilen-Klick
+ * (= Bearbeiten) nicht zusätzlich feuert.
  *
- * Filter: typ/schweregrad/aktiv/verwendet sind `filterable` → die `SortableTable`
- * rendert die Filter-Dropdowns. Kandidaten + Matching liefert
- * `useRegelColumnFilters` (Membership für „Verwendet in").
+ * Gefiltert wird über die gemeinsame Facetten-Leiste (`useRegelFilters`, wirkt
+ * in allen Ansichten) — die Tabelle hat keine eigenen Spalten-Header-Filter.
  */
 import type { SortableColumn } from '@/components/data-table';
 import {
@@ -17,7 +16,12 @@ import {
   type SkillRegistryFile,
 } from '@/core/services/skills';
 import { SevPill, Switch, typLabel, kategorieLabel } from './regelShared';
-import type { RegelRow } from './regelGrouping';
+
+/** Dünner Zeilen-Wrapper für die `SortableTable` (`_rowKey` = stabile Row-ID). */
+export interface RegelRow {
+  regel: QualitaetsRegel;
+  _rowKey: string;
+}
 
 export interface RegelColumnActions {
   canEdit: boolean;
@@ -36,7 +40,7 @@ export function buildRegelColumns(
       render: row => <span className="font-medium text-[var(--tf-text)]">{row.regel.name}</span>,
     },
     {
-      key: 'typ', label: 'Typ', defaultVisible: true, sortable: true, filterable: true, width: 150, wrap: false,
+      key: 'typ', label: 'Typ', defaultVisible: true, sortable: true, width: 150, wrap: false,
       accessor: row => typLabel(row.regel),
       render: row => (
         <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
@@ -45,7 +49,7 @@ export function buildRegelColumns(
       ),
     },
     {
-      key: 'kategorie', label: 'Art', defaultVisible: true, sortable: true, filterable: true, width: 150, wrap: false,
+      key: 'kategorie', label: 'Art', defaultVisible: true, sortable: true, width: 150, wrap: false,
       accessor: row => kategorieLabel(row.regel),
       render: row => (
         <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
@@ -59,12 +63,12 @@ export function buildRegelColumns(
       render: row => <span className="text-[var(--tf-text-secondary)]">{describeRegelParams(row.regel)}</span>,
     },
     {
-      key: 'schweregrad', label: 'Schweregrad', defaultVisible: true, sortable: true, filterable: true, width: 120, wrap: false,
+      key: 'schweregrad', label: 'Schweregrad', defaultVisible: true, sortable: true, width: 120, wrap: false,
       accessor: row => row.regel.schweregrad,
       render: row => <SevPill s={row.regel.schweregrad} />,
     },
     {
-      key: 'aktiv', label: 'Aktiv', defaultVisible: true, sortable: false, filterable: true, width: 80, wrap: false,
+      key: 'aktiv', label: 'Aktiv', defaultVisible: true, sortable: false, width: 80, wrap: false,
       accessor: row => (row.regel.aktiv ? 1 : 0),
       render: row => (
         <span className="inline-flex" onClick={e => e.stopPropagation()}>
@@ -73,7 +77,7 @@ export function buildRegelColumns(
       ),
     },
     {
-      key: 'verwendet', label: 'Verwendet in', defaultVisible: true, sortable: false, filterable: true, width: 160, wrap: true,
+      key: 'verwendet', label: 'Verwendet in', defaultVisible: true, sortable: false, width: 160, wrap: true,
       accessor: row => skillsUsingRegel(file, row.regel.id).join(', '),
       render: row => {
         const used = skillsUsingRegel(file, row.regel.id);

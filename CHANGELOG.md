@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.130.0 — Qualitätsregeln: Gruppierung → Facetten-Filter-Leiste (Juni 2026)
+
+MINOR — die **Qualitätsregeln**-Liste in der Skill-Verwaltung ([RegelnTab.tsx](src/plugins/skill-verwaltung-kuration/RegelnTab.tsx))
+hatte als einzige sichtbare Steuerung eine „Gruppiert:"-Pille (nur Tabellen-Modus); die echten Filter
+lagen versteckt in den Tabellen-Spaltenköpfen und fehlten in Liste/Karten. Bei wachsender Regelzahl
+schlecht filterbar.
+
+- **Gruppierung entfernt**, ersetzt durch eine sichtbare **Facetten-Filter-Leiste** (UX wie Förderanträge-
+  Quickfilter, `CollapsibleSeg`) — wirkt jetzt in **allen** Ansichten (Liste/Tabelle/Karten).
+- Facetten (Einfach-Auswahl, AND-kombiniert): **Kategorie** („Art", `effektiveKategorie` — 6 Buckets),
+  **Typ** (Unterkategorie), **Prüfart** (textlich/fachlich/administrativ), **Schweregrad**, **Aktiv**,
+  **Verwendet in** (Skill, n:m). Treffer-Zähler + „Zurücksetzen".
+- **Bestehendes Datenmodell genutzt** — keine neuen Felder; Kategorie strikt über
+  `effektiveKategorie`/`kategorieLabel` (Pitfall #31, keine zweite typ→kategorie-Quelle).
+- Neuer Hook [useRegelFilters.ts](src/plugins/skill-verwaltung-kuration/useRegelFilters.ts) (reine
+  `applyRegelFilters`/`computeRegelCandidates` + Tests). Entfernt: `regelGrouping.ts`,
+  `useRegelColumnFilters.ts` (Spalten-Header-Filter) — eine sichtbare Filter-Quelle.
+
 ### v2.129.1 — Spalten-Trennlinien im Tabellenkopf als Resize-Hinweis (Juni 2026)
 
 PATCH — die geteilte `SortableTable` ([src/components/data-table/SortableTable.tsx](src/components/data-table/SortableTable.tsx))

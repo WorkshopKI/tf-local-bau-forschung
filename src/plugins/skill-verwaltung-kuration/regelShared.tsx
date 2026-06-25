@@ -39,6 +39,21 @@ export function kategorieLabel(r: QualitaetsRegel): string {
   return KATEGORIE_LABEL[k] ?? k;
 }
 
+/** Anzeige-Label der Prüfart. Regeln ohne `pruefart` sind per Modell „textlich" (kategorien.ts). */
+export function pruefartLabel(r: QualitaetsRegel): string {
+  return PRUEFART_LABEL[r.pruefart ?? 'textlich'] ?? 'Textlich';
+}
+
+/** Anzeige-Label des Schweregrads. */
+export function sevLabel(r: QualitaetsRegel): string {
+  return r.schweregrad === 'fehler' ? 'Fehler' : 'Hinweis';
+}
+
+/** Anzeige-Label des Aktiv-Flags. */
+export function aktivLabel(r: QualitaetsRegel): string {
+  return r.aktiv ? 'Aktiv' : 'Inaktiv';
+}
+
 /** Stabile Reihenfolge der Regel-Typen (Sektions-Reihenfolge bei „Gruppiert: Typ"). */
 export const REGEL_TYP_ORDER: string[] = Object.keys(TYP_LABEL);
 

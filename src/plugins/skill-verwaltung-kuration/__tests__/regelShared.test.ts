@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildRegelSectionRows, REGEL_GROUPING_OPTIONS } from '../regelGrouping';
-import { typLabel, kategorieLabel } from '../regelShared';
-import type { QualitaetsRegel, SkillRegistryFile } from '@/core/services/skills';
+import { typLabel, kategorieLabel, pruefartLabel, sevLabel, aktivLabel } from '../regelShared';
+import type { QualitaetsRegel } from '@/core/services/skills';
 
 function regel(over: Partial<QualitaetsRegel> & { id: string; typ: string }): QualitaetsRegel {
   return {
@@ -14,7 +13,6 @@ function regel(over: Partial<QualitaetsRegel> & { id: string; typ: string }): Qu
     ...over,
   };
 }
-const fileWith = (regeln: QualitaetsRegel[]): SkillRegistryFile => ({ version: 1, updated_at: 't', skills: [], regeln });
 
 describe('typLabel — pruefart-Fallback statt „unbekannter Typ"', () => {
   it('bekannter typ → typ-Label', () => {
@@ -41,17 +39,23 @@ describe('kategorieLabel', () => {
   });
 });
 
-describe('buildRegelSectionRows — mode „kategorie"', () => {
-  it('Art-Option vorhanden', () => {
-    expect(REGEL_GROUPING_OPTIONS.find(o => o.mode === 'kategorie')?.label).toBe('Art');
+describe('pruefartLabel — Default „textlich" für Regeln ohne pruefart', () => {
+  it('keine pruefart → Textlich', () => {
+    expect(pruefartLabel(regel({ id: 'a', typ: 'satzanzahl' }))).toBe('Textlich');
   });
-  it('gruppiert nach Kategorie in KATEGORIE_ORDER (Umfang vor Inhalt)', () => {
-    const regeln = [
-      regel({ id: 'q', typ: 'ga_qs_quellenabgleich', pruefart: 'fachlich' }), // inhalt
-      regel({ id: 'u', typ: 'satzanzahl' }), // umfang
-    ];
-    const { rows, sectionOf } = buildRegelSectionRows(regeln, 'kategorie', fileWith(regeln));
-    expect(sectionOf).not.toBeNull();
-    expect(rows.map(r => sectionOf!(r))).toEqual(['Umfang', 'Inhalt & Quellen']);
+  it('fachlich/administrativ → eigenes Label', () => {
+    expect(pruefartLabel(regel({ id: 'b', typ: 'x', pruefart: 'fachlich' }))).toBe('Fachlich');
+    expect(pruefartLabel(regel({ id: 'c', typ: 'x', pruefart: 'administrativ' }))).toBe('Administrativ');
+  });
+});
+
+describe('sevLabel / aktivLabel', () => {
+  it('schweregrad', () => {
+    expect(sevLabel(regel({ id: 'a', typ: 'x', schweregrad: 'fehler' }))).toBe('Fehler');
+    expect(sevLabel(regel({ id: 'b', typ: 'x', schweregrad: 'hinweis' }))).toBe('Hinweis');
+  });
+  it('aktiv', () => {
+    expect(aktivLabel(regel({ id: 'a', typ: 'x', aktiv: true }))).toBe('Aktiv');
+    expect(aktivLabel(regel({ id: 'b', typ: 'x', aktiv: false }))).toBe('Inaktiv');
   });
 });
