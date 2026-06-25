@@ -272,9 +272,12 @@
     error:   { bg: 'hsl(0, 70%, 95%)',   fg: 'hsl(0, 60%, 38%)' },   // danger
   };
   // Fixierte Leiste oben rechts: Badge + Test-Button in EINER Zeile.
+  // z-index am Maximum (2147483647): die fremde KI-Seite hat eine volle-Breite-
+  // Streamlit-Tab-Leiste mit hohem eigenem Stacking-Context, die `z-index:99999`
+  // ueberdeckt haette (Leiste war im DOM + funktional, aber unsichtbar).
   var bar = document.createElement('div');
   bar.id = 'tf-bridge-bar';
-  bar.style.cssText = 'position:fixed;top:8px;right:8px;z-index:99999;display:flex;gap:6px;align-items:center;';
+  bar.style.cssText = 'position:fixed;top:8px;right:8px;z-index:2147483647;display:flex;gap:6px;align-items:center;';
   document.body.appendChild(bar);
 
   var badge = document.createElement('div');

@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.133.1 — Streamlit-Bridge: Status-Leiste über der neuen Tab-Leiste sichtbar (Juni 2026)
+
+PATCH — auf der geänderten internen-KI-Seite (`gpt.vdivde-it.de`, jetzt volle-Breite-Tab-Leiste mit
+hohem eigenem Stacking-Context) verschwand die Bridge-Status-Leiste **hinter** den Tabs — `z-index:99999`
+reichte nicht mehr. Symptom: „Bookmarklet geht nicht / Klick macht nichts". Tatsächlich war die Bridge
+**funktional installiert und von der App erreichbar**, nur die Leiste unsichtbar (und der „Klick macht
+nichts"-Effekt war der gewollte Doppel-Install-Guard).
+
+- `z-index` der Leiste ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js))
+  von `99999` auf das Maximum **`2147483647`** angehoben. Live auf `gpt.vdivde-it.de` bestätigt.
+- **Bookmarklet-Änderung ⇒ einmal neu installieren** (aus Einstellungen → Bridge-Sektion neu ziehen).
+
 ### v2.133.0 — Workflow-Verwaltung: alle Workflows pflegen + variantenbewusste dev-Freigabe (Juni 2026)
 
 MINOR — der Workflows-Tab der Skill-Verwaltung zeigte bisher genau **einen** fest verdrahteten Workflow
