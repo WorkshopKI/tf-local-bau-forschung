@@ -5,6 +5,25 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.125.0 — Changelog-Modal: erste 3 Karten offen, kompakter, Filter „Letzter Monat" (Juni 2026)
+
+MINOR — das „Änderungen & Updates"-Modal (Klick auf die Versionsnummer in der Sidebar) wurde
+nutzerfreundlicher:
+
+- **Erste 3 Versions-Karten offen**: beim Öffnen sind nun die obersten drei Minor-Karten der
+  aktuellen Hauptnummer aufgeklappt (statt nur einer) — auch nach Tab-Wechsel
+  ([ChangelogDialog.tsx](src/core/components/changelog/ChangelogDialog.tsx): `idx < 3`, Filter im
+  Collapsible-`key` → deterministisches Re-Mount).
+- **Kompakteres Modal**: Höhe von voller Fensterhöhe auf `max-h-[80vh]` gedeckelt (~20 % kürzer);
+  scoped per `className`-Override, die geteilte `Dialog`-Komponente bleibt unverändert.
+- **Neuer Zeit-Filter „Letzter Monat"** (orthogonal zu den Kategorie-Tabs): blendet ältere Versionen
+  aus und zeigt nur den aktuellen + vorigen Kalendermonat. Monatsgenau aus den ohnehin in der
+  CHANGELOG vorhandenen Datums-Labels — `deriveUserChangelogFromDev` trägt das jüngste Monats-Datum
+  je Minor jetzt als normalisierten ISO-Suffix (`## v2.x — YYYY-MM`) durch die Pipeline
+  ([deriveChangelog.ts](src/core/components/changelog/deriveChangelog.ts)).
+
+Additiv — keine Migration, keine Config-Änderung.
+
 ### v2.124.3 — Datenaktualisierung: Nachname statt „unbekannt" / „ZAH PL" als Urheber (Juni 2026)
 
 PATCH — der bei einer Datenaktualisierung geschriebene Snapshot stempelt jetzt einen

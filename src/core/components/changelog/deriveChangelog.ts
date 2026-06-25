@@ -36,6 +36,10 @@ export interface ChangelogMinor {
   changes: ChangelogChange[];
   /** Roher Markdown-Body — Fallback-Render, falls keine Bullets geparst wurden. */
   bodyMarkdown: string;
+  /** Jüngstes Patch-Datum dieser Minor, monatsgenau als ISO `YYYY-MM` (falls geparst). */
+  dateIso?: string;
+  /** Aus `dateIso` abgeleiteter, vergleichbarer Monats-Index (`year*12 + month0`) — für den Zeit-Filter. */
+  monthIndex?: number;
 }
 
 export interface ChangelogMajor {
@@ -53,8 +57,8 @@ const FIX_HEADING = '### Fehlerbehebungen';
 
 /** `### v2.98.3 — Titel (Juni 2026)` → [major, minor, patch, titel]. */
 const DEV_HEADER_RE = /^###\s+v(\d+)\.(\d+)\.(\d+)\s*[—–-]\s*(.+)$/;
-/** `## v2.98` (ggf. mit nachfolgendem Text) → [major, minor]. */
-const USER_HEADER_RE = /^##\s+v(\d+)\.(\d+)\b/;
+/** `## v2.98` oder `## v2.98 — 2026-06` (optionaler ISO-Datums-Suffix) → [major, minor, jahr?, monat?]. */
+const USER_HEADER_RE = /^##\s+v(\d+)\.(\d+)(?:\s*[—–-]\s*(\d{4})-(\d{2}))?/;
 /** `### Irgendeine Überschrift` (Kategorie-Untersektion). */
 const SUBHEADING_RE = /^###\s+(.+)$/;
 /** `- bullet` / `* bullet`. */
@@ -80,6 +84,34 @@ function stripInlineMarkup(s: string): string {
 /** Einen Patch-Header-Titel in einen sauberen Bullet-Text wandeln. */
 function cleanTitle(rawTitle: string): string {
   return stripInlineMarkup(rawTitle.replace(TRAILING_DATE_RE, ''));
+}
+
+/** Deutsche Monatsnamen → Monatszahl (inkl. `März`/`Maerz`-Schreibweisen). */
+const GERMAN_MONTHS: Record<string, number> = {
+  januar: 1, februar: 2, märz: 3, maerz: 3, april: 4, mai: 5, juni: 6,
+  juli: 7, august: 8, september: 9, oktober: 10, november: 11, dezember: 12,
+};
+
+/**
+ * Zieht aus der Trailing-Datums-Klammer eines Headers (`… (Juni 2026)`) das Datum
+ * monatsgenau als ISO `YYYY-MM` (oder null, wenn kein erkennbarer dt. Monat+Jahr).
+ */
+function parseGermanMonth(rawTitle: string): string | null {
+  const paren = /\(([^)]*?)\)\s*$/.exec(rawTitle);
+  if (!paren) return null;
+  const dm = /(\p{L}+)\s+(\d{4})/u.exec(paren[1] ?? '');
+  if (!dm) return null;
+  const month = GERMAN_MONTHS[(dm[1] ?? '').toLowerCase()];
+  if (!month) return null;
+  return `${dm[2]}-${String(month).padStart(2, '0')}`;
+}
+
+/** ISO `YYYY-MM` → vergleichbarer Monats-Index (`year*12 + month0`), oder undefined. */
+function monthIndexFromIso(iso: string | null | undefined): number | undefined {
+  if (!iso) return undefined;
+  const m = /^(\d{4})-(\d{2})$/.exec(iso);
+  if (!m) return undefined;
+  return Number(m[1]) * 12 + (Number(m[2]) - 1);
 }
 
 /**
@@ -124,14 +156,15 @@ function detectBump(bodyLines: string[]): 'PATCH' | 'MINOR' | 'MAJOR' | null {
  * Patch-Nummern selbst tauchen NICHT auf (Anforderung: x.yy statt x.yy.zz).
  */
 export function deriveUserChangelogFromDev(devMd: string, opts: { major: number }): string {
-  interface Entry { major: number; minor: number; title: string; body: string[] }
+  interface Entry { major: number; minor: number; title: string; date: string | null; body: string[] }
   const entries: Entry[] = [];
   let current: Entry | null = null;
 
   for (const line of devMd.split('\n')) {
     const m = DEV_HEADER_RE.exec(line.trim());
     if (m) {
-      current = { major: Number(m[1]), minor: Number(m[2]), title: cleanTitle(m[4] ?? ''), body: [] };
+      const rawTitle = m[4] ?? '';
+      current = { major: Number(m[1]), minor: Number(m[2]), title: cleanTitle(rawTitle), date: parseGermanMonth(rawTitle), body: [] };
       entries.push(current);
     } else if (current) {
       current.body.push(line);
@@ -139,21 +172,24 @@ export function deriveUserChangelogFromDev(devMd: string, opts: { major: number 
   }
 
   const order: number[] = [];
-  const byMinor = new Map<number, { feature: string[]; fix: string[] }>();
+  const byMinor = new Map<number, { feature: string[]; fix: string[]; date: string | null }>();
   for (const e of entries) {
     if (e.major !== opts.major || !e.title) continue;
     if (!byMinor.has(e.minor)) {
-      byMinor.set(e.minor, { feature: [], fix: [] });
+      byMinor.set(e.minor, { feature: [], fix: [], date: null });
       order.push(e.minor);
     }
     const bucket = byMinor.get(e.minor)!;
     const cat = classifyDevEntry(e.title, detectBump(e.body));
     bucket[cat].push(e.title);
+    // Jüngstes Datum der Minor merken (ISO `YYYY-MM` vergleicht lexikografisch korrekt).
+    if (e.date && (bucket.date === null || e.date > bucket.date)) bucket.date = e.date;
   }
 
   const blocks = order.map((minor) => {
     const bucket = byMinor.get(minor)!;
-    const parts: string[] = [`## v${opts.major}.${minor}`];
+    const header = bucket.date ? `## v${opts.major}.${minor} — ${bucket.date}` : `## v${opts.major}.${minor}`;
+    const parts: string[] = [header];
     if (bucket.feature.length) parts.push(FEATURE_HEADING, ...bucket.feature.map((t) => `- ${t}`));
     if (bucket.fix.length) parts.push(FIX_HEADING, ...bucket.fix.map((t) => `- ${t}`));
     return parts.join('\n');
@@ -186,14 +222,15 @@ export function getChangelogMarkdown(devMd: string, userMd: string, major: numbe
  * Majors und Minors werden absteigend zurückgegeben (neueste zuerst).
  */
 export function parseUserChangelog(md: string): ChangelogMajor[] {
-  interface Section { major: number; minor: number; bodyLines: string[] }
+  interface Section { major: number; minor: number; dateIso: string | null; bodyLines: string[] }
   const sections: Section[] = [];
   let current: Section | null = null;
 
   for (const line of md.split('\n')) {
     const h = USER_HEADER_RE.exec(line.trim());
     if (h) {
-      current = { major: Number(h[1]), minor: Number(h[2]), bodyLines: [] };
+      const dateIso = h[3] && h[4] ? `${h[3]}-${h[4]}` : null;
+      current = { major: Number(h[1]), minor: Number(h[2]), dateIso, bodyLines: [] };
       sections.push(current);
     } else if (current) {
       current.bodyLines.push(line);
@@ -225,6 +262,8 @@ export function parseUserChangelog(md: string): ChangelogMajor[] {
       label: `v${sec.major}.${sec.minor}`,
       changes,
       bodyMarkdown: sec.bodyLines.join('\n').trim(),
+      dateIso: sec.dateIso ?? undefined,
+      monthIndex: monthIndexFromIso(sec.dateIso),
     });
   }
 

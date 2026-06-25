@@ -58,6 +58,13 @@ describe('deriveUserChangelogFromDev', () => {
     expect(out).not.toContain('Alt-Eintrag');
     expect(out).not.toContain('v1.14');
   });
+
+  it('emittiert das jüngste Monats-Datum als ISO-Suffix am Header (nicht als dt. Klammer)', () => {
+    expect(out).toContain('## v2.98 — 2026-06');
+    expect(out).toContain('## v2.97 — 2026-06');
+    // Die rohe deutsche Datums-Klammer darf NICHT durchsickern (Titel sind bereinigt).
+    expect(out).not.toContain('(Juni 2026)');
+  });
 });
 
 describe('parseUserChangelog — Struktur + Kategorien', () => {
@@ -87,6 +94,23 @@ describe('parseUserChangelog — Struktur + Kategorien', () => {
     const changes = maj!.minors[0]!.changes;
     expect(changes[0]).toEqual({ text: 'Fix für Absturz beim Start', category: 'fix' });
     expect(changes[1]).toEqual({ text: 'Neue Tab-Ansicht', category: 'feature' });
+  });
+
+  it('liest den optionalen ISO-Datums-Suffix in dateIso/monthIndex', () => {
+    const md = ['## v2.124 — 2026-06', '- a', '', '## v2.50 — 2025-03', '- b'].join('\n');
+    const [maj] = parseUserChangelog(md);
+    const v124 = maj!.minors.find((m) => m.minor === 124)!;
+    const v50 = maj!.minors.find((m) => m.minor === 50)!;
+    expect(v124.dateIso).toBe('2026-06');
+    expect(v124.monthIndex).toBe(2026 * 12 + 5); // Juni = month0 5
+    expect(v50.dateIso).toBe('2025-03');
+    expect(v50.monthIndex).toBe(2025 * 12 + 2);
+  });
+
+  it('lässt dateIso/monthIndex bei datumslosen Headern undefiniert', () => {
+    const [maj] = parseUserChangelog(['## v2.5', '- x'].join('\n'));
+    expect(maj!.minors[0]!.dateIso).toBeUndefined();
+    expect(maj!.minors[0]!.monthIndex).toBeUndefined();
   });
 
   it('Round-Trip: abgeleitete Markdown ist wieder parsebar inkl. Kategorien', () => {
