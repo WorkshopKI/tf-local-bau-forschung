@@ -35,7 +35,7 @@ export function buildRegelColumns(
 ): SortableColumn<RegelRow>[] {
   return [
     {
-      key: 'name', label: 'Regel', defaultVisible: true, locked: true, sortable: true, width: 180, wrap: false,
+      key: 'name', label: 'Regel', defaultVisible: true, locked: true, sortable: true, width: 290, wrap: false,
       accessor: row => row.regel.name.toLowerCase(),
       render: row => <span className="font-medium text-[var(--tf-text)]">{row.regel.name}</span>,
     },
@@ -49,7 +49,7 @@ export function buildRegelColumns(
       ),
     },
     {
-      key: 'kategorie', label: 'Art', defaultVisible: true, sortable: true, width: 150, wrap: false,
+      key: 'kategorie', label: 'Art', defaultVisible: true, sortable: true, width: 160, wrap: false,
       accessor: row => kategorieLabel(row.regel),
       render: row => (
         <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
@@ -58,12 +58,12 @@ export function buildRegelColumns(
       ),
     },
     {
-      key: 'parameter', label: 'Parameter', defaultVisible: true, sortable: false, width: 300, wrap: true,
+      key: 'parameter', label: 'Parameter', defaultVisible: true, sortable: false, width: 200, wrap: true,
       accessor: row => describeRegelParams(row.regel),
       render: row => <span className="text-[var(--tf-text-secondary)]">{describeRegelParams(row.regel)}</span>,
     },
     {
-      key: 'schweregrad', label: 'Schweregrad', defaultVisible: true, sortable: true, width: 120, wrap: false,
+      key: 'schweregrad', label: 'Schweregrad', defaultVisible: true, sortable: true, width: 110, wrap: false,
       accessor: row => row.regel.schweregrad,
       render: row => <SevPill s={row.regel.schweregrad} />,
     },
@@ -77,7 +77,7 @@ export function buildRegelColumns(
       ),
     },
     {
-      key: 'verwendet', label: 'Verwendet in', defaultVisible: true, sortable: false, width: 160, wrap: true,
+      key: 'verwendet', label: 'Verwendet in', defaultVisible: true, sortable: false, width: 230, wrap: true,
       accessor: row => skillsUsingRegel(file, row.regel.id).join(', '),
       render: row => {
         const used = skillsUsingRegel(file, row.regel.id);

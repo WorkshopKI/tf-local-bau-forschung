@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.131.3 — Qualitätsregeln-Tabelle: breitere Standard-Spaltenbreiten (Juni 2026)
+
+PATCH — Folge der content-width-Umstellung (v2.131.2): ohne die alte `width:100%`-Streckung rendert die
+Qualitätsregeln-Tabelle ihre Default-Breiten exakt → die „Regel"-Spalte (180px) war beim ersten Laden zu
+schmal für die langen Regel-Namen, die „Parameter"-Spalte (300px) unnötig breit.
+
+- **Neue Defaults** in [regelTableColumns.tsx](src/plugins/skill-verwaltung-kuration/regelTableColumns.tsx):
+  Regel 180→290, Art 150→160, Parameter 300→200, Schweregrad 120→110, Verwendet in 160→230 (Typ/Aktiv
+  unverändert). Proportionen wie vom Nutzer per Screenshot vorgegeben (breite Namens- + Verwendet-Spalte).
+- Wirkt nur auf den **Erst-Lade**-Zustand; bereits per Drag gespeicherte Breiten (localStorage
+  `teamflow_regeln_table_col_widths`) bleiben unangetastet.
+
 ### v2.131.2 — Spalten-Resize springt nicht mehr beim Greifen (Juni 2026)
 
 PATCH — beim Greifen des Spalten-Resize-Handles in der geteilten `SortableTable`
