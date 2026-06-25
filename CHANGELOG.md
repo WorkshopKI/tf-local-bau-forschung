@@ -5,6 +5,23 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.132.1 — Streamlit-Bridge: „Prompt-Vorlagen"-Spalte automatisch ausblenden (Juni 2026)
+
+PATCH — das Bridge-Bookmarklet blendet beim Aktivieren die rechte **„Prompt-Vorlagen"**-Spalte der
+internen KI-Seite aus und gibt dem (von der App ferngesteuerten) Chat die volle Breite. Übernimmt den
+bewährten CSS-Trick des alten ZIM-Bookmarklets, additiv im Snippet — Bridge-Kernlogik unverändert.
+
+- **Rein per CSS** ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js),
+  neue `installTemplateHide()`): injiziertes `<style id="tf-bridge-layout">` blendet
+  `[data-testid="stColumn"]:has(#prompt-vorlagen)` aus und setzt die Geschwister-Chat-Spalte auf volle
+  Breite. Verankert am Streamlit-Auto-Anker `#prompt-vorlagen` → wird bei jedem Rerun neu erzeugt, die
+  Regel greift **flackerfrei ohne Observer**.
+- **Sicherheitsnetz `ensureVorlagenHook()`**: fehlt der Anker mal (Streamlit-Änderung), wird die
+  „Prompt-Vorlagen"-Überschrift per Text-Match (`/prompt[\s-]*vorlagen/i`) gefunden und der Anker
+  nachgesetzt. Re-Check im **bestehenden** `MutationObserver` (kein zweiter Observer; im Normalfall
+  `getElementById`-Early-Return).
+- **Bookmarklet-Änderung ⇒ einmal neu installieren** (aus Einstellungen → Bridge-Sektion neu ziehen).
+
 ### v2.132.0 — Regel-Editor: Erkennung ohne Regex-Wissen + zweiseitiger KI-Hinweis + Typ-Transparenz (Juni 2026)
 
 MINOR — `verbotenes_muster`-Regeln lassen sich jetzt ohne Regex-Kenntnis pflegen; der generierte

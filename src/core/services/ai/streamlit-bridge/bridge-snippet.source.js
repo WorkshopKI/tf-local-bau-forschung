@@ -222,10 +222,44 @@
     }
     return false;
   }
+  // ── „Prompt-Vorlagen"-Spalte ausblenden (mehr Platz fuer den ferngesteuerten Chat) ──
+  // Die interne KI-Seite zeigt rechts eine breite „Prompt-Vorlagen"-Spalte (Ueberschrift +
+  // Selectbox), die der von der App gesteuerte Chat nicht braucht. Wir blenden sie rein per
+  // CSS aus — verankert am Streamlit-Auto-Anker `#prompt-vorlagen` (wird bei jedem Rerun neu
+  // erzeugt → die Regel greift flackerfrei, ganz ohne Observer) und ziehen die Chat-Spalte auf
+  // volle Breite. Fehlt der Anker mal (Streamlit-Aenderung), setzt `ensureVorlagenHook()` ihn
+  // per Ueberschriften-Text nach.
+  var VORLAGEN_HEAD = 'h1,h2,h3,h4,[data-testid="stHeading"],[data-testid="stHeadingWithActionElements"]';
+  function ensureVorlagenHook() {
+    if (document.getElementById('prompt-vorlagen')) return; // Normalfall: Anker vorhanden
+    var heads = document.querySelectorAll(VORLAGEN_HEAD);
+    for (var i = 0; i < heads.length; i++) {
+      var t = (heads[i].textContent || '').replace(/\s+/g, ' ').trim();
+      if (/prompt[\s-]*vorlagen/i.test(t)) { heads[i].id = 'prompt-vorlagen'; return; }
+    }
+  }
+  function installTemplateHide() {
+    if (!document.getElementById('tf-bridge-layout')) {
+      var css =
+        '[data-testid="stColumn"]:has(#prompt-vorlagen),' +
+        '.stColumn:has(#prompt-vorlagen),' +
+        '[data-testid="column"]:has(#prompt-vorlagen){display:none!important}' +
+        '[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:has(#prompt-vorlagen))' +
+        ' > [data-testid="stColumn"]:not(:has(#prompt-vorlagen))' +
+        '{flex:1 1 100%!important;width:100%!important;max-width:100%!important}';
+      var st = document.createElement('style');
+      st.id = 'tf-bridge-layout';
+      st.textContent = css;
+      (document.head || document.documentElement).appendChild(st);
+    }
+    ensureVorlagenHook();
+  }
+  installTemplateHide();
+
   var lastDomActivity = Date.now();
   try {
     var appRoot = q1(SEL.appRoot) || document.body;
-    new MutationObserver(function () { lastDomActivity = Date.now(); })
+    new MutationObserver(function () { lastDomActivity = Date.now(); ensureVorlagenHook(); })
       .observe(appRoot, { childList: true, subtree: true, characterData: true });
   } catch (e) { /* ignore */ }
 

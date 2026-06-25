@@ -46,6 +46,7 @@ Die Streamlit-App gehört uns nicht und kann nicht geändert werden → das Book
 - Nur die **Assistant**-Nachricht wird gelesen (User-Echo via `img[alt*="user"]` ausgeschlossen, und Kandidat übersprungen, dessen Text == gesendete Nachricht).
 - **Stabilitäts-Gate**: Inhalt muss N×500 ms unverändert bleiben (Streaming fertig), bevor zurückgegeben wird.
 - Kleines Status-Badge (Interne KI / Verbunden / Arbeitet… / Zeitüberschreitung / Fehler) + Button „ZAH-App testen"; bei fehlendem `window.opener` Hinweis „Tab aus der App öffnen". `window.__teamflowBridge`-Guard gegen Doppel-Installation.
+- **„Prompt-Vorlagen"-Spalte ausblenden** (`installTemplateHide()`): die rechte Vorlagen-Spalte der KI-Seite kostet nur Platz, da die App den Chat fernsteuert. Ausblendung **rein per CSS** (injiziertes `<style id="tf-bridge-layout">`) verankert am Streamlit-Auto-Anker `#prompt-vorlagen` — `[data-testid="stColumn"]:has(#prompt-vorlagen){display:none}` + Geschwister-Chat-Spalte auf volle Breite. Der Anker wird bei jedem Rerun neu erzeugt → flackerfrei **ohne** Observer. Sicherheitsnetz `ensureVorlagenHook()`: fehlt der Anker, wird die Überschrift per Text-Match (`/prompt[\s-]*vorlagen/i`) gefunden und der Anker nachgesetzt (Re-Check im bestehenden `MutationObserver`, kein zweiter Observer). Übernommen aus dem alten ZIM-Bookmarklet (`_reference/.../streamlit-theme.css`).
 
 ## Aktivierung (Nutzer-Flow)
 
