@@ -10,6 +10,7 @@
  */
 import type { AIBridge } from '@/core/services/ai/bridge';
 import { runSkill, type SkillRecord } from '@/core/services/skills';
+import { safeResetChat } from '@/core/services/ai/chat-reset';
 import type { Mapping } from '../types';
 
 const PLATZHALTER_RE = /\[[A-Z][A-Z0-9_]*_\d+\]/g;
@@ -71,6 +72,7 @@ export async function polishAntwort(bridge: AIBridge, antwortAnon: string): Prom
   const transport = bridge.getTransportForSkillRun(POLISH_SKILL);
   const ok = await transport.ping();
   if (!ok) throw new Error('Interne KI nicht erreichbar — Glätten nicht möglich.');
+  await safeResetChat(transport); // frischer Kontext vor dem Polish-Lauf
   const result = await runSkill(transport, POLISH_SKILL, [], {
     stammdaten: '',
     vbMarkdown: '',

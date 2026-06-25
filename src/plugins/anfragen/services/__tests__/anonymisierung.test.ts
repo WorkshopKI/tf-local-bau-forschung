@@ -103,6 +103,25 @@ describe('runAnonymisierung — Retry bei früh-finalisierter Teil-Antwort', () 
       runAnonymisierung(bridge, ANFRAGE_ANONYMISIEREN_SKILL, 'Text', { versuche: 3, pauseMs: 0 }),
     ).rejects.toThrow(/Starte/);
   });
+
+  it('setzt den Chat VOR dem LLM-Lauf zurück (frischer Kontext)', async () => {
+    const calls: string[] = [];
+    const transport = {
+      name: 'Streamlit',
+      ping: async () => true,
+      resetChat: async () => { calls.push('reset'); return true; },
+      submitMessage: async () => { calls.push('submit'); return ECHT; },
+    };
+    const bridge = { getTransportForSkillRun: () => transport } as unknown as AIBridge;
+    await runAnonymisierung(bridge, ANFRAGE_ANONYMISIEREN_SKILL, 'Text', { pauseMs: 0 });
+    expect(calls).toEqual(['reset', 'submit']);
+  });
+
+  it('ohne resetChat-Unterstützung läuft die Anonymisierung trotzdem (best-effort)', async () => {
+    const bridge = fakeBridgeSeq([ECHT]); // Transport ohne resetChat
+    const r = await runAnonymisierung(bridge, ANFRAGE_ANONYMISIEREN_SKILL, 'Text', { pauseMs: 0 });
+    expect(r.anonymisiertMd).toBe('Hallo [PERSON_1]');
+  });
 });
 
 describe('Anonymisierungs-Skill — Invarianten', () => {
