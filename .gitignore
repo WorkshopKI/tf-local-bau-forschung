@@ -54,3 +54,7 @@ _design/
 *.csv
 !public/test-korpus/**/*.csv
 !docs/phase-2/dms-sample.csv
+
+# Lokale Eval-Ausgaben (CLI --out) + generierte Fixtures
+skill-eval-*/
+eval-fixtures-out/

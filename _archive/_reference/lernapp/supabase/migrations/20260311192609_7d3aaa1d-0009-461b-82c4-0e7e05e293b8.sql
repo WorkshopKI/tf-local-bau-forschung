@@ -1,1 +1,0 @@
-DROP POLICY IF EXISTS "Service role can insert usage" ON public.api_usage_log;
