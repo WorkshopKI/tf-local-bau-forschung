@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { ChevronUp, ChevronDown, GripVertical, Trash2 } from 'lucide-react';
-import { computeStepNumbers, type SkillRegistryFile, type WorkflowStep } from '@/core/services/skills';
+import {
+  computeStepNumbers,
+  type ArtefaktTyp, type SkillRegistryFile, type WorkflowDef, type WorkflowEbene, type WorkflowStep,
+} from '@/core/services/skills';
 import { ListItem } from '@/components/ui/ListItem';
 import { RowAction } from '@/components/ui/RowAction';
-import { getWorkflowById, getWorkflowDef, reorderSteps } from './workflowShared';
+import {
+  ARTEFAKT_TYP_LABEL, EBENE_LABEL, getWorkflowById, getWorkflowDef, istSeedWorkflow, reorderSteps,
+} from './workflowShared';
 import { WorkflowSwitcher } from './WorkflowSwitcher';
+import { WorkflowMetaEditor } from './WorkflowMetaEditor';
 
 interface WorkflowsTabProps {
   file: SkillRegistryFile;
@@ -15,13 +21,75 @@ interface WorkflowsTabProps {
   onEditStep: (step: WorkflowStep) => void;
   /** Persistiert eine neue Schritt-Reihenfolge/-Liste (Aufrufer bumpt die Version). */
   onChangeSteps: (steps: WorkflowStep[]) => void;
+  // — Workflow-Management (Aufrufer persistiert + bumpt Version) —
+  onCreateWorkflow: (name: string, artefaktTyp: ArtefaktTyp, ebene: WorkflowEbene) => void;
+  onSaveWorkflowMeta: (def: WorkflowDef) => void;
+  onToggleFreigabe: (def: WorkflowDef) => void;
+  onToggleAktiv: (def: WorkflowDef) => void;
+  onDeleteWorkflow: (def: WorkflowDef) => void;
 }
 
-export function WorkflowsTab({ file, canEdit, selectedId, onSelectWorkflow, onEditStep, onChangeSteps }: WorkflowsTabProps): React.ReactElement {
+const ARTEFAKT_OPTIONS = Object.keys(ARTEFAKT_TYP_LABEL) as ArtefaktTyp[];
+const EBENE_OPTIONS = Object.keys(EBENE_LABEL) as WorkflowEbene[];
+
+/** Inline-Picker für einen neuen Workflow (Name + Typ-/Ebenen-Pills). */
+function CreateWorkflowForm({ onCreate, onCancel }: {
+  onCreate: (name: string, artefaktTyp: ArtefaktTyp, ebene: WorkflowEbene) => void;
+  onCancel: () => void;
+}): React.ReactElement {
+  const [name, setName] = useState('');
+  const [artefaktTyp, setArtefaktTyp] = useState<ArtefaktTyp>('precheck');
+  const [ebene, setEbene] = useState<WorkflowEbene>('verbund');
+
+  const pill = (active: boolean): string =>
+    `text-[12px] px-[11px] py-[5px] rounded-[99px] border-[0.5px] ${active ? 'bg-[var(--tf-text)] text-[var(--tf-bg)] border-transparent' : 'bg-transparent text-[var(--tf-text-secondary)] border-[var(--tf-border)]'}`;
+
+  return (
+    <div className="rounded-[10px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] p-3.5 flex flex-col gap-3">
+      <input
+        autoFocus
+        value={name}
+        placeholder="Name des Workflows"
+        onChange={e => setName(e.target.value)}
+        className="text-[13px] px-2.5 py-2 rounded-[8px] border-[0.5px] border-[var(--tf-border-hover)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)]"
+      />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] text-[var(--tf-text-tertiary)] mr-1">Typ:</span>
+        {ARTEFAKT_OPTIONS.map(t => (
+          <button key={t} type="button" onClick={() => setArtefaktTyp(t)} className={pill(artefaktTyp === t)}>{ARTEFAKT_TYP_LABEL[t]}</button>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] text-[var(--tf-text-tertiary)] mr-1">Ebene:</span>
+        {EBENE_OPTIONS.map(e => (
+          <button key={e} type="button" onClick={() => setEbene(e)} className={pill(ebene === e)}>{EBENE_LABEL[e]}</button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => onCreate(name, artefaktTyp, ebene)}
+          className="text-[12.5px] px-3.5 py-1.5 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85"
+        >
+          Anlegen (Entwurf)
+        </button>
+        <button type="button" onClick={onCancel} className="text-[12.5px] px-3.5 py-1.5 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
+          Abbrechen
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function WorkflowsTab({
+  file, canEdit, selectedId, onSelectWorkflow, onEditStep, onChangeSteps,
+  onCreateWorkflow, onSaveWorkflowMeta, onToggleFreigabe, onToggleAktiv, onDeleteWorkflow,
+}: WorkflowsTabProps): React.ReactElement {
   const def = getWorkflowById(file, selectedId) ?? getWorkflowDef(file);
   const steps = def.steps;
   const nummern = computeStepNumbers(steps);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const move = (from: number, to: number): void => {
     if (to < 0 || to >= steps.length) return;
@@ -34,7 +102,38 @@ export function WorkflowsTab({ file, canEdit, selectedId, onSelectWorkflow, onEd
 
   return (
     <div className="flex flex-col gap-4">
-      <WorkflowSwitcher file={file} selectedId={def.id} onSelect={onSelectWorkflow} />
+      <div className="flex items-start justify-between gap-3">
+        <WorkflowSwitcher file={file} selectedId={def.id} onSelect={onSelectWorkflow} />
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setCreating(c => !c)}
+            className="shrink-0 text-[12.5px] px-[13px] py-[7px] rounded-[99px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:border-[var(--tf-border-hover)]"
+          >
+            + Neuer Workflow
+          </button>
+        )}
+      </div>
+
+      {creating && canEdit && (
+        <CreateWorkflowForm
+          onCreate={(name, artefaktTyp, ebene) => { onCreateWorkflow(name, artefaktTyp, ebene); setCreating(false); }}
+          onCancel={() => setCreating(false)}
+        />
+      )}
+
+      {canEdit && (
+        <WorkflowMetaEditor
+          key={def.id}
+          def={def}
+          canEdit={canEdit}
+          isSeed={istSeedWorkflow(def.id)}
+          onSaveMeta={onSaveWorkflowMeta}
+          onToggleFreigabe={onToggleFreigabe}
+          onToggleAktiv={onToggleAktiv}
+          onDelete={onDeleteWorkflow}
+        />
+      )}
 
       {steps.length === 0 ? (
         <p className="text-[13.5px] text-[var(--tf-text-secondary)] py-2">

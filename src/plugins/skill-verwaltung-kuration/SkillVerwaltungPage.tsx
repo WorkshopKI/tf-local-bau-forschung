@@ -10,10 +10,12 @@ import {
   resolveRegeln,
   skillsUsingRegel,
   exportSkillBundle,
+  type ArtefaktTyp,
   type QualitaetsRegel,
   type SkillRecord,
   type SkillRegistryFile,
   type WorkflowDef,
+  type WorkflowEbene,
   type WorkflowStep,
 } from '@/core/services/skills';
 import { downloadAsFile } from '@/core/services/search/eval/eval-export';
@@ -31,7 +33,7 @@ import { SkillEvalPanel } from './SkillEvalPanel';
 import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { RegistryViewModeToggle, type RegistryViewMode } from './RegistryViewModeToggle';
 import { blankRegel, upsertRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
-import { blankStep, getWorkflowById, getWorkflowDef, upsertStep, withWorkflowSteps } from './workflowShared';
+import { blankStep, blankWorkflow, getWorkflowById, getWorkflowDef, upsertStep, upsertWorkflowDef, withWorkflowSteps } from './workflowShared';
 import { useEditorLeaveGuard } from './editorGuard';
 import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 
@@ -193,6 +195,29 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const deleteStep = (step: WorkflowStep): void => {
     void save.run(withWorkflowSteps(file, selectedWorkflowId, selectedWorkflowDef().steps.filter(s => s.id !== step.id)))
       .then(() => setEditingStep(null));
+  };
+
+  // — Workflow-Management (Anlegen/Metadaten/Freigeben/Aktiv/Löschen) —
+  const createWorkflow = (name: string, artefaktTyp: ArtefaktTyp, ebene: WorkflowEbene): void => {
+    const w = blankWorkflow({ name: name.trim() || 'Neuer Workflow', artefaktTyp, ebene });
+    void save.run(upsertWorkflowDef(file, w)).then(() => setSelectedWorkflowId(w.id));
+  };
+  const saveWorkflowMeta = (def: WorkflowDef): void => {
+    void save.run(upsertWorkflowDef(file, { ...def, version: def.version + 1 }));
+  };
+  const toggleWorkflowAktiv = (def: WorkflowDef): void => {
+    void save.run(upsertWorkflowDef(file, { ...def, aktiv: def.aktiv === false, version: def.version + 1 }));
+  };
+  const toggleWorkflowFreigabe = (def: WorkflowDef): void => {
+    if (def.freigabe !== 'entwurf'
+      && !window.confirm(`„${def.name}" auf Entwurf zurückstellen? Der Workflow verschwindet dann in pl/prod/as — nur dev sieht Entwürfe.`)) return;
+    const freigabe = def.freigabe === 'entwurf' ? 'freigegeben' : 'entwurf';
+    void save.run(upsertWorkflowDef(file, { ...def, freigabe, version: def.version + 1 }));
+  };
+  const deleteWorkflow = (def: WorkflowDef): void => {
+    if (!window.confirm(`Workflow „${def.name}" wirklich löschen? (eigener Workflow, kein Seed)`)) return;
+    const others = (file.workflows ?? []).filter(w => w.id !== def.id);
+    void save.run({ ...file, workflows: others }).then(() => setSelectedWorkflowId(null));
   };
 
   // — Detail-Slot (Editor) fürs Master-Detail-Split — die frühere Vollseiten-
@@ -437,6 +462,11 @@ export function SkillVerwaltungPage(): React.ReactElement {
             onSelectWorkflow={id => guard.guardLeave(() => setSelectedWorkflowId(id))}
             onEditStep={step => guard.guardLeave(() => setEditingStep({ step, isNew: false }))}
             onChangeSteps={changeSteps}
+            onCreateWorkflow={createWorkflow}
+            onSaveWorkflowMeta={saveWorkflowMeta}
+            onToggleFreigabe={toggleWorkflowFreigabe}
+            onToggleAktiv={toggleWorkflowAktiv}
+            onDeleteWorkflow={deleteWorkflow}
           />
         )}
           </div>
