@@ -18,6 +18,7 @@ import {
   ANFRAGE_ANONYMISIEREN_SKILL_ID,
 } from '@/core/services/skills/registry/anfrage-anonymisieren.seed';
 import { runAnonymisierung, istAnonymisiererAktiv } from './services/anonymisierung';
+import { ReviewEditor } from './ReviewEditor';
 import { useAnfragenStore } from './store';
 import { statusErreicht } from './status';
 import type { Anfrage } from './types';
@@ -80,9 +81,7 @@ export function AnfrageAnonymisierung({ anfrage }: Props): React.ReactElement {
 
       {schonAnonymisiert && (
         <>
-          <div className="text-[12.5px] text-[var(--tf-text)] whitespace-pre-wrap rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] p-3 max-h-[35vh] overflow-y-auto">
-            {anfrage.anonymisiertMd || <span className="text-[var(--tf-text-tertiary)]">— leer —</span>}
-          </div>
+          <ReviewEditor anfrage={anfrage} />
 
           <div className="mt-3">
             <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-1.5 flex items-center gap-1.5">

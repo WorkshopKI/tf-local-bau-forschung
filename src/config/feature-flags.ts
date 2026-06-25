@@ -176,6 +176,13 @@ export function isSkillVerwaltungEnabled(): boolean {
 export function isAnfragenEnabled(): boolean {
   return features.anfragen === true;
 }
+/** URL des externen ZIM-Dashboard-Artifacts (Modul „Anfragen"). Konfigwert mit
+ *  kanonischem Default — ein unpublished Artifact bekommt eine neue UUID/URL,
+ *  Tausch dann über `config.anfragen.dashboardUrl` ohne Komponenten-Änderung. */
+export function getAnfragenDashboardUrl(): string {
+  return runtimeConfig.anfragen?.dashboardUrl
+    ?? 'https://claude.ai/public/artifacts/5faeb8ed-c446-4050-aad8-3464094a2b9f';
+}
 /** In-App Streamlit-Bridge-Installer im KI-Assistent-Tab (Streamlit-URL +
  *  Bookmarklet + Verbindungstest). Zugang zum internen gpt-oss ohne API.
  *  Sichtbar in dev + prod + kurator + pl. Default false. */

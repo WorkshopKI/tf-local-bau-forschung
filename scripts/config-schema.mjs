@@ -237,6 +237,13 @@ export const DEFAULT_CONFIG = {
   // Varianten ohne Gate). pl/kurator bekommen den auth-Block via
   // `npm run set-password -- <variant> <pw>` eingebacken (scripts/set-app-password.mjs).
   auth: null,
+
+  // Modul „Anfragen" (nur dev). Externes ZIM-Dashboard-Artifact als Konfigwert
+  // (kein Hardcode in der Komponente) — ein unpublished Artifact bekommt eine
+  // neue URL, Tausch dann hier an EINER Stelle.
+  anfragen: {
+    dashboardUrl: 'https://claude.ai/public/artifacts/5faeb8ed-c446-4050-aad8-3464094a2b9f',
+  },
 };
 
 /**

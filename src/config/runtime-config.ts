@@ -205,6 +205,15 @@ export interface TeamflowConfig {
   dev?: TeamflowDevConfig;
   /** v2.16 — optionales Build-Time Rollen-Passwort-Gate (pl + kurator). */
   auth?: TeamflowAuthConfig;
+  /** Modul „Anfragen" — externes ZIM-Dashboard-Artifact (nur dev). Konfigwert
+   *  (kein Hardcode): ein einmal unpublished Artifact bekommt eine neue URL,
+   *  Tausch dann an EINER Stelle. */
+  anfragen?: TeamflowAnfragenConfig;
+}
+
+export interface TeamflowAnfragenConfig {
+  /** URL des published Claude-Artifacts (FAQ-Suche + ZIM-Beratung). */
+  dashboardUrl?: string;
 }
 
 export const runtimeConfig: TeamflowConfig = __TEAMFLOW_CONFIG__;
