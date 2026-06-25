@@ -5,6 +5,22 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.128.1 — Dev-Build: Skill-Bearbeitung ohne Kurator-Session (Juni 2026)
+
+PATCH — im **dev**-Build (`build:dev` + `npm run dev`) ist die Skill-/Regel-Registry jetzt **direkt
+editierbar**, ohne erst die Kurator-Session zu aktivieren. Begründung: der Entwickler muss alles testen
+können und hat per Definition volle Rechte.
+
+- **Fix**: `canEditSkillRegistry()` ([feature-flags.ts](src/config/feature-flags.ts)) kurzschließt jetzt
+  über `isDevContext()` → dev ist immer voll editierbar. Die einzige Edit-Schranke
+  ([useSkillRegistry.ts](src/plugins/skill-verwaltung-kuration/useSkillRegistry.ts)) routet alle
+  Editoren/Tabs hierüber.
+- **Unverändert**: pl (Schreibrecht ohne Kurator-Login), kurator (nur mit aktiver Session), prod/as
+  (Plugin aus bzw. read-only) — `isDevContext()` ist dort `false`. Physischer Write-Guard
+  (`queryPermission` in `writeSkillRegistry`) bleibt bestehen.
+
+Dev-only — keine Auswirkung auf Produktions-Varianten, keine Migration.
+
 ### v2.128.0 — Changelog-Modal: „Alle aufklappen"-Umschalter (Juni 2026)
 
 MINOR — neben den 10er-Paketen (v2.127) gibt es in der Filterleiste des Changelog-Modals jetzt

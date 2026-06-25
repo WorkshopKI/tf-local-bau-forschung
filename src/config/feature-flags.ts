@@ -185,12 +185,15 @@ export function isStreamlitBridgeEnabled(): boolean {
 /**
  * Darf der aktuelle Build/Nutzer die Skill-Registry SCHREIBEN? Komponiert aus
  * bestehenden Primitiven — KEIN neues Auth-Muster:
+ *  - dev (`build:dev` + `npm run dev`): IMMER voll editierbar — der Entwickler
+ *    muss alles testen können, ohne erst die Kurator-Session zu aktivieren.
  *  - pl-Build (Schreibrecht auf dem Share, aber ohne Kurator-Login) editiert
  *    direkt: `datenShareSchreibrecht && !kuratorMenus` identifiziert pl eindeutig.
- *  - sonst (kurator/dev): nur mit aktiver Kurator-Session; prod/demo read-only.
+ *  - sonst (kurator): nur mit aktiver Kurator-Session; prod/demo read-only.
  * Physischer Guard bleibt `queryPermission` in `writeSkillRegistry`.
  */
 export function canEditSkillRegistry(sessionActive: boolean): boolean {
+  if (isDevContext()) return true;
   if (isDatenShareWritable() && !isKuratorMenusEnabled()) return true;
   return sessionActive;
 }
