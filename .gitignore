@@ -76,3 +76,9 @@ eval/watch-eval.ps1
 registry.live.json
 registry.A-v2.json
 registry.lektor-test.json
+
+# Outlook-.msg-Dateien tragen reale PII (echte Absender/Inhalte) — NIE committen.
+# Der .msg-Parser (src/core/services/msg) wird committed gegen synthetische
+# CFB-Fixtures getestet; echte Mails liegen nur lokal in fixtures-local/.
+*.msg
+src/core/services/msg/__tests__/fixtures-local/
