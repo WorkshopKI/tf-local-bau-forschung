@@ -17,6 +17,8 @@ import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
 import { vbUeberschreitetCap, VB_KUERZEN_HINWEIS } from '@/core/services/skills';
+import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
+import { ARTEFAKT_TYP_LABEL } from '@/plugins/skill-verwaltung-kuration/workflowShared';
 import { getVbCharCap, getLlmContextTokens } from '@/core/services/ai/llm-context';
 import type { Antrag } from '@/core/services/csv/types';
 import {
@@ -292,6 +294,26 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
               <span>·</span>
               <button type="button" onClick={() => setErsetzen(true)} className="hover:text-[var(--tf-text-secondary)]">VB ersetzen</button>
               {vbLvl === 'warnung' && <span className="text-[var(--tf-warning-text)]">⚠ mögliche Konvertierungsprobleme{vbWarnung ? `: ${vbWarnung}` : ''}</span>}
+            </div>
+          )}
+
+          {/* dev-Test: welchen GA-Workflow der Stepper fährt. Nur wenn Entwürfe erlaubt
+              sind UND es >1 wählbaren Workflow gibt — sonst kein Dropdown, GA unverändert. */}
+          {erlaubeWorkflowEntwuerfe() && ctrl.verfuegbareWorkflows.length > 1 && (
+            <div className="mb-4 flex items-center gap-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
+              <span>Workflow (dev-Test):</span>
+              <select
+                value={ctrl.testWorkflowId ?? ''}
+                onChange={e => ctrl.setTestWorkflowId(e.target.value || null)}
+                className="text-[12px] px-2 py-1 rounded-[6px] border-[0.5px] border-[var(--tf-border-hover)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)]"
+              >
+                <option value="">Standard (automatisch)</option>
+                {ctrl.verfuegbareWorkflows.map(w => (
+                  <option key={w.id} value={w.id}>
+                    {w.name} · {ARTEFAKT_TYP_LABEL[w.artefaktTyp ?? 'ga']}{w.freigabe === 'entwurf' ? ' · Entwurf' : ''}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

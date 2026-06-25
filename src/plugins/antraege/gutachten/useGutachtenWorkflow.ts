@@ -28,6 +28,8 @@ import {
   type QualitaetsRegel,
   type SkillRecord,
   type SkillTweak,
+  type SkillRegistryFile,
+  type WorkflowDef,
   type WorkflowStep,
 } from '@/core/services/skills';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
@@ -39,7 +41,8 @@ import { resolveVb, type VbAufloesung } from '../kurzfassung/vbDokument';
 import { useStreamingBuffer } from '../kurzfassung/useStreamingBuffer';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
-import { resolveActiveWorkflow } from './active-workflow';
+import { resolveWorkflowSteps, verfuegbareWorkflows } from './active-workflow';
+import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
 import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
 import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
@@ -78,6 +81,11 @@ export interface GutachtenWorkflowController {
   streamThinking: string;
   /** Geordnete GENERIERUNGS-Schritte des aktiven Workflows (llm_qs-Schritte sind herausgefiltert). */
   steps: WorkflowStep[];
+  /** dev-Test: explizit gewählter Workflow (null = Default-GA per Tie-Break). */
+  testWorkflowId: string | null;
+  setTestWorkflowId: (id: string | null) => void;
+  /** Wählbare GA-Workflows fürs dev-Dropdown (gefiltert/sortiert; leer außerhalb dev). */
+  verfuegbareWorkflows: WorkflowDef[];
   aktiverSchritt: StepId;
   /** Skill des AKTIVEN Schritts (Version + Tweak-Editor). */
   activeSkill: SkillRecord | null;
@@ -142,6 +150,16 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [bulkRunning, setBulkRunning] = useState(false);
   const stream = useStreamingBuffer();
   const abortRef = useRef<AbortController | null>(null);
+  // dev-Test-Workflowwahl: nur lokal (resettet pro Reload). `regFile` hält die
+  // geladene Registry für die Dropdown-Optionen. `erlaubeEntwuerfe` ist ein
+  // Build-Konstant (dev → true), daher render-stabil.
+  const erlaubeEntwuerfe = erlaubeWorkflowEntwuerfe();
+  const [testWorkflowId, setTestWorkflowId] = useState<string | null>(null);
+  const [regFile, setRegFile] = useState<SkillRegistryFile | null>(null);
+  const verfuegbar = useMemo(
+    () => (regFile ? verfuegbareWorkflows(regFile, 'ga', { erlaubeEntwuerfe }) : []),
+    [regFile, erlaubeEntwuerfe],
+  );
 
   const order = useMemo(() => steps.map(s => s.id), [steps]);
   // Defensiver Guard: zeigt ein persistierter `aktiverSchritt` auf einen Schritt,
@@ -164,11 +182,13 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         loadSkillRegistry(storage),
       ]);
       if (cancelled) return;
-      setSkillMap(buildSkillMap(loaded.file));
+      setRegFile(loaded.file);
+      const workflowId = testWorkflowId ?? undefined;
+      setSkillMap(buildSkillMap(loaded.file, { workflowId }));
       setRelevanzSkill(loaded.file.skills.find(s => s.id === RELEVANZ_MAP_SKILL_ID) ?? SEED_RELEVANZ_MAP_SKILL);
       // llm_qs-Schritte aus der Generierungs-Schrittfolge filtern (reine Konfiguration —
       // stören firstNonFreigegeben/freigeben/Stepper nicht) und nach Ziel-Schritt indexieren.
-      const allSteps = resolveActiveWorkflow(loaded.file);
+      const allSteps = resolveWorkflowSteps(loaded.file, 'ga', { erlaubeEntwuerfe, workflowId });
       setSteps(allSteps.filter(s => s.rolle !== 'llm_qs'));
       const ziele = new Map<StepId, WorkflowStep>();
       for (const s of allSteps) if (s.rolle === 'llm_qs' && s.qsZielStepId) ziele.set(s.qsZielStepId, s);
@@ -186,7 +206,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       }
     })();
     return () => { cancelled = true; };
-  }, [key, storage.idb, bridge]);
+    // testWorkflowId in den Deps: Wechsel lädt Run/Steps/SkillMap des gewählten Workflows neu.
+  }, [key, storage.idb, bridge, testWorkflowId, erlaubeEntwuerfe]);
 
   // Tweak des AKTIVEN Skills laden (wechselt mit dem aktiven Schritt).
   useEffect(() => {
@@ -531,6 +552,9 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     streamContent: stream.content,
     streamThinking: stream.thinking,
     steps,
+    testWorkflowId,
+    setTestWorkflowId,
+    verfuegbareWorkflows: verfuegbar,
     aktiverSchritt,
     activeSkill: activeCtx?.skill ?? null,
     regeln: activeCtx?.regeln ?? [],
