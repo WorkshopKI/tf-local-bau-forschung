@@ -25,13 +25,12 @@ import {
   type SkillRegistryFile,
 } from '@/core/services/skills';
 import {
-  typLabel,
+  typGruppeLabel,
   kategorieLabel,
   pruefartLabel,
   sevLabel,
   aktivLabel,
-  TYP_LABEL,
-  REGEL_TYP_ORDER,
+  REGEL_TYP_GRUPPE_ORDER,
   PRUEFART_LABEL,
 } from './regelShared';
 
@@ -64,7 +63,7 @@ const EMPTY_VALUES: RegelFacetValues = {
 function facetValue(key: Exclude<RegelFacetKey, 'skill'>, r: QualitaetsRegel): string {
   switch (key) {
     case 'kategorie': return kategorieLabel(r);
-    case 'typ': return typLabel(r);
+    case 'typ': return typGruppeLabel(r);
     case 'pruefart': return pruefartLabel(r);
     case 'schweregrad': return sevLabel(r);
     case 'aktiv': return aktivLabel(r);
@@ -109,7 +108,7 @@ export function computeRegelCandidates(
   const skill: string[] = [];
   for (const r of rules) {
     kat.push(kategorieLabel(r));
-    typ.push(typLabel(r));
+    typ.push(typGruppeLabel(r));
     pruef.push(pruefartLabel(r));
     sev.push(sevLabel(r));
     akt.push(aktivLabel(r));
@@ -117,7 +116,7 @@ export function computeRegelCandidates(
   }
   return {
     kategorie: buildCandidates(kat, KATEGORIE_ORDER.map(k => KATEGORIE_LABEL[k]!).filter(Boolean)),
-    typ: buildCandidates(typ, REGEL_TYP_ORDER.map(t => TYP_LABEL[t]!).filter(Boolean)),
+    typ: buildCandidates(typ, REGEL_TYP_GRUPPE_ORDER),
     pruefart: buildCandidates(pruef, ['textlich', 'fachlich', 'administrativ'].map(k => PRUEFART_LABEL[k]!)),
     schweregrad: buildCandidates(sev, ['Fehler', 'Hinweis']),
     aktiv: buildCandidates(akt, ['Aktiv', 'Inaktiv']),

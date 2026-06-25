@@ -5,6 +5,19 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.131.0 — Qualitätsregeln-Filter: aufgeräumt (Typ-Gruppen, Skill-Zeile, kein Zähler) (Juni 2026)
+
+MINOR — Feinschliff der Facetten-Leiste ([RegelnTab.tsx](src/plugins/skill-verwaltung-kuration/RegelnTab.tsx)),
+damit man „den Wald vor lauter Bäumen" sieht:
+
+- **Typ-Facette gruppiert** statt jeden Einzel-Typ aufzulisten ([regelShared.tsx](src/plugins/skill-verwaltung-kuration/regelShared.tsx)
+  `typGruppeLabel`): **„Umfang & Länge"** (Zeichen/Wörter/Sätze/Satzlänge/Absätze) und **„Muster & Pflichttext"**
+  (Verbotenes Muster + Pflicht-Anfang); „Keine Aufzählungen" + QS-Fallback (Textlich/Fachlich/Administrativ)
+  bleiben. Die Tabellen-**Spalte** „Typ" bleibt granular (`typLabel`) — nur die Facette bündelt.
+- **„Verwendet in" in eine eigene zweite Zeile** — aufgeklappt wird die Skill-Liste sehr breit und
+  verdrängte sonst die übrigen Pillen.
+- **Treffer-Zähler entfernt** (kein „20 Regeln" mehr).
+
 ### v2.130.1 — Qualitätsregeln: „Spalten"-Picker in die Filter-Zeile (Juni 2026)
 
 PATCH — der „Spalten"-Umschalter der Tabellen-Ansicht ([RegelnTab.tsx](src/plugins/skill-verwaltung-kuration/RegelnTab.tsx))

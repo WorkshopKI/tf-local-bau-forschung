@@ -38,15 +38,18 @@ function TypPill({ typ }: { typ: string }): React.ReactElement {
   );
 }
 
-/** Reihenfolge + Beschriftung der Facetten-Pillen (Förderanträge-Quickfilter-Optik). */
-const FACETS: { key: RegelFacetKey; label: string }[] = [
+/** Facetten der ersten Zeile (Förderanträge-Quickfilter-Optik). */
+const FACETS_ROW1: { key: RegelFacetKey; label: string }[] = [
   { key: 'kategorie', label: 'Kategorie' },
   { key: 'typ', label: 'Typ' },
   { key: 'pruefart', label: 'Prüfart' },
   { key: 'schweregrad', label: 'Schweregrad' },
   { key: 'aktiv', label: 'Aktiv' },
-  { key: 'skill', label: 'Verwendet in' },
 ];
+
+/** „Verwendet in" steht in einer eigenen zweiten Zeile — aufgeklappt wird die
+ *  Skill-Liste sehr breit und würde sonst die übrigen Pillen verdrängen. */
+const FACET_SKILL: { key: RegelFacetKey; label: string } = { key: 'skill', label: 'Verwendet in' };
 
 export function RegelnTab({
   file, canEdit, busy, search, viewMode, onEdit, onToggleAktiv,
@@ -87,42 +90,48 @@ export function RegelnTab({
     );
   }
 
+  const renderFacet = (f: { key: RegelFacetKey; label: string }): React.ReactElement | null => {
+    const opts = candidates[f.key];
+    if (opts.length === 0) return null; // nichts zu filtern → Pille ausblenden
+    return (
+      <CollapsibleSeg
+        key={f.key}
+        label={f.label}
+        value={values[f.key]}
+        items={[{ label: ALLE }, ...opts.map(c => ({ label: c.label, count: c.count }))]}
+        onChange={v => setValue(f.key, v)}
+        defaultValue={ALLE}
+        startCollapsed
+      />
+    );
+  };
+
   const toolbar = (
-    <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
-      <div className="flex items-center gap-2 flex-wrap min-w-0">
-        {FACETS.map(f => {
-          const opts = candidates[f.key];
-          if (opts.length === 0) return null; // nichts zu filtern → Pille ausblenden
-          return (
-            <CollapsibleSeg
-              key={f.key}
-              label={f.label}
-              value={values[f.key]}
-              items={[{ label: ALLE }, ...opts.map(c => ({ label: c.label, count: c.count }))]}
-              onChange={v => setValue(f.key, v)}
-              defaultValue={ALLE}
-              startCollapsed
-            />
-          );
-        })}
+    <div className="mb-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {FACETS_ROW1.map(renderFacet)}
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {anyActive && (
+            <button
+              type="button"
+              onClick={resetAll}
+              className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+            >
+              Zurücksetzen
+            </button>
+          )}
+          {viewMode === 'table' && (
+            <ColumnPicker columns={columns} visibleKeys={visibleKeys} onToggleColumn={toggleColumn} />
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-3 shrink-0">
-        <span className="text-[12px] text-[var(--tf-text-tertiary)]">
-          {visible.length} {visible.length === 1 ? 'Regel' : 'Regeln'}
-        </span>
-        {anyActive && (
-          <button
-            type="button"
-            onClick={resetAll}
-            className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-          >
-            Zurücksetzen
-          </button>
-        )}
-        {viewMode === 'table' && (
-          <ColumnPicker columns={columns} visibleKeys={visibleKeys} onToggleColumn={toggleColumn} />
-        )}
-      </div>
+      {candidates.skill.length > 0 && (
+        <div className="flex items-center gap-2 mt-2 min-w-0 overflow-x-auto">
+          {renderFacet(FACET_SKILL)}
+        </div>
+      )}
     </div>
   );
 

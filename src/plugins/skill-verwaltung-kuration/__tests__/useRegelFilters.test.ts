@@ -76,3 +76,22 @@ describe('computeRegelCandidates', () => {
     expect(cand.skill).toEqual([{ label: 'GA-Skill', count: 1 }]);
   });
 });
+
+describe('Typ-Facette ist gruppiert (nicht granular)', () => {
+  const regeln = [
+    regel({ id: 'z', typ: 'zeichen_max' }),
+    regel({ id: 'w', typ: 'wortanzahl' }),
+    regel({ id: 'm', typ: 'verbotenes_muster' }),
+  ];
+  const file = fileWith(regeln);
+
+  it('Kandidaten bündeln zu Gruppen mit Summen-Count', () => {
+    const cand = computeRegelCandidates(regeln, file);
+    expect(cand.typ.find(c => c.label === 'Umfang & Länge')?.count).toBe(2);
+    expect(cand.typ.find(c => c.label === 'Muster & Pflichttext')?.count).toBe(1);
+  });
+  it('Filtern auf eine Gruppe trifft alle Mitglieder', () => {
+    expect(applyRegelFilters(regeln, file, values({ typ: 'Umfang & Länge' })).map(r => r.id))
+      .toEqual(['z', 'w']);
+  });
+});

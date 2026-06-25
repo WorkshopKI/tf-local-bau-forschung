@@ -54,8 +54,32 @@ export function aktivLabel(r: QualitaetsRegel): string {
   return r.aktiv ? 'Aktiv' : 'Inaktiv';
 }
 
-/** Stabile Reihenfolge der Regel-Typen (Sektions-Reihenfolge bei „Gruppiert: Typ"). */
-export const REGEL_TYP_ORDER: string[] = Object.keys(TYP_LABEL);
+/**
+ * Gröbere Typ-Gruppierung NUR für die Filter-Facette „Typ". Die Tabellen-Spalte
+ * „Typ" bleibt granular (`typLabel`); die Facette bündelt die vielen Einzel-Typen
+ * zu wenigen verständlichen Gruppen, damit man „den Wald vor lauter Bäumen" sieht.
+ */
+const TYP_GRUPPE: Record<string, string> = {
+  zeichen_max: 'Umfang & Länge',
+  wortanzahl: 'Umfang & Länge',
+  satzanzahl: 'Umfang & Länge',
+  satzlaenge_max: 'Umfang & Länge',
+  absatz_min: 'Umfang & Länge',
+  verbotenes_muster: 'Muster & Pflichttext',
+  pflicht_anfang: 'Muster & Pflichttext',
+  keine_aufzaehlungen: 'Keine Aufzählungen',
+};
+
+/** Gruppen-Label für die Typ-Facette (Fallback wie `typLabel`: pruefart → sonst „unbekannter Typ"). */
+export function typGruppeLabel(r: QualitaetsRegel): string {
+  return TYP_GRUPPE[r.typ] ?? (r.pruefart ? PRUEFART_LABEL[r.pruefart] : undefined) ?? 'unbekannter Typ';
+}
+
+/** Stabile Reihenfolge der Typ-Gruppen in der Facette. */
+export const REGEL_TYP_GRUPPE_ORDER: string[] = [
+  'Umfang & Länge', 'Muster & Pflichttext', 'Keine Aufzählungen',
+  PRUEFART_LABEL.textlich!, PRUEFART_LABEL.fachlich!, PRUEFART_LABEL.administrativ!,
+];
 
 export const ADD_TYPEN = Object.keys(TYP_LABEL);
 
