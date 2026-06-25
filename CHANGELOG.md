@@ -5,6 +5,32 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.132.0 — Regel-Editor: Erkennung ohne Regex-Wissen + zweiseitiger KI-Hinweis + Typ-Transparenz (Juni 2026)
+
+MINOR — `verbotenes_muster`-Regeln lassen sich jetzt ohne Regex-Kenntnis pflegen; der generierte
+KI-Hinweis leakt keinen rohen Regex mehr. Alles **additiv in `params.*`** (kein Schema-Bump, keine
+`normalize`-Änderung); **Phrasen-Bestand byte-identisch** in Check *und* Hinweis.
+
+- **Eine Erkennungs-Quelle** ([check-engine.ts](src/core/services/skills/registry/check-engine.ts)):
+  neue reine Helfer `eingabeModusOf` / `kompiliereGruppe` / `erkennungsEintraege` (über das Dach-Barrel
+  exportiert). Drei Eingabe-Modi — **Phrasen** (Default, wörtlich auto-escaped), **Synonym-Gruppen**
+  (Stamm + Varianten → App kompiliert die Alternation), **Regex** (Experten, Literal-Fallback bei
+  Parse-Fehler). Check-Engine **und** Live-Tester nutzen dieselbe Funktion (kein zweiter Matcher).
+- **Zweiseitiger, regexfreier Hinweis**: `verbotenes_muster.hint` baut aus `hinweisVermeiden`/
+  `hinweisStattdessen` bzw. menschenlesbaren Labels „Vermeide … Formuliere stattdessen …" — nie roher
+  `(?:…)`/`\b` im Prompt (`buildPromptHinweis`/`buildPromptVorgaben` profitieren automatisch).
+- **Editor** ([MusterErkennungEditor.tsx](src/plugins/skill-verwaltung-kuration/MusterErkennungEditor.tsx),
+  neue Plugin-Komponente): Modus-Umschalter, Synonym-Builder mit Stamm + Varianten-Chips + generiertem
+  Muster, Regex-Live-Validierung pro Zeile, **modusunabhängiger Live-Tester** (markiert Treffer
+  clientseitig), zwei KI-Hinweis-Felder. Die alte „Muster sind reguläre Ausdrücke"-Checkbox entfällt;
+  Alt-Regeln öffnen via `eingabeModusOf` im richtigen Modus.
+- **Typ-Transparenz** ([RegelEditor.tsx](src/plugins/skill-verwaltung-kuration/RegelEditor.tsx)):
+  read-only Typ-Chip (Schloss-Icon, „Typ · Check-Engine") + bewusster „Typ ändern"-Pfad mit Warnung,
+  der die typ-spezifischen `params` auf `DEFAULT_PARAMS[neu]` zurücksetzt (pure `wechsleRegelTyp`).
+- Hinweis: Die Seed-Regel `seed-passiv-stil` (Passiv-Floskel, `istRegex:true`) zeigt damit im Hinweis
+  statt des rohen Regex den generischen Satz — die Umstellung auf Synonym-Gruppen + gepflegte
+  KI-Hinweise erfolgt bewusst nachträglich über die UI (kein Seed-Write).
+
 ### v2.131.5 — Qualitätsregeln: Intro-Text hinter Info-Icon (vertikaler Platz) (Juni 2026)
 
 PATCH — der Intro-Absatz „Jede Regel kodiert eine Erfahrung …" kostete vor der Tabelle eine ganze Zeile.
