@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { resolveActiveWorkflow } from '../active-workflow';
+import { resolveActiveWorkflow, resolveWorkflowSteps } from '../active-workflow';
 import { buildSkillMap } from '../skill-context';
 import {
-  ZIM_EP_DEF, SEED_REGISTRY, type SkillRecord, type SkillRegistryFile, type WorkflowStep,
+  ZIM_EP_DEF, SEED_REGISTRY, type SkillRecord, type SkillRegistryFile, type WorkflowDef, type WorkflowStep,
 } from '@/core/services/skills';
 
 const leer = (over: Partial<SkillRegistryFile> = {}): SkillRegistryFile => ({
@@ -53,5 +53,45 @@ describe('Generierung fließt durch Unterschritte (buildSkillMap)', () => {
     const map = buildSkillMap(file);
     expect(map.get('5')?.skill.id).toBe('s5');
     expect(map.get('5a')?.skill.id).toBe('s5a');
+  });
+});
+
+describe('resolveWorkflowSteps — Wahl je artefaktTyp unter dem Freigabe-Gate', () => {
+  const wf = (over: Partial<WorkflowDef> & { id: string }): WorkflowDef => ({
+    name: over.id, version: 1, steps: [], ...over,
+  });
+
+  it("GA byte-identisch: SEED_REGISTRY → zim-ep-Steps (auch bei erlaubeEntwuerfe=false)", () => {
+    expect(resolveWorkflowSteps(SEED_REGISTRY, 'ga', { erlaubeEntwuerfe: false }).map(s => s.id))
+      .toEqual(ZIM_EP_DEF.steps.map(s => s.id));
+  });
+
+  it('GA-Entwurf wird bei erlaubeEntwuerfe=false ignoriert → Seed-Fallback', () => {
+    const file = leer({ workflows: [wf({ id: 'ga-draft', artefaktTyp: 'ga', freigabe: 'entwurf', steps: [wfStep('D1', 's')] })] });
+    expect(resolveWorkflowSteps(file, 'ga', { erlaubeEntwuerfe: false }).map(s => s.id))
+      .toEqual(ZIM_EP_DEF.steps.map(s => s.id));
+  });
+
+  it('GA-Entwurf wird bei erlaubeEntwuerfe=true gewählt (kein freigegebener GA)', () => {
+    const file = leer({ workflows: [wf({ id: 'ga-draft', artefaktTyp: 'ga', freigabe: 'entwurf', steps: [wfStep('D1', 's')] })] });
+    expect(resolveWorkflowSteps(file, 'ga', { erlaubeEntwuerfe: true }).map(s => s.id)).toEqual(['D1']);
+  });
+
+  it('freigegeben schlägt Entwurf (auch bei höherer Entwurf-Version)', () => {
+    const file = leer({ workflows: [
+      wf({ id: 'ga-frei', artefaktTyp: 'ga', freigabe: 'freigegeben', version: 1, steps: [wfStep('F1', 's')] }),
+      wf({ id: 'ga-draft', artefaktTyp: 'ga', freigabe: 'entwurf', version: 99, steps: [wfStep('D1', 's')] }),
+    ] });
+    expect(resolveWorkflowSteps(file, 'ga', { erlaubeEntwuerfe: true }).map(s => s.id)).toEqual(['F1']);
+  });
+
+  it('deaktivierte (aktiv:false) Workflows sind keine Kandidaten → Seed-Fallback', () => {
+    const file = leer({ workflows: [wf({ id: 'ga-off', artefaktTyp: 'ga', freigabe: 'freigegeben', aktiv: false, steps: [wfStep('X', 's')] })] });
+    expect(resolveWorkflowSteps(file, 'ga', { erlaubeEntwuerfe: true }).map(s => s.id))
+      .toEqual(ZIM_EP_DEF.steps.map(s => s.id));
+  });
+
+  it('NF-Seed (aktiv:false) liefert keine nf-Schritte (kein ga-Fallback für andere Typen)', () => {
+    expect(resolveWorkflowSteps(SEED_REGISTRY, 'nf', { erlaubeEntwuerfe: true })).toEqual([]);
   });
 });
