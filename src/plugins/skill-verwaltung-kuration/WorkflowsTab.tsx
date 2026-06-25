@@ -3,18 +3,22 @@ import { ChevronUp, ChevronDown, GripVertical, Trash2 } from 'lucide-react';
 import { computeStepNumbers, type SkillRegistryFile, type WorkflowStep } from '@/core/services/skills';
 import { ListItem } from '@/components/ui/ListItem';
 import { RowAction } from '@/components/ui/RowAction';
-import { getWorkflowDef, reorderSteps } from './workflowShared';
+import { getWorkflowById, getWorkflowDef, reorderSteps } from './workflowShared';
+import { WorkflowSwitcher } from './WorkflowSwitcher';
 
 interface WorkflowsTabProps {
   file: SkillRegistryFile;
   canEdit: boolean;
+  /** Aktuell gewählter Workflow (Default `zim-ep`, geklemmt vom Aufrufer). */
+  selectedId: string;
+  onSelectWorkflow: (id: string) => void;
   onEditStep: (step: WorkflowStep) => void;
   /** Persistiert eine neue Schritt-Reihenfolge/-Liste (Aufrufer bumpt die Version). */
   onChangeSteps: (steps: WorkflowStep[]) => void;
 }
 
-export function WorkflowsTab({ file, canEdit, onEditStep, onChangeSteps }: WorkflowsTabProps): React.ReactElement {
-  const def = getWorkflowDef(file);
+export function WorkflowsTab({ file, canEdit, selectedId, onSelectWorkflow, onEditStep, onChangeSteps }: WorkflowsTabProps): React.ReactElement {
+  const def = getWorkflowById(file, selectedId) ?? getWorkflowDef(file);
   const steps = def.steps;
   const nummern = computeStepNumbers(steps);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -28,16 +32,16 @@ export function WorkflowsTab({ file, canEdit, onEditStep, onChangeSteps }: Workf
     onChangeSteps(steps.filter(s => s.id !== step.id));
   };
 
-  if (steps.length === 0) {
-    return (
-      <p className="text-[13.5px] text-[var(--tf-text-secondary)] py-6">
-        Dieser Workflow hat noch keine Schritte. Lege den ersten an →
-      </p>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
+      <WorkflowSwitcher file={file} selectedId={def.id} onSelect={onSelectWorkflow} />
+
+      {steps.length === 0 ? (
+        <p className="text-[13.5px] text-[var(--tf-text-secondary)] py-2">
+          „{def.name}" hat noch keine Schritte. Lege den ersten an →
+        </p>
+      ) : (
+      <div className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2 text-[12px] text-[var(--tf-text-tertiary)]">
         <span className="text-[13px] font-medium text-[var(--tf-text)]">{def.name}</span>
         <span>·</span>
@@ -105,6 +109,8 @@ export function WorkflowsTab({ file, canEdit, onEditStep, onChangeSteps }: Workf
           );
         })}
       </div>
+      </div>
+      )}
     </div>
   );
 }

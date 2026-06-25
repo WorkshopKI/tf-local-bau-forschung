@@ -4,7 +4,7 @@ import {
   normalizeStepRolle, QS_BASIS_SKILL_ID, MAX_AUTO_RETRIES, DEFAULT_MAX_RETRIES,
   type GateExpr, type SkillRegistryFile, type WorkflowStep, type WorkflowStepRolle,
 } from '@/core/services/skills';
-import { getWorkflowDef } from './workflowShared';
+import { getWorkflowById, getWorkflowDef } from './workflowShared';
 import { useReportGuardState, type EditorGuardState } from './editorGuard';
 
 const GATE_LABEL: Record<GateExpr, string> = {
@@ -21,6 +21,8 @@ const ROLLE_OPTIONS: WorkflowStepRolle[] = ['generierung', 'llm_qs'];
 
 interface WorkflowEditorProps {
   file: SkillRegistryFile;
+  /** Workflow, zu dem der Schritt gehört (für die Versions-Anzeige + Parent-Wahl). */
+  workflowId: string;
   step: WorkflowStep;
   isNew: boolean;
   canEdit: boolean;
@@ -32,9 +34,9 @@ interface WorkflowEditorProps {
   onGuardStateChange?: (state: EditorGuardState | null) => void;
 }
 
-export function WorkflowEditor({ file, step, isNew, canEdit, onSave, onDelete, onBack, onGuardStateChange }: WorkflowEditorProps): React.ReactElement {
+export function WorkflowEditor({ file, workflowId, step, isNew, canEdit, onSave, onDelete, onBack, onGuardStateChange }: WorkflowEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<WorkflowStep>(step);
-  const def = getWorkflowDef(file);
+  const def = getWorkflowById(file, workflowId) ?? getWorkflowDef(file);
   const nextVersion = def.version + 1;
   // Genau eine Ebene: gültige Parents sind Top-Level-Schritte (außer dem Schritt
   // selbst). Hat der Schritt eigene Unterschritte, kann er selbst kein Kind werden.

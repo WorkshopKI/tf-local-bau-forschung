@@ -13,6 +13,7 @@ import {
   type QualitaetsRegel,
   type SkillRecord,
   type SkillRegistryFile,
+  type WorkflowDef,
   type WorkflowStep,
 } from '@/core/services/skills';
 import { downloadAsFile } from '@/core/services/search/eval/eval-export';
@@ -30,7 +31,7 @@ import { SkillEvalPanel } from './SkillEvalPanel';
 import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { RegistryViewModeToggle, type RegistryViewMode } from './RegistryViewModeToggle';
 import { blankRegel, upsertRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
-import { blankStep, getWorkflowDef, upsertStep, withWorkflowSteps } from './workflowShared';
+import { blankStep, getWorkflowById, getWorkflowDef, upsertStep, withWorkflowSteps } from './workflowShared';
 import { useEditorLeaveGuard } from './editorGuard';
 import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 
@@ -85,6 +86,9 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const [editingSkill, setEditingSkill] = useState<{ skill: SkillRecord; isNew: boolean; initialView?: 'bearbeiten' | 'versionen' } | null>(null);
   const [editingRegel, setEditingRegel] = useState<{ regel: QualitaetsRegel | null; isNew: boolean } | null>(null);
   const [editingStep, setEditingStep] = useState<{ step: WorkflowStep; isNew: boolean } | null>(null);
+  // Gewählter Workflow im Workflows-Tab (null → Default-Def `zim-ep`). Nach Render
+  // gegen die aktuelle Registry geklemmt (Auswahl kann nach Löschen verschwinden).
+  const [selectedWorkflowIdRaw, setSelectedWorkflowId] = useState<string | null>(null);
   const [testlauf, setTestlauf] = useState<Testlauf | null>(null);
   const [importing, setImporting] = useState(false);
   const save = useAsyncAction(async (next: SkillRegistryFile) => { await reg.persist(next); });
@@ -114,6 +118,10 @@ export function SkillVerwaltungPage(): React.ReactElement {
   }
   const file = reg.file;
   const viewMode = viewModes[tab];
+  // Klemmung: stale/leere Auswahl fällt auf die Default-Def (`zim-ep`) zurück.
+  const selectedWorkflowId = (selectedWorkflowIdRaw && getWorkflowById(file, selectedWorkflowIdRaw))
+    ? selectedWorkflowIdRaw
+    : getWorkflowDef(file).id;
 
   const setViewMode = (mode: RegistryViewMode): void => {
     setViewModes(prev => {
@@ -173,19 +181,17 @@ export function SkillVerwaltungPage(): React.ReactElement {
     }).then(() => setEditingRegel(null));
   };
 
-  // — Workflow-Schritt-Aktionen (Ziel-Def per id; Version-Bump pro Persist) —
-  // Phase 1: noch die Default-Def (zim-ep); Phase 2 ersetzt durch `selectedWorkflowId`.
+  // — Workflow-Schritt-Aktionen (Ziel-Def = `selectedWorkflowId`; Version-Bump pro Persist) —
+  const selectedWorkflowDef = (): WorkflowDef => getWorkflowById(file, selectedWorkflowId) ?? getWorkflowDef(file);
   const saveStep = async (step: WorkflowStep): Promise<void> => {
-    const def = getWorkflowDef(file);
-    const steps = upsertStep(def.steps, step);
-    await reg.persist(withWorkflowSteps(file, def.id, steps));
+    const steps = upsertStep(selectedWorkflowDef().steps, step);
+    await reg.persist(withWorkflowSteps(file, selectedWorkflowId, steps));
   };
   const changeSteps = (steps: WorkflowStep[]): void => {
-    void save.run(withWorkflowSteps(file, getWorkflowDef(file).id, steps));
+    void save.run(withWorkflowSteps(file, selectedWorkflowId, steps));
   };
   const deleteStep = (step: WorkflowStep): void => {
-    const def = getWorkflowDef(file);
-    void save.run(withWorkflowSteps(file, def.id, def.steps.filter(s => s.id !== step.id)))
+    void save.run(withWorkflowSteps(file, selectedWorkflowId, selectedWorkflowDef().steps.filter(s => s.id !== step.id)))
       .then(() => setEditingStep(null));
   };
 
@@ -266,6 +272,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
           <WorkflowEditor
             key={editingStep.step.id}
             file={file}
+            workflowId={selectedWorkflowId}
             step={editingStep.step}
             isNew={editingStep.isNew}
             canEdit={reg.canEdit}
@@ -283,7 +290,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const tabDefs: Array<[TabId, string, number | null]> = [
     ['skills', 'Skills', file.skills.length],
     ['regeln', 'Qualitätsregeln', file.regeln.length],
-    ['workflows', 'Workflows', getWorkflowDef(file).steps.length],
+    ['workflows', 'Workflows', file.workflows?.length ?? 0],
   ];
   if (isDevFixturesEnabled()) tabDefs.push(['eval', 'Skill-Eval', null]);
 
@@ -426,6 +433,8 @@ export function SkillVerwaltungPage(): React.ReactElement {
           <WorkflowsTab
             file={file}
             canEdit={reg.canEdit}
+            selectedId={selectedWorkflowId}
+            onSelectWorkflow={id => guard.guardLeave(() => setSelectedWorkflowId(id))}
             onEditStep={step => guard.guardLeave(() => setEditingStep({ step, isNew: false }))}
             onChangeSteps={changeSteps}
           />
