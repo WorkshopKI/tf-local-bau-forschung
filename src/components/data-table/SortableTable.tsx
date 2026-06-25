@@ -108,10 +108,15 @@ export function SortableTable<T>({
   fitContentWidth = false,
 }: SortableTableProps<T>): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
+  // Resizbare Tabellen rendern content-width (wie `SearchResultsTable`): die
+  // Tabelle ist so breit wie die Summe der Spaltenbreiten. Sonst streckt
+  // `width:100%` die Spalten proportional, `th.offsetWidth` > `<col>`-Breite,
+  // und der Resize-Seed überschätzt → Sprung beim Greifen (Handle driftet).
+  const contentWidth = fitContentWidth || resizeEnabled;
   // Pixel-Gesamtbreite (Summe der effektiven Spaltenbreiten) für den
-  // horizontal-scroll-Modus. Spalten ohne explizite Breite zählen mit
-  // `DEFAULT_FIT_WIDTH`. Nur relevant wenn `fitContentWidth` aktiv ist.
-  const totalFitWidth = fitContentWidth
+  // content-width-Modus. Spalten ohne explizite Breite zählen mit
+  // `DEFAULT_FIT_WIDTH`.
+  const totalFitWidth = contentWidth
     ? columns.reduce((s, c) => s + (effectiveWidth(c, columnWidths) ?? DEFAULT_FIT_WIDTH), 0)
     : 0;
   const filtersEnabled = onColumnFilterChange !== undefined
@@ -129,6 +134,7 @@ export function SortableTable<T>({
     return m;
   }, [rows, sectionKeyOf]);
   const colRefs = useRef<Map<string, HTMLTableColElement>>(new Map());
+  const tableRef = useRef<HTMLTableElement | null>(null);
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
 
@@ -147,6 +153,20 @@ export function SortableTable<T>({
         latestWidth = next;
         const col = colRefs.current.get(key);
         if (col) col.style.width = `${next}px`;
+        // Tabelle mit der Spalte mitwachsen lassen (content-width): sonst
+        // staucht `table-layout:fixed` bei fixer Tabellenbreite die Nachbar-
+        // spalten, statt horizontal zu scrollen. Summe aus den aktuellen
+        // `<col>`-Inline-Styles (Fallback: effektive Breite aus den Props).
+        const table = tableRef.current;
+        if (table) {
+          let sum = 0;
+          for (const c of columns) {
+            const ref = colRefs.current.get(c.key);
+            const px = ref ? parseFloat(ref.style.width) : NaN;
+            sum += Number.isFinite(px) ? px : (effectiveWidth(c, columnWidths) ?? DEFAULT_FIT_WIDTH);
+          }
+          table.style.width = `${sum}px`;
+        }
       }
       function onUp(): void {
         document.removeEventListener('mousemove', onMove);
@@ -160,7 +180,7 @@ export function SortableTable<T>({
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     },
-    [resizeEnabled, minColumnWidth, onColumnWidthChange],
+    [resizeEnabled, minColumnWidth, onColumnWidthChange, columns, columnWidths],
   );
 
   return (
@@ -169,19 +189,20 @@ export function SortableTable<T>({
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
       <table
+        ref={tableRef}
         className="text-[12.5px]"
         style={
-          fitContentWidth
-            ? { tableLayout: 'fixed', width: `${totalFitWidth}px`, minWidth: '100%', borderCollapse: 'collapse' }
+          contentWidth
+            ? { tableLayout: 'fixed', width: `${totalFitWidth}px`, minWidth: fitContentWidth ? '100%' : undefined, borderCollapse: 'collapse' }
             : { tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' }
         }
       >
         <colgroup>
           {columns.map(c => {
             const w = effectiveWidth(c, columnWidths);
-            // Im fit-Modus braucht jede Spalte eine px-Breite (sonst stimmt die
-            // Summe nicht mit der tatsächlichen Tabellenbreite überein).
-            const colWidth = fitContentWidth ? (w ?? DEFAULT_FIT_WIDTH) : w;
+            // Im content-width-Modus braucht jede Spalte eine px-Breite (sonst
+            // stimmt die Summe nicht mit der tatsächlichen Tabellenbreite überein).
+            const colWidth = contentWidth ? (w ?? DEFAULT_FIT_WIDTH) : w;
             return (
               <col
                 key={c.key}

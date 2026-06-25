@@ -5,6 +5,25 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.131.2 — Spalten-Resize springt nicht mehr beim Greifen (Juni 2026)
+
+PATCH — beim Greifen des Spalten-Resize-Handles in der geteilten `SortableTable`
+([SortableTable.tsx](src/components/data-table/SortableTable.tsx)) sprang die Spalte breiter und der
+Handle stand nicht mehr bündig am Spaltenende (Bug bestand „schon immer").
+
+- **Ursache**: Die Tabelle rendert `table-layout: fixed; width: 100%`. Liegt die Summe der Spaltenbreiten
+  unter der Container-Breite, streckt der Browser jede Spalte proportional → die gerenderte `th.offsetWidth`
+  ist größer als die `<col>`-Breite. Der Resize-Seed (`startWidth = th.offsetWidth`) überschätzte damit und
+  pinnte die Spalte auf ihre gestreckte Breite, die erneut gestreckt wurde → Sprung + Handle-Drift.
+- **Fix**: resizbare Tabellen rendern jetzt **content-width** (so breit wie die Spaltensumme, wie die
+  Förderanträge- und Suche-Tabelle) — keine Streckung mehr, `th.offsetWidth == col-Breite`, Seed stimmt,
+  kein Sprung. Während des Drags wächst die Tabellenbreite live mit (`table.style.width = Summe`), damit
+  `table-layout:fixed` die Nachbarspalten nicht staucht, sondern horizontal scrollt. Spiegelt das
+  bestehende `SearchResultsTable`-Modell.
+- **Sichtbare Folge**: schmale resizbare Tabellen (Regeln 1140px, Skills 1004px, Feedback-Board 1416px)
+  füllen die Breite nicht mehr proportional, sondern sind genau so breit wie ihre Spalten (ggf. Leerraum
+  rechts / Scroll bei Bedarf). Förderanträge (war schon content-width via `fitContentWidth`) unverändert.
+
 ### v2.131.1 — Typ-Gruppe: „Keine Aufzählungen" → „Muster & Pflichttext" (Juni 2026)
 
 PATCH — die Typ-Facette ([regelShared.tsx](src/plugins/skill-verwaltung-kuration/regelShared.tsx)
