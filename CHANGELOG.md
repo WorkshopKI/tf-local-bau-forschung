@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.131.4 — Regel-Filter: Typ-Facette entfernt (Overlap mit Kategorie/Prüfart) (Juni 2026)
+
+PATCH — die Kategorie („Art") wird per `effektiveKategorie()` aus `typ` + `pruefart` abgeleitet
+([kategorien.ts](src/core/services/skills/registry/kategorien.ts)); die grob gruppierte **Typ**-Facette war
+damit redundant: „Fachlich/Administrativ" standen doppelt (Typ *und* Prüfart), „Umfang & Länge" ≈ Kategorie
+„Umfang".
+
+- **Typ-Facette aus der Filter-Leiste entfernt** ([RegelnTab.tsx](src/plugins/skill-verwaltung-kuration/RegelnTab.tsx)).
+  Facetten jetzt: **Kategorie · Prüfart · Schweregrad · Aktiv** (Zeile 1) + **Verwendet in** (Zeile 2).
+- Tote Gruppierungs-Helfer entfernt (`TYP_GRUPPE`/`typGruppeLabel`/`REGEL_TYP_GRUPPE_ORDER` aus
+  [regelShared.tsx](src/plugins/skill-verwaltung-kuration/regelShared.tsx); `typ` aus dem Facetten-Hook
+  [useRegelFilters.ts](src/plugins/skill-verwaltung-kuration/useRegelFilters.ts)). **`typLabel` bleibt** — die
+  Tabellen-**Spalte** „Typ" zeigt weiter den granularen Typ pro Regel.
+- Kategorie = Inhalts-Achse, Prüfart = Mechanismus (textlich/fachlich/administrativ) bewusst behalten.
+
 ### v2.131.3 — Qualitätsregeln-Tabelle: breitere Standard-Spaltenbreiten (Juni 2026)
 
 PATCH — Folge der content-width-Umstellung (v2.131.2): ohne die alte `width:100%`-Streckung rendert die

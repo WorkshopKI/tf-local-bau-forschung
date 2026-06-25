@@ -38,10 +38,11 @@ function TypPill({ typ }: { typ: string }): React.ReactElement {
   );
 }
 
-/** Facetten der ersten Zeile (Förderanträge-Quickfilter-Optik). */
+/** Facetten der ersten Zeile (Förderanträge-Quickfilter-Optik). Keine „Typ"-Facette:
+ *  der grob gruppierte Typ verdoppelte Kategorie/Prüfart (Kategorie wird aus typ+pruefart
+ *  abgeleitet). Der granulare Typ bleibt nur in der Tabellen-Spalte. */
 const FACETS_ROW1: { key: RegelFacetKey; label: string }[] = [
   { key: 'kategorie', label: 'Kategorie' },
-  { key: 'typ', label: 'Typ' },
   { key: 'pruefart', label: 'Prüfart' },
   { key: 'schweregrad', label: 'Schweregrad' },
   { key: 'aktiv', label: 'Aktiv' },

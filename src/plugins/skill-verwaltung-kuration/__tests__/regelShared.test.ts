@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { typLabel, typGruppeLabel, kategorieLabel, pruefartLabel, sevLabel, aktivLabel } from '../regelShared';
+import { typLabel, kategorieLabel, pruefartLabel, sevLabel, aktivLabel } from '../regelShared';
 import type { QualitaetsRegel } from '@/core/services/skills';
 
 function regel(over: Partial<QualitaetsRegel> & { id: string; typ: string }): QualitaetsRegel {
@@ -24,23 +24,6 @@ describe('typLabel — pruefart-Fallback statt „unbekannter Typ"', () => {
   });
   it('unbekannter typ ohne pruefart → „unbekannter Typ"', () => {
     expect(typLabel(regel({ id: 'd', typ: 'zukunft' }))).toBe('unbekannter Typ');
-  });
-});
-
-describe('typGruppeLabel — gröbere Filter-Gruppen (nur Facette)', () => {
-  it('„Umfang & Länge" bündelt Zähl-/Längen-Typen', () => {
-    for (const t of ['zeichen_max', 'wortanzahl', 'satzanzahl', 'satzlaenge_max', 'absatz_min']) {
-      expect(typGruppeLabel(regel({ id: t, typ: t }))).toBe('Umfang & Länge');
-    }
-  });
-  it('„Muster & Pflichttext" bündelt Verbotenes Muster + Pflicht-Anfang + Keine Aufzählungen', () => {
-    expect(typGruppeLabel(regel({ id: 'a', typ: 'verbotenes_muster' }))).toBe('Muster & Pflichttext');
-    expect(typGruppeLabel(regel({ id: 'b', typ: 'pflicht_anfang' }))).toBe('Muster & Pflichttext');
-    expect(typGruppeLabel(regel({ id: 'c', typ: 'keine_aufzaehlungen' }))).toBe('Muster & Pflichttext');
-  });
-  it('QS-Typen → pruefart-Fallback', () => {
-    expect(typGruppeLabel(regel({ id: 'd', typ: 'ga_qs_x', pruefart: 'fachlich' }))).toBe('Fachlich');
-    expect(typGruppeLabel(regel({ id: 'e', typ: 'nf_y', pruefart: 'administrativ' }))).toBe('Administrativ');
   });
 });
 

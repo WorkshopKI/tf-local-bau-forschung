@@ -4,11 +4,14 @@
  * Spalten-Filterung + Gruppierung. UX-Vorbild: Förderanträge-Quickfilter.
  *
  * Facetten:
- *  - `kategorie` „Art" (effektiveKategorie, 6 Buckets) = Oberkategorie,
- *  - `typ` = Unterkategorie (granularer Regel-Typ),
- *  - `pruefart` = Ausführungsweg (textlich/fachlich/administrativ),
+ *  - `kategorie` „Art" (effektiveKategorie, 6 Buckets) = Inhalts-Achse,
+ *  - `pruefart` = Ausführungsweg (textlich/fachlich/administrativ) = Mechanismus,
  *  - `schweregrad`, `aktiv`,
  *  - `skill` = „Verwendet in" (n:m → Membership statt Exact-Match).
+ *
+ * KEINE Typ-Facette: der grob gruppierte Typ verdoppelte Kategorie (deterministische
+ * Regeln) bzw. Prüfart (QS-Regeln) — die Kategorie wird ja AUS typ+pruefart abgeleitet.
+ * Der granulare Typ lebt nur noch in der Tabellen-Spalte (`typLabel`), nicht als Filter.
  *
  * Kein zweites typ→kategorie-Mapping (Pitfall #31): die Kategorie kommt über
  * `kategorieLabel`/`effektiveKategorie`. Filter- und Kandidaten-Logik sind als
@@ -25,19 +28,17 @@ import {
   type SkillRegistryFile,
 } from '@/core/services/skills';
 import {
-  typGruppeLabel,
   kategorieLabel,
   pruefartLabel,
   sevLabel,
   aktivLabel,
-  REGEL_TYP_GRUPPE_ORDER,
   PRUEFART_LABEL,
 } from './regelShared';
 
 /** Sentinel-Wert „kein Filter" — entspricht dem `defaultValue` der `CollapsibleSeg`. */
 export const ALLE = 'Alle';
 
-export type RegelFacetKey = 'kategorie' | 'typ' | 'pruefart' | 'schweregrad' | 'aktiv' | 'skill';
+export type RegelFacetKey = 'kategorie' | 'pruefart' | 'schweregrad' | 'aktiv' | 'skill';
 
 export type RegelFacetValues = Record<RegelFacetKey, string>;
 
@@ -56,14 +57,13 @@ export interface UseRegelFiltersResult {
 }
 
 const EMPTY_VALUES: RegelFacetValues = {
-  kategorie: ALLE, typ: ALLE, pruefart: ALLE, schweregrad: ALLE, aktiv: ALLE, skill: ALLE,
+  kategorie: ALLE, pruefart: ALLE, schweregrad: ALLE, aktiv: ALLE, skill: ALLE,
 };
 
 /** Wert-Extraktor je 1:1-Facette (Skill ist n:m → separat in `applyRegelFilters`). */
 function facetValue(key: Exclude<RegelFacetKey, 'skill'>, r: QualitaetsRegel): string {
   switch (key) {
     case 'kategorie': return kategorieLabel(r);
-    case 'typ': return typGruppeLabel(r);
     case 'pruefart': return pruefartLabel(r);
     case 'schweregrad': return sevLabel(r);
     case 'aktiv': return aktivLabel(r);
@@ -101,14 +101,12 @@ export function computeRegelCandidates(
   file: SkillRegistryFile,
 ): Record<RegelFacetKey, RegelFacetCandidate[]> {
   const kat: string[] = [];
-  const typ: string[] = [];
   const pruef: string[] = [];
   const sev: string[] = [];
   const akt: string[] = [];
   const skill: string[] = [];
   for (const r of rules) {
     kat.push(kategorieLabel(r));
-    typ.push(typGruppeLabel(r));
     pruef.push(pruefartLabel(r));
     sev.push(sevLabel(r));
     akt.push(aktivLabel(r));
@@ -116,7 +114,6 @@ export function computeRegelCandidates(
   }
   return {
     kategorie: buildCandidates(kat, KATEGORIE_ORDER.map(k => KATEGORIE_LABEL[k]!).filter(Boolean)),
-    typ: buildCandidates(typ, REGEL_TYP_GRUPPE_ORDER),
     pruefart: buildCandidates(pruef, ['textlich', 'fachlich', 'administrativ'].map(k => PRUEFART_LABEL[k]!)),
     schweregrad: buildCandidates(sev, ['Fehler', 'Hinweis']),
     aktiv: buildCandidates(akt, ['Aktiv', 'Inaktiv']),
