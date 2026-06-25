@@ -747,7 +747,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 28;    // Ist 28; +1 'anfragen' (Modul Anfragen, v2.127)
   const MAX_SERVICE_DIRS = 22;     // Ist 22 (+ msg: .msg-Parser fuers Anfragen-Modul, v2.x); davor 21 (skill-feedback File-first Substrat S1)
-  const MAX_FILE_LOC = 980;        // Ist 846 (smb-handle.ts); ZuweisungsCockpit.tsx von 1285 → 687 zerlegt (v2.111), ~15 % Reserve
+  const MAX_FILE_LOC = 1040;       // Ist 1034 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -964,6 +964,63 @@ describe('theme-token-contract (CLAUDE.md Doku-Konvention #4; v2.67.1-"nackt"-Fa
         `einen Fallback angeben. Bewusste lokale Ausnahme: Zeile mit\n` +
         `'// allow-tf-token: <grund>' markieren (oder LOCAL_TOKEN_ALLOWLIST ergaenzen).\n` +
         `\nTreffer (${errors.length}):\n${fmt(errors)}`,
+      );
+    }
+  });
+});
+
+describe('anfrage-no-mapping-in-transport (DSGVO: Mapping/Original nie an Transporte/Serialisierung)', () => {
+  // Im Modul „Anfragen" sind `Anfrage.mapping` (Platzhalter→Original) und `Anfrage.originalMd`
+  // (echte Inhalte) die sensibelsten Strukturen. Sie duerfen nie in einer Sende-/Serialisierungs-
+  // Payload landen. Der LEGITIME interne Anonymisierungs-Lauf nutzt getTransportForSkillRun()/
+  // runSkill() (intern erzwungen) — diese Tokens stehen BEWUSST nicht in der Verbotsliste.
+  const isAnfragen = (file: string): boolean =>
+    relPath(file).includes('plugins/anfragen/') && !relPath(file).includes('__tests__');
+  const SENDER = [
+    'JSON.stringify', 'getActiveTransport', '.submitMessage(', '.submitConversation(',
+    'clipboard.writeText', 'mailto:', 'fetch(',
+  ];
+  const PII = ['mapping', 'originalMd'];
+
+  it('mapping/originalMd tauchen nie zusammen mit einem Transport-/Serialisierungs-Aufruf auf', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!isAnfragen(file)) continue;
+      findings.push(...findInFile(file, l => {
+        const t = l.trim();
+        if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+        return PII.some(p => l.includes(p)) && SENDER.some(s => l.includes(s));
+      }, 'allow-anfrage-transport'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `DSGVO: Anfrage.mapping/originalMd duerfen nie in eine Transport-/Serialisierungs-Payload\n` +
+        `(JSON.stringify, getActiveTransport, submit*, clipboard, mailto, fetch). Der interne\n` +
+        `Anonymisierungs-Lauf laeuft ueber getTransportForSkillRun()/runSkill(). Echte Ausnahme:\n` +
+        `'// allow-anfrage-transport: <grund>'.\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
+describe('anfrage-export-only-via-guard (anonymisierter Export nur ueber pruefeExportSicher)', () => {
+  // Der EXTERNE (anonymisierte) Export ins ZIM-Dashboard ist die einzige Grenze zwischen
+  // PII und Zwischenablage → jede clipboard/mailto-Stelle im Anfragen-Modul muss
+  // pruefeExportSicher referenzieren. AUSNAHME (per Inline-Marker): die finale, bewusst
+  // DE-anonymisierte Antwort an den Original-Absender (Phase 8) — kein externer Leak.
+  const isNotAnfragen = (file: string): boolean =>
+    !relPath(file).includes('plugins/anfragen/') || relPath(file).includes('__tests__');
+  const trigger = (l: string): boolean =>
+    l.includes('clipboard.writeText') || l.includes('mailto:');
+
+  it('clipboard/mailto im Anfragen-Modul referenzieren pruefeExportSicher (oder sind markiert)', () => {
+    const findings = findFilesViolating(trigger, 'pruefeExportSicher', 'allow-anfrage-export', isNotAnfragen);
+    if (findings.length > 0) {
+      expect.fail(
+        `Anonymisierter Export muss ueber pruefeExportSicher gehen (Button-Enable an dessen\n` +
+        `Ergebnis). Datei mit clipboard/mailto ohne pruefeExportSicher-Bezug gefunden. Fuer die\n` +
+        `finale de-anonymisierte Antwort (Phase 8): Zeile mit '// allow-anfrage-export: <grund>'.\n\n` +
+        `Treffer:\n${fmt(findings)}`,
       );
     }
   });
