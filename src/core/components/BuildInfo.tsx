@@ -34,7 +34,7 @@ export function BuildInfo(): React.ReactElement {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center text-[10.5px] text-[var(--tf-text-tertiary)] select-none shrink-0 px-2 py-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors cursor-pointer"
+        className="inline-flex items-center text-[11px] tabular-nums text-[var(--tf-text-tertiary)] select-none shrink-0 px-2 py-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors cursor-pointer"
         title={tooltip}
         aria-label={`Version v${appVersion} — Änderungen und Updates anzeigen`}
       >

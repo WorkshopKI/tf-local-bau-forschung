@@ -38,19 +38,30 @@ export function BridgeStatusIndicator(): React.ReactElement {
     : status === 'disconnected'
       ? 'text-[var(--tf-danger-text)]'
       : 'text-[var(--tf-text-tertiary)]';
+  // Punktfarbe für die Sidebar-Statusleiste: amber statt rot bei „getrennt"
+  // (handlungsbarer Zustand, kein harter Fehler). Boot-`unknown` bleibt grau —
+  // vor dem ersten KI-Tab kein falsches „getrennt".
+  const dotColor = connected
+    ? 'bg-[var(--tf-success-text)]'
+    : status === 'disconnected'
+      ? 'bg-[var(--tf-warning-text)]'
+      : 'bg-[var(--tf-text-tertiary)]';
   const tip = connected
     ? 'Interne KI verbunden'
     : 'Interne KI nicht verbunden — klicken zum Verbinden';
 
   return (
     <>
+      {/* Punkt + Wort („● KI") — interne KI. Punktfarbe = Live-Status (grün
+          verbunden / amber getrennt / grau Boot), Wort bleibt neutral. */}
       <button
         onClick={() => setOpen(true)}
         title={tip}
         aria-label={tip}
-        className="flex items-center justify-center p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] cursor-pointer shrink-0"
+        className="inline-flex items-center gap-[5px] px-1.5 py-[3px] rounded-[var(--tf-radius-sm)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer shrink-0"
       >
-        <Bot size={15} className={color} />
+        <span className={`inline-block w-[7px] h-[7px] rounded-full shrink-0 ${dotColor}`} />
+        KI
       </button>
 
       <Dialog open={open} onClose={() => setOpen(false)} title="Interne KI">

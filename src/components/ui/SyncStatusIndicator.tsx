@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Plug, Settings, Database } from 'lucide-react';
+import { RefreshCw, Plug, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/ui/Dialog';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -53,7 +53,7 @@ export function SyncStatusIndicator(): React.ReactElement {
       ? 'bg-[var(--tf-warning-text)]'
       : datenShareAvailable
         ? 'bg-[var(--tf-success-text)]'
-        : 'bg-[var(--tf-text-tertiary)]';
+        : 'bg-[var(--tf-warning-text)]';
 
   const label = status.syncing
     ? 'Synchronisiere...'
@@ -73,20 +73,15 @@ export function SyncStatusIndicator(): React.ReactElement {
 
   return (
     <>
-      {/* Icon-only (grün/rot) — Datenbestand. Kein Punkt/Text: in schmaler Sidebar
-          kein Platz; Status steckt in Icon-Farbe + Tooltip. Detail per Klick. */}
+      {/* Punkt + Wort („● Sync") — Datenbestand. Die Punktfarbe spiegelt den
+          Live-Status (grün verbunden / amber getrennt), das Wort bleibt neutral.
+          Kein Tooltip nötig — das Wort ersetzt ihn (Tooltip nur als Zusatz). */}
       <button onClick={() => setShowDetail(true)}
         title={triggerTooltip}
         aria-label={triggerTooltip}
-        className="flex items-center justify-center p-1.5 rounded-[var(--tf-radius)] cursor-pointer hover:bg-[var(--tf-hover)] shrink-0">
-        <Database
-          size={14}
-          className={status.syncing
-            ? 'text-[var(--tf-warning-text)] animate-pulse'
-            : datenShareAvailable
-              ? 'text-[var(--tf-success-text)]'
-              : 'text-[var(--tf-danger-text)]'}
-        />
+        className="inline-flex items-center gap-[5px] px-1.5 py-[3px] rounded-[var(--tf-radius-sm)] text-[12px] text-[var(--tf-text-secondary)] cursor-pointer hover:bg-[var(--tf-hover)] shrink-0">
+        <span className={`inline-block w-[7px] h-[7px] rounded-full shrink-0 ${dotColor}`} />
+        Sync
       </button>
 
       <Dialog open={showDetail} onClose={() => setShowDetail(false)} title="Synchronisierung">

@@ -5,6 +5,25 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.136.0 — Sidebar-Statusleiste „Variante D": Punkt + Wort (Juni 2026)
+
+MINOR — Redesign der unteren Sidebar-Statusleiste nach Design-Handoff
+(`_design/handoff/sidebar-status-bar/`). Die beiden icon-only Zustände (Bot / Database)
+waren nicht selbsterklärend — der Nutzer musste jedes Mal den Tooltip aufrufen.
+
+- **Jeder Zustand jetzt als farbiger Punkt + kurzes Wort** (`● Sync`, `● KI`) statt Icon —
+  sofort lesbar, kein Tooltip nötig. Das Wort bleibt neutral, nur der 7-px-Punkt trägt die
+  Live-Status-Farbe. Reihenfolge: `Neu hier?` · `● Sync` · `● KI` · `Version`.
+- **Schmaler Zustand**: wird die ausgeklappte Sidebar unter 200 px gezogen (Power-User),
+  entfällt „Neu hier?" komplett; der Platz geht an Status + Version (Version rechtsbündig).
+- **„Getrennt" jetzt amber statt rot** (handlungsbarer Zustand, kein harter Fehler) — betrifft
+  KI-getrennt und Sync-offline. KI-Boot-Zustand (`unknown`, vor erstem KI-Tab) bleibt grau.
+- Bestehende Dialogs (Synchronisierung / Interne KI) + Live-Status-Logik unverändert; nur die
+  Trigger-Darstellung + das Footer-Layout wurden überarbeitet.
+
+Betrifft `src/components/ui/SyncStatusIndicator.tsx`, `src/components/ui/BridgeStatusIndicator.tsx`,
+`src/core/ShellLayout.tsx`, `src/core/components/BuildInfo.tsx`. Keine Migration.
+
 ### v2.135.2 — Fix: „Anfragen → Anonymisieren" hängt mit lokalem llama.cpp nie endet (Juni 2026)
 
 PATCH — der Anonymisieren-Schritt (Modul Anfragen) blieb mit dem lokalen llama.cpp/qwen-
