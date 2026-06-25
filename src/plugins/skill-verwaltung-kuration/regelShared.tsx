@@ -67,7 +67,7 @@ const TYP_GRUPPE: Record<string, string> = {
   absatz_min: 'Umfang & Länge',
   verbotenes_muster: 'Muster & Pflichttext',
   pflicht_anfang: 'Muster & Pflichttext',
-  keine_aufzaehlungen: 'Keine Aufzählungen',
+  keine_aufzaehlungen: 'Muster & Pflichttext',
 };
 
 /** Gruppen-Label für die Typ-Facette (Fallback wie `typLabel`: pruefart → sonst „unbekannter Typ"). */
@@ -77,7 +77,7 @@ export function typGruppeLabel(r: QualitaetsRegel): string {
 
 /** Stabile Reihenfolge der Typ-Gruppen in der Facette. */
 export const REGEL_TYP_GRUPPE_ORDER: string[] = [
-  'Umfang & Länge', 'Muster & Pflichttext', 'Keine Aufzählungen',
+  'Umfang & Länge', 'Muster & Pflichttext',
   PRUEFART_LABEL.textlich!, PRUEFART_LABEL.fachlich!, PRUEFART_LABEL.administrativ!,
 ];
 

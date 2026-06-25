@@ -33,12 +33,10 @@ describe('typGruppeLabel — gröbere Filter-Gruppen (nur Facette)', () => {
       expect(typGruppeLabel(regel({ id: t, typ: t }))).toBe('Umfang & Länge');
     }
   });
-  it('„Muster & Pflichttext" bündelt Verbotenes Muster + Pflicht-Anfang', () => {
+  it('„Muster & Pflichttext" bündelt Verbotenes Muster + Pflicht-Anfang + Keine Aufzählungen', () => {
     expect(typGruppeLabel(regel({ id: 'a', typ: 'verbotenes_muster' }))).toBe('Muster & Pflichttext');
     expect(typGruppeLabel(regel({ id: 'b', typ: 'pflicht_anfang' }))).toBe('Muster & Pflichttext');
-  });
-  it('„Keine Aufzählungen" bleibt eigenständig', () => {
-    expect(typGruppeLabel(regel({ id: 'c', typ: 'keine_aufzaehlungen' }))).toBe('Keine Aufzählungen');
+    expect(typGruppeLabel(regel({ id: 'c', typ: 'keine_aufzaehlungen' }))).toBe('Muster & Pflichttext');
   });
   it('QS-Typen → pruefart-Fallback', () => {
     expect(typGruppeLabel(regel({ id: 'd', typ: 'ga_qs_x', pruefart: 'fachlich' }))).toBe('Fachlich');
