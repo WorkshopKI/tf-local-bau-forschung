@@ -50,7 +50,7 @@ export function BridgeStatusIndicator(): React.ReactElement {
         aria-label={tip}
         className="flex items-center justify-center p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] cursor-pointer shrink-0"
       >
-        <Bot size={14} className={color} />
+        <Bot size={15} className={color} />
       </button>
 
       <Dialog open={open} onClose={() => setOpen(false)} title="Interne KI">
