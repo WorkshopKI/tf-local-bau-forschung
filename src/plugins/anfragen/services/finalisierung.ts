@@ -75,6 +75,9 @@ export async function polishAntwort(bridge: AIBridge, antwortAnon: string): Prom
     stammdaten: '',
     vbMarkdown: '',
     zielText: antwortAnon,
+    // Interne KI denkt immer → <think>…</think> inline; thinkingBudget !== 'none'
+    // aktiviert die extractThinking-Bereinigung in runSkill (siehe anonymisierung.ts).
+    thinkingBudget: 'medium',
   });
   return result.parsed.finalerText.trim() || antwortAnon;
 }

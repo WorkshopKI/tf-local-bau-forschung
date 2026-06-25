@@ -2,13 +2,14 @@
  * Phase 4 — Anonymisierungs-Parsing + Skill-Invarianten.
  */
 import { describe, expect, it } from 'vitest';
-import { parseAnonymisierung, istAnonymisiererAktiv } from '../anonymisierung';
+import { parseAnonymisierung, istAnonymisiererAktiv, runAnonymisierung } from '../anonymisierung';
 import {
   ANFRAGE_ANONYMISIEREN_SKILL,
   ANFRAGE_ANONYMISIEREN_SKILL_ID,
 } from '@/core/services/skills/registry/anfrage-anonymisieren.seed';
 import { SEED_REGISTRY } from '@/core/services/skills';
 import { skillEnthaeltDokumentInhalte } from '@/core/services/ai/transport-policy';
+import type { AIBridge } from '@/core/services/ai/bridge';
 
 describe('parseAnonymisierung', () => {
   it('parst sauberes JSON-Objekt', () => {
@@ -43,6 +44,35 @@ describe('parseAnonymisierung', () => {
   it('wirft bei Nicht-JSON / fehlendem anonymisiert-Feld', () => {
     expect(() => parseAnonymisierung('Tut mir leid, kann ich nicht.')).toThrow(/JSON-Format/);
     expect(() => parseAnonymisierung('{"mapping":[]}')).toThrow(/JSON-Format/);
+  });
+
+  it('parst trotz vorangestelltem Reasoning mit Stör-Klammern (Anker auf "anonymisiert")', () => {
+    // Untagged Reasoning mit einem balancierten, aber kaputten JSON-Fragment davor.
+    const raw = 'Ich prüfe das Beispiel {typ:person} und gebe zurück:\n'
+      + '{"anonymisiert":"Hallo [PERSON_1]","mapping":[{"platzhalter":"[PERSON_1]","original":"Dr. Schmidt","typ":"person"}]}';
+    const r = parseAnonymisierung(raw);
+    expect(r.anonymisiertMd).toBe('Hallo [PERSON_1]');
+    expect(r.mapping[0]?.original).toBe('Dr. Schmidt');
+  });
+});
+
+describe('runAnonymisierung — interner Thinking-Block', () => {
+  // Reproduziert den Produktions-Bug: die interne KI liefert ihr Reasoning inline
+  // als <think>…</think> (mit einem Format-Beispiel darin); ohne thinkingBudget
+  // wuerde runSkill extractThinking ueberspringen und der Parser das BEISPIEL aus
+  // dem Reasoning greifen statt die echte Antwort.
+  function fakeBridge(antwort: string): AIBridge {
+    const transport = { name: 'Streamlit', ping: async () => true, submitMessage: async () => antwort };
+    return { getTransportForSkillRun: () => transport } as unknown as AIBridge;
+  }
+
+  it('entfernt <think>…</think> (inkl. Format-Beispiel) vor dem Parsen', async () => {
+    const polluted = '<think>Ich identifiziere die PII. Format-Beispiel: '
+      + '{"anonymisiert":"BEISPIEL","mapping":[]}. Jetzt die echte Antwort.</think>\n'
+      + '{"anonymisiert":"Hallo [PERSON_1]","mapping":[{"platzhalter":"[PERSON_1]","original":"Dr. Schmidt","typ":"person"}]}';
+    const r = await runAnonymisierung(fakeBridge(polluted), ANFRAGE_ANONYMISIEREN_SKILL, 'Sehr geehrter Herr Dr. Schmidt');
+    expect(r.anonymisiertMd).toBe('Hallo [PERSON_1]');
+    expect(r.mapping).toHaveLength(1);
   });
 });
 

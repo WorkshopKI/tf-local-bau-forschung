@@ -23,11 +23,8 @@ export interface AnonymisierungErgebnis {
   mapping: Mapping[];
 }
 
-/** Strippt Codefences, nimmt das erste balancierte Top-Level-JSON-Objekt (truncation-tolerant). */
-function parseFirstJsonObject(raw: string): Record<string, unknown> | null {
-  const text = stripMarkdownWrapper(raw.trim());
-  const start = text.indexOf('{');
-  if (start < 0) return null;
+/** Parst das balancierte Top-Level-Objekt ab `start` (truncation-tolerant). */
+function extractBalancedObject(text: string, start: number): Record<string, unknown> | null {
   let depth = 0;
   let inString = false;
   let escaped = false;
@@ -58,12 +55,42 @@ function parseFirstJsonObject(raw: string): Record<string, unknown> | null {
   return null;
 }
 
+/**
+ * Holt das `{anonymisiert,…}`-Objekt robust heraus:
+ *  1. erstes balanciertes Top-Level-Objekt (Schnellpfad, sauberes JSON);
+ *  2. Fallback: auf das Feld `"anonymisiert"` ankern und das umschließende Objekt
+ *     parsen — überspringt Reasoning-Klammern/Beispiele, die das Modell
+ *     (Thinking-Modell) ggf. VOR der echten Antwort emittiert.
+ * Erste Verteidigungslinie bleibt `extractThinking` in runSkill (strippt
+ * `<think>…</think>`); das hier fängt untaggte Reasoning-Reste ab.
+ */
+function extractAnonObject(raw: string): Record<string, unknown> | null {
+  const text = stripMarkdownWrapper(raw.trim());
+  const firstBrace = text.indexOf('{');
+  if (firstBrace >= 0) {
+    const obj = extractBalancedObject(text, firstBrace);
+    if (obj && typeof obj.anonymisiert === 'string') return obj;
+  }
+  const key = text.indexOf('"anonymisiert"');
+  if (key >= 0) {
+    let start = text.lastIndexOf('{', key);
+    while (start >= 0) {
+      const obj = extractBalancedObject(text, start);
+      if (obj && typeof obj.anonymisiert === 'string') return obj;
+      start = text.lastIndexOf('{', start - 1);
+    }
+  }
+  return null;
+}
+
 export function parseAnonymisierung(raw: string): AnonymisierungErgebnis {
-  const obj = parseFirstJsonObject(raw);
+  const obj = extractAnonObject(raw);
   const anonymisiertMd = obj && typeof obj.anonymisiert === 'string' ? obj.anonymisiert : null;
   if (anonymisiertMd == null) {
+    const snippet = raw.trim().slice(0, 200).replace(/\s+/g, ' ');
     throw new Error(
-      'Die KI-Antwort war nicht im erwarteten JSON-Format {anonymisiert, mapping}. Bitte erneut anonymisieren.',
+      'Die KI-Antwort war nicht im erwarteten JSON-Format {anonymisiert, mapping}. Bitte erneut '
+      + `anonymisieren.${snippet ? ` (Antwort-Anfang: „${snippet}…")` : ''}`,
     );
   }
   const rawMapping = obj && Array.isArray(obj.mapping) ? obj.mapping : [];
@@ -101,6 +128,13 @@ export async function runAnonymisierung(
     stammdaten: '',
     vbMarkdown: '',
     zielText: originalMd,
+    // Die interne KI denkt IMMER (Reasoning an); im non-streaming Streamlit-Pfad
+    // kommt der Reasoning-Block inline als <think>…</think> im Content. runSkill
+    // strippt ihn nur bei thinkingBudget !== 'none' (extractThinking) — sonst greift
+    // der Parser eine Klammer/ein Format-Beispiel aus dem Reasoning. Wert ist für die
+    // Streamlit-Bridge nicht transportrelevant (wird nicht gesendet), aktiviert aber
+    // die Bereinigung.
+    thinkingBudget: 'medium',
   });
   return parseAnonymisierung(result.raw);
 }
