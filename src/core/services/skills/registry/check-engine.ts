@@ -138,15 +138,105 @@ interface RegelHandler {
   hint: (params: Record<string, unknown>) => string;
 }
 
-function buildMusterRegexes(muster: string[], istRegex: boolean): RegExp[] {
-  const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return muster.map(m => {
+/* -------------------------------------------------------------------------- */
+/* Erkennung (verbotenes_muster) — EINE Quelle für Check-Engine + Live-Tester  */
+/* -------------------------------------------------------------------------- */
+
+/** Drei Eingabe-Modi des `verbotenes_muster`-Editors (steuert nur die Eingabe). */
+export type EingabeModus = 'phrasen' | 'synonym' | 'regex';
+
+/** Quelldaten einer Synonym-Gruppe: ein Stamm + austauschbare Varianten. */
+export interface SynonymGruppe {
+  stamm: string;
+  varianten: string[];
+}
+
+/** Ein kompilierter Erkennungs-Eintrag: das Regex + sein menschenlesbares Label. */
+export interface ErkennungsEintrag {
+  regex: RegExp;
+  label: string;
+}
+
+/** Entwertet Regex-Metazeichen → wörtliche (Phrasen-)Suche. Eine Quelle. */
+function escapeRegexLiteral(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Effektiver Eingabe-Modus einer Regel. Explizites `params.eingabeModus` gewinnt;
+ * fehlt es (Alt-Regeln), wird aus dem Legacy-Flag `istRegex` abgeleitet
+ * (`true → regex`, sonst `phrasen`) — so öffnen Bestandsregeln im richtigen Modus.
+ */
+export function eingabeModusOf(params: Record<string, unknown>): EingabeModus {
+  const m = params.eingabeModus;
+  if (m === 'phrasen' || m === 'synonym' || m === 'regex') return m;
+  return boolParam(params, 'istRegex', false) ? 'regex' : 'phrasen';
+}
+
+/** Liest `params.gruppen` tolerant (offen typisiert) als `SynonymGruppe[]`. */
+function gruppenParam(params: Record<string, unknown>): SynonymGruppe[] {
+  const v = params.gruppen;
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((g): g is Record<string, unknown> => typeof g === 'object' && g !== null)
+    .map(g => ({
+      stamm: typeof g.stamm === 'string' ? g.stamm : '',
+      varianten: Array.isArray(g.varianten)
+        ? g.varianten.filter((x): x is string => typeof x === 'string')
+        : [],
+    }));
+}
+
+/**
+ * Kompiliert eine Synonym-Gruppe zur (escapeten) Regex-Quelle:
+ * Stamm + optionale Varianten-Alternation, durch `\s*` getrennt. Nur-Stamm →
+ * `escape(stamm)`; nur-Varianten → `(?:a|b)`; leer → `''` (wird übersprungen).
+ */
+export function kompiliereGruppe(g: SynonymGruppe): string {
+  const stamm = (g.stamm ?? '').trim();
+  const varianten = (Array.isArray(g.varianten) ? g.varianten : [])
+    .map(v => (v ?? '').trim())
+    .filter(Boolean);
+  const stammRe = stamm ? escapeRegexLiteral(stamm) : '';
+  if (varianten.length === 0) return stammRe;
+  const varRe = '(?:' + varianten.map(escapeRegexLiteral).join('|') + ')';
+  return stammRe ? stammRe + '\\s*' + varRe : varRe;
+}
+
+/** Menschenlesbares Label einer Synonym-Gruppe: „Stamm var1/var2". */
+function gruppenLabel(g: SynonymGruppe): string {
+  const stamm = (g.stamm ?? '').trim();
+  const varianten = (Array.isArray(g.varianten) ? g.varianten : [])
+    .map(v => (v ?? '').trim())
+    .filter(Boolean);
+  return [stamm, varianten.length ? varianten.join('/') : '']
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * DIE Match-Quelle für `verbotenes_muster` — Check-Engine UND Live-Tester nutzen
+ * sie, damit es keinen zweiten Matcher gibt. Liefert pro Eintrag das Regex und
+ * ein menschenlesbares Label (kein roher Regex im UI/Hinweis).
+ */
+export function erkennungsEintraege(params: Record<string, unknown>): ErkennungsEintrag[] {
+  if (eingabeModusOf(params) === 'synonym') {
+    return gruppenParam(params)
+      .map(g => ({ g, src: kompiliereGruppe(g) }))
+      .filter(x => x.src.length > 0)
+      .map(({ g, src }) => ({ regex: new RegExp(src, 'i'), label: gruppenLabel(g) }));
+  }
+  // phrasen | regex teilen sich `muster`; nur die Kompilierung unterscheidet sich.
+  const istRegex = eingabeModusOf(params) === 'regex';
+  return strArrParam(params, 'muster').map(m => {
+    let regex: RegExp;
     try {
-      return new RegExp(istRegex ? m : escape(m), 'i');
+      regex = new RegExp(istRegex ? m : escapeRegexLiteral(m), 'i');
     } catch {
       // Ungültige User-Regex → als Literal behandeln statt zu crashen.
-      return new RegExp(escape(m), 'i');
+      regex = new RegExp(escapeRegexLiteral(m), 'i');
     }
+    return { regex, label: m };
   });
 }
 
@@ -231,28 +321,43 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
 
   verbotenes_muster: {
     check: (text, params) => {
-      const muster = strArrParam(params, 'muster');
-      const istRegex = boolParam(params, 'istRegex', false);
-      if (muster.length === 0) return { ok: true, label: 'Keine verbotenen Muster' };
-      const regexes = buildMusterRegexes(muster, istRegex);
+      const eintraege = erkennungsEintraege(params);
+      if (eintraege.length === 0) return { ok: true, label: 'Keine verbotenen Muster' };
       const sentences = splitSentences(text);
       for (let i = 0; i < sentences.length; i++) {
-        for (let r = 0; r < regexes.length; r++) {
-          if (regexes[r]!.test(sentences[i]!)) {
+        for (const eintrag of eintraege) {
+          if (eintrag.regex.test(sentences[i]!)) {
             return {
               ok: false,
               label: 'Verbotenes Muster gefunden',
-              detail: `„${muster[r]}" in Satz ${i + 1}.`,
+              // Label statt rohem Regex — bei Synonym menschenlesbar, bei Phrasen
+              // identisch zum Muster (Bestandsverhalten byte-identisch).
+              detail: `„${eintrag.label}" in Satz ${i + 1}.`,
             };
           }
         }
       }
       return { ok: true, label: 'Keine verbotenen Muster' };
     },
+    // Zweiseitig (vermeiden + stattdessen) und REGEXFREI: ein gepflegter
+    // `hinweisVermeiden` gewinnt; sonst menschenlesbare Labels (Phrasen/Synonym)
+    // bzw. ein generischer Satz im Regex-Modus — nie roher Regex im Prompt.
     hint: params => {
-      const muster = strArrParam(params, 'muster');
-      if (muster.length === 0) return 'Vermeide die hinterlegten verbotenen Formulierungen.';
-      return `Vermeide Formulierungen wie ${muster.map(m => `„${m}"`).join(', ')}.`;
+      const modus = eingabeModusOf(params);
+      const vermeiden = strParam(params, 'hinweisVermeiden').trim();
+      const stattdessen = strParam(params, 'hinweisStattdessen').trim();
+      let neg: string;
+      if (vermeiden) {
+        neg = `Vermeide ${vermeiden}.`;
+      } else if (modus === 'regex') {
+        neg = 'Vermeide die hinterlegten verbotenen Formulierungen.';
+      } else {
+        const labels = erkennungsEintraege(params).map(e => e.label).filter(Boolean);
+        neg = labels.length
+          ? `Vermeide Formulierungen wie ${labels.map(l => `„${l}"`).join(', ')}.`
+          : 'Vermeide die hinterlegten verbotenen Formulierungen.';
+      }
+      return (neg + (stattdessen ? ` Formuliere stattdessen ${stattdessen}.` : '')).trim();
     },
   },
 
