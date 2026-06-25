@@ -5,6 +5,28 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.134.1 — Anfragen: Anonymisierung robust gegen Eigenheiten der internen KI (Juni 2026)
+
+PATCH — zwei Fixes am Anonymisierer des Moduls „Anfragen" (dev), der an Eigenheiten der internen KI
+(Streamlit-Bridge, Reasoning IMMER an) scheiterte („…nicht im erwarteten JSON-Format {anonymisiert,
+mapping}").
+
+- **Thinking-Block inline:** `runAnonymisierung`/`polishAntwort` gaben kein `thinkingBudget` → `runSkill`
+  übersprang `extractThinking` → der inline `<think>…</think>`-Reasoning-Block (oft mit einem
+  JSON-Format-Beispiel darin) blieb im `raw`, und der Parser griff das Beispiel statt der echten Antwort.
+  Fix: `thinkingBudget: 'medium'` wie bei allen anderen Skill-Läufen; Parser ankert zusätzlich auf das
+  Feld `"anonymisiert"`.
+- **Früh-Finalisierung „Starte…":** das Bridge-Bookmarklet
+  ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js))
+  finalisierte die Antwort nach `SETTLE_MS = 2500 ms` DOM-Idle ohne Schutz gegen kurze, noch wachsende
+  Teil-Antworten; unter Last pausiert das Thinking-Modell nach einem ersten „Starte…"-Token > 2,5 s →
+  `submitMessage` bekam „Starte…" statt des JSON (kein Stream-Fallback; der Chat maskiert es via Streamlits
+  eigener Darstellung). Fix Ebene 1 (App, kein Re-Install): bounded **Retry** in `runAnonymisierung`
+  (3 Versuche). Fix Ebene 2 (Bookmarklet): `SETTLE_MS` 2500 → 5000 + doppeltes Idle-Fenster für sehr kurze
+  Antworten (< 40 Zeichen). **Das Bookmarklet muss einmal neu installiert werden**, damit Ebene 2 greift.
+
+Dev-only (Modul „Anfragen"), keine Migration.
+
 ### v2.134.0 — Gutachten: Workflow-Auswahl im Antrag (dev-Test) (Juni 2026)
 
 MINOR — Folgeschnitt zu v2.133.0: In **dev** kann man im Antrag auswählen, **welchen** GA-Workflow der
