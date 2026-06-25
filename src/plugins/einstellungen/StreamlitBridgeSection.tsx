@@ -7,6 +7,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { BRIDGE_BOOKMARKLET } from '@/core/services/ai/streamlit-bridge/snippet';
+import { connectInternalKi } from '@/core/services/ai/connect-ki';
 import type { AIProviderConfig } from '@/core/types/config';
 
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
@@ -58,11 +59,9 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
   });
 
   const openTab = (): void => {
-    // Transport-URL synchronisieren (Origin-Prüfung greift sonst nicht, wenn die
-    // URL noch nicht gespeichert wurde), dann SYNCHRON öffnen → kein Popup-Blocker.
-    // Gleicher Fenstername wie der Transport, damit beide denselben Tab teilen.
-    aiBridge.getStreamlitTransport(url);
-    window.open(url, 'teamflow-streamlit');
+    // Gemeinsamer Helper: synchronisiert die Transport-URL (Origin-Prüfung) und
+    // öffnet SYNCHRON den geteilten Tab `teamflow-streamlit` (kein Popup-Blocker).
+    connectInternalKi(aiBridge, url);
   };
 
   return (

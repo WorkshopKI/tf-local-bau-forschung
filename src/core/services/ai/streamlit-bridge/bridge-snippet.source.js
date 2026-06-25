@@ -343,6 +343,11 @@
   // oder COOP) → klarer Hinweis.
   if (window.opener) {
     try { window.opener.postMessage({ type: 'tf-bridge-ready' }, '*'); } catch (e) { /* ignore */ }
+    // Auto-Selbsttest: triggert den vorhandenen „ZAH-App testen"-Button (DRY)
+    // direkt nach dem Aktivieren → der Nutzer sieht „ZAH App erreichbar", ohne
+    // selbst klicken zu muessen. Kleiner Versatz, damit das opener-Fenster sicher
+    // bereit ist. Der Button bleibt als manueller Fallback erhalten.
+    setTimeout(function () { testBtn.click(); }, 300);
   } else {
     setBadge('error', 'Tab aus der App öffnen');
   }

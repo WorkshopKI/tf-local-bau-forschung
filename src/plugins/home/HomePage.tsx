@@ -15,6 +15,7 @@ import { MeineAntraegeSection } from './MeineAntraegeSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
+import { AiAssistantCard } from './AiAssistantCard';
 import { isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant, isKuerzelDropdownEnabled } from '@/config/feature-flags';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
@@ -256,15 +257,8 @@ export function HomePage(): React.ReactElement {
           {/* Antragseingang-Ampel */}
           <EingangAmpelCard />
 
-          {/* AI Status */}
-          <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
-            <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3 uppercase tracking-[0.08em]">AI-Assistent</p>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--tf-text-tertiary)]" />
-              <span className="text-[13px] text-[var(--tf-text-secondary)]">Nicht verbunden</span>
-            </div>
-            <button onClick={() => navigate('chat')} className="text-[12px] text-[var(--tf-primary)] hover:underline cursor-pointer">Chat öffnen →</button>
-          </div>
+          {/* AI Status — LIVE-Verbindungsstatus der internen KI + Verbinden von hier */}
+          <AiAssistantCard />
         </div>
       </div>
     </div>

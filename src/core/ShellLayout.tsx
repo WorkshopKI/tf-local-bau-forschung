@@ -7,6 +7,8 @@ import { CommandPalette } from '@/components/ui/CommandPalette';
 import type { CommandItem } from '@/components/ui/CommandPalette';
 import { setDarkMode, isDarkMode } from '@/components/ui/theme';
 import { SyncStatusIndicator } from '@/components/ui/SyncStatusIndicator';
+import { BridgeStatusIndicator } from '@/components/ui/BridgeStatusIndicator';
+import { BridgeDisconnectHint } from '@/components/ui/BridgeDisconnectHint';
 import { useTourContext } from '@/core/hooks/useTour';
 import { useProfile } from '@/core/hooks/useProfile';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
@@ -25,6 +27,7 @@ import { StartupDataUpdateBanner } from '@/core/components/StartupDataUpdateBann
 import { useSnapshotWatcher } from '@/core/hooks/useSnapshotWatcher';
 import { useAuslastungCorpusAutoload } from '@/core/hooks/useAuslastungCorpusAutoload';
 import { useHeartbeat } from '@/core/services/presence';
+import { useBridgeHeartbeat } from '@/core/hooks/useBridgeHeartbeat';
 import { CsvAutoRefreshBanner } from '@/plugins/csv-sources-kuration/components/CsvAutoRefreshBanner';
 import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -178,6 +181,11 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   // PL-„Online"-Tab. Self-gated (Flag + persoenlicher Handle), NO-OP sonst.
   useHeartbeat();
 
+  // Live-Verbindungsstatus der internen KI (Streamlit-Bridge): faengt den
+  // geschlossenen KI-Tab in ~3 s ab und treibt Homepage-Karte, Sidebar-Indikator
+  // und den Trennungs-Hinweis. Passiv (öffnet nie selbst einen Tab).
+  useBridgeHeartbeat();
+
   const goToPlugin = useCallback((pluginId: string) => {
     // Beim Wechsel zu einem Listen-Plugin clearet der jeweilige Route-Param-
     // Effekt (fehlender Param → null) den Detail-State im Store automatisch.
@@ -278,6 +286,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   return (
     <>
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} items={commandItems} />
+      <BridgeDisconnectHint />
       <div className="flex h-screen flex-col overflow-hidden bg-[var(--tf-bg)]">
       <div className="flex flex-1 overflow-hidden">
         <aside
@@ -378,6 +387,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
                 <div className="flex-1 min-w-0">
                   <SyncStatusIndicator />
                 </div>
+                <BridgeStatusIndicator />
                 <BuildInfo />
               </>
             )}

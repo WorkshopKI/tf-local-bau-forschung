@@ -1,4 +1,5 @@
 import type { GenerationStats } from '../generation-stats';
+import { useBridgeStatus } from '../bridge-status';
 
 export interface ConversationMessage {
   role: 'system' | 'user' | 'assistant';
@@ -116,6 +117,11 @@ export class StreamlitBridgeTransport implements AITransport {
       // Bookmarklets beim Aktivieren.
       if (event.source) this.streamlitWindow = event.source as Window;
 
+      // Jede zugelassene Inbound-Nachricht (richtige Origin) beweist eine lebende
+      // Bridge → verbunden. Deckt alle „→ connected"-Faelle in EINER Zeile ab
+      // (tf-bridge-ready / tf-pong / tf-app-ping / tf-stream / tf-response / tf-reset-done).
+      useBridgeStatus.getState().markActivity();
+
       if (type === 'tf-app-ping') {
         // Gegenrichtung: das Bookmarklet prüft, ob es UNSER App-Fenster erreicht.
         (event.source as Window | null)?.postMessage({ type: 'tf-app-pong' }, '*');
@@ -177,7 +183,18 @@ export class StreamlitBridgeTransport implements AITransport {
     if (url && url !== this.streamlitUrl) {
       this.streamlitUrl = url;
       this.streamlitWindow = null;
+      // Neue URL → die alte Verbindung gilt nicht mehr; Status auf `unknown`
+      // (nicht `disconnected` — ueber das neue Endpoint wissen wir noch nichts).
+      useBridgeStatus.getState().reset();
     }
+  }
+
+  /** Synchroner, kostenfreier Erreichbarkeits-Check (kein postMessage): lebt das
+   *  per `tf-bridge-ready` gecapturte Bridge-Fenster noch? `false`, sobald der
+   *  Nutzer den KI-Tab schliesst (`window.closed` flippt sofort). Treibt die
+   *  schnelle Tab-geschlossen-Erkennung im Heartbeat. */
+  hasLiveBridgeWindow(): boolean {
+    return !!this.streamlitWindow && !this.streamlitWindow.closed;
   }
 
   async ensureConnection(): Promise<void> {
@@ -195,6 +212,7 @@ export class StreamlitBridgeTransport implements AITransport {
         // Passiver Check: kein lebendes Bridge-Fenster → nicht erreichbar, OHNE
         // einen Tab zu öffnen (sonst poppt das bloße Öffnen der Verbund-Detail-
         // seite ungefragt den KI-Tab auf).
+        useBridgeStatus.getState().setConnected(false);
         return false;
       }
       return await new Promise((resolve, reject) => {
@@ -203,6 +221,9 @@ export class StreamlitBridgeTransport implements AITransport {
         this.streamlitWindow?.postMessage({ type: 'tf-ping' }, '*');
       });
     } catch {
+      // Timeout / Throw → Bridge nicht erreichbar (der Erfolgsfall flippt bereits
+      // ueber das eingehende `tf-pong` → markActivity auf `connected`).
+      useBridgeStatus.getState().setConnected(false);
       return false;
     }
   }
@@ -220,7 +241,12 @@ export class StreamlitBridgeTransport implements AITransport {
     return new Promise((resolve, reject) => {
       // 200s — das Bookmarklet sammelt streamende Antworten bis ~180s (lange
       // Generierung / Thinking / Last); 60s würde lange Antworten abschneiden.
-      const timeout = setTimeout(() => { this.pending.delete(id); reject(new Error('Response timeout')); }, 200000);
+      // Timeout (kein Abort!) deutet auf einen toten/geschlossenen Tab → getrennt.
+      const timeout = setTimeout(() => {
+        this.pending.delete(id);
+        useBridgeStatus.getState().setConnected(false);
+        reject(new Error('Response timeout'));
+      }, 200000);
       this.pending.set(id, { resolve, reject, timeout });
       // Abort-Listener: cleanup pending + reject. Der Streamlit-Backend-Run
       // laeuft serverseitig fertig, aber der Caller bekommt sofort den

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Plug, Settings } from 'lucide-react';
+import { RefreshCw, Plug, Settings, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/ui/Dialog';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -76,6 +76,7 @@ export function SyncStatusIndicator(): React.ReactElement {
       <button onClick={() => setShowDetail(true)}
         title={triggerTooltip}
         className="flex items-center gap-2 px-3 py-2 w-full text-left cursor-pointer hover:bg-[var(--tf-hover)] rounded-[var(--tf-radius)]">
+        <Database size={12} className={`shrink-0 ${datenShareAvailable ? 'text-[var(--tf-success-text)]' : 'text-[var(--tf-text-tertiary)]'}`} />
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
         <span className="text-[11px] text-[var(--tf-text-tertiary)] truncate">{label}</span>
       </button>

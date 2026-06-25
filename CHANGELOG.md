@@ -5,6 +5,35 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.135.0 — Live-Verbindungsstatus der internen KI (Juni 2026)
+
+MINOR — die Verbindung zur internen KI (Streamlit-Bridge) wird jetzt **automatisch erkannt und überall
+angezeigt**; der manuelle „Verbindung testen"-Klick entfällt.
+
+- **Zentrale Status-Quelle** ([bridge-status.ts](src/core/services/ai/bridge-status.ts), Zustand-Store):
+  der `StreamlitBridgeTransport` spiegelt jedes Inbound-Signal des Bookmarklets (`tf-bridge-ready`/`tf-pong`/
+  `tf-app-ping`/`tf-stream`/`tf-response`) als `connected`; Ping-Timeout/geschlossener Tab → `disconnected`;
+  URL-Wechsel → `unknown`. Status `'unknown'` (Boot) bleibt grau (kein falsches Rot).
+- **Auto-Erkennung** ([useBridgeHeartbeat.ts](src/core/hooks/useBridgeHeartbeat.ts)): passiver Poller (öffnet
+  nie selbst einen Tab). Zwei-Stufen-Takt ~3 s — günstiger `window.closed`-Check (fängt den geschlossenen
+  KI-Tab in ~3 s) + alle ~15 s ein passiver Ping (fängt „Tab offen, aber Bridge tot").
+- **Homepage-Karte** ([AiAssistantCard.tsx](src/plugins/home/AiAssistantCard.tsx)): zeigt den echten Status
+  (grün/grau) und einen **„Verbinden"**-Button — die interne KI lässt sich direkt von der Startseite öffnen
+  (vorher nur über Einstellungen → KI-Assistent).
+- **Sidebar-Fußzeile**: neues **KI-Icon** (Bot, grün/rot/grau) neben dem Datenbestand-Indikator, der zusätzlich
+  ein **Datenbank-Icon** bekommt. Klick aufs KI-Icon öffnet einen kleinen Verbinden-Dialog.
+- **Trennungs-Hinweis** ([BridgeDisconnectHint.tsx](src/components/ui/BridgeDisconnectHint.tsx)): schließt der
+  Nutzer den KI-Tab versehentlich, erscheint unten rechts „Interne KI getrennt — wurde der KI-Tab geschlossen?"
+  mit „Erneut verbinden". Nur beim Übergang `verbunden → getrennt` (kein Fehlalarm beim Start).
+- **Gemeinsamer Verbinden-Helper** ([connect-ki.ts](src/core/services/ai/connect-ki.ts)) — eine Quelle für
+  Einstellungen, Homepage, Sidebar und Hinweis (kein Code-Duplikat).
+- **Bookmarklet-Selbsttest** ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js)):
+  die KI-Tab-Leiste prüft nach dem Aktivieren automatisch die Gegenrichtung und zeigt „ZAH App erreichbar"
+  ohne manuellen Klick. **Das Bookmarklet muss dafür einmal neu installiert (neu in die Lesezeichenleiste
+  gezogen) werden** — die App-seitige Auto-Erkennung funktioniert auch ohne.
+
+Keine Migration. Betrifft `ShellLayout.tsx`, `SyncStatusIndicator.tsx`, `HomePage.tsx`, `StreamlitBridgeSection.tsx`.
+
 ### v2.134.2 — Skill-Verwaltung: „Speichern" fragt nicht mehr fälschlich nach (Juni 2026)
 
 PATCH — der Editor-interne **„Speichern"**-Button (Skill-Editor + Workflow-Schritt-Editor) löste nach
