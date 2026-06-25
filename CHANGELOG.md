@@ -5,6 +5,22 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.129.1 — Spalten-Trennlinien im Tabellenkopf als Resize-Hinweis (Juni 2026)
+
+PATCH — die geteilte `SortableTable` ([src/components/data-table/SortableTable.tsx](src/components/data-table/SortableTable.tsx))
+zeigt im Kopf keine Spalten-Begrenzung, der einzige Resize-Hinweis war eine transparente, nur beim
+Hovern sichtbare 6px-Greifzone. User sahen dadurch nicht, wo eine Spalte endet bzw. wo sie zum
+Resizen greifen können.
+
+- **Fix**: dünne vertikale Trennlinie (`borderRight: 0.5px var(--tf-border)`) am rechten Rand jeder
+  Kopf-Spalte — gegated auf `resizeEnabled` (nur bei resizbaren Tabellen) und ohne die letzte Spalte.
+  Die Linie deckt sich pixelgenau mit der bestehenden Greifzone (`right-0`), die beim Hovern weiter
+  via `--tf-border-hover` nachdunkelt. Spiegelt das etablierte Muster aus
+  [SearchTableHeader.tsx](src/plugins/suche/SearchTableHeader.tsx).
+- Betrifft alle resizbaren SortableTable-Ansichten (Regeln/Check-Regeln, Förderanträge,
+  Auslastungs-Klassifizierung). Body-Zellen bleiben bewusst ohne vertikale Linien (Design-Vorgabe:
+  nur horizontale 0,5px-Borders).
+
 ### v2.129.0 — Modul „Anfragen": E-Mail-Kurzanfrage → anonymisierte ZIM-Antwort (Juni 2026)
 
 MINOR — neues **dev-only** Plugin „Anfragen" (Flag `features.anfragen`, nur dev). Ein Förderreferent nimmt

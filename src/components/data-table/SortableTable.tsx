@@ -199,15 +199,24 @@ export function SortableTable<T>({
             className="text-left text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]"
             style={{ background: 'var(--tf-bg-secondary)' }}
           >
-            {columns.map(c => {
+            {columns.map((c, i) => {
               const active = sortKey === c.key;
               const ariaSort = active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none';
               const filterActive = filtersEnabled && (columnFilters?.[c.key]?.size ?? 0) > 0;
+              // Vertikale Trennlinie als Resize-Hinweis: nur wenn Resize aktiv ist
+              // (Linie deckt sich pixelgenau mit der Greifzone) und nicht bei der
+              // letzten Spalte. Spiegelt das Muster aus SearchTableHeader.
+              const isLastCol = i === columns.length - 1;
               return (
                 <th
                   key={c.key}
                   className="px-3 py-1.5 align-middle relative"
                   aria-sort={ariaSort}
+                  style={
+                    resizeEnabled && !isLastCol
+                      ? { borderRight: '0.5px solid var(--tf-border)' }
+                      : undefined
+                  }
                 >
                   <div className="flex items-center gap-1">
                     {c.sortable ? (
