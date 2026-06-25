@@ -256,26 +256,19 @@
   }
   installTemplateHide();
 
-  // ── Chat vertikal füllen (volle Fensterhöhe, Nachrichten scrollen) ──────────
-  // Standard-„Streamlit-full-height"-Rezept: die Container-Kette (AppView → Main →
-  // Block-Container → äußerer Vertical-Block) wird eine durchgehende Flex-Spalte mit
-  // `min-height:0`, der Nachrichten-Block (`:has(stChatMessage)`) bekommt `flex:1` +
-  // eigenen Scroll. Header/Dropzone/Eingabe bleiben natürliche Höhe → die Eingabe
-  // rutscht an den unteren Rand, der Verlauf füllt den Rest (kein toter Leerraum).
-  // Statische CSS-Regeln (stabile testids) → einmalige Injektion genügt.
+  // ── Chat vertikal responsive (fenster-relative Höhe) ───────────────────────
+  // Übernommen aus dem bewährten Legacy-ZIM-Bookmarklet (streamlit-theme.css):
+  // der scrollbare Layout-Wrapper des Chat-Containers bekommt eine fenster-
+  // relative Höhe (75vh) und scrollt — so wächst/schrumpft der Verlauf mit dem
+  // Fenster statt mit toter Fläche darunter. Die App nutzt
+  // `st.container(key="chat_container")`. App-spezifisch + minimal (kein generisches
+  // Full-height-Flex, das das custom Layout verbiegen würde); fehlen die Selektoren,
+  // greift die Regel einfach nicht (kein Schaden).
   function installVerticalFill() {
     if (document.getElementById('tf-bridge-vfill')) return;
     var css =
-      'html,body{height:100%!important}' +
-      '[data-testid="stApp"],.stApp{height:100vh!important;overflow:hidden!important}' +
-      '[data-testid="stAppViewContainer"]{min-height:100vh!important;display:flex!important;flex-direction:column!important}' +
-      '[data-testid="stMain"],section.main,.main{flex:1 1 auto!important;display:flex!important;flex-direction:column!important;min-height:0!important}' +
-      '[data-testid="stMainBlockContainer"],.block-container{flex:1 1 auto!important;display:flex!important;flex-direction:column!important;min-height:0!important;max-width:100%!important;padding-top:1rem!important;padding-bottom:1rem!important}' +
-      '[data-testid="stMainBlockContainer"]>[data-testid="stVerticalBlock"],' +
-      '.block-container>[data-testid="stVerticalBlock"]{flex:1 1 auto!important;display:flex!important;flex-direction:column!important;min-height:0!important}' +
-      '[data-testid="stVerticalBlock"]:has(> [data-testid="stChatMessage"]),' +
-      '[data-testid="stVerticalBlock"]:has(> [data-testid="stElementContainer"] [data-testid="stChatMessage"])' +
-      '{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important}';
+      '[data-testid="stLayoutWrapper"][overflow="auto"]{height:75vh!important}' +
+      '.st-key-chat_container{overflow-y:auto!important}';
     var st = document.createElement('style');
     st.id = 'tf-bridge-vfill';
     st.textContent = css;
