@@ -56,7 +56,7 @@ export function aktivLabel(r: QualitaetsRegel): string {
 
 export const ADD_TYPEN = Object.keys(TYP_LABEL);
 
-const DEFAULT_PARAMS: Record<string, Record<string, unknown>> = {
+export const DEFAULT_PARAMS: Record<string, Record<string, unknown>> = {
   zeichen_max: { max: 1000 },
   wortanzahl: {},
   satzanzahl: { min: 8, max: 12 },
@@ -66,6 +66,15 @@ const DEFAULT_PARAMS: Record<string, Record<string, unknown>> = {
   pflicht_anfang: { text: '' },
   keine_aufzaehlungen: {},
 };
+
+/**
+ * Wechselt den Regel-Typ und setzt die typ-spezifischen Parameter destruktiv
+ * auf die Defaults des neuen Typs zurück. Identität (`id`) und `name` bleiben
+ * erhalten; `geaendert_am` stempelt erst der Save im Editor. Pure (testbar).
+ */
+export function wechsleRegelTyp(regel: QualitaetsRegel, neuerTyp: string): QualitaetsRegel {
+  return { ...regel, typ: neuerTyp, params: { ...(DEFAULT_PARAMS[neuerTyp] ?? {}) } };
+}
 
 export function blankRegel(typ: string): QualitaetsRegel {
   const now = new Date().toISOString();

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { typLabel, kategorieLabel, pruefartLabel, sevLabel, aktivLabel } from '../regelShared';
+import { typLabel, kategorieLabel, pruefartLabel, sevLabel, aktivLabel, wechsleRegelTyp, DEFAULT_PARAMS } from '../regelShared';
 import type { QualitaetsRegel } from '@/core/services/skills';
 
 function regel(over: Partial<QualitaetsRegel> & { id: string; typ: string }): QualitaetsRegel {
@@ -57,5 +57,26 @@ describe('sevLabel / aktivLabel', () => {
   it('aktiv', () => {
     expect(aktivLabel(regel({ id: 'a', typ: 'x', aktiv: true }))).toBe('Aktiv');
     expect(aktivLabel(regel({ id: 'b', typ: 'x', aktiv: false }))).toBe('Inaktiv');
+  });
+});
+
+describe('wechsleRegelTyp — Typwechsel setzt Parameter destruktiv zurück', () => {
+  it('params == DEFAULT_PARAMS[neu] (Kopie); id + name bleiben erhalten', () => {
+    const r = regel({ id: 'x', typ: 'verbotenes_muster', name: 'Mein Name', params: { muster: ['x'], istRegex: true } });
+    const next = wechsleRegelTyp(r, 'satzanzahl');
+    expect(next.typ).toBe('satzanzahl');
+    expect(next.params).toEqual(DEFAULT_PARAMS.satzanzahl);
+    expect(next.params).not.toBe(DEFAULT_PARAMS.satzanzahl); // frische Kopie, keine geteilte Referenz
+    expect(next.name).toBe('Mein Name');
+    expect(next.id).toBe('x');
+  });
+  it('unbekannter Ziel-Typ → leere params', () => {
+    expect(wechsleRegelTyp(regel({ id: 'y', typ: 'satzanzahl' }), 'zukunft').params).toEqual({});
+  });
+});
+
+describe('Typ-Chip nutzt typLabel', () => {
+  it('verbotenes_muster → „Verbotenes Muster"', () => {
+    expect(typLabel(regel({ id: 'z', typ: 'verbotenes_muster' }))).toBe('Verbotenes Muster');
   });
 });

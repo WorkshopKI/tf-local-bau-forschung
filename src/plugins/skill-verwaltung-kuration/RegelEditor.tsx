@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Lock } from 'lucide-react';
 import {
   buildPromptHinweis,
   effektiveKategorie,
@@ -8,6 +9,7 @@ import {
 } from '@/core/services/skills';
 import { useReportGuardState, type EditorGuardState } from './editorGuard';
 import { MusterErkennungEditor } from './MusterErkennungEditor';
+import { typLabel, TYP_LABEL, ADD_TYPEN, wechsleRegelTyp } from './regelShared';
 
 /** Bekannte Kategorie-Keys für den Setzer (ohne „sonstige" — das ist der Auffang-Default). */
 const KATEGORIE_KEYS = Object.keys(KATEGORIE_LABEL).filter(k => k !== 'sonstige');
@@ -40,6 +42,7 @@ interface RegelEditorProps {
  *  Container liefert die Page). */
 export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete, onPersist, onGuardStateChange }: RegelEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<QualitaetsRegel>(initial);
+  const [typAendern, setTypAendern] = useState(false);
   const ro = !canEdit;
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
@@ -62,6 +65,47 @@ export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete
 
   return (
     <div className="rounded-[10px] bg-[var(--tf-bg-secondary)] p-[18px]">
+      {/* Typ-Transparenz: read-only Chip + bewusster, reibungsbehafteter Wechsel. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] text-[var(--tf-text-secondary)]">
+          <Lock size={12} className="text-[var(--tf-text-tertiary)]" aria-hidden />
+          Typ · Check-Engine:
+          <strong className="font-medium text-[var(--tf-text)]">{typLabel(draft)}</strong>
+        </span>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setTypAendern(v => !v)}
+            className="text-[11.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:underline underline-offset-2"
+          >
+            Typ ändern
+          </button>
+        )}
+      </div>
+      {canEdit && typAendern && (
+        <div className="mb-4 rounded-[8px] border-[0.5px] border-[var(--tf-warning-border)] bg-[var(--tf-warning-soft)] p-3">
+          <p className="text-[12px] text-[var(--tf-warning-text)] mb-2">
+            Ein Typwechsel verwirft die typ-spezifischen Parameter.
+          </p>
+          <select
+            value={draft.typ}
+            onChange={e => {
+              const neu = e.target.value;
+              if (neu !== draft.typ) setDraft(d => wechsleRegelTyp(d, neu));
+              setTypAendern(false);
+            }}
+            className="text-[13px] px-2.5 py-2 rounded-[8px] border-[0.5px] border-[var(--tf-border-hover)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)]"
+          >
+            {!ADD_TYPEN.includes(draft.typ) && (
+              <option value={draft.typ}>{typLabel(draft)} (aktuell)</option>
+            )}
+            {ADD_TYPEN.map(t => (
+              <option key={t} value={t}>{TYP_LABEL[t]}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-x-10 gap-y-5 items-end">
         <div>
           <label className={FIELD_LABEL}>Name</label>
