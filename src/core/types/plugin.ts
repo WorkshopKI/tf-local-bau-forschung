@@ -8,6 +8,7 @@ import type { StorageService } from '@/core/services/storage';
  * sichtbar wird. Bei einer neuen Plugin-Flag hier ergaenzen.
  */
 export type PluginFeatureKey =
+  | 'anfragen'
   | 'antraege'
   | 'auslastung'
   | 'dokumente'

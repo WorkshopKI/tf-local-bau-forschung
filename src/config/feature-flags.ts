@@ -169,6 +169,13 @@ export function isLlmKontextSettingEnabled(): boolean {
 export function isSkillVerwaltungEnabled(): boolean {
   return features.skillVerwaltung === true;
 }
+/** Modul „Anfragen": E-Mail-Kurzanfrage (.msg) → interne KI-Anonymisierung →
+ *  Export ins externe ZIM-Dashboard → deterministische Wiedereinsetzung. Plugin
+ *  gegated über `featureFlag: 'anfragen'`. Nur dev (Testballon). Default false
+ *  (`=== true`, Backward-Kompat). */
+export function isAnfragenEnabled(): boolean {
+  return features.anfragen === true;
+}
 /** In-App Streamlit-Bridge-Installer im KI-Assistent-Tab (Streamlit-URL +
  *  Bookmarklet + Verbindungstest). Zugang zum internen gpt-oss ohne API.
  *  Sichtbar in dev + prod + kurator + pl. Default false. */

@@ -40,6 +40,7 @@
     "gutachtenWorkflow": false,
     "nfNachforderungen": false,
     "skillVerwaltung": true,
+    "anfragen": false,
     "streamlitBridge": true,
     "deltaSnapshotWrite": true
   },

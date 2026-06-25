@@ -177,6 +177,11 @@ export const DEFAULT_CONFIG = {
      *  `datenShareSchreibrecht`, sonst Kurator-Session). Optional, default false
      *  (kein requiredFlags-Eintrag). */
     skillVerwaltung: true,
+    /** Modul „Anfragen": E-Mail-Kurzanfrage (.msg) → interne Anonymisierung →
+     *  Export ins externe ZIM-Dashboard → deterministische Wiedereinsetzung.
+     *  Plugin-Flag, nur dev (Testballon). Optional, default false
+     *  (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
+    anfragen: true,
     /** In-App „Streamlit Bridge"-Installer im KI-Assistent-Tab: Streamlit-URL
      *  konfigurieren, Bookmarklet in die Lesezeichenleiste ziehen, Verbindung
      *  (tf-ping → tf-pong) testen. Zugang zum internen gpt-oss ohne API.

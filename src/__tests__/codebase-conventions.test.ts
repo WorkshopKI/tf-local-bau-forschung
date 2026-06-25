@@ -745,7 +745,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // Schlaegt eine Assertion fehl, ist die erste Frage „ist der Zuwachs gewollt?" —
   // wenn ja, die Konstante hier bewusst anheben (und im CHANGELOG vermerken). Das
   // ist eine Drift-Warnung, kein Verbot.
-  const MAX_FEATURE_FLAGS = 27;    // Ist 23 (+4 Reserve)
+  const MAX_FEATURE_FLAGS = 28;    // Ist 28; +1 'anfragen' (Modul Anfragen, v2.127)
   const MAX_SERVICE_DIRS = 21;     // Ist 21 (+ skill-feedback File-first Substrat S1: spannt skills+personal-storage+infrastructure, Fundament für S2/S3 — bewusst eigene Domaene; davor 20 nach skill-eval)
   const MAX_FILE_LOC = 980;        // Ist 846 (smb-handle.ts); ZuweisungsCockpit.tsx von 1285 → 687 zerlegt (v2.111), ~15 % Reserve
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.

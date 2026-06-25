@@ -10,6 +10,7 @@ import { feedbackBoardPlugin } from '@/plugins/feedback-board';
 import { devInfrastructureTestPlugin } from '@/plugins/dev-infrastructure-test';
 import { devStateInspectorPlugin } from '@/plugins/dev-state-inspector';
 import { antraegePlugin } from '@/plugins/antraege';
+import { anfragenPlugin } from '@/plugins/anfragen';
 import { auslastungPlugin } from '@/plugins/auslastung';
 import { programmeAdminPlugin } from '@/plugins/programme-kuration';
 import { csvSourcesAdminPlugin } from '@/plugins/csv-sources-kuration';
@@ -22,6 +23,7 @@ import { features } from '@/config/feature-flags';
 const allPlugins: TeamFlowPlugin[] = [
   homePlugin,
   antraegePlugin,
+  anfragenPlugin,
   auslastungPlugin,
   dokumentePlugin,
   suchePlugin,

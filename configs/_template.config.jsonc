@@ -115,6 +115,11 @@
     // Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf).
     // Optional, fehlt = aus. Nur dev (Testballon).
     "nfNachforderungen": false,
+    // Modul „Anfragen": E-Mail-Kurzanfrage (.msg) → interne KI-Anonymisierung →
+    // Export ins externe ZIM-Dashboard (Zwischenablage) → deterministische
+    // Wiedereinsetzung → mail-fertige Antwort. Plugin-Flag. Optional, fehlt = aus.
+    // Nur dev (Testballon).
+    "anfragen": false,
     // In-App „Streamlit Bridge"-Installer im KI-Assistent-Tab: Streamlit-URL
     // konfigurieren, Bookmarklet in die Lesezeichenleiste ziehen, Verbindung
     // (tf-ping → tf-pong) testen. Zugang zum internen gpt-oss ohne API.
