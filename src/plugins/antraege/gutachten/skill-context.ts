@@ -5,10 +5,11 @@
  */
 import {
   getSkillById, resolveRegeln, SEED_REGISTRY,
-  type QualitaetsRegel, type SkillRecord, type SkillRegistryFile,
+  type ArtefaktTyp, type QualitaetsRegel, type SkillRecord, type SkillRegistryFile,
 } from '@/core/services/skills';
+import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
 import type { KurzfassungContext } from '../kurzfassung/types';
-import { resolveActiveWorkflow } from './active-workflow';
+import { resolveWorkflowSteps } from './active-workflow';
 import type { StepId } from './types';
 
 export interface SkillCtx {
@@ -33,10 +34,22 @@ export function buildStammdaten(ctx: KurzfassungContext): string {
   return lines.join('\n');
 }
 
-/** Skill + Regeln je Schritt der aktiven WorkflowDef aus der Registry (Fallback: Seed). */
-export function buildSkillMap(file: SkillRegistryFile): Map<StepId, SkillCtx> {
+/**
+ * Skill + Regeln je Schritt des aufgelösten Workflows aus der Registry (Fallback:
+ * Seed). EINE Quelle mit `resolveWorkflowSteps` (kein zweiter Pfad). Ohne `opts`
+ * = Default-GA per Tie-Break, byte-identisch (so bleibt z.B. `useBatchJob`
+ * unberührt); `opts.workflowId` speist die dev-Test-Auswahl ein.
+ */
+export function buildSkillMap(
+  file: SkillRegistryFile,
+  opts?: { artefaktTyp?: ArtefaktTyp; workflowId?: string },
+): Map<StepId, SkillCtx> {
   const map = new Map<StepId, SkillCtx>();
-  for (const step of resolveActiveWorkflow(file)) {
+  const steps = resolveWorkflowSteps(file, opts?.artefaktTyp ?? 'ga', {
+    erlaubeEntwuerfe: erlaubeWorkflowEntwuerfe(),
+    workflowId: opts?.workflowId,
+  });
+  for (const step of steps) {
     const found = getSkillById(file, step.skillId);
     if (found) { map.set(step.id, { skill: found, regeln: resolveRegeln(file, found) }); continue; }
     const seed = getSkillById(SEED_REGISTRY, step.skillId);

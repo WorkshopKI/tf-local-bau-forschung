@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveActiveWorkflow, resolveWorkflowSteps } from '../active-workflow';
+import { resolveActiveWorkflow, resolveWorkflowSteps, verfuegbareWorkflows } from '../active-workflow';
 import { buildSkillMap } from '../skill-context';
 import {
   ZIM_EP_DEF, SEED_REGISTRY, type SkillRecord, type SkillRegistryFile, type WorkflowDef, type WorkflowStep,
@@ -93,5 +93,79 @@ describe('resolveWorkflowSteps — Wahl je artefaktTyp unter dem Freigabe-Gate',
 
   it('NF-Seed (aktiv:false) liefert keine nf-Schritte (kein ga-Fallback für andere Typen)', () => {
     expect(resolveWorkflowSteps(SEED_REGISTRY, 'nf', { erlaubeEntwuerfe: true })).toEqual([]);
+  });
+});
+
+describe('resolveWorkflowSteps — explizite workflowId (dev-Test)', () => {
+  const wf = (over: Partial<WorkflowDef> & { id: string }): WorkflowDef => ({
+    name: over.id, version: 1, steps: [], ...over,
+  });
+  const zweiGa = () => leer({ workflows: [
+    wf({ id: 'ga-frei', artefaktTyp: 'ga', freigabe: 'freigegeben', steps: [wfStep('F1', 's')] }),
+    wf({ id: 'ga-draft', artefaktTyp: 'ga', freigabe: 'entwurf', steps: [wfStep('D1', 's')] }),
+  ] });
+
+  it('gesetzte, verfügbare ID gewinnt über den Tie-Break', () => {
+    expect(resolveWorkflowSteps(zweiGa(), 'ga', { erlaubeEntwuerfe: true, workflowId: 'ga-draft' }).map(s => s.id))
+      .toEqual(['D1']);
+  });
+  it('gesetzter Entwurf bei erlaubeEntwuerfe=false → Fallback Tie-Break', () => {
+    expect(resolveWorkflowSteps(zweiGa(), 'ga', { erlaubeEntwuerfe: false, workflowId: 'ga-draft' }).map(s => s.id))
+      .toEqual(['F1']);
+  });
+  it('ungültige/leere ID → Tie-Break (byte-identisch)', () => {
+    expect(resolveWorkflowSteps(zweiGa(), 'ga', { erlaubeEntwuerfe: true, workflowId: 'gibts-nicht' }).map(s => s.id))
+      .toEqual(['F1']);
+    // leerer Workflow als Wahl → Fallback
+    const mitLeer = leer({ workflows: [wf({ id: 'leer', artefaktTyp: 'ga', freigabe: 'freigegeben', steps: [] })] });
+    expect(resolveWorkflowSteps(mitLeer, 'ga', { erlaubeEntwuerfe: true, workflowId: 'leer' }).map(s => s.id))
+      .toEqual(ZIM_EP_DEF.steps.map(s => s.id));
+  });
+  it('ohne workflowId byte-identisch zur Tie-Break-Wahl', () => {
+    expect(resolveWorkflowSteps(zweiGa(), 'ga', { erlaubeEntwuerfe: true }).map(s => s.id)).toEqual(['F1']);
+  });
+});
+
+describe('verfuegbareWorkflows — Dropdown-Quelle (freigegeben zuerst, dann Name)', () => {
+  const wf = (over: Partial<WorkflowDef> & { id: string }): WorkflowDef => ({
+    name: over.id, version: 1, steps: [], ...over,
+  });
+
+  it('filtert Entwürfe je Flag', () => {
+    const file = leer({ workflows: [
+      wf({ id: 'frei', name: 'Frei', artefaktTyp: 'ga', freigabe: 'freigegeben' }),
+      wf({ id: 'entw', name: 'Entwurf', artefaktTyp: 'ga', freigabe: 'entwurf' }),
+    ] });
+    expect(verfuegbareWorkflows(file, 'ga', { erlaubeEntwuerfe: false }).map(w => w.id)).toEqual(['frei']);
+    expect(verfuegbareWorkflows(file, 'ga', { erlaubeEntwuerfe: true }).map(w => w.id)).toEqual(['frei', 'entw']);
+  });
+  it('sortiert freigegeben vor Entwurf, dann alphabetisch; schließt aktiv:false + Fremdtyp aus', () => {
+    const file = leer({ workflows: [
+      wf({ id: 'b', name: 'Bravo', artefaktTyp: 'ga', freigabe: 'freigegeben' }),
+      wf({ id: 'a', name: 'Alpha', artefaktTyp: 'ga', freigabe: 'entwurf' }),
+      wf({ id: 'c', name: 'Charlie', artefaktTyp: 'ga', freigabe: 'freigegeben' }),
+      wf({ id: 'off', name: 'Off', artefaktTyp: 'ga', freigabe: 'freigegeben', aktiv: false }),
+      wf({ id: 'nf', name: 'NF', artefaktTyp: 'nf', freigabe: 'freigegeben' }),
+    ] });
+    expect(verfuegbareWorkflows(file, 'ga', { erlaubeEntwuerfe: true }).map(w => w.id)).toEqual(['b', 'c', 'a']);
+  });
+});
+
+describe('buildSkillMap — opt-in workflowId trifft den gewählten Workflow', () => {
+  const wf = (over: Partial<WorkflowDef> & { id: string }): WorkflowDef => ({
+    name: over.id, version: 1, steps: [], ...over,
+  });
+
+  it('baut die Skill-Map des per workflowId gewählten Entwurfs', () => {
+    const file = leer({
+      skills: [skill('sX')],
+      workflows: [
+        wf({ id: 'ga-frei', artefaktTyp: 'ga', freigabe: 'freigegeben', steps: [wfStep('F1', 'sF')] }),
+        wf({ id: 'ga-draft', artefaktTyp: 'ga', freigabe: 'entwurf', steps: [wfStep('X', 'sX')] }),
+      ],
+    });
+    const map = buildSkillMap(file, { workflowId: 'ga-draft' });
+    expect(map.get('X')?.skill.id).toBe('sX');
+    expect(map.has('F1')).toBe(false);
   });
 });

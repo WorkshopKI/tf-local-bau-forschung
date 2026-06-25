@@ -20,23 +20,57 @@ import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
 export const ACTIVE_WORKFLOW_ID = 'zim-ep';
 
 /**
- * Wählt die geordneten Schritte des besten verfügbaren Workflows eines Typs.
- * Kandidaten: gleicher `artefaktTyp` (fehlt → `'ga'`), nicht deaktiviert
- * (`aktiv !== false`) und durch das reine Freigabe-Gate `istWorkflowVerfuegbar`.
- * Tie-Break: freigegeben vor Entwurf, dann höchste `version`. Kein Treffer für
+ * Kandidaten-Prädikat (EINE Quelle): ein Workflow ist wählbar, wenn er den
+ * gesuchten `artefaktTyp` trägt (fehlt → `'ga'`), nicht deaktiviert ist
+ * (`aktiv !== false`) und das reine Freigabe-Gate `istWorkflowVerfuegbar` erfüllt.
+ * Geteilt von `resolveWorkflowSteps` (Tie-Break + explizite Wahl) und
+ * `verfuegbareWorkflows` (Dropdown) — kein zweiter Filter.
+ */
+function istWorkflowKandidat(w: WorkflowDef, artefaktTyp: ArtefaktTyp, erlaubeEntwuerfe: boolean): boolean {
+  return (w.artefaktTyp ?? 'ga') === artefaktTyp
+    && w.aktiv !== false
+    && istWorkflowVerfuegbar(w, { erlaubeEntwuerfe });
+}
+
+/**
+ * Alle wählbaren Workflows eines Typs (für das dev-Test-Dropdown), sortiert
+ * freigegeben-zuerst, dann nach Name. Rein — Flag als Arg.
+ */
+export function verfuegbareWorkflows(
+  file: SkillRegistryFile,
+  artefaktTyp: ArtefaktTyp,
+  { erlaubeEntwuerfe }: { erlaubeEntwuerfe: boolean },
+): WorkflowDef[] {
+  return (file.workflows ?? [])
+    .filter(w => istWorkflowKandidat(w, artefaktTyp, erlaubeEntwuerfe))
+    .sort((a, b) => {
+      const ea = a.freigabe === 'entwurf' ? 1 : 0;
+      const eb = b.freigabe === 'entwurf' ? 1 : 0;
+      if (ea !== eb) return ea - eb;       // freigegeben zuerst
+      return a.name.localeCompare(b.name); // dann alphabetisch
+    });
+}
+
+/**
+ * Wählt die geordneten Schritte eines Workflows eines Typs. Eine **explizite**
+ * `opts.workflowId` (dev-Test) gewinnt, wenn der Workflow existiert, den
+ * Kandidaten-Test erfüllt und Schritte hat. Sonst der beste Kandidat per
+ * Tie-Break (freigegeben vor Entwurf, dann höchste `version`). Kein Treffer für
  * `'ga'` (oder leere Schritte) → Seed `ZIM_EP_DEF.steps`. REIN — der Flag kommt
  * als Arg (Ableitung nur am Aufrufer-Rand).
  */
 export function resolveWorkflowSteps(
   file: SkillRegistryFile,
   artefaktTyp: ArtefaktTyp,
-  { erlaubeEntwuerfe }: { erlaubeEntwuerfe: boolean },
+  { erlaubeEntwuerfe, workflowId }: { erlaubeEntwuerfe: boolean; workflowId?: string },
 ): WorkflowStep[] {
-  const kandidaten = (file.workflows ?? []).filter(w =>
-    (w.artefaktTyp ?? 'ga') === artefaktTyp
-    && w.aktiv !== false
-    && istWorkflowVerfuegbar(w, { erlaubeEntwuerfe }),
-  );
+  if (workflowId) {
+    const gewaehlt = (file.workflows ?? []).find(w => w.id === workflowId);
+    if (gewaehlt && gewaehlt.steps.length > 0 && istWorkflowKandidat(gewaehlt, artefaktTyp, erlaubeEntwuerfe)) {
+      return flattenStepsTopological(gewaehlt.steps);
+    }
+  }
+  const kandidaten = (file.workflows ?? []).filter(w => istWorkflowKandidat(w, artefaktTyp, erlaubeEntwuerfe));
   kandidaten.sort((a, b) => {
     const ea = a.freigabe === 'entwurf' ? 1 : 0;
     const eb = b.freigabe === 'entwurf' ? 1 : 0;
