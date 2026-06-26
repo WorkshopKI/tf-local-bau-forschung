@@ -56,6 +56,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
+import { PRESET_COLORS } from '../components/ui/theme';
 
 const ROOT = join(__dirname, '..');
 
@@ -747,7 +748,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 29;    // Ist 29; +1 'workflowEntwuerfe' (Workflow-Verwaltung dev-Freigabe, v2.133)
   const MAX_SERVICE_DIRS = 22;     // Ist 22 (+ msg: .msg-Parser fuers Anfragen-Modul, v2.x); davor 21 (skill-feedback File-first Substrat S1)
-  const MAX_FILE_LOC = 1040;       // Ist 1034 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1095;       // Ist 1083 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1021,6 +1022,61 @@ describe('anfrage-export-only-via-guard (anonymisierter Export nur ueber pruefeE
         `Ergebnis). Datei mit clipboard/mailto ohne pruefeExportSicher-Bezug gefunden. Fuer die\n` +
         `finale de-anonymisierte Antwort (Phase 8): Zeile mit '// allow-anfrage-export: <grund>'.\n\n` +
         `Treffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
+describe('preset-contrast-contract (CTA-Primaerfarbe lesbar gegen weissen Vordergrund)', () => {
+  // Die Default-CTA (bg-primary text-primary-foreground) traegt seit dem Token-Fix
+  // die gewaehlte Primaerfarbe als Flaeche mit WEISSEM Vordergrund (--tf-on-primary).
+  // Jedes PRESET_COLORS-Preset muss daher >= 4,5:1 (WCAG AA Normaltext) gegen #fff
+  // liegen — sonst wird der CTA-Text unleserlich. Verhindert, dass ein kuenftig
+  // hinzugefuegtes (zu helles) Preset die Lesbarkeit bricht. (HSL->sRGB->relative
+  // Luminanz->Kontrast; Schwelle 4,5. Dark veraendert nur Bg/Text, nicht --tf-primary.)
+  const THRESHOLD = 4.5;
+
+  function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const hp = ((h % 360) + 360) % 360 / 60;
+    const x = c * (1 - Math.abs((hp % 2) - 1));
+    let r = 0, g = 0, b = 0;
+    if (hp < 1) [r, g, b] = [c, x, 0];
+    else if (hp < 2) [r, g, b] = [x, c, 0];
+    else if (hp < 3) [r, g, b] = [0, c, x];
+    else if (hp < 4) [r, g, b] = [0, x, c];
+    else if (hp < 5) [r, g, b] = [x, 0, c];
+    else [r, g, b] = [c, 0, x];
+    const m = l - c / 2;
+    return [r + m, g + m, b + m];
+  }
+
+  function relLuminance([r, g, b]: [number, number, number]): number {
+    const lin = (v: number): number => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  }
+
+  // Kontrast gegen Weiss (relative Luminanz 1,0).
+  function contrastVsWhite(h: number, s: number, l: number): number {
+    const lum = relLuminance(hslToRgb(h, s, l));
+    return (1.0 + 0.05) / (lum + 0.05);
+  }
+
+  it(`jedes PRESET_COLORS-Preset hat >= ${THRESHOLD}:1 gegen #fff`, () => {
+    const failing = PRESET_COLORS
+      .map(p => {
+        const s = parseFloat(p.s) / 100;
+        const l = parseFloat(p.l) / 100;
+        return { name: p.name, ratio: contrastVsWhite(p.h, s, l) };
+      })
+      .filter(r => r.ratio < THRESHOLD);
+
+    if (failing.length > 0) {
+      expect.fail(
+        `Preset(s) mit zu geringem Kontrast fuer weissen CTA-Text (Schwelle ${THRESHOLD}:1):\n` +
+        failing.map(r => `  - ${r.name}: ${r.ratio.toFixed(2)}:1`).join('\n') +
+        `\nFix: Lightness (l) des Presets in src/components/ui/theme.ts (PRESET_COLORS) senken, ` +
+        `bis der Kontrast >= ${THRESHOLD}:1 ist (vgl. Bernstein 42% -> 40%).`,
       );
     }
   });

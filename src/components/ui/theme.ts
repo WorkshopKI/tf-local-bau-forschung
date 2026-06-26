@@ -11,7 +11,7 @@ export const PRESET_COLORS: PresetColor[] = [
   { name: 'Olivgrün',    h: 155, s: '22%', l: '38%' },   // Gedämpftes Grün — natürlich, sachlich
   { name: 'Terrakotta',  h: 18,  s: '35%', l: '45%' },   // Warmes Erdrot — warm, vertrauenswürdig
   { name: 'Pflaume',     h: 280, s: '18%', l: '40%' },   // Gedämpftes Violett — seriös, ruhig
-  { name: 'Bernstein',   h: 38,  s: '40%', l: '42%' },   // Warmes Dunkelgelb — warm, einladend
+  { name: 'Bernstein',   h: 38,  s: '40%', l: '40%' },   // Warmes Dunkelgelb — warm, einladend (l: 42→40% für ≥4,5:1 weißer CTA-Text, preset-contrast-contract)
   { name: 'Graphit',     h: 220, s: '8%',  l: '38%' },   // Fast neutral — maximal zurückhaltend
 ];
 

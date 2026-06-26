@@ -124,6 +124,12 @@
 
   /* ── shadcn-Konvention: Text/Icon auf primärer Fläche ── */
   --tf-primary-foreground: #ffffff;
+  /* CTA-Fläche (Default-Button): immer weißer Text — bewusst OHNE Dark-Flip
+     (anders als --tf-primary-foreground, das im Dark-Block auf --tf-bg kippt
+     und z.B. in Step2KindFilterToggle genutzt wird). --tf-primary wird im
+     Dark-Block nicht aufgehellt (bleibt mitteldunkel) → Weiß ist in beiden
+     Modes kontrastsicher. Kontrast-Guard: preset-contrast-contract. */
+  --tf-on-primary: #ffffff;
 
   /* shadcn-Tokens auf die TF-Tokens gemappt (P1b): eine Farb-Quelle, und sie
      flippen automatisch über die --tf-*-Kaskade unter [data-theme="dark"]
@@ -135,8 +141,11 @@
   --card-foreground: var(--tf-text);
   --popover: var(--tf-bg);
   --popover-foreground: var(--tf-text);
-  --primary: var(--tf-text);
-  --primary-foreground: var(--tf-bg);
+  /* CTA = wählbare Primärfarbe (nicht --tf-text!): koppelt bg-primary /
+     text-primary (Default-Button, link, switch-checked, slider-range) an die
+     User-Farbe. Vordergrund über --tf-on-primary (weiß, kein Dark-Flip). */
+  --primary: var(--tf-primary);
+  --primary-foreground: var(--tf-on-primary);
   --secondary: var(--tf-bg-secondary);
   --secondary-foreground: var(--tf-text);
   --muted: var(--tf-bg-secondary);

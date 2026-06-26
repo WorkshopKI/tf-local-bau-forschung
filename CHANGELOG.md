@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.144.0 — CTA-Primärfarbe gekoppelt + Kontrast-Guard (Layout-Schicht Phase 1) (Juni 2026)
+
+MINOR — Erster Schritt der schlanken Layout-Schicht ([docs/layout-audit.md](docs/layout-audit.md)):
+der Default-Button (CTA) trägt jetzt die **gewählte Primärfarbe** statt anthrazit. Additiv,
+keine Migration.
+
+- **Token-Fix** ([src/theme.css](src/theme.css)): `--primary` von `var(--tf-text)` auf
+  `var(--tf-primary)` umgestellt — `bg-primary`/`text-primary` (Default-CTA, `link`-Button,
+  `switch`-checked, `slider`-range) erben damit die User-Farbe. CTA-Vordergrund über neues
+  `--tf-on-primary: #fff` (bewusst **ohne** Dark-Flip — anders als `--tf-primary-foreground`,
+  das im Dark-Block auf `--tf-bg` kippt und u.a. in `Step2KindFilterToggle` genutzt wird).
+  `--tf-primary` wird im Dark-Block nicht aufgehellt → Weiß ist in beiden Modes kontrastsicher.
+- **Bernstein-Preset** ([src/components/ui/theme.ts](src/components/ui/theme.ts)): `l` von 42 % auf
+  40 % gesenkt — einziges Preset unter 4,5:1 gegen Weiß (4,21:1 → 4,58:1).
+- **Kontrast-Guard** `preset-contrast-contract` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)):
+  rechnet je `PRESET_COLORS`-Preset HSL→sRGB→relative Luminanz→WCAG-Kontrast gegen `#fff` und
+  erzwingt ≥ 4,5:1 — verhindert, dass ein künftig zu helles Preset den weißen CTA-Text bricht.
+
 ### v2.143.0 — Sidebar-Status „CSV-Import aktuell?" + Import-Modal (Juni 2026)
 
 MINOR — Dritter Status-Indikator unten links in der Sidebar (neben **● Sync** und **● KI**),
