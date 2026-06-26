@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.145.0 — Vier fehlende Layout-Primitive (Layout-Schicht Phase 2) (Juni 2026)
+
+MINOR — Additive, domänenfreie Primitive in `src/components/ui/`; noch **keine** Modul-
+Umstellung (die kommt in Phase 3/4). Ergänzen die bereits bestehende Schicht
+(MasterDetailLayout, SortableTable, SectionHeader, tabs, button, badge).
+
+- **[PageHeader.tsx](src/components/ui/PageHeader.tsx)** — großer Seitentitel + optionale
+  Meta-Zeile / Aktionen (aus den hand-rolled H1s destilliert).
+- **[StatusBadge.tsx](src/components/ui/StatusBadge.tsx)** — `StatusBadge` (Pill) + `StatusDot`
+  (farbiger Punkt). Farbe kommt immer vom Aufrufer — keine Status-Domänenlogik in der Schicht.
+- **[FilterChip.tsx](src/components/ui/FilterChip.tsx)** — abgerundeter „Label: Wert"-Chip,
+  optional entfernbar (aus `ActiveFilterChips` destilliert).
+- **[ScopeTabs.tsx](src/components/ui/ScopeTabs.tsx)** — Listen-Sicht-Tabs mit Zähler,
+  `variant: 'tabs' | 'pills'` (breit/unterstrichen = Förderanträge · kompakt = Chat). EIN
+  Bauteil, zwei Darstellungen; Abgrenzung zu `ui/tabs.tsx` (generische Navigation).
+- Smoke-Tests ([layout-primitives.test.ts](src/components/ui/__tests__/layout-primitives.test.ts)):
+  Render via `renderToStaticMarkup` (node-Env), `variant` schaltet die Darstellung, Token-Klassen.
+
 ### v2.144.0 — CTA-Primärfarbe gekoppelt + Kontrast-Guard (Layout-Schicht Phase 1) (Juni 2026)
 
 MINOR — Erster Schritt der schlanken Layout-Schicht ([docs/layout-audit.md](docs/layout-audit.md)):
