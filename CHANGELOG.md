@@ -5,6 +5,33 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.137.0 — Anfragen: Kuration-Seite „Anfragen" + team-weit editierbare ZIM-FAQ-Assistent-URL (Juni 2026)
+
+MINOR — neue Kuration-Seite zum Pflegen der Anfragen-Modul-Einstellungen, plus
+Konsolidierung der URL-Default-Literale.
+
+- **Neuer Sidebar-Punkt „Anfragen" unter Kuration** (Plugin `anfragen-kuration`,
+  `category: 'kuration'`, `kuratorOnly: true`, `featureFlag: 'anfragen'`, Route
+  `/kuration/anfragen`) — sichtbar in dev/kurator nach dem Kurator-Toggle, nur wenn
+  das Anfragen-Modul aktiv ist.
+- **ZIM-FAQ-Assistent-URL im GUI editierbar**: Settings-Seite im Stil von
+  Einstellungen/Profil (`SectionHeader` + URL-Feld + Speichern/Auf-Standard-
+  zurücksetzen), bewusst erweiterbar für künftige Anfragen-Einstellungen.
+- **Persistenz team-weit auf dem Daten-Share**: Sidecar `_intern/anfragen-settings.json`
+  (idempotent-overwrite via `atomicWrite`, kurator-gated über `requireOnline()` +
+  `canWriteDatenShare()`, Audit-Event `anfragen_settings_updated`). Mirror, nicht
+  Master: Auflösung **GUI-Override → IDB-Cache → Build-Default**, bleibt offline über
+  den Fallback funktional. Der Export-Link im Review liest die URL jetzt override-aware.
+- **Default-Konsolidierung**: die ZIM-FAQ-Assistent-URL hat als Code-Default jetzt
+  EINE Quelle (`DEFAULT_ANFRAGEN_DASHBOARD_URL` in `feature-flags.ts`);
+  `scripts/config-schema.mjs` trägt sie nicht mehr doppelt (nur noch optionaler
+  Per-Variant-Override-Slot, `null` = Default). Interne Bezeichner unverändert.
+
+Neue Dateien `src/plugins/anfragen/settings.ts` + `AnfragenEinstellungenPage.tsx`;
+Plugin-Def + Registrierung in `plugins.config.ts`; angepasst `ReviewEditor.tsx`,
+`feature-flags.ts`, `config-schema.mjs`, `docs/architecture/data-layout.md`. Keine
+Migration (der Sidecar wird beim ersten Speichern angelegt).
+
 ### v2.136.3 — Anfragen: Recall-Eval-Panel startet eingeklappt (Juni 2026)
 
 PATCH — das dev-only Recall-Eval-Panel (`AnfrageRecallEval`) startet jetzt **eingeklappt**

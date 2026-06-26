@@ -10,7 +10,7 @@ import { feedbackBoardPlugin } from '@/plugins/feedback-board';
 import { devInfrastructureTestPlugin } from '@/plugins/dev-infrastructure-test';
 import { devStateInspectorPlugin } from '@/plugins/dev-state-inspector';
 import { antraegePlugin } from '@/plugins/antraege';
-import { anfragenPlugin } from '@/plugins/anfragen';
+import { anfragenPlugin, anfragenKurationPlugin } from '@/plugins/anfragen';
 import { auslastungPlugin } from '@/plugins/auslastung';
 import { programmeAdminPlugin } from '@/plugins/programme-kuration';
 import { csvSourcesAdminPlugin } from '@/plugins/csv-sources-kuration';
@@ -35,6 +35,7 @@ const allPlugins: TeamFlowPlugin[] = [
   programmeAdminPlugin,
   csvSourcesAdminPlugin,
   dokumentenquellenKurationPlugin,
+  anfragenKurationPlugin,
   filterAdminPlugin,
   feedbackAdminPlugin,
   dokumentReviewPlugin,

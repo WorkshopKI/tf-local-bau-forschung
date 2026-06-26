@@ -184,12 +184,17 @@ export function isSkillVerwaltungEnabled(): boolean {
 export function isAnfragenEnabled(): boolean {
   return features.anfragen === true;
 }
-/** URL des externen ZIM FAQ-Assistent-Artifacts (Modul „Anfragen"). Konfigwert mit
- *  kanonischem Default — ein unpublished Artifact bekommt eine neue UUID/URL,
- *  Tausch dann über `config.anfragen.dashboardUrl` ohne Komponenten-Änderung. */
+/** Kanonischer Code-Default der ZIM-FAQ-Assistent-URL (Modul „Anfragen") — die
+ *  EINZIGE Quelle im Code. `scripts/config-schema.mjs` trägt die URL NICHT mehr
+ *  doppelt (nur optionaler Per-Variant-Override-Slot). Team-weite Laufzeit-
+ *  Änderung läuft über Kuration → Anfragen (Sidecar `_intern/anfragen-settings.json`). */
+export const DEFAULT_ANFRAGEN_DASHBOARD_URL =
+  'https://claude.ai/public/artifacts/5faeb8ed-c446-4050-aad8-3464094a2b9f';
+
+/** Build-Config-Wert ODER Code-Default. (Laufzeit-Override aus dem Share wird
+ *  in `resolveAnfragenDashboardUrl` davorgeschaltet.) */
 export function getAnfragenDashboardUrl(): string {
-  return runtimeConfig.anfragen?.dashboardUrl
-    ?? 'https://claude.ai/public/artifacts/5faeb8ed-c446-4050-aad8-3464094a2b9f';
+  return runtimeConfig.anfragen?.dashboardUrl || DEFAULT_ANFRAGEN_DASHBOARD_URL;
 }
 /** In-App Streamlit-Bridge-Installer im KI-Assistent-Tab (Streamlit-URL +
  *  Bookmarklet + Verbindungstest). Zugang zum internen gpt-oss ohne API.

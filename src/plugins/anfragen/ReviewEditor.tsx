@@ -12,6 +12,7 @@ import { Copy, ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { getAnfragenDashboardUrl } from '@/config/feature-flags';
+import { resolveAnfragenDashboardUrl } from './settings';
 import { pruefeExportSicher } from './services/export-guard';
 import { buildSegments } from './highlight';
 import { useAnfragenStore } from './store';
@@ -29,7 +30,14 @@ export function ReviewEditor({ anfrage }: Props): React.ReactElement {
   const [text, setText] = useState(anfrage.anonymisiertMd);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
-  const dashboardUrl = getAnfragenDashboardUrl();
+  // URL override-aware auflösen (Share → IDB-Cache → Build-Default). Initial der
+  // sync Build-Default, damit der Export-Link sofort einen href hat.
+  const [dashboardUrl, setDashboardUrl] = useState(getAnfragenDashboardUrl());
+  useEffect(() => {
+    let cancelled = false;
+    void resolveAnfragenDashboardUrl(storage.idb).then(u => { if (!cancelled) setDashboardUrl(u); });
+    return () => { cancelled = true; };
+  }, [storage]);
 
   // Reset bei Anfrage-Wechsel oder erneuter Anonymisierung (sonst bleibt alter Text stehen).
   useEffect(() => { setText(anfrage.anonymisiertMd); }, [anfrage.id, anfrage.anonymisiertMd]);

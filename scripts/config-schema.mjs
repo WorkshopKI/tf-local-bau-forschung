@@ -241,11 +241,12 @@ export const DEFAULT_CONFIG = {
   // `npm run set-password -- <variant> <pw>` eingebacken (scripts/set-app-password.mjs).
   auth: null,
 
-  // Modul „Anfragen" (nur dev). Externes ZIM FAQ-Assistent-Artifact als Konfigwert
-  // (kein Hardcode in der Komponente) — ein unpublished Artifact bekommt eine
-  // neue URL, Tausch dann hier an EINER Stelle.
+  // Modul „Anfragen" (nur dev). Optionaler Per-Variant-Override der ZIM-FAQ-
+  // Assistent-URL. Der kanonische Default lebt als EINZIGE Code-Quelle in
+  // src/config/feature-flags.ts (DEFAULT_ANFRAGEN_DASHBOARD_URL); `null` = diesen
+  // Default verwenden. Team-weite Laufzeit-Änderung: Kuration → Anfragen.
   anfragen: {
-    dashboardUrl: 'https://claude.ai/public/artifacts/5faeb8ed-c446-4050-aad8-3464094a2b9f',
+    dashboardUrl: null,
   },
 };
 
