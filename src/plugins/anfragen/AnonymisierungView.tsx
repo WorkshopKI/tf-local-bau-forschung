@@ -12,6 +12,7 @@ import { ShieldCheck, ShieldAlert, Lock, Copy, ExternalLink, Eye, ArrowUpDown, R
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { Button } from '@/components/ui/button';
 import { getAnfragenDashboardUrl } from '@/config/feature-flags';
 import { loadSkillRegistry, getSkillById, type SkillRecord } from '@/core/services/skills';
 import {
@@ -277,28 +278,22 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
       <div className="awd-actbar">
         {schonAnonymisiert && (
           <>
-            <button
-              type="button"
-              onClick={() => kopieren.run()}
-              disabled={!sicher || kopieren.busy}
-              className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] border border-[var(--tf-border)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition-colors"
-            >
-              <Copy size={14} /> {kopieren.busy ? 'Kopiere…' : 'In Zwischenablage kopieren'}
-            </button>
-            <a
-              href={dashboardUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={onCombinedClick}
-              aria-disabled={!sicher}
-              tabIndex={sicher ? 0 : -1}
-              title="Öffnet den ZIM FAQ-Assistenten in einem neuen Tab. Voraussetzung: Internetzugang + eingeloggter Account."
-              className={`text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-text)] text-[var(--tf-bg)] flex items-center gap-1.5 transition-opacity ${
-                sicher ? 'cursor-pointer hover:opacity-90' : 'opacity-40 cursor-not-allowed pointer-events-none'
-              }`}
-            >
-              <ExternalLink size={14} /> Kopieren &amp; ZIM FAQ-Assistent öffnen
-            </a>
+            <Button variant="secondary" icon={Copy} loading={kopieren.busy} disabled={!sicher} onClick={() => kopieren.run()}>
+              In Zwischenablage kopieren
+            </Button>
+            <Button asChild variant="primary" className={!sicher ? 'pointer-events-none opacity-50' : undefined}>
+              <a
+                href={dashboardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onCombinedClick}
+                aria-disabled={!sicher}
+                tabIndex={sicher ? 0 : -1}
+                title="Öffnet den ZIM FAQ-Assistenten in einem neuen Tab. Voraussetzung: Internetzugang + eingeloggter Account."
+              >
+                <ExternalLink /> Kopieren &amp; ZIM FAQ-Assistent öffnen
+              </a>
+            </Button>
           </>
         )}
         {!schonAnonymisiert && skill && !aktiv && (
@@ -308,14 +303,15 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
           <span className="awd-note"><ShieldAlert size={12} /> {pruefung.treffer.length} Treffer ({trefferTypen}) — Export blockiert.</span>
         )}
         <span className="awd-sp" />
-        <button
-          type="button"
+        <Button
+          variant={schonAnonymisiert ? 'secondary' : 'primary'}
+          icon={ShieldCheck}
+          loading={anonymisieren.busy}
+          disabled={!kannLaufen}
           onClick={() => anonymisieren.run()}
-          disabled={!kannLaufen || anonymisieren.busy}
-          className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-text)] text-[var(--tf-bg)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition-opacity hover:opacity-90"
         >
-          <ShieldCheck size={14} /> {anonymisieren.busy ? 'Anonymisiere…' : schonAnonymisiert ? 'Erneut anonymisieren' : 'Anonymisieren'}
-        </button>
+          {schonAnonymisiert ? 'Erneut anonymisieren' : 'Anonymisieren'}
+        </Button>
       </div>
     </div>
   );

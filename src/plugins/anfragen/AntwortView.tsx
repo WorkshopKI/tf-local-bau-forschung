@@ -12,6 +12,7 @@ import { Eye, Rows, ArrowRight, Check, Copy, Mail } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { Button } from '@/components/ui/button';
 import { pruefePlatzhalter, finalisiere, polishAntwort, wiedereinsetzenSegmente } from './services/finalisierung';
 import { buildMailto, mailtoBodyZuLang } from './services/mailto';
 import { MARK_CLASS } from './highlight';
@@ -163,31 +164,19 @@ export function AntwortView({ anfrage, highlight, onToggleHighlight }: Props): R
         <label className="awd-check">
           <input type="checkbox" checked={polishOn} onChange={e => setPolishOn(e.target.checked)} /> Vor dem Einsetzen intern glätten
         </label>
-        <button
-          type="button"
-          onClick={() => finalisieren.run()}
-          disabled={!pasteText.trim() || finalisieren.busy}
-          className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-text)] text-[var(--tf-bg)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition-opacity hover:opacity-90"
-        >
-          <Check size={14} /> {finalisieren.busy ? 'Finalisiere…' : 'Finalisieren (Originaldaten einsetzen)'}
-        </button>
+        <Button variant="primary" icon={Check} loading={finalisieren.busy} disabled={!pasteText.trim()} onClick={() => finalisieren.run()}>
+          Finalisieren (Originaldaten einsetzen)
+        </Button>
         <span className="awd-sp" />
-        <button
-          type="button"
-          onClick={() => kopierenFinal.run()}
-          disabled={!finalText || kopierenFinal.busy}
-          className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] border border-[var(--tf-border)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition-colors"
-        >
-          <Copy size={14} /> {kopierenFinal.busy ? 'Kopiere…' : 'Finale Antwort kopieren'}
-        </button>
+        <Button variant="secondary" icon={Copy} loading={kopierenFinal.busy} disabled={!finalText} onClick={() => kopierenFinal.run()}>
+          Finale Antwort kopieren
+        </Button>
         {kannMailen ? (
-          <a
-            href={mailtoUrl}
-            className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] border border-[var(--tf-border)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] cursor-pointer flex items-center gap-1.5 transition-colors"
-            title="Öffnet einen Mail-Entwurf an den Original-Absender (Re: …)."
-          >
-            <Mail size={14} /> Antwort-Mail öffnen
-          </a>
+          <Button asChild variant="secondary">
+            <a href={mailtoUrl} title="Öffnet einen Mail-Entwurf an den Original-Absender (Re: …).">
+              <Mail /> Antwort-Mail öffnen
+            </a>
+          </Button>
         ) : (
           <span className="awd-note">
             <Mail size={12} />

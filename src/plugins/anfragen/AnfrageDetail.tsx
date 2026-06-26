@@ -8,6 +8,7 @@ import './anonymisierung-detail.css';
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { isDevFixturesEnabled } from '@/config/feature-flags';
+import { Button } from '@/components/ui/button';
 import { AnfrageDeleteControl } from './AnfrageDeleteControl';
 import { AnfrageStepper, viewForStatus, type DetailView } from './AnfrageStepper';
 import { AnonymisierungView } from './AnonymisierungView';
@@ -41,9 +42,9 @@ export function AnfrageDetail({ anfrage, onClose }: Props): React.ReactElement {
       <div className="awd-topbar">
         <div className="awd-ttl">{anfrage.betreff || '(ohne Betreff)'}</div>
         <AnfrageDeleteControl anfrage={anfrage} onDeleted={onClose} />
-        <button type="button" className="awd-x" onClick={onClose} title="Schließen" aria-label="Schließen">
-          <X size={18} />
-        </button>
+        <Button variant="ghost" size="icon-sm" onClick={onClose} title="Schließen" aria-label="Schließen">
+          <X />
+        </Button>
       </div>
 
       <div className="awd-meta">
