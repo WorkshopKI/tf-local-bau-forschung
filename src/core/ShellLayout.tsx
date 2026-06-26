@@ -8,6 +8,7 @@ import type { CommandItem } from '@/components/ui/CommandPalette';
 import { setDarkMode, isDarkMode } from '@/components/ui/theme';
 import { SyncStatusIndicator } from '@/components/ui/SyncStatusIndicator';
 import { BridgeStatusIndicator } from '@/components/ui/BridgeStatusIndicator';
+import { CsvFreshnessIndicator } from '@/components/ui/CsvFreshnessIndicator';
 import { BridgeDisconnectHint } from '@/components/ui/BridgeDisconnectHint';
 import { useTourContext } from '@/core/hooks/useTour';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -405,6 +406,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
                     nach rechts. gap-0.5 = Handoff `.stat{gap:2px}`. */}
                 <div className={`flex items-center gap-0.5 ${footerNarrow ? 'ml-0' : 'ml-auto'}`}>
                   <SyncStatusIndicator />
+                  {/* CSV-Import-Stand — nur in Import-Rollen (pl/kurator/dev),
+                      gleiches Gate wie „CSV-Quellen-Ordner" in den Einstellungen. */}
+                  {(isCsvAutoRefreshEnabled() || isKuratorMenusEnabled()) && <CsvFreshnessIndicator />}
                   <BridgeStatusIndicator />
                 </div>
                 <div className={footerNarrow ? 'ml-auto' : 'ml-0.5'}>

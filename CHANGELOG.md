@@ -5,6 +5,31 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.143.0 — Sidebar-Status „CSV-Import aktuell?" + Import-Modal (Juni 2026)
+
+MINOR — Dritter Status-Indikator unten links in der Sidebar (neben **● Sync** und **● KI**),
+der den Stand der täglichen Legacy-CSV-Exporte gegen den importierten Datenbestand zeigt.
+Additiv, keine Migration; nur in Import-Rollen (pl/kurator/dev) sichtbar.
+
+- **Neuer Indikator** ([CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx)):
+  Punkt+Wort „● CSV" im Muster von [BridgeStatusIndicator.tsx](src/components/ui/BridgeStatusIndicator.tsx).
+  **Grün** = alle verknüpften Exporte importiert · **rot** = es gibt neuere/geänderte Exporte ·
+  **grau** = nicht prüfbar (offline / Ordner nicht verknüpft / vor dem ersten Check) ·
+  **amber+pulse** = Import läuft.
+- **Inhaltsbasierte Erkennung**: Wiederverwendung von `collectCandidates`
+  ([auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts)) — Checksumme +
+  Größen-Guard, derselbe Pfad wie „Jetzt aktualisieren". Kein Kalendertag-Vergleich (Datei-mtime
+  über SMB unzuverlässig, vgl. v2.137.1). Die nur am Wochenende exportierte Projektbeschreibungs-
+  Quelle braucht **keinen** Sonderfall: sie zählt nur als „neuer", wenn ihr Inhalt sich wirklich
+  geändert hat — ein älterer, unveränderter Stand bleibt grün.
+- **Klick → Detail-Dialog** (analog „Interne KI"): Status, „Letzter CSV-Import" (jüngstes
+  `last_imported_at`), Liste der betroffenen Quellen, **„Jetzt importieren"** (`runDataUpdate` —
+  exakt der Einstellungen-Pfad, via [useAsyncAction](src/core/hooks/useAsyncAction.ts), Pitfall #15)
+  und „Zu den Einstellungen".
+- Hintergrund-Check ohne Permission-Prompt (`collectCandidates` nutzt nur `queryPermission`);
+  re-prüft beim Start-Pass-`done`, bei SMB-online und auf jedes `csvSourcesSignal` (nach Import,
+  Ordner-Verknüpfen, Snapshot-Sync). Verdrahtet in [ShellLayout.tsx](src/core/ShellLayout.tsx).
+
 ### v2.142.0 — Anfrage-Detail „Layout A": Vorher/Nachher-Zwei-Spalten (Juni 2026)
 
 MINOR — Umsetzung des Claude-Design-Handoffs (`_design/handoff/Anfragen`): die Detailansicht
