@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.136.3 — Anfragen: Recall-Eval-Panel startet eingeklappt (Juni 2026)
+
+PATCH — das dev-only Recall-Eval-Panel (`AnfrageRecallEval`) startet jetzt **eingeklappt**
+statt offen (`useState(false)`). Sauberere Startseite; das Panel wird erst bei Bedarf per
+Chevron aufgeklappt. Verhalten sonst unverändert (Chevron, Card, „Recall-Eval starten").
+
 ### v2.136.2 — Anfragen: flachere Drop-Zone + Umbenennung „ZIM-Dashboard" → „ZIM FAQ-Assistent" (Juni 2026)
 
 PATCH — zwei UX-/Wording-Tweaks im Anfragen-Modul, keine Verhaltens-/Datenänderung.

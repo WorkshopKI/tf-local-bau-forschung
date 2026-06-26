@@ -23,7 +23,7 @@ export function AnfrageRecallEval(): React.ReactElement {
   const bridge = useAIBridge();
   const [skill, setSkill] = useState<SkillRecord | null>(null);
   const [report, setReport] = useState<string | null>(null);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
