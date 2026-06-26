@@ -1,8 +1,10 @@
 // TODO(refactor v2.4+): mischt Datei-Picker (FS-API), Schema-Liste, Wartungs-/Reset-Sektion und 4 Dialog-Orchestrierungen — entlang dieser Grenzen aufteilen (opportunistisch beim nächsten Anfassen).
 // Vorschlag: SourceList.tsx + SourceDetailPanel.tsx + SourceModals.tsx; Plugin-Page wird zum Layout-Container.
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Trash2, Sparkles, Columns3 } from 'lucide-react';
+import { RefreshCw, Trash2, Sparkles, Columns3, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { isDevFixturesEnabled } from '@/config/feature-flags';
+import { fixtureSourceWarning } from './services/fixture-source-warning';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -193,6 +195,8 @@ export function CsvSourcesPage(): React.ReactElement {
   }
 
 
+  const fixtureWarn = fixtureSourceWarning(schemas, isDevFixturesEnabled());
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -216,6 +220,25 @@ export function CsvSourcesPage(): React.ReactElement {
       {pickError ? (
         <div className="mb-4 rounded-md border-[0.5px] border-red-300 bg-red-50 p-2.5 text-[12px] text-red-800">
           {pickError}
+        </div>
+      ) : null}
+
+      {fixtureWarn ? (
+        <div className="mb-4 rounded-md border-[0.5px] border-red-300 bg-red-50 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-red-700" />
+            <div className="text-[12px] text-red-900">
+              <div className="font-medium mb-0.5">
+                {fixtureWarn.allFixtures
+                  ? 'Nur Demo-/Fixture-Quellen registriert — keine echten CSV-Quellen.'
+                  : `${fixtureWarn.fixtureCount} von ${fixtureWarn.total} Quellen sind Demo-/Fixture-Quellen.`}
+              </div>
+              Diese <span className="font-mono">fixture-real-*</span>-Quellen sind vom Auto-Refresh
+              ausgeschlossen — die echten CSV-Exporte werden so <strong>nie importiert</strong>. Lege die
+              echten Quellen über <strong>„Neu registrieren"</strong> an (Encoding ggf. Windows-1252) und
+              lösche danach die Fixture-Quellen{fixtureWarn.allFixtures ? ' + „Antrags-Daten zurücksetzen"' : ''}.
+            </div>
+          </div>
         </div>
       ) : null}
 

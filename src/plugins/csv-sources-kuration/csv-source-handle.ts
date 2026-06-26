@@ -17,7 +17,7 @@
  */
 
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import type { CsvSchema } from '@/core/services/csv/types';
+import type { CsvSchema, CsvEncoding } from '@/core/services/csv/types';
 import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
 import { parseCsvPreview } from '@/core/services/csv';
 import { sha1Hex } from '@/core/services/csv/sha1';
@@ -391,7 +391,9 @@ export async function loadFileFromStoredHandle(
 /**
  * Persistiert nach einem (Re-)Import die Quelldatei-Metadaten eines Schemas:
  *  - das `FileSystemFileHandle` (für künftige Auto-Update-Checks), falls vorhanden,
- *  - `source_file_name` + `source_last_modified` auf dem Schema-Record.
+ *  - `source_file_name` + `source_last_modified` + `last_file_size` auf dem Record,
+ *  - optional `encoding` (vom Re-Import-Dialog gewählt) — damit der nächste
+ *    Auto-Refresh dieselbe Kodierung liest und nicht wieder Mojibake produziert.
  *
  * Audit-Logging bleibt bewusst beim Aufrufer — die Event-Semantik unterscheidet
  * sich je nach Trigger (Reselect / Auto-Update / neue Spalten übernommen).
@@ -399,9 +401,9 @@ export async function loadFileFromStoredHandle(
  */
 export async function persistCsvSourceMeta(
   idb: IDBStore,
-  opts: { schema: CsvSchema; file: File; sourceHandle: FileSystemFileHandle | null },
+  opts: { schema: CsvSchema; file: File; sourceHandle: FileSystemFileHandle | null; encoding?: CsvEncoding },
 ): Promise<void> {
-  const { schema, file, sourceHandle } = opts;
+  const { schema, file, sourceHandle, encoding } = opts;
   if (sourceHandle) {
     try {
       await setCsvSourceHandle(idb, schema.id, sourceHandle);
@@ -416,6 +418,7 @@ export async function persistCsvSourceMeta(
       source_file_name: file.name,
       source_last_modified: file.lastModified,
       last_file_size: file.size,
+      ...(encoding ? { encoding } : {}),
     });
   }
 }

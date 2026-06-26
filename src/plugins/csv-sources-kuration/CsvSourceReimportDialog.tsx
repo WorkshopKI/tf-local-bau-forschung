@@ -11,7 +11,7 @@ import {
   type ImportProgress,
 } from '@/core/services/csv';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
-import type { CsvSchema, ImportResult } from '@/core/services/csv/types';
+import type { CsvSchema, CsvEncoding, ImportResult } from '@/core/services/csv/types';
 import { Step4Progress } from './wizard/Step4Progress';
 import { persistCsvSourceMeta } from './csv-source-handle';
 import { confirmLockConflict } from './lock-conflict';
@@ -33,6 +33,11 @@ interface Props {
 }
 
 type Phase = 'reviewing' | 'importing';
+
+const ENCODING_LABEL: Record<CsvEncoding, string> = {
+  'UTF-8': 'UTF-8',
+  'windows-1252': 'Windows-1252',
+};
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -59,9 +64,35 @@ export function CsvSourceReimportDialog({
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [cancelled, setCancelled] = useState(false);
+  // Encoding-Auswahl: startet beim gespeicherten Schema-Wert, wird aber unten
+  // einmalig auf das automatisch erkannte Encoding korrigiert (z.B. Schema=UTF-8,
+  // Datei aber Windows-1252 → sonst Mojibake in den Umlaut-Werten).
+  const [encoding, setEncoding] = useState<CsvEncoding>(schema.encoding ?? 'UTF-8');
+  const [detectedEncoding, setDetectedEncoding] = useState<CsvEncoding | null>(null);
+  const autoSelectedRef = useRef(false);
 
-  // Header-Validierung beim Mount — der Aufrufer hat schon die Datei
-  // ausgewählt, wir gehen direkt in den Review-Schritt.
+  // Encoding-Auto-Erkennung beim Mount (kein Force → readWithEncodingFallback).
+  // Weicht das erkannte Encoding vom gespeicherten Schema-Wert ab, stellen wir
+  // die Auswahl EINMAL automatisch um (User-Overrides danach respektiert).
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const probe = await parseCsvPreview(file, 1, { separator: schema.separator });
+        if (!alive) return;
+        setDetectedEncoding(probe.detected.encoding);
+        if (!autoSelectedRef.current && probe.detected.encoding !== (schema.encoding ?? 'UTF-8')) {
+          autoSelectedRef.current = true;
+          setEncoding(probe.detected.encoding);
+        }
+      } catch {
+        /* Erkennung best-effort — die Validierung unten meldet echte Lesefehler. */
+      }
+    })();
+    return () => { alive = false; };
+  }, [file, schema]);
+
+  // Header-Validierung — läuft beim Mount und bei jedem Encoding-Wechsel neu.
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -69,7 +100,7 @@ export function CsvSourceReimportDialog({
       setError(null);
       try {
         const preview = await parseCsvPreview(file, 1, {
-          encoding: schema.encoding,
+          encoding,
           separator: schema.separator,
         });
         if (!alive) return;
@@ -82,13 +113,13 @@ export function CsvSourceReimportDialog({
       }
     })();
     return () => { alive = false; };
-  }, [file, schema]);
+  }, [file, schema, encoding]);
 
   // Beim Unmount laufenden Import sauber abbrechen.
   useEffect(() => () => abortRef.current?.abort(), []);
 
   async function persistSourceMeta(): Promise<void> {
-    await persistCsvSourceMeta(storage.idb, { schema, file, sourceHandle });
+    await persistCsvSourceMeta(storage.idb, { schema, file, sourceHandle, encoding });
     await logAudit(storage.idb, {
       action: trigger === 'auto-update' ? 'csv_source_auto_updated' : 'csv_source_reselected',
       user: session.kuratorName ?? undefined,
@@ -112,6 +143,8 @@ export function CsvSourceReimportDialog({
       const r = await importCsvSource(storage.idb, schema.id, file, {
         signal: abortRef.current.signal,
         onProgress: p => setProgress(p),
+        // Gewähltes Encoding für DIESEN Import erzwingen (überschreibt schema.encoding).
+        encodingOverride: encoding,
         // Expliziter „CSV neu wählen"-Re-Import → Checksum-Skip umgehen (z.B.
         // wenn nur das Mapping geändert wurde, die Datei aber identisch ist).
         force: true,
@@ -201,6 +234,28 @@ export function CsvSourceReimportDialog({
                 {formatBytes(file.size)} · geändert {new Date(file.lastModified).toLocaleString('de-DE')}
               </div>
             </div>
+          </div>
+
+          <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <label className="flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)]">
+              Encoding:
+              <select
+                value={encoding}
+                onChange={e => setEncoding(e.target.value as CsvEncoding)}
+                disabled={validating}
+                className="text-[12px] px-1.5 py-1 rounded border border-[var(--tf-border)] bg-[var(--tf-bg)]"
+              >
+                <option value="UTF-8">UTF-8</option>
+                <option value="windows-1252">Windows-1252</option>
+              </select>
+            </label>
+            {detectedEncoding && detectedEncoding !== (schema.encoding ?? 'UTF-8') ? (
+              <span className="text-[11px] text-amber-700">
+                Erkannt: {ENCODING_LABEL[detectedEncoding]} (Schema war {ENCODING_LABEL[schema.encoding ?? 'UTF-8']}) — automatisch umgestellt.
+              </span>
+            ) : detectedEncoding ? (
+              <span className="text-[11px] text-[var(--tf-text-tertiary)]">Erkannt: {ENCODING_LABEL[detectedEncoding]}</span>
+            ) : null}
           </div>
 
           {validating ? (

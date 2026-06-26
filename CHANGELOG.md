@@ -5,6 +5,27 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.139.0 — CSV-Kuration: Encoding-Wahl im Re-Import + Warnung bei Demo-/Fixture-Quellen (Juni 2026)
+
+MINOR — zwei Härtungen aus dem „Produktion lief unbemerkt auf Demo-Fixtures"-Vorfall
+(echte Legacy-CSVs wurden nie importiert, weil nur `fixture-real-*`-Quellen registriert
+waren — die sind per `isFixtureSchemaId` vom Auto-Refresh ausgeschlossen).
+
+- **Encoding-Selektor im „CSV neu wählen"-Dialog** ([CsvSourceReimportDialog.tsx](src/plugins/csv-sources-kuration/CsvSourceReimportDialog.tsx)):
+  bisher las der Re-Import stur mit dem **gespeicherten** `schema.encoding` (oft UTF-8) →
+  Windows-1252-Umlaute wurden zu `�`. Jetzt: Dropdown UTF-8 / Windows-1252 **plus
+  Auto-Erkennung** (`readWithEncodingFallback`) — weicht das erkannte Encoding vom Schema
+  ab, wird die Auswahl einmalig automatisch korrigiert und ein Hinweis gezeigt. Die Wahl
+  fließt als `encodingOverride` in den Import **und** wird aufs Schema persistiert
+  (`persistCsvSourceMeta` schreibt `encoding` mit), damit der nächste Auto-Refresh dieselbe
+  Kodierung nutzt. Die Header-Validierung re-läuft bei jedem Encoding-Wechsel.
+- **Warn-Banner bei Fixture-Quellen** ([CsvSourcesPage.tsx](src/plugins/csv-sources-kuration/CsvSourcesPage.tsx)):
+  in einem Nicht-Dev-Build (`!isDevFixturesEnabled()`) mit registrierten `fixture-real-*`-
+  Quellen erscheint ein rotes Banner („Nur Demo-/Fixture-Quellen … echte CSV-Exporte werden
+  nie importiert"). Entscheidung in der getesteten Pure-Funktion
+  [`fixtureSourceWarning`](src/plugins/csv-sources-kuration/services/fixture-source-warning.ts)
+  (allFixtures vs. gemischt). Hätte den Vorfall sofort sichtbar gemacht.
+
 ### v2.138.0 — Einstellungen/Speicher: „Letzter CSV-Import" mit Datum/Uhrzeit (Juni 2026)
 
 MINOR — die Datenaktualisierung-Sektion (Einstellungen → Speicher) zeigt jetzt, von
