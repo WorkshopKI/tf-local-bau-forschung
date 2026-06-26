@@ -52,6 +52,10 @@ const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
 const COLLAPSED_CATS_KEY = 'tf-feedback-board-collapsed-cats';
 // Zuletzt gewählte Ansicht überlebt Reloads; Default = Split (Erstansicht).
 const VIEW_MODE_KEY = 'tf-feedback-board-view-mode';
+// Zuletzt gewählter Status-Filter überlebt Reloads; Default = „Offen" (offene
+// Themen zuerst; der Chip ist dadurch standardmäßig aufgeklappt, weil
+// CollapsibleSeg bei value ≠ defaultValue expandiert).
+const STATUS_FILTER_KEY = 'tf-feedback-board-status-filter';
 
 function loadCollapsedCats(): Set<string> {
   try {
@@ -79,11 +83,19 @@ function loadViewMode(): ViewMode {
   return 'split';
 }
 
+function loadStatusFilter(): StatusFilter {
+  try {
+    const raw = localStorage.getItem(STATUS_FILTER_KEY);
+    if (raw === 'all' || raw === 'open' || raw === 'done') return raw;
+  } catch { /* ignore */ }
+  return 'open';
+}
+
 export function FeedbackBoardPage(): React.ReactElement {
   const storage = useStorage();
   const [tickets, setTickets] = useState<FeedbackItem[]>([]);
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
-  const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>(loadStatusFilter);
   const [filterKategorie, setFilterKategorie] = useState<FeedbackCategory | ''>('');
   // Bereich = context.page-Label (CollapsibleSeg ist label-basiert). '' = Alle.
   const [filterArea, setFilterArea] = useState<string>('');
@@ -95,6 +107,11 @@ export function FeedbackBoardPage(): React.ReactElement {
   const changeViewMode = useCallback((mode: ViewMode): void => {
     setViewMode(mode);
     try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch { /* ignore */ }
+  }, []);
+
+  const changeStatusFilter = useCallback((status: StatusFilter): void => {
+    setFilterStatus(status);
+    try { localStorage.setItem(STATUS_FILTER_KEY, status); } catch { /* ignore */ }
   }, []);
 
   // silent: kein Loading-Spinner (für Hintergrund-Re-Reads bei Tab-Fokus —
@@ -272,7 +289,7 @@ export function FeedbackBoardPage(): React.ReactElement {
             label="Status"
             value={STATUS_TO_LABEL[filterStatus]}
             items={statusItems}
-            onChange={l => setFilterStatus(LABEL_TO_STATUS[l] ?? 'all')}
+            onChange={l => changeStatusFilter(LABEL_TO_STATUS[l] ?? 'all')}
           />
           <CollapsibleSeg
             label="Kategorie"

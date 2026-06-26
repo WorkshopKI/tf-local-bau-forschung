@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.149.1 — Feedback-Board: Status-Filter „Offen" als Default (Juni 2026)
+
+PATCH — Öffentliches Board „Feedback Übersicht" ([FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)):
+Status-Filter startet jetzt auf **„Offen"** statt „Alle" (offene Themen zuerst); der Chip ist dadurch
+standardmäßig aufgeklappt (CollapsibleSeg expandiert bei `value ≠ defaultValue`). Die Auswahl des
+Users wird in `localStorage` (`tf-feedback-board-status-filter`) gemerkt — wie schon Ansicht +
+Kategorie-Collapse. Kein Datenmodell-Eingriff.
+
 ### v2.149.0 — Feedback: Archiviert-Filter + feinere Aufwand-Skala (Juni 2026)
 
 MINOR — Zwei Verbesserungen im Kurator-Feedback-Modul (aus dem Board-Feedback).
