@@ -6,6 +6,7 @@ import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useFilterState } from './filter/useFilterState';
 import { VIEWS, viewCounts, type ViewKey } from './views';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { menuLabel, isAuslastungEnabled, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -109,17 +110,16 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
             direkt neben dem Titel, damit der User immer sieht, dass der
             Kuerzel-Filter aktiv ist — auch wenn die Quickfilter-Toolbar
             darunter expandiert ist. */}
-        <div className="mb-3 flex items-center gap-3 flex-wrap">
-          <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">
-            {menuLabel('antraege', 'Förderanträge')}
-          </h1>
-          {bearbeiterFilter.active ? (
+        <PageHeader
+          className="mb-3"
+          title={menuLabel('antraege', 'Förderanträge')}
+          meta={bearbeiterFilter.active ? (
             <BearbeiterFilterPill
               tokens={bearbeiterFilter.tokens}
               includeBegleitung={bearbeiterFilter.includeBegleitung}
             />
           ) : null}
-        </div>
+        />
 
         {/* Toolbar: Tabs links, Suche + Filter rechts (ml-auto). pr-4 (nur
             List/Cards) kompensiert das px-4-Innenpadding der AntragCard, damit

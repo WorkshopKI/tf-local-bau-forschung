@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.147.0 — PageHeader / StatusDot / FilterChip adoptiert (Layout-Schicht Phase 4) (Juni 2026)
+
+MINOR — Drei byte-invariante Umstellungen auf die neuen Primitive (gleiches Aussehen, jetzt aus
+der Schicht). Stellen, die nicht 1:1 invariant wären, bewusst aufgeschoben (dokumentiert in
+[docs/layout-audit.md](docs/layout-audit.md) → „Adoptions-Status").
+
+- **PageHeader** ← Förderanträge-Titel ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+  — exakter Match (gleiche Wrapper-/H1-Klassen, Meta-Slot für die Bearbeiter-Filter-Pill).
+- **StatusDot** ← [StatusDotRow.tsx](src/plugins/antraege/StatusDotRow.tsx) (Farbe weiter via
+  `getStatusCategoryColor()`; `title`/`ariaLabel` erhalten).
+- **FilterChip** ← [ActiveFilterChips.tsx](src/plugins/antraege/filter/ActiveFilterChips.tsx).
+- **Bewusst nicht adoptiert:** PageHeader an Auslastung/Einstellungen (abweichendes
+  `leading`/`tracking`/`gap` → nicht invariant) und StatusBadge (keine byte-invariante Fundstelle;
+  `StatusBarRow` rendert Balken, `KategoriePill` ist reicher). Beide stehen bereit/smoke-getestet.
+
 ### v2.146.0 — ScopeTabs-Konsolidierung: Förderanträge-Tabs + Chat-Pills (Layout-Schicht Phase 3) (Juni 2026)
 
 MINOR — Die zwei driftenden „Listen-Sichten-mit-Zähler"-Implementierungen laufen jetzt durch

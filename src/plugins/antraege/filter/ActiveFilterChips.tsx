@@ -1,5 +1,5 @@
-import { X } from 'lucide-react';
 import type { ActiveFilter, FilterDefinition } from '@/core/services/csv';
+import { FilterChip } from '@/components/ui/FilterChip';
 
 interface Props {
   active: ActiveFilter[];
@@ -16,17 +16,12 @@ export function ActiveFilterChips({ active, definitions, onRemove }: Props): Rea
         if (!def) return null;
         const summary = summarize(af, def);
         return (
-          <button
+          <FilterChip
             key={af.filterId}
-            type="button"
-            onClick={() => onRemove(af.filterId)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] transition-colors"
-            style={{ border: '0.5px solid var(--tf-border)' }}
-          >
-            <span className="text-[var(--tf-text-secondary)]">{def.name}:</span>
-            <span className="truncate max-w-[180px]">{summary}</span>
-            <X size={12} className="text-[var(--tf-text-tertiary)]" />
-          </button>
+            label={def.name}
+            value={summary}
+            onRemove={() => onRemove(af.filterId)}
+          />
         );
       })}
     </div>

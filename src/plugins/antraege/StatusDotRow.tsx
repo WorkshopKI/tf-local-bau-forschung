@@ -2,6 +2,7 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusCategory } from '@/core/utils/status-canonical';
 import { getStatusLabel } from '@/core/utils/status-mappings';
 import { getStatusCategoryColor, getStatusCategoryLabel } from './groupAggregates';
+import { StatusDot } from '@/components/ui/StatusBadge';
 
 interface Props {
   tvs: AntragListItem[];
@@ -28,12 +29,11 @@ export function StatusDotRow({ tvs, maxVisible = 7 }: Props): React.ReactElement
           ? getStatusLabel(tv.status.trim())
           : getStatusCategoryLabel(cat);
         return (
-          <span
+          <StatusDot
             key={tv.aktenzeichen}
-            className="inline-block w-[6px] h-[6px] rounded-full"
-            style={{ background: getStatusCategoryColor(cat) }}
+            color={getStatusCategoryColor(cat)}
             title={`${tv.aktenzeichen} — ${statusLabel}`}
-            aria-label={statusLabel}
+            ariaLabel={statusLabel}
           />
         );
       })}

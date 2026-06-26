@@ -79,6 +79,19 @@ In [src/theme.css](../src/theme.css):
 
 **Bewusst NICHT in Scope:** Förderanträge-Master/Detail auf die Shell (Filter-Sidebar-Drittpane); Suche/Auslastung/Einstellungen-Archetyp-Umstellung; `intake`-Slot an der Shell; Konsolidierung der SectionHeader-Derivate.
 
+## Adoptions-Status (Phase 3 + 4)
+
+**Migriert (byte-invariant, gleiches Aussehen):**
+- `ScopeTabs variant='tabs'` ← Förderanträge-Header-Tabs ([AntraegeHeader.tsx](../src/plugins/antraege/AntraegeHeader.tsx))
+- `ScopeTabs variant='pills'` ← Chat-Historie-Filter ([ConversationSidebar.tsx](../src/plugins/chat/components/ConversationSidebar.tsx)) — die eine bewusste Konsistenz-Änderung
+- `PageHeader` ← Förderanträge-Titel ([AntraegeHeader.tsx](../src/plugins/antraege/AntraegeHeader.tsx)) — exakter Match (gleiche Wrapper-/H1-Klassen + Meta-Slot)
+- `StatusDot` ← [StatusDotRow.tsx](../src/plugins/antraege/StatusDotRow.tsx)
+- `FilterChip` ← [ActiveFilterChips.tsx](../src/plugins/antraege/filter/ActiveFilterChips.tsx)
+
+**Gebaut, aber (noch) NICHT adoptiert — bewusst, weil nicht 1:1 invariant:**
+- `PageHeader` an **Auslastung** ([AuslastungView.tsx](../src/plugins/auslastung/views/AuslastungView.tsx)) + **Einstellungen** ([EinstellungenPage.tsx](../src/plugins/einstellungen/EinstellungenPage.tsx)): deren H1 nutzt abweichendes `leading-none`/`tracking-[-0.01em]`/`gap-0` bzw. ein nacktes `<h1>` ohne `leading` — eine Umstellung würde das Aussehen minimal ändern (verboten außer Chat-Pills). Adoption erst, wenn `PageHeader` die nötigen Props bekommt oder eine bewusste Normalisierung beauftragt wird.
+- `StatusBadge` (Pill mit Label): aktuell **keine** byte-invariante Fundstelle — `StatusBarRow` rendert *Balken* (kein Pill/Dot), `KategoriePill` hat ein reicheres Affordance-/Farbmodell (Ring + Häkchen + Remove). Das Primitiv steht für künftige Status-Pills bereit (smoke-getestet).
+
 ## Regressions-Anker (Tests, die nicht inhaltlich angefasst werden)
 
 - [src/components/master-detail/__tests__/masterDetailLayout-logic.test.ts](../src/components/master-detail/__tests__/masterDetailLayout-logic.test.ts)
