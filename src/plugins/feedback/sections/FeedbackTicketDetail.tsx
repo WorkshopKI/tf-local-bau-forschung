@@ -15,7 +15,7 @@ import {
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { isFeedbackDeleteEnabled } from '@/config/feature-flags';
-import { DEFAULT_FEEDBACK_CONFIG, EFFORT_LABELS } from '@/core/types/feedback';
+import { DEFAULT_FEEDBACK_CONFIG, EFFORT_LABELS, EFFORT_ORDER } from '@/core/types/feedback';
 import type { EffortEstimate, FeedbackCategory, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { CATEGORY_COLORS, CATEGORY_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/components/feedback/constants';
 import { TicketScreenshots } from './TicketScreenshots';
@@ -220,7 +220,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
             <label className="text-[10.5px] text-[var(--tf-text-tertiary)]">Aufwand</label>
             <select value={effort} onChange={e => setEffort(e.target.value as EffortEstimate | '')} className={inputClass} style={inputStyle}>
               <option value="">— Nicht geschätzt —</option>
-              {(['S', 'M', 'L', 'XL'] as EffortEstimate[]).map(e => <option key={e} value={e}>{e} — {EFFORT_LABELS[e]}</option>)}
+              {EFFORT_ORDER.map(e => <option key={e} value={e}>{e} — {EFFORT_LABELS[e]}</option>)}
             </select>
           </div>
         ) : <div />}

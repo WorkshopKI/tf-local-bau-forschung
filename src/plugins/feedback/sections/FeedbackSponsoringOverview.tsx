@@ -10,8 +10,8 @@ import {
   saveFeedbackConfig,
   istArchiviert,
 } from '@/core/services/feedback';
-import type { EffortEstimate, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
-import { DEFAULT_BUDGET_POINTS_PER_QUARTER, DEFAULT_HOURS_TO_POINTS_FACTOR, DEFAULT_SPONSORING_THRESHOLDS } from '@/core/types/feedback';
+import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
+import { DEFAULT_BUDGET_POINTS_PER_QUARTER, DEFAULT_HOURS_TO_POINTS_FACTOR, DEFAULT_SPONSORING_THRESHOLDS, EFFORT_ORDER } from '@/core/types/feedback';
 import { EFFORT_SHORT_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/components/feedback/constants';
 
 interface Props { tickets: FeedbackItem[]; config: FeedbackConfig; onConfigChanged: () => void; }
@@ -93,8 +93,8 @@ export function FeedbackSponsoringOverview({ tickets, config, onConfigChanged }:
         <section>
           <h2 className="text-[13px] font-medium text-[var(--tf-text)] mb-2">Schwellen & Budget</h2>
           <div className="space-y-3">
-            <div className="grid grid-cols-4 gap-2">
-              {(['S', 'M', 'L', 'XL'] as EffortEstimate[]).map(e => (
+            <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
+              {EFFORT_ORDER.map(e => (
                 <div key={e}>
                   <label className="text-[10px] text-[var(--tf-text-tertiary)]">{e}</label>
                   <input type="number" min={1} max={200} value={thresholds[e]}

@@ -11,6 +11,8 @@ interface Props {
   filterCategory: FeedbackCategory | '';
   filterStatus: FeedbackStatus | '';
   filterArea: string;
+  showArchived: boolean;
+  onToggleArchived: (v: boolean) => void;
   statusItems: CollapsibleSegItem[];
   kategorieItems: CollapsibleSegItem[];
   bereichItems: CollapsibleSegItem[];
@@ -21,15 +23,15 @@ interface Props {
 }
 
 // Label↔Wert-Maps für die label-basierte CollapsibleSeg (wie im User-Board).
-// Status bleibt granular (Kurator braucht die feinen Stati); 'archiviert' wird im
-// Filter nicht angeboten, ist im TO_LABEL-Record aber vollständig (Typ-Deckung).
+// Status bleibt granular (Kurator braucht die feinen Stati); 'archiviert' wird als
+// eigener Chip angeboten (zeigt gezielt nur die Archivierten).
 const STATUS_TO_LABEL: Record<FeedbackStatus | '', string> = {
   '': 'Alle', neu: 'Neu', geplant: 'Geplant', in_bearbeitung: 'In Bearb.',
   umgesetzt: 'Umgesetzt', abgelehnt: 'Abgelehnt', archiviert: 'Archiviert',
 };
 const LABEL_TO_STATUS: Record<string, FeedbackStatus | ''> = {
   Alle: '', Neu: 'neu', Geplant: 'geplant', 'In Bearb.': 'in_bearbeitung',
-  Umgesetzt: 'umgesetzt', Abgelehnt: 'abgelehnt',
+  Umgesetzt: 'umgesetzt', Abgelehnt: 'abgelehnt', Archiviert: 'archiviert',
 };
 const KAT_TO_LABEL: Record<FeedbackCategory | '', string> = {
   '': 'Alle', problem: 'Bug', idea: 'Idee', ux: 'UX', praise: 'Lob', question: 'Frage',
@@ -39,7 +41,7 @@ const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
 };
 
 export function FeedbackTicketList(props: Props): React.ReactElement {
-  const { tickets, loading, selectedId, filterCategory, filterStatus, filterArea, statusItems, kategorieItems, bereichItems, onFilterCategory, onFilterStatus, onFilterArea, onSelect } = props;
+  const { tickets, loading, selectedId, filterCategory, filterStatus, filterArea, showArchived, onToggleArchived, statusItems, kategorieItems, bereichItems, onFilterCategory, onFilterStatus, onFilterArea, onSelect } = props;
 
   return (
     <div>
@@ -66,6 +68,15 @@ export function FeedbackTicketList(props: Props): React.ReactElement {
             startCollapsed
           />
         )}
+        <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer ml-1">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={e => onToggleArchived(e.target.checked)}
+            className="cursor-pointer accent-[var(--tf-primary)]"
+          />
+          Archivierte einblenden
+        </label>
       </div>
 
       {/* List */}

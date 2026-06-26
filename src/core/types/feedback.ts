@@ -15,17 +15,26 @@ export type LLMCategoryCode = 'bug' | 'feature' | 'ux' | 'praise' | 'question';
 
 // ── Phase 3: Aufwand + Sponsoring ───────────────────────────────────────────
 
-export type EffortEstimate = 'S' | 'M' | 'L' | 'XL';
+export type EffortEstimate = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | 'Epic';
 
+/** Geordnete Aufwand-Stufen (klein → groß) — einzige Quelle für die UI-Auswahl
+ *  (Dropdown + Schwellen-Editor), damit keine hartkodierten Stufen-Arrays driften. */
+export const EFFORT_ORDER: EffortEstimate[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Epic'];
+
+// Stunden-Äquivalent (8 h/Tag, 5-Tage-Woche) — nur für Sortierung + Default-
+// Sponsoring-Schwelle, monoton steigend. Anzeige nutzt EFFORT_LABELS.
 export const EFFORT_HOURS: Record<EffortEstimate, number> = {
-  S: 2, M: 8, L: 16, XL: 40,
+  XS: 2, S: 4, M: 8, L: 16, XL: 32, XXL: 40, Epic: 80,
 };
 
 export const EFFORT_LABELS: Record<EffortEstimate, string> = {
-  S: 'Klein (~2h)',
-  M: 'Mittel (~8h)',
-  L: 'Groß (~16h)',
-  XL: 'Sehr groß (~40h)',
+  XS: '2 h',
+  S: '4 h',
+  M: '8 h',
+  L: '2 Tage',
+  XL: '4 Tage',
+  XXL: '1 Woche',
+  Epic: '> 2 Wochen',
 };
 
 export interface FeedbackSponsor {
@@ -203,7 +212,7 @@ export const LEGACY_FEEDBACK_SHARED_FILE = 'feedback/feedback.json';
 export const LEGACY_FEEDBACK_PROMPT_FILE = 'feedback/system-prompt.md';
 
 export const DEFAULT_SPONSORING_THRESHOLDS: Record<EffortEstimate, number> = {
-  S: 5, M: 15, L: 30, XL: 50,
+  XS: 3, S: 5, M: 15, L: 30, XL: 50, XXL: 70, Epic: 100,
 };
 export const DEFAULT_HOURS_TO_POINTS_FACTOR = 3;
 export const DEFAULT_BUDGET_POINTS_PER_QUARTER = 10;

@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.149.0 — Feedback: Archiviert-Filter + feinere Aufwand-Skala (Juni 2026)
+
+MINOR — Zwei Verbesserungen im Kurator-Feedback-Modul (aus dem Board-Feedback).
+
+- **Archivierte ausblenden:** Im Status-Filter gibt es jetzt einen eigenen Chip „Archiviert" plus
+  eine Checkbox „Archivierte einblenden" ([FeedbackTicketList.tsx](src/plugins/feedback/sections/FeedbackTicketList.tsx)).
+  Standardmäßig sind archivierte Tickets **überall ausgeblendet** — auch unter „Alle" (der „Alle"-Zähler
+  zeigt entsprechend die nicht-archivierte Zahl). Die Checkbox blendet sie additiv in „Alle" ein
+  (Preference in `localStorage`); der „Archiviert"-Chip zeigt gezielt nur die Archivierten, unabhängig
+  von der Checkbox. Filter-/Zähler-Logik in [FeedbackAdminPage.tsx](src/plugins/feedback/FeedbackAdminPage.tsx)
+  über `istArchiviert` (Pitfall #21, kein Literal-Vergleich).
+- **Feinere Aufwand-Skala** (7 statt 4 Stufen): `XS=2h, S=4h, M=8h, L=2 Tage, XL=4 Tage, XXL=1 Woche,
+  Epic=>2 Wochen` ([feedback.ts](src/core/types/feedback.ts)). Neuer geordneter Export `EFFORT_ORDER`
+  ersetzt die hartkodierten Stufen-Arrays in Aufwand-Dropdown + Sponsoring-Schwellen-Editor (DRY).
+  `EFFORT_HOURS` / `EFFORT_LABELS` / `EFFORT_SHORT_LABELS` / `DEFAULT_SPONSORING_THRESHOLDS` entsprechend
+  erweitert (`Record<EffortEstimate, …>` erzwingt Vollständigkeit). **Keine Daten-Migration** — die
+  Codes `S/M/L/XL` bleiben gültig; Anzeige-Labels werden am Render-Punkt abgeleitet.
+
 ### v2.148.0 — Konventions-Guard `no-parallel-scope-tabs` (Layout-Schicht Phase 5) (Juni 2026)
 
 MINOR (test-only) — Drift-Schutz: verhindert, dass unterstrichene Listen-Sicht-Tabs außerhalb

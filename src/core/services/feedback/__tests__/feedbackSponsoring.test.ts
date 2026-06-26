@@ -120,7 +120,7 @@ describe('getSponsoringProgress', () => {
     const cfg: FeedbackConfig = {
       ...baseConfig,
       hours_to_points_factor: 5,
-      sponsoring_thresholds: { S: 10, M: 20, L: 40, XL: 80 },
+      sponsoring_thresholds: { XS: 5, S: 10, M: 20, L: 40, XL: 80, XXL: 120, Epic: 200 },
     };
     const ticket = makeFeedback({
       category: 'idea',

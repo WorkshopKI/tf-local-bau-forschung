@@ -184,8 +184,11 @@ export function composeFeedbackText(
 
 /** Kurze Aufwand-Labels für kompakte Badge-Darstellung (Board-Cards + Listen). */
 export const EFFORT_SHORT_LABELS: Record<EffortEstimate, string> = {
-  S: 'S ~2h',
-  M: 'M ~8h',
-  L: 'L ~16h',
-  XL: 'XL ~40h',
+  XS: 'XS 2h',
+  S: 'S 4h',
+  M: 'M 8h',
+  L: 'L 2T',
+  XL: 'XL 4T',
+  XXL: 'XXL 1Wo',
+  Epic: 'Epic >2Wo',
 };
