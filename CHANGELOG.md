@@ -5,6 +5,22 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.140.1 — Snapshot-Write schließt Fixture-Quellen aus (Defense-in-depth) (Juni 2026)
+
+PATCH — schließt die Lücke, durch die der Fixture-Vorfall überhaupt entstehen konnte.
+**Ursache des Vorfalls:** Ein versehentlich gegen den echten Share geöffneter **Dev-Build**
+(nur dort `demoDataBundled: true`) auto-seedet die `fixture-real-*`-Demo-Quellen; der
+nächste Snapshot-Write serialisierte den **gesamten** Schema-Store ([snapshot.ts](src/core/services/csv/snapshot.ts))
+inkl. dieser Fixtures auf den Share → überschrieb die echten Quellen → alle pl/kurator-
+Rechner zogen sich den Demo-Snapshot. (Build-Zeit-Schutz gegen `demoDataBundled` auf
+`production` gibt es, aber keinen Laufzeit-Schutz am Publish-Boundary.)
+
+- **Fix:** `loadSmallStoreData` (Choke-Point für Voll- UND Delta-Write) filtert
+  `fixture-real-*`-Schemas (`isFixtureSchemaId`) aus dem publizierten Snapshot — Demo-Daten
+  gelangen nie auf den Share; der lokale Dev-Store behält die Fixtures.
+- Regressions-Test [snapshot-fixture-exclusion.test.ts](src/core/services/csv/__tests__/snapshot-fixture-exclusion.test.ts):
+  echtes + Fixture-Schema → publizierte `csv_schemas.jsonl` enthält nur das echte.
+
 ### v2.140.0 — CSV-Kuration: „Demo-Quelle → echte Quelle umwandeln" (Juni 2026)
 
 MINOR — Abschluss der Fixture-Härtung: ein Kurator kann eine fälschlich auf einem

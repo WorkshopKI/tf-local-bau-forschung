@@ -16,6 +16,7 @@ import {
 } from './idb-csv';
 import { murmurhash3 } from './hash';
 import { healMissingVerbuende } from './verbuende-rebuild';
+import { isFixtureSchemaId } from '../seed/fixture-ids';
 import {
   SYNC_VERSION_KEY,
   SYNC_STORE_HASH_KEY,
@@ -207,7 +208,12 @@ async function loadSmallStoreData(idb: IDBStore, programmId: string): Promise<Sm
 
   const verbundHistorie = await listVerbundHistorieByProgramm(idb, programmId);
   const akronymIndex = await listAkronymIndexByProgramm(idb, programmId);
-  const csvSchemas = await listSchemasByProgramm(idb, programmId);
+  // Demo-/Fixture-Quellen (fixture-real-*) NIE in den publizierten Snapshot
+  // schreiben: ein versehentlich gegen den echten Share geöffneter Dev-Build
+  // (der die Fixtures auto-seedet) würde sonst die echten Quellen überschreiben
+  // und alle pl/kurator-Rechner zögen sich die Demo-Daten (Vorfall 2026-06).
+  // Defense-in-depth am Publish-Boundary — der lokale Store behält die Fixtures.
+  const csvSchemas = (await listSchemasByProgramm(idb, programmId)).filter(s => !isFixtureSchemaId(s.id));
   const csvRowHashes = await listRowHashesBySchemas(idb, csvSchemas.map(s => s.id));
   const unterprogramme = await listUnterprogrammeByProgramm(idb, programmId);
   return {
