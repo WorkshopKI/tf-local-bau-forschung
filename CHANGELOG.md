@@ -5,6 +5,20 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.148.0 — Konventions-Guard `no-parallel-scope-tabs` (Layout-Schicht Phase 5) (Juni 2026)
+
+MINOR (test-only) — Drift-Schutz: verhindert, dass unterstrichene Listen-Sicht-Tabs außerhalb
+des `ScopeTabs`-Primitivs neu hand-gebaut werden.
+
+- **Neuer Guard** `no-parallel-scope-tabs` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)):
+  scannt `.tsx` auf die kanonische Aktiv-Tab-Signatur `border-b-2 border-[var(--tf-text)]` außerhalb
+  von `ScopeTabs.tsx`. `@/components/ui/tabs` (Inline-Style-Border) trifft das Muster nicht.
+- **Grandfatherte Bestands-Tabs** (außerhalb des schlanken Umfangs, Migration später):
+  `SkillVerwaltungPage.tsx` (gezählte Tabs, ScopeTabs-Kandidat) + `SkillEditor.tsx` (2-Tab-Nav mit
+  Border-Container, anderes Muster) — per Pfad-Allowlist, dokumentiert in
+  [docs/layout-audit.md](docs/layout-audit.md). Echte Ausnahme weiter über `// allow-scope-tabs`.
+- `MAX_FILE_LOC` 1095→1135 (Guard-Zuwachs in der Aggregator-Datei).
+
 ### v2.147.0 — PageHeader / StatusDot / FilterChip adoptiert (Layout-Schicht Phase 4) (Juni 2026)
 
 MINOR — Drei byte-invariante Umstellungen auf die neuen Primitive (gleiches Aussehen, jetzt aus

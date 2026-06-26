@@ -748,7 +748,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 29;    // Ist 29; +1 'workflowEntwuerfe' (Workflow-Verwaltung dev-Freigabe, v2.133)
   const MAX_SERVICE_DIRS = 22;     // Ist 22 (+ msg: .msg-Parser fuers Anfragen-Modul, v2.x); davor 21 (skill-feedback File-first Substrat S1)
-  const MAX_FILE_LOC = 1095;       // Ist 1083 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1135;       // Ist 1122 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1077,6 +1077,45 @@ describe('preset-contrast-contract (CTA-Primaerfarbe lesbar gegen weissen Vorder
         failing.map(r => `  - ${r.name}: ${r.ratio.toFixed(2)}:1`).join('\n') +
         `\nFix: Lightness (l) des Presets in src/components/ui/theme.ts (PRESET_COLORS) senken, ` +
         `bis der Kontrast >= ${THRESHOLD}:1 ist (vgl. Bernstein 42% -> 40%).`,
+      );
+    }
+  });
+});
+
+describe('no-parallel-scope-tabs (Listen-Sicht-Tabs gehören in ScopeTabs)', () => {
+  // Die unterstrichene Aktiv-Tab-Signatur 'border-b-2 border-[var(--tf-text)]' ist
+  // die kanonische Darstellung der Listen-Sicht-Tabs (ScopeTabs variant='tabs';
+  // Förderanträge + Chat sind konsolidiert). Sie darf außerhalb des Primitivs nicht
+  // neu hand-gebaut werden, sonst driften die Tabs wieder auseinander. Generische
+  // Section-/Settings-Navigation nutzt @/components/ui/tabs (Inline-Style-Border,
+  // trifft diese Tailwind-Signatur NICHT).
+  const SIGNATURE = 'border-b-2 border-[var(--tf-text)]';
+  // Kanonische Heimat + bewusst grandfatherte Bestands-Tabs (außerhalb des
+  // schlanken Umfangs dieser Schicht-Einführung; Migration als spätere Phase offen,
+  // siehe docs/layout-audit.md → „Adoptions-Status"):
+  const ALLOWED_SUFFIXES = [
+    'components/ui/ScopeTabs.tsx',                                // Primitiv-Definition
+    'plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx', // gezählte Tabs, ScopeTabs-Kandidat (später)
+    'plugins/skill-verwaltung-kuration/SkillEditor.tsx',         // 2-Tab-Nav mit Border-Container (anderes Muster)
+  ];
+  const isAllowed = (file: string): boolean => {
+    const rel = relPath(file);
+    return rel.includes('/__tests__/') || ALLOWED_SUFFIXES.some(s => rel.endsWith(s));
+  };
+
+  it('keine hand-gebaute ScopeTabs-Unterstrich-Signatur außerhalb des Primitivs', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(...findInFile(file, l => l.includes(SIGNATURE), 'allow-scope-tabs'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Unterstrichene Listen-Sicht-Tabs gehören in das ScopeTabs-Primitiv\n` +
+        `(@/components/ui/ScopeTabs, variant='tabs') — nicht hand-bauen. Vordefinierte\n` +
+        `Listen-Sichten mit Zähler → ScopeTabs; generische Navigation → @/components/ui/tabs.\n` +
+        `Echte Ausnahme: '// allow-scope-tabs: <grund>' auf der Zeile (oder Pfad in\n` +
+        `ALLOWED_SUFFIXES mit Begründung).\n\nTreffer:\n${fmt(findings)}`,
       );
     }
   });
