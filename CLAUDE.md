@@ -15,6 +15,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Plugin / CSV-Feld / Filter / IDB-Store / Feedback-Status / Embedding-Modell / Tab / … anlegen | [docs/agents/](docs/agents/README.md) — passenden Cheatsheet wählen |
 | UI-Patch (Komponenten, Farben, Tokens) | [DESIGN_GUIDE.md](DESIGN_GUIDE.md) |
 | Tabellenartige Seite mit Detail/Editor (Master-Detail-Split) | [docs/agents/add-table-detail-page.md](docs/agents/add-table-detail-page.md) — `MasterDetailLayout` |
+| UI-Muster wählen (Seitenkopf, Listen-Sicht-Tabs-mit-Zähler, Status-Badge/Dot, Filter-Chip) | [UI-Muster / Layout-Schicht](#ui-muster--layout-schicht) unten + [docs/layout-audit.md](docs/layout-audit.md) |
 | `file://`-Constraint vergessen? | [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) + Critical Constraints unten |
 | Bug-Risiko-Check vor Commit | [Common Pitfalls](#common-pitfalls) unten (nummerierte Liste) überfliegen |
 | Wiederkehrende Bug-Klassen (Cold-Start-Refresh, FSAPI, Parallel-Varianten, Embedding-Caches) | [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md) |
@@ -74,6 +75,28 @@ Folgende Pfade NICHT lesen oder referenzieren beim Arbeiten am Code:
 ### File Size Limit
 
 **Kohäsion vor Zeilenzahl** — eine Datei = **eine kohärente Verantwortung**, nicht eine Zeilenzahl. Ab **~400–500 Zeilen** prüfen, ob mehrere Verantwortlichkeiten vermischt sind (dann entlang dieser Grenzen aufteilen); **nie nach Zeilenzahl splitten** (künstliches Zerreißen kohärenter Einheiten = Fehlalarm). Aufteilung **opportunistisch**, wenn ein Patch die Datei ohnehin anfasst. Detail + Beispiele (kohärente Daten-Files / State-Machines / Orchestratoren dürfen größer sein; echte Mehrfach-Verantwortung wie UI-Komponenten / Multi-Domain-Services trennen): [docs/architecture/project-structure.md](docs/architecture/project-structure.md#file-size-limit).
+
+### UI-Muster / Layout-Schicht
+
+Die App hat eine **geteilte, domänenfreie Layout-Schicht** in `src/components/` — neue Module bauen Layout **nicht** selbst nach. Erst die Schicht prüfen, dann das passende Bauteil verwenden. Inventar + Drift-Evidenz + Adoptions-Status: [docs/layout-audit.md](docs/layout-audit.md).
+
+**Entscheidungstabelle:**
+
+| Brauche ich… | nimm |
+|---|---|
+| Liste + Detail (+ optional Aufnahme) | `MasterDetailLayout` ([src/components/master-detail/](src/components/master-detail/MasterDetailLayout.tsx)) — reich (Förderanträge) wie schlank über denselben Detail-Slot |
+| Ergebnis-/Datentabelle (sortierbar, Spalten-Konfig) | `SortableTable` + `SortIcon` + `ColumnPicker` ([src/components/data-table/](src/components/data-table/)) |
+| Vordefinierte **Listen-Sichten mit Zähler** | `ScopeTabs` ([src/components/ui/ScopeTabs.tsx](src/components/ui/ScopeTabs.tsx)) — `variant='tabs'` (breit/unterstrichen) · `variant='pills'` (kompakt) |
+| Generische Section-/Settings-Navigation (ohne Zähler-Sichten) | `Tabs` ([src/components/ui/tabs.tsx](src/components/ui/tabs.tsx)) |
+| Seitenkopf (großer Titel + Meta/Aktionen) | `PageHeader` ([src/components/ui/PageHeader.tsx](src/components/ui/PageHeader.tsx)) |
+| Caps-Abschnitts-Label | `SectionHeader` ([src/components/ui/SectionHeader.tsx](src/components/ui/SectionHeader.tsx)) |
+| Status als Pill / farbiger Punkt | `StatusBadge` / `StatusDot` ([src/components/ui/StatusBadge.tsx](src/components/ui/StatusBadge.tsx)) — Farbe kommt vom Aufrufer |
+| Filter-Chip „Label: Wert" (optional entfernbar) | `FilterChip` ([src/components/ui/FilterChip.tsx](src/components/ui/FilterChip.tsx)) |
+| Primär-CTA | shadcn `Button` `variant='default'` ([src/components/ui/button.tsx](src/components/ui/button.tsx)) — trägt seit v2.144 die wählbare `--tf-primary` |
+
+**Harte Regel:** Neue Module bauen **KEIN** eigenes Layout. Kein paralleles Master/Detail, **keine eigene Listen-Sicht-Tab-Leiste** (gehört in `ScopeTabs`), kein eigener Page-Header/Badge. Förderanträge (reich) und Auslastung (schlank) sind dieselbe `MasterDetailLayout`. Der Guard `no-parallel-scope-tabs` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)) fängt neue hand-gebaute Unterstrich-Tabs.
+
+**Bewusste Ausnahme:** `AntraegePage` nutzt für Master/Detail noch eine eigene Implementierung (Filter-Sidebar-Drittpane) statt `MasterDetailLayout` — Migration als spätere Phase offen (siehe [docs/layout-audit.md](docs/layout-audit.md)).
 
 ### Plugin System
 
@@ -299,7 +322,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 
 > **Hinweis zur Nummerierung**: append-only. Niemals umnummerieren — Querverweise (in Code-Kommentaren, anderen Docs, Commit-Messages) werden sonst ungültig. Wer einen Pitfall für überholt hält, markiert ihn mit *„(überholt seit vX.Y, siehe …)"* statt ihn zu löschen.
 >
-> **Maschinell erzwungen**: Pitfalls mit `[test: …]` fängt [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts) (Vitest, Inline-Ausnahme `// allow-<rule>: <grund>`). Aktuelle Convention-Tests: `no-direct-status-compare` (#12), `no-direct-feedback-status-compare` (#21), `no-direct-bearbeiter-kuerzel` (#27), `no-hardcoded-datenshare-mode` (#25), `no-raw-async-onclick` (#15), `no-raw-worker` (#5), `no-raw-modal` (Klasse 7) + `no-new-tf-ui-files` (P1a/P1b) + `no-raw-active-transport` (#30) + `no-hardcoded-kategorie-mapping` (#31) + `eval-gui-fictional-only` (Skill-Eval-GUI dev) + `theme-token-contract` (Design-Handoff-Token-Vertrag, v2.67.1-„nackt"-Falle: `var(--tf-…)` ohne Fallback muss global in `theme.css` existieren) sowie die Klasse-1/-5-Checks `import-requires-store-refresh`, `antraege-write-requires-listview-rebuild` und `no-hardcoded-canonical-field`. **Wiederkehrende, NICHT-nummerierte Bug-Klassen** (Cold-Start-Store-Refresh, FSAPI-One-Prompt-per-Gesture, Parallel-Varianten-Storage, machine-lokale Embedding-Caches) stehen separat in [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
+> **Maschinell erzwungen**: Pitfalls mit `[test: …]` fängt [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts) (Vitest, Inline-Ausnahme `// allow-<rule>: <grund>`). Aktuelle Convention-Tests: `no-direct-status-compare` (#12), `no-direct-feedback-status-compare` (#21), `no-direct-bearbeiter-kuerzel` (#27), `no-hardcoded-datenshare-mode` (#25), `no-raw-async-onclick` (#15), `no-raw-worker` (#5), `no-raw-modal` (Klasse 7) + `no-new-tf-ui-files` (P1a/P1b) + `no-raw-active-transport` (#30) + `no-hardcoded-kategorie-mapping` (#31) + `eval-gui-fictional-only` (Skill-Eval-GUI dev) + `theme-token-contract` (Design-Handoff-Token-Vertrag, v2.67.1-„nackt"-Falle: `var(--tf-…)` ohne Fallback muss global in `theme.css` existieren) + `preset-contrast-contract` (jedes `PRESET_COLORS`-Preset ≥ 4,5:1 weißer CTA-Text) + `no-parallel-scope-tabs` (Listen-Sicht-Tabs gehören in `ScopeTabs`, siehe [UI-Muster / Layout-Schicht](#ui-muster--layout-schicht)) sowie die Klasse-1/-5-Checks `import-requires-store-refresh`, `antraege-write-requires-listview-rebuild` und `no-hardcoded-canonical-field`. **Wiederkehrende, NICHT-nummerierte Bug-Klassen** (Cold-Start-Store-Refresh, FSAPI-One-Prompt-per-Gesture, Parallel-Varianten-Storage, machine-lokale Embedding-Caches) stehen separat in [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
 
 **Index nach Thema** (Sprung-Hilfe — die Pitfalls selbst stehen darunter in Nummern-Reihenfolge):
 
