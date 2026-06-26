@@ -63,7 +63,7 @@ export function AnfrageDetail({ anfrage, onClose }: Props): React.ReactElement {
         )}
       </div>
 
-      <AnfrageStepper status={anfrage.status} view={view} onPick={setView} />
+      <AnfrageStepper status={anfrage.status} onPick={setView} />
 
       {view === 'anon' ? (
         <AnonymisierungView anfrage={anfrage} highlight={highlight} onToggleHighlight={toggleHighlight} />

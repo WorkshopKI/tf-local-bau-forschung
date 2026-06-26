@@ -27,7 +27,6 @@
 .awd-step.done .awd-n { background: var(--tf-success-bg); color: var(--tf-success-text); border-color: transparent; }
 .awd-step.active { color: var(--tf-text); background: var(--tf-primary-light); }
 .awd-step.active .awd-n { background: var(--tf-text); color: var(--tf-bg); border-color: var(--tf-text); }
-.awd-step.viewing { box-shadow: inset 0 -2px 0 var(--tf-text); }
 .awd-sep { color: var(--tf-border-hover); font-size: 12px; }
 
 /* ---------- view area ---------- */

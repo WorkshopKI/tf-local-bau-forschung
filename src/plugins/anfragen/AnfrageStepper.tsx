@@ -2,7 +2,7 @@
  * Stepper als View-Umschalter (Layout A): zeigt den echten Pipeline-Status
  * (done/active/future aus `statusIndex`) UND schaltet beim Klick die Detail-View
  * (Steps 1–3 → „anon", 4–5 → „answer"). Der active-Ring bleibt am echten
- * Status-Schritt; die Schritte der gezeigten View tragen zusätzlich `viewing`.
+ * Status-Schritt; welche View gezeigt wird, benennt der Pair-Header darunter.
  */
 import { Fragment } from 'react';
 import { STATUS_LABEL, STATUS_REIHENFOLGE, statusIndex } from './status';
@@ -20,19 +20,17 @@ export function viewForStatus(status: AnfrageStatus): DetailView {
 
 interface Props {
   status: AnfrageStatus;
-  view: DetailView;
   onPick: (view: DetailView) => void;
 }
 
-export function AnfrageStepper({ status, view, onPick }: Props): React.ReactElement {
+export function AnfrageStepper({ status, onPick }: Props): React.ReactElement {
   const aktuell = statusIndex(status);
   return (
     <div className="awd-stepper">
       {STATUS_REIHENFOLGE.map((s, i) => {
         const done = i < aktuell;
         const active = i === aktuell;
-        const viewing = VIEW_OF_STEP[i] === view;
-        const cls = `awd-step${done ? ' done' : ''}${active ? ' active' : ''}${viewing ? ' viewing' : ''}`;
+        const cls = `awd-step${done ? ' done' : ''}${active ? ' active' : ''}`;
         return (
           <Fragment key={s}>
             <button
