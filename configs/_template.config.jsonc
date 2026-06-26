@@ -116,7 +116,7 @@
     // Optional, fehlt = aus. Nur dev (Testballon).
     "nfNachforderungen": false,
     // Modul „Anfragen": E-Mail-Kurzanfrage (.msg) → interne KI-Anonymisierung →
-    // Export ins externe ZIM-Dashboard (Zwischenablage) → deterministische
+    // Export in den externen ZIM FAQ-Assistenten (Zwischenablage) → deterministische
     // Wiedereinsetzung → mail-fertige Antwort. Plugin-Flag. Optional, fehlt = aus.
     // Nur dev (Testballon).
     "anfragen": false,

@@ -122,7 +122,7 @@ export interface TeamflowFeatures {
    *  Sichtbar dev + kurator + pl. Optional, default false. */
   skillVerwaltung?: boolean;
   /** Modul „Anfragen": E-Mail-Kurzanfrage (.msg) → interne Anonymisierung →
-   *  Export ins externe ZIM-Dashboard → deterministische Wiedereinsetzung.
+   *  Export in den externen ZIM FAQ-Assistenten → deterministische Wiedereinsetzung.
    *  Plugin-Flag. Nur dev (Testballon). Optional, default false. */
   anfragen?: boolean;
   /** In-App „Streamlit Bridge"-Installer (KI-Assistent-Tab): Streamlit-URL +
@@ -211,7 +211,7 @@ export interface TeamflowConfig {
   dev?: TeamflowDevConfig;
   /** v2.16 — optionales Build-Time Rollen-Passwort-Gate (pl + kurator). */
   auth?: TeamflowAuthConfig;
-  /** Modul „Anfragen" — externes ZIM-Dashboard-Artifact (nur dev). Konfigwert
+  /** Modul „Anfragen" — externes ZIM FAQ-Assistent-Artifact (nur dev). Konfigwert
    *  (kein Hardcode): ein einmal unpublished Artifact bekommt eine neue URL,
    *  Tausch dann an EINER Stelle. */
   anfragen?: TeamflowAnfragenConfig;

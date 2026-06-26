@@ -5,10 +5,13 @@ interface FileDropZoneProps {
   onFiles: (files: File[]) => void;
   accept?: string;
   multiple?: boolean;
+  /** Innen-Abstand (Tailwind-Padding) — bestimmt die Höhe der Zone. Default `p-8`;
+   *  z.B. `px-6 py-4` für eine flachere, platzsparende Variante. */
+  padding?: string;
   children?: React.ReactNode;
 }
 
-export function FileDropZone({ onFiles, accept, multiple = false, children }: FileDropZoneProps): React.ReactElement {
+export function FileDropZone({ onFiles, accept, multiple = false, padding = 'p-8', children }: FileDropZoneProps): React.ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -37,7 +40,7 @@ export function FileDropZone({ onFiles, accept, multiple = false, children }: Fi
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
-      className={`flex flex-col items-center justify-center gap-2 p-8 border-dashed rounded-[var(--tf-radius-lg)] cursor-pointer transition-colors ${
+      className={`flex flex-col items-center justify-center gap-2 ${padding} border-dashed rounded-[var(--tf-radius-lg)] cursor-pointer transition-colors ${
         dragOver ? 'bg-[var(--tf-hover)]' : 'hover:bg-[var(--tf-hover)]'
       }`}
       style={{ border: `1.5px dashed ${dragOver ? 'var(--tf-border-hover)' : 'var(--tf-border)'}` }}

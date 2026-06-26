@@ -32,8 +32,8 @@ export function AnfrageAufnahme(): React.ReactElement {
 
   return (
     <div className="mb-4">
-      <FileDropZone accept=".msg" onFiles={handleFiles}>
-        <Mail size={20} className="text-[var(--tf-text-tertiary)]" />
+      <FileDropZone accept=".msg" onFiles={handleFiles} padding="px-6 py-4">
+        <Mail size={18} className="text-[var(--tf-text-tertiary)]" />
         <p className="text-[13px] text-[var(--tf-text-secondary)]">
           {create.busy ? 'Lese .msg…' : 'Outlook-.msg-Kurzanfrage hierher ziehen oder klicken'}
         </p>

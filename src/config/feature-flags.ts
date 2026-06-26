@@ -178,13 +178,13 @@ export function isSkillVerwaltungEnabled(): boolean {
   return features.skillVerwaltung === true;
 }
 /** Modul „Anfragen": E-Mail-Kurzanfrage (.msg) → interne KI-Anonymisierung →
- *  Export ins externe ZIM-Dashboard → deterministische Wiedereinsetzung. Plugin
- *  gegated über `featureFlag: 'anfragen'`. Nur dev (Testballon). Default false
- *  (`=== true`, Backward-Kompat). */
+ *  Export in den externen ZIM FAQ-Assistenten → deterministische Wiedereinsetzung.
+ *  Plugin gegated über `featureFlag: 'anfragen'`. Nur dev (Testballon). Default
+ *  false (`=== true`, Backward-Kompat). */
 export function isAnfragenEnabled(): boolean {
   return features.anfragen === true;
 }
-/** URL des externen ZIM-Dashboard-Artifacts (Modul „Anfragen"). Konfigwert mit
+/** URL des externen ZIM FAQ-Assistent-Artifacts (Modul „Anfragen"). Konfigwert mit
  *  kanonischem Default — ein unpublished Artifact bekommt eine neue UUID/URL,
  *  Tausch dann über `config.anfragen.dashboardUrl` ohne Komponenten-Änderung. */
 export function getAnfragenDashboardUrl(): string {

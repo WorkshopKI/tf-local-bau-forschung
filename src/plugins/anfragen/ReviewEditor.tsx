@@ -128,12 +128,12 @@ export function ReviewEditor({ anfrage }: Props): React.ReactElement {
           onClick={onCombinedClick}
           aria-disabled={!sicher}
           tabIndex={sicher ? 0 : -1}
-          title="Öffnet das ZIM-Dashboard in einem neuen Tab. Voraussetzung: Internetzugang zu claude.ai + eingeloggter Claude-Account, sonst Login-Wall."
+          title="Öffnet den ZIM FAQ-Assistenten in einem neuen Tab. Voraussetzung: Internetzugang zu claude.ai + eingeloggter Claude-Account, sonst Login-Wall."
           className={`text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-text)] text-[var(--tf-bg)] flex items-center gap-1.5 transition-opacity ${
             sicher ? 'cursor-pointer hover:opacity-90' : 'opacity-40 cursor-not-allowed pointer-events-none'
           }`}
         >
-          <ExternalLink size={12} /> Kopieren &amp; ZIM-Dashboard öffnen
+          <ExternalLink size={12} /> Kopieren &amp; ZIM FAQ-Assistent öffnen
         </a>
       </div>
     </div>

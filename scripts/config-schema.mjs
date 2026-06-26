@@ -181,7 +181,7 @@ export const DEFAULT_CONFIG = {
      *  (kein requiredFlags-Eintrag). */
     skillVerwaltung: true,
     /** Modul „Anfragen": E-Mail-Kurzanfrage (.msg) → interne Anonymisierung →
-     *  Export ins externe ZIM-Dashboard → deterministische Wiedereinsetzung.
+     *  Export in den externen ZIM FAQ-Assistenten → deterministische Wiedereinsetzung.
      *  Plugin-Flag, nur dev (Testballon). Optional, default false
      *  (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     anfragen: true,
@@ -241,7 +241,7 @@ export const DEFAULT_CONFIG = {
   // `npm run set-password -- <variant> <pw>` eingebacken (scripts/set-app-password.mjs).
   auth: null,
 
-  // Modul „Anfragen" (nur dev). Externes ZIM-Dashboard-Artifact als Konfigwert
+  // Modul „Anfragen" (nur dev). Externes ZIM FAQ-Assistent-Artifact als Konfigwert
   // (kein Hardcode in der Komponente) — ein unpublished Artifact bekommt eine
   // neue URL, Tausch dann hier an EINER Stelle.
   anfragen: {

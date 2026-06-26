@@ -57,7 +57,7 @@ export function RueckimportFinalisierung({ anfrage }: Props): React.ReactElement
       <textarea
         value={pasteText}
         onChange={e => setPasteText(e.target.value)}
-        placeholder="Anonymisierte Antwort aus dem ZIM-Dashboard hier einfügen (muss die Platzhalter [TYP_N] enthalten) …"
+        placeholder="Anonymisierte Antwort aus dem ZIM FAQ-Assistenten hier einfügen (muss die Platzhalter [TYP_N] enthalten) …"
         spellCheck={false}
         className="w-full h-40 p-3 text-[12.5px] leading-[1.5] font-mono rounded-[var(--tf-radius)] border border-[var(--tf-border)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none resize-y"
       />

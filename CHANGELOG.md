@@ -5,6 +5,29 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.136.2 — Anfragen: flachere Drop-Zone + Umbenennung „ZIM-Dashboard" → „ZIM FAQ-Assistent" (Juni 2026)
+
+PATCH — zwei UX-/Wording-Tweaks im Anfragen-Modul, keine Verhaltens-/Datenänderung.
+
+- **Drop-Zone flacher**: die `.msg`-Aufnahmefläche frisst weniger vertikalen Platz
+  (`p-8` → `px-6 py-4`, Mail-Icon 20 → 18 px). Dafür hat `FileDropZone` jetzt einen
+  optionalen `padding`-Prop (Default `p-8` — die anderen drei Aufrufer Dokumente/Anträge
+  bleiben unverändert); nur der Anfragen-Aufruf nutzt die kompakte Variante.
+- **„ZIM-Dashboard" → „ZIM FAQ-Assistent"**: das externe Claude-Artifact heißt in der UI
+  jetzt „ZIM FAQ-Assistent" — Export-Button (`Kopieren & ZIM FAQ-Assistent öffnen`),
+  Button-Tooltip und der Rückimport-Placeholder. Die internen Bezeichner
+  (`anfragen.dashboardUrl`, `getAnfragenDashboardUrl`) bleiben unverändert (kein
+  Config-/API-Bruch); aktive Doc-Kommentare wurden mitgezogen.
+
+Die URL des Assistenten ist und bleibt ein Konfigwert: Default in `scripts/config-schema.mjs`
+(`anfragen.dashboardUrl`, genutzt von `npm run dev`) + Fallback in `src/config/feature-flags.ts`
+(`getAnfragenDashboardUrl`); pro Build-Variante via `anfragen.dashboardUrl` in der jeweiligen
+`configs/*.config.json` überschreibbar.
+
+Betrifft `src/components/ui/FileDropZone.tsx`, `src/plugins/anfragen/AnfrageAufnahme.tsx`,
+`src/plugins/anfragen/ReviewEditor.tsx`, `src/plugins/anfragen/RueckimportFinalisierung.tsx`
++ Doc-Kommentare in den Config-/Schema-Dateien. Keine Migration.
+
 ### v2.136.1 — Anfragen: Recall-Eval einklappbar + Tooltip in der E-Mail-Liste (Juni 2026)
 
 PATCH — zwei kleine UX-Tweaks im Anfragen-Modul, keine Verhaltens-/Datenänderung.
