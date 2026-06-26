@@ -55,17 +55,15 @@ export function AnfrageAnonymisierung({ anfrage }: Props): React.ReactElement {
   const kannLaufen = aktiv && !!anfrage.originalMd.trim();
 
   return (
-    <section className="mt-5">
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <h3 className="text-[12px] font-medium text-[var(--tf-text-secondary)] flex items-center gap-1.5">
-          <ShieldCheck size={13} /> Anonymisierung
-        </h3>
+    <div>
+      <div className="flex items-center justify-end gap-3 mb-2">
         <button
           type="button"
           onClick={() => anonymisieren.run()}
           disabled={!kannLaufen || anonymisieren.busy}
-          className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-text)] text-[var(--tf-bg)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-opacity"
+          className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-text)] text-[var(--tf-bg)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-opacity inline-flex items-center gap-1.5"
         >
+          <ShieldCheck size={13} />
           {anonymisieren.busy ? 'Anonymisiere…' : schonAnonymisiert ? 'Erneut anonymisieren' : 'Anonymisieren'}
         </button>
       </div>
@@ -112,6 +110,6 @@ export function AnfrageAnonymisierung({ anfrage }: Props): React.ReactElement {
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 }

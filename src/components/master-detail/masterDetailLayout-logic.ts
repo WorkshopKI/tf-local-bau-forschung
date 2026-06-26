@@ -44,6 +44,30 @@ export function listPaneStyle(hasDetail: boolean, effectiveWidth: number): CSSPr
   return hasDetail ? { width: effectiveWidth, flexShrink: 0, position: 'relative' } : undefined;
 }
 
+/**
+ * Opt-in Collapse-to-Rail (Liste vollständig auf eine schmale Leiste einklappen,
+ * additiv neben dem Resize). Reine Helfer wie in `antraege/listCollapse.ts` —
+ * node-testbar.
+ */
+
+/** Rohwert aus localStorage → Bool. Default (unbekannt/leer) = ausgeklappt. */
+export function parseCollapsedFlag(raw: string | null): boolean {
+  return raw === '1';
+}
+
+/** Bool → persistierbarer Rohwert. */
+export function serializeCollapsedFlag(collapsed: boolean): string {
+  return collapsed ? '1' : '0';
+}
+
+/**
+ * Soll die Liste gerendert werden (statt der schmalen Leiste)? Eingeklappt wird
+ * nur im Detail-Modus — ohne Detail füllt die Liste ohnehin die volle Breite.
+ */
+export function shouldShowList(hasDetail: boolean, collapsed: boolean): boolean {
+  return !hasDetail || !collapsed;
+}
+
 const EDITABLE_TAGS: ReadonlySet<string> = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
 /**

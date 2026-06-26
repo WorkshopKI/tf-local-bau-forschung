@@ -1,6 +1,8 @@
-/** Master-Liste der Anfragen (Betreff + Absender + aktueller Status). */
+/** Listenansicht der Anfragen (Betreff + Absender + farbiger Status + Datum). */
 import type { Anfrage } from './types';
-import { STATUS_LABEL } from './status';
+import { AnfrageStatusBadge } from './AnfrageStatusBadge';
+import { AnfrageDeleteControl } from './AnfrageDeleteControl';
+import { formatAnfrageDatum } from './format';
 
 interface Props {
   anfragen: Anfrage[];
@@ -15,25 +17,33 @@ export function AnfrageListe({ anfragen, selectedId, onSelect }: Props): React.R
         const active = a.id === selectedId;
         return (
           <li key={a.id}>
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => onSelect(a.id)}
-              className={`w-full text-left px-3 py-2 rounded-[var(--tf-radius)] transition-colors cursor-pointer ${
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(a.id); } }}
+              className={`group w-full text-left px-3 py-2 rounded-[var(--tf-radius)] transition-colors cursor-pointer ${
                 active ? 'bg-[var(--tf-bg-secondary)]' : 'hover:bg-[var(--tf-hover)]'
               }`}
             >
-              <div className="truncate text-[13px] text-[var(--tf-text)]" title={a.betreff || '(ohne Betreff)'}>
-                {a.betreff || '(ohne Betreff)'}
+              <div className="flex items-start justify-between gap-2">
+                <div className="truncate text-[13px] text-[var(--tf-text)]" title={a.betreff || '(ohne Betreff)'}>
+                  {a.betreff || '(ohne Betreff)'}
+                </div>
+                <div className="shrink-0 flex items-center gap-1.5">
+                  <AnfrageStatusBadge status={a.status} />
+                  <AnfrageDeleteControl anfrage={a} revealOnHover />
+                </div>
               </div>
               <div className="flex items-center justify-between gap-2 mt-0.5">
                 <span className="truncate text-[11.5px] text-[var(--tf-text-tertiary)]" title={a.absenderEmail || undefined}>
                   {a.absenderEmail || '—'}
                 </span>
-                <span className="shrink-0 text-[11px] text-[var(--tf-text-secondary)]">
-                  {STATUS_LABEL[a.status]}
+                <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)]">
+                  {formatAnfrageDatum(a.erstelltAm)}
                 </span>
               </div>
-            </button>
+            </div>
           </li>
         );
       })}

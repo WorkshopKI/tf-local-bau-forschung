@@ -5,6 +5,30 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.141.0 — Anfragen: UI-Parität mit Förderanträgen (Ansichten, Collapse, Löschen) (Juni 2026)
+
+MINOR — das Anfragen-Modul ([src/plugins/anfragen/](src/plugins/anfragen/), dev) übernimmt
+die Layout-Patterns der Förderanträge für mehr Konsistenz. Additiv, keine Migration.
+
+- **Drei Ansichten** Liste/Tabelle/Karten über einen store-agnostischen, jetzt geteilten
+  `ViewModeToggle` ([src/components/ui/ViewModeToggle.tsx](src/components/ui/ViewModeToggle.tsx) —
+  promoviert aus der Skill-Verwaltung, die per dünnem Re-Export unverändert weiterläuft).
+  `viewMode` persistiert pro Browser (localStorage). Tabelle nutzt den generischen
+  `SortableTable` ([AnfrageTabelle.tsx](src/plugins/anfragen/AnfrageTabelle.tsx)), Karten ein
+  Tile-Grid ([AnfrageKarten.tsx](src/plugins/anfragen/AnfrageKarten.tsx)).
+- **Collapse-to-Rail**: `MasterDetailLayout` ([src/components/master-detail/MasterDetailLayout.tsx](src/components/master-detail/MasterDetailLayout.tsx))
+  bekommt opt-in `collapsible`/`listCollapsedKey`/`collapsedRailLabel` + Render-Funktions-`list`
+  (Collapse-API). Default aus → die 4 anderen Konsumenten bleiben unverändert. Im schmalen
+  Sidebar-Modus wird die Listenansicht erzwungen.
+- **Prominenter Status** als farbiger Badge (Fortschritt-Semantik, `STATUS_VARIANT` in
+  [status.ts](src/plugins/anfragen/status.ts)) im Detail-Header und in allen Listen-Ansichten.
+- **Löschen** im Detail-Header und als Zeilen-/Karten-Hover-Aktion über die wiederverwendbare
+  [AnfrageDeleteControl.tsx](src/plugins/anfragen/AnfrageDeleteControl.tsx) (Inline-Zwei-Schritt-
+  Bestätigung, `useAsyncAction`).
+- **Einklappbare Detail-Abschnitte** (Stammdaten/Mailtext/Anonymisierung/Antwort) über die um
+  ein optionales `storageKey` (Persistenz) erweiterte
+  [CollapsibleSection.tsx](src/components/ui/CollapsibleSection.tsx).
+
 ### v2.140.1 — Snapshot-Write schließt Fixture-Quellen aus (Defense-in-depth) (Juni 2026)
 
 PATCH — schließt die Lücke, durch die der Fixture-Vorfall überhaupt entstehen konnte.

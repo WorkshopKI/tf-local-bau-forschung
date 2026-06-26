@@ -1,11 +1,16 @@
 /**
- * Detail einer Anfrage: Schritt-für-Schritt-Status entlang `status` + die
- * aufgenommenen Felder. Die phasenspezifischen Aktionen (Anonymisieren,
- * Review/Export, Rückimport, Ausgabe) werden in späteren Phasen angedockt.
+ * Detail einer Anfrage: prominenter (farbiger) Status + Schritt-für-Schritt-
+ * Fortschritt, darunter die einklappbaren Abschnitte (Stammdaten · Mailtext ·
+ * Anonymisierung · Antwort & Finalisierung). Löschen im Header (Inline-
+ * Bestätigung). Phasenspezifische Aktionen leben in den Unter-Komponenten.
  */
 import { X } from 'lucide-react';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import type { Anfrage } from './types';
 import { STATUS_LABEL, STATUS_REIHENFOLGE, statusErreicht, statusIndex } from './status';
+import { AnfrageStatusBadge } from './AnfrageStatusBadge';
+import { AnfrageDeleteControl } from './AnfrageDeleteControl';
+import { formatAnfrageDatum } from './format';
 import { AnfrageAnonymisierung } from './AnfrageAnonymisierung';
 import { RueckimportFinalisierung } from './RueckimportFinalisierung';
 
@@ -56,47 +61,64 @@ export function AnfrageDetail({ anfrage, onClose }: Props): React.ReactElement {
   return (
     <div className="flex flex-col h-full overflow-y-auto px-6 py-5">
       <header className="flex items-start justify-between gap-3 mb-4">
-        <h2 className="text-[16px] font-medium text-[var(--tf-text)]">
-          {anfrage.betreff || '(ohne Betreff)'}
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="shrink-0 p-1 rounded-[var(--tf-radius)] text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-          title="Schließen"
-        >
-          <X size={16} />
-        </button>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-[16px] font-medium text-[var(--tf-text)]">
+              {anfrage.betreff || '(ohne Betreff)'}
+            </h2>
+            <AnfrageStatusBadge status={anfrage.status} />
+          </div>
+        </div>
+        <div className="shrink-0 flex items-center gap-1">
+          <AnfrageDeleteControl anfrage={anfrage} onDeleted={onClose} />
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded-[var(--tf-radius)] text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+            title="Schließen"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </header>
 
       <Stepper aktuell={aktuell} />
 
-      <dl className="text-[12.5px] mb-4 space-y-1.5">
-        <div className="flex gap-2">
-          <dt className="w-24 shrink-0 text-[var(--tf-text-tertiary)]">Absender</dt>
-          <dd className="text-[var(--tf-text)]">{anfrage.absenderEmail || '—'}</dd>
-        </div>
-        {anfrage.hatAnhaenge > 0 && (
+      <CollapsibleSection label="Stammdaten" storageKey="anfrage-detail-stammdaten" defaultOpen>
+        <dl className="text-[12.5px] space-y-1.5">
           <div className="flex gap-2">
-            <dt className="w-24 shrink-0 text-[var(--tf-text-tertiary)]">Anhänge</dt>
-            <dd className="text-[var(--tf-text-secondary)]">
-              {anfrage.hatAnhaenge} — werden nicht verarbeitet
-            </dd>
+            <dt className="w-24 shrink-0 text-[var(--tf-text-tertiary)]">Absender</dt>
+            <dd className="text-[var(--tf-text)] break-all">{anfrage.absenderEmail || '—'}</dd>
           </div>
-        )}
-      </dl>
+          <div className="flex gap-2">
+            <dt className="w-24 shrink-0 text-[var(--tf-text-tertiary)]">Aufgenommen</dt>
+            <dd className="text-[var(--tf-text-secondary)]">{formatAnfrageDatum(anfrage.erstelltAm)}</dd>
+          </div>
+          {anfrage.hatAnhaenge > 0 && (
+            <div className="flex gap-2">
+              <dt className="w-24 shrink-0 text-[var(--tf-text-tertiary)]">Anhänge</dt>
+              <dd className="text-[var(--tf-text-secondary)]">
+                {anfrage.hatAnhaenge} — werden nicht verarbeitet
+              </dd>
+            </div>
+          )}
+        </dl>
+      </CollapsibleSection>
 
-      <section>
-        <h3 className="text-[12px] font-medium text-[var(--tf-text-secondary)] mb-1.5">Mailtext</h3>
+      <CollapsibleSection label="Mailtext" storageKey="anfrage-detail-mailtext" defaultOpen>
         <div className="text-[12.5px] text-[var(--tf-text)] whitespace-pre-wrap rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] p-3 max-h-[40vh] overflow-y-auto">
           {anfrage.originalMd || <span className="text-[var(--tf-text-tertiary)]">— kein Text —</span>}
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <AnfrageAnonymisierung anfrage={anfrage} />
+      <CollapsibleSection label="Anonymisierung" storageKey="anfrage-detail-anon" defaultOpen>
+        <AnfrageAnonymisierung anfrage={anfrage} />
+      </CollapsibleSection>
 
       {statusErreicht(anfrage.status, 'export_freigegeben') && (
-        <RueckimportFinalisierung anfrage={anfrage} />
+        <CollapsibleSection label="Antwort & Finalisierung" storageKey="anfrage-detail-antwort" defaultOpen>
+          <RueckimportFinalisierung anfrage={anfrage} />
+        </CollapsibleSection>
       )}
     </div>
   );

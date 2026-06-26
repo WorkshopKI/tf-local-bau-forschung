@@ -1,16 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { PanelLeftOpen } from 'lucide-react';
 import {
   effectiveListWidth,
   clampDragWidth,
   listPaneClass,
   listPaneStyle,
   shouldCloseOnEscape,
+  parseCollapsedFlag,
+  serializeCollapsedFlag,
+  shouldShowList,
 } from './masterDetailLayout-logic';
+
+/** Steuer-API, die `list` als Render-Funktion bekommt — damit ein Collapse-
+ *  Trigger (z.B. `PanelLeftClose`) in der Listen-Toolbar des Konsumenten sitzen
+ *  kann, ohne dass das Shell dessen internes Layout kennt. */
+export interface MasterDetailListApi {
+  collapsed: boolean;
+  toggleCollapsed: () => void;
+}
 
 export interface MasterDetailLayoutProps {
   /** Die Listen-/Tabellen-Ansicht (Master). Füllt die volle Breite, solange
-   *  kein Detail offen ist. */
-  list: React.ReactNode;
+   *  kein Detail offen ist. Render-Funktions-Form bekommt die Collapse-API. */
+  list: React.ReactNode | ((api: MasterDetailListApi) => React.ReactNode);
   /** Detail-Panel (Slave). `undefined`/`null` = kein Detail offen → Liste voll. */
   detail?: React.ReactNode;
   /** Wird bei Escape (außerhalb von Eingabefeldern) aufgerufen; der Detail-
@@ -23,6 +35,16 @@ export interface MasterDetailLayoutProps {
   narrowDefaultWidth?: number;
   narrowMinWidth?: number;
   detailMinWidth?: number;
+  /** Opt-in: erlaubt das vollständige Einklappen der Liste auf eine schmale
+   *  vertikale Leiste im Detail-Modus (additiv neben dem Resize). Default aus —
+   *  bestehende Konsumenten bleiben unverändert. Der Collapse-Trigger gehört in
+   *  die `list`-Toolbar (via `api.toggleCollapsed`); das Wieder-Einblenden
+   *  besorgt die Leiste. */
+  collapsible?: boolean;
+  /** localStorage-Key für das Collapse-Flag (nur mit `collapsible`). */
+  listCollapsedKey?: string;
+  /** Beschriftung der eingeklappten Leiste (z.B. „Anfragen einblenden"). */
+  collapsedRailLabel?: string;
 }
 
 function loadStoredWidth(key: string | undefined, defaultWidth: number, minWidth: number): number {
@@ -50,8 +72,21 @@ export function MasterDetailLayout({
   narrowDefaultWidth = 460,
   narrowMinWidth = 320,
   detailMinWidth = 300,
+  collapsible = false,
+  listCollapsedKey,
+  collapsedRailLabel = 'Einblenden',
 }: MasterDetailLayoutProps): React.ReactElement {
   const hasDetail = detail != null;
+
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (!collapsible || !listCollapsedKey) return false;
+    try { return parseCollapsedFlag(localStorage.getItem(listCollapsedKey)); } catch { return false; }
+  });
+  useEffect(() => {
+    if (!listCollapsedKey) return;
+    try { localStorage.setItem(listCollapsedKey, serializeCollapsedFlag(collapsed)); } catch { /* ignore */ }
+  }, [collapsed, listCollapsedKey]);
+  const toggleCollapsed = useCallback(() => setCollapsed(c => !c), []);
 
   const [listWidth, setListWidth] = useState(() =>
     loadStoredWidth(listWidthKey, narrowDefaultWidth, narrowMinWidth),
@@ -111,21 +146,42 @@ export function MasterDetailLayout({
 
   const effectiveWidth = effectiveListWidth(listWidth, viewportWidth, narrowMinWidth, detailMinWidth);
 
+  const railShown = collapsible && hasDetail && !shouldShowList(hasDetail, collapsed);
+  const listNode = typeof list === 'function' ? list({ collapsed, toggleCollapsed }) : list;
+
   return (
     <div className="flex-1 min-h-0 flex overflow-hidden">
-      <div className={listPaneClass(hasDetail)} style={listPaneStyle(hasDetail, effectiveWidth)}>
-        <div className="flex-1 min-w-0 h-full overflow-y-auto">{list}</div>
-        {hasDetail && (
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Listenbreite ändern"
-            onMouseDown={onResizeMouseDown}
-            className="shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
-            style={{ borderLeft: '0.5px solid var(--tf-border)' }}
-          />
-        )}
-      </div>
+      {railShown ? (
+        // Eingeklappt (nur im Detail-Modus): schmale Leiste zum Wiedereinblenden.
+        // Das Detail-Panel daneben (flex-1) nimmt den frei werdenden Platz.
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-label={collapsedRailLabel}
+          title={collapsedRailLabel}
+          className="shrink-0 w-8 h-full flex flex-col items-center gap-3 py-3 cursor-pointer bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] transition-colors"
+          style={{ borderRight: '0.5px solid var(--tf-border)' }}
+        >
+          <PanelLeftOpen size={16} className="text-[var(--tf-text-tertiary)]" />
+          <span className="text-[11px] text-[var(--tf-text-secondary)] tracking-wide [writing-mode:vertical-rl] rotate-180">
+            {collapsedRailLabel}
+          </span>
+        </button>
+      ) : (
+        <div className={listPaneClass(hasDetail)} style={listPaneStyle(hasDetail, effectiveWidth)}>
+          <div className="flex-1 min-w-0 h-full overflow-y-auto">{listNode}</div>
+          {hasDetail && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Listenbreite ändern"
+              onMouseDown={onResizeMouseDown}
+              className="shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
+              style={{ borderLeft: '0.5px solid var(--tf-border)' }}
+            />
+          )}
+        </div>
+      )}
       {hasDetail && (
         <div className="flex-1 min-w-0 h-full overflow-hidden">{detail}</div>
       )}

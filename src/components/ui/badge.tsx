@@ -1,5 +1,9 @@
+/** Semantische Pillen-Variante — geteilt mit domänen-spezifischen
+ *  Status→Variante-Maps (z.B. `status-mappings.ts`, `anfragen/status.ts`). */
+export type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info';
+
 interface BadgeProps {
-  variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
+  variant?: BadgeVariant;
   children: React.ReactNode;
   /** Optional extra Tailwind-Klassen — z.B. `min-w-[130px] justify-center`
    *  für uniforme Pillen-Breite in Listen. Wird hinten angehängt, sodass
@@ -7,7 +11,7 @@ interface BadgeProps {
   className?: string;
 }
 
-const variantClasses: Record<string, string> = {
+const variantClasses: Record<BadgeVariant, string> = {
   default: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]',
   info: 'bg-[var(--tf-info-bg)] text-[var(--tf-info-text)]',
   success: 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]',

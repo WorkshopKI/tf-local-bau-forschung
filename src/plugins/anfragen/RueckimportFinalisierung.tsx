@@ -49,10 +49,10 @@ export function RueckimportFinalisierung({ anfrage }: Props): React.ReactElement
   });
 
   return (
-    <section className="mt-5">
-      <h3 className="text-[12px] font-medium text-[var(--tf-text-secondary)] mb-2 flex items-center gap-1.5">
-        <CornerDownLeft size={13} /> Anonyme Antwort zurück-importieren
-      </h3>
+    <div>
+      <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-2 flex items-center gap-1.5">
+        <CornerDownLeft size={13} /> Anonyme Antwort aus dem ZIM FAQ-Assistenten zurück-importieren.
+      </p>
 
       <textarea
         value={pasteText}
@@ -101,6 +101,6 @@ export function RueckimportFinalisierung({ anfrage }: Props): React.ReactElement
       )}
 
       {istFinalisiert && <FinaleAntwortAusgabe anfrage={anfrage} />}
-    </section>
+    </div>
   );
 }
