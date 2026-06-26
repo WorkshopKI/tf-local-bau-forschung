@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.140.0 — CSV-Kuration: „Demo-Quelle → echte Quelle umwandeln" (Juni 2026)
+
+MINOR — Abschluss der Fixture-Härtung: ein Kurator kann eine fälschlich auf einem
+Produktiv-Share gelandete Demo-/Fixture-Quelle (`fixture-real-*`) in eine echte Quelle
+umwandeln, **ohne neu zu mappen**.
+
+- **Button „In echte Quellen umwandeln (Mapping bleibt)"** im roten Fixture-Banner der
+  CSV-Sources-Seite ([CsvSourcesPage.tsx](src/plugins/csv-sources-kuration/CsvSourcesPage.tsx)).
+  Wandelt alle `fixture-real-*`-Quellen um: `column_mapping`/`join_key`/`priority`/`is_master`/
+  `encoding`/`separator` bleiben erhalten, es gibt eine neue **Nicht-Fixture-ID** (vom
+  Quellnamen abgeleitet, slugifiziert, kollisionssicher), der Import-Zustand wird zurückgesetzt.
+  Danach läuft der Auto-Refresh für diese Quellen normal; die echten CSVs spielt man via
+  „CSV neu wählen"/Auto-Refresh ein, dann „Antrags-Daten zurücksetzen".
+- Logik in [convert-fixture-source.ts](src/plugins/csv-sources-kuration/services/convert-fixture-source.ts)
+  (`deriveRealSchemaId` / `buildRealSchemaFromFixture` / `convertAllFixtureSources`), TDD-getestet
+  inkl. der Endlosschleifen-Falle (ein Quellname, der selbst zu `fixture-real-…` slugifiziert,
+  bekommt einen `q-`-Präfix vor der Kollisions-Schleife). Audit-Event `csv_fixture_converted`.
+
 ### v2.139.0 — CSV-Kuration: Encoding-Wahl im Re-Import + Warnung bei Demo-/Fixture-Quellen (Juni 2026)
 
 MINOR — zwei Härtungen aus dem „Produktion lief unbemerkt auf Demo-Fixtures"-Vorfall

@@ -5,6 +5,7 @@ import { RefreshCw, Trash2, Sparkles, Columns3, AlertTriangle } from 'lucide-rea
 import { Button } from '@/components/ui/button';
 import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { fixtureSourceWarning } from './services/fixture-source-warning';
+import { convertAllFixtureSources, type ConvertedSource } from './services/convert-fixture-source';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -108,6 +109,7 @@ export function CsvSourcesPage(): React.ReactElement {
   const [resetResult, setResetResult] = useState<ClearAntragDataResult | null>(null);
   const [updateChecks, setUpdateChecks] = useState<Record<string, UpdateCheckResult>>({});
   const [pickError, setPickError] = useState<string | null>(null);
+  const [convertResult, setConvertResult] = useState<ConvertedSource[] | null>(null);
 
   const refresh = useCallback(async () => {
     const id = activeProgrammId ?? (await ensureDefaultProgramm(storage.idb)).id;
@@ -161,6 +163,22 @@ export function CsvSourcesPage(): React.ReactElement {
     });
     setResetResult(r);
     setResetConfirmOpen(false);
+  });
+
+  // Demo-/Fixture-Quellen in echte Quellen umwandeln (Mapping bleibt, neue
+  // Nicht-Fixture-ID). Danach läuft der Auto-Refresh; die echten CSVs werden
+  // via „CSV neu wählen"/Auto-Refresh eingespielt.
+  const convertFixtures = useAsyncAction(async () => {
+    const res = await convertAllFixtureSources(storage.idb, schemas);
+    if (res.length > 0) {
+      await logAudit(storage.idb, {
+        action: 'csv_fixture_converted',
+        user: session.kuratorName ?? undefined,
+        details: { converted: res.map(r => ({ from: r.oldId, to: r.newId })) },
+      });
+    }
+    setConvertResult(res);
+    await refresh();
   });
 
   async function handleReselect(schema: CsvSchema): Promise<void> {
@@ -223,6 +241,17 @@ export function CsvSourcesPage(): React.ReactElement {
         </div>
       ) : null}
 
+      {convertResult && convertResult.length > 0 ? (
+        <div className="mb-4 rounded-md border-[0.5px] border-emerald-300 bg-emerald-50 p-3 text-[12px] text-emerald-900">
+          <div className="font-medium mb-0.5">
+            {convertResult.length} Demo-Quelle{convertResult.length === 1 ? '' : 'n'} in echte Quellen umgewandelt — Mappings übernommen.
+          </div>
+          <div className="font-mono text-[11px] mb-1">{convertResult.map(r => `${r.name} → ${r.newId}`).join(' · ')}</div>
+          Nächste Schritte: pro Quelle <strong>„CSV neu wählen"</strong> → echte Datei → <strong>Windows-1252</strong> → importieren;
+          danach <strong>„Antrags-Daten zurücksetzen"</strong> (löscht die Demo-Anträge).
+        </div>
+      ) : null}
+
       {fixtureWarn ? (
         <div className="mb-4 rounded-md border-[0.5px] border-red-300 bg-red-50 p-3">
           <div className="flex items-start gap-2">
@@ -234,9 +263,24 @@ export function CsvSourcesPage(): React.ReactElement {
                   : `${fixtureWarn.fixtureCount} von ${fixtureWarn.total} Quellen sind Demo-/Fixture-Quellen.`}
               </div>
               Diese <span className="font-mono">fixture-real-*</span>-Quellen sind vom Auto-Refresh
-              ausgeschlossen — die echten CSV-Exporte werden so <strong>nie importiert</strong>. Lege die
-              echten Quellen über <strong>„Neu registrieren"</strong> an (Encoding ggf. Windows-1252) und
-              lösche danach die Fixture-Quellen{fixtureWarn.allFixtures ? ' + „Antrags-Daten zurücksetzen"' : ''}.
+              ausgeschlossen — die echten CSV-Exporte werden so <strong>nie importiert</strong>.
+              Wandle sie in echte Quellen um (Mapping bleibt erhalten) oder lege sie über
+              „Neu registrieren" neu an.
+              {session.isActive ? (
+                <div className="mt-2 flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => convertFixtures.run()}
+                    disabled={convertFixtures.busy}
+                  >
+                    {convertFixtures.busy ? 'Wandle um…' : 'In echte Quellen umwandeln (Mapping bleibt)'}
+                  </Button>
+                  {convertFixtures.error ? (
+                    <span className="text-[11.5px] text-red-700">Fehler: {convertFixtures.error}</span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
