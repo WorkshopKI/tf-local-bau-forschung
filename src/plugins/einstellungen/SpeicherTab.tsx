@@ -219,6 +219,13 @@ export function SpeicherTab(): React.ReactElement {
       if (imported > 0) parts.push(`${imported} CSV-Quelle(n) importiert`);
       if (r.lockBusy) parts.push(`CSV-Import übersprungen — ${r.lockBusy.blockingKurator} aktualisiert gerade`);
       setUpdateMsg(parts.length > 0 ? parts.join(' · ') : 'Bereits aktuell.');
+      // „Letzter CSV-Import" sofort frisch zeigen — last_imported_at neu einlesen,
+      // statt auf einen Browser-Reload zu warten (csvSchemas wurde nur beim Mount geladen).
+      try {
+        const schemas: CsvSchema[] = [];
+        for (const p of await listProgramme(storage.idb)) schemas.push(...(await listSchemas(storage.idb, p.id)));
+        setCsvSchemas(schemas);
+      } catch { /* Anzeige best-effort */ }
     } finally {
       setUpdateBusy(false);
     }
@@ -263,6 +270,17 @@ export function SpeicherTab(): React.ReactElement {
   };
 
   const showOpfs = shouldShowOpfsOption();
+
+  // „Letzter CSV-Import" — jüngstes last_imported_at über alle CSV-Schemas (ISO-
+  // Strings sortieren chronologisch). Zeigt dem User sofort, von wann seine CSV-
+  // Daten stammen. Leer in prod (dort werden keine CSV-Schemas geladen).
+  const importIsos = csvSchemas
+    .map(s => s.last_imported_at)
+    .filter((x): x is string => !!x)
+    .sort();
+  const lastCsvImport = importIsos.length > 0
+    ? new Date(importIsos[importIsos.length - 1]!).toLocaleString('de-DE')
+    : null;
 
   const handleRemove = async (id: string): Promise<void> => {
     await storage.removeDirectory(id);
@@ -343,6 +361,11 @@ export function SpeicherTab(): React.ReactElement {
             Prüft den Datenbestand und – sofern verknüpfte CSV-Exporte neuer sind –
             importiert diese sofort. Läuft sonst automatisch beim Start.
           </p>
+          {lastCsvImport && (
+            <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug mt-1">
+              Letzter CSV-Import: <span className="font-medium text-[var(--tf-text)]">{lastCsvImport}</span>
+            </p>
+          )}
           <div className="flex items-center justify-between gap-3 mt-1">
             <p className="min-w-0 text-[12px] text-[var(--tf-text-secondary)] truncate">
               {updateMsg ?? ' '}

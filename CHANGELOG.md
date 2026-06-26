@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.138.0 — Einstellungen/Speicher: „Letzter CSV-Import" mit Datum/Uhrzeit (Juni 2026)
+
+MINOR — die Datenaktualisierung-Sektion (Einstellungen → Speicher) zeigt jetzt, von
+wann die CSV-Daten stammen, damit der User sofort sieht, ob er auf aktuellen Daten
+arbeitet.
+
+- **Neue Info-Zeile „Letzter CSV-Import: <Datum, Uhrzeit>"** unter der Datenaktualisierung-
+  Beschreibung ([SpeicherTab.tsx](src/plugins/einstellungen/SpeicherTab.tsx)). Quelle ist
+  das jüngste `last_imported_at` über alle CSV-Schemas (ISO-Strings sortieren chronologisch);
+  Format wie anderswo via `toLocaleString('de-DE')`.
+- **Live nach „Jetzt aktualisieren"**: nach einem manuellen Update werden die Schemas neu
+  eingelesen, sodass der Zeitstempel ohne Browser-Reload stimmt.
+- Sichtbar in dev/pl/kurator (wo CSV-Schemas geladen werden); in prod ohne CSV-Import bleibt
+  die Zeile aus. Ergänzt den Erkennungs-Fix aus v2.137.1 um die nötige Sichtbarkeit.
+
 ### v2.137.1 — CSV-Auto-Refresh: stille Nicht-Erkennung geänderter Quellen auf Citrix behoben (Juni 2026)
 
 PATCH — eine nächtlich aktualisierte CSV-Quelle wurde auf einem Citrix-Produktivrechner
