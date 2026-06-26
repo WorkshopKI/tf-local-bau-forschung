@@ -1,0 +1,120 @@
+/* ============================================================
+   Anfrage-Detail „Layout A" (Vorher/Nachher-Zwei-Spalten).
+   Co-located scoped CSS, alle Regeln unter `.awd`, nur --tf-*-Tokens
+   (Dark-Mode flippt automatisch). Referenz-Prototyp:
+   _design/handoff/Anfragen/Anonymisierung Detail (A).html
+   ============================================================ */
+
+.awd {
+  --awd-px: 18px;
+  font-family: var(--tf-font-sans);
+  color: var(--tf-text);
+  font-size: 13px;
+}
+
+/* ---------- topbar / meta ---------- */
+.awd-topbar { display: flex; align-items: flex-start; gap: 12px; padding: 16px var(--awd-px) 0; flex: none; }
+.awd-ttl { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.35; flex: 1; min-width: 0; }
+.awd-x { border: none; background: none; color: var(--tf-text-tertiary); cursor: pointer; line-height: 1; padding: 2px 6px; border-radius: 6px; display: inline-flex; }
+.awd-x:hover { background: var(--tf-hover); color: var(--tf-text); }
+.awd-meta { padding: 6px var(--awd-px) 0; font-size: 12px; color: var(--tf-text-tertiary); display: flex; gap: 8px; flex-wrap: wrap; flex: none; }
+.awd-dot { color: var(--tf-border-hover); }
+
+/* ---------- stepper (clickable switch) ---------- */
+.awd-stepper { display: flex; align-items: center; gap: 5px; padding: 14px var(--awd-px) 13px; flex-wrap: wrap; flex: none; }
+.awd-step { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--tf-text-tertiary); background: none; border: none; cursor: pointer; padding: 5px 9px; border-radius: 99px; font-family: inherit; }
+.awd-step:hover { background: var(--tf-hover); }
+.awd-n { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--tf-border-hover); display: grid; place-items: center; font-size: 10px; flex: none; }
+.awd-step.done { color: var(--tf-text-secondary); }
+.awd-step.done .awd-n { background: var(--tf-success-bg); color: var(--tf-success-text); border-color: transparent; }
+.awd-step.active { color: var(--tf-text); background: var(--tf-primary-light); }
+.awd-step.active .awd-n { background: var(--tf-text); color: var(--tf-bg); border-color: var(--tf-text); }
+.awd-step.viewing { box-shadow: inset 0 -2px 0 var(--tf-text); }
+.awd-sep { color: var(--tf-border-hover); font-size: 12px; }
+
+/* ---------- view area ---------- */
+.awd-view { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-top: 0.5px solid var(--tf-border); }
+.awd-view-scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+
+.awd-pairhead { display: flex; align-items: center; gap: 10px; padding: 14px var(--awd-px) 0; flex-wrap: wrap; }
+.awd-label { font-size: 13px; font-weight: 500; color: var(--tf-text); }
+.awd-pairhead-sub { font-size: 11.5px; color: var(--tf-text-tertiary); }
+.awd-controls { margin-left: auto; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+.awd-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--tf-text-secondary); border: 0.5px solid var(--tf-border); background: var(--tf-bg); border-radius: 99px; padding: 4px 10px; cursor: pointer; font-family: inherit; }
+.awd-toggle:hover { border-color: var(--tf-border-hover); }
+.awd-toggle.on { background: var(--tf-text); color: var(--tf-bg); border-color: var(--tf-text); }
+.awd-toggle svg { width: 12px; height: 12px; }
+
+/* ---------- pair / columns ---------- */
+.awd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0; padding: 12px var(--awd-px) 0; min-height: 0; }
+.awd-pair.stacked { grid-template-columns: 1fr; }
+.awd-colside { display: flex; flex-direction: column; min-width: 0; padding: 0 18px; }
+.awd-colside:first-child { padding-left: 0; }
+.awd-colside:last-child { padding-right: 0; }
+.awd-pair:not(.stacked) .awd-colside:last-child { border-left: 0.5px solid var(--tf-border); }
+.awd-pair.stacked .awd-colside { padding: 0; }
+.awd-pair.stacked .awd-colside + .awd-colside { margin-top: 12px; }
+
+.awd-sh { display: flex; align-items: center; gap: 7px; font-size: 10.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--tf-text-tertiary); margin-bottom: 9px; min-height: 20px; }
+.awd-sh svg { width: 13px; height: 13px; flex: none; }
+.awd-badge { margin-left: auto; font-size: 10.5px; letter-spacing: 0; text-transform: none; padding: 2px 8px; border-radius: 99px; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
+.awd-badge.ok { background: var(--tf-success-bg); color: var(--tf-success-text); }
+.awd-badge.warn { background: var(--tf-warning-bg); color: var(--tf-warning-text); }
+.awd-bdot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* ---------- panes (read-only) ---------- */
+.awd-pane { overflow: auto; border: 0.5px solid var(--tf-border); border-radius: 8px; padding: 13px 15px; background: var(--tf-bg); line-height: 1.6; font-size: 12.5px; color: var(--tf-text); white-space: pre-wrap; word-break: break-word; }
+.awd-pane.mono { font-family: var(--tf-font-mono); font-size: 11.5px; color: var(--tf-text-secondary); line-height: 1.65; }
+.awd-empty { color: var(--tf-text-tertiary); }
+
+/* Textarea, die wie ein Pane aussieht (anonyme Antwort, View 2). */
+.awd-pane-ta { resize: none; outline: none; width: 100%; display: block; color: var(--tf-text); }
+.awd-pane-ta:focus { border-color: var(--tf-border-hover); }
+
+/* ---------- editable pane (backdrop + transparent textarea) ---------- */
+.awd-edit-wrap { position: relative; border: 0.5px solid var(--tf-border); border-radius: 8px; overflow: hidden; background: var(--tf-bg); }
+.awd-edit-layer { position: absolute; inset: 0; margin: 0; border: 0; padding: 13px 15px; font-family: var(--tf-font-mono); font-size: 11.5px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; overflow: auto; background: transparent; }
+.awd-edit-backdrop { pointer-events: none; color: transparent; }
+.awd-edit-backdrop .mk-pii, .awd-edit-backdrop .mk-ph, .awd-edit-backdrop .mk-leak { color: transparent; }
+.awd-edit-ta { color: var(--tf-text); caret-color: var(--tf-text); resize: none; outline: none; width: 100%; }
+.awd-edit-ta:focus { outline: none; }
+
+/* ---------- highlight marks ---------- */
+.mk-pii { background: var(--tf-warning-bg); color: var(--tf-warning-text); border-radius: 3px; padding: 0 2px; }
+.mk-ph { background: var(--tf-info-bg); color: var(--tf-info-text); border-radius: 3px; padding: 0 2px; }
+.mk-leak { background: var(--tf-danger-bg); color: var(--tf-danger-text); border-radius: 3px; padding: 0 2px; }
+
+/* ---------- resize handle (shared) ---------- */
+.awd-resizer { height: 16px; margin: 2px var(--awd-px) 0; display: flex; align-items: center; justify-content: center; cursor: ns-resize; color: var(--tf-text-tertiary); flex: none; touch-action: none; }
+.awd-resizer:hover { color: var(--tf-text-secondary); }
+.awd-resizer svg { width: 26px; height: 9px; }
+
+/* ---------- missing-placeholders warning ---------- */
+.awd-warnrow { margin: 10px var(--awd-px) 0; font-size: 11.5px; color: var(--tf-warning-text); background: var(--tf-warning-bg); border-radius: 8px; padding: 8px 12px; line-height: 1.5; }
+.awd-warnrow code { font-family: var(--tf-font-mono); font-size: 11px; }
+
+/* ---------- mapping drawer ---------- */
+.awd-drawer { margin-top: 12px; border-top: 0.5px solid var(--tf-border); flex: none; }
+.awd-drawer-h { display: flex; align-items: center; gap: 9px; padding: 11px var(--awd-px); font-size: 12px; color: var(--tf-text-secondary); cursor: pointer; background: none; border: none; width: 100%; font-family: inherit; text-align: left; }
+.awd-drawer-h:hover { background: var(--tf-hover); }
+.awd-dico { width: 14px; height: 14px; flex: none; color: var(--tf-text-tertiary); }
+.awd-lock { font-size: 11px; color: var(--tf-text-tertiary); display: inline-flex; align-items: center; gap: 4px; }
+.awd-ct { margin-left: auto; display: flex; align-items: center; gap: 7px; color: var(--tf-text-tertiary); font-size: 11px; }
+.awd-chev { transition: transform .18s var(--tf-ease); }
+.awd-drawer.open .awd-chev { transform: rotate(180deg); }
+.awd-drawer-body { max-height: 0; overflow: hidden; transition: max-height .22s var(--tf-ease); }
+.awd-drawer.open .awd-drawer-body { max-height: 300px; overflow: auto; }
+.awd-map { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.awd-map th { position: sticky; top: 0; background: var(--tf-bg); text-align: left; font-weight: 500; color: var(--tf-text-tertiary); font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; padding: 7px var(--awd-px); border-bottom: 0.5px solid var(--tf-border); }
+.awd-map td { padding: 6px var(--awd-px); border-bottom: 0.5px solid var(--tf-border); color: var(--tf-text); vertical-align: top; }
+.awd-map tr:hover td { background: var(--tf-hover); }
+.awd-pl { font-family: var(--tf-font-mono); font-size: 11px; color: var(--tf-info-text); white-space: nowrap; }
+.awd-ty { color: var(--tf-text-tertiary); }
+.awd-dup { font-size: 10px; color: var(--tf-warning-text); background: var(--tf-warning-bg); padding: 1px 6px; border-radius: 99px; margin-left: 6px; }
+
+/* ---------- action bar ---------- */
+.awd-actbar { display: flex; align-items: center; gap: 10px; padding: 13px var(--awd-px); border-top: 0.5px solid var(--tf-border); background: var(--tf-bg-secondary); flex: none; flex-wrap: wrap; }
+.awd-sp { flex: 1; }
+.awd-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tf-text-secondary); cursor: pointer; }
+.awd-note { font-size: 11.5px; color: var(--tf-text-tertiary); display: inline-flex; align-items: center; gap: 6px; }

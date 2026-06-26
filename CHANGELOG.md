@@ -5,6 +5,35 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.142.0 — Anfrage-Detail „Layout A": Vorher/Nachher-Zwei-Spalten (Juni 2026)
+
+MINOR — Umsetzung des Claude-Design-Handoffs (`_design/handoff/Anfragen`): die Detailansicht
+einer Anfrage ([AnfrageDetail.tsx](src/plugins/anfragen/AnfrageDetail.tsx)) wird von vertikal
+gestapelten Blöcken auf ein **Zwei-Spalten-Vorher/Nachher**-Layout umgebaut. Additiv, keine
+Migration; sämtliche Funktion (Live-Export-Guard, editierbarer Anon-Text, Finalisierung, mailto)
+bleibt erhalten.
+
+- **Stepper als View-Umschalter** ([AnfrageStepper.tsx](src/plugins/anfragen/AnfrageStepper.tsx)):
+  Schritte 1–3 zeigen Paar 1 (Original ↔ Anonymisiert), 4–5 Paar 2 (Anonyme Antwort ↔ Finale
+  Antwort). Echter Pipeline-Status bleibt am `active`-Schritt; die gezeigte View bekommt eine
+  zusätzliche `viewing`-Markierung.
+- **View 1** ([AnonymisierungView.tsx](src/plugins/anfragen/AnonymisierungView.tsx), absorbiert
+  `AnfrageAnonymisierung` + `ReviewEditor`): Original mit PII amber, anonymisierter Text editierbar
+  mit Platzhaltern blau + Live-Leaks rot; Badge „Keine PII"/„… PII-Treffer" vom Guard getrieben;
+  Mapping-Lade (mit „Alias"-Badge bei doppeltem Platzhalter); Actbar Kopieren/FAQ-öffnen/Erneut.
+- **View 2** ([AntwortView.tsx](src/plugins/anfragen/AntwortView.tsx), absorbiert
+  `RueckimportFinalisierung` + `FinaleAntwortAusgabe`): Antwort-Textarea ↔ Live-de-anonymisierte
+  Finale (eingesetzte Originale blau); Warnzeile für fehlende/unbekannte Platzhalter; „Antwort
+  übernehmen" konsolidiert in On-blur-Persist (Status monoton).
+- **Gemeinsam resizable Panes** ([useSyncedPaneHeight.ts](src/plugins/anfragen/useSyncedPaneHeight.ts),
+  ein Höhen-State zieht beide Spalten, persistiert), **Synchron-Scrollen** + **Untereinander**-Stack,
+  **Hervorheben**-Schalter (geteilt). Mehr-Art-Highlight additiv in
+  [highlight.ts](src/plugins/anfragen/highlight.ts) (`buildKindedSegments`, Prioritäts-Merge) +
+  [HighlightedText.tsx](src/plugins/anfragen/HighlightedText.tsx); Finale-Segmente via
+  `wiedereinsetzenSegmente`. Co-located Scoped CSS
+  [anonymisierung-detail.css](src/plugins/anfragen/anonymisierung-detail.css) (nur `--tf-*`-Tokens,
+  Dark-Mode flippt).
+
 ### v2.141.0 — Anfragen: UI-Parität mit Förderanträgen (Ansichten, Collapse, Löschen) (Juni 2026)
 
 MINOR — das Anfragen-Modul ([src/plugins/anfragen/](src/plugins/anfragen/), dev) übernimmt

@@ -11,6 +11,7 @@
 import type { AIBridge } from '@/core/services/ai/bridge';
 import { runSkill, type SkillRecord } from '@/core/services/skills';
 import { safeResetChat } from '@/core/services/ai/chat-reset';
+import type { KindedSegment } from '../highlight';
 import type { Mapping } from '../types';
 
 const PLATZHALTER_RE = /\[[A-Z][A-Z0-9_]*_\d+\]/g;
@@ -38,6 +39,29 @@ export function wiedereinsetzen(antwortAnon: string, mapping: Mapping[]): string
   let out = antwortAnon;
   for (const m of sorted) out = out.split(m.platzhalter).join(m.original);
   return out;
+}
+
+/**
+ * Wie `wiedereinsetzen`, aber segmentiert für die Anzeige: jeder eingesetzte
+ * Originalwert wird als `kind:'placeholder'` markiert (blau hervorhebbar). Der
+ * Klartext (`.map(s => s.text).join('')`) ist identisch zu `wiedereinsetzen`.
+ * Unbekannte Platzhalter (kein Mapping-Eintrag) bleiben unmarkiert stehen.
+ */
+export function wiedereinsetzenSegmente(antwortAnon: string, mapping: Mapping[]): KindedSegment[] {
+  const repl = new Map<string, string>();
+  for (const m of mapping) if (!repl.has(m.platzhalter)) repl.set(m.platzhalter, m.original);
+  const segs: KindedSegment[] = [];
+  let last = 0;
+  for (const match of antwortAnon.matchAll(PLATZHALTER_RE)) {
+    const idx = match.index;
+    if (idx === undefined) continue;
+    if (idx > last) segs.push({ text: antwortAnon.slice(last, idx), kind: null });
+    const orig = repl.get(match[0]);
+    segs.push(orig !== undefined ? { text: orig, kind: 'placeholder' } : { text: match[0], kind: null });
+    last = idx + match[0].length;
+  }
+  if (last < antwortAnon.length) segs.push({ text: antwortAnon.slice(last), kind: null });
+  return segs;
 }
 
 /**

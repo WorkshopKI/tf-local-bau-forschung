@@ -1,6 +1,6 @@
 /** Phase 7 — deterministische Wiedereinsetzung + Platzhalter-Validierung. */
 import { describe, expect, it } from 'vitest';
-import { pruefePlatzhalter, wiedereinsetzen, finalisiere } from '../finalisierung';
+import { pruefePlatzhalter, wiedereinsetzen, wiedereinsetzenSegmente, finalisiere } from '../finalisierung';
 import type { Mapping } from '../../types';
 
 const MAPPING: Mapping[] = [
@@ -27,6 +27,22 @@ describe('wiedereinsetzen', () => {
 
   it('lässt unbekannte Platzhalter stehen', () => {
     expect(wiedereinsetzen('[PERSON_1] und [UNBEKANNT_9]', MAPPING)).toBe('Dr. Schmidt und [UNBEKANNT_9]');
+  });
+});
+
+describe('wiedereinsetzenSegmente', () => {
+  const anon = 'Hallo [PERSON_1], Antrag [FKZ_1]. Rest [UNBEKANNT_9].';
+
+  it('Klartext (join) ist identisch zu wiedereinsetzen', () => {
+    const segs = wiedereinsetzenSegmente(anon, MAPPING);
+    expect(segs.map(s => s.text).join('')).toBe(wiedereinsetzen(anon, MAPPING));
+  });
+
+  it('markiert eingesetzte Originale als placeholder, lässt Unbekannte unmarkiert', () => {
+    const segs = wiedereinsetzenSegmente(anon, MAPPING);
+    expect(segs.filter(s => s.kind === 'placeholder').map(s => s.text)).toEqual(['Dr. Schmidt', '16EP1234']);
+    // Der unbekannte Platzhalter bleibt als unmarkierter Text stehen.
+    expect(segs.some(s => s.kind === null && s.text.includes('[UNBEKANNT_9]'))).toBe(true);
   });
 });
 

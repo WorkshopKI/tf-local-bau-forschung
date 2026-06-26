@@ -69,7 +69,7 @@ export function AnfragenPage(): React.ReactElement {
         listCollapsedKey="anfragen-list-collapsed"
         collapsedRailLabel="Anfragen einblenden"
         onCloseDetail={() => select(null)}
-        detail={selected ? <AnfrageDetail anfrage={selected} onClose={() => select(null)} /> : undefined}
+        detail={selected ? <AnfrageDetail key={selected.id} anfrage={selected} onClose={() => select(null)} /> : undefined}
         list={api => (
           <div className={selected ? 'px-2 py-2' : 'px-8 py-2'}>
             {selected && (
