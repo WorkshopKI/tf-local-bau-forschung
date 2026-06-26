@@ -4,6 +4,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useChatStore } from '../store';
 import { groupConversations, type ConversationFilter } from '../conversation-groups';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { conversationToMarkdown } from '../services/conversation-markdown';
 import type { ConversationFull, ConversationMeta } from '../types';
 
@@ -99,11 +100,13 @@ export function ConversationSidebar(): React.ReactElement {
       </div>
 
       <div className="side2-filter">
-        {FILTERS.map(([id, label]) => (
-          <button key={id} className={`sf-chip${filter === id ? ' on' : ''}`} onClick={() => setFilter(id)}>
-            {label}<span className="sf-n">{counts[id]}</span>
-          </button>
-        ))}
+        <ScopeTabs
+          variant="pills"
+          items={FILTERS.map(([id, label]) => ({ key: id, label, count: counts[id] }))}
+          activeKey={filter}
+          onChange={key => setFilter(key as ConversationFilter)}
+          aria-label="Unterhaltungen filtern"
+        />
       </div>
 
       <div className="side2-list scroll">

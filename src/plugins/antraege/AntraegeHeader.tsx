@@ -4,7 +4,8 @@ import { useAntraegeStore, getEffectiveViewMode } from './store';
 import { useAufnahmeUiStore } from './aufnahme-einfach';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useFilterState } from './filter/useFilterState';
-import { VIEWS, viewCounts } from './views';
+import { VIEWS, viewCounts, type ViewKey } from './views';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { menuLabel, isAuslastungEnabled, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -125,29 +126,13 @@ export function AntraegeHeader({ filterOpen, onToggleFilter }: Props): React.Rea
             die Filter-Button-Kante mit der Status-Badge-Kante fluchtet; im
             Compact-Modus kein pr → Icons treffen den Tabellen-Rand. */}
         <div className="flex items-end gap-4">
-          <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">
-            {VIEWS.map(v => {
-              const isActive = v.key === activeView;
-              const cnt = counts[v.key];
-              return (
-                <button
-                  key={v.key}
-                  type="button"
-                  onClick={() => setActiveView(v.key)}
-                  className={`pb-2.5 text-[14px] whitespace-nowrap cursor-pointer transition-colors ${
-                    isActive
-                      ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
-                      : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
-                  }`}
-                >
-                  {v.label}{' '}
-                  <span className="text-[12px] text-[var(--tf-text-tertiary)]">
-                    {cnt.toLocaleString('de-DE')}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <ScopeTabs
+            variant="tabs"
+            items={VIEWS.map(v => ({ key: v.key, label: v.label, count: counts[v.key] }))}
+            activeKey={activeView}
+            onChange={key => setActiveView(key as ViewKey)}
+            aria-label="Ansicht"
+          />
 
           <div className={`flex items-center gap-2 shrink-0 pb-2 ml-auto ${actionPr}`}>
             {isGutachtenWorkflowEnabled() && (

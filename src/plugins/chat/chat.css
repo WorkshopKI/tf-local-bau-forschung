@@ -58,11 +58,8 @@
 
 /* quick filter row */
 .chat-app .side2-filter { display: flex; gap: 4px; padding: 8px 12px 6px; }
-.chat-app .sf-chip { height: 26px; padding: 0 11px; border-radius: 99px; border: var(--tf-border-thin) solid var(--tf-border-hover); background: var(--tf-bg); color: var(--tf-text-secondary); font: var(--tf-text-sm)/1 var(--tf-font-sans); cursor: default; display: inline-flex; align-items: center; gap: 5px; }
-.chat-app .sf-chip:hover { background: var(--tf-hover); color: var(--tf-text); }
-.chat-app .sf-chip.on { background: var(--tf-primary-light); border-color: transparent; color: var(--tf-primary); font-weight: var(--tf-weight-medium); }
-.chat-app .sf-chip .sf-n { font: 10px/1 var(--tf-font-mono); color: var(--tf-text-tertiary); }
-.chat-app .sf-chip.on .sf-n { color: var(--tf-primary); opacity: .75; }
+/* .sf-chip/.sf-n — abgeloest durch das ScopeTabs-Primitiv (variant='pills'),
+   v2.146 Layout-Schicht Phase 3. Die Pill-Styles leben jetzt in ScopeTabs.tsx. */
 
 .chat-app .side2-list { flex: 1; overflow: auto; padding: 6px 8px 14px; display: flex; flex-direction: column; gap: 1px; }
 .chat-app .side2-group { display: flex; align-items: center; gap: 10px; padding: 17px 10px 7px; font: var(--tf-weight-medium) 10.5px/1 var(--tf-font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--tf-text-tertiary); }

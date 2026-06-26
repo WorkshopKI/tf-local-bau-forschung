@@ -5,6 +5,22 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.146.0 — ScopeTabs-Konsolidierung: Förderanträge-Tabs + Chat-Pills (Layout-Schicht Phase 3) (Juni 2026)
+
+MINOR — Die zwei driftenden „Listen-Sichten-mit-Zähler"-Implementierungen laufen jetzt durch
+das geteilte `ScopeTabs`-Primitiv. Förderanträge ist klassen-identisch (struktureller No-op);
+die Chat-Filter sind die **eine bewusste** Konsistenz-Änderung (waren schon Pills, jetzt aus
+einem Bauteil).
+
+- **Förderanträge-Header-Tabs** ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx)):
+  Inline-`<button>`-Render → `ScopeTabs variant='tabs'`. Gleiche View-Counts (`de-DE`), gleiche
+  Klassen → visuell identisch.
+- **Chat-Historie-Filter** ([ConversationSidebar.tsx](src/plugins/chat/components/ConversationSidebar.tsx)):
+  `sf-chip`-Buttons → `ScopeTabs variant='pills'`. `counts` aus `groupConversations` unverändert.
+  Die nun ungenutzten `.sf-chip`/`.sf-n`-Regeln aus [chat.css](src/plugins/chat/chat.css) entfernt
+  (Pill-Styles leben jetzt im Primitiv).
+- Regressions-Anker (Tabs/Counts/Gruppierung) blieben unverändert grün.
+
 ### v2.145.0 — Vier fehlende Layout-Primitive (Layout-Schicht Phase 2) (Juni 2026)
 
 MINOR — Additive, domänenfreie Primitive in `src/components/ui/`; noch **keine** Modul-
