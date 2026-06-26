@@ -5,6 +5,22 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.136.1 — Anfragen: Recall-Eval einklappbar + Tooltip in der E-Mail-Liste (Juni 2026)
+
+PATCH — zwei kleine UX-Tweaks im Anfragen-Modul, keine Verhaltens-/Datenänderung.
+
+- **Recall-Eval-Panel (dev) klar einklappbar**: das native `<details>` (unauffällige
+  Aufklapp-Marke) ist jetzt ein design-konsistenter Collapse mit rotierendem Chevron
+  (gleiches Pattern wie `CollapsibleSection`), Card-Rahmen + Flask-Icon bleiben. Der lange
+  Recall-Report lässt sich nach dem Lauf bewusst wegklappen, statt die Master-Detail-Ansicht
+  nach unten zu drücken. Default offen; „Recall-Eval starten" unverändert über `useAsyncAction`.
+- **Voller Betreff/Absender bei Hover**: in der Anfragen-Master-Liste tragen die trunkierten
+  Betreff- und Absender-Zeilen jetzt ein natives `title`-Attribut — bei schmaler Spalte ist
+  der vollständige Titel per Mouse-Over lesbar (etabliertes Codebase-Pattern, kein Tooltip-Bundle).
+
+Betrifft `src/plugins/anfragen/AnfrageRecallEval.tsx`, `src/plugins/anfragen/AnfrageListe.tsx`.
+Keine Migration.
+
 ### v2.136.0 — Sidebar-Statusleiste „Variante D": Punkt + Wort (Juni 2026)
 
 MINOR — Redesign der unteren Sidebar-Statusleiste nach Design-Handoff

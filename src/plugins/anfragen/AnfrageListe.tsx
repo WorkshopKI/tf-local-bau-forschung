@@ -22,11 +22,11 @@ export function AnfrageListe({ anfragen, selectedId, onSelect }: Props): React.R
                 active ? 'bg-[var(--tf-bg-secondary)]' : 'hover:bg-[var(--tf-hover)]'
               }`}
             >
-              <div className="truncate text-[13px] text-[var(--tf-text)]">
+              <div className="truncate text-[13px] text-[var(--tf-text)]" title={a.betreff || '(ohne Betreff)'}>
                 {a.betreff || '(ohne Betreff)'}
               </div>
               <div className="flex items-center justify-between gap-2 mt-0.5">
-                <span className="truncate text-[11.5px] text-[var(--tf-text-tertiary)]">
+                <span className="truncate text-[11.5px] text-[var(--tf-text-tertiary)]" title={a.absenderEmail || undefined}>
                   {a.absenderEmail || '—'}
                 </span>
                 <span className="shrink-0 text-[11px] text-[var(--tf-text-secondary)]">

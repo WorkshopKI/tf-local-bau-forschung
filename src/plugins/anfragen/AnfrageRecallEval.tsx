@@ -7,7 +7,7 @@
  * nach bestandenem Gate.
  */
 import { useEffect, useState } from 'react';
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, ChevronRight } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -23,6 +23,7 @@ export function AnfrageRecallEval(): React.ReactElement {
   const bridge = useAIBridge();
   const [skill, setSkill] = useState<SkillRecord | null>(null);
   const [report, setReport] = useState<string | null>(null);
+  const [open, setOpen] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,30 +42,46 @@ export function AnfrageRecallEval(): React.ReactElement {
   });
 
   return (
-    <details className="mb-4 rounded-[var(--tf-radius)] border border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
-      <summary className="cursor-pointer select-none px-3 py-2 text-[12px] text-[var(--tf-text-secondary)] flex items-center gap-1.5">
-        <FlaskConical size={13} /> Recall-Eval (dev · fiktive Fixtures · interner Transport)
-      </summary>
-      <div className="px-3 pb-3">
-        <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-2">
-          Misst, ob der Anonymisierer jede Ground-Truth-PII entfernt (Recall = 1 − Leak-Rate). Aktivierung
-          des Skills bleibt manuell nach bestandenem Gate.
-        </p>
-        <button
-          type="button"
-          onClick={() => run.run()}
-          disabled={!skill || run.busy}
-          className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-text)] text-[var(--tf-bg)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-opacity hover:opacity-90"
-        >
-          {run.busy ? 'Eval läuft…' : 'Recall-Eval starten'}
-        </button>
-        {run.error && <p className="mt-2 text-[12px] text-[var(--tf-danger-text)]">Fehler: {run.error}</p>}
-        {report && (
-          <pre className="mt-2 text-[11px] leading-[1.5] font-mono whitespace-pre-wrap text-[var(--tf-text)] max-h-[40vh] overflow-y-auto">
-            {report}
-          </pre>
-        )}
+    <div className="mb-4 rounded-[var(--tf-radius)] border border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
+      <button
+        type="button"
+        onClick={() => setOpen(prev => !prev)}
+        className="flex items-center gap-1.5 w-full px-3 py-2 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer text-left"
+      >
+        <ChevronRight
+          size={13}
+          className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+          style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        />
+        <FlaskConical size={13} className="shrink-0" /> Recall-Eval (dev · fiktive Fixtures · interner Transport)
+      </button>
+      <div
+        className="grid transition-[grid-template-rows] duration-200 ease-out"
+        style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
+      >
+        <div className="overflow-hidden">
+          <div className="px-3 pb-3">
+            <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-2">
+              Misst, ob der Anonymisierer jede Ground-Truth-PII entfernt (Recall = 1 − Leak-Rate). Aktivierung
+              des Skills bleibt manuell nach bestandenem Gate.
+            </p>
+            <button
+              type="button"
+              onClick={() => run.run()}
+              disabled={!skill || run.busy}
+              className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-text)] text-[var(--tf-bg)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-opacity hover:opacity-90"
+            >
+              {run.busy ? 'Eval läuft…' : 'Recall-Eval starten'}
+            </button>
+            {run.error && <p className="mt-2 text-[12px] text-[var(--tf-danger-text)]">Fehler: {run.error}</p>}
+            {report && (
+              <pre className="mt-2 text-[11px] leading-[1.5] font-mono whitespace-pre-wrap text-[var(--tf-text)] max-h-[40vh] overflow-y-auto">
+                {report}
+              </pre>
+            )}
+          </div>
+        </div>
       </div>
-    </details>
+    </div>
   );
 }
