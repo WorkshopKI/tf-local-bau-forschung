@@ -172,6 +172,15 @@ export interface CsvSchema {
    * gleichen Datei zu erkennen.
    */
   source_last_modified?: number;
+  /**
+   * `File.size` (Byte) zum Zeitpunkt des Imports. PORTABLER Größen-Baseline
+   * (gleiche Datei = gleiche Byte-Zahl auf jedem Rechner, anders als
+   * `source_last_modified`): reist im Snapshot mit und gehört zum mtime-
+   * Fast-Path in `decideSourceUpdateState`. Eine geänderte Größe zwingt in den
+   * autoritativen `file_checksum`-Vergleich, statt einer stale/nicht-
+   * fortgeschrittenen mtime zu vertrauen (Citrix-False-Negative-Fix, v2.137).
+   */
+  last_file_size?: number;
   created_at: string;
 }
 

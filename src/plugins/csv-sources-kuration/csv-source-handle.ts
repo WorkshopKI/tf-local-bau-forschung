@@ -221,15 +221,24 @@ export type UpdateCheckResult =
  * Zweistufig:
  *
  *  1. **Billig** (Metadaten, kein File-Read): `file.lastModified <= source_last_modified`
- *     → `up_to_date`. Greift nur, wenn die Baseline überhaupt gesetzt ist.
- *  2. **Sonst** (mtime neuer ODER Baseline fehlt): per **Inhalt** bestätigen.
- *     `File.lastModified` ist NICHT portabel — die Baseline reist über den
- *     Snapshot zu pl-Rechnern, wo die mtime der lokalen Datei-Kopie nicht zum
- *     stempelnden (Kurator-)Rechner passt; auf einem frischen Snapshot ist sie
- *     zudem oft `undefined`. `file_checksum` (SHA-1 der Rohbytes, im Snapshot
- *     mitgeführt) IST portabel: stimmt der SHA der Live-Datei überein → byte-
- *     gleich → `up_to_date` (kein Fehlalarm-Banner). Nur bei echtem Inhalts-
- *     Unterschied (oder fehlendem `file_checksum`) → `update_available`.
+ *     **UND** `file.size === last_file_size` → `up_to_date`. Greift nur, wenn
+ *     beide Baselines gesetzt sind. mtime allein genügt NICHT: die nächtlich neu
+ *     geschriebene CSV kann eine mtime tragen, die die (per Snapshot gereiste,
+ *     nicht-portable) Baseline nicht überschreitet (Timestamp-Preserve, Uhr-Skew,
+ *     SMB/Citrix-Metadaten-Cache) → der reine mtime-Pfad verschluckte sonst die
+ *     Inhaltsänderung still (Citrix-False-Negative, v2.137). `File.size` ist
+ *     portabel (gleiche Datei = gleiche Byte-Zahl) und reist im Snapshot mit.
+ *  2. **Sonst** (mtime neuer, Größe abweichend/unbekannt ODER Baseline fehlt):
+ *     per **Inhalt** bestätigen. `File.lastModified` ist NICHT portabel — die
+ *     Baseline reist über den Snapshot zu pl-Rechnern, wo die mtime der lokalen
+ *     Datei-Kopie nicht zum stempelnden (Kurator-)Rechner passt; auf einem
+ *     frischen Snapshot ist sie zudem oft `undefined`. `file_checksum` (SHA-1 der
+ *     Rohbytes, im Snapshot mitgeführt) IST portabel: stimmt der SHA der Live-
+ *     Datei überein → byte-gleich → `up_to_date` (kein Fehlalarm-Banner). Nur bei
+ *     echtem Inhalts-Unterschied (oder fehlendem `file_checksum`) → `update_available`.
+ *
+ * Rest-Blindfleck (bewusst): gleiche Byte-Größe + geänderter Inhalt + stale mtime
+ * würde weiterhin geskippt — selten; nur ein immer-Hash-Pfad deckte das ab.
  *
  * Der SHA-Read liest die ganze Datei, läuft aber nur wenn der billige Pfad nicht
  * greift und nur einmal pro Background-Check (collectCandidates, `checkedRef`).
@@ -241,10 +250,13 @@ export async function decideSourceUpdateState(
   fileName: string,
 ): Promise<UpdateCheckResult> {
   const recorded = schema.source_last_modified ?? null;
-  if (recorded != null && file.lastModified <= recorded) {
+  const sizeUnchanged = schema.last_file_size != null && file.size === schema.last_file_size;
+  // Billiger Skip NUR wenn mtime nicht neuer UND Größe unverändert — mtime allein
+  // ist über die Snapshot-/SMB-Grenze unzuverlässig (False-Positive UND -Negative).
+  if (recorded != null && file.lastModified <= recorded && sizeUnchanged) {
     return { state: 'up_to_date', lastModified: file.lastModified, fileName };
   }
-  // mtime sagt „vielleicht neuer" / keine Baseline → per Inhalt bestätigen.
+  // mtime „neuer" / Größe abweichend|unbekannt / keine Baseline → per Inhalt bestätigen.
   if (schema.file_checksum) {
     try {
       if ((await sha1Hex(file)) === schema.file_checksum) {
@@ -403,6 +415,7 @@ export async function persistCsvSourceMeta(
       ...fresh,
       source_file_name: file.name,
       source_last_modified: file.lastModified,
+      last_file_size: file.size,
     });
   }
 }

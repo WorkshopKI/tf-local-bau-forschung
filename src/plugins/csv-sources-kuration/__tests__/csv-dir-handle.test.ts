@@ -153,10 +153,14 @@ describe('checkSourceForUpdate (Ordner-Handle)', () => {
     expect(r.state).toBe('update_available');
   });
 
-  it('meldet up_to_date, wenn die Datei nicht neuer ist', async () => {
+  it('meldet up_to_date, wenn die Datei nicht neuer ist UND die Größe unverändert', async () => {
     const idb = await freshIdb();
     injectDir(idb, new MemDir().add(new MemFile('antraege.csv', CSV_OK, 1000)));
-    const r = await checkSourceForUpdate(idb, makeSchema({ source_file_name: 'antraege.csv', source_last_modified: 1000 }));
+    const r = await checkSourceForUpdate(idb, makeSchema({
+      source_file_name: 'antraege.csv',
+      source_last_modified: 1000,
+      last_file_size: new Blob([CSV_OK]).size,
+    }));
     expect(r.state).toBe('up_to_date');
   });
 

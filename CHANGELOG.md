@@ -5,6 +5,35 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.137.1 — CSV-Auto-Refresh: stille Nicht-Erkennung geänderter Quellen auf Citrix behoben (Juni 2026)
+
+PATCH — eine nächtlich aktualisierte CSV-Quelle wurde auf einem Citrix-Produktivrechner
+(pl-Variante) nicht als „neu importieren" erkannt; auf einem Dev-Laptop mit demselben
+Build funktionierte es. Ursache + Fix:
+
+- **Root Cause**: `decideSourceUpdateState` ([csv-source-handle.ts](src/plugins/csv-sources-kuration/csv-source-handle.ts))
+  schloss über einen reinen mtime-Fast-Path (`file.lastModified <= source_last_modified`)
+  zu `up_to_date` kurz — **ohne den Inhalt zu lesen**. Die Baseline `source_last_modified`
+  reist (nicht-portabel) per Snapshot zu den pl-Rechnern; trägt die nächtlich neu
+  geschriebene CSV über SMB/Citrix eine mtime, die die Baseline nicht überschreitet
+  (Timestamp-Preserve, Uhr-Skew, Metadaten-Cache), verschluckte der Fast-Path die
+  Inhaltsänderung still. Der bestehende „Cold-Start"-Fix adressierte nur die
+  False-Positive-Richtung; die False-Negative-Richtung blieb offen. Auf dem Laptop
+  erzwangen die frisch kopierten Dateien / die fehlende Baseline den Hash-Pfad → erkannt.
+- **Fix — Size-Guard**: neues Schema-Feld `CsvSchema.last_file_size` (`File.size`, Byte;
+  **portabel** wie `file_checksum`, reist im Snapshot mit). Der billige Skip greift jetzt
+  nur noch bei `mtime <= Baseline` **UND** unveränderter Byte-Größe; bei abweichender
+  (oder unbekannter) Größe fällt der Pfad in den autoritativen `file_checksum`-Vergleich.
+  Eine stale/nicht-fortgeschrittene mtime kann eine Inhaltsänderung damit nicht mehr
+  verstecken. `last_file_size` wird überall gestempelt, wo `source_last_modified` gesetzt
+  wird (Import, Auto-Refresh, Reselect). Alt-Schemas ohne Feld fallen einmalig in den
+  Hash-Pfad und heilen mit dem nächsten Import. Rest-Blindfleck (bewusst): identische
+  Byte-Größe + geänderter Inhalt + stale mtime.
+- **Sofort-Workaround (bis Deploy)**: auf dem betroffenen Rechner „CSV neu wählen" /
+  Force-Import überspringt den mtime-Pfad und importiert die aktuellen Daten direkt.
+- Regressions-Tests in [decide-source-update-state.test.ts](src/plugins/csv-sources-kuration/__tests__/decide-source-update-state.test.ts)
+  (mtime ≤ Baseline + geänderte Größe ⇒ `update_available`) + Übergangsfall ohne Baseline.
+
 ### v2.137.0 — Anfragen: Kuration-Seite „Anfragen" + team-weit editierbare ZIM-FAQ-Assistent-URL (Juni 2026)
 
 MINOR — neue Kuration-Seite zum Pflegen der Anfragen-Modul-Einstellungen, plus

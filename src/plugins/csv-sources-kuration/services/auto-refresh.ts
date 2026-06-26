@@ -223,6 +223,7 @@ async function persistSourceMeta(
       ...fresh,
       source_file_name: file.name,
       source_last_modified: file.lastModified,
+      last_file_size: file.size,
     });
   }
   await logAudit(idb, {

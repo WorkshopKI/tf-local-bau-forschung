@@ -48,10 +48,15 @@ describe('decideSourceUpdateState', () => {
     expect(r.state).toBe('update_available');
   });
 
-  it('mtime <= Baseline → up_to_date über den billigen Fast-Path (kein Inhalts-Read)', async () => {
-    // file_checksum bewusst falsch: greift der Fast-Path, wird es nie gelesen.
-    const schema = makeSchema({ file_checksum: 'deadbeef', source_last_modified: 2_000_000_000_000 });
-    const r = await decideSourceUpdateState(makeFile(CONTENT, 1_900_000_000_000), schema, 'quelle.csv');
+  it('mtime <= Baseline UND Größe unverändert → up_to_date über den billigen Fast-Path (kein Inhalts-Read)', async () => {
+    // file_checksum bewusst falsch: greift der Fast-Path (mtime + size), wird er nie gelesen.
+    const file = makeFile(CONTENT, 1_900_000_000_000);
+    const schema = makeSchema({
+      file_checksum: 'deadbeef',
+      source_last_modified: 2_000_000_000_000,
+      last_file_size: file.size,
+    });
+    const r = await decideSourceUpdateState(file, schema, 'quelle.csv');
     expect(r.state).toBe('up_to_date');
   });
 
@@ -59,5 +64,32 @@ describe('decideSourceUpdateState', () => {
     const schema = makeSchema({ file_checksum: undefined, source_last_modified: undefined });
     const r = await decideSourceUpdateState(makeFile(CONTENT, 1_800_000_000_000), schema, 'quelle.csv');
     expect(r.state).toBe('update_available');
+  });
+
+  // Citrix-False-Negative (v2.137): die nächtlich neu geschriebene CSV trägt eine
+  // mtime, die NICHT über die (per Snapshot gereiste, nicht-portable) Baseline
+  // hinausgeht. Der reine mtime-Fast-Path verschluckte die Inhaltsänderung. Der
+  // Size-Guard zwingt bei abweichender Byte-Größe in den autoritativen Hash-Pfad.
+  it('mtime <= Baseline + geänderte Größe + geänderter Inhalt → update_available', async () => {
+    const original = makeFile(CONTENT, 1_900_000_000_000);
+    const checksum = await sha1Hex(new Blob([CONTENT]));
+    const schema = makeSchema({
+      file_checksum: checksum,
+      source_last_modified: 2_000_000_000_000,
+      last_file_size: original.size,
+    });
+    // mtime NICHT fortgeschritten (<= Baseline), aber Inhalt + Größe geändert.
+    const changed = makeFile(CONTENT + '16KN2;Projekt B\n', 1_800_000_000_000);
+    const r = await decideSourceUpdateState(changed, schema, 'quelle.csv');
+    expect(r.state).toBe('update_available');
+  });
+
+  // Übergang: Alt-Schema ohne last_file_size + mtime <= Baseline + Inhalt gleich →
+  // fällt einmalig in den Hash-Pfad und bestätigt up_to_date (kein Fehlalarm).
+  it('mtime <= Baseline + last_file_size fehlt + Inhalt gleich → up_to_date via Hash', async () => {
+    const checksum = await sha1Hex(new Blob([CONTENT]));
+    const schema = makeSchema({ file_checksum: checksum, source_last_modified: 2_000_000_000_000 });
+    const r = await decideSourceUpdateState(makeFile(CONTENT, 1_900_000_000_000), schema, 'quelle.csv');
+    expect(r.state).toBe('up_to_date');
   });
 });

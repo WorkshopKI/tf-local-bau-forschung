@@ -255,7 +255,7 @@ export async function importCsvSource(
       // Recompute-/SMB-Reimport-Pfad uebergibt einen Blob ohne sinnvolle
       // lastModified — dort die Original-Baseline NICHT ueberschreiben.
       ...(csvBlob instanceof File
-        ? { source_file_name: csvBlob.name, source_last_modified: csvBlob.lastModified }
+        ? { source_file_name: csvBlob.name, source_last_modified: csvBlob.lastModified, last_file_size: csvBlob.size }
         : {}),
     };
 
