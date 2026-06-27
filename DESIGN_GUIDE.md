@@ -210,27 +210,27 @@ TeamFlow nutzt **shadcn/ui** (Radix-basiert, Nova-Preset) für Standard-Komponen
 - Die Spezifikationen unten gelten zusätzlich zu den shadcn-Defaults — z.B. "kein Bold" überschreibt den shadcn-Button der default auf font-medium steht
 
 ### Button
-| Variante | Hintergrund | Border | Text | Wann |
+
+**Immer die kanonische Komponente `<Button>` aus `@/components/ui/button` verwenden** — keine
+hand-gebauten gefüllten CTAs (`<button className="… bg-[var(--tf-…)] …">`). Die Komponente trägt seit
+v2.144 die vom User im Profil wählbare **Primärfarbe `--tf-primary`** auf der `primary`/`default`-Variante;
+hand-gebaute Buttons hängen sich davon ab und wirken schwarz statt im Akzent.
+
+| Variante (`variant=`) | Hintergrund | Border | Text | Wann |
 |---|---|---|---|---|
-| **Primary** | --tf-text (schwarz/dunkel) | none | weiß | Hauptaktion: Speichern, Erstellen |
-| **Secondary** | transparent | 0.5px --tf-border-hover | --tf-text | Zweitaktion: Abbrechen, Filter |
-| **Ghost** | transparent | none | --tf-text-secondary | Tertiär: "Mehr →", "Alle anzeigen" |
-| **Danger** | transparent | 0.5px border-danger | text-danger | Destruktiv: Löschen |
+| **`primary`** (= default) | `--tf-primary` (wählbarer Profil-Akzent) | none | `--tf-primary-foreground` (weiß / im Dark-Mode `--tf-bg`) | Hauptaktion: Speichern, Erstellen, Generieren |
+| **`secondary`** (= shadcn `outline`) | transparent | 0.5px Border | `--tf-text` | Zweitaktion: Abbrechen, Zurücksetzen, Filter |
+| **`ghost`** | transparent | none | `--tf-text-secondary` | Tertiär: "Mehr →", "Alle anzeigen", Schließen-✕ |
+| **`danger`** (= shadcn `destructive`) | `--tf-destructive/10` | none | `--tf-destructive` | Destruktiv: Löschen |
 
-```css
-.btn {
-  padding: 8px 18px;
-  border-radius: 8px;
-  font-size: 13.5px;
-  font-weight: 400;       /* NICHT 600 oder 700! */
-  transition: all 0.15s;
-  cursor: pointer;
-}
-.btn:hover { opacity: 0.85; }   /* Primary */
-.btn:active { transform: scale(0.98); }
-```
+Props: `icon={LucideIcon}` (führendes Icon, ohne `size=`), `loading={bool}` (Spinner + erzwingt
+`disabled` — den Lade-Text-Swap `busy ? 'Speichere…' : 'Speichern'` weglassen), `asChild` (für Anker:
+`<Button asChild><a …>…</a></Button>`), `size="sm|xs|lg|icon|icon-sm"`. Ein `<button>`/`<a>` mit eigenem
+`bg-[var(--tf-text)]`-/`bg-[var(--tf-primary)]`-Fill ist verboten — der Convention-Test
+`no-raw-cta-fill` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)) fängt das.
 
-**Niemals**: Blaue Buttons, rote gefüllte Buttons, Gradient-Buttons, Buttons mit fetten Font-Weights.
+**Niemals**: Blaue Buttons, rote gefüllte Buttons, Gradient-Buttons, Buttons mit fetten Font-Weights,
+hand-gebaute gefüllte CTAs an der `<Button>`-Komponente vorbei.
 
 ### Badge / Status-Pill
 ```css

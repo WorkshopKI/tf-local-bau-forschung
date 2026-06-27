@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { ArtefaktTyp, WorkflowDef, WorkflowEbene } from '@/core/services/skills';
 import { ARTEFAKT_TYP_LABEL, EBENE_LABEL } from './workflowShared';
 import { Switch } from './regelShared';
@@ -74,21 +75,23 @@ export function WorkflowMetaEditor({ def, canEdit, isSeed, onSaveMeta, onToggleF
 
       {canEdit && (
         <div className="mt-3.5 flex flex-wrap items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             disabled={!dirty}
             onClick={() => onSaveMeta({ ...def, name: name.trim() || def.name, artefaktTyp, ebene })}
-            className="text-[12.5px] px-3.5 py-1.5 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40"
           >
             Speichern
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={() => onToggleFreigabe(def)}
-            className="text-[12.5px] px-3.5 py-1.5 rounded-[8px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:border-[var(--tf-border-hover)]"
           >
             {entwurf ? 'Freigeben' : 'Auf Entwurf zurückstellen'}
-          </button>
+          </Button>
           <span className="flex-1" />
           {isSeed ? (
             <span className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)]">
@@ -96,13 +99,15 @@ export function WorkflowMetaEditor({ def, canEdit, isSeed, onSaveMeta, onToggleF
               Seed-Workflow — nicht löschbar, nur deaktivierbar
             </span>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => onDelete(def)}
-              className="text-[12.5px] px-3.5 py-1.5 rounded-[8px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)]"
+              className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)]"
             >
               Löschen
-            </button>
+            </Button>
           )}
         </div>
       )}

@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { FlaskConical, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -65,14 +66,16 @@ export function AnfrageRecallEval(): React.ReactElement {
               Misst, ob der Anonymisierer jede Ground-Truth-PII entfernt (Recall = 1 − Leak-Rate). Aktivierung
               des Skills bleibt manuell nach bestandenem Gate.
             </p>
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={() => run.run()}
-              disabled={!skill || run.busy}
-              className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-text)] text-[var(--tf-bg)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-opacity hover:opacity-90"
+              loading={run.busy}
+              disabled={!skill}
             >
-              {run.busy ? 'Eval läuft…' : 'Recall-Eval starten'}
-            </button>
+              Recall-Eval starten
+            </Button>
             {run.error && <p className="mt-2 text-[12px] text-[var(--tf-danger-text)]">Fehler: {run.error}</p>}
             {report && (
               <pre className="mt-2 text-[11px] leading-[1.5] font-mono whitespace-pre-wrap text-[var(--tf-text)] max-h-[40vh] overflow-y-auto">

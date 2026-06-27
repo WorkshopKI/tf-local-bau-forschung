@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
   normalizeStepRolle, QS_BASIS_SKILL_ID, MAX_AUTO_RETRIES, DEFAULT_MAX_RETRIES,
@@ -203,18 +204,18 @@ export function WorkflowEditor({ file, workflowId, step, isNew, canEdit, onSave,
         <div className="pt-4 border-t-[0.5px] border-[var(--tf-border)] flex items-center gap-2.5">
           {canEdit && (
             <>
-              <button onClick={() => { void save.run(); }} disabled={save.busy} className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-50">
-                {save.busy ? 'Speichere…' : 'Speichern'}
-              </button>
+              <Button variant="primary" onClick={() => { void save.run(); }} loading={save.busy}>
+                Speichern
+              </Button>
               <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">erzeugt Workflow-Version {nextVersion}</span>
             </>
           )}
           {!canEdit && <span className="text-[12px] text-[var(--tf-text-tertiary)]">Kurator-Modus nicht aktiv — nur lesbar.</span>}
           <span className="flex-1" />
           {canEdit && !isNew && onDelete && (
-            <button onClick={onDelete} className="text-[13px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)]">Löschen</button>
+            <Button variant="ghost" onClick={onDelete} className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)]">Löschen</Button>
           )}
-          <button onClick={onBack} className="text-[13px] px-4 py-2 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">Abbrechen</button>
+          <Button variant="ghost" onClick={onBack}>Abbrechen</Button>
         </div>
       </div>
     </div>

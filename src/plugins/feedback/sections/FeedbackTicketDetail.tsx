@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Check, Copy, Download, FileText, MessageSquare, Trash2, TrendingUp, Wand2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   deleteFeedback,
   generateClaudeCodePrompt,
@@ -116,9 +117,9 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
         <button type="button" onClick={() => setShowPrompt(false)} className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] inline-flex items-center gap-1 cursor-pointer">← Zurück</button>
         <pre className="p-3 rounded-[var(--tf-radius)] bg-[#1a1a2e] text-[#d4d4f0] text-[11px] font-mono whitespace-pre-wrap max-h-[60vh] overflow-y-auto">{prompt}</pre>
         <div className="flex gap-2">
-          <button type="button" onClick={handleCopy} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer">
-            {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Kopiert' : 'Kopieren'}
-          </button>
+          <Button type="button" onClick={handleCopy} variant="primary" icon={copied ? Check : Copy}>
+            {copied ? 'Kopiert' : 'Kopieren'}
+          </Button>
           <button type="button" onClick={handleExport} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>
             <Download size={13} /> .md Export
           </button>
@@ -255,9 +256,9 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-1">
-        <button type="button" onClick={handleSave} disabled={saving} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--tf-radius)] text-[12px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-40 cursor-pointer">
-          {savedNotice ? <Check size={13} /> : null} {saving ? 'Speichern…' : savedNotice ? 'Gespeichert' : 'Speichern'}
-        </button>
+        <Button type="button" onClick={handleSave} disabled={saving} variant="primary" icon={savedNotice ? Check : undefined}>
+          {saving ? 'Speichern…' : savedNotice ? 'Gespeichert' : 'Speichern'}
+        </Button>
         <button type="button" onClick={() => { setPrompt(generateClaudeCodePrompt(ticket)); setShowPrompt(true); }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>
           <Wand2 size={12} /> Claude Code Prompt
         </button>

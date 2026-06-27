@@ -14,6 +14,7 @@
  */
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Button } from '@/components/ui/button';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 
 export interface ColumnFilterDropdownProps {
@@ -111,25 +112,28 @@ export function ColumnFilterDropdown(props: ColumnFilterDropdownProps): React.Re
         ))}
       </div>
       <div className="flex gap-2 p-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={() => { setLocal(new Set()); onApply(new Set()); }}
-          className="flex-1 px-2 py-1 text-[12px] text-[var(--tf-text-secondary)] rounded hover:bg-[var(--tf-hover)]"
-          style={{ border: '0.5px solid var(--tf-border)' }}
+          className="flex-1"
         >
           Zuruecksetzen
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="primary"
+          size="sm"
           onClick={() => {
             // local == candidates → kein Filter (leeres Set)
             const next = local.size === candidates.length ? new Set<string>() : local;
             onApply(next);
           }}
-          className="flex-1 px-2 py-1 text-[12px] bg-[var(--tf-text)] text-[var(--tf-bg)] rounded"
+          className="flex-1"
         >
           Anwenden
-        </button>
+        </Button>
       </div>
     </div>,
     document.body,

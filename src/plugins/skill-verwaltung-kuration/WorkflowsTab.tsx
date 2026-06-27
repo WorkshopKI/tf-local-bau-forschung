@@ -6,6 +6,7 @@ import {
 } from '@/core/services/skills';
 import { ListItem } from '@/components/ui/ListItem';
 import { RowAction } from '@/components/ui/RowAction';
+import { Button } from '@/components/ui/button';
 import {
   ARTEFAKT_TYP_LABEL, EBENE_LABEL, getWorkflowById, getWorkflowDef, istSeedWorkflow, reorderSteps,
 } from './workflowShared';
@@ -66,16 +67,17 @@ function CreateWorkflowForm({ onCreate, onCancel }: {
         ))}
       </div>
       <div className="flex gap-2">
-        <button
+        <Button
           type="button"
+          variant="primary"
+          size="sm"
           onClick={() => onCreate(name, artefaktTyp, ebene)}
-          className="text-[12.5px] px-3.5 py-1.5 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85"
         >
           Anlegen (Entwurf)
-        </button>
-        <button type="button" onClick={onCancel} className="text-[12.5px] px-3.5 py-1.5 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Abbrechen
-        </button>
+        </Button>
       </div>
     </div>
   );

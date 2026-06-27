@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -276,21 +277,12 @@ function ConfirmStep({ onChatbot, onDone }: { onChatbot: () => void; onDone: () 
       <p className="text-[14px] font-medium text-[var(--tf-text)]">Danke für dein Feedback!</p>
       <p className="text-[12.5px] text-[var(--tf-text-secondary)]">Möchtest du Details ergänzen?</p>
       <div className="flex gap-2 justify-center pt-1">
-        <button
-          type="button"
-          onClick={onChatbot}
-          className="px-3 py-1.5 rounded-[var(--tf-radius)] text-[12.5px] bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer"
-        >
+        <Button type="button" onClick={onChatbot} variant="primary">
           Details ergänzen
-        </button>
-        <button
-          type="button"
-          onClick={onDone}
-          className="px-3 py-1.5 rounded-[var(--tf-radius)] text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        >
+        </Button>
+        <Button type="button" onClick={onDone} variant="secondary">
           Fertig
-        </button>
+        </Button>
       </div>
     </div>
   );

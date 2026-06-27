@@ -5,6 +5,7 @@
  */
 import { useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
@@ -59,14 +60,15 @@ export function SkillImportDialog({ file, persist, onClose, onImported }: SkillI
       description="Lädt einen Skill samt zugeordneten Regeln aus einer .json-Datei. Antragsdaten sind nie enthalten."
       footer={
         <>
-          <button onClick={onClose} className="text-[13px] px-4 py-2 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">Abbrechen</button>
-          <button
-            disabled={!bundle || doImport.busy}
+          <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+          <Button
+            variant="primary"
+            disabled={!bundle}
+            loading={doImport.busy}
             onClick={() => { void doImport.run(); }}
-            className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-50"
           >
-            {doImport.busy ? 'Importiere…' : 'Importieren'}
-          </button>
+            Importieren
+          </Button>
         </>
       }
     >

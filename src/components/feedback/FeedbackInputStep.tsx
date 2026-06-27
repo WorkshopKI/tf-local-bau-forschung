@@ -5,6 +5,7 @@
 import { useRef, useState } from 'react';
 import * as Icons from 'lucide-react';
 import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { FeedbackCategory, FeedbackContext } from '@/core/types/feedback';
 import {
   FEEDBACK_TYPES,
@@ -206,14 +207,16 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
         </div>
       )}
 
-      <button
+      <Button
         type="button"
         onClick={handleSubmit}
-        disabled={!canSubmit || submitting}
-        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[var(--tf-radius)] text-[12.5px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+        disabled={!canSubmit}
+        loading={submitting}
+        variant="primary"
+        className="w-full"
       >
-        {submitting ? 'Wird gesendet…' : 'Absenden'}
-      </button>
+        Absenden
+      </Button>
     </div>
   );
 }

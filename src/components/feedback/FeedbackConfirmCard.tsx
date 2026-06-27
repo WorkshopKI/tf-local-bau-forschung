@@ -2,6 +2,7 @@
 // Erscheint im Chatbot wenn ein ```json-Summary erkannt wurde.
 
 import { Check, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { LLMClassification } from '@/core/types/feedback';
 import { CATEGORY_LABELS, CATEGORY_COLORS, LLM_CATEGORY_MAP } from './constants';
 
@@ -35,21 +36,12 @@ export function FeedbackConfirmCard({ classification, onConfirm, onReject }: Pro
         <p className="text-[12px] text-[var(--tf-text-secondary)]">{classification.details}</p>
       )}
       <div className="flex gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onConfirm}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--tf-radius)] text-[12px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer"
-        >
-          <Check size={14} /> Ja, genau das meine ich
-        </button>
-        <button
-          type="button"
-          onClick={onReject}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        >
-          <X size={14} /> Nein, korrigieren
-        </button>
+        <Button type="button" onClick={onConfirm} variant="primary" icon={Check}>
+          Ja, genau das meine ich
+        </Button>
+        <Button type="button" onClick={onReject} variant="secondary" icon={X}>
+          Nein, korrigieren
+        </Button>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import type { BatchAbschnitte } from '@/core/services/gutachten-batch';
 import type { UseBatchJob, StartInfo } from './useBatchJob';
@@ -105,15 +106,16 @@ export function StartDialog({ batch, fkzListe, onStarted, onAbbrechen }: Props):
           )}
 
           <div className="flex items-center gap-3">
-            <button
+            <Button
               type="button"
+              variant="primary"
               onClick={() => starten.run()}
+              loading={starten.busy}
               disabled={!startbar}
-              className="px-4 py-2 rounded-lg text-[13.5px] bg-[var(--tf-text)] text-[var(--tf-bg)] disabled:opacity-40"
             >
-              {starten.busy ? 'Starte…' : `Starten (${bereit})`}
-            </button>
-            <button type="button" onClick={onAbbrechen} className="text-[13px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]">Abbrechen</button>
+              Starten ({bereit})
+            </Button>
+            <Button type="button" variant="ghost" onClick={onAbbrechen}>Abbrechen</Button>
           </div>
         </>
       ) : null}

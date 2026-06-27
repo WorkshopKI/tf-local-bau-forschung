@@ -103,16 +103,17 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
       {/* Bookmarklet */}
       <SectionHeader label="Lesezeichen installieren" />
       <div className="flex items-center gap-3 flex-wrap">
-        {/* eslint-disable-next-line jsx-a11y/anchor-is-valid -- href wird imperativ gesetzt (javascript:-Bookmarklet) */}
-        <a
-          ref={linkRef}
-          draggable
-          onClick={e => e.preventDefault()}
-          className="inline-flex items-center px-4 py-2 text-[13px] font-medium text-white bg-[var(--tf-primary)] rounded-[var(--tf-radius)] cursor-grab select-none"
-          title="In die Lesezeichenleiste ziehen"
-        >
-          Interne KI
-        </a>
+        <Button asChild variant="primary" className="cursor-grab select-none">
+          {/* eslint-disable-next-line jsx-a11y/anchor-is-valid -- href wird imperativ gesetzt (javascript:-Bookmarklet) */}
+          <a
+            ref={linkRef}
+            draggable
+            onClick={e => e.preventDefault()}
+            title="In die Lesezeichenleiste ziehen"
+          >
+            Interne KI
+          </a>
+        </Button>
       </div>
 
       {/* Anleitung */}

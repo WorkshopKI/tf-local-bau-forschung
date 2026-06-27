@@ -15,6 +15,7 @@
  */
 import { Fragment, useEffect, useMemo, useState, useRef } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -174,20 +175,20 @@ export function SkillEvalPanel({ registry }: SkillEvalPanelProps): React.ReactEl
           </label>
 
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="primary"
               onClick={() => start.run()}
-              disabled={start.busy}
-              className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-50"
+              loading={start.busy}
             >
               {start.busy ? `Läuft… ${progress ? `${progress.done}/${progress.total}` : ''}` : 'Testlauf starten'}
-            </button>
+            </Button>
             {start.busy && (
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => abortRef.current?.abort()}
-                className="text-[13px] px-3 py-2 rounded-[8px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]"
               >
                 Abbrechen
-              </button>
+              </Button>
             )}
           </div>
         </div>

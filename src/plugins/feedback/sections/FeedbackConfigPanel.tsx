@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Check, Eye, FileCog } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   getSharedFileStatus,
@@ -125,9 +126,9 @@ export function FeedbackConfigPanel(): React.ReactElement {
         </div>
       </div>
 
-      <button type="button" onClick={handleSave} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--tf-radius)] text-[12.5px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer">
-        {savedNotice ? <Check size={13} /> : null} {savedNotice ? 'Gespeichert' : 'Einstellungen speichern'}
-      </button>
+      <Button type="button" onClick={handleSave} variant="primary" icon={savedNotice ? Check : undefined}>
+        {savedNotice ? 'Gespeichert' : 'Einstellungen speichern'}
+      </Button>
     </div>
   );
 }

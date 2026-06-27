@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   children: ReactNode;
@@ -41,12 +42,12 @@ export class ErrorBoundary extends Component<Props, State> {
                 {this.state.error?.stack}
               </pre>
             </details>
-            <button
+            <Button
+              variant="primary"
               onClick={() => window.location.reload()}
-              className="px-4 py-2 text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] rounded-[var(--tf-radius)] cursor-pointer"
             >
               Seite neu laden
-            </button>
+            </Button>
           </div>
         </div>
       );

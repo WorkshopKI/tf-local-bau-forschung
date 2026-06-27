@@ -11,6 +11,7 @@
  */
 import { useMemo, useState } from 'react';
 import { SlidersHorizontal, X, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
@@ -26,8 +27,6 @@ import { StreamingVorschau } from './StreamingVorschau';
 import { TweakEditor } from './TweakEditor';
 import { VorlageDialog } from './VorlageDialog';
 import type { KurzfassungContext } from './types';
-
-const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed';
 
 export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useKurzfassung(ctx);
@@ -195,14 +194,13 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
             ) : (
               <>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    className={BTN_PRIMARY}
+                  <Button
+                    variant="primary"
                     disabled={ctrl.llmAvailable === false}
                     onClick={ctrl.generate}
                   >
                     Kurzfassung erstellen
-                  </button>
+                  </Button>
                   <ThinkingControl budget={ctrl.thinkingBudget} onChange={ctrl.setThinkingBudget} disabled={ctrl.busy} />
                 </div>
                 {ctrl.llmAvailable === false && (

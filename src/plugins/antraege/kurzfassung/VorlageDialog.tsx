@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Dialog } from '@/ui/Dialog';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -36,9 +37,6 @@ interface Props {
   dateiPrefix?: string;
   onClose: () => void;
 }
-
-const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed';
-const BTN_GHOST = 'px-4 py-2 rounded-[8px] text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]';
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
@@ -128,13 +126,13 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, 
   if (!open) return null;
 
   const footer = erstellt
-    ? <button type="button" className={BTN_PRIMARY} onClick={onClose}>Schließen</button>
+    ? <Button variant="primary" onClick={onClose}>Schließen</Button>
     : (
       <>
-        <button type="button" className={BTN_GHOST} onClick={onClose}>Abbrechen</button>
-        <button type="button" className={BTN_PRIMARY} disabled={busy || !selected} onClick={() => { void erstellen(); }}>
-          {busy ? 'Erstelle…' : 'Erstellen'}
-        </button>
+        <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+        <Button variant="primary" loading={busy} disabled={!selected} onClick={() => { void erstellen(); }}>
+          Erstellen
+        </Button>
       </>
     );
 
@@ -163,9 +161,9 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, 
           <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">
             Noch kein Vorlagen-Verzeichnis verbunden. Wählen Sie das DMS-Verzeichnis mit den Gutachten-Vorlagen.
           </p>
-          <button type="button" className={BTN_PRIMARY} disabled={busy} onClick={() => { void pick(); }}>
+          <Button variant="primary" disabled={busy} onClick={() => { void pick(); }}>
             Vorlagen-Verzeichnis verbinden
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-4">

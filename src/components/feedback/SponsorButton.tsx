@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { Check, Clock, Coins, Plus, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -124,15 +125,16 @@ export function SponsorButton({ ticket, config, open, onChanged, compact }: Prop
               </button>
             </div>
           ) : (
-            <button
+            <Button
               type="button"
               onClick={() => doSponsorPoints(1)}
               disabled={remainingPoints <= 0}
               title={remainingPoints <= 0 ? 'Kein Budget übrig' : `Noch ${remainingPoints} Pkt übrig`}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[var(--tf-radius)] text-[11.5px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              variant="primary"
+              size="sm"
             >
               +1 Punkt
-            </button>
+            </Button>
           )}
           {/* Stunden: bereits gesponsort */}
           {mineH && (
@@ -203,14 +205,16 @@ export function SponsorButton({ ticket, config, open, onChanged, compact }: Prop
         </span>
       ) : (
         <div className="relative inline-block">
-          <button
+          <Button
             type="button" onClick={() => setShowPointsMenu(v => !v)}
             disabled={remainingPoints <= 0}
             title={remainingPoints <= 0 ? 'Kein Budget übrig dieses Quartal' : `Noch ${remainingPoints} Pkt übrig`}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[var(--tf-radius)] text-[12px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            variant="primary"
+            size="sm"
+            icon={Plus}
           >
-            <Plus size={12} /> Punkte
-          </button>
+            Punkte
+          </Button>
           {showPointsMenu && (
             <div
               className="absolute z-10 top-full left-0 mt-1 rounded-[var(--tf-radius)] bg-[var(--tf-bg)] py-1 min-w-[140px]"
@@ -272,15 +276,14 @@ export function SponsorButton({ ticket, config, open, onChanged, compact }: Prop
           </label>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={doSponsorHours} disabled={!projectRef.trim() || hours < 1}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-[var(--tf-radius)] text-[11.5px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-40 cursor-pointer">
-            <Check size={11} /> Sponsoren
-          </button>
-          <button type="button" onClick={() => { setShowHoursDialog(false); setErrorMsg(null); }}
-            className="px-2 py-1 rounded-[var(--tf-radius)] text-[11.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-            style={{ border: '0.5px solid var(--tf-border)' }}>
+          <Button type="button" onClick={doSponsorHours} disabled={!projectRef.trim() || hours < 1}
+            variant="primary" size="sm" icon={Check}>
+            Sponsoren
+          </Button>
+          <Button type="button" onClick={() => { setShowHoursDialog(false); setErrorMsg(null); }}
+            variant="secondary" size="sm">
             Abbrechen
-          </button>
+          </Button>
         </div>
       </div>
     );

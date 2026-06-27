@@ -5,6 +5,7 @@
  * Sektion bearbeitet.
  */
 import { Loader2, Check, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { BatchEintrag } from '@/core/services/gutachten-batch';
 import type { UseBatchJob } from './useBatchJob';
 
@@ -76,10 +77,10 @@ export function BatchMonitor({ batch, onClose, onOpenAntrag }: Props): React.Rea
 
       <div className="flex items-center gap-3">
         {aktivLaeuft && (
-          <button type="button" onClick={batch.pause} className="px-4 py-2 rounded-lg text-[13.5px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text)]">Pausieren</button>
+          <Button type="button" variant="secondary" onClick={batch.pause}>Pausieren</Button>
         )}
         {fortsetzbar && (
-          <button type="button" onClick={batch.fortsetzen} className="px-4 py-2 rounded-lg text-[13.5px] bg-[var(--tf-text)] text-[var(--tf-bg)]">Fortsetzen</button>
+          <Button type="button" variant="primary" onClick={batch.fortsetzen}>Fortsetzen</Button>
         )}
         {(aktivLaeuft || fortsetzbar) && (
           <button type="button" onClick={batch.abbrechenJob} className="text-[13px] text-[var(--tf-danger-text)] hover:underline">Abbrechen</button>

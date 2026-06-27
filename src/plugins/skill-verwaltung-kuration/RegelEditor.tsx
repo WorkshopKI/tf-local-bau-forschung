@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   buildPromptHinweis,
   effektiveKategorie,
@@ -209,24 +210,24 @@ export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete
 
       <div className="mt-[18px] flex gap-2">
         {canEdit && (
-          <button
-            disabled={busy}
+          <Button
+            variant="primary"
+            loading={busy}
             onClick={() => onSave({ ...draft, geaendert_am: new Date().toISOString() })}
-            className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-50"
           >
-            {busy ? 'Speichere…' : 'Speichern'}
-          </button>
+            Speichern
+          </Button>
         )}
-        <button onClick={onCancel} className="text-[13px] px-4 py-2 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
+        <Button variant="ghost" onClick={onCancel}>
           {canEdit ? 'Abbrechen' : 'Zurück'}
-        </button>
+        </Button>
         {!canEdit && <span className="self-center text-[12px] text-[var(--tf-text-tertiary)]">Kurator-Modus nicht aktiv — nur lesbar.</span>}
         {canEdit && onDelete && (
           <>
             <span className="flex-1" />
-            <button disabled={busy} onClick={onDelete} className="text-[13px] px-4 py-2 rounded-[8px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] disabled:opacity-50">
+            <Button variant="ghost" disabled={busy} onClick={onDelete} className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)]">
               Löschen
-            </button>
+            </Button>
           </>
         )}
       </div>

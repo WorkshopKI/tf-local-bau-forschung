@@ -3,6 +3,7 @@
  * „Konvertieren & ablegen" (sequenziell, mit Fortschritt + Abbrechen) → Bestand.
  */
 import { Loader2, Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { FileDropZone } from '@/components/ui/FileDropZone';
 import { AufnahmeZeile } from './AufnahmeZeile';
 import { BestandsBlock } from './BestandsBlock';
@@ -61,14 +62,15 @@ export function AufnahmePanel({ a }: { a: UseAufnahme }): React.ReactElement {
           )}
 
           <div className="mt-4 flex items-center gap-3">
-            <button
+            <Button
               type="button"
+              variant="primary"
               onClick={() => a.konvertieren.run()}
-              disabled={busy || ablegbar === 0}
-              className="px-4 py-2 rounded-lg text-[13.5px] bg-[var(--tf-text)] text-[var(--tf-bg)] disabled:opacity-40"
+              loading={busy}
+              disabled={ablegbar === 0}
             >
-              {busy ? 'Konvertiere…' : `Konvertieren & ablegen (${ablegbar})`}
-            </button>
+              Konvertieren &amp; ablegen ({ablegbar})
+            </Button>
             {busy && a.fortschritt && (
               <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)]">
                 <Loader2 size={12} className="animate-spin" />

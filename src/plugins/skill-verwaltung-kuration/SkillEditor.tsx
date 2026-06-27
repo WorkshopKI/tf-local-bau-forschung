@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import {
@@ -312,21 +313,21 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
         <div className="mt-6 pt-4 border-t-[0.5px] border-[var(--tf-border)] flex items-center gap-2.5">
           {canEdit && (
             <>
-              <button onClick={() => { void save.run(); }} disabled={save.busy} className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-50">
-                {save.busy ? 'Speichere…' : 'Speichern'}
-              </button>
+              <Button variant="primary" onClick={() => { void save.run(); }} loading={save.busy}>
+                Speichern
+              </Button>
               <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">erzeugt Version {nextVersion}</span>
             </>
           )}
           {!canEdit && <span className="text-[12px] text-[var(--tf-text-tertiary)]">Kurator-Modus nicht aktiv — nur lesbar.</span>}
           <span className="flex-1" />
-          <button
+          <Button
+            variant="secondary"
             onClick={() => onTestlauf(draft, assignedRegeln, `v${draft.version}${dirty ? ' · ungespeicherte Änderungen' : ''}`)}
-            className="text-[13px] px-4 py-2 rounded-[8px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)]"
           >
             Testlauf
-          </button>
-          <button onClick={onBack} className="text-[13px] px-4 py-2 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">Abbrechen</button>
+          </Button>
+          <Button variant="ghost" onClick={onBack}>Abbrechen</Button>
         </div>
       </div>
       )}

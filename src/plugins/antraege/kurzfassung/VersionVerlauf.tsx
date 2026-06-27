@@ -9,6 +9,7 @@
 import { useMemo, useState } from 'react';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { Tabs } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { splitSentences } from '@/core/services/skills';
 import { CheckList } from './CheckList';
 import { versionLabel, formatDate } from './kurzfassung-verlauf';
@@ -25,8 +26,7 @@ interface Props {
   onUebernehmen: (index: number) => void;
 }
 
-const BTN_SECONDARY = 'px-3 py-1.5 rounded-[8px] text-[12px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed';
-const DIFF_BOX = 'rounded-[8px] border-[0.5px] border-[var(--tf-border)] p-3 text-[13px] leading-[1.7] text-[var(--tf-text)] whitespace-pre-wrap max-h-[360px] overflow-auto';
+const DIFF_BOX ='rounded-[8px] border-[0.5px] border-[var(--tf-border)] p-3 text-[13px] leading-[1.7] text-[var(--tf-text)] whitespace-pre-wrap max-h-[360px] overflow-auto';
 const META = 'mb-2 flex items-baseline gap-2 flex-wrap text-[11.5px] text-[var(--tf-text-tertiary)]';
 
 /** Kurzdatum (Tag.Monat.) für die Tab-Beschriftung. */
@@ -129,9 +129,9 @@ export function VersionVerlauf({ versions, aktuellerText, aktuellErstelltAm, bus
               )}
 
               <div className="mt-3">
-                <button type="button" className={BTN_SECONDARY} disabled={busy} onClick={() => onUebernehmen(idx)}>
+                <Button variant="secondary" size="sm" disabled={busy} onClick={() => onUebernehmen(idx)}>
                   Diese Fassung übernehmen
-                </button>
+                </Button>
               </div>
             </div>
           </div>

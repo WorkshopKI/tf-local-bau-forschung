@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   getSponsoringProgress,
@@ -117,10 +118,9 @@ export function FeedbackSponsoringOverview({ tickets, config, onConfigChanged }:
                   className={inputClass} style={inputStyle} />
               </div>
             </div>
-            <button type="button" onClick={handleSave}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--tf-radius)] text-[12px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer">
-              {saved ? <Check size={13} /> : null} {saved ? 'Gespeichert' : 'Speichern'}
-            </button>
+            <Button type="button" onClick={handleSave} variant="primary" icon={saved ? Check : undefined}>
+              {saved ? 'Gespeichert' : 'Speichern'}
+            </Button>
           </div>
         </section>
 

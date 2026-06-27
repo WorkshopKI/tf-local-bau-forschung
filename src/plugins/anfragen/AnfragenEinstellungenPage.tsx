@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Save, RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -84,22 +85,27 @@ export function AnfragenEinstellungenPage(): React.ReactElement {
         </p>
 
         <div className="mt-3 flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
+            icon={Save}
             onClick={() => speichern.run()}
-            disabled={!canWrite || !dirty || speichern.busy}
-            className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-text)] text-[var(--tf-bg)] flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer hover:opacity-90 transition-opacity"
+            loading={speichern.busy}
+            disabled={!canWrite || !dirty}
           >
-            <Save size={12} /> {speichern.busy ? 'Speichere…' : 'Speichern'}
-          </button>
-          <button
+            Speichern
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
+            icon={RotateCcw}
             onClick={() => onChange('')}
             disabled={!canWrite || !url.trim()}
-            className="text-[12px] px-3 py-1.5 rounded-[var(--tf-radius)] border border-[var(--tf-border)] text-[var(--tf-text)] flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer hover:bg-[var(--tf-hover)] transition-colors"
           >
-            <RotateCcw size={12} /> Auf Standard zurücksetzen
-          </button>
+            Auf Standard zurücksetzen
+          </Button>
         </div>
 
         {!canWrite && (

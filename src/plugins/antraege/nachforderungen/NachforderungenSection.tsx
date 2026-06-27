@@ -11,13 +11,11 @@ import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
+import { Button } from '@/components/ui/button';
 import type { Antrag } from '@/core/services/csv/types';
 import { VorlageDialog } from '../kurzfassung/VorlageDialog';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useNachforderungen, type NfEntwurf } from './useNachforderungen';
-
-const BTN_PRIMARY = 'px-4 py-2 rounded-[8px] text-[13px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2';
-const BTN_SECONDARY = 'px-4 py-2 rounded-[8px] text-[13px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text)] bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2';
 
 export function NachforderungenSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useNachforderungen(ctx);
@@ -55,17 +53,16 @@ export function NachforderungenSection({ ctx }: { ctx: KurzfassungContext }): Re
         <span className="flex-1" />
         {ctrl.vbVorhanden && (
           ctrl.busy ? (
-            <button type="button" className={BTN_SECONDARY} onClick={ctrl.stop}>Stopp</button>
+            <Button variant="secondary" onClick={ctrl.stop}>Stopp</Button>
           ) : (
-            <button
-              type="button"
-              className={BTN_PRIMARY}
+            <Button
+              variant="primary"
               disabled={ctrl.loading}
               onClick={ctrl.generiereAlle}
               title="Erzeugt für jedes Teilvorhaben einen NF-Entwurf (Gesamtvorhaben-Bausteine einmal + TV-Bausteine je TV)."
             >
               NF-Entwürfe erzeugen
-            </button>
+            </Button>
           )
         )}
       </div>

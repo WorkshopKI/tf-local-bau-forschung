@@ -47,6 +47,10 @@
  *     runEvalBatch importieren KEINE Real-Antrag-Pfade (listAllAntraegeListView,
  *     findVorhabensbeschreibung, doc:-Scan) — Fixtures nur via loadEvalFixtures();
  *     Scoring nur ueber das geteilte runJudge/aggregate (kein dup. Judge-Call).
+ *   - no-raw-cta-fill                   → CTA-Buttons tragen die Profil-Primaerfarbe
+ *     ueber die kanonische <Button>-Komponente (@/components/ui/button, variant=
+ *     'primary' = --tf-primary); kein hand-gebauter `bg-[var(--tf-text)]`-/
+ *     `bg-[var(--tf-primary)]`-Fill mit hover:opacity. Inline '// allow-cta-fill'.
  *   - theme-token-contract              → Design-Handoff-Token-Vertrag (v2.119):
  *     jedes via var(--tf-…) OHNE Fallback in CSS/TSX/TS referenzierte Token MUSS
  *     global in src/theme.css definiert sein, sonst die "nackt"-Falle v2.67.1 (ein
@@ -748,7 +752,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 29;    // Ist 29; +1 'workflowEntwuerfe' (Workflow-Verwaltung dev-Freigabe, v2.133)
   const MAX_SERVICE_DIRS = 22;     // Ist 22 (+ msg: .msg-Parser fuers Anfragen-Modul, v2.x); davor 21 (skill-feedback File-first Substrat S1)
-  const MAX_FILE_LOC = 1135;       // Ist 1122 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1190;       // Ist ~1175 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1116,6 +1120,46 @@ describe('no-parallel-scope-tabs (Listen-Sicht-Tabs gehören in ScopeTabs)', () 
         `Listen-Sichten mit Zähler → ScopeTabs; generische Navigation → @/components/ui/tabs.\n` +
         `Echte Ausnahme: '// allow-scope-tabs: <grund>' auf der Zeile (oder Pfad in\n` +
         `ALLOWED_SUFFIXES mit Begründung).\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
+describe('no-raw-cta-fill (CTA-Buttons tragen die Profil-Primaerfarbe via <Button>)', () => {
+  // Gefuellte primaere CTAs gehoeren an die kanonische Komponente <Button> aus
+  // @/components/ui/button (variant='primary'/'default' = bg-primary = --tf-primary,
+  // der vom User waehlbare Profil-Akzent; seit v2.144). Ein hand-gebauter <button>/<a>
+  // mit eigenem `bg-[var(--tf-text)]`- oder `bg-[var(--tf-primary)]`-Fill haengt sich
+  // davon ab und wirkt schwarz statt im Akzent (DESIGN_GUIDE „Button").
+  //
+  // Praezise Signatur (Fill + `hover:opacity`): trifft NUR gefuellte Klick-CTAs. Toggle-
+  // Pills (Aktiv-Fill im Ternary), Badge-Style-Maps, Switch-Thumbs, Chat-Bubbles, der
+  // Darstellungs-Vorschau-Chip und Progress-Bars haben KEIN `hover:opacity` → kein
+  // False-Positive. Inline-Ausnahme: '// allow-cta-fill: <grund>'.
+  const FILLS = [
+    'bg-[var(--tf-text)] text-[var(--tf-bg)]',
+    'bg-[var(--tf-primary)] text-white',
+    'bg-[var(--tf-primary)] text-[var(--tf-primary-foreground)]',
+  ];
+  const isCtaFill = (l: string): boolean =>
+    l.includes('hover:opacity') && FILLS.some(f => l.includes(f));
+
+  it('kein hand-gebauter gefuellter CTA-Fill (Button-Komponente nutzen)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.endsWith('.tsx')) continue;
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      findings.push(...findInFile(file, isCtaFill, 'allow-cta-fill'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Hand-gebauter gefuellter CTA-Button verboten (DESIGN_GUIDE „Button").\n` +
+        `Nutze die kanonische Komponente <Button> aus @/components/ui/button:\n` +
+        `  <Button variant="primary" icon={Icon} loading={x.busy} onClick={…}>Speichern</Button>\n` +
+        `variant='primary' traegt die vom User waehlbare Profil-Primaerfarbe (--tf-primary);\n` +
+        `Zweitaktion = variant='secondary' (Outline), Anker = <Button asChild><a>…</a></Button>.\n` +
+        `Bewusste Nicht-Button-Flaeche (Toggle-Pill/Badge/Chip): Fill OHNE hover:opacity halten\n` +
+        `oder Zeile mit '// allow-cta-fill: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`,
       );
     }
   });

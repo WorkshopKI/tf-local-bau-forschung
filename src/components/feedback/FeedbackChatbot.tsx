@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Send, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useNavigation } from '@/core/hooks/useNavigation';
@@ -124,13 +125,14 @@ export function FeedbackChatbot({ feedbackId, initialText, context, onClose }: P
         <p className="text-[12px] text-[var(--tf-text-secondary)]">
           Aktuell ist <span className="font-medium">{transport.displayName ?? transport.name}</span> aktiv.
         </p>
-        <button
+        <Button
           type="button"
           onClick={() => { onClose(); navigate('einstellungen'); }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--tf-radius)] text-[12.5px] bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer"
+          variant="primary"
+          icon={Settings}
         >
-          <Settings size={14} /> KI-Provider konfigurieren
-        </button>
+          KI-Provider konfigurieren
+        </Button>
       </div>
     );
   }
@@ -211,15 +213,16 @@ export function FeedbackChatbot({ feedbackId, initialText, context, onClose }: P
           className="flex-1 px-2.5 py-1.5 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none resize-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
           style={{ border: '0.5px solid var(--tf-border)' }}
         />
-        <button
+        <Button
           type="button"
           onClick={() => void handleUserSend(input)}
           disabled={!input.trim() || thinking || !!classification}
-          className="p-2 rounded-[var(--tf-radius)] bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          variant="primary"
+          size="icon"
           aria-label="Senden"
         >
-          <Send size={14} />
-        </button>
+          <Send />
+        </Button>
       </div>
     </div>
   );

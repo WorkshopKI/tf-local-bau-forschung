@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import {
@@ -221,13 +222,14 @@ export function SkillTestlaufPanel({ skill, regeln, hinweis, onClose }: SkillTes
       {/* Fuß */}
       <div className="flex items-center gap-2.5 px-5 py-3 border-t-[0.5px] border-[var(--tf-border)]">
         <span className="flex-1 text-[11.5px] text-[var(--tf-text-tertiary)]">Testläufe verändern keine Arbeitsstände.</span>
-        <button
-          disabled={!selected || busy}
+        <Button
+          variant="primary"
+          disabled={!selected}
+          loading={busy}
           onClick={() => { void run(); }}
-          className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-text)] text-[var(--tf-bg)] hover:opacity-85 disabled:opacity-50"
         >
-          {busy ? 'Läuft…' : result ? 'Erneut ausführen' : 'Ausführen'}
-        </button>
+          {result ? 'Erneut ausführen' : 'Ausführen'}
+        </Button>
       </div>
     </div>
   );

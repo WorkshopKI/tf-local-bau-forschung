@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { createStandaloneFaq, updateFeedback } from '@/core/services/feedback';
 import type { FeedbackItem } from '@/core/types/feedback';
@@ -56,9 +57,9 @@ export function FeedbackFaqTab({ faqs, onChanged }: Props): React.ReactElement {
         <p className="text-[12.5px] text-[var(--tf-text-secondary)] shrink-0">{faqs.length} FAQ-Einträge</p>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="FAQ durchsuchen…" className={inputClass + ' max-w-xs'} style={inputStyle} />
         <div className="flex-1" />
-        <button type="button" onClick={() => setCreating(!creating)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] font-medium shrink-0 bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer">
-          <Plus size={12} /> FAQ manuell anlegen
-        </button>
+        <Button type="button" onClick={() => setCreating(!creating)} variant="primary" className="shrink-0" icon={Plus}>
+          FAQ manuell anlegen
+        </Button>
       </div>
 
       {/* Create form */}
@@ -67,9 +68,9 @@ export function FeedbackFaqTab({ faqs, onChanged }: Props): React.ReactElement {
           <input value={newSummary} onChange={e => setNewSummary(e.target.value)} placeholder="Frage / Titel…" className={inputClass} style={inputStyle} />
           <textarea value={newAnswer} onChange={e => setNewAnswer(e.target.value)} placeholder="Antwort…" rows={3} className={inputClass + ' resize-none'} style={inputStyle} />
           <input value={newKeywords} onChange={e => setNewKeywords(e.target.value)} placeholder="Stichwörter (kommagetrennt)" className={inputClass} style={inputStyle} />
-          <button type="button" onClick={handleCreate} disabled={!newSummary.trim() || !newAnswer.trim()} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-40 cursor-pointer">
+          <Button type="button" onClick={handleCreate} disabled={!newSummary.trim() || !newAnswer.trim()} variant="primary">
             FAQ speichern
-          </button>
+          </Button>
         </div>
       )}
 
@@ -123,8 +124,8 @@ export function FeedbackFaqTab({ faqs, onChanged }: Props): React.ReactElement {
                     <textarea value={editAnswer} onChange={e => setEditAnswer(e.target.value)} rows={3} className={inputClass + ' resize-none'} style={inputStyle} />
                     <input value={editKeywords} onChange={e => setEditKeywords(e.target.value)} placeholder="Stichwörter" className={inputClass} style={inputStyle} />
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => handleSaveEdit(faq.id)} className="px-2.5 py-1 rounded-[var(--tf-radius)] text-[11px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 cursor-pointer">Speichern</button>
-                      <button type="button" onClick={() => setEditingId(null)} className="px-2.5 py-1 rounded-[var(--tf-radius)] text-[11px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>Abbrechen</button>
+                      <Button type="button" onClick={() => handleSaveEdit(faq.id)} variant="primary" size="sm">Speichern</Button>
+                      <Button type="button" onClick={() => setEditingId(null)} variant="secondary" size="sm">Abbrechen</Button>
                     </div>
                   </div>
                 )}

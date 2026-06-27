@@ -5,6 +5,7 @@
  * ausgeblendet (Teil A allein lauffähig).
  */
 import { CheckCircle2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { AbschlussInfo } from './types';
 
 interface Props {
@@ -43,28 +44,28 @@ export function AbschlussPanel({ info, onNeu, onClose, onBatchStart }: Props): R
 
       <div className="mt-6 flex items-center gap-3">
         {onBatchStart && info.fkzMitVb.length > 0 && (
-          <button
+          <Button
             type="button"
+            variant="primary"
             onClick={() => onBatchStart(info.fkzMitVb)}
-            className="px-4 py-2 rounded-lg text-[13.5px] bg-[var(--tf-text)] text-[var(--tf-bg)]"
           >
             Gutachten-Entwürfe erzeugen…
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={onNeu}
-          className="px-4 py-2 rounded-lg text-[13.5px] border-[0.5px] border-[var(--tf-border-hover)] text-[var(--tf-text)]"
         >
           Weitere aufnehmen
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
           onClick={onClose}
-          className="text-[13px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]"
         >
           Schließen
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -5,6 +5,31 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.150.0 — CTA-Buttons app-weit auf die Profil-Primärfarbe (Juni 2026)
+
+MINOR — Reiner Style-/Komponenten-Refactor, keine Verhaltensänderung. Die im Profil/Darstellung
+wählbare **Primärfarbe `--tf-primary`** (Akzent) erschien bisher nur auf den CTAs, die schon die
+kanonische `<Button>`-Komponente nutzten (z.B. Einstellungen). Viele Module bauten Primär-CTAs aber
+hand-gebaut nach — entweder mit `bg-[var(--tf-text)]` (wirkte **schwarz** statt Akzent) oder roh mit
+`bg-[var(--tf-primary)]` (Farbe ok, aber an der Komponente vorbei). Jetzt durchgängig über `<Button>`.
+
+- **~70 hand-gebaute CTAs migriert** auf `<Button variant="primary|secondary|ghost">` aus
+  `@/components/ui/button` (Vorbild: v2.149-Anfrage-Detail-Migration). Betroffen: Skill-/Workflow-/
+  Regel-Verwaltung (`skill-verwaltung-kuration/`), Kurzfassung + Nachforderungen (lokale
+  `BTN_PRIMARY`/`BTN_SECONDARY`-Klassen-Konstanten **entfernt**), Aufnahme + Gutachten-Batch,
+  Anfragen-Einstellungen/Recall-Eval, Suche-Analyse-Dialog, `data-table/ColumnFilterDropdown`,
+  `ErrorBoundary`, alle Feedback-Touchpoints (FAB-Panel, Sponsoring, FAQ, Tickets) und der
+  Streamlit-Bookmarklet-Anker (`<Button asChild>`). `loading`-Prop ersetzt die `busy`-Text-Swaps,
+  Icons via `icon={…}`.
+- **DESIGN_GUIDE** „Button"-Tabelle korrigiert: Primary = `--tf-primary` (wählbarer Akzent) über
+  `<Button>`, nicht mehr `--tf-text` (schwarz). Hand-gebaute gefüllte CTAs ausdrücklich verboten.
+- **Neuer Convention-Guard `no-raw-cta-fill`** ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)):
+  flaggt `bg-[var(--tf-text)]`/`bg-[var(--tf-primary)]`-Fill **mit** `hover:opacity` in `.tsx`. Die
+  `hover:opacity`-Signatur trifft nur gefüllte Klick-CTAs — Toggle-Pills, Badges, Switch-Thumbs,
+  Chat-Bubbles und der Vorschau-Chip (ohne `hover:opacity`) bleiben unberührt. Inline `// allow-cta-fill`.
+- Bewusst NICHT migriert: die `.g-btn.primary`-Buttons der Gutachten-Werkstatt (scoped CSS, rendern
+  bereits `var(--tf-primary)`).
+
 ### v2.149.1 — Feedback-Board: Status-Filter „Offen" als Default (Juni 2026)
 
 PATCH — Öffentliches Board „Feedback Übersicht" ([FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)):

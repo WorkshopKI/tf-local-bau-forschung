@@ -9,6 +9,7 @@
  */
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, RotateCcw, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import { DEFAULT_BEGRUENDUNG_INSTRUCTION, buildPreviewPrompt } from './analyse/stages/begruendung';
@@ -57,23 +58,24 @@ export function AnalysePromptDialog({
       description={`Die KI ergänzt die Tabelle um eine Spalte „Begründung" — warum jeder Treffer für deine Anfrage relevant ist. Die übrigen Spalten und Treffer bleiben unverändert.`}
       footer={
         <>
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="lg"
             onClick={onCancel}
-            className="h-9 px-3 text-[13px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)]"
-            style={{ border: '0.5px solid var(--tf-border)' }}
           >
             Abbrechen
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="primary"
+            size="lg"
+            icon={Sparkles}
             onClick={onConfirm}
             disabled={results.length === 0}
-            className="flex items-center gap-1.5 h-9 px-3 text-[13px] font-medium text-[var(--tf-bg)] bg-[var(--tf-primary)] rounded hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Sparkles size={14} />
             Analyse starten
-          </button>
+          </Button>
         </>
       }
     >

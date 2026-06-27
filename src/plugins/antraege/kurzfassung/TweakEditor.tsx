@@ -11,6 +11,7 @@
  */
 import { useMemo, useState } from 'react';
 import { Lock, ArrowDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { buildTweakBlock, buildPromptVorgaben, TWEAK_FELD_MAX, type QualitaetsRegel, type SkillTweak } from '@/core/services/skills';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -71,26 +72,27 @@ export function TweakEditor({ skillVersion, sektionLabel, regeln, tweak, onClose
     <>
       <span className="mr-auto text-[11px] font-mono text-[var(--tf-text-tertiary)]">Skill-Version {skillVersion} · gespeichert lokal</span>
       {tweak && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
           onClick={() => remove.run()}
-          disabled={save.busy || remove.busy}
-          className="text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] disabled:opacity-50 mr-1"
+          loading={remove.busy}
+          disabled={save.busy}
+          className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] mr-1"
         >
-          {remove.busy ? 'Entfernen…' : 'Entfernen'}
-        </button>
+          Entfernen
+        </Button>
       )}
-      <button type="button" onClick={onClose} className="text-[13px] px-4 py-2 rounded-[8px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
+      <Button variant="ghost" onClick={onClose}>
         Abbrechen
-      </button>
-      <button
-        type="button"
+      </Button>
+      <Button
+        variant="primary"
         onClick={() => save.run()}
-        disabled={save.busy || remove.busy}
-        className="text-[13px] px-4 py-2 rounded-[8px] bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-50"
+        loading={save.busy}
+        disabled={remove.busy}
       >
-        {save.busy ? 'Speichern…' : 'Speichern'}
-      </button>
+        Speichern
+      </Button>
     </>
   );
 

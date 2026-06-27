@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Check, Square, Type, Undo2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import type { PendingAttachment } from './feedbackAttachments';
 import { useAnnotationCanvas, ANNOTATION_COLORS, type AnnotationTool, type AnnotationTextSize } from './useAnnotationCanvas';
@@ -159,7 +160,7 @@ export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): R
               className="flex-1 px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
               style={{ border: '0.5px solid var(--tf-border)' }}
             />
-            <button type="button" onClick={a.commitText} className="px-2 py-1 rounded-[var(--tf-radius)] text-[11.5px] bg-[var(--tf-primary)] text-white cursor-pointer">Setzen</button>
+            <Button type="button" onClick={a.commitText} variant="primary" size="xs">Setzen</Button>
           </div>
         )}
 
@@ -189,10 +190,8 @@ export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): R
           style={{ border: '0.5px solid var(--tf-border)' }}
         />
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={{ border: '0.5px solid var(--tf-border)' }}>Abbrechen</button>
-          <button type="button" onClick={() => confirm.run()} disabled={confirm.busy || !bitmap} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--tf-radius)] text-[12px] font-medium bg-[var(--tf-primary)] text-white hover:opacity-90 disabled:opacity-40 cursor-pointer">
-            <Check size={14} /> {confirm.busy ? 'Übernehme…' : 'Übernehmen'}
-          </button>
+          <Button type="button" onClick={onCancel} variant="secondary">Abbrechen</Button>
+          <Button type="button" onClick={() => confirm.run()} disabled={!bitmap} loading={confirm.busy} variant="primary" icon={Check}>Übernehmen</Button>
         </div>
       </div>
     </div>
