@@ -14,7 +14,7 @@ function perfectErgebnis(f: AnfrageEvalFixture): AnonymisierungErgebnis {
   }));
   let text = f.text;
   for (const m of mapping) text = text.split(m.original).join(m.platzhalter);
-  return { anonymisiertMd: text, mapping };
+  return { anonymisiertMd: text, mapping, verallgemeinerungen: [] };
 }
 
 describe('Recall-Scoring', () => {

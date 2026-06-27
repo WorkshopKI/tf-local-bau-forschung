@@ -30,7 +30,21 @@ describe('Anfrage-Persistenz (kv-Store, Prefix anfrage:)', () => {
     expect(back).toEqual(a);
     expect(back?.status).toBe('aufgenommen');
     expect(back?.mapping).toEqual([]);
+    expect(back?.verallgemeinerungen).toEqual([]);
     expect(back?.finaleAntwort).toBe('');
+  });
+
+  it('normalize: Alt-Record ohne verallgemeinerungen → [] beim Lesen (kein Crash)', async () => {
+    const idb = await freshIdb();
+    // Record im alten Schema (vor v2): kein `verallgemeinerungen`-Feld.
+    const legacy = createAnfrage({ absenderEmail: 'a@a.de', betreff: 'legacy', hatAnhaenge: 0, originalMd: '' });
+    const { verallgemeinerungen: _weg, ...ohneFeld } = legacy;
+    void _weg;
+    await idb.set(`anfrage:${legacy.id}`, ohneFeld);
+    const back = await getAnfrage(idb, legacy.id);
+    expect(back?.verallgemeinerungen).toEqual([]);
+    const list = await listAnfragen(idb);
+    expect(list[0]?.verallgemeinerungen).toEqual([]);
   });
 
   it('listAnfragen liefert alle, neueste (erstelltAm) zuerst', async () => {

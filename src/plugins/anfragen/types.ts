@@ -6,7 +6,9 @@
  * DSGVO-Kernpunkt: `originalMd` trägt echte Inhalte (nur lokal/intern), `mapping`
  * ist die sensibelste Struktur im ganzen Modul (Platzhalter→Original) und darf
  * NIEMALS serialisiert oder an einen Transport übergeben werden — erzwungen per
- * Convention-Guard `anfrage-no-mapping-in-transport`.
+ * Convention-Guard `anfrage-no-mapping-in-transport`. Ebenso sensibel:
+ * `verallgemeinerungen[].original` (identifizierender Freitext) — nur lokal, nie
+ * an Transporte/Serialisierung.
  */
 
 export type PiiTyp =
@@ -18,6 +20,17 @@ export interface Mapping {
   platzhalter: string;
   original: string;
   typ: PiiTyp;
+}
+
+/**
+ * Identifizierender Freitext, der verallgemeinert (NICHT pseudonymisiert) wurde.
+ * `original` ist sensibel (nur lokal, nie an Transporte — wie `Mapping`),
+ * `verallgemeinert` ist die exportierte Fassung. Wird NIE wiedereingesetzt
+ * (kein Platzhalter, kein Eintrag in `mapping`).
+ */
+export interface Verallgemeinerung {
+  original: string;       // SENSIBEL — nur lokal, nie an Transporte
+  verallgemeinert: string;
 }
 
 export type AnfrageStatus =
@@ -38,6 +51,7 @@ export interface Anfrage {
   // Anonymisierung
   anonymisiertMd: string;  // editierbar durch User
   mapping: Mapping[];      // SENSIBELSTE STRUKTUR — niemals an Transporte
+  verallgemeinerungen: Verallgemeinerung[]; // identifizierender Freitext, verallgemeinert (nur lokal)
   // Externe Runde
   externeAntwortAnon: string;  // Paste der anonymisierten Antwort
   // Finalisierung

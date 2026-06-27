@@ -976,17 +976,18 @@ describe('theme-token-contract (CLAUDE.md Doku-Konvention #4; v2.67.1-"nackt"-Fa
 });
 
 describe('anfrage-no-mapping-in-transport (DSGVO: Mapping/Original nie an Transporte/Serialisierung)', () => {
-  // Im Modul „Anfragen" sind `Anfrage.mapping` (Platzhalter→Original) und `Anfrage.originalMd`
-  // (echte Inhalte) die sensibelsten Strukturen. Sie duerfen nie in einer Sende-/Serialisierungs-
-  // Payload landen. Der LEGITIME interne Anonymisierungs-Lauf nutzt getTransportForSkillRun()/
-  // runSkill() (intern erzwungen) — diese Tokens stehen BEWUSST nicht in der Verbotsliste.
+  // Im Modul „Anfragen" sind `Anfrage.mapping` (Platzhalter→Original), `Anfrage.originalMd`
+  // (echte Inhalte) und `Anfrage.verallgemeinerungen` (enthaelt `original`-Freitext) die
+  // sensibelsten Strukturen. Sie duerfen nie in einer Sende-/Serialisierungs-Payload landen.
+  // Der LEGITIME interne Anonymisierungs-Lauf nutzt getTransportForSkillRun()/runSkill()
+  // (intern erzwungen) — diese Tokens stehen BEWUSST nicht in der Verbotsliste.
   const isAnfragen = (file: string): boolean =>
     relPath(file).includes('plugins/anfragen/') && !relPath(file).includes('__tests__');
   const SENDER = [
     'JSON.stringify', 'getActiveTransport', '.submitMessage(', '.submitConversation(',
     'clipboard.writeText', 'mailto:', 'fetch(',
   ];
-  const PII = ['mapping', 'originalMd'];
+  const PII = ['mapping', 'originalMd', 'verallgemeinerungen'];
 
   it('mapping/originalMd tauchen nie zusammen mit einem Transport-/Serialisierungs-Aufruf auf', () => {
     const findings: Finding[] = [];
@@ -1000,7 +1001,7 @@ describe('anfrage-no-mapping-in-transport (DSGVO: Mapping/Original nie an Transp
     }
     if (findings.length > 0) {
       expect.fail(
-        `DSGVO: Anfrage.mapping/originalMd duerfen nie in eine Transport-/Serialisierungs-Payload\n` +
+        `DSGVO: Anfrage.mapping/originalMd/verallgemeinerungen duerfen nie in eine Transport-/Serialisierungs-Payload\n` +
         `(JSON.stringify, getActiveTransport, submit*, clipboard, mailto, fetch). Der interne\n` +
         `Anonymisierungs-Lauf laeuft ueber getTransportForSkillRun()/runSkill(). Echte Ausnahme:\n` +
         `'// allow-anfrage-transport: <grund>'.\n\nTreffer:\n${fmt(findings)}`,

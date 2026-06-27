@@ -5,6 +5,26 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.152.0 — Anfragen: Zwei-Stufen-Anonymisierung (Pseudonymisieren + Verallgemeinern) (Juni 2026)
+
+MINOR — Die interne KI im Modul „Anfragen" trennt jetzt zwei Mechanismen in EINEM Lauf, damit der
+externe ZIM-FAQ-Assistent den fachlichen Sinn behält (bisher schluckten opake `[SONSTIGES_N]`-Platzhalter
+den Inhalt). Skill bleibt `aktiv: false` (Recall-Gate ausstehend — Freischaltung manuell durch Thomas).
+
+- **Stufe A — Pseudonymisieren** (`mapping`, unverändert): harte Identifikatoren → `[TYP_N]`, werden
+  wörtlich wiedereingesetzt.
+- **Stufe B — Verallgemeinern** (`verallgemeinerungen`, NEU): beschreibender Freitext wird inline auf die
+  fachliche Abstraktionsebene gehoben (Branche/Technologiefeld bleibt, Identität weg). Wird NIE
+  wiedereingesetzt, hat keinen Platzhalter, verunreinigt `mapping` nicht. `verallgemeinerungen[].original`
+  ist sensibel (nur lokal) — vom Convention-Guard `anfrage-no-mapping-in-transport` mitgeschützt.
+- **Skill-Seed** auf Zwei-Stufen-Vertrag gehoben (`version: 2`, Entscheidungsregel im System-Prompt,
+  JSON-Beispiel mit beiden Stufen). Parser parst `verallgemeinerungen` additiv-tolerant (fehlt → `[]`,
+  Stufe-A-only bleibt gültig); `normalizeAnfrage` macht Alt-Records migrationssicher.
+- **UI:** Verallgemeinerungs-Drawer (Original → Verallgemeinert) analog zum Mapping-Drawer; dezenter
+  Platzhalter-Export-Hinweis („Diese Platzhalter müssen in der Antwort erhalten bleiben") + Kopier-Button.
+- **AntwortView:** fehlende Platzhalter werden zur deutlichen Warnung verschärft (externe KI hat sie
+  aufgelöst → kein Wiedereinsetzen); weicher Längen-Hinweis ab ~0,5 A4 (`MAX_ANTWORT_ZEICHEN = 1800`).
+
 ### v2.151.2 — App-weit: kein Schwarz/Weiß mehr in Aktiv-/Emphasis-Flächen (Juni 2026)
 
 PATCH — Letzter Schliff: auch die übrigen schwarzen **Aktiv-/Emphasis-Flächen** tragen jetzt den

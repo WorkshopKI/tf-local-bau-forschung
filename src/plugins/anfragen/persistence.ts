@@ -32,10 +32,24 @@ export function createAnfrage(init: AnfrageInit, now: string = new Date().toISOS
     originalMd: init.originalMd,
     anonymisiertMd: '',
     mapping: [],
+    verallgemeinerungen: [],
     externeAntwortAnon: '',
     finaleAntwort: '',
     erstelltAm: now,
     geaendertAm: now,
+  };
+}
+
+/**
+ * Macht einen aus dem Store gelesenen Record migrationssicher: rein additive
+ * Felder (`verallgemeinerungen`, defensiv `mapping`) defaulten auf `[]`, damit
+ * Alt-Records ohne diese Felder beim Lesen nicht crashen.
+ */
+function normalizeAnfrage(raw: Anfrage): Anfrage {
+  return {
+    ...raw,
+    mapping: raw.mapping ?? [],
+    verallgemeinerungen: raw.verallgemeinerungen ?? [],
   };
 }
 
@@ -44,14 +58,15 @@ export async function putAnfrage(idb: IDBStore, a: Anfrage): Promise<void> {
 }
 
 export async function getAnfrage(idb: IDBStore, id: string): Promise<Anfrage | null> {
-  return idb.get<Anfrage>(keyFor(id));
+  const raw = await idb.get<Anfrage>(keyFor(id));
+  return raw ? normalizeAnfrage(raw) : null;
 }
 
 export async function listAnfragen(idb: IDBStore): Promise<Anfrage[]> {
   const entries = await idb.entries(KEY_PREFIX);
   const out: Anfrage[] = [];
   for (const [, value] of entries) {
-    if (value && typeof value === 'object') out.push(value as Anfrage);
+    if (value && typeof value === 'object') out.push(normalizeAnfrage(value as Anfrage));
   }
   // Neueste zuerst (stabile Sortierung über erstelltAm).
   out.sort((a, b) => (b.erstelltAm ?? '').localeCompare(a.erstelltAm ?? ''));

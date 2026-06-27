@@ -57,6 +57,7 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
   const [syncScroll, setSyncScroll] = useState(false);
   const [stacked, setStacked] = useState(false);
   const [mappingOpen, setMappingOpen] = useState(false);
+  const [verallgOpen, setVerallgOpen] = useState(false);
 
   const { height, onResizerPointerDown } = useSyncedPaneHeight('anfragen-pane-h-anon');
 
@@ -117,10 +118,26 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
     });
   }, [anfrage.mapping]);
 
+  // Distinkte Platzhalter (in Mapping-Reihenfolge) — die externe Runde muss sie
+  // unverändert zurückliefern, sonst keine Wiedereinsetzung. Platzhalter sind opak
+  // (kein PII) → gefahrlos kopierbar.
+  const exportPlatzhalter = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const m of anfrage.mapping) {
+      if (!seen.has(m.platzhalter)) { seen.add(m.platzhalter); out.push(m.platzhalter); }
+    }
+    return out;
+  }, [anfrage.mapping]);
+
+  const platzhalterKopieren = useAsyncAction(async () => {
+    await navigator.clipboard.writeText(exportPlatzhalter.join(' '));
+  });
+
   const anonymisieren = useAsyncAction(async () => {
     if (!skill) return;
-    const { anonymisiertMd, mapping } = await runAnonymisierung(bridge, skill, anfrage.originalMd);
-    await upsert({ ...anfrage, anonymisiertMd, mapping, status: 'anonymisiert' }, storage);
+    const { anonymisiertMd, mapping, verallgemeinerungen } = await runAnonymisierung(bridge, skill, anfrage.originalMd);
+    await upsert({ ...anfrage, anonymisiertMd, mapping, verallgemeinerungen, status: 'anonymisiert' }, storage);
   });
 
   const kopieren = useAsyncAction(async () => {
@@ -265,6 +282,43 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {schonAnonymisiert && anfrage.verallgemeinerungen.length > 0 && (
+          <div className={`awd-drawer${verallgOpen ? ' open' : ''}`}>
+            <button type="button" className="awd-drawer-h" onClick={() => setVerallgOpen(v => !v)} aria-expanded={verallgOpen}>
+              <Table className="awd-dico" size={14} />
+              Verallgemeinerungen ({anfrage.verallgemeinerungen.length})
+              <span className="awd-lock"><Lock size={11} />Original verlässt das System nicht — exportiert wird die verallgemeinerte Fassung</span>
+              <span className="awd-ct">
+                {verallgOpen ? 'einklappen' : 'aufklappen'}
+                <ChevronDown className="awd-chev" size={14} />
+              </span>
+            </button>
+            <div className="awd-drawer-body">
+              <table className="awd-map">
+                <thead><tr><th>Original (sensibel)</th><th>Verallgemeinert (exportiert)</th></tr></thead>
+                <tbody>
+                  {anfrage.verallgemeinerungen.map((v, i) => (
+                    <tr key={i}>
+                      <td>{v.original}</td>
+                      <td>{v.verallgemeinert}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {schonAnonymisiert && exportPlatzhalter.length > 0 && (
+          <div className="awd-phhint">
+            <span className="awd-phhint-label">Diese Platzhalter müssen in der Antwort erhalten bleiben:</span>
+            <code className="awd-phhint-list">{exportPlatzhalter.join(' · ')}</code>
+            <button type="button" className="awd-phhint-copy" onClick={() => platzhalterKopieren.run()} title="Distinkte Platzhalter kopieren">
+              <Copy size={11} /> {platzhalterKopieren.busy ? 'kopiert…' : 'kopieren'}
+            </button>
           </div>
         )}
 

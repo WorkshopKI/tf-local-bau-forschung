@@ -90,6 +90,9 @@
 /* ---------- missing-placeholders warning ---------- */
 .awd-warnrow { margin: 10px var(--awd-px) 0; font-size: 11.5px; color: var(--tf-warning-text); background: var(--tf-warning-bg); border-radius: 8px; padding: 8px 12px; line-height: 1.5; }
 .awd-warnrow code { font-family: var(--tf-font-mono); font-size: 11px; }
+/* Verschärft: fehlende Platzhalter = Rückübersetzung gescheitert (echter Datenverlust-Hinweis). */
+.awd-warnrow-strong { color: var(--tf-danger-text); background: var(--tf-danger-bg); }
+.awd-lenhint { margin: 10px var(--awd-px) 0; font-size: 11.5px; color: var(--tf-text-tertiary); line-height: 1.5; }
 
 /* ---------- mapping drawer ---------- */
 .awd-drawer { margin-top: 12px; border-top: 0.5px solid var(--tf-border); flex: none; }
@@ -109,6 +112,13 @@
 .awd-pl { font-family: var(--tf-font-mono); font-size: 11px; color: var(--tf-info-text); white-space: nowrap; }
 .awd-ty { color: var(--tf-text-tertiary); }
 .awd-dup { font-size: 10px; color: var(--tf-warning-text); background: var(--tf-warning-bg); padding: 1px 6px; border-radius: 99px; margin-left: 6px; }
+
+/* ---------- placeholder-export hint ---------- */
+.awd-phhint { margin: 12px var(--awd-px) 0; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 11.5px; color: var(--tf-text-secondary); }
+.awd-phhint-label { color: var(--tf-text-tertiary); }
+.awd-phhint-list { font-family: var(--tf-font-mono); font-size: 11px; color: var(--tf-info-text); }
+.awd-phhint-copy { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--tf-text-secondary); background: none; border: 0.5px solid var(--tf-border); border-radius: 6px; padding: 2px 8px; cursor: pointer; font-family: inherit; }
+.awd-phhint-copy:hover { background: var(--tf-hover); }
 
 /* ---------- action bar ---------- */
 .awd-actbar { display: flex; align-items: center; gap: 10px; padding: 13px var(--awd-px); border-top: 0.5px solid var(--tf-border); background: var(--tf-bg-secondary); flex: none; flex-wrap: wrap; }

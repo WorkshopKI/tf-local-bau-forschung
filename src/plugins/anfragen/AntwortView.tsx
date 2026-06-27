@@ -28,6 +28,12 @@ interface Props {
   onToggleHighlight: () => void;
 }
 
+/**
+ * Weicher Längen-Hinweis (≈ 0,5 A4). BEWUSST getrennt vom mailto-URL-Limit
+ * (`MAILTO_MAX_BODY`): anderer Zweck (inhaltliche Länge vs. Direkt-Mail-Grenze).
+ */
+const MAX_ANTWORT_ZEICHEN = 1800;
+
 function ResizerGrip(): React.ReactElement {
   return (
     <svg viewBox="0 0 26 9" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
@@ -144,14 +150,22 @@ export function AntwortView({ anfrage, highlight, onToggleHighlight }: Props): R
           <ResizerGrip />
         </div>
 
-        {pasteText.trim() && (validierung.fehlend.length > 0 || validierung.unbekannt.length > 0) && (
+        {pasteText.trim() && validierung.fehlend.length > 0 && (
+          <div className="awd-warnrow awd-warnrow-strong">
+            <strong>⚠ {validierung.fehlend.length} Platzhalter fehlen in der Antwort</strong> — vermutlich von der
+            externen KI aufgelöst statt erhalten. Diese Originaldaten werden <strong>NICHT</strong> eingesetzt.
+            Antwort erneut anfordern und auf Platzhalter-Erhalt achten: <code>{validierung.fehlend.join(' · ')}</code>
+          </div>
+        )}
+        {pasteText.trim() && validierung.unbekannt.length > 0 && (
           <div className="awd-warnrow">
-            {validierung.fehlend.length > 0 && (
-              <div>⚠ {validierung.fehlend.length} Platzhalter im Mapping, aber nicht in der Antwort verwendet (werden nicht eingesetzt): <code>{validierung.fehlend.join(' · ')}</code></div>
-            )}
-            {validierung.unbekannt.length > 0 && (
-              <div>Unbekannte Platzhalter (bleiben im Text stehen): <code>{validierung.unbekannt.join(' · ')}</code></div>
-            )}
+            Unbekannte Platzhalter (bleiben im Text stehen): <code>{validierung.unbekannt.join(' · ')}</code>
+          </div>
+        )}
+
+        {finalText.length > MAX_ANTWORT_ZEICHEN && (
+          <div className="awd-lenhint">
+            Antwort länger als ~0,5 A4 ({finalText.length} Zeichen) — ggf. kürzer anfordern.
           </div>
         )}
 

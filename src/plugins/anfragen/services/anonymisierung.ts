@@ -11,7 +11,7 @@ import type { AIBridge } from '@/core/services/ai/bridge';
 import { runSkill, type SkillRecord } from '@/core/services/skills';
 import { stripMarkdownWrapper } from '@/core/services/ai/json-tolerant';
 import { safeResetChat } from '@/core/services/ai/chat-reset';
-import type { Mapping, PiiTyp } from '../types';
+import type { Mapping, PiiTyp, Verallgemeinerung } from '../types';
 
 const PII_TYPEN: readonly PiiTyp[] = [
   'person', 'firma', 'ort', 'fkz', 'email', 'telefon', 'iban', 'x500', 'hostname', 'sonstiges',
@@ -22,6 +22,8 @@ const asPiiTyp = (v: unknown): PiiTyp =>
 export interface AnonymisierungErgebnis {
   anonymisiertMd: string;
   mapping: Mapping[];
+  /** Verallgemeinerter Freitext (Stufe B) — nur lokal, NIE wiedereingesetzt. */
+  verallgemeinerungen: Verallgemeinerung[];
 }
 
 /** Parst das balancierte Top-Level-Objekt ab `start` (truncation-tolerant). */
@@ -104,7 +106,20 @@ export function parseAnonymisierung(raw: string): AnonymisierungErgebnis {
       if (platzhalter && original) mapping.push({ platzhalter, original, typ: asPiiTyp(o.typ) });
     }
   }
-  return { anonymisiertMd, mapping };
+  // Stufe B (additiv, rückwärtskompatibel): fehlt das Feld → []. Nur Einträge mit
+  // nicht-leerem original UND verallgemeinert übernehmen (kein Platzhalter, keine
+  // Wiedereinsetzung — strikt getrennt von `mapping`).
+  const rawVerallg = obj && Array.isArray(obj.verallgemeinerungen) ? obj.verallgemeinerungen : [];
+  const verallgemeinerungen: Verallgemeinerung[] = [];
+  for (const v of rawVerallg) {
+    if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      const original = typeof o.original === 'string' ? o.original.trim() : '';
+      const verallgemeinert = typeof o.verallgemeinert === 'string' ? o.verallgemeinert.trim() : '';
+      if (original && verallgemeinert) verallgemeinerungen.push({ original, verallgemeinert });
+    }
+  }
+  return { anonymisiertMd, mapping, verallgemeinerungen };
 }
 
 /** True, solange der Skill nicht explizit deaktiviert ist (`aktiv === false`). */

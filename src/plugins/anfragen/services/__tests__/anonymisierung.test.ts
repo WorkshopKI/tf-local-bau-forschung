@@ -41,6 +41,33 @@ describe('parseAnonymisierung', () => {
     expect(parseAnonymisierung('{"anonymisiert":"nur text"}').mapping).toEqual([]);
   });
 
+  it('parst verallgemeinerungen (original + verallgemeinert)', () => {
+    const raw = '{"anonymisiert":"ein Prüfverfahren in der Automobil-Zulieferindustrie",'
+      + '"mapping":[],'
+      + '"verallgemeinerungen":[{"original":"Schweißnahtprüfung für einen konkreten VW-Zulieferer",'
+      + '"verallgemeinert":"ein Prüfverfahren in der Automobil-Zulieferindustrie"}]}';
+    const r = parseAnonymisierung(raw);
+    expect(r.verallgemeinerungen).toEqual([{
+      original: 'Schweißnahtprüfung für einen konkreten VW-Zulieferer',
+      verallgemeinert: 'ein Prüfverfahren in der Automobil-Zulieferindustrie',
+    }]);
+  });
+
+  it('fehlende verallgemeinerungen → leeres Array (Stufe-A-only bleibt gültig)', () => {
+    const r = parseAnonymisierung('{"anonymisiert":"X [PERSON_1]","mapping":[{"platzhalter":"[PERSON_1]","original":"Dr. Schmidt","typ":"person"}]}');
+    expect(r.verallgemeinerungen).toEqual([]);
+  });
+
+  it('filtert malformte verallgemeinerungen (leeres original ODER verallgemeinert) und trimmt', () => {
+    const raw = '{"anonymisiert":"t","mapping":[],"verallgemeinerungen":['
+      + '{"original":"  konkrete Sache  ","verallgemeinert":"  abstrakte Sache  "},'
+      + '{"original":"","verallgemeinert":"nur ziel"},'
+      + '{"original":"nur quelle","verallgemeinert":""},'
+      + '{"original":"x"}]}';
+    const r = parseAnonymisierung(raw);
+    expect(r.verallgemeinerungen).toEqual([{ original: 'konkrete Sache', verallgemeinert: 'abstrakte Sache' }]);
+  });
+
   it('wirft bei Nicht-JSON / fehlendem anonymisiert-Feld', () => {
     expect(() => parseAnonymisierung('Tut mir leid, kann ich nicht.')).toThrow(/JSON-Format/);
     expect(() => parseAnonymisierung('{"mapping":[]}')).toThrow(/JSON-Format/);
@@ -138,6 +165,12 @@ describe('Anonymisierungs-Skill — Invarianten', () => {
   it('trägt Dokumentinhalte → interner Transport erzwungen (Ableitung über {{zielText}})', () => {
     expect(ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate).toContain('{{zielText}}');
     expect(skillEnthaeltDokumentInhalte(ANFRAGE_ANONYMISIEREN_SKILL)).toBe(true);
+  });
+
+  it('Zwei-Stufen-Modell: version 2 + Prompt deckt verallgemeinerungen UND {{zielText}} ab', () => {
+    expect(ANFRAGE_ANONYMISIEREN_SKILL.version).toBe(2);
+    expect(ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate).toContain('verallgemeinerungen');
+    expect(ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate).toContain('{{zielText}}');
   });
 
   it('istAnonymisiererAktiv: false bei aktiv:false, true bei fehlendem Feld', () => {
