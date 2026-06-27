@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.152.1 — Anfragen: Anonymisierer in dev immer freigeschaltet (Gate nur Produktion) (Juni 2026)
+
+PATCH — Der Anonymisierungs-Skill ist in **dev** (`isDevContext()`) jetzt immer freigeschaltet, sobald
+er geladen ist — damit der Entwickler testen kann, ohne den geteilten Seed anzufassen. Das Recall-Gate
+(`aktiv: true` erst nach manueller Freigabe) gilt unverändert für alle **Produktions-Varianten**
+(prod/pl/kurator/as). Reiner Runtime-Override (`istAnonymisiererFreigeschaltet`, anonymisierung.ts); der
+Seed bleibt `aktiv: false`. Die pure `istAnonymisiererAktiv`-Semantik (und ihr Gate für Produktion) ist
+unverändert.
+
 ### v2.152.0 — Anfragen: Zwei-Stufen-Anonymisierung (Pseudonymisieren + Verallgemeinern) (Juni 2026)
 
 MINOR — Die interne KI im Modul „Anfragen" trennt jetzt zwei Mechanismen in EINEM Lauf, damit der

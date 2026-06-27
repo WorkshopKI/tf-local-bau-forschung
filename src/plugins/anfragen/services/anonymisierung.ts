@@ -11,6 +11,7 @@ import type { AIBridge } from '@/core/services/ai/bridge';
 import { runSkill, type SkillRecord } from '@/core/services/skills';
 import { stripMarkdownWrapper } from '@/core/services/ai/json-tolerant';
 import { safeResetChat } from '@/core/services/ai/chat-reset';
+import { isDevContext } from '@/config/feature-flags';
 import type { Mapping, PiiTyp, Verallgemeinerung } from '../types';
 
 const PII_TYPEN: readonly PiiTyp[] = [
@@ -125,6 +126,23 @@ export function parseAnonymisierung(raw: string): AnonymisierungErgebnis {
 /** True, solange der Skill nicht explizit deaktiviert ist (`aktiv === false`). */
 export function istAnonymisiererAktiv(skill: SkillRecord | null | undefined): boolean {
   return !!skill && skill.aktiv !== false;
+}
+
+/**
+ * Effektive Freischaltung für die UI. In **dev** (`isDevContext()`) ist der
+ * Anonymisierer IMMER freigeschaltet, sobald der Skill geladen ist — der
+ * Entwickler muss testen können, ohne den geteilten Seed zu berühren. In allen
+ * **Produktions-Varianten** (prod/pl/kurator/as) gilt das Recall-Gate: erst nach
+ * manueller Freigabe (`aktiv: true`). Das ist ein reiner Runtime-Override; der
+ * Seed bleibt `aktiv: false`, und die Gate-Obligation für Produktion ist unberührt.
+ * `devKontext` ist injizierbar für Tests (Default: aktueller Build-Kontext).
+ */
+export function istAnonymisiererFreigeschaltet(
+  skill: SkillRecord | null | undefined,
+  devKontext: boolean = isDevContext(),
+): boolean {
+  if (devKontext) return !!skill;
+  return istAnonymisiererAktiv(skill);
 }
 
 const RETRY_PAUSE_MS = 700;

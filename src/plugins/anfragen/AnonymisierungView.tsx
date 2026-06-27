@@ -20,7 +20,7 @@ import {
   ANFRAGE_ANONYMISIEREN_SKILL_ID,
 } from '@/core/services/skills/registry/anfrage-anonymisieren.seed';
 import { resolveAnfragenDashboardUrl } from './settings';
-import { runAnonymisierung, istAnonymisiererAktiv } from './services/anonymisierung';
+import { runAnonymisierung, istAnonymisiererFreigeschaltet } from './services/anonymisierung';
 import { pruefeExportSicher } from './services/export-guard';
 import {
   buildKindedSegments, platzhalterRanges, trefferToRanges, MARK_CLASS, type KindedRange,
@@ -85,7 +85,7 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
   // Reset bei Anfrage-Wechsel / erneuter Anonymisierung.
   useEffect(() => { setText(anfrage.anonymisiertMd); }, [anfrage.id, anfrage.anonymisiertMd]);
 
-  const aktiv = istAnonymisiererAktiv(skill);
+  const aktiv = istAnonymisiererFreigeschaltet(skill);
   const schonAnonymisiert = statusErreicht(anfrage.status, 'anonymisiert');
   const kannLaufen = aktiv && !!anfrage.originalMd.trim();
 

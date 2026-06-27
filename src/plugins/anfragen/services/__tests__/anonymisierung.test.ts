@@ -2,7 +2,7 @@
  * Phase 4 — Anonymisierungs-Parsing + Skill-Invarianten.
  */
 import { describe, expect, it } from 'vitest';
-import { parseAnonymisierung, istAnonymisiererAktiv, runAnonymisierung } from '../anonymisierung';
+import { parseAnonymisierung, istAnonymisiererAktiv, istAnonymisiererFreigeschaltet, runAnonymisierung } from '../anonymisierung';
 import {
   ANFRAGE_ANONYMISIEREN_SKILL,
   ANFRAGE_ANONYMISIEREN_SKILL_ID,
@@ -176,5 +176,14 @@ describe('Anonymisierungs-Skill — Invarianten', () => {
   it('istAnonymisiererAktiv: false bei aktiv:false, true bei fehlendem Feld', () => {
     expect(istAnonymisiererAktiv(ANFRAGE_ANONYMISIEREN_SKILL)).toBe(false);
     expect(istAnonymisiererAktiv({ ...ANFRAGE_ANONYMISIEREN_SKILL, aktiv: undefined })).toBe(true);
+  });
+
+  it('istAnonymisiererFreigeschaltet: dev → immer aktiv (Seed aktiv:false), prod → Gate gilt', () => {
+    // dev: aktiv sobald der Skill geladen ist — auch bei aktiv:false-Seed.
+    expect(istAnonymisiererFreigeschaltet(ANFRAGE_ANONYMISIEREN_SKILL, true)).toBe(true);
+    expect(istAnonymisiererFreigeschaltet(null, true)).toBe(false); // ohne Skill nichts
+    // prod/pl/kurator/as: Recall-Gate → aktiv:false bleibt gesperrt.
+    expect(istAnonymisiererFreigeschaltet(ANFRAGE_ANONYMISIEREN_SKILL, false)).toBe(false);
+    expect(istAnonymisiererFreigeschaltet({ ...ANFRAGE_ANONYMISIEREN_SKILL, aktiv: true }, false)).toBe(true);
   });
 });

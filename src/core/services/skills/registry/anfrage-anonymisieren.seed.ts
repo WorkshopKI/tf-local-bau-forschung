@@ -5,6 +5,10 @@
  * Freischaltung (`aktiv: true`) macht NICHT der Code, sondern ein manueller
  * Schritt nach bestandenem Recall-Gate (Phase 9). Siehe CLAUDE.md / Plan.
  *
+ * Ausnahme NUR dev: die UI behandelt den Anonymisierer in `isDevContext()` als
+ * freigeschaltet (Runtime-Override `istAnonymisiererFreigeschaltet`, anonymisierung.ts)
+ * — der Seed bleibt `aktiv: false`, das Gate gilt unverändert für prod/pl/kurator/as.
+ *
  * Der Originaltext kommt über den `{{zielText}}`-Inhalts-Slot → die
  * DSGVO-Transport-Policy (`skillEnthaeltDokumentInhalte`) erzwingt damit
  * automatisch einen INTERNEN Transport (Ableitung schlägt Flag).
