@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.150.1 — Suche: Typ-Filter-Chips auf Akzent statt Schwarz (Juni 2026)
+
+PATCH — Die Typ-Filter-Pillen auf der Suche-Seite („Alle · Förderanträge · Dokumente",
+[SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx)) trugen im Aktiv-Zustand noch einen schwarzen Fill
+(`bg-[var(--tf-text)]`) — hand-gebaut am kanonischen `ScopeTabs` vorbei. Jetzt die gleiche **Akzent-Light**-
+Auswahl wie die `ScopeTabs`-Pills (Chat-Historie): `bg-[var(--tf-primary-light)]` + `--tf-primary`-Text.
+Selektionszustand = subtiler Profil-Akzent (nicht der laute gefüllte CTA-Akzent — der bleibt Aktions-
+Buttons vorbehalten). Border immer 0,5px (transparent wenn aktiv) → kein Größen-Sprung; `aria-pressed`
+ergänzt. Andere hand-gebaute Segment-Toggles (Schweregrad, Modus, Artefakt-Typ) bleiben vorerst schwarz.
+
 ### v2.150.0 — CTA-Buttons app-weit auf die Profil-Primärfarbe (Juni 2026)
 
 MINOR — Reiner Style-/Komponenten-Refactor, keine Verhaltensänderung. Die im Profil/Darstellung

@@ -501,10 +501,12 @@ export function SuchSeite(): React.ReactElement {
                 key={chip.id}
                 onClick={() => setTypeFilter(chip.id)}
                 disabled={analyse.running}
-                className={`px-3 py-1 text-[12px] rounded-full cursor-pointer transition-colors ${
-                  active ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-                } disabled:opacity-50`}
-                style={!active ? { border: '0.5px solid var(--tf-border)' } : undefined}
+                aria-pressed={active}
+                className={`px-3 py-1 text-[12px] rounded-full cursor-pointer transition-colors border-[0.5px] disabled:opacity-50 ${
+                  active
+                    ? 'bg-[var(--tf-primary-light)] border-transparent text-[var(--tf-primary)] font-medium'
+                    : 'border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)]'
+                }`}
               >
                 {chip.label} <span className="opacity-70">{chip.count}</span>
               </button>
