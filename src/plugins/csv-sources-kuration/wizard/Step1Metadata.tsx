@@ -392,7 +392,7 @@ export function Step1Metadata({ api, existingMasterId, existingSchemas = [], onU
               onClick={() => setField('joinKey', k)}
               className={
                 state.joinKey === k
-                  ? 'px-3 py-1 rounded-full text-[11.5px] bg-[var(--tf-text)] text-[var(--tf-bg)]'
+                  ? 'px-3 py-1 rounded-full text-[11.5px] bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
                   : 'px-3 py-1 rounded-full text-[11.5px] text-[var(--tf-text-secondary)] border-[0.5px] border-[var(--tf-border)]'
               }
             >

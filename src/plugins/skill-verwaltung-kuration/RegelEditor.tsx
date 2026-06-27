@@ -188,7 +188,7 @@ export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete
                 aria-pressed={draft.schweregrad === s}
                 disabled={ro}
                 onClick={() => setDraft(d => ({ ...d, schweregrad: s }))}
-                className={`text-[11.5px] px-[11px] py-[5px] rounded-[99px] border-[0.5px] disabled:opacity-70 ${draft.schweregrad === s ? 'bg-[var(--tf-text)] text-[var(--tf-bg)] border-transparent' : 'bg-transparent text-[var(--tf-text-secondary)] border-[var(--tf-border)]'}`}
+                className={`text-[11.5px] px-[11px] py-[5px] rounded-[99px] border-[0.5px] disabled:opacity-70 ${draft.schweregrad === s ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)] border-transparent' : 'bg-transparent text-[var(--tf-text-secondary)] border-[var(--tf-border)]'}`}
               >
                 {s === 'fehler' ? 'Fehler' : 'Hinweis'}
               </button>

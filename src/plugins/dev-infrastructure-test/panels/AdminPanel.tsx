@@ -45,7 +45,7 @@ export function AdminPanel(): React.ReactElement {
                 onClick={() => session.setTtl(opt.ms)}
                 className={`px-3 py-1 rounded-full text-[12px] cursor-pointer transition-colors ${
                   on
-                    ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
+                    ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
                     : 'bg-[var(--tf-bg)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
                 }`}
                 style={on ? undefined : { border: '0.5px solid var(--tf-border)' }}

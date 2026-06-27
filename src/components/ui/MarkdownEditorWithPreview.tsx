@@ -53,7 +53,7 @@ export function MarkdownEditorWithPreview({
 
   const btnClass = (active: boolean): string =>
     `px-2.5 py-1 text-[12px] rounded-[var(--tf-radius)] cursor-pointer transition-colors flex items-center gap-1 ${
-      active ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+      active ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
     }`;
 
   return (
@@ -63,7 +63,7 @@ export function MarkdownEditorWithPreview({
           {(['editor', 'split', 'preview'] as const).map(mode => (
             <button key={mode} onClick={() => setViewMode(mode)}
               className={`px-2.5 py-1 text-[12px] rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-                viewMode === mode ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+                viewMode === mode ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
               }`}>
               {mode === 'editor' ? 'Editor' : mode === 'preview' ? 'Vorschau' : 'Split'}
             </button>

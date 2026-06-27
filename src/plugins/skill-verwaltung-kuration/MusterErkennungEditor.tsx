@@ -233,7 +233,7 @@ export function MusterErkennungEditor({ params, setParam, setParams, disabled }:
             aria-pressed={modus === m.key}
             disabled={disabled}
             onClick={() => setParams({ eingabeModus: m.key, istRegex: m.key === 'regex' })}
-            className={`text-[12px] px-[13px] py-[6px] rounded-[99px] border-[0.5px] disabled:opacity-70 ${modus === m.key ? 'bg-[var(--tf-text)] text-[var(--tf-bg)] border-transparent' : 'bg-transparent text-[var(--tf-text-secondary)] border-[var(--tf-border)]'}`}
+            className={`text-[12px] px-[13px] py-[6px] rounded-[99px] border-[0.5px] disabled:opacity-70 ${modus === m.key ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)] border-transparent' : 'bg-transparent text-[var(--tf-text-secondary)] border-[var(--tf-border)]'}`}
           >
             {m.label}
           </button>

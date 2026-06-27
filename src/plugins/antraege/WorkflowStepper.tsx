@@ -43,7 +43,7 @@ function activeClassFor(variant: BadgeVariant): string {
     case 'error':
       return 'bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]';
     default:
-      return 'bg-[var(--tf-text)] text-[var(--tf-bg)]';
+      return 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]';
   }
 }
 

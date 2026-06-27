@@ -81,7 +81,7 @@ export function AufnahmeZeile({ item, istValiderFkz, onSetFkz, onSetTyp, onRemov
                 onClick={() => onSetTyp(item.localId, typ)}
                 className={`px-2.5 py-0.5 rounded-full text-[11px] border-[0.5px] transition-colors ${
                   active
-                    ? 'bg-[var(--tf-text)] text-[var(--tf-bg)] border-transparent'
+                    ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)] border-transparent'
                     : 'bg-transparent text-[var(--tf-text-secondary)] border-[var(--tf-border)] hover:border-[var(--tf-border-hover)]'
                 }`}
               >

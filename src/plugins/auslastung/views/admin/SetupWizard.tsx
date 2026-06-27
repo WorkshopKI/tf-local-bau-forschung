@@ -423,7 +423,7 @@ function StepDot({ children, active, done }: { children: React.ReactNode; active
   const cls = done
     ? 'bg-emerald-500 text-white'
     : active
-      ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
+      ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
       : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]';
   return (
     <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-medium ${cls}`}>

@@ -78,7 +78,7 @@ export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): R
                 type="button"
                 onClick={() => { a.setTextDraft(null); a.setTool(t.id); }}
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] cursor-pointer transition-colors ${
-                  active ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+                  active ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
                 }`}
                 style={active ? undefined : { border: '0.5px solid var(--tf-border)' }}
               >
@@ -122,7 +122,7 @@ export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): R
                     type="button"
                     onClick={() => a.setTextSize(sz)}
                     className={`w-5 h-5 rounded-full text-[10px] font-medium cursor-pointer transition-colors ${
-                      active ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+                      active ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
                     }`}
                     style={active ? undefined : { border: '0.5px solid var(--tf-border)' }}
                     title={`Textgröße ${sz}`}

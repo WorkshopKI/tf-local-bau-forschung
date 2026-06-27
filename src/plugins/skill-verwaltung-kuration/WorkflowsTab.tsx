@@ -43,7 +43,7 @@ function CreateWorkflowForm({ onCreate, onCancel }: {
   const [ebene, setEbene] = useState<WorkflowEbene>('verbund');
 
   const pill = (active: boolean): string =>
-    `text-[12px] px-[11px] py-[5px] rounded-[99px] border-[0.5px] ${active ? 'bg-[var(--tf-text)] text-[var(--tf-bg)] border-transparent' : 'bg-transparent text-[var(--tf-text-secondary)] border-[var(--tf-border)]'}`;
+    `text-[12px] px-[11px] py-[5px] rounded-[99px] border-[0.5px] ${active ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)] border-transparent' : 'bg-transparent text-[var(--tf-text-secondary)] border-[var(--tf-border)]'}`;
 
   return (
     <div className="rounded-[10px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] p-3.5 flex flex-col gap-3">

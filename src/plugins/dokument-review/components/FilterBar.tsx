@@ -143,12 +143,12 @@ function Pill({ label, count, active, onClick }: PillProps): React.ReactElement 
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-full text-[11.5px] transition-colors cursor-pointer ${
         active
-          ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
+          ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
           : 'bg-[var(--tf-bg)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
       }`}
       style={{
         padding: '4px 12px',
-        border: `0.5px solid ${active ? 'var(--tf-text)' : 'var(--tf-border)'}`,
+        border: `0.5px solid ${active ? 'transparent' : 'var(--tf-border)'}`,
       }}
     >
       <span>{label}</span>

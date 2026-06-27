@@ -73,7 +73,7 @@ export function StartDialog({ batch, fkzListe, onStarted, onAbbrechen }: Props):
                 onClick={() => setAbschnitte(val)}
                 className={`px-3 py-1 rounded-full text-[11.5px] border-[0.5px] ${
                   abschnitte === val
-                    ? 'bg-[var(--tf-text)] text-[var(--tf-bg)] border-transparent'
+                    ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)] border-transparent'
                     : 'bg-transparent text-[var(--tf-text-secondary)] border-[var(--tf-border)]'
                 }`}
               >

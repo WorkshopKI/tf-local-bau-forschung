@@ -13,7 +13,7 @@ const MODES: { key: Mode; label: string }[] = [
 
 const TYPES: FieldType[] = ['string', 'date', 'number', 'boolean'];
 
-const PILL_ACTIVE = 'px-2.5 py-1 rounded-full text-[11px] bg-[var(--tf-text)] text-[var(--tf-bg)]';
+const PILL_ACTIVE = 'px-2.5 py-1 rounded-full text-[11px] bg-[var(--tf-primary-light)] text-[var(--tf-primary)]';
 const PILL_INACTIVE = 'px-2.5 py-1 rounded-full text-[11px] text-[var(--tf-text-secondary)] border-[0.5px] border-[var(--tf-border)] hover:bg-[var(--tf-bg-secondary)]';
 const SELECT_CLS = 'h-8 text-[12px] px-1.5 rounded border border-[var(--tf-border)] bg-[var(--tf-bg)]';
 

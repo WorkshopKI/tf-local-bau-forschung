@@ -5,6 +5,23 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.151.1 — App-weit: schwarz-aktive Pills + Segment-Toggles auf Akzent-Light (Juni 2026)
+
+PATCH — Abschluss des Schwarz→Akzent-Durchgangs: alle verbliebenen **Selektions-Pills** und
+**Segment-Toggles** mit schwarzem Aktiv-Zustand (`bg-[var(--tf-text)] text-[var(--tf-bg)]`) tragen jetzt
+die **Akzent-Light**-Auswahl (`bg-[var(--tf-primary-light)]` + `text-[var(--tf-primary)]`) — konsistent mit
+Suche/Auslastung/Alle-Felder und den `ScopeTabs`-Pills. Rein kosmetisch, keine Verhaltensänderung.
+
+- **Filter-Pills:** ReviewPanel (Gutachten), ChangelogDialog (3×), DokumentAufnahme, DokumenteListe,
+  dokument-review/FilterBar (inkl. Aktiv-Border → transparent), csv-sources (`PILL_ACTIVE` in NewColumnRow
+  + RemapCsvColumnsDialog + Step1Metadata), AdminPanel (dev), FeedbackAnnotator (2×).
+- **Segment-Toggles:** MarkdownEditor-View-Mode (2×), Schweregrad (RegelEditor), Modus
+  (MusterErkennungEditor), Artefakt-Typ (WorkflowsTab), Abschnitte (StartDialog), Aufnahme-Zuordnung
+  (AufnahmeZeile), Setup-StepDots (SetupWizard), Workflow-Stepper (neutrale Aktiv-Stufe).
+- **Bewusst gelassen:** der `empfohlen`-Reifegrad-Badge (semantische Skala) + der dekorative
+  Nummernkreis im Tweak-Editor; die `SegmentedToggle`-Komponente (Tabelle|Karten) war bereits
+  neutral-weiß-aktiv (kein Schwarz).
+
 ### v2.151.0 — Auslastung-Modul: CTAs + Filter-Pills auf Profil-Akzent (Juni 2026)
 
 MINOR — Fortsetzung von v2.150: das **Auslastungs-Modul** trug seine Primär-CTAs noch schwarz —

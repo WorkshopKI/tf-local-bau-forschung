@@ -346,7 +346,7 @@ function PillButton({ label, count, active, onClick }: {
       onClick={onClick}
       className={`px-2.5 py-1 text-[11.5px] rounded-full whitespace-nowrap transition-colors cursor-pointer ${
         active
-          ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
+          ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
           : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)]'
       }`}
       style={active ? undefined : { border: '0.5px solid var(--tf-border)' }}

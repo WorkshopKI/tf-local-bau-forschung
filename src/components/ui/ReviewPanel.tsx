@@ -81,7 +81,7 @@ export function ReviewPanel({ documentId, onClose, pendingAnchor, onClearPending
       <div className="flex gap-1 px-3 py-2" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
         {([['all', 'Alle'], ['open', `Offen (${openCount})`], ['resolved', `Erledigt (${resolvedCount})`]] as const).map(([f, label]) => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`px-2 py-0.5 text-[11px] rounded-full cursor-pointer ${filter === f ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]' : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'}`}>
+            className={`px-2 py-0.5 text-[11px] rounded-full cursor-pointer ${filter === f ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]' : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'}`}>
             {label}
           </button>
         ))}

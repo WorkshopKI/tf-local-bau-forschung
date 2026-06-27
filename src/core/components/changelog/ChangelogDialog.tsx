@@ -175,7 +175,7 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
     timeFilter === 'all' || (min.monthIndex !== undefined && min.monthIndex >= nowMonthIndex - 1);
 
   const filters: { key: FilterKey; label: string; count: number; activeClass: string }[] = [
-    { key: 'all', label: 'Alle', count: counts.all, activeClass: 'bg-[var(--tf-text)] text-[var(--tf-bg)]' },
+    { key: 'all', label: 'Alle', count: counts.all, activeClass: 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]' },
     {
       key: 'feature',
       label: CATEGORY_META.feature.label,
@@ -236,7 +236,7 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
             aria-pressed={expandAll}
             className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
               expandAll
-                ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
+                ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
                 : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
             }`}
           >
@@ -248,7 +248,7 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
             aria-pressed={timeFilter === 'month'}
             className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
               timeFilter === 'month'
-                ? 'bg-[var(--tf-text)] text-[var(--tf-bg)]'
+                ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
                 : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
             }`}
           >
