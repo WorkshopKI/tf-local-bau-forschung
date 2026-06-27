@@ -5,6 +5,30 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.151.0 — Auslastung-Modul: CTAs + Filter-Pills auf Profil-Akzent (Juni 2026)
+
+MINOR — Fortsetzung von v2.150: das **Auslastungs-Modul** trug seine Primär-CTAs noch schwarz —
+hier aber über **inline `style={{ background: 'var(--tf-text)' }}`** (nicht Tailwind-Klassen), weshalb
+sie sowohl die v2.150-Migration als auch den `no-raw-cta-fill`-Guard umgingen. Jetzt durchgängig Akzent.
+
+- **~19 inline-Style-CTAs → `<Button variant="primary">`** über das ganze Modul: „LLM-Klassifizierung
+  starten", „Export (mit Kürzeln)" (Cockpit + Import/Export), „HTML generieren", „Mit Kürzeln (XLSX)",
+  „+MA hinzufügen", „Corpus aufbauen", „Freigeben" (Klassifizierungs-/Verbund-Tabellen), „Zuweisen",
+  „Speichern" (MA-Detail / Antragstyp-Override), Dialog-CTAs (Passwort, Zugang, Onboarding-/Kompetenz-
+  Import inkl. Datei-Wähler als `<Button asChild><label>`), Setup-Wizard-Schritte, Kalibrierungs-Report.
+  Inline-Style entfernt, `busy → loading`, Icons via `icon={…}`; co-lokalisierte Zweitaktionen → Outline.
+- **Filter-Pills auf Akzent-Light** (Selektion, nicht gefüllter CTA-Akzent): die Status-Pills der
+  Klassifizierungs-Review („Alle/Review nötig/LLM-Vorschlag/Freigegeben/Unvollständig") und die
+  Förderanträge-„Alle Felder"-Tabs (`.af-tab.on`, [felder.css](src/plugins/antraege/alleFelder/felder.css))
+  — `--tf-primary-light`-Fläche + `--tf-primary`-Text, wie die `ScopeTabs`-Pills (analog v2.150.1 Suche).
+- **Guard `no-raw-cta-fill` gehärtet:** erkennt jetzt auch die **inline-Style**-Variante
+  (`background:'var(--tf-text)',color:'var(--tf-bg)'`), nicht nur Tailwind-Klassen — schließt die
+  Recall-Lücke, durch die die Auslastungs-Buttons durchrutschten.
+- **Bewusst NICHT geändert:** Segment-Toggles (Tabelle|Karten, Manuell ▾, Setup-StepDots,
+  Schweregrad/Modus/Artefakt-Typ), Kategorie-Chips (✓ IT/DT/…), Status-Badges, Confidence-Dots,
+  Progress-Bars/Marker. Andere Module mit schwarz-aktiven Filter-Pills (ReviewPanel, ChangelogDialog,
+  csv-sources, dokument-review, FeedbackAnnotator …) bleiben vorerst — separater App-weiter Sweep offen.
+
 ### v2.150.1 — Suche: Typ-Filter-Chips auf Akzent statt Schwarz (Juni 2026)
 
 PATCH — Die Typ-Filter-Pillen auf der Suche-Seite („Alle · Förderanträge · Dokumente",

@@ -49,8 +49,9 @@
  *     Scoring nur ueber das geteilte runJudge/aggregate (kein dup. Judge-Call).
  *   - no-raw-cta-fill                   → CTA-Buttons tragen die Profil-Primaerfarbe
  *     ueber die kanonische <Button>-Komponente (@/components/ui/button, variant=
- *     'primary' = --tf-primary); kein hand-gebauter `bg-[var(--tf-text)]`-/
- *     `bg-[var(--tf-primary)]`-Fill mit hover:opacity. Inline '// allow-cta-fill'.
+ *     'primary' = --tf-primary); kein hand-gebauter Fill — weder als Klasse
+ *     (`bg-[var(--tf-text)]`/`bg-[var(--tf-primary)]` + hover:opacity) noch inline
+ *     (`background:'var(--tf-text)',color:'var(--tf-bg)'`). Inline '// allow-cta-fill'.
  *   - theme-token-contract              → Design-Handoff-Token-Vertrag (v2.119):
  *     jedes via var(--tf-…) OHNE Fallback in CSS/TSX/TS referenzierte Token MUSS
  *     global in src/theme.css definiert sein, sonst die "nackt"-Falle v2.67.1 (ein
@@ -1132,17 +1133,28 @@ describe('no-raw-cta-fill (CTA-Buttons tragen die Profil-Primaerfarbe via <Butto
   // mit eigenem `bg-[var(--tf-text)]`- oder `bg-[var(--tf-primary)]`-Fill haengt sich
   // davon ab und wirkt schwarz statt im Akzent (DESIGN_GUIDE „Button").
   //
-  // Praezise Signatur (Fill + `hover:opacity`): trifft NUR gefuellte Klick-CTAs. Toggle-
-  // Pills (Aktiv-Fill im Ternary), Badge-Style-Maps, Switch-Thumbs, Chat-Bubbles, der
-  // Darstellungs-Vorschau-Chip und Progress-Bars haben KEIN `hover:opacity` → kein
-  // False-Positive. Inline-Ausnahme: '// allow-cta-fill: <grund>'.
-  const FILLS = [
+  // Zwei Mechaniken, beide praezise:
+  //  (a) Tailwind-Klassen-Fill + `hover:opacity` — trifft NUR gefuellte Klick-CTAs.
+  //      Toggle-Pills (Aktiv-Fill im Ternary), Badge-Style-Maps, Switch-Thumbs, Chat-
+  //      Bubbles, Vorschau-Chip, Progress-Bars haben KEIN `hover:opacity` → kein
+  //      False-Positive.
+  //  (b) Inline-Style-Fill `background: 'var(--tf-text)', color: 'var(--tf-bg)'` — die
+  //      Auslastungs-Mechanik (v2.151). Das exakte bg+color-PAAR trifft nur gefuellte
+  //      CTAs; Progress-Bars/Marker (nur `background`, keine paired `color: var(--tf-bg)`)
+  //      und Pills (Akzent-Light) bleiben aussen vor.
+  // Inline-Ausnahme: '// allow-cta-fill: <grund>'.
+  const CLASS_FILLS = [
     'bg-[var(--tf-text)] text-[var(--tf-bg)]',
     'bg-[var(--tf-primary)] text-white',
     'bg-[var(--tf-primary)] text-[var(--tf-primary-foreground)]',
   ];
+  const INLINE_FILLS = [
+    "background: 'var(--tf-text)', color: 'var(--tf-bg)'",
+    'background: "var(--tf-text)", color: "var(--tf-bg)"',
+  ];
   const isCtaFill = (l: string): boolean =>
-    l.includes('hover:opacity') && FILLS.some(f => l.includes(f));
+    (l.includes('hover:opacity') && CLASS_FILLS.some(f => l.includes(f)))
+    || INLINE_FILLS.some(f => l.includes(f));
 
   it('kein hand-gebauter gefuellter CTA-Fill (Button-Komponente nutzen)', () => {
     const findings: Finding[] = [];

@@ -7,6 +7,7 @@
  * "Uebernehmen" gedrueckt wurde (was naturgemaess >=1 MA auf inaktiv setzt
  * und die Bedingung damit dauerhaft erfuellt).
  */
+import { Button } from '@/components/ui/button';
 import type { AktivDetectionResult } from '../../services/kapazitaet';
 
 interface Props {
@@ -38,32 +39,33 @@ export function AktivVorschlagBanner({
         )}
       </div>
       <div className="flex flex-wrap gap-2 mt-1">
-        <button
+        <Button
           type="button"
+          variant="primary"
+          size="sm"
+          loading={busy}
           onClick={() => void onUebernehmen()}
-          disabled={busy}
-          className="px-3 py-1.5 rounded-md text-[12px] font-medium cursor-pointer disabled:opacity-50"
-          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
         >
-          {busy ? 'Übernehme…' : 'Übernehmen'}
-        </button>
-        <button
+          Übernehmen
+        </Button>
+        <Button
           type="button"
-          onClick={onManuell}
+          variant="secondary"
+          size="sm"
           disabled={busy}
-          className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
-          style={{ border: '0.5px solid var(--tf-border)' }}
+          onClick={onManuell}
         >
           Manuell setzen
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          onClick={onSpaeter}
+          variant="ghost"
+          size="sm"
           disabled={busy}
-          className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer text-[var(--tf-text-secondary)] disabled:opacity-50"
+          onClick={onSpaeter}
         >
           Später
-        </button>
+        </Button>
       </div>
     </div>
   );

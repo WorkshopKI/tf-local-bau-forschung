@@ -10,6 +10,7 @@
  */
 import { type ReactNode } from 'react';
 import { AlertTriangle, StickyNote } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { SortableColumn } from '@/components/data-table';
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import { KategoriePill } from '../components/KategoriePill';
@@ -420,18 +421,18 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
         // aber NICHT freigegeben werden, bis sie vollstaendig erfasst sind.
         const gesperrt = !v.vollstaendig;
         return (
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             onClick={() => onFreigebeVerbund(v)}
             disabled={!hasPrimaer || gesperrt}
-            className="text-[11.5px] px-2 py-1 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             title={gesperrt
               ? `${unvollstaendigGrund(leadAntrag(v))} — Freigabe gesperrt`
               : 'Verbund freigeben (alle TVs)'}
           >
             Freigeben
-          </button>
+          </Button>
         );
       },
     },

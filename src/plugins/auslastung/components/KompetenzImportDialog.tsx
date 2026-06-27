@@ -6,6 +6,7 @@
  * Wide-Kompetenz-Schema (`parseKompetenzXlsx` / `applyKompetenzImport`).
  */
 import { useCallback, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useDialogEsc } from './useDialogEsc';
@@ -96,10 +97,12 @@ export function KompetenzImportDialog({ open, anonymMap, onClose }: Props): Reac
             <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-3">
               Spalten: Antragstyp-Kontingent in Stunden/Jahr (DL/DS/NW/FuE), TIB_KUERZ, Abschlag, dann je Überkategorie die Unterkategorie-Level (1–3).
             </p>
-            <label className="inline-block px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer" style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}>
-              {parsing ? 'Lese…' : 'Datei wählen'}
-              <input type="file" accept=".xlsx,.xls" onChange={e => { const f = e.target.files?.[0]; if (f) void handleFile(f); }} className="hidden" />
-            </label>
+            <Button asChild variant="primary" size="sm">
+              <label>
+                {parsing ? 'Lese…' : 'Datei wählen'}
+                <input type="file" accept=".xlsx,.xls" onChange={e => { const f = e.target.files?.[0]; if (f) void handleFile(f); }} className="hidden" />
+              </label>
+            </Button>
           </div>
         )}
 
@@ -173,15 +176,15 @@ export function KompetenzImportDialog({ open, anonymMap, onClose }: Props): Reac
             Schließen
           </button>
           {preview && !preview.fatal && (
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
+              loading={apply.busy}
+              disabled={preview.summary.valid === 0}
               onClick={() => apply.run()}
-              disabled={apply.busy || preview.summary.valid === 0}
-              className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-              style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >
-              {apply.busy ? 'Übernehme…' : `${preview.summary.valid} MAs übernehmen`}
-            </button>
+              {`${preview.summary.valid} MAs übernehmen`}
+            </Button>
           )}
         </div>
       </div>

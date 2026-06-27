@@ -9,6 +9,7 @@
  * potentielle Folge-Views sie nutzen.
  */
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket } from '../types';
 import { getAntragstypHerkunft, getEffectiveAntragstypen, hasPlOverride } from '../services/kapazitaet';
@@ -97,15 +98,15 @@ export function AntragstypOverrideCell({ ma, onSave }: Props): React.ReactElemen
         })}
       </div>
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="button"
-          disabled={busy}
+          variant="primary"
+          size="xs"
+          loading={busy}
           onClick={() => saveAction.run()}
-          className="text-[10.5px] px-2 py-0.5 rounded cursor-pointer disabled:opacity-50"
-          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
         >
-          {busy ? '…' : 'Speichern'}
-        </button>
+          Speichern
+        </Button>
         {(ma.antragstypUeberschreibung?.length ?? 0) > 0 && (
           <button
             type="button"

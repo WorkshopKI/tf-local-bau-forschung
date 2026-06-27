@@ -226,8 +226,9 @@ hand-gebaute Buttons hängen sich davon ab und wirken schwarz statt im Akzent.
 Props: `icon={LucideIcon}` (führendes Icon, ohne `size=`), `loading={bool}` (Spinner + erzwingt
 `disabled` — den Lade-Text-Swap `busy ? 'Speichere…' : 'Speichern'` weglassen), `asChild` (für Anker:
 `<Button asChild><a …>…</a></Button>`), `size="sm|xs|lg|icon|icon-sm"`. Ein `<button>`/`<a>` mit eigenem
-`bg-[var(--tf-text)]`-/`bg-[var(--tf-primary)]`-Fill ist verboten — der Convention-Test
-`no-raw-cta-fill` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)) fängt das.
+gefüllten Fill ist verboten — egal ob als Klasse (`bg-[var(--tf-text)]`/`bg-[var(--tf-primary)]`) oder
+inline (`style={{ background: 'var(--tf-text)', … }}`); der Convention-Test `no-raw-cta-fill`
+([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)) fängt beides.
 
 **Niemals**: Blaue Buttons, rote gefüllte Buttons, Gradient-Buttons, Buttons mit fetten Font-Weights,
 hand-gebaute gefüllte CTAs an der `<Button>`-Komponente vorbei.

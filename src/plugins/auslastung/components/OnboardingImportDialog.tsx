@@ -7,6 +7,7 @@
  * dann auf "Kalibrierung starten".
  */
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
@@ -105,16 +106,18 @@ export function OnboardingImportDialog({ open, onClose, onCalibrate }: Props): R
 
         <div className="rounded p-3 flex items-center gap-3 text-[12.5px]"
           style={{ border: '0.5px dashed var(--tf-border)' }}>
-          <label className="cursor-pointer px-3 py-1.5 rounded-md" style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}>
-            Dateien wählen
-            <input
-              type="file"
-              accept=".xlsx"
-              multiple
-              onChange={e => void onFiles(e.target.files)}
-              className="hidden"
-            />
-          </label>
+          <Button asChild variant="primary" size="sm">
+            <label>
+              Dateien wählen
+              <input
+                type="file"
+                accept=".xlsx"
+                multiple
+                onChange={e => void onFiles(e.target.files)}
+                className="hidden"
+              />
+            </label>
+          </Button>
           <span className="text-[var(--tf-text-tertiary)]">Mehrere XLSX gleichzeitig möglich</span>
         </div>
 
@@ -220,15 +223,14 @@ export function OnboardingImportDialog({ open, onClose, onCalibrate }: Props): R
             </button>
           )}
           {neuCount > 0 && (
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
+              loading={busy}
               onClick={() => void applyAllNew()}
-              disabled={busy}
-              className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-              style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >
-              {busy ? 'Importiere…' : `${neuCount} neue MA${neuCount === 1 ? '' : 's'} anlegen`}
-            </button>
+              {`${neuCount} neue MA${neuCount === 1 ? '' : 's'} anlegen`}
+            </Button>
           )}
         </div>
       </div>

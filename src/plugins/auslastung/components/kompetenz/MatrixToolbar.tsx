@@ -8,6 +8,7 @@
  * das gemeinsame Modell, damit Zell-Edits und Toolbar synchron sind.
  */
 import { Upload, Check, Info, Loader2, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { KompetenzMatrixModel } from '../../hooks/useKompetenzMatrixModel';
 
 const INFO_TEXT =
@@ -66,15 +67,14 @@ export function MatrixToolbar({ model, onOpenUpload }: Props): React.ReactElemen
         >
           <Upload size={13} /> XLSX hochladen
         </button>
-        <button
-          type="button"
-          onClick={flushNow}
+        <Button
+          variant="primary"
+          size="sm"
           disabled={saving || dirtyCount === 0}
-          className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-40"
-          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+          onClick={flushNow}
         >
           Jetzt speichern
-        </button>
+        </Button>
       </div>
     </div>
   );

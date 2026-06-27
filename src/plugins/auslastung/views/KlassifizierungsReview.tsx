@@ -620,9 +620,9 @@ export function KlassifizierungsReview(): React.ReactElement {
                 }`}
                 style={{
                   padding: '6px 13px',
-                  background: active ? 'var(--tf-text)' : undefined,
-                  color: active ? 'var(--tf-bg)' : 'var(--tf-text-secondary)',
-                  border: `0.5px solid ${active ? 'var(--tf-text)' : 'var(--tf-border-hover)'}`,
+                  background: active ? 'var(--tf-primary-light)' : undefined,
+                  color: active ? 'var(--tf-primary)' : 'var(--tf-text-secondary)',
+                  border: `0.5px solid ${active ? 'transparent' : 'var(--tf-border-hover)'}`,
                 }}
               >
                 {f === 'alle' && `Alle (${fmtCount(counts.total, isInitialLoading)})`}

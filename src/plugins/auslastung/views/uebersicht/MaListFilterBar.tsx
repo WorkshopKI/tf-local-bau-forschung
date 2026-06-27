@@ -9,6 +9,7 @@
  * View-Switch + Inaktive-Checkbox + „+MA hinzufügen" am rechten Rand.
  */
 import { LayoutGrid, Menu, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket, type UeberKategorie } from '../../types';
@@ -85,24 +86,16 @@ export function MaListFilterBar({
           />
           <span>Inaktive anzeigen</span>
         </label>
-        <button
+        <Button
           type="button"
+          variant="primary"
+          size="sm"
+          icon={Plus}
           onClick={onAddMa}
-          disabled={addBusy}
-          className="inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-          style={{
-            height: 30,
-            padding: '0 12px',
-            background: 'var(--tf-text)',
-            color: 'var(--tf-bg)',
-            borderRadius: 8,
-            fontSize: 12.5,
-            fontWeight: 500,
-          }}
+          loading={addBusy}
         >
-          <Plus size={13} />
           MA hinzufügen
-        </button>
+        </Button>
       </div>
     </div>
   );

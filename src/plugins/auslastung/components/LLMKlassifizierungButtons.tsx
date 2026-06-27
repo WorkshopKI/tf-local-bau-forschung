@@ -12,6 +12,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Play, ChevronDown, Copy, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
@@ -212,19 +213,20 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
     <div className="flex flex-col gap-1 min-w-0">
       {/* Reihe 1 — Lead-Cluster: Primaer-Aktion + „Manuell ▾" + Hinweis-Text. */}
       <div className="flex items-center gap-2.5 min-w-0">
-        <button
-          type="button"
-          onClick={() => startLLM.run()}
+        <Button
+          variant="primary"
+          size="sm"
+          icon={Play}
+          loading={startLLM.busy}
           disabled={busy || isLoading || noOpen}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[8px] text-[12.5px] font-medium cursor-pointer hover:opacity-90 disabled:opacity-45 disabled:cursor-not-allowed whitespace-nowrap"
-          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+          onClick={() => startLLM.run()}
+          className="h-8"
           title="Klassifiziert alle offenen Verbuende via aktivem AI-Bridge-Transport"
         >
-          <Play size={13} aria-hidden />
           {startLLM.busy && progress
             ? `${progress.done} / ${progress.total} Verbünde…`
             : 'LLM-Klassifizierung starten'}
-        </button>
+        </Button>
 
         <div ref={manualWrapRef} className="relative">
           <button
@@ -418,15 +420,15 @@ function PasteModal({ kategorien, onClose, onApply }: PasteModalProps): React.Re
           >
             Abbrechen
           </button>
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
+            loading={apply.busy}
+            disabled={!text.trim()}
             onClick={() => apply.run()}
-            disabled={!text.trim() || apply.busy}
-            className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
-            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
           >
-            {apply.busy ? 'Anwenden…' : 'Anwenden'}
-          </button>
+            Anwenden
+          </Button>
         </div>
       </div>
     </div>

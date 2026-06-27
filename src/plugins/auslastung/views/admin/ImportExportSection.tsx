@@ -12,6 +12,7 @@
  * (Typ-Stunden) wird ausschließlich in der Kompetenz-Matrix gepflegt.
  */
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -63,26 +64,27 @@ export function ImportExportSection({ antraege }: Props): React.ReactElement {
             Single-File-HTML per E-Mail. MA füllt aus, schickt XLSX zurück, hier importieren.
           </p>
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
+              loading={onboardingHtmlAction.busy}
+              disabled={noKategorien || noAntraege}
               onClick={() => { void onboardingHtmlAction.run(); }}
-              disabled={noKategorien || noAntraege || onboardingHtmlAction.busy}
-              className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
-              style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >
-              {onboardingHtmlAction.busy ? 'Generiere…' : 'HTML generieren'}
-            </button>
+              HTML generieren
+            </Button>
             {onboardingHtmlAction.error && (
               <span className="text-[11px] text-[var(--tf-danger-text)]">Fehler: {onboardingHtmlAction.error}</span>
             )}
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => setOnboardingImportOpen(true)}
-              className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer"
-              style={{ border: '0.5px solid var(--tf-border)' }}
             >
               XLSX-Antwort importieren
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -93,15 +95,15 @@ export function ImportExportSection({ antraege }: Props): React.ReactElement {
             XLSX mit Klartext-Kürzeln für Auswertung / Ablage.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
+              loading={kuerzelExport.busy}
               onClick={() => { void kuerzelExport.run(); }}
-              disabled={kuerzelExport.busy}
-              className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
-              style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >
-              {kuerzelExport.busy ? 'Exportiere…' : 'Mit Kürzeln (XLSX)'}
-            </button>
+              Mit Kürzeln (XLSX)
+            </Button>
             {kuerzelExport.error && (
               <span className="text-[11px] text-[var(--tf-danger-text)]">Fehler: {kuerzelExport.error}</span>
             )}

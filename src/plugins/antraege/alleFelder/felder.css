@@ -41,7 +41,7 @@
 .af-tabs { display:flex; gap:6px; }
 .af-tab { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:99px; border:var(--tf-border-thin) solid var(--tf-border); background:var(--tf-bg); color:var(--tf-text-secondary); font-size:12px; cursor:pointer; }
 .af-tab:hover { border-color:var(--tf-border-hover); }
-.af-tab.on { background:var(--tf-text); color:var(--tf-bg); border-color:var(--tf-text); font-weight:var(--tf-weight-medium); }
+.af-tab.on { background:var(--tf-primary-light); color:var(--tf-primary); border-color:transparent; font-weight:var(--tf-weight-medium); }
 .af-tab .c { font-family:var(--tf-font-mono); font-size:10.5px; opacity:.8; }
 .af-search { display:flex; align-items:center; gap:8px; padding:7px 12px; border:var(--tf-border-thin) solid var(--tf-border); border-radius:var(--tf-radius); background:var(--tf-bg); color:var(--tf-text-tertiary); flex:1; min-width:200px; }
 .af-search input { flex:1; border:0; background:transparent; outline:none; font:13px var(--tf-font-sans); color:var(--tf-text); }

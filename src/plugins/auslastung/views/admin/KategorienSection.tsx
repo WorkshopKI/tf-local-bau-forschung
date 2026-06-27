@@ -3,6 +3,7 @@
  * Tabelle: id / name / farbe / Mapping-Count / Drawer-Button "Bearbeiten".
  */
 import { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import type { StorageService } from '@/core/services/storage';
 import {
   KATEGORIE_FARBEN,
@@ -207,17 +208,19 @@ function KategorieDrawer({
         )}
 
         <div className="flex justify-end gap-2">
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={onClose}
-            className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer"
-            style={{ border: '0.5px solid var(--tf-border)' }}
           >
             Abbrechen
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            disabled={busy}
+            variant="primary"
+            size="sm"
+            loading={busy}
             onClick={async () => {
               setBusy(true);
               setError(null);
@@ -235,11 +238,9 @@ function KategorieDrawer({
                 setBusy(false);
               }
             }}
-            className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
           >
-            {busy ? 'Speichere…' : 'Speichern'}
-          </button>
+            Speichern
+          </Button>
         </div>
       </div>
     </div>

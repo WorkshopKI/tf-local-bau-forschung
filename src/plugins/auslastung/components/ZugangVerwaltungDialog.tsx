@@ -169,9 +169,9 @@ export function ZugangVerwaltungDialog({ maListe, onClose }: Props): React.React
             {confirmAll ? (
               <span className="inline-flex items-center gap-2 text-[12px] text-[var(--tf-warning-text)]">
                 Alle neu erzeugen — bestehende Passwörter werden ungültig.
-                <button type="button" onClick={() => regenAll.run()} disabled={anyBusy} className="px-2 py-0.5 rounded-md text-[12px] font-medium cursor-pointer" style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}>
+                <Button variant="primary" size="xs" loading={regenAll.busy} disabled={anyBusy} onClick={() => regenAll.run()}>
                   Bestätigen
-                </button>
+                </Button>
                 <button type="button" onClick={() => setConfirmAll(false)} className="text-[12px] cursor-pointer hover:underline">Abbrechen</button>
               </span>
             ) : (

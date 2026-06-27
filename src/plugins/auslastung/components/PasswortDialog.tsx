@@ -5,6 +5,7 @@
  * (rein heuristisch: Laenge + Zeichenklassen).
  */
 import { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { useDialogEsc } from './useDialogEsc';
 
 interface Props {
@@ -136,15 +137,15 @@ export function PasswortDialog({
           >
             Abbrechen
           </button>
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
+            loading={busy}
+            disabled={!valid}
             onClick={() => void submit()}
-            disabled={!valid || busy}
-            className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
           >
-            {busy ? 'Exportiere…' : 'Verschlüsselt exportieren'}
-          </button>
+            Verschlüsselt exportieren
+          </Button>
         </div>
       </div>
     </div>

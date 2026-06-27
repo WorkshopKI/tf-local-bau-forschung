@@ -9,6 +9,7 @@
  *    Zuweisungs-Streifen am Kopf (Redesign v2.26).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
@@ -548,16 +549,16 @@ export function ZuweisungsCockpit(): React.ReactElement {
       {/* Toolbar: Übernahme-Wünsche einsammeln (links) + Export (rechts) */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={() => einsammelnAction.run()}
-            disabled={einsammelnAction.busy}
-            className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ border: '0.5px solid var(--tf-border)' }}
+            loading={einsammelnAction.busy}
             title="Liest die Übernahme-Wünsche der MAs aus deren persönlichen Ordnern ein"
           >
-            {einsammelnAction.busy ? 'Sammle ein…' : 'Übernahme-Wünsche einsammeln'}
-          </button>
+            Übernahme-Wünsche einsammeln
+          </Button>
           {einsammelnMsg && (
             <span className="text-[11px] text-[var(--tf-text-tertiary)]">{einsammelnMsg}</span>
           )}
@@ -569,15 +570,15 @@ export function ZuweisungsCockpit(): React.ReactElement {
           {kuerzelExport.error && (
             <span className="text-[11px] text-[var(--tf-danger-text)]">Fehler: {kuerzelExport.error}</span>
           )}
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             onClick={() => { void kuerzelExport.run(); }}
-            disabled={kuerzelExport.busy}
-            className="px-3 py-1.5 rounded-md text-[12px] cursor-pointer disabled:opacity-50"
-            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+            loading={kuerzelExport.busy}
           >
-            {kuerzelExport.busy ? 'Exportiere…' : 'Export (mit Kürzeln)'}
-          </button>
+            Export (mit Kürzeln)
+          </Button>
         </div>
       </div>
 

@@ -6,6 +6,7 @@
  * damit die `render`-Funktionen sie als Closure sehen.
  */
 import { type ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 import type { SortableColumn } from '@/components/data-table';
 import type { KlassifizierungsView } from '../hooks/useKlassifizierungen';
 import { KategoriePill } from '../components/KategoriePill';
@@ -264,14 +265,14 @@ function AktionCell({ view, onBestaetigen }: AktionCellProps): ReactNode {
   }
   const hasPrimaer = view.klassifizierung.vorgeschlagenePrimaer !== null;
   return (
-    <button
+    <Button
       type="button"
+      variant="primary"
+      size="sm"
       onClick={() => onBestaetigen(view)}
       disabled={!hasPrimaer}
-      className="text-[11.5px] px-2 py-1 rounded cursor-pointer disabled:opacity-50"
-      style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
     >
       Freigeben
-    </button>
+    </Button>
   );
 }

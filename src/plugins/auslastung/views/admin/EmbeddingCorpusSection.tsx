@@ -9,6 +9,7 @@
  * - Auto-Upload nach Build (Build-Lock-Schutz beim Schreiben)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import type { StorageService } from '@/core/services/storage';
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
@@ -470,46 +471,46 @@ export function EmbeddingCorpusSection({ storage, antraege, embeddableAz }: Prop
             {isEmbeddingCorpusBuildEnabled() && (
               <>
                 {isDevContext() && (
-                  <button
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="sm"
                     onClick={() => void build(false)}
                     disabled={total === 0}
-                    className="px-3 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-                    style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
                   >
                     Corpus aufbauen (~{Math.ceil(total * 0.2 / 60)} min)
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => void build(true)}
                   disabled={total === 0 || count >= total}
-                  className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
-                  style={{ border: '0.5px solid var(--tf-border)' }}
                 >
                   Inkrementell
-                </button>
+                </Button>
               </>
             )}
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => void clear()}
               disabled={count === 0}
-              className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
-              style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
             >
               Cache leeren
-            </button>
+            </Button>
           </>
         ) : (
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={abort}
-            className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer"
-            style={{ border: '0.5px solid var(--tf-border)' }}
           >
             Abbrechen
-          </button>
+          </Button>
         )}
       </div>
 

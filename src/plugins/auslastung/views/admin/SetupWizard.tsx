@@ -9,6 +9,7 @@
  *            setzt `setupAbgeschlossen=true`.
  */
 import { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import type { StorageService } from '@/core/services/storage';
 import {
   KATEGORIE_FARBEN,
@@ -258,28 +259,28 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren, pro
                     ))}
                   </select>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="primary"
+                  size="sm"
                   onClick={() => void addKategorie()}
                   disabled={!newId.trim() || !newName.trim()}
-                  className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer disabled:opacity-50"
-                  style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
                 >
                   Hinzufügen
-                </button>
+                </Button>
               </div>
             )}
           </div>
           <div className="flex justify-end">
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={() => setStep(2)}
               disabled={kategorien.length === 0}
-              className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-              style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >
               Weiter zu Schritt 2 →
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -347,22 +348,22 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren, pro
             </div>
           </div>
           <div className="flex justify-between">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => setStep(1)}
-              className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer"
-              style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
             >
               ← Zurück
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={() => setStep(3)}
-              className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer"
-              style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >
               Weiter zu Schritt 3 →
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -394,23 +395,23 @@ export function SetupWizard({ storage, antraege, anonymMap, allDeskriptoren, pro
             )}
           </div>
           <div className="flex justify-between">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => setStep(2)}
-              className="px-3 py-1.5 rounded-md text-[12.5px] cursor-pointer"
-              style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
             >
               ← Zurück
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
+              loading={busy}
               onClick={() => void finish()}
-              disabled={busy}
-              className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-              style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
             >
-              {busy ? 'Speichere…' : 'Setup abschließen'}
-            </button>
+              Setup abschließen
+            </Button>
           </div>
         </div>
       )}

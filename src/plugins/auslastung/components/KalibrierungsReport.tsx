@@ -13,6 +13,7 @@
  * Bei mehreren MAs: Tabs pro MA + Aggregations-Tab.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
@@ -387,14 +388,9 @@ function SingleMaView({ result, scope, onApply }: { result: PerMaResult; scope: 
       </div>
 
       <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onApply}
-          className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer"
-          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-        >
+        <Button variant="primary" size="sm" onClick={onApply}>
           Optimale Werte übernehmen ({best.kannIch.toFixed(1)} / {best.teilweise.toFixed(1)})
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -464,14 +460,9 @@ function AggregateView({ results, aggregate, onApply }: {
       </div>
 
       <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onApply}
-          className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer"
-          style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
-        >
+        <Button variant="primary" size="sm" onClick={onApply}>
           Aggregierte Werte übernehmen ({aggregate.best.kannIch.toFixed(1)} / {aggregate.best.teilweise.toFixed(1)})
-        </button>
+        </Button>
       </div>
     </div>
   );

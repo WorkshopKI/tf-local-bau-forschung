@@ -13,6 +13,7 @@
  */
 import { useState } from 'react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { AntragstypBucket, MatchResult, UeberKategorie } from '../types';
 import { useDeAnonName } from './AnonymIdBadge';
 import { ConfidenceDot } from './ConfidenceDot';
@@ -218,16 +219,15 @@ export function VorschlagRow({
           </span>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={onZuweisen}
+            <Button
+              variant="primary"
+              size="sm"
               disabled={disabled || zuweisenGesperrt}
               title={zuweisenGesperrt ? 'Verbund noch nicht vollständig erfasst (D_XTEC/D_ADV fehlt) — Zuweisung gesperrt' : undefined}
-              className="h-[27px] px-2.5 rounded-md text-[11.5px] font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+              onClick={onZuweisen}
             >
               Zuweisen
-            </button>
+            </Button>
             <button
               type="button"
               onClick={onAblehnen}

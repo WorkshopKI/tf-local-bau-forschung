@@ -14,6 +14,7 @@
  */
 import { useState } from 'react';
 import { Info } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
@@ -499,15 +500,15 @@ function EditTab({ ma, removable, onSaved }: {
           >
             Abbrechen
           </button>
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             onClick={() => saveAction.run()}
-            disabled={saveAction.busy}
-            className="px-4 py-1.5 rounded-md text-[12.5px] font-medium cursor-pointer disabled:opacity-50"
-            style={{ background: 'var(--tf-text)', color: 'var(--tf-bg)' }}
+            loading={saveAction.busy}
           >
-            {saveAction.busy ? 'Speichere…' : 'Speichern'}
-          </button>
+            Speichern
+          </Button>
         </div>
       </div>
     </div>
