@@ -1088,13 +1088,14 @@ describe('preset-contrast-contract (CTA-Primaerfarbe lesbar gegen weissen Vorder
 });
 
 describe('no-parallel-scope-tabs (Listen-Sicht-Tabs gehören in ScopeTabs)', () => {
-  // Die unterstrichene Aktiv-Tab-Signatur 'border-b-2 border-[var(--tf-text)]' ist
+  // Die unterstrichene Aktiv-Tab-Signatur 'border-b-2 border-[var(--tf-primary)]' ist
   // die kanonische Darstellung der Listen-Sicht-Tabs (ScopeTabs variant='tabs';
-  // Förderanträge + Chat sind konsolidiert). Sie darf außerhalb des Primitivs nicht
-  // neu hand-gebaut werden, sonst driften die Tabs wieder auseinander. Generische
-  // Section-/Settings-Navigation nutzt @/components/ui/tabs (Inline-Style-Border,
-  // trifft diese Tailwind-Signatur NICHT).
-  const SIGNATURE = 'border-b-2 border-[var(--tf-text)]';
+  // Förderanträge + Chat sind konsolidiert). Seit v2.151.2 trägt der aktive Tab den
+  // Profil-Akzent (--tf-primary) statt Schwarz (--tf-text). Sie darf außerhalb des
+  // Primitivs nicht neu hand-gebaut werden, sonst driften die Tabs wieder auseinander.
+  // Generische Section-/Settings-Navigation nutzt @/components/ui/tabs (Inline-Style-
+  // Border, trifft diese Tailwind-Signatur NICHT).
+  const SIGNATURE = 'border-b-2 border-[var(--tf-primary)]';
   // Kanonische Heimat + bewusst grandfatherte Bestands-Tabs (außerhalb des
   // schlanken Umfangs dieser Schicht-Einführung; Migration als spätere Phase offen,
   // siehe docs/layout-audit.md → „Adoptions-Status"):

@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.151.2 — App-weit: kein Schwarz/Weiß mehr in Aktiv-/Emphasis-Flächen (Juni 2026)
+
+PATCH — Letzter Schliff: auch die übrigen schwarzen **Aktiv-/Emphasis-Flächen** tragen jetzt den
+Profil-Akzent (`--tf-primary`) statt `--tf-text`. Body-Text + Hintergründe bleiben unverändert (Lesbarkeit).
+
+- **Tab-Unterstriche → Akzent:** `ScopeTabs` (Förderanträge + Chat, `variant='tabs'`) und die generische
+  `Tabs`-Komponente (Einstellungen-/Section-Nav) — aktiver Tab = `--tf-primary`-Text + `--tf-primary`-
+  Unterstrich. Ebenso die hand-gebauten Tab-Leisten (SkillVerwaltung, SkillEditor, KalibrierungsReport)
+  und der Reifegrad-Facet-Filter.
+- **Badges/Kreise → Akzent:** `empfohlen`-Reifegrad-Badge + der Nummernkreis im Tweak-Editor
+  (`bg-[var(--tf-primary)]` + weißer Text).
+- **Progress + Step-Dots → Akzent:** `ProgressBar`, Onboarding-Step-Dots, CSV-Wizard- + Filter-Dialog-
+  Step-Dots, CSV-Step4-Fortschrittsbalken.
+- **Toggles/Inputs → Akzent:** der Regel-Switch (on-Zustand), der Thinking-Toggle (aktiv = Akzent-Light),
+  Input-Focus-Border im Antrag-Autocomplete.
+- **Guard `no-parallel-scope-tabs`** auf die neue Akzent-Signatur (`border-b-2 border-[var(--tf-primary)]`)
+  umgestellt, damit hand-gebaute Unterstrich-Tabs weiter gefangen werden.
+
 ### v2.151.1 — App-weit: schwarz-aktive Pills + Segment-Toggles auf Akzent-Light (Juni 2026)
 
 PATCH — Abschluss des Schwarz→Akzent-Durchgangs: alle verbliebenen **Selektions-Pills** und

@@ -28,7 +28,7 @@ export function ThinkingControl({ budget, onChange, disabled }: Props): React.Re
       title='Thinking/Reasoning: ob das LLM vor der Antwort „nachdenkt". An = oft bessere Fassung, aber langsamer.'
       className={`inline-flex items-center h-[28px] px-[11px] rounded-[8px] border-[0.5px] text-[12px] whitespace-nowrap transition-colors ${
         aktiv
-          ? 'border-[var(--tf-text)] bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
+          ? 'border-[var(--tf-primary)] bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
           : 'border-[var(--tf-border-hover)] text-[var(--tf-text-secondary)]'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
     >

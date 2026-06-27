@@ -252,9 +252,9 @@ function TabButton({ active, onClick, children }: { id: string; active: boolean;
       type="button"
       onClick={onClick}
       className={`px-3 py-1.5 text-[12px] cursor-pointer -mb-px ${
-        active ? 'font-medium text-[var(--tf-text)]' : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
+        active ? 'font-medium text-[var(--tf-primary)]' : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
       }`}
-      style={active ? { borderBottom: '2px solid var(--tf-text)' } : undefined}
+      style={active ? { borderBottom: '2px solid var(--tf-primary)' } : undefined}
     >
       {children}
     </button>

@@ -29,10 +29,10 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps): React.ReactEleme
           onClick={() => onChange(tab.id)}
           className={`shrink-0 whitespace-nowrap px-4 py-2 text-[13.5px] transition-colors cursor-pointer -mb-px ${
             tab.id === activeTab
-              ? 'text-[var(--tf-text)] font-medium'
+              ? 'text-[var(--tf-primary)] font-medium'
               : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
           }`}
-          style={tab.id === activeTab ? { borderBottom: '2px solid var(--tf-text)' } : undefined}
+          style={tab.id === activeTab ? { borderBottom: '2px solid var(--tf-primary)' } : undefined}
         >
           {tab.label}
           {tab.badge != null && (

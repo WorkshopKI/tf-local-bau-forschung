@@ -43,7 +43,7 @@ const REIFEGRAD_LABEL: Record<Reifegrad, string> = { entwurf: 'Entwurf', erprobt
 const REIFEGRAD_STYLE: Record<Reifegrad, string> = {
   entwurf: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]',
   erprobt: 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]',
-  empfohlen: 'bg-[var(--tf-text)] text-[var(--tf-bg)]',
+  empfohlen: 'bg-[var(--tf-primary)] text-white',
 };
 const SORT_LABEL: Record<SkillSortKey, string> = {
   datum: 'Zuletzt geändert',
@@ -233,7 +233,7 @@ function FacetBar({ file, facets, sortKey, showSort, onFacets, onSort }: FacetBa
               onClick={() => onFacets({ ...facets, reifegrad: r })}
               className={`text-[12px] px-2.5 py-1 rounded-[99px] border-[0.5px] transition-colors ${
                 active
-                  ? 'border-[var(--tf-text)] text-[var(--tf-text)] font-medium'
+                  ? 'border-[var(--tf-primary)] text-[var(--tf-primary)] font-medium'
                   : 'border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:border-[var(--tf-border-hover)]'
               }`}
             >

@@ -206,7 +206,7 @@ export function FilterEditDialog({ open, onClose, onSaved, programmId, existing 
                 key={s}
                 className={
                   s <= draft.step
-                    ? 'h-2 w-2 rounded-full bg-[var(--tf-text)]'
+                    ? 'h-2 w-2 rounded-full bg-[var(--tf-primary)]'
                     : 'h-2 w-2 rounded-full bg-[var(--tf-text-tertiary)] opacity-40'
                 }
               />

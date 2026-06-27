@@ -253,7 +253,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
 
         <div className="flex justify-center gap-2 mt-6">
           {Array.from({ length: totalSteps }).map((_, i) => (
-            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === step ? 'bg-[var(--tf-text)]' : 'bg-[var(--tf-border)]'}`} />
+            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === step ? 'bg-[var(--tf-primary)]' : 'bg-[var(--tf-border)]'}`} />
           ))}
         </div>
       </div>

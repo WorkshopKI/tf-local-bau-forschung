@@ -85,7 +85,7 @@ export const AntragAutocomplete = forwardRef<AntragAutocompleteHandle, Props>(
           onBlur={() => setTimeout(() => setOpen(false), 120)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder ?? 'FKZ, Akronym oder Titel suchen…'}
-          className="w-full bg-[var(--tf-bg)] text-[var(--tf-text)] text-[12.5px] rounded-[var(--tf-radius)] px-3 py-2 outline-none focus:border-[var(--tf-text)] transition-colors"
+          className="w-full bg-[var(--tf-bg)] text-[var(--tf-text)] text-[12.5px] rounded-[var(--tf-radius)] px-3 py-2 outline-none focus:border-[var(--tf-primary)] transition-colors"
           style={{ border: '0.5px solid var(--tf-border)' }}
         />
         {open && matches.length > 0 && (

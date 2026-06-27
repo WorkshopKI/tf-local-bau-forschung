@@ -169,7 +169,7 @@ export function TweakEditor({ skillVersion, sektionLabel, regeln, tweak, onClose
         <div className="flex justify-center text-[var(--tf-text-tertiary)] py-1"><ArrowDown size={16} /></div>
 
         <div className="flex items-center gap-3 px-3.5 py-3 rounded-[10px] bg-[var(--tf-bg-secondary)]">
-          <span className="w-6 h-6 flex-shrink-0 rounded-full bg-[var(--tf-text)] text-[var(--tf-bg)] inline-flex items-center justify-center">
+          <span className="w-6 h-6 flex-shrink-0 rounded-full bg-[var(--tf-primary)] text-white inline-flex items-center justify-center">
             <Lock size={12} />
           </span>
           <span className="flex flex-col gap-0.5">

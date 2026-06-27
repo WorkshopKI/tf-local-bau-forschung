@@ -315,7 +315,7 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseE
                   key={s}
                   className={
                     s <= displayStep
-                      ? 'h-2 w-2 rounded-full bg-[var(--tf-text)]'
+                      ? 'h-2 w-2 rounded-full bg-[var(--tf-primary)]'
                       : 'h-2 w-2 rounded-full bg-[var(--tf-text-tertiary)] opacity-40'
                   }
                 />

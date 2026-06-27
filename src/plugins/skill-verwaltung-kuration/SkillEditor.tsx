@@ -137,7 +137,7 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
               onClick={() => setView(v)}
               className={`pb-2.5 text-[13.5px] whitespace-nowrap transition-colors ${
                 active
-                  ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
+                  ? 'text-[var(--tf-primary)] font-medium border-b-2 border-[var(--tf-primary)] -mb-px'
                   : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
               }`}
             >

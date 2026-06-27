@@ -105,7 +105,7 @@ export function Step4Progress({ progress, result, error, cancelled }: Step4Props
           </div>
           <div className="h-2 bg-[var(--tf-bg-secondary)] rounded overflow-hidden">
             <div
-              className="h-full bg-[var(--tf-text)] transition-all"
+              className="h-full bg-[var(--tf-primary)] transition-all"
               style={{ width: progress.total > 0 ? `${(progress.done / progress.total) * 100}%` : '10%' }}
             />
           </div>

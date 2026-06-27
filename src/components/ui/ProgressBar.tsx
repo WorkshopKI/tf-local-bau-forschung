@@ -10,7 +10,7 @@ export function ProgressBar({ value, label }: ProgressBarProps): React.ReactElem
     <div className="flex items-center gap-3">
       <div className="flex-1 h-1 bg-[var(--tf-bg-secondary)] rounded-sm overflow-hidden">
         <div
-          className="h-full bg-[var(--tf-text)] rounded-sm transition-[width] duration-300 ease-out"
+          className="h-full bg-[var(--tf-primary)] rounded-sm transition-[width] duration-300 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>

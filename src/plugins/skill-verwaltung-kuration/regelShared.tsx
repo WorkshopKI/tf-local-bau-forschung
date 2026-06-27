@@ -115,7 +115,7 @@ export function Switch({ on, onClick, disabled }: { on: boolean; onClick: () => 
       aria-pressed={on}
       disabled={disabled}
       onClick={onClick}
-      className={`relative inline-block w-8 h-[18px] rounded-[99px] align-middle disabled:opacity-50 ${on ? 'bg-[var(--tf-text)]' : 'bg-[var(--tf-border-hover)]'}`}
+      className={`relative inline-block w-8 h-[18px] rounded-[99px] align-middle disabled:opacity-50 ${on ? 'bg-[var(--tf-primary)]' : 'bg-[var(--tf-border-hover)]'}`}
     >
       <span className={`absolute top-0.5 w-3.5 h-3.5 rounded-[99px] bg-[var(--tf-bg)] ${on ? 'left-4' : 'left-0.5'}`} />
     </button>

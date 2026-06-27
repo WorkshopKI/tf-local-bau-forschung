@@ -357,7 +357,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
                     onClick={() => guard.guardLeave(() => changeTab(id))}
                     className={`pb-2.5 text-[14px] whitespace-nowrap cursor-pointer transition-colors ${
                       isActive
-                        ? 'text-[var(--tf-text)] font-medium border-b-2 border-[var(--tf-text)] -mb-px'
+                        ? 'text-[var(--tf-primary)] font-medium border-b-2 border-[var(--tf-primary)] -mb-px'
                         : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
                     }`}
                   >
