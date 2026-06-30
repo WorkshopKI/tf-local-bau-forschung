@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.153.0 — Anfragen-Modul auch in pl + as verfügbar (Juni 2026)
+
+MINOR — `features.anfragen` ist jetzt in den Varianten **pl** und **as** aktiv (vorher nur dev). Das
+Workflow-Plugin „Anfragen" (id `anfragen`, `kuratorOnly:false`) erscheint damit in der pl- und as-Sidebar;
+das Kuration-Pendant (`anfragen-kuration`, `category:'kuration'`) bleibt mangels Kurator-Menüs unsichtbar.
+Reine Config-Änderung (`configs/pl.config.json` + `configs/as.config.json`). **Das Recall-Gate des
+Anonymisierers gilt unverändert:** pl/as sind `variant:'production'` → der Skill bleibt `aktiv:false`, die
+Anonymisierung zeigt „Skill nicht freigeschaltet", bis Thomas manuell freigibt (vgl. v2.152.1: dev-only
+Runtime-Override). Aufnahme/Review/Wiedereinsetzung funktionieren auch ohne aktiven Skill.
+
 ### v2.152.1 — Anfragen: Anonymisierer in dev immer freigeschaltet (Gate nur Produktion) (Juni 2026)
 
 PATCH — Der Anonymisierungs-Skill ist in **dev** (`isDevContext()`) jetzt immer freigeschaltet, sobald
