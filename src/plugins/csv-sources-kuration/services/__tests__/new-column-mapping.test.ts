@@ -6,14 +6,16 @@
  * type dazu.
  */
 import { describe, it, expect } from 'vitest';
-import type { ColumnMapping } from '@/core/services/csv/types';
+import type { ColumnMapping, CsvSchema } from '@/core/services/csv/types';
 import type { PerColumnDecision } from '../../wizard/useCsvWizardState';
 import {
   buildNewColumnEntry,
   mergeNewColumns,
+  adoptNewColumnsAsIgnoredMapping,
   rebuildMapping,
   decisionFromEntry,
 } from '../new-column-mapping';
+import { validateHeaders } from '../csv-drift-check';
 
 const EXISTING: ColumnMapping = {
   AKZ: { canonical: 'aktenzeichen', type: 'string', trackHistory: false },
@@ -106,6 +108,59 @@ describe('mergeNewColumns', () => {
     const merged = mergeNewColumns(EXISTING, { X: { mode: 'ignore' } });
     expect(merged).not.toBe(EXISTING);
     expect(JSON.stringify(EXISTING)).toBe(before);
+  });
+});
+
+describe('adoptNewColumnsAsIgnoredMapping (headless Auto-Adopt im Auto-Refresh)', () => {
+  it('übernimmt jede neue Spalte als { ignore: true }', () => {
+    const merged = adoptNewColumnsAsIgnoredMapping(EXISTING, ['NEU_1', 'NEU_2']);
+    expect(merged.NEU_1).toEqual({ ignore: true });
+    expect(merged.NEU_2).toEqual({ ignore: true });
+  });
+
+  it('erhält bestehende Einträge byte-genau', () => {
+    const merged = adoptNewColumnsAsIgnoredMapping(EXISTING, ['NEU']);
+    for (const key of Object.keys(EXISTING)) {
+      expect(merged[key]).toEqual(EXISTING[key]);
+    }
+  });
+
+  it('mutiert das Eingabe-Mapping nicht (frisches Objekt)', () => {
+    const before = JSON.stringify(EXISTING);
+    const merged = adoptNewColumnsAsIgnoredMapping(EXISTING, ['NEU']);
+    expect(merged).not.toBe(EXISTING);
+    expect(JSON.stringify(EXISTING)).toBe(before);
+  });
+
+  it('ist idempotent: zweites Anwenden mit denselben Spalten ändert die Key-Menge nicht', () => {
+    const once = adoptNewColumnsAsIgnoredMapping(EXISTING, ['NEU']);
+    const twice = adoptNewColumnsAsIgnoredMapping(once, ['NEU']);
+    expect(Object.keys(twice).sort()).toEqual(Object.keys(once).sort());
+    expect(twice.NEU).toEqual({ ignore: true });
+  });
+
+  it('leeres newColumns → gleiches Mapping (frisches Objekt)', () => {
+    const merged = adoptNewColumnsAsIgnoredMapping(EXISTING, []);
+    expect(merged).toEqual(EXISTING);
+    expect(merged).not.toBe(EXISTING);
+  });
+
+  it('Drift-Idempotenz: nach Adopt sind die Spalten keine newColumns mehr', () => {
+    const headers = [...Object.keys(EXISTING), 'NEU_1', 'NEU_2'];
+    const merged = adoptNewColumnsAsIgnoredMapping(EXISTING, ['NEU_1', 'NEU_2']);
+    const schema: CsvSchema = {
+      id: 'q-test',
+      programm_id: 'p1',
+      csv_source_name: 'Testquelle',
+      is_master: true,
+      join_key: 'aktenzeichen',
+      priority: 1,
+      column_mapping: merged,
+      created_at: '2026-01-01T00:00:00.000Z',
+    };
+    const v = validateHeaders(schema, headers);
+    expect(v.newColumns).toEqual([]);
+    expect(v.missingFromCsv).toEqual([]);
   });
 });
 

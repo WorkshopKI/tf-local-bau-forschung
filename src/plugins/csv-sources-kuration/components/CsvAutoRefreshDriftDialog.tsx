@@ -25,6 +25,9 @@ export function CsvAutoRefreshDriftDialog({ report, onClose, onOpenWizard }: Pro
   const totalProcessed = report.processed.length;
   const totalDrift = report.drift.length;
   const totalErrors = report.errors.length;
+  // Quellen, bei denen der Auto-Refresh reine Zusatzspalten headless als
+  // „ignoriert" übernommen hat (nicht-blockierend — sie stehen in `processed`).
+  const autoAdopted = report.processed.filter(p => (p.autoAdoptedColumns?.length ?? 0) > 0);
 
   return (
     <Dialog
@@ -49,6 +52,20 @@ export function CsvAutoRefreshDriftDialog({ report, onClose, onOpenWizard }: Pro
             <>Keine Quelle konnte automatisch aktualisiert werden.</>
           )}
         </div>
+
+        {autoAdopted.length > 0 ? (
+          <div className="rounded-md border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] p-3 text-[11.5px] text-[var(--tf-text-secondary)]">
+            <div className="space-y-0.5">
+              {autoAdopted.map(p => (
+                <div key={p.schemaId}>
+                  <span className="font-medium text-[var(--tf-text)]">{p.schemaName}</span>:{' '}
+                  {p.autoAdoptedColumns!.length} neue Spalte{p.autoAdoptedColumns!.length === 1 ? '' : 'n'} automatisch
+                  als „ignoriert" übernommen. Bei Bedarf in „Kuration → CSV-Sources" gezielt zuordnen.
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {totalDrift > 0 ? (
           <div className="rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-3">

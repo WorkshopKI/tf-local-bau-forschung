@@ -60,6 +60,23 @@ export function mergeNewColumns(
 }
 
 /**
+ * Headless-Adopt: übernimmt reine neue CSV-Spalten additiv als `{ ignore: true }`
+ * ins bestehende `column_mapping` — ohne Kurator-Dialog. Reines `mergeNewColumns`
+ * mit fixer `{ mode: 'ignore' }`-Entscheidung je Spalte. Wird vom Auto-Refresh
+ * bei reiner `newColumns`-Drift genutzt, damit der tägliche Import nicht
+ * blockiert und die Spalten anschließend nicht erneut als „neu" gelten
+ * (Drift-Idempotenz). Bestehende Einträge bleiben byte-genau erhalten.
+ */
+export function adoptNewColumnsAsIgnoredMapping(
+  existing: ColumnMapping,
+  newColumns: string[],
+): ColumnMapping {
+  const decisions: Record<string, PerColumnDecision> = {};
+  for (const col of newColumns) decisions[col] = { mode: 'ignore' };
+  return mergeNewColumns(existing, decisions);
+}
+
+/**
  * Reverse zu `buildNewColumnEntry`: bestehender `ColumnMappingEntry` →
  * `PerColumnDecision`, um den Spalten-Editor (`NewColumnRow`) mit dem aktuellen
  * Mapping zu seeden. Fuer das nachtraegliche Bearbeiten bestehender Mappings

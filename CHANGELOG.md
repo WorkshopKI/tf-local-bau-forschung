@@ -5,6 +5,29 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.153.1 — CSV-Auto-Refresh: reine Zusatzspalten blockieren den Tages-Import nicht mehr (Juli 2026)
+
+PATCH — Der tägliche automatische CSV-Import zeigte in kurator/pl/as jeden Morgen den blockierenden Dialog
+„Auto-Refresh abgeschlossen — N Quellen brauchen deine Aufmerksamkeit" (z. B. „139/190 neue Spalten"),
+sobald die echte CSV mehr Spalten hatte als im Schema gemappt. Ursache: `hasDrift()` blockierte bei **jeder**
+nicht gemappten Zusatzspalte hart ([auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts)
+`continue`), obwohl der Importer solche Spalten ohnehin ignoriert — und nichts persistierte eine Auflösung,
+also wiederholte es sich täglich (Nachwirkung des Fixture-Überschreib-Vorfalls v2.139/v2.140: die 2 Quellen
+tragen ein unvollständiges, aus Fixtures konvertiertes Mapping).
+
+- **Reine `newColumns`-Drift** (nichts fehlt, nur Zusatzspalten) wird im Auto-Refresh jetzt **headless als
+  `{ ignore: true }` ins Schema übernommen** (`adoptNewColumnsAsIgnored` → reuse `mergeNewColumns`), dann
+  normal importiert. Drift verschwindet dauerhaft (idempotent), kein Start-Modal. Audit: neue Action
+  `csv_schema_columns_auto_ignored`. Nicht-blockierende Info-Zeile im Dialog (falls dieser aus anderem Grund
+  öffnet).
+- **`missingFromCsv > 0`** (eine gemappte Spalte verschwindet) bleibt **blockierend** (`report.drift` → Modal) —
+  der gefährliche Fall, der echte Felder leeren kann.
+- Neuer Klassifikator `isNewColumnsOnlyDrift` ([csv-drift-check.ts](src/plugins/csv-sources-kuration/services/csv-drift-check.ts)),
+  Tests: `csv-drift-check.test.ts` (neu) + `new-column-mapping.test.ts` (Auto-Adopt + Drift-Idempotenz).
+- **Ergänzend (Daten, einmalig durch Kurator/PL):** die 2 Quellen „Antragsbasis (Master)" / „Bewilligungsdetails"
+  über „CSV neu wählen" sauber gegen den echten Export registrieren (Encoding Windows-1252), damit tatsächlich
+  benötigte Felder gemappt sind statt nur ignoriert.
+
 ### v2.153.0 — Anfragen-Modul auch in pl + as verfügbar (Juni 2026)
 
 MINOR — `features.anfragen` ist jetzt in den Varianten **pl** und **as** aktiv (vorher nur dev). Das

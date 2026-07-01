@@ -57,7 +57,8 @@ import {
   type UpdateCheckResult,
 } from '../csv-source-handle';
 import { loadSharedCsvFilenames } from '../csv-source-filenames';
-import { validateHeaders, hasDrift, type HeaderValidation } from './csv-drift-check';
+import { validateHeaders, hasDrift, isNewColumnsOnlyDrift, type HeaderValidation } from './csv-drift-check';
+import { adoptNewColumnsAsIgnoredMapping } from './new-column-mapping';
 
 export interface RefreshCandidate {
   schemaId: string;
@@ -146,6 +147,12 @@ export interface ProcessedEntry {
   schemaName: string;
   rowCount: number;
   skipped: boolean;
+  /**
+   * Reine neue CSV-Spalten, die im Auto-Refresh headless als `{ ignore: true }`
+   * ins Schema übernommen wurden (nicht-blockierend — die Quelle landet NICHT in
+   * `report.drift`, das Modal öffnet nicht). Undefiniert, wenn nichts adoptiert.
+   */
+  autoAdoptedColumns?: string[];
 }
 
 export interface RefreshReport {
@@ -238,6 +245,35 @@ async function persistSourceMeta(
 }
 
 /**
+ * Übernimmt reine neue CSV-Spalten headless als `{ ignore: true }` ins Schema
+ * (kein Kurator-Dialog, spiegelt `CsvAddColumnsDialog` headless). Persistiert das
+ * gemergte Mapping VOR dem Import — der Importer liest das Schema frisch aus der
+ * IDB (`loadSchema` in importer.ts), sodass die adoptierten Spalten bekannt sind.
+ * `loadSchema` bewusst FRISCH (nicht der in `collectCandidates` gefangene
+ * `candidate.schema`, der zwischenzeitliche Writes verpassen könnte). Schreibt
+ * einen Audit-Eintrag und liefert die adoptierten Spaltennamen zurück (für den
+ * nicht-blockierenden Report). Wirft bei fehlendem Schema — der Aufrufer behandelt
+ * den Fehler dann wie bisher blockierend.
+ */
+async function adoptNewColumnsAsIgnored(
+  idb: IDBStore,
+  schemaId: string,
+  newColumns: string[],
+  kuratorName: string | undefined,
+): Promise<string[]> {
+  const fresh = await loadSchema(idb, schemaId);
+  if (!fresh) throw new Error(`Schema ${schemaId} nicht gefunden`);
+  const merged = adoptNewColumnsAsIgnoredMapping(fresh.column_mapping, newColumns);
+  await saveSchema(idb, { ...fresh, column_mapping: merged });
+  await logAudit(idb, {
+    action: 'csv_schema_columns_auto_ignored',
+    user: kuratorName,
+    details: { schemaId, columns: newColumns },
+  });
+  return newColumns;
+}
+
+/**
  * Faehrt eine Liste von Refresh-Kandidaten sequenziell ab. Wirft
  * `BuildLockBusyError`, wenn ein anderer Kurator gerade laeuft (vor dem
  * ersten Import). Innerhalb der Pipeline werden Lock-Konflikte ebenfalls
@@ -303,9 +339,29 @@ export async function runAutoRefresh(
       continue;
     }
 
+    // Drift-Behandlung:
+    //  - Reine `newColumns`-Drift (nichts fehlt, nur Zusatzspalten): headless als
+    //    `{ ignore: true }` adoptieren, dann normal importieren. Unbeaufsichtigt,
+    //    damit der tägliche Auto-Import nicht blockiert (Zusatzspalten werden beim
+    //    Import ohnehin ignoriert).
+    //  - `missingFromCsv > 0`: bleibt blockierend (report.drift → Modal), weil eine
+    //    verschwundene gemappte Spalte echte Felder leeren kann.
+    let autoAdopted: string[] = [];
     if (hasDrift(validation)) {
-      report.drift.push({ schemaId, schemaName: name, validation });
-      continue;
+      if (isNewColumnsOnlyDrift(validation)) {
+        try {
+          autoAdopted = await adoptNewColumnsAsIgnored(idb, schemaId, validation.newColumns, opts.kuratorName);
+        } catch (err) {
+          // Adopt fehlgeschlagen → wie bisher blockierend behandeln, statt still
+          // mit unvollständigem Schema zu importieren.
+          console.warn('[auto-refresh] Auto-Adopt neuer Spalten fehlgeschlagen', err);
+          report.drift.push({ schemaId, schemaName: name, validation });
+          continue;
+        }
+      } else {
+        report.drift.push({ schemaId, schemaName: name, validation });
+        continue;
+      }
     }
 
     opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'importing' });
@@ -347,6 +403,7 @@ export async function runAutoRefresh(
         schemaName: name,
         rowCount: result.rowCount,
         skipped: result.skipped,
+        ...(autoAdopted.length > 0 ? { autoAdoptedColumns: autoAdopted } : {}),
       });
     } catch (err) {
       const msg = (err as Error).message;
