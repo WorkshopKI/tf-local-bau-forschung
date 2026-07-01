@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.153.2 — CSV-Status zeigt importierte Datei + Export-Datum pro Quelle (Juli 2026)
+
+PATCH — Der Sidebar-CSV-Status (● CSV → Dialog „CSV-Datenimport") zeigte bisher nur den Zeitpunkt des
+letzten Import-*Laufs*. Damit man sieht, ob wirklich der nächtliche Export eingelesen wurde, listet der Dialog
+jetzt **pro Quelle**: Dateiname, **„Export vom …"** (Datei-mtime `source_last_modified`), Import-Zeitpunkt
+(`last_imported_at`) und Zeilenzahl (`last_row_count`). Reine Anzeige vorhandener Schema-Felder in
+[CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx) — kein Datenmodell-/Verhaltens-Change.
+Das „Export vom"-Datum ist der Beleg, welche Datei-Version tatsächlich importiert wurde.
+
 ### v2.153.1 — CSV-Auto-Refresh: reine Zusatzspalten blockieren den Tages-Import nicht mehr (Juli 2026)
 
 PATCH — Der tägliche automatische CSV-Import zeigte in kurator/pl/as jeden Morgen den blockierenden Dialog

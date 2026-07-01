@@ -38,12 +38,27 @@ import type { CsvSchema } from '@/core/services/csv/types';
 
 type CsvFreshnessState = 'fresh' | 'stale' | 'unknown';
 
+/** Pro importierter Quelle: welche Datei mit welchem Datum tatsächlich drin ist. */
+interface ImportedSourceInfo {
+  name: string;
+  /** Dateiname der zuletzt importierten Export-Datei. */
+  fileName: string | null;
+  /** `File.lastModified` (epoch ms) dieser Datei = „Export vom …". */
+  sourceLastModified: number | null;
+  /** Wann der Import gelaufen ist (ISO). */
+  lastImportedAt: string | null;
+  /** Zeilen im letzten Import. */
+  rowCount: number | null;
+}
+
 interface CsvFreshnessResult {
   state: CsvFreshnessState;
   /** Quellen-Namen mit neueren Export-Daten (für die Dialog-Liste). */
   pendingNames: string[];
   /** Jüngstes `last_imported_at` über alle Schemas (ISO) oder null. */
   lastImport: string | null;
+  /** Pro Quelle: importierte Datei + Datei-Datum + Zeilen (für den Detail-Dialog). */
+  sources: ImportedSourceInfo[];
 }
 
 /**
@@ -62,6 +77,24 @@ async function checkCsvFreshness(idb: IDBStore): Promise<CsvFreshnessResult> {
     .sort();
   const lastImport = importIsos.length > 0 ? importIsos[importIsos.length - 1]! : null;
 
+  // Pro Quelle: welche Datei mit welchem Datum tatsächlich importiert wurde.
+  // Nur verknüpfte/importierte Quellen (haben Datei oder Import). Master zuerst,
+  // sonst alphabetisch.
+  const sources: ImportedSourceInfo[] = all
+    .filter(s => s.source_file_name || s.last_imported_at)
+    .sort((a, b) =>
+      a.is_master === b.is_master
+        ? a.csv_source_name.localeCompare(b.csv_source_name, 'de')
+        : a.is_master ? -1 : 1,
+    )
+    .map(s => ({
+      name: s.csv_source_name,
+      fileName: s.source_file_name ?? null,
+      sourceLastModified: s.source_last_modified ?? null,
+      lastImportedAt: s.last_imported_at ?? null,
+      rowCount: s.last_row_count ?? null,
+    }));
+
   const { candidates, permissionNeeded, unlinked } = await collectCandidates(idb);
   const pendingNames = candidates.map(c => c.schema.csv_source_name);
 
@@ -75,7 +108,7 @@ async function checkCsvFreshness(idb: IDBStore): Promise<CsvFreshnessResult> {
   else if (all.length > 0 && reachable > 0) state = 'fresh';
   else state = 'unknown';
 
-  return { state, pendingNames, lastImport };
+  return { state, pendingNames, lastImport, sources };
 }
 
 export function CsvFreshnessIndicator(): React.ReactElement {
@@ -87,7 +120,7 @@ export function CsvFreshnessIndicator(): React.ReactElement {
   const sourcesSignal = useCsvSourcesSignal(s => s.version);
 
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<CsvFreshnessResult>({ state: 'unknown', pendingNames: [], lastImport: null });
+  const [result, setResult] = useState<CsvFreshnessResult>({ state: 'unknown', pendingNames: [], lastImport: null, sources: [] });
   const [importMsg, setImportMsg] = useState<string | null>(null);
 
   const runningRef = useRef(false);
@@ -184,6 +217,43 @@ export function CsvFreshnessIndicator(): React.ReactElement {
             <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
               Letzter CSV-Import: <span className="font-medium text-[var(--tf-text)]">{lastImportStr}</span>
             </p>
+          )}
+
+          {result.sources.length > 0 && (
+            <div className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
+              <p className="mb-1.5">Importierte Dateien:</p>
+              <ul className="space-y-1.5">
+                {result.sources.map(s => (
+                  <li
+                    key={s.name}
+                    className="rounded-md border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-2.5 py-1.5"
+                  >
+                    <div className="font-medium text-[var(--tf-text)]">{s.name}</div>
+                    <div className="text-[11px] text-[var(--tf-text-tertiary)] break-all">
+                      {s.fileName ? (
+                        <span className="font-mono text-[var(--tf-text-secondary)]">{s.fileName}</span>
+                      ) : (
+                        'keine Datei verknüpft'
+                      )}
+                      {s.sourceLastModified != null && (
+                        <> · Export vom{' '}
+                          <span className="text-[var(--tf-text-secondary)]">
+                            {new Date(s.sourceLastModified).toLocaleString('de-DE')}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {(s.lastImportedAt || s.rowCount != null) && (
+                      <div className="text-[11px] text-[var(--tf-text-tertiary)]">
+                        {s.lastImportedAt && <>importiert {new Date(s.lastImportedAt).toLocaleString('de-DE')}</>}
+                        {s.lastImportedAt && s.rowCount != null ? ' · ' : ''}
+                        {s.rowCount != null && <>{s.rowCount.toLocaleString('de-DE')} Zeilen</>}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {state === 'stale' && result.pendingNames.length > 0 && (
