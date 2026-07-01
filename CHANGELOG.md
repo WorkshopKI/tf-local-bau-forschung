@@ -5,6 +5,23 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.154.0 — CSV-Schema-Konfiguration zwischen Umgebungen übertragbar (Export/Import) (Juli 2026)
+
+MINOR — Neuer Weg, eine kuratierte CSV-Quellen-Konfiguration (Anzeige-Name, Spalten-Mapping **inkl.
+Labels/Gruppen**, join_key, priority, encoding, separator) von einer Umgebung in eine andere zu übernehmen —
+gedacht für den Fixture-Überschreib-Nachgang, bei dem Produktion falsche Namen + Teil-Mapping trägt, die
+korrekte Konfiguration aber lokal liegt.
+
+- Im CSV-Quellen-Detaildialog ([CsvSchemaDetailDialog.tsx](src/plugins/csv-sources-kuration/CsvSchemaDetailDialog.tsx))
+  neuer Abschnitt „Konfiguration übertragen": **Exportieren** (JSON-Download) + **Importieren** (JSON-Datei).
+- Der Import übernimmt Name + Mapping **in das bestehende Schema hinein** und **behält dessen ID** — keine
+  Row-Hash-/Snapshot-Migration, kein Daten-Reset. Instanz-Felder (id, programm_id, created_at, source_file_name,
+  Checksums, last_*) und das strukturelle `is_master` bleiben beim Ziel. Weil das Mapping danach neu ist, ist
+  **ein** Re-Import nötig („CSV neu wählen") — Hinweis wird angezeigt.
+- Reine Funktionen + Validierung in [schema-config-transfer.ts](src/plugins/csv-sources-kuration/services/schema-config-transfer.ts)
+  (`buildSchemaConfigExport` / `parseSchemaConfig` / `applyConfigToSchema`, Kennung `teamflow-csv-schema-config` v1),
+  Tests: `schema-config-transfer.test.ts`. Audit-Actions `csv_schema_config_exported` / `csv_schema_config_imported`.
+
 ### v2.153.2 — CSV-Status zeigt importierte Datei + Export-Datum pro Quelle (Juli 2026)
 
 PATCH — Der Sidebar-CSV-Status (● CSV → Dialog „CSV-Datenimport") zeigte bisher nur den Zeitpunkt des

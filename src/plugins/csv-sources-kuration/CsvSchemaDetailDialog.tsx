@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Pencil, Search } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronRight, Pencil, Search, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
@@ -12,7 +12,18 @@ import { getCanonicalLabel } from '@/core/services/csv/constants';
 import type { CsvSchema, ColumnMapping, ColumnMappingEntry } from '@/core/services/csv/types';
 import { NewColumnRow } from './NewColumnRow';
 import { decisionFromEntry, applyDecisionToEntry } from './services/new-column-mapping';
+import {
+  buildSchemaConfigExport,
+  parseSchemaConfig,
+  applyConfigToSchema,
+  SchemaConfigParseError,
+} from './services/schema-config-transfer';
 import type { PerColumnDecision } from './wizard/useCsvWizardState';
+
+/** Dateiname-Slug für den Konfig-Export (kein DOM). */
+function slugifySchemaName(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'schema';
+}
 
 interface Props {
   schema: CsvSchema;
@@ -46,6 +57,8 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
   const [decisions, setDecisions] = useState<Record<string, PerColumnDecision>>({});
   const [savedHint, setSavedHint] = useState(false);
   const [filterTerm, setFilterTerm] = useState('');
+  const [configMsg, setConfigMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const columnMapping = schema.column_mapping;
 
@@ -165,6 +178,73 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
     onSaved?.();
   });
 
+  // Konfiguration exportieren: Name + Mapping (inkl. Labels) + Merge-Parameter als
+  // JSON herunterladen. Instanz-Felder (id, source_file_name, checksum …) bleiben
+  // draußen (siehe schema-config-transfer.ts).
+  function exportConfig(): void {
+    setConfigMsg(null);
+    const exp = buildSchemaConfigExport(schema, new Date().toISOString());
+    const blob = new Blob([JSON.stringify(exp, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slugifySchemaName(schema.csv_source_name)}.schema.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    void logAudit(storage.idb, {
+      action: 'csv_schema_config_exported',
+      user: session.kuratorName ?? undefined,
+      details: { schemaId: schema.id },
+    }).catch(() => undefined);
+  }
+
+  // Konfiguration importieren: in DIESES bestehende Schema übernehmen (ID bleibt),
+  // nur Name + Mapping ersetzen. Danach ist ein Re-Import nötig.
+  const importConfig = useAsyncAction(async (file: File) => {
+    setConfigMsg(null);
+    const text = await file.text();
+    let parsed;
+    try {
+      parsed = parseSchemaConfig(text);
+    } catch (e) {
+      if (e instanceof SchemaConfigParseError) {
+        setConfigMsg({ kind: 'err', text: e.message });
+        return;
+      }
+      throw e;
+    }
+    const updated = applyConfigToSchema(schema, parsed.config);
+    await saveSchema(storage.idb, updated);
+    await logAudit(storage.idb, {
+      action: 'csv_schema_config_imported',
+      user: session.kuratorName ?? undefined,
+      details: {
+        schemaId: schema.id,
+        sourceSchemaId: parsed.sourceSchemaId,
+        columns: Object.keys(parsed.config.column_mapping).length,
+      },
+    });
+    setSchema(updated);
+    setEditing(false);
+    const cols = Object.keys(parsed.config.column_mapping).length;
+    const masterMismatch = parsed.config.is_master !== schema.is_master;
+    setConfigMsg({
+      kind: 'ok',
+      text: `Konfiguration „${parsed.config.csv_source_name}" übernommen (${cols} Spalten).`
+        + (masterMismatch ? ' Hinweis: Das Master-Flag der Quelle wich ab und wurde bewusst NICHT übernommen.' : '')
+        + ' Damit die Änderung auf den bereits importierten Anträgen greift, die Quelle einmal neu importieren („CSV neu wählen").',
+    });
+    onSaved?.();
+  });
+
+  function onPickConfigFile(e: React.ChangeEvent<HTMLInputElement>): void {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // erlaubt erneutes Wählen derselben Datei
+    if (file) void importConfig.run(file);
+  }
+
   const lastImported = schema.last_imported_at
     ? new Date(schema.last_imported_at).toLocaleString('de-DE')
     : '—';
@@ -266,6 +346,56 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
                 : '—'}
             </div>
           </div>
+
+          {!editing ? (
+            <div className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+              <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
+                Konfiguration übertragen
+              </div>
+              <p className="text-[11.5px] text-[var(--tf-text-secondary)] mb-2 leading-relaxed">
+                Exportiert Name, Spalten-Mapping (inkl. Labels) und Merge-Parameter als JSON — z.B. um eine
+                kuratierte Konfiguration aus einer anderen Umgebung in <strong>dieses</strong> Schema zu
+                übernehmen. Beim Import bleibt die Schema-ID unverändert; nur Name + Mapping werden ersetzt.
+                Danach die Quelle einmal neu importieren, damit es auf den Anträgen greift.
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={exportConfig}>
+                  <Download size={13} /> Konfiguration exportieren
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!session.isActive || importConfig.busy}
+                  title={!session.isActive ? 'Kurator-Modus aktivieren, um zu importieren' : undefined}
+                >
+                  <Upload size={13} /> {importConfig.busy ? 'Importiere…' : 'Konfiguration importieren'}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={onPickConfigFile}
+                />
+              </div>
+              {configMsg ? (
+                <div
+                  className={`mt-2 rounded-md border-[0.5px] p-2.5 text-[12px] ${
+                    configMsg.kind === 'ok'
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                      : 'border-red-300 bg-red-50 text-red-800'
+                  }`}
+                >
+                  {configMsg.kind === 'ok' ? '✓ ' : ''}
+                  {configMsg.text}
+                </div>
+              ) : null}
+              {importConfig.error ? (
+                <div className="mt-2 text-[12px] text-red-700">Fehler: {importConfig.error}</div>
+              ) : null}
+            </div>
+          ) : null}
         </section>
 
         {savedHint ? (
