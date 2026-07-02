@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.159.0 — Sidebar-Statusleiste zweizeilig + kontextuelles „Zeig es mir" (Juli 2026)
+
+MINOR — Die Sidebar-Fußzeile war einzeilig überfüllt (`Neu hier?` + Ampeln `● Sync ● CSV ● KI` +
+Versionsnummer), und ab Breite < 200 px wurde `Neu hier?` ganz ausgeblendet. Weil der User die Sidebar oft
+schmal zieht (Bildschirmbreite für die Listenansichten), fehlte dann der Einstieg. Neu ist die Fußzeile
+**zweizeilig**, damit auch schmal alles sichtbar bleibt:
+
+- **Zeile 1**: „Neu hier?" / „Zeig es mir" (links, **ohne** Icon) + Versionsnummer (rechts).
+- **Zeile 2**: nur die Status-Ampeln `● Sync ● CSV ● KI`, linksbündig (Punkt+Wort „Variante D" bleibt).
+- **Kontextuell**: auf **Home** heißt der Button „Neu hier?" und startet die Onboarding-Tour; auf jeder
+  **anderen** Seite heißt er „Zeig es mir" und öffnet einen kleinen Info-Dialog, der ankündigt, dass hier
+  bald ein seitenspezifischer Anwendungsfall gezeigt wird (Suche: Suche + Trefferfilterung/KI-Suche ·
+  Auslastung: kompletter Zuweisungs-Weg über alle Tabs). Die eigentlichen Use-Case-Touren sind Folgearbeit.
+- **Rail (eingeklappt, 52 px)**: die drei Ampeln nur noch als reine Punkte (neues optionales `compact`-Flag
+  an `SyncStatusIndicator`/`CsvFreshnessIndicator`/`BridgeStatusIndicator`), zentriert.
+- Additiv, keine User-Aktion, kein Daten-Share-/IDB-Layout-Wechsel. Neu: [FooterShowcaseButton.tsx](src/core/components/FooterShowcaseButton.tsx);
+  Umbau der Fußzeile in [ShellLayout.tsx](src/core/ShellLayout.tsx) (`FOOTER_NARROW_THRESHOLD`/`footerNarrow` entfallen).
+
 ### v2.158.2 — Spalten „FB Status" / „PreCheck Status" bleiben nicht mehr leer nach Mapping-Nachzug (Juli 2026)
 
 PATCH — Auf manchen Rechnern/Varianten blieben die einblendbaren Tabellen-Spalten **„FB Status"** und

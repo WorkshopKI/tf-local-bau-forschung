@@ -31,6 +31,7 @@ import { useHeartbeat } from '@/core/services/presence';
 import { useBridgeHeartbeat } from '@/core/hooks/useBridgeHeartbeat';
 import { CsvAutoRefreshBanner } from '@/plugins/csv-sources-kuration/components/CsvAutoRefreshBanner';
 import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
+import { FooterShowcaseButton } from '@/core/components/FooterShowcaseButton';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { runtimeConfig } from '@/config/runtime-config';
@@ -58,11 +59,6 @@ const SIDEBAR_DEFAULT = 220;
 const SIDEBAR_MIN = 140;
 const SIDEBAR_MAX = 360;
 const SIDEBAR_RAIL_WIDTH = 52;
-// Unterhalb dieser Breite gilt die (ausgeklappte) Sidebar als „schmal": die
-// Statusleiste blendet „Neu hier?" aus (Power-User braucht die Tour nicht) und
-// gibt den Platz an Status + Version. 200 feuert nicht bei Default 220, aber
-// rechtzeitig bevor „Neu hier?" überläuft (kein sichtbares Clipping-Fenster).
-const FOOTER_NARROW_THRESHOLD = 200;
 
 type SidebarMode = 'expanded' | 'rail';
 
@@ -118,16 +114,13 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   }, [plugins, isKurator]);
 
   const activeId = routeToPluginId(location.pathname) ?? 'home';
+  const activePlugin = visiblePlugins.find(p => p.id === activeId);
+  const pageName = activePlugin ? displayName(activePlugin) : '';
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(loadSidebarMode);
   const [isMobile, setIsMobile] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
   const [sidebarDragging, setSidebarDragging] = useState(false);
-
-  // „Schmal"-Zustand der ausgeklappten Sidebar (Rail ausgenommen): steuert, ob
-  // „Neu hier?" in der Statusleiste gerendert wird und wie sich die Margins
-  // (Status-Gruppe / Version) verteilen.
-  const footerNarrow = sidebarMode === 'expanded' && sidebarWidth < FOOTER_NARROW_THRESHOLD;
 
   const toggleSidebar = useCallback((): void => {
     setSidebarMode(prev => (prev === 'expanded' ? 'rail' : 'expanded'));
@@ -379,42 +372,31 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
             )}
           </nav>
 
-          <div className={`px-2 py-1 shrink-0 flex items-center gap-1 ${sidebarMode === 'rail' ? 'justify-center' : ''}`} style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-            {/* „Neu hier?" entfällt im schmalen Zustand komplett (nicht nur
-                versteckt — es soll keinen Platz belegen). Im Rail-Modus bleibt es
-                (footerNarrow setzt `expanded` voraus). */}
-            {!footerNarrow && (
-              <button
-                onClick={() => tour.start()}
-                className={`relative flex items-center py-1.5 rounded-[var(--tf-radius)] text-[11px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors cursor-pointer shrink-0 ${
-                  sidebarMode === 'expanded' ? 'gap-1.5 px-2' : 'justify-center px-1.5'
-                }`}
-                title="Onboarding-Tour starten"
-              >
-                <Icons.PlayCircle size={12} className="opacity-60" />
-                {sidebarMode === 'expanded' && <span>Neu hier?</span>}
-                {!tour.hasCompleted && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--tf-primary)] animate-pulse" />
-                )}
-              </button>
-            )}
-            {sidebarMode === 'expanded' && (
+          <div className="px-2 py-1.5 shrink-0 flex flex-col gap-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+            {sidebarMode === 'expanded' ? (
               <>
-                {/* Statusleiste „Variante D": Punkt+Wort für Sync (Datenbestand)
-                    + KI. Normal: Gruppe per ml-auto nach rechts geschoben, Version
-                    direkt dahinter. Schmal: Gruppe links, Version per ml-auto ganz
-                    nach rechts. gap-0.5 = Handoff `.stat{gap:2px}`. */}
-                <div className={`flex items-center gap-0.5 ${footerNarrow ? 'ml-0' : 'ml-auto'}`}>
+                {/* Zeile 1: „Neu hier?" / „Zeig es mir" (links) + Version (rechts). */}
+                <div className="flex items-center justify-between gap-1">
+                  <FooterShowcaseButton activeId={activeId} pageName={pageName} />
+                  <BuildInfo />
+                </div>
+                {/* Zeile 2: nur die Status-Ampeln („Variante D": Punkt+Wort),
+                    linksbündig — bleibt auch bei schmaler Sidebar vollständig sichtbar. */}
+                <div className="flex items-center gap-0.5">
                   <SyncStatusIndicator />
                   {/* CSV-Import-Stand — nur in Import-Rollen (pl/kurator/dev),
                       gleiches Gate wie „CSV-Quellen-Ordner" in den Einstellungen. */}
                   {(isCsvAutoRefreshEnabled() || isKuratorMenusEnabled()) && <CsvFreshnessIndicator />}
                   <BridgeStatusIndicator />
                 </div>
-                <div className={footerNarrow ? 'ml-auto' : 'ml-0.5'}>
-                  <BuildInfo />
-                </div>
               </>
+            ) : (
+              /* Rail (52 px): nur die Ampeln als reine Punkte, zentriert. */
+              <div className="flex items-center justify-center gap-1.5">
+                <SyncStatusIndicator compact />
+                {(isCsvAutoRefreshEnabled() || isKuratorMenusEnabled()) && <CsvFreshnessIndicator compact />}
+                <BridgeStatusIndicator compact />
+              </div>
             )}
           </div>
         </aside>

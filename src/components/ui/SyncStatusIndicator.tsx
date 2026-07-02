@@ -10,7 +10,7 @@ import { useConnectionState } from '@/core/services/connection-status';
 import { refreshAllPermissions } from '@/core/services/infrastructure/smb-handle';
 import type { SyncStatus } from '@/core/services/sync/sync-service';
 
-export function SyncStatusIndicator(): React.ReactElement {
+export function SyncStatusIndicator({ compact = false }: { compact?: boolean } = {}): React.ReactElement {
   const storage = useStorage();
   const { profile } = useProfile();
   const { navigate } = useNavigation();
@@ -81,7 +81,7 @@ export function SyncStatusIndicator(): React.ReactElement {
         aria-label={triggerTooltip}
         className="inline-flex items-center gap-[5px] px-1.5 py-[3px] rounded-[var(--tf-radius-sm)] text-[12px] text-[var(--tf-text-secondary)] cursor-pointer hover:bg-[var(--tf-hover)] shrink-0">
         <span className={`inline-block w-[7px] h-[7px] rounded-full shrink-0 ${dotColor}`} />
-        Sync
+        {!compact && 'Sync'}
       </button>
 
       <Dialog open={showDetail} onClose={() => setShowDetail(false)} title="Synchronisierung">

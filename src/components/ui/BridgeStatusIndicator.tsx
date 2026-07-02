@@ -18,7 +18,7 @@ import type { AIProviderConfig } from '@/core/types/config';
  * Endpoint beim Mount in den State laden → „Verbinden"-onClick bleibt bis
  * `window.open` synchron (kein Popup-Blocker).
  */
-export function BridgeStatusIndicator(): React.ReactElement {
+export function BridgeStatusIndicator({ compact = false }: { compact?: boolean } = {}): React.ReactElement {
   const { navigate } = useNavigation();
   const storage = useStorage();
   const aiBridge = useAIBridge();
@@ -61,7 +61,7 @@ export function BridgeStatusIndicator(): React.ReactElement {
         className="inline-flex items-center gap-[5px] px-1.5 py-[3px] rounded-[var(--tf-radius-sm)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer shrink-0"
       >
         <span className={`inline-block w-[7px] h-[7px] rounded-full shrink-0 ${dotColor}`} />
-        KI
+        {!compact && 'KI'}
       </button>
 
       <Dialog open={open} onClose={() => setOpen(false)} title="Interne KI">

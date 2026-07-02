@@ -125,7 +125,7 @@ async function checkCsvFreshness(idb: IDBStore): Promise<CsvFreshnessResult> {
   return { state, misconfig, pendingNames, fixtureNames, fileMissingNames, lastImport, sources };
 }
 
-export function CsvFreshnessIndicator(): React.ReactElement {
+export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean } = {}): React.ReactElement {
   const { navigate } = useNavigation();
   const storage = useStorage();
   const startupPhase = useStartupDataStatus(s => s.phase);
@@ -241,7 +241,7 @@ export function CsvFreshnessIndicator(): React.ReactElement {
         className="inline-flex items-center gap-[5px] px-1.5 py-[3px] rounded-[var(--tf-radius-sm)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer shrink-0"
       >
         <span className={`inline-block w-[7px] h-[7px] rounded-full shrink-0 ${dotColor}`} />
-        CSV
+        {!compact && 'CSV'}
       </button>
 
       <Dialog open={open} onClose={() => setOpen(false)} title="CSV-Datenimport">
