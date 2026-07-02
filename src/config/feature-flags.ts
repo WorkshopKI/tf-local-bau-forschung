@@ -217,6 +217,20 @@ export function canEditSkillRegistry(sessionActive: boolean): boolean {
   if (isDatenShareWritable() && !isKuratorMenusEnabled()) return true;
   return sessionActive;
 }
+
+/**
+ * Darf der „Mit KI glätten"-Editor im Changelog-Modal gerendert werden? Er schreibt
+ * die kuratierte `_intern/changelog-user.md` auf den Share (Single-Source-of-Truth
+ * für alle Varianten). Freigabe:
+ *  - dev (`build:dev` + `npm run dev`): immer.
+ *  - Kurator-Build: zusätzlich mit AKTIVER Kurator-Session (Toggle in Einstellungen).
+ * prod/pl/as bleiben außen vor — der Nutzer-Changelog ist eine Kurations-Aufgabe.
+ * Physischer Guard bleibt `atomicWrite`/`queryPermission` in `writeUserChangelogToShare`.
+ */
+export function canPolishChangelog(sessionActive: boolean): boolean {
+  if (isDevContext()) return true;
+  return isKuratorMenusEnabled() && sessionActive;
+}
 export function isSucheEnabled(): boolean { return features.suche; }
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über

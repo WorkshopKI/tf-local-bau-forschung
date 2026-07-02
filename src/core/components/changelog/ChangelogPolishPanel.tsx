@@ -9,8 +9,9 @@
  * und ihn dann auf den Daten-Share schreiben — danach sehen ihn ALLE Build-Varianten
  * zur Laufzeit, ohne Rebuild.
  *
- * Wird ausschließlich im Entwickler-Build gerendert (siehe ChangelogDialog,
- * `isDevContext()`), daher ist `useAIBridge()` hier sicher (Provider ist Vorfahr).
+ * Gerendert im Entwickler-Build sowie im Kurator-Build mit aktiver Kurator-Session
+ * (siehe ChangelogDialog, `canPolishChangelog()`). `useAIBridge()` ist hier immer
+ * sicher — der Provider hängt app-global über dem Router (App.tsx).
  */
 
 import { useState } from 'react';

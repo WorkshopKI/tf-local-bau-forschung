@@ -5,6 +5,22 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.160.0 — „Mit KI glätten" auch im Kurator-Build (Juli 2026)
+
+MINOR — Der Editor „Mit KI glätten" im Changelog-Modal (schreibt die geglättete `_intern/changelog-user.md`
+auf den Share, die alle Varianten zur Laufzeit lesen) war bisher **nur im Dev-Build** sichtbar — daher blieb
+der Nutzer-Changelog auf dem Prod-Share beim letzten Dev-Glätten stehen (zuletzt v2.126). Jetzt kann auch der
+**Kurator** in seinem Build den Changelog aktuell halten, ohne dass ein Entwickler einspringt.
+
+- **Freigabe erweitert** ([ChangelogDialog.tsx](src/core/components/changelog/ChangelogDialog.tsx)): das Panel
+  rendert jetzt via neuem Prädikat `canPolishChangelog(sessionActive)` ([feature-flags.ts](src/config/feature-flags.ts)) —
+  dev immer, Kurator-Build zusätzlich mit **aktiver Kurator-Session**. prod/pl/as bleiben außen vor (Nutzer-Changelog
+  ist eine Kurations-Aufgabe). Kein neues Auth-Muster; komponiert `isKuratorMenusEnabled()` + Session wie
+  `canEditSkillRegistry`.
+- **Sicher ohne Crash-Risiko:** der `AIBridge`-Provider hängt app-global über dem Router ([App.tsx](src/core/App.tsx)),
+  daher ist `useAIBridge()` im Kurator-Build genauso sicher wie im Dev-Build. Physischer Schreib-Guard bleibt
+  `atomicWrite`/`queryPermission`.
+
 ### v2.159.4 — Bridge nimmt die ERSTE Antwort nach dem Prompt (AitisiGPT hängt Folge-Begrüßung an) (Juli 2026)
 
 PATCH — Endgültige Ursache, per Live-Console-Dump der AitisiGPT-Seite bewiesen: **AitisiGPT hängt NACH der

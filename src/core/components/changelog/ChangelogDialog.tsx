@@ -24,8 +24,9 @@ import { MarkdownRenderer, sanitizeHtml } from '@/components/ui/MarkdownRenderer
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { appVersion } from '@/config/runtime-config';
-import { isDevContext } from '@/config/feature-flags';
+import { canPolishChangelog } from '@/config/feature-flags';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import {
   getChangelogMarkdown,
   parseUserChangelog,
@@ -105,6 +106,8 @@ function MinorCard({
 
 export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
   const storage = useStorage();
+  // Kurator-Session-Status: gibt im Kurator-Build den Glätten-Editor frei (siehe canPolishChangelog).
+  const kuratorActive = useKuratorSession((s) => s.isActive);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilterKey>('all');
   // „Alle aufklappen": überschreibt die Default-Offen-Logik (erste 3 + Pakete zu) und öffnet
@@ -324,7 +327,7 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
         </div>
       )}
 
-      {isDevContext() && (
+      {canPolishChangelog(kuratorActive) && (
         <ChangelogPolishPanel
           sourceMarkdown={derivedMarkdown}
           shareMarkdown={shareMd ?? ''}
