@@ -74,6 +74,14 @@ export async function getActiveUnterprogrammCodes(
 ): Promise<Set<string> | null> {
   if (!schema.is_master) return null;
   const all = await listUnterprogrammeByProgramm(idb, schema.programm_id);
+  // Leerer Store = „nie konfiguriert", NICHT „alle deaktiviert" → KEIN Filter.
+  // Ohne diesen Guard baut ein leerer Store eine leere Allowlist, an der JEDE
+  // Master-Zeile scheitert (`!activeUpCodes.has(...)`) → stiller Totalausfall:
+  // der Import verwirft alle Anträge, ohne Fehler. Genau so blieb Prod nach dem
+  // Fixture-Vorfall (Fixture-Restkonfig ohne Unterprogramme) auf altem Stand
+  // hängen (2026-07). Eine bewusste „alle deaktiviert"-Absicht drückt sich durch
+  // vorhandene Einträge mit `aktiv:false` aus (all.length>0) und bleibt Skip-all.
+  if (all.length === 0) return null;
   const codes = new Set<string>();
   for (const up of all) if (up.aktiv) codes.add(up.code);
   return codes;

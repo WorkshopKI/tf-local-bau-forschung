@@ -5,6 +5,25 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.156.0 — Leerer Unterprogramm-Store verwirft nicht mehr den ganzen Master-Import (Juli 2026)
+
+MINOR (Bugfix + Härtung) — Root-Cause des Prod-Vorfalls „Import läuft durch, neue Anträge fehlen": Der
+Master-Import baut aus den **aktiven** Unterprogramm-Codes eine Allowlist und verwirft jede Zeile, deren
+`unterprogramm_id` (Spalte `FM_NUMMER`) nicht darin steht ([importer.ts](src/core/services/csv/importer.ts),
+[unterprogrammRegistry.ts](src/core/services/csv/unterprogrammRegistry.ts) `getActiveUnterprogrammCodes`). Auf
+Prod war der `unterprogramme`-Store nach dem Fixture-Vorfall **leer** → **leere Allowlist** → **jede** neue
+Master-Zeile fiel durch → seit Tagen kamen 0 neue Anträge rein (Stand eingefroren), ohne Fehler. Dev (16 aktive
+Codes) importierte normal.
+
+- **Fix:** `getActiveUnterprogrammCodes` liefert bei **leerem** Store (`all.length === 0`) jetzt `null` =
+  **kein Filter** (alles importieren) statt einer leeren, alles-verwerfenden Allowlist. „Nie konfiguriert" ≠
+  „alle deaktiviert" — Letzteres (Einträge vorhanden, alle `aktiv:false`) bleibt bewusst Skip-all. Damit heilt
+  sich eine Umgebung ohne kuratierte Unterprogramme beim nächsten Import selbst. Test `unterprogramm-registry.test.ts`.
+- **Sichtbarkeit (gleiche Klasse wie v2.155):** der aufsummierte `skippedInactiveUnterprogramm`-Zähler wandert in
+  den `RefreshReport` ([auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts)), die
+  `[data-update]`-Zeile und `localStorage.teamflow_last_data_update_timing` (`csv.skippedInactiveUnterprogramm`).
+  >0 heißt: die Allowlist greift und schluckt Anträge — jetzt diagnostizierbar statt still.
+
 ### v2.155.0 — CSV-Auto-Refresh: still übersprungene Quellen sichtbar + erzwungener Re-Import (Juli 2026)
 
 MINOR — Härtung gegen den „Import läuft durch, aber nichts kommt an"-Fall (Fixtures-Nachgang / Citrix-False-

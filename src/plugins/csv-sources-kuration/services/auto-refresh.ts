@@ -215,6 +215,13 @@ export interface RefreshReport {
   /** Aufsummiertes Per-Phasen-Timing über alle importierten Quellen (ms) —
    *  fürs Performance-Logging des Daten-Update-Orchestrators. */
   importTimings: { parseMs: number; hashDiffMs: number; mergeMs: number; snapshotWriteMs: number };
+  /**
+   * Aufsummierte Zeilen, die der Master-Import wegen inaktivem/unbekanntem
+   * Unterprogramm-Code verworfen hat. >0 heißt: die Unterprogramm-Allowlist
+   * greift und schluckt Anträge — bei leerem/unvollständigem `unterprogramme`-
+   * Store der stille Daten-Verlust (Prod-Vorfall 2026-07). Sichtbar für Diagnose.
+   */
+  skippedInactiveUnterprogramm: number;
 }
 
 export interface RefreshProgress {
@@ -341,6 +348,7 @@ export async function runAutoRefresh(
   const report: RefreshReport = {
     processed: [], drift: [], errors: [],
     importTimings: { parseMs: 0, hashDiffMs: 0, mergeMs: 0, snapshotWriteMs: 0 },
+    skippedInactiveUnterprogramm: 0,
   };
   if (candidates.length === 0) return report;
 
@@ -438,6 +446,7 @@ export async function runAutoRefresh(
         report.importTimings.mergeMs += result.importTimings.mergeMs;
         report.importTimings.snapshotWriteMs += result.importTimings.snapshotWriteMs;
       }
+      report.skippedInactiveUnterprogramm += result.skippedInactiveUnterprogramm ?? 0;
 
       // Programm zum Publizieren vormerken, wenn dieser Import echte Deltas hatte
       // (sonst ist der vorhandene Snapshot bereits aktuell). Geänderte/entfernte

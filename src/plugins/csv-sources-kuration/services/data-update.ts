@@ -96,7 +96,8 @@ function logTiming(
     + ` imported=${result.csvReport?.processed.filter(p => !p.skipped).length ?? 0}`
     // Warum evtl. 0 importiert: still-übersprungene Quellen (Fixtures ausgeschlossen,
     // Datei fehlt, als „unverändert" erkannt). fixtures>0 in prod = Fehlkonfiguration.
-    + ` skipped(fixtures=${csv.fixtures} fileMissing=${csv.fileMissing} upToDate=${csv.upToDate})`
+    + ` skipped(fixtures=${csv.fixtures} fileMissing=${csv.fileMissing} upToDate=${csv.upToDate}`
+    + ` inaktivesUP=${result.csvReport?.skippedInactiveUnterprogramm ?? 0})`
     + (c ? ` parse=${round(c.parseMs)}ms hashDiff=${round(c.hashDiffMs)}ms merge=${round(c.mergeMs)}ms snapshotWrite=${round(c.snapshotWriteMs)}ms` : '')
     + (result.lockBusy ? ` lockBusy=${result.lockBusy.blockingKurator}` : '');
   // Always-on (wie das bestehende `[snapshot-sync]`-info) — soll auch im
@@ -123,6 +124,9 @@ function logTiming(
         fixturesExcluded: csv.fixtures,
         fileMissing: csv.fileMissing,
         upToDate: csv.upToDate,
+        // >0 = Master-Import verwirft Anträge wegen inaktivem/unbekanntem
+        // Unterprogramm-Code (leerer/lückenhafter unterprogramme-Store).
+        skippedInactiveUnterprogramm: result.csvReport?.skippedInactiveUnterprogramm ?? 0,
         parseMs: c ? round(c.parseMs) : 0,
         hashDiffMs: c ? round(c.hashDiffMs) : 0,
         mergeMs: c ? round(c.mergeMs) : 0,
