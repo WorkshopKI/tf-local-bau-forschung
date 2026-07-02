@@ -16,7 +16,7 @@
   // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
   // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
   // ODER die Log-Zeile beim Aktivieren.
-  var BRIDGE_REV = '2026-07-02-baseline';
+  var BRIDGE_REV = '2026-07-02-echo-anchor';
   window.__teamflowBridgeRev = BRIDGE_REV;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
@@ -377,14 +377,6 @@
     setValue(ta, message);
 
     setTimeout(function () {
-      // Baseline VOR dem Absenden: Anzahl bereits vorhandener Chat-Nachrichten
-      // (AitisiGPT-Begruessung, aeltere Antworten). Nur Nachrichten AB diesem Index
-      // gelten als Antwort auf DIESE Anfrage — sonst finalisiert die Bridge auf der
-      // Begruessung/einer alten Antwort, bevor das echte Ergebnis kommt, und schickt
-      // Nicht-JSON zurueck (Parser wirft, Batch scheitert). Nach einem Reset ist das
-      // Streamlit-Rerun hier (nach setValue + diesem 200-ms-Tick) laengst gerendert →
-      // die Begruessung zaehlt korrekt zur Baseline.
-      var baseline = qa(SEL.msg).length;
       submit(ta);
       // SETTLE_MS = Idle-Fenster vor dem Finalisieren. Grosszuegig (5 s), damit
       // Thinking-Modelle (Reasoning immer an) eine Denk-Pause zwischen erstem Token
@@ -401,15 +393,22 @@
       // Antwort-Aenderungen + laufendem `isRunning()` (Pausen-Schutz) beruehrt.
       var lastContentChange = Date.now();
 
+      // Antwort = die Nachricht NACH unserem gesendeten Prompt (dem User-Echo),
+      // NICHT „die letzte Assistant-Nachricht". Zaehl-Baselines sind timing-fragil:
+      // die AitisiGPT-Begruessung rendert nach einem Reset ggf. erst NACH dem
+      // Zaehlpunkt und wird dann faelschlich gegriffen. Der Prompt-Echo-Anker ist
+      // render-timing-unabhaengig — die Begruessung steht IMMER vor unserem Prompt.
       function lastAssistant() {
-        var msgs = qa(SEL.msg), cand = null;
-        // Nur NEUE Nachrichten (Index >= baseline) betrachten — schuetzt davor, die
-        // Begruessung/eine alte Antwort zu greifen (auch bei fehlgeschlagenem Reset
-        // oder im Chat-Modus mit Verlauf).
-        for (var i = msgs.length - 1; i >= baseline; i--) {
-          if (!isUser(msgs[i])) { cand = msgs[i]; break; } // User-Echo ueberspringen
+        var msgs = qa(SEL.msg), lastUser = -1;
+        for (var i = msgs.length - 1; i >= 0; i--) {
+          if (isUser(msgs[i])) { lastUser = i; break; } // Index unseres Prompt-Echos
         }
-        return cand;
+        // letzte Nicht-User-Nachricht STRIKT nach dem Echo. Fehlt das Echo (isUser
+        // greift nicht), faengt der `md !== message`-Guard im Poll das Echo ab.
+        for (var j = msgs.length - 1; j > lastUser; j--) {
+          if (!isUser(msgs[j])) return msgs[j];
+        }
+        return null;
       }
 
       var iv = setInterval(function () {
@@ -436,6 +435,19 @@
           finished = true;
           clearInterval(iv);
           setBadge('ready', 'Verbunden');
+          // Diagnose-Netz: beim Finalisieren das Nachrichten-Roster loggen (Anzahl,
+          // je User/Assistant + erste 30 Zeichen) + was gewaehlt wurde. Falls doch
+          // das Falsche zurueckkommt, zeigt die Konsole (F12) die echte Struktur —
+          // kein Blind-Patchen mehr (z. B. ob `isUser` das Prompt-Echo erkennt).
+          try {
+            var dbgMsgs = qa(SEL.msg), roster = [];
+            for (var dk = 0; dk < dbgMsgs.length; dk++) {
+              roster.push((isUser(dbgMsgs[dk]) ? 'U' : 'A') + '#' + dk + ':'
+                + (contentOf(dbgMsgs[dk]) || '').slice(0, 30).replace(/\s+/g, ' '));
+            }
+            console.log('[TeamFlow-Bridge] finalize — ' + dbgMsgs.length + ' msgs:', roster,
+              '| gewaehlt:', (lastMd || '').slice(0, 60));
+          } catch (e) { /* ignore */ }
           extractThinking(cand, function (reasoning) {
             var msg = { type: 'tf-response', id: id, result: lastMd };
             if (reasoning) msg.reasoning = reasoning;

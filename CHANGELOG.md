@@ -5,6 +5,26 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.159.3 — Bridge ankert die Antwort am Prompt-Echo statt an einer Zähl-Baseline (Juli 2026)
+
+PATCH — Nachtrag zu v2.159.1: Die LLM-Klassifizierung bekam weiter die AitisiGPT-**Begrüßung** zurück statt
+der Antwort (Fehler-Snippet „…Hi! Ich bin Aitisi…"). Bestätigt (Badge-Marker `…baseline` sichtbar → neues
+Bookmarklet lief): die v2.159.1-**Zähl-Baseline** ist eine **Race Condition** — sie wird direkt nach dem
+Chat-Reset-Rerun erfasst; rendert die Begrüßung auf dem ausgelasteten internen Server erst danach, ist der
+Zähler 0 und die Begrüßung gilt fälschlich als „neu" → gegriffen.
+
+- **Prompt-Echo-Anker** ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js),
+  `lastAssistant`): statt Nachrichten zu zählen, wird die Antwort als **letzte Nicht-User-Nachricht *nach* dem
+  Prompt-Echo** (der letzten User-Nachricht) bestimmt. Die Begrüßung steht immer *vor* unserem Prompt →
+  render-timing-**unabhängig** ausgeschlossen. Ersetzt die Zähl-Baseline (v2.159.1).
+- **Diagnose-Netz:** Beim Finalisieren loggt das Bookmarklet das Nachrichten-Roster (Anzahl, je User/Assistant
+  + erste 30 Zeichen) + die gewählte Antwort in die Konsole (F12) — falls es *doch* bricht, sehen wir die echte
+  AitisiGPT-Struktur statt zu raten.
+- **Marker** `BRIDGE_REV` → `2026-07-02-echo-anchor` (Re-Install im Badge-Tooltip verifizierbar).
+
+> ⚠️ **Re-Install nötig** (KI-Tab F5 + Bookmarklet neu ziehen/klicken; Tooltip muss `…echo-anchor` zeigen).
+> Sofort-Alternative ohne Bookmarklet: „Manuell ▾ → Prompt kopieren" + „LLM-Ergebnis einfügen".
+
 ### v2.159.2 — Förderanträge-Tabelle nutzt die volle Browserbreite (Juli 2026)
 
 PATCH — Die Tabellen-Ansicht der Förderanträge (`viewMode === 'compact'`) war auf `max-w-6xl` (~1152px)
