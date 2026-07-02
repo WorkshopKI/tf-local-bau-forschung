@@ -24,6 +24,7 @@
  */
 import type { AIBridge } from '@/core/services/ai/bridge';
 import { parseJsonArrayTolerant, stripMarkdownWrapper } from '@/core/services/ai/json-tolerant';
+import { safeResetChat } from '@/core/services/ai/chat-reset';
 import type { UeberKategorie } from '../../types';
 
 // ─── Public Types ────────────────────────────────────────────────────────
@@ -59,6 +60,11 @@ export interface LLMKlassifizierungInput {
   bridge: AIBridge;
   /** Default 12. Kleinere Batches: stabiler, mehr Roundtrips. */
   batchSize?: number;
+  /** Max. Versuche PRO Batch bei Parse-Fehler (Default 3). Timeout/Abort werden
+   *  NIE retryt. Frischer Versuch = frischer Chat + neuer `tf-request`. */
+  versuche?: number;
+  /** Pause zwischen Batch-Versuchen in ms (Default 700; Tests: 0). */
+  pauseMs?: number;
   onProgress?: (done: number, total: number) => void;
   signal?: AbortSignal;
 }
@@ -214,6 +220,9 @@ export function parseLLMResponse(raw: string): Array<{ id: string; primaer: stri
 
 // ─── Bridge-Mode (DirectLLM / Streamlit) ─────────────────────────────────
 
+const RETRY_PAUSE_MS = 700;
+const warte = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
 /**
  * Klassifiziert eine Liste von Verbuenden via AIBridge. Chunked in `batchSize`-
  * Paketen, mit Fehler-Tolerant (ein fehlgeschlagener Batch unterbricht nicht
@@ -225,11 +234,23 @@ export function parseLLMResponse(raw: string): Array<{ id: string; primaer: stri
 export async function klassifiziereBatch(input: LLMKlassifizierungInput): Promise<LLMKlassifizierungResult> {
   const { verbuende, kategorien, bridge, onProgress, signal } = input;
   const batchSize = Math.max(1, input.batchSize ?? 12);
+  const maxVersuche = Math.max(1, input.versuche ?? 3);
+  const pauseMs = input.pauseMs ?? RETRY_PAUSE_MS;
   const out: LLMKlassifizierungResult = {
     byVerbundId: new Map(),
     errors: [],
   };
   const transport = bridge.getActiveTransport();
+
+  // Ping-Guard VOR dem Lauf: bei getrennter KI wuerde `submitMessage` sonst per
+  // `ensureConnection()` einen frischen Tab OHNE Bookmarklet oeffnen → nie ein
+  // `tf-response` → 200-s-Endlos-Spinner. Sofortiger, klarer Fehler statt Hang
+  // (spiegelt runAnonymisierung). Der Button-`useAsyncAction` malt ihn in die UI.
+  const erreichbar = await transport.ping();
+  if (!erreichbar) {
+    throw new Error('Interne KI nicht erreichbar — Klassifizierung derzeit nicht möglich.');
+  }
+
   const responseFormat = buildResponseFormat(kategorien);
   const validKategorieIds = new Set(kategorien.map(k => k.id));
   let done = 0;
@@ -241,35 +262,61 @@ export async function klassifiziereBatch(input: LLMKlassifizierungInput): Promis
     const batchIndex = Math.floor(i / batchSize);
     const prompt = buildPromptText(batch, kategorien);
 
-    try {
-      const responseText = await transport.submitMessage(prompt, SYSTEM_PROMPT_DE, {
-        responseFormat,
-        signal,
-      });
-      const parsed = parseLLMResponse(responseText);
-      for (const item of parsed) {
-        if (!validKategorieIds.has(item.primaer)) {
-          out.errors.push({
-            batchIndex,
-            message: `Verbund ${item.id}: unbekannte Primaer-Kategorie "${item.primaer}" — uebersprungen.`,
-          });
-          continue;
-        }
-        const aspekte = item.aspekte.filter(a => validKategorieIds.has(a));
-        out.byVerbundId.set(item.id, {
-          primaer: item.primaer,
-          aspekte,
-          begruendung: item.begruendung,
-          // Confidence: LLM-Ergebnis ist per Default 'high'; bei nachfolgender
-          // Plausibilitaets-Pruefung gegen Embedding kann der Caller downgraden.
-          confidence: 'high',
+    // Bounded Retry pro Batch: `submitMessage` AUSSERHALB, `parseLLMResponse`
+    // INNERHALB des inneren try — nur Parse-Fehler (Bridge finalisiert unter Last
+    // gelegentlich mit einer kurzen Teil-Antwort) werden retryt. Timeout/Abort
+    // NICHT (sonst 3× 200 s) → als Batch-Fehler tolerieren bzw. Abort durchreichen.
+    let letzterFehler: unknown;
+    let erfolg = false;
+    for (let versuch = 0; versuch < maxVersuche && !erfolg; versuch++) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      // Frischer Kontext je Versuch — sonst greift das Bookmarklet zuerst die
+      // Antwort des vorherigen Batches (lastAssistant()-Staleness). Best-effort.
+      await safeResetChat(transport);
+
+      let responseText: string;
+      try {
+        responseText = await transport.submitMessage(prompt, SYSTEM_PROMPT_DE, {
+          responseFormat,
+          signal,
         });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') throw err;
+        letzterFehler = err; // Transport-Fehler (Timeout) — NICHT retryen.
+        break;
       }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') throw err;
+
+      try {
+        const parsed = parseLLMResponse(responseText);
+        for (const item of parsed) {
+          if (!validKategorieIds.has(item.primaer)) {
+            out.errors.push({
+              batchIndex,
+              message: `Verbund ${item.id}: unbekannte Primaer-Kategorie "${item.primaer}" — uebersprungen.`,
+            });
+            continue;
+          }
+          const aspekte = item.aspekte.filter(a => validKategorieIds.has(a));
+          out.byVerbundId.set(item.id, {
+            primaer: item.primaer,
+            aspekte,
+            begruendung: item.begruendung,
+            // Confidence: LLM-Ergebnis ist per Default 'high'; bei nachfolgender
+            // Plausibilitaets-Pruefung gegen Embedding kann der Caller downgraden.
+            confidence: 'high',
+          });
+        }
+        erfolg = true;
+      } catch (err) {
+        letzterFehler = err; // Parse-Fehler → frischer Versuch.
+        if (versuch < maxVersuche - 1) await warte(pauseMs);
+      }
+    }
+
+    if (!erfolg && letzterFehler !== undefined) {
       out.errors.push({
         batchIndex,
-        message: err instanceof Error ? err.message : String(err),
+        message: letzterFehler instanceof Error ? letzterFehler.message : String(letzterFehler),
       });
     }
 

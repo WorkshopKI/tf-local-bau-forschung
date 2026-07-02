@@ -5,6 +5,31 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.157.1 — Bridge erkennt Generierungs-Ende im Auslastungs-Modul wieder (Juli 2026)
+
+PATCH — Seit der Bridge-„Optimierung" für das Modul Anfragen (v2.134.1, `SETTLE_MS 2500→5000`) kam die
+„Anträge mit LLM klassifizieren"-Antwort nicht mehr in der App an: die vollständige JSON-Antwort stand
+sichtbar im KI-Tab, wurde aber nie zurückgesendet. Ursache + Fix in drei Schichten:
+
+- **Bookmarklet — Ende an Inhalts-Stabilität statt DOM-Ruhe** ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js),
+  `runRequest`): Der Finalisierungs-Timer hing an einem modul-weiten `lastDomActivity`, das ein
+  MutationObserver auf den **gesamten** Streamlit-Container bei *jeder* DOM-Mutation zurücksetzte. Generierungs-
+  unabhängige Churn der KI-Seite (Status-Widget, Reruns) hielt `idle` dauerhaft unter dem — seit v2.134.1
+  strengeren — 5-s-Fenster → es wurde nie finalisiert (180-s-Hard-Cap bzw. 200-s-App-Timeout). Neu misst der
+  Timer nur noch die **Inhalts-Stabilität der Antwort** (`lastContentChange`, zurückgesetzt bei echter
+  Antwort-Änderung + laufendem `isRunning()` als Pausen-Schutz). `isRunning()` bleibt das Pausen-Signal.
+- **Auslastungs-Caller gehärtet wie Anfragen** ([llm-klassifizierung.ts](src/plugins/auslastung/services/klassifizierung/llm-klassifizierung.ts),
+  `klassifiziereBatch`): **Ping-Guard** vor dem Lauf (getrennte KI ⇒ sofort „Interne KI nicht erreichbar"
+  statt Endlos-Spinner durch einen bookmarklet-losen Auto-Tab); **Chat-Reset je Versuch** (`safeResetChat`,
+  keine `lastAssistant()`-Staleness über Batches); **bounded Retry** nur auf Parse-Fehler (Timeout/Abort werden
+  NICHT retryt). Test [llm-klassifizierung.test.ts](src/plugins/auslastung/services/klassifizierung/__tests__/llm-klassifizierung.test.ts).
+- **Button spiegelt Live-Status** ([LLMKlassifizierungButtons.tsx](src/plugins/auslastung/components/LLMKlassifizierungButtons.tsx)):
+  bei explizit getrennter KI (`useBridgeStatus === 'disconnected'`) deaktiviert + Hinweis „Interne KI nicht
+  verbunden" — nicht bei `'unknown'` (Boot); der Ping-Guard bleibt der Backstop.
+
+> ⚠️ **Re-Install nötig:** Die Bookmarklet-Änderung wirkt erst nach **einmaligem Neu-Installieren** des
+> Bridge-Bookmarklets im KI-Tab (Einstellungen → Streamlit-Bridge). Bis dahin läuft das alte Bookmarklet weiter.
+
 ### v2.157.0 — Auslastungs-Filter überleben die Session (Juli 2026)
 
 MINOR — Die Filter-Segmente der Auslastungs-Tabs lagen bisher in reinem `useState` und gingen bei jedem

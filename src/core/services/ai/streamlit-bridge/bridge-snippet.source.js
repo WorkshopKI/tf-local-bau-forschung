@@ -209,12 +209,14 @@
     }, 250);
   }
 
-  // ── Lauf-Status + DOM-Aktivitaet ──────────────────────────────────────────
-  // „Fertig" = Streamlit-Skript idle. Pausen mitten im Streamen (AitisiGPT
-  // pausiert ~2s) duerfen NICHT als fertig gelten — daher zwei Signale:
-  //   isRunning()     — sichtbarer Lauf-Indikator (deckt serverseitige Pausen)
-  //   lastDomActivity — jede DOM-Mutation im App-Container (Token-Zaehler,
-  //                     streamender Text, Thinking) haelt „aktiv".
+  // ── Lauf-Status ───────────────────────────────────────────────────────────
+  // „Fertig" = Antwort steht + Streamlit-Skript idle. Pausen mitten im Streamen
+  // (AitisiGPT pausiert ~2s) duerfen NICHT als fertig gelten:
+  //   isRunning()  — sichtbarer Lauf-Indikator (deckt serverseitige Pausen);
+  //                  solange true, baut runRequest KEINE Idle-Zeit auf.
+  // Die eigentliche Idle-Messung haengt an der Inhalts-Stabilitaet der Antwort
+  // (lastContentChange in runRequest), NICHT an globaler DOM-Aktivitaet — sonst
+  // verschleppt generierungs-unabhaengige DOM-Churn der KI-Seite das Ende.
   function isRunning() {
     for (var i = 0; i < SEL.running.length; i++) {
       var el = document.querySelector(SEL.running[i]);
@@ -276,10 +278,12 @@
   }
   installVerticalFill();
 
-  var lastDomActivity = Date.now();
+  // Der MutationObserver haelt nur den „Prompt-Vorlagen"-Anker aktuell (bei jedem
+  // Streamlit-Rerun neu erzeugt). Er treibt NICHT den Finalisierungs-Timer — der
+  // haengt an der Inhalts-Stabilitaet der Antwort (siehe runRequest).
   try {
     var appRoot = q1(SEL.appRoot) || document.body;
-    new MutationObserver(function () { lastDomActivity = Date.now(); ensureVorlagenHook(); })
+    new MutationObserver(function () { ensureVorlagenHook(); })
       .observe(appRoot, { childList: true, subtree: true, characterData: true });
   } catch (e) { /* ignore */ }
 
@@ -372,6 +376,13 @@
       // Antwort verdaechtig kurz ist, ein doppelt so langes Fenster verlangen.
       var POLL_MS = 400, MAX_MS = 180000, SETTLE_MS = 5000, MIN_LEN = 40;
       var started = Date.now(), lastMd = '', finished = false;
+      // Finalisierungs-Timer haengt an der INHALTS-Stabilitaet der Assistenten-
+      // Antwort, nicht an globaler DOM-Aktivitaet: die fremde KI-Seite mutiert
+      // ihren DOM auch generierungs-unabhaengig (Status-Widget, Reruns) — das
+      // verhinderte (seit SETTLE_MS 2500->5000) das Finalisieren, obwohl die
+      // Antwort laengst vollstaendig war. `lastContentChange` wird nur von echten
+      // Antwort-Aenderungen + laufendem `isRunning()` (Pausen-Schutz) beruehrt.
+      var lastContentChange = Date.now();
 
       function lastAssistant() {
         var msgs = qa(SEL.msg), cand = null;
@@ -387,12 +398,14 @@
         var md = cand ? contentOf(cand) : '';
         if (md && md !== message && md !== lastMd) {
           lastMd = md;
-          lastDomActivity = Date.now();
+          lastContentChange = Date.now();
           source.postMessage({ type: 'tf-stream', id: id, content: md }, '*'); // live
         }
-        if (isRunning()) lastDomActivity = Date.now();
+        // Solange sichtbar laeuft, KEINE Idle-Zeit aufbauen (deckt serverseitige
+        // Denk-/Stream-Pausen, in denen der Inhalt kurz stillsteht).
+        if (isRunning()) lastContentChange = Date.now();
 
-        var idle = Date.now() - lastDomActivity;
+        var idle = Date.now() - lastContentChange;
         // Finalisieren erst, wenn Antwort vorhanden, nichts mehr laeuft und genug
         // Idle-Zeit verstrich. Bei leerer Antwort (Thinking-Phase vor dem ersten
         // Token) NIE finalisieren. Kurz-Inhalt-Schutz: ein verdaechtig kurzes

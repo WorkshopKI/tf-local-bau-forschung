@@ -17,6 +17,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import {
   buildPromptForClipboard,
@@ -55,6 +56,10 @@ function readString(a: { [key: string]: unknown }, key: string): string {
 export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading = false }: Props): React.ReactElement {
   const storage = useStorage();
   const aiBridge = useAIBridge();
+  // Nur bei EXPLIZIT getrennter KI (Tab geschlossen, Heartbeat/Ping-Timeout)
+  // vorab deaktivieren — nicht bei 'unknown' (Boot, noch kein KI-Tab). Der
+  // Ping-Guard in klassifiziereBatch bleibt der Backstop gegen stale-Status.
+  const kiGetrennt = useBridgeStatus(s => s.status) === 'disconnected';
   const persist = useAuslastungData(s => s.persist);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [showPasteModal, setShowPasteModal] = useState(false);
@@ -218,10 +223,12 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
           size="sm"
           icon={Play}
           loading={startLLM.busy}
-          disabled={busy || isLoading || noOpen}
+          disabled={busy || isLoading || noOpen || kiGetrennt}
           onClick={() => startLLM.run()}
           className="h-8"
-          title="Klassifiziert alle offenen Verbuende via aktivem AI-Bridge-Transport"
+          title={kiGetrennt
+            ? 'Interne KI nicht verbunden — bitte zuerst den KI-Tab öffnen/verbinden'
+            : 'Klassifiziert alle offenen Verbuende via aktivem AI-Bridge-Transport'}
         >
           {startLLM.busy && progress
             ? `${progress.done} / ${progress.total} Verbünde…`
@@ -277,7 +284,12 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
           )}
         </div>
 
-        {!isLoading && (
+        {kiGetrennt && (
+          <span className="text-[12.5px] leading-snug text-[var(--tf-danger-text)] truncate">
+            Interne KI nicht verbunden
+          </span>
+        )}
+        {!isLoading && !kiGetrennt && (
           <span className="text-[12.5px] leading-snug text-[var(--tf-text-tertiary)] truncate">
             {noOpen ? (
               <>
