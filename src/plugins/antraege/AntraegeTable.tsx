@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths } from '@/components/data-table';
+import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths, useTotalTableWidth } from '@/components/data-table';
 import { resolveAntragTableColumns } from './tableColumns';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useAntraegeStore } from './store';
@@ -76,6 +76,9 @@ export function AntraegeTable({
   const verbundById = useAntraegeStore(s => s.verbundById);
   // Persistierte Spalten-Pixelbreiten (Resize via Drag-Handles der SortableTable).
   const { widths, setWidth } = useColumnWidths('teamflow_antraege_table_col_widths', {});
+  // Persistierte Gesamt-Tabellenbreite (Griff am rechten Rand). null = Default
+  // (Tabelle füllt die Content-Box); Zahl = gepinnt, Spalten skalieren proportional.
+  const { totalWidth, setTotalWidth } = useTotalTableWidth('teamflow_antraege_table_total_width');
   // Registry-Reihenfolge beibehalten (nicht Toggle-Reihenfolge des Stores).
   // Im „alle"-Modus die MA-Spalte direkt nach der gelockten FKZ-Spalte
   // einblenden (auto-verwaltet, nicht im Spalten-Picker).
@@ -173,6 +176,8 @@ export function AntraegeTable({
         fitContentWidth
         columnWidths={widths}
         onColumnWidthChange={setWidth}
+        totalWidth={totalWidth}
+        onTotalWidthChange={setTotalWidth}
         columnFilters={columnFilters}
         onColumnFilterChange={setColumnFilter}
         filterCandidates={filterCandidates}

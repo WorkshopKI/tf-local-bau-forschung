@@ -5,6 +5,26 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.161.0 — Förderanträge-Tabelle: Gesamtbreite per Griff ziehbar (Juli 2026)
+
+MINOR — Ergänzt v2.159.2 (Tabelle füllt die Fensterbreite): Am **rechten Tabellenrand** sitzt jetzt ein
+Griff, mit dem sich die **gesamte** Tabelle breiter/schmaler ziehen lässt — die Spalten skalieren dabei
+**proportional** mit (CSS `table-layout: fixed` verteilt die Gesamtbreite auf die Spalten-Gewichte). So passt
+man die Tabelle mit einer Geste an einen breiten Monitor an, statt jede Spalte einzeln.
+
+- **Neue Opt-in-Props an `SortableTable`** ([SortableTable.tsx](src/components/data-table/SortableTable.tsx)):
+  `totalWidth` (gepinnte Pixel-Breite, `null` = Default/füllen) + `onTotalWidthChange`. Nur wenn gesetzt,
+  rendert der rechte Rand den Griff. Die ~7 anderen `SortableTable`-Nutzer (Skills, Regeln, Feedback-Board,
+  Auslastung, Anfragen) übergeben nichts → **unverändert** (früher Early-Return auf das bisherige Markup).
+- **Verhalten**: Ziehen nach rechts über die Fensterbreite hinaus → horizontaler Scroll; nach links →
+  Tabelle schmaler, Weißraum rechts. **Doppelklick** auf den Griff = Reset auf „Fensterbreite füllen".
+  Persistiert pro Nutzer ([useTotalTableWidth.ts](src/components/data-table/useTotalTableWidth.ts),
+  localStorage `teamflow_antraege_table_total_width`).
+- **Komposition mit dem Spalten-Resize**: Beides bleibt. Die `<col>`-Breiten wirken als Gewichte — der
+  Einzel-Griff ändert das Gewicht einer Spalte, der Gesamt-Griff die Tabellenbreite; `table-layout:fixed`
+  verteilt immer proportional, die zwei Controls kollidieren nicht.
+- Verdrahtet in [AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx).
+
 ### v2.160.0 — „Mit KI glätten" auch im Kurator-Build (Juli 2026)
 
 MINOR — Der Editor „Mit KI glätten" im Changelog-Modal (schreibt die geglättete `_intern/changelog-user.md`
