@@ -12,7 +12,7 @@ import { useCsvSourcesSignal, bumpCsvSourcesSignal } from '@/core/services/csv/c
 import { listProgramme, listSchemas } from '@/core/services/csv';
 import { collectCandidates } from '@/plugins/csv-sources-kuration/services/auto-refresh';
 import { deriveCsvFreshnessState, type CsvFreshnessState } from '@/plugins/csv-sources-kuration/services/csv-freshness-state';
-import { isDevFixturesEnabled } from '@/config/feature-flags';
+import { isDevFixturesEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import type { IDBStore } from '@/core/services/storage/idb-store';
@@ -347,8 +347,10 @@ export function CsvFreshnessIndicator(): React.ReactElement {
           )}
 
           {/* Erzwungen — umgeht die „unverändert"-Erkennung (Citrix-False-Negative).
-             Immer verfügbar, sobald verknüpfte Quellen existieren, auch bei „grün". */}
-          {result.sources.length > 0 && (
+             Nur dev + kurator (isKuratorMenusEnabled): ein Diagnose-/Kurations-Werkzeug,
+             das End-User in pl/as/prod nur verwirrt. Immer verfügbar, sobald
+             verknüpfte Quellen existieren, auch bei „grün". */}
+          {isKuratorMenusEnabled() && result.sources.length > 0 && (
             <Button
               variant="ghost"
               icon={RefreshCw}

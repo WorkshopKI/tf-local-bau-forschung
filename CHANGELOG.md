@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.156.1 — „Erzwungen neu prüfen" nur noch in dev + kurator (Juli 2026)
+
+PATCH — Der ● CSV-Panel-Knopf „Erzwungen neu prüfen" (v2.155) ist ein Diagnose-/Kurations-Werkzeug und
+verwirrte End-User in pl/as/prod. Er wird jetzt hinter `isKuratorMenusEnabled()` gegated
+([CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx)) → sichtbar nur in dev + kurator,
+weg in pl/as/prod. „Jetzt importieren" (bei neuen Exporten) + die Fixture-/Datei-fehlt-Warnzeilen bleiben in
+allen Varianten.
+
 ### v2.156.0 — Leerer Unterprogramm-Store verwirft nicht mehr den ganzen Master-Import (Juli 2026)
 
 MINOR (Bugfix + Härtung) — Root-Cause des Prod-Vorfalls „Import läuft durch, neue Anträge fehlen": Der
