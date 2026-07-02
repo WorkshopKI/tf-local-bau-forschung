@@ -11,6 +11,8 @@ import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { useCsvSourcesSignal, bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { listProgramme, listSchemas } from '@/core/services/csv';
 import { collectCandidates } from '@/plugins/csv-sources-kuration/services/auto-refresh';
+import { deriveCsvFreshnessState, type CsvFreshnessState } from '@/plugins/csv-sources-kuration/services/csv-freshness-state';
+import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import type { IDBStore } from '@/core/services/storage/idb-store';
@@ -36,8 +38,6 @@ import type { CsvSchema } from '@/core/services/csv/types';
  * importieren" (`runDataUpdate` — wie der Einstellungen-Button) + Einstellungen.
  */
 
-type CsvFreshnessState = 'fresh' | 'stale' | 'unknown';
-
 /** Pro importierter Quelle: welche Datei mit welchem Datum tatsächlich drin ist. */
 interface ImportedSourceInfo {
   name: string;
@@ -53,8 +53,17 @@ interface ImportedSourceInfo {
 
 interface CsvFreshnessResult {
   state: CsvFreshnessState;
+  /**
+   * Fehlkonfiguration (prod-Fixtures / unerreichbare Dateien) — echte Daten kommen
+   * nicht an. Erzwingt einen roten Punkt + Warn-Zeile statt stiller „grün".
+   */
+  misconfig: boolean;
   /** Quellen-Namen mit neueren Export-Daten (für die Dialog-Liste). */
   pendingNames: string[];
+  /** Fixture-Quellen (`fixture-real-*`) in einem Prod-Build — vom Import ausgeschlossen. */
+  fixtureNames: string[];
+  /** Verknüpfte Quellen, deren Datei nicht erreichbar war. */
+  fileMissingNames: string[];
   /** Jüngstes `last_imported_at` über alle Schemas (ISO) oder null. */
   lastImport: string | null;
   /** Pro Quelle: importierte Datei + Datei-Datum + Zeilen (für den Detail-Dialog). */
@@ -95,20 +104,25 @@ async function checkCsvFreshness(idb: IDBStore): Promise<CsvFreshnessResult> {
       rowCount: s.last_row_count ?? null,
     }));
 
-  const { candidates, permissionNeeded, unlinked } = await collectCandidates(idb);
+  const { candidates, permissionNeeded, unlinked, fixtures, fileMissing } = await collectCandidates(idb);
   const pendingNames = candidates.map(c => c.schema.csv_source_name);
+  // Fixtures sind NUR in einem Produktions-Build ein Problem — in dev sind sie
+  // erwartet/gebündelt (`demoDataBundled`).
+  const isProd = !isDevFixturesEnabled();
+  const fixtureNames = isProd ? fixtures.map(f => f.schemaName) : [];
+  const fileMissingNames = fileMissing.map(f => f.schemaName);
 
-  // „erreichbar" = Quellen, die wir tatsächlich prüfen konnten (nicht ohne
-  // Handle / Permission). Nur dann ist ein leeres `candidates` wirklich „grün";
-  // sonst (alles unverknüpft / offline) bleibt es „unbekannt".
-  const reachable = all.length - permissionNeeded.length - unlinked.length;
+  const { state, misconfig } = deriveCsvFreshnessState({
+    totalSchemas: all.length,
+    candidates: candidates.length,
+    permissionNeeded: permissionNeeded.length,
+    unlinked: unlinked.length,
+    fixtures: fixtures.length,
+    fileMissing: fileMissing.length,
+    isProd,
+  });
 
-  let state: CsvFreshnessState;
-  if (candidates.length > 0) state = 'stale';
-  else if (all.length > 0 && reachable > 0) state = 'fresh';
-  else state = 'unknown';
-
-  return { state, pendingNames, lastImport, sources };
+  return { state, misconfig, pendingNames, fixtureNames, fileMissingNames, lastImport, sources };
 }
 
 export function CsvFreshnessIndicator(): React.ReactElement {
@@ -120,7 +134,7 @@ export function CsvFreshnessIndicator(): React.ReactElement {
   const sourcesSignal = useCsvSourcesSignal(s => s.version);
 
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<CsvFreshnessResult>({ state: 'unknown', pendingNames: [], lastImport: null, sources: [] });
+  const [result, setResult] = useState<CsvFreshnessResult>({ state: 'unknown', misconfig: false, pendingNames: [], fixtureNames: [], fileMissingNames: [], lastImport: null, sources: [] });
   const [importMsg, setImportMsg] = useState<string | null>(null);
 
   const runningRef = useRef(false);
@@ -165,8 +179,27 @@ export function CsvFreshnessIndicator(): React.ReactElement {
     bumpCsvSourcesSignal();
   });
 
+  // „Erzwungen neu prüfen/importieren": umgeht den mtime/Größe/Checksum-Fast-Path
+  // (forceRecheck). Selbstbedienungs-Weg gegen einen Citrix-False-Negative, auch
+  // wenn der Punkt fälschlich „grün" zeigt. Der Importer difft per Row-Hash und
+  // schreibt nur bei echtem Delta — ein Force-Klick ohne Änderung ist ein No-Op.
+  const forceAction = useAsyncAction(async () => {
+    setImportMsg(null);
+    const handle = await getDatenShareHandle(storage.idb);
+    if (!handle) throw new Error('Datenordner nicht verbunden.');
+    const r = await runDataUpdate(storage.idb, handle, { forceRecheck: true });
+    const imported = r.csvReport?.processed.filter(p => !p.skipped).length ?? 0;
+    if (mountedRef.current) {
+      setImportMsg(imported > 0
+        ? `Erzwungen: ${imported} CSV-Quelle(n) re-importiert`
+        : 'Erzwungen geprüft — keine inhaltlichen Änderungen gefunden.');
+    }
+    bumpCsvSourcesSignal();
+  });
+
+  const busy = importAction.busy || forceAction.busy;
   const state = result.state;
-  const dotColor = importAction.busy
+  const dotColor = busy
     ? 'bg-[var(--tf-warning-text)] animate-pulse'
     : state === 'fresh'
       ? 'bg-[var(--tf-success-text)]'
@@ -174,22 +207,27 @@ export function CsvFreshnessIndicator(): React.ReactElement {
         ? 'bg-[var(--tf-danger-text)]'
         : 'bg-[var(--tf-text-tertiary)]';
 
+  const misconfig = result.misconfig;
   const statusColor = state === 'fresh'
     ? 'text-[var(--tf-success-text)]'
     : state === 'stale'
       ? 'text-[var(--tf-danger-text)]'
       : 'text-[var(--tf-text-tertiary)]';
-  const statusLabel = state === 'fresh'
-    ? 'Aktuell'
-    : state === 'stale'
-      ? 'Neue Exporte verfügbar'
-      : 'Status unbekannt';
-
-  const tip = state === 'stale'
-    ? 'Neue CSV-Exporte verfügbar — klicken zum Importieren'
+  const statusLabel = misconfig
+    ? 'Achtung — Quellen ausgeschlossen'
     : state === 'fresh'
-      ? 'CSV-Exporte sind importiert'
-      : 'CSV-Import-Status unbekannt';
+      ? 'Aktuell'
+      : state === 'stale'
+        ? 'Neue Exporte verfügbar'
+        : 'Status unbekannt';
+
+  const tip = misconfig
+    ? 'CSV-Quellen werden nicht importiert — klicken für Details'
+    : state === 'stale'
+      ? 'Neue CSV-Exporte verfügbar — klicken zum Importieren'
+      : state === 'fresh'
+        ? 'CSV-Exporte sind importiert'
+        : 'CSV-Import-Status unbekannt';
 
   const lastImportStr = result.lastImport ? new Date(result.lastImport).toLocaleString('de-DE') : null;
 
@@ -212,6 +250,33 @@ export function CsvFreshnessIndicator(): React.ReactElement {
             <Database size={16} className={statusColor} />
             <span className="text-[13px] text-[var(--tf-text)]">{statusLabel}</span>
           </div>
+
+          {result.fixtureNames.length > 0 && (
+            <div className="rounded-md border-[0.5px] border-[var(--tf-danger-border)] bg-[var(--tf-danger-bg)] px-2.5 py-2 text-[12px] leading-snug">
+              <p className="font-medium text-[var(--tf-danger-text)]">
+                {result.fixtureNames.length} Quelle(n) sind Demo-/Fixture-Quellen — vom Import ausgeschlossen
+              </p>
+              <p className="mt-1 text-[var(--tf-text-secondary)]">
+                Die echten CSV-Exporte werden für diese Quellen NIE importiert. In den echten
+                Quellen umwandeln (Kurator-Build → CSV-Quellen). Betroffen:{' '}
+                <span className="text-[var(--tf-text)]">{result.fixtureNames.slice(0, 5).join(', ')}</span>
+                {result.fixtureNames.length > 5 ? ` +${result.fixtureNames.length - 5} weitere` : ''}
+              </p>
+            </div>
+          )}
+
+          {result.fileMissingNames.length > 0 && (
+            <div className="rounded-md border-[0.5px] border-[var(--tf-danger-border)] bg-[var(--tf-danger-bg)] px-2.5 py-2 text-[12px] leading-snug">
+              <p className="font-medium text-[var(--tf-danger-text)]">
+                {result.fileMissingNames.length} Quelle(n): Datei nicht erreichbar
+              </p>
+              <p className="mt-1 text-[var(--tf-text-secondary)]">
+                Datei fehlt im verknüpften Ordner oder Zugriff verloren. Betroffen:{' '}
+                <span className="text-[var(--tf-text)]">{result.fileMissingNames.slice(0, 5).join(', ')}</span>
+                {result.fileMissingNames.length > 5 ? ` +${result.fileMissingNames.length - 5} weitere` : ''}
+              </p>
+            </div>
+          )}
 
           {lastImportStr && (
             <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
@@ -275,9 +340,23 @@ export function CsvFreshnessIndicator(): React.ReactElement {
               variant="secondary"
               icon={RefreshCw}
               onClick={() => importAction.run()}
-              disabled={importAction.busy || !dsAvailable}
+              disabled={busy || !dsAvailable}
             >
               {importAction.busy ? 'Importiere…' : 'Jetzt importieren'}
+            </Button>
+          )}
+
+          {/* Erzwungen — umgeht die „unverändert"-Erkennung (Citrix-False-Negative).
+             Immer verfügbar, sobald verknüpfte Quellen existieren, auch bei „grün". */}
+          {result.sources.length > 0 && (
+            <Button
+              variant="ghost"
+              icon={RefreshCw}
+              onClick={() => forceAction.run()}
+              disabled={busy || !dsAvailable}
+              title="Alle verknüpften Quellen neu einlesen und die Unverändert-Erkennung (mtime/Größe/Checksum) ignorieren. Importiert nur bei echter Inhaltsänderung."
+            >
+              {forceAction.busy ? 'Prüfe erzwungen…' : 'Erzwungen neu prüfen'}
             </Button>
           )}
 
@@ -292,8 +371,8 @@ export function CsvFreshnessIndicator(): React.ReactElement {
           {importMsg && (
             <p className="text-[12px] text-[var(--tf-success-text)] leading-snug">{importMsg}</p>
           )}
-          {importAction.error && (
-            <p className="text-[12px] text-[var(--tf-danger-text)] leading-snug">Fehler: {importAction.error}</p>
+          {(importAction.error || forceAction.error) && (
+            <p className="text-[12px] text-[var(--tf-danger-text)] leading-snug">Fehler: {importAction.error ?? forceAction.error}</p>
           )}
 
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">

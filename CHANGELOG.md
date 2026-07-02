@@ -5,6 +5,32 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.155.0 — CSV-Auto-Refresh: still übersprungene Quellen sichtbar + erzwungener Re-Import (Juli 2026)
+
+MINOR — Härtung gegen den „Import läuft durch, aber nichts kommt an"-Fall (Fixtures-Nachgang / Citrix-False-
+Negative): der Auto-Refresh verwarf bisher drei Skip-Zustände **still** — Fixture-Quellen (`local_fixture`,
+hart ausgeschlossen), unerreichbare Dateien (`file_missing`) und als „unverändert" erkannte Quellen
+(`up_to_date`). Auf einem Produktions-pl konnte so eine Fehlkonfiguration (echte Exporte werden nie importiert)
+als grünes „Aktuell" erscheinen, ohne Weg, den Erkennungs-Fast-Path zu umgehen.
+
+- **`collectCandidates` meldet die verschluckten Zustände** ([auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts)):
+  `CollectResult` trägt jetzt zusätzlich `fixtures` / `fileMissing` / `upToDate` (bisher stillschweigend verworfen).
+- **● CSV-Panel ist ehrlich** ([CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx)): In einem
+  Prod-Build (`!isDevFixturesEnabled()`) ist der Punkt bei Fixture-/`file_missing`-Quellen **nicht mehr grün**,
+  sondern rot mit Warn-Zeile („N Quelle(n) sind Demo-/Fixture-Quellen — vom Import ausgeschlossen"). Reine
+  Entscheidungslogik ausgelagert nach [csv-freshness-state.ts](src/plugins/csv-sources-kuration/services/csv-freshness-state.ts)
+  (`deriveCsvFreshnessState`), Test `csv-freshness-state.test.ts` (Regression: prod-Fixture ⇒ nie „fresh").
+- **„Erzwungen neu prüfen"** im ● CSV-Dialog: neuer `forceRecheck`-Pfad
+  ([csv-source-handle.ts](src/plugins/csv-sources-kuration/csv-source-handle.ts) `decideSourceUpdateState`/
+  `checkSourceForUpdate`, durchgereicht via `collectCandidates` + `runDataUpdate`), der mtime/Größe/Checksum
+  komplett umgeht → jede erreichbare, verknüpfte Quelle wird re-importiert (Importer difft per Row-Hash,
+  schreibt nur bei echtem Delta). Selbstbedienungs-Weg für pl gegen einen Citrix-False-Negative, ohne kurator-
+  Build. Fixtures/Permission bleiben ausgeschlossen. Test in `decide-source-update-state.test.ts`.
+- **Diagnose ohne DevTools**: die `[data-update]`-Zeile + `localStorage.teamflow_last_data_update_timing` führen
+  jetzt `skipped(fixtures/fileMissing/upToDate)` bzw. `csv.fixturesExcluded/fileMissing/upToDate`
+  ([data-update.ts](src/plugins/csv-sources-kuration/services/data-update.ts) `logTiming`) — „warum wurde 0
+  importiert" ist damit ablesbar.
+
 ### v2.154.0 — CSV-Schema-Konfiguration zwischen Umgebungen übertragbar (Export/Import) (Juli 2026)
 
 MINOR — Neuer Weg, eine kuratierte CSV-Quellen-Konfiguration (Anzeige-Name, Spalten-Mapping **inkl.

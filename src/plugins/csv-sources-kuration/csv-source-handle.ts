@@ -248,7 +248,21 @@ export async function decideSourceUpdateState(
   file: File,
   schema: CsvSchema,
   fileName: string,
+  opts?: { forceRecheck?: boolean },
 ): Promise<UpdateCheckResult> {
+  // „Erzwungen neu prüfen" (v2.155): mtime/Größe/Checksum-Fast-Path KOMPLETT
+  // umgehen und die Quelle als Kandidat behandeln. Der Importer difft ohnehin
+  // per Row-Hash und schreibt nur bei echtem Delta (leerer Merge = No-Op) —
+  // deckt daher den bewussten Rest-Blindfleck (gleiche Größe + geänderter Inhalt
+  // + stale mtime, Citrix/SMB) manuell ab, ohne Fehl-Importe zu riskieren.
+  if (opts?.forceRecheck) {
+    return {
+      state: 'update_available',
+      lastModified: file.lastModified,
+      fileName,
+      previousLastModified: schema.source_last_modified ?? null,
+    };
+  }
   const recorded = schema.source_last_modified ?? null;
   const sizeUnchanged = schema.last_file_size != null && file.size === schema.last_file_size;
   // Billiger Skip NUR wenn mtime nicht neuer UND Größe unverändert — mtime allein
@@ -283,6 +297,7 @@ export async function decideSourceUpdateState(
 export async function checkSourceForUpdate(
   idb: IDBStore,
   schema: CsvSchema,
+  opts?: { forceRecheck?: boolean },
 ): Promise<UpdateCheckResult> {
   // Dev-Seed-Fixtures (fixture-real-*) haben keine externe Quelldatei — sie
   // werden aus gebündelten Blobs eingespielt. Ohne diesen Early-Return koppelt
@@ -317,7 +332,7 @@ export async function checkSourceForUpdate(
       if (fileMap[schema.id] !== resolved.fileName) {
         await setCsvDirFileMapEntries(idb, { [schema.id]: resolved.fileName });
       }
-      return await decideSourceUpdateState(resolved.file, schema, resolved.fileName);
+      return await decideSourceUpdateState(resolved.file, schema, resolved.fileName, opts);
     }
     // Ordner verknüpft + granted, aber Datei nicht (mehr) drin → Per-Datei-Pfad.
   }
@@ -339,7 +354,7 @@ export async function checkSourceForUpdate(
   } catch (err) {
     return { state: 'file_missing', reason: (err as Error).message || 'Datei nicht erreichbar' };
   }
-  return await decideSourceUpdateState(file, schema, file.name);
+  return await decideSourceUpdateState(file, schema, file.name, opts);
 }
 
 /**

@@ -92,4 +92,22 @@ describe('decideSourceUpdateState', () => {
     const r = await decideSourceUpdateState(makeFile(CONTENT, 1_900_000_000_000), schema, 'quelle.csv');
     expect(r.state).toBe('up_to_date');
   });
+
+  // „Erzwungen neu prüfen" (v2.155): der Selbstbedienungs-Weg für pl gegen einen
+  // Citrix-False-Negative. Umgeht mtime/Größe/Checksum KOMPLETT → jede aufgelöste
+  // Datei wird zum Kandidaten, auch wenn sie sonst als „unverändert" gälte.
+  it('forceRecheck → update_available trotz mtime<=Baseline + gleiche Größe + gleichem Checksum', async () => {
+    const file = makeFile(CONTENT, 1_900_000_000_000);
+    const checksum = await sha1Hex(new Blob([CONTENT]));
+    const schema = makeSchema({
+      file_checksum: checksum,
+      source_last_modified: 2_000_000_000_000,
+      last_file_size: file.size,
+    });
+    // Ohne force wäre das up_to_date (Fast-Path). Mit force → Kandidat.
+    const baseline = await decideSourceUpdateState(file, schema, 'quelle.csv');
+    expect(baseline.state).toBe('up_to_date');
+    const forced = await decideSourceUpdateState(file, schema, 'quelle.csv', { forceRecheck: true });
+    expect(forced.state).toBe('update_available');
+  });
 });

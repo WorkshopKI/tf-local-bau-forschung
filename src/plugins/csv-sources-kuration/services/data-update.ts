@@ -59,6 +59,14 @@ export interface RunDataUpdateOptions {
    * holen", nicht lokale CSVs re-importieren + Snapshot teamweit neu schreiben.
    */
   includeCsv?: boolean;
+  /**
+   * „Erzwungen neu prüfen/importieren" (v2.155): umgeht den mtime/Größe/Checksum-
+   * Fast-Path in der CSV-Erkennung → jede erreichbare, verknüpfte Quelle wird
+   * re-importiert (der Importer difft per Row-Hash, schreibt nur bei echtem
+   * Delta). Selbstbedienungs-Weg für pl gegen einen Citrix-False-Negative, ohne
+   * kurator-Build. Fixtures/Permission bleiben ausgeschlossen.
+   */
+  forceRecheck?: boolean;
   /** Abbruch-Signal (App-Unmount / Gate öffnet wieder). */
   signal?: { cancelled: boolean };
 }
@@ -75,7 +83,7 @@ function round(ms: number): number {
 function logTiming(
   result: DataUpdateResult,
   snap: SnapshotTimings,
-  csv: { checkMs: number; enabled: boolean },
+  csv: { checkMs: number; enabled: boolean; fixtures: number; fileMissing: number; upToDate: number },
 ): void {
   const c = result.csvReport?.importTimings;
   const summary =
@@ -86,6 +94,9 @@ function logTiming(
     + ` listView=${round(snap.listViewRebuildMs)}ms`
     + ` | csv enabled=${csv.enabled} check=${round(csv.checkMs)}ms`
     + ` imported=${result.csvReport?.processed.filter(p => !p.skipped).length ?? 0}`
+    // Warum evtl. 0 importiert: still-übersprungene Quellen (Fixtures ausgeschlossen,
+    // Datei fehlt, als „unverändert" erkannt). fixtures>0 in prod = Fehlkonfiguration.
+    + ` skipped(fixtures=${csv.fixtures} fileMissing=${csv.fileMissing} upToDate=${csv.upToDate})`
     + (c ? ` parse=${round(c.parseMs)}ms hashDiff=${round(c.hashDiffMs)}ms merge=${round(c.mergeMs)}ms snapshotWrite=${round(c.snapshotWriteMs)}ms` : '')
     + (result.lockBusy ? ` lockBusy=${result.lockBusy.blockingKurator}` : '');
   // Always-on (wie das bestehende `[snapshot-sync]`-info) — soll auch im
@@ -107,6 +118,11 @@ function logTiming(
         enabled: csv.enabled,
         checkMs: round(csv.checkMs),
         imported: result.csvReport?.processed.filter(p => !p.skipped).length ?? 0,
+        // Still-übersprungen (Diagnose ohne IDB-Dump): fixturesExcluded>0 in prod =
+        // echte Exporte werden nie importiert (Fehlkonfiguration, 2026-06-Vorfall).
+        fixturesExcluded: csv.fixtures,
+        fileMissing: csv.fileMissing,
+        upToDate: csv.upToDate,
         parseMs: c ? round(c.parseMs) : 0,
         hashDiffMs: c ? round(c.hashDiffMs) : 0,
         mergeMs: c ? round(c.mergeMs) : 0,
@@ -129,7 +145,7 @@ export async function runDataUpdate(
   smbHandle: FileSystemDirectoryHandle,
   opts: RunDataUpdateOptions = {},
 ): Promise<DataUpdateResult> {
-  const { onPhase, includeCsv = true, signal } = opts;
+  const { onPhase, includeCsv = true, forceRecheck = false, signal } = opts;
   const result: DataUpdateResult = { snapshotSynced: false, snapshotInfo: [], totalMs: 0 };
   if (running) return result;
   running = true;
@@ -139,6 +155,9 @@ export async function runDataUpdate(
     manifestReadMs: 0, smbReadMs: 0, parseMs: 0, idbWriteMs: 0, listViewRebuildMs: 0,
   };
   let csvCheckMs = 0;
+  // Still-übersprungene Quellen für die Diagnose-Zeile (warum wurde 0 importiert):
+  // Fixtures (ausgeschlossen), fehlende Dateien, als „unverändert" erkannte.
+  const csvSkips = { fixtures: 0, fileMissing: 0, upToDate: 0 };
   // Build-konstante Gate: CSV-Import nur in pl (csvAutoRefresh) + kurator
   // (kuratorMenus) — identisch zur Banner-Sichtbarkeit in ShellLayout. Prod
   // (End-User) bekommt nur Snapshot-Sync wie bisher.
@@ -204,11 +223,16 @@ export async function runDataUpdate(
     if (csvEnabled && !signal?.cancelled) {
       onPhase?.({ phase: 'csv-check', fraction: 0 });
       const tCheck = performance.now();
-      const collected = await collectCandidates(idb).catch(err => {
+      const collected = await collectCandidates(idb, { forceRecheck }).catch(err => {
         console.warn('[data-update] csv-check fehlgeschlagen', err);
         return null;
       });
       csvCheckMs = performance.now() - tCheck;
+      if (collected) {
+        csvSkips.fixtures = collected.fixtures.length;
+        csvSkips.fileMissing = collected.fileMissing.length;
+        csvSkips.upToDate = collected.upToDate.length;
+      }
       onPhase?.({ phase: 'csv-check', fraction: 1 });
 
       if (collected && collected.candidates.length > 0 && !signal?.cancelled) {
@@ -260,7 +284,7 @@ export async function runDataUpdate(
     await invalidateAggregateCache(idb);
 
     result.totalMs = performance.now() - tTotal;
-    logTiming(result, snapAgg, { checkMs: csvCheckMs, enabled: csvEnabled });
+    logTiming(result, snapAgg, { checkMs: csvCheckMs, enabled: csvEnabled, ...csvSkips });
     return result;
   } finally {
     running = false;

@@ -70,6 +70,20 @@ export interface PermissionNeededEntry {
   schemaName: string;
 }
 
+export interface FileMissingEntry {
+  schemaId: string;
+  schemaName: string;
+  reason: string;
+}
+
+export interface UpToDateEntry {
+  schemaId: string;
+  schemaName: string;
+  /** Zuletzt importierte Datei (aus dem Schema) — für „Export vom …"-Diagnose. */
+  fileName: string | null;
+  sourceLastModified: number | null;
+}
+
 export interface CollectResult {
   /** Quellen mit neuerem lastModified, bereit zum Auto-Update. */
   candidates: RefreshCandidate[];
@@ -78,6 +92,21 @@ export interface CollectResult {
   /** Quellen ohne gespeichertes Datei-Handle (z.B. pl-Build: Schemas per
    *  Snapshot, aber nie eine Datei gepickt). */
   unlinked: PermissionNeededEntry[];
+  /**
+   * Fixture-Quellen (`fixture-real-*`) — HART vom Auto-Refresh ausgeschlossen
+   * (`local_fixture`). Bisher still verworfen. In einem Produktions-Build ein
+   * Fehlkonfigurations-Signal: die echten Exporte werden nie importiert (der
+   * 2026-06-Vorfall). Sichtbar-machen statt schweigen.
+   */
+  fixtures: PermissionNeededEntry[];
+  /** Verknüpfte Quellen, deren Datei nicht (mehr) erreichbar war (`file_missing`). */
+  fileMissing: FileMissingEntry[];
+  /**
+   * Quellen, die als „unverändert" erkannt wurden (mtime/Größe-Fast-Path oder
+   * Checksum-Treffer). Für die Diagnose „warum wurde 0 importiert" — bei einem
+   * Citrix-False-Negative landet die eigentlich neue Datei hier.
+   */
+  upToDate: UpToDateEntry[];
 }
 
 /**
@@ -88,7 +117,10 @@ export interface CollectResult {
  * (`useCsvAutoRefreshCheck`) als auch der Start-Orchestrator (`runDataUpdate`)
  * denselben Pfad nutzen.
  */
-export async function collectCandidates(idb: IDBStore): Promise<CollectResult> {
+export async function collectCandidates(
+  idb: IDBStore,
+  opts?: { forceRecheck?: boolean },
+): Promise<CollectResult> {
   const programme = await listProgramme(idb);
   const all: CsvSchema[] = [];
   for (const p of programme) {
@@ -117,17 +149,38 @@ export async function collectCandidates(idb: IDBStore): Promise<CollectResult> {
   const candidates: RefreshCandidate[] = [];
   const permissionNeeded: PermissionNeededEntry[] = [];
   const unlinked: PermissionNeededEntry[] = [];
+  const fixtures: PermissionNeededEntry[] = [];
+  const fileMissing: FileMissingEntry[] = [];
+  const upToDate: UpToDateEntry[] = [];
   for (const schema of all) {
-    const r: UpdateCheckResult = await checkSourceForUpdate(idb, schema);
-    if (r.state === 'update_available') {
-      candidates.push({ schemaId: schema.id, schema });
-    } else if (r.state === 'permission_required') {
-      permissionNeeded.push({ schemaId: schema.id, schemaName: schema.csv_source_name });
-    } else if (r.state === 'no_handle') {
-      unlinked.push({ schemaId: schema.id, schemaName: schema.csv_source_name });
+    const r: UpdateCheckResult = await checkSourceForUpdate(idb, schema, opts);
+    const base = { schemaId: schema.id, schemaName: schema.csv_source_name };
+    switch (r.state) {
+      case 'update_available':
+        candidates.push({ schemaId: schema.id, schema });
+        break;
+      case 'permission_required':
+        permissionNeeded.push(base);
+        break;
+      case 'no_handle':
+        unlinked.push(base);
+        break;
+      case 'local_fixture':
+        fixtures.push(base);
+        break;
+      case 'file_missing':
+        fileMissing.push({ ...base, reason: r.reason });
+        break;
+      case 'up_to_date':
+        upToDate.push({
+          ...base,
+          fileName: schema.source_file_name ?? null,
+          sourceLastModified: schema.source_last_modified ?? null,
+        });
+        break;
     }
   }
-  return { candidates, permissionNeeded, unlinked };
+  return { candidates, permissionNeeded, unlinked, fixtures, fileMissing, upToDate };
 }
 
 export interface DriftEntry {
