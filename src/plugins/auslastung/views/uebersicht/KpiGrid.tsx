@@ -11,14 +11,31 @@
 import { useMemo } from 'react';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { useAuslastungIndex } from '../../hooks/useAuslastungIndex';
-import { computeQuartalsStatistik } from '../../services/kapazitaet';
+import { computeQuartalsStatistik, type QuartalsStatistik } from '../../services/kapazitaet';
 import { KpiCard } from './KpiCard';
 
 function fmtH(n: number): string {
   return Math.round(n).toLocaleString('de-DE');
 }
 
-export function KpiGrid(): React.ReactElement {
+/** Kurz-Prefix aus dem Quartals-Label: "2026-Q1" → "Q1". */
+function qShort(label: string): string {
+  return label.replace(/^\d{4}-/, '');
+}
+
+/** Signierte Stunden-Differenz, z.B. "+186 h" / "−186 h" / "±0 h". */
+function hDelta(n: number): string {
+  const r = Math.round(n);
+  if (r === 0) return '±0 h';
+  return r > 0 ? `+${fmtH(r)} h` : `−${fmtH(-r)} h`;
+}
+
+interface Props {
+  /** Optionales Vergleichsquartal (Delta-Overlay). `null` → kein Vergleich. */
+  vergleich?: QuartalsStatistik | null;
+}
+
+export function KpiGrid({ vergleich }: Props): React.ReactElement {
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
   const config = useAuslastungData(s => s.data.config);
   const { auslastungByAnon } = useAuslastungIndex();
@@ -45,6 +62,14 @@ export function KpiGrid(): React.ReactElement {
   const antraegeColor = tvsProgress >= 100 ? 'hsl(145, 50%, 50%)' : undefined;
   const antraegeMeta = `${stats.antraege.pending} pending · ${stats.antraege.freieTVs} TVs frei verfügbar`;
 
+  // Delta-Overlay: dezente Vergleichs-Zeile je Karte (Prefix = "Q1").
+  const q = vergleich ? qShort(vergleich.quartal.label) : '';
+  const mitarbeiterCompare = vergleich ? `${q}: ${vergleich.ma.aktiv} aktiv` : undefined;
+  const kapCompare = vergleich
+    ? `${q}: ${fmtH(vergleich.kapazitaet.verbrauchteStunden)} h · ${hDelta(stats.kapazitaet.verbrauchteStunden - vergleich.kapazitaet.verbrauchteStunden)}`
+    : undefined;
+  const antraegeCompare = vergleich ? `${q}: ${vergleich.antraege.fest} aktuell` : undefined;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
       <KpiCard
@@ -53,6 +78,7 @@ export function KpiGrid(): React.ReactElement {
         ofText={`/ ${stats.ma.gesamt} aktiv`}
         progressPct={mitarbeiterProgress}
         meta={mitarbeiterMeta}
+        compareNote={mitarbeiterCompare}
       />
       <KpiCard
         label="Kapazität"
@@ -60,6 +86,7 @@ export function KpiGrid(): React.ReactElement {
         ofText={`/ ${fmtH(stats.kapazitaet.effektivStunden)} h`}
         progressPct={stats.kapazitaet.prozent}
         meta={kapMeta}
+        compareNote={kapCompare}
       />
       <KpiCard
         label="Anträge im Quartal"
@@ -68,6 +95,7 @@ export function KpiGrid(): React.ReactElement {
         progressPct={tvsProgress}
         progressColor={antraegeColor}
         meta={antraegeMeta}
+        compareNote={antraegeCompare}
       />
     </div>
   );

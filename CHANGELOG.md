@@ -5,6 +5,30 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.158.0 — Statistik-Übersicht: Quartals-Vergleich (Delta-Overlay) (Juli 2026)
+
+MINOR — Die Statistik-Übersicht im Auslastungs-Tab „Auslastung MA" zeigt weiterhin standardmäßig das
+aktuelle Quartal, bietet aber jetzt ein Dropdown „Vergleichen mit" mit den **vergangenen Quartalen des
+aktuellen Jahres** an. Wählt der User eines aus, wird es als dezentes **Delta-Overlay** eingeblendet — kein
+zweiter Datenspeicher, nur ein zusätzlicher Aufruf der bereits reinen, per `quartal` parametrisierten
+Aggregatoren.
+
+- **Reiner Helper** `vergangeneQuartaleImJahr(aktuellesQuartal)` in [statistik.ts](src/plugins/auslastung/services/kapazitaet/statistik.ts):
+  `2026-Q2 → ['2026-Q1']`, `2026-Q4 → ['2026-Q3','2026-Q2','2026-Q1']`, Q1/ungültig → `[]`.
+- **Vergleichs-Statistik-Hook** [useVergleichStatistik.ts](src/plugins/auslastung/hooks/useVergleichStatistik.ts):
+  ruft `computeQuartalsAuslastung` + `computeQuartalsStatistik` direkt für das gewählte Quartal auf (NICHT über
+  den auf `aktuellesQuartal` gekeyten `cachedIndex` aus [useAuslastungIndex.ts](src/plugins/auslastung/hooks/useAuslastungIndex.ts)
+  — der würde sonst thrashen). Kosten O(antraege) fallen nur bei aktivem Vergleich an.
+- **UI**: Dropdown [StatistikVergleichControl.tsx](src/plugins/auslastung/views/uebersicht/StatistikVergleichControl.tsx)
+  (shadcn-Select, nur gerendert wenn es frühere Quartale im Jahr gibt); Delta-Overlay in
+  [HeadlineInsight.tsx](src/plugins/auslastung/views/uebersicht/HeadlineInsight.tsx) (zweite Balkenmarkierung +
+  Referenz-/Δ-Zeile) und [KpiGrid.tsx](src/plugins/auslastung/views/uebersicht/KpiGrid.tsx)/[KpiCard.tsx](src/plugins/auslastung/views/uebersicht/KpiCard.tsx)
+  (dezente `Q1: …`-Vergleichszeile je Karte). Abschnitts-Kopf zeigt bei aktivem Vergleich `2026-Q2 vs 2026-Q1`.
+- **Caveat (bewusst)**: MA-Bestand + Kapazitäts-Config sind Ist-Zustand und werden rückwirkend angewandt
+  (Näherung; `abgemeldet` ist quartalsgenau); ein vergangenes Quartal ist zu 100 % verstrichen → der Vergleich
+  zeigt den End-Buchungsstand. Alles additiv — ohne gewähltes Vergleichsquartal ändert sich nichts.
+- Tests: [statistik.test.ts](src/plugins/auslastung/__tests__/statistik.test.ts) (Helper + Vergangenheits-Quartal-Sanity).
+
 ### v2.157.1 — Bridge erkennt Generierungs-Ende im Auslastungs-Modul wieder (Juli 2026)
 
 PATCH — Seit der Bridge-„Optimierung" für das Modul Anfragen (v2.134.1, `SETTLE_MS 2500→5000`) kam die

@@ -11,14 +11,17 @@
  * Seit v2.17 ohne De-Anon-Passwort/Chip — echte Kürzel werden im pl/dev-Build
  * (passwortgeschützter App-Start, v2.16) direkt angezeigt.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
+import { useVergleichStatistik } from '../hooks/useVergleichStatistik';
+import { vergangeneQuartaleImJahr } from '../services/kapazitaet';
 import { SetupWizard } from './admin/SetupWizard';
 import { SkeletonRows, SkeletonBar } from '../components/Skeleton';
 import { StatistikSection } from './uebersicht/StatistikSection';
+import { StatistikVergleichControl } from './uebersicht/StatistikVergleichControl';
 import { HeadlineInsight } from './uebersicht/HeadlineInsight';
 import { KpiGrid } from './uebersicht/KpiGrid';
 import { WarnungenZeile } from './uebersicht/WarnungenZeile';
@@ -31,6 +34,9 @@ export function UebersichtView(): React.ReactElement {
   const cache = useAntraegeCache();
   const { ready } = useAuslastungReady();
   const [warningFilter, setWarningFilter] = useState<WarningFilter>(null);
+  const [vergleichsQuartal, setVergleichsQuartal] = useState<string | null>(null);
+  const vergleichsOptionen = useMemo(() => vergangeneQuartaleImJahr(quartal), [quartal]);
+  const vergleich = useVergleichStatistik(vergleichsQuartal);
 
   const handleWarningFilter = (filter: 'no-bookings' | 'overbooked'): void => {
     setWarningFilter(prev => prev === filter ? null : filter);
@@ -75,10 +81,20 @@ export function UebersichtView(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-4">
-      <StatistikSection label="Statistik-Übersicht" count={quartal}>
+      <StatistikSection
+        label="Statistik-Übersicht"
+        count={vergleichsQuartal ? `${quartal} vs ${vergleichsQuartal}` : quartal}
+      >
         <div className="flex flex-col gap-4">
-          <HeadlineInsight />
-          <KpiGrid />
+          {vergleichsOptionen.length > 0 && (
+            <StatistikVergleichControl
+              value={vergleichsQuartal}
+              optionen={vergleichsOptionen}
+              onChange={setVergleichsQuartal}
+            />
+          )}
+          <HeadlineInsight vergleich={vergleich} />
+          <KpiGrid vergleich={vergleich} />
           <WarnungenZeile onFilter={handleWarningFilter} />
         </div>
       </StatistikSection>

@@ -8,7 +8,11 @@
  *  4. Kategorien-Verteilung
  */
 import { describe, it, expect } from 'vitest';
-import { computeQuartalsStatistik, tageVergangenImQuartal } from '../services/kapazitaet';
+import {
+  computeQuartalsStatistik,
+  tageVergangenImQuartal,
+  vergangeneQuartaleImJahr,
+} from '../services/kapazitaet';
 import {
   DEFAULT_AUSLASTUNG_CONFIG,
   type AnonymerMitarbeiter,
@@ -97,6 +101,26 @@ describe('tageVergangenImQuartal', () => {
 
   it('Ungueltiges Quartal → 0/0', () => {
     expect(tageVergangenImQuartal('foo', new Date())).toEqual({ tagAktuell: 0, tageGesamt: 0 });
+  });
+});
+
+describe('vergangeneQuartaleImJahr', () => {
+  it('Q2 → nur Q1 desselben Jahres', () => {
+    expect(vergangeneQuartaleImJahr('2026-Q2')).toEqual(['2026-Q1']);
+  });
+
+  it('Q4 → Q3, Q2, Q1 absteigend (juengstes zuerst)', () => {
+    expect(vergangeneQuartaleImJahr('2026-Q4')).toEqual(['2026-Q3', '2026-Q2', '2026-Q1']);
+  });
+
+  it('Q1 → leer (kein frueheres Quartal im Jahr)', () => {
+    expect(vergangeneQuartaleImJahr('2026-Q1')).toEqual([]);
+  });
+
+  it('ungueltiger Input → leer', () => {
+    expect(vergangeneQuartaleImJahr('foo')).toEqual([]);
+    expect(vergangeneQuartaleImJahr('2026-Q5')).toEqual([]);
+    expect(vergangeneQuartaleImJahr('')).toEqual([]);
   });
 });
 
@@ -224,5 +248,19 @@ describe('computeQuartalsStatistik', () => {
     };
     const s = computeQuartalsStatistik(mitarbeiter, new Map(), makeConfig(), '2026-Q2');
     expect(s.kapazitaet.effektivStunden).toBe(150);  // 800 × 0.75 / 4
+  });
+
+  it('vergangenes Quartal (Vergleich): Fortschritt 100 %, Buchungen zaehlbar', () => {
+    const mitarbeiter = {
+      MA01: makeMa({ anonId: 'MA01', jahresKapazitaet: 800 }),  // 200 h/Q
+    };
+    const auslastung = new Map<string, MaQuartalsAuslastung>([
+      ['MA01', makeAuslastung({ antraege: 2, tvs: 3, stunden: 27 })],
+    ]);
+    // `now` liegt in Q2 → das Vergleichsquartal Q1 ist vollstaendig verstrichen.
+    const s = computeQuartalsStatistik(mitarbeiter, auslastung, makeConfig(), '2026-Q1', new Date(2026, 4, 16));
+    expect(s.quartal.fortschrittProzent).toBe(100);
+    expect(s.antraege.fest).toBe(2);
+    expect(s.kapazitaet.verbrauchteStunden).toBe(27);
   });
 });

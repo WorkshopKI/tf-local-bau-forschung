@@ -17,13 +17,22 @@
 import { useMemo } from 'react';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { useAuslastungIndex } from '../../hooks/useAuslastungIndex';
-import { computeQuartalsStatistik } from '../../services/kapazitaet';
+import { computeQuartalsStatistik, type QuartalsStatistik } from '../../services/kapazitaet';
 
 function fmtH(n: number): string {
   return Math.round(n).toLocaleString('de-DE');
 }
 
-export function HeadlineInsight(): React.ReactElement {
+function ppLabel(pp: number): string {
+  return pp === 0 ? '±0 pp' : pp > 0 ? `+${pp} pp` : `${pp} pp`;
+}
+
+interface Props {
+  /** Optionales Vergleichsquartal (Delta-Overlay). `null` → kein Vergleich. */
+  vergleich?: QuartalsStatistik | null;
+}
+
+export function HeadlineInsight({ vergleich }: Props): React.ReactElement {
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
   const config = useAuslastungData(s => s.data.config);
   const { auslastungByAnon } = useAuslastungIndex();
@@ -37,6 +46,9 @@ export function HeadlineInsight(): React.ReactElement {
   const fortschrittPct = stats.quartal.fortschrittProzent;
   const deltaPP = bookedPct - fortschrittPct;
   const expectedHours = (stats.kapazitaet.effektivStunden * fortschrittPct) / 100;
+
+  const vergleichPct = vergleich ? vergleich.kapazitaet.prozent : 0;
+  const vergleichDeltaPP = vergleich ? bookedPct - vergleichPct : 0;
 
   const deltaTone = deltaPP >= 0 ? 'success' : 'warning';
   const deltaLabel = deltaPP === 0
@@ -125,6 +137,22 @@ export function HeadlineInsight(): React.ReactElement {
             }}
           />
         )}
+        {vergleich && (
+          <div
+            className="absolute"
+            aria-hidden
+            style={{
+              left: `${Math.min(100, Math.max(0, vergleichPct))}%`,
+              top: -6,
+              bottom: -6,
+              width: 2,
+              background: 'var(--tf-text-tertiary)',
+              borderRadius: 'var(--tf-radius-pill)',
+              transform: 'translateX(-1px)',
+              boxShadow: '0 0 0 1px var(--tf-bg)',
+            }}
+          />
+        )}
       </div>
 
       <div className="flex items-center justify-between mt-3 flex-wrap gap-x-4 gap-y-1">
@@ -152,6 +180,20 @@ export function HeadlineInsight(): React.ReactElement {
             />
             Heute (Tag {stats.quartal.tagAktuell})
           </span>
+          {vergleich && (
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                style={{
+                  width: 2, height: 10,
+                  background: 'var(--tf-text-tertiary)',
+                  borderRadius: 'var(--tf-radius-pill)',
+                  display: 'inline-block',
+                }}
+              />
+              {vergleich.quartal.label}
+            </span>
+          )}
         </div>
         <div className="text-[11.5px] text-[var(--tf-text-tertiary)]">
           Soll bei linearer Buchung: ~{fmtH(expectedHours)} h
@@ -165,6 +207,14 @@ export function HeadlineInsight(): React.ReactElement {
       >
         {commentary}
       </p>
+
+      {vergleich && (
+        <p className="mt-2 text-[var(--tf-text-tertiary)]" style={{ fontSize: 12 }}>
+          Zum Vergleich · {vergleich.quartal.label}: {vergleichPct} % · {fmtH(vergleich.kapazitaet.verbrauchteStunden)} h gebucht
+          {' '}
+          <span style={{ fontWeight: 500 }}>({ppLabel(vergleichDeltaPP)} vs. heute)</span>
+        </p>
+      )}
     </div>
   );
 }

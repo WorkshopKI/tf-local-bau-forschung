@@ -80,6 +80,25 @@ export function tageVergangenImQuartal(quartal: string, now: Date = new Date()):
   return { tagAktuell: diffDays, tageGesamt };
 }
 
+/**
+ * Vergangene Quartale desselben Jahres wie `aktuellesQuartal`, absteigend
+ * (juengstes zuerst). Beispiel: `2026-Q2 → ['2026-Q1']`, `2026-Q4 →
+ * ['2026-Q3','2026-Q2','2026-Q1']`. Bei Q1 (kein frueheres Quartal im Jahr)
+ * oder ungueltigem Input → leeres Array. Speist das Vergleichs-Dropdown der
+ * Statistik-Uebersicht.
+ */
+export function vergangeneQuartaleImJahr(aktuellesQuartal: string): string[] {
+  const match = /^(\d{4})-Q([1-4])$/.exec(aktuellesQuartal);
+  if (!match) return [];
+  const year = match[1];
+  const q = Number(match[2]);
+  const result: string[] = [];
+  for (let i = q - 1; i >= 1; i--) {
+    result.push(`${year}-Q${i}`);
+  }
+  return result;
+}
+
 export function computeQuartalsStatistik(
   mitarbeiter: Record<string, AnonymerMitarbeiter>,
   auslastungByAnon: Map<string, MaQuartalsAuslastung>,

@@ -20,10 +20,12 @@ interface Props {
   progressColor?: string;
   /** Optional: Meta-Zeile unter dem Bar, z.B. "12 ohne Buchungen · 0 abgemeldet". */
   meta?: string;
+  /** Optional: dezente Vergleichs-Zeile (Delta-Overlay), z.B. "Q1: 3.980 h · +186 h". */
+  compareNote?: string;
 }
 
 export function KpiCard({
-  label, primary, ofText, progressPct, progressColor, meta,
+  label, primary, ofText, progressPct, progressColor, meta, compareNote,
 }: Props): React.ReactElement {
   const clamped = Math.min(100, Math.max(0, progressPct));
   return (
@@ -84,6 +86,15 @@ export function KpiCard({
           style={{ fontSize: 11.5, lineHeight: 1.4 }}
         >
           {meta}
+        </p>
+      )}
+
+      {compareNote && (
+        <p
+          className="mt-1 text-[var(--tf-text-tertiary)]"
+          style={{ fontSize: 11, lineHeight: 1.4, opacity: 0.85 }}
+        >
+          {compareNote}
         </p>
       )}
     </div>
