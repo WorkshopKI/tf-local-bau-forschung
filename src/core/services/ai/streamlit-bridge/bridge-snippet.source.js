@@ -16,7 +16,7 @@
   // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
   // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
   // ODER die Log-Zeile beim Aktivieren.
-  var BRIDGE_REV = '2026-07-02-echo-anchor';
+  var BRIDGE_REV = '2026-07-02-first-answer';
   window.__teamflowBridgeRev = BRIDGE_REV;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
@@ -393,20 +393,20 @@
       // Antwort-Aenderungen + laufendem `isRunning()` (Pausen-Schutz) beruehrt.
       var lastContentChange = Date.now();
 
-      // Antwort = die Nachricht NACH unserem gesendeten Prompt (dem User-Echo),
-      // NICHT „die letzte Assistant-Nachricht". Zaehl-Baselines sind timing-fragil:
-      // die AitisiGPT-Begruessung rendert nach einem Reset ggf. erst NACH dem
-      // Zaehlpunkt und wird dann faelschlich gegriffen. Der Prompt-Echo-Anker ist
-      // render-timing-unabhaengig — die Begruessung steht IMMER vor unserem Prompt.
+      // Antwort = die ERSTE Assistant-Nachricht NACH unserem Prompt-Echo — NICHT die
+      // letzte. AitisiGPT haengt NACH der eigentlichen Antwort noch eine kanned Folge-
+      // Begruessung an („Hi! Ich bin Aitisi und recherchiere…"). DOM-Roster-Beleg:
+      //   [0] Begruessung · [1] User-Prompt · [2] JSON-Antwort · [3] Folge-Begruessung
+      // „letzte Assistant-Nachricht" waere also [3] = falsch. Die erste NACH dem Echo
+      // ist die Antwort; Begruessung [0] steht davor, [3] danach — beide ausgeschlossen.
       function lastAssistant() {
         var msgs = qa(SEL.msg), lastUser = -1;
         for (var i = msgs.length - 1; i >= 0; i--) {
           if (isUser(msgs[i])) { lastUser = i; break; } // Index unseres Prompt-Echos
         }
-        // letzte Nicht-User-Nachricht STRIKT nach dem Echo. Fehlt das Echo (isUser
-        // greift nicht), faengt der `md !== message`-Guard im Poll das Echo ab.
-        for (var j = msgs.length - 1; j > lastUser; j--) {
-          if (!isUser(msgs[j])) return msgs[j];
+        if (lastUser < 0) return null; // Prompt-Echo nicht gefunden → nicht raten
+        for (var j = lastUser + 1; j < msgs.length; j++) {
+          if (!isUser(msgs[j])) return msgs[j]; // erste Nicht-User-Nachricht danach
         }
         return null;
       }

@@ -5,6 +5,23 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.159.4 — Bridge nimmt die ERSTE Antwort nach dem Prompt (AitisiGPT hängt Folge-Begrüßung an) (Juli 2026)
+
+PATCH — Endgültige Ursache, per Live-Console-Dump der AitisiGPT-Seite bewiesen: **AitisiGPT hängt NACH der
+eigentlichen Antwort noch eine kanned Folge-Begrüßung an** („Hi! Ich bin Aitisi und recherchiere für dich…").
+Das DOM-Roster war `[0] Begrüßung · [1] User-Prompt · [2] JSON-Antwort · [3] Folge-Begrüßung`. Bisher nahm das
+Bookmarklet die *letzte* Assistant-Nachricht (v2.159.3: letzte nach dem Echo = `[3]` = Folge-Begrüßung; früher
+schlicht die letzte). `isUser` funktioniert korrekt — die Antwort steht nur in der **Mitte**, nicht am Ende.
+
+- **Erste Antwort statt letzter** ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js),
+  `lastAssistant`): liefert die **erste** Nicht-User-Nachricht **nach** dem Prompt-Echo (`msgs[lastUser+1…]`
+  vorwärts). Begrüßung `[0]` steht davor, Folge-Begrüßung `[3]` danach → beide ausgeschlossen; die Antwort `[2]`
+  wird getroffen. `lastUser < 0` (Echo nicht gefunden) → `null` statt raten.
+- **Marker** `BRIDGE_REV` → `2026-07-02-first-answer`. Diagnose-Roster-Log bleibt.
+
+> ⚠️ **Re-Install nötig** (KI-Tab F5 + Bookmarklet neu ziehen/klicken; Tooltip muss `…first-answer` zeigen).
+> Sofort-Alternative ohne Bookmarklet: „Manuell ▾ → Prompt kopieren" + „LLM-Ergebnis einfügen".
+
 ### v2.159.3 — Bridge ankert die Antwort am Prompt-Echo statt an einer Zähl-Baseline (Juli 2026)
 
 PATCH — Nachtrag zu v2.159.1: Die LLM-Klassifizierung bekam weiter die AitisiGPT-**Begrüßung** zurück statt
