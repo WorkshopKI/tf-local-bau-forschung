@@ -36,6 +36,7 @@ import { ALL_ANTRAGSTYP_BUCKETS, type AnonymerMitarbeiter, type AntragstypBucket
 import { MaInlineDetail } from '../MaInlineDetail';
 import { ChevronRight } from 'lucide-react';
 import { MaListFilterBar, type ViewMode } from './MaListFilterBar';
+import { readMaListeFilters, persistMaListeFilters } from '../filterPersistence';
 import { MaTable, type SortColumn, type SortDir } from './MaTable';
 import { MaTileGrid } from './MaTileGrid';
 import { isMaVerwaltungPasswortEnabled } from '@/config/feature-flags';
@@ -82,9 +83,12 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
 
   const resolveName = useDeAnonResolver();
   const [zugangListe, setZugangListe] = useState<MaZugangItem[] | null>(null);
-  const [kategorieFilter, setKategorieFilter] = useState<string>('');
-  const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>('');
-  const [showInactive, setShowInactive] = useState(false);
+  // Filter aus localStorage vorbelegen (überleben Reload/Session); ein
+  // useEffect schreibt Änderungen zurück. Nicht-Standard-Kategorie/Antragstyp
+  // klappen ihr CollapsibleSeg automatisch auf.
+  const [kategorieFilter, setKategorieFilter] = useState<string>(() => readMaListeFilters().kategorie);
+  const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>(() => readMaListeFilters().antragstyp);
+  const [showInactive, setShowInactive] = useState(() => readMaListeFilters().showInactive);
   const [expandedMa, setExpandedMa] = useState<string | null>(null);
   const [vorschlagDismissed, setVorschlagDismissed] = useState(false);
   const [vorschlagBusy, setVorschlagBusy] = useState(false);
@@ -92,6 +96,19 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
   const [maOpen, setMaOpen] = useState<boolean>(readInitialMaOpen);
   const [sortCol, setSortCol] = useState<SortColumn>('belegt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  // Filter-Auswahl persistieren, sobald sich etwas ändert.
+  useEffect(() => {
+    persistMaListeFilters({ kategorie: kategorieFilter, antragstyp: antragstypFilter, showInactive });
+  }, [kategorieFilter, antragstypFilter, showInactive]);
+
+  // Persistierte Kategorie gegen die aktuelle Konfiguration abgleichen
+  // (Cold-Start-safe: nur wenn die Liste schon geladen ist).
+  useEffect(() => {
+    if (kategorieFilter && kategorien.length > 0 && !kategorien.some(k => k.id === kategorieFilter)) {
+      setKategorieFilter('');
+    }
+  }, [kategorieFilter, kategorien]);
 
   const referenzJahr = useMemo(() => new Date().getUTCFullYear(), []);
   const { ready } = useAuslastungReady();

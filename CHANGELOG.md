@@ -5,6 +5,30 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.157.0 — Auslastungs-Filter überleben die Session (Juli 2026)
+
+MINOR — Die Filter-Segmente der Auslastungs-Tabs lagen bisher in reinem `useState` und gingen bei jedem
+Reload verloren. Neu werden sie pro Tab in localStorage gehalten und beim nächsten Aufruf wieder angewandt
+— und Segmente mit einem vom Standard abweichenden Wert klappen dabei automatisch auf, sodass der User
+sieht „hier ist etwas gefiltert".
+
+- **Neuer Helfer [filterPersistence.ts](src/plugins/auslastung/views/filterPersistence.ts)** — eine Heimat
+  für die Filter-Persistenz des Moduls: safe `readJson`/`writeJson` (try/catch + defensive Enum-Validierung,
+  Fallback auf Default bei Müll) und drei typisierte Read/Persist-Paare. Reine UI-Preference in localStorage
+  (kein Varianten-Suffix, origin-weit wie `SPLIT_STORAGE_KEY`). Keys `tf-auslastung-{zuweisung,klassifizierung,maliste}-filters`.
+- **Verdrahtet** in [ZuweisungsCockpit.tsx](src/plugins/auslastung/views/ZuweisungsCockpit.tsx) (Kategorie/
+  Antragstyp/Status/Sortierung), [KlassifizierungsReview.tsx](src/plugins/auslastung/views/KlassifizierungsReview.tsx)
+  (Sicht-Filter/Kategorie/Antragstyp) und [MaListSection.tsx](src/plugins/auslastung/views/uebersicht/MaListSection.tsx)
+  (Kategorie/Antragstyp/Inaktive-Toggle; die View-Umschaltung war schon persistiert): Lazy-Init aus dem Store,
+  ein `useEffect` schreibt Änderungen zurück.
+- **Kein Eingriff in `CollapsibleSeg`:** das Auto-Aufklappen bei `value !== defaultValue` existiert bereits;
+  der Auf-/Zuklapp-Zustand (`manualClosed`) wird bewusst **nicht** persistiert (Reset beim Reload). Das
+  „Sortiert nach"-Segment bleibt bewusst eingeklappt (`startCollapsed`) — Wert wird persistiert & angewandt,
+  die eingeklappte Pille zeigt ihn ohnehin; eine Sortierung blendet keine Daten aus.
+- **Härtung:** eine zwischenzeitlich entfernte Überkategorie wird beim Laden gegen `config.ueberKategorien`
+  abgeglichen (Cold-Start-safe) und auf „Alle" zurückgesetzt, statt still 0 Ergebnisse zu filtern.
+- Test [filter-persistence.test.ts](src/plugins/auslastung/__tests__/filter-persistence.test.ts).
+
 ### v2.156.1 — „Erzwungen neu prüfen" nur noch in dev + kurator (Juli 2026)
 
 PATCH — Der ● CSV-Panel-Knopf „Erzwungen neu prüfen" (v2.155) ist ein Diagnose-/Kurations-Werkzeug und

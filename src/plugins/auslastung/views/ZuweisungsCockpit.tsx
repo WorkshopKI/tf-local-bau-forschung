@@ -51,7 +51,6 @@ import { useKuerzelExport } from '../hooks/useKuerzelExport';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import {
   buildZuweisungSortOptions,
-  DEFAULT_ZUWEISUNG_SORT,
   type ZuweisungSortKey,
 } from '../services/matching';
 import type { Antrag } from '@/core/services/csv/types';
@@ -67,6 +66,7 @@ import {
 import { DetailPanel } from './DetailPanel';
 import { VerbundListe } from './VerbundListe';
 import { FilterToolbar } from './FilterToolbar';
+import { readZuweisungFilters, persistZuweisungFilters } from './filterPersistence';
 
 export function ZuweisungsCockpit(): React.ReactElement {
   const storage = useStorage();
@@ -90,10 +90,31 @@ export function ZuweisungsCockpit(): React.ReactElement {
   // unklassifizierten Antraege war hier reine CPU-Verschwendung.
   const view = usePersistedKlassifizierungenView(cache.antraege, klassifizierungen);
 
-  const [kategorieFilter, setKategorieFilter] = useState<string>('');
-  const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('offen');
-  const [sortKey, setSortKey] = useState<ZuweisungSortKey>(DEFAULT_ZUWEISUNG_SORT);
+  // Filter-Segmente aus localStorage vorbelegen (überleben Reload/Session);
+  // ein useEffect weiter unten schreibt jede Änderung zurück. Nicht-Standard-
+  // Werte klappen ihr Segment via CollapsibleSeg automatisch auf.
+  const [kategorieFilter, setKategorieFilter] = useState<string>(() => readZuweisungFilters().kategorie);
+  const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>(() => readZuweisungFilters().antragstyp);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => readZuweisungFilters().status);
+  const [sortKey, setSortKey] = useState<ZuweisungSortKey>(() => readZuweisungFilters().sort);
+
+  // Filter-Auswahl zurückschreiben, sobald sich etwas ändert.
+  useEffect(() => {
+    persistZuweisungFilters({
+      kategorie: kategorieFilter, antragstyp: antragstypFilter, status: statusFilter, sort: sortKey,
+    });
+  }, [kategorieFilter, antragstypFilter, statusFilter, sortKey]);
+
+  // Persistierte Kategorie gegen die aktuelle Konfiguration abgleichen — eine
+  // zwischenzeitlich entfernte Überkategorie würde sonst still „0 Ergebnisse"
+  // filtern. Nur abgleichen, wenn die Liste schon geladen ist (Cold-Start-safe).
+  useEffect(() => {
+    const kats = config.ueberKategorien;
+    if (kategorieFilter && kats.length > 0 && !kats.some(k => k.id === kategorieFilter)) {
+      setKategorieFilter('');
+    }
+  }, [kategorieFilter, config.ueberKategorien]);
+
   const [selectedAz, setSelectedAz] = useState<string | null>(null);
   // v2.18: Inline-Bestätigung für die Rücknahme einer Zuweisung (verbundId).
   const [confirmUnassignId, setConfirmUnassignId] = useState<string | null>(null);

@@ -38,6 +38,11 @@ import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket, type Klassifizierung } f
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { buildVerbundColumns } from './verbund-columns';
+import {
+  readKlassifizierungFilters,
+  persistKlassifizierungFilters,
+  type ViewFilter,
+} from './filterPersistence';
 import { VerbundClassificationTable } from './VerbundClassificationTable';
 import { LLMKlassifizierungButtons } from '../components/LLMKlassifizierungButtons';
 import { SkeletonRows } from '../components/Skeleton';
@@ -46,8 +51,6 @@ import { SkeletonRows } from '../components/Skeleton';
 function fmtCount(value: number, loading: boolean): string {
   return loading ? '…' : String(value);
 }
-
-type ViewFilter = 'alle' | 'review' | 'llm' | 'freigegeben' | 'unvollstaendig';
 
 /** Verbund mit offenem (= noch nicht freigegebenem) LLM-Vorschlag. */
 function istLlmVorschlag(v: VerbundKlassifizierungsView): boolean {
@@ -218,9 +221,25 @@ export function KlassifizierungsReview(): React.ReactElement {
     [cache.antraege, verteilCutoff, config.ueberKategorien, klassifizierungen, deferredEmbeddings, config.stage2Aktiv, cache.verbuende, gate, cache.deskriptorenByAz, cache.ztKlartexteByAz],
   );
 
-  const [filter, setFilter] = useState<ViewFilter>('alle');
-  const [kategorieFilter, setKategorieFilter] = useState<string>('');
-  const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>('');
+  // Filter-Segmente aus localStorage vorbelegen (überleben Reload/Session);
+  // ein useEffect schreibt jede Änderung zurück. Nicht-Standard-Werte klappen
+  // ihr CollapsibleSeg automatisch auf.
+  const [filter, setFilter] = useState<ViewFilter>(() => readKlassifizierungFilters().filter);
+  const [kategorieFilter, setKategorieFilter] = useState<string>(() => readKlassifizierungFilters().kategorie);
+  const [antragstypFilter, setAntragstypFilter] = useState<AntragstypBucket | ''>(() => readKlassifizierungFilters().antragstyp);
+
+  useEffect(() => {
+    persistKlassifizierungFilters({ filter, kategorie: kategorieFilter, antragstyp: antragstypFilter });
+  }, [filter, kategorieFilter, antragstypFilter]);
+
+  // Persistierte Kategorie gegen die aktuelle Konfiguration abgleichen
+  // (Cold-Start-safe: nur wenn die Liste schon geladen ist).
+  useEffect(() => {
+    const kats = config.ueberKategorien;
+    if (kategorieFilter && kats.length > 0 && !kats.some(k => k.id === kategorieFilter)) {
+      setKategorieFilter('');
+    }
+  }, [kategorieFilter, config.ueberKategorien]);
 
   // Freigabe-Grace-Period: nach „Freigeben" wechselt der Verbund auf Status
   // 'freigegeben' und faellt aus dem „Review nötig"-Filter. Statt sofort zu
