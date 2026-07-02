@@ -182,23 +182,25 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     ? 'h-full flex'
     : 'flex-1 min-w-0 h-full flex';
 
-  // Toolbar teilt dieselbe Content-Box wie die Liste/Tabelle (max-w-6xl px-8),
-  // damit das rechtsbündige „Spalten"-Dropdown (Compact) mit dem Tabellen-Rand
-  // fluchtet. Cards nutzen die volle Breite (wie der Card-Content); narrow px-4.
+  // Toolbar teilt dieselbe Content-Box wie die Liste/Tabelle, damit das
+  // rechtsbündige „Spalten"-Dropdown (Compact) mit dem Tabellen-Rand fluchtet.
+  // Nur die List-View trägt den max-w-6xl-Lesbarkeits-Cap; Tabelle (Compact)
+  // + Cards nutzen die volle Breite → Toolbar-Box muss denselben Cap-Zustand
+  // wie der Content darunter haben. narrow px-4.
   const toolbarClass = narrow
     ? 'px-4 pt-3'
-    : viewMode === 'cards'
-      ? 'px-8 pt-3'
-      : 'px-8 pt-3 max-w-6xl';
-  // Karten-View nutzt die volle Browserbreite, damit auf breiten Monitoren
-  // alle Anträge mit wenig Scrollen sichtbar sind. List/Kompakt behalten
-  // max-w-6xl als Lesbarkeits-Cap fuer die Listen-Zeilen (Zeilen werden
-  // sonst unangenehm lang).
+    : viewMode === 'list'
+      ? 'px-8 pt-3 max-w-6xl'
+      : 'px-8 pt-3';
+  // Karten- UND Tabellen-View nutzen die volle Browserbreite, damit auf breiten
+  // Monitoren alle Spalten/Anträge mit wenig Scrollen sichtbar sind. Nur die
+  // List-View behält max-w-6xl als Lesbarkeits-Cap für die Listen-Zeilen
+  // (Text-Zeilen werden sonst unangenehm lang).
   const contentClass = narrow
     ? 'px-4 pb-4'
-    : viewMode === 'cards'
-      ? 'px-8 pb-6'
-      : 'px-8 pb-6 max-w-6xl';
+    : viewMode === 'list'
+      ? 'px-8 pb-6 max-w-6xl'
+      : 'px-8 pb-6';
 
   // Trefferzahl nach Filterung — immer auf TV-Ebene. In der Tabellen-Ansicht
   // zählt der spaltengefilterte Wert (Fallback `filtered.length` für das eine

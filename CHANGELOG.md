@@ -5,6 +5,23 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.159.2 — Förderanträge-Tabelle nutzt die volle Browserbreite (Juli 2026)
+
+PATCH — Die Tabellen-Ansicht der Förderanträge (`viewMode === 'compact'`) war auf `max-w-6xl` (~1152px)
+gedeckelt. Sobald über den Spalten-Picker mehr Spalten eingeblendet wurden, als in diese Box passen
+(z.B. FKZ · TIB · Akronym · Status · FB Status · PreCheck Status · Frist · Erstentscheidung), wurden die
+rechten Spalten abgeschnitten — und ein breiteres Browserfenster half nicht, weil der Cap die zusätzliche
+Breite ignorierte.
+
+- **Cap nur noch für die List-View** ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx),
+  `toolbarClass` + `contentClass`): der `max-w-6xl`-Lesbarkeits-Cap wandert vom „list+compact"-Zweig in
+  einen `viewMode === 'list'`-only-Zweig. Tabelle (Compact) + Karten nutzen jetzt die **volle** verfügbare
+  Breite; auf breiten Monitoren werden alle eingeblendeten Spalten ohne horizontalen Scroll sichtbar.
+- **Keine neue Mechanik nötig**: `AntraegeTable` rendert bereits über `SortableTable` mit `fitContentWidth`
+  (Tabelle füllt den Container, scrollt erst bei Spaltensumme > Container) + Spalten-Resize inkl.
+  Drag-Handle an der letzten Spalte — „am rechten Rand der letzten Spalte breiter ziehen" funktioniert damit
+  direkt. Die List-View behält ihren Lesbarkeits-Cap (lange Text-Zeilen).
+
 ### v2.159.1 — Bridge greift die Begrüßung statt der Antwort (Baseline-Fix) (Juli 2026)
 
 PATCH — Nachtrag zu v2.157.1: die LLM-Klassifizierung kam trotz sichtbar korrektem JSON weiterhin nicht in
