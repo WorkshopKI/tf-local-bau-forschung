@@ -12,6 +12,14 @@
   if (window.__teamflowBridge) return;
   window.__teamflowBridge = true;
 
+  // Versions-Marker: bei JEDER Aenderung an diesem Snippet bumpen. So laesst sich im
+  // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
+  // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
+  // ODER die Log-Zeile beim Aktivieren.
+  var BRIDGE_REV = '2026-07-02-baseline';
+  window.__teamflowBridgeRev = BRIDGE_REV;
+  try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
+
   // Selektor-Fallback-Arrays (spezifisch -> generisch). Deckt mehrere
   // Streamlit-Versionen ab; `.st-key-input_msg` setzt `key="input_msg"` voraus.
   var SEL = {
@@ -308,6 +316,7 @@
   badge.id = 'tf-bridge-badge';
   badge.style.cssText = 'padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;background:' + TONES.ready.bg + ';color:' + TONES.ready.fg + ';';
   badge.textContent = 'Interne KI';
+  badge.title = 'TeamFlow-Bridge ' + BRIDGE_REV; // Hover → welche Bookmarklet-Version laeuft
   bar.appendChild(badge);
   function setBadge(tone, text) {
     var t = TONES[tone] || TONES.ready;
@@ -368,6 +377,14 @@
     setValue(ta, message);
 
     setTimeout(function () {
+      // Baseline VOR dem Absenden: Anzahl bereits vorhandener Chat-Nachrichten
+      // (AitisiGPT-Begruessung, aeltere Antworten). Nur Nachrichten AB diesem Index
+      // gelten als Antwort auf DIESE Anfrage — sonst finalisiert die Bridge auf der
+      // Begruessung/einer alten Antwort, bevor das echte Ergebnis kommt, und schickt
+      // Nicht-JSON zurueck (Parser wirft, Batch scheitert). Nach einem Reset ist das
+      // Streamlit-Rerun hier (nach setValue + diesem 200-ms-Tick) laengst gerendert →
+      // die Begruessung zaehlt korrekt zur Baseline.
+      var baseline = qa(SEL.msg).length;
       submit(ta);
       // SETTLE_MS = Idle-Fenster vor dem Finalisieren. Grosszuegig (5 s), damit
       // Thinking-Modelle (Reasoning immer an) eine Denk-Pause zwischen erstem Token
@@ -386,7 +403,10 @@
 
       function lastAssistant() {
         var msgs = qa(SEL.msg), cand = null;
-        for (var i = msgs.length - 1; i >= 0; i--) {
+        // Nur NEUE Nachrichten (Index >= baseline) betrachten — schuetzt davor, die
+        // Begruessung/eine alte Antwort zu greifen (auch bei fehlgeschlagenem Reset
+        // oder im Chat-Modus mit Verlauf).
+        for (var i = msgs.length - 1; i >= baseline; i--) {
           if (!isUser(msgs[i])) { cand = msgs[i]; break; } // User-Echo ueberspringen
         }
         return cand;

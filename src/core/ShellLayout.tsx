@@ -372,7 +372,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
             )}
           </nav>
 
-          <div className="px-2 py-1.5 shrink-0 flex flex-col gap-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <div className="px-2 py-1.5 shrink-0 flex flex-col" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             {sidebarMode === 'expanded' ? (
               <>
                 {/* Zeile 1: „Neu hier?" / „Zeig es mir" (links) + Version (rechts). */}
@@ -380,9 +380,14 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
                   <FooterShowcaseButton activeId={activeId} pageName={pageName} />
                   <BuildInfo />
                 </div>
-                {/* Zeile 2: nur die Status-Ampeln („Variante D": Punkt+Wort),
-                    linksbündig — bleibt auch bei schmaler Sidebar vollständig sichtbar. */}
-                <div className="flex items-center gap-0.5">
+                {/* Dünne Trennlinie zwischen den beiden Zeilen — volle Breite wie
+                    die obere Fußzeilen-Kante (`-mx-2` hebt das Container-Padding auf). */}
+                <div className="-mx-2 my-1.5" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
+                {/* Zeile 2: Status-Ampeln („Variante D": Punkt+Wort) gleichmäßig
+                    über die verfügbare Breite verteilt — `justify-between` skaliert
+                    responsiv mit der Sidebar-Breite, `gap-1` hält den Mindestabstand
+                    beim Verschmälern. */}
+                <div className="flex items-center justify-between gap-1">
                   <SyncStatusIndicator />
                   {/* CSV-Import-Stand — nur in Import-Rollen (pl/kurator/dev),
                       gleiches Gate wie „CSV-Quellen-Ordner" in den Einstellungen. */}

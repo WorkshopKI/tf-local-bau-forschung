@@ -190,15 +190,20 @@ interface RawLLMItem {
  */
 export function parseLLMResponse(raw: string): Array<{ id: string; primaer: string; aspekte: string[]; begruendung: string }> {
   const stripped = stripMarkdownWrapper(raw).trim();
+  // Snippet der erhaltenen Antwort für die Fehlermeldung — macht typische Ursachen
+  // sofort sichtbar (z. B. wenn die Bridge statt des JSON die AitisiGPT-Begrüßung
+  // „Informationen sprechen…" zurückliefert = Baseline-/Begrüßungs-Grab).
+  const antwortSnippet = raw.trim().slice(0, 160).replace(/\s+/g, ' ');
+  const snippetSuffix = antwortSnippet ? ` (Antwort-Anfang: „${antwortSnippet}…")` : '';
   // Erste eckige Klammer suchen — verhindert dass Erklaerungs-Text davor
   // den Parser blockiert.
   const start = stripped.indexOf('[');
   if (start < 0) {
-    throw new Error('Keine JSON-Array-Klammer im LLM-Output gefunden.');
+    throw new Error(`Keine JSON-Array-Klammer im LLM-Output gefunden.${snippetSuffix}`);
   }
   const parsed = parseJsonArrayTolerant(stripped.slice(start));
   if (parsed.length === 0) {
-    throw new Error('Keine vollstaendigen JSON-Objekte im LLM-Output gefunden — evtl. komplett abgeschnitten.');
+    throw new Error(`Keine vollstaendigen JSON-Objekte im LLM-Output gefunden — evtl. komplett abgeschnitten.${snippetSuffix}`);
   }
 
   const out: Array<{ id: string; primaer: string; aspekte: string[]; begruendung: string }> = [];

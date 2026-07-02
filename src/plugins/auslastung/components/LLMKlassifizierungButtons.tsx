@@ -182,6 +182,12 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
       });
       const updated = await applyResults(result.byVerbundId);
       const errorCount = result.errors.length;
+      // Kein einziges Ergebnis trotz Fehler → klaren, PERSISTENTEN Fehler zeigen
+      // (useAsyncAction-Error-Zeile) statt nur „(N Fehler)" im flüchtigen Toast. Die
+      // erste Meldung trägt jetzt einen Antwort-Snippet → sofort diagnostizierbar.
+      if (updated === 0 && errorCount > 0) {
+        throw new Error(result.errors[0]?.message || 'Klassifizierung fehlgeschlagen — keine Ergebnisse.');
+      }
       showToast(
         `${updated} Anträge (über ${result.byVerbundId.size} Verbünde) klassifiziert${errorCount > 0 ? ` (${errorCount} Fehler)` : ''}.`,
         errorCount > 0 ? 'error' : 'success',

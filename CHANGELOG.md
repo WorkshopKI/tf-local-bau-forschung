@@ -5,6 +5,29 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.159.1 — Bridge greift die Begrüßung statt der Antwort (Baseline-Fix) (Juli 2026)
+
+PATCH — Nachtrag zu v2.157.1: die LLM-Klassifizierung kam trotz sichtbar korrektem JSON weiterhin nicht in
+der App an (am echten Rechner reproduziert: 3× Prompt+Reset, jedes Mal „0/0, 1 Fehler"). Bestätigte Ursache:
+Das Bookmarklet las **die falsche Chat-Nachricht**.
+
+- **Baseline im Bookmarklet** ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js),
+  `runRequest`): `lastAssistant()` lieferte schlicht die *letzte* Nicht-User-Nachricht — nach jedem Reset ist das
+  die AitisiGPT-**Begrüßung** („Informationen sprechen…"), bis die echte Antwort kommt. Die Bridge finalisierte
+  darauf → `parseLLMResponse` fand kein `[` → Fehler → Retry → dasselbe. Neu wird **vor dem Absenden** die
+  Nachrichtenzahl als `baseline` gemerkt; nur Nachrichten **ab** diesem Index gelten als Antwort auf diese
+  Anfrage. Schützt auch bei fehlgeschlagenem Reset und im Chat-Modus mit Verlauf. (Die Doku beschrieb diese
+  „Baseline-Nachrichtenzahl vor dem Senden" bereits — im Code fehlte sie.)
+- **Versions-Marker im Bookmarklet** (`BRIDGE_REV`): Badge-Tooltip im KI-Tab + `window.__teamflowBridgeRev` +
+  Konsolen-Log beim Aktivieren — damit „läuft das neue Bookmarklet?" ohne Rätselraten prüfbar ist.
+- **Diagnostischer Fehler** ([llm-klassifizierung.ts](src/plugins/auslastung/services/klassifizierung/llm-klassifizierung.ts)
+  + [LLMKlassifizierungButtons.tsx](src/plugins/auslastung/components/LLMKlassifizierungButtons.tsx)):
+  `parseLLMResponse`-Fehler tragen jetzt einen Antwort-Snippet („Antwort-Anfang: „…""), und die UI zeigt bei
+  0 Ergebnissen die **erste** Fehlermeldung persistent statt nur „(N Fehler)".
+
+> ⚠️ **Re-Install nötig:** Bookmarklet erst nach KI-Tab-Reload (F5) + Neu-Ziehen + Klick aktiv. Verifizieren
+> über den Badge-Tooltip (zeigt `rev 2026-07-02-baseline`).
+
 ### v2.159.0 — Sidebar-Statusleiste zweizeilig + kontextuelles „Zeig es mir" (Juli 2026)
 
 MINOR — Die Sidebar-Fußzeile war einzeilig überfüllt (`Neu hier?` + Ampeln `● Sync ● CSV ● KI` +

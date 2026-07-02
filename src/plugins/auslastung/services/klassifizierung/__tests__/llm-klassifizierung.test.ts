@@ -8,7 +8,7 @@
  * Spiegelt anfragen/services/__tests__/anonymisierung.test.ts.
  */
 import { describe, expect, it } from 'vitest';
-import { klassifiziereBatch, type LLMVerbund } from '../llm-klassifizierung';
+import { klassifiziereBatch, parseLLMResponse, type LLMVerbund } from '../llm-klassifizierung';
 import type { AIBridge } from '@/core/services/ai/bridge';
 import type { UeberKategorie } from '../../../types';
 
@@ -77,6 +77,20 @@ describe('klassifiziereBatch — Reset + Retry', () => {
     });
     expect(res.byVerbundId.size).toBe(0);
     expect(res.errors).toHaveLength(1);
+  });
+});
+
+describe('parseLLMResponse — diagnostischer Antwort-Snippet', () => {
+  it('Nicht-JSON (z. B. gegriffene AitisiGPT-Begrüßung) → Fehler mit Antwort-Anfang', () => {
+    // Reproduziert den Begrüßungs-Grab: die Bridge liefert statt JSON die Begrüßung.
+    const begruessung = 'Informationen sprechen. Gern kannst du ein oder mehrere Dokumente oben ablegen.';
+    expect(() => parseLLMResponse(begruessung)).toThrow(/Antwort-Anfang/);
+    expect(() => parseLLMResponse(begruessung)).toThrow(/Informationen sprechen/);
+  });
+
+  it('gültiges JSON-Array parst weiterhin fehlerfrei', () => {
+    const out = parseLLMResponse('[{"id":"VB-1","primaer":"IT","aspekte":["DT"],"begruendung":"ok"}]');
+    expect(out).toEqual([{ id: 'VB-1', primaer: 'IT', aspekte: ['DT'], begruendung: 'ok' }]);
   });
 });
 
