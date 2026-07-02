@@ -16,7 +16,7 @@
   // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
   // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
   // ODER die Log-Zeile beim Aktivieren.
-  var BRIDGE_REV = '2026-07-02-first-answer';
+  var BRIDGE_REV = '2026-07-03-selftest';
   window.__teamflowBridgeRev = BRIDGE_REV;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
@@ -350,6 +350,16 @@
     }, 3000);
   });
 
+  // „Chat-Test": schickt eine harmlose Rechenfrage durch den ECHTEN Scrape-Pfad und
+  // meldet, ob die Antwort korrekt erkannt wird → erkennt eine geaenderte KI-Oberflaeche.
+  var chatTestBtn = document.createElement('button');
+  chatTestBtn.id = 'tf-bridge-chattest';
+  chatTestBtn.textContent = 'Chat-Test';
+  chatTestBtn.style.cssText = 'padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;border:1px solid ' + TONES.ready.fg + ';background:#fff;color:' + TONES.ready.fg + ';cursor:pointer;';
+  chatTestBtn.title = 'Sendet eine Testfrage an die interne KI und prueft, ob die Antwort korrekt erkannt wird (erkennt Oberflaechen-Aenderungen)';
+  bar.appendChild(chatTestBtn);
+  chatTestBtn.addEventListener('click', function () { runSelfTest(); });
+
   // Beim Aktivieren dem oeffnenden App-Fenster Bescheid geben → die App
   // uebernimmt das Fenster-Handle (event.source) und kann zuverlaessig pingen,
   // ohne den Tab per window.open neu zu laden. Kein opener (manuell geoeffnet
@@ -361,8 +371,29 @@
     // selbst klicken zu muessen. Kleiner Versatz, damit das opener-Fenster sicher
     // bereit ist. Der Button bleibt als manueller Fallback erhalten.
     setTimeout(function () { testBtn.click(); }, 300);
+    // Chat-Selbsttest: unauffaelliger Rundlauf durch den ECHTEN Scrape-Pfad, damit eine
+    // geaenderte KI-Oberflaeche sofort beim Start auffaellt (raeumt danach per Reset auf).
+    setTimeout(function () { runSelfTest(); }, 1500);
   } else {
     setBadge('error', 'Tab aus der App öffnen');
+  }
+
+  // Antwort-Nachricht im Chat-DOM finden: die ERSTE Assistant-Nachricht NACH unserem
+  // Prompt-Echo (der letzten User-Nachricht) — NICHT die letzte. AitisiGPT haengt NACH
+  // der Antwort noch eine kanned Folge-Begruessung an; DOM-Roster real:
+  //   [0] Begruessung · [1] User-Prompt · [2] Antwort · [3] Folge-Begruessung
+  // Die erste nach dem Echo ist die Antwort; [0] steht davor, [3] danach — beide raus.
+  // Geteilt von runRequest UND runSelfTest (damit der Selbsttest denselben Pfad prueft).
+  function findAnswerMsg() {
+    var msgs = qa(SEL.msg), lastUser = -1;
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      if (isUser(msgs[i])) { lastUser = i; break; } // Index unseres Prompt-Echos
+    }
+    if (lastUser < 0) return null; // Prompt-Echo nicht gefunden → nicht raten
+    for (var j = lastUser + 1; j < msgs.length; j++) {
+      if (!isUser(msgs[j])) return msgs[j]; // erste Nicht-User-Nachricht danach
+    }
+    return null;
   }
 
   // ── Anfrage-Engine: einfuegen → absenden → live streamen → finalisieren ────
@@ -393,27 +424,9 @@
       // Antwort-Aenderungen + laufendem `isRunning()` (Pausen-Schutz) beruehrt.
       var lastContentChange = Date.now();
 
-      // Antwort = die ERSTE Assistant-Nachricht NACH unserem Prompt-Echo — NICHT die
-      // letzte. AitisiGPT haengt NACH der eigentlichen Antwort noch eine kanned Folge-
-      // Begruessung an („Hi! Ich bin Aitisi und recherchiere…"). DOM-Roster-Beleg:
-      //   [0] Begruessung · [1] User-Prompt · [2] JSON-Antwort · [3] Folge-Begruessung
-      // „letzte Assistant-Nachricht" waere also [3] = falsch. Die erste NACH dem Echo
-      // ist die Antwort; Begruessung [0] steht davor, [3] danach — beide ausgeschlossen.
-      function lastAssistant() {
-        var msgs = qa(SEL.msg), lastUser = -1;
-        for (var i = msgs.length - 1; i >= 0; i--) {
-          if (isUser(msgs[i])) { lastUser = i; break; } // Index unseres Prompt-Echos
-        }
-        if (lastUser < 0) return null; // Prompt-Echo nicht gefunden → nicht raten
-        for (var j = lastUser + 1; j < msgs.length; j++) {
-          if (!isUser(msgs[j])) return msgs[j]; // erste Nicht-User-Nachricht danach
-        }
-        return null;
-      }
-
       var iv = setInterval(function () {
         if (finished) return;
-        var cand = lastAssistant();
+        var cand = findAnswerMsg();
         var md = cand ? contentOf(cand) : '';
         if (md && md !== message && md !== lastMd) {
           lastMd = md;
@@ -463,6 +476,60 @@
             result: lastMd || 'Zeitüberschreitung: Keine Antwort von der internen KI' }, '*');
         }
       }, POLL_MS);
+    }, 200);
+  }
+
+  // ── Chat-Selbsttest (Start-Rundlauf + „Chat-Test"-Knopf) ─────────────────
+  // Schickt EINE harmlose, variierende Rechenfrage durch denselben Scrape-Pfad wie
+  // echte Anfragen (findAnswerMsg + contentOf) und prueft, ob die Antwort die erwartete
+  // Summe enthaelt. So faellt eine geaenderte AitisiGPT-Oberflaeche (Selektor/Reihenfolge/
+  // neue Zwischennachricht) SOFORT beim Start auf — statt spaeter als stille Fehl-
+  // klassifizierung. Unauffaellig fuers Server-Log: sieht wie ein trivialer Verbindungs-
+  // test aus. Raeumt danach per „Neuer Chat" auf. (resetChat ist per Hoisting sichtbar.)
+  var selfTestRunning = false;
+  function runSelfTest() {
+    if (selfTestRunning) return;
+    var ta = q1(SEL.textarea);
+    if (!ta) { setBadge('error', 'Chat-Test: kein Eingabefeld'); return; }
+    selfTestRunning = true;
+    var a = 10 + Math.floor(Math.random() * 80);
+    var b = 10 + Math.floor(Math.random() * 80);
+    var erwartet = String(a + b);
+    var frage = 'Was ist ' + a + ' + ' + b + '?';
+    setBadge('working', 'Chat-Test läuft…');
+    setValue(ta, frage);
+    setTimeout(function () {
+      submit(ta);
+      var started = Date.now(), lastMd = '', lastChange = Date.now(), done = false;
+      var iv = setInterval(function () {
+        if (done) return;
+        var cand = findAnswerMsg();
+        var md = cand ? contentOf(cand) : '';
+        if (md && md !== frage && md !== lastMd) { lastMd = md; lastChange = Date.now(); }
+        if (isRunning()) lastChange = Date.now();
+        var settled = lastMd && !isRunning() && (Date.now() - lastChange) >= 4000;
+        if (!settled && Date.now() - started < 60000) return; // weiter warten
+        done = true;
+        clearInterval(iv);
+        var seen = (lastMd || '').replace(/\s+/g, ' ').trim();
+        var ok = seen.indexOf(erwartet) !== -1;
+        // "keine Antwort" (leer) vs. "falsche Antwort erkannt" (Oberflaeche geaendert)
+        // getrennt melden, damit ein langsamer/getrennter Server nicht als UI-Aenderung
+        // fehlgedeutet wird.
+        var warnText = seen ? 'Chat-Test: Oberfläche evtl. geändert' : 'Chat-Test: keine Antwort';
+        try {
+          console.log('[TeamFlow-Bridge] Chat-Test ' + (ok ? 'OK' : 'FEHLGESCHLAGEN')
+            + ' — Frage "' + frage + '", erwartet "' + erwartet + '", gesehen: "' + seen.slice(0, 100) + '"');
+        } catch (e) { /* ignore */ }
+        var ctb = document.getElementById('tf-bridge-chattest');
+        if (ctb) ctb.textContent = ok ? 'Chat-Test OK' : 'Chat-Test: prüfen';
+        // Aufraeumen: Test-Chat zuruecksetzen (frischer Kontext fuer echte Anfragen).
+        setTimeout(function () {
+          try { resetChat(); } catch (e) { /* ignore */ }
+          setBadge(ok ? 'ready' : 'working', ok ? 'Verbunden' : warnText);
+          selfTestRunning = false;
+        }, 500);
+      }, 400);
     }, 200);
   }
 
