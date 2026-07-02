@@ -5,6 +5,32 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.158.2 — Spalten „FB Status" / „PreCheck Status" bleiben nicht mehr leer nach Mapping-Nachzug (Juli 2026)
+
+PATCH — Auf manchen Rechnern/Varianten blieben die einblendbaren Tabellen-Spalten **„FB Status"** und
+**„PreCheck Status"** leer, obwohl Schema-Mapping **und** Rohdaten vorhanden waren (belegt: auf demselben
+Rechner `kurator`-DB befüllt, `pl`-DB leer bei identischem Schema + 11.633 Roh-Datumswerten). Ursache: Die
+FB/PC-Label werden bei der **List-View-Projektion** berechnet, indem die Legacy-Datums-Codes (`D_PC+`,
+`D_XPC+`, …) gegen die Schema-`column_mapping` aufgelöst werden. Wurden diese Spalten **nachträglich**
+gemappt, ändert das **keinen** Antrag-Record → weder der count-basierte Backfill noch der inkrementelle
+Snapshot-Diff bauen die Projektion neu, und der Code-Versions-Marker blieb gleich ⇒ der Altbestand behielt
+dauerhaft leere `fb_/precheck_status_label`.
+
+- **Sofort-Fix (flotten-weit)**: `LIST_VIEW_PROJECTION_VERSION` **4 → 5** ([list-view-migration.ts](src/core/services/csv/list-view-migration.ts))
+  → Marker-Mismatch löst beim ersten Start je Variante **einen** Voll-Rebuild aus (~5 s bei 14k, bestehende
+  Boot-Statuszeile; crash-safe, Marker erst nach Erfolg). Danach sind die Spalten befüllt.
+- **Härtung (schließt die Bug-Klasse)**: zusätzlicher **Schema-Signatur-Guard** — eine deterministische
+  Signatur der aufgelösten FB/PC-Felder (code→feld→label über alle Programme, `murmurhash3`) wird neben dem
+  Marker persistiert (`list-view-projection-schema-sig`). Ändert sich die Signatur (Mapping neu/ge-`ignore`d/
+  Label geändert), erzwingt der Boot-Guard automatisch einen Rebuild — **ohne** künftig den Code-Marker von
+  Hand bumpen zu müssen. Eine *fehlende* Signatur (Bestand vor v2.158.2) löst **keinen** Rebuild aus (das
+  deckt der v4→v5-Bump ab) und wird nur lazy nachgetragen; der „Marker aktuell → No-op/Backfill"-Pfad bleibt
+  unangetastet. `isListViewProjectionCurrent` (inkrementeller Sync) bleibt bewusst marker-only — Mapping-
+  Änderungen greifen beim nächsten Start.
+- Additiv, **keine User-Aktion**, kein Daten-Share-/IDB-Layout-Wechsel (nur ein neuer `kv`-Key). Tests:
+  [list-view-rebuild.test.ts](src/core/services/csv/__tests__/list-view-rebuild.test.ts) (Signatur-Guard löst
+  Rebuild aus / fehlende Signatur ist No-op).
+
 ### v2.158.1 — Aktuelles Quartal rollt automatisch mit dem Kalender (Juli 2026)
 
 PATCH — `config.aktuellesQuartal` wurde beim Setup einmal aus dem Datum abgeleitet und danach nie

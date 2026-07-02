@@ -10,19 +10,59 @@ import {
 } from './idb-csv';
 import { toAntragListItem } from './list-view';
 import { resolveStatusDatumGruppen } from './status-datum-gruppen';
+import { murmurhash3 } from './hash';
 import { tfPerfStart } from '@/core/utils/tfPerf';
+import type { Programm } from './types';
 
 /**
  * Schema-Version der List-View-Projektion. Bumpen, wenn `toAntragListItem`
  * neue Felder projiziert (v2: + t_hint, d_xtec, d_adv, tib_mail,
  * verbund_titel fuer den Auslastungs-Slim-Cache, v2.63; v3: + fb_status_label,
  * fb_status_datum, v2.121; v4: + precheck_status_label, precheck_status_datum,
- * v2.122) — der Count-basierte Backfill-Check unten erkennt Feld-Aenderungen
- * NICHT, nur fehlende Records. Marker-Mismatch → einmaliger Voll-Rebuild beim
- * ersten Start nach dem Update (~5 s bei 13k, bestehende Boot-Statuszeile).
+ * v2.122; v5: erzwungener Voll-Rebuild — die FB/PC-Datums-Spalten wurden
+ * nachträglich in den Programm-Schemas gemappt, aber eine Mapping-Änderung
+ * ändert KEINEN Antrag-Record → weder der Count-Backfill unten noch der
+ * inkrementelle Snapshot-Diff bauen die Projektion neu, und der Marker blieb
+ * gleich ⇒ `fb_/precheck_status_label` blieben für den Altbestand dauerhaft
+ * leer, v2.158.2) — der Count-basierte Backfill-Check unten erkennt
+ * Feld-Aenderungen NICHT, nur fehlende Records. Marker-Mismatch → einmaliger
+ * Voll-Rebuild beim ersten Start nach dem Update (~5 s bei 13k, bestehende
+ * Boot-Statuszeile).
  */
-export const LIST_VIEW_PROJECTION_VERSION = 4;
+export const LIST_VIEW_PROJECTION_VERSION = 5;
 const LIST_VIEW_VERSION_KEY = 'list-view-projection-version';
+/**
+ * Signatur der aus ALLEN Programm-Schemas aufgelösten Status-Datum-Felder
+ * (FB/PC). Ergänzt den reinen Code-Versions-Marker: Eine Mapping-Änderung (eine
+ * FB/PC-Spalte nachträglich gemappt / ge-`ignore`d / Label/Feldkey geändert)
+ * bumpt den Code-Marker NICHT und markiert keinen Record als geändert, würde die
+ * Projektion also nie neu bauen (Vorfall 2026-07: Spalten leer trotz gemapptem
+ * Schema + vorhandenen Rohwerten). Ändert sich die Signatur, erzwingt der
+ * Boot-Guard einen Voll-Rebuild — so lösen künftige Mapping-Änderungen den
+ * Rebuild automatisch aus, ohne den Code-Marker von Hand bumpen zu müssen.
+ */
+const LIST_VIEW_SCHEMA_SIG_KEY = 'list-view-projection-schema-sig';
+
+/**
+ * Deterministische Signatur der aufgelösten FB/PC-Felder über alle Programme
+ * (nach `id` sortiert). Erfasst code→feld→label je Gruppe — also exakt das, was
+ * `computeStatusDatum` bei der Projektion liest. Reiner Hash, keine Mutation.
+ */
+async function computeStatusDatumSchemaSig(
+  idb: IDBStore,
+  programme: readonly Programm[],
+): Promise<string> {
+  const sorted = [...programme].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const parts: string[] = [];
+  for (const p of sorted) {
+    const gruppen = resolveStatusDatumGruppen(await listSchemasByProgramm(idb, p.id));
+    const g = gruppen
+      .map(gr => `${gr.labelKey}=${gr.felder.map(f => `${f.code}>${f.feld}#${f.label}`).join('|')}`)
+      .join(';');
+    parts.push(`${p.id}{${g}}`);
+  }
+  return murmurhash3(parts.join('~'));
+}
 
 /**
  * Liegt die Slim-Projektion auf der aktuellen Schema-Version? Nur dann darf ein
@@ -93,17 +133,29 @@ export async function ensureListViewProjection(
 ): Promise<void> {
   const end = tfPerfStart('ensureListViewProjection');
 
+  const programme = await listProgramme(idb);
   const marker = (await idb.get<number>(LIST_VIEW_VERSION_KEY).catch(() => null)) ?? null;
-  if (marker !== LIST_VIEW_PROJECTION_VERSION) {
+  const currentSig = await computeStatusDatumSchemaSig(idb, programme);
+  const storedSig = (await idb.get<string>(LIST_VIEW_SCHEMA_SIG_KEY).catch(() => null)) ?? null;
+  // Voll-Rebuild bei (a) Code-Versions-Wechsel ODER (b) GEÄNDERTER Schema-
+  // Signatur (FB/PC-Mapping nachgezogen). Eine FEHLENDE Signatur (Bestand vor
+  // v2.158.2) erzwingt KEINEN Rebuild — das übernimmt bereits der v4→v5-Bump;
+  // sie wird unten lazy nachgetragen, damit der „Marker aktuell → No-op"-Pfad
+  // (Backfill/Stale-Erhalt) unangetastet bleibt.
+  const sigChanged = storedSig !== null && storedSig !== currentSig;
+  if (marker !== LIST_VIEW_PROJECTION_VERSION || sigChanged) {
     await rebuildAntraegeListView(idb, (done, total, programmId) => {
       onProgress?.({ programmId, done, total });
     });
     await idb.set(LIST_VIEW_VERSION_KEY, LIST_VIEW_PROJECTION_VERSION);
-    end(`full rebuild (projection v${marker ?? '∅'} → v${LIST_VIEW_PROJECTION_VERSION})`);
+    await idb.set(LIST_VIEW_SCHEMA_SIG_KEY, currentSig);
+    end(`full rebuild (v${marker ?? '∅'}→v${LIST_VIEW_PROJECTION_VERSION}${sigChanged ? ', schema-sig changed' : ''})`);
     return;
   }
+  // Signatur erstmalig hinterlegen (kein Rebuild) — ab jetzt lösen künftige
+  // Mapping-Änderungen den Guard oben aus.
+  if (storedSig === null) await idb.set(LIST_VIEW_SCHEMA_SIG_KEY, currentSig);
 
-  const programme = await listProgramme(idb);
   let totalProjected = 0;
   for (const p of programme) {
     const [fullCount, listViewCount] = await Promise.all([

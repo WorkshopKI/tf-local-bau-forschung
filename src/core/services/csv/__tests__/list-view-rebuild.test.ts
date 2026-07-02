@@ -12,6 +12,7 @@ import {
   putProgramm,
   putAntraege,
   putAntraegeListView,
+  putSchema,
   listAntraegeListViewByProgramm,
 } from '../idb-csv';
 import { toAntragListItem } from '../list-view';
@@ -20,7 +21,7 @@ import {
   ensureListViewProjection,
   LIST_VIEW_PROJECTION_VERSION,
 } from '../list-view-migration';
-import type { Antrag, Programm } from '../types';
+import type { Antrag, ColumnMapping, CsvSchema, Programm } from '../types';
 
 beforeEach(async () => {
   const { IDBFactory } = await import('fake-indexeddb');
@@ -131,5 +132,66 @@ describe('ensureListViewProjection — Projektion-Versions-Marker (v2.63)', () =
 
     const az = (await listAntraegeListViewByProgramm(idb, PID)).map(i => i.aktenzeichen).sort();
     expect(az).toEqual(['A', 'B']);
+  });
+});
+
+const SIG_KEY = 'list-view-projection-schema-sig';
+
+function makeSchema(cm: ColumnMapping): CsvSchema {
+  return {
+    id: 's-master',
+    programm_id: PID,
+    csv_source_name: 'src',
+    is_master: true,
+    join_key: 'aktenzeichen',
+    priority: 0,
+    column_mapping: cm,
+    created_at: '2026-01-01T00:00:00Z',
+  };
+}
+
+describe('ensureListViewProjection — Schema-Signatur-Guard (v2.158.2)', () => {
+  it('geänderte FB/PC-Mapping-Signatur bei aktuellem Marker → Voll-Rebuild füllt die Status-Label', async () => {
+    const idb = await freshIdb();
+    await putProgramm(idb, makeProgramm(PID));
+    // Schema mappt D_XPC+ (steht in FB- UND PreCheck-Codeliste) auf ein Datumsfeld.
+    await putSchema(idb, makeSchema({
+      'D_XPC+': { custom: 'precheck_positiv_verbund', type: 'date', label: 'PreCheck positiv - Verbund' },
+    }));
+    const antrag = { ...makeAntrag('16KN1', PID), precheck_positiv_verbund: '2025-05-21' } as Antrag;
+    await putAntraege(idb, [antrag]);
+    // „Vor dem Mapping projiziert": Slim-Eintrag OHNE Status-Label (kein gruppen-Arg).
+    await putAntraegeListView(idb, [toAntragListItem(antrag)]);
+    expect((await listAntraegeListViewByProgramm(idb, PID))[0]?.precheck_status_label ?? '').toBe('');
+    // Marker ist aktuell (KEIN Code-Versions-Trigger), aber die gespeicherte
+    // Signatur stammt aus der Zeit VOR dem Mapping → muss den Rebuild auslösen.
+    await idb.set(VERSION_KEY, LIST_VIEW_PROJECTION_VERSION);
+    await idb.set(SIG_KEY, 'sig-before-mapping');
+
+    await ensureListViewProjection(idb);
+
+    const lv = await listAntraegeListViewByProgramm(idb, PID);
+    expect(lv[0]?.precheck_status_label).toBe('PreCheck positiv - Verbund');
+    expect(lv[0]?.precheck_status_datum).toBe('2025-05-21');
+    // Signatur wurde auf den aktuellen Stand nachgezogen (nicht mehr der Sentinel).
+    expect(await idb.get<string>(SIG_KEY)).not.toBe('sig-before-mapping');
+  });
+
+  it('Signatur fehlt (Bestand vor v2.158.2) → KEIN Rebuild, Signatur wird nur nachgetragen', async () => {
+    const idb = await freshIdb();
+    await putProgramm(idb, makeProgramm(PID));
+    await putSchema(idb, makeSchema({
+      'D_XPC+': { custom: 'precheck_positiv_verbund', type: 'date', label: 'PreCheck positiv - Verbund' },
+    }));
+    await putAntraege(idb, [makeAntrag('A', PID)]);
+    await idb.set(VERSION_KEY, LIST_VIEW_PROJECTION_VERSION);
+    // Stale-only-Eintrag: bei einem (unerwünschten) Rebuild verschwände er.
+    await putAntraegeListView(idb, [toAntragListItem(makeAntrag('A', PID)), toAntragListItem(makeAntrag('STALE', PID))]);
+
+    await ensureListViewProjection(idb);
+
+    const az = (await listAntraegeListViewByProgramm(idb, PID)).map(i => i.aktenzeichen).sort();
+    expect(az).toEqual(['A', 'STALE']); // kein Rebuild
+    expect(await idb.get<string>(SIG_KEY)).toBeTruthy(); // aber Signatur jetzt hinterlegt
   });
 });
