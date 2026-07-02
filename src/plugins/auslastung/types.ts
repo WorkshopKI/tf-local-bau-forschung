@@ -730,6 +730,27 @@ export function deriveCurrentQuartal(now: Date = new Date()): string {
   return `${year}-Q${q}`;
 }
 
+/** Gueltiges Quartal-Label im festen Format "YYYY-Qn" (n = 1..4). */
+function isValidQuartalLabel(q: unknown): q is string {
+  return typeof q === 'string' && /^\d{4}-Q[1-4]$/.test(q);
+}
+
+/**
+ * Effektives „aktuelles Quartal" — faellt NIE hinter das Kalenderquartal von
+ * `now` zurueck. `config.aktuellesQuartal` wird beim Setup einmal aus dem Datum
+ * abgeleitet und persistiert, rollt aber nicht von selbst weiter; ohne diese
+ * Anhebung haengt das ganze Modul nach einem Quartalswechsel auf dem alten Wert
+ * fest (z.B. Q2 obwohl schon Q3). Ein bewusst in die ZUKUNFT gesetzter Wert
+ * (Voraus-Planung) bleibt erhalten — das Format ist fixed-width, daher entspricht
+ * der lexikalische Vergleich der chronologischen Reihenfolge (auch ueber
+ * Jahresgrenzen: "2026-Q4" < "2027-Q1"). Read-time, kein Config-Write noetig.
+ */
+export function effektivesAktuellesQuartal(gespeichert: unknown, now: Date = new Date()): string {
+  const derived = deriveCurrentQuartal(now);
+  if (!isValidQuartalLabel(gespeichert)) return derived;
+  return gespeichert >= derived ? gespeichert : derived;
+}
+
 export function emptyAuslastungData(): AuslastungData {
   return {
     version: 1,

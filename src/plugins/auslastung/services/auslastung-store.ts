@@ -19,6 +19,7 @@ import {
   AUSLASTUNG_JSON_PATH,
   AUSLASTUNG_JSON_PATH_LEGACY,
   DEFAULT_JAHRESKAPAZITAET,
+  effektivesAktuellesQuartal,
   emptyAuslastungData,
   type AnonymerMitarbeiter,
   type AntragstypBucket,
@@ -198,6 +199,12 @@ function normalizeAuslastungData(raw: Partial<AuslastungData> | null | undefined
   // Migration: stage2Aktiv ist seit Mai 2026 immer an (kein User-Toggle mehr).
   // Pre-Migration-Stände mit `false` werden hier hochgezogen.
   mergedConfig.stage2Aktiv = true;
+  // Aktuelles Quartal folgt automatisch dem Kalender: ein beim Setup gesetzter
+  // Wert rollt nicht von selbst weiter, darf aber nie hinter dem heutigen
+  // Quartal liegen (sonst hängt das ganze Modul nach dem Quartalswechsel auf
+  // dem alten Stand). Read-time-Anhebung, kein erzwungener Config-Write; ein
+  // bewusst in die Zukunft gesetzter Wert (Voraus-Planung) bleibt erhalten.
+  mergedConfig.aktuellesQuartal = effektivesAktuellesQuartal(mergedConfig.aktuellesQuartal);
   return {
     version: 1,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : empty.updatedAt,

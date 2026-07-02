@@ -5,6 +5,20 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.158.1 — Aktuelles Quartal rollt automatisch mit dem Kalender (Juli 2026)
+
+PATCH — `config.aktuellesQuartal` wurde beim Setup einmal aus dem Datum abgeleitet und danach nie
+weitergerollt: nach dem Quartalswechsel am 1.7. hing das ganze Auslastungs-Modul auf `2026-Q2`, obwohl
+schon Q3 war (Übersicht, Zuweisung, Matching, Home-Selbsteintragung). Neu wird der Wert **read-time beim
+Laden** nie mehr hinter das heutige Kalenderquartal zurückfallen — `effektivesAktuellesQuartal()`
+([types.ts](src/plugins/auslastung/types.ts)) hebt einen veralteten Wert auf das heutige Quartal an, lässt
+ein bewusst in die **Zukunft** gesetztes Quartal (Voraus-Planung) aber unberührt (fixed-width-Format →
+lexikalischer = chronologischer Vergleich, auch über Jahresgrenzen). Angewandt im Load-Chokepoint
+`normalizeAuslastungData()` ([auslastung-store.ts](src/plugins/auslastung/services/auslastung-store.ts)),
+daher greift es modulweit ohne Änderung der vielen `aktuellesQuartal`-Leser und **ohne erzwungenen
+Config-Write** (read-only-User bekommen das korrekte Quartal ebenfalls). Der Quartals-Vergleich aus v2.158.0
+bietet damit korrekt Q2 + Q1 an. Tests: [statistik.test.ts](src/plugins/auslastung/__tests__/statistik.test.ts).
+
 ### v2.158.0 — Statistik-Übersicht: Quartals-Vergleich (Delta-Overlay) (Juli 2026)
 
 MINOR — Die Statistik-Übersicht im Auslastungs-Tab „Auslastung MA" zeigt weiterhin standardmäßig das

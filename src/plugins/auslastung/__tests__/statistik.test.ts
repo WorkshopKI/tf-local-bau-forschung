@@ -15,6 +15,7 @@ import {
 } from '../services/kapazitaet';
 import {
   DEFAULT_AUSLASTUNG_CONFIG,
+  effektivesAktuellesQuartal,
   type AnonymerMitarbeiter,
   type AuslastungConfig,
   type UeberKategorie,
@@ -101,6 +102,32 @@ describe('tageVergangenImQuartal', () => {
 
   it('Ungueltiges Quartal → 0/0', () => {
     expect(tageVergangenImQuartal('foo', new Date())).toEqual({ tagAktuell: 0, tageGesamt: 0 });
+  });
+});
+
+describe('effektivesAktuellesQuartal', () => {
+  const jul2 = new Date(Date.UTC(2026, 6, 2));  // 2026-07-02 → Kalenderquartal Q3
+
+  it('gespeichertes Q2 hinkt hinterher → auf heutiges Q3 anheben', () => {
+    expect(effektivesAktuellesQuartal('2026-Q2', jul2)).toBe('2026-Q3');
+  });
+
+  it('gespeichertes == heutiges Quartal → unveraendert', () => {
+    expect(effektivesAktuellesQuartal('2026-Q3', jul2)).toBe('2026-Q3');
+  });
+
+  it('bewusst in die Zukunft gesetzt (Voraus-Planung) → bleibt erhalten', () => {
+    expect(effektivesAktuellesQuartal('2026-Q4', jul2)).toBe('2026-Q4');
+  });
+
+  it('Zukunft ueber die Jahresgrenze bleibt erhalten', () => {
+    expect(effektivesAktuellesQuartal('2027-Q1', jul2)).toBe('2027-Q1');
+  });
+
+  it('ungueltiger/fehlender Wert → heutiges Quartal', () => {
+    expect(effektivesAktuellesQuartal('foo', jul2)).toBe('2026-Q3');
+    expect(effektivesAktuellesQuartal(undefined, jul2)).toBe('2026-Q3');
+    expect(effektivesAktuellesQuartal('', jul2)).toBe('2026-Q3');
   });
 });
 
