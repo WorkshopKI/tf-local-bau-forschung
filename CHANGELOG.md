@@ -5,6 +5,22 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.161.2 — Nutzer-Changelog ab v2.100 durchgängig geglättet + gepflegt (Juli 2026)
+
+PATCH — Der Nutzer-Changelog (`changelog-user.md`) ist ab v2.100 vollständig in nutzerfreundliche
+Sprache übersetzt und wird ab jetzt **hand-gepflegt zusammen mit CHANGELOG.md** — der unzuverlässige
+„Mit KI glätten"-Bridge-Weg ist damit kein Pflichtschritt mehr. Endnutzer sehen im „Was ist neu?"-Modal
+durchgängig verständliche Einträge (Nutzen statt Technik), rein interne Umbauten sind zu je einer
+schlichten Zeile eingedampft.
+
+- **`changelog-user.md` gefüllt** (62 Minor-Abschnitte v2.100–v2.161, kanonisches `## vX.Y — JJJJ-MM`
+  + `### Neu`/`### Verbesserungen`/`### Bugfixes`). Ältere Versionen (< v2.100) leitet das Modal weiter
+  automatisch aus CHANGELOG.md ab.
+- **Committed Fassung ist jetzt AUTORITATIV** ([ChangelogDialog.tsx](src/core/components/changelog/ChangelogDialog.tsx)):
+  `override = mergeChangelog(committedOverride, shareStand)` — die gepflegte Fassung gewinnt je Version, ein
+  (evtl. veralteter) Share-`_intern/changelog-user.md` füllt nur noch Versionen, die sie nicht kennt. Damit
+  kann eine alte Share-Datei die gepflegte Fassung **nicht** mehr überschatten (ergänzt v2.161.1).
+
 ### v2.161.1 — Changelog-Modal zeigt die neueste Version wieder zuverlässig (Juli 2026)
 
 PATCH — Behebt, dass das „Was ist neu?"-Modal auf einer älteren Version hängen blieb, obwohl der

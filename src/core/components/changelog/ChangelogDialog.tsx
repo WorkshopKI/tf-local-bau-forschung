@@ -31,6 +31,7 @@ import {
   getChangelogMarkdown,
   getDisplayChangelog,
   hasUserChangelogContent,
+  mergeChangelog,
   parseUserChangelog,
   bucketizeMinors,
   type ChangeCategory,
@@ -153,8 +154,15 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
     () => (hasUserChangelogContent(userChangelogRaw) ? userChangelogRaw.trim() : ''),
     [],
   );
-  const override = shareMd ?? committedOverride;
-  // Anzeige: Override gewinnt je Version (schöne Prosa), fehlende (neuere) Versionen kommen
+  // Kuratierter Gesamt-Override: die gepflegte committed Fassung ist AUTORITATIV und gewinnt je
+  // Version; ein (evtl. veralteter) Share-Stand füllt nur Versionen, die die committed Fassung
+  // noch nicht kennt (z.B. eine per „Mit KI glätten" ohne Rebuild ergänzte neueste Version).
+  // So kann eine alte Share-Datei die gepflegte Fassung NICHT mehr überschatten.
+  const override = useMemo(
+    () => mergeChangelog(committedOverride, shareMd ?? ''),
+    [committedOverride, shareMd],
+  );
+  // Anzeige: Override gewinnt je Version (schöne Prosa), fehlende (ältere) Versionen kommen
   // aus der Build-Ableitung — ein veralteter Override verdeckt so nichts Neueres mehr.
   const markdown = useMemo(() => getDisplayChangelog(derivedMarkdown, override), [derivedMarkdown, override]);
 
