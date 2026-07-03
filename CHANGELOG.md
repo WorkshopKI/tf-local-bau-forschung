@@ -5,6 +5,19 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.161.4 — „Letzter Monat"-Filter aus dem Changelog-Modal entfernt (Juli 2026)
+
+PATCH — Der Zeit-Filter „Letzter Monat" im „Was ist neu?"-Modal ist **ersatzlos entfernt** (wurde nicht
+gebraucht). Die Kategorie-Filter (Alle / Neu & Verbesserungen / Bugfixes) und „Alle auf-/zuklappen"
+bleiben. Rein UI, keine Verhaltensänderung an den Daten.
+
+- Gelöscht in [ChangelogDialog.tsx](src/core/components/changelog/ChangelogDialog.tsx): `timeFilter`-State,
+  `TimeFilterKey`, `nowMonthIndex`, der `withinTime`-Filter, der Button und die `timeFilter`-Referenzen in
+  den Collapsible-Keys. Der „Alle auf-/zuklappen"-Knopf sitzt jetzt direkt via `ml-auto` rechts.
+- Die Datums-Ableitung im Parser (`dateIso`/`monthIndex` in
+  [deriveChangelog.ts](src/core/components/changelog/deriveChangelog.ts)) bleibt unangetastet — generische,
+  getestete Metadaten, nicht Teil des entfernten Filters.
+
 ### v2.161.3 — „Mit KI glätten"-Editor aus dem Changelog-Modal entfernt (Juli 2026)
 
 PATCH — Der In-App-Editor „Mit KI glätten / Auf Share speichern" (dev + Kurator-Session) ist **ersatzlos

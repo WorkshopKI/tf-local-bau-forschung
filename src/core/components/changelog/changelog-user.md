@@ -26,6 +26,7 @@
 
 ### Verbesserungen
 - Diese Änderungsliste ist jetzt durchgängig in verständlicher Sprache verfasst.
+- Der selten genutzte Filter „Letzter Monat" in diesem Fenster wurde entfernt — die Ansicht ist damit aufgeräumter.
 
 ### Bugfixes
 - Behoben, dass dieses „Was ist neu?"-Fenster manchmal eine ältere Version anzeigte, als tatsächlich installiert war — die neueste Version erscheint jetzt zuverlässig.

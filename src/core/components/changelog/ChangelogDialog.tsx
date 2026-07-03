@@ -35,7 +35,6 @@ import {
 } from './deriveChangelog';
 
 type FilterKey = 'all' | ChangeCategory;
-type TimeFilterKey = 'all' | 'month';
 
 const CATEGORY_ORDER: ChangeCategory[] = ['feature', 'fix'];
 
@@ -103,7 +102,6 @@ function MinorCard({
 
 export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
   const [filter, setFilter] = useState<FilterKey>('all');
-  const [timeFilter, setTimeFilter] = useState<TimeFilterKey>('all');
   // „Alle aufklappen": überschreibt die Default-Offen-Logik (erste 3 + Pakete zu) und öffnet
   // alles. Steckt in den Collapsible-Keys → Toggle mountet neu (Radix `defaultOpen` ist mount-only).
   const [expandAll, setExpandAll] = useState(false);
@@ -111,12 +109,6 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
   const currentMajor = useMemo(() => {
     const n = Number.parseInt(appVersion.split('.')[0] ?? '', 10);
     return Number.isFinite(n) ? n : 0;
-  }, []);
-
-  // Aktueller Monats-Index (Nutzer-Uhr) für den „Letzter Monat"-Filter — monatsgenau (year*12 + month0).
-  const nowMonthIndex = useMemo(() => {
-    const now = new Date();
-    return now.getFullYear() * 12 + now.getMonth();
   }, []);
 
   // Aus CHANGELOG.md abgeleitete „Build-Wahrheit" ALLER Versionen — Lückenfüller der Anzeige
@@ -156,11 +148,6 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
 
   const matches = (cat: ChangeCategory): boolean => filter === 'all' || filter === cat;
 
-  // „Letzter Monat" = aktueller + voriger Kalendermonat (monatsgenaue Näherung; Einträge ohne
-  // geparstes Datum fallen bewusst heraus, da nur ältere/Archiv-Versionen kein Monatslabel tragen).
-  const withinTime = (min: { monthIndex?: number }): boolean =>
-    timeFilter === 'all' || (min.monthIndex !== undefined && min.monthIndex >= nowMonthIndex - 1);
-
   const filters: { key: FilterKey; label: string; count: number; activeClass: string }[] = [
     { key: 'all', label: 'Alle', count: counts.all, activeClass: 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]' },
     {
@@ -183,9 +170,8 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
       ...maj,
       minors: maj.minors.filter(
         (min) =>
-          withinTime(min) &&
-          (min.changes.some((c) => matches(c.category)) ||
-            (filter === 'all' && min.changes.length === 0 && min.bodyMarkdown.length > 0)),
+          min.changes.some((c) => matches(c.category)) ||
+          (filter === 'all' && min.changes.length === 0 && min.bodyMarkdown.length > 0),
       ),
     }))
     .filter((maj) => maj.minors.length > 0);
@@ -215,33 +201,19 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
             {f.label} <span className="opacity-60">{f.count}</span>
           </button>
         ))}
-        {/* Rechte Gruppe: Aufklapp-Steuerung + Zeit-Filter (orthogonal zur Kategorie). */}
-        <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setExpandAll((v) => !v)}
-            aria-pressed={expandAll}
-            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-              expandAll
-                ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
-                : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-            }`}
-          >
-            {expandAll ? 'Alle zuklappen' : 'Alle aufklappen'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setTimeFilter((t) => (t === 'month' ? 'all' : 'month'))}
-            aria-pressed={timeFilter === 'month'}
-            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-              timeFilter === 'month'
-                ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
-                : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-            }`}
-          >
-            Letzter Monat
-          </button>
-        </div>
+        {/* Rechte Gruppe: Aufklapp-Steuerung (orthogonal zur Kategorie). */}
+        <button
+          type="button"
+          onClick={() => setExpandAll((v) => !v)}
+          aria-pressed={expandAll}
+          className={`ml-auto rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+            expandAll
+              ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
+              : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+          }`}
+        >
+          {expandAll ? 'Alle zuklappen' : 'Alle aufklappen'}
+        </button>
       </div>
 
       {visibleMajors.length === 0 ? (
@@ -266,7 +238,7 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
                 {(() => {
                   // Aktuelle Hauptnummer: erste 3 sichtbare Versionen einzeln (offen), Rest in
                   // 10er-Pakete; ältere Hauptnummern komplett in Pakete. Filter im Key → bei
-                  // Tab-/Zeit-Wechsel neu mounten (Radix `defaultOpen` greift nur beim Mount).
+                  // Tab-Wechsel neu mounten (Radix `defaultOpen` greift nur beim Mount).
                   const { loose, buckets } = bucketizeMinors(
                     maj.minors,
                     maj.major === currentMajor ? 3 : 0,
@@ -276,7 +248,7 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
                     <>
                       {loose.map((min, idx) => (
                         <MinorCard
-                          key={`${filter}-${timeFilter}-${min.minor}`}
+                          key={`${filter}-${min.minor}`}
                           min={min}
                           defaultOpen={expandAll || (maj.major === currentMajor && idx < 3)}
                           matches={matches}
@@ -284,7 +256,7 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
                       ))}
                       {buckets.map((bucket) => (
                         <Collapsible
-                          key={`${filter}-${timeFilter}-${bucket.key}`}
+                          key={`${filter}-${bucket.key}`}
                           defaultOpen={expandAll}
                           className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]"
                         >
