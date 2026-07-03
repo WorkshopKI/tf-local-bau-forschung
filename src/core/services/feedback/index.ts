@@ -1,5 +1,6 @@
 export * from './feedbackContext';
 export * from './feedbackLlm';
+export * from './feedbackImprove';
 export * from './feedbackService';
 export * from './feedbackOutboxCollect';
 export * from './feedbackStorage';

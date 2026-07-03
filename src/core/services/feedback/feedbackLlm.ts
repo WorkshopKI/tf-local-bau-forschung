@@ -121,6 +121,8 @@ export function parseFeedbackSummary(llmOutput: string): LLMClassification | nul
         affectedArea: parsed.affectedArea ?? '',
         priority_suggestion: parsed.priority_suggestion ?? 3,
         relevant_files: parsed.relevant_files,
+        anforderung: typeof parsed.anforderung === 'string' ? parsed.anforderung : undefined,
+        akzeptanzkriterien: Array.isArray(parsed.akzeptanzkriterien) ? parsed.akzeptanzkriterien : undefined,
       };
     }
   } catch {
@@ -183,6 +185,26 @@ export function renderSimpleMarkdown(text: string): React.ReactNode[] {
 // ── Auto-Klassifikation (Single-Turn, fire-and-forget) ───────────────────────
 
 /**
+ * Kategorie-Abgrenzung Bug/Feature/UX — EINE Quelle, genutzt von
+ * buildClassificationPrompt (Auto-Klassifikation) UND buildFeedbackImprovePrompt
+ * (feedbackImprove.ts, explizite Nutzer-Verbesserung), damit der Wortlaut nicht
+ * an zwei Stellen auseinanderdriftet.
+ */
+export function buildKategorieAbgrenzung(): string {
+  return `KATEGORIEN:
+- "bug": Etwas BESTEHENDES funktioniert nicht, ist kaputt, zeigt Fehler, stürzt ab, verhält sich falsch.
+- "feature": User WÜNSCHT sich etwas Neues, das es noch nicht gibt. Schlüsselwörter: "wünsche mir", "wäre toll", "könnte man", "fehlt mir", "bräuchte", "Vorschlag".
+- "ux": Etwas funktioniert zwar, ist aber umständlich, unübersichtlich, verwirrend oder hässlich.
+- "praise": Lob, positive Rückmeldung. Schlüsselwörter: "gut", "toll", "super", "gefällt mir", "danke".
+- "question": Eine Frage zur Bedienung oder Funktion der App.
+
+WICHTIGE UNTERSCHEIDUNG:
+- "Funktion X funktioniert nicht" → bug (existiert, ist kaputt)
+- "Ich wünsche mir Funktion X" / "Es fehlt Funktion X" / "Könnte man X einbauen?" → feature (existiert nicht, wird gewünscht)
+- "Funktion X ist umständlich zu bedienen" → ux (existiert, funktioniert, ist aber schlecht)`;
+}
+
+/**
  * Baut den System-Prompt für die stille Feedback-Klassifikation.
  * Wenn ein Quick-Tag-Hint übergeben wird (z.B. "bug", "feature", "praise"),
  * bekommt das LLM dieses Signal explizit als starken Indikator mit.
@@ -193,17 +215,7 @@ export function buildClassificationPrompt(hint?: string): string {
     : '';
   return `Klassifiziere dieses Nutzer-Feedback für die App "TeamFlow" (Dokumentenverwaltung für Behörden).
 
-KATEGORIEN:
-- "bug": Etwas BESTEHENDES funktioniert nicht, ist kaputt, zeigt Fehler, stürzt ab, verhält sich falsch.
-- "feature": User WÜNSCHT sich etwas Neues, das es noch nicht gibt. Schlüsselwörter: "wünsche mir", "wäre toll", "könnte man", "fehlt mir", "bräuchte", "Vorschlag".
-- "ux": Etwas funktioniert zwar, ist aber umständlich, unübersichtlich, verwirrend oder hässlich.
-- "praise": Lob, positive Rückmeldung. Schlüsselwörter: "gut", "toll", "super", "gefällt mir", "danke".
-- "question": Eine Frage zur Bedienung oder Funktion der App.
-
-WICHTIGE UNTERSCHEIDUNG:
-- "Funktion X funktioniert nicht" → bug (existiert, ist kaputt)
-- "Ich wünsche mir Funktion X" / "Es fehlt Funktion X" / "Könnte man X einbauen?" → feature (existiert nicht, wird gewünscht)
-- "Funktion X ist umständlich zu bedienen" → ux (existiert, funktioniert, ist aber schlecht)
+${buildKategorieAbgrenzung()}
 ${hintLine}
 Antworte NUR mit einem \`\`\`json-Block, keine weiteren Sätze, keine Erklärungen:
 

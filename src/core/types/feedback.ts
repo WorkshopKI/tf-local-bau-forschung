@@ -86,6 +86,13 @@ export interface LLMClassification {
   affectedArea: string;
   priority_suggestion: number;
   relevant_files?: string[];
+  /** Umsetzbare Anforderung ("IST: … SOLL: …") — von improveFeedback() befüllt. */
+  anforderung?: string;
+  /** Prüfbare Akzeptanzkriterien (max. 5) — von improveFeedback() befüllt. */
+  akzeptanzkriterien?: string[];
+  /** true wenn dieses Ergebnis aus der expliziten Nutzer-Verbesserung (improveFeedback)
+   *  stammt statt aus der stillen Auto-Klassifikation (autoClassifyFeedback). */
+  verbessert?: boolean;
 }
 
 /**
