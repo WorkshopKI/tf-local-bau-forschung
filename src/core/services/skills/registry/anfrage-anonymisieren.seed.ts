@@ -1,13 +1,22 @@
 /**
  * Seed-Skill für die DSGVO-Anonymisierung einer E-Mail-Kurzanfrage (Modul
  * „Anfragen"). Liegt in der geteilten `registry.json` und ist damit über alle
- * Build-Varianten sichtbar — startet deshalb ZWINGEND `aktiv: false`. Die
- * Freischaltung (`aktiv: true`) macht NICHT der Code, sondern ein manueller
- * Schritt nach bestandenem Recall-Gate (Phase 9). Siehe CLAUDE.md / Plan.
+ * Build-Varianten sichtbar.
  *
- * Ausnahme NUR dev: die UI behandelt den Anonymisierer in `isDevContext()` als
- * freigeschaltet (Runtime-Override `istAnonymisiererFreigeschaltet`, anonymisierung.ts)
- * — der Seed bleibt `aktiv: false`, das Gate gilt unverändert für prod/pl/kurator/as.
+ * FREIGESCHALTET (`aktiv: true`) seit 2026-07-03: Das Recall-Gate für das
+ * Zwei-Stufen-Modell (version 2) wurde bestanden; die Produktiv-Freigabe ist die
+ * bewusste manuelle Entscheidung von Thomas (Phase 9). Der Seed ist damit der
+ * Code-Default und schaltet den Anonymisierer in FRISCHEN Installationen direkt frei.
+ *
+ * ACHTUNG — Bestands-Installationen: `mergeMissingSeeds` (storage.ts) ergänzt nur
+ * FEHLENDE Seeds und überschreibt bestehende Registry-Einträge NIE. Ein Share,
+ * dessen `_intern/skills/registry.json` den Skill bereits mit `aktiv: false` trägt,
+ * bleibt gesperrt, bis er EINMAL zur Laufzeit freigeschaltet wird (Kuration →
+ * Skill-Verwaltung → „Anfrage anonymisieren" → aktiv → Speichern; ein Share =
+ * team-weit für alle Varianten).
+ *
+ * dev war über den Runtime-Override `istAnonymisiererFreigeschaltet` (isDevContext)
+ * schon immer frei; prod/pl/kurator/as folgen jetzt dem gesetzten `aktiv: true`.
  *
  * Der Originaltext kommt über den `{{zielText}}`-Inhalts-Slot → die
  * DSGVO-Transport-Policy (`skillEnthaeltDokumentInhalte`) erzwingt damit
@@ -84,9 +93,11 @@ export const ANFRAGE_ANONYMISIEREN_SKILL: SkillRecord = {
   regelIds: [],
   slots: ['zielText'],
   geaendert_am: '2026-06-27T00:00:00.000Z',
-  // Pflicht: ungeprüfter Skill in geteilter registry.json → erst nach Recall-Gate
-  // manuell auf true (durch Thomas, NICHT durch Code).
-  aktiv: false,
+  // Recall-Gate (Zwei-Stufen-Modell, version 2) bestanden 2026-07-03 → bewusste
+  // Produktiv-Freigabe durch Thomas. Bestands-Shares mit gespeichertem aktiv:false
+  // brauchen zusätzlich die einmalige Laufzeit-Freischaltung (mergeMissingSeeds
+  // überschreibt nie).
+  aktiv: true,
   // Redundant zur Slot-Ableitung, aber explizit dokumentiert: trägt Dokumentinhalte.
   enthaeltDokumentInhalte: true,
 };

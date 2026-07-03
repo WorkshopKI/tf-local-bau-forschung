@@ -5,6 +5,25 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.168.0 — Anfragen-Anonymisierer produktiv freigeschaltet (Juli 2026)
+
+MINOR — Das Recall-Gate für den `anfrage-anonymisieren`-Skill (Zwei-Stufen-Modell, version 2) wurde am
+2026-07-03 gefahren und **bestanden** (0 Leaks über die fiktiven Fixtures). Damit ist die Produktiv-Freigabe
+die bewusste Entscheidung von Thomas — der Seed steht jetzt auf `aktiv: true`
+([anfrage-anonymisieren.seed.ts](src/core/services/skills/registry/anfrage-anonymisieren.seed.ts)):
+
+- **In allen Varianten, in denen das Modul läuft** (dev + pl + as + kurator), ist der Anonymisieren-Lauf jetzt
+  freigeschaltet. dev war über den Runtime-Override (`isDevContext`) ohnehin frei; prod/pl/kurator/as folgen
+  nun dem gesetzten `aktiv: true`. Der interne-Transport-Zwang (Dokumentinhalte via `{{zielText}}`) bleibt
+  unverändert — echter Mailtext erreicht nie ein externes Modell.
+- **Bestands-Installationen brauchen einen einmaligen Handgriff:** `mergeMissingSeeds` überschreibt bestehende
+  Registry-Einträge NIE (Schutz kuratierter Edits). Ein Daten-Share, dessen `_intern/skills/registry.json` den
+  Skill noch mit `aktiv: false` trägt, bleibt gesperrt, bis er einmal zur Laufzeit freigeschaltet wird
+  (Kuration → Skill-Verwaltung → „Anfrage anonymisieren" → aktiv → Speichern). Ein Share = team-weit für alle
+  Varianten. Frische Installationen starten direkt frei.
+- Invarianten-Tests + Doku (anfragen-modul.md, Seed-Kommentare) auf den freigeschalteten Ist-Zustand gezogen.
+  Reine Freischaltung — Skill-Inhalt/Prompt/Version unverändert.
+
 ### v2.167.0 — Anfragen-Modul in der kurator-Variante aktiv (Juli 2026)
 
 MINOR — `features.anfragen` ist jetzt auch in `configs/kurator.config.json` `true` (vorher nur dev + pl + as).

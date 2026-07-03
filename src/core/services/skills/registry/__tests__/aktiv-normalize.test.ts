@@ -1,8 +1,8 @@
 /**
  * Linchpin-Test des Aktivierungs-Gates: `normalizeSkill` baut den SkillRecord
  * feldweise neu (Whitelist). `aktiv` MUSS den normalize-Pfad überleben — sonst
- * ginge `aktiv: false` beim Laden verloren und ein ungeprüfter Skill (z.B. der
- * Anfragen-Anonymisierer) wäre ungewollt live, bzw. eine UI-Aktivierung
+ * ginge eine bewusste Deaktivierung (`aktiv: false`, z.B. ein Kurator sperrt einen
+ * noch ungeprüften Skill) beim Laden verloren, bzw. eine UI-Aktivierung
  * (`aktiv: true` im Skill-Editor) würde beim nächsten Laden zurückfallen.
  */
 import { describe, it, expect } from 'vitest';

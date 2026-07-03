@@ -152,14 +152,14 @@ describe('runAnonymisierung — Retry bei früh-finalisierter Teil-Antwort', () 
 });
 
 describe('Anonymisierungs-Skill — Invarianten', () => {
-  it('startet ZWINGEND aktiv: false (ungeprüft, geteilte registry.json)', () => {
-    expect(ANFRAGE_ANONYMISIEREN_SKILL.aktiv).toBe(false);
+  it('ist freigeschaltet (aktiv: true) nach bestandenem Recall-Gate 2026-07-03', () => {
+    expect(ANFRAGE_ANONYMISIEREN_SKILL.aktiv).toBe(true);
   });
 
-  it('ist in SEED_REGISTRY mit aktiv:false enthalten', () => {
+  it('ist in SEED_REGISTRY mit aktiv:true enthalten', () => {
     const seeded = SEED_REGISTRY.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID);
     expect(seeded).toBeDefined();
-    expect(seeded?.aktiv).toBe(false);
+    expect(seeded?.aktiv).toBe(true);
   });
 
   it('trägt Dokumentinhalte → interner Transport erzwungen (Ableitung über {{zielText}})', () => {
@@ -173,17 +173,19 @@ describe('Anonymisierungs-Skill — Invarianten', () => {
     expect(ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate).toContain('{{zielText}}');
   });
 
-  it('istAnonymisiererAktiv: false bei aktiv:false, true bei fehlendem Feld', () => {
-    expect(istAnonymisiererAktiv(ANFRAGE_ANONYMISIEREN_SKILL)).toBe(false);
+  it('istAnonymisiererAktiv: false nur bei explizitem aktiv:false, sonst true', () => {
+    expect(istAnonymisiererAktiv({ ...ANFRAGE_ANONYMISIEREN_SKILL, aktiv: false })).toBe(false);
     expect(istAnonymisiererAktiv({ ...ANFRAGE_ANONYMISIEREN_SKILL, aktiv: undefined })).toBe(true);
+    expect(istAnonymisiererAktiv(ANFRAGE_ANONYMISIEREN_SKILL)).toBe(true); // Seed jetzt freigeschaltet
   });
 
-  it('istAnonymisiererFreigeschaltet: dev → immer aktiv (Seed aktiv:false), prod → Gate gilt', () => {
-    // dev: aktiv sobald der Skill geladen ist — auch bei aktiv:false-Seed.
+  it('istAnonymisiererFreigeschaltet: dev → immer aktiv; prod → folgt dem aktiv-Flag (Seed freigeschaltet)', () => {
+    // dev: aktiv sobald der Skill geladen ist.
     expect(istAnonymisiererFreigeschaltet(ANFRAGE_ANONYMISIEREN_SKILL, true)).toBe(true);
     expect(istAnonymisiererFreigeschaltet(null, true)).toBe(false); // ohne Skill nichts
-    // prod/pl/kurator/as: Recall-Gate → aktiv:false bleibt gesperrt.
-    expect(istAnonymisiererFreigeschaltet(ANFRAGE_ANONYMISIEREN_SKILL, false)).toBe(false);
-    expect(istAnonymisiererFreigeschaltet({ ...ANFRAGE_ANONYMISIEREN_SKILL, aktiv: true }, false)).toBe(true);
+    // prod/pl/kurator/as: Seed ist nach dem Recall-Gate freigeschaltet.
+    expect(istAnonymisiererFreigeschaltet(ANFRAGE_ANONYMISIEREN_SKILL, false)).toBe(true);
+    // Explizit deaktiviert (Kurator-Override im Share) bleibt gesperrt.
+    expect(istAnonymisiererFreigeschaltet({ ...ANFRAGE_ANONYMISIEREN_SKILL, aktiv: false }, false)).toBe(false);
   });
 });

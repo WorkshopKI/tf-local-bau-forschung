@@ -116,8 +116,14 @@ funktional. Team-weite Änderung: Kuration-Plugin `anfragen-kuration` (kuratorOn
   ist das Modul aktiv, damit der Kurator die team-weite ZIM-FAQ-Assistent-URL setzen kann
   ([AnfragenEinstellungenPage](../../src/plugins/anfragen/AnfragenEinstellungenPage.tsx) → `_intern/anfragen-settings.json`);
   die Kuration-Seite erscheint nur bei aktiven Kuration-Menüs (dev + kurator nach Login).
-- **Skill-Gate (orthogonal zum Modul-Flag)**: Der `anfrage-anonymisieren`-Skill ist `aktiv: false` **geseedet**
-  (Recall-Gate; Produktiv-Freischaltung ist eine bewusste Kurator-Entscheidung). In **dev** überschreibt
-  `istAnonymisiererFreigeschaltet()` das per Runtime immer auf freigeschaltet (Entwickler testet ohne den
-  geteilten Seed zu berühren); in allen **Produktions-Varianten** (prod/pl/kurator/as) gilt `aktiv: true` als
-  Voraussetzung. Der Seed bleibt `aktiv: false` — die Registry wird von diesem Modul **nicht** verändert.
+- **Skill-Gate (orthogonal zum Modul-Flag)**: Der `anfrage-anonymisieren`-Skill ist seit **2026-07-03**
+  `aktiv: true` **geseedet** — das Recall-Gate für das Zwei-Stufen-Modell (version 2) wurde bestanden, die
+  Produktiv-Freigabe ist die bewusste Entscheidung von Thomas. In **dev** war der Anonymisierer über den
+  Runtime-Override `istAnonymisiererFreigeschaltet()` schon immer frei; **prod/pl/kurator/as** folgen jetzt dem
+  gesetzten `aktiv: true`.
+- **Bestands-Installationen brauchen die einmalige Laufzeit-Freischaltung**: `mergeMissingSeeds`
+  ([storage.ts](../../src/core/services/skills/registry/storage.ts)) ergänzt nur FEHLENDE Seeds und überschreibt
+  bestehende Registry-Einträge NIE (schützt kuratierte Edits). Ein Share, dessen `_intern/skills/registry.json`
+  den Skill noch mit `aktiv: false` trägt, bleibt gesperrt, bis er EINMAL zur Laufzeit freigeschaltet wird
+  (Kuration → Skill-Verwaltung → „Anfrage anonymisieren" → aktiv → Speichern). Da alle Varianten denselben Share
+  lesen, gilt dieser eine Write team-weit. Frische Installationen starten dagegen direkt frei (Seed-Default).
