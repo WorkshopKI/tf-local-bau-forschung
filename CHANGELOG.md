@@ -5,6 +5,38 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.165.0 — Feedback-Verbesserung via interne KI + Screen-Kontext-Docs (Juli 2026)
+
+MINOR — Die KI-Anreicherung im Feedback-System war bisher wirkungslos (`autoClassifyFeedback`
+bricht auf dem internen Streamlit-Transport bewusst ab — genau der Transport, der in Produktion
+läuft) und ihr System-Prompt beschrieb noch die alte lernapp-Domäne. Zwei Ergänzungen beheben das,
+ohne den bestehenden einfachen Speichern-Pfad anzufassen:
+
+- **Zwei-Button-Submit:** Ist die interne KI verbunden (`useBridgeStatus === 'connected'`), zeigt
+  [FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx) zusätzlich zum bisherigen
+  „Feedback speichern" den CTA **„Feedback speichern & verbessern"**. [FeedbackPanel.tsx](src/components/feedback/FeedbackPanel.tsx)
+  zeigt den Verbesserungs-Status danach inline (Spinner → Ergebnis-Karte
+  [FeedbackImproveResult.tsx](src/components/feedback/FeedbackImproveResult.tsx) → oder stiller
+  Fehlschlags-Hinweis, kein Fehler-Modal). Läuft fire-and-forget sicher weiter, auch wenn das Panel
+  geschlossen wird (unmountet bei `!open` nicht).
+- **`improveFeedback`-Service** ([feedbackImprove.ts](src/core/services/feedback/feedbackImprove.ts)):
+  formt das Roh-Feedback in eine Ist/Soll-Anforderung + Akzeptanzkriterien für Claude Code um.
+  **Läuft ausschließlich über den internen Streamlit-Transport** — bewusst umgekehrte
+  Transport-Polarität zu `autoClassifyFeedback` (DSGVO: Feedback-Text ist in Produktion
+  Echt-Nutzertext), kein OpenRouter-Fallback. `LLMClassification` um `anforderung`/
+  `akzeptanzkriterien`/`verbessert` erweitert (optional, backward-kompatibel).
+  [promptGenerator.ts](src/core/services/feedback/promptGenerator.ts) rendert die neuen Felder im
+  „Claude Code Prompt" der Kuratoren.
+- **Bildschirmseiten-Kontext-Docs** ([docs/feedback-kontext/](docs/feedback-kontext/)): ein
+  kompaktes, versioniertes Markdown-Doc pro nutzer-sichtbarem Plugin (+ globaler `_app.md`-Überblick),
+  statisch gebundelt via `import.meta.glob` in [screenContext.ts](src/core/services/feedback/screenContext.ts)
+  — liefert der KI-Verbesserung aktuelles App-Wissen statt der bisherigen, im Code eingebrannten und
+  veralteten Beschreibung. `DEFAULT_SYSTEM_PROMPT` (Chatbot) bezieht dieselbe Quelle jetzt über einen
+  `{{APP_OVERVIEW}}`-Platzhalter. Pflege-Cheatsheet [update-screen-context.md](docs/agents/update-screen-context.md)
+  + Claude-Code-Skill + Convention-Guard `screen-context-coverage` (Vollständigkeit + Prompt-Budget).
+- Keine Migration, keine neuen Pflichtfelder — bestehendes Auto-Klassifizieren (`autoClassifyFeedback`)
+  bleibt inhaltlich unverändert.
+
 ### v2.164.0 — Konsolidierungs-Pass (Juli 2026)
 
 MINOR — Wartungs-/Konsolidierungs-Release nach dem Feature-Sprint seit v2.131. **Verhaltens-invariant**

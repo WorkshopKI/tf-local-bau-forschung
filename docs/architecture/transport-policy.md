@@ -46,6 +46,18 @@ später einen In-App-Judge über **reale** Daten (intern-only) frei.
     extern, wird nicht initialisiert → `extractMetadata` fällt auf `FALLBACK_METADATA`
     zurück. Prod unverändert (OpenRouter aus → nie extern).
 
+## Feedback-Verbesserung (eigenständige Aufrufstelle, v2.165)
+
+`improveFeedback()` (`src/core/services/feedback/feedbackImprove.ts`) ist eine
+**weitere, eigenständige** Aufrufstelle für Nutzertext-Transport — aber **kein**
+Skill-Run im Registry-Sinn, daher kein `getTransportForSkillRun`-Umweg. Das Gate
+sitzt direkt im Code: `if (transport.name !== 'Streamlit') return null;` — läuft
+**nur** über die interne Bridge, weil Feedback-Text in Produktion Echt-Nutzertext
+ist (potenziell FKZ, Namen, interne Details). Bewusst **umgekehrte Polarität** zu
+`autoClassifyFeedback` (das läuft NIE auf Streamlit) — beide Pfade zusammen decken
+die volle Transport-Matrix ab, keine Inkonsistenz. Detail:
+[feedback-system.md](feedback-system.md).
+
 ## Erzwingung gegen Regression
 
 - **Convention-Test `no-raw-active-transport`** (`src/__tests__/codebase-conventions.test.ts`,
