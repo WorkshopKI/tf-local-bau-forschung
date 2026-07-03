@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.169.0 — Anonymisierer-Freischaltung reconciled Bestands-Shares automatisch (Juli 2026)
+
+MINOR — Follow-up zu v2.168.0: Der Seed steht auf `aktiv: true`, aber `mergeMissingSeeds` überschreibt
+bestehende Registry-Einträge nie — ein Daten-Share, dessen `_intern/skills/registry.json` den Skill schon mit
+`aktiv: false` trägt, bliebe ohne Zutun gesperrt. Statt eines manuellen Toggles holt die App das jetzt
+**automatisch** nach:
+
+- **`reconcileEinmaligeAktivierungen`** ([migrations.ts](src/core/services/skills/registry/migrations.ts)):
+  einmalige, marker-gesicherte Registry-Migration — setzt `anfrage-anonymisieren` von `aktiv:false → true`.
+  Ein neues, additives Feld `SkillRegistryFile.angewandteMigrationen` (von `normalizeRegistryFile` bewahrt)
+  macht das **team-weit genau einmal** und respektiert eine spätere bewusste Deaktivierung (Marker gesetzt →
+  nie wieder anfassen).
+- **Shell-Hook `useAnfrageAnonAktivierung`** ([useAnfrageAnonAktivierung.ts](src/plugins/anfragen/useAnfrageAnonAktivierung.ts)):
+  im `ShellLayout` gemountet, läuft nach dem Share-Grant für schreibberechtigte Clients (pl/kurator/dev),
+  wendet die Reconciliation an und schreibt bei Änderung zurück (atomicWrite + Audit). Kein manueller Handgriff
+  mehr; der Weg über Kuration → Skill-Verwaltung bleibt als Fallback.
+- Rein additiv (optionales Registry-Feld, kein Schema-Bump), 6 neue Unit-Tests für die Reconciliation-Invarianten.
+
 ### v2.168.0 — Anfragen-Anonymisierer produktiv freigeschaltet (Juli 2026)
 
 MINOR — Das Recall-Gate für den `anfrage-anonymisieren`-Skill (Zwei-Stufen-Modell, version 2) wurde am

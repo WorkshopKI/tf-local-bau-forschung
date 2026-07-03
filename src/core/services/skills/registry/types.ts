@@ -331,4 +331,11 @@ export interface SkillRegistryFile {
   regeln: QualitaetsRegel[];
   /** Kuratierbare Workflow-Definitionen. Fehlt in Alt-Dateien → `normalize` defaultet `[]`. */
   workflows?: WorkflowDef[];
+  /**
+   * IDs bereits angewandter einmaliger Registry-Migrationen (team-weit, idempotent).
+   * Verhindert, dass eine Auto-Reconciliation (z.B. Anonymisierer-Freischaltung) eine
+   * spätere bewusste Kurator-Entscheidung wieder überschreibt. `normalize` bewahrt das
+   * Feld (sonst liefe die Migration bei jedem Laden erneut). Siehe `migrations.ts`.
+   */
+  angewandteMigrationen?: string[];
 }

@@ -278,13 +278,19 @@ export function normalizeRegistryFile(raw: unknown): SkillRegistryFile | null {
   const f = raw as Record<string, unknown>;
   if (f.version !== 1) return null;
   if (!Array.isArray(f.skills) || !Array.isArray(f.regeln)) return null;
-  return {
+  const file: SkillRegistryFile = {
     version: 1,
     updated_at: asString(f.updated_at, SEED_REGISTRY.updated_at),
     skills: f.skills.map(normalizeSkill).filter((s): s is SkillRecord => s !== null),
     regeln: f.regeln.map(normalizeRegel).filter((r): r is QualitaetsRegel => r !== null),
     workflows: normalizeWorkflows(f.workflows),
   };
+  // Migrations-Marker EXPLIZIT bewahren — sonst liefe eine einmalige Reconciliation
+  // (z.B. Anonymisierer-Freischaltung) bei jedem Laden erneut und würde eine spätere
+  // bewusste Deaktivierung wieder überschreiben.
+  const migr = asStringArray(f.angewandteMigrationen);
+  if (migr.length > 0) file.angewandteMigrationen = migr;
+  return file;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -30,6 +30,7 @@ import { useAuslastungCorpusAutoload } from '@/core/hooks/useAuslastungCorpusAut
 import { useHeartbeat } from '@/core/services/presence';
 import { useBridgeHeartbeat } from '@/core/hooks/useBridgeHeartbeat';
 import { CsvAutoRefreshBanner } from '@/plugins/csv-sources-kuration/components/CsvAutoRefreshBanner';
+import { useAnfrageAnonAktivierung } from '@/plugins/anfragen/useAnfrageAnonAktivierung';
 import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
 import { FooterShowcaseButton } from '@/core/components/FooterShowcaseButton';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -169,6 +170,10 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
 
   useKuratorActivityTracker();
   useAutoSmbRefresh(storage.idb);
+  // Einmalige Auto-Freischaltung des Anonymisierer-Skills auf Bestands-Shares
+  // (Recall-Gate bestanden → Seed aktiv:true, aber mergeMissingSeeds überschreibt
+  // bestehende registry.json nie). Läuft nach Share-Grant für schreibberechtigte Clients.
+  useAnfrageAnonAktivierung();
 
   // Snapshot-Watcher: alle 15 Min Manifest checken, ob ein anderer Kurator
   // einen neueren Datenbestand geschrieben hat. Banner wird im <main>-

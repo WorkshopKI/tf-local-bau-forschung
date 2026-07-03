@@ -121,9 +121,14 @@ funktional. Team-weite Änderung: Kuration-Plugin `anfragen-kuration` (kuratorOn
   Produktiv-Freigabe ist die bewusste Entscheidung von Thomas. In **dev** war der Anonymisierer über den
   Runtime-Override `istAnonymisiererFreigeschaltet()` schon immer frei; **prod/pl/kurator/as** folgen jetzt dem
   gesetzten `aktiv: true`.
-- **Bestands-Installationen brauchen die einmalige Laufzeit-Freischaltung**: `mergeMissingSeeds`
+- **Bestands-Installationen: automatische einmalige Freischaltung**: `mergeMissingSeeds`
   ([storage.ts](../../src/core/services/skills/registry/storage.ts)) ergänzt nur FEHLENDE Seeds und überschreibt
-  bestehende Registry-Einträge NIE (schützt kuratierte Edits). Ein Share, dessen `_intern/skills/registry.json`
-  den Skill noch mit `aktiv: false` trägt, bleibt gesperrt, bis er EINMAL zur Laufzeit freigeschaltet wird
-  (Kuration → Skill-Verwaltung → „Anfrage anonymisieren" → aktiv → Speichern). Da alle Varianten denselben Share
-  lesen, gilt dieser eine Write team-weit. Frische Installationen starten dagegen direkt frei (Seed-Default).
+  bestehende Registry-Einträge NIE (schützt kuratierte Edits) — ein Share mit gespeichertem `aktiv: false` bliebe
+  damit gesperrt. Deshalb holt `reconcileEinmaligeAktivierungen`
+  ([migrations.ts](../../src/core/services/skills/registry/migrations.ts)) die Freischaltung automatisch nach: der
+  Shell-Hook `useAnfrageAnonAktivierung` ([useAnfrageAnonAktivierung.ts](../../src/plugins/anfragen/useAnfrageAnonAktivierung.ts))
+  läuft nach dem Share-Grant für schreibberechtigte Clients (pl/kurator/dev), setzt den Skill einmalig
+  `false → true` und schreibt zurück. Ein Marker `angewandteMigrationen` in der `registry.json` macht das
+  **team-weit einmalig** und respektiert eine spätere bewusste Deaktivierung (Marker gesetzt → nie wieder
+  anfassen). Kein manueller Handgriff nötig; frische Installationen starten ohnehin frei (Seed-Default). Der
+  manuelle Weg (Kuration → Skill-Verwaltung → aktiv) bleibt als Fallback bestehen.

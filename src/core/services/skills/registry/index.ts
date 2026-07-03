@@ -95,6 +95,11 @@ export {
   type ImportSkillBundleResult,
 } from './skill-bundle';
 export {
+  reconcileEinmaligeAktivierungen,
+  ANFRAGE_ANON_AKTIV_MIGRATION,
+  type ReconcileResult,
+} from './migrations';
+export {
   NF_BAUSTEINE,
   NF_BAUSTEIN_IDS,
   extractPlatzhalter,

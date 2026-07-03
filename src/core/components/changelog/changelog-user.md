@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.169 — 2026-07
+
+### Verbesserungen
+- Die Freischaltung der KI-Anonymisierung im Modul „Anfragen" greift jetzt automatisch: Nach dem Verbinden mit dem Ablageort schaltet die App den Anonymisierer einmalig team-weit frei – ohne dass jemand ihn von Hand aktivieren muss. Eine spätere bewusste Deaktivierung bleibt erhalten.
+
 ## v2.168 — 2026-07
 
 ### Neu
