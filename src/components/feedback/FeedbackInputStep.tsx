@@ -29,6 +29,8 @@ export interface FeedbackSubmitPayload {
   llmHint?: string;
   /** Beigefügte (ggf. annotierte) Screenshots — Blobs, noch nicht persistiert. */
   attachments?: PendingAttachment[];
+  /** true = "Feedback speichern & verbessern" (interne KI formt eine Anforderung). */
+  verbessern?: boolean;
 }
 
 interface Props {
@@ -37,7 +39,9 @@ interface Props {
   context: FeedbackContext;
   showContext: boolean;
   setShowContext: (v: boolean) => void;
-  submitting: boolean;
+  submitting: 'speichern' | 'verbessern' | null;
+  /** true wenn die interne KI (Bridge) verbunden ist → zweiter CTA "… & verbessern". */
+  kiVerfuegbar: boolean;
   onSubmit: (payload: FeedbackSubmitPayload) => void;
   onShowMyFeedback: () => void;
   /** true wenn das Panel per Shortcut (Strg+Alt+S) geöffnet wurde → Paste-Fläche fokussieren. */
@@ -52,7 +56,7 @@ function getIcon(name: string): IconComponent {
 }
 
 export function FeedbackInputStep(props: Props): React.ReactElement {
-  const { areaRef, setAreaRef, context, showContext, setShowContext, submitting, onSubmit, onShowMyFeedback, autoFocusScreenshot } = props;
+  const { areaRef, setAreaRef, context, showContext, setShowContext, submitting, kiVerfuegbar, onSubmit, onShowMyFeedback, autoFocusScreenshot } = props;
   const [selectedType, setSelectedType] = useState<FeedbackTypeDef | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   // Screenshots sind typ-unabhängig → überleben einen Typ-Wechsel (kein Reset in changeType).
@@ -108,7 +112,7 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
     .filter(f => f.required)
     .every(f => (fieldValues[f.key] ?? '').trim().length > 0);
 
-  const handleSubmit = (): void => {
+  const handleSubmit = (verbessern: boolean): void => {
     const isSingleText = selectedType.fields.length === 1 && selectedType.fields[0]?.key === 'text';
     const structured = isSingleText
       ? undefined
@@ -123,6 +127,7 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
       text: composeFeedbackText(selectedType, fieldValues),
       llmHint: selectedType.llmHint,
       attachments: attachments.length > 0 ? attachments : undefined,
+      verbessern,
     });
   };
 
@@ -207,16 +212,35 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
         </div>
       )}
 
-      <Button
-        type="button"
-        onClick={handleSubmit}
-        disabled={!canSubmit}
-        loading={submitting}
-        variant="primary"
-        className="w-full"
-      >
-        Absenden
-      </Button>
+      <div className="flex flex-col gap-1.5">
+        {kiVerfuegbar && (
+          <Button
+            type="button"
+            onClick={() => handleSubmit(true)}
+            disabled={!canSubmit}
+            loading={submitting === 'verbessern'}
+            variant="primary"
+            className="w-full"
+          >
+            Feedback speichern & verbessern
+          </Button>
+        )}
+        <Button
+          type="button"
+          onClick={() => handleSubmit(false)}
+          disabled={!canSubmit}
+          loading={submitting === 'speichern'}
+          variant={kiVerfuegbar ? 'secondary' : 'primary'}
+          className="w-full"
+        >
+          Feedback speichern
+        </Button>
+        {kiVerfuegbar && (
+          <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+            Verbessern: die interne KI formt dein Feedback in eine umsetzbare Anforderung um.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
