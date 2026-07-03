@@ -3,6 +3,7 @@ import {
   deriveUserChangelogFromDev,
   parseUserChangelog,
   getChangelogMarkdown,
+  getDisplayChangelog,
   hasUserChangelogContent,
   splitMinorSections,
   selectNewMinorSections,
@@ -187,6 +188,35 @@ describe('inkrementelles Glätten — splitMinorSections / selectNewMinorSection
     expect(splitMinorSections(merged)).toHaveLength(1);
     expect(merged).toContain('- neu');
     expect(merged).not.toContain('- alt');
+  });
+});
+
+describe('getDisplayChangelog — Override legt sich über die Build-Ableitung', () => {
+  // Build kennt v2.126..v2.124; der kuratierte Override reicht nur bis v2.124.
+  const DERIVED = ['## v2.126 — 2026-07', '- c roh', '', '## v2.125 — 2026-06', '- b roh', '', '## v2.124 — 2026-06', '- a roh'].join('\n');
+
+  it('ohne Override-Inhalt → unveränderte Build-Ableitung', () => {
+    expect(getDisplayChangelog(DERIVED, '')).toBe(DERIVED);
+    expect(getDisplayChangelog(DERIVED, '<!-- nur Kommentar -->')).toBe(DERIVED);
+  });
+
+  it('ein VERALTETER Override verdeckt neuere Versionen NICHT mehr — sie kommen aus der Ableitung', () => {
+    const override = ['## v2.124 — 2026-06', '- a geglättet'].join('\n');
+    const display = getDisplayChangelog(DERIVED, override);
+    const keys = splitMinorSections(display).map((s) => s.key);
+    // Neueste (2.126/2.125) aus der Ableitung ergänzt, absteigend sortiert.
+    expect(keys).toEqual(['2.126', '2.125', '2.124']);
+    expect(display).toContain('- c roh'); // 2.126 aus Build
+    expect(display).toContain('- a geglättet'); // 2.124 aus Override (gewinnt)
+    expect(display).not.toContain('- a roh'); // roher 2.124 wird vom Override verdrängt
+  });
+
+  it('Override gewinnt bei Versions-Konflikt, Reihenfolge bleibt absteigend', () => {
+    const override = ['## v2.125 — 2026-06', '- b geglättet'].join('\n');
+    const display = getDisplayChangelog(DERIVED, override);
+    expect(splitMinorSections(display).map((s) => s.key)).toEqual(['2.126', '2.125', '2.124']);
+    expect(display).toContain('- b geglättet');
+    expect(display).not.toContain('- b roh');
   });
 });
 

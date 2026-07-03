@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useStorage } from '@/core/hooks/useStorage';
-import { selectNewMinorSections, mergeChangelog } from './deriveChangelog';
+import { selectNewMinorSections, mergeChangelog, splitMinorSections } from './deriveChangelog';
 import { writeUserChangelogToShare } from './changelogShare';
 
 const SYSTEM_PROMPT =
@@ -93,7 +93,20 @@ export function ChangelogPolishPanel({
     }
     const merged = mergeChangelog(stripCodeFence(out), existing);
     setDraft(merged);
-    setNote(`${newSections.length} neue Version${newSections.length === 1 ? '' : 'en'} geglättet — prüfen und speichern.`);
+    // Verifizieren, dass JEDE frisch selektierte Version den Merge überlebt hat. Fehlt eine,
+    // kam sie nicht als parsebarer `## v…`-Kopf zurück (Bridge/Modell) — sonst würde sie hier
+    // still verschwinden und ein unvollständiger Stand ließe sich speichern.
+    const survived = new Set(splitMinorSections(merged).map((s) => s.key));
+    const dropped = newSections.filter((s) => !survived.has(s.key));
+    if (dropped.length > 0) {
+      setNote(
+        `⚠️ ${dropped.length} Version${dropped.length === 1 ? '' : 'en'} kam${dropped.length === 1 ? '' : 'en'} ` +
+          `nicht sauber von der KI zurück (kein „## v…"-Kopf) und fehlt im Entwurf: ` +
+          `${dropped.map((s) => `v${s.key}`).join(', ')}. Bitte im Entwurf ergänzen oder erneut glätten.`,
+      );
+    } else {
+      setNote(`${newSections.length} neue Version${newSections.length === 1 ? '' : 'en'} geglättet — prüfen und speichern.`);
+    }
   });
 
   const save = useAsyncAction(async () => {

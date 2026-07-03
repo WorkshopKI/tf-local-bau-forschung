@@ -335,6 +335,22 @@ export function mergeChangelog(polishedNewMd: string, existingMd: string): strin
   return sorted.map((s) => s.text).join('\n\n') + (sorted.length ? '\n' : '');
 }
 
+/**
+ * Baut den ANZEIGE-Changelog fürs Modal: legt den kuratierten/geglätteten Override
+ * (`overrideMd` — Share-Stand oder committed Fassung, `''` wenn keiner) über die aus
+ * dem Build abgeleitete Vollwahrheit (`derivedMd`).
+ *
+ * Der Override GEWINNT je Version (behält die schöne Prosa), aber Versionen, die er
+ * NICHT enthält — typisch die neueste, noch nicht geglättete — werden aus `derivedMd`
+ * ergänzt. Damit hinkt die Anzeige nie hinter dem tatsächlichen Build her, selbst wenn
+ * auf dem Share ein VERALTETER Override liegt (früher verdeckte ein alter Override alle
+ * neueren Versionen komplett). Ohne Override-Inhalt → unverändert `derivedMd`.
+ */
+export function getDisplayChangelog(derivedMd: string, overrideMd: string): string {
+  if (!hasUserChangelogContent(overrideMd)) return derivedMd;
+  return mergeChangelog(overrideMd, derivedMd); // Override (1. Arg) gewinnt je Key, derived füllt Lücken
+}
+
 /** Ein 10er-Paket gebündelter Minor-Versionen (z.B. `v2.110 – v2.119`) für die Modal-Anzeige. */
 export interface MinorBucket {
   /** Stabiler Schlüssel `major-decade`, z.B. `2-110`. */

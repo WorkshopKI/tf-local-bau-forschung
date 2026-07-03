@@ -29,6 +29,8 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import {
   getChangelogMarkdown,
+  getDisplayChangelog,
+  hasUserChangelogContent,
   parseUserChangelog,
   bucketizeMinors,
   type ChangeCategory,
@@ -139,18 +141,22 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
     return now.getFullYear() * 12 + now.getMonth();
   }, []);
 
-  // Aus CHANGELOG.md abgeleitete „Build-Wahrheit" aller Versionen — Quelle fürs Glätten.
+  // Aus CHANGELOG.md abgeleitete „Build-Wahrheit" ALLER Versionen — Quelle fürs Glätten
+  // UND Lückenfüller der Anzeige (garantiert, dass die neueste Version immer erscheint).
   const derivedMarkdown = useMemo(
     () => getChangelogMarkdown(DEV_COMBINED, '', currentMajor),
     [currentMajor],
   );
-  // Eingebettete Fassung (committed changelog-user.md, sonst abgeleitet) als Build-Fallback.
-  const embeddedMarkdown = useMemo(
-    () => getChangelogMarkdown(DEV_COMBINED, userChangelogRaw, currentMajor),
-    [currentMajor],
+  // Kuratierter Override: geglätteter Share-Stand (Laufzeit) hat Vorrang, sonst die
+  // committed changelog-user.md (nur wenn sie echte `## vX.Y`-Abschnitte trägt).
+  const committedOverride = useMemo(
+    () => (hasUserChangelogContent(userChangelogRaw) ? userChangelogRaw.trim() : ''),
+    [],
   );
-  // Anzeige: Share-Stand (Laufzeit) hat Vorrang, sonst eingebettet/abgeleitet.
-  const markdown = shareMd ?? embeddedMarkdown;
+  const override = shareMd ?? committedOverride;
+  // Anzeige: Override gewinnt je Version (schöne Prosa), fehlende (neuere) Versionen kommen
+  // aus der Build-Ableitung — ein veralteter Override verdeckt so nichts Neueres mehr.
+  const markdown = useMemo(() => getDisplayChangelog(derivedMarkdown, override), [derivedMarkdown, override]);
 
   const majors = useMemo(() => parseUserChangelog(markdown), [markdown]);
 
@@ -330,7 +336,7 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
       {canPolishChangelog(kuratorActive) && (
         <ChangelogPolishPanel
           sourceMarkdown={derivedMarkdown}
-          shareMarkdown={shareMd ?? ''}
+          shareMarkdown={override}
           onSaved={(merged) => setShareMd(merged)}
         />
       )}

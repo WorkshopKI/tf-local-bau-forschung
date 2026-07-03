@@ -5,6 +5,28 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.161.1 — Changelog-Modal zeigt die neueste Version wieder zuverlässig (Juli 2026)
+
+PATCH — Behebt, dass das „Was ist neu?"-Modal auf einer älteren Version hängen blieb, obwohl der
+Build bereits neuer war. Ursache: Ein kuratierter/geglätteter Changelog-Override (der geglättete
+`_intern/changelog-user.md` auf dem Share **oder** die committed Fassung) **ersetzte** die aus
+CHANGELOG.md abgeleitete Anzeige komplett — und **verdeckte** damit jede Version, die nach dem letzten
+Glätten dazukam (z.B. v2.161, während der Override nur bis v2.160 reichte). Kein KI-Glätten und kein
+Rebuild konnte das aus Nutzersicht heilen.
+
+- **Anzeige mischt statt ersetzt** (`getDisplayChangelog`, [deriveChangelog.ts](src/core/components/changelog/deriveChangelog.ts)):
+  Der Override **gewinnt weiterhin je Version** (behält die schöne Prosa), aber Versionen, die er nicht
+  enthält, werden aus der Build-Ableitung **ergänzt**. Die Anzeige hinkt dem Build damit nie wieder
+  hinterher — die neueste Version erscheint immer, geglättet oder (noch) roh. Verdrahtet in
+  [ChangelogDialog.tsx](src/core/components/changelog/ChangelogDialog.tsx); der committed-Override greift
+  nur noch mit echten `## vX.Y`-Abschnitten.
+- **Glätten warnt statt still zu schlucken** ([ChangelogPolishPanel.tsx](src/core/components/changelog/ChangelogPolishPanel.tsx)):
+  Nach dem Merge wird geprüft, ob **jede** frisch selektierte Version den Merge überlebt hat. Kam eine
+  nicht als parsebarer `## v…`-Kopf von der KI zurück (Bridge/Modell), wird sie jetzt sichtbar als
+  fehlend gemeldet statt kommentarlos aus dem zu speichernden Stand zu fallen.
+- **Inkrementell-Basis = angezeigter Override** statt nur des Share-Stands: verhindert, dass das Glätten
+  bei leerem Share degeneriert und plötzlich „alles ab v2.6" an die KI schickt.
+
 ### v2.161.0 — Förderanträge-Tabelle: Gesamtbreite per Griff ziehbar (Juli 2026)
 
 MINOR — Ergänzt v2.159.2 (Tabelle füllt die Fensterbreite): Am **rechten Tabellenrand** sitzt jetzt ein
