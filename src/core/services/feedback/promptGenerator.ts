@@ -37,12 +37,16 @@ const STRUCTURED_SECTIONS: Partial<Record<FeedbackCategory, Array<{ key: string;
  * typspezifische `###`-Abschnitte (nur nicht-leere Felder); eine ggf. vorhandene
  * LLM-Summary wird als Einleitungssatz vorangestellt, ersetzt die Felder aber
  * NICHT. Ohne `structured` greift das bisherige Verhalten (Summary/Details/Rohtext).
+ * `cls.anforderung` (aus improveFeedback()) steht als eigener Ist/Soll-Abschnitt
+ * VOR allem anderen — sie ist die verfeinerte Fassung, die Felder bleiben Beleg.
  */
 function buildRequirement(ticket: FeedbackItem): string {
   const cls = ticket.llm_classification;
+  const anforderungBlock = cls?.anforderung ? `### Anforderung (Ist/Soll)\n\n${cls.anforderung}` : '';
   const sections = ticket.category ? STRUCTURED_SECTIONS[ticket.category] : undefined;
   if (ticket.structured && sections) {
     const parts: string[] = [];
+    if (anforderungBlock) parts.push(anforderungBlock);
     if (cls?.summary) parts.push(cls.summary);
     for (const { key, heading } of sections) {
       const val = ticket.structured[key]?.trim();
@@ -53,7 +57,15 @@ function buildRequirement(ticket: FeedbackItem): string {
   // Fallback: kein structured (oder Lob/Frage) → Summary/Details/Rohtext.
   const summary = cls?.summary ?? ticket.text;
   const details = cls?.details && cls.details !== summary ? cls.details : '';
-  return details ? `${summary}\n\n${details}` : summary;
+  const fallbackBody = details ? `${summary}\n\n${details}` : summary;
+  return anforderungBlock ? `${anforderungBlock}\n\n${fallbackBody}` : fallbackBody;
+}
+
+/** Markdown-Liste der Akzeptanzkriterien (aus improveFeedback()), leer wenn keine vorhanden. */
+function buildAkzeptanzkriterienBlock(ticket: FeedbackItem): string {
+  const kriterien = ticket.llm_classification?.akzeptanzkriterien;
+  if (!kriterien || kriterien.length === 0) return '';
+  return `\n### Akzeptanzkriterien\n\n${kriterien.map(k => `- ${k}`).join('\n')}\n`;
 }
 
 /** Markdown-Block für beigefügte Screenshots (Referenzen + manueller-Anhang-Hinweis). */
@@ -76,6 +88,7 @@ export function generateClaudeCodePrompt(ticket: FeedbackItem): string {
   const cls = ticket.llm_classification;
   const category = cls?.category ?? ticket.category;
   const requirement = buildRequirement(ticket);
+  const akzeptanzkriterienBlock = buildAkzeptanzkriterienBlock(ticket);
   const screenshotsBlock = buildScreenshotsBlock(ticket);
   const affectedArea = cls?.affectedArea || ticket.context.page;
   const relevantFiles = cls?.relevant_files;
@@ -102,7 +115,7 @@ Kategorie: **${category ? (CATEGORY_LABELS_DE[category] ?? category) : 'Unklassi
 ## Anforderung (aus Nutzerfeedback #${ticket.id})
 
 ${requirement}
-${ticket.user_confirmed ? '\n> ✅ Vom Nutzer bestätigt: "Ja, genau das meine ich"\n' : ''}${screenshotsBlock}
+${akzeptanzkriterienBlock}${ticket.user_confirmed ? '\n> ✅ Vom Nutzer bestätigt: "Ja, genau das meine ich"\n' : ''}${cls?.verbessert ? '\n> ✨ Durch interne KI verfeinert.\n' : ''}${screenshotsBlock}
 ## Automatisch erfasster Kontext
 
 - Route: \`${ctx.route}\`
@@ -127,7 +140,7 @@ ${filesBlock}
 - **Icons**: \`lucide-react\` (tree-shakeable)
 - **Deutsche UI-Texte**, konsistent mit Rest der App
 - **Eval- und Smoke-Tests** dürfen nicht brechen
-- **Status-Mappings**: \`src/core/utils/status-mappings.ts\` als zentrale Quelle nutzen
+- **Status-Mappings**: Labels/Badges über \`src/core/utils/status-mappings.ts\`; fachliche Status-Vergleiche NIE per Literal — Helper aus \`src/core/utils/status-canonical.ts\` nutzen (CLAUDE.md Pitfall #12)
 - **CLAUDE.md** als primäre Kontext-Referenz — nach Implementierung ggf. aktualisieren
 
 ## Auftrag

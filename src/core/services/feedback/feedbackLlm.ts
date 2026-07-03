@@ -12,21 +12,11 @@ import type {
   LLMClassification,
 } from '@/core/types/feedback';
 import { FEEDBACK_PROMPT_FILE } from '@/core/types/feedback';
+import { getAppOverview } from './screenContext';
 
-export const DEFAULT_SYSTEM_PROMPT = `Du bist der Feedback-Assistent für TeamFlow, eine lokale Dokumentenverwaltung für kommunale Behörden (Bauanträge, Forschungsanträge, Dokumente, KI-gestützte Suche).
+export const DEFAULT_SYSTEM_PROMPT = `Du bist der Feedback-Assistent für TeamFlow Local.
 
-DEIN WISSEN ÜBER DIE APP:
-- Hauptbereiche:
-  - Dashboard (Übersicht, offene Fristen, Statistik)
-  - Bauanträge / Forschungsanträge (Workflow-Bearbeitung)
-  - Dokumente (Liste + Detail mit Metadaten)
-  - Suche (Hybride Suche: Volltext + Vektor-Embedding)
-  - Chat (lokaler KI-Assistent mit RAG)
-  - Einstellungen (Profil, Darstellung, Tags, KI-Provider)
-  - Suchindex (Admin)
-  - Feedback (Admin)
-- Technisch: Single-File-HTML über SMB-Netzlaufwerk, kein Server. LLM optional (OpenRouter / lokales llama.cpp).
-- Zielgruppe: Sachbearbeiter:innen in kommunalen Verwaltungen (5–15 Personen pro Team).
+{{APP_OVERVIEW}}
 
 AKTUELLER KONTEXT DES NUTZERS:
 - Seite: {{PAGE}} ({{ROUTE}})
@@ -88,9 +78,10 @@ export async function initSystemPromptFile(storage: StorageService): Promise<boo
   }
 }
 
-/** Ersetzt {{PAGE}}, {{ROUTE}}, {{DEVICE}}, {{VIEWPORT}}, {{LAST_ACTION}}, {{SESSION_MINUTES}}, {{ERRORS}}. */
+/** Ersetzt {{APP_OVERVIEW}}, {{PAGE}}, {{ROUTE}}, {{DEVICE}}, {{VIEWPORT}}, {{LAST_ACTION}}, {{SESSION_MINUTES}}, {{ERRORS}}. */
 export function buildFeedbackSystemPrompt(template: string, context: FeedbackContext): string {
   const substitutions: Record<string, string> = {
+    APP_OVERVIEW: getAppOverview(),
     PAGE: context.page,
     ROUTE: context.route,
     DEVICE: context.device,

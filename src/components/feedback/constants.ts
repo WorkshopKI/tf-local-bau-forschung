@@ -7,6 +7,10 @@ export interface TeamflowArea {
   label: string;
 }
 
+// Refs sind APPEND-ONLY: sie persistieren als FeedbackContext.screenRef in bereits
+// gespeicherten Tickets. Bestehende Refs nie umbenennen/löschen (auch wenn ein Label
+// nicht mehr 1:1 zu einem aktuellen Plugin passt) — nur Labels korrigieren + fehlende
+// reale Bereiche ergänzen (v2.165: auslastung/anfragen/feedback gegen plugins.config.ts).
 export const TEAMFLOW_AREAS: readonly TeamflowArea[] = [
   { ref: 'dashboard', label: 'Dashboard / Home' },
   { ref: 'antraege', label: 'Förderanträge' },
@@ -16,6 +20,9 @@ export const TEAMFLOW_AREAS: readonly TeamflowArea[] = [
   { ref: 'chat', label: 'Chat / KI-Assistent' },
   { ref: 'einstellungen', label: 'Einstellungen' },
   { ref: 'suchindex', label: 'Suchindex' },
+  { ref: 'auslastung', label: 'Auslastung' },
+  { ref: 'anfragen', label: 'Anfragen' },
+  { ref: 'feedback', label: 'Feedback-System' },
   { ref: 'sonstiges', label: 'Sonstiges' },
 ] as const;
 

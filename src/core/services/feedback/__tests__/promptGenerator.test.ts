@@ -62,6 +62,58 @@ describe('generateClaudeCodePrompt — structured', () => {
   });
 });
 
+describe('generateClaudeCodePrompt — improveFeedback-Felder (v2.165)', () => {
+  it('rendert Anforderung (Ist/Soll) VOR den structured-Sektionen', () => {
+    const ticket = makeFeedback({
+      category: 'problem',
+      structured: { actual: 'Absturz' },
+      llm_classification: {
+        category: 'bug', summary: 'S', details: '', affectedArea: 'suche', priority_suggestion: 3,
+        anforderung: 'IST: Absturz beim Suchen. SOLL: Kein Absturz.',
+      },
+    });
+    const prompt = generateClaudeCodePrompt(ticket);
+    const anforderungIdx = prompt.indexOf('### Anforderung (Ist/Soll)');
+    const strukturIdx = prompt.indexOf('### Tatsächliches Verhalten');
+    expect(anforderungIdx).toBeGreaterThan(-1);
+    expect(strukturIdx).toBeGreaterThan(anforderungIdx);
+    expect(prompt).toContain('IST: Absturz beim Suchen. SOLL: Kein Absturz.');
+  });
+
+  it('rendert Akzeptanzkriterien als Liste', () => {
+    const ticket = makeFeedback({
+      category: 'idea',
+      llm_classification: {
+        category: 'feature', summary: 'S', details: '', affectedArea: 'suche', priority_suggestion: 3,
+        akzeptanzkriterien: ['Kriterium eins', 'Kriterium zwei'],
+      },
+    });
+    const prompt = generateClaudeCodePrompt(ticket);
+    expect(prompt).toContain('### Akzeptanzkriterien');
+    expect(prompt).toContain('- Kriterium eins');
+    expect(prompt).toContain('- Kriterium zwei');
+  });
+
+  it('verbessert:true → Hinweiszeile "Durch interne KI verfeinert"', () => {
+    const ticket = makeFeedback({
+      category: 'praise',
+      llm_classification: {
+        category: 'praise', summary: 'S', details: '', affectedArea: 'suche', priority_suggestion: 3, verbessert: true,
+      },
+    });
+    const prompt = generateClaudeCodePrompt(ticket);
+    expect(prompt).toContain('Durch interne KI verfeinert');
+  });
+
+  it('ohne anforderung/akzeptanzkriterien/verbessert: keine neuen Abschnitte', () => {
+    const ticket = makeFeedback({ category: 'praise', text: 'Tolle App' });
+    const prompt = generateClaudeCodePrompt(ticket);
+    expect(prompt).not.toContain('### Anforderung (Ist/Soll)');
+    expect(prompt).not.toContain('### Akzeptanzkriterien');
+    expect(prompt).not.toContain('Durch interne KI verfeinert');
+  });
+});
+
 describe('generateClaudeCodePrompt — attachments', () => {
   it('listet Screenshots (Dateiname + Caption) + Manuell-Anhängen-Hinweis, kein base64', () => {
     const ticket = makeFeedback({
