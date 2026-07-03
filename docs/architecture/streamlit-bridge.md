@@ -42,11 +42,31 @@ Streamlit → App:   { type: 'tf-app-ping' }  → App: { type: 'tf-app-pong' }  
 Die Streamlit-App gehört uns nicht und kann nicht geändert werden → das Bookmarklet schreibt die Nachricht in das Chat-Eingabefeld, sendet ab und liest die Antwort aus dem Chat-DOM. Härtung gegen typische Fehler:
 - **Selektor-Fallback-Arrays** (spezifisch → generisch); `.st-key-input_msg` setzt `key="input_msg"` im `st.chat_input` voraus, sonst greifen die generischen Selektoren.
 - **Submit** per Button **oder** Enter-Key-Fallback.
-- **Baseline**-Nachrichtenzahl vor dem Senden; es wird auf neue Nachrichten gewartet.
-- Nur die **Assistant**-Nachricht wird gelesen (User-Echo via `img[alt*="user"]` ausgeschlossen, und Kandidat übersprungen, dessen Text == gesendete Nachricht).
-- **Stabilitäts-Gate**: Inhalt muss N×500 ms unverändert bleiben (Streaming fertig), bevor zurückgegeben wird.
+- **Antwort-Auswahl per Echo-Anker** (nicht per Position) — Details unten. Nur die **Assistant**-Nachricht wird gelesen (User-Echo via `img[alt*="user"]` erkannt).
+- **Stabilitäts-Gate**: Inhalt muss idle bleiben (`SETTLE_MS`, verlängert bei sehr kurzem Inhalt), bevor finalisiert wird — überlebt Thinking-Denk-Pausen.
 - Kleines Status-Badge (Interne KI / Verbunden / Arbeitet… / Zeitüberschreitung / Fehler) + Button „ZAH-App testen"; bei fehlendem `window.opener` Hinweis „Tab aus der App öffnen". `window.__teamflowBridge`-Guard gegen Doppel-Installation.
 - **„Prompt-Vorlagen"-Spalte ausblenden** (`installTemplateHide()`): die rechte Vorlagen-Spalte der KI-Seite kostet nur Platz, da die App den Chat fernsteuert. Ausblendung **rein per CSS** (injiziertes `<style id="tf-bridge-layout">`) verankert am Streamlit-Auto-Anker `#prompt-vorlagen` — `[data-testid="stColumn"]:has(#prompt-vorlagen){display:none}` + Geschwister-Chat-Spalte auf volle Breite. Der Anker wird bei jedem Rerun neu erzeugt → flackerfrei **ohne** Observer. Sicherheitsnetz `ensureVorlagenHook()`: fehlt der Anker, wird die Überschrift per Text-Match (`/prompt[\s-]*vorlagen/i`) gefunden und der Anker nachgesetzt (Re-Check im bestehenden `MutationObserver`, kein zweiter Observer). Übernommen aus dem alten ZIM-Bookmarklet (`_reference/.../streamlit-theme.css`).
+
+### Antwort-Auswahl (Echo-Anker)
+
+Welche Chat-Nachricht ist „die Antwort"? Das AitisiGPT-DOM ist eine fremde, nicht kontrollierte UI — jede
+Annahme über die **Position** der Antwort ist brüchig (Bug-Klasse 10, [recurring-bug-classes.md](recurring-bug-classes.md)):
+„die letzte Nachricht" bricht, weil nach der Antwort eine **Folge-Begrüßung** angehängt wird; eine
+„Zähl-Baseline vor dem Senden" bricht am Render-Race. Real: `[0] Begrüßung · [1] Prompt-Echo · [2] Antwort ·
+[3] Folge-Begrüßung`. Historie der Fehlversuche: v2.157.1 → v2.159.1 → v2.159.3 → **v2.159.4** (aktuell korrekt).
+
+Stabil ist nur die **Anker-Relation**: die **erste Nicht-User-Nachricht NACH dem Prompt-Echo** (der letzten
+User-Nachricht). Kein Echo gefunden → **nichts zurückgeben** (nicht raten, kein Fallback auf die Begrüßung).
+
+Die reine Index-Logik lebt zweifach identisch: als pure Funktion `selectAnswerIndex` /`selectAnswer` in
+[answer-selection.ts](../../src/core/services/ai/streamlit-bridge/answer-selection.ts) (unit-testbar) und —
+weil das Bookmarklet standalone sein muss (`?raw`-Inlining, kein Import) — **gespiegelt** im
+[bridge-snippet.source.js](../../src/core/services/ai/streamlit-bridge/bridge-snippet.source.js)
+(`findAnswerMsg` → `selectAnswerIndex` zwischen den `<answer-selection-core>`-Markern). Der Drift-Test
+[answer-selection.test.ts](../../src/core/services/ai/streamlit-bridge/__tests__/answer-selection.test.ts)
+extrahiert die JS-Funktion und lässt sie **gegen dieselben Fixtures** wie die TS-Fassung laufen (erschöpfend
+über alle Roster-Kombinationen bis Länge 8) — Divergenz schlägt fehl. `BRIDGE_REV` markiert die Snippet-Version
+(bump bei echter Verhaltensänderung → Re-Install; der reine Extraktions-Refactor ließ das Verhalten unverändert).
 
 ## Aktivierung (Nutzer-Flow)
 
@@ -59,3 +79,5 @@ Feature-Flag `streamlitBridge` (`isStreamlitBridgeEnabled()`, optional, default 
 ## Test
 
 Mini-Streamlit-App unter `_reference/bookmarklet-streamlit/code-bookmarklet-multiple-file-codebase/streamlit-dev-chat` (`streamlit run app.py`, Mock-Modus oder `.env` auf den lokalen llama-Server). Sie nutzt `st.chat_input(key="input_msg")` → passt zum bevorzugten Selektor.
+
+Die **Antwort-Auswahl** (Echo-Anker) ist zusätzlich unit-getestet: [answer-selection.test.ts](../../src/core/services/ai/streamlit-bridge/__tests__/answer-selection.test.ts) prüft die belegten DOM-Roster (v2.157.1–v2.159.4) und laufen JS-Snippet + TS-Modul gegen dieselben Fixtures (Drift-Schutz).

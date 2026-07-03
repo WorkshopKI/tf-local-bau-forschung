@@ -384,16 +384,31 @@
   //   [0] Begruessung · [1] User-Prompt · [2] Antwort · [3] Folge-Begruessung
   // Die erste nach dem Echo ist die Antwort; [0] steht davor, [3] danach — beide raus.
   // Geteilt von runRequest UND runSelfTest (damit der Selbsttest denselben Pfad prueft).
+  //
+  // Die reine Index-Auswahl steht zwischen den Sync-Markern unten und ist WORTGLEICH
+  // in answer-selection.ts gespiegelt (das Bookmarklet muss standalone bleiben:
+  // ?raw-Inlining → kein Import). Der Drift-Test (answer-selection.test.ts) extrahiert
+  // `selectAnswerIndex` zwischen den Markern und laesst sie gegen dieselben Fixtures wie
+  // die TS-Fassung laufen. Aenderung hier = Aenderung dort. Rein interner Refactor
+  // (DOM-Auswahl byte-identisch zu v2.159.4) → BRIDGE_REV bewusst NICHT gebumpt.
+  // <answer-selection-core> keep in sync with answer-selection.ts
+  function selectAnswerIndex(flags) {
+    var lastUser = -1;
+    for (var i = flags.length - 1; i >= 0; i--) {
+      if (flags[i]) { lastUser = i; break; } // Index unseres Prompt-Echos
+    }
+    if (lastUser < 0) return -1; // Prompt-Echo nicht gefunden → nicht raten
+    for (var j = lastUser + 1; j < flags.length; j++) {
+      if (!flags[j]) return j; // erste Nicht-User-Nachricht danach
+    }
+    return -1;
+  }
+  // </answer-selection-core>
   function findAnswerMsg() {
-    var msgs = qa(SEL.msg), lastUser = -1;
-    for (var i = msgs.length - 1; i >= 0; i--) {
-      if (isUser(msgs[i])) { lastUser = i; break; } // Index unseres Prompt-Echos
-    }
-    if (lastUser < 0) return null; // Prompt-Echo nicht gefunden → nicht raten
-    for (var j = lastUser + 1; j < msgs.length; j++) {
-      if (!isUser(msgs[j])) return msgs[j]; // erste Nicht-User-Nachricht danach
-    }
-    return null;
+    var msgs = qa(SEL.msg), flags = [];
+    for (var k = 0; k < msgs.length; k++) flags.push(isUser(msgs[k]));
+    var idx = selectAnswerIndex(flags);
+    return idx < 0 ? null : msgs[idx];
   }
 
   // ── Anfrage-Engine: einfuegen → absenden → live streamen → finalisieren ────
