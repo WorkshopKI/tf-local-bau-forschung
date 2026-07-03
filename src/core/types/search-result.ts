@@ -38,6 +38,10 @@ export interface UnifiedSearchResult {
   fkz?: string;
   /** Programm-Name (oder ID falls Name unbekannt). */
   programm?: string;
+  /** Unterprogramm-Label (sprechender Name) oder — solange die Labels noch nicht
+   *  geladen sind bzw. kein Name kuratiert ist — der rohe Unterprogramm-Code.
+   *  Für die kombinierte „Programm/Unterprogramm"-Anzeige in der Suchtabelle. */
+  unterprogramm?: string;
   antragsteller?: string;
   /** Roh-Status-String aus CSV. */
   status?: string;

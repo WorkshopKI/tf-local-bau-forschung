@@ -49,6 +49,7 @@ import {
 } from '@/core/services/csv/idb-csv';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusCategory } from '@/core/utils/status-canonical';
+import { useUnterprogrammLabels } from '@/plugins/antraege/useUnterprogrammLabels';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 
 const DEBOUNCE_MS = 300;
@@ -133,6 +134,9 @@ function mapAntragHit(
     snippet: makeAntragSnippet(item),
     fkz: hit.aktenzeichen,
     programm: item ? (programmNameById.get(item.programm_id) ?? item.programm_id) : undefined,
+    // Roher Unterprogramm-Code; das sprechende Label wird erst nach dem Mappen
+    // via useUnterprogrammLabels aufgeloest (Fallback = Code).
+    unterprogramm: item?.unterprogramm_id?.trim() || undefined,
     antragsteller: item?.antragsteller,
     status: item?.status,
     statusKategorie: item?.status ? getStatusCategory(item.status) : undefined,
@@ -168,6 +172,7 @@ function mapDokumentHit(
     zugehoerigesProgramm: linkedItem
       ? (programmNameById.get(linkedItem.programm_id) ?? linkedItem.programm_id)
       : undefined,
+    unterprogramm: linkedItem?.unterprogramm_id?.trim() || undefined,
   };
 }
 
@@ -194,6 +199,9 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   // Umschalten im Dropdown die LAUFENDE Suche neu ausführt — sonst bleiben
   // die angezeigten Treffer Substring-only bis zur nächsten Query-Änderung.
   const semanticEnabled = useSemanticSearchMode(s => s.enabled);
+  // Code→Name-Map der Unterprogramme des aktiven Programms (Modul-gecacht).
+  // Die Suche ist immer auf EIN Programm gescoped, daher genuegt eine Map.
+  const unterprogrammLabels = useUnterprogrammLabels(activeProgrammId);
 
   const [results, setResults] = useState<UnifiedSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -401,8 +409,27 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
     return { total: results.length, antraege, dokumente };
   }, [results]);
 
+  // Unterprogramm-Code → sprechendes Label aufloesen (Fallback = Code). Bewusst
+  // NACH der Streaming-Pipeline als reines Memo, damit der Effekt-Dep-Array
+  // unberuehrt bleibt (kein zusaetzlicher Such-Re-Run/Flicker beim Label-Load).
+  const resultsWithUnterprogramm = useMemo(() => {
+    if (unterprogrammLabels.size === 0) return results;
+    let changed = false;
+    const out = results.map(r => {
+      if (r.unterprogramm) {
+        const label = unterprogrammLabels.get(r.unterprogramm);
+        if (label && label !== r.unterprogramm) {
+          changed = true;
+          return { ...r, unterprogramm: label };
+        }
+      }
+      return r;
+    });
+    return changed ? out : results;
+  }, [results, unterprogrammLabels]);
+
   return {
-    results,
+    results: resultsWithUnterprogramm,
     loading,
     error,
     counts,

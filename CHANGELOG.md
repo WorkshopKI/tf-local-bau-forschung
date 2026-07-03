@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.161.5 — Such-Spalte „Programm" zeigt jetzt „Programm/Unterprogramm" (Juli 2026)
+
+PATCH — Die Spalte **Programm** in der übergreifenden Suche war wenig aussagekräftig, weil sie für alle
+Treffer desselben aktiven Programms denselben Wert (`ZIM`) zeigte. Sie zeigt jetzt zusätzlich das
+**Unterprogramm-Label** im Format `Programm/Unterprogramm` (z.B. `ZIM/ZIM FuE-Projekte 2025`); ohne
+Unterprogramm bleibt es beim reinen Programm-Namen. Reine Anzeige-Verbesserung, keine Datenänderung.
+
+- Neues optionales Feld `unterprogramm` an [UnifiedSearchResult](src/core/types/search-result.ts). In
+  [useUnifiedSearch.ts](src/core/hooks/useUnifiedSearch.ts) trägt `mapAntragHit`/`mapDokumentHit` den rohen
+  `unterprogramm_id`-Code mit; das sprechende Label wird **nach** der Streaming-Pipeline in einem reinen
+  `useMemo` über den bestehenden Hook [useUnterprogrammLabels](src/plugins/antraege/useUnterprogrammLabels.ts)
+  aufgelöst (Fallback = Code). Der Effekt-Dep-Array bleibt unberührt → kein zusätzlicher Such-Re-Run.
+- `unterprogramm_id` liegt bereits in der Slim-List-View → **kein** `LIST_VIEW_PROJECTION_VERSION`-Bump,
+  keine Migration. Die Suche ist auf ein aktives Programm gescoped, daher genügt eine Label-Map.
+- Die `programm`-Spalte in [columns.tsx](src/plugins/suche/columns.tsx) kombiniert Accessor + Render zum
+  `Programm/Unterprogramm`-Wert (breiter, `truncate` + Tooltip). Sort/Filter/Export laufen über den
+  kombinierten Wert — Filtern nach Unterprogramm wird dadurch erstmals möglich.
+
 ### v2.161.4 — „Letzter Monat"-Filter aus dem Changelog-Modal entfernt (Juli 2026)
 
 PATCH — Der Zeit-Filter „Letzter Monat" im „Was ist neu?"-Modal ist **ersatzlos entfernt** (wurde nicht

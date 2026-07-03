@@ -180,14 +180,26 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.dateiname}>{r.dateiname}</span>,
   },
   {
-    key: 'programm', label: 'Programm', width: 100, defaultVisible: false,
+    // Format „Programm/Unterprogramm" (z.B. „ZIM/ZIM FuE-Projekte 2025"). Ohne
+    // Unterprogramm nur der Programm-Name. Sort/Filter/Export laufen ueber den
+    // kombinierten Accessor-Wert — dadurch wird Filtern nach Unterprogramm moeglich.
+    key: 'programm', label: 'Programm', width: 180, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'both',
-    accessor: r => safeString(r.programm ?? r.zugehoerigesProgramm),
-    render: r => (
-      <span className="font-mono text-[11px] text-[var(--tf-text-secondary)]">
-        {r.programm ?? r.zugehoerigesProgramm ?? ''}
-      </span>
-    ),
+    accessor: r => {
+      const p = r.programm ?? r.zugehoerigesProgramm;
+      if (!p) return '';
+      return r.unterprogramm ? `${p}/${r.unterprogramm}` : safeString(p);
+    },
+    render: r => {
+      const p = r.programm ?? r.zugehoerigesProgramm;
+      if (!p) return null;
+      const text = r.unterprogramm ? `${p}/${r.unterprogramm}` : p;
+      return (
+        <span className="text-[11px] text-[var(--tf-text-secondary)] truncate block" title={text}>
+          {text}
+        </span>
+      );
+    },
   },
   {
     key: 'titelInhalt', label: 'Titel / Inhalt', width: 400, defaultVisible: true,
