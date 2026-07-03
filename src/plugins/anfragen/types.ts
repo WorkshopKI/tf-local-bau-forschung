@@ -52,6 +52,14 @@ export interface Anfrage {
   anonymisiertMd: string;  // editierbar durch User
   mapping: Mapping[];      // SENSIBELSTE STRUKTUR — niemals an Transporte
   verallgemeinerungen: Verallgemeinerung[]; // identifizierender Freitext, verallgemeinert (nur lokal)
+  /**
+   * Non-Crypto-Hash (`hashText`) des `originalMd`, aus dem das aktuelle
+   * `mapping`/`anonymisiertMd` entstanden ist. Wird beim Anonymisieren gestempelt.
+   * Weicht der Hash des aktuellen Originaltexts ab → anonyme Fassung ist veraltet
+   * (Export gesperrt, erneut anonymisieren). Optional/additiv: Alt-Records ohne
+   * das Feld gelten NIE als veraltet (Bestandsschutz). Nur lokal — kein Transport.
+   */
+  anonBasisHash?: string;
   // Externe Runde
   externeAntwortAnon: string;  // Paste der anonymisierten Antwort
   // Finalisierung

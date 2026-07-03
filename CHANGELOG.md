@@ -5,6 +5,27 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.166.0 — Anfragen: Original-Mailtext vor dem Anonymisieren bearbeitbar (Juli 2026)
+
+MINOR — Im Modul „Anfragen" ließ sich bisher nur die anonyme Fassung (rechte Spalte) editieren; der
+Original-Mailtext links war read-only. Damit man Anrede/Signatur oder Text, der die KI irritiert, vor dem
+Anonymisieren entfernen kann, ist die linke Spalte jetzt ebenfalls ein Inline-Editor:
+
+- **Editierbarer Original-Mailtext** ([AnonymisierungView.tsx](src/plugins/anfragen/AnonymisierungView.tsx)):
+  dieselbe Textarea-mit-PII-Highlight-Backdrop wie das anonyme Pane (kein neues Layout), auto-persistiert
+  on-blur nach `originalMd`. `runAnonymisierung()` nimmt den (ggf. editierten) Text als Basis und schreibt
+  Original + anonyme Fassung + Basis-Hash in **einem** `upsert` (Save-Lock-Disziplin, Pitfall #16/#20).
+  Editierbar in jedem Status (auch nach dem Anonymisieren, um nach einem schlechten Ergebnis nachzubessern).
+- **Stale-Gate nach Original-Edit** ([original-hash.ts](src/plugins/anfragen/original-hash.ts)): Beim
+  Anonymisieren wird ein synchroner Non-Crypto-Hash (`hashText`, FNV-1a) des Originals als neues optionales
+  Feld `Anfrage.anonBasisHash` gestempelt. Weicht der Text danach ab, meldet `istOriginalStale()` die anonyme
+  Fassung als veraltet → Badge/Hinweis „Originaltext geändert — erneut anonymisieren", **Export gesperrt**
+  (orthogonal zum PII-Export-Guard) bis zur Re-Anonymisierung. Rück-Edit auf den identischen Text löst das
+  Gate wieder. Bestandsschutz: Alt-Records ohne `anonBasisHash` gelten nie als veraltet.
+- Rein **additiv** (optionales Feld, `normalizeAnfrage` unverändert), keine Migration. Kein Eingriff in
+  Transport/Export-Guard/DSGVO-Pfade — `originalMd` bleibt rein lokal, der Guard `anfrage-no-mapping-in-transport`
+  ist nicht betroffen. Neuer Unit-Test für `hashText`/`istOriginalStale`; Doku + Screen-Kontext-Doc mitgezogen.
+
 ### v2.165.0 — Feedback-Verbesserung via interne KI + Screen-Kontext-Docs (Juli 2026)
 
 MINOR — Die KI-Anreicherung im Feedback-System war bisher wirkungslos (`autoClassifyFeedback`

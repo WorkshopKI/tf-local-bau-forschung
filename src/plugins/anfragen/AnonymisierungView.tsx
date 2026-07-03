@@ -8,7 +8,7 @@
  * Buttons werden vom Guard getrieben.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ShieldCheck, ShieldAlert, Lock, Copy, ExternalLink, Eye, ArrowUpDown, Rows, Table, ChevronDown, Mailbox } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Lock, Copy, ExternalLink, Eye, ArrowUpDown, Rows, Table, ChevronDown, Mailbox, AlertTriangle } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -22,6 +22,7 @@ import {
 import { resolveAnfragenDashboardUrl } from './settings';
 import { runAnonymisierung, istAnonymisiererFreigeschaltet } from './services/anonymisierung';
 import { pruefeExportSicher } from './services/export-guard';
+import { hashText, istOriginalStale } from './original-hash';
 import {
   buildKindedSegments, platzhalterRanges, trefferToRanges, MARK_CLASS, type KindedRange,
 } from './highlight';
@@ -53,6 +54,7 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
 
   const [skill, setSkill] = useState<SkillRecord | null>(null);
   const [text, setText] = useState(anfrage.anonymisiertMd);
+  const [origText, setOrigText] = useState(anfrage.originalMd);
   const [dashboardUrl, setDashboardUrl] = useState(getAnfragenDashboardUrl());
   const [syncScroll, setSyncScroll] = useState(false);
   const [stacked, setStacked] = useState(false);
@@ -63,7 +65,8 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
 
   const taRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
-  const origRef = useRef<HTMLDivElement>(null);
+  const origTaRef = useRef<HTMLTextAreaElement>(null);
+  const origBackdropRef = useRef<HTMLDivElement>(null);
   const lockRef = useRef(false);
 
   useEffect(() => {
@@ -84,21 +87,31 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
 
   // Reset bei Anfrage-Wechsel / erneuter Anonymisierung.
   useEffect(() => { setText(anfrage.anonymisiertMd); }, [anfrage.id, anfrage.anonymisiertMd]);
+  useEffect(() => { setOrigText(anfrage.originalMd); }, [anfrage.id, anfrage.originalMd]);
 
   const aktiv = istAnonymisiererFreigeschaltet(skill);
   const schonAnonymisiert = statusErreicht(anfrage.status, 'anonymisiert');
-  const kannLaufen = aktiv && !!anfrage.originalMd.trim();
+  const kannLaufen = aktiv && !!origText.trim();
+  // Original nach dem Anonymisieren editiert → anonyme Fassung/Mapping veraltet.
+  const stale = istOriginalStale(anfrage, origText);
 
   const pruefung = useMemo(() => pruefeExportSicher(text, anfrage.mapping), [text, anfrage.mapping]);
   const sicher = pruefung.sicher;
+  // Export erst frei, wenn PII-Guard sauber UND der Originaltext nicht seit dem
+  // Anonymisieren geändert wurde (sonst passt die anonyme Fassung nicht mehr).
+  const exportFrei = sicher && !stale;
   const trefferTypen = useMemo(
     () => Array.from(new Set(pruefung.treffer.map(t => t.typ))).join(', '),
     [pruefung.treffer],
   );
 
   const origRanges = useMemo<KindedRange[]>(
-    () => trefferToRanges(pruefeExportSicher(anfrage.originalMd, anfrage.mapping).treffer, 'pii'),
-    [anfrage.originalMd, anfrage.mapping],
+    () => trefferToRanges(pruefeExportSicher(origText, anfrage.mapping).treffer, 'pii'),
+    [origText, anfrage.mapping],
+  );
+  const origSegs = useMemo(
+    () => (highlight ? buildKindedSegments(origText, origRanges) : [{ text: origText, kind: null }]),
+    [origText, origRanges, highlight],
   );
   const anonRanges = useMemo<KindedRange[]>(
     () => [...platzhalterRanges(text), ...trefferToRanges(pruefung.treffer, 'leak')],
@@ -136,11 +149,18 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
 
   const anonymisieren = useAsyncAction(async () => {
     if (!skill) return;
-    const { anonymisiertMd, mapping, verallgemeinerungen } = await runAnonymisierung(bridge, skill, anfrage.originalMd);
-    await upsert({ ...anfrage, anonymisiertMd, mapping, verallgemeinerungen, status: 'anonymisiert' }, storage);
+    // Editierten Originaltext als Basis nehmen (evtl. noch nicht geblurrt) und in
+    // EINEM upsert persistieren: Originaltext + Basis-Hash + anonyme Fassung.
+    const basis = origText;
+    const { anonymisiertMd, mapping, verallgemeinerungen } = await runAnonymisierung(bridge, skill, basis);
+    await upsert(
+      { ...anfrage, originalMd: basis, anonBasisHash: hashText(basis), anonymisiertMd, mapping, verallgemeinerungen, status: 'anonymisiert' },
+      storage,
+    );
   });
 
   const kopieren = useAsyncAction(async () => {
+    if (istOriginalStale(anfrage, origText)) throw new Error('Originaltext geändert — bitte erneut anonymisieren, bevor exportiert wird.');
     const pruef = pruefeExportSicher(text, anfrage.mapping);
     if (!pruef.sicher) throw new Error(`Export blockiert: noch ${pruef.treffer.length} mögliche PII-Treffer im Text.`);
     await navigator.clipboard.writeText(text);
@@ -148,6 +168,7 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
   });
 
   const onCombinedClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
+    if (istOriginalStale(anfrage, origText)) { e.preventDefault(); return; }
     const pruef = pruefeExportSicher(text, anfrage.mapping);
     if (!pruef.sicher) { e.preventDefault(); return; }
     void navigator.clipboard.writeText(text).catch(() => undefined);
@@ -158,10 +179,15 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
     if (text !== anfrage.anonymisiertMd) void upsert({ ...anfrage, anonymisiertMd: text }, storage);
   };
 
-  const syncBackdrop = (): void => {
-    if (backdropRef.current && taRef.current) {
-      backdropRef.current.scrollTop = taRef.current.scrollTop;
-      backdropRef.current.scrollLeft = taRef.current.scrollLeft;
+  // Bearbeiteten Original-Mailtext beim Verlassen des Feldes persistieren.
+  const persistOrigEdit = (): void => {
+    if (origText !== anfrage.originalMd) void upsert({ ...anfrage, originalMd: origText }, storage);
+  };
+
+  const syncBackdrop = (ta: HTMLTextAreaElement | null, bd: HTMLDivElement | null): void => {
+    if (bd && ta) {
+      bd.scrollTop = ta.scrollTop;
+      bd.scrollLeft = ta.scrollLeft;
     }
   };
   const mirror = (src: HTMLElement, dst: HTMLElement): void => {
@@ -172,11 +198,12 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
     requestAnimationFrame(() => { lockRef.current = false; });
   };
   const onTaScroll = (): void => {
-    syncBackdrop();
-    if (syncScroll && taRef.current && origRef.current) mirror(taRef.current, origRef.current);
+    syncBackdrop(taRef.current, backdropRef.current);
+    if (syncScroll && taRef.current && origTaRef.current) mirror(taRef.current, origTaRef.current);
   };
   const onOrigScroll = (): void => {
-    if (syncScroll && taRef.current && origRef.current) mirror(origRef.current, taRef.current);
+    syncBackdrop(origTaRef.current, origBackdropRef.current);
+    if (syncScroll && taRef.current && origTaRef.current) mirror(origTaRef.current, taRef.current);
   };
 
   return (
@@ -197,21 +224,38 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
             <div className="awd-sh">
               <Mailbox size={13} /> Original-Mailtext
             </div>
-            <HighlightedText
-              text={anfrage.originalMd}
-              ranges={origRanges}
-              highlight={highlight}
-              heightPx={height}
-              paneRef={origRef}
-              onScroll={onOrigScroll}
-              emptyHint="— kein Text —"
-            />
+            <div
+              className="awd-edit-wrap"
+              style={{ height }}
+              title="Original-Mailtext bearbeiten — z. B. Anrede/Signatur oder Text entfernen, der die KI irritiert. Änderungen werden lokal gespeichert."
+            >
+              <div ref={origBackdropRef} aria-hidden className="awd-edit-layer awd-edit-backdrop">
+                {origSegs.map((s, i) =>
+                  s.kind
+                    ? <mark key={i} className={MARK_CLASS[s.kind]}>{s.text}</mark>
+                    : <span key={i}>{s.text}</span>,
+                )}
+                {'\n'}
+              </div>
+              <textarea
+                ref={origTaRef}
+                value={origText}
+                onChange={e => setOrigText(e.target.value)}
+                onScroll={onOrigScroll}
+                onBlur={persistOrigEdit}
+                spellCheck={false}
+                placeholder="Original-Mailtext … (Anrede/Signatur oder irritierenden Text vor dem Anonymisieren entfernen)"
+                className="awd-edit-layer awd-edit-ta"
+              />
+            </div>
           </div>
 
           <div className="awd-colside">
             <div className="awd-sh">
               <ShieldCheck size={13} /> Anonymisiert
-              {schonAnonymisiert && (sicher ? (
+              {schonAnonymisiert && (stale ? (
+                <span className="awd-badge warn"><span className="awd-bdot" /> Originaltext geändert · erneut anonymisieren</span>
+              ) : sicher ? (
                 <span className="awd-badge ok"><span className="awd-bdot" /> Keine PII · Export möglich</span>
               ) : (
                 <span className="awd-badge warn"><span className="awd-bdot" /> {pruefung.treffer.length} mögliche PII-Treffer</span>
@@ -332,17 +376,17 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
       <div className="awd-actbar">
         {schonAnonymisiert && (
           <>
-            <Button variant="secondary" icon={Copy} loading={kopieren.busy} disabled={!sicher} onClick={() => kopieren.run()}>
+            <Button variant="secondary" icon={Copy} loading={kopieren.busy} disabled={!exportFrei} onClick={() => kopieren.run()}>
               In Zwischenablage kopieren
             </Button>
-            <Button asChild variant="primary" className={!sicher ? 'pointer-events-none opacity-50' : undefined}>
+            <Button asChild variant="primary" className={!exportFrei ? 'pointer-events-none opacity-50' : undefined}>
               <a
                 href={dashboardUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={onCombinedClick}
-                aria-disabled={!sicher}
-                tabIndex={sicher ? 0 : -1}
+                aria-disabled={!exportFrei}
+                tabIndex={exportFrei ? 0 : -1}
                 title="Öffnet den ZIM FAQ-Assistenten in einem neuen Tab. Voraussetzung: Internetzugang + eingeloggter Account."
               >
                 <ExternalLink /> Kopieren &amp; ZIM FAQ-Assistent öffnen
@@ -353,12 +397,15 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
         {!schonAnonymisiert && skill && !aktiv && (
           <span className="awd-note"><Lock size={12} /> Skill nicht freigeschaltet (Recall-Gate ausstehend).</span>
         )}
-        {!sicher && schonAnonymisiert && (
+        {stale && (
+          <span className="awd-note"><AlertTriangle size={12} /> Originaltext geändert — bitte erneut anonymisieren (Export gesperrt).</span>
+        )}
+        {!sicher && schonAnonymisiert && !stale && (
           <span className="awd-note"><ShieldAlert size={12} /> {pruefung.treffer.length} Treffer ({trefferTypen}) — Export blockiert.</span>
         )}
         <span className="awd-sp" />
         <Button
-          variant={schonAnonymisiert ? 'secondary' : 'primary'}
+          variant={schonAnonymisiert && !stale ? 'secondary' : 'primary'}
           icon={ShieldCheck}
           loading={anonymisieren.busy}
           disabled={!kannLaufen}

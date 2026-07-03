@@ -24,7 +24,11 @@ und die ist per Guard abgesichert.
    (Plain → HTML→MD → RTF-Hinweis) und die **Anzahl** der Anhänge. Anhänge werden **nie** geöffnet
    (sie tragen nicht weganonymisierbare IP/Properties). Ergebnis: `AnfrageInit` → `createAnfrage()` im Status `aufgenommen`.
 2. **Anonymisierung** ([services/anonymisierung.ts](../../src/plugins/anfragen/services/anonymisierung.ts)):
-   `runAnonymisierung()` fährt den `anfrage-anonymisieren`-Skill über `bridge.getTransportForSkillRun(skill)`
+   Der **Original-Mailtext ist vorab editierbar** — die linke Spalte in
+   [AnonymisierungView.tsx](../../src/plugins/anfragen/AnonymisierungView.tsx) ist ein Inline-Editor (Textarea +
+   PII-Highlight-Backdrop, dasselbe Muster wie das anonyme Pane), auto-persistiert on-blur nach `originalMd`.
+   Zweck: Anrede/Signatur oder Text entfernen, der die KI irritiert. `runAnonymisierung()` läuft gegen den
+   (ggf. editierten) Text und fährt den `anfrage-anonymisieren`-Skill über `bridge.getTransportForSkillRun(skill)`
    (interner Transport erzwungen). **Zwei Stufen in einem Lauf**:
    - **Pseudonymisierung** harter Identifier → Platzhalter `[TYP_N]` + `mapping[]` (Platzhalter↔Original).
    - **Verallgemeinerung** identifizierenden Freitexts → `verallgemeinerungen[]` (`original`→`verallgemeinert`);
@@ -54,10 +58,11 @@ und die ist per Guard abgesichert.
 | Feld | Zweck | Sensibilität |
 |---|---|---|
 | `absenderEmail`, `betreff`, `hatAnhaenge` | Aufnahme-Metadaten (für mailto/Anzeige) | – |
-| `originalMd` | Body als Markdown | **echt — nur lokal/intern** |
+| `originalMd` | Body als Markdown — **vor dem Anonymisieren editierbar** | **echt — nur lokal/intern** |
 | `anonymisiertMd` | anonyme, editierbare Fassung | export-fähig (nach Guard) |
 | `mapping: Mapping[]` | `{platzhalter, original, typ}` | **SENSIBELSTE Struktur — nie serialisieren/transportieren** |
 | `verallgemeinerungen: Verallgemeinerung[]` | `{original, verallgemeinert}` | `original` **nur lokal**; `verallgemeinert` exportiert |
+| `anonBasisHash?` | Non-Crypto-Hash des `originalMd` zum Anon-Zeitpunkt (Stale-Erkennung) | opak — nur lokal |
 | `externeAntwortAnon` | eingefügte anonyme Antwort | anonym |
 | `finaleAntwort` | wiedereingesetzt, mail-fertig | echt — an Original-Absender |
 
@@ -72,7 +77,13 @@ und die ist per Guard abgesichert.
   **kein** dedizierter Object-Store/Version-Bump (ein Bump triggert unter `file://` mit parallel offenen
   Varianten ein `onblocked`-Upgrade — [recurring-bug-classes.md](recurring-bug-classes.md) §3).
 - Rein **additive** Felder; `normalizeAnfrage()` defaultet `mapping`/`verallgemeinerungen` beim Lesen auf `[]`
-  (Alt-Records ohne diese Felder crashen nicht).
+  (Alt-Records ohne diese Felder crashen nicht). `anonBasisHash` bleibt optional (`undefined` bei Alt-Records).
+- **Stale-Gate nach Original-Edit** ([original-hash.ts](../../src/plugins/anfragen/original-hash.ts)): Beim
+  Anonymisieren wird `hashText(originalMd)` als `anonBasisHash` gestempelt. Editiert der User den Originaltext
+  danach, meldet `istOriginalStale()` die anonyme Fassung als veraltet → Badge/Hinweis „Originaltext geändert",
+  **Export gesperrt** bis zur Re-Anonymisierung (orthogonal zum PII-Export-Guard). Rück-Edit auf den identischen
+  Text löst das Gate wieder (Hash-Vergleich). Bestandsschutz: Alt-Records ohne `anonBasisHash` gelten nie als
+  veraltet. `hashText` ist ein synchroner **Non-Crypto**-Hash (FNV-1a, nur Änderungserkennung).
 - Zustand-Store (`useAnfragenStore`): jede Mutation = ein `put`/`delete` + ein finales `set`
   (Save-Lock-Disziplin, Pitfall #16/#20). View-Modus als reine UI-Präferenz in `localStorage`
   (`teamflow_anfragen_view_mode`).
