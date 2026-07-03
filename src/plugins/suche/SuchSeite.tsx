@@ -1,6 +1,4 @@
-// TODO(refactor v2.4+): mischt Such-Input/Recent-Vorschläge, Filter-/Sort-/Spalten-State und Ergebnis-Tabelle + KI-Analyse — entlang dieser Grenzen aufteilen (opportunistisch beim nächsten Anfassen).
-// Vorschlag: SearchFilters.tsx + SearchResults.tsx + ResultDetails.tsx extrahieren.
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, MessageCircle, Search, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +6,6 @@ import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearc
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
-import { SEARCH_COLUMNS, BEGRUENDUNG_COLUMN, getColumnByKey, getColumnFilterValue, type SearchColumn } from './columns';
 import { useSucheStore } from './store';
 import { ColumnPicker } from './ColumnPicker';
 import { SearchDownloadMenu } from './SearchDownloadMenu';
@@ -16,15 +13,10 @@ import { SearchResultsTable } from './SearchResultsTable';
 import { exportCSV, exportClipboard, exportXLSX } from './export';
 import { useAnalysePipeline } from './useAnalysePipeline';
 import { AnalysePromptDialog } from './AnalysePromptDialog';
-import {
-  matchesPillFilter, compareValues, countResultsByType, SUCHE_COLLATOR,
-  getSucheAntragstypItems, matchesSucheAntragstyp, filterRecentSearches,
-  type SuchePillFilterId,
-} from './suchseite-utils';
 import { CollapsibleSeg } from '@/plugins/antraege/filter/CollapsibleSeg';
 import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
-import { SearchSuggestions } from './SearchSuggestions';
-import { useClickOutside } from '@/core/hooks/useClickOutside';
+import { SearchInput } from './SearchInput';
+import { useSearchResults } from './useSearchResults';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import {
   getProgrammCaches,
@@ -46,37 +38,10 @@ const PHASE_LABELS: Record<SearchPhase, string | null> = {
   error: null,
 };
 
-type FilterId = SuchePillFilterId;
-
-const DEFAULT_SORT_KEY = 'score';
-const COLUMN_WIDTHS_KEY = 'teamflow_suche_column_widths';
-const MIN_COLUMN_WIDTH = 60;
-/** Obergrenze der Treffer, die „Mit KI analysieren" begründet (Kosten/Tempo). */
-const ANALYSE_MAX_RESULTS = 50;
-
-function loadColumnWidths(): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(COLUMN_WIDTHS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== 'object') return {};
-    const out: Record<string, number> = {};
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof v === 'number' && Number.isFinite(v) && v >= MIN_COLUMN_WIDTH) out[k] = v;
-    }
-    return out;
-  } catch {
-    return {};
-  }
-}
-
 export function SuchSeite(): React.ReactElement {
   const navigate = useNavigate();
   const visibleColumns = useSucheStore(s => s.visibleColumns);
-  const recentSearches = useSucheStore(s => s.recentSearches);
   const addRecentSearch = useSucheStore(s => s.addRecentSearch);
-  const removeRecentSearch = useSucheStore(s => s.removeRecentSearch);
-  const clearRecentSearches = useSucheStore(s => s.clearRecentSearches);
   const analysePrompt = useSucheStore(s => s.analysePrompt);
   const setAnalysePrompt = useSucheStore(s => s.setAnalysePrompt);
   const analyse = useAnalysePipeline();
@@ -89,65 +54,47 @@ export function SuchSeite(): React.ReactElement {
 
   const [query, setQuery] = useState('');
   // Such-Pipeline laeuft auf der ge-deferreden Query, damit das Input-Feld
-  // frame-perfect bleibt waehrend Orama+Embedding+Filter+Sort durchlaufen
-  // (Pattern analog zum Foerderantraege-Plugin, useFilteredAntraege.ts).
+  // frame-perfect bleibt waehrend Orama+Embedding+Filter+Sort durchlaufen.
   const deferredQuery = useDeferredValue(query);
-  const [typeFilter, setTypeFilter] = useState<FilterId>('');
-  const [antragstypFilter, setAntragstypFilter] = useState<KategorieLabel>('Alle');
-  // Recent-Search-Vorschläge (Dropdown unter dem Input).
-  const [suggestOpen, setSuggestOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const searchBoxRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [sortKey, setSortKey] = useState<string | null>(DEFAULT_SORT_KEY);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => loadColumnWidths());
   const [toast, setToast] = useState<string | null>(null);
   const [promptDialogOpen, setPromptDialogOpen] = useState(false);
 
-  const handleColumnWidthChange = (key: string, width: number): void => {
-    const clamped = Math.max(MIN_COLUMN_WIDTH, Math.round(width));
-    setColumnWidths(prev => {
-      const next = { ...prev, [key]: clamped };
-      try { localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
-  };
-
   const { results: searchResults, loading, counts, indexInfo, vectorReady, searchPhase, semanticStatus } = useUnifiedSearch(deferredQuery);
-  // Phase-Badge nicht synchron-flackern lassen: deferred, damit React beim
-  // Stage-Wechsel keine Render-Stalls macht.
   const deferredPhase = useDeferredValue(searchPhase);
   const phaseLabel = PHASE_LABELS[deferredPhase];
   const queryNotEmpty = query.trim() !== '';
-  // Spinner sichtbar wenn entweder die Pipeline laeuft (loading) oder der
-  // User getippt hat aber deferredQuery noch nicht durch (Initialer
-  // useDeferredValue-Delay vor T=DEBOUNCE_MS — sonst stumme Phase).
   const showSpinner = loading || (queryNotEmpty && deferredPhase !== 'done' && deferredPhase !== 'error');
-  // „aktiv" = es gibt ein Begründung-Overlay (läuft gerade ODER fertig) → die
-  // Begründung-Spalte ist dann eingeblendet.
+  // „aktiv" = es gibt ein Begründung-Overlay (läuft gerade ODER fertig).
   const analyseActive = analyse.begruendungById !== null;
   const analyseDone = analyse.result !== null && !analyse.running;
 
+  // Filter-/Sort-/Spalten-Pipeline (extrahiert nach useSearchResults.ts).
+  const {
+    typeFilter, setTypeFilter,
+    antragstypFilter, setAntragstypFilter,
+    filterChips, antragstypItems, antragstypApplicable,
+    sorted, analyseResults, visibleColumnDefs, filterCandidatesByColumn,
+    sortKey, sortDirection, handleSort,
+    columnFilters, handleColumnFilterChange,
+    columnWidths, handleColumnWidthChange,
+  } = useSearchResults({
+    searchResults,
+    begruendungById: analyse.begruendungById,
+    analyseActive,
+    visibleColumns,
+  });
+
   // Eager Preload beim Mount der Suche-Seite (Hintergrund, idle). Der
   // Substring-Korpus (~1-1.5s) laedt immer — er traegt die Default-Suche.
-  // Modell (~2.5-4s, ~0.5-1 GB WASM/GPU) + Embedding-Korpus laden seit v2.62
-  // NUR nach Opt-in „Mit Ähnlichkeitssuche" (Dropdown neben dem Suchfeld);
-  // das Umschalten re-triggert den Effekt und startet den Preload sofort.
-  // Alles Module-Level-Singletons mit Promise-Dedup, sodass parallele
-  // Search-Calls dieselbe Promise reusen.
+  // Modell + Embedding-Korpus laden seit v2.62 NUR nach Opt-in.
   useEffect(() => {
     if (!activeProgrammId) return;
     const cancel = scheduleIdle(() => {
       void getProgrammCaches(storage.idb, activeProgrammId).catch(() => { /* best effort */ });
       if (!semanticEnabled || !isSemanticSearchActive()) return;
       void ensureEmbeddingReady(storage.idb).catch(() => { /* best effort */ });
-      // v2.62.2: Korpus-Bootstrap auch hier (bisher nur im Förderanträge-
-      // Preload) — sonst bleibt die Vector-Stage auf einem Rechner mit leerem
-      // lokalen Embedding-Cache dauerhaft leer, wenn der User direkt auf die
-      // Suchseite geht. Best-effort; danach Modul-Cache invalidieren, damit
-      // getEmbeddings die frisch geschriebenen Vektoren sieht.
+      // v2.62.2: Korpus-Bootstrap auch hier — sonst bleibt die Vector-Stage auf
+      // einem Rechner mit leerem lokalen Embedding-Cache dauerhaft leer.
       void (async () => {
         try {
           await autoBootstrapEmbeddingMirror(storage, status => {
@@ -163,198 +110,16 @@ export function SuchSeite(): React.ReactElement {
     return cancel;
   }, [activeProgrammId, storage, semanticEnabled]);
 
-  // KI-Analyse ERSETZT die Suchtreffer nicht — sie legt nur eine Begründung
-  // (per `id`) über die bestehenden Treffer. Gleiche Zeilen, gleiche Spalten,
-  // plus EINE zusätzliche Spalte „Begründung".
-  const begruendungById = analyse.begruendungById;
-  const dataSource = useMemo<UnifiedSearchResult[]>(
-    () => begruendungById
-      ? searchResults.map(r => (r.id in begruendungById ? { ...r, begruendung: begruendungById[r.id] } : r))
-      : searchResults,
-    [searchResults, begruendungById],
-  );
-
   const handleQueryChange = (next: string): void => {
     setQuery(next);
     if (analyseActive) analyse.reset();
   };
-
-  // ── Recent-Search-Vorschläge ──────────────────────────────────────────────
-  const suggestions = useMemo(
-    () => filterRecentSearches(recentSearches, query),
-    [recentSearches, query],
-  );
-  useClickOutside(searchBoxRef, () => { setSuggestOpen(false); setActiveIndex(-1); }, suggestOpen);
-
-  const handleSearchInput = (next: string): void => {
-    handleQueryChange(next);
-    setSuggestOpen(true);
-    setActiveIndex(-1);
-  };
-
-  const selectSuggestion = (s: string): void => {
-    handleQueryChange(s);
-    setSuggestOpen(false);
-    setActiveIndex(-1);
-    inputRef.current?.focus();
-  };
-
-  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === 'ArrowDown') {
-      if (suggestions.length === 0) return;
-      e.preventDefault();
-      if (!suggestOpen) { setSuggestOpen(true); return; }
-      setActiveIndex(i => Math.min(i + 1, suggestions.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      if (!suggestOpen || suggestions.length === 0) return;
-      e.preventDefault();
-      setActiveIndex(i => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter') {
-      const picked = suggestOpen && activeIndex >= 0 ? suggestions[activeIndex] : undefined;
-      if (picked !== undefined) {
-        e.preventDefault();
-        selectSuggestion(picked);
-      } else {
-        const q = query.trim();
-        if (q) addRecentSearch(q);
-        setSuggestOpen(false);
-        setActiveIndex(-1);
-      }
-    } else if (e.key === 'Escape') {
-      if (suggestOpen) { e.preventDefault(); setSuggestOpen(false); setActiveIndex(-1); }
-    }
-  };
-
-  const onSearchBlur = (e: React.FocusEvent<HTMLInputElement>): void => {
-    // Klick auf einen Vorschlag / ✕ / „Verlauf leeren" (innerhalb des Wrappers)
-    // soll die Teil-Query NICHT committen und das Dropdown offen lassen.
-    if (searchBoxRef.current && e.relatedTarget instanceof Node && searchBoxRef.current.contains(e.relatedTarget)) {
-      return;
-    }
-    const q = query.trim();
-    if (q) addRecentSearch(q);
-    setSuggestOpen(false);
-    setActiveIndex(-1);
-  };
-
-  const filterChips = useMemo(() => {
-    const pillCounts = countResultsByType(dataSource);
-    const base: Array<{ id: FilterId; label: string; count: number }> = [
-      { id: '', label: 'Alle', count: dataSource.length },
-      { id: 'antrag', label: 'Foerderantraege', count: pillCounts.antraege },
-      { id: 'dokument', label: 'Dokumente', count: pillCounts.dokumente },
-    ];
-    return base;
-  }, [dataSource]);
-
-  const pillFiltered = useMemo(
-    () => dataSource.filter(r => matchesPillFilter(r, typeFilter)),
-    [dataSource, typeFilter],
-  );
-
-  // Antragstyp ist ein Foerderantrag-Konzept (vb_phase → FuE/DS/DL/NW). Counts
-  // ueber die gesamte Treffer-Liste (stabil). Sichtbar/aktiv nur fuer die
-  // Antrag-Pills ('' = Alle, 'antrag') — bei der Dokument-Pill waere er
-  // irrelevant und wuerde die Liste leeren, daher dort nicht angewandt.
-  const antragstypItems = useMemo(() => getSucheAntragstypItems(dataSource), [dataSource]);
-  const antragstypApplicable = typeFilter === '' || typeFilter === 'antrag';
-  const antragstypFiltered = useMemo(() => {
-    if (antragstypFilter === 'Alle' || !antragstypApplicable) return pillFiltered;
-    return pillFiltered.filter(r => matchesSucheAntragstyp(r, antragstypFilter));
-  }, [pillFiltered, antragstypFilter, antragstypApplicable]);
-
-  const allColumns = SEARCH_COLUMNS;
-
-  // Per-Result-Spalten-Cache fuer Filter-Werte. Erste Aggregation ueber 1000
-  // Treffer × 14 Spalten = 14.000 Accessor-Calls; jede Folge-Aggregation
-  // (Sort-Click, Filter-Toggle, Resize) ist dann nur noch Map.get statt
-  // Funktionsaufruf. WeakMap-Refs werden mit den Result-Objekten GC'd, wenn
-  // die naechste Query reinkommt — kein manuelles Invalidieren noetig.
-  const filterValueCacheRef = useRef<WeakMap<UnifiedSearchResult, Map<string, string>>>(new WeakMap());
-
-  const cachedFilterValue = (col: SearchColumn, r: UnifiedSearchResult): string => {
-    const cache = filterValueCacheRef.current;
-    let perResult = cache.get(r);
-    if (!perResult) {
-      perResult = new Map<string, string>();
-      cache.set(r, perResult);
-    }
-    let v = perResult.get(col.key);
-    if (v === undefined) {
-      v = getColumnFilterValue(col, r);
-      perResult.set(col.key, v);
-    }
-    return v;
-  };
-
-  const filterCandidatesByColumn = useMemo<Record<string, string[]>>(() => {
-    const out: Record<string, string[]> = {};
-    for (const col of allColumns) {
-      if (!col.filterable) continue;
-      const set = new Set<string>();
-      for (const r of pillFiltered) {
-        const s = cachedFilterValue(col, r);
-        if (s) set.add(s);
-      }
-      out[col.key] = Array.from(set).sort(SUCHE_COLLATOR.compare);
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- cachedFilterValue ist stable per ref
-  }, [pillFiltered, allColumns]);
-
-  const columnFiltered = useMemo(() => {
-    const entries = Object.entries(columnFilters).filter(([, set]) => set.size > 0);
-    if (entries.length === 0) return antragstypFiltered;
-    return antragstypFiltered.filter(r => entries.every(([key, set]) => {
-      const col = allColumns.find(c => c.key === key) ?? getColumnByKey(key);
-      if (!col) return true;
-      return set.has(cachedFilterValue(col, r));
-    }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- cachedFilterValue ist stable per ref
-  }, [antragstypFiltered, columnFilters, allColumns]);
-
-  const sorted = useMemo(() => {
-    if (!sortKey) return columnFiltered;
-    const col = allColumns.find(c => c.key === sortKey) ?? getColumnByKey(sortKey);
-    if (!col) return columnFiltered;
-    const copy = [...columnFiltered];
-    copy.sort((a, b) => compareValues(col.accessor(a), col.accessor(b), sortDirection));
-    return copy;
-  }, [columnFiltered, sortKey, sortDirection, allColumns]);
-
-  // Treffer, die die KI begründet: Top-N nach Score aus den aktuell
-  // angezeigten Treffern.
-  const analyseResults = useMemo(
-    () => [...sorted].sort((a, b) => b.score - a.score).slice(0, ANALYSE_MAX_RESULTS),
-    [sorted],
-  );
-
-  const visibleColumnDefs = useMemo<SearchColumn[]>(() => {
-    const visibleSet = new Set(visibleColumns);
-    const staticCols = SEARCH_COLUMNS.filter(c => visibleSet.has(c.key));
-    // Nach „Mit KI analysieren": genau EINE zusätzliche Spalte „Begründung".
-    return analyseActive ? [...staticCols, BEGRUENDUNG_COLUMN] : staticCols;
-  }, [visibleColumns, analyseActive]);
 
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(t);
   }, [toast]);
-
-  function handleSort(key: string): void {
-    if (sortKey !== key) { setSortKey(key); setSortDirection('asc'); return; }
-    if (sortDirection === 'asc') { setSortDirection('desc'); return; }
-    setSortKey(null);
-  }
-
-  function handleColumnFilterChange(key: string, values: Set<string>): void {
-    setColumnFilters(prev => {
-      const next = { ...prev };
-      if (values.size === 0) delete next[key]; else next[key] = values;
-      return next;
-    });
-  }
 
   function handleRowClick(r: UnifiedSearchResult): void {
     if (r.type === 'antrag' && r.fkz) navigate(`/antraege/${encodeURIComponent(r.fkz)}`);
@@ -375,15 +140,12 @@ export function SuchSeite(): React.ReactElement {
   };
 
   // Button ist optimistisch enabled (sobald Query nicht leer ist). Die echte
-  // Provider-Pruefung passiert lazy in `analyse.start()` — beim Mount der
-  // Suche-Seite KEIN `ping()`, damit die Streamlit-Bridge nicht ihr
-  // Fenster (konfigurierte Streamlit-URL) automatisch oeffnet.
+  // Provider-Pruefung passiert lazy in `analyse.start()` — beim Mount KEIN
+  // `ping()`, damit die Streamlit-Bridge nicht ihr Fenster automatisch oeffnet.
   const aiButtonDisabled = !query.trim() || analyse.running || sorted.length === 0;
   const aiButtonTooltip = `Mit KI analysieren (Provider: ${analyse.providerName})`;
 
   const noQuery = !query.trim();
-  // Tabelle bleibt während der KI-Analyse sichtbar — die Begründung-Spalte
-  // füllt sich progressiv (kein blockierender Stepper).
   const showResults = !noQuery && sorted.length > 0;
   const analyseProgressLabel = analyse.running
     ? (analyse.progress?.totalBatches
@@ -396,44 +158,12 @@ export function SuchSeite(): React.ReactElement {
       <div className="flex flex-col items-start mb-4">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">Suche</h1>
         <div className="flex items-center gap-2 w-full max-w-4xl">
-          <div className="relative flex-1" ref={searchBoxRef}>
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)]" />
-            <input
-              ref={inputRef}
-              data-tour="search-input"
-              value={query}
-              onChange={e => handleSearchInput(e.target.value)}
-              onFocus={() => setSuggestOpen(true)}
-              onKeyDown={onSearchKeyDown}
-              onBlur={onSearchBlur}
-              disabled={analyse.running}
-              placeholder="Suche oder analytische Frage…"
-              autoFocus
-              autoComplete="off"
-              role="combobox"
-              aria-expanded={suggestOpen && suggestions.length > 0}
-              aria-autocomplete="list"
-              className="w-full h-10 pl-10 pr-10 text-[14px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] disabled:opacity-60"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            />
-            {showSpinner && (
-              <Loader2
-                size={16}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] animate-spin"
-                aria-label="Suche laeuft"
-              />
-            )}
-            {suggestOpen && suggestions.length > 0 && (
-              <SearchSuggestions
-                items={suggestions}
-                activeIndex={activeIndex}
-                onSelect={selectSuggestion}
-                onRemove={q => { removeRecentSearch(q); inputRef.current?.focus(); }}
-                onClear={() => { clearRecentSearches(); setSuggestOpen(false); setActiveIndex(-1); }}
-                onHover={setActiveIndex}
-              />
-            )}
-          </div>
+          <SearchInput
+            value={query}
+            onValueChange={handleQueryChange}
+            disabled={analyse.running}
+            showSpinner={showSpinner}
+          />
           <select
             value={semanticEnabled ? 'mit' : 'ohne'}
             onChange={e => setSemanticEnabled(e.target.value === 'mit')}
@@ -640,4 +370,3 @@ export function SuchSeite(): React.ReactElement {
     </div>
   );
 }
-
