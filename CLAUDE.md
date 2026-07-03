@@ -23,11 +23,13 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Async-UI-Aktion ohne silent-fail | [docs/agents/async-error-pattern.md](docs/agents/async-error-pattern.md) |
 | Antrag-Status-Vergleich | Pitfall #12 + [docs/architecture/antrag-status-domaenen.md](docs/architecture/antrag-status-domaenen.md) |
 | Datei-Pfade auf SMB-Share | [docs/architecture/data-layout.md](docs/architecture/data-layout.md) |
+| CSV-Auto-Refresh (täglicher Selbst-Import, Frische-Ampel „● CSV", Projektions-Rebuild bei Mapping-Nachzug) | [docs/architecture/csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md) |
 | Source-Tree (welche Datei gehört wo?) | [docs/architecture/project-structure.md](docs/architecture/project-structure.md) |
 | Infrastructure-Layer-Internals | [docs/architecture/infrastructure-layer.md](docs/architecture/infrastructure-layer.md) |
 | Auslastungs-Modul (Klassifizierung + Matching) | [docs/architecture/auslastung.md](docs/architecture/auslastung.md) |
 | Gutachten-Kurzfassung-Testballon (Skill + Aufnahme + DOCX-Füller) | [docs/architecture/gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md) |
 | Artefakt-Engine (Substrat artefaktTyp/ebene/pruefart, Run-Keying, generische Füllung) + NF-Nachforderungen + GA-QS | [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md) |
+| Anfragen-Modul (.msg → interne Anonymisierung → externer ZIM-FAQ-Assistent → deterministische Wiedereinsetzung) | [docs/architecture/anfragen-modul.md](docs/architecture/anfragen-modul.md) |
 | Skill-Eval-GUI (dev): Abschnitt A–G gegen fiktive Fixtures + externer Judge | [Skill-Eval-GUI (dev)](#skill-eval-gui-dev) (CLAUDE.md) |
 | Strukturierte Skill-Ausgabe (JSON-Teilfelder + render-only Badges, `teilStruktur`) | [Strukturierte Skill-Ausgabe (teilStruktur)](#strukturierte-skill-ausgabe-teilstruktur) (CLAUDE.md) |
 | Streamlit-Bridge (Bookmarklet-Installer + postMessage-Transport zum internen LLM) | [docs/architecture/streamlit-bridge.md](docs/architecture/streamlit-bridge.md) |

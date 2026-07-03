@@ -179,8 +179,10 @@ export function isSkillVerwaltungEnabled(): boolean {
 }
 /** Modul „Anfragen": E-Mail-Kurzanfrage (.msg) → interne KI-Anonymisierung →
  *  Export in den externen ZIM FAQ-Assistenten → deterministische Wiedereinsetzung.
- *  Plugin gegated über `featureFlag: 'anfragen'`. Nur dev (Testballon). Default
- *  false (`=== true`, Backward-Kompat). */
+ *  Plugin gegated über `featureFlag: 'anfragen'`. Aktiv in dev + pl + as (nicht
+ *  prod/kurator). Der Anonymisierer-SKILL ist davon unabhängig `aktiv: false`
+ *  geseedet (Recall-Gate; in dev per Runtime-Override immer freigeschaltet).
+ *  Default false (`=== true`, Backward-Kompat). Detail: docs/architecture/anfragen-modul.md. */
 export function isAnfragenEnabled(): boolean {
   return features.anfragen === true;
 }

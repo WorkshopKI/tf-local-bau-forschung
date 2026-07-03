@@ -2,6 +2,10 @@
 
 *Last reviewed: 2026-05-28 (v2.2.0)*
 
+> **Automatischer Nachzug:** Dieses Doc beschreibt die **manuelle Erstanlage** einer CSV-Quelle über den
+> Wizard. Der **tägliche Auto-Import** geänderter Exporte, die Frische-Ampel „● CSV" und der
+> Projektions-Rebuild bei Mapping-Nachzug stehen in [csv-auto-refresh.md](csv-auto-refresh.md).
+
 ## CSV-Import-Wizard (Phase 1b + Label-XLS-Hierarchie)
 
 Kurator-Wizard unter [src/plugins/csv-sources-kuration/wizard/](../../src/plugins/csv-sources-kuration/wizard/) für CSV-Source-Registrierung. 5 Schritte:

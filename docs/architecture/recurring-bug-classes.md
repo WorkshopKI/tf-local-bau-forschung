@@ -1,6 +1,6 @@
 # Wiederkehrende Bug-Klassen
 
-Acht Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-/Modal-/Transport-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
+Zehn Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-/Modal-/Transport-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
 
 > Diese Datei ist die **Single Source of Truth** für diese Muster. CLAUDE.md → Decision-Tree und einige Pitfalls verweisen hierher.
 
@@ -138,3 +138,33 @@ Acht Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an d
 **Maschinell erzwungen:** [streamlit-ping.test.ts](../../src/core/services/ai/__tests__/streamlit-ping.test.ts) (passiver Ping ohne Fenster → `false` UND kein `window.open`; aktiver Ping → `window.open`).
 
 **Kanonische Dateien:** [streamlit.ts](../../src/core/services/ai/transports/streamlit.ts) (`PingOptions`, `ping`, `ensureConnection`), [bridge.ts](../../src/core/services/ai/bridge.ts) (`pingActive`), [useKurzfassung.ts](../../src/plugins/antraege/kurzfassung/useKurzfassung.ts) + [useGutachtenWorkflow.ts](../../src/plugins/antraege/gutachten/useGutachtenWorkflow.ts) (passive Mount-/Refresh-Proben).
+
+---
+
+## 9. Abgeleitete Daten rebuilden nicht bei Config-Nachzug
+
+**Symptom:** Eine einblendbare Spalte / ein Cache bleibt **leer**, obwohl (a) das Schema-Mapping die Quellspalte inzwischen mappt und (b) die Rohdaten den Wert tragen. Erst ein erzwungener Voll-Neuaufbau füllt sie. (v2.158.2: FB-/PreCheck-Status-Spalten leer nach nachträglichem Mapping.)
+
+**Root-Cause:** Eine Projektion/ein Cache wird aus **Rohdaten × Konfiguration** berechnet (hier: `ANTRAEGE_LIST_VIEW` aus dem `ANTRAEGE`-Store × dem FB/PC-Feld-Mapping der Programm-Schemas). Der Rebuild-Trigger hing nur an **einer** Achse: einem Code-Versions-Marker (`LIST_VIEW_PROJECTION_VERSION`), der bei reinen Konfig-Änderungen gleich bleibt. Eine **Mapping-Änderung ändert keinen Record** → weder der Count-Backfill noch der inkrementelle Snapshot-Diff markieren etwas als „neu zu projizieren", und der Marker bumpt nicht → die abgeleiteten Felder bleiben für den Altbestand dauerhaft leer.
+
+**Fix-Pattern / Regeln:**
+- Abgeleitete Daten, die aus **Rohdaten × Konfiguration** entstehen, brauchen einen Rebuild-Trigger auf **beiden** Achsen. Neben dem Code-Marker eine **Signatur über die Konfiguration** in den Guard aufnehmen — ändert sie sich, Voll-Rebuild erzwingen. Beispiel: `computeStatusDatumSchemaSig` (deterministischer Hash `code>feld#label` über alle Programm-Schemas) in [list-view-migration.ts](../../src/core/services/csv/list-view-migration.ts); Guard-Bedingung `marker !== VERSION || sigChanged`.
+- Eine **fehlende** Signatur (Altbestand vor Einführung) darf **keinen** Rebuild erzwingen (den übernahm der begleitende Code-Marker-Bump) — sie wird lazy nachgetragen, damit der „Marker aktuell → No-op"-Pfad (Backfill/Stale-Erhalt) unberührt bleibt.
+- Beim Debuggen „Rohdaten + Mapping vorhanden, Projektion leer": prüfen, ob der Rebuild-Trigger die **Konfig-Achse** überhaupt beobachtet — nicht nur die Code-/Record-Achse.
+
+**Beleg:** v2.158.2. Detail: [csv-auto-refresh.md](csv-auto-refresh.md) („Projektions-Rebuild bei Mapping-Nachzug").
+
+---
+
+## 10. DOM-Scraping fremder UIs ist positionsfragil
+
+**Symptom:** Die Streamlit-Bridge greift die **falsche** Chat-Nachricht aus dem AitisiGPT-DOM — mal die Vor-Begrüßung, mal eine nachgeschobene Folge-Begrüßung, mal eine noch nicht fertige Teil-Antwort. Vier Patches in Folge (v2.157.1 → v2.159.1 → v2.159.3 → v2.159.4), jeder eine andere Positions-Annahme.
+
+**Root-Cause:** Das Antwort-Fenster ist ein **fremdes**, nicht kontrolliertes DOM. Jede Annahme über die **Position** der Antwort-Nachricht ist brüchig: „die letzte Nachricht" bricht, weil AitisiGPT **nach** der Antwort eine kanned Folge-Begrüßung anhängt; eine „Zähl-Baseline vor dem Senden" bricht am Render-Race; „die letzte nach dem Echo" bricht ebenfalls. Real-DOM-Roster: `[0] Begrüßung · [1] User-Prompt(Echo) · [2] Antwort · [3] Folge-Begrüßung`.
+
+**Fix-Pattern / Regeln:**
+- Stabil ist nur die **Anker-Relation**, nicht die Position: die **erste Nicht-User-Nachricht NACH dem Prompt-Echo** (der letzten User-Nachricht). Kein Prompt-Echo gefunden → `null` zurückgeben, **nicht raten** (kein Race-Fallback auf die Begrüßung).
+- Reine Auswahl-Logik als **pure Funktion** testbar halten (`selectAnswer(roster)` in [answer-selection.ts](../../src/core/services/ai/streamlit-bridge/answer-selection.ts)), gegen **belegte DOM-Roster-Fixtures**; das Bookmarklet-`.js` (`findAnswerMsg`, standalone via `?raw`) **spiegelt** dieselbe Index-Mathematik (Drift-Test).
+- Bei Black-Box-DOM **nicht raten** → einen Diagnose-Roster-Dump loggen und die echte Struktur ansehen; einen `BRIDGE_REV`-Marker mitführen, damit ein veraltetes Bookmarklet erkennbar ist (Bookmarklet-Änderung = Re-Install).
+
+**Beleg:** v2.157.1 → v2.159.1 → v2.159.3 → v2.159.4. Detail: [streamlit-bridge.md](streamlit-bridge.md) („Antwort-Auswahl (Echo-Anker)").
