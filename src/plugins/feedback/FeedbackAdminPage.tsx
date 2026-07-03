@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/components/ui/tabs';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getFeedbackList, loadFeedbackConfig } from '@/core/services/feedback';
-import { FEEDBACK_STATUS } from '@/core/services/feedback/feedback-status';
+import { getFeedbackList, loadFeedbackConfig, updateFeedback } from '@/core/services/feedback';
+import { FEEDBACK_STATUS, toggleUmgesetzt } from '@/core/services/feedback/feedback-status';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { matchesFeedbackFilters, countForCategory, countForStatus, countForArea, type FeedbackFilterState } from './feedback-filter';
@@ -36,6 +36,7 @@ export function FeedbackAdminPage(): React.ReactElement {
     localStorage.setItem('teamflow_feedback_show_archived', v ? '1' : '0');
   }, []);
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  const [rowError, setRowError] = useState<string | null>(null);
 
   const reload = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -52,6 +53,22 @@ export function FeedbackAdminPage(): React.ReactElement {
   }, [storage]);
 
   useEffect(() => { void reload(); }, [reload]);
+
+  // 1-Klick-„Umgesetzt"-Abhaken direkt in der Liste: optimistisch sofort umschalten
+  // (snappy), dann schreiben. updateFeedback feuert 'feedback-updated' → reload()
+  // reconciled auf den autoritativen Stand. Bei Schreibfehler: Fehler zeigen +
+  // reload (Optimismus verwerfen), kein Silent-Fail.
+  const handleToggleDone = useCallback(async (ticket: FeedbackItem): Promise<void> => {
+    setRowError(null);
+    const next = toggleUmgesetzt(ticket.kurator_status);
+    setTickets(prev => prev.map(t => (t.id === ticket.id ? { ...t, kurator_status: next } : t)));
+    try {
+      await updateFeedback(storage, ticket.id, { kurator_status: next });
+    } catch (e) {
+      setRowError(`„Umgesetzt" konnte nicht gespeichert werden: ${e instanceof Error ? e.message : String(e)}`);
+      await reload();
+    }
+  }, [storage, reload]);
 
   useEffect(() => {
     const handler = (): void => { void reload(); };
@@ -134,6 +151,9 @@ export function FeedbackAdminPage(): React.ReactElement {
         {tab === 'tickets' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
+              {rowError && (
+                <p className="mb-2 text-[11px] text-[var(--tf-danger-text)]">{rowError}</p>
+              )}
               <FeedbackTicketList
                 tickets={filteredTickets}
                 loading={loading}
@@ -150,6 +170,7 @@ export function FeedbackAdminPage(): React.ReactElement {
                 onFilterStatus={setFilterStatus}
                 onFilterArea={setFilterArea}
                 onSelect={t => setSelectedId(t.id)}
+                onToggleDone={handleToggleDone}
               />
             </div>
             <div className="rounded-[var(--tf-radius)] p-3 lg:p-4" style={{ border: '0.5px solid var(--tf-border)' }}>

@@ -42,3 +42,13 @@ export function istUmgesetzt(status: FeedbackStatus): boolean {
 export function istArchiviert(status: FeedbackStatus): boolean {
   return status === FEEDBACK_STATUS.archiviert;
 }
+
+/**
+ * 1-Klick-„Abhaken" in der Kurator-Liste: schaltet zwischen „umgesetzt" und
+ * „neu" um. Ist ein Ticket bereits umgesetzt → zurück auf „neu", sonst →
+ * „umgesetzt". Bewusst zwei Zustände; feinere Stati (geplant/in_bearbeitung/
+ * abgelehnt) bleiben dem Status-Dropdown im Detail vorbehalten.
+ */
+export function toggleUmgesetzt(status: FeedbackStatus): FeedbackStatus {
+  return istUmgesetzt(status) ? FEEDBACK_STATUS.neu : FEEDBACK_STATUS.umgesetzt;
+}

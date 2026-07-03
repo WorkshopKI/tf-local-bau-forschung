@@ -20,6 +20,8 @@ interface Props {
   onFilterStatus: (v: FeedbackStatus | '') => void;
   onFilterArea: (v: string) => void;
   onSelect: (ticket: FeedbackItem) => void;
+  /** 1-Klick-„Umgesetzt"-Abhaken direkt in der Zeile (Kurator-Liste). */
+  onToggleDone: (ticket: FeedbackItem) => Promise<void>;
 }
 
 // Label↔Wert-Maps für die label-basierte CollapsibleSeg (wie im User-Board).
@@ -41,7 +43,7 @@ const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
 };
 
 export function FeedbackTicketList(props: Props): React.ReactElement {
-  const { tickets, loading, selectedId, filterCategory, filterStatus, filterArea, showArchived, onToggleArchived, statusItems, kategorieItems, bereichItems, onFilterCategory, onFilterStatus, onFilterArea, onSelect } = props;
+  const { tickets, loading, selectedId, filterCategory, filterStatus, filterArea, showArchived, onToggleArchived, statusItems, kategorieItems, bereichItems, onFilterCategory, onFilterStatus, onFilterArea, onSelect, onToggleDone } = props;
 
   return (
     <div>
@@ -89,6 +91,7 @@ export function FeedbackTicketList(props: Props): React.ReactElement {
             ticket={ticket}
             selected={selectedId === ticket.id}
             onSelect={onSelect}
+            onToggleDone={onToggleDone}
           />
         ))}
       </div>

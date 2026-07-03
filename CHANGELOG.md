@@ -5,6 +5,27 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.162.0 — Feedback-Kurator: Tickets per 1-Klick als „Umgesetzt" abhaken (Juli 2026)
+
+MINOR — In der Kurator-Feedback-Liste bekommt jede Zeile links einen Checkbox-artigen Haken. Ein Klick
+setzt den Status **sofort** auf „Umgesetzt" (kein Ticket öffnen, kein „Speichern"), nochmal klicken macht
+rückgängig (→ „Neu"). Vorher brauchte das 4 Schritte (Ticket wählen → Status-Dropdown → „Umgesetzt" →
+Speichern). Feinere Stati (Geplant/In Bearbeitung/Abgelehnt) bleiben dem Status-Dropdown im Detail
+vorbehalten.
+
+- Neuer Statushelfer `toggleUmgesetzt` in [feedback-status.ts](src/core/services/feedback/feedback-status.ts)
+  (schaltet `umgesetzt` ↔ `neu`; Pitfall #21-konform, keine Status-Literale). Test:
+  [feedback-status.test.ts](src/core/services/feedback/__tests__/feedback-status.test.ts).
+- Die geteilte [FeedbackTicketRow](src/components/feedback/FeedbackTicketRow.tsx) bekommt eine **optionale**
+  `onToggleDone`-Prop → der Haken erscheint nur in der Kurator-Liste, das öffentliche Board bleibt
+  unverändert. Der Haken ist ein eigener Button **neben** dem Zeilen-Button (kein verschachteltes
+  `<button>`); ein Klick darauf wählt die Zeile nicht aus. Umgesetzte Zeilen zeigen einen grünen Haken +
+  dezent abgeschwächten Titel.
+- Schreiben über `useAsyncAction` (Doppelklick-Schutz) + `updateFeedback` in
+  [FeedbackAdminPage.tsx](src/plugins/feedback/FeedbackAdminPage.tsx): optimistisch sofort umgeschaltet, bei
+  Schreibfehler Fehlerzeile + Reload (kein Silent-Fail). Umgesetzte Tickets bleiben in der Liste sichtbar
+  (`umgesetzt` ≠ archiviert).
+
 ### v2.161.6 — Feedback-Kurator: Filter-Chip-Zähler stimmen jetzt mit der Liste überein (Juli 2026)
 
 PATCH — In der Kurator-Feedback-Verwaltung zeigten die Filter-Chips (Status/Kategorie/Bereich) andere

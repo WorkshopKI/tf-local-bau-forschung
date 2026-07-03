@@ -2,9 +2,16 @@
 // (FeedbackTicketList) und öffentlichem Board (FeedbackBoardList), damit beide
 // garantiert identisch aussehen (kein Drift). Reine Darstellung: Kategorie-Badge
 // + 1-zeiliger Titel + Datum, 2. Zeile Bereich-Badge + Autor.
+//
+// Optional (nur Kurator-Liste): links ein Checkbox-artiger 1-Klick-„Abhaken"-Knopf
+// (`onToggleDone`). Er ist ein EIGENER Button NEBEN dem Zeilen-Button (kein
+// verschachteltes <button> in <button>) → Klick darauf wählt die Zeile nicht aus.
+// Fehlt die Prop (Board), rendert die Zeile pixelgleich wie zuvor.
 
-import { ImageIcon } from 'lucide-react';
+import { Check, ImageIcon } from 'lucide-react';
 import type { FeedbackItem } from '@/core/types/feedback';
+import { istUmgesetzt } from '@/core/services/feedback/feedback-status';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from './constants';
 import { formatShortDate } from './feedbackUi';
 
@@ -12,20 +19,25 @@ interface Props {
   ticket: FeedbackItem;
   selected: boolean;
   onSelect: (ticket: FeedbackItem) => void;
+  /** Optional (nur Kurator-Liste): 1-Klick-„Umgesetzt"-Abhaken links. Async —
+   *  der Parent schreibt + reconciled; hier nur busy/Doppelklick-Schutz. */
+  onToggleDone?: (ticket: FeedbackItem) => Promise<void>;
 }
 
-export function FeedbackTicketRow({ ticket, selected, onSelect }: Props): React.ReactElement {
+export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone }: Props): React.ReactElement {
   const summary = ticket.llm_summary || ticket.text || '–';
   const date = formatShortDate(ticket.created_at);
   const area = ticket.context?.page;
   const user = ticket.user_display_name || ticket.user_id;
   const hasShot = (ticket.attachments?.length ?? 0) > 0;
+  const done = istUmgesetzt(ticket.kurator_status);
+  const toggle = useAsyncAction(async () => {
+    if (onToggleDone) await onToggleDone(ticket);
+  });
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(ticket)}
-      className={`w-full text-left px-2.5 py-2 transition-colors cursor-pointer ${
+    <div
+      className={`w-full flex items-stretch transition-colors ${
         selected ? 'bg-[var(--tf-primary-light)]/20' : 'hover:bg-[var(--tf-hover)]'
       }`}
       style={{
@@ -33,27 +45,52 @@ export function FeedbackTicketRow({ ticket, selected, onSelect }: Props): React.
         borderLeft: selected ? '3px solid var(--tf-primary)' : '3px solid transparent',
       }}
     >
-      <div className="flex items-center gap-2">
-        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
-          {ticket.category ? CATEGORY_LABELS[ticket.category] : '–'}
-        </span>
-        <p className="flex-1 min-w-0 text-[12px] font-medium text-[var(--tf-text)] truncate">{summary}</p>
-        <span
-          className="shrink-0 w-3 flex justify-center text-[var(--tf-text-tertiary)]"
-          title={hasShot ? `Enthält ${ticket.attachments!.length} Screenshot${ticket.attachments!.length > 1 ? 's' : ''}` : undefined}
+      {onToggleDone && (
+        <button
+          type="button"
+          onClick={() => toggle.run()}
+          disabled={toggle.busy}
+          aria-pressed={done}
+          title={done ? 'Umgesetzt — klicken, um zurück auf „Neu" zu setzen' : 'Als „Umgesetzt" abhaken'}
+          className="group shrink-0 flex items-center pl-2.5 pr-1 cursor-pointer disabled:cursor-wait"
         >
-          {hasShot && <ImageIcon size={11} />}
-        </span>
-        <span className="text-[10px] text-[var(--tf-text-tertiary)] shrink-0">{date}</span>
-      </div>
-      <div className="flex items-center gap-1.5 mt-0.5 truncate" style={{ marginLeft: '4.5rem' }}>
-        {area && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">
-            {area}
+          <span
+            className={`inline-flex items-center justify-center w-[16px] h-[16px] rounded-[4px] transition-colors ${
+              done ? 'bg-[var(--tf-success-text)] text-white' : 'text-transparent group-hover:text-[var(--tf-text-tertiary)]'
+            }`}
+            style={{ border: done ? '1px solid var(--tf-success-text)' : '1px solid var(--tf-border)' }}
+          >
+            <Check size={11} strokeWidth={3} />
           </span>
-        )}
-        <span className="text-[10px] text-[var(--tf-text-tertiary)] truncate">{user}</span>
-      </div>
-    </button>
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => onSelect(ticket)}
+        className={`flex-1 min-w-0 text-left ${onToggleDone ? 'pl-1.5 pr-2.5' : 'px-2.5'} py-2 cursor-pointer`}
+      >
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
+            {ticket.category ? CATEGORY_LABELS[ticket.category] : '–'}
+          </span>
+          <p className={`flex-1 min-w-0 text-[12px] font-medium truncate ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{summary}</p>
+          <span
+            className="shrink-0 w-3 flex justify-center text-[var(--tf-text-tertiary)]"
+            title={hasShot ? `Enthält ${ticket.attachments!.length} Screenshot${ticket.attachments!.length > 1 ? 's' : ''}` : undefined}
+          >
+            {hasShot && <ImageIcon size={11} />}
+          </span>
+          <span className="text-[10px] text-[var(--tf-text-tertiary)] shrink-0">{date}</span>
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5 truncate" style={{ marginLeft: '4.5rem' }}>
+          {area && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">
+              {area}
+            </span>
+          )}
+          <span className="text-[10px] text-[var(--tf-text-tertiary)] truncate">{user}</span>
+        </div>
+      </button>
+    </div>
   );
 }
