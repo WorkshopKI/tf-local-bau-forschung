@@ -194,4 +194,42 @@ describe('ensureListViewProjection — Schema-Signatur-Guard (v2.158.2)', () => 
     expect(az).toEqual(['A', 'STALE']); // kein Rebuild
     expect(await idb.get<string>(SIG_KEY)).toBeTruthy(); // aber Signatur jetzt hinterlegt
   });
+
+  // Lücke (Konsolidierung 2026-07): die bestehenden Sig-Tests laufen auf EINEM
+  // Programm. Die Signatur muss aber über ALLE Programme spannen — sonst bliebe eine
+  // Mapping-Änderung im 2., 3., … Programm unentdeckt (der eigentliche Klasse-9-Modus).
+  it('Signatur spannt ALLE Programme: nachträgliches FB/PC-Mapping im ZWEITEN Programm → Rebuild', async () => {
+    const idb = await freshIdb();
+    const PID2 = 'programm-2';
+    await putProgramm(idb, makeProgramm(PID));
+    await putProgramm(idb, makeProgramm(PID2));
+    // P1: unauffälliges Schema (kein Status-Datum-Mapping).
+    await putSchema(idb, { ...makeSchema({ TITEL: { canonical: 'titel', type: 'string' } }), id: 's-p1', programm_id: PID });
+    // P2: Schema OHNE PreCheck-Mapping; Antrag trägt den Rohwert bereits.
+    await putSchema(idb, { ...makeSchema({ TITEL: { canonical: 'titel', type: 'string' } }), id: 's-p2', programm_id: PID2 });
+    await putAntraege(idb, [makeAntrag('16KN1', PID)]);
+    const p2Antrag = { ...makeAntrag('16KN2', PID2), precheck_positiv_verbund: '2025-05-21' } as Antrag;
+    await putAntraege(idb, [p2Antrag]);
+
+    // Erst-Projektion: Marker + Signatur (P1+P2 OHNE PreCheck-Mapping) werden hinterlegt.
+    await ensureListViewProjection(idb);
+    expect((await listAntraegeListViewByProgramm(idb, PID2))[0]?.precheck_status_label ?? '').toBe('');
+    const sig0 = await idb.get<string>(SIG_KEY);
+
+    // Jetzt NUR im zweiten Programm das PreCheck-Datumsfeld mappen (Marker bleibt v5).
+    await putSchema(idb, {
+      ...makeSchema({ 'D_XPC+': { custom: 'precheck_positiv_verbund', type: 'date', label: 'PreCheck positiv - Verbund' } }),
+      id: 's-p2',
+      programm_id: PID2,
+    });
+
+    await ensureListViewProjection(idb);
+
+    // Die Signatur hat sich durch die P2-Mapping-Änderung verändert → Voll-Rebuild →
+    // das Label im zweiten Programm ist gefüllt. Bliebe P2 aus der Signatur, wäre es leer.
+    expect(await idb.get<string>(SIG_KEY)).not.toBe(sig0);
+    const lv2 = await listAntraegeListViewByProgramm(idb, PID2);
+    expect(lv2[0]?.precheck_status_label).toBe('PreCheck positiv - Verbund');
+    expect(lv2[0]?.precheck_status_datum).toBe('2025-05-21');
+  });
 });

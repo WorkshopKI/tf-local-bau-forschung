@@ -753,7 +753,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 29;    // Ist 29; +1 'workflowEntwuerfe' (Workflow-Verwaltung dev-Freigabe, v2.133)
   const MAX_SERVICE_DIRS = 22;     // Ist 22 (+ msg: .msg-Parser fuers Anfragen-Modul, v2.x); davor 21 (skill-feedback File-first Substrat S1)
-  const MAX_FILE_LOC = 1190;       // Ist ~1175 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1215;       // Ist ~1200 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1144,6 +1144,9 @@ describe('no-raw-cta-fill (CTA-Buttons tragen die Profil-Primaerfarbe via <Butto
   //      Auslastungs-Mechanik (v2.151). Das exakte bg+color-PAAR trifft nur gefuellte
   //      CTAs; Progress-Bars/Marker (nur `background`, keine paired `color: var(--tf-bg)`)
   //      und Pills (Akzent-Light) bleiben aussen vor.
+  //  (c) Literal OPAKES Schwarz als Inline-Background (Hex-Analog zu (b), v2.164): #000/
+  //      #000000/black/rgb(0,0,0). rgba(0,0,0,α)-Modal-Backdrops (Alpha) + Pastell-Boxen
+  //      (#fee2e2 …) bleiben aussen vor. Forward-looking: aktuell 0 Treffer.
   // Inline-Ausnahme: '// allow-cta-fill: <grund>'.
   const CLASS_FILLS = [
     'bg-[var(--tf-text)] text-[var(--tf-bg)]',
@@ -1154,9 +1157,26 @@ describe('no-raw-cta-fill (CTA-Buttons tragen die Profil-Primaerfarbe via <Butto
     "background: 'var(--tf-text)', color: 'var(--tf-bg)'",
     'background: "var(--tf-text)", color: "var(--tf-bg)"',
   ];
+  const INLINE_BLACK_FILL = /(?:background|backgroundColor)\s*:\s*['"](?:#000(?:000)?|black|rgb\(\s*0\s*,\s*0\s*,\s*0\s*\))['"]/i;
   const isCtaFill = (l: string): boolean =>
     (l.includes('hover:opacity') && CLASS_FILLS.some(f => l.includes(f)))
-    || INLINE_FILLS.some(f => l.includes(f));
+    || INLINE_FILLS.some(f => l.includes(f))
+    || INLINE_BLACK_FILL.test(l);
+
+  // Sanity: schwarze/CTA-Fills treffen, neutrale Flaechen (rgba-Overlays, Pastell-Boxen) nicht.
+  it('isCtaFill: Treffer nur bei gefuellten CTAs', () => {
+    const hits = [
+      "background: '#000', color: 'white'", 'backgroundColor: "#000000"', "background: 'black'",
+      "background: 'rgb(0, 0, 0)'", 'bg-[var(--tf-primary)] text-white hover:opacity-90',
+      "background: 'var(--tf-text)', color: 'var(--tf-bg)'",
+    ];
+    const misses = [ // Backdrop, Pastell-Box, Teal-Badge, Fill ohne hover:opacity
+      "background: 'rgba(0,0,0,0.4)'", "background: '#fee2e2', color: '#991b1b'",
+      "background: '#075985', color: 'white'", 'bg-[var(--tf-primary)] text-white',
+    ];
+    for (const l of hits) expect(isCtaFill(l), l).toBe(true);
+    for (const l of misses) expect(isCtaFill(l), l).toBe(false);
+  });
 
   it('kein hand-gebauter gefuellter CTA-Fill (Button-Komponente nutzen)', () => {
     const findings: Finding[] = [];
