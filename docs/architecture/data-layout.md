@@ -15,7 +15,7 @@ Alle geteilten Daten und Config-Dateien liegen im **Daten-Share** (separater SMB
 
 - `_intern/feedback/feedback.json` — Multi-User-Tickets
 - `_intern/feedback/system-prompt.md` — Kurator-editierbarer Chatbot-Prompt
-- `_intern/changelog-user.md` — (v2.126) geglätteter Nutzer-Changelog. Aus dem Entwickler-Build per „Mit KI glätten" geschrieben (inkrementell: nur neue Versionen werden geglättet + gemerged), von ALLEN Varianten zur Laufzeit gelesen (Vorrang vor der eingebetteten/abgeleiteten Fassung). Idempotent-overwrite via `atomicWrite`. Store: [changelogShare.ts](../../src/core/components/changelog/changelogShare.ts).
+- `_intern/changelog-user.md` — (v2.126–v2.161.2, **obsolet seit v2.161.3**) ehemals der zur Laufzeit gelesene geglättete Nutzer-Changelog. Der geglättete Changelog wird jetzt hand-gepflegt in der committed Quelle [changelog-user.md](../../src/core/components/changelog/changelog-user.md) und zur Build-Zeit eingebettet (kein Runtime-Share-Weg, kein „Mit KI glätten"-Editor mehr). Eine evtl. noch vorhandene Share-Datei wird ignoriert und kann gelöscht werden.
 - `_intern/anfragen-settings.json` — (v2.137) Modul „Anfragen": team-weite Modul-Einstellungen, derzeit nur `dashboardUrl` (Override der externen ZIM-FAQ-Assistent-URL). Schema `{ version: 1, updatedAt?, dashboardUrl? }`. Idempotent-overwrite via `atomicWrite` (kurator-gated). Mirror, nicht Master: Auflösung GUI-Override → IDB-Cache → Build-Default. Service: [settings.ts](../../src/plugins/anfragen/settings.ts).
 - `_intern/audit-log.jsonl` — Kurator-Events (Append-Only JSONL)
 - `_intern/build-lock.json` — Aktiver Build-Lock (Heartbeat)

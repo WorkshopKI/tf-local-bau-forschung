@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.161.3 — „Mit KI glätten"-Editor aus dem Changelog-Modal entfernt (Juli 2026)
+
+PATCH — Der In-App-Editor „Mit KI glätten / Auf Share speichern" (dev + Kurator-Session) ist **ersatzlos
+entfernt**. Er hing an der instabilen Streamlit/AitisiGPT-Bridge und ist überflüssig, seit der geglättete
+Nutzer-Changelog hand-gepflegt in der committed [changelog-user.md](src/core/components/changelog/changelog-user.md)
+liegt (v2.161.2). Der Changelog ist damit rein **build-eingebettet** — kein Runtime-Share-Weg mehr.
+
+- Gelöscht: `ChangelogPolishPanel.tsx`, `changelogShare.ts` (Read+Write des Share-Sidecars), das Prädikat
+  `canPolishChangelog` ([feature-flags.ts](src/config/feature-flags.ts)) und der Share-Lese-Effekt im
+  [ChangelogDialog.tsx](src/core/components/changelog/ChangelogDialog.tsx). Anzeige jetzt schlicht
+  `getDisplayChangelog(derived, committedOverride)`.
+- Sidecar `_intern/changelog-user.md` ist damit **obsolet** (wird nicht mehr gelesen/geschrieben); eine
+  evtl. vorhandene Datei wird ignoriert und darf gelöscht werden. Pflege-Weg: neue Versionen in der
+  committed `changelog-user.md` ergänzen (zusammen mit CHANGELOG.md), Rebuild.
+
 ### v2.161.2 — Nutzer-Changelog ab v2.100 durchgängig geglättet + gepflegt (Juli 2026)
 
 PATCH — Der Nutzer-Changelog (`changelog-user.md`) ist ab v2.100 vollständig in nutzerfreundliche

@@ -12,7 +12,7 @@
  * Pitfall #1/#2 — kein Runtime-fetch).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { marked } from 'marked';
 // Markdown-Quellen werden zur Build-Zeit als String eingebettet (?raw).
@@ -24,21 +24,15 @@ import { MarkdownRenderer, sanitizeHtml } from '@/components/ui/MarkdownRenderer
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { appVersion } from '@/config/runtime-config';
-import { canPolishChangelog } from '@/config/feature-flags';
-import { useStorage } from '@/core/hooks/useStorage';
-import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import {
   getChangelogMarkdown,
   getDisplayChangelog,
   hasUserChangelogContent,
-  mergeChangelog,
   parseUserChangelog,
   bucketizeMinors,
   type ChangeCategory,
   type ChangelogMinor,
 } from './deriveChangelog';
-import { readUserChangelogFromShare } from './changelogShare';
-import { ChangelogPolishPanel } from './ChangelogPolishPanel';
 
 type FilterKey = 'all' | ChangeCategory;
 type TimeFilterKey = 'all' | 'month';
@@ -108,28 +102,11 @@ function MinorCard({
 }
 
 export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
-  const storage = useStorage();
-  // Kurator-Session-Status: gibt im Kurator-Build den Glätten-Editor frei (siehe canPolishChangelog).
-  const kuratorActive = useKuratorSession((s) => s.isActive);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilterKey>('all');
   // „Alle aufklappen": überschreibt die Default-Offen-Logik (erste 3 + Pakete zu) und öffnet
   // alles. Steckt in den Collapsible-Keys → Toggle mountet neu (Radix `defaultOpen` ist mount-only).
   const [expandAll, setExpandAll] = useState(false);
-  // Beim Öffnen den geglätteten Changelog vom Daten-Share laden (Vorrang vor der
-  // eingebetteten/abgeleiteten Fassung); null = keiner/offline → Fallback greift.
-  const [shareMd, setShareMd] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    void readUserChangelogFromShare(storage.idb).then((md) => {
-      if (!cancelled) setShareMd(md);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, storage]);
 
   const currentMajor = useMemo(() => {
     const n = Number.parseInt(appVersion.split('.')[0] ?? '', 10);
@@ -142,28 +119,21 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
     return now.getFullYear() * 12 + now.getMonth();
   }, []);
 
-  // Aus CHANGELOG.md abgeleitete „Build-Wahrheit" ALLER Versionen — Quelle fürs Glätten
-  // UND Lückenfüller der Anzeige (garantiert, dass die neueste Version immer erscheint).
+  // Aus CHANGELOG.md abgeleitete „Build-Wahrheit" ALLER Versionen — Lückenfüller der Anzeige
+  // (garantiert, dass die neueste Version immer erscheint, auch wenn noch nicht geglättet).
   const derivedMarkdown = useMemo(
     () => getChangelogMarkdown(DEV_COMBINED, '', currentMajor),
     [currentMajor],
   );
-  // Kuratierter Override: geglätteter Share-Stand (Laufzeit) hat Vorrang, sonst die
-  // committed changelog-user.md (nur wenn sie echte `## vX.Y`-Abschnitte trägt).
-  const committedOverride = useMemo(
+  // Kuratierter Override: die hand-gepflegte, geglättete committed `changelog-user.md` (nur wenn
+  // sie echte `## vX.Y`-Abschnitte trägt). Sie ist die Quelle der geglätteten Fassung; wird
+  // zusammen mit CHANGELOG.md gepflegt und zur Build-Zeit eingebettet (kein Runtime-Share-Weg).
+  const override = useMemo(
     () => (hasUserChangelogContent(userChangelogRaw) ? userChangelogRaw.trim() : ''),
     [],
   );
-  // Kuratierter Gesamt-Override: die gepflegte committed Fassung ist AUTORITATIV und gewinnt je
-  // Version; ein (evtl. veralteter) Share-Stand füllt nur Versionen, die die committed Fassung
-  // noch nicht kennt (z.B. eine per „Mit KI glätten" ohne Rebuild ergänzte neueste Version).
-  // So kann eine alte Share-Datei die gepflegte Fassung NICHT mehr überschatten.
-  const override = useMemo(
-    () => mergeChangelog(committedOverride, shareMd ?? ''),
-    [committedOverride, shareMd],
-  );
   // Anzeige: Override gewinnt je Version (schöne Prosa), fehlende (ältere) Versionen kommen
-  // aus der Build-Ableitung — ein veralteter Override verdeckt so nichts Neueres mehr.
+  // aus der Build-Ableitung — so hinkt nichts hinter dem Build her.
   const markdown = useMemo(() => getDisplayChangelog(derivedMarkdown, override), [derivedMarkdown, override]);
 
   const majors = useMemo(() => parseUserChangelog(markdown), [markdown]);
@@ -339,14 +309,6 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
             </Collapsible>
           ))}
         </div>
-      )}
-
-      {canPolishChangelog(kuratorActive) && (
-        <ChangelogPolishPanel
-          sourceMarkdown={derivedMarkdown}
-          shareMarkdown={override}
-          onSaved={(merged) => setShareMd(merged)}
-        />
       )}
     </Dialog>
   );
