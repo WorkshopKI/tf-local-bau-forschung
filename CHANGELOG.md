@@ -5,6 +5,38 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.164.0 — Konsolidierungs-Pass (Juli 2026)
+
+MINOR — Wartungs-/Konsolidierungs-Release nach dem Feature-Sprint seit v2.131. **Verhaltens-invariant**
+(keine User-sichtbare Änderung); Ziel: weniger Fehler bei künftigen Feature-Arbeiten durch Ist-Zustand-Doku,
+Regressionstests an nachweislichen Bug-Hotspots, konservativen Dead-Code-Abbau und Dekomposition der zwei
+größten Mixed-Responsibility-Dateien. Keine Migration, keine neuen Stores/Sidecars, keine Registry-Änderung.
+
+- **Doku (Ist-Zustand):** Architektur-Doc [anfragen-modul.md](docs/architecture/anfragen-modul.md) neu
+  (`.msg` → interne Anonymisierung → externer ZIM-FAQ-Assistent → deterministische Wiedereinsetzung, mit
+  Export-Guard + 3-stufiger URL-Auflösung + Varianten-/Skill-Gate); [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md)
+  neu (Tages-Import, Frische-Ampel „● CSV", Projektions-Rebuild bei Mapping-Nachzug — kohäsionsgetrennt von
+  [csv-import.md](docs/architecture/csv-import.md)); [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)
+  um **Klasse 9** (abgeleitete Daten rebuilden nicht bei Config-Nachzug) + **Klasse 10** (DOM-Scraping fremder
+  UIs ist positionsfragil) ergänzt; CLAUDE.md-Decision-Tree nachgezogen. CHANGELOG.md auf v2.131+ gekürzt
+  (v2.130.x abwärts ins [Archiv](docs/CHANGELOG-ARCHIV.md) verschoben).
+- **Bridge-Antwort-Auswahl testbar** ([answer-selection.ts](src/core/services/ai/streamlit-bridge/answer-selection.ts)
+  + [Tests](src/core/services/ai/streamlit-bridge/__tests__/answer-selection.test.ts)): die Echo-Anker-Logik
+  (erste Nicht-User-Nachricht nach dem Prompt-Echo, v2.159.4) als **pure Funktion** extrahiert und im
+  Bookmarklet gespiegelt, mit **Co-Ausführungs-Drift-Test** (JS + TS gegen dieselben Roster-Fixtures). Kein
+  Verhaltens-Umbau — `BRIDGE_REV` unverändert.
+- **Regressionstests + Guard-Härtung:** Cross-Programm-Signatur-Rebuild-Test (Klasse 9,
+  [list-view-rebuild.test.ts](src/core/services/csv/__tests__/list-view-rebuild.test.ts)); der `no-raw-cta-fill`-
+  Guard fängt jetzt auch **opake Schwarz-Inline-Fills** (`#000`/`black`/`rgb(0,0,0)`) — rgba-Overlays + Pastell-
+  Boxen bleiben ausgenommen.
+- **Dead-Code:** 12 nachweislich tote Dateien entfernt (Komponenten nirgends gerendert, ganze Service-Dateien
+  ungenutzt) — konservativ; Feature-Flag-Prädikate, Test-Helfer, string-/IDB-gebundene Konstanten und
+  Migrations-Aliase bewusst behalten.
+- **Dekomposition** entlang der dokumentierten Verantwortungs-Grenzen: [SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx)
+  (643→372 LOC → `SearchInput` + `useSearchResults`), [CsvSourcesPage.tsx](src/plugins/csv-sources-kuration/CsvSourcesPage.tsx)
+  (568→225 LOC → `SourceList` + `MaintenanceSection` + `SourceModals` + `csv-file-picker`). FS-API-Gesten-Ketten
+  unverändert (Bug-Klasse 2).
+
 ### v2.163.0 — Feedback-Kurator: Detail-Panel ziehbar + „Abhaken"-Haken deutlicher (Juli 2026)
 
 MINOR — Die Kurator-Feedback-Tickets nutzen jetzt das kanonische resizable Split-Layout
