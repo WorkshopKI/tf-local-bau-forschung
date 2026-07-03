@@ -55,12 +55,14 @@ export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone }: 
           className="group shrink-0 flex items-center pl-2.5 pr-1 cursor-pointer disabled:cursor-wait"
         >
           <span
-            className={`inline-flex items-center justify-center w-[16px] h-[16px] rounded-[4px] transition-colors ${
-              done ? 'bg-[var(--tf-success-text)] text-white' : 'text-transparent group-hover:text-[var(--tf-text-tertiary)]'
+            className={`inline-flex items-center justify-center w-[17px] h-[17px] rounded-[4px] transition-colors ${
+              done
+                ? 'bg-[var(--tf-success-text)] text-white'
+                : 'text-transparent group-hover:text-[var(--tf-text-secondary)] group-hover:bg-[var(--tf-bg-secondary)]'
             }`}
-            style={{ border: done ? '1px solid var(--tf-success-text)' : '1px solid var(--tf-border)' }}
+            style={{ border: done ? '1px solid var(--tf-success-text)' : '1.5px solid var(--tf-text-tertiary)' }}
           >
-            <Check size={11} strokeWidth={3} />
+            <Check size={12} strokeWidth={3} />
           </span>
         </button>
       )}

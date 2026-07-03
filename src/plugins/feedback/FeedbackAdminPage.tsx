@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/components/ui/tabs';
+import { MasterDetailLayout } from '@/components/master-detail';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getFeedbackList, loadFeedbackConfig, updateFeedback } from '@/core/services/feedback';
 import { FEEDBACK_STATUS, toggleUmgesetzt } from '@/core/services/feedback/feedback-status';
@@ -15,7 +16,25 @@ import { FeedbackConfigPanel } from './sections/FeedbackConfigPanel';
 import { FeedbackSponsoringOverview } from './sections/FeedbackSponsoringOverview';
 import { FeedbackInboxTab } from './sections/FeedbackInboxTab';
 import { useAutoCollectFeedback } from './hooks/useAutoCollectFeedback';
-import type { CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
+import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
+
+// Label↔Wert-Maps für die label-basierte CollapsibleSeg (wie im User-Board).
+// Status bleibt granular (Kurator braucht die feinen Stati); 'archiviert' ist ein
+// eigener Chip (zeigt gezielt nur die Archivierten).
+const STATUS_TO_LABEL: Record<FeedbackStatus | '', string> = {
+  '': 'Alle', neu: 'Neu', geplant: 'Geplant', in_bearbeitung: 'In Bearb.',
+  umgesetzt: 'Umgesetzt', abgelehnt: 'Abgelehnt', archiviert: 'Archiviert',
+};
+const LABEL_TO_STATUS: Record<string, FeedbackStatus | ''> = {
+  Alle: '', Neu: 'neu', Geplant: 'geplant', 'In Bearb.': 'in_bearbeitung',
+  Umgesetzt: 'umgesetzt', Abgelehnt: 'abgelehnt', Archiviert: 'archiviert',
+};
+const KAT_TO_LABEL: Record<FeedbackCategory | '', string> = {
+  '': 'Alle', problem: 'Bug', idea: 'Idee', ux: 'UX', praise: 'Lob', question: 'Frage',
+};
+const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
+  Alle: '', Bug: 'problem', Idee: 'idea', UX: 'ux', Lob: 'praise', Frage: 'question',
+};
 
 export function FeedbackAdminPage(): React.ReactElement {
   const storage = useStorage();
@@ -149,37 +168,69 @@ export function FeedbackAdminPage(): React.ReactElement {
 
       <div className="mt-5">
         {tab === 'tickets' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              {rowError && (
-                <p className="mb-2 text-[11px] text-[var(--tf-danger-text)]">{rowError}</p>
+          <div className="flex flex-col" style={{ height: 'calc(100vh - 165px)' }}>
+            {/* Filter-Chips im Seitenkopf (immer sichtbar — analog Board) */}
+            <div className="shrink-0 flex flex-wrap items-center gap-1.5 mb-3">
+              <CollapsibleSeg
+                label="Status"
+                value={STATUS_TO_LABEL[filterStatus]}
+                items={statusItems}
+                onChange={l => setFilterStatus(LABEL_TO_STATUS[l] ?? '')}
+              />
+              <CollapsibleSeg
+                label="Kategorie"
+                value={KAT_TO_LABEL[filterCategory]}
+                items={kategorieItems}
+                onChange={l => setFilterCategory(LABEL_TO_KAT[l] ?? '')}
+              />
+              {bereichItems.length > 1 && (
+                <CollapsibleSeg
+                  label="Bereich"
+                  value={filterArea || 'Alle'}
+                  items={bereichItems}
+                  onChange={l => setFilterArea(l === 'Alle' ? '' : l)}
+                  startCollapsed
+                />
               )}
-              <FeedbackTicketList
-                tickets={filteredTickets}
-                loading={loading}
-                selectedId={selectedId}
-                filterCategory={filterCategory}
-                filterStatus={filterStatus}
-                filterArea={filterArea}
-                showArchived={showArchived}
-                onToggleArchived={toggleArchived}
-                statusItems={statusItems}
-                kategorieItems={kategorieItems}
-                bereichItems={bereichItems}
-                onFilterCategory={setFilterCategory}
-                onFilterStatus={setFilterStatus}
-                onFilterArea={setFilterArea}
-                onSelect={t => setSelectedId(t.id)}
-                onToggleDone={handleToggleDone}
-              />
+              <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer ml-1">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={e => toggleArchived(e.target.checked)}
+                  className="cursor-pointer accent-[var(--tf-primary)]"
+                />
+                Archivierte einblenden
+              </label>
             </div>
-            <div className="rounded-[var(--tf-radius)] p-3 lg:p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-              <FeedbackTicketDetail
-                ticket={selectedTicket}
-                onClose={() => setSelectedId(undefined)}
-                onUpdated={reload}
-              />
-            </div>
+            {rowError && (
+              <p className="shrink-0 mb-2 text-[11px] text-[var(--tf-danger-text)]">{rowError}</p>
+            )}
+            {/* Resizable Split (Liste | Detail) — Drag-Handle + persistierte Breite */}
+            <MasterDetailLayout
+              listWidthKey="teamflow_feedback_kurator_list_width"
+              narrowDefaultWidth={480}
+              onCloseDetail={() => setSelectedId(undefined)}
+              detail={selectedTicket ? (
+                <div className="h-full overflow-y-auto p-3 lg:p-4">
+                  <FeedbackTicketDetail
+                    ticket={selectedTicket}
+                    onClose={() => setSelectedId(undefined)}
+                    onUpdated={reload}
+                  />
+                </div>
+              ) : undefined}
+              list={(
+                <div className="px-1 py-1">
+                  <FeedbackTicketList
+                    tickets={filteredTickets}
+                    loading={loading}
+                    selectedId={selectedId}
+                    onSelect={t => setSelectedId(t.id)}
+                    onToggleDone={handleToggleDone}
+                  />
+                </div>
+              )}
+            />
           </div>
         )}
         {tab === 'inbox' && <FeedbackInboxTab />}

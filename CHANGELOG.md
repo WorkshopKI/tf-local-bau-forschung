@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.163.0 — Feedback-Kurator: Detail-Panel ziehbar + „Abhaken"-Haken deutlicher (Juli 2026)
+
+MINOR — Die Kurator-Feedback-Tickets nutzen jetzt das kanonische resizable Split-Layout
+([MasterDetailLayout](src/components/master-detail/MasterDetailLayout.tsx)) statt eines starren 50/50-Grids:
+die Grenze zwischen Ticket-Liste und Detail-Panel lässt sich per Drag-Handle verschieben (Breite
+persistiert, `teamflow_feedback_kurator_list_width`), Escape schließt das Detail. Ohne Auswahl nimmt die
+Liste die volle Breite ein. Außerdem ist der „Umgesetzt"-Abhaken-Haken (v2.162.0) jetzt deutlich sichtbar.
+
+- Die Filter-Chips (Status/Kategorie/Bereich + „Archivierte einblenden") wandern in den Seitenkopf des
+  Tickets-Tabs (bleiben beim Scrollen der Liste stehen) — analog zum öffentlichen Board
+  ([FeedbackBoardPage](src/plugins/feedback-board/FeedbackBoardPage.tsx)). [FeedbackTicketList](src/plugins/feedback/sections/FeedbackTicketList.tsx)
+  ist dadurch reine Zeilen-Liste (wie `FeedbackBoardList`); die Scroll-Pane stellt `MasterDetailLayout`.
+- Der Abhaken-Haken ([FeedbackTicketRow](src/components/feedback/FeedbackTicketRow.tsx)) hat jetzt einen
+  klar sichtbaren Rahmen (`--tf-text-tertiary`, 1,5 px) statt des kaum sichtbaren `--tf-border`; beim Hover
+  erscheint ein Haken-Preview + dezenter Hintergrund. Umgesetzt = grüner Haken (unverändert).
+- Kein neues Layout gebaut (CLAUDE.md „Neue Module bauen KEIN eigenes Layout") — der Testballon
+  [AntraegePage](src/plugins/antraege/) bleibt die einzige verbliebene Eigen-Implementierung.
+
 ### v2.162.0 — Feedback-Kurator: Tickets per 1-Klick als „Umgesetzt" abhaken (Juli 2026)
 
 MINOR — In der Kurator-Feedback-Liste bekommt jede Zeile links einen Checkbox-artigen Haken. Ein Klick
