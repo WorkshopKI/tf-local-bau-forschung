@@ -26,6 +26,7 @@ Kompakte Checklisten für häufige Erweiterungen, die jeweils mehrere synchronis
 | `file://`-Pitfalls (kompakte Quick-Reference) | [file-protocol-pitfalls.md](file-protocol-pitfalls.md) |
 | Welche(n) Build nach einem Patch bauen | [which-build-to-run.md](which-build-to-run.md) |
 | Design-Export aus Claude Design Tool portieren | [port-design-export.md](port-design-export.md) |
+| Bildschirmseiten-Kontext-Doc pflegen (Feedback-KI-Kontext) | [update-screen-context.md](update-screen-context.md) |
 
 ## Wann nicht aktualisieren
 

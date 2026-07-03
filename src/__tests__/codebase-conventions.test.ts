@@ -57,11 +57,18 @@
  *     global in src/theme.css definiert sein, sonst die "nackt"-Falle v2.67.1 (ein
  *     undefiniertes var() macht die GANZE CSS-Deklaration ungueltig). Mit-Fallback-
  *     Nutzung undefinierter Tokens nur Warnung. Ausnahme '// allow-tf-token: <grund>'.
+ *   - screen-context-coverage           → Feedback-KI-Kontext (docs/feedback-kontext/):
+ *     jede nicht-dev Plugin-ID (Text-Scan von src/plugins/index.ts(x) je Ordner, da ein
+ *     Import von plugins.config.ts unter Vitest an pdfjs-dist-Workern bricht) hat
+ *     ein eigenes Kontext-Doc oder ist Mitglied von KURATION_PLUGIN_IDS (teilt
+ *     kuration.md); jedes Doc <= 2500 Zeichen (_app.md <= 4000) — Prompt-Budget-
+ *     Schutz fuer die Bridge.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { PRESET_COLORS } from '../components/ui/theme';
+import { KURATION_PLUGIN_IDS } from '../core/services/feedback/screenContext';
 
 const ROOT = join(__dirname, '..');
 
@@ -752,7 +759,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 29;    // Ist 29; +1 'workflowEntwuerfe' (Workflow-Verwaltung dev-Freigabe, v2.133)
   const MAX_SERVICE_DIRS = 22;     // Ist 22 (+ msg: .msg-Parser fuers Anfragen-Modul, v2.x); davor 21 (skill-feedback File-first Substrat S1)
-  const MAX_FILE_LOC = 1215;       // Ist ~1200 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1285;       // Ist ~1271 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -818,6 +825,70 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
         `Der @/ui-Re-Export-Shim (P1b) laeuft aus — neue UI-Importe ueber ` +
         `@/components/ui/*. Diese Schwelle darf nur gesenkt werden, nie erhoeht.`,
       ));
+    }
+  });
+});
+
+describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)', () => {
+  // Jede nicht-dev Plugin-ID braucht ein Kontext-Doc (direkt oder ueber das
+  // gemeinsame kuration.md fuer Kuration-Plugins) — sonst arbeitet die
+  // Feedback-Verbesserung (feedbackImprove.ts) mit unvollstaendigem App-Wissen.
+  // Budget-Grenzen schuetzen das Bridge-Prompt (die Bridge traegt den Prompt
+  // per DOM, Groesse ist teuer).
+  const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
+  const MAX_DOC_CHARS = 2500;
+  const MAX_APP_OVERVIEW_CHARS = 4000;
+
+  // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
+  // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht
+  // textuell als `id: '...'` im jeweiligen src/plugins/<name>/index.ts(x).
+  function collectAllPluginIds(): string[] {
+    const pluginsDir = join(ROOT, 'plugins');
+    const ids: string[] = [];
+    for (const entry of readdirSync(pluginsDir)) {
+      const dir = join(pluginsDir, entry);
+      if (!statSync(dir).isDirectory()) continue;
+      for (const candidate of ['index.ts', 'index.tsx']) {
+        const file = join(dir, candidate);
+        try {
+          const src = readFileSync(file, 'utf-8');
+          for (const m of src.matchAll(/\bid:\s*'([a-zA-Z0-9_-]+)'/g)) ids.push(m[1]!);
+        } catch { /* Datei existiert nicht mit dieser Endung */ }
+      }
+    }
+    return ids;
+  }
+
+  it('jede nicht-dev Plugin-ID hat ein Kontext-Doc (direkt oder via kuration.md)', () => {
+    const files = new Set(readdirSync(DOCS_DIR));
+    const missing = collectAllPluginIds()
+      .filter(id => !id.startsWith('dev-'))
+      .filter(id => !KURATION_PLUGIN_IDS.includes(id))
+      .filter(id => !files.has(`${id}.md`));
+    if (missing.length > 0) {
+      expect.fail(
+        `Fehlende Bildschirmseiten-Kontext-Docs fuer Plugin-IDs: ${missing.join(', ')}.\n` +
+        `Neues Doc unter docs/feedback-kontext/<id>.md anlegen (Schablone: ` +
+        `docs/feedback-kontext/README.md) oder die ID in KURATION_PLUGIN_IDS ` +
+        `(src/core/services/feedback/screenContext.ts) aufnehmen, falls sie ein ` +
+        `Kuration-Sammel-Doc teilt.`,
+      );
+    }
+  });
+
+  it(`jedes Kontext-Doc <= ${MAX_DOC_CHARS} Zeichen (_app.md <= ${MAX_APP_OVERVIEW_CHARS})`, () => {
+    const findings: string[] = [];
+    for (const entry of readdirSync(DOCS_DIR)) {
+      if (!entry.endsWith('.md') || entry.toLowerCase() === 'readme.md') continue;
+      const chars = readFileSync(join(DOCS_DIR, entry), 'utf-8').length;
+      const limit = entry === '_app.md' ? MAX_APP_OVERVIEW_CHARS : MAX_DOC_CHARS;
+      if (chars > limit) findings.push(`  ${entry}: ${chars} Zeichen (Limit ${limit})`);
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Kontext-Doc(s) ueberschreiten das Prompt-Budget:\n${findings.join('\n')}\n` +
+        `Kuerzen — die Bridge traegt den Prompt per DOM, Groesse ist teuer.`,
+      );
     }
   });
 });

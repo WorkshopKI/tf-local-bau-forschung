@@ -1,0 +1,6 @@
+# Home
+**Zweck:** Startseite nach dem Login — persönliches Dashboard mit den eigenen offenen Förderanträgen, Fristen und dem KI-Verbindungsstatus.
+**UI-Elemente & Begriffe:** Begrüßung mit „X offene Vorgänge · Y Fristen diese Woche"; Abschnitt „Meine Anträge" (Liste, initial 5–15 Einträge, „+10 mehr"); Programm-Übersichtskarten (bei mehreren Programmen); Karte „Antragseingang-Ampel"; Karte KI-Verbindungsstatus (verbinden/trennen); optional „Neue Anträge für dich" (Selbsteintragungs-Vorschläge aus der Auslastung); Button „Förderanträge öffnen".
+**Datenmodell dahinter:** Aggregiert aus `useAntraegeStore` (Förderanträge-Store) über `dashboardAggregate.ts`; liest `AntragListItem`/`Verbund` (CSV-Schema), Profil (`useProfile`, Bearbeiter-Kürzel), aktives Programm (`useActiveProgramm`). Kein eigener Store — reine Projektion.
+**Typische Aktionen:** Offene Anträge der eigenen Kürzel überfliegen; auf einen Antrag springen (→ Förderanträge-Detail); Fristen diese Woche prüfen; KI-Verbindung herstellen/trennen; bei fehlendem Kürzel zu den Einstellungen wechseln; Selbsteintragungs-Vorschläge annehmen.
+**Code:** `src/plugins/home/` — Hauptdateien: `HomePage.tsx` (Orchestrierung/States), `dashboardAggregate.ts` (reine Aggregation), `useDashboardData.ts` (Hook-Wrapper), `MeineAntraegeSection.tsx` / `EingangAmpelCard.tsx` / `AiAssistantCard.tsx` (Teil-Karten).

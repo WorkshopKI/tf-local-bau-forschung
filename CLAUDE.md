@@ -13,6 +13,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Aufgabe | Wo nachsehen |
 |---------|--------------|
 | Plugin / CSV-Feld / Filter / IDB-Store / Feedback-Status / Embedding-Modell / Tab / … anlegen | [docs/agents/](docs/agents/README.md) — passenden Cheatsheet wählen |
+| Bildschirmseiten-Kontext-Doc pflegen (Feedback-KI-Kontext) | [docs/agents/update-screen-context.md](docs/agents/update-screen-context.md) |
 | UI-Patch (Komponenten, Farben, Tokens) | [DESIGN_GUIDE.md](DESIGN_GUIDE.md) |
 | Tabellenartige Seite mit Detail/Editor (Master-Detail-Split) | [docs/agents/add-table-detail-page.md](docs/agents/add-table-detail-page.md) — `MasterDetailLayout` |
 | UI-Muster wählen (Seitenkopf, Listen-Sicht-Tabs-mit-Zähler, Status-Badge/Dot, Filter-Chip) | [UI-Muster / Layout-Schicht](#ui-muster--layout-schicht) unten + [docs/layout-audit.md](docs/layout-audit.md) |
@@ -319,6 +320,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 2. Die Pitfall-Liste unten ist ein **Index**: pro Pitfall eine fett gesetzte Ein-Satz-Regel + `[test:…]`-Marker (falls vorhanden) + Link; das Detail lebt genau **einmal** im Themen-Doc.
 3. Pitfall-Nummern sind **append-only** (Code/Commits/`describe`-Strings referenzieren sie); überholte behalten ihre Nummer + Ein-Zeiler „(überholt, siehe …)".
 4. Neue Lesson Learned: **grep-bar → Convention-Test** ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)); sonst [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md); ein nummerierter Pitfall nur bei projektweiter Geltung.
+5. Bildschirmseiten-Kontext-Docs (`docs/feedback-kontext/`) folgen derselben Ist-Zustand-Regel — bei UI-/Datenmodell-Änderungen an einem Plugin das zugehörige Doc mitziehen (siehe [docs/agents/update-screen-context.md](docs/agents/update-screen-context.md)); Guard `screen-context-coverage` erzwingt Vollständigkeit, nicht Aktualität.
 
 ## Common Pitfalls
 
