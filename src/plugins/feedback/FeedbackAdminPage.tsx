@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/components/ui/tabs';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getFeedbackList, loadFeedbackConfig } from '@/core/services/feedback';
-import { FEEDBACK_STATUS, istArchiviert } from '@/core/services/feedback/feedback-status';
+import { FEEDBACK_STATUS } from '@/core/services/feedback/feedback-status';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
+import { matchesFeedbackFilters, countForCategory, countForStatus, countForArea, type FeedbackFilterState } from './feedback-filter';
 import { FeedbackTicketList } from './sections/FeedbackTicketList';
 import { FeedbackTicketDetail } from './sections/FeedbackTicketDetail';
 import { FeedbackFaqTab } from './sections/FeedbackFaqTab';
@@ -58,52 +59,53 @@ export function FeedbackAdminPage(): React.ReactElement {
     return () => window.removeEventListener('feedback-updated', handler);
   }, [reload]);
 
-  const filteredTickets = useMemo(() => {
-    return tickets.filter(t => {
-      if (filterCategory && t.category !== filterCategory) return false;
-      if (filterArea && t.context?.page !== filterArea) return false;
-      // Expliziter Status (inkl. „Archiviert") gewinnt exakt — Checkbox egal.
-      if (filterStatus) return t.kurator_status === filterStatus;
-      // „Alle": Archivierte nur einblenden, wenn die Checkbox aktiv ist.
-      if (istArchiviert(t.kurator_status) && !showArchived) return false;
-      return true;
-    });
-  }, [tickets, filterCategory, filterStatus, filterArea, showArchived]);
+  // Ein einziger Filter-Zustand speist Liste UND Zähler (feedback-filter.ts) —
+  // sonst driften Chip-Zahl und Listen-Länge auseinander (archivierte + cross-facet).
+  const filterState = useMemo<FeedbackFilterState>(
+    () => ({ category: filterCategory, status: filterStatus, area: filterArea, showArchived }),
+    [filterCategory, filterStatus, filterArea, showArchived],
+  );
 
-  // Filter-Items (Label + Zähler) für die CollapsibleSeg-Chips — wie im User-Board,
-  // aber Status granular (Kurator braucht die feinen Stati). Der „Alle"-Zähler folgt
-  // dem tatsächlich Sichtbaren: ohne Checkbox die nicht-archivierten, mit Checkbox die
-  // Gesamtzahl. Der eigene „Archiviert"-Chip zeigt die Archivierten gezielt.
+  const filteredTickets = useMemo(
+    () => tickets.filter(t => matchesFeedbackFilters(t, filterState)),
+    [tickets, filterState],
+  );
+
+  // Filter-Items (Label + Facetten-Zähler) für die CollapsibleSeg-Chips — wie im
+  // User-Board, aber Status granular (Kurator braucht die feinen Stati). Jeder
+  // Zähler beantwortet „wie viele zeigt die Liste, wenn ich DIESE Facette wähle?"
+  // (andere aktive Filter bleiben fix) → die gewählte Chip-Zahl == angezeigte Zeilen.
   const statusItems = useMemo<CollapsibleSegItem[]>(() => [
-    { label: 'Alle', count: showArchived ? tickets.length : tickets.filter(t => !istArchiviert(t.kurator_status)).length },
-    { label: 'Neu', count: tickets.filter(t => t.kurator_status === FEEDBACK_STATUS.neu).length },
-    { label: 'Geplant', count: tickets.filter(t => t.kurator_status === FEEDBACK_STATUS.geplant).length },
-    { label: 'In Bearb.', count: tickets.filter(t => t.kurator_status === FEEDBACK_STATUS.in_bearbeitung).length },
-    { label: 'Umgesetzt', count: tickets.filter(t => t.kurator_status === FEEDBACK_STATUS.umgesetzt).length },
-    { label: 'Abgelehnt', count: tickets.filter(t => t.kurator_status === FEEDBACK_STATUS.abgelehnt).length },
-    { label: 'Archiviert', count: tickets.filter(t => istArchiviert(t.kurator_status)).length },
-  ], [tickets, showArchived]);
+    { label: 'Alle', count: countForStatus(tickets, filterState, '') },
+    { label: 'Neu', count: countForStatus(tickets, filterState, FEEDBACK_STATUS.neu) },
+    { label: 'Geplant', count: countForStatus(tickets, filterState, FEEDBACK_STATUS.geplant) },
+    { label: 'In Bearb.', count: countForStatus(tickets, filterState, FEEDBACK_STATUS.in_bearbeitung) },
+    { label: 'Umgesetzt', count: countForStatus(tickets, filterState, FEEDBACK_STATUS.umgesetzt) },
+    { label: 'Abgelehnt', count: countForStatus(tickets, filterState, FEEDBACK_STATUS.abgelehnt) },
+    { label: 'Archiviert', count: countForStatus(tickets, filterState, FEEDBACK_STATUS.archiviert) },
+  ], [tickets, filterState]);
 
   const kategorieItems = useMemo<CollapsibleSegItem[]>(() => [
-    { label: 'Alle', count: tickets.length },
-    { label: 'Bug', count: tickets.filter(t => t.category === 'problem').length },
-    { label: 'Idee', count: tickets.filter(t => t.category === 'idea').length },
-    { label: 'UX', count: tickets.filter(t => t.category === 'ux').length },
-    { label: 'Lob', count: tickets.filter(t => t.category === 'praise').length },
-    { label: 'Frage', count: tickets.filter(t => t.category === 'question').length },
-  ], [tickets]);
+    { label: 'Alle', count: countForCategory(tickets, filterState, '') },
+    { label: 'Bug', count: countForCategory(tickets, filterState, 'problem') },
+    { label: 'Idee', count: countForCategory(tickets, filterState, 'idea') },
+    { label: 'UX', count: countForCategory(tickets, filterState, 'ux') },
+    { label: 'Lob', count: countForCategory(tickets, filterState, 'praise') },
+    { label: 'Frage', count: countForCategory(tickets, filterState, 'question') },
+  ], [tickets, filterState]);
 
-  // Bereich = context.page (Label, wie im Board). Distinct + Zähler, alphabetisch.
+  // Bereich = context.page (Label, wie im Board). Chip-Set aus allen Tickets
+  // (stabil), Zähler facettengefiltert. Alphabetisch.
   const bereichItems = useMemo<CollapsibleSegItem[]>(() => {
-    const counts = new Map<string, number>();
+    const pages = new Set<string>();
     for (const t of tickets) {
       const p = t.context?.page;
-      if (p) counts.set(p, (counts.get(p) ?? 0) + 1);
+      if (p) pages.add(p);
     }
-    const items = Array.from(counts, ([label, count]) => ({ label, count }))
+    const items = Array.from(pages, page => ({ label: page, count: countForArea(tickets, filterState, page) }))
       .sort((a, b) => a.label.localeCompare(b.label));
-    return [{ label: 'Alle', count: tickets.length }, ...items];
-  }, [tickets]);
+    return [{ label: 'Alle', count: countForArea(tickets, filterState, '') }, ...items];
+  }, [tickets, filterState]);
 
   const faqs = useMemo(() => tickets.filter(t => t.is_faq), [tickets]);
   const selectedTicket = useMemo(() => tickets.find(t => t.id === selectedId) ?? null, [tickets, selectedId]);

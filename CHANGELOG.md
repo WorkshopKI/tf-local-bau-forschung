@@ -5,6 +5,25 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.161.6 — Feedback-Kurator: Filter-Chip-Zähler stimmen jetzt mit der Liste überein (Juli 2026)
+
+PATCH — In der Kurator-Feedback-Verwaltung zeigten die Filter-Chips (Status/Kategorie/Bereich) andere
+Zahlen als die Anzahl der tatsächlich gelisteten Tickets: „Bug 5", aber nur 1 sichtbares Bug. Ursache:
+die Liste blendet **archivierte** Tickets standardmäßig aus, die Zähler zählten aber über **alle** Tickets
+(inkl. archivierte) und ignorierten zudem die anderen aktiven Filter. Mit eingeblendeten Archivierten
+passte es zufällig — daher die beobachtete Diskrepanz.
+
+- Neues geteiltes Prädikat + Facetten-Zähler in [feedback-filter.ts](src/plugins/feedback/feedback-filter.ts)
+  (`matchesFeedbackFilters` + `countForCategory`/`countForStatus`/`countForArea`). Liste **und** Chip-Zähler
+  in [FeedbackAdminPage.tsx](src/plugins/feedback/FeedbackAdminPage.tsx) leiten jetzt aus **derselben** Quelle
+  ab: jeder Zähler beantwortet „wie viele zeigt die Liste, wenn ich diese Facette wähle?" (andere aktive
+  Filter bleiben fix, die eigene Facette filtert sich nicht selbst) → die ausgewählte Chip-Zahl == angezeigte
+  Zeilenzahl, auch beim Kombinieren mehrerer Filter.
+- Der frühere Sonderfall für den Status-„Alle"-Zähler (respektierte `showArchived`) fällt weg — die Regel
+  gilt nun einheitlich für alle drei Chip-Gruppen. Regressionsschutz: 9 Fälle in
+  [feedback-filter.test.ts](src/plugins/feedback/__tests__/feedback-filter.test.ts) inkl. des gemeldeten
+  „Bug 5 → 1 sichtbar"-Szenarios.
+
 ### v2.161.5 — Such-Spalte „Programm" zeigt jetzt „Programm/Unterprogramm" (Juli 2026)
 
 PATCH — Die Spalte **Programm** in der übergreifenden Suche war wenig aussagekräftig, weil sie für alle
