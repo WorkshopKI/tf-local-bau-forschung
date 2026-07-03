@@ -5,6 +5,23 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.167.0 — Anfragen-Modul in der kurator-Variante aktiv (Juli 2026)
+
+MINOR — `features.anfragen` ist jetzt auch in `configs/kurator.config.json` `true` (vorher nur dev + pl + as).
+Beide Anfragen-Plugins hängen am selben `featureFlag: 'anfragen'` ([index.ts](src/plugins/anfragen/index.ts)) —
+das bisherige `false` in kurator blendete darum **auch die Kuration-Settings-Seite** aus, obwohl kurator die
+Kuratoren-/Admin-Variante ist. Damit war die team-weite ZIM-FAQ-Assistent-URL in keinem Produktions-Build
+setzbar (nur dev). Mit dem Flag erscheint in kurator jetzt:
+
+- das **Anfragen-Workflow-Plugin** in der Sidebar (`.msg` → Anonymisieren → externe Runde → Wiedereinsetzen), und
+- die **Kuration-Seite „Anfragen"** (nach Kurator-Login) zum Setzen der externen URL, die
+  [AnfragenEinstellungenPage](src/plugins/anfragen/AnfragenEinstellungenPage.tsx) team-weit nach
+  `_intern/anfragen-settings.json` auf den Daten-Share schreibt (`atomicWrite` + Audit).
+
+Reiner Config-/Sichtbarkeits-Flip — kein Code geändert. Der `anfrage-anonymisieren`-Skill bleibt seed-seitig
+`aktiv: false` (Recall-Gate, bewusste Kurator-Entscheidung) — in kurator also identisch zu pl/as: Modul sichtbar,
+Anonymisierung erst nach Skill-Freischaltung. `openrouter.enabled: false` in kurator → Sicherheits-Gate unberührt.
+
 ### v2.166.0 — Anfragen: Original-Mailtext vor dem Anonymisieren bearbeitbar (Juli 2026)
 
 MINOR — Im Modul „Anfragen" ließ sich bisher nur die anonyme Fassung (rechte Spalte) editieren; der

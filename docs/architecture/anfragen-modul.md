@@ -110,9 +110,12 @@ funktional. Team-weite Änderung: Kuration-Plugin `anfragen-kuration` (kuratorOn
 
 ## Varianten-Verfügbarkeit & Skill-Gate
 
-- **Modul-Flag `features.anfragen`**: aktiv in **dev + pl + as**; aus in **prod + kurator**
+- **Modul-Flag `features.anfragen`**: aktiv in **dev + pl + as + kurator**; aus in **prod**
   ([configs/](../../configs/)). Plugin gegated über `featureFlag: 'anfragen'` ([index.ts](../../src/plugins/anfragen/index.ts)):
-  Workflow-Plugin `anfragen` (order 6) + Kuration-Plugin `anfragen-kuration` (kuratorOnly).
+  Workflow-Plugin `anfragen` (order 6) + Kuration-Plugin `anfragen-kuration` (kuratorOnly). In **kurator**
+  ist das Modul aktiv, damit der Kurator die team-weite ZIM-FAQ-Assistent-URL setzen kann
+  ([AnfragenEinstellungenPage](../../src/plugins/anfragen/AnfragenEinstellungenPage.tsx) → `_intern/anfragen-settings.json`);
+  die Kuration-Seite erscheint nur bei aktiven Kuration-Menüs (dev + kurator nach Login).
 - **Skill-Gate (orthogonal zum Modul-Flag)**: Der `anfrage-anonymisieren`-Skill ist `aktiv: false` **geseedet**
   (Recall-Gate; Produktiv-Freischaltung ist eine bewusste Kurator-Entscheidung). In **dev** überschreibt
   `istAnonymisiererFreigeschaltet()` das per Runtime immer auf freigeschaltet (Entwickler testet ohne den

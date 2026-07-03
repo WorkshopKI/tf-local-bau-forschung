@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.167 — 2026-07
+
+### Neu
+- In der Kurator-Version ist das Modul „Anfragen" jetzt verfügbar. Damit können Kuratoren u. a. die Adresse (URL) des externen ZIM-FAQ-Assistenten zentral einstellen – sie wird team-weit auf dem gemeinsamen Ablageort gespeichert, sodass alle dieselbe Ziel-Adresse nutzen.
+
 ## v2.166 — 2026-07
 
 ### Neu
