@@ -34,6 +34,7 @@ import type { DocumentFull } from '@/plugins/dokumente/store';
 import { findVorhabensbeschreibung } from './vbDokument';
 import { useStreamingBuffer } from './useStreamingBuffer';
 import { getKurzfassung, putKurzfassung, deleteKurzfassung } from './kurzfassung-store';
+import { logArbeitskontext } from '@/core/services/personal-storage/arbeitskontext-log';
 import { appendVerlauf, restoreVersion } from './kurzfassung-verlauf';
 import type { KurzfassungContext, KurzfassungRecord } from './types';
 
@@ -119,6 +120,16 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
   const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>(budgetForThinking(getLlmThinkingEnabled()));
   const stream = useStreamingBuffer();
   const abortRef = useRef<AbortController | null>(null);
+
+  /**
+   * Arbeitskontext-Log (Home-„Weitermachen") — rein lokal (IDB), fire-and-forget.
+   * NIE die Aktion brechen (eigener catch); loggt nur den Verbund-Key, kein Text.
+   */
+  const logKontext = (): void => {
+    void logArbeitskontext(storage.idb, {
+      typ: 'kurzfassung', verbundKey: key, ts: new Date().toISOString(),
+    }).catch(() => {});
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +223,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
       };
       setRecord(rec);
       await putKurzfassung(storage.idb, rec); // Persist NACH der Generierung
+      logKontext();
     } catch (err) {
       if (abort.signal.aborted) return; // bewusster Stop ist kein Fehler
       setError(err instanceof Error ? err.message : String(err));
@@ -238,6 +250,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
       const rec: KurzfassungRecord = { ...record, status: 'freigegeben', freigegeben_am: new Date().toISOString() };
       setRecord(rec);
       await putKurzfassung(storage.idb, rec);
+      logKontext();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -259,6 +272,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
       if (rec === record) return; // Out-of-range — nichts zu tun
       setRecord(rec);
       await putKurzfassung(storage.idb, rec);
+      logKontext();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }

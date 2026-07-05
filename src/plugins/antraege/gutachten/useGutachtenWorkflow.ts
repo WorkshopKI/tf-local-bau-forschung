@@ -47,6 +47,7 @@ import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
 import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { putWorkflowRun } from './workflow-store';
+import { logArbeitskontext } from '@/core/services/personal-storage/arbeitskontext-log';
 import {
   applyGeneration, applyBearbeitung, applyZuruecksetzen, applyPruefen, applyQsHinweise, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
   firstNonFreigegeben, leereSchritte, setVorlageRef,
@@ -227,6 +228,17 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   };
 
   /**
+   * Arbeitskontext-Log (Home-„Weitermachen") — rein lokal (IDB), fire-and-forget.
+   * NIE die Arbeitsaktion brechen: eigener try/catch. Loggt nur Metadaten
+   * (Verbund-Key + Abschnitt), kein Text.
+   */
+  const logKontext = (abschnittId: StepId): void => {
+    void logArbeitskontext(storage.idb, {
+      typ: 'gutachten', verbundKey: key, abschnittId, ts: new Date().toISOString(),
+    }).catch(() => {});
+  };
+
+  /**
    * Generierungs-Kern für EINEN Abschnitt — gegen einen ÜBERGEBENEN `base`-Run
    * (kein Closure-`run`, damit der Bulk-Lauf den frischen Stand durchreichen kann).
    * Liefert `{ next, checks }` oder `null` (Transport nicht erreichbar → `error`
@@ -316,6 +328,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       const res = await generateInto(run, stepId, { quelle: 'freigegeben', tweak, signal: abort.signal, ...(modifier ? { modifier } : {}) });
       if (!res) return null;
       await persist(res.next);
+      logKontext(stepId);
       return res.checks;
     } catch (err) {
       if (abort.signal.aborted) return null;
@@ -362,6 +375,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         if (!res) break; // Transport weg (error gesetzt) → STOPP, fertige Entwürfe bleiben
         current = res.next;
         await persist(current);
+        logKontext(stepId);
       }
     } catch (err) {
       if (!abort.signal.aborted) setError(err instanceof Error ? err.message : String(err));
@@ -567,10 +581,10 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     pruefen: (id) => { void pruefenStep(id); },
     qsFor: (id) => qsZiele.get(id) ?? null,
     runQs: (id) => { void runQs(id); },
-    freigebenStep: (id) => { void reduce((r, now) => freigeben(r, id, now, order)); },
+    freigebenStep: (id) => { void reduce((r, now) => freigeben(r, id, now, order)); logKontext(id); },
     erneutOeffnenStep: (id) => { void reduce((r, now) => erneutOeffnen(r, id, now)); },
     weiterschaltenStep: (id) => { void reduce((r, now) => weiterschalten(r, id, now)); },
-    verwerfenStep: (id) => { void reduce((r, now) => verwerfen(r, id, now)); },
+    verwerfenStep: (id) => { void reduce((r, now) => verwerfen(r, id, now)); logKontext(id); },
     uebernehmenStep: (id, index) => { void reduce((r, now) => uebernehmen(r, id, index, now)); },
     refreshVb: () => { void refreshVb(); },
     stop: () => abortRef.current?.abort(),

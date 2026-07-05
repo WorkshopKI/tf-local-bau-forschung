@@ -12,6 +12,7 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
 import { MeineAntraegeSection } from './MeineAntraegeSection';
+import { WeitermachenSection } from './WeitermachenSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
@@ -175,6 +176,9 @@ export function HomePage(): React.ReactElement {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-8">
         {/* Main */}
         <div data-tour="document-list" className="min-w-0">
+          {/* „Weitermachen" — jüngste Arbeitskontexte (rein lokales IDB-Log).
+              Rendert nichts, wenn kein Verlauf vorhanden ist. */}
+          <WeitermachenSection />
           {(() => {
             // Förderanträge-Pfad: zeigt „Meine Anträge" — inkl. Onboarding-Karte
             // (kein Kürzel) und Empty-State (Kürzel aktiv aber 0 Treffer).

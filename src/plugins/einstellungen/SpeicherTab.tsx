@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen, RefreshCw, FolderInput } from 'lucide-react';
+import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen, RefreshCw, FolderInput, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -29,6 +29,22 @@ import { listProgramme, listSchemas } from '@/core/services/csv';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
 import type { CsvSchema } from '@/core/services/csv/types';
+import {
+  listeArbeitskontext,
+  clearArbeitskontextLog,
+  type ArbeitskontextEintrag,
+  type ArbeitskontextTyp,
+} from '@/core/services/personal-storage/arbeitskontext-log';
+
+const VERLAUF_TYP_LABEL: Record<ArbeitskontextTyp, string> = {
+  gutachten: 'Gutachten',
+  nachforderung: 'Nachforderungen',
+  kurzfassung: 'Kurzfassung',
+};
+
+function formatVerlaufZeit(ts: string): string {
+  try { return new Date(ts).toLocaleString('de-DE'); } catch { return ts; }
+}
 
 export function SpeicherTab(): React.ReactElement {
   const storage = useStorage();
@@ -55,6 +71,10 @@ export function SpeicherTab(): React.ReactElement {
   // Manuelle Datenaktualisierung (Orchestrator: Snapshot → CSV-Auto-Import).
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateMsg, setUpdateMsg] = useState<string | null>(null);
+
+  // Arbeitsverlauf (rein lokales IDB-Log, Quelle der Home-„Weitermachen"-Karte).
+  const [verlauf, setVerlauf] = useState<ArbeitskontextEintrag[]>([]);
+  const [verlaufBusy, setVerlaufBusy] = useState(false);
 
   // v2.27: CSV-Quellen-Ordner — EIN Handle für alle CSV-Quelldateien (pl + kurator).
   const showCsvFolder = isCsvAutoRefreshEnabled() || isKuratorMenusEnabled();
@@ -105,6 +125,28 @@ export function SpeicherTab(): React.ReactElement {
     })();
     return () => { cancelled = true; };
   }, [storage, showCsvFolder]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listeArbeitskontext(storage.idb)
+      .then(list => { if (!cancelled) setVerlauf(list); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [storage]);
+
+  const handleClearVerlauf = async (): Promise<void> => {
+    if (!window.confirm(
+      'Arbeitsverlauf löschen? Die „Weitermachen"-Karte auf der Startseite wird geleert. '
+      + 'Nur lokal auf diesem Gerät — Anträge, Gutachten und Nachforderungen bleiben unberührt.',
+    )) return;
+    setVerlaufBusy(true);
+    try {
+      await clearArbeitskontextLog(storage.idb);
+      setVerlauf([]);
+    } finally {
+      setVerlaufBusy(false);
+    }
+  };
 
   const handleConnectPers = async (): Promise<void> => {
     setError('');
@@ -422,6 +464,34 @@ export function SpeicherTab(): React.ReactElement {
           )}
         </div>
       </div>
+
+      {verlauf.length > 0 && (
+        <>
+          <SectionHeader label="Arbeitsverlauf" />
+          <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
+            Zuletzt bearbeitete Gutachten, Nachforderungen und Kurzfassungen — Quelle der
+            „Weitermachen"-Karte auf der Startseite.{' '}
+            <span className="text-[var(--tf-text-tertiary)]">Nur lokal auf diesem Gerät; wird nicht synchronisiert oder exportiert.</span>
+          </p>
+          <div className="rounded-[var(--tf-radius)] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
+            {verlauf.map((e, i) => (
+              <ListItem
+                key={`${e.typ}:${e.verbundKey}`}
+                icon={<History size={14} className="text-[var(--tf-text-tertiary)]" />}
+                title={VERLAUF_TYP_LABEL[e.typ]}
+                subtitle={e.verbundKey}
+                meta={<span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">{formatVerlaufZeit(e.ts)}</span>}
+                last={i === verlauf.length - 1}
+              />
+            ))}
+          </div>
+          <div>
+            <Button variant="secondary" icon={Trash2} onClick={handleClearVerlauf} disabled={verlaufBusy}>
+              {verlaufBusy ? 'Lösche…' : 'Verlauf löschen'}
+            </Button>
+          </div>
+        </>
+      )}
 
       {showCsvFolder && (
         <>

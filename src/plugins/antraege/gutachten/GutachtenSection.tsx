@@ -37,7 +37,7 @@ import { KontextPanel } from './KontextPanel';
 import { ResumeLine } from './ResumeLine';
 import { leereSchritte } from './runner';
 import type { WorkflowStep } from '@/core/services/skills';
-import type { WorkflowRun } from './types';
+import type { StepId, WorkflowRun } from './types';
 import './gutachten.css';
 
 /** Container-Mindestbreite für das 3-spaltige Werkstatt-Grid; darunter einspaltig. */
@@ -69,7 +69,9 @@ function readPersistedFlag(key: string, fallback: boolean): boolean {
   }
 }
 
-export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
+export function GutachtenSection({
+  ctx, initialAbschnittId,
+}: { ctx: KurzfassungContext; initialAbschnittId?: string }): React.ReactElement {
   const ctrl = useGutachtenWorkflow(ctx);
   // Einklappbar (persistiert, Default offen): beim Texten anderer Artefakte
   // (NF/Kurzfassung) wegklappbar. Body via CSS verstecken statt unmounten —
@@ -117,6 +119,23 @@ export function GutachtenSection({ ctx }: { ctx: KurzfassungContext }): React.Re
   }, []);
 
   const { run, vbDokument: vbDok, steps } = ctrl;
+
+  // Deep-Link (Home-„Weitermachen"): einmal auf den übergebenen Abschnitt springen,
+  // sobald Run + Steps geladen sind und der Abschnitt existiert. `weiterschaltenStep`
+  // ist derselbe (persistierende) Sprung wie ein Klick in der Rail; nur wenn sich
+  // der Abschnitt vom aktiven unterscheidet, und pro (Run, Abschnitt) genau einmal.
+  const jumpedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialAbschnittId || !run || steps.length === 0) return;
+    const marker = `${run.aktenzeichen}:${initialAbschnittId}`;
+    if (jumpedRef.current === marker) return;
+    if (!steps.some(s => s.id === initialAbschnittId)) return;
+    jumpedRef.current = marker;
+    if (run.aktiverSchritt !== initialAbschnittId) {
+      ctrl.weiterschaltenStep(initialAbschnittId as StepId);
+    }
+  }, [initialAbschnittId, run, steps, ctrl]);
+
   const order = steps.map(s => s.id);
   const vbLvl = maxConversionLevel(vbDok?.conversion);
   const vbWarnung = vbDok?.conversion?.warnings.find(w => w.level === 'warnung')?.message ?? '';

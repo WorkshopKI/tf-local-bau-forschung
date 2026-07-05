@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.171 — 2026-07
+
+### Neu
+- Neue „Weitermachen"-Karte auf der Startseite: Sie zeigt Ihre drei zuletzt bearbeiteten Gutachten, Nachforderungen und Kurzfassungen – ein Klick auf „Weiter →" bringt Sie direkt zurück an die richtige Stelle.
+- Dieser Verlauf bleibt bewusst nur lokal auf Ihrem Gerät: Er wird nicht auf das Netzlaufwerk übertragen und nicht exportiert, und speichert keine Textinhalte. In den Einstellungen unter „Speicher" können Sie ihn jederzeit einsehen und löschen.
+
 ## v2.170 — 2026-07
 
 ### Verbesserungen

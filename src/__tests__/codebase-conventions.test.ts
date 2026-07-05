@@ -759,7 +759,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 29;    // Ist 29; +1 'workflowEntwuerfe' (Workflow-Verwaltung dev-Freigabe, v2.133)
   const MAX_SERVICE_DIRS = 22;     // Ist 22 (+ msg: .msg-Parser fuers Anfragen-Modul, v2.x); davor 21 (skill-feedback File-first Substrat S1)
-  const MAX_FILE_LOC = 1285;       // Ist ~1271 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1310;       // Ist ~1306 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1195,6 +1195,41 @@ describe('no-parallel-scope-tabs (Listen-Sicht-Tabs gehören in ScopeTabs)', () 
         `ALLOWED_SUFFIXES mit Begründung).\n\nTreffer:\n${fmt(findings)}`,
       );
     }
+  });
+});
+
+describe('arbeitskontext-log-idb-only (Journey Phase 2 — rein lokales Log)', () => {
+  // Das Arbeitskontext-Log (Home-„Weitermachen") ist strikt gerätelokal (IDB) und
+  // darf NIE auf den Daten-Share / in den persönlichen Ordner gespiegelt oder
+  // exportiert werden (Datenschutz-Leitplanke; Präzedenz embedding-caches-machine-
+  // local). Struktureller Schutz: der Service referenziert keine Share-/Mirror-
+  // Schreibpfade.
+  it('arbeitskontext-log.ts nutzt ausschließlich IDB (kein Share-/Mirror-Write)', () => {
+    const file = join(ROOT, 'core', 'services', 'personal-storage', 'arbeitskontext-log.ts');
+    const content = readFileSync(file, 'utf-8');
+    const verboten = [
+      'mirrorJsonToPersonal',
+      'atomicWrite',
+      'appendToFile',
+      'getPersoenlichHandle',
+      'writeProfileToShare',
+      'writeEinstellungenToShare',
+    ];
+    // Nur echte Code-Referenzen zählen — Doku/Kommentar-Erwähnungen (die den Guard
+    // begründen) werden anhand des Zeilen-Prefixes ausgenommen.
+    const lines = content.split(/\r?\n/);
+    const treffer = verboten.filter(v =>
+      lines.some(l => {
+        const t = l.trim();
+        if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+        return l.includes(v);
+      }),
+    );
+    expect(
+      treffer,
+      `arbeitskontext-log.ts muss IDB-only bleiben (kein Share-/Mirror-Write).\n`
+      + `Verbotene Referenz(en) gefunden: ${treffer.join(', ')}`,
+    ).toEqual([]);
   });
 });
 

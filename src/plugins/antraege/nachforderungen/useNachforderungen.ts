@@ -21,6 +21,7 @@ import type { DocumentFull } from '@/plugins/dokumente/store';
 import { resolveVb } from '../kurzfassung/vbDokument';
 import { buildStammdaten } from '../gutachten/skill-context';
 import { putWorkflowRun } from '../gutachten/workflow-store';
+import { logArbeitskontext } from '@/core/services/personal-storage/arbeitskontext-log';
 import type { StepRun, WorkflowRun } from '../gutachten/types';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { formatBausteinKatalog, pruefeNf, nfFreigabereif, mergeNfFuerTv, buildNfMailto } from './nf-service';
@@ -153,6 +154,13 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
           mailto: buildNfMailto({ fkz: tv.aktenzeichen, nachforderungen: merged }),
         });
         setEntwuerfe([...ergebnisse]); // inkrementell anzeigen
+      }
+      // Arbeitskontext-Log (Home-„Weitermachen") — rein lokal (IDB), fire-and-forget.
+      // Ein Eintrag je Verbund (ctx.key), sobald mindestens ein TV-Entwurf steht.
+      if (ergebnisse.length > 0) {
+        void logArbeitskontext(storage.idb, {
+          typ: 'nachforderung', verbundKey: ctx.key, ts: new Date().toISOString(),
+        }).catch(() => {});
       }
     } catch (e) {
       if (!ac.signal.aborted) setError(errMsg(e));

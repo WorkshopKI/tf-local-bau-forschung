@@ -5,6 +5,29 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.171.0 — Journey-Paket 1, Phase 2: „Weitermachen"-Karte + lokales Arbeitskontext-Log (Juli 2026)
+
+MINOR — Schneller Wiedereinstieg in die zuletzt bearbeiteten Artefakte, entlang `_reference/journey-paket-1/home-weitermache.png`. Additiv.
+
+- **Rein lokales Arbeitskontext-Log** ([arbeitskontext-log.ts](src/core/services/personal-storage/arbeitskontext-log.ts)):
+  IDB-only (kv-Key `arbeitskontext-log`), **NIE** auf den Daten-Share / in den persönlichen Ordner gespiegelt und
+  **NIE** exportiert (Datenschutz-Leitplanke, Präzedenz `embedding-caches-machine-local`; struktureller Guard
+  `arbeitskontext-log-idb-only`). Speichert **ausschließlich Metadaten**: Artefakt-Typ, Verbund-Key, optional der
+  zuletzt berührte Gutachten-Abschnitt und der Zeitstempel — **keine** Textinhalte/Prompts/Entwürfe. Dedupe pro
+  `(typ, verbundKey)`, Cap 200.
+- **Instrumentierung** (fire-and-forget, bricht nie eine Arbeitsaktion): Gutachten (Generieren/Freigeben/Verwerfen,
+  je Abschnitt), Nachforderungen (je Verbund) und Kurzfassung (Generieren/Freigeben/Übernehmen).
+- **„Weitermachen"-Karte** ([WeitermachenSection.tsx](src/plugins/home/WeitermachenSection.tsx)): oberste Section der
+  Home-Hauptspalte, die drei jüngsten Arbeitskontexte mit Akronym + Kontextzeile (der **Live**-Abschnitts-Status
+  kommt aus dem Workflow-Store, nie der geloggte) + relativer Zeit; „Weiter →" deep-linkt zurück in die Werkstatt.
+  Leerer Verlauf ⇒ Karte unsichtbar. Datenschutz-Zeile („nur lokal auf diesem Gerät · verwalten") verlinkt in die
+  Einstellungen.
+- **Deep-Link** über Query-Params `?ziel=gutachten|nf&abschnitt=<A–G>`: die Verbund-Detailseite scrollt zur Ziel-
+  Sektion; die Gutachten-Sektion springt (einmalig) den Abschnitt. Echter Verbund → Verbund-Route, Solo/Pseudo →
+  Antrags-Route.
+- **Einstellungen → Speicher → „Arbeitsverlauf"**: Liste der Einträge + „Verlauf löschen" (mit Bestätigung); nur
+  sichtbar, wenn Einträge existieren.
+
 ### v2.170.0 — Journey-Paket 1, Phase 1: Sidebar-Gruppierung + Feedback im Footer (Juli 2026)
 
 MINOR — Neuordnung der Sidebar-Navigation entlang des Mockups `_reference/journey-paket-1/sidebar-v2.png`.

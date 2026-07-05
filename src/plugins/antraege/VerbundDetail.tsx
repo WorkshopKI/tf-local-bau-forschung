@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -86,6 +87,12 @@ export function VerbundDetail({
   onOpenAntrag,
 }: Props): React.ReactElement {
   const storage = useStorage();
+  // Deep-Link aus der Home-„Weitermachen"-Karte: `ziel` (gutachten|nf) scrollt
+  // zur Sektion, `abschnitt` (nur GA) springt den Schritt (an GutachtenSection
+  // durchgereicht). Query-Param — überlebt Liste-/URL-Navigation.
+  const [searchParams] = useSearchParams();
+  const zielParam = searchParams.get('ziel');
+  const abschnittParam = searchParams.get('abschnitt') ?? undefined;
   // In-Memory-Slim-Liste des Programms — Quelle für die Vorgänger-Suche.
   const allAntraege = useAntraegeStore(s => s.antraege);
   const [verbund, setVerbund] = useState<Verbund | null>(null);
@@ -209,6 +216,21 @@ export function VerbundDetail({
     })();
     return () => { cancelled = true; };
   }, [verbundId, storage.idb, isPseudo]);
+
+  // Deep-Link-Scroll: nach dem Laden einmalig zur Ziel-Sektion scrollen. Best-
+  // effort (Anker fehlt bei deaktiviertem Flag → No-Op); pro (Verbund, Ziel) nur
+  // einmal, damit ein Re-Render nicht erneut wegscrollt.
+  const scrolledForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!verbund || !zielParam) return;
+    const marker = `${verbundId}:${zielParam}`;
+    if (scrolledForRef.current === marker) return;
+    scrolledForRef.current = marker;
+    const t = setTimeout(() => {
+      try { document.getElementById(zielParam)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { /* ignore */ }
+    }, 200);
+    return () => clearTimeout(t);
+  }, [verbund, verbundId, zielParam]);
 
   const historyCounts = useMemo<Record<string, number>>(() => ({}), []);
 
@@ -546,7 +568,7 @@ export function VerbundDetail({
           mountet. */}
       {isGutachtenWorkflowEnabled() ? (
         <div id="gutachten" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <GutachtenSection ctx={kurzfassungCtx} />
+          <GutachtenSection ctx={kurzfassungCtx} initialAbschnittId={abschnittParam} />
         </div>
       ) : isGutachtenKurzfassungEnabled() ? (
         <div id="gutachten" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
