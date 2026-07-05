@@ -21,7 +21,7 @@ export const TEAMFLOW_AREAS: readonly TeamflowArea[] = [
   { ref: 'einstellungen', label: 'Einstellungen' },
   { ref: 'suchindex', label: 'Suchindex' },
   { ref: 'auslastung', label: 'Auslastung' },
-  { ref: 'anfragen', label: 'Anfragen' },
+  { ref: 'anfragen', label: 'E-Mail-Anfragen' },
   { ref: 'feedback', label: 'Feedback-System' },
   { ref: 'sonstiges', label: 'Sonstiges' },
 ] as const;

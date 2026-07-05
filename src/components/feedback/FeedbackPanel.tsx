@@ -63,7 +63,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
   const storage = useStorage();
   const { profile } = useProfile();
   const meinKuerzel = useMeinKuerzel();
-  const { activeId } = useNavigation();
+  const { activeId, navigate } = useNavigation();
   const bridge = useAIBridge();
   const kiVerfuegbar = useBridgeStatus(s => s.status) === 'connected';
 
@@ -283,13 +283,22 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
 
         {view === 'my-feedback' && (
           <div className="p-3">
-            <button
-              type="button"
-              onClick={() => setView('input')}
-              className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-3 inline-flex items-center gap-1 cursor-pointer"
-            >
-              <ArrowLeft size={12} /> Neues Feedback
-            </button>
+            <div className="flex items-center justify-between mb-3">
+              <button
+                type="button"
+                onClick={() => setView('input')}
+                className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] inline-flex items-center gap-1 cursor-pointer"
+              >
+                <ArrowLeft size={12} /> Neues Feedback
+              </button>
+              <button
+                type="button"
+                onClick={() => { onClose(); navigate('feedback-board'); }}
+                className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] inline-flex items-center gap-1 cursor-pointer"
+              >
+                Feedback-Board →
+              </button>
+            </div>
             <MyFeedbackList />
           </div>
         )}

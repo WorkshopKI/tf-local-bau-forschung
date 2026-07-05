@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.170 — 2026-07
+
+### Verbesserungen
+- Aufgeräumte Seitenleiste: Ihre Arbeitsbereiche (Home, Förderanträge, E-Mail-Anfragen, Auslastung, Suche) stehen oben zusammen, „Skill-Verwaltung" und „Einstellungen" ruhig am unteren Rand.
+- Feedback geben ist jetzt auch direkt unten in der Seitenleiste möglich – neben der Versionsnummer. Das öffentliche Feedback-Board erreichen Sie weiterhin über den Feedback-Dialog.
+- Das Modul „Anfragen" heißt jetzt „E-Mail-Anfragen" – damit klarer ist, worum es geht.
+
 ## v2.169 — 2026-07
 
 ### Verbesserungen

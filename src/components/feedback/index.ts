@@ -1,5 +1,6 @@
 export { FeedbackButton } from './FeedbackButton';
 export { FeedbackPanel } from './FeedbackPanel';
+export { useFeedbackDialog } from './useFeedbackDialog';
 export { FeedbackInputStep, type FeedbackSubmitPayload } from './FeedbackInputStep';
 export { FeedbackScreenshotInput } from './FeedbackScreenshotInput';
 export { FeedbackAnnotator } from './FeedbackAnnotator';

@@ -1,29 +1,34 @@
 // Floating Action Button + Panel-Toggle.
 // Wird global in App.tsx montiert (außer während Onboarding/Tour).
 // Strg+Alt+S öffnet das Panel mit fokussierter Screenshot-Paste-Fläche (v2.42).
+// Öffnen-Zustand liegt im geteilten `useFeedbackDialog`-Store, damit auch der
+// Feedback-Icon-Button im Sidebar-Footer denselben Dialog öffnet.
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { MessageSquarePlus } from 'lucide-react';
 import { keyboardService } from '@/core/services/keyboard';
 import { FeedbackPanel } from './FeedbackPanel';
+import { useFeedbackDialog } from './useFeedbackDialog';
 
 export function FeedbackButton(): React.ReactElement {
-  const [open, setOpen] = useState(false);
-  const [viaShortcut, setViaShortcut] = useState(false);
+  const open = useFeedbackDialog(s => s.open);
+  const focusScreenshot = useFeedbackDialog(s => s.focusScreenshot);
+  const openDialog = useFeedbackDialog(s => s.openDialog);
+  const close = useFeedbackDialog(s => s.close);
 
   useEffect(() => {
-    keyboardService.register('mod+alt+s', () => { setViaShortcut(true); setOpen(true); }, {
+    keyboardService.register('mod+alt+s', () => openDialog({ focusScreenshot: true }), {
       description: 'Feedback mit Screenshot',
       category: 'Feedback',
     });
     return () => keyboardService.unregister('mod+alt+s');
-  }, []);
+  }, [openDialog]);
 
   return (
     <>
       <button
         type="button"
-        onClick={() => { setViaShortcut(false); setOpen(true); }}
+        onClick={() => openDialog()}
         title="Feedback geben (Strg+Alt+S für Screenshot)"
         className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-10 h-10 rounded-full text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] transition-colors duration-200 cursor-pointer"
         style={{ border: '1px solid var(--tf-border)' }}
@@ -31,7 +36,7 @@ export function FeedbackButton(): React.ReactElement {
       >
         <MessageSquarePlus size={16} />
       </button>
-      <FeedbackPanel open={open} onClose={() => { setOpen(false); setViaShortcut(false); }} focusScreenshot={viaShortcut} />
+      <FeedbackPanel open={open} onClose={close} focusScreenshot={focusScreenshot} />
     </>
   );
 }

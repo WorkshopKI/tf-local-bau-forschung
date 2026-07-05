@@ -103,7 +103,9 @@ Die App hat eine **geteilte, domänenfreie Layout-Schicht** in `src/components/`
 
 ### Plugin System
 
-Every major feature is a plugin in `src/plugins/{name}/`. Each plugin exports a `TeamFlowPlugin` object mit `id`, `name`, `icon`, `category` (`'workflow' | 'tools' | 'kuration'`), `order`, `component`. Optional: `kuratorOnly`, `badge: () => number | null`, `onInit`, `route`, `featureFlag`. Plugins are registered in `src/plugins.config.ts`.
+Every major feature is a plugin in `src/plugins/{name}/`. Each plugin exports a `TeamFlowPlugin` object mit `id`, `name`, `icon`, `category` (`'workflow' | 'tools' | 'system' | 'kuration'`), `order`, `component`. Optional: `kuratorOnly`, `hideFromNav`, `navHint`, `badge: () => number | null`, `onInit`, `route`, `featureFlag`. Plugins are registered in `src/plugins.config.ts`.
+
+Sidebar-Gruppierung (v2.170): `workflow` + `tools` bilden die Arbeits-Gruppe oben (ohne Label), `system` die untere Gruppe (Trennlinie, ohne Label — Skill-Verwaltung, Einstellungen), `kuration` die Kurator-Gruppe (Trennlinie + Label, nur Kurator-Builds). Die Gruppierung/Sortierung lebt in der puren `groupNavPlugins()` ([src/core/nav/groupNavPlugins.ts](src/core/nav/groupNavPlugins.ts)) — ShellLayout rendert nur. `hideFromNav: true` nimmt ein Plugin aus Nav + Nav-Command-Items, **ohne** die Route zu deregistrieren (Bookmarks/Deep-Links/Redirects bleiben; Routen kommen aus der ungefilterten Plugin-Liste, [Router.tsx](src/core/Router.tsx)). `navHint: 'global'` rendert ein Globus-Icon mit Tooltip. Kein id-Sonderfall im ShellLayout — immer Manifest-Felder.
 
 Schritt-für-Schritt-Anleitung für ein neues Plugin: [docs/agents/add-plugin.md](docs/agents/add-plugin.md). Plugin-Init-Hook (`onInit`)-Pattern: [docs/architecture/runtime-layers.md](docs/architecture/runtime-layers.md).
 

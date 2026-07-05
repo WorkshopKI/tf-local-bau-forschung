@@ -7,7 +7,7 @@ export const suchePlugin: TeamFlowPlugin = {
   featureFlag: 'suche',
   name: 'Suche',
   icon: 'Search',
-  category: 'tools',
-  order: 40,
+  category: 'workflow',
+  order: 8,
   component: SuchSeite,
 };

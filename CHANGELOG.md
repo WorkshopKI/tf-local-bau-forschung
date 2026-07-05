@@ -5,6 +5,27 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.170.0 — Journey-Paket 1, Phase 1: Sidebar-Gruppierung + Feedback im Footer (Juli 2026)
+
+MINOR — Neuordnung der Sidebar-Navigation entlang des Mockups `_reference/journey-paket-1/sidebar-v2.png`.
+Additiv: bestehende Routen/Bookmarks bleiben erreichbar.
+
+- **Nav-Kategorie `system`** neben `workflow`/`tools`/`kuration` ([plugin.ts](src/core/types/plugin.ts)): Skill-Verwaltung
+  + Einstellungen liegen jetzt unten in einer eigenen Gruppe (Trennlinie, **ohne** Label), von der Arbeits-Gruppe
+  oben durch einen Flex-Spacer getrennt. Arbeits-Gruppe oben = Home, Förderanträge, E-Mail-Anfragen, Auslastung,
+  Suche (+ Chat temporär bis Phase 4).
+- **Pure `groupNavPlugins()`** ([src/core/nav/groupNavPlugins.ts](src/core/nav/groupNavPlugins.ts)): einzige Quelle der
+  Nav-Gruppierung/-Sortierung (getestet); ShellLayout rendert nur noch. Command-Palette-Nav-Items leiten sich aus
+  derselben `navVisiblePlugins()`-Liste ab.
+- **`hideFromNav?: boolean`** (Manifest-Feld): Plugin fällt aus Nav + Nav-Commands, Route bleibt registriert.
+  `feedback-board` ist jetzt `hideFromNav` — erreichbar über den Feedback-Dialog (Footer-Icon → „Feedback-Board →").
+- **`navHint?: 'global'`** (Manifest-Feld): rechtsbündiges Globus-Icon mit Tooltip „Änderungen wirken für alle
+  Nutzer" — gesetzt an der Skill-Verwaltung. Kein id-Sonderfall im ShellLayout.
+- **Feedback-Icon im Sidebar-Footer** (zwischen „Zeig es mir" und Version): öffnet denselben Dialog wie der globale
+  FAB über den neuen geteilten Store [useFeedbackDialog](src/components/feedback/useFeedbackDialog.ts) — keine
+  Duplikat-Öffnen-Logik.
+- **Rename** „Anfragen" → **„E-Mail-Anfragen"** (Workflow- + Kuration-Plugin + Feedback-Bereichs-Label).
+
 ### v2.169.0 — Anonymisierer-Freischaltung reconciled Bestands-Shares automatisch (Juli 2026)
 
 MINOR — Follow-up zu v2.168.0: Der Seed steht auf `aktiv: true`, aber `mergeMissingSeeds` überschreibt

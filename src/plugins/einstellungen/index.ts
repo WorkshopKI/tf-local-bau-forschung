@@ -6,7 +6,7 @@ export const einstellungenPlugin: TeamFlowPlugin = {
   route: '/einstellungen',
   name: 'Einstellungen',
   icon: 'Settings',
-  category: 'tools',
-  order: 90,
+  category: 'system',
+  order: 20,
   component: EinstellungenPage,
 };

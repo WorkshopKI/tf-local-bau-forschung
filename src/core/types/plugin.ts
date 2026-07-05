@@ -48,11 +48,29 @@ export interface TeamFlowPlugin {
   featureFlag?: PluginFeatureKey;
   name: string;
   icon: string;
-  category: 'workflow' | 'tools' | 'kuration';
+  /**
+   * Sidebar-Gruppe. `workflow` + `tools` bilden die Arbeits-Gruppe oben (ohne
+   * Label), `system` die untere Gruppe (Trennlinie, ohne Label), `kuration` die
+   * Kurator-Gruppe (Trennlinie + Label, nur Kurator-Builds).
+   */
+  category: 'workflow' | 'tools' | 'system' | 'kuration';
   order: number;
   component: ComponentType;
   /** Wenn true, nur sichtbar für User mit `profile.is_kurator === true`. */
   kuratorOnly?: boolean;
+  /**
+   * Wenn true, taucht das Plugin NICHT in der Sidebar-Nav (und den Nav-Command-
+   * Items) auf — seine Route bleibt aber registriert und erreichbar (Bookmarks,
+   * Deep-Links, Redirects). Genutzt für Seiten, die über andere Wege erreicht
+   * werden (z.B. Feedback-Board via Footer-Dialog, Chat via Suche-Assistent).
+   */
+  hideFromNav?: boolean;
+  /**
+   * Optionaler Nav-Hinweis-Marker. `'global'` rendert rechtsbündig ein kleines
+   * Globus-Icon mit Tooltip „Änderungen wirken für alle Nutzer" — für Seiten,
+   * deren Bearbeitung team-weit wirkt (z.B. Skill-Verwaltung).
+   */
+  navHint?: 'global';
   /** @deprecated Legacy-Alias vor v1.9; wird per Fallback als kuratorOnly behandelt. */
   adminOnly?: boolean;
   badge?: () => number | null;

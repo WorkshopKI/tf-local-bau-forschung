@@ -14,7 +14,8 @@ import { useTourContext } from '@/core/hooks/useTour';
 import { useProfile } from '@/core/hooks/useProfile';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { TourOverlay } from '@/core/components/tour/TourOverlay';
-import { FeedbackButton } from '@/components/feedback';
+import { FeedbackButton, useFeedbackDialog } from '@/components/feedback';
+import { groupNavPlugins, navVisiblePlugins } from '@/core/nav/groupNavPlugins';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
@@ -251,7 +252,10 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     void initActiveProgramm(storage.idb, profile);
   }, [profile, initActiveProgramm, storage.idb]);
 
-  const sortedPlugins = useMemo(() => [...visiblePlugins].sort((a, b) => a.order - b.order), [visiblePlugins]);
+  // Nav-sichtbare, nach `order` sortierte Plugins — Quelle der Command-Palette-
+  // Nav-Items. `hideFromNav`-Plugins (Chat ab Phase 4, Feedback-Board) fallen
+  // raus, damit sie keinen Nav-Command erzeugen; ihre Routen bleiben erreichbar.
+  const sortedPlugins = useMemo(() => navVisiblePlugins(visiblePlugins), [visiblePlugins]);
 
   const commandItems = useMemo((): CommandItem[] => {
     const isMac = navigator.platform.includes('Mac');
@@ -285,12 +289,32 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  const grouped = useMemo(() => {
-    const sorted = [...visiblePlugins].sort((a, b) => a.order - b.order);
-    const groups: Record<string, TeamFlowPlugin[]> = { workflow: [], tools: [], kuration: [] };
-    for (const p of sorted) groups[p.category]?.push(p);
-    return groups;
-  }, [visiblePlugins]);
+  const grouped = useMemo(() => groupNavPlugins(visiblePlugins), [visiblePlugins]);
+
+  const renderNavItem = (plugin: TeamFlowPlugin): React.ReactElement => {
+    const Icon = getIcon(plugin.icon);
+    const isActive = plugin.id === activeId;
+    const isRail = sidebarMode === 'rail';
+    return (
+      <button key={plugin.id}
+        onClick={() => { goToPlugin(plugin.id); if (isMobile) setSidebarMode('rail'); }}
+        title={isRail ? displayName(plugin) : undefined}
+        className={`flex items-center w-full py-[8px] rounded-[var(--tf-radius)] text-[13.5px] transition-colors cursor-pointer ${
+          isRail ? 'justify-center px-0' : 'gap-2.5 px-3'
+        } ${
+          isActive ? 'bg-[var(--tf-primary-light)] text-[var(--tf-text)] font-medium' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+        }`}
+        style={isActive ? { borderLeft: '2px solid var(--tf-primary)' } : undefined}>
+        <Icon size={16} className={isActive ? 'opacity-80' : 'opacity-50'} />
+        {!isRail && <span>{displayName(plugin)}</span>}
+        {!isRail && plugin.navHint === 'global' && (
+          <span className="ml-auto flex items-center" title="Änderungen wirken für alle Nutzer">
+            <Icons.Globe size={13} className="text-[var(--tf-text-tertiary)]" />
+          </span>
+        )}
+      </button>
+    );
+  };
 
   return (
     <>
@@ -318,61 +342,38 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
 
           {sidebarMode === 'expanded' && <ProgrammSwitcher />}
 
-          <nav className="flex-1 overflow-y-auto px-2 py-2">
+          <nav className="flex-1 overflow-y-auto px-2 py-2 flex flex-col">
+            {/* Arbeits-Gruppe: workflow + tools, fortlaufend ohne Label. */}
             {(['workflow', 'tools'] as const).map(cat => {
               const items = grouped[cat];
-              if (!items || items.length === 0) return null;
+              if (items.length === 0) return null;
               return (
                 <div key={cat} className="mb-1">
-                  {items.map(plugin => {
-                    const Icon = getIcon(plugin.icon);
-                    const isActive = plugin.id === activeId;
-                    const isRail = sidebarMode === 'rail';
-                    return (
-                      <button key={plugin.id}
-                        onClick={() => { goToPlugin(plugin.id); if (isMobile) setSidebarMode('rail'); }}
-                        title={isRail ? displayName(plugin) : undefined}
-                        className={`flex items-center w-full py-[8px] rounded-[var(--tf-radius)] text-[13.5px] transition-colors cursor-pointer ${
-                          isRail ? 'justify-center px-0' : 'gap-2.5 px-3'
-                        } ${
-                          isActive ? 'bg-[var(--tf-primary-light)] text-[var(--tf-text)] font-medium' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-                        }`}
-                        style={isActive ? { borderLeft: '2px solid var(--tf-primary)' } : undefined}>
-                        <Icon size={16} className={isActive ? 'opacity-80' : 'opacity-50'} />
-                        {!isRail && <span>{displayName(plugin)}</span>}
-                      </button>
-                    );
-                  })}
+                  {items.map(renderNavItem)}
                 </div>
               );
             })}
 
-            {(grouped.kuration?.length ?? 0) > 0 && (
+            {/* Spacer schiebt die System-/Kuration-Gruppe an den unteren Rand.
+                Kollabiert, wenn die Liste den Platz füllt → dann scrollt die nav. */}
+            <div className="flex-1 min-h-[8px]" />
+
+            {/* System-Gruppe: Trennlinie OHNE Label (Skill-Verwaltung, Einstellungen). */}
+            {grouped.system.length > 0 && (
+              <div className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+                {grouped.system.map(renderNavItem)}
+              </div>
+            )}
+
+            {/* Kuration-Gruppe: Trennlinie + Uppercase-Label (nur Kurator-Builds). */}
+            {grouped.kuration.length > 0 && (
               <div className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
                 {sidebarMode === 'expanded' && (
                   <div className="px-3 mb-2">
                     <span className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">Kuration</span>
                   </div>
                 )}
-                {grouped.kuration?.map(plugin => {
-                  const Icon = getIcon(plugin.icon);
-                  const isActive = plugin.id === activeId;
-                  const isRail = sidebarMode === 'rail';
-                  return (
-                    <button key={plugin.id}
-                      onClick={() => { goToPlugin(plugin.id); if (isMobile) setSidebarMode('rail'); }}
-                      title={isRail ? displayName(plugin) : undefined}
-                      className={`flex items-center w-full py-[8px] rounded-[var(--tf-radius)] text-[13.5px] transition-colors cursor-pointer ${
-                        isRail ? 'justify-center px-0' : 'gap-2.5 px-3'
-                      } ${
-                        isActive ? 'bg-[var(--tf-primary-light)] text-[var(--tf-text)] font-medium' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-                      }`}
-                      style={isActive ? { borderLeft: '2px solid var(--tf-primary)' } : undefined}>
-                      <Icon size={16} className={isActive ? 'opacity-80' : 'opacity-50'} />
-                      {!isRail && <span>{displayName(plugin)}</span>}
-                    </button>
-                  );
-                })}
+                {grouped.kuration.map(renderNavItem)}
               </div>
             )}
           </nav>
@@ -380,10 +381,25 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
           <div className="px-2 py-1.5 shrink-0 flex flex-col" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             {sidebarMode === 'expanded' ? (
               <>
-                {/* Zeile 1: „Neu hier?" / „Zeig es mir" (links) + Version (rechts). */}
+                {/* Zeile 1: „Zeig es mir" (links) + Feedback-Icon + Version (rechts).
+                    Der Feedback-Button teilt sich den Dialog mit dem globalen FAB
+                    über den `useFeedbackDialog`-Store (keine Duplikat-Logik). */}
                 <div className="flex items-center justify-between gap-1">
                   <FooterShowcaseButton activeId={activeId} pageName={pageName} />
-                  <BuildInfo />
+                  <div className="flex items-center gap-1.5">
+                    {isFeedbackEnabled() && (
+                      <button
+                        type="button"
+                        onClick={() => useFeedbackDialog.getState().openDialog()}
+                        title="Feedback geben"
+                        aria-label="Feedback geben"
+                        className="p-1 rounded-[var(--tf-radius)] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+                      >
+                        <Icons.MessageCircle size={15} />
+                      </button>
+                    )}
+                    <BuildInfo />
+                  </div>
                 </div>
                 {/* Dünne Trennlinie zwischen den beiden Zeilen — volle Breite wie
                     die obere Fußzeilen-Kante (`-mx-2` hebt das Container-Padding auf). */}
