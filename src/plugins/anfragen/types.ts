@@ -40,6 +40,28 @@ export type AnfrageStatus =
   | 'antwort_importiert'
   | 'finalisiert';
 
+/** Zustand des internen KI-Metadaten-Laufs (Teil 1 „Anfragen zuerst taggen"). */
+export type MetadatenStatus = 'ausstehend' | 'getaggt' | 'fehlgeschlagen';
+
+/**
+ * KI-extrahierte Metadaten einer Anfrage (Antragsart, Absender, Firma, Themengruppe).
+ * Läuft über die INTERNE Bridge auf dem `originalMd` (echte Inhalte).
+ *
+ * DSGVO: `name`/`firma` sind Klartext-PII — so sensibel wie `mapping`/
+ * `verallgemeinerungen[].original`: NUR lokal in IndexedDB, NIEMALS an einen
+ * Transport serialisieren. `antragsart`/`themengruppe` sind Klassifikatoren
+ * (Themengruppe = festes Vokabular, siehe `anfrage-metadaten.seed.ts`).
+ */
+export interface AnfrageMetadaten {
+  antragsart: string;    // semi-offen, z. B. „Förderantrag", „Nachfrage", „Fristverlängerung"
+  name: string;          // Absender-Person (Klartext — nur lokal)
+  firma: string;         // Firma/Institut (Klartext — nur lokal)
+  themengruppe: string;  // festes Vokabular (THEMENGRUPPEN)
+  status: MetadatenStatus;
+  getaggtAm?: string;    // ISO, gesetzt bei 'getaggt'
+  fehler?: string;       // Kurzmeldung bei 'fehlgeschlagen'
+}
+
 export interface Anfrage {
   id: string;
   status: AnfrageStatus;
@@ -60,6 +82,13 @@ export interface Anfrage {
    * das Feld gelten NIE als veraltet (Bestandsschutz). Nur lokal — kein Transport.
    */
   anonBasisHash?: string;
+  /**
+   * Von der internen KI extrahierte Metadaten (Tagging). Optional/additiv wie
+   * `anonBasisHash`: `undefined` = nie getaggt (Alt-Records + frisch aufgenommene
+   * vor dem Lauf). Enthält Klartext-PII (`name`/`firma`) → nur lokal, nie an einen
+   * Transport. Siehe `services/metadaten.ts`.
+   */
+  metadaten?: AnfrageMetadaten;
   // Externe Runde
   externeAntwortAnon: string;  // Paste der anonymisierten Antwort
   // Finalisierung

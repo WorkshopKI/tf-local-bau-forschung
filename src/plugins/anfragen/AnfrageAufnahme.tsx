@@ -7,14 +7,23 @@
 import { useCallback } from 'react';
 import { Mail } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { FileDropZone } from '@/components/ui/FileDropZone';
+import { loadSkillRegistry, getSkillById } from '@/core/services/skills';
+import {
+  ANFRAGE_METADATEN_SKILL,
+  ANFRAGE_METADATEN_SKILL_ID,
+} from '@/core/services/skills/registry/anfrage-metadaten.seed';
 import { useAnfragenStore } from './store';
 import { createAnfrage } from './persistence';
 import { aufnahmeAusDatei } from './aufnahme';
+import { runMetadatenExtraktion } from './services/metadaten';
+import type { AnfrageMetadaten } from './types';
 
 export function AnfrageAufnahme(): React.ReactElement {
   const storage = useStorage();
+  const bridge = useAIBridge();
   const upsert = useAnfragenStore(s => s.upsert);
   const select = useAnfragenStore(s => s.select);
 
@@ -23,6 +32,24 @@ export function AnfrageAufnahme(): React.ReactElement {
     const anfrage = createAnfrage(init);
     await upsert(anfrage, storage);
     select(anfrage.id);
+    // „Anfragen zuerst taggen": interner KI-Lauf direkt nach der Aufnahme. Fail-safe
+    // — schlägt die KI fehl (nicht erreichbar / externer Provider), bleibt die schon
+    // persistierte Anfrage erhalten und wird als 'fehlgeschlagen' markiert (Re-Tag im
+    // Detail). Die Aufnahme blockiert NIE auf der KI.
+    let metadaten: AnfrageMetadaten;
+    try {
+      const loaded = await loadSkillRegistry(storage);
+      const skill = getSkillById(loaded.file, ANFRAGE_METADATEN_SKILL_ID) ?? ANFRAGE_METADATEN_SKILL;
+      const m = await runMetadatenExtraktion(bridge, skill, anfrage.originalMd);
+      metadaten = { ...m, status: 'getaggt', getaggtAm: new Date().toISOString() };
+    } catch (err) {
+      metadaten = {
+        antragsart: '', name: '', firma: '', themengruppe: '',
+        status: 'fehlgeschlagen',
+        fehler: err instanceof Error ? err.message : String(err),
+      };
+    }
+    await upsert({ ...anfrage, metadaten }, storage);
   });
 
   const handleFiles = useCallback((files: File[]) => {

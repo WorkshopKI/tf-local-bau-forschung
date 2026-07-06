@@ -21,6 +21,7 @@ import {
 } from '@/core/services/skills/registry/anfrage-anonymisieren.seed';
 import { resolveAnfragenDashboardUrl } from './settings';
 import { runAnonymisierung, istAnonymisiererFreigeschaltet } from './services/anonymisierung';
+import { anredeFuerExport } from './services/anrede';
 import { pruefeExportSicher } from './services/export-guard';
 import { hashText, istOriginalStale } from './original-hash';
 import {
@@ -163,7 +164,9 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
     if (istOriginalStale(anfrage, origText)) throw new Error('Originaltext geändert — bitte erneut anonymisieren, bevor exportiert wird.');
     const pruef = pruefeExportSicher(text, anfrage.mapping);
     if (!pruef.sicher) throw new Error(`Export blockiert: noch ${pruef.treffer.length} mögliche PII-Treffer im Text.`);
-    await navigator.clipboard.writeText(text);
+    // Präambel voranstellen (Anrede-Hinweis + Platzhalter-Erhalt); gespeichert wird
+    // weiterhin der reine anonyme Text.
+    await navigator.clipboard.writeText(anredeFuerExport(text));
     await upsert({ ...anfrage, anonymisiertMd: text, status: 'export_freigegeben' }, storage);
   });
 
@@ -171,7 +174,7 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
     if (istOriginalStale(anfrage, origText)) { e.preventDefault(); return; }
     const pruef = pruefeExportSicher(text, anfrage.mapping);
     if (!pruef.sicher) { e.preventDefault(); return; }
-    void navigator.clipboard.writeText(text).catch(() => undefined);
+    void navigator.clipboard.writeText(anredeFuerExport(text)).catch(() => undefined);
     void upsert({ ...anfrage, anonymisiertMd: text, status: 'export_freigegeben' }, storage);
   };
 

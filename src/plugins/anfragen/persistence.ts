@@ -44,6 +44,11 @@ export function createAnfrage(init: AnfrageInit, now: string = new Date().toISOS
  * Macht einen aus dem Store gelesenen Record migrationssicher: rein additive
  * Felder (`verallgemeinerungen`, defensiv `mapping`) defaulten auf `[]`, damit
  * Alt-Records ohne diese Felder beim Lesen nicht crashen.
+ *
+ * `metadaten` wird bewusst NICHT defaultet: `undefined` trägt die Semantik „nie
+ * getaggt" (Alt-Records + frisch aufgenommene vor dem KI-Lauf) und wird von
+ * Tabelle/Filtern als „(nicht getaggt)" behandelt. Es fließt über `...raw`
+ * unverändert durch.
  */
 function normalizeAnfrage(raw: Anfrage): Anfrage {
   return {

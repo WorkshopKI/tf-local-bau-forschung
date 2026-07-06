@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.174 — 2026-07
+
+### Neu
+- Anfragen werden jetzt automatisch getaggt: Sobald Sie eine `.msg` aufnehmen, erkennt die interne KI Antragsart, Absender-Name, Firma und Themengruppe und hängt sie an die Anfrage. So sehen Sie auf einen Blick, worum es geht – ganz ohne Handarbeit (alles bleibt lokal).
+- Die Anfragen-Tabelle lässt sich jetzt filtern und sortieren: Die erkannten Tags (Art, Thema, Firma) sind direkt Filter in den Spaltenköpfen – so finden Sie z. B. alle Anfragen einer Themengruppe sofort.
+
+### Verbesserungen
+- Beim Kopieren zum ZIM-FAQ-Assistenten wird dem Text jetzt ein kurzer Hinweis vorangestellt: die Anrede ans Team soll ignoriert, nur die Fragen beantwortet und die Platzhalter unverändert übernommen werden. Das sorgt für passendere Antworten und verhindert, dass Platzhalter verloren gehen.
+
 ## v2.173 — 2026-07
 
 ### Verbesserungen

@@ -10,6 +10,7 @@ import { X } from 'lucide-react';
 import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { Button } from '@/components/ui/button';
 import { AnfrageDeleteControl } from './AnfrageDeleteControl';
+import { AnfrageMetadatenStrip } from './AnfrageMetadatenStrip';
 import { AnfrageStepper, viewForStatus, type DetailView } from './AnfrageStepper';
 import { AnonymisierungView } from './AnonymisierungView';
 import { AntwortView } from './AntwortView';
@@ -62,6 +63,8 @@ export function AnfrageDetail({ anfrage, onClose }: Props): React.ReactElement {
           </>
         )}
       </div>
+
+      <AnfrageMetadatenStrip anfrage={anfrage} />
 
       <AnfrageStepper status={anfrage.status} onPick={setView} />
 

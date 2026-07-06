@@ -5,6 +5,33 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.174.0 — Anfragen: internes KI-Tagging + Filter-Tabelle + Export-Präambel (Juli 2026)
+
+MINOR — Das Modul „Anfragen" bekommt strukturierte Metadaten und eine filterbare Tabelle. Additiv, keine Datenmigration (Metadaten sind ein optionales `Anfrage.metadaten`-Feld im `kv`-Store, kein Store-Version-Bump).
+
+- **Auto-Tagging beim Aufnehmen** ([AnfrageAufnahme.tsx](src/plugins/anfragen/AnfrageAufnahme.tsx) + [services/metadaten.ts](src/plugins/anfragen/services/metadaten.ts)):
+  direkt nach dem `.msg`-Import extrahiert ein **interner** KI-Lauf vier Metadaten — Antragsart, Name, Firma, Themengruppe —
+  und speichert sie lokal an der Anfrage (`metadaten` mit `status` getaggt/ausstehend/fehlgeschlagen). Härtung 1:1 wie
+  `runAnonymisierung` (Ping-Guard → `safeResetChat` → Bounded Retry, balanciertes JSON, kein `response_format`). DSGVO:
+  neuer Seed-Skill `anfrage-metadaten` trägt `{{zielText}}` + `enthaeltDokumentInhalte: true` → `getTransportForSkillRun`
+  erzwingt internen Transport (Pitfall #30); `name`/`firma` sind Klartext-PII und verlassen das System nie. Der Skill ist
+  ab Werk `aktiv: true` (rein interner Lauf, kein Recall-Gate). Fail-safe: KI unerreichbar → Anfrage bleibt erhalten,
+  Tagging-Status `fehlgeschlagen`, im Detail per „Erneut taggen" nachholbar.
+- **Themengruppe = festes Vokabular** ([anfrage-metadaten.seed.ts](src/core/services/skills/registry/anfrage-metadaten.seed.ts)):
+  `THEMENGRUPPEN`-Liste (Antragstellung & Formalitäten, Förderfähigkeit & Voraussetzungen, Finanzen & Abrechnung,
+  Fristen & Projektänderungen, Technik & Inhaltliches, Kooperation & Partner, Sonstiges); `parseMetadaten` normalisiert
+  Unbekanntes → „Sonstiges", `antragsart` semi-offen (trim + Erst-Buchstabe groß).
+- **Metadaten-Streifen im Detail** ([AnfrageMetadatenStrip.tsx](src/plugins/anfragen/AnfrageMetadatenStrip.tsx)):
+  Art · Thema · Firma · Name + Tagging-Status, „(Erneut) taggen"-Button (im Detail-Kopf, statusunabhängig sichtbar).
+- **Filter-/Sortier-Tabelle** ([AnfrageTabelle.tsx](src/plugins/anfragen/AnfrageTabelle.tsx)):
+  die getaggten Metadaten sind automatisch Spalten-Filter (Art/Thema/Firma + Status via Header-Dropdown), Name sortierbar;
+  Muster wie `FeedbackBoardListView` (`useColumnFilters` + `useColumnWidths`, Sentinel „(nicht getaggt)" für ungetaggte Zeilen).
+- **Export-Präambel für den externen Assistenten** ([services/anrede.ts](src/plugins/anfragen/services/anrede.ts)):
+  der zum ZIM-FAQ-Assistenten kopierte Text (beide Export-Pfade in [AnonymisierungView.tsx](src/plugins/anfragen/AnonymisierungView.tsx))
+  bekommt einen Hinweis vorangestellt — Anrede ans Team ignorieren, nur die Fragen beantworten, Antwort-Mail an den Absender,
+  UND alle Platzhalter (`[PERSON_1]`, `[FIRMA_1]`, `[ORT_1]` …) unverändert erhalten (Claude „verschluckte" bislang manche).
+  Verlustfrei: gespeicherter `anonymisiertMd` + Export-Guard bleiben unberührt.
+
 ### v2.173.0 — Journey-Paket 1, Phase 4: Chat als andockendes „Assistent"-Panel in der Suche (Juli 2026)
 
 MINOR — Der Chat lebt nicht mehr als eigener Vollbild-Screen, sondern als andockendes Panel rechts neben den Suchtreffern, entlang `_reference/journey-paket-1/suche-assistent.png`. Additiv, keine Datenmigration; die Chat-Persistenz (IDB `chat:conv:*`) bleibt unverändert.
