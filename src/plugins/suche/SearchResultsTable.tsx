@@ -17,10 +17,14 @@
  *   waehrend des Drags wird `<col>.style.width` + `<table>.style.width` direkt
  *   gesetzt, OHNE React-Re-Render aller Zeilen. Erst beim Mouseup wird der
  *   finale Wert in den React-State + localStorage committed.
- * - `<table>.width = Summe aller Spaltenbreiten`: wenn der User eine Spalte
- *   nach rechts groesser zieht, waechst die ganze Tabelle und der Container
- *   bekommt einen horizontalen Scrollbalken — die Nachbar-Spalten schrumpfen
- *   NICHT mehr (bisheriges `width: 100%`-Verhalten).
+ * - `<table>.width = min(100%, Summe aller Spaltenbreiten)`: passt der Spalten-
+ *   Gesamtwert in den Container, steht die Tabelle auf ihrer Wunschbreite (der
+ *   Rest bleibt frei) — Spalten-Resize per Drag wächst die Tabelle bis dort
+ *   weiter. Wird der Container schmaler als die Summe (z.B. Assistent-Panel
+ *   offen, schmales Fenster), schrumpft die Tabelle responsiv mit und die
+ *   Spalten stauchen sich proportional (`table-layout: fixed`), statt sofort
+ *   horizontal zu scrollen. Erst unter `RESPONSIVE_MIN_WIDTH` (Floor) greift der
+ *   horizontale Scrollbalken, damit die Zellen lesbar bleiben.
  */
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
@@ -29,6 +33,13 @@ import { SearchTableHeader } from './SearchTableHeader';
 
 const ROW_PAGE = 80;
 const OVERSCAN_PX = 600;
+/**
+ * Untergrenze, unter die die Tabelle beim responsiven Stauchen nicht schrumpft
+ * (darunter greift der horizontale Scrollbalken, damit Zellen lesbar bleiben).
+ * Nie größer als die tatsächliche Spalten-Summe (schmale Spaltensets bleiben
+ * ohne erzwungenen Scroll). Tunable.
+ */
+const RESPONSIVE_MIN_WIDTH = 720;
 
 function getEffectiveWidth(c: SearchColumn, overrides: Record<string, number>): number {
   const o = overrides[c.key];
@@ -113,14 +124,16 @@ function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactEle
   const visibleResults = results.slice(0, visibleCount);
   const hasMore = visibleCount < results.length;
 
-  // Bei jedem Render: Summe der effektiven Spaltenbreiten als Pixel-Wert. So
-  // wird die Tabelle horizontal scrollbar wenn User die Spalten breiter zieht
-  // (statt dass Nachbar-Spalten schrumpfen).
+  // Bei jedem Render: Summe der effektiven Spaltenbreiten als Pixel-Wert = die
+  // Wunschbreite der Tabelle. `min(100%, …)` lässt sie responsiv mit einem
+  // schmaleren Container mitschrumpfen (Spalten stauchen via table-layout:fixed);
+  // der Floor `min-width` verhindert unlesbar enge Zellen (dann Scroll).
   const totalWidth = columns.reduce((s, c) => s + getEffectiveWidth(c, columnWidths), 0);
+  const floorWidth = Math.min(totalWidth, RESPONSIVE_MIN_WIDTH);
 
   return (
     <div className="w-full overflow-x-auto" style={{ border: '0.5px solid var(--tf-border)', borderRadius: 'var(--tf-radius)' }}>
-      <table ref={tableRef} style={{ tableLayout: 'fixed', width: `${totalWidth}px`, borderCollapse: 'collapse' }}>
+      <table ref={tableRef} style={{ tableLayout: 'fixed', width: `min(100%, ${totalWidth}px)`, minWidth: `${floorWidth}px`, borderCollapse: 'collapse' }}>
         <colgroup>
           {columns.map(c => (
             <col
