@@ -27,6 +27,7 @@
 
 ### Verbesserungen
 - Beim Kopieren zum ZIM-FAQ-Assistenten wird dem Text jetzt ein kurzer Hinweis vorangestellt: die Anrede ans Team soll ignoriert, nur die Fragen beantwortet und die Platzhalter unverändert übernommen werden. Das sorgt für passendere Antworten und verhindert, dass Platzhalter verloren gehen.
+- Im Assistent-Verlauf können Sie Unterhaltungen jetzt anheften (bleiben oben) und umbenennen – nicht mehr nur öffnen und löschen.
 
 ## v2.173 — 2026-07
 

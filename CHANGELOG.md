@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.174.1 — Assistent-Verlauf: Anheften + Umbenennen (Juli 2026)
+
+PATCH — Das Verlauf-Dropdown des Suche-Assistenten ([ChatPanelHost.tsx](src/plugins/chat/ChatPanelHost.tsx)) bekommt die beiden Konversations-Aktionen zurück, die beim Umbau von der Vollbild-Sidebar zum kompakten Panel (v2.173.0) weggefallen waren. Rein additive UI-Verdrahtung bestehender Store-Methoden (`togglePin` / `renameConversation`, [store.ts](src/plugins/chat/store.ts)) — keine neuen Felder, kein Datenmodell-Change.
+
+- **Anheften** je Zeile (Pin-Icon): schaltet `pinned` um; angeheftete Unterhaltungen erscheinen über `groupConversations({filter:'all'})` weiterhin oben in der Gruppe „Angeheftet".
+- **Umbenennen** je Zeile (Stift-Icon): inline-Editor (Enter speichert, Escape verwirft, Blur speichert) → `titleCustom: true`, friert den Titel gegen die Auto-Ableitung ein. Leerer Titel wird ignoriert.
+- Verlauf-Schließen verwirft eine laufende Umbenennung; Löschen bleibt unverändert. Store-Logik ist bereits durch [store-reskin.test.ts](src/plugins/chat/__tests__/store-reskin.test.ts) abgedeckt (togglePin/rename/`loadAll`-pinned).
+
 ### v2.174.0 — Anfragen: internes KI-Tagging + Filter-Tabelle + Export-Präambel (Juli 2026)
 
 MINOR — Das Modul „Anfragen" bekommt strukturierte Metadaten und eine filterbare Tabelle. Additiv, keine Datenmigration (Metadaten sind ein optionales `Anfrage.metadaten`-Feld im `kv`-Store, kein Store-Version-Bump).

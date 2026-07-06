@@ -7,7 +7,7 @@
  * EmptyState/SourcePanel). Gescopt unter `.chat-app.assistant-panel`.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { History, Paperclip, SquarePen, Trash2, MessageSquare, X } from 'lucide-react';
+import { History, Paperclip, Pencil, Pin, SquarePen, Trash2, MessageSquare, X } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
@@ -40,7 +40,10 @@ export function ChatPanelHost({ onClose, contextResults, contextQuery }: ChatPan
   const [verlaufOpen, setVerlaufOpen] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel | null>(null);
   const [kontextDismissed, setKontextDismissed] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
   const verlaufWrap = useRef<HTMLDivElement>(null);
+  const renameCancelRef = useRef(false);
 
   // Angehefteter Kontext aus den obersten Treffern (RAG-`extraContext`-Pfad,
   // nicht `setConversationFkz`). Leer, wenn entfernt oder keine Treffer.
@@ -56,6 +59,8 @@ export function ChatPanelHost({ onClose, contextResults, contextQuery }: ChatPan
   useEffect(() => { setKontextDismissed(false); }, [contextQuery]);
   // Quellen-Overlay beim Konversationswechsel schließen.
   useEffect(() => { setActivePanel(null); }, [activeId]);
+  // Verlauf zu → laufende Umbenennung verwerfen.
+  useEffect(() => { if (!verlaufOpen) { setRenamingId(null); renameCancelRef.current = false; } }, [verlaufOpen]);
   // Verlauf-Dropdown bei Außenklick schließen.
   useEffect(() => {
     if (!verlaufOpen) return;
@@ -108,6 +113,17 @@ export function ChatPanelHost({ onClose, contextResults, contextQuery }: ChatPan
 
   const selectAction = useAsyncAction((id: string) => useChatStore.getState().select(id, storage));
   const deleteAction = useAsyncAction((id: string) => useChatStore.getState().deleteConversation(id, storage));
+  const pinAction = useAsyncAction((id: string) => useChatStore.getState().togglePin(id, storage));
+  const renameAction = useAsyncAction((id: string, title: string) =>
+    useChatStore.getState().renameConversation(id, title, storage));
+
+  const startRename = (id: string, title: string): void => { setRenamingId(id); setRenameDraft(title); };
+  const commitRename = (id: string): void => {
+    if (renameCancelRef.current) { renameCancelRef.current = false; setRenamingId(null); return; }
+    const val = renameDraft.trim();
+    setRenamingId(null);
+    if (val) void renameAction.run(id, val);
+  };
 
   const newChat = (): void => { useChatStore.getState().newConversation(); setVerlaufOpen(false); };
   const { sections } = groupConversations(conversations, { filter: 'all', query: '', now: Date.now() });
@@ -140,7 +156,23 @@ export function ChatPanelHost({ onClose, contextResults, contextQuery }: ChatPan
                           <div key={g.name}>
                             <div className="pop-label">{g.name}</div>
                             {g.items.map(c => (
-                              <div key={c.id} className="flex items-center gap-1">
+                              renamingId === c.id ? (
+                                <div key={c.id} className="flex items-center px-1 py-0.5">
+                                  <input
+                                    autoFocus
+                                    className="flex-1 min-w-0 rounded-[var(--tf-radius)] border border-[var(--tf-border-hover)] bg-[var(--tf-bg)] px-2 py-1 text-[length:var(--tf-text-base)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)]"
+                                    value={renameDraft}
+                                    aria-label="Unterhaltung umbenennen"
+                                    onChange={e => setRenameDraft(e.target.value)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+                                      else if (e.key === 'Escape') { e.preventDefault(); renameCancelRef.current = true; e.currentTarget.blur(); }
+                                    }}
+                                    onBlur={() => commitRename(c.id)}
+                                  />
+                                </div>
+                              ) : (
+                              <div key={c.id} className="flex items-center gap-0.5">
                                 <button
                                   className={`pop-item flex-1 min-w-0 ${c.id === activeId ? 'text-[var(--tf-primary)]' : ''}`}
                                   title={c.title}
@@ -148,6 +180,22 @@ export function ChatPanelHost({ onClose, contextResults, contextQuery }: ChatPan
                                 >
                                   <MessageSquare size={15} />
                                   <span className="truncate flex-1 text-left">{c.title}</span>
+                                </button>
+                                <button
+                                  className={`shrink-0 p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] cursor-pointer ${c.pinned ? 'text-[var(--tf-primary)] hover:text-[var(--tf-primary)]' : 'text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]'}`}
+                                  title={c.pinned ? 'Anheftung entfernen' : 'Anheften'}
+                                  aria-label={c.pinned ? 'Anheftung entfernen' : 'Anheften'}
+                                  onClick={() => pinAction.run(c.id)}
+                                >
+                                  <Pin size={14} />
+                                </button>
+                                <button
+                                  className="shrink-0 p-1.5 rounded-[var(--tf-radius)] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] cursor-pointer"
+                                  title="Umbenennen"
+                                  aria-label="Unterhaltung umbenennen"
+                                  onClick={() => startRename(c.id, c.title)}
+                                >
+                                  <Pencil size={14} />
                                 </button>
                                 <button
                                   className="shrink-0 p-1.5 rounded-[var(--tf-radius)] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] hover:bg-[var(--tf-hover)] cursor-pointer"
@@ -158,6 +206,7 @@ export function ChatPanelHost({ onClose, contextResults, contextQuery }: ChatPan
                                   <Trash2 size={14} />
                                 </button>
                               </div>
+                              )
                             ))}
                           </div>
                         ))}
