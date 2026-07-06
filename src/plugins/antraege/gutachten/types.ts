@@ -84,6 +84,12 @@ export interface StepRun {
   warnung?: string;
   /** Modifier, der zur AKTUELLEN Fassung führte (für die Verlaufs-Anzeige). */
   modifier?: SkillModifierKey;
+  /**
+   * Regel-ID, deren verletzter Check diesen Korrektur-Lauf ausgelöst hat (Journey-
+   * Paket 3, additiv). Nur Anzeige/Nachvollziehbarkeit — kein Verhalten. Fehlt bei
+   * regulären Läufen und in Alt-Runs (optional, Round-Trip-sicher).
+   */
+  korrekturRegelId?: string;
   /** Frühere Fassungen (älteste zuerst), gekappt auf MAX_VERLAUF. */
   verlauf?: KurzfassungVersion[];
   mitTweak?: boolean;

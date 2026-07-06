@@ -57,6 +57,19 @@ import { parseQsBefunde } from './qs';
 import { chooseRetryModifier } from './retry-policy';
 import type { StepId, WorkflowRun } from './types';
 
+/**
+ * Regel-gebundener Kontext eines Korrektur-Laufs (Journey-Paket 3): die aus einem
+ * verletzten Check abgeleitete Zusatz-Anweisung (`regelKorrekturAnweisung`) plus
+ * die auslösende Regel-ID. Optional an `modify` durchgereicht — fehlt er, ist der
+ * Lauf ein regulärer Modifier-Lauf (byte-identisch zu vorher).
+ */
+export interface KorrekturKontext {
+  /** Konkrete Zusatz-Anweisung (Zielwert/Ist-Wert), die den Modifier verschärft. */
+  anweisung: string;
+  /** ID der Regel, deren Verletzung den Lauf ausgelöst hat (nur Anzeige). */
+  regelId?: string;
+}
+
 export interface GutachtenWorkflowController {
   run: WorkflowRun | null;
   vbDokument: DocumentFull | null;
@@ -96,7 +109,7 @@ export interface GutachtenWorkflowController {
   generate: (stepId: StepId) => void;
   /** Alle noch fehlenden Abschnitte nacheinander als Entwurf erzeugen (ohne Zwischen-Freigabe). */
   alleGenerieren: () => void;
-  modify: (stepId: StepId, modifier: SkillModifierKey) => void;
+  modify: (stepId: StepId, modifier: SkillModifierKey, kontext?: KorrekturKontext) => void;
   /** Manuelle Inline-Bearbeitung des finalen Textes übernehmen (Checks neu, ein persist). Awaitable für `useAsyncAction`. */
   bearbeitenStep: (stepId: StepId, text: string) => Promise<void>;
   /** Manuelle Bearbeitung verwerfen → ursprünglich generierten Text wiederherstellen. */
@@ -250,7 +263,12 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const generateInto = async (
     base: WorkflowRun,
     stepId: StepId,
-    o: { modifier?: SkillModifierKey; quelle: 'freigegeben' | 'entwurf'; tweak: SkillTweak | null; signal: AbortSignal },
+    o: {
+      modifier?: SkillModifierKey; quelle: 'freigegeben' | 'entwurf';
+      tweak: SkillTweak | null; signal: AbortSignal;
+      /** Journey-Paket 3: regel-gebundene Zusatz-Anweisung + auslösende Regel-ID. */
+      zusatzAnweisung?: string; korrekturRegelId?: string;
+    },
   ): Promise<{ next: WorkflowRun; checks: CheckResult[] } | null> => {
     const sc = skillMap.get(stepId);
     if (!sc || !vb) return null;
@@ -290,6 +308,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       ...(tweakWirksam ? { tweak: tw } : {}),
       ...(o.modifier ? { modifier: o.modifier } : {}),
       ...(o.modifier && prevText ? { vorherigerText: prevText } : {}),
+      ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
       signal: o.signal,
     });
     const checks = runRegelChecks(result.parsed.finalerText, sc.regeln);
@@ -305,6 +324,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       vbGekuerzt: result.vbGekuerzt,
       ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
       ...(o.modifier ? { modifier: o.modifier } : {}),
+      ...(o.korrekturRegelId ? { korrekturRegelId: o.korrekturRegelId } : {}),
       ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tw!.geaendert_am } : {}),
       ...(result.thinking ? { denkprozess: result.thinking } : {}),
       ...(thinkingBudget !== 'none' ? { denkprozessAngefordert: true } : {}),
@@ -317,7 +337,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
    * (für den Auto-Retry-Orchestrator), `null` bei Bail/Transport-weg/Abbruch/Fehler
    * — dann beendet der Orchestrator den Loop sofort (STOPP).
    */
-  const runGeneration = async (stepId: StepId, modifier?: SkillModifierKey): Promise<CheckResult[] | null> => {
+  const runGeneration = async (stepId: StepId, modifier?: SkillModifierKey, kontext?: KorrekturKontext): Promise<CheckResult[] | null> => {
     if (!vb || busy || !run || !skillMap.get(stepId)) return null;
     setBusy(true);
     setError(null);
@@ -325,7 +345,12 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const abort = new AbortController();
     abortRef.current = abort;
     try {
-      const res = await generateInto(run, stepId, { quelle: 'freigegeben', tweak, signal: abort.signal, ...(modifier ? { modifier } : {}) });
+      const res = await generateInto(run, stepId, {
+        quelle: 'freigegeben', tweak, signal: abort.signal,
+        ...(modifier ? { modifier } : {}),
+        ...(kontext?.anweisung ? { zusatzAnweisung: kontext.anweisung } : {}),
+        ...(kontext?.regelId ? { korrekturRegelId: kontext.regelId } : {}),
+      });
       if (!res) return null;
       await persist(res.next);
       logKontext(stepId);
@@ -575,7 +600,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     tweak,
     generate: (id) => { void runGenerateMitRetry(id); },
     alleGenerieren: () => { void generiereAlle(); },
-    modify: (id, m) => { void runGeneration(id, m); },
+    modify: (id, m, kontext) => { void runGeneration(id, m, kontext); },
     bearbeitenStep,
     zuruecksetzenStep,
     pruefen: (id) => { void pruefenStep(id); },

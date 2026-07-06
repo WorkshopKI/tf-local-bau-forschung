@@ -86,6 +86,13 @@ export interface SkillRunInput {
   modifier?: SkillModifierKey;
   /** Bei Re-Invocation: vorheriger finaler Text als Überarbeitungs-Referenz. */
   vorherigerText?: string;
+  /**
+   * Regel-gebundene Zusatz-Anweisung (Journey-Paket 3): eine konkrete Korrektur-
+   * Vorgabe aus einem verletzten Check (`regelKorrekturAnweisung`). Wird
+   * unmittelbar NACH dem Modifier-Block eingesetzt und VERSCHÄRFT den Modifier
+   * (ersetzt ihn nicht). Fehlt sie → No-op (Bestandsläufe byte-identisch).
+   */
+  zusatzAnweisung?: string;
   /** Optionaler persönlicher Tweak (User-Tweaks v2). Fehlt er, ist die Ausgabe identisch zum tweaklosen Lauf. */
   tweak?: SkillTweakPromptInput;
   /**
@@ -258,6 +265,12 @@ export function composeSkillPrompt(
   if (input.modifier) {
     const mod = skill.modifiers[input.modifier];
     if (mod) content += `\n\n## Zusätzliche Anweisung\n${mod}`;
+  }
+  // Regel-gebundene Zusatz-Anweisung (Journey-Paket 3) — unmittelbar NACH dem
+  // Modifier-Block, klar als eigene Vorgabe markiert. Verschärft den Modifier mit
+  // einer konkreten Korrektur-Vorgabe (Zielwert/Ist-Wert). No-op ohne Wert.
+  if (input.zusatzAnweisung && input.zusatzAnweisung.trim()) {
+    content += `\n\nZusätzliche Vorgabe: ${input.zusatzAnweisung.trim()}`;
   }
   return content;
 }

@@ -76,6 +76,14 @@ describe('applyGeneration', () => {
     expect(run.schritte.A?.verlauf).toHaveLength(1);
     expect(run.schritte.A?.verlauf?.[0]?.finalerText).toBe('Erst');
   });
+
+  it('persistiert korrekturRegelId, wenn ein Korrektur-Lauf sie mitgibt (sonst absent)', () => {
+    const ohne = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Regulär'), NOW);
+    expect(ohne.schritte.A?.korrekturRegelId).toBeUndefined();
+    const mit = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Korrigiert', { modifier: 'kuerzer', korrekturRegelId: 'seed-zeichen-max' }), NOW);
+    expect(mit.schritte.A?.korrekturRegelId).toBe('seed-zeichen-max');
+    expect(mit.schritte.A?.modifier).toBe('kuerzer');
+  });
 });
 
 describe('applyPruefen', () => {

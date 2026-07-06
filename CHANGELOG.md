@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.185.0 — Journey-Paket 3 Phase 2: Regel-Kontext im Modify-Pfad (Juli 2026)
+
+MINOR — Der bestehende Modifier-Lauf (Neu/Kürzer/Länger) kann jetzt eine **regel-gebundene Zusatz-Anweisung** mitführen — die konkrete Korrektur-Vorgabe aus Phase 1. Ergebnis läuft wie jeder Modify durch Vorfassung + Auto-Checks (Undo + Re-Check **gratis**, nichts zusätzlich gebaut). Keine UI-Änderung (Verdrahtung folgt in Phase 3). Additiv, keine Datenmigration.
+
+- **`SkillRunInput.zusatzAnweisung?`** ([run-skill.ts](src/core/services/skills/run/run-skill.ts)): `composeSkillPrompt` hängt sie — nur wenn gesetzt — als eigene Zeile `Zusätzliche Vorgabe: …` **unmittelbar NACH** dem Modifier-Block (`## Zusätzliche Anweisung`) an. Sie **verschärft** den Modifier (ersetzt ihn nicht); die Kompositions-Rangfolge (Template → Tweak → Formale Vorgaben → Struktur → vorheriger Text → Modifier) bleibt unangetastet. Ohne Wert byte-identisch zum Bestandslauf. **Entscheidung (statt Rückfrage):** Injektion nach dem Modifier, damit die Regel-Vorgabe als letztes/spezifischstes Signal steht.
+- **Durchreichung** ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)): `modify(stepId, modifier, kontext?: KorrekturKontext)` → `runGeneration` → `generateInto` → `runSkill({ zusatzAnweisung })`. `KorrekturKontext = { anweisung; regelId? }` — die `anweisung` (aus `regelKorrekturAnweisung`) wird zur `zusatzAnweisung`, die `regelId` zur Nachvollziehbarkeit. Transport-Ping, Vorfassung (`appendVerlauf`), Auto-Re-Check (`runRegelChecks` nach Generieren) **unverändert**.
+- **`StepRun.korrekturRegelId?`** (additiv, [types.ts](src/plugins/antraege/gutachten/types.ts) + `GenerationInput` → `applyGeneration`, [runner.ts](src/plugins/antraege/gutachten/runner.ts)): hält fest, welche Regel den Lauf ausgelöst hat — **nur Anzeige**, kein Verhalten. Round-Trip-sicher (Voll-JSON-Persistenz, kein Whitelist), alte Runs bleiben gültig.
+- Tests: [compose-prompt.test.ts](src/core/services/skills/run/__tests__/compose-prompt.test.ts) (Platzierung nach dem Modifier, No-op ohne/whitespace, Regression byte-identisch), [runner.test.ts](src/plugins/antraege/gutachten/__tests__/runner.test.ts) (`korrekturRegelId` persistiert / absent).
+
 ### v2.184.0 — Journey-Paket 3 Phase 1: Regel→Korrektur-Ableitung + Messwert (Juli 2026)
 
 MINOR — Substrat für das Gutachten-Prüfpanel ([gutachten-pruefpanel.png]): aus einem verletzten Check + seiner Regel deterministisch ableiten, OB und WIE die KI korrigieren kann. Reine Funktion, kein LLM, keine UI-Änderung (Verdrahtung folgt in Phase 3). Additiv, keine Datenmigration.

@@ -113,6 +113,40 @@ describe('composeSkillPrompt', () => {
   });
 });
 
+describe('composeSkillPrompt — regel-gebundene Zusatz-Anweisung (Journey-Paket 3)', () => {
+  const ZUSATZ = 'Kürze auf höchstens 1000 Zeichen; aktuell 1117.';
+
+  it('ohne zusatzAnweisung: byte-identisch zum Lauf ohne (Regressionsschutz)', () => {
+    const base = compose({ ...baseInput, modifier: 'kuerzer', vorherigerText: 'X' });
+    const wieder = compose({ ...baseInput, modifier: 'kuerzer', vorherigerText: 'X' });
+    expect(wieder).toBe(base);
+    expect(base).not.toContain('Zusätzliche Vorgabe:');
+  });
+
+  it('mit zusatzAnweisung: die Vorgabe-Zeile steht NACH dem Modifier-Block', () => {
+    const out = compose({ ...baseInput, modifier: 'kuerzer', vorherigerText: 'X', zusatzAnweisung: ZUSATZ });
+    const iModifier = out.indexOf('## Zusätzliche Anweisung');
+    const iVorgabe = out.indexOf('Zusätzliche Vorgabe:');
+    expect(iModifier).toBeGreaterThanOrEqual(0);
+    expect(iVorgabe).toBeGreaterThan(iModifier);
+    expect(out).toContain(`Zusätzliche Vorgabe: ${ZUSATZ}`);
+  });
+
+  it('leere/whitespace zusatzAnweisung ist No-op', () => {
+    const base = compose({ ...baseInput, modifier: 'kuerzer' });
+    const leer = compose({ ...baseInput, modifier: 'kuerzer', zusatzAnweisung: '   ' });
+    expect(leer).toBe(base);
+  });
+
+  it('zusatzAnweisung wirkt auch ohne Modifier (additive Vorgabe-Zeile, nach den Vorgaben)', () => {
+    const base = compose(baseInput);
+    const mit = compose({ ...baseInput, zusatzAnweisung: ZUSATZ });
+    expect(mit).not.toBe(base);
+    expect(mit).toContain(`Zusätzliche Vorgabe: ${ZUSATZ}`);
+    expect(mit.indexOf('Zusätzliche Vorgabe:')).toBeGreaterThan(mit.indexOf(VORGABEN_HEADING));
+  });
+});
+
 describe('composeSkillPrompt — {{vorherigeAbschnitte}}-Slot (Gutachten-Workflow)', () => {
   it('A bleibt byte-identisch: kein Platzhalter im Template → vorherigeAbschnitte wirkungslos', () => {
     const base = compose(baseInput);

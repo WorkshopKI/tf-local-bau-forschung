@@ -81,6 +81,8 @@ export interface GenerationInput {
   vbGekuerzt?: boolean;
   warnung?: string;
   modifier?: SkillModifierKey;
+  /** Regel-ID, deren Verletzung diesen Korrektur-Lauf ausgelöst hat (nur Anzeige). */
+  korrekturRegelId?: string;
   mitTweak?: boolean;
   tweakGeaendertAm?: string;
   denkprozess?: string;
@@ -121,6 +123,7 @@ export function applyGeneration(
     ...(gen.vbGekuerzt ? { vbGekuerzt: gen.vbGekuerzt } : {}),
     ...(gen.warnung ? { warnung: gen.warnung } : {}),
     ...(gen.modifier ? { modifier: gen.modifier } : {}),
+    ...(gen.korrekturRegelId ? { korrekturRegelId: gen.korrekturRegelId } : {}),
     ...(gen.mitTweak ? { mitTweak: gen.mitTweak } : {}),
     ...(gen.tweakGeaendertAm ? { tweakGeaendertAm: gen.tweakGeaendertAm } : {}),
     ...(gen.denkprozess ? { denkprozess: gen.denkprozess } : {}),
