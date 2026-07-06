@@ -264,10 +264,15 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     sortedPlugins.forEach((p, i) => {
       items.push({ id: `nav-${p.id}`, label: displayName(p), category: 'Navigation', shortcut: i < 7 ? `${mod}${i + 1}` : undefined, action: () => goToPlugin(p.id) });
     });
+    // Chat ist seit Phase 4 `hideFromNav` (kein Auto-Nav-Command mehr) — der
+    // Assistent wird als Panel der Suche geöffnet. Nur wenn die Suche im Build ist.
+    if (plugins.some(p => p.id === 'suche')) {
+      items.push({ id: 'act-assistent', label: 'Assistent öffnen', category: 'Navigation', action: () => navigate('/suche?assistent=1') });
+    }
     items.push({ id: 'act-dark', label: 'Dark Mode umschalten', category: 'Einstellungen', shortcut: `${mod}⇧D`, action: () => setDarkMode(!isDarkMode()) });
     items.push({ id: 'act-sidebar', label: 'Sidebar ein-/einklappen', category: 'Einstellungen', shortcut: `${mod}/`, action: toggleSidebar });
     return items;
-  }, [sortedPlugins, goToPlugin, toggleSidebar]);
+  }, [sortedPlugins, plugins, goToPlugin, toggleSidebar, navigate]);
 
   useEffect(() => {
     keyboardService.init();

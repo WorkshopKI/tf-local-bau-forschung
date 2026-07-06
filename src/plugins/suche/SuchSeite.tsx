@@ -1,6 +1,6 @@
-import { useDeferredValue, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Loader2, MessageCircle, Search, Sparkles } from 'lucide-react';
+import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Loader2, MessageSquare, Search, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -27,6 +27,19 @@ import {
 } from '@/plugins/antraege/services/antraege-search-service';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
+import { ChatPanelHost } from '@/plugins/chat/ChatPanelHost';
+import {
+  ASSISTENT_OPEN_KEY,
+  ASSISTENT_WIDTH_KEY,
+  clampAssistentWidth,
+  parseAssistentOpen,
+  parseAssistentWidth,
+  serializeAssistentOpen,
+} from './assistentPanel';
+
+function readLs(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
 
 /** UI-Text fuer die Search-Phase-Badge. */
 const PHASE_LABELS: Record<SearchPhase, string | null> = {
@@ -58,6 +71,64 @@ export function SuchSeite(): React.ReactElement {
   const deferredQuery = useDeferredValue(query);
   const [toast, setToast] = useState<string | null>(null);
   const [promptDialogOpen, setPromptDialogOpen] = useState(false);
+
+  // Andockendes Assistenten-Panel (Journey-Paket 1, Phase 4). Offen-Flag +
+  // Breite persistiert in localStorage; `/chat` leitet auf `?assistent=1` um.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [assistentOpen, setAssistentOpen] = useState(() => parseAssistentOpen(readLs(ASSISTENT_OPEN_KEY)));
+  const [assistentWidth, setAssistentWidth] = useState(() => parseAssistentWidth(readLs(ASSISTENT_WIDTH_KEY)));
+  const assistentDragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  // `?assistent=1` (Redirect von `/chat` bzw. Command „Assistent öffnen") einmalig
+  // konsumieren: Panel öffnen und den Param entfernen, damit ein manuelles
+  // Schließen nicht rückgängig gemacht wird.
+  useEffect(() => {
+    if (searchParams.get('assistent') !== '1') return;
+    setAssistentOpen(true);
+    try { localStorage.setItem(ASSISTENT_OPEN_KEY, serializeAssistentOpen(true)); } catch { /* ignore */ }
+    const next = new URLSearchParams(searchParams);
+    next.delete('assistent');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    try { localStorage.setItem(ASSISTENT_WIDTH_KEY, String(assistentWidth)); } catch { /* ignore */ }
+  }, [assistentWidth]);
+
+  const toggleAssistent = useCallback((): void => {
+    setAssistentOpen(prev => {
+      const next = !prev;
+      try { localStorage.setItem(ASSISTENT_OPEN_KEY, serializeAssistentOpen(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const closeAssistent = useCallback((): void => {
+    setAssistentOpen(false);
+    try { localStorage.setItem(ASSISTENT_OPEN_KEY, serializeAssistentOpen(false)); } catch { /* ignore */ }
+  }, []);
+
+  const onAssistentResize = useCallback((e: React.MouseEvent): void => {
+    e.preventDefault();
+    assistentDragRef.current = { startX: e.clientX, startWidth: assistentWidth };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const onMove = (ev: MouseEvent): void => {
+      const drag = assistentDragRef.current;
+      if (!drag) return;
+      // Panel rechts: nach links draggen → breiter (Delta invertiert).
+      setAssistentWidth(clampAssistentWidth(drag.startWidth + (drag.startX - ev.clientX)));
+    };
+    const onUp = (): void => {
+      assistentDragRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [assistentWidth]);
 
   const { results: searchResults, loading, counts, indexInfo, vectorReady, searchPhase, semanticStatus } = useUnifiedSearch(deferredQuery);
   const deferredPhase = useDeferredValue(searchPhase);
@@ -154,7 +225,9 @@ export function SuchSeite(): React.ReactElement {
     : null;
 
   return (
-    <div className="px-8 pt-4 pb-6">
+    <div className="flex h-full min-h-0">
+      <div className="flex-1 min-w-0 overflow-y-auto">
+        <div className="px-8 pt-4 pb-6">
       <div className="flex flex-col items-start mb-4">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">Suche</h1>
         <div className="flex items-center gap-2 w-full max-w-4xl">
@@ -200,6 +273,21 @@ export function SuchSeite(): React.ReactElement {
               })();
             }}
           />
+          <button
+            type="button"
+            onClick={toggleAssistent}
+            aria-pressed={assistentOpen}
+            title="Assistent öffnen"
+            className={`flex items-center gap-1.5 h-10 px-3 text-[13px] rounded shrink-0 ${
+              assistentOpen
+                ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
+                : 'text-[var(--tf-text)] hover:bg-[var(--tf-hover)]'
+            }`}
+            style={{ border: '0.5px solid var(--tf-border)' }}
+          >
+            <MessageSquare size={14} />
+            <span>Assistent</span>
+          </button>
         </div>
         {semanticEnabled && (semanticStatus === 'corpus-empty' || semanticStatus === 'model-failed') ? (
           <div className="flex items-center gap-1.5 w-full max-w-4xl mt-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
@@ -278,16 +366,6 @@ export function SuchSeite(): React.ReactElement {
             </button>
           )}
           <div className="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              disabled
-              title="Kommt bald"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--tf-text-tertiary)] rounded opacity-60 cursor-not-allowed"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              <MessageCircle size={14} />
-              <span>An Chatbot…</span>
-            </button>
             <ColumnPicker typeFilter={typeFilter} />
           </div>
         </div>
@@ -367,6 +445,23 @@ export function SuchSeite(): React.ReactElement {
         onConfirm={confirmAnalyse}
         onCancel={() => setPromptDialogOpen(false)}
       />
+        </div>
+      </div>
+      {assistentOpen && (
+        <aside className="shrink-0 h-full min-h-0 overflow-hidden flex" style={{ width: assistentWidth }}>
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Assistent-Panel-Breite ändern"
+            onMouseDown={onAssistentResize}
+            className="shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
+            style={{ borderLeft: '0.5px solid var(--tf-border)' }}
+          />
+          <div className="flex-1 min-w-0 h-full">
+            <ChatPanelHost onClose={closeAssistent} contextResults={sorted} contextQuery={query.trim()} />
+          </div>
+        </aside>
+      )}
     </div>
   );
 }

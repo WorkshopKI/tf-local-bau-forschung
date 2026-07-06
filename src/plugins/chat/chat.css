@@ -304,6 +304,27 @@
 .chat-app .chat-error { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--tf-radius); background: var(--tf-danger-bg); border: var(--tf-border-thin) solid var(--tf-danger-border); color: var(--tf-danger-text); font-size: var(--tf-text-base); }
 .chat-app .chat-error button { margin-left: auto; color: var(--tf-danger-text); background: transparent; border: 0; cursor: default; text-decoration: underline; font: inherit; }
 
+/* ---------- Assistenten-Panel (Suche, Phase 4): kompakte Einbettung ----------
+   Modifier `.assistant-panel` schrumpft das ansonsten 920px-breite Chat-Layout
+   auf die Panel-Breite (300–560px). Der Chat lebt seit Phase 4 nur noch hier
+   (die frühere Vollseite ist entfallen), aber alle Regeln bleiben unter
+   `.chat-app` gescopt. */
+.chat-app.assistant-panel { --convo-w: 100%; }
+.chat-app.assistant-panel .convo { position: relative; }
+.chat-app.assistant-panel .convo-head { padding: 0 var(--tf-space-md); gap: var(--tf-space-sm); }
+.chat-app.assistant-panel .thread { padding: var(--tf-space-lg) var(--tf-space-md) var(--tf-space-md); gap: var(--tf-space-xl); }
+.chat-app.assistant-panel .composer-wrap { padding: 0 var(--tf-space-md) 10px; }
+.chat-app.assistant-panel .empty { padding: 18px 14px; }
+.chat-app.assistant-panel .empty-title { font-size: var(--tf-text-xl); }
+.chat-app.assistant-panel .bubble { max-width: 92%; }
+/* Zitat-Slide-over füllt im schmalen Panel die ganze Fläche statt fixe 360px. */
+.chat-app.assistant-panel .srcpanel { position: absolute; inset: 0; width: 100%; z-index: 20; box-shadow: none; }
+/* Kontext-Chip über dem Thread („Kontext: N Suchtreffer", entfernbar). */
+.chat-app.assistant-panel .assistant-ctxchip { display: flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 8px var(--tf-space-md); font-size: 12px; color: var(--tf-text-secondary); border-bottom: var(--tf-border-thin) solid var(--tf-border); }
+.chat-app.assistant-panel .assistant-ctxchip > svg { color: var(--tf-text-tertiary); flex-shrink: 0; }
+.chat-app.assistant-panel .assistant-ctxchip button { display: grid; place-items: center; width: 20px; height: 20px; margin-left: auto; border: 0; border-radius: 6px; background: transparent; color: var(--tf-text-tertiary); cursor: default; }
+.chat-app.assistant-panel .assistant-ctxchip button:hover { background: var(--tf-hover); color: var(--tf-text); }
+
 @media (prefers-reduced-motion: reduce) {
   .chat-app *, .chat-app *::before, .chat-app *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }

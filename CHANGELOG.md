@@ -5,6 +5,33 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.173.0 — Journey-Paket 1, Phase 4: Chat als andockendes „Assistent"-Panel in der Suche (Juli 2026)
+
+MINOR — Der Chat lebt nicht mehr als eigener Vollbild-Screen, sondern als andockendes Panel rechts neben den Suchtreffern, entlang `_reference/journey-paket-1/suche-assistent.png`. Additiv, keine Datenmigration; die Chat-Persistenz (IDB `chat:conv:*`) bleibt unverändert.
+
+- **Andockendes Assistenten-Panel in der Suche** ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx) + [ChatPanelHost.tsx](src/plugins/chat/ChatPanelHost.tsx)):
+  neuer Button „Assistent" (rechts im Suchkopf) blendet ein rechtsbündiges, resizebares Panel ein
+  (Breite 300–560 px, Default 380; Offen-Flag + Breite in localStorage `teamflow_suche_assistent_open`/`_width`,
+  reine Parser in [assistentPanel.ts](src/plugins/suche/assistentPanel.ts)). Das Panel nutzt `useChatController` +
+  `useChatStore` **unverändert** (kein Fork) und dieselben Bausteine (MessageList/Composer/EmptyState/SourcePanel);
+  die breite Verlauf-Sidebar weicht einem **Verlauf-Dropdown** im Kopf (Unterhaltungen wählen, neue starten, löschen).
+- **Kontext aus den Suchtreffern** ([assistentKontext.ts](src/plugins/suche/assistentKontext.ts)): bei offenem Panel
+  mit aktiver Suche heftet ein Chip „Kontext: N Suchtreffer" die obersten Treffer (FKZ + Titel + Snippet) über den
+  bestehenden RAG-`extraContext`-Pfad an die nächste Nachricht — **nicht** über `setConversationFkz` (single-FKZ).
+  Der Chip ist entfernbar; eine neue Suche heftet den Kontext wieder an. `useChatController` bekam dafür eine rein
+  additive Option `getPinnedContext` (ohne Option unverändertes Verhalten).
+- **Chat aus der Nav genommen, Route bleibt** ([chat/index.ts](src/plugins/chat/index.ts)): das Chat-Plugin ist
+  `hideFromNav: true`; `/chat` bleibt als **@deprecated Redirect** auf `/suche?assistent=1`
+  ([ChatRedirect.tsx](src/plugins/chat/ChatRedirect.tsx)) für alte Feld-Bookmarks. Die Command-Palette
+  ([ShellLayout.tsx](src/core/ShellLayout.tsx)) bekam einen expliziten „Assistent öffnen"-Befehl; der frühere
+  „An Chatbot… (Kommt bald)"-Platzhalter in der Suche ist entfallen.
+- **Aufgeräumt**: die frühere Chat-Vollseite (`ChatView`, `ConversationHeader`, `ConversationSidebar`,
+  `conversation-markdown`) ist entfernt — ihre Bausteine (Controller/Store/MessageList/Composer/EmptyState/
+  SourcePanel/`groupConversations`) leben im Panel weiter. Der bestehende „Mit KI analysieren"-Flow der Suche
+  bleibt unangetastet.
+- Tests: `buildTrefferKontext`/`kontextChipLabel` (Kontext-Block + Chip-Label), `assistentPanel`-Parser
+  (Offen-Flag + Breite, Default/Clamp), Chat-Nav-Vertrag (`hideFromNav`, Route `/chat`, Redirect-Ziel).
+
 ### v2.172.0 — Journey-Paket 1, Phase 3: Home-Kopf vereinheitlicht + „Phase → nächster Schritt" (Juli 2026)
 
 MINOR — Eine einheitliche Dringlichkeits-Sprache auf der Startseite, entlang `_reference/journey-paket-1/home-weitermache.png`. Additiv, keine Datenmigration.

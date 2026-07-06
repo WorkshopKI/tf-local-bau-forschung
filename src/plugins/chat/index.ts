@@ -1,15 +1,17 @@
 import type { TeamFlowPlugin } from '@/core/types/plugin';
-import { ChatView } from './ChatView';
+import { ChatRedirect } from './ChatRedirect';
 
 export const chatPlugin: TeamFlowPlugin = {
   id: 'chat',
   route: '/chat',
   name: 'Chat',
   icon: 'MessageSquare',
-  // Temporär in der Arbeits-Gruppe unter Suche (Journey-Paket 1, Phase 1).
-  // Phase 4 setzt `hideFromNav` und verlegt den Chat als Assistenten-Panel in
-  // die Suche; der Nav-Eintrag verschwindet dann, die Route bleibt erreichbar.
   category: 'workflow',
   order: 9,
-  component: ChatView,
+  // Phase 4 (Journey-Paket 1): Der Chat lebt als andockendes „Assistent"-Panel
+  // in der Suche ([ChatPanelHost](./ChatPanelHost.tsx)). Kein Nav-Eintrag mehr
+  // (`hideFromNav`), aber die Route bleibt als @deprecated Redirect erreichbar
+  // (Feld-Bookmarks) und leitet auf `/suche?assistent=1`.
+  hideFromNav: true,
+  component: ChatRedirect,
 };

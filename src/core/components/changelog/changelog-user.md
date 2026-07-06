@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.173 — 2026-07
+
+### Verbesserungen
+- Der Assistent ist jetzt direkt in der Suche: Ein Klick auf „Assistent" öffnet ihn als Panel rechts neben den Treffern – so können Sie zu dem, was Sie gerade gefunden haben, gleich Fragen stellen. Er kennt dabei Ihre aktuellen Suchtreffer als Kontext (kleiner Hinweis „Kontext: N Suchtreffer", jederzeit entfernbar).
+- Frühere Unterhaltungen erreichen Sie im Panel über das Verlauf-Symbol; „Chat"-Lesezeichen landen automatisch im geöffneten Assistenten. Der eigene „Chat"-Eintrag in der Seitenleiste entfällt dadurch.
+
 ## v2.172 — 2026-07
 
 ### Verbesserungen

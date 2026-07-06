@@ -39,6 +39,17 @@ export const CHAT_MAX_TOKENS = 4096;
 /** Delta-Flush-Intervall: Kompromiss aus Live-Gefühl und marked-Re-Parse-Kosten. */
 const STREAM_FLUSH_MS = 80;
 
+export interface UseChatControllerOptions {
+  /**
+   * Optionaler, konversations-übergreifender Kontext-Block, der bei JEDER
+   * Generierung der letzten User-Message vorangestellt wird (über denselben
+   * `extraContext`-Pfad wie RAG/Verzeichnisse). Getter statt Wert, damit der
+   * Aufrufer den aktuellen Stand liefert (z.B. angeheftete Suchtreffer im
+   * Assistenten-Panel). Ohne Option verhält sich der Controller unverändert.
+   */
+  getPinnedContext?: () => string | null | undefined;
+}
+
 export interface ChatController {
   /** Sendet eine User-Message (inkl. optionaler Attachments) und generiert die Antwort. */
   send: (text: string, attachments?: ChatAttachment[]) => Promise<void>;
@@ -60,13 +71,19 @@ export interface ChatController {
   providerName: string;
 }
 
-export function useChatController(): ChatController {
+export function useChatController(options?: UseChatControllerOptions): ChatController {
   const bridge = useAIBridge();
   const storage = useStorage();
   const { search: ragSearch, vectorReady } = useSearch();
   const [selectedDirs, setSelectedDirs] = useState<DirectoryEntry[]>([]);
   // Archiv-Suche (RAG) standardmäßig AUS — per „+"-Werkzeuge-Menü einschaltbar.
   const [useRAG, setUseRAG] = useState(false);
+
+  // Angehefteten Kontext-Getter in einem Ref halten (statt useCallback-Dep), damit
+  // `generateAssistant` stabil bleibt und der Getter zur Sendezeit den aktuellen
+  // Stand liest. Ohne Option ist der Ref undefined → identisches Verhalten.
+  const pinnedContextRef = useRef<UseChatControllerOptions['getPinnedContext']>(undefined);
+  pinnedContextRef.current = options?.getPinnedContext;
 
   const toggleDir = useCallback((dir: DirectoryEntry): void => {
     setSelectedDirs(prev =>
@@ -187,6 +204,10 @@ export function useChatController(): ChatController {
 
     // Kontext nur für den aktuellen Turn (wird nicht historisch re-gesendet)
     let extraContext = await loadContextFromDirs();
+    // Angehefteter Kontext (z.B. Suchtreffer im Assistenten-Panel) — vor RAG/
+    // Verzeichnis-Kontext, damit er zuerst im Prompt steht.
+    const pinned = pinnedContextRef.current?.();
+    if (pinned && pinned.trim()) extraContext = pinned + extraContext;
     let sources: ChatSource[] = [];
     if (useRAG && vectorReady) {
       const results = await ragSearch(lastUser.content);
