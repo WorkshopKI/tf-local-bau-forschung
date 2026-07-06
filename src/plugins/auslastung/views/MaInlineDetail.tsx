@@ -2,8 +2,10 @@
  * MaInlineDetail (v2.6 + v2.14) — Inline-Expand-Bereich pro MA-Zeile.
  *
  * Zwei Tabs:
- *  - **Detail**: Verbund-Listen "Aktuelle Buchung" (Master-CSV) + "Eigene
- *    Eintragungen (pending)"
+ *  - **Detail**: linke Karte verschmilzt „Auslastung pro Antragstyp" (falls
+ *    Kontingent/Verbrauch) mit der Verbund-Liste „Aktuelle Buchung" (Master-CSV);
+ *    rechte Karte „Eigene Eintragungen (pending)" + Altanträge-Liste. Die Merge
+ *    spart vertikalen Platz (füllt die sonst leere Spalte neben der langen rechten).
  *  - **Bearbeiten**: Form mit Kapazitaet, Haupt-/Nebenkategorien, Technologien,
  *    Abgemeldungen, Aktiv-Toggle. Speichern -> Tab zurueck auf Detail.
  *
@@ -37,7 +39,7 @@ interface Props {
   ma: AnonymerMitarbeiter;
   auslastung: MaQuartalsAuslastung;
   quartal: string;
-  /** Offene Antraege aus den letzten 2 Quartalen — rein informativ (rechte Karte). */
+  /** Offene Antraege aus bis zu 7 Vorquartalen — rein informativ (rechte Karte). */
   altlast?: MaAltlastBucket;
   /** True = MA hat KEINEN Eintrag in der Kürzel-Map (Phantom/manuell, kein
    *  echtes tib_kuerz). Nur dann ist „MA entfernen" erlaubt — CSV-MAs bleiben
@@ -109,22 +111,29 @@ function DetailTab({ ma, auslastung, quartal, altlast }: {
   const kapTyp = computeKapazitaetProTyp(ma, auslastung, stundenProTV, stundenProTVProTyp);
   const showTyp = kapTyp.hatKontingent || kapTyp.verbrauchGesamt > 0;
   return (
-    <div className="flex flex-col gap-3">
-      {showTyp && (
-        <div className="rounded-[8px] p-3" style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}>
-          <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
-            Auslastung pro Antragstyp — {quartal}
-          </div>
-          <TypKapazitaetBars view={kapTyp} variant="detail" />
-        </div>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <VerbundSection
-        label={`Aktuelle Buchung — ${quartal}`}
-        verbuende={auslastung.fest.verbuende}
-        empty="Keine festen Buchungen im Quartal."
-        hint="Quelle: tib_kuerz in der Master-CSV mit Antragsdatum im Quartal."
-      />
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Linke Spalte: „Auslastung pro Antragstyp" + „Aktuelle Buchung" in EINER
+          Karte verschmolzen (v2.191.2) — spart vertikalen Platz und füllt die
+          sonst leere Spalte neben der (oft langen) Altanträge-Spalte rechts. */}
+      <div className="rounded-[8px] p-3 flex flex-col gap-3" style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}>
+        {showTyp && (
+          <>
+            <div>
+              <div className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
+                Auslastung pro Antragstyp — {quartal}
+              </div>
+              <TypKapazitaetBars view={kapTyp} variant="detail" />
+            </div>
+            <div style={{ borderTop: '0.5px dashed var(--tf-border)' }} />
+          </>
+        )}
+        <VerbundBody
+          label={`Aktuelle Buchung — ${quartal}`}
+          verbuende={auslastung.fest.verbuende}
+          empty="Keine festen Buchungen im Quartal."
+          hint="Quelle: tib_kuerz in der Master-CSV mit Antragsdatum im Quartal."
+        />
+      </div>
       <VerbundSection
         label={`Eigene Eintragungen (pending) — ${quartal}`}
         verbuende={auslastung.pending.verbuende}
@@ -132,21 +141,33 @@ function DetailTab({ ma, auslastung, quartal, altlast }: {
         hint="Werden in die Kapazität gerechnet, bis der PL das Kürzel in die CSV einträgt."
         footer={<AltlastInlineList altlast={altlast} />}
       />
-      </div>
     </div>
   );
 }
 
-function VerbundSection({ label, verbuende, empty, hint, footer }: {
+interface VerbundSectionProps {
   label: string;
   verbuende: readonly AuslastungVerbund[];
   empty: string;
   hint: string;
-  /** Optionaler Zusatz-Block am Fuss der Karte (z.B. Altanträge-Liste). */
+  /** Optionaler Zusatz-Block am Fuss der Sektion (z.B. Altanträge-Liste). */
   footer?: React.ReactNode;
-}): React.ReactElement {
+}
+
+/** Karten-Variante: Sektion mit eigener Karten-Umrandung (rechte Spalte). */
+function VerbundSection(props: VerbundSectionProps): React.ReactElement {
   return (
     <div className="rounded-[8px] p-3" style={{ background: 'var(--tf-bg)', border: '0.5px solid var(--tf-border)' }}>
+      <VerbundBody {...props} />
+    </div>
+  );
+}
+
+/** Chrome-freie Sektion (Headline + Liste + Footer) — zum Verschmelzen mehrerer
+ *  Sektionen in EINER Karte (linke Spalte: Antragstyp-Auslastung + Aktuelle Buchung). */
+function VerbundBody({ label, verbuende, empty, hint, footer }: VerbundSectionProps): React.ReactElement {
+  return (
+    <div>
       <div className="flex items-center gap-1.5 mb-1.5">
         <span className="text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
           {label} ({verbuende.length})

@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.191.2 — Auslastung: MA-Detail — „Auslastung pro Antragstyp" mit „Aktuelle Buchung" verschmolzen (Juli 2026)
+
+PATCH — Im aufgeklappten MA-Detail (Tab „Detail") stand die Karte **„Auslastung pro Antragstyp"** bisher voll-breit *über* dem Zwei-Spalten-Block; die kurze linke Karte „Aktuelle Buchung" ließ daneben viel vertikalen Leerraum, während rechts die (oft lange) Altanträge-Spalte stand. Beide sind jetzt zu **einer** Karte in der linken Spalte verschmolzen — die Antragstyp-Balken sitzen über der Buchungsliste, getrennt durch eine feine Linie. Spart vertikalen Platz, füllt die sonst leere Spalte. Reiner Layout-Tweak, keine Datenänderung.
+
+- **Merge in der linken Spalte** ([MaInlineDetail.tsx](src/plugins/auslastung/views/MaInlineDetail.tsx)): Die voll-breite Antragstyp-Karte entfällt; ihr Inhalt wandert als Sektion in die „Aktuelle Buchung"-Karte (darüber, mit dünnem Trenner). `VerbundSection` wurde in einen chrome-freien `VerbundBody` (Headline + Liste + Footer) und den Karten-Wrapper gesplittet, damit sich Sektionen ohne doppelte Karten-Umrandung verschmelzen lassen. Rechte Spalte („Eigene Eintragungen (pending)" + Altanträge) unverändert.
+
 ### v2.191.1 — Auslastung: Altanträge-Balken umgedreht (ältestes/Rot links) + gedämpfte Farben (Juli 2026)
 
 PATCH — Feinschliff am alters-gestaffelten Altanträge-Balken (Tab „Auslastung MA", eingeführt in v2.190.0). Reiner Optik-Tweak, keine Datenänderung.
