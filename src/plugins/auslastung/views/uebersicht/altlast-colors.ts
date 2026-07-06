@@ -12,9 +12,9 @@
  * und Dark. Index 0 = Band 1 (Q-1), Index 2 = Band 3 (Q-3..Q-7).
  */
 export const ALTLAST_BAND_COLORS: readonly [string, string, string] = [
-  'hsl(45, 95%, 55%)',  // Band 1 · letztes Quartal · Amber
-  'hsl(28, 90%, 52%)',  // Band 2 · vorletztes Quartal · Orange
-  'hsl(2, 72%, 50%)',   // Band 3 · Q-3..Q-7 · Rot
+  'hsl(45, 78%, 58%)',  // Band 1 · letztes Quartal · Amber (gedämpft)
+  'hsl(28, 72%, 55%)',  // Band 2 · vorletztes Quartal · Orange (gedämpft)
+  'hsl(4, 60%, 54%)',   // Band 3 · Q-3..Q-7 · Rot (gedämpft)
 ];
 
 export const ALTLAST_BAND_LABELS: readonly [string, string, string] = [

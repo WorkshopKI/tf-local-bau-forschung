@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.191.1 — Auslastung: Altanträge-Balken umgedreht (ältestes/Rot links) + gedämpfte Farben (Juli 2026)
+
+PATCH — Feinschliff am alters-gestaffelten Altanträge-Balken (Tab „Auslastung MA", eingeführt in v2.190.0). Reiner Optik-Tweak, keine Datenänderung.
+
+- **Segment-Reihenfolge umgedreht** ([GesamtauslastungBar.tsx](src/plugins/auslastung/views/uebersicht/GesamtauslastungBar.tsx)): Der Balken liest jetzt **ältestes zuerst** — links **Rot** (Q-3…Q-7) → **Orange** (Q-2) → **Gelb** (Q-1) rechts. Das Dringlichste liegt vorn; der Tooltip schlüsselt in derselben Reihenfolge auf.
+- **Farben gedämpft** ([altlast-colors.ts](src/plugins/auslastung/views/uebersicht/altlast-colors.ts)): Sättigung der 3-Farben-Rampe zurückgenommen (Gelb/Orange/Rot weicher, weiterhin in Light + Dark lesbar).
+- **Balken 1 px dicker** (4 → 5 px, beide Balken in Tabelle + Karte); die Karten-Legende folgt der neuen Balken-Reihenfolge (Rot → Orange → Gelb = „alt → neu") ([MaTileGrid.tsx](src/plugins/auslastung/views/uebersicht/MaTileGrid.tsx), [MaTile.tsx](src/plugins/auslastung/views/uebersicht/MaTile.tsx)).
+
 ### v2.191.0 — Flächen-System „Desk & Blatt": Arbeitsbereich schwebt als weißes Blatt (Juli 2026)
 
 MINOR — App-weites Chrome-Redesign aus dem Design-Handoff [_design/handoff/homepage](_design/handoff/homepage/README.md) (Option E · Neutral · Trennung 65 %). Sidebar und Arbeitsbereich teilten sich bisher exakt dasselbe Weiß → flache Wirkung, keine Zonierung. Neu: Die **Sidebar liegt transparent auf einer leicht getönten grauen Grundfläche** (dem „Desk"), der **Arbeitsbereich schwebt als abgerundetes weißes „Blatt"** mit Haarlinie + dezentem Schatten darüber. Klare Trennung Navigation ↔ Arbeit, ohne dass Text je auf getönter Fläche steht. Rein visuell, additiv, keine Datenmigration; gilt für **alle** Screens (Shell-Prinzip).

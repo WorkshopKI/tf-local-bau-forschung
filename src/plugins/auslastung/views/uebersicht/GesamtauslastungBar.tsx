@@ -5,9 +5,10 @@
  *  - Balken 1 „Auslastung Quartal": belegt (`--tf-primary`, bei Überbuchung
  *    `--tf-danger-text`) — der ungefüllte Rest = noch frei.
  *  - Balken 2 „Altanträge": offene Anträge der Vorquartale, **alters-gestaffelt
- *    segmentiert** (Gelb Q-1 → Orange Q-2 → Rot Q-3..Q-7, siehe `altlast-colors`),
- *    als Anteil der Quartalskapazität. Ein pill-geclippter Track mit bis zu 3
- *    farbigen Segmenten nebeneinander (Reihenfolge = Dringlichkeit).
+ *    segmentiert** (siehe `altlast-colors`), als Anteil der Quartalskapazität.
+ *    Ein pill-geclippter Track mit bis zu 3 farbigen Segmenten nebeneinander,
+ *    **ältestes zuerst**: links = Rot (Q-3..Q-7) → Orange (Q-2) → Gelb (Q-1)
+ *    rechts (das Dringlichste/Röteste liegt vorn).
  *
  * Beide Balken werden immer gerendert (kein Layout-Shift; leerer Track = nichts
  * offen). Jeder Balken trägt einen `title`-Tooltip (file://-kompatibel). Farben
@@ -30,29 +31,35 @@ interface Props {
   altlastBandTvs?: readonly [number, number, number];
   /** Quartals-Label für den Tooltip, z.B. „2026-Q2". */
   quartal: string;
-  /** Höhe je Balken in px (default 4). */
+  /** Höhe je Balken in px (default 5). */
   height?: number;
   /** Abstand zwischen den beiden Balken in px (default 3). */
   gap?: number;
 }
 
 export const GesamtauslastungBar = memo(function GesamtauslastungBar({
-  belegtPct, altlastBandPct, freiTVs, altlastTvs, altlastBandTvs, quartal, height = 4, gap = 3,
+  belegtPct, altlastBandPct, freiTVs, altlastTvs, altlastBandTvs, quartal, height = 5, gap = 3,
 }: Props): React.ReactElement {
   const ueberbucht = belegtPct > 100;
   const belegtWidth = Math.min(100, Math.max(0, belegtPct));
 
   // Segmente proportional in die (auf 100 gekappte) Gesamtbreite einpassen.
-  const b0 = Math.max(0, altlastBandPct[0]);
-  const b1 = Math.max(0, altlastBandPct[1]);
-  const b2 = Math.max(0, altlastBandPct[2]);
+  const b0 = Math.max(0, altlastBandPct[0]); // Band 1 · Q-1 · Gelb
+  const b1 = Math.max(0, altlastBandPct[1]); // Band 2 · Q-2 · Orange
+  const b2 = Math.max(0, altlastBandPct[2]); // Band 3 · Q-3..Q-7 · Rot
   const rawSum = b0 + b1 + b2;
   const totalWidth = Math.min(100, rawSum);
   const scale = rawSum > 100 ? 100 / rawSum : 1;
+  // Ältestes (Rot) zuerst → links, dann Orange, dann Gelb (neuestes) rechts.
+  const ordered: readonly { band: 1 | 2 | 3; pct: number }[] = [
+    { band: 3, pct: b2 },
+    { band: 2, pct: b1 },
+    { band: 1, pct: b0 },
+  ];
   let offset = 0;
-  const segments = [b0, b1, b2].map((p, i) => {
-    const width = p * scale;
-    const seg = { left: offset, width, color: altlastBandColor((i + 1) as 1 | 2 | 3) };
+  const segments = ordered.map(({ band, pct }) => {
+    const width = pct * scale;
+    const seg = { band, left: offset, width, color: altlastBandColor(band) };
     offset += width;
     return seg;
   });
@@ -62,8 +69,13 @@ export const GesamtauslastungBar = memo(function GesamtauslastungBar({
     + (ueberbucht ? ' · überbucht' : '');
 
   const bandTvs = altlastBandTvs ?? [0, 0, 0];
-  const bandDetail = bandTvs
-    .map((tvs, i) => (tvs > 0 ? `${ALTLAST_BAND_LABELS[i]}: ${tvs}` : null))
+  // Tooltip liest links → rechts wie der Balken: ältestes Band zuerst.
+  const bandDetail = ([2, 1, 0] as const)
+    .map((i) => {
+      const tvs = bandTvs[i] ?? 0;
+      const label = ALTLAST_BAND_LABELS[i];
+      return tvs > 0 && label ? `${label}: ${tvs}` : null;
+    })
     .filter(Boolean)
     .join(' · ');
   const altlastTitle =

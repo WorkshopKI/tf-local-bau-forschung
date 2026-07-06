@@ -23,6 +23,7 @@
 
 ### Verbesserungen
 - **Frisches Erscheinungsbild:** Der Arbeitsbereich „schwebt" jetzt als weißes Blatt mit sanften Ecken über einer dezent grauen Grundfläche, auf der die Seitenleiste liegt. Dadurch sind Navigation und Arbeitsbereich klarer voneinander getrennt und die App wirkt aufgeräumter — ohne dass sich an den Inhalten oder der Bedienung etwas ändert. Der aktuell geöffnete Menüpunkt ist als kleine helle Kachel markiert. Gilt in allen Bereichen und funktioniert auch im dunklen Modus.
+- In der **Auslastung** (Tab „Auslastung MA") ist der Altanträge-Balken jetzt so herum gestapelt, dass die **ältesten Anträge links liegen** (rot = am dringendsten), gefolgt von orange und gelb. Die Farben sind zudem etwas weicher und der Balken einen Tick kräftiger — insgesamt leichter auf einen Blick zu erfassen.
 
 ## v2.190 — 2026-07
 

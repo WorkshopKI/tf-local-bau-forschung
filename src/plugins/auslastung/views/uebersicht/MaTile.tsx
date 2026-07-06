@@ -157,7 +157,7 @@ function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, quartal, stunden
             altlastTvs={altlastTvs}
             altlastBandTvs={bandTvs}
             quartal={quartal}
-            height={4}
+            height={5}
           />
         </div>
       </div>
