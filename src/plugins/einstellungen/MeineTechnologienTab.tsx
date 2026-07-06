@@ -5,11 +5,16 @@
  *
  * Sections (Design-Handoff `_design/handoff/einstellungen-technologien/`):
  *  1. Programmkennung — Avatar + Name + Programm-Pill (anonyme MA-ID)
- *  2. Meine Kategorien (1.17) — Hauptkategorie-Dropdown + Nebenkategorien-Toggle
- *  3. Aus deinen bisherigen Anträgen — read-only Auto-Tag-Wand, lange Tags
- *     werden abgekürzt, Volltext per Hover-Tooltip
+ *  2. Meine Kategorien (1.17) — Hauptkategorie (Single-Select, dunkler `ToggleChip`)
+ *     + Ergänzende Erfahrungen (Multi-Select-`ToggleChip`)
+ *  3. Aus deinen bisherigen Anträgen — Auto-Tag-`ToggleChip`s (aktiv ⇔ nicht
+ *     ausgeblendet), auf ~10 gekürzt mit „+ N weitere"; lange Tags abgekürzt,
+ *     Volltext per `title`-Tooltip
  *  4. Zusätzliche Kompetenzen — Chip-Input (Enter/Komma → neuer Chip,
  *     Backspace im leeren Input → letzten Chip entfernen, × pro Chip)
+ *
+ * Alle Toggle-Gruppen nutzen das gemeinsame `ToggleChip` (DESIGN_GUIDE Kap. 5 /
+ * Pitfall #14): kein Durchstreichen, kein `opacity-40`, konstante Breite.
  *
  * Save-Row separiert mit Hairline. Persistiert in localStorage UND in
  * `auslastung.json` (via `useAuslastungData`, gegen die anonyme MA-ID).
@@ -30,9 +35,10 @@ import {
 } from '@/plugins/auslastung/services/identitaet';
 import { hasPlOverride } from '@/plugins/auslastung/services/kapazitaet';
 import type { PersoenlichesAuslastungProfil } from '@/plugins/auslastung/types';
-import { KategoriePill } from '@/plugins/auslastung/components/KategoriePill';
-import { AutoTagToggleWand } from '@/plugins/auslastung/components/AutoTagToggleWand';
+import { truncateWZ } from '@/plugins/auslastung/components/AutoTagToggleWand';
 import { TechChipInput } from '@/plugins/auslastung/components/TechChipInput';
+import { ToggleChip } from '@/components/ui/ToggleChip';
+import { computeAutoTagVisibility } from './autoTagVisibility';
 import { ALL_ANTRAGSTYP_BUCKETS, type AntragstypBucket } from '@/plugins/auslastung/types';
 import {
   SettingsRow,
@@ -292,9 +298,14 @@ export function MeineTechnologienTab(): React.ReactElement {
           label="Aus deinen bisherigen Anträgen"
           count={automatic.length}
           hint={TOOLTIP_AUTO}
+          right={
+            automatic.length > 0
+              ? `${automatic.filter(t => !excludedAutoTags.includes(t)).length} gewählt`
+              : undefined
+          }
         />
         {automatic.length > 0 ? (
-          <AutoTagToggleWand
+          <AutoTagChips
             tags={automatic}
             excluded={excludedAutoTags}
             onToggle={toggleAutoTag}
@@ -382,25 +393,23 @@ function KategorienSection({
   const nebenSet = new Set(neben);
   return (
     <div className="flex flex-col gap-4">
-      {/* Hauptkategorie — Radio-style Pills */}
+      {/* Hauptkategorie — Single-Select, dunkel voll gefüllt zur Unterscheidung */}
       <div>
         <div className="text-[11.5px] text-[var(--tf-text-secondary)] mb-1.5">
-          Hauptkategorie · <span className="text-[var(--tf-text-tertiary)]">Ich bearbeite grundsätzlich Anträge aus diesem Bereich.</span>
+          Hauptkategorie · <span className="text-[var(--tf-text-tertiary)]">ein Bereich</span>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {kategorien.map(k => {
             const isHaupt = haupt === k.id;
             return (
-              <button
+              <ToggleChip
                 key={k.id}
-                type="button"
-                onClick={() => onSetHaupt(k.id)}
-                className="cursor-pointer"
-                aria-pressed={isHaupt}
+                label={k.id}
+                selected={isHaupt}
+                variant="dark"
+                onToggle={() => { if (!isHaupt) onSetHaupt(k.id); }}
                 title={isHaupt ? `${k.name} (aktuelle Hauptkategorie)` : `${k.name} als Hauptkategorie wählen`}
-              >
-                <KategoriePill kategorie={k} mode={isHaupt ? 'primaer' : 'inactive'} />
-              </button>
+              />
             );
           })}
         </div>
@@ -411,36 +420,29 @@ function KategorienSection({
         )}
       </div>
 
-      {/* Nebenkategorien — Toggle-Pills (Outline = Aspekt aktiv) */}
+      {/* Ergänzende Erfahrungen — Multi-Select-Toggle */}
       <div>
         <div className="text-[11.5px] text-[var(--tf-text-secondary)] mb-1.5 inline-flex items-center gap-1.5">
-          Ergänzende Erfahrungen
+          Ergänzende Erfahrungen · <span className="text-[var(--tf-text-tertiary)]">mehrere möglich</span>
           <InfoHint text={TOOLTIP_NEBEN} />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {kategorien.map(k => {
             const isHaupt = haupt === k.id;
             const isNeben = nebenSet.has(k.id);
-            const mode: 'primaer' | 'aspekt' | 'inactive' =
-              isHaupt ? 'inactive'  // bewusst nicht selektierbar — Haupt darf nicht auch Neben sein
-              : isNeben ? 'aspekt'
-              : 'inactive';
             return (
-              <button
+              <ToggleChip
                 key={k.id}
-                type="button"
-                onClick={() => onToggleNeben(k.id)}
+                label={k.id}
+                selected={isNeben}
                 disabled={isHaupt}
-                className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                aria-pressed={isNeben}
+                onToggle={() => onToggleNeben(k.id)}
                 title={
                   isHaupt ? `${k.name} ist deine Hauptkategorie — kann nicht zusätzlich als Aspekt gesetzt werden.`
                   : isNeben ? `${k.name} als Aspekt entfernen`
                   : `${k.name} als Aspekt hinzufügen`
                 }
-              >
-                <KategoriePill kategorie={k} mode={mode} />
-              </button>
+              />
             );
           })}
         </div>
@@ -448,6 +450,56 @@ function KategorienSection({
           Bei Anträgen mit diesen Aspekten wirst du im Matching bevorzugt vorgeschlagen.
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Auto-Tag-Chip-Wand mit Kürzung: gewählte (aktive) Chips sind IMMER sichtbar;
+ * ungewählte werden auf ~10 Gesamt-Chips gekürzt, der Rest hinter „+ N weitere".
+ * Datenmodell unverändert — aktiv ⇔ NICHT in `excluded`; Klick toggelt die
+ * Ausblendung (`ausgeblendeteAutoTags`). Kein Durchstreichen mehr (Aus = Outline).
+ */
+const AUTO_TAG_CAP = 10;
+
+function AutoTagChips({
+  tags,
+  excluded,
+  onToggle,
+}: {
+  tags: string[];
+  excluded: string[];
+  onToggle: (tag: string) => void;
+}): React.ReactElement {
+  const [expanded, setExpanded] = useState(false);
+  const excludedSet = new Set(excluded);
+  const { sichtbar, versteckt } = computeAutoTagVisibility(tags, excludedSet, AUTO_TAG_CAP, expanded);
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {sichtbar.map(tag => {
+        const aktiv = !excludedSet.has(tag);
+        const { short } = truncateWZ(tag);
+        return (
+          <ToggleChip
+            key={tag}
+            label={short}
+            selected={aktiv}
+            onToggle={() => onToggle(tag)}
+            title={tag}
+          />
+        );
+      })}
+      {(versteckt > 0 || expanded) && (
+        <button
+          type="button"
+          onClick={() => setExpanded(e => !e)}
+          className="inline-flex items-center px-3 py-1 rounded-full text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]/40"
+          style={{ background: 'transparent', border: '0.5px solid var(--tf-border)' }}
+        >
+          {expanded ? 'weniger anzeigen' : `+ ${versteckt} weitere`}
+        </button>
+      )}
     </div>
   );
 }
@@ -492,38 +544,19 @@ function AntragstypSection({
         </div>
       )}
       <div className="flex flex-wrap gap-1.5">
-        {ALL_ANTRAGSTYP_BUCKETS.map(bucket => {
-          const isActive = bevorzugtSet.has(bucket);
-          return (
-            <button
-              key={bucket}
-              type="button"
-              onClick={() => onToggle(bucket)}
-              aria-pressed={isActive}
-              className={
-                isActive
-                  ? 'inline-flex items-center gap-1 text-[12px] px-3 py-1.5 rounded-md cursor-pointer'
-                  : 'inline-flex items-center gap-1 text-[12px] px-3 py-1.5 rounded-md cursor-pointer hover:bg-[var(--tf-bg-secondary)]'
-              }
-              style={
-                isActive
-                  ? {
-                      background: 'var(--tf-primary-light)',
-                      color: 'var(--tf-primary)',
-                      border: '0.5px solid var(--tf-primary)',
-                    }
-                  : {
-                      background: 'transparent',
-                      color: 'var(--tf-text-tertiary)',
-                      border: '0.5px solid var(--tf-border)',
-                    }
-              }
-            >
-              <span aria-hidden className={`text-[9px] leading-none ${isActive ? '' : 'invisible'}`}>✓</span>
-              {bucket}
-            </button>
-          );
-        })}
+        {ALL_ANTRAGSTYP_BUCKETS.map(bucket => (
+          <ToggleChip
+            key={bucket}
+            label={bucket}
+            selected={bevorzugtSet.has(bucket)}
+            onToggle={() => onToggle(bucket)}
+            title={
+              bevorzugtSet.has(bucket)
+                ? `${bucket}-Anträge nicht mehr bevorzugen`
+                : `${bucket}-Anträge bevorzugen`
+            }
+          />
+        ))}
       </div>
       <p className="text-[11px] text-[var(--tf-text-tertiary)] leading-snug">
         {bevorzugt.length === 0

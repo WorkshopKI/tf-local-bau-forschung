@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.192.0 — Einstellungen: „Meine Technologien" — einheitliche Toggle-Chips (Journey-Paket 4, Phase 1) (Juli 2026)
+
+MINOR — Der Tab **„Meine Technologien"** (Einstellungen) mischte drei verschiedene Chip-Stile (farbcodierte `KategoriePill`, Inline-Buttons, durchgestrichene Auto-Tags) und markierte gesperrte Chips mit `opacity-40` (wirkt wie „disabled", DESIGN_GUIDE Kap. 5 / Pitfall #14). Alle Toggle-Gruppen laufen jetzt über EIN neutrales `ToggleChip` mit drei klaren Zuständen (an / aus / nicht wählbar). Reine Darstellungs-/Interaktionsänderung — Datenmodell + Auto-Save („Automatisch gespeichert") unverändert. Mockup `_reference/journey-paket-4/einstellungen-chips.png`.
+
+- **Neue Komponente** [ToggleChip.tsx](src/components/ui/ToggleChip.tsx) (domänenfrei, `src/components/ui/`): **an** = Surface-Füllung + Häkchen (Single-Select-Hauptkategorie `variant='dark'` = dunkle Voll-Füllung zur Unterscheidung); **aus** = Outline / `text-secondary`, KEIN Durchstreichen, kein Icon; **nicht wählbar** = gedämpft + `title`-Tooltip (kein `opacity-40`). Layout-stabil (Häkchen-Slot immer gerendert, im Aus-Zustand `invisible`), `aria-pressed`. Der dunkle Fill trägt eine `// allow-cta-fill`-Ausnahme (Toggle-Pill, kein Klick-CTA).
+- **Rewire** [MeineTechnologienTab.tsx](src/plugins/einstellungen/MeineTechnologienTab.tsx): Hauptkategorie, Ergänzende Erfahrungen, Antragstypen und „Aus deinen bisherigen Anträgen" nutzen jetzt alle `ToggleChip`. `KategoriePill` / `AutoTagToggleWand` bleiben für ihre Auslastungs-Verwendung ([MaInlineDetail.tsx](src/plugins/auslastung/views/MaInlineDetail.tsx)) unangetastet — das Durchstreichen ist nur im Einstellungen-Tab weg (dort war es via die geteilte Komponente sichtbar).
+- **„Aus deinen bisherigen Anträgen"**: Kopf zeigt Gesamtzahl + rechtsbündig „{n} gewählt"; die Chip-Wand ist initial auf ~10 gekürzt mit „+ N weitere"-Aufklapper — **gewählte Chips bleiben IMMER sichtbar** (Kürzung trifft nur ungewählte). Reine, getestete Kürzungs-Logik in [autoTagVisibility.ts](src/plugins/einstellungen/autoTagVisibility.ts).
+- `SettingsSectionHeader` um optionalen rechtsbündigen `right`-Slot ergänzt ([settings-primitives.tsx](src/plugins/einstellungen/_shared/settings-primitives.tsx)); `truncateWZ` aus `AutoTagToggleWand` exportiert (Reuse ohne Render-Änderung).
+
 ### v2.191.2 — Auslastung: MA-Detail — „Auslastung pro Antragstyp" mit „Aktuelle Buchung" verschmolzen (Juli 2026)
 
 PATCH — Im aufgeklappten MA-Detail (Tab „Detail") stand die Karte **„Auslastung pro Antragstyp"** bisher voll-breit *über* dem Zwei-Spalten-Block; die kurze linke Karte „Aktuelle Buchung" ließ daneben viel vertikalen Leerraum, während rechts die (oft lange) Altanträge-Spalte stand. Beide sind jetzt zu **einer** Karte in der linken Spalte verschmolzen — die Antragstyp-Balken sitzen über der Buchungsliste, getrennt durch eine feine Linie. Spart vertikalen Platz, füllt die sonst leere Spalte. Reiner Layout-Tweak, keine Datenänderung.

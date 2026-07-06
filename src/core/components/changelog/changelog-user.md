@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.192 — 2026-07
+
+### Verbesserungen
+- Im Einstellungen-Tab **„Meine Technologien"** sehen alle Auswahl-Chips (Kategorien, ergänzende Erfahrungen, Antragstypen, erkannte Themen) jetzt einheitlich aus: Ausgewählte sind gefüllt und mit einem Häkchen markiert, nicht ausgewählte als schlichte Umrandung — **nichts wird mehr durchgestrichen**, gesperrte Chips sind klar erkennbar mit Erklärung beim Draufzeigen. Bei „Aus deinen bisherigen Anträgen" zeigt der Kopf, **wie viele Themen gewählt** sind, und lange Listen werden auf die wichtigsten gekürzt („+ N weitere" zum Aufklappen — Ausgewähltes bleibt immer sichtbar).
+
 ## v2.191 — 2026-07
 
 ### Verbesserungen

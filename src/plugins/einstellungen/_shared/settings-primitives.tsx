@@ -67,10 +67,13 @@ export function SettingsSectionHeader({
   label,
   count,
   hint,
+  right,
 }: {
   label: string;
   count?: number;
   hint?: string;
+  /** Optionaler rechtsbündiger Zusatz nach der Hairline (z.B. „6 gewählt"). */
+  right?: React.ReactNode;
 }): React.ReactElement {
   return (
     <div className="flex items-center gap-3 mb-3.5">
@@ -84,6 +87,9 @@ export function SettingsSectionHeader({
       )}
       {hint && <InfoHint text={hint} />}
       <div className="flex-1 h-px bg-[var(--tf-border)]" aria-hidden />
+      {right != null && (
+        <span className="text-[11px] text-[var(--tf-text-tertiary)] shrink-0 tabular-nums">{right}</span>
+      )}
     </div>
   );
 }

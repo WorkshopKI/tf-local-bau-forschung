@@ -21,7 +21,7 @@ const LONG_TAG_THRESHOLD = 38;
  * "präfix (a, b, …)" wenn er zu lang ist. Tags ohne Klammer werden nur dann
  * abgekürzt wenn sie über die Schwelle gehen — dann ellipsen wir am Ende.
  */
-function truncateWZ(label: string): { short: string; truncated: boolean } {
+export function truncateWZ(label: string): { short: string; truncated: boolean } {
   if (label.length <= LONG_TAG_THRESHOLD) return { short: label, truncated: false };
   const m = label.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
   if (m && m[1] != null && m[2] != null) {
