@@ -20,10 +20,9 @@ import { isNetzwerkLead } from './netzwerk';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { VerbundAlleFelder } from './VerbundAlleFelder';
 import { VerbundGlance, VerbundPartnerTabelle } from './alleFelder';
-import { WorkflowStepper } from './WorkflowStepper';
+import { VerbundKopf } from './VerbundKopf';
 import { TvDetailBlock } from './TvDetailBlock';
 import { findFieldValue } from './fieldLookup';
-import { XswSuffix } from './XswSuffix';
 import { readXsw } from './xsw';
 import {
   isPseudoVerbundId,
@@ -286,21 +285,17 @@ export function VerbundDetail({
     'inhalt_kurzzusammenfassung', 'kurzzusammenfassung',
   ])) : null;
 
-  // Stepper-Daten: bei expandiertem TV → TV-Status, sonst Verbund-Aggregat.
-  const expandedTv = expandedTvAz ? antraege.find(a => a.aktenzeichen === expandedTvAz) ?? null : null;
-  const stepperStatus = expandedTv
-    ? strOrNull(expandedTv.status)
-    : displayStatus;
-  const stepperHeading = (() => {
-    if (isPseudo) return 'Status & Workflow';
-    if (expandedTv) {
-      const idx = antraege.findIndex(a => a.aktenzeichen === expandedTv.aktenzeichen);
-      const tvLabel = strOrNull(expandedTv.antragsteller)
-        ?? strOrNull(expandedTv.akronym)
-        ?? expandedTv.aktenzeichen;
-      return `Status & Workflow — TV ${idx + 1}: ${tvLabel}`;
-    }
-    return 'Status & Workflow — Verbund';
+  // Stepper-Daten: der Kopf-Stepper ist Verbund-Ebene (amtliches Aggregat),
+  // unabhängig davon, welcher TV in der Liste gerade expandiert ist.
+  const stepperStatus = displayStatus;
+
+  // Kopf-Beschreibung: Titel + Kurzzusammenfassung (VB_INHALT) in EINEM Block
+  // (exakte Duplikate zusammengefasst) — löst die frühere separate
+  // „Kurzbeschreibung"-Sektion ab. 3-Zeilen-Clamp via `kbOpen` im VerbundKopf.
+  const beschreibung = (() => {
+    const parts = [titel, vorhabenInhalt].filter((v): v is string => !!v);
+    const uniq = parts.filter((v, i) => parts.indexOf(v) === i);
+    return uniq.length > 0 ? uniq.join(' ') : null;
   })();
 
   // Header-Aktenzeichen: bei pseudo zeigt die echte Aktenzeichen-ID, nicht die
@@ -322,19 +317,17 @@ export function VerbundDetail({
   // (Pseudo-Verbund hat keine Stammdaten/TV; Gutachten/NF nur bei aktivem Flag).
   const gutachtenSichtbar = isGutachtenWorkflowEnabled() || isGutachtenKurzfassungEnabled();
   const jumpItems = ([
-    vorhabenInhalt ? { id: 'kurz', label: 'Beschreibung' } : null,
     !isPseudo ? { id: 'stamm', label: 'Stammdaten' } : null,
-    stepperStatus ? { id: 'workflow', label: 'Workflow' } : null,
     !isPseudo ? { id: 'tv', label: 'Teilvorhaben' } : null,
     gutachtenSichtbar ? { id: 'gutachten', label: '↓ Gutachten' } : null,
     isNfNachforderungenEnabled() ? { id: 'nf', label: '↓ Nachforderungen' } : null,
   ].filter(Boolean)) as { id: string; label: string }[];
   const jump = (id: string): void => {
     setActiveJump(id);
-    // stamm/workflow/tv liegen im konditional gerenderten Antragsdaten-Body —
-    // bei eingeklapptem Block erst aufklappen, dann nach dem Render scrollen
+    // stamm/tv liegen im konditional gerenderten Antragsdaten-Body — bei
+    // eingeklapptem Block erst aufklappen, dann nach dem Render scrollen
     // (gutachten/nf brauchen das nicht: deren id sitzt auf dem äußeren Wrapper).
-    if ((id === 'stamm' || id === 'workflow' || id === 'tv') && !antragsdatenOpen) {
+    if ((id === 'stamm' || id === 'tv') && !antragsdatenOpen) {
       toggleAntragsdaten();
       setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
       return;
@@ -342,37 +335,22 @@ export function VerbundDetail({
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // STATUS & WORKFLOW — einmal definiert, da sowohl im Antragsdaten-Sammelblock
-  // (echter Verbund) als auch im Pseudo-Zweig gerendert.
-  const workflowBlock = stepperStatus ? (
-    <div id="workflow" className="mb-4 scroll-mt-[80px]">
-      <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
-        {stepperHeading}
-      </h3>
-      <WorkflowStepper status={stepperStatus} collapsible />
-    </div>
-  ) : null;
-
   return (
     <PanelShell onClose={onClose}>
-      {/* Header-Block (Kompakt): Akronym + Status-Badge + FKZ inline, Untertitel darunter. */}
-      <div className={`mb-3 ${READ_COL}`}>
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <h1 className="text-[20px] font-medium text-[var(--tf-text)] leading-tight tracking-[-0.01em]">{akronym}</h1>
-          {displayStatus ? (
-            <Badge variant={getStatusVariant(displayStatus)}>
-              {getStatusLabel(displayStatus)}
-            </Badge>
-          ) : null}
-          <span className="text-[12px] text-[var(--tf-text-tertiary)] font-mono">{headerId}</span>
-        </div>
-        {titel ? (
-          <div className="mt-2.5 text-[12.5px] leading-[1.5] text-[var(--tf-text-secondary)]">
-            {titel}<XswSuffix value={leadXsw} />
-          </div>
-        ) : leadXsw ? (
-          <div className="mt-2.5 text-[12.5px]"><XswSuffix value={leadXsw} /></div>
-        ) : null}
+      {/* VERBUND-KOPF (Phase 6): Identität + Beschreibung + Eckdaten + amtlicher
+          5-Stationen-Stepper. Der Stepper ersetzt das frühere Status-Badge. */}
+      <div className={READ_COL}>
+        <VerbundKopf
+          akronym={akronym}
+          headerId={headerId}
+          beschreibung={beschreibung}
+          xsw={leadXsw}
+          beschreibungOffen={kbOpen}
+          onToggleBeschreibung={() => setKbOpen(o => !o)}
+          stepperStatus={stepperStatus}
+          tvs={antraege}
+          unterprogramm={unterprogramm}
+        />
       </div>
 
       {/* VORGÄNGER-HINWEIS — frühere abgelehnte/zurückgezogene Einreichungen
@@ -406,34 +384,6 @@ export function VerbundDetail({
               {item.label}
             </button>
           ))}
-        </div>
-      ) : null}
-
-      {/* KURZBESCHREIBUNG — Verbund-Inhalt aus VB_INHALT. Sitzt ganz oben,
-          damit der User die Projektidee sofort sieht ohne einen TV
-          aufklappen zu muessen. */}
-      {vorhabenInhalt ? (
-        <div id="kurz" className={`mb-4 scroll-mt-[80px] ${READ_COL}`}>
-          <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-2">
-            Kurzbeschreibung
-          </h3>
-          <div
-            className="rounded-[var(--tf-radius)] p-4"
-            style={{ background: 'var(--tf-bg-secondary)' }}
-          >
-            <p className={`m-0 text-[13px] leading-relaxed text-[var(--tf-text)] whitespace-pre-wrap${vorhabenInhalt.length > 220 && !kbOpen ? ' line-clamp-3' : ''}`}>
-              {vorhabenInhalt}
-            </p>
-            {vorhabenInhalt.length > 220 ? (
-              <button
-                type="button"
-                onClick={() => setKbOpen(o => !o)}
-                className="mt-1.5 text-[12px] text-[var(--tf-primary)] hover:opacity-80"
-              >
-                {kbOpen ? '↑ Weniger' : '↓ Volltext lesen'}
-              </button>
-            ) : null}
-          </div>
         </div>
       ) : null}
 
@@ -472,9 +422,6 @@ export function VerbundDetail({
               <div className="mb-4">
                 <VerbundPartnerTabelle tvs={antraege} />
               </div>
-
-              {/* STATUS & WORKFLOW */}
-              {workflowBlock}
 
               {/* TEILVORHABEN — expandable Rows mit Inline-Detail. */}
               <div id="tv" className="mb-4 scroll-mt-[80px]">
@@ -551,9 +498,9 @@ export function VerbundDetail({
           ) : null}
         </div>
       ) : (
-        // Pseudo-Verbund: Workflow + TV-Detail direkt (kein Sammel-Block, keine Liste).
+        // Pseudo-Verbund: TV-Detail direkt (kein Sammel-Block, keine Liste).
+        // Der Status-Stepper sitzt bereits im VerbundKopf.
         <div className={READ_COL}>
-          {workflowBlock}
           {expandedTvAz ? (
             <div className="mb-6">
               <TvDetailBlock aktenzeichen={expandedTvAz} onOpenAntrag={onOpenAntrag} />

@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.180 — 2026-07
+
+### Verbesserungen
+- Der **Kopf der Verbund-Detailseite** ist aufgeräumt: oben Kurzname und Kennzeichen, eine kurze Projektbeschreibung (auf Wunsch per „… mehr" ausklappbar) und die wichtigsten Eckdaten (Programm/Typ, Anzahl Teilvorhaben, Antragsdatum, beantragte Summe) auf einen Blick.
+- Der **Fortschritts-Balken (Eingang → Vollständigkeit → Fachprüfung → Bewilligung → Schluss)** zeigt jetzt zuverlässig den **richtigen** Stand — auch bei älteren, bereits abgeschlossenen Anträgen (vorher standen die oft fälschlich ganz am Anfang). Abgelehnte oder zurückgezogene Anträge sind mit einem roten ✕ an der Abbruchstelle klar erkennbar. Der Fortschritts-Balken ist damit selbst die Statusanzeige — das frühere separate Status-Schild entfällt.
+
 ## v2.179 — 2026-07
 
 ### Verbesserungen
