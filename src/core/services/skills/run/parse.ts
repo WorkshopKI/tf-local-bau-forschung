@@ -10,8 +10,67 @@
  * der JSON-Parse fehl ODER liefert das Modell Prosa → exakt heutiges Verhalten.
  */
 import { parseJsonArrayTolerant, stripMarkdownWrapper } from '@/core/services/ai/json-tolerant';
+import { splitSentences } from '../registry/check-engine';
 import type { TeilDeklaration, TeilFeld, TeilJoin } from '../registry/types';
-import type { ParsedSkillOutput } from './types';
+import type { ParsedSkillOutput, QuellenBeleg } from './types';
+
+/**
+ * Liest strukturierte Quellen-Belege aus der Quellenanalyse (Journey-Paket 4).
+ * Eine Beleg-Zeile ist eine Zitat-Zeile (enthält ein Anführungszeichen ODER die
+ * `→ stützt`-Marke). Optionaler Suffix ` → stützt Satz {n}` / ` → stützt Sätze
+ * {n}, {m}` am Zeilenende (deutsch, 1-basiert) → 0-basierte `satzIndizes`,
+ * validiert gegen `splitSentences(finalerText).length`. Ungültige/außerhalb →
+ * `satzIndizes: []` (Beleg bleibt erhalten = „ohne Zuordnung"). Wirft NIE.
+ */
+function parseBelege(quellenanalyse: string, finalerText: string): QuellenBeleg[] {
+  if (!quellenanalyse.trim()) return [];
+  const satzAnzahl = splitSentences(finalerText).length;
+  const belege: QuellenBeleg[] = [];
+  // Nur wenn das Modell den NEUEN Kontrakt überhaupt genutzt hat (≥1 `→ stützt`-
+  // Zeile) werden Belege gebaut — sonst `[]` ⇒ flaches Rendering wie heute (kein
+  // Alt-Format-Regress durch lauter „ohne Zuordnung"-Karten).
+  let hatReferenz = false;
+
+  for (const rawLine of quellenanalyse.split('\n')) {
+    let line = rawLine.trim();
+    if (!line) continue;
+    const hatMarke = /(?:→|->)\s*st(?:ü|ue)tzt\s+S(?:a|ä|ae)tz/iu.test(line);
+    const hatZitat = /[„“”"«»]/u.test(line);
+    if (!hatMarke && !hatZitat) continue;
+
+    // Führenden Listen-Marker entfernen (-, *, •, "1.", "1)").
+    line = line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/u, '');
+
+    // Satz-Referenz-Suffix am Zeilenende (1-basiert → 0-basiert, validiert).
+    let satzIndizes: number[] = [];
+    const refMatch = line.match(
+      /\s*(?:→|->)\s*st(?:ü|ue)tzt\s+S(?:a|ä|ae)tz(?:e)?\s+([\d,\s]+?)\s*$/iu,
+    );
+    if (refMatch) {
+      hatReferenz = true;
+      satzIndizes = refMatch[1]!
+        .split(',')
+        .map(s => Number.parseInt(s.trim(), 10))
+        .filter(n => Number.isFinite(n))
+        .map(n => n - 1)
+        .filter(idx => idx >= 0 && idx < satzAnzahl);
+      line = line.slice(0, refMatch.index).trim();
+    }
+
+    // Abschnitts-Referenz „(Abschn. x.y)".
+    let abschnittRef: string | undefined;
+    const absMatch = line.match(/\(\s*Abschn\.?\s*([\d.]+)\s*\)/iu);
+    if (absMatch) {
+      abschnittRef = absMatch[1];
+      line = line.replace(absMatch[0], '').trim();
+    }
+
+    const zitat = line.trim();
+    if (!zitat && satzIndizes.length === 0 && abschnittRef === undefined) continue;
+    belege.push({ zitat, ...(abschnittRef ? { abschnittRef } : {}), satzIndizes });
+  }
+  return hatReferenz ? belege : [];
+}
 
 /**
  * Liest den Finaler-Text-Body als JSON-Array `[{key,text}]` (tolerant gegen
@@ -97,22 +156,29 @@ export function parseSkillOutput(
   // Text-Body ≥1 valides Teil-Objekt liefert. Sonst Durchfall auf den Prosa-Pfad
   // unten (greift auch automatisch, wenn das Modell Prosa statt JSON lieferte —
   // `extractTeile` gibt dann `[]` zurück). Nie unter das heutige Verhalten.
+  const quellenanalyse = sections.quellenanalyse ?? '';
+
   if (teilStruktur && teilStruktur.length > 0 && flatFinal) {
     const teile = extractTeile(flatFinal, teilStruktur);
     if (teile.length > 0) {
+      const finalerText = teile.map(t => t.text).join(teilJoin);
+      const belege = parseBelege(quellenanalyse, finalerText);
       return {
-        quellenanalyse: sections.quellenanalyse ?? '',
+        quellenanalyse,
         entwurf: sections.entwurf ?? '',
-        finalerText: teile.map(t => t.text).join(teilJoin),
+        finalerText,
         teile,
+        ...(belege.length > 0 ? { belege } : {}),
       };
     }
   }
 
+  const belege = parseBelege(quellenanalyse, flatFinal);
   return {
-    quellenanalyse: sections.quellenanalyse ?? '',
+    quellenanalyse,
     entwurf: sections.entwurf ?? '',
     finalerText: flatFinal,
+    ...(belege.length > 0 ? { belege } : {}),
     ...(hatFinal
       ? {}
       : {

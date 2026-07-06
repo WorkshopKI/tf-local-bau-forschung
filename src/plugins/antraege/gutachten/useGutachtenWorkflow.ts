@@ -317,6 +317,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       entwurf: result.parsed.entwurf,
       finalerText: result.parsed.finalerText,
       ...(result.parsed.teile?.length ? { teile: result.parsed.teile } : {}),
+      ...(result.parsed.belege?.length ? { belege: result.parsed.belege } : {}),
       checks,
       modell: transport.displayName ?? transport.name,
       skillId: sc.skill.id,

@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.194.0 — Gutachten: strukturierte Quellen-Belege im Parser (Journey-Paket 4, Phase 3, additiv) (Juli 2026)
+
+MINOR — Rein additive Parser-Erweiterung als Grundlage der Zitat↔Satz-Verknüpfung (die UI folgt in Phase 6). Der Skill-Parser versteht jetzt Zitat-Zeilen der Quellenanalyse mit Satz-Referenz-Suffix; alles Bestehende bleibt byte-identisch. Kein Nutzer-sichtbarer Effekt in dieser Version.
+
+- **Format-Kontrakt:** eine Zitat-Zeile darf mit ` → stützt Satz {n}` bzw. ` → stützt Sätze {n}, {m}` enden (deutsch, 1-basiert). [parse.ts](src/core/services/skills/run/parse.ts) liest daraus `ParsedSkillOutput.belege?: QuellenBeleg[]` (`{ zitat, abschnittRef?, satzIndizes }`); die flache `quellenanalyse` bleibt UNVERÄNDERT befüllt (Rückwärtskompatibilität, Alt-Läufe, Anzeige-Fallback).
+- **Konvention (überall dokumentiert):** Format **1-basiert**, `satzIndizes` intern **0-basiert** (aligned zu `data-satz-index` + `CheckResult.fundstellen`), validiert gegen `splitSentences(finalerText).length`; ungültige/außerhalb-liegende Referenzen → `satzIndizes: []` („ohne Zuordnung"). Nutzt das Modell den neuen Kontrakt NICHT (keine `→ stützt`-Zeile) → gar keine Belege (`belege` undefiniert = heutiges flaches Rendering, nie regressiv). Der Parser wirft NIE.
+- **`StepRun.belege?`** additiv (kein Schema-Bump): fließt `parseSkillOutput` → `GenerationInput` ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)) → `applyGeneration` ([runner.ts](src/plugins/antraege/gutachten/runner.ts)). Bleibt bei manueller Text-Bearbeitung ERHALTEN (anders als `teile`, das verworfen wird) — Grundlage für die Live-Degradation veralteter Indizes in der Phase-6-UI.
+- Parser-Matrix getestet ([parse-belege.test.ts](src/core/services/skills/run/__tests__/parse-belege.test.ts)): ein/mehrere Sätze, Pfeil-Variante, ohne Suffix, ungültiger Index, gemischte Zeilen, Alt-Format ohne Referenzen, Round-Trip der flachen `quellenanalyse`.
+
 ### v2.193.0 — Suche: positiver Leerzustand + dezenter Index-Hinweis (Journey-Paket 4, Phase 2) (Juli 2026)
 
 MINOR — Der Leerzustand der **Suche** zeigte bisher nur eine karge Diagnose-Zeile („N Textabschnitte im Index · M Anträge geladen") — inklusive der für Nutzer verwirrenden „0 Textabschnitte", wenn kein Dokumentenindex vorliegt. Neu betont der Leerzustand, was AKTIV geht (die Antragssuche), mit klickbaren Beispielen; der fehlende Dokumentenindex ist nur noch eine dezente Info-Zeile OHNE Handlungsaufforderung (Index-Einrichtung ist Kurator-Aufgabe). Mockup `_reference/journey-paket-4/suche-leerzustand.png`.

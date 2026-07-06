@@ -11,7 +11,7 @@
  * bewusst KEIN dedizierter Object-Store/Version-Bump (recurring-bug-classes.md §3 /
  * Pitfall #29).
  */
-import type { CheckResult, SkillModifierKey, TeilFeld } from '@/core/services/skills';
+import type { CheckResult, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
 import type { KurzfassungVersion } from '../kurzfassung/types';
 
 /**
@@ -62,6 +62,14 @@ export interface StepRun {
    * editierte `finalerText` ist dann maßgeblich).
    */
   teile?: TeilFeld[];
+  /**
+   * Quellen-Belege mit Satz-Zuordnung (opt-in, Journey-Paket 4). Aus der
+   * Quellenanalyse geparst; `satzIndizes` sind 0-basiert gegen `splitSentences(
+   * finalerText)`. Bleibt bei manueller Text-Bearbeitung ERHALTEN (anders als
+   * `teile`) — veraltete Indizes werden erst beim Rendern auf „ohne Zuordnung"
+   * degradiert (Live-Neuberechnung), nicht verworfen. Additiv, Round-Trip-sicher.
+   */
+  belege?: QuellenBeleg[];
   /**
    * Vom Bearbeiter manuell editierter `finalerText` ersetzt den generierten; dieses
    * Feld hält den ursprünglich GENERIERTEN Text als Snapshot beim ersten Edit

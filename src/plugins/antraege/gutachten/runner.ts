@@ -5,7 +5,7 @@
  * testbar. Der Hook ruft einen Reducer und persistiert das Ergebnis (nie während
  * des Streams). KEINE LLM-Entscheidung über Ablauf/Gates, KEIN Auto-Retry.
  */
-import type { CheckResult, SkillModifierKey, TeilFeld } from '@/core/services/skills';
+import type { CheckResult, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
 import { appendVerlauf, restoreVersion } from '../kurzfassung/kurzfassung-verlauf';
 import {
   STEP_ORDER, type QsBefund, type StepId, type StepRun, type VorlageRef, type WorkflowRun,
@@ -74,6 +74,8 @@ export interface GenerationInput {
   finalerText: string;
   /** Strukturierte Teilfelder (opt-in, render-only) — falls der Skill `teilStruktur` deklariert + JSON kam. */
   teile?: TeilFeld[];
+  /** Quellen-Belege mit Satz-Zuordnung (opt-in, Journey-Paket 4) — aus der Quellenanalyse geparst. */
+  belege?: QuellenBeleg[];
   checks: CheckResult[];
   modell: string;
   skillId: string;
@@ -113,6 +115,7 @@ export function applyGeneration(
     entwurf: gen.entwurf,
     finalerText: gen.finalerText,
     ...(gen.teile?.length ? { teile: gen.teile } : {}),
+    ...(gen.belege?.length ? { belege: gen.belege } : {}),
     checks: gen.checks,
     status: 'entwurf',
     erstellt_am: now,
