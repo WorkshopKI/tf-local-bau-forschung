@@ -203,3 +203,22 @@ export function isClosedStatus(raw: unknown): boolean {
   const c = getStatusCategory(raw);
   return c === 'bewilligt' || c === 'abgelehnt' || c === 'abgeschlossen';
 }
+
+/**
+ * Kategorien, deren Anträge als **terminal** (Arbeit abgeschlossen) gelten:
+ * `abgeschlossen` (Schlussvermerk, beendet, abgebrochen, abgelehnt/zurückgezogen)
+ * und `abgelehnt` (Bauantrag-Domain). Bewusst OHNE `bewilligt` — nach der
+ * Bewilligung folgt noch die Begleitphase (VN/ZB), der Antrag ist also weiter
+ * „in Arbeit". Einzelquelle für den Arbeitsvorrat/Archiv-Split (View „Alle")
+ * und die PreCheck-Regeln in `naechsterSchritt`.
+ */
+export const TERMINAL_STATUS_CATEGORIES: ReadonlySet<StatusCategory> = new Set<StatusCategory>([
+  'abgeschlossen',
+  'abgelehnt',
+]);
+
+/** True für terminale Anträge (Kategorie `abgeschlossen` oder `abgelehnt`).
+ *  Schlanker als `isClosedStatus` (das zusätzlich `bewilligt` einschließt). */
+export function isTerminalStatus(raw: unknown): boolean {
+  return TERMINAL_STATUS_CATEGORIES.has(getStatusCategory(raw));
+}

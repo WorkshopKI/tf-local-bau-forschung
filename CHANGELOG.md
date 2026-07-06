@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.175.0 — Journey-Paket 2 Phase 1: „nächster Schritt" im Core + PreCheck-Formel (Juli 2026)
+
+MINOR — Die Handlungs-Formel „Phase → nächster Schritt" wird von der Home in den Core gehoben und lernt den **PreCheck-Stand** kennen. Erste Phase von Journey-Paket 2; gemeinsame Infrastruktur für Home UND die (in Phase 3 kommende) kombinierte Listen-Spalte. Additiv, abwärtskompatibel, keine Datenmigration.
+
+- **Verschiebung + `@deprecated`-Brücke:** `naechsterSchritt` + `NaechsterSchritt` leben jetzt in [src/core/utils/naechsterSchritt.ts](src/core/utils/naechsterSchritt.ts); [src/plugins/home/naechsterSchritt.ts](src/plugins/home/naechsterSchritt.ts) re-exportiert nur noch (`@deprecated`, Verweis Core). Home-Aufrufer ([MeineAntraegeSection.tsx](src/plugins/home/MeineAntraegeSection.tsx)) importieren aus dem Core.
+- **PreCheck-Erweiterung (abwärtskompatibel):** neue Signatur `naechsterSchritt(status, precheckStatus?)`. Neuer Helper `normalisierePrecheck(label)` klassifiziert das List-View-Label `precheck_status_label` (NICHT ein Roh-Status) → `'positiv' | 'negativ' | 'offen' | 'ohne'` (Wort-Match vor Roh-Code-Fallback, damit „PreCheck positiv - Verbund" nicht am Bindestrich als negativ zählt). Neue Regeln VOR den Status-Regeln, nur für nicht-terminale Anträge: negativ → „PreCheck-Ergebnis klären"; fehlend/ausstehend + Eingangs-Phase → „PreCheck durchführen". **Opt-in-Kontrakt:** ohne 2. Argument (`undefined`) exakt das Legacy-Verhalten; erst ein explizit übergebener Wert (auch `''`/`null`) aktiviert die PreCheck-Regeln. Home übergibt `precheck_status_label ?? ''`.
+- **`isTerminalStatus` + `TERMINAL_STATUS_CATEGORIES`** neu in [status-canonical.ts](src/core/utils/status-canonical.ts): Kategorie `abgeschlossen` ∪ `abgelehnt` (bewusst OHNE `bewilligt` — Begleitphase folgt). Einzelquelle für die PreCheck-Regeln und den Arbeitsvorrat/Archiv-Split (Phase 5).
+- **Threading:** `AntragVorgang` ([dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts)) trägt jetzt `precheck_status_label` (projiziert in `antragToVorgangLike`). Ergebnis (Mockup `liste-quickfilter.png`): frühe Anträge ohne PreCheck zeigen „PreCheck durchführen", mit positivem PreCheck „Vollständigkeit prüfen".
+- Tests: [naechsterSchritt.test.ts](src/core/utils/__tests__/naechsterSchritt.test.ts) verschoben + tabellengetrieben erweitert (PreCheck positiv/negativ/offen/ohne × Eingang/fortgeschritten/terminal; `normalisierePrecheck`-Matrix inkl. Bindestrich-Falle).
+
 ### v2.174.1 — Assistent-Verlauf: Anheften + Umbenennen (Juli 2026)
 
 PATCH — Das Verlauf-Dropdown des Suche-Assistenten ([ChatPanelHost.tsx](src/plugins/chat/ChatPanelHost.tsx)) bekommt die beiden Konversations-Aktionen zurück, die beim Umbau von der Vollbild-Sidebar zum kompakten Panel (v2.173.0) weggefallen waren. Rein additive UI-Verdrahtung bestehender Store-Methoden (`togglePin` / `renameConversation`, [store.ts](src/plugins/chat/store.ts)) — keine neuen Felder, kein Datenmodell-Change.

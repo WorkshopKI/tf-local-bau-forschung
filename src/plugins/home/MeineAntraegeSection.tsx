@@ -5,7 +5,7 @@ import { useNavigation } from '@/core/hooks/useNavigation';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getEingangAmpel, daysSinceEingang, AMPEL_COLOR, AMPEL_TOOLTIP } from '@/plugins/antraege/eingangAmpel';
-import { naechsterSchritt } from './naechsterSchritt';
+import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import type { AntragVorgang } from './useDashboardData';
 
 /**
@@ -117,8 +117,9 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens,
         const ageDays = daysSinceEingang(v);
         const ageLabel = ageDays !== null && ageDays >= 0 ? `vor ${ageDays} T` : null;
 
-        // Handlungs-Formel „Phase → Aktion" statt Status-Badge.
-        const sr = naechsterSchritt(v.status);
+        // Handlungs-Formel „Phase → Aktion" statt Status-Badge (inkl. PreCheck-Stand).
+        // `?? ''` = PreCheck-Kontext bewusst opt-in (leer ⇒ „PreCheck nicht vorhanden").
+        const sr = naechsterSchritt(v.status, v.precheck_status_label ?? '');
         const schrittText = sr ? (sr.aktion ? `${sr.phase} → ${sr.aktion}` : sr.phase) : '';
 
         const dot = ampel ? (

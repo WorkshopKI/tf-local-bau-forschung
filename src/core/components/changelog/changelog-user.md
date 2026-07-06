@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.175 — 2026-07
+
+### Verbesserungen
+- „Meine Anträge" auf der Startseite denkt den PreCheck mit: Ein früher Antrag ohne PreCheck zeigt jetzt „PreCheck durchführen", einer mit negativem PreCheck „PreCheck-Ergebnis klären" – so sehen Sie sofort, was als Nächstes ansteht, statt nur den Status.
+
 ## v2.174 — 2026-07
 
 ### Neu

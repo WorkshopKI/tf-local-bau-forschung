@@ -52,6 +52,10 @@ export type AntragVorgang = Vorgang & {
   /** Bewilligungsdatum (CSV `bewilligung_datum`), roh. Nur für den Ampel-Null-
    *  Guard (gesetzt ⇒ keine Ampel). */
   bewilligung_datum?: string;
+  /** PreCheck-Status-Label (List-View-Projektion `precheck_status_label`, z.B.
+   *  „PreCheck positiv - Verbund"). Speist die PreCheck-Regeln der Handlungs-
+   *  Formel `naechsterSchritt` in „Meine Anträge". */
+  precheck_status_label?: string;
 };
 
 export interface DashboardStats {
@@ -175,6 +179,9 @@ function antragToVorgangLike(
     tib_kuerz: typeof a.tib_kuerz === 'string' && a.tib_kuerz.trim().length > 0 ? a.tib_kuerz.trim() : undefined,
     antragsdatum,
     bewilligung_datum: typeof a.bewilligung_datum === 'string' ? a.bewilligung_datum : undefined,
+    precheck_status_label: typeof a.precheck_status_label === 'string' && a.precheck_status_label.trim().length > 0
+      ? a.precheck_status_label
+      : undefined,
   };
 }
 
