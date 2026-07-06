@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.179 — 2026-07
+
+### Verbesserungen
+- Der Tab **„Alle"** trennt jetzt aktive von abgeschlossenen Anträgen: oben Ihr **Arbeitsvorrat („In Arbeit")**, darunter das eingeklappte **Archiv („Abgeschlossen")** mit Anzahl und Kurzüberblick (z. B. „Schlussvermerk 128 · abgelehnt/zurückgez. 14"). Ein Klick klappt das Archiv auf oder zu. Die abgeschlossenen Anträge verstopfen so nicht mehr die Liste — sind aber jederzeit einen Klick entfernt.
+- **Beim Suchen** klappt das Archiv automatisch auf, wenn es Treffer enthält — so „verschwinden" gefundene Anträge nicht im zugeklappten Bereich.
+- Sortieren, Filtern und Gruppieren wirken weiterhin über beide Bereiche. Wählen Sie eine Gruppierung (z. B. nach Status), tritt diese an die Stelle der Arbeitsvorrat/Archiv-Aufteilung.
+
 ## v2.178 — 2026-07
 
 ### Verbesserungen

@@ -10,6 +10,16 @@ import {
   type AntragTableRow,
   type TableGroupingMode,
 } from './tableGrouping';
+import {
+  partitionArbeitsvorrat,
+  arbeitsvorratSectionOf,
+  archivAufschluesselung,
+  formatArchivAufschluesselung,
+  isArchivCollapsedEffective,
+  isArbeitsvorratView,
+} from './arbeitsvorrat';
+import { ArbeitsvorratSectionHeader } from './ArbeitsvorratSectionHeader';
+import { useArbeitsvorratCollapsed } from './useArbeitsvorratCollapsed';
 
 interface Props {
   filtered: AntragListItem[];
@@ -27,6 +37,19 @@ interface Props {
    *  der Tabellen-Ansicht (List/Karten nutzen direkt `filtered.length`). */
   onFilteredCountChange?: (n: number) => void;
 }
+
+/** Section-Key-Funktion pro Zeile (Status-Phase oder Arbeitsvorrat-Sektion) bzw.
+ *  `null` (keine Sektionierung). */
+type SectionOf = ((row: AntragTableRow) => string) | null;
+/** Archiv-Metadaten für den Arbeitsvorrat/Archiv-Split (nur View „Alle", ohne
+ *  aktive Gruppierung). `null` außerhalb dieses Falls. */
+type ArchivMeta = {
+  count: number;
+  inArbeitCount: number;
+  /** Effektiver Collapsed-Zustand (bei aktiver Suche mit Archiv-Treffern offen). */
+  collapsedEff: boolean;
+  breakdown: string;
+} | null;
 
 /** Band-Header für `Gruppiert: Status` in der Tabelle — gleiche Optik wie
  *  `StatusSectionHeader` der List-View, aber nicht-kollabierbar (eingebettet
@@ -74,6 +97,12 @@ export function AntraegeTable({
 }: Props): React.ReactElement {
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const verbundById = useAntraegeStore(s => s.verbundById);
+  // Arbeitsvorrat/Archiv-Split greift nur im „Alle"-Tab ohne aktive Gruppierung.
+  const activeView = useAntraegeStore(s => s.activeView);
+  const searchActive = useAntraegeStore(s => s.search.trim().length > 0);
+  const archivPersistedCollapsed = useArbeitsvorratCollapsed(s => s.archivCollapsed);
+  const toggleArchiv = useArbeitsvorratCollapsed(s => s.toggle);
+  const arbeitsvorratEnabled = isArbeitsvorratView(activeView, grouping);
   // Persistierte Spalten-Pixelbreiten (Resize via Drag-Handles der SortableTable).
   const { widths, setWidth } = useColumnWidths('teamflow_antraege_table_col_widths', {});
   // Persistierte Gesamt-Tabellenbreite (Griff am rechten Rand). null = Default
@@ -114,24 +143,54 @@ export function AntraegeTable({
   }, [filteredRows.length, onFilteredCountChange]);
 
   // Basis-Zeilen je Gruppierungs-Modus (vor Header-Sort + Slice).
-  const { allRows, sectionOf } = useMemo(() => {
+  const { allRows, sectionOf, archivMeta } = useMemo<{
+    allRows: AntragTableRow[];
+    sectionOf: SectionOf;
+    archivMeta: ArchivMeta;
+  }>(() => {
     if (grouping === 'verbund') {
-      return { allRows: buildVerbundTableRows(filteredRows, verbundById), sectionOf: null };
+      return { allRows: buildVerbundTableRows(filteredRows, verbundById), sectionOf: null, archivMeta: null };
     }
     if (grouping === 'status') {
       const built = buildStatusSectionRows(filteredRows);
-      return { allRows: built.rows, sectionOf: built.sectionOf };
+      return { allRows: built.rows, sectionOf: built.sectionOf, archivMeta: null };
     }
-    return { allRows: filteredRows, sectionOf: null };
-  }, [grouping, filteredRows, verbundById]);
+    if (arbeitsvorratEnabled) {
+      const { inArbeit, archiv } = partitionArbeitsvorrat(filteredRows);
+      // Sektionieren nur, wenn es überhaupt etwas zu archivieren gibt.
+      if (archiv.length > 0) {
+        // Bei leerem Arbeitsvorrat (nur terminale Anträge) das Archiv immer
+        // aufklappen — sonst zeigt die Tabelle „Keine Anträge" trotz Daten.
+        const collapsedEff = inArbeit.length === 0
+          ? false
+          : isArchivCollapsedEffective(archivPersistedCollapsed, searchActive, archiv.length);
+        // Eingeklapptes Archiv → seine Zeilen bleiben aus der Tabelle draußen
+        // (kein Pagination-Verbrauch); der Kopf wird als Streifen unter der
+        // Tabelle gerendert.
+        const rows = collapsedEff ? inArbeit : [...inArbeit, ...archiv];
+        return {
+          allRows: rows,
+          sectionOf: (r: AntragTableRow) => arbeitsvorratSectionOf(r),
+          archivMeta: {
+            count: archiv.length,
+            inArbeitCount: inArbeit.length,
+            collapsedEff,
+            breakdown: formatArchivAufschluesselung(archivAufschluesselung(archiv)),
+          },
+        };
+      }
+    }
+    return { allRows: filteredRows, sectionOf: null, archivMeta: null };
+  }, [grouping, arbeitsvorratEnabled, filteredRows, verbundById, archivPersistedCollapsed, searchActive]);
 
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(allRows, columns);
 
-  // Status-Modus: section-stabile Sortierung — Section-Reihenfolge bleibt, nur
-  // INNERHALB jeder Section wird nach der aktiven Spalte sortiert. (Der globale
-  // `sortedRows` von `useTableSort` würde die Sections zerreißen.)
+  // Sektionierte Modi (Status-Gruppierung ODER Arbeitsvorrat/Archiv): section-
+  // stabile Sortierung — Section-Reihenfolge bleibt, nur INNERHALB jeder Section
+  // wird nach der aktiven Spalte sortiert. (Der globale `sortedRows` von
+  // `useTableSort` würde die Sections zerreißen.)
   const orderedRows = useMemo(() => {
-    if (grouping !== 'status' || sectionOf === null) return sortedRows;
+    if (sectionOf === null) return sortedRows;
     if (!sortKey) return allRows;
     const col = columns.find(c => c.key === sortKey);
     if (!col) return allRows;
@@ -147,15 +206,33 @@ export function AntraegeTable({
       i = j;
     }
     return out;
-  }, [grouping, sectionOf, sortedRows, allRows, columns, sortKey, sortDirection]);
+  }, [sectionOf, sortedRows, allRows, columns, sortKey, sortDirection]);
 
   const rows = useMemo(() => orderedRows.slice(0, visibleRows), [orderedRows, visibleRows]);
   const hasMore = visibleRows < orderedRows.length;
 
-  const sectionProps = grouping === 'status' && sectionOf !== null
+  const sectionProps = sectionOf !== null
     ? {
-        sectionKeyOf: (r: AntragTableRow) => sectionOf(r) as string,
-        renderSectionHeader: (key: string, count: number) => <StatusBand label={key} count={count} />,
+        sectionKeyOf: (r: AntragTableRow) => sectionOf(r),
+        renderSectionHeader: (key: string, count: number): React.ReactNode => {
+          if (grouping === 'status') return <StatusBand label={key} count={count} />;
+          // Arbeitsvorrat/Archiv: eigene Bänder. Zähler kommen aus archivMeta
+          // (Gesamt der Sektion), nicht aus dem Slice-Count der SortableTable —
+          // sonst wüchse „ABGESCHLOSSEN · n" erst beim Scrollen. Das Archiv-Band
+          // in der Tabelle ist immer aufgeklappt (eingeklappt → Streifen unten).
+          if (key === 'archiv') {
+            return (
+              <ArbeitsvorratSectionHeader
+                section="archiv"
+                count={archivMeta?.count ?? count}
+                collapsed={false}
+                onToggle={toggleArchiv}
+                breakdown={archivMeta?.breakdown}
+              />
+            );
+          }
+          return <ArbeitsvorratSectionHeader section="in_arbeit" count={archivMeta?.inArbeitCount ?? count} />;
+        },
       }
     : {};
 
@@ -186,6 +263,19 @@ export function AntraegeTable({
       {hasMore ? (
         <div ref={sentinelRef} className="py-3 text-center text-[11px] text-[var(--tf-text-tertiary)]">
           Lade weitere Einträge …
+        </div>
+      ) : null}
+      {/* Eingeklapptes Archiv: Kopf-Streifen unter der Tabelle (seine Zeilen sind
+          bewusst nicht Teil der Tabelle → keine Pagination). Klick klappt auf. */}
+      {archivMeta?.collapsedEff && archivMeta.count > 0 ? (
+        <div className="px-3 py-2 mt-1 rounded-[10px]" style={{ border: '0.5px solid var(--tf-border)' }}>
+          <ArbeitsvorratSectionHeader
+            section="archiv"
+            count={archivMeta.count}
+            collapsed
+            onToggle={toggleArchiv}
+            breakdown={archivMeta.breakdown}
+          />
         </div>
       ) : null}
     </div>

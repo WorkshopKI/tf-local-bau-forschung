@@ -5,6 +5,20 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.179.0 — Journey-Paket 2 Phase 5: Arbeitsvorrat/Archiv-Split im „Alle"-Tab (Juli 2026)
+
+MINOR — Der „Alle"-Tab der Förderanträge-Liste ([liste-quickfilter.png]) mischt heute aktive Anträge mit längst abgeschlossenen; der Arbeitsvorrat verschwindet im Archiv-Rauschen. Neu: zwei Sektionen **In Arbeit** (nicht-terminal, oben) und **Abgeschlossen** (terminal, unten, standardmäßig eingeklappt) — in Listen- **und** Tabellen-Ansicht. Additiv, keine Datenmigration.
+
+- **Neue reine Sektionierungs-Schicht** ([arbeitsvorrat.ts](src/plugins/antraege/arbeitsvorrat.ts)): `arbeitsvorratSectionOf` (terminal → Archiv via `isTerminalStatus`, Kategorie `abgeschlossen` ∪ `abgelehnt`, **bewusst OHNE bewilligt** — nach der Bewilligung folgt die Begleitphase, der Antrag bleibt „in Arbeit"), `partitionArbeitsvorrat` (stabiler Zwei-Wege-Split), `archivAufschluesselung` + `formatArchivAufschluesselung` (Archiv-Kopf-Rechts „Schlussvermerk n · abgelehnt/zurückgez. m"), `isArchivCollapsedEffective` (Auto-Aufklappen bei aktiver Suche mit Archiv-Treffern — sonst wirken Treffer im eingeklappten Archiv „verschwunden") und das Gate `isArbeitsvorratView` (nur `alle` + Gruppierung `none`).
+- **Einklappbares Archiv:** eigener 1-Boolean-Store ([useArbeitsvorratCollapsed.ts](src/plugins/antraege/useArbeitsvorratCollapsed.ts), localStorage `teamflow_antraege_archiv_collapsed`, Default eingeklappt) + geteilter Header ([ArbeitsvorratSectionHeader.tsx](src/plugins/antraege/ArbeitsvorratSectionHeader.tsx), Optik wie `StatusSectionHeader`, **keine neuen Tokens**). Bewusst **nicht** `useStatusSectionCollapsed` (das ist per `StatusPhaseLabel` gekeyt + trägt eine Phase-Migration; der binäre Split hat andere Semantik und würde das Label „Abgeschlossen" kollidieren lassen).
+- **List-View** ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx) → `GroupedList`): Bänder „IN ARBEIT · n" + „ABGESCHLOSSEN · n"; Pagination läuft auf der umsortierten Gruppenliste (Arbeitsvorrat zuerst), eingeklapptes Archiv bleibt aus der Pagination draußen.
+- **Tabellen-View** ([AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)): Sektionierung über den bestehenden `sectionKeyOf`/`renderSectionHeader`-Pfad der `SortableTable` (section-stabile Header-Sortierung generalisiert von Status- auf beide Sektionsmodi). Eingeklapptes Archiv → seine Zeilen bleiben aus der Tabelle draußen (kein Pagination-Verbrauch, kein Endlos-Sentinel), der Kopf erscheint als Streifen unter der Tabelle.
+- **Vorrang-Regeln:** Aktive Gruppierung (Verbund/Status/NW) **ersetzt** die Arbeitsvorrat-Sektionierung (keine Verschachtelung). Ohne Archiv-Zeilen (z. B. „Alle" nur mit aktiven Anträgen) keine Sektion. Bei leerem Arbeitsvorrat (nur terminale Anträge) wird das Archiv erzwungen aufgeklappt.
+- **Abweichung:** die Karten-Ansicht (Tiles, „alles auf einen Blick") bleibt bewusst unsektioniert (Sektionsbänder würden das dichte Grid zerreißen); der Plan nennt nur Liste + Tabelle.
+- Tests: [arbeitsvorrat.test.ts](src/plugins/antraege/__tests__/arbeitsvorrat.test.ts) (Sektions-Zuordnung inkl. bewilligt→Arbeitsvorrat, Partition-Stabilität, Aufschlüsselung, Format, effektiver Collapsed-Zustand inkl. Such-Auto-Aufklappen, View-/Gruppierungs-Gate).
+
+[liste-quickfilter.png]: _reference/journey-paket-2/liste-quickfilter.png
+
 ### v2.178.0 — Journey-Paket 2 Phase 4: relative Frist-Spalte + View-Default-Sortierung (Juli 2026)
 
 MINOR — Die Frist-Spalte der Förderanträge-Tabelle ([liste-quickfilter.png]) zeigt statt roher Tage (`+45d` / `-2807d`) eine **relative, ampel-gefärbte** Angabe (`in 45 T` / `seit 12 T` / `heute` + farbiger Punkt), und die View-Defaults sortieren jetzt sinnvoll pro Tab. Additiv, keine Datenmigration.

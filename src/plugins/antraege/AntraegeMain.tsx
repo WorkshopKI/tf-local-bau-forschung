@@ -23,6 +23,15 @@ import { sortDisablesGrouping, GROUPING_OPTIONS } from './sort';
 import { TABLE_GROUPING_OPTIONS, type TableGroupingMode } from './tableGrouping';
 import { StatusSectionHeader } from './StatusSectionHeader';
 import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
+import { ArbeitsvorratSectionHeader } from './ArbeitsvorratSectionHeader';
+import { useArbeitsvorratCollapsed } from './useArbeitsvorratCollapsed';
+import {
+  isArbeitsvorratView,
+  isArchivCollapsedEffective,
+  arbeitsvorratSectionOf,
+  archivAufschluesselung,
+  formatArchivAufschluesselung,
+} from './arbeitsvorrat';
 import { AntraegeTable } from './AntraegeTable';
 import { CardGrid } from './CardGrid';
 import { ColumnPicker } from '@/components/data-table';
@@ -417,6 +426,10 @@ function GroupedList({
   const userGroupingMode = useAntraegeStore(s => getEffectiveGroupingMode(s.activeView, s.groupingByView));
   const netzwerkNames = useAntraegeStore(s => s.netzwerkNameById);
   const verbundById = useAntraegeStore(s => s.verbundById);
+  const activeView = useAntraegeStore(s => s.activeView);
+  const searchActive = useAntraegeStore(s => s.search.trim().length > 0);
+  const archivPersistedCollapsed = useArbeitsvorratCollapsed(s => s.archivCollapsed);
+  const toggleArchiv = useArbeitsvorratCollapsed(s => s.toggle);
   // Antragsteller-Sort überschreibt die User-Wahl: gleicher Antragsteller
   // soll direkt nebeneinander stehen, nicht durch Cluster-Header zerrissen.
   const effectiveMode: GroupingMode = sortDisablesGrouping(sortKey) ? 'none' : userGroupingMode;
@@ -429,9 +442,44 @@ function GroupedList({
     () => buildAntragGroups(filtered, { mode: effectiveMode, netzwerkNames, verbundById }),
     [filtered, effectiveMode, netzwerkNames, verbundById],
   );
-  const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
-  const hasMoreGroups = groups.length < allGroups.length;
   const collapsedSet = useStatusSectionCollapsed(s => s.collapsed);
+
+  // Arbeitsvorrat/Archiv-Split greift nur im „Alle"-Tab ohne aktive Gruppierung
+  // (Status/NW ersetzen die Sektionierung). In `none`-Modus ist jede Gruppe ein
+  // Solo-Antrag → Sektions-Zuordnung über das einzige TV.
+  const arbeitsvorratEnabled = isArbeitsvorratView(activeView, effectiveMode);
+  const inArbeitGroups = useMemo(
+    () => (arbeitsvorratEnabled ? allGroups.filter(g => arbeitsvorratSectionOf(g.tvs[0]!) === 'in_arbeit') : []),
+    [arbeitsvorratEnabled, allGroups],
+  );
+  const archivGroups = useMemo(
+    () => (arbeitsvorratEnabled ? allGroups.filter(g => arbeitsvorratSectionOf(g.tvs[0]!) === 'archiv') : []),
+    [arbeitsvorratEnabled, allGroups],
+  );
+  const arbeitsvorratActive = arbeitsvorratEnabled && archivGroups.length > 0;
+  const inArbeitTvCount = useMemo(() => inArbeitGroups.reduce((s, g) => s + g.tvs.length, 0), [inArbeitGroups]);
+  const archivTvCount = useMemo(() => archivGroups.reduce((s, g) => s + g.tvs.length, 0), [archivGroups]);
+  const archivBreakdown = useMemo(
+    () => (arbeitsvorratActive ? formatArchivAufschluesselung(archivAufschluesselung(archivGroups.flatMap(g => g.tvs))) : ''),
+    [arbeitsvorratActive, archivGroups],
+  );
+  // Bei leerem Arbeitsvorrat (nur terminale Anträge im „Alle"-Tab) das Archiv
+  // immer aufklappen — sonst wäre die Liste optisch leer.
+  const archivCollapsedEff = arbeitsvorratActive
+    ? (inArbeitGroups.length === 0
+        ? false
+        : isArchivCollapsedEffective(archivPersistedCollapsed, searchActive, archivTvCount))
+    : false;
+
+  // Pagination auf der (ggf. arbeitsvorrat-umsortierten) Gruppenliste. Bei
+  // eingeklapptem Archiv bleiben dessen Gruppen aus der Pagination draußen.
+  const { groups, hasMoreGroups } = useMemo(() => {
+    const ordered = arbeitsvorratActive
+      ? (archivCollapsedEff ? inArbeitGroups : [...inArbeitGroups, ...archivGroups])
+      : allGroups;
+    const g = takeGroupsUntil(ordered, visibleRows);
+    return { groups: g, hasMoreGroups: g.length < ordered.length };
+  }, [arbeitsvorratActive, archivCollapsedEff, inArbeitGroups, archivGroups, allGroups, visibleRows]);
 
   const renderGroup = (g: AntragGroup): React.ReactElement => {
     const isNetzwerkSuper = g.netzwerkId !== null && (g.subGroups?.length ?? 0) > 0;
@@ -475,6 +523,31 @@ function GroupedList({
               )}
             </div>
           ))}
+        </div>
+      ) : arbeitsvorratActive ? (
+        <div className="flex flex-col gap-3">
+          {inArbeitGroups.length > 0 ? (
+            <div>
+              <ArbeitsvorratSectionHeader section="in_arbeit" count={inArbeitTvCount} />
+              <div className="flex flex-col gap-1 mt-1.5">
+                {groups.filter(g => arbeitsvorratSectionOf(g.tvs[0]!) === 'in_arbeit').map(renderGroup)}
+              </div>
+            </div>
+          ) : null}
+          <div>
+            <ArbeitsvorratSectionHeader
+              section="archiv"
+              count={archivTvCount}
+              collapsed={archivCollapsedEff}
+              onToggle={toggleArchiv}
+              breakdown={archivBreakdown}
+            />
+            {archivCollapsedEff ? null : (
+              <div className="flex flex-col gap-1 mt-1.5">
+                {groups.filter(g => arbeitsvorratSectionOf(g.tvs[0]!) === 'archiv').map(renderGroup)}
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-1">
