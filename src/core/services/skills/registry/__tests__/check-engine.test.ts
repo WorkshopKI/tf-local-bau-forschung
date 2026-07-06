@@ -145,6 +145,22 @@ describe('runRegelChecks — richtung (Auto-Retry-Signal, eine Quelle)', () => {
   });
 });
 
+describe('runRegelChecks — messwert (Ist-Wert für Korrektur/Anzeige, eine Quelle)', () => {
+  it('zeichen_max: Ist = Zeichenzahl (auch bei ok)', () => {
+    expect(runRegelChecks('x'.repeat(20), [regel('zeichen_max', { max: 10 })])[0]!.messwert).toBe(20);
+    expect(runRegelChecks('kurz', [regel('zeichen_max', { max: 10 })])[0]!.messwert).toBe(4);
+  });
+  it('wortanzahl/satzanzahl/absatz_min: Ist = gemessene Anzahl', () => {
+    expect(runRegelChecks('ein zwei drei', [regel('wortanzahl', { min: 3, max: 5 })])[0]!.messwert).toBe(3);
+    expect(runRegelChecks(NEUN_SAETZE, [regel('satzanzahl', { min: 1, max: 3 })])[0]!.messwert).toBe(9);
+    expect(runRegelChecks('Nur ein Absatz.', [regel('absatz_min', { min: 2 })])[0]!.messwert).toBe(1);
+  });
+  it('Nicht-Größen-Regeln tragen keinen messwert', () => {
+    expect(runRegelChecks('Ziele:\n- Punkt eins', [regel('keine_aufzaehlungen', {})])[0]!.messwert).toBeUndefined();
+    expect(runRegelChecks('irgendwas', [regel('verbotenes_muster', { muster: ['x'] })])[0]!.messwert).toBeUndefined();
+  });
+});
+
 describe('runRegelChecks — Aktiv/Schweregrad/Unbekannt', () => {
   it('überspringt deaktivierte Regeln', () => {
     const results = runRegelChecks('Ein Satz.', [regel('satzanzahl', { min: 8, max: 12 }, { aktiv: false })]);

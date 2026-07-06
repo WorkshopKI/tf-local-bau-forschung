@@ -23,6 +23,11 @@ export {
   type AmpelLevel,
 } from './kategorien';
 export {
+  regelKorrekturAnweisung,
+  regelLimit,
+  type RegelKorrektur,
+} from './korrektur';
+export {
   getSkillById,
   resolveRegeln,
   skillsUsingRegel,

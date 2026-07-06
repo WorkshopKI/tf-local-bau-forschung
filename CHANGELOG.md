@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.184.0 — Journey-Paket 3 Phase 1: Regel→Korrektur-Ableitung + Messwert (Juli 2026)
+
+MINOR — Substrat für das Gutachten-Prüfpanel ([gutachten-pruefpanel.png]): aus einem verletzten Check + seiner Regel deterministisch ableiten, OB und WIE die KI korrigieren kann. Reine Funktion, kein LLM, keine UI-Änderung (Verdrahtung folgt in Phase 3). Additiv, keine Datenmigration.
+
+- **Neue reine Ableitung** ([korrektur.ts](src/core/services/skills/registry/korrektur.ts), Stil-Vorbild `kategorien.ts`): `regelKorrekturAnweisung(check, regel): RegelKorrektur | null` bildet einen verletzten `CheckResult` + seine `QualitaetsRegel` auf einen **bestehenden** `SkillModifierKey` (`neu`/`kuerzer`/`laenger`) + deutsche Zusatz-Anweisung mit Zielwert (aus `regel.params`) + Ist-Wert (aus `check.messwert`) + Button-Label ab. Größen-Regeln richtungsabhängig (`zu_lang`→kürzen, `zu_kurz`→erweitern); `satzlaenge_max`/`pflicht_anfang`/`keine_aufzaehlungen`→`neu`; **`verbotenes_muster`→`null`** (bekommt in Phase 4 „Anzeigen", Stil-Entscheidung bleibt beim Gutachter); unbekannte Typen / `pruefart` `fachlich`|`administrativ` / fehlende Pflicht-Parameter → `null` (nie werfen). `regelLimit(regel, richtung?)` liefert den Zielwert für die Mono-Anzeige „{ist} / {limit}".
+- **Messwert additiv in der Check-Engine** ([check-engine.ts](src/core/services/skills/registry/check-engine.ts)): `CheckResult.messwert?: number` (+ internes `CheckOutcome`-Feld) — die Größen-Handler (`zeichen_max`/`wortanzahl`/`satzanzahl`/`absatz_min`) befüllen den gemessenen Ist-Wert (auch bei `ok`); `runRegelChecks` spreadt ihn wie `richtung`. **Kein Schema-Bump**, kein `detail`-String-Parsen mehr nötig, alte gespeicherte Checks bleiben gültig. `absatz_min` bleibt bewusst **ohne** `richtung` (kein Eingriff in `chooseRetryModifier`); die Korrektur-Ableitung behandelt es als Min-Regel per Typ.
+- **Contract-Regel (neu):** die Zusatz-Anweisung ist eine ZUSATZ-Anweisung auf dem bestehenden Modifier-Pfad — hier werden **keine** neuen Modifier-Keys erfunden.
+- Tests: [korrektur.test.ts](src/core/services/skills/registry/__tests__/korrektur.test.ts) (tabellengetrieben je Typ × zu_lang/zu_kurz/ok × fehlende Params → null, Wortlaut mit Zielwerten; `regelLimit`), Messwert-Assertions in [check-engine.test.ts](src/core/services/skills/registry/__tests__/check-engine.test.ts).
+
+[gutachten-pruefpanel.png]: _reference/journey-paket-3/gutachten-pruefpanel.png
+
 ### v2.183.0 — Anfragen: Antwort formatiert kopieren + Ein-Klick-Mail, „Glätten" raus (Juli 2026)
 
 MINOR — Die Antwort-/Finalisierungs-Leiste der Anfrage-Antwort ([AntwortView.tsx](src/plugins/anfragen/AntwortView.tsx)) ist auf den echten Outlook-Workflow zugeschnitten: die externe ZIM-FAQ-Antwort kommt als **Markdown**, wurde bisher aber nur als **Plain-Text** kopiert (rohe `**`-Marker in Outlook), und die Direkt-Mail scheiterte quasi immer an der mailto-Body-Grenze. Additiv, keine Datenmigration.

@@ -37,6 +37,13 @@ export interface CheckResult {
   /** Richtung eines Größen-Verstoßes (nur bei Größen-Regeln, nur wenn `level !== 'ok'`). */
   richtung?: CheckRichtung;
   /**
+   * Gemessener Ist-Wert einer Größen-Regel (Zeichen/Wörter/Sätze/Absätze) — additiv,
+   * nur bei Größen-Regeln gesetzt. Erlaubt UI + Korrektur-Ableitung (`regelKorrektur-
+   * Anweisung`) den Ist-Wert OHNE Detail-String-Parsen; der Zielwert kommt aus
+   * `regel.params` (`regelLimit`). Bewusst auch bei `ok` gesetzt (reine Kennzahl).
+   */
+  messwert?: number;
+  /**
    * Effektive Kategorie der erzeugenden Regel (additiv) — beim Lauf gestempelt,
    * damit das UI nach Art gruppieren kann, OHNE je Check die Registry abzufragen.
    */
@@ -131,6 +138,8 @@ interface CheckOutcome {
   detail?: string;
   /** Richtung des Verstoßes (nur Größen-Regeln) — propagiert in `CheckResult.richtung`. */
   richtung?: CheckRichtung;
+  /** Gemessener Ist-Wert (nur Größen-Regeln) — propagiert in `CheckResult.messwert`. */
+  messwert?: number;
 }
 
 interface RegelHandler {
@@ -248,6 +257,7 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       return {
         ok: len <= max,
         label: `Zeichen ${len} / max ${max}`,
+        messwert: len,
         ...(len > max ? { detail: `${len - max} Zeichen über dem Limit — kürzen.`, richtung: 'zu_lang' } : {}),
       };
     },
@@ -265,6 +275,7 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       return {
         ok: !tooFew && !tooMany,
         label: `Wortanzahl ${count} (${range})`,
+        messwert: count,
         ...(tooFew
           ? { detail: 'Zu wenige Wörter — erweitern.', richtung: 'zu_kurz' }
           : tooMany
@@ -291,6 +302,7 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       return {
         ok,
         label: `Satzanzahl ${count} (${min}–${max})`,
+        messwert: count,
         ...(ok
           ? {}
           : count < min
@@ -396,6 +408,7 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       return {
         ok: count >= min,
         label: `Absätze ${count} (min ${min})`,
+        messwert: count,
         ...(count < min ? { detail: `Nur ${count} ${count === 1 ? 'Absatz' : 'Absätze'} — mindestens ${min} erforderlich.` } : {}),
       };
     },
@@ -448,6 +461,7 @@ export function runRegelChecks(finalerText: string, regeln: QualitaetsRegel[]): 
       kategorie: effektiveKategorie(regel),
       ...(outcome.detail ? { detail: outcome.detail } : {}),
       ...(outcome.richtung && !outcome.ok ? { richtung: outcome.richtung } : {}),
+      ...(outcome.messwert !== undefined ? { messwert: outcome.messwert } : {}),
     });
   }
   return results;
