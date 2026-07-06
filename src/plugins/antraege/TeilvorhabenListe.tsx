@@ -1,0 +1,99 @@
+/**
+ * TEILVORHABEN-Liste der Verbund-Detailseite (aus `VerbundDetail` herausgelöst,
+ * Journey-Paket 2 Phase 7). Expandable Rows mit Inline-`TvDetailBlock`; Rolle
+ * (Konsortialführer/Verbundpartner) per Netzwerk-Heuristik. Reiner Präsentations-
+ * baustein — der offene TV + die Toggles kommen vom Aufrufer.
+ */
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import type { Antrag } from '@/core/services/csv/types';
+import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
+import { isNetzwerkLead } from './netzwerk';
+import { TvDetailBlock } from './TvDetailBlock';
+
+/** Zuwendung-CSV-Spalten folgen später; bis dahin Placeholder. */
+const ZUWENDUNG_PLACEHOLDER = 'wird noch ergänzt';
+
+function strOrNull(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t.length === 0 ? null : t;
+}
+
+/** TV-Rolle für die Anzeige. Heuristik: Netzwerk-Lead (Suffix 01/02 + vb_phase
+ *  1/2) oder — ohne expliziten Lead — der erste TV → Konsortialführer; sonst
+ *  Verbundpartner. */
+function tvRolle(tv: Antrag, idx: number, sorted: Antrag[]): string {
+  if (isNetzwerkLead(tv)) return 'Konsortialführer';
+  const anyLead = sorted.some(t => isNetzwerkLead(t));
+  if (!anyLead && idx === 0) return 'Konsortialführer';
+  return 'Verbundpartner';
+}
+
+interface Props {
+  tvs: Antrag[];
+  expandedTvAz: string | null;
+  onToggle: (aktenzeichen: string) => void;
+  onOpenAntrag: (aktenzeichen: string) => void;
+}
+
+export function TeilvorhabenListe({ tvs, expandedTvAz, onToggle, onOpenAntrag }: Props): React.ReactElement {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {tvs.map((tv, idx) => {
+        const tvAntragsteller = strOrNull(tv.antragsteller) ?? '—';
+        const tvStatus = strOrNull(tv.status);
+        const rolle = tvRolle(tv, idx, tvs);
+        const isExpanded = expandedTvAz === tv.aktenzeichen;
+        return (
+          <div key={tv.aktenzeichen}>
+            <button
+              type="button"
+              onClick={() => onToggle(tv.aktenzeichen)}
+              aria-expanded={isExpanded}
+              className={`w-full text-left rounded-[var(--tf-radius)] px-3 py-2 transition-colors ${
+                isExpanded ? 'bg-[var(--tf-primary)]/5' : 'hover:bg-[var(--tf-bg-secondary)]'
+              }`}
+              style={{
+                border: '0.5px solid var(--tf-border)',
+                borderLeftWidth: isExpanded ? '2px' : '0.5px',
+                borderLeftColor: isExpanded ? 'var(--tf-primary)' : 'var(--tf-border)',
+              }}
+            >
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="shrink-0 text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] tabular-nums w-8 pt-0.5">
+                  TV {idx + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium text-[var(--tf-text)] truncate" title={tvAntragsteller}>
+                    {tvAntragsteller}
+                  </div>
+                  <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
+                    {rolle} · <span className="font-mono">{tv.aktenzeichen}</span>
+                    {' '}· Zuwendung: {ZUWENDUNG_PLACEHOLDER}
+                  </div>
+                </div>
+                {tvStatus ? (
+                  <Badge
+                    variant={getStatusVariant(tvStatus)}
+                    className="shrink-0 min-w-[100px] justify-center whitespace-nowrap"
+                  >
+                    {getStatusLabel(tvStatus)}
+                  </Badge>
+                ) : null}
+                <span className="shrink-0 text-[var(--tf-text-tertiary)] pt-0.5">
+                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </span>
+              </div>
+            </button>
+            {isExpanded ? (
+              <div className="mt-3 mb-3 ml-3 pl-4 pb-2" style={{ borderLeft: '2px solid var(--tf-primary)' }}>
+                <TvDetailBlock aktenzeichen={tv.aktenzeichen} onOpenAntrag={onOpenAntrag} />
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

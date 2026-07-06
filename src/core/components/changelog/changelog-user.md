@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.181 — 2026-07
+
+### Verbesserungen
+- Die **Verbund-Detailseite** zeigt jetzt direkt unter dem Kopf **Fortschritts-Karten** für Gutachten und Nachforderung: auf einen Blick, wie viele Abschnitte freigegeben bzw. wie viele Teilvorhaben versendet sind, mit Sprung-Button direkt in die Bearbeitung. Karten erscheinen nur, wenn das jeweilige Thema für den Antrag relevant ist — keine leeren Platzhalter. Die Nachforderungs-Karte zeigt zusätzlich die Frist.
+- Die **Datenbereiche** (Antragsdaten & Verbundpartner, Teilvorhaben, Alle Felder, Historie) sind jetzt **eingeklappte Zeilen** mit einer kurzen Vorschau rechts (z. B. „Symate GmbH · 2 weitere" oder „zuletzt 22.06."). So passt die ganze Seite kompakt auf einen Blick; jeder Bereich lässt sich bei Bedarf aufklappen. Einmal gewählte Auf-/Zu-Zustände bleiben erhalten.
+
 ## v2.180 — 2026-07
 
 ### Verbesserungen

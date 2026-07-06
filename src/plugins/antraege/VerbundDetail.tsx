@@ -1,35 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { X, ChevronDown, ChevronRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { useStorage } from '@/core/hooks/useStorage';
-import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
-import {
-  getAntrag,
-  getVerbund,
-  listAntraegeByVerbund,
-  getVerbundHistoryByVerbund,
-  loadSchema,
-  listSchemas,
-} from '@/core/services/csv';
-import { getCanonicalLabel } from '@/core/services/csv/constants';
-import type { Antrag, Verbund, VerbundHistorieEntry, CsvSchema } from '@/core/services/csv/types';
-import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
+import { X } from 'lucide-react';
+import { getStatusLabel } from '@/core/utils/status-mappings';
 import { dominantStatus } from './groupAggregates';
-import { isNetzwerkLead } from './netzwerk';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { VerbundAlleFelder } from './VerbundAlleFelder';
 import { VerbundGlance, VerbundPartnerTabelle } from './alleFelder';
+import { verbundFelderStats } from './alleFelder/verbundMerge';
 import { VerbundKopf } from './VerbundKopf';
+import { CollapsibleDataSection } from './CollapsibleDataSection';
+import { TeilvorhabenListe } from './TeilvorhabenListe';
+import { VerbundHistorie } from './VerbundHistorie';
+import { ArtefaktLeiste } from './artefakte/ArtefaktLeiste';
+import { ArtefaktBreadcrumb } from './ArtefaktBreadcrumb';
+import { statusZuStepperPosition, STEPPER_STATIONS } from './statusZuStepperPosition';
 import { TvDetailBlock } from './TvDetailBlock';
 import { findFieldValue } from './fieldLookup';
 import { readXsw } from './xsw';
-import {
-  isPseudoVerbundId,
-  aktenzeichenFromPseudoVerbundId,
-  buildPseudoVerbund,
-  buildVerbundFromTeilantraege,
-} from './pseudoVerbund';
+import { isPseudoVerbundId, aktenzeichenFromPseudoVerbundId } from './pseudoVerbund';
+import { useVerbundDetailData } from './useVerbundDetailData';
 import { useAntraegeStore } from './store';
 import { useUnterprogrammLabels } from './useUnterprogrammLabels';
 import { findAbgelehnteVorgaenger } from './vorgaengerAntraege';
@@ -56,7 +45,7 @@ interface Props {
   onOpenAntrag: (aktenzeichen: string) => void;
 }
 
-/** Lesebreite-Cap für die Tabellen-/Lese-Sektionen (Header, Glance, Partner,
+/** Lesebreite-Cap für die Lese-/Daten-Sektionen (Kopf, Glance, Partner,
  *  Teilvorhaben, „Alle Felder", Historie). LINKSBÜNDIG (kein `mx-auto`) → gleiche
  *  linke Flucht wie die vollbreiten Texten-Werkstätten (Gutachten/NF). Cap-Wert =
  *  Handoff-Breite (`_design/handoff/alle-felder/felder.css` `.af-wrap`). */
@@ -68,51 +57,32 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
-/** TV-Rolle für die TEILVORHABEN-Anzeige. Heuristik:
- *  - Netzwerk-Lead (Suffix 01/02 + vb_phase 1/2) → Konsortialführer
- *  - Erster TV in der Lead-First-Sortierung, falls kein expliziter Netzwerk-Lead → Konsortialführer
- *  - Alle anderen → Verbundpartner */
-function tvRolle(tv: Antrag, idx: number, sorted: Antrag[]): string {
-  if (isNetzwerkLead(tv)) return 'Konsortialführer';
-  const anyLead = sorted.some(t => isNetzwerkLead(t));
-  if (!anyLead && idx === 0) return 'Konsortialführer';
-  return 'Verbundpartner';
-}
-
 export function VerbundDetail({
   verbundId,
   initialExpandedTvAz,
   onClose,
   onOpenAntrag,
 }: Props): React.ReactElement {
-  const storage = useStorage();
   // Deep-Link aus der Home-„Weitermachen"-Karte: `ziel` (gutachten|nf) scrollt
   // zur Sektion, `abschnitt` (nur GA) springt den Schritt (an GutachtenSection
-  // durchgereicht). Query-Param — überlebt Liste-/URL-Navigation.
-  const [searchParams] = useSearchParams();
+  // durchgereicht). Query-Param — überlebt Liste-/URL-Navigation. `setSearchParams`
+  // treibt den „Weiter bei X"-Sprung der Artefakt-Leiste (setzt `abschnitt`).
+  const [searchParams, setSearchParams] = useSearchParams();
   const zielParam = searchParams.get('ziel');
   const abschnittParam = searchParams.get('abschnitt') ?? undefined;
   // In-Memory-Slim-Liste des Programms — Quelle für die Vorgänger-Suche.
   const allAntraege = useAntraegeStore(s => s.antraege);
-  const [verbund, setVerbund] = useState<Verbund | null>(null);
-  const [antraege, setAntraege] = useState<Antrag[]>([]);
-  const [history, setHistory] = useState<VerbundHistorieEntry[]>([]);
-  const [schemas, setSchemas] = useState<CsvSchema[]>([]);
-  const [sourceNames, setSourceNames] = useState<Record<string, string>>({});
+
+  const isPseudo = isPseudoVerbundId(verbundId);
+  // Daten-Schicht: Verbund + TVs + Historie + Schemas (bzw. Pseudo-Verbund).
+  const { verbund, antraege, history, schemas, sourceNames } = useVerbundDetailData(verbundId, isPseudo);
+
   const [historyField, setHistoryField] = useState<string | null>(null);
-  // Kompakt-Layout (v2.110): Kurzbeschreibung-Expand + aktiver Sprung-Nav-Eintrag.
+  // Kompakt-Layout: Kurzbeschreibung-Expand im Kopf.
   const [kbOpen, setKbOpen] = useState(false);
-  const [activeJump, setActiveJump] = useState<string | null>(null);
-  // Einklappbare Abschnitte (persistiert, Default offen): die „Antragsdaten"
-  // (Stammdaten + Workflow + Teilvorhaben) und die Verbund-Historie. Erlaubt es,
-  // beim Texten (Gutachten/NF) gezielt Platz freizuräumen.
-  const [antragsdatenOpen, toggleAntragsdaten] = useCollapsedSection('verbund_antragsdaten_collapsed');
-  const [historieOpen, toggleHistorie] = useCollapsedSection('verbund_historie_collapsed');
   // Unterprogramm-Labels (Code → Name) fuer die Stammdaten-Anzeige — statt der
   // nackten Nummer den sprechenden Namen. Hook vor dem fruehen Return halten.
   const unterprogrammLabels = useUnterprogrammLabels(antraege[0]?.programm_id ?? null);
-
-  const isPseudo = isPseudoVerbundId(verbundId);
 
   // Default-Expansion: pseudo → automatisch der einzige TV (sonst waere die
   // Detailseite leer, weil die Stammdaten bei pseudo erst im TV-EckdatenCard
@@ -139,83 +109,6 @@ export function VerbundDetail({
     setExpandedTvAz(isErstaufruf ? null : initialExpandedTvAz ?? null);
   }, [verbundId, initialExpandedTvAz, isPseudo]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSchemasFor(tvs: Antrag[]): Promise<void> {
-      if (tvs.length === 0 || cancelled) return;
-      const lead = tvs[0]!;
-      const ids = new Set<string>();
-      for (const tv of tvs) {
-        for (const sid of Object.values(tv._field_sources ?? {})) ids.add(sid);
-      }
-      const names: Record<string, string> = {};
-      const loaded: CsvSchema[] = [];
-      for (const id of ids) {
-        const s = await loadSchema(storage.idb, id);
-        if (s) {
-          names[id] = s.csv_source_name;
-          loaded.push(s);
-        }
-      }
-      const all = await listSchemas(storage.idb, lead.programm_id);
-      if (cancelled) return;
-      const byId = new Map<string, CsvSchema>();
-      for (const s of all) byId.set(s.id, s);
-      for (const s of loaded) byId.set(s.id, s);
-      setSourceNames(names);
-      setSchemas([...byId.values()]);
-    }
-
-    (async () => {
-      if (isPseudo) {
-        // Standalone-Antrag: synthetischer Verbund, einziger TV expandiert.
-        const az = aktenzeichenFromPseudoVerbundId(verbundId);
-        const a = await getAntrag(storage.idb, az);
-        if (cancelled) return;
-        if (!a) {
-          setVerbund(null);
-          setAntraege([]);
-          setHistory([]);
-          return;
-        }
-        setVerbund(buildPseudoVerbund(a));
-        setAntraege([a]);
-        setHistory([]);
-        await loadSchemasFor([a]);
-        return;
-      }
-
-      const v = await getVerbund(storage.idb, verbundId);
-      const a = await listAntraegeByVerbund(storage.idb, verbundId);
-      const h = await getVerbundHistoryByVerbund(storage.idb, verbundId);
-      if (cancelled) return;
-      // Lead-First-Sort: Netzwerk-Lead-TVs (Suffix 01/02 + vb_phase 1/2) zuerst,
-      // dann nach Aktenzeichen aufsteigend.
-      const sorted = [...a].sort((x, y) => {
-        const xLead = isNetzwerkLead(x);
-        const yLead = isNetzwerkLead(y);
-        if (xLead !== yLead) return xLead ? -1 : 1;
-        return x.aktenzeichen.localeCompare(y.aktenzeichen);
-      });
-      // Der `verbuende`-Store ist nur ein abgeleiteter Aggregat-Cache der
-      // Anträge. Fehlt der Cache-Record (leerer/veralteter Store, Bug-Klasse
-      // Cold-Start-Refresh), die TVs sind aber da → Header aus den TVs
-      // synthetisieren statt „nicht gefunden". `dominantStatus`/Lead-Fallbacks
-      // weiter unten füllen Status/Akronym/Titel.
-      if (!v && sorted.length > 0) {
-        console.warn(
-          `[verbund-detail] verbuende-Cache-Record für ${verbundId} fehlt — Header aus ${sorted.length} TV(s) abgeleitet (Cache leer/veraltet)`,
-        );
-      }
-      setVerbund(v ?? (sorted.length > 0 ? buildVerbundFromTeilantraege(verbundId, sorted) : null));
-      setAntraege(sorted);
-      setHistory(h.sort((x, y) => y.geaendert_am.localeCompare(x.geaendert_am)));
-      await loadSchemasFor(sorted);
-    })();
-    return () => { cancelled = true; };
-  }, [verbundId, storage.idb, isPseudo]);
-
   // Deep-Link-Scroll: nach dem Laden einmalig zur Ziel-Sektion scrollen. Best-
   // effort (Anker fehlt bei deaktiviertem Flag → No-Op); pro (Verbund, Ziel) nur
   // einmal, damit ein Re-Render nicht erneut wegscrollt.
@@ -232,6 +125,9 @@ export function VerbundDetail({
   }, [verbund, verbundId, zielParam]);
 
   const historyCounts = useMemo<Record<string, number>>(() => ({}), []);
+
+  // Feld-Kennzahlen für die Kontext-Vorschau der kollabierten „Alle Felder"-Sektion.
+  const felderStats = useMemo(() => verbundFelderStats(antraege, schemas), [antraege, schemas]);
 
   // Frühere abgelehnte/zurückgezogene Einreichungen desselben Kurznamens
   // (klammer-tolerant). Hook läuft unbedingt (vor dem Early-Return), guardet
@@ -272,74 +168,62 @@ export function VerbundDetail({
   const unterprogramm = unterprogrammCode
     ? unterprogrammLabels.get(unterprogrammCode) ?? unterprogrammCode
     : null;
-  // Zuwendung-CSV-Spalten folgen spaeter; bis dahin Placeholder. Verbund-
-  // Aggregat soll Summe ueber alle TVs werden, pro TV der einzelne Wert.
-  const zuwendungPlaceholder = 'wird noch ergänzt';
 
-  // Verbund-Kurzbeschreibung aus dem Lead-TV. `vb_inhalt` (CSV-Spalte
-  // VB_INHALT, Label "Inhalt / Kurzzusammenfassung") ist auf Verbund-Ebene
-  // i.d.R. identisch ueber alle TVs hinweg — Lead-Wert reicht. TvDetailBlock
-  // rendert das Feld nicht mehr, um Duplikation zu vermeiden.
+  // Verbund-Kurzbeschreibung aus dem Lead-TV. `vb_inhalt` (CSV-Spalte VB_INHALT,
+  // Label "Inhalt / Kurzzusammenfassung") ist auf Verbund-Ebene i.d.R. identisch
+  // über alle TVs — Lead-Wert reicht.
   const vorhabenInhalt = lead ? strOrNull(findFieldValue(lead, [
     'vb_inhalt', 'vb inhalt', 'vorhaben_inhalt', 'vorhabeninhalt', 'beschreibung', 'kurzbeschreibung',
     'inhalt_kurzzusammenfassung', 'kurzzusammenfassung',
   ])) : null;
 
-  // Stepper-Daten: der Kopf-Stepper ist Verbund-Ebene (amtliches Aggregat),
-  // unabhängig davon, welcher TV in der Liste gerade expandiert ist.
+  // Kopf-Stepper: Verbund-Ebene (amtliches Aggregat), unabhängig vom expandierten TV.
   const stepperStatus = displayStatus;
+  // Amtliche Phase für die Werkstatt-Breadcrumb (Stepper-Station bzw. Terminal-Label).
+  const stepperPos = statusZuStepperPosition(displayStatus);
+  const phaseLabel: string | null = stepperPos.terminal
+    ? getStatusLabel(displayStatus ?? '')
+    : (STEPPER_STATIONS[stepperPos.station - 1] ?? null);
 
   // Kopf-Beschreibung: Titel + Kurzzusammenfassung (VB_INHALT) in EINEM Block
-  // (exakte Duplikate zusammengefasst) — löst die frühere separate
-  // „Kurzbeschreibung"-Sektion ab. 3-Zeilen-Clamp via `kbOpen` im VerbundKopf.
+  // (exakte Duplikate zusammengefasst); 3-Zeilen-Clamp via `kbOpen` im VerbundKopf.
   const beschreibung = (() => {
     const parts = [titel, vorhabenInhalt].filter((v): v is string => !!v);
     const uniq = parts.filter((v, i) => parts.indexOf(v) === i);
     return uniq.length > 0 ? uniq.join(' ') : null;
   })();
 
-  // Header-Aktenzeichen: bei pseudo zeigt die echte Aktenzeichen-ID, nicht die
-  // __pseudo__-Synthetik.
+  // Header-Aktenzeichen: bei pseudo die echte Aktenzeichen-ID, nicht die __pseudo__-Synthetik.
   const headerId = isPseudo ? aktenzeichenFromPseudoVerbundId(verbundId) : verbund.verbund_id;
 
   // Gutachten/Kurzfassung läuft auf Verbund-Ebene (eine VB pro Verbund). Key +
-  // Förderkennzeichen = Verbund-ID (bzw. echtes Az bei Solo/pseudo). knownIds =
-  // Verbund-ID + alle TV-Aktenzeichen (alle gelten in der Aufnahmefläche als
-  // zugehörig — VB wird oft je TV mit eigenem FKZ eingereicht).
-  // Lead-first sortierte TVs + Verbund → KurzfassungContext (eine Quelle, von
-  // Einzellauf UND Batch genutzt). `verbund.verbund_id` als letzter Akronym-
-  // Fallback hält die Ausgabe byte-identisch zum bisherigen Inline-Aufbau.
+  // Förderkennzeichen = Verbund-ID (bzw. echtes Az bei Solo/pseudo).
   const kurzfassungCtx: KurzfassungContext = buildKurzfassungContext(
     verbund, antraege, headerId, verbund.verbund_id,
   );
 
-  // Sprung-Navigation (Kompakt): nur Anker für tatsächlich gerenderte Sektionen
-  // (Pseudo-Verbund hat keine Stammdaten/TV; Gutachten/NF nur bei aktivem Flag).
   const gutachtenSichtbar = isGutachtenWorkflowEnabled() || isGutachtenKurzfassungEnabled();
-  const jumpItems = ([
-    !isPseudo ? { id: 'stamm', label: 'Stammdaten' } : null,
-    !isPseudo ? { id: 'tv', label: 'Teilvorhaben' } : null,
-    gutachtenSichtbar ? { id: 'gutachten', label: '↓ Gutachten' } : null,
-    isNfNachforderungenEnabled() ? { id: 'nf', label: '↓ Nachforderungen' } : null,
-  ].filter(Boolean)) as { id: string; label: string }[];
-  const jump = (id: string): void => {
-    setActiveJump(id);
-    // stamm/tv liegen im konditional gerenderten Antragsdaten-Body — bei
-    // eingeklapptem Block erst aufklappen, dann nach dem Render scrollen
-    // (gutachten/nf brauchen das nicht: deren id sitzt auf dem äußeren Wrapper).
-    if ((id === 'stamm' || id === 'tv') && !antragsdatenOpen) {
-      toggleAntragsdaten();
-      setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
-      return;
+
+  // Kontext-Vorschau der kollabierten „Antragsdaten"-Sektion: Koordinator + weitere.
+  const antragsdatenPreview = [antragsteller, antraege.length > 1 ? `${antraege.length - 1} weitere` : null]
+    .filter(Boolean).join(' · ');
+
+  // Zurück-zum-Kopf (Werkstatt-Breadcrumb) + Sprung in GA/NF-Werkstatt (Artefakt-Leiste).
+  const scrollTo = (id: string): void => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  const onWeiterGutachten = (stepId?: string): void => {
+    if (stepId) {
+      const next = new URLSearchParams(searchParams);
+      next.set('abschnitt', stepId);
+      setSearchParams(next, { replace: true });
     }
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Nach dem etwaigen Param-Update rendern lassen, dann scrollen.
+    setTimeout(() => scrollTo('gutachten'), 0);
   };
 
   return (
     <PanelShell onClose={onClose}>
-      {/* VERBUND-KOPF (Phase 6): Identität + Beschreibung + Eckdaten + amtlicher
-          5-Stationen-Stepper. Der Stepper ersetzt das frühere Status-Badge. */}
-      <div className={READ_COL}>
+      {/* VERBUND-KOPF (Phase 6): Identität + Beschreibung + Eckdaten + amtlicher Stepper. */}
+      <div id="verbund-kopf" className={READ_COL}>
         <VerbundKopf
           akronym={akronym}
           headerId={headerId}
@@ -353,153 +237,80 @@ export function VerbundDetail({
         />
       </div>
 
-      {/* VORGÄNGER-HINWEIS — frühere abgelehnte/zurückgezogene Einreichungen
-          desselben Kurznamens. Kompakt 1-zeilig, Klick öffnet die Vollansicht. */}
+      {/* VORGÄNGER-HINWEIS — frühere abgelehnte/zurückgezogene Einreichungen. */}
       {vorgaenger.length > 0 ? (
         <div className={READ_COL}>
           <AbgelehnteVorgaengerBanner vorgaenger={vorgaenger} onOpenAntrag={onOpenAntrag} />
         </div>
       ) : null}
 
-      {/* SPRUNG-NAVIGATION (sticky) — schneller Sprung zu Gutachten/Nachforderungen
-          ohne langes Scrollen. Klebt im PanelShell-Scrollcontainer unter der
-          Close-Bar (top-[34px]); scrollt per scrollIntoView (Container-agnostisch,
-          Sektionen tragen scroll-mt-[80px]). */}
-      {jumpItems.length >= 2 ? (
-        <div
-          className="sticky top-[34px] z-20 -mx-6 mb-4 px-4 flex items-stretch overflow-x-auto"
-          style={{ background: 'var(--tf-bg)', borderBottom: '0.5px solid var(--tf-border)' }}
-        >
-          {jumpItems.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => jump(item.id)}
-              className={`px-2.5 py-2.5 text-[12.5px] whitespace-nowrap border-b-2 -mb-px transition-colors ${
-                activeJump === item.id
-                  ? 'text-[var(--tf-primary)] border-[var(--tf-primary)] font-medium'
-                  : 'text-[var(--tf-text-secondary)] border-transparent hover:text-[var(--tf-primary)]'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      {/* ARTEFAKT-LEISTE (Phase 7): Gutachten + Nachforderung als Fortschritts-Karten —
+          nur erreichte Artefakte. Sprünge in die jeweilige Werkstatt weiter unten. */}
+      <div className={READ_COL}>
+        <ArtefaktLeiste
+          ctxKey={kurzfassungCtx.key}
+          tvs={antraege}
+          status={displayStatus}
+          onWeiterGutachten={onWeiterGutachten}
+          onWeiterNachforderung={() => scrollTo('nf')}
+        />
+      </div>
 
-      {/* ANTRAGSDATEN — einklappbarer Sammel-Block (Stammdaten + Workflow +
-          Teilvorhaben). Nur echte Verbuende; bei pseudo (Standalone) stecken die
-          Stammdaten im TvDetailBlock (doppelte Anzeige vermeiden). Beim Texten
-          (Gutachten/NF) laesst sich der Block wegklappen — mehr Platz fuer die
-          Artefakt-Abschnitte. */}
+      {/* DATEN-SEKTIONEN — kollabierte Zeilen mit Kontext-Vorschau (Default zu).
+          Nur echte Verbuende; bei pseudo (Standalone) stecken die Stammdaten im
+          TvDetailBlock (doppelte Anzeige vermeiden). */}
       {!isPseudo ? (
-        <div className={`mb-4 ${READ_COL}`}>
-          <button
-            type="button"
-            onClick={toggleAntragsdaten}
-            aria-expanded={antragsdatenOpen}
-            className="flex items-center gap-1.5 w-full text-left mb-2"
+        <div className={READ_COL}>
+          <CollapsibleDataSection
+            title="Antragsdaten und Verbundpartner"
+            storageKey="verbund_antragsdaten_collapsed"
+            preview={antragsdatenPreview}
           >
-            <ChevronRight
-              size={15}
-              className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
-              style={{ transform: antragsdatenOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            <div className="mb-4">
+              <VerbundGlance tvs={antraege} verbundId={verbund.verbund_id} unterprogramm={unterprogramm} />
+            </div>
+            <VerbundPartnerTabelle tvs={antraege} />
+          </CollapsibleDataSection>
+
+          <CollapsibleDataSection
+            title="Teilvorhaben"
+            storageKey="verbund_teilvorhaben_collapsed"
+            preview={antraege.length}
+          >
+            <TeilvorhabenListe
+              tvs={antraege}
+              expandedTvAz={expandedTvAz}
+              onToggle={(az) => setExpandedTvAz(prev => (prev === az ? null : az))}
+              onOpenAntrag={onOpenAntrag}
             />
-            <h3 className="text-[16px] font-medium text-[var(--tf-text)]">Antragsdaten</h3>
-            <span className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)] truncate pl-2">
-              {antragsteller ? `${antragsteller} · ` : ''}{antraege.length} Teilvorhaben
-            </span>
-          </button>
-          {antragsdatenOpen ? (
-            <>
-              {/* AUF EINEN BLICK (Glance) — kuratiertes Fakten-Raster, ersetzt den
-                  bisherigen Stammdaten-Block. id="stamm" bleibt als Sprung-Anker. */}
-              <div id="stamm" className="mb-4 scroll-mt-[80px]">
-                <VerbundGlance tvs={antraege} verbundId={verbund.verbund_id} unterprogramm={unterprogramm} />
-              </div>
+          </CollapsibleDataSection>
 
-              {/* VERBUNDPARTNER — eine Zeile pro TV statt der Slash-Suppe. */}
-              <div className="mb-4">
-                <VerbundPartnerTabelle tvs={antraege} />
-              </div>
-
-              {/* TEILVORHABEN — expandable Rows mit Inline-Detail. */}
-              <div id="tv" className="mb-4 scroll-mt-[80px]">
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
-                    Teilvorhaben
-                  </h3>
-                  <span className="text-[11px] text-[var(--tf-text-tertiary)]">·</span>
-                  <span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">{antraege.length}</span>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {antraege.map((tv, idx) => {
-                    const tvAntragsteller = strOrNull(tv.antragsteller) ?? '—';
-                    const tvStatus = strOrNull(tv.status);
-                    const rolle = tvRolle(tv, idx, antraege);
-                    const isExpanded = expandedTvAz === tv.aktenzeichen;
-                    return (
-                      <div key={tv.aktenzeichen}>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedTvAz(isExpanded ? null : tv.aktenzeichen)}
-                          aria-expanded={isExpanded}
-                          className={`w-full text-left rounded-[var(--tf-radius)] px-3 py-2 transition-colors ${
-                            isExpanded
-                              ? 'bg-[var(--tf-primary)]/5'
-                              : 'hover:bg-[var(--tf-bg-secondary)]'
-                          }`}
-                          style={{
-                            border: '0.5px solid var(--tf-border)',
-                            borderLeftWidth: isExpanded ? '2px' : '0.5px',
-                            borderLeftColor: isExpanded ? 'var(--tf-primary)' : 'var(--tf-border)',
-                          }}
-                        >
-                          <div className="flex items-start gap-3 min-w-0">
-                            <div className="shrink-0 text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] tabular-nums w-8 pt-0.5">
-                              TV {idx + 1}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-[13px] font-medium text-[var(--tf-text)] truncate" title={tvAntragsteller}>
-                                {tvAntragsteller}
-                              </div>
-                              <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
-                                {rolle} · <span className="font-mono">{tv.aktenzeichen}</span>
-                                {' '}· Zuwendung: {zuwendungPlaceholder}
-                              </div>
-                            </div>
-                            {tvStatus ? (
-                              <Badge
-                                variant={getStatusVariant(tvStatus)}
-                                className="shrink-0 min-w-[100px] justify-center whitespace-nowrap"
-                              >
-                                {getStatusLabel(tvStatus)}
-                              </Badge>
-                            ) : null}
-                            <span className="shrink-0 text-[var(--tf-text-tertiary)] pt-0.5">
-                              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                            </span>
-                          </div>
-                        </button>
-                        {isExpanded ? (
-                          <div
-                            className="mt-3 mb-3 ml-3 pl-4 pb-2"
-                            style={{ borderLeft: '2px solid var(--tf-primary)' }}
-                          >
-                            <TvDetailBlock aktenzeichen={tv.aktenzeichen} onOpenAntrag={onOpenAntrag} />
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
+          {antraege.length > 0 ? (
+            <CollapsibleDataSection
+              title="Alle Felder"
+              storageKey="verbund_allefelder_collapsed"
+              preview={`${felderStats.gesamt} · ${felderStats.mitWerten} mit Werten`}
+            >
+              <VerbundAlleFelder
+                tvs={antraege}
+                schemas={schemas}
+                sourceNames={sourceNames}
+                historyCounts={historyCounts}
+                onOpenHistory={setHistoryField}
+              />
+            </CollapsibleDataSection>
           ) : null}
+
+          <CollapsibleDataSection
+            title="Historie"
+            storageKey="verbund_historie_collapsed"
+            preview={history.length > 0 ? `zuletzt ${formatShortDate(history[0]!.geaendert_am)}` : null}
+          >
+            <VerbundHistorie history={history} />
+          </CollapsibleDataSection>
         </div>
       ) : (
         // Pseudo-Verbund: TV-Detail direkt (kein Sammel-Block, keine Liste).
-        // Der Status-Stepper sitzt bereits im VerbundKopf.
         <div className={READ_COL}>
           {expandedTvAz ? (
             <div className="mb-6">
@@ -509,98 +320,24 @@ export function VerbundDetail({
         </div>
       )}
 
-      {/* GUTACHTEN — Verbund-Ebene, oberhalb der Felder-Liste (nur dev). Der
-          Workflow A–G (gutachtenWorkflow) loest die Kurzfassung-Sektion ab;
-          else-if-Praezedenz, damit in dev (beide Flags true) nur EINE Sektion
-          mountet. */}
-      {isGutachtenWorkflowEnabled() ? (
+      {/* GUTACHTEN-WERKSTATT — Verbund-Ebene (nur dev). Der Workflow A–G löst die
+          Kurzfassung-Sektion ab; else-if, damit in dev nur EINE Sektion mountet. */}
+      {gutachtenSichtbar ? (
         <div id="gutachten" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <GutachtenSection ctx={kurzfassungCtx} initialAbschnittId={abschnittParam} />
-        </div>
-      ) : isGutachtenKurzfassungEnabled() ? (
-        <div id="gutachten" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <KurzfassungSection ctx={kurzfassungCtx} />
-        </div>
-      ) : null}
-
-      {/* NACHFORDERUNGEN — Verbund-Ebene, eigener Artefakt-Typ (nur dev). Eigene
-          Sektion (kein else-if zur Gutachten-Sektion): NF ist ein anderes Artefakt. */}
-      {isNfNachforderungenEnabled() && (
-        <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <NachforderungenSection ctx={kurzfassungCtx} />
-        </div>
-      )}
-
-      {/* ALLE FELDER (Verbund-Aggregat) — nur fuer echte Verbuende. Bei pseudo
-          waere das ein Duplikat von TvDetailBlock.AlleFelderSection. */}
-      {!isPseudo && antraege.length > 0 ? (
-        <div className={`mt-6 pt-6 ${READ_COL}`} style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <VerbundAlleFelder
-            tvs={antraege}
-            schemas={schemas}
-            sourceNames={sourceNames}
-            historyCounts={historyCounts}
-            onOpenHistory={setHistoryField}
-          />
-        </div>
-      ) : null}
-
-      {/* Verbund-Historie — nur fuer echte Verbuende (pseudo hat keine). */}
-      {!isPseudo ? (
-        <div className={`mt-6 pt-6 ${READ_COL}`} style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <button
-            type="button"
-            onClick={toggleHistorie}
-            aria-expanded={historieOpen}
-            className="flex items-center gap-1.5 w-full text-left mb-2"
-          >
-            <ChevronRight
-              size={15}
-              className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
-              style={{ transform: historieOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-            />
-            <h2 className="text-[16px] font-medium text-[var(--tf-text)]">
-              Verbund-Historie
-            </h2>
-            {history.length > 0 ? (
-              <span className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)] tabular-nums pl-2">{history.length}</span>
-            ) : null}
-          </button>
-          {historieOpen ? (
-            history.length === 0 ? (
-            <div className="text-[12.5px] text-[var(--tf-text-tertiary)] italic">
-              Noch keine Verbund-Änderungen erfasst.
-            </div>
+          <ArtefaktBreadcrumb akronym={akronym} phase={phaseLabel} onBack={() => scrollTo('verbund-kopf')} />
+          {isGutachtenWorkflowEnabled() ? (
+            <GutachtenSection ctx={kurzfassungCtx} initialAbschnittId={abschnittParam} />
           ) : (
-            <div style={{ border: '0.5px solid var(--tf-border)', borderRadius: 8 }}>
-              {history.map((h, i) => (
-                <div
-                  key={h.id}
-                  className="px-3 py-2 text-[12.5px]"
-                  style={{ borderTop: i === 0 ? undefined : '0.5px solid var(--tf-border)' }}
-                >
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-[11.5px] text-[var(--tf-text-tertiary)] tabular-nums">
-                      {formatDateTime(h.geaendert_am)}
-                    </span>
-                    <span className="font-medium text-[var(--tf-text)]">{getCanonicalLabel(h.feld)}</span>
-                    <span className="text-[var(--tf-text-tertiary)]">→</span>
-                  </div>
-                  <div className="mt-0.5 text-[12px]">
-                    <span className="font-mono line-through text-[var(--tf-text-tertiary)]">{str(h.alt_wert)}</span>
-                    <span className="mx-2 text-[var(--tf-text-tertiary)]">→</span>
-                    <span className="font-mono text-[var(--tf-text)]">{str(h.neu_wert)}</span>
-                  </div>
-                  {h.csv_schema_id ? (
-                    <div className="mt-0.5 text-[10.5px] text-[var(--tf-text-tertiary)] font-mono">
-                      Quelle: {h.csv_schema_id}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )
-          ) : null}
+            <KurzfassungSection ctx={kurzfassungCtx} />
+          )}
+        </div>
+      ) : null}
+
+      {/* NACHFORDERUNGEN-WERKSTATT — eigener Artefakt-Typ (nur dev). */}
+      {isNfNachforderungenEnabled() ? (
+        <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <ArtefaktBreadcrumb akronym={akronym} phase={phaseLabel} onBack={() => scrollTo('verbund-kopf')} />
+          <NachforderungenSection ctx={kurzfassungCtx} />
         </div>
       ) : null}
 
@@ -634,16 +371,11 @@ function PanelShell({ onClose, children }: { onClose: () => void; children: Reac
   );
 }
 
-function formatDateTime(iso: string): string {
+/** Kurzes Datum `DD.MM.YY` für die Historie-Kontext-Vorschau. */
+function formatShortDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleString('de-DE');
+    return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
   } catch {
     return iso;
   }
-}
-
-function str(v: unknown): string {
-  if (v === undefined || v === null || v === '') return '—';
-  if (typeof v === 'string') return v;
-  return String(v);
 }
