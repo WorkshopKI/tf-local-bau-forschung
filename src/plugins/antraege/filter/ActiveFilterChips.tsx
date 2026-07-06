@@ -5,12 +5,15 @@ interface Props {
   active: ActiveFilter[];
   definitions: FilterDefinition[];
   onRemove: (filterId: string) => void;
+  /** Wrapper-Klassen (überschreibt den Default inkl. `mb-3`). Nutzt der Aufrufer,
+   *  wenn die Chips z.B. in einer eigenen Toolbar-Zeile ohne Bodenabstand sitzen. */
+  className?: string;
 }
 
-export function ActiveFilterChips({ active, definitions, onRemove }: Props): React.ReactElement | null {
+export function ActiveFilterChips({ active, definitions, onRemove, className = 'flex flex-wrap gap-1.5 mb-3' }: Props): React.ReactElement | null {
   if (active.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1.5 mb-3">
+    <div className={className}>
       {active.map(af => {
         const def = definitions.find(d => d.id === af.filterId);
         if (!def) return null;

@@ -38,9 +38,20 @@ interface Props {
    * kollabiert (keine Sticky-Open-Auto-Expansion). Nur der explizite Klick
    * auf die Pille expandiert. Für Pillen wie "Gruppiert", bei denen der
    * gewählte Nicht-Default-Wert dauerhaft persistiert ist und die Pille
-   * trotzdem ruhig im Layout sitzen soll.
+   * trotzdem ruhig im Layout sitzen soll. Nur im **uncontrolled** Modus wirksam.
    */
   startCollapsed?: boolean;
+  /**
+   * Controlled-Modus (Akkordeon): wenn gesetzt, bestimmt der Aufrufer die
+   * Expansion vollständig — die interne Sticky-Open-/manual-close-Heuristik ist
+   * dann inaktiv, und Auswahl (auch `defaultValue`) klappt NICHT automatisch zu.
+   * Der Aufrufer koordiniert damit ein „nur eine Pille offen"-Akkordeon.
+   * Weggelassen (`undefined`) → uncontrolled, bestehendes Verhalten unverändert.
+   */
+  expanded?: boolean;
+  /** Nur im Controlled-Modus: Klick auf die (kollabierte) Pille → `true`, Klick
+   *  auf das Label der offenen Pille → `false`. */
+  onExpandToggle?: (open: boolean) => void;
 }
 
 export function CollapsibleSeg({
@@ -50,15 +61,22 @@ export function CollapsibleSeg({
   onChange,
   defaultValue = 'Alle',
   startCollapsed = false,
+  expanded,
+  onExpandToggle,
 }: Props): React.ReactElement {
+  const isControlled = expanded !== undefined;
   const [forceOpen, setForceOpen] = useState(false);
   const [manualClosed, setManualClosed] = useState(startCollapsed);
   const isFiltered = value !== defaultValue;
-  const expanded = !manualClosed && (isFiltered || forceOpen);
+  const uncontrolledExpanded = !manualClosed && (isFiltered || forceOpen);
+  const isOpen = isControlled ? expanded : uncontrolledExpanded;
 
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    // Außen-Klick-Zuklappen nur im uncontrolled Modus — im Akkordeon steuert der
+    // Aufrufer die (persistierte) Expansion, ein Außen-Klick würde dagegen kämpfen.
+    if (isControlled) return;
     if (!forceOpen || isFiltered) return;
     const onMouseDown = (e: MouseEvent): void => {
       const node = ref.current;
@@ -73,14 +91,25 @@ export function CollapsibleSeg({
     };
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
-  }, [forceOpen, isFiltered]);
+  }, [isControlled, forceOpen, isFiltered]);
 
-  if (!expanded) {
+  const openPill = (): void => {
+    if (isControlled) { onExpandToggle?.(true); return; }
+    setForceOpen(true);
+    setManualClosed(false);
+  };
+  const closePill = (): void => {
+    if (isControlled) { onExpandToggle?.(false); return; }
+    setManualClosed(true);
+    setForceOpen(false);
+  };
+
+  if (!isOpen) {
     return (
       <div ref={ref} data-collapsible-seg className="inline-flex">
         <button
           type="button"
-          onClick={() => { setForceOpen(true); setManualClosed(false); }}
+          onClick={openPill}
           aria-label={`${label} filtern`}
           aria-expanded={false}
           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] bg-[var(--tf-bg)] text-[12px] cursor-pointer whitespace-nowrap transition-[border-color,background] duration-150 ease-out hover:bg-[var(--tf-hover)]"
@@ -106,7 +135,7 @@ export function CollapsibleSeg({
     >
       <button
         type="button"
-        onClick={() => { setManualClosed(true); setForceOpen(false); }}
+        onClick={closePill}
         aria-label={`${label} ausblenden`}
         aria-expanded={true}
         className="inline-flex items-center gap-1 text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer bg-transparent border-0 p-0"
@@ -119,7 +148,9 @@ export function CollapsibleSeg({
         value={value}
         onChange={(lbl) => {
           onChange(lbl);
-          if (lbl === defaultValue) setForceOpen(false);
+          // Uncontrolled: Auswahl des Default-Werts klappt zu. Controlled:
+          // Expansion bleibt beim Aufrufer (Akkordeon), Auswahl ändert sie nie.
+          if (!isControlled && lbl === defaultValue) setForceOpen(false);
         }}
         ariaLabel={label}
       />

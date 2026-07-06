@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.176 — 2026-07
+
+### Neu
+- Neuer Schnellfilter **PreCheck** über der Anträge-Liste: mit einem Klick nur Anträge mit positivem, negativem oder noch offenem PreCheck anzeigen.
+
+### Verbesserungen
+- Die Schnellfilter über der Anträge-Liste sitzen jetzt in **einer aufgeräumten Zeile**: Es ist immer nur ein Filter aufgeklappt, das Öffnen eines anderen klappt den vorherigen automatisch zu. Ihre zuletzt geöffnete Auswahl wird je Ansicht gemerkt.
+- „Gruppieren" ist von den Schnellfiltern in ein eigenes „Gruppierung: … ▾"-Menü rechts neben „Spalten" umgezogen – die Filter-Zeile bleibt so übersichtlich. Aktive Filter und die Trefferzahl stehen jetzt in einer eigenen Zeile darunter.
+
 ## v2.175 — 2026-07
 
 ### Verbesserungen

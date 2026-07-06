@@ -19,6 +19,7 @@ import {
 } from './bearbeiterFilter';
 import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
 import { useShowInaktiveMasStore } from './useShowInaktiveMasStore';
+import { applyPrecheckBucket } from './filter/precheckQuickfilter';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 
@@ -66,6 +67,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const searchIgnoreBearbeiterFilter = useAntraegeStore(s => s.searchIgnoreBearbeiterFilter);
   const activeView = useAntraegeStore(s => s.activeView);
   const sortByView = useAntraegeStore(s => s.sortByView);
+  const precheckBucket = useAntraegeStore(s => s.precheckBucket);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
   const { profile } = useProfile();
@@ -112,7 +114,11 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // Inaktiv-Ausblendung NACH dem Kürzel-Filter, VOR den Sidebar-Filtern —
     // damit auch die Quickfilter-Counts (countBase) die Ausblendung spiegeln.
     const byInaktive = applyInaktiveExclusion(byBearbeiter, bearbeiterFilter.active, inaktiveKuerzel, showInaktive);
-    const filteredBase = applyFilters(byInaktive, active, definitions);
+    // PreCheck-Quickfilter (abgeleitete Klassifikation, eigener Store-Slot) VOR
+    // den Sidebar-Filtern — analog Status/Antragstyp; `countBase` (= byInaktive)
+    // bleibt bewusst davor, damit die PreCheck-Pillen-Counts stabil sind.
+    const byPrecheck = applyPrecheckBucket(byInaktive, precheckBucket);
+    const filteredBase = applyFilters(byPrecheck, active, definitions);
     // Hybrid-Suche: zusaetzlich zu den vier Slim-Feldern (akz/akronym/titel/
     // antragsteller) liefert `useAntraegeHybridSearch` ein Akz-Set mit
     // Treffern aus drei weiteren Quellen — Substring auf den CSV-Volltext-
@@ -148,5 +154,5 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       bearbeiterKuerzelMissing,
       countBase: byInaktive,
     };
-  }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, bearbeiterFilter, inaktiveKuerzel, showInaktive]);
+  }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, bearbeiterFilter, inaktiveKuerzel, showInaktive]);
 }

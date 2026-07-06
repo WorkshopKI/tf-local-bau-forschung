@@ -6,6 +6,9 @@ import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEff
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
+import { GruppierenDropdown } from './filter/GruppierenDropdown';
+import { getPhaseFromActive, STATUS_FILTER_ID } from './filter/phaseQuickfilter';
+import { getKategorieFromActive, KATEGORIE_FILTER_ID } from './filter/kategorieQuickfilter';
 import { AntragGroupCard } from './AntragGroupCard';
 import { NetzwerkClusterCard } from './NetzwerkClusterCard';
 import {
@@ -16,7 +19,8 @@ import {
   type GroupingMode,
 } from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
-import { sortDisablesGrouping } from './sort';
+import { sortDisablesGrouping, GROUPING_OPTIONS } from './sort';
+import { TABLE_GROUPING_OPTIONS, type TableGroupingMode } from './tableGrouping';
 import { StatusSectionHeader } from './StatusSectionHeader';
 import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
 import { AntraegeTable } from './AntraegeTable';
@@ -74,8 +78,12 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     selectedVerbundId,
     loadAll,
   } = useAntraegeStore();
+  const activeView = useAntraegeStore(s => s.activeView);
   const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
   const tableGrouping = useAntraegeStore(s => getEffectiveTableGroupingMode(s.activeView, s.tableGroupingByView));
+  const listGrouping = useAntraegeStore(s => getEffectiveGroupingMode(s.activeView, s.groupingByView));
+  const setGroupingForView = useAntraegeStore(s => s.setGroupingForView);
+  const setTableGroupingForView = useAntraegeStore(s => s.setTableGroupingForView);
   // Spalten-Picker (nur Tabellen-Ansicht) sitzt in der Toolbar-Zeile rechts —
   // teilt den State reaktiv mit der Tabelle über den globalen Store.
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
@@ -210,15 +218,31 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     ? (tableFilteredCount ?? filtered.length)
     : filtered.length;
 
+  // Quickfilter-Segmente (Status/Antragstyp/PreCheck) haben ihre eigene Pille und
+  // erzeugen KEINEN Chip. Ein aktiver system-status/system-vb-phase-Filter wird
+  // nur dann als Chip gezeigt, wenn ihn KEINE Quickfilter-Pille „absorbiert" (z.B.
+  // eine über die Sidebar gesetzte, nicht-Bucket-konforme Status-Kombination).
+  // PreCheck lebt außerhalb von `active` → nie ein Chip.
+  const chipActive = useMemo(() => {
+    const phaseAbsorbed = getPhaseFromActive(active) !== 'Alle';
+    const kategorieAbsorbed = getKategorieFromActive(active) !== 'Alle';
+    return active.filter(af => {
+      if (af.filterId === STATUS_FILTER_ID && phaseAbsorbed) return false;
+      if (af.filterId === KATEGORIE_FILTER_ID && kategorieAbsorbed) return false;
+      return true;
+    });
+  }, [active]);
+
   return (
     <div className={containerClass} style={containerStyle}>
       <div className="flex-1 min-w-0 h-full overflow-y-auto">
-        {/* QuickfilterToolbar (Status / Antragstyp / Sortiert nach /
-            Gruppiert) links, ActiveFilterChips rechts. Toolbar in eigenem
-            Container ohne max-w-*, damit die volle Viewport-Breite genutzt
+        {/* Zeile A: Quickfilter-Akkordeon (Status/Antragstyp/PreCheck/Sort) links,
+            Gruppierung + (nur Tabelle) Spalten-Picker rechts. Zeile B darunter:
+            aktive Sidebar-Filter-Chips links, Trefferzähler rechts. Toolbar in
+            eigenem Container ohne max-w-*, damit die volle Viewport-Breite genutzt
             wird. Bearbeiter-Pill sitzt im Header neben dem Titel. */}
         <div className={toolbarClass}>
-          <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
               {onCollapse && (
                 <button
@@ -233,33 +257,48 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               )}
               <QuickfilterToolbar />
             </div>
-            {/* Rechtes Cluster: Trefferzahl + aktive Filter-Chips + (nur
-                Tabelle) das „Spalten"-Dropdown — äußerstes rechtes Element ⇒
-                rechtsbündig mit dem Tabellen-Rand (Toolbar teilt die
-                max-w-6xl-Box). */}
-            {displayCount > 0 || active.length > 0 || viewMode === 'compact' ? (
-              <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
-                {displayCount > 0 ? (
-                  <span
-                    className="text-[12px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap"
-                    title="Anzahl Teilvorhaben nach Filterung"
-                  >
-                    {displayCount.toLocaleString('de-DE')} {displayCount === 1 ? 'Antrag' : 'Anträge'}
-                  </span>
-                ) : null}
-                {active.length > 0 ? (
-                  <ActiveFilterChips active={active} definitions={definitions} onRemove={clearFilter} />
-                ) : null}
-                {viewMode === 'compact' ? (
-                  <ColumnPicker
-                    columns={pickerColumns}
-                    visibleKeys={visibleColumns}
-                    onToggleColumn={toggleColumn}
+            <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
+              <GruppierenDropdown
+                options={viewMode === 'compact' ? TABLE_GROUPING_OPTIONS : GROUPING_OPTIONS}
+                value={viewMode === 'compact' ? tableGrouping : listGrouping}
+                onChange={(key) => {
+                  if (viewMode === 'compact') setTableGroupingForView(activeView, key as TableGroupingMode);
+                  else setGroupingForView(activeView, key as GroupingMode);
+                }}
+              />
+              {viewMode === 'compact' ? (
+                <ColumnPicker
+                  columns={pickerColumns}
+                  visibleKeys={visibleColumns}
+                  onToggleColumn={toggleColumn}
+                />
+              ) : null}
+            </div>
+          </div>
+          {(chipActive.length > 0 || displayCount > 0) ? (
+            <div className="mt-2 mb-3 flex items-center justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                {chipActive.length > 0 ? (
+                  <ActiveFilterChips
+                    active={chipActive}
+                    definitions={definitions}
+                    onRemove={clearFilter}
+                    className="flex flex-wrap gap-1.5"
                   />
                 ) : null}
               </div>
-            ) : null}
-          </div>
+              {displayCount > 0 ? (
+                <span
+                  className="shrink-0 text-[12px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap"
+                  title="Anzahl Teilvorhaben nach Filterung"
+                >
+                  {displayCount.toLocaleString('de-DE')} {displayCount === 1 ? 'Antrag' : 'Anträge'}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mb-3" />
+          )}
         </div>
         <div className={contentClass}>
           {bearbeiterKuerzelMissing && antraege.length > 0 ? (

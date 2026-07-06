@@ -20,6 +20,7 @@ import {
 } from './sort';
 import type { GroupingMode } from './antragGroups';
 import type { TableGroupingMode } from './tableGrouping';
+import type { PrecheckBucket } from './filter/precheckQuickfilter';
 import {
   DEFAULT_VIEW_MODE,
   loadViewModeByTab,
@@ -161,6 +162,13 @@ interface AntraegeState {
    *  sind `useFilteredAntraege` (Filter) und `AntraegeHeader` (Spinner +
    *  Banner). */
   hybridSearch: HybridSearchState;
+  /** PreCheck-Quickfilter-Bucket (Alle/positiv/negativ/offen). Global (nicht
+   *  per-View), in-memory — konsistent mit den anderen Quickfiltern in
+   *  `useFilterState.active`, die auch nicht über Reload persistieren. Eigener
+   *  Store-Slot statt `useFilterState`, weil PreCheck eine abgeleitete
+   *  Klassifikation ist und keinen Filter-Chip erzeugen soll (siehe
+   *  `precheckQuickfilter.ts`). */
+  precheckBucket: PrecheckBucket;
   activeView: ViewKey;
   /** User-Override pro View. Leer → Default aus DEFAULT_SORT_BY_VIEW. */
   sortByView: Partial<Record<ViewKey, SortKey>>;
@@ -194,6 +202,7 @@ interface AntraegeState {
   loadAll: (idb: IDBStore, programmId?: string, opts?: { force?: boolean }) => Promise<void>;
   setSearch: (s: string) => void;
   setSearchIgnoreBearbeiterFilter: (v: boolean) => void;
+  setPrecheckBucket: (bucket: PrecheckBucket) => void;
   /** Partial-Merger: ueberschreibt nur die uebergebenen Felder, lasst den
    *  Rest unangetastet. Erlaubt z.B. `setHybridSearch({ downloadingCorpus: true })`
    *  ohne das laufende `matchedAkz`/`loading`-State versehentlich zu nullen. */
@@ -262,6 +271,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   search: '',
   searchIgnoreBearbeiterFilter: false,
   hybridSearch: { matchedAkz: null, loading: false, unavailable: [], downloadingCorpus: false },
+  precheckBucket: 'Alle',
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
   groupingByView: loadGroupingByView(),
@@ -354,6 +364,8 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   })),
 
   setSearchIgnoreBearbeiterFilter: (v: boolean) => set({ searchIgnoreBearbeiterFilter: v }),
+
+  setPrecheckBucket: (bucket: PrecheckBucket) => set({ precheckBucket: bucket }),
 
   setHybridSearch: (state: Partial<HybridSearchState>) => set(s => ({
     hybridSearch: { ...s.hybridSearch, ...state },

@@ -1,26 +1,28 @@
 /**
- * Quickfilter-Toolbar für die Förderanträge-Liste.
+ * Quickfilter-Toolbar für die Förderanträge-Liste — **Akkordeon** in EINER
+ * Zeile (Journey-Paket 2 Phase 2).
  *
- * Hierarchie nach Design-Handoff
- * `_design/handoff/card-grid/design_handoff_filter_quickfilter/`:
- *
- *   [Phase: Alle ▸] [Kategorie: Alle ▸] [Antragsdatum: Neueste zuerst ▸] [⇅]
- *   Gruppiert: ( Keine | Status | NW | NW-Größe )
+ * Segmente (`CollapsibleSeg`, controlled): Status · Antragstyp · PreCheck ·
+ * (nur List-/Karten-Ansicht) Sortiert-nach. Es ist immer höchstens **eine**
+ * Pille offen — der Zustand ist ein einzelner `QuickfilterSegId | null`, pro
+ * View persistiert (`quickfilterExpanded.ts`). Öffnen einer Pille schließt die
+ * jeweils andere implizit.
  *
  * Filter-Backend:
- * - Phase  → `useFilterState` (`system-status`-Filter, Single-Select via
- *   `phaseQuickfilter.ts`)
- * - Kategorie → `useFilterState` (`system-vb-phase`-Filter, Single-Select via
- *   `kategorieQuickfilter.ts`)
- * - Sort + Grouping → `useAntraegeStore` (per-View persistiert)
+ * - Status  → `useFilterState` (`system-status`, `phaseQuickfilter.ts`)
+ * - Antragstyp → `useFilterState` (`system-vb-phase`, `kategorieQuickfilter.ts`)
+ * - PreCheck → eigener Store-Slot `precheckBucket` (abgeleitete Klassifikation,
+ *   kein Filter-Chip, siehe `precheckQuickfilter.ts`)
+ * - Sort → `useAntraegeStore` (per-View)
+ *
+ * Die **Gruppieren**-Steuerung ist seit Phase 2 kein Segment mehr, sondern ein
+ * Dropdown rechts in `AntraegeMain` (`GruppierenDropdown`).
  */
-import { useMemo } from 'react';
-import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode, getEffectiveTableGroupingMode } from '../store';
+import { useEffect, useMemo, useState } from 'react';
+import { useAntraegeStore, getEffectiveSortKey, getEffectiveViewMode } from '../store';
 import { useFilteredAntraege } from '../useFilteredAntraege';
 import { useFilterState } from './useFilterState';
-import { GROUPING_OPTIONS, type SortKey } from '../sort';
-import type { GroupingMode } from '../antragGroups';
-import { TABLE_GROUPING_OPTIONS, type TableGroupingMode } from '../tableGrouping';
+import { type SortKey } from '../sort';
 import { CollapsibleSeg } from './CollapsibleSeg';
 import {
   getPhaseFromActive,
@@ -34,6 +36,13 @@ import {
   applyKategorie,
   type KategorieLabel,
 } from './kategorieQuickfilter';
+import { getPrecheckItems, asPrecheckBucket } from './precheckQuickfilter';
+import {
+  loadExpandedSeg,
+  saveExpandedSeg,
+  toggleExpandedSeg,
+  type QuickfilterSegId,
+} from './quickfilterExpanded';
 
 /** Alle Sortier-Optionen in einer einzigen Liste — Source-of-Truth fuer
  *  die `Sortiert nach`-Quickfilter-Pille. Reihenfolge bestimmt die UI-
@@ -57,22 +66,32 @@ export function QuickfilterToolbar(): React.ReactElement {
   const { countBase } = useFilteredAntraege();
   const activeView = useAntraegeStore(s => s.activeView);
   const sortByView = useAntraegeStore(s => s.sortByView);
-  const groupingByView = useAntraegeStore(s => s.groupingByView);
-  const tableGroupingByView = useAntraegeStore(s => s.tableGroupingByView);
   const setSortForView = useAntraegeStore(s => s.setSortForView);
-  const setGroupingForView = useAntraegeStore(s => s.setGroupingForView);
-  const setTableGroupingForView = useAntraegeStore(s => s.setTableGroupingForView);
 
   const sortKey = getEffectiveSortKey(activeView, sortByView);
-  const groupingMode = getEffectiveGroupingMode(activeView, groupingByView);
-  const tableGroupingMode = getEffectiveTableGroupingMode(activeView, tableGroupingByView);
-  // Tabellen-Ansicht ("compact") ist flach → Gruppierung hat keinen Effekt,
-  // daher die "Gruppiert"-Pille dort ausblenden.
+  // Tabellen-Ansicht ("compact") ist flach → jeder Spaltenkopf sortiert selbst,
+  // daher das "Sortiert nach"-Segment dort ausblenden.
   const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
 
   const active = useFilterState(s => s.active);
   const setActiveValue = useFilterState(s => s.setActiveValue);
   const clearFilter = useFilterState(s => s.clearFilter);
+
+  const precheckBucket = useAntraegeStore(s => s.precheckBucket);
+  const setPrecheckBucket = useAntraegeStore(s => s.setPrecheckBucket);
+
+  // Akkordeon-Zustand: höchstens ein offenes Segment, pro View persistiert.
+  const [expandedSeg, setExpandedSeg] = useState<QuickfilterSegId | null>(() => loadExpandedSeg(activeView));
+  useEffect(() => {
+    setExpandedSeg(loadExpandedSeg(activeView));
+  }, [activeView]);
+  const handleToggle = (seg: QuickfilterSegId): void => {
+    setExpandedSeg(prev => {
+      const next = toggleExpandedSeg(prev, seg);
+      saveExpandedSeg(activeView, next);
+      return next;
+    });
+  };
 
   // Phase
   const phaseItems = useMemo(() => getPhaseItems(countBase), [countBase]);
@@ -81,41 +100,26 @@ export function QuickfilterToolbar(): React.ReactElement {
     applyPhase(label as PhaseLabel, (id, v) => setActiveValue(id, v), clearFilter);
   };
 
-  // Kategorie
+  // Antragstyp (Kategorie)
   const kategorieItems = useMemo(() => getKategorieItems(countBase), [countBase]);
   const kategorie = getKategorieFromActive(active);
   const onKategorieChange = (label: string): void => {
     applyKategorie(label as KategorieLabel, (id, v) => setActiveValue(id, v), clearFilter);
   };
 
-  // Sortiert nach (unifiziert: Antragsdatum + Frist + Akronym + Antragsteller)
+  // PreCheck (abgeleiteter Bucket, eigener Store-Slot)
+  const precheckItems = useMemo(() => getPrecheckItems(countBase), [countBase]);
+  const onPrecheckChange = (label: string): void => {
+    setPrecheckBucket(asPrecheckBucket(label));
+  };
+
+  // Sortiert nach (nur List-/Karten-Ansicht)
   const currentSortLabel =
     SORT_OPTIONS.find(o => o.key === sortKey)?.label ?? DEFAULT_SORT_LABEL;
   const onSortChange = (label: string): void => {
     const opt = SORT_OPTIONS.find(o => o.label === label);
     if (!opt) return;
     setSortForView(activeView, opt.key);
-  };
-
-  // Gruppieren (List-/Karten-View: Keine/Status/NW/NW-Größe)
-  const groupingItems = GROUPING_OPTIONS.map(opt => ({ label: opt.label }));
-  const currentGroupingLabel =
-    GROUPING_OPTIONS.find(o => o.key === groupingMode)?.label ?? GROUPING_OPTIONS[0]!.label;
-  const onGroupingChange = (label: string): void => {
-    const opt = GROUPING_OPTIONS.find(o => o.label === label);
-    if (!opt) return;
-    setGroupingForView(activeView, opt.key as GroupingMode);
-  };
-
-  // Gruppieren in der Tabellen-Ansicht (eigene, kleinere Optionen:
-  // Keine/Verbund/Status — eigener Store-Slot).
-  const tableGroupingItems = TABLE_GROUPING_OPTIONS.map(opt => ({ label: opt.label }));
-  const currentTableGroupingLabel =
-    TABLE_GROUPING_OPTIONS.find(o => o.key === tableGroupingMode)?.label ?? TABLE_GROUPING_OPTIONS[0]!.label;
-  const onTableGroupingChange = (label: string): void => {
-    const opt = TABLE_GROUPING_OPTIONS.find(o => o.label === label);
-    if (!opt) return;
-    setTableGroupingForView(activeView, opt.key as TableGroupingMode);
   };
 
   return (
@@ -125,16 +129,25 @@ export function QuickfilterToolbar(): React.ReactElement {
         value={phase}
         items={phaseItems}
         onChange={onPhaseChange}
+        expanded={expandedSeg === 'status'}
+        onExpandToggle={() => handleToggle('status')}
       />
       <CollapsibleSeg
         label="Antragstyp"
         value={kategorie}
         items={kategorieItems}
         onChange={onKategorieChange}
+        expanded={expandedSeg === 'antragstyp'}
+        onExpandToggle={() => handleToggle('antragstyp')}
       />
-      {/* Tabellen-Ansicht: jeder Header ist sortierbar → "Sortiert nach"-Pille
-          dort ausblenden (redundant). Der persistierte Sort bleibt als
-          Default-Reihenfolge wirksam, der Header-Klick überschreibt ihn. */}
+      <CollapsibleSeg
+        label="PreCheck"
+        value={precheckBucket}
+        items={precheckItems}
+        onChange={onPrecheckChange}
+        expanded={expandedSeg === 'precheck'}
+        onExpandToggle={() => handleToggle('precheck')}
+      />
       {viewMode === 'compact' ? null : (
         <CollapsibleSeg
           label="Sortiert nach"
@@ -142,26 +155,8 @@ export function QuickfilterToolbar(): React.ReactElement {
           defaultValue={DEFAULT_SORT_LABEL}
           items={SORT_OPTIONS.map(o => ({ label: o.label }))}
           onChange={onSortChange}
-        />
-      )}
-
-      {viewMode === 'compact' ? (
-        <CollapsibleSeg
-          label="Gruppiert"
-          value={currentTableGroupingLabel}
-          items={tableGroupingItems}
-          onChange={onTableGroupingChange}
-          defaultValue="Keine"
-          startCollapsed
-        />
-      ) : (
-        <CollapsibleSeg
-          label="Gruppiert"
-          value={currentGroupingLabel}
-          items={groupingItems}
-          onChange={onGroupingChange}
-          defaultValue="Keine"
-          startCollapsed
+          expanded={expandedSeg === 'sort'}
+          onExpandToggle={() => handleToggle('sort')}
         />
       )}
     </div>

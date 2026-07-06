@@ -5,6 +5,19 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.176.0 — Journey-Paket 2 Phase 2: Quickfilter-Akkordeon + PreCheck-Facette (Juli 2026)
+
+MINOR — Der Quickfilter der Förderanträge-Liste ([liste-quickfilter.png]) wird von einem Stapel gleichzeitig offener Segmente zu **einer Akkordeon-Zeile** (immer höchstens eine Pille offen), bekommt eine neue **PreCheck**-Facette und verschiebt die Gruppieren-Steuerung in ein ruhiges Dropdown. Additiv, keine Datenmigration.
+
+- **CollapsibleSeg controlled-fähig** ([CollapsibleSeg.tsx](src/plugins/antraege/filter/CollapsibleSeg.tsx)): neue optionale Props `expanded` + `onExpandToggle`. Kein Fork — ohne die Props verhält sich die Pille exakt wie bisher (uncontrolled: Sticky-Open/manual-close). Alle bestehenden Nutzer (Suche, Skill-Verwaltung, Auslastung, Feedback-Board) bleiben unverändert.
+- **Akkordeon** ([QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx) + neue [quickfilterExpanded.ts](src/plugins/antraege/filter/quickfilterExpanded.ts)): Segmente Status · Antragstyp · PreCheck · (nur List-/Karten-Ansicht) Sortiert-nach in EINER Zeile. Zustand ist ein einzelner `QuickfilterSegId | null` → „nie zwei offen" ist strukturell garantiert. Pro View persistiert (`teamflow_antraege_quickfilter_expanded_{viewId}`, Muster wie `useAntraegeColumnsStore`); Erstnutzung: Status offen.
+- **PreCheck-Facette (NEU)** ([precheckQuickfilter.ts](src/plugins/antraege/filter/precheckQuickfilter.ts)): Buckets **Alle / positiv / negativ / offen** (die Kern-Klassifikation `normalisierePrecheck` faltet „ohne"=leer und „offen"=ausstehend in EINEN Bucket „offen" — konsistent mit der „nächster Schritt"-Formel, partitioniert die Liste exakt). Eigener Store-Slot `precheckBucket` (global, in-memory) + Pipeline-Schritt in [useFilteredAntraege.ts](src/plugins/antraege/useFilteredAntraege.ts) statt generischer Filter-Engine — weil das Label Label-XLS-getrieben ist (exakter Feld-Match wäre fragil) und ein Quickfilter **keinen** Filter-Chip erzeugen soll.
+- **Gruppieren → Dropdown** ([GruppierenDropdown.tsx](src/plugins/antraege/filter/GruppierenDropdown.tsx)): raus aus der Quickfilter-Zeile, rein in ein „Gruppierung: Keine ▾"-Dropdown rechts neben dem Spalten-Picker ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx), visuelle Familie `ColumnPicker`). Verhalten/State (per-View `groupingByView`/`tableGroupingByView`) unverändert.
+- **Chips + Zähler eigene Zeile:** aktive Sidebar-Filter-Chips ([ActiveFilterChips.tsx](src/plugins/antraege/filter/ActiveFilterChips.tsx), jetzt mit `className`-Override) sitzen in einer eigenen Zeile UNTER dem Quickfilter, der Trefferzähler `{n} Anträge` rechts daneben. Quickfilter-Segmente (Status/Antragstyp) erzeugen **keinen** Chip mehr — ein `system-status`/`system-vb-phase`-Filter wird nur noch gezeigt, wenn ihn keine Pille „absorbiert" (nicht-Bucket-konforme Sidebar-Kombination).
+- Tests: [precheckQuickfilter.test.ts](src/plugins/antraege/filter/__tests__/precheckQuickfilter.test.ts) (Klassifikation/Counts/Partition/Apply), [quickfilterExpanded.test.ts](src/plugins/antraege/filter/__tests__/quickfilterExpanded.test.ts) (Akkordeon-Reducer + Persistenz-Parser).
+
+[liste-quickfilter.png]: _reference/journey-paket-2/liste-quickfilter.png
+
 ### v2.175.0 — Journey-Paket 2 Phase 1: „nächster Schritt" im Core + PreCheck-Formel (Juli 2026)
 
 MINOR — Die Handlungs-Formel „Phase → nächster Schritt" wird von der Home in den Core gehoben und lernt den **PreCheck-Stand** kennen. Erste Phase von Journey-Paket 2; gemeinsame Infrastruktur für Home UND die (in Phase 3 kommende) kombinierte Listen-Spalte. Additiv, abwärtskompatibel, keine Datenmigration.
