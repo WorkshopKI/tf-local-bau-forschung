@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.172 — 2026-07
+
+### Verbesserungen
+- Die Startseite spricht jetzt eine einheitliche Sprache: Die Kopfzeile zeigt auf einen Blick, wie viele Vorgänge offen sind, wie viele über der 90-Tage-Frist liegen und wie viele sich ihr nähern – dieselben Zahlen wie die Ampel-Karte rechts.
+- In „Meine Anträge" steht jetzt statt eines Status-Etiketts, was als Nächstes zu tun ist – z.B. „Fachprüfung → Gutachten beginnen". Ein farbiger Punkt und das Eingangsalter („vor N Tagen") zeigen die Dringlichkeit. Die vollständigen Details finden Sie weiterhin mit einem Klick in der Förderanträge-Liste.
+
 ## v2.171 — 2026-07
 
 ### Neu

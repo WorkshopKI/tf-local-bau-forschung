@@ -5,6 +5,33 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.172.0 — Journey-Paket 1, Phase 3: Home-Kopf vereinheitlicht + „Phase → nächster Schritt" (Juli 2026)
+
+MINOR — Eine einheitliche Dringlichkeits-Sprache auf der Startseite, entlang `_reference/journey-paket-1/home-weitermache.png`. Additiv, keine Datenmigration.
+
+- **Kopfzeilen-Subtitle aus den Eingangs-Ampel-Aggregaten** ([HomePage.tsx](src/plugins/home/HomePage.tsx)):
+  statt „{n} offene Vorgänge · {k} Fristen diese Woche" jetzt „{n} offene Vorgänge · {k} über der 90-Tage-Frist ·
+  {w} nähern sich". `n` = frisch + warnung + kritisch (= Gesamtzahl der Ampel-Karte), `k` = kritisch (> 90 T,
+  in `--tf-danger-text`), `w` = warnung (31–90 T). Null-Teile entfallen; bei k = 0 ∧ w = 0 bleibt nur „{n} offene
+  Vorgänge". Kopfzeile und Sidebar-Karte teilen sich jetzt **eine** Zählquelle
+  ([useEingangAmpelCounts.ts](src/plugins/home/useEingangAmpelCounts.ts)) — die Zahlen können nicht mehr driften
+  (die Karte hängt dadurch auch nicht mehr an der schweren `useFilteredAntraege`-Pipeline). Reine Formatierung:
+  [homeSubtitle.ts](src/plugins/home/homeSubtitle.ts).
+- **„Phase → nächster Schritt"-Formel statt Status-Badge** ([MeineAntraegeSection.tsx](src/plugins/home/MeineAntraegeSection.tsx)):
+  jede Zeile in „Meine Anträge" zeigt jetzt Ampel-Punkt (Farbe = Eingangs-Ampel) + Akronym + „{Phase} → {Aktion}"
+  (z.B. „Fachprüfung → Gutachten beginnen", einzeilig mit Ellipsis) + Eingangsalter „vor N T" rechts. Die Formel
+  ([naechsterSchritt.ts](src/plugins/home/naechsterSchritt.ts)) ist ein **reiner Record-Lookup** (Roh-Status →
+  {phase, aktion}, kein `=== 'literal'`, Pitfall #12 unberührt); nicht gemappte Stati fallen auf `{ getStatusLabel,
+  '' }` zurück (nur Phase, keine erratene Aktion). Entfernt in der Zeile: Status-Badge, Frist-Icon/VB-Phase-Badge,
+  Aktenzeichen-Zeile, MA-Kürzel-Badge, Wiedereinreicher-Hinweis — bewusst reduziert auf die einzeilige Mockup-Form
+  (die volle Info bleibt einen Klick entfernt in der Förderanträge-Liste). Sortierung unverändert.
+- **`AntragVorgang`-Projektion** trägt jetzt `antragsdatum` + `bewilligung_datum`
+  ([dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts)); `getEingangAmpel`/`daysSinceEingang` akzeptieren
+  ein strukturelles Minimal-Shape (`EingangAmpelInput`) — die Home-Liste nutzt so dieselbe Ampel-Logik ohne echten
+  `AntragListItem`.
+- Tests: `naechsterSchritt` (tabellengetrieben: alle gemappten Stati + Fallback + null), `formatHomeSubtitle`
+  (Mockup-Fall 47/38/9, Singular/Plural, Null-Teile, de-DE-Zahlformat).
+
 ### v2.171.0 — Journey-Paket 1, Phase 2: „Weitermachen"-Karte + lokales Arbeitskontext-Log (Juli 2026)
 
 MINOR — Schneller Wiedereinstieg in die zuletzt bearbeiteten Artefakte, entlang `_reference/journey-paket-1/home-weitermache.png`. Additiv.

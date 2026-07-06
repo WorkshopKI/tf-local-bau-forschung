@@ -46,6 +46,12 @@ export type AntragVorgang = Vorgang & {
   /** TIB-Bearbeiter-Kürzel (Roh-`tib_kuerz`). Wird in der Home-„Alle Anträge"-
    *  Übersicht (alle-Modus, pl/dev) je Zeile als MA-Badge angezeigt. */
   tib_kuerz?: string;
+  /** Antragseingangs-Datum (CSV `antragsdatum`), roh. Für den Ampel-Punkt +
+   *  das Eingangsalter („vor N T") in der Home-„Meine Anträge"-Liste. */
+  antragsdatum?: string;
+  /** Bewilligungsdatum (CSV `bewilligung_datum`), roh. Nur für den Ampel-Null-
+   *  Guard (gesetzt ⇒ keine Ampel). */
+  bewilligung_datum?: string;
 };
 
 export interface DashboardStats {
@@ -167,6 +173,8 @@ function antragToVorgangLike(
     verbund_titel: verbundTitel,
     t_xsw: typeof a.t_xsw === 'string' && a.t_xsw.trim().length > 0 ? a.t_xsw.trim() : undefined,
     tib_kuerz: typeof a.tib_kuerz === 'string' && a.tib_kuerz.trim().length > 0 ? a.tib_kuerz.trim() : undefined,
+    antragsdatum,
+    bewilligung_datum: typeof a.bewilligung_datum === 'string' ? a.bewilligung_datum : undefined,
   };
 }
 

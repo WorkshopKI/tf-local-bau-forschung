@@ -22,13 +22,25 @@ import { antragMatchesBearbeiter, type BearbeiterFilterMode } from './bearbeiter
 
 export type EingangAmpel = 'gruen' | 'gelb' | 'orange' | 'rot';
 
+/**
+ * Minimal-Shape für die Ampel-Berechnung. Erfüllt von `AntragListItem` (voller
+ * CSV-Record) wie von der Home-Projektion `AntragVorgang` — so kann die Home-
+ * „Meine Anträge"-Liste dieselbe Ampel-Logik nutzen, ohne einen echten
+ * `AntragListItem` zu halten.
+ */
+export interface EingangAmpelInput {
+  status?: string;
+  antragsdatum?: unknown;
+  bewilligung_datum?: unknown;
+}
+
 function trimmed(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
   return t.length === 0 ? null : t;
 }
 
-export function daysSinceEingang(a: AntragListItem): number | null {
+export function daysSinceEingang(a: { antragsdatum?: unknown }): number | null {
   const d = trimmed(a.antragsdatum);
   if (!d) return null;
   const ms = new Date(d).getTime();
@@ -36,7 +48,7 @@ export function daysSinceEingang(a: AntragListItem): number | null {
   return Math.floor((Date.now() - ms) / (1000 * 60 * 60 * 24));
 }
 
-export function getEingangAmpel(a: AntragListItem): EingangAmpel | null {
+export function getEingangAmpel(a: EingangAmpelInput): EingangAmpel | null {
   if (trimmed(a.bewilligung_datum)) return null;
   if (!isOpenStatus(a.status)) return null;
   const days = daysSinceEingang(a);

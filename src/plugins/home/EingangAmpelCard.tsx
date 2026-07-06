@@ -1,7 +1,4 @@
-import { useMemo } from 'react';
-import { useAntraegeStore } from '@/plugins/antraege/store';
-import { useFilteredAntraege } from '@/plugins/antraege/useFilteredAntraege';
-import { countByAmpelBucket } from '@/plugins/antraege/eingangAmpel';
+import { useEingangAmpelCounts } from './useEingangAmpelCounts';
 
 const fmt = (n: number): string => n.toLocaleString('de-DE');
 
@@ -24,17 +21,9 @@ const fmt = (n: number): string => n.toLocaleString('de-DE');
  * Header-Tabs auf /antraege.
  */
 export function EingangAmpelCard(): React.ReactElement | null {
-  const antraege = useAntraegeStore(s => s.antraege);
-  const { bearbeiterFilter } = useFilteredAntraege();
+  const counts = useEingangAmpelCounts();
 
-  const counts = useMemo(() => ({
-    frisch: countByAmpelBucket(antraege, 'frisch', bearbeiterFilter),
-    warnung: countByAmpelBucket(antraege, 'warnung', bearbeiterFilter),
-    kritisch: countByAmpelBucket(antraege, 'kritisch', bearbeiterFilter),
-  }), [antraege, bearbeiterFilter]);
-
-  const total = counts.frisch + counts.warnung + counts.kritisch;
-  if (total === 0) return null;
+  if (counts.total === 0) return null;
 
   return (
     <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">

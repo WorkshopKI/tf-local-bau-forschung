@@ -16,6 +16,8 @@ import { WeitermachenSection } from './WeitermachenSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { EingangAmpelCard } from './EingangAmpelCard';
+import { useEingangAmpelCounts } from './useEingangAmpelCounts';
+import { formatHomeSubtitle } from './homeSubtitle';
 import { AiAssistantCard } from './AiAssistantCard';
 import { isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant, isKuerzelDropdownEnabled } from '@/config/feature-flags';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
@@ -65,6 +67,16 @@ export function HomePage(): React.ReactElement {
   // bereits nur die Anträge des aktiven Programms.
   const data = useDashboardData();
   const name = profile?.name ?? '';
+
+  // Kopfzeilen-Subtitle aus denselben Ampel-Aggregaten wie die Sidebar-Karte
+  // (EingangAmpelCard) — garantiert identische Zahlen (kein Drift). Hook muss
+  // vor den Early-Returns stehen (React-Regel).
+  const ampelCounts = useEingangAmpelCounts();
+  const subtitleParts = formatHomeSubtitle({
+    offen: ampelCounts.total,
+    kritisch: ampelCounts.kritisch,
+    warnung: ampelCounts.warnung,
+  });
 
   // Auto-Start der Tour beim ersten Besuch (nur wenn Daten vorhanden)
   const tourHasCompleted = tour.hasCompleted;
@@ -161,7 +173,11 @@ export function HomePage(): React.ReactElement {
       <div data-tour="home-dashboard" className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
         <p className="text-[13px] text-[var(--tf-text-secondary)]">
-          {data.stats.offen} offene Vorgänge · {data.fristenDieseWoche} Fristen diese Woche
+          {subtitleParts.offen}
+          {subtitleParts.kritisch ? (
+            <> · <span className="text-[var(--tf-danger-text)]">{subtitleParts.kritisch}</span></>
+          ) : null}
+          {subtitleParts.warnung ? <> · {subtitleParts.warnung}</> : null}
         </p>
       </div>
 

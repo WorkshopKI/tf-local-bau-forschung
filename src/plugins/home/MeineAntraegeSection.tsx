@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ListItem } from '@/components/ui/ListItem';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useAntraegeStore } from '@/plugins/antraege/store';
-import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
-import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
-import { XswSuffix } from '@/plugins/antraege/XswSuffix';
-import { MaKuerzelBadge } from '@/plugins/antraege/MaKuerzelBadge';
+import { getEingangAmpel, daysSinceEingang, AMPEL_COLOR, AMPEL_TOOLTIP } from '@/plugins/antraege/eingangAmpel';
+import { naechsterSchritt } from './naechsterSchritt';
 import type { AntragVorgang } from './useDashboardData';
 
 /**
@@ -41,34 +38,9 @@ interface Props {
   alleMode?: boolean;
 }
 
-type FristTone = 'overdue' | 'urgent' | 'normal';
-
-interface FristLabel {
-  /** Sprachlicher Kurz-Text: "vor 189d", "in 6d", "heute". */
-  label: string;
-  tone: FristTone;
-  /** ISO-Date der Frist; wird im Tooltip absolut ausgegeben. */
-  iso: string;
-}
-
-/**
- * Bildet die phasen-abhängige Frist auf ein sprachliches Kurz-Label ab.
- * Ohne Vorzeichen-Magie: "vor X d" für Vergangenheit, "in X d" für Zukunft,
- * "heute" für diff=0. Tone steuert die Farb-Zuordnung im Render.
- */
-function formatDaysShort(deadline: string | undefined): FristLabel | null {
-  if (!deadline) return null;
-  const diff = Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (Number.isNaN(diff)) return null;
-  if (diff === 0) return { label: 'heute', tone: 'urgent', iso: deadline };
-  if (diff < 0) return { label: `vor ${-diff}d`, tone: 'overdue', iso: deadline };
-  if (diff <= 7) return { label: `in ${diff}d`, tone: 'urgent', iso: deadline };
-  return { label: `in ${diff}d`, tone: 'normal', iso: deadline };
-}
-
 /**
  * Eigene Sektion auf der Home-Page, die ausschließlich die offenen Förderanträge
- * des Profils zeigt — gruppiert nach VB-Phase (badge prominent als Icon).
+ * des Profils zeigt — als Handlungs-Zeile „Phase → nächster Schritt".
  *
  * Sichtbarkeit:
  * - Wird durch HomePage nur eingebunden, wenn der Bearbeiter-Filter aktiv ist
@@ -132,74 +104,54 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens,
         )}
       </p>
       {visible.map((v, i) => {
-        const phaseLabel = getVbPhaseLabel(v.vb_phase);
-        const frist = formatDaysShort(v.deadline);
-        const isVerbund = (v.tv_count ?? 1) > 1;
-        // Verbund-Titel (VB_TITEL aus dem Verbund-Store) bevorzugt — konsistent
-        // fuer Verbund-Cluster (gleich fuer alle TVs) und Einzelprojekte (dort
-        // typischerweise identisch zum TV-Titel). Fallback auf TV-Titel wenn
-        // verbund_titel nicht gepflegt ist.
+        // Verbund-Titel (VB_TITEL) bevorzugt, sonst TV-Titel; Akronym daraus
+        // ableiten (Pattern „${akronym} / ${rest}") bzw. aus dem CSV-Feld.
         const baseTitle = v.verbund_titel ?? v.title;
-        // splitTitle erkennt das Pattern "${akronym} / ${rest}" im Titel und
-        // splittet das Akronym ab (bold-Rendering). Wenn der Verbund-Titel
-        // OHNE Akronym-Praefix gepflegt ist (Normalfall bei VB_TITEL), prefixen
-        // wir das Akronym manuell aus dem CSV-Feld — sonst geht es in der
-        // Anzeige verloren.
         const split = splitTitle(baseTitle, v.acronym);
-        const displayAcronym = split.acronym ?? (v.acronym?.trim() || null);
-        const titleNode = displayAcronym ? (
-          <span className="truncate min-w-0">
-            <span className="font-medium text-[var(--tf-text)]">{displayAcronym}</span>
-            <span className="text-[var(--tf-text-secondary)]"> / {split.rest}</span>
-          </span>
+        // Primär-Label: Akronym (bevorzugt), sonst der (Verbund-)Titel.
+        const displayLabel = split.acronym ?? (v.acronym?.trim() || null) ?? split.rest;
+
+        // Ampel-Punkt + Eingangsalter aus demselben Datum (antragsdatum) — der
+        // Punkt spiegelt die Eingangs-Ampel, „vor N T" das Eingangsalter.
+        const ampel = getEingangAmpel(v);
+        const ageDays = daysSinceEingang(v);
+        const ageLabel = ageDays !== null && ageDays >= 0 ? `vor ${ageDays} T` : null;
+
+        // Handlungs-Formel „Phase → Aktion" statt Status-Badge.
+        const sr = naechsterSchritt(v.status);
+        const schrittText = sr ? (sr.aktion ? `${sr.phase} → ${sr.aktion}` : sr.phase) : '';
+
+        const dot = ampel ? (
+          <span
+            className="block w-2 h-2 rounded-full"
+            style={{ background: AMPEL_COLOR[ampel] }}
+            title={AMPEL_TOOLTIP[ampel]}
+            aria-hidden="true"
+          />
         ) : (
-          <span className="truncate min-w-0 text-[var(--tf-text-secondary)]">{split.rest}</span>
+          <span className="block w-2 h-2 rounded-full bg-[var(--tf-text-tertiary)] opacity-40" aria-hidden="true" />
         );
-        // Subtitle: Aktenzeichen + "+N TV"-Suffix bei Verbund-Clustern.
-        // N = Anzahl weiterer TVs (= tv_count − 1).
-        const subtitleText = isVerbund
-          ? `${v.id} · +${(v.tv_count ?? 1) - 1} TV`
-          : v.id;
-        // Frist + FuE-Phase als kombinierter Icon-Slot links vor dem Antrag.
-        // Frist mit fixer Breite, damit die Akronyme vertikal aligniert bleiben.
-        // Tone bestimmt die Farbe: rot/medium für ueberfaellig, amber/medium
-        // fuer "diese Woche" (heute oder in <=7d), grau/regular fuer alles
-        // darueber. Tooltip zeigt das absolute Frist-Datum.
-        const fristToneClass =
-          frist?.tone === 'overdue'
-            ? 'text-[var(--tf-danger-text)] font-medium'
-            : frist?.tone === 'urgent'
-              ? 'text-[var(--tf-warning-text)] font-medium'
-              : 'text-[var(--tf-text-tertiary)]';
-        const iconNode = (
-          <div className="flex items-center gap-2">
-            <span
-              className={`shrink-0 w-[68px] text-right text-[11px] tabular-nums ${fristToneClass}`}
-              title={frist ? `Frist: ${new Date(frist.iso).toLocaleDateString('de-DE')}` : undefined}
-            >
-              {frist?.label ?? ''}
-            </span>
-            {phaseLabel ? (
-              <Badge variant={getVbPhaseVariant(v.vb_phase)}>{phaseLabel}</Badge>
-            ) : (
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--tf-text-tertiary)] opacity-40" />
-            )}
-          </div>
-        );
+
         return (
           <ListItem
             key={v.id}
             iconBare
-            icon={iconNode}
-            title={<>{titleNode}<XswSuffix value={v.t_xsw} className="shrink-0 max-w-[40%] truncate" /></>}
-            titleClassName="text-[13px] flex items-baseline gap-1 min-w-0"
-            subtitle={subtitleText}
-            subtitleClassName="text-[11px] font-mono text-[var(--tf-text-tertiary)] truncate"
-            meta={
-              <span className="inline-flex items-center gap-1.5">
-                {alleMode ? <MaKuerzelBadge kuerzel={v.tib_kuerz} /> : null}
-                <Badge variant={getStatusVariant(v.status)}>{getStatusLabel(v.status)}</Badge>
+            icon={dot}
+            title={
+              <span className="flex items-baseline gap-2 w-full min-w-0">
+                <span className="font-medium text-[var(--tf-text)] shrink-0 max-w-[55%] truncate">{displayLabel}</span>
+                {schrittText ? (
+                  <span className="text-[var(--tf-text-secondary)] truncate min-w-0 flex-1">{schrittText}</span>
+                ) : null}
               </span>
+            }
+            titleClassName="text-[13px] min-w-0"
+            meta={
+              ageLabel ? (
+                <span className="text-[11px] tabular-nums text-[var(--tf-text-tertiary)] whitespace-nowrap">
+                  {ageLabel}
+                </span>
+              ) : undefined
             }
             onClick={() => navigate('antraege', { selectedId: v.id })}
             last={i === visible.length - 1}
