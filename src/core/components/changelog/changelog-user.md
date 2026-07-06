@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.177 — 2026-07
+
+### Verbesserungen
+- Die Anträge-Tabelle hat jetzt **eine** klare Spalte „Status und nächster Schritt" statt drei verstreuter Status-Spalten: Sie sehen auf einen Blick den amtlichen Status **und** was als Nächstes zu tun ist (z. B. „Beantragt → PreCheck durchführen"). Abgeschlossene Anträge zeigen nur noch den Status, ohne Handlungsaufforderung.
+- Die alten Einzelspalten (Status, FB-Status, PreCheck-Status) bleiben über „Spalten" weiterhin zuschaltbar. Wenn Sie Ihre Spaltenauswahl schon angepasst hatten, bleibt sie unverändert.
+
 ## v2.176 — 2026-07
 
 ### Neu

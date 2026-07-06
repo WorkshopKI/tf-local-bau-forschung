@@ -8,6 +8,7 @@ import {
   isAbgelehntStatus,
   isBegleitungStatus,
   isClosedStatus,
+  statusRang,
 } from '@/core/utils/status-canonical';
 
 describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
@@ -223,5 +224,36 @@ describe('isClosedStatus — final entschieden (bewilligt + abgelehnt + abgeschl
     'Ablehnung', 'Widerruf', 'Anhörung zum Widerruf', 'Rücknahmeempfehlung',
   ])('"%s" ist NICHT closed', s => {
     expect(isClosedStatus(s)).toBe(false);
+  });
+});
+
+describe('statusRang — kanonische Lebenszyklus-Ordnung', () => {
+  it.each([
+    ['beantragt', 1],        // offen
+    ['techn geprüft', 2],    // in_pruefung
+    ['NF gestellt', 3],      // nachforderung
+    ['bewilligungsreif', 4], // entscheidung
+    ['bewilligt', 5],        // bewilligt
+    ['VN geprüft', 6],       // begleitung
+    ['Schlussvermerk', 7],   // abgeschlossen
+    ['abgelehnt', 8],        // abgelehnt (Bauantrag-Domain)
+    ['Irrläufer', 9],        // sonstige
+  ] as const)('"%s" → Rang %i', (raw, rang) => {
+    expect(statusRang(raw)).toBe(rang);
+  });
+
+  it('unbekannt/leer/undefined → Rang 9 (sonstige, ans Ende)', () => {
+    expect(statusRang('fantasieStatus')).toBe(9);
+    expect(statusRang('')).toBe(9);
+    expect(statusRang(undefined)).toBe(9);
+    expect(statusRang(null)).toBe(9);
+  });
+
+  it('ist monoton entlang des Verfahrens (offen < Prüfung < … < abgeschlossen)', () => {
+    const lifecycle = ['beantragt', 'techn geprüft', 'NF gestellt', 'bewilligungsreif', 'bewilligt', 'VN geprüft', 'Schlussvermerk'];
+    const ranks = lifecycle.map(statusRang);
+    const sorted = [...ranks].sort((a, b) => a - b);
+    expect(ranks).toEqual(sorted);
+    expect(new Set(ranks).size).toBe(ranks.length); // strikt aufsteigend, keine Kollision
   });
 });

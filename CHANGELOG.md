@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.177.0 — Journey-Paket 2 Phase 3: kombinierte „Status und nächster Schritt"-Spalte (Juli 2026)
+
+MINOR — Die verstreute Statusinfo der Förderanträge-Tabelle (drei Spalten Status / FB Status / PreCheck Status) wird zu **einer** aussagekräftigen Spalte „Status und nächster Schritt" ([liste-quickfilter.png]) verdichtet: amtliches Status-Badge + die konkrete nächste Handlung. Additiv — die alten Spalten bleiben als Picker-Optionen erhalten, gespeicherte Spalten-Configs bleiben unangetastet, keine Datenmigration.
+
+- **Neue Spalte `status_naechster_schritt`** ([tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)): Badge = amtliche Phase (`getStatusLabel` + `getStatusVariant`, **keine neuen Farben**), dahinter ` → {Aktion}` aus `naechsterSchritt(status, precheck_status_label)` in `text-secondary`, einzeilig mit `title`-Tooltip. Bei **terminalem** Status (`isTerminalStatus`) kein Badge, nur ruhiger grauer Status-Text — abgeschlossene Anträge fordern keine Handlung mehr. Der PreCheck-Stand fließt in die Aktion ein (früher Antrag ohne PreCheck → „PreCheck durchführen", mit positivem PreCheck → „Vollständigkeit prüfen").
+- **Spalten-Defaults verschoben:** `status_naechster_schritt` ist Default-sichtbar, das alte reine `status`-Badge (sowie `fb_status`/`precheck_status`) sind per Default AUS. Alle drei bleiben im Spalten-Picker wählbar. **Migration:** `useAntraegeColumnsStore` behält gespeicherte Keys (validiert gegen die Registry) unverändert — bestehende Nutzer sehen ihre gewählten Spalten weiter, nur der Default für neue/zurückgesetzte Ansichten ändert sich.
+- **Kanonischer Sortier-Rang** `statusRang(status)` neu in [status-canonical.ts](src/core/utils/status-canonical.ts): Rang 1–9 entlang des Lebenszyklus (offen → Prüfung → Nachforderung → Entscheidung → bewilligt → Begleitung → abgeschlossen → abgelehnt → sonstige). Der Spalten-`accessor` faltet Rang (2-stellig gepolstert, dominiert) + Aktion (alphabetischer Tie-Break) in einen Sortier-String; `exportValue` liefert stattdessen den lesbaren „{Status} → {Aktion}"-Text (kein Sortier-Sentinel im XLSX). Kein String-Literal-Status-Vergleich (Pitfall #12).
+- Tests: [statusSchrittColumn.test.ts](src/plugins/antraege/__tests__/statusSchrittColumn.test.ts) (accessor-Sortierung/Rang-Polsterung, exportValue inkl. PreCheck-Durchreichung + terminaler Grau-Zweig, render-Verzweigung via Tooltip) + `statusRang`-Matrix in [statusCanonical.test.ts](src/plugins/antraege/__tests__/statusCanonical.test.ts).
+
+[liste-quickfilter.png]: _reference/journey-paket-2/liste-quickfilter.png
+
 ### v2.176.0 — Journey-Paket 2 Phase 2: Quickfilter-Akkordeon + PreCheck-Facette (Juli 2026)
 
 MINOR — Der Quickfilter der Förderanträge-Liste ([liste-quickfilter.png]) wird von einem Stapel gleichzeitig offener Segmente zu **einer Akkordeon-Zeile** (immer höchstens eine Pille offen), bekommt eine neue **PreCheck**-Facette und verschiebt die Gruppieren-Steuerung in ein ruhiges Dropdown. Additiv, keine Datenmigration.

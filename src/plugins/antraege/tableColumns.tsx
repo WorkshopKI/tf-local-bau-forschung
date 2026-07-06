@@ -18,7 +18,8 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { formatGermanDate } from '@/core/services/csv/dateParse';
 import { daysUntilFristAware, computeFristDatum } from '@/core/services/csv/frist';
-import { isBegleitungStatus } from '@/core/utils/status-canonical';
+import { isBegleitungStatus, isTerminalStatus, statusRang } from '@/core/utils/status-canonical';
+import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import { getKategorieLabel } from './filter/kategorieQuickfilter';
 import { MaKuerzelBadge } from './MaKuerzelBadge';
 import type { AntragTableRow } from './tableGrouping';
@@ -229,9 +230,75 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     },
   },
   {
+    // Kombinierte „Status und nächster Schritt"-Spalte (Journey-Paket 2 Phase 3):
+    // amtliches Status-Badge + ` → {Aktion}` aus `naechsterSchritt` (inkl.
+    // PreCheck-Stand). Terminale Anträge: kein Badge, nur grauer Status-Text.
+    // Sortierung nach kanonischem Status-Rang (`statusRang`, Pitfall #12), dann
+    // Aktion alphabetisch als Sekundärschlüssel — beides in einen Sortier-String
+    // gefaltet (Rang 2-stellig gepolstert → dominiert, Aktion tie-break).
+    key: 'status_naechster_schritt',
+    label: 'Status und nächster Schritt',
+    defaultVisible: true,
+    sortable: true,
+    width: 320,
+    wrap: false,
+    accessor: r => {
+      const s = strOrNull(r.status);
+      if (!s) return '99'; // leerer Status ans Ende
+      const schritt = naechsterSchritt(s, r.precheck_status_label ?? '');
+      const aktion = (schritt?.aktion || getStatusLabel(s)).toLowerCase();
+      return `${String(statusRang(s)).padStart(2, '0')} ${aktion}`;
+    },
+    // Export lesbar halten (nicht den Rang-Sortier-String) — „{Status} → {Aktion}".
+    exportValue: r => {
+      const s = strOrNull(r.status);
+      if (!s) return '';
+      const schritt = naechsterSchritt(s, r.precheck_status_label ?? '');
+      const aktion = isTerminalStatus(s) ? '' : (schritt?.aktion ?? '');
+      return aktion ? `${getStatusLabel(s)} → ${aktion}` : getStatusLabel(s);
+    },
+    render: r => {
+      const s = strOrNull(r.status);
+      if (!s) return null;
+      // Terminal: Arbeit erledigt → kein farbiges Badge, nur ruhiger Status-Text.
+      if (isTerminalStatus(s)) {
+        return (
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]" title={getStatusLabel(s)}>
+            {getStatusLabel(s)}
+          </span>
+        );
+      }
+      const schritt = naechsterSchritt(s, r.precheck_status_label ?? '');
+      const aktion = schritt?.aktion ?? '';
+      // Inline gehalten (kein Flex): das nowrap-`<td>` (overflow:hidden +
+      // text-overflow:ellipsis) clippt den nachgestellten Aktions-Text zuerst;
+      // das Badge steht vorne und wird nie abgeschnitten.
+      return (
+        <span
+          className="text-[11.5px]"
+          title={aktion ? `${getStatusLabel(s)} → ${aktion}` : getStatusLabel(s)}
+        >
+          <Badge
+            variant={getStatusVariant(s)}
+            className="align-middle justify-center whitespace-nowrap text-[10.5px]"
+          >
+            {getStatusLabel(s)}
+          </Badge>
+          {aktion ? (
+            <span className="ml-1.5 text-[var(--tf-text-secondary)]">→ {aktion}</span>
+          ) : null}
+        </span>
+      );
+    },
+  },
+  {
+    // Altes reines Status-Badge — bleibt als Spalten-Picker-Option, Default AUS
+    // (seit Phase 3 durch „Status und nächster Schritt" ersetzt). Bestehende
+    // gespeicherte Spalten-Configs behalten diese Spalte (Migration lässt Keys
+    // unangetastet, nur der Default ändert sich).
     key: 'status',
     label: 'Status',
-    defaultVisible: true,
+    defaultVisible: false,
     sortable: true,
     filterable: true,
     width: 140,

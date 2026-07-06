@@ -222,3 +222,29 @@ export const TERMINAL_STATUS_CATEGORIES: ReadonlySet<StatusCategory> = new Set<S
 export function isTerminalStatus(raw: unknown): boolean {
   return TERMINAL_STATUS_CATEGORIES.has(getStatusCategory(raw));
 }
+
+/**
+ * Kanonischer Sortier-Rang der Status-Kategorien entlang des Antrags-
+ * Lebenszyklus (offen → Prüfung → … → abgeschlossen). Kleiner = früher im
+ * Verfahren. Terminal-/Sonstige-Kategorien sinken ans Ende. Einzelquelle für
+ * die Sortierung der kombinierten „Status und nächster Schritt"-Spalte —
+ * ersetzt String-Literal-Vergleiche (Pitfall #12).
+ */
+const STATUS_CATEGORY_RANK: Record<StatusCategory, number> = {
+  offen: 1,
+  in_pruefung: 2,
+  nachforderung: 3,
+  entscheidung: 4,
+  bewilligt: 5,
+  begleitung: 6,
+  abgeschlossen: 7,
+  abgelehnt: 8,
+  sonstige: 9,
+};
+
+/** Sortier-Rang eines rohen Status-Werts (1 = frühester Lebenszyklus-Schritt,
+ *  9 = `sonstige`/unbekannt/leer). Basis für die Sortierung der kombinierten
+ *  Status-Spalte; Sekundärschlüssel (Aktion) legt der Aufrufer an. */
+export function statusRang(raw: unknown): number {
+  return STATUS_CATEGORY_RANK[getStatusCategory(raw)];
+}
