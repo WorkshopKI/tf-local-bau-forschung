@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.189.0 — Feedback-Übersicht: Sidebar-Zugang zurück + eigenes Feedback hervorgehoben (Juli 2026)
+
+MINOR — Das öffentliche **Feedback-Board** ist wieder direkt aus der Sidebar erreichbar, und in der Liste ist das **eigene Feedback** markiert, damit man den Bearbeitungs-Status seiner Tickets verfolgen kann. Additiv, keine Datenmigration.
+
+- **Fußzeilen-Icon → Board** ([ShellLayout.tsx](src/core/ShellLayout.tsx)): Das (bisher zum FAB doppelte) Feedback-Icon in der Sidebar-Fußzeile öffnet jetzt **direkt die Feedback-Übersicht** (`/feedback-board`) statt des Geben-Dialogs — mit passenderem Icon (`MessagesSquare`) + Tooltip „Feedback-Übersicht". Feedback *geben* bleibt auf dem globalen FAB unten rechts. Der ungenutzte `useFeedbackDialog`-Import wurde entfernt. Das Board-Plugin bleibt `hideFromNav` (kein Nav-Menüpunkt); die Route ist unverändert registriert.
+- **„Mein Feedback"-Sicht + Hervorhebung** ([FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)): neuer Filter-Chip „Sicht: Alle/Mein Feedback" (mit Zähler, im bestehenden `CollapsibleSeg`-Idiom, in localStorage `tf-feedback-board-mine-filter`). Das eigene Feedback (`user_id == profile.name`) ist in **allen drei Ansichten** markiert — Split-Liste ([FeedbackTicketRow.tsx](src/components/feedback/FeedbackTicketRow.tsx)) + Karte ([FeedbackBoardCard.tsx](src/components/feedback/FeedbackBoardCard.tsx)) mit Primary-Akzent + „Dein Feedback"-Badge, Tabelle ([FeedbackBoardListView.tsx](src/components/feedback/FeedbackBoardListView.tsx)) mit „Du"-Chip in der „Von"-Spalte. Identität wie beim bestehenden „Mein Feedback"-Tab; anonyme Absender (kein Profilname) matchen bewusst nicht — dann ist der „Sicht"-Chip ausgeblendet und nichts hervorgehoben.
+- Feedback-KI-Kontext nachgezogen ([docs/feedback-kontext/feedback-board.md](docs/feedback-kontext/feedback-board.md)).
+
 ### v2.188.0 — VB-Kontext: 80k-Default + Server-Auto-Detect, „zu lang"-Warnung beim Konvertieren (Juli 2026)
 
 MINOR — Behebt, dass eine ~50k-Token-Vorhabensbeschreibung trotz 80k-Kontextfenster des internen llama.cpp gekürzt wurde. Ursache: die App hatte einen **eigenen** Kontext-Default von **62.000** Tokens (las `config-chat-qwen.json` nie) → Zeichen-Cap `(62000−4096)×3 = 173.712`; dt. Text mit Tabellen läuft ~4 Zeichen/Token, sprengt das. Additiv, keine Datenmigration; die per-Maschine-`localStorage`-Einstellung bleibt gültig.

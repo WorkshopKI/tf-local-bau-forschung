@@ -17,6 +17,8 @@ interface Props {
   collapsed: boolean;
   onToggle: () => void;
   onChanged: () => void;
+  /** Board: user_id des angemeldeten Nutzers → eigene Karten werden markiert. */
+  meineUserId?: string;
 }
 
 export function FeedbackCategoryGroup({
@@ -26,6 +28,7 @@ export function FeedbackCategoryGroup({
   collapsed,
   onToggle,
   onChanged,
+  meineUserId,
 }: Props): React.ReactElement {
   const isUnclassified = categoryKey === 'unclassified';
   const Icon = getLucideIcon(isUnclassified ? 'MessageCircle' : CATEGORY_ICONS[categoryKey]);
@@ -57,7 +60,13 @@ export function FeedbackCategoryGroup({
       {!collapsed && (
         <div className="space-y-3 mt-2">
           {items.map(t => (
-            <FeedbackBoardCard key={t.id} ticket={t} config={config} onChanged={onChanged} />
+            <FeedbackBoardCard
+              key={t.id}
+              ticket={t}
+              config={config}
+              onChanged={onChanged}
+              mine={!!meineUserId && t.user_id === meineUserId}
+            />
           ))}
         </div>
       )}

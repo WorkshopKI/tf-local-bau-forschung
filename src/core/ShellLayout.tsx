@@ -14,7 +14,7 @@ import { useTourContext } from '@/core/hooks/useTour';
 import { useProfile } from '@/core/hooks/useProfile';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { TourOverlay } from '@/core/components/tour/TourOverlay';
-import { FeedbackButton, useFeedbackDialog } from '@/components/feedback';
+import { FeedbackButton } from '@/components/feedback';
 import { groupNavPlugins, navVisiblePlugins } from '@/core/nav/groupNavPlugins';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
@@ -386,21 +386,21 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
           <div className="px-2 py-1.5 shrink-0 flex flex-col" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             {sidebarMode === 'expanded' ? (
               <>
-                {/* Zeile 1: „Zeig es mir" (links) + Feedback-Icon + Version (rechts).
-                    Der Feedback-Button teilt sich den Dialog mit dem globalen FAB
-                    über den `useFeedbackDialog`-Store (keine Duplikat-Logik). */}
+                {/* Zeile 1: „Zeig es mir" (links) + Feedback-Übersicht-Icon + Version
+                    (rechts). Das Icon öffnet direkt das Feedback-Board (Übersicht);
+                    Feedback *geben* liegt auf dem globalen FAB unten rechts. */}
                 <div className="flex items-center justify-between gap-1">
                   <FooterShowcaseButton activeId={activeId} pageName={pageName} />
                   <div className="flex items-center gap-1.5">
                     {isFeedbackEnabled() && (
                       <button
                         type="button"
-                        onClick={() => useFeedbackDialog.getState().openDialog()}
-                        title="Feedback geben"
-                        aria-label="Feedback geben"
+                        onClick={() => navigate('/feedback-board')}
+                        title="Feedback-Übersicht"
+                        aria-label="Feedback-Übersicht öffnen"
                         className="p-1 rounded-[var(--tf-radius)] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer"
                       >
-                        <Icons.MessageCircle size={15} />
+                        <Icons.MessagesSquare size={15} />
                       </button>
                     )}
                     <BuildInfo />

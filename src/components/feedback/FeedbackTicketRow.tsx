@@ -22,9 +22,12 @@ interface Props {
   /** Optional (nur Kurator-Liste): 1-Klick-„Umgesetzt"-Abhaken links. Async —
    *  der Parent schreibt + reconciled; hier nur busy/Doppelklick-Schutz. */
   onToggleDone?: (ticket: FeedbackItem) => Promise<void>;
+  /** Board: markiert das eigene Feedback (weicher Primary-Akzent + „Dein
+   *  Feedback"-Badge), damit man den Status seiner Tickets wiederfindet. */
+  mine?: boolean;
 }
 
-export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone }: Props): React.ReactElement {
+export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone, mine }: Props): React.ReactElement {
   const summary = ticket.llm_summary || ticket.text || '–';
   const date = formatShortDate(ticket.created_at);
   const area = ticket.context?.page;
@@ -42,7 +45,11 @@ export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone }: 
       }`}
       style={{
         borderBottom: '0.5px solid var(--tf-border)',
-        borderLeft: selected ? '3px solid var(--tf-primary)' : '3px solid transparent',
+        borderLeft: selected
+          ? '3px solid var(--tf-primary)'
+          : mine
+          ? '3px solid var(--tf-primary-light)'
+          : '3px solid transparent',
       }}
     >
       {onToggleDone && (
@@ -75,6 +82,11 @@ export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone }: 
           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
             {ticket.category ? CATEGORY_LABELS[ticket.category] : '–'}
           </span>
+          {mine && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 bg-[var(--tf-primary-light)] text-[var(--tf-primary)]">
+              Dein Feedback
+            </span>
+          )}
           <p className={`flex-1 min-w-0 text-[12px] font-medium truncate ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{summary}</p>
           <span
             className="shrink-0 w-3 flex justify-center text-[var(--tf-text-tertiary)]"

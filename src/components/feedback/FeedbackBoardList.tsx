@@ -9,9 +9,11 @@ interface Props {
   tickets: FeedbackItem[];
   selectedId?: string;
   onSelect: (ticket: FeedbackItem) => void;
+  /** Board: user_id des angemeldeten Nutzers → eigene Zeilen werden markiert. */
+  meineUserId?: string;
 }
 
-export function FeedbackBoardList({ tickets, selectedId, onSelect }: Props): React.ReactElement {
+export function FeedbackBoardList({ tickets, selectedId, onSelect, meineUserId }: Props): React.ReactElement {
   if (tickets.length === 0) {
     return (
       <p className="text-[12px] text-[var(--tf-text-tertiary)] text-center py-8">
@@ -28,6 +30,7 @@ export function FeedbackBoardList({ tickets, selectedId, onSelect }: Props): Rea
           ticket={ticket}
           selected={selectedId === ticket.id}
           onSelect={onSelect}
+          mine={!!meineUserId && ticket.user_id === meineUserId}
         />
       ))}
     </div>

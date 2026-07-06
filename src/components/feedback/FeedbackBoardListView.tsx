@@ -31,10 +31,12 @@ import { FeedbackScreenshots } from './FeedbackScreenshots';
 interface Props {
   tickets: FeedbackItem[];
   config: FeedbackConfig;
+  /** Board: user_id des angemeldeten Nutzers → eigene Zeilen bekommen ein „Du"-Chip. */
+  meineUserId?: string;
 }
 
-export function FeedbackBoardListView({ tickets, config }: Props): React.ReactElement {
-  const columns = useMemo(() => buildColumns(config), [config]);
+export function FeedbackBoardListView({ tickets, config, meineUserId }: Props): React.ReactElement {
+  const columns = useMemo(() => buildColumns(config, meineUserId), [config, meineUserId]);
   const defaultWidths = useMemo(
     () => Object.fromEntries(columns.map(c => [c.key, c.width ?? 120])),
     [columns],
@@ -65,7 +67,7 @@ function effortRank(e?: EffortEstimate): number {
   return e ? EFFORT_HOURS[e] : 0;
 }
 
-function buildColumns(config: FeedbackConfig): SortableColumn<FeedbackItem>[] {
+function buildColumns(config: FeedbackConfig, meineUserId?: string): SortableColumn<FeedbackItem>[] {
   return [
     {
       key: 'typ', label: 'Typ', defaultVisible: true, sortable: true, filterable: true, width: 96, wrap: false,
@@ -95,9 +97,19 @@ function buildColumns(config: FeedbackConfig): SortableColumn<FeedbackItem>[] {
       filterAccessor: t => feedbackAuthorLabel(t) ?? '(unbekannt)',
       render: t => {
         const author = feedbackAuthorLabel(t);
-        return author
-          ? <span className="text-[12px] text-[var(--tf-text-secondary)]">{author}</span>
-          : <span className="text-[11px] text-[var(--tf-text-tertiary)]">—</span>;
+        const mine = !!meineUserId && t.user_id === meineUserId;
+        return (
+          <span className="inline-flex items-center gap-1.5">
+            {mine && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--tf-primary-light)] text-[var(--tf-primary)]" title="Dein Feedback">
+                Du
+              </span>
+            )}
+            {author
+              ? <span className="text-[12px] text-[var(--tf-text-secondary)]">{author}</span>
+              : <span className="text-[11px] text-[var(--tf-text-tertiary)]">—</span>}
+          </span>
+        );
       },
     },
     {

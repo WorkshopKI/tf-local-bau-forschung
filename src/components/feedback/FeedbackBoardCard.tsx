@@ -20,9 +20,11 @@ interface Props {
   ticket: FeedbackItem;
   config: FeedbackConfig;
   onChanged: () => void;
+  /** Board: markiert die eigene Karte (Primary-Rand + „Dein Feedback"-Badge). */
+  mine?: boolean;
 }
 
-export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.ReactElement {
+export function FeedbackBoardCard({ ticket, config, onChanged, mine }: Props): React.ReactElement {
   const Icon = getLucideIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const summary = ticket.llm_summary || ticket.text || '–';
   const author = feedbackAuthorLabel(ticket);
@@ -36,7 +38,7 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
   return (
     <div
       className="rounded-[var(--tf-radius-lg)] p-4 space-y-2 bg-[var(--tf-bg)]"
-      style={{ border: '0.5px solid var(--tf-border)' }}
+      style={{ border: mine ? '1px solid var(--tf-primary)' : '0.5px solid var(--tf-border)' }}
     >
       {/* Header: Icon + Titel/Autor links, Badges rechts */}
       <div className="flex items-start gap-2">
@@ -55,6 +57,11 @@ export function FeedbackBoardCard({ ticket, config, onChanged }: Props): React.R
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+          {mine && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-[var(--tf-primary-light)] text-[var(--tf-primary)]">
+              Dein Feedback
+            </span>
+          )}
           {ticket.context?.page && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
               {ticket.context.page}

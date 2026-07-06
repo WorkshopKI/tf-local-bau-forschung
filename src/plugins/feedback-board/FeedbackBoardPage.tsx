@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Columns2, LayoutGrid, List } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useProfile } from '@/core/hooks/useProfile';
 import { MasterDetailLayout } from '@/components/master-detail';
 import {
   BudgetBadge,
@@ -56,6 +57,8 @@ const VIEW_MODE_KEY = 'tf-feedback-board-view-mode';
 // Themen zuerst; der Chip ist dadurch standardmäßig aufgeklappt, weil
 // CollapsibleSeg bei value ≠ defaultValue expandiert).
 const STATUS_FILTER_KEY = 'tf-feedback-board-status-filter';
+// „Mein Feedback"-Filter überlebt Reloads; Default = aus (ganzes Board).
+const MINE_FILTER_KEY = 'tf-feedback-board-mine-filter';
 
 function loadCollapsedCats(): Set<string> {
   try {
@@ -91,11 +94,25 @@ function loadStatusFilter(): StatusFilter {
   return 'open';
 }
 
+function loadMineFilter(): boolean {
+  try {
+    return localStorage.getItem(MINE_FILTER_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function FeedbackBoardPage(): React.ReactElement {
   const storage = useStorage();
+  const { profile } = useProfile();
+  // Eigenes Feedback = user_id == profile.name (wie der „Mein Feedback"-Tab).
+  // Anonyme Absender speichern user_id: 'anonymous' → ohne echten Namen kein
+  // „meins" (sonst würden alle Anonymen aufeinander matchen).
+  const meineUserId = profile?.name && profile.name !== 'anonymous' ? profile.name : undefined;
   const [tickets, setTickets] = useState<FeedbackItem[]>([]);
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
   const [filterStatus, setFilterStatus] = useState<StatusFilter>(loadStatusFilter);
+  const [filterMine, setFilterMine] = useState<boolean>(loadMineFilter);
   const [filterKategorie, setFilterKategorie] = useState<FeedbackCategory | ''>('');
   // Bereich = context.page-Label (CollapsibleSeg ist label-basiert). '' = Alle.
   const [filterArea, setFilterArea] = useState<string>('');
@@ -112,6 +129,11 @@ export function FeedbackBoardPage(): React.ReactElement {
   const changeStatusFilter = useCallback((status: StatusFilter): void => {
     setFilterStatus(status);
     try { localStorage.setItem(STATUS_FILTER_KEY, status); } catch { /* ignore */ }
+  }, []);
+
+  const changeMineFilter = useCallback((mine: boolean): void => {
+    setFilterMine(mine);
+    try { localStorage.setItem(MINE_FILTER_KEY, mine ? '1' : '0'); } catch { /* ignore */ }
   }, []);
 
   // silent: kein Loading-Spinner (für Hintergrund-Re-Reads bei Tab-Fokus —
@@ -164,6 +186,12 @@ export function FeedbackBoardPage(): React.ReactElement {
   // Nicht-archivierte Basis für Filter-Optionen + -Zähler.
   const base = useMemo(() => tickets.filter(t => !istArchiviert(t.kurator_status)), [tickets]);
 
+  // Anzahl eigener Tickets (für den „Sicht"-Chip). 0, wenn keine Identität da.
+  const mineCount = useMemo(
+    () => (meineUserId ? base.filter(t => t.user_id === meineUserId).length : 0),
+    [base, meineUserId],
+  );
+
   // Filter-Items (Label + Zähler) für die CollapsibleSeg-Chips.
   const statusItems: CollapsibleSegItem[] = useMemo(() => {
     const open = base.filter(t => istOffen(t.kurator_status)).length;
@@ -199,6 +227,8 @@ export function FeedbackBoardPage(): React.ReactElement {
   const filteredSorted = useMemo(() => {
     // Drei unabhängige Filter (UND-kombiniert), wie im Kurator-Dashboard.
     const byFilter = base.filter(t => {
+      // Bei undefined meineUserId greift der Filter nicht → kein leeres Board.
+      if (filterMine && meineUserId && t.user_id !== meineUserId) return false;
       if (filterKategorie && t.category !== filterKategorie) return false;
       if (filterArea && t.context?.page !== filterArea) return false;
       if (filterStatus === 'open' && !istOffen(t.kurator_status)) return false;
@@ -216,7 +246,7 @@ export function FeedbackBoardPage(): React.ReactElement {
       }
       return b.created_at.localeCompare(a.created_at);
     });
-  }, [base, filterStatus, filterKategorie, filterArea, config, isFeature]);
+  }, [base, filterStatus, filterMine, meineUserId, filterKategorie, filterArea, config, isFeature]);
 
   // Aktuell gewähltes Ticket (nur wenn es im gefilterten Set liegt — Filterwechsel
   // oder Löschen schließt das Detail automatisch).
@@ -285,6 +315,19 @@ export function FeedbackBoardPage(): React.ReactElement {
 
         {/* Filter-Chips (CollapsibleSeg, wie Förderanträge) + View-Toggle */}
         <div className="flex flex-wrap items-center gap-1.5 mb-4">
+          {/* „Sicht" nur mit Identität — sonst würde der Filter alle Anonymen
+              zusammenwerfen. Zuerst platziert = prominent. */}
+          {meineUserId && (
+            <CollapsibleSeg
+              label="Sicht"
+              value={filterMine ? 'Mein Feedback' : 'Alle'}
+              items={[
+                { label: 'Alle', count: base.length },
+                { label: 'Mein Feedback', count: mineCount },
+              ]}
+              onChange={l => changeMineFilter(l === 'Mein Feedback')}
+            />
+          )}
           <CollapsibleSeg
             label="Status"
             value={STATUS_TO_LABEL[filterStatus]}
@@ -351,6 +394,7 @@ export function FeedbackBoardPage(): React.ReactElement {
                   tickets={filteredSorted}
                   selectedId={selectedId}
                   onSelect={t => setSelectedId(t.id)}
+                  meineUserId={meineUserId}
                 />
               )}
             </div>
@@ -371,12 +415,13 @@ export function FeedbackBoardPage(): React.ReactElement {
                   collapsed={collapsedCats.has(g.key)}
                   onToggle={() => toggleCat(g.key)}
                   onChanged={handleChanged}
+                  meineUserId={meineUserId}
                 />
               ))}
             </div>
           )}
           {!loading && filteredSorted.length > 0 && viewMode === 'list' && (
-            <FeedbackBoardListView tickets={filteredSorted} config={config} />
+            <FeedbackBoardListView tickets={filteredSorted} config={config} meineUserId={meineUserId} />
           )}
         </div>
       )}

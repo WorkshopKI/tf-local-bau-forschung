@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.189 — 2026-07
+
+### Neu
+- Die **Feedback-Übersicht** ist wieder mit einem Klick aus der Seitenleiste erreichbar: Das Feedback-Symbol unten in der Seitenleiste öffnet jetzt direkt die Übersicht aller gemeldeten Punkte. Eigenes Feedback *geben* geht weiterhin über den runden Knopf unten rechts.
+- Im Feedback-Board ist **dein eigenes Feedback hervorgehoben** (farbige Markierung + „Dein Feedback"-Kennzeichen) — so siehst du auf einen Blick den Bearbeitungs-Status deiner Tickets (z. B. „In Bearbeitung"). Neu ist außerdem der Filter **„Mein Feedback"**, der die Liste auf deine eigenen Meldungen einschränkt.
+
 ## v2.188 — 2026-07
 
 ### Verbesserungen
