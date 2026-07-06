@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.186.0 — Journey-Paket 3 Phase 3: Prüfpanel — Schweregrad, Inline-KI-Aktion, Offline (Juli 2026)
+
+MINOR — Das Gutachten-Prüfpanel ([gutachten-pruefpanel.png]) bekommt die Mockup-Darstellung: `ok` grüner Haken, `hinweis` amber Punkt, **`fehler` als zarte rote Karte** mit Messwert/Limit + Inline-**„Mit KI korrigieren/kürzen/erweitern"**-Button. Die Kopfzeile zählt jetzt `{f} Fehler · {h} Hinweise` statt „{n} offen". Der lose Offline-Warnsatz weicht einer positiven Zeile. Additiv, keine Datenmigration. Bewusste Mockup-Abweichung: der „Erneut prüfen"-Footer wird **nicht** gebaut — Checks laufen bereits automatisch bei Generieren/Editieren/Restore.
+
+- **CheckList opt-in `aktion`** ([CheckList.tsx](src/plugins/antraege/kurzfassung/CheckList.tsx)): ohne `aktion` **byte-identisch** zum Bestand (schützt die 4 weiteren Konsumenten ReviewCard/VersionVerlauf/QsHinweisList); mit `aktion` (nur der Gutachten-`KontextPanel`) die Schweregrad-Darstellung. Die Fehler-Karte zeigt Titel (Regel-Name), Messwert/Limit mono, Detail und — wenn `regelKorrekturAnweisung` ≠ null — einen `ghost sm`-Button mit Sparkles-Icon; während eines Laufs Spinner + disabled, offline disabled mit `title="KI nicht erreichbar"`. **`verbotenes_muster` bekommt keinen KI-Button** (Stil-Entscheidung bleibt beim Gutachter).
+- **Verdrahtung ohne Parallel-Leitung** ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx) → [KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx)): der Button-Klick geht über die **bestehende** `ctrl.modify`-Leitung — `onKorrektur(c, k)` ruft `ctrl.modify(aktiverAbschnitt, k.modifier, { anweisung, regelId })` (Phase 2). Dadurch: Vorfassung (Undo) + Auto-Re-Check **gratis**. `regelFor` löst die auslösende Regel per `c.regelId` gegen die aktiven Regeln auf.
+- **Kopfzeilen-Summary** (neue reine [pruefSummary.ts](src/plugins/antraege/gutachten/pruefSummary.ts)): `{f} Fehler` (danger) + `{h} Hinweise` (warning), bei 0 ausgeblendet.
+- **Offline** ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)): der lose Satz „KI nicht erreichbar — …" weicht der positiven Zeile „Offline: manuell bearbeiten und prüfen weiter möglich." (Stift-Icon). Die deterministische Prüfung + manuelle Bearbeitung laufen offline unverändert; die KI-Buttons sind disabled.
+- **Styling** ausschließlich über bestehende Tokens (`--tf-danger-soft/-border/-text`, `--tf-warning-text`, `--tf-success-text`) + `g-btn ghost sm` — keine neuen Hex-Farben, keine neuen Tokens.
+- **Testansatz (Default statt Rückfrage):** das Repo hat keine React-Render-Test-Infra; die „Rendering-Matrix" ist auf **Logik-Ebene** abgedeckt (`pruefSummary`, `regelKorrekturAnweisung`/`regelLimit` aus Phase 1) — [pruefSummary.test.ts](src/plugins/antraege/gutachten/__tests__/pruefSummary.test.ts). Kein neuer Test-Stack.
+
 ### v2.185.0 — Journey-Paket 3 Phase 2: Regel-Kontext im Modify-Pfad (Juli 2026)
 
 MINOR — Der bestehende Modifier-Lauf (Neu/Kürzer/Länger) kann jetzt eine **regel-gebundene Zusatz-Anweisung** mitführen — die konkrete Korrektur-Vorgabe aus Phase 1. Ergebnis läuft wie jeder Modify durch Vorfassung + Auto-Checks (Undo + Re-Check **gratis**, nichts zusätzlich gebaut). Keine UI-Änderung (Verdrahtung folgt in Phase 3). Additiv, keine Datenmigration.

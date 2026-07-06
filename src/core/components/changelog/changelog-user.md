@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.186 — 2026-07
+
+### Verbesserungen
+- Die **Prüfung** im Gutachten (rechte Spalte „Quelle & Prüfung") zeigt jetzt auf einen Blick, wie ernst ein Punkt ist: erfüllte Regeln mit grünem Haken, kleinere Hinweise mit gelbem Punkt und **echte Fehler als rote Karte** mit dem gemessenen Wert und dem Limit (z. B. „1117 / 1000 Zeichen"). Die Kopfzeile fasst zusammen: „1 Fehler · 1 Hinweis".
+- Bei einem Fehler gibt es direkt einen Knopf **„Mit KI kürzen/erweitern/korrigieren"** — ein Klick startet eine gezielte Überarbeitung genau in die richtige Richtung (mit konkretem Zielwert), und die Prüfung aktualisiert sich anschließend von selbst. Die vorherige Fassung bleibt über den Versionsverlauf erhalten. Stilfragen (z. B. Passiv-Floskeln) bekommen bewusst **keinen** Auto-Knopf — die entscheiden Sie selbst.
+- Wenn die KI gerade **nicht erreichbar** ist, steht dort jetzt ein freundlicher Hinweis „Offline: manuell bearbeiten und prüfen weiter möglich." statt einer Warnung — die Prüfung und das manuelle Bearbeiten funktionieren offline unverändert weiter.
+
 ## v2.183 — 2026-07
 
 ### Verbesserungen

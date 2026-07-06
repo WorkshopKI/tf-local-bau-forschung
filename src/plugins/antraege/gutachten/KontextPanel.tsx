@@ -17,10 +17,11 @@
 import { Quote, ChevronRight } from 'lucide-react';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { CheckList } from '../kurzfassung/CheckList';
+import { CheckList, type CheckListAktion } from '../kurzfassung/CheckList';
 import { QsHinweisList } from './QsHinweisList';
 import { AmpelGruppe } from './AmpelGruppe';
 import { groupChecksByKategorie } from './checkGruppen';
+import { pruefSummary } from './pruefSummary';
 import { qsRollup } from './qs';
 import type { StepRun } from './types';
 
@@ -33,10 +34,15 @@ interface Props {
   onCollapse?: () => void;
   /** Nur `variant="side"`: Pointer-Down auf der linken Ziehleiste (Breite anpassen). */
   onResizeStart?: (e: React.PointerEvent) => void;
+  /**
+   * Prüfpanel-Aktionen (Journey-Paket 3, opt-in): regel-gebundene KI-Korrektur je
+   * Fehler-Check + (Phase 4) Fundstellen-Sprung. Fehlt → nur-Anzeige wie bisher.
+   */
+  aktion?: CheckListAktion;
 }
 
-export function KontextPanel({ step, provenance, variant, onCollapse, onResizeStart }: Props): React.ReactElement {
-  const offen = step.checks.filter(c => c.level !== 'ok').length;
+export function KontextPanel({ step, provenance, variant, onCollapse, onResizeStart, aktion }: Props): React.ReactElement {
+  const { fehler, hinweis } = pruefSummary(step.checks);
   const qs = step.qsHinweise ?? [];
   const qsR = qs.length > 0 ? qsRollup(qs) : null;
 
@@ -75,7 +81,14 @@ export function KontextPanel({ step, provenance, variant, onCollapse, onResizeSt
         <div className="g-ctx-block">
           <div className="g-ctx-cap">
             Prüfung · {step.checks.length} {step.checks.length === 1 ? 'Regel' : 'Regeln'}
-            {offen > 0 && <span className="g-ctx-fail">{offen} offen</span>}
+            {fehler > 0 && (
+              <span className="ml-auto font-medium normal-case tracking-normal text-[var(--tf-danger-text)]">{fehler} Fehler</span>
+            )}
+            {hinweis > 0 && (
+              <span className={`font-medium normal-case tracking-normal text-[var(--tf-warning-text)]${fehler === 0 ? ' ml-auto' : ''}`}>
+                {hinweis} {hinweis === 1 ? 'Hinweis' : 'Hinweise'}
+              </span>
+            )}
           </div>
           <div className="flex flex-col">
             {groupChecksByKategorie(step.checks).map(g => (
@@ -87,7 +100,7 @@ export function KontextPanel({ step, provenance, variant, onCollapse, onResizeSt
                 count={g.checks.length}
                 defaultOpen={g.worst !== 'ok'}
               >
-                <CheckList checks={g.checks} />
+                <CheckList checks={g.checks} aktion={aktion} />
               </AmpelGruppe>
             ))}
           </div>

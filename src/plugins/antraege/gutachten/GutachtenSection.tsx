@@ -34,6 +34,7 @@ import { AbschnittNav } from './AbschnittNav';
 import { AbschnittStepper } from './AbschnittStepper';
 import { SectionReviewCard } from './SectionReviewCard';
 import { KontextPanel } from './KontextPanel';
+import type { CheckListAktion } from '../kurzfassung/CheckList';
 import { ResumeLine } from './ResumeLine';
 import { leereSchritte } from './runner';
 import type { WorkflowStep } from '@/core/services/skills';
@@ -154,6 +155,19 @@ export function GutachtenSection({
   const solo = bodyWidth < WERK_MIN_WIDTH;
   // Panel nur zeigen, wenn der aktive Abschnitt einen Stand hat (sonst nichts zum Gegenlesen).
   const showPanel = !!activeStep;
+  // Prüfpanel-Aktionen (Journey-Paket 3): je Fehler-Check ein regel-gebundener
+  // KI-Korrektur-Lauf über die BESTEHENDE `ctrl.modify`-Leitung (keine Parallel-
+  // Leitung). `regelFor` löst die auslösende Regel per `regelId` gegen die aktiven
+  // Regeln auf; nur bei offenem Abschnitt vorhanden.
+  const pruefAktion: CheckListAktion | undefined = activeDef ? {
+    regelFor: (c) => ctrl.regeln.find(r => r.id === c.regelId) ?? null,
+    onKorrektur: (c, k) => ctrl.modify(
+      activeDef.id, k.modifier,
+      { anweisung: k.anweisung, ...(c.regelId ? { regelId: c.regelId } : {}) },
+    ),
+    genDisabled: ctrl.busy || ctrl.llmAvailable === false,
+    busy: ctrl.busy,
+  } : undefined;
   // `resizing` (eine Flag für beide Ziehleisten) schaltet die Grid-Transition ab → 1:1-Tracking.
   const gridClass = solo ? 'g-werk solo' : `g-werk${resizing ? ' resizing' : ''}`;
   // Zweispaltig: [Docked-Einheit Rail+Karte] · [Panel]. Die Rail-Breite steckt in der
@@ -387,7 +401,7 @@ export function GutachtenSection({
               {/* Kontext-Panel rechts (breit) bzw. als Block (schmal) */}
               {!solo && showPanel && activeStep && (
                 ctxOpen ? (
-                  <KontextPanel step={activeStep} provenance={panelProvenance} variant="side" onCollapse={() => setCtxOpen(false)} onResizeStart={startCtxResize} />
+                  <KontextPanel step={activeStep} provenance={panelProvenance} variant="side" onCollapse={() => setCtxOpen(false)} onResizeStart={startCtxResize} aktion={pruefAktion} />
                 ) : (
                   <button type="button" className="g-ctx-reopen" onClick={() => setCtxOpen(true)} title="Quelle & Prüfung einblenden">
                     <ChevronLeft size={16} />
@@ -397,7 +411,7 @@ export function GutachtenSection({
               )}
 
               {solo && showPanel && activeStep && (
-                <KontextPanel step={activeStep} provenance={panelProvenance} variant="block" />
+                <KontextPanel step={activeStep} provenance={panelProvenance} variant="block" aktion={pruefAktion} />
               )}
             </div>
           </div>

@@ -203,8 +203,9 @@ export function SectionReviewCard({
             )}
           </div>
           {llmAvailable === false && (
-            <div className="mb-1 text-[11.5px] text-[var(--tf-warning-text)]">
-              KI nicht erreichbar — Neu/Kürzer/Länger derzeit nicht möglich.
+            <div className="mb-1 flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)]">
+              <Pencil size={12} />
+              Offline: manuell bearbeiten und prüfen weiter möglich.
             </div>
           )}
         </>
