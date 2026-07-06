@@ -99,7 +99,7 @@ Die App hat eine **geteilte, domänenfreie Layout-Schicht** in `src/components/`
 
 **Harte Regel:** Neue Module bauen **KEIN** eigenes Layout. Kein paralleles Master/Detail, **keine eigene Listen-Sicht-Tab-Leiste** (gehört in `ScopeTabs`), kein eigener Page-Header/Badge. Förderanträge (reich) und Auslastung (schlank) sind dieselbe `MasterDetailLayout`. Der Guard `no-parallel-scope-tabs` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)) fängt neue hand-gebaute Unterstrich-Tabs.
 
-**Bewusste Ausnahme:** `AntraegePage` nutzt für Master/Detail noch eine eigene Implementierung (Filter-Sidebar-Drittpane) statt `MasterDetailLayout` — Migration als spätere Phase offen (siehe [docs/layout-audit.md](docs/layout-audit.md)).
+**Bewusste Ausnahme:** `AntraegePage` nutzt für Master/Detail noch eine eigene Implementierung (Filter-Sidebar-Drittpane) statt `MasterDetailLayout` — Migration als spätere Phase offen (siehe [docs/layout-audit.md](docs/layout-audit.md)). Bei **offenem Detail** rendert die Liste die schmale Kompakt-Spalte ([KompaktListe.tsx](src/plugins/antraege/KompaktListe.tsx), feste ~230px, VM aus [kompaktRows.ts](src/plugins/antraege/kompaktRows.ts)) statt der Voll-Tabelle; die Detailseite selbst ist ein schlanker Orchestrator ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)) über Kopf+Stepper ([VerbundKopf.tsx](src/plugins/antraege/VerbundKopf.tsx) / [statusZuStepperPosition.ts](src/plugins/antraege/statusZuStepperPosition.ts), amtlicher Status → Stepper-Position, **nie** Status-Literal-Vergleich · Pitfall #12), Artefakt-Leiste ([artefakte/](src/plugins/antraege/artefakte/)) und kollabierte Daten-Sektionen ([CollapsibleDataSection.tsx](src/plugins/antraege/CollapsibleDataSection.tsx)). Terminal-Prädikat + relative Frist: `isTerminalStatus` ([status-canonical.ts](src/core/utils/status-canonical.ts)) → [fristAnzeige.ts](src/plugins/antraege/fristAnzeige.ts). Nächster-Schritt-Formel (PreCheck-bewusst) im Core: [naechsterSchritt.ts](src/core/utils/naechsterSchritt.ts). Geschichte: CHANGELOG „Journey-Paket 2" (v2.175–v2.182).
 
 ### Plugin System
 
@@ -233,6 +233,7 @@ Historische Referenz-Implementierung lag unter `_reference/lernapp/` — seit de
 - Services/hooks: `camelCase.ts` (e.g., `useStorage.ts`)
 - Types: `camelCase.ts` (e.g., `vorgang.ts`)
 - Constants: `UPPER_SNAKE_CASE` in file, `camelCase.ts` filename
+- **Reines Geschwister-Modul eines Components nie nur per Casing benennen** (`KompaktListe.tsx` + `kompaktListe.ts` = TS1149/1261-Kollision unter Windows/case-insensitive FS). Eigenen Wortstamm wählen: `KompaktListe.tsx` + `kompaktRows.ts`, `ArtefaktLeiste.tsx` + `artefaktKarten.ts`.
 
 ## Build-Varianten (v1.10)
 
