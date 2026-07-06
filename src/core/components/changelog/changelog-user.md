@@ -22,6 +22,7 @@
 ## v2.190 — 2026-07
 
 ### Verbesserungen
+- In der **Suche** lässt sich der **Assistent** rechts jetzt viel breiter ziehen. Bisher war bei einer festen Breite Schluss — jetzt können Sie ihn fast bis zum Fensterrand aufziehen, wenn Sie mehr Platz zum Lesen brauchen. Die Trefferliste bleibt dabei immer sichtbar.
 - In der **Auslastung** (Tab „Auslastung MA") zeigt der Balken der **Altanträge** jetzt auf einen Blick, *wie dringend* sie sind: Er ist nicht mehr grau, sondern nach Alter eingefärbt — **Gelb** (letztes Quartal), **Orange** (vorletztes Quartal) und **Rot** (noch älter). Je röter, desto länger liegt der offene Antrag schon.
 - Dabei werden jetzt auch **ältere offene Anträge** berücksichtigt (bis zu sieben Quartale zurück statt bisher nur zwei) — die Spalte „Altanträge" kann dadurch höhere Zahlen zeigen als vorher.
 

@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.190.1 — Suche: Assistent-Panel ohne festen Breiten-Deckel (Juli 2026)
+
+PATCH — Das andockende **Assistent**-Panel rechts in der Suche ließ sich per Teiler bisher nur bis **560 px** aufziehen. Der feste Deckel entfällt: Das Panel ist jetzt — analog zum List↔Detail-Split der Förderanträge — bis fast zum Fensterrand ziehbar (die Ergebnis-Tabelle behält eine Mindestbreite und verschwindet nie). Reiner UX-Tweak, keine Datenmigration.
+
+- **Dynamischer Max statt 560-px-Deckel** ([assistentPanel.ts](src/plugins/suche/assistentPanel.ts)): `ASSISTENT_MAX_WIDTH` entfällt; neu ist `ASSISTENT_TABELLE_MIN` (360 px, für die Tabelle reservierte Mindestbreite). `clampAssistentWidth(v, viewportWidth)` und das neue `effectiveAssistentWidth(width, viewportWidth)` delegieren an die generischen `clampDragWidth`/`effectiveListWidth` aus [master-detail](src/components/master-detail/masterDetailLayout-logic.ts) (dieselbe Klemm-Mathematik wie Förderanträge, keine Duplikat-Logik). `parseAssistentWidth` akzeptiert jetzt Werte oberhalb des früheren 560-Deckels; eine für ein kleineres Fenster zu breite gespeicherte Breite deckelt die Render-Klemme.
+- **Viewport-Tracking + Render-Klemme** ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx)): neuer `viewportWidth`-State + Resize-Listener (1:1 aus `MasterDetailLayout`); der Drag-Handler reicht die Fensterbreite an den Clamp durch, und die `<aside>`-Breite wird beim Rendern über `effectiveAssistentWidth` gegen das aktuelle Fenster geklemmt. Der bereits vorhandene 4-px-Resize-Teiler und `chat.css` bleiben unverändert.
+- Tests angepasst ([assistentPanel.test.ts](src/plugins/suche/__tests__/assistentPanel.test.ts)): dynamischer Max, kein fester Oberbound in `parseAssistentWidth`, neue `effectiveAssistentWidth`-Fälle.
+
 ### v2.190.0 — Auslastung: Altanträge-Balken alters-gestaffelt eingefärbt (Juli 2026)
 
 MINOR — Im Tab „Auslastung MA" ist der bisher **graue** Altanträge-Balken jetzt **nach Alter der offenen Anträge eingefärbt** (Gelb → Orange → Rot = je älter desto dringlicher), und ältere Anträge (bis zu 7 Quartale zurück) werden mit einbezogen. Additiv, keine Datenmigration.

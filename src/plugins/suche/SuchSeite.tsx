@@ -32,6 +32,7 @@ import {
   ASSISTENT_OPEN_KEY,
   ASSISTENT_WIDTH_KEY,
   clampAssistentWidth,
+  effectiveAssistentWidth,
   parseAssistentOpen,
   parseAssistentWidth,
   serializeAssistentOpen,
@@ -78,6 +79,16 @@ export function SuchSeite(): React.ReactElement {
   const [assistentOpen, setAssistentOpen] = useState(() => parseAssistentOpen(readLs(ASSISTENT_OPEN_KEY)));
   const [assistentWidth, setAssistentWidth] = useState(() => parseAssistentWidth(readLs(ASSISTENT_WIDTH_KEY)));
   const assistentDragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  // Fensterbreite tracken → dynamischer Panel-Max + Render-Klemme (analog
+  // MasterDetailLayout): eine breit gespeicherte Breite passt sich einem
+  // kleineren Fenster an, statt die Tabelle zu verdrängen.
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth : 1440);
+  useEffect(() => {
+    const handler = (): void => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   // `?assistent=1` (Redirect von `/chat` bzw. Command „Assistent öffnen") einmalig
   // konsumieren: Panel öffnen und den Param entfernen, damit ein manuelles
@@ -117,7 +128,7 @@ export function SuchSeite(): React.ReactElement {
       const drag = assistentDragRef.current;
       if (!drag) return;
       // Panel rechts: nach links draggen → breiter (Delta invertiert).
-      setAssistentWidth(clampAssistentWidth(drag.startWidth + (drag.startX - ev.clientX)));
+      setAssistentWidth(clampAssistentWidth(drag.startWidth + (drag.startX - ev.clientX), window.innerWidth));
     };
     const onUp = (): void => {
       assistentDragRef.current = null;
@@ -448,7 +459,7 @@ export function SuchSeite(): React.ReactElement {
         </div>
       </div>
       {assistentOpen && (
-        <aside className="shrink-0 h-full min-h-0 overflow-hidden flex" style={{ width: assistentWidth }}>
+        <aside className="shrink-0 h-full min-h-0 overflow-hidden flex" style={{ width: effectiveAssistentWidth(assistentWidth, viewportWidth) }}>
           <div
             role="separator"
             aria-orientation="vertical"

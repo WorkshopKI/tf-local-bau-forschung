@@ -5,12 +5,20 @@
  * unit-testbar sind. Die Seite hält den State und persistiert selbst.
  */
 
+import { clampDragWidth, effectiveListWidth } from '@/components/master-detail';
+
 export const ASSISTENT_OPEN_KEY = 'teamflow_suche_assistent_open';
 export const ASSISTENT_WIDTH_KEY = 'teamflow_suche_assistent_width';
 
 export const ASSISTENT_DEFAULT_WIDTH = 380;
 export const ASSISTENT_MIN_WIDTH = 300;
-export const ASSISTENT_MAX_WIDTH = 560;
+/**
+ * Mindestbreite, die der Ergebnis-Tabelle beim Aufziehen des Panels erhalten
+ * bleibt (analog `detailMinWidth` in Förderanträge). Der Panel-Max ist damit
+ * dynamisch `viewport − ASSISTENT_TABELLE_MIN` statt eines festen Deckels —
+ * das Panel lässt sich fast bis zum Rand ziehen, die Tabelle verschwindet nie.
+ */
+export const ASSISTENT_TABELLE_MIN = 360;
 
 /** Rohwert aus localStorage → Bool. Default (unbekannt/leer) = zu. */
 export function parseAssistentOpen(raw: string | null): boolean {
@@ -22,15 +30,24 @@ export function serializeAssistentOpen(open: boolean): string {
   return open ? '1' : '0';
 }
 
-/** Breite in den erlaubten Bereich klemmen. */
-export function clampAssistentWidth(v: number): number {
-  return Math.min(ASSISTENT_MAX_WIDTH, Math.max(ASSISTENT_MIN_WIDTH, v));
+/** Roh erdraggte Breite klemmen: `[MIN, viewport − TABELLE_MIN]` (dynamischer Max). */
+export function clampAssistentWidth(v: number, viewportWidth: number): number {
+  return clampDragWidth(v, viewportWidth, ASSISTENT_MIN_WIDTH, ASSISTENT_TABELLE_MIN);
 }
 
-/** Rohwert → gültige Breite; ungültig/außerhalb → Default. */
+/** Persistierte Breite beim Rendern gegen das aktuelle Fenster klemmen. */
+export function effectiveAssistentWidth(width: number, viewportWidth: number): number {
+  return effectiveListWidth(width, viewportWidth, ASSISTENT_MIN_WIDTH, ASSISTENT_TABELLE_MIN);
+}
+
+/**
+ * Rohwert → gültige Breite; ungültig/zu klein → Default. Kein fester Oberbound
+ * mehr — eine zu breite gespeicherte Breite deckelt die Render-Klemme
+ * (`effectiveAssistentWidth`) gegen das aktuelle Fenster.
+ */
 export function parseAssistentWidth(raw: string | null): number {
   const v = Number(raw);
-  if (!Number.isFinite(v) || v < ASSISTENT_MIN_WIDTH || v > ASSISTENT_MAX_WIDTH) {
+  if (!Number.isFinite(v) || v < ASSISTENT_MIN_WIDTH) {
     return ASSISTENT_DEFAULT_WIDTH;
   }
   return v;
