@@ -9,9 +9,10 @@
  *  - **Per-Antragstyp-Bars** rechts (`TypKapazitaetBars` variant `tile`, nur wenn
  *     ein Kontingent gepflegt ist) — 4 schmale vertikale Bars je Typ.
  *  - **Unten-links-Block**: Zeile `% · +X` (15 px / weight 600; `· +X` =
- *     offene Altanträge der 2 Vorquartale, gedämpft, für ALLE States sofern > 0),
+ *     offene Altanträge der Vorquartale gesamt, gedämpft, für ALLE States sofern > 0),
  *     darunter zwei Balken (`GesamtauslastungBar`): „Auslastung Quartal" +
- *     „Altanträge", je mit Tooltip. `right`-Abstand hält die per-Typ-Bars frei.
+ *     „Altanträge" (alters-gestaffelt segmentiert), je mit Tooltip. `right`-Abstand
+ *     hält die per-Typ-Bars frei.
  *
  * Drei States (auf dem Container):
  *  - `normal`   : MA hat Festbuchung oder Pending.
@@ -46,6 +47,7 @@ interface Props {
 
 function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, quartal, stundenProTV, realName, onClick }: Props): React.ReactElement {
   const altlastTvs = altlast?.tvs ?? 0;
+  const bandTvs = altlast?.tvsProBand ?? ([0, 0, 0] as const);
   const hasFest = kapView.verbrauchteStunden > 0;
   const hasAltlast = altlastTvs > 0;
   const state: TileState = !ma.aktiv
@@ -54,12 +56,17 @@ function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, quartal, stunden
       ? 'empty'
       : 'normal';
 
-  const belegtPct = kapView.effektivStunden > 0
-    ? Math.min(100, Math.round((kapView.verbrauchteStunden / kapView.effektivStunden) * 100))
+  const eff = kapView.effektivStunden;
+  const belegtPct = eff > 0
+    ? Math.min(100, Math.round((kapView.verbrauchteStunden / eff) * 100))
     : 0;
-  const altlastPct = kapView.effektivStunden > 0
-    ? Math.min(100, Math.round((altlastTvs * stundenProTV / kapView.effektivStunden) * 100))
-    : 0;
+  const altlastBandPct: [number, number, number] = eff > 0
+    ? [
+        (bandTvs[0] * stundenProTV / eff) * 100,
+        (bandTvs[1] * stundenProTV / eff) * 100,
+        (bandTvs[2] * stundenProTV / eff) * 100,
+      ]
+    : [0, 0, 0];
   const hatTypBars = !!kapTyp?.hatKontingent;
 
   const hauptKat = kategorien.find(k => k.id === ma.hauptKategorie);
@@ -145,9 +152,10 @@ function MaTileImpl({ ma, kapView, kapTyp, altlast, kategorien, quartal, stunden
         <div style={{ marginTop: 5 }}>
           <GesamtauslastungBar
             belegtPct={belegtPct}
-            altlastPct={altlastPct}
+            altlastBandPct={altlastBandPct}
             freiTVs={kapView.restTVs}
             altlastTvs={altlastTvs}
+            altlastBandTvs={bandTvs}
             quartal={quartal}
             height={4}
           />

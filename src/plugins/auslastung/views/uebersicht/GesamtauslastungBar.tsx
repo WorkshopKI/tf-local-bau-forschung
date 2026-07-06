@@ -4,26 +4,30 @@
  *
  *  - Balken 1 „Auslastung Quartal": belegt (`--tf-primary`, bei Überbuchung
  *    `--tf-danger-text`) — der ungefüllte Rest = noch frei.
- *  - Balken 2 „Altanträge": offene Anträge der 2 Vorquartale (entsättigtes
- *    Primary), als Anteil der Quartalskapazität.
+ *  - Balken 2 „Altanträge": offene Anträge der Vorquartale, **alters-gestaffelt
+ *    segmentiert** (Gelb Q-1 → Orange Q-2 → Rot Q-3..Q-7, siehe `altlast-colors`),
+ *    als Anteil der Quartalskapazität. Ein pill-geclippter Track mit bis zu 3
+ *    farbigen Segmenten nebeneinander (Reihenfolge = Dringlichkeit).
  *
  * Beide Balken werden immer gerendert (kein Layout-Shift; leerer Track = nichts
  * offen). Jeder Balken trägt einen `title`-Tooltip (file://-kompatibel). Farben
- * spiegeln die Legende in `MaTileGrid` (Aktuell / Altanträge). Tokenbasiert.
+ * spiegeln die Legende in `MaTileGrid`. Tokenbasiert (Belegt) bzw. Viz-Rampe
+ * (Altanträge).
  */
 import { memo } from 'react';
-
-const ALTLAST_COLOR = 'hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.4), 70%)';
+import { altlastBandColor, ALTLAST_BAND_LABELS } from './altlast-colors';
 
 interface Props {
   /** Belegt-% (aktuelles Quartal). Kann > 100 sein (überbucht). */
   belegtPct: number;
-  /** Altanträge als % der Quartalskapazität (0..100). */
-  altlastPct: number;
+  /** Altanträge als % der Quartalskapazität je Band [Q-1, Q-2, Q-3..Q-7] (ungekappt). */
+  altlastBandPct: readonly [number, number, number];
   /** Freie TVs im Quartal (für Tooltip). */
   freiTVs: number;
-  /** Offene Altanträge in TVs (für Tooltip). */
+  /** Offene Altanträge in TVs gesamt (für Tooltip + Summe). */
   altlastTvs: number;
+  /** Offene Altanträge in TVs je Band [Q-1, Q-2, Q-3..Q-7] (für Tooltip-Aufschlüsselung). */
+  altlastBandTvs?: readonly [number, number, number];
   /** Quartals-Label für den Tooltip, z.B. „2026-Q2". */
   quartal: string;
   /** Höhe je Balken in px (default 4). */
@@ -33,17 +37,38 @@ interface Props {
 }
 
 export const GesamtauslastungBar = memo(function GesamtauslastungBar({
-  belegtPct, altlastPct, freiTVs, altlastTvs, quartal, height = 4, gap = 3,
+  belegtPct, altlastBandPct, freiTVs, altlastTvs, altlastBandTvs, quartal, height = 4, gap = 3,
 }: Props): React.ReactElement {
   const ueberbucht = belegtPct > 100;
   const belegtWidth = Math.min(100, Math.max(0, belegtPct));
-  const altlastWidth = Math.min(100, Math.max(0, altlastPct));
+
+  // Segmente proportional in die (auf 100 gekappte) Gesamtbreite einpassen.
+  const b0 = Math.max(0, altlastBandPct[0]);
+  const b1 = Math.max(0, altlastBandPct[1]);
+  const b2 = Math.max(0, altlastBandPct[2]);
+  const rawSum = b0 + b1 + b2;
+  const totalWidth = Math.min(100, rawSum);
+  const scale = rawSum > 100 ? 100 / rawSum : 1;
+  let offset = 0;
+  const segments = [b0, b1, b2].map((p, i) => {
+    const width = p * scale;
+    const seg = { left: offset, width, color: altlastBandColor((i + 1) as 1 | 2 | 3) };
+    offset += width;
+    return seg;
+  });
 
   const belegtTitle =
     `Auslastung ${quartal}: ${belegtPct} % belegt · ${freiTVs} ${freiTVs === 1 ? 'TV' : 'TVs'} frei`
     + (ueberbucht ? ' · überbucht' : '');
+
+  const bandTvs = altlastBandTvs ?? [0, 0, 0];
+  const bandDetail = bandTvs
+    .map((tvs, i) => (tvs > 0 ? `${ALTLAST_BAND_LABELS[i]}: ${tvs}` : null))
+    .filter(Boolean)
+    .join(' · ');
   const altlastTitle =
-    `Offene Altanträge (2 Vorquartale): ${altlastTvs} ${altlastTvs === 1 ? 'TV' : 'TVs'}`;
+    `Offene Altanträge: ${altlastTvs} ${altlastTvs === 1 ? 'TV' : 'TVs'}`
+    + (bandDetail ? ` · ${bandDetail}` : '');
 
   const trackStyle: React.CSSProperties = {
     height,
@@ -67,13 +92,22 @@ export const GesamtauslastungBar = memo(function GesamtauslastungBar({
         )}
       </div>
 
-      {/* Balken 2 — offene Altanträge der 2 Vorquartale */}
-      <div className="relative w-full" style={trackStyle} title={altlastTitle}>
-        {altlastWidth > 0 && (
-          <div
-            className="absolute top-0 bottom-0 left-0"
-            style={{ width: `${altlastWidth}%`, background: ALTLAST_COLOR, borderRadius: 'var(--tf-radius-pill)' }}
-          />
+      {/* Balken 2 — offene Altanträge, alters-gestaffelt segmentiert.
+          Track clippt (overflow hidden) → Segmente ohne eigene Rundung, damit
+          es als ein durchgehender Balken mit Farbstufen liest. */}
+      <div
+        className="relative w-full overflow-hidden"
+        style={trackStyle}
+        title={altlastTitle}
+      >
+        {totalWidth > 0 && segments.map((s, i) =>
+          s.width > 0 ? (
+            <div
+              key={i}
+              className="absolute top-0 bottom-0"
+              style={{ left: `${s.left}%`, width: `${s.width}%`, background: s.color }}
+            />
+          ) : null,
         )}
       </div>
     </div>

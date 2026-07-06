@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.190.0 — Auslastung: Altanträge-Balken alters-gestaffelt eingefärbt (Juli 2026)
+
+MINOR — Im Tab „Auslastung MA" ist der bisher **graue** Altanträge-Balken jetzt **nach Alter der offenen Anträge eingefärbt** (Gelb → Orange → Rot = je älter desto dringlicher), und ältere Anträge (bis zu 7 Quartale zurück) werden mit einbezogen. Additiv, keine Datenmigration.
+
+- **Dringlichkeits-Bänder** ([altlast.ts](src/plugins/auslastung/services/kapazitaet/altlast.ts)): neuer reiner Helper `quartalBand(antragQ, aktuellesQ)` stuft jeden offenen Altantrag relativ zum aktuellen Quartal ein — Band 1 = Q-1 (letztes Quartal), Band 2 = Q-2 (vorletztes), Band 3 = Q-3…**Q-7** (älter). Anträge älter als Q-7 werden **gekappt** (nicht mehr gezählt). Der Filter zählt jetzt Q-1…Q-7 statt nur Q-1/Q-2 (vorher: alles > 2 Quartale unsichtbar) → die „Altanträge"-Summe + Tabellen-Spalte „ALTANTRÄGE" wachsen entsprechend. `MaAltlastBucket` trägt additiv `tvsProBand: [number, number, number]` (Summe = `tvs`), `AuslastungVerbund` ein optionales `altlastBand` ([quartals-auslastung.ts](src/plugins/auslastung/services/kapazitaet/quartals-auslastung.ts)).
+- **Segmentierter Balken** ([GesamtauslastungBar.tsx](src/plugins/auslastung/views/uebersicht/GesamtauslastungBar.tsx)): Balken 2 („Altanträge") ist jetzt **ein pill-geclippter Track mit bis zu 3 farbigen Segmenten** (Gelb Q-1 → Orange Q-2 → Rot Q-3+), proportional zur Band-Zusammensetzung; der Tooltip schlüsselt die TVs je Band auf. Kein Layout-Shift (Track wie bisher immer gerendert). Rampe zentral in [altlast-colors.ts](src/plugins/auslastung/views/uebersicht/altlast-colors.ts) (`ALTLAST_BAND_COLORS`/`ALTLAST_BAND_LABELS`), geteilt von Balken, Legende und Inline-Liste; ersetzt die frühere einzelne graue `ALTLAST_COLOR`-Konstante.
+- **Legende + Inline-Liste** ([MaTileGrid.tsx](src/plugins/auslastung/views/uebersicht/MaTileGrid.tsx), [AltlastInlineList.tsx](src/plugins/auslastung/views/AltlastInlineList.tsx)): Karten-Legende (Kopf + Fuß) zeigt statt eines grauen Swatches die 3-Farben-Rampe „Altanträge (neu → alt)"; die Altanträge-Detail-Liste bekommt pro Zeile einen Dringlichkeits-Farbpunkt.
+- Tests erweitert ([altlast.test.ts](src/plugins/auslastung/__tests__/altlast.test.ts): `quartalBand`-Grenzfälle inkl. Q-7/Q-8-Kappung, `tvsProBand`-Verteilung) + Feedback-KI-Kontext nachgezogen ([docs/feedback-kontext/auslastung.md](docs/feedback-kontext/auslastung.md)).
+
 ### v2.189.0 — Feedback-Übersicht: Sidebar-Zugang zurück + eigenes Feedback hervorgehoben (Juli 2026)
 
 MINOR — Das öffentliche **Feedback-Board** ist wieder direkt aus der Sidebar erreichbar, und in der Liste ist das **eigene Feedback** markiert, damit man den Bearbeitungs-Status seiner Tickets verfolgen kann. Additiv, keine Datenmigration.

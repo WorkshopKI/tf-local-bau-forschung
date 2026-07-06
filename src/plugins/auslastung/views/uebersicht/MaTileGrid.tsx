@@ -21,6 +21,7 @@ import type { MaAltlastBucket } from '../../services/kapazitaet';
 import type { KapazitaetsView } from '../../services/kapazitaet';
 import type { KapazitaetProTypView } from '../../services/kapazitaet';
 import { MaTile } from './MaTile';
+import { ALTLAST_BAND_COLORS, ALTLAST_BAND_LABELS } from './altlast-colors';
 import type { SortState } from './MaTable';
 
 interface Props {
@@ -100,10 +101,7 @@ export function MaTileGrid({
             label="Aktuell"
             color="var(--tf-primary)"
           />
-          <LegendItem
-            label="Altanträge"
-            color="hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.4), 70%)"
-          />
+          <AltlastRampLegend />
         </div>
       </div>
 
@@ -152,7 +150,7 @@ export function MaTileGrid({
       >
         <div className="flex items-center gap-4 flex-wrap">
           <LegendItem label="Aktuell" color="var(--tf-primary)" swatchShape="bar" />
-          <LegendItem label="Altanträge" color="hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.4), 70%)" swatchShape="bar" />
+          <AltlastRampLegend />
           <LegendItem label="Keine Buchung" color="var(--tf-bg-secondary)" swatchShape="hatched" />
           <LegendItem label="Inaktiv" color="var(--tf-bg-secondary)" swatchShape="hatched" dim />
         </div>
@@ -161,6 +159,33 @@ export function MaTileGrid({
         </span>
       </div>
     </div>
+  );
+}
+
+/** Kompakte Legende für die Altanträge-Dringlichkeits-Rampe: „Altanträge" +
+ *  drei Swatches (Gelb → Orange → Rot = neu → alt), jeder mit Band-Tooltip. */
+function AltlastRampLegend(): React.ReactElement {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex items-center gap-0.5" aria-hidden>
+        {ALTLAST_BAND_COLORS.map((c, i) => (
+          <span
+            key={i}
+            title={ALTLAST_BAND_LABELS[i]}
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 2,
+              background: c,
+              border: '0.5px solid var(--tf-border)',
+              display: 'inline-block',
+            }}
+          />
+        ))}
+      </span>
+      Altanträge
+      <span className="text-[var(--tf-text-tertiary)]">(neu → alt)</span>
+    </span>
   );
 }
 

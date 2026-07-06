@@ -44,13 +44,19 @@ function MaCompactRowImpl({
   const abgemeldet = ma.abgemeldet.includes(quartal);
   const ohneBuchung = kapView.verbrauchteStunden === 0 && (altlast?.tvs ?? 0) === 0;
   const altlastTvs = altlast?.tvs ?? 0;
+  const bandTvs = altlast?.tvsProBand ?? ([0, 0, 0] as const);
 
   const belegtPct = kapView.effektivStunden > 0
     ? Math.round((kapView.verbrauchteStunden / kapView.effektivStunden) * 100)
     : 0;
-  const altlastPct = kapView.effektivStunden > 0
-    ? Math.min(100, Math.round((altlastTvs * stundenProTV / kapView.effektivStunden) * 100))
-    : 0;
+  const eff = kapView.effektivStunden;
+  const altlastBandPct: [number, number, number] = eff > 0
+    ? [
+        (bandTvs[0] * stundenProTV / eff) * 100,
+        (bandTvs[1] * stundenProTV / eff) * 100,
+        (bandTvs[2] * stundenProTV / eff) * 100,
+      ]
+    : [0, 0, 0];
 
   const isMaxFrei = kapView.verbrauchteStunden === 0;
   const dimmed = ohneBuchung || abgemeldet;
@@ -93,9 +99,10 @@ function MaCompactRowImpl({
         <div className="flex flex-col gap-1.5">
           <GesamtauslastungBar
             belegtPct={belegtPct}
-            altlastPct={altlastPct}
+            altlastBandPct={altlastBandPct}
             freiTVs={kapView.restTVs}
             altlastTvs={altlastTvs}
+            altlastBandTvs={bandTvs}
             quartal={quartal}
           />
           {kapTyp?.hatKontingent && <TypKapazitaetBars view={kapTyp} variant="row" />}

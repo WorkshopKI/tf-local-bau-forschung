@@ -28,6 +28,11 @@ import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilte
 import { stundenProTVFor, type AntragstypBucket, type Zuweisung } from '../../types';
 import { dateToQuartal } from '../verbund/externe-zuweisungen';
 
+/** Dringlichkeits-Band eines Altantrags relativ zum aktuellen Quartal:
+ *  1 = Q-1 (letztes Quartal), 2 = Q-2 (vorletztes), 3 = Q-3..Q-7 (aelter).
+ *  Siehe `quartalBand` in `altlast.ts`. */
+export type AltlastBand = 1 | 2 | 3;
+
 /** Ein logisch zusammengehoeriger Antrag (Verbund mit N TVs oder
  *  Einzel-Antrag mit 1 TV), aus Sicht eines bestimmten MAs.
  *  `aktenzeichen[]` enthaelt nur die TVs, die diesem MA gehoeren —
@@ -43,6 +48,9 @@ export interface AuslastungVerbund {
    *  `computeAltlasten` gesetzt (Altanträge-Liste zeigt ihn an); im
    *  fest/pending-Pfad `undefined`. Anzeige via `getStatusLabel`. */
   status?: string;
+  /** Dringlichkeits-Band (Q-1/Q-2/Q-3..Q-7). Nur von `computeAltlasten`
+   *  gesetzt; im fest/pending-Pfad `undefined`. */
+  altlastBand?: AltlastBand;
   tvCount: number;                 // = aktenzeichen.length
   stunden: number;                 // tvCount × stundenProTV
 }

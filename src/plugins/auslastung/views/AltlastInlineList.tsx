@@ -2,14 +2,15 @@
  * AltlastInlineList (v2.x) — einspaltige Auflistung der Altanträge einer MA im
  * Inline-Detail (rechte Karte, unter "Eigene Eintragungen").
  *
- * Altanträge = noch offene Anträge aus den letzten 2 Quartalen (siehe
+ * Altanträge = noch offene Anträge aus bis zu 7 Vorquartalen (siehe
  * services/altlast.ts). Rein informativ für die PL — fliessen NICHT in die
  * Kapazität ein. Daher kein Empty-State: ohne Altanträge rendert die
  * Komponente `null` und die Karte bleibt unverändert.
  *
- * Spalten pro Zeile: FKZ(+N) · Akronym · Status · Antragsdatum · TVs, bündig
- * über ein gemeinsames Grid-Raster. Bei vielen Altanträgen wächst die Karte
- * nach unten (kein Scroll-Cap — bewusst, als PL-Übersicht).
+ * Spalten pro Zeile: [Dringlichkeits-Punkt] FKZ(+N) · Akronym · Status ·
+ * Antragsdatum · TVs, bündig über ein gemeinsames Grid-Raster. Der farbige Punkt
+ * (Gelb Q-1 → Orange Q-2 → Rot Q-3..Q-7) spiegelt das Balken-Segment. Bei vielen
+ * Altanträgen wächst die Karte nach unten (kein Scroll-Cap — bewusst, als PL-Übersicht).
  *
  * Bewusst eigene Datei (nicht in MaInlineDetail.tsx), damit jene Datei nicht
  * weiter über den Größen-Richtwert (~400–500) wächst (CLAUDE.md → File Size Limit).
@@ -18,9 +19,10 @@ import { Info } from 'lucide-react';
 import { getStatusLabel } from '@/core/utils/status-mappings';
 import { formatGermanDate } from '@/core/services/csv';
 import type { MaAltlastBucket } from '../services/kapazitaet';
+import { altlastBandColor, ALTLAST_BAND_LABELS } from './uebersicht/altlast-colors';
 
 const HINT =
-  'Noch offene Anträge aus den letzten 2 Quartalen — rein informativ, fließen nicht in die Kapazität ein.';
+  'Noch offene Anträge aus den letzten Quartalen (bis Q-7) — rein informativ, fließen nicht in die Kapazität ein. Farbe = Dringlichkeit (Gelb → Rot = neu → alt).';
 
 /** Gemeinsames Spalten-Raster für Kopfzeile + Datenzeilen → alle Spalten
  *  stehen bündig untereinander.
@@ -68,11 +70,26 @@ export function AltlastInlineList({ altlast }: { altlast?: MaAltlastBucket }): R
           const statusLabel = v.status ? getStatusLabel(v.status) : '';
           return (
             <li key={`${v.verbundId ?? v.aktenzeichen[0] ?? i}`} className={`${GRID} text-[11.5px]`}>
-              <span
-                className="font-mono text-[var(--tf-text-tertiary)] truncate"
-                title={extra > 0 ? allAz : (v.aktenzeichen[0] ?? '')}
-              >
-                {v.aktenzeichen[0]}{extra > 0 ? ` +${extra}` : ''}
+              <span className="flex items-center gap-1.5 min-w-0">
+                {v.altlastBand && (
+                  <span
+                    aria-hidden
+                    title={ALTLAST_BAND_LABELS[v.altlastBand - 1]}
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: altlastBandColor(v.altlastBand),
+                      flex: '0 0 auto',
+                    }}
+                  />
+                )}
+                <span
+                  className="font-mono text-[var(--tf-text-tertiary)] truncate"
+                  title={extra > 0 ? allAz : (v.aktenzeichen[0] ?? '')}
+                >
+                  {v.aktenzeichen[0]}{extra > 0 ? ` +${extra}` : ''}
+                </span>
               </span>
               <span className="truncate text-[var(--tf-text-secondary)]" title={label}>
                 {label}

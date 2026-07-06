@@ -1,10 +1,18 @@
 /**
  * Altlast-Service — informativer Indikator (NICHT ranking-relevant).
  *
- * Liefert pro MA die Antraege aus den letzten 2 Quartalen (exklusiv aktuelles),
- * die noch in einem der 5 vom User definierten Status-Werte sind:
+ * Liefert pro MA die noch offenen Antraege aus bis zu 7 Vorquartalen (exklusiv
+ * aktuelles), die noch in einem der 5 vom User definierten Status-Werte sind:
  *   beantragt, bearbeitungsreif, NL eingegangen, NF gestellt, keine weiteren NF
  * (technisch: getStatusCategory ∈ {offen, nachforderung}).
+ *
+ * **Dringlichkeits-Baender** (`quartalBand`): jeder Antrag wird nach seinem Alter
+ * relativ zum aktuellen Quartal eingestuft —
+ *   Band 1 = Q-1 (letztes Quartal, dringend)
+ *   Band 2 = Q-2 (vorletztes Quartal, sehr dringend)
+ *   Band 3 = Q-3 … Q-7 (extrem dringend)
+ * Aelter als Q-7 → nicht mehr gezaehlt (Kappung). `tvsProBand` haelt die TVs je
+ * Band; die Summe = `tvs`.
  *
  * Verbund-Aggregation analog zu `computeQuartalsAuslastung`: 1 Verbund-Anteil
  * pro MA = 1 "Antrag", `tvs` = die diesem MA gehoerenden Aktenzeichen.
@@ -19,17 +27,21 @@
  */
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import { getStatusCategory } from '@/core/utils/status-canonical';
-import { dateToQuartal, previousTwoQuartals } from '../verbund/externe-zuweisungen';
-import type { AuslastungVerbund } from './quartals-auslastung';
+import { dateToQuartal } from '../verbund/externe-zuweisungen';
+import type { AltlastBand, AuslastungVerbund } from './quartals-auslastung';
 
 export interface MaAltlastBucket {
   /** Anzahl Verbund-Anteile (1 Verbund-Anteil = 1 Eintrag, auch bei mehreren TVs). */
   antraege: number;
-  /** Echte Aktenzeichen-Anzahl. */
+  /** Echte Aktenzeichen-Anzahl (ueber alle Baender). */
   tvs: number;
   /** `tvs × stundenProTV` — fuer Balken-Skalierung (gleiche Skala wie Hauptbalken). */
   stunden: number;
-  /** Welche 2 Quartale wurden untersucht — z.B. ['2025-Q4', '2026-Q1'] fuer Sub-Label. */
+  /** TVs je Dringlichkeits-Band: [Band 1 = Q-1, Band 2 = Q-2, Band 3 = Q-3..Q-7].
+   *  Summe = `tvs`. Speist die farbige Segmentierung des Altanträge-Balkens. */
+  tvsProBand: readonly [number, number, number];
+  /** Die tatsaechlich vorkommenden Quartale (distinct, aeltestes zuerst) fuer das
+   *  Sub-Label — z.B. ['2025-Q3', '2026-Q1']. */
   quartale: readonly string[];
   /** Aelteste zuerst sortiert (anders als Festgebucht-Verbuende — Altlasten sortieren chronologisch). */
   verbuende: AuslastungVerbund[];
@@ -39,9 +51,33 @@ export const EMPTY_ALTLAST: MaAltlastBucket = Object.freeze({
   antraege: 0,
   tvs: 0,
   stunden: 0,
+  tvsProBand: [0, 0, 0] as [number, number, number],
   quartale: [],
   verbuende: [],
 }) as MaAltlastBucket;
+
+/**
+ * Dringlichkeits-Band eines Antrags-Quartals relativ zum aktuellen Quartal.
+ *
+ *   Band 1 = letztes Quartal (Q-1, Distanz 1)
+ *   Band 2 = vorletztes Quartal (Q-2, Distanz 2)
+ *   Band 3 = Q-3 … Q-7 (Distanz 3..7)
+ *   null   = aktuelles/zukuenftiges Quartal (Distanz ≤ 0) ODER aelter als Q-7
+ *            (Distanz ≥ 8) → nicht gezaehlt.
+ *
+ * Das `YYYY-QN`-Format ist arithmetisch sortierbar (Jahr × 4 + Quartal), daher
+ * die simple Distanz-Rechnung (vgl. `previousTwoQuartals`). Kappung bei Q-7.
+ */
+export function quartalBand(antragQuartal: string, aktuellesQuartal: string): AltlastBand | null {
+  const a = /^(\d{4})-Q([1-4])$/.exec(antragQuartal);
+  const c = /^(\d{4})-Q([1-4])$/.exec(aktuellesQuartal);
+  if (!a || !c) return null;
+  const dist = (Number(c[1]) * 4 + Number(c[2])) - (Number(a[1]) * 4 + Number(a[2]));
+  if (dist === 1) return 1;
+  if (dist === 2) return 2;
+  if (dist >= 3 && dist <= 7) return 3;
+  return null;
+}
 
 interface GroupState {
   verbundId: string | null;
@@ -52,6 +88,10 @@ interface GroupState {
   /** Roh-Status des ersten zur Gruppe gehoerenden Teilantrags (Repraesentant —
    *  alle Teilantraege sind ohnehin in Kategorie offen/nachforderung). */
   status?: string;
+  /** Quartal des Repraesentanten (z.B. '2026-Q1') fuer Sub-Label + Band. */
+  quartal: string;
+  /** Dringlichkeits-Band des Repraesentanten (aus `quartal`). */
+  band: AltlastBand;
 }
 
 function readField(a: AntragOderSlim, key: string): string | undefined {
@@ -72,7 +112,8 @@ function isAltlastStatus(status: unknown): boolean {
  *
  * Filter-Kaskade:
  *  1. `tib_kuerz` vorhanden und in `toAnon` enthalten
- *  2. `antragsdatum` faellt in eines der 2 vorhergehenden Quartale
+ *  2. `antragsdatum` faellt in ein Dringlichkeits-Band (`quartalBand` ≠ null:
+ *     Q-1 bis Q-7, exklusiv aktuelles, gekappt bei Q-7)
  *  3. `status` ist einer der 5 "offen"-Status (Kategorie offen oder nachforderung)
  */
 export function computeAltlasten(
@@ -82,9 +123,7 @@ export function computeAltlasten(
   stundenProTV: number,
 ): Map<string, MaAltlastBucket> {
   const stunden = stundenProTV > 0 ? stundenProTV : 9;
-  const prevQs = previousTwoQuartals(aktuellesQuartal);
-  if (!prevQs) return new Map();
-  const targetQuartals = new Set<string>(prevQs);
+  if (!/^\d{4}-Q[1-4]$/.test(aktuellesQuartal)) return new Map();
 
   // pro (anonId, groupKey) sammeln; groupKey = verbund_id || aktenzeichen
   const collect = new Map<string, Map<string, GroupState>>();
@@ -99,7 +138,9 @@ export function computeAltlasten(
 
     const datum = (a as { antragsdatum?: unknown }).antragsdatum;
     const q = dateToQuartal(typeof datum === 'string' ? datum : undefined);
-    if (!q || !targetQuartals.has(q)) continue;
+    if (!q) continue;
+    const band = quartalBand(q, aktuellesQuartal);
+    if (!band) continue;
 
     const status = (a as { status?: unknown }).status;
     if (!isAltlastStatus(status)) continue;
@@ -121,6 +162,8 @@ export function computeAltlasten(
         titel: readField(a, 'verbund_titel') ?? readField(a, 'titel'),
         antragsdatum: typeof datum === 'string' ? datum : undefined,
         status: typeof status === 'string' ? status : undefined,
+        quartal: q,
+        band,
       };
       perAnon.set(groupKey, group);
     }
@@ -132,11 +175,16 @@ export function computeAltlasten(
   const result = new Map<string, MaAltlastBucket>();
   for (const [anonId, groupsByKey] of collect) {
     const verbuende: AuslastungVerbund[] = [];
+    const tvsProBand: [number, number, number] = [0, 0, 0];
+    const quartaleSet = new Set<string>();
     let totalTvs = 0;
     for (const g of groupsByKey.values()) {
       const tvCount = g.aktenzeichen.length;
       if (tvCount === 0) continue;
       totalTvs += tvCount;
+      const bi = g.band - 1;
+      tvsProBand[bi] = (tvsProBand[bi] ?? 0) + tvCount;
+      quartaleSet.add(g.quartal);
       verbuende.push({
         verbundId: g.verbundId,
         aktenzeichen: g.aktenzeichen.slice(),
@@ -144,6 +192,7 @@ export function computeAltlasten(
         titel: g.titel,
         antragsdatum: g.antragsdatum,
         status: g.status,
+        altlastBand: g.band,
         tvCount,
         stunden: tvCount * stunden,
       });
@@ -161,7 +210,9 @@ export function computeAltlasten(
       antraege: verbuende.length,
       tvs: totalTvs,
       stunden: totalTvs * stunden,
-      quartale: prevQs,
+      tvsProBand,
+      // distinct Quartale, aeltestes zuerst (YYYY-QN sortiert chronologisch).
+      quartale: Array.from(quartaleSet).sort(),
       verbuende,
     });
   }
