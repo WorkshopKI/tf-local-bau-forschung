@@ -185,8 +185,11 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
               </div>
             )}
             {vbDok && vbUeberschreitetCap(vbDok.markdown, getVbCharCap()) && (
-              <div className="mb-3 rounded-[8px] px-3 py-2 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)]">
-                ⚠ Die VB ist sehr lang ({vbDok.markdown.length.toLocaleString('de-DE')} Zeichen, Limit ~{getVbCharCap().toLocaleString('de-DE')} aus {getLlmContextTokens().toLocaleString('de-DE')} Tokens Kontext) und würde für die Analyse gekürzt. {VB_KUERZEN_HINWEIS}
+              <div
+                className="mb-3 text-[11.5px] text-[var(--tf-warning-text)]"
+                title={`${vbDok.markdown.length.toLocaleString('de-DE')} Zeichen, Limit ~${getVbCharCap().toLocaleString('de-DE')} aus ${getLlmContextTokens().toLocaleString('de-DE')} Tokens Kontext. ${VB_KUERZEN_HINWEIS}`}
+              >
+                ⚠ VB länger als das Kontextfenster — würde für die Analyse gekürzt. Extern kürzen und neu hochladen oder in Einstellungen → KI-Assistent das Kontextfenster erhöhen.
               </div>
             )}
             {ctrl.busy ? (

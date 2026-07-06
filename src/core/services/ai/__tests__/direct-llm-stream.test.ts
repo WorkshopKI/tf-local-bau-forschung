@@ -220,3 +220,44 @@ describe('DirectLLMTransport.streamConversation', () => {
     warn.mockRestore();
   });
 });
+
+describe('DirectLLMTransport.getContextWindow', () => {
+  function jsonResponse(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  it('liest default_generation_settings.n_ctx aus /props (baseUrl ohne /v1)', async () => {
+    let calledUrl = '';
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      calledUrl = url;
+      return jsonResponse({ default_generation_settings: { n_ctx: 81920 }, total_slots: 1 });
+    }));
+    const t = new DirectLLMTransport('http://localhost:9090/v1', 'qwen');
+    expect(await t.getContextWindow()).toBe(81920);
+    expect(calledUrl).toBe('http://localhost:9090/props');
+  });
+
+  it('fällt auf das top-level n_ctx zurück', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ n_ctx: 32768 })));
+    const t = new DirectLLMTransport('http://localhost:9090/v1', 'qwen');
+    expect(await t.getContextWindow()).toBe(32768);
+  });
+
+  it('non-ok Antwort → null', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({}, 404)));
+    const t = new DirectLLMTransport('http://localhost:9090/v1', 'qwen');
+    expect(await t.getContextWindow()).toBeNull();
+  });
+
+  it('fehlendes/ungültiges n_ctx → null', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ default_generation_settings: { n_ctx: 0 } })));
+    const t = new DirectLLMTransport('http://localhost:9090/v1', 'qwen');
+    expect(await t.getContextWindow()).toBeNull();
+  });
+
+  it('Netzwerkfehler → null (best-effort, kein Throw)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
+    const t = new DirectLLMTransport('http://localhost:9090/v1', 'qwen');
+    expect(await t.getContextWindow()).toBeNull();
+  });
+});

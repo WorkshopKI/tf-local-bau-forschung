@@ -19,6 +19,8 @@ import { FileDropZone } from '@/components/ui/FileDropZone';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { DocConverter, maxConversionLevel, type ConvertedDoc } from '@/core/services/converter';
+import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { vbUeberschreitetCap } from '@/core/services/skills';
 import { uuid } from '@/core/services/id-generator';
 import type { AntragDokumentTyp } from '@/core/services/csv/types';
 import { useDokumenteStore } from '@/plugins/dokumente/store';
@@ -166,6 +168,10 @@ function IntakeRow({ item, onSetTyp, onAssign, onDiscard }: RowProps): React.Rea
   const showPills = item.fkzCase === 'match' || assigned;
   const [reviewOpen, setReviewOpen] = useState(false);
   const lvl = item.converted ? maxConversionLevel(item.converted.report) : null;
+  const zuLang = item.converted ? vbUeberschreitetCap(item.converted.markdown, getVbCharCap()) : false;
+  const rep = item.converted?.report;
+  const imgCount = rep?.imageCount ?? 0;
+  const tblCount = rep?.tableCount ?? 0;
 
   return (
     <div className="flex items-start gap-3 py-3 border-t-[0.5px] border-[var(--tf-border)]">
@@ -226,13 +232,28 @@ function IntakeRow({ item, onSetTyp, onAssign, onDiscard }: RowProps): React.Rea
         )}
 
         {item.status === 'indexiert' && item.converted && (
-          <div className="mt-1.5 flex items-center gap-2 flex-wrap text-[11.5px]">
-            <button type="button" onClick={() => setReviewOpen(true)} className="text-[var(--tf-primary)] hover:underline">
-              Konvertierung prüfen
-            </button>
-            {lvl === 'warnung' && <span className="text-[var(--tf-warning-text)]">⚠ mögliche Konvertierungsprobleme</span>}
-            {lvl === 'hinweis' && <span className="text-[var(--tf-text-tertiary)]">Hinweise zur Konvertierung</span>}
-          </div>
+          <>
+            <div className="mt-1.5 flex items-center gap-2 flex-wrap text-[11.5px]">
+              <button type="button" onClick={() => setReviewOpen(true)} className="text-[var(--tf-primary)] hover:underline">
+                Konvertierung prüfen
+              </button>
+              {lvl === 'warnung' && <span className="text-[var(--tf-warning-text)]">⚠ mögliche Konvertierungsprobleme</span>}
+              {lvl === 'hinweis' && <span className="text-[var(--tf-text-tertiary)]">Hinweise zur Konvertierung</span>}
+            </div>
+            {zuLang && (
+              <div className="mt-1.5 rounded-[6px] px-2.5 py-1.5 text-[11.5px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)]">
+                ⚠ Länger als das Kontextfenster (~{getVbCharCap().toLocaleString('de-DE')} Zeichen) — die KI würde den Schluss nicht sehen.
+                Bitte extern kürzen (Anhänge, Literaturverzeichnis, ausführliche Tabellen) und erneut hochladen.
+              </div>
+            )}
+            {(imgCount > 0 || tblCount > 0) && (
+              <div className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
+                {imgCount > 0 && `🖼 ${imgCount} Bild${imgCount === 1 ? '' : 'er'} ignoriert (kein Text)`}
+                {imgCount > 0 && tblCount > 0 && ' · '}
+                {tblCount > 0 && `${tblCount} Tabelle${tblCount === 1 ? '' : 'n'} als Text übernommen`}
+              </div>
+            )}
+          </>
         )}
       </div>
 

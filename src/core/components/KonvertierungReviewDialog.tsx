@@ -7,6 +7,8 @@
 import { Dialog } from '@/components/ui/dialog';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { parseMarkdown } from '@/plugins/dokumente/markdownMeta';
+import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { vbUeberschreitetCap } from '@/core/services/skills';
 import type { ConversionReport, ConversionWarning } from '@/core/services/converter';
 
 interface Props {
@@ -22,6 +24,8 @@ interface Props {
 export function KonvertierungReviewDialog({ open, filename, format, pages, markdown, report, onClose }: Props): React.ReactElement | null {
   const body = parseMarkdown(markdown).body;
   const charCount = report?.charCount ?? body.trim().length;
+  const cap = getVbCharCap();
+  const zuLang = vbUeberschreitetCap(markdown, cap);
 
   return (
     <Dialog
@@ -40,6 +44,15 @@ export function KonvertierungReviewDialog({ open, filename, format, pages, markd
       <div className="text-[11px] text-[var(--tf-text-tertiary)] mt-0.5">
         {format.toUpperCase()}{pages ? ` · ${pages} ${pages === 1 ? 'Seite' : 'Seiten'}` : ''} · {charCount.toLocaleString('de-DE')} Zeichen
       </div>
+
+      {zuLang && (
+        <div className="mt-4 rounded-[8px] px-3 py-2 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)]">
+          ⚠ Dieses Dokument ist länger als das Kontextfenster ({charCount.toLocaleString('de-DE')} Zeichen, Limit ~{cap.toLocaleString('de-DE')}).
+          Die KI würde den Schluss nicht mehr sehen. Bitte extern kürzen (z. B. Anhänge, Literaturverzeichnis, ausführliche
+          Tabellen entfernen) und erneut hochladen. Falls Ihr LLM ein größeres Kontextfenster verarbeiten kann, erhöhen Sie es
+          in Einstellungen → KI-Assistent.
+        </div>
+      )}
 
       {report && report.warnings.length > 0 && (
         <div className="mt-4 flex flex-col gap-2">

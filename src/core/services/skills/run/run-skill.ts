@@ -25,12 +25,12 @@ export type ThinkingBudget = 'none' | 'low' | 'medium' | 'high';
 
 /**
  * Statischer **Fallback**-Cap für `capVbMarkdown` (direkte/Test-Aufrufe). Zur
- * Laufzeit liefert `getVbCharCap()` ([llm-context.ts]) den aus der vom Nutzer
- * gemeldeten LLM-Kontextlänge (Einstellungen → KI-Assistent) abgeleiteten Wert;
- * die Aufrufer reichen ihn über `SkillRunInput.vbCharCap` durch. Der Default
- * hier entspricht ~`DEFAULT_LLM_CONTEXT_TOKENS` (32k) → ~86k Zeichen.
+ * Laufzeit liefert `getVbCharCap()` ([llm-context.ts]) den aus der LLM-Kontextlänge
+ * (manuell/erkannt/Default, Einstellungen → KI-Assistent) abgeleiteten Wert; die
+ * Aufrufer reichen ihn über `SkillRunInput.vbCharCap` durch. Der Default hier
+ * entspricht ~`DEFAULT_LLM_CONTEXT_TOKENS` (~80k) → ~233k Zeichen.
  */
-export const VB_CHAR_CAP = 86_000;
+export const VB_CHAR_CAP = 233_000;
 const DEFAULT_MAX_TOKENS = 2048;
 /**
  * Zusätzliches Output-Token-Budget, wenn Thinking aktiv ist. `max_tokens` deckelt

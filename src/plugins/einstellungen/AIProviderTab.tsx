@@ -6,10 +6,12 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Switch } from '@/components/ui/switch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
 import {
   getLlmContextTokens, setLlmContextTokens, computeVbCharCap,
-  MIN_LLM_CONTEXT_TOKENS, MAX_LLM_CONTEXT_TOKENS,
+  setDetectedLlmContextTokens, clearManualLlmContextTokens, getLlmContextSource,
+  MIN_LLM_CONTEXT_TOKENS, MAX_LLM_CONTEXT_TOKENS, type LlmContextSource,
 } from '@/core/services/ai/llm-context';
 import { getLlmThinkingEnabled, setLlmThinkingEnabled } from '@/core/services/ai/llm-thinking';
 import type { AIProviderConfig } from '@/core/types/config';
@@ -63,7 +65,34 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
   const [customModel, setCustomModel] = useState('');
   const [contextTokens, setContextTokens] = useState(getLlmContextTokens());
   const [contextInput, setContextInput] = useState(String(getLlmContextTokens()));
+  const [contextSource, setContextSource] = useState<LlmContextSource>(getLlmContextSource());
+  const [detectedTokens, setDetectedTokens] = useState<number | null>(null);
   const [thinkingEnabled, setThinkingEnabled] = useState(getLlmThinkingEnabled());
+
+  // Wirksamen Kontextwert + Quelle nach einer Änderung (Commit/Erkennen/Reset) nachziehen.
+  const syncContextState = (): void => {
+    const eff = getLlmContextTokens();
+    setContextTokens(eff);
+    setContextInput(String(eff));
+    setContextSource(getLlmContextSource());
+  };
+
+  // Auto-Detect: Kontextfenster vom laufenden llama.cpp-Server (/props) übernehmen.
+  // Nur sinnvoll bei Direct-LLM-Endpunkten (internal/cloud) — Bridge/nicht erreichbar
+  // → null → wir behalten den bisherigen Wert.
+  const erkennen = useAsyncAction(async () => {
+    const transport = new DirectLLMTransport(aiConfig.endpoint, aiConfig.model, aiConfig.apiKey || undefined);
+    const n = await transport.getContextWindow();
+    if (n == null) throw new Error('Kein Kontextfenster vom Server erhalten (/props nicht erreichbar).');
+    setDetectedLlmContextTokens(n);
+    setDetectedTokens(n);
+    syncContextState();
+  });
+
+  const resetAufAutomatik = (): void => {
+    clearManualLlmContextTokens();
+    syncContextState();
+  };
 
   // Hilfetext live aus der Eingabe ableiten (nicht erst nach Commit) — so passt
   // der angezeigte Zeichen-Cap immer zum gerade eingetippten Token-Wert.
@@ -79,6 +108,7 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
       setLlmContextTokens(clamped);
       setContextTokens(clamped);
       setContextInput(String(clamped));
+      setContextSource('manuell');
     } else {
       setContextInput(String(contextTokens));
     }
@@ -119,6 +149,13 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
     await storage.idb.set('ai-provider', aiConfig);
     aiBridge.switchProvider(aiConfig);
     setSaved(true); setTimeout(() => setSaved(false), 3000);
+    // Komfort: Kontextfenster im Hintergrund vom Server erkennen (Direct-LLM-Endpunkte).
+    if (aiConfig.type === 'internal' || aiConfig.type === 'cloud') {
+      void new DirectLLMTransport(aiConfig.endpoint, aiConfig.model, aiConfig.apiKey || undefined)
+        .getContextWindow()
+        .then(n => { if (n != null) { setDetectedLlmContextTokens(n); setDetectedTokens(n); syncContextState(); } })
+        .catch(() => { /* best-effort — Fallback bleibt der gespeicherte/Default-Wert */ });
+    }
   };
 
   const selectedDropdownValue = isCustomModel || aiConfig.model === '' ? 'custom' : aiConfig.model;
@@ -145,8 +182,39 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
           className={inputClass}
           style={inputStyle}
         />
+        <div className="flex items-center gap-3 flex-wrap text-[11.5px]">
+          <span className="text-[var(--tf-text-tertiary)]">
+            Quelle: {contextSource === 'manuell' ? 'manuell gesetzt' : contextSource === 'erkannt' ? 'automatisch erkannt' : 'Standardwert'}
+          </span>
+          <button
+            type="button"
+            onClick={() => erkennen.run()}
+            disabled={erkennen.busy}
+            className="text-[var(--tf-primary)] hover:underline disabled:opacity-50"
+          >
+            {erkennen.busy ? 'Erkenne…' : 'Vom Server erkennen'}
+          </button>
+          {contextSource === 'manuell' && (
+            <button
+              type="button"
+              onClick={resetAufAutomatik}
+              className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]"
+            >
+              Auf Automatik zurücksetzen
+            </button>
+          )}
+        </div>
+        {erkennen.error && (
+          <p className="text-[11.5px] text-[var(--tf-danger-text)]">{erkennen.error}</p>
+        )}
+        {detectedTokens != null && !erkennen.error && (
+          <p className="text-[11.5px] text-[var(--tf-success-text)]">
+            Server meldet {detectedTokens.toLocaleString('de-DE')} Tokens{contextSource === 'manuell' ? ' (manueller Wert bleibt aktiv — „Auf Automatik zurücksetzen", um ihn zu nutzen)' : ''}.
+          </p>
+        )}
         <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-          Wie viele Tokens kann das genutzte LLM verarbeiten? Daraus wird die maximale VB-Länge
+          Wie viele Tokens kann das genutzte LLM verarbeiten? Standard ist der interne llama.cpp-Wert;
+          „Vom Server erkennen" liest ihn direkt aus dem laufenden Server. Daraus wird die maximale VB-Länge
           abgeleitet — aktuell <strong>~{computeVbCharCap(liveContextTokens).toLocaleString('de-DE')} Zeichen</strong>.
           Längere Vorhabensbeschreibungen werden vor der Analyse gekürzt.
         </p>

@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.188 — 2026-07
+
+### Verbesserungen
+- Die KI nutzt jetzt standardmäßig das **volle Kontextfenster** des internen Sprachmodells (80.000 statt 62.000 Token). Vorhabensbeschreibungen, die vorher unnötig gekürzt wurden, werden jetzt **komplett** analysiert.
+- Neu in **Einstellungen → KI-Assistent**: der Knopf **„Vom Server erkennen"** liest die tatsächliche Kontextgröße direkt vom laufenden Modell aus — kein Wert mehr, der von Hand nachgetragen werden muss.
+- Ist ein Dokument **wirklich zu lang** fürs Kontextfenster, warnt die App jetzt schon **beim Hochladen/Konvertieren** (statt erst nach der Generierung) — mit dem klaren Hinweis, es außerhalb der App zu kürzen (z. B. Anhänge, Literaturverzeichnis, große Tabellen entfernen) und erneut hochzuladen.
+- Beim Hochladen einer Vorhabensbeschreibung sieht man jetzt direkt, dass **eingebettete Bilder nicht mitgelesen** werden (sie enthalten keinen Text für die KI) und wie viele Tabellen als Text übernommen wurden.
+
+### Bugfixes
+- Die nachträgliche, große Warnung „…wurde gekürzt" ist einem **unaufdringlichen Hinweis** gewichen; die eigentliche Warnung kommt jetzt rechtzeitig beim Hochladen.
+
 ## v2.187 — 2026-07
 
 ### Verbesserungen

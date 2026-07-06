@@ -169,8 +169,11 @@ export function SectionReviewCard({
         </div>
       )}
       {run.vbGekuerzt && (
-        <div className="mb-3 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
-          ⚠ Die Vorhabensbeschreibung war zu lang fürs LLM-Kontextfenster und wurde für die Analyse gekürzt — der Schluss floss nicht in diesen Abschnitt ein. {VB_KUERZEN_HINWEIS}
+        <div
+          className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]"
+          title={`Diese Fassung entstand auf einer gekürzten Vorhabensbeschreibung — der Schluss floss nicht ein. ${VB_KUERZEN_HINWEIS}`}
+        >
+          ⚠ auf gekürzter VB-Basis
         </div>
       )}
 

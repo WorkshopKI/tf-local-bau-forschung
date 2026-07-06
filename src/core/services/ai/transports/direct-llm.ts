@@ -101,6 +101,26 @@ export class DirectLLMTransport implements AITransport {
     }
   }
 
+  /**
+   * Kontextfenster (Tokens) des laufenden Servers via llama.cpp `/props`
+   * (`default_generation_settings.n_ctx` = n_ctx pro Slot). Für die Auto-Erkennung
+   * der Einstellungen → KI-Assistent, damit die App den echten Server-Wert kennt
+   * statt eines geratenen Defaults. Non-llama.cpp/Bridge/nicht erreichbar → `null`
+   * (Aufrufer fällt auf den gespeicherten/Default-Wert zurück). Gleiches Fetch-/
+   * CORS-Muster wie `getActiveModel()`.
+   */
+  async getContextWindow(): Promise<number | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/props`, { headers: this.getHeaders() });
+      if (!res.ok) return null;
+      const d = await res.json() as { default_generation_settings?: { n_ctx?: number }; n_ctx?: number };
+      const n = d?.default_generation_settings?.n_ctx ?? d?.n_ctx;
+      return typeof n === 'number' && n > 0 ? n : null;
+    } catch {
+      return null;
+    }
+  }
+
   async submitMessage(
     message: string,
     systemPrompt?: string,

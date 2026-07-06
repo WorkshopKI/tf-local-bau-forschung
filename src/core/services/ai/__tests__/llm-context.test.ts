@@ -13,6 +13,9 @@ vi.stubGlobal('localStorage', {
 import {
   getLlmContextTokens,
   setLlmContextTokens,
+  setDetectedLlmContextTokens,
+  clearManualLlmContextTokens,
+  getLlmContextSource,
   computeVbCharCap,
   getVbCharCap,
   DEFAULT_LLM_CONTEXT_TOKENS,
@@ -21,6 +24,7 @@ import {
 } from '../llm-context';
 
 const KEY = 'teamflow_llm_context_tokens';
+const DETECTED_KEY = 'teamflow_llm_context_detected';
 
 describe('computeVbCharCap', () => {
   it('leitet aus dem Kontextfenster (Tokens) den Zeichen-Cap ab (Reserve + Quote)', () => {
@@ -69,5 +73,49 @@ describe('getLlmContextTokens / setLlmContextTokens', () => {
   it('getVbCharCap nutzt die gespeicherte Einstellung', () => {
     setLlmContextTokens(70_000);
     expect(getVbCharCap()).toBe(computeVbCharCap(70_000));
+  });
+});
+
+describe('Default = interner llama.cpp-Wert (80k)', () => {
+  it('DEFAULT_LLM_CONTEXT_TOKENS entspricht der Config kontext_groesse (81920)', () => {
+    expect(DEFAULT_LLM_CONTEXT_TOKENS).toBe(81_920);
+    // (81920 − 4096) × 3 = 233.472 → ~50k-Token-VBs passen ohne Kürzung
+    expect(computeVbCharCap(81_920)).toBe(233_472);
+  });
+});
+
+describe('Präzedenz manuell > erkannt > Default + Quelle', () => {
+  beforeEach(() => { mem.clear(); });
+
+  it('ohne alles: Default, Quelle "default"', () => {
+    expect(getLlmContextTokens()).toBe(DEFAULT_LLM_CONTEXT_TOKENS);
+    expect(getLlmContextSource()).toBe('default');
+  });
+
+  it('erkannt gewinnt über Default, solange kein manueller Wert', () => {
+    setDetectedLlmContextTokens(40_000);
+    expect(getLlmContextTokens()).toBe(40_000);
+    expect(getLlmContextSource()).toBe('erkannt');
+    expect(mem.get(DETECTED_KEY)).toBe('40000');
+  });
+
+  it('manuell übersteuert erkannt', () => {
+    setDetectedLlmContextTokens(40_000);
+    setLlmContextTokens(50_000);
+    expect(getLlmContextTokens()).toBe(50_000);
+    expect(getLlmContextSource()).toBe('manuell');
+  });
+
+  it('clearManual fällt auf den erkannten Wert zurück', () => {
+    setDetectedLlmContextTokens(40_000);
+    setLlmContextTokens(50_000);
+    clearManualLlmContextTokens();
+    expect(getLlmContextTokens()).toBe(40_000);
+    expect(getLlmContextSource()).toBe('erkannt');
+  });
+
+  it('erkannter Wert wird ebenfalls geclamped', () => {
+    setDetectedLlmContextTokens(MAX_LLM_CONTEXT_TOKENS + 10_000);
+    expect(getLlmContextTokens()).toBe(MAX_LLM_CONTEXT_TOKENS);
   });
 });
