@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.193 — 2026-07
+
+### Verbesserungen
+- Die **Suche** begrüßt dich jetzt mit einem hilfreichen Startbildschirm statt einer nüchternen Zahl: Er nennt, wie viele Anträge durchsuchbar sind, erklärt kurz die Suchfelder und bietet **anklickbare Beispiele**, die direkt eine Suche starten. Der Hinweis auf die (noch nicht eingerichtete) Volltextsuche in Dokumenten ist jetzt eine dezente Zeile am Rand — die Einrichtung ist Sache der Kuratoren, nicht deine.
+
 ## v2.192 — 2026-07
 
 ### Verbesserungen

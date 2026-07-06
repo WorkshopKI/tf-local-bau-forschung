@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.193.0 — Suche: positiver Leerzustand + dezenter Index-Hinweis (Journey-Paket 4, Phase 2) (Juli 2026)
+
+MINOR — Der Leerzustand der **Suche** zeigte bisher nur eine karge Diagnose-Zeile („N Textabschnitte im Index · M Anträge geladen") — inklusive der für Nutzer verwirrenden „0 Textabschnitte", wenn kein Dokumentenindex vorliegt. Neu betont der Leerzustand, was AKTIV geht (die Antragssuche), mit klickbaren Beispielen; der fehlende Dokumentenindex ist nur noch eine dezente Info-Zeile OHNE Handlungsaufforderung (Index-Einrichtung ist Kurator-Aufgabe). Mockup `_reference/journey-paket-4/suche-leerzustand.png`.
+
+- **Neue Komponente** [SucheLeerzustand.tsx](src/plugins/suche/SucheLeerzustand.tsx): Titel „{n} Anträge durchsuchbar" (aus `indexInfo.antraegeGeladen`, NICHT der Textabschnitt-Zahl), ein Satz zu den Suchfeldern, 3 klickbare Beispiel-Chips (thematisch · FKZ · Mehrwort), zwei dezente Hinweis-Items (Verlauf, Assistent). Beispiel-Chip-Klick läuft über EXAKT denselben Suchpfad wie getippte Eingaben (`setQuery` + `addRecentSearch`, inkl. Verlaufs-Eintrag).
+- **Index-Hinweis** nur bei leerem Index (`textabschnitteImIndex === 0`), abgesetzt über Trennlinie, `text-muted` + Info-Icon, KEIN Button/Anleitung/Kurator-Verweis im Text. Ausnahme Kurator-Build (`kuratorMenus` + `dokumentenscan`): zusätzlich dezenter Link „Dokumentenquellen öffnen" → `/kuration/dokumentenquellen`.
+- **Konsolidierung** der zwei Diagnose-Zeilen-Vorkommen in EINE [IndexInfoZeile.tsx](src/plugins/suche/IndexInfoZeile.tsx) (reine, getestete `buildIndexInfoText`): die Zahl „0 Textabschnitte" wird Nutzern NIE mehr angezeigt (Segment fällt bei leerem Index weg). Stammdaten-/Substring-Suche funktioniert im Leerzustand voll — Tippen blendet den Leerzustand aus.
+
 ### v2.192.0 — Einstellungen: „Meine Technologien" — einheitliche Toggle-Chips (Journey-Paket 4, Phase 1) (Juli 2026)
 
 MINOR — Der Tab **„Meine Technologien"** (Einstellungen) mischte drei verschiedene Chip-Stile (farbcodierte `KategoriePill`, Inline-Buttons, durchgestrichene Auto-Tags) und markierte gesperrte Chips mit `opacity-40` (wirkt wie „disabled", DESIGN_GUIDE Kap. 5 / Pitfall #14). Alle Toggle-Gruppen laufen jetzt über EIN neutrales `ToggleChip` mit drei klaren Zuständen (an / aus / nicht wählbar). Reine Darstellungs-/Interaktionsänderung — Datenmodell + Auto-Save („Automatisch gespeichert") unverändert. Mockup `_reference/journey-paket-4/einstellungen-chips.png`.

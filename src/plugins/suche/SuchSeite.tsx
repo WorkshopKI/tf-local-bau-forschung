@@ -1,7 +1,8 @@
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Loader2, MessageSquare, Search, Sparkles } from 'lucide-react';
+import { Loader2, MessageSquare, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { isKuratorMenusEnabled, isDokumentenscanEnabled } from '@/config/feature-flags';
 import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -16,6 +17,8 @@ import { AnalysePromptDialog } from './AnalysePromptDialog';
 import { CollapsibleSeg } from '@/plugins/antraege/filter/CollapsibleSeg';
 import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { SearchInput } from './SearchInput';
+import { SucheLeerzustand } from './SucheLeerzustand';
+import { IndexInfoZeile } from './IndexInfoZeile';
 import { useSearchResults } from './useSearchResults';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import {
@@ -197,6 +200,15 @@ export function SuchSeite(): React.ReactElement {
     if (analyseActive) analyse.reset();
   };
 
+  // Beispiel-Chip im Leerzustand: identisch zu getippter Suche — dieselbe
+  // deferredQuery-Pipeline PLUS Verlaufs-Eintrag (bei getippter Suche käme der
+  // sonst erst bei Enter/Blur).
+  const runExampleSearch = useCallback((q: string): void => {
+    setQuery(q);
+    addRecentSearch(q);
+    if (analyseActive) analyse.reset();
+  }, [addRecentSearch, analyseActive, analyse]);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3000);
@@ -316,10 +328,10 @@ export function SuchSeite(): React.ReactElement {
               {sorted.length} Ergebnisse{analyseActive ? ' (KI-Analyse)' : ''}
             </span>
             <span aria-hidden="true">·</span>
-            <span>
-              {indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte im Index ·{' '}
-              {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Antraege geladen
-            </span>
+            <IndexInfoZeile
+              textabschnitteImIndex={indexInfo.textabschnitteImIndex}
+              antraegeGeladen={indexInfo.antraegeGeladen}
+            />
           </div>
         )}
         <div className="flex items-center gap-2 mt-3 flex-wrap w-full">
@@ -411,13 +423,13 @@ export function SuchSeite(): React.ReactElement {
       )}
 
       {noQuery && !loading && (
-        <div className="text-center py-16">
-          <Search size={40} className="text-[var(--tf-text-tertiary)] mx-auto mb-4" />
-          <p className="text-[var(--tf-text-tertiary)]">
-            {indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte im Index ·{' '}
-            {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Antraege geladen
-          </p>
-        </div>
+        <SucheLeerzustand
+          antraegeGeladen={indexInfo.antraegeGeladen}
+          textabschnitteImIndex={indexInfo.textabschnitteImIndex}
+          onExample={runExampleSearch}
+          kuratorVariant={isKuratorMenusEnabled() && isDokumentenscanEnabled()}
+          onOpenDokumentenquellen={() => navigate('/kuration/dokumentenquellen')}
+        />
       )}
 
       {!noQuery && !loading && !showSpinner && sorted.length === 0 && (
