@@ -10,11 +10,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Eye, Rows, ArrowRight, Check, Copy, Mail } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { Button } from '@/components/ui/button';
-import { pruefePlatzhalter, finalisiere, polishAntwort, wiedereinsetzenSegmente } from './services/finalisierung';
-import { buildMailto, mailtoBodyZuLang } from './services/mailto';
+import { pruefePlatzhalter, finalisiere, wiedereinsetzenSegmente } from './services/finalisierung';
+import { buildMailtoLeer } from './services/mailto';
+import { copyAntwortReich } from './services/clipboard';
 import { MARK_CLASS } from './highlight';
 import { AwdToggle } from './AwdToggle';
 import { useSyncedPaneHeight } from './useSyncedPaneHeight';
@@ -28,10 +28,7 @@ interface Props {
   onToggleHighlight: () => void;
 }
 
-/**
- * Weicher Längen-Hinweis (≈ 0,5 A4). BEWUSST getrennt vom mailto-URL-Limit
- * (`MAILTO_MAX_BODY`): anderer Zweck (inhaltliche Länge vs. Direkt-Mail-Grenze).
- */
+/** Weicher inhaltlicher Längen-Hinweis (≈ 0,5 A4) — reiner Hinweis, kein Blocker. */
 const MAX_ANTWORT_ZEICHEN = 1800;
 
 function ResizerGrip(): React.ReactElement {
@@ -44,11 +41,10 @@ function ResizerGrip(): React.ReactElement {
 
 export function AntwortView({ anfrage, highlight, onToggleHighlight }: Props): React.ReactElement {
   const storage = useStorage();
-  const bridge = useAIBridge();
   const upsert = useAnfragenStore(s => s.upsert);
 
   const [pasteText, setPasteText] = useState(anfrage.externeAntwortAnon);
-  const [polishOn, setPolishOn] = useState(false);
+  const [kopiert, setKopiert] = useState(false);
   const [stacked, setStacked] = useState(false);
   const { height, onResizerPointerDown } = useSyncedPaneHeight('anfragen-pane-h-answer');
 
@@ -61,11 +57,9 @@ export function AntwortView({ anfrage, highlight, onToggleHighlight }: Props): R
   const liveSegs = useMemo(() => wiedereinsetzenSegmente(pasteText, anfrage.mapping), [pasteText, anfrage.mapping]);
   const liveText = useMemo(() => liveSegs.map(s => s.text).join(''), [liveSegs]);
 
-  // Kopieren/Mailto: persistierte (ggf. geglättete) Fassung wenn finalisiert, sonst Live-Einsetzung.
+  // Kopieren/Mailto: persistierte Fassung wenn finalisiert, sonst Live-Einsetzung.
   const finalText = istFinalisiert && anfrage.finaleAntwort ? anfrage.finaleAntwort : liveText;
-  const zuLang = useMemo(() => mailtoBodyZuLang(finalText), [finalText]);
-  const mailtoUrl = useMemo(() => buildMailto(anfrage.absenderEmail, anfrage.betreff, finalText), [anfrage.absenderEmail, anfrage.betreff, finalText]);
-  const kannMailen = !!anfrage.absenderEmail && !zuLang && !!finalText;
+  const kannMailen = !!anfrage.absenderEmail && !!finalText;
 
   const persistAntwort = (): void => {
     if (pasteText === anfrage.externeAntwortAnon) return;
@@ -79,13 +73,21 @@ export function AntwortView({ anfrage, highlight, onToggleHighlight }: Props): R
   };
 
   const finalisieren = useAsyncAction(async () => {
-    const polish = polishOn ? (anon: string) => polishAntwort(bridge, anon) : undefined;
-    const finaleAntwort = await finalisiere(pasteText, anfrage.mapping, polish);
+    const finaleAntwort = await finalisiere(pasteText, anfrage.mapping);
     await upsert({ ...anfrage, externeAntwortAnon: pasteText, finaleAntwort, status: 'finalisiert' }, storage);
   });
 
   const kopierenFinal = useAsyncAction(async () => {
-    await navigator.clipboard.writeText(finalText); // allow-anfrage-export: de-anonymisierte Antwort an Original-Absender (kein externer Leak)
+    await copyAntwortReich(finalText);
+    setKopiert(true);
+    setTimeout(() => setKopiert(false), 1500);
+  });
+
+  const kopierenUndMail = useAsyncAction(async () => {
+    await copyAntwortReich(finalText);
+    setKopiert(true);
+    setTimeout(() => setKopiert(false), 1500);
+    window.location.href = buildMailtoLeer(anfrage.absenderEmail, anfrage.betreff);
   });
 
   if (!exportFrei) {
@@ -175,29 +177,25 @@ export function AntwortView({ anfrage, highlight, onToggleHighlight }: Props): R
       </div>
 
       <div className="awd-actbar">
-        <label className="awd-check">
-          <input type="checkbox" checked={polishOn} onChange={e => setPolishOn(e.target.checked)} /> Vor dem Einsetzen intern glätten
-        </label>
         <Button variant="primary" icon={Check} loading={finalisieren.busy} disabled={!pasteText.trim()} onClick={() => finalisieren.run()}>
           Finalisieren (Originaldaten einsetzen)
         </Button>
         <span className="awd-sp" />
-        <Button variant="secondary" icon={Copy} loading={kopierenFinal.busy} disabled={!finalText} onClick={() => kopierenFinal.run()}>
-          Finale Antwort kopieren
+        <Button variant="secondary" icon={kopiert ? Check : Copy} loading={kopierenFinal.busy} disabled={!finalText} onClick={() => kopierenFinal.run()}>
+          {kopiert ? 'Kopiert!' : 'Finale Antwort kopieren'}
         </Button>
         {kannMailen ? (
-          <Button asChild variant="secondary">
-            <a href={mailtoUrl} title="Öffnet einen Mail-Entwurf an den Original-Absender (Re: …).">
-              <Mail /> Antwort-Mail öffnen
-            </a>
+          <Button variant="secondary" icon={Mail} loading={kopierenUndMail.busy} disabled={!finalText} onClick={() => kopierenUndMail.run()} title="Kopiert die formatierte Antwort und öffnet einen adressierten Mail-Entwurf (Re: …) — dann mit Strg+V einfügen.">
+            Kopieren & Mail öffnen
           </Button>
         ) : (
           <span className="awd-note">
-            <Mail size={12} />
-            {!anfrage.absenderEmail ? 'Keine Absender-Adresse — bitte kopieren.' : 'Antwort zu lang für Direkt-Mail — bitte kopieren & einfügen.'}
+            <Mail size={12} /> Keine Absender-Adresse — bitte kopieren.
           </span>
         )}
-        {kopierenFinal.error && <span className="awd-note" style={{ color: 'var(--tf-danger-text)' }}>Fehler: {kopierenFinal.error}</span>}
+        {(kopierenFinal.error || kopierenUndMail.error) && (
+          <span className="awd-note" style={{ color: 'var(--tf-danger-text)' }}>Fehler: {kopierenFinal.error || kopierenUndMail.error}</span>
+        )}
       </div>
     </div>
   );

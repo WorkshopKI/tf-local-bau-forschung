@@ -62,18 +62,8 @@ describe('pruefePlatzhalter', () => {
 });
 
 describe('finalisiere', () => {
-  it('ohne Polish = reine deterministische Wiedereinsetzung', async () => {
+  it('reine deterministische Wiedereinsetzung (kein LLM)', async () => {
     const out = await finalisiere('Hallo [PERSON_1]', MAPPING);
     expect(out).toBe('Hallo Dr. Schmidt');
-  });
-
-  it('Polish läuft VOR der Wiedereinsetzung (kann echte Werte nicht ändern)', async () => {
-    // Der Polish bekommt nur die ANONYME Antwort; die Wiedereinsetzung danach.
-    const polish = async (anon: string): Promise<string> => {
-      expect(anon).toBe('hi [PERSON_1]');           // anonymer Input
-      return 'Hallo [PERSON_1]!';                    // geglättet, Platzhalter intakt
-    };
-    const out = await finalisiere('hi [PERSON_1]', MAPPING, polish);
-    expect(out).toBe('Hallo Dr. Schmidt!');
   });
 });

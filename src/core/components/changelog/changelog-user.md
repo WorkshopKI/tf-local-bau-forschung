@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.183 — 2026-07
+
+### Verbesserungen
+- Die **fertige Antwort** im Modul „Anfragen" lässt sich jetzt **mit Formatierung** kopieren: fette Überschriften und Absätze bleiben erhalten, wenn Sie sie in Outlook einfügen — statt der rohen `**`-Zeichen wie bisher. Ein kurzer **Haken** am Knopf bestätigt, dass kopiert wurde.
+- Neuer Knopf **„Kopieren & Mail öffnen"**: kopiert die formatierte Antwort und öffnet in einem Schritt einen bereits adressierten Mail-Entwurf an den Absender (Betreff „Re: …") — Sie fügen nur noch mit Strg+V ein. Die frühere Meldung „Antwort zu lang für Direkt-Mail" entfällt damit.
+- Der selten genutzte Knopf **„Vor dem Einsetzen intern glätten"** wurde entfernt — die Antwort wird direkt und zuverlässig mit den Originaldaten befüllt.
+
 ## v2.182 — 2026-07
 
 ### Verbesserungen

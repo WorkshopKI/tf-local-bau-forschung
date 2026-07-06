@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.183.0 — Anfragen: Antwort formatiert kopieren + Ein-Klick-Mail, „Glätten" raus (Juli 2026)
+
+MINOR — Die Antwort-/Finalisierungs-Leiste der Anfrage-Antwort ([AntwortView.tsx](src/plugins/anfragen/AntwortView.tsx)) ist auf den echten Outlook-Workflow zugeschnitten: die externe ZIM-FAQ-Antwort kommt als **Markdown**, wurde bisher aber nur als **Plain-Text** kopiert (rohe `**`-Marker in Outlook), und die Direkt-Mail scheiterte quasi immer an der mailto-Body-Grenze. Additiv, keine Datenmigration.
+
+- **Rich-Text-Kopie** (neu [clipboard.ts](src/plugins/anfragen/services/clipboard.ts)): `copyAntwortReich` wandelt die finale Antwort per `marked` + `sanitizeHtml` (Reuse aus [MarkdownRenderer.tsx](src/components/ui/MarkdownRenderer.tsx)) in HTML und legt sie als `text/html` + `text/plain` via `ClipboardItem` ab → Outlook/Word übernehmen fette Überschriften + Absätze statt roher Marker. Fallback auf `writeText` bei fehlendem `ClipboardItem`-Support (nie schlechter als bisher). Der Knopf „Finale Antwort kopieren" zeigt bei Erfolg kurz einen **Haken**.
+- **Ein-Klick „Kopieren & Mail öffnen"**: kopiert die formatierte Antwort UND öffnet einen adressierten Leer-Entwurf (An + „Re:"-Betreff, **kein** Body) — der User fügt nur noch mit Strg+V ein. Die frühere Meldung „Antwort zu lang für Direkt-Mail" entfällt: der mailto-Body war die falsche Transportgrenze (~1800 Zeichen nach URL-Encoding, von de-anonymisierten Antworten fast immer überschritten). [mailto.ts](src/plugins/anfragen/services/mailto.ts) trägt jetzt nur noch `buildMailtoLeer` (`buildMailto`/`mailtoBodyZuLang`/`MAILTO_MAX_BODY` entfernt).
+- **„Vor dem Einsetzen intern glätten" entfernt**: die Checkbox + der dahinterliegende interne KI-Polish (`polishAntwort`/`POLISH_SKILL`) sind raus; [finalisierung.ts](src/plugins/anfragen/services/finalisierung.ts) `finalisiere()` ist jetzt rein deterministisch (Find-Replace, kein LLM). Die Anfrage-Antwort hat damit **keinen KI-Pfad mehr** — Kopieren/Mail sind vollständig lokal.
+- Export-Guard: die neuen `clipboard.writeText`-/`mailto:`-Stellen tragen den `// allow-anfrage-export:`-Marker (finale, bewusst de-anonymisierte Antwort an den Original-Absender, kein externer Leak). Tests: [mailto.test.ts](src/plugins/anfragen/services/__tests__/mailto.test.ts) auf `buildMailtoLeer` umgestellt.
+
 ### v2.182.0 — Journey-Paket 2 Phase 8: Kompakt-Listenmodus bei offenem Detail (Juli 2026)
 
 MINOR — Wenn ein Antrag/Verbund im Split geöffnet ist, schrumpfte die Liste bisher zur **schmaler skalierten Voll-Tabelle** (resizable). Neu: eine dedizierte **Kompakt-Spalte** (Mockup [split-kompaktliste.png]) — feste ~230px, eine Zeile pro Antrag (Ampel-Punkt · Akronym · relative Frist), aktive Zeile im **exakten Sidebar-Nav-Aktiv-Stil**. Additiv, keine Datenmigration.
