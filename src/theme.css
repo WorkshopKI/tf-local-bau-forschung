@@ -22,6 +22,19 @@
   --tf-border-hover: rgba(0, 0, 0, 0.15);
   --tf-hover: rgba(0, 0, 0, 0.04);
 
+  /* ── Flächen-System „Desk & Blatt" (Design-Handoff homepage, Option E ·
+     Neutral · Trennung 65 %) — app-weites Chrome: grauer „Desk" hinter der
+     transparenten Sidebar, weißes „Blatt" als schwebender Arbeitsbereich, das
+     aktive Sidebar-Item als kleines weißes Blatt. Quelle:
+     _design/handoff/homepage/README.md. Umgesetzt in ShellLayout.tsx. ── */
+  --tf-desk: hsl(0 0% 95.8%);                 /* #F4F4F4 — Grundfläche/„Desk" hinter der Sidebar */
+  --tf-sheet: var(--tf-bg);                   /* Arbeitsbereich/„Blatt" (trackt --tf-bg → Dark automatisch) */
+  --tf-sheet-border: hsl(0 0% 92.9%);         /* #EDEDED — Blatt-Rahmen (0.5px Haarlinie) */
+  --tf-sheet-shadow: 0 1px 2px hsl(0 0% 35% / 0.04), 0 10px 30px hsl(0 0% 35% / 0.07);
+  --tf-card-surface: hsl(0 0% 98.4%);         /* #FBFBFB — Karte auf dem Blatt (kaum sichtbare Absetzung) */
+  --tf-nav-active-bg: var(--tf-bg);           /* aktives Item = Blatt-Ton, hebt sich vom Desk ab */
+  --tf-nav-active-border: hsl(0 0% 30% / 0.1);
+
   --tf-sidebar-w: 220px;
   --tf-radius: 8px;
   --tf-radius-lg: 12px;
@@ -186,6 +199,15 @@
   --tf-border-hover: rgba(200, 195, 180, 0.14);
   --tf-hover: rgba(200, 195, 180, 0.05);
   --tf-primary-light: hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.3), 22%);
+
+  /* Desk & Blatt (Dark): Desk dunkler als das Blatt (--tf-bg #2a2a28) → das Blatt
+     schwebt heller darüber, wie im Light-Mode. --tf-sheet / --tf-nav-active-bg
+     tracken --tf-bg und brauchen keinen eigenen Dark-Wert. */
+  --tf-desk: #222220;                         /* warm-grau, dunkler als das Blatt */
+  --tf-sheet-border: rgba(200, 195, 180, 0.10);
+  --tf-sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+  --tf-card-surface: #31302e;                 /* Karte leicht heller als das Blatt */
+  --tf-nav-active-border: rgba(200, 195, 180, 0.14);
 
   --tf-info-bg: hsl(210, 18%, 22%);
   --tf-info-text: hsl(210, 30%, 66%);

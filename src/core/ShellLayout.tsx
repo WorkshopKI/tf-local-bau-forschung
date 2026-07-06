@@ -304,12 +304,17 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
       <button key={plugin.id}
         onClick={() => { goToPlugin(plugin.id); if (isMobile) setSidebarMode('rail'); }}
         title={isRail ? displayName(plugin) : undefined}
-        className={`flex items-center w-full py-[8px] rounded-[var(--tf-radius)] text-[13.5px] transition-colors cursor-pointer ${
+        aria-current={isActive ? 'page' : undefined}
+        // „Desk & Blatt": das aktive Item ist ein kleines weißes Blatt (bg + Haarlinie),
+        // das sich von der transparenten Sidebar auf dem grauen Desk abhebt — ersetzt
+        // die frühere Primary-Light-Füllung + linke Akzent-Kante. Base-Border transparent
+        // (box-border) hält die Zeilenhöhe zwischen aktiv/inaktiv konstant.
+        className={`flex items-center w-full py-[8px] rounded-[var(--tf-radius)] border-[0.5px] border-transparent text-[13.5px] transition-colors cursor-pointer ${
           isRail ? 'justify-center px-0' : 'gap-2.5 px-3'
         } ${
-          isActive ? 'bg-[var(--tf-primary-light)] text-[var(--tf-text)] font-medium' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+          isActive ? 'text-[var(--tf-text)] font-medium' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
         }`}
-        style={isActive ? { borderLeft: '2px solid var(--tf-primary)' } : undefined}>
+        style={isActive ? { background: 'var(--tf-nav-active-bg)', borderColor: 'var(--tf-nav-active-border)' } : undefined}>
         <Icon size={16} className={isActive ? 'opacity-80' : 'opacity-50'} />
         {!isRail && <span>{displayName(plugin)}</span>}
         {!isRail && plugin.navHint === 'global' && (
@@ -325,11 +330,11 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     <>
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} items={commandItems} />
       <BridgeDisconnectHint />
-      <div className="flex h-screen flex-col overflow-hidden bg-[var(--tf-bg)]">
+      <div className="flex h-screen flex-col overflow-hidden bg-[var(--tf-desk)]">
       <div className="flex flex-1 overflow-hidden">
         <aside
           data-tour="nav-sidebar"
-          className={`flex flex-col bg-[var(--tf-bg-sidebar)] overflow-hidden shrink-0 ${sidebarDragging ? '' : 'transition-[width] duration-200'}`}
+          className={`flex flex-col bg-transparent overflow-hidden shrink-0 ${sidebarDragging ? '' : 'transition-[width] duration-200'}`}
           style={{ width: sidebarMode === 'expanded' ? sidebarWidth : SIDEBAR_RAIL_WIDTH }}
         >
           <div className={`flex items-center ${sidebarMode === 'expanded' ? 'justify-between pl-4 pr-1' : 'justify-center px-1'} pt-4 pb-2 shrink-0`}>
@@ -439,11 +444,23 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
             aria-label="Sidebar-Breite ändern"
             onMouseDown={onSidebarResizeMouseDown}
             className="shrink-0 w-[4px] cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
-            style={{ borderRight: '0.5px solid var(--tf-border)' }}
           />
         )}
 
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* „Blatt": der Arbeitsbereich schwebt als abgerundetes weißes Blatt mit
+            Haarlinie + dezentem Schatten über dem grauen Desk. Links bündig an der
+            Sidebar (margin-left 0), Desk-Rand oben/rechts/unten. Scroll bleibt im
+            inneren Container → das Blatt (rundum overflow-hidden) klippt an den Ecken. */}
+        <main
+          className="flex-1 flex flex-col min-w-0 overflow-hidden"
+          style={{
+            margin: '10px 12px 10px 0',
+            borderRadius: '14px',
+            border: '0.5px solid var(--tf-sheet-border)',
+            background: 'var(--tf-sheet)',
+            boxShadow: 'var(--tf-sheet-shadow)',
+          }}
+        >
           <OfflineBanner />
           {isDataShareEnabled() && (
             <SmbBanner status={smbStatus.status} lastCheck={smbStatus.lastCheck} idb={storage.idb} />

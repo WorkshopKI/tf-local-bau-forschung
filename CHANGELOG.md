@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.191.0 — Flächen-System „Desk & Blatt": Arbeitsbereich schwebt als weißes Blatt (Juli 2026)
+
+MINOR — App-weites Chrome-Redesign aus dem Design-Handoff [_design/handoff/homepage](_design/handoff/homepage/README.md) (Option E · Neutral · Trennung 65 %). Sidebar und Arbeitsbereich teilten sich bisher exakt dasselbe Weiß → flache Wirkung, keine Zonierung. Neu: Die **Sidebar liegt transparent auf einer leicht getönten grauen Grundfläche** (dem „Desk"), der **Arbeitsbereich schwebt als abgerundetes weißes „Blatt"** mit Haarlinie + dezentem Schatten darüber. Klare Trennung Navigation ↔ Arbeit, ohne dass Text je auf getönter Fläche steht. Rein visuell, additiv, keine Datenmigration; gilt für **alle** Screens (Shell-Prinzip).
+
+- **Neue Surface-Tokens** ([theme.css](src/theme.css), Light + `[data-theme="dark"]`): `--tf-desk` (Grundfläche `#F4F4F4`, Dark `#222220` — dunkler als das Blatt, damit es hell darüber schwebt), `--tf-sheet` (Blatt = trackt `--tf-bg`), `--tf-sheet-border` (`#EDEDED`), `--tf-sheet-shadow` (zwei weiche Lagen), `--tf-card-surface` (Karten `#FBFBFB`), `--tf-nav-active-bg`/`--tf-nav-active-border` (aktives Item als kleines weißes Blatt). Alle global definiert → Guard `theme-token-contract` erfüllt.
+- **Shell** ([ShellLayout.tsx](src/core/ShellLayout.tsx)): App-Wurzel bekommt den Desk-Grauton; die Sidebar wird transparent (zeigt den Desk); der `<main>`-Bereich schwebt als Blatt (`margin:10px 12px 10px 0`, `border-radius:14px`, Haarlinie, Schatten, Scroll bleibt im inneren Container → klippt an den runden Ecken). Das **aktive Sidebar-Item** ist jetzt ein kleines weißes Blatt (bg + Haarlinie) statt der Primary-Light-Füllung + linker Akzent-Kante — hebt sich vom grauen Desk ab (Base-Border transparent hält die Zeilenhöhe konstant, `aria-current="page"` ergänzt). Der Resize-Teiler verliert seine sichtbare Kante (Desk-Spalt + Blatt-Rahmen trennen die Zonen).
+- **Home-Karten** ([EingangAmpelCard.tsx](src/plugins/home/EingangAmpelCard.tsx), [AiAssistantCard.tsx](src/plugins/home/AiAssistantCard.tsx)): Antragseingang- und AI-Assistent-Karte nutzen den neuen `--tf-card-surface`-Ton (kaum sichtbare Absetzung auf dem Blatt) statt `--tf-bg-secondary`.
+- Home- und Förderanträge-Inhalte bleiben unverändert — sie erben das neue Flächen-System automatisch über die Shell (die zwei Handoff-Screens sind Demonstrationen desselben Chrome-Prinzips im dünnen Dashboard- wie im dichten Tabellen-Fall).
+
 ### v2.190.1 — Suche: Assistent-Panel ohne festen Breiten-Deckel (Juli 2026)
 
 PATCH — Das andockende **Assistent**-Panel rechts in der Suche ließ sich per Teiler bisher nur bis **560 px** aufziehen. Der feste Deckel entfällt: Das Panel ist jetzt — analog zum List↔Detail-Split der Förderanträge — bis fast zum Fensterrand ziehbar (die Ergebnis-Tabelle behält eine Mindestbreite und verschwindet nie). Reiner UX-Tweak, keine Datenmigration.

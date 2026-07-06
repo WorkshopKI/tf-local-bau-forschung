@@ -30,7 +30,7 @@ export function AiAssistantCard(): React.ReactElement {
   }, [storage]);
 
   return (
-    <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
+    <div className="bg-[var(--tf-card-surface)] rounded-[var(--tf-radius)] p-4">
       <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3 uppercase tracking-[0.08em]">AI-Assistent</p>
       <div className="flex items-center gap-2 mb-2">
         <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[var(--tf-success-text)]' : 'bg-[var(--tf-text-tertiary)]'}`} />

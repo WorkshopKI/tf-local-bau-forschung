@@ -26,7 +26,7 @@ export function EingangAmpelCard(): React.ReactElement | null {
   if (counts.total === 0) return null;
 
   return (
-    <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-4">
+    <div className="bg-[var(--tf-card-surface)] rounded-[var(--tf-radius)] p-4">
       <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3 uppercase tracking-[0.08em]">
         Antragseingang
       </p>
