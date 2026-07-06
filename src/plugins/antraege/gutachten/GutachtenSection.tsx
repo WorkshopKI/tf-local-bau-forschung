@@ -84,6 +84,8 @@ export function GutachtenSection({
   const [tweakOpen, setTweakOpen] = useState(false);
   // Kontext-Panel ein-/ausgeklappt (Werkstatt; persistiert nur im Session-State).
   const [ctxOpen, setCtxOpen] = useState(true);
+  // „Anzeigen"-Sprung (Journey-Paket 3): Ziel-Satz + monotone nonce (erneut auslösbar).
+  const [fundstelle, setFundstelle] = useState<{ satzIndex: number; nonce: number } | null>(null);
   // Breiten von Rail (links) + Kontext-Panel (rechts), je per Ziehleiste anpassbar.
   // Initial aus localStorage (persistiert über Reload), Default 190/340 (Handoff
   // `workflow-stepper-neu`: angedockte Rail ~190px). Bestehende Werte werden geklemmt.
@@ -137,6 +139,10 @@ export function GutachtenSection({
     }
   }, [initialAbschnittId, run, steps, ctrl]);
 
+  // Beim Abschnittswechsel ein etwaiges „Anzeigen"-Highlight verwerfen (die neue
+  // Karte remountet — sonst würde ihr Effekt einen stale satzIndex highlighten).
+  useEffect(() => { setFundstelle(null); }, [run?.aktiverSchritt]);
+
   const order = steps.map(s => s.id);
   const vbLvl = maxConversionLevel(vbDok?.conversion);
   const vbWarnung = vbDok?.conversion?.warnings.find(w => w.level === 'warnung')?.message ?? '';
@@ -167,6 +173,7 @@ export function GutachtenSection({
     ),
     genDisabled: ctrl.busy || ctrl.llmAvailable === false,
     busy: ctrl.busy,
+    onFundstelle: (satzIndex) => setFundstelle(prev => ({ satzIndex, nonce: (prev?.nonce ?? 0) + 1 })),
   } : undefined;
   // `resizing` (eine Flag für beide Ziehleisten) schaltet die Grid-Transition ab → 1:1-Tracking.
   const gridClass = solo ? 'g-werk solo' : `g-werk${resizing ? ' resizing' : ''}`;
@@ -367,7 +374,7 @@ export function GutachtenSection({
                 <>
                   <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
                   {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} />
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} fundstelle={fundstelle ?? undefined} />
                   )}
                 </>
               ) : (
@@ -393,7 +400,7 @@ export function GutachtenSection({
                     />
                   )}
                   {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} docked />
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} fundstelle={fundstelle ?? undefined} docked />
                   )}
                 </div>
               )}
@@ -459,13 +466,15 @@ export function GutachtenSection({
 
 /** Der aktive Abschnitt als Werkstatt-Karte (Kopf + Generieren-Prompt ODER Review). */
 function ActiveAbschnitt({
-  def, run, ctrl, tweakEffektiv, onOpenTweak, docked = false,
+  def, run, ctrl, tweakEffektiv, onOpenTweak, fundstelle, docked = false,
 }: {
   def: WorkflowStep;
   run: WorkflowRun;
   ctrl: ReturnType<typeof useGutachtenWorkflow>;
   tweakEffektiv: boolean;
   onOpenTweak: () => void;
+  /** „Anzeigen"-Sprung (Journey-Paket 3) an die Review-Karte durchreichen. */
+  fundstelle?: { satzIndex: number; nonce: number };
   /** Mehrspaltig: Karte ohne eigenen Rahmen, Teil der Docked-Einheit (`.g-card.docked`). */
   docked?: boolean;
 }): React.ReactElement {
@@ -570,6 +579,7 @@ function ActiveAbschnitt({
           onUebernehmen={(i) => ctrl.uebernehmenStep(id, i)}
           onErneutOeffnen={() => ctrl.erneutOeffnenStep(id)}
           onOpenTweak={onOpenTweak}
+          {...(fundstelle ? { fundstelle } : {})}
           onQs={ctrl.qsFor(id) ? () => ctrl.runQs(id) : undefined}
           provenance={{ skillName: ctrl.activeSkill?.name ?? step.skillId ?? '—', regelCount: ctrl.regeln.length }}
           onOpenSkill={openSkill}

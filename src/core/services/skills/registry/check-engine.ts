@@ -44,6 +44,14 @@ export interface CheckResult {
    */
   messwert?: number;
   /**
+   * Lokalisierte Fundstellen eines lokalisierbaren Befunds (additiv, aktuell nur
+   * `verbotenes_muster`): je Treffer der 0-basierte Satz-Index (über `splitSentences`
+   * des finalen Textes — dieselbe Segmentierung, die das UI zum Highlighten nutzt)
+   * + das menschenlesbare Muster-Label. Erlaubt der UI den „Anzeigen"-Sprung zur
+   * Stelle. Fehlt bei nicht-lokalisierbaren Regeln + in Alt-Runs.
+   */
+  fundstellen?: { satzIndex: number; muster?: string }[];
+  /**
    * Effektive Kategorie der erzeugenden Regel (additiv) — beim Lauf gestempelt,
    * damit das UI nach Art gruppieren kann, OHNE je Check die Registry abzufragen.
    */
@@ -140,6 +148,8 @@ interface CheckOutcome {
   richtung?: CheckRichtung;
   /** Gemessener Ist-Wert (nur Größen-Regeln) — propagiert in `CheckResult.messwert`. */
   messwert?: number;
+  /** Lokalisierte Fundstellen — propagiert in `CheckResult.fundstellen`. */
+  fundstellen?: { satzIndex: number; muster?: string }[];
 }
 
 interface RegelHandler {
@@ -336,20 +346,30 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       const eintraege = erkennungsEintraege(params);
       if (eintraege.length === 0) return { ok: true, label: 'Keine verbotenen Muster' };
       const sentences = splitSentences(text);
+      // ALLE Treffer sammeln (eine Fundstelle je Satz — der erste passende Eintrag),
+      // damit das UI zyklisch zu jeder Stelle springen kann.
+      const fundstellen: { satzIndex: number; muster?: string }[] = [];
       for (let i = 0; i < sentences.length; i++) {
         for (const eintrag of eintraege) {
           if (eintrag.regex.test(sentences[i]!)) {
-            return {
-              ok: false,
-              label: 'Verbotenes Muster gefunden',
-              // Label statt rohem Regex — bei Synonym menschenlesbar, bei Phrasen
-              // identisch zum Muster (Bestandsverhalten byte-identisch).
-              detail: `„${eintrag.label}" in Satz ${i + 1}.`,
-            };
+            fundstellen.push({ satzIndex: i, muster: eintrag.label });
+            break;
           }
         }
       }
-      return { ok: true, label: 'Keine verbotenen Muster' };
+      if (fundstellen.length === 0) return { ok: true, label: 'Keine verbotenen Muster' };
+      const first = fundstellen[0]!;
+      return {
+        ok: false,
+        label: 'Verbotenes Muster gefunden',
+        // Bei GENAU einem Treffer byte-identisch zum Bestand (Label statt rohem
+        // Regex — bei Synonym menschenlesbar, bei Phrasen = Muster); bei mehreren
+        // die Anzahl + der erste Treffer.
+        detail: fundstellen.length === 1
+          ? `„${first.muster}" in Satz ${first.satzIndex + 1}.`
+          : `${fundstellen.length} Stellen (u.a. „${first.muster}" in Satz ${first.satzIndex + 1}).`,
+        fundstellen,
+      };
     },
     // Zweiseitig (vermeiden + stattdessen) und REGEXFREI: ein gepflegter
     // `hinweisVermeiden` gewinnt; sonst menschenlesbare Labels (Phrasen/Synonym)
@@ -462,6 +482,7 @@ export function runRegelChecks(finalerText: string, regeln: QualitaetsRegel[]): 
       ...(outcome.detail ? { detail: outcome.detail } : {}),
       ...(outcome.richtung && !outcome.ok ? { richtung: outcome.richtung } : {}),
       ...(outcome.messwert !== undefined ? { messwert: outcome.messwert } : {}),
+      ...(outcome.fundstellen && outcome.fundstellen.length > 0 ? { fundstellen: outcome.fundstellen } : {}),
     });
   }
   return results;

@@ -122,6 +122,9 @@
   --tf-warning-soft: hsl(38, 85%, 95%);
   --tf-danger-soft: hsl(0, 65%, 96%);
 
+  /* Temporäres Satz-Highlight („Anzeigen"-Sprung zur Fundstelle) — weiches Warm-Gelb. */
+  --tf-highlight: hsl(48, 95%, 80%);
+
   /* ── shadcn-Konvention: Text/Icon auf primärer Fläche ── */
   --tf-primary-foreground: #ffffff;
   /* CTA-Fläche (Default-Button): immer weißer Text — bewusst OHNE Dark-Flip
@@ -193,6 +196,8 @@
   --tf-danger-bg: hsl(0, 16%, 23%);
   --tf-danger-text: hsl(0, 28%, 68%);
   --tf-danger-border: hsl(0, 20%, 36%);
+  /* Satz-Highlight (Dark): gedämpftes Warm-Gelb, Lightness geflippt. */
+  --tf-highlight: hsl(48, 45%, 32%);
   /* Accent (Violett) — Dark: Lightness flippt, Hue/Sat bleiben (vgl. semantische Farben). */
   --tf-accent-bg: hsl(265, 22%, 25%);
   --tf-accent-text: hsl(265, 35%, 72%);

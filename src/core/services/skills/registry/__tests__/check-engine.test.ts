@@ -161,6 +161,37 @@ describe('runRegelChecks — messwert (Ist-Wert für Korrektur/Anzeige, eine Que
   });
 });
 
+describe('verbotenes_muster — fundstellen (lokalisierbar, „Anzeigen"-Sprung)', () => {
+  const ZWEI_TREFFER = 'Der Antragsteller plant eine Lösung. Das Vorhaben ist innovativ. Der Antragsteller beabsichtigt Tests.';
+  const passiv = { muster: ['Der Antragsteller plant', 'Der Antragsteller beabsichtigt'], istRegex: true };
+
+  it('ein Treffer: fundstellen mit dem 0-basierten Satz-Index; Detail byte-identisch', () => {
+    const r = runRegelChecks(NEUN_SAETZE, [regel('verbotenes_muster', { muster: ['Der Antragsteller plant'], istRegex: true }, { schweregrad: 'hinweis' })])[0]!;
+    expect(r.fundstellen).toEqual([{ satzIndex: 3, muster: 'Der Antragsteller plant' }]);
+    expect(r.detail).toBe('„Der Antragsteller plant" in Satz 4.');
+  });
+
+  it('mehrere Treffer: eine fundstelle je Satz (erster + letzter Satz), Anzahl im Detail', () => {
+    const r = runRegelChecks(ZWEI_TREFFER, [regel('verbotenes_muster', passiv, { schweregrad: 'hinweis' })])[0]!;
+    expect(r.fundstellen?.map(f => f.satzIndex)).toEqual([0, 2]);
+    expect(r.detail).toContain('2 Stellen');
+  });
+
+  it('Segmentierer-Gleichheit Engine↔UI: der satzIndex zeigt auf denselben splitSentences-Satz', () => {
+    const r = runRegelChecks(ZWEI_TREFFER, [regel('verbotenes_muster', passiv, { schweregrad: 'hinweis' })])[0]!;
+    const saetze = splitSentences(ZWEI_TREFFER);
+    for (const f of r.fundstellen ?? []) {
+      expect(saetze[f.satzIndex]).toContain('Der Antragsteller');
+    }
+  });
+
+  it('kein Treffer → ok, keine fundstellen', () => {
+    const r = runRegelChecks('Ein neutraler Satz ohne Befund.', [regel('verbotenes_muster', passiv, { schweregrad: 'hinweis' })])[0]!;
+    expect(r.level).toBe('ok');
+    expect(r.fundstellen).toBeUndefined();
+  });
+});
+
 describe('runRegelChecks — Aktiv/Schweregrad/Unbekannt', () => {
   it('überspringt deaktivierte Regeln', () => {
     const results = runRegelChecks('Ein Satz.', [regel('satzanzahl', { min: 8, max: 12 }, { aktiv: false })]);

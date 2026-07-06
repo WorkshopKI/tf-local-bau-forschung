@@ -127,6 +127,11 @@
 .gutachten-werkstatt .g-body { font: var(--tf-weight-regular) 14px/1.72 var(--tf-font-sans); color: var(--tf-text); margin: 14px 0; text-wrap: pretty; }
 .gutachten-werkstatt .g-body p { margin: 0 0 .7em; }
 .gutachten-werkstatt .g-body p:last-child { margin-bottom: 0; }
+/* Satzweise adressierbarer Entwurf (Journey-Paket 3) — `data-satz-index`-Spans mit
+   temporärem „Anzeigen"-Highlight. Der weiche Rundungs-/Übergangs-Rahmen macht das
+   Ein-/Ausblenden ruhig; ohne aktive Klasse ist der Span unsichtbar (kein Layout-Shift). */
+.gutachten-werkstatt .g-satz { border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; transition: background-color .5s var(--tf-ease); }
+.gutachten-werkstatt .g-satz-hl { background-color: var(--tf-highlight); }
 
 /* Strukturierte Teile (teilStruktur) — ein Block je Teil mit render-only Inline-Badge.
    Der Badge steht NIE im finalerText (Transfer/DOCX-Quelle); zwischen den Teilen bleiben

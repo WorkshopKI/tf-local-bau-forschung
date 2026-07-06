@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.187 — 2026-07
+
+### Verbesserungen
+- Findet die Prüfung eine **beanstandete Formulierung** (z. B. eine Passiv-Floskel), gibt es jetzt daneben einen Link **„Anzeigen"** — ein Klick springt im Entwurf direkt zur betroffenen Stelle und hebt den Satz kurz hervor. Bei mehreren Stellen springen weitere Klicks reihum zur nächsten („Anzeigen (2)").
+
 ## v2.186 — 2026-07
 
 ### Verbesserungen

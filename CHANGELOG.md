@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.187.0 — Journey-Paket 3 Phase 4: Fundstellen + „Anzeigen"-Sprung zum Satz (Juli 2026)
+
+MINOR — Lokalisierbare Befunde (`verbotenes_muster`, z.B. Passiv-Floskeln) bekommen im Prüfpanel einen **„Anzeigen"**-Link, der im Entwurf **zum beanstandeten Satz springt** und ihn ~2 s hervorhebt. Additiv, keine Datenmigration; alte gespeicherte Läufe ohne das Feld bleiben gültig.
+
+- **`CheckResult.fundstellen?`** ([check-engine.ts](src/core/services/skills/registry/check-engine.ts)): der `verbotenes_muster`-Handler sammelt jetzt **alle** Treffer-Sätze (eine Fundstelle je Satz, 0-basierter `satzIndex` über `splitSentences` — dieselbe Segmentierung, die das UI zum Highlighten nutzt) statt nur des ersten. Bei **genau einem** Treffer ist das `detail` byte-identisch zum Bestand; bei mehreren „N Stellen (u.a. …)". Additiv, kein Schema-Bump.
+- **Neuer Token `--tf-highlight`** ([theme.css](src/theme.css), Light + Dark) — weiches Warm-Gelb; das temporäre Satz-Highlight (`.g-satz-hl`, [gutachten.css](src/plugins/antraege/gutachten/gutachten.css)) blendet per CSS-Transition rückstandslos aus.
+- **Satzweise adressierbarer Entwurf** ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)): der Entwurf wird als `data-satz-index`-Spans gerendert (neue reine [satzSegmente.ts](src/plugins/antraege/gutachten/satzSegmente.ts) über der **geteilten** `splitSentences`-Funktion; Inline-Markdown je Satz via `marked.parseInline`, Absätze über `whitespace-pre-wrap` erhalten). In der Teile-Darstellung laufender globaler Offset je Teil. Der „Anzeigen"-Klick scrollt zum Satz + highlightet (nonce-getriggert, zyklisch bei mehreren Stellen: „Anzeigen (N)"). Edit-Modus / nicht-adressierbar → graceful no-op; Highlight wird beim Abschnittswechsel verworfen.
+- **„Anzeigen"-Link** ([CheckList.tsx](src/plugins/antraege/kurzfassung/CheckList.tsx)) an `hinweis`/`fehler`-Zeilen mit nicht-leeren `fundstellen`; die Hinweis-Zeile trägt Titel aus Regel-Name + Stellen-Anzahl (Mockup „Passiv-Floskel — 1 Stelle"). `verbotenes_muster` behält seine „kein KI-Button"-Regel — nur Anzeigen.
+- Tests: [check-engine.test.ts](src/core/services/skills/registry/__tests__/check-engine.test.ts) (ein/mehrere Treffer, erster+letzter Satz, **Segmentierer-Gleichheit Engine↔UI**, Detail-Byte-Identität bei einem Treffer), [satzSegmente.test.ts](src/plugins/antraege/gutachten/__tests__/satzSegmente.test.ts) (Index-Alignment, Rekonstruktion, Absatz-Sep, `segmentierungAligned`, `zyklischerIndex`).
+
 ### v2.186.0 — Journey-Paket 3 Phase 3: Prüfpanel — Schweregrad, Inline-KI-Aktion, Offline (Juli 2026)
 
 MINOR — Das Gutachten-Prüfpanel ([gutachten-pruefpanel.png]) bekommt die Mockup-Darstellung: `ok` grüner Haken, `hinweis` amber Punkt, **`fehler` als zarte rote Karte** mit Messwert/Limit + Inline-**„Mit KI korrigieren/kürzen/erweitern"**-Button. Die Kopfzeile zählt jetzt `{f} Fehler · {h} Hinweise` statt „{n} offen". Der lose Offline-Warnsatz weicht einer positiven Zeile. Additiv, keine Datenmigration. Bewusste Mockup-Abweichung: der „Erneut prüfen"-Footer wird **nicht** gebaut — Checks laufen bereits automatisch bei Generieren/Editieren/Restore.

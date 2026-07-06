@@ -11,11 +11,12 @@
  *
  * Styles in `gutachten.css` (gescopt unter `.gutachten-werkstatt`).
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { marked } from 'marked';
 import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check, Info } from 'lucide-react';
 import { keymap, type EditorView } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
-import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
 import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
 import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
@@ -25,7 +26,34 @@ import { VersionVerlauf } from '../kurzfassung/VersionVerlauf';
 import { ThinkingControl } from '../kurzfassung/ThinkingControl';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
+import { satzSegmente } from './satzSegmente';
 import type { StepRun } from './types';
+
+/**
+ * Satzweise adressierbarer Text (Journey-Paket 3): jeder Satz als `data-satz-index`-
+ * Span (aligned zur Check-Engine via `satzSegmente`/`splitSentences`), damit der
+ * „Anzeigen"-Sprung exakt highlighten kann. Inline-Markdown je Satz über
+ * `marked.parseInline` (bold etc. bleiben erhalten); `whitespace-pre-wrap` am
+ * Container erhält Absätze aus den Original-Trennzeichen. `startIndex` versetzt die
+ * globalen Indizes in der Teile-Darstellung (laufender Offset je Teil).
+ */
+function SatzText({ text, startIndex = 0 }: { text: string; startIndex?: number }): React.ReactElement {
+  const segs = useMemo(() => satzSegmente(text), [text]);
+  return (
+    <>
+      {segs.map((seg, i) => (
+        <Fragment key={startIndex + i}>
+          <span
+            data-satz-index={startIndex + i}
+            className="g-satz"
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(marked.parseInline(seg.satz, { async: false }) as string) }}
+          />
+          {seg.sep}
+        </Fragment>
+      ))}
+    </>
+  );
+}
 
 interface Props {
   run: StepRun;
@@ -55,10 +83,16 @@ interface Props {
   /** Live-Streaming-Vorschau während `busy`. */
   streamContent: string;
   streamThinking: string;
+  /**
+   * „Anzeigen"-Sprung (Journey-Paket 3): 0-basierter Satz-Index + monotone `nonce`
+   * (löst das Re-Highlight auch bei gleichem Index aus). Nur im gerenderten
+   * (nicht-Edit-)Zustand wirksam; sonst graceful no-op.
+   */
+  fundstelle?: { satzIndex: number; nonce: number };
 }
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
+  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking, fundstelle,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
@@ -68,6 +102,28 @@ export function SectionReviewCard({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const viewRef = useRef<EditorView | null>(null);
+  // „Anzeigen"-Sprung: den adressierten Satz suchen, in die Sicht scrollen und
+  // temporär highlighten (~2s, Fade via CSS-Transition). Auf `nonce` getriggert,
+  // damit wiederholte Klicks auf dieselbe Stelle erneut auslösen. Findet der
+  // Selector nichts (Edit-Modus / nicht-adressierbar) → graceful no-op.
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!fundstelle) return undefined;
+    const el = bodyRef.current?.querySelector<HTMLElement>(`[data-satz-index="${fundstelle.satzIndex}"]`);
+    if (!el) return undefined;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('g-satz-hl');
+    const t = window.setTimeout(() => el.classList.remove('g-satz-hl'), 1700);
+    return () => { window.clearTimeout(t); el.classList.remove('g-satz-hl'); };
+  }, [fundstelle?.nonce, fundstelle?.satzIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Laufender globaler Satz-Offset je Teil (Teile-Darstellung), damit `data-satz-index`
+  // zur kanonischen `splitSentences(finalerText)`-Nummerierung der Engine passt.
+  const teilStartIndex = useMemo(() => {
+    const offs: number[] = [];
+    let acc = 0;
+    for (const teil of run.teile ?? []) { offs.push(acc); acc += splitSentences(teil.text).length; }
+    return offs;
+  }, [run.teile]);
   const save = useAsyncAction(
     async (text: string) => { await onBearbeiten(text); },
     { onSuccess: () => setEditing(false) },
@@ -149,20 +205,22 @@ export function SectionReviewCard({
       ) : run.teile?.length ? (
         // Strukturierte Teile (opt-in): jeder Teil als Block mit kleinem Inline-Badge
         // (Label aus der Skill-Deklaration). RENDER-ONLY — `run.finalerText` (Quelle
-        // für Bearbeiten/Transfer/DOCX) trägt das Badge NIE.
-        <div className="g-body">
+        // für Bearbeiten/Transfer/DOCX) trägt das Badge NIE. Satzweise adressierbar
+        // (SatzText) für den „Anzeigen"-Sprung; laufender globaler Offset je Teil.
+        <div className="g-body" ref={bodyRef}>
           {run.teile.map((teil, i) => (
             <div key={`${teil.key}-${i}`} className="g-teil">
               <span className="g-teil-badge">{teil.label}</span>
-              <MarkdownRenderer content={teil.text} />
+              <div className="whitespace-pre-wrap"><SatzText text={teil.text} startIndex={teilStartIndex[i] ?? 0} /></div>
             </div>
           ))}
         </div>
       ) : (
         // Der finale Text ist bewusst Markdown (Skill-Format z.B. „**Kurztitel:** …",
-        // seed.ts) — wie die Quellenanalyse über den MarkdownRenderer darstellen.
-        <div className="g-body">
-          <MarkdownRenderer content={run.finalerText} />
+        // seed.ts) — satzweise adressierbar (SatzText, Inline-Markdown je Satz),
+        // damit „Anzeigen" exakt highlighten kann.
+        <div className="g-body whitespace-pre-wrap" ref={bodyRef}>
+          <SatzText text={run.finalerText} />
         </div>
       )}
 
