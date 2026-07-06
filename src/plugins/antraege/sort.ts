@@ -110,7 +110,10 @@ export const DEFAULT_SORT_BY_VIEW: Record<ViewKey, SortKey> = {
   ueberfaellig: 'frist_asc',
   nachforderungen: 'frist_asc',
   bewilligt_jahr: 'bewilligung_desc',
-  alle: 'aktenzeichen_asc',
+  // „Alle": neueste Antragseingänge zuerst (Journey-Paket 2 Phase 4) — das
+  // aktuellste Geschehen oben statt FKZ-alphabetisch. Bestehende explizite
+  // Nutzer-Overrides auf „Alle" bleiben Vorrang (store: `sortByView`).
+  alle: 'antrag_desc',
 };
 
 export function getSortOption(key: SortKey): SortOption {

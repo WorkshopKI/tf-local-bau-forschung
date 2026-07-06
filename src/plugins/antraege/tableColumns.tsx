@@ -24,6 +24,7 @@ import { getKategorieLabel } from './filter/kategorieQuickfilter';
 import { MaKuerzelBadge } from './MaKuerzelBadge';
 import type { AntragTableRow } from './tableGrouping';
 import { worstAmpel, criticalFristAware } from './groupAggregates';
+import { fristAnzeige, fristAnzeigeFromDays } from './fristAnzeige';
 import {
   getEingangAmpel,
   daysSinceEingang,
@@ -35,15 +36,6 @@ function strOrNull(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
   return t.length === 0 ? null : t;
-}
-
-/** Tage bis Frist als Anzeige-Text: "+45d" (Zeit übrig), "heute", "-12d"
- *  (überfällig). `null` → leer. */
-function formatFrist(d: number | null): string {
-  if (d === null) return '';
-  if (d === 0) return 'heute';
-  if (d > 0) return `+${d}d`;
-  return `${d}d`;
 }
 
 /** Jahr aus ISO (YYYY-…) oder dd.mm.yyyy für den Datums-Spaltenfilter (analog
@@ -342,29 +334,40 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     label: 'Frist',
     defaultVisible: true,
     sortable: true,
-    width: 72,
+    width: 96,
     wrap: false,
-    // Leere Fristen ans Ende (asc) → große Zahl statt null. Verbund-Zeile:
-    // dringendste Frist über alle TVs (kritischster TV), sonst per-TV.
-    accessor: r => (r._verbund ? criticalFristAware(r._verbund.tvs) : daysUntilFristAware(r)) ?? Number.MAX_SAFE_INTEGER,
-    // Export darf nicht den Sortier-Sentinel (MAX_SAFE_INTEGER) schreiben →
-    // lesbarer Tage-Text ("+45d"/"-12d"/"heute"), leere Frist → leere Zelle.
+    // Sortier-Wert bleibt der numerische „Tage bis zur Frist" (asc = dringendste
+    // zuerst). Terminale/leere Fristen ans Ende → große Zahl (deckt sich mit der
+    // leeren Anzeige in `render`/`fristAnzeige`). Verbund-Zeile: dringendste
+    // Frist über alle TVs (kritischster TV), sonst per-TV.
+    accessor: r => {
+      if (r._verbund) return criticalFristAware(r._verbund.tvs) ?? Number.MAX_SAFE_INTEGER;
+      if (isTerminalStatus(r.status)) return Number.MAX_SAFE_INTEGER;
+      return daysUntilFristAware(r) ?? Number.MAX_SAFE_INTEGER;
+    },
+    // Export = lesbarer relativer Text ("in 45 T"/"seit 12 T"/"heute"), leere/
+    // terminale Frist → leere Zelle (nie der Sortier-Sentinel).
     exportValue: r => {
-      const d = r._verbund ? criticalFristAware(r._verbund.tvs) : daysUntilFristAware(r);
-      return d === null ? '' : formatFrist(d);
+      const a = r._verbund ? fristAnzeigeFromDays(criticalFristAware(r._verbund.tvs)) : fristAnzeige(r);
+      return a?.text ?? '';
     },
     render: r => {
-      const d = r._verbund ? criticalFristAware(r._verbund.tvs) : daysUntilFristAware(r);
-      if (d === null) return null;
-      const critical = d < 0;
+      const a = r._verbund ? fristAnzeigeFromDays(criticalFristAware(r._verbund.tvs)) : fristAnzeige(r);
+      if (!a) return null;
+      const overdue = a.ampel === 'rot';
       return (
         <span
-          className={`tabular-nums text-[11px] ${
-            critical ? 'text-[var(--tf-danger-text)] font-medium' : 'text-[var(--tf-text-tertiary)]'
+          className={`inline-flex items-center gap-1.5 tabular-nums text-[11px] ${
+            overdue ? 'text-[var(--tf-danger-text)] font-medium' : 'text-[var(--tf-text-tertiary)]'
           }`}
           title={r._verbund ? 'Dringendste Frist im Verbund' : fristTooltip(r)}
         >
-          {formatFrist(d)}
+          <span
+            className="shrink-0 w-1.5 h-1.5 rounded-full"
+            style={{ background: AMPEL_COLOR[a.ampel] }}
+            aria-hidden="true"
+          />
+          {a.text}
         </span>
       );
     },

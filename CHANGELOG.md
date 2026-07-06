@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.178.0 — Journey-Paket 2 Phase 4: relative Frist-Spalte + View-Default-Sortierung (Juli 2026)
+
+MINOR — Die Frist-Spalte der Förderanträge-Tabelle ([liste-quickfilter.png]) zeigt statt roher Tage (`+45d` / `-2807d`) eine **relative, ampel-gefärbte** Angabe (`in 45 T` / `seit 12 T` / `heute` + farbiger Punkt), und die View-Defaults sortieren jetzt sinnvoll pro Tab. Additiv, keine Datenmigration.
+
+- **Neue reine Frist-Anzeige** ([fristAnzeige.ts](src/plugins/antraege/fristAnzeige.ts)): `fristAnzeige(antrag)` → `{ text, ampel } | null`. **Terminale** Anträge (`isTerminalStatus`) und Anträge ohne berechenbare Frist → `null` (leere Zelle — eine unbekannte VN-Frist wird nicht erfunden). Text und Ampel werden aus **denselben** phasen-bewussten „Tagen bis zur Frist" (`daysUntilFristAware`: Antragsphase = Antragseingang + 90 Tage, Begleitphase = VN-Eingang + 6 Monate) abgeleitet — konsistent über beide Phasentypen. Ampel-Stufen frist-relativ: überfällig → rot, ≤ 14 T → orange, ≤ 30 T → gelb, sonst grün; Punkt-Farbe aus dem bestehenden `AMPEL_COLOR` (**keine neuen Tokens**).
+- **Frist-Spalte** ([tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)): Ampel-Punkt + relativer Text; überfällig zusätzlich in `danger` + `font-medium`. Der numerische Sortier-`accessor` bleibt „Tage bis zur Frist" (aufsteigend = dringendste zuerst); terminale/fristlose Anträge sinken ans Ende (Sentinel `MAX_SAFE_INTEGER`, deckungsgleich mit der leeren Anzeige). `exportValue` liefert den lesbaren relativen Text (nie den Sentinel). Verbund-Zeilen nutzen weiter die kritischste TV-Frist (`criticalFristAware`). Der lokale `formatFrist`-Roh-Helfer entfällt.
+- **View-Default-Sortierung** ([sort.ts](src/plugins/antraege/sort.ts)): „Alle" sortiert jetzt nach **Antragseingang absteigend** (`antrag_desc`, neueste zuerst) statt FKZ-alphabetisch; „Offen" bleibt Frist aufsteigend. Umgesetzt über das bestehende `DEFAULT_SORT_BY_VIEW` (kein paralleler `defaultSort`-Mechanismus). Bestehende explizite Nutzer-Overrides pro View behalten Vorrang (`getEffectiveSortKey` / `sortByView`). Der Default-Tab „Offen" (`meine_offenen`) war bereits gesetzt — unverändert.
+- Tests: [fristAnzeige.test.ts](src/plugins/antraege/__tests__/fristAnzeige.test.ts) (Text/Ampel-Schwellen, terminale + fristlose Zellen, Antrags- und VN-Frist mit injiziertem `nowMs`), [sortDefaults.test.ts](src/plugins/antraege/__tests__/sortDefaults.test.ts) (View-Defaults + Override-Vorrang).
+
+[liste-quickfilter.png]: _reference/journey-paket-2/liste-quickfilter.png
+
 ### v2.177.0 — Journey-Paket 2 Phase 3: kombinierte „Status und nächster Schritt"-Spalte (Juli 2026)
 
 MINOR — Die verstreute Statusinfo der Förderanträge-Tabelle (drei Spalten Status / FB Status / PreCheck Status) wird zu **einer** aussagekräftigen Spalte „Status und nächster Schritt" ([liste-quickfilter.png]) verdichtet: amtliches Status-Badge + die konkrete nächste Handlung. Additiv — die alten Spalten bleiben als Picker-Optionen erhalten, gespeicherte Spalten-Configs bleiben unangetastet, keine Datenmigration.

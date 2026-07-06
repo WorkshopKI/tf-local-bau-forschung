@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.178 — 2026-07
+
+### Verbesserungen
+- Die Frist-Spalte der Anträge-Tabelle liest sich jetzt in Klartext: **„in 45 T", „seit 12 T" oder „heute"** mit einem farbigen Ampelpunkt (grün → gelb → orange → rot), statt einer nackten Tageszahl wie „-2807d". Überfällige Fristen stehen rot hervorgehoben. Abgeschlossene Anträge zeigen keine Frist mehr.
+- Die Ansichten sortieren jetzt sinnvoller vor: **„Alle" zeigt die neuesten Antragseingänge zuerst**, „Offen" die dringendsten Fristen zuerst. Eine selbst gewählte Sortierung bleibt erhalten.
+
 ## v2.177 — 2026-07
 
 ### Verbesserungen
