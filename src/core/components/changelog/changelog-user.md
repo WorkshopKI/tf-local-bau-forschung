@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.182 — 2026-07
+
+### Verbesserungen
+- Wenn Sie einen Antrag öffnen, wird die Liste daneben jetzt zu einer **schlanken Kompakt-Spalte** statt einer zusammengequetschten Tabelle: eine Zeile pro Antrag mit farbigem Fristpunkt, Kurzname und relativer Frist. Der gerade geöffnete Antrag ist deutlich hervorgehoben, und ein kleines **Filter-Feld** oben durchsucht schnell nur die sichtbare Liste. So behalten Sie beim Bearbeiten den Überblick und springen mit einem Klick zum nächsten Antrag. Beim Schließen des Details kehrt die volle Tabelle **an genau der Stelle** zurück, an der Sie waren.
+
 ## v2.181 — 2026-07
 
 ### Verbesserungen

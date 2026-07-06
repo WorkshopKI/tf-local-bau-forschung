@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -34,6 +34,8 @@ import {
 } from './arbeitsvorrat';
 import { AntraegeTable } from './AntraegeTable';
 import { CardGrid } from './CardGrid';
+import { KompaktListe } from './KompaktListe';
+import { getView } from './views';
 import { ColumnPicker } from '@/components/data-table';
 import { ANTRAG_TABLE_COLUMNS, MA_COLUMN_KEY } from './tableColumns';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
@@ -51,29 +53,18 @@ const CARD_PAGE = 200;
 function pageSizeForMode(mode: ViewMode): number {
   return mode === 'cards' ? CARD_PAGE : ROW_PAGE;
 }
-const NARROW_WIDTH_KEY = 'teamflow_antraege_narrow_width';
-const NARROW_DEFAULT_WIDTH = 460;
-const NARROW_MIN = 320;
-/** Detail-Panel hat eine harte Mindestbreite — daraus ergibt sich das
- *  dynamische obere Cap fuer die Liste (`viewport - DETAIL_MIN`). */
-const DETAIL_MIN = 300;
+/** Feste Breite der Kompakt-Liste im Detail-Split (Journey-Paket 2 Phase 8).
+ *  Ersetzt das frühere resizable Schmaler-Werden der Voll-Tabelle — im
+ *  Detail-Modus rendert eine dedizierte Kompakt-Spalte (`KompaktListe`). */
+const KOMPAKT_WIDTH = 232;
 
 interface Props {
-  /** Wenn ein Detail-Panel offen ist, schrumpft die Liste auf eine
-   *  resizable Sidebar. Header ist bereits außerhalb (in AntraegePage). */
+  /** Wenn ein Detail-Panel offen ist, schrumpft die Liste auf die schmale
+   *  Kompakt-Spalte (`KompaktListe`). Header ist bereits außerhalb (AntraegePage). */
   narrow?: boolean;
-  /** Im Detail-Modus gesetzt: blendet einen Chevron-Button zum Einklappen
-   *  der Liste in die Toolbar-Zeile ein. AntraegePage zeigt dann die
-   *  „Anträge einblenden"-Leiste. */
+  /** Im Detail-Modus gesetzt: Icon zum Einklappen der Liste in die
+   *  „Anträge einblenden"-Leiste (AntraegePage rendert die Leiste). */
   onCollapse?: () => void;
-}
-
-function loadNarrowWidth(): number {
-  try {
-    const v = Number(localStorage.getItem(NARROW_WIDTH_KEY));
-    if (Number.isFinite(v) && v >= NARROW_MIN) return v;
-  } catch { /* ignore */ }
-  return NARROW_DEFAULT_WIDTH;
 }
 
 export function AntraegeMain({ narrow = false, onCollapse }: Props): React.ReactElement {
@@ -116,23 +107,19 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Tabellen-Ansicht meldet ihre spaltengefilterte TV-Anzahl hierher; List/
   // Karten haben keine Spaltenfilter und nutzen direkt `filtered.length`.
   const [tableFilteredCount, setTableFilteredCount] = useState<number | null>(null);
-  const [narrowWidth, setNarrowWidth] = useState(loadNarrowWidth);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-  // Liste cappt dynamisch gegen Viewport - DETAIL_MIN, damit das
-  // Detail-Panel immer mindestens DETAIL_MIN Pixel breit bleibt.
-  const [viewportWidth, setViewportWidth] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth : 1440,
-  );
-  useEffect(() => {
-    const handler = (): void => setViewportWidth(window.innerWidth);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
-  const effectiveNarrowWidth = Math.min(
-    narrowWidth,
-    Math.max(NARROW_MIN, viewportWidth - DETAIL_MIN),
-  );
+  // Scroll-Stand der Voll-Tabelle über den Detail-Split hinweg erhalten: im
+  // Narrow-Modus rendert eine andere Teilbaum-Struktur (KompaktListe), der
+  // Voll-Scroll-Container wird also aus- und wieder eingehängt. AntraegeMain
+  // selbst bleibt gemountet → Ref überlebt, wir stellen den Stand nach dem
+  // Zurückschalten wieder her.
+  const wideScrollRef = useRef<HTMLDivElement | null>(null);
+  const wideScrollTop = useRef(0);
+  useLayoutEffect(() => {
+    if (!narrow && wideScrollRef.current) {
+      wideScrollRef.current.scrollTop = wideScrollTop.current;
+    }
+  }, [narrow]);
 
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   useEffect(() => {
@@ -162,38 +149,8 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     return () => observer.disconnect();
   }, [filtered.length, visibleRows, viewMode]);
 
-  // Resize-Drag in Narrow-Mode.
-  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-  const onResizeMouseDown = useCallback((e: React.MouseEvent): void => {
-    dragRef.current = { startX: e.clientX, startWidth: narrowWidth };
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-
-    const onMove = (ev: MouseEvent): void => {
-      const drag = dragRef.current;
-      if (!drag) return;
-      const delta = ev.clientX - drag.startX;
-      const dynMax = Math.max(NARROW_MIN, window.innerWidth - DETAIL_MIN);
-      const next = Math.min(dynMax, Math.max(NARROW_MIN, drag.startWidth + delta));
-      setNarrowWidth(next);
-    };
-    const onUp = (): void => {
-      dragRef.current = null;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }, [narrowWidth]);
-
-  useEffect(() => {
-    try { localStorage.setItem(NARROW_WIDTH_KEY, String(narrowWidth)); } catch { /* ignore */ }
-  }, [narrowWidth]);
-
   const containerStyle: React.CSSProperties = narrow
-    ? { width: effectiveNarrowWidth, flexShrink: 0, position: 'relative' }
+    ? { width: KOMPAKT_WIDTH, flexShrink: 0, position: 'relative' }
     : {};
   const containerClass = narrow
     ? 'h-full flex'
@@ -242,9 +199,32 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     });
   }, [active]);
 
+  // Detail offen → schmale Kompakt-Spalte (Journey-Paket 2 Phase 8) statt der
+  // schmaler skalierten Voll-Tabelle. Reihenfolge/Umfang bleiben die der
+  // Vollansicht (`filtered`); Schließen des Details bringt die volle Tabelle
+  // mit erhaltenem Scroll-Stand zurück (AntraegeMain bleibt gemountet).
+  if (narrow) {
+    return (
+      <div className={containerClass} style={containerStyle}>
+        <KompaktListe
+          filtered={filtered}
+          selectedAktenzeichen={selectedAktenzeichen}
+          selectedVerbundId={selectedVerbundId}
+          viewLabel={getView(activeView).label}
+          onOpenAntrag={openAntrag}
+          onCollapse={onCollapse}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={containerClass} style={containerStyle}>
-      <div className="flex-1 min-w-0 h-full overflow-y-auto">
+      <div
+        ref={wideScrollRef}
+        onScroll={e => { wideScrollTop.current = e.currentTarget.scrollTop; }}
+        className="flex-1 min-w-0 h-full overflow-y-auto"
+      >
         {/* Zeile A: Quickfilter-Akkordeon (Status/Antragstyp/PreCheck/Sort) links,
             Gruppierung + (nur Tabelle) Spalten-Picker rechts. Zeile B darunter:
             aktive Sidebar-Filter-Chips links, Trefferzähler rechts. Toolbar in
@@ -384,18 +364,6 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
           )}
         </div>
       </div>
-
-      {/* Resize-Handle am rechten Rand der Liste im Narrow-Mode. */}
-      {narrow && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Listenbreite ändern"
-          onMouseDown={onResizeMouseDown}
-          className="shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
-          style={{ borderLeft: '0.5px solid var(--tf-border)' }}
-        />
-      )}
     </div>
   );
 }
