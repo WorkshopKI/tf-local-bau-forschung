@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.198.2 — Förderanträge: Kurzbeschreibungs-Karte erscheint wieder zuverlässig (Juli 2026)
+
+PATCH — Nachschliff zu v2.198.0: Auf der Verbund-Detailseite fehlte bei manchen Verbünden die Kurzbeschreibungs-Karte, sodass unter dem Kopf nur die dünne Titel-Zeile stand („zu kurz, nicht in einer Karte"). Zwei Ursachen behoben ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx) + [fieldLookup.ts](src/plugins/antraege/fieldLookup.ts)):
+
+- **VB_INHALT über ALLE Teilvorhaben suchen** statt nur am Lead-TV (neuer Helfer `findFieldValueAcross`): Die Kurzzusammenfassung ist auf Verbund-Ebene gedacht, im CSV-Export aber oft nur an einem Partner-TV gefüllt — hatte der Lead sie leer, verschwand die Karte still.
+- **Titel-Fallback für die Karte**: Fehlt eine eigene VB_INHALT-Kurzzusammenfassung ganz, tritt der Projekt-Titel als Karteninhalt ein — so erscheint **immer** eine Karte, solange es überhaupt Beschreibungstext gibt. Der Titel wird dann **nicht** zusätzlich als Untertitel-Zeile im Kopf wiederholt (Dedup gegen die Karte, `sameText` = trim + Whitespace + case-insensitiv), sonst stünde er doppelt.
+- Verifiziert per `npm run typecheck` (grün) + `npx vitest run` + neuer Unit-Test [fieldLookup.test.ts](src/plugins/antraege/__tests__/fieldLookup.test.ts) (`findFieldValueAcross`: Partner-TV-Fallback, Reihenfolge, leere Strings) + `build:dev`/`build:pl`. Am echten Datensatz visuell abzunehmen.
+
 ### v2.198.1 — Feedback-Übersicht: Vorschau nach Fragen umgebrochen + „Dein Feedback" ganz links (Juli 2026)
 
 PATCH — Die kompakte Feedback-Vorschauzeile (Feedback-Übersicht/Board, Split-Ansicht + Kurator-Liste — geteilte [FeedbackTicketRow.tsx](src/components/feedback/FeedbackTicketRow.tsx)) ist lesbarer:

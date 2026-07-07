@@ -13,7 +13,7 @@ import { TeilvorhabenListe } from './TeilvorhabenListe';
 import { VerbundHistorie } from './VerbundHistorie';
 import { ArtefaktLeiste } from './artefakte/ArtefaktLeiste';
 import { TvDetailBlock } from './TvDetailBlock';
-import { findFieldValue } from './fieldLookup';
+import { findFieldValueAcross } from './fieldLookup';
 import { readXsw } from './xsw';
 import { isPseudoVerbundId, aktenzeichenFromPseudoVerbundId } from './pseudoVerbund';
 import { useVerbundDetailData } from './useVerbundDetailData';
@@ -53,6 +53,13 @@ function strOrNull(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
   return t.length === 0 ? null : t;
+}
+
+/** Wortgleich? (trim + Whitespace kollabiert + case-insensitiv) — für den
+ *  Untertitel-Dedup gegen die Kurzbeschreibungs-Karte. */
+function sameText(a: string, b: string): boolean {
+  const norm = (s: string): string => s.trim().replace(/\s+/g, ' ').toLowerCase();
+  return norm(a) === norm(b);
 }
 
 export function VerbundDetail({
@@ -166,21 +173,27 @@ export function VerbundDetail({
     ? unterprogrammLabels.get(unterprogrammCode) ?? unterprogrammCode
     : null;
 
-  // Verbund-Kurzbeschreibung aus dem Lead-TV. `vb_inhalt` (CSV-Spalte VB_INHALT,
-  // Label "Inhalt / Kurzzusammenfassung") ist auf Verbund-Ebene i.d.R. identisch
-  // über alle TVs — Lead-Wert reicht.
-  const vorhabenInhalt = lead ? strOrNull(findFieldValue(lead, [
+  // Verbund-Kurzbeschreibung: `vb_inhalt` (CSV-Spalte VB_INHALT, Label "Inhalt /
+  // Kurzzusammenfassung"). Über ALLE TVs suchen — der Wert ist zwar auf Verbund-
+  // Ebene gedacht, im Export aber oft nur an einem Partner-TV gefüllt; nur den
+  // Lead zu lesen verschluckte die Beschreibung still (Karte fehlte).
+  const vorhabenInhalt = strOrNull(findFieldValueAcross(antraege, [
     'vb_inhalt', 'vb inhalt', 'vorhaben_inhalt', 'vorhabeninhalt', 'beschreibung', 'kurzbeschreibung',
     'inhalt_kurzzusammenfassung', 'kurzzusammenfassung',
-  ])) : null;
+  ]));
 
   // Kopf-Stepper: Verbund-Ebene (amtliches Aggregat), unabhängig vom expandierten TV.
   const stepperStatus = displayStatus;
 
-  // Kurzbeschreibung: die Kurzzusammenfassung (VB_INHALT) rendert als eigene
-  // Karte unter dem Kopf. Titel (= Untertitel) bleibt im Kopf; ist der Inhalt mit
-  // dem Titel identisch, entfällt die Karte (keine Dopplung).
-  const kurzbeschreibung = vorhabenInhalt && vorhabenInhalt !== titel ? vorhabenInhalt : null;
+  // Kurzbeschreibungs-Karte unter dem Kopf: bevorzugt die ausführliche VB_INHALT-
+  // Kurzzusammenfassung; fehlt sie ganz, tritt der Projekt-Titel als Karteninhalt
+  // ein — so erscheint IMMER eine Karte, solange es überhaupt Beschreibungstext
+  // gibt (statt nur einer dünnen Untertitel-Zeile).
+  const kurzbeschreibung = vorhabenInhalt ?? titel;
+
+  // Untertitel im Kopf nur, wenn er nicht ohnehin (wortgleich) in der Karte steht
+  // — sonst stünde der Titel doppelt (dünne Zeile + Karte).
+  const untertitel = titel && (!kurzbeschreibung || !sameText(titel, kurzbeschreibung)) ? titel : null;
 
   // Header-Aktenzeichen: bei pseudo die echte Aktenzeichen-ID, nicht die __pseudo__-Synthetik.
   const headerId = isPseudo ? aktenzeichenFromPseudoVerbundId(verbundId) : verbund.verbund_id;
@@ -207,7 +220,7 @@ export function VerbundDetail({
         <VerbundKopf
           akronym={akronym}
           headerId={headerId}
-          untertitel={titel}
+          untertitel={untertitel}
           xsw={leadXsw}
           stepperStatus={stepperStatus}
           tvs={antraege}

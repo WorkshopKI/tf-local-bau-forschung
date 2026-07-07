@@ -23,3 +23,20 @@ export function findFieldValue(antrag: Antrag, candidates: string[]): unknown {
   }
   return undefined;
 }
+
+/**
+ * Wie `findFieldValue`, aber ueber mehrere Antraege (TVs): liefert den ERSTEN
+ * nicht-leeren Treffer.
+ *
+ * Hintergrund: manche Felder (z.B. VB_INHALT / Kurzzusammenfassung) sind auf
+ * Verbund-Ebene gedacht, im CSV aber nur an EINEM Teilvorhaben gefuellt — der
+ * Lead-TV kann leer sein, ein Partner-TV den Wert tragen. Nur den Lead zu lesen
+ * verschluckt die Beschreibung dann still.
+ */
+export function findFieldValueAcross(antraege: Antrag[], candidates: string[]): unknown {
+  for (const a of antraege) {
+    const v = findFieldValue(a, candidates);
+    if (typeof v === 'string' ? v.trim().length > 0 : v != null) return v;
+  }
+  return undefined;
+}
