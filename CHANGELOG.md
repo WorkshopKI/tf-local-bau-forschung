@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.194.2 — Gutachten: Beleg-Kontrakt-Rollout für Bestands-Shares (Journey-Paket 4, Phase 5) (Juli 2026)
+
+PATCH — Eval-Gate gefahren (reduziert: gpt-oss-120b-**Proxy**, n=6 fiktive Fixtures, Judge Sonnet 4.6). Ergebnis: der Beleg→Satz-Kontrakt funktioniert (A 97 % / B 95 % gültige Referenzen, 91–95 % Satz-Abdeckung); A-Judge stabil (+0,08), B knapp unter der Schwelle (−0,25, getrieben von 1 Ausreißer-Fixture bei n=6); der eine erlaubte Instruktions-Retry verschlechterte A deutlich und wurde verworfen (V1 beibehalten). **Entscheidung** (dokumentiert in [eval/paket4-eval-report.md](eval/paket4-eval-report.md)): V1 akzeptiert, Rollout vollzogen; ein Voll-Eval auf dem Produktions-Qwen (`--limit 20`) bleibt als Bestätigung empfohlen.
+
+- **Marker-gesicherte Rollout-Migration** ([migrations.ts](src/core/services/skills/registry/migrations.ts)): `reconcileEinmaligeAktivierungen` wendet jetzt eine **Liste** einmaliger Migrationen an (append-only); neu `GA_BELEG_KONTRAKT_MIGRATION` — hebt A/B `promptTemplate` auf Bestands-Shares auf den Neu-Stand + Version 2, aber **NUR wenn der Stand exakt dem Vor-Paket-4-Template gleicht** (`buildKurzfassungPrompt(false)` / `abschnittTemplate(B_ABSCHNITT_OPTS)`) — **kuratierte Edits bleiben unberührt** (Pitfall/Anti-Pattern: Seed-Migration überschreibt Kurator-Skills nie).
+- **Trigger** ([useAnfrageAnonAktivierung.ts](src/plugins/anfragen/useAnfrageAnonAktivierung.ts)): reconcilt jetzt ALLE ausstehenden Registry-Migrationen (nicht nur die Anonymisierer-Freischaltung); das Feature-Gate umfasst zusätzlich die Gutachten-Varianten; das Audit-Log hält die angewandten Marker fest.
+- **Eval-Scaffolding** (reproduzierbar, dev-only): OpenRouter-/Lokal-Modell-Configs, Baseline-Registry-Generator, Beleg-Metrik-Skript, Bericht — alle unter `eval/`.
+- Migrations-Kuratorenschutz getestet ([migrations.test.ts](src/core/services/skills/registry/__tests__/migrations.test.ts)): pristine A/B → migriert; editiert → unberührt; Marker einmalig; beide Migrationen zusammen.
+
 ### v2.194.1 — Gutachten: Skill-Kontrakt A + B um Satz-Referenzen erweitert (Journey-Paket 4, Phase 4) (Juli 2026)
 
 PATCH — Die Abschnitts-Skills A (Kurzfassung) und B (Ausgangslage) instruieren das Modell jetzt, jedes Zitat der Quellenanalyse mit der gestützten Satz-Referenz abzuschließen (` → stützt Satz N`, 1-basiert). Kein Nutzer-sichtbarer Effekt (die UI folgt in Phase 6); die Wirksamkeit für Bestands-Shares ist bis zum Eval-Gate (Phase 5) zurückgehalten.
