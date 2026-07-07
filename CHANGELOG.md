@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.198.4 — Förderanträge: Titel→Untertitel-Abstand auf 10px (Juli 2026)
+
+PATCH — Feinschliff zu v2.198.3: Abstand Titel→Untertitel im Detailkopf von 12px (`mt-3`) auf 10px (`mt-2.5`) reduziert ([VerbundKopf.tsx](src/plugins/antraege/VerbundKopf.tsx), inkl. XSW-Fallback-Zweig). Reiner Spacing-Tweak.
+
 ### v2.198.3 — Förderanträge: Detailkopf luftiger (vertikaler Abstand) (Juli 2026)
 
 PATCH — Der obere Teil der Verbund-Detailseite (Titelzeile · Untertitel · Stepper · Kurzbeschreibung) stand textlich vertikal zu gedrängt. Reine Abstands-Korrektur ([VerbundKopf.tsx](src/plugins/antraege/VerbundKopf.tsx) + [KurzbeschreibungCard.tsx](src/plugins/antraege/KurzbeschreibungCard.tsx)): Titel→Untertitel `mt-2`→`mt-3`, Untertitel-`leading` 1.5→1.6, Untertitel→Stepper `mt-3.5`→`mt-5`, Kopf-Unterrand `mb-4`→`mb-6`, Titelzeilen-Umbruch-`gap-y` 1→1.5, Karten-Label `mb-1.5`→`mb-2`. Keine Struktur-/Logik-Änderung.
