@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.199 — 2026-07
+
+### Neu
+- Das **Feedback-Board** ist komplett neu gestaltet: übersichtliche Karten mit **Titel**, Typ-Symbol, Status und Bild-Vorschau statt langer Textblöcke. Oben umschaltbar zwischen **„Alle / Von mir / Vom Team"**, mit **Suche**, **Sortierung** (Neueste ↔ Meiste Stimmen) und einer neuen **Board-Ansicht** (Spalten nach Bearbeitungs-Status).
+- **Stimmen (Daumen hoch):** Für ein Feedback abstimmen zeigt dem Team, wie gefragt es ist — unabhängig vom bisherigen Sponsoring, das erhalten bleibt.
+- **Kommentare:** Zu jedem Feedback lässt sich jetzt ein Gespräch führen — Rückfragen stellen, ergänzen, mitdiskutieren.
+- Beim **Feedback-Geben** kann optional ein kurzer **Titel** vergeben werden (sonst wird er automatisch aus der Antwort abgeleitet).
+
 ## v2.198 — 2026-07
 
 ### Verbesserungen

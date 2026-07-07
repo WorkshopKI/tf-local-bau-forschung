@@ -48,6 +48,31 @@ export interface FeedbackSponsor {
   created_at: string;
 }
 
+/**
+ * Leichte, budgetfreie „Stimme" (Like) je Nutzer je Feedback — getrennt vom
+ * budget-gebundenen {@link FeedbackSponsor}. Eine Stimme pro `user_id` (Toggle);
+ * die Anzahl = `votes.length`. Union-Merge by `user_id` wie Sponsoren
+ * (Anti-Stale-Regel: lokal nur die eigene Stimme).
+ */
+export interface FeedbackVote {
+  user_id: string;
+  user_display_name?: string;
+  created_at: string;
+}
+
+/**
+ * Ein Kommentar im Thread eines Feedbacks (append-only, Union-Merge by `id`).
+ * Distinkt von {@link FeedbackItem.kurator_response} („Antwort vom Team"), das
+ * die eine hervorgehobene Kurator-Antwort bleibt.
+ */
+export interface FeedbackComment {
+  id: string;
+  user_id: string;
+  user_display_name?: string;
+  text: string;
+  created_at: string;
+}
+
 export interface UserBudget {
   user_id: string;
   /** Quartals-Key, z.B. "2026-Q2". */
@@ -133,6 +158,9 @@ export interface FeedbackItem {
   created_at: string;
   user_id: string;
   user_display_name?: string;
+  /** Optionaler, scannbarer Titel (Redesign v2.199). Fehlt bei Bestands-Feedback
+   *  → UI leitet über `feedbackTitle()` aus der Hauptantwort ab. */
+  title?: string;
   /** Optional: wird vom LLM per autoClassifyFeedback() gesetzt (kein User-Input mehr). */
   category?: FeedbackCategory;
   /** Strukturierte Formular-Felder pro Typ (key → wert). Optional: Alt-Tickets
@@ -171,6 +199,11 @@ export interface FeedbackItem {
   sponsors?: FeedbackSponsor[];
   sponsor_points_total?: number;
   sponsor_hours_total?: number;
+  // Redesign v2.199: leichte Votes (Likes) + Kommentar-Thread
+  /** Budgetfreie Stimmen (eine je Nutzer). Anzahl = `votes.length`. */
+  votes?: FeedbackVote[];
+  /** Kommentar-Thread (append-only). */
+  comments?: FeedbackComment[];
 }
 
 export interface FeedbackConfig {

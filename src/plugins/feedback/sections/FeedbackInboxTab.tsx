@@ -27,6 +27,8 @@ import {
   getFeedbackList,
   submitFeedback as submitFeedbackToShared,
   autoCollectSponsorVotes,
+  autoCollectFeedbackVotes,
+  autoCollectFeedbackComments,
 } from '@/core/services/feedback';
 import type { FeedbackContext } from '@/core/types/feedback';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -86,8 +88,11 @@ export function FeedbackInboxTab(): React.ReactElement {
       const root = await getUserFoldersRootHandle(storage.idb);
       if (!root) { setRootConnected(false); return; }
       const res = await autoCollectSponsorVotes(storage, root);
+      const votes = await autoCollectFeedbackVotes(storage, root);
+      const comments = await autoCollectFeedbackComments(storage, root);
       setSponsorMsg(
-        `${res.scanned} Stimmen-Datei(en) gelesen · ${res.merged} Änderung(en) übernommen.`,
+        `${res.scanned} Sponsoring- · ${votes.scanned} Vote- · ${comments.scanned} Kommentar-Datei(en) gelesen · ` +
+        `${res.merged + votes.merged + comments.merged} Änderung(en) übernommen.`,
       );
     } catch (err) {
       setError((err as Error).message);

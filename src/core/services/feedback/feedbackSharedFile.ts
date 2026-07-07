@@ -18,7 +18,13 @@
 
 import type { StorageService } from '@/core/services/storage';
 import { FEEDBACK_DATA_DIR, FEEDBACK_SHARED_FILE } from '@/core/types/feedback';
-import type { FeedbackItem, FeedbackSponsor, SharedFeedbackFile } from '@/core/types/feedback';
+import type {
+  FeedbackComment,
+  FeedbackItem,
+  FeedbackSponsor,
+  FeedbackVote,
+  SharedFeedbackFile,
+} from '@/core/types/feedback';
 import { atomicWrite, readBinary, readText } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import { normalizeLegacyFields } from './feedbackStorage';
@@ -134,6 +140,38 @@ export function unionMergeSponsors(
   return Array.from(map.values());
 }
 
+/**
+ * Union zweier Vote-Listen (v2.199). Basis = shared (alle User), lokale Einträge
+ * überschreiben/ergänzen per `user_id`. Anti-Stale-Regel wie bei Sponsoren:
+ * lokale Items tragen NUR die eigene Stimme (siehe `toggleVote`), damit die eigene
+ * lokal-only-Stimme (read-only prod, noch nicht eingesammelt) den Reload überlebt,
+ * ohne fremde Stimmen aus shared zu überschreiben.
+ */
+export function unionMergeVotes(
+  shared: readonly FeedbackVote[] | undefined,
+  local: readonly FeedbackVote[] | undefined,
+): FeedbackVote[] {
+  const map = new Map<string, FeedbackVote>();
+  for (const v of shared ?? []) map.set(v.user_id, v);
+  for (const v of local ?? []) map.set(v.user_id, v);
+  return Array.from(map.values());
+}
+
+/**
+ * Union zweier Kommentar-Listen (v2.199) per `id` — append-only, es geht nie ein
+ * Kommentar verloren. Lokale Items tragen die eigenen, noch nicht eingesammelten
+ * Kommentare (read-only prod); die Reihenfolge folgt `created_at` aufsteigend.
+ */
+export function unionMergeComments(
+  shared: readonly FeedbackComment[] | undefined,
+  local: readonly FeedbackComment[] | undefined,
+): FeedbackComment[] {
+  const map = new Map<string, FeedbackComment>();
+  for (const c of shared ?? []) map.set(c.id, c);
+  for (const c of local ?? []) map.set(c.id, c);
+  return Array.from(map.values()).sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
 /** Merge-Strategie: bei Duplikat-IDs wins shared für Kurator-Felder, lokal für User-Felder. */
 export function mergeItems(local: FeedbackItem[], shared: FeedbackItem[]): FeedbackItem[] {
   const byId = new Map<string, FeedbackItem>();
@@ -162,10 +200,23 @@ export function mergeItems(local: FeedbackItem[], shared: FeedbackItem[]): Feedb
             };
           })()
         : {};
+    // Votes (v2.199): Union NUR wenn das lokale Item eigene Stimmen trägt (Anti-
+    // Stale wie Sponsoren) — sonst bleibt der Shared-Stand. Kommentare: IMMER
+    // Union-by-id (append-only, nie verlieren).
+    const voteFields =
+      local_item.votes && local_item.votes.length > 0
+        ? { votes: unionMergeVotes(sharedItem.votes, local_item.votes) }
+        : {};
+    const commentFields =
+      (local_item.comments && local_item.comments.length > 0) ||
+      (sharedItem.comments && sharedItem.comments.length > 0)
+        ? { comments: unionMergeComments(sharedItem.comments, local_item.comments) }
+        : {};
     // Merge: User-Felder aus local, Kurator/FAQ-Felder aus shared
     byId.set(local_item.id, {
       ...sharedItem,
       // User-fields override (User edits these locally first)
+      title: local_item.title ?? sharedItem.title,
       text: local_item.text,
       stars: local_item.stars,
       context: local_item.context,
@@ -173,6 +224,8 @@ export function mergeItems(local: FeedbackItem[], shared: FeedbackItem[]): Feedb
       llm_classification: local_item.llm_classification ?? sharedItem.llm_classification,
       user_confirmed: local_item.user_confirmed ?? sharedItem.user_confirmed,
       ...sponsorFields,
+      ...voteFields,
+      ...commentFields,
     });
   }
   return Array.from(byId.values()).sort((a, b) => b.created_at.localeCompare(a.created_at));

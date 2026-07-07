@@ -1,150 +1,96 @@
-// Öffentliches Feedback-Board: Bugs + Features mit Sponsoring-Fortschritt.
-// Drei Ansichten: Split (Liste + Detail, wie das Kurator-Dashboard, Default),
-// gruppierte Karten, Sortier-Tabelle. Filter-Chips (CollapsibleSeg wie
-// Förderanträge) + Sponsoring-Info-Banner gelten für alle Ansichten.
+// Öffentliches Feedback-Board (Redesign v2.199): scannbare Karten-Liste + Kanban,
+// Scope-Tabs (Alle/Von mir/Vom Team), Typ-Filter-Chips, Suche, Sortierung, und ein
+// Detail-Drawer (Master-Detail-Split) mit Votes + Kommentaren. Ersetzt die frühere
+// Split/Karten/Tabelle-Trias.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Columns2, LayoutGrid, List } from 'lucide-react';
+import { List, Columns3, Search } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { MasterDetailLayout } from '@/components/master-detail';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { Input } from '@/components/ui/input';
 import {
   BudgetBadge,
-  CATEGORY_ORDER,
   FeedbackBoardDetail,
-  FeedbackBoardList,
-  FeedbackBoardListView,
-  FeedbackCategoryGroup,
-  type CategoryGroupKey,
-  SponsoringInfoBanner,
+  FeedbackCard,
+  FeedbackKanban,
+  FeedbackTypeChips,
+  type TypeChipItem,
+  CATEGORY_DOT,
+  feedbackTitle,
 } from '@/components/feedback';
 import {
   getFeedbackList,
-  getSponsoringProgress,
   isClassifiedAs,
   isSponsorableCategory,
   loadFeedbackConfig,
-  FEEDBACK_STATUS,
-  istOffen,
-  istUmgesetzt,
   istArchiviert,
 } from '@/core/services/feedback';
-import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 
-type ViewMode = 'split' | 'card' | 'list';
-type StatusFilter = 'all' | 'open' | 'done';
+type ViewMode = 'liste' | 'board';
+type Scope = 'alle' | 'mir' | 'team';
+type Sort = 'neu' | 'votes';
 
-// Status als Gruppen (wie bisher auf dem Board): „Offen" = neu/geplant/in_bearbeitung.
-const STATUS_TO_LABEL: Record<StatusFilter, string> = { all: 'Alle', open: 'Offen', done: 'Umgesetzt' };
-const LABEL_TO_STATUS: Record<string, StatusFilter> = { Alle: 'all', Offen: 'open', Umgesetzt: 'done' };
-
-// Kategorie wie im Kurator-Dashboard.
-const KAT_TO_LABEL: Record<FeedbackCategory | '', string> = {
-  '': 'Alle', problem: 'Bug', idea: 'Idee', ux: 'UX', praise: 'Lob', question: 'Frage',
-};
-const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
-  Alle: '', Bug: 'problem', Idee: 'idea', UX: 'ux', Lob: 'praise', Frage: 'question',
-};
-
-// Eingeklappte Kategorie-Gruppen (Card-Ansicht) überleben Reloads via localStorage.
-// Default leer = alles aufgeklappt. localStorage für simple UI-Flags lt. CLAUDE.md ok.
-const COLLAPSED_CATS_KEY = 'tf-feedback-board-collapsed-cats';
-// Zuletzt gewählte Ansicht überlebt Reloads; Default = Split (Erstansicht).
-const VIEW_MODE_KEY = 'tf-feedback-board-view-mode';
-// Zuletzt gewählter Status-Filter überlebt Reloads; Default = „Offen" (offene
-// Themen zuerst; der Chip ist dadurch standardmäßig aufgeklappt, weil
-// CollapsibleSeg bei value ≠ defaultValue expandiert).
-const STATUS_FILTER_KEY = 'tf-feedback-board-status-filter';
-// „Mein Feedback"-Filter überlebt Reloads; Default = aus (ganzes Board).
-const MINE_FILTER_KEY = 'tf-feedback-board-mine-filter';
-
-function loadCollapsedCats(): Set<string> {
-  try {
-    const raw = localStorage.getItem(COLLAPSED_CATS_KEY);
-    const arr: unknown = raw ? JSON.parse(raw) : null;
-    return Array.isArray(arr) ? new Set(arr.filter((x): x is string => typeof x === 'string')) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function persistCollapsedCats(set: Set<string>): void {
-  try {
-    localStorage.setItem(COLLAPSED_CATS_KEY, JSON.stringify([...set]));
-  } catch {
-    /* localStorage nicht verfügbar — Collapse-State ist nur Komfort, ignorieren */
-  }
-}
+const VIEW_MODE_KEY = 'tf-feedback-board-view-v2';
+const SORT_KEY = 'tf-feedback-board-sort-v2';
 
 function loadViewMode(): ViewMode {
-  try {
-    const raw = localStorage.getItem(VIEW_MODE_KEY);
-    if (raw === 'split' || raw === 'card' || raw === 'list') return raw;
-  } catch { /* ignore */ }
-  return 'split';
+  try { const r = localStorage.getItem(VIEW_MODE_KEY); if (r === 'liste' || r === 'board') return r; } catch { /* ignore */ }
+  return 'liste';
+}
+function loadSort(): Sort {
+  try { const r = localStorage.getItem(SORT_KEY); if (r === 'neu' || r === 'votes') return r; } catch { /* ignore */ }
+  return 'neu';
 }
 
-function loadStatusFilter(): StatusFilter {
-  try {
-    const raw = localStorage.getItem(STATUS_FILTER_KEY);
-    if (raw === 'all' || raw === 'open' || raw === 'done') return raw;
-  } catch { /* ignore */ }
-  return 'open';
-}
-
-function loadMineFilter(): boolean {
-  try {
-    return localStorage.getItem(MINE_FILTER_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
+const CATEGORY_CHIPS: Array<{ key: FeedbackCategory; label: string }> = [
+  { key: 'problem', label: 'Problem' },
+  { key: 'idea', label: 'Idee' },
+  { key: 'ux', label: 'UX' },
+  { key: 'praise', label: 'Lob' },
+  { key: 'question', label: 'Frage' },
+];
 
 export function FeedbackBoardPage(): React.ReactElement {
   const storage = useStorage();
   const { profile } = useProfile();
-  // Eigenes Feedback = user_id == profile.name (wie der „Mein Feedback"-Tab).
-  // Anonyme Absender speichern user_id: 'anonymous' → ohne echten Namen kein
-  // „meins" (sonst würden alle Anonymen aufeinander matchen).
-  const meineUserId = profile?.name && profile.name !== 'anonymous' ? profile.name : undefined;
+  const kuerzel = useMeinKuerzel();
+  // Identität für Scope + Votes + Kommentare: Kürzel (Login) → sonst Profilname.
+  const meId = kuerzel ?? (profile?.name && profile.name !== 'anonymous' ? profile.name : undefined);
+  const meName = profile?.name && profile.name !== 'anonymous' ? profile.name : kuerzel;
+
   const [tickets, setTickets] = useState<FeedbackItem[]>([]);
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
-  const [filterStatus, setFilterStatus] = useState<StatusFilter>(loadStatusFilter);
-  const [filterMine, setFilterMine] = useState<boolean>(loadMineFilter);
+  const [scope, setScope] = useState<Scope>('alle');
   const [filterKategorie, setFilterKategorie] = useState<FeedbackCategory | ''>('');
-  // Bereich = context.page-Label (CollapsibleSeg ist label-basiert). '' = Alle.
-  const [filterArea, setFilterArea] = useState<string>('');
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<Sort>(loadSort);
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const changeViewMode = useCallback((mode: ViewMode): void => {
-    setViewMode(mode);
-    try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch { /* ignore */ }
+  const changeViewMode = useCallback((m: ViewMode): void => {
+    setViewMode(m);
+    try { localStorage.setItem(VIEW_MODE_KEY, m); } catch { /* ignore */ }
+  }, []);
+  const toggleSort = useCallback((): void => {
+    setSort(s => {
+      const next: Sort = s === 'neu' ? 'votes' : 'neu';
+      try { localStorage.setItem(SORT_KEY, next); } catch { /* ignore */ }
+      return next;
+    });
   }, []);
 
-  const changeStatusFilter = useCallback((status: StatusFilter): void => {
-    setFilterStatus(status);
-    try { localStorage.setItem(STATUS_FILTER_KEY, status); } catch { /* ignore */ }
-  }, []);
-
-  const changeMineFilter = useCallback((mine: boolean): void => {
-    setFilterMine(mine);
-    try { localStorage.setItem(MINE_FILTER_KEY, mine ? '1' : '0'); } catch { /* ignore */ }
-  }, []);
-
-  // silent: kein Loading-Spinner (für Hintergrund-Re-Reads bei Tab-Fokus —
-  // verhindert „Lade…"-Flackern bei jedem Tab-Wechsel).
   const reload = useCallback(async (silent = false): Promise<void> => {
     if (!silent) setLoading(true);
     try {
-      const [items, cfg] = await Promise.all([
-        getFeedbackList(storage),
-        loadFeedbackConfig(storage),
-      ]);
+      const [items, cfg] = await Promise.all([getFeedbackList(storage), loadFeedbackConfig(storage)]);
       setTickets(items);
       setConfig(cfg);
     } finally {
@@ -153,278 +99,206 @@ export function FeedbackBoardPage(): React.ReactElement {
   }, [storage]);
 
   useEffect(() => { void reload(); }, [reload]);
-
-  // Live-Refresh bei globalem feedback-updated Event (nur im eigenen Tab)
   useEffect(() => {
-    const handler = (): void => { void reload(); };
+    const handler = (): void => { void reload(true); };
     window.addEventListener('feedback-updated', handler);
     return () => window.removeEventListener('feedback-updated', handler);
   }, [reload]);
-
-  // Offene Übersichten anderer User: beim Zurückwechseln auf den Tab die
-  // geteilte feedback.json neu einlesen → zwischenzeitlich von PL/Kurator
-  // hinzugefügtes Feedback erscheint ohne manuellen Reload.
   useEffect(() => {
-    const onVisible = (): void => {
-      if (document.visibilityState === 'visible') void reload(true);
-    };
+    const onVisible = (): void => { if (document.visibilityState === 'visible') void reload(true); };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [reload]);
 
   const handleChanged = useCallback(() => {
     setRefreshKey(k => k + 1);
-    void reload();
+    void reload(true);
   }, [reload]);
 
-  // Helfer schließen Pending-Tickets (LLM noch nicht durch / fehlgeschlagen) aus.
   const isBug = isClassifiedAs('problem');
-  // „Feature" im Board-Sinn = sponsorbar (idea + ux) — beide werden nach
-  // Sponsoring-Fortschritt sortiert und im Header als Features gezählt.
   const isFeature = (t: FeedbackItem): boolean => isSponsorableCategory(t.category);
 
-  // Nicht-archivierte Basis für Filter-Optionen + -Zähler.
+  // Nicht-archivierte Basis für Zähler + Filter.
   const base = useMemo(() => tickets.filter(t => !istArchiviert(t.kurator_status)), [tickets]);
 
-  // Anzahl eigener Tickets (für den „Sicht"-Chip). 0, wenn keine Identität da.
-  const mineCount = useMemo(
-    () => (meineUserId ? base.filter(t => t.user_id === meineUserId).length : 0),
-    [base, meineUserId],
-  );
+  const counts = useMemo(() => ({
+    probleme: base.filter(isBug).length,
+    ideen: base.filter(isFeature).length,
+    lob: base.filter(t => t.category === 'praise').length,
+  }), [base, isBug]);
 
-  // Filter-Items (Label + Zähler) für die CollapsibleSeg-Chips.
-  const statusItems: CollapsibleSegItem[] = useMemo(() => {
-    const open = base.filter(t => istOffen(t.kurator_status)).length;
-    const done = base.filter(t => istUmgesetzt(t.kurator_status)).length;
+  const scopeItems = useMemo(() => {
+    const mine = meId ? base.filter(t => t.user_id === meId).length : 0;
     return [
-      { label: 'Alle', count: base.length },
-      { label: 'Offen', count: open },
-      { label: 'Umgesetzt', count: done },
+      { key: 'alle', label: 'Alle', count: base.length },
+      { key: 'mir', label: 'Von mir', count: mine },
+      { key: 'team', label: 'Vom Team', count: base.length - mine },
     ];
-  }, [base]);
+  }, [base, meId]);
 
-  const kategorieItems: CollapsibleSegItem[] = useMemo(() => [
-    { label: 'Alle', count: base.length },
-    { label: 'Bug', count: base.filter(t => t.category === 'problem').length },
-    { label: 'Idee', count: base.filter(t => t.category === 'idea').length },
-    { label: 'UX', count: base.filter(t => t.category === 'ux').length },
-    { label: 'Lob', count: base.filter(t => t.category === 'praise').length },
-    { label: 'Frage', count: base.filter(t => t.category === 'question').length },
+  const typeChips: TypeChipItem[] = useMemo(() => [
+    { key: '', label: 'Alle', count: base.length },
+    ...CATEGORY_CHIPS.map(c => ({
+      key: c.key, label: c.label, count: base.filter(t => t.category === c.key).length, dot: CATEGORY_DOT[c.key],
+    })),
   ], [base]);
 
-  // Bereich = context.page (Label). Distinct page-Labels + Zähler, alphabetisch.
-  const bereichItems: CollapsibleSegItem[] = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const t of base) {
-      const p = t.context?.page;
-      if (p) counts.set(p, (counts.get(p) ?? 0) + 1);
-    }
-    const items = Array.from(counts, ([label, count]) => ({ label, count }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-    return [{ label: 'Alle', count: base.length }, ...items];
-  }, [base]);
-
   const filteredSorted = useMemo(() => {
-    // Drei unabhängige Filter (UND-kombiniert), wie im Kurator-Dashboard.
+    const q = query.trim().toLowerCase();
     const byFilter = base.filter(t => {
-      // Bei undefined meineUserId greift der Filter nicht → kein leeres Board.
-      if (filterMine && meineUserId && t.user_id !== meineUserId) return false;
+      if (scope === 'mir' && !(meId && t.user_id === meId)) return false;
+      if (scope === 'team' && meId && t.user_id === meId) return false;
       if (filterKategorie && t.category !== filterKategorie) return false;
-      if (filterArea && t.context?.page !== filterArea) return false;
-      if (filterStatus === 'open' && !istOffen(t.kurator_status)) return false;
-      if (filterStatus === 'done' && !istUmgesetzt(t.kurator_status)) return false;
+      if (q) {
+        const hay = `${feedbackTitle(t)} ${t.text} ${t.context?.page ?? ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
     return byFilter.sort((a, b) => {
-      const aBearb = a.kurator_status === FEEDBACK_STATUS.in_bearbeitung ? 0 : 1;
-      const bBearb = b.kurator_status === FEEDBACK_STATUS.in_bearbeitung ? 0 : 1;
-      if (aBearb !== bBearb) return aBearb - bBearb;
-      if (isFeature(a) && isFeature(b)) {
-        const pa = getSponsoringProgress(a, config).percentage;
-        const pb = getSponsoringProgress(b, config).percentage;
-        if (pa !== pb) return pb - pa;
+      if (sort === 'votes') {
+        const d = (b.votes?.length ?? 0) - (a.votes?.length ?? 0);
+        if (d !== 0) return d;
       }
       return b.created_at.localeCompare(a.created_at);
     });
-  }, [base, filterStatus, filterMine, meineUserId, filterKategorie, filterArea, config, isFeature]);
+  }, [base, scope, meId, filterKategorie, query, sort]);
 
-  // Aktuell gewähltes Ticket (nur wenn es im gefilterten Set liegt — Filterwechsel
-  // oder Löschen schließt das Detail automatisch).
   const selectedTicket = useMemo(
     () => filteredSorted.find(t => t.id === selectedId),
     [filteredSorted, selectedId],
   );
 
-  const counts = useMemo(() => ({
-    bugs: base.filter(isBug).length,
-    features: base.filter(isFeature).length,
-    sonstige: base.filter(t => !isBug(t) && !isFeature(t)).length,
-  }), [base, isBug, isFeature]);
-
-  // Gruppierung der Card-Ansicht nach Kategorie/Typ (feste Reihenfolge,
-  // Unklassifiziert zuletzt). Reihenfolge innerhalb einer Gruppe = bereits
-  // sortiertes filteredSorted. Leere Gruppen entfallen.
-  const groups = useMemo(() => {
-    const order: CategoryGroupKey[] = [...CATEGORY_ORDER, 'unclassified'];
-    const buckets = new Map<CategoryGroupKey, FeedbackItem[]>();
-    for (const t of filteredSorted) {
-      const key: CategoryGroupKey = t.category ?? 'unclassified';
-      const arr = buckets.get(key);
-      if (arr) arr.push(t);
-      else buckets.set(key, [t]);
-    }
-    return order
-      .map(key => ({ key, items: buckets.get(key) ?? [] }))
-      .filter(g => g.items.length > 0);
-  }, [filteredSorted]);
-
-  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(() => loadCollapsedCats());
-  const toggleCat = useCallback((key: string) => {
-    setCollapsedCats(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      persistCollapsedCats(next);
-      return next;
-    });
-  }, []);
-
   const emptyHint = (
     <p className="text-[12.5px] text-[var(--tf-text-tertiary)] text-center py-12">
-      Keine Einträge. Nutze den Feedback-Button unten rechts um Ideen oder Bugs zu melden.
+      Keine Einträge. Nutze den Feedback-Button unten rechts, um Ideen oder Bugs zu melden.
     </p>
   );
   const loadingHint = <p className="text-[12.5px] text-[var(--tf-text-tertiary)] text-center py-8">Lade…</p>;
 
+  const listContent = (narrow: boolean): React.ReactNode => {
+    if (loading) return loadingHint;
+    if (filteredSorted.length === 0) return emptyHint;
+    if (viewMode === 'board' && !narrow) {
+      return (
+        <FeedbackKanban
+          tickets={filteredSorted}
+          meineUserId={meId}
+          meId={meId}
+          meName={meName ?? undefined}
+          onSelect={t => setSelectedId(t.id)}
+          onChanged={handleChanged}
+        />
+      );
+    }
+    return (
+      <div>
+        {filteredSorted.map(t => (
+          <FeedbackCard
+            key={t.id}
+            ticket={t}
+            selected={selectedId === t.id}
+            mine={!!meId && t.user_id === meId}
+            meId={meId}
+            meName={meName ?? undefined}
+            onSelect={x => setSelectedId(x.id)}
+            onChanged={handleChanged}
+            narrow={narrow}
+          />
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-60px)] overflow-hidden">
-      {/* Header (gilt für alle Ansichten) */}
+      {/* Kopf */}
       <div className="shrink-0 px-8 pt-6">
-        <div className="flex items-baseline justify-between flex-wrap gap-3 mb-4">
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Feedback Übersicht</h1>
-            <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
-              {counts.bugs} {counts.bugs === 1 ? 'Bug' : 'Bugs'} · {counts.features} Features
-              {counts.sonstige > 0 && ` · ${counts.sonstige} Sonstige`}
-            </p>
+        <PageHeader
+          title="Feedback"
+          subtitle={
+            <>
+              <b className="text-[var(--tf-text-secondary)]">{counts.probleme}</b> Probleme{'  ·  '}
+              <b className="text-[var(--tf-text-secondary)]">{counts.ideen}</b> Ideen{'  ·  '}
+              <b className="text-[var(--tf-text-secondary)]">{counts.lob}</b> Lob
+            </>
+          }
+          actions={<BudgetBadge refreshKey={refreshKey} />}
+          className="mb-4"
+        />
+
+        {/* Toolbar: Scope-Tabs + Suche + Sort + View */}
+        <div className="flex items-end justify-between gap-4 flex-wrap mb-3">
+          <ScopeTabs
+            variant="tabs"
+            items={scopeItems}
+            activeKey={scope}
+            onChange={k => setScope(k as Scope)}
+            aria-label="Feedback-Sicht"
+          />
+          <div className="flex items-center gap-2 pb-1">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none" />
+              <Input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Feedback durchsuchen"
+                className="pl-7 h-8 w-[200px] text-[12.5px]"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={toggleSort}
+              title="Sortierung wechseln"
+              className="h-8 px-3 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+            >
+              {sort === 'neu' ? 'Neueste zuerst' : 'Meiste Votes'}
+            </button>
+            <div className="flex items-center gap-0.5 rounded-[var(--tf-radius)] p-0.5" style={{ border: '0.5px solid var(--tf-border)' }}>
+              {([['liste', List, 'Liste'], ['board', Columns3, 'Board']] as const).map(([m, Icon, title]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => changeViewMode(m)}
+                  title={title}
+                  className={`p-1.5 rounded-[var(--tf-radius-sm)] cursor-pointer transition-colors ${
+                    viewMode === m ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]' : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
+                  }`}
+                >
+                  <Icon size={15} />
+                </button>
+              ))}
+            </div>
           </div>
-          <BudgetBadge refreshKey={refreshKey} />
         </div>
 
-        <SponsoringInfoBanner />
-
-        {/* Filter-Chips (CollapsibleSeg, wie Förderanträge) + View-Toggle */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-4">
-          {/* „Sicht" nur mit Identität — sonst würde der Filter alle Anonymen
-              zusammenwerfen. Zuerst platziert = prominent. */}
-          {meineUserId && (
-            <CollapsibleSeg
-              label="Sicht"
-              value={filterMine ? 'Mein Feedback' : 'Alle'}
-              items={[
-                { label: 'Alle', count: base.length },
-                { label: 'Mein Feedback', count: mineCount },
-              ]}
-              onChange={l => changeMineFilter(l === 'Mein Feedback')}
-            />
-          )}
-          <CollapsibleSeg
-            label="Status"
-            value={STATUS_TO_LABEL[filterStatus]}
-            items={statusItems}
-            onChange={l => changeStatusFilter(LABEL_TO_STATUS[l] ?? 'all')}
-          />
-          <CollapsibleSeg
-            label="Kategorie"
-            value={KAT_TO_LABEL[filterKategorie]}
-            items={kategorieItems}
-            onChange={l => setFilterKategorie(LABEL_TO_KAT[l] ?? '')}
-          />
-          {bereichItems.length > 1 && (
-            <CollapsibleSeg
-              label="Bereich"
-              value={filterArea || 'Alle'}
-              items={bereichItems}
-              onChange={l => setFilterArea(l === 'Alle' ? '' : l)}
-              startCollapsed
-            />
-          )}
-
-          <div className="flex-1" />
-
-          {([
-            ['split', Columns2, 'Split-Ansicht (Liste + Detail)'],
-            ['card', LayoutGrid, 'Kartenansicht'],
-            ['list', List, 'Listenansicht'],
-          ] as const).map(([mode, Icon, title]) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => changeViewMode(mode)}
-              className={`p-1.5 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-                viewMode === mode
-                  ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
-                  : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
-              }`}
-              title={title}
-            >
-              <Icon size={15} />
-            </button>
-          ))}
+        {/* Typ-Filter-Chips */}
+        <div className="mb-3">
+          <FeedbackTypeChips items={typeChips} activeKey={filterKategorie} onChange={k => setFilterKategorie(k as FeedbackCategory | '')} />
         </div>
       </div>
 
-      {/* Content */}
-      {viewMode === 'split' ? (
-        <MasterDetailLayout
-          listWidthKey="teamflow_feedback_board_narrow_width"
-          onCloseDetail={() => setSelectedId(undefined)}
-          detail={selectedTicket ? (
-            <FeedbackBoardDetail
-              ticket={selectedTicket}
-              config={config}
-              onClose={() => setSelectedId(undefined)}
-              onChanged={handleChanged}
-            />
-          ) : undefined}
-          list={(
-            <div className={selectedTicket ? 'px-2 py-2' : 'px-8 py-2'}>
-              {loading ? loadingHint : filteredSorted.length === 0 ? emptyHint : (
-                <FeedbackBoardList
-                  tickets={filteredSorted}
-                  selectedId={selectedId}
-                  onSelect={t => setSelectedId(t.id)}
-                  meineUserId={meineUserId}
-                />
-              )}
-            </div>
-          )}
-        />
-      ) : (
-        <div className="flex-1 min-h-0 overflow-y-auto px-8 pb-6">
-          {loading && loadingHint}
-          {!loading && filteredSorted.length === 0 && emptyHint}
-          {!loading && filteredSorted.length > 0 && viewMode === 'card' && (
-            <div className="space-y-4">
-              {groups.map(g => (
-                <FeedbackCategoryGroup
-                  key={g.key}
-                  categoryKey={g.key}
-                  items={g.items}
-                  config={config}
-                  collapsed={collapsedCats.has(g.key)}
-                  onToggle={() => toggleCat(g.key)}
-                  onChanged={handleChanged}
-                  meineUserId={meineUserId}
-                />
-              ))}
-            </div>
-          )}
-          {!loading && filteredSorted.length > 0 && viewMode === 'list' && (
-            <FeedbackBoardListView tickets={filteredSorted} config={config} meineUserId={meineUserId} />
-          )}
-        </div>
-      )}
+      {/* Inhalt: Master-Detail-Split */}
+      <MasterDetailLayout
+        listWidthKey="teamflow_feedback_board_narrow_width"
+        onCloseDetail={() => setSelectedId(undefined)}
+        detail={selectedTicket ? (
+          <FeedbackBoardDetail
+            ticket={selectedTicket}
+            config={config}
+            onClose={() => setSelectedId(undefined)}
+            onChanged={handleChanged}
+            meId={meId}
+            meName={meName ?? undefined}
+          />
+        ) : undefined}
+        list={(
+          <div className={selectedTicket ? 'px-2 py-2' : 'px-8 py-2'}>
+            {listContent(!!selectedTicket)}
+          </div>
+        )}
+      />
     </div>
   );
 }

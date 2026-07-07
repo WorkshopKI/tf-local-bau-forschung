@@ -145,6 +145,7 @@ export async function submitFeedback(
           kuerzel: routing.kuerzel ?? 'unbekannt',
           submitted_at: item.created_at,
           text: item.text,
+          title: item.title,
           // category + structured + attachments durchreichen, damit der per
           // Typ-Wahl gesetzte Typ + die Screenshots beim Kurator-Einsammeln
           // (toFeedbackItem) erhalten bleiben.
@@ -208,10 +209,10 @@ export async function updateFeedback(
   updates: Partial<Pick<
     FeedbackItem,
     'kurator_status' | 'kurator_notes' | 'kurator_response' | 'kurator_priority' | 'generated_prompt'
-    | 'category' | 'structured' | 'attachments'
+    | 'category' | 'structured' | 'attachments' | 'title'
     | 'llm_summary' | 'llm_classification' | 'user_confirmed'
     | 'is_faq' | 'faq_answer' | 'faq_keywords' | 'faq_ask_count'
-    | 'effort_estimate' | 'effort_hours'
+    | 'effort_estimate' | 'effort_hours' | 'votes' | 'comments'
   >>,
 ): Promise<void> {
   // Update local

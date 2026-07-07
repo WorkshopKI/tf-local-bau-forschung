@@ -21,6 +21,9 @@ const VISIBLE_AREAS = TEAMFLOW_AREAS;
 
 export interface FeedbackSubmitPayload {
   category: FeedbackCategory;
+  /** Optionaler, scannbarer Titel (Redesign v2.199); leer → UI leitet aus der
+   *  Hauptantwort ab. */
+  title?: string;
   /** Strukturierte Felder; undefined bei Ein-Feld-Typen (Lob/Frage). */
   structured?: Record<string, string>;
   /** Lesbarer Fließtext (Board/Liste/Suche rendern darauf). */
@@ -59,6 +62,7 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
   const { areaRef, setAreaRef, context, showContext, setShowContext, submitting, kiVerfuegbar, onSubmit, onShowMyFeedback, autoFocusScreenshot } = props;
   const [selectedType, setSelectedType] = useState<FeedbackTypeDef | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [title, setTitle] = useState('');
   // Screenshots sind typ-unabhängig → überleben einen Typ-Wechsel (kein Reset in changeType).
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const firstFieldRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
@@ -66,12 +70,14 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
   const chooseType = (type: FeedbackTypeDef): void => {
     setSelectedType(type);
     setFieldValues({});
+    setTitle('');
     requestAnimationFrame(() => firstFieldRef.current?.focus());
   };
 
   const changeType = (): void => {
     setSelectedType(null);
     setFieldValues({});
+    setTitle('');
   };
 
   const setField = (key: string, value: string): void => {
@@ -123,6 +129,7 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
         );
     onSubmit({
       category: selectedType.category,
+      title: title.trim() || undefined,
       structured: structured && Object.keys(structured).length > 0 ? structured : undefined,
       text: composeFeedbackText(selectedType, fieldValues),
       llmHint: selectedType.llmHint,
@@ -146,6 +153,18 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
       <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--tf-text)]">
         <TypeIcon size={14} className="text-[var(--tf-text-secondary)]" />
         {selectedType.label}
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-[11.5px] text-[var(--tf-text-secondary)]">Titel (optional)</label>
+        <input
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="Kurz &amp; knackig — sonst aus der Antwort abgeleitet"
+          maxLength={90}
+          className="w-full px-2.5 py-1.5 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        />
       </div>
 
       {selectedType.fields.map((field, idx) => (

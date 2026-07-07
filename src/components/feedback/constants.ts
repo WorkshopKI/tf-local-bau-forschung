@@ -109,6 +109,9 @@ export interface FeedbackFieldDef {
   key: string;
   /** Feld-Label im Formular. */
   label: string;
+  /** Kurz-Label für die kompakte Karten-Vorschau (Redesign v2.199, uppercase per
+   *  CSS). Fehlt bei Ein-Feld-Typen (Lob/Frage) → dort kein Frage-Präfix. */
+  shortLabel?: string;
   placeholder?: string;
   /** Genau EIN Feld pro Typ ist required (das Kern-Feld). */
   required?: boolean;
@@ -135,24 +138,24 @@ export const FEEDBACK_TYPES: readonly FeedbackTypeDef[] = [
   {
     category: 'problem', label: 'Etwas funktioniert nicht', icon: 'Zap', llmHint: 'bug', primary: true,
     fields: [
-      { key: 'steps', label: 'Was hast du gemacht?', multiline: true },
-      { key: 'actual', label: 'Was ist passiert?', multiline: true, required: true },
-      { key: 'expected', label: 'Was hättest du erwartet?', multiline: true },
+      { key: 'steps', label: 'Was hast du gemacht?', shortLabel: 'Gemacht', multiline: true },
+      { key: 'actual', label: 'Was ist passiert?', shortLabel: 'Passiert', multiline: true, required: true },
+      { key: 'expected', label: 'Was hättest du erwartet?', shortLabel: 'Erwartet', multiline: true },
     ],
   },
   {
     category: 'idea', label: 'Ich wünsche mir etwas', icon: 'Diamond', llmHint: 'feature', primary: true,
     fields: [
-      { key: 'goal', label: 'Was möchtest du tun können?', multiline: true, required: true },
-      { key: 'reason', label: 'Warum / in welcher Situation brauchst du das?', multiline: true },
-      { key: 'idea', label: 'Wie stellst du es dir vor? (optional)', multiline: true },
+      { key: 'goal', label: 'Was möchtest du tun können?', shortLabel: 'Möchte', multiline: true, required: true },
+      { key: 'reason', label: 'Warum / in welcher Situation brauchst du das?', shortLabel: 'Wofür', multiline: true },
+      { key: 'idea', label: 'Wie stellst du es dir vor? (optional)', shortLabel: 'Idee', multiline: true },
     ],
   },
   {
     category: 'ux', label: 'Etwas ist umständlich', icon: 'Wand2', llmHint: 'ux', primary: true,
     fields: [
-      { key: 'pain', label: 'Was ist gerade umständlich?', multiline: true, required: true },
-      { key: 'better', label: 'Was würde es leichter machen?', multiline: true },
+      { key: 'pain', label: 'Was ist gerade umständlich?', shortLabel: 'Umständlich', multiline: true, required: true },
+      { key: 'better', label: 'Was würde es leichter machen?', shortLabel: 'Leichter', multiline: true },
     ],
   },
   {
@@ -198,4 +201,29 @@ export const EFFORT_SHORT_LABELS: Record<EffortEstimate, string> = {
   XL: 'XL 4T',
   XXL: 'XXL 1Wo',
   Epic: 'Epic >2Wo',
+};
+
+/** Ausgeschriebene Aufwand-Größen für den Detail-Drawer (Redesign v2.199),
+ *  z.B. „Small · 4 h". Größe + Zeit kombiniert der Aufrufer aus EFFORT_LABELS. */
+export const EFFORT_SIZE_LABELS: Record<EffortEstimate, string> = {
+  XS: 'Extra Small',
+  S: 'Small',
+  M: 'Medium',
+  L: 'Large',
+  XL: 'Extra Large',
+  XXL: '2XL',
+  Epic: 'Epic',
+};
+
+/**
+ * Kräftige Punkt-Farbe je Kategorie (Redesign v2.199) — für den Farb-Dot der
+ * Typ-Filter-Chips. Nutzt die vorhandenen semantischen `-text`-Tokens (dark-aware),
+ * KEINE Hex-Werte (theme-token-contract). Deckungsgleich mit CATEGORY_COLORS.
+ */
+export const CATEGORY_DOT: Record<FeedbackCategory, string> = {
+  problem: 'var(--tf-danger-text)',
+  idea: 'var(--tf-info-text)',
+  ux: 'var(--tf-accent-text)',
+  praise: 'var(--tf-success-text)',
+  question: 'var(--tf-warning-text)',
 };

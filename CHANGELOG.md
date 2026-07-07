@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.199.0 — Feedback-Board neu gestaltet: Karten, Votes, Kommentare, Kanban (Juli 2026)
+
+MINOR — Das öffentliche Feedback-Board wurde nach dem Design-Handoff (`_design/handoff/feedback`) neu aufgebaut, plus zwei neue team-geteilte Features. Additiv/backward-kompatibel (neue optionale Felder auf `FeedbackItem`, keine Migration).
+
+- **Neues Board-Layout** ([FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)): `PageHeader` „Feedback" + Zähler + Budget-Badge; Toolbar mit **Scope-Tabs** (Alle/Von mir/Vom Team, `ScopeTabs`), **Suche**, **Sortierung** (Neueste ↔ Meiste Votes), **Ansicht-Toggle Liste/Board**; **Typ-Filter-Chips** ([FeedbackTypeChips.tsx](src/components/feedback/FeedbackTypeChips.tsx), aktiv = `--tf-primary`). Ersetzt die frühere Split/Karten/Tabelle-Trias.
+- **Scannbare Karten** ([FeedbackCard.tsx](src/components/feedback/FeedbackCard.tsx)): Typ-Icon-Quadrat, **Titel**, kompakte Q&A-Kurzzeilen (Kurz-Labels „Gemacht/Passiert/Möchte/…"), Status-Badge, Bereich-Chip, **Avatar** ([FeedbackAvatar.tsx](src/components/feedback/FeedbackAvatar.tsx), Farbe deterministisch aus Name), Kommentar-Zähler, Vote-Pill, Screenshot-Thumbnail (Lightbox). Eigenes Feedback mit Akzentstrich links.
+- **Kanban-Board** ([FeedbackKanban.tsx](src/components/feedback/FeedbackKanban.tsx)): Spalten nach amtlichem `kurator_status` (Pitfall #12) + eigene Lob-Spalte.
+- **Detail-Drawer** ([FeedbackBoardDetail.tsx](src/components/feedback/FeedbackBoardDetail.tsx)): Titel, Autor, alle Antworten ausgeschrieben, Screenshot, „Antwort vom Team", **Kommentar-Thread + Eingabe**, Sponsoring-Block (bleibt), **Vote-Footer**.
+- **Votes (neu, budgetfrei)** — eine „Ich auch"-Stimme je Nutzer je Feedback, **getrennt** vom Sponsoring (beide bleiben). `FeedbackVote[]` auf `FeedbackItem`; Aktion `toggleVote` ([feedbackVoting.ts](src/core/services/feedback/feedbackVoting.ts)) spiegelt das Sponsor-Vote-Muster (shared-Write self-gated, Anti-Stale, Read-only-Prod → Outbox `vote-wuensche.json`, Merge `unionMergeVotes` + Collector `autoCollectFeedbackVotes` mit Retraktion).
+- **Kommentare (neu)** — append-only Thread je Feedback, distinkt von `kurator_response`. `FeedbackComment[]`; Aktion `addComment` ([feedbackComments.ts](src/core/services/feedback/feedbackComments.ts)); Outbox `kommentar-outbox.json`, Merge `unionMergeComments` (union-by-id) + Collector `autoCollectFeedbackComments`.
+- **Titel-Feld (neu)** — optionales „Titel"-Feld im Erfassungs-Formular ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx)); Bestands-Feedback fällt über `feedbackTitle()` auf die Hauptantwort zurück.
+- **Kurator-Ansicht angeglichen**: Kurator-Liste ([FeedbackTicketRow.tsx](src/components/feedback/FeedbackTicketRow.tsx)) im neuen Karten-Look (Votes/Kommentare read-only + „Abhaken"-Knopf); Kurator-Detail ([FeedbackTicketDetail.tsx](src/plugins/feedback/sections/FeedbackTicketDetail.tsx)) zeigt Titel + Kommentar-Thread.
+- Merge-Precedence (`mergeItems`) + `updateFeedback`-Whitelist um `title`/`votes`/`comments` erweitert; Collectors an denselben Stellen wie `autoCollectSponsorVotes` verdrahtet (Auto + Inbox-Tab).
+- Verifiziert per `tsc --noEmit` (grün) + `npx vitest run` (296 Dateien / 3093 Tests grün, inkl. neuer Merge-/Präsentations-Tests) + Convention-Guards (theme-token-contract, no-parallel-scope-tabs, no-raw-cta-fill, no-raw-async-onclick, no-raw-modal, screen-context-coverage) + `build:dev`/`build:pl`/`build:kurator`. Am echten Datensatz visuell + Votes/Kommentare-Roundtrip (Prod-Outbox → Kurator-Einsammeln) noch abzunehmen.
+
 ### v2.198.5 — Förderanträge: Titel→Untertitel-Abstand auf 8px (Juli 2026)
 
 PATCH — Feinschliff zu v2.198.4: Abstand Titel→Untertitel im Detailkopf von 10px (`mt-2.5`) auf 8px (`mt-2`) reduziert ([VerbundKopf.tsx](src/plugins/antraege/VerbundKopf.tsx), inkl. XSW-Fallback-Zweig). Reiner Spacing-Tweak.

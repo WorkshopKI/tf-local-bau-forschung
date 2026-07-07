@@ -18,5 +18,12 @@ export { FeedbackBoardList } from './FeedbackBoardList';
 export { FeedbackBoardDetail } from './FeedbackBoardDetail';
 export { FeedbackCategoryGroup, type CategoryGroupKey } from './FeedbackCategoryGroup';
 export { SponsoringInfoBanner } from './SponsoringInfoBanner';
-export { formatRelativeTime, formatShortDate, getLucideIcon, feedbackAuthorLabel } from './feedbackUi';
+// Redesign v2.199
+export { FeedbackCard } from './FeedbackCard';
+export { FeedbackKanban } from './FeedbackKanban';
+export { FeedbackTypeChips, type TypeChipItem } from './FeedbackTypeChips';
+export { FeedbackVotePill } from './FeedbackVotePill';
+export { FeedbackCommentThread } from './FeedbackCommentThread';
+export { FeedbackAvatar, avatarInitials, avatarColor } from './FeedbackAvatar';
+export { formatRelativeTime, formatShortDate, getLucideIcon, feedbackAuthorLabel, feedbackTitle, feedbackQaSegments } from './feedbackUi';
 export * from './constants';

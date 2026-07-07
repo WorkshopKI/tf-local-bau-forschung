@@ -151,6 +151,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
       const item = await submitFeedback(storage, {
         user_id: userId,
         user_display_name: profile?.name,
+        title: payload.title,
         category: payload.category,
         structured: payload.structured,
         text: payload.text,

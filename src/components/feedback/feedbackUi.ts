@@ -6,7 +6,7 @@ import * as Icons from 'lucide-react';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { FEEDBACK_TYPES } from './constants';
 
-export type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
+export type IconComponent = React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
 
 /** Lucide-Icon per Namen auflösen; Fallback auf HelpCircle bei unbekanntem Namen. */
 export function getLucideIcon(name: string): IconComponent {
@@ -49,15 +49,22 @@ export function feedbackAuthorLabel(item: { user_display_name?: string; user_id?
 }
 
 /** Ein Frage-/Antwort-Paar eines Feedbacks für die Listen-Vorschau. `frage` fehlt
- *  bei Ein-Feld-Typen (Lob/Frage) und LLM-Zusammenfassungen — dann nur `antwort`. */
+ *  bei Ein-Feld-Typen (Lob/Frage) und LLM-Zusammenfassungen — dann nur `antwort`.
+ *  `shortFrage` ist das Kurz-Label (Redesign, für die kompakte Karte); fehlt es,
+ *  fällt die Karte auf `frage` zurück. */
 export interface FeedbackQaSegment {
   frage?: string;
+  shortFrage?: string;
   antwort: string;
 }
 
 // Alle bekannten Formular-Labels (= Fragen) für den Text-Fallback bei Alt-Tickets
 // ohne `structured`. composeFeedbackText joint `Label\nWert` mit `\n\n`.
 const KNOWN_FEEDBACK_LABELS = new Set(FEEDBACK_TYPES.flatMap(t => t.fields.map(f => f.label)));
+// Volles Label → Kurz-Label (für den Text-Fallback bei Alt-Tickets).
+const LABEL_TO_SHORT = new Map(
+  FEEDBACK_TYPES.flatMap(t => t.fields.map(f => [f.label, f.shortLabel] as const)),
+);
 
 /**
  * Zerlegt ein Feedback in Frage-/Antwort-Paare für die kompakte Listen-Vorschau
@@ -80,6 +87,7 @@ export function feedbackQaSegments(ticket: FeedbackItem): FeedbackQaSegment[] {
       .map(f => ({
         // Ein-Feld-Typen (Lob/Frage) speichern unter `text` ohne Frage-Präfix.
         frage: f.key === 'text' ? undefined : f.label,
+        shortFrage: f.key === 'text' ? undefined : f.shortLabel,
         antwort: (ticket.structured?.[f.key] ?? '').trim(),
       }))
       .filter(s => s.antwort.length > 0);
@@ -87,6 +95,32 @@ export function feedbackQaSegments(ticket: FeedbackItem): FeedbackQaSegment[] {
   }
 
   return parseComposedFeedbackText(ticket.text);
+}
+
+// Primäres Antwort-Feld je Kategorie — Quelle für die Titel-Ableitung.
+const PRIMARY_FIELD_KEY: Record<string, string> = {
+  problem: 'actual', idea: 'goal', ux: 'pain', question: 'text', praise: 'text',
+};
+
+/**
+ * Scannbarer Titel eines Feedbacks (Redesign v2.199). Bevorzugt den expliziten
+ * `title`; fehlt er (Bestands-Feedback), wird aus der Hauptantwort abgeleitet
+ * (Problem→„Was ist passiert?", Idee→„Was möchtest du tun können?", Lob/Frage→Text),
+ * sonst `llm_summary` / erste Textzeile. Auf `maxLen` Zeichen gekürzt.
+ */
+export function feedbackTitle(item: FeedbackItem, maxLen = 90): string {
+  const explicit = item.title?.trim();
+  if (explicit) return truncate(explicit, maxLen);
+  const key = item.category ? PRIMARY_FIELD_KEY[item.category] : undefined;
+  const primary = key ? item.structured?.[key]?.trim() : undefined;
+  const raw =
+    primary || item.llm_summary?.trim() || item.text?.split('\n').find(l => l.trim())?.trim() || '–';
+  return truncate(raw, maxLen);
+}
+
+function truncate(s: string, maxLen: number): string {
+  const clean = s.replace(/\s+/g, ' ').trim();
+  return clean.length > maxLen ? `${clean.slice(0, maxLen - 1).trimEnd()}…` : clean;
 }
 
 /** Fallback-Parser für den komponierten `text` (`Label\nWert` je `\n\n`-Block). */
@@ -100,7 +134,9 @@ function parseComposedFeedbackText(text: string): FeedbackQaSegment[] {
       if (nl > 0) {
         const first = block.slice(0, nl).trim();
         const rest = block.slice(nl + 1).trim();
-        if (KNOWN_FEEDBACK_LABELS.has(first) && rest) return { frage: first, antwort: rest };
+        if (KNOWN_FEEDBACK_LABELS.has(first) && rest) {
+          return { frage: first, shortFrage: LABEL_TO_SHORT.get(first), antwort: rest };
+        }
       }
       return { antwort: block.trim() };
     })

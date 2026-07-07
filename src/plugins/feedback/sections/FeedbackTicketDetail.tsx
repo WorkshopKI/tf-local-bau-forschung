@@ -15,10 +15,13 @@ import {
 } from '@/core/services/feedback';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { isFeedbackDeleteEnabled } from '@/config/feature-flags';
 import { DEFAULT_FEEDBACK_CONFIG, EFFORT_LABELS, EFFORT_ORDER } from '@/core/types/feedback';
 import type { EffortEstimate, FeedbackCategory, FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { CATEGORY_COLORS, CATEGORY_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/components/feedback/constants';
+import { feedbackTitle } from '@/components/feedback/feedbackUi';
+import { FeedbackCommentThread } from '@/components/feedback/FeedbackCommentThread';
 import { TicketScreenshots } from './TicketScreenshots';
 
 interface Props { ticket: FeedbackItem | null; onClose: () => void; onUpdated: () => void; }
@@ -28,6 +31,7 @@ const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
 
 export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): React.ReactElement {
   const storage = useStorage();
+  const meinKuerzel = useMeinKuerzel() ?? 'KURATOR';
   const [status, setStatus] = useState<FeedbackStatus>('neu');
   const [priority, setPriority] = useState(3);
   const [notes, setNotes] = useState('');
@@ -166,6 +170,9 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
         </div>
       </div>
 
+      {/* Titel (explizit oder abgeleitet) */}
+      <h2 className="text-[15px] font-medium text-[var(--tf-text)] leading-snug">{feedbackTitle(ticket, 140)}</h2>
+
       {/* Original-Feedback */}
       <div>
         <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] font-medium mb-0.5">Original-Feedback</p>
@@ -253,6 +260,11 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
           <input value={faqKeywords} onChange={e => setFaqKeywords(e.target.value)} placeholder="Stichwörter (kommagetrennt)" className={inputClass} style={inputStyle} />
         </div>
       )}
+
+      {/* Kommentar-Thread (Kurator sieht + antwortet mit) */}
+      <div className="pt-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <FeedbackCommentThread ticket={ticket} meId={meinKuerzel} meName={meinKuerzel} onChanged={onUpdated} />
+      </div>
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-1">

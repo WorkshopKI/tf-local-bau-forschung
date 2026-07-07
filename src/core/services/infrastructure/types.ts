@@ -121,6 +121,19 @@ export const PERSOENLICH_MEINE_FEEDBACKS_FILE = 'ZAH/feedback/meine-feedbacks.js
  */
 export const PERSOENLICH_FEEDBACK_SPONSOR_FILE = 'ZAH/feedback/sponsor-wuensche.json';
 /**
+ * v2.199 (Redesign): leichte Votes/Likes des Feedback-Boards. Read-only prod-User
+ * spiegeln ihre Stimmen hier (Liste `ticketId[]` + `updatedAt`); der Kurator
+ * sammelt sie ueber den User-Folders-Root ein und mergt sie in die zentrale
+ * feedback.json (`votes`). Spiegelbild von {@link PERSOENLICH_FEEDBACK_SPONSOR_FILE}.
+ */
+export const PERSOENLICH_FEEDBACK_VOTES_FILE = 'ZAH/feedback/vote-wuensche.json';
+/**
+ * v2.199 (Redesign): Kommentar-Outbox des Feedback-Boards. Read-only prod-User
+ * schreiben ihre neuen Kommentare hier (append-only Liste); der Kurator sammelt
+ * sie ein und mergt sie in die zentrale feedback.json (`comments`, Union-by-id).
+ */
+export const PERSOENLICH_FEEDBACK_COMMENTS_FILE = 'ZAH/feedback/kommentar-outbox.json';
+/**
  * v2.6: MA-Selbst-Profil fuers Auslastungs-Modul (Technologien/Kategorien).
  * Nicht-Kuratoren haben seit v2.0 nur `read` auf dem Daten-Share und koennen
  * `_intern/auslastung.json` nicht schreiben — sie pflegen ihr Profil hier im

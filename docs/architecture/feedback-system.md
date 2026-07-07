@@ -2,6 +2,18 @@
 
 Integriertes User-Feedback + Admin-Dashboard + öffentliches Board mit Sponsoring (Phase 1+2+3 komplett).
 
+## Redesign v2.199 — Votes · Kommentare · Titel · Karten-Board
+
+Das öffentliche Board wurde neu gestaltet (Handoff `_design/handoff/feedback`): scannbare Karten (Typ-Icon + Titel + Kurz-Q&A + Status-Badge + Avatar), Scope-Tabs (Alle/Von mir/Vom Team), Typ-Filter-Chips, Suche, Sortierung (Neueste ↔ Meiste Votes), Kanban-Board-Ansicht + Detail-Drawer. Zwei **neue, additive, team-geteilte** Felder auf `FeedbackItem` (alle optional → alte Shared-Files bleiben lesbar):
+
+- **`title?`** — optionaler, scannbarer Titel. Erfassungs-Formular hat ein optionales „Titel"-Feld (`FeedbackInputStep`); fehlt er (Bestands-Feedback), leitet `feedbackTitle(item)` ([feedbackUi.ts](../../src/components/feedback/feedbackUi.ts)) aus der Hauptantwort ab (Problem→„Was ist passiert?", Idee→„Was möchtest du tun können?", Lob→Text). Merge: user-lokal-wins (wie `text`).
+- **`votes?: FeedbackVote[]`** — budgetfreies „Like" (eine Stimme je Nutzer, Toggle), **getrennt** vom budget-gebundenen Sponsoring (beide bleiben). Zahl = `votes.length`. Aktion `toggleVote` ([feedbackVoting.ts](../../src/core/services/feedback/feedbackVoting.ts)) spiegelt exakt das Sponsor-Vote-Muster: shared-Write self-gated, Anti-Stale (lokal nur eigene Stimme), Read-only-Prod → Outbox `ZAH/feedback/vote-wuensche.json` ([feedbackVoteOutbox.ts](../../src/core/services/feedback/feedbackVoteOutbox.ts)); Merge `unionMergeVotes` (by `user_id`) + Collector `autoCollectFeedbackVotes` (pure `mergeVotesIntoItems`, mit Retraktion).
+- **`comments?: FeedbackComment[]`** — Kommentar-Thread (append-only, Union-by-`id`, nie verlieren), **distinkt** von `kurator_response` („Antwort vom Team"). Aktion `addComment` ([feedbackComments.ts](../../src/core/services/feedback/feedbackComments.ts)); Read-only-Prod → Outbox `ZAH/feedback/kommentar-outbox.json`; Merge `unionMergeComments` + Collector `autoCollectFeedbackComments` (pure `mergeCommentsIntoItems`).
+
+Merge-Precedence in `mergeItems` ([feedbackSharedFile.ts](../../src/core/services/feedback/feedbackSharedFile.ts)): `title` lokal-wins, `votes` union-by-user (nur wenn lokal eigene Stimme = Anti-Stale), `comments` immer union-by-id. Beide Collectors sind an denselben Stellen verdrahtet wie `autoCollectSponsorVotes` (`useAutoCollectFeedback` + Inbox-Tab „Stimmen einsammeln"). `updateFeedback`-Whitelist um `title`/`votes`/`comments` erweitert.
+
+Neue Präsentations-Bausteine (`src/components/feedback/`): `FeedbackCard` (Listen-Zeile), `FeedbackKanban` (Board nach `kurator_status` + Lob-Spalte, Pitfall #12), `FeedbackBoardDetail` (Drawer, neu), `FeedbackTypeChips` (Typ-Filter, aktiv = `--tf-primary`), `FeedbackVotePill`, `FeedbackCommentThread`, `FeedbackAvatar` (deterministische Farbe aus Name). Kurz-Q&A-Labels via `shortLabel` in `FEEDBACK_TYPES`. Die geteilte `FeedbackTicketRow` (Kurator-Liste) ist auf denselben Karten-Look gehoben (Votes/Kommentare read-only + „Abhaken"-Knopf); der Kurator-Detail zeigt Titel + Kommentar-Thread.
+
 ## User-Komponenten (`src/components/feedback/`)
 
 - `FeedbackButton.tsx` — globaler FAB (z-index 40, bottom-right). Wird in `Shell.tsx` gerendert (innerhalb NavigationContext) und ist während aktiver Tour ausgeblendet.
@@ -71,10 +83,9 @@ Substrat für den Prompt-Kontext oben: pro nutzer-sichtbarem Plugin ein kompakte
 ## Öffentliches Board (Phase 3, `src/plugins/feedback-board/`, `id: 'feedback-board'`, KEIN kuratorOnly)
 
 - Sichtbar für alle User in Sidebar Tools-Gruppe (order: 75).
-- `FeedbackBoardPage.tsx` — Header mit BudgetBadge + Kategorie-/Status-/Bereich-Filter-Chips (Kategorie inkl. **UX**) + sortierte Card-Liste.
-- Sortierung: `in_bearbeitung` oben, dann Sponsoring-Progress desc (bei sponsorbaren = Ideen + UX), dann `created_at` desc. „Features"-Header-Zähler = `isSponsorableCategory` (Ideen + UX).
-- Bugs ohne Sponsoring-Balken (werden immer gefixt).
-- Sponsorbare Tickets (Ideen + UX) mit `effort_estimate` zeigen Balken + Sponsor-Buttons.
+- `FeedbackBoardPage.tsx` (Redesign v2.199) — `PageHeader` „Feedback" + Zähler (Probleme/Ideen/Lob) + `BudgetBadge`; Toolbar mit Scope-Tabs (`ScopeTabs`, Alle/Von mir/Vom Team), Suche, Sortier-Umschalter (Neueste ↔ Meiste Votes), Ansicht-Toggle (Liste/Board); Typ-Filter-Chips (`FeedbackTypeChips`); `MasterDetailLayout`-Split mit `FeedbackBoardDetail`-Drawer. Ansicht + Sortierung in localStorage persistiert. Details oben unter „Redesign v2.199".
+- Identität für Scope/Votes/Kommentare = `useMeinKuerzel() ?? profile.name`.
+- Sponsoring bleibt zusätzlich zum Vote (im Drawer eigener Abschnitt, nur sponsorbare Kategorien = Ideen + UX mit `effort_estimate`).
 
 ## Board-Komponenten (`src/components/feedback/`)
 

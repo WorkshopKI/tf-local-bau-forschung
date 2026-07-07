@@ -31,6 +31,10 @@ import { readSharedFile, writeSharedFile, writeSharedAttachment, mergeItems } fr
 import { emitFeedbackUpdated } from './feedbackStorage';
 import { readSponsorVotesFromDir, type SponsorVoteFile } from './feedbackSponsorOutbox';
 import { mergeSponsorVotesIntoItems } from './mergeSponsorVotes';
+import { readFeedbackVotesFromDir, type VoteFile } from './feedbackVoteOutbox';
+import { mergeVotesIntoItems } from './mergeFeedbackVotes';
+import { readFeedbackCommentsFromDir, type CommentFile } from './feedbackCommentOutbox';
+import { mergeCommentsIntoItems } from './mergeFeedbackComments';
 
 export interface FeedbackCollectResult {
   scanned: number;
@@ -55,6 +59,7 @@ function toFeedbackItem(ob: FeedbackOutboxItem): FeedbackItem {
     created_at: ob.submitted_at,
     user_id: ob.kuerzel,
     user_display_name: ob.kuerzel,
+    title: ob.title,
     // category + structured + attachments aus dem Typ-Formular durchreichen (sonst
     // landet alles als "Unklassifiziert" / ohne Screenshots, obwohl der User den
     // Typ gewaehlt + Bilder angehaengt hat).
@@ -214,4 +219,71 @@ export async function autoCollectSponsorVotes(
     emitFeedbackUpdated();
   }
   return { scanned: batch.length, merged: changes };
+}
+
+/**
+ * Sammelt die leichten Feedback-Votes (`<user>/ZAH/feedback/vote-wuensche.json`)
+ * aller User ein und merged sie in die zentrale `feedback.json` (`votes`, mit
+ * Retraktion). Iterations-Muster identisch zu `autoCollectSponsorVotes`.
+ */
+export async function autoCollectFeedbackVotes(
+  storage: StorageService,
+  root: FileSystemDirectoryHandle,
+): Promise<SponsorVotesCollectResult> {
+  const batch: VoteFile[] = [];
+  for await (const entry of (root as FileSystemDirectoryHandle & {
+    values(): AsyncIterableIterator<FileSystemHandle>;
+  }).values()) {
+    if (entry.kind !== 'directory') continue;
+    try {
+      const userDir = await root.getDirectoryHandle(entry.name);
+      const votes = await readFeedbackVotesFromDir(userDir);
+      if (votes) batch.push(votes);
+    } catch {
+      /* User-Ordner ohne Vote-Datei → ignorieren */
+    }
+  }
+  if (batch.length === 0) return { scanned: 0, merged: 0 };
+
+  const shared = await readSharedFile(storage);
+  const { items, neu, entfernt } = mergeVotesIntoItems(shared?.items ?? [], batch);
+  const changes = neu + entfernt;
+  if (changes > 0) {
+    await writeSharedFile(storage, items);
+    emitFeedbackUpdated();
+  }
+  return { scanned: batch.length, merged: changes };
+}
+
+/**
+ * Sammelt die Feedback-Kommentare (`<user>/ZAH/feedback/kommentar-outbox.json`)
+ * aller User ein und merged sie in die zentrale `feedback.json` (`comments`,
+ * append-by-id). Iterations-Muster identisch zu `autoCollectSponsorVotes`.
+ */
+export async function autoCollectFeedbackComments(
+  storage: StorageService,
+  root: FileSystemDirectoryHandle,
+): Promise<SponsorVotesCollectResult> {
+  const batch: CommentFile[] = [];
+  for await (const entry of (root as FileSystemDirectoryHandle & {
+    values(): AsyncIterableIterator<FileSystemHandle>;
+  }).values()) {
+    if (entry.kind !== 'directory') continue;
+    try {
+      const userDir = await root.getDirectoryHandle(entry.name);
+      const comments = await readFeedbackCommentsFromDir(userDir);
+      if (comments) batch.push(comments);
+    } catch {
+      /* User-Ordner ohne Kommentar-Datei → ignorieren */
+    }
+  }
+  if (batch.length === 0) return { scanned: 0, merged: 0 };
+
+  const shared = await readSharedFile(storage);
+  const { items, neu } = mergeCommentsIntoItems(shared?.items ?? [], batch);
+  if (neu > 0) {
+    await writeSharedFile(storage, items);
+    emitFeedbackUpdated();
+  }
+  return { scanned: batch.length, merged: neu };
 }

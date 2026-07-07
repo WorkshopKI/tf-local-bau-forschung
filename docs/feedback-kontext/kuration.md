@@ -19,7 +19,7 @@ Team-weite Einstellungen für das Anfragen-Modul (z.B. ZIM-FAQ-Assistent-URL, An
 Vordefinierte Filter-Presets für Suche/Listen anlegen und pflegen.
 
 ## Feedback
-Kurator-Dashboard für User-Feedback-Tickets: Status setzen, priorisieren, archivieren, Sponsoring einsehen.
+Kurator-Dashboard für User-Feedback-Tickets (Karten-Look mit Titel + Avataren): Status/Kategorie/Priorität/Aufwand setzen, öffentlich antworten, Kommentar-Thread mitlesen/beantworten, Votes einsehen, priorisieren, archivieren, Sponsoring einsehen.
 
 ## Dokument-Review
 Review-Queue für Phase-2-Triage-Ergebnisse: Dokument-Typ korrigieren, Antrag zuordnen, als irrelevant markieren, re-triagieren.

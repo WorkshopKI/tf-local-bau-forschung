@@ -51,6 +51,8 @@ export interface FeedbackOutboxItem {
   kuerzel: string;
   submitted_at: string;
   text: string;
+  /** Optionaler Nutzer-Titel (Redesign v2.199); beim Einsammeln → FeedbackItem.title. */
+  title?: string;
   category?: string;
   /** Strukturierte Formular-Felder (key → wert) aus dem Typ-Formular. Wird beim
    *  Kurator-Einsammeln ins FeedbackItem.structured übernommen (Quelle für promptGenerator). */

@@ -31,8 +31,8 @@ describe('feedbackQaSegments', () => {
       structured: { steps: 'test 1', actual: 'test 2' },
     }));
     expect(segs).toEqual([
-      { frage: 'Was hast du gemacht?', antwort: 'test 1' },
-      { frage: 'Was ist passiert?', antwort: 'test 2' },
+      { frage: 'Was hast du gemacht?', shortFrage: 'Gemacht', antwort: 'test 1' },
+      { frage: 'Was ist passiert?', shortFrage: 'Passiert', antwort: 'test 2' },
     ]);
   });
 
@@ -41,7 +41,7 @@ describe('feedbackQaSegments', () => {
       category: 'problem',
       structured: { steps: '', actual: 'nur das', expected: '   ' },
     }));
-    expect(segs).toEqual([{ frage: 'Was ist passiert?', antwort: 'nur das' }]);
+    expect(segs).toEqual([{ frage: 'Was ist passiert?', shortFrage: 'Passiert', antwort: 'nur das' }]);
   });
 
   it('rendert Ein-Feld-Typen (Lob) ohne Frage-Präfix', () => {
@@ -65,8 +65,8 @@ describe('feedbackQaSegments', () => {
     const text = composeFeedbackText(bug, { steps: 'test 1', actual: 'test 2' });
     const segs = feedbackQaSegments(ticket({ category: 'problem', text }));
     expect(segs).toEqual([
-      { frage: 'Was hast du gemacht?', antwort: 'test 1' },
-      { frage: 'Was ist passiert?', antwort: 'test 2' },
+      { frage: 'Was hast du gemacht?', shortFrage: 'Gemacht', antwort: 'test 1' },
+      { frage: 'Was ist passiert?', shortFrage: 'Passiert', antwort: 'test 2' },
     ]);
   });
 
@@ -75,7 +75,7 @@ describe('feedbackQaSegments', () => {
       category: 'problem',
       structured: { actual: 'Zeile 1\n\nZeile 2' },
     }));
-    expect(segs).toEqual([{ frage: 'Was ist passiert?', antwort: 'Zeile 1\n\nZeile 2' }]);
+    expect(segs).toEqual([{ frage: 'Was ist passiert?', shortFrage: 'Passiert', antwort: 'Zeile 1\n\nZeile 2' }]);
   });
 
   it('liefert für leeres Feedback keine Segmente', () => {
