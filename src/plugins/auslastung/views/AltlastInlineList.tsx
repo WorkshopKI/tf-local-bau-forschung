@@ -9,7 +9,7 @@
  *
  * Spalten pro Zeile: [Alters-Punkt] FKZ(+N) · Akronym · Status ·
  * Antragsdatum · TVs, bündig über ein gemeinsames Grid-Raster. Der farbige Punkt
- * (gedämpfte Blau-Rampe, dunkel Q-1 → hell Q-3..Q-7) spiegelt das Balken-Segment. Bei vielen
+ * (gedämpfte Blau-Rampe, dunkel Q-3..Q-7 → hell Q-1) spiegelt das Balken-Segment. Bei vielen
  * Altanträgen wächst die Karte nach unten (kein Scroll-Cap — bewusst, als PL-Übersicht).
  *
  * Bewusst eigene Datei (nicht in MaInlineDetail.tsx), damit jene Datei nicht
@@ -22,7 +22,7 @@ import type { MaAltlastBucket } from '../services/kapazitaet';
 import { altlastBandColor, ALTLAST_BAND_LABELS } from './uebersicht/altlast-colors';
 
 const HINT =
-  'Noch offene Anträge aus den letzten Quartalen (bis Q-7) — rein informativ, fließen nicht in die Kapazität ein. Farbe = Alter (dunkel → hell = neu → alt).';
+  'Noch offene Anträge aus den letzten Quartalen (bis Q-7) — rein informativ, fließen nicht in die Kapazität ein. Farbe = Alter (dunkel → hell = alt → neu).';
 
 /** Gemeinsames Spalten-Raster für Kopfzeile + Datenzeilen → alle Spalten
  *  stehen bündig untereinander.

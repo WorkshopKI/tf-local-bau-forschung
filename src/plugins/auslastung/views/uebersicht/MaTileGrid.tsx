@@ -163,9 +163,9 @@ export function MaTileGrid({
 }
 
 /** Kompakte Legende für die Altanträge-Alters-Rampe: „Altanträge" + drei Swatches
- *  in Balken-Reihenfolge (hell → dunkel = alt → neu), jeder mit Band-Tooltip. */
+ *  in Balken-Reihenfolge (dunkel → hell = alt → neu), jeder mit Band-Tooltip. */
 function AltlastRampLegend(): React.ReactElement {
-  // Reihenfolge wie im Balken: links = ältestes (Q-3–7, hell) → rechts = neuestes (Q-1, dunkel).
+  // Reihenfolge wie im Balken: links = ältestes (Q-3–7, dunkel) → rechts = neuestes (Q-1, hell).
   const order = [2, 1, 0] as const;
   return (
     <span className="inline-flex items-center gap-1.5">

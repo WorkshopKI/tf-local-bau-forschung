@@ -23,7 +23,7 @@
 
 ### Verbesserungen
 - In der **Mitarbeiter-Übersicht** der Auslastung („Auslastung MA") lässt sich die Grenze zwischen den beiden Balken „Altlasten" und „Aktuelles Quartal" jetzt **mit der Maus verschieben** — die Trennlinie im Spaltenkopf greifen und ziehen, wenn die Altlasten-Spalte schmaler sein soll. Die Einstellung bleibt erhalten; ein Doppelklick auf die Trennlinie setzt sie zurück.
-- Der **Rückstands-Balken** („Altlasten") liest sich jetzt chronologisch von links nach rechts: die ältesten Quartale ganz links, das jüngste rechts.
+- Der **Rückstands-Balken** („Altlasten") liest sich jetzt chronologisch von links nach rechts — die ältesten Quartale ganz links und in der **kräftigsten Farbe**, das jüngste rechts und am hellsten.
 
 ## v2.196 — 2026-07
 

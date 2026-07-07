@@ -52,7 +52,7 @@ export const GesamtauslastungBar = memo(function GesamtauslastungBar({
   const scale = rawSum > 100 ? 100 / rawSum : 1;
   // Ältestes (Q-3..Q-7) zuerst → links, dann Q-2, dann Q-1 (neuestes) rechts —
   // chronologisch links→rechts, konsistent mit der Tabellen-Balken-Spalte.
-  // Farbe je Band unverändert (dunkel = neu), nur die Reihenfolge dreht.
+  // Farbe folgt dem Alter (dunkel = alt/links, hell = neu/rechts).
   const ordered: readonly { band: 1 | 2 | 3; pct: number }[] = [
     { band: 3, pct: b2 },
     { band: 2, pct: b1 },

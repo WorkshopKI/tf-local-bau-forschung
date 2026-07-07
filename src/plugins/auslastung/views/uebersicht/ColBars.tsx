@@ -7,8 +7,8 @@
  * Komponenten EINE Balken-Spalte mit EIGENER linker Grundlinie:
  *
  *  - `AltlastColBar`  — Rückstand: Segmente Q-3–7 · Q-2 · Q-1 (alt→neu, links→
- *    rechts = chronologisch), gedämpfte Blau-Rampe (`altlast-colors`, Farbe je
- *    Band unverändert: dunkel = neu), Track-Breite RELATIV zum größten Rückstand
+ *    rechts = chronologisch), gedämpfte Blau-Rampe (`altlast-colors`, Farbe folgt
+ *    dem Alter: dunkel = alt/links, hell = neu/rechts), Track-Breite RELATIV zum größten Rückstand
  *    aller sichtbaren MAs (`maxBl`) → Zeilenvergleich „wer hat am meisten
  *    liegen". Zahl im Segment nur bei Anteil ≥ 10 %.
  *  - `AktuellColBar`  — aktuelles Quartal: Kapazitäts-Auslastung in % (eigene

@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.197.2 — Auslastung MA: Altlasten-Rampe gedreht — ältestes = kräftigste Farbe (Juli 2026)
+
+PATCH — Folgeschliff zu v2.197.1: Nachdem die Segmente chronologisch laufen (ältestes links), folgt jetzt auch die **Farbe** dem Alter — das älteste Band (Q-3–7, links) ist am dunkelsten/prominentesten, das jüngste (Q-1, rechts) am hellsten. Umgesetzt durch Vertauschen der `--tf-altlast-band-1`↔`-band-3`-Tokens (Fläche + Text, Light + Dark) in [theme.css](src/theme.css); Band-2 unverändert. Alle Konsumenten (Tabelle, Karten, Legende, Inline-Liste) folgen automatisch über [altlast-colors.ts](src/plugins/auslastung/views/uebersicht/altlast-colors.ts) (Fallback-Werte + Doku mitgezogen).
+
 ### v2.197.1 — Auslastung MA: Altlasten-Segmente chronologisch (ältestes links) (Juli 2026)
 
 PATCH — Die Segmente im Altlasten-Balken (Tab „Auslastung MA") laufen jetzt chronologisch links→rechts: **ganz links die ältesten Quartale (Q-3–7), dann Q-2, rechts Q-1 (neuestes)** — umgekehrt zur ersten Fassung von v2.196.0. Reine Reihenfolge; die Farbe je Band bleibt unverändert (dunkel = neu). Gedreht in [ColBars.tsx](src/plugins/auslastung/views/uebersicht/ColBars.tsx) (`AltlastColBar`, Tabelle), [GesamtauslastungBar.tsx](src/plugins/auslastung/views/uebersicht/GesamtauslastungBar.tsx) (Karten-Balken + Tooltip) und der Legende in [MaTileGrid.tsx](src/plugins/auslastung/views/uebersicht/MaTileGrid.tsx) (Swatch-Reihenfolge + Label „alt → neu").

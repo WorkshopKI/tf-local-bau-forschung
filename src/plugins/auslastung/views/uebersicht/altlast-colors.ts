@@ -2,27 +2,28 @@
  * Farb-Rampe der Altanträge-Alters-Bänder (Q-1 → Q-2 → Q-3..Q-7).
  *
  * Gedämpfte, monochrome Blau-Rampe auf dem Primär-Hue (v2.192, Design-Handoff
- * `auslastung-balken`): je NEUER der offene Antrag, desto dunkler/prominenter;
- * älter = heller/zurücktretend. Die frühere warme Gelb→Orange→Rot-Ampel wurde
- * verworfen — ihre Severity-/Ampel-Konnotation kollidierte mit den Status- und
- * Kategorie-Farben. Geteilt von `AltlastColBar` (Tabelle), `GesamtauslastungBar`
- * (Karten-Balken), `MaTileGrid` (Legende) und `AltlastInlineList` (Zeilen-Punkt).
+ * `auslastung-balken`; Rampe gedreht v2.197.2): je ÄLTER der offene Antrag,
+ * desto dunkler/prominenter; neuer = heller/zurücktretend. Die frühere warme
+ * Gelb→Orange→Rot-Ampel wurde verworfen — ihre Severity-/Ampel-Konnotation
+ * kollidierte mit den Status- und Kategorie-Farben. Geteilt von `AltlastColBar`
+ * (Tabelle), `GesamtauslastungBar` (Karten-Balken), `MaTileGrid` (Legende) und
+ * `AltlastInlineList` (Zeilen-Punkt).
  *
  * Farben kommen aus den globalen `--tf-altlast-band-*`-Tokens (Light + Dark in
  * `theme.css`, Token-Vertrag) — hier nur mit Fallback referenziert. Index 0 =
- * Band 1 (Q-1, neuestes/dunkelstes), Index 2 = Band 3 (Q-3..Q-7, ältestes/hellstes).
+ * Band 1 (Q-1, neuestes/hellstes), Index 2 = Band 3 (Q-3..Q-7, ältestes/dunkelstes).
  */
 export const ALTLAST_BAND_COLORS: readonly [string, string, string] = [
-  'var(--tf-altlast-band-1, hsl(215, 18%, 64%))', // Band 1 · Q-1 · neuestes (dunkel)
+  'var(--tf-altlast-band-1, hsl(215, 12%, 83%))', // Band 1 · Q-1 · neuestes (hell)
   'var(--tf-altlast-band-2, hsl(215, 14%, 74%))', // Band 2 · Q-2
-  'var(--tf-altlast-band-3, hsl(215, 12%, 83%))', // Band 3 · Q-3..Q-7 · ältestes (hell)
+  'var(--tf-altlast-band-3, hsl(215, 18%, 64%))', // Band 3 · Q-3..Q-7 · ältestes (dunkel)
 ];
 
 /** Text-/Zahl-Farbe auf dem jeweiligen Band (kontrastsicher, Light + Dark). */
 export const ALTLAST_BAND_TEXT_COLORS: readonly [string, string, string] = [
-  'var(--tf-altlast-band-1-text, #ffffff)',
+  'var(--tf-altlast-band-1-text, hsl(215, 20%, 32%))',
   'var(--tf-altlast-band-2-text, hsl(215, 20%, 32%))',
-  'var(--tf-altlast-band-3-text, hsl(215, 20%, 32%))',
+  'var(--tf-altlast-band-3-text, #ffffff)',
 ];
 
 export const ALTLAST_BAND_LABELS: readonly [string, string, string] = [
