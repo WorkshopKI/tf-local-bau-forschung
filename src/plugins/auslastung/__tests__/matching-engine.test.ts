@@ -459,4 +459,55 @@ describe('runMatching', () => {
       expect(res).toEqual([]);
     });
   });
+
+  // Regression: „keine ähnlichen Projekte" für alle MA/alle Anträge.
+  // aehnlicheProjekte (reine Anzeige) war an das Embedding-Scoring-Gate
+  // (alpha < 1.0) gekoppelt. Da runBm25Matching auf [0,1] normalisiert (Top
+  // immer 1.0), liefert computeAlpha bei jedem nicht-leeren BM25 alpha=1.0 →
+  // Embedding-Stufe übersprungen → aehnlicheProjekte leer. Erwartung nach Fix:
+  // ähnliche Projekte werden auch bei starkem BM25-Match (alpha=1.0) gefüllt.
+  describe('aehnlicheProjekte unabhängig vom alpha-Gate', () => {
+    // Historisches Projekt H1 des MA (tib_kuerz MUE → MA01), das dem aktuellen
+    // Antrag embedding-ähnlich ist.
+    const histAntrag = makeAntrag('H1', { tib_kuerz: 'MUE', titel: 'Alt-KI' } as Partial<Antrag>);
+    const anonymMap = buildAnonymMapForTests([histAntrag]);
+    const muerAnon = anonymMap.toAnon.get('MUE')!; // = MA01 (alphabetisch erstes Kürzel)
+
+    function baseAehnlichInput() {
+      const ma = { ...makeMa(muerAnon, ['IKT'], 1600, ['ki']), hauptKategorie: 'IKT' };
+      return {
+        antrag: makeAntrag('A_CUR', { verbund_titel: 'KI Projekt', vb_phase: 3 } as Partial<Antrag>),
+        primaerKategorie: 'IKT',
+        config: makeConfig({ stage2Aktiv: true }),
+        mitarbeiter: { [muerAnon]: ma },
+        zuweisungen: [],
+        // BM25 trifft ('ki') → normalisiert Top=1.0 → alpha=1.0 (starker Match).
+        historischeDeskriptorenByAnon: new Map([[muerAnon, ['ki']]]),
+        anonymMap,
+        // Stage-2-Eingaben: Query embedding-nah an H1.
+        queryEmbedding: [1, 0, 0],
+        corpusEmbeddings: new Map<string, number[]>([['H1', [1, 0, 0]]]),
+        antraegeIndex: new Map([
+          ['H1', { aktenzeichen: 'H1', tib_kuerz: 'MUE', titel: 'Alt-KI', vb_phase: 3 }],
+        ]),
+      };
+    }
+
+    it('alpha=1.0 (starker BM25) → aehnlicheProjekte trotzdem gefüllt', () => {
+      const ctx = runMatchingWithContext(baseAehnlichInput());
+      const top = ctx.vorschlaege[0]!;
+      // Voraussetzung des Regressionstests: BM25 ist stark → alpha=1.0.
+      expect(top.breakdown!.alpha).toBe(1.0);
+      // Kern: ähnliches Alt-Projekt H1 wird dem MA angezeigt.
+      expect(top.aehnlicheProjekte.length).toBeGreaterThan(0);
+      expect(top.aehnlicheProjekte[0]!.aktenzeichen).toBe('H1');
+    });
+
+    it('Score-Parität: embeddingScore bleibt 0 bei alpha=1.0 (nur Anzeige entkoppelt)', () => {
+      const ctx = runMatchingWithContext(baseAehnlichInput());
+      // Phase A darf das Ranking NICHT ändern — der Embedding-Beitrag bleibt bei
+      // alpha=1.0 genullt, nur die Anzeige-Liste kommt hinzu.
+      expect(ctx.vorschlaege[0]!.embeddingScore).toBe(0);
+    });
+  });
 });

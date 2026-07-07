@@ -229,9 +229,14 @@ export function runMatchingWithContext(input: MatchInput): MatchKontext {
 
     const alpha = computeAlpha(bm25Results);
 
+    // Embedding-Stufe liefert ZWEI Dinge: den `embeddingScore` (fliesst nur bei
+    // alpha < 1.0 ins Ranking, s.u.) UND die `aehnlicheProjekte` (reine Anzeige).
+    // Deshalb NICHT mehr an `alpha < 1.0` koppeln: sonst verschwindet die
+    // Projekt-Anzeige, sobald BM25 irgendetwas trifft (Top wird durch die
+    // [0,1]-Normalisierung immer 1.0 → alpha immer 1.0). Der Score bleibt
+    // unveraendert, weil `emb` unten weiterhin nur bei alpha < 1.0 einfliesst.
     let embeddingByAnon = new Map<string, EmbeddingMatchResult>();
-    if (alpha < 1.0
-      && config.stage2Aktiv
+    if (config.stage2Aktiv
       && input.queryEmbedding
       && input.corpusEmbeddings
       && input.antraegeIndex
@@ -260,7 +265,11 @@ export function runMatchingWithContext(input: MatchInput): MatchKontext {
 
       const bm25 = bm25ByAnon.get(anonId)?.score ?? 0;
       const embRes = embeddingByAnon.get(anonId);
-      const emb = embRes?.embeddingScore ?? 0;
+      // Score-Beitrag weiterhin alpha-gegated → finalScore byte-identisch zu vorher
+      // (bei alpha=1.0 traegt Embedding nichts zum Ranking bei, s. histScore unten).
+      const emb = alpha < 1.0 ? (embRes?.embeddingScore ?? 0) : 0;
+      // Anzeige-Liste unabhaengig vom alpha-Gate — immer die Top-3 aehnlichen
+      // Alt-Projekte des MAs zeigen, sofern Stage-2-Korpus vorhanden.
       const aehnlich: AehnlichesProjekt[] = embRes?.aehnlicheProjekte ?? [];
 
       const { boost: astBoost, count: astMatchCount } = computeAstBoost(

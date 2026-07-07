@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.194.5 — Auslastung: „ähnliche Projekte" erscheinen wieder (Anzeige vom Ranking-Gate entkoppelt) (Juli 2026)
+
+PATCH — Im Zuweisungs-Cockpit („Anträge zuweisen") zeigte seit dem Quartalswechsel **jede** MA-Karte für **jeden** Antrag „keine ähnlichen Projekte", obwohl das Matching (PASSUNG, matchende Technologien) funktionierte und der Themen-Vektoren-Korpus frisch war. Ursache: `aehnlicheProjekte` ist eine reine **Anzeige**-Liste, wurde aber technisch nur in der Embedding-**Scoring**-Stufe befüllt — und die läuft nur bei `alpha < 1.0`. Da `runBm25Matching` auf `[0,1]` normalisiert (Top-MA immer exakt `1.0`), liefert `computeAlpha` bei **jedem** nicht-leeren BM25-Ergebnis `alpha = 1.0` → Embedding-Stufe übersprungen → Liste leer. Mit über das Quartal gewachsenen MA-Profilen trifft BM25 inzwischen praktisch immer → die Anzeige verschwand flächendeckend (deshalb half auch der Korpus-Neuaufbau nicht: der Korpus ist gesund, er wurde nur nie gelesen).
+
+- [matching-engine.ts](src/plugins/auslastung/services/matching/matching-engine.ts) `scorePool`: die Embedding-Stufe läuft jetzt, sobald `stage2Aktiv` + `queryEmbedding` + Korpus + `antraegeIndex` vorhanden sind (Bedingung `alpha < 1.0` entfernt) → `aehnlicheProjekte` werden wieder gefüllt. **Score-Parität gewahrt:** der Embedding-Beitrag `emb` fließt weiterhin nur bei `alpha < 1.0` ins Ranking (`emb = alpha < 1.0 ? … : 0`) — `finalScore`/`embeddingScore` bleiben byte-identisch, es kommt ausschließlich die Anzeige-Liste hinzu.
+- [VorschlagRow.tsx](src/plugins/auslastung/components/VorschlagRow.tsx) unverändert (rendert `aehnlicheProjekte` bereits korrekt). Kein Korpus-Neuaufbau nötig.
+- Regressionstest ([matching-engine.test.ts](src/plugins/auslastung/__tests__/matching-engine.test.ts)): starker BM25-Match (`alpha=1.0`) + ähnliches Alt-Projekt → `aehnlicheProjekte` gefüllt, `embeddingScore` bleibt 0 (Parität). Volle Auslastungs-Suite grün (722 Tests).
+- Hinweis: dass der Embedding-Score wegen dieser BM25-Normalisierung faktisch **nie** ins Ranking einfließt, ist ein separater, tiefer liegender Qualitäts-Punkt und folgt als eigener, eval-abgesicherter Schritt (v2.195).
+
 ### v2.194.4 — Suche: Ergebnistabelle staucht Spalten statt sofort zu scrollen (Juli 2026)
 
 PATCH — Bei breit aufgezogenem Assistent-Panel lief die Suchergebnis-Tabelle sofort in einen horizontalen Scrollbalken und rechte Spalten wurden abgeschnitten, statt sich zu stauchen. Ursache: `table-layout: fixed` nimmt als genutzte Breite das GRÖSSERE aus `width` und der **Summe der `<col>`-Breiten** (CSS 2.1 §17.5.2.1) — mit festen Pixel-Spalten war das ein harter Boden, den `width: min(100%, …)` nicht unterschreiten konnte (der reine `min(100%)`-Vorversuch blieb deshalb wirkungslos).

@@ -22,6 +22,7 @@
 ## v2.194 — 2026-07
 
 ### Bugfixes
+- In der **Auslastung** (Anträge zuweisen) werden unter jedem Mitarbeiter wieder die **ähnlichen früheren Projekte** angezeigt. Seit dem Quartalswechsel stand dort bei allen Mitarbeitern „keine ähnlichen Projekte", obwohl die Passung korrekt berechnet wurde — das ist behoben. Die Reihenfolge der Vorschläge ändert sich dadurch nicht.
 - In der **Suche** passt sich die Trefferliste jetzt der verfügbaren Breite an: Ziehst du den **Assistenten** rechts weit auf, werden die Tabellenspalten schmaler und bleiben sichtbar — statt dass sofort ein waagerechter Rollbalken erscheint und die rechten Spalten (Status, Bewertung …) abgeschnitten werden. Erst wenn es wirklich eng wird, taucht der Rollbalken auf.
 
 ## v2.193 — 2026-07
