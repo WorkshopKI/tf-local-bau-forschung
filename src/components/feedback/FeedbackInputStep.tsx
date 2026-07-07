@@ -15,6 +15,7 @@ import {
 } from './constants';
 import { FaqSuggestions } from './FaqSuggestions';
 import { FeedbackScreenshotInput } from './FeedbackScreenshotInput';
+import { FeedbackFileInput } from './FeedbackFileInput';
 import type { PendingAttachment } from './feedbackAttachments';
 
 const VISIBLE_AREAS = TEAMFLOW_AREAS;
@@ -63,8 +64,9 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
   const [selectedType, setSelectedType] = useState<FeedbackTypeDef | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [title, setTitle] = useState('');
-  // Screenshots sind typ-unabhängig → überleben einen Typ-Wechsel (kein Reset in changeType).
+  // Screenshots + Dateien sind typ-unabhängig → überleben einen Typ-Wechsel (kein Reset in changeType).
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [fileAttachments, setFileAttachments] = useState<PendingAttachment[]>([]);
   const firstFieldRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
 
   const chooseType = (type: FeedbackTypeDef): void => {
@@ -133,7 +135,8 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
       structured: structured && Object.keys(structured).length > 0 ? structured : undefined,
       text: composeFeedbackText(selectedType, fieldValues),
       llmHint: selectedType.llmHint,
-      attachments: attachments.length > 0 ? attachments : undefined,
+      // Screenshots (Bilder) + beigefügte Dateien laufen durch dieselbe attachments-Kette.
+      attachments: attachments.length + fileAttachments.length > 0 ? [...attachments, ...fileAttachments] : undefined,
       verbessern,
     });
   };
@@ -198,6 +201,8 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
       <FaqSuggestions input={composeFeedbackText(selectedType, fieldValues)} />
 
       <FeedbackScreenshotInput attachments={attachments} onChange={setAttachments} autoFocus={autoFocusScreenshot} />
+
+      <FeedbackFileInput files={fileAttachments} onChange={setFileAttachments} />
 
       <div className="flex flex-col gap-1">
         <label className="text-[11px] text-[var(--tf-text-tertiary)]">Bereich (optional)</label>

@@ -68,19 +68,29 @@ function buildAkzeptanzkriterienBlock(ticket: FeedbackItem): string {
   return `\n### Akzeptanzkriterien\n\n${kriterien.map(k => `- ${k}`).join('\n')}\n`;
 }
 
-/** Markdown-Block für beigefügte Screenshots (Referenzen + manueller-Anhang-Hinweis). */
+/** Markdown-Block für beigefügte Screenshots + Dateien (Referenzen + manueller-Anhang-Hinweis). */
 function buildScreenshotsBlock(ticket: FeedbackItem): string {
   const atts = ticket.attachments;
   if (!atts || atts.length === 0) return '';
-  const list = atts
-    .map(a => `- \`${a.filename}\`${a.caption ? ` — ${a.caption}` : ''}`)
-    .join('\n');
+  const images = atts.filter(a => a.kind !== 'file');
+  const files = atts.filter(a => a.kind === 'file');
+  const sections: string[] = [];
+  if (images.length > 0) {
+    sections.push(`### Screenshots\n\n${images
+      .map(a => `- \`${a.filename}\`${a.caption ? ` — ${a.caption}` : ''}`)
+      .join('\n')}`);
+  }
+  if (files.length > 0) {
+    sections.push(`### Dateien\n\n${files
+      .map(a => `- \`${a.name || a.filename}\``)
+      .join('\n')}`);
+  }
   return `
-## Beigefügte Screenshots
+## Beigefügte Anhänge
 
-${list}
+${sections.join('\n\n')}
 
-> ⚠️ Die Bilddateien liegen real im Attachment-Verzeichnis (\`_intern/feedback/attachments/\`). Beim Einfügen dieses Prompts in den Coding-Agent bitte **manuell mit anhängen** — der Prompt-Text enthält sie nicht.
+> ⚠️ Die Dateien liegen real im Attachment-Verzeichnis (\`_intern/feedback/attachments/\`). Beim Einfügen dieses Prompts in den Coding-Agent bitte **manuell mit anhängen** — der Prompt-Text enthält sie nicht.
 `;
 }
 

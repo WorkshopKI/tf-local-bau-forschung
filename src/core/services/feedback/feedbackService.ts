@@ -78,10 +78,25 @@ export interface SubmitAttachment {
   id: string;
   blob: Blob;
   caption?: string;
-  mime: 'image/png' | 'image/jpeg';
+  /** Bild-MIME bei Screenshots, beliebiger Datei-MIME bei `kind:'file'`. */
+  mime: string;
   width: number;
   height: number;
   bytes: number;
+  /** Default `'image'`. `'file'` = beigefügtes Dokument (v2.199.1). */
+  kind?: 'image' | 'file';
+  /** Original-Dateiname (nur bei `kind:'file'`). */
+  name?: string;
+}
+
+/** Endung für den Storage-Dateinamen: bei Dateien aus dem Original-Namen, bei
+ *  Screenshots aus dem Bild-MIME. Fallback `bin`. */
+function attachmentExt(a: SubmitAttachment): string {
+  if (a.kind === 'file') {
+    const m = /\.([a-z0-9]+)$/i.exec((a.name ?? '').trim());
+    return m ? m[1]!.toLowerCase() : 'bin';
+  }
+  return a.mime === 'image/png' ? 'png' : 'jpg';
 }
 
 function buildAttachmentRefs(
@@ -91,13 +106,14 @@ function buildAttachmentRefs(
   const refs: FeedbackAttachment[] = [];
   const blobs: Array<{ filename: string; blob: Blob }> = [];
   for (const a of atts) {
-    const ext = a.mime === 'image/png' ? 'png' : 'jpg';
-    const filename = `${ticketId}-${a.id}.${ext}`;
+    const filename = `${ticketId}-${a.id}.${attachmentExt(a)}`;
     refs.push({
       id: a.id,
       filename,
       caption: a.caption?.trim() ? a.caption.trim() : undefined,
       mime: a.mime,
+      ...(a.kind ? { kind: a.kind } : {}),
+      ...(a.name ? { name: a.name } : {}),
       width: a.width,
       height: a.height,
       bytes: a.bytes,

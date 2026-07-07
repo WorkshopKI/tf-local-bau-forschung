@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.199.1 — Feedback: Dateien anhängen (PDF/Word/Excel/PowerPoint/CSV/TXT/MD) (Juli 2026)
+
+PATCH — Beim Feedback-Geben lassen sich jetzt **Dateien neben Screenshots** anhängen (erläuterndes Dokument, Tabelle, Präsentation …). Additiv, keine Migration (Alt-Anhänge ohne `kind` gelten als Bild).
+
+- **Erfassung** ([FeedbackFileInput.tsx](src/components/feedback/FeedbackFileInput.tsx), neu): eigener Bereich „Dateien anhängen" unter dem Screenshot-Bereich ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx)) — Upload + Drag&Drop, **Whitelist** (pdf, docx, xlsx, pptx, csv, txt, md) + **≤ 10 MB/Datei**, Liste mit Typ-Icon + Name + Größe + Entfernen. Screenshots (Paste/Annotieren) unverändert.
+- **Anzeige** ([FeedbackFiles.tsx](src/components/feedback/FeedbackFiles.tsx), neu): im Board- + Kurator-Detail als **Download-Chips** (Typ-Icon + Name + Größe, Klick = Download via Object-URL, `file://`-tauglich). `FeedbackScreenshots` rendert nur noch Bilder; Karten zeigen ein Büroklammer-Zeichen bei angehängten Dateien.
+- **Datenmodell/Storage:** `FeedbackAttachment` um `kind?: 'image'|'file'` + `name?` erweitert, `mime` auf `string` geweitet ([feedback.ts](src/core/types/feedback.ts)). Die Bytes laufen durch **dieselbe** Storage-/Outbox-/Merge-/Einsammel-Pipeline wie Screenshots (mime-agnostisch) — nur die Storage-Endung wird bei Dateien aus dem Original-Namen abgeleitet ([feedbackService.ts](src/core/services/feedback/feedbackService.ts)). Konstanten `FEEDBACK_FILE_TYPES` + `FEEDBACK_MAX_FILE_BYTES` + reine Validierung `validateFeedbackFile` in [feedbackAttachments.ts](src/components/feedback/feedbackAttachments.ts).
+- Claude-Code-Prompt listet Screenshots + Dateien getrennt (`### Screenshots` / `### Dateien`).
+- Verifiziert per `tsc` + `npx vitest run` (297 Dateien / 3102 Tests grün, inkl. neuer Validierungs-Tests) + Convention-Guards + `build:dev`/`build:pl`/`build:kurator`.
+
 ### v2.199.0 — Feedback-Board neu gestaltet: Karten, Votes, Kommentare, Kanban (Juli 2026)
 
 MINOR — Das öffentliche Feedback-Board wurde nach dem Design-Handoff (`_design/handoff/feedback`) neu aufgebaut, plus zwei neue team-geteilte Features. Additiv/backward-kompatibel (neue optionale Felder auf `FeedbackItem`, keine Migration).

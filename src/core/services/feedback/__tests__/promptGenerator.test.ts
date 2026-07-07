@@ -125,7 +125,8 @@ describe('generateClaudeCodePrompt — attachments', () => {
       ],
     });
     const prompt = generateClaudeCodePrompt(ticket);
-    expect(prompt).toContain('Beigefügte Screenshots');
+    expect(prompt).toContain('Beigefügte Anhänge');
+    expect(prompt).toContain('### Screenshots');
     expect(prompt).toContain('`fb1-a1.png`');
     expect(prompt).toContain('Hier passiert es');
     expect(prompt).toContain('`fb1-a2.jpg`');
@@ -134,8 +135,22 @@ describe('generateClaudeCodePrompt — attachments', () => {
     expect(prompt).not.toContain('data:image');
   });
 
-  it('ohne attachments kein Screenshot-Abschnitt', () => {
+  it('listet beigefügte Dateien mit Original-Namen unter „### Dateien"', () => {
+    const ticket = makeFeedback({
+      category: 'idea',
+      structured: { goal: 'Import' },
+      attachments: [
+        { id: 'f1', filename: 'fb1-f1.xlsx', kind: 'file', name: 'Kennzahlen.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', width: 0, height: 0, bytes: 4096 },
+      ],
+    });
+    const prompt = generateClaudeCodePrompt(ticket);
+    expect(prompt).toContain('### Dateien');
+    expect(prompt).toContain('`Kennzahlen.xlsx`');
+    expect(prompt).not.toContain('### Screenshots');
+  });
+
+  it('ohne attachments kein Anhang-Abschnitt', () => {
     const prompt = generateClaudeCodePrompt(makeFeedback({ category: 'praise', text: 'gut' }));
-    expect(prompt).not.toContain('Beigefügte Screenshots');
+    expect(prompt).not.toContain('Beigefügte Anhänge');
   });
 });

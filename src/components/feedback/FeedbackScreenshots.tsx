@@ -25,11 +25,15 @@ export function FeedbackScreenshots({ attachments, compact = false }: Props): Re
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [lightbox, setLightbox] = useState<FeedbackAttachment | null>(null);
 
+  // Nur Bilder (v2.199.1) — beigefügte Dateien rendert FeedbackFiles. Alt-Anhänge
+  // ohne `kind` gelten als Bild.
+  const images = attachments.filter(a => a.kind !== 'file');
+
   useEffect(() => {
     let cancelled = false;
     const created: Record<string, string> = {};
     void (async () => {
-      for (const att of attachments) {
+      for (const att of images) {
         const bytes = await readSharedAttachment(storage, att.filename);
         if (cancelled) break;
         if (bytes) created[att.id] = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: att.mime }));
@@ -40,9 +44,10 @@ export function FeedbackScreenshots({ attachments, compact = false }: Props): Re
       cancelled = true;
       Object.values(created).forEach(URL.revokeObjectURL);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attachments, storage]);
 
-  if (attachments.length === 0) return null;
+  if (images.length === 0) return null;
 
   // Compact (Card/Liste): kleine, gecroppte Thumbnails. Non-compact (Detail-
   // Panel/Kurator-Detail): großes Vorschaubild, das auf die Panel-Breite skaliert
@@ -57,11 +62,11 @@ export function FeedbackScreenshots({ attachments, compact = false }: Props): Re
     <div>
       {!compact && (
         <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] font-medium mb-1">
-          Screenshots ({attachments.length})
+          Screenshots ({images.length})
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        {attachments.map(att => (
+        {images.map(att => (
           <div key={att.id} className={`flex flex-col gap-1 ${wrapCls}`}>
             {urls[att.id] ? (
               <img

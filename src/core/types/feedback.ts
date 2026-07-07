@@ -131,7 +131,15 @@ export interface FeedbackAttachment {
   /** Dateiname im Attachment-Verzeichnis, z.B. `${ticketId}-${attId}.png`. */
   filename: string;
   caption?: string;
-  mime: 'image/png' | 'image/jpeg';
+  /** MIME-Typ. Bilder: `image/png`/`image/jpeg`; Dokumente (v2.199.1): beliebiger
+   *  Datei-MIME (pdf/xlsx/pptx/docx/csv/txt/md). */
+  mime: string;
+  /** `'image'` (Screenshot, Default wenn fehlend — Alt-Anhänge) vs. `'file'`
+   *  (beigefügtes Dokument, v2.199.1). */
+  kind?: 'image' | 'file';
+  /** Original-Dateiname (nur bei `kind:'file'`, für Anzeige + Download). */
+  name?: string;
+  /** Bild-Dimensionen (0 bei Dateien). */
   width: number;
   height: number;
   /** Dateigröße in Bytes (für Übersicht / Größenwarnung). */

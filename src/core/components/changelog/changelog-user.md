@@ -26,6 +26,7 @@
 - **Stimmen (Daumen hoch):** Für ein Feedback abstimmen zeigt dem Team, wie gefragt es ist — unabhängig vom bisherigen Sponsoring, das erhalten bleibt.
 - **Kommentare:** Zu jedem Feedback lässt sich jetzt ein Gespräch führen — Rückfragen stellen, ergänzen, mitdiskutieren.
 - Beim **Feedback-Geben** kann optional ein kurzer **Titel** vergeben werden (sonst wird er automatisch aus der Antwort abgeleitet).
+- Beim **Feedback-Geben** lassen sich jetzt auch **Dateien anhängen** (PDF, Word, Excel, PowerPoint, CSV, TXT, MD — z. B. ein erläuterndes Dokument oder eine Tabelle), zusätzlich zu Screenshots. Sie erscheinen im Detail als Download.
 
 ## v2.198 — 2026-07
 

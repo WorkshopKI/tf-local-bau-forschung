@@ -18,6 +18,7 @@ import {
 } from './constants';
 import { feedbackAuthorLabel, feedbackTitle, feedbackQaSegments, formatShortDate, getLucideIcon } from './feedbackUi';
 import { FeedbackScreenshots } from './FeedbackScreenshots';
+import { FeedbackFiles } from './FeedbackFiles';
 import { SponsorButton } from './SponsorButton';
 import { FeedbackAvatar } from './FeedbackAvatar';
 import { FeedbackVotePill } from './FeedbackVotePill';
@@ -98,9 +99,12 @@ export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, 
           </div>
         )}
 
-        {/* Screenshots */}
+        {/* Screenshots + beigefügte Dateien */}
         {ticket.attachments && ticket.attachments.length > 0 && (
-          <FeedbackScreenshots attachments={ticket.attachments} />
+          <>
+            <FeedbackScreenshots attachments={ticket.attachments} />
+            <FeedbackFiles attachments={ticket.attachments} />
+          </>
         )}
 
         {/* Antwort vom Team */}

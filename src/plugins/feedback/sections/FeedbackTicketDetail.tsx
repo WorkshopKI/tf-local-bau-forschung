@@ -22,6 +22,7 @@ import type { EffortEstimate, FeedbackCategory, FeedbackConfig, FeedbackItem, Fe
 import { CATEGORY_COLORS, CATEGORY_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/components/feedback/constants';
 import { feedbackTitle } from '@/components/feedback/feedbackUi';
 import { FeedbackCommentThread } from '@/components/feedback/FeedbackCommentThread';
+import { FeedbackFiles } from '@/components/feedback/FeedbackFiles';
 import { TicketScreenshots } from './TicketScreenshots';
 
 interface Props { ticket: FeedbackItem | null; onClose: () => void; onUpdated: () => void; }
@@ -182,9 +183,12 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
         <p className="text-[11.5px] text-[var(--tf-text-secondary)] italic">{ticket.llm_summary}</p>
       )}
 
-      {/* Screenshots */}
+      {/* Screenshots + beigefügte Dateien */}
       {ticket.attachments && ticket.attachments.length > 0 && (
-        <TicketScreenshots attachments={ticket.attachments} />
+        <>
+          <TicketScreenshots attachments={ticket.attachments} />
+          <FeedbackFiles attachments={ticket.attachments} />
+        </>
       )}
 
       {/* Sponsoring-Block */}

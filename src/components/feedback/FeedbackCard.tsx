@@ -3,7 +3,7 @@
 // Eigene Einträge tragen einen feinen Akzentstrich links. Ersetzt für das
 // öffentliche Board die alte FeedbackTicketRow.
 
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Paperclip } from 'lucide-react';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { istUmgesetzt } from '@/core/services/feedback/feedback-status';
 import { CATEGORY_COLORS, CATEGORY_ICONS, STATUS_COLORS, STATUS_LABELS } from './constants';
@@ -32,7 +32,8 @@ export function FeedbackCard({ ticket, selected, mine, meId, meName, onSelect, o
   const date = formatShortDate(ticket.created_at);
   const done = istUmgesetzt(ticket.kurator_status);
   const commentCount = ticket.comments?.length ?? 0;
-  const hasShot = (ticket.attachments?.length ?? 0) > 0;
+  const hasShot = (ticket.attachments ?? []).some(a => a.kind !== 'file');
+  const fileCount = (ticket.attachments ?? []).filter(a => a.kind === 'file').length;
   const iconTint = ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]';
 
   return (
@@ -92,6 +93,11 @@ export function FeedbackCard({ ticket, selected, mine, meId, meName, onSelect, o
               <span className="truncate text-[12px] text-[var(--tf-text-secondary)]">{author}</span>
             </span>
             <span className="ml-auto flex items-center gap-2.5 shrink-0">
+              {fileCount > 0 && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-[var(--tf-text-tertiary)]" title={`${fileCount} Datei${fileCount > 1 ? 'en' : ''} angehängt`}>
+                  <Paperclip size={12} /> {fileCount}
+                </span>
+              )}
               {commentCount > 0 && (
                 <span className="inline-flex items-center gap-1 text-[11px] text-[var(--tf-text-tertiary)]" title={`${commentCount} Kommentar${commentCount > 1 ? 'e' : ''}`}>
                   <MessageSquare size={13} /> {commentCount}

@@ -16,12 +16,95 @@ export interface PendingAttachment {
   caption: string;
   width: number;
   height: number;
-  mime: AttachmentMime;
+  /** Bild-MIME bei Screenshots; beliebiger Datei-MIME bei `kind:'file'`. */
+  mime: string;
   bytes: number;
+  /** Default `'image'` (Screenshot). `'file'` = beigefügtes Dokument (v2.199.1). */
+  kind?: 'image' | 'file';
+  /** Original-Dateiname (nur bei `kind:'file'`). */
+  name?: string;
 }
 
 /** Max. Breite skalierter Screenshots — hält die Outboxen klein. */
 export const MAX_ATTACHMENT_WIDTH = 1600;
+
+// ── Datei-Anhänge (v2.199.1) ────────────────────────────────────────────────
+// Beigefügte Dokumente neben den Screenshots. Die Bytes laufen durch dieselbe
+// Storage-/Outbox-/Merge-Pipeline wie Screenshots (mime-agnostisch); nur die
+// Erfassung (kein Skalieren) + Anzeige (Download-Chip statt Thumbnail) sind neu.
+
+/** Max. Größe pro beigefügter Datei (10 MB) — hält den Daten-Share/Outbox schlank. */
+export const FEEDBACK_MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+export interface FeedbackFileType {
+  ext: string;
+  mimes: string[];
+  label: string;
+  /** lucide-Icon-Name für die Anzeige. */
+  icon: string;
+}
+
+/** Whitelist erlaubter Datei-Typen (Büro-/Text-Formate). Kuratiert — kein exe/js/… */
+export const FEEDBACK_FILE_TYPES: readonly FeedbackFileType[] = [
+  { ext: 'pdf', mimes: ['application/pdf'], label: 'PDF', icon: 'FileText' },
+  { ext: 'docx', mimes: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'], label: 'Word', icon: 'FileText' },
+  { ext: 'xlsx', mimes: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'], label: 'Excel', icon: 'FileSpreadsheet' },
+  { ext: 'pptx', mimes: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'], label: 'PowerPoint', icon: 'Presentation' },
+  { ext: 'csv', mimes: ['text/csv'], label: 'CSV', icon: 'FileSpreadsheet' },
+  { ext: 'txt', mimes: ['text/plain'], label: 'Text', icon: 'FileText' },
+  { ext: 'md', mimes: ['text/markdown'], label: 'Markdown', icon: 'FileText' },
+] as const;
+
+/** Für das `accept`-Attribut des File-Inputs. */
+export const FEEDBACK_FILE_ACCEPT = FEEDBACK_FILE_TYPES.map(t => `.${t.ext}`).join(',');
+
+/** Kleingeschriebene Dateiendung (ohne Punkt) aus einem Dateinamen. */
+export function extFromFileName(name: string | undefined): string {
+  const m = /\.([a-z0-9]+)$/i.exec((name ?? '').trim());
+  return m ? m[1]!.toLowerCase() : '';
+}
+
+/** Whitelist-Eintrag zu einem Dateinamen (per Endung), oder null wenn nicht erlaubt. */
+export function feedbackFileTypeForName(name: string): FeedbackFileType | null {
+  const ext = extFromFileName(name);
+  return FEEDBACK_FILE_TYPES.find(t => t.ext === ext) ?? null;
+}
+
+export type FileValidationResult =
+  | { ok: true; type: FeedbackFileType }
+  | { ok: false; reason: 'type' | 'size' | 'empty' };
+
+/** Reine Validierung (Typ-Whitelist + Größe) — node-testbar. */
+export function validateFeedbackFile(file: { name: string; size: number }): FileValidationResult {
+  const type = feedbackFileTypeForName(file.name);
+  if (!type) return { ok: false, reason: 'type' };
+  if (file.size <= 0) return { ok: false, reason: 'empty' };
+  if (file.size > FEEDBACK_MAX_FILE_BYTES) return { ok: false, reason: 'size' };
+  return { ok: true, type };
+}
+
+/** Baut aus einer validierten Datei einen `PendingAttachment` (kein Skalieren). */
+export function fileToPendingAttachment(file: File): PendingAttachment {
+  const type = feedbackFileTypeForName(file.name);
+  return {
+    id: makeAttachmentId(),
+    blob: file,
+    caption: '',
+    width: 0,
+    height: 0,
+    mime: file.type || type?.mimes[0] || 'application/octet-stream',
+    bytes: file.size,
+    kind: 'file',
+    name: file.name,
+  };
+}
+
+/** Menschenlesbare Dateigröße (z.B. „1,4 MB"). */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toLocaleString('de-DE', { maximumFractionDigits: 1 })} MB`;
+}
 
 /**
  * Pure Dimensions-Mathematik: skaliert auf `maxW` Breite runter (Seitenverhältnis
