@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.194.1 — Gutachten: Skill-Kontrakt A + B um Satz-Referenzen erweitert (Journey-Paket 4, Phase 4) (Juli 2026)
+
+PATCH — Die Abschnitts-Skills A (Kurzfassung) und B (Ausgangslage) instruieren das Modell jetzt, jedes Zitat der Quellenanalyse mit der gestützten Satz-Referenz abzuschließen (` → stützt Satz N`, 1-basiert). Kein Nutzer-sichtbarer Effekt (die UI folgt in Phase 6); die Wirksamkeit für Bestands-Shares ist bis zum Eval-Gate (Phase 5) zurückgehalten.
+
+- **Template-Ergänzung (nur A + B):** der `### Quellenanalyse`-Kontrakt trägt den knappen Satz-Referenz-Zusatz + ein Beispiel ([seed.ts](src/core/services/skills/registry/seed.ts)). Der A-Prompt kommt jetzt aus dem Builder `buildKurzfassungPrompt(belegKontrakt)`, B aus `abschnittTemplate({ …, belegKontrakt: true })`. **C–G bleiben byte-identisch** (`belegKontrakt` default `false`) — gegen den Vor-Paket-4-Stand verifiziert. Seed-Version A + B → `2`; `### Finaler Text`-Kontrakt und B's Nicht-`teilStruktur`-Entscheidung unverändert.
+- **Rollout gestaffelt:** `mergeMissingSeeds` überschreibt bestehende Skills NIE — der Seed-Edit erreicht Bestands-Shares also NICHT von selbst, nur `SEED_REGISTRY` (neue Installationen + der Eval-Lauf, der gegen Seeds auflöst). Die marker-gesicherte Rollout-Migration für Bestands-Shares (überschreibt A/B nur, wenn der Share-Stand `buildKurzfassungPrompt(false)` bzw. `abschnittTemplate(B_ABSCHNITT_OPTS)` gleicht → **kuratierte Edits bleiben unberührt**) wird erst nach bestandenem Eval-Gate (Phase 5) verdrahtet.
+- Template-Snapshot getestet ([seed-belegkontrakt.test.ts](src/core/services/skills/registry/__tests__/seed-belegkontrakt.test.ts)): Instruktion in A + B vorhanden, C–G ohne, `buildKurzfassungPrompt(false)` = Alt-Stand.
+
 ### v2.194.0 — Gutachten: strukturierte Quellen-Belege im Parser (Journey-Paket 4, Phase 3, additiv) (Juli 2026)
 
 MINOR — Rein additive Parser-Erweiterung als Grundlage der Zitat↔Satz-Verknüpfung (die UI folgt in Phase 6). Der Skill-Parser versteht jetzt Zitat-Zeilen der Quellenanalyse mit Satz-Referenz-Suffix; alles Bestehende bleibt byte-identisch. Kein Nutzer-sichtbarer Effekt in dieser Version.

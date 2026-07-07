@@ -29,7 +29,32 @@ const SEED_SYSTEM_PROMPT =
   + 'quellenbasierte Kurzfassungen von Vorhabensbeschreibungen. Antworte ausschließlich '
   + 'auf Deutsch und halte dich exakt an das vorgegebene Ausgabeformat.';
 
-const SEED_PROMPT_TEMPLATE = `Erstelle die **Kurzfassung** der folgenden Vorhabensbeschreibung (VB) für ein ZIM-Gutachten.
+/** Basis-Beschreibung des `### Quellenanalyse`-Blocks (A + B teilen sie wortgleich). */
+const QUELLENANALYSE_KONTRAKT =
+  'Gruppierte wörtliche Kurz-Zitate aus der VB, die du als Beleg nutzt — je mit knapper Fundstellen-Angabe.';
+
+/**
+ * Zusatz-Instruktion (Journey-Paket 4): jede Zitat-Zeile mit der gestützten
+ * Satz-Referenz abschließen. Knapp gehalten (Templates sind bereits lang).
+ * Wird beim Parsen als ` → stützt Satz {n}` erkannt (1-basiert). Nur A + B.
+ */
+const BELEG_KONTRAKT_SUFFIX =
+  ' Schließe jede Zitat-Zeile mit einem Verweis auf die gestützten Sätze deines finalen Textes ab: '
+  + '„ → stützt Satz N" (N = 1-basierte Satznummer; mehrere Sätze „→ stützt Sätze N, M"). '
+  + 'Beispiel: „…wörtliches Zitat…" (Abschn. 1.1) → stützt Satz 2.';
+
+/** Quellenanalyse-Kontrakt-Zeile, optional mit Beleg→Satz-Zusatz (opt-in pro Skill). */
+function quellenanalyseKontrakt(belegKontrakt: boolean): string {
+  return belegKontrakt ? QUELLENANALYSE_KONTRAKT + BELEG_KONTRAKT_SUFFIX : QUELLENANALYSE_KONTRAKT;
+}
+
+/**
+ * A-Prompt (Kurzfassung). `belegKontrakt=false` reproduziert das Template BYTE-
+ * IDENTISCH zum Vor-Paket-4-Stand (kritisch: die Rollout-Migration vergleicht den
+ * Share-Stand gegen `buildKurzfassungPrompt(false)`, um kuratierte Edits zu schützen).
+ */
+export function buildKurzfassungPrompt(belegKontrakt: boolean): string {
+  return `Erstelle die **Kurzfassung** der folgenden Vorhabensbeschreibung (VB) für ein ZIM-Gutachten.
 
 ## Stammdaten des Antrags
 {{stammdaten}}
@@ -53,7 +78,7 @@ Regeln:
 
 ## Ausgabeformat (genau diese drei Abschnitte, jeweils mit der ###-Überschrift)
 ### Quellenanalyse
-Gruppierte wörtliche Kurz-Zitate aus der VB, die du als Beleg nutzt — je mit knapper Fundstellen-Angabe.
+${quellenanalyseKontrakt(belegKontrakt)}
 
 ### Entwurf
 Ein erster, noch ungeschliffener Entwurf der Kurzfassung.
@@ -63,6 +88,7 @@ Der finale, geschliffene Fließtext der Kurzfassung (ca. 10 Sätze, KEIN Listenf
 
 ## Stilbeispiel (nur Schreibstil — Inhalt stammt aus einem anderen Antrag, NICHT übernehmen)
 Das Vorhaben beschreibt die Entwicklung eines Bio-Inkjet-Drucksystems, das durch eine begleitende Diagnose-App individuelle Hautpflegeprodukte direkt auf die Haut des Nutzers aufbringt. Das System kombiniert Mikrofluidik, biokompatible Tinten und präzise Düsentechnologie, um Tintentröpfchen im Mikrometer-Bereich exakt zu positionieren.`;
+}
 
 /** Skill-ID des Kurzfassung-Skills — Konstante für Lookups (Antragsdetail). */
 export const KURZFASSUNG_SKILL_ID = 'gutachten-kurzfassung';
@@ -104,8 +130,9 @@ export const SEED_SKILL: SkillRecord = {
   id: KURZFASSUNG_SKILL_ID,
   name: 'Kurzfassung (Gutachten)',
   beschreibung: 'Erstellt die Kurzfassung eines ZIM-Gutachtens aus der Vorhabensbeschreibung.',
-  version: 1,
-  promptTemplate: SEED_PROMPT_TEMPLATE,
+  // v2 (Journey-Paket 4): Quellenanalyse-Zitate tragen jetzt Satz-Referenzen.
+  version: 2,
+  promptTemplate: buildKurzfassungPrompt(true),
   systemPrompt: SEED_SYSTEM_PROMPT,
   maxTokens: 2048,
   modifiers: {
@@ -165,13 +192,19 @@ const G_PFLICHT_ANFANG =
   + 'Antragsteller haben. Im Unternehmen wird die Technologiekompetenz im Bereich';
 
 /** Baut ein Abschnitts-Template (gemeinsame Hülle, abschnittsspezifischer Kontrakt). */
-function abschnittTemplate(opts: {
+export function abschnittTemplate(opts: {
   name: string;
   aufgabe: string;
-  formatRegeln: string[];
+  formatRegeln: readonly string[];
   finalText: string;
   /** Optionales Stilbeispiel (nur Schreibstil; wird klar markiert angehängt). */
   stilbeispiel?: string;
+  /**
+   * Journey-Paket 4: Zitat→Satz-Referenz-Zusatz im Quellenanalyse-Kontrakt (opt-in
+   * pro Abschnitt, aktuell nur B). `false`/undefined reproduziert das Template
+   * BYTE-IDENTISCH zum Vor-Paket-4-Stand (kritisch für die Rollout-Migration).
+   */
+  belegKontrakt?: boolean;
 }): string {
   const extra = opts.formatRegeln.map(r => `- ${r}`).join('\n');
   const stil = opts.stilbeispiel
@@ -199,7 +232,7 @@ ${extra}
 
 ## Ausgabeformat (genau diese zwei Abschnitte, jeweils mit der ###-Überschrift)
 ### Quellenanalyse
-Gruppierte wörtliche Kurz-Zitate aus der VB, die du als Beleg nutzt — je mit knapper Fundstellen-Angabe.
+${quellenanalyseKontrakt(opts.belegKontrakt ?? false)}
 
 ### Finaler Text
 ${opts.finalText}${stil}`;
@@ -220,30 +253,41 @@ export const SEED_REGELN_BG: QualitaetsRegel[] = [
   regel('seed-g-pflicht-anfang', 'Pflicht-Anfang', 'pflicht_anfang', { text: G_PFLICHT_ANFANG }, 'fehler'),
 ];
 
+/** Skill-ID des Abschnitts B (Konstante für Lookups + Rollout-Migration). */
+export const AUSGANGSLAGE_SKILL_ID = 'gutachten-ausgangslage';
+
+/**
+ * `abschnittTemplate`-Optionen für Abschnitt B — als Konstante herausgezogen, damit
+ * die Rollout-Migration (Journey-Paket 4) den Alt-Stand (`belegKontrakt` weg) gegen
+ * den Neu-Stand (`belegKontrakt: true`) byte-genau bilden kann.
+ */
+export const B_ABSCHNITT_OPTS = {
+  name: 'Hintergrund, Stand der Technik, Lösungsweg',
+  aufgabe:
+    'Stelle Hintergrund, Stand der Technik und Lösungsweg des Vorhabens in drei gedanklichen Teilen dar:\n'
+    + '1. **Hintergrund / Ausgangssituation** (Richtwert ≥ 150 Wörter): Problem, Bedarf, Motivation.\n'
+    + '2. **Stand der Technik** (Richtwert ≥ 150 Wörter): bestehende Ansätze/Lösungen und ihre Grenzen.\n'
+    + '3. **Lösungsweg** (Richtwert ≥ 450 Wörter): der im Antrag beschriebene Lösungsansatz in einigen '
+    + 'Absätzen — KEINE mehrseitige, ins Detail gehende Darstellung des Lösungswegs.',
+  formatRegeln: [
+    'Gliedere den finalen Text in **mindestens vier Absätze**.',
+    '**Fließtext** — keine Aufzählungen, keine Zwischenüberschriften.',
+    'Gesamtumfang **mindestens 750 Wörter**.',
+  ],
+  finalText:
+    'Der finale Fließtext (mindestens 750 Wörter, mindestens vier Absätze): Hintergrund, Stand der '
+    + 'Technik und Lösungsweg in dieser Reihenfolge, ohne Aufzählungen.',
+} as const;
+
 /** Die Abschnitts-Skills B–G (Schritt A = SEED_SKILL bleibt unverändert). */
 export const SEED_SKILLS_BG: SkillRecord[] = [
   {
-    id: 'gutachten-ausgangslage',
+    id: AUSGANGSLAGE_SKILL_ID,
     name: 'Hintergrund, Stand der Technik, Lösungsweg (B)',
     beschreibung: 'Abschnitt B des ZIM-Gutachtens: Hintergrund, Stand der Technik und Lösungsweg.',
-    version: 1,
-    promptTemplate: abschnittTemplate({
-      name: 'Hintergrund, Stand der Technik, Lösungsweg',
-      aufgabe:
-        'Stelle Hintergrund, Stand der Technik und Lösungsweg des Vorhabens in drei gedanklichen Teilen dar:\n'
-        + '1. **Hintergrund / Ausgangssituation** (Richtwert ≥ 150 Wörter): Problem, Bedarf, Motivation.\n'
-        + '2. **Stand der Technik** (Richtwert ≥ 150 Wörter): bestehende Ansätze/Lösungen und ihre Grenzen.\n'
-        + '3. **Lösungsweg** (Richtwert ≥ 450 Wörter): der im Antrag beschriebene Lösungsansatz in einigen '
-        + 'Absätzen — KEINE mehrseitige, ins Detail gehende Darstellung des Lösungswegs.',
-      formatRegeln: [
-        'Gliedere den finalen Text in **mindestens vier Absätze**.',
-        '**Fließtext** — keine Aufzählungen, keine Zwischenüberschriften.',
-        'Gesamtumfang **mindestens 750 Wörter**.',
-      ],
-      finalText:
-        'Der finale Fließtext (mindestens 750 Wörter, mindestens vier Absätze): Hintergrund, Stand der '
-        + 'Technik und Lösungsweg in dieser Reihenfolge, ohne Aufzählungen.',
-    }),
+    // v2 (Journey-Paket 4): Quellenanalyse-Zitate tragen jetzt Satz-Referenzen.
+    version: 2,
+    promptTemplate: abschnittTemplate({ ...B_ABSCHNITT_OPTS, belegKontrakt: true }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,
