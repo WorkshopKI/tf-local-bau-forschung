@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.194.4 — Suche: Ergebnistabelle staucht Spalten statt sofort zu scrollen (Juli 2026)
+
+PATCH — Bei breit aufgezogenem Assistent-Panel lief die Suchergebnis-Tabelle sofort in einen horizontalen Scrollbalken und rechte Spalten wurden abgeschnitten, statt sich zu stauchen. Ursache: `table-layout: fixed` nimmt als genutzte Breite das GRÖSSERE aus `width` und der **Summe der `<col>`-Breiten** (CSS 2.1 §17.5.2.1) — mit festen Pixel-Spalten war das ein harter Boden, den `width: min(100%, …)` nicht unterschreiten konnte (der reine `min(100%)`-Vorversuch blieb deshalb wirkungslos).
+
+- [SearchResultsTable.tsx](src/plugins/suche/SearchResultsTable.tsx): Die `<col>` werden als **Prozent** der Pixel-Summe (`totalWidth`) gerendert statt als Pixel. Dann ist die Spaltensumme = 100 % der Tabellenbreite (kein Pixel-Boden), und `width: min(100%, totalWidth)` + `min-width`-Floor (`RESPONSIVE_MIN_WIDTH = 720`) stauchen die Spalten proportional, sobald der Bereich schmaler wird (z.B. breites Assistent-Panel); erst unter dem Floor greift der horizontale Scrollbalken. Die *bevorzugten* Breiten bleiben Pixel im State — Spalten-Resize + Persistenz unverändert.
+- `applyLiveColumnWidth` rechnet die neue Gesamtbreite direkt aus `columns`/`columnWidths` (statt `parseFloat` über die DOM-`<col>`-Styles, das Prozent-Werte als Pixel fehlgedeutet hätte) und setzt beim Live-Drag ebenfalls Prozent-Cols + `min()`-Tabellenbreite — konsistent zum committeten Render, kein Overflow-Flackern beim Ziehen.
+- Verifiziert per Chrome-Layout-A/B (900px-Container: Pixel-Cols → Tabelle 1400px + Scroll; Prozent-Cols → Tabelle 900px, Spalten gestaucht) + 54 suche-Tests + `build:dev`/`build:pl`. Doc-Kommentar im Dateikopf erklärt die greater-of-W-and-column-sum-Falle.
+
 ### v2.194.3 — Gutachten: Zitat↔Satz-Verknüpfungs-UI im Werkstatt-Layout (Journey-Paket 4, Phase 6) (Juli 2026)
 
 MINOR — Der „Antragsbezug" im Gutachten-Werkstatt-Panel (dev, Feature-Flag `gutachtenWorkflow`) zeigt die Quellen-Belege jetzt als **Karten mit Satz-Zuordnung** statt als flache Zitat-Wand: Hover verbindet Beleg ↔ Satz, Klick pinnt zum gestützten Satz. Mockup `_reference/journey-paket-4/zitat-text.png`. Vollständig additiv — Alt-Läufe (ohne `belege`) rendern exakt wie bisher.

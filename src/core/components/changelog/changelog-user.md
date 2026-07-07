@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.194 — 2026-07
+
+### Bugfixes
+- In der **Suche** passt sich die Trefferliste jetzt der verfügbaren Breite an: Ziehst du den **Assistenten** rechts weit auf, werden die Tabellenspalten schmaler und bleiben sichtbar — statt dass sofort ein waagerechter Rollbalken erscheint und die rechten Spalten (Status, Bewertung …) abgeschnitten werden. Erst wenn es wirklich eng wird, taucht der Rollbalken auf.
+
 ## v2.193 — 2026-07
 
 ### Verbesserungen
