@@ -1,19 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { X } from 'lucide-react';
-import { getStatusLabel } from '@/core/utils/status-mappings';
 import { dominantStatus } from './groupAggregates';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { VerbundAlleFelder } from './VerbundAlleFelder';
-import { VerbundGlance, VerbundPartnerTabelle } from './alleFelder';
+import { VerbundGlance } from './alleFelder';
 import { verbundFelderStats } from './alleFelder/verbundMerge';
 import { VerbundKopf } from './VerbundKopf';
+import { KurzbeschreibungCard } from './KurzbeschreibungCard';
 import { CollapsibleDataSection } from './CollapsibleDataSection';
 import { TeilvorhabenListe } from './TeilvorhabenListe';
 import { VerbundHistorie } from './VerbundHistorie';
 import { ArtefaktLeiste } from './artefakte/ArtefaktLeiste';
-import { ArtefaktBreadcrumb } from './ArtefaktBreadcrumb';
-import { statusZuStepperPosition, STEPPER_STATIONS } from './statusZuStepperPosition';
 import { TvDetailBlock } from './TvDetailBlock';
 import { findFieldValue } from './fieldLookup';
 import { readXsw } from './xsw';
@@ -65,9 +63,8 @@ export function VerbundDetail({
 }: Props): React.ReactElement {
   // Deep-Link aus der Home-„Weitermachen"-Karte: `ziel` (gutachten|nf) scrollt
   // zur Sektion, `abschnitt` (nur GA) springt den Schritt (an GutachtenSection
-  // durchgereicht). Query-Param — überlebt Liste-/URL-Navigation. `setSearchParams`
-  // treibt den „Weiter bei X"-Sprung der Artefakt-Leiste (setzt `abschnitt`).
-  const [searchParams, setSearchParams] = useSearchParams();
+  // durchgereicht). Query-Param — überlebt Liste-/URL-Navigation.
+  const [searchParams] = useSearchParams();
   const zielParam = searchParams.get('ziel');
   const abschnittParam = searchParams.get('abschnitt') ?? undefined;
   // In-Memory-Slim-Liste des Programms — Quelle für die Vorgänger-Suche.
@@ -78,7 +75,7 @@ export function VerbundDetail({
   const { verbund, antraege, history, schemas, sourceNames } = useVerbundDetailData(verbundId, isPseudo);
 
   const [historyField, setHistoryField] = useState<string | null>(null);
-  // Kompakt-Layout: Kurzbeschreibung-Expand im Kopf.
+  // „Volltext lesen"-Zustand der Kurzbeschreibungs-Karte.
   const [kbOpen, setKbOpen] = useState(false);
   // Unterprogramm-Labels (Code → Name) fuer die Stammdaten-Anzeige — statt der
   // nackten Nummer den sprechenden Namen. Hook vor dem fruehen Return halten.
@@ -179,19 +176,11 @@ export function VerbundDetail({
 
   // Kopf-Stepper: Verbund-Ebene (amtliches Aggregat), unabhängig vom expandierten TV.
   const stepperStatus = displayStatus;
-  // Amtliche Phase für die Werkstatt-Breadcrumb (Stepper-Station bzw. Terminal-Label).
-  const stepperPos = statusZuStepperPosition(displayStatus);
-  const phaseLabel: string | null = stepperPos.terminal
-    ? getStatusLabel(displayStatus ?? '')
-    : (STEPPER_STATIONS[stepperPos.station - 1] ?? null);
 
-  // Kopf-Beschreibung: Titel + Kurzzusammenfassung (VB_INHALT) in EINEM Block
-  // (exakte Duplikate zusammengefasst); 3-Zeilen-Clamp via `kbOpen` im VerbundKopf.
-  const beschreibung = (() => {
-    const parts = [titel, vorhabenInhalt].filter((v): v is string => !!v);
-    const uniq = parts.filter((v, i) => parts.indexOf(v) === i);
-    return uniq.length > 0 ? uniq.join(' ') : null;
-  })();
+  // Kurzbeschreibung: die Kurzzusammenfassung (VB_INHALT) rendert als eigene
+  // Karte unter dem Kopf. Titel (= Untertitel) bleibt im Kopf; ist der Inhalt mit
+  // dem Titel identisch, entfällt die Karte (keine Dopplung).
+  const kurzbeschreibung = vorhabenInhalt && vorhabenInhalt !== titel ? vorhabenInhalt : null;
 
   // Header-Aktenzeichen: bei pseudo die echte Aktenzeichen-ID, nicht die __pseudo__-Synthetik.
   const headerId = isPseudo ? aktenzeichenFromPseudoVerbundId(verbundId) : verbund.verbund_id;
@@ -208,34 +197,34 @@ export function VerbundDetail({
   const antragsdatenPreview = [antragsteller, antraege.length > 1 ? `${antraege.length - 1} weitere` : null]
     .filter(Boolean).join(' · ');
 
-  // Zurück-zum-Kopf (Werkstatt-Breadcrumb) + Sprung in GA/NF-Werkstatt (Artefakt-Leiste).
+  // Sprung in die NF-Werkstatt (Artefakt-Leiste-Karte).
   const scrollTo = (id: string): void => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-  const onWeiterGutachten = (stepId?: string): void => {
-    if (stepId) {
-      const next = new URLSearchParams(searchParams);
-      next.set('abschnitt', stepId);
-      setSearchParams(next, { replace: true });
-    }
-    // Nach dem etwaigen Param-Update rendern lassen, dann scrollen.
-    setTimeout(() => scrollTo('gutachten'), 0);
-  };
 
   return (
     <PanelShell onClose={onClose}>
-      {/* VERBUND-KOPF (Phase 6): Identität + Beschreibung + Eckdaten + amtlicher Stepper. */}
+      {/* VERBUND-KOPF (Phase 6): Identität + Eckdaten-Meta + Untertitel + amtlicher Stepper. */}
       <div id="verbund-kopf" className={READ_COL}>
         <VerbundKopf
           akronym={akronym}
           headerId={headerId}
-          beschreibung={beschreibung}
+          untertitel={titel}
           xsw={leadXsw}
-          beschreibungOffen={kbOpen}
-          onToggleBeschreibung={() => setKbOpen(o => !o)}
           stepperStatus={stepperStatus}
           tvs={antraege}
           unterprogramm={unterprogramm}
         />
       </div>
+
+      {/* KURZBESCHREIBUNG — Kurzzusammenfassung (VB_INHALT) als eigene Karte oben. */}
+      {kurzbeschreibung ? (
+        <div className={READ_COL}>
+          <KurzbeschreibungCard
+            text={kurzbeschreibung}
+            open={kbOpen}
+            onToggle={() => setKbOpen(o => !o)}
+          />
+        </div>
+      ) : null}
 
       {/* VORGÄNGER-HINWEIS — frühere abgelehnte/zurückgezogene Einreichungen. */}
       {vorgaenger.length > 0 ? (
@@ -244,17 +233,30 @@ export function VerbundDetail({
         </div>
       ) : null}
 
-      {/* ARTEFAKT-LEISTE (Phase 7): Gutachten + Nachforderung als Fortschritts-Karten —
-          nur erreichte Artefakte. Sprünge in die jeweilige Werkstatt weiter unten. */}
+      {/* ARTEFAKT-LEISTE (Phase 7): Nachforderung als Fortschritts-Karte (nur wenn
+          erreicht). Das Gutachten ist in die Gutachten-Werkstatt unten gewandert. */}
       <div className={READ_COL}>
         <ArtefaktLeiste
           ctxKey={kurzfassungCtx.key}
           tvs={antraege}
           status={displayStatus}
-          onWeiterGutachten={onWeiterGutachten}
           onWeiterNachforderung={() => scrollTo('nf')}
         />
       </div>
+
+      {/* GUTACHTEN-WERKSTATT — Verbund-Ebene (nur dev). Nach oben gezogen (ersetzt
+          die frühere Übersichts-Karte): Fortschritt + „Weiter bei X" leben jetzt im
+          Sektionskopf bzw. der Wiederaufnahme-Zeile. Der Workflow A–G löst die
+          Kurzfassung-Sektion ab; else-if, damit in dev nur EINE Sektion mountet. */}
+      {gutachtenSichtbar ? (
+        <div id="gutachten" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          {isGutachtenWorkflowEnabled() ? (
+            <GutachtenSection ctx={kurzfassungCtx} initialAbschnittId={abschnittParam} />
+          ) : (
+            <KurzfassungSection ctx={kurzfassungCtx} />
+          )}
+        </div>
+      ) : null}
 
       {/* DATEN-SEKTIONEN — kollabierte Zeilen mit Kontext-Vorschau (Default zu).
           Nur echte Verbuende; bei pseudo (Standalone) stecken die Stammdaten im
@@ -262,18 +264,15 @@ export function VerbundDetail({
       {!isPseudo ? (
         <div className={READ_COL}>
           <CollapsibleDataSection
-            title="Antragsdaten und Verbundpartner"
+            title="Antragsdaten"
             storageKey="verbund_antragsdaten_collapsed"
             preview={antragsdatenPreview}
           >
-            <div className="mb-4">
-              <VerbundGlance tvs={antraege} verbundId={verbund.verbund_id} unterprogramm={unterprogramm} />
-            </div>
-            <VerbundPartnerTabelle tvs={antraege} />
+            <VerbundGlance tvs={antraege} verbundId={verbund.verbund_id} unterprogramm={unterprogramm} />
           </CollapsibleDataSection>
 
           <CollapsibleDataSection
-            title="Teilvorhaben"
+            title="Verbundpartner und Teilvorhaben"
             storageKey="verbund_teilvorhaben_collapsed"
             preview={antraege.length}
           >
@@ -320,23 +319,9 @@ export function VerbundDetail({
         </div>
       )}
 
-      {/* GUTACHTEN-WERKSTATT — Verbund-Ebene (nur dev). Der Workflow A–G löst die
-          Kurzfassung-Sektion ab; else-if, damit in dev nur EINE Sektion mountet. */}
-      {gutachtenSichtbar ? (
-        <div id="gutachten" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <ArtefaktBreadcrumb akronym={akronym} phase={phaseLabel} onBack={() => scrollTo('verbund-kopf')} />
-          {isGutachtenWorkflowEnabled() ? (
-            <GutachtenSection ctx={kurzfassungCtx} initialAbschnittId={abschnittParam} />
-          ) : (
-            <KurzfassungSection ctx={kurzfassungCtx} />
-          )}
-        </div>
-      ) : null}
-
       {/* NACHFORDERUNGEN-WERKSTATT — eigener Artefakt-Typ (nur dev). */}
       {isNfNachforderungenEnabled() ? (
         <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <ArtefaktBreadcrumb akronym={akronym} phase={phaseLabel} onBack={() => scrollTo('verbund-kopf')} />
           <NachforderungenSection ctx={kurzfassungCtx} />
         </div>
       ) : null}

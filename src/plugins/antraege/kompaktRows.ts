@@ -15,6 +15,7 @@
 
 import type { AntragListItem } from '@/core/services/csv/types';
 import { fristAnzeige, type FristAnzeige } from './fristAnzeige';
+import { buildAntragGroups } from './antragGroups';
 
 /** Minimal-Shape für Label + Filter — erfüllt von `AntragListItem`. */
 export type KompaktItem = Pick<
@@ -75,4 +76,64 @@ export function buildKompaktRow(item: KompaktItem, nowMs?: number): KompaktRowVM
     label: kompaktLabel(item),
     frist: fristAnzeige(item, nowMs),
   };
+}
+
+/**
+ * Anzeige-VM einer nach Verbund geclusterten Kompakt-Zeile: EIN Eintrag pro
+ * Verbund (statt einer Zeile je TV). Solo-Anträge (ohne `verbund_id`) bleiben je
+ * eine eigene Gruppe.
+ */
+export interface KompaktGroupVM {
+  /** React-Key + Auto-Scroll-Ziel: Aktenzeichen des Lead-TV. */
+  key: string;
+  /** Verbund des Clusters (`null` = Solo-Antrag → als Einzelantrag öffnen). */
+  verbundId: string | null;
+  /** Lead-Aktenzeichen (Solo-Öffnen + Fallback-Label). */
+  leadAktenzeichen: string;
+  /** Aktenzeichen aller TVs im Cluster — für die Aktiv-Markierung, wenn ein
+   *  einzelner TV (statt des Verbundes) selektiert ist. */
+  memberAktenzeichen: string[];
+  /** Anzeige-Label (Lead-Akronym, sonst Aktenzeichen). */
+  label: string;
+  /** Anzahl Teilvorhaben im Cluster (`> 1` ⇒ Verbund). */
+  tvCount: number;
+  /** Relative Frist des Clusters (Lead-TV; terminal/fristlos → `null`). */
+  frist: FristAnzeige | null;
+}
+
+/**
+ * Baut aus der sichtbaren (bereits gefilterten + sortierten) Antragsliste die
+ * nach Verbund geclusterten Zeilen-VMs für den Kompakt-Modus: EIN Eintrag pro
+ * Verbund — ein Klick öffnet den Verbund, dessen TVs stehen dann im Detail.
+ * Reihenfolge folgt der Vollansicht (erstes Vorkommen des Verbundes), Clustering
+ * über den geteilten `buildAntragGroups`-Pfad (kein eigener Verbund-Bucketing-
+ * Nachbau). `nowMs` injizierbar für deterministische Tests.
+ */
+export function buildKompaktGroups(items: AntragListItem[], nowMs?: number): KompaktGroupVM[] {
+  return buildAntragGroups(items, { mode: 'verbund' }).map(g => {
+    const lead = g.tvs[0]!;
+    return {
+      key: lead.aktenzeichen,
+      verbundId: g.verbundId,
+      leadAktenzeichen: lead.aktenzeichen,
+      memberAktenzeichen: g.tvs.map(t => t.aktenzeichen),
+      label: kompaktLabel(lead),
+      tvCount: g.tvs.length,
+      frist: fristAnzeige(lead, nowMs),
+    };
+  });
+}
+
+/**
+ * Clientseitiger Sicht-Filter auf Gruppen: Treffer, wenn die Query im Label
+ * (Lead-Akronym) ODER in einem Mitglieds-Aktenzeichen steckt. Leere Query =
+ * alle (neue Referenz, stabile Reihenfolge).
+ */
+export function filterKompaktGroups(groups: readonly KompaktGroupVM[], query: string): KompaktGroupVM[] {
+  const q = query.trim().toLowerCase();
+  if (q.length === 0) return groups.slice();
+  return groups.filter(g =>
+    g.label.toLowerCase().includes(q) ||
+    g.memberAktenzeichen.some(az => az.toLowerCase().includes(q)),
+  );
 }

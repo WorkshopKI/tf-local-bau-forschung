@@ -13,6 +13,8 @@ import {
   matchesKompaktFilter,
   filterKompaktItems,
   buildKompaktRow,
+  buildKompaktGroups,
+  filterKompaktGroups,
   type KompaktItem,
 } from '../kompaktRows';
 
@@ -104,5 +106,70 @@ describe('buildKompaktRow — Zeilen-VM (Label + relative Frist)', () => {
 
   it('Label-Fallback auf Aktenzeichen ohne Akronym', () => {
     expect(buildKompaktRow(item({ aktenzeichen: 'AZ-42' })).label).toBe('AZ-42');
+  });
+});
+
+/** Voll-Item mit Aktenzeichen + optionalen Feldern (Verbund-Cluster brauchen `verbund_id`). */
+function av(az: string, extra?: Record<string, unknown>): AntragListItem {
+  return {
+    aktenzeichen: az,
+    programm_id: 'P',
+    status: 'beantragt',
+    antragsdatum: ANTRAGSDATUM,
+    ...extra,
+  } as AntragListItem;
+}
+
+describe('buildKompaktGroups — ein Eintrag pro Verbund', () => {
+  it('clustert TVs gleicher verbund_id zu einer Gruppe (Lead = erstes Vorkommen)', () => {
+    const groups = buildKompaktGroups([
+      av('AZ-1', { akronym: 'SCULPT', verbund_id: 'VB-1' }),
+      av('AZ-2', { akronym: 'SCULPT', verbund_id: 'VB-1' }),
+      av('AZ-3', { akronym: 'DIVA', verbund_id: 'VB-2' }),
+    ], nowFor(6));
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({
+      verbundId: 'VB-1', label: 'SCULPT', tvCount: 2, leadAktenzeichen: 'AZ-1', key: 'AZ-1',
+    });
+    expect(groups[0]!.memberAktenzeichen).toEqual(['AZ-1', 'AZ-2']);
+    expect(groups[1]).toMatchObject({ verbundId: 'VB-2', label: 'DIVA', tvCount: 1 });
+  });
+
+  it('Solo-Antrag (ohne verbund_id) → eigene Gruppe, verbundId null', () => {
+    const groups = buildKompaktGroups([av('AZ-9', { akronym: 'SOLO' })], nowFor(6));
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ verbundId: null, tvCount: 1, leadAktenzeichen: 'AZ-9' });
+  });
+
+  it('Frist kommt vom Lead-TV (terminal → null)', () => {
+    const rest = buildKompaktGroups([
+      av('AZ-1', { akronym: 'X', verbund_id: 'VB-1' }),
+      av('AZ-2', { akronym: 'X', verbund_id: 'VB-1' }),
+    ], nowFor(6));
+    expect(rest[0]!.frist).toEqual({ text: 'in 6 T', ampel: 'orange' });
+    const term = buildKompaktGroups([av('AZ-3', { status: 'Schlussvermerk' })], nowFor(6));
+    expect(term[0]!.frist).toBeNull();
+  });
+});
+
+describe('filterKompaktGroups — Filter auf Label + Mitglieds-Aktenzeichen', () => {
+  const groups = buildKompaktGroups([
+    av('ZKN-1', { akronym: 'SCULPT', verbund_id: 'VB-1' }),
+    av('ZKN-2', { akronym: 'SCULPT', verbund_id: 'VB-1' }),
+    av('ZKN-3', { akronym: 'DIVA', verbund_id: 'VB-2' }),
+  ]);
+  it('leere Query → alle (neue Referenz)', () => {
+    const out = filterKompaktGroups(groups, '');
+    expect(out).toHaveLength(2);
+    expect(out).not.toBe(groups);
+  });
+  it('Treffer im Label (Lead-Akronym)', () => {
+    expect(filterKompaktGroups(groups, 'diva').map(g => g.verbundId)).toEqual(['VB-2']);
+  });
+  it('Treffer in einem Mitglieds-Aktenzeichen (auch Nicht-Lead)', () => {
+    expect(filterKompaktGroups(groups, 'zkn-2').map(g => g.verbundId)).toEqual(['VB-1']);
+  });
+  it('kein Treffer → leer', () => {
+    expect(filterKompaktGroups(groups, 'xyz')).toEqual([]);
   });
 });

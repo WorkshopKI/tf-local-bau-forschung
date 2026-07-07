@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { AMPEL_COLOR } from './eingangAmpel';
 import {
-  buildKompaktRow,
-  filterKompaktItems,
-  type KompaktItem,
+  buildKompaktGroups,
+  filterKompaktGroups,
+  type KompaktGroupVM,
 } from './kompaktRows';
 import { Filter, PanelLeftClose, X } from 'lucide-react';
 
@@ -16,6 +16,8 @@ interface Props {
   /** View-Label der aktiven Sicht (z.B. „Offen") — wird uppercase gerendert. */
   viewLabel: string;
   onOpenAntrag: (az: string) => void;
+  /** Öffnet einen Verbund (Klick auf eine geclusterte Verbund-Zeile). */
+  onOpenVerbund: (id: string) => void;
   /** Ausklapp-Icon → Liste einklappen (schmale „Anträge einblenden"-Leiste). */
   onCollapse?: () => void;
 }
@@ -29,14 +31,20 @@ const LOAD_STEP = 120;
  * Kompakt-Listenmodus (Journey-Paket 2 Phase 8) — die schmale Antrags-Spalte
  * neben einem geöffneten Detail (Mockup `split-kompaktliste.png`).
  *
- * Zeile: Ampel-Punkt (aus `fristAnzeige`) + Akronym (Ellipsis + `title`) +
- * relative Frist rechts (gefärbt wie der Punkt; terminal/fristlos → leer).
- * Aktive Zeile trägt **exakt** den Sidebar-Nav-Aktiv-Stil (Links-Balken-Marker
- * `--tf-primary` + `--tf-primary-light`-Fläche + `--tf-text` + `font-medium`);
- * der 2px-Balken ist bei jeder Zeile als transparente Reserve angelegt, damit
- * die Aktivierung keinen Layout-Shift erzeugt.
+ * Bei geöffnetem Detail wird **nach Verbund gruppiert**: EIN Eintrag pro Verbund
+ * (statt einer Zeile je TV) — die TVs eines Verbundes stehen ohnehin im Detail,
+ * sobald man den Verbund öffnet. Solo-Anträge (ohne `verbund_id`) bleiben je eine
+ * eigene Zeile.
  *
- * Der Kopf-Filter filtert NUR die sichtbare Liste clientseitig (kein Eingriff
+ * Zeile: Ampel-Punkt (aus `fristAnzeige` des Lead-TV) + Akronym (Ellipsis +
+ * `title`) + TV-Zähler (nur bei Verbünden > 1) + relative Frist rechts (gefärbt
+ * wie der Punkt; terminal/fristlos → leer). Aktive Zeile trägt **exakt** den
+ * Sidebar-Nav-Aktiv-Stil (Links-Balken-Marker `--tf-primary` +
+ * `--tf-primary-light`-Fläche + `--tf-text` + `font-medium`); der 2px-Balken ist
+ * bei jeder Zeile als transparente Reserve angelegt, damit die Aktivierung keinen
+ * Layout-Shift erzeugt.
+ *
+ * Der Kopf-Filter filtert NUR die sichtbaren Gruppen clientseitig (kein Eingriff
  * in Facetten/Suche/Sortierung — die Reihenfolge bleibt die der Vollansicht).
  * FKZ- und Formel-Spalte werden hier bewusst nicht gerendert.
  */
@@ -46,6 +54,7 @@ export function KompaktListe({
   selectedVerbundId,
   viewLabel,
   onOpenAntrag,
+  onOpenVerbund,
   onCollapse,
 }: Props): React.ReactElement {
   const [query, setQuery] = useState('');
@@ -53,25 +62,28 @@ export function KompaktListe({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const activeRef = useRef<HTMLButtonElement | null>(null);
 
-  const isActiveItem = useCallback(
-    (item: KompaktItem): boolean =>
+  const isActiveGroup = useCallback(
+    (g: KompaktGroupVM): boolean =>
       selectedAktenzeichen != null
-        ? item.aktenzeichen === selectedAktenzeichen
-        : selectedVerbundId != null &&
-          typeof item.verbund_id === 'string' &&
-          item.verbund_id === selectedVerbundId,
+        ? g.memberAktenzeichen.includes(selectedAktenzeichen)
+        : selectedVerbundId != null && g.verbundId === selectedVerbundId,
     [selectedAktenzeichen, selectedVerbundId],
   );
 
+  // Nach Verbund geclusterte Zeilen (ein Eintrag pro Verbund).
+  const groups = useMemo(() => buildKompaktGroups(filtered), [filtered]);
   // Clientseitiger Sicht-Filter — Reihenfolge bleibt die der Vollansicht.
-  const visible = useMemo(() => filterKompaktItems(filtered, query), [filtered, query]);
+  const visible = useMemo(() => filterKompaktGroups(groups, query), [groups, query]);
+  // Trefferzahl bleibt auf TV-Ebene (deckungsgleich zum Tab-Zähler) — auch wenn
+  // die Zeilen nach Verbund geclustert sind.
+  const tvTotal = useMemo(() => visible.reduce((s, g) => s + g.tvCount, 0), [visible]);
 
   // Bei Query-/Datenwechsel das Fenster zurücksetzen (von oben zeigen).
   useEffect(() => { setShown(INITIAL_SHOWN); }, [query, filtered]);
 
-  // Aktiven Antrag garantiert ins Fenster ziehen (auch wenn er weit unten
+  // Aktive Gruppe garantiert ins Fenster ziehen (auch wenn sie weit unten
   // liegt) — sonst hätte die Auto-Scroll-Markierung kein Ziel-Element.
-  const activeIndex = useMemo(() => visible.findIndex(isActiveItem), [visible, isActiveItem]);
+  const activeIndex = useMemo(() => visible.findIndex(isActiveGroup), [visible, isActiveGroup]);
   useEffect(() => {
     if (activeIndex >= 0) setShown(s => Math.max(s, activeIndex + LOAD_STEP));
   }, [activeIndex]);
@@ -89,11 +101,10 @@ export function KompaktListe({
     }
   }, [visible.length]);
 
-  const rows = useMemo(() => visible.slice(0, shown).map(item => ({
-    item,
-    vm: buildKompaktRow(item),
-    active: isActiveItem(item),
-  })), [visible, shown, isActiveItem]);
+  const rows = useMemo(() => visible.slice(0, shown).map(g => ({
+    g,
+    active: isActiveGroup(g),
+  })), [visible, shown, isActiveGroup]);
 
   return (
     <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
@@ -135,7 +146,7 @@ export function KompaktListe({
         <div className="mt-2 px-0.5 flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
           <span className="font-medium truncate">{viewLabel}</span>
           <span aria-hidden="true">·</span>
-          <span className="tabular-nums">{visible.length.toLocaleString('de-DE')}</span>
+          <span className="tabular-nums">{tvTotal.toLocaleString('de-DE')}</span>
         </div>
       </div>
 
@@ -146,13 +157,13 @@ export function KompaktListe({
             {query.length > 0 ? 'Kein Treffer im Filter.' : 'Keine Anträge.'}
           </div>
         ) : (
-          rows.map(({ item, vm, active }) => (
+          rows.map(({ g, active }) => (
             <button
-              key={vm.aktenzeichen}
+              key={g.key}
               ref={active ? activeRef : undefined}
               type="button"
-              onClick={() => onOpenAntrag(item.aktenzeichen)}
-              title={vm.label}
+              onClick={() => (g.verbundId ? onOpenVerbund(g.verbundId) : onOpenAntrag(g.leadAktenzeichen))}
+              title={g.tvCount > 1 ? `${g.label} · ${g.tvCount} Teilvorhaben` : g.label}
               aria-current={active ? 'true' : undefined}
               className={`flex items-center gap-2 w-full text-left py-[7px] pl-2 pr-2 border-l-2 rounded-r-[6px] transition-colors cursor-pointer ${
                 active
@@ -162,16 +173,24 @@ export function KompaktListe({
             >
               <span
                 className="shrink-0 w-1.5 h-1.5 rounded-full"
-                style={{ background: vm.frist ? AMPEL_COLOR[vm.frist.ampel] : 'var(--tf-border)' }}
+                style={{ background: g.frist ? AMPEL_COLOR[g.frist.ampel] : 'var(--tf-border)' }}
                 aria-hidden="true"
               />
-              <span className="flex-1 min-w-0 truncate text-[13px]">{vm.label}</span>
-              {vm.frist ? (
+              <span className="flex-1 min-w-0 truncate text-[13px]">{g.label}</span>
+              {g.tvCount > 1 ? (
+                <span
+                  className="shrink-0 text-[10.5px] tabular-nums text-[var(--tf-text-tertiary)]"
+                  aria-label={`${g.tvCount} Teilvorhaben`}
+                >
+                  {g.tvCount}
+                </span>
+              ) : null}
+              {g.frist ? (
                 <span
                   className="shrink-0 text-[11px] tabular-nums whitespace-nowrap"
-                  style={{ color: AMPEL_COLOR[vm.frist.ampel] }}
+                  style={{ color: AMPEL_COLOR[g.frist.ampel] }}
                 >
-                  {vm.frist.text}
+                  {g.frist.text}
                 </span>
               ) : null}
             </button>

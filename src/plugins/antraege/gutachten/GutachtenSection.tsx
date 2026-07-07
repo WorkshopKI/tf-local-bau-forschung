@@ -301,6 +301,17 @@ export function GutachtenSection({
         </button>
       </div>
 
+      {/* Fortschrittsbalken (aus der früheren Übersichts-Karte übernommen) — bleibt
+          auch bei eingeklappter Sektion als Summen-Anzeige sichtbar. */}
+      {run && steps.length > 0 && (
+        <div className="h-[3px] rounded-full bg-[var(--tf-border)] overflow-hidden mb-3">
+          <div
+            className="h-full rounded-full bg-[var(--tf-text-secondary)]"
+            style={{ width: `${Math.round((freigegebenCount / steps.length) * 100)}%` }}
+          />
+        </div>
+      )}
+
       {/* Body via CSS verstecken (nicht unmounten) — erhält Editor-Buffer. */}
       <div className={open ? undefined : 'hidden'}>
       {ctrl.bulkRunning && (

@@ -212,6 +212,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
           selectedVerbundId={selectedVerbundId}
           viewLabel={getView(activeView).label}
           onOpenAntrag={openAntrag}
+          onOpenVerbund={openVerbund}
           onCollapse={onCollapse}
         />
       </div>
