@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.197.0 — Auslastung MA: Balken-Spalten-Grenze „Altlasten ↔ Aktuelles Quartal" ziehbar (Juli 2026)
+
+MINOR — In der MA-Tabelle („Auslastung MA") lässt sich die Grenze zwischen den beiden Balken-Spalten „Altlasten (Rückstand)" und „Aktuelles Quartal" per Griff verschieben — wer die Altlasten-Spalte schmaler will, zieht die Kante nach links; die frei werdende Breite bekommt „Aktuelles Quartal". Breite pro Rechner persistiert (localStorage), Doppelklick auf den Griff setzt auf den 30-%-Default zurück.
+
+- [MaTable.tsx](src/plugins/auslastung/views/uebersicht/MaTable.tsx): `table-layout: fixed` + `<colgroup>`; die Altlasten-Spalte trägt die einzige variable Breite (`--altlast-w`, Default 30 %), „Aktuelles Quartal" ist `auto` und füllt den Rest → schmalere Altlasten = breiteres Aktuelles Quartal. Resize-Griff an der Spaltenkante (Muster wie `SortableTable`); Live-Drag mutiert **nur** die CSS-Var am `<table>` (kein Row-Re-Render — Zeilen sind memoized), Commit on mouseup über [useColumnWidths](src/components/data-table/useColumnWidths.ts) (`auslastung_ma_colwidths`). Untergrenze 96px, Obergrenze hält „Aktuelles Quartal" ≥ 150px. Header kürzen bei schmaler Spalte mit Ellipse; Status-Spalte auf 124px verbreitert (unter fixed-layout bräche „Ohne Buchung" sonst um).
+- [MaCompactRow.tsx](src/plugins/auslastung/views/uebersicht/MaCompactRow.tsx): feste Zellbreiten der Balken-Zellen entfernt (das `<colgroup>` ist unter `table-layout: fixed` autoritativ); Altlasten- + MA-Zelle clippen (`overflow: hidden`).
+- Verifiziert per `npm run check` (Typecheck + 3053 Tests grün) + `build:dev`/`build:pl`. Drag/Persistenz/Reset visuell noch am echten Datensatz abzunehmen.
+
 ### v2.196.0 — Auslastung MA: zwei getrennte Balken-Spalten + gedämpfte Blau-Rampe (Design-Handoff) (Juli 2026)
 
 MINOR — Der Tab „Auslastung MA" übernimmt die Balken-Darstellung aus dem Design-Handoff `_design/handoff/auslastung-balken` (Layout C). Die frühere **eine** Spalte „Auslastung" (zwei gestapelte Balken) + separate Spalte „Belegt %" weicht **zwei nebeneinanderliegenden Balken-Spalten** mit je eigener linker Grundlinie: „Altlasten (Rückstand)" und „Aktuelles Quartal". Die warme Gelb→Orange→Rot-Altanträge-Rampe (Severity-/Ampel-Konnotation, kollidierte mit Status-/Kategorie-Farben) weicht einer **gedämpften Blau-Rampe** auf dem Primär-Hue (dunkel = neu → hell = alt); Zahlen stehen jetzt in den Balken.

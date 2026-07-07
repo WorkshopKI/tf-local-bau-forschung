@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.197 — 2026-07
+
+### Verbesserungen
+- In der **Mitarbeiter-Übersicht** der Auslastung („Auslastung MA") lässt sich die Grenze zwischen den beiden Balken „Altlasten" und „Aktuelles Quartal" jetzt **mit der Maus verschieben** — die Trennlinie im Spaltenkopf greifen und ziehen, wenn die Altlasten-Spalte schmaler sein soll. Die Einstellung bleibt erhalten; ein Doppelklick auf die Trennlinie setzt sie zurück.
+
 ## v2.196 — 2026-07
 
 ### Verbesserungen

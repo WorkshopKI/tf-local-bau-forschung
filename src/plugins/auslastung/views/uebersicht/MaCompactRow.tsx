@@ -82,7 +82,7 @@ function MaCompactRowImpl({
       style={{ borderTop: '0.5px solid var(--tf-border)' }}
     >
       {/* MA */}
-      <td className="font-mono align-middle whitespace-nowrap" style={{ padding: CELL_PAD, fontSize: 11.5, fontWeight: 500, width: 110, color: dimmed ? 'var(--tf-text-tertiary)' : 'var(--tf-text)' }}>
+      <td className="font-mono align-middle whitespace-nowrap" style={{ padding: CELL_PAD, fontSize: 11.5, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', color: dimmed ? 'var(--tf-text-tertiary)' : 'var(--tf-text)' }}>
         <span title={realName ? `${ma.anonId} (${realName})` : ma.anonId}>
           {ma.anonId}
           {realName && (
@@ -94,13 +94,14 @@ function MaCompactRowImpl({
         </span>
       </td>
 
-      {/* Altlasten (Rückstand) — eigener Balken, relativ zum Kohorten-Max */}
-      <td className="align-middle" style={{ padding: CELL_PAD, width: '30%', minWidth: 210 }}>
+      {/* Altlasten (Rückstand) — eigener Balken, relativ zum Kohorten-Max.
+          Spaltenbreite kommt aus dem <colgroup> (resizable, --altlast-w). */}
+      <td className="align-middle" style={{ padding: CELL_PAD, overflow: 'hidden' }}>
         <AltlastColBar bandTvs={bandTvs} maxBl={maxBl} />
       </td>
 
       {/* Aktuelles Quartal — Kapazitäts-Auslastung %, per-Typ darunter, Zonentrenner links */}
-      <td className="align-middle" style={{ padding: CELL_PAD, width: '20%', minWidth: 150, borderLeft: '0.5px solid var(--tf-border)' }}>
+      <td className="align-middle" style={{ padding: CELL_PAD, borderLeft: '0.5px solid var(--tf-border)' }}>
         <div className="flex flex-col gap-1.5">
           <AktuellColBar belegtPct={belegtPct} freiTVs={kapView.restTVs} quartal={quartal} />
           {kapTyp?.hatKontingent && <TypKapazitaetBars view={kapTyp} variant="row" />}
