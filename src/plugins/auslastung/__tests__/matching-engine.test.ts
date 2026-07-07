@@ -53,20 +53,23 @@ function makeConfig(overrides: Partial<AuslastungConfig> = {}): AuslastungConfig
 }
 
 describe('computeAlpha', () => {
-  it('mindestens ein high (>0.5) -> 1.0', () => {
+  // v2.195: alpha bandet die ABSOLUTE Profil-Coverage (`deckung`), NICHT den
+  // pool-normalisierten `score` (Top wäre immer 1.0 → alpha immer 1.0).
+  it('beste Coverage >= 0.5 -> 1.0 (starker lexikalischer Match)', () => {
     expect(computeAlpha([
-      { anonId: 'MA01', score: 0.8, matchendeTechnologien: [], confidence: 'high' },
-      { anonId: 'MA02', score: 0.1, matchendeTechnologien: [], confidence: 'low' },
+      { anonId: 'MA01', score: 1.0, deckung: 0.8, matchendeTechnologien: [], confidence: 'high' },
+      { anonId: 'MA02', score: 0.4, deckung: 0.1, matchendeTechnologien: [], confidence: 'low' },
     ])).toBe(1.0);
   });
-  it('mindestens ein medium -> 0.5', () => {
+  it('beste Coverage im Mittelband (>=0.2, <0.5) -> 0.5 (Blend)', () => {
     expect(computeAlpha([
-      { anonId: 'MA01', score: 0.3, matchendeTechnologien: [], confidence: 'medium' },
+      { anonId: 'MA01', score: 1.0, deckung: 0.3, matchendeTechnologien: [], confidence: 'high' },
     ])).toBe(0.5);
   });
-  it('alle low -> 0.2', () => {
+  it('Top-Score 1.0 aber niedrige Coverage -> 0.2 (Embedding dominiert)', () => {
+    // Regressions-Kern: normalisierter Score wäre 1.0 gewesen → früher fälschlich alpha 1.0.
     expect(computeAlpha([
-      { anonId: 'MA01', score: 0.1, matchendeTechnologien: [], confidence: 'low' },
+      { anonId: 'MA01', score: 1.0, deckung: 0.1, matchendeTechnologien: [], confidence: 'high' },
     ])).toBe(0.2);
   });
   it('leer -> 0.2', () => {

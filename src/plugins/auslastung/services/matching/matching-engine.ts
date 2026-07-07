@@ -434,12 +434,31 @@ function buildQueryText(antrag: Antrag): string {
   return parts.join(' ');
 }
 
+/** Schwellen fuer die BM25-Konfidenz (Profil-Coverage ∈ [0,1]) → alpha.
+ *  KALIBRIER-KNÖPFE: an Echtdaten justieren (siehe computeAlpha-Doc). Bewusst auf
+ *  denselben Banden-Werten wie das alte Design (>0.5 „high", ≥0.2 „medium"), jetzt
+ *  aber auf einem ABSOLUTEN Signal statt dem pool-normalisierten Score. */
+const BM25_DECKUNG_HOCH = 0.5;
+const BM25_DECKUNG_MITTEL = 0.2;
+
+/**
+ * Dynamisches Alpha (Gewicht BM25 vs. Embedding im histScore-Blend).
+ *
+ * FRUEHER las die Funktion `r.score` — der ist aber pool-**normalisiert**
+ * (`runBm25Matching` teilt durch den Max), der beste MA also IMMER exakt 1.0.
+ * Damit war `some(r.score >= 0.5)` bei jedem nicht-leeren BM25 wahr → alpha immer
+ * 1.0 → der Embedding-Score floss NIE ins Ranking, der 0.5-Zweig war toter Code.
+ *
+ * Jetzt bandet die Funktion die ABSOLUTE `deckung` (Profil-Coverage, un-normalisiert):
+ *  - beste Coverage >= HOCH   → alpha 1.0  (starker lexikalischer Match, BM25 vertrauen)
+ *  - >= MITTEL                → alpha 0.5  (Blend)
+ *  - darunter / leer          → alpha 0.2  (Embedding dominiert)
+ */
 export function computeAlpha(bm25: Bm25Result[]): number {
   if (bm25.length === 0) return 0.2;
-  const hasHigh = bm25.some(r => r.score >= 0.5);
-  if (hasHigh) return 1.0;
-  const hasMedium = bm25.some(r => r.score >= 0.2);
-  if (hasMedium) return 0.5;
+  const maxDeckung = bm25.reduce((m, r) => Math.max(m, r.deckung), 0);
+  if (maxDeckung >= BM25_DECKUNG_HOCH) return 1.0;
+  if (maxDeckung >= BM25_DECKUNG_MITTEL) return 0.5;
   return 0.2;
 }
 

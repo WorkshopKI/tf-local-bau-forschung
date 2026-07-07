@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.195 — 2026-07
+
+### Verbesserungen
+- In der **Auslastung** (Anträge zuweisen) fließt die inhaltliche Ähnlichkeit jetzt wieder in die **Reihenfolge der Mitarbeiter-Vorschläge** ein, wenn die reine Stichwort-Übereinstimmung dünn ist. Bei klaren Stichwort-Treffern bleibt die Reihenfolge wie gewohnt; bei schwacher Stichwortlage rücken thematisch passende Mitarbeiter nach oben. Bitte im Blick behalten und Bescheid geben, falls Vorschläge unpassend wirken.
+
 ## v2.194 — 2026-07
 
 ### Bugfixes

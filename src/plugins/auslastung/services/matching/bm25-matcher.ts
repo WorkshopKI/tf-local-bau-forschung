@@ -57,6 +57,11 @@ export interface Bm25Result {
   /** Eingangs-Tokens des MAs die im Query waren (fuer UI-Anzeige). */
   matchendeTechnologien: string[];
   confidence: 'high' | 'medium' | 'low';
+  /** ABSOLUTE lexikalische Konfidenz ∈ [0,1]: Anteil der DISTINKTEN
+   *  Profil-Tokens des MAs, die im Query vorkommen (Profil-Coverage). Anders als
+   *  `score` NICHT durch den Pool-Max normalisiert → taugt als Schwellen-Signal
+   *  fuer `computeAlpha` (siehe dort). `score` bleibt die relative Rangordnung. */
+  deckung: number;
 }
 
 /** Baut Pro-MA-Dokument aus Profile-Deskriptoren + manuellen Tags.
@@ -182,7 +187,7 @@ export function runBm25Matching(input: RunBm25Input): Bm25Result[] {
 
   if (docs.length === 0 || queryTokens.length === 0) return [];
 
-  const raw: Array<{ anonId: string; score: number; tech: string[] }> = [];
+  const raw: Array<{ anonId: string; score: number; tech: string[]; deckung: number }> = [];
   for (const doc of docs) {
     const score = bm25Score(queryTokens, doc, docs);
     // Matchende Technologien: Tags des MAs die mindestens ein Query-Token enthalten
@@ -191,10 +196,16 @@ export function runBm25Matching(input: RunBm25Input): Bm25Result[] {
       const techTokens = tokenize(tech);
       if (techTokens.some(t => queryTokenSet.has(t))) matched.push(tech);
     }
-    raw.push({ anonId: doc.anonId, score, tech: matched });
+    // Profil-Coverage (absolute lexikalische Konfidenz): Anteil der distinkten
+    // Profil-Tokens, die im Query auftauchen. Bounded [0,1], NICHT pool-normalisiert.
+    const docTokenSet = new Set(doc.tokens);
+    let hits = 0;
+    for (const t of docTokenSet) if (queryTokenSet.has(t)) hits++;
+    const deckung = docTokenSet.size > 0 ? hits / docTokenSet.size : 0;
+    raw.push({ anonId: doc.anonId, score, tech: matched, deckung });
   }
 
-  // Normalize: durch max teilen -> [0, 1]
+  // Normalize: durch max teilen -> [0, 1]. `deckung` bleibt absolut (un-normalisiert).
   const max = raw.reduce((m, r) => Math.max(m, r.score), 0);
   if (max === 0) return [];
 
@@ -205,6 +216,7 @@ export function runBm25Matching(input: RunBm25Input): Bm25Result[] {
       score,
       matchendeTechnologien: r.tech,
       confidence: bm25Confidence(score),
+      deckung: r.deckung,
     };
   }).sort((a, b) => b.score - a.score);
 }
