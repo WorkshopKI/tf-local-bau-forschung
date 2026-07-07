@@ -40,9 +40,9 @@ export function VerbundKopf({
   const eckdaten = buildKopfEckdaten({ tvs, unterprogramm });
 
   return (
-    <div className="mb-4">
+    <div className="mb-6">
       {/* Titelzeile: Akronym + ZKN + Eckdaten-Meta (hinter dem FKZ). */}
-      <div className="flex items-baseline gap-x-2.5 gap-y-1 flex-wrap">
+      <div className="flex items-baseline gap-x-2.5 gap-y-1.5 flex-wrap">
         <h1 className="text-[20px] font-medium text-[var(--tf-text)] leading-tight tracking-[-0.01em]">
           {akronym}
         </h1>
@@ -62,19 +62,19 @@ export function VerbundKopf({
 
       {/* Untertitel: Projekt-Titel (+ optionaler XSW-Suffix). */}
       {untertitel ? (
-        <p className="mt-2 m-0 text-[12.5px] leading-[1.5] text-[var(--tf-text-secondary)] whitespace-pre-wrap">
+        <p className="mt-3 m-0 text-[12.5px] leading-[1.6] text-[var(--tf-text-secondary)] whitespace-pre-wrap">
           {untertitel}
           <XswSuffix value={xsw} />
         </p>
       ) : xsw ? (
-        <div className="mt-2 text-[12.5px]">
+        <div className="mt-3 text-[12.5px]">
           <XswSuffix value={xsw} />
         </div>
       ) : null}
 
       {/* Stepper: amtliche 5-Stationen-Wirbelsäule (ersetzt das Status-Badge). */}
       {stepperStatus ? (
-        <div className="mt-3.5">
+        <div className="mt-5">
           <WorkflowStepper status={stepperStatus} />
         </div>
       ) : null}

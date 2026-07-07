@@ -29,6 +29,7 @@
 
 ### Bugfixes
 - Bei manchen Verbünden fehlte die **Kurzbeschreibungs-Karte** auf der Detailseite — unter dem Titel stand nur eine kurze Zeile. Jetzt wird die Kurzzusammenfassung zuverlässig über alle Teilvorhaben gefunden und immer als Karte angezeigt.
+- Der **obere Bereich der Detailseite** (Titel, Untertitel, Fortschritt, Kurzbeschreibung) hat jetzt mehr Luft zwischen den Zeilen und wirkt weniger gedrängt.
 
 ## v2.197 — 2026-07
 

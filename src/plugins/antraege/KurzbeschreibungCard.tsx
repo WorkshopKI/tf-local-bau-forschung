@@ -18,7 +18,7 @@ export function KurzbeschreibungCard({ text, open, onToggle }: Props): React.Rea
   const clampable = text.length > CLAMP_THRESHOLD;
   return (
     <div className="mb-5">
-      <div className="mb-1.5 text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
+      <div className="mb-2 text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
         Kurzbeschreibung
       </div>
       <div className="rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-4 py-3">

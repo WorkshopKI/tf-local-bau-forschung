@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.198.3 — Förderanträge: Detailkopf luftiger (vertikaler Abstand) (Juli 2026)
+
+PATCH — Der obere Teil der Verbund-Detailseite (Titelzeile · Untertitel · Stepper · Kurzbeschreibung) stand textlich vertikal zu gedrängt. Reine Abstands-Korrektur ([VerbundKopf.tsx](src/plugins/antraege/VerbundKopf.tsx) + [KurzbeschreibungCard.tsx](src/plugins/antraege/KurzbeschreibungCard.tsx)): Titel→Untertitel `mt-2`→`mt-3`, Untertitel-`leading` 1.5→1.6, Untertitel→Stepper `mt-3.5`→`mt-5`, Kopf-Unterrand `mb-4`→`mb-6`, Titelzeilen-Umbruch-`gap-y` 1→1.5, Karten-Label `mb-1.5`→`mb-2`. Keine Struktur-/Logik-Änderung.
+
 ### v2.198.2 — Förderanträge: Kurzbeschreibungs-Karte erscheint wieder zuverlässig (Juli 2026)
 
 PATCH — Nachschliff zu v2.198.0: Auf der Verbund-Detailseite fehlte bei manchen Verbünden die Kurzbeschreibungs-Karte, sodass unter dem Kopf nur die dünne Titel-Zeile stand („zu kurz, nicht in einer Karte"). Zwei Ursachen behoben ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx) + [fieldLookup.ts](src/plugins/antraege/fieldLookup.ts)):
