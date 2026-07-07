@@ -3,6 +3,8 @@
 // FeedbackBoardCard.tsx — hier zentralisiert (DRY).
 
 import * as Icons from 'lucide-react';
+import type { FeedbackItem } from '@/core/types/feedback';
+import { FEEDBACK_TYPES } from './constants';
 
 export type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
 
@@ -44,4 +46,63 @@ export function feedbackAuthorLabel(item: { user_display_name?: string; user_id?
   const raw = (item.user_display_name || item.user_id || '').trim();
   if (!raw || raw.toLowerCase() === 'anonymous') return undefined;
   return raw;
+}
+
+/** Ein Frage-/Antwort-Paar eines Feedbacks für die Listen-Vorschau. `frage` fehlt
+ *  bei Ein-Feld-Typen (Lob/Frage) und LLM-Zusammenfassungen — dann nur `antwort`. */
+export interface FeedbackQaSegment {
+  frage?: string;
+  antwort: string;
+}
+
+// Alle bekannten Formular-Labels (= Fragen) für den Text-Fallback bei Alt-Tickets
+// ohne `structured`. composeFeedbackText joint `Label\nWert` mit `\n\n`.
+const KNOWN_FEEDBACK_LABELS = new Set(FEEDBACK_TYPES.flatMap(t => t.fields.map(f => f.label)));
+
+/**
+ * Zerlegt ein Feedback in Frage-/Antwort-Paare für die kompakte Listen-Vorschau
+ * (Frage fett, Antwort normal, je Paar eine Zeile).
+ *
+ * Reihenfolge der Quellen:
+ * 1. `llm_summary` (falls vorhanden) → ein synthetischer Ein-Zeiler, kein Q&A.
+ * 2. `structured` + Labels aus dem Typ-Schema (Ground Truth, robust gegen
+ *    mehrzeilige Antworten — anders als das Parsen von `text`).
+ * 3. Fallback: den komponierten `text` an bekannten Frage-Labels zerlegen
+ *    (Alt-Tickets ohne `structured`).
+ */
+export function feedbackQaSegments(ticket: FeedbackItem): FeedbackQaSegment[] {
+  const summary = ticket.llm_summary?.trim();
+  if (summary) return [{ antwort: summary }];
+
+  const typeDef = ticket.category ? FEEDBACK_TYPES.find(t => t.category === ticket.category) : undefined;
+  if (ticket.structured && typeDef) {
+    const segs = typeDef.fields
+      .map(f => ({
+        // Ein-Feld-Typen (Lob/Frage) speichern unter `text` ohne Frage-Präfix.
+        frage: f.key === 'text' ? undefined : f.label,
+        antwort: (ticket.structured?.[f.key] ?? '').trim(),
+      }))
+      .filter(s => s.antwort.length > 0);
+    if (segs.length > 0) return segs;
+  }
+
+  return parseComposedFeedbackText(ticket.text);
+}
+
+/** Fallback-Parser für den komponierten `text` (`Label\nWert` je `\n\n`-Block). */
+function parseComposedFeedbackText(text: string): FeedbackQaSegment[] {
+  const trimmed = (text ?? '').trim();
+  if (!trimmed) return [];
+  return trimmed
+    .split(/\n{2,}/)
+    .map((block): FeedbackQaSegment => {
+      const nl = block.indexOf('\n');
+      if (nl > 0) {
+        const first = block.slice(0, nl).trim();
+        const rest = block.slice(nl + 1).trim();
+        if (KNOWN_FEEDBACK_LABELS.has(first) && rest) return { frage: first, antwort: rest };
+      }
+      return { antwort: block.trim() };
+    })
+    .filter(s => s.antwort.length > 0);
 }

@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.198.1 — Feedback-Übersicht: Vorschau nach Fragen umgebrochen + „Dein Feedback" ganz links (Juli 2026)
+
+PATCH — Die kompakte Feedback-Vorschauzeile (Feedback-Übersicht/Board, Split-Ansicht + Kurator-Liste — geteilte [FeedbackTicketRow.tsx](src/components/feedback/FeedbackTicketRow.tsx)) ist lesbarer:
+
+- **„Dein Feedback"-Badge steht jetzt ganz links** (vor dem Kategorie-Badge) statt dazwischen.
+- **Text nach jeder Frage umgebrochen**: Statt einer langen truncate-Zeile („Was hast du gemacht? … Was ist passiert? …") steht jetzt **je Frage-/Antwort-Paar eine Zeile** — die **Frage fett**, die Antwort normal. Bild-Icon + Datum wandern in die Badge-Zeile darüber.
+- Neuer geteilter Helfer `feedbackQaSegments` ([feedbackUi.ts](src/components/feedback/feedbackUi.ts)): zerlegt ein Feedback in Frage/Antwort-Paare — **primär aus den strukturierten Formularfeldern** (`structured` + Labels aus `FEEDBACK_TYPES`, robust gegen mehrzeilige Antworten), mit Fallback auf den komponierten `text` (Alt-Tickets) bzw. `llm_summary` (Ein-Zeiler ohne Q&A). Ein-Feld-Typen (Lob/Frage) bleiben ohne Frage-Präfix.
+- Verifiziert per neuem Unit-Test [feedbackQaSegments.test.ts](src/components/feedback/__tests__/feedbackQaSegments.test.ts) (7 grün) + `tsc --noEmit` + `build:dev`/`build:pl`.
+
 ### v2.198.0 — Förderanträge: Detailseite umgebaut + Kompaktliste nach Verbund gruppiert (Juli 2026)
 
 MINOR — Die Verbund-Detailseite und die schmale Kompakt-Liste (bei geöffnetem Detail) wurden überarbeitet.

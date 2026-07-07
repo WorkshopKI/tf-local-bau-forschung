@@ -22,6 +22,7 @@
 ## v2.198 — 2026-07
 
 ### Verbesserungen
+- Die **Feedback-Übersicht** ist übersichtlicher: In der Vorschau steht jetzt **jede Frage mit ihrer Antwort auf einer eigenen Zeile** (Frage fett) statt alles in einer langen Zeile hintereinander. Das Kennzeichen **„Dein Feedback" sitzt jetzt ganz links**.
 - Die **Antragsliste neben dem geöffneten Detail** ist jetzt **nach Verbund gruppiert**: Statt jedes Teilvorhaben einzeln aufzuführen, steht pro Verbund nur noch ein Eintrag (mit der Anzahl seiner Teilvorhaben). Ein Klick öffnet den Verbund — die Teilvorhaben stehen dann übersichtlich im Detail.
 - Die **Detailseite eines Antrags** wurde aufgeräumt: Die Kurzbeschreibung steht wieder als eigene Karte ganz oben, die Eckdaten (Programm, Antragsdatum …) stehen kompakt in der Titelzeile, und das Gutachten ist als **ein** zusammenhängender Bereich nach oben gewandert — Fortschrittsbalken und „Weiter bei …" bleiben erhalten.
 - Doppelte Angaben sind raus: Die Verbundpartner erscheinen nur noch einmal (in der Teilvorhaben-Liste), und die überflüssige Rückzeile über dem Gutachten wurde entfernt.

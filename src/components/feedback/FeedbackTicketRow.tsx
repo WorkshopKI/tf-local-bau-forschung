@@ -13,7 +13,7 @@ import type { FeedbackItem } from '@/core/types/feedback';
 import { istUmgesetzt } from '@/core/services/feedback/feedback-status';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from './constants';
-import { formatShortDate } from './feedbackUi';
+import { formatShortDate, feedbackQaSegments } from './feedbackUi';
 
 interface Props {
   ticket: FeedbackItem;
@@ -28,7 +28,9 @@ interface Props {
 }
 
 export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone, mine }: Props): React.ReactElement {
-  const summary = ticket.llm_summary || ticket.text || '–';
+  // Frage/Antwort-Paare (je Paar eine Zeile, Frage fett) statt einer langen
+  // truncate-Zeile — deutlich lesbarer. Leer → „–"-Fallback.
+  const segments = feedbackQaSegments(ticket);
   const date = formatShortDate(ticket.created_at);
   const area = ticket.context?.page;
   const user = ticket.user_display_name || ticket.user_id;
@@ -78,16 +80,17 @@ export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone, mi
         onClick={() => onSelect(ticket)}
         className={`flex-1 min-w-0 text-left ${onToggleDone ? 'pl-1.5 pr-2.5' : 'px-2.5'} py-2 cursor-pointer`}
       >
+        {/* Zeile 1: Badges (eigenes Feedback ganz links) + Bild/Datum rechts */}
         <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
-            {ticket.category ? CATEGORY_LABELS[ticket.category] : '–'}
-          </span>
           {mine && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 bg-[var(--tf-primary-light)] text-[var(--tf-primary)]">
               Dein Feedback
             </span>
           )}
-          <p className={`flex-1 min-w-0 text-[12px] font-medium truncate ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{summary}</p>
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]'}`}>
+            {ticket.category ? CATEGORY_LABELS[ticket.category] : '–'}
+          </span>
+          <div className="flex-1" />
           <span
             className="shrink-0 w-3 flex justify-center text-[var(--tf-text-tertiary)]"
             title={hasShot ? `Enthält ${ticket.attachments!.length} Screenshot${ticket.attachments!.length > 1 ? 's' : ''}` : undefined}
@@ -96,7 +99,24 @@ export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone, mi
           </span>
           <span className="text-[10px] text-[var(--tf-text-tertiary)] shrink-0">{date}</span>
         </div>
-        <div className="flex items-center gap-1.5 mt-0.5 truncate" style={{ marginLeft: '4.5rem' }}>
+        {/* Zeile 2..n: je Frage-/Antwort-Paar eine Zeile (Frage fett) */}
+        <div className="mt-1 space-y-0.5">
+          {segments.length === 0 ? (
+            <p className="text-[12px] text-[var(--tf-text-tertiary)]">–</p>
+          ) : (
+            segments.map((seg, i) => (
+              <p
+                key={i}
+                className={`text-[12px] truncate ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}
+              >
+                {seg.frage && <span className="font-semibold">{seg.frage} </span>}
+                {seg.antwort}
+              </p>
+            ))
+          )}
+        </div>
+        {/* Meta: Bereich-Badge + Autor */}
+        <div className="flex items-center gap-1.5 mt-1 truncate">
           {area && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] shrink-0">
               {area}
