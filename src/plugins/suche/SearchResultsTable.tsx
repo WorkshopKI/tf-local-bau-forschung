@@ -17,14 +17,20 @@
  *   waehrend des Drags wird `<col>.style.width` + `<table>.style.width` direkt
  *   gesetzt, OHNE React-Re-Render aller Zeilen. Erst beim Mouseup wird der
  *   finale Wert in den React-State + localStorage committed.
- * - `<table>.width = min(100%, Summe aller Spaltenbreiten)`: passt der Spalten-
- *   Gesamtwert in den Container, steht die Tabelle auf ihrer Wunschbreite (der
- *   Rest bleibt frei) — Spalten-Resize per Drag wächst die Tabelle bis dort
- *   weiter. Wird der Container schmaler als die Summe (z.B. Assistent-Panel
- *   offen, schmales Fenster), schrumpft die Tabelle responsiv mit und die
- *   Spalten stauchen sich proportional (`table-layout: fixed`), statt sofort
- *   horizontal zu scrollen. Erst unter `RESPONSIVE_MIN_WIDTH` (Floor) greift der
- *   horizontale Scrollbalken, damit die Zellen lesbar bleiben.
+ * - Responsives Stauchen (WICHTIG: Spalten als PROZENT, nicht Pixel):
+ *   Bei `table-layout: fixed` ist die genutzte Tabellenbreite das GRÖSSERE aus
+ *   `width` und der Summe der `<col>`-Breiten (CSS 2.1 §17.5.2.1). Mit Pixel-
+ *   `<col>` ist diese Summe ein harter Boden → `width: min(100%, …)` bliebe
+ *   wirkungslos, die Tabelle overflowt sofort (empirisch im Chrome-Layout
+ *   verifiziert: 200px-Cols in 900px-Container → Tabelle bleibt 1400px). Deshalb
+ *   werden die `<col>` als Prozent ihrer Pixel-Summe (`totalWidth`) gerendert:
+ *   dann ist die Spaltensumme = 100 % der Tabellenbreite (kein Pixel-Boden) und
+ *   `width: min(100%, totalWidth)` staucht die Spalten proportional mit einem
+ *   schmaleren Container (z.B. Assistent-Panel offen). Passt alles → Tabelle auf
+ *   Wunschbreite (Rest frei). Erst unter `RESPONSIVE_MIN_WIDTH` (Floor, via
+ *   `min-width`) greift der horizontale Scrollbalken, damit Zellen lesbar bleiben.
+ *   Die *bevorzugten* Breiten bleiben Pixel im State (`columnWidths`); nur das
+ *   Render (und der Live-Drag unten) rechnet in Prozent um.
  */
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
@@ -104,30 +110,35 @@ function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactEle
   // Mouse-Frame. Beim Mouseup ruft der Header `onColumnWidthChange` auf, was
   // den finalen Wert in State + localStorage schreibt.
   const applyLiveColumnWidth = useCallback((key: string, width: number): void => {
-    const col = colRefs.current.get(key);
-    if (col) col.style.width = `${width}px`;
-    const table = tableRef.current;
-    if (!table) return;
-    // Gesamt-Breite neu berechnen aus den aktuellen <col>-Inline-Styles.
-    let sum = 0;
+    // Neue Gesamt-Breite = Summe der bevorzugten Pixel-Breiten, mit der gerade
+    // gedraggten Spalte auf `width`. Direkt aus `columns`/`columnWidths`
+    // gerechnet (NICHT aus dem DOM), damit die Prozent-Umrechnung nicht auf
+    // `parseFloat("14%")` hereinfällt. <col> + <table> werden identisch zum
+    // committeten Render gesetzt (Prozent-Cols + `min(100%, …)`), damit es beim
+    // Ziehen — auch in gestauchtem Zustand — nicht kurz overflowt.
+    const newTotal = columns.reduce(
+      (s, c) => s + (c.key === key ? width : getEffectiveWidth(c, columnWidths)), 0);
+    if (newTotal <= 0) return;
     for (const c of columns) {
-      const ref = colRefs.current.get(c.key);
-      if (ref && ref.style.width) {
-        const px = parseFloat(ref.style.width);
-        if (Number.isFinite(px)) { sum += px; continue; }
-      }
-      sum += getEffectiveWidth(c, columnWidths);
+      const eff = c.key === key ? width : getEffectiveWidth(c, columnWidths);
+      const col = colRefs.current.get(c.key);
+      if (col) col.style.width = `${(eff / newTotal) * 100}%`;
     }
-    table.style.width = `${sum}px`;
+    const table = tableRef.current;
+    if (table) {
+      table.style.width = `min(100%, ${newTotal}px)`;
+      table.style.minWidth = `${Math.min(newTotal, RESPONSIVE_MIN_WIDTH)}px`;
+    }
   }, [columns, columnWidths]);
 
   const visibleResults = results.slice(0, visibleCount);
   const hasMore = visibleCount < results.length;
 
-  // Bei jedem Render: Summe der effektiven Spaltenbreiten als Pixel-Wert = die
-  // Wunschbreite der Tabelle. `min(100%, …)` lässt sie responsiv mit einem
-  // schmaleren Container mitschrumpfen (Spalten stauchen via table-layout:fixed);
-  // der Floor `min-width` verhindert unlesbar enge Zellen (dann Scroll).
+  // Bei jedem Render: Summe der effektiven Spalten-Pixel = Wunschbreite der
+  // Tabelle. Die <col> werden als Prozent DIESER Summe gerendert (siehe
+  // Dateikopf) — nur so staucht `width: min(100%, …)` die Spalten wirklich
+  // (Pixel-<col> würden die Tabelle festnageln). Floor `min-width` verhindert
+  // unlesbar enge Zellen (darunter Scroll).
   const totalWidth = columns.reduce((s, c) => s + getEffectiveWidth(c, columnWidths), 0);
   const floorWidth = Math.min(totalWidth, RESPONSIVE_MIN_WIDTH);
 
@@ -142,7 +153,7 @@ function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactEle
                 if (el) colRefs.current.set(c.key, el);
                 else colRefs.current.delete(c.key);
               }}
-              style={{ width: `${getEffectiveWidth(c, columnWidths)}px` }}
+              style={{ width: `${(getEffectiveWidth(c, columnWidths) / totalWidth) * 100}%` }}
             />
           ))}
         </colgroup>
