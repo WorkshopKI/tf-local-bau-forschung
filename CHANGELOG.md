@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.197.1 — Auslastung MA: Altlasten-Segmente chronologisch (ältestes links) (Juli 2026)
+
+PATCH — Die Segmente im Altlasten-Balken (Tab „Auslastung MA") laufen jetzt chronologisch links→rechts: **ganz links die ältesten Quartale (Q-3–7), dann Q-2, rechts Q-1 (neuestes)** — umgekehrt zur ersten Fassung von v2.196.0. Reine Reihenfolge; die Farbe je Band bleibt unverändert (dunkel = neu). Gedreht in [ColBars.tsx](src/plugins/auslastung/views/uebersicht/ColBars.tsx) (`AltlastColBar`, Tabelle), [GesamtauslastungBar.tsx](src/plugins/auslastung/views/uebersicht/GesamtauslastungBar.tsx) (Karten-Balken + Tooltip) und der Legende in [MaTileGrid.tsx](src/plugins/auslastung/views/uebersicht/MaTileGrid.tsx) (Swatch-Reihenfolge + Label „alt → neu").
+
 ### v2.197.0 — Auslastung MA: Balken-Spalten-Grenze „Altlasten ↔ Aktuelles Quartal" ziehbar (Juli 2026)
 
 MINOR — In der MA-Tabelle („Auslastung MA") lässt sich die Grenze zwischen den beiden Balken-Spalten „Altlasten (Rückstand)" und „Aktuelles Quartal" per Griff verschieben — wer die Altlasten-Spalte schmaler will, zieht die Kante nach links; die frei werdende Breite bekommt „Aktuelles Quartal". Breite pro Rechner persistiert (localStorage), Doppelklick auf den Griff setzt auf den 30-%-Default zurück.

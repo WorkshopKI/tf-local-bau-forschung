@@ -50,12 +50,13 @@ export const GesamtauslastungBar = memo(function GesamtauslastungBar({
   const rawSum = b0 + b1 + b2;
   const totalWidth = Math.min(100, rawSum);
   const scale = rawSum > 100 ? 100 / rawSum : 1;
-  // Neuestes (Q-1, dunkelstes) zuerst → links, dann Q-2, dann Q-3..Q-7 (ältestes,
-  // hellstes) rechts — konsistent mit der Tabellen-Balken-Spalte.
+  // Ältestes (Q-3..Q-7) zuerst → links, dann Q-2, dann Q-1 (neuestes) rechts —
+  // chronologisch links→rechts, konsistent mit der Tabellen-Balken-Spalte.
+  // Farbe je Band unverändert (dunkel = neu), nur die Reihenfolge dreht.
   const ordered: readonly { band: 1 | 2 | 3; pct: number }[] = [
-    { band: 1, pct: b0 },
-    { band: 2, pct: b1 },
     { band: 3, pct: b2 },
+    { band: 2, pct: b1 },
+    { band: 1, pct: b0 },
   ];
   let offset = 0;
   const segments = ordered.map(({ band, pct }) => {
@@ -70,8 +71,8 @@ export const GesamtauslastungBar = memo(function GesamtauslastungBar({
     + (ueberbucht ? ' · überbucht' : '');
 
   const bandTvs = altlastBandTvs ?? [0, 0, 0];
-  // Tooltip liest links → rechts wie der Balken: neuestes Band (Q-1) zuerst.
-  const bandDetail = ([0, 1, 2] as const)
+  // Tooltip liest links → rechts wie der Balken: ältestes Band (Q-3..Q-7) zuerst.
+  const bandDetail = ([2, 1, 0] as const)
     .map((i) => {
       const tvs = bandTvs[i] ?? 0;
       const label = ALTLAST_BAND_LABELS[i];

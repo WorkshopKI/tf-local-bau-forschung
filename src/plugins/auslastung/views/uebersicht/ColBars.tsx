@@ -6,10 +6,11 @@
  * Karte, jeweils % der eigenen Quartalskapazität) rendert jede dieser
  * Komponenten EINE Balken-Spalte mit EIGENER linker Grundlinie:
  *
- *  - `AltlastColBar`  — Rückstand: Segmente Q-1 · Q-2 · Q-3–7 (neu→alt, links→
- *    rechts), gedämpfte Blau-Rampe (`altlast-colors`), Track-Breite RELATIV zum
- *    größten Rückstand aller sichtbaren MAs (`maxBl`) → Zeilenvergleich „wer hat
- *    am meisten liegen". Zahl im Segment nur bei Anteil ≥ 10 %.
+ *  - `AltlastColBar`  — Rückstand: Segmente Q-3–7 · Q-2 · Q-1 (alt→neu, links→
+ *    rechts = chronologisch), gedämpfte Blau-Rampe (`altlast-colors`, Farbe je
+ *    Band unverändert: dunkel = neu), Track-Breite RELATIV zum größten Rückstand
+ *    aller sichtbaren MAs (`maxBl`) → Zeilenvergleich „wer hat am meisten
+ *    liegen". Zahl im Segment nur bei Anteil ≥ 10 %.
  *  - `AktuellColBar`  — aktuelles Quartal: Kapazitäts-Auslastung in % (eigene
  *    0–100-Grundlinie, KEIN Kohorten-Max), `--tf-akt-bar`, rot bei Überbuchung
  *    (`--tf-danger-text`, > 100 %). belegt% steht im Balken.
@@ -44,7 +45,7 @@ export const AltlastColBar = memo(function AltlastColBar({ bandTvs, maxBl }: Alt
           className="flex h-full"
           style={{ width: `${fillWidth}%`, gap: 1.5, borderRadius: BAR_RADIUS, overflow: 'hidden' }}
         >
-          {([0, 1, 2] as const).map((i) => {
+          {([2, 1, 0] as const).map((i) => {
             const tvs = bandTvs[i];
             if (tvs <= 0) return null;
             const band = (i + 1) as 1 | 2 | 3;
