@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.194.3 — Gutachten: Zitat↔Satz-Verknüpfungs-UI im Werkstatt-Layout (Journey-Paket 4, Phase 6) (Juli 2026)
+
+MINOR — Der „Antragsbezug" im Gutachten-Werkstatt-Panel (dev, Feature-Flag `gutachtenWorkflow`) zeigt die Quellen-Belege jetzt als **Karten mit Satz-Zuordnung** statt als flache Zitat-Wand: Hover verbindet Beleg ↔ Satz, Klick pinnt zum gestützten Satz. Mockup `_reference/journey-paket-4/zitat-text.png`. Vollständig additiv — Alt-Läufe (ohne `belege`) rendern exakt wie bisher.
+
+- **Beleg-Karten** ([BelegKarten.tsx](src/plugins/antraege/gutachten/BelegKarten.tsx), im [KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx)): Zitat + `Abschn. x.y` links, „stützt Satz {n}" / „Sätze {n}, {m}" rechts (1-basierte Anzeige); ohne gültige Zuordnung → gedämpft „ohne Zuordnung" + Tooltip. Ohne `belege`-Feld → flaches `MarkdownRenderer`-Rendering wie heute.
+- **Hover (flüchtig)** verbindet beidseitig: Beleg-Karte hovern → zugeordnete Sätze im Entwurf amber ([--tf-beleg-highlight](src/theme.css), Light+Dark, nur Hintergrund — kein Layout-Shift); Satz-Span hovern → zugehörige Karten highlighten. Reine, getestete Zuordnung in [belege.ts](src/plugins/antraege/gutachten/belege.ts) (`belegeFuerSatz`/`belegBetrifftSaetze`, **dieselbe** `splitSentences`).
+- **Klick pinnt** über den **bestehenden** `fundstelle`-Mechanismus (kein zweiter Scroll-/Highlight-Pfad); bei mehreren Sätzen zyklisch. Darunter der **Abdeckungs-Zähler** „{x} von {y} Sätzen mit Beleg verknüpft".
+- **Satz-Alignment + Live-Degradation**: alle Nummerierung über `splitSentences(finalerText)`. Nach manueller Textbearbeitung liegen manche Indizes außerhalb → sie fallen beim Rendern auf „ohne Zuordnung" zurück (Anzeige-Logik, keine Datenänderung); der Zähler rechnet mit dem Live-Text. `StepRun.belege` bleibt bei manueller Bearbeitung erhalten (anders als `teile`).
+- Zuordnungs-/Abdeckungs-/Degradations-Logik getestet ([belege.test.ts](src/plugins/antraege/gutachten/__tests__/belege.test.ts)). CLAUDE.md um den `QuellenBeleg`-Kontrakt + die 1-/0-basiert-Konvention + Eval-Gate-Kriterien ergänzt.
+
 ### v2.194.2 — Gutachten: Beleg-Kontrakt-Rollout für Bestands-Shares (Journey-Paket 4, Phase 5) (Juli 2026)
 
 PATCH — Eval-Gate gefahren (reduziert: gpt-oss-120b-**Proxy**, n=6 fiktive Fixtures, Judge Sonnet 4.6). Ergebnis: der Beleg→Satz-Kontrakt funktioniert (A 97 % / B 95 % gültige Referenzen, 91–95 % Satz-Abdeckung); A-Judge stabil (+0,08), B knapp unter der Schwelle (−0,25, getrieben von 1 Ausreißer-Fixture bei n=6); der eine erlaubte Instruktions-Retry verschlechterte A deutlich und wurde verworfen (V1 beibehalten). **Entscheidung** (dokumentiert in [eval/paket4-eval-report.md](eval/paket4-eval-report.md)): V1 akzeptiert, Rollout vollzogen; ein Voll-Eval auf dem Produktions-Qwen (`--limit 20`) bleibt als Bestätigung empfohlen.

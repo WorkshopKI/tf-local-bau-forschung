@@ -86,6 +86,15 @@ export function GutachtenSection({
   const [ctxOpen, setCtxOpen] = useState(true);
   // „Anzeigen"-Sprung (Journey-Paket 3): Ziel-Satz + monotone nonce (erneut auslösbar).
   const [fundstelle, setFundstelle] = useState<{ satzIndex: number; nonce: number } | null>(null);
+  // Flüchtiges Beleg↔Satz-Hover-Highlight (Journey-Paket 4): gehoverte Satz-Nummern,
+  // geteilt zwischen Beleg-Karten (Panel) und Satz-Spans (Review-Karte).
+  const [hoverSaetze, setHoverSaetze] = useState<number[] | null>(null);
+  // Pin: einen Satz scrollen + highlighten — EIN Pfad (bestehender fundstelle-Mechanismus),
+  // von Prüf-Checks (Paket 3) UND Beleg-Karten (Paket 4) genutzt.
+  const pinSatz = useCallback(
+    (satzIndex: number) => setFundstelle(prev => ({ satzIndex, nonce: (prev?.nonce ?? 0) + 1 })),
+    [],
+  );
   // Breiten von Rail (links) + Kontext-Panel (rechts), je per Ziehleiste anpassbar.
   // Initial aus localStorage (persistiert über Reload), Default 190/340 (Handoff
   // `workflow-stepper-neu`: angedockte Rail ~190px). Bestehende Werte werden geklemmt.
@@ -139,9 +148,9 @@ export function GutachtenSection({
     }
   }, [initialAbschnittId, run, steps, ctrl]);
 
-  // Beim Abschnittswechsel ein etwaiges „Anzeigen"-Highlight verwerfen (die neue
+  // Beim Abschnittswechsel ein etwaiges „Anzeigen"-Highlight + Hover verwerfen (die neue
   // Karte remountet — sonst würde ihr Effekt einen stale satzIndex highlighten).
-  useEffect(() => { setFundstelle(null); }, [run?.aktiverSchritt]);
+  useEffect(() => { setFundstelle(null); setHoverSaetze(null); }, [run?.aktiverSchritt]);
 
   const order = steps.map(s => s.id);
   const vbLvl = maxConversionLevel(vbDok?.conversion);
@@ -173,7 +182,7 @@ export function GutachtenSection({
     ),
     genDisabled: ctrl.busy || ctrl.llmAvailable === false,
     busy: ctrl.busy,
-    onFundstelle: (satzIndex) => setFundstelle(prev => ({ satzIndex, nonce: (prev?.nonce ?? 0) + 1 })),
+    onFundstelle: pinSatz,
   } : undefined;
   // `resizing` (eine Flag für beide Ziehleisten) schaltet die Grid-Transition ab → 1:1-Tracking.
   const gridClass = solo ? 'g-werk solo' : `g-werk${resizing ? ' resizing' : ''}`;
@@ -377,7 +386,7 @@ export function GutachtenSection({
                 <>
                   <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
                   {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} fundstelle={fundstelle ?? undefined} />
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} />
                   )}
                 </>
               ) : (
@@ -403,7 +412,7 @@ export function GutachtenSection({
                     />
                   )}
                   {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} fundstelle={fundstelle ?? undefined} docked />
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} docked />
                   )}
                 </div>
               )}
@@ -411,7 +420,7 @@ export function GutachtenSection({
               {/* Kontext-Panel rechts (breit) bzw. als Block (schmal) */}
               {!solo && showPanel && activeStep && (
                 ctxOpen ? (
-                  <KontextPanel step={activeStep} provenance={panelProvenance} variant="side" onCollapse={() => setCtxOpen(false)} onResizeStart={startCtxResize} aktion={pruefAktion} />
+                  <KontextPanel step={activeStep} provenance={panelProvenance} variant="side" onCollapse={() => setCtxOpen(false)} onResizeStart={startCtxResize} aktion={pruefAktion} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} onPinSatz={pinSatz} />
                 ) : (
                   <button type="button" className="g-ctx-reopen" onClick={() => setCtxOpen(true)} title="Quelle & Prüfung einblenden">
                     <ChevronLeft size={16} />
@@ -421,7 +430,7 @@ export function GutachtenSection({
               )}
 
               {solo && showPanel && activeStep && (
-                <KontextPanel step={activeStep} provenance={panelProvenance} variant="block" aktion={pruefAktion} />
+                <KontextPanel step={activeStep} provenance={panelProvenance} variant="block" aktion={pruefAktion} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} onPinSatz={pinSatz} />
               )}
             </div>
           </div>
@@ -469,7 +478,7 @@ export function GutachtenSection({
 
 /** Der aktive Abschnitt als Werkstatt-Karte (Kopf + Generieren-Prompt ODER Review). */
 function ActiveAbschnitt({
-  def, run, ctrl, tweakEffektiv, onOpenTweak, fundstelle, docked = false,
+  def, run, ctrl, tweakEffektiv, onOpenTweak, fundstelle, hoverSaetze, onHoverSaetze, docked = false,
 }: {
   def: WorkflowStep;
   run: WorkflowRun;
@@ -478,6 +487,9 @@ function ActiveAbschnitt({
   onOpenTweak: () => void;
   /** „Anzeigen"-Sprung (Journey-Paket 3) an die Review-Karte durchreichen. */
   fundstelle?: { satzIndex: number; nonce: number };
+  /** Beleg↔Satz-Hover (Journey-Paket 4): gehoverte Sätze + Setter für die Satz-Spans. */
+  hoverSaetze?: number[] | null;
+  onHoverSaetze?: (saetze: number[] | null) => void;
   /** Mehrspaltig: Karte ohne eigenen Rahmen, Teil der Docked-Einheit (`.g-card.docked`). */
   docked?: boolean;
 }): React.ReactElement {
@@ -583,6 +595,8 @@ function ActiveAbschnitt({
           onErneutOeffnen={() => ctrl.erneutOeffnenStep(id)}
           onOpenTweak={onOpenTweak}
           {...(fundstelle ? { fundstelle } : {})}
+          hoverSaetze={hoverSaetze ?? null}
+          {...(onHoverSaetze ? { onHoverSaetze } : {})}
           onQs={ctrl.qsFor(id) ? () => ctrl.runQs(id) : undefined}
           provenance={{ skillName: ctrl.activeSkill?.name ?? step.skillId ?? '—', regelCount: ctrl.regeln.length }}
           onOpenSkill={openSkill}

@@ -14,12 +14,15 @@
  * „Antragsbezug" ist die echte `quellenanalyse`, die Prüfung sind die echten
  * `checks`, der Denkprozess das echte Reasoning.
  */
+import { useMemo } from 'react';
 import { Quote, ChevronRight } from 'lucide-react';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { splitSentences } from '@/core/services/skills';
 import { CheckList, type CheckListAktion } from '../kurzfassung/CheckList';
 import { QsHinweisList } from './QsHinweisList';
 import { AmpelGruppe } from './AmpelGruppe';
+import { BelegKarten } from './BelegKarten';
 import { groupChecksByKategorie } from './checkGruppen';
 import { pruefSummary } from './pruefSummary';
 import { qsRollup } from './qs';
@@ -39,12 +42,24 @@ interface Props {
    * Fehler-Check + (Phase 4) Fundstellen-Sprung. Fehlt → nur-Anzeige wie bisher.
    */
   aktion?: CheckListAktion;
+  /**
+   * Beleg↔Satz-Verknüpfung (Journey-Paket 4, Phase 6): flüchtiges Hover-Highlight +
+   * Klick-Pin. Sind alle drei gesetzt UND trägt der Schritt `belege`, rendert der
+   * Antragsbezug als Beleg-Karten; sonst exakt das heutige flache Rendering.
+   */
+  hoverSaetze?: number[] | null;
+  onHoverSaetze?: (saetze: number[] | null) => void;
+  onPinSatz?: (satzIndex: number) => void;
 }
 
-export function KontextPanel({ step, provenance, variant, onCollapse, onResizeStart, aktion }: Props): React.ReactElement {
+export function KontextPanel({
+  step, provenance, variant, onCollapse, onResizeStart, aktion, hoverSaetze, onHoverSaetze, onPinSatz,
+}: Props): React.ReactElement {
   const { fehler, hinweis } = pruefSummary(step.checks);
   const qs = step.qsHinweise ?? [];
   const qsR = qs.length > 0 ? qsRollup(qs) : null;
+  const satzAnzahl = useMemo(() => splitSentences(step.finalerText).length, [step.finalerText]);
+  const zeigeBelege = !!(step.belege?.length && onHoverSaetze && onPinSatz);
 
   return (
     <aside className={`g-context${variant === 'block' ? ' block' : ''}`}>
@@ -67,7 +82,18 @@ export function KontextPanel({ step, provenance, variant, onCollapse, onResizeSt
         )}
       </div>
 
-      {step.quellenanalyse && (
+      {zeigeBelege ? (
+        <div className="g-ctx-block">
+          <div className="g-ctx-cap">Antragsbezug</div>
+          <BelegKarten
+            belege={step.belege!}
+            satzAnzahl={satzAnzahl}
+            hoverSaetze={hoverSaetze ?? null}
+            onHover={onHoverSaetze!}
+            onPin={onPinSatz!}
+          />
+        </div>
+      ) : step.quellenanalyse ? (
         <div className="g-ctx-block">
           <div className="g-ctx-cap">Antragsbezug</div>
           <div className="g-quotecard">
@@ -75,7 +101,7 @@ export function KontextPanel({ step, provenance, variant, onCollapse, onResizeSt
             <div className="g-quote-md"><MarkdownRenderer content={step.quellenanalyse} /></div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {step.checks.length > 0 && (
         <div className="g-ctx-block">

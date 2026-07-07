@@ -132,6 +132,9 @@
    Ein-/Ausblenden ruhig; ohne aktive Klasse ist der Span unsichtbar (kein Layout-Shift). */
 .gutachten-werkstatt .g-satz { border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; transition: background-color .5s var(--tf-ease); }
 .gutachten-werkstatt .g-satz-hl { background-color: var(--tf-highlight); }
+/* Flüchtiges Beleg↔Satz-Hover-Highlight (Amber) — schneller als der „Anzeigen"-Sprung,
+   nur Hintergrund (kein Layout-Shift). */
+.gutachten-werkstatt .g-satz-hover { background-color: var(--tf-beleg-highlight); transition-duration: .12s; }
 
 /* Strukturierte Teile (teilStruktur) — ein Block je Teil mit render-only Inline-Badge.
    Der Badge steht NIE im finalerText (Transfer/DOCX-Quelle); zwischen den Teilen bleiben
@@ -217,6 +220,25 @@
 .gutachten-werkstatt .g-quote-md { font: 13px/1.6 var(--tf-font-sans); color: var(--tf-text-secondary); }
 .gutachten-werkstatt .g-quote-md > :first-child { margin-top: 0; }
 .gutachten-werkstatt .g-quote-md > :last-child { margin-bottom: 0; }
+
+/* Beleg-Karten (Antragsbezug, Journey-Paket 4): Zitat + Abschnitts-Ref + gestützte Sätze.
+   Hover verbindet mit dem Entwurf (amber), Klick pinnt. „ohne Zuordnung" = gedämpft. */
+.gutachten-werkstatt .g-belege { display: flex; flex-direction: column; gap: 8px; }
+.gutachten-werkstatt .g-beleg { position: relative; background: var(--tf-bg); border: .5px solid var(--tf-border); border-radius: 9px; padding: 10px 12px 8px 34px; transition: background-color .12s var(--tf-ease), border-color .12s var(--tf-ease); }
+.gutachten-werkstatt .g-beleg[role="button"] { cursor: pointer; }
+.gutachten-werkstatt .g-beleg[role="button"]:hover { border-color: var(--tf-border-hover); }
+.gutachten-werkstatt .g-beleg[role="button"]:focus-visible { outline: 1.5px solid var(--tf-primary); outline-offset: 1px; }
+.gutachten-werkstatt .g-beleg.hl { background: var(--tf-beleg-highlight); border-color: transparent; }
+.gutachten-werkstatt .g-beleg.none { opacity: .85; }
+.gutachten-werkstatt .g-beleg .g-qci { position: absolute; left: 11px; top: 11px; }
+.gutachten-werkstatt .g-beleg-quote { font: 13px/1.55 var(--tf-font-sans); color: var(--tf-text-secondary); text-wrap: pretty; }
+.gutachten-werkstatt .g-beleg-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; font: 11px/1.3 var(--tf-font-sans); color: var(--tf-text-tertiary); }
+.gutachten-werkstatt .g-beleg-ref { font-variant-numeric: tabular-nums; }
+.gutachten-werkstatt .g-beleg-satz { display: inline-flex; align-items: center; gap: 4px; color: var(--tf-primary); font-weight: var(--tf-weight-medium); white-space: nowrap; }
+.gutachten-werkstatt .g-beleg-satz.none { color: var(--tf-text-tertiary); font-weight: var(--tf-weight-regular); font-style: italic; }
+
+/* Abdeckungs-Zähler unter dem Entwurf. */
+.gutachten-werkstatt .g-beleg-coverage { margin-top: 10px; font: 11px/1.3 var(--tf-font-sans); color: var(--tf-text-tertiary); }
 .gutachten-werkstatt .g-ctx-text { margin: 0; font: 12.5px/1.6 var(--tf-font-sans); color: var(--tf-text-secondary); text-wrap: pretty; white-space: pre-wrap; }
 .gutachten-werkstatt .g-ctx-foot { border-top: .5px solid var(--tf-border); padding-top: 12px; }
 

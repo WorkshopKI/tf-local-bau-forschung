@@ -138,6 +138,9 @@
   /* Temporäres Satz-Highlight („Anzeigen"-Sprung zur Fundstelle) — weiches Warm-Gelb. */
   --tf-highlight: hsl(48, 95%, 80%);
 
+  /* Flüchtiges Beleg↔Satz-Highlight (Hover, Journey-Paket 4) — Amber, klar vom „Anzeigen"-Gelb getrennt. */
+  --tf-beleg-highlight: hsl(38, 92%, 82%);
+
   /* ── shadcn-Konvention: Text/Icon auf primärer Fläche ── */
   --tf-primary-foreground: #ffffff;
   /* CTA-Fläche (Default-Button): immer weißer Text — bewusst OHNE Dark-Flip
@@ -220,6 +223,8 @@
   --tf-danger-border: hsl(0, 20%, 36%);
   /* Satz-Highlight (Dark): gedämpftes Warm-Gelb, Lightness geflippt. */
   --tf-highlight: hsl(48, 45%, 32%);
+  /* Beleg↔Satz-Hover-Highlight (Dark): gedämpftes Amber, Lightness geflippt. */
+  --tf-beleg-highlight: hsl(38, 42%, 30%);
   /* Accent (Violett) — Dark: Lightness flippt, Hue/Sat bleiben (vgl. semantische Farben). */
   --tf-accent-bg: hsl(265, 22%, 25%);
   --tf-accent-text: hsl(265, 35%, 72%);

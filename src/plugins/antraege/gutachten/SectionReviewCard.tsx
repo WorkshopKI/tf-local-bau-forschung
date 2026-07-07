@@ -27,6 +27,7 @@ import { ThinkingControl } from '../kurzfassung/ThinkingControl';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
 import { satzSegmente } from './satzSegmente';
+import { belegAbdeckung } from './belege';
 import type { StepRun } from './types';
 
 /**
@@ -37,20 +38,36 @@ import type { StepRun } from './types';
  * Container erhält Absätze aus den Original-Trennzeichen. `startIndex` versetzt die
  * globalen Indizes in der Teile-Darstellung (laufender Offset je Teil).
  */
-function SatzText({ text, startIndex = 0 }: { text: string; startIndex?: number }): React.ReactElement {
+function SatzText({
+  text, startIndex = 0, hoverSaetze, onHoverSaetze,
+}: {
+  text: string;
+  startIndex?: number;
+  /** Beleg↔Satz-Hover (Journey-Paket 4): highlightet Sätze, die zum gehoverten Beleg gehören. */
+  hoverSaetze?: number[] | null;
+  onHoverSaetze?: (saetze: number[] | null) => void;
+}): React.ReactElement {
   const segs = useMemo(() => satzSegmente(text), [text]);
   return (
     <>
-      {segs.map((seg, i) => (
-        <Fragment key={startIndex + i}>
-          <span
-            data-satz-index={startIndex + i}
-            className="g-satz"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(marked.parseInline(seg.satz, { async: false }) as string) }}
-          />
-          {seg.sep}
-        </Fragment>
-      ))}
+      {segs.map((seg, i) => {
+        const idx = startIndex + i;
+        const hl = hoverSaetze != null && hoverSaetze.includes(idx);
+        return (
+          <Fragment key={idx}>
+            <span
+              data-satz-index={idx}
+              className={`g-satz${hl ? ' g-satz-hover' : ''}`}
+              {...(onHoverSaetze ? {
+                onMouseEnter: () => onHoverSaetze([idx]),
+                onMouseLeave: () => onHoverSaetze(null),
+              } : {})}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(marked.parseInline(seg.satz, { async: false }) as string) }}
+            />
+            {seg.sep}
+          </Fragment>
+        );
+      })}
     </>
   );
 }
@@ -89,10 +106,16 @@ interface Props {
    * (nicht-Edit-)Zustand wirksam; sonst graceful no-op.
    */
   fundstelle?: { satzIndex: number; nonce: number };
+  /**
+   * Beleg↔Satz-Hover (Journey-Paket 4, Phase 6): gehoverte Satz-Nummern (aus Beleg-
+   * Karten ODER Satz-Spans) + Setter. Highlightet die betroffenen Sätze im Entwurf.
+   */
+  hoverSaetze?: number[] | null;
+  onHoverSaetze?: (saetze: number[] | null) => void;
 }
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking, fundstelle,
+  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking, fundstelle, hoverSaetze, onHoverSaetze,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
@@ -214,7 +237,7 @@ export function SectionReviewCard({
           {run.teile.map((teil, i) => (
             <div key={`${teil.key}-${i}`} className="g-teil">
               <span className="g-teil-badge">{teil.label}</span>
-              <div className="whitespace-pre-wrap"><SatzText text={teil.text} startIndex={teilStartIndex[i] ?? 0} /></div>
+              <div className="whitespace-pre-wrap"><SatzText text={teil.text} startIndex={teilStartIndex[i] ?? 0} hoverSaetze={hoverSaetze} onHoverSaetze={onHoverSaetze} /></div>
             </div>
           ))}
         </div>
@@ -223,9 +246,21 @@ export function SectionReviewCard({
         // seed.ts) — satzweise adressierbar (SatzText, Inline-Markdown je Satz),
         // damit „Anzeigen" exakt highlighten kann.
         <div className="g-body whitespace-pre-wrap" ref={bodyRef}>
-          <SatzText text={run.finalerText} />
+          <SatzText text={run.finalerText} hoverSaetze={hoverSaetze} onHoverSaetze={onHoverSaetze} />
         </div>
       )}
+
+      {/* Abdeckungs-Zähler (Journey-Paket 4): Sätze mit ≥1 (live-gültigem) Beleg.
+          Rechnet gegen den LIVE-Text — nach manueller Bearbeitung degradierte Belege
+          fallen automatisch raus. Nur im gerenderten Zustand + bei vorhandenen Belegen. */}
+      {!editing && (run.belege?.length ?? 0) > 0 && (() => {
+        const { abgedeckt, gesamt } = belegAbdeckung(run.belege!, satzanzahl);
+        return (
+          <div className="g-beleg-coverage">
+            {abgedeckt} von {gesamt} {gesamt === 1 ? 'Satz' : 'Sätzen'} mit Beleg verknüpft
+          </div>
+        );
+      })()}
 
       {/* Meta-Zeile — schlank: Satzzahl/Status + Regel-Anzahl; Provenienz (Skill) hinter dem Info-Icon. */}
       <div className="g-metaline">
