@@ -298,8 +298,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         case 'kategorie':
           cmp = kategorieRank(a.hauptKategorie) - kategorieRank(b.hauptKategorie);
           break;
-        // "Auslastung" (Balken) visualisiert den Belegt-Anteil → gleiche Metrik.
-        case 'auslastung':
+        // „Aktuelles Quartal" (Balken) visualisiert den Belegt-Anteil.
         case 'belegt': {
           const pa = kva.effektivStunden > 0 ? kva.verbrauchteStunden / kva.effektivStunden : 0;
           const pb = kvb.effektivStunden > 0 ? kvb.verbrauchteStunden / kvb.effektivStunden : 0;
@@ -495,7 +494,6 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           kapTypByAnon={kapTypByAnon}
           kategorien={kategorien}
           quartal={config.aktuellesQuartal}
-          stundenProTV={stundenProTV}
           resolveName={resolveName}
           expandedMa={expandedMa}
           onToggleExpand={handleToggleExpand}

@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.196 — 2026-07
+
+### Verbesserungen
+- Die **Mitarbeiter-Übersicht** in der Auslastung („Auslastung MA") zeigt Auslastung und Rückstand jetzt in **zwei getrennten Balken nebeneinander**: Die aktuelle Quartals-Auslastung ist dadurch zwischen Mitarbeitern direkt vergleichbar, der aufgelaufene Rückstand („Altanträge") steht daneben. Die Rückstands-Farben wechseln von Gelb/Orange/Rot zu einer ruhigen Blau-Abstufung (dunkel = neu, hell = alt), damit sie nicht mehr mit den Status- und Kategorie-Farben verwechselt werden. Überbuchte Mitarbeiter bleiben am roten Balken erkennbar.
+
 ## v2.195 — 2026-07
 
 ### Verbesserungen

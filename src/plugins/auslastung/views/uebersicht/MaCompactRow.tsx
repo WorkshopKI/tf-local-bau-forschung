@@ -1,15 +1,20 @@
 /**
  * MaCompactRow — kompakte einzeilige MA-Zeile in der Übersichts-Tabelle.
  *
- * Layout-Spalten:
- *  MA · Auslastung (2 Balken + per-Typ) · Belegt% · Frei(TVs) · Aktuell · Altanträge · Kategorie · Status · ⋯
+ * Layout-Spalten (Design-Handoff `auslastung-balken`, Layout C):
+ *  MA · Altlasten (Rückstand)[Balken] · Aktuelles Quartal[Balken] · Aktuell ·
+ *  Altlast. · Frei · Kategorie · Status · ⋯
+ *
+ * Zwei getrennte Balken-Spalten mit je eigener linker Grundlinie (`AltlastColBar`
+ * relativ zum Kohorten-Max `maxBl`, `AktuellColBar` als Kapazitäts-Auslastung %,
+ * rot bei Überbuchung). Die frühere Spalte „Belegt %" entfällt — der %-Wert steht
+ * jetzt im Aktuell-Balken.
  *
  * Click auf die Zeile (außer Buttons/Inputs) toggelt den Inline-Expand —
  * der Caller rendert dann eine zweite Zeile mit `MaInlineDetail`.
  *
  * Memoized: bei stabilen Handlern (`useCallback` im Parent) und unveraendertem
- * MA-Datensatz wird die Zeile nicht neu gerendert (~250ms Einsparung bei 79
- * MAs pro Filter-Klick).
+ * MA-Datensatz wird die Zeile nicht neu gerendert.
  */
 import { memo } from 'react';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
@@ -20,7 +25,9 @@ import type { KapazitaetsView } from '../../services/kapazitaet';
 import type { KapazitaetProTypView } from '../../services/kapazitaet';
 import { dotColor } from './kategorie-colors';
 import { TypKapazitaetBars } from './TypKapazitaetBars';
-import { GesamtauslastungBar } from './GesamtauslastungBar';
+import { AltlastColBar, AktuellColBar } from './ColBars';
+
+const CELL_PAD = '7px 8px';
 
 interface Props {
   ma: AnonymerMitarbeiter;
@@ -29,36 +36,29 @@ interface Props {
   /** v2.16: per-Antragstyp-Auslastung (primäres Modell, wenn Kontingent gepflegt). */
   kapTyp?: KapazitaetProTypView;
   altlast?: MaAltlastBucket;
+  /** Größte Altlast-Summe über die sichtbaren MAs (gemeinsame Balken-Skala). */
+  maxBl: number;
   kategorien: UeberKategorie[];
   realName: string | null;
   quartal: string;
-  stundenProTV: number;
   expanded: boolean;
   onToggleExpand: (anonId: string) => void;
 }
 
 function MaCompactRowImpl({
-  ma, kapView, kapTyp, altlast, kategorien, realName, quartal, stundenProTV, expanded, onToggleExpand,
+  ma, kapView, kapTyp, altlast, maxBl, kategorien, realName, quartal, expanded, onToggleExpand,
 }: Props): React.ReactElement {
   const hauptKat = kategorien.find(k => k.id === ma.hauptKategorie);
   const abgemeldet = ma.abgemeldet.includes(quartal);
-  const ohneBuchung = kapView.verbrauchteStunden === 0 && (altlast?.tvs ?? 0) === 0;
   const altlastTvs = altlast?.tvs ?? 0;
   const bandTvs = altlast?.tvsProBand ?? ([0, 0, 0] as const);
+  const ohneBuchung = kapView.verbrauchteStunden === 0 && altlastTvs === 0;
 
   const belegtPct = kapView.effektivStunden > 0
     ? Math.round((kapView.verbrauchteStunden / kapView.effektivStunden) * 100)
     : 0;
-  const eff = kapView.effektivStunden;
-  const altlastBandPct: [number, number, number] = eff > 0
-    ? [
-        (bandTvs[0] * stundenProTV / eff) * 100,
-        (bandTvs[1] * stundenProTV / eff) * 100,
-        (bandTvs[2] * stundenProTV / eff) * 100,
-      ]
-    : [0, 0, 0];
 
-  const isMaxFrei = kapView.verbrauchteStunden === 0;
+  const festTvs = kapView.fest.tvs;
   const dimmed = ohneBuchung || abgemeldet;
 
   const statusInfo: { dotColor: string; label: string } = abgemeldet
@@ -82,7 +82,7 @@ function MaCompactRowImpl({
       style={{ borderTop: '0.5px solid var(--tf-border)' }}
     >
       {/* MA */}
-      <td className="font-mono align-middle whitespace-nowrap" style={{ padding: '6px 8px', fontSize: 11.5, fontWeight: 500, width: 110, color: dimmed ? 'var(--tf-text-tertiary)' : 'var(--tf-text)' }}>
+      <td className="font-mono align-middle whitespace-nowrap" style={{ padding: CELL_PAD, fontSize: 11.5, fontWeight: 500, width: 110, color: dimmed ? 'var(--tf-text-tertiary)' : 'var(--tf-text)' }}>
         <span title={realName ? `${ma.anonId} (${realName})` : ma.anonId}>
           {ma.anonId}
           {realName && (
@@ -94,47 +94,44 @@ function MaCompactRowImpl({
         </span>
       </td>
 
-      {/* Auslastung — zwei Balken (Auslastung Q / Altanträge), per-Typ darunter */}
-      <td className="align-middle" style={{ padding: '6px 8px', minWidth: 200 }}>
+      {/* Altlasten (Rückstand) — eigener Balken, relativ zum Kohorten-Max */}
+      <td className="align-middle" style={{ padding: CELL_PAD, width: '30%', minWidth: 210 }}>
+        <AltlastColBar bandTvs={bandTvs} maxBl={maxBl} />
+      </td>
+
+      {/* Aktuelles Quartal — Kapazitäts-Auslastung %, per-Typ darunter, Zonentrenner links */}
+      <td className="align-middle" style={{ padding: CELL_PAD, width: '20%', minWidth: 150, borderLeft: '0.5px solid var(--tf-border)' }}>
         <div className="flex flex-col gap-1.5">
-          <GesamtauslastungBar
-            belegtPct={belegtPct}
-            altlastBandPct={altlastBandPct}
-            freiTVs={kapView.restTVs}
-            altlastTvs={altlastTvs}
-            altlastBandTvs={bandTvs}
-            quartal={quartal}
-          />
+          <AktuellColBar belegtPct={belegtPct} freiTVs={kapView.restTVs} quartal={quartal} />
           {kapTyp?.hatKontingent && <TypKapazitaetBars view={kapTyp} variant="row" />}
         </div>
       </td>
 
-      {/* Belegt % */}
-      <td className="text-right font-mono align-middle" style={{ padding: '6px 8px', fontSize: 12, fontWeight: 500, width: 70, color: dimmed ? 'var(--tf-text-tertiary)' : 'var(--tf-text)' }}>
-        {belegtPct} %
+      {/* Aktuell (Festbuchung im laufenden Quartal, TVs) */}
+      <td
+        className="text-right font-mono align-middle whitespace-nowrap"
+        style={{ padding: CELL_PAD, fontSize: 12, fontWeight: 500, width: 80, color: festTvs > 0 ? 'var(--tf-akt-bar)' : 'var(--tf-text-tertiary)' }}
+        title={`${kapView.fest.antraege} ${kapView.fest.antraege === 1 ? 'Antrag' : 'Anträge'} · ${festTvs} TVs im Quartal`}
+      >
+        {festTvs}
+      </td>
+
+      {/* Altlast. — Summe der offenen Altanträge (TVs) */}
+      <td
+        className="text-right font-mono align-middle"
+        style={{ padding: CELL_PAD, fontSize: 12, width: 80, color: altlastTvs > 0 ? 'var(--tf-text-secondary)' : 'var(--tf-text-tertiary)' }}
+        title={`${altlastTvs} offene ${altlastTvs === 1 ? 'TV' : 'TVs'} aus Vorquartalen`}
+      >
+        {altlastTvs > 0 ? altlastTvs : '—'}
       </td>
 
       {/* Frei (TVs) */}
-      <td className="text-right font-mono align-middle" style={{ padding: '6px 8px', fontSize: 12, fontWeight: 500, width: 80, color: isMaxFrei ? 'hsl(145, 50%, 35%)' : 'var(--tf-text)' }}>
+      <td className="text-right font-mono align-middle" style={{ padding: CELL_PAD, fontSize: 12, fontWeight: 500, width: 70, color: kapView.restTVs > 0 ? 'var(--tf-primary)' : 'var(--tf-text-tertiary)' }}>
         {kapView.restTVs}
       </td>
 
-      {/* Aktuell (Festbuchung im laufenden Quartal) */}
-      <td
-        className="font-mono align-middle whitespace-nowrap"
-        style={{ padding: '6px 8px', fontSize: 12, width: 95, color: 'var(--tf-text-secondary)' }}
-        title={`${kapView.fest.antraege} ${kapView.fest.antraege === 1 ? 'Antrag' : 'Anträge'} mit insgesamt ${kapView.fest.tvs} TVs`}
-      >
-        {kapView.fest.tvs} TVs <span className="text-[var(--tf-text-tertiary)]">({kapView.fest.antraege})</span>
-      </td>
-
-      {/* Altanträge (offene Anträge aus den letzten 2 Quartalen) */}
-      <td className="font-mono align-middle" style={{ padding: '6px 8px', fontSize: 12, width: 85, color: altlastTvs > 0 ? 'var(--tf-text-secondary)' : 'var(--tf-text-tertiary)' }}>
-        {altlastTvs > 0 ? `${altlastTvs} TVs` : '—'}
-      </td>
-
       {/* Kategorie */}
-      <td className="align-middle" style={{ padding: '6px 8px', width: 90 }}>
+      <td className="align-middle" style={{ padding: CELL_PAD, width: 90 }}>
         {hauptKat ? (
           <span
             className="inline-flex items-center gap-1 font-mono"
@@ -158,7 +155,7 @@ function MaCompactRowImpl({
       </td>
 
       {/* Status */}
-      <td className="align-middle" style={{ padding: '6px 8px', width: 90 }}>
+      <td className="align-middle" style={{ padding: CELL_PAD, width: 90 }}>
         <span className="inline-flex items-center gap-1.5" style={{ fontSize: 11.5, color: 'var(--tf-text-secondary)' }}>
           <span aria-hidden style={{ width: 5, height: 5, borderRadius: '50%', background: statusInfo.dotColor, display: 'inline-block' }} />
           {statusInfo.label}
@@ -166,7 +163,7 @@ function MaCompactRowImpl({
       </td>
 
       {/* Aktionen */}
-      <td className="align-middle text-right" style={{ padding: '6px 8px', width: 30 }}>
+      <td className="align-middle text-right" style={{ padding: CELL_PAD, width: 30 }}>
         <button
           type="button"
           aria-label={expanded ? 'Zeile einklappen' : 'Zeile ausklappen'}

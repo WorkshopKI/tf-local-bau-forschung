@@ -78,6 +78,20 @@
   --kat-code-bg-l: 95%;
   --kat-text-l: 34%;
 
+  /* ── Auslastung: Altlasten-Rampe + Aktuell-Balken (v2.192, Design-Handoff
+     auslastung-balken). Gedämpfte Blau-Rampe auf dem Primär-Hue statt der
+     warmen Gelb→Orange→Rot-Ampel — die Ampel-/Severity-Konnotation kollidierte
+     mit den Status-/Kategorie-Farben. Dunkelstes = neuestes (Q-1), heller =
+     älter (Q-3–7). `--tf-akt-bar` = kräftigerer Akzent-Fill für „Aktuelles
+     Quartal". Alle über --tf-primary-h → folgen dem gewählten App-Akzent. ── */
+  --tf-akt-bar: hsl(var(--tf-primary-h), 48%, 42%);
+  --tf-altlast-band-1: hsl(var(--tf-primary-h), 18%, 64%);
+  --tf-altlast-band-2: hsl(var(--tf-primary-h), 14%, 74%);
+  --tf-altlast-band-3: hsl(var(--tf-primary-h), 12%, 83%);
+  --tf-altlast-band-1-text: #ffffff;
+  --tf-altlast-band-2-text: hsl(var(--tf-primary-h), 20%, 32%);
+  --tf-altlast-band-3-text: hsl(var(--tf-primary-h), 20%, 32%);
+
   /* ════════════════════════════════════════════════════════════════════════
      Design-Handoff-Token-Vertrag (v2.119) — Skala + Soft/Border-Familie.
      Diese Tokens lebten vorher nur als lokale Lückenfüller in chat.css/
@@ -247,6 +261,17 @@
   --kat-band-l: 22%;
   --kat-code-bg-l: 24%;
   --kat-text-l: 70%;
+
+  /* Auslastung-Rampe (Dark): Lightness fällt statt near-white. Neuestes (Band-1)
+     bleibt am hellsten/prominentesten auf dem dunklen Grund, älter = dunkler.
+     Segment-Text entsprechend hell auf den beiden dunkleren Bändern. */
+  --tf-akt-bar: hsl(var(--tf-primary-h), 42%, 52%);
+  --tf-altlast-band-1: hsl(var(--tf-primary-h), 22%, 52%);
+  --tf-altlast-band-2: hsl(var(--tf-primary-h), 16%, 42%);
+  --tf-altlast-band-3: hsl(var(--tf-primary-h), 12%, 34%);
+  --tf-altlast-band-1-text: #ffffff;
+  --tf-altlast-band-2-text: hsl(var(--tf-primary-h), 18%, 82%);
+  --tf-altlast-band-3-text: hsl(var(--tf-primary-h), 18%, 82%);
 
   /* ── Design-Handoff-Token-Vertrag (v2.119) — Dark: nur die theme-abhängigen
      Werte überschreiben. Die Skala-Tokens (Typo/Spacing/Radius/Motion) sind

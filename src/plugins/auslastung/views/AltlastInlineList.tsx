@@ -7,9 +7,9 @@
  * Kapazität ein. Daher kein Empty-State: ohne Altanträge rendert die
  * Komponente `null` und die Karte bleibt unverändert.
  *
- * Spalten pro Zeile: [Dringlichkeits-Punkt] FKZ(+N) · Akronym · Status ·
+ * Spalten pro Zeile: [Alters-Punkt] FKZ(+N) · Akronym · Status ·
  * Antragsdatum · TVs, bündig über ein gemeinsames Grid-Raster. Der farbige Punkt
- * (Gelb Q-1 → Orange Q-2 → Rot Q-3..Q-7) spiegelt das Balken-Segment. Bei vielen
+ * (gedämpfte Blau-Rampe, dunkel Q-1 → hell Q-3..Q-7) spiegelt das Balken-Segment. Bei vielen
  * Altanträgen wächst die Karte nach unten (kein Scroll-Cap — bewusst, als PL-Übersicht).
  *
  * Bewusst eigene Datei (nicht in MaInlineDetail.tsx), damit jene Datei nicht
@@ -22,7 +22,7 @@ import type { MaAltlastBucket } from '../services/kapazitaet';
 import { altlastBandColor, ALTLAST_BAND_LABELS } from './uebersicht/altlast-colors';
 
 const HINT =
-  'Noch offene Anträge aus den letzten Quartalen (bis Q-7) — rein informativ, fließen nicht in die Kapazität ein. Farbe = Dringlichkeit (Gelb → Rot = neu → alt).';
+  'Noch offene Anträge aus den letzten Quartalen (bis Q-7) — rein informativ, fließen nicht in die Kapazität ein. Farbe = Alter (dunkel → hell = neu → alt).';
 
 /** Gemeinsames Spalten-Raster für Kopfzeile + Datenzeilen → alle Spalten
  *  stehen bündig untereinander.
