@@ -62,12 +62,12 @@ export function VerbundKopf({
 
       {/* Untertitel: Projekt-Titel (+ optionaler XSW-Suffix). */}
       {untertitel ? (
-        <p className="mt-2.5 m-0 text-[12.5px] leading-[1.6] text-[var(--tf-text-secondary)] whitespace-pre-wrap">
+        <p className="mt-2 m-0 text-[12.5px] leading-[1.6] text-[var(--tf-text-secondary)] whitespace-pre-wrap">
           {untertitel}
           <XswSuffix value={xsw} />
         </p>
       ) : xsw ? (
-        <div className="mt-2.5 text-[12.5px]">
+        <div className="mt-2 text-[12.5px]">
           <XswSuffix value={xsw} />
         </div>
       ) : null}

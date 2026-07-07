@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.198.5 — Förderanträge: Titel→Untertitel-Abstand auf 8px (Juli 2026)
+
+PATCH — Feinschliff zu v2.198.4: Abstand Titel→Untertitel im Detailkopf von 10px (`mt-2.5`) auf 8px (`mt-2`) reduziert ([VerbundKopf.tsx](src/plugins/antraege/VerbundKopf.tsx), inkl. XSW-Fallback-Zweig). Reiner Spacing-Tweak.
+
 ### v2.198.4 — Förderanträge: Titel→Untertitel-Abstand auf 10px (Juli 2026)
 
 PATCH — Feinschliff zu v2.198.3: Abstand Titel→Untertitel im Detailkopf von 12px (`mt-3`) auf 10px (`mt-2.5`) reduziert ([VerbundKopf.tsx](src/plugins/antraege/VerbundKopf.tsx), inkl. XSW-Fallback-Zweig). Reiner Spacing-Tweak.
