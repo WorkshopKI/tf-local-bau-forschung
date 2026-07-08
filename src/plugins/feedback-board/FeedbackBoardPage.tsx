@@ -227,8 +227,8 @@ export function FeedbackBoardPage(): React.ReactElement {
           className="mb-4"
         />
 
-        {/* Toolbar: Scope-Tabs + Suche + Sort + View */}
-        <div className="flex items-end justify-between gap-4 flex-wrap mb-3">
+        {/* Scope-Tabs (eigene Zeile) */}
+        <div className="mb-3">
           <ScopeTabs
             variant="tabs"
             items={scopeItems}
@@ -236,7 +236,14 @@ export function FeedbackBoardPage(): React.ReactElement {
             onChange={k => setScope(k as Scope)}
             aria-label="Feedback-Sicht"
           />
-          <div className="flex items-center gap-2 pb-1">
+        </div>
+
+        {/* Typ-Filter-Chips (links) + Suche/Sort/View (rechts) */}
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+          <div className="min-w-0 flex-1">
+            <FeedbackTypeChips items={typeChips} activeKey={filterKategorie} onChange={k => setFilterKategorie(k as FeedbackCategory | '')} />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none" />
               <Input
@@ -271,11 +278,6 @@ export function FeedbackBoardPage(): React.ReactElement {
               ))}
             </div>
           </div>
-        </div>
-
-        {/* Typ-Filter-Chips */}
-        <div className="mb-3">
-          <FeedbackTypeChips items={typeChips} activeKey={filterKategorie} onChange={k => setFilterKategorie(k as FeedbackCategory | '')} />
         </div>
       </div>
 

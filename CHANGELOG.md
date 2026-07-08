@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.200.1 — Feedback-Board: Layout-Feinschliff (Toolbar, Kanban, kompaktere Liste) (Juli 2026)
+
+PATCH — Vier Nachbesserungen am v2.199-Board nach dem ersten Blick am echten Datensatz. Nur Anordnung/Optik am öffentlichen Board, keine Daten-/Merge-/Service-Logik, keine Migration; Kurator-Ansicht unberührt.
+
+- **Toolbar zweizeilig geordnet** ([FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)): Scope-Tabs (Alle/Von mir/Vom Team) stehen allein in Zeile 1; Suche + Sortier-Umschalter + Liste/Board-Toggle wandern in Zeile 2 nach rechts **neben die Typ-Filter-Chips** (statt in die Scope-Zeile).
+- **Kanban ohne Lob-Spalte** ([FeedbackKanban.tsx](src/components/feedback/FeedbackKanban.tsx)): Das Board ist eine Status-Pipeline; Lob hat keinen Workflow und erscheint jetzt **nur noch in der Liste**, nicht mehr als Board-Spalte.
+- **Kanban klarer abgegrenzt**: Jede Spalte sitzt in einer dezent getönten Lane (`--tf-bg-secondary`), die Mini-Karten heben sich als hellere Kacheln mit feiner Erhebung davon ab — Spalten und Karten verschwimmen nicht mehr.
+- **Kompaktere Listen-Karten** ([FeedbackCard.tsx](src/components/feedback/FeedbackCard.tsx)): kurze Frage/Antwort-Paare stehen **nebeneinander** in zwei Spalten (statt gestapelt) und etwas straffere vertikale Abstände → niedrigere Karten, die freie rechte Fläche wird genutzt. Der Volltext bleibt im Detail-Drawer.
+- Verifiziert per `tsc` + `npx vitest run` (grün) + Convention-Guards (theme-token-contract, no-parallel-scope-tabs, no-raw-cta-fill, screen-context-coverage) + `build:dev`/`build:pl`. Visuelle Abnahme am `file://`-Build durch Thomas offen.
+
 ### v2.200.0 — Einstellungen neu gestaltet: Sidebar-Navigation, 5 Gruppen, Suche (Juli 2026)
 
 MINOR — Der Einstellungs-Bereich wurde nach dem Design-Handoff (`_design/handoff/einstellungen-gesamt`, „Variante B") neu aufgebaut: die horizontale 9-Tab-Leiste weicht einer **Settings-Sidebar** mit zwei Gruppen und **5 konsolidierten Panels** plus **Einstellungs-Suche**. Rein strukturell/visuell — keine Logik-/Datenmodell-Änderung, alle Feature-Flag-Sichtbarkeiten unverändert, keine Migration.

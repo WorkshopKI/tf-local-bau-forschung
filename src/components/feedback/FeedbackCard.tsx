@@ -47,7 +47,7 @@ export function FeedbackCard({ ticket, selected, mine, meId, meName, onSelect, o
       <button
         type="button"
         onClick={() => onSelect(ticket)}
-        className="flex-1 min-w-0 text-left flex items-start gap-3 px-3 py-3 cursor-pointer"
+        className="flex-1 min-w-0 text-left flex items-start gap-3 px-3 py-2.5 cursor-pointer"
       >
         {/* Typ-Icon-Quadrat */}
         <span className={`inline-flex items-center justify-center w-[30px] h-[30px] rounded-[8px] shrink-0 ${iconTint}`}>
@@ -62,9 +62,9 @@ export function FeedbackCard({ ticket, selected, mine, meId, meName, onSelect, o
           </div>
 
           {!narrow && segments.length > 0 && (
-            <div className="mt-1 space-y-0.5">
-              {segments.slice(0, 3).map((seg, i) => (
-                <p key={i} className="truncate text-[12.5px] text-[var(--tf-text-secondary)]">
+            <div className={`mt-1 grid gap-x-6 gap-y-0.5 ${segments.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              {segments.slice(0, 4).map((seg, i) => (
+                <p key={i} className="min-w-0 truncate text-[12.5px] text-[var(--tf-text-secondary)]">
                   {(seg.shortFrage || seg.frage) && (
                     <span className="uppercase tracking-[0.04em] text-[10.5px] text-[var(--tf-text-tertiary)] mr-1.5">
                       {seg.shortFrage || seg.frage}
@@ -77,7 +77,7 @@ export function FeedbackCard({ ticket, selected, mine, meId, meName, onSelect, o
           )}
 
           {/* Meta */}
-          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             {ticket.category !== 'praise' && (
               <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${STATUS_COLORS[ticket.kurator_status]}`}>
                 {STATUS_LABELS[ticket.kurator_status]}

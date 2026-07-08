@@ -29,6 +29,7 @@
 - Verwandte Einstellungen sind zusammengelegt: **Tastatur-Kürzel** stehen jetzt bei „Darstellung & Bedienung", und **Speicher, Dokumentenquellen, Tags und Team-Status** (früher „Online") unter „Daten & Verbindungen".
 - Beim **Datenordner** sitzen „Letzter Import" und **„Jetzt aktualisieren"** direkt in der Zeile — kein separater Abschnitt mehr.
 - Lange Erklärtexte stecken jetzt hinter kleinen **ⓘ-Symbolen**, sodass die Seite ruhiger wirkt.
+- Das **Feedback-Board** ist weiter verfeinert: Suche, Sortierung und Ansichts-Umschalter sitzen jetzt aufgeräumt neben den Typ-Filtern, die **Karten sind kompakter** (kurze Frage/Antwort-Paare stehen nebeneinander), und die **Board-Spalten** grenzen sich klarer voneinander ab. **Lob** erscheint nur noch in der Listen-Ansicht.
 
 ## v2.199 — 2026-07
 

@@ -1,6 +1,7 @@
 // Kanban-Board-Ansicht (Redesign v2.199): Spalten nach amtlichem kurator_status
-// (Pitfall #12 — Status kommt aus dem Feld, nicht aus Literalen der UI) + eine
-// eigene „Lob"-Spalte für Lob-Einträge. Kompakte Mini-Karten, 212px breit.
+// (Pitfall #12 — Status kommt aus dem Feld, nicht aus Literalen der UI). Lob hat
+// keinen Workflow → Lob-Einträge erscheinen NICHT auf dem Board (nur in der Liste).
+// Kompakte Mini-Karten in getönten Lanes.
 
 import { useMemo } from 'react';
 import { MessageSquare } from 'lucide-react';
@@ -10,7 +11,7 @@ import { feedbackAuthorLabel, feedbackTitle, getLucideIcon } from './feedbackUi'
 import { FeedbackVotePill } from './FeedbackVotePill';
 
 // Spalten-Reihenfolge = amtliche Status ohne 'archiviert' (die Board-Basis
-// blendet Archiviertes ohnehin aus). Lob-Einträge stehen in einer Extra-Spalte.
+// blendet Archiviertes ohnehin aus).
 const STATUS_COLUMNS: FeedbackStatus[] = ['neu', 'geplant', 'in_bearbeitung', 'umgesetzt', 'abgelehnt'];
 
 interface Props {
@@ -23,26 +24,23 @@ interface Props {
 }
 
 export function FeedbackKanban({ tickets, meineUserId, meId, meName, onSelect, onChanged }: Props): React.ReactElement {
-  const { byStatus, lob } = useMemo(() => {
+  const byStatus = useMemo(() => {
     const map = new Map<FeedbackStatus, FeedbackItem[]>();
-    const lobItems: FeedbackItem[] = [];
     for (const t of tickets) {
-      if (t.category === 'praise') { lobItems.push(t); continue; }
+      if (t.category === 'praise') continue; // Lob gehört nicht auf das Status-Board
       const arr = map.get(t.kurator_status);
       if (arr) arr.push(t); else map.set(t.kurator_status, [t]);
     }
-    return { byStatus: map, lob: lobItems };
+    return map;
   }, [tickets]);
 
-  const columns: Array<{ key: string; label: string; badgeCls: string; items: FeedbackItem[] }> = [
-    ...STATUS_COLUMNS.map(s => ({ key: s, label: STATUS_LABELS[s], badgeCls: STATUS_COLORS[s], items: byStatus.get(s) ?? [] })),
-    { key: 'lob', label: 'Lob', badgeCls: CATEGORY_COLORS.praise, items: lob },
-  ];
+  const columns: Array<{ key: string; label: string; badgeCls: string; items: FeedbackItem[] }> =
+    STATUS_COLUMNS.map(s => ({ key: s, label: STATUS_LABELS[s], badgeCls: STATUS_COLORS[s], items: byStatus.get(s) ?? [] }));
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-3">
       {columns.map(col => (
-        <div key={col.key} className="shrink-0 w-[212px]">
+        <div key={col.key} className="shrink-0 w-[216px] rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] p-2">
           <div className="flex items-center gap-2 mb-2 px-0.5">
             <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${col.badgeCls}`}>{col.label}</span>
             <span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">{col.items.length}</span>
@@ -81,7 +79,7 @@ function MiniCard({ ticket, mine, meId, meName, onSelect, onChanged }: {
 
   return (
     <div
-      className="rounded-[var(--tf-radius)] bg-[var(--tf-bg)] hover:bg-[var(--tf-hover)] transition-colors"
+      className="rounded-[var(--tf-radius)] bg-[var(--tf-bg)] shadow-sm hover:bg-[var(--tf-hover)] transition-colors"
       style={{ border: '0.5px solid var(--tf-border)', borderLeft: mine ? '2px solid var(--tf-primary-light)' : undefined }}
     >
       <button type="button" onClick={() => onSelect(ticket)} className="w-full text-left px-2.5 py-2 cursor-pointer">
